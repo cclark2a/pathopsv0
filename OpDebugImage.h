@@ -1,0 +1,130 @@
+#ifndef OpDebugImage_DEFINED
+#define OpDebugImage_DEFINED
+
+#if OP_DEBUG_IMAGE
+
+#include <string>
+#include <vector>
+
+struct OpCurve;
+struct OpEdge;
+struct OpInPath;
+struct OpIntersection;
+struct OpLine;
+struct OpOutPath;
+struct OpPoint;
+struct OpPointBounds;
+struct OpSegment;
+enum class Axis : uint8_t;
+typedef const OpPointBounds* ConstOpPointBoundsPtr;
+typedef const OpPoint* ConstOpPointPtr;
+
+constexpr int bitmapWH = 1000;
+
+struct OpRay {	// maybe this should be added formally?
+	OpRay(Axis a, float v)
+		: axis(a)
+		, value(v) {
+	}
+	Axis axis;
+	float value;
+};
+
+struct OpDebugImage {
+	static void add(const OpEdge* );
+	static void add(const OpIntersection* );
+	static void add(const OpSegment* );
+	static void add(Axis axis, float value);
+
+	static void addArrowHeadToPath(const OpLine& , class SkPath& );
+	static void addDiamondToPath(const OpPoint& , class SkPath& );
+	static void addToPath(const OpCurve& , class SkPath& );
+	static void center(int id, bool add);
+	static void clear(int id);
+	static void clearEdges();
+	static void clearIntersections();
+	static void clearLines();
+//	static void clearPaths();
+	static void clearScreen();
+	static void clearSegments();
+	static void drawDoubleCenter(OpPoint , bool add);
+	static void drawDoubleFocus();
+	static void drawDoubleFocus(const OpPointBounds& , bool add);
+	static void drawGrid();
+	static void drawDoublePath(const class SkPath& path, uint32_t color = 0xFF000000);
+	static void drawEdgeNormals();
+	static void drawEdgeWindings();
+	static void drawLines();
+	static void drawPath(const class SkPath& path);
+	static void drawPoints();
+	static void drawValue(const OpPoint& pt, std::string ptStr, uint32_t color = 0xFF000000);
+	static void find(int id, ConstOpPointBoundsPtr* ,ConstOpPointPtr* );
+	static void focus(int id, bool add);
+	static void focusEdges();
+	static void init(const OpInPath& left, const OpInPath& right);
+};
+
+extern void addEdges();
+extern void addIntersections();
+extern void addFocus(int id);
+extern void addSegments();
+extern void center(int id);
+extern void clear();
+
+extern void draw(const std::vector<OpEdge>& );  // to draw edge list built from intersections
+extern void draw(const std::vector<OpEdge*>& ); // to draw assemble linkups
+extern void draw(Axis , float );
+extern void draw();  // draw all current state
+
+extern void focus(int id);
+extern void help();
+extern void resetFocus();
+
+#define HIDE_SHOW_DECLARATION(Thing) \
+extern void hide##Thing(); \
+extern void show##Thing(); \
+extern void toggle##Thing()
+
+HIDE_SHOW_DECLARATION(Arrows);
+HIDE_SHOW_DECLARATION(Bounds);
+HIDE_SHOW_DECLARATION(Centers);
+HIDE_SHOW_DECLARATION(Chains);
+HIDE_SHOW_DECLARATION(Coincidences);
+HIDE_SHOW_DECLARATION(Controls);
+HIDE_SHOW_DECLARATION(Edges);
+HIDE_SHOW_DECLARATION(Grid);
+HIDE_SHOW_DECLARATION(Hex);
+HIDE_SHOW_DECLARATION(IDs);
+HIDE_SHOW_DECLARATION(Intersections);
+HIDE_SHOW_DECLARATION(Left);
+HIDE_SHOW_DECLARATION(Lines);
+HIDE_SHOW_DECLARATION(Normals);
+HIDE_SHOW_DECLARATION(Operands);
+HIDE_SHOW_DECLARATION(Paths);
+HIDE_SHOW_DECLARATION(Points);
+HIDE_SHOW_DECLARATION(Right);
+HIDE_SHOW_DECLARATION(Segments);
+HIDE_SHOW_DECLARATION(Sums);
+HIDE_SHOW_DECLARATION(Tangents);
+HIDE_SHOW_DECLARATION(Ts);
+HIDE_SHOW_DECLARATION(Values);
+HIDE_SHOW_DECLARATION(Windings);
+
+#undef HIDE_SHOW_DECLARATION
+
+extern void u(float );
+extern void u();
+extern void d(float );
+extern void d();
+extern void l(float );
+extern void l();
+extern void r(float );
+extern void r();
+extern void i(float );
+extern void i();
+extern void oo(float );
+extern void oo();
+
+#endif
+
+#endif
