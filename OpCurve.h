@@ -64,7 +64,8 @@ struct OpCurve {
     const OpQuad& asConicQuad() const;
     const OpCubic& asCubic() const;
 
-    int axisRayHit(Axis offset, float axisIntercept, rootCellar& cepts) const;
+    int axisRayHit(Axis offset, float axisIntercept, rootCellar& cepts, float start = 0,
+            float end = 1) const;
     float center(Axis offset, float axisIntercept) const;
     OpPtT findIntersect(Axis offset, const OpPtT& ) const;
     bool isFinite() const;
@@ -124,7 +125,7 @@ struct OpLine : OpCurve {
     }
 
     int axisRawHit(Axis offset, float axisIntercept, rootCellar& cepts) const;
-    int axisRayHit(Axis offset, float axisIntercept, rootCellar& cepts) const;
+//    int axisRayHit(Axis offset, float axisIntercept, rootCellar& cepts) const;
     float interp(XyChoice offset, float t) const;
     OpVector normal(float t) const;
     OpPoint ptAtT(float t) const;
@@ -149,7 +150,7 @@ struct OpQuad : OpCurve {
     }
 
     int axisRawHit(Axis offset, float axisIntercept, rootCellar& cepts) const;
-    int axisRayHit(Axis offset, float axisIntercept, rootCellar& cepts) const;
+ //   int axisRayHit(Axis offset, float axisIntercept, rootCellar& cepts) const;
     OpQuadCoefficients coefficients(Axis offset) const;
     int extrema(XyChoice offset, rootCellar& t) const;
     bool monotonic(XyChoice offset) const;
@@ -174,7 +175,7 @@ struct OpConic : OpCurve {
     }
 
     int axisRawHit(Axis offset, float axisIntercept, rootCellar& cepts) const;
-    int axisRayHit(Axis offset, float axisIntercept, rootCellar& cepts) const;
+//    int axisRayHit(Axis offset, float axisIntercept, rootCellar& cepts) const;
     OpQuadCoefficients coefficients(Axis offset, float intercept) const;
     float denominator(float t) const;
     OpQuadCoefficients derivative_coefficients(XyChoice offset) const;
@@ -210,9 +211,9 @@ struct OpCubic : OpCurve {
     }
 
     int axisRawHit(Axis offset, float axisIntercept, rootCellar& cepts) const;
-    int axisRayHit(Axis offset, float axisIntercept, rootCellar& cepts) const;
-    int axisRayHit(Axis offset, float axisIntercept, OpPtT start, OpPtT end,
-            rootCellar& cepts) const;
+//    int axisRayHit(Axis offset, float axisIntercept, rootCellar& cepts) const;
+//    int axisRayHit(Axis offset, float axisIntercept, OpPtT start, OpPtT end,
+//            rootCellar& cepts) const;
     OpCubicCoefficients coefficients(Axis offset) const;
     OpPoint doublePtAtT(float t) const;
     int extrema(XyChoice offset, rootCellar& t) const;

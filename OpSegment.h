@@ -75,12 +75,13 @@ struct OpSegment {
     DUMP_COMMON_DECLARATIONS();
 #endif
 #if OP_DEBUG_IMAGE
+    bool debugContains(const OpEdge* ) const; // distinguishes owned edges from temporary edges
     void draw() const;
 #endif
 
     OpContour* contour;
     OpCurve c;
-    OpPointBounds pointBounds;
+    OpPointBounds ptBounds;
     OpTightBounds tightBounds;
     std::vector<OpEdge> edges;
     // all intersections are stored here before edges are rewritten

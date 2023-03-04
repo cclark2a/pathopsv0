@@ -17,17 +17,21 @@ const OpQuad& OpCurve::asConicQuad() const { assert(conicType == type);
 const OpCubic& OpCurve::asCubic() const { assert(cubicType == type); 
         return *static_cast<const OpCubic*>(this); }
 
-int OpCurve::axisRayHit(Axis axis, float axisIntercept, rootCellar& cepts) const {
+int OpCurve::axisRayHit(Axis axis, float axisIntercept, rootCellar& cepts, float start,
+            float end) const {
+    int roots;
     switch (type) {
     case pointType: return 0;
-    case lineType: return asLine().axisRayHit(axis, axisIntercept, cepts);
-    case quadType: return asQuad().axisRayHit(axis, axisIntercept, cepts);
-    case conicType: return asConic().axisRayHit(axis, axisIntercept, cepts);
-    case cubicType: return asCubic().axisRayHit(axis, axisIntercept, cepts);
+    case lineType: roots = asLine().axisRawHit(axis, axisIntercept, cepts); break;
+    case quadType: roots = asQuad().axisRawHit(axis, axisIntercept, cepts); break;
+    case conicType: roots = asConic().axisRawHit(axis, axisIntercept, cepts); break;
+    case cubicType: roots = asCubic().axisRawHit(axis, axisIntercept, cepts); break;
     default:
-        assert(0);
+        assert(0); 
+        return 0;
     }
-    return 0;
+    roots = OpMath::KeepValidTs(cepts, roots, start, end);
+    return roots;
 }
 
 // call only with edge generated curves
@@ -41,9 +45,11 @@ float OpCurve::center(Axis axis, float intercept) const {
         auto ptr = pts[0].asPtr(axis); 
         return (intercept - ptr[0]) / (ptr[2] - ptr[0]); 
     }
-    case quadType: count = asQuad().axisRayHit(axis, intercept, cepts); break;
-    case conicType: count = asConic().axisRayHit(axis, intercept, cepts); break;
-    case cubicType: count = asCubic().axisRayHit(axis, intercept, cepts); break;
+    case quadType:
+    case conicType:
+    case cubicType: 
+        count = axisRayHit(axis, intercept, cepts); 
+    break;
     default:
         assert(0);
         return OpNaN;
@@ -58,11 +64,14 @@ OpPtT OpCurve::findIntersect(Axis axis, const OpPtT& opPtT) const {
     float intercept = *opPtT.pt.asPtr(axis);
     rootCellar cepts;
     switch (type) {
-    case pointType: return { pts[0], 0 };
-    case lineType: count = asLine().axisRayHit(axis, intercept, cepts); break;
-    case quadType: count = asQuad().axisRayHit(axis, intercept, cepts); break;
-    case conicType: count = asConic().axisRayHit(axis, intercept, cepts); break;
-    case cubicType: count = asCubic().axisRayHit(axis, intercept, cepts); break;
+    case pointType: 
+        return { pts[0], 0 };
+    case lineType:
+    case quadType:
+    case conicType:
+    case cubicType: 
+        count = axisRayHit(axis, intercept, cepts); 
+    break;
     default:
         assert(0);
         return OpPtT();

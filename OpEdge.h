@@ -228,8 +228,8 @@ private:
 		, sum(windingSum)
 		, priorT(0)
 		, nextAxis(Axis::vertical)
-		, nextLink(EdgeLink::unlinked)
 		, priorAxis(Axis::vertical)
+		, nextLink(EdgeLink::unlinked)
 		, priorLink(EdgeLink::unlinked)
 		, whichEnd(EdgeMatch::none)
 		, fail(EdgeFail::none)
@@ -265,11 +265,7 @@ public:
 	OpEdge(OpEdge&&) = default;
 	OpEdge& operator=(const OpEdge&) = default;
 	OpEdge& operator=(OpEdge&&) = default;
-
-	~OpEdge() {
-		if (OpDebugPathOpsEnable::inPathOps)
-			OpDebugImage::clear(id);
-	}
+	~OpEdge();	// reason: removes temporary edges from image list
 #endif
 	void apply();
 	void calcCenterT();
@@ -286,7 +282,7 @@ public:
 	bool hasLinkTo(EdgeMatch match) const { 
 			return EdgeLink::single == (EdgeMatch::start == match ? nextLink : priorLink); }
 	bool isClosed(OpEdge* test);
-	const OpEdge* isLoop(EdgeLoop ) const;
+	const OpEdge* isLoop(EdgeLoop , Axis axis = Axis::neither) const;	// if sum chain, an axis change breaks loop
 	OpEdge* linkUp(EdgeMatch , OpEdge* firstEdge);
 	void addMatchingEnds(const OpEdge& ) const;
 	void markFailNext(std::vector <OpEdge*>& , Axis );
@@ -363,15 +359,15 @@ public:
 	OpPtT end;
 	OpCurve curve_impl;	// only access through set curve function
 	OpCurve vertical_impl;	// only access through set vertical function
-	OpPointBounds pointBounds;
+	OpPointBounds ptBounds;
 	OpPointBounds linkBounds;
 	OpWinding winding;	// contribution: always starts as 1, 0 (or 0, 1)
 	OpWinding sum; // total incl. normal side of edge for operands (fill count in normal direction)
 	float priorT; // temporary used to carry result from prior sum to find winding
 	int id;
-	Axis nextAxis;	// the axis state when prior sum was found
-	EdgeLink nextLink;
+	Axis nextAxis;	// the axis state when next sum was found
 	Axis priorAxis;	// the axis state when prior sum was found
+	EdgeLink nextLink;
 	EdgeLink priorLink;
 	EdgeMatch whichEnd;	// if 'start', prior link end equals start; if 'end' prior end matches end
 	EdgeFail fail;	// how computation (e.g., center) failed (on fail, windings are set to zero)
@@ -380,7 +376,7 @@ public:
 	bool curveSet;
 	bool lineSet;
 	bool verticalSet;
-	bool isLine_impl;	// pointBounds 0=h/0=w catches horz/vert lines; if true, line is diagonal(?)
+	bool isLine_impl;	// ptBounds 0=h/0=w catches horz/vert lines; if true, line is diagonal(?)
 	bool isPoint;
 	bool active;  // used by ray casting to mark edges that may be to the left of casting edge
 	bool seenNext;

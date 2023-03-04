@@ -81,6 +81,40 @@ constexpr auto OpEpsilon = std::numeric_limits<float>::epsilon();
 struct OpPoint;
 struct OpRect;
 
+enum class XyChoice : uint8_t {
+    inX,
+    inY,
+    inZ     // used by conics
+};
+
+inline int operator+(XyChoice a) {
+    return static_cast<int>(a);
+}
+
+enum class Axis : uint8_t {
+    vertical,   // a vertical axis has a value in x
+    horizontal,  // a horizontal axis has a value in y
+    neither     // set when axis parameter is passed but has no meaning
+};
+
+inline int operator+(Axis a) {
+    return static_cast<int>(a);
+}
+
+inline Axis operator!(Axis a) {
+    return static_cast<Axis>(!static_cast<int>(a));
+}
+
+// xychoice and axis are two ways of saying the same thing; often, one can be cast to the other
+inline Axis toAxis(XyChoice choice) {
+    assert(XyChoice::inZ != choice);
+    return static_cast<Axis>(choice);
+}
+
+inline XyChoice toXyChoice(Axis axis) {
+    return static_cast<XyChoice>(axis);
+}
+
 struct OpVector {
     OpVector()
         : dx(OpNaN)
@@ -154,6 +188,11 @@ struct OpVector {
         return dx * a.dy - dy * a.dx;
     }
 
+    float choice(XyChoice xyChoice) const {
+        assert(XyChoice::inZ != xyChoice);
+        return *(&dx + +xyChoice);
+    }
+
     bool isFinite() const;
 
     float length() const {
@@ -174,29 +213,6 @@ struct OpVector {
     float dx;
     float dy;
 };
-
-enum class XyChoice : uint8_t {
-    inX,
-    inY,
-    inZ     // used by conics
-};
-
-inline int operator+(XyChoice a) {
-    return static_cast<int>(a);
-}
-
-enum class Axis : uint8_t {
-    vertical,
-    horizontal
-};
-
-inline int operator+(Axis a) {
-    return static_cast<int>(a);
-}
-
-inline Axis operator!(Axis a) {
-    return static_cast<Axis>(!static_cast<int>(a));
-}
 
 struct OpPoint {
     OpPoint() 
@@ -513,16 +529,9 @@ struct OpMath {
         return !(x == x);
     }
 
-    static int KeepValidTs(rootCellar& s, int realRoots) {
-        return KeepValidTs(s, realRoots, 0, 1);
-    }
+    static int KeepInteriorTs(rootCellar& s, int realRoots, float start = 0, float end = 1);
+    static int KeepValidTs(rootCellar& s, int realRoots, float start = 0, float end = 1);
 
-    static int KeepInteriorTs(rootCellar& s, int realRoots) {
-        return KeepInteriorTs(s, realRoots, 0, 1);
-    }
-
-    static int KeepInteriorTs(rootCellar& s, int realRoots, float start, float end);
-    static int KeepValidTs(rootCellar& s, int realRoots, float start, float end);
     static float Pin(float a, float b, float c);
 
     static float PinT(float t) {

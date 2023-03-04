@@ -16,6 +16,8 @@
 #include "OpDebugCompare.h"
 #endif
 
+#define OP_DEBUG_EDGE_INTERSECT 0	// set to analyze intersection crossings
+
 #if !defined(NDEBUG) || OP_RELEASE_TEST
 #include <string>
 
@@ -96,6 +98,7 @@ int32_t OpDebugHexToInt(const char*& str);
 float OpDebugHexToFloat(const char*& str);
 void OpDebugOut(const std::string&);
 void OpDebugSkip(const char*& str, const char* match);
+std::string OpDebugToString(float value, int precision);
 inline std::string OpDebugStr(int32_t x) { return std::to_string(x); }
 inline std::string OpDebugStr(size_t x) { return std::to_string(x); }
 inline std::string OpDebugStr(float x) { return std::to_string(x); }

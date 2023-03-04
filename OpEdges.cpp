@@ -28,9 +28,9 @@ OpEdges::OpEdges(OpEdge* sEdge, OpEdge* oEdge) {
 void OpEdges::addEdge(OpEdge* edge, EdgesToSort edgesToSort) {
 	if (!edge->winding.visible())	// skip edges no longer visible
 		return;
-	if (EdgesToSort::byBox == edgesToSort || edge->pointBounds.height())
+	if (EdgesToSort::byBox == edgesToSort || edge->ptBounds.height())
 		inX.push_back(edge);
-	if (EdgesToSort::byCenter == edgesToSort && edge->pointBounds.width())
+	if (EdgesToSort::byCenter == edgesToSort && edge->ptBounds.width())
 		inY.push_back(edge);
 }
 
@@ -126,12 +126,12 @@ IntersectResult OpEdges::AddIntersection(OpEdge& opp, const OpEdge& edge) {
 	auto alreadyContains = [](const std::vector<OpIntersection>& sects, const OpPtT& edgePtT,
 			const OpSegment* segment) {
 		for (auto& sect : sects) {
-			if (segment == sect.segment && edgePtT == sect.ptT)
+			if (segment == sect.segment && edgePtT.t == sect.ptT.t)
 				return true;
 		}
 		return false;
 	};
-	if (opp.segment == edge.segment && edge.pointBounds.touches(opp.pointBounds)
+	if (opp.segment == edge.segment && edge.ptBounds.touches(opp.ptBounds)
 			&& (opp.start == edge.end || opp.end == edge.start)) {
 		return IntersectResult::no;
 	}
@@ -155,9 +155,12 @@ IntersectResult OpEdges::AddIntersection(OpEdge& opp, const OpEdge& edge) {
 		OpPtT oppPtT = { oppCurve.ptAtT(septs.get(index)), oppT };
 		float edgeT = edge.findPtT(oppPtT.pt);
 		if (OpMath::Between(0, edgeT, 1)) {
-			OpPtT edgePtT = { oppPtT.pt, OpMath::Interp(edge.start.t, edge.end.t, edgeT) };
+            // pin point to both bounds, but only if it is on edge
 			OpSegment* eSegment = const_cast<OpSegment*>(edge.segment);
 			OpSegment* oSegment = const_cast<OpSegment*>(opp.segment);
+            oSegment->tightBounds.pin(&oppPtT.pt);
+            eSegment->tightBounds.pin(&oppPtT.pt);
+			OpPtT edgePtT = { oppPtT.pt, OpMath::Interp(edge.start.t, edge.end.t, edgeT) };
 #if OP_DEBUG
 			if (148 == eSegment->contour->contours->id)
 				OpDebugOut("");
@@ -165,6 +168,7 @@ IntersectResult OpEdges::AddIntersection(OpEdge& opp, const OpEdge& edge) {
 			if (!alreadyContains(eSegment->intersections, edgePtT, oSegment))
 				eSegment->intersections.emplace_back(edgePtT, oSegment, 0
 						OP_DEBUG_PARAMS(IntersectMaker::addIntersection1));
+//			OpDebugBreak(oSegment, 4, 265 == debugGlobalContours->id);
 			if (!alreadyContains(oSegment->intersections, oppPtT, eSegment))
 				oSegment->intersections.emplace_back(oppPtT, eSegment, 0
 						OP_DEBUG_PARAMS(IntersectMaker::addIntersection2));
@@ -184,15 +188,15 @@ FoundIntersections OpEdges::findIntersections() {
 		for (auto oppIter = edgeIter + 1; oppIter != inX.end(); ++oppIter) {
 			OpEdge* opp = const_cast<OpEdge*>(*oppIter);
 #if OP_DEBUG
-			if ((edge->id == 360 || edge->id == 63) && (opp->id == 360 || opp->id == 63))
+			if ((edge->id == 57 || edge->id == 49) && (opp->id == 57 || opp->id == 49))
 				OpDebugOut("");
 #endif
 #if OP_DEBUG_COMPARE
 			debugCompare.edges(edge, opp);
 #endif
-			if (edge->pointBounds.right < opp->pointBounds.left)
+			if (edge->ptBounds.right < opp->ptBounds.left)
 				break;
-			if (!edge->pointBounds.intersects(opp->pointBounds))
+			if (!edge->ptBounds.intersects(opp->ptBounds))
 				continue;
 			if (edge->segment == opp->segment && cubicType != edge->segment->c.type)	
 				continue;  // non-cubic handled in opsegment makeedges
@@ -205,7 +209,7 @@ FoundIntersections OpEdges::findIntersections() {
 				continue;
 			}
 			// if the curves' bounds share only a single intersection edge, check endpoints only
-			if (edge->pointBounds.touches(opp->pointBounds)) {
+			if (edge->ptBounds.touches(opp->ptBounds)) {
 				OpSegment* eSegment = const_cast<OpSegment*>(edge->segment);
 				OpSegment* oSegment = const_cast<OpSegment*>(opp->segment);
 				for (auto& edgePtT : { edge->start, edge->end }) {
@@ -230,9 +234,7 @@ FoundIntersections OpEdges::findIntersections() {
 			}
 			if (lineType == edge->segment->c.type || lineType == opp->segment->c.type)
 				continue;
-			OpEdgeIntersect opEdgeIntersect;
-			opEdgeIntersect.edgeParts.emplace_back(*edge);
-			opEdgeIntersect.oppParts.emplace_back(*opp);
+			OpEdgeIntersect opEdgeIntersect(edge, opp);
 			SectFound result = opEdgeIntersect.divideAndConquer();
 			if (SectFound::fail == result)
 				return FoundIntersections::fail;
@@ -269,9 +271,6 @@ static bool compareDistance(const EdgeDistance& s1, const EdgeDistance& s2) {
 void OpEdges::setSumChain(std::vector <OpEdge*>& inArray, size_t inIndex, Axis axis) {
 	// see if normal at center point is in direction of ray
 	OpEdge* edge = inArray[inIndex];
-//	OpDebugBreak(edge, 58, true);
-//	OpDebugBreak(edge, 63, true);
-//	OpDebugBreak(edge, 360, true);
 	assert(edge->winding.visible());
 	const OpSegment* edgeSeg = edge->segment;
 	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
@@ -299,7 +298,7 @@ void OpEdges::setSumChain(std::vector <OpEdge*>& inArray, size_t inIndex, Axis a
 	inIndex += 1;
 	for (; inIndex < inArray.size(); ++inIndex) {
 		OpEdge* advance = inArray[inIndex];
-		if (advance->pointBounds.ltChoice(perpendicular) > center)
+		if (advance->ptBounds.ltChoice(perpendicular) > center)
 			break;
 	}
 	std::vector<EdgeDistance> distance;
@@ -311,12 +310,13 @@ void OpEdges::setSumChain(std::vector <OpEdge*>& inArray, size_t inIndex, Axis a
 			continue;
 		if (!test->winding.visible())
 			continue;
-		if (test->pointBounds.ltChoice(axis) > normal)
+		if (test->ptBounds.ltChoice(axis) > normal)
 			continue;
-		if (test->pointBounds.rbChoice(axis) < normal)
+		if (test->ptBounds.rbChoice(axis) < normal)
 			continue;
 		OpRoots cepts;
 		do {	// try to find ray; look up to eight times
+//			OpDebugBreak(edge, 129, 92 == test->id);
 			const OpCurve& curve = test->setCurve();
 			cepts.count = curve.axisRayHit(axis, normal, cepts.roots);
 			// get the normal at the intersect point and see if it is usable
@@ -340,9 +340,10 @@ void OpEdges::setSumChain(std::vector <OpEdge*>& inArray, size_t inIndex, Axis a
 			const OpCurve& edgeCurve = edge->setCurve();
 			newMid /= 2;
 			newMidEnd = newMidEnd < .5 ? 1 - newMid : newMid;
-			float middle = OpMath::Interp(edge->pointBounds.ltChoice(axis),
-					edge->pointBounds.rbChoice(axis), newMidEnd);
+			float middle = OpMath::Interp(edge->ptBounds.ltChoice(axis),
+					edge->ptBounds.rbChoice(axis), newMidEnd);
 			float t = edgeCurve.center(axis, middle);
+			center = edgeCurve.ptAtT(t).choice(perpendicular);
 			normal = edgeCurve.ptAtT(t).choice(axis);
 			if (OpMath::IsNaN(t) || newMid <= 1.f/256.f) {	// give it at most eight tries
 				edge->fail = EdgeFail::recalcCenter;
@@ -361,11 +362,13 @@ void OpEdges::setSumChain(std::vector <OpEdge*>& inArray, size_t inIndex, Axis a
 		OpEdge* nextEdge = next->edge;
 		float delta = last->distance - next->distance;
 		if (!lastEdge->nextSum) {
+//			OpDebugBreak(lastEdge, 129, 92 == nextEdge->id);
 			lastEdge->nextSum = nextEdge;
 			lastEdge->nextAxis = axis;
 			lastEdge->unsortable |= delta <= OpEpsilon;
 		}
 		if (!nextEdge->priorSum) {
+//			OpDebugBreak(nextEdge, 129, 92 == lastEdge->id);
 			nextEdge->priorSum = lastEdge;
 			nextEdge->priorAxis = axis;
 			nextEdge->priorT = last->t;
@@ -374,6 +377,7 @@ void OpEdges::setSumChain(std::vector <OpEdge*>& inArray, size_t inIndex, Axis a
 		last = next;
 	}
 	if (last != &distance.back()) {
+//		OpDebugBreak(edge, 129, 92 == (last + 1)->edge->id);
 		edge->nextSum = (last + 1)->edge;
 		edge->nextAxis = axis;
 	}
@@ -444,8 +448,8 @@ FoundWindings OpEdges::setWindings() {
 }
 
 static bool compareXBox(const OpEdge* s1, const OpEdge* s2) {
-	const OpRect& r1 = s1->pointBounds;
-	const OpRect& r2 = s2->pointBounds;
+	const OpRect& r1 = s1->ptBounds;
+	const OpRect& r2 = s2->ptBounds;
 	if (r1.left < r2.left)
 		return true;
 	if (r1.left > r2.left)
@@ -459,12 +463,12 @@ static bool compareXBox(const OpEdge* s1, const OpEdge* s2) {
 
 // starting at left (-x), increasing
 static bool compareXCenter(const OpEdge* s1, const OpEdge* s2) {
-	return s1->pointBounds.left < s2->pointBounds.left;
+	return s1->ptBounds.left < s2->ptBounds.left;
 }
 
 // starting at top (-y), increasing
 static bool compareYCenter(const OpEdge* s1, const OpEdge* s2) {
-	return s1->pointBounds.top < s2->pointBounds.top;
+	return s1->ptBounds.top < s2->ptBounds.top;
 }
 
 void OpEdges::sort(EdgesToSort sortBy) {

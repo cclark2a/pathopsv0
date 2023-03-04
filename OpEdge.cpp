@@ -109,7 +109,7 @@ void OpEdge::apply() {
 // for center t (and center t only), use edge geometry since center is on edge even if there is error
 // and using segment instead might return more than one intersection
 void OpEdge::calcCenterT() {
-	const OpRect& r = pointBounds;
+	const OpRect& r = ptBounds;
 	if (setLinear()) {
 		center.t = OpMath::Interp(start.t, end.t, .5);
 		center.pt = r.center();
@@ -129,10 +129,10 @@ void OpEdge::calcCenterT() {
 		}
 		center.t = OpMath::Interp(start.t, end.t, t);
 		center.pt = curve.ptAtT(t);
-		center.pt.pin(pointBounds);
+		center.pt.pin(ptBounds);
 	}
-	assert(OpMath::Between(pointBounds.left, center.pt.x, pointBounds.right));
-	assert(OpMath::Between(pointBounds.top, center.pt.y, pointBounds.bottom));
+	assert(OpMath::Between(ptBounds.left, center.pt.x, ptBounds.right));
+	assert(OpMath::Between(ptBounds.top, center.pt.y, ptBounds.bottom));
 }
 
 void OpEdge::calcWinding(Axis axis) {
@@ -210,8 +210,8 @@ float OpEdge::findPtT(OpPoint opp) const {
 void OpEdge::findWinding(Axis axis  OP_DEBUG_PARAMS(int* debugWindingLimiter)) {
 	assert(++(*debugWindingLimiter) < 100);
 	assert(sum.unset());	// second pass or uninitialized
-	assert(!isLoop(EdgeLoop::sum));
-	assert(!priorSum || !priorSum->isLoop(EdgeLoop::sum));
+	assert(!isLoop(EdgeLoop::sum, axis));
+	assert(!priorSum || !priorSum->isLoop(EdgeLoop::sum, axis));
 	if (priorSum && priorSum->sum.unset())
 		priorSum->findWinding(axis  OP_DEBUG_PARAMS(debugWindingLimiter));
 	calcWinding(axis);
@@ -233,21 +233,21 @@ bool OpEdge::isClosed(OpEdge* test) {
 	return false;
 }
 
-const OpEdge* OpEdge::isLoop(EdgeLoop edgeLoop) const {
+const OpEdge* OpEdge::isLoop(EdgeLoop edgeLoop, Axis axis) const {
+	assert(EdgeLoop::link == edgeLoop && Axis::neither == axis ||
+			EdgeLoop::sum == edgeLoop && Axis::neither != axis);
 	const OpEdge* chain = this;
 	std::vector<const OpEdge*> seen;
 	do {
-		if (seen.end() != std::find(seen.begin(), seen.end(), chain)) {
+		if (seen.end() != std::find(seen.begin(), seen.end(), chain))
 			return chain;
-		}
 		seen.push_back(chain);
 		chain = EdgeLoop::link == edgeLoop ? chain->nextEdge : chain->nextSum;
-	} while (chain);
+	} while (chain && (EdgeLoop::link == edgeLoop || chain->nextAxis == axis));
 	chain = EdgeLoop::link == edgeLoop ? priorEdge : priorSum;
-	while (chain) {
-		if (seen.end() != std::find(seen.begin(), seen.end(), chain)) {
+	while (chain && (EdgeLoop::link == edgeLoop || chain->priorAxis == axis)) {
+		if (seen.end() != std::find(seen.begin(), seen.end(), chain))
 			return chain;
-		}
 		seen.push_back(chain);
 		chain = EdgeLoop::link == edgeLoop ? chain->priorEdge : chain->priorSum;
 	}
@@ -606,11 +606,11 @@ OpPointBounds OpEdge::setLinkBounds() {
 	}
 	if (linkBounds.isSet())
 		return linkBounds;
-	linkBounds = pointBounds;
+	linkBounds = ptBounds;
 	const OpEdge* edge = this;
 	while (edge != lastEdge) {
 		edge = edge->nextEdge;
-		linkBounds.add(edge->pointBounds);
+		linkBounds.add(edge->ptBounds);
 	}
 	return linkBounds;
 }
@@ -643,12 +643,12 @@ void OpEdge::setNextEdge(OpEdge* edge) {
 }
 
 void OpEdge::setPointBounds() {
-	pointBounds.set(start.pt, end.pt);
+	ptBounds.set(start.pt, end.pt);
 #if OP_DEBUG
-	OpPointBounds copy = pointBounds;
+	OpPointBounds copy = ptBounds;
 	for (int index = 0; index < segment->c.pointCount() - 2; ++index)
-		pointBounds.add(ctrlPts[index]);
-	assert(copy == pointBounds);
+		ptBounds.add(ctrlPts[index]);
+	assert(copy == ptBounds);
 #endif
 }
 
@@ -699,7 +699,7 @@ void OpEdge::subDivide() {
 	segment->c.subDivide(start, end, pts, &weight);
 	setFromPoints(pts);
 	setPointBounds();
-	if (lineType == segment->c.type || (!pointBounds.height() ^ !pointBounds.width())) {
+	if (lineType == segment->c.type || (!ptBounds.height() ^ !ptBounds.width())) {
 		isLine_impl = true;
 		lineSet = true;
 	}

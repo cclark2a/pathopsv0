@@ -26,12 +26,15 @@ SkBitmap bitmap;
 SkFont labelFont(nullptr, 20, 1, 0);
 
 std::vector<const OpIntersection*> coincidences;
-std::vector<const OpEdge*> edges;
+std::vector<const OpEdge*> segmentEdges;
+std::vector<const OpEdge*> temporaryEdges;
 std::vector<const OpIntersection*> intersections;
 std::vector<OpRay> lines;
 std::vector<OpInPath> operands;
 std::vector<const SkPath*> paths;
 std::vector<const OpSegment*> segments;
+int gridIntervals = 8;
+int valuePrecision = -1;		// minus one means unset?
 
 #define DRAW_FEATURE_GLOBAL(Thing) \
 bool draw##Thing##On = false
@@ -54,9 +57,11 @@ DRAW_FEATURE_GLOBAL(Operands);
 DRAW_FEATURE_GLOBAL(Paths);
 DRAW_FEATURE_GLOBAL(Points);
 DRAW_FEATURE_GLOBAL(Right);
+DRAW_FEATURE_GLOBAL(SegmentEdges);
 DRAW_FEATURE_GLOBAL(Segments);
 DRAW_FEATURE_GLOBAL(Sums);
 DRAW_FEATURE_GLOBAL(Tangents);
+DRAW_FEATURE_GLOBAL(TemporaryEdges);
 DRAW_FEATURE_GLOBAL(Ts);
 DRAW_FEATURE_GLOBAL(Values);
 DRAW_FEATURE_GLOBAL(Windings);
@@ -135,22 +140,54 @@ void OpDebugImage::drawDoubleFocus() {
 		DebugOpDraw(lines);
 	if (drawSegmentsOn)
 		DebugOpDraw(segments);
-	if (drawEdgesOn)
-		DebugOpDraw(edges);
-	if (drawNormalsOn)
-		OpDebugImage::drawEdgeNormals();
-	if (drawWindingsOn)
-		OpDebugImage::drawEdgeWindings();
+	if (drawEdgesOn) {
+		DebugOpClearEdges();
+		if (drawSegmentEdgesOn)
+			DebugOpDraw(segmentEdges);
+		if (drawTemporaryEdgesOn) {
+			DebugOpDraw(temporaryEdges);
+			if (OpEdgeIntersect::debugActive) {
+				DebugOpDraw(OpEdgeIntersect::debugActive->edgeParts);
+				DebugOpDraw(OpEdgeIntersect::debugActive->oppParts);
+			}
+		}
+	}
+	if (drawNormalsOn) {
+		if (drawSegmentEdgesOn)
+			OpDebugImage::drawEdgeNormals(segmentEdges);
+		if (drawTemporaryEdgesOn) {
+			OpDebugImage::drawEdgeNormals(temporaryEdges);
+			if (OpEdgeIntersect::debugActive) {
+				OpDebugImage::drawEdgeNormals(OpEdgeIntersect::debugActive->edgeParts);
+				OpDebugImage::drawEdgeNormals(OpEdgeIntersect::debugActive->oppParts);
+			}
+		}
+	}
+	if (drawWindingsOn) {
+		if (drawSegmentEdgesOn)
+			OpDebugImage::drawEdgeWindings(segmentEdges);
+		if (drawTemporaryEdgesOn) {
+			OpDebugImage::drawEdgeWindings(temporaryEdges);
+			if (OpEdgeIntersect::debugActive) {
+				OpDebugImage::drawEdgeWindings(OpEdgeIntersect::debugActive->edgeParts);
+				OpDebugImage::drawEdgeWindings(OpEdgeIntersect::debugActive->oppParts);
+			}
+		}
+	}
 	if (drawPointsOn)
 		OpDebugImage::drawPoints();
 	if (drawSegmentsOn && drawIDsOn)
 		DebugOpDrawSegmentIDs(segments, ids);
 	if (drawEdgesOn && drawIDsOn) {
-		if (OpEdgeIntersect::debugActive) {
-			DebugOpDrawEdgeIDs(OpEdgeIntersect::debugActive->edgeParts, ids, false);
-			DebugOpDrawEdgeIDs(OpEdgeIntersect::debugActive->oppParts, ids, true);
-	    }
-		DebugOpDrawEdgeIDs(edges, ids);
+		if (drawSegmentEdgesOn)
+			DebugOpDrawEdgeIDs(segmentEdges, ids);
+		if (drawTemporaryEdgesOn) {
+			DebugOpDrawEdgeIDs(temporaryEdges, ids);
+			if (OpEdgeIntersect::debugActive) {
+				DebugOpDrawEdgeIDs(OpEdgeIntersect::debugActive->edgeParts, ids, false);
+				DebugOpDrawEdgeIDs(OpEdgeIntersect::debugActive->oppParts, ids, true);
+			}
+		}
 	}
 	if (drawIntersectionsOn && drawIDsOn)
 		DebugOpDrawIntersectionIDs(intersections, ids);
@@ -172,7 +209,7 @@ void OpDebugImage::drawDoubleFocus(const OpPointBounds& b, bool add) {
 	drawDoubleFocus();
 }
 
-void OpDebugImage::drawDoublePath(const SkPath& path, SkColor color) {
+void OpDebugImage::drawDoublePath(const SkPath& path, uint32_t color) {
 	SkCanvas offscreen(bitmap);
 	SkPaint paint;
 	paint.setAntiAlias(true);
@@ -193,8 +230,7 @@ void OpDebugImage::drawGrid() {
 	SkPaint textPaint = paint;
 	paint.setStyle(SkPaint::kStroke_Style);
 	const float wh = (float) bitmapWH;
-	const int intervals = 8;
- 	const float interval = wh / intervals;
+ 	const float interval = wh / gridIntervals;
 	const int xOffset = 2;
 	double left, top, right, bottom;
 	DebugOpBounds(left, top, right, bottom);
@@ -207,16 +243,47 @@ void OpDebugImage::drawGrid() {
 		}
 		if (!drawValuesOn)
 			continue;
-		std::string xValStr = drawHexOn ? OpDebugDumpHex(xVal) : STR(xVal);
+		std::string xValStr = drawHexOn ? OpDebugDumpHex(xVal) : OpDebugToString(xVal, valuePrecision);
 		offscreen.drawString(SkString(xValStr), x + xOffset, bitmapWH - xOffset, labelFont, textPaint);
-		xVal += (right - left) / intervals;
+		xVal += (right - left) / gridIntervals;
 		offscreen.save();
 		offscreen.rotate(-90, 15, x - xOffset);
-		std::string yValStr = drawHexOn ? OpDebugDumpHex(yVal) : STR(yVal);
+		std::string yValStr = drawHexOn ? OpDebugDumpHex(yVal) : OpDebugToString(yVal, valuePrecision);
 		offscreen.drawString(SkString(yValStr), 15, x - xOffset, labelFont, textPaint);
 		offscreen.restore();
-		yVal += (bottom - top) / intervals;
+		yVal += (bottom - top) / gridIntervals;
 	}
+}
+
+// !!! should be named 'move grid center to' ? or should it keep center while zooming?
+void gridCenter(int x, int y) {
+	if (x < 0 || x >= gridIntervals || y < 0 || y >= gridIntervals)
+		return OpDebugOut("parameters must be in grid interval range: 0 to " + STR(gridIntervals) + "\n");
+	double left, top, right, bottom;
+	DebugOpBounds(left, top, right, bottom);
+	OpPoint center(left + (right - left) * (gridIntervals - x) / gridIntervals,
+			top + (bottom - top) * (gridIntervals - y) / gridIntervals);
+	OpDebugImage::drawDoubleCenter(center, false);
+}
+
+void gridLines(int intervals) {
+	gridIntervals = intervals;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void gridStep(float dxy) {
+	double left, top, right, bottom;
+	DebugOpBounds(left, top, right, bottom);
+	double currentStep = (right - left) / gridIntervals;
+	double newZoom = DebugOpGetZoomScale() * currentStep / dxy;
+	DebugOpSetZoomScale(newZoom);
+	// !!! assert bounds is square?
+	OpDebugImage::drawDoubleFocus();
+}
+
+void precision(int p) {
+	valuePrecision = p;
+	OpDebugImage::drawDoubleFocus();
 }
 
 void OpDebugImage::center(int id, bool add) {
@@ -233,18 +300,24 @@ typedef const OpPointBounds* ConstOpPointBoundsPtr;
 
 void OpDebugImage::find(int id, ConstOpPointBoundsPtr* boundsPtr, ConstOpPointPtr* pointPtr) {
 	const OpEdge* edge = nullptr;
-	for (auto e : edges) {
-		if (id == e->id)
-			edge = e;
+	for (const auto& v : { std::cref(segmentEdges), std::cref(temporaryEdges) }) {
+		for (const auto& e : v.get()) {
+			if (id == e->id)
+				edge = e;
+		}
 	}
 	if (!edge) {
 		edge = findEdge(id);
-		if (edge)
-			edges.push_back(edge);
+		if (edge) {
+			if (edge->segment->debugContains(edge))
+				segmentEdges.push_back(edge);
+			else
+				temporaryEdges.push_back(edge);
+		}
 	}
 	if (edge) {
 		DRAW_IDS_ON(Edges);
-		*boundsPtr = &edge->pointBounds;
+		*boundsPtr = &edge->ptBounds;
 		return;
 	}
 	const OpSegment* segment = nullptr;
@@ -259,7 +332,7 @@ void OpDebugImage::find(int id, ConstOpPointBoundsPtr* boundsPtr, ConstOpPointPt
 	}
 	if (segment) {
 		DRAW_IDS_ON(Segments);
-		*boundsPtr = &segment->pointBounds;
+		*boundsPtr = &segment->ptBounds;
 		return;
 	}
 	const OpIntersection* sect = nullptr;
@@ -291,7 +364,7 @@ void OpDebugImage::find(int id, ConstOpPointBoundsPtr* boundsPtr, ConstOpPointPt
 	if (coin) {
 		DRAW_IDS_ON(Coincidences);
 		// !!! wrong: add rect formed by both intersections with this id
-		*boundsPtr = &coin->segment->pointBounds;
+		*boundsPtr = &coin->segment->ptBounds;
 		return;
 	}
 	OpDebugOut("id " + STR(id) + " not found\n");
@@ -315,16 +388,27 @@ void center(int id) {
 	OpDebugImage::center(id, false);
 }
 
+void center(float x, float y) {
+	OpPoint c(x, y);
+	OpDebugImage::drawDoubleCenter(c, false);
+}
+
 void focus(int id) {
 	OpDebugImage::focus(id, false);
 }
 
 void OpDebugImage::focusEdges() {
-	if (edges.empty())
+	if (segmentEdges.empty() && temporaryEdges.empty())
 		return;
-	OpPointBounds focusRect = edges.front()->pointBounds;
-	for (auto edge : edges)
-		focusRect.add(edge->pointBounds);
+	OpPointBounds focusRect;
+	for (const auto& v : { std::cref(segmentEdges), std::cref(temporaryEdges) }) {
+		for (const auto& edge : v.get())
+			focusRect.add(edge->ptBounds);
+	}
+	if (!segmentEdges.empty())
+		DRAW_IDS_ON(SegmentEdges);
+	if (!temporaryEdges.empty())
+		DRAW_IDS_ON(TemporaryEdges);
 	DRAW_IDS_ON(Edges);
 	OpDebugImage::drawDoubleFocus(focusRect, false);
 }
@@ -332,9 +416,9 @@ void OpDebugImage::focusEdges() {
 void focusSegments() {
 	if (segments.empty())
 		return;
-	OpPointBounds focusRect = segments.front()->pointBounds;
+	OpPointBounds focusRect = segments.front()->ptBounds;
 	for (auto seg : segments)
-		focusRect.add(seg->pointBounds);
+		focusRect.add(seg->ptBounds);
 	DRAW_IDS_ON(Segments);
 	OpDebugImage::drawDoubleFocus(focusRect, false);
 }
@@ -345,9 +429,10 @@ void focusSegments() {
 void clear() {
 	OpDebugImage::clearScreen();
 	coincidences.clear();
-	edges.clear();
+	segmentEdges.clear();
+	temporaryEdges.clear();
 	intersections.clear();
-	lines.clear();
+	OpDebugImage::clearLines();
 	if (paths.size() > 2)
 		paths.erase(paths.begin() + 2, paths.end());
 	segments.clear();
@@ -356,7 +441,12 @@ void clear() {
 	DebugOpResetFocus();
 }
 
-void OpDebugImage::drawValue(const OpPoint& pt, std::string ptStr, SkColor color) {
+void clearLines() {
+	OpDebugImage::clearLines();
+	DebugOpResetFocus();
+}
+
+void OpDebugImage::drawValue(const OpPoint& pt, std::string ptStr, uint32_t color) {
 	SkPaint paint;
 	paint.setAntiAlias(true);
 	paint.setColor(color);
@@ -406,7 +496,7 @@ void OpDebugImage::drawValue(const OpPoint& pt, std::string ptStr, SkColor color
 
 void OpDebugImage::drawPoints() {
 	DebugOpClearPoints();
-	auto drawPathPt = [&](const SkPath* path) {
+	auto drawPathPt = [](const SkPath* path) { // lambda
 		SkPath::RawIter iter(*path);
 		SkPath::Verb verb;
 		do {
@@ -460,7 +550,7 @@ void OpDebugImage::drawPoints() {
 		}
 	}
 	if (drawEdgesOn) {
-		if (OpEdgeIntersect::debugActive) {
+		if (OpEdgeIntersect::debugActive && drawTemporaryEdgesOn) {
 			for (const auto& edge : OpEdgeIntersect::debugActive->edgeParts) {
 				DebugOpBuild(edge.start.pt, false);
 				DebugOpBuild(edge.end.pt, false);
@@ -478,21 +568,27 @@ void OpDebugImage::drawPoints() {
 				}
 			}
 	    }
-		for (const auto& edge : edges) {
-			DebugOpBuild(edge->start.pt);
-			DebugOpBuild(edge->end.pt);
-			if (drawControlsOn && edge->curveSet) {
-				for (int index = 1; index < edge->curve_impl.pointCount() - 1; ++index)
-					DebugOpBuild(edge->curve_impl.pts[index]);
+		auto drawEdges = [](const std::vector<const OpEdge*>& edges) { // lambda
+			for (const auto& edge : edges) {
+				DebugOpBuild(edge->start.pt);
+				DebugOpBuild(edge->end.pt);
+				if (drawControlsOn && edge->curveSet) {
+					for (int index = 1; index < edge->curve_impl.pointCount() - 1; ++index)
+						DebugOpBuild(edge->curve_impl.pts[index]);
+				}
 			}
-		}
+		};
+		if (drawSegmentEdgesOn)
+			drawEdges(segmentEdges);
+		if (drawTemporaryEdgesOn)
+			drawEdges(temporaryEdges);
 	}
 	if (drawIntersectionsOn) {
 		for (const auto& sect : intersections) {
 			DebugOpBuild(sect->ptT.pt);
 		}
 	}
-	if ((drawPointsOn || drawValuesOn) && OpEdgeIntersect::debugActive) {
+	if (OpEdgeIntersect::debugActive) {
 		const OpSegment* seg = OpEdgeIntersect::debugActive->oppParts[0].segment;
 		for (float t : OpEdgeIntersect::debugActive->oppTs)
 			DebugOpBuild(seg->c.ptAtT(t), t, true);
@@ -500,14 +596,45 @@ void OpDebugImage::drawPoints() {
 		for (float t : OpEdgeIntersect::debugActive->edgeTs)
 			DebugOpBuild(seg->c.ptAtT(t), t, false);
 	}
+	if (drawLinesOn) {
+		// Check if line intersects visible path, segment, or edge. If so, record point and t
+		auto checkEdges = [](const std::vector<const OpEdge*>& edges, const OpRay& ray) { // lambda
+			for (const auto& edge : edges)
+				DebugOpBuild(*edge, ray.axis, ray.value);
+		};
+		for (const auto& line : lines) {
+			if (drawPathsOn) {
+				DebugOpBuild(*operands[0].skPath, line.axis, line.value);
+				DebugOpBuild(*operands[1].skPath, line.axis, line.value);
+			}
+			if (drawSegmentsOn) {
+				for (const auto& c : debugGlobalContours->contours) {
+					for (const auto& seg : c.segments) {
+						if (pointType == seg.c.type)
+							continue;
+						DebugOpBuild(seg, line.axis, line.value);
+					}
+				}
+			}
+			if (OpEdgeIntersect::debugActive && drawTemporaryEdgesOn) {
+				for (const auto& edge : OpEdgeIntersect::debugActive->edgeParts)
+					DebugOpBuild(edge, line.axis, line.value);
+				for (const auto& edge : OpEdgeIntersect::debugActive->oppParts)
+					DebugOpBuild(edge, line.axis, line.value);
+			}
+			if (drawSegmentEdgesOn)
+				checkEdges(segmentEdges, line);
+			if (drawTemporaryEdgesOn)
+				checkEdges(temporaryEdges, line);
+		}
+	}
 	if (drawValuesOn) {
 		if (drawTsOn)
-			DebugOpDrawT(drawHexOn);
+			DebugOpDrawT(drawHexOn, valuePrecision);
 		else
-			DebugOpDrawValue(drawHexOn);
+			DebugOpDrawValue(drawHexOn, valuePrecision);
 	}
-	if (drawPointsOn)
-		DebugOpDrawDiamond();
+	DebugOpDrawDiamond();
 }
 
 void OpDebugImage::addDiamondToPath(const OpPoint& pt, SkPath& path) {
@@ -539,9 +666,16 @@ void OpDebugImage::addArrowHeadToPath(const OpLine& line, SkPath& path) {
 }
 
 void OpDebugImage::add(const OpEdge* edge) {
-	if (edges.end() != std::find(edges.begin(), edges.end(), edge))
-		return;
-	edges.push_back(edge);
+	for (const auto& v : { std::cref(segmentEdges), std::cref(temporaryEdges) }) {
+		for (const auto& e : v.get()) {
+			if (e == edge)
+				return;
+		}
+	}
+	if (edge->segment->debugContains(edge))
+		segmentEdges.push_back(edge);
+	else
+		temporaryEdges.push_back(edge);
 }
 
 void OpDebugImage::add(const OpIntersection* sect) {
@@ -560,19 +694,14 @@ void OpDebugImage::add(const OpSegment* segment) {
 	segments.push_back(segment);
 }
 
-// !!! currently only applies to edges, but probably should work for segments as well
-void OpDebugImage::clear(int id) {
-	for (auto edge = edges.begin(); edge != edges.end(); ++edge) {
-		if (id == (*edge)->id) {
-			edges.erase(edge);
-			return;
-		}
-	}
+void OpDebugImage::clearSegmentEdges() {
+	segmentEdges.clear();
+	drawSegmentEdgesOn = false;
 }
 
-void OpDebugImage::clearEdges() {
-	edges.clear();
-	drawEdgesOn = false;
+void OpDebugImage::clearTemporaryEdges() {
+	temporaryEdges.clear();
+	drawTemporaryEdgesOn = false;
 }
 
 void OpDebugImage::clearIntersections() {
@@ -615,10 +744,11 @@ HIDE_SHOW_DEFINITION(Lines);
 HIDE_SHOW_DEFINITION(Normals);
 HIDE_SHOW_DEFINITION(Paths)
 HIDE_SHOW_DEFINITION(Points);
+HIDE_SHOW_DEFINITION(SegmentEdges);
 HIDE_SHOW_DEFINITION(Segments);
 HIDE_SHOW_DEFINITION(Sums);
 HIDE_SHOW_DEFINITION(Tangents);
-HIDE_SHOW_DEFINITION(Ts);
+HIDE_SHOW_DEFINITION(TemporaryEdges);
 HIDE_SHOW_DEFINITION(Values);
 HIDE_SHOW_DEFINITION(Windings);
 
@@ -635,6 +765,29 @@ void showHex() {
 void toggleHex() {
 	drawHexOn ^= true;
 	drawValuesOn = drawHexOn;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void hideTs() {
+	drawTsOn = false;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void showTs() {
+	if (!DebugOpHasT()) {
+		OpDebugOut("there are no edge intersect t values\n");
+		return;
+	}
+	drawTsOn = true;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void toggleTs() {
+	if (!drawTsOn && !DebugOpHasT()) {
+		OpDebugOut("there are no edge intersect t values\n");
+		return;
+	}
+	drawTsOn ^= true;
 	OpDebugImage::drawDoubleFocus();
 }
 
@@ -716,7 +869,7 @@ void OpContours::draw() const {
 		for (auto& segment : contour.segments) {
 			if (drawSegmentsOn)
 				OpDebugImage::add(&segment);
-			if (drawEdgesOn)
+			if (drawEdgesOn && drawSegmentEdgesOn)
 				for (auto& edge : segment.edges)
 					OpDebugImage::add(&edge);
 			if (drawIntersectionsOn)
@@ -729,6 +882,7 @@ void OpContours::draw() const {
 
 void addEdges() {
 	drawEdgesOn = true;
+	drawSegmentEdgesOn = true;
 	debugGlobalContours->draw();
 }
 
@@ -740,6 +894,18 @@ void addIntersections() {
 void addSegments() {
 	drawSegmentsOn = true;
 	debugGlobalContours->draw();
+}
+
+OpEdge::~OpEdge() {
+	if (!OpDebugPathOpsEnable::inPathOps)
+		return;
+	assert(!segment->debugContains(this));
+	for (auto edge = temporaryEdges.begin(); edge != temporaryEdges.end(); ++edge) {
+		if (id == (*edge)->id) {
+			temporaryEdges.erase(edge);
+			return;
+		}
+	}
 }
 
 void OpEdge::addLink() const {
@@ -770,17 +936,17 @@ void OpEdge::drawChain(EdgeLoop edgeLoop) const {
 }
 
 void OpEdge::drawLink() const {
-	OpDebugImage::clearEdges();
+	OpDebugImage::clearTemporaryEdges();
 	drawChain(EdgeLoop::link);
 }
 
 void OpEdge::drawSum() const {
-	OpDebugImage::clearEdges();
+	OpDebugImage::clearTemporaryEdges();
 	drawChain(EdgeLoop::sum);
 }
 
 void OpEdges::draw() const {
-	OpDebugImage::clearEdges();
+	OpDebugImage::clearTemporaryEdges();
 	for (auto edge : inX)
 		OpDebugImage::add(edge);
 	OpDebugImage::focusEdges();
@@ -789,11 +955,11 @@ void OpEdges::draw() const {
 void OpEdgeIntersect::draw() const {
 	if (!edgeParts.size())
 		return OpDebugOut("OpEdgeIntersect missing edgeParts\n");
-	OpPointBounds focusRect = edgeParts.front().pointBounds;
+	OpPointBounds focusRect = edgeParts.front().ptBounds;
 	for (auto& edge : edgeParts)
-		focusRect.add(edge.pointBounds);
+		focusRect.add(edge.ptBounds);
 	for (auto& edge : oppParts)
-		focusRect.add(edge.pointBounds);
+		focusRect.add(edge.ptBounds);
 	if (oppTs.size() || edgeTs.size()) {
 		if (oppTs.size() && !oppParts.size())
 			return OpDebugOut("oppTs = " + STR(oppTs.size()) + " but oppParts == 0\n");
@@ -806,49 +972,68 @@ void OpEdgeIntersect::draw() const {
 	OpDebugImage::drawDoubleFocus(focusRect, false);
 }
 
-void OpDebugImage::drawEdgeNormals() {
+static void drawEdgeNormal(const OpEdge* edge) {
+	OpPoint drawCenter;
+	DebugOpPtToPt(edge->center.pt, drawCenter);
+	OpEdge copy(*edge);
+	const OpCurve& edgeCurve = copy.setCurve();
+	OpVector norm = edgeCurve.normal(edge->center.t).normalize() * .5;
+	OpLine normal(drawCenter, drawCenter + norm);
+	SkPath normalPath;
+	normalPath.moveTo(normal.pts[0].x, normal.pts[0].y);
+	if (normal.pts[1].x != normal.pts[1].x)
+		OpDebugOut("normal nan (edge id)" + STR(edge->id) + "\n");
+	normalPath.lineTo(normal.pts[1].x, normal.pts[1].y);
+	OpDebugImage::addArrowHeadToPath(normal, normalPath);
+	OpDebugImage::drawPath(normalPath);
+}
+
+void OpDebugImage::drawEdgeNormals(const std::vector<const OpEdge*>& edges) {
 	for (auto edge : edges) {
-		OpPoint drawCenter;
-		DebugOpPtToPt(edge->center.pt, drawCenter);
-		OpEdge copy(*edge);
-		const OpCurve& edgeCurve = copy.setCurve();
-		OpVector norm = edgeCurve.normal(edge->center.t).normalize() * .5;
-		OpLine normal(drawCenter, drawCenter + norm);
-		SkPath normalPath;
-		normalPath.moveTo(normal.pts[0].x, normal.pts[0].y);
-		if (normal.pts[1].x != normal.pts[1].x)
-			OpDebugOut("normal nan (edge id)" + STR(edge->id) + "\n");
-		normalPath.lineTo(normal.pts[1].x, normal.pts[1].y);
-		addArrowHeadToPath(normal, normalPath);
-		drawPath(normalPath);
+		drawEdgeNormal(edge);
 	}
 }
 
-
-void OpDebugImage::drawEdgeWindings() {
+void OpDebugImage::drawEdgeNormals(const std::vector<OpEdge>& edges) {
 	for (auto edge : edges) {
-		OpPoint drawCenter;
-		DebugOpPtToPt(edge->center.pt, drawCenter);
-		OpEdge copy(*edge);
-		const OpCurve& edgeCurve = copy.setCurve();
-		OpVector norm = edgeCurve.normal(edge->center.t).normalize() * .7f;
-		OpPoint sumSide = drawCenter + norm;
-		OpPoint oppSide = drawCenter - norm;
-		std::string sumLeft = STR(edge->sum.left);
-		std::string sumRight = STR(edge->sum.right);
-		std::string oppLeft = STR(edge->sum.left - edge->winding.left);
-		std::string oppRight = STR(edge->sum.right - edge->winding.right);
-		SkCanvas textLayer(bitmap);
-		SkPaint paint;
-		paint.setAntiAlias(true);
-		paint.setColor(SK_ColorBLACK);
-		textLayer.drawString(SkString(sumLeft), sumSide.x, sumSide.y, labelFont, paint);
-		paint.setColor(SK_ColorRED);
-		textLayer.drawString(SkString(sumRight), sumSide.x + 20, sumSide.y, labelFont, paint);
-		paint.setColor(SK_ColorBLACK);
-		textLayer.drawString(SkString(oppLeft), oppSide.x, oppSide.y, labelFont, paint);
-		paint.setColor(SK_ColorRED);
-		textLayer.drawString(SkString(oppRight), oppSide.x + 20, oppSide.y, labelFont, paint);
+		drawEdgeNormal(&edge);
+	}
+}
+
+static void drawEdgeWinding(const OpEdge* edge) {
+	OpPoint drawCenter;
+	DebugOpPtToPt(edge->center.pt, drawCenter);
+	OpEdge copy(*edge);
+	const OpCurve& edgeCurve = copy.setCurve();
+	OpVector norm = edgeCurve.normal(edge->center.t).normalize() * .7f;
+	OpPoint sumSide = drawCenter + norm;
+	OpPoint oppSide = drawCenter - norm;
+	std::string sumLeft = STR(edge->sum.left);
+	std::string sumRight = STR(edge->sum.right);
+	std::string oppLeft = STR(edge->sum.left - edge->winding.left);
+	std::string oppRight = STR(edge->sum.right - edge->winding.right);
+	SkCanvas textLayer(bitmap);
+	SkPaint paint;
+	paint.setAntiAlias(true);
+	paint.setColor(SK_ColorBLACK);
+	textLayer.drawString(SkString(sumLeft), sumSide.x, sumSide.y, labelFont, paint);
+	paint.setColor(SK_ColorRED);
+	textLayer.drawString(SkString(sumRight), sumSide.x + 20, sumSide.y, labelFont, paint);
+	paint.setColor(SK_ColorBLACK);
+	textLayer.drawString(SkString(oppLeft), oppSide.x, oppSide.y, labelFont, paint);
+	paint.setColor(SK_ColorRED);
+	textLayer.drawString(SkString(oppRight), oppSide.x + 20, oppSide.y, labelFont, paint);
+}
+
+void OpDebugImage::drawEdgeWindings(const std::vector<const OpEdge*>& edges) {
+	for (auto edge : edges) {
+		drawEdgeWinding(edge);
+	}
+}
+
+void OpDebugImage::drawEdgeWindings(const std::vector<OpEdge>& edges) {
+	for (auto edge : edges) {
+		drawEdgeWinding(&edge);
 	}
 }
 
@@ -882,7 +1067,7 @@ void OpDebugImage::drawLines() {
 }
 
 void draw(const std::vector<OpEdge*>& _edges) {
-	OpDebugImage::clearEdges();
+	OpDebugImage::clearTemporaryEdges();
 	for (auto edge : _edges) {
 		OpDebugImage::add(edge);
 	}
@@ -890,7 +1075,7 @@ void draw(const std::vector<OpEdge*>& _edges) {
 }
 
 void draw(const std::vector<OpEdge>& _edges) {
-	OpDebugImage::clearEdges();
+	OpDebugImage::clearTemporaryEdges();
 	for (auto& edge : _edges) {
 		OpDebugImage::add(&edge);
 	}
@@ -911,6 +1096,14 @@ void OpSegment::draw() const {
 	OpDebugImage::add(this);
 	DRAW_IDS_ON(Segments);
 	OpDebugImage::drawDoubleFocus();
+}
+
+bool OpSegment::debugContains(const OpEdge* edge) const {
+	for (auto& e : edges) {
+		if (edge == &e)
+			return true;
+	}
+	return false;
 }
 
 void OpOutPath::draw() const {

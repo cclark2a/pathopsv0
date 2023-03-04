@@ -7,13 +7,16 @@ int OpCubic::axisRawHit(Axis axis, float axisIntercept, rootCellar& cepts) const
     return OpMath::CubicRootsReal(coeff.a, coeff.b, coeff.c, coeff.d, cepts);
 }
 
+#if 0   // replace this with calls to axis raw hit followed by keep valid ts
 int OpCubic::axisRayHit(Axis axis, float axisIntercept, rootCellar& cepts) const {
     assert(debugGlobalIntersect == debugIntersect);
     OpCubicCoefficients coeff = coefficients(axis);
     coeff.d -= axisIntercept;
     return OpMath::CubicRootsValidT(coeff.a, coeff.b, coeff.c, coeff.d, cepts);
 }
+#endif
 
+#if 0   // only called by test code; comment out for now
 int OpCubic::axisRayHit(Axis axis, float axisIntercept, OpPtT startPtT, OpPtT endPtT, 
         rootCellar& cepts) const {
 #if OP_DEBUG
@@ -74,6 +77,7 @@ int OpCubic::axisRayHit(Axis axis, float axisIntercept, OpPtT startPtT, OpPtT en
 #endif
     return 1;
 }
+#endif
 
 OpCubicCoefficients OpCubic::coefficients(Axis axis) const {
     const float* ptr = pts[0].asPtr(axis);

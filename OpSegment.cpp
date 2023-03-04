@@ -112,7 +112,7 @@ int OpSegment::coinID(bool flipped) {
 }
 
 void OpSegment::complete() {
-    pointBounds.set(c);
+    ptBounds.set(c);
     tightBounds.set(c);
     recomputeBounds = false;
 #if OP_DEBUG
@@ -496,8 +496,8 @@ bool OpSegment::validEdge(float startT, float endT) const {
 }
 
 static bool compareXBox(const OpSegment* s1, const OpSegment* s2) {
-    const OpRect& r1 = s1->pointBounds;
-    const OpRect& r2 = s2->pointBounds;
+    const OpRect& r1 = s1->ptBounds;
+    const OpRect& r2 = s2->ptBounds;
     if (r1.left < r2.left)
         return true;
     if (r1.left > r2.left)
@@ -554,12 +554,11 @@ IntersectResult OpSegments::AddIntersection(OpSegment* opp, OpSegment* seg) {
     int foundCount = 0;
     for (unsigned index = 0; index < septs.count; ++index) {
         OpPtT oppPtT = { opp->c.ptAtT(septs.get(index)), septs.get(index) };
-        // turn pin back on, and document this time why it should be turned off
-        // make sure point is pinned to both bounds
-        opp->tightBounds.pin(&oppPtT.pt);
-        seg->tightBounds.pin(&oppPtT.pt);
         float edgeT = seg->findPtT(oppPtT.pt);
         if (OpMath::Between(0, edgeT, 1)) {
+            // pin point to both bounds, but only if it is on edge
+            opp->tightBounds.pin(&oppPtT.pt);
+            seg->tightBounds.pin(&oppPtT.pt);
 #if OP_DEBUG
 			if (51 == seg->contour->contours->id)
 				OpDebugOut("");
@@ -617,7 +616,7 @@ void OpSegments::findCoincidences() {
             OpSegment* opp = const_cast<OpSegment*>(*oppIter);
             if (!opp->winding.visible())
                 continue;
-            if (seg->pointBounds != opp->pointBounds)
+            if (seg->ptBounds != opp->ptBounds)
                 continue;
             bool reversed;
             MatchEnds match = seg->matchEnds(opp, &reversed);
@@ -664,9 +663,9 @@ FoundIntersections OpSegments::findIntersections() {
             OpSegment* opp = const_cast<OpSegment*>(*oppIter);
             if (!opp->winding.visible())
                 continue;
-            if (seg->pointBounds.right < opp->pointBounds.left)
+            if (seg->ptBounds.right < opp->ptBounds.left)
                 break;
-            if (!seg->pointBounds.intersects(opp->pointBounds))
+            if (!seg->ptBounds.intersects(opp->ptBounds))
                 continue;
             // for line-curve intersection we can directly intersect
             if (lineType == seg->c.type) {

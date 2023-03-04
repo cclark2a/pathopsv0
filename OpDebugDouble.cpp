@@ -462,7 +462,8 @@ void OpCubicPtAtT(const OpCubic& c, float f, OpPoint& pt) {
     pt.y = (float) dPt.y;
 }
 
-void OpCubicAxisRayHit(const OpCubic& c, Axis offset, float axisIntercept, rootCellar& cepts, int& roots) {
+void OpCubicAxisRayHit(const OpCubic& c, Axis offset, float axisIntercept, 
+        std::array<float, 5>& cepts, int& roots) {
     DebugOpCubic dCubic;
     for (int value = 0; value < 8; ++value)
         *(&dCubic.pts[0].x + value) = *(&c.pts[0].x + value);
@@ -519,12 +520,12 @@ void DebugOpResetFocus() {
     setBounds.reset();
 }
 
-static double ZoomScale() {
+double DebugOpGetZoomScale() {
     return std::pow(2, debugZoom / 8);
 }
 
 static DebugOpRect ZoomToRect() {
-    double scale = ZoomScale() * 2;
+    double scale = DebugOpGetZoomScale() * 2;
     double radiusX = debugBitmapBounds.x / scale;
     double radiusY = debugBitmapBounds.y / scale;
     return { debugCenter.x - radiusX, debugCenter.y - radiusY, 
@@ -636,7 +637,7 @@ std::vector<DebugOpCurve> debugPaths;
 std::vector<DebugOpPoint> debugPoints;  // used for path end points
 
 OpPoint DebugOpMap(DebugOpPoint dPt) {
-    double z = ZoomScale();
+    double z = DebugOpGetZoomScale();
     return OpPoint( (float) ((dPt.x - debugCenter.x) * z + debugBitmapBounds.x / 2 + debugMargin),
         (float) ((dPt.y - debugCenter.y) * z + debugBitmapBounds.y / 2 + debugMargin));
 }
@@ -692,6 +693,30 @@ void DebugOpBuild(const OpSegment& seg, std::vector<DebugOpCurve>& debugSegs) {
     curve.rectCurves(debugSegs);
 }
 
+void DebugOpBuild(const DebugOpPoint& dPt) {
+    DebugOpRect bounds = ZoomToRect();
+    if (!bounds.ptInRect(dPt))
+        return;
+    if (debugPoints.end() == std::find(debugPoints.begin(), debugPoints.end(), dPt))
+        debugPoints.push_back(dPt);
+}
+
+void DebugOpBuild(const OpSegment& seg, Axis axis, float ray) {
+    DebugOpCurve curve;
+    for (int i = 0; i < 4; ++i)
+        curve.pts[i] = { seg.c.pts[i].x, seg.c.pts[i].y } ;
+    curve.weight = seg.c.weight;
+    curve.type = seg.c.type;
+    debugRootCellar cepts;
+    int roots = curve.axisRayHit(axis, (double) ray, cepts);
+    for (int index = 0; index < roots; ++index) {
+        DebugOpPoint pt = curve.ptAtT(cepts[index]);
+        pt.t = cepts[index];
+        pt.color = DebugColor::black;
+        DebugOpBuild(pt);
+    }
+}
+
 void DebugOpDraw(const std::vector<const OpSegment*>& segments) {
     debugSegments.clear();
     for (auto seg : segments)
@@ -711,12 +736,40 @@ void DebugOpBuild(const OpEdge& edge, std::vector<DebugOpCurve>& debugEs) {
     curve.rectCurves(debugEs);
 }
 
+void DebugOpBuild(const OpEdge& edge, Axis axis, float ray) {
+    DebugOpCurve curve;
+    OpEdge copy(edge);
+    const OpCurve& c = copy.setCurve();
+    for (int i = 0; i < 4; ++i)
+        curve.pts[i] = { c.pts[i].x, c.pts[i].y } ;
+    curve.weight = c.weight;
+    curve.type = c.type;
+    curve.id = edge.id;
+    debugRootCellar cepts;
+    int roots = curve.axisRayHit(axis, (double) ray, cepts);
+    for (int index = 0; index < roots; ++index) {
+        DebugOpPoint pt = curve.ptAtT(cepts[index]);
+        pt.t = edge.start.t + (edge.end.t - edge.start.t) * cepts[index];
+        pt.color = DebugColor::black;
+        DebugOpBuild(pt);
+    }
+}
+
 void DebugOpPtToPt(const OpPoint& src, OpPoint& dst) {
     dst = DebugOpMap(DebugOpPoint(src.x, src.y));
 }
 
-void DebugOpDraw(const std::vector<const OpEdge*>& edges) {
+void DebugOpClearEdges() {
     debugEdges.clear();
+}
+
+void DebugOpDraw(const std::vector<OpEdge>& edges) {
+    for (auto edge : edges)
+        DebugOpBuild(edge, debugEdges);
+    DebugOpDraw(debugEdges);
+}
+
+void DebugOpDraw(const std::vector<const OpEdge*>& edges) {
     for (auto edge : edges)
         DebugOpBuild(*edge, debugEdges);
     DebugOpDraw(debugEdges);
@@ -797,6 +850,91 @@ void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs) {
     }
 }
 
+void DebugOpBuild(const SkPath& path, Axis axis, float ray) {
+    auto axisSect = [&](const DebugOpCurve& curve) {  // lambda
+        debugRootCellar cepts;
+        int roots = curve.axisRayHit(axis, (double) ray, cepts);
+        for (int index = 0; index < roots; ++index) {
+            DebugOpPoint pt = curve.ptAtT(cepts[index]);
+            pt.t = cepts[index];
+            pt.color = DebugColor::black;
+            DebugOpBuild(pt);
+        }
+    };
+    SkPath::RawIter iter(path);
+    SkPoint curveStart = {0, 0};
+    SkPath::Verb verb;
+    SkPoint lastPoint = {0, 0};
+    bool hasLastPoint = false;
+    DebugOpCurve curve;
+    curve.pathContour = ++nextContourID;
+    do {
+        SkPoint pts[4];
+        verb = iter.next(pts);
+        switch (verb) {
+        case SkPath::kMove_Verb:
+            // !!! if frame paths are supported, don't add close unless fill is set
+            if (hasLastPoint && lastPoint != curveStart) {
+                curve.pts[0] = { lastPoint.fX, lastPoint.fY } ; 
+                curve.pts[1] = { curveStart.fX, curveStart.fY } ; 
+                curve.type = OpType::lineType;
+                axisSect(curve);
+                hasLastPoint = false;
+            }
+            curveStart = pts[0];
+            curve.pathContour = ++nextContourID;
+            continue;
+        case SkPath::kLine_Verb:
+            curve.pts[0] = { pts[0].fX, pts[0].fY } ; 
+            curve.pts[1] = { pts[1].fX, pts[1].fY } ; 
+            curve.type = OpType::lineType;
+            axisSect(curve);
+            lastPoint = pts[1];
+            hasLastPoint = true;
+            break;
+        case SkPath::kQuad_Verb:
+            curve.pts[0] = { pts[0].fX, pts[0].fY } ; 
+            curve.pts[1] = { pts[1].fX, pts[1].fY } ; 
+            curve.pts[2] = { pts[2].fX, pts[2].fY } ; 
+            curve.type = OpType::quadType;
+            axisSect(curve);
+            lastPoint = pts[2];
+            hasLastPoint = true;
+            break;
+        case SkPath::kConic_Verb:
+            curve.pts[0] = { pts[0].fX, pts[0].fY } ; 
+            curve.pts[1] = { pts[1].fX, pts[1].fY } ; 
+            curve.pts[2] = { pts[2].fX, pts[2].fY } ; 
+            curve.weight = iter.conicWeight();
+            curve.type = OpType::conicType;
+            axisSect(curve);
+            lastPoint = pts[2];
+            hasLastPoint = true;
+            break;
+        case SkPath::kCubic_Verb:
+            curve.pts[0] = { pts[0].fX, pts[0].fY } ; 
+            curve.pts[1] = { pts[1].fX, pts[1].fY } ; 
+            curve.pts[2] = { pts[2].fX, pts[2].fY } ; 
+            curve.pts[3] = { pts[3].fX, pts[3].fY } ; 
+            curve.type = OpType::cubicType;
+            axisSect(curve);
+            lastPoint = pts[3];
+            hasLastPoint = true;
+            break;
+        case SkPath::kClose_Verb:
+            break;
+        case SkPath::kDone_Verb:
+            break;
+        }
+    } while (verb != SkPath::kDone_Verb);
+    if (hasLastPoint && lastPoint != curveStart) {
+        curve.pts[0] = { lastPoint.fX, lastPoint.fY } ; 
+        curve.pts[1] = { curveStart.fX, curveStart.fY } ; 
+        curve.type = OpType::lineType;
+        axisSect(curve);
+    }
+}
+
 void DebugOpDraw(const std::vector<const SkPath*>& paths) {
     debugPaths.clear();
     for (auto& path : paths)
@@ -851,23 +989,32 @@ void DebugOpDrawDiamond() {
     OpDebugImage::drawDoublePath(darkGreenPath, 0x80008000);
 }
 
-void DebugOpDrawT(bool inHex) {
+void DebugOpDrawT(bool inHex, int precision) {
     for (auto& point : debugPoints) {
         if (OpMath::IsNaN(point.t))
             continue;
         OpPoint pt = DebugOpMap(point);
-        std::string ptStr = inHex ? OpDebugDumpHex(point.t) : STR((float) point.t);
+        std::string ptStr = inHex ? OpDebugDumpHex(point.t) : 
+                OpDebugToString((float) point.t, precision);
         OpDebugImage::drawValue(pt, ptStr);
     }
 }
 
-void DebugOpDrawValue(bool inHex) {
+bool DebugOpHasT() {
+    for (auto& point : debugPoints) {
+        if (!OpMath::IsNaN(point.t))
+            return true;
+    }
+    return false;
+}
+
+void DebugOpDrawValue(bool inHex, int precision) {
     for (auto& point : debugPoints) {
         OpPoint pt = DebugOpMap(point);
         std::string ptStr = "(";
-        ptStr += inHex ? OpDebugDumpHex(point.x) : STR((float) point.x);
+        ptStr += inHex ? OpDebugDumpHex(point.x) : OpDebugToString((float) point.x, precision);
         ptStr += ", ";
-        ptStr += inHex ? OpDebugDumpHex(point.y) : STR((float) point.y);
+        ptStr += inHex ? OpDebugDumpHex(point.y) : OpDebugToString((float) point.y, precision);
         ptStr += ")";
         OpDebugImage::drawValue(pt, ptStr);
     }
@@ -959,19 +1106,23 @@ void DebugOpSetBounds(double left, double top, double right, double bottom) {
     double screenWidth = debugBitmapBounds.x;
     double screenHeight = debugBitmapBounds.y;
     double minScale = std::min(screenWidth / width, screenHeight / height);
-    debugZoom = std::log2(minScale) * 8;
+    DebugOpSetZoomScale(minScale);
 }
 
 void DebugOpSetCenter(double x, double y) {
     debugCenter = { x, y };
 }
 
+void DebugOpOffsetZoom(double dz) {
+    debugZoom += dz;
+}
+
 void DebugOpSetZoom(double z) {
     debugZoom = z;
 }
 
-void DebugOpOffsetZoom(double dz) {
-    debugZoom += dz;
+void DebugOpSetZoomScale(double z) {
+    debugZoom = std::log2(z) * 8;
 }
 
 void DebugOpOffsetCenter(double dx, double dy) {
@@ -980,7 +1131,7 @@ void DebugOpOffsetCenter(double dx, double dy) {
 }
 
 double DebugOpTranslate(double s) {
-    return s / 4 / ZoomScale();
+    return s / 4 / DebugOpGetZoomScale();
 }
 
 #endif

@@ -7,11 +7,13 @@ int OpQuad::axisRawHit(Axis axis, float axisIntercept, rootCellar& cepts) const 
     return OpMath::QuadRootsReal(coeff.a, coeff.b, coeff.c, cepts);
 }
 
+#if 0
 int OpQuad::axisRayHit(Axis axis, float axisIntercept, rootCellar& cepts) const {
     OpQuadCoefficients coeff = coefficients(axis);
     coeff.c -= axisIntercept;
     return OpMath::QuadRootsValidT(coeff.a, coeff.b, coeff.c, cepts);
 }
+#endif
 
 OpQuadCoefficients OpQuad::coefficients(Axis axis) const {
     const float* ptr = pts[0].asPtr(axis);

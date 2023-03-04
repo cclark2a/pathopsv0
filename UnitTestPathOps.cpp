@@ -145,6 +145,7 @@ enum class SpeedTest {
 	on
 };
 
+#if 0 // not worth maintaining for now
 void OpCubicErrorTest(CubicTest testType, SpeedTest speedTest) {
 	std::mt19937 rng;
 	std::normal_distribution<float> xy(0, 1024);
@@ -258,8 +259,8 @@ void OpCubicErrorTest(CubicTest testType, SpeedTest speedTest) {
 				for (auto& edge : segment.edges) {
 					rootCellar edgeCepts;
 					if (Axis::horizontal == axis ? 
-							!OpMath::Between(edge.pointBounds.top, intercept, edge.pointBounds.bottom) :
-							!OpMath::Between(edge.pointBounds.left, intercept, edge.pointBounds.right))
+							!OpMath::Between(edge.ptBounds.top, intercept, edge.ptBounds.bottom) :
+							!OpMath::Between(edge.ptBounds.left, intercept, edge.ptBounds.right))
 						continue;
 					int edgeRoots = cubic.axisRayHit(axis, intercept, edge.start, edge.end, edgeCepts);
 					if (SpeedTest::on == speedTest)
@@ -361,10 +362,8 @@ void OpCubicErrorTest(CubicTest testType, SpeedTest speedTest) {
 		// !!!consider: generating random 'useful' cubics?
 			// since any kind of drawing app will probably allow the user to move the control points anywhere,
 			// restricting the control points for testing is a bad idea
-	
-
-
 }
+#endif
 
 void OpCurveTest() {
 	const OpPoint pts[] = { { 100, 100 }, { 200, 100 }, { 200, 200 }, {100, 200} };
@@ -995,7 +994,7 @@ void OpTest_EdgeZero() {
 					head->addLine(data1[i1]);
 					head->addLine(data2[i2]);
 					OpSegment& seg1 = head->segments.front();
-//					opDebugImage.setFocus(seg1.pointBounds);
+//					opDebugImage.setFocus(seg1.ptBounds);
 					seg1.intersections.emplace_back(OpPtT(data1[0][0], 0), &seg1, 0
 							OP_DEBUG_PARAMS(IntersectMaker::opTestEdgeZero1));
 					seg1.intersections.emplace_back(OpPtT(data1[0][1], 1), &seg1, 0
@@ -1010,7 +1009,7 @@ void OpTest_EdgeZero() {
 					seg2.intersections.emplace_back(OpPtT(data2[0][1], 1), &seg2, 0
 							OP_DEBUG_PARAMS(IntersectMaker::opTestEdgeZero4));
 					seg2.makeEdges();
-//					opDebugImage.setFocus(seg2.pointBounds);
+//					opDebugImage.setFocus(seg2.ptBounds);
 					OpEdge& edge2 = seg2.edges[0];
 					if (!setWinding(edge2, w2))
 						continue;

@@ -5,10 +5,12 @@ int OpConic::axisRawHit(Axis offset, float axisIntercept, rootCellar& cepts) con
     return OpMath::QuadRootsReal(coeff.a, coeff.b, coeff.c - axisIntercept, cepts);
 }
 
+#if 0
 int OpConic::axisRayHit(Axis offset, float axisIntercept, rootCellar& cepts) const {
     OpQuadCoefficients coeff = coefficients(offset, axisIntercept);
     return OpMath::QuadRootsValidT(coeff.a, coeff.b, coeff.c - axisIntercept, cepts);
 }
+#endif
 
 OpQuadCoefficients OpConic::coefficients(Axis axis, float intercept) const {
     const float* ptr = pts[0].asPtr(axis);

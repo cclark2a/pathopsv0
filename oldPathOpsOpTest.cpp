@@ -9329,19 +9329,21 @@ static void calibrateOpDebugImage(skiatest::Reporter* reporter, const char* file
 }
 
 static struct TestDesc tests[] = {
-    TEST(cubics_d3),
+    TEST(crbug_526025), // fuzzer fails with inconsistent edge links. Succeeds in skia ops, so worth debugging one day
+    TEST(cubics_d2),
+    TEST(dean2),
+    TEST(loops62i),
     TEST(cubics44d),
+    TEST(loops61i),
+    TEST(cubics_d3),
     TEST(bug8380),  // fails in windingEdges.setWindings()
     TEST(filinmangust14),
     TEST(rects1),
-    TEST(loops61i),
     TEST(loops63i),
     TEST(bug5240),
-    TEST(loops62i),
     TEST(testXor1),
     TEST(loops_i1),
     TEST(fuzzX_392),
-    TEST(dean2),
     TEST(testRect1_u),
     TEST(testDiff2),
     TEST(cubicOp158),
@@ -9382,17 +9384,14 @@ static struct TestDesc tests[] = {
     TEST(loops_i4),
     TEST(loops_i5),
     TEST(loops_i6),
-    TEST(cubics_d2),
     TEST(fuzz38),   // fails gracefully : vertical edge is shadowed by near horizontal; near horizontal can't determine winding
     TEST(cubics45u),
     TEST(cubics_d),
     TEST(cubics_o),
-    TEST(crbug_526025), // fuzzer fails with inconsistent edge links. Succeeds in skia ops, so worth debugging one day
+    TEST(bug8380),
 
     // untested / not working
-    TEST(bug8380),  // assert(oEdge->ptT(Opposite(match)).pt == edge->end.pt);
-
-    TEST(grshapearcs1),  // assert(OpMath::Between(edge.start.t, bPtT.t, edge.end.t));
+    TEST(grshapearcs1),  // assert(segEnd.pt == oppEnd.pt); (in OpEdgeIntersect::addCurveCoin line 181)
 
     TEST(loops58iAsQuads),
     TEST(cubics41d),

@@ -30,6 +30,7 @@ struct OpRay {	// maybe this should be added formally?
 	float value;
 };
 
+// it should not be necessary to call these implementation functions directly
 struct OpDebugImage {
 	static void add(const OpEdge* );
 	static void add(const OpIntersection* );
@@ -40,20 +41,21 @@ struct OpDebugImage {
 	static void addDiamondToPath(const OpPoint& , class SkPath& );
 	static void addToPath(const OpCurve& , class SkPath& );
 	static void center(int id, bool add);
-	static void clear(int id);
-	static void clearEdges();
 	static void clearIntersections();
 	static void clearLines();
-//	static void clearPaths();
 	static void clearScreen();
 	static void clearSegments();
+	static void clearSegmentEdges();
+	static void clearTemporaryEdges();
 	static void drawDoubleCenter(OpPoint , bool add);
 	static void drawDoubleFocus();
 	static void drawDoubleFocus(const OpPointBounds& , bool add);
 	static void drawGrid();
 	static void drawDoublePath(const class SkPath& path, uint32_t color = 0xFF000000);
-	static void drawEdgeNormals();
-	static void drawEdgeWindings();
+	static void drawEdgeNormals(const std::vector<const OpEdge*>& );
+	static void drawEdgeNormals(const std::vector<OpEdge>& );
+	static void drawEdgeWindings(const std::vector<const OpEdge*>& );
+	static void drawEdgeWindings(const std::vector<OpEdge>& );
 	static void drawLines();
 	static void drawPath(const class SkPath& path);
 	static void drawPoints();
@@ -64,12 +66,15 @@ struct OpDebugImage {
 	static void init(const OpInPath& left, const OpInPath& right);
 };
 
+// call these inline or from the immediate window while debugging
 extern void addEdges();
 extern void addIntersections();
 extern void addFocus(int id);
 extern void addSegments();
 extern void center(int id);
+extern void center(float x, float y);
 extern void clear();
+extern void clearLines();
 
 extern void draw(const std::vector<OpEdge>& );  // to draw edge list built from intersections
 extern void draw(const std::vector<OpEdge*>& ); // to draw assemble linkups
@@ -77,7 +82,11 @@ extern void draw(Axis , float );
 extern void draw();  // draw all current state
 
 extern void focus(int id);
+extern void gridCenter(int x, int y);
+extern void gridLines(int );
+extern void gridStep(float dxy);
 extern void help();
+extern void precision(int );
 extern void resetFocus();
 
 #define HIDE_SHOW_DECLARATION(Thing) \
@@ -103,9 +112,11 @@ HIDE_SHOW_DECLARATION(Operands);
 HIDE_SHOW_DECLARATION(Paths);
 HIDE_SHOW_DECLARATION(Points);
 HIDE_SHOW_DECLARATION(Right);
+HIDE_SHOW_DECLARATION(SegmentEdges);
 HIDE_SHOW_DECLARATION(Segments);
 HIDE_SHOW_DECLARATION(Sums);
 HIDE_SHOW_DECLARATION(Tangents);
+HIDE_SHOW_DECLARATION(TemporaryEdges);
 HIDE_SHOW_DECLARATION(Ts);
 HIDE_SHOW_DECLARATION(Values);
 HIDE_SHOW_DECLARATION(Windings);

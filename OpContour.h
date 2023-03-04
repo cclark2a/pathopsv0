@@ -122,7 +122,7 @@ struct OpContour {
 
     void setBounds() {
         for (auto& segment : segments) {
-            pointBounds.add(segment.pointBounds);
+            ptBounds.add(segment.ptBounds);
             tightBounds.add(segment.tightBounds);
         }
     }
@@ -148,7 +148,7 @@ struct OpContour {
 
     OpContours* contours;
     std::list<OpSegment> segments;
-    OpPointBounds pointBounds;
+    OpPointBounds ptBounds;
     OpTightBounds tightBounds;
     OpOperand operand; // first or second argument to a binary operator
 #if OP_DEBUG

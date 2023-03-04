@@ -15,6 +15,7 @@ int OpLine::axisRawHit(Axis axis, float axisIntercept, rootCellar& cepts) const 
     return 1;
 }
 
+#if 0
 int OpLine::axisRayHit(Axis offset, float axisIntercept, rootCellar& cepts) const {
     int realRoots = axisRawHit(offset, axisIntercept, cepts);
     if (2 == realRoots)
@@ -22,6 +23,7 @@ int OpLine::axisRayHit(Axis offset, float axisIntercept, rootCellar& cepts) cons
     int foundRoots = OpMath::KeepValidTs(cepts, realRoots);
     return foundRoots;
 }
+#endif
 
 float OpLine::interp(XyChoice offset, float t) const {
     const float* ptr = &pts[0].x + +offset;

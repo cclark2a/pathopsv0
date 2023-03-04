@@ -677,7 +677,8 @@ std::string debugEdgeWindZero(WindZero wz) {
 }
 
 std::string OpEdge::debugDumpDetail() const {
-    std::string s;
+    std::string s = "edge[" + STR(id) + "] segment[" + STR(segment->id) + "] contour["
+            + STR(segment->contour->id) + "]\n";
     if (priorEdge || nextEdge || lastEdge) {
         s += "p/n/l:" + (priorEdge ? STR(priorEdge->id) : "-");
         s += "/" + (nextEdge ? STR(nextEdge->id) : "-");
@@ -685,16 +686,17 @@ std::string OpEdge::debugDumpDetail() const {
         s += " ";
     }
     if (priorSum)
-        s += "priorSum:" + STR(priorSum->id) + " ";
+        s += "priorSum:" + STR(priorSum->id) + " axis:" 
+                + (Axis::horizontal == priorAxis ? "horizontal " : "vertical ");
     if (nextSum)
-        s += "nextSum:" + STR(nextSum->id) + " ";
+        s += "nextSum:" + STR(nextSum->id) + " axis:"
+                + (Axis::horizontal == nextAxis ? "horizontal " : "vertical ");
     if (seenPrior)
         s += "seenPrior ";
     if (seenNext)
         s += "seenNext ";
     if (priorEdge || nextEdge || lastEdge || priorSum || nextSum || seenPrior || seenNext)
         s += "\n";
-    s += "[" + STR(id) + "] ";
     s += "{" + start.debugDump() + ", ";
     for (int i = 0; i < segment->c.pointCount() - 2; ++i)
         s += ctrlPts[i].debugDump() + ", ";
@@ -702,11 +704,11 @@ std::string OpEdge::debugDumpDetail() const {
     if (1 != weight)
         s += "w:" + OpDebugDump(weight) + " ";
     s += "center:" + center.debugDump() + "\n";
-    if (pointBounds.isSet())
-        s += "pb:" + pointBounds.debugDump() + " ";
+    if (ptBounds.isSet())
+        s += "pb:" + ptBounds.debugDump() + " ";
     if (linkBounds.isSet())
         s += "lb:" + linkBounds.debugDump();
-    if (pointBounds.isSet() || linkBounds.isSet())        
+    if (ptBounds.isSet() || linkBounds.isSet())        
         s += "\n";
     s += debugDumpWinding() + "\n";
     if (EdgeLink::unlinked != priorLink)
@@ -795,8 +797,8 @@ std::string OpEdge::debugDump() const {
         s += "w:" + OpDebugDump(weight) + " ";
     s += "t{" + OpDebugDump(start.t) + ", " +
         OpDebugDump(center.t) + ", " + OpDebugDump(end.t) + "}\n";
-    if (pointBounds.isSet())
-        s += "    pb:" + pointBounds.debugDump() + " ";
+    if (ptBounds.isSet())
+        s += "    pb:" + ptBounds.debugDump() + " ";
     if (linkBounds.isSet())
         s += "    lb:" + linkBounds.debugDump() + " ";
     s += "wind:" + STR(winding.left) + "/" + STR(winding.right) + " ";
@@ -974,6 +976,12 @@ void dump(const std::vector <OpEdge>& edges) {
     }
 }
 
+void dumpDetail(const std::vector <OpEdge>& edges) {
+    for (auto& edge : edges) {
+        OpDebugOut(edge.debugDumpDetail() + "\n");
+    }
+}
+
 const OpEdgeIntersect* OpEdgeIntersect::debugActive;
 
 void OpEdgeIntersect::dump() const {
@@ -990,6 +998,23 @@ void OpEdgeIntersect::dump() const {
             splitCount += EdgeSplit::yes == edge.doSplit;
         OpDebugOut("-- opp parts split: " + STR(splitCount) + " --\n");
         ::dump(oppParts);
+    }
+}
+
+void OpEdgeIntersect::dumpDetail() const {
+    if (edgeParts.size()) {
+        int splitCount = 0;
+        for (auto& edge : edgeParts)
+            splitCount += EdgeSplit::yes == edge.doSplit;
+        OpDebugOut("-- edge parts split: " + STR(splitCount) + " --\n");
+        ::dumpDetail(edgeParts);
+    }
+    if (oppParts.size()) {
+        int splitCount = 0;
+        for (auto& edge : oppParts)
+            splitCount += EdgeSplit::yes == edge.doSplit;
+        OpDebugOut("-- opp parts split: " + STR(splitCount) + " --\n");
+        ::dumpDetail(oppParts);
     }
 }
 
@@ -1058,6 +1083,10 @@ IntersectMakerName intersectMakerNames[] = {
 	INTERSECT_MAKER_NAME(addIntersection2),
 	INTERSECT_MAKER_NAME(addIntersection3),
 	INTERSECT_MAKER_NAME(addIntersection4),
+	INTERSECT_MAKER_NAME(addIntersection5),
+	INTERSECT_MAKER_NAME(addIntersection6),
+	INTERSECT_MAKER_NAME(addIntersection7),
+	INTERSECT_MAKER_NAME(addIntersection8),
 	INTERSECT_MAKER_NAME(addMatchingEnds1),
 	INTERSECT_MAKER_NAME(addMatchingEnds2),
 	INTERSECT_MAKER_NAME(addMatchingEnds3),
@@ -1134,7 +1163,7 @@ std::string OpSegment::debugDump() const {
 std::string OpSegment::debugDumpDetail() const {
     std::string s = debugDump() + "\n";
     s += winding.debugDump() + "\n";
-    s += "pb:" + pointBounds.debugDump() + " ";
+    s += "pb:" + ptBounds.debugDump() + " ";
     s += "tb:" + tightBounds.debugDump() + "\n";
     s += "contour:" + STR(contour->id);
     return s;

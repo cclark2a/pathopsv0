@@ -16,7 +16,7 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
     for (auto edge : edges.inX) {
         edge->setActive();
     }
-#if OP_DEBUG
+#if 0 && OP_DEBUG
     clear();
     edges.draw();
 //    addEdges();
@@ -85,7 +85,7 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
         // !!! incomplete
     }
 #endif
-#if OP_DEBUG
+#if 0 && OP_DEBUG
     OpDebugOut("");
 #endif
     // !!! to do : find edges to fill gaps in remaining pieces, starting with the largest
@@ -96,7 +96,7 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
             return false;   // if edges form loop with tail, fail
         // determine direction of linked edges, if any (a straight line won't have a direction)
         Output(linkup, path);  // emit the contour
-#if OP_DEBUG
+#if 0 && OP_DEBUG
         dump(linkups);
         OpDebugOut("");
 #endif
