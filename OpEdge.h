@@ -100,7 +100,8 @@ enum class ZeroReason : uint8_t {
 	matchClosest,
 	matchLink,
 	noFlip,
-	rayNormal
+	rayNormal,
+	resolveCoin,
 };
 
 struct OpWinding {
@@ -212,7 +213,13 @@ enum class EdgeMaker {
 	intersectEdge2,
 	makeEdges,
 	opTest,
-	split
+	resolveCoin1,
+	resolveCoin2,
+	resolveCoin3,
+	split1,
+	split2,
+	split3,
+	split4
 };
 #endif
 
@@ -236,6 +243,7 @@ private:
 		, windZero(WindZero::noFlip)
 		, doSplit(EdgeSplit::no)
 		, curveSet(false)
+		, endAliased(false)
 		, lineSet(false)
 		, verticalSet(false)
 		, isLine_impl(false)
@@ -243,7 +251,10 @@ private:
 		, active(false)
 		, seenNext(false)
 		, seenPrior(false)
+		, startAliased(false)
 		, unsortable(false) {
+		OP_DEBUG_CODE(debugAliasStartID = 0);
+		OP_DEBUG_CODE(debugAliasEndID = 0);
 	}
 public:
 	OpEdge(const OpSegment* s, OpPtT t1, OpPtT t2  OP_DEBUG_PARAMS(EdgeMaker maker))
@@ -259,6 +270,7 @@ public:
 	}
 
 	OpEdge(const OpEdge* e, OpPtT newPtT, NewEdge isLeftRight  OP_DEBUG_PARAMS(EdgeMaker maker));
+	OpEdge(const OpEdge* e, const OpPtT& start, const OpPtT& end  OP_DEBUG_PARAMS(EdgeMaker maker));
 
 #if OP_DEBUG_IMAGE
 	OpEdge(const OpEdge&) = default;
@@ -374,6 +386,7 @@ public:
 	WindZero windZero; // normal means edge normal points to zero side; opposite, normal is non-zero
 	EdgeSplit doSplit;
 	bool curveSet;
+	bool endAliased;
 	bool lineSet;
 	bool verticalSet;
 	bool isLine_impl;	// ptBounds 0=h/0=w catches horz/vert lines; if true, line is diagonal(?)
@@ -381,12 +394,16 @@ public:
 	bool active;  // used by ray casting to mark edges that may be to the left of casting edge
 	bool seenNext;
 	bool seenPrior;
+	bool startAliased;
 	bool unsortable;
 #if OP_DEBUG
 	EdgeMaker debugMaker;
+	OpPoint debugOriginalStart;
+	OpPoint debugOriginalEnd;
 	int debugParentID;
+	int debugAliasStartID;
+	int debugAliasEndID;
 #endif
-
 };
 
 #endif

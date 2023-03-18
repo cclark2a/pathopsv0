@@ -78,7 +78,7 @@ struct OpPointBounds : OpRect {
     }
 
 #if OP_DEBUG
-    bool debugContains(const OpPoint& pt) {
+    bool debugContains(OpPoint pt) {
 //        assert(pt.isFinite());    // in debug code, points may be NaN
         return OpMath::Between(left, pt.x, right) && OpMath::Between(top, pt.y, bottom);
     }

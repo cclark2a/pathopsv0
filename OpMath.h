@@ -170,7 +170,7 @@ struct OpVector {
         return result;
     }
 
-    friend OpVector operator*(float a, const OpVector& b) {
+    friend OpVector operator*(float a, const OpVector& b) {  // must be const ref to disambiguate
         return { a * b.dx, a * b.dy };
     }
 
@@ -203,7 +203,7 @@ struct OpVector {
         return dx * dx + dy * dy;
     }
 
-    OpVector& normalize();
+    OpVector normalize();
 
 #if OP_DEBUG_DUMP
     std::string debugDump() const;
@@ -225,7 +225,7 @@ struct OpPoint {
         , y(_y) {
     }
 
-    OpPoint(const OpVector& v) 
+    OpPoint(OpVector v) 
         : x(v.dx)
         , y(v.dy) {
     }
@@ -240,7 +240,7 @@ struct OpPoint {
         return { a.dx - b.x, a.dy - b.y };
     }
 
-    friend OpPoint operator+(const OpPoint& a, OpVector b) {
+    friend OpPoint operator+(const OpPoint& a, OpVector b) {  // must be const ref to disambiguate
         return { a.x + b.dx, a.y + b.dy };
     }
 
@@ -301,11 +301,11 @@ struct OpPoint {
         return result;
     }
 
-    friend OpPoint operator*(float a, const OpPoint& b) {
+    friend OpPoint operator*(float a, const OpPoint& b) {  // must be const ref to disambiguate
         return { a * b.x, a * b.y };
     }
 
-    friend OpPoint operator*(const OpPoint& b, float a) {
+    friend OpPoint operator*(const OpPoint& b, float a) {  // must be const ref to disambiguate
         return { a * b.x, a * b.y };
     }
 

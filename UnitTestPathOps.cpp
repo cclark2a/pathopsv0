@@ -995,18 +995,18 @@ void OpTest_EdgeZero() {
 					head->addLine(data2[i2]);
 					OpSegment& seg1 = head->segments.front();
 //					opDebugImage.setFocus(seg1.ptBounds);
-					seg1.intersections.emplace_back(OpPtT(data1[0][0], 0), &seg1, 0
+					seg1.add(OpPtT(data1[0][0], 0), &seg1
 							OP_DEBUG_PARAMS(IntersectMaker::opTestEdgeZero1));
-					seg1.intersections.emplace_back(OpPtT(data1[0][1], 1), &seg1, 0
+					seg1.add(OpPtT(data1[0][1], 1), &seg1
 							OP_DEBUG_PARAMS(IntersectMaker::opTestEdgeZero2));
 					seg1.makeEdges();
 					OpEdge& edge1 = seg1.edges[0];
 					if (!setWinding(edge1, w1))
 						continue;
 					OpSegment& seg2 = *std::next(head->segments.begin());
-					seg2.intersections.emplace_back(OpPtT(data2[0][0], 0), &seg2, 0
+					seg2.add(OpPtT(data2[0][0], 0), &seg2
 							OP_DEBUG_PARAMS(IntersectMaker::opTestEdgeZero3));
-					seg2.intersections.emplace_back(OpPtT(data2[0][1], 1), &seg2, 0
+					seg2.add(OpPtT(data2[0][1], 1), &seg2
 							OP_DEBUG_PARAMS(IntersectMaker::opTestEdgeZero4));
 					seg2.makeEdges();
 //					opDebugImage.setFocus(seg2.ptBounds);

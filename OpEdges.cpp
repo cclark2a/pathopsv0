@@ -61,10 +61,8 @@ IntersectResult OpEdges::CoincidentCheck(OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpP
 	float CorD = CinAB ? C : D;
 	OpPtT ptTCorD = CinAB ? cPtT : dPtT;
 	if (AorB == CorD) {
-		segment->intersections.emplace_back(ptTAorB, oppSegment, 0
-				OP_DEBUG_PARAMS(IntersectMaker::addCurveCoincidence1));
-		oppSegment->intersections.emplace_back(ptTCorD, segment, 0
-				OP_DEBUG_PARAMS(IntersectMaker::addCurveCoincidence2));
+		segment->add(ptTAorB, oppSegment  OP_DEBUG_PARAMS(IntersectMaker::addCoincidentCheck1));
+		oppSegment->add(ptTCorD, segment  OP_DEBUG_PARAMS(IntersectMaker::addCoincidentCheck2));
 		return IntersectResult::yes;
 	}
 	// pass a mix of seg and opp; construct one t for each
@@ -89,12 +87,10 @@ void OpEdges::AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped,
 	float oStart = cPtT.pt.choice(xyChoice);
 	float oEnd = dPtT.pt.choice(xyChoice);
 	float oTRange = dPtT.t - cPtT.t;
-	OpPtT oCoinStart = { ptTAorB.pt, cPtT.t + (eStart - oStart) / (oEnd - oStart) * oTRange };
+	OpPtT oCoinStart { ptTAorB.pt, cPtT.t + (eStart - oStart) / (oEnd - oStart) * oTRange };
 	assert(OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t));
-	segment->intersections.emplace_back(ptTAorB, oppSegment, coinID
-			OP_DEBUG_PARAMS(IntersectMaker::addMix1));
-	oppSegment->intersections.emplace_back(oCoinStart, segment, coinID
-			OP_DEBUG_PARAMS(IntersectMaker::addMix2));
+	segment->add(ptTAorB, oppSegment, coinID  OP_DEBUG_PARAMS(IntersectMaker::addMix1));
+	oppSegment->add(oCoinStart, segment, coinID  OP_DEBUG_PARAMS(IntersectMaker::addMix2));
 }
 
 IntersectResult OpEdges::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpPtT dPtT,
@@ -106,19 +102,15 @@ IntersectResult OpEdges::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPt
 	float oStart = cPtT.pt.choice(xyChoice);
 	float oEnd = dPtT.pt.choice(xyChoice);
 	float oTRange = dPtT.t - cPtT.t;
-	OpPtT oCoinStart = { aPtT.pt, cPtT.t + (eStart - oStart) / (oEnd - oStart) * oTRange };
-	OpPtT oCoinEnd = { bPtT.pt, cPtT.t + (eEnd - oStart) / (oEnd - oStart) * oTRange };
+	OpPtT oCoinStart { aPtT.pt, cPtT.t + (eStart - oStart) / (oEnd - oStart) * oTRange };
+	OpPtT oCoinEnd { bPtT.pt, cPtT.t + (eEnd - oStart) / (oEnd - oStart) * oTRange };
 	assert(OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t));
 	assert(OpMath::Between(cPtT.t, oCoinEnd.t, dPtT.t));
 	int coinID = segment->coinID(flipped);
-	segment->intersections.emplace_back(aPtT, oppSegment, coinID
-			OP_DEBUG_PARAMS(IntersectMaker::addPair1));
-	segment->intersections.emplace_back(bPtT, oppSegment, coinID
-			OP_DEBUG_PARAMS(IntersectMaker::addPair2));
-	oppSegment->intersections.emplace_back(oCoinStart, segment, coinID
-			OP_DEBUG_PARAMS(IntersectMaker::addPair3));
-	oppSegment->intersections.emplace_back(oCoinEnd, segment, coinID
-			OP_DEBUG_PARAMS(IntersectMaker::addPair4));
+	segment->add(aPtT, oppSegment, coinID  OP_DEBUG_PARAMS(IntersectMaker::addPair1));
+	segment->add(bPtT, oppSegment, coinID  OP_DEBUG_PARAMS(IntersectMaker::addPair2));
+	oppSegment->add(oCoinStart, segment, coinID  OP_DEBUG_PARAMS(IntersectMaker::addPair3));
+	oppSegment->add(oCoinEnd, segment, coinID  OP_DEBUG_PARAMS(IntersectMaker::addPair4));
 	return IntersectResult::yes;
 }
 
@@ -126,7 +118,7 @@ IntersectResult OpEdges::AddIntersection(OpEdge& opp, const OpEdge& edge) {
 	auto alreadyContains = [](const std::vector<OpIntersection>& sects, const OpPtT& edgePtT,
 			const OpSegment* segment) {
 		for (auto& sect : sects) {
-			if (segment == sect.segment && edgePtT.t == sect.ptT.t)
+			if (segment == sect.segment && (edgePtT.pt == sect.ptT.pt || edgePtT.t == sect.ptT.t))
 				return true;
 		}
 		return false;
@@ -138,7 +130,7 @@ IntersectResult OpEdges::AddIntersection(OpEdge& opp, const OpEdge& edge) {
 //	OpDebugBreak(&edge, 1, 2 == opp.id);
 	OpRoots septs;
 	assert(edge.isLine_impl);
-	std::array<OpPoint, 2> edgePts = { edge.start.pt, edge.end.pt };
+	std::array<OpPoint, 2> edgePts { edge.start.pt, edge.end.pt };
 	const OpCurve& oppCurve = opp.setCurve();
 	septs.count = oppCurve.rayIntersect(edgePts, septs.roots);
 //	assert(septs.count < 3);	// while it should never be 3, it's OK to accept those intersections
@@ -152,7 +144,7 @@ IntersectResult OpEdges::AddIntersection(OpEdge& opp, const OpEdge& edge) {
 	int foundCount = 0;
 	for (unsigned index = 0; index < septs.count; ++index) {
 		float oppT = OpMath::Interp(opp.start.t, opp.end.t, septs.get(index));
-		OpPtT oppPtT = { oppCurve.ptAtT(septs.get(index)), oppT };
+		OpPtT oppPtT { oppCurve.ptAtT(septs.get(index)), oppT };
 		float edgeT = edge.findPtT(oppPtT.pt);
 		if (OpMath::Between(0, edgeT, 1)) {
             // pin point to both bounds, but only if it is on edge
@@ -160,18 +152,16 @@ IntersectResult OpEdges::AddIntersection(OpEdge& opp, const OpEdge& edge) {
 			OpSegment* oSegment = const_cast<OpSegment*>(opp.segment);
             oSegment->tightBounds.pin(&oppPtT.pt);
             eSegment->tightBounds.pin(&oppPtT.pt);
-			OpPtT edgePtT = { oppPtT.pt, OpMath::Interp(edge.start.t, edge.end.t, edgeT) };
+			OpPtT edgePtT { oppPtT.pt, OpMath::Interp(edge.start.t, edge.end.t, edgeT) };
 #if OP_DEBUG
 			if (148 == eSegment->contour->contours->id)
 				OpDebugOut("");
 #endif
 			if (!alreadyContains(eSegment->intersections, edgePtT, oSegment))
-				eSegment->intersections.emplace_back(edgePtT, oSegment, 0
-						OP_DEBUG_PARAMS(IntersectMaker::addIntersection1));
+				eSegment->add(edgePtT, oSegment  OP_DEBUG_PARAMS(IntersectMaker::addIntersection1));
 //			OpDebugBreak(oSegment, 4, 265 == debugGlobalContours->id);
 			if (!alreadyContains(oSegment->intersections, oppPtT, eSegment))
-				oSegment->intersections.emplace_back(oppPtT, eSegment, 0
-						OP_DEBUG_PARAMS(IntersectMaker::addIntersection2));
+				oSegment->add(oppPtT, eSegment  OP_DEBUG_PARAMS(IntersectMaker::addIntersection2));
 			++foundCount;
 		}
 	}
@@ -224,9 +214,9 @@ FoundIntersections OpEdges::findIntersections() {
 						if (eSegment->containsSect(edgePtT.t, oSegment)
 								&& oSegment->containsSect(oppPtT.t, eSegment))
 							continue;
-						eSegment->intersections.emplace_back(edgePtT, oSegment, 0
+						eSegment->add(edgePtT, oSegment
 								OP_DEBUG_PARAMS(IntersectMaker::findIntersections1));
-						oSegment->intersections.emplace_back(oppPtT, eSegment, 0
+						oSegment->add(oppPtT, eSegment
 								OP_DEBUG_PARAMS(IntersectMaker::findIntersections2));
 					}
 				}

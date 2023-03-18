@@ -232,4 +232,24 @@ struct OpCubic : OpCurve {
 #endif
 };
 
+#if OP_DEBUG_IMAGE  
+// here because OpPoint is not declared in OpDebugImage.h or OpDebugDouble.h
+struct OpRay {
+	OpRay(Axis a, float v)
+		: axis(a)
+		, value(v)
+		, useAxis(true) {
+	}
+	OpRay(const std::array<OpPoint, 2>& );
+	std::array<OpPoint, 2> pts;
+	Axis axis;
+	float value;
+	bool useAxis;
+};
+
+void draw(const std::array<OpPoint, 2>& );
+
+#endif
+
+
 #endif

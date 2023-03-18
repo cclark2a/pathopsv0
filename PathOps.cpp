@@ -4,7 +4,7 @@
 #include "OpEdges.h"
 #include "PathOps.h"
 
-static const OpOperator OpInverse[+OpOperator::ReverseSubtract + 1][2][2] = {
+static const OpOperator OpInverse[+OpOperator::ReverseSubtract + 1][2][2] {
     //                inside minuend                                  outside minuend
     //  inside subtrahend     outside subtrahend         inside subtrahend   outside subtrahend
     { { OpOperator::Subtract, OpOperator::Intersect }, { OpOperator::Union, OpOperator::ReverseSubtract } },
@@ -14,7 +14,7 @@ static const OpOperator OpInverse[+OpOperator::ReverseSubtract + 1][2][2] = {
     { { OpOperator::ReverseSubtract, OpOperator::Union }, { OpOperator::Intersect, OpOperator::Subtract } },
 };
 
-static const bool OutInverse[+OpOperator::ReverseSubtract + 1][2][2] = {
+static const bool OutInverse[+OpOperator::ReverseSubtract + 1][2][2] {
     { { false, false }, { true, false } },  // diff
     { { false, false }, { false, true } },  // sect
     { { false, true }, { true, true } },    // union
@@ -64,16 +64,15 @@ bool PathOps(OpInPath left, OpInPath right, OpOperator _operator, OpOutPath resu
     OpEdges sortedEdges(contourList, EdgesToSort::byBox);
     if (!sortedEdges.inX.size())
         return result.setEmpty();
-    // !!! split this up into : find intersections, resolve intersection + edge points, find coincident edges 
     if (FoundIntersections::fail == sortedEdges.findIntersections())
         return false;
-//    contourList.sortIntersections();
-//    contourList.resolvePoints();
-    contourList.findCoincidences();
+    contourList.sortIntersections();
+    contourList.missingCoincidence();  // add intersections for indirect coincidence
     // at this point, edges curves broken at extrema and inflection;
     //   intersections are ptT for each found crossing
-    contourList.sortIntersections();
-    contourList.matchIntersections();  // point each intersection to its doppelganger
+    contourList.sortIntersections();    // !!! should do nothing if intersections are unchanged
+    contourList.resolvePoints();    // added coincident points may have multiple pts with single t
+    contourList.matchIntersections();  // point each intersection at its doppelganger
     contourList.intersectEdge();  // combine edge list and intersection list
     contourList.resolveCoincidence();  // leave at most one active for each pair of coincident edges
     OpEdges windingEdges(contourList, EdgesToSort::byCenter);

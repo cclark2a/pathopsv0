@@ -30,7 +30,7 @@ struct OpContour {
 #endif
     }
 
-    void addClose(const OpPoint& pt1, const OpPoint& pt2) {
+    void addClose(OpPoint pt1, OpPoint pt2) {
         segments.emplace_back(pt1, pt2, this);
     }
 
@@ -74,12 +74,6 @@ struct OpContour {
         }
     }
 
-    void findCoincidences() {
-        for (auto& segment : segments) {
-            segment.findCoincidences();
-        }
-    }
-
     void findSegmentExtrema() {
         for (auto& segment : segments) {
             segment.findExtrema();
@@ -101,6 +95,14 @@ struct OpContour {
     void matchIntersections() {
         for (auto& segment : segments) {
             segment.matchIntersections();
+        }
+    }
+
+    void missingCoincidence() {
+        for (auto& segment : segments) {
+            if (pointType == segment.c.type)
+                continue;
+            segment.missingCoincidence();
         }
     }
 
@@ -171,12 +173,6 @@ struct OpContours {
 
     bool closeGap(OpEdge* last, OpEdge* first);
 
-    void findCoincidences() {
-        for (auto& contour : contours) {
-            contour.findCoincidences();
-        }
-    }
-
     void findSegmentExtrema() {
         for (auto& contour : contours) {
             contour.findSegmentExtrema();
@@ -202,6 +198,12 @@ struct OpContours {
     void matchIntersections() {
         for (auto& contour : contours) {
             contour.matchIntersections();
+        }
+    }
+
+    void missingCoincidence() {
+        for (auto& contour : contours) {
+            contour.missingCoincidence();
         }
     }
 

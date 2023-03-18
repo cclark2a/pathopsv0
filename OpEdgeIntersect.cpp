@@ -16,8 +16,8 @@ static OpEdge& findEdgesTRange(std::vector<OpEdge>& parts, const OpSegment* oppS
 	// assume that if part of the pair is coincident, there can be only one isolated common point
 	// !!! may need to check if single isolated point is near or is on edge which is a line
 	const OpSegment* segment = result.segment;
-	OpPtT min = { OpPoint(), OpInfinity };
-	OpPtT max = { OpPoint(), -OpInfinity };
+	OpPtT min { OpPoint(), OpInfinity };
+	OpPtT max { OpPoint(), -OpInfinity };
 	for (auto& cept : segment->intersections) {
 		if (cept.segment != oppSegment)
 			continue;
@@ -36,7 +36,7 @@ static OpEdge& findEdgesTRange(std::vector<OpEdge>& parts, const OpSegment* oppS
 		if (result.end.t < max.t)
 			result.end = max;
 	}
-	result.subDivide();
+	result.complete();
 	return result;
 }
 
@@ -45,7 +45,7 @@ static float oppositeT(const OpSegment* segment, const OpEdge& oppEdge, OpPtT te
 		OP_DEBUG_PARAMS(int edgeID)) {
 	const OpSegment* oppSegment = oppEdge.segment;
 	const OpCurve& oppCurve = oppSegment->c;
-	std::array<OpPoint, 2> line = { test.pt, test.pt + segment->c.normal(test.t) };
+	std::array<OpPoint, 2> line { test.pt, test.pt + segment->c.normal(test.t) };
 	rootCellar cepts;
 	int count = oppCurve.rawIntersect(line, cepts);
 	// prefer t values scoped by the opposite edge
@@ -139,6 +139,8 @@ SectFound OpEdgeIntersect::addCoincidence() {
 		edgeResult.end = { oppResult.end.pt, maxCepts[0] };
 	if (oppReversed)
 		std::swap(oppResult.start, oppResult.end);
+	edgeResult.complete();
+	oppResult.complete();
 	addCurveCoin(edgeResult, oppResult);
 	return SectFound::intersects;
 }
@@ -164,23 +166,27 @@ void OpEdgeIntersect::addCurveCoin(OpEdge& edge, OpEdge& oppEdge) {
 	float startT = oppositeT(oppSegment, edge, oppEdge.start  OP_DEBUG_PARAMS(oppEdge.id));
 	float endT = oppositeT(oppSegment, edge, oppEdge.end  OP_DEBUG_PARAMS(oppEdge.id));
 	bool reversed = segment->c.tangent(edge.center.t)
-			.dot(oppSegment->c.tangent(oppEdge.center.t)) < 0;
+		.dot(oppSegment->c.tangent(oppEdge.center.t)) < 0;
 	if (reversed) {
 		std::swap(startT, endT);
 		std::swap(oppEdge.start, oppEdge.end);
 	}
 	// There should be 2, 3, or 4 t values between the edge start and end.
 	// If, for instance, opp start t is between, it could match start t or end t, if between
-	OpPtT segStart = OpMath::Between(edge.start.t, startT, edge.end.t)
-			? OpPtT(oppEdge.start.pt, startT) : edge.start;
-	OpPtT segEnd = OpMath::Between(edge.start.t, endT, edge.end.t)
-			? OpPtT(oppEdge.end.pt, endT) : edge.end;
-	OpPtT oppStart = OpMath::Between(oppEdge.start.t, oppStartT, oppEdge.end.t)
-			? OpPtT(edge.start.pt, oppStartT) : oppEdge.start;
-	OpPtT oppEnd = OpMath::Between(oppEdge.start.t, oppEndT, oppEdge.end.t)
-			? OpPtT(edge.end.pt, oppEndT) : oppEdge.end;
-	assert(segStart.pt == oppStart.pt);
-	assert(segEnd.pt == oppEnd.pt);
+	OpPtT segStart = edge.start;
+	OpPtT segEnd = edge.end;
+	OpPtT oppStart = oppEdge.start;
+	OpPtT oppEnd = oppEdge.end;
+	if (OpMath::Between(edge.start.t, startT, edge.end.t))
+		segStart = OpPtT(oppEdge.start.pt, startT);
+	else
+		oppStart = OpPtT(edge.start.pt, oppStartT);
+	if (OpMath::Between(edge.start.t, endT, edge.end.t))
+		segEnd = OpPtT(oppEdge.end.pt, endT);
+	else
+		oppEnd = OpPtT(edge.end.pt, oppEndT);
+	if (segStart.t == segEnd.t || oppStart.t == oppEnd.t)
+		return;
 	// A reversed opp start is opp end and vice versa, but since both will be added as
 	// intersections, another reversal doesn't improve anything
 	//	if (reversed)
@@ -203,14 +209,10 @@ void OpEdgeIntersect::addCurveCoin(OpEdge& edge, OpEdge& oppEdge) {
 		}
 		oppSegment->intersections.erase(iter);
 	}
-	segment->intersections.emplace_back(segStart, oppSegment, coinID
-			OP_DEBUG_PARAMS(IntersectMaker::addCurveCoincidence1));
-	segment->intersections.emplace_back(segEnd, oppSegment, coinID
-			OP_DEBUG_PARAMS(IntersectMaker::addCurveCoincidence2));
-	oppSegment->intersections.emplace_back(oppStart, segment, coinID
-			OP_DEBUG_PARAMS(IntersectMaker::addCurveCoincidence3));
-	oppSegment->intersections.emplace_back(oppEnd, segment, coinID
-			OP_DEBUG_PARAMS(IntersectMaker::addCurveCoincidence4));
+	segment->add(segStart, oppSegment, coinID  OP_DEBUG_PARAMS(IntersectMaker::addCurveCoincidence1));
+	segment->add(segEnd, oppSegment, coinID  OP_DEBUG_PARAMS(IntersectMaker::addCurveCoincidence2));
+	oppSegment->add(oppStart, segment, coinID  OP_DEBUG_PARAMS(IntersectMaker::addCurveCoincidence3));
+	oppSegment->add(oppEnd, segment, coinID  OP_DEBUG_PARAMS(IntersectMaker::addCurveCoincidence4));
 }
 
 SectFound OpEdgeIntersect::addIntersection() {
@@ -221,15 +223,13 @@ SectFound OpEdgeIntersect::addIntersection() {
 	OpSegment* oSegment = const_cast<OpSegment*>(originalOpp->segment);
 	std::vector<float> oppositeTs;
 	for (float edgeT : edgeTs) {
-		OpPtT edgePtT = { eSegment->c.ptAtT(edgeT), edgeT };
-		eSegment->intersections.emplace_back(edgePtT, oSegment, 0  
-				OP_DEBUG_PARAMS(IntersectMaker::addIntersection5));
+		OpPtT edgePtT { eSegment->c.ptAtT(edgeT), edgeT };
+		eSegment->add(edgePtT, oSegment  OP_DEBUG_PARAMS(IntersectMaker::addIntersection5));
 //		OpDebugBreak(&eSegment->intersections.back(), 248, true);
 		float oppoT = oppositeT(eSegment, *originalOpp, edgePtT  OP_DEBUG_PARAMS(originalEdge->id));
 		oppositeTs.push_back(oppoT);
-		OpPtT oppPtT = { edgePtT.pt, oppoT };
-		oSegment->intersections.emplace_back(oppPtT, eSegment, 0  
-				OP_DEBUG_PARAMS(IntersectMaker::addIntersection6));
+		OpPtT oppPtT { edgePtT.pt, oppoT };
+		oSegment->add(oppPtT, eSegment  OP_DEBUG_PARAMS(IntersectMaker::addIntersection6));
 	} 
 	for (float oppT : oppTs) {
 		bool inOppositeTs = false;
@@ -241,13 +241,11 @@ SectFound OpEdgeIntersect::addIntersection() {
 		}
 		if (inOppositeTs)
 			continue;
-		OpPtT oppPtT = { oSegment->c.ptAtT(oppT), oppT };
-		oSegment->intersections.emplace_back(oppPtT, eSegment, 0  
-				OP_DEBUG_PARAMS(IntersectMaker::addIntersection7));
-		OpPtT edgePtT = { oppPtT.pt,
+		OpPtT oppPtT { oSegment->c.ptAtT(oppT), oppT };
+		oSegment->add(oppPtT, eSegment  OP_DEBUG_PARAMS(IntersectMaker::addIntersection7));
+		OpPtT edgePtT { oppPtT.pt,
 				oppositeT(oSegment, *originalEdge, oppPtT  OP_DEBUG_PARAMS(originalOpp->id)) };
-		eSegment->intersections.emplace_back(edgePtT, oSegment, 0  
-				OP_DEBUG_PARAMS(IntersectMaker::addIntersection8));
+		eSegment->add(edgePtT, oSegment  OP_DEBUG_PARAMS(IntersectMaker::addIntersection8));
 	}
 	return SectFound::intersects;
 }
@@ -292,7 +290,7 @@ SectFound OpEdgeIntersect::CurvesIntersect(std::vector<OpEdge>& edgeParts,
 			continue;
 		}
 		// rotate each to see if tight rotated bounds (with extrema) touch
-		std::array<OpPoint, 2> edgeLine = { edge.start.pt, edge.end.pt };
+		std::array<OpPoint, 2> edgeLine { edge.start.pt, edge.end.pt };
 		const OpCurve& edgeRotated = edge.setVertical();
 		if (!edgeRotated.isFinite())
 			return SectFound::fail;
@@ -349,14 +347,12 @@ IntersectResult OpEdgeIntersect::CurveCenter(const OpEdge& edge, OpEdge& opp) {
 	if (edge.start.t >= edge.center.t || edge.center.t >= edge.end.t) {
 		OpSegment* eSegment = const_cast<OpSegment*>(edge.segment);
 		OpSegment* oSegment = const_cast<OpSegment*>(opp.segment);
-		eSegment->intersections.emplace_back(edge.center, oSegment, 0  
-				OP_DEBUG_PARAMS(IntersectMaker::curveCenter1));
+		eSegment->add(edge.center, oSegment  OP_DEBUG_PARAMS(IntersectMaker::curveCenter1));
 		const OpCurve& oppCurve = opp.setCurve();
 		float oppTx = oppCurve.findIntersect(Axis::vertical, edge.center).t;
 		float oppTy = oppCurve.findIntersect(Axis::horizontal, edge.center).t;
-		OpPtT oppPtT = { edge.center.pt, (oppTx + oppTy) / 2 };
-		oSegment->intersections.emplace_back(oppPtT, eSegment, 0  
-				OP_DEBUG_PARAMS(IntersectMaker::curveCenter2));
+		OpPtT oppPtT { edge.center.pt, (oppTx + oppTy) / 2 };
+		oSegment->add(oppPtT, eSegment  OP_DEBUG_PARAMS(IntersectMaker::curveCenter2));
 		return IntersectResult::yes;
 	}
 	return IntersectResult::maybe;
@@ -437,8 +433,8 @@ void OpEdgeIntersect::Split(std::vector<OpEdge>& parts, DoSplit doSplit) {
 		if (EdgeSplit::no == edge.doSplit && DoSplit::marked == doSplit)
 			continue;
 		// constructor invoked by emplace back does all the heavy lifting (initialization)
-		splits.emplace_back(&edge, edge.center, NewEdge::isLeft  OP_DEBUG_PARAMS(EdgeMaker::split));
-		splits.emplace_back(&edge, edge.center, NewEdge::isRight  OP_DEBUG_PARAMS(EdgeMaker::split));
+		splits.emplace_back(&edge, edge.center, NewEdge::isLeft  OP_DEBUG_PARAMS(EdgeMaker::split1));
+		splits.emplace_back(&edge, edge.center, NewEdge::isRight  OP_DEBUG_PARAMS(EdgeMaker::split2));
 	}
 	parts.swap(splits);
 }

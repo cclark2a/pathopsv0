@@ -18,7 +18,7 @@ bool OpRoots::replaceClosest(float root) {
     return true;
 }
 
-OpVector& OpVector::normalize() {
+OpVector OpVector::normalize() {
     float len = length();
     if (len) {
         float inverseLength = 1 / len;

@@ -32,7 +32,7 @@ std::vector<const OpIntersection*> intersections;
 std::vector<OpRay> lines;
 std::vector<OpInPath> operands;
 std::vector<const SkPath*> paths;
-std::vector<const OpSegment*> segments;
+std::vector<const OpSegment*> localSegments;	// segments not yet added to global debug contour
 int gridIntervals = 8;
 int valuePrecision = -1;		// minus one means unset?
 
@@ -74,6 +74,52 @@ DRAW_FEATURE_GLOBAL(Windings);
 		drawIDsOn = true; \
 	} while (false)
 
+
+struct OpDebugSegmentIter {
+    OpDebugSegmentIter(bool start) {
+		if (start) {
+			localSegmentIndex = 0;
+			return;
+		}
+		localSegmentIndex = localSegments.size();
+		for (const auto& c : debugGlobalContours->contours) {
+			localSegmentIndex += c.segments.size();
+		}
+	}
+
+    bool operator!=(OpDebugSegmentIter rhs) { 
+		return localSegmentIndex != rhs.localSegmentIndex; 
+	}
+
+    const OpSegment* operator*() {
+		if (localSegmentIndex < localSegments.size())
+			return localSegments[localSegmentIndex];
+		size_t index = localSegments.size();
+		for (const auto& c : debugGlobalContours->contours) {
+			for (const auto& seg : c.segments) {
+				if (index == localSegmentIndex)
+					return &seg;
+				++index;
+			}
+		}
+		OpDebugOut("iterator out of bounds! localSegmentIndex: " + STR(localSegmentIndex) + "\n");
+		return nullptr; 
+	}
+
+    void operator++() { 
+		++localSegmentIndex;
+	}
+
+	size_t localSegmentIndex;
+};
+
+struct OpDebugSegmentIterator {
+    OpDebugSegmentIter begin() { return OpDebugSegmentIter(true); }
+    OpDebugSegmentIter end() { return OpDebugSegmentIter(false); }
+	bool empty() { return !(begin() != end()); }
+};
+
+OpDebugSegmentIterator segmentIterator;
 
 void OpDebugImage::addToPath(const OpCurve& curve, SkPath& path) {
 	path.moveTo(curve.pts[0].x, curve.pts[0].y);
@@ -138,8 +184,12 @@ void OpDebugImage::drawDoubleFocus() {
 		DebugOpDraw(paths);
 	if (drawLinesOn)
 		DebugOpDraw(lines);
-	if (drawSegmentsOn)
-		DebugOpDraw(segments);
+	if (drawSegmentsOn) {
+		DebugOpClearSegments();
+		for (auto segment : segmentIterator)
+			DebugOpAdd(segment);
+		DebugOpDrawSegments();
+	}
 	if (drawEdgesOn) {
 		DebugOpClearEdges();
 		if (drawSegmentEdgesOn)
@@ -176,8 +226,10 @@ void OpDebugImage::drawDoubleFocus() {
 	}
 	if (drawPointsOn)
 		OpDebugImage::drawPoints();
-	if (drawSegmentsOn && drawIDsOn)
-		DebugOpDrawSegmentIDs(segments, ids);
+	if (drawSegmentsOn && drawIDsOn) {
+		for (auto segment : segmentIterator)
+			DebugOpDrawSegmentID(segment, ids);
+	}
 	if (drawEdgesOn && drawIDsOn) {
 		if (drawSegmentEdgesOn)
 			DebugOpDrawEdgeIDs(segmentEdges, ids);
@@ -191,8 +243,10 @@ void OpDebugImage::drawDoubleFocus() {
 	}
 	if (drawIntersectionsOn && drawIDsOn)
 		DebugOpDrawIntersectionIDs(intersections, ids);
-	if (drawSegmentsOn && drawCoincidencesOn)
-		DebugOpDrawPointIDs(segments, ids);
+	if (drawSegmentsOn && drawCoincidencesOn) {
+		for (auto segment : segmentIterator)
+			DebugOpDrawPointID(segment, ids);
+	}
 	if (drawGridOn)
 		drawGrid();
 }
@@ -209,16 +263,16 @@ void OpDebugImage::drawDoubleFocus(const OpPointBounds& b, bool add) {
 	drawDoubleFocus();
 }
 
-void OpDebugImage::drawDoublePath(const SkPath& path, uint32_t color) {
+void OpDebugImage::drawDoublePath(const SkPath& path, uint32_t color, bool strokeAndFill) {
 	SkCanvas offscreen(bitmap);
 	SkPaint paint;
 	paint.setAntiAlias(true);
-	if (SK_ColorBLACK != color) {
-		paint.setColor(color);
+	paint.setColor(color);
+	if (strokeAndFill) {
 		offscreen.drawPath(path, paint);
+		paint.setColor(SK_ColorBLACK);
 	}
 	paint.setStyle(SkPaint::kStroke_Style);
-	paint.setColor(SK_ColorBLACK);
 	offscreen.drawPath(path, paint);
 }
 
@@ -321,14 +375,9 @@ void OpDebugImage::find(int id, ConstOpPointBoundsPtr* boundsPtr, ConstOpPointPt
 		return;
 	}
 	const OpSegment* segment = nullptr;
-	for (auto s : segments) {
+	for (auto s : segmentIterator) {
 		if (id == s->id)
 			segment = s;
-	}
-	if (!segment) {
-		segment = findSegment(id);
-		if (segment)
-			segments.push_back(segment);
 	}
 	if (segment) {
 		DRAW_IDS_ON(Segments);
@@ -393,6 +442,14 @@ void center(float x, float y) {
 	OpDebugImage::drawDoubleCenter(c, false);
 }
 
+void center(const OpPoint& pt) {
+	center(pt.x, pt.y);
+}
+
+void center(const OpPtT& ptT) {
+	center(ptT.pt);
+}
+
 void focus(int id) {
 	OpDebugImage::focus(id, false);
 }
@@ -414,10 +471,10 @@ void OpDebugImage::focusEdges() {
 }
 
 void focusSegments() {
-	if (segments.empty())
+	if (segmentIterator.empty())
 		return;
-	OpPointBounds focusRect = segments.front()->ptBounds;
-	for (auto seg : segments)
+	OpPointBounds focusRect = (*segmentIterator.begin())->ptBounds;
+	for (auto seg : segmentIterator)
 		focusRect.add(seg->ptBounds);
 	DRAW_IDS_ON(Segments);
 	OpDebugImage::drawDoubleFocus(focusRect, false);
@@ -435,7 +492,7 @@ void clear() {
 	OpDebugImage::clearLines();
 	if (paths.size() > 2)
 		paths.erase(paths.begin() + 2, paths.end());
-	segments.clear();
+	localSegments.clear();
 	drawOperandsOn = false;
 	drawPathsOn = false;
 	DebugOpResetFocus();
@@ -446,7 +503,7 @@ void clearLines() {
 	DebugOpResetFocus();
 }
 
-void OpDebugImage::drawValue(const OpPoint& pt, std::string ptStr, uint32_t color) {
+void OpDebugImage::drawValue(OpPoint pt, std::string ptStr, uint32_t color) {
 	SkPaint paint;
 	paint.setAntiAlias(true);
 	paint.setColor(color);
@@ -462,14 +519,14 @@ void OpDebugImage::drawValue(const OpPoint& pt, std::string ptStr, uint32_t colo
 		for (float scale : { 4, 16 } ) {
 			for (int toTheLeft : { -1, 0, 1 } ) {
 				for (int toTheTop : { -1, 0, 1 } ) {
-					OpVector offset = { 0, 0};
+					OpVector offset { 0, 0};
 					if (toTheLeft)
 						offset.dx = toTheLeft < 0 ? -textBounds.width() - scale : scale;
 					if (toTheTop)
 						offset.dy = toTheTop < 0 ? -scale : scale;
 					SkRect test = trimmed;
 					test.offset(offset.dx, offset.dy);
-					SkRect skBounds = { 0, 0, bitmapWH, bitmapWH };
+					SkRect skBounds { 0, 0, bitmapWH, bitmapWH };
 					if (allowIntersect ? !skBounds.intersect(test) : !skBounds.contains(test))
 						continue;
 					int left = std::max(0, (int) test.fLeft);
@@ -600,27 +657,27 @@ void OpDebugImage::drawPoints() {
 		// Check if line intersects visible path, segment, or edge. If so, record point and t
 		auto checkEdges = [](const std::vector<const OpEdge*>& edges, const OpRay& ray) { // lambda
 			for (const auto& edge : edges)
-				DebugOpBuild(*edge, ray.axis, ray.value);
+				DebugOpBuild(*edge, ray);
 		};
 		for (const auto& line : lines) {
 			if (drawPathsOn) {
-				DebugOpBuild(*operands[0].skPath, line.axis, line.value);
-				DebugOpBuild(*operands[1].skPath, line.axis, line.value);
+				DebugOpBuild(*operands[0].skPath, line);
+				DebugOpBuild(*operands[1].skPath, line);
 			}
 			if (drawSegmentsOn) {
 				for (const auto& c : debugGlobalContours->contours) {
 					for (const auto& seg : c.segments) {
 						if (pointType == seg.c.type)
 							continue;
-						DebugOpBuild(seg, line.axis, line.value);
+						DebugOpBuild(seg, line);
 					}
 				}
 			}
 			if (OpEdgeIntersect::debugActive && drawTemporaryEdgesOn) {
 				for (const auto& edge : OpEdgeIntersect::debugActive->edgeParts)
-					DebugOpBuild(edge, line.axis, line.value);
+					DebugOpBuild(edge, line);
 				for (const auto& edge : OpEdgeIntersect::debugActive->oppParts)
-					DebugOpBuild(edge, line.axis, line.value);
+					DebugOpBuild(edge, line);
 			}
 			if (drawSegmentEdgesOn)
 				checkEdges(segmentEdges, line);
@@ -637,7 +694,7 @@ void OpDebugImage::drawPoints() {
 	DebugOpDrawDiamond();
 }
 
-void OpDebugImage::addDiamondToPath(const OpPoint& pt, SkPath& path) {
+void OpDebugImage::addDiamondToPath(OpPoint pt, SkPath& path) {
 	SkPath diamond;
 	diamond.moveTo(4, 0);
 	diamond.lineTo(0, 4);
@@ -651,12 +708,12 @@ void OpDebugImage::addDiamondToPath(const OpPoint& pt, SkPath& path) {
 void OpDebugImage::addArrowHeadToPath(const OpLine& line, SkPath& path) {
 	if (!drawArrowsOn)
 		return;
-	const SkPoint arrow[2] = { { -2, 5 }, { 0, 3 } };
+	const SkPoint arrow[2] { { -2, 5 }, { 0, 3 } };
 	SkPoint scaled[2];
 	SkMatrix matrix;
 	float lineLen = (line.pts[1] - line.pts[0]).length();
-	SkPoint src[2] = { { 0, 0 }, { 0, lineLen } };
-	SkPoint dst[2] = { { line.pts[1].x, line.pts[1].y }, { line.pts[0].x, line.pts[0].y } };
+	SkPoint src[2] { { 0, 0 }, { 0, lineLen } };
+	SkPoint dst[2] { { line.pts[1].x, line.pts[1].y }, { line.pts[0].x, line.pts[0].y } };
 	matrix.setPolyToPoly(src, dst, 2);
 	matrix.mapPoints(scaled, arrow, 2);
 	if (scaled[0].fX != scaled[0].fX)
@@ -666,7 +723,7 @@ void OpDebugImage::addArrowHeadToPath(const OpLine& line, SkPath& path) {
 }
 
 void OpDebugImage::add(const OpEdge* edge) {
-	for (const auto& v : { std::cref(segmentEdges), std::cref(temporaryEdges) }) {
+	for (const auto& v : { std::cref(segmentEdges), std::cref(temporaryEdges) } ) {
 		for (const auto& e : v.get()) {
 			if (e == edge)
 				return;
@@ -688,15 +745,31 @@ void OpDebugImage::add(Axis axis, float value) {
 	lines.emplace_back(axis, value);
 }
 
-void OpDebugImage::add(const OpSegment* segment) {
-	if (segments.end() != std::find(segments.begin(), segments.end(), segment))
+OpRay::OpRay(const std::array<OpPoint, 2>& pts_) 
+	: pts(pts_) {
+	if (pts[0].x == pts[1].x) {
+		axis = Axis::vertical;
+		value = pts[0].x;
+		useAxis = true;
 		return;
-	segments.push_back(segment);
+	}
+	if (pts[0].y == pts[1].y) {
+		axis = Axis::horizontal;
+		value = pts[0].y;
+		useAxis = true;
+		return;
+	}
+	useAxis = false;
 }
 
-void OpDebugImage::clearSegmentEdges() {
-	segmentEdges.clear();
-	drawSegmentEdgesOn = false;
+void OpDebugImage::add(const OpRay& ray) {
+	lines.emplace_back(ray);
+}
+
+void OpDebugImage::add(const OpSegment* segment) {
+	if (localSegments.end() != std::find(localSegments.begin(), localSegments.end(), segment))
+		return;
+	localSegments.push_back(segment);
 }
 
 void OpDebugImage::clearTemporaryEdges() {
@@ -838,11 +911,6 @@ void toggleRight() {
 void toggleOperands() {
 	toggleLeft();
 	toggleRight();
-}
-
-void OpDebugImage::clearSegments() {
-	segments.clear();
-	drawSegmentsOn = false;
 }
 
 void OpContour::draw() const {
@@ -1048,7 +1116,8 @@ void OpDebugImage::drawLines() {
 	SkPaint paint;
 	paint.setAntiAlias(true);
 	for (OpRay& line : lines) {
-		// !!! incomplete : draw a line
+		if (!line.useAxis)
+			continue;
 		if (!drawValuesOn && !drawHexOn)
 			continue;
 		SkString label = SkString(STR(line.value));
@@ -1084,6 +1153,12 @@ void draw(const std::vector<OpEdge>& _edges) {
 
 void draw(Axis axis, float value) {
 	OpDebugImage::add(axis, value);
+	drawLinesOn = true;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void draw(const std::array<OpPoint, 2>& ray) {
+	OpDebugImage::add(ray);
 	drawLinesOn = true;
 	OpDebugImage::drawDoubleFocus();
 }

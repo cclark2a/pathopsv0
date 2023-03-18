@@ -82,7 +82,14 @@ std::string OpDebugDump(float f) {
     if (!OpMath::IsFinite(f))
         return f > 0 ? "Inf" : "-Inf";
     char buffer[20];
-    int size = snprintf(buffer, sizeof(buffer), "%g", f);
+    int precision = 8;
+    float copyF = f;
+    while (copyF >= 10) {
+        if (0 == --precision)
+            break;
+        copyF /= 10;
+    }
+    int size = snprintf(buffer, sizeof(buffer), "%.*g", precision, f);
     std::string s(buffer, size);
 //    while ('0' == s.back())
 //        s.pop_back();
@@ -209,6 +216,33 @@ OpVector OpCubic::debugTangent(float t) const {
 
 #endif
 
+template <typename V, typename... T>   // replace with std::to_array in c++20
+constexpr auto to_array(T&&... t)->std::array < V, sizeof...(T) > {
+    return { { std::forward<T>(t)... } };
+}
+
+#include "OpContour.h"
+#include "OpSegment.h"
+
+void OpIntersection::debugSetID() {
+    id = segment->contour->contours->id++;
+if (68 == id)
+OpDebugOut("");
+#if 1
+    auto match = to_array<int>(68);  // c++20: std::to_array<int>({... (brace)
+    if (match.end() != std::find(match.begin(), match.end(), id))
+        OpDebugOut("");
+#endif
+}
+
+void OpIntersection::debugValidate() const {
+    assert(OpMath::Between(0, ptT.t, 1));
+    OpPoint pt = segment->c.ptAtT(ptT.t);
+    OpMath::DebugCompare(pt, ptT.pt);
+    OpPoint oPt = opp->segment->c.ptAtT(opp->ptT.t);
+    OpMath::DebugCompare(pt, oPt);
+}
+
 #if OP_DEBUG_EDGE_INTERSECT
 #include "OpEdgeIntersect.h"
 #include "OpSegment.h"
@@ -270,7 +304,7 @@ void OpEdgeIntersect::debugFindEdgeCrossings() {
                 assert(0 == roots || 1 == roots);
                 for (int index = 0; index < roots; ++index) {
                     float oppT = OpMath::Interp(opp.start.t, opp.end.t, cepts[index]); // segment t
-                    OpPtT oppPtT = { oppCurve.ptAtT(cepts[index]), oppT };
+                    OpPtT oppPtT { oppCurve.ptAtT(cepts[index]), oppT };
     //              oppPtT.pt.pin(opp.ptBounds);
                     float distance = oppPtT.pt.choice(perpendicular) - center.pt.choice(perpendicular);
                     (Axis::vertical == axis ? vResults : hResults).

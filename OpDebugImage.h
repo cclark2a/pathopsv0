@@ -3,6 +3,7 @@
 
 #if OP_DEBUG_IMAGE
 
+#include <array>
 #include <string>
 #include <vector>
 
@@ -14,6 +15,8 @@ struct OpLine;
 struct OpOutPath;
 struct OpPoint;
 struct OpPointBounds;
+struct OpPtT;
+struct OpRay;
 struct OpSegment;
 enum class Axis : uint8_t;
 typedef const OpPointBounds* ConstOpPointBoundsPtr;
@@ -21,37 +24,27 @@ typedef const OpPoint* ConstOpPointPtr;
 
 constexpr int bitmapWH = 1000;
 
-struct OpRay {	// maybe this should be added formally?
-	OpRay(Axis a, float v)
-		: axis(a)
-		, value(v) {
-	}
-	Axis axis;
-	float value;
-};
-
 // it should not be necessary to call these implementation functions directly
 struct OpDebugImage {
 	static void add(const OpEdge* );
 	static void add(const OpIntersection* );
 	static void add(const OpSegment* );
 	static void add(Axis axis, float value);
+	static void add(const OpRay& );
 
 	static void addArrowHeadToPath(const OpLine& , class SkPath& );
-	static void addDiamondToPath(const OpPoint& , class SkPath& );
+	static void addDiamondToPath(OpPoint , class SkPath& );
 	static void addToPath(const OpCurve& , class SkPath& );
 	static void center(int id, bool add);
 	static void clearIntersections();
 	static void clearLines();
 	static void clearScreen();
-	static void clearSegments();
-	static void clearSegmentEdges();
 	static void clearTemporaryEdges();
 	static void drawDoubleCenter(OpPoint , bool add);
 	static void drawDoubleFocus();
 	static void drawDoubleFocus(const OpPointBounds& , bool add);
 	static void drawGrid();
-	static void drawDoublePath(const class SkPath& path, uint32_t color = 0xFF000000);
+	static void drawDoublePath(const class SkPath& path, uint32_t color = 0xFF000000, bool stroke = false);
 	static void drawEdgeNormals(const std::vector<const OpEdge*>& );
 	static void drawEdgeNormals(const std::vector<OpEdge>& );
 	static void drawEdgeWindings(const std::vector<const OpEdge*>& );
@@ -59,7 +52,7 @@ struct OpDebugImage {
 	static void drawLines();
 	static void drawPath(const class SkPath& path);
 	static void drawPoints();
-	static void drawValue(const OpPoint& pt, std::string ptStr, uint32_t color = 0xFF000000);
+	static void drawValue(OpPoint pt, std::string ptStr, uint32_t color = 0xFF000000);
 	static void find(int id, ConstOpPointBoundsPtr* ,ConstOpPointPtr* );
 	static void focus(int id, bool add);
 	static void focusEdges();
@@ -73,12 +66,16 @@ extern void addFocus(int id);
 extern void addSegments();
 extern void center(int id);
 extern void center(float x, float y);
+extern void center(const OpPoint& );
+extern void center(const OpPtT& );
 extern void clear();
 extern void clearLines();
 
 extern void draw(const std::vector<OpEdge>& );  // to draw edge list built from intersections
 extern void draw(const std::vector<OpEdge*>& ); // to draw assemble linkups
-extern void draw(Axis , float );
+extern void draw(Axis , float );	// horizontal or vertical ray
+// commented out because OpPoint isn't defined in this context (this draw is in OpCurve.h)
+// extern void draw(const std::array<OpPoint, 2>& );	// arbitrary angled ray
 extern void draw();  // draw all current state
 
 extern void focus(int id);

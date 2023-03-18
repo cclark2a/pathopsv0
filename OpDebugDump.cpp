@@ -101,7 +101,7 @@ std::string OpContours::debugDumpHex(std::string label) const {
     for (const auto& c : contours) {
         for (const auto& seg : c.segments) {
             if (seg.intersections.size())
-                s += "OpDebugSectHex " + label + "Sects" + STR(seg.id) + "[] = {\n";
+                s += "OpDebugSectHex " + label + "Sects" + STR(seg.id) + "[] {\n";
             for (const auto& intersection : seg.intersections) {
                 s += "// " + intersection.debugDumpBrief() + "\n";
                 s += intersection.debugDumpHex() + ",\n";
@@ -109,7 +109,7 @@ std::string OpContours::debugDumpHex(std::string label) const {
             if (seg.intersections.size())
                 s += "};\n\n";
             if (seg.edges.size())
-                s += "OpDebugEdgeHex " + label + "Edges" + STR(seg.id) + "[] = {\n";
+                s += "OpDebugEdgeHex " + label + "Edges" + STR(seg.id) + "[] {\n";
             for (const auto& edge : seg.edges) {
                 s += "// " + edge.debugDumpBrief() + "\n";
                 s += edge.debugDumpHex() + ",\n";
@@ -222,7 +222,7 @@ void OpContours::dumpIntersections() const {
         for (const auto& seg : c.segments) {
             s += "intersect " + seg.debugDump() + "\n";
             for (const auto& sect : seg.intersections) {
-                s += "  " + sect.debugDump() + "\n";
+                s += "  " + sect.debugDump(true) + "\n";
             }
         }
     }
@@ -286,14 +286,26 @@ void OpContours::dumpMatch(OpPoint pt) const {
                     OpDebugOut("sect: ");
                     sect.dump();
                 }
+                if (sect.debugOriginal == pt) {
+                    OpDebugOut("sect original: ");
+                    sect.dump();
+                }
             }
             for (const auto& edge : seg.edges) {
                 if (edge.start.pt == pt) {
-                    OpDebugOut("edge: ");
+                    OpDebugOut("edge start: ");
+                    edge.dump();
+                }
+                if (edge.debugOriginalStart == pt) {
+                    OpDebugOut("edge original start: ");
                     edge.dump();
                 }
                 if (edge.end.pt == pt) {
-                    OpDebugOut("edge: ");
+                    OpDebugOut("edge end: ");
+                    edge.dump();
+                }
+                if (edge.debugOriginalEnd == pt) {
+                    OpDebugOut("edge original end: ");
                     edge.dump();
                 }
             }
@@ -469,7 +481,7 @@ void OpContour::dumpHex() const {
 }
 
 std::string OpCurve::debugDump() const {
-    const char* names[] = { "pointType", "lineType", "quadType", "conicType", "cubicType" };
+    const char* names[] { "pointType", "lineType", "quadType", "conicType", "cubicType" };
     std::string s;
     s = "{ ";
     bool first = true;
@@ -488,9 +500,9 @@ std::string OpCurve::debugDump() const {
 }
 
 std::string OpCurve::debugDumpHex() const {
-    const char* names[] = { "pointType", "lineType", "quadType", "conicType", "cubicType" };
+    const char* names[] { "pointType", "lineType", "quadType", "conicType", "cubicType" };
     std::string s;
-    s = "OpPoint data[] = {\n";
+    s = "OpPoint data[] {\n";
     for (int i = 0; i < pointCount(); ++i) {
         if (i != pointCount() - 1)
             s += "  " + pts[i].debugDumpHex() + ", // " + pts[i].debugDump() + "\n";
@@ -521,7 +533,7 @@ struct DebugLinkedName {
 
 #define LINKED_NAME(r) { EdgeLink::r, #r }
 
-static DebugLinkedName debugLinkedNames[] = {
+static DebugLinkedName debugLinkedNames[] {
     LINKED_NAME(unlinked),
     LINKED_NAME(single),
     LINKED_NAME(multiple),
@@ -552,7 +564,7 @@ struct DebugMatchName {
 
 #define MATCH_NAME(r) { EdgeMatch::r, #r }
 
-static DebugMatchName debugMatchNames[] = {
+static DebugMatchName debugMatchNames[] {
     MATCH_NAME(none),
     MATCH_NAME(start),
     MATCH_NAME(end),
@@ -584,7 +596,7 @@ struct DebugFailName {
 
 #define FAIL_NAME(r) { EdgeFail::r, #r }
 
-static DebugFailName debugFailNames[] = {
+static DebugFailName debugFailNames[] {
     FAIL_NAME(none),
     FAIL_NAME(center),
     FAIL_NAME(nextDistance),
@@ -618,13 +630,19 @@ struct EdgeMakerName {
 
 #define EDGE_MAKER_NAME(r) { EdgeMaker::r, #r }
 
-static EdgeMakerName edgeMakerNames[] = {
+static EdgeMakerName edgeMakerNames[] {
     EDGE_MAKER_NAME(addTest),
     EDGE_MAKER_NAME(intersectEdge1),
     EDGE_MAKER_NAME(intersectEdge2),
     EDGE_MAKER_NAME(makeEdges),
     EDGE_MAKER_NAME(opTest),
-    EDGE_MAKER_NAME(split),
+    EDGE_MAKER_NAME(resolveCoin1),
+    EDGE_MAKER_NAME(resolveCoin2),
+    EDGE_MAKER_NAME(resolveCoin3),
+    EDGE_MAKER_NAME(split1),
+    EDGE_MAKER_NAME(split2),
+    EDGE_MAKER_NAME(split3),
+    EDGE_MAKER_NAME(split4),
 };
 
 std::string debugEdgeDebugMaker(EdgeMaker maker) {
@@ -652,7 +670,7 @@ struct WindZeroName {
 
 #define WIND_ZERO_NAME(r) { WindZero::r, #r }
 
-static WindZeroName windZeroNames[] = {
+static WindZeroName windZeroNames[] {
     WIND_ZERO_NAME(noFlip),
     WIND_ZERO_NAME(normal),
     WIND_ZERO_NAME(opp),
@@ -704,6 +722,13 @@ std::string OpEdge::debugDumpDetail() const {
     if (1 != weight)
         s += "w:" + OpDebugDump(weight) + " ";
     s += "center:" + center.debugDump() + "\n";
+    if (debugAliasStartID || !OpMath::IsNaN(debugOriginalStart.x) || !OpMath::IsNaN(debugOriginalStart.y))
+        s += "(start was " + debugOriginalStart.debugDump() + "; now from sect " + STR(debugAliasStartID);
+    if (debugAliasEndID || !OpMath::IsNaN(debugOriginalEnd.x) || !OpMath::IsNaN(debugOriginalEnd.y))
+        s += " (end was " + debugOriginalEnd.debugDump() + "; now from sect " + STR(debugAliasEndID);
+    if (debugAliasStartID || !OpMath::IsNaN(debugOriginalStart.x) || !OpMath::IsNaN(debugOriginalStart.y)
+            || debugAliasEndID || !OpMath::IsNaN(debugOriginalEnd.x) || !OpMath::IsNaN(debugOriginalEnd.y))
+        s += "\n";
     if (ptBounds.isSet())
         s += "pb:" + ptBounds.debugDump() + " ";
     if (linkBounds.isSet())
@@ -734,7 +759,7 @@ std::string OpEdge::debugDumpDetail() const {
 
 std::string OpEdge::debugDumpHex() const {
     std::string s;
-    s = "/* edge:" + STR(id) + " */ OpPtT data[] = {\n";
+    s = "/* edge:" + STR(id) + " */ OpPtT data[] {\n";
     s += "  {" + start.debugDumpHex() + " }, // " + start.debugDump() + "\n";
     s += "  {" + end.debugDumpHex() + " } // " + end.debugDump() + "\n";
     s += "}; /* seg:" + STR(segment->id) + " */";
@@ -1018,55 +1043,6 @@ void OpEdgeIntersect::dumpDetail() const {
     }
 }
 
-std::string OpIntersection::debugDumpBrief() const {
-    std::string s;
-    s += "[" + debugDumpID() + "] ";
-    s += "{" + ptT.debugDump() + ", ";
-    s += "seg:" + segment->debugDumpID();
-    return s;
-}
-
-std::string OpIntersection::debugDumpHex() const {
-    std::string s;
-    s = "/* sect:" + debugDumpID() + " */ OpPtT data[] = {\n";
-    s += "  " + ptT.debugDumpHex() + " // " + ptT.debugDump() + "\n";
-    s += "}; // seg:" + segment->debugDumpID() + "\n";
-    return s;
-}
-
-void OpIntersection::dumpHex() const { 
-    OpDebugOut(debugDumpHex() + "\n"); 
-}
-
-OpIntersection::OpIntersection(std::string s) {
-    const char* str = s.c_str();
-    OpDebugSkip(str, "{");
-    ptT = OpPtT(str);
-    OpDebugSkip(str, ", ");
-    char* end;
-    long segmentID = strtol(str, &end, 10);
-    str = end;
-    OpDebugSkip(str, "}");
-    segment = const_cast<OpSegment*>(findSegment(segmentID));
-    assert(segment);
-    // don't call comnplete because we don't want to advance debug id
-}
-
-void OpIntersection::debugCompare(std::string s) const {
-    OpIntersection test(s);
-    assert(segment->id == test.segment->id);
-    assert(ptT == test.ptT);
-}
-
-void OpIntersection::dump() const {
-    std::string s = debugDump() + "\n";
-    OpDebugOut(s);
-}
-
-void OpIntersection::dumpPt() const {
-    segment->contour->contours->dumpMatch(ptT.pt);
-}
-
 struct IntersectMakerName {
     IntersectMaker maker;
     const char* name;
@@ -1074,7 +1050,9 @@ struct IntersectMakerName {
 
 #define INTERSECT_MAKER_NAME(r) { IntersectMaker::r, #r }
 
-IntersectMakerName intersectMakerNames[] = {
+IntersectMakerName intersectMakerNames[] {
+    INTERSECT_MAKER_NAME(addCoincidentCheck1),
+    INTERSECT_MAKER_NAME(addCoincidentCheck2),
     INTERSECT_MAKER_NAME(addCurveCoincidence1),
 	INTERSECT_MAKER_NAME(addCurveCoincidence2),
 	INTERSECT_MAKER_NAME(addCurveCoincidence3),
@@ -1110,45 +1088,104 @@ IntersectMakerName intersectMakerNames[] = {
 	INTERSECT_MAKER_NAME(findIntersections7),
 	INTERSECT_MAKER_NAME(findIntersections8),
 	INTERSECT_MAKER_NAME(makeEdges),
+	INTERSECT_MAKER_NAME(missingCoincidence),
 	INTERSECT_MAKER_NAME(opCubicErrorTest1),
 	INTERSECT_MAKER_NAME(opCubicErrorTest2),
 };
 
-std::string OpIntersection::debugDump() const {
+struct SelfIntersectName {
+    SelfIntersect self;
+    const char* name;
+};
+
+#define SELF_INTERSECT_NAME(r) { SelfIntersect::r, #r }
+
+SelfIntersectName selfIntersectNames[] {
+    SELF_INTERSECT_NAME(none),
+    SELF_INTERSECT_NAME(self),
+    SELF_INTERSECT_NAME(missing),
+};
+
+std::string OpIntersection::debugDump(bool fromDumpFull) const {
     bool outOfDate = false;
     for (unsigned index = 0; index < ARRAY_COUNT(intersectMakerNames); ++index)
        if (!outOfDate && (unsigned) intersectMakerNames[index].maker != index) {
            OpDebugOut("intersectMakerNames out of date\n");
            outOfDate = true;
+           break;
        }
     std::string s;
     std::string segmentID = segment ? segment->debugDumpID() : "--";
     const OpSegment* oppParent = opp ? opp->segment : nullptr;
     std::string oppID = opp ? opp->debugDumpID() : "--";
     std::string oppParentID = oppParent ? oppParent->debugDumpID() : "--";
-    s = "[" + debugDumpID() + "] " + ptT.debugDump() + " segment:"
-        + segmentID + " opp/sect:" + oppParentID + "/" + oppID;
+    s = "[" + debugDumpID() + "] " + ptT.debugDump();
+    if (debugAliasID || !OpMath::IsNaN(debugOriginal.x) || !OpMath::IsNaN(debugOriginal.y))
+        s += " (was " + debugOriginal.debugDump() + "; now from sect " + STR(debugAliasID) + ")";
+    if (!fromDumpFull || !debugMatched || !segment)
+        s += " segment:" + segmentID;
+    s += " opp/sect:" + oppParentID + "/" + oppID;
     if (coincidenceID || debugCoincidenceID)
         s += " coinID:" + STR(coincidenceID) + "/" + STR(debugCoincidenceID);
+    if (SelfIntersect::none != self)
+        s += " self:" + std::string(selfIntersectNames[(int)self].name);
     if (unsortable)
         s += " unsortable";
     s += " maker:";
     if (outOfDate)
-        s += STR((int)debugMaker);
+        s += "(out of date) " + STR((int)debugMaker);
     else
         s += intersectMakerNames[(int)debugMaker].name;
     return s;
 }
 
-// !!! move to OpDebug.cpp
-void OpIntersection::debugValidate() const {
-#if OP_DEBUG
-    assert(OpMath::Between(0, ptT.t, 1));
-    OpPoint pt = segment->c.ptAtT(ptT.t);
-    OpMath::DebugCompare(pt, ptT.pt);
-    OpPoint oPt = opp->segment->c.ptAtT(opp->ptT.t);
-    OpMath::DebugCompare(pt, oPt);
-#endif
+std::string OpIntersection::debugDumpBrief() const {
+    std::string s;
+    s += "[" + debugDumpID() + "] ";
+    s += "{" + ptT.debugDump() + ", ";
+    s += "seg:" + segment->debugDumpID();
+    return s;
+}
+
+std::string OpIntersection::debugDumpHex() const {
+    std::string s;
+    s = "/* sect:" + debugDumpID() + " */ OpPtT data[] {\n";
+    s += "  " + ptT.debugDumpHex() + " // " + ptT.debugDump() + "\n";
+    s += "}; // seg:" + segment->debugDumpID() + "\n";
+    return s;
+}
+
+void OpIntersection::dumpHex() const { 
+    OpDebugOut(debugDumpHex() + "\n"); 
+}
+
+OpIntersection::OpIntersection(std::string s) {
+    const char* str = s.c_str();
+    OpDebugSkip(str, "{");
+    ptT = OpPtT(str);
+    OpDebugSkip(str, ", ");
+    char* end;
+    long segmentID = strtol(str, &end, 10);
+    str = end;
+    OpDebugSkip(str, "}");
+    segment = const_cast<OpSegment*>(findSegment(segmentID));
+    assert(segment);
+    // don't call comnplete because we don't want to advance debug id
+}
+
+void OpIntersection::debugCompare(std::string s) const {
+    OpIntersection test(s);
+    assert(segment->id == test.segment->id);
+    assert(ptT == test.ptT);
+}
+
+void OpIntersection::dump() const {
+    std::string s = debugDump(false) + "\n";
+    OpDebugOut(s);
+}
+
+void OpIntersection::dumpPt() const {
+    segment->contour->contours->dumpMatch(ptT.pt);
 }
 
 DEBUG_DUMP_ID_DEFINITION(OpIntersection, id)
@@ -1191,7 +1228,7 @@ std::string OpSegment::debugDumpHex() const {
 std::string OpSegment::debugDumpIntersections() const {
     std::string s;
     for (auto& i : intersections)
-        s += i.debugDump() + "\n";
+        s += i.debugDump(true) + "\n";
     return s;
 }
 
@@ -1247,23 +1284,6 @@ DUMP_STRUCT_DEFINITIONS(OpSegment, 1, this)
 // DUMP_MULTIPLE_DEFINITIONS(OpSegment, 1, this)    // dump edges, sects specific to this segment
 DUMP_MATCH_DEFINITION(OpSegment, 1, this, dumpMatch)
 
-template <typename V, typename... T>   // replace with std::to_array in c++20
-constexpr auto to_array(T&&... t)->std::array < V, sizeof...(T) > {
-    return { { std::forward<T>(t)... } };
-}
-
-void OpIntersection::debugComplete() {
-    debugCoincidenceID = 0;
-    id = segment->contour->contours->id++;
-if (68 == id)
-OpDebugOut("");
-#if 1
-    auto match = to_array<int>(68);  // c++20: std::to_array<int>({... (brace)
-    if (match.end() != std::find(match.begin(), match.end(), id))
-        OpDebugOut("");
-#endif
-}
-
 struct DebugReasonName {
     ZeroReason reason;
     const char* name;
@@ -1271,7 +1291,7 @@ struct DebugReasonName {
 
 #define REASON_NAME(r) { ZeroReason::r, #r }
 
-static DebugReasonName debugReasonNames[] = {
+static DebugReasonName debugReasonNames[] {
     REASON_NAME(none),
     REASON_NAME(applyOp),
     REASON_NAME(centerNaN),
@@ -1287,7 +1307,8 @@ static DebugReasonName debugReasonNames[] = {
     REASON_NAME(matchClosest),
     REASON_NAME(matchLink),
     REASON_NAME(noFlip),
-    REASON_NAME(rayNormal)
+    REASON_NAME(rayNormal),
+    REASON_NAME(resolveCoin)
 };
 
 std::string OpWinding::debugDump() const {
@@ -1452,11 +1473,11 @@ std::string OpPoint::debugDumpHex() const {
 }
 
 void OpPoint::dump() const {
-    OpDebugOut("OpPoint pt = { " + debugDump() + " };\n");
+    OpDebugOut("OpPoint pt { " + debugDump() + " };\n");
 }
 
 void OpPoint::dumpHex() const {
-    OpDebugOut("OpPoint pt = { " + debugDumpHex() + " };  // " + debugDump() + "\n");
+    OpDebugOut("OpPoint pt { " + debugDumpHex() + " };  // " + debugDump() + "\n");
 }
 
 OpPtT::OpPtT(const char*& str) {
@@ -1500,7 +1521,7 @@ void OpRect::dumpHex() const {
 }
 
 void OpRoots::dump() const {
-    std::string s = "OpRoots roots = {\n"
+    std::string s = "OpRoots roots {\n"
         "{{ ";
     for (size_t index = 0; index < count; ++index) {
         s += OpDebugDump(roots[index]);
@@ -1512,7 +1533,7 @@ void OpRoots::dump() const {
 }
 
 void OpRoots::dumpHex() const {
-    std::string s = "OpRoots roots = { {{\n";
+    std::string s = "OpRoots roots { {{\n";
     for (size_t index = 0; index < count; ++index) {
         s += "  " + OpDebugDumpHex(roots[index]);
         if (index < count - 1)

@@ -13,33 +13,46 @@ OpEdge::OpEdge(const OpEdge* e, OpPtT newPtT, NewEdge isLeftRight  OP_DEBUG_PARA
 	complete();
 }
 
+// called after winding has been modified by other coincident edges
+OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e  OP_DEBUG_PARAMS(EdgeMaker maker))
+	: OpEdge() {
+	segment = edge->segment;
+	start = s;
+	end = e;
+#if OP_DEBUG
+	debugMaker = maker;
+	debugParentID = edge->id;
+#endif	
+	winding = edge->winding;
+	subDivide();	// uses already computed points stored in edge
+	id = segment->contour->contours->id++;
+}
+
+// start here;
+// !!! replace sort with sort-and-remove-duplicates ?
 void OpEdge::addMatchingEnds(const OpEdge& opp) const {
 	if (opp.segment == segment && (opp.start == end || opp.end == start))
 		return;
 	OpSegment* _segment = const_cast<OpSegment*>(segment);
 	OpSegment* oppSegment = const_cast<OpSegment*>(opp.segment);
 	if (start.pt == opp.start.pt || start.pt == opp.end.pt)
-		_segment->intersections.emplace_back(start, oppSegment, 0  
-				OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds1));
+		_segment->add(start, oppSegment  OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds1));
 #if OP_DEBUG
 	if (90 == segment->contour->contours->id)
 		OpDebugOut("");
 #endif
 	if (end.pt == opp.start.pt || end.pt == opp.end.pt)
-		_segment->intersections.emplace_back(end, oppSegment, 0  
-				OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds2));
+		_segment->add(end, oppSegment  OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds2));
 	if (start.pt == opp.start.pt || end.pt == opp.start.pt)
-		oppSegment->intersections.emplace_back(opp.start, _segment, 0  
-				OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds3));
+		oppSegment->add(opp.start, _segment  OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds3));
 	if (start.pt == opp.end.pt || end.pt == opp.end.pt)
-		oppSegment->intersections.emplace_back(opp.end, _segment, 0  
-				OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds4));
+		oppSegment->add(opp.end, _segment  OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds4));
 }
 
 /* table of winding states that the op types use to keep an edge
 	left op (first path)	right op (second path)		keep if:
 			0					0					---
-dump
+			0					flipOff				union, rdiff, xor
 			0					flipOn				union, rdiff, xor
 			0					1					---
 		    flipOff				0					union, diff, xor
@@ -198,10 +211,7 @@ bool OpEdge::containsLink(const OpEdge* edge) const {
 }
 
 float OpEdge::findPtT(OpPoint opp) const {
-	OpVector lineSize = end.pt - start.pt;
-	if (fabsf(lineSize.dy) > fabsf(lineSize.dx))
-		return (opp.y - start.pt.y) / lineSize.dy;
-	return (opp.x - start.pt.x) / lineSize.dx;
+	return segment->findPtT(start.t, end.t, opp);
 }
 
 // for each edge: recurse until priorSum is null or sum winding has value 
@@ -676,7 +686,7 @@ const OpCurve& OpEdge::setVertical() {
 		return vertical_impl;
 	verticalSet = true;
 	const OpCurve& curve = setCurve();
-	std::array<OpPoint, 2> edgeLine = { start.pt, end.pt };
+	std::array<OpPoint, 2> edgeLine { start.pt, end.pt };
 	curve.toVertical(edgeLine, vertical_impl);
 	return vertical_impl;
 }
