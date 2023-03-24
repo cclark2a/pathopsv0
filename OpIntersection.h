@@ -109,6 +109,7 @@ struct OpIntersection {
 	void dumpPt() const;
 	DEBUG_COMMON_DECLARATIONS();
 	DUMP_COMMON_DECLARATIONS();
+	DUMP_IMPL_DECLARATIONS();
 #endif
 
 	OpSegment* segment;	// at first: segment this intersects with; later: parent (once opp is set)

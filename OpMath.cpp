@@ -32,6 +32,16 @@ bool OpVector::isFinite() const {
     return OpMath::IsFinite(dx) && OpMath::IsFinite(dy);
 }
 
+// Use the axis with the greatest change to decide if mid is between start and end.
+// While this doesn't work in general, the callers are dealing with coincident curves
+// which may be close, but not on top of each other. When they are axis-aligned, the
+// larger provides a better metric of whether multiple curves overlap.
+bool OpPoint::Between(OpPoint start, OpPoint mid, OpPoint end) {
+    OpVector scope = end - start;
+    XyChoice xy = fabsf(scope.dx) > fabsf(scope.dy) ? XyChoice::inX : XyChoice::inY;
+    return OpMath::Between(start.choice(xy), mid.choice(xy), end.choice(xy));
+}
+
 bool OpPoint::isFinite() const {
     return OpMath::IsFinite(x) && OpMath::IsFinite(y);
 }

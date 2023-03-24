@@ -294,6 +294,9 @@ void OpEdges::setSumChain(std::vector <OpEdge*>& inArray, size_t inIndex, Axis a
 	std::vector<EdgeDistance> distance;
 	distance.emplace_back(edge, 0, edge->center.t);
 	// start at edge with left equal to or left of center
+	start here;
+	// restructure so another call can feed in two specific edges and t ranges to see if 
+	// the pair are unsortable or diverge
 	while (inIndex != 0) {
 		OpEdge* test = inArray[--inIndex];
 		if (test == edge)
@@ -306,7 +309,6 @@ void OpEdges::setSumChain(std::vector <OpEdge*>& inArray, size_t inIndex, Axis a
 			continue;
 		OpRoots cepts;
 		do {	// try to find ray; look up to eight times
-//			OpDebugBreak(edge, 129, 92 == test->id);
 			const OpCurve& curve = test->setCurve();
 			cepts.count = curve.axisRayHit(axis, normal, cepts.roots);
 			// get the normal at the intersect point and see if it is usable
@@ -352,14 +354,12 @@ void OpEdges::setSumChain(std::vector <OpEdge*>& inArray, size_t inIndex, Axis a
 		OpEdge* nextEdge = next->edge;
 		float delta = last->distance - next->distance;
 		if (!lastEdge->nextSum) {
-//			OpDebugBreak(lastEdge, 129, 92 == nextEdge->id);
 			lastEdge->nextSum = nextEdge;
 			lastEdge->nextAxis = axis;
 			lastEdge->unsortable |= delta <= OpEpsilon;
 		}
 		if (!nextEdge->priorSum) {
-//			OpDebugBreak(nextEdge, 129, 92 == lastEdge->id);
-			nextEdge->priorSum = lastEdge;
+			nextEdge->setPriorSum(lastEdge);
 			nextEdge->priorAxis = axis;
 			nextEdge->priorT = last->t;
 			nextEdge->unsortable |= delta <= OpEpsilon;
@@ -367,7 +367,6 @@ void OpEdges::setSumChain(std::vector <OpEdge*>& inArray, size_t inIndex, Axis a
 		last = next;
 	}
 	if (last != &distance.back()) {
-//		OpDebugBreak(edge, 129, 92 == (last + 1)->edge->id);
 		edge->nextSum = (last + 1)->edge;
 		edge->nextAxis = axis;
 	}
@@ -375,10 +374,19 @@ void OpEdges::setSumChain(std::vector <OpEdge*>& inArray, size_t inIndex, Axis a
 
 FoundWindings OpEdges::setWindings() {
 	OP_DEBUG_CODE(OpDebugIntersectSave save(OpDebugIntersect::edge));
-	for (size_t index = 0; index < inX.size(); ++index)
+	for (size_t index = 0; index < inX.size(); ++index) {
 		setSumChain(inX, index, Axis::horizontal);
+#if OP_DEBUG
+		if (75437 == inX[index]->id)
+			inX[index]->dumpSum(Axis::horizontal);
+#endif
+	}
 	for (size_t index = 0; index < inX.size(); ++index) {
 		OpEdge* edge = inX[index];
+#if OP_DEBUG
+		if (75437 == edge->id)
+			inX[index]->dumpSum(Axis::horizontal);
+#endif
 		if (!edge->winding.visible())
 			continue;
 		OpDebugBreak(edge, 294, true);
@@ -386,6 +394,26 @@ FoundWindings OpEdges::setWindings() {
 		do {
 			loops = false;
 			// seen prior, seen next are set so edge is checked only once for looping
+	//		start here;
+			// this is unsustainable because the edges making up the loops are not the same lengths
+			// so it isn't possible to combine windings and set one winding to zero
+			// since this loop operates on an index to an edge pointer, it would be possible to
+			// split edges as was done in the coincident case
+			// an alternative is to mark the edge as unsortable and then everywhere else use that
+			// info to not rely on sum winding. Instead, compute the winding contribution for as 
+			// many edges as are unsortable until a sortable edge with sum winding is found.
+			// because of the 'edges are different lengths' condition, the edge may or may not be
+			// part of the unsortable loop -- which sure seems like another reason why the edges
+			// triggering this must be split...
+
+			// another tack
+			// any pair of edges that can't be ordered by ray are either coincident or divergent
+			// if they are different lengths, then subsequent connected edges can be considered
+			// if the connected edges eventually share a point, the edges are likely coincident
+			// if the connected edges diverge, then all edges in that list can receive the resolved
+			//   winding
+			// this is viable for a pair of edges in a loop, but what if there are three or more?
+			// 
 			if (!edge->seenPrior && (loops = edge->priorSumLoops()))
 				edge->markFailPrior(inX, Axis::horizontal);
 			if (!edge->seenNext && (loops |= edge->nextSumLoops()))

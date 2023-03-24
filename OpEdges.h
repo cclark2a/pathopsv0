@@ -42,6 +42,7 @@ struct OpEdges {
 	void debugValidate() const;
 #endif
 #if OP_DEBUG_DUMP
+	void dump() const;
 	void dumpAxis(Axis ) const;
 	DUMP_COMMON_DECLARATIONS();
 #endif

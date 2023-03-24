@@ -406,8 +406,7 @@ void OpSegment::missingCoincidence(const OpPtT& start, const OpPtT& end,
             continue;
         if (foundIDs.end() != std::find(foundIDs.begin(), foundIDs.end(), sect.coincidenceID))
             continue;
-        if (!OpMath::Between(start.pt.x, sect.ptT.pt.x, end.pt.x) &&
-                !OpMath::Between(start.pt.y, sect.ptT.pt.y, end.pt.y)) {
+        if (!OpPoint::Between(start.pt, sect.ptT.pt, end.pt)) {
             continue;
         }
         bool alreadyFound = false;
@@ -567,10 +566,10 @@ void OpSegment::resolveCoincidence() {
                 oEdge = oNext;
             }
             if (eWindingChanges.size() && oWindingChanges.size()) {
-                bool changed = splitAtWinding(eWindingChanges, oSegment, firstOpp, oppLast,
-                        direction  OP_DEBUG_PARAMS(oppositeMatch));
-                changed |= oSegment->splitAtWinding(oWindingChanges, this, firstEdge, last, 1
-                        OP_DEBUG_PARAMS(EdgeMatch::end));
+                bool changed = splitAtWinding(eWindingChanges, oSegment, firstOpp, direction
+                        OP_DEBUG_PARAMS(oppLast, oppositeMatch));
+                changed |= oSegment->splitAtWinding(oWindingChanges, this, firstEdge, 1
+                        OP_DEBUG_PARAMS(last, EdgeMatch::end));
                 if (changed)
                     continue;  // start again if either edge list has been rewritten
             }
@@ -668,18 +667,16 @@ void OpSegment::sortIntersections() {
 
 // if there are winding changes, find the split t for the opposite edge
 bool OpSegment::splitAtWinding(const std::vector<const OpEdge*>& windingChanges, OpSegment* oSegment,
-        const OpEdge* first, const OpIntersection* last, int direction
-        OP_DEBUG_PARAMS(EdgeMatch oppositeMatch)) {
+        const OpEdge* first, int direction
+        OP_DEBUG_PARAMS(const OpIntersection* last, EdgeMatch oppositeMatch)) {
     std::vector<OpPtT> oSplitTs;
     const OpEdge* const * eChange = &windingChanges.front();
     const OpEdge* oSplit = first;
     do {    // loop once per edge
         do {    // loop once per winding change
             OpPoint changePt = (*eChange)->start.pt;
-            if (!OpMath::Between(oSplit->start.pt.x, changePt.x, oSplit->end.pt.x)
-                    || !OpMath::Between(oSplit->start.pt.y, changePt.y, oSplit->end.pt.y)) {
+            if (!OpPoint::Between(oSplit->start.pt, changePt, oSplit->end.pt))
                 break;
-            }
             // !!! skip exact matches; consider moving this into findPtT for other callers
             if (oSplit->start.pt != changePt && oSplit->end.pt != changePt) {
                 float oppT = oSegment->findPtT(oSplit->start.t, oSplit->end.t, changePt);
@@ -698,30 +695,25 @@ done:
         return false;
     if (direction < 0)
         std::reverse(oSplitTs.begin(), oSplitTs.end());
+    oSplitTs.push_back(oSegment->edges.back().end);
     std::vector<OpEdge> splits;
     const OpPtT* oSplitPtT = &oSplitTs.front();
-    const OpEdge* edge = &edges.front();
-    OpPtT lastPtT = edge->start;
+    const OpEdge* oEdge = &oSegment->edges.front();
+    OpPtT lastPtT = oEdge->start;
     do {
-        if (edge->end.t < oSplitPtT->t) {
-            if (lastPtT == edge->start)
-                splits.push_back(*edge);
+        if (oEdge->end.t <= oSplitPtT->t) {
+            if (lastPtT == oEdge->start)
+                splits.push_back(*oEdge);
             else
-                splits.emplace_back(edge, lastPtT, edge->end
-                    OP_DEBUG_PARAMS(EdgeMaker::resolveCoin1));
-            ++edge;
-            lastPtT = edge->start;
+                splits.emplace_back(oEdge, lastPtT, oEdge->end  ODP(EdgeMaker::resolveCoin1));
+            ++oEdge;
+            lastPtT = oEdge->start;
         } else {
-            if (!OpMath::IsNaN(oSplitPtT->t)) {
-                splits.emplace_back(edge, lastPtT, *oSplitPtT
-                    OP_DEBUG_PARAMS(EdgeMaker::resolveCoin1));
-                lastPtT = *oSplitPtT;
-            }
-            ++eChange;
+            assert(oSplitPtT <= &oSplitTs.back());
+            splits.emplace_back(oEdge, lastPtT, *oSplitPtT  ODP(EdgeMaker::resolveCoin2));
+            lastPtT = *oSplitPtT++;
         }
-    } while (eChange <= &windingChanges.back() && edge <= &edges.back());
-    splits.emplace_back(edge, lastPtT, edge->end
-        OP_DEBUG_PARAMS(EdgeMaker::resolveCoin3));
+    } while (oEdge <= &oSegment->edges.back());
     std::swap(oSegment->edges, splits);
     return true;
 }

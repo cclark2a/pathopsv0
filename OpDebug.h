@@ -29,6 +29,7 @@ float OpTicksToSeconds(uint64_t ticks, uint64_t frequency);
 
 #ifdef NDEBUG
 #define OP_DEBUG_PARAMS(...)
+#define ODP(...)
 #define OP_DEBUG_CODE(x)
 #define OP_DEBUG 0
 #define OP_DEBUG_DUMP 0
@@ -46,6 +47,7 @@ float OpTicksToSeconds(uint64_t ticks, uint64_t frequency);
 #endif
 
 #define OP_DEBUG_PARAMS(...) , __VA_ARGS__
+#define ODP(...) , __VA_ARGS__		// shorthand for overly long lines..
 #define OP_DEBUG_CODE(x) x
 #define OP_DEBUG 1
 #define OP_DEBUG_DUMP 1

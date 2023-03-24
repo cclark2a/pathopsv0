@@ -52,8 +52,9 @@ struct OpEdgeIntersect {
 	~OpEdgeIntersect() {
 		debugActive = nullptr;
 	}
-	DUMP_COMMON_DECLARATIONS();
+	void dump() const;
 	void dumpDetail() const;
+	DUMP_COMMON_DECLARATIONS();
 #endif
 #if OP_DEBUG_IMAGE
 	void draw() const;

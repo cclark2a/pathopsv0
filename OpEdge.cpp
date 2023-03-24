@@ -244,6 +244,8 @@ bool OpEdge::isClosed(OpEdge* test) {
 }
 
 const OpEdge* OpEdge::isLoop(EdgeLoop edgeLoop, Axis axis) const {
+	if (EdgeLoop::link == edgeLoop ? !nextEdge && !priorEdge : !nextSum && !priorSum)
+		return nullptr;
 	assert(EdgeLoop::link == edgeLoop && Axis::neither == axis ||
 			EdgeLoop::sum == edgeLoop && Axis::neither != axis);
 	const OpEdge* chain = this;
@@ -340,7 +342,7 @@ void OpEdge::markFailNext(std::vector <OpEdge*>& edges, Axis axis) {
 				if (edge->nextSum == next)
 					edge->nextSum = edge == this ? nullptr : this;
 				if (edge->priorSum == next)
-					edge->priorSum = edge == this ? nullptr : this;
+					edge->setPriorSum(edge == this ? nullptr : this);
 			}
 		}
 		next->fail = EdgeFail::priorDistance;
@@ -353,23 +355,56 @@ void OpEdge::markFailNext(std::vector <OpEdge*>& edges, Axis axis) {
 void OpEdge::markFailPrior(std::vector <OpEdge*>& edges, Axis axis) {
 	// the ray hit multiple, indistinguishable edges
 	OpEdge* prior = this;
-	float direction = start.pt.choice(axis) - end.pt.choice(axis);
+	float direction = end.pt.choice(axis) - start.pt.choice(axis);
+	OpPoint priorStart { start.pt };
+	OpPoint priorEnd { end.pt };
 	do {
 		if (this != prior) {
-			float priorDirection = prior->start.pt.choice(axis) - prior->end.pt.choice(axis);
+			float priorDirection = prior->end.pt.choice(axis) - prior->start.pt.choice(axis);
 			bool reversed = direction * priorDirection < 0;
+			priorStart = reversed ? prior->end.pt : prior->start.pt;
+			OpEdge* priorCoinLast = prior;
+			if (start.pt != priorStart) {	// see if shorter can be extended
+				bool shortStart = (start.pt.choice(axis) < priorStart.choice(axis)) == (direction > 0);
+				// connecting bit must have single intersection; multiple sects can change winding
+				OpEdge* shortEdge = shortStart ? this : prior;
+				EdgeMatch adjacentEnd = shortStart || !reversed ? EdgeMatch::start : EdgeMatch::end;
+				bool crossing = shortEdge->segment->crossPoint(shortEdge->ptT(adjacentEnd).pt);
+				if (!crossing) {
+					OpEdge* adjacentEdge = shortEdge->adjacent(adjacentEnd);
+					// does adjacent edge mate with this edge to for coincidence? does it diverge?
+					OpEdge* longEdge = shortStart ? prior : this;
+					EdgeMatch longEnd = !shortStart || !reversed ? EdgeMatch::start : EdgeMatch::end;
+					if (longEdge->ptT(longEnd).pt == adjacentEdge->ptT(adjacentEnd).pt) {
+						priorCoinLast = adjacentEdge;
+					} else { // see if edge divergence permits sorting
+						// start here; call setSumChain or equivalent to see if sorting is now possible
+					}
+				} else
+					assert(0); // examine state to see what this means
+					// assert suggests that shorter edge cannot be extended because one or more
+				//     edges intersect at the shorter edge's end. This may mean that the intersects
+				//     should have been found for the longer edge and either were not found, or have
+				//     a different intersection point. What to do? TBD
+			}
+			priorEnd = reversed ? prior->start.pt : prior->end.pt;
+			if (end.pt != priorEnd) {
+				bool shortEnd = (end.pt.choice(axis) < priorEnd.choice(axis)) == (direction > 0);
+				// start here
+			}
+			// if this edge and prior have same end points, treat them as coincident
 			winding.move(prior->winding, segment->contour->contours, reversed);
 			for (auto edge : edges) {
 				if (edge->nextSum == prior)
 					edge->nextSum = edge == this ? nullptr : this;
 				if (edge->priorSum == prior)
-					edge->priorSum = edge == this ? nullptr : this;
+					edge->setPriorSum(edge == this ? nullptr : this);
 			}
 		}
 		prior->fail = EdgeFail::nextDistance;
 		OpEdge* unlink = prior;
 		prior = prior->priorSum;
-		unlink->priorSum = nullptr;
+		unlink->setPriorSum(nullptr);
 	} while (prior && EdgeFail::none == prior->fail);
 }
 
@@ -677,8 +712,14 @@ void OpEdge::setPoints(std::array<OpPoint, 4>& pts) const {
 // setter to make adding breakpoints easier
 // !!! if release doesn't inline, restructure more cleverly...
 void OpEdge::setPriorEdge(OpEdge* edge) {
-	if (01) OpDebugBreak(this, 119, 107 == edge->id);
 	priorEdge = edge;
+}
+
+// setter to make adding breakpoints easier
+// !!! if release doesn't inline, restructure more cleverly...
+void OpEdge::setPriorSum(OpEdge* edge) {
+	OpDebugBreak(this, 75436, edge && 75437 == edge->id);
+	priorSum = edge;
 }
 
 const OpCurve& OpEdge::setVertical() {

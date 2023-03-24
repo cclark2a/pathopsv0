@@ -97,6 +97,7 @@ void HelloWorld::updateTitle() {
 
 void HelloWorld::onBackendCreated() {
     this->updateTitle();
+    fWindow->onResize(768, 256);
     fWindow->show();
     fWindow->inval();
 }

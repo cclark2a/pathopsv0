@@ -318,6 +318,8 @@ struct OpPoint {
     const float* asPtr(Axis axis) const {
         return &x + +axis;
     }
+    
+    static bool Between(OpPoint start, OpPoint mid, OpPoint end);
 
     float choice(XyChoice xyChoice) const {
         assert(XyChoice::inZ != xyChoice);

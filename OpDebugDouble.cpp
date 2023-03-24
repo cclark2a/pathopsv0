@@ -647,7 +647,6 @@ void DebugOpCurve::subDivide(double a, double b, DebugOpCurve& dest) const {
 
 
 std::vector<DebugOpCurve> debugLines;
-std::vector<DebugOpCurve> debugNormals;
 std::vector<DebugOpCurve> debugSegments;
 std::vector<DebugOpCurve> debugEdges;
 std::vector<DebugOpCurve> debugPaths;
@@ -804,6 +803,14 @@ void DebugOpPtToPt(OpPoint src, OpPoint dst) {
 
 void DebugOpClearEdges() {
     debugEdges.clear();
+}
+
+void DebugOpAdd(const OpEdge* edge) {
+    DebugOpBuild(*edge, debugEdges);
+}
+
+void DebugOpDrawEdges() {
+    DebugOpDraw(debugEdges);
 }
 
 void DebugOpDraw(const std::vector<OpEdge>& edges) {
@@ -983,7 +990,7 @@ void DebugOpDraw(const std::vector<const SkPath*>& paths) {
     for (auto& path : paths)
         if (path)
             DebugOpBuild(*path, debugPaths);
-    DebugOpDraw(debugPaths);
+    DebugOpDraw(debugPaths, SK_ColorBLUE);
 }
 
 void DebugOpClearPoints() {
@@ -1064,37 +1071,22 @@ void DebugOpDrawValue(bool inHex, int precision) {
 }
 
 void DebugOpDrawEdgeIDs(const std::vector<const OpEdge*>& edges, std::vector<int>& ids) {
-    for (auto edge : edges) {
-        if (ids.end() != std::find(ids.begin(), ids.end(), edge->id))
-            continue;
-        ids.push_back(edge->id);
-        std::vector<DebugOpCurve> drawn;
-        DebugOpBuild(*edge, drawn);
-        for (auto& drawnEdge : drawn) {
-            OpCurve curve;
-            drawnEdge.mapTo(curve);
-            OpPoint midTPt = curve.ptAtT(.5);
-            OpDebugImage::drawValue(midTPt, STR(edge->id), 
-                    edge->winding.visible() ? SK_ColorBLACK : SK_ColorRED);
-        }
-    }
+    for (auto edge : edges)
+        DebugOpDrawEdgeID(edge, ids, edge->winding.visible() ? SK_ColorBLACK : SK_ColorRED);
 }
 
 // these edges are splits created when intersecting a pair of curves
-void DebugOpDrawEdgeIDs(const std::vector<OpEdge>& edges, std::vector<int>& ids, bool opp) {
-    for (const auto& edge : edges) {
-        if (ids.end() != std::find(ids.begin(), ids.end(), edge.id))
-            continue;
-        ids.push_back(edge.id);
-        std::vector<DebugOpCurve> drawn;
-        DebugOpBuild(edge, drawn);
-        for (auto& drawnEdge : drawn) {
-            OpCurve curve;
-            drawnEdge.mapTo(curve);
-            OpPoint midTPt = curve.ptAtT(.5);
-            OpDebugImage::drawValue(midTPt, STR(edge.id),       // dark green
-                    edge.winding.visible() ? opp ? SK_ColorBLUE : 0xFF008000 : SK_ColorRED);
-        }
+void DebugOpDrawEdgeID(const OpEdge* edge, std::vector<int>& ids, uint32_t color) {
+    if (ids.end() != std::find(ids.begin(), ids.end(), edge->id))
+        return;
+    ids.push_back(edge->id);
+    std::vector<DebugOpCurve> drawn;
+    DebugOpBuild(*edge, drawn);
+    for (auto& drawnEdge : drawn) {
+        OpCurve curve;
+        drawnEdge.mapTo(curve);
+        OpPoint midTPt = curve.ptAtT(.5);
+        OpDebugImage::drawValue(midTPt, STR(edge->id), color);
     }
 }
 

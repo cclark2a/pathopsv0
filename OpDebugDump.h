@@ -9,7 +9,9 @@ struct OpContour;
 struct OpEdge;
 struct OpIntersection;
 struct OpOutPath;
+struct OpPoint;
 struct OpSegment;
+enum class Axis : uint8_t;
 
 extern void dump(const std::vector<OpEdge>& );  // to dump edge list built from intersections
 extern void dump(const std::vector<OpEdge*>& ); // to dump assemble linkups
@@ -27,8 +29,9 @@ extern void dump(const OpOutPath& );
 	std::string debugDumpIntersections() const; \
 	std::string debugDumpLink() const; \
 	std::string debugDumpLinkDetail() const; \
-	std::string debugDumpSum() const; \
-	std::string debugDumpSumDetail() const \
+	std::string debugDumpSum(Axis ) const; \
+	std::string debugDumpSumDetail(Axis ) const; \
+	std::string debugDumpWinding() const; \
 
 #define DEBUG_DUMP_ID_DEFINITION(_owner, _id) \
 	std::string _owner::debugDumpID() const { \
@@ -36,7 +39,6 @@ extern void dump(const OpOutPath& );
 	}
 
 #define DUMP_COMMON_DECLARATIONS() \
-	void dump() const; \
 	void dump(int id) const; \
     void dumpCoin(int id) const; \
     void dumpCoincidence(int id) const; \
@@ -44,98 +46,161 @@ extern void dump(const OpOutPath& );
 	void dumpEdges() const; \
 	void dumpEnd(int id) const; \
 	void dumpFull(int id) const; \
-	void dumpHex() const; \
 	void dumpHex(int id) const; \
 	void dumpIntersections() const; \
     void dumpLink(int id) const; \
     void dumpLinkDetail(int id) const; \
-	void dumpMatch(OpPoint) const; \
+	void dumpMatch(const OpPoint& ) const; \
 	void dumpSects() const; \
+	void dumpSegmentEdges(int id) const; \
+	void dumpSegmentIntersections(int id) const; \
+	void dumpSegmentSects(int id) const; \
 	void dumpSegments() const; \
 	void dumpStart(int id) const; \
-    void dumpSum(int id) const; \
-    void dumpSumDetail(int id) const; \
+    void dumpSum(Axis ) const; \
+    void dumpSum(int id, Axis ) const; \
+    void dumpSumDetail(Axis ) const; \
+    void dumpSumDetail(int id, Axis) const; \
+	void dumpWinding(int id) const; \
 
-#define DUMP_STRUCT_DEFINITION(_owner, _sizecheck, _segment, _method) \
-	void _owner::_method(int ID) const { \
-		if (!_sizecheck)	\
-			return;	\
-		const OpSegment* s = _segment;	\
-		s->contour->contours->_method(ID); \
+#define DUMP_IMPL_DECLARATIONS() \
+	void dump() const; \
+    void dumpCoin() const; \
+    void dumpCoincidence() const; \
+	void dumpDetail() const; \
+	void dumpEnd() const; \
+	void dumpFull() const; \
+	void dumpHex() const; \
+    void dumpLink() const; \
+    void dumpLinkDetail() const; \
+	void dumpSegmentEdges() const; \
+	void dumpSegmentIntersections() const; \
+	void dumpSegmentSects() const; \
+	void dumpStart() const; \
+	void dumpWinding() const; \
+
+#define DUMP_STRUCT_DEFINITION(_owner, _method) \
+	void _owner::_method() const { \
+		debugGlobalContours->_method(); \
 	}
 
-#define DUMP_STRUCT_DEFINITIONS(_owner, _sizecheck, _segment) \
-	DUMP_STRUCT_DEFINITION(_owner, _sizecheck, _segment, dump) \
-	DUMP_STRUCT_DEFINITION(_owner, _sizecheck, _segment, dumpCoin) \
-	DUMP_STRUCT_DEFINITION(_owner, _sizecheck, _segment, dumpCoincidence) \
-	DUMP_STRUCT_DEFINITION(_owner, _sizecheck, _segment, dumpDetail) \
-	DUMP_STRUCT_DEFINITION(_owner, _sizecheck, _segment, dumpEnd) \
-	DUMP_STRUCT_DEFINITION(_owner, _sizecheck, _segment, dumpFull) \
-	DUMP_STRUCT_DEFINITION(_owner, _sizecheck, _segment, dumpHex) \
-	DUMP_STRUCT_DEFINITION(_owner, _sizecheck, _segment, dumpLink) \
-	DUMP_STRUCT_DEFINITION(_owner, _sizecheck, _segment, dumpLinkDetail) \
-	DUMP_STRUCT_DEFINITION(_owner, _sizecheck, _segment, dumpStart) \
-	DUMP_STRUCT_DEFINITION(_owner, _sizecheck, _segment, dumpSum) \
-	DUMP_STRUCT_DEFINITION(_owner, _sizecheck, _segment, dumpSumDetail) \
+#define DUMP_STRUCT_DEF_ID(_owner, _method) \
+	void _owner::_method(int ID) const { \
+		debugGlobalContours->_method(ID); \
+	}
+
+#define DUMP_STRUCT_DEF_AXIS(_owner, _method) \
+	void _owner::_method(int ID, Axis axis) const { \
+		debugGlobalContours->_method(ID, axis); \
+	}
+
+#define DUMP_STRUCT_DEF_MATCH(_owner, _method) \
+	void _owner::_method(const OpPoint& pt) const { \
+		debugGlobalContours->_method(pt); \
+	}
+
+#define DUMP_STRUCT_DEFINITIONS(_owner) \
+	DUMP_STRUCT_DEF_ID(_owner, dump) \
+	DUMP_STRUCT_DEF_ID(_owner, dumpCoin) \
+	DUMP_STRUCT_DEF_ID(_owner, dumpCoincidence) \
+	DUMP_STRUCT_DEF_ID(_owner, dumpDetail) \
+	DUMP_STRUCT_DEFINITION(_owner, dumpEdges) \
+	DUMP_STRUCT_DEF_ID(_owner, dumpEnd) \
+	DUMP_STRUCT_DEF_ID(_owner, dumpFull) \
+	DUMP_STRUCT_DEF_ID(_owner, dumpHex) \
+	DUMP_STRUCT_DEFINITION(_owner, dumpIntersections) \
+	DUMP_STRUCT_DEF_ID(_owner, dumpLink) \
+	DUMP_STRUCT_DEF_ID(_owner, dumpLinkDetail) \
+	DUMP_STRUCT_DEF_MATCH(_owner, dumpMatch) \
+	DUMP_STRUCT_DEFINITION(_owner, dumpSects) \
+	DUMP_STRUCT_DEF_ID(_owner, dumpSegmentEdges) \
+	DUMP_STRUCT_DEF_ID(_owner, dumpSegmentIntersections) \
+	DUMP_STRUCT_DEF_ID(_owner, dumpSegmentSects) \
+	DUMP_STRUCT_DEFINITION(_owner, dumpSegments) \
+	DUMP_STRUCT_DEF_ID(_owner, dumpStart) \
+	DUMP_STRUCT_DEF_AXIS(_owner, dumpSum) \
+	DUMP_STRUCT_DEF_AXIS(_owner, dumpSumDetail) \
+	DUMP_STRUCT_DEF_ID(_owner, dumpWinding) \
 
 #define DUMP_GLOBAL_DEFINITION(global_function) \
+	void global_function() { \
+		debugGlobalContours->global_function(); \
+	}
+
+#define DUMP_GLOBAL_DEF_ID(global_function) \
 	void global_function(int id) { \
 		debugGlobalContours->global_function(id); \
 	}
 
+#define DUMP_GLOBAL_DEF_AXIS(global_function) \
+	void global_function(int id, Axis axis) { \
+		debugGlobalContours->global_function(id, axis); \
+	}
+
+#define DUMP_GLOBAL_DEF_MATCH(global_function) \
+	void global_function(const OpPoint& pt) { \
+		debugGlobalContours->global_function(pt); \
+	}
+
 #define DUMP_GLOBAL_DEFINITIONS() \
-	DUMP_GLOBAL_DEFINITION(dump) \
-	DUMP_GLOBAL_DEFINITION(dumpCoin) \
-	DUMP_GLOBAL_DEFINITION(dumpCoincidence) \
-	DUMP_GLOBAL_DEFINITION(dumpDetail) \
-	DUMP_GLOBAL_DEFINITION(dumpEnd) \
-	DUMP_GLOBAL_DEFINITION(dumpFull) \
-	DUMP_GLOBAL_DEFINITION(dumpHex) \
-	DUMP_GLOBAL_DEFINITION(dumpLink) \
-	DUMP_GLOBAL_DEFINITION(dumpLinkDetail) \
-	DUMP_GLOBAL_DEFINITION(dumpStart) \
-	DUMP_GLOBAL_DEFINITION(dumpSum) \
-	DUMP_GLOBAL_DEFINITION(dumpSumDetail) \
+	DUMP_GLOBAL_DEF_ID(dump) \
+	DUMP_GLOBAL_DEF_ID(dumpCoin) \
+	DUMP_GLOBAL_DEF_ID(dumpCoincidence) \
+	DUMP_GLOBAL_DEF_ID(dumpDetail) \
+	DUMP_GLOBAL_DEFINITION(dumpEdges) \
+	DUMP_GLOBAL_DEF_ID(dumpEnd) \
+	DUMP_GLOBAL_DEF_ID(dumpFull) \
+	DUMP_GLOBAL_DEF_ID(dumpHex) \
+	DUMP_GLOBAL_DEFINITION(dumpIntersections) \
+	DUMP_GLOBAL_DEF_ID(dumpLink) \
+	DUMP_GLOBAL_DEF_ID(dumpLinkDetail) \
+	DUMP_GLOBAL_DEF_MATCH(dumpMatch) \
+	DUMP_GLOBAL_DEFINITION(dumpSects) \
+	DUMP_GLOBAL_DEF_ID(dumpSegmentEdges) \
+	DUMP_GLOBAL_DEF_ID(dumpSegmentIntersections) \
+	DUMP_GLOBAL_DEF_ID(dumpSegmentSects) \
+	DUMP_GLOBAL_DEFINITION(dumpSegments) \
+	DUMP_GLOBAL_DEF_ID(dumpStart) \
+	DUMP_GLOBAL_DEF_AXIS(dumpSum) \
+	DUMP_GLOBAL_DEF_AXIS(dumpSumDetail) \
+	DUMP_GLOBAL_DEF_ID(dumpWinding) \
 
 #define DUMP_GLOBAL_DECLARATION(global_function) \
 	extern void global_function(int id);
 
+#define DUMP_GLOBAL_DECL_ID(global_function) \
+	extern void global_function(int id);
+
+#define DUMP_GLOBAL_DECL_AXIS(global_function) \
+	extern void global_function(int id, Axis axis);
+
+#define DUMP_GLOBAL_DECL_MATCH(global_function) \
+	extern void global_function(const OpPoint& pt);
+
 #define DUMP_GLOBAL_DECLARATIONS() \
-	DUMP_GLOBAL_DECLARATION(dump) \
-	DUMP_GLOBAL_DECLARATION(dumpCoin) \
-	DUMP_GLOBAL_DECLARATION(dumpCoincidence) \
-	DUMP_GLOBAL_DECLARATION(dumpDetail) \
-	DUMP_GLOBAL_DECLARATION(dumpEnd) \
-	DUMP_GLOBAL_DECLARATION(dumpFull) \
-	DUMP_GLOBAL_DECLARATION(dumpHex) \
-	DUMP_GLOBAL_DECLARATION(dumpLink) \
-	DUMP_GLOBAL_DECLARATION(dumpLinkDetail) \
-	DUMP_GLOBAL_DECLARATION(dumpStart) \
-	DUMP_GLOBAL_DECLARATION(dumpSum) \
-	DUMP_GLOBAL_DECLARATION(dumpSumDetail) \
+	DUMP_GLOBAL_DECL_ID(dump) \
+	DUMP_GLOBAL_DECL_ID(dumpCoin) \
+	DUMP_GLOBAL_DECL_ID(dumpCoincidence) \
+	DUMP_GLOBAL_DECL_ID(dumpDetail) \
+	DUMP_GLOBAL_DECLARATION(dumpEdges) \
+	DUMP_GLOBAL_DECL_ID(dumpEnd) \
+	DUMP_GLOBAL_DECL_ID(dumpFull) \
+	DUMP_GLOBAL_DECL_ID(dumpHex) \
+	DUMP_GLOBAL_DECLARATION(dumpIntersections) \
+	DUMP_GLOBAL_DECL_ID(dumpLink) \
+	DUMP_GLOBAL_DECL_ID(dumpLinkDetail) \
+	DUMP_GLOBAL_DECL_MATCH(dumpMatch) \
+	DUMP_GLOBAL_DECLARATION(dumpSects) \
+	DUMP_GLOBAL_DECL_ID(dumpSegmentEdges) \
+	DUMP_GLOBAL_DECL_ID(dumpSegmentIntersections) \
+	DUMP_GLOBAL_DECL_ID(dumpSegmentSects) \
+	DUMP_GLOBAL_DECLARATION(dumpSegments) \
+	DUMP_GLOBAL_DECL_ID(dumpStart) \
+	DUMP_GLOBAL_DECL_AXIS(dumpSum) \
+	DUMP_GLOBAL_DECL_AXIS(dumpSumDetail) \
+	DUMP_GLOBAL_DECL_ID(dumpWinding) \
 
 DUMP_GLOBAL_DECLARATIONS()
-
-#define DUMP_MULTIPLE_DEFINITION(_owner, _sizecheck, _segment, _method) \
-	void _owner::_method() const { \
-		if (!_sizecheck)	\
-			return;	\
-		const OpSegment* s = _segment;	\
-		s->contour->contours->_method(); \
-	}
-
-#define DUMP_MULTIPLE_DEFINITIONS(_owner, _sizecheck, _segment) \
-	DUMP_MULTIPLE_DEFINITION(_owner, _sizecheck, _segment, dumpEdges) \
-	DUMP_MULTIPLE_DEFINITION(_owner, _sizecheck, _segment, dumpSegments) \
-	DUMP_MULTIPLE_DEFINITION(_owner, _sizecheck, _segment, dumpIntersections)
-
-#define DUMP_MATCH_DEFINITION(_owner, _sizecheck, _segment, _method) \
-	void _owner::_method(OpPoint pt) const { \
-		if (!_sizecheck)	\
-			return;	\
-		const OpSegment* s = _segment;	\
-		s->contour->contours->_method(pt); \
-	}
 
 #define FIND_COMMON_DECLARATIONS(pre_const, post) \
 	pre_const OpIntersection* findCoin(int id) post \

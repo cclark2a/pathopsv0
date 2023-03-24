@@ -41,8 +41,14 @@ static OpEdge& findEdgesTRange(std::vector<OpEdge>& parts, const OpSegment* oppS
 }
 
 // given a test point on a segment, find the closest value for the same point on the opposite edge
+// !!! this seems suspiciously close to segment findPtAtT and, given that this introduces error by
+//     finding roots, is prone to the same bugs. Both this and that should prefer exact matches.
 static float oppositeT(const OpSegment* segment, const OpEdge& oppEdge, OpPtT test
 		OP_DEBUG_PARAMS(int edgeID)) {
+	if (oppEdge.start.pt == test.pt)
+		return oppEdge.start.t;
+	if (oppEdge.end.pt == test.pt)
+		return oppEdge.end.t;
 	const OpSegment* oppSegment = oppEdge.segment;
 	const OpCurve& oppCurve = oppSegment->c;
 	std::array<OpPoint, 2> line { test.pt, test.pt + segment->c.normal(test.t) };
@@ -157,10 +163,6 @@ void OpEdgeIntersect::addCurveCoincidence() {
 void OpEdgeIntersect::addCurveCoin(OpEdge& edge, OpEdge& oppEdge) {
 	OpSegment* segment = const_cast<OpSegment*>(edge.segment);
 	OpSegment* oppSegment = const_cast<OpSegment*>(oppEdge.segment);
-#if OP_DEBUG
-	if (100 == edge.id && 112 == oppEdge.id)
-		OpDebugOut("");
-#endif
 	float oppStartT = oppositeT(segment, oppEdge, edge.start  OP_DEBUG_PARAMS(edge.id));
 	float oppEndT = oppositeT(segment, oppEdge, edge.end  OP_DEBUG_PARAMS(edge.id));
 	float startT = oppositeT(oppSegment, edge, oppEdge.start  OP_DEBUG_PARAMS(oppEdge.id));

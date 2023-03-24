@@ -279,6 +279,7 @@ public:
 	OpEdge& operator=(OpEdge&&) = default;
 	~OpEdge();	// reason: removes temporary edges from image list
 #endif
+	OpEdge* adjacent(EdgeMatch );
 	void apply();
 	void calcCenterT();
 	void calcWinding(Axis axis);
@@ -315,6 +316,7 @@ public:
 	void setPointBounds();
 	void setPoints(std::array<OpPoint, 4>& pts) const;
 	void setPriorEdge(OpEdge* );  // setter exists so debug breakpoints can be set
+	void setPriorSum(OpEdge*);   // setter exists so debug breakpoints can be set
 	const OpCurve& setVertical();
 	void setWinding(OpVector ray);
 	void subDivide();
@@ -328,22 +330,13 @@ public:
 	OpEdge(OpHexPtT data[2]);
 	void debugCompare(std::string ) const;
 	std::string debugDumpBrief() const;
-	std::string debugDumpChain(EdgeLoop , bool detail) const;
-	std::string debugDumpWinding() const;
+	std::string debugDumpChain(EdgeLoop , Axis axis, bool detail) const;
 	void debugValidate() const;    // make sure pointer to edge is valid
-	void dumpChain(EdgeLoop ) const;
-	void dumpChainDetail(EdgeLoop ) const;
-	void dumpDetail() const;
-	void dumpEnd() const;
-	void dumpFull() const;
-	void dumpLink() const;
-	void dumpLinkDetail() const;
-	void dumpStart() const;
-	void dumpSum() const;
-	void dumpSumDetail() const;
-	void dumpWinding() const;
+	void dumpChain(EdgeLoop , Axis axis = Axis::neither) const;
+	void dumpChainDetail(EdgeLoop , Axis axis = Axis::neither) const;
 	DEBUG_COMMON_DECLARATIONS();
 	DUMP_COMMON_DECLARATIONS();
+	DUMP_IMPL_DECLARATIONS();
 #endif
 #if OP_DEBUG_IMAGE
 	void addLink() const;
