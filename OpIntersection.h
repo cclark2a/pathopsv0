@@ -8,7 +8,8 @@ struct OpSegment;
 enum class SelfIntersect {
 	none,
 	self,
-	missing
+	missing,
+	split,
 };
 
 #if OP_DEBUG
@@ -50,39 +51,53 @@ enum class IntersectMaker {
 	findIntersections7,
 	findIntersections8,
 	makeEdges,
-	missingCoincidence,
+	missingCoincidence1,
+	missingCoincidence2,
 	opCubicErrorTest1,
 	opCubicErrorTest2,
 	opTestEdgeZero1,
 	opTestEdgeZero2,
 	opTestEdgeZero3,
 	opTestEdgeZero4,
+	splitAtWinding,
 };
 #endif
 
 // Places where a pair of segments cross are recorded as intersections.
 // Pairs of intersections, along with segments' ends, extremas, and inflections,
 // are used to create edges. Edges may then be subdivided so that each edge has
-// a unique winding contribution, but it is not necessary to record those 
-// additional subdivisions as intersections. For that matter, it isn't necessary
+// a unique winding contribution, it is necessary to record those 
+// additional subdivisions as intersections, so the intersection array can be used
+// to find adjacent edges later. But it isn't necessary
 // to record extremas or inflections in the intersection array; it is done as
 // a matter of convenience when initially constructing the edge list.
+
+// The intersection struct, once allocated, is never relocated. This allows pairs of
+// intersection to point at each other at time of creation.
+
 struct OpIntersection {
-	OpIntersection(const OpPtT& t, OpSegment* seg, SelfIntersect self_ , int cID
-			OP_DEBUG_PARAMS(IntersectMaker maker))
-		: segment(seg)
-		, opp(nullptr)
-		, ptT(t)
-		, coincidenceID(cID)	// 0 if no coincidence; negative if coincident pairs are reversed
-		, self(self_)
-		, aliased(false)
-		, unsortable(false) {
+	OpIntersection() {}
+
+	void pair(OpIntersection* opp_) {
+		opp = opp_;
+		opp_->opp = this;
+	}
+
+	void set(const OpPtT& t, OpSegment* seg, SelfIntersect self_ , int cID
+			OP_DEBUG_PARAMS(IntersectMaker maker)) {
+		segment = seg;
+		opp = SelfIntersect::none == self_ ? nullptr : this;
+		ptT = t;
+		coincidenceID = cID;	// 0 if no coincidence; negative if coincident pairs are reversed
+		self = self_;
+		aliased = false;
+		unsortable = false;
 #if OP_DEBUG
 		debugMaker = maker;
 		debugCoincidenceID = 0;
 		debugAliasID = 0;
 		debugSetID();		// debug for now
-		debugMatched = false;
+		debugErased = false;
 #endif
 	}
 
@@ -112,7 +127,7 @@ struct OpIntersection {
 	DUMP_IMPL_DECLARATIONS();
 #endif
 
-	OpSegment* segment;	// at first: segment this intersects with; later: parent (once opp is set)
+	OpSegment* segment;
 	OpIntersection* opp;
 	OpPtT ptT;
 	int coincidenceID;
@@ -125,8 +140,19 @@ struct OpIntersection {
 	int debugCoincidenceID;	// this one does not get erased
 	int debugAliasID;
 	OpPoint debugOriginal;	// point value prior to aliasing
-    bool debugMatched;
+	mutable bool debugErased;
 #endif
+};
+
+// allocating storage separately allows intersections to be immobile and have reliable pointers
+struct OpSectStorage {
+	OpSectStorage()
+		: next(nullptr)
+		, used(0) {
+	}
+	OpSectStorage* next;
+	OpIntersection storage[256];
+	int used;
 };
 
 #endif

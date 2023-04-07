@@ -32,7 +32,7 @@ static const bool OutInverse[+OpOperator::ReverseSubtract + 1][2][2] {
 bool PathOps(OpInPath left, OpInPath right, OpOperator _operator, OpOutPath result) {
     _operator = OpInverse[+_operator][left.isInverted()][right.isInverted()];
     bool inverseFill = OutInverse[+_operator][left.isInverted()][right.isInverted()];
-    OpContours contourList;
+    OpContours contourList(_operator);
 #if OP_DEBUG
     OpDebugPathOpsEnable debugEnable;
     debugGlobalContours = &contourList;
@@ -42,7 +42,6 @@ bool PathOps(OpInPath left, OpInPath right, OpOperator _operator, OpOutPath resu
     OpDebugImage::init(left.skPath, right.skPath);
     oo();
 #endif
-    contourList._operator = _operator;
     if (!OpSegmentBuilder::Build(left, contourList, OpOperand::left))
         return false;
     if (!OpSegmentBuilder::Build(right, contourList, OpOperand::right))
@@ -72,9 +71,9 @@ bool PathOps(OpInPath left, OpInPath right, OpOperator _operator, OpOutPath resu
     //   intersections are ptT for each found crossing
     contourList.sortIntersections();    // !!! should do nothing if intersections are unchanged
     contourList.resolvePoints();    // added coincident points may have multiple pts with single t
-    contourList.matchIntersections();  // point each intersection at its doppelganger
     contourList.intersectEdge();  // combine edge list and intersection list
-    contourList.resolveCoincidence();  // leave at most one active for each pair of coincident edges
+    if (!contourList.resolveCoincidence())  // leave at most one active for each pair of coincident edges
+        return false;
     OpEdges windingEdges(contourList, EdgesToSort::byCenter);
     FoundWindings foundWindings = windingEdges.setWindings();  // walk edge list, compute windings
     if (FoundWindings::fail == foundWindings)

@@ -39,9 +39,9 @@ const OpSegment* findSegment(int id) {
 void OpContours::dumpCoin(int coinID) const {
     for (const auto& c : contours) {
         for (const auto& seg : c.segments) {
-            for (const auto& sect : seg.intersections) {
-                if (coinID == sect.coincidenceID)
-                    sect.dump();
+            for (const auto sect : seg.intersections) {
+                if (coinID == sect->coincidenceID)
+                    sect->dump();
             }
         }
     }
@@ -78,9 +78,9 @@ std::string OpContours::debugDumpHex(std::string label) const {
         for (const auto& seg : c.segments) {
             if (seg.intersections.size())
                 s += "OpDebugSectHex " + label + "Sects" + STR(seg.id) + "[] {\n";
-            for (const auto& intersection : seg.intersections) {
-                s += "// " + intersection.debugDumpBrief() + "\n";
-                s += intersection.debugDumpHex() + ",\n";
+            for (const auto intersection : seg.intersections) {
+                s += "// " + intersection->debugDumpBrief() + "\n";
+                s += intersection->debugDumpHex() + ",\n";
             }
             if (seg.intersections.size())
                 s += "};\n\n";
@@ -197,8 +197,8 @@ void OpContours::dumpIntersections() const {
     for (const auto& c : contours) {
         for (const auto& seg : c.segments) {
             s += "intersect " + seg.debugDump() + "\n";
-            for (const auto& sect : seg.intersections) {
-                s += "  " + sect.debugDump(true) + "\n";
+            for (const auto sect : seg.intersections) {
+                s += "  " + sect->debugDump(true) + "\n";
             }
         }
     }
@@ -242,6 +242,22 @@ void OpContours::dumpSegments() const {
     }
 }
 
+void OpContours::dumpSegmentEdges(int ID) const {
+    findSegment(ID)->dumpSegmentEdges();
+}
+
+void OpContours::dumpSegmentIntersections(int ID) const {
+    findSegment(ID)->dumpSegmentIntersections();
+}
+
+void OpContours::dumpSegmentSects(int ID) const {
+    findSegment(ID)->dumpSegmentSects();
+}
+
+void OpContours::dumpWinding(int ID) const {
+    findEdge(ID)->dumpWinding();
+}
+
 void OpContours::dumpMatch(const OpPoint& pt) const {
     for (const auto& c : contours) {
         for (const auto& seg : c.segments) {
@@ -261,14 +277,14 @@ void OpContours::dumpMatch(const OpPoint& pt) const {
                 if (pt == seg.tightBounds.inflections[index].pt)
                     OpDebugOut("inflections[" + STR(index) + "]: " + seg.debugDumpDetail());
             }
-            for (const auto& sect : seg.intersections) {
-                if (sect.ptT.pt == pt) {
+            for (const auto sect : seg.intersections) {
+                if (sect->ptT.pt == pt) {
                     OpDebugOut("sect: ");
-                    sect.dump();
+                    sect->dump();
                 }
-                if (sect.debugOriginal == pt) {
+                if (sect->debugOriginal == pt) {
                     OpDebugOut("sect original: ");
-                    sect.dump();
+                    sect->dump();
                 }
             }
             for (const auto& edge : seg.edges) {
@@ -293,42 +309,6 @@ void OpContours::dumpMatch(const OpPoint& pt) const {
     }
 }
 
-void OpContours::dumpSegmentEdges(int ID) const {
-    const OpSegment* segment = findSegment(ID);
-    if (segment)
-        return segment->dumpSegmentEdges();
-    const OpEdge* edge = findEdge(ID);
-    if (edge)
-        return edge->dumpSegmentEdges();
-    const OpIntersection* intersection = findIntersection(ID);
-    if (intersection)
-        return intersection->dumpSegmentEdges();
-}
-
-void OpContours::dumpSegmentIntersections(int ID) const {
-    const OpSegment* segment = findSegment(ID);
-    if (segment)
-        return segment->dumpSegmentIntersections();
-    const OpEdge* edge = findEdge(ID);
-    if (edge)
-        return edge->dumpSegmentIntersections();
-    const OpIntersection* intersection = findIntersection(ID);
-    if (intersection)
-        return intersection->dumpSegmentIntersections();
-}
-
-void OpContours::dumpSegmentSects(int ID) const {
-    const OpSegment* segment = findSegment(ID);
-    if (segment)
-        return segment->dumpSegmentSects();
-    const OpEdge* edge = findEdge(ID);
-    if (edge)
-        return edge->dumpSegmentSects();
-    const OpIntersection* intersection = findIntersection(ID);
-    if (intersection)
-        return intersection->dumpSegmentSects();
-}
-
 void OpContours::dumpStart(int ID) const {
     const OpSegment* segment = findSegment(ID);
     if (segment)
@@ -338,7 +318,7 @@ void OpContours::dumpStart(int ID) const {
         return edge->dumpStart();
     const OpIntersection* intersection = findIntersection(ID);
     if (intersection)
-        return intersection->dumpStart();
+        return intersection->dumpPt();
 }
 
 void OpContours::dumpSum(int ID, Axis axis) const {
@@ -353,20 +333,14 @@ void OpContours::dumpSumDetail(int ID, Axis axis) const {
         return edge->dumpChainDetail(EdgeLoop::sum, axis);
 }
 
-void OpContours::dumpWinding(int ID) const {
-    const OpEdge* edge = findEdge(ID);
-    if (edge)
-        return edge->dumpWinding();
-}
-
 DEBUG_DUMP_ID_DEFINITION(OpContours, id)
 
 const OpIntersection* OpContours::findCoincidence(int ID) const {
     for (const auto& c : contours) {
         for (const auto& seg : c.segments) {
-            for (const auto& intersection : seg.intersections) {
-                if (ID == intersection.coincidenceID || ID == intersection.debugCoincidenceID)
-                    return &intersection;
+            for (const auto intersection : seg.intersections) {
+                if (ID == intersection->coincidenceID || ID == intersection->debugCoincidenceID)
+                    return intersection;
             }
         }
     }
@@ -410,9 +384,9 @@ const OpEdge* OpContours::findEdge(int ID) const {
 const OpIntersection* OpContours::findIntersection(int ID) const {
     for (const auto& c : contours) {
         for (const auto& seg : c.segments) {
-            for (const auto& intersection : seg.intersections) {
-                if (ID == intersection.id)
-                    return &intersection;
+            for (const auto intersection : seg.intersections) {
+                if (ID == intersection->id)
+                    return intersection;
             }
         }
     }
@@ -466,9 +440,9 @@ void OpContours::debugCompare(std::string s) const {
     const char* str = s.c_str();
     for (const auto& c : contours) {
         for (const auto& seg : c.segments) {
-            for (const auto& intersection : seg.intersections) {
+            for (const auto intersection : seg.intersections) {
                 std::string line = getline(str);
-                intersection.debugCompare(line);
+                intersection->debugCompare(line);
             }
             for (const auto& edge : seg.edges) {
                 std::string line = getline(str);
@@ -731,11 +705,7 @@ std::string OpEdge::debugDumpDetail() const {
     if (nextSum)
         s += "nextSum:" + STR(nextSum->id) + " axis:"
                 + (Axis::horizontal == nextAxis ? "horizontal " : "vertical ");
-    if (seenPrior)
-        s += "seenPrior ";
-    if (seenNext)
-        s += "seenNext ";
-    if (priorEdge || nextEdge || lastEdge || priorSum || nextSum || seenPrior || seenNext)
+    if (priorEdge || nextEdge || lastEdge || priorSum || nextSum)
         s += "\n";
     s += "{" + start.debugDump() + ", ";
     for (int i = 0; i < segment->c.pointCount() - 2; ++i)
@@ -772,7 +742,7 @@ std::string OpEdge::debugDumpDetail() const {
     if (EdgeSplit::unsplittable == doSplit) s+= "unsplittable ";
     if (isLine_impl) s += "isLine ";
     if (isPoint) s += "isPoint ";
-    if (active) s += "active ";
+    if (active_impl) s += "active ";
     if (unsortable) s += "unsortable ";
     s += "debugMaker:" + debugEdgeDebugMaker(debugMaker) + " ";
     if (debugParentID) s += "debugParentID:" + STR(debugParentID);
@@ -786,6 +756,10 @@ std::string OpEdge::debugDumpHex() const {
     s += "  {" + end.debugDumpHex() + " } // " + end.debugDump() + "\n";
     s += "}; /* seg:" + STR(segment->id) + " */";
     return s;
+}
+
+void OpEdge::dumpHex() const {
+    OpDebugOut(debugDumpHex() + "\n");
 }
 
 OpEdge::OpEdge(std::string s)
@@ -937,14 +911,6 @@ void OpEdge::dumpChainDetail(EdgeLoop edgeLoop, Axis axis) const {
     OpDebugOut(s);
 }
 
-void OpEdge::dumpCoin() const {
-    OpDebugOut("unimplemented\n");  // iterate through parent's intersections to find start/end of this edge
-}
-
-void OpEdge::dumpCoincidence() const {
-    dumpCoin();
-}
-
 void OpEdge::dumpDetail() const { 
     std::string s = debugDumpDetail() + "\n";
     OpDebugOut(s);
@@ -958,28 +924,12 @@ void OpEdge::dumpFull() const {
     dumpDetail(); 
 }
 
-void OpEdge::dumpHex() const {
-    OpDebugOut(debugDumpHex() + "\n");
-}
-
 void OpEdge::dumpLink() const {
     dumpChain(EdgeLoop::link);
 }
 
 void OpEdge::dumpLinkDetail() const {
     dumpChainDetail(EdgeLoop::link);
-}
-
-void OpEdge::dumpSegmentEdges() const {
-    segment->dumpSegmentEdges();
-}
-
-void OpEdge::dumpSegmentIntersections() const {
-    segment->dumpSegmentIntersections();
-}
-
-void OpEdge::dumpSegmentSects() const {
-    segment->dumpSegmentSects();
 }
 
 void OpEdge::dumpStart() const {
@@ -1124,9 +1074,15 @@ IntersectMakerName intersectMakerNames[] {
 	INTERSECT_MAKER_NAME(findIntersections7),
 	INTERSECT_MAKER_NAME(findIntersections8),
 	INTERSECT_MAKER_NAME(makeEdges),
-	INTERSECT_MAKER_NAME(missingCoincidence),
+	INTERSECT_MAKER_NAME(missingCoincidence1),
+	INTERSECT_MAKER_NAME(missingCoincidence2),
 	INTERSECT_MAKER_NAME(opCubicErrorTest1),
 	INTERSECT_MAKER_NAME(opCubicErrorTest2),
+	INTERSECT_MAKER_NAME(opTestEdgeZero1),
+	INTERSECT_MAKER_NAME(opTestEdgeZero2),
+	INTERSECT_MAKER_NAME(opTestEdgeZero3),
+	INTERSECT_MAKER_NAME(opTestEdgeZero4),
+	INTERSECT_MAKER_NAME(splitAtWinding),
 };
 
 struct SelfIntersectName {
@@ -1140,6 +1096,7 @@ SelfIntersectName selfIntersectNames[] {
     SELF_INTERSECT_NAME(none),
     SELF_INTERSECT_NAME(self),
     SELF_INTERSECT_NAME(missing),
+    SELF_INTERSECT_NAME(split),
 };
 
 std::string OpIntersection::debugDump(bool fromDumpFull) const {
@@ -1158,7 +1115,7 @@ std::string OpIntersection::debugDump(bool fromDumpFull) const {
     s = "[" + debugDumpID() + "] " + ptT.debugDump();
     if (debugAliasID || !OpMath::IsNaN(debugOriginal.x) || !OpMath::IsNaN(debugOriginal.y))
         s += " (was " + debugOriginal.debugDump() + "; now from sect " + STR(debugAliasID) + ")";
-    if (!fromDumpFull || !debugMatched || !segment)
+    if (!fromDumpFull || !segment)
         s += " segment:" + segmentID;
     s += " opp/sect:" + oppParentID + "/" + oppID;
     if (coincidenceID || debugCoincidenceID)
@@ -1191,6 +1148,10 @@ std::string OpIntersection::debugDumpHex() const {
     return s;
 }
 
+void OpIntersection::dumpHex() const { 
+    OpDebugOut(debugDumpHex() + "\n"); 
+}
+
 OpIntersection::OpIntersection(std::string s) {
     const char* str = s.c_str();
     OpDebugSkip(str, "{");
@@ -1216,60 +1177,8 @@ void OpIntersection::dump() const {
     OpDebugOut(s);
 }
 
-void OpIntersection::dumpCoin() const {
-    OpDebugOut("unimplemented\n");  // !!! something clever could be done here...
-}
-
-void OpIntersection::dumpCoincidence() const {
-    dumpCoin();
-}
-
-void OpIntersection::dumpDetail() const {
-    OpDebugOut("unimplemented\n");
-}
-
-void OpIntersection::dumpEnd() const {
-    dumpPt();
-}
-
-void OpIntersection::dumpFull() const {
-    segment->dumpFull();
-}
-
-void OpIntersection::dumpHex() const { 
-    OpDebugOut(debugDumpHex() + "\n"); 
-}
-
-void OpIntersection::dumpLink() const {
-    OpDebugOut("unimplemented\n");
-}
-
-void OpIntersection::dumpLinkDetail() const {
-    OpDebugOut("unimplemented\n");
-}
-
-void OpIntersection::dumpSegmentEdges() const {
-    segment->dumpSegmentEdges();
-}
-
-void OpIntersection::dumpSegmentIntersections() const {
-    segment->dumpSegmentIntersections();
-}
-
-void OpIntersection::dumpSegmentSects() const {
-    segment->dumpSegmentSects();
-}
-
-void OpIntersection::dumpStart() const {
-    dumpPt();
-}
-
 void OpIntersection::dumpPt() const {
-    debugGlobalContours->dumpMatch(ptT.pt);
-}
-
-void OpIntersection::dumpWinding() const {
-    OpDebugOut("unimplemented\n");
+    segment->contour->contours->dumpMatch(ptT.pt);
 }
 
 DEBUG_DUMP_ID_DEFINITION(OpIntersection, id)
@@ -1309,27 +1218,19 @@ std::string OpSegment::debugDumpHex() const {
 
 std::string OpSegment::debugDumpIntersections() const {
     std::string s;
-    for (auto& i : intersections)
-        s += i.debugDump(true) + "\n";
+    for (auto i : intersections)
+        s += i->debugDump(true) + "\n";
     return s;
 }
 
 // !!! move to OpDebug.cpp
 void OpSegment::debugValidate() const {
-    for (auto& i : intersections)
-        i.debugValidate();
+    for (auto i : intersections)
+        i->debugValidate();
 }
 
 void OpSegment::dump() const {
     OpDebugOut(debugDump() + "\n");
-}
-
-void OpSegment::dumpCoin() const {
-    OpDebugOut("(unimplmented)\n"); // iterate through intersections
-}
-
-void OpSegment::dumpCoincidence() const {
-    dumpCoin();
 }
 
 void OpSegment::dumpCount() const {
@@ -1339,6 +1240,10 @@ void OpSegment::dumpCount() const {
 
 void OpSegment::dumpDetail() const {
     OpDebugOut(debugDumpDetail() + "\n"); 
+}
+
+void OpSegment::dumpSegmentEdges() const {
+    OpDebugOut(debugDumpEdges() + "\n");
 }
 
 void OpSegment::dumpEnd() const {
@@ -1353,32 +1258,16 @@ void OpSegment::dumpHex() const {
     OpDebugOut(debugDumpHex()); 
 }
 
-void OpSegment::dumpLink() const {
-    OpDebugOut("(unimplmented)\n"); // iterate through edges
-}
-
-void OpSegment::dumpLinkDetail() const {
-    OpDebugOut("(unimplmented)\n"); // iterate through edges
-}
-
-void OpSegment::dumpSegmentEdges() const {
-    OpDebugOut(debugDumpEdges() + "\n");
-}
-
 void OpSegment::dumpSegmentIntersections() const {
     OpDebugOut(debugDumpIntersections() + "\n");
 }
 
 void OpSegment::dumpSegmentSects() const {
-    dumpSegmentIntersections();
+    OpDebugOut(debugDumpIntersections() + "\n");
 }
 
 void OpSegment::dumpStart() const {
     contour->contours->dumpMatch(c.pts[0]);
-}
-
-void OpSegment::dumpWinding() const {
-    OpDebugOut("(unimplmented)\n"); // iterate through edges
 }
 
 DEBUG_DUMP_ID_DEFINITION(OpSegment, id)
@@ -1438,7 +1327,7 @@ void OpWinding::dump() const {
 void DumpLinkups(const std::vector<OpEdge*>& linkups) {
     std::vector<int> inactive;
     for (auto linkup : linkups) {
-        if (!linkup->active) {
+        if (!linkup->isActive()) {
             inactive.push_back(linkup->id);
             continue;
         }

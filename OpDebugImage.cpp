@@ -927,8 +927,8 @@ void OpContours::draw() const {
 				for (auto& edge : segment.edges)
 					OpDebugImage::add(&edge);
 			if (drawIntersectionsOn)
-				for (auto& sect : segment.intersections)
-					OpDebugImage::add(&sect);
+				for (auto sect : segment.intersections)
+					OpDebugImage::add(sect);
 		}
 	}
 	OpDebugImage::drawDoubleFocus();

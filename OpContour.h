@@ -46,6 +46,9 @@ struct OpContour {
         segments.emplace_back(pts, cubicType, this);
     }
 
+    OpIntersection* addIntersection(const OpPtT& t, OpSegment* seg, SelfIntersect self_, int cID
+            OP_DEBUG_PARAMS(IntersectMaker maker));
+
     void addLine(const OpPoint pts[2]) {
         if (pts[0] == pts[1])
             return addMove(pts);
@@ -92,12 +95,6 @@ struct OpContour {
         }
     }
 
-    void matchIntersections() {
-        for (auto& segment : segments) {
-            segment.matchIntersections();
-        }
-    }
-
     void missingCoincidence() {
         for (auto& segment : segments) {
             if (pointType == segment.c.type)
@@ -106,17 +103,24 @@ struct OpContour {
         }
     }
 
-    void resolveCoincidence() {
+    bool resolveCoincidence() {
         for (auto& segment : segments) {
             if (pointType == segment.c.type)
                 continue;
-            segment.resolveCoincidence();
+            // need watchdog here so it doesn't loop forever
+            int watchDog = 1000;   // not sure how to compute maximum possible loopage
+            while (!segment.resolveCoincidence())
+                if (!--watchDog)
+                    return false;
         }
+        return true;
     }
 
     void resolvePoints() {
         for (auto& segment : segments) {
             if (pointType == segment.c.type)
+                continue;
+            if (!segment.intersections.size())  // size may be zero if coincident
                 continue;
             segment.resolvePoints();
         }
@@ -159,6 +163,21 @@ struct OpContour {
 };
 
 struct OpContours {
+    OpContours(OpOperator op)
+        : _operator(op) {
+        sectStorage = new OpSectStorage;
+    }
+
+    ~OpContours() {
+        do {
+            OpSectStorage* next = sectStorage->next;
+            delete sectStorage;
+            sectStorage = next;
+        } while (sectStorage);
+    }
+
+    OpIntersection* allocateIntersection();
+
     void apply() {
         for (auto& contour : contours) {
             contour.apply();
@@ -195,22 +214,18 @@ struct OpContours {
         }
     }
 
-    void matchIntersections() {
-        for (auto& contour : contours) {
-            contour.matchIntersections();
-        }
-    }
-
     void missingCoincidence() {
         for (auto& contour : contours) {
             contour.missingCoincidence();
         }
     }
 
-    void resolveCoincidence() {
+    bool resolveCoincidence() {
         for (auto& contour : contours) {
-            contour.resolveCoincidence();
+            if (!contour.resolveCoincidence())
+                return false;
         }
+        return true;
     }
 
     void resolvePoints() {
@@ -263,6 +278,7 @@ struct OpContours {
     void draw() const;
 #endif
     std::list<OpContour> contours;
+    OpSectStorage* sectStorage;
     OpFillType left;
     OpFillType right;
     OpOperator _operator;

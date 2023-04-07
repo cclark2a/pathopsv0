@@ -135,6 +135,10 @@ struct OpWinding {
 	{
 	}
 
+	bool operator==(OpWinding w) {
+		return left == w.left && right == w.right;
+	}
+
 	void move(OpWinding& opp, const OpContours* , bool backwards);
 
 	int oppSide(OpOperand operand) const {
@@ -206,6 +210,11 @@ inline void OpDebugCheckSingleZero(WindZero left, WindZero right) {
 	assert((int) left + (int) right != 3);	// not normal and opp at same time
 }
 
+enum class SumLoop {
+	prior,
+	next
+};
+
 #if OP_DEBUG
 enum class EdgeMaker {
 	addTest,
@@ -248,9 +257,7 @@ private:
 		, verticalSet(false)
 		, isLine_impl(false)
 		, isPoint(false)
-		, active(false)
-		, seenNext(false)
-		, seenPrior(false)
+		, active_impl(false)
 		, startAliased(false)
 		, unsortable(false) {
 		OP_DEBUG_CODE(debugAliasStartID = 0);
@@ -294,6 +301,7 @@ public:
 	void findWinding(Axis axis  OP_DEBUG_PARAMS(int* debugWindingLimiter));
 	bool hasLinkTo(EdgeMatch match) const { 
 			return EdgeLink::single == (EdgeMatch::start == match ? nextLink : priorLink); }
+	bool isActive() const { return active_impl; }
 	bool isClosed(OpEdge* test);
 	const OpEdge* isLoop(EdgeLoop , Axis axis = Axis::neither) const;	// if sum chain, an axis change breaks loop
 	OpEdge* linkUp(EdgeMatch , OpEdge* firstEdge);
@@ -301,9 +309,7 @@ public:
 	void markFailNext(std::vector <OpEdge*>& , Axis );
 	void markFailPrior(std::vector <OpEdge*>& , Axis );
 	bool matchLink(std::vector<OpEdge*>& linkups );
-	bool nextSumLoops();
 	OpEdge* prepareForLinkup();
-	bool priorSumLoops();
 	OpPtT ptT(EdgeMatch match) const { return EdgeMatch::start == match ? start : end; }
 	void reverse();	// only call on temporary edges (e.g., used to make coincident intersections)
 	void setActive();  // setter exists so debug breakpoints can be set
@@ -320,6 +326,7 @@ public:
 	const OpCurve& setVertical();
 	void setWinding(OpVector ray);
 	void subDivide();
+	bool sumLoops(SumLoop ) const;
 	bool validLoop(EdgeLoop ) const;
 //	OpPtT whichPtT() const { return EdgeMatch::start == whichEnd ? start : end;  }
 	OpPtT whichPtT(EdgeMatch match = EdgeMatch::start) const { return match == whichEnd ? start : end; }
@@ -384,9 +391,7 @@ public:
 	bool verticalSet;
 	bool isLine_impl;	// ptBounds 0=h/0=w catches horz/vert lines; if true, line is diagonal(?)
 	bool isPoint;
-	bool active;  // used by ray casting to mark edges that may be to the left of casting edge
-	bool seenNext;
-	bool seenPrior;
+	bool active_impl;  // used by ray casting to mark edges that may be to the left of casting edge
 	bool startAliased;
 	bool unsortable;
 #if OP_DEBUG

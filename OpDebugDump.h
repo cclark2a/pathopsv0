@@ -166,7 +166,7 @@ extern void dump(const OpOutPath& );
 	DUMP_GLOBAL_DEF_ID(dumpWinding) \
 
 #define DUMP_GLOBAL_DECLARATION(global_function) \
-	extern void global_function(int id);
+	extern void global_function();
 
 #define DUMP_GLOBAL_DECL_ID(global_function) \
 	extern void global_function(int id);

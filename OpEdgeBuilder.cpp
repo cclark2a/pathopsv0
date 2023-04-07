@@ -27,7 +27,7 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
     for (auto& leftMost : edges.inX) {
         if (!leftMost->winding.visible())
             continue;   // likely marked as part of a loop below
-        if (!leftMost->active)  // check if already saved in linkups
+        if (!leftMost->isActive())  // check if already saved in linkups
             continue;
         assert(EdgeLink::unlinked == leftMost->priorLink);
         assert(EdgeLink::unlinked == leftMost->nextLink);
@@ -90,7 +90,7 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
 #endif
     // !!! to do : find edges to fill gaps in remaining pieces, starting with the largest
     for (auto linkup : linkups) {
-        if (!linkup->active)
+        if (!linkup->isActive())
             continue;
         if (!linkup->matchLink(linkups))
             return false;   // if edges form loop with tail, fail

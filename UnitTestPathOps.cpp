@@ -862,8 +862,7 @@ void OpTestOpEdgesConcidenceCheck() {
 						continue;
 					OpPoint ab[2] = { { a, 8 }, { b, 8 } };
 					OpPoint cd[2] = { { c, 8 }, { d, 8 } };
-					OpContours contours;
-					contours._operator = OpOperator::Intersect;
+					OpContours contours(OpOperator::Intersect);
 					contours.left = OpFillType::evenOdd;
 					OpContour contour(&contours, OpOperand::left);
 					OpSegment seg(ab, lineType, &contour);
@@ -884,15 +883,13 @@ void OpTestOpEdgesConcidenceCheck() {
 					}
 					if (min == max) {
 						assert(1 == seg.intersections.size());
-						assert(seg.intersections[0].ptT.t == 0 || seg.intersections[0].ptT.t == 1);
+						assert(seg.intersections[0]->ptT.t == 0 || seg.intersections[0]->ptT.t == 1);
 						assert(1 == oSeg.intersections.size());
-						assert(oSeg.intersections[0].ptT.t == 0 || oSeg.intersections[0].ptT.t == 1);
+						assert(oSeg.intersections[0]->ptT.t == 0 || oSeg.intersections[0]->ptT.t == 1);
 					} else {
 						assert(2 == seg.intersections.size());
 						assert(2 == oSeg.intersections.size());
 					}
-					seg.matchIntersections();
-					oSeg.matchIntersections();
 					OP_DEBUG_CODE(seg.debugValidate());
 					OP_DEBUG_CODE(oSeg.debugValidate());
 				}
@@ -916,7 +913,7 @@ void OpTest_WindState() {
 		{ 1, 2, WindState::one },
 		{ 2, 0, WindState::flipOn },
 	};
-	OpContours contours;
+	OpContours contours(OpOperator::Intersect);
 	contours.left = OpFillType::winding;
 	for (size_t index = 0; index < ARRAY_COUNT(tests); ++index) {
 		const WindStateTest& test = tests[index];
@@ -984,8 +981,7 @@ void OpTest_EdgeZero() {
 		for (int w1 = 0; w1 < 16; ++w1) {
 			for (unsigned i2 = 0; i2 < ARRAY_COUNT(data2); ++i2) {
 				for (int w2 = 0; w2 < 16; ++w2) {
-					OpContours contours;
-					contours._operator = OpOperator::Intersect;
+					OpContours contours(OpOperator::Intersect);
 					contours.left = OpFillType::winding;
 					OP_DEBUG_CODE(debugGlobalContours = &contours);
 					contours.contours.emplace_back(&contours, OpOperand::left);
@@ -995,18 +991,18 @@ void OpTest_EdgeZero() {
 					head->addLine(data2[i2]);
 					OpSegment& seg1 = head->segments.front();
 //					opDebugImage.setFocus(seg1.ptBounds);
-					seg1.add(OpPtT(data1[0][0], 0), &seg1
+					seg1.addIntersection(OpPtT(data1[0][0], 0)
 							OP_DEBUG_PARAMS(IntersectMaker::opTestEdgeZero1));
-					seg1.add(OpPtT(data1[0][1], 1), &seg1
+					seg1.addIntersection(OpPtT(data1[0][1], 1)
 							OP_DEBUG_PARAMS(IntersectMaker::opTestEdgeZero2));
 					seg1.makeEdges();
 					OpEdge& edge1 = seg1.edges[0];
 					if (!setWinding(edge1, w1))
 						continue;
 					OpSegment& seg2 = *std::next(head->segments.begin());
-					seg2.add(OpPtT(data2[0][0], 0), &seg2
+					seg2.addIntersection(OpPtT(data2[0][0], 0)
 							OP_DEBUG_PARAMS(IntersectMaker::opTestEdgeZero3));
-					seg2.add(OpPtT(data2[0][1], 1), &seg2
+					seg2.addIntersection(OpPtT(data2[0][1], 1)
 							OP_DEBUG_PARAMS(IntersectMaker::opTestEdgeZero4));
 					seg2.makeEdges();
 //					opDebugImage.setFocus(seg2.ptBounds);

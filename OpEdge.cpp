@@ -33,20 +33,38 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e  OP_DEBUG_PARA
 void OpEdge::addMatchingEnds(const OpEdge& opp) const {
 	if (opp.segment == segment && (opp.start == end || opp.end == start))
 		return;
+	assert(start.pt != end.pt);
+	assert(opp.start.pt != opp.end.pt);
 	OpSegment* _segment = const_cast<OpSegment*>(segment);
 	OpSegment* oppSegment = const_cast<OpSegment*>(opp.segment);
-	if (start.pt == opp.start.pt || start.pt == opp.end.pt)
-		_segment->add(start, oppSegment  OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds1));
-#if OP_DEBUG
-	if (90 == segment->contour->contours->id)
-		OpDebugOut("");
-#endif
-	if (end.pt == opp.start.pt || end.pt == opp.end.pt)
-		_segment->add(end, oppSegment  OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds2));
-	if (start.pt == opp.start.pt || end.pt == opp.start.pt)
-		oppSegment->add(opp.start, _segment  OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds3));
-	if (start.pt == opp.end.pt || end.pt == opp.end.pt)
-		oppSegment->add(opp.end, _segment  OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds4));
+	OpIntersection* segSect = nullptr;
+	OpIntersection* oppSect = nullptr;
+	if (start.pt == opp.start.pt) {
+		segSect = _segment->addIntersection(start  OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds1));
+		oppSect = oppSegment->addIntersection(opp.start  OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds3));
+	} else if (start.pt == opp.end.pt) {
+		segSect = _segment->addIntersection(start  OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds1));
+		oppSect = oppSegment->addIntersection(opp.end  OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds4));
+	}
+	if (segSect) {
+		segSect->pair(oppSect);
+		segSect = nullptr;
+	}
+	if (end.pt == opp.start.pt) {
+		segSect = _segment->addIntersection(end  OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds2));
+		oppSect = oppSegment->addIntersection(opp.start  OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds3));
+	} else if (end.pt == opp.end.pt) {
+		segSect = _segment->addIntersection(end  OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds2));
+		oppSect = oppSegment->addIntersection(opp.end   OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds4));
+	}
+	if (segSect)
+		segSect->pair(oppSect);
+}
+
+OpEdge* OpEdge::adjacent(EdgeMatch match) {
+	assert(0);  // !!! incomplete, and ill thought-out 
+	// prior call to crossPoint already found adjacent edge
+	return nullptr;
 }
 
 /* table of winding states that the op types use to keep an edge
@@ -180,7 +198,7 @@ void OpEdge::calcWinding(Axis axis) {
 // !!! if this is not inlined in release, do something more cleverer...
 void OpEdge::clearActive() {
 	if (0) OpDebugBreak(this, 271, false);
-	active = false;
+	active_impl = false;
 }
 
 void OpEdge::clearNextEdge() {
@@ -369,7 +387,7 @@ void OpEdge::markFailPrior(std::vector <OpEdge*>& edges, Axis axis) {
 				// connecting bit must have single intersection; multiple sects can change winding
 				OpEdge* shortEdge = shortStart ? this : prior;
 				EdgeMatch adjacentEnd = shortStart || !reversed ? EdgeMatch::start : EdgeMatch::end;
-				bool crossing = shortEdge->segment->crossPoint(shortEdge->ptT(adjacentEnd).pt);
+				bool crossing = shortEdge->segment->crossPoint(shortEdge, adjacentEnd);
 				if (!crossing) {
 					OpEdge* adjacentEdge = shortEdge->adjacent(adjacentEnd);
 					// does adjacent edge mate with this edge to for coincidence? does it diverge?
@@ -391,6 +409,8 @@ void OpEdge::markFailPrior(std::vector <OpEdge*>& edges, Axis axis) {
 			if (end.pt != priorEnd) {
 				bool shortEnd = (end.pt.choice(axis) < priorEnd.choice(axis)) == (direction > 0);
 				// start here
+				assert(shortEnd); // !!! silence warning until code is complete or discarded
+				assert(priorCoinLast);
 			}
 			// if this edge and prior have same end points, treat them as coincident
 			winding.move(prior->winding, segment->contour->contours, reversed);
@@ -507,7 +527,7 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups) {
 	do {
 		clearClosest->clearActive();
 		clearClosest = clearClosest->nextEdge;
-	} while (clearClosest && clearClosest->active);
+	} while (clearClosest && clearClosest->isActive());
 	closest->setPriorEdge(lastEdge);
 	closest->priorLink = EdgeLink::single;
 	lastEdge->setNextEdge(closest);
@@ -525,24 +545,6 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups) {
 	return lastEdge->matchLink(linkups);
 }
 
-// check to see if next sum forms a loop
-// A loop is detected if an edge is seen twice. The seen vector saves visits.
-// The seen next breadcrumb prevents subsequent calls from finding an old loop.
-bool OpEdge::nextSumLoops() {
-	std::vector<const OpEdge*> seen;
-	assert(!seenNext);
-	seenNext = true;
-	seen.push_back(this);
-	OpEdge* next = this;
-	while ((next = next->nextSum)) {
-		if (next->seenNext)
-			return seen.end() != std::find(seen.begin(), seen.end(), next);
-		seen.push_back(next);
-		next->seenNext = true;
-	}
-	return false;
-}
-
 OpEdge* OpEdge::prepareForLinkup() {
     OpEdge* first = this;
 	while (EdgeLink::multiple != first->priorLink) {
@@ -555,7 +557,7 @@ OpEdge* OpEdge::prepareForLinkup() {
 	OpEdge* next = first;
 	OpEdge* last;
 	do {
-		assert(next->active);
+		assert(next->isActive());
 		next->clearActive();
 		last = next;
 		if (EdgeLink::multiple == next->nextLink)
@@ -567,28 +569,10 @@ OpEdge* OpEdge::prepareForLinkup() {
     return first;
 }
 
-// check to see if prior sum forms a loop
-// A loop is detected if an edge is seen twice. The seen vector saves visits.
-// The seen prior breadcrumb prevents subsequent calls from finding an old loop.
-bool OpEdge::priorSumLoops() {
-	std::vector<const OpEdge*> seen;
-	assert(!seenPrior);
-	seenPrior = true;
-	seen.push_back(this);
-	OpEdge* prior = this;
-	while ((prior = prior->priorSum)) {
-		if (prior->seenPrior)
-			return seen.end() != std::find(seen.begin(), seen.end(), prior);
-		seen.push_back(prior);
-		prior->seenPrior = true;
-	}
-	return false;
-}
-
 // in function to make setting breakpoints easier
 // !!! if this is not inlined in release, do something more cleverer
 void OpEdge::setActive() {
-	active = true;
+	active_impl = true;
 }
 
 const OpCurve& OpEdge::setCurve() {
@@ -758,6 +742,21 @@ void OpEdge::subDivide() {
 	if (isPoint)
 		winding.zero(ZeroReason::isPoint);
 	calcCenterT();
+}
+
+// check to see if prior sum forms a loop
+bool OpEdge::sumLoops(SumLoop loop) const {
+	std::vector<const OpEdge*> seen;
+	seen.push_back(this);
+	const OpEdge* test = this;
+	while ((test = (SumLoop::prior == loop ? test->priorSum : test->nextSum))) {
+		if (seen.end() != std::find(seen.begin(), seen.end(), test)) {
+			assert(test == this);	// !!! no support for loop entered by a non-looping sequence
+			return true;
+		}
+		seen.push_back(test);
+	}
+	return false;
 }
 
 // note this should be only called on temporary edges (e.g., used to make coincident intersections)
