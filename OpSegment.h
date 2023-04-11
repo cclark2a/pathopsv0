@@ -53,6 +53,7 @@ struct OpSegment {
     OpSegment(const OpPoint pts[3], float w, OpContour* parent);
     OpSegment(OpPoint pt1, OpPoint pt2, OpContour* parent);
     void activeAtT(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& , AllowReversal ) const;
+    OpEdge* activeAdjacent(OpEdge* , const OpPtT& );
     OpIntersection* addIntersection(const OpPtT&  OP_DEBUG_PARAMS(IntersectMaker maker));
     OpIntersection* addIntersection(const OpPtT& , int coinID  OP_DEBUG_PARAMS(IntersectMaker maker));
     OpIntersection* addIntersection(const OpPtT& , SelfIntersect  OP_DEBUG_PARAMS(IntersectMaker maker));
@@ -61,7 +62,6 @@ struct OpSegment {
     int coinID(bool flipped);
     void complete();
     bool containsSect(float t, const OpSegment* opp) const;
-    bool crossPoint(const OpEdge* edge, EdgeMatch whichEnd) const; // return true if point is at crossing intersection
     OpEdge* findActive(OpPtT , EdgeMatch ) const;
     void findExtrema();
     void fixEdges(const OpPtT& alias, OpPoint master  OP_DEBUG_PARAMS(int masterSectID));

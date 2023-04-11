@@ -28,6 +28,10 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e  OP_DEBUG_PARA
 	id = segment->contour->contours->id++;
 }
 
+OpEdge* OpEdge::activeAdjacent(EdgeMatch match) {
+	return (const_cast<OpSegment*>(segment))->activeAdjacent(this, ptT(match));
+}
+
 // start here;
 // !!! replace sort with sort-and-remove-duplicates ?
 void OpEdge::addMatchingEnds(const OpEdge& opp) const {
@@ -59,12 +63,6 @@ void OpEdge::addMatchingEnds(const OpEdge& opp) const {
 	}
 	if (segSect)
 		segSect->pair(oppSect);
-}
-
-OpEdge* OpEdge::adjacent(EdgeMatch match) {
-	assert(0);  // !!! incomplete, and ill thought-out 
-	// prior call to crossPoint already found adjacent edge
-	return nullptr;
 }
 
 /* table of winding states that the op types use to keep an edge
@@ -228,6 +226,52 @@ bool OpEdge::containsLink(const OpEdge* edge) const {
 	return false;
 }
 
+// at some point, do some math or rigorous testing to figure out how extreme this can be
+// for now, keep making it smaller until it breaks
+#define WINDING_NORMAL_LIMIT  0.001 // !!! no idea what this should be
+
+OpPtT OpEdge::findRayIntercept(OpEdge* test, float newMid, float newMidEnd, Axis axis, 
+		OpVector backRay) {
+	Axis perpendicular = !axis;
+	float centerF = center.pt.choice(perpendicular);
+	float normal = center.pt.choice(axis);
+	do {	// try to find ray; look up to eight times
+		const OpCurve& curve = test->setCurve();
+		OpRoots cepts;
+		cepts.count = curve.axisRayHit(axis, normal, cepts.roots);
+		// get the normal at the intersect point and see if it is usable
+		if (1 != cepts.count) {
+			// !!! if intercepts is 2 or 3, figure out why (and what to do)
+			// !!! likely need to try a different ray
+			assert(0 == cepts.count);
+			break;
+		}
+		float cept = cepts.get(0);
+		if (!OpMath::IsNaN(cept) && 0 != cept && 1 != cept) {
+			float tNxR = curve.tangent(cept).normalize().cross(backRay);
+			if (fabs(tNxR) >= WINDING_NORMAL_LIMIT
+					|| (test->setLinear() && test->start.t < cept && cept < test->end.t)) {
+				return OpPtT(curve.ptAtT(cept), cept); // no need to look for a better ray intersection
+			}
+		}
+		// recalc center; restart search for winding with a different ray
+		const OpCurve& edgeCurve = setCurve();
+		newMid /= 2;
+		newMidEnd = newMidEnd < .5 ? 1 - newMid : newMid;
+		float middle = OpMath::Interp(ptBounds.ltChoice(axis), ptBounds.rbChoice(axis), newMidEnd);
+		float t = edgeCurve.center(axis, middle);
+		centerF = edgeCurve.ptAtT(t).choice(perpendicular);
+		normal = edgeCurve.ptAtT(t).choice(axis);
+		if (OpMath::IsNaN(t) || newMid <= 1.f/256.f) {	// give it at most eight tries
+			fail = EdgeFail::recalcCenter;
+			winding.zero(ZeroReason::failCenter);
+			break;	
+		}
+		assert(!OpMath::IsNaN(normal));
+	} while (true);
+	return OpPtT();// no useful result
+}
+
 float OpEdge::findPtT(OpPoint opp) const {
 	return segment->findPtT(start.t, end.t, opp);
 }
@@ -372,6 +416,7 @@ void OpEdge::markFailNext(std::vector <OpEdge*>& edges, Axis axis) {
 
 void OpEdge::markFailPrior(std::vector <OpEdge*>& edges, Axis axis) {
 	// the ray hit multiple, indistinguishable edges
+	assert(0); // incomplete, will probably be removed
 	OpEdge* prior = this;
 	float direction = end.pt.choice(axis) - start.pt.choice(axis);
 	OpPoint priorStart { start.pt };
@@ -387,9 +432,9 @@ void OpEdge::markFailPrior(std::vector <OpEdge*>& edges, Axis axis) {
 				// connecting bit must have single intersection; multiple sects can change winding
 				OpEdge* shortEdge = shortStart ? this : prior;
 				EdgeMatch adjacentEnd = shortStart || !reversed ? EdgeMatch::start : EdgeMatch::end;
-				bool crossing = shortEdge->segment->crossPoint(shortEdge, adjacentEnd);
+				bool crossing = false; // shortEdge->segment->crossPoint(shortEdge, adjacentEnd);
 				if (!crossing) {
-					OpEdge* adjacentEdge = shortEdge->adjacent(adjacentEnd);
+					OpEdge* adjacentEdge = nullptr; //  shortEdge->adjacent(adjacentEnd);
 					// does adjacent edge mate with this edge to for coincidence? does it diverge?
 					OpEdge* longEdge = shortStart ? prior : this;
 					EdgeMatch longEnd = !shortStart || !reversed ? EdgeMatch::start : EdgeMatch::end;
@@ -745,18 +790,17 @@ void OpEdge::subDivide() {
 }
 
 // check to see if prior sum forms a loop
-bool OpEdge::sumLoops(SumLoop loop) const {
+// if this runs into a loop, return the loop edge, not this, since this doesn't need resorting
+OpEdge* OpEdge::sumLoops(SumLoop loop) {
 	std::vector<const OpEdge*> seen;
 	seen.push_back(this);
-	const OpEdge* test = this;
+	OpEdge* test = this;
 	while ((test = (SumLoop::prior == loop ? test->priorSum : test->nextSum))) {
-		if (seen.end() != std::find(seen.begin(), seen.end(), test)) {
-			assert(test == this);	// !!! no support for loop entered by a non-looping sequence
-			return true;
-		}
+		if (seen.end() != std::find(seen.begin(), seen.end(), test))
+			return test;
 		seen.push_back(test);
 	}
-	return false;
+	return nullptr;
 }
 
 // note this should be only called on temporary edges (e.g., used to make coincident intersections)

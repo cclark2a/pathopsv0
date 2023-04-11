@@ -105,6 +105,18 @@ enum class ZeroReason : uint8_t {
 };
 
 struct OpWinding {
+private:
+	OpWinding(int l, int r  OP_DEBUG_PARAMS(int s, ZeroReason z))
+		: left(l)
+		, right(r)
+#if OP_DEBUG
+		, setter(s)
+		, reason(z)
+#endif
+	{
+	}
+
+public:
 	OpWinding(WindingEdge) 
 		: left(0)
 		, right(0)
@@ -137,6 +149,10 @@ struct OpWinding {
 
 	bool operator==(OpWinding w) {
 		return left == w.left && right == w.right;
+	}
+
+	OpWinding operator-() const {
+		return { -left, -right  OP_DEBUG_PARAMS(0, ZeroReason::none) };
 	}
 
 	void move(OpWinding& opp, const OpContours* , bool backwards);
@@ -286,7 +302,7 @@ public:
 	OpEdge& operator=(OpEdge&&) = default;
 	~OpEdge();	// reason: removes temporary edges from image list
 #endif
-	OpEdge* adjacent(EdgeMatch );
+	OpEdge* activeAdjacent(EdgeMatch );
 	void apply();
 	void calcCenterT();
 	void calcWinding(Axis axis);
@@ -297,6 +313,8 @@ public:
 	bool containsLink(const OpEdge* edge) const;
 	float findPtT(OpPoint pt) const;
 	OpPtT flipPtT(EdgeMatch match) const { return match == whichEnd ? end : start; }
+	OpPtT findRayIntercept(OpEdge* test, float newMid, float newMidEnd, Axis,
+			OpVector backRay);
 	void flipWhich() { whichEnd = (EdgeMatch)((int)whichEnd ^ (int)EdgeMatch::both); }
 	void findWinding(Axis axis  OP_DEBUG_PARAMS(int* debugWindingLimiter));
 	bool hasLinkTo(EdgeMatch match) const { 
@@ -326,7 +344,7 @@ public:
 	const OpCurve& setVertical();
 	void setWinding(OpVector ray);
 	void subDivide();
-	bool sumLoops(SumLoop ) const;
+	OpEdge* sumLoops(SumLoop );
 	bool validLoop(EdgeLoop ) const;
 //	OpPtT whichPtT() const { return EdgeMatch::start == whichEnd ? start : end;  }
 	OpPtT whichPtT(EdgeMatch match = EdgeMatch::start) const { return match == whichEnd ? start : end; }

@@ -108,7 +108,7 @@ struct OpContour {
             if (pointType == segment.c.type)
                 continue;
             // need watchdog here so it doesn't loop forever
-            int watchDog = 1000;   // not sure how to compute maximum possible loopage
+            int watchDog = 1000;   // !!! not sure how to compute maximum possible loopage
             while (!segment.resolveCoincidence())
                 if (!--watchDog)
                     return false;

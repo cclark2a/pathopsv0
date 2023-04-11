@@ -82,6 +82,34 @@ void OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
     }
 }
 
+// active at t seems too complicated: this is the same code/idea simplified for edge set windings
+OpEdge* OpSegment::activeAdjacent(OpEdge* edge, const OpPtT& ptT) {
+    OpEdge* result = nullptr;
+    for (auto sectPtr : intersections) {
+        OpIntersection& sect = *sectPtr;
+        if (sect.ptT.t < ptT.t)
+            continue;  // !!! could binary search for 1st if intersection list is extremely long
+        if (sect.ptT.t > ptT.t)
+            break;
+        assert(ptT.pt == sect.ptT.pt);
+        assert(ptT.pt == sect.opp->ptT.pt);
+        OpEdge* search = &sect.opp->segment->edges.front();
+        do {
+            if (search->start.t > sect.opp->ptT.t)
+                break;
+            if (!search->isActive())
+                continue;
+            if (search == edge)
+                continue;
+            if (result)
+                return nullptr;
+            assert(search->start.t == sect.opp->ptT.t || search->end.t == sect.opp->ptT.t);
+            result = search;
+        } while (assert(search != &sect.opp->segment->edges.back()), ++search->end.t < sect.opp->ptT.t);
+    }
+    return result;
+}
+
 OpIntersection* OpSegment::addIntersection(const OpPtT& ptT  OP_DEBUG_PARAMS(IntersectMaker maker)) {
     auto sect = contour->addIntersection(ptT, this, SelfIntersect::none, 0  OP_DEBUG_PARAMS(maker));
     intersections.push_back(sect);
@@ -149,14 +177,6 @@ bool OpSegment::containsSect(float t, const OpSegment* opp) const {
             return true;
     }
     return false;
-}
-
-bool OpSegment::crossPoint(const OpEdge* edge, EdgeMatch whichEnd) const {
-    std::vector<FoundEdge> oppEdges;
-    activeAtT(edge, whichEnd, oppEdges, AllowReversal::yes);
-    assert(0); // incomplete
-    // returns if point has more than two active edges attached
-    return oppEdges.size() > 2;
 }
 
 // !!! would it be any better (faster) to split this into findStart / findEnd instead?
@@ -483,7 +503,6 @@ bool OpSegment::resolveCoincidence() {
         return true;
     }
     OpIntersection** sectPtr = &intersections.front();
-    OpDebugBreak(this, 494, true);
     do {
         OpIntersection* sect = *sectPtr;
         int coinID = sect->coincidenceID;

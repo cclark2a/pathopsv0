@@ -174,7 +174,7 @@ struct OpDebugEdgeIter {
 			index += OpEdgeIntersect::debugActive->oppParts.size();
 		}
 		OpDebugOut("iterator out of bounds! localEdgeIndex: " + STR(localEdgeIndex) + 
-				"max index: " + STR(index) + "\n");
+				"; max index: " + STR(index) + "\n");
 		return nullptr; 
 	}
 
@@ -194,6 +194,18 @@ struct OpDebugEdgeIterator {
 };
 
 OpDebugEdgeIterator edgeIterator;
+
+struct OpDebugDefeatDelete {
+	OpDebugDefeatDelete() {
+		save = OpDebugPathOpsEnable::inPathOps;
+		OpDebugPathOpsEnable::inPathOps = false;
+	}
+	~OpDebugDefeatDelete() {
+		OpDebugPathOpsEnable::inPathOps = save;
+	}
+
+	bool save;
+};
 
 void OpDebugImage::addToPath(const OpCurve& curve, SkPath& path) {
 	path.moveTo(curve.pts[0].x, curve.pts[0].y);
@@ -253,6 +265,7 @@ void OpDebugImage::drawPath(const SkPath& path, uint32_t color) {
 }
 
 void OpDebugImage::drawDoubleFocus() {
+	OpDebugDefeatDelete defeater;
 	std::vector<int> ids;
 	clearScreen();
 	if (drawPathsOn)
