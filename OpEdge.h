@@ -210,6 +210,11 @@ enum class WindZero : uint8_t {
 	opp
 };
 
+inline void OpDebugCheckSingleZero(WindZero left, WindZero right) {
+	assert(WindZero::noFlip != left || WindZero::noFlip != right);
+	assert((int) left + (int) right != 3);	// not normal and opp at same time
+}
+
 enum class EdgeLoop {
 	link,
 	sum
@@ -221,12 +226,12 @@ enum class EdgeSplit {
 	unsplittable
 };
 
-inline void OpDebugCheckSingleZero(WindZero left, WindZero right) {
-	assert(WindZero::noFlip != left || WindZero::noFlip != right);
-	assert((int) left + (int) right != 3);	// not normal and opp at same time
-}
+enum class LeadingLoop {
+	inLoop,
+	willLoop
+};
 
-enum class SumLoop {
+enum class WhichLoop {
 	prior,
 	next
 };
@@ -255,11 +260,9 @@ private:
 		, nextEdge(nullptr)
 		, lastEdge(nullptr)
 		, priorSum(nullptr)
-		, nextSum(nullptr)
 		, winding(windingEdge)
 		, sum(windingSum)
 		, priorT(0)
-		, nextAxis(Axis::vertical)
 		, priorAxis(Axis::vertical)
 		, nextLink(EdgeLink::unlinked)
 		, priorLink(EdgeLink::unlinked)
@@ -302,7 +305,7 @@ public:
 	OpEdge& operator=(OpEdge&&) = default;
 	~OpEdge();	// reason: removes temporary edges from image list
 #endif
-	OpEdge* activeAdjacent(EdgeMatch );
+	void addMatchingEnds(const OpEdge& ) const;
 	void apply();
 	void calcCenterT();
 	void calcWinding(Axis axis);
@@ -313,22 +316,27 @@ public:
 	bool containsLink(const OpEdge* edge) const;
 	float findPtT(OpPoint pt) const;
 	OpPtT flipPtT(EdgeMatch match) const { return match == whichEnd ? end : start; }
-	OpPtT findRayIntercept(OpEdge* test, float newMid, float newMidEnd, Axis,
-			OpVector backRay);
+	OpPtT findRayIntercept(OpEdge* test, float lo, float hi, Axis, OpVector backRay);
 	void flipWhich() { whichEnd = (EdgeMatch)((int)whichEnd ^ (int)EdgeMatch::both); }
 	void findWinding(Axis axis  OP_DEBUG_PARAMS(int* debugWindingLimiter));
 	bool hasLinkTo(EdgeMatch match) const { 
-			return EdgeLink::single == (EdgeMatch::start == match ? nextLink : priorLink); }
-	bool isActive() const { return active_impl; }
+		return EdgeLink::single == (EdgeMatch::start == match ? nextLink : priorLink); }
+	OpEdge* hasLoop(WhichLoop w, EdgeLoop e, LeadingLoop l) {
+		return const_cast<OpEdge*>((const_cast<const OpEdge*>(this))->isLoop(w, e, l)); } 
+	bool isActive() const { 
+		return active_impl; }
 	bool isClosed(OpEdge* test);
-	const OpEdge* isLoop(EdgeLoop , Axis axis = Axis::neither) const;	// if sum chain, an axis change breaks loop
-	OpEdge* linkUp(EdgeMatch , OpEdge* firstEdge);
-	void addMatchingEnds(const OpEdge& ) const;
-	void markFailNext(std::vector <OpEdge*>& , Axis );
+	const OpEdge* isLoop(WhichLoop , EdgeLoop , LeadingLoop ) const; 
+	OpEdge* linkUp(EdgeMatch, OpEdge* firstEdge);
 	void markFailPrior(std::vector <OpEdge*>& , Axis );
 	bool matchLink(std::vector<OpEdge*>& linkups );
+	const OpEdge* nextChain(EdgeLoop edgeLoop) const {
+		assert(EdgeLoop::link == edgeLoop); return nextEdge; }
 	OpEdge* prepareForLinkup();
-	OpPtT ptT(EdgeMatch match) const { return EdgeMatch::start == match ? start : end; }
+	const OpEdge* priorChain(EdgeLoop edgeLoop) const {
+		return EdgeLoop::link == edgeLoop ? priorEdge : priorSum; }
+	OpPtT ptT(EdgeMatch match) const { 
+		return EdgeMatch::start == match ? start : end; }
 	void reverse();	// only call on temporary edges (e.g., used to make coincident intersections)
 	void setActive();  // setter exists so debug breakpoints can be set
 	void setFromPoints(const std::array<OpPoint, 4>& pts);
@@ -344,10 +352,11 @@ public:
 	const OpCurve& setVertical();
 	void setWinding(OpVector ray);
 	void subDivide();
-	OpEdge* sumLoops(SumLoop );
-	bool validLoop(EdgeLoop ) const;
+	bool validLoop() const;
+	OpEdge* visibleAdjacent(EdgeMatch );
 //	OpPtT whichPtT() const { return EdgeMatch::start == whichEnd ? start : end;  }
-	OpPtT whichPtT(EdgeMatch match = EdgeMatch::start) const { return match == whichEnd ? start : end; }
+	OpPtT whichPtT(EdgeMatch match = EdgeMatch::start) const { 
+		return match == whichEnd ? start : end; }
 
 #if OP_DEBUG_DUMP
 	OpEdge(std::string );
@@ -355,10 +364,9 @@ public:
 	OpEdge(OpHexPtT data[2]);
 	void debugCompare(std::string ) const;
 	std::string debugDumpBrief() const;
-	std::string debugDumpChain(EdgeLoop , Axis axis, bool detail) const;
+	std::string debugDumpChain(WhichLoop , EdgeLoop , bool detail) const;
 	void debugValidate() const;    // make sure pointer to edge is valid
-	void dumpChain(EdgeLoop , Axis axis = Axis::neither) const;
-	void dumpChainDetail(EdgeLoop , Axis axis = Axis::neither) const;
+	void dumpChain(EdgeLoop , bool detail = false) const;
 	DEBUG_COMMON_DECLARATIONS();
 	DUMP_COMMON_DECLARATIONS();
 	DUMP_IMPL_DECLARATIONS();
@@ -377,7 +385,6 @@ public:
 	OpEdge* nextEdge;
 	OpEdge* lastEdge;
 	OpEdge* priorSum;	// edge that set sum winding
-	OpEdge* nextSum;	// closest edge to the right/bottom
 	OpPoint ctrlPts[2];	// quad, conic, cubic
 	float weight;
 	// !!! Can start, end be shared with intersection?
@@ -395,7 +402,6 @@ public:
 	OpWinding sum; // total incl. normal side of edge for operands (fill count in normal direction)
 	float priorT; // temporary used to carry result from prior sum to find winding
 	int id;
-	Axis nextAxis;	// the axis state when next sum was found
 	Axis priorAxis;	// the axis state when prior sum was found
 	EdgeLink nextLink;
 	EdgeLink priorLink;

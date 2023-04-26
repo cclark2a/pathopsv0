@@ -282,8 +282,6 @@ void OpEdges::setSumChain(std::vector <OpEdge*>& inArray, size_t inIndex, Axis a
 	OpVector backRay = -ray;
 	float center = edge->center.pt.choice(perpendicular);
 	float normal = edge->center.pt.choice(axis);
-	float newMid = .5;
-	float newMidEnd = 1;
 	// mark all possible edges
 	inIndex += 1;
 	for (; inIndex < inArray.size(); ++inIndex) {
@@ -304,7 +302,7 @@ void OpEdges::setSumChain(std::vector <OpEdge*>& inArray, size_t inIndex, Axis a
 			continue;
 		if (test->ptBounds.rbChoice(axis) < normal)
 			continue;
-		OpPtT ptT = edge->findRayIntercept(test, newMid, newMidEnd, axis, backRay);
+		OpPtT ptT = edge->findRayIntercept(test, 0, 1, axis, backRay);
 		if (!OpMath::IsNaN(ptT.t))
 			distance.emplace_back(test, center - ptT.pt.choice(perpendicular), ptT.t);
 	}
@@ -316,11 +314,6 @@ void OpEdges::setSumChain(std::vector <OpEdge*>& inArray, size_t inIndex, Axis a
 		OpEdge* lastEdge = last->edge;
 		OpEdge* nextEdge = next->edge;
 		float delta = last->distance - next->distance;
-		if (!lastEdge->nextSum) {
-			lastEdge->nextSum = nextEdge;
-			lastEdge->nextAxis = axis;
-			lastEdge->unsortable |= delta <= OpEpsilon;
-		}
 		if (!nextEdge->priorSum) {
 			nextEdge->setPriorSum(lastEdge);
 			nextEdge->priorAxis = axis;
@@ -328,10 +321,6 @@ void OpEdges::setSumChain(std::vector <OpEdge*>& inArray, size_t inIndex, Axis a
 			nextEdge->unsortable |= delta <= OpEpsilon;
 		}
 		last = next;
-	}
-	if (last != &distance.back()) {
-		edge->nextSum = (last + 1)->edge;
-		edge->nextAxis = axis;
 	}
 }
 
@@ -344,137 +333,168 @@ FoundWindings OpEdges::setWindings() {
 		for (size_t index = 0; index < edges.size(); ++index) {
 			setSumChain(edges, index, axis);
 		}
-		for (SumLoop loopType : { SumLoop::prior, SumLoop::next }) {
-			for (OpEdge* edge : edges) {
-				edge->active_impl = edge->winding.visible();
+		for (OpEdge* edge : edges) {
+			edge->active_impl = edge->winding.visible();
+		}
+		std::vector<OpEdge*> loops;
+		for (OpEdge* edge : edges) {
+			if (!edge->isActive())
+				continue;
+			OpEdge* test = edge->hasLoop(WhichLoop::prior, EdgeLoop::sum, LeadingLoop::inLoop);
+			if (test) {
+				if (48 == test->id && 47 == edge->id)
+					edge->dumpSum();
+				loops.push_back(test);
 			}
-			std::vector<OpEdge*> loops;
-			for (OpEdge* edge : edges) {
-				if (!edge->isActive())
-					continue;
-				OpEdge* test = edge->sumLoops(loopType);
-				if (test)
-					loops.push_back(test);
-				do {
-					edge->clearActive();
-					edge = SumLoop::prior == loopType ? edge->priorSum : edge->nextSum;
-				} while (edge && edge->isActive());
-			}
-			// edges with loops have sum links which are wrong
-			//	  either the sum links should be coincident, or should diverge
-			Axis perpendicular = !axis;
-			for (OpEdge* loopStart : loops) {
-				if (SumLoop::prior == loopType) {
-					float upperLimit = -OpInfinity;
-					float lowerLimit = OpInfinity;
-					OpEdge* edge = loopStart;
-					int loopCount = 0;
-					do {
-						upperLimit = std::max(upperLimit, edge->start.pt.choice(perpendicular));
-						lowerLimit = std::min(lowerLimit, edge->start.pt.choice(perpendicular));
-						upperLimit = std::max(upperLimit, edge->end.pt.choice(perpendicular));
-						lowerLimit = std::min(lowerLimit, edge->end.pt.choice(perpendicular));
-						edge = edge->priorSum;
-						++loopCount;
-					} while (edge != loopStart);
-					enum class Limit {
-						match,
-						shorter,
-						diverged
-					};
-					struct LoopInfo {
-						LoopInfo(OpEdge* edge)
-							: start(Limit::match)
-							, end(Limit::match) {
-							connections.push_back(edge);
-						}
-
-						bool fullMatch() const {
-							return Limit::match == start && Limit::match == end;
-						}
-						std::vector<OpEdge*> connections;
-						std::vector<bool> reversed;
-						Limit start;
-						Limit end;
-					};
-					std::vector<LoopInfo> loopInfo;
-					// (try to) lengthen edges that are too short
-					// if the lengthened edge matches the longest edge, mark both as coincident
-					// if not, see if they diverge enough to establish a sort order
-					// if they don't match, and don't diverge enough, try lengthening again
-					do {
-						// assume the edge is as long as the limits
-						loopInfo.emplace_back(edge);
-						LoopInfo& info = loopInfo.back();
-						float testStartXY = edge->start.pt.choice(perpendicular);
-						assert(OpMath::Between(lowerLimit, testStartXY, upperLimit));
-						if (lowerLimit != testStartXY && testStartXY != upperLimit) {
-							info.start = Limit::shorter;
-							OpEdge* test = edge;
-							EdgeMatch testMatch = EdgeMatch::end;
-							bool reversed = false;
-							do {
-								OpPoint testEndPt = test->ptT(testMatch).pt;
-								OpEdge* connector = test->activeAdjacent(testMatch);
-								if (connector) {
-									assert(test->winding == connector->winding);
-									info.connections.push_back(connector);
-									info.reversed.push_back(reversed);
-									// if connector also loops, try the next connector
-									OpPoint connectorStart = connector->ptT(Opposite(testMatch)).pt;
-									OpPoint connectorEnd = connector->ptT(testMatch).pt;
-									reversed = testEndPt != connectorStart;
-									assert(testEndPt == (reversed ? connectorEnd : connectorStart));
-									if (connector->sumLoops(loopType)) {
-										test = connector;
-										if (reversed)
-											testMatch = Opposite(testMatch);
-										continue;
-									}
-									// project ray between short length and end of added dual length
-									OpPtT ptT = connector->findRayIntercept(edge, testStartXY, 
-											connectorEnd.choice(perpendicular), axis, backRay);
-									assert(0); // incomplete
-								}
-							} while (true);
-							assert(0);	// incomplete
-						}
-						float testEndXY = edge->end.pt.choice(perpendicular);
-						assert(OpMath::Between(lowerLimit, testEndXY, upperLimit));
-						if (lowerLimit != testEndXY && testEndXY != upperLimit) {
-							info.end = Limit::shorter;
-							OpEdge* test = edge;
-							do {
-								OpEdge* connector = test->activeAdjacent(EdgeMatch::end);
-								if (connector)
-									assert(0);	// incomplete
-								assert(0);	// incomplete
-							} while (true);
-							assert(0);	// incomplete
-						}
-						edge = edge->priorSum;
-					} while (edge != loopStart);
-					// each loop edge end is either match, shorter, or diverged
-					// if all are match, mark pair as coincident
-					for (auto info : loopInfo) {
-						OpEdge* edge = info.connections[0];
-						if (edge->winding.visible() && info.fullMatch()) {
-							LoopInfo* cInfo = &info;
-							while (cInfo != &loopInfo.back()) {
-								++cInfo;
-								if (!cInfo->fullMatch())
-									continue;
-								// treat pair as coincident and apply all of one winding to the other
-								OpEdge* opp = cInfo->connections[0];
-								edge->winding.move(opp->winding, edge->segment->contour->contours,
-										cInfo);
-							}
-						}
-					}
-					continue;
+			do {
+				edge->clearActive();
+				edge = edge->priorSum;
+			} while (edge && edge->isActive());
+		}
+		// edges with loops have sum links which are wrong
+		//	  either the sum links should be coincident, or should diverge
+		Axis perpendicular = !axis;
+		for (OpEdge* loopStart : loops) {
+			float upperLimit = -OpInfinity;
+			float lowerLimit = OpInfinity;
+			OpEdge* edge = loopStart;
+			do {
+				upperLimit = std::max(upperLimit, edge->start.pt.choice(perpendicular));
+				lowerLimit = std::min(lowerLimit, edge->start.pt.choice(perpendicular));
+				upperLimit = std::max(upperLimit, edge->end.pt.choice(perpendicular));
+				lowerLimit = std::min(lowerLimit, edge->end.pt.choice(perpendicular));
+				edge = edge->priorSum;
+			} while (edge != loopStart);
+			enum class Limit {
+				match,
+				shorter,
+				diverged
+			};
+			struct LoopInfo {
+				LoopInfo(OpEdge* edge)
+					: start(Limit::match)  // assume the edge is as long as the limits
+					, end(Limit::match) {
+					connections.push_back(edge);
+					reversed.push_back(false);
 				}
 
+				bool fullMatch() const {
+					return Limit::match == start && Limit::match == end;
+				}
+				std::vector<OpEdge*> connections;
+				std::vector<bool> reversed;
+				Limit start;
+				Limit end;
+			};
+			std::vector<LoopInfo> loopInfo;
+			// (try to) lengthen edges that are too short
+			// if the lengthened edge matches the longest edge, mark both as coincident
+			// if not, see if they diverge enough to establish a sort order
+			// if they don't match, and don't diverge enough, try lengthening again
+			do {
+				loopInfo.emplace_back(edge);
+				LoopInfo& info = loopInfo.back();
+				float testStartXY = edge->start.pt.choice(perpendicular);
+				assert(OpMath::Between(lowerLimit, testStartXY, upperLimit));
+				if (lowerLimit != testStartXY && testStartXY != upperLimit) {
+					info.start = Limit::shorter;
+					OpEdge* test = edge;
+					EdgeMatch testMatch = EdgeMatch::start;
+					do {
+						OpPtT testMatchPtT = test->ptT(testMatch);
+						OpSegment* testSegment = const_cast<OpSegment*>(test->segment);
+						OpDebugBreak(test, 6877, true);
+						OpEdge* connector = testSegment->visibleAdjacent(test, testMatchPtT);
+						if (!connector) {
+							assert(0);	// code incomplete
+							break;
+						}
+						info.connections.push_back(connector);
+						// if connector also loops, try the next connector
+						OpPoint connectorEnd = connector->ptT(Opposite(testMatch)).pt;
+						bool reversed = testMatchPtT.pt != connectorEnd;
+						info.reversed.push_back(reversed);
+						assert(testMatchPtT.pt == (reversed ? connector->ptT(testMatch).pt : connectorEnd));
+						assert(test->winding == (reversed ? -connector->winding : connector->winding));
+						OpPoint limitPt = reversed ? connectorEnd : connector->ptT(testMatch).pt;
+						float connectorLimit = limitPt.choice(perpendicular);
+						if (upperLimit == connectorLimit || lowerLimit == connectorLimit)
+							break;	// if connector matches, edge + connector may make a coincidence part
+						if (connector->isLoop(WhichLoop::prior, EdgeLoop::sum, LeadingLoop::inLoop)) {
+							test = connector;
+							if (reversed)
+								testMatch = Opposite(testMatch);
+							continue;
+						}
+						// project ray between short length and end of added dual length
+						OpPtT ptT = connector->findRayIntercept(edge, testStartXY, 
+								connectorLimit, axis, backRay);
+						// detect if edges diverge
+						assert(!OpMath::IsNaN(ptT.t));	// just here to suppress warning
+						assert(0); // incomplete
+					} while (true);
+					assert(0);	// incomplete
+				}
+				float testEndXY = edge->end.pt.choice(perpendicular);
+				assert(OpMath::Between(lowerLimit, testEndXY, upperLimit));
+				if (lowerLimit != testEndXY && testEndXY != upperLimit) {
+					info.end = Limit::shorter;
+					OpEdge* test = edge;
+					do {
+						OpEdge* connector = test->visibleAdjacent(EdgeMatch::end);
+						if (connector)
+							assert(0);	// incomplete
+						assert(0);	// incomplete
+					} while (true);
+					assert(0);	// incomplete
+				}
+				edge = edge->priorSum;
+			} while (edge != loopStart);
+			// each loop edge end is either match, shorter, or diverged
+			// if all are match, mark pair as coincident
+			bool allMatch = true;
+			for (auto& info : loopInfo) {
+				allMatch &= info.fullMatch();
 			}
+			if (allMatch) {
+				for (auto& info : loopInfo) {
+					assert(1 == info.connections.size());	// code incomplete
+					OpEdge* test = info.connections[0];
+					if (!test->winding.visible())
+						continue;
+					LoopInfo* cInfo = &info;
+					while (cInfo != &loopInfo.back()) {
+						++cInfo;
+						// treat pair as coincident and apply all of one winding to the other
+						assert(1 == cInfo->connections.size());
+						OpEdge* opp = cInfo->connections[0];
+						test->winding.move(opp->winding, test->segment->contour->contours,
+								cInfo);
+					}
+					// recompute test prior; assert that it is does not make a loop
+					for (size_t index = 0; index < edges.size(); ++index) {
+						OpEdge* test2 = edges[index];
+						if (test2->winding.visible() && test2->priorEdge
+								&& !test2->priorEdge->winding.visible()) {
+							setSumChain(edges, index, axis);
+							assert(!test2->isLoop(WhichLoop::prior, EdgeLoop::sum, LeadingLoop::inLoop));
+						}
+					}
+				}
+#if 0	// Replace below with (possibly) remove looping from edges and recompute sum chains that
+		// point to these edges.
+				// break loop, and point to next actual edge or null if none
+				for (size_t edgeIndex = 0; edgeIndex < edges.size(); ++edgeIndex) {
+					if (edge != edges[edgeIndex])
+						continue;
+					(SumLoop::prior == loopType ? edge->priorSum : edge->nextSum) = nullptr;
+					setSumChain(edges, edgeIndex, axis);
+					break;
+				}
+#endif
+			} else
+				assert(0); // code incomplete
+			continue;
 		}
 	}
 	if ((0)) {
@@ -505,53 +525,51 @@ FoundWindings OpEdges::setWindings() {
 			assert(0); // incomplete
 			OpEdge* edge = nullptr;
 			int index = 0;
-			if (edge->sumLoops(SumLoop::prior))
+			if (edge->isLoop(WhichLoop::prior, EdgeLoop::sum, LeadingLoop::inLoop))
 				edge->markFailPrior(inX, Axis::horizontal);
-			if (edge->sumLoops(SumLoop::next))
-				edge->markFailNext(inX, Axis::horizontal);
 			if (loops && edge->winding.visible())
 				setSumChain(inX, index, Axis::horizontal);
 		} while (loops);
 	}
 	for (auto& edge : inX) {
-		if (edge->sum.unset()) {
+		if (edge->winding.visible() && edge->sum.unset()) {
 			OP_DEBUG_CODE(int debugWindingLimiter = 0);
 			edge->findWinding(Axis::horizontal  OP_DEBUG_PARAMS(&debugWindingLimiter));
 		}
 	}
 	for (auto& edge : inX)
-		if (edge->sum.unset() && !edge->unsortable)
+		if (edge->winding.visible() && edge->sum.unset() && !edge->unsortable)
 			return FoundWindings::fail;
 	for (size_t index = 0; index < inY.size(); ++index) {
 		OpEdge* edge = inY[index];
 		if (edge->winding.visible() && edge->sum.unset())
 			setSumChain(inY, index, Axis::vertical);
 	}
-	for (size_t index = 0; index < inY.size(); ++index) {
-		OpEdge* edge = inY[index];
-		if (!edge->winding.visible())
-			continue;
-		if (!edge->sum.unset())
-			continue;
-		bool loops;
-		do {
-			loops = false;
-			if (edge->sumLoops(SumLoop::prior))
-				edge->markFailPrior(inY, Axis::vertical);
-			if (edge->sumLoops(SumLoop::next))
-				edge->markFailNext(inY, Axis::vertical);
-			if (loops && edge->winding.visible())
-				setSumChain(inY, index, Axis::vertical);
-		} while (loops);
+	if ((0)) {	// see comment for analogous x loop above
+		for (size_t index = 0; index < inY.size(); ++index) {
+			OpEdge* edge = inY[index];
+			if (!edge->winding.visible())
+				continue;
+			if (!edge->sum.unset())
+				continue;
+			bool loops;
+			do {
+				loops = false;
+				if (edge->isLoop(WhichLoop::prior, EdgeLoop::sum, LeadingLoop::inLoop))
+					edge->markFailPrior(inY, Axis::vertical);
+				if (loops && edge->winding.visible())
+					setSumChain(inY, index, Axis::vertical);
+			} while (loops);
+		}
 	}
 	for (auto& edge : inY) {
-		if (edge->sum.unset()) {
+		if (edge->winding.visible() && edge->sum.unset()) {
 			OP_DEBUG_CODE(int debugWindingLimiter = 0);
 			edge->findWinding(Axis::vertical  OP_DEBUG_PARAMS(&debugWindingLimiter));
 		}
 	}
 	for (auto& edge : inY)
-		if (edge->sum.unset() && !edge->unsortable)
+		if (edge->winding.visible() && edge->sum.unset() && !edge->unsortable)
 			return FoundWindings::fail;
 	return FoundWindings::yes;
 }

@@ -70,7 +70,8 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
         linkups.emplace_back(first);
     }
     for (auto linkup : linkups) {
-        assert(!linkup->isLoop(EdgeLoop::link));
+        assert(!linkup->isLoop(WhichLoop::prior, EdgeLoop::link, LeadingLoop::willLoop));
+        assert(!linkup->isLoop(WhichLoop::next, EdgeLoop::link, LeadingLoop::willLoop));
         assert(linkup->lastEdge);
         assert(!linkup->priorEdge);
         do {

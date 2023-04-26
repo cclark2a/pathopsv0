@@ -990,10 +990,12 @@ void OpEdge::draw() const {
 
 void OpEdge::drawChain(EdgeLoop edgeLoop) const {
 	const OpEdge* chain = this;
-	do {
-		OpDebugImage::add(chain);
-	} while ((chain = EdgeLoop::link == edgeLoop ? chain->nextEdge : chain->nextSum) && this != chain);
-	chain = this;
+	if (EdgeLoop::link == edgeLoop) {
+		do {
+			OpDebugImage::add(chain);
+		} while ((chain = chain->nextEdge) && this != chain);
+		chain = this;
+	}
 	while ((chain = EdgeLoop::link == edgeLoop ? chain->priorEdge : chain->priorSum) && this != chain) {
 		OpDebugImage::add(chain);
 	}

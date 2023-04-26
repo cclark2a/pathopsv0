@@ -53,7 +53,6 @@ struct OpSegment {
     OpSegment(const OpPoint pts[3], float w, OpContour* parent);
     OpSegment(OpPoint pt1, OpPoint pt2, OpContour* parent);
     void activeAtT(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& , AllowReversal ) const;
-    OpEdge* activeAdjacent(OpEdge* , const OpPtT& );
     OpIntersection* addIntersection(const OpPtT&  OP_DEBUG_PARAMS(IntersectMaker maker));
     OpIntersection* addIntersection(const OpPtT& , int coinID  OP_DEBUG_PARAMS(IntersectMaker maker));
     OpIntersection* addIntersection(const OpPtT& , SelfIntersect  OP_DEBUG_PARAMS(IntersectMaker maker));
@@ -83,6 +82,7 @@ struct OpSegment {
     bool splitAtWinding(const std::vector<const OpEdge*>& windingChanges, const OpEdge* first,
             int direction  OP_DEBUG_PARAMS(const OpIntersection* last, EdgeMatch oppositeMatch));
     bool validEdge(float startT, float endT) const;  // check if edge crosses extrema or inflection
+    OpEdge* visibleAdjacent(OpEdge* , const OpPtT& );
 #if OP_DEBUG
     void debugValidate() const;
 #endif

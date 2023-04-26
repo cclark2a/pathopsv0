@@ -231,7 +231,7 @@ void OpContours::dumpLink(int ID) const {
 void OpContours::dumpLinkDetail(int ID) const {
     const OpEdge* edge = findEdge(ID);
     if (edge)
-        return edge->dumpChainDetail(EdgeLoop::link);
+        return edge->dumpChain(EdgeLoop::link);
 }
 
 void OpContours::dumpSegments() const {
@@ -321,16 +321,22 @@ void OpContours::dumpStart(int ID) const {
         return intersection->dumpPt();
 }
 
-void OpContours::dumpSum(int ID, Axis axis) const {
+void OpContours::dumpSum(int ID) const {
     const OpEdge* edge = findEdge(ID);
-    if (edge)
-        return edge->dumpChain(EdgeLoop::sum, axis);
+    if (!edge) {
+        OpDebugOut("edge id: " + STR(ID) + " not found\n");
+        return;
+    }
+    edge->dumpChain(EdgeLoop::sum);
 }
 
-void OpContours::dumpSumDetail(int ID, Axis axis) const {
+void OpContours::dumpSumDetail(int ID) const {
     const OpEdge* edge = findEdge(ID);
-    if (edge)
-        return edge->dumpChainDetail(EdgeLoop::sum, axis);
+    if (!edge) {
+        OpDebugOut("edge id: " + STR(ID) + " not found\n");
+        return;
+    }
+    edge->dumpChain(EdgeLoop::sum, true);
 }
 
 DEBUG_DUMP_ID_DEFINITION(OpContours, id)
@@ -702,10 +708,7 @@ std::string OpEdge::debugDumpDetail() const {
     if (priorSum)
         s += "priorSum:" + STR(priorSum->id) + " axis:" 
                 + (Axis::horizontal == priorAxis ? "horizontal " : "vertical ");
-    if (nextSum)
-        s += "nextSum:" + STR(nextSum->id) + " axis:"
-                + (Axis::horizontal == nextAxis ? "horizontal " : "vertical ");
-    if (priorEdge || nextEdge || lastEdge || priorSum || nextSum)
+    if (priorEdge || nextEdge || lastEdge || priorSum)
         s += "\n";
     s += "{" + start.debugDump() + ", ";
     for (int i = 0; i < segment->c.pointCount() - 2; ++i)
@@ -850,41 +853,29 @@ void OpEdge::debugValidate() const {
     assert(0);
 }
 
-std::string OpEdge::debugDumpChain(EdgeLoop edgeLoop, Axis axis, bool detail) const {
+// keep this in sync with op edge : is loop
+std::string OpEdge::debugDumpChain(WhichLoop which, EdgeLoop edgeLoop, bool detail) const {
+    assert(WhichLoop::prior == which || EdgeLoop::link == edgeLoop);
     std::string s = "chain:";
-    const OpEdge* chain = this;
-    const OpEdge* looped = EdgeLoop::link == edgeLoop ? isLoop(edgeLoop) : isLoop(edgeLoop, axis);
+    const OpEdge* looped = isLoop(which, edgeLoop, LeadingLoop::willLoop);
     bool firstLoop = false;
     int safetyCount = 0;
-    do {
+    const OpEdge* chain = this;
+    for (;;) {
         s += "\n" + (detail ? chain->debugDumpDetail() : chain->debugDump());
         if (chain == looped) {
             if (firstLoop)
                 return s + " loop";
             firstLoop = true;
         }
-        chain = EdgeLoop::link == edgeLoop ? chain->nextEdge : chain->nextSum;
+        chain = WhichLoop::prior == which ? chain->priorChain(edgeLoop) : chain->nextChain(edgeLoop);
+		if (!chain)
+			break;
         if (++safetyCount > 100) {
-            OpDebugOut("!!! next likely loops forever\n");
-            return s;
+            OpDebugOut(std::string("!!! %s likely loops forever") + 
+                    (WhichLoop::prior == which ? "prior" : "next"));
+            break;
         }
-    } while (chain);
-    safetyCount = 0;
-    chain = EdgeLoop::link == edgeLoop ? this->priorEdge : this->priorSum;
-    while (chain) {
-        s = (detail ? chain->debugDumpDetail() : chain->debugDump()) + "\n" + s;
-        if (chain == looped) {
-            if (firstLoop) {
-                s = "loop " + s;
-                break;
-            }
-            firstLoop = true;
-        }
-        if (++safetyCount > 100) {
-            OpDebugOut("!!! prior likely loops forever\n");
-            return s;
-        }
-        chain = EdgeLoop::link == edgeLoop ? chain->priorEdge : chain->priorSum;
     }
     return s;
 }
@@ -901,13 +892,15 @@ void OpEdge::dump() const {
     OpDebugOut(s);
 }
 
-void OpEdge::dumpChain(EdgeLoop edgeLoop, Axis axis) const {
-    std::string s = debugDumpChain(edgeLoop, axis, false) + "\n";
+void OpEdge::dumpChain(EdgeLoop edgeLoop, bool detail) const {
+    std::string s;
+    if (EdgeLoop::link == edgeLoop)
+        s += "prior: ";
+    s += debugDumpChain(WhichLoop::prior, edgeLoop, detail) + "\n";
     OpDebugOut(s);
-}
-
-void OpEdge::dumpChainDetail(EdgeLoop edgeLoop, Axis axis) const {
-    std::string s = debugDumpChain(edgeLoop, axis, true) + "\n";
+    if (EdgeLoop::sum == edgeLoop)
+        return;
+    s = "next: " + debugDumpChain(WhichLoop::next, edgeLoop, detail) + "\n";
     OpDebugOut(s);
 }
 
@@ -929,19 +922,19 @@ void OpEdge::dumpLink() const {
 }
 
 void OpEdge::dumpLinkDetail() const {
-    dumpChainDetail(EdgeLoop::link);
+    dumpChain(EdgeLoop::link, true);
 }
 
 void OpEdge::dumpStart() const {
     segment->contour->contours->dumpMatch(start.pt);
 }
 
-void OpEdge::dumpSum(Axis axis) const {
-    dumpChain(EdgeLoop::sum, axis);
+void OpEdge::dumpSum() const {
+    dumpChain(EdgeLoop::sum);
 }
 
-void OpEdge::dumpSumDetail(Axis axis) const {
-    dumpChainDetail(EdgeLoop::sum, axis);
+void OpEdge::dumpSumDetail() const {
+    dumpChain(EdgeLoop::sum, true);
 }
 
 void OpEdge::dumpWinding() const {
@@ -1326,14 +1319,16 @@ void OpWinding::dump() const {
 
 void DumpLinkups(const std::vector<OpEdge*>& linkups) {
     std::vector<int> inactive;
-    for (auto linkup : linkups) {
+    for (const auto& linkup : linkups) {
         if (!linkup->isActive()) {
             inactive.push_back(linkup->id);
             continue;
         }
         int count = 0;
         auto next = linkup;
-        auto looped = linkup->isLoop(EdgeLoop::link);
+        auto looped = linkup->isLoop(WhichLoop::prior, EdgeLoop::link, LeadingLoop::willLoop);
+        if (!looped)
+            looped = linkup->isLoop(WhichLoop::next, EdgeLoop::link, LeadingLoop::willLoop);
         bool firstLoop = false;
         while (next) {
             if (looped == next) {

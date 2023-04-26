@@ -82,34 +82,6 @@ void OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
     }
 }
 
-// active at t seems too complicated: this is the same code/idea simplified for edge set windings
-OpEdge* OpSegment::activeAdjacent(OpEdge* edge, const OpPtT& ptT) {
-    OpEdge* result = nullptr;
-    for (auto sectPtr : intersections) {
-        OpIntersection& sect = *sectPtr;
-        if (sect.ptT.t < ptT.t)
-            continue;  // !!! could binary search for 1st if intersection list is extremely long
-        if (sect.ptT.t > ptT.t)
-            break;
-        assert(ptT.pt == sect.ptT.pt);
-        assert(ptT.pt == sect.opp->ptT.pt);
-        OpEdge* search = &sect.opp->segment->edges.front();
-        do {
-            if (search->start.t > sect.opp->ptT.t)
-                break;
-            if (!search->isActive())
-                continue;
-            if (search == edge)
-                continue;
-            if (result)
-                return nullptr;
-            assert(search->start.t == sect.opp->ptT.t || search->end.t == sect.opp->ptT.t);
-            result = search;
-        } while (assert(search != &sect.opp->segment->edges.back()), ++search->end.t < sect.opp->ptT.t);
-    }
-    return result;
-}
-
 OpIntersection* OpSegment::addIntersection(const OpPtT& ptT  OP_DEBUG_PARAMS(IntersectMaker maker)) {
     auto sect = contour->addIntersection(ptT, this, SelfIntersect::none, 0  OP_DEBUG_PARAMS(maker));
     intersections.push_back(sect);
@@ -753,6 +725,51 @@ bool OpSegment::validEdge(float startT, float endT) const {
     return true;
 }
 
+// active at t seems too complicated: this is the same code/idea simplified for edge set windings
+OpEdge* OpSegment::visibleAdjacent(OpEdge* edge, const OpPtT& ptT) {
+    OpEdge* result = nullptr;
+    if (0 != ptT.t && 1 != ptT.t) {
+        for (OpEdge& test : edges) {
+            if (test.end.t < ptT.t)
+                continue;
+            if (test.start.t > ptT.t)
+                break;
+            if (&test == edge)
+                continue;
+            if (!test.winding.visible())
+                continue;
+            assert(test.start.t == ptT.t || test.end.t == ptT.t);
+            result = &test;
+        }
+    }
+    for (auto sectPtr : intersections) {
+        OpIntersection& sect = *sectPtr;
+        if (sect.ptT.t < ptT.t)
+            continue;  // !!! could binary search for 1st if intersection list is extremely long
+        if (sect.ptT.t > ptT.t)
+            break;
+        if (SelfIntersect::self == sect.self)
+            continue;
+        assert(this != sect.opp->segment);
+        assert(ptT.pt == sect.ptT.pt);
+        assert(ptT.pt == sect.opp->ptT.pt);
+        for (OpEdge& search : sect.opp->segment->edges) {
+            if (search.start.t > sect.opp->ptT.t)
+                break;
+            if (search.end.t < sect.opp->ptT.t)
+                continue;
+            if (!search.winding.visible())
+                continue;
+            assert(&search != edge);
+            if (result) // if there are two results, give up
+                return nullptr;
+            assert(search.start.t == sect.opp->ptT.t || search.end.t == sect.opp->ptT.t);
+            result = &search;
+        }
+    }
+    return result;
+}
+
 static bool compareXBox(const OpSegment* s1, const OpSegment* s2) {
     const OpRect& r1 = s1->ptBounds;
     const OpRect& r2 = s2->ptBounds;
@@ -847,6 +864,8 @@ IntersectResult OpSegments::AddIntersection(OpSegment* opp, OpSegment* seg) {
         FoundWindings foundWindings = edges.setWindings();
         if (FoundWindings::fail == foundWindings)
             return IntersectResult::fail;
+        // if the intersection did not catastrophically fail, the edges are sortable, or coincident
+#if 0
         // this was: (edge fail names have changed)
 //        if (sEdge.sum.visible() || EdgeFail::distance == sEdge.fail 
 //                || oEdge.sum.visible() || EdgeFail::distance == oEdge.fail)
@@ -858,6 +877,7 @@ IntersectResult OpSegments::AddIntersection(OpSegment* opp, OpSegment* seg) {
         (*oSectPtrB)->unsortable = true;
         (*sSectPtrA)->unsortable = true;
         (*sSectPtrB)->unsortable = true;
+#endif
     }
     return foundCount ? IntersectResult::yes : IntersectResult::no;
 

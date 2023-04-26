@@ -11,7 +11,6 @@ struct OpIntersection;
 struct OpOutPath;
 struct OpPoint;
 struct OpSegment;
-enum class Axis : uint8_t;
 
 extern void dump(const std::vector<OpEdge>& );  // to dump edge list built from intersections
 extern void dump(const std::vector<OpEdge*>& ); // to dump assemble linkups
@@ -29,8 +28,8 @@ extern void dump(const OpOutPath& );
 	std::string debugDumpIntersections() const; \
 	std::string debugDumpLink() const; \
 	std::string debugDumpLinkDetail() const; \
-	std::string debugDumpSum(Axis ) const; \
-	std::string debugDumpSumDetail(Axis ) const; \
+	std::string debugDumpSum() const; \
+	std::string debugDumpSumDetail() const; \
 	std::string debugDumpWinding() const; \
 
 #define DEBUG_DUMP_ID_DEFINITION(_owner, _id) \
@@ -57,10 +56,10 @@ extern void dump(const OpOutPath& );
 	void dumpSegmentSects(int id) const; \
 	void dumpSegments() const; \
 	void dumpStart(int id) const; \
-    void dumpSum(Axis ) const; \
-    void dumpSum(int id, Axis ) const; \
-    void dumpSumDetail(Axis ) const; \
-    void dumpSumDetail(int id, Axis) const; \
+    void dumpSum() const; \
+    void dumpSum(int id) const; \
+    void dumpSumDetail() const; \
+    void dumpSumDetail(int id) const; \
 	void dumpWinding(int id) const; \
 
 #define DUMP_IMPL_DECLARATIONS() \
@@ -89,11 +88,6 @@ extern void dump(const OpOutPath& );
 		debugGlobalContours->_method(ID); \
 	}
 
-#define DUMP_STRUCT_DEF_AXIS(_owner, _method) \
-	void _owner::_method(int ID, Axis axis) const { \
-		debugGlobalContours->_method(ID, axis); \
-	}
-
 #define DUMP_STRUCT_DEF_MATCH(_owner, _method) \
 	void _owner::_method(const OpPoint& pt) const { \
 		debugGlobalContours->_method(pt); \
@@ -118,8 +112,8 @@ extern void dump(const OpOutPath& );
 	DUMP_STRUCT_DEF_ID(_owner, dumpSegmentSects) \
 	DUMP_STRUCT_DEFINITION(_owner, dumpSegments) \
 	DUMP_STRUCT_DEF_ID(_owner, dumpStart) \
-	DUMP_STRUCT_DEF_AXIS(_owner, dumpSum) \
-	DUMP_STRUCT_DEF_AXIS(_owner, dumpSumDetail) \
+	DUMP_STRUCT_DEF_ID(_owner, dumpSum) \
+	DUMP_STRUCT_DEF_ID(_owner, dumpSumDetail) \
 	DUMP_STRUCT_DEF_ID(_owner, dumpWinding) \
 
 #define DUMP_GLOBAL_DEFINITION(global_function) \
@@ -130,11 +124,6 @@ extern void dump(const OpOutPath& );
 #define DUMP_GLOBAL_DEF_ID(global_function) \
 	void global_function(int id) { \
 		debugGlobalContours->global_function(id); \
-	}
-
-#define DUMP_GLOBAL_DEF_AXIS(global_function) \
-	void global_function(int id, Axis axis) { \
-		debugGlobalContours->global_function(id, axis); \
 	}
 
 #define DUMP_GLOBAL_DEF_MATCH(global_function) \
@@ -161,8 +150,8 @@ extern void dump(const OpOutPath& );
 	DUMP_GLOBAL_DEF_ID(dumpSegmentSects) \
 	DUMP_GLOBAL_DEFINITION(dumpSegments) \
 	DUMP_GLOBAL_DEF_ID(dumpStart) \
-	DUMP_GLOBAL_DEF_AXIS(dumpSum) \
-	DUMP_GLOBAL_DEF_AXIS(dumpSumDetail) \
+	DUMP_GLOBAL_DEF_ID(dumpSum) \
+	DUMP_GLOBAL_DEF_ID(dumpSumDetail) \
 	DUMP_GLOBAL_DEF_ID(dumpWinding) \
 
 #define DUMP_GLOBAL_DECLARATION(global_function) \
@@ -170,9 +159,6 @@ extern void dump(const OpOutPath& );
 
 #define DUMP_GLOBAL_DECL_ID(global_function) \
 	extern void global_function(int id);
-
-#define DUMP_GLOBAL_DECL_AXIS(global_function) \
-	extern void global_function(int id, Axis axis);
 
 #define DUMP_GLOBAL_DECL_MATCH(global_function) \
 	extern void global_function(const OpPoint& pt);
@@ -196,8 +182,8 @@ extern void dump(const OpOutPath& );
 	DUMP_GLOBAL_DECL_ID(dumpSegmentSects) \
 	DUMP_GLOBAL_DECLARATION(dumpSegments) \
 	DUMP_GLOBAL_DECL_ID(dumpStart) \
-	DUMP_GLOBAL_DECL_AXIS(dumpSum) \
-	DUMP_GLOBAL_DECL_AXIS(dumpSumDetail) \
+	DUMP_GLOBAL_DECL_ID(dumpSum) \
+	DUMP_GLOBAL_DECL_ID(dumpSumDetail) \
 	DUMP_GLOBAL_DECL_ID(dumpWinding) \
 
 DUMP_GLOBAL_DECLARATIONS()
