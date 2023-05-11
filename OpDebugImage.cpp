@@ -30,6 +30,7 @@ std::vector<const OpEdge*> localEdges;
 std::vector<const OpIntersection*> intersections;
 std::vector<OpRay> lines;
 std::vector<OpInPath> operands;
+std::vector<OpOutPath> outputs;
 std::vector<const SkPath*> paths;
 std::vector<const OpSegment*> localSegments;	// segments not yet added to global debug contour
 int gridIntervals = 8;
@@ -53,10 +54,11 @@ DRAW_FEATURE_GLOBAL(Left);
 DRAW_FEATURE_GLOBAL(Lines);
 DRAW_FEATURE_GLOBAL(Normals);
 DRAW_FEATURE_GLOBAL(Operands);
+DRAW_FEATURE_GLOBAL(Outputs);
 DRAW_FEATURE_GLOBAL(Paths);
 DRAW_FEATURE_GLOBAL(Points);
 DRAW_FEATURE_GLOBAL(Right);
-// DRAW_FEATURE_GLOBAL(SegmentEdges);
+DRAW_FEATURE_GLOBAL(SegmentEdges);
 DRAW_FEATURE_GLOBAL(Segments);
 DRAW_FEATURE_GLOBAL(Sums);
 DRAW_FEATURE_GLOBAL(Tangents);
@@ -128,12 +130,15 @@ struct OpDebugEdgeIter {
 			localEdgeIndex = 0;
 			return;
 		}
-		localEdgeIndex = localEdges.size();
-		for (const auto& c : debugGlobalContours->contours) {
-			for (const auto& s : c.segments)
-				localEdgeIndex += s.edges.size();
+		if (drawTemporaryEdgesOn)
+			localEdgeIndex = localEdges.size();
+		if (drawSegmentEdgesOn) {
+			for (const auto& c : debugGlobalContours->contours) {
+				for (const auto& s : c.segments)
+					localEdgeIndex += s.edges.size();
+			}
 		}
-		if (OpEdgeIntersect::debugActive) {
+		if (drawTemporaryEdgesOn && OpEdgeIntersect::debugActive) {
 			localEdgeIndex += OpEdgeIntersect::debugActive->edgeParts.size();
 			localEdgeIndex += OpEdgeIntersect::debugActive->oppParts.size();
 		}
@@ -144,22 +149,24 @@ struct OpDebugEdgeIter {
 	}
 
     const OpEdge* operator*() {
-		if (localEdgeIndex < localEdges.size())
+		if (drawTemporaryEdgesOn && localEdgeIndex < localEdges.size())
 			return localEdges[localEdgeIndex];
-		size_t index = localEdges.size();
-		for (const auto& c : debugGlobalContours->contours) {
-			for (const auto& s : c.segments) {
-				for (const auto& edge : s.edges) {
-					if (index == localEdgeIndex) {
-						isTemporary = false;
-						isOpp = false; // !!! unset, at present, for permanent edges
-						return &edge;
+		size_t index = drawTemporaryEdgesOn ? localEdges.size() : 0;
+		if (drawSegmentEdgesOn) {
+			for (const auto& c : debugGlobalContours->contours) {
+				for (const auto& s : c.segments) {
+					for (const auto& edge : s.edges) {
+						if (index == localEdgeIndex) {
+							isTemporary = false;
+							isOpp = false; // !!! unset, at present, for permanent edges
+							return &edge;
+						}
+						++index;
 					}
-					++index;
 				}
 			}
 		}
-		if (OpEdgeIntersect::debugActive) {
+		if (drawTemporaryEdgesOn && OpEdgeIntersect::debugActive) {
 			if (index + OpEdgeIntersect::debugActive->edgeParts.size() > localEdgeIndex) {
 				isTemporary = true;
 				isOpp = false;
@@ -237,6 +244,7 @@ void OpDebugImage::init(const OpInPath& left, const OpInPath& right) {
 	bitmap.allocPixels(SkImageInfo::MakeN32Premul(bitmapWH, bitmapWH));
 	::clear();
 	operands.clear();
+	outputs.clear();
 	paths.clear();
 	operands.push_back(left);
 	operands.push_back(right);
@@ -245,6 +253,8 @@ void OpDebugImage::init(const OpInPath& left, const OpInPath& right) {
 	drawLeftOn = true;
 	drawRightOn = true;
 	drawPathsOn = true;
+	drawSegmentEdgesOn = true;
+	drawTemporaryEdgesOn = true;
 	SkRect opBounds = left.skPath->getBounds();
 	opBounds.join(right.skPath->getBounds());
 	DebugOpSetBounds(opBounds.fLeft, opBounds.fTop, opBounds.fRight, opBounds.fBottom);
@@ -289,6 +299,8 @@ void OpDebugImage::drawDoubleFocus() {
 		drawEdgeNormals();
 	if (drawWindingsOn)
 		drawEdgeWindings();
+	if (drawOutputsOn)
+		DebugOpDraw(outputs);
 	if (drawPointsOn)
 		OpDebugImage::drawPoints();
 	if (drawSegmentsOn && drawIDsOn) {
@@ -728,6 +740,8 @@ void OpDebugImage::addArrowHeadToPath(const OpLine& line, SkPath& path) {
 }
 
 void OpDebugImage::add(const OpEdge* edge) {
+	if (!drawTemporaryEdgesOn)
+		return;
 	for (auto e : edgeIterator) {
 		if (e == edge)
 			return;
@@ -814,13 +828,14 @@ HIDE_SHOW_DEFINITION(IDs);
 HIDE_SHOW_DEFINITION(Intersections);
 HIDE_SHOW_DEFINITION(Lines);
 HIDE_SHOW_DEFINITION(Normals);
+HIDE_SHOW_DEFINITION(Outputs);
 HIDE_SHOW_DEFINITION(Paths)
 HIDE_SHOW_DEFINITION(Points);
-// HIDE_SHOW_DEFINITION(SegmentEdges);
+HIDE_SHOW_DEFINITION(SegmentEdges);
 HIDE_SHOW_DEFINITION(Segments);
 HIDE_SHOW_DEFINITION(Sums);
 HIDE_SHOW_DEFINITION(Tangents);
-// HIDE_SHOW_DEFINITION(TemporaryEdges);
+HIDE_SHOW_DEFINITION(TemporaryEdges);
 HIDE_SHOW_DEFINITION(Values);
 HIDE_SHOW_DEFINITION(Windings);
 
@@ -1188,8 +1203,8 @@ bool OpSegment::debugContains(const OpEdge* edge) const {
 }
 
 void OpOutPath::draw() const {
-	paths.push_back(skPath);
-	drawPathsOn = true;
+	outputs.push_back(*this);
+	drawOutputsOn = true;
 	OpDebugImage::drawDoubleFocus();
 }
 

@@ -147,43 +147,43 @@ void VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op,
 }
 
 bool testPathOpBase(skiatest::Reporter* , const SkPath& a, const SkPath& b, 
-        SkPathOp op, const char* filename, bool mayFail) {
+        SkPathOp op, const char* filename, bool v0MayFail, bool skiaMayFail) {
     SkPath result, skresult, xorResult;
     OpDebugOut(std::string(filename) + "\n");
 	OpInPath op1(&a);
 	OpInPath op2(&b);
 	OpOutPath opOut(&result);
     bool success = PathOps(op1, op2, (OpOperator) op, opOut);
-    assert(success || mayFail);
-    OP_DEBUG_CODE(bool skSuccess =) Op(a, b, op, &skresult);
-    assert(skSuccess);
+    assert(success || v0MayFail);
+    bool skSuccess = Op(a, b, op, &skresult);
+    assert(skSuccess || skiaMayFail);
 #if 0
     bool xorSucess = Op(result, skresult, kXOR_SkPathOp, &xorResult);
     assert(xorSucess);
     assert(xorResult.isEmpty());
 #else
-    if (success) VerifyOp(a, b, op, result);
+    if (success && skSuccess) VerifyOp(a, b, op, result);
 #endif
     return true;
 }
 
 bool testPathOp(skiatest::Reporter*, const SkPath& a, const SkPath& b,
         SkPathOp op, const char* filename) {
-    return testPathOpBase(nullptr, a, b, op, filename, false);
+    return testPathOpBase(nullptr, a, b, op, filename, false, false);
 }
 
 void testPathOpCheck(skiatest::Reporter*, SkPath& a, SkPath& b, SkPathOp op, const char* filename,
         bool checkFail) {
-    testPathOpBase(nullptr, a, b, op, filename, false);
+    testPathOpBase(nullptr, a, b, op, filename, false, false);
 }
 
 void testPathOpFuzz(skiatest::Reporter*, SkPath& a, SkPath& b, SkPathOp op, const char* filename) {
-    testPathOpBase(nullptr, a, b, op, filename, true);
+    testPathOpBase(nullptr, a, b, op, filename, true, true);
 }
 
 bool testPathOpFail(skiatest::Reporter* reporter, const SkPath& a, const SkPath& b,
         const SkPathOp op, const char* testName) {
-    return testPathOpBase(nullptr, a, b, op, testName, false);
+    return testPathOpBase(nullptr, a, b, op, testName, false, true);
 }
 
 void RunTestSet(skiatest::Reporter* reporter, TestDesc tests[], size_t count,
@@ -9329,6 +9329,9 @@ static void calibrateOpDebugImage(skiatest::Reporter* reporter, const char* file
 }
 
 static struct TestDesc tests[] = {
+    TEST(loops62i),
+    TEST(crbug_526025), // (fuzzer) fails with inconsistent edge links. Succeeds in skia ops, so worth debugging one day
+    TEST(testOp8d),
     TEST(testRect1_u),
     TEST(testDiff1),
     TEST(testIntersect1),
@@ -9353,12 +9356,9 @@ static struct TestDesc tests[] = {
     TEST(testOp5d),
     TEST(testOp7d),
     TEST(testOp2u),
-    TEST(testOp8d),
-    TEST(grshapearcs1),  // assert(segEnd.pt == oppEnd.pt); (in OpEdgeIntersect::addCurveCoin line 181)
-    TEST(crbug_526025), // (fuzzer) fails with inconsistent edge links. Succeeds in skia ops, so worth debugging one day
+    TEST(grshapearcs1),  // succeeds when skia fails, but doubtful that the answer is correct
     TEST(cubics_d2),
     TEST(dean2),
-    TEST(loops62i),
     TEST(cubics44d),
     TEST(loops61i),
     TEST(cubics_d3),

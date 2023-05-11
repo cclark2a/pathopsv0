@@ -83,6 +83,8 @@ void OpEdge::addMatchingEnds(const OpEdge& opp) const {
 void OpEdge::apply() {
 	if (!winding.visible())
 		return;
+	if (isSumLoop)
+		return;
 	OpContours* contours = segment->contour->contours;
 	WindState leftState = contours->windState(winding.left, sum.left, OpOperand::left);
 	WindState rightState = contours->windState(winding.right, sum.right, OpOperand::right);
@@ -212,6 +214,7 @@ void OpEdge::complete() {
 	id = segment->contour->contours->id++;
 }
 
+// !!! contains link and contains sum could be combined
 bool OpEdge::containsLink(const OpEdge* edge) const {
 	const OpEdge* test = this;
 	do {
@@ -222,21 +225,29 @@ bool OpEdge::containsLink(const OpEdge* edge) const {
 	return false;
 }
 
+bool OpEdge::containsSum(const OpEdge* edge) const {
+	const OpEdge* test = this;
+	do {
+		if (edge == test)
+			return true;
+		test = test->priorSum;
+	} while (test && test != this);
+	return false;
+}
+
 // at some point, do some math or rigorous testing to figure out how extreme this can be
 // for now, keep making it smaller until it breaks
 #define WINDING_NORMAL_LIMIT  0.001 // !!! no idea what this should be
 
-start here;
 // pass center as parameter so caller can specify their own middle
-OpPtT OpEdge::findRayIntercept(OpEdge* test, float lo, float hi, Axis axis, 
-		OpVector backRay) {
-	float normal = center.pt.choice(axis);
+OpPtT OpEdge::findRayIntercept(OpEdge* test, float normal, float loBound, float hiBound,
+		Axis axis, OpVector backRay) {
 	float mid = 1;
-	float midEnd = hi;
+	float midEnd = 1;
+	const OpCurve& testCurve = test->setCurve();
 	do {	// try to find ray; look up to eight times
-		const OpCurve& curve = test->setCurve();
 		OpRoots cepts;
-		cepts.count = curve.axisRayHit(axis, normal, cepts.roots);
+		cepts.count = testCurve.axisRayHit(axis, normal, cepts.roots);
 		// get the normal at the intersect point and see if it is usable
 		if (1 != cepts.count) {
 			// !!! if intercepts is 2 or 3, figure out why (and what to do)
@@ -246,25 +257,25 @@ OpPtT OpEdge::findRayIntercept(OpEdge* test, float lo, float hi, Axis axis,
 		}
 		float cept = cepts.get(0);
 		if (!OpMath::IsNaN(cept) && 0 != cept && 1 != cept) {
-			float tNxR = curve.tangent(cept).normalize().cross(backRay);
+			float tNxR = testCurve.tangent(cept).normalize().cross(backRay);
 			if (fabs(tNxR) >= WINDING_NORMAL_LIMIT
 					|| (test->setLinear() && test->start.t < cept && cept < test->end.t)) {
-				return OpPtT(curve.ptAtT(cept), cept); // no need to look for a better ray intersection
+				return OpPtT(testCurve.ptAtT(cept), cept); // no need to look for a better ray intersection
 			}
+			OpDebugOut("");
 		}
 		// recalc center; restart search for winding with a different ray
-		const OpCurve& edgeCurve = setCurve();
 		mid /= 2;
-		float newMid = (hi - lo) * mid;
-		midEnd = midEnd < (lo + hi) / 2 ? hi - newMid : lo + newMid;
-		float middle = OpMath::Interp(ptBounds.ltChoice(axis), ptBounds.rbChoice(axis), midEnd);
+		midEnd = midEnd < .5 ? 1 - mid : mid;
+		float middle = OpMath::Interp(loBound, hiBound, midEnd);
+		const OpCurve& edgeCurve = setCurve();  // ok to be in loop (lazy)
 		float t = edgeCurve.center(axis, middle);
-		normal = edgeCurve.ptAtT(t).choice(axis);
-		if (OpMath::IsNaN(t) || mid <= 1.f/256.f) {	// give it at most eight tries
+		if (OpMath::IsNaN(t) || mid <= 1.f / 256.f) {	// give it at most eight tries
 			fail = EdgeFail::recalcCenter;
 			winding.zero(ZeroReason::failCenter);
-			break;	
+			break;
 		}
+		normal = edgeCurve.ptAtT(t).choice(axis);
 		assert(!OpMath::IsNaN(normal));
 	} while (true);
 	return OpPtT();// no useful result
@@ -274,23 +285,35 @@ float OpEdge::findPtT(OpPoint opp) const {
 	return segment->findPtT(start.t, end.t, opp);
 }
 
+FoundPtT OpEdge::findPtT(OpPoint opp, float* result) const {
+	return segment->findPtT(start.t, end.t, opp, result);
+}
+
 // for each edge: recurse until priorSum is null or sum winding has value 
 // or -- sort the edges first ? the sort doesn't seem easy or obvious -- may need to think about it
 // if horizontal axis, look at rect top/bottom
-void OpEdge::findWinding(Axis axis  OP_DEBUG_PARAMS(int* debugWindingLimiter)) {
+ResolveWinding OpEdge::findWinding(Axis axis  OP_DEBUG_PARAMS(int* debugWindingLimiter)) {
 	assert(++(*debugWindingLimiter) < 100);
-	assert(sum.unset());	// second pass or uninitialized
-	assert(!isLoop(WhichLoop::prior, EdgeLoop::sum, LeadingLoop::willLoop));
-	assert(!priorSum || !priorSum->isLoop(WhichLoop::prior, EdgeLoop::sum, LeadingLoop::willLoop));
-	if (priorSum && priorSum->sum.unset())
-		priorSum->findWinding(axis  OP_DEBUG_PARAMS(debugWindingLimiter));
+	assert(!sum.isSet());	// second pass or uninitialized
+	assert(!isSumLoop);
+	if (priorSum) {
+		if (priorSum->isSumLoop)
+			return ResolveWinding::loop;	
+		if (!priorSum->sum.isSet()) {
+			ResolveWinding priorWinding = priorSum->findWinding(axis
+				OP_DEBUG_PARAMS(debugWindingLimiter));
+			if (ResolveWinding::loop == priorWinding)
+				return priorWinding;
+		}
+	}
 	calcWinding(axis);
+	return ResolveWinding::resolved;
 }
 
 // note that caller clears active flag if loop is closed
 bool OpEdge::isClosed(OpEdge* test) {
-	if (isLoop(WhichLoop::prior, EdgeLoop::link, LeadingLoop::willLoop) 
-			|| isLoop(WhichLoop::next, EdgeLoop::link, LeadingLoop::willLoop))
+	if (isLoop(WhichLoop::prior, EdgeLoop::link, LeadingLoop::will) 
+			|| isLoop(WhichLoop::next, EdgeLoop::link, LeadingLoop::will))
 		return true;
 	if (flipPtT(EdgeMatch::start).pt == test->whichPtT().pt) {
 		assert(!nextEdge || nextEdge == test);
@@ -320,11 +343,9 @@ const OpEdge* OpEdge::isLoop(WhichLoop which, EdgeLoop edgeLoop, LeadingLoop lea
 		auto seenIter = std::find(seen.begin(), seen.end(), chain);
 		if (seen.end() == seenIter)
 			continue;
-		if (LeadingLoop::willLoop == leading)
-			return chain;
-		assert(LeadingLoop::inLoop == leading);
-		if (seen.begin() != seenIter)
-			break;
+		if (LeadingLoop::will == leading)
+			return this;
+		assert(LeadingLoop::in == leading);
 		return chain;
 	}
 	return nullptr;
@@ -391,63 +412,6 @@ OpEdge* OpEdge::linkUp(EdgeMatch match, OpEdge* firstEdge) {
 		test = EdgeMatch::start == match ? test->priorEdge : test->nextEdge;
 	} while (test != oppEdge);
 	return oppEdge->linkUp(match, firstEdge);
-}
-
-void OpEdge::markFailPrior(std::vector <OpEdge*>& edges, Axis axis) {
-	// the ray hit multiple, indistinguishable edges
-	assert(0); // incomplete, will probably be removed
-	OpEdge* prior = this;
-	float direction = end.pt.choice(axis) - start.pt.choice(axis);
-	OpPoint priorStart { start.pt };
-	OpPoint priorEnd { end.pt };
-	do {
-		if (this != prior) {
-			float priorDirection = prior->end.pt.choice(axis) - prior->start.pt.choice(axis);
-			bool reversed = direction * priorDirection < 0;
-			priorStart = reversed ? prior->end.pt : prior->start.pt;
-			OpEdge* priorCoinLast = prior;
-			if (start.pt != priorStart) {	// see if shorter can be extended
-				bool shortStart = (start.pt.choice(axis) < priorStart.choice(axis)) == (direction > 0);
-				// connecting bit must have single intersection; multiple sects can change winding
-				// OpEdge* shortEdge = shortStart ? this : prior;
-				EdgeMatch adjacentEnd = shortStart || !reversed ? EdgeMatch::start : EdgeMatch::end;
-				bool crossing = false; // shortEdge->segment->crossPoint(shortEdge, adjacentEnd);
-				if (!crossing) {
-					OpEdge* adjacentEdge = nullptr; //  shortEdge->adjacent(adjacentEnd);
-					// does adjacent edge mate with this edge to for coincidence? does it diverge?
-					OpEdge* longEdge = shortStart ? prior : this;
-					EdgeMatch longEnd = !shortStart || !reversed ? EdgeMatch::start : EdgeMatch::end;
-					if (longEdge->ptT(longEnd).pt == adjacentEdge->ptT(adjacentEnd).pt) {
-						priorCoinLast = adjacentEdge;
-					} else { // see if edge divergence permits sorting
-						// start here; call setSumChain or equivalent to see if sorting is now possible
-					}
-				} else
-					assert(0); // examine state to see what this means
-					// assert suggests that shorter edge cannot be extended because one or more
-				//     edges intersect at the shorter edge's end. This may mean that the intersects
-				//     should have been found for the longer edge and either were not found, or have
-				//     a different intersection point. What to do? TBD
-			}
-			priorEnd = reversed ? prior->start.pt : prior->end.pt;
-			if (end.pt != priorEnd) {
-				bool shortEnd = (end.pt.choice(axis) < priorEnd.choice(axis)) == (direction > 0);
-				// start here
-				assert(shortEnd); // !!! silence warning until code is complete or discarded
-				assert(priorCoinLast);
-			}
-			// if this edge and prior have same end points, treat them as coincident
-			winding.move(prior->winding, segment->contour->contours, reversed);
-			for (auto edge : edges) {
-				if (edge->priorSum == prior)
-					edge->setPriorSum(edge == this ? nullptr : this);
-			}
-		}
-		prior->fail = EdgeFail::nextDistance;
-		OpEdge* unlink = prior;
-		prior = prior->priorSum;
-		unlink->setPriorSum(nullptr);
-	} while (prior && EdgeFail::none == prior->fail);
 }
 
 bool OpEdge::matchLink(std::vector<OpEdge*>& linkups) {
@@ -746,7 +710,7 @@ void OpEdge::setWinding(OpVector ray) {
 	else
 		sum.right = ray.dot(normal) >= 0;
 #if OP_DEBUG
-	sum.reason = ZeroReason::rayNormal;
+	sum.debugReason = ZeroReason::rayNormal;
 #endif
 }
 

@@ -231,7 +231,7 @@ void OpContours::dumpLink(int ID) const {
 void OpContours::dumpLinkDetail(int ID) const {
     const OpEdge* edge = findEdge(ID);
     if (edge)
-        return edge->dumpChain(EdgeLoop::link);
+        return edge->dumpChain(EdgeLoop::link, true);
 }
 
 void OpContours::dumpSegments() const {
@@ -745,6 +745,7 @@ std::string OpEdge::debugDumpDetail() const {
     if (EdgeSplit::unsplittable == doSplit) s+= "unsplittable ";
     if (isLine_impl) s += "isLine ";
     if (isPoint) s += "isPoint ";
+    if (isSumLoop) s += "isSumLoop ";
     if (active_impl) s += "active ";
     if (unsortable) s += "unsortable ";
     s += "debugMaker:" + debugEdgeDebugMaker(debugMaker) + " ";
@@ -753,11 +754,11 @@ std::string OpEdge::debugDumpDetail() const {
 }
 
 std::string OpEdge::debugDumpHex() const {
-    std::string s;
-    s = "/* edge:" + STR(id) + " */ OpPtT data[] {\n";
-    s += "  {" + start.debugDumpHex() + " }, // " + start.debugDump() + "\n";
+    std::string s = "[" + STR(id) + "]";
+    s = "  {" + start.debugDumpHex() + " }, // " + start.debugDump() + "\n";
+    for (int i = 0; i < segment->c.pointCount() - 2; ++i)
+        s += "  {" + ctrlPts[i].debugDumpHex() + " }, // " + ctrlPts[i].debugDump() + "\n";
     s += "  {" + end.debugDumpHex() + " } // " + end.debugDump() + "\n";
-    s += "}; /* seg:" + STR(segment->id) + " */";
     return s;
 }
 
@@ -857,7 +858,7 @@ void OpEdge::debugValidate() const {
 std::string OpEdge::debugDumpChain(WhichLoop which, EdgeLoop edgeLoop, bool detail) const {
     assert(WhichLoop::prior == which || EdgeLoop::link == edgeLoop);
     std::string s = "chain:";
-    const OpEdge* looped = isLoop(which, edgeLoop, LeadingLoop::willLoop);
+    const OpEdge* looped = isLoop(which, edgeLoop, LeadingLoop::in);
     bool firstLoop = false;
     int safetyCount = 0;
     const OpEdge* chain = this;
@@ -872,8 +873,8 @@ std::string OpEdge::debugDumpChain(WhichLoop which, EdgeLoop edgeLoop, bool deta
 		if (!chain)
 			break;
         if (++safetyCount > 100) {
-            OpDebugOut(std::string("!!! %s likely loops forever") + 
-                    (WhichLoop::prior == which ? "prior" : "next"));
+            OpDebugOut(std::string("!!! %s likely loops forever: ") + 
+                    (WhichLoop::prior == which ? "prior " : "next "));
             break;
         }
     }
@@ -890,6 +891,14 @@ std::string OpEdge::debugDumpWinding() const {
 void OpEdge::dump() const {
     std::string s = debugDump() + "\n";
     OpDebugOut(s);
+}
+
+void dump(const OpEdge* edge) {
+    edge->dump();
+}
+
+void dump(const OpEdge& edge) {
+    edge.dump();
 }
 
 void OpEdge::dumpChain(EdgeLoop edgeLoop, bool detail) const {
@@ -1301,14 +1310,14 @@ std::string OpWinding::debugDump() const {
            outOfDate = true;
        }
     std::string result = "left: " + STR(left) + " right: " + STR(right);
-    if (setter)
-        result += " setter: " + STR(setter);
-    if (ZeroReason::none != reason) {
+    if (debugSetter)
+        result += " setter: " + STR(debugSetter);
+    if (ZeroReason::none != debugReason) {
         result += " reason: ";
         if (outOfDate)
-            result += STR((int)reason);
+            result += STR((int)debugReason);
         else
-            result += std::string(debugReasonNames[(int)reason].name);
+            result += std::string(debugReasonNames[(int)debugReason].name);
     }
     return result;
 }
@@ -1326,9 +1335,9 @@ void DumpLinkups(const std::vector<OpEdge*>& linkups) {
         }
         int count = 0;
         auto next = linkup;
-        auto looped = linkup->isLoop(WhichLoop::prior, EdgeLoop::link, LeadingLoop::willLoop);
+        auto looped = linkup->isLoop(WhichLoop::prior, EdgeLoop::link, LeadingLoop::in);
         if (!looped)
-            looped = linkup->isLoop(WhichLoop::next, EdgeLoop::link, LeadingLoop::willLoop);
+            looped = linkup->isLoop(WhichLoop::next, EdgeLoop::link, LeadingLoop::in);
         bool firstLoop = false;
         while (next) {
             if (looped == next) {
@@ -1460,6 +1469,14 @@ void OpPoint::dump() const {
     OpDebugOut("OpPoint pt { " + debugDump() + " };\n");
 }
 
+void dump(const OpPoint& pt) {
+    pt.dump();
+}
+
+void dump(const OpPoint* pt) {
+    pt->dump();
+}
+
 void OpPoint::dumpHex() const {
     OpDebugOut("OpPoint pt { " + debugDumpHex() + " };  // " + debugDump() + "\n");
 }
@@ -1482,7 +1499,15 @@ void OpPtT::dump() const {
     OpDebugOut(debugDump() + "\n"); 
 }
 
-void OpPtT::dumpHex() const { 
+void dump(const OpPtT& ptT) {
+    ptT.dump();
+}
+
+void dump(const OpPtT* ptT) {
+    ptT->dump();
+}
+
+void OpPtT::dumpHex() const {
     OpDebugOut(debugDumpHex() + " // " + debugDump() + "\n");
 }
 

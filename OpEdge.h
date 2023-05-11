@@ -46,6 +46,8 @@ enum class EdgeMatch : uint8_t {
 	both	// used by flip
 };
 
+enum class FoundPtT;
+
 inline EdgeMatch Opposite(EdgeMatch match) {
 	assert(EdgeMatch::start == match || EdgeMatch::end == match);
 	return EdgeMatch::start == match ? EdgeMatch::end : EdgeMatch::start;
@@ -104,14 +106,22 @@ enum class ZeroReason : uint8_t {
 	resolveCoin,
 };
 
+
+enum class WindingType  {
+	none,
+	winding,
+	sum
+};
+
 struct OpWinding {
 private:
 	OpWinding(int l, int r  OP_DEBUG_PARAMS(int s, ZeroReason z))
 		: left(l)
 		, right(r)
 #if OP_DEBUG
-		, setter(s)
-		, reason(z)
+		, debugSetter(s)
+		, debugType(WindingType::winding)
+		, debugReason(z)
 #endif
 	{
 	}
@@ -121,8 +131,9 @@ public:
 		: left(0)
 		, right(0)
 #if OP_DEBUG
-		, setter(0)
-		, reason(ZeroReason::none)
+		, debugSetter(0)
+		, debugType(WindingType::winding)
+		, debugReason(ZeroReason::none)
 #endif
 	{
 	}
@@ -131,8 +142,9 @@ public:
 		: left(OpMax)
 		, right(OpMax)
 #if OP_DEBUG
-		, setter(0)
-		, reason(ZeroReason::none)
+		, debugSetter(0)
+		, debugType(WindingType::sum)
+		, debugReason(ZeroReason::none)
 #endif	
 	{
 	}
@@ -141,8 +153,9 @@ public:
 		: left(OpOperand::left == operand ? 1 : 0)
 		, right(OpOperand::right == operand ? 1 : 0)
 #if OP_DEBUG
-		, setter(0)
-		, reason(ZeroReason::none)
+		, debugSetter(0)
+		, debugType(WindingType::winding)
+		, debugReason(ZeroReason::none)
 #endif	
 	{
 	}
@@ -155,6 +168,11 @@ public:
 		return { -left, -right  OP_DEBUG_PARAMS(0, ZeroReason::none) };
 	}
 
+	bool isSet() const {
+		assert(WindingType::sum == debugType);
+		return OpMax != left || OpMax != right;
+	}
+
 	void move(OpWinding& opp, const OpContours* , bool backwards);
 
 	int oppSide(OpOperand operand) const {
@@ -163,11 +181,6 @@ public:
 
 	int sum() const {
 		return left + right;
-	}
-
-	// only for sum
-	bool unset() const {
-		return OpMax == left && OpMax == right;
 	}
 
 	bool visible() const {
@@ -179,8 +192,8 @@ public:
 		left = 0;
 		right = 0;
 #if OP_DEBUG
-		if (ZeroReason::none == reason)	// if we already failed, don't fail again?
-			reason = r;
+		if (ZeroReason::none == debugReason)	// if we already failed, don't fail again?
+			debugReason = r;
 #endif
 	}
 
@@ -193,8 +206,9 @@ public:
 	int right;
 
 #if OP_DEBUG
-	int setter;
-	ZeroReason reason;
+	int debugSetter;
+	WindingType debugType;
+	ZeroReason debugReason;
 #endif
 };
 
@@ -227,8 +241,13 @@ enum class EdgeSplit {
 };
 
 enum class LeadingLoop {
-	inLoop,
-	willLoop
+	in,
+	will
+};
+
+enum class ResolveWinding {
+	resolved,
+	loop
 };
 
 enum class WhichLoop {
@@ -262,6 +281,7 @@ private:
 		, priorSum(nullptr)
 		, winding(windingEdge)
 		, sum(windingSum)
+		, priorNormal(0)
 		, priorT(0)
 		, priorAxis(Axis::vertical)
 		, nextLink(EdgeLink::unlinked)
@@ -276,6 +296,7 @@ private:
 		, verticalSet(false)
 		, isLine_impl(false)
 		, isPoint(false)
+		, isSumLoop(false)
 		, active_impl(false)
 		, startAliased(false)
 		, unsortable(false) {
@@ -314,11 +335,14 @@ public:
 	void clearPriorEdge();
 	void complete();
 	bool containsLink(const OpEdge* edge) const;
+	bool containsSum(const OpEdge*) const;
 	float findPtT(OpPoint pt) const;
+	FoundPtT findPtT(OpPoint pt, float* result) const;
 	OpPtT flipPtT(EdgeMatch match) const { return match == whichEnd ? end : start; }
-	OpPtT findRayIntercept(OpEdge* test, float lo, float hi, Axis, OpVector backRay);
+	OpPtT findRayIntercept(OpEdge* test, float normal, float lo, float hi, Axis , 
+			OpVector backRay);
 	void flipWhich() { whichEnd = (EdgeMatch)((int)whichEnd ^ (int)EdgeMatch::both); }
-	void findWinding(Axis axis  OP_DEBUG_PARAMS(int* debugWindingLimiter));
+	ResolveWinding findWinding(Axis axis  OP_DEBUG_PARAMS(int* debugWindingLimiter));
 	bool hasLinkTo(EdgeMatch match) const { 
 		return EdgeLink::single == (EdgeMatch::start == match ? nextLink : priorLink); }
 	OpEdge* hasLoop(WhichLoop w, EdgeLoop e, LeadingLoop l) {
@@ -328,7 +352,6 @@ public:
 	bool isClosed(OpEdge* test);
 	const OpEdge* isLoop(WhichLoop , EdgeLoop , LeadingLoop ) const; 
 	OpEdge* linkUp(EdgeMatch, OpEdge* firstEdge);
-	void markFailPrior(std::vector <OpEdge*>& , Axis );
 	bool matchLink(std::vector<OpEdge*>& linkups );
 	const OpEdge* nextChain(EdgeLoop edgeLoop) const {
 		assert(EdgeLoop::link == edgeLoop); return nextEdge; }
@@ -400,6 +423,7 @@ public:
 	OpPointBounds linkBounds;
 	OpWinding winding;	// contribution: always starts as 1, 0 (or 0, 1)
 	OpWinding sum; // total incl. normal side of edge for operands (fill count in normal direction)
+	float priorNormal;  // e.g., for horizontal axis, y value of intersecting ray
 	float priorT; // temporary used to carry result from prior sum to find winding
 	int id;
 	Axis priorAxis;	// the axis state when prior sum was found
@@ -415,6 +439,7 @@ public:
 	bool verticalSet;
 	bool isLine_impl;	// ptBounds 0=h/0=w catches horz/vert lines; if true, line is diagonal(?)
 	bool isPoint;
+	bool isSumLoop;
 	bool active_impl;  // used by ray casting to mark edges that may be to the left of casting edge
 	bool startAliased;
 	bool unsortable;

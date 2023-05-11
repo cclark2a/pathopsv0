@@ -16,8 +16,9 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
     for (auto edge : edges.inX) {
         edge->setActive();
     }
-#if 0 && OP_DEBUG
+#if 01 && OP_DEBUG
     clear();
+    hideSegmentEdges();
     edges.draw();
 //    addEdges();
     OpDebugOut("");
@@ -42,7 +43,7 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
         }
         if (linkup != leftMost)
             linkup->lastEdge = leftMost;
-        if (leftMost->isClosed(linkup) || c.closeGap(leftMost, linkup)) {
+        if (leftMost->isClosed(linkup)) {
             Output(leftMost, path);  // emit the contour
             continue;
         }
@@ -58,10 +59,10 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
             if (linkup)
                 linkup->lastEdge = newLast;
             // if a closed loop is formed, just output that
-            // if it is nearly a loop and can be closed with a unsortable edge, do that
+            // !!! NOT : if it is nearly a loop and can be closed with a unsortable edge, do that
             // !!! TODO : find direction of loop at add 'reverse' param to output if needed
             //     direction should consider whether edge normal points to inside or outside
-            if (newLast->isClosed(first) || c.closeGap(newLast, first)) {
+            if (newLast->isClosed(first) /* || c.closeGap(newLast, first) */ ) {
                 Output(first, path);  // emit the contour
                 continue;
             }
@@ -69,14 +70,45 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
         first = first->prepareForLinkup();
         linkups.emplace_back(first);
     }
+
+    // !!! this code:
+    //   || c.closeGap(leftMost, linkup)
+    // was removed after 'is closed' check above
+    // removed because it can add edges with a zeroed winding too soon
+    // either: add a new loop to see if linkup can be closed, or
+    // add check for close gap below
     for (auto linkup : linkups) {
-        assert(!linkup->isLoop(WhichLoop::prior, EdgeLoop::link, LeadingLoop::willLoop));
-        assert(!linkup->isLoop(WhichLoop::next, EdgeLoop::link, LeadingLoop::willLoop));
+        assert(!linkup->isLoop(WhichLoop::prior, EdgeLoop::link, LeadingLoop::will));
+        assert(!linkup->isLoop(WhichLoop::next, EdgeLoop::link, LeadingLoop::will));
         assert(linkup->lastEdge);
         assert(!linkup->priorEdge);
         do {
             linkup->setActive();
         } while ((linkup = linkup->nextEdge));
+    }
+    // for each remainder, find closest
+    // see if gap can be closed by an 'is sum loop' edge
+    // !!! this should be generalized to allow more more than one edge
+    start here;
+    // create array of qualifying endpoints
+    // create array of qualifying 'is sum loop' edges
+
+    for (size_t outer = 0; outer < linkups.size(); ++outer) {
+        auto outerEdge = linkups[outer];
+        bool outerStart = EdgeLink::single == outerEdge->priorLink;
+        bool outerEnd = EdgeLink::single == outerEdge->lastEdge->nextLink;
+        if (!outerStart && !outerEnd)
+            continue;
+        for (size_t inner = outer + 1; inner < linkups.size(); ++inner) {
+            auto innerEdge = linkups[inner];
+            bool innerStart = EdgeLink::single == innerEdge->priorLink;
+            bool innerEnd = EdgeLink::single == innerEdge->lastEdge->nextLink;
+            if (!innerStart && !innerEnd)
+                continue;
+            if (outerStart) {
+                OpVector delta = outerEdge->start - 
+                float distSq = 
+        }
     }
 #if 0
     // Find bounds of remaining linked lists. Prioritize the largest bounds
@@ -86,7 +118,7 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
         // !!! incomplete
     }
 #endif
-#if 0 && OP_DEBUG
+#if 01 && OP_DEBUG
     OpDebugOut("");
 #endif
     // !!! to do : find edges to fill gaps in remaining pieces, starting with the largest

@@ -15,6 +15,11 @@ enum class AllowReversal {
     yes
 };
 
+enum class FoundPtT {
+    single,
+    multiple
+};
+
 enum class MatchEnds {
     none,
     start,
@@ -27,6 +32,9 @@ struct FoundEdge {
         : edge(e)
         , whichEnd(w)
         , reverse(reversal) {
+        assert(e);
+        assert(e->winding.visible());
+        assert(e->active_impl);
     }
 
     OpEdge* edge;
@@ -66,6 +74,7 @@ struct OpSegment {
     void fixEdges(const OpPtT& alias, OpPoint master  OP_DEBUG_PARAMS(int masterSectID));
     void fixIntersections(OpPoint alias, OpPoint master  OP_DEBUG_PARAMS(int masterSectID));
     float findPtT(float start, float end, OpPoint opp) const;
+    FoundPtT findPtT(float start, float end, OpPoint opp, float* result) const;
     static void flip(WindZero* windZero);
     void intersectEdge();
     // count and sort extrema; create an edge for each extrema + 1

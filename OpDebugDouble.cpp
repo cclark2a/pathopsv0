@@ -8,6 +8,7 @@
 
 #include "OpCurve.h"
 #include "OpDebugDouble.h"
+#include "PathOps.h"
 
 #if OP_DEBUG_IMAGE
 #pragma optimize( "", off )
@@ -649,6 +650,7 @@ void DebugOpCurve::subDivide(double a, double b, DebugOpCurve& dest) const {
 std::vector<DebugOpCurve> debugLines;
 std::vector<DebugOpCurve> debugSegments;
 std::vector<DebugOpCurve> debugEdges;
+std::vector<DebugOpCurve> debugOutputs;
 std::vector<DebugOpCurve> debugPaths;
 std::vector<DebugOpPoint> debugPoints;  // used for path end points
 
@@ -1017,6 +1019,14 @@ void DebugOpBuild(OpPoint pt, float t, bool opp) {
 
 void DebugOpBuild(OpPoint pt, bool opp) {
     DebugOpBuild(pt, OpNaN, opp);
+}
+
+void DebugOpDraw(const std::vector<OpOutPath>& outputs) {
+    debugOutputs.clear();
+    for (auto& output : outputs)
+        if (output.skPath)
+            DebugOpBuild(*output.skPath, debugOutputs);
+    DebugOpDraw(debugOutputs, SK_ColorBLUE);
 }
 
 void DebugOpDrawArrowHead() {

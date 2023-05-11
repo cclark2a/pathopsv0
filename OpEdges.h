@@ -16,9 +16,27 @@ enum class FoundIntersections {
 	yes
 };
 
+enum class FoundIntercept {
+	fail,
+	set,
+	yes
+};
+
 enum class FoundWindings {
 	fail,
 	yes
+};
+
+struct EdgeDistance {
+	EdgeDistance(OpEdge* e, float d, float _t)
+		: edge(e)
+		, distance(d)
+		, t(_t) {
+	}
+
+	OpEdge* edge;
+	float distance;
+	float t;
 };
 
 struct OpEdges {
@@ -34,6 +52,9 @@ struct OpEdges {
 			OpSegment* segment, OpSegment* oppSegment);
 	static IntersectResult CoincidentCheck(const OpEdge& edge, const OpEdge& opp);
 	FoundIntersections findIntersections();
+	FoundIntercept findRayIntercept(std::vector <OpEdge*>& inArray, size_t inIndex, Axis axis,
+			OpEdge* edge, float center, float normal, float edgeCenterT,
+			std::vector<EdgeDistance>* );
 	void setSumChain(std::vector <OpEdge*>& inArray, size_t inIndex, Axis axis);
 	FoundWindings setWindings();
 	void sort(EdgesToSort);

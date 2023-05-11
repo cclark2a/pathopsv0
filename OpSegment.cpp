@@ -235,6 +235,18 @@ float OpSegment::findPtT(float start, float end, OpPoint opp) const {
     return (hRoots[0] + hRoots[1]) / 2;
 }
 
+FoundPtT OpSegment::findPtT(float start, float end, OpPoint opp, float* result) const {
+    if (OpType::lineType != c.type) {
+        rootCellar hRoots, vRoots;
+        int hRootCount = c.axisRayHit(Axis::horizontal, opp.y, hRoots, start, end);
+        int vRootCount = c.axisRayHit(Axis::vertical, opp.x, vRoots, start, end);
+        if (1 < hRootCount || 1 < vRootCount)
+            return FoundPtT::multiple;
+    }
+    *result = findPtT(start, end, opp);
+    return FoundPtT::single;
+}
+
 void OpSegment::fixEdges(const OpPtT& alias, OpPoint master  OP_DEBUG_PARAMS(int masterSectID)) {
     for (auto& edge : edges) {
         if (edge.start == alias) {
@@ -263,11 +275,13 @@ void OpSegment::fixIntersections(OpPoint alias, OpPoint master  OP_DEBUG_PARAMS(
             continue;
         if (edges.size())
             fixEdges(inner.ptT, master  OP_DEBUG_PARAMS(masterSectID));
+        OP_DEBUG_CODE(inner.debugOriginal = inner.ptT.pt);
+        OP_DEBUG_CODE(inner.debugAliasID = masterSectID);
         inner.ptT.pt = master;
         recomputeBounds = true;
-        if (this == inner.segment)
+        if (this == inner.opp->segment)
             continue;
-        for (auto oPtr : inner.segment->intersections) {
+        for (auto oPtr : inner.opp->segment->intersections) {
             OpIntersection& o = *oPtr;
             if (o.ptT.pt != alias)
                 continue;
