@@ -252,7 +252,8 @@ enum class ResolveWinding {
 
 enum class WhichLoop {
 	prior,
-	next
+	next,
+	undetermined
 };
 
 #if OP_DEBUG

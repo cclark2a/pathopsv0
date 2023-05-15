@@ -89,25 +89,76 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
     // for each remainder, find closest
     // see if gap can be closed by an 'is sum loop' edge
     // !!! this should be generalized to allow more more than one edge
-    start here;
     // create array of qualifying endpoints
     // create array of qualifying 'is sum loop' edges
+    if (c.sumLoops.size()) {
+        std::vector<int> loopyCounts;
+        loopyCounts.resize(c.sumLoops.size(), 0);
+        auto findSumLoop = [&](const std::vector<OpEdge*>& sumLoops, OpPoint pt, OpEdge** linkPtr) { // lambda
+            assert(!*linkPtr);
+            for (size_t sumIndex = 0; sumIndex < sumLoops.size(); ++sumIndex) {
+                const OpEdge* loopy = sumLoops[sumIndex];
+                assert(loopy->isLoop(WhichLoop::prior, EdgeLoop::sum, LeadingLoop::in));
+                const OpEdge* test = loopy;
+                do {
+                    assert(test->isSumLoop);
+                    if (test->start.pt == pt || test->end.pt == pt) {
+                        assert(!*linkPtr || *linkPtr == loopy); // !!! multiple matching sum loop needs code
+                        *linkPtr = const_cast<OpEdge*>(loopy);
+                        loopyCounts[sumIndex]++;
+                        assert(loopyCounts[sumIndex] <= 2);  // larger, likely will not work
+                        break;
+                    }
+                    test = test->priorSum;
+                } while (test != loopy);
+            }
+        };
+        // if linkup free end matches sum loop, and sum loop winding agrees, add it
+        // !!! wait on winding check until we have a test case
+        for (size_t index = 0; index < linkups.size(); ++index) {
+            auto edge = linkups[index];
+            if (EdgeLink::unlinked == edge->priorLink)
+                findSumLoop(c.sumLoops, edge->start.pt, &edge->priorEdge);
+            if (EdgeLink::unlinked == edge->lastEdge->nextLink)
+                findSumLoop(c.sumLoops, edge->lastEdge->end.pt, &edge->lastEdge->nextEdge);
+        }
+        // if sum loop bridges a pair of free ends, connect it up
+        for (size_t index = 0; index < linkups.size(); ++index) {
+            auto edge = linkups[index];
+            WhichLoop loopEnd = WhichLoop::undetermined;
+            WhichLoop farEnd = WhichLoop::undetermined;
+            if (EdgeLink::unlinked == edge->priorLink) {
+                OpEdge* loopy = edge->priorEdge;
+                if (loopy) {
+                    assert(loopy->isSumLoop);
+                    const OpEdge* test = loopy;
+                    do {
+                        if (edge->start.pt == test->start.pt)
+                            loopEnd = WhichLoop::prior;
+                        else if (edge->start.pt == test->end.pt)
+                            loopEnd = WhichLoop::next;
+                        else
+                            goto next;
+                        for (auto farSide : linkups) {
+                            if (edge == farSide)
+                                continue;
+                            if (EdgeLink::unlinked == farSide->priorLink && loopy == farSide->priorEdge)
+                                farEnd = WhichLoop::prior;
+                            else if (EdgeLink::unlinked == farSide->lastEdge->nextLink 
+                                    && loopy == farSide->lastEdge->nextEdge)
+                                farEnd = WhichLoop::next;
+                        }
+                    next:
+                        test = test->priorSum;
+                    } while (test != loopy);
+                }
+            }
+            if (EdgeLink::unlinked == edge->lastEdge->nextLink) {
+                OpEdge* loopy = edge->lastEdge->nextEdge;
+                if (loopy) {
 
-    for (size_t outer = 0; outer < linkups.size(); ++outer) {
-        auto outerEdge = linkups[outer];
-        bool outerStart = EdgeLink::single == outerEdge->priorLink;
-        bool outerEnd = EdgeLink::single == outerEdge->lastEdge->nextLink;
-        if (!outerStart && !outerEnd)
-            continue;
-        for (size_t inner = outer + 1; inner < linkups.size(); ++inner) {
-            auto innerEdge = linkups[inner];
-            bool innerStart = EdgeLink::single == innerEdge->priorLink;
-            bool innerEnd = EdgeLink::single == innerEdge->lastEdge->nextLink;
-            if (!innerStart && !innerEnd)
-                continue;
-            if (outerStart) {
-                OpVector delta = outerEdge->start - 
-                float distSq = 
+                }
+            }
         }
     }
 #if 0

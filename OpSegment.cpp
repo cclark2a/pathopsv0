@@ -611,7 +611,7 @@ bool OpSegment::resolveCoincidence() {
 // !!! a possible optimization: record the last fixed number of intersections, and only scan if
 //     the current number is greater. 
 void OpSegment::resolvePoints() {
-    auto oppPtT = [=](const OpIntersection& sect) {    // lambda
+    auto oppPtT = [=](const OpIntersection& sect) {    // lambda 
         if (sect.opp)
             return sect.opp->ptT.t;
         if (SelfIntersect::none != sect.self)
@@ -620,7 +620,7 @@ void OpSegment::resolvePoints() {
             const OpIntersection& o = *oPtr;
             if (o.ptT.pt != sect.ptT.pt)
                 continue;
-            if (o.segment != this)
+            if (o.segment != this)  // ref uses '='
                 continue;
             if (o.coincidenceID != sect.coincidenceID)
                 continue;

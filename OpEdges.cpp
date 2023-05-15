@@ -395,11 +395,28 @@ FoundWindings OpEdges::setWindings() {
 			if (!edge->isActive())
 				continue;
 			OpEdge* loopy = edge->hasLoop(WhichLoop::prior, EdgeLoop::sum, LeadingLoop::in);
+			edge->segment->contour->contours->sumLoops.push_back(loopy);
 			if (loopy) {
+				assert(!loopy->isSumLoop);
+				const OpCurve& curve = loopy->setCurve();
+				float NdotR = curve.normal(loopy->priorNormal).normalize().dot(ray);
+				// !!!  need to initialize to winding to the left of all loopy
+				loopy->sum.left = 0;
+				loopy->sum.right = 0;
+
+				start here;
+				// store total winding contribution in sum of loopy
+				OpEdge* test = loopy;
 				do {
-					loopy->isSumLoop = true;
-					loopy = loopy->priorSum;
-				} while (!loopy->isSumLoop);
+					const OpCurve& curve = loopy->setCurve();
+					float NdotR = curve.normal(loopy->priorNormal).normalize().dot(ray);
+					if (NdotR > 0) {
+						loopy->sum.left += loopy->winding.left;
+						loopy->sum.right += loopy->winding.right;
+					}
+					test->isSumLoop = true;
+					test = test->priorSum;
+				} while (!test->isSumLoop);
 			}
 			do {
 				edge->clearActive();
