@@ -54,7 +54,7 @@ struct OpDebugImage {
 //	static void drawLines();
 	static void drawPath(const class SkPath& path, uint32_t color = 0xFF000000);
 	static void drawPoints();
-	static void drawValue(OpPoint pt, std::string ptStr, uint32_t color = 0xFF000000);
+	static bool drawValue(OpPoint pt, std::string ptStr, uint32_t color = 0xFF000000);
 	static void find(int id, ConstOpPointBoundsPtr* ,ConstOpPointPtr* );
 	static void focus(int id, bool add);
 	static void focusEdges();

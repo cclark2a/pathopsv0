@@ -91,7 +91,7 @@ struct OpIntersection {
 		coincidenceID = cID;	// 0 if no coincidence; negative if coincident pairs are reversed
 		self = self_;
 		aliased = false;
-		unsortable = false;
+//		unsortable = false;
 #if OP_DEBUG
 		debugMaker = maker;
 		debugCoincidenceID = 0;
@@ -133,7 +133,7 @@ struct OpIntersection {
 	int coincidenceID;
 	SelfIntersect self;	// inflection, or extrema -- doesn't reference another intersection
 	bool aliased;     // true if point value was changed to match an intersection with the same t
-	bool unsortable;  // !!! check the validity of whether this needs to be computed or not
+//	bool unsortable;  // !!! check the validity of whether this needs to be computed or not
 #if OP_DEBUG
 	IntersectMaker debugMaker;
 	int id;

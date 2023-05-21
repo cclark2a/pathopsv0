@@ -28,8 +28,6 @@ OpEdges::OpEdges(OpEdge* sEdge, OpEdge* oEdge) {
 void OpEdges::addEdge(OpEdge* edge, EdgesToSort edgesToSort) {
 	if (!edge->winding.visible())	// skip edges no longer visible
 		return;
-	if (edge->isSumLoop)	// skip edges with ambiguous sorting
-		return;
 	if (EdgesToSort::byBox == edgesToSort || edge->ptBounds.height())
 		inX.push_back(edge);
 	if (EdgesToSort::byCenter == edgesToSort && edge->ptBounds.width())
@@ -120,7 +118,7 @@ IntersectResult OpEdges::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPt
 	return IntersectResult::yes;
 }
 
-IntersectResult OpEdges::AddIntersection(OpEdge& opp, const OpEdge& edge) {
+void OpEdges::AddIntersection(OpEdge& opp, const OpEdge& edge) {
 	auto alreadyContains = [](const std::vector<OpIntersection*>& sects, const OpPtT& edgePtT,
 			const OpSegment* segment) {
 		for (auto sectPtr : sects) {
@@ -132,7 +130,7 @@ IntersectResult OpEdges::AddIntersection(OpEdge& opp, const OpEdge& edge) {
 	};
 	if (opp.segment == edge.segment && edge.ptBounds.touches(opp.ptBounds)
 			&& (opp.start == edge.end || opp.end == edge.start)) {
-		return IntersectResult::no;
+		return; // IntersectResult::no;
 	}
 //	OpDebugBreak(&edge, 1, 2 == opp.id);
 	OpRoots septs;
@@ -142,20 +140,20 @@ IntersectResult OpEdges::AddIntersection(OpEdge& opp, const OpEdge& edge) {
 	septs.count = oppCurve.rayIntersect(edgePts, septs.roots);
 //	assert(septs.count < 3);	// while it should never be 3, it's OK to accept those intersections
 	if (!septs.count)
-		return IntersectResult::no;
+		return; // IntersectResult::no;
 	// Note that coincident check does not receive intercepts as a parameter; in fact, the intercepts
 	// were not calculated (the roots are uninitialized). This is because coincident check will 
 	// compute the actual coincident start and end without the roots introducing error.
 	if (opp.setLinear() && 2 == septs.count)
-		return CoincidentCheck(edge, opp);
-	int foundCount = 0;
+		return (void) CoincidentCheck(edge, opp);
+//	int foundCount = 0;
 	for (unsigned index = 0; index < septs.count; ++index) {
 		float oppT = OpMath::Interp(opp.start.t, opp.end.t, septs.get(index));
 		OpPtT oppPtT { oppCurve.ptAtT(septs.get(index)), oppT };
 		float edgeT;
 		FoundPtT foundPtT = edge.findPtT(oppPtT.pt, &edgeT);
 		if (FoundPtT::multiple == foundPtT)
-			return IntersectResult::fail;
+			return; // IntersectResult::fail;
 		if (OpMath::Between(0, edgeT, 1)) {
             // pin point to both bounds, but only if it is on edge
 			OpSegment* eSegment = const_cast<OpSegment*>(edge.segment);
@@ -170,11 +168,11 @@ IntersectResult OpEdges::AddIntersection(OpEdge& opp, const OpEdge& edge) {
 				OpIntersection* oSect = oSegment->addIntersection(oppPtT  OP_DEBUG_PARAMS(IntersectMaker::addIntersection2));
 				sect->pair(oSect);
 			}
-			++foundCount;
+//			++foundCount;
 		}
 	}
 	//	assert(foundCount < 2);
-	return foundCount ? IntersectResult::yes : IntersectResult::no;
+	// return foundCount ? IntersectResult::yes : IntersectResult::no;
 }
 
 FoundIntersections OpEdges::findIntersections() {
@@ -196,10 +194,10 @@ FoundIntersections OpEdges::findIntersections() {
 				continue;  // non-cubic handled in opsegment makeedges
 			// for line-curve intersection we can directly intersect
 			if (lineType != edge->segment->c.type && edge->setLinear()) {
-				(void)AddIntersection(*opp, *edge);
+				AddIntersection(*opp, *edge);
 				continue;
 			} else if (lineType != opp->segment->c.type && opp->setLinear()) {
-				(void)AddIntersection(*edge, *opp);
+				AddIntersection(*edge, *opp);
 				continue;
 			}
 			// if the curves' bounds share only a single intersection edge, check endpoints only
@@ -250,14 +248,15 @@ static bool compareDistance(const EdgeDistance& s1, const EdgeDistance& s2) {
 // for now, keep making it smaller until it breaks
 #define WINDING_NORMAL_LIMIT  0.001 // !!! no idea what this should be
 
-FoundIntercept OpEdges::findRayIntercept(std::vector <OpEdge*>& inArray, size_t inIndex, Axis axis,
-		OpEdge* edge, float center, float normal, float edgeCenterT,
-		std::vector<EdgeDistance>* distance) {
+FoundIntercept OpEdges::findRayIntercept(size_t inIndex, Axis axis, OpEdge* edge, float center,
+		float normal, float edgeCenterT, std::vector<EdgeDistance>* distance) {
+	bool isLoopy = edge->isSumLoop;	// if loopy, ignore other loopy members
 	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
 	Axis perpendicular = !axis;
 	OpVector backRay = -ray;
 	float mid = .5;
 	float midEnd = .5;
+	std::vector<OpEdge*>& inArray = Axis::horizontal == axis ? inX : inY;
 	do {
 		distance->emplace_back(edge, 0, edgeCenterT);
 		int index = inIndex;
@@ -272,6 +271,9 @@ FoundIntercept OpEdges::findRayIntercept(std::vector <OpEdge*>& inArray, size_t 
 				continue;
 			if (test->ptBounds.rbChoice(axis) < normal)
 				continue;
+			if (isLoopy && edge->inSumLoop(test))
+				continue;
+			assert(!isLoopy || test->sum.isSet());	// if assert fires, will need to recurse to find winding (I guess)
 			const OpCurve& testCurve = test->setCurve();
 			OpRoots cepts;
 			cepts.count = testCurve.axisRayHit(axis, normal, cepts.roots);
@@ -292,7 +294,8 @@ FoundIntercept OpEdges::findRayIntercept(std::vector <OpEdge*>& inArray, size_t 
 			}
 			OpPoint pt = testCurve.ptAtT(cept);
 			distance->emplace_back(test, center - pt.choice(perpendicular), cept);
-			if (test->sum.isSet())
+			// !!! doubtful that this short cut is right since test is not guaranteed to be sorted wrt edge
+			if (distance->back().distance > 0 && test->sum.isSet())
 				return FoundIntercept::set;
 		}
 		return FoundIntercept::yes;
@@ -304,8 +307,8 @@ FoundIntercept OpEdges::findRayIntercept(std::vector <OpEdge*>& inArray, size_t 
 		const OpCurve& edgeCurve = edge->setCurve();  // ok to be in loop (lazy)
 		edgeCenterT = edgeCurve.center(axis, middle);
 		if (OpMath::IsNaN(edgeCenterT) || mid <= 1.f / 256.f) {	// give it at most eight tries
-			edge->fail = EdgeFail::recalcCenter;
-			edge->winding.zero(ZeroReason::failCenter);
+			if (lastChance(edge, axis))
+				markUnsortable(edge, ZeroReason::recalcCenter);
 			return FoundIntercept::fail;
 		}
 		// if find ray intercept can't find, restart with new center, normal, distance, etc.
@@ -317,30 +320,37 @@ FoundIntercept OpEdges::findRayIntercept(std::vector <OpEdge*>& inArray, size_t 
 	} while (true);
 }
 
+void OpEdges::markUnsortable(OpEdge* edge, ZeroReason reason) {
+	edge->winding.zero(reason);
+	edge->unsortable = true;
+	edge->segment->contour->contours->unsortables.push_back(edge);
+	edge->fail = EdgeFail::winding;
+}
+
 // if horizontal axis, look at rect top/bottom
-void OpEdges::setSumChain(std::vector <OpEdge*>& inArray, size_t inIndex, Axis axis) {
+void OpEdges::setSumChain(size_t inIndex, Axis axis) {
 	// see if normal at center point is in direction of ray
+	std::vector<OpEdge*>& inArray = Axis::horizontal == axis ? inX : inY;
 	OpEdge* edge = inArray[inIndex];
 	assert(edge->winding.visible());
 	const OpSegment* edgeSeg = edge->segment;
 	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
 	float NxR = edgeSeg->c.tangent(edge->center.t).normalize().cross(ray);
 	if (fabs(NxR) < WINDING_NORMAL_LIMIT) {
-		if (ray.dy) {
-			// This is the second pass. If the edge is tiny, it is reasonable to ignore it.
-			edge->winding.zero(ZeroReason::failWinding);
-			// !!! strict 'is tiny' check -- figure out what this should be
-			if (edge->end.t - edge->start.t <= OpEpsilon)
-				edge->unsortable = true;
-			else 
-				edge->fail = EdgeFail::winding;
-		}
+		if (lastChance(edge, axis))
+			markUnsortable(edge, ZeroReason::tangentXRay);
 		return;
 	}
 	// intersect normal with every edge in the direction of ray until we run out 
 	Axis perpendicular = !axis;
 	float center = edge->center.pt.choice(perpendicular);
 	float normal = edge->center.pt.choice(axis);
+	if (normal == edge->start.pt.choice(axis)
+			|| normal == edge->end.pt.choice(axis)) {
+		if (lastChance(edge, axis))
+			markUnsortable(edge, ZeroReason::noNormal);
+		return;
+	}
 	float edgeCenterT = edge->center.t;
 	// advance to furthest that could influence the sum winding of this edge
 	inIndex += 1;
@@ -350,7 +360,7 @@ void OpEdges::setSumChain(std::vector <OpEdge*>& inArray, size_t inIndex, Axis a
 			break;
 	}
 	std::vector<EdgeDistance> distance;
-	FoundIntercept foundIntercept = findRayIntercept(inArray, inIndex, axis, edge, center, normal,
+	FoundIntercept foundIntercept = findRayIntercept(inIndex, axis, edge, center, normal,
 			edgeCenterT, &distance);
 	if (FoundIntercept::fail == foundIntercept)
 		return;
@@ -360,25 +370,23 @@ void OpEdges::setSumChain(std::vector <OpEdge*>& inArray, size_t inIndex, Axis a
 	// leftmost edge may have no prior
 	while (last->edge != edge) {
 		EdgeDistance* next = last + 1;
-		OpEdge* lastEdge = last->edge;
 		OpEdge* nextEdge = next->edge;
-		float delta = last->distance - next->distance;
+	//	float delta = last->distance - next->distance;
 		if (!nextEdge->priorSum) {
-			nextEdge->setPriorSum(lastEdge);
+			nextEdge->setPriorSum(last->edge);
 			nextEdge->priorAxis = axis;
 			nextEdge->priorNormal = normal;  // for horizontal axis, y value of intersecting ray
 			nextEdge->priorT = last->t;
-			nextEdge->unsortable |= delta <= OpEpsilon;
+//			nextEdge->unsortable |= delta <= OpEpsilon;
 		}
 		last = next;
 	}
 }
 
-FoundWindings OpEdges::setWindings() {
+FoundWindings OpEdges::setWindings(OpContours* contours) {
 	OP_DEBUG_CODE(OpDebugIntersectSave save(OpDebugIntersect::edge));
 	// test sum chain for correctness; recompute if prior or next are inconsistent
 	for (Axis axis : { Axis::horizontal, Axis::vertical }) {
-		OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
 		std::vector<OpEdge*>& edges = Axis::horizontal == axis ? inX : inY;
 		for (size_t index = 0; index < edges.size(); ++index) {
 			OpEdge* edge = edges[index];
@@ -386,7 +394,7 @@ FoundWindings OpEdges::setWindings() {
 				continue;
 			if (!edge->winding.visible())	// may not be visible in vertical pass
 				continue;
-			setSumChain(edges, index, axis);
+			setSumChain(index, axis);
 		}
 		for (OpEdge* edge : edges) {
 			edge->active_impl = edge->winding.visible();
@@ -394,34 +402,43 @@ FoundWindings OpEdges::setWindings() {
 		for (OpEdge* edge : edges) {
 			if (!edge->isActive())
 				continue;
-			OpEdge* loopy = edge->hasLoop(WhichLoop::prior, EdgeLoop::sum, LeadingLoop::in);
-			edge->segment->contour->contours->sumLoops.push_back(loopy);
-			if (loopy) {
-				assert(!loopy->isSumLoop);
-				const OpCurve& curve = loopy->setCurve();
-				float NdotR = curve.normal(loopy->priorNormal).normalize().dot(ray);
-				// !!!  need to initialize to winding to the left of all loopy
-				loopy->sum.left = 0;
-				loopy->sum.right = 0;
-
-				start here;
-				// store total winding contribution in sum of loopy
-				OpEdge* test = loopy;
-				do {
-					const OpCurve& curve = loopy->setCurve();
-					float NdotR = curve.normal(loopy->priorNormal).normalize().dot(ray);
-					if (NdotR > 0) {
-						loopy->sum.left += loopy->winding.left;
-						loopy->sum.right += loopy->winding.right;
-					}
-					test->isSumLoop = true;
-					test = test->priorSum;
-				} while (!test->isSumLoop);
+			OpEdge* loopEnd = edge->hasLoop(WhichLoop::prior, EdgeLoop::sum, LeadingLoop::in);
+			if (!loopEnd)
+				continue;
+			size_t loopyIndex = 0;
+			for (OpEdge* test : edges) {
+				if (loopEnd == test)
+					break;
+				++loopyIndex;
 			}
+			assert(loopyIndex < edges.size());
+			std::vector<EdgeDistance> loopyDistances;
+			Axis perpendicular = !axis;
+			float center = loopEnd->center.pt.choice(perpendicular);
+			float normal = loopEnd->center.pt.choice(axis);
+			float edgeCenterT = loopEnd->center.t;
+			loopEnd->isSumLoop = true;
+			FoundIntercept loopyResult = findRayIntercept(loopyIndex, axis, loopEnd, center,
+					normal, edgeCenterT, &loopyDistances);
+			if (FoundIntercept::fail == loopyResult)
+				continue;
+			std::sort(loopyDistances.begin(), loopyDistances.end(), compareDistance);	// sorts from high to low
+			OpEdge* loopStart = loopEnd->priorSum;
+			if (loopyDistances.size() > 1) {
+				EdgeDistance& distance = loopyDistances[loopyDistances.size() - 2];
+				loopEnd->priorSum = distance.edge;	// will swap with actual loop start later
+			} else
+				loopEnd->priorSum = nullptr;
+			OpEdge* loopMember = loopEnd;
+			OpEdge* loopTravel = loopStart;
 			do {
-				edge->clearActive();
-				edge = edge->priorSum;
-			} while (edge && edge->isActive());
+				loopMember->clearActive();
+				loopMember->isSumLoop = true;
+				if (loopStart != loopMember)
+					loopMember->loopStart = loopStart;
+				loopMember = loopTravel;
+				loopTravel = loopTravel->priorSum;
+			} while (loopEnd != loopMember);
 		}
 		for (size_t index = 0; index < edges.size(); ++index) {
 			OpEdge* edge = edges[index];
@@ -429,71 +446,18 @@ FoundWindings OpEdges::setWindings() {
 				continue;
 			if (edge->sum.isSet())
 				continue;
-			if (edge->isSumLoop)
-				continue;
+			if (!edge->isSumLoop) {
+				OpEdge* prior = edge->priorSum;
+				if (prior && prior->isSumLoop && prior->loopStart && !prior->inSumLoop(edge))
+					edge->priorSum = prior->loopStart;
+			}
 			OP_DEBUG_CODE(int debugWindingLimiter = 0);
-			ResolveWinding resolve = edge->findWinding(axis  OP_DEBUG_PARAMS(&debugWindingLimiter));
-			if (ResolveWinding::resolved == resolve)
-				continue;
-			Axis perpendicular = !axis;
-			float center = edge->center.pt.choice(perpendicular);
-			float normal = edge->center.pt.choice(axis);
-			float edgeCenterT = edge->center.t;
-			// advance to furthest that could influence the sum winding of this edge
-			size_t inIndex = index + 1;
-			for (; inIndex < edges.size(); ++inIndex) {
-				OpEdge* advance = edges[inIndex];
-				if (advance->ptBounds.ltChoice(perpendicular) > center)
-					break;
-			}
-			std::vector<EdgeDistance> distance;
-			FoundIntercept foundIntercept = findRayIntercept(edges,
-					inIndex, axis, edge, center, normal, edgeCenterT, &distance);
-			assert(FoundIntercept::fail != foundIntercept); // !!! unfinished code
-			// compute winding from intersections from edge through loopy edges to known edge or end
-			edge->sum.left = 0;
-			edge->sum.right = 0;
-			std::sort(distance.begin(), distance.end(), compareDistance);	// sorts from high to low
-			EdgeDistance* lastDistance = &distance.front();
-			OpEdge* last = lastDistance->edge;
-			if (last->sum.isSet()) {
-				edge->sum.left = last->sum.left;
-				edge->sum.right = last->sum.right;
-				const OpCurve& curve = last->setCurve();
-				assert(lastDistance->t);	// should have been initialized to some value off end of curve
-				float tNdotR = curve.normal(lastDistance->t).normalize().dot(-ray);
-				if (tNdotR > 0) {
-					edge->sum.left -= last->winding.left;
-					edge->sum.right -= last->winding.right;
-				}
-				last = (++lastDistance)->edge;
-			}
-			// remaining intersected edges should be loopy?
-			while (last != edge) {
-				assert(!last->sum.isSet());
-				const OpCurve& curve = last->setCurve();
-				float tNdotR = curve.normal(lastDistance->t).normalize().dot(-ray);
-				assert(tNdotR);
-				float windSign = signbit(tNdotR) ? +1 : -1;
-				edge->sum.left += windSign * last->winding.left;
-				edge->sum.right += windSign * last->winding.right;
-				last = (++lastDistance)->edge;
-			}
-			const OpCurve& curve = last->setCurve();
-			float NdotR = curve.normal(lastDistance->t).normalize().dot(ray);
-			if (NdotR > 0) {
-				edge->sum.left += edge->winding.left;
-				edge->sum.right += edge->winding.right;
-			}
-			edge->sum.left &= edge->segment->contour->contours->leftFillTypeMask();
-			edge->sum.right &= edge->segment->contour->contours->rightFillTypeMask();
+			edge->findWinding(axis  OP_DEBUG_PARAMS(&debugWindingLimiter));
 		}
 		for (auto& edge : edges) {
 			if (!edge->winding.visible())
 				continue;
 			if (edge->sum.isSet())
-				continue;
-			if (edge->isSumLoop)
 				continue;
 			if (edge->unsortable)
 				continue;

@@ -708,7 +708,12 @@ std::string OpEdge::debugDumpDetail() const {
     if (priorSum)
         s += "priorSum:" + STR(priorSum->id) + " axis:" 
                 + (Axis::horizontal == priorAxis ? "horizontal " : "vertical ");
-    if (priorEdge || nextEdge || lastEdge || priorSum)
+    if (loopStart) {
+        s += "loopStart:" + STR(loopStart->id) + " ";
+        if (!isSumLoop)
+            s += "\n!!! loopStart set EXPECTED isSumLoop ";
+    }
+    if (priorEdge || nextEdge || lastEdge || priorSum || loopStart)
         s += "\n";
     s += "{" + start.debugDump() + ", ";
     for (int i = 0; i < segment->c.pointCount() - 2; ++i)
@@ -731,10 +736,14 @@ std::string OpEdge::debugDumpDetail() const {
     if (ptBounds.isSet() || linkBounds.isSet())        
         s += "\n";
     s += debugDumpWinding() + "\n";
-    if (EdgeLink::unlinked != priorLink)
-        s += "prior:" + debugLinkedUp(priorLink) + " ";
+    if (sum.isSet()) {
+        s += "priorNormal:" + STR(priorNormal) + " ";
+        s += "priorT:" + STR(priorT) + " ";
+    }
     if (EdgeLink::unlinked != nextLink)
         s += "next:" + debugLinkedUp(nextLink) + " ";
+    if (EdgeLink::unlinked != priorLink)
+        s += "prior:" + debugLinkedUp(priorLink) + " ";
     if (EdgeMatch::none != whichEnd)
         s += "which:" + debugEdgeMatch(whichEnd) + " ";
     if (EdgeFail::none != fail)
@@ -743,10 +752,15 @@ std::string OpEdge::debugDumpDetail() const {
     if (EdgeSplit::no != doSplit) s += "doSplit ";
     if (EdgeSplit::yes == doSplit) s += "yes ";
     if (EdgeSplit::unsplittable == doSplit) s+= "unsplittable ";
+    if (curveSet) s += "curveSet ";
+    if (endAliased) s += "endAliased ";
+    if (lineSet) s += "lineSet ";
+    if (verticalSet) s += "verticalSet ";
     if (isLine_impl) s += "isLine ";
     if (isPoint) s += "isPoint ";
     if (isSumLoop) s += "isSumLoop ";
     if (active_impl) s += "active ";
+    if (startAliased) s += "startAliased ";
     if (unsortable) s += "unsortable ";
     s += "debugMaker:" + debugEdgeDebugMaker(debugMaker) + " ";
     if (debugParentID) s += "debugParentID:" + STR(debugParentID);
@@ -1124,8 +1138,8 @@ std::string OpIntersection::debugDump(bool fromDumpFull) const {
         s += " coinID:" + STR(coincidenceID) + "/" + STR(debugCoincidenceID);
     if (SelfIntersect::none != self)
         s += " self:" + std::string(selfIntersectNames[(int)self].name);
-    if (unsortable)
-        s += " unsortable";
+//    if (unsortable)
+//        s += " unsortable";
     s += " maker:";
     if (outOfDate)
         s += "(out of date) " + STR((int)debugMaker);
@@ -1284,6 +1298,7 @@ struct DebugReasonName {
 
 static DebugReasonName debugReasonNames[] {
     REASON_NAME(none),
+    REASON_NAME(addIntersection),
     REASON_NAME(applyOp),
     REASON_NAME(centerNaN),
     REASON_NAME(coincidence),
@@ -1291,15 +1306,19 @@ static DebugReasonName debugReasonNames[] {
     REASON_NAME(failCenter),
     REASON_NAME(failNext),
     REASON_NAME(failPrior),
-    REASON_NAME(failWinding),
+    REASON_NAME(findCoincidences),
     REASON_NAME(isPoint),
     REASON_NAME(linkUp),
     REASON_NAME(looped),
+    REASON_NAME(loopyPair),
     REASON_NAME(matchClosest),
     REASON_NAME(matchLink),
     REASON_NAME(noFlip),
+    REASON_NAME(noNormal),
     REASON_NAME(rayNormal),
-    REASON_NAME(resolveCoin)
+    REASON_NAME(recalcCenter),
+    REASON_NAME(resolveCoin),
+    REASON_NAME(tangentXRay)
 };
 
 std::string OpWinding::debugDump() const {

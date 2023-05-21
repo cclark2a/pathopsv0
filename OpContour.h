@@ -278,7 +278,7 @@ struct OpContours {
     void draw() const;
 #endif
     std::list<OpContour> contours;
-    std::vector<OpEdge*> sumLoops;
+    std::vector<OpEdge*> unsortables;
     OpSectStorage* sectStorage;
     OpFillType left;
     OpFillType right;

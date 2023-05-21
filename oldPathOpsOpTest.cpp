@@ -9329,8 +9329,11 @@ static void calibrateOpDebugImage(skiatest::Reporter* reporter, const char* file
 }
 
 static struct TestDesc tests[] = {
+    TEST(rects3),
+    TEST(bug8380),
+    TEST(loops61i),
+    TEST(cubics_d2),
     TEST(loops62i),
-    TEST(crbug_526025), // (fuzzer) fails with inconsistent edge links. Succeeds in skia ops, so worth debugging one day
     TEST(testOp8d),
     TEST(testRect1_u),
     TEST(testDiff1),
@@ -9342,7 +9345,6 @@ static struct TestDesc tests[] = {
     TEST(testXor2),
     TEST(rects1),
     TEST(rects2),
-    TEST(rects3),
     TEST(rects4),
     TEST(rectOp3x),
     TEST(rectOp2i),
@@ -9356,13 +9358,9 @@ static struct TestDesc tests[] = {
     TEST(testOp5d),
     TEST(testOp7d),
     TEST(testOp2u),
-    TEST(grshapearcs1),  // succeeds when skia fails, but doubtful that the answer is correct
-    TEST(cubics_d2),
     TEST(dean2),
     TEST(cubics44d),
-    TEST(loops61i),
     TEST(cubics_d3),
-    TEST(bug8380),  // fails gracefully: in windingEdges.setWindings()
     TEST(filinmangust14),
     TEST(loops63i),
     TEST(bug5240),
@@ -9393,6 +9391,17 @@ static struct TestDesc tests[] = {
 
     // untested / not working
 
+    // crbug 526025 has nearly horizontal edges that are evaluated using horizontal rays, failing to 
+    //  compute the correct winding. Still thinking about how to fix this. One thought is to always
+    //  computer horizontal and vertical rays; or, choose one over the other depending on the center 
+    //  normal slope. Probably ought to trace through current failing test to completely understand it.
+    //  edge 128 and 129 should have same winding. They and they alone share a common point (2551, 64).
+    //  128 sum = l:0, r:1; 129 sum = l:1 r:1
+    //  128 prior sum : nullptr
+    //  129 prior sum : 115 (sum 1, 1) ; 100 (sum 0, 1) ; 103 (sum 0, 1) ; 127 (sum 0, 1)
+    TEST(crbug_526025), // fails with mismatched edges
+
+    TEST(grshapearcs1),  // fails to match up coincident edge parts in op segment resolve coincidence
     TEST(loops58iAsQuads),
     TEST(cubics41d),
     TEST(loops59iasQuads),

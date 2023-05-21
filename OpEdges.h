@@ -43,7 +43,7 @@ struct OpEdges {
 	OpEdges(OpContours& contours, EdgesToSort);
 	OpEdges(OpEdge* sEdge, OpEdge* oEdge);
 	void addEdge(OpEdge* , EdgesToSort );
-	static IntersectResult AddIntersection(OpEdge& opp, const OpEdge& edge);
+	static void AddIntersection(OpEdge& opp, const OpEdge& edge);
 	static void AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped, OpPtT cPtT, OpPtT dPtT,
 			OpSegment* segment, OpSegment* oppSegment, int coinID);
 	static IntersectResult AddPair(XyChoice offset, OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpPtT dPtT,
@@ -52,11 +52,14 @@ struct OpEdges {
 			OpSegment* segment, OpSegment* oppSegment);
 	static IntersectResult CoincidentCheck(const OpEdge& edge, const OpEdge& opp);
 	FoundIntersections findIntersections();
-	FoundIntercept findRayIntercept(std::vector <OpEdge*>& inArray, size_t inIndex, Axis axis,
-			OpEdge* edge, float center, float normal, float edgeCenterT,
-			std::vector<EdgeDistance>* );
-	void setSumChain(std::vector <OpEdge*>& inArray, size_t inIndex, Axis axis);
-	FoundWindings setWindings();
+	FoundIntercept findRayIntercept(size_t inIndex, Axis axis, OpEdge* edge, float center, 
+			float normal, float edgeCenterT, std::vector<EdgeDistance>* );
+	bool lastChance(OpEdge* edge, Axis axis) {
+		return Axis::vertical == axis || inY.end() == std::find(inY.begin(), inY.end(), edge); 
+	}
+	void markUnsortable(OpEdge* edge, ZeroReason);
+	void setSumChain(size_t inIndex, Axis axis);
+	FoundWindings setWindings(OpContours* );
 	void sort(EdgesToSort);
 
 #if OP_DEBUG

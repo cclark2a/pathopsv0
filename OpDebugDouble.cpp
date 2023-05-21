@@ -646,10 +646,10 @@ void DebugOpCurve::subDivide(double a, double b, DebugOpCurve& dest) const {
 #include "include/core/SkPathTypes.h"
 #include "include/core/SkPath.h"
 
-
 std::vector<DebugOpCurve> debugLines;
 std::vector<DebugOpCurve> debugSegments;
 std::vector<DebugOpCurve> debugEdges;
+std::vector<DebugOpCurve> debugInputs;
 std::vector<DebugOpCurve> debugOutputs;
 std::vector<DebugOpCurve> debugPaths;
 std::vector<DebugOpPoint> debugPoints;  // used for path end points
@@ -1021,6 +1021,19 @@ void DebugOpBuild(OpPoint pt, bool opp) {
     DebugOpBuild(pt, OpNaN, opp);
 }
 
+void DebugOpClearInputs() {
+    debugInputs.clear();
+}
+
+void DebugOpAdd(const OpInPath& input) {
+    if (input.skPath)
+        DebugOpBuild(*input.skPath, debugInputs);
+}
+
+void DebugOpDrawInputs() {
+    DebugOpDraw(debugInputs, SK_ColorBLUE);
+}
+
 void DebugOpDraw(const std::vector<OpOutPath>& outputs) {
     debugOutputs.clear();
     for (auto& output : outputs)
@@ -1056,7 +1069,7 @@ void DebugOpDrawT(bool inHex, int precision) {
         OpPoint pt = DebugOpMap(point);
         std::string ptStr = inHex ? OpDebugDumpHex(point.t) : 
                 OpDebugToString((float) point.t, precision);
-        OpDebugImage::drawValue(pt, ptStr);
+        (void) OpDebugImage::drawValue(pt, ptStr);
     }
 }
 
@@ -1076,7 +1089,7 @@ void DebugOpDrawValue(bool inHex, int precision) {
         ptStr += ", ";
         ptStr += inHex ? OpDebugDumpHex(point.y) : OpDebugToString((float) point.y, precision);
         ptStr += ")";
-        OpDebugImage::drawValue(pt, ptStr);
+        (void) OpDebugImage::drawValue(pt, ptStr);
     }
 }
 
@@ -1096,7 +1109,8 @@ void DebugOpDrawEdgeID(const OpEdge* edge, std::vector<int>& ids, uint32_t color
         OpCurve curve;
         drawnEdge.mapTo(curve);
         OpPoint midTPt = curve.ptAtT(.5);
-        OpDebugImage::drawValue(midTPt, STR(edge->id), color);
+        if (OpDebugImage::drawValue(midTPt, STR(edge->id), color))
+            break;
     }
 }
 
@@ -1108,7 +1122,7 @@ void DebugOpDrawIntersectionIDs(const std::vector<const OpIntersection*>& inters
         ids.push_back(sect->id);
         OpPoint mapped;
         DebugOpPtToPt(sect->ptT.pt, mapped);
-        OpDebugImage::drawValue(mapped, STR(sect->id));
+        (void) OpDebugImage::drawValue(mapped, STR(sect->id));
     }
 }
 
@@ -1122,8 +1136,9 @@ void DebugOpDrawSegmentID(const OpSegment* segment, std::vector<int>& ids) {
             OpCurve curve;
             drawnSeg.mapTo(curve);
             OpPoint midTPt = curve.ptAtT(.5);
-            OpDebugImage::drawValue(midTPt, STR(segment->id), segment->winding.visible() 
-                    && OpType::pointType != segment->c.type ? SK_ColorBLACK : SK_ColorRED);
+            if (OpDebugImage::drawValue(midTPt, STR(segment->id), segment->winding.visible()
+                    && OpType::pointType != segment->c.type ? SK_ColorBLACK : SK_ColorRED))
+                break;
         }
 }
 

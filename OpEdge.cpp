@@ -83,8 +83,6 @@ void OpEdge::addMatchingEnds(const OpEdge& opp) const {
 void OpEdge::apply() {
 	if (!winding.visible())
 		return;
-	if (isSumLoop)
-		return;
 	OpContours* contours = segment->contour->contours;
 	WindState leftState = contours->windState(winding.left, sum.left, OpOperand::left);
 	WindState rightState = contours->windState(winding.right, sum.right, OpOperand::right);
@@ -235,52 +233,6 @@ bool OpEdge::containsSum(const OpEdge* edge) const {
 	return false;
 }
 
-// at some point, do some math or rigorous testing to figure out how extreme this can be
-// for now, keep making it smaller until it breaks
-#define WINDING_NORMAL_LIMIT  0.001 // !!! no idea what this should be
-
-// pass center as parameter so caller can specify their own middle
-OpPtT OpEdge::findRayIntercept(OpEdge* test, float normal, float loBound, float hiBound,
-		Axis axis, OpVector backRay) {
-	float mid = 1;
-	float midEnd = 1;
-	const OpCurve& testCurve = test->setCurve();
-	do {	// try to find ray; look up to eight times
-		OpRoots cepts;
-		cepts.count = testCurve.axisRayHit(axis, normal, cepts.roots);
-		// get the normal at the intersect point and see if it is usable
-		if (1 != cepts.count) {
-			// !!! if intercepts is 2 or 3, figure out why (and what to do)
-			// !!! likely need to try a different ray
-			assert(0 == cepts.count);
-			break;
-		}
-		float cept = cepts.get(0);
-		if (!OpMath::IsNaN(cept) && 0 != cept && 1 != cept) {
-			float tNxR = testCurve.tangent(cept).normalize().cross(backRay);
-			if (fabs(tNxR) >= WINDING_NORMAL_LIMIT
-					|| (test->setLinear() && test->start.t < cept && cept < test->end.t)) {
-				return OpPtT(testCurve.ptAtT(cept), cept); // no need to look for a better ray intersection
-			}
-			OpDebugOut("");
-		}
-		// recalc center; restart search for winding with a different ray
-		mid /= 2;
-		midEnd = midEnd < .5 ? 1 - mid : mid;
-		float middle = OpMath::Interp(loBound, hiBound, midEnd);
-		const OpCurve& edgeCurve = setCurve();  // ok to be in loop (lazy)
-		float t = edgeCurve.center(axis, middle);
-		if (OpMath::IsNaN(t) || mid <= 1.f / 256.f) {	// give it at most eight tries
-			fail = EdgeFail::recalcCenter;
-			winding.zero(ZeroReason::failCenter);
-			break;
-		}
-		normal = edgeCurve.ptAtT(t).choice(axis);
-		assert(!OpMath::IsNaN(normal));
-	} while (true);
-	return OpPtT();// no useful result
-}
-
 float OpEdge::findPtT(OpPoint opp) const {
 	return segment->findPtT(start.t, end.t, opp);
 }
@@ -295,19 +247,32 @@ FoundPtT OpEdge::findPtT(OpPoint opp, float* result) const {
 ResolveWinding OpEdge::findWinding(Axis axis  OP_DEBUG_PARAMS(int* debugWindingLimiter)) {
 	assert(++(*debugWindingLimiter) < 100);
 	assert(!sum.isSet());	// second pass or uninitialized
-	assert(!isSumLoop);
 	if (priorSum) {
-		if (priorSum->isSumLoop)
-			return ResolveWinding::loop;	
 		if (!priorSum->sum.isSet()) {
 			ResolveWinding priorWinding = priorSum->findWinding(axis
-				OP_DEBUG_PARAMS(debugWindingLimiter));
+					OP_DEBUG_PARAMS(debugWindingLimiter));
 			if (ResolveWinding::loop == priorWinding)
 				return priorWinding;
 		}
 	}
 	calcWinding(axis);
 	return ResolveWinding::resolved;
+}
+
+bool OpEdge::inSumLoop(const OpEdge* match) {
+	assert(isSumLoop);
+	OpEdge* loopy = this;
+	OP_DEBUG_CODE(OpEdge * last = this);
+	while ((loopy = loopy->priorSum) != this) {
+		if (!loopy) {
+			assert(last->loopStart);
+			break;
+		}
+		if (match == loopy)
+			return true;
+		OP_DEBUG_CODE(last = loopy);
+	}
+	return false;
 }
 
 // note that caller clears active flag if loop is closed
@@ -349,6 +314,15 @@ const OpEdge* OpEdge::isLoop(WhichLoop which, EdgeLoop edgeLoop, LeadingLoop lea
 		return chain;
 	}
 	return nullptr;
+}
+
+void OpEdge::linkNextPrior(OpEdge* first, OpEdge* last) {
+    last->setNextEdge(this);
+    first->setPriorEdge(this);
+    setNextEdge(first);
+    setPriorEdge(last);
+    whichEnd = whichPtT(EdgeMatch::start).pt == end.pt ? EdgeMatch::start : EdgeMatch::end;
+
 }
 
 /* relationship between edge: (start, end) and whichEnd: (start, end)
@@ -421,11 +395,7 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups) {
 	// count intersections equaling end
 	// each intersection has zero, one, or two active edges
 	std::vector<FoundEdge> found;
-#if 01 && OP_DEBUG
-	if (103 == id && 108 == lastEdge->id) {
-		OpDebugOut("");
-	}
-#endif
+	OpDebugBreak(this, 116, true);
 	lastEdge->segment->activeAtT(lastEdge, EdgeMatch::end, found, AllowReversal::yes);
 	OpEdge* closest = nullptr;
 	EdgeMatch closestEnd = EdgeMatch::none;
@@ -763,7 +733,8 @@ OpEdge* OpEdge::visibleAdjacent(EdgeMatch match) {
 	return (const_cast<OpSegment*>(segment))->visibleAdjacent(this, ptT(match));
 }
 
-void OpWinding::move(OpWinding& opp, const OpContours* contours, bool backwards) {
+// !!! add zero reason here
+void OpWinding::move(const OpWinding& opp, const OpContours* contours, bool backwards) {
 	if (OpFillType::winding == contours->left)
 		left += backwards ? -opp.left : opp.left;
 	else
@@ -772,6 +743,4 @@ void OpWinding::move(OpWinding& opp, const OpContours* contours, bool backwards)
 		right += backwards ? -opp.right : opp.right;
 	else
 		right ^= opp.right;
-	opp.left = 0;
-	opp.right = 0;
 }

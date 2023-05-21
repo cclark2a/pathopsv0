@@ -26,28 +26,18 @@ OpIntersection* OpContours::allocateIntersection() {
 bool OpContours::closeGap(OpEdge* last, OpEdge* first) {
     OpPoint start = first->whichPtT(EdgeMatch::start).pt;
     OpPoint end = last->whichPtT(EdgeMatch::end).pt;
-    for (auto& contour : contours) {
-        for (auto& segment : contour.segments) {
-#if 0 && OP_DEBUG
-            if (4 == segment.id)
-                OpDebugOut("");
-#endif
-            for (auto& edge : segment.edges) {
-                if (start != edge.start.pt && end != edge.start.pt)
-                    continue;
-                if (start != edge.end.pt && end != edge.end.pt)
-                    continue;
-                if (!edge.unsortable && edge.windZero != WindZero::noFlip)
-                    continue;
-                if (edge.isPoint)
-                    continue;
-                last->setNextEdge(&edge);
-                first->setPriorEdge(&edge);
-                edge.setNextEdge(first);
-                edge.setPriorEdge(last);
-                edge.whichEnd = start == edge.end.pt ? EdgeMatch::start : EdgeMatch::end;
-                return true;
-            }
+    auto connectBetween = [=](OpEdge* edge) {  // lambda
+        if (start != edge->start.pt && end != edge->start.pt)
+            return false;
+        if (start != edge->end.pt && end != edge->end.pt)
+            return false;
+        edge->linkNextPrior(first, last);
+        return true;
+    };
+    for (auto edge : unsortables) {
+        if (connectBetween(edge)) {
+            edge->unsortable = false;   // only use edge once
+            return true;
         }
     }
     return false;

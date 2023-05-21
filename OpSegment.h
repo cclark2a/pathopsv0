@@ -121,7 +121,7 @@ struct OpSegment {
 
 struct OpSegments {
     OpSegments(OpContours& contours);
-    static IntersectResult AddIntersection(OpSegment* opp, OpSegment* seg);
+    static void AddIntersection(OpSegment* opp, OpSegment* seg);
     void findCoincidences();
     FoundIntersections findIntersections();
 

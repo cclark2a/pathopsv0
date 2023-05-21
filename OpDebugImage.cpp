@@ -27,6 +27,7 @@ SkFont labelFont(nullptr, 20, 1, 0);
 
 std::vector<const OpIntersection*> coincidences;
 std::vector<const OpEdge*> localEdges;
+std::vector<const OpEdge*> foundEdges;
 std::vector<const OpIntersection*> intersections;
 std::vector<OpRay> lines;
 std::vector<OpInPath> operands;
@@ -53,7 +54,6 @@ DRAW_FEATURE_GLOBAL(Intersections);
 DRAW_FEATURE_GLOBAL(Left);
 DRAW_FEATURE_GLOBAL(Lines);
 DRAW_FEATURE_GLOBAL(Normals);
-DRAW_FEATURE_GLOBAL(Operands);
 DRAW_FEATURE_GLOBAL(Outputs);
 DRAW_FEATURE_GLOBAL(Paths);
 DRAW_FEATURE_GLOBAL(Points);
@@ -124,21 +124,21 @@ OpDebugSegmentIterator segmentIterator;
 
 struct OpDebugEdgeIter {
     OpDebugEdgeIter(bool start)
-		: isTemporary(false)
+		: isFound(false)
+		, isLocal(false)
+		, isTemporary(false)
 		, isOpp(false) {
 		if (start) {
 			localEdgeIndex = 0;
 			return;
 		}
-		if (drawTemporaryEdgesOn)
-			localEdgeIndex = localEdges.size();
-		if (drawSegmentEdgesOn) {
-			for (const auto& c : debugGlobalContours->contours) {
-				for (const auto& s : c.segments)
-					localEdgeIndex += s.edges.size();
-			}
+		localEdgeIndex = localEdges.size();
+		localEdgeIndex += foundEdges.size();
+		for (const auto& c : debugGlobalContours->contours) {
+			for (const auto& s : c.segments)
+				localEdgeIndex += s.edges.size();
 		}
-		if (drawTemporaryEdgesOn && OpEdgeIntersect::debugActive) {
+		if (OpEdgeIntersect::debugActive) {
 			localEdgeIndex += OpEdgeIntersect::debugActive->edgeParts.size();
 			localEdgeIndex += OpEdgeIntersect::debugActive->oppParts.size();
 		}
@@ -149,31 +149,48 @@ struct OpDebugEdgeIter {
 	}
 
     const OpEdge* operator*() {
-		if (drawTemporaryEdgesOn && localEdgeIndex < localEdges.size())
+		if (localEdgeIndex < localEdges.size()) {
+			isFound = false;
+			isLocal = true;
+			isTemporary = false;
+			isOpp = false;   // !!! unset, at present, for local edges
 			return localEdges[localEdgeIndex];
-		size_t index = drawTemporaryEdgesOn ? localEdges.size() : 0;
-		if (drawSegmentEdgesOn) {
-			for (const auto& c : debugGlobalContours->contours) {
-				for (const auto& s : c.segments) {
-					for (const auto& edge : s.edges) {
-						if (index == localEdgeIndex) {
-							isTemporary = false;
-							isOpp = false; // !!! unset, at present, for permanent edges
-							return &edge;
-						}
-						++index;
+		}
+		size_t index = localEdges.size();
+		if (localEdgeIndex < index + foundEdges.size()) {
+			isFound = true;
+			isLocal = false;
+			isTemporary = false;
+			isOpp = false;
+			return foundEdges[localEdgeIndex - index];
+		}
+		index += foundEdges.size();
+		for (const auto& c : debugGlobalContours->contours) {
+			for (const auto& s : c.segments) {
+				for (const auto& edge : s.edges) {
+					if (index == localEdgeIndex) {
+						isFound = false;
+						isLocal = false;
+						isTemporary = false;
+						isOpp = false; // !!! unset, at present, for permanent edges
+						return &edge;
 					}
+					++index;
 				}
 			}
 		}
-		if (drawTemporaryEdgesOn && OpEdgeIntersect::debugActive) {
+		if (OpEdgeIntersect::debugActive) {
 			if (index + OpEdgeIntersect::debugActive->edgeParts.size() > localEdgeIndex) {
+				isFound = false;
+				isLocal = true;
 				isTemporary = true;
 				isOpp = false;
 				return &OpEdgeIntersect::debugActive->edgeParts[localEdgeIndex - index];
 			}
 			index += OpEdgeIntersect::debugActive->edgeParts.size();
 			if (index + OpEdgeIntersect::debugActive->oppParts.size() > localEdgeIndex) {
+				isFound = false;
+				isLocal = true;
 				isTemporary = true;
 				isOpp = true;
 				return &OpEdgeIntersect::debugActive->oppParts[localEdgeIndex - index];
@@ -189,6 +206,8 @@ struct OpDebugEdgeIter {
 		++localEdgeIndex;
 	}
 
+	bool isFound;
+	bool isLocal;
 	bool isTemporary;
 	bool isOpp;
 	size_t localEdgeIndex;
@@ -248,11 +267,8 @@ void OpDebugImage::init(const OpInPath& left, const OpInPath& right) {
 	paths.clear();
 	operands.push_back(left);
 	operands.push_back(right);
-	paths.push_back(left.skPath);
-	paths.push_back(right.skPath);
 	drawLeftOn = true;
 	drawRightOn = true;
-	drawPathsOn = true;
 	drawSegmentEdgesOn = true;
 	drawTemporaryEdgesOn = true;
 	SkRect opBounds = left.skPath->getBounds();
@@ -278,6 +294,14 @@ void OpDebugImage::drawDoubleFocus() {
 	OpDebugDefeatDelete defeater;
 	std::vector<int> ids;
 	clearScreen();
+	if (drawLeftOn || drawRightOn)
+		DebugOpClearInputs();
+	if (drawLeftOn)
+		DebugOpAdd(operands[0]);
+	if (drawRightOn)
+		DebugOpAdd(operands[1]);
+	if (drawLeftOn || drawRightOn)
+		DebugOpDrawInputs();
 	if (drawPathsOn)
 		DebugOpDraw(paths);
 	if (drawLinesOn)
@@ -290,8 +314,14 @@ void OpDebugImage::drawDoubleFocus() {
 	}
 	if (drawEdgesOn || drawNormalsOn || drawWindingsOn) {
 		DebugOpClearEdges();
-		for (auto edge : edgeIterator)
+		for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+			const OpEdge* edge = *edgeIter;
+			if (!drawTemporaryEdgesOn && edgeIter.isLocal)
+				continue;
+			if (!drawSegmentEdgesOn && !edgeIter.isLocal)
+				continue;
 			DebugOpAdd(edge);
+		}
 	}
 	if (drawEdgesOn)
 		DebugOpDrawEdges();
@@ -310,6 +340,10 @@ void OpDebugImage::drawDoubleFocus() {
 	if (drawEdgesOn && drawIDsOn) {
 		for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 			const OpEdge* edge = *edgeIter;
+			if (!drawTemporaryEdgesOn && edgeIter.isLocal)
+				continue;
+			if (!drawSegmentEdgesOn && !edgeIter.isLocal)
+				continue;
 			SkColor color = SK_ColorBLACK;
 			if (!edge->winding.visible())
 				color = SK_ColorRED;
@@ -431,12 +465,16 @@ void OpDebugImage::center(int id, bool add) {
 typedef const OpPointBounds* ConstOpPointBoundsPtr;
 
 void OpDebugImage::find(int id, ConstOpPointBoundsPtr* boundsPtr, ConstOpPointPtr* pointPtr) {
-	const OpEdge* edge = nullptr;
-	for (const auto& e : edgeIterator) {
-		if (id == e->id)
-			edge = e;
-	}
-	if (edge) {
+	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+		const OpEdge* edge = *edgeIter;
+		if (id != edge->id)
+			continue;
+		if (!drawTemporaryEdgesOn && edgeIter.isLocal 
+				&& foundEdges.end() == std::find(foundEdges.begin(), foundEdges.end(), edge))
+			foundEdges.push_back(edge);
+		if (!drawSegmentEdgesOn && !edgeIter.isLocal 
+				&& foundEdges.end() == std::find(foundEdges.begin(), foundEdges.end(), edge))
+			foundEdges.push_back(edge);
 		DRAW_IDS_ON(Edges);
 		*boundsPtr = &edge->ptBounds;
 		return;
@@ -524,9 +562,15 @@ void focus(int id) {
 void OpDebugImage::focusEdges() {
 	if (edgeIterator.empty())
 		return;
-	OpPointBounds focusRect = (*edgeIterator.begin())->ptBounds;
-	for (const auto& edge : edgeIterator)
+	OpPointBounds focusRect;
+	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+		const OpEdge* edge = *edgeIter;
+		if (!drawTemporaryEdgesOn && edgeIter.isLocal)
+			continue;
+		if (!drawSegmentEdgesOn && !edgeIter.isLocal)
+			continue;
 		focusRect.add(edge->ptBounds);
+	}
 	DRAW_IDS_ON(Edges);
 	OpDebugImage::drawDoubleFocus(focusRect, false);
 }
@@ -549,10 +593,11 @@ void clear() {
 	coincidences.clear();
 	intersections.clear();
 	OpDebugImage::clearLines();
-	if (paths.size() > 2)
-		paths.erase(paths.begin() + 2, paths.end());
+	paths.clear();
+	OpDebugImage::clearLocalEdges();
 	localSegments.clear();
-	drawOperandsOn = false;
+	drawLeftOn = false;
+	drawRightOn = false;
 	drawPathsOn = false;
 	DebugOpResetFocus();
 }
@@ -562,7 +607,7 @@ void clearLines() {
 	DebugOpResetFocus();
 }
 
-void OpDebugImage::drawValue(OpPoint pt, std::string ptStr, uint32_t color) {
+bool OpDebugImage::drawValue(OpPoint pt, std::string ptStr, uint32_t color) {
 	SkPaint paint;
 	paint.setAntiAlias(true);
 	paint.setColor(color);
@@ -600,7 +645,7 @@ void OpDebugImage::drawValue(OpPoint pt, std::string ptStr, uint32_t color) {
 					}
 					offscreen.drawString(SkString(ptStr), pt.x + offset.dx,
 							pt.y + offset.dy, labelFont, paint);
-					return;
+					return true;
 				loopEnd:
 					;
 				}
@@ -608,6 +653,7 @@ void OpDebugImage::drawValue(OpPoint pt, std::string ptStr, uint32_t color) {
 		}
 	}
 	offscreen.drawString(SkString("."), pt.x, pt.y, labelFont, paint);
+	return false;
 }
 
 void OpDebugImage::drawPoints() {
@@ -646,10 +692,10 @@ void OpDebugImage::drawPoints() {
 			}
 		} while (verb != SkPath::kDone_Verb);
 	};
-	if (drawPathsOn) {
+	if (drawLeftOn)
 		drawPathPt(operands[0].skPath);
+	if (drawRightOn)
 		drawPathPt(operands[1].skPath);
-	}
 	if (drawSegmentsOn) {
 		for (auto seg : segmentIterator) {
 			if (pointType == seg->c.type)
@@ -666,6 +712,10 @@ void OpDebugImage::drawPoints() {
 	if (drawEdgesOn) {
 		for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 			const OpEdge* edge = *edgeIter;
+			if (!drawTemporaryEdgesOn && edgeIter.isLocal)
+				continue;
+			if (!drawSegmentEdgesOn && !edgeIter.isLocal)
+				continue;
 			if (edgeIter.isTemporary) {
 				DebugOpBuild(edge->start.pt, edgeIter.isOpp);
 				DebugOpBuild(edge->end.pt, edgeIter.isOpp);		
@@ -686,10 +736,10 @@ void OpDebugImage::drawPoints() {
 	}
 	if (drawLinesOn) {
 		for (const auto& line : lines) {
-			if (drawPathsOn) {
+			if (drawLeftOn)
 				DebugOpBuild(*operands[0].skPath, line);
+			if (drawRightOn)
 				DebugOpBuild(*operands[1].skPath, line);
-			}
 			if (drawSegmentsOn) {
 				for (auto seg : segmentIterator) {
 					if (pointType == seg->c.type)
@@ -698,8 +748,14 @@ void OpDebugImage::drawPoints() {
 				}
 			}
 			if (drawEdgesOn)
-				for (auto edge : edgeIterator)
+				for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+					const OpEdge* edge = *edgeIter;
+					if (!drawTemporaryEdgesOn && edgeIter.isLocal)
+						continue;
+					if (!drawSegmentEdgesOn && !edgeIter.isLocal)
+						continue;
 					DebugOpBuild(*edge, line);
+				}
 		}
 	}
 	if (drawValuesOn) {
@@ -739,14 +795,17 @@ void OpDebugImage::addArrowHeadToPath(const OpLine& line, SkPath& path) {
 	path.lineTo(scaled[1]);
 }
 
-void OpDebugImage::add(const OpEdge* edge) {
+void OpDebugImage::add(const OpEdge* test) {
 	if (!drawTemporaryEdgesOn)
 		return;
-	for (auto e : edgeIterator) {
-		if (e == edge)
+	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+		const OpEdge* edge = *edgeIter;
+		if (!drawSegmentEdgesOn && !edgeIter.isLocal)
+			continue;
+		if (test == edge)
 			return;
 	}
-	localEdges.push_back(edge);
+	localEdges.push_back(test);
 }
 
 void OpDebugImage::add(const OpIntersection* sect) {
@@ -787,6 +846,7 @@ void OpDebugImage::add(const OpSegment* segment) {
 }
 
 void OpDebugImage::clearLocalEdges() {
+	foundEdges.clear();
 	localEdges.clear();
 }
 
@@ -879,13 +939,11 @@ void toggleTs() {
 }
 
 void hideLeft() {
-	paths[0] = nullptr;
 	drawLeftOn = false;
 	OpDebugImage::drawDoubleFocus();
 }
 
 void hideRight() {
-	paths[1] = nullptr;
 	drawRightOn = false;
 	OpDebugImage::drawDoubleFocus();
 }
@@ -896,9 +954,7 @@ void hideOperands() {
 }
 
 void showLeft() {
-	paths[0] = operands[0].skPath;
 	drawLeftOn = true;
-	drawPathsOn = true;
 	OpDebugImage::drawDoubleFocus();
 }
 
@@ -908,9 +964,7 @@ void showOperands() {
 }
 
 void showRight() {
-	paths[1] = operands[1].skPath;
-	drawRightOn = false;
-	drawPathsOn = true;
+	drawRightOn = true;
 	OpDebugImage::drawDoubleFocus();
 }
 
@@ -981,6 +1035,12 @@ OpEdge::~OpEdge() {
 	if (!OpDebugPathOpsEnable::inPathOps)
 		return;
 	assert(!segment->debugContains(this));
+	for (auto edge = foundEdges.begin(); edge != foundEdges.end(); ++edge) {
+		if (id == (*edge)->id) {
+			foundEdges.erase(edge);
+			return;
+		}
+	}
 	for (auto edge = localEdges.begin(); edge != localEdges.end(); ++edge) {
 		if (id == (*edge)->id) {
 			localEdges.erase(edge);
@@ -1084,8 +1144,14 @@ void OpDebugImage::drawEdgeNormals(const std::vector<OpEdge>& edges) {
 }
 
 void OpDebugImage::drawEdgeNormals() {
-	for (auto edge : edgeIterator)
+	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+		const OpEdge* edge = *edgeIter;
+		if (!drawTemporaryEdgesOn && edgeIter.isLocal)
+			continue;
+		if (!drawSegmentEdgesOn && !edgeIter.isLocal)
+			continue;
 		drawEdgeNormal(edge);
+	}
 }
 
 static void drawEdgeWinding(const OpEdge* edge) {
@@ -1126,8 +1192,14 @@ void OpDebugImage::drawEdgeWindings(const std::vector<OpEdge>& edges) {
 }
 
 void OpDebugImage::drawEdgeWindings() {
-	for (auto edge : edgeIterator)
+	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+		const OpEdge* edge = *edgeIter;
+		if (!drawTemporaryEdgesOn && edgeIter.isLocal)
+			continue;
+		if (!drawSegmentEdgesOn && !edgeIter.isLocal)
+			continue;
 		drawEdgeWinding(edge);
+	}
 }
 
 #if 0

@@ -59,10 +59,10 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
             if (linkup)
                 linkup->lastEdge = newLast;
             // if a closed loop is formed, just output that
-            // !!! NOT : if it is nearly a loop and can be closed with a unsortable edge, do that
+            // if it is nearly a loop and can be closed with a unsortable edge, do that
             // !!! TODO : find direction of loop at add 'reverse' param to output if needed
             //     direction should consider whether edge normal points to inside or outside
-            if (newLast->isClosed(first) /* || c.closeGap(newLast, first) */ ) {
+            if (newLast->isClosed(first) || c.closeGap(newLast, first)) {
                 Output(first, path);  // emit the contour
                 continue;
             }
@@ -70,13 +70,6 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
         first = first->prepareForLinkup();
         linkups.emplace_back(first);
     }
-
-    // !!! this code:
-    //   || c.closeGap(leftMost, linkup)
-    // was removed after 'is closed' check above
-    // removed because it can add edges with a zeroed winding too soon
-    // either: add a new loop to see if linkup can be closed, or
-    // add check for close gap below
     for (auto linkup : linkups) {
         assert(!linkup->isLoop(WhichLoop::prior, EdgeLoop::link, LeadingLoop::will));
         assert(!linkup->isLoop(WhichLoop::next, EdgeLoop::link, LeadingLoop::will));
@@ -86,89 +79,6 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
             linkup->setActive();
         } while ((linkup = linkup->nextEdge));
     }
-    // for each remainder, find closest
-    // see if gap can be closed by an 'is sum loop' edge
-    // !!! this should be generalized to allow more more than one edge
-    // create array of qualifying endpoints
-    // create array of qualifying 'is sum loop' edges
-    if (c.sumLoops.size()) {
-        std::vector<int> loopyCounts;
-        loopyCounts.resize(c.sumLoops.size(), 0);
-        auto findSumLoop = [&](const std::vector<OpEdge*>& sumLoops, OpPoint pt, OpEdge** linkPtr) { // lambda
-            assert(!*linkPtr);
-            for (size_t sumIndex = 0; sumIndex < sumLoops.size(); ++sumIndex) {
-                const OpEdge* loopy = sumLoops[sumIndex];
-                assert(loopy->isLoop(WhichLoop::prior, EdgeLoop::sum, LeadingLoop::in));
-                const OpEdge* test = loopy;
-                do {
-                    assert(test->isSumLoop);
-                    if (test->start.pt == pt || test->end.pt == pt) {
-                        assert(!*linkPtr || *linkPtr == loopy); // !!! multiple matching sum loop needs code
-                        *linkPtr = const_cast<OpEdge*>(loopy);
-                        loopyCounts[sumIndex]++;
-                        assert(loopyCounts[sumIndex] <= 2);  // larger, likely will not work
-                        break;
-                    }
-                    test = test->priorSum;
-                } while (test != loopy);
-            }
-        };
-        // if linkup free end matches sum loop, and sum loop winding agrees, add it
-        // !!! wait on winding check until we have a test case
-        for (size_t index = 0; index < linkups.size(); ++index) {
-            auto edge = linkups[index];
-            if (EdgeLink::unlinked == edge->priorLink)
-                findSumLoop(c.sumLoops, edge->start.pt, &edge->priorEdge);
-            if (EdgeLink::unlinked == edge->lastEdge->nextLink)
-                findSumLoop(c.sumLoops, edge->lastEdge->end.pt, &edge->lastEdge->nextEdge);
-        }
-        // if sum loop bridges a pair of free ends, connect it up
-        for (size_t index = 0; index < linkups.size(); ++index) {
-            auto edge = linkups[index];
-            WhichLoop loopEnd = WhichLoop::undetermined;
-            WhichLoop farEnd = WhichLoop::undetermined;
-            if (EdgeLink::unlinked == edge->priorLink) {
-                OpEdge* loopy = edge->priorEdge;
-                if (loopy) {
-                    assert(loopy->isSumLoop);
-                    const OpEdge* test = loopy;
-                    do {
-                        if (edge->start.pt == test->start.pt)
-                            loopEnd = WhichLoop::prior;
-                        else if (edge->start.pt == test->end.pt)
-                            loopEnd = WhichLoop::next;
-                        else
-                            goto next;
-                        for (auto farSide : linkups) {
-                            if (edge == farSide)
-                                continue;
-                            if (EdgeLink::unlinked == farSide->priorLink && loopy == farSide->priorEdge)
-                                farEnd = WhichLoop::prior;
-                            else if (EdgeLink::unlinked == farSide->lastEdge->nextLink 
-                                    && loopy == farSide->lastEdge->nextEdge)
-                                farEnd = WhichLoop::next;
-                        }
-                    next:
-                        test = test->priorSum;
-                    } while (test != loopy);
-                }
-            }
-            if (EdgeLink::unlinked == edge->lastEdge->nextLink) {
-                OpEdge* loopy = edge->lastEdge->nextEdge;
-                if (loopy) {
-
-                }
-            }
-        }
-    }
-#if 0
-    // Find bounds of remaining linked lists. Prioritize the largest bounds
-    for (auto linkup : linkups) {
-        assert(linkup->lastEdge);
-        assert(!linkup->lastEdge->nextEdge);
-        // !!! incomplete
-    }
-#endif
 #if 01 && OP_DEBUG
     OpDebugOut("");
 #endif
@@ -180,10 +90,6 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
             return false;   // if edges form loop with tail, fail
         // determine direction of linked edges, if any (a straight line won't have a direction)
         Output(linkup, path);  // emit the contour
-#if 0 && OP_DEBUG
-        dump(linkups);
-        OpDebugOut("");
-#endif
     }
     return true;
 }

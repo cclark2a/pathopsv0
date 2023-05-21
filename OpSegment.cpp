@@ -200,16 +200,17 @@ void OpSegment::findExtrema() {
             last = ptT;
         }
     }
-    // after sorting, propagate any unsortable sect to all other sects with the same t
-    sortIntersections();    // this puts unsortable sects in front of sortable with the same t
+    sortIntersections();
     assert(0 == intersections.front()->ptT.t);
     assert(1 == intersections.back()->ptT.t);
+#if 0
     const OpIntersection* last = intersections.front();
     for (auto sect : intersections) {
         if (sect->ptT.t == last->ptT.t) // this is true for first intersection always
             sect->unsortable = last->unsortable; // note that this copies unsortable only
         last = sect;
     }
+#endif
 }
 
 // start/end range is necessary since cubics can have more than one t at a point
@@ -347,12 +348,8 @@ void OpSegment::makeEdges() {
         if (sect.ptT.t == last->ptT.t)
             continue;
         edges.emplace_back(this, last->ptT, sect.ptT  OP_DEBUG_PARAMS(EdgeMaker::makeEdges));
-#if OP_DEBUG
-        if (last->unsortable || sect.unsortable)
-            OpDebugOut("");
-#endif
-        if (last->unsortable && sect.unsortable)
-            edges.back().unsortable = true;
+ //       if (last->unsortable && sect.unsortable)
+ //           edges.back().unsortable = true;
         last = &sect;
     }
 }
@@ -517,7 +514,6 @@ bool OpSegment::resolveCoincidence() {
         EdgeMatch match = backwards ? EdgeMatch::end : EdgeMatch::start;
         EdgeMatch oppositeMatch = Opposite(match);
         bool swapEdgeAndOpp = false;
-//        for (bool checkWinding : { true, false }) {
         OpEdge* edge = &edges.front();
         while (edge->start != sect->ptT) {  // sets edge to first in segment coin
             assert(edge != &edges.back());
@@ -580,24 +576,17 @@ bool OpSegment::resolveCoincidence() {
         }
         edge = firstEdge;
         lastT = (*lastPtr)->ptT.t;
-        OpWinding firstEdgeWinding = firstEdge->winding;
-        do {
-            OpWinding oppWinding = firstOpp->winding;
-            edge->winding.move(oppWinding, contour->contours, backwards);
-            if (edge->end.t == lastT)
-                break;
-            ++edge;
-        } while (edge->winding == firstEdgeWinding);
         oEdge = firstOpp;
-        oppLastT = (*oppLastPtr)->ptT.t;
         do {
+            edge->winding.move(oEdge->winding, contour->contours, backwards);
             oEdge->winding.zero(ZeroReason::resolveCoin);
-            if (oEdge->ptT(oppositeMatch).t == oppLastT)
+            if (edge->end.t == lastT) {
+                assert(oEdge->ptT(oppositeMatch).t == oppLastT);
                 break;
+            }
+            ++edge;
             oEdge += direction;
         } while (true);
-//            break;  // break out after winding is resolved
-//        }
         (*sectPtr)->zeroCoincidenceID();
         (*lastPtr)->zeroCoincidenceID();
     } while (++sectPtr != &intersections.back());
@@ -660,7 +649,7 @@ void OpSegment::sortIntersections() {
     std::sort(intersections.begin(), intersections.end(),
         [](const OpIntersection* s1, const OpIntersection* s2) {
             return s1->ptT.t < s2->ptT.t 
-                    || (s1->ptT.t == s2->ptT.t && !s1->unsortable < !s2->unsortable); 
+                    /* || (s1->ptT.t == s2->ptT.t && !s1->unsortable < !s2->unsortable ) */ ; 
         });
     resortIntersections = false;
 }
@@ -810,7 +799,7 @@ OpSegments::OpSegments(OpContours& contours) {
     std::sort(inX.begin(), inX.end(), compareXBox);
 }
 
-IntersectResult OpSegments::AddIntersection(OpSegment* opp, OpSegment* seg) {
+void OpSegments::AddIntersection(OpSegment* opp, OpSegment* seg) {
     OpRoots septs;
     assert(lineType == seg->c.type);
     std::array<OpPoint, 2> edgePts { seg->c.pts[0], seg->c.pts[1] };
@@ -825,14 +814,15 @@ IntersectResult OpSegments::AddIntersection(OpSegment* opp, OpSegment* seg) {
     bool reversed;
     MatchEnds common = seg->matchEnds(opp, &reversed);
     if (!septs.count && MatchEnds::none == common)
-        return IntersectResult::no;
+        return; // IntersectResult::no;
     if (lineType == opp->c.type && MatchEnds::both == common) {
         seg->winding.move(opp->winding, seg->contour->contours, seg->c.pts[0] != opp->c.pts[0]);
-        return IntersectResult::yes;
+        opp->winding.zero(ZeroReason::addIntersection);
+        return; // IntersectResult::yes;
     }
     if (2 == septs.count && lineType == opp->c.type) {
-        return OpEdges::CoincidentCheck( { seg->c.pts[0], 0 }, { seg->c.pts[1], 1 },
-            { opp->c.pts[0], 0}, { opp->c.pts[1], 1 }, seg, opp );
+        return (void) OpEdges::CoincidentCheck({ seg->c.pts[0], 0 }, { seg->c.pts[1], 1 },
+                { opp->c.pts[0], 0}, { opp->c.pts[1], 1 }, seg, opp );
     }
     if ((int) MatchEnds::start & (int) common)
         septs.addEnd(reversed ? 1 : 0);
@@ -840,7 +830,7 @@ IntersectResult OpSegments::AddIntersection(OpSegment* opp, OpSegment* seg) {
         septs.addEnd(reversed ? 0 : 1);
     if (septs.count > 1)
         std::sort(&septs.roots[0], &septs.roots[septs.count]);
-    int foundCount = 0;
+//    int foundCount = 0;
     for (unsigned index = 0; index < septs.count; ++index) {
         OpPtT oppPtT { opp->c.ptAtT(septs.get(index)), septs.get(index) };
         float edgeT = seg->findPtT(0, 1, oppPtT.pt);
@@ -849,16 +839,13 @@ IntersectResult OpSegments::AddIntersection(OpSegment* opp, OpSegment* seg) {
         // pin point to both bounds, but only if it is on edge
         opp->tightBounds.pin(&oppPtT.pt);
         seg->tightBounds.pin(&oppPtT.pt);
-#if OP_DEBUG
-		if (51 == seg->contour->contours->id)
-			OpDebugOut("");
-#endif
         OpPtT edgePtT { oppPtT.pt, edgeT };
         OpIntersection* sect = seg->addIntersection(edgePtT  OP_DEBUG_PARAMS(IntersectMaker::addIntersection3));
         OpIntersection* oSect = opp->addIntersection(oppPtT  OP_DEBUG_PARAMS(IntersectMaker::addIntersection4));
         sect->pair(oSect);
-        ++foundCount;
+//        ++foundCount;
     }
+#if 0
     // if foundCount > 1, check each future edge pair to see if they are sortable
     for (int index = 0; index < foundCount - 1; ++index) {
         // create a pair of edges and see if one is in front of the other in x or y
@@ -879,7 +866,6 @@ IntersectResult OpSegments::AddIntersection(OpSegment* opp, OpSegment* seg) {
         if (FoundWindings::fail == foundWindings)
             return IntersectResult::fail;
         // if the intersection did not catastrophically fail, the edges are sortable, or coincident
-#if 0
         // this was: (edge fail names have changed)
 //        if (sEdge.sum.visible() || EdgeFail::distance == sEdge.fail 
 //                || oEdge.sum.visible() || EdgeFail::distance == oEdge.fail)
@@ -891,10 +877,9 @@ IntersectResult OpSegments::AddIntersection(OpSegment* opp, OpSegment* seg) {
         (*oSectPtrB)->unsortable = true;
         (*sSectPtrA)->unsortable = true;
         (*sSectPtrB)->unsortable = true;
-#endif
     }
     return foundCount ? IntersectResult::yes : IntersectResult::no;
-
+#endif
 }
 
 void OpSegments::findCoincidences() {
@@ -937,6 +922,7 @@ void OpSegments::findCoincidences() {
                 }
                 if (coincident) {
                     seg->winding.move(opp->winding, seg->contour->contours, reversed);
+                    opp->winding.zero(ZeroReason::findCoincidences);
                     if (!seg->winding.visible() || !opp->winding.visible())
                         continue;
                 }
@@ -960,10 +946,10 @@ FoundIntersections OpSegments::findIntersections() {
                 continue;
             // for line-curve intersection we can directly intersect
             if (lineType == seg->c.type) {
-                (void)AddIntersection(opp, seg);
+                AddIntersection(opp, seg);
                 continue;
             } else if (lineType == opp->c.type) {
-                (void)AddIntersection(seg, opp);
+                AddIntersection(seg, opp);
                 continue;
             }
             // check if segments share endpoints

@@ -75,7 +75,7 @@ bool PathOps(OpInPath left, OpInPath right, OpOperator _operator, OpOutPath resu
     if (!contourList.resolveCoincidence())  // leave at most one active for each pair of coincident edges
         return false;
     OpEdges windingEdges(contourList, EdgesToSort::byCenter);
-    FoundWindings foundWindings = windingEdges.setWindings();  // walk edge list, compute windings
+    FoundWindings foundWindings = windingEdges.setWindings(&contourList);  // walk edge list, compute windings
     if (FoundWindings::fail == foundWindings)
         return false;
     contourList.apply();  // suppress edges which don't meet op criteria

@@ -88,6 +88,7 @@ enum WindingSum {
 
 enum class ZeroReason : uint8_t {
 	none,
+	addIntersection,
 	applyOp,
 	centerNaN,
 	coincidence,
@@ -95,15 +96,19 @@ enum class ZeroReason : uint8_t {
 	failCenter,
 	failNext,
 	failPrior,
-	failWinding,
+	findCoincidences,
 	isPoint,
 	linkUp,
 	looped,
+	loopyPair,
 	matchClosest,
 	matchLink,
 	noFlip,
+	noNormal,
 	rayNormal,
+	recalcCenter,
 	resolveCoin,
+	tangentXRay
 };
 
 
@@ -173,7 +178,7 @@ public:
 		return OpMax != left || OpMax != right;
 	}
 
-	void move(OpWinding& opp, const OpContours* , bool backwards);
+	void move(const OpWinding& opp, const OpContours* , bool backwards);
 
 	int oppSide(OpOperand operand) const {
 		return OpOperand::left == operand ? right : left;
@@ -280,6 +285,7 @@ private:
 		, nextEdge(nullptr)
 		, lastEdge(nullptr)
 		, priorSum(nullptr)
+		, loopStart(nullptr)
 		, winding(windingEdge)
 		, sum(windingSum)
 		, priorNormal(0)
@@ -340,19 +346,19 @@ public:
 	float findPtT(OpPoint pt) const;
 	FoundPtT findPtT(OpPoint pt, float* result) const;
 	OpPtT flipPtT(EdgeMatch match) const { return match == whichEnd ? end : start; }
-	OpPtT findRayIntercept(OpEdge* test, float normal, float lo, float hi, Axis , 
-			OpVector backRay);
 	void flipWhich() { whichEnd = (EdgeMatch)((int)whichEnd ^ (int)EdgeMatch::both); }
 	ResolveWinding findWinding(Axis axis  OP_DEBUG_PARAMS(int* debugWindingLimiter));
 	bool hasLinkTo(EdgeMatch match) const { 
 		return EdgeLink::single == (EdgeMatch::start == match ? nextLink : priorLink); }
 	OpEdge* hasLoop(WhichLoop w, EdgeLoop e, LeadingLoop l) {
-		return const_cast<OpEdge*>((const_cast<const OpEdge*>(this))->isLoop(w, e, l)); } 
+		return const_cast<OpEdge*>((const_cast<const OpEdge*>(this))->isLoop(w, e, l)); }
+	bool inSumLoop(const OpEdge*);
 	bool isActive() const { 
 		return active_impl; }
 	bool isClosed(OpEdge* test);
 	const OpEdge* isLoop(WhichLoop , EdgeLoop , LeadingLoop ) const; 
 	OpEdge* linkUp(EdgeMatch, OpEdge* firstEdge);
+	void linkNextPrior(OpEdge* first, OpEdge* last);
 	bool matchLink(std::vector<OpEdge*>& linkups );
 	const OpEdge* nextChain(EdgeLoop edgeLoop) const {
 		assert(EdgeLoop::link == edgeLoop); return nextEdge; }
@@ -409,6 +415,7 @@ public:
 	OpEdge* nextEdge;
 	OpEdge* lastEdge;
 	OpEdge* priorSum;	// edge that set sum winding
+	OpEdge* loopStart;	// if sum loops, furthest edge away from end
 	OpPoint ctrlPts[2];	// quad, conic, cubic
 	float weight;
 	// !!! Can start, end be shared with intersection?
@@ -443,7 +450,7 @@ public:
 	bool isSumLoop;
 	bool active_impl;  // used by ray casting to mark edges that may be to the left of casting edge
 	bool startAliased;
-	bool unsortable;
+	bool unsortable;	// sum was not resolvable by ray in either axis (likely edge is very small) 
 #if OP_DEBUG
 	EdgeMaker debugMaker;
 	OpPoint debugOriginalStart;
