@@ -1307,6 +1307,7 @@ static DebugReasonName debugReasonNames[] {
     REASON_NAME(failNext),
     REASON_NAME(failPrior),
     REASON_NAME(findCoincidences),
+    REASON_NAME(isCoinPoint),
     REASON_NAME(isPoint),
     REASON_NAME(linkUp),
     REASON_NAME(looped),

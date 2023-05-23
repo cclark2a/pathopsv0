@@ -243,6 +243,8 @@ FoundPtT OpSegment::findPtT(float start, float end, OpPoint opp, float* result) 
         int vRootCount = c.axisRayHit(Axis::vertical, opp.x, vRoots, start, end);
         if (1 < hRootCount || 1 < vRootCount)
             return FoundPtT::multiple;
+        // !!! here, since we've already called axis ray hit, don't call it again in find pt t below
+        //     call common code that follows axis ray hit above
     }
     *result = findPtT(start, end, opp);
     return FoundPtT::single;
@@ -250,13 +252,13 @@ FoundPtT OpSegment::findPtT(float start, float end, OpPoint opp, float* result) 
 
 void OpSegment::fixEdges(const OpPtT& alias, OpPoint master  OP_DEBUG_PARAMS(int masterSectID)) {
     for (auto& edge : edges) {
-        if (edge.start == alias) {
+        if (edge.start.pt == alias.pt) {
             OP_DEBUG_CODE(edge.debugOriginalStart = edge.start.pt);
             OP_DEBUG_CODE(edge.debugAliasStartID = masterSectID);
             edge.start.pt = master;
             edge.startAliased = true;
         }
-        if (edge.end == alias) {
+        if (edge.end.pt == alias.pt) {
             OP_DEBUG_CODE(edge.debugOriginalEnd = edge.end.pt);
             OP_DEBUG_CODE(edge.debugAliasEndID = masterSectID);
             edge.end.pt = master;
@@ -577,15 +579,30 @@ bool OpSegment::resolveCoincidence() {
         edge = firstEdge;
         lastT = (*lastPtr)->ptT.t;
         oEdge = firstOpp;
+        // !!! tricky: can it be written to be more clear?
+        //     at this point edge and oEdge are at start of list of coincidences
+        //     because of point alignment, one or the other may include edges with the same 
+        //     start and end points (a non-zero t range). These point edges should be zeroed
+        //     but advance the edge lists unevenly. Each time through the loop, zero all
+        //     point edges. Move nonzero pairs from opp to edge. Advance point edges, but
+        //     only advance both if both are not points. Stop with both pairs are on final t.
         do {
-            edge->winding.move(oEdge->winding, contour->contours, backwards);
-            oEdge->winding.zero(ZeroReason::resolveCoin);
-            if (edge->end.t == lastT) {
-                assert(oEdge->ptT(oppositeMatch).t == oppLastT);
+            bool edgeIsPoint = edge->isPoint;
+            bool oppIsPoint = oEdge->isPoint;
+            if (edgeIsPoint)
+                edge->winding.zero(ZeroReason::isCoinPoint);
+            else if (!oppIsPoint)
+                edge->winding.move(oEdge->winding, contour->contours, backwards);
+            if (!edgeIsPoint || oppIsPoint)
+                oEdge->winding.zero(ZeroReason::resolveCoin);
+            bool edgeDone = edge->end.t == lastT;
+            bool oppDone = oEdge->ptT(oppositeMatch).t == oppLastT;
+            if (edgeDone && oppDone)
                 break;
-            }
-            ++edge;
-            oEdge += direction;
+            if (!edgeDone && (edgeIsPoint || !oppIsPoint))
+                ++edge;
+            if (!oppDone && (oppIsPoint || !edgeIsPoint))
+                oEdge += direction;
         } while (true);
         (*sectPtr)->zeroCoincidenceID();
         (*lastPtr)->zeroCoincidenceID();

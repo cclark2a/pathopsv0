@@ -259,10 +259,27 @@ ResolveWinding OpEdge::findWinding(Axis axis  OP_DEBUG_PARAMS(int* debugWindingL
 	return ResolveWinding::resolved;
 }
 
+bool OpEdge::inLinkLoop(const OpEdge* match) {
+	OpEdge* loopy = this;
+	while ((loopy = loopy->priorEdge) != this) {
+		if (!loopy)
+			break;
+		if (match == loopy)
+			return true;
+	}
+	while ((loopy = loopy->nextEdge) != this) {
+		if (!loopy)
+			return false;
+		if (match == loopy)
+			return true;
+	}
+	return false;
+}
+
 bool OpEdge::inSumLoop(const OpEdge* match) {
 	assert(isSumLoop);
 	OpEdge* loopy = this;
-	OP_DEBUG_CODE(OpEdge * last = this);
+	OP_DEBUG_CODE(OpEdge* last = this);
 	while ((loopy = loopy->priorSum) != this) {
 		if (!loopy) {
 			assert(last->loopStart);
@@ -385,17 +402,18 @@ OpEdge* OpEdge::linkUp(EdgeMatch match, OpEdge* firstEdge) {
 		}
 		test = EdgeMatch::start == match ? test->priorEdge : test->nextEdge;
 	} while (test != oppEdge);
+
 	return oppEdge->linkUp(match, firstEdge);
 }
 
 bool OpEdge::matchLink(std::vector<OpEdge*>& linkups) {
+	OpDebugBreak(this, 31, true);
 	assert(lastEdge);
 	assert(EdgeMatch::start == lastEdge->whichEnd || EdgeMatch::end == lastEdge->whichEnd);
 	(void) setLinkBounds();
 	// count intersections equaling end
 	// each intersection has zero, one, or two active edges
 	std::vector<FoundEdge> found;
-	OpDebugBreak(this, 116, true);
 	lastEdge->segment->activeAtT(lastEdge, EdgeMatch::end, found, AllowReversal::yes);
 	OpEdge* closest = nullptr;
 	EdgeMatch closestEnd = EdgeMatch::none;
@@ -616,8 +634,10 @@ void OpEdge::setLinkDirection(EdgeMatch match) {
 	std::swap(edge->priorLink, edge->nextLink);
 	edge->whichEnd = Opposite(edge->whichEnd);
 	lastEdge = edge;
-	if (this != edge)
+	if (this != edge) {
+//		assert(!inLinkLoop(edge));		// !!! don't know what this assert is testing for
 		edge->lastEdge = nullptr;
+	}
 }
 
 // setter to make adding breakpoints easier

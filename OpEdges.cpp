@@ -132,7 +132,6 @@ void OpEdges::AddIntersection(OpEdge& opp, const OpEdge& edge) {
 			&& (opp.start == edge.end || opp.end == edge.start)) {
 		return; // IntersectResult::no;
 	}
-//	OpDebugBreak(&edge, 1, 2 == opp.id);
 	OpRoots septs;
 	assert(edge.isLine_impl);
 	std::array<OpPoint, 2> edgePts { edge.start.pt, edge.end.pt };
@@ -146,20 +145,26 @@ void OpEdges::AddIntersection(OpEdge& opp, const OpEdge& edge) {
 	// compute the actual coincident start and end without the roots introducing error.
 	if (opp.setLinear() && 2 == septs.count)
 		return (void) CoincidentCheck(edge, opp);
-//	int foundCount = 0;
+	OpPointBounds edgeLineBounds;
+	edgeLineBounds.add(edge.start.pt);
+	edgeLineBounds.add(edge.end.pt);
 	for (unsigned index = 0; index < septs.count; ++index) {
 		float oppT = OpMath::Interp(opp.start.t, opp.end.t, septs.get(index));
 		OpPtT oppPtT { oppCurve.ptAtT(septs.get(index)), oppT };
+		// !!! if match allows correct point not to be contained by edge bounds, document why + keep example
+		//     bug5240 test fails if contains test is missing
+		if (!edgeLineBounds.contains(oppPtT.pt))
+			continue;
 		float edgeT;
 		FoundPtT foundPtT = edge.findPtT(oppPtT.pt, &edgeT);
 		if (FoundPtT::multiple == foundPtT)
-			return; // IntersectResult::fail;
+			return;
 		if (OpMath::Between(0, edgeT, 1)) {
             // pin point to both bounds, but only if it is on edge
 			OpSegment* eSegment = const_cast<OpSegment*>(edge.segment);
 			OpSegment* oSegment = const_cast<OpSegment*>(opp.segment);
             oSegment->tightBounds.pin(&oppPtT.pt);
-            eSegment->tightBounds.pin(&oppPtT.pt);
+            eSegment->tightBounds.pin(&oppPtT.pt);	// !!! doubtful this is ever needed with contains test above
 			OpPtT edgePtT { oppPtT.pt, OpMath::Interp(edge.start.t, edge.end.t, edgeT) };
 			if (alreadyContains(eSegment->intersections, edgePtT, oSegment))
 				assert(alreadyContains(oSegment->intersections, oppPtT, eSegment));
@@ -168,11 +173,8 @@ void OpEdges::AddIntersection(OpEdge& opp, const OpEdge& edge) {
 				OpIntersection* oSect = oSegment->addIntersection(oppPtT  OP_DEBUG_PARAMS(IntersectMaker::addIntersection2));
 				sect->pair(oSect);
 			}
-//			++foundCount;
 		}
 	}
-	//	assert(foundCount < 2);
-	// return foundCount ? IntersectResult::yes : IntersectResult::no;
 }
 
 FoundIntersections OpEdges::findIntersections() {
@@ -273,7 +275,7 @@ FoundIntercept OpEdges::findRayIntercept(size_t inIndex, Axis axis, OpEdge* edge
 				continue;
 			if (isLoopy && edge->inSumLoop(test))
 				continue;
-			assert(!isLoopy || test->sum.isSet());	// if assert fires, will need to recurse to find winding (I guess)
+//			assert(!isLoopy || test->sum.isSet());	// if assert fires, will need to recurse to find winding (I guess)
 			const OpCurve& testCurve = test->setCurve();
 			OpRoots cepts;
 			cepts.count = testCurve.axisRayHit(axis, normal, cepts.roots);

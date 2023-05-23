@@ -32,6 +32,11 @@ struct OpPointBounds : OpRect {
         bottom = std::max(bottom, bounds.bottom);
     }
 
+    bool contains(OpPoint pt) {
+        assert(pt.isFinite());
+        return OpMath::Between(left, pt.x, right) && OpMath::Between(top, pt.y, bottom);
+    }
+
     OpPointBounds intersect(const OpPointBounds& bounds) const {
         assert(bounds.isFinite());
         return {

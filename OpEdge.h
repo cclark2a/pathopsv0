@@ -97,6 +97,7 @@ enum class ZeroReason : uint8_t {
 	failNext,
 	failPrior,
 	findCoincidences,
+	isCoinPoint,
 	isPoint,
 	linkUp,
 	looped,
@@ -352,7 +353,8 @@ public:
 		return EdgeLink::single == (EdgeMatch::start == match ? nextLink : priorLink); }
 	OpEdge* hasLoop(WhichLoop w, EdgeLoop e, LeadingLoop l) {
 		return const_cast<OpEdge*>((const_cast<const OpEdge*>(this))->isLoop(w, e, l)); }
-	bool inSumLoop(const OpEdge*);
+	bool inLinkLoop(const OpEdge* );
+	bool inSumLoop(const OpEdge* );
 	bool isActive() const { 
 		return active_impl; }
 	bool isClosed(OpEdge* test);

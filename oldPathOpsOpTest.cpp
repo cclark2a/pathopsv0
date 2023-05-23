@@ -9329,9 +9329,12 @@ static void calibrateOpDebugImage(skiatest::Reporter* reporter, const char* file
 }
 
 static struct TestDesc tests[] = {
+    TEST(loop17),
+    TEST(loops61i),
+    TEST(bug5240),
+    TEST(loops63i),
     TEST(rects3),
     TEST(bug8380),
-    TEST(loops61i),
     TEST(cubics_d2),
     TEST(loops62i),
     TEST(testOp8d),
@@ -9362,13 +9365,10 @@ static struct TestDesc tests[] = {
     TEST(cubics44d),
     TEST(cubics_d3),
     TEST(filinmangust14),
-    TEST(loops63i),
-    TEST(bug5240),
     TEST(loops_i1),
     TEST(fuzzX_392),
     TEST(testDiff2),
     TEST(cubicOp158),
-    TEST(loop17),
     TEST(op_4),
     TEST(bug8228),
     TEST(op_1),  // fails gracefully: generates infinity

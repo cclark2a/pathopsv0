@@ -48,7 +48,7 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
             continue;
         }
         OpEdge* first = linkup ? linkup : leftMost;
-        OpEdge* newLast = leftMost->linkUp(EdgeMatch::end, leftMost);
+        OpEdge* newLast = leftMost->linkUp(EdgeMatch::end, first);
         if (!leftMost->containsLink(newLast)) {
             Output(newLast, path);
             first = leftMost->prepareForLinkup();
@@ -62,11 +62,11 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
             // if it is nearly a loop and can be closed with a unsortable edge, do that
             // !!! TODO : find direction of loop at add 'reverse' param to output if needed
             //     direction should consider whether edge normal points to inside or outside
+        }
             if (newLast->isClosed(first) || c.closeGap(newLast, first)) {
                 Output(first, path);  // emit the contour
                 continue;
             }
-        }
         first = first->prepareForLinkup();
         linkups.emplace_back(first);
     }
@@ -86,7 +86,8 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
     for (auto linkup : linkups) {
         if (!linkup->isActive())
             continue;
-        if (!linkup->matchLink(linkups))
+        if (!linkup->lastEdge->isClosed(linkup) && !c.closeGap(linkup->lastEdge, linkup)
+                && !linkup->matchLink(linkups))
             return false;   // if edges form loop with tail, fail
         // determine direction of linked edges, if any (a straight line won't have a direction)
         Output(linkup, path);  // emit the contour
