@@ -73,8 +73,6 @@ static float oppositeT(const OpSegment* segment, const OpEdge& oppEdge, OpPtT te
 			// bestT = distanceSq < OpEpsilon ? test.t : t;  this doesn't work for loops61i
 		}
 	}
-//	OpDebugOut("bestDistance: " + std::to_string(sqrtf(bestDistanceSq)) + " edge: "
-//			+ STR(edgeID) + " opp: " + STR(oppEdge.id) + "\n");
 	return bestT;
 }
 
@@ -130,12 +128,6 @@ SectFound OpEdgeIntersect::addCoincidence() {
 	assert(1 == maxRoots);	// !!! assert means more code is needed for no roots / multiple roots
 	// if roots is zero, assume we walked off end; set to original start or end t
 	// if roots is two or more, add debug check to see that they are close together, and pick one?
-#if 0 && OP_DEBUG
-	OpDebugOut("min:" + STR(minCepts[0]) + ", max:" + STR(maxCepts[0]) + "\n");
-	OP_DEBUG_CODE(OpPoint minPt = (useEdgeMin ? oppSegment : segment)->c.ptAtT(minCepts[0]));
-	OP_DEBUG_CODE(OpPoint maxPt = (useEdgeMax ? oppSegment : segment)->c.ptAtT(maxCepts[0]));
-	OpDebugOut("minPt:" + minPt.debugDump() + " maxPt:" + maxPt.debugDump() + "\n");
-#endif
 	if (useEdgeMin)
 		oppResult.start = { edgeResult.start.pt, minCepts[0] };
 	else
@@ -340,13 +332,6 @@ SectFound OpEdgeIntersect::CurvesIntersect(std::vector<OpEdge>& edgeParts,
 					result = SectFound::intersects;	// a pair intersected, but may not split
 				oppTs.push_back(OpMath::Interp(opp.start.t, opp.end.t, septs.get(index)));
 			}
-#if 0 && OP_DEBUG_IMAGE
-			showPoints();
-			showValues();
-			showTs();
-			::draw();
-			OpDebugOut("");
-#endif
 		}
 	}
 	return result;
@@ -402,7 +387,6 @@ SectFound OpEdgeIntersect::divideAndConquer() {
 		}
 		if (edgeTs.size() >= maxSplits || oppTs.size() >= maxSplits)
 			return addCoincidence();
-		OpDebugOut("");
 		if (atMaxSplits()) {
 			addCurveCoincidence();
 			return SectFound::intersects;
@@ -426,11 +410,11 @@ SectFound OpEdgeIntersect::divideAndConquer() {
 			draw();
 			OpDebugOut("");
 		}
-#endif
 		OP_DEBUG_FIND_EDGE_CROSSINGS();
 		OpDebugOut("");
 		if (breakAtDraw && 8 <= depth)
 			OpDebugOut("");
+#endif
 	}
 	assert(0);
 	return SectFound::no;

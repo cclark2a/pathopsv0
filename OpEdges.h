@@ -52,13 +52,10 @@ struct OpEdges {
 			OpSegment* segment, OpSegment* oppSegment);
 	static IntersectResult CoincidentCheck(const OpEdge& edge, const OpEdge& opp);
 	FoundIntersections findIntersections();
-	FoundIntercept findRayIntercept(size_t inIndex, Axis axis, OpEdge* edge, float center, 
+	FoundIntercept findRayIntercept(size_t inIndex, Axis , OpEdge* edge, float center, 
 			float normal, float edgeCenterT, std::vector<EdgeDistance>* );
-	bool lastChance(OpEdge* edge, Axis axis) {
-		return Axis::vertical == axis || inY.end() == std::find(inY.begin(), inY.end(), edge); 
-	}
-	void markUnsortable(OpEdge* edge, ZeroReason);
-	void setSumChain(size_t inIndex, Axis axis);
+	void markUnsortable(OpEdge* edge, Axis , ZeroReason);
+	void setSumChain(size_t inIndex, Axis );
 	FoundWindings setWindings(OpContours* );
 	void sort(EdgesToSort);
 

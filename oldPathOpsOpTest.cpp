@@ -9329,6 +9329,16 @@ static void calibrateOpDebugImage(skiatest::Reporter* reporter, const char* file
 }
 
 static struct TestDesc tests[] = {
+    // crbug 526025 has nearly horizontal edges that are evaluated using horizontal rays, failing to 
+    //  compute the correct winding. Still thinking about how to fix this. One thought is to always
+    //  computer horizontal and vertical rays; or, choose one over the other depending on the center 
+    //  normal slope. Probably ought to trace through current failing test to completely understand it.
+    //  edge 128 and 129 should have same winding. They and they alone share a common point (2551, 64).
+    //  128 sum = l:0, r:1; 129 sum = l:1 r:1
+    //  128 prior sum : nullptr
+    //  129 prior sum : 115 (sum 1, 1) ; 100 (sum 0, 1) ; 103 (sum 0, 1) ; 127 (sum 0, 1)
+    TEST(crbug_526025), // fails with mismatched edges
+
     TEST(loop17),
     TEST(loops61i),
     TEST(bug5240),
@@ -9390,16 +9400,6 @@ static struct TestDesc tests[] = {
     TEST(bug8380),
 
     // untested / not working
-
-    // crbug 526025 has nearly horizontal edges that are evaluated using horizontal rays, failing to 
-    //  compute the correct winding. Still thinking about how to fix this. One thought is to always
-    //  computer horizontal and vertical rays; or, choose one over the other depending on the center 
-    //  normal slope. Probably ought to trace through current failing test to completely understand it.
-    //  edge 128 and 129 should have same winding. They and they alone share a common point (2551, 64).
-    //  128 sum = l:0, r:1; 129 sum = l:1 r:1
-    //  128 prior sum : nullptr
-    //  129 prior sum : 115 (sum 1, 1) ; 100 (sum 0, 1) ; 103 (sum 0, 1) ; 127 (sum 0, 1)
-    TEST(crbug_526025), // fails with mismatched edges
 
     TEST(grshapearcs1),  // fails to match up coincident edge parts in op segment resolve coincidence
     TEST(loops58iAsQuads),

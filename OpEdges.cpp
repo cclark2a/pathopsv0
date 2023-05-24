@@ -309,8 +309,7 @@ FoundIntercept OpEdges::findRayIntercept(size_t inIndex, Axis axis, OpEdge* edge
 		const OpCurve& edgeCurve = edge->setCurve();  // ok to be in loop (lazy)
 		edgeCenterT = edgeCurve.center(axis, middle);
 		if (OpMath::IsNaN(edgeCenterT) || mid <= 1.f / 256.f) {	// give it at most eight tries
-			if (lastChance(edge, axis))
-				markUnsortable(edge, ZeroReason::recalcCenter);
+			markUnsortable(edge, axis, ZeroReason::recalcCenter);
 			return FoundIntercept::fail;
 		}
 		// if find ray intercept can't find, restart with new center, normal, distance, etc.
@@ -322,11 +321,13 @@ FoundIntercept OpEdges::findRayIntercept(size_t inIndex, Axis axis, OpEdge* edge
 	} while (true);
 }
 
-void OpEdges::markUnsortable(OpEdge* edge, ZeroReason reason) {
-	edge->winding.zero(reason);
-	edge->unsortable = true;
-	edge->segment->contour->contours->unsortables.push_back(edge);
-	edge->fail = EdgeFail::winding;
+void OpEdges::markUnsortable(OpEdge* edge, Axis axis, ZeroReason reason) {
+	if (Axis::vertical == axis || inY.end() == std::find(inY.begin(), inY.end(), edge)) {
+		edge->winding.zero(reason);
+		edge->unsortable = true;
+		edge->segment->contour->contours->unsortables.push_back(edge);
+	}
+	edge->fail = Axis::vertical == axis ? EdgeFail::vertical : EdgeFail::horizontal;
 }
 
 // if horizontal axis, look at rect top/bottom
@@ -339,8 +340,7 @@ void OpEdges::setSumChain(size_t inIndex, Axis axis) {
 	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
 	float NxR = edgeSeg->c.tangent(edge->center.t).normalize().cross(ray);
 	if (fabs(NxR) < WINDING_NORMAL_LIMIT) {
-		if (lastChance(edge, axis))
-			markUnsortable(edge, ZeroReason::tangentXRay);
+		markUnsortable(edge, axis, ZeroReason::tangentXRay);
 		return;
 	}
 	// intersect normal with every edge in the direction of ray until we run out 
@@ -349,8 +349,7 @@ void OpEdges::setSumChain(size_t inIndex, Axis axis) {
 	float normal = edge->center.pt.choice(axis);
 	if (normal == edge->start.pt.choice(axis)
 			|| normal == edge->end.pt.choice(axis)) {
-		if (lastChance(edge, axis))
-			markUnsortable(edge, ZeroReason::noNormal);
+		markUnsortable(edge, axis, ZeroReason::noNormal);
 		return;
 	}
 	float edgeCenterT = edge->center.t;
@@ -399,7 +398,7 @@ FoundWindings OpEdges::setWindings(OpContours* contours) {
 			setSumChain(index, axis);
 		}
 		for (OpEdge* edge : edges) {
-			edge->active_impl = edge->winding.visible();
+			edge->active_impl = edge->winding.visible() && edge->fail != EdgeFail::horizontal;
 		}
 		for (OpEdge* edge : edges) {
 			if (!edge->isActive())
@@ -446,6 +445,8 @@ FoundWindings OpEdges::setWindings(OpContours* contours) {
 			OpEdge* edge = edges[index];
 			if (!edge->winding.visible())
 				continue;
+			if (edge->fail == EdgeFail::horizontal)
+				continue;
 			if (edge->sum.isSet())
 				continue;
 			if (!edge->isSumLoop) {
@@ -462,6 +463,8 @@ FoundWindings OpEdges::setWindings(OpContours* contours) {
 			if (edge->sum.isSet())
 				continue;
 			if (edge->unsortable)
+				continue;
+			if (edge->fail == EdgeFail::horizontal)
 				continue;
 			return FoundWindings::fail;
 		}

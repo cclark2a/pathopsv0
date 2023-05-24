@@ -84,8 +84,8 @@ void OpEdge::apply() {
 	if (!winding.visible())
 		return;
 	OpContours* contours = segment->contour->contours;
-	WindState leftState = contours->windState(winding.left, sum.left, OpOperand::left);
-	WindState rightState = contours->windState(winding.right, sum.right, OpOperand::right);
+	WindState leftState = contours->windState(winding.left(), sum.left(), OpOperand::left);
+	WindState rightState = contours->windState(winding.right(), sum.right(), OpOperand::right);
 	if (leftState != WindState::flipOff && leftState != WindState::flipOn
 			&& rightState != WindState::flipOff && rightState != WindState::flipOn) {
 		winding.zero(ZeroReason::noFlip);
@@ -99,13 +99,13 @@ void OpEdge::apply() {
 		keep = bothFlipped ? leftState != rightState :
 				WindState::one == leftState || WindState::zero == rightState;
 		if (keep)
-			windZero = sum.right || 0 == sum.left ? WindZero::normal : WindZero::opp;
+			windZero = sum.right() || 0 == sum.left() ? WindZero::normal : WindZero::opp;
 		break;
 	case OpOperator::Intersect:
 		keep = bothFlipped ? leftState == rightState :
 				WindState::zero != leftState && WindState::zero != rightState;
 		if (keep)
-			windZero = !sum.left || !sum.right ? WindZero::normal : WindZero::opp;
+			windZero = !sum.left() || !sum.right() ? WindZero::normal : WindZero::opp;
 		break;
 	case OpOperator::Union:
 		keep = bothFlipped ? leftState == rightState :
@@ -116,13 +116,13 @@ void OpEdge::apply() {
 	case OpOperator::ExclusiveOr:
 		keep = !bothFlipped;
 		if (keep)
-			windZero = (0 == sum.left) == (0 == sum.right) ? WindZero::normal : WindZero::opp;
+			windZero = (0 == sum.left()) == (0 == sum.right()) ? WindZero::normal : WindZero::opp;
 		break;
 	case OpOperator::ReverseSubtract:
 		keep = bothFlipped ? leftState == rightState : 
 				WindState::zero == leftState || WindState::one == rightState;
 		if (keep)
-			windZero = sum.left || 0 == sum.right ? WindZero::normal : WindZero::opp;
+			windZero = sum.left() || 0 == sum.right() ? WindZero::normal : WindZero::opp;
 		break;
 	default:
 		assert(0);
@@ -165,33 +165,33 @@ void OpEdge::calcWinding(Axis axis) {
 	int prevRight = 0;
 	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
 	if (priorSum && (EdgeFail::none == priorSum->fail || EdgeFail::priorDistance == priorSum->fail)) {
-		assert(priorSum->sum.left != OpMax);
-		assert(priorSum->sum.right != OpMax);
+		assert(priorSum->sum.left() != OpMax);
+		assert(priorSum->sum.right() != OpMax);
 		// have winding of previous edge
-		prevLeft = priorSum->sum.left;
-		prevRight = priorSum->sum.right;
+		prevLeft = priorSum->sum.left();
+		prevRight = priorSum->sum.right();
 		const OpCurve& curve = priorSum->setCurve();
 		assert(priorT);	// should have been initialized to some value off end of curve
 		float tNdotR = curve.normal(priorT).normalize().dot(-ray);
 		if (tNdotR > 0) {
-			prevLeft -= priorSum->winding.left;
-			prevRight -= priorSum->winding.right;
+			prevLeft -= priorSum->winding.left();
+			prevRight -= priorSum->winding.right();
 		}
 	}
 	// look at direction of edge relative to ray and figure winding/oppWinding contribution
 	float NdotR = segment->c.normal(center.t).normalize().dot(ray);
 	if (NdotR > 0) {
-		prevLeft += winding.left;
-		prevRight += winding.right;
+		prevLeft += winding.left();
+		prevRight += winding.right();
 	}
-	sum.left = prevLeft & segment->contour->contours->leftFillTypeMask();
-	sum.right = prevRight & segment->contour->contours->rightFillTypeMask();
+	OpDebugBreak(this, 128, true);
+	sum.setSum(prevLeft & segment->contour->contours->leftFillTypeMask(),
+			prevRight & segment->contour->contours->rightFillTypeMask());
 }
 
 // function so that setting breakpoints is easier
 // !!! if this is not inlined in release, do something more cleverer...
 void OpEdge::clearActive() {
-	if (0) OpDebugBreak(this, 271, false);
 	active_impl = false;
 }
 
@@ -206,8 +206,7 @@ void OpEdge::clearPriorEdge() {
 }
 
 void OpEdge::complete() {
-	winding.left = segment->winding.left;
-	winding.right = segment->winding.right;
+	winding.setWind(segment->winding.left(), segment->winding.right());
 	subDivide();	// uses already computed points stored in edge
 	id = segment->contour->contours->id++;
 }
@@ -352,7 +351,6 @@ void OpEdge::linkNextPrior(OpEdge* first, OpEdge* last) {
 // caller clears active flag
 OpEdge* OpEdge::linkUp(EdgeMatch match, OpEdge* firstEdge) {
 	std::vector<FoundEdge> edges;
-//  	OpDebugBreak(this, 267, EdgeMatch::start == match);
 	segment->activeAtT(this, match, edges, AllowReversal::no);
 	if (edges.size() > 1)
 		(EdgeMatch::start == match ? priorLink : nextLink) = EdgeLink::multiple;
@@ -407,7 +405,6 @@ OpEdge* OpEdge::linkUp(EdgeMatch match, OpEdge* firstEdge) {
 }
 
 bool OpEdge::matchLink(std::vector<OpEdge*>& linkups) {
-	OpDebugBreak(this, 31, true);
 	assert(lastEdge);
 	assert(EdgeMatch::start == lastEdge->whichEnd || EdgeMatch::end == lastEdge->whichEnd);
 	(void) setLinkBounds();
@@ -489,11 +486,6 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups) {
 			}
 		}
 	}
-#if 01 && OP_DEBUG
-	if (103 == id && 100 == closest->id) {
-		OpDebugOut("");
-	}
-#endif
 	assert(closest); // !!! if found is not empty, but no edge has the right sum, choose one anyway?
 	if (AllowReversal::yes == closestReverse)
 		closest->setLinkDirection(closestEnd);
@@ -506,10 +498,6 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups) {
 	closest->priorLink = EdgeLink::single;
 	lastEdge->setNextEdge(closest);
 	lastEdge->nextLink = EdgeLink::single;
-#if 0 && OP_DEBUG
-	if (139 == lastEdge->id || 139 == closest->lastEdge->id)
-		OpDebugOut("");
-#endif
 	lastEdge = closest->lastEdge;
 	closest->lastEdge = nullptr;
 	if (lastEdge->isClosed(this) || lastEdge->segment->contour->contours->closeGap(lastEdge, this))
@@ -643,7 +631,6 @@ void OpEdge::setLinkDirection(EdgeMatch match) {
 // setter to make adding breakpoints easier
 // !!! if release doesn't inline, restructure more cleverly...
 void OpEdge::setNextEdge(OpEdge* edge) {
-	if (01) OpDebugBreak(this, 107, 119 == edge->id);
 	nextEdge = edge;
 }
 
@@ -678,7 +665,6 @@ void OpEdge::setPriorEdge(OpEdge* edge) {
 // setter to make adding breakpoints easier
 // !!! if release doesn't inline, restructure more cleverly...
 void OpEdge::setPriorSum(OpEdge* edge) {
-	OpDebugBreak(this, 75436, edge && 75437 == edge->id);
 	priorSum = edge;
 }
 
@@ -692,6 +678,7 @@ const OpCurve& OpEdge::setVertical() {
 	return vertical_impl;
 }
 
+#if 0	// !!! happy to comment out, because it doesn't make sense...
 // if edge normal points towards ray, set sumWinding to 0
 void OpEdge::setWinding(OpVector ray) {
 	OpVector normal = segment->c.normal(center.t);
@@ -703,6 +690,7 @@ void OpEdge::setWinding(OpVector ray) {
 	sum.debugReason = ZeroReason::rayNormal;
 #endif
 }
+#endif
 
 // use already computed points stored in edge
 void OpEdge::subDivide() {
@@ -756,11 +744,11 @@ OpEdge* OpEdge::visibleAdjacent(EdgeMatch match) {
 // !!! add zero reason here
 void OpWinding::move(const OpWinding& opp, const OpContours* contours, bool backwards) {
 	if (OpFillType::winding == contours->left)
-		left += backwards ? -opp.left : opp.left;
+		left_impl += backwards ? -opp.left() : opp.left();
 	else
-		left ^= opp.left;
+		left_impl ^= opp.left();
 	if (OpFillType::winding == contours->right)
-		right += backwards ? -opp.right : opp.right;
+		right_impl += backwards ? -opp.right() : opp.right();
 	else
-		right ^= opp.right;
+		right_impl ^= opp.right();
 }

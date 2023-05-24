@@ -565,7 +565,6 @@ bool DebugOpCurve::tInRect(double t, const DebugOpRect& bounds) const {
 
 // generate curve scaled from one rect to another
 void DebugOpCurve::rectCurves(std::vector<DebugOpCurve>& bounded) const {
-//    OpDebugBreak(this, 387, true);
     DebugOpRect bounds = ZoomToRect();
     debugRootCellar lefts, tops, rights, bottoms;
     int leftRoots = axisRayHit(Axis::vertical, bounds.left, lefts);

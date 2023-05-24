@@ -66,10 +66,11 @@ inline EdgeMatch& operator|= (EdgeMatch& a, const EdgeMatch& b) {
 enum class EdgeFail : uint8_t {
 	none,
 	center,
+	horizontal,
 	nextDistance,
 	priorDistance,
 	recalcCenter,
-	winding
+	vertical
 };
 
 enum class EdgeLink : uint8_t {
@@ -122,8 +123,8 @@ enum class WindingType  {
 struct OpWinding {
 private:
 	OpWinding(int l, int r  OP_DEBUG_PARAMS(int s, ZeroReason z))
-		: left(l)
-		, right(r)
+		: left_impl(l)
+		, right_impl(r)
 #if OP_DEBUG
 		, debugSetter(s)
 		, debugType(WindingType::winding)
@@ -134,8 +135,8 @@ private:
 
 public:
 	OpWinding(WindingEdge) 
-		: left(0)
-		, right(0)
+		: left_impl(0)
+		, right_impl(0)
 #if OP_DEBUG
 		, debugSetter(0)
 		, debugType(WindingType::winding)
@@ -145,8 +146,8 @@ public:
 	}
 
 	OpWinding(WindingSum)
-		: left(OpMax)
-		, right(OpMax)
+		: left_impl(OpMax)
+		, right_impl(OpMax)
 #if OP_DEBUG
 		, debugSetter(0)
 		, debugType(WindingType::sum)
@@ -156,8 +157,8 @@ public:
 	}
 
 	OpWinding(OpOperand operand)
-		: left(OpOperand::left == operand ? 1 : 0)
-		, right(OpOperand::right == operand ? 1 : 0)
+		: left_impl(OpOperand::left == operand ? 1 : 0)
+		, right_impl(OpOperand::right == operand ? 1 : 0)
 #if OP_DEBUG
 		, debugSetter(0)
 		, debugType(WindingType::winding)
@@ -167,36 +168,55 @@ public:
 	}
 
 	bool operator==(OpWinding w) {
-		return left == w.left && right == w.right;
+		return left_impl == w.left_impl && right_impl == w.right_impl;
 	}
 
 	OpWinding operator-() const {
-		return { -left, -right  OP_DEBUG_PARAMS(0, ZeroReason::none) };
+		return { -left_impl, -right_impl  OP_DEBUG_PARAMS(0, ZeroReason::none) };
 	}
 
 	bool isSet() const {
 		assert(WindingType::sum == debugType);
-		return OpMax != left || OpMax != right;
+		return OpMax != left_impl || OpMax != right_impl;
+	}
+
+	int left() const {
+		return left_impl;
 	}
 
 	void move(const OpWinding& opp, const OpContours* , bool backwards);
 
 	int oppSide(OpOperand operand) const {
-		return OpOperand::left == operand ? right : left;
+		return OpOperand::left == operand ? right_impl : left_impl;
+	}
+
+	int right() const {
+		return right_impl;
+	}
+
+	void setSum(int left, int right) {	// can be 0, 0
+		left_impl = left;
+		right_impl = right;
+	}
+
+	void setWind(int left, int right) {	// shouldn't be 0, 0 (call zero() for that)
+		assert(left || right);
+		left_impl = left;
+		right_impl = right;
 	}
 
 	int sum() const {
-		return left + right;
+		return left_impl + right_impl;
 	}
 
 	bool visible() const {
-		return left || right;
+		return left_impl || right_impl;
 	}
 
 	// debug parameter tracks the caller that zeroed the edge
 	void zero(ZeroReason r) { 
-		left = 0;
-		right = 0;
+		left_impl = 0;
+		right_impl = 0;
 #if OP_DEBUG
 		if (ZeroReason::none == debugReason)	// if we already failed, don't fail again?
 			debugReason = r;
@@ -208,8 +228,8 @@ public:
 	void dump() const;
 #endif
 
-	int left;
-	int right;
+	int left_impl;	// indirection to make set debugging breakpoints easier 
+	int right_impl;
 
 #if OP_DEBUG
 	int debugSetter;
@@ -382,7 +402,7 @@ public:
 	void setPriorEdge(OpEdge* );  // setter exists so debug breakpoints can be set
 	void setPriorSum(OpEdge*);   // setter exists so debug breakpoints can be set
 	const OpCurve& setVertical();
-	void setWinding(OpVector ray);
+//	void setWinding(OpVector ray);
 	void subDivide();
 	bool validLoop() const;
 	OpEdge* visibleAdjacent(EdgeMatch );

@@ -1162,10 +1162,10 @@ static void drawEdgeWinding(const OpEdge* edge) {
 	OpVector norm = edgeCurve.normal(edge->center.t).normalize() * .7f;
 	OpPoint sumSide = drawCenter + norm;
 	OpPoint oppSide = drawCenter - norm;
-	std::string sumLeft = STR(edge->sum.left);
-	std::string sumRight = STR(edge->sum.right);
-	std::string oppLeft = STR(edge->sum.left - edge->winding.left);
-	std::string oppRight = STR(edge->sum.right - edge->winding.right);
+	std::string sumLeft = STR(edge->sum.left());
+	std::string sumRight = STR(edge->sum.right());
+	std::string oppLeft = STR(edge->sum.left() - edge->winding.left());
+	std::string oppRight = STR(edge->sum.right() - edge->winding.right());
 	SkCanvas textLayer(bitmap);
 	SkPaint paint;
 	paint.setAntiAlias(true);

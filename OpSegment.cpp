@@ -165,7 +165,7 @@ OpEdge* OpSegment::findActive(OpPtT ptT, EdgeMatch match) const {
 void OpSegment::findExtrema() {
     if (pointType == c.type)
         return;
-    if (!winding.left && !winding.right)
+    if (!winding.left() && !winding.right())
         return;
     assert(0 == edges.size());  // otherwise, call repair afterwards
     std::vector<OpPtT> selfPtTs;
@@ -330,7 +330,6 @@ void OpSegment::intersectEdge() {
                 merge.emplace_back(this, start, sect.ptT  OP_DEBUG_PARAMS(EdgeMaker::intersectEdge2));
                 start = sect.ptT;
             }
-            // else OpDebugOut("zero length span");
         }
     }
     if (merge.size() > edges.size())
@@ -341,7 +340,7 @@ void OpSegment::intersectEdge() {
 void OpSegment::makeEdges() {
     if (pointType == c.type)
         return;
-    if (!winding.left && !winding.right)
+    if (!winding.left() && !winding.right())
         return;
     edges.reserve(intersections.size() - 1);
     const OpIntersection* last = intersections.front();
@@ -538,7 +537,7 @@ bool OpSegment::resolveCoincidence() {
         float lastT = (*lastPtr)->ptT.t;
         while (edge->end.t != lastT) {  // ...so loop may be skipped
             OpEdge* next = edge + 1;
-            if (eWinding.left != next->winding.left || eWinding.right != next->winding.right) {
+            if (eWinding.left() != next->winding.left() || eWinding.right() != next->winding.right()) {
                 // The proportion of where the winding change happens on one edge can't be used to
                 // compute the t value on the opposite edge, because the two segments' control 
                 // points aren't aligned: the t values may accelerate differently.
@@ -551,7 +550,7 @@ bool OpSegment::resolveCoincidence() {
         float oppLastT = (*oppLastPtr)->ptT.t;
         while (oEdge->ptT(oppositeMatch).t != oppLastT) {
             OpEdge* oNext = oEdge + direction;
-            if (oWinding.left != oNext->winding.left || oWinding.right != oNext->winding.right) {
+            if (oWinding.left() != oNext->winding.left() || oWinding.right() != oNext->winding.right()) {
                 oWindingChanges.push_back(oNext);
                 oWinding = oNext->winding;
             }
@@ -820,13 +819,6 @@ void OpSegments::AddIntersection(OpSegment* opp, OpSegment* seg) {
     OpRoots septs;
     assert(lineType == seg->c.type);
     std::array<OpPoint, 2> edgePts { seg->c.pts[0], seg->c.pts[1] };
-#if 0 && OP_DEBUG
-    if (4 == opp->id && 2 == seg->id) {
-        showSegments();
-        showIDs();
-        OpDebugOut("");
-    }
-#endif
     septs.count = opp->c.rayIntersect(edgePts, septs.roots);
     bool reversed;
     MatchEnds common = seg->matchEnds(opp, &reversed);

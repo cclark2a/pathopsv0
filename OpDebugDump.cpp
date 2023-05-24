@@ -601,10 +601,11 @@ struct DebugFailName {
 static DebugFailName debugFailNames[] {
     FAIL_NAME(none),
     FAIL_NAME(center),
+    FAIL_NAME(horizontal),
     FAIL_NAME(nextDistance),
     FAIL_NAME(priorDistance),
     FAIL_NAME(recalcCenter),
-    FAIL_NAME(winding),
+    FAIL_NAME(vertical),
 };
 
 std::string debugEdgeFail(EdgeFail fail) {
@@ -836,10 +837,10 @@ std::string OpEdge::debugDump() const {
         s += "    pb:" + ptBounds.debugDump() + " ";
     if (linkBounds.isSet())
         s += "    lb:" + linkBounds.debugDump() + " ";
-    s += "wind:" + STR(winding.left) + "/" + STR(winding.right) + " ";
-    if (OpMax != sum.left || OpMax != sum.right) {
-        s += "l/r:" + (OpMax != sum.left ? STR(sum.left) : "--");
-        s += "/" + (OpMax != sum.right ? STR(sum.right) : "--") + " ";
+    s += "wind:" + STR(winding.left()) + "/" + STR(winding.right()) + " ";
+    if (OpMax != sum.left() || OpMax != sum.right()) {
+        s += "l/r:" + (OpMax != sum.left() ? STR(sum.left()) : "--");
+        s += "/" + (OpMax != sum.right() ? STR(sum.right()) : "--") + " ";
     }
     if (EdgeLink::unlinked != priorLink)
         s += "prior:" + debugLinkedUp(priorLink) + " ";
@@ -1329,7 +1330,7 @@ std::string OpWinding::debugDump() const {
            OpDebugOut("debugReasonNames out of date\n");
            outOfDate = true;
        }
-    std::string result = "left: " + STR(left) + " right: " + STR(right);
+    std::string result = "left: " + STR(left()) + " right: " + STR(right());
     if (debugSetter)
         result += " setter: " + STR(debugSetter);
     if (ZeroReason::none != debugReason) {

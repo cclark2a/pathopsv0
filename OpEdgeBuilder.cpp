@@ -33,7 +33,6 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
         assert(EdgeLink::unlinked == leftMost->priorLink);
         assert(EdgeLink::unlinked == leftMost->nextLink);
         leftMost->whichEnd = EdgeMatch::start;
-//        OpDebugBreak(leftMost, 267, true);
         OpEdge* linkup = leftMost->linkUp(EdgeMatch::start, leftMost);
         if (!linkup->containsLink(leftMost)) {
             Output(linkup, path);
