@@ -184,9 +184,22 @@ OpPoint OpCubic::doublePtAtT(float t) const {
     double c = 3 * one_t * t2;
     double d = t2 * t;
     return {
-        (float) (a * pts[0].x + b * pts[1].x + c * pts[2].x + d * pts[3].x),
-        (float) (a * pts[0].y + b * pts[1].y + c * pts[2].y + d * pts[3].y)
+        (float)(a * pts[0].x + b * pts[1].x + c * pts[2].x + d * pts[3].x),
+        (float)(a * pts[0].y + b * pts[1].y + c * pts[2].y + d * pts[3].y)
     };
+}
+
+void OpCubic::pinCtrls(XyChoice offset) {
+    OP_DEBUG_CODE(float orig1 = pts[1].choice(offset));
+    OP_DEBUG_CODE(float orig2 = pts[2].choice(offset));
+    *pts[1].asPtr(offset) = OpMath::Pin(pts[0].choice(offset), pts[1].choice(offset), pts[3].choice(offset));
+    *pts[2].asPtr(offset) = OpMath::Pin(pts[0].choice(offset), pts[2].choice(offset), pts[3].choice(offset));
+#if OP_DEBUG
+    if (orig1 != pts[1].choice(offset))
+        *debugOriginalCtrls[0].asPtr(offset) = orig1;
+    if (orig2 != pts[2].choice(offset))
+        *debugOriginalCtrls[1].asPtr(offset) = orig2;
+#endif
 }
 
 void OpCubic::subDivide(OpPtT ptT1, OpPtT ptT2, std::array<OpPoint, 4>& dst) const {

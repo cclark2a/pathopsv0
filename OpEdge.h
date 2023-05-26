@@ -255,6 +255,11 @@ inline void OpDebugCheckSingleZero(WindZero left, WindZero right) {
 	assert((int) left + (int) right != 3);	// not normal and opp at same time
 }
 
+enum class CalcFail {
+	none,
+	overflow,
+};
+
 enum class EdgeLoop {
 	link,
 	sum
@@ -273,7 +278,8 @@ enum class LeadingLoop {
 
 enum class ResolveWinding {
 	resolved,
-	loop
+	loop,
+	fail
 };
 
 enum class WhichLoop {
@@ -311,7 +317,10 @@ private:
 		, sum(windingSum)
 		, priorNormal(0)
 		, priorT(0)
+		, sumNormal(0)
+		, sumT(0)
 		, priorAxis(Axis::vertical)
+		, sumAxis(Axis::vertical)
 		, nextLink(EdgeLink::unlinked)
 		, priorLink(EdgeLink::unlinked)
 		, whichEnd(EdgeMatch::none)
@@ -327,6 +336,7 @@ private:
 		, isSumLoop(false)
 		, active_impl(false)
 		, startAliased(false)
+		, sumChainSet(false)
 		, unsortable(false) {
 		OP_DEBUG_CODE(debugAliasStartID = 0);
 		OP_DEBUG_CODE(debugAliasEndID = 0);
@@ -357,15 +367,14 @@ public:
 	void addMatchingEnds(const OpEdge& ) const;
 	void apply();
 	void calcCenterT();
-	void calcWinding(Axis axis);
+	CalcFail calcWinding(Axis axis);
 	void clearActive();  // setter exists so debug breakpoints can be set
 	void clearNextEdge();
 	void clearPriorEdge();
 	void complete();
-	bool containsLink(const OpEdge* edge) const;
-	bool containsSum(const OpEdge*) const;
-	float findPtT(OpPoint pt) const;
-	FoundPtT findPtT(OpPoint pt, float* result) const;
+	bool containsChain(const OpEdge* edge, EdgeLoop) const;
+	bool containsLink(const OpEdge* edge) const { return containsChain(edge, EdgeLoop::link); }
+	bool containsSum(const OpEdge* edge) const { return containsChain(edge, EdgeLoop::sum); }
 	OpPtT flipPtT(EdgeMatch match) const { return match == whichEnd ? end : start; }
 	void flipWhich() { whichEnd = (EdgeMatch)((int)whichEnd ^ (int)EdgeMatch::both); }
 	ResolveWinding findWinding(Axis axis  OP_DEBUG_PARAMS(int* debugWindingLimiter));
@@ -455,8 +464,11 @@ public:
 	OpWinding sum; // total incl. normal side of edge for operands (fill count in normal direction)
 	float priorNormal;  // e.g., for horizontal axis, y value of intersecting ray
 	float priorT; // temporary used to carry result from prior sum to find winding
+	float sumNormal; // normal of edge projecting ray
+	float sumT; // !!! probably should be able to replace prior t, since priorT == priorSum->sumT
 	int id;
 	Axis priorAxis;	// the axis state when prior sum was found
+	Axis sumAxis; // the axis when sum chain was computed (there may not be a prior)
 	EdgeLink nextLink;
 	EdgeLink priorLink;
 	EdgeMatch whichEnd;	// if 'start', prior link end equals start; if 'end' prior end matches end
@@ -472,6 +484,7 @@ public:
 	bool isSumLoop;
 	bool active_impl;  // used by ray casting to mark edges that may be to the left of casting edge
 	bool startAliased;
+	bool sumChainSet;
 	bool unsortable;	// sum was not resolvable by ray in either axis (likely edge is very small) 
 #if OP_DEBUG
 	EdgeMaker debugMaker;

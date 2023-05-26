@@ -452,6 +452,10 @@ void precision(int p) {
 	OpDebugImage::drawDoubleFocus();
 }
 
+void redraw() {
+	OpDebugImage::drawDoubleFocus();
+}
+
 void OpDebugImage::center(int id, bool add) {
 	ConstOpPointBoundsPtr pointBoundsPtr = nullptr;
 	ConstOpPointPtr pointPtr = nullptr;
@@ -1120,7 +1124,12 @@ static void drawEdgeNormal(const OpEdge* edge) {
 	DebugOpPtToPt(edge->center.pt, drawCenter);
 	OpEdge copy(*edge);
 	const OpCurve& edgeCurve = copy.setCurve();
-	OpVector norm = edgeCurve.normal(edge->center.t).normalize() * .5;
+	bool overflow;
+	OpVector norm = edgeCurve.normal(edge->center.t).normalize(&overflow) * .5;
+	if (overflow) {
+		OpDebugOut("overflow on edge " + STR(edge->id) + "\n");
+		return;
+	}
 	OpLine normal(drawCenter, drawCenter + norm);
 	SkPath normalPath;
 	normalPath.moveTo(normal.pts[0].x, normal.pts[0].y);
@@ -1159,7 +1168,12 @@ static void drawEdgeWinding(const OpEdge* edge) {
 	DebugOpPtToPt(edge->center.pt, drawCenter);
 	OpEdge copy(*edge);
 	const OpCurve& edgeCurve = copy.setCurve();
-	OpVector norm = edgeCurve.normal(edge->center.t).normalize() * .7f;
+	bool overflow;
+	OpVector norm = edgeCurve.normal(edge->center.t).normalize(&overflow) * .7f;
+	if (overflow) {
+		OpDebugOut("overflow on edge " + STR(edge->id) + "\n");
+		return;
+	}
 	OpPoint sumSide = drawCenter + norm;
 	OpPoint oppSide = drawCenter - norm;
 	std::string sumLeft = STR(edge->sum.left());

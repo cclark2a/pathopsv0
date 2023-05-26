@@ -215,25 +215,10 @@ void OpSegment::findExtrema() {
 
 // start/end range is necessary since cubics can have more than one t at a point
 float OpSegment::findPtT(float start, float end, OpPoint opp) const {
-    if (OpType::lineType == c.type) {
-        // this won't work for curves with linear control points since t is not necessarily linear
-        OpVector lineSize = c.pts[1] - c.pts[0];
-        float result = fabsf(lineSize.dy) > fabsf(lineSize.dx) ?
-                (opp.y - c.pts[0].y) / lineSize.dy : (opp.x - c.pts[0].x) / lineSize.dx;
-        return start <= result && result <= end ? result : OpNaN;
-    }
-    rootCellar hRoots, vRoots;
-    int hRootCount = c.axisRayHit(Axis::horizontal, opp.y, hRoots, start, end);
-    assert(1 >= hRootCount);
-    int vRootCount = c.axisRayHit(Axis::vertical, opp.x, vRoots, start, end);
-    assert(1 >= vRootCount);
-    if (vRootCount)
-        hRoots[hRootCount++] = vRoots[0];
-    if (!hRootCount)
-        return OpNaN;
-    if (1 == hRootCount)
-        return hRoots[0];
-    return (hRoots[0] + hRoots[1]) / 2;
+    float result;
+    FoundPtT found = findPtT(start, end, opp, &result);
+    assert(FoundPtT::single == found);
+    return result;
 }
 
 FoundPtT OpSegment::findPtT(float start, float end, OpPoint opp, float* result) const {
@@ -243,22 +228,46 @@ FoundPtT OpSegment::findPtT(float start, float end, OpPoint opp, float* result) 
         int vRootCount = c.axisRayHit(Axis::vertical, opp.x, vRoots, start, end);
         if (1 < hRootCount || 1 < vRootCount)
             return FoundPtT::multiple;
-        // !!! here, since we've already called axis ray hit, don't call it again in find pt t below
-        //     call common code that follows axis ray hit above
+        if (0 == hRootCount && 0 == vRootCount)
+            *result = OpNaN;
+        else if (0 == hRootCount)
+            *result = vRoots[0];
+        else if (0 == vRootCount)
+            *result = hRoots[0];
+        else
+            *result = (hRoots[0] + vRoots[0]) / 2;
+    } else {
+        // this won't work for curves with linear control points since t is not necessarily linear
+        OpVector lineSize = c.pts[1] - c.pts[0];
+        *result = fabsf(lineSize.dy) > fabsf(lineSize.dx) ?
+            (opp.y - c.pts[0].y) / lineSize.dy : (opp.x - c.pts[0].x) / lineSize.dx;
+        if (start > *result || *result > end)
+            *result = OpNaN;
     }
-    *result = findPtT(start, end, opp);
     return FoundPtT::single;
 }
 
-void OpSegment::fixEdges(const OpPtT& alias, OpPoint master  OP_DEBUG_PARAMS(int masterSectID)) {
+FoundPtT OpSegment::findPtT(const OpPtT& start, const OpPtT& end, OpPoint opp, float* result) const {
+    if (start.pt == opp) {
+        *result = start.t;
+        return FoundPtT::single;
+    }
+    if (end.pt == opp) {
+        *result = end.t;
+        return FoundPtT::single;
+    }
+    return findPtT(start.t, end.t, opp, result);
+}
+
+void OpSegment::fixEdges(OpPoint alias, OpPoint master  OP_DEBUG_PARAMS(int masterSectID)) {
     for (auto& edge : edges) {
-        if (edge.start.pt == alias.pt) {
+        if (edge.start.pt == alias) {
             OP_DEBUG_CODE(edge.debugOriginalStart = edge.start.pt);
             OP_DEBUG_CODE(edge.debugAliasStartID = masterSectID);
             edge.start.pt = master;
             edge.startAliased = true;
         }
-        if (edge.end.pt == alias.pt) {
+        if (edge.end.pt == alias) {
             OP_DEBUG_CODE(edge.debugOriginalEnd = edge.end.pt);
             OP_DEBUG_CODE(edge.debugAliasEndID = masterSectID);
             edge.end.pt = master;
@@ -277,7 +286,7 @@ void OpSegment::fixIntersections(OpPoint alias, OpPoint master  OP_DEBUG_PARAMS(
         if (inner.ptT.pt != alias)
             continue;
         if (edges.size())
-            fixEdges(inner.ptT, master  OP_DEBUG_PARAMS(masterSectID));
+            fixEdges(alias, master  OP_DEBUG_PARAMS(masterSectID));
         OP_DEBUG_CODE(inner.debugOriginal = inner.ptT.pt);
         OP_DEBUG_CODE(inner.debugAliasID = masterSectID);
         inner.ptT.pt = master;
@@ -293,8 +302,31 @@ void OpSegment::fixIntersections(OpPoint alias, OpPoint master  OP_DEBUG_PARAMS(
             o.ptT.pt = master;
             o.segment->recomputeBounds = true;
             if (o.segment->edges.size())
-                o.segment->fixEdges(o.ptT, master  OP_DEBUG_PARAMS(masterSectID));
+                o.segment->fixEdges(alias, master  OP_DEBUG_PARAMS(masterSectID));
             o.segment->fixIntersections(alias, master  OP_DEBUG_PARAMS(masterSectID));
+        }
+        // if adjusting the points causes a coincidence to collapse, remove it
+        int coinID = inner.coincidenceID;
+        if (coinID) {
+            OP_DEBUG_CODE(bool foundCoin = false);
+            for (auto coinPtr : intersections) {
+                if (coinPtr->coincidenceID != coinID)
+                    continue;
+                if (coinPtr == &inner)
+                    continue;
+                OP_DEBUG_CODE(foundCoin = true);
+                if (inner.ptT.pt == coinPtr->ptT.pt) {
+                    inner.zeroCoincidenceID();
+                    coinPtr->zeroCoincidenceID();
+                    for (auto oppPtr : inner.opp->segment->intersections) {
+                        if (oppPtr->coincidenceID != coinID)
+                            continue;
+                        oppPtr->zeroCoincidenceID();
+                    }
+                }
+                break;
+            }
+            assert(foundCoin);
         }
     }
 }
@@ -349,8 +381,6 @@ void OpSegment::makeEdges() {
         if (sect.ptT.t == last->ptT.t)
             continue;
         edges.emplace_back(this, last->ptT, sect.ptT  OP_DEBUG_PARAMS(EdgeMaker::makeEdges));
- //       if (last->unsortable && sect.unsortable)
- //           edges.back().unsortable = true;
         last = &sect;
     }
 }
@@ -574,9 +604,9 @@ bool OpSegment::resolveCoincidence() {
             }
             std::swap(firstEdge, firstOpp);
             std::swap(lastPtr, oppLastPtr);
+            std::swap(lastT, oppLastT);
         }
         edge = firstEdge;
-        lastT = (*lastPtr)->ptT.t;
         oEdge = firstOpp;
         // !!! tricky: can it be written to be more clear?
         //     at this point edge and oEdge are at start of list of coincidences
@@ -585,6 +615,12 @@ bool OpSegment::resolveCoincidence() {
         //     but advance the edge lists unevenly. Each time through the loop, zero all
         //     point edges. Move nonzero pairs from opp to edge. Advance point edges, but
         //     only advance both if both are not points. Stop with both pairs are on final t.
+#if OP_DEBUG
+        const OpSegment* debugSeg = this;
+        const OpSegment* debugOpp = oSegment;
+        if (swapEdgeAndOpp)
+            std::swap(debugSeg, debugOpp);
+#endif
         do {
             bool edgeIsPoint = edge->isPoint;
             bool oppIsPoint = oEdge->isPoint;
@@ -598,10 +634,15 @@ bool OpSegment::resolveCoincidence() {
             bool oppDone = oEdge->ptT(oppositeMatch).t == oppLastT;
             if (edgeDone && oppDone)
                 break;
-            if (!edgeDone && (edgeIsPoint || !oppIsPoint))
+            if (!edgeDone && (edgeIsPoint || !oppIsPoint)) {
+                assert(edge < &debugSeg->edges.back());
                 ++edge;
-            if (!oppDone && (oppIsPoint || !edgeIsPoint))
+            }
+            if (!oppDone && (oppIsPoint || !edgeIsPoint)) {
+                assert(&debugOpp->edges.front() <= oEdge + direction &&
+                    oEdge + direction <= &debugOpp->edges.back());
                 oEdge += direction;
+            }
         } while (true);
         (*sectPtr)->zeroCoincidenceID();
         (*lastPtr)->zeroCoincidenceID();

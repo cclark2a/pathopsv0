@@ -7,6 +7,7 @@ enum class SectFound {
 	no,
 	fail,
 	intersects,
+	overflow,
 	split
 };
 

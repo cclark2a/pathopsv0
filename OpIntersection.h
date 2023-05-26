@@ -97,6 +97,7 @@ struct OpIntersection {
 		debugCoincidenceID = 0;
 		debugAliasID = 0;
 		debugSetID();		// debug for now
+		debugCollapsed = false;
 		debugErased = false;
 #endif
 	}
@@ -140,6 +141,7 @@ struct OpIntersection {
 	int debugCoincidenceID;	// this one does not get erased
 	int debugAliasID;
 	OpPoint debugOriginal;	// point value prior to aliasing
+	bool debugCollapsed;
 	mutable bool debugErased;
 #endif
 };

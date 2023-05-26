@@ -149,7 +149,8 @@ void VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op,
 bool testPathOpBase(skiatest::Reporter* , const SkPath& a, const SkPath& b, 
         SkPathOp op, const char* filename, bool v0MayFail, bool skiaMayFail) {
     SkPath result, skresult, xorResult;
-    OpDebugOut(std::string(filename) + "\n");
+    std::string name = std::string(filename);
+    OpDebugOut(name + "\n");
 	OpInPath op1(&a);
 	OpInPath op2(&b);
 	OpOutPath opOut(&result);
@@ -157,6 +158,13 @@ bool testPathOpBase(skiatest::Reporter* , const SkPath& a, const SkPath& b,
     assert(success || v0MayFail);
     bool skSuccess = Op(a, b, op, &skresult);
     assert(skSuccess || skiaMayFail);
+    if (name == "op_1") {
+        OpDebugOut("v0 result:\n");
+        result.dump();
+        OpDebugOut("sk result:\n");
+        skresult.dump();
+        OpDebugOut("");
+    }
 #if 0
     bool xorSucess = Op(result, skresult, kXOR_SkPathOp, &xorResult);
     assert(xorSucess);
@@ -9149,6 +9157,7 @@ path.close();
 }
 
 // !!! fails by generating infinity (record this in path ops, pass that info here?)
+// !!! if normal compute (OpVector length) used double, it might succeed. Not worth it, though
 static void op_1(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType((SkPathFillType) 0);
@@ -9329,25 +9338,7 @@ static void calibrateOpDebugImage(skiatest::Reporter* reporter, const char* file
 }
 
 static struct TestDesc tests[] = {
-    // crbug 526025 has nearly horizontal edges that are evaluated using horizontal rays, failing to 
-    //  compute the correct winding. Still thinking about how to fix this. One thought is to always
-    //  computer horizontal and vertical rays; or, choose one over the other depending on the center 
-    //  normal slope. Probably ought to trace through current failing test to completely understand it.
-    //  edge 128 and 129 should have same winding. They and they alone share a common point (2551, 64).
-    //  128 sum = l:0, r:1; 129 sum = l:1 r:1
-    //  128 prior sum : nullptr
-    //  129 prior sum : 115 (sum 1, 1) ; 100 (sum 0, 1) ; 103 (sum 0, 1) ; 127 (sum 0, 1)
-    TEST(crbug_526025), // fails with mismatched edges
-
-    TEST(loop17),
-    TEST(loops61i),
-    TEST(bug5240),
-    TEST(loops63i),
-    TEST(rects3),
     TEST(bug8380),
-    TEST(cubics_d2),
-    TEST(loops62i),
-    TEST(testOp8d),
     TEST(testRect1_u),
     TEST(testDiff1),
     TEST(testIntersect1),
@@ -9362,6 +9353,17 @@ static struct TestDesc tests[] = {
     TEST(rectOp3x),
     TEST(rectOp2i),
     TEST(rectOp1i),
+    TEST(loops44i),
+    TEST(op_1),  // fuzzer, fails with infinity. Could use double in vector length to avoid
+    TEST(crbug_526025),
+    TEST(loop17),
+    TEST(loops61i),
+    TEST(bug5240),
+    TEST(loops63i),
+    TEST(rects3),
+    TEST(cubics_d2),
+    TEST(loops62i),
+    TEST(testOp8d),
     TEST(testOp6d),
     TEST(testOp2d),
     TEST(testOp1d),
@@ -9381,7 +9383,6 @@ static struct TestDesc tests[] = {
     TEST(cubicOp158),
     TEST(op_4),
     TEST(bug8228),
-    TEST(op_1),  // fails gracefully: generates infinity
     TEST(op_2),
     TEST(op_3),
     TEST(halbug),
@@ -9398,18 +9399,17 @@ static struct TestDesc tests[] = {
     TEST(cubics_d),
     TEST(cubics_o),
     TEST(bug8380),
+    TEST(loops47i),
+    TEST(grshapearcs1),  // fails to match up coincident edge parts in op segment resolve coincidence
+//    TEST(loops58iAsQuads),    // requires CubicPathToQuads (unimplemented)
+    TEST(cubics41d),
+//    TEST(loops59iasQuads),    // requires CubicPathToQuads (unimplemented)
+    TEST(loops59i),
+    TEST(loops45i),
+    TEST(loops46i),
 
     // untested / not working
 
-    TEST(grshapearcs1),  // fails to match up coincident edge parts in op segment resolve coincidence
-    TEST(loops58iAsQuads),
-    TEST(cubics41d),
-    TEST(loops59iasQuads),
-    TEST(loops59i),
-    TEST(loops44i),
-    TEST(loops45i),
-    TEST(loops46i),
-    TEST(loops47i),
     TEST(loops48i),
     TEST(loops49i),
     TEST(loops50i),

@@ -86,6 +86,7 @@ extern void gridLines(int );
 extern void gridStep(float dxy);
 extern void help();
 extern void precision(int );
+extern void redraw();
 extern void resetFocus();
 
 #define HIDE_SHOW_DECLARATION(Thing) \

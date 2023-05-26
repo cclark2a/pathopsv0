@@ -6,9 +6,17 @@
 struct OpContours;
 struct OpEdge;
 
+enum class ChainFail {
+	none,
+	failIntercept,
+	noNormal,
+	normalizeOverflow,
+	normalizeUnderflow
+};
+
 enum class EdgesToSort {
 	byBox,		// when walking to intersect, use box only
-	byCenter	// when walking to determing winding, use box and center ray
+	byCenter	// when walking to determine winding, use box and center ray
 };
 
 enum class FoundIntersections {
@@ -18,6 +26,7 @@ enum class FoundIntersections {
 
 enum class FoundIntercept {
 	fail,
+	overflow,
 	set,
 	yes
 };
@@ -28,14 +37,16 @@ enum class FoundWindings {
 };
 
 struct EdgeDistance {
-	EdgeDistance(OpEdge* e, float d, float _t)
+	EdgeDistance(OpEdge* e, float d, float n, float _t)
 		: edge(e)
 		, distance(d)
+		, normal(n)
 		, t(_t) {
 	}
 
 	OpEdge* edge;
 	float distance;
+	float normal;
 	float t;
 };
 
@@ -55,7 +66,7 @@ struct OpEdges {
 	FoundIntercept findRayIntercept(size_t inIndex, Axis , OpEdge* edge, float center, 
 			float normal, float edgeCenterT, std::vector<EdgeDistance>* );
 	void markUnsortable(OpEdge* edge, Axis , ZeroReason);
-	void setSumChain(size_t inIndex, Axis );
+	ChainFail setSumChain(size_t inIndex, Axis );
 	FoundWindings setWindings(OpContours* );
 	void sort(EdgesToSort);
 

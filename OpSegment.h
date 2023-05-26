@@ -71,10 +71,11 @@ struct OpSegment {
     bool containsSect(float t, const OpSegment* opp) const;
     OpEdge* findActive(OpPtT , EdgeMatch ) const;
     void findExtrema();
-    void fixEdges(const OpPtT& alias, OpPoint master  OP_DEBUG_PARAMS(int masterSectID));
+    void fixEdges(OpPoint alias, OpPoint master  OP_DEBUG_PARAMS(int masterSectID));
     void fixIntersections(OpPoint alias, OpPoint master  OP_DEBUG_PARAMS(int masterSectID));
     float findPtT(float start, float end, OpPoint opp) const;
     FoundPtT findPtT(float start, float end, OpPoint opp, float* result) const;
+    FoundPtT findPtT(const OpPtT& start, const OpPtT& end, OpPoint opp, float* result) const;
     static void flip(WindZero* windZero);
     void intersectEdge();
     // count and sort extrema; create an edge for each extrema + 1

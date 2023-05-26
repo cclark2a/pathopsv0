@@ -10,8 +10,11 @@ struct OpEdge;
 struct OpIntersection;
 struct OpOutPath;
 struct OpPoint;
+struct OpPointBounds;
 struct OpPtT;
+struct OpRect;
 struct OpSegment;
+struct OpTightBounds;
 
 extern void dump(const std::vector<OpEdge>& );  // to dump edge list built from intersections
 extern void dump(const std::vector<OpEdge*>& ); // to dump assemble linkups
@@ -25,6 +28,12 @@ extern void dump(const OpPtT*);
 extern void dump(const OpPtT&);
 extern void dump(const OpPoint*);
 extern void dump(const OpPoint&);
+extern void dump(const OpPointBounds*);
+extern void dump(const OpPointBounds&);
+extern void dump(const OpRect*);
+extern void dump(const OpRect&);
+extern void dump(const OpTightBounds*);
+extern void dump(const OpTightBounds&);
 
 #define DEBUG_COMMON_DECLARATIONS() \
     std::string debugDump() const; \

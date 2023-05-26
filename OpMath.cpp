@@ -18,9 +18,12 @@ bool OpRoots::replaceClosest(float root) {
     return true;
 }
 
-OpVector OpVector::normalize() {
+OpVector OpVector::normalize(bool* overflow) {
     float len = length();
-    if (len) {
+    *overflow = false;
+    if (!OpMath::IsFinite(len))
+        *overflow = true;
+    else if (len) {
         float inverseLength = 1 / len;
         dx *= inverseLength;
         dy *= inverseLength;

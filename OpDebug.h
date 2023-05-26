@@ -41,9 +41,12 @@ float OpTicksToSeconds(uint64_t ticks, uint64_t frequency);
 #ifdef _WIN32
 #include <intrin.h>
 #define OP_DEBUG_BREAK() __debugbreak()
+#define OP_ASSERT(expr) do { if (!(expr)) __debugbreak(); } while (false)
+
 #else
 #error "add included needed for __builtin_trap()"
 #define OP_DEBUG_BREAK() __builtin_trap()
+#define OP_ASSERT(expr) assert(expr)
 #endif
 
 #define OP_DEBUG_PARAMS(...) , __VA_ARGS__

@@ -203,7 +203,7 @@ struct OpVector {
         return dx * dx + dy * dy;
     }
 
-    OpVector normalize();
+    OpVector normalize(bool* overflow);
 
 #if OP_DEBUG_DUMP
     std::string debugDump() const;
@@ -319,15 +319,23 @@ struct OpPoint {
         return &x + +axis;
     }
     
-    static bool Between(OpPoint start, OpPoint mid, OpPoint end);
-
-    float choice(XyChoice xyChoice) const {
-        assert(XyChoice::inZ != xyChoice);
-        return *(&x + +xyChoice);
+    const float* asPtr(XyChoice xyChoice) const {
+        return &x + +xyChoice;
     }
+
+    float* asPtr(XyChoice xyChoice) {
+        return &x + +xyChoice;
+    }
+
+    static bool Between(OpPoint start, OpPoint mid, OpPoint end);
 
     float choice(Axis axis) const {
         return *asPtr(axis);
+    }
+
+    float choice(XyChoice xyChoice) const {
+        assert(XyChoice::inZ != xyChoice);
+        return *asPtr(xyChoice);
     }
 
 #if 0

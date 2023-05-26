@@ -104,6 +104,7 @@ struct OpCurve {
     OpType type;
 #if OP_DEBUG
     OpDebugIntersect debugIntersect;
+    OpPoint debugOriginalCtrls[2];   // if cubic ctrl pts are pinned, store originals here
 #endif
 };
 
@@ -216,16 +217,17 @@ struct OpCubic : OpCurve {
 //            rootCellar& cepts) const;
     OpCubicCoefficients coefficients(Axis offset) const;
     OpPoint doublePtAtT(float t) const;
-    int extrema(XyChoice offset, rootCellar& t) const;
+    int extrema(XyChoice , rootCellar& t) const;
     int inflections(rootCellar& t) const;
     OpPoint interp(float t) const;
-    bool monotonic(XyChoice offset) const;
+    bool monotonic(XyChoice ) const;
     OpVector normal(float t) const;
+    void pinCtrls(XyChoice );
     OpPoint ptAtT(float t) const;
     int rawIntersect(const std::array<OpPoint, 2> line, rootCellar& cepts) const;
     int rayIntersect(const std::array<OpPoint, 2> line, rootCellar& cepts) const;
     void subDivide(OpPtT ptT1, OpPtT ptT2, std::array<OpPoint, 4>& dest) const;
-    float tangent(XyChoice offset, double t) const;
+    float tangent(XyChoice , double t) const;
     OpVector tangent(float t) const;
 #if OP_DEBUG
     OpVector debugTangent(float t) const;

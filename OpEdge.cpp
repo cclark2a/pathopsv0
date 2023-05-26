@@ -160,7 +160,7 @@ void OpEdge::calcCenterT() {
 	assert(OpMath::Between(ptBounds.top, center.pt.y, ptBounds.bottom));
 }
 
-void OpEdge::calcWinding(Axis axis) {
+CalcFail OpEdge::calcWinding(Axis axis) {
 	int prevLeft = 0;
 	int prevRight = 0;
 	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
@@ -172,21 +172,27 @@ void OpEdge::calcWinding(Axis axis) {
 		prevRight = priorSum->sum.right();
 		const OpCurve& curve = priorSum->setCurve();
 		assert(priorT);	// should have been initialized to some value off end of curve
-		float tNdotR = curve.normal(priorT).normalize().dot(-ray);
+		bool overflow;
+		float tNdotR = curve.normal(priorT).normalize(&overflow).dot(-ray);
+		if (overflow)
+			return CalcFail::overflow;
 		if (tNdotR > 0) {
 			prevLeft -= priorSum->winding.left();
 			prevRight -= priorSum->winding.right();
 		}
 	}
 	// look at direction of edge relative to ray and figure winding/oppWinding contribution
-	float NdotR = segment->c.normal(center.t).normalize().dot(ray);
+	bool overflow2;
+	float NdotR = segment->c.normal(center.t).normalize(&overflow2).dot(ray);
+	if (overflow2)
+		return CalcFail::overflow;
 	if (NdotR > 0) {
 		prevLeft += winding.left();
 		prevRight += winding.right();
 	}
-	OpDebugBreak(this, 128, true);
 	sum.setSum(prevLeft & segment->contour->contours->leftFillTypeMask(),
 			prevRight & segment->contour->contours->rightFillTypeMask());
+	return CalcFail::none;
 }
 
 // function so that setting breakpoints is easier
@@ -211,33 +217,21 @@ void OpEdge::complete() {
 	id = segment->contour->contours->id++;
 }
 
-// !!! contains link and contains sum could be combined
-bool OpEdge::containsLink(const OpEdge* edge) const {
-	const OpEdge* test = this;
-	do {
-		if (edge == test)
+bool OpEdge::containsChain(const OpEdge* edge, EdgeLoop loopType) const {
+	const OpEdge* chain = this;
+	std::vector<const OpEdge*> seen;
+	for (;;) {
+		if (edge == chain)
 			return true;
-		test = test->nextEdge;
-	} while (test && test != this);
+		seen.push_back(chain);
+		chain = EdgeLoop::link == loopType ? chain->nextEdge : chain->priorSum;
+		if (!chain)
+			break;
+		auto seenIter = std::find(seen.begin(), seen.end(), chain);
+		if (seen.end() != seenIter)
+			break;
+	}
 	return false;
-}
-
-bool OpEdge::containsSum(const OpEdge* edge) const {
-	const OpEdge* test = this;
-	do {
-		if (edge == test)
-			return true;
-		test = test->priorSum;
-	} while (test && test != this);
-	return false;
-}
-
-float OpEdge::findPtT(OpPoint opp) const {
-	return segment->findPtT(start.t, end.t, opp);
-}
-
-FoundPtT OpEdge::findPtT(OpPoint opp, float* result) const {
-	return segment->findPtT(start.t, end.t, opp, result);
 }
 
 // for each edge: recurse until priorSum is null or sum winding has value 
@@ -250,11 +244,13 @@ ResolveWinding OpEdge::findWinding(Axis axis  OP_DEBUG_PARAMS(int* debugWindingL
 		if (!priorSum->sum.isSet()) {
 			ResolveWinding priorWinding = priorSum->findWinding(axis
 					OP_DEBUG_PARAMS(debugWindingLimiter));
-			if (ResolveWinding::loop == priorWinding)
+			if (ResolveWinding::resolved != priorWinding)
 				return priorWinding;
 		}
 	}
-	calcWinding(axis);
+	CalcFail fail = calcWinding(axis);
+	if (CalcFail::none != fail)
+		return ResolveWinding::fail;
 	return ResolveWinding::resolved;
 }
 
@@ -457,7 +453,7 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups) {
 			OpDebugOut("");
 		}
 #endif
-		assert(closest);
+		OP_ASSERT(closest);
 		found.emplace_back(closest, closestEnd, closestReverse);
 	}
 	assert(found.size());

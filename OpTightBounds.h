@@ -99,7 +99,7 @@ struct OpPointBounds : OpRect {
 
 struct OpTightBounds : OpPointBounds {
     OpTightBounds() {}
-    OpTightBounds(const OpCurve& curve) {
+    OpTightBounds(OpCurve& curve) {
         set(curve);
     }
 
@@ -121,17 +121,21 @@ struct OpTightBounds : OpPointBounds {
             *yExtrema = { add(conic.ptAtT(extremaTs[0])), extremaTs[0] };
     }
 
-    void calcBounds(const OpCubic& cubic) {
+    void calcBounds(OpCubic& cubic) {
         OpPointBounds::set(cubic.pts[0], cubic.pts[3]);
         rootCellar extremaTs;
         if (!cubic.monotonic(XyChoice::inX)) {
             int count = cubic.extrema(XyChoice::inX, extremaTs);
+            if (!count)
+                cubic.pinCtrls(XyChoice::inX);
             while (count--) {
                 xExtrema[count] = { add(cubic.ptAtT(extremaTs[count])), extremaTs[count] };
             }
         }
         if (!cubic.monotonic(XyChoice::inY)) {
             int count = cubic.extrema(XyChoice::inY, extremaTs);
+            if (!count)
+                cubic.pinCtrls(XyChoice::inY);
             while (count--) {
                 yExtrema[count] = { add(cubic.ptAtT(extremaTs[count])), extremaTs[count] };
             }
@@ -147,7 +151,7 @@ struct OpTightBounds : OpPointBounds {
         pt->y = OpMath::Pin(top, pt->y, bottom);
     }
 
-    void set(const OpCurve& c) {
+    void set(OpCurve& c) {
         switch (c.type) {
         case pointType: OpPointBounds::set(c.pts, 1); break;
         case lineType: OpPointBounds::set(c.pts, 2); break;

@@ -41,39 +41,15 @@ static OpEdge& findEdgesTRange(std::vector<OpEdge>& parts, const OpSegment* oppS
 	return result;
 }
 
-// given a test point on a segment, find the closest value for the same point on the opposite edge
-// !!! this seems suspiciously close to segment findPtAtT and, given that this introduces error by
-//     finding roots, is prone to the same bugs. Both this and that should prefer exact matches.
 static float oppositeT(const OpSegment* segment, const OpEdge& oppEdge, OpPtT test
 		OP_DEBUG_PARAMS(int edgeID)) {
-	if (oppEdge.start.pt == test.pt)
-		return oppEdge.start.t;
-	if (oppEdge.end.pt == test.pt)
-		return oppEdge.end.t;
-	const OpSegment* oppSegment = oppEdge.segment;
-	const OpCurve& oppCurve = oppSegment->c;
-	std::array<OpPoint, 2> line { test.pt, test.pt + segment->c.normal(test.t) };
-	rootCellar cepts;
-	int count = oppCurve.rawIntersect(line, cepts);
-	// prefer t values scoped by the opposite edge
-	bool bestInOpp = false;
-	float bestT = OpInfinity;
-	float bestDistanceSq = OpInfinity;
-	for (int index = 0; index < count; ++index) {
-		float t = cepts[index];
-		OpPoint pt = oppCurve.ptAtT(t);
-		float distanceSq = (pt - test.pt).lengthSquared();
-		bool inOpp = OpMath::Between(oppEdge.start.t, t, oppEdge.end.t);
-		if (!inOpp && bestInOpp)
-			continue;
-		if ((inOpp && !bestInOpp) || bestDistanceSq > distanceSq) {
-			bestInOpp = inOpp;
-			bestDistanceSq = distanceSq;
-			bestT = t;
-			// bestT = distanceSq < OpEpsilon ? test.t : t;  this doesn't work for loops61i
-		}
+	float result;
+	FoundPtT found = oppEdge.segment->findPtT(oppEdge.start, oppEdge.end, test.pt, &result);
+	if (FoundPtT::multiple == found) {
+		assert(0); // debug further
+		return OpNaN;
 	}
-	return bestT;
+	return result;
 }
 
 SectFound OpEdgeIntersect::addCoincidence() {
@@ -99,7 +75,10 @@ SectFound OpEdgeIntersect::addCoincidence() {
 	// find the extreme pt values and adjust the opposite to match
 	OpVector edgeDir = originalEdge->end.pt - originalEdge->start.pt;
 	OpVector oppDir = originalOpp->end.pt - originalOpp->start.pt;
-	bool oppReversed = edgeDir.normalize().dot(oppDir.normalize()) < 0;
+	bool overflow, overflow2;
+	bool oppReversed = edgeDir.normalize(&overflow).dot(oppDir.normalize(&overflow2)) < 0;
+	if (overflow || overflow2)
+		return SectFound::overflow;
 	if (oppReversed)
 		std::swap(oppResult.start, oppResult.end);
 	XyChoice edgeXY = fabsf(edgeDir.dx) > fabsf(edgeDir.dy) ? XyChoice::inX : XyChoice::inY;
@@ -226,6 +205,7 @@ SectFound OpEdgeIntersect::addIntersection() {
 	for (float edgeT : edgeTs) {
 		OpPtT edgePtT { eSegment->c.ptAtT(edgeT), edgeT };
 		OpIntersection* sect = eSegment->addIntersection(edgePtT  OP_DEBUG_PARAMS(IntersectMaker::addIntersection5));
+		OpDebugBreak(sect, 304, true);
 		float oppoT = oppositeT(eSegment, *originalOpp, edgePtT  OP_DEBUG_PARAMS(originalEdge->id));
 		oppositeTs.push_back(oppoT);
 		OpPtT oppPtT { edgePtT.pt, oppoT };
@@ -293,7 +273,7 @@ SectFound OpEdgeIntersect::CurvesIntersect(std::vector<OpEdge>& edgeParts,
 		}
 		// rotate each to see if tight rotated bounds (with extrema) touch
 		std::array<OpPoint, 2> edgeLine { edge.start.pt, edge.end.pt };
-		const OpCurve& edgeRotated = edge.setVertical();
+		OpCurve& edgeRotated = const_cast<OpCurve&>(edge.setVertical());
 		if (!edgeRotated.isFinite())
 			return SectFound::fail;
 		OpTightBounds edgeRotatedBounds(edgeRotated);

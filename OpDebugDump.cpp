@@ -1502,6 +1502,54 @@ void OpPoint::dumpHex() const {
     OpDebugOut("OpPoint pt { " + debugDumpHex() + " };  // " + debugDump() + "\n");
 }
 
+void dump(const OpPointBounds& pb) {
+    OpDebugOut(pb.debugDump() + "\n");
+}
+
+void dump(const OpPointBounds* pb) {
+    dump(*pb);
+}
+
+void dump(const OpRect& r) {
+    OpDebugOut(r.debugDump() + "\n");
+}
+
+void dump(const OpRect* r) {
+    dump(*r);
+}
+
+void dump(const OpTightBounds& tb) {
+    OpDebugOut(tb.debugDump() + "\n");
+}
+
+void dump(const OpTightBounds* tb) {
+    dump(*tb);
+}
+
+void dumpHex(const OpPointBounds& pb) {
+    OpDebugOut(pb.debugDumpHex() + " // " + pb.debugDump() + "\n");
+}
+
+void dumpHex(const OpPointBounds* pb) {
+    dump(*pb);
+}
+
+void dumpHex(const OpRect& r) {
+    OpDebugOut(r.debugDumpHex() + " // " + r.debugDump() + "\n");
+}
+
+void dumpHex(const OpRect* r) {
+    dumpHex(*r);
+}
+
+void dumpHex(const OpTightBounds& tb) {
+    OpDebugOut(tb.debugDumpHex() + " // " + tb.debugDump() + "\n");
+}
+
+void dumpHex(const OpTightBounds* tb) {
+    dumpHex(*tb);
+}
+
 OpPtT::OpPtT(const char*& str) {
     pt = OpPoint(str);
     OpDebugSkip(str, ", ");
