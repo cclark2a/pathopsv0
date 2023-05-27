@@ -210,7 +210,8 @@ void markTestFlakyForPathKit() {
 }
 
 void CubicPathToQuads(const SkPath& cubicPath, SkPath* quadPath) {
-    assert(0); // not ready to deal with this, yet
+    OpDebugOut("!!! cubic path to quads unimplmented (leaving as cubic for now)\n");
+    *quadPath = cubicPath;
 }
 
 class PathTest_Private {
@@ -9401,9 +9402,9 @@ static struct TestDesc tests[] = {
     TEST(bug8380),
     TEST(loops47i),
     TEST(grshapearcs1),  // fails to match up coincident edge parts in op segment resolve coincidence
-//    TEST(loops58iAsQuads),    // requires CubicPathToQuads (unimplemented)
+    TEST(loops58iAsQuads),    // requires CubicPathToQuads (unimplemented)
     TEST(cubics41d),
-//    TEST(loops59iasQuads),    // requires CubicPathToQuads (unimplemented)
+    TEST(loops59iasQuads),    // requires CubicPathToQuads (unimplemented)
     TEST(loops59i),
     TEST(loops45i),
     TEST(loops46i),

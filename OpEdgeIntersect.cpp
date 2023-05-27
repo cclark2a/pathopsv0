@@ -41,10 +41,10 @@ static OpEdge& findEdgesTRange(std::vector<OpEdge>& parts, const OpSegment* oppS
 	return result;
 }
 
-static float oppositeT(const OpSegment* segment, const OpEdge& oppEdge, OpPtT test
+static float oppositeT(const OpSegment* segment, const OpEdge& oppEdge, OpPoint test
 		OP_DEBUG_PARAMS(int edgeID)) {
 	float result;
-	FoundPtT found = oppEdge.segment->findPtT(oppEdge.start, oppEdge.end, test.pt, &result);
+	FoundPtT found = oppEdge.segment->findPtT(oppEdge.start, oppEdge.end, test, &result);
 	if (FoundPtT::multiple == found) {
 		assert(0); // debug further
 		return OpNaN;
@@ -135,10 +135,10 @@ void OpEdgeIntersect::addCurveCoincidence() {
 void OpEdgeIntersect::addCurveCoin(OpEdge& edge, OpEdge& oppEdge) {
 	OpSegment* segment = const_cast<OpSegment*>(edge.segment);
 	OpSegment* oppSegment = const_cast<OpSegment*>(oppEdge.segment);
-	float oppStartT = oppositeT(segment, oppEdge, edge.start  OP_DEBUG_PARAMS(edge.id));
-	float oppEndT = oppositeT(segment, oppEdge, edge.end  OP_DEBUG_PARAMS(edge.id));
-	float startT = oppositeT(oppSegment, edge, oppEdge.start  OP_DEBUG_PARAMS(oppEdge.id));
-	float endT = oppositeT(oppSegment, edge, oppEdge.end  OP_DEBUG_PARAMS(oppEdge.id));
+	float oppStartT = oppositeT(segment, oppEdge, edge.start.pt  OP_DEBUG_PARAMS(edge.id));
+	float oppEndT = oppositeT(segment, oppEdge, edge.end.pt  OP_DEBUG_PARAMS(edge.id));
+	float startT = oppositeT(oppSegment, edge, oppEdge.start.pt  OP_DEBUG_PARAMS(oppEdge.id));
+	float endT = oppositeT(oppSegment, edge, oppEdge.end.pt  OP_DEBUG_PARAMS(oppEdge.id));
 	bool reversed = segment->c.tangent(edge.center.t)
 		.dot(oppSegment->c.tangent(oppEdge.center.t)) < 0;
 	if (reversed) {
@@ -205,8 +205,8 @@ SectFound OpEdgeIntersect::addIntersection() {
 	for (float edgeT : edgeTs) {
 		OpPtT edgePtT { eSegment->c.ptAtT(edgeT), edgeT };
 		OpIntersection* sect = eSegment->addIntersection(edgePtT  OP_DEBUG_PARAMS(IntersectMaker::addIntersection5));
-		OpDebugBreak(sect, 304, true);
-		float oppoT = oppositeT(eSegment, *originalOpp, edgePtT  OP_DEBUG_PARAMS(originalEdge->id));
+		edgePtT.pt.pin(originalOpp->ptBounds);
+		float oppoT = oppositeT(eSegment, *originalOpp, edgePtT.pt  OP_DEBUG_PARAMS(originalEdge->id));
 		oppositeTs.push_back(oppoT);
 		OpPtT oppPtT { edgePtT.pt, oppoT };
 		OpIntersection* oSect = oSegment->addIntersection(oppPtT  OP_DEBUG_PARAMS(IntersectMaker::addIntersection6));
@@ -224,8 +224,9 @@ SectFound OpEdgeIntersect::addIntersection() {
 			continue;
 		OpPtT oppPtT { oSegment->c.ptAtT(oppT), oppT };
 		OpIntersection* oSect = oSegment->addIntersection(oppPtT  OP_DEBUG_PARAMS(IntersectMaker::addIntersection7));
+		oppPtT.pt.pin(originalEdge->ptBounds);
 		OpPtT edgePtT { oppPtT.pt,
-				oppositeT(oSegment, *originalEdge, oppPtT  OP_DEBUG_PARAMS(originalOpp->id)) };
+				oppositeT(oSegment, *originalEdge, oppPtT.pt  OP_DEBUG_PARAMS(originalOpp->id)) };
 		OpIntersection* sect = eSegment->addIntersection(edgePtT  OP_DEBUG_PARAMS(IntersectMaker::addIntersection8));
 		sect->pair(oSect);
 	}

@@ -248,8 +248,8 @@ ResolveWinding OpEdge::findWinding(Axis axis  OP_DEBUG_PARAMS(int* debugWindingL
 				return priorWinding;
 		}
 	}
-	CalcFail fail = calcWinding(axis);
-	if (CalcFail::none != fail)
+	CalcFail calcFail = calcWinding(axis);
+	if (CalcFail::none != calcFail)
 		return ResolveWinding::fail;
 	return ResolveWinding::resolved;
 }
