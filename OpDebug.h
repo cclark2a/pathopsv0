@@ -27,6 +27,11 @@ uint64_t OpReadTimer();
 float OpTicksToSeconds(uint64_t ticks, uint64_t frequency);
 #endif
 
+enum class OpDebugIntersect {
+	segment,
+	edge
+};
+
 #ifdef NDEBUG
 #define OP_DEBUG_PARAMS(...)
 #define ODP(...)
@@ -36,6 +41,12 @@ float OpTicksToSeconds(uint64_t ticks, uint64_t frequency);
 #define OP_DEBUG_IMAGE 0
 #define OpDebugBreak(edge, id, doBreak)
 #define OpDebugOut(string)
+#define OP_ASSERT(expr)
+
+struct OpDebugIntersectSave {
+	OpDebugIntersectSave(OpDebugIntersect tempState) {}
+};
+
 #else
 
 #ifdef _WIN32
@@ -59,11 +70,6 @@ float OpTicksToSeconds(uint64_t ticks, uint64_t frequency);
 #include <string>
 
 struct OpContours;
-
-enum class OpDebugIntersect {
-	segment,
-	edge
-};
 
 // debug as written only works when testing uses a single thread
 extern OpContours* debugGlobalContours;

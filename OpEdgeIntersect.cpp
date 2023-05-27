@@ -90,18 +90,19 @@ SectFound OpEdgeIntersect::addCoincidence() {
 	bool useEdgeMin = OpMath::IsNaN(oppMin) || (edgeReversed ? edgeMin > oppMin : edgeMin < oppMin);
 	bool useEdgeMax = OpMath::IsNaN(oppMax) || (edgeReversed ? edgeMax < oppMax : edgeMax > oppMax);
 	rootCellar minCepts, maxCepts;
-	int minRoots, maxRoots;
+	OP_DEBUG_CODE(int minRoots);
+	OP_DEBUG_CODE(int maxRoots);
 	if (useEdgeMin)
-		minRoots = oppSegment->c.axisRayHit(toAxis(edgeXY), edgeMin, minCepts, originalOpp->start.t,
+		OP_DEBUG_CODE(minRoots =) oppSegment->c.axisRayHit(toAxis(edgeXY), edgeMin, minCepts, originalOpp->start.t,
 				originalOpp->end.t);
 	else
-		minRoots = segment->c.axisRayHit(toAxis(edgeXY), oppMin, minCepts, originalEdge->start.t,
+		OP_DEBUG_CODE(minRoots =) segment->c.axisRayHit(toAxis(edgeXY), oppMin, minCepts, originalEdge->start.t,
 				originalEdge->end.t);
 	if (useEdgeMax)
-		maxRoots = oppSegment->c.axisRayHit(toAxis(edgeXY), edgeMax, maxCepts, originalOpp->start.t,
+		OP_DEBUG_CODE(maxRoots =) oppSegment->c.axisRayHit(toAxis(edgeXY), edgeMax, maxCepts, originalOpp->start.t,
 				originalOpp->end.t);
 	else
-		maxRoots = segment->c.axisRayHit(toAxis(edgeXY), oppMax, maxCepts, originalEdge->start.t,
+		OP_DEBUG_CODE(maxRoots =) segment->c.axisRayHit(toAxis(edgeXY), oppMax, maxCepts, originalEdge->start.t,
 				originalEdge->end.t);
 	assert(1 == minRoots);	// !!! expect these assert to fire
 	assert(1 == maxRoots);	// !!! assert means more code is needed for no roots / multiple roots

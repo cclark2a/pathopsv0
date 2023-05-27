@@ -1128,7 +1128,7 @@ OpPoint testMinMax(OpPoint x, OpPoint y) {
 #endif
 
 void OpTest(bool terminateEarly) {
-#ifdef NDEBUG
+#if 0
 	OpCubicErrorTest(CubicTest::ptAtT, SpeedTest::on);
 	OpCubicErrorTest(CubicTest::edgeRay, SpeedTest::on);
 	OpCubicErrorTest(CubicTest::axisRay, SpeedTest::on);

@@ -216,6 +216,7 @@ OpVector OpCubic::debugTangent(float t) const {
 
 #endif
 
+#if OP_DEBUG
 template <typename V, typename... T>   // replace with std::to_array in c++20
 constexpr auto to_array(T&&... t)->std::array < V, sizeof...(T) > {
     return { { std::forward<T>(t)... } };
@@ -242,6 +243,7 @@ void OpIntersection::debugValidate() const {
     OpPoint oPt = opp->segment->c.ptAtT(opp->ptT.t);
     OpMath::DebugCompare(pt, oPt);
 }
+#endif
 
 #if OP_DEBUG_EDGE_INTERSECT
 #include "OpEdgeIntersect.h"

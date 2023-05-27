@@ -9408,9 +9408,6 @@ static struct TestDesc tests[] = {
     TEST(loops59i),
     TEST(loops45i),
     TEST(loops46i),
-
-    // untested / not working
-
     TEST(loops48i),
     TEST(loops49i),
     TEST(loops50i),
@@ -9462,7 +9459,10 @@ static struct TestDesc tests[] = {
     TEST(cubics18d),
     TEST(cubics19d),
     TEST(cubicOp157),
-    TEST(cubicOp142),
+
+    // untested / not working
+    TEST(cubicOp142),   // horz edge 52 is active at assembly but shouldn't be. Its priorSum is 39, but should be 35/36
+
     TEST(loops4i),
     TEST(quadRect1),
     TEST(quadRect2),
