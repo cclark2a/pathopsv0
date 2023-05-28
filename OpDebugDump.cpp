@@ -8,7 +8,9 @@
 #include "OpEdges.h"
 #include "PathOps.h"
 
+#ifdef _WIN32
 #pragma optimize( "", off )
+#endif
 
 DUMP_GLOBAL_DEFINITIONS()
 

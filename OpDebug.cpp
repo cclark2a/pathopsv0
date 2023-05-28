@@ -19,7 +19,7 @@ void OpPrintOut(const std::string& s) {
     fprintf(out, "%s", s.c_str());
     fclose(out);
 #else
-    printf(stderr, s.c_str());
+    fprintf(stderr, "%s", s.c_str());
 #endif
 }
 
@@ -29,7 +29,8 @@ uint64_t OpInitTimer() {
     QueryPerformanceFrequency(&frequency);
     return frequency.QuadPart;
 #else
-#error "unimplmented"
+// #error "unimplmented"
+    return 0;
 #endif
 }
 
@@ -39,7 +40,8 @@ uint64_t OpReadTimer() {
     QueryPerformanceCounter(&time);
     return time.QuadPart;
 #else
-#error "unimplmented"
+// #error "unimplmented"
+    return 0;
 #endif
 }
 
@@ -47,7 +49,8 @@ float OpTicksToSeconds(uint64_t diff, uint64_t frequency) {
 #ifdef _WIN32
     return (float) (diff * 1000000 / frequency) / 1000000;
 #else
-#error "unimplmented"
+// #error "unimplmented"
+    return 0;
 #endif
 }
 
@@ -59,7 +62,7 @@ void OpDebugOut(const std::string& s) {
 #ifdef _WIN32
     OutputDebugStringA(s.c_str());
 #else
-    printf(stderr, s.c_str());
+    fprintf(stderr, "%s", s.c_str());
 #endif
 }
 

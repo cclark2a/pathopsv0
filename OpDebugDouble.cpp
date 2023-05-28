@@ -11,7 +11,9 @@
 #include "PathOps.h"
 
 #if OP_DEBUG_IMAGE
+#ifdef _WIN32
 #pragma optimize( "", off )
+#endif
 #endif
 
 enum class DebugColor {

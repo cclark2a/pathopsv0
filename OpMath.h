@@ -4,6 +4,11 @@
 #include <algorithm>
 #include <array>
 #include <limits>
+
+#ifndef _WIN32
+#include <math.h>
+#endif
+
 #include "OpDebug.h"
 #include "OpDebugDouble.h"
 #include "OpDebugDump.h"

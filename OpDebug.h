@@ -55,7 +55,6 @@ struct OpDebugIntersectSave {
 #define OP_ASSERT(expr) do { if (!(expr)) __debugbreak(); } while (false)
 
 #else
-#error "add included needed for __builtin_trap()"
 #define OP_DEBUG_BREAK() __builtin_trap()
 #define OP_ASSERT(expr) assert(expr)
 #endif

@@ -2,7 +2,9 @@
 #include "OpDebugImage.h"
 
 #if OP_DEBUG_IMAGE
+#ifdef _WIN32
 #pragma optimize( "", off )
+#endif
 
 #include <algorithm>
 #include "include/core/SkBitmap.h"
