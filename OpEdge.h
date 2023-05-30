@@ -79,12 +79,12 @@ enum class EdgeLink : uint8_t {
 	multiple	// connects to multiple edges
 };
 
-enum WindingEdge {
-	windingEdge
+enum class WindingEdge {
+	dummy
 };
 
-enum WindingSum {
-	windingSum
+enum class WindingSum {
+	dummy
 };
 
 enum class ZeroReason : uint8_t {
@@ -265,7 +265,7 @@ enum class EdgeLoop {
 	sum
 };
 
-enum class EdgeSplit {
+enum class EdgeSplit : uint8_t {
 	no,
 	yes,
 	unsplittable
@@ -307,20 +307,17 @@ enum class EdgeMaker {
 
 struct OpEdge {
 private:
-	OpEdge()	// note : all values are zero
+	OpEdge()	// note : not all values are zero
 		: priorEdge(nullptr)
 		, nextEdge(nullptr)
 		, lastEdge(nullptr)
-		, priorSum(nullptr)
+		, priorSum_impl(nullptr)
 		, loopStart(nullptr)
-		, winding(windingEdge)
-		, sum(windingSum)
-		, priorNormal(0)
-		, priorT(0)
+		, winding(WindingEdge::dummy)
+		, sum(WindingSum::dummy)
 		, sumNormal(0)
 		, sumT(0)
-		, priorAxis(Axis::vertical)
-		, sumAxis(Axis::vertical)
+		, sumAxis(Axis::neither)	// not zero (-1)
 		, nextLink(EdgeLink::unlinked)
 		, priorLink(EdgeLink::unlinked)
 		, whichEnd(EdgeMatch::none)
@@ -336,7 +333,6 @@ private:
 		, isSumLoop(false)
 		, active_impl(false)
 		, startAliased(false)
-		, sumChainSet(false)
 		, unsortable(false) {
 		OP_DEBUG_CODE(debugAliasStartID = 0);
 		OP_DEBUG_CODE(debugAliasEndID = 0);
@@ -395,7 +391,8 @@ public:
 		assert(EdgeLoop::link == edgeLoop); return nextEdge; }
 	OpEdge* prepareForLinkup();
 	const OpEdge* priorChain(EdgeLoop edgeLoop) const {
-		return EdgeLoop::link == edgeLoop ? priorEdge : priorSum; }
+		return EdgeLoop::link == edgeLoop ? priorEdge : priorSum_impl; }
+	OpEdge* priorSum() { return priorSum_impl; }	// hide to avoid changing prior sum outside set
 	OpPtT ptT(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? start : end; }
 	void reverse();	// only call on temporary edges (e.g., used to make coincident intersections)
@@ -445,7 +442,7 @@ public:
 	OpEdge* priorEdge;	// edges that link to form completed contour
 	OpEdge* nextEdge;
 	OpEdge* lastEdge;
-	OpEdge* priorSum;	// edge that set sum winding
+	OpEdge* priorSum_impl;	// edge that set sum winding (access through debugging get/set)
 	OpEdge* loopStart;	// if sum loops, furthest edge away from end
 	OpPoint ctrlPts[2];	// quad, conic, cubic
 	float weight;
@@ -462,12 +459,9 @@ public:
 	OpPointBounds linkBounds;
 	OpWinding winding;	// contribution: always starts as 1, 0 (or 0, 1)
 	OpWinding sum; // total incl. normal side of edge for operands (fill count in normal direction)
-	float priorNormal;  // e.g., for horizontal axis, y value of intersecting ray
-	float priorT; // temporary used to carry result from prior sum to find winding
 	float sumNormal; // normal of edge projecting ray
-	float sumT; // !!! probably should be able to replace prior t, since priorT == priorSum->sumT
+	float sumT; // !!! note : prior t == priorSum->sumT
 	int id;
-	Axis priorAxis;	// the axis state when prior sum was found
 	Axis sumAxis; // the axis when sum chain was computed (there may not be a prior)
 	EdgeLink nextLink;
 	EdgeLink priorLink;
@@ -484,7 +478,6 @@ public:
 	bool isSumLoop;
 	bool active_impl;  // used by ray casting to mark edges that may be to the left of casting edge
 	bool startAliased;
-	bool sumChainSet;
 	bool unsortable;	// sum was not resolvable by ray in either axis (likely edge is very small) 
 #if OP_DEBUG
 	EdgeMaker debugMaker;

@@ -560,6 +560,13 @@ void DebugOpBounds(double& left, double& top, double& right, double& bottom) {
     bottom = dRect.bottom;
 }
 
+void DebugOpRecord(FILE* recordFile) {
+    fprintf(recordFile, "debugZoom: %g\n", debugZoom);
+    fprintf(recordFile, "debugCenter: %g, %g\n", debugCenter.x, debugCenter.y);
+    fprintf(recordFile, "setBounds: %g, %g, %g, %g\n", 
+            setBounds.left, setBounds.top, setBounds.right, setBounds.bottom);
+}
+
 bool DebugOpCurve::tInRect(double t, const DebugOpRect& bounds) const {
     DebugOpPoint pt = ptAtT(t);
     return bounds.ptInRect(pt);

@@ -661,9 +661,9 @@ std::string debugEdgeDebugMaker(EdgeMaker maker) {
         if (maker != edgeMakerNames[index].maker)
             continue;
         if (outOfDate)
-            result += STR((int)maker);
+            result += STR((int) maker);
         else
-            result += std::string(edgeMakerNames[(int)maker].name);
+            result += std::string(edgeMakerNames[(int) maker].name);
     }
     return result;
 }
@@ -692,9 +692,40 @@ std::string debugEdgeWindZero(WindZero wz) {
         if (wz != windZeroNames[index].wz)
             continue;
         if (outOfDate)
-            result += STR((int)wz);
+            result += STR((int) wz);
         else
-            result += std::string(windZeroNames[(int)wz].name);
+            result += std::string(windZeroNames[(int) wz].name);
+    }
+    return result;
+}
+
+struct AxisName {
+    Axis axis;
+    const char* name;
+};
+
+#define AXIS_NAME(r) { Axis::r, #r }
+
+static AxisName axisNames[] {
+    AXIS_NAME(neither),
+    AXIS_NAME(vertical),
+    AXIS_NAME(horizontal),
+};
+
+std::string debugAxisName(Axis axis) {
+    std::string result;
+    bool outOfDate = false;
+    for (signed index = 0; index < (signed) ARRAY_COUNT(axisNames); ++index) {
+        if (!outOfDate && ((signed) axisNames[index].axis + 1) != index) {
+            OpDebugOut("axisNames out of date\n");
+            outOfDate = true;
+        }
+        if (axis != axisNames[index].axis)
+            continue;
+        if (outOfDate)
+            result += STR((int) axis);
+        else
+            result += std::string(axisNames[index].name);
     }
     return result;
 }
@@ -708,15 +739,16 @@ std::string OpEdge::debugDumpDetail() const {
         s += "/" + (lastEdge ? STR(lastEdge->id) : "-");
         s += " ";
     }
-    if (priorSum)
-        s += "priorSum:" + STR(priorSum->id) + " axis:" 
-                + (Axis::horizontal == priorAxis ? "horizontal " : "vertical ");
+    if (Axis::neither != sumAxis) {
+        s += "priorSum:" + (priorSum_impl ? STR(priorSum_impl->id) : std::string("null"));
+        s += " axis:" + debugAxisName(sumAxis) + " ";
+    }
     if (loopStart) {
         s += "loopStart:" + STR(loopStart->id) + " ";
         if (!isSumLoop)
             s += "\n!!! loopStart set EXPECTED isSumLoop ";
     }
-    if (priorEdge || nextEdge || lastEdge || priorSum || loopStart)
+    if (priorEdge || nextEdge || lastEdge || priorSum_impl || loopStart)
         s += "\n";
     s += "{" + start.debugDump() + ", ";
     for (int i = 0; i < segment->c.pointCount() - 2; ++i)
@@ -739,9 +771,9 @@ std::string OpEdge::debugDumpDetail() const {
     if (ptBounds.isSet() || linkBounds.isSet())        
         s += "\n";
     s += debugDumpWinding() + "\n";
-    if (sum.isSet()) {
-        s += "priorNormal:" + STR(priorNormal) + " ";
-        s += "priorT:" + STR(priorT) + " ";
+    if (Axis::neither != sumAxis) {
+        s += "sumNormal:" + STR(sumNormal) + " ";
+        s += "sumT:" + STR(sumT) + " ";
     }
     if (EdgeLink::unlinked != nextLink)
         s += "next:" + debugLinkedUp(nextLink) + " ";
@@ -999,6 +1031,15 @@ void OpEdges::dump() const {
 DUMP_STRUCT_DEFINITIONS(OpEdges)
 
 DUMP_STRUCT_DEFINITIONS(OpEdgeIntersect)
+
+void dump(const std::vector<EdgeDistance>& distances) {
+    for (auto& distance : distances) {
+        OpDebugOut(distance.edge->debugDump() + "\n");
+        OpDebugOut("distance:" + STR(distance.distance) + " ");
+        OpDebugOut("normal:" + STR(distance.normal) + " ");
+        OpDebugOut("t:" + STR(distance.t) + "\n");
+    }
+}
 
 void dump(const std::vector <OpEdge>& edges) {
     for (auto& edge : edges) {

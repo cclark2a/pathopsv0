@@ -216,7 +216,7 @@ void OpSegment::findExtrema() {
 // start/end range is necessary since cubics can have more than one t at a point
 float OpSegment::findPtT(float start, float end, OpPoint opp) const {
     float result;
-    FoundPtT found = findPtT(start, end, opp, &result);
+    OP_DEBUG_CODE(FoundPtT found =) findPtT(start, end, opp, &result);
     assert(FoundPtT::single == found);
     return result;
 }

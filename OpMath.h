@@ -96,10 +96,12 @@ inline int operator+(XyChoice a) {
     return static_cast<int>(a);
 }
 
-enum class Axis : uint8_t {
-    vertical,   // a vertical axis has a value in x
-    horizontal,  // a horizontal axis has a value in y
-    neither     // set when axis parameter is passed but has no meaning
+// for other enums, neither would be valued at zero for struct initialization
+// here, axis is used as a component index for (x, y), so '-1' is used for neither
+enum class Axis : int8_t {
+    neither = -1,   // set when axis parameter is passed but has no meaning
+    vertical,       // a vertical axis has a value in x
+    horizontal      // a horizontal axis has a value in y
 };
 
 inline int operator+(Axis a) {

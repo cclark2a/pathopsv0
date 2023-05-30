@@ -18,7 +18,7 @@ struct OpPointBounds;
 struct OpPtT;
 struct OpRay;
 struct OpSegment;
-enum class Axis : uint8_t;
+enum class Axis : int8_t;
 typedef const OpPointBounds* ConstOpPointBoundsPtr;
 typedef const OpPoint* ConstOpPointPtr;
 
@@ -85,9 +85,12 @@ extern void gridCenter(int x, int y);
 extern void gridLines(int );
 extern void gridStep(float dxy);
 extern void help();
+extern void playback();
 extern void precision(int );
+extern void record();
 extern void redraw();
 extern void resetFocus();
+extern void textSize(float );
 
 #define HIDE_SHOW_DECLARATION(Thing) \
 extern void hide##Thing(); \

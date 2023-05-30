@@ -9339,6 +9339,9 @@ static void calibrateOpDebugImage(skiatest::Reporter* reporter, const char* file
 }
 
 static struct TestDesc tests[] = {
+    TEST(loops61i),
+    TEST(cubicOp142),   // horz edge 52 is active at assembly but shouldn't be. Its priorSum is 39, but should be 35/36
+
     TEST(bug8380),
     TEST(testRect1_u),
     TEST(testDiff1),
@@ -9358,7 +9361,6 @@ static struct TestDesc tests[] = {
     TEST(op_1),  // fuzzer, fails with infinity. Could use double in vector length to avoid
     TEST(crbug_526025),
     TEST(loop17),
-    TEST(loops61i),
     TEST(bug5240),
     TEST(loops63i),
     TEST(rects3),
@@ -9401,7 +9403,7 @@ static struct TestDesc tests[] = {
     TEST(cubics_o),
     TEST(bug8380),
     TEST(loops47i),
-    TEST(grshapearcs1),  // fails to match up coincident edge parts in op segment resolve coincidence
+    TEST(grshapearcs1),  // unknown if it produces right answer (skia fails, v0 succeeeds)
     TEST(loops58iAsQuads),    // requires CubicPathToQuads (unimplemented)
     TEST(cubics41d),
     TEST(loops59iasQuads),    // requires CubicPathToQuads (unimplemented)
@@ -9420,10 +9422,10 @@ static struct TestDesc tests[] = {
     TEST(loops57i),
     TEST(loops58i),
     TEST(loops33iMod),
-    TEST(loops33iAsQuads),
+    TEST(loops33iAsQuads),    // requires CubicPathToQuads (unimplemented)
     TEST(loops33i),
     TEST(loops40i),
-    TEST(loops40iAsQuads),
+    TEST(loops40iAsQuads),    // requires CubicPathToQuads (unimplemented)
     TEST(loops39i),
     TEST(loops38i),
     TEST(loops37i),
@@ -9459,10 +9461,9 @@ static struct TestDesc tests[] = {
     TEST(cubics18d),
     TEST(cubics19d),
     TEST(cubicOp157),
+    TEST(cubicOp142),
 
     // untested / not working
-    TEST(cubicOp142),   // horz edge 52 is active at assembly but shouldn't be. Its priorSum is 39, but should be 35/36
-
     TEST(loops4i),
     TEST(quadRect1),
     TEST(quadRect2),

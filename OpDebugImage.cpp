@@ -25,7 +25,7 @@
 #include "PathOps.h"
 
 SkBitmap bitmap;
-SkFont labelFont(nullptr, 20, 1, 0);
+SkFont labelFont(nullptr, 14, 1, 0);
 
 std::vector<const OpIntersection*> coincidences;
 std::vector<const OpEdge*> localEdges;
@@ -37,7 +37,7 @@ std::vector<OpOutPath> outputs;
 std::vector<const SkPath*> paths;
 std::vector<const OpSegment*> localSegments;	// segments not yet added to global debug contour
 int gridIntervals = 8;
-int valuePrecision = -1;		// minus one means unset?
+int valuePrecision = -1;		// minus one means unset
 
 #define DRAW_FEATURE_GLOBAL(Thing) \
 bool draw##Thing##On = false
@@ -278,6 +278,122 @@ void OpDebugImage::init(const OpInPath& left, const OpInPath& right) {
 	DebugOpSetBounds(opBounds.fLeft, opBounds.fTop, opBounds.fRight, opBounds.fBottom);
 }
 
+#define READ_FEATURE(Thing) \
+		if (strlen(str) - 1 == strlen(#Thing) && 0 == strncmp(#Thing, str, strlen(#Thing))) \
+			draw##Thing##On = true; \
+		else
+
+#define ZERO_FEATURE(Thing) \
+		draw##Thing##On = false
+
+void playback() {
+	FILE* file = fopen("OpDebugImageState.txt", "r");
+	if (!file)
+		return;
+	char str[255];
+	double debugZoom;
+	double debugCenter[2];
+	double setBounds[4];
+	float textSize;
+	int intervals;
+	int precision;
+	// required
+	if (fscanf(file, "debugZoom: %lg\n", &debugZoom) != 1) {
+		OpDebugOut("reading debugZoom failed\n");
+		goto bail;
+	}
+	DebugOpSetZoom(debugZoom);
+	if (fscanf(file, "debugCenter: %lg, %lg\n", &debugCenter[0], &debugCenter[1]) != 2) {
+		OpDebugOut("reading debugCenter failed\n");
+		goto bail;
+	}
+	DebugOpSetCenter(debugCenter[0], debugCenter[1]);
+	if (fscanf(file, "setBounds: %lg, %lg, %lg, %lg\n", &setBounds[0], &setBounds[1],
+			&setBounds[2], &setBounds[3]) != 4) {
+		OpDebugOut("reading setBounds failed\n");
+		goto bail;
+	}
+	DebugOpSetBounds(setBounds[0], setBounds[1], setBounds[2], setBounds[3]);
+	if (fscanf(file, "textSize: %g\n", &textSize) != 1) {
+		OpDebugOut("reading textSize failed\n");
+		goto bail;
+	}
+	labelFont.setSize(textSize);
+	if (fscanf(file, "gridIntervals: %d\n", &intervals) != 1) {
+		OpDebugOut("reading gridIntervals failed\n");
+		goto bail;
+	}
+	gridIntervals = intervals;
+	if (fscanf(file, "valuePrecision: %d\n", &precision) != 1) {
+		OpDebugOut("reading valuePrecision failed\n");
+		goto bail;
+	}
+	valuePrecision = precision;
+	// optional
+	ZERO_FEATURE(Arrows);
+	ZERO_FEATURE(Bounds);
+	ZERO_FEATURE(Centers);
+	ZERO_FEATURE(Chains);
+	ZERO_FEATURE(Coincidences);
+	ZERO_FEATURE(Controls);
+	ZERO_FEATURE(Edges);
+	ZERO_FEATURE(Grid);
+	ZERO_FEATURE(Hex);
+	ZERO_FEATURE(IDs);
+	ZERO_FEATURE(Intersections);
+	ZERO_FEATURE(Left);
+	ZERO_FEATURE(Lines);
+	ZERO_FEATURE(Normals);
+	ZERO_FEATURE(Outputs);
+	ZERO_FEATURE(Paths);
+	ZERO_FEATURE(Points);
+	ZERO_FEATURE(Right);
+	ZERO_FEATURE(SegmentEdges);
+	ZERO_FEATURE(Segments);
+	ZERO_FEATURE(Sums);
+	ZERO_FEATURE(Tangents);
+	ZERO_FEATURE(TemporaryEdges);
+	ZERO_FEATURE(Ts);
+	ZERO_FEATURE(Values);
+	ZERO_FEATURE(Windings);
+	while (fgets(str, sizeof(str), file)) {
+		READ_FEATURE(Arrows)
+		READ_FEATURE(Bounds)
+		READ_FEATURE(Centers)
+		READ_FEATURE(Chains)
+		READ_FEATURE(Coincidences)
+		READ_FEATURE(Controls)
+		READ_FEATURE(Edges)
+		READ_FEATURE(Grid)
+		READ_FEATURE(Hex)
+		READ_FEATURE(IDs)
+		READ_FEATURE(Intersections)
+		READ_FEATURE(Left)
+		READ_FEATURE(Lines)
+		READ_FEATURE(Normals)
+		READ_FEATURE(Outputs)
+		READ_FEATURE(Paths)
+		READ_FEATURE(Points)
+		READ_FEATURE(Right)
+		READ_FEATURE(SegmentEdges)
+		READ_FEATURE(Segments)
+		READ_FEATURE(Sums)
+		READ_FEATURE(Tangents)
+		READ_FEATURE(TemporaryEdges)
+		READ_FEATURE(Ts)
+		READ_FEATURE(Values)
+		READ_FEATURE(Windings)
+		{
+			OpDebugOut("no match: " + std::string(str)); goto bail;
+		}
+	}
+	redraw();
+bail:
+	fclose(file);
+}
+
+#undef READ_FEATURE
+
 void OpDebugImage::clearScreen() {
 	SkCanvas offscreen(bitmap);
 	offscreen.clear(SK_ColorWHITE);
@@ -352,7 +468,7 @@ void OpDebugImage::drawDoubleFocus() {
 			else if (edgeIter.isTemporary)
 				color = edgeIter.isOpp ? 0xFFFFA500 : 0xFF008000;  // orange, dark green
 			DebugOpDrawEdgeID(edge, ids, color);
-		
+
 		}
 	}
 	if (drawIntersectionsOn && drawIDsOn)
@@ -364,6 +480,55 @@ void OpDebugImage::drawDoubleFocus() {
 	if (drawGridOn)
 		drawGrid();
 }
+
+#define RECORD_FEATURE(Thing) \
+		if (draw##Thing##On) \
+			fprintf(recordFile, "%s\n", #Thing)
+
+void record() {
+#if 0 && defined _WIN32
+   char full[_MAX_PATH];
+   if( _fullpath( full, ".\\", _MAX_PATH ) != NULL )
+      OpDebugOut( "Full path is: %s" + std::string(full) + "\n");
+   else
+      OpDebugOut( "Invalid path\n" );
+#endif
+	FILE* recordFile = fopen("opDebugImageState.txt", "w");
+	DebugOpRecord(recordFile);
+	fprintf(recordFile, "textSize: %g\n", labelFont.getSize());
+	fprintf(recordFile, "gridIntervals: %d\n", gridIntervals);
+	fprintf(recordFile, "valuePrecision: %d\n", valuePrecision);
+
+	RECORD_FEATURE(Arrows);
+	RECORD_FEATURE(Bounds);
+	RECORD_FEATURE(Centers);
+	RECORD_FEATURE(Chains);
+	RECORD_FEATURE(Coincidences);
+	RECORD_FEATURE(Controls);
+	RECORD_FEATURE(Edges);
+	RECORD_FEATURE(Grid);
+	RECORD_FEATURE(Hex);
+	RECORD_FEATURE(IDs);
+	RECORD_FEATURE(Intersections);
+	RECORD_FEATURE(Left);
+	RECORD_FEATURE(Lines);
+	RECORD_FEATURE(Normals);
+	RECORD_FEATURE(Outputs);
+	RECORD_FEATURE(Paths);
+	RECORD_FEATURE(Points);
+	RECORD_FEATURE(Right);
+	RECORD_FEATURE(SegmentEdges);
+	RECORD_FEATURE(Segments);
+	RECORD_FEATURE(Sums);
+	RECORD_FEATURE(Tangents);
+	RECORD_FEATURE(TemporaryEdges);
+	RECORD_FEATURE(Ts);
+	RECORD_FEATURE(Values);
+	RECORD_FEATURE(Windings);
+	fclose(recordFile);
+}
+
+#undef RECORD_FEATURE
 
 void OpDebugImage::drawDoubleCenter(OpPoint pt, bool add) {
 	add ? DebugOpAddBounds(pt.x, pt.y, pt.x, pt.y) :	// !!! should suppress zoom change
@@ -455,6 +620,11 @@ void precision(int p) {
 }
 
 void redraw() {
+	OpDebugImage::drawDoubleFocus();
+}
+
+void textSize(float s) {
+	labelFont.setSize(s);
 	OpDebugImage::drawDoubleFocus();
 }
 
@@ -1077,7 +1247,8 @@ void OpEdge::drawChain(EdgeLoop edgeLoop) const {
 		} while ((chain = chain->nextEdge) && this != chain);
 		chain = this;
 	}
-	while ((chain = EdgeLoop::link == edgeLoop ? chain->priorEdge : chain->priorSum) && this != chain) {
+	while ((chain = EdgeLoop::link == edgeLoop ? chain->priorEdge : chain->priorSum_impl) 
+			&& this != chain) {
 		OpDebugImage::add(chain);
 	}
 	DRAW_IDS_ON(Edges);

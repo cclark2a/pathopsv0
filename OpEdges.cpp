@@ -243,6 +243,10 @@ FoundIntersections OpEdges::findIntersections() {
 
 // note: sorts from high to low
 static bool compareDistance(const EdgeDistance& s1, const EdgeDistance& s2) {
+	if (s1.edge->priorSum() == s2.edge)
+		return false;
+	if (s2.edge->priorSum() == s1.edge)
+		return true;
 	return s1.distance > s2.distance;
 }
 
@@ -300,8 +304,8 @@ FoundIntercept OpEdges::findRayIntercept(size_t inIndex, Axis axis, OpEdge* edge
 			OpPoint pt = testCurve.ptAtT(cept);
 			distance->emplace_back(test, center - pt.choice(perpendicular), normal, cept);
 			// !!! doubtful that this short cut is right since test is not guaranteed to be sorted wrt edge
-			if (distance->back().distance > 0 && test->sum.isSet())
-				return FoundIntercept::set;
+//			if (distance->back().distance > 0 && test->sum.isSet())
+//				return FoundIntercept::set;
 		}
 		return FoundIntercept::yes;
 	tryADifferentCenter:
@@ -367,6 +371,7 @@ ChainFail OpEdges::setSumChain(size_t inIndex, Axis axis) {
 			break;
 	}
 	std::vector<EdgeDistance> distance;
+//	OpDebugBreak(edge, 52, true);
 	FoundIntercept foundIntercept = findRayIntercept(inIndex, axis, edge, center, normal,
 			edgeCenterT, &distance);
 	if (FoundIntercept::fail == foundIntercept)
@@ -380,11 +385,12 @@ ChainFail OpEdges::setSumChain(size_t inIndex, Axis axis) {
 	while (last->edge != edge) {
 		EdgeDistance* next = last + 1;
 		OpEdge* nextEdge = next->edge;
-		if (!nextEdge->priorSum) {
+		if (Axis::neither == nextEdge->sumAxis) {
+//			OpDebugBreak(nextEdge, 38, true);
 			nextEdge->setPriorSum(last->edge);
-			nextEdge->priorAxis = axis;
-			nextEdge->priorNormal = normal;  // for horizontal axis, y value of intersecting ray
-			nextEdge->priorT = last->t;
+			nextEdge->sumAxis = axis;
+			nextEdge->sumNormal = last->normal;  // for horizontal axis, y value of intersecting ray
+			nextEdge->sumT = last->t;
 		}
 		last = next;
 	}
@@ -392,17 +398,15 @@ ChainFail OpEdges::setSumChain(size_t inIndex, Axis axis) {
 	   and, that right edge's cemter overlaps this edge, and the right edge did not
 	   see this edge, then mark both as loopy */
 	assert(last->edge == edge);
-	edge->sumChainSet = true;
 	edge->sumAxis = axis;
 	edge->sumNormal = last->normal;
 	edge->sumT = last->t;
 	while (++last <= &distance.back()) {
-		assert(last->distance <= 0);
 		OpEdge* right = last->edge;
 		assert(right != edge);
-		if (!right->sumChainSet)
-			continue;
-		if (right->sumAxis != axis)
+//		OpDebugBreak(edge, 418, 428 == right->id);
+		assert(last->distance <= 0 || right->priorSum() == edge);
+		if (axis != right->sumAxis)
 			continue;
 		float oneEnd = edge->start.pt.choice(axis);
 		float otherEnd = edge->end.pt.choice(axis);
@@ -412,12 +416,10 @@ ChainFail OpEdges::setSumChain(size_t inIndex, Axis axis) {
 			continue;
 		if (right->containsSum(edge))
 			continue;
-		if (edge->priorSum != right->priorSum)
+		if (edge->priorSum() != right->priorSum())
 			continue;
-		right->priorSum = edge;
-		right->priorAxis = axis;
-		right->priorNormal = normal;
-		right->priorT = edge->sumT;
+		right->setPriorSum(edge);
+		right->sumNormal = edge->sumNormal;
 	}
 	return ChainFail::none;
 }
@@ -429,10 +431,12 @@ FoundWindings OpEdges::setWindings(OpContours* contours) {
 		std::vector<OpEdge*>& edges = Axis::horizontal == axis ? inX : inY;
 		for (size_t index = 0; index < edges.size(); ++index) {
 			OpEdge* edge = edges[index];
-			if (edge->sum.isSet())
+			if (Axis::neither != edge->sumAxis)
 				continue;
 			if (!edge->winding.visible())	// may not be visible in vertical pass
 				continue;
+			if (Axis::vertical == axis)
+				OpDebugOut("");
 			if (EdgeFail::horizontal == edge->fail && Axis::vertical == axis)
 				edge->fail = EdgeFail::none;
 			ChainFail chainFail = setSumChain(index, axis);
@@ -468,15 +472,15 @@ FoundWindings OpEdges::setWindings(OpContours* contours) {
 			if (FoundIntercept::overflow == loopyResult)
 				return FoundWindings::fail;
 			std::sort(loopyDistances.begin(), loopyDistances.end(), compareDistance);	// sorts from high to low
-			OpEdge* loopStart = loopEnd->priorSum;
+			OpEdge* loopStart = loopEnd->priorSum();
 			if (loopyDistances.size() > 1) {
 				EdgeDistance& distance = loopyDistances[loopyDistances.size() - 2];
 				if (loopEnd != distance.edge)
-					loopEnd->priorSum = distance.edge;	// will swap with actual loop start later
+					loopEnd->setPriorSum(distance.edge);	// will swap with actual loop start later
 				else
-					loopEnd->priorSum = nullptr;
+					loopEnd->setPriorSum(nullptr);
 			} else
-				loopEnd->priorSum = nullptr;
+				loopEnd->setPriorSum(nullptr);
 			OpEdge* loopMember = loopEnd;
 			OpEdge* loopTravel = loopStart;
 			do {
@@ -485,7 +489,7 @@ FoundWindings OpEdges::setWindings(OpContours* contours) {
 				if (loopStart != loopMember)
 					loopMember->loopStart = loopStart;
 				loopMember = loopTravel;
-				loopTravel = loopTravel->priorSum;
+				loopTravel = loopTravel->priorSum();
 			} while (loopEnd != loopMember);
 		}
 		for (size_t index = 0; index < edges.size(); ++index) {
@@ -497,9 +501,11 @@ FoundWindings OpEdges::setWindings(OpContours* contours) {
 			if (edge->sum.isSet())
 				continue;
 			if (!edge->isSumLoop) {
-				OpEdge* prior = edge->priorSum;
-				if (prior && prior->isSumLoop && prior->loopStart && !prior->inSumLoop(edge))
-					edge->priorSum = prior->loopStart;
+				OpEdge* prior = edge->priorSum();
+				if (prior && prior->isSumLoop && prior->loopStart && !prior->inSumLoop(edge)) {
+					OpDebugBreak(edge, 52, 39 == prior->id);
+					edge->setPriorSum(prior->loopStart);
+				}
 			}
 			OP_DEBUG_CODE(int debugWindingLimiter = 0);
 			ResolveWinding resolve = edge->findWinding(axis  OP_DEBUG_PARAMS(&debugWindingLimiter));

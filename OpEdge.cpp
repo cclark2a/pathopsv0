@@ -164,21 +164,22 @@ CalcFail OpEdge::calcWinding(Axis axis) {
 	int prevLeft = 0;
 	int prevRight = 0;
 	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
-	if (priorSum && (EdgeFail::none == priorSum->fail || EdgeFail::priorDistance == priorSum->fail)) {
-		assert(priorSum->sum.left() != OpMax);
-		assert(priorSum->sum.right() != OpMax);
+	if (priorSum_impl && (EdgeFail::none == priorSum_impl->fail || 
+			EdgeFail::priorDistance == priorSum_impl->fail)) {
+		assert(priorSum_impl->sum.left() != OpMax);
+		assert(priorSum_impl->sum.right() != OpMax);
 		// have winding of previous edge
-		prevLeft = priorSum->sum.left();
-		prevRight = priorSum->sum.right();
-		const OpCurve& curve = priorSum->setCurve();
-		assert(priorT);	// should have been initialized to some value off end of curve
+		prevLeft = priorSum_impl->sum.left();
+		prevRight = priorSum_impl->sum.right();
+		const OpCurve& curve = priorSum_impl->setCurve();
+		assert(priorSum_impl->sumT);	// should have been initialized to some value off end of curve
 		bool overflow;
-		float tNdotR = curve.normal(priorT).normalize(&overflow).dot(-ray);
+		float tNdotR = curve.normal(priorSum_impl->sumT).normalize(&overflow).dot(-ray);
 		if (overflow)
 			return CalcFail::overflow;
 		if (tNdotR > 0) {
-			prevLeft -= priorSum->winding.left();
-			prevRight -= priorSum->winding.right();
+			prevLeft -= priorSum_impl->winding.left();
+			prevRight -= priorSum_impl->winding.right();
 		}
 	}
 	// look at direction of edge relative to ray and figure winding/oppWinding contribution
@@ -224,7 +225,7 @@ bool OpEdge::containsChain(const OpEdge* edge, EdgeLoop loopType) const {
 		if (edge == chain)
 			return true;
 		seen.push_back(chain);
-		chain = EdgeLoop::link == loopType ? chain->nextEdge : chain->priorSum;
+		chain = EdgeLoop::link == loopType ? chain->nextEdge : chain->priorSum_impl;
 		if (!chain)
 			break;
 		auto seenIter = std::find(seen.begin(), seen.end(), chain);
@@ -240,9 +241,9 @@ bool OpEdge::containsChain(const OpEdge* edge, EdgeLoop loopType) const {
 ResolveWinding OpEdge::findWinding(Axis axis  OP_DEBUG_PARAMS(int* debugWindingLimiter)) {
 	assert(++(*debugWindingLimiter) < 100);
 	assert(!sum.isSet());	// second pass or uninitialized
-	if (priorSum) {
-		if (!priorSum->sum.isSet()) {
-			ResolveWinding priorWinding = priorSum->findWinding(axis
+	if (priorSum_impl) {
+		if (!priorSum_impl->sum.isSet()) {
+			ResolveWinding priorWinding = priorSum_impl->findWinding(axis
 					OP_DEBUG_PARAMS(debugWindingLimiter));
 			if (ResolveWinding::resolved != priorWinding)
 				return priorWinding;
@@ -275,7 +276,7 @@ bool OpEdge::inSumLoop(const OpEdge* match) {
 	assert(isSumLoop);
 	OpEdge* loopy = this;
 	OP_DEBUG_CODE(OpEdge* last = this);
-	while ((loopy = loopy->priorSum) != this) {
+	while ((loopy = loopy->priorSum_impl) != this) {
 		if (!loopy) {
 			assert(last->loopStart);
 			break;
@@ -661,7 +662,10 @@ void OpEdge::setPriorEdge(OpEdge* edge) {
 // setter to make adding breakpoints easier
 // !!! if release doesn't inline, restructure more cleverly...
 void OpEdge::setPriorSum(OpEdge* edge) {
-	priorSum = edge;
+	assert(edge);
+//	OpDebugBreak(this, 54, 414 == edge->id);
+//	OpDebugBreak(this, 59, 414 == edge->id);
+	priorSum_impl = edge;
 }
 
 const OpCurve& OpEdge::setVertical() {

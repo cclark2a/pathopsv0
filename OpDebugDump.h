@@ -5,6 +5,7 @@
 
 #include <vector>
 
+struct EdgeDistance;
 struct OpContour;
 struct OpEdge;
 struct OpIntersection;
@@ -16,6 +17,7 @@ struct OpRect;
 struct OpSegment;
 struct OpTightBounds;
 
+extern void dump(const std::vector<EdgeDistance>& );
 extern void dump(const std::vector<OpEdge>& );  // to dump edge list built from intersections
 extern void dump(const std::vector<OpEdge*>& ); // to dump assemble linkups
 extern void dump(const std::vector<const OpEdge*>& ); // to dump debug image edges

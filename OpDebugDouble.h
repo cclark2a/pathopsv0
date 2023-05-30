@@ -3,7 +3,7 @@
 
 #include <vector>
 
-enum class Axis : uint8_t ;
+enum class Axis : int8_t ;
 struct OpEdge;
 class SkPath;
 struct OpCubic;
@@ -51,6 +51,7 @@ bool DebugOpHasT();
 void DebugOpOffsetCenter(double dx, double dy);
 void DebugOpOffsetZoom(double dz);
 void DebugOpPtToPt(OpPoint src, OpPoint dst);
+void DebugOpRecord(FILE* recordFile);
 void DebugOpResetFocus();
 void DebugOpSetBounds(double, double, double, double);
 void DebugOpSetCenter(double x, double y);
