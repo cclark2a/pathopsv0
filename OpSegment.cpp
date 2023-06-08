@@ -82,24 +82,51 @@ void OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
     }
 }
 
-OpIntersection* OpSegment::addIntersection(const OpPtT& ptT  OP_DEBUG_PARAMS(IntersectMaker maker)) {
-    auto sect = contour->addIntersection(ptT, this, SelfIntersect::none, 0  OP_DEBUG_PARAMS(maker));
+OpIntersection* OpSegment::addIntersection(const OpPtT& ptT  
+        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason,
+        const OpIntersection* master, const OpEdge* debugEdge, const OpEdge* debugOpp)) {
+    auto sect = contour->addIntersection(ptT, this, SelfIntersect::none, 0  
+            OP_DEBUG_PARAMS(maker, line, file, reason, master, debugEdge, debugOpp));
+    intersections.push_back(sect);
+    resortIntersections = true;
+    return sect;
+}
+
+OpIntersection* OpSegment::addIntersection(const OpPtT& ptT  
+        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
+        const OpSegment* dSeg, const OpSegment* oSeg)) {
+    auto sect = contour->addIntersection(ptT, this, SelfIntersect::none, 0  
+            OP_DEBUG_PARAMS(maker, line, file, reason, dSeg, oSeg));
     intersections.push_back(sect);
     resortIntersections = true;
     return sect;
 }
 
 OpIntersection* OpSegment::addIntersection(const OpPtT& ptT, int coinID  
-        OP_DEBUG_PARAMS(IntersectMaker maker)) {
-    auto sect = contour->addIntersection(ptT, this, SelfIntersect::none, coinID  OP_DEBUG_PARAMS(maker));
+        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
+        const OpIntersection* master, const OpEdge* debugEdge, const OpEdge* debugOpp)) {
+    auto sect = contour->addIntersection(ptT, this, SelfIntersect::none, coinID  
+            OP_DEBUG_PARAMS(maker, line, file, reason, master, debugEdge, debugOpp));
+    intersections.push_back(sect);
+    resortIntersections = true;
+    return sect;
+}
+
+OpIntersection* OpSegment::addIntersection(const OpPtT& ptT, int coinID  
+        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
+        const OpSegment* dSeg, const OpSegment* oSeg)) {
+    auto sect = contour->addIntersection(ptT, this, SelfIntersect::none, coinID  
+            OP_DEBUG_PARAMS(maker, line, file, reason, dSeg, oSeg));
     intersections.push_back(sect);
     resortIntersections = true;
     return sect;
 }
 
 OpIntersection* OpSegment::addIntersection(const OpPtT& ptT, SelfIntersect self  
-        OP_DEBUG_PARAMS(IntersectMaker maker)) {
-    auto sect = contour->addIntersection(ptT, this, self, 0  OP_DEBUG_PARAMS(maker));
+        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
+        const OpIntersection* master, const OpEdge* debugEdge, const OpEdge* debugOpp)) {
+    auto sect = contour->addIntersection(ptT, this, self, 0  
+            OP_DEBUG_PARAMS(maker, line, file, reason, master, debugEdge, debugOpp));
     intersections.push_back(sect);
     resortIntersections = true;
     return sect;
@@ -143,9 +170,11 @@ void OpSegment::complete() {
 // #endif
 }
 
-bool OpSegment::containsSect(float t, const OpSegment* opp) const {
-    for (const OpIntersection* sect : intersections) {
-        if (sect->ptT.t == t && sect->opp->segment == opp)
+bool OpSegment::containsIntersection(OpPtT ptT, const OpSegment* opp) const {
+    for (auto sect : intersections) {
+        if (sect->opp->segment != opp)
+            continue;
+        if (sect->ptT.t == ptT.t || sect->ptT.pt == ptT.pt)
             return true;
     }
     return false;
@@ -162,42 +191,54 @@ OpEdge* OpSegment::findActive(OpPtT ptT, EdgeMatch match) const {
     return nullptr;
 }
 
+struct ExtremaT {
+    ExtremaT(OpPtT pt_T  OP_DEBUG_PARAMS(SectReason r)) 
+        : ptT(pt_T)
+        OP_DEBUG_PARAMS(reason(r)) {
+    }
+
+    OpPtT ptT;
+    OP_DEBUG_CODE(SectReason reason;)
+};
+
 void OpSegment::findExtrema() {
     if (pointType == c.type)
         return;
     if (!winding.left() && !winding.right())
         return;
     assert(0 == edges.size());  // otherwise, call repair afterwards
-    std::vector<OpPtT> selfPtTs;
+    std::vector<ExtremaT> selfPtTs;
     for (size_t index = 0; index < ARRAY_COUNT(tightBounds.xExtrema); ++index) {
         if (OpMath::IsNaN(tightBounds.xExtrema[index].t))
             break;
-        selfPtTs.push_back(tightBounds.xExtrema[index]);
+        selfPtTs.emplace_back(tightBounds.xExtrema[index]  OP_DEBUG_PARAMS(SectReason::xExtrema));
     }
     for (size_t index = 0; index < ARRAY_COUNT(tightBounds.yExtrema); ++index) {
         if (OpMath::IsNaN(tightBounds.yExtrema[index].t))
             break;
-        selfPtTs.push_back(tightBounds.yExtrema[index]);
+        selfPtTs.emplace_back(tightBounds.yExtrema[index]  OP_DEBUG_PARAMS(SectReason::yExtrema));
     }
     for (size_t index = 0; index < ARRAY_COUNT(tightBounds.inflections); ++index) {
         if (OpMath::IsNaN(tightBounds.inflections[index].t))
             break;
-        selfPtTs.push_back(tightBounds.inflections[index]);
+        selfPtTs.emplace_back(tightBounds.inflections[index]  OP_DEBUG_PARAMS(SectReason::inflection));
     }
-    std::sort(selfPtTs.begin(), selfPtTs.end(), [](const OpPtT& s1, const OpPtT& s2) {
-        return s1.t < s2.t; });
+    std::sort(selfPtTs.begin(), selfPtTs.end(), [](const ExtremaT& s1, const ExtremaT& s2) {
+        return s1.ptT.t < s2.ptT.t; });
     if (selfPtTs.size()) {
         OpPtT last(OpPoint(), 0);
-        for (auto& ptT : selfPtTs) {
-            if (ptT.t == last.t)
+        for (auto& self : selfPtTs) {
+            if (self.ptT.t == last.t)
                 continue;
             // don't recompute end pts:  tightbounds and segment have t=0,xtrema,1,..
-            if (1 == ptT.t)
+            if (1 == self.ptT.t)
                 break;
             // add self intersections (e.g., the inflection point) since the opposite is this segment
             // can't point opp at self yet, since intersections will grow later
-            addIntersection(ptT, SelfIntersect::self  OP_DEBUG_PARAMS(IntersectMaker::makeEdges));
-            last = ptT;
+            addIntersection(self.ptT, SelfIntersect::self  
+                    OP_DEBUG_PARAMS(SECT_MAKER(findExtrema), self.reason, nullptr, nullptr,
+                    nullptr));
+            last = self.ptT;
         }
     }
     sortIntersections();
@@ -223,19 +264,18 @@ float OpSegment::findPtT(float start, float end, OpPoint opp) const {
 
 FoundPtT OpSegment::findPtT(float start, float end, OpPoint opp, float* result) const {
     if (OpType::lineType != c.type) {
-        rootCellar hRoots, vRoots;
-        int hRootCount = c.axisRayHit(Axis::horizontal, opp.y, hRoots, start, end);
-        int vRootCount = c.axisRayHit(Axis::vertical, opp.x, vRoots, start, end);
-        if (1 < hRootCount || 1 < vRootCount)
+        OpRoots hRoots = c.axisRayHit(Axis::horizontal, opp.y, start, end);
+        OpRoots vRoots = c.axisRayHit(Axis::vertical, opp.x, start, end);
+        if (1 < hRoots.count || 1 < vRoots.count)
             return FoundPtT::multiple;
-        if (0 == hRootCount && 0 == vRootCount)
+        if (0 == hRoots.count && 0 == vRoots.count)
             *result = OpNaN;
-        else if (0 == hRootCount)
-            *result = vRoots[0];
-        else if (0 == vRootCount)
-            *result = hRoots[0];
+        else if (0 == hRoots.count)
+            *result = vRoots.roots[0];
+        else if (0 == vRoots.count)
+            *result = hRoots.roots[0];
         else
-            *result = (hRoots[0] + vRoots[0]) / 2;
+            *result = (hRoots.roots[0] + vRoots.roots[0]) / 2;
     } else {
         // this won't work for curves with linear control points since t is not necessarily linear
         OpVector lineSize = c.pts[1] - c.pts[0];
@@ -346,6 +386,7 @@ void OpSegment::intersectEdge() {
             edgeIter != edges.end(); edgeIter++) {
         OpPtT start = edgeIter->start;
         OpPtT end = edgeIter->end;
+        OP_DEBUG_CODE(const OpIntersection* debugStartSect = nullptr);
         for ( ; sectIter != intersections.end(); sectIter++) {
             const OpIntersection& sect = **sectIter;
             if (sect.ptT.t == start.t) {   // ok if points don't match 
@@ -355,17 +396,33 @@ void OpSegment::intersectEdge() {
                 if (edgeIter->start == start)
                     merge.push_back(*edgeIter);
                 else
-                    merge.emplace_back(this, start, end  OP_DEBUG_PARAMS(EdgeMaker::intersectEdge1));
+                    merge.emplace_back(this, start, end  
+                            OP_DEBUG_PARAMS(EDGE_MAKER(intersectEdge1), debugStartSect, nullptr));
                 break;
             }
             if (start.pt != sect.ptT.pt) {
-                merge.emplace_back(this, start, sect.ptT  OP_DEBUG_PARAMS(EdgeMaker::intersectEdge2));
+                merge.emplace_back(this, start, sect.ptT  
+                        OP_DEBUG_PARAMS(EDGE_MAKER(intersectEdge2), debugStartSect, &sect));
+                OpDebugBreak(&merge.back(), 402);
+                OpDebugBreak(&merge.back(), 396);
                 start = sect.ptT;
+                OP_DEBUG_CODE(debugStartSect = &sect);
             }
         }
     }
     if (merge.size() > edges.size())
         edges.swap(merge);
+}
+
+void OpSegment::intersectRange(const OpSegment* opp, std::vector<OpIntersection*>& range) {
+    OP_DEBUG_CODE(float last = -1);
+    for (auto sect : intersections) {
+        if (sect->opp->segment == opp) {
+            assert(last < sect->ptT.t);
+            OP_DEBUG_CODE(last = sect->ptT.t);
+            range.push_back(sect);
+        }
+    }
 }
 
 // count and sort extrema; create an edge for each extrema + 1
@@ -380,7 +437,10 @@ void OpSegment::makeEdges() {
         const OpIntersection& sect = *sectPtr;
         if (sect.ptT.t == last->ptT.t)
             continue;
-        edges.emplace_back(this, last->ptT, sect.ptT  OP_DEBUG_PARAMS(EdgeMaker::makeEdges));
+        if (41 == contour->contours->id) OP_DEBUG_BREAK();
+        edges.emplace_back(this, last->ptT, sect.ptT  
+                OP_DEBUG_PARAMS(EDGE_MAKER(makeEdges), last, sectPtr));
+        OpDebugBreak(&edges.back(), 41);
         last = &sect;
     }
 }
@@ -473,7 +533,8 @@ void OpSegment::missingCoincidence() {
                     continue;
                 assert(coinID != testID);
                 // recursively visit intersection lists to see if they have points not on edges
-                test->segment->missingCoincidence((*sectPtr)->ptT, (*lastPtr)->ptT, this, coinsFound, missing);
+                test->segment->missingCoincidence((*sectPtr)->ptT, (*lastPtr)->ptT, this, 
+                        coinsFound, missing);
             }
         }
     } while (++sectPtr != &intersections.back());
@@ -499,9 +560,13 @@ void OpSegment::missingCoincidence() {
         }
         if (!foundOne) {
             OpIntersection* sect = miss.segment->addIntersection(foundPtT,
-                    SelfIntersect::missing  OP_DEBUG_PARAMS(IntersectMaker::missingCoincidence1));
+                    SelfIntersect::missing  OP_DEBUG_PARAMS(SECT_MAKER(missingCoincidence),
+                    SectReason::missingCoincidence, &miss.intersection, nullptr, nullptr));
+            // !!! the intersection is already in this segment; why add it again?
+            assert(0); // !!! add explanation of why this is correct
             OpIntersection* opp = miss.intersection.segment->addIntersection(foundPtT,
-                    SelfIntersect::missing  OP_DEBUG_PARAMS(IntersectMaker::missingCoincidence2));
+                    SelfIntersect::missing  OP_DEBUG_PARAMS(SECT_MAKER(missingCoincidenceOpp),
+                    SectReason::missingCoincidence, &miss.intersection, nullptr, nullptr));
             sect->pair(opp);
             miss.segment->resortIntersections = true;
         }
@@ -588,9 +653,11 @@ bool OpSegment::resolveCoincidence() {
         }
         if (eWindingChanges.size() && oWindingChanges.size()) {
             bool changed = oSegment->splitAtWinding(eWindingChanges, firstOpp, direction
-                    OP_DEBUG_PARAMS(*oppLastPtr, oppositeMatch));
+                    OP_DEBUG_PARAMS(*oppLastPtr, oppositeMatch, firstEdge,
+                    SectReason::resolveCoin_windingChange));
             changed |= splitAtWinding(oWindingChanges, firstEdge, 1
-                    OP_DEBUG_PARAMS(*lastPtr, EdgeMatch::end));
+                    OP_DEBUG_PARAMS(*lastPtr, EdgeMatch::end, firstOpp,
+                    SectReason::resolveCoin_oWindingChange));
             if (changed)
                 return false;  // call again if either edge list has been rewritten
         }
@@ -714,7 +781,8 @@ void OpSegment::sortIntersections() {
 // if there are winding changes, find the split t for the opposite edge
 bool OpSegment::splitAtWinding(const std::vector<const OpEdge*>& windingChanges,
         const OpEdge* first, int direction
-        OP_DEBUG_PARAMS(const OpIntersection* last, EdgeMatch oppositeMatch)) {
+        OP_DEBUG_PARAMS(const OpIntersection* last, EdgeMatch oppositeMatch,
+        const OpEdge* firstEdge, SectReason reason)) {
     std::vector<OpPtT> splitTs;
     const OpEdge* const * eChange = &windingChanges.front();
     const OpEdge* split = first;
@@ -730,7 +798,8 @@ bool OpSegment::splitAtWinding(const std::vector<const OpEdge*>& windingChanges,
                     OpPtT changePtT{ changePt, splitT };
                     splitTs.push_back(changePtT);
                     addIntersection(changePtT, SelfIntersect::split
-                            OP_DEBUG_PARAMS(IntersectMaker::splitAtWinding));
+                            OP_DEBUG_PARAMS(SECT_MAKER(splitAtWinding), reason, last,
+                            firstEdge, nullptr));
                 }
             }
             if (++eChange > &windingChanges.back())
@@ -755,12 +824,14 @@ done:
             if (lastPtT == edge->start)
                 splits.push_back(*edge);
             else
-                splits.emplace_back(edge, lastPtT, edge->end  ODP(EdgeMaker::resolveCoin1));
+                splits.emplace_back(edge, lastPtT, edge->end  
+                        OP_DEBUG_PARAMS(EDGE_MAKER(resolveCoin1), nullptr, nullptr));
             ++edge;
             lastPtT = edge->start;
         } else {
             assert(splitPtT <= &splitTs.back());
-            splits.emplace_back(edge, lastPtT, *splitPtT  ODP(EdgeMaker::resolveCoin2));
+            splits.emplace_back(edge, lastPtT, *splitPtT  
+                    OP_DEBUG_PARAMS(EDGE_MAKER(resolveCoin2), nullptr, nullptr));
             lastPtT = *splitPtT++;
         }
     } while (edge <= &edges.back());
@@ -856,11 +927,11 @@ OpSegments::OpSegments(OpContours& contours) {
     std::sort(inX.begin(), inX.end(), compareXBox);
 }
 
-void OpSegments::AddIntersection(OpSegment* opp, OpSegment* seg) {
+void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
     OpRoots septs;
     assert(lineType == seg->c.type);
     std::array<OpPoint, 2> edgePts { seg->c.pts[0], seg->c.pts[1] };
-    septs.count = opp->c.rayIntersect(edgePts, septs.roots);
+    septs = opp->c.rayIntersect(edgePts);
     bool reversed;
     MatchEnds common = seg->matchEnds(opp, &reversed);
     if (!septs.count && MatchEnds::none == common)
@@ -880,7 +951,6 @@ void OpSegments::AddIntersection(OpSegment* opp, OpSegment* seg) {
         septs.addEnd(reversed ? 0 : 1);
     if (septs.count > 1)
         std::sort(&septs.roots[0], &septs.roots[septs.count]);
-//    int foundCount = 0;
     for (unsigned index = 0; index < septs.count; ++index) {
         OpPtT oppPtT { opp->c.ptAtT(septs.get(index)), septs.get(index) };
         float edgeT = seg->findPtT(0, 1, oppPtT.pt);
@@ -890,46 +960,14 @@ void OpSegments::AddIntersection(OpSegment* opp, OpSegment* seg) {
         opp->tightBounds.pin(&oppPtT.pt);
         seg->tightBounds.pin(&oppPtT.pt);
         OpPtT edgePtT { oppPtT.pt, edgeT };
-        OpIntersection* sect = seg->addIntersection(edgePtT  OP_DEBUG_PARAMS(IntersectMaker::addIntersection3));
-        OpIntersection* oSect = opp->addIntersection(oppPtT  OP_DEBUG_PARAMS(IntersectMaker::addIntersection4));
+        OpIntersection* sect = seg->addIntersection(edgePtT  
+                OP_DEBUG_PARAMS(SECT_MAKER(segmentLineCurve), SectReason::lineCurve,
+                seg, opp));
+        OpIntersection* oSect = opp->addIntersection(oppPtT  
+                OP_DEBUG_PARAMS(SECT_MAKER(segmentLineCurveOpp), SectReason::lineCurve,
+                seg, opp));
         sect->pair(oSect);
-//        ++foundCount;
     }
-#if 0
-    // if foundCount > 1, check each future edge pair to see if they are sortable
-    for (int index = 0; index < foundCount - 1; ++index) {
-        // create a pair of edges and see if one is in front of the other in x or y
-        OpIntersection** oSectPtrB = &opp->intersections.back() - index;
-        OpIntersection** oSectPtrA = oSectPtrB - 1;
-        OpPtT start = (*oSectPtrA)->ptT;
-        OpPtT end = (*oSectPtrB)->ptT;
-        if (start.t > end.t)
-            std::swap(start, end);
-        if (!opp->validEdge(start.t, end.t))
-            continue;
-        OpEdge oEdge(opp, start, end  OP_DEBUG_PARAMS(EdgeMaker::addTest));
-        OpIntersection** sSectPtrB = &seg->intersections.back() - index;
-        OpIntersection** sSectPtrA = sSectPtrB - 1;
-        OpEdge sEdge(seg, (*sSectPtrA)->ptT, (*sSectPtrB)->ptT  OP_DEBUG_PARAMS(EdgeMaker::addTest));
-        OpEdges edges(&sEdge, &oEdge);
-        FoundWindings foundWindings = edges.setWindings();
-        if (FoundWindings::fail == foundWindings)
-            return IntersectResult::fail;
-        // if the intersection did not catastrophically fail, the edges are sortable, or coincident
-        // this was: (edge fail names have changed)
-//        if (sEdge.sum.visible() || EdgeFail::distance == sEdge.fail 
-//                || oEdge.sum.visible() || EdgeFail::distance == oEdge.fail)
-        // if this is right, add back with a comment why
-        if (sEdge.sum.visible() || oEdge.sum.visible())
-            continue;
-        // if neither edge is in front of the other, they aren't sortable
-        (*oSectPtrA)->unsortable = true;
-        (*oSectPtrB)->unsortable = true;
-        (*sSectPtrA)->unsortable = true;
-        (*sSectPtrB)->unsortable = true;
-    }
-    return foundCount ? IntersectResult::yes : IntersectResult::no;
-#endif
 }
 
 void OpSegments::findCoincidences() {
@@ -996,10 +1034,10 @@ FoundIntersections OpSegments::findIntersections() {
                 continue;
             // for line-curve intersection we can directly intersect
             if (lineType == seg->c.type) {
-                AddIntersection(opp, seg);
+                AddLineCurveIntersection(opp, seg);
                 continue;
             } else if (lineType == opp->c.type) {
-                AddIntersection(seg, opp);
+                AddLineCurveIntersection(seg, opp);
                 continue;
             }
             // check if segments share endpoints
@@ -1008,24 +1046,30 @@ FoundIntersections OpSegments::findIntersections() {
             OpIntersection* oppSect;
             if ((int) MatchEnds::start & (int) match) {
                 auto sect = seg->addIntersection(OpPtT{ seg->c.pts[0], 0 }
-                        OP_DEBUG_PARAMS(IntersectMaker::findIntersections3));
+                        OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_start), 
+                        SectReason::sharedEndPoint, seg, opp));
                 if (reversed)
                     oppSect = opp->addIntersection(OpPtT{ opp->c.lastPt(), 1 }
-                        OP_DEBUG_PARAMS(IntersectMaker::findIntersections4));
+                        OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_startOppReversed),
+                        SectReason::sharedEndPoint, opp, seg));
                 else
                     oppSect = opp->addIntersection(OpPtT{ opp->c.pts[0], 0 }
-                        OP_DEBUG_PARAMS(IntersectMaker::findIntersections5));
+                        OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_startOpp),
+                        SectReason::sharedEndPoint, opp, seg));
                 sect->pair(oppSect);
             }
             if ((int) MatchEnds::end & (int) match) {
                 auto sect = seg->addIntersection(OpPtT{ seg->c.lastPt(), 1 }
-                        OP_DEBUG_PARAMS(IntersectMaker::findIntersections6));
+                        OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_end),
+                        SectReason::sharedEndPoint, seg, opp));
                 if (reversed)
                     oppSect = opp->addIntersection(OpPtT{ opp->c.pts[0], 0 }
-                        OP_DEBUG_PARAMS(IntersectMaker::findIntersections7));
+                        OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_endOppReversed),
+                        SectReason::sharedEndPoint, opp, seg));
                 else
                     oppSect = opp->addIntersection(OpPtT{ opp->c.lastPt(), 1 }
-                        OP_DEBUG_PARAMS(IntersectMaker::findIntersections8));
+                        OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_endOpp),
+                        SectReason::sharedEndPoint, opp, seg));
                 sect->pair(oppSect);
             }
         }

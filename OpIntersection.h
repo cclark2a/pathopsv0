@@ -3,6 +3,7 @@
 
 #include "OpMath.h"
 
+struct OpEdge;
 struct OpSegment;
 
 enum class SelfIntersect {
@@ -13,53 +14,77 @@ enum class SelfIntersect {
 };
 
 #if OP_DEBUG
+// !!! this seems absurdly long
 enum class IntersectMaker {
-	addCoincidentCheck1,
-	addCoincidentCheck2,
-	addCurveCoincidence1,
-	addCurveCoincidence2,
-	addCurveCoincidence3,
-	addCurveCoincidence4,
-	addIntersection1,
-	addIntersection2,
-	addIntersection3,
-	addIntersection4,
-	addIntersection5,
-	addIntersection6,
-	addIntersection7,
-	addIntersection8,
-	addMatchingEnds1,
-	addMatchingEnds2,
-	addMatchingEnds3,
-	addMatchingEnds4,
-	addMix1,
-	addMix2,
-	addPair1,
-	addPair2,
-	addPair3,
-	addPair4,
-	coincidentCheck1,
-	coincidentCheck2,
-	curveCenter1,
-	curveCenter2,
-	findIntersections1,
-	findIntersections2,
-	findIntersections3,
-	findIntersections4,
-	findIntersections5,
-	findIntersections6,
-	findIntersections7,
-	findIntersections8,
-	makeEdges,
-	missingCoincidence1,
-	missingCoincidence2,
-	opCubicErrorTest1,
-	opCubicErrorTest2,
+	addCoincidentCheck,
+	addCoincidentCheckOpp,
+	addCurveCoinStart,
+	addCurveCoinEnd,
+	addCurveCoinOppStart,
+	addCurveCoinOppEnd,
+	addMatchingEnd,
+	addMatchingEndOpp,
+	addMatchingEndOStart,
+	addMatchingEndOStartOpp,
+	addMatchingStart,
+	addMatchingStartOpp,
+	addMatchingStartOEnd,
+	addMatchingStartOEndOpp,
+	addMix,
+	addMixOpp,
+	addPair_aPtT,
+	addPair_bPtT,
+	addPair_oppStart,
+	addPair_oppEnd,
+	curveCenter,
+	curveCenterOpp,
+	edgeIntersections,
+	edgeIntersectionsOpp,
+	edgeLineCurve,
+	edgeLineCurveOpp,
+	edgeT,
+	edgeTOpp,
+	oppT,
+	oppTOpp,
+	findExtrema,
+	findIntersections_start,
+	findIntersections_startOppReversed,
+	findIntersections_startOpp,
+	findIntersections_end,
+	findIntersections_endOppReversed,
+	findIntersections_endOpp,
+	missingCoincidence,
+	missingCoincidenceOpp,
+	segmentLineCurve,
+	segmentLineCurveOpp,
+	splitAtWinding,
+	// testing only
 	opTestEdgeZero1,
 	opTestEdgeZero2,
 	opTestEdgeZero3,
 	opTestEdgeZero4,
-	splitAtWinding,
+};
+
+#define SECT_MAKER(maker) IntersectMaker::maker, __LINE__, std::string(__FILE__)
+
+enum class SectReason {
+	coinPtsMatch,
+	curveCurveCoincidence,
+	degenerateCenter,
+	divideAndConquer_oneT,
+	divideAndConquer_noEdgeToSplit,
+	divideAndConquer_noOppToSplit,
+	inflection,
+	lineCurve,
+	missingCoincidence,
+	resolveCoin_windingChange,
+	resolveCoin_oWindingChange,
+	sharedEdgePoint,
+	sharedEndPoint,
+	xExtrema,
+	yExtrema,
+	// testing only
+	test,
 };
 #endif
 
@@ -84,7 +109,9 @@ struct OpIntersection {
 	}
 
 	void set(const OpPtT& t, OpSegment* seg, SelfIntersect self_ , int cID
-			OP_DEBUG_PARAMS(IntersectMaker maker)) {
+			OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
+			const OpIntersection* parent, const OpEdge* edge, const OpEdge* oEdge, 
+			const OpSegment* dSeg, const OpSegment* dOpp)) {
 		segment = seg;
 		opp = SelfIntersect::none == self_ ? nullptr : this;
 		ptT = t;
@@ -93,10 +120,18 @@ struct OpIntersection {
 		aliased = false;
 //		unsortable = false;
 #if OP_DEBUG
-		debugMaker = maker;
+		debugSetID();		// debug for now
+		debugParent = parent;
+		debugEdge = edge;
+		debugOpp = oEdge;
+		debugSeg = dSeg;
+		debugSegOpp = dOpp;
 		debugCoincidenceID = 0;
 		debugAliasID = 0;
-		debugSetID();		// debug for now
+		debugMaker = maker;
+		debugMakerLine = line;
+		debugMakerFile = file;
+		debugReason = reason;
 		debugCollapsed = false;
 		debugErased = false;
 #endif
@@ -120,7 +155,8 @@ struct OpIntersection {
 #if OP_DEBUG_DUMP
 	OpIntersection(std::string);
 	void debugCompare(std::string) const;
-	std::string debugDump(bool fromDumpFull) const;
+	std::string debugDump(bool fromDumpFull, bool fromDumpDetail) const;
+	std::string debugDumpDetail(bool fromDumpIntersections) const;
 	std::string debugDumpBrief() const;
 	void dumpPt() const;
 	DEBUG_COMMON_DECLARATIONS();
@@ -134,13 +170,20 @@ struct OpIntersection {
 	int coincidenceID;
 	SelfIntersect self;	// inflection, or extrema -- doesn't reference another intersection
 	bool aliased;     // true if point value was changed to match an intersection with the same t
-//	bool unsortable;  // !!! check the validity of whether this needs to be computed or not
 #if OP_DEBUG
-	IntersectMaker debugMaker;
 	int id;
+	const OpIntersection* debugParent;  // intersection pt was copied from
+	const OpEdge* debugEdge;	// pair of edges that intersected
+	const OpEdge* debugOpp;
+	const OpSegment* debugSeg;	// or: pair of segments that intersected
+	const OpSegment* debugSegOpp;
+	OpPoint debugOriginal;	// point value prior to aliasing
 	int debugCoincidenceID;	// this one does not get erased
 	int debugAliasID;
-	OpPoint debugOriginal;	// point value prior to aliasing
+	IntersectMaker debugMaker;	// where intersection was made
+	int debugMakerLine;
+	std::string debugMakerFile;
+	SectReason debugReason;	// reason intersection was found
 	bool debugCollapsed;
 	mutable bool debugErased;
 #endif

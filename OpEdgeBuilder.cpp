@@ -19,6 +19,8 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
 #if 01 && OP_DEBUG
     clear();
     hideSegmentEdges();
+    showIntersections();
+
     edges.draw();
 //    addEdges();
     OpDebugOut("");

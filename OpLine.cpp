@@ -1,29 +1,17 @@
 #include "OpCurve.h"
 
-int OpLine::axisRawHit(Axis axis, float axisIntercept, rootCellar& cepts) const {
+OpRoots OpLine::axisRawHit(Axis axis, float axisIntercept) const {
     const float* ptr = pts[0].asPtr(axis);
     float min = std::min(ptr[0], ptr[2]);
     float max = std::max(ptr[0], ptr[2]);
     if (min > axisIntercept || axisIntercept > max)
         return 0;
-    if (min == max) {   // coincident line values are computed later
-        OP_DEBUG_CODE(cepts[0] = OpNaN);
-        OP_DEBUG_CODE(cepts[1] = OpNaN);
-        return 2;
-    }
-    cepts[0] = (axisIntercept - ptr[0]) / (ptr[2] - ptr[0]);
-    return 1;
+    // strict equality fails for denomalized numbers
+    // if (min == max) {
+    if (fabsf(min - max) <= OpEpsilon)   // coincident line values are computed later
+        return OpRoots(OpNaN, OpNaN);
+    return OpRoots((axisIntercept - ptr[0]) / (ptr[2] - ptr[0]));
 }
-
-#if 0
-int OpLine::axisRayHit(Axis offset, float axisIntercept, rootCellar& cepts) const {
-    int realRoots = axisRawHit(offset, axisIntercept, cepts);
-    if (2 == realRoots)
-        return 2;
-    int foundRoots = OpMath::KeepValidTs(cepts, realRoots);
-    return foundRoots;
-}
-#endif
 
 float OpLine::interp(XyChoice offset, float t) const {
     const float* ptr = &pts[0].x + +offset;
@@ -34,22 +22,21 @@ float OpLine::interp(XyChoice offset, float t) const {
     return OpMath::Interp(ptr[0], ptr[2], t);
 }
 
-int OpLine::rawIntersect(const std::array<OpPoint, 2> line, rootCellar& cepts) const {
+OpRoots OpLine::rawIntersect(const std::array<OpPoint, 2> line) const {
     if (line[0].x == line[1].x)
-        return axisRawHit(Axis::vertical, line[0].x, cepts);
+        return axisRawHit(Axis::vertical, line[0].x);
     if (line[0].y == line[1].y)
-        return axisRawHit(Axis::horizontal, line[0].y, cepts);
+        return axisRawHit(Axis::horizontal, line[0].y);
     OpLine rotated;
     toVertical(line, rotated);
-    return rotated.axisRawHit(Axis::vertical, 0, cepts);
+    return rotated.axisRawHit(Axis::vertical, 0);
 }
 
-int OpLine::rayIntersect(const std::array<OpPoint, 2> line, rootCellar& cepts) const {
-    int realRoots = rawIntersect(line, cepts);
-    if (2 == realRoots)
+OpRoots OpLine::rayIntersect(const std::array<OpPoint, 2> line) const {
+    OpRoots realRoots = rawIntersect(line);
+    if (2 == realRoots.count)
         return 2;
-    int foundRoots = OpMath::KeepValidTs(cepts, realRoots);
-    return foundRoots;
+    return realRoots.keepValidTs();
 }
 
 OpVector OpLine::normal(float t) const {

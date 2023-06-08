@@ -149,6 +149,8 @@ public:
 		: left_impl(OpMax)
 		, right_impl(OpMax)
 #if OP_DEBUG
+		, debugLeft(0)
+		, debugRight(0)
 		, debugSetter(0)
 		, debugType(WindingType::sum)
 		, debugReason(ZeroReason::none)
@@ -214,7 +216,13 @@ public:
 	}
 
 	// debug parameter tracks the caller that zeroed the edge
-	void zero(ZeroReason r) { 
+	void zero(ZeroReason r) {
+#if OP_DEBUG
+		if (ZeroReason::none == debugReason) {
+			debugLeft = left_impl;
+			debugRight = right_impl;
+		}
+#endif
 		left_impl = 0;
 		right_impl = 0;
 #if OP_DEBUG
@@ -232,6 +240,8 @@ public:
 	int right_impl;
 
 #if OP_DEBUG
+	int debugLeft;	// value prior to zero
+	int debugRight;
 	int debugSetter;
 	WindingType debugType;
 	ZeroReason debugReason;
@@ -247,7 +257,7 @@ public:
 enum class WindZero : uint8_t {
 	noFlip,
 	normal,
-	opp
+	opp,
 };
 
 inline void OpDebugCheckSingleZero(WindZero left, WindZero right) {
@@ -262,47 +272,47 @@ enum class CalcFail {
 
 enum class EdgeLoop {
 	link,
-	sum
+	sum,
 };
 
 enum class EdgeSplit : uint8_t {
 	no,
 	yes,
-	unsplittable
 };
 
 enum class LeadingLoop {
 	in,
-	will
+	will,
 };
 
 enum class ResolveWinding {
 	resolved,
 	loop,
-	fail
+	fail,
 };
 
 enum class WhichLoop {
 	prior,
 	next,
-	undetermined
+	undetermined,
 };
 
 #if OP_DEBUG
 enum class EdgeMaker {
-	addTest,
 	intersectEdge1,
 	intersectEdge2,
 	makeEdges,
-	opTest,
 	resolveCoin1,
 	resolveCoin2,
-	resolveCoin3,
 	split1,
 	split2,
-	split3,
-	split4
+	// tests only
+	addTest,
+	opTest,
 };
+
+#define EDGE_MAKER(maker) EdgeMaker::maker, __LINE__, std::string(__FILE__)
+
 #endif
 
 struct OpEdge {
@@ -338,20 +348,30 @@ private:
 		OP_DEBUG_CODE(debugAliasEndID = 0);
 	}
 public:
-	OpEdge(const OpSegment* s, OpPtT t1, OpPtT t2  OP_DEBUG_PARAMS(EdgeMaker maker))
+	OpEdge(const OpSegment* s, OpPtT t1, OpPtT t2  
+			OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file, const OpIntersection* i1, 
+					const OpIntersection* i2))
 		: OpEdge() {
 		segment = s;
 		start = t1;
 		end = t2;
 #if OP_DEBUG
+		debugStart = i1;
+		debugEnd = i2;
 		debugMaker = maker;
+		debugMakerLine = line;
+		debugMakerFile = file;
 		debugParentID = 0;
 #endif
 		complete();
 	}
 
-	OpEdge(const OpEdge* e, OpPtT newPtT, NewEdge isLeftRight  OP_DEBUG_PARAMS(EdgeMaker maker));
-	OpEdge(const OpEdge* e, const OpPtT& start, const OpPtT& end  OP_DEBUG_PARAMS(EdgeMaker maker));
+	OpEdge(const OpEdge* e, OpPtT newPtT, NewEdge isLeftRight  
+			OP_DEBUG_PARAMS(EdgeMaker , int line, std::string file, const OpIntersection* , 
+			const OpIntersection*));
+	OpEdge(const OpEdge* e, const OpPtT& start, const OpPtT& end  
+			OP_DEBUG_PARAMS(EdgeMaker , int line, std::string file, const OpIntersection* , 
+			const OpIntersection*));
 
 #if OP_DEBUG_IMAGE
 	OpEdge(const OpEdge&) = default;
@@ -480,7 +500,11 @@ public:
 	bool startAliased;
 	bool unsortable;	// sum was not resolvable by ray in either axis (likely edge is very small) 
 #if OP_DEBUG
+	const OpIntersection* debugStart;
+	const OpIntersection* debugEnd;
 	EdgeMaker debugMaker;
+	int debugMakerLine;
+	std::string debugMakerFile;
 	OpPoint debugOriginalStart;
 	OpPoint debugOriginalEnd;
 	int debugParentID;

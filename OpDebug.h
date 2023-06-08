@@ -16,8 +16,6 @@
 #include "OpDebugCompare.h"
 #endif
 
-#define OP_DEBUG_EDGE_INTERSECT 0	// set to analyze intersection crossings
-
 #if !defined(NDEBUG) || OP_RELEASE_TEST
 #include <string>
 
@@ -34,12 +32,11 @@ enum class OpDebugIntersect {
 
 #ifdef NDEBUG
 #define OP_DEBUG_PARAMS(...)
-#define ODP(...)
 #define OP_DEBUG_CODE(x)
 #define OP_DEBUG 0
 #define OP_DEBUG_DUMP 0
 #define OP_DEBUG_IMAGE 0
-#define OpDebugBreak(edge, id, doBreak)
+#define OP_DEBUG_INITIALIZE_TO_SILENCE_WARNING
 #define OpDebugOut(string)
 #define OP_ASSERT(expr)
 
@@ -60,11 +57,11 @@ struct OpDebugIntersectSave {
 #endif
 
 #define OP_DEBUG_PARAMS(...) , __VA_ARGS__
-#define ODP(...) , __VA_ARGS__		// shorthand for overly long lines..
 #define OP_DEBUG_CODE(x) x
 #define OP_DEBUG 1
 #define OP_DEBUG_DUMP 1
 #define OP_DEBUG_IMAGE (PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_SKIA)
+#define OP_DEBUG_INITIALIZE_TO_SILENCE_WARNING = 0
 
 #include <string>
 
@@ -114,8 +111,17 @@ inline std::string OpDebugStr(size_t x) { return std::to_string(x); }
 inline std::string OpDebugStr(float x) { return std::to_string(x); }
 #define STR(x) OpDebugStr(x)
 
-#define OpDebugBreak(opObject, ID, doBreak) \
-		do { if (doBreak && ID == (opObject)->id) OP_DEBUG_BREAK(); } while (false)
+#define OpDebugBreak(opObject, ID) \
+	do { if ((ID) == (opObject)->id) OP_DEBUG_BREAK(); } while (false)
+
+#define OpDebugBreakIf(opObject, ID, doBreak) \
+	do { if ((doBreak) && (ID) == (opObject)->id) OP_DEBUG_BREAK(); } while (false)
+
+#define OpDebugPlayback(opObject, ID) \
+	do { if ((ID) == (opObject)->id) { playback(); OP_DEBUG_BREAK(); } } while (false)
+
+#define OpDebugPlaybackIf(opObject, ID, doBreak) \
+	do { if ((doBreak) && (ID) == (opObject)->id) { playback(); OP_DEBUG_BREAK(); } } while (false)
 
 #endif
 

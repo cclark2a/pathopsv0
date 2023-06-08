@@ -36,23 +36,23 @@ void assertReport(bool test, const char* func, int lineNo, int outI, const char*
 
 void OpMathTest() {
 	// test AddValidTs : not tested against SkDQuad::AddValidTs because of near equal compares
-	rootCellar allGood1 = { 0, .1f, .5f};
-	rootCellar allGood2 = { .7f, .9f, 1 };
-	rootCellar allBad1 = { 0 - OpEpsilon, 1 + OpEpsilon, OpInfinity };
-	rootCellar allBad2 = { -OpInfinity, OpNaN };
-	rootCellar someOfEach1 = { 0, .1f, 1 + OpEpsilon };
-	rootCellar someOfEach2 = { .5f, OpInfinity };
-	int good = OpMath::KeepValidTs(allGood1, 3);
-	ASSERT_I(allGood1.size() == good, good);
-	good = OpMath::KeepValidTs(allGood2, 3);
-	ASSERT_I(allGood2.size() == good, good);
-	int bad = OpMath::KeepValidTs(allBad1, 3);
+	OpRoots allGood1( 0, .1f, .5f );
+	OpRoots allGood2 ( .7f, .9f, 1 );
+	OpRoots allBad1 ( 0 - OpEpsilon, 1 + OpEpsilon, OpInfinity );
+	OpRoots allBad2 ( -OpInfinity, OpNaN );
+	OpRoots someOfEach1 ( 0, .1f, 1 + OpEpsilon );
+	OpRoots someOfEach2 ( .5f, OpInfinity );
+	int good = allGood1.keepValidTs().count;
+	ASSERT_I(3 == good, good);
+	good = allGood2.keepValidTs().count;
+	ASSERT_I(3 == good, good);
+	int bad = allBad1.keepValidTs().count;
 	ASSERT_I(0 == bad, bad);
-	bad = OpMath::KeepValidTs(allBad2, 2);
+	bad = allBad2.keepValidTs().count;
 	ASSERT_I(0 == bad, bad);
-	int mix = OpMath::KeepValidTs(someOfEach1, 3);
+	int mix = someOfEach1.keepValidTs().count;
 	ASSERT_I(2 == mix, mix);
-	mix = OpMath::KeepValidTs(someOfEach2, 2);
+	mix = someOfEach2.keepValidTs().count;
 	ASSERT_I(1 == mix, mix);
 
 	// test Between
@@ -68,25 +68,23 @@ void OpMathTest() {
 
 	// test CubicRootsReal
 	for (unsigned index = 0; index < ARRAY_COUNT(p) - 3; ++index) {
-		rootCellar tVals;
 		double tValsD[2];
 		int sk_result = SkDCubic::RootsReal(p[0], p[1], p[2], p[3], tValsD);
-		int result = OpMath::CubicRootsReal(p[0], p[1], p[2], p[3], tVals);
-		ASSERT(sk_result == result);
-		for (int r = 0; r < result; ++r) {
-			ASSERT(tVals[r] == tValsD[r]);
+		OpRoots tVals = OpMath::CubicRootsReal(p[0], p[1], p[2], p[3]);
+		ASSERT(sk_result == (int) tVals.count);
+		for (unsigned r = 0; r < tVals.count; ++r) {
+			ASSERT(tVals.roots[r] == tValsD[r]);
 		}
 	}
 
 	// test CubicRootsValidT
 	for (unsigned index = 0; index < ARRAY_COUNT(p) - 3; ++index) {
-		rootCellar tVals;
 		double tValsD[2];
 		int sk_result = SkDCubic::RootsValidT(p[0], p[1], p[2], p[3], tValsD);
-		int result = OpMath::CubicRootsValidT(p[0], p[1], p[2], p[3], tVals);
-		ASSERT(sk_result == result);
-		for (int r = 0; r < result; ++r) {
-			ASSERT(tVals[r] == tValsD[r]);
+		OpRoots roots = OpMath::CubicRootsValidT(p[0], p[1], p[2], p[3]);
+		ASSERT(sk_result == (int) roots.count);
+		for (unsigned r = 0; r < roots.count; ++r) {
+			ASSERT(roots.roots[r] == tValsD[r]);
 		}
 	}
 
@@ -105,25 +103,23 @@ void OpMathTest() {
 
 	// test QuadRootsReal
 	for (unsigned index = 0; index < ARRAY_COUNT(p) - 2; ++index) {
-		rootCellar tVals;
 		double tValsD[2];
 		int sk_result = SkDQuad::RootsReal(p[0], p[1], p[2], tValsD);
-		int result = OpMath::QuadRootsReal(p[0], p[1], p[2], tVals);
-		ASSERT(sk_result == result);
-		for (int r = 0; r < result; ++r) {
-			ASSERT(tVals[r] == tValsD[r]);
+		OpRoots roots = OpMath::QuadRootsReal(p[0], p[1], p[2]);
+		ASSERT(sk_result == (int) roots.count);
+		for (unsigned r = 0; r < roots.count; ++r) {
+			ASSERT(roots.roots[r] == tValsD[r]);
 		}
 	}
 
 	// test QuadRootsValidT
 	for (unsigned index = 0; index < ARRAY_COUNT(p); ++index) {
-		rootCellar tVals;
 		double tValsD[2];
 		int sk_result = SkDQuad::RootsValidT(p[0], p[1], p[2], tValsD);
-		int result = OpMath::QuadRootsValidT(p[0], p[1], p[2], tVals);
-		ASSERT(sk_result == result);
-		for (int r = 0; r < result; ++r) {
-			ASSERT(tVals[r] == tValsD[r]);
+		OpRoots roots = OpMath::QuadRootsValidT(p[0], p[1], p[2]);
+		ASSERT(sk_result == (int) roots.count);
+		for (unsigned r = 0; r < roots.count; ++r) {
+			ASSERT(roots.roots[r] == tValsD[r]);
 		}
 	}
 
@@ -396,13 +392,13 @@ void OpLineTest() {
 	// test OpLine axisRayHit
 	const std::array<OpPoint, 2> iLinePts = {{ { 1, 1 }, { 4, 4 } }};
 	OpLine iLine = { iLinePts[0], iLinePts[1] };
-	rootCellar intercepts;
-	int result = iLine.axisRayHit(Axis::vertical, 2.5, intercepts);
-	ASSERT(1 == result);
-	ASSERT(.5 == intercepts[0]);
-	result = iLine.axisRayHit(Axis::horizontal, 2.5, intercepts);
-	ASSERT(1 == result);
-	ASSERT(.5 == intercepts[0]);
+	OpRoots intercepts;
+	intercepts = iLine.axisRayHit(Axis::vertical, 2.5);
+	ASSERT(1 == intercepts.count);
+	ASSERT(.5 == intercepts.roots[0]);
+	intercepts = iLine.axisRayHit(Axis::horizontal, 2.5);
+	ASSERT(1 == intercepts.count);
+	ASSERT(.5 == intercepts.roots[0]);
 
 
 	// test OpLine interp
@@ -418,15 +414,15 @@ void OpLineTest() {
 	OpLine l1 = { &iQPts[1] };
 	const std::array<OpPoint, 2> vert = {{ { 2.5, 2 }, { 2.5, 3 } }};
 	const std::array<OpPoint, 2> horz = {{ { 4, 2.5 }, { 7, 2.5 } }};
-	result = l1.rayIntersect(vert, intercepts);
-	ASSERT(1 == result);
-	ASSERT(.75 == intercepts[0]);
-	result = l1.rayIntersect(horz, intercepts);
-	ASSERT(1 == result);
-	ASSERT(.25 == intercepts[0]);
-	result = l1.rayIntersect(iLinePts, intercepts);
-	ASSERT(1 == result);
-	ASSERT(.5 == intercepts[0]);
+	intercepts = l1.rayIntersect(vert);
+	ASSERT(1 == intercepts.count);
+	ASSERT(.75 == intercepts.roots[0]);
+	intercepts = l1.rayIntersect(horz);
+	ASSERT(1 == intercepts.count);
+	ASSERT(.25 == intercepts.roots[0]);
+	intercepts = l1.rayIntersect(iLinePts);
+	ASSERT(1 == intercepts.count);
+	ASSERT(.5 == intercepts.roots[0]);
 
 	// test OpLine ptAtT
 	OpPoint pt = tLine.ptAtT(0);
@@ -441,15 +437,15 @@ void OpQuadTest() {
 	// test OpQuad axisRayHit
 	const OpPoint q1[] = { { 100, 100 }, { 200, 100 }, { 200, 200 } };
 	OpQuad q = { q1 };
-	rootCellar intercepts;
-	int result = q.axisRayHit(Axis::vertical, 150, intercepts);
-	ASSERT(1 == result);
-	OpPoint pt = q.ptAtT(intercepts[0]);
+	OpRoots intercepts;
+	intercepts = q.axisRayHit(Axis::vertical, 150);
+	ASSERT(1 == intercepts.count);
+	OpPoint pt = q.ptAtT(intercepts.roots[0]);
 	ASSERT(150 == pt.x);
 
-	result = q.axisRayHit(Axis::horizontal, 150, intercepts);
-	ASSERT(1 == result);
-	pt = q.ptAtT(intercepts[0]);
+	intercepts = q.axisRayHit(Axis::horizontal, 150);
+	ASSERT(1 == intercepts.count);
+	pt = q.ptAtT(intercepts.roots[0]);
 	ASSERT(150 == pt.y);
 
 	// test OpQuad coefficients
@@ -459,36 +455,36 @@ void OpQuadTest() {
 	OpPoint qe2[] = { { 1, 1 }, { 2, 2 }, { 3, 1 } };
 	// test OpQuad extrema
 	OpQuad qe = { qe1 };
-	rootCellar extrema;
-	result = qe.extrema(XyChoice::inX, extrema);
-	ASSERT(1 == result);
-	ASSERT(0.5 == extrema[0]);
-	result = qe.extrema(XyChoice::inY, extrema);
-	ASSERT(0 == result);
+	OpRoots extrema;
+	extrema = qe.extrema(XyChoice::inX);
+	ASSERT(1 == extrema.count);
+	ASSERT(0.5 == extrema.roots[0]);
+	extrema = qe.extrema(XyChoice::inY);
+	ASSERT(0 == extrema.count);
 	qe = { qe2 };
-	result = qe.extrema(XyChoice::inX, extrema);
-	ASSERT(0 == result);
-	result = qe.extrema(XyChoice::inY, extrema);
-	ASSERT(1 == result);
-	ASSERT(0.5 == extrema[0]);
+	extrema = qe.extrema(XyChoice::inX);
+	ASSERT(0 == extrema.count);
+	extrema = qe.extrema(XyChoice::inY);
+	ASSERT(1 == extrema.count);
+	ASSERT(0.5 == extrema.roots[0]);
 
 	// test OpQuad rayIntersect
-	rootCellar icepts[3];
+	OpRoots icepts[3];
 	const OpPoint iQPts[] = { { 2, 4 }, { 1, 3 }, { 3, 1 } };
 	OpQuad qi1 = { &iQPts[0] };
 	const std::array<OpPoint,2> vert = {{ { 2.5, 2 }, { 2.5, 3 } }};
 	const std::array<OpPoint, 2> horz = {{ { 4, 2.5 }, { 7, 2.5 } }};
-	result = qi1.rayIntersect(vert, icepts[0]);
-	ASSERT(1 == result);
-	ASSERT(OpMath::Between(0.86f, icepts[0][0], 0.8604f));
-	result = qi1.rayIntersect(horz, icepts[1]);
-	ASSERT(1 == result);
-	ASSERT(OpMath::Between(0.5811f, icepts[1][0], 0.5812f));
+	icepts[0] = qi1.rayIntersect(vert);
+	ASSERT(1 == icepts[0].count);
+	ASSERT(OpMath::Between(0.86f, icepts[0].roots[0], 0.8604f));
+	icepts[1] = qi1.rayIntersect(horz);
+	ASSERT(1 == icepts[1].count);
+	ASSERT(OpMath::Between(0.5811f, icepts[1].roots[0], 0.5812f));
 	const std::array<OpPoint, 2> iLinePts = {{ { 1, 1 }, { 4, 4 } }};
-	result = qi1.rayIntersect(iLinePts, icepts[2]);
-	ASSERT(1 == result);
+	icepts[2] = qi1.rayIntersect(iLinePts);
+	ASSERT(1 == icepts[2].count);
 	// answer is sqrt(2)/2
-	ASSERT(OpMath::Between(0.7071f, icepts[2][0], 0.7072f));
+	ASSERT(OpMath::Between(0.7071f, icepts[2].roots[0], 0.7072f));
 
 	// test OpQuad monotonic
 	ASSERT(!qi1.monotonic(XyChoice::inX));
@@ -518,13 +514,13 @@ void OpQuadTest() {
 
 	// test OpQuad subDivide
 	std::array<OpPoint, 4> qdst;
-	OpPtT icPtT[2] = {{ qi1.ptAtT(icepts[0][0]), icepts[0][0] }, 
-		{ qi1.ptAtT(icepts[1][0]), icepts[1][0] }};
+	OpPtT icPtT[2] = {{ qi1.ptAtT(icepts[0].roots[0]), icepts[0].roots[0] }, 
+		{ qi1.ptAtT(icepts[1].roots[0]), icepts[1].roots[0] }};
 	qi1.subDivide(icPtT[0], icPtT[1], qdst);
-	pt = qi1.ptAtT(icepts[0][0]);
+	pt = qi1.ptAtT(icepts[0].roots[0]);
 	ASSERT(OpMath::Between(-0.000001f, pt.x - qdst[0].x, 0.000001f));
 	ASSERT(OpMath::Between(-0.000001f, pt.y - qdst[0].y, 0.000001f));
-	pt = qi1.ptAtT(icepts[1][0]);
+	pt = qi1.ptAtT(icepts[1].roots[0]);
 	ASSERT(OpMath::Between(-0.000001f, pt.x - qdst[2].x, 0.000001f));
 	ASSERT(OpMath::Between(-0.000001f, pt.y - qdst[2].y, 0.000001f));
 
@@ -541,12 +537,12 @@ void OpQuadTest() {
 
 void OpConicTest( ) {
 	// test OpConic axisRayHit
-	rootCellar intercepts;
+	OpRoots intercepts;
 	const OpPoint q1[] = { { 100, 100 }, { 200, 100 }, { 200, 200 } };
 	OpConic c = { q1, sqrtf(2)/2 };
-	int result = c.axisRayHit(Axis::vertical, 150, intercepts);
-	ASSERT(1 == result);
-	OpPoint pt = c.ptAtT(intercepts[0]);
+	intercepts = c.axisRayHit(Axis::vertical, 150);
+	ASSERT(1 == intercepts.count);
+	OpPoint pt = c.ptAtT(intercepts.roots[0]);
 	ASSERT(OpMath::Between(-0.0001f, pt.x - 150, 0.0001f));
 
 	// test OpConic coefficients
@@ -564,35 +560,35 @@ void OpConicTest( ) {
 	OpPoint qe1[] = { { 1, 1 }, { 2, 2 }, { 1, 3 } };
 //	OpPoint qe2[] = { { 1, 1 }, { 2, 2 }, { 3, 1 } };
 	OpConic ce = { qe1, sqrtf(2)/2 };
-	rootCellar extrema;
-	result = ce.extrema(XyChoice::inX, extrema);
-	ASSERT(1 == result);
-	ASSERT(0.5 == extrema[0]);
-	result = ce.extrema(XyChoice::inY, extrema);
-	ASSERT(0 == result);
+	OpRoots extrema;
+	extrema = ce.extrema(XyChoice::inX);
+	ASSERT(1 == extrema.count);
+	ASSERT(0.5 == extrema.roots[0]);
+	extrema = ce.extrema(XyChoice::inY);
+	ASSERT(0 == extrema.count);
 	ce = { ce2, sqrtf(2) / 2 };
-	result = ce.extrema(XyChoice::inX, extrema);
-	ASSERT(0 == result);
-	result = ce.extrema(XyChoice::inY, extrema);
-	ASSERT(1 == result);
-	ASSERT(0.5 == extrema[0]);
+	extrema = ce.extrema(XyChoice::inX);
+	ASSERT(0 == extrema.count);
+	extrema = ce.extrema(XyChoice::inY);
+	ASSERT(1 == extrema.count);
+	ASSERT(0.5 == extrema.roots[0]);
 
 	// test OpConic rayIntersect
 	const OpPoint iQPts[] = { { 2, 4 }, { 1, 3 }, { 3, 1 } };
 	OpConic ci1 = { &iQPts[0], sqrtf(2) / 2 };
 	const std::array<OpPoint,2> vert = {{ { 2.5, 2 }, { 2.5, 3 } }};
 	const std::array<OpPoint, 2> horz = {{ { 4, 2.5 }, { 7, 2.5 } }};
-	rootCellar icepts[3];
-	result = ci1.rayIntersect(vert, icepts[0]);
-	ASSERT(1 == result);
-	ASSERT(OpMath::Between(0.817f, icepts[0][0], 0.818f));
-	result = ci1.rayIntersect(horz, icepts[1]);
-	ASSERT(1 == result);
-	ASSERT(OpMath::Between(0.5581f, icepts[1][0], 0.5582f));
+	OpRoots icepts[3];
+	icepts[0] = ci1.rayIntersect(vert);
+	ASSERT(1 == icepts[0].count);
+	ASSERT(OpMath::Between(0.817f, icepts[0].roots[0], 0.818f));
+	icepts[1] = ci1.rayIntersect(horz);
+	ASSERT(1 == icepts[1].count);
+	ASSERT(OpMath::Between(0.5581f, icepts[1].roots[0], 0.5582f));
 	const std::array<OpPoint, 2> iLinePts = {{ { 1, 1 }, { 4, 4 } }};
-	result = ci1.rayIntersect(iLinePts, icepts[2]);
-	ASSERT(1 == result);
-	ASSERT(OpMath::Between(0.6589f, icepts[2][0], 0.659f));
+	icepts[2] = ci1.rayIntersect(iLinePts);
+	ASSERT(1 == icepts[2].count);
+	ASSERT(OpMath::Between(0.6589f, icepts[2].roots[0], 0.659f));
 
 	// test OpConic monotonic
 	ASSERT(!ci1.monotonic(XyChoice::inX));
@@ -632,14 +628,14 @@ void OpConicTest( ) {
 
 	// test OpConic subDivide
 	std::array<OpPoint, 4> cdst;
-	OpPtT icPtT[2] = { { ci1.ptAtT(icepts[0][0]), icepts[0][0] },
-		{ ci1.ptAtT(icepts[1][0]), icepts[1][0] } };
+	OpPtT icPtT[2] = { { ci1.ptAtT(icepts[0].roots[0]), icepts[0].roots[0] },
+		{ ci1.ptAtT(icepts[1].roots[0]), icepts[1].roots[0] } };
 	float cW;
 	ci1.subDivide(icPtT[0], icPtT[1], cdst, &cW);
-	pt = ci1.ptAtT(icepts[0][0]);
+	pt = ci1.ptAtT(icepts[0].roots[0]);
 	ASSERT(OpMath::Between(-0.000001f, pt.x - cdst[0].x, 0.000001f));
 	ASSERT(OpMath::Between(-0.000001f, pt.y - cdst[0].y, 0.000001f));
-	pt = ci1.ptAtT(icepts[1][0]);
+	pt = ci1.ptAtT(icepts[1].roots[0]);
 	ASSERT(OpMath::Between(-0.000001f, pt.x - cdst[2].x, 0.000001f));
 	ASSERT(OpMath::Between(-0.000001f, pt.y - cdst[2].y, 0.000001f));
 
@@ -665,15 +661,15 @@ void OpCubicTest() {
 	// test OpCubic axisRayHit
 	const OpPoint c1[] = { { 100, 100 }, {150, 100}, { 200, 150 }, { 200, 200 } };
 	OpCubic c = { c1 };
-	rootCellar intercepts;
-	int result = c.axisRayHit(Axis::vertical, 150, intercepts);
-	ASSERT(1 == result);
-	OpPoint pt = c.ptAtT(intercepts[0]);
+	OpRoots intercepts;
+	intercepts = c.axisRayHit(Axis::vertical, 150);
+	ASSERT(1 == intercepts.count);
+	OpPoint pt = c.ptAtT(intercepts.roots[0]);
 	ASSERT(OpMath::Between(-.0001f, pt.x - 150, .0001f));
 
-	result = c.axisRayHit(Axis::horizontal, 150, intercepts);
-	ASSERT(1 == result);
-	pt = c.ptAtT(intercepts[0]);
+	intercepts = c.axisRayHit(Axis::horizontal, 150);
+	ASSERT(1 == intercepts.count);
+	pt = c.ptAtT(intercepts.roots[0]);
 	ASSERT(OpMath::Between(-.0001f, pt.y - 150, .0001f));
 
 	// test OpCubic coefficients
@@ -683,51 +679,51 @@ void OpCubicTest() {
 	OpPoint ce1[] = { { 1, 1 }, { 2, 2 }, { 2, 3 }, { 1, 4 } };
 	OpPoint ce2[] = { { 1, 1 }, { 2, 2 }, { 3, 2 }, { 4, 1 } };
 	OpCubic ce = { ce1 };
-	rootCellar extrema;
-	result = ce.extrema(XyChoice::inX, extrema);
-	ASSERT(1 == result);
-	ASSERT(0.5 == extrema[0]);
-	result = ce.extrema(XyChoice::inY, extrema);
-	ASSERT(0 == result);
+	OpRoots extrema;
+	extrema = ce.extrema(XyChoice::inX);
+	ASSERT(1 == extrema.count);
+	ASSERT(0.5 == extrema.roots[0]);
+	extrema = ce.extrema(XyChoice::inY);
+	ASSERT(0 == extrema.count);
 	ce = { ce2 };
-	result = ce.extrema(XyChoice::inX, extrema);
-	ASSERT(0 == result);
-	result = ce.extrema(XyChoice::inY, extrema);
-	ASSERT(1 == result);
-	ASSERT(0.5 == extrema[0]);
+	extrema = ce.extrema(XyChoice::inX);
+	ASSERT(0 == extrema.count);
+	extrema = ce.extrema(XyChoice::inY);
+	ASSERT(1 == extrema.count);
+	ASSERT(0.5 == extrema.roots[0]);
 
 	// test OpCubic inflections
 	OpPoint ci1[] = { { 1, 1 }, { 2, 2 }, { 1, 3 }, { 2, 4 } };
 	OpCubic ci = { ci1 };
-	rootCellar inflections;
-	result = ci.inflections(inflections);
-	ASSERT(1 == result);
-	ASSERT(0.5 == inflections[0]);
+	OpRoots inflections;
+	inflections = ci.inflections();
+	ASSERT(1 == inflections.count);
+	ASSERT(0.5 == inflections.roots[0]);
 
 	// test OpCubic interp
 	// !!! tested by subdivide
 
 	// test OpCubic rayIntersect
-	rootCellar icepts[3];
+	OpRoots icepts[3];
 	const OpPoint iCPts[] = { { 2, 4 }, { 1, 3 }, { 1, 2 }, { 3, 1 } };
 	ci = { &iCPts[0] };
 	const std::array<OpPoint, 2> vert = {{ { 2.5, 2 }, { 2.5, 3 } }};
 	const std::array<OpPoint, 2> horz = {{ { 4, 2.5 }, { 7, 2.5 } }};
-	result = ci.rayIntersect(vert, icepts[0]);
-	ASSERT(1 == result);
-	ASSERT(OpMath::Between(0.9084f, icepts[0][0], 0.9085f));
-	pt = ci.ptAtT(icepts[0][0]);
+	icepts[0] = ci.rayIntersect(vert);
+	ASSERT(1 == icepts[0].count);
+	ASSERT(OpMath::Between(0.9084f, icepts[0].roots[0], 0.9085f));
+	pt = ci.ptAtT(icepts[0].roots[0]);
 	ASSERT(OpMath::Between(-.0001f, pt.x - 2.5, .0001f));
-	result = ci.rayIntersect(horz, icepts[1]);
-	ASSERT(1 == result);
-	ASSERT(OpMath::Between(0.5f, icepts[1][0], 0.5001f));
-	pt = ci.ptAtT(icepts[1][0]);
+	icepts[1] = ci.rayIntersect(horz);
+	ASSERT(1 == icepts[1].count);
+	ASSERT(OpMath::Between(0.5f, icepts[1].roots[0], 0.5001f));
+	pt = ci.ptAtT(icepts[1].roots[0]);
 	ASSERT(OpMath::Between(-.0001f, pt.y - 2.5, .0001f));
 	const std::array<OpPoint, 2> iLinePts = {{ { 1, 1 }, { 4, 4 } }};
-	result = ci.rayIntersect(iLinePts, icepts[2]);
-	ASSERT(1 == result);
-	ASSERT(OpMath::Between(0.7320f, icepts[2][0], 0.7321f));
-	pt = ci.ptAtT(icepts[2][0]);
+	icepts[2] = ci.rayIntersect(iLinePts);
+	ASSERT(1 == icepts[2].count);
+	ASSERT(OpMath::Between(0.7320f, icepts[2].roots[0], 0.7321f));
+	pt = ci.ptAtT(icepts[2].roots[0]);
 	ASSERT(OpMath::Between(-.0001f, pt.y - pt.x, .0001f));
 	ASSERT(OpMath::Between(1, pt.y, 4));
 
@@ -764,13 +760,13 @@ void OpCubicTest() {
 
 	// test OpCubic subDivide
 	std::array<OpPoint, 4> cdst;
-	OpPtT icPtT[2] = { { ci.ptAtT(icepts[0][0]), icepts[0][0] },
-		{ ci.ptAtT(icepts[1][0]), icepts[1][0] } };
+	OpPtT icPtT[2] = { { ci.ptAtT(icepts[0].roots[0]), icepts[0].roots[0] },
+		{ ci.ptAtT(icepts[1].roots[0]), icepts[1].roots[0] } };
 	ci.subDivide(icPtT[0], icPtT[1], cdst);
-	pt = ci.ptAtT(icepts[0][0]);
+	pt = ci.ptAtT(icepts[0].roots[0]);
 	ASSERT(OpMath::Between(-0.000001f, pt.x - cdst[0].x, 0.000001f));
 	ASSERT(OpMath::Between(-0.000001f, pt.y - cdst[0].y, 0.000001f));
-	pt = ci.ptAtT(icepts[1][0]);
+	pt = ci.ptAtT(icepts[1].roots[0]);
 	ASSERT(OpMath::Between(-0.000001f, pt.x - cdst[3].x, 0.000001f));
 	ASSERT(OpMath::Between(-0.000001f, pt.y - cdst[3].y, 0.000001f));
 
@@ -869,8 +865,10 @@ void OpTestOpEdgesConcidenceCheck() {
 					OpContour contour(&contours, OpOperand::left);
 					OpSegment seg(ab, lineType, &contour);
 					OpSegment oSeg(cd, lineType, &contour);
-					OpEdge edge(&seg, { ab[0], 0}, { ab[1], 1 }  OP_DEBUG_PARAMS(EdgeMaker::opTest));
-					OpEdge oEdge(&oSeg, { cd[0], 0 }, { cd[1], 1 }  OP_DEBUG_PARAMS(EdgeMaker::opTest));
+					OpEdge edge(&seg, { ab[0], 0}, { ab[1], 1 }  
+					OP_DEBUG_PARAMS(EDGE_MAKER(opTest), nullptr, nullptr));
+					OpEdge oEdge(&oSeg, { cd[0], 0 }, { cd[1], 1 }  
+							OP_DEBUG_PARAMS(EDGE_MAKER(opTest), nullptr, nullptr));
 					OpEdges::CoincidentCheck(oEdge, edge);
 					float _ab[2] = { a, b};
 					float _cd[2] = { c, d};
@@ -994,18 +992,22 @@ void OpTest_EdgeZero() {
 					OpSegment& seg1 = head->segments.front();
 //					opDebugImage.setFocus(seg1.ptBounds);
 					seg1.addIntersection(OpPtT(data1[0][0], 0)
-							OP_DEBUG_PARAMS(IntersectMaker::opTestEdgeZero1));
+							OP_DEBUG_PARAMS(SECT_MAKER(opTestEdgeZero1), SectReason::test,
+							nullptr, nullptr, nullptr));
 					seg1.addIntersection(OpPtT(data1[0][1], 1)
-							OP_DEBUG_PARAMS(IntersectMaker::opTestEdgeZero2));
+							OP_DEBUG_PARAMS(SECT_MAKER(opTestEdgeZero2), SectReason::test,
+							nullptr, nullptr, nullptr));
 					seg1.makeEdges();
 					OpEdge& edge1 = seg1.edges[0];
 					if (!setWinding(edge1, w1))
 						continue;
 					OpSegment& seg2 = *std::next(head->segments.begin());
 					seg2.addIntersection(OpPtT(data2[0][0], 0)
-							OP_DEBUG_PARAMS(IntersectMaker::opTestEdgeZero3));
+							OP_DEBUG_PARAMS(SECT_MAKER(opTestEdgeZero3), SectReason::test,
+							nullptr, nullptr, nullptr));
 					seg2.addIntersection(OpPtT(data2[0][1], 1)
-							OP_DEBUG_PARAMS(IntersectMaker::opTestEdgeZero4));
+							OP_DEBUG_PARAMS(SECT_MAKER(opTestEdgeZero4), SectReason::test,
+							nullptr, nullptr, nullptr));
 					seg2.makeEdges();
 //					opDebugImage.setFocus(seg2.ptBounds);
 					OpEdge& edge2 = seg2.edges[0];
@@ -1136,13 +1138,13 @@ void OpTest(bool terminateEarly) {
 	if (terminateEarly)
 		exit(0);
 #endif
+	run_all_tests();
 	OpTest_WindState();
 //	OpTest_WindZero();
 	OpTest_EdgeZero();
 //	OpPoint pt = testMinMax({ (float) rand(), (float)rand() }, { (float)rand(), (float)rand() });
 //	OpDebugOut(std::to_string(pt.x));
 	OP_DEBUG_CODE(onetest());
-	run_all_tests();
 	OpTestQuadCoin2();
 	OpTestQuadCoin();
 	OpTestQuadQuad();
@@ -1176,11 +1178,10 @@ void OpQuadDraw(SkCanvas* canvas) {
 
 	// draw quadratic
 	OpQuad qi1 = { iQPts };
-	rootCellar intercepts[3];
-	int results[3];
-	results[0] = qi1.rayIntersect(vert, intercepts[0]);
-	results[1] = qi1.rayIntersect(horz, intercepts[1]);
-	results[2] = qi1.rayIntersect(iLinePts, intercepts[2]);
+	OpRoots intercepts[3];
+	intercepts[0] = qi1.rayIntersect(vert);
+	intercepts[1] = qi1.rayIntersect(horz);
+	intercepts[2] = qi1.rayIntersect(iLinePts);
 	SkPath path;
 	path.moveTo(vert[0].x, vert[0].y);
 	path.lineTo(vert[1].x, vert[1].y);
@@ -1195,7 +1196,7 @@ void OpQuadDraw(SkCanvas* canvas) {
 	paint.setAntiAlias(true);
 	paint.setStyle(SkPaint::kStroke_Style);
 	for (int x = 0; x < 3; ++x) {
-		OpPoint pt = qi1.ptAtT(intercepts[x][0]);
+		OpPoint pt = qi1.ptAtT(intercepts[x].roots[0]);
 		canvas->drawCircle(pt.x, pt.y, 0.2f, paint);
 	}
 	for (float fx = 0; fx <= 1; fx += .5) {
@@ -1215,11 +1216,10 @@ void OpConicDraw(SkCanvas* canvas) {
 	const OpPoint iQPts[] = { { 2, 4 }, { 1, 3 }, { 3, 1 } };
 	const std::array<OpPoint, 2> iLinePts = {{ { 1, 1 }, { 4, 4 } }};
 	OpConic ci1 = { &iQPts[0], sqrtf(2) / 2 };
-	rootCellar intercepts[3];
-	int results[3];
-	results[0] = ci1.axisRayHit(Axis::vertical, 2.5, intercepts[0]);
-	results[1] = ci1.rayIntersect(horz, intercepts[1]);
-	results[2] = ci1.rayIntersect(iLinePts, intercepts[2]);
+	OpRoots intercepts[3];
+	intercepts[0] = ci1.axisRayHit(Axis::vertical, 2.5);
+	intercepts[1] = ci1.rayIntersect(horz);
+	intercepts[2] = ci1.rayIntersect(iLinePts);
 	SkPath path;
 	path.moveTo(vert[0].x, vert[0].y);
 	path.lineTo(vert[1].x, vert[1].y);
@@ -1234,8 +1234,8 @@ void OpConicDraw(SkCanvas* canvas) {
 	paint.setAntiAlias(true);
 	paint.setStyle(SkPaint::kStroke_Style);
 	for (int x = 0; x < 3; ++x) {
-		for (int y = 0; y < results[x]; ++y) {
-			OpPoint pt = ci1.ptAtT(intercepts[x][y]);
+		for (unsigned y = 0; y < intercepts[x].count; ++y) {
+			OpPoint pt = ci1.ptAtT(intercepts[x].roots[y]);
 			canvas->drawCircle(pt.x, pt.y, 0.2f, paint);
 		}
 	}
@@ -1256,11 +1256,10 @@ void OpCubicDraw(SkCanvas* canvas) {
 	const std::array<OpPoint, 2> vert = {{ { 2.5, 1 }, { 2.5, 3 } }};
 	const std::array<OpPoint, 2> horz = {{ { 4, 2.5 }, { 1, 2.5 } }};
 	OpCubic ci1 = { iCPts };
-	rootCellar intercepts[3];
-	int results[3];
-	results[0] = ci1.rayIntersect(vert, intercepts[0]);
-	results[1] = ci1.rayIntersect(horz, intercepts[1]);
-	results[2] = ci1.rayIntersect(iLinePts, intercepts[2]);
+	OpRoots intercepts[3];
+	intercepts[0] = ci1.rayIntersect(vert);
+	intercepts[1] = ci1.rayIntersect(horz);
+	intercepts[2] = ci1.rayIntersect(iLinePts);
 	SkPath path;
 	path.moveTo(iCPts[0].x, iCPts[0].y);
 	path.cubicTo(iCPts[1].x, iCPts[1].y, iCPts[2].x, iCPts[2].y,
@@ -1276,7 +1275,7 @@ void OpCubicDraw(SkCanvas* canvas) {
 	paint.setAntiAlias(true);
 	paint.setStyle(SkPaint::kStroke_Style);
 	for (int x = 0; x < 3; ++x) {
-		OpPoint pt = ci1.ptAtT(intercepts[x][0]);
+		OpPoint pt = ci1.ptAtT(intercepts[x].roots[0]);
 		canvas->drawCircle(pt.x, pt.y, 0.2f, paint);
 	}
 	for (float fx = 0; fx <= 1; fx += .5) {

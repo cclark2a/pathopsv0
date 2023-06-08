@@ -23,6 +23,11 @@ enum class DebugColor {
     blue
 };
 
+enum class ClipToBounds {
+    noClip,
+    clip
+};
+
 struct DebugOpPoint {
     DebugOpPoint() 
         : x(OpNaN)
@@ -132,32 +137,69 @@ struct DebugOpRect {
     double bottom;
 };
 
-typedef std::array<double, 5> debugRootCellar;
+struct DebugOpRoots {
+    DebugOpRoots() 
+        : count(0) {
+    }
+
+    DebugOpRoots(float one)
+        : count(1) {
+        roots[0] = one;
+    }
+
+    DebugOpRoots(float one, float two) {
+        count = 1 + (one != two);
+        roots[0] = one;
+        roots[1] = two;
+    }
+
+    DebugOpRoots keepValidTs() {
+        size_t foundRoots = 0;
+        for (int index = 0; index < count; ++index) {
+            double tValue = roots[index];
+            if (tValue != tValue || 0 > tValue || tValue > 1)
+                continue;
+            for (size_t idx2 = 0; idx2 < foundRoots; ++idx2) {
+                if (roots[idx2] == tValue) {
+                    goto notUnique;
+                }
+            }
+            roots[foundRoots++] = tValue;
+        notUnique:
+            ;
+        }
+        count = foundRoots;
+        return *this;
+    }
+
+    int count;
+    std::array<double, 5> roots;
+};
 
 constexpr double PI = 3.1415926535897931;
 
 struct DebugOpMath {
-    static int CubicRootsReal(double A, double B, double C, double D, debugRootCellar& s) {
+    static DebugOpRoots CubicRootsReal(double A, double B, double C, double D) {
         if (0 == A)
-            return QuadRootsReal(B, C, D, s);
+            return QuadRootsReal(B, C, D);
         if (0 == D) {  // 0 is one root
-            int num = QuadRootsReal(A, B, C, s);
-            for (int i = 0; i < num; ++i) {
-                if (0 == s[i])
-                    return num;
+            DebugOpRoots roots = QuadRootsReal(A, B, C);
+            for (int i = 0; i < roots.count; ++i) {
+                if (0 == roots.roots[i])
+                    return roots;
             }
-            s[num++] = 0;
-            return num;
+            roots.roots[roots.count++] = 0;
+            return roots;
         }
         if (0 == A + B + C + D) {  // 1 is one root
-            int num = QuadRootsReal(A, A + B, -D, s);
-            for (int i = 0; i < num; ++i) {
-                if (1 == s[i]) {
-                    return num;
+            DebugOpRoots roots = QuadRootsReal(A, A + B, -D);
+            for (int i = 0; i < roots.count; ++i) {
+                if (1 == roots.roots[i]) {
+                    return roots;
                 }
             }
-            s[num++] = 1;
-            return num;
+            roots.roots[roots.count++] = 1;
+            return roots;
         }
         double invA = 1 / A;
         double a = B * invA;
@@ -171,19 +213,20 @@ struct DebugOpMath {
         double R2MinusQ3 = R2 - Q3;
         double adiv3 = a / 3;
         double r;
-        double* roots = &s[0];
+        DebugOpRoots roots;
+        double* rootPtr = &roots.roots[0];
         if (R2MinusQ3 < 0) {   // we have 3 real roots
             // the divide/root can, due to finite precisions, be slightly outside of -1...1
             double theta = acos(std::max(std::min(1., R / sqrt(Q3)), -1.));
             double neg2RootQ = -2 * sqrt(Q);
             r = neg2RootQ * cos(theta / 3) - adiv3;
-            *roots++ = r;
+            *rootPtr++ = r;
             r = neg2RootQ * cos((theta + 2 * PI) / 3) - adiv3;
-            if (s[0] != r)
-                *roots++ = r;
+            if (roots.roots[0] != r)
+                *rootPtr++ = r;
             r = neg2RootQ * cos((theta - 2 * PI) / 3) - adiv3;
-            if (s[0] != r && (roots - &s[0] == 1 || s[1] != r))
-                *roots++ = r;
+            if (roots.roots[0] != r && (rootPtr - &roots.roots[0] == 1 || roots.roots[1] != r))
+                *rootPtr++ = r;
         } else {  // we have 1 real root
             double sqrtR2MinusQ3 = sqrt(R2MinusQ3);
             // !!! need to rename this 'A' something else; since parameter is also 'A'
@@ -194,21 +237,19 @@ struct DebugOpMath {
             if (A != 0)
                 A += Q / A;
             r = A - adiv3;
-            *roots++ = r;
+            *rootPtr++ = r;
             if (R2 == Q3) {
                 r = -A / 2 - adiv3;
-                if (s[0] != r) {
-                    *roots++ = r;
-                }
+                if (roots.roots[0] != r)
+                    *rootPtr++ = r;
             }
         }
-        return static_cast<int>(roots - &s[0]);
+        roots.count = static_cast<int>(rootPtr - &roots.roots[0]);
+        return roots;
     }
 
-    static int CubicRootsValidT(double A, double B, double C, double D, debugRootCellar& s) {
-        int realRoots = CubicRootsReal(A, B, C, D, s);
-        int foundRoots = KeepValidTs(s, realRoots);
-        return foundRoots;
+    static DebugOpRoots CubicRootsValidT(double A, double B, double C, double D) {
+        return CubicRootsReal(A, B, C, D).keepValidTs();
     }
 
     static double Interp(double A, double B, double t) {
@@ -219,53 +260,31 @@ struct DebugOpMath {
         return A + (B - A) * t;
     }
 
-    static int KeepValidTs(debugRootCellar& s, int realRoots) {
-        size_t foundRoots = 0;
-        for (int index = 0; index < realRoots; ++index) {
-            double tValue = s[index];
-            if (IsNaN(tValue) || 0 > tValue || tValue > 1)
-                continue;
-            for (size_t idx2 = 0; idx2 < foundRoots; ++idx2) {
-                if (s[idx2] == tValue) {
-                    goto notUnique;
-                }
-            }
-            s[foundRoots++] = tValue;
-        notUnique:
-            ;
-        }
-        return foundRoots;
-    }
-
     static bool IsNaN(double x) {
         return !(x == x);
     }
 
-    static int QuadRootsReal(double A, double B, double C, debugRootCellar & s) {
-        if (!A) {
+    static DebugOpRoots QuadRootsReal(double A, double B, double C) {
+        if (0 == A) {
             if (0 == B) {
-                s[0] = 0;
-                return C == 0;
+                if (C == 0)
+                    return DebugOpRoots();
+                return DebugOpRoots(0);
             }
-            s[0] = -C / B;
-            return 1;
+            return DebugOpRoots(-C / B);
         }
         const double p = B / (2 * A);
         const double q = C / A;
         /* normal form: x^2 + px + q = 0 */
         const double p2 = p * p;
         if (p2 < q)
-            return 0;
+            return DebugOpRoots();
         double sqrtl = sqrt(p2 - q);
-        s[0] = sqrtl - p;
-        s[1] = -sqrtl - p;
-        return 1 + (s[0] != s[1]);
+        return DebugOpRoots(sqrtl - p, -sqrtl - p);
     }
 
-    static int QuadRootsValidT(double A, double B, double C, debugRootCellar& s) {
-        int realRoots = QuadRootsReal(A, B, C, s);
-        int foundRoots = KeepValidTs(s, realRoots);
-        return foundRoots;
+    static DebugOpRoots QuadRootsValidT(double A, double B, double C) {
+        return QuadRootsReal(A, B, C).keepValidTs();
     }
 };
 
@@ -285,11 +304,11 @@ struct DebugOpCurve {
     const DebugOpQuad& asQuad() const;
     const DebugOpConic& asConic() const;
     const DebugOpCubic& asCubic() const;
-    int axisRayHit(Axis offset, double axisIntercept, debugRootCellar& cepts) const;
+    DebugOpRoots axisRayHit(Axis offset, double axisIntercept) const;
     void mapTo(OpCurve& ) const;
     int pointCount() const { return static_cast<int>(type) + (type < conicType); }
     DebugOpPoint ptAtT(double t) const;
-    int rayIntersect(const OpRay& , debugRootCellar& cepts) const;
+    DebugOpRoots rayIntersect(const OpRay& ) const;
     void rectCurves(std::vector<DebugOpCurve>& bounded) const;
     void subDivide(double a, double b, DebugOpCurve& dest) const;
     bool tInRect(double t, const DebugOpRect& bounds) const;
@@ -307,10 +326,10 @@ struct DebugOpQuadCoefficients {
 };
 
 struct DebugOpQuad : DebugOpCurve {
-    int axisRayHit(Axis axis, double axisIntercept, debugRootCellar& cepts) const {
+    DebugOpRoots axisRayHit(Axis axis, double axisIntercept) const {
         DebugOpQuadCoefficients coeff = coefficients(axis);
         coeff.c -= axisIntercept;
-        return DebugOpMath::QuadRootsValidT(coeff.a, coeff.b, coeff.c, cepts);
+        return DebugOpMath::QuadRootsValidT(coeff.a, coeff.b, coeff.c);
     }
 
     DebugOpQuadCoefficients coefficients(Axis axis) const {
@@ -344,9 +363,9 @@ struct DebugOpQuad : DebugOpCurve {
 };
 
 struct DebugOpConic : DebugOpCurve {
-    int axisRayHit(Axis offset, double axisIntercept, debugRootCellar& cepts) const {
+    DebugOpRoots axisRayHit(Axis offset, double axisIntercept) const {
         DebugOpQuadCoefficients coeff = coefficients(offset, axisIntercept);
-        return DebugOpMath::QuadRootsValidT(coeff.a, coeff.b, coeff.c - axisIntercept, cepts);
+        return DebugOpMath::QuadRootsValidT(coeff.a, coeff.b, coeff.c - axisIntercept);
     }
 
     DebugOpQuadCoefficients coefficients(Axis axis, double intercept) const {
@@ -406,10 +425,10 @@ struct DebugOpCubicCoefficients {
 };
 
 struct DebugOpCubic : DebugOpCurve {
-    int axisRayHit(Axis offset, double axisIntercept, debugRootCellar& cepts) const {
+    DebugOpRoots axisRayHit(Axis offset, double axisIntercept) const {
         DebugOpCubicCoefficients coeff = coefficients(offset);
         coeff.d -= axisIntercept;
-        return DebugOpMath::CubicRootsValidT(coeff.a, coeff.b, coeff.c, coeff.d, cepts);
+        return DebugOpMath::CubicRootsValidT(coeff.a, coeff.b, coeff.c, coeff.d);
     }
 
     DebugOpCubicCoefficients coefficients(Axis axis) const {
@@ -467,15 +486,11 @@ void OpCubicPtAtT(const OpCubic& c, float f, OpPoint pt) {
     pt.y = (float) dPt.y;
 }
 
-void OpCubicAxisRayHit(const OpCubic& c, Axis offset, float axisIntercept, 
-        std::array<float, 5>& cepts, int& roots) {
+DebugOpRoots OpCubicAxisRayHit(const OpCubic& c, Axis offset, float axisIntercept) {
     DebugOpCubic dCubic;
     for (int value = 0; value < 8; ++value)
         *(&dCubic.pts[0].x + value) = *(&c.pts[0].x + value);
-    debugRootCellar dCepts;
-    roots = dCubic.axisRayHit(offset, axisIntercept, dCepts);
-    for (int index = 0; index < roots; ++index)
-        cepts[index] = (float) dCepts[index];
+    return dCubic.axisRayHit(offset, axisIntercept);
 }
 
 #if OP_DEBUG_IMAGE
@@ -483,26 +498,26 @@ const DebugOpQuad& DebugOpCurve::asQuad() const { return *static_cast<const Debu
 const DebugOpConic& DebugOpCurve::asConic() const { return *static_cast<const DebugOpConic*>(this); }
 const DebugOpCubic& DebugOpCurve::asCubic() const { return *static_cast<const DebugOpCubic*>(this); }
 
-int DebugOpCurve::axisRayHit(Axis axis, double axisIntercept, debugRootCellar& cepts) const {
+DebugOpRoots DebugOpCurve::axisRayHit(Axis axis, double axisIntercept) const {
     switch (type) {
     case pointType: return 0;
     case lineType: {
         double denominator = pts[1].choice(axis) - pts[0].choice(axis);
-        cepts[0] = 0 == denominator ? OpNaN : (axisIntercept - pts[0].choice(axis)) / denominator;
-        return DebugOpMath::KeepValidTs(cepts, 1);
+        DebugOpRoots roots(0 == denominator ? OpNaN : (axisIntercept - pts[0].choice(axis)) / denominator);
+        return roots.keepValidTs();
     }
-    case quadType: return asQuad().axisRayHit(axis, axisIntercept, cepts);
-    case conicType: return asConic().axisRayHit(axis, axisIntercept, cepts);
-    case cubicType: return asCubic().axisRayHit(axis, axisIntercept, cepts);
+    case quadType: return asQuad().axisRayHit(axis, axisIntercept);
+    case conicType: return asConic().axisRayHit(axis, axisIntercept);
+    case cubicType: return asCubic().axisRayHit(axis, axisIntercept);
     default:
         assert(0);
     }
     return 0;
 }
 
-int DebugOpCurve::rayIntersect(const OpRay& ray, debugRootCellar& cepts) const {
+DebugOpRoots DebugOpCurve::rayIntersect(const OpRay& ray) const {
     if (ray.useAxis)
-        return axisRayHit(ray.axis, ray.value, cepts);
+        return axisRayHit(ray.axis, ray.value);
     DebugOpCurve rotated = *this;
     double adj = (double) ray.pts[1].x - ray.pts[0].x;
     double opp = (double) ray.pts[1].y - ray.pts[0].y;
@@ -512,7 +527,7 @@ int DebugOpCurve::rayIntersect(const OpRay& ray, debugRootCellar& cepts) const {
         rotated.pts[n].x = (float) (vdy * adj - vdx * opp);
         rotated.pts[n].y = (float) (vdy * opp + vdx * adj);
     }
-    return rotated.axisRayHit(Axis::vertical, 0, cepts);
+    return rotated.axisRayHit(Axis::vertical, 0);
 }
 
 DebugOpPoint DebugOpCurve::ptAtT(double t) const {
@@ -538,6 +553,22 @@ void DebugOpResetFocus() {
     debugZoom = 0;
     debugCenter = { debugBitmapBounds.x / 2, debugBitmapBounds.y / 2 };
     setBounds.reset();
+}
+
+double DebugOpGetCenterX() {
+    return debugCenter.x;
+}
+
+double DebugOpGetCenterY() {
+    return debugCenter.y;
+}
+
+double DebugOpGetOffsetX() {
+    return debugBitmapBounds.x / 2 + debugMargin;
+}
+
+double DebugOpGetOffsetY() {
+    return debugBitmapBounds.y / 2 + debugMargin;
 }
 
 double DebugOpGetZoomScale() {
@@ -575,33 +606,32 @@ bool DebugOpCurve::tInRect(double t, const DebugOpRect& bounds) const {
 // generate curve scaled from one rect to another
 void DebugOpCurve::rectCurves(std::vector<DebugOpCurve>& bounded) const {
     DebugOpRect bounds = ZoomToRect();
-    debugRootCellar lefts, tops, rights, bottoms;
-    int leftRoots = axisRayHit(Axis::vertical, bounds.left, lefts);
-    int topRoots = axisRayHit(Axis::horizontal, bounds.top, tops);
-    int rightRoots = axisRayHit(Axis::vertical, bounds.right, rights);
-    int bottomRoots = axisRayHit(Axis::horizontal, bounds.bottom, bottoms);
+    DebugOpRoots lefts = axisRayHit(Axis::vertical, bounds.left);
+    DebugOpRoots tops = axisRayHit(Axis::horizontal, bounds.top);
+    DebugOpRoots rights = axisRayHit(Axis::vertical, bounds.right);
+    DebugOpRoots bottoms = axisRayHit(Axis::horizontal, bounds.bottom);
     std::vector<double> cepts;
     if (tInRect(0, bounds))
         cepts.push_back(0);
-    for (int index = 0; index < leftRoots; ++index) {
-        DebugOpPoint pt = ptAtT(lefts[index]);
+    for (int index = 0; index < lefts.count; ++index) {
+        DebugOpPoint pt = ptAtT(lefts.roots[index]);
         if (bounds.top <= pt.y && pt.y <= bounds.bottom)
-            cepts.push_back(lefts[index]);
+            cepts.push_back(lefts.roots[index]);
     }
-    for (int index = 0; index < topRoots; ++index) {
-        DebugOpPoint pt = ptAtT(tops[index]);
+    for (int index = 0; index < tops.count; ++index) {
+        DebugOpPoint pt = ptAtT(tops.roots[index]);
         if (bounds.left < pt.x && pt.x < bounds.right)
-            cepts.push_back(tops[index]);
+            cepts.push_back(tops.roots[index]);
     }
-    for (int index = 0; index < rightRoots; ++index) {
-        DebugOpPoint pt = ptAtT(rights[index]);
+    for (int index = 0; index < rights.count; ++index) {
+        DebugOpPoint pt = ptAtT(rights.roots[index]);
         if (bounds.top <= pt.y && pt.y <= bounds.bottom)
-            cepts.push_back(rights[index]);
+            cepts.push_back(rights.roots[index]);
     }
-    for (int index = 0; index < bottomRoots; ++index) {
-        DebugOpPoint pt = ptAtT(bottoms[index]);
+    for (int index = 0; index < bottoms.count; ++index) {
+        DebugOpPoint pt = ptAtT(bottoms.roots[index]);
         if (bounds.left < pt.x && pt.x < bounds.right)
-            cepts.push_back(bottoms[index]);
+            cepts.push_back(bottoms.roots[index]);
     }
     if (tInRect(1, bounds))
         cepts.push_back(1);
@@ -657,6 +687,7 @@ void DebugOpCurve::subDivide(double a, double b, DebugOpCurve& dest) const {
 std::vector<DebugOpCurve> debugLines;
 std::vector<DebugOpCurve> debugSegments;
 std::vector<DebugOpCurve> debugEdges;
+std::vector<DebugOpCurve> debugFills;
 std::vector<DebugOpCurve> debugInputs;
 std::vector<DebugOpCurve> debugOutputs;
 std::vector<DebugOpCurve> debugPaths;
@@ -684,6 +715,16 @@ void DebugOpDraw(std::vector<DebugOpCurve>& curves, SkColor color = SK_ColorBLAC
         OpDebugImage::addToPath(c, path);
     }
     OpDebugImage::drawDoublePath(path, color);
+}
+
+void DebugOpFill(std::vector<DebugOpCurve>& curves, SkColor color = SK_ColorBLACK) {
+    SkPath path;
+    for (auto& curve : curves) {
+        OpCurve c;
+        curve.mapTo(c);
+        OpDebugImage::addToPath(c, path);
+    }
+    OpDebugImage::drawDoubleFill(path, color);
 }
 
 void DebugOpDraw(const std::vector<OpRay>& lines) {
@@ -754,11 +795,10 @@ void DebugOpBuild(const OpSegment& seg, const OpRay& ray) {
         curve.pts[i] = { seg.c.pts[i].x, seg.c.pts[i].y } ;
     curve.weight = seg.c.weight;
     curve.type = seg.c.type;
-    debugRootCellar cepts;
-    int roots = curve.rayIntersect(ray, cepts);
-    for (int index = 0; index < roots; ++index) {
-        DebugOpPoint pt = curve.ptAtT(cepts[index]);
-        pt.t = cepts[index];
+    DebugOpRoots roots = curve.rayIntersect(ray);
+    for (int index = 0; index < roots.count; ++index) {
+        DebugOpPoint pt = curve.ptAtT(roots.roots[index]);
+        pt.t = roots.roots[index];
         pt.color = DebugColor::black;
         DebugOpBuild(pt);
     }
@@ -797,18 +837,17 @@ void DebugOpBuild(const OpEdge& edge, const OpRay& ray) {
     curve.weight = c.weight;
     curve.type = c.type;
     curve.id = edge.id;
-    debugRootCellar cepts;
-    int roots = curve.rayIntersect(ray, cepts);
-    for (int index = 0; index < roots; ++index) {
-        DebugOpPoint pt = curve.ptAtT(cepts[index]);
-        pt.t = edge.start.t + (edge.end.t - edge.start.t) * cepts[index];
+    DebugOpRoots roots = curve.rayIntersect(ray);
+    for (int index = 0; index < roots.count; ++index) {
+        DebugOpPoint pt = curve.ptAtT(roots.roots[index]);
+        pt.t = edge.start.t + (edge.end.t - edge.start.t) * roots.roots[index];
         pt.color = DebugColor::black;
         DebugOpBuild(pt);
     }
 }
 
-void DebugOpPtToPt(OpPoint src, OpPoint dst) {
-    dst = DebugOpMap(DebugOpPoint(src.x, src.y));
+OpPoint DebugOpPtToPt(OpPoint src) {
+    return DebugOpMap(DebugOpPoint(src.x, src.y));
 }
 
 void DebugOpClearEdges() {
@@ -835,7 +874,7 @@ void DebugOpDraw(const std::vector<const OpEdge*>& edges) {
     DebugOpDraw(debugEdges);
 }
 
-void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs) {
+void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs, ClipToBounds clip) {
     SkPath::RawIter iter(path);
     SkPoint curveStart {0, 0};
     SkPath::Verb verb;
@@ -853,7 +892,10 @@ void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs) {
                 curve.pts[0] = { lastPoint.fX, lastPoint.fY } ; 
                 curve.pts[1] = { curveStart.fX, curveStart.fY } ; 
                 curve.type = OpType::lineType;
-                curve.rectCurves(debugPs);
+                if (ClipToBounds::clip == clip)
+                    curve.rectCurves(debugPs);
+                else
+                    debugPs.emplace_back(curve);
                 hasLastPoint = false;
             }
             curveStart = pts[0];
@@ -863,7 +905,10 @@ void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs) {
             curve.pts[0] = { pts[0].fX, pts[0].fY } ; 
             curve.pts[1] = { pts[1].fX, pts[1].fY } ; 
             curve.type = OpType::lineType;
-            curve.rectCurves(debugPs);
+            if (ClipToBounds::clip == clip)
+                curve.rectCurves(debugPs);
+            else
+                debugPs.emplace_back(curve);
             lastPoint = pts[1];
             hasLastPoint = true;
             break;
@@ -872,7 +917,10 @@ void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs) {
             curve.pts[1] = { pts[1].fX, pts[1].fY } ; 
             curve.pts[2] = { pts[2].fX, pts[2].fY } ; 
             curve.type = OpType::quadType;
-            curve.rectCurves(debugPs);
+            if (ClipToBounds::clip == clip)
+                curve.rectCurves(debugPs);
+            else
+                debugPs.emplace_back(curve);
             lastPoint = pts[2];
             hasLastPoint = true;
             break;
@@ -882,7 +930,10 @@ void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs) {
             curve.pts[2] = { pts[2].fX, pts[2].fY } ; 
             curve.weight = iter.conicWeight();
             curve.type = OpType::conicType;
-            curve.rectCurves(debugPs);
+            if (ClipToBounds::clip == clip)
+                curve.rectCurves(debugPs);
+            else
+                debugPs.emplace_back(curve);
             lastPoint = pts[2];
             hasLastPoint = true;
             break;
@@ -892,7 +943,10 @@ void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs) {
             curve.pts[2] = { pts[2].fX, pts[2].fY } ; 
             curve.pts[3] = { pts[3].fX, pts[3].fY } ; 
             curve.type = OpType::cubicType;
-            curve.rectCurves(debugPs);
+            if (ClipToBounds::clip == clip)
+                curve.rectCurves(debugPs);
+            else
+                debugPs.emplace_back(curve);
             lastPoint = pts[3];
             hasLastPoint = true;
             break;
@@ -906,17 +960,19 @@ void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs) {
         curve.pts[0] = { lastPoint.fX, lastPoint.fY } ; 
         curve.pts[1] = { curveStart.fX, curveStart.fY } ; 
         curve.type = OpType::lineType;
-        curve.rectCurves(debugPs);
+        if (ClipToBounds::clip == clip)
+            curve.rectCurves(debugPs);
+        else
+            debugPs.emplace_back(curve);
     }
 }
 
 void DebugOpBuild(const SkPath& path, const struct OpRay& ray) {
     auto axisSect = [&](const DebugOpCurve& curve) {  // lambda
-        debugRootCellar cepts;
-        int roots = curve.rayIntersect(ray, cepts);
-        for (int index = 0; index < roots; ++index) {
-            DebugOpPoint pt = curve.ptAtT(cepts[index]);
-            pt.t = cepts[index];
+        DebugOpRoots roots = curve.rayIntersect(ray);
+        for (int index = 0; index < roots.count; ++index) {
+            DebugOpPoint pt = curve.ptAtT(roots.roots[index]);
+            pt.t = roots.roots[index];
             pt.color = DebugColor::black;
             DebugOpBuild(pt);
         }
@@ -999,7 +1055,7 @@ void DebugOpDraw(const std::vector<const SkPath*>& paths) {
     debugPaths.clear();
     for (auto& path : paths)
         if (path)
-            DebugOpBuild(*path, debugPaths);
+            DebugOpBuild(*path, debugPaths, ClipToBounds::clip);
     DebugOpDraw(debugPaths, SK_ColorBLUE);
 }
 
@@ -1035,7 +1091,15 @@ void DebugOpClearInputs() {
 
 void DebugOpAdd(const OpInPath& input) {
     if (input.skPath)
-        DebugOpBuild(*input.skPath, debugInputs);
+        DebugOpBuild(*input.skPath, debugInputs, ClipToBounds::clip);
+}
+
+void DebugOpFill(const OpInPath& input, uint32_t color) {
+    if (!input.skPath)
+        return;
+    debugFills.clear();
+    DebugOpBuild(*input.skPath, debugFills, ClipToBounds::noClip);
+    DebugOpFill(debugFills, color);
 }
 
 void DebugOpDrawInputs() {
@@ -1046,7 +1110,7 @@ void DebugOpDraw(const std::vector<OpOutPath>& outputs) {
     debugOutputs.clear();
     for (auto& output : outputs)
         if (output.skPath)
-            DebugOpBuild(*output.skPath, debugOutputs);
+            DebugOpBuild(*output.skPath, debugOutputs, ClipToBounds::clip);
     DebugOpDraw(debugOutputs, SK_ColorBLUE);
 }
 
@@ -1122,16 +1186,54 @@ void DebugOpDrawEdgeID(const OpEdge* edge, std::vector<int>& ids, uint32_t color
     }
 }
 
-void DebugOpDrawIntersectionIDs(const std::vector<const OpIntersection*>& intersections,
-        std::vector<int>& ids) {
-    for (auto sect : intersections) {
-        if (ids.end() != std::find(ids.begin(), ids.end(), sect->id))
-            continue;
-        ids.push_back(sect->id);
-        OpPoint mapped;
-        DebugOpPtToPt(sect->ptT.pt, mapped);
-        (void) OpDebugImage::drawValue(mapped, STR(sect->id));
+void DebugOpDrawEdgeNormal(const OpEdge* edge, std::vector<int>& ids, uint32_t color) {
+    if (ids.end() != std::find(ids.begin(), ids.end(), edge->id))
+        return;
+    ids.push_back(edge->id);
+    std::vector<DebugOpCurve> drawn;
+    DebugOpBuild(*edge, drawn);
+    for (auto& drawnEdge : drawn) {
+        OpCurve curve;
+        drawnEdge.mapTo(curve);
+	    bool overflow;
+	    OpVector norm = curve.normal(.66f).normalize(&overflow) * 15;
+	    if (overflow) {
+		    OpDebugOut("overflow on edge " + STR(edge->id) + "\n");
+		    return;
+	    }
+        OpPoint midTPt = curve.ptAtT(.66f);
+        if (OpDebugImage::drawEdgeNormal(norm, midTPt, edge->id, color))
+            break;
     }
+}
+
+void DebugOpDrawEdgeWinding(const OpEdge* edge, std::vector<int>& ids, uint32_t color) {
+    if (ids.end() != std::find(ids.begin(), ids.end(), edge->id))
+        return;
+    ids.push_back(edge->id);
+    std::vector<DebugOpCurve> drawn;
+    DebugOpBuild(*edge, drawn);
+    for (auto& drawnEdge : drawn) {
+        OpCurve curve;
+        drawnEdge.mapTo(curve);
+	    bool overflow;
+	    OpVector norm = curve.normal(.58f).normalize(&overflow) * 15;
+	    if (overflow) {
+		    OpDebugOut("overflow on edge " + STR(edge->id) + "\n");
+		    return;
+	    }
+        OpPoint midTPt = curve.ptAtT(.58f);
+        if (OpDebugImage::drawEdgeWinding(norm, midTPt, edge, color))
+            break;
+    }
+}
+
+void DebugOpDrawIntersectionID(const OpIntersection* sect, std::vector<int>& ids) {
+    if (ids.end() != std::find(ids.begin(), ids.end(), sect->id))
+        return;
+    ids.push_back(sect->id);
+    OpPoint mapped = DebugOpPtToPt(sect->ptT.pt);
+    (void) OpDebugImage::drawValue(mapped, STR(sect->id));
 }
 
 void DebugOpDrawSegmentID(const OpSegment* segment, std::vector<int>& ids) {

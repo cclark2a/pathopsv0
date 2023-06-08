@@ -54,7 +54,7 @@ struct OpEdges {
 	OpEdges(OpContours& contours, EdgesToSort);
 	OpEdges(OpEdge* sEdge, OpEdge* oEdge);
 	void addEdge(OpEdge* , EdgesToSort );
-	static void AddIntersection(OpEdge& opp, const OpEdge& edge);
+	static void AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge);
 	static void AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped, OpPtT cPtT, OpPtT dPtT,
 			OpSegment* segment, OpSegment* oppSegment, int coinID);
 	static IntersectResult AddPair(XyChoice offset, OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpPtT dPtT,

@@ -198,6 +198,8 @@ void RunTestSet(skiatest::Reporter* reporter, TestDesc tests[], size_t count,
         void (*firstTest)(skiatest::Reporter*, const char* filename),
         void (*skipTest)(skiatest::Reporter*, const char* filename),
         void (*stopTest)(skiatest::Reporter*, const char* filename), bool reverse) {
+    if (firstTest)
+        (*firstTest)(reporter, "first");
     for (size_t i = 0; i < count; ++i)
         (*tests[i].fun)(reporter, tests[i].str);
 }
@@ -9293,12 +9295,8 @@ SkPath path, path2;
 path.setFillType(SkPathFillType::kEvenOdd);
 path.moveTo(SkBits2Float(0xa6800000), SkBits2Float(0x43b0f22d));  // -8.88178e-16f, 353.892f
 path.lineTo(SkBits2Float(0x42fc0000), SkBits2Float(0x4116566d));  // 126, 9.3961f
-path.cubicTo(SkBits2Float(0x42fb439d), SkBits2Float(0x4114bbc7),  // 125.632f, 9.29584f,
-    SkBits2Float(0x42fa3ed7), SkBits2Float(0x411565bd),           // 125.123f, 9.33734f, 
-    SkBits2Float(0x42f934d2), SkBits2Float(0x4116131e));          // 124.603f, 9.37967f
-path.cubicTo(SkBits2Float(0x42f84915), SkBits2Float(0x4116acc3),  // 124.143f, 9.41718f
-    SkBits2Float(0x42f75939), SkBits2Float(0x41174918),           // 123.674f, 9.45535f
-    SkBits2Float(0x42f693f8), SkBits2Float(0x4116566d));          // 123.289f, 9.3961f
+path.cubicTo(SkBits2Float(0x42fb439d), SkBits2Float(0x4114bbc7), SkBits2Float(0x42fa3ed7), SkBits2Float(0x411565bd), SkBits2Float(0x42f934d2), SkBits2Float(0x4116131e));  // 125.632f, 9.29584f, 125.123f, 9.33734f, 124.603f, 9.37967f
+path.cubicTo(SkBits2Float(0x42f84915), SkBits2Float(0x4116acc3), SkBits2Float(0x42f75939), SkBits2Float(0x41174918), SkBits2Float(0x42f693f8), SkBits2Float(0x4116566d));  // 124.143f, 9.41718f, 123.674f, 9.45535f, 123.289f, 9.3961f
 path.lineTo(SkBits2Float(0x42ec3cee), SkBits2Float(0x410127bb));  // 118.119f, 8.0722f
 path.lineTo(SkBits2Float(0x4102c0ec), SkBits2Float(0x42d06d0e));  // 8.1721f, 104.213f
 path.lineTo(SkBits2Float(0xa6000000), SkBits2Float(0x4381a63d));  // -4.44089e-16f, 259.299f
@@ -9309,9 +9307,7 @@ path2.setFillType(SkPathFillType::kEvenOdd);
 path2.moveTo(SkBits2Float(0x4102c0ec), SkBits2Float(0x42d06d0e));  // 8.1721f, 104.213f
 path2.lineTo(SkBits2Float(0xc0ba5a1d), SkBits2Float(0x43b8e831));  // -5.8235f, 369.814f
 path2.lineTo(SkBits2Float(0x42fc0000), SkBits2Float(0x411656d6));  // 126, 9.3962f
-path2.cubicTo(SkBits2Float(0x42fa9cac), SkBits2Float(0x41134fdf),  // 125.306f, 9.207f,
-    SkBits2Float(0x42f837cf), SkBits2Float(0x41185aee),            // 124.109f, 9.5222f,
-    SkBits2Float(0x42f693f8), SkBits2Float(0x411656d6));           // 123.289f, 9.3962f
+path2.cubicTo(SkBits2Float(0x42fa9cac), SkBits2Float(0x41134fdf), SkBits2Float(0x42f837cf), SkBits2Float(0x41185aee), SkBits2Float(0x42f693f8), SkBits2Float(0x411656d6));  // 125.306f, 9.207f, 124.109f, 9.5222f, 123.289f, 9.3962f
 path2.lineTo(SkBits2Float(0x42ec3cee), SkBits2Float(0x410127bb));  // 118.119f, 8.0722f
 path2.lineTo(SkBits2Float(0x4102c0ec), SkBits2Float(0x42d06d0e));  // 8.1721f, 104.213f
 path2.close();
@@ -9319,97 +9315,55 @@ path2.close();
 }
 
 static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
-static void (*firstTest)(skiatest::Reporter* , const char* filename) = nullptr;
+static void (*firstTest)(skiatest::Reporter* , const char* filename) = loops61i;
 static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 
 #define TEST(name) { name, #name }
 
-
-static void calibrateOpDebugImage(skiatest::Reporter* reporter, const char* filename) {
-    SkPath path, pathB;
-    path.setFillType(SkPathFillType::kWinding);
-    path.moveTo(1, 2);
-    path.quadTo(1, 4, 3, 4);
-    path.close();
-    pathB.setFillType(SkPathFillType::kWinding);
-    pathB.moveTo(3, 2);
-    pathB.quadTo(3, 4, 1, 4);
-    pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
-}
-
 static struct TestDesc tests[] = {
-    TEST(loops61i),
-    TEST(cubicOp142),   // horz edge 52 is active at assembly but shouldn't be. Its priorSum is 39, but should be 35/36
-
     TEST(bug8380),
-    TEST(testRect1_u),
-    TEST(testDiff1),
-    TEST(testIntersect1),
-    TEST(testUnion1),
-    TEST(testIntersect2),
-    TEST(testUnion2),
-    TEST(testXor1),
-    TEST(testXor2),
-    TEST(rects1),
-    TEST(rects2),
-    TEST(rects4),
-    TEST(rectOp3x),
-    TEST(rectOp2i),
-    TEST(rectOp1i),
-    TEST(loops44i),
-    TEST(op_1),  // fuzzer, fails with infinity. Could use double in vector length to avoid
     TEST(crbug_526025),
-    TEST(loop17),
-    TEST(bug5240),
-    TEST(loops63i),
-    TEST(rects3),
-    TEST(cubics_d2),
-    TEST(loops62i),
-    TEST(testOp8d),
-    TEST(testOp6d),
-    TEST(testOp2d),
-    TEST(testOp1d),
-    TEST(testOp3d),
-    TEST(testOp1u),
-    TEST(testOp4d),
-    TEST(testOp5d),
-    TEST(testOp7d),
-    TEST(testOp2u),
-    TEST(dean2),
-    TEST(cubics44d),
-    TEST(cubics_d3),
-    TEST(filinmangust14),
-    TEST(loops_i1),
-    TEST(fuzzX_392),
-    TEST(testDiff2),
-    TEST(cubicOp158),
-    TEST(op_4),
     TEST(bug8228),
+    TEST(op_4),
+    TEST(op_1), // fuzzer, fails with infinity. Could use double in vector length to avoid
     TEST(op_2),
     TEST(op_3),
+    TEST(grshapearcs1), // unknown if it produces right answer (skia fails, v0 succeeeds)
+    TEST(filinmangust14),
+    TEST(testRect1_u),
     TEST(halbug),
     TEST(seanbug),
     TEST(android1),
+    TEST(bug5240),
     TEST(circlesOp4),
+    TEST(loop17),
+    TEST(cubicOp158),
+    TEST(loops_i1),
     TEST(loops_i2),
     TEST(loops_i3),
     TEST(loops_i4),
     TEST(loops_i5),
     TEST(loops_i6),
-    TEST(fuzz38),   // fails gracefully: vertical edge is shadowed by near horizontal; near horizontal can't determine winding
-    TEST(cubics45u),
-    TEST(cubics_d),
+    TEST(cubics_d3),
     TEST(cubics_o),
-    TEST(bug8380),
-    TEST(loops47i),
-    TEST(grshapearcs1),  // unknown if it produces right answer (skia fails, v0 succeeeds)
-    TEST(loops58iAsQuads),    // requires CubicPathToQuads (unimplemented)
+    TEST(cubics_d2),
+    TEST(cubics_d),
+    TEST(dean2),
+    TEST(fuzzX_392),
+    TEST(fuzz38),   // fails gracefully: vertical edge is shadowed by near horizontal; near horizontal can't determine winding
+    TEST(cubics44d),
+    TEST(cubics45u),
+    TEST(loops61i),
+    TEST(loops62i),
+    TEST(loops63i),
+    TEST(loops58iAsQuads), // requires CubicPathToQuads (unimplemented)
     TEST(cubics41d),
-    TEST(loops59iasQuads),    // requires CubicPathToQuads (unimplemented)
+    TEST(loops59iasQuads), // requires CubicPathToQuads (unimplemented)
     TEST(loops59i),
+    TEST(loops44i),
     TEST(loops45i),
     TEST(loops46i),
+    TEST(loops47i),
     TEST(loops48i),
     TEST(loops49i),
     TEST(loops50i),
@@ -9422,10 +9376,10 @@ static struct TestDesc tests[] = {
     TEST(loops57i),
     TEST(loops58i),
     TEST(loops33iMod),
-    TEST(loops33iAsQuads),    // requires CubicPathToQuads (unimplemented)
+    TEST(loops33iAsQuads), // requires CubicPathToQuads (unimplemented)
     TEST(loops33i),
     TEST(loops40i),
-    TEST(loops40iAsQuads),    // requires CubicPathToQuads (unimplemented)
+    TEST(loops40iAsQuads), // requires CubicPathToQuads (unimplemented)
     TEST(loops39i),
     TEST(loops38i),
     TEST(loops37i),
@@ -9462,8 +9416,6 @@ static struct TestDesc tests[] = {
     TEST(cubics19d),
     TEST(cubicOp157),
     TEST(cubicOp142),
-
-    // untested / not working
     TEST(loops4i),
     TEST(quadRect1),
     TEST(quadRect2),
@@ -9488,6 +9440,9 @@ static struct TestDesc tests[] = {
     TEST(loop11),
     TEST(loop10),
     TEST(circlesOp3),
+
+    // untested / not working
+
     TEST(loop9),
     TEST(loop8),
     TEST(rects5),
@@ -9527,6 +9482,10 @@ static struct TestDesc tests[] = {
     TEST(cubicOp114),
     TEST(issue2808),
     TEST(cubicOp114asQuad),
+    TEST(rects4),
+    TEST(rects3),
+    TEST(rects2),
+    TEST(rects1),
     TEST(issue2540),
     TEST(issue2504),
     TEST(kari1),
@@ -9597,6 +9556,9 @@ static struct TestDesc tests[] = {
     TEST(cubicOp86i),
     TEST(loopEdge2),
     TEST(loopEdge1),
+    TEST(rectOp3x),
+    TEST(rectOp2i),
+    TEST(rectOp1i),
     TEST(issue1418b),
     TEST(cubicOp85i),
     TEST(issue1418),
@@ -9679,6 +9641,24 @@ static struct TestDesc tests[] = {
     TEST(cubicOp27d),
     TEST(cubicOp26d),
     TEST(cubicOp25i),
+    TEST(testOp8d),
+    TEST(testDiff1),
+    TEST(testIntersect1),
+    TEST(testUnion1),
+    TEST(testXor1),
+    TEST(testDiff2),
+    TEST(testIntersect2),
+    TEST(testUnion2),
+    TEST(testXor2),
+    TEST(testOp1d),
+    TEST(testOp2d),
+    TEST(testOp3d),
+    TEST(testOp1u),
+    TEST(testOp4d),
+    TEST(testOp5d),
+    TEST(testOp6d),
+    TEST(testOp7d),
+    TEST(testOp2u),
 
     TEST(cubicOp24d),
     TEST(cubicOp23d),
@@ -9706,7 +9686,6 @@ static struct TestDesc tests[] = {
     TEST(cubicOp3d),
     TEST(cubicOp2d),
     TEST(cubicOp1d),
-    TEST(calibrateOpDebugImage),
 };
 
 static const size_t testCount = std::size(tests);

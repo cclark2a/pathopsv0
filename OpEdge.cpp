@@ -1,31 +1,43 @@
 #include "OpEdge.h"
 #include "OpContour.h"
 
-OpEdge::OpEdge(const OpEdge* e, OpPtT newPtT, NewEdge isLeftRight  OP_DEBUG_PARAMS(EdgeMaker maker))
+OpEdge::OpEdge(const OpEdge* e, OpPtT newPtT, NewEdge isLeftRight  
+		OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file, const OpIntersection* i1, 
+		const OpIntersection* i2))
 	: OpEdge() {
 	segment = e->segment;
 	start = NewEdge::isLeft == isLeftRight ? e->start : newPtT;
 	end = NewEdge::isLeft == isLeftRight ? newPtT : e->end;
 #if OP_DEBUG
+	debugStart = i1;
+	debugEnd = i2;
 	debugMaker = maker;
+	debugMakerLine = line;
+	debugMakerFile = file;
 	debugParentID = e->id;
 #endif	
 	complete();
 }
 
 // called after winding has been modified by other coincident edges
-OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e  OP_DEBUG_PARAMS(EdgeMaker maker))
+OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e  
+		OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file, const OpIntersection* i1,
+		const OpIntersection* i2))
 	: OpEdge() {
+	id = segment->contour->contours->id++;
 	segment = edge->segment;
 	start = s;
 	end = e;
 #if OP_DEBUG
+	debugStart = i1;
+	debugEnd = i2;
 	debugMaker = maker;
+	debugMakerLine = line;
+	debugMakerFile = file;
 	debugParentID = edge->id;
 #endif	
 	winding = edge->winding;
 	subDivide();	// uses already computed points stored in edge
-	id = segment->contour->contours->id++;
 }
 
 // start here;
@@ -40,22 +52,38 @@ void OpEdge::addMatchingEnds(const OpEdge& opp) const {
 	OpIntersection* segSect = nullptr;
 	OpIntersection* oppSect = nullptr;
 	if (start.pt == opp.start.pt) {
-		segSect = _segment->addIntersection(start  OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds1));
-		oppSect = oppSegment->addIntersection(opp.start  OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds3));
+		segSect = _segment->addIntersection(start  
+				OP_DEBUG_PARAMS(SECT_MAKER(addMatchingStart),
+				SectReason::sharedEdgePoint, nullptr, this, &opp));
+		oppSect = oppSegment->addIntersection(opp.start  
+				OP_DEBUG_PARAMS(SECT_MAKER(addMatchingStartOpp),
+				SectReason::sharedEdgePoint, nullptr, &opp, this));
 	} else if (start.pt == opp.end.pt) {
-		segSect = _segment->addIntersection(start  OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds1));
-		oppSect = oppSegment->addIntersection(opp.end  OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds4));
+		segSect = _segment->addIntersection(start  
+				OP_DEBUG_PARAMS(SECT_MAKER(addMatchingStartOEnd),
+				SectReason::sharedEdgePoint, nullptr, this, &opp));
+		oppSect = oppSegment->addIntersection(opp.end  
+				OP_DEBUG_PARAMS(SECT_MAKER(addMatchingStartOEndOpp),
+				SectReason::sharedEdgePoint, nullptr, &opp, this));
 	}
 	if (segSect) {
 		segSect->pair(oppSect);
 		segSect = nullptr;
 	}
 	if (end.pt == opp.start.pt) {
-		segSect = _segment->addIntersection(end  OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds2));
-		oppSect = oppSegment->addIntersection(opp.start  OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds3));
+		segSect = _segment->addIntersection(end  
+				OP_DEBUG_PARAMS(SECT_MAKER(addMatchingEndOStart),
+				SectReason::sharedEdgePoint, nullptr, this, &opp));
+		oppSect = oppSegment->addIntersection(opp.start  
+				OP_DEBUG_PARAMS(SECT_MAKER(addMatchingEndOStartOpp),
+				SectReason::sharedEdgePoint, nullptr, &opp, this));
 	} else if (end.pt == opp.end.pt) {
-		segSect = _segment->addIntersection(end  OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds2));
-		oppSect = oppSegment->addIntersection(opp.end   OP_DEBUG_PARAMS(IntersectMaker::addMatchingEnds4));
+		segSect = _segment->addIntersection(end  
+				OP_DEBUG_PARAMS(SECT_MAKER(addMatchingEnd),
+				SectReason::sharedEdgePoint, nullptr, this, &opp));
+		oppSect = oppSegment->addIntersection(opp.end   
+				OP_DEBUG_PARAMS(SECT_MAKER(addMatchingEndOpp),
+				SectReason::sharedEdgePoint, nullptr, &opp, this));
 	}
 	if (segSect)
 		segSect->pair(oppSect);
@@ -484,6 +512,7 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups) {
 		}
 	}
 	assert(closest); // !!! if found is not empty, but no edge has the right sum, choose one anyway?
+	assert(closest->lastEdge);
 	if (AllowReversal::yes == closestReverse)
 		closest->setLinkDirection(closestEnd);
 	OpEdge* clearClosest = closest;
@@ -497,6 +526,9 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups) {
 	lastEdge->nextLink = EdgeLink::single;
 	lastEdge = closest->lastEdge;
 	closest->lastEdge = nullptr;
+ 	OpDebugPlayback(this, 411);
+	showNormals();
+	assert(lastEdge);
 	if (lastEdge->isClosed(this) || lastEdge->segment->contour->contours->closeGap(lastEdge, this))
 		return lastEdge->validLoop();
 	if (!lastEdge->nextEdge)
@@ -662,9 +694,6 @@ void OpEdge::setPriorEdge(OpEdge* edge) {
 // setter to make adding breakpoints easier
 // !!! if release doesn't inline, restructure more cleverly...
 void OpEdge::setPriorSum(OpEdge* edge) {
-	assert(edge);
-//	OpDebugBreak(this, 54, 414 == edge->id);
-//	OpDebugBreak(this, 59, 414 == edge->id);
 	priorSum_impl = edge;
 }
 
@@ -695,6 +724,7 @@ void OpEdge::setWinding(OpVector ray) {
 // use already computed points stored in edge
 void OpEdge::subDivide() {
 	std::array<OpPoint, 4> pts;
+	OpDebugBreak(this, 41);
 	segment->c.subDivide(start, end, pts, &weight);
 	setFromPoints(pts);
 	setPointBounds();

@@ -18,6 +18,7 @@ struct OpPointBounds;
 struct OpPtT;
 struct OpRay;
 struct OpSegment;
+struct OpVector;
 enum class Axis : int8_t;
 typedef const OpPointBounds* ConstOpPointBoundsPtr;
 typedef const OpPoint* ConstOpPointPtr;
@@ -27,7 +28,6 @@ constexpr int bitmapWH = 1000;
 // it should not be necessary to call these implementation functions directly
 struct OpDebugImage {
 	static void add(const OpEdge* );
-	static void add(const OpIntersection* );
 	static void add(const OpSegment* );
 	static void add(Axis axis, float value);
 	static void add(const OpRay& );
@@ -44,10 +44,16 @@ struct OpDebugImage {
 	static void drawDoubleFocus();
 	static void drawDoubleFocus(const OpPointBounds& , bool add);
 	static void drawGrid();
+	static void drawDoubleFill(const class SkPath& path, uint32_t color = 0xFF000000, bool stroke = false);
 	static void drawDoublePath(const class SkPath& path, uint32_t color = 0xFF000000, bool stroke = false);
+	static bool drawEdgeNormal(OpVector norm, OpPoint midTPt, int edgeID, uint32_t color = 0xFF000000);
 	static void drawEdgeNormals(const std::vector<const OpEdge*>& );
 	static void drawEdgeNormals(const std::vector<OpEdge>& );
 	static void drawEdgeNormals();
+	static void drawEdgeTangents(const std::vector<const OpEdge*>& );
+	static void drawEdgeTangents(const std::vector<OpEdge>& );
+	static void drawEdgeTangents();
+	static bool drawEdgeWinding(OpVector norm, OpPoint midTPt, const OpEdge* edge, uint32_t color);
 	static void drawEdgeWindings(const std::vector<const OpEdge*>& );
 	static void drawEdgeWindings(const std::vector<OpEdge>& );
 	static void drawEdgeWindings();
@@ -62,10 +68,7 @@ struct OpDebugImage {
 };
 
 // call these inline or from the immediate window while debugging
-extern void addEdges();
-extern void addIntersections();
 extern void addFocus(int id);
-extern void addSegments();
 extern void center(int id);
 extern void center(float x, float y);
 extern void center(const OpPoint& );
@@ -97,13 +100,13 @@ extern void hide##Thing(); \
 extern void show##Thing(); \
 extern void toggle##Thing()
 
-HIDE_SHOW_DECLARATION(Arrows);
 HIDE_SHOW_DECLARATION(Bounds);
 HIDE_SHOW_DECLARATION(Centers);
 HIDE_SHOW_DECLARATION(Chains);
 HIDE_SHOW_DECLARATION(Coincidences);
 HIDE_SHOW_DECLARATION(Controls);
 HIDE_SHOW_DECLARATION(Edges);
+HIDE_SHOW_DECLARATION(Fill);
 HIDE_SHOW_DECLARATION(Grid);
 HIDE_SHOW_DECLARATION(Hex);
 HIDE_SHOW_DECLARATION(IDs);

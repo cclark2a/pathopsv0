@@ -23,14 +23,38 @@ namespace pentrek {
 template <typename T, size_t N> char (&ArrayCountHelper(T (&array)[N]))[N];
 #define ARRAY_COUNT(array) (sizeof(ArrayCountHelper(array)))
 
+typedef double OpCubicFloatType;
+
 // always assume a maximum of (and reserve space for) five roots
 // lines, cubics, and quads only need 2 but reserving three simplifies things,
 // just as all curves reserve 4 points, even though all but cubics need 2 or 3
 // then add two more in case error in root finding misses roots at zero and one
-typedef std::array<float, 5> rootCellar;
-typedef double OpCubicFloatType;
-
 struct OpRoots {
+    OpRoots() 
+        : count(0) {
+    }
+
+    OpRoots(float one)
+        : count(1) {
+        roots[0] = one;
+    }
+
+    OpRoots(float one, float two) {
+        count = 1 + (one != two);
+        roots[0] = one;
+        roots[1] = two;
+    }
+
+    // testing only
+#if OP_RELEASE_TEST
+    OpRoots(float one, float two, float three) {
+        count = 3;
+        roots[0] = one;
+        roots[1] = two;
+        roots[2] = three;
+    }
+#endif
+
     void add(float root) {
         assert(count < roots.size());
         roots[count++] = root;
@@ -57,6 +81,9 @@ struct OpRoots {
         return roots[index];
     }
 
+    OpRoots keepValidTs(float start = 0, float end = 1);
+    OpRoots keepInteriorTs(float start = 0, float end = 1);
+
     float* last() {
         assert(count > 0);
         return &roots[count - 1];
@@ -73,8 +100,8 @@ struct OpRoots {
     void dumpHex() const;
 #endif
 
-    rootCellar roots;
-    size_t count = 0;
+    std::array<float, 5> roots;
+    size_t count;
 };
 
 constexpr auto OpPI = 3.14159265f;
@@ -514,14 +541,12 @@ struct OpMath {
     }
 
 //    static float CubeRoot(float);
-    static int CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B, OpCubicFloatType C,
-            OpCubicFloatType D, rootCellar& s);
+    static OpRoots CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B, OpCubicFloatType C,
+            OpCubicFloatType D);
 
-    static int CubicRootsValidT(OpCubicFloatType A, OpCubicFloatType B, OpCubicFloatType C,
-            OpCubicFloatType D, rootCellar& s) {
-        int realRoots = CubicRootsReal(A, B, C, D, s);
-        int foundRoots = KeepValidTs(s, realRoots);
-        return foundRoots;
+    static OpRoots CubicRootsValidT(OpCubicFloatType A, OpCubicFloatType B, OpCubicFloatType C,
+            OpCubicFloatType D) {
+        return CubicRootsReal(A, B, C, D).keepValidTs();
     }
 
     static float Interp(float A, float B, float t) {
@@ -546,46 +571,58 @@ struct OpMath {
         return !(x == x);
     }
 
-    static int KeepInteriorTs(rootCellar& s, int realRoots, float start = 0, float end = 1);
-    static int KeepValidTs(rootCellar& s, int realRoots, float start = 0, float end = 1);
-
     static float Pin(float a, float b, float c);
 
     static float PinT(float t) {
         return t < 0 ? 0 : t > 1 ? 1 : t;
     }
 
-    static int QuadRootsReal(float A, float B, float C, rootCellar& s) {
-        if (!A) {
+    static OpRoots QuadRootsReal(float A, float B, float C) {
+        if (0 == A) {
             if (0 == B) {
-                s[0] = 0;
-                return C == 0;
+                if (C == 0)
+                    return OpRoots();
+                return OpRoots(0);
             }
-            s[0] = -C / B;
-            return 1;
+            return OpRoots(-C / B);
         }
         const float p = B / (2 * A);
         const float q = C / A;
         /* normal form: x^2 + px + q = 0 */
         const float p2 = p * p;
         if (p2 < q)
-            return 0;
+            return OpRoots();
         float sqrtl = sqrtf(p2 - q);
-        s[0] = sqrtl - p;
-        s[1] = -sqrtl - p;
-        return 1 + (s[0] != s[1]);
+        return OpRoots(sqrtl - p, -sqrtl - p);
     }
 
-    static int QuadRootsValidT(float A, float B, float C, rootCellar& s) {
-        int realRoots = QuadRootsReal(A, B, C, s);
-        int foundRoots = KeepValidTs(s, realRoots);
-        return foundRoots;
+    static OpRoots QuadRootsValidT(float A, float B, float C) {
+        return QuadRootsReal(A, B, C).keepValidTs();
     }
 
-    static int QuadRootsInteriorT(float A, float B, float C, rootCellar& s) {
-        int realRoots = QuadRootsReal(A, B, C, s);
-        int foundRoots = KeepInteriorTs(s, realRoots);
-        return foundRoots;
+    static OpRoots QuadRootsDouble(float A, float B, float C) {
+        if (0 == A) {
+            if (0 == B) {
+                if (C == 0)
+                    return OpRoots();
+                return OpRoots(0);
+            }
+            return OpRoots(-C / B);
+        }
+        const double p = B / (2 * A);
+        const double q = C / A;
+        /* normal form: x^2 + px + q = 0 */
+        const double p2 = p * p;
+        if (p2 < q)
+            return OpRoots();
+        double sqrtl = sqrt(p2 - q);
+        return OpRoots((float) (sqrtl - p), (float) (-sqrtl - p));
+    }
+
+    // single precision quad root is not enough for some use cases.
+    // example: finding extrema of cubic (3, 0, -2/3, 1) (see loop9)
+    static OpRoots QuadRootsInteriorT(float A, float B, float C) {
+        return QuadRootsDouble(A, B, C).keepInteriorTs();
     }
 
 #if OP_DEBUG

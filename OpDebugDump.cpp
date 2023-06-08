@@ -200,7 +200,7 @@ void OpContours::dumpIntersections() const {
         for (const auto& seg : c.segments) {
             s += "intersect " + seg.debugDump() + "\n";
             for (const auto sect : seg.intersections) {
-                s += "  " + sect->debugDump(true) + "\n";
+                s += "  " + sect->debugDumpDetail(true) + "\n";
             }
         }
     }
@@ -222,6 +222,9 @@ void OpContours::dumpDetail(int ID) const {
     const OpEdge* edge = findEdge(ID);
     if (edge)
         return edge->dumpDetail();
+    const OpIntersection* sect = findIntersection(ID);
+    if (sect)
+        return sect->dumpDetail();
 }
 
 void OpContours::dumpLink(int ID) const {
@@ -377,13 +380,17 @@ const OpEdge* OpContours::findEdge(int ID) const {
     }
     // if edge intersect is active, search there too
     if (OpEdgeIntersect::debugActive) {
-        for (const auto& edge : OpEdgeIntersect::debugActive->edgeParts) {
-            if (ID == edge.id)
-                return &edge;
-        }
-         for (const auto& edge : OpEdgeIntersect::debugActive->oppParts) {
-            if (ID == edge.id)
-                return &edge;
+	    for (auto edgePtrs : { &OpEdgeIntersect::debugActive->edgeCurves,
+			    &OpEdgeIntersect::debugActive->oppCurves,
+			    &OpEdgeIntersect::debugActive->edgeLines,
+			    &OpEdgeIntersect::debugActive->oppLines,
+			    &OpEdgeIntersect::debugActive->edgeResults,
+			    &OpEdgeIntersect::debugActive->oppResults } ) {
+            const auto& edges = *edgePtrs;
+            for (const auto& edge : edges) {
+                if (ID == edge.id)
+                    return &edge;
+            }
         }
    }
     return nullptr;
@@ -636,18 +643,15 @@ struct EdgeMakerName {
 #define EDGE_MAKER_NAME(r) { EdgeMaker::r, #r }
 
 static EdgeMakerName edgeMakerNames[] {
-    EDGE_MAKER_NAME(addTest),
     EDGE_MAKER_NAME(intersectEdge1),
     EDGE_MAKER_NAME(intersectEdge2),
     EDGE_MAKER_NAME(makeEdges),
-    EDGE_MAKER_NAME(opTest),
     EDGE_MAKER_NAME(resolveCoin1),
     EDGE_MAKER_NAME(resolveCoin2),
-    EDGE_MAKER_NAME(resolveCoin3),
     EDGE_MAKER_NAME(split1),
     EDGE_MAKER_NAME(split2),
-    EDGE_MAKER_NAME(split3),
-    EDGE_MAKER_NAME(split4),
+    EDGE_MAKER_NAME(addTest),
+    EDGE_MAKER_NAME(opTest),
 };
 
 std::string debugEdgeDebugMaker(EdgeMaker maker) {
@@ -784,9 +788,9 @@ std::string OpEdge::debugDumpDetail() const {
     if (EdgeFail::none != fail)
         s += "fail:" + debugEdgeFail(fail) + " ";
     s += "windZero:" + debugEdgeWindZero(windZero) + "\n";
-    if (EdgeSplit::no != doSplit) s += "doSplit ";
-    if (EdgeSplit::yes == doSplit) s += "yes ";
-    if (EdgeSplit::unsplittable == doSplit) s+= "unsplittable ";
+    if (EdgeSplit::no != doSplit) s += "doSplit";
+    if (EdgeSplit::yes == doSplit) s += ":yes";
+    if (EdgeSplit::no != doSplit) s += " ";
     if (curveSet) s += "curveSet ";
     if (endAliased) s += "endAliased ";
     if (lineSet) s += "lineSet ";
@@ -797,7 +801,10 @@ std::string OpEdge::debugDumpDetail() const {
     if (active_impl) s += "active ";
     if (startAliased) s += "startAliased ";
     if (unsortable) s += "unsortable ";
+    if (debugStart) s += "debugStart:" + STR(debugStart->id) + " ";
+    if (debugEnd) s += "debugEnd:" + STR(debugEnd->id) + " ";
     s += "debugMaker:" + debugEdgeDebugMaker(debugMaker) + " ";
+    s += debugMakerFile.substr(debugMakerFile.find("Op")) + ":" + STR(debugMakerLine) + " ";
     if (debugParentID) s += "debugParentID:" + STR(debugParentID);
     return s;
 }
@@ -886,7 +893,6 @@ std::string OpEdge::debugDump() const {
         s += "fail:" + debugEdgeFail(fail) + " ";
     if (EdgeSplit::no != doSplit) s += "doSplit ";
     if (EdgeSplit::yes == doSplit) s += "yes ";
-    if (EdgeSplit::unsplittable == doSplit) s+= "unsplittable ";
     if (isLine_impl) s += "isLine ";
     if (isPoint) s += "isPoint ";
     if (unsortable) s += "unsortable ";
@@ -1055,37 +1061,22 @@ void dumpDetail(const std::vector <OpEdge>& edges) {
 
 const OpEdgeIntersect* OpEdgeIntersect::debugActive;
 
-void OpEdgeIntersect::dump() const {
-    if (edgeParts.size()) {
-        int splitCount = 0;
-        for (auto& edge : edgeParts)
-            splitCount += EdgeSplit::yes == edge.doSplit;
-        OpDebugOut("-- edge parts split: " + STR(splitCount) + " --\n");
-        ::dump(edgeParts);
-    }
-    if (oppParts.size()) {
-        int splitCount = 0;
-        for (auto& edge : oppParts)
-            splitCount += EdgeSplit::yes == edge.doSplit;
-        OpDebugOut("-- opp parts split: " + STR(splitCount) + " --\n");
-        ::dump(oppParts);
-    }
-}
-
-void OpEdgeIntersect::dumpDetail() const {
-    if (edgeParts.size()) {
-        int splitCount = 0;
-        for (auto& edge : edgeParts)
-            splitCount += EdgeSplit::yes == edge.doSplit;
-        OpDebugOut("-- edge parts split: " + STR(splitCount) + " --\n");
-        ::dumpDetail(edgeParts);
-    }
-    if (oppParts.size()) {
-        int splitCount = 0;
-        for (auto& edge : oppParts)
-            splitCount += EdgeSplit::yes == edge.doSplit;
-        OpDebugOut("-- opp parts split: " + STR(splitCount) + " --\n");
-        ::dumpDetail(oppParts);
+void OpEdgeIntersect::dump(bool detail) const {
+    std::string names[] = { "edge curves", "opp curves", "edge lines", "opp lines" };
+    int count = 0;
+	for (auto edgesPtrs : { &edgeCurves, &oppCurves, &edgeLines, &oppLines, &edgeResults, &oppResults } ) {
+        const auto& edges = *edgesPtrs;
+        if (edges.size()) {
+            int splitCount = 0;
+            for (auto& edge : edges)
+                splitCount += EdgeSplit::yes == edge.doSplit;
+            OpDebugOut("-- " + names[count]);
+            if (count < 2)
+                OpDebugOut("curves split: " + STR(splitCount));
+            OpDebugOut(" --\n");
+            detail ? ::dump(edges) : ::dumpDetail(edges);
+        }
+        ++count;
     }
 }
 
@@ -1097,52 +1088,81 @@ struct IntersectMakerName {
 #define INTERSECT_MAKER_NAME(r) { IntersectMaker::r, #r }
 
 IntersectMakerName intersectMakerNames[] {
-    INTERSECT_MAKER_NAME(addCoincidentCheck1),
-    INTERSECT_MAKER_NAME(addCoincidentCheck2),
-    INTERSECT_MAKER_NAME(addCurveCoincidence1),
-	INTERSECT_MAKER_NAME(addCurveCoincidence2),
-	INTERSECT_MAKER_NAME(addCurveCoincidence3),
-	INTERSECT_MAKER_NAME(addCurveCoincidence4),
-	INTERSECT_MAKER_NAME(addIntersection1),
-	INTERSECT_MAKER_NAME(addIntersection2),
-	INTERSECT_MAKER_NAME(addIntersection3),
-	INTERSECT_MAKER_NAME(addIntersection4),
-	INTERSECT_MAKER_NAME(addIntersection5),
-	INTERSECT_MAKER_NAME(addIntersection6),
-	INTERSECT_MAKER_NAME(addIntersection7),
-	INTERSECT_MAKER_NAME(addIntersection8),
-	INTERSECT_MAKER_NAME(addMatchingEnds1),
-	INTERSECT_MAKER_NAME(addMatchingEnds2),
-	INTERSECT_MAKER_NAME(addMatchingEnds3),
-	INTERSECT_MAKER_NAME(addMatchingEnds4),
-	INTERSECT_MAKER_NAME(addMix1),
-	INTERSECT_MAKER_NAME(addMix2),
-	INTERSECT_MAKER_NAME(addPair1),
-	INTERSECT_MAKER_NAME(addPair2),
-	INTERSECT_MAKER_NAME(addPair3),
-	INTERSECT_MAKER_NAME(addPair4),
-	INTERSECT_MAKER_NAME(coincidentCheck1),
-	INTERSECT_MAKER_NAME(coincidentCheck2),
-	INTERSECT_MAKER_NAME(curveCenter1),
-	INTERSECT_MAKER_NAME(curveCenter2),
-	INTERSECT_MAKER_NAME(findIntersections1),
-	INTERSECT_MAKER_NAME(findIntersections2),
-	INTERSECT_MAKER_NAME(findIntersections3),
-	INTERSECT_MAKER_NAME(findIntersections4),
-	INTERSECT_MAKER_NAME(findIntersections5),
-	INTERSECT_MAKER_NAME(findIntersections6),
-	INTERSECT_MAKER_NAME(findIntersections7),
-	INTERSECT_MAKER_NAME(findIntersections8),
-	INTERSECT_MAKER_NAME(makeEdges),
-	INTERSECT_MAKER_NAME(missingCoincidence1),
-	INTERSECT_MAKER_NAME(missingCoincidence2),
-	INTERSECT_MAKER_NAME(opCubicErrorTest1),
-	INTERSECT_MAKER_NAME(opCubicErrorTest2),
+	INTERSECT_MAKER_NAME(addCoincidentCheck),
+	INTERSECT_MAKER_NAME(addCoincidentCheckOpp),
+	INTERSECT_MAKER_NAME(addCurveCoinStart),
+	INTERSECT_MAKER_NAME(addCurveCoinEnd),
+	INTERSECT_MAKER_NAME(addCurveCoinOppStart),
+	INTERSECT_MAKER_NAME(addCurveCoinOppEnd),
+	INTERSECT_MAKER_NAME(addMatchingEnd),
+	INTERSECT_MAKER_NAME(addMatchingEndOpp),
+	INTERSECT_MAKER_NAME(addMatchingEndOStart),
+	INTERSECT_MAKER_NAME(addMatchingEndOStartOpp),
+	INTERSECT_MAKER_NAME(addMatchingStart),
+	INTERSECT_MAKER_NAME(addMatchingStartOpp),
+	INTERSECT_MAKER_NAME(addMatchingStartOEnd),
+	INTERSECT_MAKER_NAME(addMatchingStartOEndOpp),
+	INTERSECT_MAKER_NAME(addMix),
+	INTERSECT_MAKER_NAME(addMixOpp),
+	INTERSECT_MAKER_NAME(addPair_aPtT),
+	INTERSECT_MAKER_NAME(addPair_bPtT),
+	INTERSECT_MAKER_NAME(addPair_oppStart),
+	INTERSECT_MAKER_NAME(addPair_oppEnd),
+	INTERSECT_MAKER_NAME(curveCenter),
+	INTERSECT_MAKER_NAME(curveCenterOpp),
+	INTERSECT_MAKER_NAME(edgeIntersections),
+	INTERSECT_MAKER_NAME(edgeIntersectionsOpp),
+	INTERSECT_MAKER_NAME(edgeLineCurve),
+	INTERSECT_MAKER_NAME(edgeLineCurveOpp),
+	INTERSECT_MAKER_NAME(edgeT),
+	INTERSECT_MAKER_NAME(edgeTOpp),
+	INTERSECT_MAKER_NAME(oppT),
+	INTERSECT_MAKER_NAME(oppTOpp),
+	INTERSECT_MAKER_NAME(findExtrema),
+	INTERSECT_MAKER_NAME(findIntersections_start),
+	INTERSECT_MAKER_NAME(findIntersections_startOppReversed),
+	INTERSECT_MAKER_NAME(findIntersections_startOpp),
+	INTERSECT_MAKER_NAME(findIntersections_end),
+	INTERSECT_MAKER_NAME(findIntersections_endOppReversed),
+	INTERSECT_MAKER_NAME(findIntersections_endOpp),
+	INTERSECT_MAKER_NAME(missingCoincidence),
+	INTERSECT_MAKER_NAME(missingCoincidenceOpp),
+	INTERSECT_MAKER_NAME(segmentLineCurve),
+	INTERSECT_MAKER_NAME(segmentLineCurveOpp),
+	INTERSECT_MAKER_NAME(splitAtWinding),
+	// testing only
 	INTERSECT_MAKER_NAME(opTestEdgeZero1),
 	INTERSECT_MAKER_NAME(opTestEdgeZero2),
 	INTERSECT_MAKER_NAME(opTestEdgeZero3),
 	INTERSECT_MAKER_NAME(opTestEdgeZero4),
-	INTERSECT_MAKER_NAME(splitAtWinding),
+};
+
+struct SectReasonName {
+    SectReason reason;
+    const char* name;
+};
+
+#define SECT_REASON_NAME(r) { SectReason::r, #r }
+
+
+SectReasonName sectReasonNames[]{
+    SECT_REASON_NAME(coinPtsMatch),
+    SECT_REASON_NAME(curveCurveCoincidence),
+    SECT_REASON_NAME(degenerateCenter),
+    SECT_REASON_NAME(divideAndConquer_oneT),
+    SECT_REASON_NAME(divideAndConquer_noEdgeToSplit),
+    SECT_REASON_NAME(divideAndConquer_noOppToSplit),
+    SECT_REASON_NAME(inflection),
+    SECT_REASON_NAME(lineCurve),
+    SECT_REASON_NAME(missingCoincidence),
+    SECT_REASON_NAME(resolveCoin_windingChange),
+    SECT_REASON_NAME(resolveCoin_oWindingChange),
+    SECT_REASON_NAME(sharedEdgePoint),
+    SECT_REASON_NAME(sharedEndPoint),
+    SECT_REASON_NAME(xExtrema),
+    SECT_REASON_NAME(yExtrema),
+    // testing only
+    SECT_REASON_NAME(test),
 };
 
 struct SelfIntersectName {
@@ -1159,12 +1179,19 @@ SelfIntersectName selfIntersectNames[] {
     SELF_INTERSECT_NAME(split),
 };
 
-std::string OpIntersection::debugDump(bool fromDumpFull) const {
-    bool outOfDate = false;
+std::string OpIntersection::debugDump(bool fromDumpFull, bool fromDumpDetail) const {
+    bool makerOutOfDate = false;
     for (unsigned index = 0; index < ARRAY_COUNT(intersectMakerNames); ++index)
-       if (!outOfDate && (unsigned) intersectMakerNames[index].maker != index) {
+       if (!makerOutOfDate && (unsigned) intersectMakerNames[index].maker != index) {
            OpDebugOut("intersectMakerNames out of date\n");
-           outOfDate = true;
+           makerOutOfDate = true;
+           break;
+       }
+    bool reasonOutOfDate = false;
+    for (unsigned index = 0; index < ARRAY_COUNT(sectReasonNames); ++index)
+       if (!reasonOutOfDate && (unsigned) sectReasonNames[index].reason != index) {
+           OpDebugOut("sectReasonNames out of date\n");
+           reasonOutOfDate = true;
            break;
        }
     std::string s;
@@ -1173,6 +1200,12 @@ std::string OpIntersection::debugDump(bool fromDumpFull) const {
     std::string oppID = opp ? opp->debugDumpID() : "--";
     std::string oppParentID = oppParent ? oppParent->debugDumpID() : "--";
     s = "[" + debugDumpID() + "] " + ptT.debugDump();
+    if (aliased)
+        s += " aliased";
+    if (debugCollapsed)
+        s += " collapsed";
+    if (debugErased)
+        s += " erased";
     if (debugAliasID || !OpMath::IsNaN(debugOriginal.x) || !OpMath::IsNaN(debugOriginal.y))
         s += " (was " + debugOriginal.debugDump() + "; now from sect " + STR(debugAliasID) + ")";
     if (!fromDumpFull || !segment)
@@ -1182,13 +1215,18 @@ std::string OpIntersection::debugDump(bool fromDumpFull) const {
         s += " coinID:" + STR(coincidenceID) + "/" + STR(debugCoincidenceID);
     if (SelfIntersect::none != self)
         s += " self:" + std::string(selfIntersectNames[(int)self].name);
-//    if (unsortable)
-//        s += " unsortable";
     s += " maker:";
-    if (outOfDate)
+    if (makerOutOfDate)
         s += "(out of date) " + STR((int)debugMaker);
     else
         s += intersectMakerNames[(int)debugMaker].name;
+    if (fromDumpDetail)
+        s += " " + debugMakerFile.substr(debugMakerFile.find("Op")) + ":" + STR(debugMakerLine);
+    s += " reason:";
+    if (reasonOutOfDate)
+        s += "(out of date) " + STR((int)debugReason);
+    else
+        s += sectReasonNames[(int)debugReason].name;
     return s;
 }
 
@@ -1196,8 +1234,30 @@ std::string OpIntersection::debugDumpBrief() const {
     std::string s;
     s += "[" + debugDumpID() + "] ";
     s += "{" + ptT.debugDump() + ", ";
-    s += "seg:" + segment->debugDumpID();
+    s += "seg:" + segment->debugDumpID() + "\n";
+
     return s;
+}
+
+std::string OpIntersection::debugDumpDetail(bool fromDumpIntersections) const {
+    std::string s = debugDump(fromDumpIntersections, true);
+    if (debugParent || debugEdge || debugOpp || debugSeg || debugSegOpp)
+        s += "\n";
+    if (debugParent)
+        s += "debugParent:" + STR(debugParent->id) + " ";
+    if (debugEdge)
+        s += "debugEdge:" + STR(debugEdge->id) + " ";
+    if (debugOpp)
+        s += "debugOpp:" + STR(debugOpp->id) + " ";
+    if (debugSeg)
+        s += "debugSeg:" + STR(debugSeg->id) + " ";
+    if (debugSegOpp)
+        s += "debugSegOpp:" + STR(debugSegOpp->id) + " ";
+    return s;
+}
+
+std::string OpIntersection::debugDumpDetail() const {
+    return debugDumpDetail(false);
 }
 
 std::string OpIntersection::debugDumpHex() const {
@@ -1206,6 +1266,10 @@ std::string OpIntersection::debugDumpHex() const {
     s += "  " + ptT.debugDumpHex() + " // " + ptT.debugDump() + "\n";
     s += "}; // seg:" + segment->debugDumpID() + "\n";
     return s;
+}
+
+void OpIntersection::dumpDetail() const {
+    OpDebugOut(debugDumpDetail() + "\n");
 }
 
 void OpIntersection::dumpHex() const { 
@@ -1233,7 +1297,7 @@ void OpIntersection::debugCompare(std::string s) const {
 }
 
 void OpIntersection::dump() const {
-    std::string s = debugDump(false) + "\n";
+    std::string s = debugDump(false, false) + "\n";
     OpDebugOut(s);
 }
 
@@ -1279,7 +1343,7 @@ std::string OpSegment::debugDumpHex() const {
 std::string OpSegment::debugDumpIntersections() const {
     std::string s;
     for (auto i : intersections)
-        s += i->debugDump(true) + "\n";
+        s += i->debugDump(true, false) + "\n";
     return s;
 }
 

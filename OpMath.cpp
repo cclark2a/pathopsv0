@@ -18,6 +18,45 @@ bool OpRoots::replaceClosest(float root) {
     return true;
 }
 
+// if t is nearly end of range, make it end of range
+// motivation for this is test cubics_d, which generates yExtrema very nearly equal to 1.
+// 'interior' is only used for extrema and inflections
+OpRoots OpRoots::keepInteriorTs(float start, float end) {
+    (void) keepValidTs(start, end);
+    int interiorRoots = 0;
+    for (unsigned index = 0; index < count; ++index) {
+        float tValue = roots[index];
+        if (start >= tValue - OpEpsilon || tValue + OpEpsilon >= end)
+            continue;
+        roots[interiorRoots++] = tValue;
+    }
+    count = interiorRoots;
+    return *this;
+}
+
+OpRoots OpRoots::keepValidTs(float start, float end) {
+    size_t foundRoots = 0;
+    for (unsigned index = 0; index < count; ++index) {
+        float tValue = roots[index];
+        if (OpMath::IsNaN(tValue) || start > tValue || tValue > end)
+            continue;
+        if (tValue < start + OpEpsilon)
+            tValue = start;
+        else if (tValue > end - OpEpsilon)
+            tValue = end;
+        for (size_t idx2 = 0; idx2 < foundRoots; ++idx2) {
+            if (roots[idx2] == tValue) {
+                goto notUnique;
+            }
+        }
+        roots[foundRoots++] = tValue;
+    notUnique:
+        ;
+    }
+    count = foundRoots;
+    return *this;
+}
+
 OpVector OpVector::normalize(bool* overflow) {
     float len = length();
     *overflow = false;
@@ -62,39 +101,6 @@ void OpPoint::pin(const OpRect& r) {
 bool OpRect::isFinite() const {
     return OpMath::IsFinite(left) && OpMath::IsFinite(top)
         && OpMath::IsFinite(right) && OpMath::IsFinite(bottom);
-}
-
-// if t is nearly end of range, make it end of range
-// motivation for this is test cubics_d, which generates yExtrema very nearly equal to 1.
-// 'interior' is only used for extrema and inflections
-int OpMath::KeepInteriorTs(rootCellar& s, int realRoots, float start, float end) {
-    int foundRoots = KeepValidTs(s, realRoots, start, end);
-    int interiorRoots = 0;
-    for (int index = 0; index < foundRoots; ++index) {
-        float tValue = s[index];
-        if (start >= tValue - OpEpsilon || tValue + OpEpsilon >= end)
-            continue;
-        s[interiorRoots++] = tValue;
-    }
-    return interiorRoots;
-}
-
-int OpMath::KeepValidTs(rootCellar& s, int realRoots, float start, float end) {
-    size_t foundRoots = 0;
-    for (int index = 0; index < realRoots; ++index) {
-        float tValue = s[index];
-        if (OpMath::IsNaN(tValue) || start > tValue || tValue > end)
-            continue;
-        for (size_t idx2 = 0; idx2 < foundRoots; ++idx2) {
-            if (s[idx2] == tValue) {
-                goto notUnique;
-            }
-        }
-        s[foundRoots++] = tValue;
-    notUnique:
-        ;
-    }
-    return foundRoots;
 }
 
 #if 0 // use std::cbrt instead
@@ -156,28 +162,28 @@ float OpMath::CubeRoot(float x) {
 #define CUBE_ROOT std::cbrt
 #endif
 
-int OpMath::CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B,
-        OpCubicFloatType C, OpCubicFloatType D, rootCellar& s) {
+OpRoots OpMath::CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B,
+        OpCubicFloatType C, OpCubicFloatType D) {
     if (0 == A)
-        return QuadRootsReal(B, C, D, s);
+        return QuadRootsReal(B, C, D);
     if (0 == D) {  // 0 is one root
-        int num = QuadRootsReal(A, B, C, s);
-        for (int i = 0; i < num; ++i) {
-            if (0 == s[i])
-                return num;
+        OpRoots roots = QuadRootsReal(A, B, C);
+        for (unsigned i = 0; i < roots.count; ++i) {
+            if (0 == roots.roots[i])
+                return roots;
         }
-        s[num++] = 0;
-        return num;
+        roots.roots[roots.count++] = 0;
+        return roots;
     }
     if (0 == A + B + C + D) {  // 1 is one root
-        int num = QuadRootsReal(A, A + B, -D, s);
-        for (int i = 0; i < num; ++i) {
-            if (1 == s[i]) {
-                return num;
+        OpRoots roots = QuadRootsReal(A, A + B, -D);
+        for (unsigned i = 0; i < roots.count; ++i) {
+            if (1 == roots.roots[i]) {
+                return roots;
             }
         }
-        s[num++] = 1;
-        return num;
+        roots.roots[roots.count++] = 1;
+        return roots;
     }
     OpCubicFloatType invA = 1 / A;
     OpCubicFloatType a = B * invA;
@@ -191,19 +197,20 @@ int OpMath::CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B,
     OpCubicFloatType R2MinusQ3 = R2 - Q3;
     OpCubicFloatType adiv3 = a / 3;
     OpCubicFloatType r;
-    float* roots = &s[0];
+    OpRoots roots;
+    float* rootPtr = &roots.roots[0];
     if (R2MinusQ3 < 0) {   // we have 3 real roots
         // the divide/root can, due to finite precisions, be slightly outside of -1...1
         OpCubicFloatType theta = ACOS(std::max(std::min(ONE, R / SQRT(Q3)), -ONE));
         OpCubicFloatType neg2RootQ = -2 * SQRT(Q);
         r = neg2RootQ * COS(theta / 3) - adiv3;
-        *roots++ = r;
+        *rootPtr++ = r;
         r = neg2RootQ * COS((theta + 2 * PI) / 3) - adiv3;
-        if (s[0] != r)
-            *roots++ = r;
+        if (roots.roots[0] != r)
+            *rootPtr++ = r;
         r = neg2RootQ * COS((theta - 2 * PI) / 3) - adiv3;
-        if (s[0] != r && (roots - &s[0] == 1 || s[1] != r))
-            *roots++ = r;
+        if (roots.roots[0] != r && (rootPtr - &roots.roots[0] == 1 || roots.roots[1] != r))
+            *rootPtr++ = r;
     } else {  // we have 1 real root
         OpCubicFloatType sqrtR2MinusQ3 = SQRT(R2MinusQ3);
         // !!! need to rename this 'A' something else; since parameter is also 'A'
@@ -214,15 +221,16 @@ int OpMath::CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B,
         if (A != 0)
             A += Q / A;
         r = A - adiv3;
-        *roots++ = r;
+        *rootPtr++ = r;
         if (R2 == Q3) {
             r = -A / 2 - adiv3;
-            if (s[0] != r) {
-                *roots++ = r;
+            if (roots.roots[0] != r) {
+                *rootPtr++ = r;
             }
         }
     }
-    return static_cast<int>(roots - &s[0]);
+    roots.count = static_cast<int>(rootPtr - &roots.roots[0]);
+    return roots;
 }
 
 // min, max not necessarily sorted (between works regardless)

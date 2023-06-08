@@ -64,7 +64,7 @@ struct OpCurve {
     const OpQuad& asConicQuad() const;
     const OpCubic& asCubic() const;
 
-    int axisRayHit(Axis offset, float axisIntercept, rootCellar& cepts, float start = 0,
+    OpRoots axisRayHit(Axis offset, float axisIntercept, float start = 0,
             float end = 1) const;
     float center(Axis offset, float axisIntercept) const;
     OpPtT findIntersect(Axis offset, const OpPtT& ) const;
@@ -76,8 +76,8 @@ struct OpCurve {
 
     OpVector normal(float t) const;
     OpPoint ptAtT(float t) const;
-    int rawIntersect(const std::array<OpPoint, 2> line, rootCellar& cepts) const;
-    int rayIntersect(const std::array<OpPoint, 2> line, rootCellar& cepts) const;
+    OpRoots rawIntersect(const std::array<OpPoint, 2> line) const;
+    OpRoots rayIntersect(const std::array<OpPoint, 2> line) const;
 
     int pointCount() const {
         return static_cast<int>(type) + (type < conicType);
@@ -125,13 +125,13 @@ struct OpLine : OpCurve {
         : OpCurve(c.pts[0], c.pts[c.pointCount() - 1]) {
     }
 
-    int axisRawHit(Axis offset, float axisIntercept, rootCellar& cepts) const;
-//    int axisRayHit(Axis offset, float axisIntercept, rootCellar& cepts) const;
+    OpRoots axisRawHit(Axis offset, float axisIntercept) const;
+//    OpRoots axisRayHit(Axis offset, float axisIntercept) const;
     float interp(XyChoice offset, float t) const;
     OpVector normal(float t) const;
     OpPoint ptAtT(float t) const;
-    int rawIntersect(const std::array<OpPoint, 2> line, rootCellar& cepts) const;
-    int rayIntersect(const std::array<OpPoint, 2> line, rootCellar& cepts) const;
+    OpRoots rawIntersect(const std::array<OpPoint, 2> line) const;
+    OpRoots rayIntersect(const std::array<OpPoint, 2> line) const;
     OpVector tangent(float t) const;
 };
 
@@ -150,15 +150,15 @@ struct OpQuad : OpCurve {
         : OpCurve(p, quadType) {
     }
 
-    int axisRawHit(Axis offset, float axisIntercept, rootCellar& cepts) const;
- //   int axisRayHit(Axis offset, float axisIntercept, rootCellar& cepts) const;
+    OpRoots axisRawHit(Axis offset, float axisIntercept) const;
+ //   OpRoots axisRayHit(Axis offset, float axisIntercept) const;
     OpQuadCoefficients coefficients(Axis offset) const;
-    int extrema(XyChoice offset, rootCellar& t) const;
+    OpRoots extrema(XyChoice offset) const;
     bool monotonic(XyChoice offset) const;
     OpVector normal(float t) const;
     OpPoint ptAtT(float t) const;
-    int rawIntersect(const std::array<OpPoint, 2> line, rootCellar& cepts) const;
-    int rayIntersect(const std::array<OpPoint, 2> line, rootCellar& cepts) const;
+    OpRoots rawIntersect(const std::array<OpPoint, 2> line) const;
+    OpRoots rayIntersect(const std::array<OpPoint, 2> line) const;
     void subDivide(OpPtT ptT1, OpPtT ptT2, std::array<OpPoint, 4>& dest) const;
     OpVector tangent(float t) const;
 #if OP_DEBUG
@@ -175,18 +175,18 @@ struct OpConic : OpCurve {
         : OpCurve(p, w) {
     }
 
-    int axisRawHit(Axis offset, float axisIntercept, rootCellar& cepts) const;
-//    int axisRayHit(Axis offset, float axisIntercept, rootCellar& cepts) const;
+    OpRoots axisRawHit(Axis offset, float axisIntercept) const;
+//    OpRoots axisRayHit(Axis offset, float axisIntercept) const;
     OpQuadCoefficients coefficients(Axis offset, float intercept) const;
     float denominator(float t) const;
     OpQuadCoefficients derivative_coefficients(XyChoice offset) const;
-    int extrema(XyChoice offset, rootCellar& t) const;
+    OpRoots extrema(XyChoice offset) const;
     bool monotonic(XyChoice offset) const;
     OpVector normal(float t) const;
     OpPoint numerator(float t) const;
     OpPoint ptAtT(float t) const;
-    int rawIntersect(const std::array<OpPoint, 2> line, rootCellar& cepts) const;
-    int rayIntersect(const std::array<OpPoint, 2> line, rootCellar& cepts) const;
+    OpRoots rawIntersect(const std::array<OpPoint, 2> line) const;
+    OpRoots rayIntersect(const std::array<OpPoint, 2> line) const;
     void subDivide(OpPtT ptT1, OpPtT ptT2, std::array<OpPoint, 4>& dest, float* weight) const;
     float tangent(XyChoice offset, float t) const;
     OpVector tangent(float t) const;
@@ -211,21 +211,20 @@ struct OpCubic : OpCurve {
         : OpCurve(p, cubicType) {
     }
 
-    int axisRawHit(Axis offset, float axisIntercept, rootCellar& cepts) const;
-//    int axisRayHit(Axis offset, float axisIntercept, rootCellar& cepts) const;
-//    int axisRayHit(Axis offset, float axisIntercept, OpPtT start, OpPtT end,
-//            rootCellar& cepts) const;
+    OpRoots axisRawHit(Axis offset, float axisIntercept) const;
+//    OpRoots axisRayHit(Axis offset, float axisIntercept) const;
+//    OpRoots axisRayHit(Axis offset, float axisIntercept, OpPtT start, OpPtT end) const;
     OpCubicCoefficients coefficients(Axis offset) const;
     OpPoint doublePtAtT(float t) const;
-    int extrema(XyChoice , rootCellar& t) const;
-    int inflections(rootCellar& t) const;
+    OpRoots extrema(XyChoice ) const;
+    OpRoots inflections() const;
     OpPoint interp(float t) const;
     bool monotonic(XyChoice ) const;
     OpVector normal(float t) const;
     void pinCtrls(XyChoice );
     OpPoint ptAtT(float t) const;
-    int rawIntersect(const std::array<OpPoint, 2> line, rootCellar& cepts) const;
-    int rayIntersect(const std::array<OpPoint, 2> line, rootCellar& cepts) const;
+    OpRoots rawIntersect(const std::array<OpPoint, 2> line) const;
+    OpRoots rayIntersect(const std::array<OpPoint, 2> line) const;
     void subDivide(OpPtT ptT1, OpPtT ptT2, std::array<OpPoint, 4>& dest) const;
     float tangent(XyChoice , double t) const;
     OpVector tangent(float t) const;

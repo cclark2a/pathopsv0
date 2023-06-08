@@ -1,16 +1,9 @@
 #include "OpCurve.h"
 
-int OpConic::axisRawHit(Axis offset, float axisIntercept, rootCellar& cepts) const {
+OpRoots OpConic::axisRawHit(Axis offset, float axisIntercept) const {
     OpQuadCoefficients coeff = coefficients(offset, axisIntercept);
-    return OpMath::QuadRootsReal(coeff.a, coeff.b, coeff.c - axisIntercept, cepts);
+    return OpMath::QuadRootsReal(coeff.a, coeff.b, coeff.c - axisIntercept);
 }
-
-#if 0
-int OpConic::axisRayHit(Axis offset, float axisIntercept, rootCellar& cepts) const {
-    OpQuadCoefficients coeff = coefficients(offset, axisIntercept);
-    return OpMath::QuadRootsValidT(coeff.a, coeff.b, coeff.c - axisIntercept, cepts);
-}
-#endif
 
 OpQuadCoefficients OpConic::coefficients(Axis axis, float intercept) const {
     const float* ptr = pts[0].asPtr(axis);
@@ -40,34 +33,34 @@ OpQuadCoefficients OpConic::derivative_coefficients(XyChoice offset) const {
     return { a, b, c };
 }
 
-int OpConic::extrema(XyChoice offset, rootCellar& t) const {
+OpRoots OpConic::extrema(XyChoice offset) const {
     OpQuadCoefficients dc = derivative_coefficients(offset);
-    int roots = OpMath::QuadRootsInteriorT(dc.a, dc.b, dc.c, t);
+    OpRoots roots = OpMath::QuadRootsInteriorT(dc.a, dc.b, dc.c);
     // In extreme cases, the number of roots returned can be 2. Pathops
     // will fail later on, so there's no advantage to plumbing in an error
     // return here.
-    assert(0 == roots || 1 == roots);   // !!! I wanna see the extreme case...
+    assert(0 == roots.count || 1 == roots.count);   // !!! I wanna see the extreme case...
     return roots;
 };
 
-int OpConic::rawIntersect(const std::array<OpPoint, 2> line, rootCellar& cepts) const {
+OpRoots OpConic::rawIntersect(const std::array<OpPoint, 2> line) const {
     if (line[0].x == line[1].x)
-        return axisRawHit(Axis::vertical, line[0].x, cepts);
+        return axisRawHit(Axis::vertical, line[0].x);
     if (line[0].y == line[1].y)
-        return axisRawHit(Axis::horizontal, line[0].y, cepts);
+        return axisRawHit(Axis::horizontal, line[0].y);
     OpConic rotated;
     toVertical(line, rotated);
-    return rotated.axisRawHit(Axis::vertical, 0, cepts);
+    return rotated.axisRawHit(Axis::vertical, 0);
 }
 
-int OpConic::rayIntersect(const std::array<OpPoint, 2> line, rootCellar& cepts) const {
+OpRoots OpConic::rayIntersect(const std::array<OpPoint, 2> line) const {
     if (line[0].x == line[1].x)
-        return axisRayHit(Axis::vertical, line[0].x, cepts);
+        return axisRayHit(Axis::vertical, line[0].x);
     if (line[0].y == line[1].y)
-        return axisRayHit(Axis::horizontal, line[0].y, cepts);
+        return axisRayHit(Axis::horizontal, line[0].y);
     OpConic rotated;
     toVertical(line, rotated);
-    return rotated.axisRayHit(Axis::vertical, 0, cepts);
+    return rotated.axisRayHit(Axis::vertical, 0);
 }
 
 bool OpConic::monotonic(XyChoice offset) const {

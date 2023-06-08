@@ -1,83 +1,11 @@
 #include "OpCurve.h"
 #include <cmath>
 
-int OpCubic::axisRawHit(Axis axis, float axisIntercept, rootCellar& cepts) const {
+OpRoots OpCubic::axisRawHit(Axis axis, float axisIntercept) const {
     OpCubicCoefficients coeff = coefficients(axis);
     coeff.d -= axisIntercept;
-    return OpMath::CubicRootsReal(coeff.a, coeff.b, coeff.c, coeff.d, cepts);
+    return OpMath::CubicRootsReal(coeff.a, coeff.b, coeff.c, coeff.d);
 }
-
-#if 0   // replace this with calls to axis raw hit followed by keep valid ts
-int OpCubic::axisRayHit(Axis axis, float axisIntercept, rootCellar& cepts) const {
-    assert(debugGlobalIntersect == debugIntersect);
-    OpCubicCoefficients coeff = coefficients(axis);
-    coeff.d -= axisIntercept;
-    return OpMath::CubicRootsValidT(coeff.a, coeff.b, coeff.c, coeff.d, cepts);
-}
-#endif
-
-#if 0   // only called by test code; comment out for now
-int OpCubic::axisRayHit(Axis axis, float axisIntercept, OpPtT startPtT, OpPtT endPtT, 
-        rootCellar& cepts) const {
-#if OP_DEBUG
-    assert(OpDebugIntersect::edge == debugGlobalIntersect);
-    assert(OpDebugIntersect::edge == debugIntersect);
-    rootCellar debugCepts;
-    int debugRoots = axisRayHit(axis, axisIntercept, debugCepts);
-    debugRoots = OpMath::KeepValidTs(debugCepts, debugRoots, startPtT.t, endPtT.t);
-    // this gets more precise versions of OpPoint. Needs justification
-//    startPtT.pt = doublePtAtT(startPtT.t);
-//    endPtT.pt = doublePtAtT(endPtT.t);
-#endif
-    float startT = startPtT.t;
-    float endT = endPtT.t;
-    float start = startPtT.pt.choice(axis);
-    float end = endPtT.pt.choice(axis);
-    if (!OpMath::Between(start, axisIntercept, end)) {
-//        assert(!debugRoots);
-        return 0;
-    }
-    float midT;
-    do {
-        midT = (startT + endT) / 2;
-        if (startT >= midT || midT >= endT)
-            break;
-        float mid = ptAtT(midT).choice(axis);   // was: doublePtAtT: justify
-        if (!OpMath::Between(start, mid, end)) {
-#if 0 && OP_DEBUG
-            // if out of order, should just treat answer as 'close enough'
-            float dS = doublePtAtT(startT).choice(axis);
-            float dM = doublePtAtT(midT).choice(axis);
-            float dE = doublePtAtT(endT).choice(axis);
-
-            float debugStart = ptAtT(startT).choice(axis);
-            float debugMid = ptAtT(midT).choice(axis);
-            float debugEnd = ptAtT(endT).choice(axis);
-            assert(dS || dM || dE || debugStart || debugMid || debugEnd);
-#endif
-            break;
-        }
-        bool inFirstHalf = OpMath::Between(start, axisIntercept, mid);
-#if OP_DEBUG
-        bool inSecondHalf = mid != end && OpMath::Between(std::nextafterf(mid, end), axisIntercept, end);
-        assert(inFirstHalf != inSecondHalf);    // only one or the other
-#endif
-        if (inFirstHalf) {
-            endT = midT;
-            end = mid;
-        } else {
-            startT = midT;
-            start = mid;
-        }
-    } while (true);
-    cepts[0] = midT;
-#if OP_DEBUG
-//    assert(1 == debugRoots);
-//    assert(fabsf(cepts[0] - debugCepts[0]) <= 6*OpEpsilon);
-#endif
-    return 1;
-}
-#endif
 
 OpCubicCoefficients OpCubic::coefficients(Axis axis) const {
     const float* ptr = pts[0].asPtr(axis);
@@ -91,7 +19,7 @@ OpCubicCoefficients OpCubic::coefficients(Axis axis) const {
     return { A, B, C, D };
 }
 
-int OpCubic::extrema(XyChoice offset, rootCellar& t) const {
+OpRoots OpCubic::extrema(XyChoice offset) const {
     const float* ptr = &pts[0].x + +offset;
     float a = ptr[0];
     float b = ptr[2];
@@ -100,15 +28,15 @@ int OpCubic::extrema(XyChoice offset, rootCellar& t) const {
     float A = d - a + 3 * (b - c);
     float B = 2 * (a - b - b + c);
     float C = b - a;
-    return OpMath::QuadRootsInteriorT(A, B, C, t);  // don't keep roots ~0, ~1
+    return OpMath::QuadRootsInteriorT(A, B, C);  // don't keep roots ~0, ~1
 }
 
-int OpCubic::inflections(rootCellar& t) const {
+OpRoots OpCubic::inflections() const {
     OpPoint A = pts[1] - pts[0];
     OpPoint B = pts[2] - 2 * pts[1] + pts[0];
     OpPoint C = pts[3] + 3 * (pts[1] - pts[2]) - pts[0];
     return OpMath::QuadRootsInteriorT(B.x * C.y - B.y * C.x, A.x * C.y - A.y * C.x,
-            A.x * B.y - A.y * B.x, t);  // don't keep roots ~0, ~1
+            A.x * B.y - A.y * B.x);  // don't keep roots ~0, ~1
 }
 
 OpPoint OpCubic::interp(float t) const {
@@ -121,24 +49,24 @@ OpPoint OpCubic::interp(float t) const {
     return abcd;
 }
 
-int OpCubic::rawIntersect(const std::array<OpPoint, 2> line, rootCellar& cepts) const {
+OpRoots OpCubic::rawIntersect(const std::array<OpPoint, 2> line) const {
     if (line[0].x == line[1].x)
-        return axisRawHit(Axis::vertical, line[0].x, cepts);
+        return axisRawHit(Axis::vertical, line[0].x);
     if (line[0].y == line[1].y)
-        return axisRawHit(Axis::horizontal, line[0].y, cepts);
+        return axisRawHit(Axis::horizontal, line[0].y);
     OpCubic rotated;
     toVertical(line, rotated);
-    return rotated.axisRawHit(Axis::vertical, 0, cepts);
+    return rotated.axisRawHit(Axis::vertical, 0);
 }
 
-int OpCubic::rayIntersect(const std::array<OpPoint, 2> line, rootCellar& cepts) const {
+OpRoots OpCubic::rayIntersect(const std::array<OpPoint, 2> line) const {
     if (line[0].x == line[1].x)
-        return axisRayHit(Axis::vertical, line[0].x, cepts);
+        return axisRayHit(Axis::vertical, line[0].x);
     if (line[0].y == line[1].y)
-        return axisRayHit(Axis::horizontal, line[0].y, cepts);
+        return axisRayHit(Axis::horizontal, line[0].y);
     OpCubic rotated;
     toVertical(line, rotated);
-    return rotated.axisRayHit(Axis::vertical, 0, cepts);
+    return rotated.axisRayHit(Axis::vertical, 0);
 }
 
 bool OpCubic::monotonic(XyChoice offset) const {

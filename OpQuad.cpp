@@ -1,19 +1,11 @@
 #include "OpCurve.h"
 #include "OpTightBounds.h"
 
-int OpQuad::axisRawHit(Axis axis, float axisIntercept, rootCellar& cepts) const {
+OpRoots OpQuad::axisRawHit(Axis axis, float axisIntercept) const {
     OpQuadCoefficients coeff = coefficients(axis);
     coeff.c -= axisIntercept;
-    return OpMath::QuadRootsReal(coeff.a, coeff.b, coeff.c, cepts);
+    return OpMath::QuadRootsReal(coeff.a, coeff.b, coeff.c);
 }
-
-#if 0
-int OpQuad::axisRayHit(Axis axis, float axisIntercept, rootCellar& cepts) const {
-    OpQuadCoefficients coeff = coefficients(axis);
-    coeff.c -= axisIntercept;
-    return OpMath::QuadRootsValidT(coeff.a, coeff.b, coeff.c, cepts);
-}
-#endif
 
 OpQuadCoefficients OpQuad::coefficients(Axis axis) const {
     const float* ptr = pts[0].asPtr(axis);
@@ -25,7 +17,7 @@ OpQuadCoefficients OpQuad::coefficients(Axis axis) const {
     return { a, 2 * b, c };
 }
 
-int OpQuad::extrema(XyChoice offset, rootCellar& t) const {
+OpRoots OpQuad::extrema(XyChoice offset) const {
     const float* ptr = &pts[0].x + +offset;
     float a = ptr[0];
     float b = ptr[2];
@@ -34,32 +26,30 @@ int OpQuad::extrema(XyChoice offset, rootCellar& t) const {
     float denominator = numerator - b + c;
     if (denominator) {
         float result = numerator / denominator;
-        if (OpEpsilon <= result && result < 1) {
-            t[0] = result;
-            return 1;
-        }
+        if (OpEpsilon <= result && result < 1)
+            return OpRoots(result);
     }
-    return 0;
+    return OpRoots();
 }
 
-int OpQuad::rawIntersect(const std::array<OpPoint, 2> line, rootCellar& cepts) const {
+OpRoots OpQuad::rawIntersect(const std::array<OpPoint, 2> line) const {
     if (line[0].x == line[1].x)
-        return axisRawHit(Axis::vertical, line[0].x, cepts);
+        return axisRawHit(Axis::vertical, line[0].x);
     if (line[0].y == line[1].y)
-        return axisRawHit(Axis::horizontal, line[0].y, cepts);
+        return axisRawHit(Axis::horizontal, line[0].y);
     OpQuad rotated;
     toVertical(line, rotated);
-    return rotated.axisRawHit(Axis::vertical, 0, cepts);
+    return rotated.axisRawHit(Axis::vertical, 0);
 }
 
-int OpQuad::rayIntersect(const std::array<OpPoint, 2> line, rootCellar& cepts) const {
+OpRoots OpQuad::rayIntersect(const std::array<OpPoint, 2> line) const {
     if (line[0].x == line[1].x)
-        return axisRayHit(Axis::vertical, line[0].x, cepts);
+        return axisRayHit(Axis::vertical, line[0].x);
     if (line[0].y == line[1].y)
-        return axisRayHit(Axis::horizontal, line[0].y, cepts);
+        return axisRayHit(Axis::horizontal, line[0].y);
     OpQuad rotated;
     toVertical(line, rotated);
-    return rotated.axisRayHit(Axis::vertical, 0, cepts);
+    return rotated.axisRayHit(Axis::vertical, 0);
 }
 
 bool OpQuad::monotonic(XyChoice offset) const {

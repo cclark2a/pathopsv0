@@ -32,7 +32,7 @@ struct OpPointBounds : OpRect {
         bottom = std::max(bottom, bounds.bottom);
     }
 
-    bool contains(OpPoint pt) {
+    bool contains(OpPoint pt) const {
         assert(pt.isFinite());
         return OpMath::Between(left, pt.x, right) && OpMath::Between(top, pt.y, bottom);
     }
@@ -105,44 +105,52 @@ struct OpTightBounds : OpPointBounds {
 
     void calcBounds(const OpQuad& quad) {
         OpPointBounds::set(quad.pts[0], quad.pts[2]);
-        rootCellar extremaTs;
-        if (!quad.monotonic(XyChoice::inX) && quad.extrema(XyChoice::inX, extremaTs))
-            *xExtrema = { add(quad.ptAtT(extremaTs[0])), extremaTs[0] };
-        if (!quad.monotonic(XyChoice::inY) && quad.extrema(XyChoice::inY, extremaTs))
-            *yExtrema = { add(quad.ptAtT(extremaTs[0])), extremaTs[0] };
+        if (!quad.monotonic(XyChoice::inX)) {
+            OpRoots extremaTs = quad.extrema(XyChoice::inX);
+            *xExtrema = { add(quad.ptAtT(extremaTs.roots[0])), extremaTs.roots[0] };
+        }
+        if (!quad.monotonic(XyChoice::inY)) {
+            OpRoots extremaTs = quad.extrema(XyChoice::inY);
+            *yExtrema = { add(quad.ptAtT(extremaTs.roots[0])), extremaTs.roots[0] };
+        }
     }
 
     void calcBounds(const OpConic& conic) {
         OpPointBounds::set(conic.pts[0], conic.pts[2]);
-        rootCellar extremaTs;
-        if (!conic.monotonic(XyChoice::inX) && conic.extrema(XyChoice::inX, extremaTs))
-            *xExtrema = { add(conic.ptAtT(extremaTs[0])), extremaTs[0] };
-        if (!conic.monotonic(XyChoice::inY) && conic.extrema(XyChoice::inY, extremaTs))
-            *yExtrema = { add(conic.ptAtT(extremaTs[0])), extremaTs[0] };
+        if (!conic.monotonic(XyChoice::inX)) {
+            OpRoots extremaTs = conic.extrema(XyChoice::inX);
+            *xExtrema = { add(conic.ptAtT(extremaTs.roots[0])), extremaTs.roots[0] };
+        }
+        if (!conic.monotonic(XyChoice::inY)) {
+            OpRoots extremaTs = conic.extrema(XyChoice::inY);
+            *yExtrema = { add(conic.ptAtT(extremaTs.roots[0])), extremaTs.roots[0] };
+        }
     }
 
     void calcBounds(OpCubic& cubic) {
         OpPointBounds::set(cubic.pts[0], cubic.pts[3]);
-        rootCellar extremaTs;
         if (!cubic.monotonic(XyChoice::inX)) {
-            int count = cubic.extrema(XyChoice::inX, extremaTs);
+            OpRoots extremaTs = cubic.extrema(XyChoice::inX);
+            int count = extremaTs.count;
             if (!count)
                 cubic.pinCtrls(XyChoice::inX);
             while (count--) {
-                xExtrema[count] = { add(cubic.ptAtT(extremaTs[count])), extremaTs[count] };
+                xExtrema[count] = { add(cubic.ptAtT(extremaTs.roots[count])), extremaTs.roots[count] };
             }
         }
         if (!cubic.monotonic(XyChoice::inY)) {
-            int count = cubic.extrema(XyChoice::inY, extremaTs);
-            if (!count)
+            OpRoots extremaTs = cubic.extrema(XyChoice::inY);
+            int count = extremaTs.count;
+            if (!extremaTs.count)
                 cubic.pinCtrls(XyChoice::inY);
-            while (count--) {
-                yExtrema[count] = { add(cubic.ptAtT(extremaTs[count])), extremaTs[count] };
+              while (count--) {
+                yExtrema[count] = { add(cubic.ptAtT(extremaTs.roots[count])), extremaTs.roots[count] };
             }
         }
-        int count = cubic.inflections(extremaTs);
+        OpRoots extremaTs = cubic.inflections();
+        int count = extremaTs.count;
         while (count--) {
-            inflections[count] = { add(cubic.ptAtT(extremaTs[count])), extremaTs[count] };
+            inflections[count] = { add(cubic.ptAtT(extremaTs.roots[count])), extremaTs.roots[count] };
         }
     }
 

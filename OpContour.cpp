@@ -2,9 +2,20 @@
 #include "OpEdge.h"
 
 OpIntersection* OpContour::addIntersection(const OpPtT& t, OpSegment* seg, SelfIntersect self_, int cID
-        OP_DEBUG_PARAMS(IntersectMaker maker)) {
+        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
+        const OpIntersection* master, const OpEdge* edge, const OpEdge* oEdge)) {
     OpIntersection* next = contours->allocateIntersection();
-    next->set(t, seg, self_, cID  OP_DEBUG_PARAMS(maker));
+    next->set(t, seg, self_, cID  OP_DEBUG_PARAMS(maker, line, file, reason, master, edge, oEdge, 
+            nullptr, nullptr));
+    return next;
+}
+
+OpIntersection* OpContour::addIntersection(const OpPtT& t, OpSegment* seg, SelfIntersect self_, int cID
+        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason,
+        const OpSegment* dSeg, const OpSegment* oSeg)) {
+    OpIntersection* next = contours->allocateIntersection();
+    next->set(t, seg, self_, cID  OP_DEBUG_PARAMS(maker, line, file, reason, nullptr, nullptr, 
+            nullptr, dSeg, oSeg));
     return next;
 }
 
