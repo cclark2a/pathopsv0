@@ -3,101 +3,29 @@
 #include "OpEdges.h"
 #include "OpSegment.h"
 
-start here;
-// add a custom iterator that looks at both curves and lines
-struct OpSectEdgeIter {
-	OpSectEdgeIter(const std::vector<OpEdge>& c, const std::vector<OpEdge>& l, bool start)
-		: curves(c)
-		, lines(l) {
-		if (start) {
-			localIndex = 0; // iterator start index
-			return;
-		}
-		localIndex = curves.size() + lines.size(); // iterator end index
+static std::vector<OpEdge> findEdgesTRanges(const std::vector<OpEdge>& curves) {
+	std::vector<OpEdge> runs;
+	std::vector <const OpEdge*> ordered;
+	for (const auto& edge : curves) {
+		if (EdgeSplit::yes != edge.doSplit)	 // edge bounds didn't overlap opposite
+			continue;
+		ordered.push_back(&edge);
 	}
-
-	bool operator!=(OpSectEdgeIter rhs) { 
-		return localIndex != rhs.localIndex; 
-	}
-
-    const OpEdge& operator*() {
-		size_t entries = curves.size();
-		if (localIndex < entries)
-			return curves[localIndex];
-		int index = localIndex - entries;
-		if (index < lines.size())
-			return lines[index];
-		OpDebugOut("iterator out of bounds! localIndex: " + STR(localIndex) + "\n");
-		assert(0);
-		return *(const OpEdge*) nullptr; 
-	}
-
-    void operator++() { 
-		++localIndex;
-	}
-
-	const std::vector<OpEdge>& curves;
-	const std::vector<OpEdge>& lines;
-	size_t localIndex;
-};
-
-struct OpSectEdgeIterator {
-	OpSectEdgeIterator(const std::vector<OpEdge>& c, const std::vector<OpEdge>& l)
-		: curves(c)
-		, lines(l) {
-	}
-	OpSectEdgeIter begin() { return OpSectEdgeIter(curves, lines, true); }
-	OpSectEdgeIter end() { return OpSectEdgeIter(curves, lines, false); }
-	bool empty() { return !(begin() != end()); }
-
-	const std::vector<OpEdge>& curves;
-	const std::vector<OpEdge>& lines;
-};
-
-
-static OpEdge findEdgesTRange(std::vector<OpEdge>& parts, const OpSegment* oppSegment) {
-	OpSectEdgeIterator sectEdgeIterator(curves, lines);
+	std::sort(ordered.begin(), ordered.end(), [](const OpEdge* lhs, const OpEdge* rhs) {
+		return lhs->start.t < rhs->start.t; 
+	});
 	OpPtT start( OpPoint(), OpInfinity );
 	OpPtT end( OpPoint(), -OpInfinity );
-	for (const auto& edge : parts) {
-		edge.dumpDetail();
-		if (EdgeSplit::yes != edge.doSplit)
-			continue;
-		if (start.t > edge.start.t)
-			start = edge.start;
-		if (end.t < edge.end.t)
-			end = edge.end;
+	// if curve pieces are continuous, join them up
+	for (auto edge : ordered) {
+		if (!runs.size() || runs.back().end.t != edge->start.t)
+			runs.push_back(*edge);
+		else
+			runs.back().end.t = edge->end.t;
 	}
-	// extend edge, if possible, by considering found intersections
-	// assume that if part of the pair is coincident, there can be only one isolated common point
-	// !!! may need to check if single isolated point is near or is on edge which is a line
-	OpEdge result = parts[0];
-	result.start = start;
-	result.end = end;
-	const OpSegment* segment = result.segment;
-	OpPtT min { OpPoint(), OpInfinity };
-	OpPtT max { OpPoint(), -OpInfinity };
-	for (auto ceptPtr : segment->intersections) {
-		const OpIntersection& cept = *ceptPtr;
-		if (cept.segment != oppSegment)
-			continue;
-		if (cept.coincidenceID)
-			continue;
-		if (OpMath::Between(result.start.t, cept.ptT.t, result.end.t))
-			continue;
-		if (min.t > cept.ptT.t)
-			min = cept.ptT;
-		if (max.t < cept.ptT.t)
-			max = cept.ptT;
-	}
-	if (min.t < max.t) {
-		if (result.start.t > min.t)
-			result.start = min;
-		if (result.end.t < max.t)
-			result.end = max;
-	}
-	result.complete();
-	return result;
+	for (auto& edge : runs)
+		edge.complete();
+	return runs;
 }
 
 static float oppositeT(const OpSegment* segment, const OpEdge& oppEdge, OpPoint test
@@ -118,21 +46,6 @@ SectFound OpEdgeIntersect::addCoincidence() {
 	OpEdge& edgeResult = edgeResults.back();
 	oppResults.push_back(oppCurves.front());
 	OpEdge& oppResult = oppResults.back();
-	// if it is a simple noncoincident crossing, there may be only one t value (zero on the opposite)
-	// probably detect that in the caller so we don't get this far if there is only one point
-	// if there are two or more on one side and zero on the other, set use edge min / max appropriately
-	if (edgeTs.size()) {
-		edgeResult.start.t = *std::min_element(edgeTs.begin(), edgeTs.end());
-		edgeResult.start.pt = segment->c.ptAtT(edgeResult.start.t);
-		edgeResult.end.t = *std::max_element(edgeTs.begin(), edgeTs.end());
-		edgeResult.end.pt = segment->c.ptAtT(edgeResult.end.t);
-	}
-	if (oppTs.size()) {
-		oppResult.start.t = *std::min_element(oppTs.begin(), oppTs.end());
-		oppResult.start.pt = oppSegment->c.ptAtT(oppResult.start.t);
-		oppResult.end.t = *std::max_element(oppTs.begin(), oppTs.end());
-		oppResult.end.pt = oppSegment->c.ptAtT(oppResult.end.t);
-	}
 	// find the extreme pt values and adjust the opposite to match
 	OpVector edgeDir = originalEdge->end.pt - originalEdge->start.pt;
 	OpVector oppDir = originalOpp->end.pt - originalOpp->start.pt;
@@ -143,10 +56,10 @@ SectFound OpEdgeIntersect::addCoincidence() {
 	if (oppReversed)
 		std::swap(oppResult.start, oppResult.end);
 	XyChoice edgeXY = fabsf(edgeDir.dx) > fabsf(edgeDir.dy) ? XyChoice::inX : XyChoice::inY;
-	float edgeMin = edgeTs.size() ? edgeResult.start.pt.choice(edgeXY) : OpNaN;
-	float oppMin = oppTs.size() ? oppResult.start.pt.choice(edgeXY) : OpNaN;
-	float edgeMax = edgeTs.size() ? edgeResult.end.pt.choice(edgeXY) : OpNaN;
-	float oppMax = oppTs.size() ? oppResult.end.pt.choice(edgeXY) : OpNaN;
+	float edgeMin = OpNaN;
+	float oppMin = OpNaN;
+	float edgeMax = OpNaN;
+	float oppMax = OpNaN;
 	bool edgeReversed = edgeMin > edgeMax;
 	bool useEdgeMin = OpMath::IsNaN(oppMin) || (edgeReversed ? edgeMin > oppMin : edgeMin < oppMin);
 	bool useEdgeMax = OpMath::IsNaN(oppMax) || (edgeReversed ? edgeMax < oppMax : edgeMax > oppMax);
@@ -185,10 +98,32 @@ SectFound OpEdgeIntersect::addCoincidence() {
 
 // trim front and back of ranges
 SectFound OpEdgeIntersect::addCurveCoincidence() {
-	OpSegment* segment = const_cast<OpSegment*>(edgeCurves.front().segment);
-	OpSegment* oppSegment = const_cast<OpSegment*>(oppCurves.front().segment);
-	edgeResults.push_back(findEdgesTRange(edgeCurves, oppSegment));
-	oppResults.push_back(findEdgesTRange(oppCurves, segment));
+	std::vector<OpEdge> edgeRuns = findEdgesTRanges(edgeCurves);
+	std::vector<OpEdge> oppRuns = findEdgesTRanges(oppCurves);
+	Axis larger = originalEdge->ptBounds.width() > originalEdge->ptBounds.height() ? 
+			Axis::vertical : Axis::horizontal;
+	for (auto& edge : edgeRuns) {
+		for (auto& opp : oppRuns) {
+			if (opp.ptBounds.ltChoice(larger) >= edge.ptBounds.rbChoice(larger)
+					|| opp.ptBounds.rbChoice(larger) <= edge.ptBounds.ltChoice(larger))
+				continue;
+			std::pair<float, float> maxminXY = std::minmax(edge.ptBounds.ltChoice(larger), 
+					opp.ptBounds.ltChoice(larger));
+			OpPtT edgeStart = maxminXY.second == edge.start.pt.choice(larger) ?
+					edge.start : edge.findPtT(larger, maxminXY.second);
+			OpPtT edgeEnd = maxminXY.first == edge.end.pt.choice(larger) ?
+					edge.end : edge.findPtT(larger, maxminXY.first);
+
+			OpPtT oppStart = maxminXY.second == opp.start.pt.choice(larger) ?
+					opp.start : maxminXY.second == opp.end.pt.choice(larger) ?
+					opp.end : opp.findPtT(larger, maxminXY.second);
+			OpPtT oppEnd = maxminXY.first == opp.start.pt.choice(larger) ?
+					opp.start : maxminXY.first == opp.end.pt.choice(larger) ?
+					opp.end : opp.findPtT(larger, maxminXY.first);
+				start here;
+		}
+	}
+
 	addCurveCoin(edgeResults.back(), oppResults.back());
 	return SectFound::intersects;
 }
@@ -266,46 +201,12 @@ void OpEdgeIntersect::addCurveCoin(OpEdge& edge, OpEdge& oppEdge) {
 	segSect2->pair(segEnd.pt == oppStart.pt ? oppSect1 : oppSect2);
 }
 
-SectFound OpEdgeIntersect::addIntersections(OP_DEBUG_CODE(SectReason reason)) {
-	if (!edgeTs.size() && !oppTs.size())
-		return SectFound::no;
-	// check to see if center t is equal to start or end (because delta t is so small)
-	OpSegment* eSegment = const_cast<OpSegment*>(originalEdge->segment);
-	OpSegment* oSegment = const_cast<OpSegment*>(originalOpp->segment);
-	OpDebugBreak(originalEdge, 411);
-	// pick the edge t or opp t 
-	for (float edgeT : edgeTs) {
-		OpPtT edgePtT { eSegment->c.ptAtT(edgeT), edgeT };
-		OpIntersection* sect = eSegment->addIntersection(edgePtT  
-				OP_DEBUG_PARAMS(SECT_MAKER(edgeT), reason, nullptr, originalEdge, originalOpp));
-		edgePtT.pt.pin(originalOpp->ptBounds);
-		OpPtT oppPtT { edgePtT.pt, oppositeT(eSegment, *originalOpp, edgePtT.pt  
-				OP_DEBUG_PARAMS(originalEdge->id)) };
-		OpIntersection* oSect = oSegment->addIntersection(oppPtT  
-				OP_DEBUG_PARAMS(SECT_MAKER(edgeTOpp), reason, nullptr, originalEdge, originalOpp));
-		sect->pair(oSect);
-	} 
-	for (float oppT : oppTs) {
-		OpPtT oppPtT{ oSegment->c.ptAtT(oppT), oppT };
-		OpIntersection* oSect = oSegment->addIntersection(oppPtT  
-				OP_DEBUG_PARAMS(SECT_MAKER(oppT), reason, nullptr, originalEdge, originalOpp));
-		oppPtT.pt.pin(originalEdge->ptBounds);
-		OpPtT edgePtT{ oppPtT.pt, oppositeT(oSegment, *originalEdge, oppPtT.pt  
-				OP_DEBUG_PARAMS(originalOpp->id)) };
-		OpIntersection* sect = eSegment->addIntersection(edgePtT  
-				OP_DEBUG_PARAMS(SECT_MAKER(oppTOpp), reason, nullptr, originalEdge, originalOpp));
-		sect->pair(oSect);
-	}
-	return SectFound::intersects;
-}
-
-
 // this marks opp as splittable if edge is a curve
 // this finds opp t if edge is a line
 // runs twice: edge/opp, then opp/edge
 // result is for all edges: no (intersections at all); fail; (something) split; line sect (no splits)
 SectFound OpEdgeIntersect::CurvesIntersect(std::vector<OpEdge>& edgeParts,
-		std::vector<OpEdge>& oppParts, std::vector<float>& oppTs) {
+		std::vector<OpEdge>& oppParts) {
 	SectFound result = SectFound::no;	// assumes no pair intersects; we're done
 	for (auto& edge : edgeParts) {
 		// !!! if assert fires, we missed detecting linear edge earlier
@@ -422,24 +323,16 @@ SectFound OpEdgeIntersect::divideAndConquer() {
 			LinearIntersect(edgeLines, oppCurves);
 		if (oppLines.size())
 			LinearIntersect(oppLines, edgeCurves);
-		SectFound oppResult = CurvesIntersect(edgeCurves, oppCurves, oppTs);
+		SectFound oppResult = CurvesIntersect(edgeCurves, oppCurves);
 		if (SectFound::fail == oppResult)
 			return oppResult;
-		SectFound edgeResult = CurvesIntersect(oppCurves, edgeCurves, edgeTs);
+		SectFound edgeResult = CurvesIntersect(oppCurves, edgeCurves);
 		if (SectFound::fail == edgeResult)
 			return edgeResult;
-		if (SectFound::no == oppResult || SectFound::no == edgeResult) {
-			if (!edgeTs.size() && !oppTs.size())
-				return SectFound::no;
-			if (1 == edgeTs.size() + oppTs.size())
-				return addIntersections(OP_DEBUG_CODE(SectReason::divideAndConquer_oneT));
-			// add intersections at extremes of returned t values
-			return addCoincidence();
-		}
+		if (SectFound::no == oppResult || SectFound::no == edgeResult)
+			return SectFound::no;
 		if (edgeCurves.size() >= maxSplits || oppCurves.size() >= maxSplits)
 			return addCurveCoincidence();
-		if (edgeTs.size() >= maxSplits || oppTs.size() >= maxSplits)
-			return addCoincidence();
 		// old linear edges are removed from list by split below
 		// iterate through all edges and mark ones that are linear
 		// if one side has split more than double the other, do it again
@@ -451,12 +344,13 @@ SectFound OpEdgeIntersect::divideAndConquer() {
 			keepGoing = false;
 			if (splitType == DoSplit::marked || edgeCurves.size() * 2 <= oppCurves.size()) {
 				if (!Split(edgeCurves, edgeLines, splitType))
-					return addIntersections(OP_DEBUG_CODE(SectReason::divideAndConquer_noEdgeToSplit));
+					return SectFound::no;
 				keepGoing = true;
 			}
 			if (splitType == DoSplit::marked || edgeCurves.size() >= oppCurves.size() * 2) {
 				if (!Split(oppCurves, oppLines, splitType))
-					return addIntersections(OP_DEBUG_CODE(SectReason::divideAndConquer_noOppToSplit));
+					return SectFound::no;
+				keepGoing = true;
 			}
 			splitType = DoSplit::all;
 		} while (keepGoing);
