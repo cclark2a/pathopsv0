@@ -86,6 +86,7 @@ struct OpSegment {
     void fixEdges(OpPoint alias, OpPoint master  OP_DEBUG_PARAMS(int masterSectID));
     void fixIntersections(OpPoint alias, OpPoint master  OP_DEBUG_PARAMS(int masterSectID));
     float findPtT(float start, float end, OpPoint opp) const;
+    FoundPtT findPtT(Axis , float start, float end, float oppXY, float* result) const;
     FoundPtT findPtT(float start, float end, OpPoint opp, float* result) const;
     FoundPtT findPtT(const OpPtT& start, const OpPtT& end, OpPoint opp, float* result) const;
     static void flip(WindZero* windZero);

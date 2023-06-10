@@ -1329,14 +1329,6 @@ void OpEdgeIntersect::draw() const {
 		for (auto& edge : *edgesPtrs)
 			focusRect.add(edge.ptBounds);
 	}
-	if (oppTs.size() || edgeTs.size()) {
-		if (oppTs.size() && !oppCurves.size() && !oppLines.size())
-			return OpDebugOut("oppTs = " + STR(oppTs.size()) + " but oppParts == 0\n");
-		if (edgeTs.size() && !edgeCurves.size() && !edgeLines.size())
-			return OpDebugOut("edgeTs = " + STR(edgeTs.size()) + " but edgeParts == 0\n");
-		DRAW_IDS_ON(Points);
-		DRAW_IDS_ON(Ts);
-	}
 	DRAW_IDS_ON(Edges);
 	OpDebugImage::drawDoubleFocus(focusRect, false);
 }

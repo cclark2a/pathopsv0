@@ -391,6 +391,7 @@ public:
 	bool containsChain(const OpEdge* edge, EdgeLoop) const;
 	bool containsLink(const OpEdge* edge) const { return containsChain(edge, EdgeLoop::link); }
 	bool containsSum(const OpEdge* edge) const { return containsChain(edge, EdgeLoop::sum); }
+	float findT(Axis , float oppXY) const;
 	OpPtT flipPtT(EdgeMatch match) const { return match == whichEnd ? end : start; }
 	void flipWhich() { whichEnd = (EdgeMatch)((int)whichEnd ^ (int)EdgeMatch::both); }
 	ResolveWinding findWinding(Axis axis  OP_DEBUG_PARAMS(int* debugWindingLimiter));

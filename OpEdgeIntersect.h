@@ -17,6 +17,11 @@ enum class DoSplit {
 	all
 };
 
+enum class CurveRef {
+	edge,
+	opp
+};
+
 struct OpEdgeIntersect {
 	static constexpr int maxSplits = 8;   // !!! no idea what this should be 
 	static constexpr int maxDepth = 24;  // !!! no idea what this should be
@@ -31,16 +36,13 @@ struct OpEdgeIntersect {
 #endif
 	}
 
-	SectFound addCoincidence(); // if curve is flat
-	void addCurveCoin(OpEdge& edge, OpEdge& oppEdge);
 	SectFound addCurveCoincidence(); // if curve doesn't devolve into line segments
-	static IntersectResult CurveCenter(const OpEdge& edge, OpEdge&);
-	static SectFound CurvesIntersect(std::vector<OpEdge>& edgeParts,
-			std::vector<OpEdge>& oppParts);
+	SectFound curvesIntersect(CurveRef );
 	SectFound divideAndConquer();
-	static void LinearIntersect(std::vector<OpEdge>& edgeParts,
-			std::vector<OpEdge>& oppParts);
-	static bool Split(std::vector<OpEdge>& curves, std::vector<OpEdge>& lines, DoSplit );
+	std::vector<OpEdge> findEdgesTRanges(CurveRef );
+	static void LinearIntersect(std::vector<OpEdge>& lines, std::vector<OpEdge>& linesOrCurves);
+	bool split(CurveRef , DoSplit );
+	bool tooFew(CurveRef );
 
 #if OP_DEBUG_DUMP
 	static const OpEdgeIntersect* debugActive;

@@ -262,6 +262,20 @@ float OpSegment::findPtT(float start, float end, OpPoint opp) const {
     return result;
 }
 
+FoundPtT OpSegment::findPtT(Axis axis, float start, float end, float opp, float* result) const {
+    if (OpType::lineType != c.type) {
+        OpRoots roots = c.axisRayHit(axis, opp, start, end);
+         if (1 < roots.count)
+            return FoundPtT::multiple;
+         *result = 0 == roots.count ? OpNaN : roots.roots[0];
+    } else {
+        *result = (opp - c.pts[0].choice(axis)) / (c.pts[1].choice(axis) - c.pts[0].choice(axis));
+        if (start > *result || *result > end)
+            *result = OpNaN;
+    }
+    return FoundPtT::single;
+}
+
 FoundPtT OpSegment::findPtT(float start, float end, OpPoint opp, float* result) const {
     if (OpType::lineType != c.type) {
         OpRoots hRoots = c.axisRayHit(Axis::horizontal, opp.y, start, end);

@@ -263,6 +263,14 @@ bool OpEdge::containsChain(const OpEdge* edge, EdgeLoop loopType) const {
 	return false;
 }
 
+float OpEdge::findT(Axis axis, float oppXY) const {
+	float result;
+    FoundPtT foundPtT = segment->findPtT(axis, start.t, end.t, oppXY, &result);
+	assert(FoundPtT::single == foundPtT);
+	assert(OpNaN != result);
+	return result;
+}
+
 // for each edge: recurse until priorSum is null or sum winding has value 
 // or -- sort the edges first ? the sort doesn't seem easy or obvious -- may need to think about it
 // if horizontal axis, look at rect top/bottom
