@@ -1,10 +1,10 @@
 #include "OpContour.h"
-#include "OpEdgeIntersect.h"
+#include "OpCurveCurve.h"
 #include "OpEdges.h"
 #include "OpSegment.h"
 
 // trim front and back of ranges
-SectFound OpEdgeIntersect::addCurveCoincidence() {
+SectFound OpCurveCurve::addCurveCoincidence() {
 	std::vector<OpEdge> edgeRuns = findEdgesTRanges(CurveRef::edge);
 	std::vector<OpEdge> oppRuns = findEdgesTRanges(CurveRef::opp);
 	Axis larger = originalEdge->ptBounds.width() > originalEdge->ptBounds.height() ? 
@@ -72,7 +72,7 @@ SectFound OpEdgeIntersect::addCurveCoincidence() {
 // this finds opp t if edge is a line
 // runs twice: edge/opp, then opp/edge
 // result is for all edges: no (intersections at all); fail; (something) split; line sect (no splits)
-SectFound OpEdgeIntersect::curvesIntersect(CurveRef curveRef) {
+SectFound OpCurveCurve::curvesIntersect(CurveRef curveRef) {
 	std::vector<OpEdge>& edgeParts = CurveRef::edge == curveRef ? edgeCurves : oppCurves;
 	std::vector<OpEdge>& oppParts = CurveRef::edge == curveRef ? oppCurves : edgeCurves;
 	SectFound result = SectFound::no;	// assumes no pair intersects; we're done
@@ -126,7 +126,7 @@ SectFound OpEdgeIntersect::curvesIntersect(CurveRef curveRef) {
 	- discard linear edges after processing, so they don't generate results on the next pass
 
 */
-SectFound OpEdgeIntersect::divideAndConquer() {
+SectFound OpCurveCurve::divideAndConquer() {
 #if OP_DEBUG_IMAGE
 	bool breakAtDraw = 53 == originalEdge->id && 45 == originalOpp->id;
 	if (breakAtDraw) {
@@ -202,7 +202,7 @@ static bool compareEdges(const OpEdge* lhs, const OpEdge* rhs) {
 	return lhs->start.t < rhs->start.t; 
 }
 
-std::vector<OpEdge> OpEdgeIntersect::findEdgesTRanges(CurveRef curveRef) {
+std::vector<OpEdge> OpCurveCurve::findEdgesTRanges(CurveRef curveRef) {
 	const std::vector<OpEdge>& curves = CurveRef::edge == curveRef ? edgeCurves : oppCurves;
 	std::vector<OpEdge> runs;
 	std::vector <const OpEdge*> ordered;
@@ -228,7 +228,7 @@ std::vector<OpEdge> OpEdgeIntersect::findEdgesTRanges(CurveRef curveRef) {
 }
 
 // Edge parts are all linear. See if each intersects with any of the opposite edges
-void OpEdgeIntersect::LinearIntersect(std::vector<OpEdge>& edgeParts,
+void OpCurveCurve::LinearIntersect(std::vector<OpEdge>& edgeParts,
 		std::vector<OpEdge>& oppParts) {
 	for (OpEdge& edge : edgeParts) {
 		OP_ASSERT(edge.isLine_impl);
@@ -243,7 +243,7 @@ void OpEdgeIntersect::LinearIntersect(std::vector<OpEdge>& edgeParts,
 	}
 }
 
-bool OpEdgeIntersect::split(CurveRef curveRef, DoSplit doSplit) {
+bool OpCurveCurve::split(CurveRef curveRef, DoSplit doSplit) {
 	std::vector<OpEdge>& curves = CurveRef::edge == curveRef ? edgeCurves : oppCurves;
 	std::vector<OpEdge>& lines = CurveRef::edge == curveRef ? edgeLines : oppLines;
 	std::vector<OpEdge> splits;	// curves only
@@ -256,7 +256,9 @@ bool OpEdgeIntersect::split(CurveRef curveRef, DoSplit doSplit) {
 		// assume most curves split into more curves
 		for (NewEdge newEdge : { NewEdge::isLeft, NewEdge::isRight } ) {
 			splits.emplace_back(&edge, edge.center, newEdge  
-					OP_DEBUG_PARAMS(EDGE_MAKER(split1), nullptr, nullptr));
+					OP_DEBUG_PARAMS(EDGE_MAKER(split1), 
+					CurveRef::edge == curveRef ? originalEdge : originalOpp,
+					CurveRef::edge == curveRef ? originalOpp : originalEdge));
 			if (splits.back().setLinear()) {
 				lines.push_back(splits.back());
 				splits.pop_back();
@@ -267,7 +269,7 @@ bool OpEdgeIntersect::split(CurveRef curveRef, DoSplit doSplit) {
 	return curves.size() || lines.size();
 }
 
-bool OpEdgeIntersect::tooFew(CurveRef curveRef) {
+bool OpCurveCurve::tooFew(CurveRef curveRef) {
 	size_t curveCount, lineCount, oppCurveCount;
 	if (CurveRef::edge == curveRef) {
 		curveCount = edgeCurves.size();

@@ -4,7 +4,7 @@
 #if OP_DEBUG_DUMP
 #include "OpContour.h"
 #include "OpEdge.h"
-#include "OpEdgeIntersect.h"
+#include "OpCurveCurve.h"
 #include "OpEdges.h"
 #include "PathOps.h"
 
@@ -379,13 +379,13 @@ const OpEdge* OpContours::findEdge(int ID) const {
         }
     }
     // if edge intersect is active, search there too
-    if (OpEdgeIntersect::debugActive) {
-	    for (auto edgePtrs : { &OpEdgeIntersect::debugActive->edgeCurves,
-			    &OpEdgeIntersect::debugActive->oppCurves,
-			    &OpEdgeIntersect::debugActive->edgeLines,
-			    &OpEdgeIntersect::debugActive->oppLines,
-			    &OpEdgeIntersect::debugActive->edgeResults,
-			    &OpEdgeIntersect::debugActive->oppResults } ) {
+    if (OpCurveCurve::debugActive) {
+	    for (auto edgePtrs : { &OpCurveCurve::debugActive->edgeCurves,
+			    &OpCurveCurve::debugActive->oppCurves,
+			    &OpCurveCurve::debugActive->edgeLines,
+			    &OpCurveCurve::debugActive->oppLines,
+			    &OpCurveCurve::debugActive->edgeResults,
+			    &OpCurveCurve::debugActive->oppResults } ) {
             const auto& edges = *edgePtrs;
             for (const auto& edge : edges) {
                 if (ID == edge.id)
@@ -1036,7 +1036,7 @@ void OpEdges::dump() const {
 
 DUMP_STRUCT_DEFINITIONS(OpEdges)
 
-DUMP_STRUCT_DEFINITIONS(OpEdgeIntersect)
+DUMP_STRUCT_DEFINITIONS(OpCurveCurve)
 
 void dump(const std::vector<EdgeDistance>& distances) {
     for (auto& distance : distances) {
@@ -1059,9 +1059,9 @@ void dumpDetail(const std::vector <OpEdge>& edges) {
     }
 }
 
-const OpEdgeIntersect* OpEdgeIntersect::debugActive;
+const OpCurveCurve* OpCurveCurve::debugActive;
 
-void OpEdgeIntersect::dump(bool detail) const {
+void OpCurveCurve::dump(bool detail) const {
     std::string names[] = { "edge curves", "opp curves", "edge lines", "opp lines" };
     int count = 0;
 	for (auto edgesPtrs : { &edgeCurves, &oppCurves, &edgeLines, &oppLines, &edgeResults, &oppResults } ) {

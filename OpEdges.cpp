@@ -1,5 +1,5 @@
 #include "OpContour.h"
-#include "OpEdgeIntersect.h"
+#include "OpCurveCurve.h"
 #include "OpEdges.h"
 #include "OpSegment.h"
 
@@ -351,8 +351,8 @@ FoundIntersections OpEdges::findIntersections() {
 			}
 			if (lineType == edge->segment->c.type || lineType == opp->segment->c.type)
 				continue;
-			OpEdgeIntersect opEdgeIntersect(edge, opp);
-			SectFound result = opEdgeIntersect.divideAndConquer();
+			OpCurveCurve OpCurveCurve(edge, opp);
+			SectFound result = OpCurveCurve.divideAndConquer();
 			if (SectFound::fail == result || SectFound::overflow == result)
 				return FoundIntersections::fail;
 		}

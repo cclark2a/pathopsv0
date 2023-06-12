@@ -16,8 +16,8 @@
 #include "OpDebugDouble.h"
 #include "OpDebugDump.h"
 #include "OpContour.h"
+#include "OpCurveCurve.h"
 #include "OpEdge.h"
-#include "OpEdgeIntersect.h"
 #include "OpEdges.h"
 #include "OpMath.h"
 #include "OpSegment.h"
@@ -140,13 +140,13 @@ struct OpDebugEdgeIter {
 			for (const auto& s : c.segments)
 				localEdgeIndex += s.edges.size();
 		}
-		if (OpEdgeIntersect::debugActive) {
-			localEdgeIndex += OpEdgeIntersect::debugActive->edgeCurves.size();
-			localEdgeIndex += OpEdgeIntersect::debugActive->oppCurves.size();
-			localEdgeIndex += OpEdgeIntersect::debugActive->edgeLines.size();
-			localEdgeIndex += OpEdgeIntersect::debugActive->oppLines.size();
-			localEdgeIndex += OpEdgeIntersect::debugActive->edgeResults.size();
-			localEdgeIndex += OpEdgeIntersect::debugActive->oppResults.size();
+		if (OpCurveCurve::debugActive) {
+			localEdgeIndex += OpCurveCurve::debugActive->edgeCurves.size();
+			localEdgeIndex += OpCurveCurve::debugActive->oppCurves.size();
+			localEdgeIndex += OpCurveCurve::debugActive->edgeLines.size();
+			localEdgeIndex += OpCurveCurve::debugActive->oppLines.size();
+			localEdgeIndex += OpCurveCurve::debugActive->edgeResults.size();
+			localEdgeIndex += OpCurveCurve::debugActive->oppResults.size();
 		}
 	}
 
@@ -187,7 +187,7 @@ struct OpDebugEdgeIter {
 				}
 			}
 		}
-		if (OpEdgeIntersect::debugActive) {
+		if (OpCurveCurve::debugActive) {
 			auto advanceEdge = [&](const std::vector<OpEdge>& edges, bool opp, bool line) {	// lambda
 				if (index + edges.size() > localEdgeIndex) {
 					isFound = false;
@@ -200,12 +200,12 @@ struct OpDebugEdgeIter {
 				index += edges.size();
 				return (const OpEdge* ) nullptr;
 			};
-			for (auto edgePtr : { &OpEdgeIntersect::debugActive->edgeCurves,
-					&OpEdgeIntersect::debugActive->oppCurves,
-					&OpEdgeIntersect::debugActive->edgeLines,
-					&OpEdgeIntersect::debugActive->oppLines,
-					&OpEdgeIntersect::debugActive->edgeResults,
-					&OpEdgeIntersect::debugActive->oppResults } ) {
+			for (auto edgePtr : { &OpCurveCurve::debugActive->edgeCurves,
+					&OpCurveCurve::debugActive->oppCurves,
+					&OpCurveCurve::debugActive->edgeLines,
+					&OpCurveCurve::debugActive->oppLines,
+					&OpCurveCurve::debugActive->edgeResults,
+					&OpCurveCurve::debugActive->oppResults } ) {
 				const OpEdge* result = advanceEdge(*edgePtr, false, false);
 				if (result)
 					return result;
@@ -1321,9 +1321,9 @@ void OpEdges::draw() const {
 	OpDebugImage::focusEdges();
 }
 
-void OpEdgeIntersect::draw() const {
+void OpCurveCurve::draw() const {
 	if (!edgeCurves.size() && !edgeLines.size())
-		return OpDebugOut("OpEdgeIntersect missing edgeCurves\n");
+		return OpDebugOut("OpCurveCurve missing edgeCurves\n");
 	OpPointBounds focusRect = edgeCurves.front().ptBounds;
 	for (auto edgesPtrs : { &edgeCurves, &oppCurves, &edgeLines, &oppLines, &edgeResults, &oppResults }) {
 		for (auto& edge : *edgesPtrs)

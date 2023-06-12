@@ -1,5 +1,5 @@
-#ifndef OpEdgeIntersect_DEFINED
-#define OpEdgeIntersect_DEFINED
+#ifndef OpCurveCurve_DEFINED
+#define OpCurveCurve_DEFINED
 
 #include "OpEdge.h"
 #include "OpIntersection.h"
@@ -22,11 +22,11 @@ enum class CurveRef {
 	opp
 };
 
-struct OpEdgeIntersect {
+struct OpCurveCurve {
 	static constexpr int maxSplits = 8;   // !!! no idea what this should be 
 	static constexpr int maxDepth = 24;  // !!! no idea what this should be
 
-	OpEdgeIntersect(const OpEdge* edge, const OpEdge* opp)
+	OpCurveCurve(const OpEdge* edge, const OpEdge* opp)
 		: originalEdge(edge)
 		, originalOpp(opp) {
 		edgeCurves.emplace_back(*edge);
@@ -45,9 +45,9 @@ struct OpEdgeIntersect {
 	bool tooFew(CurveRef );
 
 #if OP_DEBUG_DUMP
-	static const OpEdgeIntersect* debugActive;
+	static const OpCurveCurve* debugActive;
 
-	~OpEdgeIntersect() {
+	~OpCurveCurve() {
 		debugActive = nullptr;
 	}
 	void dump(bool detail) const;

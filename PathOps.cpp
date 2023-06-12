@@ -1,6 +1,5 @@
 #include "OpContour.h"
 #include "OpEdgeBuilder.h"
-#include "OpEdgeIntersect.h"
 #include "OpEdges.h"
 #include "PathOps.h"
 
