@@ -6,6 +6,7 @@
 #include "OpEdge.h"
 #include "OpCurveCurve.h"
 #include "OpEdges.h"
+#include "OpSegments.h"
 #include "PathOps.h"
 
 #ifdef _WIN32
@@ -646,8 +647,10 @@ static EdgeMakerName edgeMakerNames[] {
     EDGE_MAKER_NAME(intersectEdge1),
     EDGE_MAKER_NAME(intersectEdge2),
     EDGE_MAKER_NAME(makeEdges),
+    EDGE_MAKER_NAME(oppSect),
     EDGE_MAKER_NAME(resolveCoin1),
     EDGE_MAKER_NAME(resolveCoin2),
+    EDGE_MAKER_NAME(segSect),
     EDGE_MAKER_NAME(split1),
     EDGE_MAKER_NAME(split2),
     EDGE_MAKER_NAME(addTest),
@@ -1118,7 +1121,6 @@ IntersectMakerName intersectMakerNames[] {
 	INTERSECT_MAKER_NAME(edgeTOpp),
 	INTERSECT_MAKER_NAME(oppT),
 	INTERSECT_MAKER_NAME(oppTOpp),
-	INTERSECT_MAKER_NAME(findExtrema),
 	INTERSECT_MAKER_NAME(findIntersections_start),
 	INTERSECT_MAKER_NAME(findIntersections_startOppReversed),
 	INTERSECT_MAKER_NAME(findIntersections_startOpp),
@@ -1145,13 +1147,14 @@ struct SectReasonName {
 #define SECT_REASON_NAME(r) { SectReason::r, #r }
 
 
-SectReasonName sectReasonNames[]{
+SectReasonName sectReasonNames[] {
     SECT_REASON_NAME(coinPtsMatch),
     SECT_REASON_NAME(curveCurveCoincidence),
     SECT_REASON_NAME(degenerateCenter),
     SECT_REASON_NAME(divideAndConquer_oneT),
     SECT_REASON_NAME(divideAndConquer_noEdgeToSplit),
     SECT_REASON_NAME(divideAndConquer_noOppToSplit),
+    SECT_REASON_NAME(endPt),
     SECT_REASON_NAME(inflection),
     SECT_REASON_NAME(lineCurve),
     SECT_REASON_NAME(missingCoincidence),
@@ -1159,24 +1162,25 @@ SectReasonName sectReasonNames[]{
     SECT_REASON_NAME(resolveCoin_oWindingChange),
     SECT_REASON_NAME(sharedEdgePoint),
     SECT_REASON_NAME(sharedEndPoint),
+    SECT_REASON_NAME(startPt),
     SECT_REASON_NAME(xExtrema),
     SECT_REASON_NAME(yExtrema),
     // testing only
     SECT_REASON_NAME(test),
 };
 
-struct SelfIntersectName {
-    SelfIntersect self;
+struct SectFlavorName {
+    SectFlavor flavor;
     const char* name;
 };
 
-#define SELF_INTERSECT_NAME(r) { SelfIntersect::r, #r }
+#define SECT_FLAVOR_NAME(r) { SectFlavor::r, #r }
 
-SelfIntersectName selfIntersectNames[] {
-    SELF_INTERSECT_NAME(none),
-    SELF_INTERSECT_NAME(self),
-    SELF_INTERSECT_NAME(missing),
-    SELF_INTERSECT_NAME(split),
+SectFlavorName sectFlavorNames[] {
+    SECT_FLAVOR_NAME(none),
+    SECT_FLAVOR_NAME(missing),
+    SECT_FLAVOR_NAME(split),
+    SECT_FLAVOR_NAME(unsectable),
 };
 
 std::string OpIntersection::debugDump(bool fromDumpFull, bool fromDumpDetail) const {
@@ -1192,6 +1196,13 @@ std::string OpIntersection::debugDump(bool fromDumpFull, bool fromDumpDetail) co
        if (!reasonOutOfDate && (unsigned) sectReasonNames[index].reason != index) {
            OpDebugOut("sectReasonNames out of date\n");
            reasonOutOfDate = true;
+           break;
+       }
+    bool flavorOutOfDate = false;
+    for (unsigned index = 0; index < ARRAY_COUNT(sectFlavorNames); ++index)
+       if (!flavorOutOfDate && (unsigned) sectFlavorNames[index].flavor != index) {
+           OpDebugOut("sectFlavorNames out of date\n");
+           flavorOutOfDate = true;
            break;
        }
     std::string s;
@@ -1213,18 +1224,20 @@ std::string OpIntersection::debugDump(bool fromDumpFull, bool fromDumpDetail) co
     s += " opp/sect:" + oppParentID + "/" + oppID;
     if (coincidenceID || debugCoincidenceID)
         s += " coinID:" + STR(coincidenceID) + "/" + STR(debugCoincidenceID);
-    if (SelfIntersect::none != self)
-        s += " self:" + std::string(selfIntersectNames[(int)self].name);
+    if (flavorOutOfDate)
+        s += "(flavor out of date) " + STR((int)flavor);
+    else if (SectFlavor::none != flavor)
+        s += " flavor:" + std::string(sectFlavorNames[(int)flavor].name);
     s += " maker:";
     if (makerOutOfDate)
-        s += "(out of date) " + STR((int)debugMaker);
+        s += "(maker out of date) " + STR((int)debugMaker);
     else
         s += intersectMakerNames[(int)debugMaker].name;
     if (fromDumpDetail)
         s += " " + debugMakerFile.substr(debugMakerFile.find("Op")) + ":" + STR(debugMakerLine);
     s += " reason:";
     if (reasonOutOfDate)
-        s += "(out of date) " + STR((int)debugReason);
+        s += "(reason out of date) " + STR((int)debugReason);
     else
         s += sectReasonNames[(int)debugReason].name;
     return s;
@@ -1777,18 +1790,8 @@ void OpSegments::dumpHex() const {
     OpDebugOut(s);
 }
 
-#if PATH_OPS_V0_FOR_SKIA == PATH_OPS_V0_FOR_SKIA
-
-#include "include/core/SkPath.h"
-
-void OpOutPath::dump() const {
-    skPath->dump();
-}
-
 void dump(const OpOutPath& path) {
     path.dump();
 }
-
-#endif
 
 #endif

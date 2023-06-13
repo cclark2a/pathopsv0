@@ -1,6 +1,7 @@
 #include "OpContour.h"
 #include "OpEdgeBuilder.h"
 #include "OpEdges.h"
+#include "OpSegments.h"
 #include "PathOps.h"
 
 static const OpOperator OpInverse[+OpOperator::ReverseSubtract + 1][2][2] {
@@ -55,8 +56,7 @@ bool PathOps(OpInPath left, OpInPath right, OpOperator _operator, OpOutPath resu
 #if OP_DEBUG
     debugGlobalIntersect = OpDebugIntersect::edge;
 #endif
-    contourList.findSegmentExtrema();
-    contourList.resolvePoints();    // multiple points may have same t value
+//    contourList.resolvePoints();    // multiple points may have same t value
     contourList.calcBounds();   // resolve points may have changed tight bounds
     contourList.makeEdges();
     OpEdges sortedEdges(contourList, EdgesToSort::byBox);
@@ -69,7 +69,7 @@ bool PathOps(OpInPath left, OpInPath right, OpOperator _operator, OpOutPath resu
     // at this point, edges curves broken at extrema and inflection;
     //   intersections are ptT for each found crossing
     contourList.sortIntersections();    // !!! should do nothing if intersections are unchanged
-    contourList.resolvePoints();    // added coincident points may have multiple pts with single t
+//    contourList.resolvePoints();    // added coincident points may have multiple pts with single t
     contourList.intersectEdge();  // combine edge list and intersection list
     if (!contourList.resolveCoincidence())  // leave at most one active for each pair of coincident edges
         return false;
@@ -81,7 +81,7 @@ bool PathOps(OpInPath left, OpInPath right, OpOperator _operator, OpOutPath resu
     // A segment may contain multiple intersections with the same t and different points.
     // If found, replace all matching points with the average, in this and the intersected segment.
     // !!! probably not needed if done earlier (if needed, must be rewritten)
-    contourList.resolvePoints();
+//    contourList.resolvePoints();
     if (!OpEdgeBuilder::Assemble(contourList, result))
         return false;
     return result.setInverted(inverseFill);

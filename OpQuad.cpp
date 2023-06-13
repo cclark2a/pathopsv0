@@ -32,24 +32,22 @@ OpRoots OpQuad::extrema(XyChoice offset) const {
     return OpRoots();
 }
 
-OpRoots OpQuad::rawIntersect(const std::array<OpPoint, 2> line) const {
-    if (line[0].x == line[1].x)
-        return axisRawHit(Axis::vertical, line[0].x);
-    if (line[0].y == line[1].y)
-        return axisRawHit(Axis::horizontal, line[0].y);
-    OpQuad rotated;
-    toVertical(line, rotated);
-    return rotated.axisRawHit(Axis::vertical, 0);
+OpRoots OpQuad::rawIntersect(const LinePts& line) const {
+    if (line.pts[0].x == line.pts[1].x)
+        return axisRawHit(Axis::vertical, line.pts[0].x);
+    if (line.pts[0].y == line.pts[1].y)
+        return axisRawHit(Axis::horizontal, line.pts[0].y);
+    OpCurve rotated = toVertical(line);
+    return rotated.asQuad().axisRawHit(Axis::vertical, 0);
 }
 
-OpRoots OpQuad::rayIntersect(const std::array<OpPoint, 2> line) const {
-    if (line[0].x == line[1].x)
-        return axisRayHit(Axis::vertical, line[0].x);
-    if (line[0].y == line[1].y)
-        return axisRayHit(Axis::horizontal, line[0].y);
-    OpQuad rotated;
-    toVertical(line, rotated);
-    return rotated.axisRayHit(Axis::vertical, 0);
+OpRoots OpQuad::rayIntersect(const LinePts& line) const {
+    if (line.pts[0].x == line.pts[1].x)
+        return axisRayHit(Axis::vertical, line.pts[0].x);
+    if (line.pts[0].y == line.pts[1].y)
+        return axisRayHit(Axis::horizontal, line.pts[0].y);
+    OpCurve rotated = toVertical(line);
+    return rotated.asQuad().axisRayHit(Axis::vertical, 0);
 }
 
 bool OpQuad::monotonic(XyChoice offset) const {
@@ -76,16 +74,18 @@ OpPoint OpQuad::ptAtT(float t) const {
     return a * pts[0] + b * pts[1] + c * pts[2];
 }
 
-void OpQuad::subDivide(OpPtT ptT1, OpPtT ptT2, std::array<OpPoint, 4>& dst) const {
-    dst[0] = ptT1.pt;
-    dst[2] = ptT2.pt;
-    if (0 == ptT1.t && 1 == ptT2.t) {  // called by opsegment addquad if there's no extrema
-        dst[1] = pts[1];
-        return;
+CurvePts OpQuad::subDivide(OpPtT ptT1, OpPtT ptT2) const {
+    CurvePts result;
+    result.pts[0] = ptT1.pt;
+    result.pts[2] = ptT2.pt;
+    if (0 == ptT1.t && 1 == ptT2.t)  // called by opsegment addquad if there's no extrema
+        result.pts[1] = pts[1];
+    else {
+        result.pts[1] = 2 * ptAtT((ptT1.t + ptT2.t) / 2) - (result.pts[0] + result.pts[2]) / 2;
+        // control point may be (incorrectly) outside bounds formed by end points; so, pin it
+        result.pts[1].pin(result.pts[0], result.pts[2]);
     }
-    dst[1] = 2 * ptAtT((ptT1.t + ptT2.t) / 2) - (dst[0] + dst[2]) / 2;
-    // control point may be (incorrectly) outside bounds formed by end points; so, pin it
-    dst[1].pin(dst[0], dst[2]);
+    return result;
 }
 
 OpVector OpQuad::tangent(float t) const {

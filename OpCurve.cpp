@@ -94,7 +94,7 @@ bool OpCurve::isFinite() const {
     return conicType != type || OpMath::IsFinite(weight);
 }
 
-OpRoots OpCurve::rawIntersect(const std::array<OpPoint, 2> linePt) const {
+OpRoots OpCurve::rawIntersect(const LinePts& linePt) const {
     switch (type) {
         case pointType: return OpRoots();
         case lineType: return asLine().rawIntersect(linePt);
@@ -107,7 +107,7 @@ OpRoots OpCurve::rawIntersect(const std::array<OpPoint, 2> linePt) const {
     return OpRoots();
 }
 
-OpRoots OpCurve::rayIntersect(const std::array<OpPoint, 2> linePt) const {
+OpRoots OpCurve::rayIntersect(const LinePts& linePt) const {
     switch (type) {
         case pointType: return OpRoots();
         case lineType: return asLine().rayIntersect(linePt);
@@ -147,25 +147,26 @@ OpPoint OpCurve::ptAtT(float t) const {
     return OpPoint();
 }
 
-void OpCurve::subDivide(OpPtT ptT1, OpPtT ptT2, std::array<OpPoint, 4>& dest, float* w) const {
-    *w = 1;
+CurvePts OpCurve::subDivide(OpPtT ptT1, OpPtT ptT2) const {
+    CurvePts result;
     switch (type) {
-    case pointType: 
-        dest[0] = ptT1.pt; 
-        return;
-    case lineType: 
-        dest[0] = ptT1.pt; 
-        dest[1] = ptT2.pt; 
-        return;
-    case quadType: 
-        return asQuad().subDivide(ptT1, ptT2, dest);
-    case conicType: 
-        return asConic().subDivide(ptT1, ptT2, dest, w);
-    case cubicType: 
-        return asCubic().subDivide(ptT1, ptT2, dest);
-    default:
-        assert(0);
+        case lineType: 
+            result.pts[1] = ptT2.pt;
+            [[fallthrough]];
+        case pointType: 
+            result.pts[0] = ptT1.pt; 
+            result.weight = 1;
+            break;
+        case quadType: 
+            return asQuad().subDivide(ptT1, ptT2);
+        case conicType: 
+            return asConic().subDivide(ptT1, ptT2);
+        case cubicType: 
+            return asCubic().subDivide(ptT1, ptT2);
+        default:
+            assert(0);
     }
+    return result;
 }
 
 OpVector OpCurve::tangent(float t) const {
@@ -183,7 +184,7 @@ OpVector OpCurve::tangent(float t) const {
 
 // this can fail (if rotated pts are not finite); can happen when input is finite
 // however, callers include sort predicate, which cannot return failure; so don't return failure here
-void OpCurve::toVertical(const std::array<OpPoint, 2> line, OpCurve& rotated) const {
+OpCurve OpCurve::toVertical(const LinePts& line) const {
 #define TRY_DOUBLE 0 // mistaken in thinking this was required to fix a bug. Disable until needed
 #if TRY_DOUBLE
     double adj = (double) line[1].x - line[0].x;
@@ -195,10 +196,11 @@ void OpCurve::toVertical(const std::array<OpPoint, 2> line, OpCurve& rotated) co
         rotated.pts[n].y = (float) (vdy * opp + vdx * adj);
     }
 #else
-    float adj = line[1].x - line[0].x;
-    float opp = line[1].y - line[0].y;
+    OpCurve rotated;
+    float adj = line.pts[1].x - line.pts[0].x;
+    float opp = line.pts[1].y - line.pts[0].y;
     for (int n = 0; n < pointCount(); ++n) {
-        OpVector v = pts[n] - line[0];
+        OpVector v = pts[n] - line.pts[0];
         rotated.pts[n].x = v.dy * adj - v.dx * opp;
         rotated.pts[n].y = v.dy * opp + v.dx * adj;
     }
@@ -206,4 +208,5 @@ void OpCurve::toVertical(const std::array<OpPoint, 2> line, OpCurve& rotated) co
     rotated.weight = weight;
     rotated.type = type;
     OP_DEBUG_CODE(rotated.debugIntersect = debugIntersect);
+    return rotated;
 }

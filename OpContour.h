@@ -2,6 +2,7 @@
 #define OpContour_DEFINED
 
 #include "OpSegment.h"
+#include "OpSegmentBuilder.h"
 #include "OpTightBounds.h"
 #include <list>
 #include <vector>
@@ -31,43 +32,49 @@ struct OpContour {
     }
 
     void addClose(OpPoint pt1, OpPoint pt2) {
-        segments.emplace_back(pt1, pt2, this);
+        CurvePts curvePts = {{ pt1, pt2 }, 1 };
+        segments.emplace_back(curvePts, lineType, this
+                OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
     }
 
     void addConic(const OpPoint pts[3], float weight) {
         if (pts[0] == pts[3])
             return addMove(pts);
-        segments.emplace_back(pts, weight, this);
+        OpSegmentBuilder::AddConic(this, pts, weight);
     }
 
     void addCubic(const OpPoint pts[4]) {
         // reduction to point if pt 0 equals pt 3 complicated since it requires pts 1, 2 be linear..
         assert(pts[0] != pts[3]); // !!! detect possible degenerate to code from actual test data
-        segments.emplace_back(pts, cubicType, this);
+        OpSegmentBuilder::AddCubic(this, pts);
     }
 
-    OpIntersection* addIntersection(const OpPtT& t, OpSegment* seg, SelfIntersect self_, int cID
+    OpIntersection* addIntersection(const OpPtT& t, OpSegment* seg, SectFlavor , int cID
             OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
             const OpIntersection* master, const OpEdge* edge, const OpEdge* oEdge));
 
-    OpIntersection* addIntersection(const OpPtT& t, OpSegment* seg, SelfIntersect self_, int cID
+    OpIntersection* addIntersection(const OpPtT& t, OpSegment* seg, SectFlavor , int cID
             OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
             const OpSegment* dSeg, const OpSegment* oSeg));
 
     void addLine(const OpPoint pts[2]) {
         if (pts[0] == pts[1])
             return addMove(pts);
-        segments.emplace_back(pts, lineType, this);
+        CurvePts curvePts = {{ pts[0], pts[1] }, 1 };
+        segments.emplace_back(curvePts, lineType, this
+                OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
     }
 
     void addMove(const OpPoint pts[1]) {
-        segments.emplace_back(pts, pointType, this);
+        CurvePts curvePts = {{ pts[0] }, 1 };
+        segments.emplace_back(curvePts, pointType, this
+                OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
     }
 
     void addQuad(const OpPoint pts[3]) {
         if (pts[0] == pts[2])
             return addMove(pts);
-        segments.emplace_back(pts, quadType, this);
+        OpSegmentBuilder::AddQuad(this, pts);
     }
 
     void apply() {
@@ -79,12 +86,6 @@ struct OpContour {
     void calcBounds() {
         for (auto& segment : segments) {
             segment.calcBounds();
-        }
-    }
-
-    void findSegmentExtrema() {
-        for (auto& segment : segments) {
-            segment.findExtrema();
         }
     }
 
@@ -121,6 +122,7 @@ struct OpContour {
         return true;
     }
 
+#if 0
     void resolvePoints() {
         for (auto& segment : segments) {
             if (pointType == segment.c.type)
@@ -130,6 +132,7 @@ struct OpContour {
             segment.resolvePoints();
         }
     }
+#endif
 
     void setBounds() {
         for (auto& segment : segments) {
@@ -197,12 +200,6 @@ struct OpContours {
 
     bool closeGap(OpEdge* last, OpEdge* first);
 
-    void findSegmentExtrema() {
-        for (auto& contour : contours) {
-            contour.findSegmentExtrema();
-        }
-    }
-
     void intersectEdge() {
         for (auto& contour : contours) {
             contour.intersectEdge();
@@ -233,11 +230,13 @@ struct OpContours {
         return true;
     }
 
+#if 0
     void resolvePoints() {
         for (auto& contour : contours) {
             contour.resolvePoints();
         }
     }
+#endif
 
     int rightFillTypeMask() {
         return (int) right;

@@ -377,11 +377,10 @@ void OpCurveTest() {
 	ASSERT(4 == cubic.pointCount());
 
 	// test OpCurve toVertical
-	const std::array<OpPoint, 2> iLinePts = {{ {1, 1}, {4, 4} }};
+	const LinePts iLinePts = {{{ {1, 1}, {4, 4} }}};
 	const OpPoint iQPts[] = {  { 2, 4}, {1, 3}, {3, 1} };
 	OpQuad iQuad = { iQPts };
-	OpCurve rotated;
-	iQuad.toVertical(iLinePts, rotated);
+	OpCurve rotated = iQuad.toVertical(iLinePts);
 	ASSERT(6 == rotated.pts[0].x);
 	ASSERT(6 == rotated.pts[1].x);
 	ASSERT(-6 == rotated.pts[2].x);
@@ -390,8 +389,8 @@ void OpCurveTest() {
 
 void OpLineTest() {
 	// test OpLine axisRayHit
-	const std::array<OpPoint, 2> iLinePts = {{ { 1, 1 }, { 4, 4 } }};
-	OpLine iLine = { iLinePts[0], iLinePts[1] };
+	const LinePts iLinePts = {{{ { 1, 1 }, { 4, 4 } }}};
+	OpLine iLine = { iLinePts.pts[0], iLinePts.pts[1] };
 	OpRoots intercepts;
 	intercepts = iLine.axisRayHit(Axis::vertical, 2.5);
 	ASSERT(1 == intercepts.count);
@@ -412,8 +411,8 @@ void OpLineTest() {
 	// test OpLine rayIntersect
 	const OpPoint iQPts[] = { { 2, 4 }, { 1, 3 }, { 3, 1 } };
 	OpLine l1 = { &iQPts[1] };
-	const std::array<OpPoint, 2> vert = {{ { 2.5, 2 }, { 2.5, 3 } }};
-	const std::array<OpPoint, 2> horz = {{ { 4, 2.5 }, { 7, 2.5 } }};
+	const LinePts vert = {{{ { 2.5, 2 }, { 2.5, 3 } }}};
+	const LinePts horz = {{{ { 4, 2.5 }, { 7, 2.5 } }}};
 	intercepts = l1.rayIntersect(vert);
 	ASSERT(1 == intercepts.count);
 	ASSERT(.75 == intercepts.roots[0]);
@@ -472,15 +471,15 @@ void OpQuadTest() {
 	OpRoots icepts[3];
 	const OpPoint iQPts[] = { { 2, 4 }, { 1, 3 }, { 3, 1 } };
 	OpQuad qi1 = { &iQPts[0] };
-	const std::array<OpPoint,2> vert = {{ { 2.5, 2 }, { 2.5, 3 } }};
-	const std::array<OpPoint, 2> horz = {{ { 4, 2.5 }, { 7, 2.5 } }};
+	const LinePts vert = {{{ { 2.5, 2 }, { 2.5, 3 } }}};
+	const LinePts horz = {{{ { 4, 2.5 }, { 7, 2.5 } }}};
 	icepts[0] = qi1.rayIntersect(vert);
 	ASSERT(1 == icepts[0].count);
 	ASSERT(OpMath::Between(0.86f, icepts[0].roots[0], 0.8604f));
 	icepts[1] = qi1.rayIntersect(horz);
 	ASSERT(1 == icepts[1].count);
 	ASSERT(OpMath::Between(0.5811f, icepts[1].roots[0], 0.5812f));
-	const std::array<OpPoint, 2> iLinePts = {{ { 1, 1 }, { 4, 4 } }};
+	const LinePts iLinePts = {{{ { 1, 1 }, { 4, 4 } }}};
 	icepts[2] = qi1.rayIntersect(iLinePts);
 	ASSERT(1 == icepts[2].count);
 	// answer is sqrt(2)/2
@@ -513,16 +512,15 @@ void OpQuadTest() {
 	ASSERT(OpMath::Between(-0.000001f, pt.y - dPt.fY, 0.000001f));
 
 	// test OpQuad subDivide
-	std::array<OpPoint, 4> qdst;
 	OpPtT icPtT[2] = {{ qi1.ptAtT(icepts[0].roots[0]), icepts[0].roots[0] }, 
 		{ qi1.ptAtT(icepts[1].roots[0]), icepts[1].roots[0] }};
-	qi1.subDivide(icPtT[0], icPtT[1], qdst);
+	CurvePts qdst = qi1.subDivide(icPtT[0], icPtT[1]);
 	pt = qi1.ptAtT(icepts[0].roots[0]);
-	ASSERT(OpMath::Between(-0.000001f, pt.x - qdst[0].x, 0.000001f));
-	ASSERT(OpMath::Between(-0.000001f, pt.y - qdst[0].y, 0.000001f));
+	ASSERT(OpMath::Between(-0.000001f, pt.x - qdst.pts[0].x, 0.000001f));
+	ASSERT(OpMath::Between(-0.000001f, pt.y - qdst.pts[0].y, 0.000001f));
 	pt = qi1.ptAtT(icepts[1].roots[0]);
-	ASSERT(OpMath::Between(-0.000001f, pt.x - qdst[2].x, 0.000001f));
-	ASSERT(OpMath::Between(-0.000001f, pt.y - qdst[2].y, 0.000001f));
+	ASSERT(OpMath::Between(-0.000001f, pt.x - qdst.pts[2].x, 0.000001f));
+	ASSERT(OpMath::Between(-0.000001f, pt.y - qdst.pts[2].y, 0.000001f));
 
 	// test OpQuad tangent
 	OpVector tanv = qi1.tangent(0);
@@ -576,8 +574,8 @@ void OpConicTest( ) {
 	// test OpConic rayIntersect
 	const OpPoint iQPts[] = { { 2, 4 }, { 1, 3 }, { 3, 1 } };
 	OpConic ci1 = { &iQPts[0], sqrtf(2) / 2 };
-	const std::array<OpPoint,2> vert = {{ { 2.5, 2 }, { 2.5, 3 } }};
-	const std::array<OpPoint, 2> horz = {{ { 4, 2.5 }, { 7, 2.5 } }};
+	const LinePts vert = {{{ { 2.5, 2 }, { 2.5, 3 } }}};
+	const LinePts horz = {{{ { 4, 2.5 }, { 7, 2.5 } }}};
 	OpRoots icepts[3];
 	icepts[0] = ci1.rayIntersect(vert);
 	ASSERT(1 == icepts[0].count);
@@ -585,7 +583,7 @@ void OpConicTest( ) {
 	icepts[1] = ci1.rayIntersect(horz);
 	ASSERT(1 == icepts[1].count);
 	ASSERT(OpMath::Between(0.5581f, icepts[1].roots[0], 0.5582f));
-	const std::array<OpPoint, 2> iLinePts = {{ { 1, 1 }, { 4, 4 } }};
+	const LinePts iLinePts = {{{ { 1, 1 }, { 4, 4 } }}};
 	icepts[2] = ci1.rayIntersect(iLinePts);
 	ASSERT(1 == icepts[2].count);
 	ASSERT(OpMath::Between(0.6589f, icepts[2].roots[0], 0.659f));
@@ -627,17 +625,15 @@ void OpConicTest( ) {
 	ASSERT(OpMath::Between(-0.000001f, pt.y - dPt.fY, 0.000001f));
 
 	// test OpConic subDivide
-	std::array<OpPoint, 4> cdst;
 	OpPtT icPtT[2] = { { ci1.ptAtT(icepts[0].roots[0]), icepts[0].roots[0] },
 		{ ci1.ptAtT(icepts[1].roots[0]), icepts[1].roots[0] } };
-	float cW;
-	ci1.subDivide(icPtT[0], icPtT[1], cdst, &cW);
+	CurvePts cdst = ci1.subDivide(icPtT[0], icPtT[1]);
 	pt = ci1.ptAtT(icepts[0].roots[0]);
-	ASSERT(OpMath::Between(-0.000001f, pt.x - cdst[0].x, 0.000001f));
-	ASSERT(OpMath::Between(-0.000001f, pt.y - cdst[0].y, 0.000001f));
+	ASSERT(OpMath::Between(-0.000001f, pt.x - cdst.pts[0].x, 0.000001f));
+	ASSERT(OpMath::Between(-0.000001f, pt.y - cdst.pts[0].y, 0.000001f));
 	pt = ci1.ptAtT(icepts[1].roots[0]);
-	ASSERT(OpMath::Between(-0.000001f, pt.x - cdst[2].x, 0.000001f));
-	ASSERT(OpMath::Between(-0.000001f, pt.y - cdst[2].y, 0.000001f));
+	ASSERT(OpMath::Between(-0.000001f, pt.x - cdst.pts[2].x, 0.000001f));
+	ASSERT(OpMath::Between(-0.000001f, pt.y - cdst.pts[2].y, 0.000001f));
 
 	// test OpConic tangent
 	OpVector tanv = ci1.tangent(0);
@@ -707,8 +703,8 @@ void OpCubicTest() {
 	OpRoots icepts[3];
 	const OpPoint iCPts[] = { { 2, 4 }, { 1, 3 }, { 1, 2 }, { 3, 1 } };
 	ci = { &iCPts[0] };
-	const std::array<OpPoint, 2> vert = {{ { 2.5, 2 }, { 2.5, 3 } }};
-	const std::array<OpPoint, 2> horz = {{ { 4, 2.5 }, { 7, 2.5 } }};
+	const LinePts vert = {{{ { 2.5, 2 }, { 2.5, 3 } }}};
+	const LinePts horz = {{{ { 4, 2.5 }, { 7, 2.5 } }}};
 	icepts[0] = ci.rayIntersect(vert);
 	ASSERT(1 == icepts[0].count);
 	ASSERT(OpMath::Between(0.9084f, icepts[0].roots[0], 0.9085f));
@@ -719,7 +715,7 @@ void OpCubicTest() {
 	ASSERT(OpMath::Between(0.5f, icepts[1].roots[0], 0.5001f));
 	pt = ci.ptAtT(icepts[1].roots[0]);
 	ASSERT(OpMath::Between(-.0001f, pt.y - 2.5, .0001f));
-	const std::array<OpPoint, 2> iLinePts = {{ { 1, 1 }, { 4, 4 } }};
+	const LinePts iLinePts = {{{ { 1, 1 }, { 4, 4 } }}};
 	icepts[2] = ci.rayIntersect(iLinePts);
 	ASSERT(1 == icepts[2].count);
 	ASSERT(OpMath::Between(0.7320f, icepts[2].roots[0], 0.7321f));
@@ -759,16 +755,15 @@ void OpCubicTest() {
 	ASSERT(OpMath::Between(-0.000001f, pt.y - dPt.fY, 0.000001f));
 
 	// test OpCubic subDivide
-	std::array<OpPoint, 4> cdst;
 	OpPtT icPtT[2] = { { ci.ptAtT(icepts[0].roots[0]), icepts[0].roots[0] },
 		{ ci.ptAtT(icepts[1].roots[0]), icepts[1].roots[0] } };
-	ci.subDivide(icPtT[0], icPtT[1], cdst);
+	CurvePts cdst = ci.subDivide(icPtT[0], icPtT[1]);
 	pt = ci.ptAtT(icepts[0].roots[0]);
-	ASSERT(OpMath::Between(-0.000001f, pt.x - cdst[0].x, 0.000001f));
-	ASSERT(OpMath::Between(-0.000001f, pt.y - cdst[0].y, 0.000001f));
+	ASSERT(OpMath::Between(-0.000001f, pt.x - cdst.pts[0].x, 0.000001f));
+	ASSERT(OpMath::Between(-0.000001f, pt.y - cdst.pts[0].y, 0.000001f));
 	pt = ci.ptAtT(icepts[1].roots[0]);
-	ASSERT(OpMath::Between(-0.000001f, pt.x - cdst[3].x, 0.000001f));
-	ASSERT(OpMath::Between(-0.000001f, pt.y - cdst[3].y, 0.000001f));
+	ASSERT(OpMath::Between(-0.000001f, pt.x - cdst.pts[3].x, 0.000001f));
+	ASSERT(OpMath::Between(-0.000001f, pt.y - cdst.pts[3].y, 0.000001f));
 
 	// test OpCubic tangent
 	OpVector tanv = ci.tangent(0);
@@ -858,16 +853,16 @@ void OpTestOpEdgesConcidenceCheck() {
 				for (float d = 2; d < 10; d += 2) {
 					if (c == d)
 						continue;
-					OpPoint ab[2] = { { a, 8 }, { b, 8 } };
-					OpPoint cd[2] = { { c, 8 }, { d, 8 } };
+					CurvePts ab = {{ {{ a, 8 }, { b, 8 }} }, 1 };
+					CurvePts cd = {{ {{ c, 8 }, { d, 8 }} }, 1 };
 					OpContours contours(OpOperator::Intersect);
 					contours.left = OpFillType::evenOdd;
 					OpContour contour(&contours, OpOperand::left);
-					OpSegment seg(ab, lineType, &contour);
-					OpSegment oSeg(cd, lineType, &contour);
-					OpEdge edge(&seg, { ab[0], 0}, { ab[1], 1 }  
+					OpSegment seg(ab, lineType, &contour  OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
+					OpSegment oSeg(cd, lineType, &contour  OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
+					OpEdge edge(&seg, { ab.pts[0], 0}, { ab.pts[1], 1 }  
 					OP_DEBUG_PARAMS(EDGE_MAKER(opTest), nullptr, nullptr));
-					OpEdge oEdge(&oSeg, { cd[0], 0 }, { cd[1], 1 }  
+					OpEdge oEdge(&oSeg, { cd.pts[0], 0 }, { cd.pts[1], 1 }  
 							OP_DEBUG_PARAMS(EDGE_MAKER(opTest), nullptr, nullptr));
 					OpEdges::CoincidentCheck(oEdge, edge);
 					float _ab[2] = { a, b};
@@ -1171,10 +1166,10 @@ static void drawPath(SkCanvas* canvas, const SkPath& path) {
 }
 
 void OpQuadDraw(SkCanvas* canvas) {
-	const std::array<OpPoint,2> vert = {{ { 2.5, 1 }, { 2.5, 3 } }};
-	const std::array<OpPoint, 2> horz = {{ { 4, 2.5 }, { 1, 2.5 } }};
+	const LinePts vert = {{{ { 2.5, 1 }, { 2.5, 3 } }}};
+	const LinePts horz = {{{ { 4, 2.5 }, { 1, 2.5 } }}};
 	const OpPoint iQPts[] = { { 2, 4 }, { 1, 3 }, { 3, 1 } };
-	const std::array<OpPoint, 2> iLinePts = {{ { 1, 1 }, { 4, 4 } }};
+	const LinePts iLinePts = {{{ { 1, 1 }, { 4, 4 } }}};
 
 	// draw quadratic
 	OpQuad qi1 = { iQPts };
@@ -1183,12 +1178,12 @@ void OpQuadDraw(SkCanvas* canvas) {
 	intercepts[1] = qi1.rayIntersect(horz);
 	intercepts[2] = qi1.rayIntersect(iLinePts);
 	SkPath path;
-	path.moveTo(vert[0].x, vert[0].y);
-	path.lineTo(vert[1].x, vert[1].y);
-	path.moveTo(horz[0].x, horz[0].y);
-	path.lineTo(horz[1].x, horz[1].y);
-	path.moveTo(iLinePts[0].x, iLinePts[0].y);
-	path.lineTo(iLinePts[1].x, iLinePts[1].y);
+	path.moveTo(vert.pts[0].x, vert.pts[0].y);
+	path.lineTo(vert.pts[1].x, vert.pts[1].y);
+	path.moveTo(horz.pts[0].x, horz.pts[0].y);
+	path.lineTo(horz.pts[1].x, horz.pts[1].y);
+	path.moveTo(iLinePts.pts[0].x, iLinePts.pts[0].y);
+	path.lineTo(iLinePts.pts[1].x, iLinePts.pts[1].y);
 	path.moveTo(iQPts[0].x, iQPts[0].y);
 	path.quadTo(iQPts[1].x, iQPts[1].y, iQPts[2].x, iQPts[2].y);
 	drawPath(canvas, path);
@@ -1211,22 +1206,22 @@ void OpQuadDraw(SkCanvas* canvas) {
 }
 
 void OpConicDraw(SkCanvas* canvas) {
-	const std::array<OpPoint, 2> vert = {{ { 2.5, 1 }, { 2.5, 3 } }};
-	const std::array<OpPoint, 2> horz = {{ { 4, 2.5 }, { 1, 2.5 } }};
+	const LinePts vert = {{{ { 2.5, 1 }, { 2.5, 3 } }}};
+	const LinePts horz = {{{ { 4, 2.5 }, { 1, 2.5 } }}};
 	const OpPoint iQPts[] = { { 2, 4 }, { 1, 3 }, { 3, 1 } };
-	const std::array<OpPoint, 2> iLinePts = {{ { 1, 1 }, { 4, 4 } }};
+	const LinePts iLinePts = {{{ { 1, 1 }, { 4, 4 } }}};
 	OpConic ci1 = { &iQPts[0], sqrtf(2) / 2 };
 	OpRoots intercepts[3];
 	intercepts[0] = ci1.axisRayHit(Axis::vertical, 2.5);
 	intercepts[1] = ci1.rayIntersect(horz);
 	intercepts[2] = ci1.rayIntersect(iLinePts);
 	SkPath path;
-	path.moveTo(vert[0].x, vert[0].y);
-	path.lineTo(vert[1].x, vert[1].y);
-	path.moveTo(horz[0].x, horz[0].y);
-	path.lineTo(horz[1].x, horz[1].y);
-	path.moveTo(iLinePts[0].x, iLinePts[0].y);
-	path.lineTo(iLinePts[1].x, iLinePts[1].y);
+	path.moveTo(vert.pts[0].x, vert.pts[0].y);
+	path.lineTo(vert.pts[1].x, vert.pts[1].y);
+	path.moveTo(horz.pts[0].x, horz.pts[0].y);
+	path.lineTo(horz.pts[1].x, horz.pts[1].y);
+	path.moveTo(iLinePts.pts[0].x, iLinePts.pts[0].y);
+	path.lineTo(iLinePts.pts[1].x, iLinePts.pts[1].y);
 	path.moveTo(iQPts[0].x, iQPts[0].y);
 	path.conicTo(iQPts[1].x, iQPts[1].y, iQPts[2].x, iQPts[2].y, ci1.weight);
 	drawPath(canvas, path);
@@ -1252,9 +1247,9 @@ void OpConicDraw(SkCanvas* canvas) {
 
 void OpCubicDraw(SkCanvas* canvas) {
 	const OpPoint iCPts[] = { { 2, 4 }, { 1, 3 }, { 1, 2 }, { 3, 1 } };
-	const std::array<OpPoint, 2> iLinePts = {{ { 1, 1 }, { 4, 4 } }};
-	const std::array<OpPoint, 2> vert = {{ { 2.5, 1 }, { 2.5, 3 } }};
-	const std::array<OpPoint, 2> horz = {{ { 4, 2.5 }, { 1, 2.5 } }};
+	const LinePts iLinePts = {{{ { 1, 1 }, { 4, 4 } }}};
+	const LinePts vert = {{{ { 2.5, 1 }, { 2.5, 3 } }}};
+	const LinePts horz = {{{ { 4, 2.5 }, { 1, 2.5 } }}};
 	OpCubic ci1 = { iCPts };
 	OpRoots intercepts[3];
 	intercepts[0] = ci1.rayIntersect(vert);
@@ -1264,12 +1259,12 @@ void OpCubicDraw(SkCanvas* canvas) {
 	path.moveTo(iCPts[0].x, iCPts[0].y);
 	path.cubicTo(iCPts[1].x, iCPts[1].y, iCPts[2].x, iCPts[2].y,
 		iCPts[3].x, iCPts[3].y);
-	path.moveTo(vert[0].x, vert[0].y);
-	path.lineTo(vert[1].x, vert[1].y);
-	path.moveTo(horz[0].x, horz[0].y);
-	path.lineTo(horz[1].x, horz[1].y);
-	path.moveTo(iLinePts[0].x, iLinePts[0].y);
-	path.lineTo(iLinePts[1].x, iLinePts[1].y);
+	path.moveTo(vert.pts[0].x, vert.pts[0].y);
+	path.lineTo(vert.pts[1].x, vert.pts[1].y);
+	path.moveTo(horz.pts[0].x, horz.pts[0].y);
+	path.lineTo(horz.pts[1].x, horz.pts[1].y);
+	path.moveTo(iLinePts.pts[0].x, iLinePts.pts[0].y);
+	path.lineTo(iLinePts.pts[1].x, iLinePts.pts[1].y);
 	drawPath(canvas, path);
 	SkPaint paint;
 	paint.setAntiAlias(true);

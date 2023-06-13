@@ -22,17 +22,16 @@ float OpLine::interp(XyChoice offset, float t) const {
     return OpMath::Interp(ptr[0], ptr[2], t);
 }
 
-OpRoots OpLine::rawIntersect(const std::array<OpPoint, 2> line) const {
-    if (line[0].x == line[1].x)
-        return axisRawHit(Axis::vertical, line[0].x);
-    if (line[0].y == line[1].y)
-        return axisRawHit(Axis::horizontal, line[0].y);
-    OpLine rotated;
-    toVertical(line, rotated);
-    return rotated.axisRawHit(Axis::vertical, 0);
+OpRoots OpLine::rawIntersect(const LinePts& line) const {
+    if (line.pts[0].x == line.pts[1].x)
+        return axisRawHit(Axis::vertical, line.pts[0].x);
+    if (line.pts[0].y == line.pts[1].y)
+        return axisRawHit(Axis::horizontal, line.pts[0].y);
+    OpCurve rotated = toVertical(line);
+    return rotated.asLine().axisRawHit(Axis::vertical, 0);
 }
 
-OpRoots OpLine::rayIntersect(const std::array<OpPoint, 2> line) const {
+OpRoots OpLine::rayIntersect(const LinePts& line) const {
     OpRoots realRoots = rawIntersect(line);
     if (2 == realRoots.count)
         return 2;

@@ -706,12 +706,12 @@ void OpEdge::setPriorSum(OpEdge* edge) {
 }
 
 const OpCurve& OpEdge::setVertical() {
-	if (verticalSet)
-		return vertical_impl;
-	verticalSet = true;
-	const OpCurve& curve = setCurve();
-	std::array<OpPoint, 2> edgeLine { start.pt, end.pt };
-	curve.toVertical(edgeLine, vertical_impl);
+	if (!verticalSet) {
+		verticalSet = true;
+		const OpCurve& curve = setCurve();
+		LinePts edgeLine { start.pt, end.pt };
+		vertical_impl = curve.toVertical(edgeLine);
+	}
 	return vertical_impl;
 }
 
@@ -731,10 +731,9 @@ void OpEdge::setWinding(OpVector ray) {
 
 // use already computed points stored in edge
 void OpEdge::subDivide() {
-	std::array<OpPoint, 4> pts;
 	OpDebugBreak(this, 41);
-	segment->c.subDivide(start, end, pts, &weight);
-	setFromPoints(pts);
+	CurvePts pts = segment->c.subDivide(start, end);
+	setFromPoints(pts.pts);
 	setPointBounds();
 	if (lineType == segment->c.type || (!ptBounds.height() ^ !ptBounds.width())) {
 		isLine_impl = true;
@@ -775,9 +774,11 @@ bool OpEdge::validLoop() const {
 	}
 }
 
+#if 0
 OpEdge* OpEdge::visibleAdjacent(EdgeMatch match) {
 	return (const_cast<OpSegment*>(segment))->visibleAdjacent(this, ptT(match));
 }
+#endif
 
 // !!! add zero reason here
 void OpWinding::move(const OpWinding& opp, const OpContours* contours, bool backwards) {

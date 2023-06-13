@@ -81,7 +81,7 @@ SectFound OpCurveCurve::curvesIntersect(CurveRef curveRef) {
 		assert(edge.start.t < edge.center.t && edge.center.t < edge.end.t);
 		assert(!edge.isLine_impl);
 		// rotate each to see if tight rotated bounds (with extrema) touch
-		std::array<OpPoint, 2> edgeLine { edge.start.pt, edge.end.pt };
+		LinePts edgeLine { edge.start.pt, edge.end.pt };
 		OpCurve& edgeRotated = const_cast<OpCurve&>(edge.setVertical());
 		if (!edgeRotated.isFinite())
 			return SectFound::fail;
@@ -91,8 +91,7 @@ SectFound OpCurveCurve::curvesIntersect(CurveRef curveRef) {
 			if (!edge.ptBounds.intersects(opp.ptBounds))
 				continue;
 			const OpCurve& oppCurve = opp.setCurve();
-			OpCurve oppRotated;
-			oppCurve.toVertical(edgeLine, oppRotated);
+			OpCurve oppRotated = oppCurve.toVertical(edgeLine);
 			if (!oppRotated.isFinite())
 				return SectFound::fail;
 			OpTightBounds oppRotatedBounds(oppRotated);
@@ -256,9 +255,9 @@ bool OpCurveCurve::split(CurveRef curveRef, DoSplit doSplit) {
 		// assume most curves split into more curves
 		for (NewEdge newEdge : { NewEdge::isLeft, NewEdge::isRight } ) {
 			splits.emplace_back(&edge, edge.center, newEdge  
-					OP_DEBUG_PARAMS(EDGE_MAKER(split1), 
-					CurveRef::edge == curveRef ? originalEdge : originalOpp,
-					CurveRef::edge == curveRef ? originalOpp : originalEdge));
+					OP_DEBUG_PARAMS(EDGE_MAKER(split1), nullptr, nullptr));
+//					CurveRef::edge == curveRef ? originalEdge : originalOpp,
+//					CurveRef::edge == curveRef ? originalOpp : originalEdge));
 			if (splits.back().setLinear()) {
 				lines.push_back(splits.back());
 				splits.pop_back();

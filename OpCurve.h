@@ -17,6 +17,15 @@ enum OpType {
     cubicType
 };
 
+struct CurvePts {
+    std::array<OpPoint, 4> pts;
+    float weight;
+};
+
+struct LinePts {
+    std::array<OpPoint, 2> pts;
+};
+
 struct OpCurve {
     OpCurve() 
         : weight(1)
@@ -64,8 +73,7 @@ struct OpCurve {
     const OpQuad& asConicQuad() const;
     const OpCubic& asCubic() const;
 
-    OpRoots axisRayHit(Axis offset, float axisIntercept, float start = 0,
-            float end = 1) const;
+    OpRoots axisRayHit(Axis offset, float axisIntercept, float start = 0, float end = 1) const;
     float center(Axis offset, float axisIntercept) const;
     OpPtT findIntersect(Axis offset, const OpPtT& ) const;
     bool isFinite() const;
@@ -76,19 +84,19 @@ struct OpCurve {
 
     OpVector normal(float t) const;
     OpPoint ptAtT(float t) const;
-    OpRoots rawIntersect(const std::array<OpPoint, 2> line) const;
-    OpRoots rayIntersect(const std::array<OpPoint, 2> line) const;
+    OpRoots rawIntersect(const LinePts& line) const;
+    OpRoots rayIntersect(const LinePts& line) const;
 
     int pointCount() const {
         return static_cast<int>(type) + (type < conicType);
     }
 
-    void subDivide(OpPtT ptT1, OpPtT ptT2, std::array<OpPoint, 4>& dest, float* weight) const;
+    CurvePts subDivide(OpPtT ptT1, OpPtT ptT2) const;
     OpVector tangent(float t) const;
 
     // rotates curve in a space where line's (pt[0], pt[1]) moves to ((0, 0), (0, line[1].y - line[0].y))
     // curve scale is not preserved
-    void toVertical(const std::array<OpPoint, 2> line, OpCurve& rotated) const;
+    OpCurve toVertical(const LinePts& line) const;
 
 #if OP_DEBUG_DUMP
     std::string debugDump() const;
@@ -130,8 +138,8 @@ struct OpLine : OpCurve {
     float interp(XyChoice offset, float t) const;
     OpVector normal(float t) const;
     OpPoint ptAtT(float t) const;
-    OpRoots rawIntersect(const std::array<OpPoint, 2> line) const;
-    OpRoots rayIntersect(const std::array<OpPoint, 2> line) const;
+    OpRoots rawIntersect(const LinePts& line) const;
+    OpRoots rayIntersect(const LinePts& line) const;
     OpVector tangent(float t) const;
 };
 
@@ -157,9 +165,9 @@ struct OpQuad : OpCurve {
     bool monotonic(XyChoice offset) const;
     OpVector normal(float t) const;
     OpPoint ptAtT(float t) const;
-    OpRoots rawIntersect(const std::array<OpPoint, 2> line) const;
-    OpRoots rayIntersect(const std::array<OpPoint, 2> line) const;
-    void subDivide(OpPtT ptT1, OpPtT ptT2, std::array<OpPoint, 4>& dest) const;
+    OpRoots rawIntersect(const LinePts& line) const;
+    OpRoots rayIntersect(const LinePts& line) const;
+    CurvePts subDivide(OpPtT ptT1, OpPtT ptT2) const;
     OpVector tangent(float t) const;
 #if OP_DEBUG
     OpVector debugTangent(float t) const;
@@ -185,9 +193,9 @@ struct OpConic : OpCurve {
     OpVector normal(float t) const;
     OpPoint numerator(float t) const;
     OpPoint ptAtT(float t) const;
-    OpRoots rawIntersect(const std::array<OpPoint, 2> line) const;
-    OpRoots rayIntersect(const std::array<OpPoint, 2> line) const;
-    void subDivide(OpPtT ptT1, OpPtT ptT2, std::array<OpPoint, 4>& dest, float* weight) const;
+    OpRoots rawIntersect(const LinePts& line) const;
+    OpRoots rayIntersect(const LinePts& line) const;
+    CurvePts subDivide(OpPtT ptT1, OpPtT ptT2) const;
     float tangent(XyChoice offset, float t) const;
     OpVector tangent(float t) const;
 #if OP_DEBUG
@@ -223,9 +231,9 @@ struct OpCubic : OpCurve {
     OpVector normal(float t) const;
     void pinCtrls(XyChoice );
     OpPoint ptAtT(float t) const;
-    OpRoots rawIntersect(const std::array<OpPoint, 2> line) const;
-    OpRoots rayIntersect(const std::array<OpPoint, 2> line) const;
-    void subDivide(OpPtT ptT1, OpPtT ptT2, std::array<OpPoint, 4>& dest) const;
+    OpRoots rawIntersect(const LinePts& line) const;
+    OpRoots rayIntersect(const LinePts& line) const;
+    CurvePts subDivide(OpPtT ptT1, OpPtT ptT2) const;
     float tangent(XyChoice , double t) const;
     OpVector tangent(float t) const;
 #if OP_DEBUG
@@ -235,22 +243,19 @@ struct OpCubic : OpCurve {
 
 #if OP_DEBUG_IMAGE  
 // here because OpPoint is not declared in OpDebugImage.h or OpDebugDouble.h
-struct OpRay {
-	OpRay(Axis a, float v)
+struct OpDebugRay {
+	OpDebugRay(Axis a, float v)
 		: axis(a)
 		, value(v)
 		, useAxis(true) {
 	}
-	OpRay(const std::array<OpPoint, 2>& );
-	std::array<OpPoint, 2> pts;
+	OpDebugRay(const LinePts& );
+	LinePts pts;
 	Axis axis;
 	float value;
 	bool useAxis;
 };
 
-void draw(const std::array<OpPoint, 2>& );
-
 #endif
-
 
 #endif

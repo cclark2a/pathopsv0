@@ -249,7 +249,7 @@ void OpEdges::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
 	}
 	OpRoots septs;
 	assert(edge.isLine_impl);
-	std::array<OpPoint, 2> edgePts { edge.start.pt, edge.end.pt };
+	LinePts edgePts { edge.start.pt, edge.end.pt };
 	const OpCurve& oppCurve = opp.setCurve();
 	septs = oppCurve.rayIntersect(edgePts);
 //	assert(septs.count < 3);	// while it should never be 3, it's OK to accept those intersections

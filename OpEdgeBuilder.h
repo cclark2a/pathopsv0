@@ -9,10 +9,6 @@ struct OpEdgeBuilder {
     static void Output(OpEdge* edge, OpOutPath );
 };
 
-struct OpSegmentBuilder {
-    static bool Build(OpInPath , OpContours&, OpOperand operand);
-};
-
 #if OP_DEBUG_DUMP
 void DumpLinkups(const std::vector<OpEdge*>& linkups);
 #endif

@@ -44,5 +44,6 @@ struct OpOutPath {
 };
 
 bool PathOps(OpInPath left, OpInPath right, OpOperator op, OpOutPath result);
+bool PathSimplify(OpInPath path, OpOutPath result);
 
 #endif

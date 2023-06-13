@@ -30,7 +30,7 @@ SkFont labelFont(nullptr, 14, 1, 0);
 std::vector<const OpIntersection*> coincidences;
 std::vector<const OpEdge*> localEdges;
 std::vector<const OpEdge*> foundEdges;
-std::vector<OpRay> lines;
+std::vector<OpDebugRay> lines;
 std::vector<OpInPath> operands;
 std::vector<OpOutPath> outputs;
 std::vector<const SkPath*> paths;
@@ -1082,24 +1082,24 @@ void OpDebugImage::add(Axis axis, float value) {
 	lines.emplace_back(axis, value);
 }
 
-OpRay::OpRay(const std::array<OpPoint, 2>& pts_) 
+OpDebugRay::OpDebugRay(const LinePts& pts_) 
 	: pts(pts_) {
-	if (pts[0].x == pts[1].x) {
+	if (pts.pts[0].x == pts.pts[1].x) {
 		axis = Axis::vertical;
-		value = pts[0].x;
+		value = pts.pts[0].x;
 		useAxis = true;
 		return;
 	}
-	if (pts[0].y == pts[1].y) {
+	if (pts.pts[0].y == pts.pts[1].y) {
 		axis = Axis::horizontal;
-		value = pts[0].y;
+		value = pts.pts[0].y;
 		useAxis = true;
 		return;
 	}
 	useAxis = false;
 }
 
-void OpDebugImage::add(const OpRay& ray) {
+void OpDebugImage::add(const OpDebugRay& ray) {
 	lines.emplace_back(ray);
 }
 
@@ -1474,7 +1474,7 @@ void OpDebugImage::drawLines() {
 	SkCanvas offscreen(bitmap);
 	SkPaint paint;
 	paint.setAntiAlias(true);
-	for (OpRay& line : lines) {
+	for (OpDebugRay& line : lines) {
 		if (!line.useAxis)
 			continue;
 		if (!drawValuesOn && !drawHexOn)
@@ -1517,7 +1517,7 @@ void draw(Axis axis, float value) {
 	OpDebugImage::drawDoubleFocus();
 }
 
-void draw(const std::array<OpPoint, 2>& ray) {
+void draw(const LinePts& ray) {
 	OpDebugImage::add(ray);
 	drawLinesOn = true;
 	OpDebugImage::drawDoubleFocus();

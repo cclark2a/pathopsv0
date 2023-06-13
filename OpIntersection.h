@@ -6,11 +6,11 @@
 struct OpEdge;
 struct OpSegment;
 
-enum class SelfIntersect {
+enum class SectFlavor {
 	none,
-	self,
-	missing,
-	split,
+	missing,	// missing coincidence (will likely remove)
+	split,		// winding changed requiring new intersection (will likely remove)
+	unsectable,
 };
 
 #if OP_DEBUG
@@ -46,7 +46,6 @@ enum class IntersectMaker {
 	edgeTOpp,
 	oppT,
 	oppTOpp,
-	findExtrema,
 	findIntersections_start,
 	findIntersections_startOppReversed,
 	findIntersections_startOpp,
@@ -74,6 +73,7 @@ enum class SectReason {
 	divideAndConquer_oneT,
 	divideAndConquer_noEdgeToSplit,
 	divideAndConquer_noOppToSplit,
+	endPt,
 	inflection,
 	lineCurve,
 	missingCoincidence,
@@ -81,6 +81,7 @@ enum class SectReason {
 	resolveCoin_oWindingChange,
 	sharedEdgePoint,
 	sharedEndPoint,
+	startPt,
 	xExtrema,
 	yExtrema,
 	// testing only
@@ -108,17 +109,16 @@ struct OpIntersection {
 		opp_->opp = this;
 	}
 
-	void set(const OpPtT& t, OpSegment* seg, SelfIntersect self_ , int cID
+	void set(const OpPtT& t, OpSegment* seg, SectFlavor flavor_ , int cID
 			OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
 			const OpIntersection* parent, const OpEdge* edge, const OpEdge* oEdge, 
 			const OpSegment* dSeg, const OpSegment* dOpp)) {
 		segment = seg;
-		opp = SelfIntersect::none == self_ ? nullptr : this;
+		opp = SectFlavor::none == flavor_ ? nullptr : this;
 		ptT = t;
 		coincidenceID = cID;	// 0 if no coincidence; negative if coincident pairs are reversed
-		self = self_;
+		flavor = flavor_;
 		aliased = false;
-//		unsortable = false;
 #if OP_DEBUG
 		debugSetID();		// debug for now
 		debugParent = parent;
@@ -168,7 +168,7 @@ struct OpIntersection {
 	OpIntersection* opp;
 	OpPtT ptT;
 	int coincidenceID;
-	SelfIntersect self;	// inflection, or extrema -- doesn't reference another intersection
+	SectFlavor flavor;	// none, missing(?), split(?), unsectable (curve/curve)
 	bool aliased;     // true if point value was changed to match an intersection with the same t
 #if OP_DEBUG
 	int id;

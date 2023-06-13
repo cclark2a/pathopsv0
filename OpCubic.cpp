@@ -49,24 +49,22 @@ OpPoint OpCubic::interp(float t) const {
     return abcd;
 }
 
-OpRoots OpCubic::rawIntersect(const std::array<OpPoint, 2> line) const {
-    if (line[0].x == line[1].x)
-        return axisRawHit(Axis::vertical, line[0].x);
-    if (line[0].y == line[1].y)
-        return axisRawHit(Axis::horizontal, line[0].y);
-    OpCubic rotated;
-    toVertical(line, rotated);
-    return rotated.axisRawHit(Axis::vertical, 0);
+OpRoots OpCubic::rawIntersect(const LinePts& line) const {
+    if (line.pts[0].x == line.pts[1].x)
+        return axisRawHit(Axis::vertical, line.pts[0].x);
+    if (line.pts[0].y == line.pts[1].y)
+        return axisRawHit(Axis::horizontal, line.pts[0].y);
+    OpCurve rotated = toVertical(line);
+    return rotated.asCubic().axisRawHit(Axis::vertical, 0);
 }
 
-OpRoots OpCubic::rayIntersect(const std::array<OpPoint, 2> line) const {
-    if (line[0].x == line[1].x)
-        return axisRayHit(Axis::vertical, line[0].x);
-    if (line[0].y == line[1].y)
-        return axisRayHit(Axis::horizontal, line[0].y);
-    OpCubic rotated;
-    toVertical(line, rotated);
-    return rotated.axisRayHit(Axis::vertical, 0);
+OpRoots OpCubic::rayIntersect(const LinePts& line) const {
+    if (line.pts[0].x == line.pts[1].x)
+        return axisRayHit(Axis::vertical, line.pts[0].x);
+    if (line.pts[0].y == line.pts[1].y)
+        return axisRayHit(Axis::horizontal, line.pts[0].y);
+    OpCurve rotated = toVertical(line);
+    return rotated.asCubic().axisRayHit(Axis::vertical, 0);
 }
 
 bool OpCubic::monotonic(XyChoice offset) const {
@@ -81,12 +79,10 @@ OpVector OpCubic::normal(float t) const {
 }
 
 OpPoint OpCubic::ptAtT(float t) const {
-    if (0 == t) {
+    if (0 == t)
         return pts[0];
-    }
-    if (1 == t) {
+    if (1 == t)
         return pts[3];
-    }
     float one_t = 1 - t;
     float one_t2 = one_t * one_t;
     float a = one_t2 * one_t;
@@ -98,12 +94,10 @@ OpPoint OpCubic::ptAtT(float t) const {
 }
 
 OpPoint OpCubic::doublePtAtT(float t) const {
-    if (0 == t) {
+    if (0 == t)
         return pts[0];
-    }
-    if (1 == t) {
+    if (1 == t)
         return pts[3];
-    }
     double one_t = 1. - t;
     double one_t2 = one_t * one_t;
     double a = one_t2 * one_t;
@@ -130,24 +124,26 @@ void OpCubic::pinCtrls(XyChoice offset) {
 #endif
 }
 
-void OpCubic::subDivide(OpPtT ptT1, OpPtT ptT2, std::array<OpPoint, 4>& dst) const {
-    dst[0] = ptT1.pt;
-    dst[3] = ptT2.pt;
+CurvePts OpCubic::subDivide(OpPtT ptT1, OpPtT ptT2) const {
+    CurvePts result;
+    result.pts[0] = ptT1.pt;
+    result.pts[3] = ptT2.pt;
     if (ptT1.t == 0 && ptT2.t == 1) {
-        dst[1] = pts[1];
-        dst[2] = pts[2];
-        return;
+        result.pts[1] = pts[1];
+        result.pts[2] = pts[2];
+    } else {
+        OpPoint a = interp(ptT1.t);
+        OpPoint e = interp((ptT1.t * 2 + ptT2.t) / 3);
+        OpPoint f = interp((ptT1.t + ptT2.t * 2) / 3);
+        OpPoint d = interp(ptT2.t);
+        OpVector m = e * 27 - a * 8 - d;
+        OpVector n = f * 27 - a - d * 8;
+        /* b = */ result.pts[1] = (m * 2 - n) / 18;
+        /* c = */ result.pts[2] = (n * 2 - m) / 18;
+        result.pts[1].pin(result.pts[0], result.pts[3]);
+        result.pts[2].pin(result.pts[0], result.pts[3]);
     }
-    OpPoint a = interp(ptT1.t);
-    OpPoint e = interp((ptT1.t * 2 + ptT2.t) / 3);
-    OpPoint f = interp((ptT1.t + ptT2.t * 2) / 3);
-    OpPoint d = interp(ptT2.t);
-    OpVector m = e * 27 - a * 8 - d;
-    OpVector n = f * 27 - a - d * 8;
-    /* b = */ dst[1] = (m * 2 - n) / 18;
-    /* c = */ dst[2] = (n * 2 - m) / 18;
-    dst[1].pin(dst[0], dst[3]);
-    dst[2].pin(dst[0], dst[3]);
+    return result;
 }
 
 // !!! this does not handle if t == 0 and pt[0] == pt[1] or if t == 1 and pt[2] == pt[3]

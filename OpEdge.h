@@ -302,8 +302,10 @@ enum class EdgeMaker {
 	intersectEdge1,
 	intersectEdge2,
 	makeEdges,
+	oppSect,
 	resolveCoin1,
 	resolveCoin2,
+	segSect,
 	split1,
 	split2,
 	// tests only
@@ -432,7 +434,7 @@ public:
 //	void setWinding(OpVector ray);
 	void subDivide();
 	bool validLoop() const;
-	OpEdge* visibleAdjacent(EdgeMatch );
+//	OpEdge* visibleAdjacent(EdgeMatch );
 //	OpPtT whichPtT() const { return EdgeMatch::start == whichEnd ? start : end;  }
 	OpPtT whichPtT(EdgeMatch match = EdgeMatch::start) const { 
 		return match == whichEnd ? start : end; }

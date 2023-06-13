@@ -43,24 +43,22 @@ OpRoots OpConic::extrema(XyChoice offset) const {
     return roots;
 };
 
-OpRoots OpConic::rawIntersect(const std::array<OpPoint, 2> line) const {
-    if (line[0].x == line[1].x)
-        return axisRawHit(Axis::vertical, line[0].x);
-    if (line[0].y == line[1].y)
-        return axisRawHit(Axis::horizontal, line[0].y);
-    OpConic rotated;
-    toVertical(line, rotated);
-    return rotated.axisRawHit(Axis::vertical, 0);
+OpRoots OpConic::rawIntersect(const LinePts& line) const {
+    if (line.pts[0].x == line.pts[1].x)
+        return axisRawHit(Axis::vertical, line.pts[0].x);
+    if (line.pts[0].y == line.pts[1].y)
+        return axisRawHit(Axis::horizontal, line.pts[0].y);
+    OpCurve rotated = toVertical(line);
+    return rotated.asConic().axisRawHit(Axis::vertical, 0);
 }
 
-OpRoots OpConic::rayIntersect(const std::array<OpPoint, 2> line) const {
-    if (line[0].x == line[1].x)
-        return axisRayHit(Axis::vertical, line[0].x);
-    if (line[0].y == line[1].y)
-        return axisRayHit(Axis::horizontal, line[0].y);
-    OpConic rotated;
-    toVertical(line, rotated);
-    return rotated.axisRayHit(Axis::vertical, 0);
+OpRoots OpConic::rayIntersect(const LinePts& line) const {
+    if (line.pts[0].x == line.pts[1].x)
+        return axisRayHit(Axis::vertical, line.pts[0].x);
+    if (line.pts[0].y == line.pts[1].y)
+        return axisRayHit(Axis::horizontal, line.pts[0].y);
+    OpCurve rotated = toVertical(line);
+    return rotated.asConic().axisRayHit(Axis::vertical, 0);
 }
 
 bool OpConic::monotonic(XyChoice offset) const {
@@ -88,13 +86,14 @@ OpPoint OpConic::ptAtT(float t) const {
     return numerator(t) / denominator(t);
 }
 
-void OpConic::subDivide(OpPtT ptT1, OpPtT ptT2, std::array<OpPoint, 4>& dst, float* w) const {
-    dst[0] = ptT1.pt;
-    dst[2] = ptT2.pt;
+CurvePts OpConic::subDivide(OpPtT ptT1, OpPtT ptT2) const {
+    CurvePts result;
+    result.pts[0] = ptT1.pt;
+    result.pts[2] = ptT2.pt;
     if (0 == ptT1.t && 1 == ptT2.t) {
-        dst[1] = pts[1];
-        *w = weight;
-        return;
+        result.pts[1] = pts[1];
+        result.weight = weight;
+        return result;
     }
     OpPoint a;
     float az = 1;
@@ -123,9 +122,10 @@ void OpConic::subDivide(OpPtT ptT1, OpPtT ptT2, std::array<OpPoint, 4>& dst, flo
     float bz = 2 * dz - (az + cz) / 2;
     // if bz is 0, weight is 0, control point has no effect: any value will do
     float bzNonZero = !bz ? 1 : bz;
-    dst[1] = b / bzNonZero;
-    dst[1].pin(dst[0], dst[2]);
-    *w = bz / sqrtf(az * cz);
+    result.pts[1] = b / bzNonZero;
+    result.pts[1].pin(result.pts[0], result.pts[2]);
+    result.weight = bz / sqrtf(az * cz);
+    return result;
 }
 
 float OpConic::tangent(XyChoice offset, float t) const {

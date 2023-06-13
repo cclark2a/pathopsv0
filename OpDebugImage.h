@@ -3,10 +3,10 @@
 
 #if OP_DEBUG_IMAGE
 
-#include <array>
 #include <string>
 #include <vector>
 
+struct LinePts;
 struct OpCurve;
 struct OpEdge;
 struct OpInPath;
@@ -16,7 +16,7 @@ struct OpOutPath;
 struct OpPoint;
 struct OpPointBounds;
 struct OpPtT;
-struct OpRay;
+struct OpDebugRay;
 struct OpSegment;
 struct OpVector;
 enum class Axis : int8_t;
@@ -30,7 +30,7 @@ struct OpDebugImage {
 	static void add(const OpEdge* );
 	static void add(const OpSegment* );
 	static void add(Axis axis, float value);
-	static void add(const OpRay& );
+	static void add(const OpDebugRay& );
 
 	static void addArrowHeadToPath(const OpLine& , class SkPath& );
 	static void addDiamondToPath(OpPoint , class SkPath& );
@@ -79,8 +79,7 @@ extern void clearLines();
 extern void draw(const std::vector<OpEdge>& );  // to draw edge list built from intersections
 extern void draw(const std::vector<OpEdge*>& ); // to draw assemble linkups
 extern void draw(Axis , float );	// horizontal or vertical ray
-// commented out because OpPoint isn't defined in this context (this draw is in OpCurve.h)
-// extern void draw(const std::array<OpPoint, 2>& );	// arbitrary angled ray
+extern void draw(const LinePts& );	// arbitrary angled ray
 extern void draw();  // draw all current state
 
 extern void focus(int id);

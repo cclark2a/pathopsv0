@@ -308,7 +308,7 @@ struct DebugOpCurve {
     void mapTo(OpCurve& ) const;
     int pointCount() const { return static_cast<int>(type) + (type < conicType); }
     DebugOpPoint ptAtT(double t) const;
-    DebugOpRoots rayIntersect(const OpRay& ) const;
+    DebugOpRoots rayIntersect(const OpDebugRay& ) const;
     void rectCurves(std::vector<DebugOpCurve>& bounded) const;
     void subDivide(double a, double b, DebugOpCurve& dest) const;
     bool tInRect(double t, const DebugOpRect& bounds) const;
@@ -515,15 +515,15 @@ DebugOpRoots DebugOpCurve::axisRayHit(Axis axis, double axisIntercept) const {
     return 0;
 }
 
-DebugOpRoots DebugOpCurve::rayIntersect(const OpRay& ray) const {
+DebugOpRoots DebugOpCurve::rayIntersect(const OpDebugRay& ray) const {
     if (ray.useAxis)
         return axisRayHit(ray.axis, ray.value);
     DebugOpCurve rotated = *this;
-    double adj = (double) ray.pts[1].x - ray.pts[0].x;
-    double opp = (double) ray.pts[1].y - ray.pts[0].y;
+    double adj = (double) ray.pts.pts[1].x - ray.pts.pts[0].x;
+    double opp = (double) ray.pts.pts[1].y - ray.pts.pts[0].y;
     for (int n = 0; n < pointCount(); ++n) {
-        double vdx = (double) pts[n].x - ray.pts[0].x;
-        double vdy = (double) pts[n].y - ray.pts[0].y;
+        double vdx = (double) pts[n].x - ray.pts.pts[0].x;
+        double vdy = (double) pts[n].y - ray.pts.pts[0].y;
         rotated.pts[n].x = (float) (vdy * adj - vdx * opp);
         rotated.pts[n].y = (float) (vdy * opp + vdx * adj);
     }
@@ -727,7 +727,7 @@ void DebugOpFill(std::vector<DebugOpCurve>& curves, SkColor color = SK_ColorBLAC
     OpDebugImage::drawDoubleFill(path, color);
 }
 
-void DebugOpDraw(const std::vector<OpRay>& lines) {
+void DebugOpDraw(const std::vector<OpDebugRay>& lines) {
     debugLines.clear();
     DebugOpRect bounds = ZoomToRect();
     for (auto& line : lines) {
@@ -750,17 +750,17 @@ void DebugOpDraw(const std::vector<OpRay>& lines) {
             continue;
         }
         int outIndex = 0;
-        DebugOpPoint len { line.pts[1].x - line.pts[0].x, line.pts[1].y - line.pts[0].y };
-        float leftY = line.pts[0].y + len.y * (bounds.left - line.pts[0].x) / len.x;
+        DebugOpPoint len { line.pts.pts[1].x - line.pts.pts[0].x, line.pts.pts[1].y - line.pts.pts[0].y };
+        float leftY = line.pts.pts[0].y + len.y * (bounds.left - line.pts.pts[0].x) / len.x;
         if (bounds.top <= leftY && leftY < bounds.bottom)
             curve.pts[outIndex++] = { bounds.left, leftY };
-        float topX = line.pts[0].x + len.x * (bounds.top - line.pts[0].y) / len.y;
+        float topX = line.pts.pts[0].x + len.x * (bounds.top - line.pts.pts[0].y) / len.y;
         if (bounds.left <= topX && topX < bounds.right)
             curve.pts[outIndex++] = { bounds.top, topX };
-        float rightY = line.pts[0].y + len.y * (bounds.right - line.pts[0].x) / len.x;
+        float rightY = line.pts.pts[0].y + len.y * (bounds.right - line.pts.pts[0].x) / len.x;
         if (bounds.top < rightY && rightY <= bounds.bottom)
             curve.pts[outIndex++] = { bounds.right, rightY };
-        float bottomX = line.pts[0].x + len.x * (bounds.bottom - line.pts[0].y) / len.y;
+        float bottomX = line.pts.pts[0].x + len.x * (bounds.bottom - line.pts.pts[0].y) / len.y;
         if (bounds.left < bottomX && bottomX <= bounds.right)
             curve.pts[outIndex++] = { bounds.bottom, bottomX };
         if (2 == outIndex)
@@ -789,7 +789,7 @@ void DebugOpBuild(const DebugOpPoint& dPt) {
         debugPoints.push_back(dPt);
 }
 
-void DebugOpBuild(const OpSegment& seg, const OpRay& ray) {
+void DebugOpBuild(const OpSegment& seg, const OpDebugRay& ray) {
     DebugOpCurve curve;
     for (int i = 0; i < 4; ++i)
         curve.pts[i] = { seg.c.pts[i].x, seg.c.pts[i].y } ;
@@ -828,7 +828,7 @@ void DebugOpBuild(const OpEdge& edge, std::vector<DebugOpCurve>& debugEs) {
     curve.rectCurves(debugEs);
 }
 
-void DebugOpBuild(const OpEdge& edge, const OpRay& ray) {
+void DebugOpBuild(const OpEdge& edge, const OpDebugRay& ray) {
     DebugOpCurve curve;
     OpEdge copy(edge);
     const OpCurve& c = copy.setCurve();
@@ -967,7 +967,7 @@ void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs, ClipTo
     }
 }
 
-void DebugOpBuild(const SkPath& path, const struct OpRay& ray) {
+void DebugOpBuild(const SkPath& path, const struct OpDebugRay& ray) {
     auto axisSect = [&](const DebugOpCurve& curve) {  // lambda
         DebugOpRoots roots = curve.rayIntersect(ray);
         for (int index = 0; index < roots.count; ++index) {

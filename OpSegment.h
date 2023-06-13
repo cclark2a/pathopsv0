@@ -2,13 +2,11 @@
 #define OpSegment_DEFINED
 
 #include "OpEdge.h"
-#include "OpEdges.h"
 #include "OpIntersection.h"
 #include "OpTightBounds.h"
 #include <vector>
 
 struct OpContour;
-struct OpContours;
 
 enum class AllowReversal {
     no,
@@ -57,9 +55,8 @@ struct MissingIntersection {
 };
 
 struct OpSegment {
-    OpSegment(const OpPoint pts[], OpType type, OpContour* parent);
-    OpSegment(const OpPoint pts[3], float w, OpContour* parent);
-    OpSegment(OpPoint pt1, OpPoint pt2, OpContour* parent);
+    OpSegment(const CurvePts& pts, OpType type, OpContour* parent  
+            OP_DEBUG_PARAMS(SectReason , SectReason ));
     void activeAtT(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& , AllowReversal ) const;
     OpIntersection* addIntersection(const OpPtT&  
             OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason , const OpIntersection* ,
@@ -73,7 +70,7 @@ struct OpSegment {
     OpIntersection* addIntersection(const OpPtT& , int coinID  
             OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason , const OpSegment* e,
             const OpSegment* o));
-    OpIntersection* addIntersection(const OpPtT& , SelfIntersect  
+    OpIntersection* addIntersection(const OpPtT& , SectFlavor  
             OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason , const OpIntersection* ,
             const OpEdge* e, const OpEdge* o));
     void apply();
@@ -82,7 +79,6 @@ struct OpSegment {
     void complete();
     bool containsIntersection(OpPtT , const OpSegment* ) const;
     OpEdge* findActive(OpPtT , EdgeMatch ) const;
-    void findExtrema();
     void fixEdges(OpPoint alias, OpPoint master  OP_DEBUG_PARAMS(int masterSectID));
     void fixIntersections(OpPoint alias, OpPoint master  OP_DEBUG_PARAMS(int masterSectID));
     float findPtT(float start, float end, OpPoint opp) const;
@@ -99,15 +95,14 @@ struct OpSegment {
     void missingCoincidence(const OpPtT& s, const OpPtT& e, OpSegment* , std::vector<int>&, 
             std::vector<MissingIntersection>& ) const;
     bool resolveCoincidence();
-    void resolvePoints();
+//    void resolvePoints();
     void setCoincident(XyChoice , OpPoint newA, OpPoint newB, bool flipped, OpSegment* oppSegment
             OP_DEBUG_PARAMS(const OpEdge& opp, const OpEdge& edge));
     void sortIntersections();
     bool splitAtWinding(const std::vector<const OpEdge*>& windingChanges, const OpEdge* first,
             int direction  OP_DEBUG_PARAMS(const OpIntersection* last, EdgeMatch oppositeMatch,
             const OpEdge* firstEdge, SectReason ));
-    bool validEdge(float startT, float endT) const;  // check if edge crosses extrema or inflection
-    OpEdge* visibleAdjacent(OpEdge* , const OpPtT& );
+//    OpEdge* visibleAdjacent(OpEdge* , const OpPtT& );
 #if OP_DEBUG
     void debugValidate() const;
 #endif
@@ -133,23 +128,10 @@ struct OpSegment {
     bool recomputeBounds;
     bool resortIntersections;
     int id;     // !!! could be debug only; currently used to disambiguate sort, may be unneeded
-};
-
-struct OpSegments {
-    OpSegments(OpContours& contours);
-    static void AddLineCurveIntersection(OpSegment* opp, OpSegment* seg);
-    void findCoincidences();
-    FoundIntersections findIntersections();
-
-#if OP_DEBUG_DUMP
-    DUMP_COMMON_DECLARATIONS();
-    DUMP_IMPL_DECLARATIONS();
+#if OP_DEBUG
+    SectReason debugStart;
+    SectReason debugEnd;
 #endif
-#if OP_DEBUG_IMAGE
-    void draw() const;
-#endif
-
-    std::vector<OpSegment*> inX;
 };
 
 #endif
