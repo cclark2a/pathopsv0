@@ -78,6 +78,7 @@ CurvePts OpQuad::subDivide(OpPtT ptT1, OpPtT ptT2) const {
     CurvePts result;
     result.pts[0] = ptT1.pt;
     result.pts[2] = ptT2.pt;
+    result.weight = 1;
     if (0 == ptT1.t && 1 == ptT2.t)  // called by opsegment addquad if there's no extrema
         result.pts[1] = pts[1];
     else {

@@ -6,11 +6,13 @@
 struct OpEdge;
 struct OpSegment;
 
+// keep -1/0/1 values so these can be used when sorting intersections
 enum class SectFlavor {
+	unsectableStart = -1,
 	none,
+	unsectableEnd,
 	missing,	// missing coincidence (will likely remove)
 	split,		// winding changed requiring new intersection (will likely remove)
-	unsectable,
 };
 
 #if OP_DEBUG
@@ -18,10 +20,6 @@ enum class SectFlavor {
 enum class IntersectMaker {
 	addCoincidentCheck,
 	addCoincidentCheckOpp,
-	addCurveCoinStart,
-	addCurveCoinEnd,
-	addCurveCoinOppStart,
-	addCurveCoinOppEnd,
 	addMatchingEnd,
 	addMatchingEndOpp,
 	addMatchingEndOStart,
@@ -57,6 +55,10 @@ enum class IntersectMaker {
 	segmentLineCurve,
 	segmentLineCurveOpp,
 	splitAtWinding,
+	unsectableStart,
+	unsectableEnd,
+	unsectableOppStart,
+	unsectableOppEnd,
 	// testing only
 	opTestEdgeZero1,
 	opTestEdgeZero2,
@@ -68,7 +70,7 @@ enum class IntersectMaker {
 
 enum class SectReason {
 	coinPtsMatch,
-	curveCurveCoincidence,
+	curveCurveUnsectable,
 	degenerateCenter,
 	divideAndConquer_oneT,
 	divideAndConquer_noEdgeToSplit,
@@ -111,8 +113,7 @@ struct OpIntersection {
 
 	void set(const OpPtT& t, OpSegment* seg, SectFlavor flavor_ , int cID
 			OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
-			const OpIntersection* parent, const OpEdge* edge, const OpEdge* oEdge, 
-			const OpSegment* dSeg, const OpSegment* dOpp)) {
+			int ID, int oppID)) {
 		segment = seg;
 		opp = SectFlavor::none == flavor_ ? nullptr : this;
 		ptT = t;
@@ -121,11 +122,8 @@ struct OpIntersection {
 		aliased = false;
 #if OP_DEBUG
 		debugSetID();		// debug for now
-		debugParent = parent;
-		debugEdge = edge;
-		debugOpp = oEdge;
-		debugSeg = dSeg;
-		debugSegOpp = dOpp;
+		debugID = ID;
+		debugOppID = oppID;
 		debugCoincidenceID = 0;
 		debugAliasID = 0;
 		debugMaker = maker;
@@ -172,11 +170,8 @@ struct OpIntersection {
 	bool aliased;     // true if point value was changed to match an intersection with the same t
 #if OP_DEBUG
 	int id;
-	const OpIntersection* debugParent;  // intersection pt was copied from
-	const OpEdge* debugEdge;	// pair of edges that intersected
-	const OpEdge* debugOpp;
-	const OpSegment* debugSeg;	// or: pair of segments that intersected
-	const OpSegment* debugSegOpp;
+	int debugID;	// pair of edges or segments that intersected
+	int debugOppID;
 	OpPoint debugOriginal;	// point value prior to aliasing
 	int debugCoincidenceID;	// this one does not get erased
 	int debugAliasID;

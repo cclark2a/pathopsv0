@@ -3,6 +3,7 @@
 #if OP_DEBUG
 OpContours* debugGlobalContours;
 bool OpDebugPathOpsEnable::inPathOps;
+bool OpDebugPathOpsEnable::inClearEdges;
 OpDebugIntersect debugGlobalIntersect;
 #endif
 

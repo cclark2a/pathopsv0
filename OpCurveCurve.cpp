@@ -4,7 +4,7 @@
 #include "OpSegment.h"
 
 // trim front and back of ranges
-SectFound OpCurveCurve::addCurveCoincidence() {
+SectFound OpCurveCurve::addUnsectable() {
 	std::vector<OpEdge> edgeRuns = findEdgesTRanges(CurveRef::edge);
 	std::vector<OpEdge> oppRuns = findEdgesTRanges(CurveRef::opp);
 	Axis larger = originalEdge->ptBounds.width() > originalEdge->ptBounds.height() ? 
@@ -46,20 +46,19 @@ SectFound OpCurveCurve::addCurveCoincidence() {
 			if (!oppEnd.pt.isFinite())
 				oppEnd.pt = edgeEnd.pt;
 			OpSegment* segment = const_cast<OpSegment*>(edge.segment);
-			int coinID = segment->coinID(reversed);
-			OpIntersection* segSect1 = segment->addIntersection(edgeStart, coinID  
-					OP_DEBUG_PARAMS(SECT_MAKER(addCurveCoinStart), SectReason::curveCurveCoincidence,
-					nullptr, originalEdge, originalOpp));
-			OpIntersection* segSect2 = segment->addIntersection(edgeEnd, coinID  
-					OP_DEBUG_PARAMS(SECT_MAKER(addCurveCoinEnd), SectReason::curveCurveCoincidence,
-					nullptr, originalEdge, originalOpp));
+			OpIntersection* segSect1 = segment->addUnsectable(edgeStart, SectFlavor::unsectableStart  
+					OP_DEBUG_PARAMS(SECT_MAKER(unsectableStart), opp.segment));
+			OpIntersection* segSect2 = segment->addUnsectable(edgeEnd, SectFlavor::unsectableEnd  
+					OP_DEBUG_PARAMS(SECT_MAKER(unsectableEnd), opp.segment));
 			OpSegment* oppSegment = const_cast<OpSegment*>(opp.segment);
-			OpIntersection* oppSect1 = oppSegment->addIntersection(oppStart, coinID  
-					OP_DEBUG_PARAMS(SECT_MAKER(addCurveCoinOppStart), SectReason::curveCurveCoincidence,
-					nullptr, originalEdge, originalOpp));
-			OpIntersection* oppSect2 = oppSegment->addIntersection(oppEnd, coinID  
-					OP_DEBUG_PARAMS(SECT_MAKER(addCurveCoinOppEnd), SectReason::curveCurveCoincidence,
-					nullptr, originalEdge, originalOpp));
+			OpIntersection* oppSect1 = oppSegment->addUnsectable(oppStart, reversed ? 
+					SectFlavor::unsectableEnd : SectFlavor::unsectableStart  OP_DEBUG_PARAMS(
+				   reversed ? IntersectMaker::unsectableOppEnd : IntersectMaker::unsectableOppStart,
+					__LINE__, __FILE__, segment));
+			OpIntersection* oppSect2 = oppSegment->addUnsectable(oppEnd, reversed ?
+					SectFlavor::unsectableStart : SectFlavor::unsectableEnd  OP_DEBUG_PARAMS(
+				   reversed ? IntersectMaker::unsectableOppStart : IntersectMaker::unsectableOppEnd,
+					__LINE__, __FILE__, segment));
 			segSect1->pair(edgeStart.pt == oppStart.pt ? oppSect1 : oppSect2);
 			segSect2->pair(edgeEnd.pt == oppStart.pt ? oppSect1 : oppSect2);
 		}
@@ -141,7 +140,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 	assert(0 == edgeLines.size());
 	assert(1 == oppCurves.size());
 	assert(0 == oppLines.size());
-	edgeCurves[0].addMatchingEnds(oppCurves[0]);
+//	edgeCurves[0].addMatchingEnds(oppCurves[0]);
 	for (int depth = 1; depth < maxDepth; ++depth) {
 #if OP_DEBUG_IMAGE
 		if (breakAtDraw && 8 <= depth)
@@ -162,7 +161,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 		if (SectFound::no == oppResult || SectFound::no == edgeResult)
 			return SectFound::no;
 		if (edgeCurves.size() >= maxSplits || oppCurves.size() >= maxSplits)
-			return addCurveCoincidence();
+			return addUnsectable();
 		// old linear edges are removed from list by split below
 		// iterate through all edges and mark ones that are linear
 		// if one side has split more than double the other, do it again

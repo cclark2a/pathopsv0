@@ -71,51 +71,51 @@ void OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
     }
 }
 
-OpIntersection* OpSegment::addIntersection(const OpPtT& ptT  
+OpIntersection* OpSegment::addEdgeSect(const OpPtT& ptT  
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason,
-        const OpIntersection* master, const OpEdge* debugEdge, const OpEdge* debugOpp)) {
-    auto sect = contour->addIntersection(ptT, this, SectFlavor::none, 0  
-            OP_DEBUG_PARAMS(maker, line, file, reason, master, debugEdge, debugOpp));
+        const OpEdge* debugEdge, const OpEdge* debugOpp)) {
+    auto sect = contour->addEdgeSect(ptT, this  
+            OP_DEBUG_PARAMS(maker, line, file, reason, debugEdge, debugOpp));
     intersections.push_back(sect);
     resortIntersections = true;
     return sect;
 }
 
-OpIntersection* OpSegment::addIntersection(const OpPtT& ptT  
+OpIntersection* OpSegment::addSegSect(const OpPtT& ptT  
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
-        const OpSegment* dSeg, const OpSegment* oSeg)) {
-    auto sect = contour->addIntersection(ptT, this, SectFlavor::none, 0  
-            OP_DEBUG_PARAMS(maker, line, file, reason, dSeg, oSeg));
+        const OpSegment* oSeg)) {
+    auto sect = contour->addSegSect(ptT, this, SectFlavor::none, 0  
+            OP_DEBUG_PARAMS(maker, line, file, reason, oSeg));
     intersections.push_back(sect);
     resortIntersections = true;
     return sect;
 }
-
-OpIntersection* OpSegment::addIntersection(const OpPtT& ptT, int coinID  
+OpIntersection* OpSegment::addCoin(const OpPtT& ptT, int coinID  
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
-        const OpIntersection* master, const OpEdge* debugEdge, const OpEdge* debugOpp)) {
-    auto sect = contour->addIntersection(ptT, this, SectFlavor::none, coinID  
-            OP_DEBUG_PARAMS(maker, line, file, reason, master, debugEdge, debugOpp));
+        const OpSegment* oSeg)) {
+    auto sect = contour->addSegSect(ptT, this, SectFlavor::none, coinID  
+            OP_DEBUG_PARAMS(maker, line, file, reason, oSeg));
     intersections.push_back(sect);
     resortIntersections = true;
     return sect;
 }
 
-OpIntersection* OpSegment::addIntersection(const OpPtT& ptT, int coinID  
-        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
-        const OpSegment* dSeg, const OpSegment* oSeg)) {
-    auto sect = contour->addIntersection(ptT, this, SectFlavor::none, coinID  
-            OP_DEBUG_PARAMS(maker, line, file, reason, dSeg, oSeg));
-    intersections.push_back(sect);
-    resortIntersections = true;
-    return sect;
-}
-
+#if 0
 OpIntersection* OpSegment::addIntersection(const OpPtT& ptT, SectFlavor flavor  
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
         const OpIntersection* master, const OpEdge* debugEdge, const OpEdge* debugOpp)) {
     auto sect = contour->addIntersection(ptT, this, flavor, 0  
             OP_DEBUG_PARAMS(maker, line, file, reason, master, debugEdge, debugOpp));
+    intersections.push_back(sect);
+    resortIntersections = true;
+    return sect;
+}
+#endif
+
+OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, SectFlavor flavor  
+        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, const OpSegment* oSeg)) {
+    auto sect = contour->addSegSect(ptT, this, flavor, 0  
+            OP_DEBUG_PARAMS(maker, line, file, SectReason::curveCurveUnsectable, oSeg));
     intersections.push_back(sect);
     resortIntersections = true;
     return sect;
@@ -126,6 +126,7 @@ void OpSegment::apply() {
         edge.apply();
 }
 
+#if 0
 // if bounds is dirty, recalc bounds from intersections
 // if segment collapses to point, remove entries from intersections?
 void OpSegment::calcBounds() {
@@ -141,6 +142,7 @@ void OpSegment::calcBounds() {
         return;
     winding.zero(ZeroReason::collapsed);
 }
+#endif
 
 int OpSegment::coinID(bool flipped) {
     int coinID = ++contour->contours->coincidenceID;
@@ -327,6 +329,7 @@ void OpSegment::flip(WindZero* windZero) {
     *windZero = WindZero::normal == *windZero ? WindZero::opp : WindZero::normal;
 }
 
+#if 0
 // when called, edges contain monotonic curves; intersections contains points
 // split edges until all points are accounted for
 void OpSegment::intersectEdge() {
@@ -363,6 +366,7 @@ void OpSegment::intersectEdge() {
     if (merge.size() > edges.size())
         edges.swap(merge);
 }
+#endif
 
 void OpSegment::intersectRange(const OpSegment* opp, std::vector<OpIntersection*>& range) {
     OP_DEBUG_CODE(float last = -1);
@@ -379,19 +383,35 @@ void OpSegment::intersectRange(const OpSegment* opp, std::vector<OpIntersection*
 void OpSegment::makeEdges() {
     if (pointType == c.type)
         return;
-    if (!winding.left() && !winding.right())
+    if (!winding.left() && !winding.right()) {
+        edges.clear();
         return;
+    }
+    if (1 == edges.size() && 2 == intersections.size())
+        return;
+    edges.clear();
     edges.reserve(intersections.size() - 1);
     const OpIntersection* last = intersections.front();
+    int unsectableCount = 0;
+    OP_DEBUG_CODE(std::vector<bool> unOpp);
     for (auto sectPtr : intersections) {
         const OpIntersection& sect = *sectPtr;
-        if (sect.ptT.t == last->ptT.t)
-            continue;
-        if (41 == contour->contours->id) OP_DEBUG_BREAK();
-        edges.emplace_back(this, last->ptT, sect.ptT  
-                OP_DEBUG_PARAMS(EDGE_MAKER(makeEdges), last, sectPtr));
-        OpDebugBreak(&edges.back(), 41);
-        last = &sect;
+        if (sect.ptT.t != last->ptT.t) {
+            if (last->flavor == SectFlavor::unsectableStart) {
+                unsectableCount++;
+                OP_DEBUG_CODE(unOpp.push_back(IntersectMaker::unsectableOppStart == last->debugMaker));
+            }
+            edges.emplace_back(this, last->ptT, sect.ptT, !!unsectableCount  // (is in unsectable)
+                    OP_DEBUG_PARAMS(EDGE_MAKER(makeEdges), last, sectPtr));
+//            OpDebugBreak(&edges.back(), 445);
+            OP_DEBUG_CODE(edges.back().debugUnOpp = unsectableCount && unOpp.back());
+        }
+        if (sect.flavor == SectFlavor::unsectableEnd) {
+            unsectableCount--;
+            OP_DEBUG_CODE(unOpp.pop_back());
+        }
+        if (sect.ptT.t != last->ptT.t)
+            last = &sect;
     }
 }
 
@@ -416,6 +436,7 @@ MatchEnds OpSegment::matchEnds(const OpSegment* opp, bool* reversed) const {
     return result;
 }
 
+#if 0
 // look for coincident start or end with the range of, but missing from target's coincidence
 void OpSegment::missingCoincidence(const OpPtT& start, const OpPtT& end,
         OpSegment* targetSegment,
@@ -443,7 +464,9 @@ void OpSegment::missingCoincidence(const OpPtT& start, const OpPtT& end,
         sect.segment->missingCoincidence(start, end, targetSegment, foundIDs, missing);
     }
 }
+#endif
 
+#if 0
 // Note the set of coincident edges bounded by identical ids may be of different lengths.
 // A third coincidence may begin in those bounds; the third may have an intersection
 // in the primary or opposite segment.
@@ -522,7 +545,9 @@ void OpSegment::missingCoincidence() {
         }
     }
 }
+#endif
 
+#if 0
 // A coincident span may contain multiple edges.
 // The individual edge and opp winding counts may vary. So the initial winding difference has to
 // be applied to all subsequent edges, but only the initial opp winding can be zeroed.
@@ -666,6 +691,7 @@ bool OpSegment::resolveCoincidence() {
     } while (++sectPtr != &intersections.back());
     return true;
 }
+#endif
 
 #if 0   // moving points is evil. Don't do it
 // Different intersections and self intersections may compute the same t but different point values.
@@ -725,11 +751,13 @@ void OpSegment::sortIntersections() {
     std::sort(intersections.begin(), intersections.end(),
         [](const OpIntersection* s1, const OpIntersection* s2) {
             return s1->ptT.t < s2->ptT.t 
-                    /* || (s1->ptT.t == s2->ptT.t && !s1->unsortable < !s2->unsortable ) */ ; 
+        // use SectFlavor -1/0/1 value order to put unsectableStart at front; unsectableEnd at back
+                    || (s1->ptT.t == s2->ptT.t && (int) s1->flavor < (int) s2->flavor); 
         });
     resortIntersections = false;
 }
 
+#if 0
 // if there are winding changes, find the split t for the opposite edge
 bool OpSegment::splitAtWinding(const std::vector<const OpEdge*>& windingChanges,
         const OpEdge* first, int direction
@@ -791,6 +819,7 @@ done:
     sortIntersections();
     return true;
 }
+#endif
 
 #if 0
 // active at t seems too complicated: this is the same code/idea simplified for edge set windings

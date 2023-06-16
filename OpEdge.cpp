@@ -40,6 +40,7 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e
 	subDivide();	// uses already computed points stored in edge
 }
 
+#if 0
 // start here;
 // !!! replace sort with sort-and-remove-duplicates ?
 void OpEdge::addMatchingEnds(const OpEdge& opp) const {
@@ -88,6 +89,7 @@ void OpEdge::addMatchingEnds(const OpEdge& opp) const {
 	if (segSect)
 		segSect->pair(oppSect);
 }
+#endif
 
 /* table of winding states that the op types use to keep an edge
 	left op (first path)	right op (second path)		keep if:
@@ -731,8 +733,8 @@ void OpEdge::setWinding(OpVector ray) {
 
 // use already computed points stored in edge
 void OpEdge::subDivide() {
-	OpDebugBreak(this, 41);
 	CurvePts pts = segment->c.subDivide(start, end);
+	weight = pts.weight;
 	setFromPoints(pts.pts);
 	setPointBounds();
 	if (lineType == segment->c.type || (!ptBounds.height() ^ !ptBounds.width())) {

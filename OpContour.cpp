@@ -1,21 +1,20 @@
 #include "OpContour.h"
 #include "OpEdge.h"
 
-OpIntersection* OpContour::addIntersection(const OpPtT& t, OpSegment* seg, SectFlavor flavor, int cID
+OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
-        const OpIntersection* master, const OpEdge* edge, const OpEdge* oEdge)) {
+        const OpEdge* edge, const OpEdge* oEdge)) {
     OpIntersection* next = contours->allocateIntersection();
-    next->set(t, seg, flavor, cID  OP_DEBUG_PARAMS(maker, line, file, reason, master, edge, oEdge, 
-            nullptr, nullptr));
+    next->set(t, seg, SectFlavor::none, 0  OP_DEBUG_PARAMS(maker, line, file, reason, 
+            edge->id, oEdge->id));
     return next;
 }
 
-OpIntersection* OpContour::addIntersection(const OpPtT& t, OpSegment* seg, SectFlavor flavor, int cID
+OpIntersection* OpContour::addSegSect(const OpPtT& t, OpSegment* seg, SectFlavor flavor, int cID
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason,
-        const OpSegment* dSeg, const OpSegment* oSeg)) {
+        const OpSegment* oSeg)) {
     OpIntersection* next = contours->allocateIntersection();
-    next->set(t, seg, flavor, cID  OP_DEBUG_PARAMS(maker, line, file, reason, nullptr, nullptr, 
-            nullptr, dSeg, oSeg));
+    next->set(t, seg, flavor, cID  OP_DEBUG_PARAMS(maker, line, file, reason, seg->id, oSeg->id));
     return next;
 }
 

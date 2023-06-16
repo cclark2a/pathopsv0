@@ -88,12 +88,15 @@ struct OpDebugIntersectSave {
 struct OpDebugPathOpsEnable {
 	OpDebugPathOpsEnable() {
 		inPathOps = true;
+		inClearEdges = false;
 	}
 	~OpDebugPathOpsEnable() {
 		inPathOps = false;
+		inClearEdges = false;
 	}
 
 	static bool inPathOps;
+	static bool inClearEdges;
 };
 
 float OpDebugBitsToFloat(int32_t);

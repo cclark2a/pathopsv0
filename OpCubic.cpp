@@ -128,6 +128,7 @@ CurvePts OpCubic::subDivide(OpPtT ptT1, OpPtT ptT2) const {
     CurvePts result;
     result.pts[0] = ptT1.pt;
     result.pts[3] = ptT2.pt;
+    result.weight = 1;
     if (ptT1.t == 0 && ptT2.t == 1) {
         result.pts[1] = pts[1];
         result.pts[2] = pts[2];

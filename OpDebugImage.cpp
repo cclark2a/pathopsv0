@@ -1257,6 +1257,8 @@ void OpContours::draw() const {
 }
 
 OpEdge::~OpEdge() {
+	if (OpDebugPathOpsEnable::inClearEdges)
+		return;
 	if (!OpDebugPathOpsEnable::inPathOps)
 		return;
 	assert(!segment->debugContains(this));

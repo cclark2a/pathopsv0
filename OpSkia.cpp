@@ -90,9 +90,8 @@ bool OpSegmentBuilder::Build(OpInPath path, OpContours& c, OpOperand operand) {
     OpFillType exor = SkPathFillType::kEvenOdd == skPath.getFillType()
             || SkPathFillType::kInverseEvenOdd == skPath.getFillType() 
             ? OpFillType::evenOdd : OpFillType::winding;
-    c.contours.emplace_back(&c, operand);
     (OpOperand::left == operand ? c.left : c.right) = exor;
-    OpContour* head = &c.contours.back();
+    OpContour* head = nullptr;
     SkPath::RawIter iter(skPath);
     OpPoint curveStart;
     SkPath::Verb verb;

@@ -299,6 +299,7 @@ enum class WhichLoop {
 
 #if OP_DEBUG
 enum class EdgeMaker {
+	empty,
 	intersectEdge1,
 	intersectEdge2,
 	makeEdges,
@@ -345,18 +346,28 @@ private:
 		, isSumLoop(false)
 		, active_impl(false)
 		, startAliased(false)
+		, unsectable(false)
 		, unsortable(false) {
-		OP_DEBUG_CODE(debugAliasStartID = 0);
-		OP_DEBUG_CODE(debugAliasEndID = 0);
+#if OP_DEBUG
+		debugStart = nullptr;
+		debugEnd = nullptr;
+		debugMaker = EdgeMaker::empty;
+		debugMakerLine = 0;
+		debugParentID = 0;
+		debugAliasStartID = 0;
+		debugAliasEndID = 0;
+		debugUnOpp = false;
+#endif
 	}
 public:
-	OpEdge(const OpSegment* s, OpPtT t1, OpPtT t2  
+	OpEdge(const OpSegment* s, OpPtT t1, OpPtT t2, bool isUnsectable  
 			OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file, const OpIntersection* i1, 
 					const OpIntersection* i2))
 		: OpEdge() {
 		segment = s;
 		start = t1;
 		end = t2;
+		unsectable = isUnsectable;
 #if OP_DEBUG
 		debugStart = i1;
 		debugEnd = i2;
@@ -382,7 +393,7 @@ public:
 	OpEdge& operator=(OpEdge&&) = default;
 	~OpEdge();	// reason: removes temporary edges from image list
 #endif
-	void addMatchingEnds(const OpEdge& ) const;
+//	void addMatchingEnds(const OpEdge& ) const;
 	void apply();
 	void calcCenterT();
 	CalcFail calcWinding(Axis axis);
@@ -501,6 +512,7 @@ public:
 	bool isSumLoop;
 	bool active_impl;  // used by ray casting to mark edges that may be to the left of casting edge
 	bool startAliased;
+	bool unsectable;
 	bool unsortable;	// sum was not resolvable by ray in either axis (likely edge is very small) 
 #if OP_DEBUG
 	const OpIntersection* debugStart;
@@ -513,6 +525,7 @@ public:
 	int debugParentID;
 	int debugAliasStartID;
 	int debugAliasEndID;
+	bool debugUnOpp;
 #endif
 };
 

@@ -36,7 +36,7 @@ struct OpCurveCurve {
 #endif
 	}
 
-	SectFound addCurveCoincidence(); // if curve doesn't devolve into line segments
+	SectFound addUnsectable(); // if curve doesn't devolve into line segments
 	SectFound curvesIntersect(CurveRef );
 	SectFound divideAndConquer();
 	std::vector<OpEdge> findEdgesTRanges(CurveRef );

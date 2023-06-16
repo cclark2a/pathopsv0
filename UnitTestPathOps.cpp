@@ -860,9 +860,9 @@ void OpTestOpEdgesConcidenceCheck() {
 					OpContour contour(&contours, OpOperand::left);
 					OpSegment seg(ab, lineType, &contour  OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
 					OpSegment oSeg(cd, lineType, &contour  OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
-					OpEdge edge(&seg, { ab.pts[0], 0}, { ab.pts[1], 1 }  
-					OP_DEBUG_PARAMS(EDGE_MAKER(opTest), nullptr, nullptr));
-					OpEdge oEdge(&oSeg, { cd.pts[0], 0 }, { cd.pts[1], 1 }  
+					OpEdge edge(&seg, { ab.pts[0], 0}, { ab.pts[1], 1 }, false  
+							OP_DEBUG_PARAMS(EDGE_MAKER(opTest), nullptr, nullptr));
+					OpEdge oEdge(&oSeg, { cd.pts[0], 0 }, { cd.pts[1], 1 }, false  
 							OP_DEBUG_PARAMS(EDGE_MAKER(opTest), nullptr, nullptr));
 					OpEdges::CoincidentCheck(oEdge, edge);
 					float _ab[2] = { a, b};
@@ -986,23 +986,19 @@ void OpTest_EdgeZero() {
 					head->addLine(data2[i2]);
 					OpSegment& seg1 = head->segments.front();
 //					opDebugImage.setFocus(seg1.ptBounds);
-					seg1.addIntersection(OpPtT(data1[0][0], 0)
-							OP_DEBUG_PARAMS(SECT_MAKER(opTestEdgeZero1), SectReason::test,
-							nullptr, nullptr, nullptr));
-					seg1.addIntersection(OpPtT(data1[0][1], 1)
-							OP_DEBUG_PARAMS(SECT_MAKER(opTestEdgeZero2), SectReason::test,
-							nullptr, nullptr, nullptr));
+					seg1.addSegSect(OpPtT(data1[0][0], 0)
+							OP_DEBUG_PARAMS(SECT_MAKER(opTestEdgeZero1), SectReason::test, nullptr));
+					seg1.addSegSect(OpPtT(data1[0][1], 1)
+							OP_DEBUG_PARAMS(SECT_MAKER(opTestEdgeZero2), SectReason::test, nullptr));
 					seg1.makeEdges();
 					OpEdge& edge1 = seg1.edges[0];
 					if (!setWinding(edge1, w1))
 						continue;
 					OpSegment& seg2 = *std::next(head->segments.begin());
-					seg2.addIntersection(OpPtT(data2[0][0], 0)
-							OP_DEBUG_PARAMS(SECT_MAKER(opTestEdgeZero3), SectReason::test,
-							nullptr, nullptr, nullptr));
-					seg2.addIntersection(OpPtT(data2[0][1], 1)
-							OP_DEBUG_PARAMS(SECT_MAKER(opTestEdgeZero4), SectReason::test,
-							nullptr, nullptr, nullptr));
+					seg2.addSegSect(OpPtT(data2[0][0], 0)
+							OP_DEBUG_PARAMS(SECT_MAKER(opTestEdgeZero3), SectReason::test, nullptr));
+					seg2.addSegSect(OpPtT(data2[0][1], 1)
+							OP_DEBUG_PARAMS(SECT_MAKER(opTestEdgeZero4), SectReason::test, nullptr));
 					seg2.makeEdges();
 //					opDebugImage.setFocus(seg2.ptBounds);
 					OpEdge& edge2 = seg2.edges[0];

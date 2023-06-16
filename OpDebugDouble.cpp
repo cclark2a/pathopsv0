@@ -684,6 +684,13 @@ void DebugOpCurve::subDivide(double a, double b, DebugOpCurve& dest) const {
 #include "include/core/SkPathTypes.h"
 #include "include/core/SkPath.h"
 
+SkColor DebugColorToSkColor(DebugColor debugColor) {
+    static std::array<SkColor, 4> colors = {
+        SK_ColorBLACK, SK_ColorRED, 0x80008000 /* dark green */, SK_ColorBLUE };
+    assert((unsigned) debugColor < colors.size());
+    return colors[(unsigned) debugColor];
+}
+
 std::vector<DebugOpCurve> debugLines;
 std::vector<DebugOpCurve> debugSegments;
 std::vector<DebugOpCurve> debugEdges;
@@ -705,6 +712,39 @@ void DebugOpCurve::mapTo(OpCurve& c) const {
     }
     c.weight = (float) weight;
     c.type = type;
+}
+
+enum class UnsectType {
+    none,
+    edge,
+    opp
+};
+
+void DebugOpDrawEdges(std::vector<DebugOpCurve>& curves) {
+    DebugColor color = DebugColor::black;
+    SkPath path;
+    UnsectType unsectablePath = UnsectType::none;
+    for (auto& curve : curves) {
+        UnsectType isUnsectable = UnsectType::none;
+        const OpEdge* edge = findEdge(curve.id);
+        if (nullptr == edge)
+            OpDebugOut("edge " + STR(curve.id) + " not found\n");
+        else if (edge->unsectable)
+            isUnsectable = edge->debugUnOpp ? UnsectType::edge : UnsectType::opp;
+        if (unsectablePath != isUnsectable) {
+            if (!path.isEmpty()) {
+                OpDebugImage::drawDoublePath(path, DebugColorToSkColor(color));
+                path.reset();
+            }
+            color = UnsectType::none == isUnsectable ? DebugColor::black :
+                edge->debugUnOpp ? DebugColor::blue : DebugColor::darkGreen;
+            unsectablePath = isUnsectable;
+        }
+        OpCurve c;
+        curve.mapTo(c);
+        OpDebugImage::addToPath(c, path);
+    }
+    OpDebugImage::drawDoublePath(path, DebugColorToSkColor(color));
 }
 
 void DebugOpDraw(std::vector<DebugOpCurve>& curves, SkColor color = SK_ColorBLACK) {
@@ -859,19 +899,19 @@ void DebugOpAdd(const OpEdge* edge) {
 }
 
 void DebugOpDrawEdges() {
-    DebugOpDraw(debugEdges);
+    DebugOpDrawEdges(debugEdges);
 }
 
 void DebugOpDraw(const std::vector<OpEdge>& edges) {
     for (auto edge : edges)
         DebugOpBuild(edge, debugEdges);
-    DebugOpDraw(debugEdges);
+    DebugOpDrawEdges(debugEdges);
 }
 
 void DebugOpDraw(const std::vector<const OpEdge*>& edges) {
     for (auto edge : edges)
         DebugOpBuild(*edge, debugEdges);
-    DebugOpDraw(debugEdges);
+    DebugOpDrawEdges(debugEdges);
 }
 
 void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs, ClipToBounds clip) {
@@ -1129,9 +1169,9 @@ void DebugOpDrawDiamond() {
                 DebugColor::blue == point.color ? bluePath : darkGreenPath;
         OpDebugImage::addDiamondToPath(pt, path);
     }
-    OpDebugImage::drawDoublePath(blackPath, SK_ColorBLACK);
-    OpDebugImage::drawDoublePath(bluePath, SK_ColorBLUE, true);
-    OpDebugImage::drawDoublePath(darkGreenPath, 0x80008000, true);
+    OpDebugImage::drawDoublePath(blackPath, DebugColorToSkColor(DebugColor::black));
+    OpDebugImage::drawDoublePath(bluePath, DebugColorToSkColor(DebugColor::blue), true);
+    OpDebugImage::drawDoublePath(darkGreenPath, DebugColorToSkColor(DebugColor::darkGreen), true);
 }
 
 void DebugOpDrawT(bool inHex, int precision) {

@@ -63,12 +63,10 @@ IntersectResult OpEdges::CoincidentCheck(OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpP
 	if (AorB == CorD) {
 		if (segment->containsIntersection(ptTAorB, oppSegment))
 			return IntersectResult::yes;
-		OpIntersection* sect = segment->addIntersection(ptTAorB  
-				OP_DEBUG_PARAMS(SECT_MAKER(addCoincidentCheck), SectReason::coinPtsMatch,
-				segment, oppSegment));
-		OpIntersection* oSect = oppSegment->addIntersection(ptTCorD  
-				OP_DEBUG_PARAMS(SECT_MAKER(addCoincidentCheckOpp), SectReason::coinPtsMatch,
-				oppSegment, segment));
+		OpIntersection* sect = segment->addSegSect(ptTAorB  OP_DEBUG_PARAMS(
+				SECT_MAKER(addCoincidentCheck), SectReason::coinPtsMatch, oppSegment));
+		OpIntersection* oSect = oppSegment->addSegSect(ptTCorD  OP_DEBUG_PARAMS(
+				SECT_MAKER(addCoincidentCheckOpp), SectReason::coinPtsMatch, segment));
 		sect->pair(oSect);
 		return IntersectResult::yes;
 	}
@@ -96,12 +94,10 @@ void OpEdges::AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped,
 	float oTRange = dPtT.t - cPtT.t;
 	OpPtT oCoinStart { ptTAorB.pt, cPtT.t + (eStart - oStart) / (oEnd - oStart) * oTRange };
 	assert(OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t));
-	OpIntersection* sect = segment->addIntersection(ptTAorB, coinID  
-			OP_DEBUG_PARAMS(SECT_MAKER(addMix), SectReason::coinPtsMatch,
-			segment, oppSegment));
-	OpIntersection* oSect = oppSegment->addIntersection(oCoinStart, coinID  
-			OP_DEBUG_PARAMS(SECT_MAKER(addMixOpp), SectReason::coinPtsMatch,
-			oppSegment, segment));
+	OpIntersection* sect = segment->addCoin(ptTAorB, coinID  
+			OP_DEBUG_PARAMS(SECT_MAKER(addMix), SectReason::coinPtsMatch, oppSegment));
+	OpIntersection* oSect = oppSegment->addCoin(oCoinStart, coinID  
+			OP_DEBUG_PARAMS(SECT_MAKER(addMixOpp), SectReason::coinPtsMatch, segment));
 	sect->pair(oSect);
 }
 
@@ -166,18 +162,16 @@ IntersectResult OpEdges::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPt
 			sect1->coincidenceID = bInCoincidence ? bCoinID : coinID;
 		}
 	} else if (!aInCoincidence)	// or if it doesn't exist and isn't in a coin range, make one
-		sect1 = addedSect1 = segment->addIntersection(aPtT, coinID
-			OP_DEBUG_PARAMS(SECT_MAKER(addPair_aPtT), SectReason::coinPtsMatch,
-					segment, oppSegment));
+		sect1 = addedSect1 = segment->addCoin(aPtT, coinID
+			OP_DEBUG_PARAMS(SECT_MAKER(addPair_aPtT), SectReason::coinPtsMatch, oppSegment));
 	if (sect2) {
 		if (!bInCoincidence) {
 			assert(!sect2->coincidenceID);
 			sect2->coincidenceID = aInCoincidence ? aCoinID : coinID;
 		}
 	} else if (!bInCoincidence)
-		sect2 = addedSect2 = segment->addIntersection(bPtT, coinID
-			OP_DEBUG_PARAMS(SECT_MAKER(addPair_bPtT), SectReason::coinPtsMatch,
-					segment, oppSegment));
+		sect2 = addedSect2 = segment->addCoin(bPtT, coinID
+			OP_DEBUG_PARAMS(SECT_MAKER(addPair_bPtT), SectReason::coinPtsMatch, oppSegment));
 	if (!addedSect1 || !addedSect2) {
 		range.clear();
 		oppSegment->intersectRange(segment, range);
@@ -200,9 +194,8 @@ IntersectResult OpEdges::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPt
 		float eStart = aPtT.pt.choice(xyChoice);
 		OpPtT oCoinStart{ aPtT.pt, cPtT.t + (eStart - oStart) / oXYRange * oTRange };
 		assert(OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t));
-		oSect1 = oppSegment->addIntersection(oCoinStart, coinID
-				OP_DEBUG_PARAMS(SECT_MAKER(addPair_oppStart), SectReason::coinPtsMatch,
-				oppSegment, segment));
+		oSect1 = oppSegment->addCoin(oCoinStart, coinID
+				OP_DEBUG_PARAMS(SECT_MAKER(addPair_oppStart), SectReason::coinPtsMatch, segment));
 		sect1->pair(oSect1);
 	} else {
 		oSect1 = findSect(cPtT, segment);
@@ -216,9 +209,8 @@ IntersectResult OpEdges::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPt
 		float eEnd = bPtT.pt.choice(xyChoice);
 		OpPtT oCoinEnd{ bPtT.pt, cPtT.t + (eEnd - oStart) / oXYRange * oTRange };
 		assert(OpMath::Between(cPtT.t, oCoinEnd.t, dPtT.t));
-		OpIntersection* oSect2 = oppSegment->addIntersection(oCoinEnd, coinID
-				OP_DEBUG_PARAMS(SECT_MAKER(addPair_oppEnd), SectReason::coinPtsMatch,
-				oppSegment, segment));
+		OpIntersection* oSect2 = oppSegment->addCoin(oCoinEnd, coinID
+				OP_DEBUG_PARAMS(SECT_MAKER(addPair_oppEnd), SectReason::coinPtsMatch, segment));
 		sect2->pair(oSect2);
 	} else {
 		OpIntersection* oSect2 = findSect(dPtT, segment);
@@ -233,6 +225,7 @@ IntersectResult OpEdges::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPt
 	return IntersectResult::yes;
 }
 
+// !!! I'm bothered that segment / segment calls a different form of this
 void OpEdges::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
 	auto alreadyContains = [](const std::vector<OpIntersection*>& sects, const OpPtT& edgePtT,
 			const OpSegment* segment) {
@@ -281,20 +274,19 @@ void OpEdges::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
 			if (alreadyContains(eSegment->intersections, edgePtT, oSegment))
 				assert(alreadyContains(oSegment->intersections, oppPtT, eSegment));
 			else {
-				OpIntersection* sect = eSegment->addIntersection(edgePtT  
+				OpIntersection* sect = eSegment->addEdgeSect(edgePtT  
 						OP_DEBUG_PARAMS(SECT_MAKER(edgeLineCurve), SectReason::lineCurve, 
-						nullptr, &edge, &opp));
-				OpIntersection* oSect = oSegment->addIntersection(oppPtT  
+						&edge, &opp));
+				OpIntersection* oSect = oSegment->addEdgeSect(oppPtT  
 						OP_DEBUG_PARAMS(SECT_MAKER(edgeLineCurveOpp), SectReason::lineCurve, 
-						nullptr, &edge, &opp));
-				OpDebugBreak(oSect, 195);
-				OpDebugBreak(oSect, 247);
+						&edge, &opp));
 				sect->pair(oSect);
 			}
 		}
 	}
 }
 
+#if 0
 FoundIntersections OpEdges::findIntersections() {
 #if OP_DEBUG_COMPARE
 	OpDebugCompare debugCompare("innerFindSect");
@@ -362,6 +354,7 @@ FoundIntersections OpEdges::findIntersections() {
 #endif
 	return FoundIntersections::yes;
 }
+#endif
 
 // note: sorts from high to low
 struct CompareDistance {

@@ -57,22 +57,24 @@ bool PathOps(OpInPath left, OpInPath right, OpOperator _operator, OpOutPath resu
     debugGlobalIntersect = OpDebugIntersect::edge;
 #endif
 //    contourList.resolvePoints();    // multiple points may have same t value
-    contourList.calcBounds();   // resolve points may have changed tight bounds
-    contourList.makeEdges();
-    OpEdges sortedEdges(contourList, EdgesToSort::byBox);
-    if (!sortedEdges.inX.size())
-        return result.setEmpty();
-    if (FoundIntersections::fail == sortedEdges.findIntersections())
-        return false;
+//    contourList.calcBounds();   // resolve points may have changed tight bounds
     contourList.sortIntersections();
-    contourList.missingCoincidence();  // add intersections for indirect coincidence
+    OP_DEBUG_CODE(debugEnable.inClearEdges = true);
+    contourList.makeEdges();
+    OP_DEBUG_CODE(debugEnable.inClearEdges = false);
+//    OpEdges sortedEdges(contourList, EdgesToSort::byBox);
+//    if (!sortedEdges.inX.size())
+//        return result.setEmpty();
+//    if (FoundIntersections::fail == sortedEdges.findIntersections())
+//        return false;
+//    contourList.missingCoincidence();  // add intersections for indirect coincidence
     // at this point, edges curves broken at extrema and inflection;
     //   intersections are ptT for each found crossing
-    contourList.sortIntersections();    // !!! should do nothing if intersections are unchanged
+ //   contourList.sortIntersections();    // !!! should do nothing if intersections are unchanged
 //    contourList.resolvePoints();    // added coincident points may have multiple pts with single t
-    contourList.intersectEdge();  // combine edge list and intersection list
-    if (!contourList.resolveCoincidence())  // leave at most one active for each pair of coincident edges
-        return false;
+//    contourList.intersectEdge();  // combine edge list and intersection list
+//    if (!contourList.resolveCoincidence())  // leave at most one active for each pair of coincident edges
+//        return false;
     OpEdges windingEdges(contourList, EdgesToSort::byCenter);
     FoundWindings foundWindings = windingEdges.setWindings(&contourList);  // walk edge list, compute windings
     if (FoundWindings::fail == foundWindings)

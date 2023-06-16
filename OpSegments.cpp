@@ -29,6 +29,7 @@ OpSegments::OpSegments(OpContours& contours) {
     std::sort(inX.begin(), inX.end(), compareXBox);
 }
 
+// !!! I'm bothered that curve / curve calls a different form of this with edges
 void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
     OpRoots septs;
     assert(lineType == seg->c.type);
@@ -62,12 +63,10 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
         opp->tightBounds.pin(&oppPtT.pt);
         seg->tightBounds.pin(&oppPtT.pt);
         OpPtT edgePtT { oppPtT.pt, edgeT };
-        OpIntersection* sect = seg->addIntersection(edgePtT  
-                OP_DEBUG_PARAMS(SECT_MAKER(segmentLineCurve), SectReason::lineCurve,
-                seg, opp));
-        OpIntersection* oSect = opp->addIntersection(oppPtT  
-                OP_DEBUG_PARAMS(SECT_MAKER(segmentLineCurveOpp), SectReason::lineCurve,
-                seg, opp));
+        OpIntersection* sect = seg->addSegSect(edgePtT  
+                OP_DEBUG_PARAMS(SECT_MAKER(segmentLineCurve), SectReason::lineCurve, opp));
+        OpIntersection* oSect = opp->addSegSect(oppPtT  
+                OP_DEBUG_PARAMS(SECT_MAKER(segmentLineCurveOpp), SectReason::lineCurve, opp));
         sect->pair(oSect);
     }
 }
@@ -147,42 +146,44 @@ FoundIntersections OpSegments::findIntersections() {
             MatchEnds match = seg->matchEnds(opp, &reversed);
             OpIntersection* oppSect;
             if ((int) MatchEnds::start & (int) match) {
-                auto sect = seg->addIntersection(OpPtT{ seg->c.pts[0], 0 }
+                auto sect = seg->addSegSect(OpPtT{ seg->c.pts[0], 0 }
                         OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_start), 
-                        SectReason::sharedEndPoint, seg, opp));
+                        SectReason::sharedEndPoint, opp));
                 if (reversed)
-                    oppSect = opp->addIntersection(OpPtT{ opp->c.lastPt(), 1 }
+                    oppSect = opp->addSegSect(OpPtT{ opp->c.lastPt(), 1 }
                         OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_startOppReversed),
-                        SectReason::sharedEndPoint, opp, seg));
+                        SectReason::sharedEndPoint, seg));
                 else
-                    oppSect = opp->addIntersection(OpPtT{ opp->c.pts[0], 0 }
+                    oppSect = opp->addSegSect(OpPtT{ opp->c.pts[0], 0 }
                         OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_startOpp),
-                        SectReason::sharedEndPoint, opp, seg));
+                        SectReason::sharedEndPoint, seg));
                 sect->pair(oppSect);
             }
             if ((int) MatchEnds::end & (int) match) {
-                auto sect = seg->addIntersection(OpPtT{ seg->c.lastPt(), 1 }
+                auto sect = seg->addSegSect(OpPtT{ seg->c.lastPt(), 1 }
                         OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_end),
-                        SectReason::sharedEndPoint, seg, opp));
+                        SectReason::sharedEndPoint, opp));
                 if (reversed)
-                    oppSect = opp->addIntersection(OpPtT{ opp->c.pts[0], 0 }
+                    oppSect = opp->addSegSect(OpPtT{ opp->c.pts[0], 0 }
                         OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_endOppReversed),
-                        SectReason::sharedEndPoint, opp, seg));
+                        SectReason::sharedEndPoint, seg));
                 else
-                    oppSect = opp->addIntersection(OpPtT{ opp->c.lastPt(), 1 }
+                    oppSect = opp->addSegSect(OpPtT{ opp->c.lastPt(), 1 }
                         OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_endOpp),
-                        SectReason::sharedEndPoint, opp, seg));
+                        SectReason::sharedEndPoint, seg));
                 sect->pair(oppSect);
             }
             // look for curve curve intersections (skip coincidence already found)
             if (!seg->edges.size()) 
-                seg->edges.emplace_back(seg, OpPtT(seg->c.pts[0], 0), OpPtT(seg->c.lastPt(), 1)
+                seg->edges.emplace_back(seg, OpPtT(seg->c.pts[0], 0), OpPtT(seg->c.lastPt(), 1), false
                         OP_DEBUG_PARAMS(EDGE_MAKER(segSect), nullptr, nullptr));
             if (!opp->edges.size()) 
-                opp->edges.emplace_back(opp, OpPtT(opp->c.pts[0], 0), OpPtT(opp->c.lastPt(), 1)  
+                opp->edges.emplace_back(opp, OpPtT(opp->c.pts[0], 0), OpPtT(opp->c.lastPt(), 1), false  
                         OP_DEBUG_PARAMS(EDGE_MAKER(oppSect), nullptr, nullptr));
             OpCurveCurve cc(&seg->edges.back(), &opp->edges.back());
             SectFound result = cc.divideAndConquer();
+            if (SectFound::fail == result)
+                return FoundIntersections::fail;
         }
     }
     return FoundIntersections::yes; // !!! if something can fail, return 'fail' (don't return 'no')

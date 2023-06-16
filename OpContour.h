@@ -49,13 +49,13 @@ struct OpContour {
         OpSegmentBuilder::AddCubic(this, pts);
     }
 
-    OpIntersection* addIntersection(const OpPtT& t, OpSegment* seg, SectFlavor , int cID
+    OpIntersection* addEdgeSect(const OpPtT& t, OpSegment* seg
             OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
-            const OpIntersection* master, const OpEdge* edge, const OpEdge* oEdge));
+            const OpEdge* edge, const OpEdge* oEdge));
 
-    OpIntersection* addIntersection(const OpPtT& t, OpSegment* seg, SectFlavor , int cID
+    OpIntersection* addSegSect(const OpPtT& t, OpSegment* seg, SectFlavor , int cID
             OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
-            const OpSegment* dSeg, const OpSegment* oSeg));
+            const OpSegment* oSeg));
 
     void addLine(const OpPoint pts[2]) {
         if (pts[0] == pts[1])
@@ -83,17 +83,21 @@ struct OpContour {
         }
     }
 
+#if 0
     void calcBounds() {
         for (auto& segment : segments) {
             segment.calcBounds();
         }
     }
+#endif
 
+#if 0
     void intersectEdge() {
         for (auto& segment : segments) {
             segment.intersectEdge();
         }
     }
+#endif
 
     void makeEdges() {
         for (auto& segment : segments) {
@@ -101,6 +105,7 @@ struct OpContour {
         }
     }
 
+#if 0
     void missingCoincidence() {
         for (auto& segment : segments) {
             if (pointType == segment.c.type)
@@ -108,7 +113,9 @@ struct OpContour {
             segment.missingCoincidence();
         }
     }
+#endif
 
+#if 0
     bool resolveCoincidence() {
         for (auto& segment : segments) {
             if (pointType == segment.c.type)
@@ -121,6 +128,7 @@ struct OpContour {
         }
         return true;
     }
+#endif
 
 #if 0
     void resolvePoints() {
@@ -192,19 +200,23 @@ struct OpContours {
         }
     }
 
+#if 0
     void calcBounds() {
         for (auto& contour : contours) {
             contour.calcBounds();
         }
     }
+#endif
 
     bool closeGap(OpEdge* last, OpEdge* first);
 
+#if 0
     void intersectEdge() {
         for (auto& contour : contours) {
             contour.intersectEdge();
         }
     }
+#endif
 
     int leftFillTypeMask() {
         return (int) left;
@@ -216,12 +228,15 @@ struct OpContours {
         }
     }
 
+#if 0
     void missingCoincidence() {
         for (auto& contour : contours) {
             contour.missingCoincidence();
         }
     }
+#endif
 
+#if 0
     bool resolveCoincidence() {
         for (auto& contour : contours) {
             if (!contour.resolveCoincidence())
@@ -229,6 +244,7 @@ struct OpContours {
         }
         return true;
     }
+#endif
 
 #if 0
     void resolvePoints() {

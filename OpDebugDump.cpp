@@ -644,6 +644,7 @@ struct EdgeMakerName {
 #define EDGE_MAKER_NAME(r) { EdgeMaker::r, #r }
 
 static EdgeMakerName edgeMakerNames[] {
+    EDGE_MAKER_NAME(empty),
     EDGE_MAKER_NAME(intersectEdge1),
     EDGE_MAKER_NAME(intersectEdge2),
     EDGE_MAKER_NAME(makeEdges),
@@ -741,21 +742,25 @@ std::string OpEdge::debugDumpDetail() const {
     std::string s = "edge[" + STR(id) + "] segment[" + STR(segment->id) + "] contour["
             + STR(segment->contour->id) + "]\n";
     if (priorEdge || nextEdge || lastEdge) {
-        s += "p/n/l:" + (priorEdge ? STR(priorEdge->id) : "-");
+        s += "prior/next/last:" + (priorEdge ? STR(priorEdge->id) : "-");
         s += "/" + (nextEdge ? STR(nextEdge->id) : "-");
         s += "/" + (lastEdge ? STR(lastEdge->id) : "-");
         s += " ";
     }
-    if (Axis::neither != sumAxis) {
+    if (Axis::neither != sumAxis || priorSum_impl) {
         s += "priorSum:" + (priorSum_impl ? STR(priorSum_impl->id) : std::string("null"));
         s += " axis:" + debugAxisName(sumAxis) + " ";
+        if (Axis::neither != sumAxis) {
+            s += "sumNormal:" + STR(sumNormal) + " ";
+            s += "sumT:" + STR(sumT) + " ";
+        }
     }
     if (loopStart) {
         s += "loopStart:" + STR(loopStart->id) + " ";
         if (!isSumLoop)
             s += "\n!!! loopStart set EXPECTED isSumLoop ";
     }
-    if (priorEdge || nextEdge || lastEdge || priorSum_impl || loopStart)
+    if (priorEdge || nextEdge || lastEdge || priorSum_impl || loopStart || Axis::neither != sumAxis)
         s += "\n";
     s += "{" + start.debugDump() + ", ";
     for (int i = 0; i < segment->c.pointCount() - 2; ++i)
@@ -763,25 +768,19 @@ std::string OpEdge::debugDumpDetail() const {
     s += end.debugDump() + "} ";
     if (1 != weight)
         s += "w:" + OpDebugDump(weight) + " ";
-    s += "center:" + center.debugDump() + "\n";
+    s += "\ncenter:" + center.debugDump() + " ";
     if (debugAliasStartID || !OpMath::IsNaN(debugOriginalStart.x) || !OpMath::IsNaN(debugOriginalStart.y))
         s += "(start was " + debugOriginalStart.debugDump() + "; now from sect " + STR(debugAliasStartID);
     if (debugAliasEndID || !OpMath::IsNaN(debugOriginalEnd.x) || !OpMath::IsNaN(debugOriginalEnd.y))
         s += " (end was " + debugOriginalEnd.debugDump() + "; now from sect " + STR(debugAliasEndID);
-    if (debugAliasStartID || !OpMath::IsNaN(debugOriginalStart.x) || !OpMath::IsNaN(debugOriginalStart.y)
-            || debugAliasEndID || !OpMath::IsNaN(debugOriginalEnd.x) || !OpMath::IsNaN(debugOriginalEnd.y))
-        s += "\n";
+    s += "\n";
     if (ptBounds.isSet())
         s += "pb:" + ptBounds.debugDump() + " ";
     if (linkBounds.isSet())
         s += "lb:" + linkBounds.debugDump();
-    if (ptBounds.isSet() || linkBounds.isSet())        
+    if (ptBounds.isSet() || linkBounds.isSet())
         s += "\n";
-    s += debugDumpWinding() + "\n";
-    if (Axis::neither != sumAxis) {
-        s += "sumNormal:" + STR(sumNormal) + " ";
-        s += "sumT:" + STR(sumT) + " ";
-    }
+    s += debugDumpWinding() + " ";
     if (EdgeLink::unlinked != nextLink)
         s += "next:" + debugLinkedUp(nextLink) + " ";
     if (EdgeLink::unlinked != priorLink)
@@ -803,12 +802,37 @@ std::string OpEdge::debugDumpDetail() const {
     if (isSumLoop) s += "isSumLoop ";
     if (active_impl) s += "active ";
     if (startAliased) s += "startAliased ";
+    if (unsectable) s += "unsectable ";
     if (unsortable) s += "unsortable ";
     if (debugStart) s += "debugStart:" + STR(debugStart->id) + " ";
     if (debugEnd) s += "debugEnd:" + STR(debugEnd->id) + " ";
     s += "debugMaker:" + debugEdgeDebugMaker(debugMaker) + " ";
     s += debugMakerFile.substr(debugMakerFile.find("Op")) + ":" + STR(debugMakerLine) + " ";
-    if (debugParentID) s += "debugParentID:" + STR(debugParentID);
+    if (debugParentID) s += "debugParentID:" + STR(debugParentID) + " ";
+    s += "\n";
+    std::vector<OpIntersection*> startSects;
+    std::vector<OpIntersection*> endSects;
+    for (auto sect : segment->intersections) {
+        if (start == sect->ptT)
+            startSects.push_back(sect);
+        if (end == sect->ptT)
+            endSects.push_back(sect);
+    }
+    if (!startSects.size())
+        s += "!!! missing start intersection at t:" + STR(start.t);
+    else {
+        s += "start sects:";
+        for (auto sect : startSects)
+            s += STR(sect->id) + " ";
+    }
+    s += " ";
+    if (!endSects.size())
+        s += "!!! missing end intersection at t:" + STR(end.t);
+    else {
+        s += "end sects:";
+        for (auto sect : endSects)
+            s += STR(sect->id) + " ";
+    }
     return s;
 }
 
@@ -1093,10 +1117,6 @@ struct IntersectMakerName {
 IntersectMakerName intersectMakerNames[] {
 	INTERSECT_MAKER_NAME(addCoincidentCheck),
 	INTERSECT_MAKER_NAME(addCoincidentCheckOpp),
-	INTERSECT_MAKER_NAME(addCurveCoinStart),
-	INTERSECT_MAKER_NAME(addCurveCoinEnd),
-	INTERSECT_MAKER_NAME(addCurveCoinOppStart),
-	INTERSECT_MAKER_NAME(addCurveCoinOppEnd),
 	INTERSECT_MAKER_NAME(addMatchingEnd),
 	INTERSECT_MAKER_NAME(addMatchingEndOpp),
 	INTERSECT_MAKER_NAME(addMatchingEndOStart),
@@ -1132,6 +1152,10 @@ IntersectMakerName intersectMakerNames[] {
 	INTERSECT_MAKER_NAME(segmentLineCurve),
 	INTERSECT_MAKER_NAME(segmentLineCurveOpp),
 	INTERSECT_MAKER_NAME(splitAtWinding),
+	INTERSECT_MAKER_NAME(unsectableStart),
+	INTERSECT_MAKER_NAME(unsectableEnd),
+	INTERSECT_MAKER_NAME(unsectableOppStart),
+	INTERSECT_MAKER_NAME(unsectableOppEnd),
 	// testing only
 	INTERSECT_MAKER_NAME(opTestEdgeZero1),
 	INTERSECT_MAKER_NAME(opTestEdgeZero2),
@@ -1149,7 +1173,7 @@ struct SectReasonName {
 
 SectReasonName sectReasonNames[] {
     SECT_REASON_NAME(coinPtsMatch),
-    SECT_REASON_NAME(curveCurveCoincidence),
+    SECT_REASON_NAME(curveCurveUnsectable),
     SECT_REASON_NAME(degenerateCenter),
     SECT_REASON_NAME(divideAndConquer_oneT),
     SECT_REASON_NAME(divideAndConquer_noEdgeToSplit),
@@ -1177,34 +1201,47 @@ struct SectFlavorName {
 #define SECT_FLAVOR_NAME(r) { SectFlavor::r, #r }
 
 SectFlavorName sectFlavorNames[] {
+    SECT_FLAVOR_NAME(unsectableStart),
     SECT_FLAVOR_NAME(none),
+    SECT_FLAVOR_NAME(unsectableEnd),
     SECT_FLAVOR_NAME(missing),
     SECT_FLAVOR_NAME(split),
-    SECT_FLAVOR_NAME(unsectable),
 };
 
 std::string OpIntersection::debugDump(bool fromDumpFull, bool fromDumpDetail) const {
-    bool makerOutOfDate = false;
-    for (unsigned index = 0; index < ARRAY_COUNT(intersectMakerNames); ++index)
-       if (!makerOutOfDate && (unsigned) intersectMakerNames[index].maker != index) {
-           OpDebugOut("intersectMakerNames out of date\n");
-           makerOutOfDate = true;
-           break;
-       }
-    bool reasonOutOfDate = false;
-    for (unsigned index = 0; index < ARRAY_COUNT(sectReasonNames); ++index)
-       if (!reasonOutOfDate && (unsigned) sectReasonNames[index].reason != index) {
-           OpDebugOut("sectReasonNames out of date\n");
-           reasonOutOfDate = true;
-           break;
-       }
-    bool flavorOutOfDate = false;
-    for (unsigned index = 0; index < ARRAY_COUNT(sectFlavorNames); ++index)
-       if (!flavorOutOfDate && (unsigned) sectFlavorNames[index].flavor != index) {
-           OpDebugOut("sectFlavorNames out of date\n");
-           flavorOutOfDate = true;
-           break;
-       }
+    static bool makerChecked = false;
+    static bool makerOutOfDate = false;
+    if (!makerChecked) {
+        for (unsigned index = 0; index < ARRAY_COUNT(intersectMakerNames); ++index)
+           if (!makerOutOfDate && (unsigned) intersectMakerNames[index].maker != index) {
+               OpDebugOut("!!! intersectMakerNames out of date\n");
+               makerOutOfDate = true;
+               break;
+           }
+        makerChecked = true;
+    }
+    static bool reasonChecked = false;
+    static bool reasonOutOfDate = false;
+    if (!reasonChecked) {
+        for (unsigned index = 0; index < ARRAY_COUNT(sectReasonNames); ++index)
+           if (!reasonOutOfDate && (unsigned) sectReasonNames[index].reason != index) {
+               OpDebugOut("!!! sectReasonNames out of date\n");
+               reasonOutOfDate = true;
+               break;
+           }
+        reasonChecked = true;
+    }
+    static bool flavorChecked = false;
+    static bool flavorOutOfDate = false;
+    if (!flavorChecked) {
+        for (unsigned index = 0; index < ARRAY_COUNT(sectFlavorNames); ++index)
+           if (!flavorOutOfDate && (int) sectFlavorNames[index].flavor != (int) index - 1) {
+               OpDebugOut("!!! sectFlavorNames out of date\n");
+               flavorOutOfDate = true;
+               break;
+           }
+        flavorChecked = true;
+    }
     std::string s;
     std::string segmentID = segment ? segment->debugDumpID() : "--";
     const OpSegment* oppParent = opp ? opp->segment : nullptr;
@@ -1225,19 +1262,19 @@ std::string OpIntersection::debugDump(bool fromDumpFull, bool fromDumpDetail) co
     if (coincidenceID || debugCoincidenceID)
         s += " coinID:" + STR(coincidenceID) + "/" + STR(debugCoincidenceID);
     if (flavorOutOfDate)
-        s += "(flavor out of date) " + STR((int)flavor);
+        s += " (flavor out of date) " + STR((int)flavor);
     else if (SectFlavor::none != flavor)
-        s += " flavor:" + std::string(sectFlavorNames[(int)flavor].name);
+        s += " flavor:" + std::string(sectFlavorNames[(int)flavor + 1].name);
     s += " maker:";
     if (makerOutOfDate)
-        s += "(maker out of date) " + STR((int)debugMaker);
+        s += " (maker out of date) " + STR((int)debugMaker);
     else
         s += intersectMakerNames[(int)debugMaker].name;
     if (fromDumpDetail)
         s += " " + debugMakerFile.substr(debugMakerFile.find("Op")) + ":" + STR(debugMakerLine);
     s += " reason:";
     if (reasonOutOfDate)
-        s += "(reason out of date) " + STR((int)debugReason);
+        s += " (reason out of date) " + STR((int)debugReason);
     else
         s += sectReasonNames[(int)debugReason].name;
     return s;
@@ -1253,19 +1290,20 @@ std::string OpIntersection::debugDumpBrief() const {
 }
 
 std::string OpIntersection::debugDumpDetail(bool fromDumpIntersections) const {
+    auto edgeOrSegment = [](int debug_id, std::string label) {
+        if (findEdge(debug_id))
+            return label + " (edge) " + STR(debug_id) + " ";
+        if (findSegment(debug_id))
+            return label + " (segment) " + STR(debug_id) + " ";
+        return STR(debug_id) + " not found ";
+    };
     std::string s = debugDump(fromDumpIntersections, true);
-    if (debugParent || debugEdge || debugOpp || debugSeg || debugSegOpp)
+    if (debugID || debugOppID)
         s += "\n";
-    if (debugParent)
-        s += "debugParent:" + STR(debugParent->id) + " ";
-    if (debugEdge)
-        s += "debugEdge:" + STR(debugEdge->id) + " ";
-    if (debugOpp)
-        s += "debugOpp:" + STR(debugOpp->id) + " ";
-    if (debugSeg)
-        s += "debugSeg:" + STR(debugSeg->id) + " ";
-    if (debugSegOpp)
-        s += "debugSegOpp:" + STR(debugSegOpp->id) + " ";
+    if (debugID)
+        s += edgeOrSegment(debugID, "debugID:");
+    if (debugOppID)
+        s += edgeOrSegment(debugOppID, "debugOpp:");
     return s;
 }
 

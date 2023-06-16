@@ -58,23 +58,20 @@ struct OpSegment {
     OpSegment(const CurvePts& pts, OpType type, OpContour* parent  
             OP_DEBUG_PARAMS(SectReason , SectReason ));
     void activeAtT(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& , AllowReversal ) const;
-    OpIntersection* addIntersection(const OpPtT&  
-            OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason , const OpIntersection* ,
-            const OpEdge* e,const OpEdge* o));
-    OpIntersection* addIntersection(const OpPtT&  
-            OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason , const OpSegment* e, 
-            const OpSegment* o));
-    OpIntersection* addIntersection(const OpPtT& , int coinID  
+    OpIntersection* addEdgeSect(const OpPtT&  
             OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason ,
-            const OpIntersection* , const OpEdge* e, const OpEdge* o));
-    OpIntersection* addIntersection(const OpPtT& , int coinID  
-            OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason , const OpSegment* e,
-            const OpSegment* o));
-    OpIntersection* addIntersection(const OpPtT& , SectFlavor  
-            OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason , const OpIntersection* ,
             const OpEdge* e, const OpEdge* o));
+    OpIntersection* addSegSect(const OpPtT&  
+            OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason , const OpSegment* o));
+    OpIntersection* addCoin(const OpPtT& , int coinID  
+            OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason , const OpSegment* o));
+//    OpIntersection* addIntersection(const OpPtT& , SectFlavor  
+//            OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason , const OpIntersection* ,
+//            const OpEdge* e, const OpEdge* o));
+    OpIntersection* addUnsectable(const OpPtT& , SectFlavor  
+            OP_DEBUG_PARAMS(IntersectMaker , int , std::string, const OpSegment* o));
     void apply();
-    void calcBounds(); // recompute tight bounds from adjusted intersections
+//    void calcBounds(); // recompute tight bounds from adjusted intersections
     int coinID(bool flipped);
     void complete();
     bool containsIntersection(OpPtT , const OpSegment* ) const;
@@ -86,22 +83,22 @@ struct OpSegment {
     FoundPtT findPtT(float start, float end, OpPoint opp, float* result) const;
     FoundPtT findPtT(const OpPtT& start, const OpPtT& end, OpPoint opp, float* result) const;
     static void flip(WindZero* windZero);
-    void intersectEdge();
+//    void intersectEdge();
     void intersectRange(const OpSegment*, std::vector<OpIntersection*>& );
     // count and sort extrema; create an edge for each extrema + 1
     void makeEdges();
     MatchEnds matchEnds(const OpSegment* opp, bool* reversed) const;
-    void missingCoincidence();  // find missing intersections / edges
-    void missingCoincidence(const OpPtT& s, const OpPtT& e, OpSegment* , std::vector<int>&, 
-            std::vector<MissingIntersection>& ) const;
+//    void missingCoincidence();  // find missing intersections / edges
+//    void missingCoincidence(const OpPtT& s, const OpPtT& e, OpSegment* , std::vector<int>&, 
+//            std::vector<MissingIntersection>& ) const;
     bool resolveCoincidence();
 //    void resolvePoints();
     void setCoincident(XyChoice , OpPoint newA, OpPoint newB, bool flipped, OpSegment* oppSegment
             OP_DEBUG_PARAMS(const OpEdge& opp, const OpEdge& edge));
     void sortIntersections();
-    bool splitAtWinding(const std::vector<const OpEdge*>& windingChanges, const OpEdge* first,
-            int direction  OP_DEBUG_PARAMS(const OpIntersection* last, EdgeMatch oppositeMatch,
-            const OpEdge* firstEdge, SectReason ));
+//    bool splitAtWinding(const std::vector<const OpEdge*>& windingChanges, const OpEdge* first,
+//            int direction  OP_DEBUG_PARAMS(const OpIntersection* last, EdgeMatch oppositeMatch,
+//            const OpEdge* firstEdge, SectReason ));
 //    OpEdge* visibleAdjacent(OpEdge* , const OpPtT& );
 #if OP_DEBUG
     void debugValidate() const;

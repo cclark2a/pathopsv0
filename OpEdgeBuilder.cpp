@@ -23,6 +23,8 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
 
     edges.draw();
 //    addEdges();
+//    focus(445);
+    redraw();
     OpDebugOut("");
 #endif
     // match up edges that have only a single possible prior or next link, and add them to new list

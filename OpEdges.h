@@ -62,7 +62,7 @@ struct OpEdges {
 	static IntersectResult CoincidentCheck(OpPtT ptTa, OpPtT ptTb, OpPtT ptTc, OpPtT ptTd,
 			OpSegment* segment, OpSegment* oppSegment);
 	static IntersectResult CoincidentCheck(const OpEdge& edge, const OpEdge& opp);
-	FoundIntersections findIntersections();
+//	FoundIntersections findIntersections();
 	FoundIntercept findRayIntercept(size_t inIndex, Axis , OpEdge* edge, float center, 
 			float normal, float edgeCenterT, std::vector<EdgeDistance>* );
 	void markUnsortable(OpEdge* edge, Axis , ZeroReason);
