@@ -44,10 +44,9 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
         opp->winding.zero(ZeroReason::addIntersection);
         return; // IntersectResult::yes;
     }
-    if (2 == septs.count && lineType == opp->c.type) {
+    if (2 == septs.count && lineType == opp->c.type)
         return (void) OpEdges::CoincidentCheck({ seg->c.pts[0], 0 }, { seg->c.pts[1], 1 },
                 { opp->c.pts[0], 0}, { opp->c.pts[1], 1 }, seg, opp );
-    }
     if ((int) MatchEnds::start & (int) common)
         septs.addEnd(reversed ? 1 : 0);
     if ((int) MatchEnds::end & (int) common)

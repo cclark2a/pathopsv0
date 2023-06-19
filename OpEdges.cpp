@@ -236,10 +236,7 @@ void OpEdges::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
 		}
 		return false;
 	};
-	if (opp.segment == edge.segment && edge.ptBounds.touches(opp.ptBounds)
-			&& (opp.start == edge.end || opp.end == edge.start)) {
-		return;
-	}
+	assert(opp.segment != edge.segment);
 	OpRoots septs;
 	assert(edge.isLine_impl);
 	LinePts edgePts { edge.start.pt, edge.end.pt };
@@ -251,7 +248,7 @@ void OpEdges::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
 	// Note that coincident check does not receive intercepts as a parameter; in fact, the intercepts
 	// were not calculated (the roots are uninitialized). This is because coincident check will 
 	// compute the actual coincident start and end without the roots introducing error.
-	if (opp.setLinear() && 2 == septs.count)
+	if (2 == septs.count && opp.setLinear())
 		return (void) CoincidentCheck(edge, opp);
 	for (unsigned index = 0; index < septs.count; ++index) {
 		float oppT = OpMath::Interp(opp.start.t, opp.end.t, septs.get(index));
