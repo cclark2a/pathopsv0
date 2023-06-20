@@ -59,8 +59,8 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
         if (OpMath::IsNaN(edgeT))
             continue;
         // pin point to both bounds, but only if it is on edge
-        opp->tightBounds.pin(&oppPtT.pt);
-        seg->tightBounds.pin(&oppPtT.pt);
+        opp->ptBounds.pin(&oppPtT.pt);
+        seg->ptBounds.pin(&oppPtT.pt);
         OpPtT edgePtT { oppPtT.pt, edgeT };
         OpIntersection* sect = seg->addSegSect(edgePtT  
                 OP_DEBUG_PARAMS(SECT_MAKER(segmentLineCurve), SectReason::lineCurve, opp));
@@ -119,6 +119,39 @@ void OpSegments::findCoincidences() {
     }
 }
 
+// horizontal and vertical lines only, since diagonal lines rarely are exactly partially coincident
+void OpSegments::findLineCoincidences() {
+    for (auto segIter = inX.begin(); segIter != inX.end(); ++segIter) {
+        OpSegment* seg = const_cast<OpSegment*>(*segIter);
+        if (OpType::lineType != seg->c.type)
+            continue;
+        if (!seg->winding.visible())
+            continue;
+        OpVector tangent = seg->c.asLine().tangent();
+        if (tangent.dx && tangent.dy)
+            continue;
+        assert(tangent.dx || tangent.dy);
+        for (auto oppIter = segIter + 1; oppIter != inX.end(); ++oppIter) {
+            OpSegment* opp = const_cast<OpSegment*>(*oppIter);
+            if (OpType::lineType != opp->c.type)
+                continue;
+            if (!opp->winding.visible())
+                continue;
+            OpVector oTangent = opp->c.asLine().tangent();
+            if (oTangent.dx && oTangent.dy)
+                continue;
+            assert(oTangent.dx || oTangent.dy);
+            if (!tangent.dot(oTangent))  // if at right angles, skip
+                continue;
+            if (!seg->ptBounds.intersects(opp->ptBounds))
+                continue;
+            seg->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(segSect)));
+            opp->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(oppSect)));
+            (void) OpEdges::CoincidentCheck(seg->edges.front(), opp->edges.front());
+        }
+    }
+}
+
 FoundIntersections OpSegments::findIntersections() {
     for (auto segIter = inX.begin(); segIter != inX.end(); ++segIter) {
         OpSegment* seg = const_cast<OpSegment*>(*segIter);
@@ -147,38 +180,34 @@ FoundIntersections OpSegments::findIntersections() {
             if ((int) MatchEnds::start & (int) match) {
                 auto sect = seg->addSegSect(OpPtT{ seg->c.pts[0], 0 }
                         OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_start), 
-                        SectReason::sharedEndPoint, opp));
+                        SectReason::sharedEnd, opp));
                 if (reversed)
                     oppSect = opp->addSegSect(OpPtT{ opp->c.lastPt(), 1 }
                         OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_startOppReversed),
-                        SectReason::sharedEndPoint, seg));
+                        SectReason::sharedEnd, seg));
                 else
                     oppSect = opp->addSegSect(OpPtT{ opp->c.pts[0], 0 }
                         OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_startOpp),
-                        SectReason::sharedEndPoint, seg));
+                        SectReason::sharedEnd, seg));
                 sect->pair(oppSect);
             }
             if ((int) MatchEnds::end & (int) match) {
                 auto sect = seg->addSegSect(OpPtT{ seg->c.lastPt(), 1 }
                         OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_end),
-                        SectReason::sharedEndPoint, opp));
+                        SectReason::sharedEnd, opp));
                 if (reversed)
                     oppSect = opp->addSegSect(OpPtT{ opp->c.pts[0], 0 }
                         OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_endOppReversed),
-                        SectReason::sharedEndPoint, seg));
+                        SectReason::sharedEnd, seg));
                 else
                     oppSect = opp->addSegSect(OpPtT{ opp->c.lastPt(), 1 }
                         OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_endOpp),
-                        SectReason::sharedEndPoint, seg));
+                        SectReason::sharedEnd, seg));
                 sect->pair(oppSect);
             }
             // look for curve curve intersections (skip coincidence already found)
-            if (!seg->edges.size()) 
-                seg->edges.emplace_back(seg, OpPtT(seg->c.pts[0], 0), OpPtT(seg->c.lastPt(), 1), false
-                        OP_DEBUG_PARAMS(EDGE_MAKER(segSect), nullptr, nullptr));
-            if (!opp->edges.size()) 
-                opp->edges.emplace_back(opp, OpPtT(opp->c.pts[0], 0), OpPtT(opp->c.lastPt(), 1), false  
-                        OP_DEBUG_PARAMS(EDGE_MAKER(oppSect), nullptr, nullptr));
+            seg->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(segSect)));
+            opp->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(oppSect)));
             OpCurveCurve cc(&seg->edges.back(), &opp->edges.back());
             SectFound result = cc.divideAndConquer();
             if (SectFound::fail == result)

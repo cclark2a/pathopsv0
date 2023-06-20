@@ -140,7 +140,7 @@ struct OpLine : OpCurve {
     OpPoint ptAtT(float t) const;
     OpRoots rawIntersect(const LinePts& line) const;
     OpRoots rayIntersect(const LinePts& line) const;
-    OpVector tangent(float t) const;
+    OpVector tangent() const;
 };
 
 struct OpQuadCoefficients {

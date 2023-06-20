@@ -40,18 +40,19 @@ void OpPoint::toSkPoint(SkPoint* skPt) const {
     skPt->fY = y;
 }
 
-void OpEdgeBuilder::Output(OpEdge* edge, OpOutPath path) {
+void OpEdge::output(OpOutPath path) {
     SkPoint skPt[4];
-    edge->whichPtT().pt.toSkPoint(&skPt[0]);
+    whichPtT().pt.toSkPoint(&skPt[0]);
     SkPath* skPath = path.skPath;
     skPath->moveTo(skPt[0]);
-    const OpEdge* firstEdge = edge;
+    const OpEdge* firstEdge = this;
+    OpEdge* edge = this;
     do {
         OpType type = edge->setLinear() ? lineType : edge->segment->c.type;
-        edge->start.pt.toSkPoint(&skPt[0]);
-        edge->ctrlPts[0].toSkPoint(&skPt[1]);
-        edge->ctrlPts[1].toSkPoint(&skPt[2]);
-        edge->end.pt.toSkPoint(&skPt[3]);
+        start.pt.toSkPoint(&skPt[0]);
+        ctrlPts[0].toSkPoint(&skPt[1]);
+        ctrlPts[1].toSkPoint(&skPt[2]);
+        end.pt.toSkPoint(&skPt[3]);
         if (EdgeMatch::end == edge->whichEnd) {
             std::swap(skPt[0], skPt[3]);
             if (cubicType == type)
@@ -83,54 +84,34 @@ void OpEdgeBuilder::Output(OpEdge* edge, OpOutPath path) {
     skPath->close();
 }
 
-bool OpSegmentBuilder::Build(OpInPath path, OpContours& c, OpOperand operand) {
+bool OpContours::build(OpInPath path, OpOperand operand) {
     const SkPath& skPath = *path.skPath;
     if (!skPath.isFinite())
         return false;
-    OpFillType exor = SkPathFillType::kEvenOdd == skPath.getFillType()
+    setFillType(operand, SkPathFillType::kEvenOdd == skPath.getFillType()
             || SkPathFillType::kInverseEvenOdd == skPath.getFillType() 
-            ? OpFillType::evenOdd : OpFillType::winding;
-    (OpOperand::left == operand ? c.left : c.right) = exor;
-    OpContour* head = nullptr;
+            ? OpFillType::evenOdd : OpFillType::winding);
+    OpContour* head = makeContour(operand);
     SkPath::RawIter iter(skPath);
-    OpPoint curveStart;
     SkPath::Verb verb;
-    OpPoint lastPoint;
-    bool hasLastPoint = false;
     do {
         OpPoint pts[4];
         verb = iter.next((SkPoint*) pts);
         switch (verb) {
         case SkPath::kMove_Verb:
-            // !!! if frame paths are supported, don't add close unless fill is set
-            if (hasLastPoint && lastPoint != curveStart) {
-                head->addClose(lastPoint, curveStart);
-                hasLastPoint = false;
-            }
-            c.contours.emplace_back(&c, operand);
-            head = &c.contours.back();
-            curveStart = pts[0];
-            head->addMove(&pts[0]);
-            continue;
+            head = head->addMove(pts);
+            break;
         case SkPath::kLine_Verb:
             head->addLine(pts);
-            lastPoint = pts[1];
-            hasLastPoint = true;
             break;
         case SkPath::kQuad_Verb:
             head->addQuad(pts);
-            lastPoint = pts[2];
-            hasLastPoint = true;
             break;
         case SkPath::kConic_Verb:
             head->addConic(pts, iter.conicWeight());
-            lastPoint = pts[2];
-            hasLastPoint = true;
             break;
         case SkPath::kCubic_Verb:
             head->addCubic(pts);
-            lastPoint = pts[3];
-            hasLastPoint = true;
             break;
         case SkPath::kClose_Verb:
             break;
@@ -138,8 +119,7 @@ bool OpSegmentBuilder::Build(OpInPath path, OpContours& c, OpOperand operand) {
             break;
         }
     } while (verb != SkPath::kDone_Verb);
-    if (hasLastPoint && lastPoint != curveStart)
-        head->addClose(lastPoint, curveStart);
+    head->finish();
     return true;
 }
 

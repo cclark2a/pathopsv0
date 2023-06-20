@@ -2,9 +2,7 @@
 #define OpContour_DEFINED
 
 #include "OpSegment.h"
-#include "OpSegmentBuilder.h"
 #include "OpTightBounds.h"
-#include <list>
 #include <vector>
 
 enum class OpFillType {
@@ -31,51 +29,18 @@ struct OpContour {
 #endif
     }
 
-    void addClose(OpPoint pt1, OpPoint pt2) {
-        CurvePts curvePts = {{ pt1, pt2 }, 1 };
-        segments.emplace_back(curvePts, lineType, this
-                OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
-    }
-
-    void addConic(const OpPoint pts[3], float weight) {
-        if (pts[0] == pts[3])
-            return addMove(pts);
-        OpSegmentBuilder::AddConic(this, pts, weight);
-    }
-
-    void addCubic(const OpPoint pts[4]) {
-        // reduction to point if pt 0 equals pt 3 complicated since it requires pts 1, 2 be linear..
-        assert(pts[0] != pts[3]); // !!! detect possible degenerate to code from actual test data
-        OpSegmentBuilder::AddCubic(this, pts);
-    }
-
+    bool addClose();
+    void addConic(const OpPoint pts[3], float weight);
+    void addCubic(const OpPoint pts[4]);
     OpIntersection* addEdgeSect(const OpPtT& t, OpSegment* seg
             OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
             const OpEdge* edge, const OpEdge* oEdge));
-
     OpIntersection* addSegSect(const OpPtT& t, OpSegment* seg, SectFlavor , int cID
             OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
             const OpSegment* oSeg));
-
-    void addLine(const OpPoint pts[2]) {
-        if (pts[0] == pts[1])
-            return addMove(pts);
-        CurvePts curvePts = {{ pts[0], pts[1] }, 1 };
-        segments.emplace_back(curvePts, lineType, this
-                OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
-    }
-
-    void addMove(const OpPoint pts[1]) {
-        CurvePts curvePts = {{ pts[0] }, 1 };
-        segments.emplace_back(curvePts, pointType, this
-                OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
-    }
-
-    void addQuad(const OpPoint pts[3]) {
-        if (pts[0] == pts[2])
-            return addMove(pts);
-        OpSegmentBuilder::AddQuad(this, pts);
-    }
+    void addLine(const OpPoint pts[2]);
+    OpContour* addMove(const OpPoint pts[1]);
+    void addQuad(const OpPoint pts[3]);
 
     void apply() {
         for (auto& segment : segments) {
@@ -90,6 +55,8 @@ struct OpContour {
         }
     }
 #endif
+
+    void finish();
 
 #if 0
     void intersectEdge() {
@@ -145,7 +112,6 @@ struct OpContour {
     void setBounds() {
         for (auto& segment : segments) {
             ptBounds.add(segment.ptBounds);
-            tightBounds.add(segment.tightBounds);
         }
     }
 
@@ -169,9 +135,8 @@ struct OpContour {
 #endif
 
     OpContours* contours;
-    std::list<OpSegment> segments;
+    std::vector<OpSegment> segments;
     OpPointBounds ptBounds;
-    OpTightBounds tightBounds;
     OpOperand operand; // first or second argument to a binary operator
 #if OP_DEBUG
     int id;
@@ -200,6 +165,8 @@ struct OpContours {
         }
     }
 
+    bool build(OpInPath path, OpOperand operand);   // provided by graphics implementation
+
 #if 0
     void calcBounds() {
         for (auto& contour : contours) {
@@ -209,6 +176,7 @@ struct OpContours {
 #endif
 
     bool closeGap(OpEdge* last, OpEdge* first);
+    void finish(OpContour& contour);
 
 #if 0
     void intersectEdge() {
@@ -220,6 +188,11 @@ struct OpContours {
 
     int leftFillTypeMask() {
         return (int) left;
+    }
+
+    OpContour* makeContour(OpOperand operand) {
+        contours.emplace_back(this, operand);
+        return &contours.back();
     }
 
     void makeEdges() {
@@ -264,6 +237,10 @@ struct OpContours {
         }
     }
 
+    void setFillType(OpOperand operand, OpFillType exor) {
+        (OpOperand::left == operand ? left : right) = exor;
+    }
+
     void sortIntersections() {
         for (auto& contour : contours) {
             contour.sortIntersections();
@@ -297,7 +274,7 @@ struct OpContours {
 #if OP_DEBUG_IMAGE
     void draw() const;
 #endif
-    std::list<OpContour> contours;
+    std::vector<OpContour> contours;
     std::vector<OpEdge*> unsortables;
     OpSectStorage* sectStorage;
     OpFillType left;

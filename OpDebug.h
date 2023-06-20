@@ -57,7 +57,7 @@ struct OpDebugIntersectSave {
 #endif
 
 #define OP_DEBUG_PARAMS(...) , __VA_ARGS__
-#define OP_DEBUG_CODE(x) x
+#define OP_DEBUG_CODE(...) __VA_ARGS__
 #define OP_DEBUG 1
 #define OP_DEBUG_DUMP 1
 #define OP_DEBUG_IMAGE (PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_SKIA)

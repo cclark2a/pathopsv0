@@ -265,8 +265,8 @@ void OpEdges::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
             // pin point to both bounds, but only if it is on edge
 			OpSegment* eSegment = const_cast<OpSegment*>(edge.segment);
 			OpSegment* oSegment = const_cast<OpSegment*>(opp.segment);
-            oSegment->tightBounds.pin(&oppPtT.pt);
-            eSegment->tightBounds.pin(&oppPtT.pt);	// !!! doubtful this is ever needed with contains test above
+            oSegment->ptBounds.pin(&oppPtT.pt);
+            eSegment->ptBounds.pin(&oppPtT.pt);	// !!! doubtful this is ever needed with contains test above
 			OpPtT edgePtT { oppPtT.pt, OpMath::Interp(edge.start.t, edge.end.t, edgeT) };
 			if (alreadyContains(eSegment->intersections, edgePtT, oSegment))
 				assert(alreadyContains(oSegment->intersections, oppPtT, eSegment));

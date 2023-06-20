@@ -55,8 +55,8 @@ struct MissingIntersection {
 };
 
 struct OpSegment {
-    OpSegment(const CurvePts& pts, OpType type, OpContour* parent  
-            OP_DEBUG_PARAMS(SectReason , SectReason ));
+    OpSegment(const CurvePts& pts, OpType type  
+            OP_DEBUG_PARAMS(SectReason , SectReason , OpContour* ));
     void activeAtT(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& , AllowReversal ) const;
     OpIntersection* addEdgeSect(const OpPtT&  
             OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason ,
@@ -73,7 +73,7 @@ struct OpSegment {
     void apply();
 //    void calcBounds(); // recompute tight bounds from adjusted intersections
     int coinID(bool flipped);
-    void complete();
+    void complete(OP_DEBUG_CODE(OpContour* ));
     bool containsIntersection(OpPtT , const OpSegment* ) const;
     OpEdge* findActive(OpPtT , EdgeMatch ) const;
     void fixEdges(OpPoint alias, OpPoint master  OP_DEBUG_PARAMS(int masterSectID));
@@ -86,6 +86,7 @@ struct OpSegment {
 //    void intersectEdge();
     void intersectRange(const OpSegment*, std::vector<OpIntersection*>& );
     // count and sort extrema; create an edge for each extrema + 1
+    void makeEdge(OP_DEBUG_CODE(EdgeMaker maker, int line, std::string file));
     void makeEdges();
     MatchEnds matchEnds(const OpSegment* opp, bool* reversed) const;
 //    void missingCoincidence();  // find missing intersections / edges
@@ -117,7 +118,6 @@ struct OpSegment {
     OpContour* contour;
     OpCurve c;
     OpPointBounds ptBounds;
-    OpTightBounds tightBounds;
     std::vector<OpEdge> edges;
     // all intersections are stored here before edges are rewritten
     std::vector<OpIntersection*> intersections;

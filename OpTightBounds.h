@@ -3,6 +3,40 @@
 
 #include "OpCurve.h"
 
+enum class SectReason {
+	coinPtsMatch,
+	curveCurveUnsectable,
+	degenerateCenter,
+	divideAndConquer_oneT,
+	divideAndConquer_noEdgeToSplit,
+	divideAndConquer_noOppToSplit,
+	endPt,
+	inflection,
+	lineCurve,
+	missingCoincidence,
+	resolveCoin_windingChange,
+	resolveCoin_oWindingChange,
+	sharedEdge,
+	sharedEnd,
+    sharedStart,
+	startPt,
+	xExtrema,
+	yExtrema,
+	// testing only
+	test,
+};
+
+struct ExtremaT {
+    ExtremaT() {}
+    ExtremaT(OpPtT pt_T  OP_DEBUG_PARAMS(SectReason r)) 
+        : ptT(pt_T)
+        OP_DEBUG_PARAMS(reason(r)) {
+    }
+
+    OpPtT ptT;
+    OP_DEBUG_CODE(SectReason reason;)
+};
+
 struct OpPointBounds : OpRect {
     OpPointBounds() {
         left = +OpInfinity;
@@ -53,6 +87,11 @@ struct OpPointBounds : OpRect {
 
     bool isSet() const {
         return OpMath::IsFinite(left);
+    }
+
+    void pin(OpPoint* pt) {
+        pt->x = OpMath::Pin(left, pt->x, right);
+        pt->y = OpMath::Pin(top, pt->y, bottom);
     }
 
     void set(const OpCurve& c) {
@@ -153,10 +192,27 @@ struct OpTightBounds : OpPointBounds {
             inflections[count] = { add(cubic.ptAtT(extremaTs.roots[count])), extremaTs.roots[count] };
         }
     }
-
-    void pin(OpPoint* pt) {
-        pt->x = OpMath::Pin(left, pt->x, right);
-        pt->y = OpMath::Pin(top, pt->y, bottom);
+    
+    std::vector<ExtremaT> findExtrema() {
+        std::vector<ExtremaT> selfPtTs;
+        for (size_t index = 0; index < ARRAY_COUNT(xExtrema); ++index) {
+            if (OpMath::IsNaN(xExtrema[index].t))
+                break;
+            selfPtTs.emplace_back(xExtrema[index]  OP_DEBUG_PARAMS(SectReason::xExtrema));
+        }
+        for (size_t index = 0; index < ARRAY_COUNT(yExtrema); ++index) {
+            if (OpMath::IsNaN(yExtrema[index].t))
+                break;
+            selfPtTs.emplace_back(yExtrema[index]  OP_DEBUG_PARAMS(SectReason::yExtrema));
+        }
+        for (size_t index = 0; index < ARRAY_COUNT(inflections); ++index) {
+            if (OpMath::IsNaN(inflections[index].t))
+                break;
+            selfPtTs.emplace_back(inflections[index]  OP_DEBUG_PARAMS(SectReason::inflection));
+        }
+        std::sort(selfPtTs.begin(), selfPtTs.end(), [](const ExtremaT& s1, const ExtremaT& s2) {
+            return s1.ptT.t < s2.ptT.t; });
+        return selfPtTs;
     }
 
     void set(OpCurve& c) {

@@ -42,15 +42,16 @@ bool PathOps(OpInPath left, OpInPath right, OpOperator _operator, OpOutPath resu
     OpDebugImage::init(left.skPath, right.skPath);
     oo();
 #endif
-    if (!OpSegmentBuilder::Build(left, contourList, OpOperand::left))
+    if (!contourList.build(left, OpOperand::left))  // builds monotonic segments, and adds 0/1 sects
         return false;
-    if (!OpSegmentBuilder::Build(right, contourList, OpOperand::right))
+    if (!contourList.build(right, OpOperand::right))
         return false;
-    contourList.setBounds();
+    contourList.setBounds();    // !!! check to see if this is used
     OpSegments sortedSegments(contourList);
     if (!sortedSegments.inX.size())
         return result.setEmpty();
-    sortedSegments.findCoincidences();
+    sortedSegments.findCoincidences();  // check for exact curves and full lines
+    sortedSegments.findLineCoincidences();  // check for partial h/v lines
     if (FoundIntersections::fail == sortedSegments.findIntersections())
         return false;
 #if OP_DEBUG

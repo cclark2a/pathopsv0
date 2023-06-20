@@ -172,7 +172,7 @@ CurvePts OpCurve::subDivide(OpPtT ptT1, OpPtT ptT2) const {
 OpVector OpCurve::tangent(float t) const {
     switch (type) {
     case pointType: return OpVector();
-    case lineType: return asLine().tangent(t);
+    case lineType: return asLine().tangent();
     case quadType: return asQuad().tangent(t);
     case conicType: return asConic().tangent(t);
     case cubicType: return asCubic().tangent(t);

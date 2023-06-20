@@ -275,14 +275,19 @@ void OpContours::dumpMatch(const OpPoint& pt) const {
                 OpDebugOut("seg: ");
                 seg.dump();
             }
-            for (int index = 0; index < 2; ++index) {
-                if (pt == seg.tightBounds.xExtrema[index].pt)
-                    OpDebugOut("xExtrema[" + STR(index) + "]: " + seg.debugDumpDetail());
-                if (pt == seg.tightBounds.yExtrema[index].pt)
-                    OpDebugOut("yExtrema[" + STR(index) + "]: " + seg.debugDumpDetail());
-                if (pt == seg.tightBounds.inflections[index].pt)
-                    OpDebugOut("inflections[" + STR(index) + "]: " + seg.debugDumpDetail());
-            }
+            // if we care to, this could be macro-ized and made smaller
+            if (seg.debugStart == SectReason::xExtrema)
+                OpDebugOut("start is xExtrema: " + seg.debugDumpDetail());
+            if (seg.debugStart == SectReason::yExtrema)
+                OpDebugOut("start is yExtrema: " + seg.debugDumpDetail());
+            if (seg.debugStart == SectReason::inflection)
+                OpDebugOut("start is inflection: " + seg.debugDumpDetail());
+            if (seg.debugEnd == SectReason::xExtrema)
+                OpDebugOut("end is xExtrema: " + seg.debugDumpDetail());
+            if (seg.debugEnd == SectReason::yExtrema)
+                OpDebugOut("end is yExtrema: " + seg.debugDumpDetail());
+            if (seg.debugEnd == SectReason::inflection)
+                OpDebugOut("end is inflection: " + seg.debugDumpDetail());
             for (const auto sect : seg.intersections) {
                 if (sect->ptT.pt == pt) {
                     OpDebugOut("sect: ");
@@ -1184,8 +1189,9 @@ SectReasonName sectReasonNames[] {
     SECT_REASON_NAME(missingCoincidence),
     SECT_REASON_NAME(resolveCoin_windingChange),
     SECT_REASON_NAME(resolveCoin_oWindingChange),
-    SECT_REASON_NAME(sharedEdgePoint),
-    SECT_REASON_NAME(sharedEndPoint),
+    SECT_REASON_NAME(sharedEdge),
+    SECT_REASON_NAME(sharedEnd),
+    SECT_REASON_NAME(sharedStart),
     SECT_REASON_NAME(startPt),
     SECT_REASON_NAME(xExtrema),
     SECT_REASON_NAME(yExtrema),
@@ -1365,10 +1371,10 @@ std::string OpSegment::debugDump() const {
 
 std::string OpSegment::debugDumpDetail() const {
     std::string s = debugDump() + "\n";
-    s += winding.debugDump() + "\n";
-    s += "pb:" + ptBounds.debugDump() + " ";
-    s += "tb:" + tightBounds.debugDump() + "\n";
-    s += "contour:" + STR(contour->id);
+    s += " winding: " + winding.debugDump() + "\n";
+    s += " bounds:" + ptBounds.debugDump() + " ";
+    s += "contour:" + (contour ? STR(contour->id) : std::string("unset"));
+
     return s;
 }
 
@@ -1456,6 +1462,7 @@ struct DebugReasonName {
 #define REASON_NAME(r) { ZeroReason::r, #r }
 
 static DebugReasonName debugReasonNames[] {
+    REASON_NAME(uninitialized),
     REASON_NAME(none),
     REASON_NAME(addIntersection),
     REASON_NAME(applyOp),
@@ -1483,20 +1490,21 @@ static DebugReasonName debugReasonNames[] {
 
 std::string OpWinding::debugDump() const {
     bool outOfDate = false;
-    for (unsigned index = 0; index < ARRAY_COUNT(debugReasonNames); ++index)
-       if (!outOfDate && (unsigned) debugReasonNames[index].reason != index) {
+    for (signed index = 0; index < (signed) ARRAY_COUNT(debugReasonNames); ++index)
+       if (!outOfDate && (signed) debugReasonNames[index].reason != index - 1) {
            OpDebugOut("debugReasonNames out of date\n");
            outOfDate = true;
        }
-    std::string result = "left: " + STR(left()) + " right: " + STR(right());
+    std::string result = "left: " + (-INT_MAX == left() ? std::string("unset") : STR(left()));
+    result += " right: " + (-INT_MAX == right() ? std::string("unset") : STR(right()));
     if (debugSetter)
-        result += " setter: " + STR(debugSetter);
+        result += " setter: " + (-INT_MAX == debugSetter ? std::string("unset") : STR(debugSetter));
     if (ZeroReason::none != debugReason) {
         result += " reason: ";
         if (outOfDate)
-            result += STR((int)debugReason);
+            result += STR((signed)debugReason);
         else
-            result += std::string(debugReasonNames[(int)debugReason].name);
+            result += std::string(debugReasonNames[(int)debugReason + 1].name);
     }
     return result;
 }

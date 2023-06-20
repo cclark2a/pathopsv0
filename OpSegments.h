@@ -9,6 +9,7 @@ struct OpSegments {
     OpSegments(OpContours& contours);
     static void AddLineCurveIntersection(OpSegment* opp, OpSegment* seg);
     void findCoincidences();
+    void findLineCoincidences();
     FoundIntersections findIntersections();
 
 #if OP_DEBUG_DUMP

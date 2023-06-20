@@ -83,11 +83,16 @@ enum class WindingEdge {
 	dummy
 };
 
+enum class WindingUninitialized {
+	dummy
+};
+
 enum class WindingSum {
 	dummy
 };
 
-enum class ZeroReason : uint8_t {
+enum class ZeroReason : int8_t {
+	uninitialized = -1,
 	none,
 	addIntersection,
 	applyOp,
@@ -115,6 +120,7 @@ enum class ZeroReason : uint8_t {
 
 
 enum class WindingType  {
+	uninitialized = -1,
 	none,
 	winding,
 	sum
@@ -154,6 +160,19 @@ public:
 		, debugSetter(0)
 		, debugType(WindingType::sum)
 		, debugReason(ZeroReason::none)
+#endif	
+	{
+	}
+
+	OpWinding(WindingUninitialized)
+#if OP_DEBUG
+		: left_impl(-OpMax)
+		, right_impl(-OpMax)
+		, debugLeft(-OpMax)
+		, debugRight(-OpMax)
+		, debugSetter(-OpMax)
+		, debugType(WindingType::uninitialized)
+		, debugReason(ZeroReason::uninitialized)
 #endif	
 	{
 	}
@@ -423,6 +442,7 @@ public:
 	bool matchLink(std::vector<OpEdge*>& linkups );
 	const OpEdge* nextChain(EdgeLoop edgeLoop) const {
 		assert(EdgeLoop::link == edgeLoop); return nextEdge; }
+	void output(OpOutPath path);	// provided by the graphics implmentation
 	OpEdge* prepareForLinkup();
 	const OpEdge* priorChain(EdgeLoop edgeLoop) const {
 		return EdgeLoop::link == edgeLoop ? priorEdge : priorSum_impl; }

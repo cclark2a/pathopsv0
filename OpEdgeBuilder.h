@@ -6,7 +6,6 @@
 
 struct OpEdgeBuilder {
     static bool Assemble(OpContours& , OpOutPath );
-    static void Output(OpEdge* edge, OpOutPath );
 };
 
 #if OP_DEBUG_DUMP

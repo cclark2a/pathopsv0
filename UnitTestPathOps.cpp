@@ -858,8 +858,10 @@ void OpTestOpEdgesConcidenceCheck() {
 					OpContours contours(OpOperator::Intersect);
 					contours.left = OpFillType::evenOdd;
 					OpContour contour(&contours, OpOperand::left);
-					OpSegment seg(ab, lineType, &contour  OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
-					OpSegment oSeg(cd, lineType, &contour  OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
+					OpSegment seg(ab, lineType  
+							OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt, &contour));
+					OpSegment oSeg(cd, lineType  
+							OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt, &contour));
 					OpEdge edge(&seg, { ab.pts[0], 0}, { ab.pts[1], 1 }, false  
 							OP_DEBUG_PARAMS(EDGE_MAKER(opTest), nullptr, nullptr));
 					OpEdge oEdge(&oSeg, { cd.pts[0], 0 }, { cd.pts[1], 1 }, false  

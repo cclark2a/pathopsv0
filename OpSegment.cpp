@@ -1,12 +1,12 @@
 #include "OpContour.h"
 #include "OpSegment.h"
 
-OpSegment::OpSegment(const CurvePts& pts, OpType type, OpContour* parent
-        OP_DEBUG_PARAMS(SectReason startReason, SectReason endReason))
-    : contour(parent)
-    , c(&pts.pts.front(), type)
-    , winding(parent->operand) {
-    complete();
+OpSegment::OpSegment(const CurvePts& pts, OpType type
+        OP_DEBUG_PARAMS(SectReason startReason, SectReason endReason, OpContour* debugContour))
+    : c(&pts.pts.front(), type)
+    , winding(WindingUninitialized::dummy) {
+    complete(OP_DEBUG_CODE(debugContour));
+    OP_DEBUG_CODE(contour = nullptr);
     OP_DEBUG_CODE(debugStart = startReason);
     OP_DEBUG_CODE(debugEnd = endReason);
 }
@@ -151,13 +151,12 @@ int OpSegment::coinID(bool flipped) {
     return coinID;
 }
 
-void OpSegment::complete() {
+void OpSegment::complete(OP_DEBUG_CODE(OpContour* debugContour)) {
     ptBounds.set(c);
-    tightBounds.set(c);
     recomputeBounds = false;
     resortIntersections = true;
 // #if OP_DEBUG     // used only by sort; probably unnecessary there
-    id = contour->contours->id++;
+    id = debugContour->contours->id++;  // contour pointer is not set up
 // #endif
 }
 
@@ -181,16 +180,6 @@ OpEdge* OpSegment::findActive(OpPtT ptT, EdgeMatch match) const {
     }
     return nullptr;
 }
-
-struct ExtremaT {
-    ExtremaT(OpPtT pt_T  OP_DEBUG_PARAMS(SectReason r)) 
-        : ptT(pt_T)
-        OP_DEBUG_PARAMS(reason(r)) {
-    }
-
-    OpPtT ptT;
-    OP_DEBUG_CODE(SectReason reason;)
-};
 
 // start/end range is necessary since cubics can have more than one t at a point
 float OpSegment::findPtT(float start, float end, OpPoint opp) const {
@@ -377,6 +366,12 @@ void OpSegment::intersectRange(const OpSegment* opp, std::vector<OpIntersection*
             range.push_back(sect);
         }
     }
+}
+
+void OpSegment::makeEdge(OP_DEBUG_CODE(EdgeMaker maker, int line, std::string file)) {
+    if (!edges.size()) 
+        edges.emplace_back(this, OpPtT(c.pts[0], 0), OpPtT(c.lastPt(), 1), false
+                OP_DEBUG_PARAMS(maker, line, file, nullptr, nullptr));
 }
 
 // count and sort extrema; create an edge for each extrema + 1

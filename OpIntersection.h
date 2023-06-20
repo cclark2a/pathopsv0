@@ -1,7 +1,7 @@
 #ifndef OpIntersection_DEFINED
 #define OpIntersection_DEFINED
 
-#include "OpMath.h"
+#include "OpTightBounds.h"
 
 struct OpEdge;
 struct OpSegment;
@@ -51,9 +51,11 @@ enum class IntersectMaker {
 	findIntersections_endOppReversed,
 	findIntersections_endOpp,
 	missingCoincidence,
-	missingCoincidenceOpp,
+	missingCoincidenceOpp,\
+	segEnd,
 	segmentLineCurve,
 	segmentLineCurveOpp,
+	segStart,
 	splitAtWinding,
 	unsectableStart,
 	unsectableEnd,
@@ -68,27 +70,6 @@ enum class IntersectMaker {
 
 #define SECT_MAKER(maker) IntersectMaker::maker, __LINE__, std::string(__FILE__)
 
-enum class SectReason {
-	coinPtsMatch,
-	curveCurveUnsectable,
-	degenerateCenter,
-	divideAndConquer_oneT,
-	divideAndConquer_noEdgeToSplit,
-	divideAndConquer_noOppToSplit,
-	endPt,
-	inflection,
-	lineCurve,
-	missingCoincidence,
-	resolveCoin_windingChange,
-	resolveCoin_oWindingChange,
-	sharedEdgePoint,
-	sharedEndPoint,
-	startPt,
-	xExtrema,
-	yExtrema,
-	// testing only
-	test,
-};
 #endif
 
 // Places where a pair of segments cross are recorded as intersections.

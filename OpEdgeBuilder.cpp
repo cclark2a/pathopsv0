@@ -39,7 +39,7 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
         leftMost->whichEnd = EdgeMatch::start;
         OpEdge* linkup = leftMost->linkUp(EdgeMatch::start, leftMost);
         if (!linkup->containsLink(leftMost)) {
-            Output(linkup, path);
+            linkup->output(path);
             OpEdge* pFirst = leftMost->prepareForLinkup();
             linkups.emplace_back(pFirst);
             continue;
@@ -47,13 +47,13 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
         if (linkup != leftMost)
             linkup->lastEdge = leftMost;
         if (leftMost->isClosed(linkup)) {
-            Output(leftMost, path);  // emit the contour
+            leftMost->output(path);  // emit the contour
             continue;
         }
         OpEdge* first = linkup ? linkup : leftMost;
         OpEdge* newLast = leftMost->linkUp(EdgeMatch::end, first);
         if (!leftMost->containsLink(newLast)) {
-            Output(newLast, path);
+            newLast->output(path);
             first = leftMost->prepareForLinkup();
             linkups.emplace_back(first);
             continue;
@@ -67,7 +67,7 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
             //     direction should consider whether edge normal points to inside or outside
         }
             if (newLast->isClosed(first) || c.closeGap(newLast, first)) {
-                Output(first, path);  // emit the contour
+                first->output(path);  // emit the contour
                 continue;
             }
         first = first->prepareForLinkup();
@@ -93,7 +93,7 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
                 && !linkup->matchLink(linkups))
             return false;   // if edges form loop with tail, fail
         // determine direction of linked edges, if any (a straight line won't have a direction)
-        Output(linkup, path);  // emit the contour
+        linkup->output(path);  // emit the contour
     }
     return true;
 }

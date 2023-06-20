@@ -184,7 +184,7 @@ void OpMath::DebugCompare(float a, float b) {
 OpVector OpCurve::debugTangent(float t) const {
     switch (type) {
     case pointType: return OpVector();
-    case lineType: return asLine().tangent(t);
+    case lineType: return asLine().tangent();
     case quadType: return asQuad().debugTangent(t);
     case conicType: return asConic().debugTangent(t);
     case cubicType: return asCubic().debugTangent(t);

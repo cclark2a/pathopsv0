@@ -50,6 +50,6 @@ OpPoint OpLine::ptAtT(float t) const {
     return (1 - t) * pts[0] + t * pts[1];
 }
 
-OpVector OpLine::tangent(float t) const {
+OpVector OpLine::tangent() const {
     return pts[1] - pts[0];
 }
