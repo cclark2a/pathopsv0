@@ -12,7 +12,7 @@ struct OpInPath {
 #if PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_SKIA
 	OpInPath(const SkPath* sk)
 		: skPath(sk) {
-		assert(skPath);
+		OP_ASSERT(skPath);
 	}
 #endif
 
@@ -26,7 +26,7 @@ struct OpOutPath {
 #if PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_SKIA
 	OpOutPath(SkPath* sk)
 		: skPath(sk) {
-		assert(skPath);
+		OP_ASSERT(skPath);
 	}
 #endif
 

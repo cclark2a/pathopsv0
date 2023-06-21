@@ -25,14 +25,19 @@ enum class MatchEnds {
     both
 };
 
+enum class MatchSect {
+    allow,  // any ends of segment can match
+    existing    // consecutive segments cannot match
+};
+
 struct FoundEdge {
     FoundEdge(OpEdge* e, EdgeMatch w, AllowReversal reversal = AllowReversal::no) 
         : edge(e)
         , whichEnd(w)
         , reverse(reversal) {
-        assert(e);
-        assert(e->winding.visible());
-        assert(e->active_impl);
+        OP_ASSERT(e);
+        OP_ASSERT(e->winding.visible());
+        OP_ASSERT(e->active_impl);
     }
 
     OpEdge* edge;
@@ -61,6 +66,8 @@ struct OpSegment {
     OpIntersection* addEdgeSect(const OpPtT&  
             OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason ,
             const OpEdge* e, const OpEdge* o));
+    OpIntersection* addSegBase(const OpPtT&  
+            OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason , const OpSegment* o));
     OpIntersection* addSegSect(const OpPtT&  
             OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason , const OpSegment* o));
     OpIntersection* addCoin(const OpPtT& , int coinID  
@@ -88,7 +95,8 @@ struct OpSegment {
     // count and sort extrema; create an edge for each extrema + 1
     void makeEdge(OP_DEBUG_CODE(EdgeMaker maker, int line, std::string file));
     void makeEdges();
-    MatchEnds matchEnds(const OpSegment* opp, bool* reversed) const;
+    MatchEnds matchEnds(const OpSegment* opp, bool* reversed, MatchSect ) const;
+    MatchEnds matchExisting(const OpSegment* opp) const;
 //    void missingCoincidence();  // find missing intersections / edges
 //    void missingCoincidence(const OpPtT& s, const OpPtT& e, OpSegment* , std::vector<int>&, 
 //            std::vector<MissingIntersection>& ) const;
@@ -102,6 +110,7 @@ struct OpSegment {
 //            const OpEdge* firstEdge, SectReason ));
 //    OpEdge* visibleAdjacent(OpEdge* , const OpPtT& );
 #if OP_DEBUG
+    bool debugContains(OpPtT , const OpSegment* opp) const;  // check for duplicates
     void debugValidate() const;
 #endif
 #if OP_DEBUG_DUMP

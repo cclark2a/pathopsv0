@@ -59,9 +59,6 @@ void OpEdge::output(OpOutPath path) {
                 std::swap(skPt[1], skPt[2]);
         }
         switch (type) {
-        case pointType: 
-            assert(0); 
-            break;  // !!!unimplemented
         case lineType: 
             skPath->lineTo(skPt[3]); 
             break;
@@ -76,7 +73,7 @@ void OpEdge::output(OpOutPath path) {
             skPath->cubicTo(skPt[1], skPt[2], skPt[3]);  break;
             break;
         default: 
-            assert(0);
+            OP_ASSERT(0);
         }
         edge->clearActive();
         edge = edge->nextEdge;
@@ -119,7 +116,7 @@ bool OpContours::build(OpInPath path, OpOperand operand) {
             break;
         }
     } while (verb != SkPath::kDone_Verb);
-    head->finish();
+    head->addClose();
     return true;
 }
 

@@ -299,10 +299,8 @@ void OpDebugImage::addToPath(const OpCurve& curve, SkPath& path) {
 	path.moveTo(curve.pts[0].x, curve.pts[0].y);
 	switch (curve.type) {
 		case noType:
-			assert(0);
+			OP_ASSERT(0);
 			break;
-		case pointType:
-			return;
 		case lineType:
 			path.lineTo(curve.pts[1].x, curve.pts[1].y);
 			break;
@@ -317,7 +315,7 @@ void OpDebugImage::addToPath(const OpCurve& curve, SkPath& path) {
 					curve.pts[3].x, curve.pts[3].y);
 			break;
 		default:
-			assert(0);
+			OP_ASSERT(0);
 	}
 }
 
@@ -706,7 +704,7 @@ void gridStep(float dxy) {
 	double currentStep = (right - left) / gridIntervals;
 	double newZoom = DebugOpGetZoomScale() * currentStep / dxy;
 	DebugOpSetZoomScale(newZoom);
-	// !!! assert bounds is square?
+	// !!! OP_ASSERT bounds is square?
 	OpDebugImage::drawDoubleFocus();
 }
 
@@ -971,8 +969,6 @@ void OpDebugImage::drawPoints() {
 		drawPathPt(operands[1].skPath);
 	if (drawSegmentsOn) {
 		for (auto seg : segmentIterator) {
-			if (pointType == seg->c.type)
-				continue;
 			DebugOpBuild(seg->c.pts[0]);
 			DebugOpBuild(seg->c.lastPt());
 			// !!! probably need switch to say 'draw control points'
@@ -1015,8 +1011,6 @@ void OpDebugImage::drawPoints() {
 				DebugOpBuild(*operands[1].skPath, line);
 			if (drawSegmentsOn) {
 				for (auto seg : segmentIterator) {
-					if (pointType == seg->c.type)
-						continue;
 					DebugOpBuild(*seg, line);
 				}
 			}
@@ -1261,7 +1255,7 @@ OpEdge::~OpEdge() {
 		return;
 	if (!OpDebugPathOpsEnable::inPathOps)
 		return;
-	assert(!segment->debugContains(this));
+	OP_ASSERT(!segment->debugContains(this));
 	for (auto edge = foundEdges.begin(); edge != foundEdges.end(); ++edge) {
 		if (id == (*edge)->id) {
 			foundEdges.erase(edge);

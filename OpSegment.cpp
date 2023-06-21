@@ -16,7 +16,7 @@ OpSegment::OpSegment(const CurvePts& pts, OpType type
 // if the operand is union or intersection, both paths have an interior of one
 void OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<FoundEdge>& oppEdges,
         AllowReversal canReverse) const {
-    assert(edge->winding.visible());
+    OP_ASSERT(edge->winding.visible());
     // each prospective match normal must agree with edge, indicating direction of area outside fill
     OpPtT ptT = edge->whichPtT(match);
     for (auto sectPtr : intersections) {
@@ -74,6 +74,7 @@ void OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
 OpIntersection* OpSegment::addEdgeSect(const OpPtT& ptT  
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason,
         const OpEdge* debugEdge, const OpEdge* debugOpp)) {
+    OP_ASSERT(!debugContains(ptT, debugOpp->segment));
     auto sect = contour->addEdgeSect(ptT, this  
             OP_DEBUG_PARAMS(maker, line, file, reason, debugEdge, debugOpp));
     intersections.push_back(sect);
@@ -81,18 +82,27 @@ OpIntersection* OpSegment::addEdgeSect(const OpPtT& ptT
     return sect;
 }
 
-OpIntersection* OpSegment::addSegSect(const OpPtT& ptT  
+OpIntersection* OpSegment::addSegBase(const OpPtT& ptT  
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
         const OpSegment* oSeg)) {
+    OP_ASSERT(!debugContains(ptT, oSeg));
     auto sect = contour->addSegSect(ptT, this, SectFlavor::none, 0  
             OP_DEBUG_PARAMS(maker, line, file, reason, oSeg));
     intersections.push_back(sect);
-    resortIntersections = true;
     return sect;
 }
+
+OpIntersection* OpSegment::addSegSect(const OpPtT& ptT  
+        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
+        const OpSegment* oSeg)) {
+    resortIntersections = true;
+    return addSegBase(ptT  OP_DEBUG_PARAMS(maker, line, file, reason, oSeg));
+}
+
 OpIntersection* OpSegment::addCoin(const OpPtT& ptT, int coinID  
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
         const OpSegment* oSeg)) {
+    OP_ASSERT(!debugContains(ptT, oSeg));
     auto sect = contour->addSegSect(ptT, this, SectFlavor::none, coinID  
             OP_DEBUG_PARAMS(maker, line, file, reason, oSeg));
     intersections.push_back(sect);
@@ -114,6 +124,7 @@ OpIntersection* OpSegment::addIntersection(const OpPtT& ptT, SectFlavor flavor
 
 OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, SectFlavor flavor  
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, const OpSegment* oSeg)) {
+    OP_ASSERT(!debugContains(ptT, oSeg));
     auto sect = contour->addSegSect(ptT, this, flavor, 0  
             OP_DEBUG_PARAMS(maker, line, file, SectReason::curveCurveUnsectable, oSeg));
     intersections.push_back(sect);
@@ -154,7 +165,7 @@ int OpSegment::coinID(bool flipped) {
 void OpSegment::complete(OP_DEBUG_CODE(OpContour* debugContour)) {
     ptBounds.set(c);
     recomputeBounds = false;
-    resortIntersections = true;
+    resortIntersections = false;
 // #if OP_DEBUG     // used only by sort; probably unnecessary there
     id = debugContour->contours->id++;  // contour pointer is not set up
 // #endif
@@ -185,7 +196,7 @@ OpEdge* OpSegment::findActive(OpPtT ptT, EdgeMatch match) const {
 float OpSegment::findPtT(float start, float end, OpPoint opp) const {
     float result;
     OP_DEBUG_CODE(FoundPtT found =) findPtT(start, end, opp, &result);
-    assert(FoundPtT::single == found);
+    OP_ASSERT(FoundPtT::single == found);
     return result;
 }
 
@@ -307,7 +318,7 @@ void OpSegment::fixIntersections(OpPoint alias, OpPoint master  OP_DEBUG_PARAMS(
                 }
                 break;
             }
-            assert(foundCoin);
+            OP_ASSERT(foundCoin);
         }
     }
 }
@@ -361,7 +372,7 @@ void OpSegment::intersectRange(const OpSegment* opp, std::vector<OpIntersection*
     OP_DEBUG_CODE(float last = -1);
     for (auto sect : intersections) {
         if (sect->opp->segment == opp) {
-            assert(last < sect->ptT.t);
+            OP_ASSERT(last < sect->ptT.t);
             OP_DEBUG_CODE(last = sect->ptT.t);
             range.push_back(sect);
         }
@@ -376,8 +387,6 @@ void OpSegment::makeEdge(OP_DEBUG_CODE(EdgeMaker maker, int line, std::string fi
 
 // count and sort extrema; create an edge for each extrema + 1
 void OpSegment::makeEdges() {
-    if (pointType == c.type)
-        return;
     if (!winding.left() && !winding.right()) {
         edges.clear();
         return;
@@ -410,7 +419,7 @@ void OpSegment::makeEdges() {
     }
 }
 
-MatchEnds OpSegment::matchEnds(const OpSegment* opp, bool* reversed) const {
+MatchEnds OpSegment::matchEnds(const OpSegment* opp, bool* reversed, MatchSect matchSect) const {
     MatchEnds result = MatchEnds::none;
     *reversed = false;
     if (c.pts[0] == opp->c.pts[0])
@@ -426,9 +435,27 @@ MatchEnds OpSegment::matchEnds(const OpSegment* opp, bool* reversed) const {
         foundEnd = true;
     if (foundEnd) {
         result = (MatchEnds)((int) result | (int) MatchEnds::end);
-        assert(MatchEnds::end == result || MatchEnds::both == result);
+        OP_ASSERT(MatchEnds::end == result || MatchEnds::both == result);
     }
-    return result;
+    if (MatchEnds::none == result || MatchEnds::both == result)
+        return result;
+    if (MatchSect::existing != matchSect || !*reversed)
+        return result;
+    if (result != matchExisting(opp))
+        return result;
+    return MatchEnds::none;
+}
+
+MatchEnds OpSegment::matchExisting(const OpSegment* opp) const {
+    if (contour != opp->contour || 2 == contour->segments.size())
+        return MatchEnds::none;
+    if (this + 1 == opp
+            || (&contour->segments.front() == opp && &contour->segments.back() == this))
+        return MatchEnds::end;
+    if (this - 1 == opp
+            || (&contour->segments.front() == this && &contour->segments.back() == opp))
+        return MatchEnds::start;
+    return MatchEnds::none;
 }
 
 #if 0
@@ -468,7 +495,7 @@ void OpSegment::missingCoincidence(const OpPtT& start, const OpPtT& end,
 // The primary may need additional edges for coincidences found by opposites.
 void OpSegment::missingCoincidence() {
     if (!intersections.size()) {
-        assert(!winding.visible());
+        OP_ASSERT(!winding.visible());
         return;
     }
     std::vector<MissingIntersection> missing;
@@ -487,7 +514,7 @@ void OpSegment::missingCoincidence() {
             const OpIntersection* last = *++lastPtr;
             if (coinID == last->coincidenceID)  // this segment coin goes from sect to last
                 break;
-            assert(*lastPtr != intersections.back());
+            OP_ASSERT(*lastPtr != intersections.back());
             if (last->coincidenceID && coinsFound.end() !=
                     std::find(coinsFound.begin(), coinsFound.end(), last->coincidenceID)) {
                 coinsFound.push_back(last->coincidenceID);
@@ -499,7 +526,7 @@ void OpSegment::missingCoincidence() {
                 int testID = test->coincidenceID;
                 if (!testID)
                     continue;
-                assert(coinID != testID);
+                OP_ASSERT(coinID != testID);
                 // recursively visit intersection lists to see if they have points not on edges
                 test->segment->missingCoincidence((*sectPtr)->ptT, (*lastPtr)->ptT, this, 
                         coinsFound, missing);
@@ -515,13 +542,13 @@ void OpSegment::missingCoincidence() {
         for (OpIntersection* inner : miss.segment->intersections) {
             if (miss.intersection.ptT.t == inner->ptT.t) {
                 // !!! what to do if points don't match? wait for real-life test case
-                assert(miss.intersection.ptT.pt == inner->ptT.pt);
+                OP_ASSERT(miss.intersection.ptT.pt == inner->ptT.pt);
                 foundOne = true;
                 break;
             }
             if (miss.intersection.ptT.pt == inner->ptT.pt) {
                 // points match but t values do not. Figure out what do do
-                assert(0);
+                OP_ASSERT(0);
                 foundOne = true;
                 break;
             }
@@ -531,7 +558,7 @@ void OpSegment::missingCoincidence() {
                     SectFlavor::missing  OP_DEBUG_PARAMS(SECT_MAKER(missingCoincidence),
                     SectReason::missingCoincidence, &miss.intersection, nullptr, nullptr));
             // !!! the intersection is already in this segment; why add it again?
-            assert(0); // !!! add explanation of why this is correct
+            OP_ASSERT(0); // !!! add explanation of why this is correct
             OpIntersection* opp = miss.intersection.segment->addIntersection(foundPtT,
                     SectFlavor::missing  OP_DEBUG_PARAMS(SECT_MAKER(missingCoincidenceOpp),
                     SectReason::missingCoincidence, &miss.intersection, nullptr, nullptr));
@@ -548,7 +575,7 @@ void OpSegment::missingCoincidence() {
 // be applied to all subsequent edges, but only the initial opp winding can be zeroed.
 bool OpSegment::resolveCoincidence() {
     if (!intersections.size()) {
-        assert(!winding.visible());
+        OP_ASSERT(!winding.visible());
         return true;
     }
     OpIntersection** sectPtr = &intersections.front();
@@ -559,19 +586,19 @@ bool OpSegment::resolveCoincidence() {
             continue;
         OpIntersection** lastPtr = sectPtr;
         do {
-            assert(*lastPtr != intersections.back());
+            OP_ASSERT(*lastPtr != intersections.back());
             ++lastPtr;
         } while (coinID != (*lastPtr)->coincidenceID);  // this segment coin goes from sect to last
         bool backwards = coinID < 0;   // sect and opp travel in different directions
         OpSegment* oSegment = sect->opp->segment;
         OpIntersection** oppSectPtr = &oSegment->intersections.front();  // find opp coinid first, last
         while (coinID != (*oppSectPtr)->coincidenceID) {
-            assert(*oppSectPtr != oSegment->intersections.back());
+            OP_ASSERT(*oppSectPtr != oSegment->intersections.back());
             ++oppSectPtr;
         }
         OpIntersection** oppLastPtr = oppSectPtr;
         do {
-            assert(*oppLastPtr != oSegment->intersections.back());
+            OP_ASSERT(*oppLastPtr != oSegment->intersections.back());
             ++oppLastPtr;
         } while (coinID != (*oppLastPtr)->coincidenceID);    // opp coin goes from oppSect to oppLast
         if (backwards)
@@ -582,20 +609,20 @@ bool OpSegment::resolveCoincidence() {
         bool swapEdgeAndOpp = false;
         OpEdge* edge = &edges.front();
         while (edge->start != sect->ptT) {  // sets edge to first in segment coin
-            assert(edge != &edges.back());
+            OP_ASSERT(edge != &edges.back());
             ++edge;
         }
         // sect and opp edges must have matching points for the spans with identical windings        
         OpEdge* oEdge = backwards ? &oSegment->edges.back() : &oSegment->edges.front();
         OP_DEBUG_CODE(OpEdge* oLast = backwards ? &oSegment->edges.front() : &oSegment->edges.back());
         while (oEdge->ptT(match).t != sect->opp->ptT.t) {   // points may not match if sect list has multiple t matches
-            assert(oEdge != oLast);  // !!! add preflight when edge is created if this ever asserts
+            OP_ASSERT(oEdge != oLast);  // !!! add preflight when edge is created if this ever asserts
             oEdge += direction;
         }
         // first time, create spans of unique windings from edges and opposite edges
         OpEdge* firstEdge = edge;
         OpEdge* firstOpp = oEdge;
-        assert(firstOpp->ptT(match).pt == firstEdge->start.pt);
+        OP_ASSERT(firstOpp->ptT(match).pt == firstEdge->start.pt);
         OpWinding eWinding = edge->winding;
         OpWinding oWinding = oEdge->winding;
         std::vector<const OpEdge*> eWindingChanges;
@@ -672,11 +699,11 @@ bool OpSegment::resolveCoincidence() {
             if (edgeDone && oppDone)
                 break;
             if (!edgeDone && (edgeIsPoint || !oppIsPoint)) {
-                assert(edge < &debugSeg->edges.back());
+                OP_ASSERT(edge < &debugSeg->edges.back());
                 ++edge;
             }
             if (!oppDone && (oppIsPoint || !edgeIsPoint)) {
-                assert(&debugOpp->edges.front() <= oEdge + direction &&
+                OP_ASSERT(&debugOpp->edges.front() <= oEdge + direction &&
                     oEdge + direction <= &debugOpp->edges.back());
                 oEdge += direction;
             }
@@ -711,7 +738,7 @@ void OpSegment::resolvePoints() {
                 continue;
             return o.ptT.t;
         }
-        assert(0);
+        OP_ASSERT(0);
         return OpNaN;
     };
     const OpIntersection* last = intersections.front();
@@ -737,7 +764,7 @@ void OpSegment::sortIntersections() {
 #if OP_DEBUG
         const OpIntersection* last = intersections.size() ? intersections.front() : nullptr;
         for (const auto sectPtr : intersections) {
-            assert(last->ptT.t <= sectPtr->ptT.t);
+            OP_ASSERT(last->ptT.t <= sectPtr->ptT.t);
             last = sectPtr;
         }
 #endif
@@ -780,11 +807,11 @@ bool OpSegment::splitAtWinding(const std::vector<const OpEdge*>& windingChanges,
             if (++eChange > &windingChanges.back())
                 goto done;  // only exit to outside loop
         } while (true);
-        assert(split->ptT(oppositeMatch).t != last->ptT.t);
+        OP_ASSERT(split->ptT(oppositeMatch).t != last->ptT.t);
         split += direction;
     } while (true);
 done:
-    assert(eChange > &windingChanges.back());
+    OP_ASSERT(eChange > &windingChanges.back());
     if (!splitTs.size())
         return false;
     if (direction < 0)
@@ -804,7 +831,7 @@ done:
             ++edge;
             lastPtT = edge->start;
         } else {
-            assert(splitPtT <= &splitTs.back());
+            OP_ASSERT(splitPtT <= &splitTs.back());
             splits.emplace_back(edge, lastPtT, *splitPtT  
                     OP_DEBUG_PARAMS(EDGE_MAKER(resolveCoin2), nullptr, nullptr));
             lastPtT = *splitPtT++;
@@ -830,7 +857,7 @@ OpEdge* OpSegment::visibleAdjacent(OpEdge* edge, const OpPtT& ptT) {
                 continue;
             if (!test.winding.visible())
                 continue;
-            assert(test.start.t == ptT.t || test.end.t == ptT.t);
+            OP_ASSERT(test.start.t == ptT.t || test.end.t == ptT.t);
             result = &test;
         }
     }
@@ -840,9 +867,9 @@ OpEdge* OpSegment::visibleAdjacent(OpEdge* edge, const OpPtT& ptT) {
             continue;  // !!! could binary search for 1st if intersection list is extremely long
         if (sect.ptT.t > ptT.t)
             break;
-        assert(this != sect.opp->segment);
-        assert(ptT.pt == sect.ptT.pt);
-        assert(ptT.pt == sect.opp->ptT.pt);
+        OP_ASSERT(this != sect.opp->segment);
+        OP_ASSERT(ptT.pt == sect.ptT.pt);
+        OP_ASSERT(ptT.pt == sect.opp->ptT.pt);
         for (OpEdge& search : sect.opp->segment->edges) {
             if (search.start.t > sect.opp->ptT.t)
                 break;
@@ -850,10 +877,10 @@ OpEdge* OpSegment::visibleAdjacent(OpEdge* edge, const OpPtT& ptT) {
                 continue;
             if (!search.winding.visible())
                 continue;
-            assert(&search != edge);
+            OP_ASSERT(&search != edge);
             if (result) // if there are two results, give up
                 return nullptr;
-            assert(search.start.t == sect.opp->ptT.t || search.end.t == sect.opp->ptT.t);
+            OP_ASSERT(search.start.t == sect.opp->ptT.t || search.end.t == sect.opp->ptT.t);
             result = &search;
         }
     }

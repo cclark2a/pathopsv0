@@ -117,8 +117,8 @@ struct OpIntersection {
 	}
 
 	void zeroCoincidenceID() {
-		assert(coincidenceID);
-		assert(opp->coincidenceID);
+		OP_ASSERT(coincidenceID);
+		OP_ASSERT(opp->coincidenceID);
 #if OP_DEBUG
 		debugCoincidenceID = coincidenceID;
 		opp->debugCoincidenceID = opp->coincidenceID;

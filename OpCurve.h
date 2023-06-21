@@ -9,8 +9,7 @@ struct OpConic;
 struct OpCubic;
 
 enum OpType {
-    noType = -1,
-    pointType,
+    noType,
     lineType,
     quadType,
     conicType,

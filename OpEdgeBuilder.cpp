@@ -34,8 +34,8 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
             continue;   // likely marked as part of a loop below
         if (!leftMost->isActive())  // check if already saved in linkups
             continue;
-        assert(EdgeLink::unlinked == leftMost->priorLink);
-        assert(EdgeLink::unlinked == leftMost->nextLink);
+        OP_ASSERT(EdgeLink::unlinked == leftMost->priorLink);
+        OP_ASSERT(EdgeLink::unlinked == leftMost->nextLink);
         leftMost->whichEnd = EdgeMatch::start;
         OpEdge* linkup = leftMost->linkUp(EdgeMatch::start, leftMost);
         if (!linkup->containsLink(leftMost)) {
@@ -74,10 +74,10 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
         linkups.emplace_back(first);
     }
     for (auto linkup : linkups) {
-        assert(!linkup->isLoop(WhichLoop::prior, EdgeLoop::link, LeadingLoop::will));
-        assert(!linkup->isLoop(WhichLoop::next, EdgeLoop::link, LeadingLoop::will));
-        assert(linkup->lastEdge);
-        assert(!linkup->priorEdge);
+        OP_ASSERT(!linkup->isLoop(WhichLoop::prior, EdgeLoop::link, LeadingLoop::will));
+        OP_ASSERT(!linkup->isLoop(WhichLoop::next, EdgeLoop::link, LeadingLoop::will));
+        OP_ASSERT(linkup->lastEdge);
+        OP_ASSERT(!linkup->priorEdge);
         do {
             linkup->setActive();
         } while ((linkup = linkup->nextEdge));

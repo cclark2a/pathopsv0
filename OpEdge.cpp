@@ -46,8 +46,8 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e
 void OpEdge::addMatchingEnds(const OpEdge& opp) const {
 	if (opp.segment == segment && (opp.start == end || opp.end == start))
 		return;
-	assert(start.pt != end.pt);
-	assert(opp.start.pt != opp.end.pt);
+	OP_ASSERT(start.pt != end.pt);
+	OP_ASSERT(opp.start.pt != opp.end.pt);
 	OpSegment* _segment = const_cast<OpSegment*>(segment);
 	OpSegment* oppSegment = const_cast<OpSegment*>(opp.segment);
 	OpIntersection* segSect = nullptr;
@@ -155,7 +155,7 @@ void OpEdge::apply() {
 			windZero = sum.left() || 0 == sum.right() ? WindZero::normal : WindZero::opp;
 		break;
 	default:
-		assert(0);
+		OP_ASSERT(0);
 	}
 	if (!keep)
 		winding.zero(ZeroReason::applyOp);
@@ -186,8 +186,8 @@ void OpEdge::calcCenterT() {
 		center.pt = curve.ptAtT(t);
 		center.pt.pin(ptBounds);
 	}
-	assert(OpMath::Between(ptBounds.left, center.pt.x, ptBounds.right));
-	assert(OpMath::Between(ptBounds.top, center.pt.y, ptBounds.bottom));
+	OP_ASSERT(OpMath::Between(ptBounds.left, center.pt.x, ptBounds.right));
+	OP_ASSERT(OpMath::Between(ptBounds.top, center.pt.y, ptBounds.bottom));
 }
 
 CalcFail OpEdge::calcWinding(Axis axis) {
@@ -196,13 +196,13 @@ CalcFail OpEdge::calcWinding(Axis axis) {
 	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
 	if (priorSum_impl && (EdgeFail::none == priorSum_impl->fail || 
 			EdgeFail::priorDistance == priorSum_impl->fail)) {
-		assert(priorSum_impl->sum.left() != OpMax);
-		assert(priorSum_impl->sum.right() != OpMax);
+		OP_ASSERT(priorSum_impl->sum.left() != OpMax);
+		OP_ASSERT(priorSum_impl->sum.right() != OpMax);
 		// have winding of previous edge
 		prevLeft = priorSum_impl->sum.left();
 		prevRight = priorSum_impl->sum.right();
 		const OpCurve& curve = priorSum_impl->setCurve();
-		assert(priorSum_impl->sumT);	// should have been initialized to some value off end of curve
+		OP_ASSERT(priorSum_impl->sumT);	// should have been initialized to some value off end of curve
 		bool overflow;
 		float tNdotR = curve.normal(priorSum_impl->sumT).normalize(&overflow).dot(-ray);
 		if (overflow)
@@ -268,8 +268,8 @@ bool OpEdge::containsChain(const OpEdge* edge, EdgeLoop loopType) const {
 float OpEdge::findT(Axis axis, float oppXY) const {
 	float result;
     FoundPtT foundPtT = segment->findPtT(axis, start.t, end.t, oppXY, &result);
-	assert(FoundPtT::single == foundPtT);
-	assert(OpNaN != result);
+	OP_ASSERT(FoundPtT::single == foundPtT);
+	OP_ASSERT(OpNaN != result);
 	return result;
 }
 
@@ -277,8 +277,8 @@ float OpEdge::findT(Axis axis, float oppXY) const {
 // or -- sort the edges first ? the sort doesn't seem easy or obvious -- may need to think about it
 // if horizontal axis, look at rect top/bottom
 ResolveWinding OpEdge::findWinding(Axis axis  OP_DEBUG_PARAMS(int* debugWindingLimiter)) {
-	assert(++(*debugWindingLimiter) < 100);
-	assert(!sum.isSet());	// second pass or uninitialized
+	OP_ASSERT(++(*debugWindingLimiter) < 100);
+	OP_ASSERT(!sum.isSet());	// second pass or uninitialized
 	if (priorSum_impl) {
 		if (!priorSum_impl->sum.isSet()) {
 			ResolveWinding priorWinding = priorSum_impl->findWinding(axis
@@ -311,12 +311,12 @@ bool OpEdge::inLinkLoop(const OpEdge* match) {
 }
 
 bool OpEdge::inSumLoop(const OpEdge* match) {
-	assert(isSumLoop);
+	OP_ASSERT(isSumLoop);
 	OpEdge* loopy = this;
 	OP_DEBUG_CODE(OpEdge* last = this);
 	while ((loopy = loopy->priorSum_impl) != this) {
 		if (!loopy) {
-			assert(last->loopStart);
+			OP_ASSERT(last->loopStart);
 			break;
 		}
 		if (match == loopy)
@@ -332,9 +332,9 @@ bool OpEdge::isClosed(OpEdge* test) {
 			|| isLoop(WhichLoop::next, EdgeLoop::link, LeadingLoop::will))
 		return true;
 	if (flipPtT(EdgeMatch::start).pt == test->whichPtT().pt) {
-		assert(!nextEdge || nextEdge == test);
+		OP_ASSERT(!nextEdge || nextEdge == test);
 		setNextEdge(test);
-		assert(!test->priorEdge || test->priorEdge == this);
+		OP_ASSERT(!test->priorEdge || test->priorEdge == this);
 		test->setPriorEdge(this);
 		winding.zero(ZeroReason::looped);
 		test->winding.zero(ZeroReason::looped);
@@ -361,7 +361,7 @@ const OpEdge* OpEdge::isLoop(WhichLoop which, EdgeLoop edgeLoop, LeadingLoop lea
 			continue;
 		if (LeadingLoop::will == leading)
 			return this;
-		assert(LeadingLoop::in == leading);
+		OP_ASSERT(LeadingLoop::in == leading);
 		return chain;
 	}
 	return nullptr;
@@ -393,24 +393,24 @@ OpEdge* OpEdge::linkUp(EdgeMatch match, OpEdge* firstEdge) {
 		return this;
 	FoundEdge found = edges.front();
 	OpEdge* oppEdge = found.edge;
-	assert(!oppEdge->hasLinkTo(match));
-	assert(oppEdge != this);
+	OP_ASSERT(!oppEdge->hasLinkTo(match));
+	OP_ASSERT(oppEdge != this);
 	if (EdgeMatch::start == match) {
-		assert(!priorEdge);
+		OP_ASSERT(!priorEdge);
 		setPriorEdge(oppEdge);
 		priorLink = EdgeLink::single;
 		oppEdge->setNextEdge(this);
 		oppEdge->nextLink = EdgeLink::single;
 		oppEdge->whichEnd = Opposite(found.whichEnd);
 	} else {
-		assert(!nextEdge);
+		OP_ASSERT(!nextEdge);
 		setNextEdge(oppEdge);
 		nextLink = EdgeLink::single;
 		oppEdge->setPriorEdge(this);
 		oppEdge->priorLink = EdgeLink::single;
 		oppEdge->whichEnd = found.whichEnd;
 	}
-	assert(whichPtT(match).pt == oppEdge->flipPtT(match).pt);
+	OP_ASSERT(whichPtT(match).pt == oppEdge->flipPtT(match).pt);
 	// iterate starting with first edge to see if  opp pt forms loop
 	// if so, detach remaining chain and close loop
 	OpPoint endPt = oppEdge->whichPtT(match).pt;
@@ -440,8 +440,8 @@ OpEdge* OpEdge::linkUp(EdgeMatch match, OpEdge* firstEdge) {
 }
 
 bool OpEdge::matchLink(std::vector<OpEdge*>& linkups) {
-	assert(lastEdge);
-	assert(EdgeMatch::start == lastEdge->whichEnd || EdgeMatch::end == lastEdge->whichEnd);
+	OP_ASSERT(lastEdge);
+	OP_ASSERT(EdgeMatch::start == lastEdge->whichEnd || EdgeMatch::end == lastEdge->whichEnd);
 	(void) setLinkBounds();
 	// count intersections equaling end
 	// each intersection has zero, one, or two active edges
@@ -469,7 +469,7 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups) {
 					found.emplace_back(edge, edge->whichEnd, AllowReversal::no);	// keep ties
 			}
 			if (edge->lastEdge && !edge->lastEdge->nextEdge) {
-				assert(!edge->lastEdge->nextEdge);
+				OP_ASSERT(!edge->lastEdge->nextEdge);
 				float distance = (edge->lastEdge->whichPtT(EdgeMatch::end).pt - matchPt).length();
 				if (closestDistance > distance) {
 					found.clear();
@@ -495,7 +495,7 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups) {
 		OP_ASSERT(closest);
 		found.emplace_back(closest, closestEnd, closestReverse);
 	}
-	assert(found.size());
+	OP_ASSERT(found.size());
 	OpRect bestBounds;
 	closest = nullptr;
 	closestEnd = EdgeMatch::none;
@@ -504,7 +504,7 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups) {
 		for (const auto& foundOne : found) {
 			OpEdge* oppEdge = foundOne.edge;
 			// skip edges which flip the fill sum total, implying there is a third edge inbetween
-			assert(EdgeMatch::start == foundOne.whichEnd || EdgeMatch::end == foundOne.whichEnd);
+			OP_ASSERT(EdgeMatch::start == foundOne.whichEnd || EdgeMatch::end == foundOne.whichEnd);
 			               // e.g., one if normals point to different fill sums       
 			if (!trial && (((lastEdge->sum.sum() + oppEdge->sum.sum()) & 1) 
 			// e.g., one if last start-to-end connects to found start-to-end (end connects to start)
@@ -521,8 +521,8 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups) {
 			}
 		}
 	}
-	assert(closest); // !!! if found is not empty, but no edge has the right sum, choose one anyway?
-	assert(closest->lastEdge);
+	OP_ASSERT(closest); // !!! if found is not empty, but no edge has the right sum, choose one anyway?
+	OP_ASSERT(closest->lastEdge);
 	if (AllowReversal::yes == closestReverse)
 		closest->setLinkDirection(closestEnd);
 	OpEdge* clearClosest = closest;
@@ -538,7 +538,7 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups) {
 	closest->lastEdge = nullptr;
  	OpDebugPlayback(this, 411);
 	showNormals();
-	assert(lastEdge);
+	OP_ASSERT(lastEdge);
 	if (lastEdge->isClosed(this) || lastEdge->segment->contour->contours->closeGap(lastEdge, this))
 		return lastEdge->validLoop();
 	if (!lastEdge->nextEdge)
@@ -552,13 +552,13 @@ OpEdge* OpEdge::prepareForLinkup() {
 		OpEdge* prior = first->priorEdge;
 		if (!prior)
 			break;
-		assert(this != prior);
+		OP_ASSERT(this != prior);
 		first = prior;
 	}
 	OpEdge* next = first;
 	OpEdge* last;
 	do {
-		assert(next->isActive());
+		OP_ASSERT(next->isActive());
 		next->clearActive();
 		last = next;
 		if (EdgeLink::multiple == next->nextLink)
@@ -588,7 +588,7 @@ const OpCurve& OpEdge::setCurve() {
 	if (1 == ptCount)
 		--index;
 	curve_impl.pts[index] = end.pt;
-	assert(++index == ptCount);
+	OP_ASSERT(++index == ptCount);
 	curve_impl.weight = weight;
 	curve_impl.type = segment->c.type;
 #if OP_DEBUG
@@ -606,7 +606,7 @@ void OpEdge::setFromPoints(const std::array<OpPoint, 4>& pts) {
 	if (1 == ptCount)
 		--index;
 	end.pt = pts[index];
-	assert(++index == ptCount);
+	OP_ASSERT(++index == ptCount);
 }
 
 // this compares against float epsilon instead of zero
@@ -628,10 +628,10 @@ bool OpEdge::setLinear() {
 OpPointBounds OpEdge::setLinkBounds() {
 	if (!lastEdge) {
 		OpEdge* first = this;
-		assert(priorEdge);
+		OP_ASSERT(priorEdge);
 		while (first->priorEdge)
 			first = first->priorEdge;
-		assert(first->lastEdge);
+		OP_ASSERT(first->lastEdge);
 		return first->setLinkBounds();
 	}
 	if (linkBounds.isSet())
@@ -662,7 +662,7 @@ void OpEdge::setLinkDirection(EdgeMatch match) {
 	edge->whichEnd = Opposite(edge->whichEnd);
 	lastEdge = edge;
 	if (this != edge) {
-//		assert(!inLinkLoop(edge));		// !!! don't know what this assert is testing for
+//		OP_ASSERT(!inLinkLoop(edge));		// !!! don't know what this OP_ASSERT is testing for
 		edge->lastEdge = nullptr;
 	}
 }
@@ -679,7 +679,7 @@ void OpEdge::setPointBounds() {
 	OpPointBounds copy = ptBounds;
 	for (int index = 0; index < segment->c.pointCount() - 2; ++index)
 		ptBounds.add(ctrlPts[index]);
-	assert(copy == ptBounds);
+	OP_ASSERT(copy == ptBounds);
 #endif
 }
 
@@ -692,7 +692,7 @@ void OpEdge::setPoints(std::array<OpPoint, 4>& pts) const {
 	if (1 == ptCount)
 		--index;
 	pts[index] = end.pt;
-	assert(++index == ptCount);
+	OP_ASSERT(++index == ptCount);
 }
 
 // setter to make adding breakpoints easier

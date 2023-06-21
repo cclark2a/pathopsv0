@@ -500,7 +500,6 @@ const DebugOpCubic& DebugOpCurve::asCubic() const { return *static_cast<const De
 
 DebugOpRoots DebugOpCurve::axisRayHit(Axis axis, double axisIntercept) const {
     switch (type) {
-    case pointType: return 0;
     case lineType: {
         double denominator = pts[1].choice(axis) - pts[0].choice(axis);
         DebugOpRoots roots(0 == denominator ? OpNaN : (axisIntercept - pts[0].choice(axis)) / denominator);
@@ -510,7 +509,7 @@ DebugOpRoots DebugOpCurve::axisRayHit(Axis axis, double axisIntercept) const {
     case conicType: return asConic().axisRayHit(axis, axisIntercept);
     case cubicType: return asCubic().axisRayHit(axis, axisIntercept);
     default:
-        assert(0);
+        OP_ASSERT(0);
     }
     return 0;
 }
@@ -532,13 +531,12 @@ DebugOpRoots DebugOpCurve::rayIntersect(const OpDebugRay& ray) const {
 
 DebugOpPoint DebugOpCurve::ptAtT(double t) const {
     switch(type) {
-    case pointType: return pts[0];
     case lineType: return DebugOpMath::Interp(pts[0], pts[1], t);    
     case quadType: return asQuad().ptAtT(t);
     case conicType: return asConic().ptAtT(t);
     case cubicType: return asCubic().ptAtT(t);
     default:
-        assert(0);
+        OP_ASSERT(0);
         return DebugOpPoint();
     }
 }
@@ -661,9 +659,6 @@ void DebugOpCurve::rectCurves(std::vector<DebugOpCurve>& bounded) const {
 
 void DebugOpCurve::subDivide(double a, double b, DebugOpCurve& dest) const {
     switch (type) {
-    case pointType: 
-        dest.pts[0] = ptAtT(a); 
-        return;
     case lineType: 
         dest.pts[0] = ptAtT(a); 
         dest.pts[1] = ptAtT(b); 
@@ -675,7 +670,7 @@ void DebugOpCurve::subDivide(double a, double b, DebugOpCurve& dest) const {
     case cubicType: 
         return asCubic().subDivide(a, b, dest);
     default:
-        assert(0);
+        OP_ASSERT(0);
     }
 }
 
@@ -687,7 +682,7 @@ void DebugOpCurve::subDivide(double a, double b, DebugOpCurve& dest) const {
 SkColor DebugColorToSkColor(DebugColor debugColor) {
     static std::array<SkColor, 4> colors = {
         SK_ColorBLACK, SK_ColorRED, 0x80008000 /* dark green */, SK_ColorBLUE };
-    assert((unsigned) debugColor < colors.size());
+    OP_ASSERT((unsigned) debugColor < colors.size());
     return colors[(unsigned) debugColor];
 }
 
@@ -1287,7 +1282,7 @@ void DebugOpDrawSegmentID(const OpSegment* segment, std::vector<int>& ids) {
             drawnSeg.mapTo(curve);
             OpPoint midTPt = curve.ptAtT(.5);
             if (OpDebugImage::drawValue(midTPt, STR(segment->id), segment->winding.visible()
-                    && OpType::pointType != segment->c.type ? SK_ColorBLACK : SK_ColorRED))
+                    ? SK_ColorBLACK : SK_ColorRED))
                 break;
         }
 }

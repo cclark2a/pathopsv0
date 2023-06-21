@@ -261,7 +261,7 @@ void OpCubicErrorTest(CubicTest testType, SpeedTest speedTest) {
 					int edgeRoots = cubic.axisRayHit(axis, intercept, edge.start, edge.end, edgeCepts);
 					if (SpeedTest::on == speedTest)
 						continue;
-					assert((size_t) roots + (size_t) edgeRoots <= edgeCepts.size());
+					OP_ASSERT((size_t) roots + (size_t) edgeRoots <= edgeCepts.size());
 					for (int index = 0; index < edgeRoots; ++index)
 						cepts[roots++] = edgeCepts[index];
 				}
@@ -363,14 +363,14 @@ void OpCubicErrorTest(CubicTest testType, SpeedTest speedTest) {
 
 void OpCurveTest() {
 	const OpPoint pts[] = { { 100, 100 }, { 200, 100 }, { 200, 200 }, {100, 200} };
-	OpCurve curve = { pts, pointType };
+	OpCurve curve = { pts, lineType };
 	OpLine line = { pts };
 	OpQuad quad = { pts };
 	OpConic conic = { pts, .5 };
 	OpCubic cubic = { pts };
 
 	// test pointCount
-	ASSERT(1 == curve.pointCount());
+	ASSERT(2 == curve.pointCount());
 	ASSERT(2 == line.pointCount());
 	ASSERT(3 == quad.pointCount());
 	ASSERT(3 == conic.pointCount());
@@ -789,7 +789,7 @@ bool OpPathOpsTest1(const SkPath& one, const SkPath& two, SkPath* result) {
 	OpInPath op2(&two);
 	OpOutPath opOut(result);
 	OP_DEBUG_CODE(bool didIt =) PathOps(op1, op2, OpOperator::Intersect, opOut);
-	assert(didIt);
+	OP_ASSERT(didIt);
 	result->dump();
 	OpDebugOut("success!\n");
 	return true;
@@ -805,7 +805,7 @@ void OpTestXor() {
 	OpInPath op2(&two);
 	OpOutPath opOut(&result);
 	OP_DEBUG_CODE(bool didIt =) PathOps(op1, op2, OpOperator::ExclusiveOr, opOut);
-	assert(didIt);
+	OP_ASSERT(didIt);
 	result.dump();
 	OpDebugOut("");
 }
@@ -826,10 +826,10 @@ void OpTestRect() {
 			two.addRect(r2, c2);
 			result.reset();
 			(void) OpPathOpsTest1(one, two, &result);
-			assert(result.getBounds() == r3);
+			OP_ASSERT(result.getBounds() == r3);
 			result.reset();
 			(void)OpPathOpsTest1(two, one, &result);
-			assert(result.getBounds() == r3);
+			OP_ASSERT(result.getBounds() == r3);
 		}
 	}
 }
@@ -841,7 +841,7 @@ void OpTestCoincidence() {
 	one.addRect(r1);
 	two.addRect(r2);
 	(void)OpPathOpsTest1(one, two, &result);
-	assert(result.getBounds() == r1);
+	OP_ASSERT(result.getBounds() == r1);
 }
 
 void OpTestOpEdgesConcidenceCheck() {
@@ -874,18 +874,18 @@ void OpTestOpEdgesConcidenceCheck() {
 					float min = std::max(_ab[0], _cd[0]);
 					float max = std::min(_ab[1], _cd[1]);
 					if (min > max) {
-						assert(!seg.intersections.size());
-						assert(!oSeg.intersections.size());
+						OP_ASSERT(!seg.intersections.size());
+						OP_ASSERT(!oSeg.intersections.size());
 						continue;
 					}
 					if (min == max) {
-						assert(1 == seg.intersections.size());
-						assert(seg.intersections[0]->ptT.t == 0 || seg.intersections[0]->ptT.t == 1);
-						assert(1 == oSeg.intersections.size());
-						assert(oSeg.intersections[0]->ptT.t == 0 || oSeg.intersections[0]->ptT.t == 1);
+						OP_ASSERT(1 == seg.intersections.size());
+						OP_ASSERT(seg.intersections[0]->ptT.t == 0 || seg.intersections[0]->ptT.t == 1);
+						OP_ASSERT(1 == oSeg.intersections.size());
+						OP_ASSERT(oSeg.intersections[0]->ptT.t == 0 || oSeg.intersections[0]->ptT.t == 1);
 					} else {
-						assert(2 == seg.intersections.size());
-						assert(2 == oSeg.intersections.size());
+						OP_ASSERT(2 == seg.intersections.size());
+						OP_ASSERT(2 == oSeg.intersections.size());
 					}
 					OP_DEBUG_CODE(seg.debugValidate());
 					OP_DEBUG_CODE(oSeg.debugValidate());
@@ -915,7 +915,7 @@ void OpTest_WindState() {
 	for (size_t index = 0; index < ARRAY_COUNT(tests); ++index) {
 		const WindStateTest& test = tests[index];
 		if (!(test.state == contours.windState(test.wind, test.sum, OpOperand::left)))
-			assert(0);
+			OP_ASSERT(0);
 	}
 }
 
@@ -946,7 +946,7 @@ void OpTest_WindZero() {
 		edge2.sum.left = test.sum;
 		edge2.winding.right = 1;
 		edge2.sum.right = 1;
-		assert(test.state == edge2.windZero(OpOperand::left));
+		OP_ASSERT(test.state == edge2.windZero(OpOperand::left));
 	}
 }
 #endif
@@ -1036,7 +1036,7 @@ void OpTestQuadLine() {
 	OpInPath op2(&two);
 	OpOutPath opOut(&result);
 	OP_DEBUG_CODE(bool didIt =) PathOps(op1, op2, OpOperator::Intersect, &result);
-	assert(didIt);
+	OP_ASSERT(didIt);
 	result.dump();
 	OpDebugOut("");
 }
@@ -1054,7 +1054,7 @@ void OpTestQuadQuad() {
 	OpInPath op2(&two);
 	OpOutPath opOut(&result);
 	OP_DEBUG_CODE(bool didIt =) PathOps(op1, op2, OpOperator::Intersect, opOut);
-	assert(didIt);
+	OP_ASSERT(didIt);
 	result.dump();
 	OpDebugOut("");
 }
@@ -1072,7 +1072,7 @@ void OpTestQuadCoin() {
 	OpInPath op2(&two);
 	OpOutPath opOut(&result);
 	OP_DEBUG_CODE(bool didIt =) PathOps(op1, op2, OpOperator::Intersect, opOut);
-	assert(didIt);
+	OP_ASSERT(didIt);
 	result.dump();
 	OpDebugOut("");
 }
@@ -1090,7 +1090,7 @@ void OpTestQuadCoin2() {
 	OpInPath op2(&two);
 	OpOutPath opOut(&result);
 	OP_DEBUG_CODE(bool didIt =) PathOps(op1, op2, OpOperator::Intersect, opOut);
-	assert(didIt);
+	OP_ASSERT(didIt);
 	result.dump();
 	OpDebugOut("");
 }

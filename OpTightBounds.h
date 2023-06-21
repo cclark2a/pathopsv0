@@ -50,7 +50,7 @@ struct OpPointBounds : OpRect {
     }
 
     OpPoint add(OpPoint pt) {
-        assert(pt.isFinite());
+        OP_ASSERT(pt.isFinite());
         left = std::min(left, pt.x);
         top = std::min(top, pt.y);
         right = std::max(right, pt.x);
@@ -59,7 +59,7 @@ struct OpPointBounds : OpRect {
     }
 
     void add(const OpPointBounds& bounds) {
-        assert(bounds.isFinite());
+        OP_ASSERT(bounds.isFinite());
         left = std::min(left, bounds.left);
         top = std::min(top, bounds.top);
         right = std::max(right, bounds.right);
@@ -67,12 +67,12 @@ struct OpPointBounds : OpRect {
     }
 
     bool contains(OpPoint pt) const {
-        assert(pt.isFinite());
+        OP_ASSERT(pt.isFinite());
         return OpMath::Between(left, pt.x, right) && OpMath::Between(top, pt.y, bottom);
     }
 
     OpPointBounds intersect(const OpPointBounds& bounds) const {
-        assert(bounds.isFinite());
+        OP_ASSERT(bounds.isFinite());
         return {
             std::max(left, bounds.left),
             std::max(top, bounds.top),
@@ -123,12 +123,12 @@ struct OpPointBounds : OpRect {
 
 #if OP_DEBUG
     bool debugContains(OpPoint pt) {
-//        assert(pt.isFinite());    // in debug code, points may be NaN
+//        OP_ASSERT(pt.isFinite());    // in debug code, points may be NaN
         return OpMath::Between(left, pt.x, right) && OpMath::Between(top, pt.y, bottom);
     }
 
     bool debugContains(const OpPointBounds& bounds) {
-        assert(bounds.isFinite());
+        OP_ASSERT(bounds.isFinite());
         return OpMath::Between(left, bounds.left, right) && OpMath::Between(left, bounds.right, right)
                 && OpMath::Between(top, bounds.top, bottom) && OpMath::Between(top, bounds.bottom, bottom);
     }
@@ -217,12 +217,11 @@ struct OpTightBounds : OpPointBounds {
 
     void set(OpCurve& c) {
         switch (c.type) {
-        case pointType: OpPointBounds::set(c.pts, 1); break;
         case lineType: OpPointBounds::set(c.pts, 2); break;
         case quadType: calcBounds(c.asQuad()); break;
         case conicType: calcBounds(c.asConic()); break;
         case cubicType: calcBounds(c.asCubic()); break;
-        default: assert(0);
+        default: OP_ASSERT(0);
         }
     }
 

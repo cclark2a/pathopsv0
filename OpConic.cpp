@@ -39,7 +39,7 @@ OpRoots OpConic::extrema(XyChoice offset) const {
     // In extreme cases, the number of roots returned can be 2. Pathops
     // will fail later on, so there's no advantage to plumbing in an error
     // return here.
-    assert(0 == roots.count || 1 == roots.count);   // !!! I wanna see the extreme case...
+    OP_ASSERT(0 == roots.count || 1 == roots.count);   // !!! I wanna see the extreme case...
     return roots;
 };
 

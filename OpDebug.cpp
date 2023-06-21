@@ -162,7 +162,7 @@ void OpDebugSkip(const char*& str, const char* match) {
         str += 1;
         --strLen;
     }
-    assert(strlen(str));
+    OP_ASSERT(strlen(str));
 }
 
 std::string OpDebugToString(float value, int precision) {
@@ -178,18 +178,17 @@ void OpMath::DebugCompare(float a, float b) {
     float diff = fabsf(a - b);
     float max = std::max(fabsf(a), fabsf(b));
     float precision = diff / max;
-    assert(precision < OpEpsilon);
+    OP_ASSERT(precision < OpEpsilon);
 }
 
 OpVector OpCurve::debugTangent(float t) const {
     switch (type) {
-    case pointType: return OpVector();
     case lineType: return asLine().tangent();
     case quadType: return asQuad().debugTangent(t);
     case conicType: return asConic().debugTangent(t);
     case cubicType: return asCubic().debugTangent(t);
     default:
-        assert(0);
+        OP_ASSERT(0);
     }
     return OpVector();
 }
@@ -245,11 +244,20 @@ OpDebugOut("");
 }
 
 void OpIntersection::debugValidate() const {
-    assert(OpMath::Between(0, ptT.t, 1));
+    OP_ASSERT(OpMath::Between(0, ptT.t, 1));
     OpPoint pt = segment->c.ptAtT(ptT.t);
     OpMath::DebugCompare(pt, ptT.pt);
     OpPoint oPt = opp->segment->c.ptAtT(opp->ptT.t);
     OpMath::DebugCompare(pt, oPt);
+}
+
+bool OpSegment::debugContains(OpPtT ptT, const OpSegment* opp) const {
+    for (auto sect : intersections) {
+        if ((sect->ptT.pt == ptT.pt || sect->ptT.t == ptT.t) 
+                && sect->opp->segment == opp)
+            return true;
+    }
+    return false;
 }
 
 #endif

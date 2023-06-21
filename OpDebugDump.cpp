@@ -107,7 +107,7 @@ void OpContours::dumpCount(std::string label) const {
     long size = 0;
     if (file) {
         int seek = fseek(file, 0, SEEK_END);
-        assert(!seek);
+        OP_ASSERT(!seek);
         size = ftell(file);
         fclose(file);
         file = fopen(label.c_str(), "rb");
@@ -124,7 +124,7 @@ void OpContours::dumpCount(std::string label) const {
     std::string s = debugDumpHex(label);
     file = fopen(label.c_str(), "w");
     size_t result = fwrite(s.c_str(), 1, s.length(), file);
-    assert(result == s.length());
+    OP_ASSERT(result == s.length());
     fclose(file);
     fflush(file);
     free(buffer);
@@ -427,32 +427,32 @@ const OpSegment* OpContours::findSegment(int ID) const {
 static std::string getline(const char*& str) {
     if ('}' == str[0]) {
         ++str;
-        assert(';' == *str++);
+        OP_ASSERT(';' == *str++);
         if ('\r' == str[0])
             ++str;
-        assert('\n' == *str++);
+        OP_ASSERT('\n' == *str++);
         if ('\r' == str[0])
             ++str;
-        assert('\n' == *str++);
+        OP_ASSERT('\n' == *str++);
     }
     const char* structCheck = "OpDebug";
     if (!strncmp(structCheck, str, sizeof(structCheck) - 1)) {
         str = strchr(str, '\n');
-        assert(str);
+        OP_ASSERT(str);
         str += 1;
     }
-    assert(!strncmp("// ", str, 3));
+    OP_ASSERT(!strncmp("// ", str, 3));
     const char* start = strchr(str, '\n');
-    assert(start);
+    OP_ASSERT(start);
     start += 1;
-    assert('{' == start[0]);
+    OP_ASSERT('{' == start[0]);
     const char* end = strchr(start, '\n');
-    assert(end);
+    OP_ASSERT(end);
     str = end + 1;
     if ('\r' == end[-1])
         --end;
-    assert(',' == end[-1]);
-    assert('/' == str[0] || '}' == str[0]);
+    OP_ASSERT(',' == end[-1]);
+    OP_ASSERT('/' == str[0] || '}' == str[0]);
     std::string line = std::string(start, end - start - 1);
     return line;
 }
@@ -473,32 +473,40 @@ void OpContours::debugCompare(std::string s) const {
     }
 }
 
+std::string OpContour::debugDump() const {
+    std::string s = "contour: " + STR(id) + "\n";
+    s += "bounds: " + ptBounds.debugDump() + " ";
+    s += "operand: ";
+    s += OpOperand::left == operand ? "left" : "right";
+    return s;
+}
+
 void OpContour::dump() const {
-    OpDebugOut("contour: " + STR(id) + "\n");
+    OpDebugOut(debugDump() + "\n");
     for (auto& segment : segments)
         segment.dump();
 }
 
 void OpContour::dumpDetail() const {
-    OpDebugOut("contour: " + STR(id) + "\n");
+    OpDebugOut(debugDump() + "\n");
     for (auto& segment : segments)
         segment.dumpDetail();
 }
 
 void OpContour::dumpFull() const {
-    OpDebugOut("contour: " + STR(id) + "\n");
+    OpDebugOut(debugDump() + "\n");
     for (auto& segment : segments)
         segment.dumpFull();
 }
 
 void OpContour::dumpHex() const {
-    OpDebugOut("contour: " + STR(id) + "\n");
+    OpDebugOut(debugDump() + "\n");
     for (auto& segment : segments)
         segment.dumpHex();
 }
 
 std::string OpCurve::debugDump() const {
-    const char* names[] { "pointType", "lineType", "quadType", "conicType", "cubicType" };
+    const char* names[] { "noType", "lineType", "quadType", "conicType", "cubicType" };
     std::string s;
     s = "{ ";
     bool first = true;
@@ -511,13 +519,13 @@ std::string OpCurve::debugDump() const {
     s += " }";
     if (1 != weight)
         s += " w:" + OpDebugDump(weight);
-    s += " " + (pointType <= type && type <= cubicType ? names[type] :
-        "noType [" + STR(type) + "]");
+    s += " " + (noType <= type && type <= cubicType ? names[type] :
+        "broken type [" + STR(type) + "]");
     return s;
 }
 
 std::string OpCurve::debugDumpHex() const {
-    const char* names[] { "pointType", "lineType", "quadType", "conicType", "cubicType" };
+    const char* names[] { "noType", "lineType", "quadType", "conicType", "cubicType" };
     std::string s;
     s = "OpPoint data[] {\n";
     for (int i = 0; i < pointCount(); ++i) {
@@ -529,8 +537,8 @@ std::string OpCurve::debugDumpHex() const {
     s += "};";
     if (1 != weight)
         s += "  // weight:" + OpDebugDumpHex(weight) + " // " + OpDebugDump(weight) + "\n";
-    s += "  // type:" + (pointType <= type && type <= cubicType ? names[type] :
-        "noType [" + STR(type) + "]");
+    s += "  // type:" + (noType <= type && type <= cubicType ? names[type] :
+        "broken type [" + STR(type) + "]");
     return s;
 }
 
@@ -867,7 +875,7 @@ OpEdge::OpEdge(std::string s)
     str = endStr;
     OpDebugSkip(str, "}");
     segment = findSegment(segmentID);
-//    assert(segment);
+//    OP_ASSERT(segment);
     // don't call complete because we don't want to advance debug id
 }
 
@@ -885,9 +893,9 @@ OpEdge::OpEdge(OpPtT ptT[2])
 
 void OpEdge::debugCompare(std::string s) const {
     OpEdge test(s);
-    assert(segment->id == test.segment->id);
-    assert(start == test.start);
-    assert(end == test.end);
+    OP_ASSERT(segment->id == test.segment->id);
+    OP_ASSERT(start == test.start);
+    OP_ASSERT(end == test.end);
 }
 
 std::string OpEdge::debugDump() const {
@@ -938,12 +946,12 @@ void OpEdge::debugValidate() const {
         if (&edge == this)
             return;
     }
-    assert(0);
+    OP_ASSERT(0);
 }
 
 // keep this in sync with op edge : is loop
 std::string OpEdge::debugDumpChain(WhichLoop which, EdgeLoop edgeLoop, bool detail) const {
-    assert(WhichLoop::prior == which || EdgeLoop::link == edgeLoop);
+    OP_ASSERT(WhichLoop::prior == which || EdgeLoop::link == edgeLoop);
     std::string s = "chain:";
     const OpEdge* looped = isLoop(which, edgeLoop, LeadingLoop::in);
     bool firstLoop = false;
@@ -1154,8 +1162,10 @@ IntersectMakerName intersectMakerNames[] {
 	INTERSECT_MAKER_NAME(findIntersections_endOpp),
 	INTERSECT_MAKER_NAME(missingCoincidence),
 	INTERSECT_MAKER_NAME(missingCoincidenceOpp),
+	INTERSECT_MAKER_NAME(segEnd),
 	INTERSECT_MAKER_NAME(segmentLineCurve),
 	INTERSECT_MAKER_NAME(segmentLineCurveOpp),
+	INTERSECT_MAKER_NAME(segStart),
 	INTERSECT_MAKER_NAME(splitAtWinding),
 	INTERSECT_MAKER_NAME(unsectableStart),
 	INTERSECT_MAKER_NAME(unsectableEnd),
@@ -1174,7 +1184,6 @@ struct SectReasonName {
 };
 
 #define SECT_REASON_NAME(r) { SectReason::r, #r }
-
 
 SectReasonName sectReasonNames[] {
     SECT_REASON_NAME(coinPtsMatch),
@@ -1198,6 +1207,21 @@ SectReasonName sectReasonNames[] {
     // testing only
     SECT_REASON_NAME(test),
 };
+
+static bool reasonOutOfDate = false;
+
+void checkReason() {
+    static bool reasonChecked = false;
+    if (!reasonChecked) {
+        for (unsigned index = 0; index < ARRAY_COUNT(sectReasonNames); ++index)
+           if (!reasonOutOfDate && (unsigned) sectReasonNames[index].reason != index) {
+               OpDebugOut("!!! sectReasonNames out of date\n");
+               reasonOutOfDate = true;
+               break;
+           }
+        reasonChecked = true;
+    }
+}
 
 struct SectFlavorName {
     SectFlavor flavor;
@@ -1226,17 +1250,6 @@ std::string OpIntersection::debugDump(bool fromDumpFull, bool fromDumpDetail) co
            }
         makerChecked = true;
     }
-    static bool reasonChecked = false;
-    static bool reasonOutOfDate = false;
-    if (!reasonChecked) {
-        for (unsigned index = 0; index < ARRAY_COUNT(sectReasonNames); ++index)
-           if (!reasonOutOfDate && (unsigned) sectReasonNames[index].reason != index) {
-               OpDebugOut("!!! sectReasonNames out of date\n");
-               reasonOutOfDate = true;
-               break;
-           }
-        reasonChecked = true;
-    }
     static bool flavorChecked = false;
     static bool flavorOutOfDate = false;
     if (!flavorChecked) {
@@ -1248,6 +1261,7 @@ std::string OpIntersection::debugDump(bool fromDumpFull, bool fromDumpDetail) co
            }
         flavorChecked = true;
     }
+    checkReason();
     std::string s;
     std::string segmentID = segment ? segment->debugDumpID() : "--";
     const OpSegment* oppParent = opp ? opp->segment : nullptr;
@@ -1343,14 +1357,14 @@ OpIntersection::OpIntersection(std::string s) {
     str = end;
     OpDebugSkip(str, "}");
     segment = const_cast<OpSegment*>(findSegment(segmentID));
-    assert(segment);
+    OP_ASSERT(segment);
     // don't call comnplete because we don't want to advance debug id
 }
 
 void OpIntersection::debugCompare(std::string s) const {
     OpIntersection test(s);
-    assert(segment->id == test.segment->id);
-    assert(ptT == test.ptT);
+    OP_ASSERT(segment->id == test.segment->id);
+    OP_ASSERT(ptT == test.ptT);
 }
 
 void OpIntersection::dump() const {
@@ -1371,10 +1385,23 @@ std::string OpSegment::debugDump() const {
 
 std::string OpSegment::debugDumpDetail() const {
     std::string s = debugDump() + "\n";
-    s += " winding: " + winding.debugDump() + "\n";
+    s += " winding: " + winding.debugDump() + " ";
+    if (recomputeBounds)
+        s += "recomputeBounds ";
+    if (resortIntersections)
+        s += "resortIntersections ";
+    s += "\n";
     s += " bounds:" + ptBounds.debugDump() + " ";
-    s += "contour:" + (contour ? STR(contour->id) : std::string("unset"));
-
+    s += "contour:" + (contour ? STR(contour->id) : std::string("unset")) + "\n";
+    checkReason();
+    if (reasonOutOfDate)
+        s += " (start reason out of date) " + STR((int)debugStart);
+    else
+        s += std::string(" start reason:") + sectReasonNames[(int)debugStart].name;
+    if (reasonOutOfDate)
+        s += " (end reason out of date) " + STR((int)debugEnd);
+    else
+        s += std::string(" end reason:") + sectReasonNames[(int)debugEnd].name;
     return s;
 }
 
@@ -1546,7 +1573,7 @@ void DumpLinkups(const std::vector<OpEdge*>& linkups) {
                 firstLoop = true;
             }
         }
-        assert(!looped || count == priorCount);
+        OP_ASSERT(!looped || count == priorCount);
         if (looped)
             priorCount = 0;
         std::string str = "linkup count: " + STR(count + priorCount);
@@ -1579,7 +1606,7 @@ void DumpLinkups(const std::vector<OpEdge*>& linkups) {
             if (looped == next)
                 break;
             if (next == linkup->lastEdge) {
-                assert(!next->nextEdge);
+                OP_ASSERT(!next->nextEdge);
                 if (str.length()) {
                     OpDebugOut(str + "\n");
                     str = "";

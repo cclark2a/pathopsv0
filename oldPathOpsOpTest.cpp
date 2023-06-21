@@ -142,7 +142,7 @@ void VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op,
         fprintf(stderr, "// Op did not expect errors=%d\n", errors);
 //        DumpOp(stderr, one, two, op, "opTest");
         fflush(stderr);
-        assert(0);
+        OP_ASSERT(0);
     }
 }
 
@@ -155,9 +155,9 @@ bool testPathOpBase(skiatest::Reporter* , const SkPath& a, const SkPath& b,
 	OpInPath op2(&b);
 	OpOutPath opOut(&result);
     bool success = PathOps(op1, op2, (OpOperator) op, opOut);
-    assert(success || v0MayFail);
+    OP_ASSERT(success || v0MayFail);
     bool skSuccess = Op(a, b, op, &skresult);
-    assert(skSuccess || skiaMayFail);
+    OP_ASSERT(skSuccess || skiaMayFail);
     if (name == "op_1") {
         OpDebugOut("v0 result:\n");
         result.dump();
@@ -167,8 +167,8 @@ bool testPathOpBase(skiatest::Reporter* , const SkPath& a, const SkPath& b,
     }
 #if 0
     bool xorSucess = Op(result, skresult, kXOR_SkPathOp, &xorResult);
-    assert(xorSucess);
-    assert(xorResult.isEmpty());
+    OP_ASSERT(xorSucess);
+    OP_ASSERT(xorResult.isEmpty());
 #else
     if (success && skSuccess) VerifyOp(a, b, op, result);
 #endif
@@ -205,7 +205,7 @@ void RunTestSet(skiatest::Reporter* reporter, TestDesc tests[], size_t count,
 }
 
 void REPORTER_ASSERT(skiatest::Reporter* , bool test) {
-    assert(test);
+    OP_ASSERT(test);
 }
 
 void markTestFlakyForPathKit() {

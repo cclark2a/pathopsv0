@@ -27,7 +27,7 @@ SectFound OpCurveCurve::addUnsectable() {
 					opp.ptBounds.ltChoice(larger));
 			float maxXY = std::min(edge.ptBounds.rbChoice(larger), 
 					opp.ptBounds.rbChoice(larger));
-			assert(minXY < maxXY);
+			OP_ASSERT(minXY < maxXY);
 			if (edge.start.pt.choice(larger) > edge.end.pt.choice(larger))
 				std::swap(minXY, maxXY);
 			findMatch(minXY, edge, edgeStart);
@@ -76,9 +76,9 @@ SectFound OpCurveCurve::curvesIntersect(CurveRef curveRef) {
 	std::vector<OpEdge>& oppParts = CurveRef::edge == curveRef ? oppCurves : edgeCurves;
 	SectFound result = SectFound::no;	// assumes no pair intersects; we're done
 	for (auto& edge : edgeParts) {
-		// !!! if assert fires, we missed detecting linear edge earlier
-		assert(edge.start.t < edge.center.t && edge.center.t < edge.end.t);
-		assert(!edge.isLine_impl);
+		// !!! if OP_ASSERT fires, we missed detecting linear edge earlier
+		OP_ASSERT(edge.start.t < edge.center.t && edge.center.t < edge.end.t);
+		OP_ASSERT(!edge.isLine_impl);
 		// rotate each to see if tight rotated bounds (with extrema) touch
 		LinePts edgeLine { edge.start.pt, edge.end.pt };
 		OpCurve& edgeRotated = const_cast<OpCurve&>(edge.setVertical());
@@ -86,7 +86,7 @@ SectFound OpCurveCurve::curvesIntersect(CurveRef curveRef) {
 			return SectFound::fail;
 		OpTightBounds edgeRotatedBounds(edgeRotated);
 		for (auto& opp : oppParts) {
-			assert(!opp.isLine_impl);
+			OP_ASSERT(!opp.isLine_impl);
 			if (!edge.ptBounds.intersects(opp.ptBounds))
 				continue;
 			const OpCurve& oppCurve = opp.setCurve();
@@ -136,10 +136,10 @@ SectFound OpCurveCurve::divideAndConquer() {
 		showGrid();
 	}
 #endif
-	assert(1 == edgeCurves.size());
-	assert(0 == edgeLines.size());
-	assert(1 == oppCurves.size());
-	assert(0 == oppLines.size());
+	OP_ASSERT(1 == edgeCurves.size());
+	OP_ASSERT(0 == edgeLines.size());
+	OP_ASSERT(1 == oppCurves.size());
+	OP_ASSERT(0 == oppLines.size());
 //	edgeCurves[0].addMatchingEnds(oppCurves[0]);
 	for (int depth = 1; depth < maxDepth; ++depth) {
 #if OP_DEBUG_IMAGE
@@ -192,7 +192,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 		}
 #endif
 	}
-	assert(0);
+	OP_ASSERT(0);
 	return SectFound::no;
 }
 
@@ -246,7 +246,7 @@ bool OpCurveCurve::split(CurveRef curveRef, DoSplit doSplit) {
 	std::vector<OpEdge>& lines = CurveRef::edge == curveRef ? edgeLines : oppLines;
 	std::vector<OpEdge> splits;	// curves only
 	for (auto& edge : curves) {
-		assert(!edge.isLine_impl);
+		OP_ASSERT(!edge.isLine_impl);
 		if (EdgeSplit::no == edge.doSplit && DoSplit::marked == doSplit)
 			continue;
 		// constructor invoked by emplace back does all the heavy lifting (initialization)

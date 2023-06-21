@@ -49,7 +49,7 @@ enum class EdgeMatch : uint8_t {
 enum class FoundPtT;
 
 inline EdgeMatch Opposite(EdgeMatch match) {
-	assert(EdgeMatch::start == match || EdgeMatch::end == match);
+	OP_ASSERT(EdgeMatch::start == match || EdgeMatch::end == match);
 	return EdgeMatch::start == match ? EdgeMatch::end : EdgeMatch::start;
 }
 
@@ -197,7 +197,7 @@ public:
 	}
 
 	bool isSet() const {
-		assert(WindingType::sum == debugType);
+		OP_ASSERT(WindingType::sum == debugType);
 		return OpMax != left_impl || OpMax != right_impl;
 	}
 
@@ -221,7 +221,7 @@ public:
 	}
 
 	void setWind(int left, int right) {	// shouldn't be 0, 0 (call zero() for that)
-		assert(left || right);
+		OP_ASSERT(left || right);
 		left_impl = left;
 		right_impl = right;
 	}
@@ -280,8 +280,8 @@ enum class WindZero : uint8_t {
 };
 
 inline void OpDebugCheckSingleZero(WindZero left, WindZero right) {
-	assert(WindZero::noFlip != left || WindZero::noFlip != right);
-	assert((int) left + (int) right != 3);	// not normal and opp at same time
+	OP_ASSERT(WindZero::noFlip != left || WindZero::noFlip != right);
+	OP_ASSERT((int) left + (int) right != 3);	// not normal and opp at same time
 }
 
 enum class CalcFail {
@@ -441,7 +441,7 @@ public:
 	void linkNextPrior(OpEdge* first, OpEdge* last);
 	bool matchLink(std::vector<OpEdge*>& linkups );
 	const OpEdge* nextChain(EdgeLoop edgeLoop) const {
-		assert(EdgeLoop::link == edgeLoop); return nextEdge; }
+		OP_ASSERT(EdgeLoop::link == edgeLoop); return nextEdge; }
 	void output(OpOutPath path);	// provided by the graphics implmentation
 	OpEdge* prepareForLinkup();
 	const OpEdge* priorChain(EdgeLoop edgeLoop) const {

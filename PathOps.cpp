@@ -46,6 +46,7 @@ bool PathOps(OpInPath left, OpInPath right, OpOperator _operator, OpOutPath resu
         return false;
     if (!contourList.build(right, OpOperand::right))
         return false;
+    contourList.finishAll();
     contourList.setBounds();    // !!! check to see if this is used
     OpSegments sortedSegments(contourList);
     if (!sortedSegments.inX.size())
@@ -93,12 +94,12 @@ bool PathOps(OpInPath left, OpInPath right, OpOperator _operator, OpOutPath resu
 
 // if needed, this implementation would reduce the curves' order
 bool PathReduce(const OpInPath& path, OpOutPath* result) {
-    assert(0);
+    OP_ASSERT(0);
     return false;
 }
 
 // if needed, this implementation remove zero area contours
 bool PathCleanUp(const OpInPath& path, OpOutPath* result) {
-    assert(0);
+    OP_ASSERT(0);
     return false;
 }

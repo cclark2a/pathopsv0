@@ -1,7 +1,9 @@
 #ifndef OpDebug_DEFINED
 #define OpDebug_DEFINED
 
+#ifndef _WIN32
 #include <assert.h>
+#endif
 
 #define PATH_OPS_V0_FOR_SKIA 1
 #define PATH_OPS_V0_FOR_PENTEK 2

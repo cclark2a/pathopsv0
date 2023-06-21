@@ -75,8 +75,6 @@ struct OpContour {
 #if 0
     void missingCoincidence() {
         for (auto& segment : segments) {
-            if (pointType == segment.c.type)
-                continue;
             segment.missingCoincidence();
         }
     }
@@ -85,8 +83,6 @@ struct OpContour {
 #if 0
     bool resolveCoincidence() {
         for (auto& segment : segments) {
-            if (pointType == segment.c.type)
-                continue;
             // need watchdog here so it doesn't loop forever
             int watchDog = 1000;   // !!! not sure how to compute maximum possible loopage
             while (!segment.resolveCoincidence())
@@ -100,8 +96,6 @@ struct OpContour {
 #if 0
     void resolvePoints() {
         for (auto& segment : segments) {
-            if (pointType == segment.c.type)
-                continue;
             if (!segment.intersections.size())  // size may be zero if coincident
                 continue;
             segment.resolvePoints();
@@ -125,6 +119,7 @@ struct OpContour {
     void debugComplete();
 #endif
 #if OP_DEBUG_DUMP
+    std::string debugDump() const;
     void dump() const;
     void dumpDetail() const;
     void dumpFull() const;
@@ -176,7 +171,7 @@ struct OpContours {
 #endif
 
     bool closeGap(OpEdge* last, OpEdge* first);
-    void finish(OpContour& contour);
+    void finishAll();
 
 #if 0
     void intersectEdge() {
@@ -253,8 +248,8 @@ struct OpContours {
     WindState windState(int wind, int sum, OpOperand operand) {
 #if OP_DEBUG
         OpFillType fillType = OpOperand::left == operand ? left : right;
-        assert(wind == (wind & (int) fillType));
-        assert(sum == (sum & (int) fillType));
+        OP_ASSERT(wind == (wind & (int) fillType));
+        OP_ASSERT(sum == (sum & (int) fillType));
 #endif
         if (!wind)
             return sum ? WindState::one : WindState::zero;

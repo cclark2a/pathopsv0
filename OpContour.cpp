@@ -42,7 +42,7 @@ void OpContour::addConic(const OpPoint pts[3], float weight) {
 
 void OpContour::addCubic(const OpPoint pts[4]) {
     // reduction to point if pt 0 equals pt 3 complicated since it requires pts 1, 2 be linear..
-    assert(pts[0] != pts[3]); // !!! detect possible degenerate to code from actual test data
+    OP_ASSERT(pts[0] != pts[3]); // !!! detect possible degenerate to code from actual test data
     OpTightBounds bounds;
     OpCubic cubic(pts);
     bounds.calcBounds(cubic);
@@ -121,7 +121,8 @@ void OpContour::addQuad(const OpPoint pts[3]) {
         else
             end = {{ pts[2], 1 }  OP_DEBUG_PARAMS(SectReason::startPt)};
         CurvePts partPts = quad.subDivide(start.ptT, end.ptT);
-        segments.emplace_back(partPts, quadType  OP_DEBUG_PARAMS(start.reason, end.reason, this));
+        segments.emplace_back(partPts, quadType  
+                OP_DEBUG_PARAMS(start.reason, end.reason, this));
         start = end;
     }
 }
@@ -134,18 +135,20 @@ void OpContour::debugComplete() {
 #endif
 
 void OpContour::finish() {
-    (void) addClose();
 // after all segments in contour have been allocated
-    assert(segments.size() > 2);
+    OP_ASSERT(segments.size() > 2);
     OpSegment* last = &segments.back();
-    for (auto segment : segments) {
+    last->contour = this;
+    last->resortIntersections = true; // 1 gets added before 0
+    for (auto& segment : segments) {
         segment.contour = this;
         segment.winding = operand;
         OpPoint firstPoint = segment.c.pts[0];
-        segment.addSegSect({ firstPoint, 0}  OP_DEBUG_PARAMS(SECT_MAKER(segStart), 
-                segment.debugStart, last));
-        last->addSegSect({ firstPoint, 1}  OP_DEBUG_PARAMS(SECT_MAKER(segEnd), 
-                last->debugEnd, &segment));
+        OpIntersection* sect = segment.addSegBase({ firstPoint, 0}  
+                OP_DEBUG_PARAMS(SECT_MAKER(segStart), segment.debugStart, last));
+        OpIntersection* oSect = last->addSegBase({ firstPoint, 1}  
+                OP_DEBUG_PARAMS(SECT_MAKER(segEnd),  last->debugEnd, &segment));
+        sect->pair(oSect);
         last = &segment;
     }
 }
@@ -179,9 +182,7 @@ bool OpContours::closeGap(OpEdge* last, OpEdge* first) {
     return false;
 }
 
-void OpContours::finish(OpContour& contour) {
-    if (!contour.segments.size())
-        contours.pop_back();
-    else 
+void OpContours::finishAll() {
+    for (auto& contour : contours)
         contour.finish();
 }

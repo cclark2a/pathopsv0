@@ -6,8 +6,6 @@
 OpEdges::OpEdges(OpContours& contours, EdgesToSort edgesToSort) {
 	for (auto& contour : contours.contours) {
 		for (auto& segment : contour.segments) {
-			if (pointType == segment.c.type)
-				continue;
 			for (auto& edge : segment.edges) {
 				addEdge(&edge, edgesToSort);
 			}
@@ -40,10 +38,10 @@ IntersectResult OpEdges::CoincidentCheck(OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpP
 	XyChoice xyChoice = fabsf(abDiff.dx) < fabsf(abDiff.dy) ? XyChoice::inY : XyChoice::inX;
 	float A = aPtT.pt.choice(xyChoice);
 	float B = bPtT.pt.choice(xyChoice);
-	assert(A != B);
+	OP_ASSERT(A != B);
 	float C = cPtT.pt.choice(xyChoice);
 	float D = dPtT.pt.choice(xyChoice);
-	assert(C != D);
+	OP_ASSERT(C != D);
 	bool flipped = A < B != C < D;
 	bool AinCD = OpMath::Between(C, A, D);
 	bool BinCD = OpMath::Between(C, B, D);
@@ -55,7 +53,7 @@ IntersectResult OpEdges::CoincidentCheck(OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpP
 		return AddPair(xyChoice, cPtT, dPtT, aPtT, bPtT, flipped, oppSegment, segment);
 	if (!AinCD && !BinCD)
 		return IntersectResult::no;
-	assert(CinAB || DinAB);
+	OP_ASSERT(CinAB || DinAB);
 	float AorB = AinCD ? A : B;
 	OpPtT ptTAorB = AinCD ? aPtT : bPtT;
 	float CorD = CinAB ? C : D;
@@ -93,7 +91,7 @@ void OpEdges::AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped,
 	float oEnd = dPtT.pt.choice(xyChoice);
 	float oTRange = dPtT.t - cPtT.t;
 	OpPtT oCoinStart { ptTAorB.pt, cPtT.t + (eStart - oStart) / (oEnd - oStart) * oTRange };
-	assert(OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t));
+	OP_ASSERT(OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t));
 	OpIntersection* sect = segment->addCoin(ptTAorB, coinID  
 			OP_DEBUG_PARAMS(SECT_MAKER(addMix), SectReason::coinPtsMatch, oppSegment));
 	OpIntersection* oSect = oppSegment->addCoin(oCoinStart, coinID  
@@ -130,7 +128,7 @@ IntersectResult OpEdges::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPt
 				++index;
 				continue;
 			}
-			assert(entry->coincidenceID == coinStart->coincidenceID);
+			OP_ASSERT(entry->coincidenceID == coinStart->coincidenceID);
 			if (coinStart->ptT.t <= t && t <= entry->ptT.t) {
 				*coinID = coinStart->coincidenceID;
 				return index;
@@ -138,7 +136,7 @@ IntersectResult OpEdges::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPt
 			coinStart = nullptr;
 			++index;
 		}
-		assert(!coinStart);
+		OP_ASSERT(!coinStart);
 		*coinID = 0;
 		return index;
 	};
@@ -158,7 +156,7 @@ IntersectResult OpEdges::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPt
 	// assign a new or existing coin id if sect doesn't already have one
 	if (sect1) {
 		if (!aInCoincidence) {
-			assert(!sect1->coincidenceID);
+			OP_ASSERT(!sect1->coincidenceID);
 			sect1->coincidenceID = bInCoincidence ? bCoinID : coinID;
 		}
 	} else if (!aInCoincidence)	// or if it doesn't exist and isn't in a coin range, make one
@@ -166,7 +164,7 @@ IntersectResult OpEdges::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPt
 			OP_DEBUG_PARAMS(SECT_MAKER(addPair_aPtT), SectReason::coinPtsMatch, oppSegment));
 	if (sect2) {
 		if (!bInCoincidence) {
-			assert(!sect2->coincidenceID);
+			OP_ASSERT(!sect2->coincidenceID);
 			sect2->coincidenceID = aInCoincidence ? aCoinID : coinID;
 		}
 	} else if (!bInCoincidence)
@@ -193,7 +191,7 @@ IntersectResult OpEdges::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPt
 	if (addedSect1) {
 		float eStart = aPtT.pt.choice(xyChoice);
 		OpPtT oCoinStart{ aPtT.pt, cPtT.t + (eStart - oStart) / oXYRange * oTRange };
-		assert(OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t));
+		OP_ASSERT(OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t));
 		oSect1 = oppSegment->addCoin(oCoinStart, coinID
 				OP_DEBUG_PARAMS(SECT_MAKER(addPair_oppStart), SectReason::coinPtsMatch, segment));
 		sect1->pair(oSect1);
@@ -208,7 +206,7 @@ IntersectResult OpEdges::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPt
 	if (addedSect2) {
 		float eEnd = bPtT.pt.choice(xyChoice);
 		OpPtT oCoinEnd{ bPtT.pt, cPtT.t + (eEnd - oStart) / oXYRange * oTRange };
-		assert(OpMath::Between(cPtT.t, oCoinEnd.t, dPtT.t));
+		OP_ASSERT(OpMath::Between(cPtT.t, oCoinEnd.t, dPtT.t));
 		OpIntersection* oSect2 = oppSegment->addCoin(oCoinEnd, coinID
 				OP_DEBUG_PARAMS(SECT_MAKER(addPair_oppEnd), SectReason::coinPtsMatch, segment));
 		sect2->pair(oSect2);
@@ -236,13 +234,13 @@ void OpEdges::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
 		}
 		return false;
 	};
-	assert(opp.segment != edge.segment);
+	OP_ASSERT(opp.segment != edge.segment);
 	OpRoots septs;
-	assert(edge.isLine_impl);
+	OP_ASSERT(edge.isLine_impl);
 	LinePts edgePts { edge.start.pt, edge.end.pt };
 	const OpCurve& oppCurve = opp.setCurve();
 	septs = oppCurve.rayIntersect(edgePts);
-//	assert(septs.count < 3);	// while it should never be 3, it's OK to accept those intersections
+//	OP_ASSERT(septs.count < 3);	// while it should never be 3, it's OK to accept those intersections
 	if (!septs.count)
 		return;
 	// Note that coincident check does not receive intercepts as a parameter; in fact, the intercepts
@@ -269,7 +267,7 @@ void OpEdges::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
             eSegment->ptBounds.pin(&oppPtT.pt);	// !!! doubtful this is ever needed with contains test above
 			OpPtT edgePtT { oppPtT.pt, OpMath::Interp(edge.start.t, edge.end.t, edgeT) };
 			if (alreadyContains(eSegment->intersections, edgePtT, oSegment))
-				assert(alreadyContains(oSegment->intersections, oppPtT, eSegment));
+				OP_ASSERT(alreadyContains(oSegment->intersections, oppPtT, eSegment));
 			else {
 				OpIntersection* sect = eSegment->addEdgeSect(edgePtT  
 						OP_DEBUG_PARAMS(SECT_MAKER(edgeLineCurve), SectReason::lineCurve, 
@@ -409,7 +407,7 @@ FoundIntercept OpEdges::findRayIntercept(size_t inIndex, Axis axis, OpEdge* edge
 				if (1 != cepts.count) {
 					// !!! if intercepts is 2 or 3, figure out why (and what to do)
 					// !!! likely need to try a different ray
-					assert(0 == cepts.count);
+					OP_ASSERT(0 == cepts.count);
 					continue;
 				}
 				float cept = cepts.get(0);
@@ -441,9 +439,9 @@ FoundIntercept OpEdges::findRayIntercept(size_t inIndex, Axis axis, OpEdge* edge
 		}
 		// if find ray intercept can't find, restart with new center, normal, distance, etc.
 		center = edgeCurve.ptAtT(edgeCenterT).choice(perpendicular);
-		assert(!OpMath::IsNaN(center));
+		OP_ASSERT(!OpMath::IsNaN(center));
 		normal = edgeCurve.ptAtT(edgeCenterT).choice(axis);
-		assert(!OpMath::IsNaN(normal));
+		OP_ASSERT(!OpMath::IsNaN(normal));
 		distance->clear();
 	} while (true);
 }
@@ -462,7 +460,7 @@ ChainFail OpEdges::setSumChain(size_t inIndex, Axis axis) {
 	// see if normal at center point is in direction of ray
 	std::vector<OpEdge*>& inArray = Axis::horizontal == axis ? inX : inY;
 	OpEdge* edge = inArray[inIndex];
-	assert(edge->winding.visible());
+	OP_ASSERT(edge->winding.visible());
 	const OpSegment* edgeSeg = edge->segment;
 	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
 	bool overflow;
@@ -498,7 +496,7 @@ ChainFail OpEdges::setSumChain(size_t inIndex, Axis axis) {
 		return ChainFail::failIntercept;
 	if (FoundIntercept::overflow == foundIntercept)
 		return ChainFail::normalizeOverflow;
-	assert(Axis::vertical == axis || FoundIntercept::set != foundIntercept);
+	OP_ASSERT(Axis::vertical == axis || FoundIntercept::set != foundIntercept);
 	std::sort(distance.begin(), distance.end(), CompareDistance(axis));	// sorts from high to low
 	EdgeDistance* last = &distance.front();
 	// leftmost edge may have no prior
@@ -516,14 +514,14 @@ ChainFail OpEdges::setSumChain(size_t inIndex, Axis axis) {
 	/* if this edge found an edge to the right, and the right edge has already been summed
 	   and, that right edge's cemter overlaps this edge, and the right edge did not
 	   see this edge, then mark both as loopy */
-	assert(last->edge == edge);
+	OP_ASSERT(last->edge == edge);
 	edge->sumAxis = axis;
 	edge->sumNormal = last->normal;
 	edge->sumT = last->t;
 	while (++last <= &distance.back()) {
 		OpEdge* right = last->edge;
-		assert(right != edge);
-		assert(last->distance <= 0 || right->priorSum() == edge);
+		OP_ASSERT(right != edge);
+		OP_ASSERT(last->distance <= 0 || right->priorSum() == edge);
 		if (axis != right->sumAxis)
 			continue;
 		float oneEnd = edge->start.pt.choice(axis);
@@ -578,7 +576,7 @@ FoundWindings OpEdges::setWindings(OpContours* contours) {
 					break;
 				++loopyIndex;
 			}
-			assert(loopyIndex < edges.size());
+			OP_ASSERT(loopyIndex < edges.size());
 			std::vector<EdgeDistance> loopyDistances;
 			Axis perpendicular = !axis;
 			float center = loopEnd->center.pt.choice(perpendicular);
@@ -674,7 +672,7 @@ void OpEdges::sort(EdgesToSort sortBy) {
 		std::sort(inX.begin(), inX.end(), compareXBox);
 		return;
 	}
-	assert(EdgesToSort::byCenter == sortBy);
+	OP_ASSERT(EdgesToSort::byCenter == sortBy);
 	std::sort(inX.begin(), inX.end(), compareXCenter);
 	std::sort(inY.begin(), inY.end(), compareYCenter);
 }

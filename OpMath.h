@@ -56,7 +56,7 @@ struct OpRoots {
 #endif
 
     void add(float root) {
-        assert(count < roots.size());
+        OP_ASSERT(count < roots.size());
         roots[count++] = root;
     }
 
@@ -77,7 +77,7 @@ struct OpRoots {
     }
 
     float get(unsigned index) {
-        assert(index < count);
+        OP_ASSERT(index < count);
         return roots[index];
     }
 
@@ -85,7 +85,7 @@ struct OpRoots {
     OpRoots keepInteriorTs(float start = 0, float end = 1);
 
     float* last() {
-        assert(count > 0);
+        OP_ASSERT(count > 0);
         return &roots[count - 1];
     }
 
@@ -141,7 +141,7 @@ inline Axis operator!(Axis a) {
 
 // xychoice and axis are two ways of saying the same thing; often, one can be cast to the other
 inline Axis toAxis(XyChoice choice) {
-    assert(XyChoice::inZ != choice);
+    OP_ASSERT(XyChoice::inZ != choice);
     return static_cast<Axis>(choice);
 }
 
@@ -223,7 +223,7 @@ struct OpVector {
     }
 
     float choice(XyChoice xyChoice) const {
-        assert(XyChoice::inZ != xyChoice);
+        OP_ASSERT(XyChoice::inZ != xyChoice);
         return *(&dx + +xyChoice);
     }
 
@@ -368,7 +368,7 @@ struct OpPoint {
     }
 
     float choice(XyChoice xyChoice) const {
-        assert(XyChoice::inZ != xyChoice);
+        OP_ASSERT(XyChoice::inZ != xyChoice);
         return *asPtr(xyChoice);
     }
 
@@ -473,8 +473,8 @@ struct OpRect {
 #endif
 
     void debugValidate() const {
-        assert(left <= right);
-        assert(top <= bottom);
+        OP_ASSERT(left <= right);
+        OP_ASSERT(top <= bottom);
     }
 
     float left;
@@ -563,7 +563,7 @@ struct OpMath {
     }
 
     static bool IsInt(float x) {
-        assert(Between(0, x, 1));
+        OP_ASSERT(Between(0, x, 1));
         return (int) x == x;
     }
 
