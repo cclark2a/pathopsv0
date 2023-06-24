@@ -9,7 +9,7 @@ void OpSegmentBuilder::AddConic(OpContour* contour, const OpPoint pts[3], float 
     std::vector<ExtremaT> extrema = FindExtrema(bounds);
     if (!extrema.size()) {
         CurvePts whole = {{ pts[0], pts[1], pts[2] }, weight };
-        contour->addSegment(whole, conicType  OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
+        contour->addSegment(whole, OpType::conic  OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
         return;
     }
     ExtremaT start = {{ pts[0], 0 }  OP_DEBUG_PARAMS(SectReason::startPt)};
@@ -20,7 +20,7 @@ void OpSegmentBuilder::AddConic(OpContour* contour, const OpPoint pts[3], float 
         else
             end = {{ pts[2], 1 }  OP_DEBUG_PARAMS(SectReason::endPt)};
         CurvePts partPts = conic.subDivide(start.ptT, end.ptT);
-        contour->segments.emplace_back(partPts, conicType, contour
+        contour->segments.emplace_back(partPts, OpType::conic, contour
                 OP_DEBUG_PARAMS(start.reason, end.reason));
         start = end;
     }
@@ -35,7 +35,7 @@ void OpSegmentBuilder::AddCubic(OpContour* contour, const OpPoint pts[4]) {
     std::vector<ExtremaT> extrema = FindExtrema(bounds);
     if (!extrema.size()) {
         CurvePts whole = {{ pts[0], pts[1], pts[2], pts[3] }, 1};
-        contour->segments.emplace_back(whole, cubicType, contour
+        contour->segments.emplace_back(whole, OpType::cubic, contour
                 OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
         return;
     }
@@ -47,7 +47,7 @@ void OpSegmentBuilder::AddCubic(OpContour* contour, const OpPoint pts[4]) {
         else
             end = {{ pts[3], 1 }  OP_DEBUG_PARAMS(SectReason::endPt)};
         CurvePts partPts = cubic.subDivide(start.ptT, end.ptT);
-        contour->segments.emplace_back(partPts, cubicType, contour
+        contour->segments.emplace_back(partPts, OpType::cubic, contour
                 OP_DEBUG_PARAMS(start.reason, end.reason));
         start = end;
     }
@@ -60,7 +60,7 @@ void OpSegmentBuilder::AddQuad(OpContour* contour, const OpPoint pts[3]) {
     std::vector<ExtremaT> extrema = FindExtrema(bounds);
     if (!extrema.size()) {
         CurvePts whole = {{ pts[0], pts[1], pts[2] }, 1};
-        contour->segments.emplace_back(whole, quadType, contour
+        contour->segments.emplace_back(whole, OpType::quad, contour
                 OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
         return;
     }
@@ -72,7 +72,7 @@ void OpSegmentBuilder::AddQuad(OpContour* contour, const OpPoint pts[3]) {
         else
             end = {{ pts[2], 1 }  OP_DEBUG_PARAMS(SectReason::startPt)};
         CurvePts partPts = quad.subDivide(start.ptT, end.ptT);
-        contour->segments.emplace_back(partPts, quadType, contour
+        contour->segments.emplace_back(partPts, OpType::quad, contour
                 OP_DEBUG_PARAMS(start.reason, end.reason));
         start = end;
     }

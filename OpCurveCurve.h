@@ -33,6 +33,7 @@ struct OpCurveCurve {
 		oppCurves.emplace_back(*opp);
 #if OP_DEBUG_DUMP
 		debugActive = this;
+//		debugSaveID();
 #endif
 	}
 
@@ -49,7 +50,11 @@ struct OpCurveCurve {
 
 	~OpCurveCurve() {
 		debugActive = nullptr;
+//		debugRestoreID();	// see implementation for why this is disabled
 	}
+
+	void debugSaveID();
+	void debugRestoreID();
 	void dump(bool detail) const;
 	void dump() const { dump(false); }
 	void dumpDetail() const { dump(true); }

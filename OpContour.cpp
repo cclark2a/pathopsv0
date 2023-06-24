@@ -1,5 +1,26 @@
 #include "OpContour.h"
 #include "OpEdge.h"
+#include "PathOps.h"
+
+static const OpOperator OpInverse[+OpOperator::ReverseSubtract + 1][2][2] {
+    //                inside minuend                                  outside minuend
+    //  inside subtrahend     outside subtrahend         inside subtrahend   outside subtrahend
+    { { OpOperator::Subtract, OpOperator::Intersect }, { OpOperator::Union, OpOperator::ReverseSubtract } },
+    { { OpOperator::Intersect, OpOperator::Subtract }, { OpOperator::ReverseSubtract, OpOperator::Union } },
+    { { OpOperator::Union, OpOperator::ReverseSubtract }, { OpOperator::Subtract, OpOperator::Intersect } },
+    { { OpOperator::ExclusiveOr, OpOperator::ExclusiveOr }, { OpOperator::ExclusiveOr, OpOperator::ExclusiveOr } },
+    { { OpOperator::ReverseSubtract, OpOperator::Union }, { OpOperator::Intersect, OpOperator::Subtract } },
+};
+
+OpContours::OpContours(OpInPath& left, OpInPath& right, OpOperator op) {
+    _operator = OpInverse[+op][left.isInverted()][right.isInverted()];
+    sectStorage = new OpSectStorage;
+#if OP_DEBUG
+    debugInPathOps = false;
+    debugInClearEdges = false;
+    debugExpect = OpDebugExpect::unknown;
+#endif
+}
 
 bool OpContour::addClose() {
     if (!segments.size())
@@ -8,7 +29,7 @@ bool OpContour::addClose() {
     OpPoint lastPoint = segments.back().c.lastPt();
     if (lastPoint != curveStart) {
         CurvePts curvePts = {{ lastPoint, curveStart }, 1 };
-        segments.emplace_back(curvePts, lineType  
+        segments.emplace_back(curvePts, OpType::line  
                 OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt, this));
     }
     return true;
@@ -23,7 +44,7 @@ void OpContour::addConic(const OpPoint pts[3], float weight) {
     std::vector<ExtremaT> extrema = bounds.findExtrema();
     if (!extrema.size()) {
         CurvePts whole = {{ pts[0], pts[1], pts[2] }, weight };
-        segments.emplace_back(whole, conicType  
+        segments.emplace_back(whole, OpType::conic  
                 OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt, this));
         return;
     }
@@ -35,7 +56,7 @@ void OpContour::addConic(const OpPoint pts[3], float weight) {
         else
             end = {{ pts[2], 1 }  OP_DEBUG_PARAMS(SectReason::endPt)};
         CurvePts partPts = conic.subDivide(start.ptT, end.ptT);
-        segments.emplace_back(partPts, conicType  OP_DEBUG_PARAMS(start.reason, end.reason, this));
+        segments.emplace_back(partPts, OpType::conic  OP_DEBUG_PARAMS(start.reason, end.reason, this));
         start = end;
     }
 }
@@ -49,7 +70,7 @@ void OpContour::addCubic(const OpPoint pts[4]) {
     std::vector<ExtremaT> extrema = bounds.findExtrema();
     if (!extrema.size()) {
         CurvePts whole = {{ pts[0], pts[1], pts[2], pts[3] }, 1};
-        segments.emplace_back(whole, cubicType  
+        segments.emplace_back(whole, OpType::cubic  
                 OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt, this));
         return;
     }
@@ -61,10 +82,9 @@ void OpContour::addCubic(const OpPoint pts[4]) {
         else
             end = {{ pts[3], 1 }  OP_DEBUG_PARAMS(SectReason::endPt)};
         CurvePts partPts = cubic.subDivide(start.ptT, end.ptT);
-        segments.emplace_back(partPts, cubicType  OP_DEBUG_PARAMS(start.reason, end.reason, this));
+        segments.emplace_back(partPts, OpType::cubic  OP_DEBUG_PARAMS(start.reason, end.reason, this));
         start = end;
     }
-    dumpDetail();
 }
 
 OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg
@@ -80,7 +100,7 @@ void OpContour::addLine(const OpPoint pts[2]) {
     if (pts[0] == pts[1])   // !!! should be fill only, not frame
         return;
     CurvePts curvePts = {{ pts[0], pts[1] }, 1 };
-    segments.emplace_back(curvePts, lineType   
+    segments.emplace_back(curvePts, OpType::line   
             OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt, this));
 }
 
@@ -109,7 +129,7 @@ void OpContour::addQuad(const OpPoint pts[3]) {
     std::vector<ExtremaT> extrema = bounds.findExtrema();
     if (!extrema.size()) {
         CurvePts whole = {{ pts[0], pts[1], pts[2] }, 1};
-        segments.emplace_back(whole, quadType  
+        segments.emplace_back(whole, OpType::quad  
                 OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt, this));
         return;
     }
@@ -121,7 +141,7 @@ void OpContour::addQuad(const OpPoint pts[3]) {
         else
             end = {{ pts[2], 1 }  OP_DEBUG_PARAMS(SectReason::startPt)};
         CurvePts partPts = quad.subDivide(start.ptT, end.ptT);
-        segments.emplace_back(partPts, quadType  
+        segments.emplace_back(partPts, OpType::quad  
                 OP_DEBUG_PARAMS(start.reason, end.reason, this));
         start = end;
     }

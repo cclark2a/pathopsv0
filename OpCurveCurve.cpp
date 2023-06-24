@@ -83,7 +83,7 @@ SectFound OpCurveCurve::curvesIntersect(CurveRef curveRef) {
 		LinePts edgeLine { edge.start.pt, edge.end.pt };
 		OpCurve& edgeRotated = const_cast<OpCurve&>(edge.setVertical());
 		if (!edgeRotated.isFinite())
-			return SectFound::fail;
+			OP_DEBUG_FAIL(*originalEdge, SectFound::fail);
 		OpTightBounds edgeRotatedBounds(edgeRotated);
 		for (auto& opp : oppParts) {
 			OP_ASSERT(!opp.isLine_impl);
@@ -92,7 +92,7 @@ SectFound OpCurveCurve::curvesIntersect(CurveRef curveRef) {
 			const OpCurve& oppCurve = opp.setCurve();
 			OpCurve oppRotated = oppCurve.toVertical(edgeLine);
 			if (!oppRotated.isFinite())
-				return SectFound::fail;
+				OP_DEBUG_FAIL(*originalOpp, SectFound::fail);
 			OpTightBounds oppRotatedBounds(oppRotated);
 			if (!edgeRotatedBounds.intersects(oppRotatedBounds))
 				continue;
@@ -154,10 +154,10 @@ SectFound OpCurveCurve::divideAndConquer() {
 			LinearIntersect(oppLines, edgeCurves);
 		SectFound oppResult = curvesIntersect(CurveRef::edge);
 		if (SectFound::fail == oppResult)
-			return oppResult;
+			OP_DEBUG_FAIL(*originalEdge, oppResult);
 		SectFound edgeResult = curvesIntersect(CurveRef::opp);
 		if (SectFound::fail == edgeResult)
-			return edgeResult;
+			OP_DEBUG_FAIL(*originalEdge, edgeResult);
 		if (SectFound::no == oppResult || SectFound::no == edgeResult)
 			return SectFound::no;
 		if (edgeCurves.size() >= maxSplits || oppCurves.size() >= maxSplits)

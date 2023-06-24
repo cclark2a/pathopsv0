@@ -30,19 +30,19 @@ OpSegments::OpSegments(OpContours& contours) {
 // !!! I'm bothered that curve / curve calls a different form of this with edges
 void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
     OpRoots septs;
-    OP_ASSERT(lineType == seg->c.type);
+    OP_ASSERT(OpType::line == seg->c.type);
     LinePts edgePts { seg->c.pts[0], seg->c.pts[1] };
     septs = opp->c.rayIntersect(edgePts);
     bool reversed;
     MatchEnds common = seg->matchEnds(opp, &reversed, MatchSect::existing);
     if (!septs.count && MatchEnds::none == common)
         return; // IntersectResult::no;
-    if (lineType == opp->c.type && MatchEnds::both == common) {
+    if (OpType::line == opp->c.type && MatchEnds::both == common) {
         seg->winding.move(opp->winding, seg->contour->contours, seg->c.pts[0] != opp->c.pts[0]);
         opp->winding.zero(ZeroReason::addIntersection);
         return; // IntersectResult::yes;
     }
-    if (2 == septs.count && lineType == opp->c.type)
+    if (2 == septs.count && OpType::line == opp->c.type)
         return (void) OpEdges::CoincidentCheck({ seg->c.pts[0], 0 }, { seg->c.pts[1], 1 },
                 { opp->c.pts[0], 0}, { opp->c.pts[1], 1 }, seg, opp );
     if ((int) MatchEnds::start & (int) common)
@@ -94,20 +94,20 @@ void OpSegments::findCoincidences() {
                 // if control points and weight match, treat as coincident: transfer winding
                 bool coincident = false;
                 switch (seg->c.type) {
-                    case noType:
+                    case OpType::no:
                         OP_ASSERT(0);
                         break;
-                    case lineType:
+                    case OpType::line:
                         coincident = true;
                         break;
-                    case quadType:
+                    case OpType::quad:
                         coincident = seg->c.pts[1] == opp->c.pts[1];
                         break;
-                    case conicType:
+                    case OpType::conic:
                         coincident = seg->c.pts[1] == opp->c.pts[1]
                             && seg->c.weight == opp->c.weight;
                         break;
-                    case cubicType:
+                    case OpType::cubic:
                         coincident = seg->c.pts[1] == opp->c.pts[1 + (int) reversed]
                             && seg->c.pts[2] == opp->c.pts[2 - (int) reversed];
                         break;
@@ -127,7 +127,7 @@ void OpSegments::findCoincidences() {
 void OpSegments::findLineCoincidences() {
     for (auto segIter = inX.begin(); segIter != inX.end(); ++segIter) {
         OpSegment* seg = const_cast<OpSegment*>(*segIter);
-        if (OpType::lineType != seg->c.type)
+        if (OpType::line != seg->c.type)
             continue;
         if (!seg->winding.visible())
             continue;
@@ -137,7 +137,7 @@ void OpSegments::findLineCoincidences() {
         OP_ASSERT(tangent.dx || tangent.dy);
         for (auto oppIter = segIter + 1; oppIter != inX.end(); ++oppIter) {
             OpSegment* opp = const_cast<OpSegment*>(*oppIter);
-            if (OpType::lineType != opp->c.type)
+            if (OpType::line != opp->c.type)
                 continue;
             if (!opp->winding.visible())
                 continue;
@@ -171,10 +171,10 @@ FoundIntersections OpSegments::findIntersections() {
             if (!seg->ptBounds.intersects(opp->ptBounds))
                 continue;
             // for line-curve intersection we can directly intersect
-            if (lineType == seg->c.type) {
+            if (OpType::line == seg->c.type) {
                 AddLineCurveIntersection(opp, seg);
                 continue;
-            } else if (lineType == opp->c.type) {
+            } else if (OpType::line == opp->c.type) {
                 AddLineCurveIntersection(seg, opp);
                 continue;
             }
@@ -216,7 +216,7 @@ FoundIntersections OpSegments::findIntersections() {
             OpCurveCurve cc(&seg->edges.back(), &opp->edges.back());
             SectFound result = cc.divideAndConquer();
             if (SectFound::fail == result)
-                return FoundIntersections::fail;
+                OP_DEBUG_FAIL(*seg, FoundIntersections::fail);
         }
     }
     return FoundIntersections::yes; // !!! if something can fail, return 'fail' (don't return 'no')

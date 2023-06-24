@@ -60,6 +60,7 @@ void DebugOpOffsetCenter(double dx, double dy);
 void DebugOpOffsetZoom(double dz);
 OpPoint DebugOpPtToPt(OpPoint src);
 void DebugOpRecord(FILE* recordFile);
+void DebugOpResetBounds();
 void DebugOpResetFocus();
 void DebugOpSetBounds(double, double, double, double);
 void DebugOpSetCenter(double x, double y);

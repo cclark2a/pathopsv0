@@ -1,30 +1,30 @@
 #include "OpCurve.h"
 
-OpLine& OpCurve::asLine() { OP_ASSERT(lineType == type); return *static_cast<OpLine*>(this); }
-OpQuad& OpCurve::asQuad() { OP_ASSERT(quadType == type); return *static_cast<OpQuad*>(this); }
-OpConic& OpCurve::asConic() { OP_ASSERT(conicType == type); return *static_cast<OpConic*>(this); }
-OpQuad& OpCurve::asConicQuad() { OP_ASSERT(conicType == type); return *static_cast<OpQuad*>(this); }
-OpCubic& OpCurve::asCubic() { OP_ASSERT(cubicType == type); return *static_cast<OpCubic*>(this); }
+OpLine& OpCurve::asLine() { OP_ASSERT(OpType::line == type); return *static_cast<OpLine*>(this); }
+OpQuad& OpCurve::asQuad() { OP_ASSERT(OpType::quad == type); return *static_cast<OpQuad*>(this); }
+OpConic& OpCurve::asConic() { OP_ASSERT(OpType::conic == type); return *static_cast<OpConic*>(this); }
+OpQuad& OpCurve::asConicQuad() { OP_ASSERT(OpType::conic == type); return *static_cast<OpQuad*>(this); }
+OpCubic& OpCurve::asCubic() { OP_ASSERT(OpType::cubic == type); return *static_cast<OpCubic*>(this); }
 
-const OpLine& OpCurve::asLine() const { OP_ASSERT(lineType == type); 
+const OpLine& OpCurve::asLine() const { OP_ASSERT(OpType::line == type); 
         return *static_cast<const OpLine*>(this); }
-const OpQuad& OpCurve::asQuad() const { OP_ASSERT(quadType == type); 
+const OpQuad& OpCurve::asQuad() const { OP_ASSERT(OpType::quad == type); 
         return *static_cast<const OpQuad*>(this); }
-const OpConic& OpCurve::asConic() const { OP_ASSERT(conicType == type); 
+const OpConic& OpCurve::asConic() const { OP_ASSERT(OpType::conic == type); 
         return *static_cast<const OpConic*>(this); }
-const OpQuad& OpCurve::asConicQuad() const { OP_ASSERT(conicType == type); 
+const OpQuad& OpCurve::asConicQuad() const { OP_ASSERT(OpType::conic == type); 
         return *static_cast<const OpQuad*>(this); }
-const OpCubic& OpCurve::asCubic() const { OP_ASSERT(cubicType == type); 
+const OpCubic& OpCurve::asCubic() const { OP_ASSERT(OpType::cubic == type); 
         return *static_cast<const OpCubic*>(this); }
 
 OpRoots OpCurve::axisRayHit(Axis axis, float axisIntercept, float start,
             float end) const {
     OpRoots roots;
     switch (type) {
-        case lineType: roots = asLine().axisRawHit(axis, axisIntercept); break;
-        case quadType: roots = asQuad().axisRawHit(axis, axisIntercept); break;
-        case conicType: roots = asConic().axisRawHit(axis, axisIntercept); break;
-        case cubicType: roots = asCubic().axisRawHit(axis, axisIntercept); break;
+        case OpType::line: roots = asLine().axisRawHit(axis, axisIntercept); break;
+        case OpType::quad: roots = asQuad().axisRawHit(axis, axisIntercept); break;
+        case OpType::conic: roots = asConic().axisRawHit(axis, axisIntercept); break;
+        case OpType::cubic: roots = asCubic().axisRawHit(axis, axisIntercept); break;
         default:
             OP_ASSERT(0); 
     }
@@ -34,16 +34,16 @@ OpRoots OpCurve::axisRayHit(Axis axis, float axisIntercept, float start,
 
 // call only with edge generated curves
 float OpCurve::center(Axis axis, float intercept) const {
-    OP_ASSERT(!OpDebugPathOpsEnable::inPathOps || OpDebugIntersect::edge == debugIntersect);  
+    OP_ASSERT(OpDebugIntersect::edge == debugIntersect);  
     OpRoots roots;
     switch (type) {
-    case lineType: { 
+    case OpType::line: { 
         auto ptr = pts[0].asPtr(axis); 
         return (intercept - ptr[0]) / (ptr[2] - ptr[0]); 
     }
-    case quadType:
-    case conicType:
-    case cubicType: 
+    case OpType::quad:
+    case OpType::conic:
+    case OpType::cubic: 
         roots = axisRayHit(axis, intercept); 
     break;
     default:
@@ -59,10 +59,10 @@ OpPtT OpCurve::findIntersect(Axis axis, const OpPtT& opPtT) const {
     float intercept = *opPtT.pt.asPtr(axis);
     OpRoots roots;
     switch (type) {
-    case lineType:
-    case quadType:
-    case conicType:
-    case cubicType: 
+    case OpType::line:
+    case OpType::quad:
+    case OpType::conic:
+    case OpType::cubic: 
         roots = axisRayHit(axis, intercept); 
     break;
     default:
@@ -87,15 +87,30 @@ bool OpCurve::isFinite() const {
     for (int i = 0; i < pointCount(); ++i)
         if (!pts[i].isFinite())
             return false;
-    return conicType != type || OpMath::IsFinite(weight);
+    return OpType::conic != type || OpMath::IsFinite(weight);
+}
+
+NormalDirection OpCurve::normalDirection(Axis axis, float t) const {
+	bool overflow;
+	OpVector ray = Axis::horizontal == (Axis) ((int) axis & 1) ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
+    if (Axis::up <= axis)
+        ray = -ray;
+    float NdotR = normal(t).normalize(&overflow).dot(ray);
+	if (overflow)
+		return NormalDirection::overflow;
+	if (NdotR > 0)
+		return NormalDirection::upRight;
+	if (NdotR < 0)
+		return NormalDirection::downLeft;
+	return NormalDirection::underflow;	 // catches, zero, nan
 }
 
 OpRoots OpCurve::rawIntersect(const LinePts& linePt) const {
     switch (type) {
-        case lineType: return asLine().rawIntersect(linePt);
-        case quadType: return asQuad().rawIntersect(linePt);
-        case conicType: return asConic().rawIntersect(linePt);
-        case cubicType: return asCubic().rawIntersect(linePt);
+        case OpType::line: return asLine().rawIntersect(linePt);
+        case OpType::quad: return asQuad().rawIntersect(linePt);
+        case OpType::conic: return asConic().rawIntersect(linePt);
+        case OpType::cubic: return asCubic().rawIntersect(linePt);
         default:
             OP_ASSERT(0);
     }
@@ -104,10 +119,10 @@ OpRoots OpCurve::rawIntersect(const LinePts& linePt) const {
 
 OpRoots OpCurve::rayIntersect(const LinePts& linePt) const {
     switch (type) {
-        case lineType: return asLine().rayIntersect(linePt);
-        case quadType: return asQuad().rayIntersect(linePt);
-        case conicType: return asConic().rayIntersect(linePt);
-        case cubicType: return asCubic().rayIntersect(linePt);
+        case OpType::line: return asLine().rayIntersect(linePt);
+        case OpType::quad: return asQuad().rayIntersect(linePt);
+        case OpType::conic: return asConic().rayIntersect(linePt);
+        case OpType::cubic: return asCubic().rayIntersect(linePt);
         default:
             OP_ASSERT(0);
     }
@@ -117,10 +132,10 @@ OpRoots OpCurve::rayIntersect(const LinePts& linePt) const {
 // for accuracy, this should only be called with segment's curve, never edge curve
 OpVector OpCurve::normal(float t) const {
     switch (type) {
-        case lineType: return asLine().normal(t);
-        case quadType: return asQuad().normal(t);
-        case conicType: return asConic().normal(t);
-        case cubicType: return asCubic().normal(t);
+        case OpType::line: return asLine().normal(t);
+        case OpType::quad: return asQuad().normal(t);
+        case OpType::conic: return asConic().normal(t);
+        case OpType::cubic: return asCubic().normal(t);
         default:
             OP_ASSERT(0);
     }
@@ -129,10 +144,10 @@ OpVector OpCurve::normal(float t) const {
 
 OpPoint OpCurve::ptAtT(float t) const {
     switch(type) {
-        case lineType: return asLine().ptAtT(t);    
-        case quadType: return asQuad().ptAtT(t);
-        case conicType: return asConic().ptAtT(t);
-        case cubicType: return asCubic().ptAtT(t);
+        case OpType::line: return asLine().ptAtT(t);    
+        case OpType::quad: return asQuad().ptAtT(t);
+        case OpType::conic: return asConic().ptAtT(t);
+        case OpType::cubic: return asCubic().ptAtT(t);
         default:
             OP_ASSERT(0);
     }
@@ -142,16 +157,16 @@ OpPoint OpCurve::ptAtT(float t) const {
 CurvePts OpCurve::subDivide(OpPtT ptT1, OpPtT ptT2) const {
     CurvePts result;
     switch (type) {
-        case lineType: 
+        case OpType::line: 
             result.pts[0] = ptT1.pt; 
             result.pts[1] = ptT2.pt;
             result.weight = 1;
             break;
-        case quadType: 
+        case OpType::quad: 
             return asQuad().subDivide(ptT1, ptT2);
-        case conicType: 
+        case OpType::conic: 
             return asConic().subDivide(ptT1, ptT2);
-        case cubicType: 
+        case OpType::cubic: 
             return asCubic().subDivide(ptT1, ptT2);
         default:
             OP_ASSERT(0);
@@ -161,10 +176,10 @@ CurvePts OpCurve::subDivide(OpPtT ptT1, OpPtT ptT2) const {
 
 OpVector OpCurve::tangent(float t) const {
     switch (type) {
-    case lineType: return asLine().tangent();
-    case quadType: return asQuad().tangent(t);
-    case conicType: return asConic().tangent(t);
-    case cubicType: return asCubic().tangent(t);
+    case OpType::line: return asLine().tangent();
+    case OpType::quad: return asQuad().tangent(t);
+    case OpType::conic: return asConic().tangent(t);
+    case OpType::cubic: return asCubic().tangent(t);
     default:
         OP_ASSERT(0);
     }

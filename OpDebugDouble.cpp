@@ -297,7 +297,7 @@ int nextContourID = 0;
 struct DebugOpCurve {
     DebugOpCurve()
         : weight(1)
-        , type(OpType::noType)
+        , type(OpType::no)
         , id(0)
         , pathContour(0) {
     }
@@ -306,7 +306,7 @@ struct DebugOpCurve {
     const DebugOpCubic& asCubic() const;
     DebugOpRoots axisRayHit(Axis offset, double axisIntercept) const;
     void mapTo(OpCurve& ) const;
-    int pointCount() const { return static_cast<int>(type) + (type < conicType); }
+    int pointCount() const { return static_cast<int>(type) + (type < OpType::conic); }
     DebugOpPoint ptAtT(double t) const;
     DebugOpRoots rayIntersect(const OpDebugRay& ) const;
     void rectCurves(std::vector<DebugOpCurve>& bounded) const;
@@ -500,14 +500,14 @@ const DebugOpCubic& DebugOpCurve::asCubic() const { return *static_cast<const De
 
 DebugOpRoots DebugOpCurve::axisRayHit(Axis axis, double axisIntercept) const {
     switch (type) {
-    case lineType: {
+    case OpType::line: {
         double denominator = pts[1].choice(axis) - pts[0].choice(axis);
         DebugOpRoots roots(0 == denominator ? OpNaN : (axisIntercept - pts[0].choice(axis)) / denominator);
         return roots.keepValidTs();
     }
-    case quadType: return asQuad().axisRayHit(axis, axisIntercept);
-    case conicType: return asConic().axisRayHit(axis, axisIntercept);
-    case cubicType: return asCubic().axisRayHit(axis, axisIntercept);
+    case OpType::quad: return asQuad().axisRayHit(axis, axisIntercept);
+    case OpType::conic: return asConic().axisRayHit(axis, axisIntercept);
+    case OpType::cubic: return asCubic().axisRayHit(axis, axisIntercept);
     default:
         OP_ASSERT(0);
     }
@@ -531,10 +531,10 @@ DebugOpRoots DebugOpCurve::rayIntersect(const OpDebugRay& ray) const {
 
 DebugOpPoint DebugOpCurve::ptAtT(double t) const {
     switch(type) {
-    case lineType: return DebugOpMath::Interp(pts[0], pts[1], t);    
-    case quadType: return asQuad().ptAtT(t);
-    case conicType: return asConic().ptAtT(t);
-    case cubicType: return asCubic().ptAtT(t);
+    case OpType::line: return DebugOpMath::Interp(pts[0], pts[1], t);    
+    case OpType::quad: return asQuad().ptAtT(t);
+    case OpType::conic: return asConic().ptAtT(t);
+    case OpType::cubic: return asCubic().ptAtT(t);
     default:
         OP_ASSERT(0);
         return DebugOpPoint();
@@ -542,8 +542,11 @@ DebugOpPoint DebugOpCurve::ptAtT(double t) const {
 }
 
 double debugZoom = 0;
-constexpr double debugMargin = 2;
-DebugOpPoint debugBitmapBounds { bitmapWH - debugMargin * 2, bitmapWH - debugMargin * 2 };
+constexpr int debugMargin = 2;
+constexpr struct {
+    int x;
+    int y;
+} debugBitmapBounds { bitmapWH - debugMargin * 2, bitmapWH - debugMargin * 2 };
 DebugOpPoint debugCenter { debugBitmapBounds.x / 2, debugBitmapBounds.y / 2 };
 DebugOpRect setBounds;
 
@@ -590,10 +593,13 @@ void DebugOpBounds(double& left, double& top, double& right, double& bottom) {
 }
 
 void DebugOpRecord(FILE* recordFile) {
-    fprintf(recordFile, "debugZoom: %g\n", debugZoom);
-    fprintf(recordFile, "debugCenter: %g, %g\n", debugCenter.x, debugCenter.y);
-    fprintf(recordFile, "setBounds: %g, %g, %g, %g\n", 
-            setBounds.left, setBounds.top, setBounds.right, setBounds.bottom);
+    fprintf(recordFile, "debugZoom: %.*g\n", DBL_DECIMAL_DIG, debugZoom);
+    fprintf(recordFile, "debugCenter: %.*g, %.*g\n", DBL_DECIMAL_DIG, debugCenter.x, 
+            DBL_DECIMAL_DIG, debugCenter.y);
+}
+
+void DebugOpResetBounds() {
+    setBounds = ZoomToRect();
 }
 
 bool DebugOpCurve::tInRect(double t, const DebugOpRect& bounds) const {
@@ -659,15 +665,15 @@ void DebugOpCurve::rectCurves(std::vector<DebugOpCurve>& bounded) const {
 
 void DebugOpCurve::subDivide(double a, double b, DebugOpCurve& dest) const {
     switch (type) {
-    case lineType: 
+    case OpType::line: 
         dest.pts[0] = ptAtT(a); 
         dest.pts[1] = ptAtT(b); 
         return;
-    case quadType: 
+    case OpType::quad: 
         return asQuad().subDivide(a, b, dest);
-    case conicType: 
+    case OpType::conic: 
         return asConic().subDivide(a, b, dest);
-    case cubicType: 
+    case OpType::cubic: 
         return asCubic().subDivide(a, b, dest);
     default:
         OP_ASSERT(0);
@@ -768,7 +774,7 @@ void DebugOpDraw(const std::vector<OpDebugRay>& lines) {
     for (auto& line : lines) {
         DebugOpCurve curve;
         curve.weight = 1;
-        curve.type = lineType;
+        curve.type = OpType::line;
         if (line.useAxis) {
             if (Axis::horizontal == line.axis) {
                 if (bounds.top > line.value || line.value > bounds.bottom)
@@ -926,7 +932,7 @@ void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs, ClipTo
             if (hasLastPoint && lastPoint != curveStart) {
                 curve.pts[0] = { lastPoint.fX, lastPoint.fY } ; 
                 curve.pts[1] = { curveStart.fX, curveStart.fY } ; 
-                curve.type = OpType::lineType;
+                curve.type = OpType::line;
                 if (ClipToBounds::clip == clip)
                     curve.rectCurves(debugPs);
                 else
@@ -939,7 +945,7 @@ void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs, ClipTo
         case SkPath::kLine_Verb:
             curve.pts[0] = { pts[0].fX, pts[0].fY } ; 
             curve.pts[1] = { pts[1].fX, pts[1].fY } ; 
-            curve.type = OpType::lineType;
+            curve.type = OpType::line;
             if (ClipToBounds::clip == clip)
                 curve.rectCurves(debugPs);
             else
@@ -951,7 +957,7 @@ void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs, ClipTo
             curve.pts[0] = { pts[0].fX, pts[0].fY } ; 
             curve.pts[1] = { pts[1].fX, pts[1].fY } ; 
             curve.pts[2] = { pts[2].fX, pts[2].fY } ; 
-            curve.type = OpType::quadType;
+            curve.type = OpType::quad;
             if (ClipToBounds::clip == clip)
                 curve.rectCurves(debugPs);
             else
@@ -964,7 +970,7 @@ void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs, ClipTo
             curve.pts[1] = { pts[1].fX, pts[1].fY } ; 
             curve.pts[2] = { pts[2].fX, pts[2].fY } ; 
             curve.weight = iter.conicWeight();
-            curve.type = OpType::conicType;
+            curve.type = OpType::conic;
             if (ClipToBounds::clip == clip)
                 curve.rectCurves(debugPs);
             else
@@ -977,7 +983,7 @@ void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs, ClipTo
             curve.pts[1] = { pts[1].fX, pts[1].fY } ; 
             curve.pts[2] = { pts[2].fX, pts[2].fY } ; 
             curve.pts[3] = { pts[3].fX, pts[3].fY } ; 
-            curve.type = OpType::cubicType;
+            curve.type = OpType::cubic;
             if (ClipToBounds::clip == clip)
                 curve.rectCurves(debugPs);
             else
@@ -994,7 +1000,7 @@ void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs, ClipTo
     if (hasLastPoint && lastPoint != curveStart) {
         curve.pts[0] = { lastPoint.fX, lastPoint.fY } ; 
         curve.pts[1] = { curveStart.fX, curveStart.fY } ; 
-        curve.type = OpType::lineType;
+        curve.type = OpType::line;
         if (ClipToBounds::clip == clip)
             curve.rectCurves(debugPs);
         else
@@ -1028,7 +1034,7 @@ void DebugOpBuild(const SkPath& path, const struct OpDebugRay& ray) {
             if (hasLastPoint && lastPoint != curveStart) {
                 curve.pts[0] = { lastPoint.fX, lastPoint.fY } ; 
                 curve.pts[1] = { curveStart.fX, curveStart.fY } ; 
-                curve.type = OpType::lineType;
+                curve.type = OpType::line;
                 axisSect(curve);
                 hasLastPoint = false;
             }
@@ -1038,7 +1044,7 @@ void DebugOpBuild(const SkPath& path, const struct OpDebugRay& ray) {
         case SkPath::kLine_Verb:
             curve.pts[0] = { pts[0].fX, pts[0].fY } ; 
             curve.pts[1] = { pts[1].fX, pts[1].fY } ; 
-            curve.type = OpType::lineType;
+            curve.type = OpType::line;
             axisSect(curve);
             lastPoint = pts[1];
             hasLastPoint = true;
@@ -1047,7 +1053,7 @@ void DebugOpBuild(const SkPath& path, const struct OpDebugRay& ray) {
             curve.pts[0] = { pts[0].fX, pts[0].fY } ; 
             curve.pts[1] = { pts[1].fX, pts[1].fY } ; 
             curve.pts[2] = { pts[2].fX, pts[2].fY } ; 
-            curve.type = OpType::quadType;
+            curve.type = OpType::quad;
             axisSect(curve);
             lastPoint = pts[2];
             hasLastPoint = true;
@@ -1057,7 +1063,7 @@ void DebugOpBuild(const SkPath& path, const struct OpDebugRay& ray) {
             curve.pts[1] = { pts[1].fX, pts[1].fY } ; 
             curve.pts[2] = { pts[2].fX, pts[2].fY } ; 
             curve.weight = iter.conicWeight();
-            curve.type = OpType::conicType;
+            curve.type = OpType::conic;
             axisSect(curve);
             lastPoint = pts[2];
             hasLastPoint = true;
@@ -1067,7 +1073,7 @@ void DebugOpBuild(const SkPath& path, const struct OpDebugRay& ray) {
             curve.pts[1] = { pts[1].fX, pts[1].fY } ; 
             curve.pts[2] = { pts[2].fX, pts[2].fY } ; 
             curve.pts[3] = { pts[3].fX, pts[3].fY } ; 
-            curve.type = OpType::cubicType;
+            curve.type = OpType::cubic;
             axisSect(curve);
             lastPoint = pts[3];
             hasLastPoint = true;
@@ -1081,7 +1087,7 @@ void DebugOpBuild(const SkPath& path, const struct OpDebugRay& ray) {
     if (hasLastPoint && lastPoint != curveStart) {
         curve.pts[0] = { lastPoint.fX, lastPoint.fY } ; 
         curve.pts[1] = { curveStart.fX, curveStart.fY } ; 
-        curve.type = OpType::lineType;
+        curve.type = OpType::line;
         axisSect(curve);
     }
 }

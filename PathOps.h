@@ -30,8 +30,8 @@ struct OpOutPath {
 	}
 #endif
 
-	bool setEmpty();
-	bool setInverted(bool wasInverted);
+	void setEmpty();
+	void setInverted(bool wasInverted);
 #if OP_DEBUG_IMAGE
 	void draw() const;
 #endif
@@ -45,5 +45,11 @@ struct OpOutPath {
 
 bool PathOps(OpInPath left, OpInPath right, OpOperator op, OpOutPath result);
 bool PathSimplify(OpInPath path, OpOutPath result);
+
+#if OP_DEBUG
+// entry point if operation success is already known
+bool DebugPathOps(OpInPath left, OpInPath right, OpOperator _operator, OpOutPath result,
+        OpDebugExpect expected);
+#endif
 
 #endif

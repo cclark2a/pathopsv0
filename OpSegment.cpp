@@ -201,7 +201,7 @@ float OpSegment::findPtT(float start, float end, OpPoint opp) const {
 }
 
 FoundPtT OpSegment::findPtT(Axis axis, float start, float end, float opp, float* result) const {
-    if (OpType::lineType != c.type) {
+    if (OpType::line != c.type) {
         OpRoots roots = c.axisRayHit(axis, opp, start, end);
          if (1 < roots.count)
             return FoundPtT::multiple;
@@ -215,7 +215,7 @@ FoundPtT OpSegment::findPtT(Axis axis, float start, float end, float opp, float*
 }
 
 FoundPtT OpSegment::findPtT(float start, float end, OpPoint opp, float* result) const {
-    if (OpType::lineType != c.type) {
+    if (OpType::line != c.type) {
         OpRoots hRoots = c.axisRayHit(Axis::horizontal, opp.y, start, end);
         OpRoots vRoots = c.axisRayHit(Axis::vertical, opp.x, start, end);
         if (1 < hRoots.count || 1 < vRoots.count)
@@ -887,3 +887,17 @@ OpEdge* OpSegment::visibleAdjacent(OpEdge* edge, const OpPtT& ptT) {
     return result;
 }
 #endif
+
+bool OpSegment::debugFail() const {
+#if OP_DEBUG
+    return contour->contours->debugFail();
+#endif
+    return false;
+}
+
+bool OpSegment::debugSuccess() const {
+#if OP_DEBUG
+    return contour->contours->debugSuccess();
+#endif
+    return true;
+}

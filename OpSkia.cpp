@@ -16,15 +16,13 @@ bool OpInPath::isInverted() const {
 	return skPath->isInverseFillType();
 }
 
-bool OpOutPath::setEmpty() {
+void OpOutPath::setEmpty() {
 	skPath->reset();
-	return true;
 }
 
-bool OpOutPath::setInverted(bool wasInverted) {
+void OpOutPath::setInverted(bool wasInverted) {
     SkPathFillType fillType = wasInverted ? SkPathFillType::kInverseEvenOdd : SkPathFillType::kEvenOdd;
     skPath->setFillType(fillType);
-	return true;
 }
 
 #if OP_DEBUG_DUMP
@@ -48,27 +46,27 @@ void OpEdge::output(OpOutPath path) {
     const OpEdge* firstEdge = this;
     OpEdge* edge = this;
     do {
-        OpType type = edge->setLinear() ? lineType : edge->segment->c.type;
+        OpType type = edge->setLinear() ? OpType::line : edge->segment->c.type;
         start.pt.toSkPoint(&skPt[0]);
         ctrlPts[0].toSkPoint(&skPt[1]);
         ctrlPts[1].toSkPoint(&skPt[2]);
         end.pt.toSkPoint(&skPt[3]);
         if (EdgeMatch::end == edge->whichEnd) {
             std::swap(skPt[0], skPt[3]);
-            if (cubicType == type)
+            if (OpType::cubic == type)
                 std::swap(skPt[1], skPt[2]);
         }
         switch (type) {
-        case lineType: 
+        case OpType::line: 
             skPath->lineTo(skPt[3]); 
             break;
-        case quadType: 
+        case OpType::quad: 
             skPath->quadTo(skPt[1], skPt[3]); 
             break;
-        case conicType: 
+        case OpType::conic: 
             skPath->conicTo(skPt[1], skPt[3], edge->weight); 
             break;
-        case cubicType: 
+        case OpType::cubic: 
             edge->ctrlPts[1].toSkPoint(&skPt[2]);
             skPath->cubicTo(skPt[1], skPt[2], skPt[3]);  break;
             break;
@@ -84,7 +82,7 @@ void OpEdge::output(OpOutPath path) {
 bool OpContours::build(OpInPath path, OpOperand operand) {
     const SkPath& skPath = *path.skPath;
     if (!skPath.isFinite())
-        return false;
+        return debugFail();
     setFillType(operand, SkPathFillType::kEvenOdd == skPath.getFillType()
             || SkPathFillType::kInverseEvenOdd == skPath.getFillType() 
             ? OpFillType::evenOdd : OpFillType::winding);

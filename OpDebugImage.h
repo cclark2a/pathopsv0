@@ -24,6 +24,7 @@ typedef const OpPointBounds* ConstOpPointBoundsPtr;
 typedef const OpPoint* ConstOpPointPtr;
 
 constexpr int bitmapWH = 1000;
+static_assert(bitmapWH / 2 * 2 == bitmapWH);	// must be multiple of 2
 
 // it should not be necessary to call these implementation functions directly
 struct OpDebugImage {

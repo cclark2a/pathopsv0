@@ -62,11 +62,14 @@ struct OpEdges {
 	static IntersectResult CoincidentCheck(OpPtT ptTa, OpPtT ptTb, OpPtT ptTc, OpPtT ptTd,
 			OpSegment* segment, OpSegment* oppSegment);
 	static IntersectResult CoincidentCheck(const OpEdge& edge, const OpEdge& opp);
+	FoundWindings checkForLoops(Axis axis);
+//	void checkForLoopy(EdgeDistance* last, Axis axis, std::vector<EdgeDistance>& distance);
 //	FoundIntersections findIntersections();
 	FoundIntercept findRayIntercept(size_t inIndex, Axis , OpEdge* edge, float center, 
 			float normal, float edgeCenterT, std::vector<EdgeDistance>* );
 	void markUnsortable(OpEdge* edge, Axis , ZeroReason);
 	ChainFail setSumChain(size_t inIndex, Axis );
+	ResolveWinding setWindingByDistance(Axis , std::vector<EdgeDistance>& );
 	FoundWindings setWindings(OpContours* );
 	void sort(EdgesToSort);
 

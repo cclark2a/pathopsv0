@@ -506,7 +506,7 @@ void OpContour::dumpHex() const {
 }
 
 std::string OpCurve::debugDump() const {
-    const char* names[] { "noType", "lineType", "quadType", "conicType", "cubicType" };
+    const char* names[] { "noType", "OpType::line", "OpType::quad", "OpType::conic", "OpType::cubic" };
     std::string s;
     s = "{ ";
     bool first = true;
@@ -519,13 +519,13 @@ std::string OpCurve::debugDump() const {
     s += " }";
     if (1 != weight)
         s += " w:" + OpDebugDump(weight);
-    s += " " + (noType <= type && type <= cubicType ? names[type] :
-        "broken type [" + STR(type) + "]");
+    s += " " + (OpType::no <= type && type <= OpType::cubic ? names[(int) type] :
+        "broken type [" + STR((int) type) + "]");
     return s;
 }
 
 std::string OpCurve::debugDumpHex() const {
-    const char* names[] { "noType", "lineType", "quadType", "conicType", "cubicType" };
+    const char* names[] { "noType", "OpType::line", "OpType::quad", "OpType::conic", "OpType::cubic" };
     std::string s;
     s = "OpPoint data[] {\n";
     for (int i = 0; i < pointCount(); ++i) {
@@ -537,8 +537,8 @@ std::string OpCurve::debugDumpHex() const {
     s += "};";
     if (1 != weight)
         s += "  // weight:" + OpDebugDumpHex(weight) + " // " + OpDebugDump(weight) + "\n";
-    s += "  // type:" + (noType <= type && type <= cubicType ? names[type] :
-        "broken type [" + STR(type) + "]");
+    s += "  // type:" + (OpType::no <= type && type <= OpType::cubic ? names[(int) type] :
+        "broken type [" + STR((int) type) + "]");
     return s;
 }
 
@@ -764,7 +764,7 @@ std::string OpEdge::debugDumpDetail() const {
         s += "priorSum:" + (priorSum_impl ? STR(priorSum_impl->id) : std::string("null"));
         s += " axis:" + debugAxisName(sumAxis) + " ";
         if (Axis::neither != sumAxis) {
-            s += "sumNormal:" + STR(sumNormal) + " ";
+//            s += "sumNormal:" + STR(sumNormal) + " ";
             s += "sumT:" + STR(sumT) + " ";
         }
     }
@@ -1100,6 +1100,27 @@ void dumpDetail(const std::vector <OpEdge>& edges) {
 }
 
 const OpCurveCurve* OpCurveCurve::debugActive;
+
+static int debugSavedID = -1;
+
+void OpCurveCurve::debugSaveID() {
+    OP_ASSERT(-1 == debugSavedID);
+    debugSavedID = debugGlobalContours->id;
+    OP_ASSERT(-1 != debugSavedID);
+}
+
+// This is a half-baked idea. 
+// The idea is to make debugging easier by minimizing the magnitude of edge IDs.
+// But edges created by curve curve can't have their IDs reused this easily.
+// Intersection creation is intermixed with the edge creation, so this would
+// cause intersections and edges to have the same IDs, or for intersections to reuse IDs.
+// At the moment, this doesn't seem worth the complexity required for a robust implmentation.
+// It also hides the number of temporary edges created, which is a worthwhile performance metric.
+void OpCurveCurve::debugRestoreID() {
+    OP_ASSERT(-1 != debugSavedID);
+    debugGlobalContours->id = debugSavedID;
+    debugSavedID = -1;
+}
 
 void OpCurveCurve::dump(bool detail) const {
     std::string names[] = { "edge curves", "opp curves", "edge lines", "opp lines" };

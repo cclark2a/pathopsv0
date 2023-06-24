@@ -8,12 +8,21 @@ struct OpQuad;
 struct OpConic;
 struct OpCubic;
 
-enum OpType {
-    noType,
-    lineType,
-    quadType,
-    conicType,
-    cubicType
+// int value is (mostly) point count - 1 (conic is exception)
+enum class OpType {
+    no,
+    line,
+    quad,
+    conic,
+    cubic,
+};
+
+// arranged so down/left is -1, up/right is +1
+enum class NormalDirection {
+	downLeft = -1,
+	underflow,
+	upRight,
+	overflow,
 };
 
 struct CurvePts {
@@ -28,7 +37,7 @@ struct LinePts {
 struct OpCurve {
     OpCurve() 
         : weight(1)
-        , type(noType) {
+        , type(OpType::no) {
         OP_DEBUG_CODE(debugIntersect = OpDebugIntersect::segment);
     }
 
@@ -48,7 +57,7 @@ struct OpCurve {
 
     OpCurve(OpPoint p0, OpPoint p1)
         : weight(1)
-        , type(lineType) {
+        , type(OpType::line) {
         pts[0] = p0;
         pts[1] = p1;
         OP_DEBUG_CODE(debugIntersect = OpDebugIntersect::segment);
@@ -56,7 +65,7 @@ struct OpCurve {
 
     OpCurve(const OpPoint p[], float w)
         : weight(w)
-        , type(conicType) {
+        , type(OpType::conic) {
         memcpy(pts, p, pointCount() * sizeof(OpPoint));
         OP_DEBUG_CODE(debugIntersect = OpDebugIntersect::segment);
     }
@@ -82,12 +91,13 @@ struct OpCurve {
     }
 
     OpVector normal(float t) const;
+    NormalDirection normalDirection(Axis axis, float t) const;
     OpPoint ptAtT(float t) const;
     OpRoots rawIntersect(const LinePts& line) const;
     OpRoots rayIntersect(const LinePts& line) const;
 
     int pointCount() const {
-        return static_cast<int>(type) + (type < conicType);
+        return static_cast<int>(type) + (type < OpType::conic);
     }
 
     CurvePts subDivide(OpPtT ptT1, OpPtT ptT2) const;
@@ -117,11 +127,11 @@ struct OpCurve {
 
 struct OpLine : OpCurve {
     OpLine() {
-        type = lineType;
+        type = OpType::line;
     }
 
     OpLine(const OpPoint p[])
-        : OpCurve(p, lineType) {
+        : OpCurve(p, OpType::line) {
     }
 
     OpLine(OpPoint p0, OpPoint p1) 
@@ -150,11 +160,11 @@ struct OpQuadCoefficients {
 
 struct OpQuad : OpCurve {
     OpQuad() {
-        type = quadType;
+        type = OpType::quad;
     }
 
     OpQuad(const OpPoint p[])
-        : OpCurve(p, quadType) {
+        : OpCurve(p, OpType::quad) {
     }
 
     OpRoots axisRawHit(Axis offset, float axisIntercept) const;
@@ -175,7 +185,7 @@ struct OpQuad : OpCurve {
 
 struct OpConic : OpCurve {
     OpConic() {
-        type = conicType;
+        type = OpType::conic;
     }
 
     OpConic(const OpPoint p[], float w)
@@ -211,11 +221,11 @@ struct OpCubicCoefficients {
 
 struct OpCubic : OpCurve {
     OpCubic() {
-        type = cubicType;
+        type = OpType::cubic;
     }
 
     OpCubic(const OpPoint p[])
-        : OpCurve(p, cubicType) {
+        : OpCurve(p, OpType::cubic) {
     }
 
     OpRoots axisRawHit(Axis offset, float axisIntercept) const;

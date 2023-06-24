@@ -217,10 +217,10 @@ struct OpTightBounds : OpPointBounds {
 
     void set(OpCurve& c) {
         switch (c.type) {
-        case lineType: OpPointBounds::set(c.pts, 2); break;
-        case quadType: calcBounds(c.asQuad()); break;
-        case conicType: calcBounds(c.asConic()); break;
-        case cubicType: calcBounds(c.asCubic()); break;
+        case OpType::line: OpPointBounds::set(c.pts, 2); break;
+        case OpType::quad: calcBounds(c.asQuad()); break;
+        case OpType::conic: calcBounds(c.asConic()); break;
+        case OpType::cubic: calcBounds(c.asCubic()); break;
         default: OP_ASSERT(0);
         }
     }

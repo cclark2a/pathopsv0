@@ -19,6 +19,7 @@ enum class WindState {
 };
 
 struct OpContours;
+struct OpInPath;
 
 struct OpContour {
     OpContour(OpContours* c, OpOperand op)
@@ -139,10 +140,7 @@ struct OpContour {
 };
 
 struct OpContours {
-    OpContours(OpOperator op)
-        : _operator(op) {
-        sectStorage = new OpSectStorage;
-    }
+    OpContours(OpInPath& left, OpInPath& right, OpOperator op);
 
     ~OpContours() {
         do {
@@ -150,6 +148,10 @@ struct OpContours {
             delete sectStorage;
             sectStorage = next;
         } while (sectStorage);
+#if OP_DEBUG
+        debugInPathOps = false;
+        debugInClearEdges = false;
+#endif
     }
 
     OpIntersection* allocateIntersection();
@@ -181,7 +183,7 @@ struct OpContours {
     }
 #endif
 
-    int leftFillTypeMask() {
+    int leftFillTypeMask() const {
         return (int) left;
     }
 
@@ -191,9 +193,11 @@ struct OpContours {
     }
 
     void makeEdges() {
-        for (auto& contour : contours) {
+       OP_DEBUG_CODE(debugInClearEdges = true);
+       for (auto& contour : contours) {
             contour.makeEdges();
         }
+       OP_DEBUG_CODE(debugInClearEdges = false);
     }
 
 #if 0
@@ -222,7 +226,7 @@ struct OpContours {
     }
 #endif
 
-    int rightFillTypeMask() {
+    int rightFillTypeMask() const {
         return (int) right;
     }
 
@@ -258,6 +262,10 @@ struct OpContours {
         return WindState::flipOn;
     }
 
+#if OP_DEBUG
+    bool debugFail() const;
+    bool debugSuccess() const;
+#endif
 #if OP_DEBUG_DUMP
     void debugCompare(std::string s) const;
     std::string debugDumpHex(std::string label) const;
@@ -277,6 +285,11 @@ struct OpContours {
     OpOperator _operator;
     int coincidenceID = 0; // not debug since it is required for coin disambiguation
     int id = 0;
+#if OP_DEBUG
+    bool debugInPathOps;
+    bool debugInClearEdges;
+    OpDebugExpect debugExpect;
+#endif
 };
 
 #endif

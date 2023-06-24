@@ -2,9 +2,6 @@
 
 #if OP_DEBUG
 OpContours* debugGlobalContours;
-bool OpDebugPathOpsEnable::inPathOps;
-bool OpDebugPathOpsEnable::inClearEdges;
-OpDebugIntersect debugGlobalIntersect;
 #endif
 
 #if OP_DEBUG || OP_RELEASE_TEST
@@ -183,10 +180,10 @@ void OpMath::DebugCompare(float a, float b) {
 
 OpVector OpCurve::debugTangent(float t) const {
     switch (type) {
-    case lineType: return asLine().tangent();
-    case quadType: return asQuad().debugTangent(t);
-    case conicType: return asConic().debugTangent(t);
-    case cubicType: return asCubic().debugTangent(t);
+    case OpType::line: return asLine().tangent();
+    case OpType::quad: return asQuad().debugTangent(t);
+    case OpType::conic: return asConic().debugTangent(t);
+    case OpType::cubic: return asCubic().debugTangent(t);
     default:
         OP_ASSERT(0);
     }
@@ -232,6 +229,15 @@ constexpr auto to_array(T&&... t)->std::array < V, sizeof...(T) > {
 #include "OpContour.h"
 #include "OpSegment.h"
 
+
+bool OpContours::debugFail() const {
+    return OpDebugExpect::unknown == debugExpect || OpDebugExpect::fail == debugExpect;
+}
+
+bool OpContours::debugSuccess() const {
+    return OpDebugExpect::unknown == debugExpect || OpDebugExpect::success == debugExpect;
+}
+
 void OpIntersection::debugSetID() {
     id = segment->contour->contours->id++;
 if (68 == id)
@@ -261,3 +267,4 @@ bool OpSegment::debugContains(OpPtT ptT, const OpSegment* opp) const {
 }
 
 #endif
+

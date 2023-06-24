@@ -109,6 +109,9 @@ struct OpSegment {
 //            int direction  OP_DEBUG_PARAMS(const OpIntersection* last, EdgeMatch oppositeMatch,
 //            const OpEdge* firstEdge, SectReason ));
 //    OpEdge* visibleAdjacent(OpEdge* , const OpPtT& );
+
+    bool debugFail() const;
+    bool debugSuccess() const;
 #if OP_DEBUG
     bool debugContains(OpPtT , const OpSegment* opp) const;  // check for duplicates
     void debugValidate() const;

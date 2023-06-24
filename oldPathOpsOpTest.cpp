@@ -154,7 +154,13 @@ bool testPathOpBase(skiatest::Reporter* , const SkPath& a, const SkPath& b,
 	OpInPath op1(&a);
 	OpInPath op2(&b);
 	OpOutPath opOut(&result);
-    bool success = PathOps(op1, op2, (OpOperator) op, opOut);
+    bool success = 
+#if OP_DEBUG
+        DebugPathOps(op1, op2, (OpOperator) op, opOut, v0MayFail ? OpDebugExpect::unknown :
+                OpDebugExpect::success);
+#else
+        PathOps(op1, op2, (OpOperator) op, opOut);
+#endif
     OP_ASSERT(success || v0MayFail);
     bool skSuccess = Op(a, b, op, &skresult);
     OP_ASSERT(skSuccess || skiaMayFail);

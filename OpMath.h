@@ -127,26 +127,36 @@ inline int operator+(XyChoice a) {
 // here, axis is used as a component index for (x, y), so '-1' is used for neither
 enum class Axis : int8_t {
     neither = -1,   // set when axis parameter is passed but has no meaning
-    vertical,       // a vertical axis has a value in x
-    horizontal      // a horizontal axis has a value in y
+    vertical,       // a vertical axis has a value in x; or axis is positive in y (top to bottom)
+    horizontal,     // a horizontal axis has a value in y; or axis is positive in x (left to right)
+    up,             // used sparsely to denote a vertical axis that points bottom to top
+    left,           // used sparsely to denote a horizontal axis that points right to left
 };
 
 inline int operator+(Axis a) {
+    OP_ASSERT(Axis::vertical == a || Axis::horizontal == a);
     return static_cast<int>(a);
 }
 
+inline Axis operator-(Axis a) {
+    OP_ASSERT(Axis::vertical == a || Axis::horizontal == a);
+    return static_cast<Axis>((int) a + 2);
+}
+
 inline Axis operator!(Axis a) {
+    OP_ASSERT(Axis::vertical == a || Axis::horizontal == a);
     return static_cast<Axis>(!static_cast<int>(a));
 }
 
 // xychoice and axis are two ways of saying the same thing; often, one can be cast to the other
 inline Axis toAxis(XyChoice choice) {
-    OP_ASSERT(XyChoice::inZ != choice);
+    OP_ASSERT(XyChoice::inX == choice || XyChoice::inY == choice);
     return static_cast<Axis>(choice);
 }
 
-inline XyChoice toXyChoice(Axis axis) {
-    return static_cast<XyChoice>(axis);
+inline XyChoice toXyChoice(Axis a) {
+    OP_ASSERT(Axis::vertical == a || Axis::horizontal == a);
+    return static_cast<XyChoice>(a);
 }
 
 struct OpVector {

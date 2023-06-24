@@ -40,6 +40,28 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e
 	subDivide();	// uses already computed points stored in edge
 }
 
+CalcFail OpEdge::addIfUR(Axis axis, float t) {
+	NormalDirection NdotR = normalDirection(axis, t);
+	if (NormalDirection::upRight == NdotR)
+		sum += winding;
+	else if (NormalDirection::downLeft != NdotR)
+		OP_DEBUG_FAIL(*this, CalcFail::fail);
+	return CalcFail::none;
+}
+
+// given an intersecting ray and edge t, add or subtract edge winding to sum winding
+// but don't change edge's sum, since an unsectable edge does not allow that accumulation
+CalcFail OpEdge::addSub(Axis axis, float t, OpWinding* sumWinding) {
+	NormalDirection NdotR = normalDirection(axis, t);
+	if (NormalDirection::upRight == NdotR)
+		*sumWinding += winding;
+	else if (NormalDirection::downLeft == NdotR)
+		*sumWinding -= winding;
+	else
+		OP_DEBUG_FAIL(*this, CalcFail::fail);
+	return CalcFail::none;
+}
+
 #if 0
 // start here;
 // !!! replace sort with sort-and-remove-duplicates ?
@@ -169,7 +191,6 @@ void OpEdge::calcCenterT() {
 		center.t = OpMath::Interp(start.t, end.t, .5);
 		center.pt = r.center();
 	} else {
-		OpDebugIntersectSave save(OpDebugIntersect::edge);
 		Axis axis = r.width() >= r.height() ? Axis::vertical : Axis::horizontal;
 		float middle = (r.ltChoice(axis) + r.rbChoice(axis)) / 2;
 		const OpCurve& curve = setCurve();
@@ -190,39 +211,33 @@ void OpEdge::calcCenterT() {
 	OP_ASSERT(OpMath::Between(ptBounds.top, center.pt.y, ptBounds.bottom));
 }
 
-CalcFail OpEdge::calcWinding(Axis axis) {
-	int prevLeft = 0;
-	int prevRight = 0;
-	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
-	if (priorSum_impl && (EdgeFail::none == priorSum_impl->fail || 
-			EdgeFail::priorDistance == priorSum_impl->fail)) {
-		OP_ASSERT(priorSum_impl->sum.left() != OpMax);
-		OP_ASSERT(priorSum_impl->sum.right() != OpMax);
-		// have winding of previous edge
-		prevLeft = priorSum_impl->sum.left();
-		prevRight = priorSum_impl->sum.right();
-		const OpCurve& curve = priorSum_impl->setCurve();
-		OP_ASSERT(priorSum_impl->sumT);	// should have been initialized to some value off end of curve
-		bool overflow;
-		float tNdotR = curve.normal(priorSum_impl->sumT).normalize(&overflow).dot(-ray);
-		if (overflow)
-			return CalcFail::overflow;
-		if (tNdotR > 0) {
-			prevLeft -= priorSum_impl->winding.left();
-			prevRight -= priorSum_impl->winding.right();
-		}
-	}
+CalcFail OpEdge::calcPrior(Axis axis, float priorSumT, OpWinding* prev) {
+	if (EdgeFail::none != fail && EdgeFail::priorDistance != fail)
+		return CalcFail::none;
+	// have winding of previous edge
+	*prev = sum;
+	OP_ASSERT(prev->left() != OpMax);
+	OP_ASSERT(prev->right() != OpMax);
+	OP_ASSERT(priorSumT);  // should have been initialized to some value off end of curve
+	NormalDirection nd = normalDirection(-axis, priorSumT);
+	if (NormalDirection::overflow == nd || NormalDirection::underflow == nd)
+		OP_DEBUG_FAIL(*this, CalcFail::fail);
+	if (NormalDirection::upRight == nd)
+		*prev -= winding;
+	return CalcFail::none;
+}
+
+CalcFail OpEdge::calcWinding(Axis axis, float t) {
+	OpWinding prev(WindingEdge::dummy);	// sets to zero
+	if (priorSum())
+		priorSum()->calcPrior(axis, sumT, &prev);
 	// look at direction of edge relative to ray and figure winding/oppWinding contribution
-	bool overflow2;
-	float NdotR = segment->c.normal(center.t).normalize(&overflow2).dot(ray);
-	if (overflow2)
-		return CalcFail::overflow;
-	if (NdotR > 0) {
-		prevLeft += winding.left();
-		prevRight += winding.right();
-	}
-	sum.setSum(prevLeft & segment->contour->contours->leftFillTypeMask(),
-			prevRight & segment->contour->contours->rightFillTypeMask());
+	NormalDirection nd = segment->c.normalDirection(axis, t);
+	if (NormalDirection::overflow == nd || NormalDirection::underflow == nd)
+		OP_DEBUG_FAIL(*this, CalcFail::fail);
+	if (NormalDirection::upRight == nd)
+		prev += winding;
+	setSum(prev);
 	return CalcFail::none;
 }
 
@@ -276,18 +291,18 @@ float OpEdge::findT(Axis axis, float oppXY) const {
 // for each edge: recurse until priorSum is null or sum winding has value 
 // or -- sort the edges first ? the sort doesn't seem easy or obvious -- may need to think about it
 // if horizontal axis, look at rect top/bottom
-ResolveWinding OpEdge::findWinding(Axis axis  OP_DEBUG_PARAMS(int* debugWindingLimiter)) {
+ResolveWinding OpEdge::findWinding(Axis axis, float t  OP_DEBUG_PARAMS(int* debugWindingLimiter)) {
 	OP_ASSERT(++(*debugWindingLimiter) < 100);
 	OP_ASSERT(!sum.isSet());	// second pass or uninitialized
 	if (priorSum_impl) {
 		if (!priorSum_impl->sum.isSet()) {
-			ResolveWinding priorWinding = priorSum_impl->findWinding(axis
+			ResolveWinding priorWinding = priorSum_impl->findWinding(axis, sumT
 					OP_DEBUG_PARAMS(debugWindingLimiter));
 			if (ResolveWinding::resolved != priorWinding)
 				return priorWinding;
 		}
 	}
-	CalcFail calcFail = calcWinding(axis);
+	CalcFail calcFail = calcWinding(axis, t);
 	if (CalcFail::none != calcFail)
 		return ResolveWinding::fail;
 	return ResolveWinding::resolved;
@@ -546,6 +561,11 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups) {
 	return lastEdge->matchLink(linkups);
 }
 
+NormalDirection OpEdge::normalDirection(Axis axis, float t) {
+	const OpCurve& curve = setCurve();
+	return curve.normalDirection(axis, t);
+}
+
 OpEdge* OpEdge::prepareForLinkup() {
     OpEdge* first = this;
 	while (EdgeLink::multiple != first->priorLink) {
@@ -737,7 +757,7 @@ void OpEdge::subDivide() {
 	weight = pts.weight;
 	setFromPoints(pts.pts);
 	setPointBounds();
-	if (lineType == segment->c.type || (!ptBounds.height() ^ !ptBounds.width())) {
+	if (OpType::line == segment->c.type || (!ptBounds.height() ^ !ptBounds.width())) {
 		isLine_impl = true;
 		lineSet = true;
 	}
@@ -747,12 +767,21 @@ void OpEdge::subDivide() {
 	calcCenterT();
 }
 
+CalcFail OpEdge::subIfDL(Axis axis, float t, OpWinding* sumWinding) {
+	NormalDirection NdotR = normalDirection(axis, t);
+	if (NormalDirection::downLeft == NdotR)
+		*sumWinding -= winding;
+	else if (NormalDirection::upRight != NdotR)
+		OP_DEBUG_FAIL(*this, CalcFail::fail);
+	return CalcFail::none;
+}
+
 // note this should be only called on temporary edges (e.g., used to make coincident intersections)
 // after this is called, edge does not agree with segment, but does match another edge
 // this has to be called a second time (e.g., after trimming) to agree with segment
 void OpEdge::reverse() {
 	std::swap(start, end);
-	if (cubicType == segment->c.type)
+	if (OpType::cubic == segment->c.type)
 		std::swap(ctrlPts[0], ctrlPts[1]);
 	start.t = 1 - start.t;
 	end.t = 1 - end.t;
@@ -783,7 +812,7 @@ OpEdge* OpEdge::visibleAdjacent(EdgeMatch match) {
 #endif
 
 // !!! add zero reason here
-void OpWinding::move(const OpWinding& opp, const OpContours* contours, bool backwards) {
+void OpWinding::move(OpWinding opp, const OpContours* contours, bool backwards) {
 	if (OpFillType::winding == contours->left)
 		left_impl += backwards ? -opp.left() : opp.left();
 	else
@@ -792,4 +821,25 @@ void OpWinding::move(const OpWinding& opp, const OpContours* contours, bool back
 		right_impl += backwards ? -opp.right() : opp.right();
 	else
 		right_impl ^= opp.right();
+}
+
+void OpWinding::setSum(OpWinding winding, const OpSegment* segment) {
+	OP_ASSERT(WindingType::sum == debugType);
+	const OpContours& contours = *segment->contour->contours;
+	left_impl = winding.left() & contours.leftFillTypeMask();
+	right_impl = winding.right() & contours.rightFillTypeMask();
+}
+
+bool OpEdge::debugFail() const {
+#if OP_DEBUG
+    return segment->debugFail();
+#endif
+    return false;
+}
+
+bool OpEdge::debugSuccess() const {
+#if OP_DEBUG
+    return segment->debugSuccess();
+#endif
+    return true;
 }

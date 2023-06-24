@@ -196,6 +196,18 @@ public:
 		return { -left_impl, -right_impl  OP_DEBUG_PARAMS(0, ZeroReason::none) };
 	}
 
+	OpWinding& operator+=(const OpWinding& w) {
+		left_impl += w.left_impl;
+		right_impl += w.right_impl;
+		return *this;
+	}
+
+	OpWinding& operator-=(const OpWinding& w) {
+		left_impl -= w.left_impl;
+		right_impl -= w.right_impl;
+		return *this;
+	}
+
 	bool isSet() const {
 		OP_ASSERT(WindingType::sum == debugType);
 		return OpMax != left_impl || OpMax != right_impl;
@@ -205,7 +217,7 @@ public:
 		return left_impl;
 	}
 
-	void move(const OpWinding& opp, const OpContours* , bool backwards);
+	void move(OpWinding opp, const OpContours* , bool backwards);
 
 	int oppSide(OpOperand operand) const {
 		return OpOperand::left == operand ? right_impl : left_impl;
@@ -215,10 +227,7 @@ public:
 		return right_impl;
 	}
 
-	void setSum(int left, int right) {	// can be 0, 0
-		left_impl = left;
-		right_impl = right;
-	}
+	void setSum(OpWinding winding, const OpSegment* segment);
 
 	void setWind(int left, int right) {	// shouldn't be 0, 0 (call zero() for that)
 		OP_ASSERT(left || right);
@@ -286,7 +295,13 @@ inline void OpDebugCheckSingleZero(WindZero left, WindZero right) {
 
 enum class CalcFail {
 	none,
-	overflow,
+	fail,
+};
+
+// !!! worrisome: normal direction below is downLeft (correct); why is this downRight?
+enum class EdgeDirection {
+	downRight = -1,
+	upLeft = 1,
 };
 
 enum class EdgeLoop {
@@ -347,7 +362,7 @@ private:
 		, loopStart(nullptr)
 		, winding(WindingEdge::dummy)
 		, sum(WindingSum::dummy)
-		, sumNormal(0)
+//		, sumNormal(0)
 		, sumT(0)
 		, sumAxis(Axis::neither)	// not zero (-1)
 		, nextLink(EdgeLink::unlinked)
@@ -412,10 +427,13 @@ public:
 	OpEdge& operator=(OpEdge&&) = default;
 	~OpEdge();	// reason: removes temporary edges from image list
 #endif
+	CalcFail addIfUR(Axis xis, float t);
 //	void addMatchingEnds(const OpEdge& ) const;
+	CalcFail addSub(Axis axis, float t, OpWinding* );
 	void apply();
 	void calcCenterT();
-	CalcFail calcWinding(Axis axis);
+	CalcFail calcPrior(Axis axis, float sumT, OpWinding* prevRight);
+	CalcFail calcWinding(Axis axis, float centerT);
 	void clearActive();  // setter exists so debug breakpoints can be set
 	void clearNextEdge();
 	void clearPriorEdge();
@@ -426,7 +444,7 @@ public:
 	float findT(Axis , float oppXY) const;
 	OpPtT flipPtT(EdgeMatch match) const { return match == whichEnd ? end : start; }
 	void flipWhich() { whichEnd = (EdgeMatch)((int)whichEnd ^ (int)EdgeMatch::both); }
-	ResolveWinding findWinding(Axis axis  OP_DEBUG_PARAMS(int* debugWindingLimiter));
+	ResolveWinding findWinding(Axis axis, float t  OP_DEBUG_PARAMS(int* debugWindingLimiter));
 	bool hasLinkTo(EdgeMatch match) const { 
 		return EdgeLink::single == (EdgeMatch::start == match ? nextLink : priorLink); }
 	OpEdge* hasLoop(WhichLoop w, EdgeLoop e, LeadingLoop l) {
@@ -442,6 +460,7 @@ public:
 	bool matchLink(std::vector<OpEdge*>& linkups );
 	const OpEdge* nextChain(EdgeLoop edgeLoop) const {
 		OP_ASSERT(EdgeLoop::link == edgeLoop); return nextEdge; }
+	NormalDirection normalDirection(Axis axis, float t);
 	void output(OpOutPath path);	// provided by the graphics implmentation
 	OpEdge* prepareForLinkup();
 	const OpEdge* priorChain(EdgeLoop edgeLoop) const {
@@ -461,15 +480,19 @@ public:
 	void setPoints(std::array<OpPoint, 4>& pts) const;
 	void setPriorEdge(OpEdge* );  // setter exists so debug breakpoints can be set
 	void setPriorSum(OpEdge*);   // setter exists so debug breakpoints can be set
+	void setSum(OpWinding w) { 
+		sum.setSum(w, segment); }
 	const OpCurve& setVertical();
-//	void setWinding(OpVector ray);
 	void subDivide();
+	CalcFail subIfDL(Axis axis, float t, OpWinding* );
 	bool validLoop() const;
 //	OpEdge* visibleAdjacent(EdgeMatch );
 //	OpPtT whichPtT() const { return EdgeMatch::start == whichEnd ? start : end;  }
 	OpPtT whichPtT(EdgeMatch match = EdgeMatch::start) const { 
 		return match == whichEnd ? start : end; }
 
+	bool debugFail() const;
+    bool debugSuccess() const;
 #if OP_DEBUG_DUMP
 	OpEdge(std::string );
 	OpEdge(OpPtT data[2]);
@@ -513,10 +536,10 @@ public:
 	OpPointBounds linkBounds;
 	OpWinding winding;	// contribution: always starts as 1, 0 (or 0, 1)
 	OpWinding sum; // total incl. normal side of edge for operands (fill count in normal direction)
-	float sumNormal; // normal of edge projecting ray
-	float sumT; // !!! note : prior t == priorSum->sumT
+//	float sumNormal; // normal of edge projecting ray (e.g., y value for horizontal ray)
+	float sumT; // t value of priorSum when hit by ray
 	int id;
-	Axis sumAxis; // the axis when sum chain was computed (there may not be a prior)
+	Axis sumAxis; // the ray axis when sum chain was computed (there may not be a prior)
 	EdgeLink nextLink;
 	EdgeLink priorLink;
 	EdgeMatch whichEnd;	// if 'start', prior link end equals start; if 'end' prior end matches end

@@ -32,7 +32,10 @@ enum class OpDebugIntersect {
 	edge
 };
 
+struct OpContours;
+
 #ifdef NDEBUG
+
 #define OP_DEBUG_PARAMS(...)
 #define OP_DEBUG_CODE(x)
 #define OP_DEBUG 0
@@ -41,10 +44,8 @@ enum class OpDebugIntersect {
 #define OP_DEBUG_INITIALIZE_TO_SILENCE_WARNING
 #define OpDebugOut(string)
 #define OP_ASSERT(expr)
-
-struct OpDebugIntersectSave {
-	OpDebugIntersectSave(OpDebugIntersect tempState) {}
-};
+#define OP_DEBUG_FAIL(object, returnValue) return returnValue
+#define OP_DEBUG_SUCCESS(object, returnValue) return returnValue
 
 #else
 
@@ -65,40 +66,21 @@ struct OpDebugIntersectSave {
 #define OP_DEBUG_IMAGE (PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_SKIA)
 #define OP_DEBUG_INITIALIZE_TO_SILENCE_WARNING = 0
 
+#define OP_DEBUG_FAIL(object, returnValue) \
+	do { if (!(object).debugFail()) OP_DEBUG_BREAK(); return returnValue; } while (false)
+#define OP_DEBUG_SUCCESS(object, returnValue) \
+	do { if (!(object).debugSuccess()) OP_DEBUG_BREAK(); return returnValue; } while (false)
+
 #include <string>
 
-struct OpContours;
-
-// debug as written only works when testing uses a single thread
+// debug compare, debug dump, and debug image as written only work when testing uses a single thread
 extern OpContours* debugGlobalContours;
 extern OpDebugIntersect debugGlobalIntersect;
 
-
-struct OpDebugIntersectSave {
-	OpDebugIntersectSave(OpDebugIntersect tempState) {
-		saved = debugGlobalIntersect;
-		debugGlobalIntersect = tempState;
-	}
-
-	~OpDebugIntersectSave() {
-		debugGlobalIntersect = saved;
-	}
-
-	OpDebugIntersect saved;
-};
-
-struct OpDebugPathOpsEnable {
-	OpDebugPathOpsEnable() {
-		inPathOps = true;
-		inClearEdges = false;
-	}
-	~OpDebugPathOpsEnable() {
-		inPathOps = false;
-		inClearEdges = false;
-	}
-
-	static bool inPathOps;
-	static bool inClearEdges;
+enum class OpDebugExpect {
+	unknown,
+	fail,
+	success,
 };
 
 float OpDebugBitsToFloat(int32_t);
@@ -114,6 +96,7 @@ std::string OpDebugToString(float value, int precision);
 inline std::string OpDebugStr(int32_t x) { return std::to_string(x); }
 inline std::string OpDebugStr(size_t x) { return std::to_string(x); }
 inline std::string OpDebugStr(float x) { return std::to_string(x); }
+
 #define STR(x) OpDebugStr(x)
 
 #define OpDebugBreak(opObject, ID) \

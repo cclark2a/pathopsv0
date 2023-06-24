@@ -285,11 +285,11 @@ OpDebugIntersectionIterator intersectionIterator;
 
 struct OpDebugDefeatDelete {
 	OpDebugDefeatDelete() {
-		save = OpDebugPathOpsEnable::inPathOps;
-		OpDebugPathOpsEnable::inPathOps = false;
+		save = debugGlobalContours->debugInPathOps;
+		debugGlobalContours->debugInPathOps = false;
 	}
 	~OpDebugDefeatDelete() {
-		OpDebugPathOpsEnable::inPathOps = save;
+		debugGlobalContours->debugInPathOps = save;
 	}
 
 	bool save;
@@ -298,19 +298,19 @@ struct OpDebugDefeatDelete {
 void OpDebugImage::addToPath(const OpCurve& curve, SkPath& path) {
 	path.moveTo(curve.pts[0].x, curve.pts[0].y);
 	switch (curve.type) {
-		case noType:
+		case OpType::no:
 			OP_ASSERT(0);
 			break;
-		case lineType:
+		case OpType::line:
 			path.lineTo(curve.pts[1].x, curve.pts[1].y);
 			break;
-		case quadType:
+		case OpType::quad:
 			path.quadTo(curve.pts[1].x, curve.pts[1].y, curve.pts[2].x, curve.pts[2].y);
 			break;
-		case conicType:
+		case OpType::conic:
 			path.conicTo(curve.pts[1].x, curve.pts[1].y, curve.pts[2].x, curve.pts[2].y, curve.weight);
 			break;
-		case cubicType:
+		case OpType::cubic:
 			path.cubicTo(curve.pts[1].x, curve.pts[1].y, curve.pts[2].x, curve.pts[2].y,
 					curve.pts[3].x, curve.pts[3].y);
 			break;
@@ -351,7 +351,6 @@ void playback() {
 	char str[255];
 	double debugZoom;
 	double debugCenter[2];
-	double setBounds[4];
 	float textSize;
 	int intervals;
 	int precision;
@@ -366,12 +365,7 @@ void playback() {
 		goto bail;
 	}
 	DebugOpSetCenter(debugCenter[0], debugCenter[1]);
-	if (fscanf(file, "setBounds: %lg, %lg, %lg, %lg\n", &setBounds[0], &setBounds[1],
-			&setBounds[2], &setBounds[3]) != 4) {
-		OpDebugOut("reading setBounds failed\n");
-		goto bail;
-	}
-	DebugOpSetBounds(setBounds[0], setBounds[1], setBounds[2], setBounds[3]);
+	DebugOpResetBounds();
 	if (fscanf(file, "textSize: %g\n", &textSize) != 1) {
 		OpDebugOut("reading textSize failed\n");
 		goto bail;
@@ -1251,9 +1245,9 @@ void OpContours::draw() const {
 }
 
 OpEdge::~OpEdge() {
-	if (OpDebugPathOpsEnable::inClearEdges)
+	if (debugGlobalContours->debugInClearEdges)
 		return;
-	if (!OpDebugPathOpsEnable::inPathOps)
+	if (!debugGlobalContours->debugInPathOps)
 		return;
 	OP_ASSERT(!segment->debugContains(this));
 	for (auto edge = foundEdges.begin(); edge != foundEdges.end(); ++edge) {
