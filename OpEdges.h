@@ -36,18 +36,28 @@ enum class FoundWindings {
 	yes
 };
 
+
+enum class DistMult {
+	none,
+	first,
+	mid,
+	last,
+};
+
 struct EdgeDistance {
 	EdgeDistance(OpEdge* e, float d, float n, float _t)
 		: edge(e)
 		, distance(d)
 		, normal(n)
-		, t(_t) {
+		, t(_t)
+		, multiple(DistMult::none) {
 	}
 
 	OpEdge* edge;
 	float distance;
 	float normal;
 	float t;
+	DistMult multiple;
 };
 
 struct OpEdges {

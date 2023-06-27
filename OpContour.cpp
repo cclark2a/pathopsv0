@@ -195,7 +195,8 @@ bool OpContours::closeGap(OpEdge* last, OpEdge* first) {
     };
     for (auto edge : unsortables) {
         if (connectBetween(edge)) {
-            edge->unsortable = false;   // only use edge once
+            OP_ASSERT(EdgeSum::unsortable == edge->sumType);
+            edge->sumType = EdgeSum::unset;   // only use edge once
             return true;
         }
     }

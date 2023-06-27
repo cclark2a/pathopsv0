@@ -40,10 +40,10 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e
 	subDivide();	// uses already computed points stored in edge
 }
 
-CalcFail OpEdge::addIfUR(Axis axis, float t) {
+CalcFail OpEdge::addIfUR(Axis axis, float t, OpWinding* sumWinding) {
 	NormalDirection NdotR = normalDirection(axis, t);
 	if (NormalDirection::upRight == NdotR)
-		sum += winding;
+		*sumWinding += winding;
 	else if (NormalDirection::downLeft != NdotR)
 		OP_DEBUG_FAIL(*this, CalcFail::fail);
 	return CalcFail::none;
@@ -211,6 +211,7 @@ void OpEdge::calcCenterT() {
 	OP_ASSERT(OpMath::Between(ptBounds.top, center.pt.y, ptBounds.bottom));
 }
 
+#if 0
 CalcFail OpEdge::calcPrior(Axis axis, float priorSumT, OpWinding* prev) {
 	if (EdgeFail::none != fail && EdgeFail::priorDistance != fail)
 		return CalcFail::none;
@@ -226,17 +227,15 @@ CalcFail OpEdge::calcPrior(Axis axis, float priorSumT, OpWinding* prev) {
 		*prev -= winding;
 	return CalcFail::none;
 }
+#endif
 
 CalcFail OpEdge::calcWinding(Axis axis, float t) {
-	OpWinding prev(WindingEdge::dummy);	// sets to zero
-	if (priorSum())
-		priorSum()->calcPrior(axis, sumT, &prev);
+	OpWinding prev(WindingTemp::dummy);
+//	if (priorSum())
+//		priorSum()->calcPrior(axis, sumT, &prev);
 	// look at direction of edge relative to ray and figure winding/oppWinding contribution
-	NormalDirection nd = segment->c.normalDirection(axis, t);
-	if (NormalDirection::overflow == nd || NormalDirection::underflow == nd)
+	if (CalcFail::fail == addIfUR(axis, t, &prev))
 		OP_DEBUG_FAIL(*this, CalcFail::fail);
-	if (NormalDirection::upRight == nd)
-		prev += winding;
 	setSum(prev);
 	return CalcFail::none;
 }
@@ -270,7 +269,7 @@ bool OpEdge::containsChain(const OpEdge* edge, EdgeLoop loopType) const {
 		if (edge == chain)
 			return true;
 		seen.push_back(chain);
-		chain = EdgeLoop::link == loopType ? chain->nextEdge : chain->priorSum_impl;
+		chain = /* EdgeLoop::link == loopType ? */ chain->nextEdge /* : chain->priorSum_impl */;
 		if (!chain)
 			break;
 		auto seenIter = std::find(seen.begin(), seen.end(), chain);
@@ -288,6 +287,7 @@ float OpEdge::findT(Axis axis, float oppXY) const {
 	return result;
 }
 
+#if 0
 // for each edge: recurse until priorSum is null or sum winding has value 
 // or -- sort the edges first ? the sort doesn't seem easy or obvious -- may need to think about it
 // if horizontal axis, look at rect top/bottom
@@ -307,6 +307,7 @@ ResolveWinding OpEdge::findWinding(Axis axis, float t  OP_DEBUG_PARAMS(int* debu
 		return ResolveWinding::fail;
 	return ResolveWinding::resolved;
 }
+#endif
 
 bool OpEdge::inLinkLoop(const OpEdge* match) {
 	OpEdge* loopy = this;
@@ -325,8 +326,9 @@ bool OpEdge::inLinkLoop(const OpEdge* match) {
 	return false;
 }
 
+#if 0
 bool OpEdge::inSumLoop(const OpEdge* match) {
-	OP_ASSERT(isSumLoop);
+	OP_ASSERT(EdgeSum::loop == sumType);
 	OpEdge* loopy = this;
 	OP_DEBUG_CODE(OpEdge* last = this);
 	while ((loopy = loopy->priorSum_impl) != this) {
@@ -340,6 +342,7 @@ bool OpEdge::inSumLoop(const OpEdge* match) {
 	}
 	return false;
 }
+#endif
 
 // note that caller clears active flag if loop is closed
 bool OpEdge::isClosed(OpEdge* test) {
@@ -721,11 +724,13 @@ void OpEdge::setPriorEdge(OpEdge* edge) {
 	priorEdge = edge;
 }
 
+#if 0
 // setter to make adding breakpoints easier
 // !!! if release doesn't inline, restructure more cleverly...
 void OpEdge::setPriorSum(OpEdge* edge) {
 	priorSum_impl = edge;
 }
+#endif
 
 const OpCurve& OpEdge::setVertical() {
 	if (!verticalSet) {
@@ -761,9 +766,11 @@ void OpEdge::subDivide() {
 		isLine_impl = true;
 		lineSet = true;
 	}
-	isPoint = start.pt == end.pt;
-	if (isPoint)
+ 	if (start.pt == end.pt) {
+		OP_ASSERT(0);	// !!! check to see if this can still happen
+		sumType = EdgeSum::point;
 		winding.zero(ZeroReason::isPoint);
+	}
 	calcCenterT();
 }
 
@@ -811,25 +818,6 @@ OpEdge* OpEdge::visibleAdjacent(EdgeMatch match) {
 }
 #endif
 
-// !!! add zero reason here
-void OpWinding::move(OpWinding opp, const OpContours* contours, bool backwards) {
-	if (OpFillType::winding == contours->left)
-		left_impl += backwards ? -opp.left() : opp.left();
-	else
-		left_impl ^= opp.left();
-	if (OpFillType::winding == contours->right)
-		right_impl += backwards ? -opp.right() : opp.right();
-	else
-		right_impl ^= opp.right();
-}
-
-void OpWinding::setSum(OpWinding winding, const OpSegment* segment) {
-	OP_ASSERT(WindingType::sum == debugType);
-	const OpContours& contours = *segment->contour->contours;
-	left_impl = winding.left() & contours.leftFillTypeMask();
-	right_impl = winding.right() & contours.rightFillTypeMask();
-}
-
 bool OpEdge::debugFail() const {
 #if OP_DEBUG
     return segment->debugFail();
@@ -842,4 +830,28 @@ bool OpEdge::debugSuccess() const {
     return segment->debugSuccess();
 #endif
     return true;
+}
+
+// !!! add zero reason here
+void OpWinding::move(OpWinding opp, const OpContours* contours, bool backwards) {
+	OP_ASSERT(WindingType::winding == debugType);
+	OP_ASSERT(WindingType::winding == opp.debugType);
+	if (OpFillType::winding == contours->left)
+		left_impl += backwards ? -opp.left() : opp.left();
+	else
+		left_impl ^= opp.left();
+	if (OpFillType::winding == contours->right)
+		right_impl += backwards ? -opp.right() : opp.right();
+	else
+		right_impl ^= opp.right();
+}
+
+void OpWinding::setSum(OpWinding winding, const OpSegment* segment) {
+	OP_ASSERT(WindingType::sum == debugType);
+	OP_ASSERT(WindingType::temp == winding.debugType);
+	OP_ASSERT(OpMax == left_impl);
+	OP_ASSERT(OpMax == right_impl);
+	const OpContours& contours = *segment->contour->contours;
+	left_impl = winding.left() & contours.leftFillTypeMask();
+	right_impl = winding.right() & contours.rightFillTypeMask();
 }

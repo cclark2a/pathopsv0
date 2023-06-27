@@ -730,7 +730,7 @@ void DebugOpDrawEdges(std::vector<DebugOpCurve>& curves) {
         const OpEdge* edge = findEdge(curve.id);
         if (nullptr == edge)
             OpDebugOut("edge " + STR(curve.id) + " not found\n");
-        else if (edge->unsectable)
+        else if (EdgeSum::unsectable == edge->sumType)
             isUnsectable = edge->debugUnOpp ? UnsectType::edge : UnsectType::opp;
         if (unsectablePath != isUnsectable) {
             if (!path.isEmpty()) {

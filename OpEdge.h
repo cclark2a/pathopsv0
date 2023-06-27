@@ -91,6 +91,10 @@ enum class WindingSum {
 	dummy
 };
 
+enum class WindingTemp {	// used to accumulate winding sum before it is applied
+	dummy
+};
+
 enum class ZeroReason : int8_t {
 	uninitialized = -1,
 	none,
@@ -121,17 +125,20 @@ enum class ZeroReason : int8_t {
 
 enum class WindingType  {
 	uninitialized = -1,
-	none,
+	temp,
 	winding,
 	sum
 };
 
 struct OpWinding {
 private:
+	// used by operator-
 	OpWinding(int l, int r  OP_DEBUG_PARAMS(int s, ZeroReason z))
 		: left_impl(l)
 		, right_impl(r)
 #if OP_DEBUG
+		, debugLeft(-OpMax)
+		, debugRight(-OpMax)
 		, debugSetter(s)
 		, debugType(WindingType::winding)
 		, debugReason(z)
@@ -140,18 +147,7 @@ private:
 	}
 
 public:
-	OpWinding(WindingEdge) 
-		: left_impl(0)
-		, right_impl(0)
-#if OP_DEBUG
-		, debugSetter(0)
-		, debugType(WindingType::winding)
-		, debugReason(ZeroReason::none)
-#endif
-	{
-	}
-
-	OpWinding(WindingSum)
+	OpWinding(WindingSum)	// used to initialize edge sum to uncomputed state
 		: left_impl(OpMax)
 		, right_impl(OpMax)
 #if OP_DEBUG
@@ -163,8 +159,22 @@ public:
 #endif	
 	{
 	}
+	
+	OpWinding(WindingTemp)  // used for winding accumulators before sum is set
+		: left_impl(0)
+		, right_impl(0)
+#if OP_DEBUG
+		, debugLeft(-OpMax)
+		, debugRight(-OpMax)
+		, debugSetter(0)
+		, debugType(WindingType::temp)
+		, debugReason(ZeroReason::none)
+#endif
+	{
+	}
 
-	OpWinding(WindingUninitialized)
+
+	OpWinding(WindingUninitialized)	 // used by edge and segment winding before they are set
 #if OP_DEBUG
 		: left_impl(-OpMax)
 		, right_impl(-OpMax)
@@ -177,10 +187,12 @@ public:
 	{
 	}
 
-	OpWinding(OpOperand operand)
+	OpWinding(OpOperand operand)	// used to set initial segment winding
 		: left_impl(OpOperand::left == operand ? 1 : 0)
 		, right_impl(OpOperand::right == operand ? 1 : 0)
 #if OP_DEBUG
+		, debugLeft(-OpMax)
+		, debugRight(-OpMax)
 		, debugSetter(0)
 		, debugType(WindingType::winding)
 		, debugReason(ZeroReason::none)
@@ -193,16 +205,19 @@ public:
 	}
 
 	OpWinding operator-() const {
+		OP_ASSERT(WindingType::winding == debugType);
 		return { -left_impl, -right_impl  OP_DEBUG_PARAMS(0, ZeroReason::none) };
 	}
 
 	OpWinding& operator+=(const OpWinding& w) {
+		OP_ASSERT(WindingType::temp == debugType);
 		left_impl += w.left_impl;
 		right_impl += w.right_impl;
 		return *this;
 	}
 
 	OpWinding& operator-=(const OpWinding& w) {
+		OP_ASSERT(WindingType::temp == debugType);
 		left_impl -= w.left_impl;
 		right_impl -= w.right_impl;
 		return *this;
@@ -230,6 +245,7 @@ public:
 	void setSum(OpWinding winding, const OpSegment* segment);
 
 	void setWind(int left, int right) {	// shouldn't be 0, 0 (call zero() for that)
+		OP_ASSERT(WindingType::uninitialized == debugType);
 		OP_ASSERT(left || right);
 		left_impl = left;
 		right_impl = right;
@@ -314,6 +330,15 @@ enum class EdgeSplit : uint8_t {
 	yes,
 };
 
+enum class EdgeSum : uint8_t {
+	unset,
+//	loop,			// prior edge chain loops back to start (no longer a thing?)
+	point,			// edge totally collapsed (no longer a thing?)
+	set,			// edge is ray ordered
+	unsectable,		// too close to another edge to sort by ray
+	unsortable,     // sum was not resolvable by ray in either axis (likely edge is very small) 
+};
+
 enum class LeadingLoop {
 	in,
 	will,
@@ -358,30 +383,28 @@ private:
 		: priorEdge(nullptr)
 		, nextEdge(nullptr)
 		, lastEdge(nullptr)
-		, priorSum_impl(nullptr)
-		, loopStart(nullptr)
-		, winding(WindingEdge::dummy)
+//		, priorSum_impl(nullptr)
+//		, loopStart(nullptr)
+		, winding(WindingUninitialized::dummy)
 		, sum(WindingSum::dummy)
 //		, sumNormal(0)
-		, sumT(0)
-		, sumAxis(Axis::neither)	// not zero (-1)
+//		, sumT(0)
+//		, sumAxis(Axis::neither)	// not zero (-1)
 		, nextLink(EdgeLink::unlinked)
 		, priorLink(EdgeLink::unlinked)
 		, whichEnd(EdgeMatch::none)
 		, fail(EdgeFail::none)
 		, windZero(WindZero::noFlip)
 		, doSplit(EdgeSplit::no)
+		, sumType(EdgeSum::unset)
 		, curveSet(false)
-		, endAliased(false)
+//		, endAliased(false)
 		, lineSet(false)
 		, verticalSet(false)
 		, isLine_impl(false)
-		, isPoint(false)
-		, isSumLoop(false)
 		, active_impl(false)
-		, startAliased(false)
-		, unsectable(false)
-		, unsortable(false) {
+//		, startAliased(false)
+	{
 #if OP_DEBUG
 		debugStart = nullptr;
 		debugEnd = nullptr;
@@ -394,14 +417,15 @@ private:
 #endif
 	}
 public:
-	OpEdge(const OpSegment* s, OpPtT t1, OpPtT t2, bool isUnsectable  
+	OpEdge(const OpSegment* s, OpPtT t1, OpPtT t2, bool isUnsectable  // !!! change to EdgeSum
 			OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file, const OpIntersection* i1, 
 					const OpIntersection* i2))
 		: OpEdge() {
 		segment = s;
 		start = t1;
 		end = t2;
-		unsectable = isUnsectable;
+		if (isUnsectable)
+			sumType = EdgeSum::unsectable;
 #if OP_DEBUG
 		debugStart = i1;
 		debugEnd = i2;
@@ -427,12 +451,12 @@ public:
 	OpEdge& operator=(OpEdge&&) = default;
 	~OpEdge();	// reason: removes temporary edges from image list
 #endif
-	CalcFail addIfUR(Axis xis, float t);
+	CalcFail addIfUR(Axis xis, float t, OpWinding* );
 //	void addMatchingEnds(const OpEdge& ) const;
 	CalcFail addSub(Axis axis, float t, OpWinding* );
 	void apply();
 	void calcCenterT();
-	CalcFail calcPrior(Axis axis, float sumT, OpWinding* prevRight);
+//	CalcFail calcPrior(Axis axis, float sumT, OpWinding* prevRight);
 	CalcFail calcWinding(Axis axis, float centerT);
 	void clearActive();  // setter exists so debug breakpoints can be set
 	void clearNextEdge();
@@ -450,7 +474,7 @@ public:
 	OpEdge* hasLoop(WhichLoop w, EdgeLoop e, LeadingLoop l) {
 		return const_cast<OpEdge*>((const_cast<const OpEdge*>(this))->isLoop(w, e, l)); }
 	bool inLinkLoop(const OpEdge* );
-	bool inSumLoop(const OpEdge* );
+//	bool inSumLoop(const OpEdge* );
 	bool isActive() const { 
 		return active_impl; }
 	bool isClosed(OpEdge* test);
@@ -464,8 +488,8 @@ public:
 	void output(OpOutPath path);	// provided by the graphics implmentation
 	OpEdge* prepareForLinkup();
 	const OpEdge* priorChain(EdgeLoop edgeLoop) const {
-		return EdgeLoop::link == edgeLoop ? priorEdge : priorSum_impl; }
-	OpEdge* priorSum() { return priorSum_impl; }	// hide to avoid changing prior sum outside set
+		return /* EdgeLoop::link == edgeLoop ? */ priorEdge /* : priorSum_impl */  ; }
+//	OpEdge* priorSum() { return priorSum_impl; }	// hide to avoid changing prior sum outside set
 	OpPtT ptT(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? start : end; }
 	void reverse();	// only call on temporary edges (e.g., used to make coincident intersections)
@@ -479,7 +503,7 @@ public:
 	void setPointBounds();
 	void setPoints(std::array<OpPoint, 4>& pts) const;
 	void setPriorEdge(OpEdge* );  // setter exists so debug breakpoints can be set
-	void setPriorSum(OpEdge*);   // setter exists so debug breakpoints can be set
+//	void setPriorSum(OpEdge*);   // setter exists so debug breakpoints can be set
 	void setSum(OpWinding w) { 
 		sum.setSum(w, segment); }
 	const OpCurve& setVertical();
@@ -519,7 +543,7 @@ public:
 	OpEdge* priorEdge;	// edges that link to form completed contour
 	OpEdge* nextEdge;
 	OpEdge* lastEdge;
-	OpEdge* priorSum_impl;	// edge that set sum winding (access through debugging get/set)
+//	OpEdge* priorSum_impl;	// edge that set sum winding (access through debugging get/set)
 	OpEdge* loopStart;	// if sum loops, furthest edge away from end
 	OpPoint ctrlPts[2];	// quad, conic, cubic
 	float weight;
@@ -537,26 +561,27 @@ public:
 	OpWinding winding;	// contribution: always starts as 1, 0 (or 0, 1)
 	OpWinding sum; // total incl. normal side of edge for operands (fill count in normal direction)
 //	float sumNormal; // normal of edge projecting ray (e.g., y value for horizontal ray)
-	float sumT; // t value of priorSum when hit by ray
+//	float sumT; // t value of priorSum when hit by ray
 	int id;
-	Axis sumAxis; // the ray axis when sum chain was computed (there may not be a prior)
+//	Axis sumAxis; // the ray axis when sum chain was computed (there may not be a prior)
 	EdgeLink nextLink;
 	EdgeLink priorLink;
 	EdgeMatch whichEnd;	// if 'start', prior link end equals start; if 'end' prior end matches end
 	EdgeFail fail;	// how computation (e.g., center) failed (on fail, windings are set to zero)
 	WindZero windZero; // normal means edge normal points to zero side; opposite, normal is non-zero
 	EdgeSplit doSplit;
+	EdgeSum sumType;
 	bool curveSet;
-	bool endAliased;
 	bool lineSet;
 	bool verticalSet;
 	bool isLine_impl;	// ptBounds 0=h/0=w catches horz/vert lines; if true, line is diagonal(?)
-	bool isPoint;
-	bool isSumLoop;
+//	bool isPoint;
+//	bool isSumLoop;
 	bool active_impl;  // used by ray casting to mark edges that may be to the left of casting edge
-	bool startAliased;
-	bool unsectable;
-	bool unsortable;	// sum was not resolvable by ray in either axis (likely edge is very small) 
+//	bool endAliased;
+//	bool startAliased;
+//	bool unsectable;
+//	bool unsortable;	
 #if OP_DEBUG
 	const OpIntersection* debugStart;
 	const OpIntersection* debugEnd;

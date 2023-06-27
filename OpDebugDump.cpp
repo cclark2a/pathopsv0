@@ -751,6 +751,40 @@ std::string debugAxisName(Axis axis) {
     return result;
 }
 
+struct EdgeSumName {
+    EdgeSum edgeSum;
+    const char* name;
+};
+
+#define EDGE_SUM_NAME(r) { EdgeSum::r, #r }
+
+static EdgeSumName edgeSumNames[] {
+    EDGE_SUM_NAME(unset),
+ //   EDGE_SUM_NAME(loop),
+    EDGE_SUM_NAME(point),
+    EDGE_SUM_NAME(set),
+    EDGE_SUM_NAME(unsectable),
+    EDGE_SUM_NAME(unsortable),
+};
+
+std::string debugEdgeSumName(EdgeSum edgeSum) {
+    std::string result;
+    bool outOfDate = false;
+    for (unsigned index = 0; index < ARRAY_COUNT(edgeSumNames); ++index) {
+        if (!outOfDate && ((unsigned) edgeSumNames[index].edgeSum) != index) {
+            OpDebugOut("edgeSumNames out of date\n");
+            outOfDate = true;
+        }
+        if (edgeSum != edgeSumNames[index].edgeSum)
+            continue;
+        if (outOfDate)
+            result += STR((int) edgeSum);
+        else
+            result += std::string(edgeSumNames[index].name);
+    }
+    return result;
+}
+
 std::string OpEdge::debugDumpDetail() const {
     std::string s = "edge[" + STR(id) + "] segment[" + STR(segment->id) + "] contour["
             + STR(segment->contour->id) + "]\n";
@@ -760,6 +794,7 @@ std::string OpEdge::debugDumpDetail() const {
         s += "/" + (lastEdge ? STR(lastEdge->id) : "-");
         s += " ";
     }
+#if 0
     if (Axis::neither != sumAxis || priorSum_impl) {
         s += "priorSum:" + (priorSum_impl ? STR(priorSum_impl->id) : std::string("null"));
         s += " axis:" + debugAxisName(sumAxis) + " ";
@@ -770,10 +805,11 @@ std::string OpEdge::debugDumpDetail() const {
     }
     if (loopStart) {
         s += "loopStart:" + STR(loopStart->id) + " ";
-        if (!isSumLoop)
+        if (EdgeSum::loop != sumType)
             s += "\n!!! loopStart set EXPECTED isSumLoop ";
     }
-    if (priorEdge || nextEdge || lastEdge || priorSum_impl || loopStart || Axis::neither != sumAxis)
+#endif
+    if (priorEdge || nextEdge || lastEdge || /* priorSum_impl || */ loopStart /* || Axis::neither != sumAxis */ )
         s += "\n";
     s += "{" + start.debugDump() + ", ";
     for (int i = 0; i < segment->c.pointCount() - 2; ++i)
@@ -806,17 +842,18 @@ std::string OpEdge::debugDumpDetail() const {
     if (EdgeSplit::no != doSplit) s += "doSplit";
     if (EdgeSplit::yes == doSplit) s += ":yes";
     if (EdgeSplit::no != doSplit) s += " ";
+    s += "sumType:" + debugEdgeSumName(sumType) + " ";
     if (curveSet) s += "curveSet ";
-    if (endAliased) s += "endAliased ";
+//    if (endAliased) s += "endAliased ";
     if (lineSet) s += "lineSet ";
     if (verticalSet) s += "verticalSet ";
     if (isLine_impl) s += "isLine ";
-    if (isPoint) s += "isPoint ";
-    if (isSumLoop) s += "isSumLoop ";
+//    if (isPoint) s += "isPoint ";
+//    if (isSumLoop) s += "isSumLoop ";
     if (active_impl) s += "active ";
-    if (startAliased) s += "startAliased ";
-    if (unsectable) s += "unsectable ";
-    if (unsortable) s += "unsortable ";
+//    if (startAliased) s += "startAliased ";
+//    if (unsectable) s += "unsectable ";
+//    if (unsortable) s += "unsortable ";
     if (debugStart) s += "debugStart:" + STR(debugStart->id) + " ";
     if (debugEnd) s += "debugEnd:" + STR(debugEnd->id) + " ";
     s += "debugMaker:" + debugEdgeDebugMaker(debugMaker) + " ";
@@ -934,8 +971,9 @@ std::string OpEdge::debugDump() const {
     if (EdgeSplit::no != doSplit) s += "doSplit ";
     if (EdgeSplit::yes == doSplit) s += "yes ";
     if (isLine_impl) s += "isLine ";
-    if (isPoint) s += "isPoint ";
-    if (unsortable) s += "unsortable ";
+    s += "sumType:" + debugEdgeSumName(sumType) + " ";
+//    if (isPoint) s += "isPoint ";
+//    if (unsortable) s += "unsortable ";
     s += "seg:" + STR(segment->id);
     return s;
 }
@@ -1078,12 +1116,46 @@ DUMP_STRUCT_DEFINITIONS(OpEdges)
 
 DUMP_STRUCT_DEFINITIONS(OpCurveCurve)
 
+struct DistMultName {
+    DistMult distMult;
+    std::string name;
+};
+
+#define DIST_MULT_NAME(r) { DistMult::r, #r }
+
+DistMultName distMultNames[] {
+	DIST_MULT_NAME(none),
+	DIST_MULT_NAME(first),
+	DIST_MULT_NAME(mid),
+	DIST_MULT_NAME(last),
+};
+
+static bool distMultOutOfDate = false;
+
+void checkDistMult() {
+    static bool distMultOutChecked = false;
+    if (!distMultOutChecked) {
+        for (unsigned index = 0; index < ARRAY_COUNT(distMultNames); ++index)
+           if (!distMultOutOfDate && (unsigned) distMultNames[index].distMult != index) {
+               OpDebugOut("!!! distMultNames out of date\n");
+               distMultOutOfDate = true;
+               break;
+           }
+        distMultOutChecked = true;
+    }
+}
+
 void dump(const std::vector<EdgeDistance>& distances) {
+    checkDistMult();
     for (auto& distance : distances) {
         OpDebugOut(distance.edge->debugDump() + "\n");
         OpDebugOut("distance:" + STR(distance.distance) + " ");
         OpDebugOut("normal:" + STR(distance.normal) + " ");
-        OpDebugOut("t:" + STR(distance.t) + "\n");
+        OpDebugOut("t:" + STR(distance.t) + " ");
+        if (distMultOutOfDate)
+            OpDebugOut("(distMult out of date) " + STR((int)distance.multiple));
+        else
+            OpDebugOut("multiple:" + distMultNames[(int)distance.multiple].name + "\n");
     }
 }
 

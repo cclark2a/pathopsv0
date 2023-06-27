@@ -1286,8 +1286,7 @@ void OpEdge::drawChain(EdgeLoop edgeLoop) const {
 		} while ((chain = chain->nextEdge) && this != chain);
 		chain = this;
 	}
-	while ((chain = EdgeLoop::link == edgeLoop ? chain->priorEdge : chain->priorSum_impl) 
-			&& this != chain) {
+	while ((chain = priorChain(EdgeLoop::link)) && this != chain) {
 		OpDebugImage::add(chain);
 	}
 	DRAW_IDS_ON(Edges);

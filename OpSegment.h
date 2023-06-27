@@ -83,8 +83,8 @@ struct OpSegment {
     void complete(OP_DEBUG_CODE(OpContour* ));
     bool containsIntersection(OpPtT , const OpSegment* ) const;
     OpEdge* findActive(OpPtT , EdgeMatch ) const;
-    void fixEdges(OpPoint alias, OpPoint master  OP_DEBUG_PARAMS(int masterSectID));
-    void fixIntersections(OpPoint alias, OpPoint master  OP_DEBUG_PARAMS(int masterSectID));
+//    void fixEdges(OpPoint alias, OpPoint master  OP_DEBUG_PARAMS(int masterSectID));
+//    void fixIntersections(OpPoint alias, OpPoint master  OP_DEBUG_PARAMS(int masterSectID));
     float findPtT(float start, float end, OpPoint opp) const;
     FoundPtT findPtT(Axis , float start, float end, float oppXY, float* result) const;
     FoundPtT findPtT(float start, float end, OpPoint opp, float* result) const;
