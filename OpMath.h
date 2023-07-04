@@ -402,8 +402,8 @@ struct OpPoint {
 
     void pin(const OpPoint , const OpPoint );
     void pin(const OpRect& );
-    void toSkPoint(SkPoint* ) const;
-    void toPenTrekPoint(pentrek::Point* ) const;
+    SkPoint toSkPoint() const;
+    pentrek::Point toPenTrekPoint() const;
 
 #if OP_DEBUG_DUMP
     OpPoint(const char*& );

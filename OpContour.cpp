@@ -18,6 +18,7 @@ OpContours::OpContours(OpInPath& left, OpInPath& right, OpOperator op) {
 #if OP_DEBUG
     debugInPathOps = false;
     debugInClearEdges = false;
+    debugResult = nullptr;
     debugExpect = OpDebugExpect::unknown;
 #endif
 }
@@ -182,7 +183,7 @@ OpIntersection* OpContours::allocateIntersection() {
     return &sectStorage->storage[sectStorage->used++];
 }
 
-bool OpContours::closeGap(OpEdge* last, OpEdge* first) {
+bool OpContours::closeGap(OpEdge* last, OpEdge* first, std::vector<OpEdge*>& unsectInX) {
     OpPoint start = first->whichPtT(EdgeMatch::start).pt;
     OpPoint end = last->whichPtT(EdgeMatch::end).pt;
     auto connectBetween = [=](OpEdge* edge) {  // lambda
@@ -193,6 +194,18 @@ bool OpContours::closeGap(OpEdge* last, OpEdge* first) {
         edge->linkNextPrior(first, last);
         return true;
     };
+    for (auto edge : unsectInX) {
+        if (!edge->isActive())
+            continue;
+        if (connectBetween(edge)) {
+            OP_ASSERT(EdgeSum::unsectable == edge->sumType);
+            edge->clearActive();   // only use edge once
+            for (auto pals : edge->pals) {
+                pals->clearActive();
+            }
+            return true;
+        }
+    }
     for (auto edge : unsortables) {
         if (connectBetween(edge)) {
             OP_ASSERT(EdgeSum::unsortable == edge->sumType);

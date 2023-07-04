@@ -26,6 +26,9 @@ OpEdges::OpEdges(OpEdge* sEdge, OpEdge* oEdge) {
 void OpEdges::addEdge(OpEdge* edge, EdgesToSort edgesToSort) {
 	if (!edge->winding.visible())	// skip edges no longer visible
 		return;
+	// skip unsectable + no many; and skip non-unsectable + many
+	if ((EdgesToSort::unsectable == edgesToSort) == !edge->many.isSet())
+		return;
 	if (EdgesToSort::byBox == edgesToSort || edge->ptBounds.height())
 		inX.push_back(edge);
 	if (EdgesToSort::byCenter == edgesToSort && edge->ptBounds.width())
@@ -537,6 +540,42 @@ FoundIntercept OpEdges::findRayIntercept(size_t inIndex, Axis axis, OpEdge* edge
 	} while (true);
 }
 
+void OpEdges::MarkUnsectableGroups(std::vector<EdgeDistance>& distance) {
+	bool lastIsUnsectable = false;
+	EdgeDistance* lastDistance = nullptr;
+	for (auto& dist : distance) {
+		bool distIsUnsectable = EdgeSum::unsectable == dist.edge->sumType;
+		if (lastIsUnsectable && distIsUnsectable) {
+			// check if they were generated from the same curves
+			const OpSegment* segMatch = dist.edge->segment;
+			bool sawStart = false;
+			for (const OpIntersection* sect : lastDistance->edge->segment->intersections) {
+				if (sawStart && sect->ptT.t > lastDistance->edge->end.t)
+					break;
+				if (segMatch != sect->opp->segment)
+					continue;
+				if (SectFlavor::unsectableStart == sect->flavor) {
+					OP_ASSERT(sect->ptT.t <= lastDistance->edge->start.t);
+					OP_ASSERT(!sawStart);
+					sawStart = true;
+				}
+				if (SectFlavor::unsectableEnd == sect->flavor) {
+					OP_ASSERT(sect->ptT.t >= lastDistance->edge->end.t);
+					OP_ASSERT(sawStart);
+					break;
+				}
+			}
+			if (sawStart) {
+				lastDistance->multiple = DistMult::none == lastDistance->multiple ?
+						DistMult::first : DistMult::mid;
+				dist.multiple = DistMult::last;
+			}
+		}
+		lastIsUnsectable = distIsUnsectable;
+		lastDistance = &dist;
+	}
+}
+
 void OpEdges::markUnsortable(OpEdge* edge, Axis axis, ZeroReason reason) {
 	if (Axis::vertical == axis || inY.end() == std::find(inY.begin(), inY.end(), edge)) {
 		edge->winding.zero(reason);
@@ -544,6 +583,40 @@ void OpEdges::markUnsortable(OpEdge* edge, Axis axis, ZeroReason reason) {
 		edge->segment->contour->contours->unsortables.push_back(edge);
 	}
 	edge->fail = Axis::vertical == axis ? EdgeFail::vertical : EdgeFail::horizontal;
+}
+
+void OpEdges::SetEdgeMultiple(Axis axis, EdgeDistance* edgeDist  
+		OP_DEBUG_PARAMS(std::vector<EdgeDistance>& distance)) {
+	OpEdge* edge = edgeDist->edge;
+	NormalDirection edgeNorm = edge->normalDirection(axis, edgeDist->t);
+	auto addToMany = [=](EdgeDistance& dist, OpEdge* edge  
+			OP_DEBUG_PARAMS(DistMult limit)) {
+		OP_ASSERT(limit == dist.multiple || DistMult::mid == dist.multiple);
+		dist.edgeMultiple = true;
+		NormalDirection distNorm = dist.edge->normalDirection(axis, dist.t);
+		OP_ASSERT(NormalDirection::downLeft == distNorm
+				|| NormalDirection::upRight == distNorm);
+		if (edgeNorm == distNorm)
+			edge->many += dist.edge->winding;
+		else
+			edge->many -= dist.edge->winding;
+		edge->pals.push_back(dist.edge);
+	};
+	OP_ASSERT(NormalDirection::downLeft == edgeNorm
+			|| NormalDirection::upRight == edgeNorm);
+	edgeDist->edgeMultiple = true;
+	EdgeDistance* edgeFirst = edgeDist;
+	OP_ASSERT(WindingType::uninitialized == edge->many.debugType);
+	edge->many = edge->winding;
+	while (DistMult::first != edgeFirst->multiple) {
+		OP_ASSERT(edgeFirst > &distance.front() && edgeFirst <= &distance.back());
+		addToMany(*--edgeFirst, edge  OP_DEBUG_PARAMS(DistMult::first));
+	}
+	EdgeDistance* edgeLast = edgeDist;
+	while (DistMult::last != edgeLast->multiple) {
+		OP_ASSERT(edgeLast >= &distance.front() && edgeLast < &distance.back());
+		addToMany(*++edgeLast, edge  OP_DEBUG_PARAMS(DistMult::last));
+	}
 }
 
 // if horizontal axis, look at rect top/bottom
@@ -592,7 +665,7 @@ ChainFail OpEdges::setSumChain(size_t inIndex, Axis axis) {
 	// walk edge from low to high (backwards) until simple edge with sum winding is found
 	// if edge is unsectable and next to another unsectable, don't set its sum winding, 
 	// but accumulate its winding for other edges and store accumulated total in each unsectable
-	if (ResolveWinding::fail == setWindingByDistance(axis, distance))
+	if (ResolveWinding::fail == setWindingByDistance(edge, axis, distance))
 		return ChainFail::failIntercept;	// !!! replace with unique fail state
 #if 0
 	EdgeDistance* last = &distance.front();
@@ -621,57 +694,45 @@ ChainFail OpEdges::setSumChain(size_t inIndex, Axis axis) {
 }
 
 // distance array may include edges to right. Remove code that collects that?
-ResolveWinding OpEdges::setWindingByDistance(Axis axis, std::vector<EdgeDistance>& distance) {
+ResolveWinding OpEdges::setWindingByDistance(OpEdge* edge, Axis axis, 
+		std::vector<EdgeDistance>& distance) {
 	if (1 == distance.size()) {
-		OP_ASSERT(EdgeSum::unsectable != distance[0].edge->sumType);
+		OP_ASSERT(edge == distance[0].edge);
+		OP_ASSERT(EdgeSum::unsectable != edge->sumType);
 //			return ResolveWinding::loop;	// !!! this shouldn't be possible (?)
-		return CalcFail::fail == distance[0].edge->calcWinding(axis, distance[0].t) ?
+		return CalcFail::fail == edge->calcWinding(axis, distance[0].t) ?
 				ResolveWinding::fail : ResolveWinding::resolved;
 	}
-	bool lastIsUnsectable = false;
-	EdgeDistance* lastDistance = nullptr;
-	for (auto& dist : distance) {
-		bool distIsUnsectable = EdgeSum::unsectable == dist.edge->sumType;
-		if (lastIsUnsectable && distIsUnsectable) {
-			lastDistance->multiple = DistMult::none == lastDistance->multiple ? DistMult::first :
-					DistMult::mid;
-			dist.multiple = DistMult::last;
-		}
-		lastIsUnsectable = distIsUnsectable;
-		lastDistance = &dist;
-	}
+	// mark consecutive pairs or more of unsectable as multiples
+	MarkUnsectableGroups(distance);
 	// find edge; then walk backwards to first known sum 
-	unsigned index = 0;	// result if no sum is found
-	OpEdge* edge = nullptr;
-	float edgeT = -1;
-	for (auto distIter = distance.rbegin(); distIter != distance.rend(); ++distIter) {
-		if (distIter->distance < 0)
+	int sumIndex = (int) distance.size();
+	int edgeIndex  OP_DEBUG_CODE(= -1);
+	while (--sumIndex >= 0) {
+		EdgeDistance* edgeDist = &distance[sumIndex];
+		if (edgeDist->distance < 0)
 			continue;
-		if (!edge) {
-			OP_ASSERT(0 == distIter->distance);
-			edge = distIter->edge;
-			OpDebugBreak(edge, 444);
-			OpDebugBreak(edge, 454);
-			OpDebugBreak(edge, 442);
-			edgeT = distIter->t;
+		if (edgeDist->edge == edge) {
+			OP_ASSERT(0 == edgeDist->distance);
+			edgeIndex = sumIndex;
+			if (DistMult::none != edgeDist->multiple)
+				SetEdgeMultiple(axis, edgeDist  OP_DEBUG_PARAMS(distance));
 			continue;
 		}
-		if (0 == distIter->distance) {	   // If more than one candidate has a distance of zero,
+		if (0 == edgeDist->distance) {	   // If more than one candidate has a distance of zero,
 			OP_ASSERT(EdgeSum::unsectable == edge->sumType);   //  figure out why not already marked
-			OP_ASSERT(EdgeSum::unsectable == distIter->edge->sumType);
+			OP_ASSERT(EdgeSum::unsectable == edgeDist->edge->sumType);
 			continue;
 		}
-		OP_ASSERT(distIter->distance > 0);
-		OpEdge* prior = distIter->edge;
-		if (EdgeSum::unsectable == prior->sumType || !prior->sum.isSet())
-			continue;
-		index = &*distIter - &distance.front() + 1;
-		break;
+		OP_ASSERT(edgeDist->distance > 0);
+		OpEdge* prior = edgeDist->edge;
+		if (EdgeSum::unsectable != prior->sumType && prior->sum.isSet())
+			break;
 	}
 	// starting with found or zero if none, accumulate sum up to winding
 	OpWinding sumWinding(WindingTemp::dummy);
-	if (index > 0) {
-		EdgeDistance& sumDistance = distance[index - 1];
+	if (sumIndex >= 0) {
+		EdgeDistance& sumDistance = distance[sumIndex];
 		OpEdge* sumEdge = sumDistance.edge;
 		sumWinding = sumEdge->sum;
 		OP_DEBUG_CODE(sumWinding.debugType = WindingType::temp);
@@ -679,40 +740,32 @@ ResolveWinding OpEdges::setWindingByDistance(Axis axis, std::vector<EdgeDistance
 		if (CalcFail::fail == sumEdge->subIfDL(axis, sumDistance.t, &sumWinding))  
 			OP_DEBUG_FAIL(*sumEdge, ResolveWinding::fail);
 	}
-	bool edgeSeen = false;
-	while (index < distance.size()) {
-		EdgeDistance& dist = distance[index++];
-		OpEdge* prior = dist.edge;
-		edgeSeen |= prior == edge;
-		if (edgeSeen && EdgeSum::unsectable != prior->sumType) 
+	// walk from the known sum to (and including) the edge
+	int walkIndex = sumIndex;
+	OP_ASSERT(edgeIndex >= 0);
+	while (++walkIndex <= edgeIndex) {
+		EdgeDistance& dist = distance[walkIndex];
+		if (dist.edgeMultiple)
 			break;
+		OpEdge* prior = dist.edge;
+		NormalDirection normDir = prior->normalDirection(axis, dist.t);
+		OP_ASSERT(NormalDirection::downLeft == normDir || NormalDirection::upRight == normDir);
+		bool sumSet = EdgeSum::unsectable != prior->sumType || prior == edge;
+		if (sumSet && NormalDirection::downLeft == normDir)
+			OP_EDGE_SET_SUM(prior, sumWinding);
 		if (CalcFail::fail == prior->addSub(axis, dist.t, &sumWinding)) // if d/l sub; if u/r add
 			OP_DEBUG_FAIL(*prior, ResolveWinding::fail);
-		// skip over all but last of unsectable in multiple set
-		if (EdgeSum::unsectable == prior->sumType && DistMult::last != dist.multiple)
-			continue;
-		OpWinding priorSum = sumWinding;
-		OP_ASSERT(WindingType::temp == priorSum.debugType);
-		if (CalcFail::fail == prior->addIfUR(axis, dist.t, &priorSum))
-			OP_DEBUG_FAIL(*prior, ResolveWinding::fail);
-		prior->setSum(priorSum);
-		// accumate the winding for all in the group, then set all sums to that accumulation
-		if (DistMult::last == dist.multiple) {
-			unsigned rIndex = index - 1;
-			do {
-				OP_ASSERT(rIndex);
-				distance[--rIndex].edge->setSum(priorSum);
-				OP_ASSERT(EdgeSum::unsectable == distance[rIndex].edge->sumType);
-				OP_ASSERT(DistMult::first == distance[rIndex].multiple
-						|| DistMult::mid == distance[rIndex].multiple);
-			} while (DistMult::first != distance[rIndex].multiple);
-			if (edgeSeen)
-				return ResolveWinding::resolved;
-		}
+		if (sumSet && NormalDirection::upRight == normDir)
+			OP_EDGE_SET_SUM(prior, sumWinding);
 	}
-	if (CalcFail::fail == edge->addIfUR(axis, edgeT, &sumWinding))
-		OP_DEBUG_FAIL(*edge, ResolveWinding::fail);
-	edge->setSum(sumWinding);	// edge may be unsectable
+	// accumate the winding for all in the group, then set all sums to that accumulation
+	if (distance[edgeIndex].edgeMultiple) {
+		NormalDirection normDir = edge->normalDirection(axis, distance[edgeIndex].t);
+		OP_ASSERT(NormalDirection::downLeft == normDir || NormalDirection::upRight == normDir);
+		if (NormalDirection::upRight == normDir)
+			sumWinding += edge->many;
+		OP_EDGE_SET_SUM(edge, sumWinding);
+	}
 	return ResolveWinding::resolved;
 }
 
@@ -732,7 +785,7 @@ FoundWindings OpEdges::setWindings(OpContours* contours) {
 			if (ChainFail::normalizeOverflow == chainFail)
 				OP_DEBUG_FAIL(*edge, FoundWindings::fail);
 		}
-#if OP_DEBUG
+#if 0
 		static bool debugLoopCheckNeeded = true;
 		if (debugLoopCheckNeeded)
 			for (OpEdge* edge : edges)
@@ -812,7 +865,7 @@ static bool compareYCenter(const OpEdge* s1, const OpEdge* s2) {
 }
 
 void OpEdges::sort(EdgesToSort sortBy) {
-	if (EdgesToSort::byBox == sortBy) {
+	if (EdgesToSort::byBox == sortBy || EdgesToSort::unsectable == sortBy) {
 		std::sort(inX.begin(), inX.end(), compareXBox);
 		return;
 	}

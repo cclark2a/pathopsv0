@@ -30,7 +30,7 @@ void DebugOpBuild(const OpEdge& , const struct OpDebugRay& );
 void DebugOpBuild(const OpSegment& , const struct OpDebugRay& );
 void DebugOpBuild(const SkPath& , const struct OpDebugRay& );
 void DebugOpClearInputs();
-void DebugOpDraw(const std::vector<OpOutPath>& );
+void DebugOpDraw(const OpOutPath* );
 void DebugOpDraw(const std::vector<OpDebugRay>& );
 void DebugOpDraw(const std::vector<OpEdge>& );
 void DebugOpDraw(const std::vector<const OpEdge*>& );

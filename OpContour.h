@@ -172,7 +172,7 @@ struct OpContours {
     }
 #endif
 
-    bool closeGap(OpEdge* last, OpEdge* first);
+    bool closeGap(OpEdge* last, OpEdge* first, std::vector<OpEdge*>& );
     void finishAll();
 
 #if 0
@@ -288,6 +288,7 @@ struct OpContours {
 #if OP_DEBUG
     bool debugInPathOps;
     bool debugInClearEdges;
+    OpOutPath* debugResult;
     OpDebugExpect debugExpect;
 #endif
 };

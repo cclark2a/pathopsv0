@@ -16,7 +16,8 @@ enum class ChainFail {
 
 enum class EdgesToSort {
 	byBox,		// when walking to intersect, use box only
-	byCenter	// when walking to determine winding, use box and center ray
+	byCenter,	// when walking to determine winding, use box and center ray
+	unsectable
 };
 
 enum class FoundIntersections {
@@ -44,13 +45,15 @@ enum class DistMult {
 	last,
 };
 
+// !!! is it worth wrapping a vector of these in a structure so methods can be associated?
 struct EdgeDistance {
 	EdgeDistance(OpEdge* e, float d, float n, float _t)
 		: edge(e)
 		, distance(d)
 		, normal(n)
 		, t(_t)
-		, multiple(DistMult::none) {
+		, multiple(DistMult::none)
+		, edgeMultiple(false) {
 	}
 
 	OpEdge* edge;
@@ -58,6 +61,7 @@ struct EdgeDistance {
 	float normal;
 	float t;
 	DistMult multiple;
+	bool edgeMultiple;
 };
 
 struct OpEdges {
@@ -72,14 +76,17 @@ struct OpEdges {
 	static IntersectResult CoincidentCheck(OpPtT ptTa, OpPtT ptTb, OpPtT ptTc, OpPtT ptTd,
 			OpSegment* segment, OpSegment* oppSegment);
 	static IntersectResult CoincidentCheck(const OpEdge& edge, const OpEdge& opp);
-	FoundWindings checkForLoops(Axis axis);
+//	FoundWindings checkForLoops(Axis axis);
 //	void checkForLoopy(EdgeDistance* last, Axis axis, std::vector<EdgeDistance>& distance);
 //	FoundIntersections findIntersections();
 	FoundIntercept findRayIntercept(size_t inIndex, Axis , OpEdge* edge, float center, 
 			float normal, float edgeCenterT, std::vector<EdgeDistance>* );
+	static void MarkUnsectableGroups(std::vector<EdgeDistance>& distance);
 	void markUnsortable(OpEdge* edge, Axis , ZeroReason);
+	static void SetEdgeMultiple(Axis axis, EdgeDistance* edgeDist  
+			OP_DEBUG_PARAMS(std::vector<EdgeDistance>& distance));
 	ChainFail setSumChain(size_t inIndex, Axis );
-	ResolveWinding setWindingByDistance(Axis , std::vector<EdgeDistance>& );
+	ResolveWinding setWindingByDistance(OpEdge* edge, Axis , std::vector<EdgeDistance>& );
 	FoundWindings setWindings(OpContours* );
 	void sort(EdgesToSort);
 
@@ -92,6 +99,7 @@ struct OpEdges {
 	DUMP_COMMON_DECLARATIONS();
 #endif
 #if OP_DEBUG_IMAGE
+	void addDraw() const;
 	void draw() const;
 #endif
 

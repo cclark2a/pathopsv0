@@ -11,25 +11,28 @@
 
 bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
     OpEdges edges(c, EdgesToSort::byBox);  // collect active edges and sort them
+    OpEdges unsectables(c, EdgesToSort::unsectable);  // collect unsectables as well
     if (!edges.inX.size())
         return true;
     for (auto edge : edges.inX) {
         edge->setActive();
     }
+    for (auto unsectable : unsectables.inX) {
+        unsectable->setActive();
+    }
 #if 01 && OP_DEBUG
     clear();
     hideSegmentEdges();
-    showIntersections();
-
+    hideIntersections();
     edges.draw();
-//    addEdges();
-//    focus(445);
+    unsectables.addDraw();
     redraw();
     OpDebugOut("");
 #endif
     // match up edges that have only a single possible prior or next link, and add them to new list
     std::vector<OpEdge*> linkups;
     for (auto& leftMost : edges.inX) {
+        OpDebugBreak(leftMost, 461);
         if (!leftMost->winding.visible())
             continue;   // likely marked as part of a loop below
         if (!leftMost->isActive())  // check if already saved in linkups
@@ -51,11 +54,12 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
             continue;
         }
         OpEdge* first = linkup ? linkup : leftMost;
+        OpDebugPlayback(first, 450);
         OpEdge* newLast = leftMost->linkUp(EdgeMatch::end, first);
         if (!leftMost->containsLink(newLast)) {
             newLast->output(path);
-            first = leftMost->prepareForLinkup();
-            linkups.emplace_back(first);
+            OpEdge* pFirst = leftMost->prepareForLinkup();
+            linkups.emplace_back(pFirst);
             continue;
         }
         if (newLast != leftMost) {
@@ -66,16 +70,16 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
             // !!! TODO : find direction of loop at add 'reverse' param to output if needed
             //     direction should consider whether edge normal points to inside or outside
         }
-            if (newLast->isClosed(first) || c.closeGap(newLast, first)) {
-                first->output(path);  // emit the contour
-                continue;
-            }
+        if (newLast->isClosed(first) || c.closeGap(newLast, first, unsectables.inX)) {
+            first->output(path);  // emit the contour
+            continue;
+        }
         first = first->prepareForLinkup();
         linkups.emplace_back(first);
     }
     for (auto linkup : linkups) {
-        OP_ASSERT(!linkup->isLoop(WhichLoop::prior, EdgeLoop::link, LeadingLoop::will));
-        OP_ASSERT(!linkup->isLoop(WhichLoop::next, EdgeLoop::link, LeadingLoop::will));
+        OP_ASSERT(!linkup->isLoop(WhichLoop::prior, LeadingLoop::will));
+        OP_ASSERT(!linkup->isLoop(WhichLoop::next, LeadingLoop::will));
         OP_ASSERT(linkup->lastEdge);
         OP_ASSERT(!linkup->priorEdge);
         do {
@@ -89,8 +93,8 @@ bool OpEdgeBuilder::Assemble(OpContours& c, OpOutPath path) {
     for (auto linkup : linkups) {
         if (!linkup->isActive())
             continue;
-        if (!linkup->lastEdge->isClosed(linkup) && !c.closeGap(linkup->lastEdge, linkup)
-                && !linkup->matchLink(linkups))
+        if (!linkup->lastEdge->isClosed(linkup) && !c.closeGap(linkup->lastEdge, linkup,
+                unsectables.inX) && !linkup->matchLink(linkups, unsectables.inX))
             return false;   // if edges form loop with tail, fail
         // determine direction of linked edges, if any (a straight line won't have a direction)
         linkup->output(path);  // emit the contour

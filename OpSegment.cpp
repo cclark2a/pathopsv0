@@ -14,6 +14,8 @@ OpSegment::OpSegment(const CurvePts& pts, OpType type
 // !!! optimization:  if called from opedge linkup, could abort if >1 active found
 // if operand is diff or reverse diff, the subtracted path has an interior of zero
 // if the operand is union or intersection, both paths have an interior of one
+// Unsectable edges may or may not be able to have their wind zero side computed;
+// for now, treat any unsectable multiple as having a zero side whether it does or not.
 void OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<FoundEdge>& oppEdges,
         AllowReversal canReverse) const {
     OP_ASSERT(edge->winding.visible());
@@ -35,7 +37,7 @@ void OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
             WindZero startZeroSide = start->windZero;
             if (EdgeMatch::start == match)
                 flip(&startZeroSide);
-            if (edge->windZero == startZeroSide) {
+            if (edge->windZero == startZeroSide || start->many.isSet()) {
                 if (!start->hasLinkTo(match))
                     oppEdges.emplace_back(start, EdgeMatch::start, AllowReversal::no);
                 else if (AllowReversal::yes == canReverse && !start->hasLinkTo(Opposite(match)))
@@ -47,7 +49,7 @@ void OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
             WindZero endZeroSide = end->windZero;
             if (EdgeMatch::end == match)
                 flip(&endZeroSide);
-            if (edge->windZero == endZeroSide) {
+            if (edge->windZero == endZeroSide || end->many.isSet()) {
                 if (!end->hasLinkTo(match))
                     oppEdges.emplace_back(end, EdgeMatch::end, AllowReversal::no);
                 else if (AllowReversal::yes == canReverse && !end->hasLinkTo(Opposite(match)))
@@ -63,7 +65,7 @@ void OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
             if (alreadyFound.edge == nextDoor)
                 return;
         if (nextDoor) {
-            if (edge->windZero == nextDoor->windZero) {
+            if (edge->windZero == nextDoor->windZero || nextDoor->many.isSet()) {
                 if (!nextDoor->hasLinkTo(match))
                     oppEdges.emplace_back(nextDoor, neighbor, AllowReversal::no);
             }

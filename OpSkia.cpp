@@ -33,47 +33,39 @@ void OpOutPath::dump() const {
 
 #endif
 
-void OpPoint::toSkPoint(SkPoint* skPt) const {
-    skPt->fX = x;
-    skPt->fY = y;
+SkPoint OpPoint::toSkPoint() const {
+    return SkPoint::Make(x, y);
 }
 
 void OpEdge::output(OpOutPath path) {
-    SkPoint skPt[4];
-    whichPtT().pt.toSkPoint(&skPt[0]);
     SkPath* skPath = path.skPath;
-    skPath->moveTo(skPt[0]);
+    skPath->moveTo(whichPtT().pt.toSkPoint());
     const OpEdge* firstEdge = this;
     OpEdge* edge = this;
     do {
+        SkPoint skEndPt = (EdgeMatch::start == edge->whichEnd ? edge->end : edge->start)
+                .pt.toSkPoint();
         OpType type = edge->setLinear() ? OpType::line : edge->segment->c.type;
-        start.pt.toSkPoint(&skPt[0]);
-        ctrlPts[0].toSkPoint(&skPt[1]);
-        ctrlPts[1].toSkPoint(&skPt[2]);
-        end.pt.toSkPoint(&skPt[3]);
-        if (EdgeMatch::end == edge->whichEnd) {
-            std::swap(skPt[0], skPt[3]);
-            if (OpType::cubic == type)
-                std::swap(skPt[1], skPt[2]);
-        }
-        switch (type) {
-        case OpType::line: 
-            skPath->lineTo(skPt[3]); 
-            break;
-        case OpType::quad: 
-            skPath->quadTo(skPt[1], skPt[3]); 
-            break;
-        case OpType::conic: 
-            skPath->conicTo(skPt[1], skPt[3], edge->weight); 
-            break;
-        case OpType::cubic: 
-            edge->ctrlPts[1].toSkPoint(&skPt[2]);
-            skPath->cubicTo(skPt[1], skPt[2], skPt[3]);  break;
-            break;
-        default: 
-            OP_ASSERT(0);
+        if (OpType::line == type) 
+            skPath->lineTo(skEndPt); 
+        else {
+            SkPoint skCtrlPt0 = edge->ctrlPts[0].toSkPoint();
+            if (OpType::quad == type) 
+                skPath->quadTo(skCtrlPt0, skEndPt); 
+            else if (OpType::conic == type) 
+                skPath->conicTo(skCtrlPt0, skEndPt, edge->weight);
+            else {
+                OP_ASSERT(OpType::cubic == type);
+                SkPoint skCtrlPt1 = edge->ctrlPts[1].toSkPoint();
+                if (EdgeMatch::end == edge->whichEnd)
+                    std::swap(skCtrlPt0, skCtrlPt1);
+                skPath->cubicTo(skCtrlPt0, skCtrlPt1, skEndPt);
+            }
         }
         edge->clearActive();
+        for (auto pal : edge->pals) {
+            pal->clearActive(); 
+        }
         edge = edge->nextEdge;
     } while (firstEdge != edge);
     skPath->close();

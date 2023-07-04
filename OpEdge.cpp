@@ -135,6 +135,11 @@ void OpEdge::addMatchingEnds(const OpEdge& opp) const {
 void OpEdge::apply() {
 	if (!winding.visible())
 		return;
+	if (many.isSet()) {
+		OP_ASSERT(ZeroReason::uninitialized == many.debugReason);
+		std::swap(many, sum);
+		OP_DEBUG_CODE(many.debugReason = ZeroReason::swapped);
+	}
 	OpContours* contours = segment->contour->contours;
 	WindState leftState = contours->windState(winding.left(), sum.left(), OpOperand::left);
 	WindState rightState = contours->windState(winding.right(), sum.right(), OpOperand::right);
@@ -236,13 +241,14 @@ CalcFail OpEdge::calcWinding(Axis axis, float t) {
 	// look at direction of edge relative to ray and figure winding/oppWinding contribution
 	if (CalcFail::fail == addIfUR(axis, t, &prev))
 		OP_DEBUG_FAIL(*this, CalcFail::fail);
-	setSum(prev);
+	OP_EDGE_SET_SUM(this, prev);
 	return CalcFail::none;
 }
 
 // function so that setting breakpoints is easier
 // !!! if this is not inlined in release, do something more cleverer...
 void OpEdge::clearActive() {
+	OpDebugBreak(this, 454);
 	active_impl = false;
 }
 
@@ -262,7 +268,7 @@ void OpEdge::complete() {
 	id = segment->contour->contours->id++;
 }
 
-bool OpEdge::containsChain(const OpEdge* edge, EdgeLoop loopType) const {
+bool OpEdge::containsLink(const OpEdge* edge) const {
 	const OpEdge* chain = this;
 	std::vector<const OpEdge*> seen;
 	for (;;) {
@@ -346,8 +352,8 @@ bool OpEdge::inSumLoop(const OpEdge* match) {
 
 // note that caller clears active flag if loop is closed
 bool OpEdge::isClosed(OpEdge* test) {
-	if (isLoop(WhichLoop::prior, EdgeLoop::link, LeadingLoop::will) 
-			|| isLoop(WhichLoop::next, EdgeLoop::link, LeadingLoop::will))
+	if (isLoop(WhichLoop::prior, LeadingLoop::will) 
+			|| isLoop(WhichLoop::next, LeadingLoop::will))
 		return true;
 	if (flipPtT(EdgeMatch::start).pt == test->whichPtT().pt) {
 		OP_ASSERT(!nextEdge || nextEdge == test);
@@ -364,14 +370,14 @@ bool OpEdge::isClosed(OpEdge* test) {
 // keep this in sync with op edge : debug dump chain
 // ignore axis changes when detecting sum loops (for now)
 // !!! if the axis change is required to detect for sum loops, document why!
-const OpEdge* OpEdge::isLoop(WhichLoop which, EdgeLoop edgeLoop, LeadingLoop leading) const {
-	if (!(WhichLoop::prior == which ? priorChain(edgeLoop) : nextChain(edgeLoop)))
+const OpEdge* OpEdge::isLoop(WhichLoop which, LeadingLoop leading) const {
+	if (!(WhichLoop::prior == which ? priorChain() : nextChain()))
 		return nullptr;
 	const OpEdge* chain = this;
 	std::vector<const OpEdge*> seen;
 	for (;;) {
 		seen.push_back(chain);
-		chain = WhichLoop::prior == which ? chain->priorChain(edgeLoop) : chain->nextChain(edgeLoop);
+		chain = WhichLoop::prior == which ? chain->priorChain() : chain->nextChain();
 		if (!chain)
 			break;
 		auto seenIter = std::find(seen.begin(), seen.end(), chain);
@@ -457,7 +463,7 @@ OpEdge* OpEdge::linkUp(EdgeMatch match, OpEdge* firstEdge) {
 	return oppEdge->linkUp(match, firstEdge);
 }
 
-bool OpEdge::matchLink(std::vector<OpEdge*>& linkups) {
+bool OpEdge::matchLink(std::vector<OpEdge*>& linkups, std::vector<OpEdge*>& unsectInX) {
 	OP_ASSERT(lastEdge);
 	OP_ASSERT(EdgeMatch::start == lastEdge->whichEnd || EdgeMatch::end == lastEdge->whichEnd);
 	(void) setLinkBounds();
@@ -557,11 +563,12 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups) {
  	OpDebugPlayback(this, 411);
 	showNormals();
 	OP_ASSERT(lastEdge);
-	if (lastEdge->isClosed(this) || lastEdge->segment->contour->contours->closeGap(lastEdge, this))
+	if (lastEdge->isClosed(this) || lastEdge->segment->contour->contours
+			->closeGap(lastEdge, this, unsectInX))
 		return lastEdge->validLoop();
 	if (!lastEdge->nextEdge)
-		return matchLink(linkups);
-	return lastEdge->matchLink(linkups);
+		return matchLink(linkups, unsectInX);
+	return lastEdge->matchLink(linkups, unsectInX);
 }
 
 NormalDirection OpEdge::normalDirection(Axis axis, float t) {
@@ -844,13 +851,16 @@ void OpWinding::move(OpWinding opp, const OpContours* contours, bool backwards) 
 		right_impl += backwards ? -opp.right() : opp.right();
 	else
 		right_impl ^= opp.right();
+#if OP_DEBUG
+	debugReason = 0 == left_impl && 0 == right_impl ? ZeroReason::move :
+			ZeroReason::uninitialized;
+#endif
 }
 
 void OpWinding::setSum(OpWinding winding, const OpSegment* segment) {
-	OP_ASSERT(WindingType::sum == debugType);
+	OP_ASSERT(WindingType::uninitialized == debugType);
 	OP_ASSERT(WindingType::temp == winding.debugType);
-	OP_ASSERT(OpMax == left_impl);
-	OP_ASSERT(OpMax == right_impl);
+	OP_DEBUG_CODE(debugType = WindingType::sum);
 	const OpContours& contours = *segment->contour->contours;
 	left_impl = winding.left() & contours.leftFillTypeMask();
 	right_impl = winding.right() & contours.rightFillTypeMask();

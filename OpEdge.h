@@ -99,26 +99,31 @@ enum class ZeroReason : int8_t {
 	uninitialized = -1,
 	none,
 	addIntersection,
+	addTemp,
 	applyOp,
 	centerNaN,
 	coincidence,
 	collapsed,
-	failCenter,
-	failNext,
-	failPrior,
+//	failCenter,
+//	failNext,
+//	failPrior,
 	findCoincidences,
 	isCoinPoint,
 	isPoint,
-	linkUp,
+//	linkUp,
 	looped,
-	loopyPair,
-	matchClosest,
-	matchLink,
+//	loopyPair,
+//	matchClosest,
+//	matchLink,
+	move,
 	noFlip,
 	noNormal,
-	rayNormal,
+//	rayNormal,
 	recalcCenter,
 	resolveCoin,
+	setWind,
+	subTemp,
+	swapped,
 	tangentXRay
 };
 
@@ -137,8 +142,8 @@ private:
 		: left_impl(l)
 		, right_impl(r)
 #if OP_DEBUG
-		, debugLeft(-OpMax)
-		, debugRight(-OpMax)
+		, debugLeft(OpMax)
+		, debugRight(OpMax)
 		, debugSetter(s)
 		, debugType(WindingType::winding)
 		, debugReason(z)
@@ -147,25 +152,12 @@ private:
 	}
 
 public:
-	OpWinding(WindingSum)	// used to initialize edge sum to uncomputed state
-		: left_impl(OpMax)
-		, right_impl(OpMax)
-#if OP_DEBUG
-		, debugLeft(0)
-		, debugRight(0)
-		, debugSetter(0)
-		, debugType(WindingType::sum)
-		, debugReason(ZeroReason::none)
-#endif	
-	{
-	}
-	
 	OpWinding(WindingTemp)  // used for winding accumulators before sum is set
 		: left_impl(0)
 		, right_impl(0)
 #if OP_DEBUG
-		, debugLeft(-OpMax)
-		, debugRight(-OpMax)
+		, debugLeft(OpMax)
+		, debugRight(OpMax)
 		, debugSetter(0)
 		, debugType(WindingType::temp)
 		, debugReason(ZeroReason::none)
@@ -176,11 +168,11 @@ public:
 
 	OpWinding(WindingUninitialized)	 // used by edge and segment winding before they are set
 #if OP_DEBUG
-		: left_impl(-OpMax)
-		, right_impl(-OpMax)
-		, debugLeft(-OpMax)
-		, debugRight(-OpMax)
-		, debugSetter(-OpMax)
+		: left_impl(OpMax)
+		, right_impl(OpMax)
+		, debugLeft(OpMax)
+		, debugRight(OpMax)
+		, debugSetter(0)
 		, debugType(WindingType::uninitialized)
 		, debugReason(ZeroReason::uninitialized)
 #endif	
@@ -191,8 +183,8 @@ public:
 		: left_impl(OpOperand::left == operand ? 1 : 0)
 		, right_impl(OpOperand::right == operand ? 1 : 0)
 #if OP_DEBUG
-		, debugLeft(-OpMax)
-		, debugRight(-OpMax)
+		, debugLeft(OpMax)
+		, debugRight(OpMax)
 		, debugSetter(0)
 		, debugType(WindingType::winding)
 		, debugReason(ZeroReason::none)
@@ -210,9 +202,15 @@ public:
 	}
 
 	OpWinding& operator+=(const OpWinding& w) {
-		OP_ASSERT(WindingType::temp == debugType);
+		OP_ASSERT(WindingType::temp == debugType
+				|| WindingType::winding == debugType);
 		left_impl += w.left_impl;
 		right_impl += w.right_impl;
+	#if OP_DEBUG
+		if (WindingType::winding == debugType)
+			debugReason = 0 == left_impl && 0 == right_impl ? ZeroReason::addTemp :
+					ZeroReason::uninitialized;
+	#endif
 		return *this;
 	}
 
@@ -220,12 +218,16 @@ public:
 		OP_ASSERT(WindingType::temp == debugType);
 		left_impl -= w.left_impl;
 		right_impl -= w.right_impl;
+	#if OP_DEBUG
+		if (WindingType::winding == debugType)
+			debugReason = 0 == left_impl && 0 == right_impl ? ZeroReason::subTemp :
+					ZeroReason::uninitialized;
+	#endif
 		return *this;
 	}
 
 	bool isSet() const {
-		OP_ASSERT(WindingType::sum == debugType);
-		return OpMax != left_impl || OpMax != right_impl;
+		return OpMax != left_impl;
 	}
 
 	int left() const {
@@ -249,6 +251,11 @@ public:
 		OP_ASSERT(left || right);
 		left_impl = left;
 		right_impl = right;
+	#if OP_DEBUG
+		debugType = WindingType::winding;
+		debugReason = 0 == left_impl && 0 == right_impl ? ZeroReason::setWind :
+				ZeroReason::uninitialized;
+	#endif
 	}
 
 	int sum() const {
@@ -262,17 +269,15 @@ public:
 	// debug parameter tracks the caller that zeroed the edge
 	void zero(ZeroReason r) {
 #if OP_DEBUG
-		if (ZeroReason::none == debugReason) {
+		// if we already zeroed, don't zero again?
+		if (ZeroReason::none == debugReason || ZeroReason::uninitialized == debugReason) {  
 			debugLeft = left_impl;
 			debugRight = right_impl;
+			debugReason = r;
 		}
 #endif
 		left_impl = 0;
 		right_impl = 0;
-#if OP_DEBUG
-		if (ZeroReason::none == debugReason)	// if we already failed, don't fail again?
-			debugReason = r;
-#endif
 	}
 
 #if OP_DEBUG_DUMP
@@ -320,10 +325,12 @@ enum class EdgeDirection {
 	upLeft = 1,
 };
 
+#if 0
 enum class EdgeLoop {
 	link,
 	sum,
 };
+#endif
 
 enum class EdgeSplit : uint8_t {
 	no,
@@ -386,7 +393,8 @@ private:
 //		, priorSum_impl(nullptr)
 //		, loopStart(nullptr)
 		, winding(WindingUninitialized::dummy)
-		, sum(WindingSum::dummy)
+		, sum(WindingUninitialized::dummy)
+		, many(WindingUninitialized::dummy)
 //		, sumNormal(0)
 //		, sumT(0)
 //		, sumAxis(Axis::neither)	// not zero (-1)
@@ -410,9 +418,10 @@ private:
 		debugEnd = nullptr;
 		debugMaker = EdgeMaker::empty;
 		debugMakerLine = 0;
+		debugSetSumLine = 0;
 		debugParentID = 0;
-		debugAliasStartID = 0;
-		debugAliasEndID = 0;
+//		debugAliasStartID = 0;
+//		debugAliasEndID = 0;
 		debugUnOpp = false;
 #endif
 	}
@@ -462,33 +471,33 @@ public:
 	void clearNextEdge();
 	void clearPriorEdge();
 	void complete();
-	bool containsChain(const OpEdge* edge, EdgeLoop) const;
-	bool containsLink(const OpEdge* edge) const { return containsChain(edge, EdgeLoop::link); }
-	bool containsSum(const OpEdge* edge) const { return containsChain(edge, EdgeLoop::sum); }
+//	bool containsChain(const OpEdge* edge, EdgeLoop) const;
+	bool containsLink(const OpEdge* edge) const; // { return containsChain(edge, EdgeLoop::link); }
+//	bool containsSum(const OpEdge* edge) const { return containsChain(edge, EdgeLoop::sum); }
 	float findT(Axis , float oppXY) const;
 	OpPtT flipPtT(EdgeMatch match) const { return match == whichEnd ? end : start; }
 	void flipWhich() { whichEnd = (EdgeMatch)((int)whichEnd ^ (int)EdgeMatch::both); }
 	ResolveWinding findWinding(Axis axis, float t  OP_DEBUG_PARAMS(int* debugWindingLimiter));
 	bool hasLinkTo(EdgeMatch match) const { 
 		return EdgeLink::single == (EdgeMatch::start == match ? nextLink : priorLink); }
-	OpEdge* hasLoop(WhichLoop w, EdgeLoop e, LeadingLoop l) {
-		return const_cast<OpEdge*>((const_cast<const OpEdge*>(this))->isLoop(w, e, l)); }
+	OpEdge* hasLoop(WhichLoop w, LeadingLoop l) {
+		return const_cast<OpEdge*>((const_cast<const OpEdge*>(this))->isLoop(w, l)); }
 	bool inLinkLoop(const OpEdge* );
 //	bool inSumLoop(const OpEdge* );
 	bool isActive() const { 
 		return active_impl; }
 	bool isClosed(OpEdge* test);
-	const OpEdge* isLoop(WhichLoop , EdgeLoop , LeadingLoop ) const; 
+	const OpEdge* isLoop(WhichLoop , LeadingLoop ) const; 
 	OpEdge* linkUp(EdgeMatch, OpEdge* firstEdge);
 	void linkNextPrior(OpEdge* first, OpEdge* last);
-	bool matchLink(std::vector<OpEdge*>& linkups );
-	const OpEdge* nextChain(EdgeLoop edgeLoop) const {
-		OP_ASSERT(EdgeLoop::link == edgeLoop); return nextEdge; }
+	bool matchLink(std::vector<OpEdge*>& linkups, std::vector<OpEdge*>& unsectInX);
+	const OpEdge* nextChain() const {
+		return nextEdge; }
 	NormalDirection normalDirection(Axis axis, float t);
 	void output(OpOutPath path);	// provided by the graphics implmentation
 	OpEdge* prepareForLinkup();
-	const OpEdge* priorChain(EdgeLoop edgeLoop) const {
-		return /* EdgeLoop::link == edgeLoop ? */ priorEdge /* : priorSum_impl */  ; }
+	const OpEdge* priorChain() const {
+		return priorEdge; }
 //	OpEdge* priorSum() { return priorSum_impl; }	// hide to avoid changing prior sum outside set
 	OpPtT ptT(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? start : end; }
@@ -504,7 +513,7 @@ public:
 	void setPoints(std::array<OpPoint, 4>& pts) const;
 	void setPriorEdge(OpEdge* );  // setter exists so debug breakpoints can be set
 //	void setPriorSum(OpEdge*);   // setter exists so debug breakpoints can be set
-	void setSum(OpWinding w) { 
+	void setSumImpl(OpWinding w) {	// use debug macro instead to record line/file
 		sum.setSum(w, segment); }
 	const OpCurve& setVertical();
 	void subDivide();
@@ -523,9 +532,9 @@ public:
 	OpEdge(OpHexPtT data[2]);
 	void debugCompare(std::string ) const;
 	std::string debugDumpBrief() const;
-	std::string debugDumpChain(WhichLoop , EdgeLoop , bool detail) const;
+	std::string debugDumpChain(WhichLoop , bool detail) const;
 	void debugValidate() const;    // make sure pointer to edge is valid
-	void dumpChain(EdgeLoop , bool detail = false) const;
+	void dumpChain(bool detail = false) const;
 	DEBUG_COMMON_DECLARATIONS();
 	DUMP_COMMON_DECLARATIONS();
 	DUMP_IMPL_DECLARATIONS();
@@ -533,9 +542,9 @@ public:
 #if OP_DEBUG_IMAGE
 	void addLink() const;
 	void addSum() const;
-	void drawChain(EdgeLoop ) const;
+	void drawChain() const;
 	void drawLink() const;
-	void drawSum() const;
+//	void drawSum() const;
 	void draw() const;
 #endif
 
@@ -544,7 +553,7 @@ public:
 	OpEdge* nextEdge;
 	OpEdge* lastEdge;
 //	OpEdge* priorSum_impl;	// edge that set sum winding (access through debugging get/set)
-	OpEdge* loopStart;	// if sum loops, furthest edge away from end
+//	OpEdge* loopStart;	// if sum loops, furthest edge away from end
 	OpPoint ctrlPts[2];	// quad, conic, cubic
 	float weight;
 	// !!! Can start, end be shared with intersection?
@@ -560,6 +569,9 @@ public:
 	OpPointBounds linkBounds;
 	OpWinding winding;	// contribution: always starts as 1, 0 (or 0, 1)
 	OpWinding sum; // total incl. normal side of edge for operands (fill count in normal direction)
+	OpWinding many;	 // if two or more edges are unsortable by ray, store their cumulative winding
+	// !!! many pals is hopefully temporary while I figure out something better
+	std::vector<OpEdge* > pals;	// pointers to unsectable adjacent edges 
 //	float sumNormal; // normal of edge projecting ray (e.g., y value for horizontal ray)
 //	float sumT; // t value of priorSum when hit by ray
 	int id;
@@ -588,13 +600,27 @@ public:
 	EdgeMaker debugMaker;
 	int debugMakerLine;
 	std::string debugMakerFile;
-	OpPoint debugOriginalStart;
-	OpPoint debugOriginalEnd;
+//	OpPoint debugOriginalStart;
+//	OpPoint debugOriginalEnd;
 	int debugParentID;
-	int debugAliasStartID;
-	int debugAliasEndID;
-	bool debugUnOpp;
+	int debugSetSumLine;
+	std::string debugSetSumFile;
+//	int debugAliasStartID;
+//	int debugAliasEndID;
+	bool debugUnOpp;	// used to distinguish left unsectables from right unsectables
 #endif
 };
+
+#if OP_DEBUG == 0
+#define OP_EDGE_SET_SUM(edge, winding) edge->setSum(winding)
+#else
+#define OP_EDGE_SET_SUM(edge, winding) \
+	do {	\
+		OP_ASSERT(!edge->sum.isSet());  \
+		edge->setSumImpl(winding); \
+		edge->debugSetSumLine = __LINE__; \
+		edge->debugSetSumFile = __FILE__; \
+	} while (false)
+#endif
 
 #endif

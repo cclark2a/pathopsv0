@@ -1147,11 +1147,9 @@ void DebugOpDrawInputs() {
     DebugOpDraw(debugInputs, SK_ColorBLUE);
 }
 
-void DebugOpDraw(const std::vector<OpOutPath>& outputs) {
-    debugOutputs.clear();
-    for (auto& output : outputs)
-        if (output.skPath)
-            DebugOpBuild(*output.skPath, debugOutputs, ClipToBounds::clip);
+void DebugOpDraw(const OpOutPath* output) {
+    if (output->skPath)
+        DebugOpBuild(*output->skPath, debugOutputs, ClipToBounds::clip);
     DebugOpDraw(debugOutputs, SK_ColorBLUE);
 }
 

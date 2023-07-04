@@ -77,6 +77,8 @@ extern void center(const OpPtT& );
 extern void clear();
 extern void clearLines();
 
+extern void add(const std::vector<OpEdge>& );  // to draw edge list built from intersections
+extern void add(const std::vector<OpEdge*>& ); // to draw assemble linkups
 extern void draw(const std::vector<OpEdge>& );  // to draw edge list built from intersections
 extern void draw(const std::vector<OpEdge*>& ); // to draw assemble linkups
 extern void draw(Axis , float );	// horizontal or vertical ray

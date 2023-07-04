@@ -80,6 +80,7 @@ bool DebugPathOps(OpInPath left, OpInPath right, OpOperator _operator, OpOutPath
         OpDebugExpect expected) {
     OpContours contourList(left, right, _operator);
     contourList.debugExpect = expected;
+    contourList.debugResult = &result;
     contourList.debugInPathOps = true;
     contourList.debugInClearEdges = false;
     debugGlobalContours = &contourList;

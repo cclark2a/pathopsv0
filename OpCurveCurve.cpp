@@ -220,8 +220,10 @@ std::vector<OpEdge> OpCurveCurve::findEdgesTRanges(CurveRef curveRef) {
 		else
 			runs.back().end = edge->end;
 	}
-	for (auto& edge : runs)
-		edge.complete();
+	for (auto& edge : runs) {
+		OP_ASSERT(WindingType::winding == edge.winding.debugType);
+		edge.subDivide();
+	}
 	return runs;
 }
 

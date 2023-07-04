@@ -231,13 +231,13 @@ void OpContours::dumpDetail(int ID) const {
 void OpContours::dumpLink(int ID) const {
     const OpEdge* edge = findEdge(ID);
     if (edge)
-        return edge->dumpChain(EdgeLoop::link);
+        return edge->dumpChain();
 }
 
 void OpContours::dumpLinkDetail(int ID) const {
     const OpEdge* edge = findEdge(ID);
     if (edge)
-        return edge->dumpChain(EdgeLoop::link, true);
+        return edge->dumpChain(true);
 }
 
 void OpContours::dumpSegments() const {
@@ -303,18 +303,18 @@ void OpContours::dumpMatch(const OpPoint& pt) const {
                     OpDebugOut("edge start: ");
                     edge.dump();
                 }
-                if (edge.debugOriginalStart == pt) {
-                    OpDebugOut("edge original start: ");
-                    edge.dump();
-                }
+//                if (edge.debugOriginalStart == pt) {
+//                    OpDebugOut("edge original start: ");
+//                    edge.dump();
+//                }
                 if (edge.end.pt == pt) {
                     OpDebugOut("edge end: ");
                     edge.dump();
                 }
-                if (edge.debugOriginalEnd == pt) {
-                    OpDebugOut("edge original end: ");
-                    edge.dump();
-                }
+//                if (edge.debugOriginalEnd == pt) {
+//                    OpDebugOut("edge original end: ");
+//                    edge.dump();
+//                }
             }
         }
     }
@@ -332,6 +332,7 @@ void OpContours::dumpStart(int ID) const {
         return intersection->dumpPt();
 }
 
+#if 0
 void OpContours::dumpSum(int ID) const {
     const OpEdge* edge = findEdge(ID);
     if (!edge) {
@@ -349,6 +350,7 @@ void OpContours::dumpSumDetail(int ID) const {
     }
     edge->dumpChain(EdgeLoop::sum, true);
 }
+#endif
 
 DEBUG_DUMP_ID_DEFINITION(OpContours, id)
 
@@ -809,7 +811,7 @@ std::string OpEdge::debugDumpDetail() const {
             s += "\n!!! loopStart set EXPECTED isSumLoop ";
     }
 #endif
-    if (priorEdge || nextEdge || lastEdge || /* priorSum_impl || */ loopStart /* || Axis::neither != sumAxis */ )
+    if (priorEdge || nextEdge || lastEdge /* || priorSum_impl || loopStart || Axis::neither != sumAxis */ )
         s += "\n";
     s += "{" + start.debugDump() + ", ";
     for (int i = 0; i < segment->c.pointCount() - 2; ++i)
@@ -818,10 +820,10 @@ std::string OpEdge::debugDumpDetail() const {
     if (1 != weight)
         s += "w:" + OpDebugDump(weight) + " ";
     s += "\ncenter:" + center.debugDump() + " ";
-    if (debugAliasStartID || !OpMath::IsNaN(debugOriginalStart.x) || !OpMath::IsNaN(debugOriginalStart.y))
-        s += "(start was " + debugOriginalStart.debugDump() + "; now from sect " + STR(debugAliasStartID);
-    if (debugAliasEndID || !OpMath::IsNaN(debugOriginalEnd.x) || !OpMath::IsNaN(debugOriginalEnd.y))
-        s += " (end was " + debugOriginalEnd.debugDump() + "; now from sect " + STR(debugAliasEndID);
+//    if (debugAliasStartID || !OpMath::IsNaN(debugOriginalStart.x) || !OpMath::IsNaN(debugOriginalStart.y))
+//        s += "(start was " + debugOriginalStart.debugDump() + "; now from sect " + STR(debugAliasStartID);
+//    if (debugAliasEndID || !OpMath::IsNaN(debugOriginalEnd.x) || !OpMath::IsNaN(debugOriginalEnd.y))
+//        s += " (end was " + debugOriginalEnd.debugDump() + "; now from sect " + STR(debugAliasEndID);
     s += "\n";
     if (ptBounds.isSet())
         s += "pb:" + ptBounds.debugDump() + " ";
@@ -830,6 +832,11 @@ std::string OpEdge::debugDumpDetail() const {
     if (ptBounds.isSet() || linkBounds.isSet())
         s += "\n";
     s += debugDumpWinding() + " ";
+    if (pals.size()) {
+        s += "pals: ";
+        for (auto pal : pals)
+            s += STR(pal->id) + " ";
+    }
     if (EdgeLink::unlinked != nextLink)
         s += "next:" + debugLinkedUp(nextLink) + " ";
     if (EdgeLink::unlinked != priorLink)
@@ -859,6 +866,10 @@ std::string OpEdge::debugDumpDetail() const {
     s += "debugMaker:" + debugEdgeDebugMaker(debugMaker) + " ";
     s += debugMakerFile.substr(debugMakerFile.find("Op")) + ":" + STR(debugMakerLine) + " ";
     if (debugParentID) s += "debugParentID:" + STR(debugParentID) + " ";
+    if (debugSetSumLine)
+        s += debugSetSumFile.substr(debugSetSumFile.find("Op")) + ":" + STR(debugSetSumLine) + " ";
+    if (debugUnOpp)
+        s += "debugUnOpp ";
     s += "\n";
     std::vector<OpIntersection*> startSects;
     std::vector<OpIntersection*> endSects;
@@ -988,10 +999,9 @@ void OpEdge::debugValidate() const {
 }
 
 // keep this in sync with op edge : is loop
-std::string OpEdge::debugDumpChain(WhichLoop which, EdgeLoop edgeLoop, bool detail) const {
-    OP_ASSERT(WhichLoop::prior == which || EdgeLoop::link == edgeLoop);
+std::string OpEdge::debugDumpChain(WhichLoop which, bool detail) const {
     std::string s = "chain:";
-    const OpEdge* looped = isLoop(which, edgeLoop, LeadingLoop::in);
+    const OpEdge* looped = isLoop(which, LeadingLoop::in);
     bool firstLoop = false;
     int safetyCount = 0;
     const OpEdge* chain = this;
@@ -1002,7 +1012,7 @@ std::string OpEdge::debugDumpChain(WhichLoop which, EdgeLoop edgeLoop, bool deta
                 return s + " loop";
             firstLoop = true;
         }
-        chain = WhichLoop::prior == which ? chain->priorChain(edgeLoop) : chain->nextChain(edgeLoop);
+        chain = WhichLoop::prior == which ? chain->priorChain() : chain->nextChain();
 		if (!chain)
 			break;
         if (++safetyCount > 100) {
@@ -1017,7 +1027,10 @@ std::string OpEdge::debugDumpChain(WhichLoop which, EdgeLoop edgeLoop, bool deta
 std::string OpEdge::debugDumpWinding() const {
     std::string s;
     s += "winding: " + winding.debugDump();
-    s += " sum: " + sum.debugDump();
+    if (sum.isSet())
+        s += "\nsum: " + sum.debugDump();
+    if (many.isSet())
+        s += "\nmany: " + many.debugDump();
     return s;
 }
 
@@ -1034,16 +1047,9 @@ void dump(const OpEdge& edge) {
     edge.dump();
 }
 
-void OpEdge::dumpChain(EdgeLoop edgeLoop, bool detail) const {
-    std::string s;
-    if (EdgeLoop::link == edgeLoop)
-        s += "prior: ";
-    s += debugDumpChain(WhichLoop::prior, edgeLoop, detail) + "\n";
-    OpDebugOut(s);
-    if (EdgeLoop::sum == edgeLoop)
-        return;
-    s = "next: " + debugDumpChain(WhichLoop::next, edgeLoop, detail) + "\n";
-    OpDebugOut(s);
+void OpEdge::dumpChain(bool detail) const {
+    OpDebugOut("prior: " + debugDumpChain(WhichLoop::prior, detail) + "\n");
+    OpDebugOut("next: " + debugDumpChain(WhichLoop::next, detail) + "\n");
 }
 
 void OpEdge::dumpDetail() const { 
@@ -1060,17 +1066,18 @@ void OpEdge::dumpFull() const {
 }
 
 void OpEdge::dumpLink() const {
-    dumpChain(EdgeLoop::link);
+    dumpChain();
 }
 
 void OpEdge::dumpLinkDetail() const {
-    dumpChain(EdgeLoop::link, true);
+    dumpChain(true);
 }
 
 void OpEdge::dumpStart() const {
     segment->contour->contours->dumpMatch(start.pt);
 }
 
+#if 0
 void OpEdge::dumpSum() const {
     dumpChain(EdgeLoop::sum);
 }
@@ -1078,6 +1085,7 @@ void OpEdge::dumpSum() const {
 void OpEdge::dumpSumDetail() const {
     dumpChain(EdgeLoop::sum, true);
 }
+#endif
 
 void OpEdge::dumpWinding() const {
     dumpDetail();
@@ -1110,6 +1118,10 @@ void OpEdges::dump() const {
         OpDebugOut("-- sorted in y --\n");
         dumpAxis(Axis::vertical);
     }
+}
+
+void dump(const OpEdges& edges) {
+    edges.dump();
 }
 
 DUMP_STRUCT_DEFINITIONS(OpEdges)
@@ -1585,27 +1597,46 @@ static DebugReasonName debugReasonNames[] {
     REASON_NAME(uninitialized),
     REASON_NAME(none),
     REASON_NAME(addIntersection),
+    REASON_NAME(addTemp),
     REASON_NAME(applyOp),
     REASON_NAME(centerNaN),
     REASON_NAME(coincidence),
     REASON_NAME(collapsed),
-    REASON_NAME(failCenter),
-    REASON_NAME(failNext),
-    REASON_NAME(failPrior),
+//    REASON_NAME(failCenter),
+//    REASON_NAME(failNext),
+//    REASON_NAME(failPrior),
     REASON_NAME(findCoincidences),
     REASON_NAME(isCoinPoint),
     REASON_NAME(isPoint),
-    REASON_NAME(linkUp),
+//    REASON_NAME(linkUp),
     REASON_NAME(looped),
-    REASON_NAME(loopyPair),
-    REASON_NAME(matchClosest),
-    REASON_NAME(matchLink),
+//    REASON_NAME(loopyPair),
+//    REASON_NAME(matchClosest),
+//    REASON_NAME(matchLink),
+    REASON_NAME(move),
     REASON_NAME(noFlip),
     REASON_NAME(noNormal),
-    REASON_NAME(rayNormal),
+//    REASON_NAME(rayNormal),
     REASON_NAME(recalcCenter),
     REASON_NAME(resolveCoin),
+    REASON_NAME(setWind),
+    REASON_NAME(subTemp),
+    REASON_NAME(swapped),
     REASON_NAME(tangentXRay)
+};
+
+struct DebugWindingTypeName {
+    WindingType windType;
+    const char* name;
+};
+
+#define WINDING_NAME(w) { WindingType::w, #w }
+
+static DebugWindingTypeName debugWindingTypeNames[] = {
+    WINDING_NAME(uninitialized),
+	WINDING_NAME(temp),
+	WINDING_NAME(winding),
+	WINDING_NAME(sum)
 };
 
 std::string OpWinding::debugDump() const {
@@ -1615,16 +1646,31 @@ std::string OpWinding::debugDump() const {
            OpDebugOut("debugReasonNames out of date\n");
            outOfDate = true;
        }
-    std::string result = "left: " + (-INT_MAX == left() ? std::string("unset") : STR(left()));
-    result += " right: " + (-INT_MAX == right() ? std::string("unset") : STR(right()));
+    bool outOfDateWT = false;
+    for (signed index = 0; index < (signed) ARRAY_COUNT(debugWindingTypeNames); ++index)
+       if (!outOfDateWT && (signed) debugWindingTypeNames[index].windType != index - 1) {
+           OpDebugOut("debugWindingTypeNames out of date\n");
+           outOfDateWT = true;
+       }
+    std::string result = "type: ";
+    if (outOfDateWT)
+        result += STR((signed)debugType);
+    else
+        result += std::string(debugWindingTypeNames[(int)debugType + 1].name);
+    result += " left: " + (INT_MAX == left() ? std::string("unset") : STR(left()));
+    result += " right: " + (INT_MAX == right() ? std::string("unset") : STR(right()));
     if (debugSetter)
-        result += " setter: " + (-INT_MAX == debugSetter ? std::string("unset") : STR(debugSetter));
+        result += " setter: " + (0 == debugSetter ? std::string("unset") : STR(debugSetter));
     if (ZeroReason::none != debugReason) {
         result += " reason: ";
         if (outOfDate)
             result += STR((signed)debugReason);
         else
             result += std::string(debugReasonNames[(int)debugReason + 1].name);
+        if (OpMax != debugLeft)
+            result += " old left: " + STR(debugLeft);
+        if (OpMax != debugRight)
+            result += " old right: " + STR(debugRight);
     }
     return result;
 }
@@ -1642,9 +1688,9 @@ void DumpLinkups(const std::vector<OpEdge*>& linkups) {
         }
         int count = 0;
         auto next = linkup;
-        auto looped = linkup->isLoop(WhichLoop::prior, EdgeLoop::link, LeadingLoop::in);
+        auto looped = linkup->isLoop(WhichLoop::prior, LeadingLoop::in);
         if (!looped)
-            looped = linkup->isLoop(WhichLoop::next, EdgeLoop::link, LeadingLoop::in);
+            looped = linkup->isLoop(WhichLoop::next, LeadingLoop::in);
         bool firstLoop = false;
         while (next) {
             if (looped == next) {

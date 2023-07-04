@@ -32,7 +32,6 @@ std::vector<const OpEdge*> localEdges;
 std::vector<const OpEdge*> foundEdges;
 std::vector<OpDebugRay> lines;
 std::vector<OpInPath> operands;
-std::vector<OpOutPath> outputs;
 std::vector<const SkPath*> paths;
 std::vector<const OpSegment*> localSegments;	// segments not yet added to global debug contour
 int gridIntervals = 8;
@@ -323,7 +322,6 @@ void OpDebugImage::init(const OpInPath& left, const OpInPath& right) {
 	bitmap.allocPixels(SkImageInfo::MakeN32Premul(bitmapWH, bitmapWH));
 	::clear();
 	operands.clear();
-	outputs.clear();
 	paths.clear();
 	operands.push_back(left);
 	operands.push_back(right);
@@ -485,6 +483,8 @@ void OpDebugImage::drawDoubleFocus() {
 		DebugOpAdd(operands[1]);
 	if (drawLeftOn || drawRightOn)
 		DebugOpDrawInputs();
+	if (drawOutputsOn && debugGlobalContours->debugResult)
+		DebugOpDraw(debugGlobalContours->debugResult);
 	if (drawPathsOn)
 		DebugOpDraw(paths);
 	if (drawLinesOn)
@@ -514,8 +514,6 @@ void OpDebugImage::drawDoubleFocus() {
 		drawEdgeTangents();
 	if (drawWindingsOn)
 		drawEdgeWindings();
-	if (drawOutputsOn)
-		DebugOpDraw(outputs);
 	if (drawPointsOn)
 		OpDebugImage::drawPoints();
 	if (drawSegmentsOn && drawIDsOn) {
@@ -1265,12 +1263,14 @@ OpEdge::~OpEdge() {
 }
 
 void OpEdge::addLink() const {
-	drawChain(EdgeLoop::link);
+	drawChain();
 }
 
+#if 0
 void OpEdge::addSum() const {
 	drawChain(EdgeLoop::sum);
 }
+#endif
 
 void OpEdge::draw() const {
 	OpDebugImage::add(this);
@@ -1278,15 +1278,13 @@ void OpEdge::draw() const {
 	OpDebugImage::drawDoubleFocus();
 }
 
-void OpEdge::drawChain(EdgeLoop edgeLoop) const {
+void OpEdge::drawChain() const {
 	const OpEdge* chain = this;
-	if (EdgeLoop::link == edgeLoop) {
 		do {
 			OpDebugImage::add(chain);
 		} while ((chain = chain->nextEdge) && this != chain);
 		chain = this;
-	}
-	while ((chain = priorChain(EdgeLoop::link)) && this != chain) {
+	while ((chain = priorChain()) && this != chain) {
 		OpDebugImage::add(chain);
 	}
 	DRAW_IDS_ON(Edges);
@@ -1295,19 +1293,27 @@ void OpEdge::drawChain(EdgeLoop edgeLoop) const {
 
 void OpEdge::drawLink() const {
 	OpDebugImage::clearLocalEdges();
-	drawChain(EdgeLoop::link);
+	drawChain();
 }
 
+#if 0
 void OpEdge::drawSum() const {
 	OpDebugImage::clearLocalEdges();
-	drawChain(EdgeLoop::sum);
+	drawChain();
 }
+#endif
 
-void OpEdges::draw() const {
-	OpDebugImage::clearLocalEdges();
+
+void OpEdges::addDraw() const {
 	for (auto edge : inX)
 		OpDebugImage::add(edge);
 	OpDebugImage::focusEdges();
+}
+
+
+void OpEdges::draw() const {
+	OpDebugImage::clearLocalEdges();
+	addDraw();
 }
 
 void OpCurveCurve::draw() const {
@@ -1484,20 +1490,28 @@ void OpDebugImage::drawLines() {
 }
 #endif
 
-void draw(const std::vector<OpEdge*>& _edges) {
-	OpDebugImage::clearLocalEdges();
+void add(const std::vector<OpEdge*>& _edges) {
 	for (auto edge : _edges) {
 		OpDebugImage::add(edge);
 	}
 	OpDebugImage::focusEdges();
 }
 
-void draw(const std::vector<OpEdge>& _edges) {
-	OpDebugImage::clearLocalEdges();
+void add(const std::vector<OpEdge>& _edges) {
 	for (auto& edge : _edges) {
 		OpDebugImage::add(&edge);
 	}
 	OpDebugImage::focusEdges();
+}
+
+void draw(const std::vector<OpEdge*>& _edges) {
+	OpDebugImage::clearLocalEdges();
+	add(_edges);
+}
+
+void draw(const std::vector<OpEdge>& _edges) {
+	OpDebugImage::clearLocalEdges();
+	add(_edges);
 }
 
 void draw(Axis axis, float value) {
@@ -1531,7 +1545,6 @@ bool OpSegment::debugContains(const OpEdge* edge) const {
 }
 
 void OpOutPath::draw() const {
-	outputs.push_back(*this);
 	drawOutputsOn = true;
 	OpDebugImage::drawDoubleFocus();
 }

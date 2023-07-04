@@ -8,6 +8,7 @@
 struct EdgeDistance;
 struct OpContour;
 struct OpEdge;
+struct OpEdges;
 struct OpIntersection;
 struct OpOutPath;
 struct OpPoint;
@@ -22,20 +23,21 @@ extern void dump(const std::vector<OpEdge>& );  // to dump edge list built from 
 extern void dump(const std::vector<OpEdge*>& ); // to dump assemble linkups
 extern void dump(const std::vector<const OpEdge*>& ); // to dump debug image edges
 extern void dump(const std::vector<OpSegment*>& ); // to dump segment intersection pairs
-extern void dump(const OpOutPath& );
 
-extern void dump(const OpEdge*);
-extern void dump(const OpEdge&);
-extern void dump(const OpPtT*);
-extern void dump(const OpPtT&);
-extern void dump(const OpPoint*);
-extern void dump(const OpPoint&);
-extern void dump(const OpPointBounds*);
-extern void dump(const OpPointBounds&);
-extern void dump(const OpRect*);
-extern void dump(const OpRect&);
-extern void dump(const OpTightBounds*);
-extern void dump(const OpTightBounds&);
+extern void dump(const OpEdge* );
+extern void dump(const OpEdge& );
+extern void dump(const OpEdges& );
+extern void dump(const OpOutPath& );
+extern void dump(const OpPtT* );
+extern void dump(const OpPtT& );
+extern void dump(const OpPoint* );
+extern void dump(const OpPoint& );
+extern void dump(const OpPointBounds* );
+extern void dump(const OpPointBounds& );
+extern void dump(const OpRect* );
+extern void dump(const OpRect& );
+extern void dump(const OpTightBounds* );
+extern void dump(const OpTightBounds&) ;
 
 #define DEBUG_COMMON_DECLARATIONS() \
     std::string debugDump() const; \
@@ -75,10 +77,6 @@ extern void dump(const OpTightBounds&);
 	void dumpSegmentSects(int id) const; \
 	void dumpSegments() const; \
 	void dumpStart(int id) const; \
-    void dumpSum() const; \
-    void dumpSum(int id) const; \
-    void dumpSumDetail() const; \
-    void dumpSumDetail(int id) const; \
 	void dumpWinding(int id) const; \
 
 #define DUMP_IMPL_DECLARATIONS() \
@@ -131,8 +129,6 @@ extern void dump(const OpTightBounds&);
 	DUMP_STRUCT_DEF_ID(_owner, dumpSegmentSects) \
 	DUMP_STRUCT_DEFINITION(_owner, dumpSegments) \
 	DUMP_STRUCT_DEF_ID(_owner, dumpStart) \
-	DUMP_STRUCT_DEF_ID(_owner, dumpSum) \
-	DUMP_STRUCT_DEF_ID(_owner, dumpSumDetail) \
 	DUMP_STRUCT_DEF_ID(_owner, dumpWinding) \
 
 #define DUMP_GLOBAL_DEFINITION(global_function) \
@@ -169,8 +165,6 @@ extern void dump(const OpTightBounds&);
 	DUMP_GLOBAL_DEF_ID(dumpSegmentSects) \
 	DUMP_GLOBAL_DEFINITION(dumpSegments) \
 	DUMP_GLOBAL_DEF_ID(dumpStart) \
-	DUMP_GLOBAL_DEF_ID(dumpSum) \
-	DUMP_GLOBAL_DEF_ID(dumpSumDetail) \
 	DUMP_GLOBAL_DEF_ID(dumpWinding) \
 
 #define DUMP_GLOBAL_DECLARATION(global_function) \
@@ -201,8 +195,6 @@ extern void dump(const OpTightBounds&);
 	DUMP_GLOBAL_DECL_ID(dumpSegmentSects) \
 	DUMP_GLOBAL_DECLARATION(dumpSegments) \
 	DUMP_GLOBAL_DECL_ID(dumpStart) \
-	DUMP_GLOBAL_DECL_ID(dumpSum) \
-	DUMP_GLOBAL_DECL_ID(dumpSumDetail) \
 	DUMP_GLOBAL_DECL_ID(dumpWinding) \
 
 DUMP_GLOBAL_DECLARATIONS()
