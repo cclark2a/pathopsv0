@@ -100,6 +100,7 @@ std::string OpContours::debugDumpHex(std::string label) const {
     return s;
 }
 
+#if 0
 // if file exists, read old state
 void OpContours::dumpCount(std::string label) const {
     FILE* file = fopen(label.c_str(), "rb");
@@ -129,6 +130,7 @@ void OpContours::dumpCount(std::string label) const {
     fflush(file);
     free(buffer);
 }
+#endif
 
 void OpContours::dump(int ID) const {
     const OpContour* contour = findContour(ID);
@@ -264,30 +266,63 @@ void OpContours::dumpWinding(int ID) const {
     findEdge(ID)->dumpWinding();
 }
 
+struct SectReasonName {
+    SectReason reason;
+    std::string name;
+};
+
+#define SECT_REASON_NAME(r) { SectReason::r, #r }
+
+SectReasonName sectReasonNames[] {
+    SECT_REASON_NAME(coinPtsMatch),
+    SECT_REASON_NAME(curveCurveUnsectable),
+    SECT_REASON_NAME(degenerateCenter),
+    SECT_REASON_NAME(divideAndConquer_oneT),
+    SECT_REASON_NAME(divideAndConquer_noEdgeToSplit),
+    SECT_REASON_NAME(divideAndConquer_noOppToSplit),
+    SECT_REASON_NAME(endPt),
+    SECT_REASON_NAME(inflection),
+    SECT_REASON_NAME(lineCurve),
+    SECT_REASON_NAME(missingCoincidence),
+    SECT_REASON_NAME(resolveCoin_windingChange),
+    SECT_REASON_NAME(resolveCoin_oWindingChange),
+    SECT_REASON_NAME(sharedEdge),
+    SECT_REASON_NAME(sharedEnd),
+    SECT_REASON_NAME(sharedStart),
+    SECT_REASON_NAME(startPt),
+    SECT_REASON_NAME(xExtrema),
+    SECT_REASON_NAME(yExtrema),
+    // testing only
+    SECT_REASON_NAME(test),
+};
+
+static bool reasonOutOfDate = false;
+
+void checkReason() {
+    static bool reasonChecked = false;
+    if (!reasonChecked) {
+        for (unsigned index = 0; index < ARRAY_COUNT(sectReasonNames); ++index)
+           if (!reasonOutOfDate && (unsigned) sectReasonNames[index].reason != index) {
+               OpDebugOut("!!! sectReasonNames out of date\n");
+               reasonOutOfDate = true;
+               break;
+           }
+        reasonChecked = true;
+    }
+}
+
 void OpContours::dumpMatch(const OpPoint& pt) const {
+    checkReason();
     for (const auto& c : contours) {
         for (const auto& seg : c.segments) {
-            if (pt == seg.c.pts[0]) {
-                OpDebugOut("seg: ");
-                seg.dump();
+            if (pt == seg.c.pts[0] || pt == seg.c.lastPt()) {
+                std::string str = "seg: " + seg.debugDump();
+                if (pt == seg.c.pts[0] && seg.debugStart != SectReason::startPt)
+                    str += "; start is " + sectReasonNames[(int) seg.debugStart].name;
+                if (pt == seg.c.lastPt() && seg.debugEnd != SectReason::endPt)
+                    str += "; end is " + sectReasonNames[(int) seg.debugEnd].name;
+                OpDebugOut(str + "\n");
             }
-            if (pt == seg.c.lastPt()) {
-                OpDebugOut("seg: ");
-                seg.dump();
-            }
-            // if we care to, this could be macro-ized and made smaller
-            if (seg.debugStart == SectReason::xExtrema)
-                OpDebugOut("start is xExtrema: " + seg.debugDumpDetail());
-            if (seg.debugStart == SectReason::yExtrema)
-                OpDebugOut("start is yExtrema: " + seg.debugDumpDetail());
-            if (seg.debugStart == SectReason::inflection)
-                OpDebugOut("start is inflection: " + seg.debugDumpDetail());
-            if (seg.debugEnd == SectReason::xExtrema)
-                OpDebugOut("end is xExtrema: " + seg.debugDumpDetail());
-            if (seg.debugEnd == SectReason::yExtrema)
-                OpDebugOut("end is yExtrema: " + seg.debugDumpDetail());
-            if (seg.debugEnd == SectReason::inflection)
-                OpDebugOut("end is inflection: " + seg.debugDumpDetail());
             for (const auto sect : seg.intersections) {
                 if (sect->ptT.pt == pt) {
                     OpDebugOut("sect: ");
@@ -1282,51 +1317,6 @@ IntersectMakerName intersectMakerNames[] {
 	INTERSECT_MAKER_NAME(opTestEdgeZero3),
 	INTERSECT_MAKER_NAME(opTestEdgeZero4),
 };
-
-struct SectReasonName {
-    SectReason reason;
-    const char* name;
-};
-
-#define SECT_REASON_NAME(r) { SectReason::r, #r }
-
-SectReasonName sectReasonNames[] {
-    SECT_REASON_NAME(coinPtsMatch),
-    SECT_REASON_NAME(curveCurveUnsectable),
-    SECT_REASON_NAME(degenerateCenter),
-    SECT_REASON_NAME(divideAndConquer_oneT),
-    SECT_REASON_NAME(divideAndConquer_noEdgeToSplit),
-    SECT_REASON_NAME(divideAndConquer_noOppToSplit),
-    SECT_REASON_NAME(endPt),
-    SECT_REASON_NAME(inflection),
-    SECT_REASON_NAME(lineCurve),
-    SECT_REASON_NAME(missingCoincidence),
-    SECT_REASON_NAME(resolveCoin_windingChange),
-    SECT_REASON_NAME(resolveCoin_oWindingChange),
-    SECT_REASON_NAME(sharedEdge),
-    SECT_REASON_NAME(sharedEnd),
-    SECT_REASON_NAME(sharedStart),
-    SECT_REASON_NAME(startPt),
-    SECT_REASON_NAME(xExtrema),
-    SECT_REASON_NAME(yExtrema),
-    // testing only
-    SECT_REASON_NAME(test),
-};
-
-static bool reasonOutOfDate = false;
-
-void checkReason() {
-    static bool reasonChecked = false;
-    if (!reasonChecked) {
-        for (unsigned index = 0; index < ARRAY_COUNT(sectReasonNames); ++index)
-           if (!reasonOutOfDate && (unsigned) sectReasonNames[index].reason != index) {
-               OpDebugOut("!!! sectReasonNames out of date\n");
-               reasonOutOfDate = true;
-               break;
-           }
-        reasonChecked = true;
-    }
-}
 
 struct SectFlavorName {
     SectFlavor flavor;

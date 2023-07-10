@@ -55,12 +55,17 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
     MatchEnds existingMatch = seg->matchExisting(opp);
     for (unsigned index = 0; index < septs.count; ++index) {
         OpPtT oppPtT { opp->c.ptAtT(septs.get(index)), septs.get(index) };
+	// !!! if match allows correct point not to be contained by bounds, document why + keep example
+		if (!seg->ptBounds.contains(oppPtT.pt))
+			continue;
         float edgeT = seg->findPtT(0, 1, oppPtT.pt);
         if (OpMath::IsNaN(edgeT))
             continue;
         // pin point to both bounds, but only if it is on edge
+        OP_DEBUG_CODE(OpPoint debugPt = oppPtT.pt);
         opp->ptBounds.pin(&oppPtT.pt);
-        seg->ptBounds.pin(&oppPtT.pt);
+//        seg->ptBounds.pin(&oppPtT.pt);
+        OP_ASSERT(debugPt == oppPtT.pt);	// detect if pin is still needed
         OpPtT edgePtT { oppPtT.pt, edgeT };
         if (MatchEnds::start == existingMatch && (edgePtT.pt == seg->c.pts[0] || 0 == edgeT
                 || oppPtT.pt == opp->c.lastPt() || 1 == oppPtT.t))

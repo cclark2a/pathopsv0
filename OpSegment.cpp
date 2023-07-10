@@ -11,13 +11,25 @@ OpSegment::OpSegment(const CurvePts& pts, OpType type
     OP_DEBUG_CODE(debugEnd = endReason);
 }
 
+OpSegment::OpSegment(const LinePts& pts
+        OP_DEBUG_PARAMS(SectReason startReason, SectReason endReason, OpContour* debugContour))
+    : c(&pts.pts.front(), OpType::line)
+    , winding(WindingUninitialized::dummy) {
+    complete(OP_DEBUG_CODE(debugContour));
+    OP_DEBUG_CODE(contour = nullptr);
+    OP_DEBUG_CODE(debugStart = startReason);
+    OP_DEBUG_CODE(debugEnd = endReason);
+}
+
 // !!! optimization:  if called from opedge linkup, could abort if >1 active found
 // if operand is diff or reverse diff, the subtracted path has an interior of zero
 // if the operand is union or intersection, both paths have an interior of one
 // Unsectable edges may or may not be able to have their wind zero side computed;
 // for now, treat any unsectable multiple as having a zero side whether it does or not.
-void OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<FoundEdge>& oppEdges,
+// returns true if emplaced edge has pals
+bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<FoundEdge>& oppEdges,
         AllowReversal canReverse) const {
+    unsigned edgesSize = oppEdges.size();
     OP_ASSERT(edge->winding.visible());
     // each prospective match normal must agree with edge, indicating direction of area outside fill
     OpPtT ptT = edge->whichPtT(match);
@@ -30,47 +42,65 @@ void OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
         OpPtT oppPtT = sect.opp->ptT;
         if (ptT.pt != oppPtT.pt)
             continue;
+        auto skipCheck = [](const OpEdge* edge) {
+            return edge->many.isSet() || EdgeSum::unsortable == edge->sumType;
+        };
+        // flip zero if operator is diff/revdiff and edges are from both operands
+        auto checkZero = [match](const OpEdge* edge, EdgeMatch eMatch) {
+            WindZero zeroSide = edge->windZero;
+            if (eMatch == match)
+                WindZeroFlip(&zeroSide);
+            return zeroSide;
+        };
         const OpSegment* sectSeg = sect.opp->segment;
         OpEdge* start = sectSeg->findActive(oppPtT, EdgeMatch::start);  // !!! optimization: walk edges in order
-        // flip zero if operator is diff/revdiff and edges are from both operands
-        if (start && start != edge) {
-            WindZero startZeroSide = start->windZero;
-            if (EdgeMatch::start == match)
-                flip(&startZeroSide);
-            if (edge->windZero == startZeroSide || start->many.isSet()) {
-                if (!start->hasLinkTo(match))
-                    oppEdges.emplace_back(start, EdgeMatch::start, AllowReversal::no);
-                else if (AllowReversal::yes == canReverse && !start->hasLinkTo(Opposite(match)))
-                    oppEdges.emplace_back(start, EdgeMatch::end, canReverse);
-            }
+        if (start && start != edge && (skipCheck(edge)
+                || edge->windZero == checkZero(start, EdgeMatch::start) || skipCheck(start))) {
+            if (!start->hasLinkTo(match))
+                oppEdges.emplace_back(start, EdgeMatch::start, AllowReversal::no);
+            else if (AllowReversal::yes == canReverse && !start->hasLinkTo(Opposite(match)))
+                oppEdges.emplace_back(start, EdgeMatch::end, canReverse);
         }
         OpEdge* end = sectSeg->findActive(oppPtT, EdgeMatch::end);
-        if (end && end != edge) {
-            WindZero endZeroSide = end->windZero;
-            if (EdgeMatch::end == match)
-                flip(&endZeroSide);
-            if (edge->windZero == endZeroSide || end->many.isSet()) {
-                if (!end->hasLinkTo(match))
-                    oppEdges.emplace_back(end, EdgeMatch::end, AllowReversal::no);
-                else if (AllowReversal::yes == canReverse && !end->hasLinkTo(Opposite(match)))
-                    oppEdges.emplace_back(end, EdgeMatch::start, canReverse);
-            }
+        if (end && end != edge && (skipCheck(edge) 
+                || edge->windZero == checkZero(end, EdgeMatch::end) || skipCheck(end))) {
+            if (!end->hasLinkTo(match))
+                oppEdges.emplace_back(end, EdgeMatch::end, AllowReversal::no);
+            else if (AllowReversal::yes == canReverse && !end->hasLinkTo(Opposite(match)))
+                oppEdges.emplace_back(end, EdgeMatch::start, canReverse);
         }
     }
-    if ((EdgeMatch::start == match && edge->start.t > 0)
-            || (EdgeMatch::end == match && edge->end.t < 1)) {
-        EdgeMatch neighbor = EdgeMatch::start == match ? Opposite(edge->whichEnd) : edge->whichEnd;
-        OpEdge* nextDoor = findActive(ptT, neighbor);
-        for (auto& alreadyFound : oppEdges)
-            if (alreadyFound.edge == nextDoor)
-                return;
-        if (nextDoor) {
-            if (edge->windZero == nextDoor->windZero || nextDoor->many.isSet()) {
-                if (!nextDoor->hasLinkTo(match))
-                    oppEdges.emplace_back(nextDoor, neighbor, AllowReversal::no);
-            }
-        }
+    for (unsigned index = edgesSize; index < oppEdges.size(); ++index) {
+        if (oppEdges[index].edge->pals.size())
+            return true;
     }
+    return false;
+}
+
+// returns true if emplaced edge has pals
+bool OpSegment::activeNeighbor(const OpEdge* edge, EdgeMatch match, 
+        std::vector<FoundEdge>& oppEdges) const {
+    if ((EdgeMatch::start == match && edge->start.t == 0)
+            || (EdgeMatch::end == match && edge->end.t == 1))
+        return false;
+    EdgeMatch neighbor = EdgeMatch::start == match ? Opposite(edge->whichEnd) : edge->whichEnd;
+    OpPtT ptT = edge->whichPtT(match);
+    OpEdge* nextDoor = findActive(ptT, neighbor);
+    if (!nextDoor) 
+       return false;
+    for (auto& alreadyFound : oppEdges)
+        if (alreadyFound.edge == nextDoor)
+            return false;
+    if (nextDoor->hasLinkTo(match))
+        return false;
+    auto skipCheck = [](const OpEdge* edge) { 
+        return edge->many.isSet() || EdgeSum::unsortable == edge->sumType;
+    };
+    if (skipCheck(edge) || edge->windZero == nextDoor->windZero || skipCheck(nextDoor)) {
+        oppEdges.emplace_back(nextDoor, neighbor, AllowReversal::no);
+        return !!nextDoor->pals.size();
+    }
+    return false;
 }
 
 OpIntersection* OpSegment::addEdgeSect(const OpPtT& ptT  
@@ -188,7 +218,8 @@ OpEdge* OpSegment::findActive(OpPtT ptT, EdgeMatch match) const {
     for (auto& edge : edges) {
         OP_ASSERT(edge.sumType != EdgeSum::point);  // see if this is still possible
         if (ptT == (EdgeMatch::start == match ? edge.start : edge.end))
-            return !edge.isActive() || !edge.winding.visible() ? nullptr : const_cast<OpEdge*>(&edge);
+            return !edge.isActive() || !edge.winding.visible() ?
+                    nullptr : const_cast<OpEdge*>(&edge);
     }
     return nullptr;
 }
@@ -326,12 +357,6 @@ void OpSegment::fixIntersections(OpPoint alias, OpPoint master  OP_DEBUG_PARAMS(
 }
 #endif
 
-void OpSegment::flip(WindZero* windZero) {
-    if (WindZero::noFlip == *windZero)
-        return;
-    *windZero = WindZero::normal == *windZero ? WindZero::opp : WindZero::normal;
-}
-
 #if 0
 // when called, edges contain monotonic curves; intersections contains points
 // split edges until all points are accounted for
@@ -384,7 +409,7 @@ void OpSegment::intersectRange(const OpSegment* opp, std::vector<OpIntersection*
 
 void OpSegment::makeEdge(OP_DEBUG_CODE(EdgeMaker maker, int line, std::string file)) {
     if (!edges.size()) 
-        edges.emplace_back(this, OpPtT(c.pts[0], 0), OpPtT(c.lastPt(), 1), false
+        edges.emplace_back(this, OpPtT(c.pts[0], 0), OpPtT(c.lastPt(), 1), EdgeSum::unset
                 OP_DEBUG_PARAMS(maker, line, file, nullptr, nullptr));
 }
 
@@ -408,7 +433,8 @@ void OpSegment::makeEdges() {
                 unsectableCount++;
                 OP_DEBUG_CODE(unOpp.push_back(IntersectMaker::unsectableOppStart == last->debugMaker));
             }
-            edges.emplace_back(this, last->ptT, sect.ptT, !!unsectableCount  // (is in unsectable)
+            edges.emplace_back(this, last->ptT, sect.ptT, 
+                    unsectableCount ? EdgeSum::unsectable : EdgeSum::unset
                     OP_DEBUG_PARAMS(EDGE_MAKER(makeEdges), last, sectPtr));
 //            OpDebugBreak(&edges.back(), 445);
             OP_DEBUG_CODE(edges.back().debugUnOpp = unsectableCount && unOpp.back());

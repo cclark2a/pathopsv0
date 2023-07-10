@@ -55,14 +55,17 @@ struct MissingIntersection {
     }
     const OpPtT& start;
     const OpPtT& end;
-    OpSegment* segment; // segment new intersection will be added to
+    OpSegment* segment;  // segment new intersection will be added to
     const OpIntersection& intersection;   // intersection point and t are copied from
 };
 
 struct OpSegment {
     OpSegment(const CurvePts& pts, OpType type  
             OP_DEBUG_PARAMS(SectReason , SectReason , OpContour* ));
-    void activeAtT(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& , AllowReversal ) const;
+    OpSegment(const LinePts& pts  OP_DEBUG_PARAMS(SectReason , SectReason , OpContour* ));
+    bool activeAtT(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& , AllowReversal ) const;
+    bool activeNeighbor(const OpEdge* edge, EdgeMatch match, 
+            std::vector<FoundEdge>& oppEdges) const;
     OpIntersection* addEdgeSect(const OpPtT&  
             OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason ,
             const OpEdge* e, const OpEdge* o));
@@ -89,9 +92,8 @@ struct OpSegment {
     FoundPtT findPtT(Axis , float start, float end, float oppXY, float* result) const;
     FoundPtT findPtT(float start, float end, OpPoint opp, float* result) const;
     FoundPtT findPtT(const OpPtT& start, const OpPtT& end, OpPoint opp, float* result) const;
-    static void flip(WindZero* windZero);
 //    void intersectEdge();
-    void intersectRange(const OpSegment*, std::vector<OpIntersection*>& );
+    void intersectRange(const OpSegment* , std::vector<OpIntersection*>& );
     // count and sort extrema; create an edge for each extrema + 1
     void makeEdge(OP_DEBUG_CODE(EdgeMaker maker, int line, std::string file));
     void makeEdges();

@@ -67,6 +67,8 @@ struct EdgeDistance {
 struct OpEdges {
 	OpEdges(OpContours& contours, EdgesToSort);
 	OpEdges(OpEdge* sEdge, OpEdge* oEdge);
+	bool activeUnsectable(const OpEdge* edge, EdgeMatch match, 
+        std::vector<FoundEdge>& oppEdges);
 	void addEdge(OpEdge* , EdgesToSort );
 	static void AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge);
 	static void AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped, OpPtT cPtT, OpPtT dPtT,
@@ -99,8 +101,8 @@ struct OpEdges {
 	DUMP_COMMON_DECLARATIONS();
 #endif
 #if OP_DEBUG_IMAGE
-	void addDraw() const;
-	void draw() const;
+	void debugAdd() const;
+	void debugDraw() const;
 #endif
 
 	// assist to find axis-aligned ray intersection from edge center to next curve

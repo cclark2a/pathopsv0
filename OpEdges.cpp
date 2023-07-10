@@ -23,8 +23,20 @@ OpEdges::OpEdges(OpEdge* sEdge, OpEdge* oEdge) {
 #endif
 }
 
+// look for active unsectable edges that match
+// We could accumulate more than one path until we know which one is best.
+// Instead, we'll add one but compare it and its pals to see if the path closes.
+// If a pal closes, then rewind until the pal chain and given chain match and swap
+//  with the pal chain to close the path.
+// returns true if more than one unsectable was found
+bool OpEdges::activeUnsectable(const OpEdge* edge, EdgeMatch match, 
+        std::vector<FoundEdge>& oppEdges) {
+
+	return false;
+}
+
 void OpEdges::addEdge(OpEdge* edge, EdgesToSort edgesToSort) {
-	if (!edge->winding.visible())	// skip edges no longer visible
+	if (!edge->winding.visible() || EdgeSum::unsortable == edge->sumType)
 		return;
 	// skip unsectable + no many; and skip non-unsectable + many
 	if ((EdgesToSort::unsectable == edgesToSort) == !edge->many.isSet())
@@ -266,8 +278,10 @@ void OpEdges::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
             // pin point to both bounds, but only if it is on edge
 			OpSegment* eSegment = const_cast<OpSegment*>(edge.segment);
 			OpSegment* oSegment = const_cast<OpSegment*>(opp.segment);
+        OP_DEBUG_CODE(OpPoint debugPt = oppPtT.pt);
             oSegment->ptBounds.pin(&oppPtT.pt);
-            eSegment->ptBounds.pin(&oppPtT.pt);	// !!! doubtful this is ever needed with contains test above
+//            eSegment->ptBounds.pin(&oppPtT.pt);	// !!! doubtful this is ever needed with contains test above
+        OP_ASSERT(debugPt == oppPtT.pt);	// detect if pin is still needed
 			OpPtT edgePtT { oppPtT.pt, OpMath::Interp(edge.start.t, edge.end.t, edgeT) };
 			if (alreadyContains(eSegment->intersections, edgePtT, oSegment))
 				OP_ASSERT(alreadyContains(oSegment->intersections, oppPtT, eSegment));
@@ -578,7 +592,7 @@ void OpEdges::MarkUnsectableGroups(std::vector<EdgeDistance>& distance) {
 
 void OpEdges::markUnsortable(OpEdge* edge, Axis axis, ZeroReason reason) {
 	if (Axis::vertical == axis || inY.end() == std::find(inY.begin(), inY.end(), edge)) {
-		edge->winding.zero(reason);
+//		edge->winding.zero(reason);
 		edge->sumType = EdgeSum::unsortable;
 		edge->segment->contour->contours->unsortables.push_back(edge);
 	}
@@ -779,6 +793,8 @@ FoundWindings OpEdges::setWindings(OpContours* contours) {
 				continue;
 			if (!edge->winding.visible())	// may not be visible in vertical pass
 				continue;
+			if (EdgeSum::unsortable == edge->sumType)  // may be too small
+				continue;
 			if (EdgeFail::horizontal == edge->fail && Axis::vertical == axis)
 				edge->fail = EdgeFail::none;
 			ChainFail chainFail = setSumChain(index, axis);
@@ -829,11 +845,11 @@ FoundWindings OpEdges::setWindings(OpContours* contours) {
 #if 0	// reacquaint ourselves with visible edges that can't have sums
 			if (edge->unsectable)
 				continue;
-			if (edge->unsortable)
+#endif
+			if (EdgeSum::unsortable == edge->sumType)
 				continue;
 			if (edge->fail == EdgeFail::horizontal)
 				continue;
-#endif
 			OP_DEBUG_FAIL(*edge, FoundWindings::fail);
 		}
 	}

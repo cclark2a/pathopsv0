@@ -133,7 +133,7 @@ void OpEdge::addMatchingEnds(const OpEdge& opp) const {
 			1					1					---
 */
 void OpEdge::apply() {
-	if (!winding.visible())
+	if (!winding.visible() || EdgeSum::unsortable == sumType)
 		return;
 	if (many.isSet()) {
 		OP_ASSERT(ZeroReason::uninitialized == many.debugReason);
@@ -248,7 +248,6 @@ CalcFail OpEdge::calcWinding(Axis axis, float t) {
 // function so that setting breakpoints is easier
 // !!! if this is not inlined in release, do something more cleverer...
 void OpEdge::clearActive() {
-	OpDebugBreak(this, 454);
 	active_impl = false;
 }
 
@@ -410,7 +409,11 @@ void OpEdge::linkNextPrior(OpEdge* first, OpEdge* last) {
 // caller clears active flag
 OpEdge* OpEdge::linkUp(EdgeMatch match, OpEdge* firstEdge) {
 	std::vector<FoundEdge> edges;
-	segment->activeAtT(this, match, edges, AllowReversal::no);
+	OpDebugBreak(this, 361);
+	bool hasPal = segment->activeAtT(this, match, edges, AllowReversal::no);
+	hasPal |= segment->activeNeighbor(this, match, edges);
+	if (hasPal)
+		firstEdge->skipPals(match, edges);
 	if (edges.size() > 1)
 		(EdgeMatch::start == match ? priorLink : nextLink) = EdgeLink::multiple;
 	if (1 != edges.size())
@@ -435,31 +438,34 @@ OpEdge* OpEdge::linkUp(EdgeMatch match, OpEdge* firstEdge) {
 		oppEdge->whichEnd = found.whichEnd;
 	}
 	OP_ASSERT(whichPtT(match).pt == oppEdge->flipPtT(match).pt);
-	// iterate starting with first edge to see if  opp pt forms loop
+	// iterate starting with first edge to see if opp pt forms loop
 	// if so, detach remaining chain and close loop
-	OpPoint endPt = oppEdge->whichPtT(match).pt;
 	OpEdge* test = firstEdge;
 	do {
-		if (endPt == test->whichPtT(Opposite(match)).pt) {
-			OpEdge* detach;
+		OpPoint testPt = test->whichPtT(Opposite(match)).pt;
+		// if oppEdge has pals, check their end points as well
+		unsigned palIndex = 0;
+		unsigned palSize = oppEdge->pals.size();
+		do {
+			OpPoint endPt = oppEdge->whichPtT(match).pt;
+			if (endPt != testPt)
+				continue;
 			if (EdgeMatch::start == match) {
-				detach = test->nextEdge;
-				if (detach)
+				if (OpEdge* detach = test->nextEdge)
 					detach->clearPriorEdge();
 				test->setNextEdge(oppEdge);
 				oppEdge->setPriorEdge(test);
 			} else {
-				detach = test->priorEdge;
-				if (detach)
+				if (OpEdge* detach = test->priorEdge)
 					detach->clearNextEdge();
 				test->setPriorEdge(oppEdge);
 				oppEdge->setNextEdge(test);
 			}
 			return this;
-		}
+		} while (palIndex < palSize && (oppEdge = oppEdge->pals[palIndex++]));
 		test = EdgeMatch::start == match ? test->priorEdge : test->nextEdge;
+		oppEdge = found.edge;
 	} while (test != oppEdge);
-
 	return oppEdge->linkUp(match, firstEdge);
 }
 
@@ -470,7 +476,10 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups, std::vector<OpEdge*>& unse
 	// count intersections equaling end
 	// each intersection has zero, one, or two active edges
 	std::vector<FoundEdge> found;
-	lastEdge->segment->activeAtT(lastEdge, EdgeMatch::end, found, AllowReversal::yes);
+	const OpSegment* last = lastEdge->segment;
+	// should be able to ignore result because pals have already been marked inactive
+	(void) last->activeAtT(lastEdge, EdgeMatch::end, found, AllowReversal::yes);
+	(void) last->activeNeighbor(this, EdgeMatch::end, found);
 	OpEdge* closest = nullptr;
 	EdgeMatch closestEnd = EdgeMatch::none;
 	AllowReversal closestReverse = AllowReversal::no;
@@ -762,6 +771,30 @@ void OpEdge::setWinding(OpVector ray) {
 #endif
 }
 #endif
+
+void OpEdge::skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) const {
+	std::vector<FoundEdge> skipped;
+	for (const auto& found : edges) {
+		if (found.edge->pals.size()) {
+			const OpEdge* test = this;
+			do {
+				for (auto pal : found.edge->pals) {
+					if (test == pal)
+						goto skipIt;
+					for (const auto& skip : skipped) {
+						if (skip.edge == pal)
+							goto skipIt;
+					}
+				}
+			} while ((test = EdgeMatch::start == match ? test->priorEdge : test->nextEdge));
+		}
+		skipped.push_back(found);
+skipIt:
+		;
+	}
+	if (skipped.size() < edges.size())
+		std::swap(skipped, edges);
+}
 
 // use already computed points stored in edge
 void OpEdge::subDivide() {

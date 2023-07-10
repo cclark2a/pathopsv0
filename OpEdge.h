@@ -5,6 +5,7 @@
 #include "OpOperators.h"
 #include <vector>
 
+struct FoundEdge;
 struct OpContours;
 struct OpIntersection;
 struct OpSegment;
@@ -314,6 +315,12 @@ inline void OpDebugCheckSingleZero(WindZero left, WindZero right) {
 	OP_ASSERT((int) left + (int) right != 3);	// not normal and opp at same time
 }
 
+inline void WindZeroFlip(WindZero* windZero) {
+    if (WindZero::noFlip == *windZero)
+        return;
+    *windZero = WindZero::normal == *windZero ? WindZero::opp : WindZero::normal;
+}
+
 enum class CalcFail {
 	none,
 	fail,
@@ -355,6 +362,12 @@ enum class ResolveWinding {
 	resolved,
 	loop,
 	fail,
+};
+
+enum class Unsectable {
+	none,
+	single,
+	multiple,
 };
 
 enum class WhichLoop {
@@ -426,15 +439,14 @@ private:
 #endif
 	}
 public:
-	OpEdge(const OpSegment* s, OpPtT t1, OpPtT t2, bool isUnsectable  // !!! change to EdgeSum
+	OpEdge(const OpSegment* s, OpPtT t1, OpPtT t2, EdgeSum type
 			OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file, const OpIntersection* i1, 
-					const OpIntersection* i2))
+			const OpIntersection* i2))
 		: OpEdge() {
 		segment = s;
 		start = t1;
 		end = t2;
-		if (isUnsectable)
-			sumType = EdgeSum::unsectable;
+		sumType = type;
 #if OP_DEBUG
 		debugStart = i1;
 		debugEnd = i2;
@@ -516,6 +528,7 @@ public:
 	void setSumImpl(OpWinding w) {	// use debug macro instead to record line/file
 		sum.setSum(w, segment); }
 	const OpCurve& setVertical();
+	void skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) const; 
 	void subDivide();
 	CalcFail subIfDL(Axis axis, float t, OpWinding* );
 	bool validLoop() const;

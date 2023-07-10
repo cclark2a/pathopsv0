@@ -34,6 +34,8 @@ struct OpRoots {
         : count(0) {
     }
 
+    OpRoots(int ) = delete; // disallow old pattern that returned number of roots
+
     OpRoots(float one)
         : count(1) {
         roots[0] = one;
@@ -592,7 +594,7 @@ struct OpMath {
             if (0 == B) {
                 if (C == 0)
                     return OpRoots();
-                return OpRoots(0);
+                return OpRoots(0.f);
             }
             return OpRoots(-C / B);
         }
@@ -615,7 +617,7 @@ struct OpMath {
             if (0 == B) {
                 if (C == 0)
                     return OpRoots();
-                return OpRoots(0);
+                return OpRoots(0.f);
             }
             return OpRoots(-C / B);
         }

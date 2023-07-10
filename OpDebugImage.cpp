@@ -567,6 +567,10 @@ void record() {
       OpDebugOut( "Invalid path\n" );
 #endif
 	FILE* recordFile = fopen("opDebugImageState.txt", "w");
+	if (!recordFile) {
+		OpDebugOut("failed to open opDebugImageState.txt for writing\n");
+		return;
+	}
 	DebugOpRecord(recordFile);
 	fprintf(recordFile, "textSize: %g\n", labelFont.getSize());
 	fprintf(recordFile, "gridIntervals: %d\n", gridIntervals);
@@ -1304,16 +1308,16 @@ void OpEdge::drawSum() const {
 #endif
 
 
-void OpEdges::addDraw() const {
+void OpEdges::debugAdd() const {
 	for (auto edge : inX)
 		OpDebugImage::add(edge);
 	OpDebugImage::focusEdges();
 }
 
 
-void OpEdges::draw() const {
+void OpEdges::debugDraw() const {
 	OpDebugImage::clearLocalEdges();
-	addDraw();
+	debugAdd();
 }
 
 void OpCurveCurve::draw() const {

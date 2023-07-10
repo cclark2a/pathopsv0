@@ -26,11 +26,15 @@ enum class NormalDirection {
 };
 
 struct CurvePts {
+    bool isLinear(OpType ) const;
+
     std::array<OpPoint, 4> pts;
     float weight;
 };
 
 struct LinePts {
+    bool isPoint() const;
+
     std::array<OpPoint, 2> pts;
 };
 

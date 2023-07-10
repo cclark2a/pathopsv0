@@ -5,7 +5,7 @@ OpRoots OpLine::axisRawHit(Axis axis, float axisIntercept) const {
     float min = std::min(ptr[0], ptr[2]);
     float max = std::max(ptr[0], ptr[2]);
     if (min > axisIntercept || axisIntercept > max)
-        return 0;
+        return OpRoots();
     // strict equality fails for denomalized numbers
     // if (min == max) {
     if (fabsf(min - max) <= OpEpsilon)   // coincident line values are computed later
@@ -34,7 +34,7 @@ OpRoots OpLine::rawIntersect(const LinePts& line) const {
 OpRoots OpLine::rayIntersect(const LinePts& line) const {
     OpRoots realRoots = rawIntersect(line);
     if (2 == realRoots.count)
-        return 2;
+        return realRoots;
     return realRoots.keepValidTs();
 }
 

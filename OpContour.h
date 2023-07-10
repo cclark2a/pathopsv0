@@ -5,6 +5,9 @@
 #include "OpTightBounds.h"
 #include <vector>
 
+enum class EdgeMatch : uint8_t;
+struct FoundEdge;
+
 enum class OpFillType {
     winding = -1,
     unset = 0,
@@ -162,6 +165,7 @@ struct OpContours {
         }
     }
 
+    bool assemble(OpOutPath );
     bool build(OpInPath path, OpOperand operand);   // provided by graphics implementation
 
 #if 0
@@ -207,6 +211,8 @@ struct OpContours {
         }
     }
 #endif
+
+    bool pathOps(OpOutPath result);
 
 #if 0
     bool resolveCoincidence() {
@@ -269,7 +275,7 @@ struct OpContours {
 #if OP_DEBUG_DUMP
     void debugCompare(std::string s) const;
     std::string debugDumpHex(std::string label) const;
-    void dumpCount(std::string label) const;
+//    void dumpCount(std::string label) const;
     DEBUG_COMMON_DECLARATIONS();
     DUMP_COMMON_DECLARATIONS();
     FIND_COMMON_DECLARATIONS(const, const;)
@@ -277,6 +283,9 @@ struct OpContours {
 #if OP_DEBUG_IMAGE
     void draw() const;
 #endif
+    OpInPath& leftIn;
+    OpInPath& rightIn;
+    OpOperator& opIn;
     std::vector<OpContour> contours;
     std::vector<OpEdge*> unsortables;
     OpSectStorage* sectStorage;
