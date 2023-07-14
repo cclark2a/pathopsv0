@@ -25,13 +25,6 @@ enum class NormalDirection {
 	overflow,
 };
 
-struct CurvePts {
-    bool isLinear(OpType ) const;
-
-    std::array<OpPoint, 4> pts;
-    float weight;
-};
-
 struct LinePts {
     bool isPoint() const;
 
@@ -89,6 +82,7 @@ struct OpCurve {
     float center(Axis offset, float axisIntercept) const;
     OpPtT findIntersect(Axis offset, const OpPtT& ) const;
     bool isFinite() const;
+    bool isLinear() const;
 
     OpPoint lastPt() const {
         return pts[pointCount() - 1];
@@ -104,7 +98,7 @@ struct OpCurve {
         return static_cast<int>(type) + (type < OpType::conic);
     }
 
-    CurvePts subDivide(OpPtT ptT1, OpPtT ptT2) const;
+    OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
     OpVector tangent(float t) const;
 
     // rotates curve in a space where line's (pt[0], pt[1]) moves to ((0, 0), (0, line[1].y - line[0].y))
@@ -180,7 +174,7 @@ struct OpQuad : OpCurve {
     OpPoint ptAtT(float t) const;
     OpRoots rawIntersect(const LinePts& line) const;
     OpRoots rayIntersect(const LinePts& line) const;
-    CurvePts subDivide(OpPtT ptT1, OpPtT ptT2) const;
+    OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
     OpVector tangent(float t) const;
 #if OP_DEBUG
     OpVector debugTangent(float t) const;
@@ -208,7 +202,7 @@ struct OpConic : OpCurve {
     OpPoint ptAtT(float t) const;
     OpRoots rawIntersect(const LinePts& line) const;
     OpRoots rayIntersect(const LinePts& line) const;
-    CurvePts subDivide(OpPtT ptT1, OpPtT ptT2) const;
+    OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
     float tangent(XyChoice offset, float t) const;
     OpVector tangent(float t) const;
 #if OP_DEBUG
@@ -246,7 +240,7 @@ struct OpCubic : OpCurve {
     OpPoint ptAtT(float t) const;
     OpRoots rawIntersect(const LinePts& line) const;
     OpRoots rayIntersect(const LinePts& line) const;
-    CurvePts subDivide(OpPtT ptT1, OpPtT ptT2) const;
+    OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
     float tangent(XyChoice , double t) const;
     OpVector tangent(float t) const;
 #if OP_DEBUG

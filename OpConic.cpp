@@ -86,8 +86,9 @@ OpPoint OpConic::ptAtT(float t) const {
     return numerator(t) / denominator(t);
 }
 
-CurvePts OpConic::subDivide(OpPtT ptT1, OpPtT ptT2) const {
-    CurvePts result;
+OpCurve OpConic::subDivide(OpPtT ptT1, OpPtT ptT2) const {
+    OpCurve result;
+    result.type = OpType::conic;
     result.pts[0] = ptT1.pt;
     result.pts[2] = ptT2.pt;
     if (0 == ptT1.t && 1 == ptT2.t) {

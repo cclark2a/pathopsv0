@@ -55,17 +55,18 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
     MatchEnds existingMatch = seg->matchExisting(opp);
     for (unsigned index = 0; index < septs.count; ++index) {
         OpPtT oppPtT { opp->c.ptAtT(septs.get(index)), septs.get(index) };
-	// !!! if match allows correct point not to be contained by bounds, document why + keep example
-		if (!seg->ptBounds.contains(oppPtT.pt))
-			continue;
+    // this fails if pt is outside the ptBounds, easily the case for axis aligned lines : ex. filinmangust14
+	//	if (!seg->ptBounds.contains(oppPtT.pt))
+	//		continue;
         float edgeT = seg->findPtT(0, 1, oppPtT.pt);
         if (OpMath::IsNaN(edgeT))
             continue;
         // pin point to both bounds, but only if it is on edge
-        OP_DEBUG_CODE(OpPoint debugPt = oppPtT.pt);
+ //       OP_DEBUG_CODE(OpPoint debugPt = oppPtT.pt);
+        seg->ptBounds.pin(&oppPtT.pt);
+ //       OP_ASSERT(debugPt == oppPtT.pt);	// triggered by test filinmangust14
         opp->ptBounds.pin(&oppPtT.pt);
-//        seg->ptBounds.pin(&oppPtT.pt);
-        OP_ASSERT(debugPt == oppPtT.pt);	// detect if pin is still needed
+ //       OP_ASSERT(debugPt == oppPtT.pt);	// triggered by test filinmangust14
         OpPtT edgePtT { oppPtT.pt, edgeT };
         if (MatchEnds::start == existingMatch && (edgePtT.pt == seg->c.pts[0] || 0 == edgeT
                 || oppPtT.pt == opp->c.lastPt() || 1 == oppPtT.t))
@@ -128,37 +129,26 @@ void OpSegments::findCoincidences() {
     }
 }
 
-// horizontal and vertical lines only, since diagonal lines rarely are exactly partially coincident
-void OpSegments::findLineCoincidences() {
-    for (auto segIter = inX.begin(); segIter != inX.end(); ++segIter) {
-        OpSegment* seg = const_cast<OpSegment*>(*segIter);
-        if (OpType::line != seg->c.type)
-            continue;
-        if (!seg->winding.visible())
-            continue;
-        OpVector tangent = seg->c.asLine().tangent();
-        if (tangent.dx && tangent.dy)
-            continue;
-        OP_ASSERT(tangent.dx || tangent.dy);
-        for (auto oppIter = segIter + 1; oppIter != inX.end(); ++oppIter) {
-            OpSegment* opp = const_cast<OpSegment*>(*oppIter);
-            if (OpType::line != opp->c.type)
-                continue;
-            if (!opp->winding.visible())
-                continue;
-            OpVector oTangent = opp->c.asLine().tangent();
-            if (oTangent.dx && oTangent.dy)
-                continue;
-            OP_ASSERT(oTangent.dx || oTangent.dy);
-            if (!tangent.dot(oTangent))  // if at right angles, skip
-                continue;
-            if (!seg->ptBounds.intersects(opp->ptBounds))
-                continue;
-            seg->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(segSect)));
-            opp->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(oppSect)));
-            (void) OpEdges::CoincidentCheck(seg->edges.front(), opp->edges.front());
-        }
-    }
+bool OpSegments::lineCoincidence(OpSegment* seg, OpSegment* opp) {
+    OP_ASSERT(OpType::line == seg->c.type);
+    OP_ASSERT(seg->winding.visible());
+    OpVector tangent = seg->c.asLine().tangent();
+    if (tangent.dx && tangent.dy)
+        return false;
+    OP_ASSERT(tangent.dx || tangent.dy);
+    OP_ASSERT(OpType::line == opp->c.type);
+    OP_ASSERT(opp->winding.visible());
+    OpVector oTangent = opp->c.asLine().tangent();
+    if (oTangent.dx && oTangent.dy)
+        return false;
+    OP_ASSERT(oTangent.dx || oTangent.dy);
+    if (!tangent.dot(oTangent))  // if at right angles, skip
+        return false;
+    OP_ASSERT(seg->ptBounds.intersects(opp->ptBounds));
+    seg->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(segSect)));
+    opp->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(oppSect)));
+    (void) OpEdges::CoincidentCheck(seg->edges.front(), opp->edges.front());
+    return true;
 }
 
 // note: ends have already been matched for consecutive segments
@@ -177,6 +167,8 @@ FoundIntersections OpSegments::findIntersections() {
                 continue;
             // for line-curve intersection we can directly intersect
             if (OpType::line == seg->c.type) {
+                if (OpType::line == opp->c.type && lineCoincidence(seg, opp))
+                    continue;
                 AddLineCurveIntersection(opp, seg);
                 continue;
             } else if (OpType::line == opp->c.type) {

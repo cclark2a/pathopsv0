@@ -74,8 +74,9 @@ OpPoint OpQuad::ptAtT(float t) const {
     return a * pts[0] + b * pts[1] + c * pts[2];
 }
 
-CurvePts OpQuad::subDivide(OpPtT ptT1, OpPtT ptT2) const {
-    CurvePts result;
+OpCurve OpQuad::subDivide(OpPtT ptT1, OpPtT ptT2) const {
+    OpCurve result;
+    result.type = OpType::quad;
     result.pts[0] = ptT1.pt;
     result.pts[2] = ptT2.pt;
     result.weight = 1;

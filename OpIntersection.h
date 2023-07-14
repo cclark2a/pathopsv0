@@ -87,31 +87,31 @@ enum class IntersectMaker {
 struct OpIntersection {
 	OpIntersection() {}
 
-	void pair(OpIntersection* opp_) {
-		opp = opp_;
-		opp_->opp = this;
+	void pair(OpIntersection* o) {
+		opp = o;
+		o->opp = this;
 	}
 
-	void set(const OpPtT& t, OpSegment* seg, SectFlavor flavor_ , int cID
+	void set(const OpPtT& t, OpSegment* seg, int cID, int uID
 			OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
 			int ID, int oppID)) {
 		segment = seg;
-		opp = SectFlavor::none == flavor_ ? nullptr : this;
+		opp = nullptr; // SectFlavor::none == flavor_ ? nullptr : this;		!!! if we need this, comment why
 		ptT = t;
 		coincidenceID = cID;	// 0 if no coincidence; negative if coincident pairs are reversed
-		flavor = flavor_;
-		aliased = false;
+		unsectableID = uID;		// 0 if not unsectable; negative if curves are reversed
+//		flavor = flavor_;
+//		aliased = false;
 #if OP_DEBUG
 		debugSetID();		// debug for now
 		debugID = ID;
 		debugOppID = oppID;
 		debugCoincidenceID = 0;
-		debugAliasID = 0;
+//		debugAliasID = 0;
 		debugMaker = maker;
 		debugMakerLine = line;
 		debugMakerFile = file;
 		debugReason = reason;
-		debugCollapsed = false;
 		debugErased = false;
 #endif
 	}
@@ -147,20 +147,20 @@ struct OpIntersection {
 	OpIntersection* opp;
 	OpPtT ptT;
 	int coincidenceID;
-	SectFlavor flavor;	// none, missing(?), split(?), unsectable (curve/curve)
-	bool aliased;     // true if point value was changed to match an intersection with the same t
+	int unsectableID;	// !!! may be able to be merged with coincident ID; keep separate for now
+//	SectFlavor flavor;	// none, missing(?), split(?), unsectable (curve/curve)
+//	bool aliased;     // true if point value was changed to match an intersection with the same t
 #if OP_DEBUG
 	int id;
 	int debugID;	// pair of edges or segments that intersected
 	int debugOppID;
-	OpPoint debugOriginal;	// point value prior to aliasing
+//	OpPoint debugOriginal;	// point value prior to aliasing
 	int debugCoincidenceID;	// this one does not get erased
-	int debugAliasID;
+//	int debugAliasID;
 	IntersectMaker debugMaker;	// where intersection was made
 	int debugMakerLine;
 	std::string debugMakerFile;
 	SectReason debugReason;	// reason intersection was found
-	bool debugCollapsed;
 	mutable bool debugErased;
 #endif
 };

@@ -24,7 +24,6 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e
 		OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file, const OpIntersection* i1,
 		const OpIntersection* i2))
 	: OpEdge() {
-	id = segment->contour->contours->id++;
 	segment = edge->segment;
 	start = s;
 	end = e;
@@ -37,6 +36,7 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e
 	debugParentID = edge->id;
 #endif	
 	winding = edge->winding;
+	id = segment->contour->contours->id++;
 	subDivide();	// uses already computed points stored in edge
 }
 
@@ -62,57 +62,6 @@ CalcFail OpEdge::addSub(Axis axis, float t, OpWinding* sumWinding) {
 	return CalcFail::none;
 }
 
-#if 0
-// start here;
-// !!! replace sort with sort-and-remove-duplicates ?
-void OpEdge::addMatchingEnds(const OpEdge& opp) const {
-	if (opp.segment == segment && (opp.start == end || opp.end == start))
-		return;
-	OP_ASSERT(start.pt != end.pt);
-	OP_ASSERT(opp.start.pt != opp.end.pt);
-	OpSegment* _segment = const_cast<OpSegment*>(segment);
-	OpSegment* oppSegment = const_cast<OpSegment*>(opp.segment);
-	OpIntersection* segSect = nullptr;
-	OpIntersection* oppSect = nullptr;
-	if (start.pt == opp.start.pt) {
-		segSect = _segment->addIntersection(start  
-				OP_DEBUG_PARAMS(SECT_MAKER(addMatchingStart),
-				SectReason::sharedEdgePoint, nullptr, this, &opp));
-		oppSect = oppSegment->addIntersection(opp.start  
-				OP_DEBUG_PARAMS(SECT_MAKER(addMatchingStartOpp),
-				SectReason::sharedEdgePoint, nullptr, &opp, this));
-	} else if (start.pt == opp.end.pt) {
-		segSect = _segment->addIntersection(start  
-				OP_DEBUG_PARAMS(SECT_MAKER(addMatchingStartOEnd),
-				SectReason::sharedEdgePoint, nullptr, this, &opp));
-		oppSect = oppSegment->addIntersection(opp.end  
-				OP_DEBUG_PARAMS(SECT_MAKER(addMatchingStartOEndOpp),
-				SectReason::sharedEdgePoint, nullptr, &opp, this));
-	}
-	if (segSect) {
-		segSect->pair(oppSect);
-		segSect = nullptr;
-	}
-	if (end.pt == opp.start.pt) {
-		segSect = _segment->addIntersection(end  
-				OP_DEBUG_PARAMS(SECT_MAKER(addMatchingEndOStart),
-				SectReason::sharedEdgePoint, nullptr, this, &opp));
-		oppSect = oppSegment->addIntersection(opp.start  
-				OP_DEBUG_PARAMS(SECT_MAKER(addMatchingEndOStartOpp),
-				SectReason::sharedEdgePoint, nullptr, &opp, this));
-	} else if (end.pt == opp.end.pt) {
-		segSect = _segment->addIntersection(end  
-				OP_DEBUG_PARAMS(SECT_MAKER(addMatchingEnd),
-				SectReason::sharedEdgePoint, nullptr, this, &opp));
-		oppSect = oppSegment->addIntersection(opp.end   
-				OP_DEBUG_PARAMS(SECT_MAKER(addMatchingEndOpp),
-				SectReason::sharedEdgePoint, nullptr, &opp, this));
-	}
-	if (segSect)
-		segSect->pair(oppSect);
-}
-#endif
-
 /* table of winding states that the op types use to keep an edge
 	left op (first path)	right op (second path)		keep if:
 			0					0					---
@@ -135,11 +84,8 @@ void OpEdge::addMatchingEnds(const OpEdge& opp) const {
 void OpEdge::apply() {
 	if (!winding.visible() || EdgeSum::unsortable == sumType)
 		return;
-	if (many.isSet()) {
-		OP_ASSERT(ZeroReason::uninitialized == many.debugReason);
+	if (many.isSet())
 		std::swap(many, sum);
-		OP_DEBUG_CODE(many.debugReason = ZeroReason::swapped);
-	}
 	OpContours* contours = segment->contour->contours;
 	WindState leftState = contours->windState(winding.left(), sum.left(), OpOperand::left);
 	WindState rightState = contours->windState(winding.right(), sum.right(), OpOperand::right);
@@ -190,49 +136,24 @@ void OpEdge::apply() {
 
 // for center t (and center t only), use edge geometry since center is on edge even if there is error
 // and using segment instead might return more than one intersection
-void OpEdge::calcCenterT() {
+bool OpEdge::calcCenterT() {
 	const OpRect& r = ptBounds;
-	if (setLinear()) {
-		center.t = OpMath::Interp(start.t, end.t, .5);
-		center.pt = r.center();
-	} else {
-		Axis axis = r.width() >= r.height() ? Axis::vertical : Axis::horizontal;
-		float middle = (r.ltChoice(axis) + r.rbChoice(axis)) / 2;
-		const OpCurve& curve = setCurve();
-		float t = curve.center(axis, middle);
-		if (OpMath::IsNaN(t)) {
-#if OP_DEBUG
-			curve.center(axis, middle);	// here to allow tracing through fail case
-#endif
-			winding.zero(ZeroReason::centerNaN);
-			fail = EdgeFail::center;
-			return;
-		}
-		center.t = OpMath::Interp(start.t, end.t, t);
-		center.pt = curve.ptAtT(t);
-		center.pt.pin(ptBounds);
+	Axis axis = r.width() >= r.height() ? Axis::vertical : Axis::horizontal;
+	float middle = (r.ltChoice(axis) + r.rbChoice(axis)) / 2;
+	const OpCurve& curve = setCurve();
+	float t = curve.center(axis, middle);
+	if (OpMath::IsNaN(t)) {
+		winding.zero(ZeroReason::centerNaN);
+		fail = EdgeFail::center;
+		return true;
 	}
+	center.t = OpMath::Interp(start.t, end.t, t);
+	center.pt = curve.ptAtT(t);
+	center.pt.pin(ptBounds);
 	OP_ASSERT(OpMath::Between(ptBounds.left, center.pt.x, ptBounds.right));
 	OP_ASSERT(OpMath::Between(ptBounds.top, center.pt.y, ptBounds.bottom));
+	return start.t < center.t && center.t < end.t;
 }
-
-#if 0
-CalcFail OpEdge::calcPrior(Axis axis, float priorSumT, OpWinding* prev) {
-	if (EdgeFail::none != fail && EdgeFail::priorDistance != fail)
-		return CalcFail::none;
-	// have winding of previous edge
-	*prev = sum;
-	OP_ASSERT(prev->left() != OpMax);
-	OP_ASSERT(prev->right() != OpMax);
-	OP_ASSERT(priorSumT);  // should have been initialized to some value off end of curve
-	NormalDirection nd = normalDirection(-axis, priorSumT);
-	if (NormalDirection::overflow == nd || NormalDirection::underflow == nd)
-		OP_DEBUG_FAIL(*this, CalcFail::fail);
-	if (NormalDirection::upRight == nd)
-		*prev -= winding;
-	return CalcFail::none;
-}
-#endif
 
 CalcFail OpEdge::calcWinding(Axis axis, float t) {
 	OpWinding prev(WindingTemp::dummy);
@@ -245,10 +166,11 @@ CalcFail OpEdge::calcWinding(Axis axis, float t) {
 	return CalcFail::none;
 }
 
-// function so that setting breakpoints is easier
-// !!! if this is not inlined in release, do something more cleverer...
-void OpEdge::clearActive() {
+void OpEdge::clearActivePals() {
 	active_impl = false;
+    for (auto pal : pals) {
+        pal->active_impl = false; 
+    }
 }
 
 void OpEdge::clearNextEdge() {
@@ -262,9 +184,9 @@ void OpEdge::clearPriorEdge() {
 }
 
 void OpEdge::complete() {
+	id = segment->contour->contours->id++;
 	winding.setWind(segment->winding.left(), segment->winding.right());
 	subDivide();	// uses already computed points stored in edge
-	id = segment->contour->contours->id++;
 }
 
 bool OpEdge::containsLink(const OpEdge* edge) const {
@@ -292,28 +214,6 @@ float OpEdge::findT(Axis axis, float oppXY) const {
 	return result;
 }
 
-#if 0
-// for each edge: recurse until priorSum is null or sum winding has value 
-// or -- sort the edges first ? the sort doesn't seem easy or obvious -- may need to think about it
-// if horizontal axis, look at rect top/bottom
-ResolveWinding OpEdge::findWinding(Axis axis, float t  OP_DEBUG_PARAMS(int* debugWindingLimiter)) {
-	OP_ASSERT(++(*debugWindingLimiter) < 100);
-	OP_ASSERT(!sum.isSet());	// second pass or uninitialized
-	if (priorSum_impl) {
-		if (!priorSum_impl->sum.isSet()) {
-			ResolveWinding priorWinding = priorSum_impl->findWinding(axis, sumT
-					OP_DEBUG_PARAMS(debugWindingLimiter));
-			if (ResolveWinding::resolved != priorWinding)
-				return priorWinding;
-		}
-	}
-	CalcFail calcFail = calcWinding(axis, t);
-	if (CalcFail::none != calcFail)
-		return ResolveWinding::fail;
-	return ResolveWinding::resolved;
-}
-#endif
-
 bool OpEdge::inLinkLoop(const OpEdge* match) {
 	OpEdge* loopy = this;
 	while ((loopy = loopy->priorEdge) != this) {
@@ -330,24 +230,6 @@ bool OpEdge::inLinkLoop(const OpEdge* match) {
 	}
 	return false;
 }
-
-#if 0
-bool OpEdge::inSumLoop(const OpEdge* match) {
-	OP_ASSERT(EdgeSum::loop == sumType);
-	OpEdge* loopy = this;
-	OP_DEBUG_CODE(OpEdge* last = this);
-	while ((loopy = loopy->priorSum_impl) != this) {
-		if (!loopy) {
-			OP_ASSERT(last->loopStart);
-			break;
-		}
-		if (match == loopy)
-			return true;
-		OP_DEBUG_CODE(last = loopy);
-	}
-	return false;
-}
-#endif
 
 // note that caller clears active flag if loop is closed
 bool OpEdge::isClosed(OpEdge* test) {
@@ -409,7 +291,6 @@ void OpEdge::linkNextPrior(OpEdge* first, OpEdge* last) {
 // caller clears active flag
 OpEdge* OpEdge::linkUp(EdgeMatch match, OpEdge* firstEdge) {
 	std::vector<FoundEdge> edges;
-	OpDebugBreak(this, 361);
 	bool hasPal = segment->activeAtT(this, match, edges, AllowReversal::no);
 	hasPal |= segment->activeNeighbor(this, match, edges);
 	if (hasPal)
@@ -517,7 +398,7 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups, std::vector<OpEdge*>& unse
 		}
 #if OP_DEBUG
 		if (!closest) {
-			focus(429);
+			focus(id);
 			oo(10);
 			showPoints();
 			showHex();
@@ -560,7 +441,7 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups, std::vector<OpEdge*>& unse
 		closest->setLinkDirection(closestEnd);
 	OpEdge* clearClosest = closest;
 	do {
-		clearClosest->clearActive();
+		clearClosest->clearActivePals();
 		clearClosest = clearClosest->nextEdge;
 	} while (clearClosest && clearClosest->isActive());
 	closest->setPriorEdge(lastEdge);
@@ -598,7 +479,7 @@ OpEdge* OpEdge::prepareForLinkup() {
 	OpEdge* last;
 	do {
 		OP_ASSERT(next->isActive());
-		next->clearActive();
+		next->clearActivePals();
 		last = next;
 		if (EdgeLink::multiple == next->nextLink)
 			break;
@@ -636,7 +517,7 @@ const OpCurve& OpEdge::setCurve() {
 	return curve_impl;
 }
 
-void OpEdge::setFromPoints(const std::array<OpPoint, 4>& pts) {
+void OpEdge::setFromPoints(const OpPoint pts[]) {
 	start.pt = pts[0];
 	unsigned index = 0;
 	unsigned ptCount = segment->c.pointCount();
@@ -656,12 +537,8 @@ bool OpEdge::setLinear() {
 	if (lineSet)
 		return isLine_impl;
 	lineSet = true;
-	const OpCurve& rotated = setVertical();
-	for (int index = 1; index < rotated.pointCount() - 1; ++index) {
-		if (fabsf(rotated.pts[index].x) > OpEpsilon)
-			return (isLine_impl = false);
-	}
-	return (isLine_impl = true);
+	const OpCurve& curve = setCurve();
+	return (isLine_impl = curve.isLinear());
 }
 
 OpPointBounds OpEdge::setLinkBounds() {
@@ -714,7 +591,8 @@ void OpEdge::setNextEdge(OpEdge* edge) {
 
 void OpEdge::setPointBounds() {
 	ptBounds.set(start.pt, end.pt);
-#if OP_DEBUG
+	// this check can fail; control points can have some error so they lie just outside bounds
+#if 0 // OP_DEBUG
 	OpPointBounds copy = ptBounds;
 	for (int index = 0; index < segment->c.pointCount() - 2; ++index)
 		ptBounds.add(ctrlPts[index]);
@@ -740,14 +618,6 @@ void OpEdge::setPriorEdge(OpEdge* edge) {
 	priorEdge = edge;
 }
 
-#if 0
-// setter to make adding breakpoints easier
-// !!! if release doesn't inline, restructure more cleverly...
-void OpEdge::setPriorSum(OpEdge* edge) {
-	priorSum_impl = edge;
-}
-#endif
-
 const OpCurve& OpEdge::setVertical() {
 	if (!verticalSet) {
 		verticalSet = true;
@@ -757,20 +627,6 @@ const OpCurve& OpEdge::setVertical() {
 	}
 	return vertical_impl;
 }
-
-#if 0	// !!! happy to comment out, because it doesn't make sense...
-// if edge normal points towards ray, set sumWinding to 0
-void OpEdge::setWinding(OpVector ray) {
-	OpVector normal = segment->c.normal(center.t);
-	if (OpOperand::left == segment->contour->operand)
-		sum.left = ray.dot(normal) >= 0;
-	else
-		sum.right = ray.dot(normal) >= 0;
-#if OP_DEBUG
-	sum.debugReason = ZeroReason::rayNormal;
-#endif
-}
-#endif
 
 void OpEdge::skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) const {
 	std::vector<FoundEdge> skipped;
@@ -798,20 +654,22 @@ skipIt:
 
 // use already computed points stored in edge
 void OpEdge::subDivide() {
-	CurvePts pts = segment->c.subDivide(start, end);
+	OpCurve pts = segment->c.subDivide(start, end);
 	weight = pts.weight;
 	setFromPoints(pts.pts);
 	setPointBounds();
-	if (OpType::line == segment->c.type || (!ptBounds.height() ^ !ptBounds.width())) {
+	if (OpType::line == segment->c.type || (!ptBounds.height() ^ !ptBounds.width())
+			|| !calcCenterT()) {
 		isLine_impl = true;
 		lineSet = true;
+		center.t = OpMath::Interp(start.t, end.t, .5);
+		center.pt = ptBounds.center();
 	}
  	if (start.pt == end.pt) {
 		OP_ASSERT(0);	// !!! check to see if this can still happen
 		sumType = EdgeSum::point;
 		winding.zero(ZeroReason::isPoint);
 	}
-	calcCenterT();
 }
 
 CalcFail OpEdge::subIfDL(Axis axis, float t, OpWinding* sumWinding) {
@@ -851,12 +709,6 @@ bool OpEdge::validLoop() const {
 		last = last->nextEdge;
 	}
 }
-
-#if 0
-OpEdge* OpEdge::visibleAdjacent(EdgeMatch match) {
-	return (const_cast<OpSegment*>(segment))->visibleAdjacent(this, ptT(match));
-}
-#endif
 
 bool OpEdge::debugFail() const {
 #if OP_DEBUG

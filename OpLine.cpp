@@ -2,13 +2,11 @@
 
 OpRoots OpLine::axisRawHit(Axis axis, float axisIntercept) const {
     const float* ptr = pts[0].asPtr(axis);
-    float min = std::min(ptr[0], ptr[2]);
-    float max = std::max(ptr[0], ptr[2]);
-    if (min > axisIntercept || axisIntercept > max)
+    if (!OpMath::Between(ptr[0], axisIntercept, ptr[2]))
         return OpRoots();
     // strict equality fails for denomalized numbers
-    // if (min == max) {
-    if (fabsf(min - max) <= OpEpsilon)   // coincident line values are computed later
+    // if (ptr[2] == ptr[0]) {
+    if (fabsf(ptr[2] - ptr[0]) <= OpEpsilon)   // coincident line values are computed later
         return OpRoots(OpNaN, OpNaN);
     return OpRoots((axisIntercept - ptr[0]) / (ptr[2] - ptr[0]));
 }
@@ -32,10 +30,18 @@ OpRoots OpLine::rawIntersect(const LinePts& line) const {
 }
 
 OpRoots OpLine::rayIntersect(const LinePts& line) const {
+
     OpRoots realRoots = rawIntersect(line);
-    if (2 == realRoots.count)
+    if (1 != realRoots.count)
         return realRoots;
-    return realRoots.keepValidTs();
+    if (!OpMath::Between(0, realRoots.roots[0], 1))
+        return OpRoots();
+    OpPoint hit = pts[0] + realRoots.roots[0] * (pts[1] - pts[0]);
+    XyChoice xy = fabsf(line.pts[1].x - line.pts[0].x) >= fabsf(line.pts[1].y - line.pts[0].y) ?
+            XyChoice::inX : XyChoice::inY;
+    if (!OpMath::Between(line.pts[0].choice(xy), hit.choice(xy), line.pts[1].choice(xy)))
+        return OpRoots();
+    return realRoots;
 }
 
 OpVector OpLine::normal(float t) const {

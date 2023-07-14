@@ -124,8 +124,9 @@ void OpCubic::pinCtrls(XyChoice offset) {
 #endif
 }
 
-CurvePts OpCubic::subDivide(OpPtT ptT1, OpPtT ptT2) const {
-    CurvePts result;
+OpCurve OpCubic::subDivide(OpPtT ptT1, OpPtT ptT2) const {
+    OpCurve result;
+    result.type = OpType::cubic;
     result.pts[0] = ptT1.pt;
     result.pts[3] = ptT2.pt;
     result.weight = 1;

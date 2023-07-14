@@ -39,7 +39,7 @@ struct OpContour {
     OpIntersection* addEdgeSect(const OpPtT& t, OpSegment* seg
             OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
             const OpEdge* edge, const OpEdge* oEdge));
-    OpIntersection* addSegSect(const OpPtT& t, OpSegment* seg, SectFlavor , int cID
+    OpIntersection* addSegSect(const OpPtT& t, OpSegment* seg, int cID, int uID
             OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
             const OpSegment* oSeg));
     void addLine(const OpPoint pts[2]);
@@ -116,6 +116,12 @@ struct OpContour {
     void sortIntersections() {
         for (auto& segment : segments) {
             segment.sortIntersections();
+        }
+    }
+
+    void windCoincidences() {
+        for (auto& segment : segments) {
+            segment.windCoincidences();
         }
     }
 
@@ -252,6 +258,12 @@ struct OpContours {
         }
     }
 
+    void windCoincidences() {
+        for (auto& contour : contours) {
+            contour.windCoincidences();
+        }
+    }
+
     // sum is accumulated fill clockwise from center tangent
 // if sum is zero and edge winding is non-zero, edge 'flips' winding from zero to non-zero
 // if sum is non-zero and edge winding equals sum, edge 'flips' winding from non-zero to zero
@@ -285,7 +297,7 @@ struct OpContours {
 #endif
     OpInPath& leftIn;
     OpInPath& rightIn;
-    OpOperator& opIn;
+    OpOperator opIn;
     std::vector<OpContour> contours;
     std::vector<OpEdge*> unsortables;
     OpSectStorage* sectStorage;
@@ -293,6 +305,7 @@ struct OpContours {
     OpFillType right;
     OpOperator _operator;
     int coincidenceID = 0; // not debug since it is required for coin disambiguation
+    int unsectableID = 0;
     int id = 0;
 #if OP_DEBUG
     bool debugInPathOps;

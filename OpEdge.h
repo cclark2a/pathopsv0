@@ -103,23 +103,14 @@ enum class ZeroReason : int8_t {
 	addTemp,
 	applyOp,
 	centerNaN,
-	coincidence,
-	collapsed,
-//	failCenter,
-//	failNext,
-//	failPrior,
 	findCoincidences,
+	hvCoincidence,
 	isCoinPoint,
 	isPoint,
-//	linkUp,
 	looped,
-//	loopyPair,
-//	matchClosest,
-//	matchLink,
 	move,
 	noFlip,
 	noNormal,
-//	rayNormal,
 	recalcCenter,
 	resolveCoin,
 	setWind,
@@ -203,8 +194,7 @@ public:
 	}
 
 	OpWinding& operator+=(const OpWinding& w) {
-		OP_ASSERT(WindingType::temp == debugType
-				|| WindingType::winding == debugType);
+		OP_ASSERT(WindingType::temp == debugType || WindingType::winding == debugType);
 		left_impl += w.left_impl;
 		right_impl += w.right_impl;
 	#if OP_DEBUG
@@ -216,7 +206,7 @@ public:
 	}
 
 	OpWinding& operator-=(const OpWinding& w) {
-		OP_ASSERT(WindingType::temp == debugType);
+		OP_ASSERT(WindingType::temp == debugType || WindingType::winding == debugType);
 		left_impl -= w.left_impl;
 		right_impl -= w.right_impl;
 	#if OP_DEBUG
@@ -476,10 +466,10 @@ public:
 //	void addMatchingEnds(const OpEdge& ) const;
 	CalcFail addSub(Axis axis, float t, OpWinding* );
 	void apply();
-	void calcCenterT();
+	bool calcCenterT();
 //	CalcFail calcPrior(Axis axis, float sumT, OpWinding* prevRight);
 	CalcFail calcWinding(Axis axis, float centerT);
-	void clearActive();  // setter exists so debug breakpoints can be set
+	void clearActivePals();  // clears edge and pals
 	void clearNextEdge();
 	void clearPriorEdge();
 	void complete();
@@ -515,7 +505,7 @@ public:
 		return EdgeMatch::start == match ? start : end; }
 	void reverse();	// only call on temporary edges (e.g., used to make coincident intersections)
 	void setActive();  // setter exists so debug breakpoints can be set
-	void setFromPoints(const std::array<OpPoint, 4>& pts);
+	void setFromPoints(const OpPoint pts[]);
 	OpPointBounds setLinkBounds();
 	const OpCurve& setCurve();
 	void setLinkDirection(EdgeMatch ); // reverse links if handed link end instead of link start

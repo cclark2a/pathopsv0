@@ -193,6 +193,11 @@ struct OpVector {
         dy /= s;
     }
 
+    void operator/=(OpVector v) {
+        dx /= v.dx;
+        dy /= v.dy;
+    }
+
     void operator*=(float s) {
         dx *= s;
         dy *= s;
@@ -223,6 +228,12 @@ struct OpVector {
     OpVector operator/(float s) {
         OpVector result = *this;
         result /= s;
+        return result;
+    }
+
+    OpVector operator/(OpVector v) {
+        OpVector result = *this;
+        result /= v;
         return result;
     }
 

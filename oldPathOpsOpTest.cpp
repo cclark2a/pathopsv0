@@ -9321,20 +9321,18 @@ path2.close();
 }
 
 static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
-static void (*firstTest)(skiatest::Reporter* , const char* filename) = bug8380;
+static void (*firstTest)(skiatest::Reporter* , const char* filename) = seanbug;
 static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 
 #define TEST(name) { name, #name }
 
 static struct TestDesc tests[] = {
     TEST(bug8380),
-    TEST(crbug_526025),
     TEST(bug8228),
     TEST(op_4),
     TEST(op_1), // fuzzer, fails with infinity. Could use double in vector length to avoid
     TEST(op_2),
     TEST(op_3),
-    TEST(grshapearcs1), // unknown if it produces right answer (skia fails, v0 succeeeds)
     TEST(filinmangust14),
     TEST(testRect1_u),
     TEST(halbug),
@@ -9448,6 +9446,8 @@ static struct TestDesc tests[] = {
     TEST(circlesOp3),
 
     // untested / not working
+    TEST(crbug_526025), // fuzzer; ok to fail, asserts on opedge.cpp:555 !closest->lastEdge; runs of out of t precision?
+    TEST(grshapearcs1), // fails in intersection; defer until more simple tests work
 
     TEST(loop9),
     TEST(loop8),

@@ -328,10 +328,10 @@ void OpContours::dumpMatch(const OpPoint& pt) const {
                     OpDebugOut("sect: ");
                     sect->dump();
                 }
-                if (sect->debugOriginal == pt) {
-                    OpDebugOut("sect original: ");
-                    sect->dump();
-                }
+ //               if (sect->debugOriginal == pt) {
+ //                   OpDebugOut("sect original: ");
+ //                   sect->dump();
+ //               }
             }
             for (const auto& edge : seg.edges) {
                 if (edge.start.pt == pt) {
@@ -1363,23 +1363,21 @@ std::string OpIntersection::debugDump(bool fromDumpFull, bool fromDumpDetail) co
     std::string oppID = opp ? opp->debugDumpID() : "--";
     std::string oppParentID = oppParent ? oppParent->debugDumpID() : "--";
     s = "[" + debugDumpID() + "] " + ptT.debugDump();
-    if (aliased)
-        s += " aliased";
-    if (debugCollapsed)
-        s += " collapsed";
+//    if (aliased)
+//        s += " aliased";
     if (debugErased)
         s += " erased";
-    if (debugAliasID || !OpMath::IsNaN(debugOriginal.x) || !OpMath::IsNaN(debugOriginal.y))
-        s += " (was " + debugOriginal.debugDump() + "; now from sect " + STR(debugAliasID) + ")";
+ //   if (debugAliasID || !OpMath::IsNaN(debugOriginal.x) || !OpMath::IsNaN(debugOriginal.y))
+ //       s += " (was " + debugOriginal.debugDump() + "; now from sect " + STR(debugAliasID) + ")";
     if (!fromDumpFull || !segment)
         s += " segment:" + segmentID;
     s += " opp/sect:" + oppParentID + "/" + oppID;
     if (coincidenceID || debugCoincidenceID)
         s += " coinID:" + STR(coincidenceID) + "/" + STR(debugCoincidenceID);
-    if (flavorOutOfDate)
-        s += " (flavor out of date) " + STR((int)flavor);
-    else if (SectFlavor::none != flavor)
-        s += " flavor:" + std::string(sectFlavorNames[(int)flavor + 1].name);
+//    if (flavorOutOfDate)
+//        s += " (flavor out of date) " + STR((int)flavor);
+//    else if (SectFlavor::none != flavor)
+//        s += " flavor:" + std::string(sectFlavorNames[(int)flavor + 1].name);
     s += " maker:";
     if (makerOutOfDate)
         s += " (maker out of date) " + STR((int)debugMaker);
@@ -1590,23 +1588,14 @@ static DebugReasonName debugReasonNames[] {
     REASON_NAME(addTemp),
     REASON_NAME(applyOp),
     REASON_NAME(centerNaN),
-    REASON_NAME(coincidence),
-    REASON_NAME(collapsed),
-//    REASON_NAME(failCenter),
-//    REASON_NAME(failNext),
-//    REASON_NAME(failPrior),
     REASON_NAME(findCoincidences),
+    REASON_NAME(hvCoincidence),
     REASON_NAME(isCoinPoint),
     REASON_NAME(isPoint),
-//    REASON_NAME(linkUp),
     REASON_NAME(looped),
-//    REASON_NAME(loopyPair),
-//    REASON_NAME(matchClosest),
-//    REASON_NAME(matchLink),
     REASON_NAME(move),
     REASON_NAME(noFlip),
     REASON_NAME(noNormal),
-//    REASON_NAME(rayNormal),
     REASON_NAME(recalcCenter),
     REASON_NAME(resolveCoin),
     REASON_NAME(setWind),

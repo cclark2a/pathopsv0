@@ -1,21 +1,21 @@
 #include "OpCurve.h"
 
-bool CurvePts::isLinear(OpType opType) const {
-    OP_ASSERT(opType >= OpType::quad);
+bool LinePts::isPoint() const {
+    return pts[1] == pts[0];
+}
+
+bool OpCurve::isLinear() const {
+    OP_ASSERT(type >= OpType::quad);
     OpVector diffs[3];
     diffs[0] = pts[1] - pts[0];
     diffs[1] = pts[2] - pts[0];
     bool linear = diffs[0].dx * diffs[1].dy == diffs[1].dx * diffs[0].dy;
     if (!linear)
         return false;
-    if (OpType::cubic != opType)
+    if (OpType::cubic != type)
         return true;
     diffs[2] = pts[3] - pts[0];
     return diffs[0].dx * diffs[2].dy == diffs[2].dx * diffs[0].dy;
-}
-
-bool LinePts::isPoint() const {
-    return pts[1] == pts[0];
 }
 
 OpLine& OpCurve::asLine() { OP_ASSERT(OpType::line == type); return *static_cast<OpLine*>(this); }
@@ -172,8 +172,8 @@ OpPoint OpCurve::ptAtT(float t) const {
     return OpPoint();
 }
 
-CurvePts OpCurve::subDivide(OpPtT ptT1, OpPtT ptT2) const {
-    CurvePts result;
+OpCurve OpCurve::subDivide(OpPtT ptT1, OpPtT ptT2) const {
+    OpCurve result;
     switch (type) {
         case OpType::line: 
             result.pts[0] = ptT1.pt; 

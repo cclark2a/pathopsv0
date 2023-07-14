@@ -34,9 +34,9 @@ bool OpContour::addClose() {
     OpPoint curveStart = segments.front().c.pts[0];
     OpPoint lastPoint = segments.back().c.lastPt();
     if (lastPoint != curveStart) {
-        CurvePts curvePts = {{ lastPoint, curveStart }, 1 };
-        segments.emplace_back(curvePts, OpType::line  
-                OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt, this));
+        LinePts linePts = {{ lastPoint, curveStart }};
+        segments.emplace_back(linePts, this  
+                OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
     }
     return true;
 }
@@ -49,27 +49,30 @@ void OpContour::addConic(const OpPoint pts[3], float weight) {
     bounds.calcBounds(conic);
     std::vector<ExtremaT> extrema = bounds.findExtrema(pts[0], pts[2]);
     if (!extrema.size()) {
-        CurvePts whole = {{ pts[0], pts[1], pts[2] }, weight };
-        if (whole.isLinear(OpType::conic)) {
+        OpCurve whole(pts, weight, OpType::conic);
+        if (whole.isLinear()) {
             LinePts linePts = {{ whole.pts[0], whole.pts[2] }};
             if (!linePts.isPoint())
-                segments.emplace_back(linePts  OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt, this));
+                segments.emplace_back(linePts, this
+                        OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
         } else
-            segments.emplace_back(whole, OpType::conic  
-                    OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt, this));
+            segments.emplace_back(whole, OpType::conic, this  
+                    OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
         return;
     }
     ExtremaT start = {{ pts[0], 0 }  OP_DEBUG_PARAMS(SectReason::startPt)};
     for (unsigned index = 0; index <= extrema.size(); ++index) {
         ExtremaT end = index < extrema.size() ? extrema[index] :
                 ExtremaT({ pts[2], 1 }  OP_DEBUG_PARAMS(SectReason::endPt));
-        CurvePts partPts = conic.subDivide(start.ptT, end.ptT);
-        if (partPts.isLinear(OpType::conic)) {
+        OpCurve partPts = conic.subDivide(start.ptT, end.ptT);
+        if (partPts.isLinear()) {
             LinePts linePts = {{ partPts.pts[0], partPts.pts[2] }};
             if (!linePts.isPoint())
-                segments.emplace_back(linePts  OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt, this));
+                segments.emplace_back(linePts, this
+                        OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
         } else 
-            segments.emplace_back(partPts, OpType::conic  OP_DEBUG_PARAMS(start.reason, end.reason, this));
+            segments.emplace_back(partPts, OpType::conic, this
+                    OP_DEBUG_PARAMS(start.reason, end.reason));
         start = end;
     }
 }
@@ -83,28 +86,29 @@ void OpContour::addCubic(const OpPoint pts[4]) {
     std::vector<ExtremaT> extrema = bounds.findExtrema(pts[0], pts[3]);
 
     if (!extrema.size()) {
-        CurvePts whole = {{ pts[0], pts[1], pts[2], pts[3] }};
-        if (whole.isLinear(OpType::cubic)) {
+        OpCurve whole(pts, OpType::cubic);
+        if (whole.isLinear()) {
             LinePts linePts = {{ whole.pts[0], whole.pts[3] }};
             if (!linePts.isPoint())
-                segments.emplace_back(linePts  OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt, this));
+                segments.emplace_back(linePts, this  
+                        OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
         } else
-            segments.emplace_back(whole, OpType::cubic  
-                    OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt, this));
+            segments.emplace_back(whole, OpType::cubic, this  
+                    OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
         return;
     }
     ExtremaT start = {{ pts[0], 0 }  OP_DEBUG_PARAMS(SectReason::startPt)};
     for (unsigned index = 0; index <= extrema.size(); ++index) {
         ExtremaT end = index < extrema.size() ? extrema[index] :
                 ExtremaT({ pts[3], 1 }  OP_DEBUG_PARAMS(SectReason::endPt));
-        CurvePts partPts = cubic.subDivide(start.ptT, end.ptT);
-        if (partPts.isLinear(OpType::cubic)) {
+        OpCurve partPts = cubic.subDivide(start.ptT, end.ptT);
+        if (partPts.isLinear()) {
             LinePts linePts = {{ partPts.pts[0], partPts.pts[3] }};
             if (!linePts.isPoint())
-                segments.emplace_back(linePts  OP_DEBUG_PARAMS(start.reason, end.reason, this));
+                segments.emplace_back(linePts, this  OP_DEBUG_PARAMS(start.reason, end.reason));
         } else
-            segments.emplace_back(partPts, OpType::cubic  
-                    OP_DEBUG_PARAMS(start.reason, end.reason, this));
+            segments.emplace_back(partPts, OpType::cubic, this  
+                    OP_DEBUG_PARAMS(start.reason, end.reason));
         start = end;
     }
 }
@@ -113,8 +117,7 @@ OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
         const OpEdge* edge, const OpEdge* oEdge)) {
     OpIntersection* next = contours->allocateIntersection();
-    next->set(t, seg, SectFlavor::none, 0  OP_DEBUG_PARAMS(maker, line, file, reason, 
-            edge->id, oEdge->id));
+    next->set(t, seg, 0, 0  OP_DEBUG_PARAMS(maker, line, file, reason, edge->id, oEdge->id));
     return next;
 }
 
@@ -122,7 +125,7 @@ void OpContour::addLine(const OpPoint pts[2]) {
     if (pts[0] == pts[1])   // !!! should be fill only, not frame
         return;
     LinePts linePts = {{ pts[0], pts[1] }};
-    segments.emplace_back(linePts  OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt, this));
+    segments.emplace_back(linePts, this  OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
 }
 
 OpContour* OpContour::addMove(const OpPoint pts[1]) {
@@ -133,11 +136,11 @@ OpContour* OpContour::addMove(const OpPoint pts[1]) {
     return &contours->contours.back();
 }
 
-OpIntersection* OpContour::addSegSect(const OpPtT& t, OpSegment* seg, SectFlavor flavor, int cID
+OpIntersection* OpContour::addSegSect(const OpPtT& t, OpSegment* seg, int cID, int uID
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason,
         const OpSegment* oSeg)) {
     OpIntersection* next = contours->allocateIntersection();
-    next->set(t, seg, flavor, cID  OP_DEBUG_PARAMS(maker, line, file, reason, seg->id, oSeg->id));
+    next->set(t, seg, cID, uID  OP_DEBUG_PARAMS(maker, line, file, reason, seg->id, oSeg->id));
     return next;
 }
 
@@ -149,28 +152,30 @@ void OpContour::addQuad(const OpPoint pts[3]) {
     bounds.calcBounds(quad);
     std::vector<ExtremaT> extrema = bounds.findExtrema(pts[0], pts[2]);
     if (!extrema.size()) {
-        CurvePts whole = {{ pts[0], pts[1], pts[2] }};
-        if (whole.isLinear(OpType::quad)) {
+        OpCurve whole(pts, OpType::quad);
+        if (whole.isLinear()) {
             LinePts linePts = {{ whole.pts[0], whole.pts[2] }};
             if (!linePts.isPoint())
-                segments.emplace_back(linePts  OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt, this));
+                segments.emplace_back(linePts, this  
+                        OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
         } else
-            segments.emplace_back(whole, OpType::quad  
-                    OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt, this));
+            segments.emplace_back(whole, OpType::quad, this  
+                    OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
         return;
     }
     ExtremaT start = {{ pts[0], 0 }  OP_DEBUG_PARAMS(SectReason::startPt)};
     for (unsigned index = 0; index <= extrema.size(); ++index) {
         ExtremaT end = index < extrema.size() ? extrema[index] :
                 ExtremaT({ pts[2], 1 }  OP_DEBUG_PARAMS(SectReason::startPt));
-        CurvePts partPts = quad.subDivide(start.ptT, end.ptT);
-        if (partPts.isLinear(OpType::quad)) {
+        OpCurve partPts = quad.subDivide(start.ptT, end.ptT);
+        if (partPts.isLinear()) {
             LinePts linePts = {{ partPts.pts[0], partPts.pts[2] }};
             if (!linePts.isPoint())
-                segments.emplace_back(linePts  OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt, this));
+                segments.emplace_back(linePts, this  
+                        OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
         } else 
-            segments.emplace_back(partPts, OpType::quad  
-                    OP_DEBUG_PARAMS(start.reason, end.reason, this));
+            segments.emplace_back(partPts, OpType::quad, this  
+                    OP_DEBUG_PARAMS(start.reason, end.reason));
         start = end;
     }
 }
@@ -184,7 +189,9 @@ void OpContour::debugComplete() {
 
 void OpContour::finish() {
 // after all segments in contour have been allocated
-    OP_ASSERT(segments.size() > 2);
+    if (!segments.size())
+        return;
+    OP_ASSERT(segments.size() >= 2);
     OpSegment* last = &segments.back();
     last->contour = this;
     last->resortIntersections = true; // 1 gets added before 0
@@ -327,10 +334,7 @@ bool OpContours::closeGap(OpEdge* last, OpEdge* first, std::vector<OpEdge*>& uns
             continue;
         if (connectBetween(edge)) {
             OP_ASSERT(EdgeSum::unsectable == edge->sumType);
-            edge->clearActive();   // only use edge once
-            for (auto pals : edge->pals) {
-                pals->clearActive();
-            }
+            edge->clearActivePals();   // only use edge once
             return true;
         }
     }
@@ -375,13 +379,14 @@ bool OpContours::pathOps(OpOutPath result) {
         OP_DEBUG_SUCCESS(*this, true);
     }
     sortedSegments.findCoincidences();  // check for exact curves and full lines
-    sortedSegments.findLineCoincidences();  // check for partial h/v lines
+ //   sortedSegments.findLineCoincidences();  // check for partial h/v lines
     if (FoundIntersections::fail == sortedSegments.findIntersections())
         OP_DEBUG_FAIL(*this, false);
 //    resolvePoints();    // multiple points may have same t value
 //    calcBounds();   // resolve points may have changed tight bounds
     sortIntersections();
     makeEdges();
+    windCoincidences();  // for partial h/v lines, compute their winding considiering coincidence
 //    OpEdges sortedEdges(contourList, EdgesToSort::byBox);
 //    if (!sortedEdges.inX.size()) {
 //        result.setEmpty();
@@ -412,4 +417,3 @@ bool OpContours::pathOps(OpOutPath result) {
     result.setInverted(inverseFill);
     OP_DEBUG_SUCCESS(*this, true);
 }
-

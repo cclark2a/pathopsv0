@@ -514,7 +514,7 @@ void OpQuadTest() {
 	// test OpQuad subDivide
 	OpPtT icPtT[2] = {{ qi1.ptAtT(icepts[0].roots[0]), icepts[0].roots[0] }, 
 		{ qi1.ptAtT(icepts[1].roots[0]), icepts[1].roots[0] }};
-	CurvePts qdst = qi1.subDivide(icPtT[0], icPtT[1]);
+	OpCurve qdst = qi1.subDivide(icPtT[0], icPtT[1]);
 	pt = qi1.ptAtT(icepts[0].roots[0]);
 	ASSERT(OpMath::Between(-0.000001f, pt.x - qdst.pts[0].x, 0.000001f));
 	ASSERT(OpMath::Between(-0.000001f, pt.y - qdst.pts[0].y, 0.000001f));
@@ -627,7 +627,7 @@ void OpConicTest( ) {
 	// test OpConic subDivide
 	OpPtT icPtT[2] = { { ci1.ptAtT(icepts[0].roots[0]), icepts[0].roots[0] },
 		{ ci1.ptAtT(icepts[1].roots[0]), icepts[1].roots[0] } };
-	CurvePts cdst = ci1.subDivide(icPtT[0], icPtT[1]);
+	OpCurve cdst = ci1.subDivide(icPtT[0], icPtT[1]);
 	pt = ci1.ptAtT(icepts[0].roots[0]);
 	ASSERT(OpMath::Between(-0.000001f, pt.x - cdst.pts[0].x, 0.000001f));
 	ASSERT(OpMath::Between(-0.000001f, pt.y - cdst.pts[0].y, 0.000001f));
@@ -757,7 +757,7 @@ void OpCubicTest() {
 	// test OpCubic subDivide
 	OpPtT icPtT[2] = { { ci.ptAtT(icepts[0].roots[0]), icepts[0].roots[0] },
 		{ ci.ptAtT(icepts[1].roots[0]), icepts[1].roots[0] } };
-	CurvePts cdst = ci.subDivide(icPtT[0], icPtT[1]);
+	OpCurve cdst = ci.subDivide(icPtT[0], icPtT[1]);
 	pt = ci.ptAtT(icepts[0].roots[0]);
 	ASSERT(OpMath::Between(-0.000001f, pt.x - cdst.pts[0].x, 0.000001f));
 	ASSERT(OpMath::Between(-0.000001f, pt.y - cdst.pts[0].y, 0.000001f));

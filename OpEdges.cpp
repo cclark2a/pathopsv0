@@ -118,11 +118,10 @@ void OpEdges::AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped,
 // recorded when the pair of segments were checked, or the intersections may have been computed.
 IntersectResult OpEdges::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpPtT dPtT,
 	bool flipped, OpSegment* segment, OpSegment* oppSegment) {
-	std::vector<OpIntersection*> range;
 	// set range to contain intersections that match this segment and opposite segment
-	segment->intersectRange(oppSegment, range);
+	std::vector<OpIntersection*> range = segment->intersectRange(oppSegment);
 	// return existing intersection that matches segment coincident ends
-	auto findSect = [&](OpPtT ptT, OpSegment* oppSegment) {	// lambda
+	auto findSect = [](const std::vector<OpIntersection*>& range, OpPtT ptT) {	// lambda
 		for (auto entry : range) {
 			if (entry->ptT.t == ptT.t || entry->ptT.pt == ptT.pt)
 				return entry;
@@ -132,7 +131,7 @@ IntersectResult OpEdges::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPt
 	// returns index into existing coincidence pairs. Even is outside pair, odd is inside pair.
 	// !!! note the return allows us to know if pair of calls to in coin range encompasses one or
 	//     more pairs, but we don't take advantage of that yet
-	auto inCoinRange = [&](float t, int* coinID) {
+	auto inCoinRange = [](const std::vector<OpIntersection*>& range, float t, int* coinID) {
 		OpIntersection* coinStart = nullptr;
 		int index = 0;
 		for (auto entry : range) {
@@ -145,57 +144,53 @@ IntersectResult OpEdges::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPt
 			}
 			OP_ASSERT(entry->coincidenceID == coinStart->coincidenceID);
 			if (coinStart->ptT.t <= t && t <= entry->ptT.t) {
-				*coinID = coinStart->coincidenceID;
-				return index;
+				if (coinID) {
+					OP_ASSERT(!*coinID || *coinID == coinStart->coincidenceID);	 // !!! assert means two coin runs; is that possible?
+					*coinID = coinStart->coincidenceID;
+				}
+				break;
 			}
 			coinStart = nullptr;
 			++index;
 		}
-		OP_ASSERT(!coinStart);
-		*coinID = 0;
-		return index;
+		return (bool) (index & 1);
 	};
-	int coinID = segment->coinID(flipped);	// generate an id, although it may go unused
 	// find the intersection, or make one, if it is not within an existing coincident run
-	OpIntersection* sect1 = findSect(aPtT, oppSegment);
-	OpIntersection* sect2 = findSect(bPtT, oppSegment);
-	OpIntersection* addedSect1 = nullptr;
-	OpIntersection* addedSect2 = nullptr;
-	// remember if this t value is in a coincident range, and if so,which one
-	int aCoinID;
-	int aIndex = inCoinRange(aPtT.t, &aCoinID);
-	bool aInCoincidence = aIndex & 1;
-	int bCoinID;
-	int bIndex = inCoinRange(bPtT.t, &bCoinID);
-	bool bInCoincidence = bIndex & 1;
+	OpIntersection* sect1 = findSect(range, aPtT);
+	OpIntersection* sect2 = findSect(range, bPtT);
+	// remember if this t value is in a coincident range, and if so, which one
+	int coinID = 0;
+	bool aInCoincidence = inCoinRange(range, aPtT.t, &coinID);
+	bool bInCoincidence = inCoinRange(range, bPtT.t, &coinID);
+	if (!coinID)
+		coinID = segment->coinID(flipped);
+	else
+		OP_ASSERT(flipped ? coinID < 0 : coinID > 0);	// should never assert
 	// assign a new or existing coin id if sect doesn't already have one
-	if (sect1) {
-		if (!aInCoincidence) {
+	if (!aInCoincidence) {
+		if (sect1) {
 			OP_ASSERT(!sect1->coincidenceID);
-			sect1->coincidenceID = bInCoincidence ? bCoinID : coinID;
-		}
-	} else if (!aInCoincidence)	// or if it doesn't exist and isn't in a coin range, make one
-		sect1 = addedSect1 = segment->addCoin(aPtT, coinID
-			OP_DEBUG_PARAMS(SECT_MAKER(addPair_aPtT), SectReason::coinPtsMatch, oppSegment));
-	if (sect2) {
-		if (!bInCoincidence) {
-			OP_ASSERT(!sect2->coincidenceID);
-			sect2->coincidenceID = aInCoincidence ? aCoinID : coinID;
-		}
-	} else if (!bInCoincidence)
-		sect2 = addedSect2 = segment->addCoin(bPtT, coinID
-			OP_DEBUG_PARAMS(SECT_MAKER(addPair_bPtT), SectReason::coinPtsMatch, oppSegment));
-	if (!addedSect1 || !addedSect2) {
-		range.clear();
-		oppSegment->intersectRange(segment, range);
+			sect1->coincidenceID = coinID;
+		} else	// or if it doesn't exist and isn't in a coin range, make one
+			sect1 = segment->addCoin(aPtT, coinID
+				OP_DEBUG_PARAMS(SECT_MAKER(addPair_aPtT), SectReason::coinPtsMatch, oppSegment));
 	}
+	if (!bInCoincidence) {
+		if (sect2) {
+			OP_ASSERT(!sect2->coincidenceID);
+			sect2->coincidenceID = coinID;
+		} else
+			sect2 = segment->addCoin(bPtT, coinID
+				OP_DEBUG_PARAMS(SECT_MAKER(addPair_bPtT), SectReason::coinPtsMatch, oppSegment));
+	}
+	std::vector<OpIntersection*> oRange = oppSegment->intersectRange(segment);
+	OpIntersection* oSect1 = findSect(oRange, { aPtT.pt, -1 });
+	OpIntersection* oSect2 = findSect(oRange, { bPtT.pt, -1 });
 	// add the opposite that goes with the created segment sect
 	float oStart  OP_DEBUG_INITIALIZE_TO_SILENCE_WARNING;
 	float oTRange  OP_DEBUG_INITIALIZE_TO_SILENCE_WARNING;
 	float oXYRange  OP_DEBUG_INITIALIZE_TO_SILENCE_WARNING;
-	int oSect1Coin = 0;
-	OpIntersection* oSect1;
-	if (addedSect1 || addedSect2) {
+	if (!oSect1 || !oSect2) {
 		if (flipped)
 			std::swap(cPtT, dPtT);
 		oStart = cPtT.pt.choice(xyChoice);
@@ -203,52 +198,29 @@ IntersectResult OpEdges::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPt
 		oTRange = dPtT.t - cPtT.t;
 		oXYRange = oEnd - oStart;
 	}
-	if (addedSect1) {
+	if (!oSect1) {
 		float eStart = aPtT.pt.choice(xyChoice);
 		OpPtT oCoinStart{ aPtT.pt, cPtT.t + (eStart - oStart) / oXYRange * oTRange };
 		OP_ASSERT(OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t));
 		oSect1 = oppSegment->addCoin(oCoinStart, coinID
 				OP_DEBUG_PARAMS(SECT_MAKER(addPair_oppStart), SectReason::coinPtsMatch, segment));
 		sect1->pair(oSect1);
-	} else {
-		oSect1 = findSect(cPtT, segment);
-		int cCoinID;
-		int cIndex = inCoinRange(cPtT.t, &cCoinID);
-		bool cInCoincidence = cIndex & 1;
-		if (!cInCoincidence)
-			oSect1Coin = cInCoincidence ? cCoinID : coinID;	// delay for sect 2 call to find sect
-	}
-	if (addedSect2) {
+	} else if (!(inCoinRange(oRange, oSect1->ptT.t, nullptr) & 1))
+		oSect1->coincidenceID = coinID;
+	if (!oSect2) {
 		float eEnd = bPtT.pt.choice(xyChoice);
 		OpPtT oCoinEnd{ bPtT.pt, cPtT.t + (eEnd - oStart) / oXYRange * oTRange };
 		OP_ASSERT(OpMath::Between(cPtT.t, oCoinEnd.t, dPtT.t));
-		OpIntersection* oSect2 = oppSegment->addCoin(oCoinEnd, coinID
+		oSect2 = oppSegment->addCoin(oCoinEnd, coinID
 				OP_DEBUG_PARAMS(SECT_MAKER(addPair_oppEnd), SectReason::coinPtsMatch, segment));
 		sect2->pair(oSect2);
-	} else {
-		OpIntersection* oSect2 = findSect(dPtT, segment);
-		int dCoinID;
-		int dIndex = inCoinRange(dPtT.t, &dCoinID);
-		bool dInCoincidence = dIndex & 1;
-		if (!dInCoincidence)
-			oSect2->coincidenceID = dInCoincidence ? dCoinID : coinID;
-	}
-	if (oSect1Coin)
-		oSect1->coincidenceID = oSect1Coin;
+	} else if (!(inCoinRange(oRange, oSect2->ptT.t, nullptr) & 1))
+		oSect2->coincidenceID = coinID;
 	return IntersectResult::yes;
 }
 
 // !!! I'm bothered that segment / segment calls a different form of this
 void OpEdges::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
-	auto alreadyContains = [](const std::vector<OpIntersection*>& sects, const OpPtT& edgePtT,
-			const OpSegment* segment) {
-		for (auto sectPtr : sects) {
-			const OpIntersection& sect = *sectPtr;
-			if (segment == sect.opp->segment && (edgePtT.pt == sect.ptT.pt || edgePtT.t == sect.ptT.t))
-				return true;
-		}
-		return false;
-	};
 	OP_ASSERT(opp.segment != edge.segment);
 	OpRoots septs;
 	OP_ASSERT(edge.isLine_impl);
@@ -283,8 +255,8 @@ void OpEdges::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
 //            eSegment->ptBounds.pin(&oppPtT.pt);	// !!! doubtful this is ever needed with contains test above
         OP_ASSERT(debugPt == oppPtT.pt);	// detect if pin is still needed
 			OpPtT edgePtT { oppPtT.pt, OpMath::Interp(edge.start.t, edge.end.t, edgeT) };
-			if (alreadyContains(eSegment->intersections, edgePtT, oSegment))
-				OP_ASSERT(alreadyContains(oSegment->intersections, oppPtT, eSegment));
+			if (eSegment->alreadyContains(edgePtT, oSegment))
+				OP_ASSERT(oSegment->alreadyContains(oppPtT, eSegment));
 			else {
 				OpIntersection* sect = eSegment->addEdgeSect(edgePtT  
 						OP_DEBUG_PARAMS(SECT_MAKER(edgeLineCurve), SectReason::lineCurve, 
@@ -300,182 +272,10 @@ void OpEdges::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
 
 // note: sorts from high to low
 struct CompareDistance {
-//	CompareDistance(Axis a)
-//		: axis(a) {}
-
 	bool operator()(const EdgeDistance& s1, const EdgeDistance& s2) {
-#if 0
-		if (s1.edge->priorSum() == s2.edge && axis == s2.edge->sumAxis
-				&& axis == s1.edge->priorSum()->sumAxis)
-			return false;
-		if (s2.edge->priorSum() == s1.edge && axis == s1.edge->sumAxis
-				&& axis == s2.edge->priorSum()->sumAxis)
-			return true;
-#endif
 		return s1.distance > s2.distance;
 	}
-	
-//	Axis axis;
 };
-
-#if 0
-// !!! may duplicate unsectable, which has no loops and may be easier to manage
-FoundWindings OpEdges::checkForLoops(Axis axis) {
-	std::vector<OpEdge*>& edges = Axis::horizontal == axis ? inX : inY;
-	for (OpEdge* edge : edges) {
-		edge->active_impl = edge->winding.visible() && edge->fail != EdgeFail::horizontal;
-	}
-	for (OpEdge* edge : edges) {
-		if (!edge->isActive())
-			continue;
-		OpEdge* loopEnd = edge->hasLoop(WhichLoop::prior, EdgeLoop::sum, LeadingLoop::in);
-		if (!loopEnd)
-			continue;
-		size_t loopyIndex = 0;
-		for (OpEdge* test : edges) {
-			if (loopEnd == test)
-				break;
-			++loopyIndex;
-		}
-		OP_ASSERT(loopyIndex < edges.size());
-		std::vector<EdgeDistance> loopyDistances;
-		Axis perpendicular = !axis;
-		float center = loopEnd->center.pt.choice(perpendicular);
-		float normal = loopEnd->center.pt.choice(axis);
-		float edgeCenterT = loopEnd->center.t;
-		loopEnd->sumType = EdgeSum::loop;
-		FoundIntercept loopyResult = findRayIntercept(loopyIndex, axis, loopEnd, center,
-				normal, edgeCenterT, &loopyDistances);
-		if (FoundIntercept::fail == loopyResult)
-			continue;
-		if (FoundIntercept::overflow == loopyResult)
-			return FoundWindings::fail;
-		std::sort(loopyDistances.begin(), loopyDistances.end(), CompareDistance(axis));	// sorts from high to low
-		OpEdge* loopStart = loopEnd->priorSum();
-		if (loopyDistances.size() > 1) {
-			EdgeDistance& distance = loopyDistances[loopyDistances.size() - 2];
-			if (loopEnd != distance.edge)
-				loopEnd->setPriorSum(distance.edge);	// will swap with actual loop start later
-			else
-				loopEnd->setPriorSum(nullptr);
-		} else
-			loopEnd->setPriorSum(nullptr);
-		OpEdge* loopMember = loopEnd;
-		OpEdge* loopTravel = loopStart;
-		do {
-			loopMember->clearActive();
-			loopMember->sumType = EdgeSum::loop;
-			if (loopStart != loopMember)
-				loopMember->loopStart = loopStart;
-			loopMember = loopTravel;
-			loopTravel = loopTravel->priorSum();
-		} while (loopEnd != loopMember);
-	}
-	return FoundWindings::yes;
-}
-#endif
-
-#if 0
-// maybe (some of) edge properties must be set (sumNormal appears to be only used here)
-// if edge windings are mostly computed on first pass, perhaps not
-// suspect this is mostly unneeded
-void OpEdges::checkForLoopy(EdgeDistance* last, Axis axis, std::vector<EdgeDistance>& distance) {
-	/* if this edge found an edge to the right, and the right edge has already been summed
-	   and, that right edge's center overlaps this edge, and the right edge did not
-	   see this edge, then mark both as loopy */
-	OpEdge* edge = last->edge;
-	while (++last <= &distance.back()) {
-		OpEdge* right = last->edge;
-		OP_ASSERT(right != edge);
-		OP_ASSERT(last->distance <= 0 || right->priorSum() == edge);
-		if (axis != right->sumAxis)
-			continue;
-		float oneEnd = edge->start.pt.choice(axis);
-		float otherEnd = edge->end.pt.choice(axis);
-		float sumNormal = right->sumNormal;
-		if ((oneEnd >= sumNormal && otherEnd >= sumNormal)
-				|| (oneEnd <= sumNormal && otherEnd <= sumNormal))
-			continue;
-		if (right->containsSum(edge))
-			continue;
-		if (edge->priorSum() != right->priorSum())
-			continue;
-		OP_ASSERT(0);	// with unsectable edges, is this ever encountered?
-		right->setPriorSum(edge);
-		right->sumNormal = edge->sumNormal;
-	}
-}
-#endif
-
-#if 0
-FoundIntersections OpEdges::findIntersections() {
-#if OP_DEBUG_COMPARE
-	OpDebugCompare debugCompare("innerFindSect");
-#endif
-	for (auto edgeIter = inX.begin(); edgeIter != inX.end(); ++edgeIter) {
-		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
-		for (auto oppIter = edgeIter + 1; oppIter != inX.end(); ++oppIter) {
-			OpEdge* opp = const_cast<OpEdge*>(*oppIter);
-#if OP_DEBUG_COMPARE
-			debugCompare.edges(edge, opp);
-#endif
-	OpDebugBreakIf(edge, 396, 402 == opp->id);
-	OpDebugBreakIf(opp, 396, 402 == edge->id);
-			if (edge->ptBounds.right < opp->ptBounds.left)
-				break;
-			if (!edge->ptBounds.intersects(opp->ptBounds))
-				continue;
-			if (edge->segment == opp->segment && OpType::cubic != edge->segment->c.type)	
-				continue;  // non-cubic handled in opsegment makeedges
-			// for line-curve intersection we can directly intersect
-			if (OpType::line != edge->segment->c.type && edge->setLinear()) {
-				AddLineCurveIntersection(*opp, *edge);
-				continue;
-			} else if (OpType::line != opp->segment->c.type && opp->setLinear()) {
-				AddLineCurveIntersection(*edge, *opp);
-				continue;
-			}
-			// if the curves' bounds share only a single intersection edge, check endpoints only
-			if (edge->ptBounds.touches(opp->ptBounds)) {
-				OpSegment* eSegment = const_cast<OpSegment*>(edge->segment);
-				OpSegment* oSegment = const_cast<OpSegment*>(opp->segment);
-				for (auto& edgePtT : { edge->start, edge->end }) {
-					for (auto& oppPtT : { opp->start, opp->end }) {
-						// end matching end was handled earlier in op segments find intersection
-						if (edgePtT.pt != oppPtT.pt)
-							continue;
-						if (eSegment == oSegment && edgePtT.t == oppPtT.t)
-							continue;
-						if (OpMath::IsInt(edgePtT.t) && OpMath::IsInt(oppPtT.t))
-							continue;
-						if (eSegment->containsIntersection(edgePtT, oSegment)
-								|| oSegment->containsIntersection(oppPtT, eSegment))
-							continue;
-						OpIntersection* sect = eSegment->addIntersection(edgePtT
-								OP_DEBUG_PARAMS(SECT_MAKER(edgeIntersections), 
-								SectReason::sharedEndPoint, nullptr, edge, opp));
-						OpIntersection* oSect = oSegment->addIntersection(oppPtT
-								OP_DEBUG_PARAMS(SECT_MAKER(edgeIntersectionsOpp),
-								SectReason::sharedEndPoint, nullptr, opp, edge));
-						sect->pair(oSect);
-					}
-				}
-				continue;
-			}
-			if (OpType::line == edge->segment->c.type || OpType::line == opp->segment->c.type)
-				continue;
-			OpCurveCurve OpCurveCurve(edge, opp);
-			SectFound result = OpCurveCurve.divideAndConquer();
-			if (SectFound::fail == result || SectFound::overflow == result)
-				return FoundIntersections::fail;
-		}
-	}
-#if OP_DEBUG_COMPARE
-	debugCompare.close();
-#endif
-	return FoundIntersections::yes;
-}
-#endif
 
 // at some point, do some math or rigorous testing to figure out how extreme this can be
 // for now, keep making it smaller until it breaks
@@ -506,8 +306,6 @@ FoundIntercept OpEdges::findRayIntercept(size_t inIndex, Axis axis, OpEdge* edge
 				goto tryADifferentCenter;
 			if (!test->winding.visible())
 				continue;
-//			if (isLoopy && edge->inSumLoop(test))
-//				continue;
 			{
 				const OpCurve& testCurve = test->setCurve();
 				OpRoots cepts = testCurve.axisRayHit(axis, normal);
@@ -522,9 +320,10 @@ FoundIntercept OpEdges::findRayIntercept(size_t inIndex, Axis axis, OpEdge* edge
 				if (OpMath::IsNaN(cept) || 0 == cept || 1 == cept)
 					goto tryADifferentCenter;
 				bool overflow;
-				float tNxR = testCurve.tangent(cept).normalize(&overflow).cross(backRay);
+				OpVector tangent = testCurve.tangent(cept).normalize(&overflow);
 				if (overflow)
 					OP_DEBUG_FAIL(*test, FoundIntercept::overflow);
+				float tNxR = tangent.cross(backRay);
 				if (fabs(tNxR) < WINDING_NORMAL_LIMIT
 					&& (!test->setLinear() || test->start.t >= cept || cept >= test->end.t)) {
 					goto tryADifferentCenter;
@@ -555,31 +354,38 @@ FoundIntercept OpEdges::findRayIntercept(size_t inIndex, Axis axis, OpEdge* edge
 }
 
 void OpEdges::MarkUnsectableGroups(std::vector<EdgeDistance>& distance) {
+	int edgeIndex = (int) distance.size();
+	while (--edgeIndex >= 0) {
+		float dist = distance[edgeIndex].distance;
+		if (0 == dist)
+			break;
+		OP_ASSERT(dist < 0);
+	}
+	int limit = edgeIndex;
+	while (limit > 0 && 0 == distance[limit - 1].distance)
+		--limit;
+	for (int outer = limit; outer < edgeIndex; ++outer) {	// two or more
+		OpEdge* oEdge = distance[outer].edge;
+		const auto& pals = oEdge->pals;
+		for (int inner = outer + 1; inner <= edgeIndex; ++inner) {
+			OpEdge* iEdge = distance[inner].edge;
+			if (pals.end() != std::find(pals.begin(), pals.end(), iEdge))
+				continue;
+		   OP_ASSERT(iEdge->pals.end() == std::find(iEdge->pals.begin(), iEdge->pals.end(), oEdge));
+			oEdge->sumType = EdgeSum::unsectable;
+			oEdge->pals.push_back(iEdge);
+			iEdge->sumType = EdgeSum::unsectable;
+			iEdge->pals.push_back(oEdge);
+		}
+	}
 	bool lastIsUnsectable = false;
 	EdgeDistance* lastDistance = nullptr;
 	for (auto& dist : distance) {
 		bool distIsUnsectable = EdgeSum::unsectable == dist.edge->sumType;
 		if (lastIsUnsectable && distIsUnsectable) {
 			// check if they were generated from the same curves
-			const OpSegment* segMatch = dist.edge->segment;
-			bool sawStart = false;
-			for (const OpIntersection* sect : lastDistance->edge->segment->intersections) {
-				if (sawStart && sect->ptT.t > lastDistance->edge->end.t)
-					break;
-				if (segMatch != sect->opp->segment)
-					continue;
-				if (SectFlavor::unsectableStart == sect->flavor) {
-					OP_ASSERT(sect->ptT.t <= lastDistance->edge->start.t);
-					OP_ASSERT(!sawStart);
-					sawStart = true;
-				}
-				if (SectFlavor::unsectableEnd == sect->flavor) {
-					OP_ASSERT(sect->ptT.t >= lastDistance->edge->end.t);
-					OP_ASSERT(sawStart);
-					break;
-				}
-			}
-			if (sawStart) {
+			const auto& pals = lastDistance->edge->pals;
+			if (pals.end() != std::find(pals.begin(), pals.end(), dist.edge)) {
 				lastDistance->multiple = DistMult::none == lastDistance->multiple ?
 						DistMult::first : DistMult::mid;
 				dist.multiple = DistMult::last;
@@ -614,6 +420,7 @@ void OpEdges::SetEdgeMultiple(Axis axis, EdgeDistance* edgeDist
 			edge->many += dist.edge->winding;
 		else
 			edge->many -= dist.edge->winding;
+		OP_ASSERT(edge->pals.end() == std::find(edge->pals.begin(), edge->pals.end(), dist.edge));
 		edge->pals.push_back(dist.edge);
 	};
 	OP_ASSERT(NormalDirection::downLeft == edgeNorm
@@ -681,29 +488,6 @@ ChainFail OpEdges::setSumChain(size_t inIndex, Axis axis) {
 	// but accumulate its winding for other edges and store accumulated total in each unsectable
 	if (ResolveWinding::fail == setWindingByDistance(edge, axis, distance))
 		return ChainFail::failIntercept;	// !!! replace with unique fail state
-#if 0
-	EdgeDistance* last = &distance.front();
-	if (last->edge == edge) {
-		edge->sumAxis = axis;
-		// sumT is not set because it applies to the prior edge, and there is none
-		return ChainFail::none;
-	}
-	// leftmost edge may have no prior
-	while (last->edge != edge) {
-		EdgeDistance* next = last + 1;
-		OpEdge* nextEdge = next->edge;
-		if (Axis::neither == nextEdge->sumAxis) {
-			nextEdge->setPriorSum(last->edge);
-			// note that these are associated with next, not last, because multiple different 
-			//	  'next's may have rays that intersect last
-			nextEdge->sumAxis = axis;
-//			nextEdge->sumNormal = last->normal;  // for horizontal axis, y value of intersecting ray
-			nextEdge->sumT = last->t;
-		}
-		last = next;
-	}
-#endif
-//	checkForLoopy(last, axis, distance);	// don't think it's right; rewrite if needed
 	return ChainFail::none;
 }
 
@@ -733,11 +517,8 @@ ResolveWinding OpEdges::setWindingByDistance(OpEdge* edge, Axis axis,
 				SetEdgeMultiple(axis, edgeDist  OP_DEBUG_PARAMS(distance));
 			continue;
 		}
-		if (0 == edgeDist->distance) {	   // If more than one candidate has a distance of zero,
-			OP_ASSERT(EdgeSum::unsectable == edge->sumType);   //  figure out why not already marked
-			OP_ASSERT(EdgeSum::unsectable == edgeDist->edge->sumType);
+		if (0 == edgeDist->distance)
 			continue;
-		}
 		OP_ASSERT(edgeDist->distance > 0);
 		OpEdge* prior = edgeDist->edge;
 		if (EdgeSum::unsectable != prior->sumType && prior->sum.isSet())
@@ -793,59 +574,19 @@ FoundWindings OpEdges::setWindings(OpContours* contours) {
 				continue;
 			if (!edge->winding.visible())	// may not be visible in vertical pass
 				continue;
-			if (EdgeSum::unsortable == edge->sumType)  // may be too small
-				continue;
 			if (EdgeFail::horizontal == edge->fail && Axis::vertical == axis)
 				edge->fail = EdgeFail::none;
+			else if (EdgeSum::unsortable == edge->sumType)  // may be too small
+				continue;
 			ChainFail chainFail = setSumChain(index, axis);
 			if (ChainFail::normalizeOverflow == chainFail)
 				OP_DEBUG_FAIL(*edge, FoundWindings::fail);
 		}
-#if 0
-		static bool debugLoopCheckNeeded = true;
-		if (debugLoopCheckNeeded)
-			for (OpEdge* edge : edges)
-				OP_ASSERT(!edge->hasLoop(WhichLoop::prior, EdgeLoop::sum, LeadingLoop::in));
-#endif
-#if 0
-		else
-			checkForLoops(axis);	// if unneeded, remove isSumLoop
-		for (size_t index = 0; index < edges.size(); ++index) {
-			OpEdge* edge = edges[index];
-			if (!edge->winding.visible())
-				continue;
-			if (edge->fail == EdgeFail::horizontal)
-				continue;
-			if (edge->sum.isSet())
-				continue;
-			if (edge->unsectable)
-				continue;
-			if (edge->unsortable)
-				continue;
-			if (!edge->isSumLoop) {
-				OpEdge* prior = edge->priorSum();
-				if (prior && prior->isSumLoop && prior->loopStart && !prior->inSumLoop(edge))
-					edge->setPriorSum(prior->loopStart);
-			}
-			OP_DEBUG_CODE(int debugWindingLimiter = 0);
-			// this is wrong: but the correct t value was lost when the array of distances went away
-			// while we can store that in the edge for this use, wait to see if this code is still
-			// needed. If not, unwind dependencies (e.g., remove sumT)
-			ResolveWinding resolve = edge->findWinding(axis, edge->center.t  
-					OP_DEBUG_PARAMS(&debugWindingLimiter));
-			if (ResolveWinding::fail == resolve)
-				OP_DEBUG_FAIL(*edge, FoundWindings::fail);
-		}
-#endif
 		for (auto& edge : edges) {
 			if (!edge->winding.visible())
 				continue;
 			if (edge->sum.isSet())
 				continue;
-#if 0	// reacquaint ourselves with visible edges that can't have sums
-			if (edge->unsectable)
-				continue;
-#endif
 			if (EdgeSum::unsortable == edge->sumType)
 				continue;
 			if (edge->fail == EdgeFail::horizontal)

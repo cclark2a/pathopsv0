@@ -34,8 +34,8 @@ SectFound OpCurveCurve::addUnsectable() {
 			findMatch(maxXY, edge, edgeEnd);
 			findMatch(minXY, opp, oppStart);
 			findMatch(maxXY, opp, oppEnd);
-			bool reversed = oppStart.t > oppEnd.t;
-			if (reversed)
+			bool flipped = oppStart.t > oppEnd.t;
+			if (flipped)
 				std::swap(oppStart, oppEnd);
 			if (!edgeStart.pt.isFinite())
 				edgeStart.pt = oppStart.pt;
@@ -46,21 +46,20 @@ SectFound OpCurveCurve::addUnsectable() {
 			if (!oppEnd.pt.isFinite())
 				oppEnd.pt = edgeEnd.pt;
 			OpSegment* segment = const_cast<OpSegment*>(edge.segment);
-			OpIntersection* segSect1 = segment->addUnsectable(edgeStart, SectFlavor::unsectableStart  
+			int unsectableID = segment->unsectableID(flipped);
+			OpIntersection* segSect1 = segment->addUnsectable(edgeStart, unsectableID  
 					OP_DEBUG_PARAMS(SECT_MAKER(unsectableStart), opp.segment));
-			OpIntersection* segSect2 = segment->addUnsectable(edgeEnd, SectFlavor::unsectableEnd  
+			OpIntersection* segSect2 = segment->addUnsectable(edgeEnd, unsectableID  
 					OP_DEBUG_PARAMS(SECT_MAKER(unsectableEnd), opp.segment));
 			OpSegment* oppSegment = const_cast<OpSegment*>(opp.segment);
-			OpIntersection* oppSect1 = oppSegment->addUnsectable(oppStart, reversed ? 
-					SectFlavor::unsectableEnd : SectFlavor::unsectableStart  OP_DEBUG_PARAMS(
-				   reversed ? IntersectMaker::unsectableOppEnd : IntersectMaker::unsectableOppStart,
+			OpIntersection* oppSect1 = oppSegment->addUnsectable(oppStart, unsectableID  OP_DEBUG_PARAMS(
+				   flipped ? IntersectMaker::unsectableOppEnd : IntersectMaker::unsectableOppStart,
 					__LINE__, __FILE__, segment));
-			OpIntersection* oppSect2 = oppSegment->addUnsectable(oppEnd, reversed ?
-					SectFlavor::unsectableStart : SectFlavor::unsectableEnd  OP_DEBUG_PARAMS(
-				   reversed ? IntersectMaker::unsectableOppStart : IntersectMaker::unsectableOppEnd,
+			OpIntersection* oppSect2 = oppSegment->addUnsectable(oppEnd, unsectableID  OP_DEBUG_PARAMS(
+				   flipped ? IntersectMaker::unsectableOppStart : IntersectMaker::unsectableOppEnd,
 					__LINE__, __FILE__, segment));
-			segSect1->pair(edgeStart.pt == oppStart.pt ? oppSect1 : oppSect2);
-			segSect2->pair(edgeEnd.pt == oppStart.pt ? oppSect1 : oppSect2);
+			segSect1->pair(flipped ? oppSect2 : oppSect1);
+			segSect2->pair(flipped ? oppSect1 : oppSect2);
 		}
 	}
 
@@ -126,7 +125,7 @@ SectFound OpCurveCurve::curvesIntersect(CurveRef curveRef) {
 */
 SectFound OpCurveCurve::divideAndConquer() {
 #if OP_DEBUG_IMAGE
-	bool breakAtDraw = 53 == originalEdge->id && 45 == originalOpp->id;
+	bool breakAtDraw = 12257 == originalEdge->id && 12370 == originalOpp->id;
 	if (breakAtDraw) {
 		hideOperands();
 		hideSegmentEdges();
