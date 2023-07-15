@@ -238,10 +238,6 @@ void OpEdges::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
 	for (unsigned index = 0; index < septs.count; ++index) {
 		float oppT = OpMath::Interp(opp.start.t, opp.end.t, septs.get(index));
 		OpPtT oppPtT { oppCurve.ptAtT(septs.get(index)), oppT };
-		// !!! if match allows correct point not to be contained by edge bounds, document why + keep example
-		//     bug5240 test fails if contains test is missing
-		if (!edge.ptBounds.contains(oppPtT.pt))
-			continue;
 		float edgeT;
 		FoundPtT foundPtT = edge.segment->findPtT(edge.start.t, edge.end.t, oppPtT.pt, &edgeT);
 		if (FoundPtT::multiple == foundPtT)
@@ -420,8 +416,7 @@ void OpEdges::SetEdgeMultiple(Axis axis, EdgeDistance* edgeDist
 			edge->many += dist.edge->winding;
 		else
 			edge->many -= dist.edge->winding;
-		OP_ASSERT(edge->pals.end() == std::find(edge->pals.begin(), edge->pals.end(), dist.edge));
-		edge->pals.push_back(dist.edge);
+		OP_ASSERT(edge->pals.end() != std::find(edge->pals.begin(), edge->pals.end(), dist.edge));
 	};
 	OP_ASSERT(NormalDirection::downLeft == edgeNorm
 			|| NormalDirection::upRight == edgeNorm);

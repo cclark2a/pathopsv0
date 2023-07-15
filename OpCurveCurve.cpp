@@ -47,17 +47,19 @@ SectFound OpCurveCurve::addUnsectable() {
 				oppEnd.pt = edgeEnd.pt;
 			OpSegment* segment = const_cast<OpSegment*>(edge.segment);
 			int unsectableID = segment->unsectableID(flipped);
-			OpIntersection* segSect1 = segment->addUnsectable(edgeStart, unsectableID  
-					OP_DEBUG_PARAMS(SECT_MAKER(unsectableStart), opp.segment));
-			OpIntersection* segSect2 = segment->addUnsectable(edgeEnd, unsectableID  
-					OP_DEBUG_PARAMS(SECT_MAKER(unsectableEnd), opp.segment));
+			OpIntersection* segSect1 = segment->addUnsectable(edgeStart, unsectableID, opp.segment  
+					OP_DEBUG_PARAMS(SECT_MAKER(unsectableStart)));
+			OpIntersection* segSect2 = segment->addUnsectable(edgeEnd, unsectableID, opp.segment  
+					OP_DEBUG_PARAMS(SECT_MAKER(unsectableEnd)));
 			OpSegment* oppSegment = const_cast<OpSegment*>(opp.segment);
-			OpIntersection* oppSect1 = oppSegment->addUnsectable(oppStart, unsectableID  OP_DEBUG_PARAMS(
+			OpIntersection* oppSect1 = oppSegment->addUnsectable(oppStart, unsectableID, segment  
+					OP_DEBUG_PARAMS(
 				   flipped ? IntersectMaker::unsectableOppEnd : IntersectMaker::unsectableOppStart,
-					__LINE__, __FILE__, segment));
-			OpIntersection* oppSect2 = oppSegment->addUnsectable(oppEnd, unsectableID  OP_DEBUG_PARAMS(
+					__LINE__, __FILE__));
+			OpIntersection* oppSect2 = oppSegment->addUnsectable(oppEnd, unsectableID, segment  
+					OP_DEBUG_PARAMS(
 				   flipped ? IntersectMaker::unsectableOppStart : IntersectMaker::unsectableOppEnd,
-					__LINE__, __FILE__, segment));
+					__LINE__, __FILE__));
 			segSect1->pair(flipped ? oppSect2 : oppSect1);
 			segSect2->pair(flipped ? oppSect1 : oppSect2);
 		}
@@ -125,7 +127,7 @@ SectFound OpCurveCurve::curvesIntersect(CurveRef curveRef) {
 */
 SectFound OpCurveCurve::divideAndConquer() {
 #if OP_DEBUG_IMAGE
-	bool breakAtDraw = 12257 == originalEdge->id && 12370 == originalOpp->id;
+	bool breakAtDraw = 20 == originalEdge->id && 21 == originalOpp->id;
 	if (breakAtDraw) {
 		hideOperands();
 		hideSegmentEdges();

@@ -29,21 +29,6 @@ OpRoots OpLine::rawIntersect(const LinePts& line) const {
     return rotated.asLine().axisRawHit(Axis::vertical, 0);
 }
 
-OpRoots OpLine::rayIntersect(const LinePts& line) const {
-
-    OpRoots realRoots = rawIntersect(line);
-    if (1 != realRoots.count)
-        return realRoots;
-    if (!OpMath::Between(0, realRoots.roots[0], 1))
-        return OpRoots();
-    OpPoint hit = pts[0] + realRoots.roots[0] * (pts[1] - pts[0]);
-    XyChoice xy = fabsf(line.pts[1].x - line.pts[0].x) >= fabsf(line.pts[1].y - line.pts[0].y) ?
-            XyChoice::inX : XyChoice::inY;
-    if (!OpMath::Between(line.pts[0].choice(xy), hit.choice(xy), line.pts[1].choice(xy)))
-        return OpRoots();
-    return realRoots;
-}
-
 OpVector OpLine::normal(float t) const {
     return { pts[0].y - pts[1].y, pts[1].x - pts[0].x };
 }

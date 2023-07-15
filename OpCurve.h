@@ -146,7 +146,6 @@ struct OpLine : OpCurve {
     OpVector normal(float t) const;
     OpPoint ptAtT(float t) const;
     OpRoots rawIntersect(const LinePts& line) const;
-    OpRoots rayIntersect(const LinePts& line) const;
     OpVector tangent() const;
 };
 
@@ -173,7 +172,6 @@ struct OpQuad : OpCurve {
     OpVector normal(float t) const;
     OpPoint ptAtT(float t) const;
     OpRoots rawIntersect(const LinePts& line) const;
-    OpRoots rayIntersect(const LinePts& line) const;
     OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
     OpVector tangent(float t) const;
 #if OP_DEBUG
@@ -201,7 +199,6 @@ struct OpConic : OpCurve {
     OpPoint numerator(float t) const;
     OpPoint ptAtT(float t) const;
     OpRoots rawIntersect(const LinePts& line) const;
-    OpRoots rayIntersect(const LinePts& line) const;
     OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
     float tangent(XyChoice offset, float t) const;
     OpVector tangent(float t) const;
@@ -239,7 +236,6 @@ struct OpCubic : OpCurve {
     void pinCtrls(XyChoice );
     OpPoint ptAtT(float t) const;
     OpRoots rawIntersect(const LinePts& line) const;
-    OpRoots rayIntersect(const LinePts& line) const;
     OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
     float tangent(XyChoice , double t) const;
     OpVector tangent(float t) const;

@@ -9,13 +9,15 @@ bool OpCurve::isLinear() const {
     OpVector diffs[3];
     diffs[0] = pts[1] - pts[0];
     diffs[1] = pts[2] - pts[0];
-    bool linear = diffs[0].dx * diffs[1].dy == diffs[1].dx * diffs[0].dy;
+    bool linear = fabsf(diffs[0].dx * diffs[1].dy - diffs[1].dx * diffs[0].dy) <= OpEpsilon;
     if (!linear)
         return false;
     if (OpType::cubic != type)
         return true;
     diffs[2] = pts[3] - pts[0];
-    return diffs[0].dx * diffs[2].dy == diffs[2].dx * diffs[0].dy;
+    if (0 == diffs[0].dx && 0 == diffs[0].dy)
+        diffs[0] = diffs[1];
+    return fabsf(diffs[0].dx * diffs[2].dy - diffs[2].dx * diffs[0].dy) <= OpEpsilon;
 }
 
 OpLine& OpCurve::asLine() { OP_ASSERT(OpType::line == type); return *static_cast<OpLine*>(this); }
@@ -135,16 +137,20 @@ OpRoots OpCurve::rawIntersect(const LinePts& linePt) const {
     return OpRoots();
 }
 
-OpRoots OpCurve::rayIntersect(const LinePts& linePt) const {
-    switch (type) {
-        case OpType::line: return asLine().rayIntersect(linePt);
-        case OpType::quad: return asQuad().rayIntersect(linePt);
-        case OpType::conic: return asConic().rayIntersect(linePt);
-        case OpType::cubic: return asCubic().rayIntersect(linePt);
-        default:
-            OP_ASSERT(0);
+OpRoots OpCurve::rayIntersect(const LinePts& line) const {
+    OpRoots rawRoots = rawIntersect(line);
+    rawRoots.keepValidTs();
+    if (!rawRoots.count)
+        return rawRoots;
+    OpRoots realRoots;
+    XyChoice xy = fabsf(line.pts[1].x - line.pts[0].x) >= fabsf(line.pts[1].y - line.pts[0].y) ?
+            XyChoice::inX : XyChoice::inY;
+    for (unsigned index = 0; index < rawRoots.count; ++index) {
+        OpPoint hit = ptAtT(rawRoots.roots[index]);
+        if (OpMath::Between(line.pts[0].choice(xy), hit.choice(xy), line.pts[1].choice(xy)))
+            realRoots.add(rawRoots.roots[index]);
     }
-    return OpRoots();
+    return realRoots;
 }
 
 // for accuracy, this should only be called with segment's curve, never edge curve

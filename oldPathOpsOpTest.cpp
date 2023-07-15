@@ -9321,7 +9321,7 @@ path2.close();
 }
 
 static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
-static void (*firstTest)(skiatest::Reporter* , const char* filename) = seanbug;
+static void (*firstTest)(skiatest::Reporter* , const char* filename) = cubics_d3;
 static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 
 #define TEST(name) { name, #name }

@@ -52,15 +52,6 @@ OpRoots OpConic::rawIntersect(const LinePts& line) const {
     return rotated.asConic().axisRawHit(Axis::vertical, 0);
 }
 
-OpRoots OpConic::rayIntersect(const LinePts& line) const {
-    if (line.pts[0].x == line.pts[1].x)
-        return axisRayHit(Axis::vertical, line.pts[0].x);
-    if (line.pts[0].y == line.pts[1].y)
-        return axisRayHit(Axis::horizontal, line.pts[0].y);
-    OpCurve rotated = toVertical(line);
-    return rotated.asConic().axisRayHit(Axis::vertical, 0);
-}
-
 bool OpConic::monotonic(XyChoice offset) const {
     return this->asConicQuad().monotonic(offset);
 }

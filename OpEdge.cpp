@@ -402,7 +402,6 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups, std::vector<OpEdge*>& unse
 			oo(10);
 			showPoints();
 			showHex();
-			showIntersections();
 			OpDebugOut("");
 		}
 #endif

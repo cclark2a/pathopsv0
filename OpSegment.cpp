@@ -3,7 +3,7 @@
 
 OpSegment::OpSegment(const OpCurve& pts, OpType type, OpContour* contourPtr
         OP_DEBUG_PARAMS(SectReason startReason, SectReason endReason))
-    : c(pts.pts, type)
+    : c(pts.pts, pts.weight, type)
     , winding(WindingUninitialized::dummy) {
     complete(contourPtr);  // only for id, which could be debug code if id is not needed
     OP_DEBUG_CODE(contour = nullptr);   // can't set up here because it may still move
@@ -142,22 +142,29 @@ OpIntersection* OpSegment::addCoin(const OpPtT& ptT, int coinID
     return sect;
 }
 
-bool OpSegment::alreadyContains(const OpPtT& ptT, const OpSegment* oppSegment) const {
+OpIntersection* OpSegment::alreadyContains(const OpPtT& ptT, const OpSegment* oppSegment) const {
 	for (auto sectPtr : intersections) {
 		const OpIntersection& sect = *sectPtr;
+        if (!sect.opp)
+            continue;
 		if (oppSegment == sect.opp->segment && (ptT.pt == sect.ptT.pt || ptT.t == sect.ptT.t))
-			return true;
+			return sectPtr;
 	}
-	return false;
+	return nullptr;
 }
 
-OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int unsectableID 
-        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, const OpSegment* oSeg)) {
-    OP_ASSERT(!debugContains(ptT, oSeg));
-    auto sect = contour->addSegSect(ptT, this, 0, unsectableID  
-            OP_DEBUG_PARAMS(maker, line, file, SectReason::curveCurveUnsectable, oSeg));
-    intersections.push_back(sect);
-    resortIntersections = true;
+OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int unsectableID, const OpSegment* oSeg 
+        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file)) {
+    OpIntersection* sect = alreadyContains(ptT, oSeg);
+    if (sect) {
+        OP_ASSERT(!sect->unsectableID);
+        sect->unsectableID = unsectableID;
+    } else {
+        sect = contour->addSegSect(ptT, this, 0, unsectableID  
+                OP_DEBUG_PARAMS(maker, line, file, SectReason::curveCurveUnsectable, oSeg));
+        intersections.push_back(sect);
+        resortIntersections = true;
+    }
     return sect;
 }
 
@@ -446,7 +453,7 @@ void OpSegment::windCoincidences() {
             }
             coinPairs.emplace_back(oppEdge, coinID, match  OP_DEBUG_PARAMS(&oppEdges));
         }
-        for (auto coinPair : coinPairs) {
+        for (auto& coinPair : coinPairs) {
             if (!coinPair.opp)
                 continue;
             if (coinPair.opp->ptT(coinPair.match).pt != sectPtr->ptT.pt) {
@@ -466,11 +473,15 @@ void OpSegment::windCoincidences() {
             edge->winding.move(coinPair.opp->winding, contour->contours, coinPair.coinID < 0);
             coinPair.opp->winding.zero(ZeroReason::hvCoincidence);
             if (coinPair.coinID > 0) {
-                OP_ASSERT(coinPair.opp < &coinPair.oppEdges->back());
-                ++coinPair.opp;
+                if (coinPair.opp < &coinPair.oppEdges->back())
+                    ++coinPair.opp;
+                else
+                    coinPair.opp = nullptr;
             } else {
-                OP_ASSERT(coinPair.opp > &coinPair.oppEdges->front());
-                --coinPair.opp;
+                if (coinPair.opp > &coinPair.oppEdges->front())
+                    --coinPair.opp;
+                else
+                    coinPair.opp = nullptr;
             }
         }
     }

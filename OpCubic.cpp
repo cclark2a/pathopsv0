@@ -58,15 +58,6 @@ OpRoots OpCubic::rawIntersect(const LinePts& line) const {
     return rotated.asCubic().axisRawHit(Axis::vertical, 0);
 }
 
-OpRoots OpCubic::rayIntersect(const LinePts& line) const {
-    if (line.pts[0].x == line.pts[1].x)
-        return axisRayHit(Axis::vertical, line.pts[0].x);
-    if (line.pts[0].y == line.pts[1].y)
-        return axisRayHit(Axis::horizontal, line.pts[0].y);
-    OpCurve rotated = toVertical(line);
-    return rotated.asCubic().axisRayHit(Axis::vertical, 0);
-}
-
 bool OpCubic::monotonic(XyChoice offset) const {
     const float* ptr = &pts[0].x + +offset;
     return OpMath::Between(ptr[0], ptr[2], ptr[6])

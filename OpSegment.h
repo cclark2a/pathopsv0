@@ -78,9 +78,9 @@ struct OpSegment {
 //    OpIntersection* addIntersection(const OpPtT& , SectFlavor  
 //            OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason , const OpIntersection* ,
 //            const OpEdge* e, const OpEdge* o));
-    OpIntersection* addUnsectable(const OpPtT& , int unsectableID  
-            OP_DEBUG_PARAMS(IntersectMaker , int , std::string, const OpSegment* o));
-    bool alreadyContains(const OpPtT& edgePtT, const OpSegment* opp) const;
+    OpIntersection* addUnsectable(const OpPtT& , int unsectableID, const OpSegment* o 
+            OP_DEBUG_PARAMS(IntersectMaker , int , std::string));
+    OpIntersection* alreadyContains(const OpPtT& edgePtT, const OpSegment* opp) const;
     void apply();
 //    void calcBounds(); // recompute tight bounds from adjusted intersections
     int coinID(bool flipped) const;

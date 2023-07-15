@@ -97,6 +97,7 @@ struct OpIntersection {
 			int ID, int oppID)) {
 		segment = seg;
 		opp = nullptr; // SectFlavor::none == flavor_ ? nullptr : this;		!!! if we need this, comment why
+		OP_ASSERT(OpMath::Between(0, t.t, 1));
 		ptT = t;
 		coincidenceID = cID;	// 0 if no coincidence; negative if coincident pairs are reversed
 		unsectableID = uID;		// 0 if not unsectable; negative if curves are reversed
