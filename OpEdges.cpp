@@ -279,7 +279,6 @@ struct CompareDistance {
 
 FoundIntercept OpEdges::findRayIntercept(size_t inIndex, Axis axis, OpEdge* edge, float center,
 		float normal, float edgeCenterT, std::vector<EdgeDistance>* distance) {
-//	bool isLoopy = EdgeSum::loop == edge->sumType;	// if loopy, ignore other loopy members
 	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
 	Axis perpendicular = !axis;
 	OpVector backRay = -ray;

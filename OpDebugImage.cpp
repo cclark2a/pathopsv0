@@ -37,37 +37,11 @@ std::vector<const OpSegment*> localSegments;	// segments not yet added to global
 int gridIntervals = 8;
 int valuePrecision = -1;		// minus one means unset
 
-#define DRAW_FEATURE_GLOBAL(Thing) \
-bool draw##Thing##On = false
-
-DRAW_FEATURE_GLOBAL(Bounds);
-DRAW_FEATURE_GLOBAL(Centers);
-DRAW_FEATURE_GLOBAL(Chains);
-DRAW_FEATURE_GLOBAL(Coincidences);
-DRAW_FEATURE_GLOBAL(Controls);
-DRAW_FEATURE_GLOBAL(Edges);
-DRAW_FEATURE_GLOBAL(Fill);
-DRAW_FEATURE_GLOBAL(Grid);
-DRAW_FEATURE_GLOBAL(Hex);
-DRAW_FEATURE_GLOBAL(IDs);
-DRAW_FEATURE_GLOBAL(Intersections);
-DRAW_FEATURE_GLOBAL(Left);
-DRAW_FEATURE_GLOBAL(Lines);
-DRAW_FEATURE_GLOBAL(Normals);
-DRAW_FEATURE_GLOBAL(Outputs);
-DRAW_FEATURE_GLOBAL(Paths);
-DRAW_FEATURE_GLOBAL(Points);
-DRAW_FEATURE_GLOBAL(Right);
-DRAW_FEATURE_GLOBAL(SegmentEdges);
-DRAW_FEATURE_GLOBAL(Segments);
-DRAW_FEATURE_GLOBAL(Sums);
-DRAW_FEATURE_GLOBAL(Tangents);
-DRAW_FEATURE_GLOBAL(TemporaryEdges);
-DRAW_FEATURE_GLOBAL(Ts);
-DRAW_FEATURE_GLOBAL(Values);
-DRAW_FEATURE_GLOBAL(Windings);
-
-#undef DRAW_FEATURE_GLOBAL
+#define OP_X(Thing) \
+bool draw##Thing##On = false;
+MASTER_LIST
+#undef OP_X
+bool lastDrawOperandsOn = false;
 
 #define DRAW_IDS_ON(Thing) \
 	do { \
@@ -334,14 +308,6 @@ void OpDebugImage::init(const OpInPath& left, const OpInPath& right) {
 	DebugOpSetBounds(opBounds.fLeft, opBounds.fTop, opBounds.fRight, opBounds.fBottom);
 }
 
-#define READ_FEATURE(Thing) \
-		if (strlen(str) - 1 == strlen(#Thing) && 0 == strncmp(#Thing, str, strlen(#Thing))) \
-			draw##Thing##On = true; \
-		else
-
-#define ZERO_FEATURE(Thing) \
-		draw##Thing##On = false
-
 void playback() {
 	FILE* file = fopen("OpDebugImageState.txt", "r");
 	if (!file)
@@ -380,59 +346,17 @@ void playback() {
 	}
 	valuePrecision = precision;
 	// optional
-	ZERO_FEATURE(Bounds);
-	ZERO_FEATURE(Centers);
-	ZERO_FEATURE(Chains);
-	ZERO_FEATURE(Coincidences);
-	ZERO_FEATURE(Controls);
-	ZERO_FEATURE(Edges);
-	ZERO_FEATURE(Fill);
-	ZERO_FEATURE(Grid);
-	ZERO_FEATURE(Hex);
-	ZERO_FEATURE(IDs);
-	ZERO_FEATURE(Intersections);
-	ZERO_FEATURE(Left);
-	ZERO_FEATURE(Lines);
-	ZERO_FEATURE(Normals);
-	ZERO_FEATURE(Outputs);
-	ZERO_FEATURE(Paths);
-	ZERO_FEATURE(Points);
-	ZERO_FEATURE(Right);
-	ZERO_FEATURE(SegmentEdges);
-	ZERO_FEATURE(Segments);
-	ZERO_FEATURE(Sums);
-	ZERO_FEATURE(Tangents);
-	ZERO_FEATURE(TemporaryEdges);
-	ZERO_FEATURE(Ts);
-	ZERO_FEATURE(Values);
-	ZERO_FEATURE(Windings);
+#define OP_X(Thing) \
+	draw##Thing##On = false;
+	MASTER_LIST
+#undef OP_X
 	while (fgets(str, sizeof(str), file)) {
-		READ_FEATURE(Bounds)
-		READ_FEATURE(Centers)
-		READ_FEATURE(Chains)
-		READ_FEATURE(Coincidences)
-		READ_FEATURE(Controls)
-		READ_FEATURE(Edges)
-		READ_FEATURE(Fill)
-		READ_FEATURE(Grid)
-		READ_FEATURE(Hex)
-		READ_FEATURE(IDs)
-		READ_FEATURE(Intersections)
-		READ_FEATURE(Left)
-		READ_FEATURE(Lines)
-		READ_FEATURE(Normals)
-		READ_FEATURE(Outputs)
-		READ_FEATURE(Paths)
-		READ_FEATURE(Points)
-		READ_FEATURE(Right)
-		READ_FEATURE(SegmentEdges)
-		READ_FEATURE(Segments)
-		READ_FEATURE(Sums)
-		READ_FEATURE(Tangents)
-		READ_FEATURE(TemporaryEdges)
-		READ_FEATURE(Ts)
-		READ_FEATURE(Values)
-		READ_FEATURE(Windings)
+#define OP_X(Thing) \
+		if (strlen(str) - 1 == strlen(#Thing) && 0 == strncmp(#Thing, str, strlen(#Thing))) \
+			draw##Thing##On = true; \
+		else
+	MASTER_LIST
+#undef OP_X
 		{
 			OpDebugOut("no match: " + std::string(str)); goto bail;
 		}
@@ -462,6 +386,10 @@ void OpDebugImage::drawDoubleFocus() {
 	OpDebugDefeatDelete defeater;
 	std::vector<int> ids;
 	clearScreen();
+	if (drawOperandsOn != lastDrawOperandsOn) {
+		drawLeftOn = drawRightOn = drawOperandsOn;
+		lastDrawOperandsOn = drawOperandsOn;
+	}
 	if (drawFillOn) {
 		SkMatrix matrix;
 		float scale = (float)DebugOpGetZoomScale();
@@ -508,32 +436,37 @@ void OpDebugImage::drawDoubleFocus() {
 	}
 	if (drawEdgesOn)
 		DebugOpDrawEdges();
-	if (drawNormalsOn)
-		drawEdgeNormals();
-	if (drawTangentsOn)
-		drawEdgeTangents();
-	if (drawWindingsOn)
-		drawEdgeWindings();
 	if (drawPointsOn)
 		OpDebugImage::drawPoints();
 	if (drawSegmentsOn && drawIDsOn) {
 		for (auto segment : segmentIterator)
 			DebugOpDrawSegmentID(segment, ids);
 	}
-	if (drawEdgesOn && drawIDsOn) {
+	if (drawEdgesOn && (drawIDsOn || drawNormalsOn || drawTangentsOn || drawWindingsOn)) {
 		for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 			const OpEdge* edge = *edgeIter;
 			if (!drawTemporaryEdgesOn && edgeIter.isLocal)
 				continue;
 			if (!drawSegmentEdgesOn && !edgeIter.isLocal)
 				continue;
-			SkColor color = SK_ColorBLACK;
-			if (!edge->winding.visible())
-				color = SK_ColorRED;
-			else if (edgeIter.isTemporary)
-				color = edgeIter.isOpp ? 0xFFFFA500 : 0xFF008000;  // orange, dark green
-			DebugOpDrawEdgeID(edge, ids, color);
+			if (ids.end() != std::find(ids.begin(), ids.end(), edge->id))
+				continue;
+			ids.push_back(edge->id);
 
+			if (drawIDsOn) {
+				SkColor color = SK_ColorBLACK;
+				if (!edge->winding.visible())
+					color = SK_ColorRED;
+				else if (edgeIter.isTemporary)
+					color = edgeIter.isOpp ? 0xFFFFA500 : 0xFF008000;  // orange, dark green
+				DebugOpDrawEdgeID(edge, color);
+			}
+			if (drawNormalsOn)
+				DebugOpDrawEdgeNormal(edge, SK_ColorBLACK);
+			if (drawTangentsOn)
+				DebugOpDrawEdgeTangent(edge, SK_ColorBLACK);
+			if (drawWindingsOn)
+				DebugOpDrawEdgeWinding(edge, SK_ColorBLACK);
 		}
 	}
 	if (drawIntersectionsOn && drawIDsOn) {
@@ -554,10 +487,6 @@ void OpDebugImage::drawDoubleFocus() {
 		drawGrid();
 }
 
-#define RECORD_FEATURE(Thing) \
-		if (draw##Thing##On) \
-			fprintf(recordFile, "%s\n", #Thing)
-
 void record() {
 #if 0 && defined _WIN32
    char full[_MAX_PATH];
@@ -575,33 +504,11 @@ void record() {
 	fprintf(recordFile, "textSize: %g\n", labelFont.getSize());
 	fprintf(recordFile, "gridIntervals: %d\n", gridIntervals);
 	fprintf(recordFile, "valuePrecision: %d\n", valuePrecision);
-
-	RECORD_FEATURE(Bounds);
-	RECORD_FEATURE(Centers);
-	RECORD_FEATURE(Chains);
-	RECORD_FEATURE(Coincidences);
-	RECORD_FEATURE(Controls);
-	RECORD_FEATURE(Edges);
-	RECORD_FEATURE(Fill);
-	RECORD_FEATURE(Grid);
-	RECORD_FEATURE(Hex);
-	RECORD_FEATURE(IDs);
-	RECORD_FEATURE(Intersections);
-	RECORD_FEATURE(Left);
-	RECORD_FEATURE(Lines);
-	RECORD_FEATURE(Normals);
-	RECORD_FEATURE(Outputs);
-	RECORD_FEATURE(Paths);
-	RECORD_FEATURE(Points);
-	RECORD_FEATURE(Right);
-	RECORD_FEATURE(SegmentEdges);
-	RECORD_FEATURE(Segments);
-	RECORD_FEATURE(Sums);
-	RECORD_FEATURE(Tangents);
-	RECORD_FEATURE(TemporaryEdges);
-	RECORD_FEATURE(Ts);
-	RECORD_FEATURE(Values);
-	RECORD_FEATURE(Windings);
+#define OP_X(Thing) \
+	if (draw##Thing##On) \
+		fprintf(recordFile, "%s\n", #Thing);
+	MASTER_LIST
+#undef OP_X
 	fclose(recordFile);
 }
 
@@ -883,11 +790,11 @@ bool OpDebugImage::drawValue(OpPoint pt, std::string ptStr, uint32_t color) {
 		for (float scale : { 4, 16 } ) {
 			for (int toTheLeft : { -1, 0, 1 } ) {
 				for (int toTheTop : { -1, 0, 1 } ) {
-					OpVector offset { 0, 0};
+					OpVector offset { 0, 0 };
 					if (toTheLeft)
 						offset.dx = toTheLeft < 0 ? -textBounds.width() - scale : scale;
 					if (toTheTop)
-						offset.dy = toTheTop < 0 ? -scale : scale;
+						offset.dy = toTheTop < 0 ? -scale : textBounds.height() + scale;
 					SkRect test = trimmed;
 					test.offset(offset.dx, offset.dy);
 					SkRect skBounds { 0, 0, bitmapWH, bitmapWH };
@@ -912,6 +819,25 @@ bool OpDebugImage::drawValue(OpPoint pt, std::string ptStr, uint32_t color) {
 					}
 					offscreen.drawString(SkString(ptStr), pt.x + offset.dx,
 							pt.y + offset.dy, labelFont, paint);
+					if (16 == scale && drawGuidesOn) {
+						// add line from edge of text box towards original point
+						SkRect box = test;
+						OpPoint closestSide;
+						float closest = OpInfinity;
+						for (int side = 0; side < 4; ++side) {
+							OpPoint tSide = { 
+									side & 1 ? box.centerX() : 0 == side ? box.fLeft : box.fRight,
+									side & 1 ? 1 == side ? box.fTop : box.fBottom : box.centerY()
+							};
+							float distance = (tSide - pt).length();
+							if (closest > distance) {
+								closest = distance;
+								closestSide = tSide;
+							}
+						}
+						paint.setAlpha(63);
+						offscreen.drawLine(closestSide.toSkPoint(), pt.toSkPoint(), paint);
+					}
 					return true;
 				loopEnd:
 					;
@@ -1113,7 +1039,7 @@ void OpDebugImage::clearLines() {
 	drawLinesOn = false;
 }
 
-#define HIDE_SHOW_DEFINITION(Thing) \
+#define OP_X(Thing) \
 void hide##Thing() { \
 	draw##Thing##On = false; \
 	OpDebugImage::drawDoubleFocus(); \
@@ -1128,111 +1054,8 @@ void toggle##Thing() { \
 	draw##Thing##On ^= true; \
 	OpDebugImage::drawDoubleFocus(); \
 }
-
-HIDE_SHOW_DEFINITION(Bounds)
-HIDE_SHOW_DEFINITION(Centers)
-HIDE_SHOW_DEFINITION(Chains);
-HIDE_SHOW_DEFINITION(Coincidences);
-HIDE_SHOW_DEFINITION(Controls);
-HIDE_SHOW_DEFINITION(Edges);
-HIDE_SHOW_DEFINITION(Fill);
-HIDE_SHOW_DEFINITION(Grid);
-HIDE_SHOW_DEFINITION(IDs);
-HIDE_SHOW_DEFINITION(Intersections);
-HIDE_SHOW_DEFINITION(Lines);
-HIDE_SHOW_DEFINITION(Normals);
-HIDE_SHOW_DEFINITION(Outputs);
-HIDE_SHOW_DEFINITION(Paths)
-HIDE_SHOW_DEFINITION(Points);
-HIDE_SHOW_DEFINITION(SegmentEdges);
-HIDE_SHOW_DEFINITION(Segments);
-HIDE_SHOW_DEFINITION(Sums);
-HIDE_SHOW_DEFINITION(Tangents);
-HIDE_SHOW_DEFINITION(TemporaryEdges);
-HIDE_SHOW_DEFINITION(Values);
-HIDE_SHOW_DEFINITION(Windings);
-
-void hideHex() {
-	drawValuesOn = drawHexOn = false;
-	OpDebugImage::drawDoubleFocus();
-}
-
-void showHex() {
-	drawValuesOn = drawHexOn = true;
-	OpDebugImage::drawDoubleFocus();
-}
-
-void toggleHex() {
-	drawHexOn ^= true;
-	drawValuesOn = drawHexOn;
-	OpDebugImage::drawDoubleFocus();
-}
-
-void hideTs() {
-	drawTsOn = false;
-	OpDebugImage::drawDoubleFocus();
-}
-
-void showTs() {
-	if (!DebugOpHasT()) {
-		OpDebugOut("there are no edge intersect t values\n");
-		return;
-	}
-	drawTsOn = true;
-	OpDebugImage::drawDoubleFocus();
-}
-
-void toggleTs() {
-	if (!drawTsOn && !DebugOpHasT()) {
-		OpDebugOut("there are no edge intersect t values\n");
-		return;
-	}
-	drawTsOn ^= true;
-	OpDebugImage::drawDoubleFocus();
-}
-
-void hideLeft() {
-	drawLeftOn = false;
-	OpDebugImage::drawDoubleFocus();
-}
-
-void hideRight() {
-	drawRightOn = false;
-	OpDebugImage::drawDoubleFocus();
-}
-
-void hideOperands() {
-	hideLeft();
-	hideRight();
-}
-
-void showLeft() {
-	drawLeftOn = true;
-	OpDebugImage::drawDoubleFocus();
-}
-
-void showOperands() {
-	showLeft();
-	showRight();
-}
-
-void showRight() {
-	drawRightOn = true;
-	OpDebugImage::drawDoubleFocus();
-}
-
-void toggleLeft() {
-	drawLeftOn ? hideLeft() : showLeft();
-}
-
-void toggleRight() {
-	drawRightOn ? hideRight() : showRight();
-}
-
-void toggleOperands() {
-	toggleLeft();
-	toggleRight();
-}
+MASTER_LIST
+#undef OP_X
 
 void OpContour::draw() const {
 	if (!drawSegmentsOn && !drawEdgesOn)
@@ -1288,7 +1111,7 @@ void OpEdge::drawChain() const {
 			OpDebugImage::add(chain);
 		} while ((chain = chain->nextEdge) && this != chain);
 		chain = this;
-	while ((chain = priorChain()) && this != chain) {
+	while ((chain = chain->priorEdge) && this != chain) {
 		OpDebugImage::add(chain);
 	}
 	DRAW_IDS_ON(Edges);
@@ -1346,126 +1169,45 @@ bool OpDebugImage::drawEdgeNormal(OpVector norm, OpPoint midTPt, int edgeID, uin
 	return true;
 }
 
-void OpDebugImage::drawEdgeNormals(const std::vector<const OpEdge*>& edges) {
-	std::vector<int> ids;
-	for (auto edge : edges) {
-		DebugOpDrawEdgeNormal(edge, ids, 0x80000000);
-	}
-}
-
-void OpDebugImage::drawEdgeNormals(const std::vector<OpEdge>& edges) {
-	std::vector<int> ids;
-	for (auto edge : edges) {
-		DebugOpDrawEdgeNormal(&edge, ids, 0x80000000);
-	}
-}
-
-void OpDebugImage::drawEdgeNormals() {
-	std::vector<int> ids;
-	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
-		const OpEdge* edge = *edgeIter;
-		if (!drawTemporaryEdgesOn && edgeIter.isLocal)
-			continue;
-		if (!drawSegmentEdgesOn && !edgeIter.isLocal)
-			continue;
-		DebugOpDrawEdgeNormal(edge, ids, 0x80000000);
-	}
-}
-
-static void drawEdgeTangent(const OpEdge* edge) {
-	OpPoint drawCenter = DebugOpPtToPt(edge->center.pt);
-	OpEdge copy(*edge);
-	const OpCurve& edgeCurve = copy.setCurve();
-	bool overflow;
-	OpVector tan = edgeCurve.tangent(edge->center.t).normalize(&overflow) * 15;
-	if (overflow) {
-		OpDebugOut("overflow on edge " + STR(edge->id) + "\n");
-		return;
-	}
-	OpLine tangent(drawCenter, drawCenter + tan);
+bool OpDebugImage::drawEdgeTangent(OpVector tan, OpPoint midTPt, int edgeID, uint32_t color) {
+	OpLine tangent(midTPt, midTPt + tan);
 	SkPath tangentPath;
 	tangentPath.moveTo(tangent.pts[0].x, tangent.pts[0].y);
 	if (!tangent.pts[1].isFinite()) {
-		OpDebugOut("tangent not finite (edge id)" + STR(edge->id) + "\n");
-		return;
+		OpDebugOut("tangent not finite (edge id)" + STR(edgeID) + "\n");
+		return false;
 	}
 	tangentPath.lineTo(tangent.pts[1].x, tangent.pts[1].y);
-	// !!! rewrite to work like text; find t on curve between edge ends where arrow fits
-	//     also like text: size the arrow using screen resolution, not zoom
 	OpDebugImage::addArrowHeadToPath(tangent, tangentPath);
-	OpDebugImage::drawPath(tangentPath, 0x80000000);
-}
-
-void OpDebugImage::drawEdgeTangents(const std::vector<const OpEdge*>& edges) {
-	for (auto edge : edges) {
-		drawEdgeTangent(edge);
-	}
-}
-
-void OpDebugImage::drawEdgeTangents(const std::vector<OpEdge>& edges) {
-	for (auto edge : edges) {
-		drawEdgeTangent(&edge);
-	}
-}
-
-void OpDebugImage::drawEdgeTangents() {
-	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
-		const OpEdge* edge = *edgeIter;
-		if (!drawTemporaryEdgesOn && edgeIter.isLocal)
-			continue;
-		if (!drawSegmentEdgesOn && !edgeIter.isLocal)
-			continue;
-		drawEdgeTangent(edge);
-	}
+	OpDebugImage::drawPath(tangentPath, color);
+	return true;
 }
 
 bool OpDebugImage::drawEdgeWinding(OpVector norm, OpPoint midTPt, const OpEdge* edge, uint32_t color) {
 	OpPoint sumSide = midTPt + norm;
 	OpPoint oppSide = midTPt - norm;
-	std::string sumLeft = STR(edge->sum.left());
-	std::string sumRight = STR(edge->sum.right());
-	std::string oppLeft = STR(edge->sum.left() - (ZeroReason::none == edge->winding.debugReason ?
-			edge->winding.left() : edge->winding.debugLeft));
-	std::string oppRight = STR(edge->sum.right() - (ZeroReason::none == edge->winding.debugReason ?
-			edge->winding.right() : edge->winding.debugRight));
 	SkCanvas textLayer(bitmap);
 	SkPaint paint;
 	paint.setAntiAlias(true);
 	paint.setColor(SK_ColorBLACK);
+	std::string sumLeft = OpMax == edge->sum.left() ? "?" : STR(edge->sum.left());
 	textLayer.drawString(SkString(sumLeft), sumSide.x, sumSide.y, labelFont, paint);
 	paint.setColor(SK_ColorRED);
+	std::string sumRight = OpMax == edge->sum.right() ? "?" : STR(edge->sum.right());
 	textLayer.drawString(SkString(sumRight), sumSide.x + 20, sumSide.y, labelFont, paint);
 	paint.setColor(SK_ColorBLACK);
+	int windLeft = ZeroReason::none >= edge->winding.debugReason ? edge->winding.left() :
+			edge->winding.debugLeft;
+	std::string oppLeft = OpMax == edge->sum.left() ? STR(windLeft) : 
+			STR(edge->sum.left() - windLeft);
 	textLayer.drawString(SkString(oppLeft), oppSide.x, oppSide.y, labelFont, paint);
 	paint.setColor(SK_ColorRED);
+	int windRight = ZeroReason::none >= edge->winding.debugReason ?
+			edge->winding.right() : edge->winding.debugRight;
+	std::string oppRight = OpMax == edge->sum.left() ? STR(windRight) : 
+			STR(edge->sum.right() - windRight);
 	textLayer.drawString(SkString(oppRight), oppSide.x + 20, oppSide.y, labelFont, paint);
 	return true;
-}
-
-void OpDebugImage::drawEdgeWindings(const std::vector<const OpEdge*>& edges) {
-	std::vector<int> ids;
-	for (auto edge : edges) {
-		DebugOpDrawEdgeWinding(edge, ids, 0x80000000);
-	}
-}
-
-void OpDebugImage::drawEdgeWindings(const std::vector<OpEdge>& edges) {
-	std::vector<int> ids;
-	for (auto edge : edges) {
-		DebugOpDrawEdgeWinding(&edge, ids, 0x80000000);
-	}
-}
-
-void OpDebugImage::drawEdgeWindings() {
-	std::vector<int> ids;
-	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
-		const OpEdge* edge = *edgeIter;
-		if (!drawTemporaryEdgesOn && edgeIter.isLocal)
-			continue;
-		if (!drawSegmentEdgesOn && !edgeIter.isLocal)
-			continue;
-		DebugOpDrawEdgeWinding(edge, ids, 0x80000000);
-	}
 }
 
 #if 0

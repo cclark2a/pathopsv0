@@ -197,10 +197,6 @@ SectFound OpCurveCurve::divideAndConquer() {
 	return SectFound::no;
 }
 
-static bool compareEdges(const OpEdge* lhs, const OpEdge* rhs) {
-	return lhs->start.t < rhs->start.t; 
-}
-
 std::vector<OpEdge> OpCurveCurve::findEdgesTRanges(CurveRef curveRef) {
 	const std::vector<OpEdge>& curves = CurveRef::edge == curveRef ? edgeCurves : oppCurves;
 	std::vector<OpEdge> runs;
@@ -210,10 +206,9 @@ std::vector<OpEdge> OpCurveCurve::findEdgesTRanges(CurveRef curveRef) {
 			continue;
 		ordered.push_back(&edge);
 	}
-	// !!! I'm a bad programmer. Lambda sort comparator doesn't work, but I don't know why
-	std::sort(ordered.begin(), ordered.end(), compareEdges); // [](const OpEdge* lhs, const OpEdge* rhs) {
-//		return lhs->start.t < rhs->start.t; 
-//	});
+	std::sort(ordered.begin(), ordered.end(), [](const OpEdge*& lhs, const OpEdge*& rhs) {
+		return lhs->start.t < rhs->start.t; 
+	});
 	// if curve pieces are continuous, join them up
 	for (auto edge : ordered) {
 		if (!runs.size() || runs.back().end.t != edge->start.t)

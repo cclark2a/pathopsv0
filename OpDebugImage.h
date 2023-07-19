@@ -48,17 +48,8 @@ struct OpDebugImage {
 	static void drawDoubleFill(const class SkPath& path, uint32_t color = 0xFF000000, bool stroke = false);
 	static void drawDoublePath(const class SkPath& path, uint32_t color = 0xFF000000, bool stroke = false);
 	static bool drawEdgeNormal(OpVector norm, OpPoint midTPt, int edgeID, uint32_t color = 0xFF000000);
-	static void drawEdgeNormals(const std::vector<const OpEdge*>& );
-	static void drawEdgeNormals(const std::vector<OpEdge>& );
-	static void drawEdgeNormals();
-	static void drawEdgeTangents(const std::vector<const OpEdge*>& );
-	static void drawEdgeTangents(const std::vector<OpEdge>& );
-	static void drawEdgeTangents();
+	static bool drawEdgeTangent(OpVector tan, OpPoint midTPt, int edgeID, uint32_t color = 0xFF000000);
 	static bool drawEdgeWinding(OpVector norm, OpPoint midTPt, const OpEdge* edge, uint32_t color);
-	static void drawEdgeWindings(const std::vector<const OpEdge*>& );
-	static void drawEdgeWindings(const std::vector<OpEdge>& );
-	static void drawEdgeWindings();
-//	static void drawLines();
 	static void drawPath(const class SkPath& path, uint32_t color = 0xFF000000);
 	static void drawPoints();
 	static bool drawValue(OpPoint pt, std::string ptStr, uint32_t color = 0xFF000000);
@@ -97,40 +88,42 @@ extern void redraw();
 extern void resetFocus();
 extern void textSize(float );
 
-#define HIDE_SHOW_DECLARATION(Thing) \
-extern void hide##Thing(); \
-extern void show##Thing(); \
-extern void toggle##Thing()
+#define MASTER_LIST \
+OP_X(Bounds) \
+OP_X(Centers) \
+OP_X(Chains) \
+OP_X(Coincidences) \
+OP_X(Controls) \
+OP_X(Edges) \
+OP_X(Fill) \
+OP_X(Grid) \
+OP_X(Guides) \
+OP_X(Hex) \
+OP_X(IDs) \
+OP_X(Intersections) \
+OP_X(Left) \
+OP_X(Lines) \
+OP_X(Normals) \
+OP_X(Operands) \
+OP_X(Outputs) \
+OP_X(Paths) \
+OP_X(Points) \
+OP_X(Right) \
+OP_X(SegmentEdges) \
+OP_X(Segments) \
+OP_X(Sums) \
+OP_X(Tangents) \
+OP_X(TemporaryEdges) \
+OP_X(Ts) \
+OP_X(Values) \
+OP_X(Windings)
 
-HIDE_SHOW_DECLARATION(Bounds);
-HIDE_SHOW_DECLARATION(Centers);
-HIDE_SHOW_DECLARATION(Chains);
-HIDE_SHOW_DECLARATION(Coincidences);
-HIDE_SHOW_DECLARATION(Controls);
-HIDE_SHOW_DECLARATION(Edges);
-HIDE_SHOW_DECLARATION(Fill);
-HIDE_SHOW_DECLARATION(Grid);
-HIDE_SHOW_DECLARATION(Hex);
-HIDE_SHOW_DECLARATION(IDs);
-HIDE_SHOW_DECLARATION(Intersections);
-HIDE_SHOW_DECLARATION(Left);
-HIDE_SHOW_DECLARATION(Lines);
-HIDE_SHOW_DECLARATION(Normals);
-HIDE_SHOW_DECLARATION(Operands);
-HIDE_SHOW_DECLARATION(Outputs);
-HIDE_SHOW_DECLARATION(Paths);
-HIDE_SHOW_DECLARATION(Points);
-HIDE_SHOW_DECLARATION(Right);
-HIDE_SHOW_DECLARATION(SegmentEdges);
-HIDE_SHOW_DECLARATION(Segments);
-HIDE_SHOW_DECLARATION(Sums);
-HIDE_SHOW_DECLARATION(Tangents);
-HIDE_SHOW_DECLARATION(TemporaryEdges);
-HIDE_SHOW_DECLARATION(Ts);
-HIDE_SHOW_DECLARATION(Values);
-HIDE_SHOW_DECLARATION(Windings);
-
-#undef HIDE_SHOW_DECLARATION
+#define OP_X(Thing) \
+	extern void hide##Thing(); \
+	extern void show##Thing(); \
+	extern void toggle##Thing();
+	MASTER_LIST
+#undef OP_X
 
 extern void u(float );
 extern void u();

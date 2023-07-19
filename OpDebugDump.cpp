@@ -39,6 +39,23 @@ const OpSegment* findSegment(int id) {
     return debugGlobalContours->findSegment(id);
 }
 
+void OpContours::dumpActive() const {
+    for (const auto& c : contours) {
+        for (const auto& seg : c.segments) {
+            for (const auto& edge : seg.edges) {
+                if (edge.isActive())
+                    edge.dump();
+                else if (EdgeSum::unsectable == edge.sumType && !edge.inOutput && !edge.inOutQueue)
+                    edge.dumpDetail();
+            }
+        }
+    }
+    for (auto edge : unsortables) {
+        if (EdgeSum::unsortable == edge->sumType)
+            edge->dumpDetail();
+    }
+}
+
 void OpContours::dumpCoin(int coinID) const {
     for (const auto& c : contours) {
         for (const auto& seg : c.segments) {
@@ -797,8 +814,6 @@ struct EdgeSumName {
 
 static EdgeSumName edgeSumNames[] {
     EDGE_SUM_NAME(unset),
- //   EDGE_SUM_NAME(loop),
-    EDGE_SUM_NAME(point),
     EDGE_SUM_NAME(set),
     EDGE_SUM_NAME(unsectable),
     EDGE_SUM_NAME(unsortable),
@@ -831,21 +846,6 @@ std::string OpEdge::debugDumpDetail() const {
         s += "/" + (lastEdge ? STR(lastEdge->id) : "-");
         s += " ";
     }
-#if 0
-    if (Axis::neither != sumAxis || priorSum_impl) {
-        s += "priorSum:" + (priorSum_impl ? STR(priorSum_impl->id) : std::string("null"));
-        s += " axis:" + debugAxisName(sumAxis) + " ";
-        if (Axis::neither != sumAxis) {
-//            s += "sumNormal:" + STR(sumNormal) + " ";
-            s += "sumT:" + STR(sumT) + " ";
-        }
-    }
-    if (loopStart) {
-        s += "loopStart:" + STR(loopStart->id) + " ";
-        if (EdgeSum::loop != sumType)
-            s += "\n!!! loopStart set EXPECTED isSumLoop ";
-    }
-#endif
     if (priorEdge || nextEdge || lastEdge /* || priorSum_impl || loopStart || Axis::neither != sumAxis */ )
         s += "\n";
     s += "{" + start.debugDump() + ", ";
@@ -855,10 +855,6 @@ std::string OpEdge::debugDumpDetail() const {
     if (1 != weight)
         s += "w:" + OpDebugDump(weight) + " ";
     s += "\ncenter:" + center.debugDump() + " ";
-//    if (debugAliasStartID || !OpMath::IsNaN(debugOriginalStart.x) || !OpMath::IsNaN(debugOriginalStart.y))
-//        s += "(start was " + debugOriginalStart.debugDump() + "; now from sect " + STR(debugAliasStartID);
-//    if (debugAliasEndID || !OpMath::IsNaN(debugOriginalEnd.x) || !OpMath::IsNaN(debugOriginalEnd.y))
-//        s += " (end was " + debugOriginalEnd.debugDump() + "; now from sect " + STR(debugAliasEndID);
     s += "\n";
     if (ptBounds.isSet())
         s += "pb:" + ptBounds.debugDump() + " ";
@@ -886,16 +882,12 @@ std::string OpEdge::debugDumpDetail() const {
     if (EdgeSplit::no != doSplit) s += " ";
     s += "sumType:" + debugEdgeSumName(sumType) + " ";
     if (curveSet) s += "curveSet ";
-//    if (endAliased) s += "endAliased ";
     if (lineSet) s += "lineSet ";
     if (verticalSet) s += "verticalSet ";
     if (isLine_impl) s += "isLine ";
-//    if (isPoint) s += "isPoint ";
-//    if (isSumLoop) s += "isSumLoop ";
     if (active_impl) s += "active ";
-//    if (startAliased) s += "startAliased ";
-//    if (unsectable) s += "unsectable ";
-//    if (unsortable) s += "unsortable ";
+    if (inOutput) s += "inOutput ";
+    if (inOutQueue) s += "inOutQueue ";
     if (debugStart) s += "debugStart:" + STR(debugStart->id) + " ";
     if (debugEnd) s += "debugEnd:" + STR(debugEnd->id) + " ";
     s += "debugMaker:" + debugEdgeDebugMaker(debugMaker) + " ";
@@ -1047,7 +1039,7 @@ std::string OpEdge::debugDumpChain(WhichLoop which, bool detail) const {
                 return s + " loop";
             firstLoop = true;
         }
-        chain = WhichLoop::prior == which ? chain->priorChain() : chain->nextChain();
+        chain = WhichLoop::prior == which ? chain->priorEdge : chain->nextEdge;
 		if (!chain)
 			break;
         if (++safetyCount > 100) {
@@ -1755,14 +1747,10 @@ void dump(const std::vector<const OpEdge*>& edges) {
     }
 }
 
-void DumpFound(const std::vector<FoundEdge>& found) {
+void dump(const std::vector<FoundEdge>& found) {
     for (auto foundOne : found) {
         OpDebugOut(debugEdgeMatch(foundOne.whichEnd) + " " + foundOne.edge->debugDump() + "\n");
     }
-}
-
-void dump(const std::vector<FoundEdge>& found) {
-    DumpFound(found);
 }
 
 void dump(const std::vector<OpSegment*>& found) {

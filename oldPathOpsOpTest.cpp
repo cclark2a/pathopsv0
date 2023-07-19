@@ -9446,7 +9446,7 @@ static struct TestDesc tests[] = {
     TEST(circlesOp3),
 
     // untested / not working
-    TEST(crbug_526025), // fuzzer; ok to fail, asserts on opedge.cpp:555 !closest->lastEdge; runs of out of t precision?
+    TEST(crbug_526025), // fuzzer; ok to fail, asserts on opedge.cpp:555 !closest->lastEdge; runs out of t precision?
     TEST(grshapearcs1), // fails in intersection; defer until more simple tests work
 
     TEST(loop9),

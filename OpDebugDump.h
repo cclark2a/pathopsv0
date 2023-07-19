@@ -6,6 +6,7 @@
 #include <vector>
 
 struct EdgeDistance;
+struct FoundEdge;
 struct OpContour;
 struct OpEdge;
 struct OpEdges;
@@ -19,6 +20,7 @@ struct OpSegment;
 struct OpTightBounds;
 
 extern void dump(const std::vector<EdgeDistance>& );
+extern void dump(const std::vector<FoundEdge>& );
 extern void dump(const std::vector<OpEdge>& );  // to dump edge list built from intersections
 extern void dump(const std::vector<OpEdge*>& ); // to dump assemble linkups
 extern void dump(const std::vector<const OpEdge*>& ); // to dump debug image edges
@@ -26,6 +28,8 @@ extern void dump(const std::vector<OpSegment*>& ); // to dump segment intersecti
 
 extern void dump(const OpEdge* );
 extern void dump(const OpEdge& );
+extern void dumpLink(const OpEdge* );
+extern void dumpLink(const OpEdge& );
 extern void dump(const OpEdges& );
 extern void dump(const OpOutPath& );
 extern void dump(const OpPtT* );
@@ -36,8 +40,18 @@ extern void dump(const OpPointBounds* );
 extern void dump(const OpPointBounds& );
 extern void dump(const OpRect* );
 extern void dump(const OpRect& );
+extern void dump(const OpSegment* );
+extern void dump(const OpSegment& );
+extern void dumpFull(const OpSegment* );
+extern void dumpFull(const OpSegment& );
 extern void dump(const OpTightBounds* );
-extern void dump(const OpTightBounds&) ;
+extern void dump(const OpTightBounds& );
+
+extern void dumpActive();
+extern void dumpEdges();
+extern void dumpIntersections();
+extern void dumpSects();
+extern void dumpSegments();
 
 #define DEBUG_COMMON_DECLARATIONS() \
     std::string debugDump() const; \
@@ -59,6 +73,7 @@ extern void dump(const OpTightBounds&) ;
 	}
 
 #define DUMP_COMMON_DECLARATIONS() \
+	void dumpActive() const; \
 	void dump(int id) const; \
     void dumpCoin(int id) const; \
     void dumpCoincidence(int id) const; \
@@ -148,6 +163,7 @@ extern void dump(const OpTightBounds&) ;
 
 #define DUMP_GLOBAL_DEFINITIONS() \
 	DUMP_GLOBAL_DEF_ID(dump) \
+	DUMP_GLOBAL_DEFINITION(dumpActive) \
 	DUMP_GLOBAL_DEF_ID(dumpCoin) \
 	DUMP_GLOBAL_DEF_ID(dumpCoincidence) \
 	DUMP_GLOBAL_DEF_ID(dumpDetail) \

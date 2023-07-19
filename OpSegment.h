@@ -37,7 +37,8 @@ struct FoundEdge {
         , reverse(reversal) {
         OP_ASSERT(e);
         OP_ASSERT(e->winding.visible());
-        OP_ASSERT(e->active_impl);
+        OP_ASSERT(e->active_impl || (EdgeSum::unsectable == e->sumType && !e->inOutput
+                && !e->inOutQueue));
     }
 
     OpEdge* edge;

@@ -1,20 +1,20 @@
 #include "OpEdge.h"
 #include "OpContour.h"
 
-OpEdge::OpEdge(const OpEdge* e, OpPtT newPtT, NewEdge isLeftRight  
+OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight  
 		OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file, const OpIntersection* i1, 
 		const OpIntersection* i2))
 	: OpEdge() {
-	segment = e->segment;
-	start = NewEdge::isLeft == isLeftRight ? e->start : newPtT;
-	end = NewEdge::isLeft == isLeftRight ? newPtT : e->end;
+	segment = edge->segment;
+	start = NewEdge::isLeft == isLeftRight ? edge->start : newPtT;
+	end = NewEdge::isLeft == isLeftRight ? newPtT : edge->end;
 #if OP_DEBUG
 	debugStart = i1;
 	debugEnd = i2;
 	debugMaker = maker;
 	debugMakerLine = line;
 	debugMakerFile = file;
-	debugParentID = e->id;
+	debugParentID = edge->id;
 #endif	
 	complete();
 }
@@ -166,20 +166,20 @@ CalcFail OpEdge::calcWinding(Axis axis, float t) {
 	return CalcFail::none;
 }
 
-void OpEdge::clearActivePals() {
-	active_impl = false;
+void OpEdge::clearActiveAndPals() {
+	setActive(false);
     for (auto pal : pals) {
-        pal->active_impl = false; 
+        pal->setActive(false); 
     }
 }
 
 void OpEdge::clearNextEdge() {
-	nextEdge = nullptr;
+	setNextEdge(nullptr);
 	nextLink = EdgeLink::unlinked;
 }
 
 void OpEdge::clearPriorEdge() {
-	priorEdge = nullptr;
+	setPriorEdge(nullptr);
 	priorLink = EdgeLink::unlinked;
 }
 
@@ -189,19 +189,76 @@ void OpEdge::complete() {
 	subDivide();	// uses already computed points stored in edge
 }
 
+// !!! either: implement 'stamp' that puts a unique # on the edge to track if it has been visited;
+// or, re-walk the chain from this (where the find is now) to see if chain has been seen
 bool OpEdge::containsLink(const OpEdge* edge) const {
 	const OpEdge* chain = this;
 	std::vector<const OpEdge*> seen;
 	for (;;) {
 		if (edge == chain)
 			return true;
-		seen.push_back(chain);
-		chain = /* EdgeLoop::link == loopType ? */ chain->nextEdge /* : chain->priorSum_impl */;
-		if (!chain)
+		seen.push_back(chain);		
+		if (chain = chain->nextEdge; !chain)
+			break;	
+		if (auto seenIter = std::find(seen.begin(), seen.end(), chain); seen.end() != seenIter)
 			break;
-		auto seenIter = std::find(seen.begin(), seen.end(), chain);
-		if (seen.end() != seenIter)
-			break;
+	}
+	return false;
+}
+
+struct LoopCheck {
+	LoopCheck(OpEdge* e) 
+		: edge(e) {
+		pt = e->ptT(e->whichEnd).pt;
+	}
+
+	bool operator<(const LoopCheck& rh) const {
+		return pt.x < rh.pt.x || (pt.x == rh.pt.x && pt.y < rh.pt.y);
+	}
+
+	OpEdge* edge;
+	OpPoint pt;
+};
+
+
+// iterate edges to see some pt forms a loop
+// if so, detach remaining chain and close loop
+// at this point, 'this' should not form a loop; (caller asserts if edge is a loop)
+// check if any points in next links are in previous links
+bool OpEdge::detachIfLoop() {
+	std::vector<LoopCheck> edges;
+	OpEdge* test = this;
+	// walk forwards to end, keeping one point per edge
+	while (test) {
+		edges.emplace_back(test);
+		test = test->nextEdge;
+	}
+	// walk backwards to start
+	std::sort(edges.begin(), edges.end());
+	auto detachLoop = [](OpEdge* test, OpEdge* oppEdge) {
+		if (OpEdge* detach = test->nextEdge)
+			detach->clearPriorEdge();
+		test->setNextEdge(oppEdge);
+		oppEdge->setPriorEdge(test);
+		return true;
+	};
+	test = this;
+	while ((test = test->priorEdge)) {
+		LoopCheck testCheck(test);
+		if (auto bound = std::lower_bound(edges.begin(), edges.end(), testCheck); 
+				bound != edges.end() && bound->pt == testCheck.pt)
+			return detachLoop(bound->edge, test);
+		for (auto pal : test->pals) {
+			LoopCheck palCheck(pal);
+			if (auto bound = std::lower_bound(edges.begin(), edges.end(), pal);
+					bound != edges.end() && !(LoopCheck(pal) < edges.front())) {
+				OP_ASSERT(0);
+				// If opp edge does not from a loop but pal does,
+				// probably need to replace opp with pal.
+				// Wait for this to happen for realsies before writing code to handle it.
+				return detachLoop(bound->edge, test);
+			}
+		}
 	}
 	return false;
 }
@@ -214,55 +271,37 @@ float OpEdge::findT(Axis axis, float oppXY) const {
 	return result;
 }
 
-bool OpEdge::inLinkLoop(const OpEdge* match) {
-	OpEdge* loopy = this;
-	while ((loopy = loopy->priorEdge) != this) {
-		if (!loopy)
-			break;
-		if (match == loopy)
-			return true;
-	}
-	while ((loopy = loopy->nextEdge) != this) {
-		if (!loopy)
-			return false;
-		if (match == loopy)
-			return true;
-	}
-	return false;
-}
-
 // note that caller clears active flag if loop is closed
 bool OpEdge::isClosed(OpEdge* test) {
 	if (isLoop(WhichLoop::prior, LeadingLoop::will) 
 			|| isLoop(WhichLoop::next, LeadingLoop::will))
 		return true;
-	if (flipPtT(EdgeMatch::start).pt == test->whichPtT().pt) {
-		OP_ASSERT(!nextEdge || nextEdge == test);
-		setNextEdge(test);
-		OP_ASSERT(!test->priorEdge || test->priorEdge == this);
-		test->setPriorEdge(this);
-		winding.zero(ZeroReason::looped);
-		test->winding.zero(ZeroReason::looped);
-		return true;
-	}
-	return false;
+	if (flipPtT(EdgeMatch::start).pt != test->whichPtT().pt)
+		return false;
+	OP_ASSERT(!nextEdge || nextEdge == test);
+	setNextEdge(test);
+	OP_ASSERT(!test->priorEdge || test->priorEdge == this);
+	test->setPriorEdge(this);
+	winding.zero(ZeroReason::looped);
+	test->winding.zero(ZeroReason::looped);
+	return true;
 }
 
 // keep this in sync with op edge : debug dump chain
 // ignore axis changes when detecting sum loops (for now)
 // !!! if the axis change is required to detect for sum loops, document why!
+// !!! either add 'stamp' or rewalk links instead of find
 const OpEdge* OpEdge::isLoop(WhichLoop which, LeadingLoop leading) const {
-	if (!(WhichLoop::prior == which ? priorChain() : nextChain()))
+	if (!(WhichLoop::prior == which ? priorEdge : nextEdge))
 		return nullptr;
 	const OpEdge* chain = this;
 	std::vector<const OpEdge*> seen;
 	for (;;) {
 		seen.push_back(chain);
-		chain = WhichLoop::prior == which ? chain->priorChain() : chain->nextChain();
+		chain = WhichLoop::prior == which ? chain->priorEdge : chain->nextEdge;
 		if (!chain)
-			break;
-		auto seenIter = std::find(seen.begin(), seen.end(), chain);
-		if (seen.end() == seenIter)
+			break;	
+		if (seen.end() == std::find(seen.begin(), seen.end(), chain))
 			continue;
 		if (LeadingLoop::will == leading)
 			return this;
@@ -281,25 +320,7 @@ void OpEdge::linkNextPrior(OpEdge* first, OpEdge* last) {
 
 }
 
-/* relationship between edge: (start, end) and whichEnd: (start, end)
-   prev: (?, a) which:start		this: (a, b) which:start		next: (b, ?) which: start
-   prev: (a, ?) which:end		this: (a, b) which:start		next: (b, ?) which: start
-   prev: (?, b) which:start		this: (a, b) which:end		    next: (a, ?) which: start
-   prev: (b, ?) which:end		this: (a, b) which:end  		next: (a, ?) which: start
-   prev: (?, a) which:start		this: (a, b) which:start		next: (?, b) which: end		etc...
-*/
-// caller clears active flag
-OpEdge* OpEdge::linkUp(EdgeMatch match, OpEdge* firstEdge) {
-	std::vector<FoundEdge> edges;
-	bool hasPal = segment->activeAtT(this, match, edges, AllowReversal::no);
-	hasPal |= segment->activeNeighbor(this, match, edges);
-	if (hasPal)
-		firstEdge->skipPals(match, edges);
-	if (edges.size() > 1)
-		(EdgeMatch::start == match ? priorLink : nextLink) = EdgeLink::multiple;
-	if (1 != edges.size())
-		return this;
-	FoundEdge found = edges.front();
+void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 	OpEdge* oppEdge = found.edge;
 	OP_ASSERT(!oppEdge->hasLinkTo(match));
 	OP_ASSERT(oppEdge != this);
@@ -318,42 +339,46 @@ OpEdge* OpEdge::linkUp(EdgeMatch match, OpEdge* firstEdge) {
 		oppEdge->priorLink = EdgeLink::single;
 		oppEdge->whichEnd = found.whichEnd;
 	}
-	OP_ASSERT(whichPtT(match).pt == oppEdge->flipPtT(match).pt);
-	// iterate starting with first edge to see if opp pt forms loop
-	// if so, detach remaining chain and close loop
-	OpEdge* test = firstEdge;
-	do {
-		OpPoint testPt = test->whichPtT(Opposite(match)).pt;
-		// if oppEdge has pals, check their end points as well
-		unsigned palIndex = 0;
-		unsigned palSize = oppEdge->pals.size();
-		do {
-			OpPoint endPt = oppEdge->whichPtT(match).pt;
-			if (endPt != testPt)
-				continue;
-			if (EdgeMatch::start == match) {
-				if (OpEdge* detach = test->nextEdge)
-					detach->clearPriorEdge();
-				test->setNextEdge(oppEdge);
-				oppEdge->setPriorEdge(test);
-			} else {
-				if (OpEdge* detach = test->priorEdge)
-					detach->clearNextEdge();
-				test->setPriorEdge(oppEdge);
-				oppEdge->setNextEdge(test);
-			}
-			return this;
-		} while (palIndex < palSize && (oppEdge = oppEdge->pals[palIndex++]));
-		test = EdgeMatch::start == match ? test->priorEdge : test->nextEdge;
-		oppEdge = found.edge;
-	} while (test != oppEdge);
-	return oppEdge->linkUp(match, firstEdge);
+}
+
+/* relationship between prev/this/next and whichEnd: (start, end)
+   a and b represent points that match; ? represents the other nonmatching end
+   prev: (?, a) which:start		this: (a, b) which:start		next: (b, ?) which: start
+   prev: (a, ?) which:end		this: (a, b) which:start		next: (b, ?) which: start
+   prev: (?, b) which:start		this: (a, b) which:end		    next: (a, ?) which: start
+   prev: (b, ?) which:end		this: (a, b) which:end  		next: (a, ?) which: start
+   prev: (?, a) which:start		this: (a, b) which:start		next: (?, b) which: end		etc...
+*/
+// caller clears active flag
+// parameter match determines whether link is looked for prior to, or next to, 'this'
+OpEdge* OpEdge::linkUp(EdgeMatch match, std::vector<OpEdge*>* unsectInX) {
+	OP_ASSERT(!isLoop(WhichLoop::next, LeadingLoop::will));
+	std::vector<FoundEdge> edges;
+	if (unsectInX)
+		matchUnsectable(match, unsectInX, edges);
+	else {
+		bool hasPal = segment->activeAtT(this, match, edges, AllowReversal::no);
+		hasPal |= segment->activeNeighbor(this, match, edges);
+		if (hasPal)
+			skipPals(match, edges);
+	}
+	if (edges.size() > 1)
+		(EdgeMatch::start == match ? priorLink : nextLink) = EdgeLink::multiple;
+	if (1 != edges.size())
+		return this;
+	FoundEdge found = edges.front();
+	OP_ASSERT(!found.edge->isLoop(WhichLoop::next, LeadingLoop::will));
+	OP_ASSERT(!found.edge->isLoop(WhichLoop::prior, LeadingLoop::will));
+	linkToEdge(found, match);
+	OP_ASSERT(whichPtT(match).pt == found.edge->flipPtT(match).pt);
+	if ((EdgeMatch::start == match ? this : found.edge)->detachIfLoop())
+		return found.edge;
+	return found.edge->linkUp(match, unsectInX);
 }
 
 bool OpEdge::matchLink(std::vector<OpEdge*>& linkups, std::vector<OpEdge*>& unsectInX) {
 	OP_ASSERT(lastEdge);
 	OP_ASSERT(EdgeMatch::start == lastEdge->whichEnd || EdgeMatch::end == lastEdge->whichEnd);
-	(void) setLinkBounds();
 	// count intersections equaling end
 	// each intersection has zero, one, or two active edges
 	std::vector<FoundEdge> found;
@@ -396,6 +421,12 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups, std::vector<OpEdge*>& unse
 							AllowReversal::yes);	// keep ties
 			}
 		}
+		if (!closest) {	// look for a run of unsectables that close the gap
+			OP_ASSERT(!priorEdge);
+			OP_ASSERT(!lastEdge->nextEdge);
+			if (OpEdge* result = linkUp(EdgeMatch::start, &unsectInX))
+				return result;
+		}
 #if OP_DEBUG
 		if (!closest) {
 			focus(id);
@@ -424,7 +455,7 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups, std::vector<OpEdge*>& unse
 					== (lastEdge->whichEnd == foundOne.whichEnd)))
 				continue;
 			// choose smallest closed loop -- this is an arbitrary choice
-			OpPointBounds testBounds = linkBounds;
+			OpPointBounds testBounds = setLinkBounds();
 			testBounds.add(oppEdge->setLinkBounds());
 			if (!(bestBounds.area() < testBounds.area())) {	// 'not' logic since best = NaN at first
 				bestBounds = testBounds;
@@ -435,12 +466,12 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups, std::vector<OpEdge*>& unse
 		}
 	}
 	OP_ASSERT(closest); // !!! if found is not empty, but no edge has the right sum, choose one anyway?
-	OP_ASSERT(closest->lastEdge);
+	OP_ASSERT(AllowReversal::yes == closestReverse || closest->lastEdge);
 	if (AllowReversal::yes == closestReverse)
 		closest->setLinkDirection(closestEnd);
 	OpEdge* clearClosest = closest;
 	do {
-		clearClosest->clearActivePals();
+		clearClosest->clearActiveAndPals();
 		clearClosest = clearClosest->nextEdge;
 	} while (clearClosest && clearClosest->isActive());
 	closest->setPriorEdge(lastEdge);
@@ -449,15 +480,51 @@ bool OpEdge::matchLink(std::vector<OpEdge*>& linkups, std::vector<OpEdge*>& unse
 	lastEdge->nextLink = EdgeLink::single;
 	lastEdge = closest->lastEdge;
 	closest->lastEdge = nullptr;
- 	OpDebugPlayback(this, 411);
-	showNormals();
 	OP_ASSERT(lastEdge);
-	if (lastEdge->isClosed(this) || lastEdge->segment->contour->contours
-			->closeGap(lastEdge, this, unsectInX))
+	if (lastEdge->isClosed(this) 
+			|| last->contour->contours->closeGap(lastEdge, this, unsectInX))
 		return lastEdge->validLoop();
 	if (!lastEdge->nextEdge)
 		return matchLink(linkups, unsectInX);
 	return lastEdge->matchLink(linkups, unsectInX);
+}
+
+// keep only one unsectable from any set of pals
+void OpEdge::matchUnsectable(EdgeMatch match, std::vector<OpEdge*>* unsectInX,
+		std::vector<FoundEdge>& edges) {
+	const OpPoint firstPt = whichPtT(match).pt;
+	for (OpEdge* unsectable : *unsectInX) {
+#if OP_DEBUG
+		auto checkDupes = [&edges](OpEdge* test) {
+			for (const auto& found : edges) {
+				OP_ASSERT(found.edge != test);
+				for (auto pal : found.edge->pals)
+					OP_ASSERT(pal != test);
+			}
+		};
+#endif
+		auto checkEnds = [&edges, firstPt  OP_DEBUG_PARAMS(checkDupes)](OpEdge* unsectable) {
+			if (unsectable->inOutput || unsectable->inOutQueue)
+				return false;
+			if (firstPt == unsectable->start.pt) {
+				OP_DEBUG_CODE(checkDupes(unsectable));
+				edges.emplace_back(unsectable, EdgeMatch::start, AllowReversal::yes);
+				return true;
+			}
+			if (firstPt == unsectable->end.pt) {
+				OP_DEBUG_CODE(checkDupes(unsectable));
+				edges.emplace_back(unsectable, EdgeMatch::end, AllowReversal::yes);
+				return true;
+			}
+			return false;
+		};
+		if (checkEnds(unsectable))
+			continue;
+		for (auto pal : unsectable->pals) {
+			if (checkEnds(pal))
+				break;
+		}
+	}
 }
 
 NormalDirection OpEdge::normalDirection(Axis axis, float t) {
@@ -478,7 +545,8 @@ OpEdge* OpEdge::prepareForLinkup() {
 	OpEdge* last;
 	do {
 		OP_ASSERT(next->isActive());
-		next->clearActivePals();
+		next->clearActiveAndPals();
+		next->inOutQueue = true;
 		last = next;
 		if (EdgeLink::multiple == next->nextLink)
 			break;
@@ -491,8 +559,8 @@ OpEdge* OpEdge::prepareForLinkup() {
 
 // in function to make setting breakpoints easier
 // !!! if this is not inlined in release, do something more cleverer
-void OpEdge::setActive() {
-	active_impl = true;
+void OpEdge::setActive(bool state) {
+	active_impl = state;
 }
 
 const OpCurve& OpEdge::setCurve() {
@@ -576,10 +644,8 @@ void OpEdge::setLinkDirection(EdgeMatch match) {
 	std::swap(edge->priorLink, edge->nextLink);
 	edge->whichEnd = Opposite(edge->whichEnd);
 	lastEdge = edge;
-	if (this != edge) {
-//		OP_ASSERT(!inLinkLoop(edge));		// !!! don't know what this OP_ASSERT is testing for
+	if (this != edge)
 		edge->lastEdge = nullptr;
-	}
 }
 
 // setter to make adding breakpoints easier
@@ -599,18 +665,6 @@ void OpEdge::setPointBounds() {
 #endif
 }
 
-void OpEdge::setPoints(std::array<OpPoint, 4>& pts) const {
-	pts[0] = start.pt;
-	unsigned index = 0;
-	unsigned ptCount = segment->c.pointCount();
-	while (++index < ptCount - 1)
-		pts[index] = ctrlPts[index - 1];
-	if (1 == ptCount)
-		--index;
-	pts[index] = end.pt;
-	OP_ASSERT(++index == ptCount);
-}
-
 // setter to make adding breakpoints easier
 // !!! if release doesn't inline, restructure more cleverly...
 void OpEdge::setPriorEdge(OpEdge* edge) {
@@ -627,20 +681,20 @@ const OpCurve& OpEdge::setVertical() {
 	return vertical_impl;
 }
 
+// Remove duplicate pals that look at each other in found edges.
+// Remove pals equal to 'this' and edges this links to.
 void OpEdge::skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) const {
 	std::vector<FoundEdge> skipped;
 	for (const auto& found : edges) {
-		if (found.edge->pals.size()) {
+		for (auto pal : found.edge->pals) {
+			for (const auto& skip : skipped) {
+				if (skip.edge == pal)
+					goto skipIt;
+			}
 			const OpEdge* test = this;
 			do {
-				for (auto pal : found.edge->pals) {
-					if (test == pal)
-						goto skipIt;
-					for (const auto& skip : skipped) {
-						if (skip.edge == pal)
-							goto skipIt;
-					}
-				}
+				if (test == pal)
+					goto skipIt;
 			} while ((test = EdgeMatch::start == match ? test->priorEdge : test->nextEdge));
 		}
 		skipped.push_back(found);
@@ -666,7 +720,6 @@ void OpEdge::subDivide() {
 	}
  	if (start.pt == end.pt) {
 		OP_ASSERT(0);	// !!! check to see if this can still happen
-		sumType = EdgeSum::point;
 		winding.zero(ZeroReason::isPoint);
 	}
 }
@@ -680,19 +733,9 @@ CalcFail OpEdge::subIfDL(Axis axis, float t, OpWinding* sumWinding) {
 	return CalcFail::none;
 }
 
-// note this should be only called on temporary edges (e.g., used to make coincident intersections)
-// after this is called, edge does not agree with segment, but does match another edge
-// this has to be called a second time (e.g., after trimming) to agree with segment
-void OpEdge::reverse() {
-	std::swap(start, end);
-	if (OpType::cubic == segment->c.type)
-		std::swap(ctrlPts[0], ctrlPts[1]);
-	start.t = 1 - start.t;
-	end.t = 1 - end.t;
-}
-
 // fuzz-generated test crbug_526025 generates an edge link that is invalid. Worth chasing down 
 // someday, but today, just return failure since the fuzz test won't succeed
+// !!! at best, this should become debugging-only code
 bool OpEdge::validLoop() const {
 	std::vector<const OpEdge*> seen;
 	const OpEdge* last = this;
@@ -703,8 +746,10 @@ bool OpEdge::validLoop() const {
 		seen.push_back(last);
 		if (!last->nextEdge)
 			return true;
-		if (last != last->nextEdge->priorEdge)
+		if (last != last->nextEdge->priorEdge) {
+			OP_ASSERT(0);
 			return false;
+		}
 		last = last->nextEdge;
 	}
 }

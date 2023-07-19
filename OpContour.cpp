@@ -181,12 +181,6 @@ void OpContour::addQuad(const OpPoint pts[3]) {
 }
 
 
-#if OP_DEBUG
-void OpContour::debugComplete() {
-    id = contours->id++;
-}
-#endif
-
 void OpContour::finish() {
 // after all segments in contour have been allocated
     if (!segments.size())
@@ -228,13 +222,13 @@ bool OpContours::assemble(OpOutPath path) {
     if (!edges.inX.size())
         return true;
     for (auto edge : edges.inX) {
-        edge->setActive();
+        edge->setActive(true);
     }
     for (auto unsectable : unsectables.inX) {
-        unsectable->setActive();
+        unsectable->setActive(true);
     }
     for (auto unsortable : unsortables) {
-        unsortable->setActive();
+        unsortable->setActive(true);
     }
 #if 01 && OP_DEBUG
     ::clear();
@@ -256,7 +250,7 @@ bool OpContours::assemble(OpOutPath path) {
         OP_ASSERT(EdgeLink::unlinked == leftMost->priorLink);
         OP_ASSERT(EdgeLink::unlinked == leftMost->nextLink);
         leftMost->whichEnd = EdgeMatch::start;
-        OpEdge* linkup = leftMost->linkUp(EdgeMatch::start, leftMost);
+        OpEdge* linkup = leftMost->linkUp(EdgeMatch::start, nullptr);
         if (!linkup->containsLink(leftMost)) {
             linkup->output(path);
             OpEdge* pFirst = leftMost->prepareForLinkup();
@@ -271,7 +265,7 @@ bool OpContours::assemble(OpOutPath path) {
         }
         OpEdge* first = linkup ? linkup : leftMost;
         OpDebugPlayback(first, 450);
-        OpEdge* newLast = leftMost->linkUp(EdgeMatch::end, first);
+        OpEdge* newLast = leftMost->linkUp(EdgeMatch::end, nullptr);
         if (!leftMost->containsLink(newLast)) {
             newLast->output(path);
             OpEdge* pFirst = leftMost->prepareForLinkup();
@@ -299,7 +293,7 @@ bool OpContours::assemble(OpOutPath path) {
         OP_ASSERT(linkup->lastEdge);
         OP_ASSERT(!linkup->priorEdge);
         do {
-            linkup->setActive();
+            linkup->setActive(true);
         } while ((linkup = linkup->nextEdge));
     }
 #if 01 && OP_DEBUG
@@ -330,11 +324,11 @@ bool OpContours::closeGap(OpEdge* last, OpEdge* first, std::vector<OpEdge*>& uns
         return true;
     };
     for (auto edge : unsectInX) {
-        if (!edge->isActive())
+        if (edge->inOutput || edge->inOutQueue)
             continue;
         if (connectBetween(edge)) {
             OP_ASSERT(EdgeSum::unsectable == edge->sumType);
-            edge->clearActivePals();   // only use edge once
+            edge->clearActiveAndPals();   // only use edge once
             return true;
         }
     }
@@ -362,10 +356,10 @@ static const bool OutInverse[+OpOperator::ReverseSubtract + 1][2][2] {
 };
 
 // If successive runs of the same input are flaky, check to see if identical ids are generated.
-// To do this, insert OP_DEBUG_COUNT(contourList, _some_identifer_); after every callout.  
+// To do this, insert OP_DEBUG_COUNT(*this, _some_identifer_); after every callout.  
 // This will compare the dumps of contours and contents to detect when something changed.
 // The callouts are removed when not in use as they are not maintained and reduce readability.
-
+// !!! OP_DEBUG_COUNT was unintentionally deleted at some point. Hopefully it is in git history...
 bool OpContours::pathOps(OpOutPath result) {
     if (!build(leftIn, OpOperand::left))  // builds monotonic segments, and adds 0/1 sects
         OP_DEBUG_FAIL(*this, false);
@@ -379,41 +373,26 @@ bool OpContours::pathOps(OpOutPath result) {
         OP_DEBUG_SUCCESS(*this, true);
     }
     sortedSegments.findCoincidences();  // check for exact curves and full lines
- //   sortedSegments.findLineCoincidences();  // check for partial h/v lines
     if (FoundIntersections::fail == sortedSegments.findIntersections())
         OP_DEBUG_FAIL(*this, false);
-//    resolvePoints();    // multiple points may have same t value
-//    calcBounds();   // resolve points may have changed tight bounds
     sortIntersections();
     makeEdges();
     windCoincidences();  // for partial h/v lines, compute their winding considiering coincidence
-//    OpEdges sortedEdges(contourList, EdgesToSort::byBox);
-//    if (!sortedEdges.inX.size()) {
-//        result.setEmpty();
-//        OP_DEBUG_SUCCESS(contourList, true);
-//    }
-//    if (FoundIntersections::fail == sortedEdges.findIntersections())
-//        OP_DEBUG_FAIL(contourList, false);
-//    missingCoincidence();  // add intersections for indirect coincidence
-    // at this point, edges curves broken at extrema and inflection;
-    //   intersections are ptT for each found crossing
- //   sortIntersections();    // !!! should do nothing if intersections are unchanged
-//    resolvePoints();    // added coincident points may have multiple pts with single t
-//    intersectEdge();  // combine edge list and intersection list
-//    if (!resolveCoincidence())  // leave at most one active for each pair of coincident edges
-//        OP_DEBUG_FAIL(contourList, false);
     OpEdges windingEdges(*this, EdgesToSort::byCenter);
     FoundWindings foundWindings = windingEdges.setWindings(this);  // walk edge list, compute windings
     if (FoundWindings::fail == foundWindings)
         OP_DEBUG_FAIL(*this, false);
     apply();  // suppress edges which don't meet op criteria
-    // A segment may contain multiple intersections with the same t and different points.
-    // If found, replace all matching points with the average, in this and the intersected segment.
-    // !!! probably not needed if done earlier (if needed, must be rewritten)
-//    resolvePoints();
     if (!assemble(result))
         OP_DEBUG_FAIL(*this, false);
     bool inverseFill = OutInverse[+_operator][leftIn.isInverted()][rightIn.isInverted()];
     result.setInverted(inverseFill);
     OP_DEBUG_SUCCESS(*this, true);
 }
+
+#if OP_DEBUG
+void OpContour::debugComplete() {
+    id = contours->id++;
+}
+#endif
+

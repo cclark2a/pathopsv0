@@ -336,8 +336,6 @@ enum class EdgeSplit : uint8_t {
 
 enum class EdgeSum : uint8_t {
 	unset,
-//	loop,			// prior edge chain loops back to start (no longer a thing?)
-	point,			// edge totally collapsed (no longer a thing?)
 	set,			// edge is ray ordered
 	unsectable,		// too close to another edge to sort by ray
 	unsortable,     // sum was not resolvable by ray in either axis (likely edge is very small) 
@@ -389,18 +387,13 @@ enum class EdgeMaker {
 
 struct OpEdge {
 private:
-	OpEdge()	// note : not all values are zero
+	OpEdge()	// note : all values are zero
 		: priorEdge(nullptr)
 		, nextEdge(nullptr)
 		, lastEdge(nullptr)
-//		, priorSum_impl(nullptr)
-//		, loopStart(nullptr)
 		, winding(WindingUninitialized::dummy)
 		, sum(WindingUninitialized::dummy)
 		, many(WindingUninitialized::dummy)
-//		, sumNormal(0)
-//		, sumT(0)
-//		, sumAxis(Axis::neither)	// not zero (-1)
 		, nextLink(EdgeLink::unlinked)
 		, priorLink(EdgeLink::unlinked)
 		, whichEnd(EdgeMatch::none)
@@ -409,12 +402,12 @@ private:
 		, doSplit(EdgeSplit::no)
 		, sumType(EdgeSum::unset)
 		, curveSet(false)
-//		, endAliased(false)
 		, lineSet(false)
 		, verticalSet(false)
 		, isLine_impl(false)
 		, active_impl(false)
-//		, startAliased(false)
+		, inOutput(false)
+		, inOutQueue(false)
 	{
 #if OP_DEBUG
 		debugStart = nullptr;
@@ -423,13 +416,11 @@ private:
 		debugMakerLine = 0;
 		debugSetSumLine = 0;
 		debugParentID = 0;
-//		debugAliasStartID = 0;
-//		debugAliasEndID = 0;
 		debugUnOpp = false;
 #endif
 	}
 public:
-	OpEdge(const OpSegment* s, OpPtT t1, OpPtT t2, EdgeSum type
+	OpEdge(const OpSegment* s, const OpPtT& t1, const OpPtT& t2, EdgeSum type
 			OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file, const OpIntersection* i1, 
 			const OpIntersection* i2))
 		: OpEdge() {
@@ -448,7 +439,7 @@ public:
 		complete();
 	}
 
-	OpEdge(const OpEdge* e, OpPtT newPtT, NewEdge isLeftRight  
+	OpEdge(const OpEdge* e, const OpPtT& newPtT, NewEdge isLeftRight  
 			OP_DEBUG_PARAMS(EdgeMaker , int line, std::string file, const OpIntersection* , 
 			const OpIntersection*));
 	OpEdge(const OpEdge* e, const OpPtT& start, const OpPtT& end  
@@ -463,48 +454,38 @@ public:
 	~OpEdge();	// reason: removes temporary edges from image list
 #endif
 	CalcFail addIfUR(Axis xis, float t, OpWinding* );
-//	void addMatchingEnds(const OpEdge& ) const;
 	CalcFail addSub(Axis axis, float t, OpWinding* );
 	void apply();
 	bool calcCenterT();
-//	CalcFail calcPrior(Axis axis, float sumT, OpWinding* prevRight);
 	CalcFail calcWinding(Axis axis, float centerT);
-	void clearActivePals();  // clears edge and pals
+	void clearActiveAndPals();
 	void clearNextEdge();
 	void clearPriorEdge();
 	void complete();
-//	bool containsChain(const OpEdge* edge, EdgeLoop) const;
 	bool containsLink(const OpEdge* edge) const; // { return containsChain(edge, EdgeLoop::link); }
-//	bool containsSum(const OpEdge* edge) const { return containsChain(edge, EdgeLoop::sum); }
+	bool detachIfLoop();
 	float findT(Axis , float oppXY) const;
 	OpPtT flipPtT(EdgeMatch match) const { return match == whichEnd ? end : start; }
 	void flipWhich() { whichEnd = (EdgeMatch)((int)whichEnd ^ (int)EdgeMatch::both); }
-	ResolveWinding findWinding(Axis axis, float t  OP_DEBUG_PARAMS(int* debugWindingLimiter));
 	bool hasLinkTo(EdgeMatch match) const { 
 		return EdgeLink::single == (EdgeMatch::start == match ? nextLink : priorLink); }
 	OpEdge* hasLoop(WhichLoop w, LeadingLoop l) {
 		return const_cast<OpEdge*>((const_cast<const OpEdge*>(this))->isLoop(w, l)); }
-	bool inLinkLoop(const OpEdge* );
-//	bool inSumLoop(const OpEdge* );
 	bool isActive() const { 
 		return active_impl; }
 	bool isClosed(OpEdge* test);
-	const OpEdge* isLoop(WhichLoop , LeadingLoop ) const; 
-	OpEdge* linkUp(EdgeMatch, OpEdge* firstEdge);
+	const OpEdge* isLoop(WhichLoop , LeadingLoop ) const;
+	void linkToEdge(FoundEdge& , EdgeMatch );
+	OpEdge* linkUp(EdgeMatch , std::vector<OpEdge*>* unsectInX);
 	void linkNextPrior(OpEdge* first, OpEdge* last);
 	bool matchLink(std::vector<OpEdge*>& linkups, std::vector<OpEdge*>& unsectInX);
-	const OpEdge* nextChain() const {
-		return nextEdge; }
+	void matchUnsectable(EdgeMatch , std::vector<OpEdge*>* unsectInX, std::vector<FoundEdge>& );
 	NormalDirection normalDirection(Axis axis, float t);
 	void output(OpOutPath path);	// provided by the graphics implmentation
 	OpEdge* prepareForLinkup();
-	const OpEdge* priorChain() const {
-		return priorEdge; }
-//	OpEdge* priorSum() { return priorSum_impl; }	// hide to avoid changing prior sum outside set
 	OpPtT ptT(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? start : end; }
-	void reverse();	// only call on temporary edges (e.g., used to make coincident intersections)
-	void setActive();  // setter exists so debug breakpoints can be set
+	void setActive(bool state);  // setter exists so debug breakpoints can be set
 	void setFromPoints(const OpPoint pts[]);
 	OpPointBounds setLinkBounds();
 	const OpCurve& setCurve();
@@ -512,9 +493,7 @@ public:
 	bool setLinear();
 	void setNextEdge(OpEdge*);  // setter exists so debug breakpoints can be set
 	void setPointBounds();
-	void setPoints(std::array<OpPoint, 4>& pts) const;
 	void setPriorEdge(OpEdge* );  // setter exists so debug breakpoints can be set
-//	void setPriorSum(OpEdge*);   // setter exists so debug breakpoints can be set
 	void setSumImpl(OpWinding w) {	// use debug macro instead to record line/file
 		sum.setSum(w, segment); }
 	const OpCurve& setVertical();
@@ -522,8 +501,6 @@ public:
 	void subDivide();
 	CalcFail subIfDL(Axis axis, float t, OpWinding* );
 	bool validLoop() const;
-//	OpEdge* visibleAdjacent(EdgeMatch );
-//	OpPtT whichPtT() const { return EdgeMatch::start == whichEnd ? start : end;  }
 	OpPtT whichPtT(EdgeMatch match = EdgeMatch::start) const { 
 		return match == whichEnd ? start : end; }
 
@@ -547,7 +524,6 @@ public:
 	void addSum() const;
 	void drawChain() const;
 	void drawLink() const;
-//	void drawSum() const;
 	void draw() const;
 #endif
 
@@ -555,8 +531,6 @@ public:
 	OpEdge* priorEdge;	// edges that link to form completed contour
 	OpEdge* nextEdge;
 	OpEdge* lastEdge;
-//	OpEdge* priorSum_impl;	// edge that set sum winding (access through debugging get/set)
-//	OpEdge* loopStart;	// if sum loops, furthest edge away from end
 	OpPoint ctrlPts[2];	// quad, conic, cubic
 	float weight;
 	// !!! Can start, end be shared with intersection?
@@ -573,43 +547,32 @@ public:
 	OpWinding winding;	// contribution: always starts as 1, 0 (or 0, 1)
 	OpWinding sum; // total incl. normal side of edge for operands (fill count in normal direction)
 	OpWinding many;	 // if two or more edges are unsortable by ray, store their cumulative winding
-	// !!! many pals is hopefully temporary while I figure out something better
+	// !!! many, pals are hopefully temporary while I figure out something better
 	std::vector<OpEdge* > pals;	// pointers to unsectable adjacent edges 
-//	float sumNormal; // normal of edge projecting ray (e.g., y value for horizontal ray)
-//	float sumT; // t value of priorSum when hit by ray
 	int id;
-//	Axis sumAxis; // the ray axis when sum chain was computed (there may not be a prior)
 	EdgeLink nextLink;
 	EdgeLink priorLink;
 	EdgeMatch whichEnd;	// if 'start', prior link end equals start; if 'end' prior end matches end
 	EdgeFail fail;	// how computation (e.g., center) failed (on fail, windings are set to zero)
 	WindZero windZero; // normal means edge normal points to zero side; opposite, normal is non-zero
-	EdgeSplit doSplit;
+	EdgeSplit doSplit; // used by curve/curve intersection to track subdivision
 	EdgeSum sumType;
 	bool curveSet;
 	bool lineSet;
 	bool verticalSet;
 	bool isLine_impl;	// ptBounds 0=h/0=w catches horz/vert lines; if true, line is diagonal(?)
-//	bool isPoint;
-//	bool isSumLoop;
 	bool active_impl;  // used by ray casting to mark edges that may be to the left of casting edge
-//	bool endAliased;
-//	bool startAliased;
-//	bool unsectable;
-//	bool unsortable;	
+	bool inOutput;	// likely only used to find inactive unsectables that are not on output path
+	bool inOutQueue; // ditto. Marks unsectable edges pushed in contour::assemble linkups vector
 #if OP_DEBUG
 	const OpIntersection* debugStart;
 	const OpIntersection* debugEnd;
 	EdgeMaker debugMaker;
 	int debugMakerLine;
 	std::string debugMakerFile;
-//	OpPoint debugOriginalStart;
-//	OpPoint debugOriginalEnd;
 	int debugParentID;
 	int debugSetSumLine;
 	std::string debugSetSumFile;
-//	int debugAliasStartID;
-//	int debugAliasEndID;
 	bool debugUnOpp;	// used to distinguish left unsectables from right unsectables
 #endif
 };

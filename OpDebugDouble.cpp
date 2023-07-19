@@ -1184,14 +1184,6 @@ void DebugOpDrawT(bool inHex, int precision) {
     }
 }
 
-bool DebugOpHasT() {
-    for (auto& point : debugPoints) {
-        if (!OpMath::IsNaN(point.t))
-            return true;
-    }
-    return false;
-}
-
 void DebugOpDrawValue(bool inHex, int precision) {
     for (auto& point : debugPoints) {
         OpPoint pt = DebugOpMap(point);
@@ -1204,16 +1196,8 @@ void DebugOpDrawValue(bool inHex, int precision) {
     }
 }
 
-void DebugOpDrawEdgeIDs(const std::vector<const OpEdge*>& edges, std::vector<int>& ids) {
-    for (auto edge : edges)
-        DebugOpDrawEdgeID(edge, ids, edge->winding.visible() ? SK_ColorBLACK : SK_ColorRED);
-}
-
 // these edges are splits created when intersecting a pair of curves
-void DebugOpDrawEdgeID(const OpEdge* edge, std::vector<int>& ids, uint32_t color) {
-    if (ids.end() != std::find(ids.begin(), ids.end(), edge->id))
-        return;
-    ids.push_back(edge->id);
+void DebugOpDrawEdgeID(const OpEdge* edge, uint32_t color) {
     std::vector<DebugOpCurve> drawn;
     DebugOpBuild(*edge, drawn);
     for (auto& drawnEdge : drawn) {
@@ -1225,10 +1209,7 @@ void DebugOpDrawEdgeID(const OpEdge* edge, std::vector<int>& ids, uint32_t color
     }
 }
 
-void DebugOpDrawEdgeNormal(const OpEdge* edge, std::vector<int>& ids, uint32_t color) {
-    if (ids.end() != std::find(ids.begin(), ids.end(), edge->id))
-        return;
-    ids.push_back(edge->id);
+void DebugOpDrawEdgeNormal(const OpEdge* edge, uint32_t color) {
     std::vector<DebugOpCurve> drawn;
     DebugOpBuild(*edge, drawn);
     for (auto& drawnEdge : drawn) {
@@ -1246,10 +1227,25 @@ void DebugOpDrawEdgeNormal(const OpEdge* edge, std::vector<int>& ids, uint32_t c
     }
 }
 
-void DebugOpDrawEdgeWinding(const OpEdge* edge, std::vector<int>& ids, uint32_t color) {
-    if (ids.end() != std::find(ids.begin(), ids.end(), edge->id))
-        return;
-    ids.push_back(edge->id);
+void DebugOpDrawEdgeTangent(const OpEdge* edge, uint32_t color) {
+    std::vector<DebugOpCurve> drawn;
+    DebugOpBuild(*edge, drawn);
+    for (auto& drawnEdge : drawn) {
+        OpCurve curve;
+        drawnEdge.mapTo(curve);
+	    bool overflow;
+	    OpVector tan = curve.tangent(.33f).normalize(&overflow) * 15;
+	    if (overflow) {
+		    OpDebugOut("overflow on edge " + STR(edge->id) + "\n");
+		    return;
+	    }
+        OpPoint midTPt = curve.ptAtT(.33f);
+        if (OpDebugImage::drawEdgeTangent(tan, midTPt, edge->id, color))
+            break;
+    }
+}
+
+void DebugOpDrawEdgeWinding(const OpEdge* edge, uint32_t color) {
     std::vector<DebugOpCurve> drawn;
     DebugOpBuild(*edge, drawn);
     for (auto& drawnEdge : drawn) {

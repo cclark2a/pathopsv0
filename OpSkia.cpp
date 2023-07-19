@@ -62,7 +62,8 @@ void OpEdge::output(OpOutPath path) {
                 skPath->cubicTo(skCtrlPt0, skCtrlPt1, skEndPt);
             }
         }
-        edge->clearActivePals();
+        edge->clearActiveAndPals();
+        edge->inOutput = true;
         edge = edge->nextEdge;
     } while (firstEdge != edge);
     skPath->close();

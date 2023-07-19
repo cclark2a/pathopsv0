@@ -200,7 +200,6 @@ bool OpSegment::containsIntersection(OpPtT ptT, const OpSegment* opp) const {
 // !!! would it be any better (faster) to split this into findStart / findEnd instead?
 OpEdge* OpSegment::findActive(OpPtT ptT, EdgeMatch match) const {
     for (auto& edge : edges) {
-        OP_ASSERT(edge.sumType != EdgeSum::point);  // see if this is still possible
         if (ptT == (EdgeMatch::start == match ? edge.start : edge.end))
             return !edge.isActive() || !edge.winding.visible() ?
                     nullptr : const_cast<OpEdge*>(&edge);

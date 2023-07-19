@@ -52,60 +52,13 @@ struct OpContour {
         }
     }
 
-#if 0
-    void calcBounds() {
-        for (auto& segment : segments) {
-            segment.calcBounds();
-        }
-    }
-#endif
-
     void finish();
-
-#if 0
-    void intersectEdge() {
-        for (auto& segment : segments) {
-            segment.intersectEdge();
-        }
-    }
-#endif
 
     void makeEdges() {
         for (auto& segment : segments) {
             segment.makeEdges();
         }
     }
-
-#if 0
-    void missingCoincidence() {
-        for (auto& segment : segments) {
-            segment.missingCoincidence();
-        }
-    }
-#endif
-
-#if 0
-    bool resolveCoincidence() {
-        for (auto& segment : segments) {
-            // need watchdog here so it doesn't loop forever
-            int watchDog = 1000;   // !!! not sure how to compute maximum possible loopage
-            while (!segment.resolveCoincidence())
-                if (!--watchDog)
-                    return false;
-        }
-        return true;
-    }
-#endif
-
-#if 0
-    void resolvePoints() {
-        for (auto& segment : segments) {
-            if (!segment.intersections.size())  // size may be zero if coincident
-                continue;
-            segment.resolvePoints();
-        }
-    }
-#endif
 
     void setBounds() {
         for (auto& segment : segments) {
@@ -174,24 +127,8 @@ struct OpContours {
     bool assemble(OpOutPath );
     bool build(OpInPath path, OpOperand operand);   // provided by graphics implementation
 
-#if 0
-    void calcBounds() {
-        for (auto& contour : contours) {
-            contour.calcBounds();
-        }
-    }
-#endif
-
     bool closeGap(OpEdge* last, OpEdge* first, std::vector<OpEdge*>& );
     void finishAll();
-
-#if 0
-    void intersectEdge() {
-        for (auto& contour : contours) {
-            contour.intersectEdge();
-        }
-    }
-#endif
 
     int leftFillTypeMask() const {
         return (int) left;
@@ -210,33 +147,7 @@ struct OpContours {
        OP_DEBUG_CODE(debugInClearEdges = false);
     }
 
-#if 0
-    void missingCoincidence() {
-        for (auto& contour : contours) {
-            contour.missingCoincidence();
-        }
-    }
-#endif
-
     bool pathOps(OpOutPath result);
-
-#if 0
-    bool resolveCoincidence() {
-        for (auto& contour : contours) {
-            if (!contour.resolveCoincidence())
-                return false;
-        }
-        return true;
-    }
-#endif
-
-#if 0
-    void resolvePoints() {
-        for (auto& contour : contours) {
-            contour.resolvePoints();
-        }
-    }
-#endif
 
     int rightFillTypeMask() const {
         return (int) right;
