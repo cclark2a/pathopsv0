@@ -2,6 +2,7 @@
 #include "OpCurveCurve.h"
 #include "OpSegment.h"
 #include "OpSegments.h"
+#include "OpWinder.h"
 
 static bool compareXBox(const OpSegment* s1, const OpSegment* s2) {
     const OpRect& r1 = s1->ptBounds;
@@ -43,7 +44,7 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
         return; // IntersectResult::yes;
     }
     if (2 == septs.count && OpType::line == opp->c.type)
-        return (void) OpEdges::CoincidentCheck({ seg->c.pts[0], 0 }, { seg->c.pts[1], 1 },
+        return (void) OpWinder::CoincidentCheck({ seg->c.pts[0], 0 }, { seg->c.pts[1], 1 },
                 { opp->c.pts[0], 0}, { opp->c.pts[1], 1 }, seg, opp );
     if ((int) MatchEnds::start & (int) common)
         septs.addEnd(reversed ? 1 : 0);
@@ -147,7 +148,7 @@ bool OpSegments::lineCoincidence(OpSegment* seg, OpSegment* opp) {
     OP_ASSERT(seg->ptBounds.intersects(opp->ptBounds));
     seg->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(segSect)));
     opp->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(oppSect)));
-    (void) OpEdges::CoincidentCheck(seg->edges.front(), opp->edges.front());
+    (void) OpWinder::CoincidentCheck(seg->edges.front(), opp->edges.front());
     return true;
 }
 

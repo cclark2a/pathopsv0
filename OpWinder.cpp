@@ -1,13 +1,10 @@
 #include "OpContour.h"
 #include "OpCurveCurve.h"
-#include "OpEdges.h"
 #include "OpSegment.h"
+#include "OpWinder.h"
 #include "PathOps.h"
 
-OpEdges::OpEdges(OpContours& contours, EdgesToSort edgesToSort) {
-	if (EdgesToSort::byBox == edgesToSort) {
-
-	}
+OpWinder::OpWinder(OpContours& contours, EdgesToSort edgesToSort) {
 	for (auto& contour : contours.contours) {
 		for (auto& segment : contour.segments) {
 			for (auto& edge : segment.edges) {
@@ -18,7 +15,7 @@ OpEdges::OpEdges(OpContours& contours, EdgesToSort edgesToSort) {
 	sort(edgesToSort);
 }
 
-OpEdges::OpEdges(OpEdge* sEdge, OpEdge* oEdge) {
+OpWinder::OpWinder(OpEdge* sEdge, OpEdge* oEdge) {
 	addEdge(sEdge, EdgesToSort::byCenter);
 	addEdge(oEdge, EdgesToSort::byCenter);
 #if OP_DEBUG_IMAGE
@@ -27,33 +24,18 @@ OpEdges::OpEdges(OpEdge* sEdge, OpEdge* oEdge) {
 #endif
 }
 
-// look for active unsectable edges that match
-// We could accumulate more than one path until we know which one is best.
-// Instead, we'll add one but compare it and its pals to see if the path closes.
-// If a pal closes, then rewind until the pal chain and given chain match and swap
-//  with the pal chain to close the path.
-// returns true if more than one unsectable was found
-bool OpEdges::activeUnsectable(const OpEdge* edge, EdgeMatch match, 
-        std::vector<FoundEdge>& oppEdges) {
-
-	return false;
-}
-
-void OpEdges::addEdge(OpEdge* edge, EdgesToSort edgesToSort) {
+void OpWinder::addEdge(OpEdge* edge, EdgesToSort edgesToSort) {
 	if (!edge->winding.visible() || EdgeSum::unsortable == edge->sumType)
 		return;
-	if (edge->many.isSet()) {
-		if (EdgesToSort::byBox == edgesToSort)
-			unsectInX.push_back(edge);
+	if (edge->many.isSet())
 		return;
-	}
 	if (EdgesToSort::byBox == edgesToSort || edge->ptBounds.height())
 		inX.push_back(edge);
 	if (EdgesToSort::byCenter == edgesToSort && edge->ptBounds.width())
 		inY.push_back(edge);
 }
 
-IntersectResult OpEdges::CoincidentCheck(OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpPtT dPtT,
+IntersectResult OpWinder::CoincidentCheck(OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpPtT dPtT,
 		OpSegment* segment, OpSegment* oppSegment) {
 	OpVector abDiff = aPtT.pt - bPtT.pt;
 	XyChoice xyChoice = fabsf(abDiff.dx) < fabsf(abDiff.dy) ? XyChoice::inY : XyChoice::inX;
@@ -98,12 +80,12 @@ IntersectResult OpEdges::CoincidentCheck(OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpP
 
 // this edge has points A, B; opp edge has points C, D
 // adds 0: no intersection; 1: end point only; 2: partial or full coincidence
-IntersectResult OpEdges::CoincidentCheck(const OpEdge& edge, const OpEdge& opp) {
-	return OpEdges::CoincidentCheck(edge.start, edge.end, opp.start, opp.end,
+IntersectResult OpWinder::CoincidentCheck(const OpEdge& edge, const OpEdge& opp) {
+	return OpWinder::CoincidentCheck(edge.start, edge.end, opp.start, opp.end,
 			const_cast<OpSegment*>(edge.segment), const_cast<OpSegment*>(opp.segment));
 }
 
-void OpEdges::AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped,
+void OpWinder::AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped,
 		OpPtT cPtT, OpPtT dPtT, OpSegment* segment, OpSegment* oppSegment, int coinID) {
 	float eStart = ptTAorB.pt.choice(xyChoice);
 	if (flipped)
@@ -122,7 +104,7 @@ void OpEdges::AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped,
 
 // If we got here because a pair of edges are coincident, that coincidence may have already been
 // recorded when the pair of segments were checked, or the intersections may have been computed.
-IntersectResult OpEdges::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpPtT dPtT,
+IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpPtT dPtT,
 	bool flipped, OpSegment* segment, OpSegment* oppSegment) {
 	// set range to contain intersections that match this segment and opposite segment
 	std::vector<OpIntersection*> range = segment->intersectRange(oppSegment);
@@ -226,7 +208,7 @@ IntersectResult OpEdges::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPt
 }
 
 // !!! I'm bothered that segment / segment calls a different form of this
-void OpEdges::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
+void OpWinder::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
 	OP_ASSERT(opp.segment != edge.segment);
 	OpRoots septs;
 	OP_ASSERT(edge.isLine_impl);
@@ -283,7 +265,7 @@ struct CompareDistance {
 // for now, keep making it smaller until it breaks
 #define WINDING_NORMAL_LIMIT  0.001 // !!! no idea what this should be
 
-FoundIntercept OpEdges::findRayIntercept(size_t inIndex, Axis axis, OpEdge* edge, float center,
+FoundIntercept OpWinder::findRayIntercept(size_t inIndex, Axis axis, OpEdge* edge, float center,
 		float normal, float edgeCenterT, std::vector<EdgeDistance>* distance) {
 	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
 	Axis perpendicular = !axis;
@@ -354,199 +336,7 @@ FoundIntercept OpEdges::findRayIntercept(size_t inIndex, Axis axis, OpEdge* edge
 	} while (true);
 }
 
-void OpEdges::linkUnambiguous(OpOutPath path) {
-    // match up edges that have only a single possible prior or next link, and add them to new list
-    linkPass = LinkPass::unambiguous;
-    for (auto& leftMost : inX) {
-        if (!leftMost->winding.visible())
-            continue;   // likely marked as part of a loop below
-        if (!leftMost->isActive())  // check if already saved in linkups
-            continue;
-		do {
-			OP_ASSERT(EdgeLink::unlinked == leftMost->priorLink);
-			OP_ASSERT(EdgeLink::unlinked == leftMost->nextLink);
-			leftMost->whichEnd = EdgeMatch::start;
-			linkMatch = EdgeMatch::start;
-			leftMost = linkUp(leftMost, path);
-			if (!leftMost)
-				continue;
-			OP_ASSERT(!leftMost->isLoop());
-			linkMatch = EdgeMatch::end;
-		} while ((leftMost = linkUp(leftMost, path)));
-    }
-}
-
-/* relationship between prev/this/next and whichEnd: (start, end)
-   a and b represent points that match; ? represents the other nonmatching end
-   prev: (?, a) which:start		this: (a, b) which:start		next: (b, ?) which: start
-   prev: (a, ?) which:end		this: (a, b) which:start		next: (b, ?) which: start
-   prev: (?, b) which:start		this: (a, b) which:end		    next: (a, ?) which: start
-   prev: (b, ?) which:end		this: (a, b) which:end  		next: (a, ?) which: start
-   prev: (?, a) which:start		this: (a, b) which:start		next: (?, b) which: end		etc...
-*/
-// caller clears active flag
-// parameter match determines whether link is looked for prior to, or next to edge
-// links a single edge or (link of edges) with another edge
-// first pass: only allow unambiguous connections; only one choice, matching zero side, etc.
-// second pass: check for unambiuous, then allow reversing, pick smallest area, etc.
-OpEdge* OpEdges::linkUp(OpEdge* edge, OpOutPath path) {
-	OP_ASSERT(!edge->isLoop(WhichLoop::next, LeadingLoop::will));
-	std::vector<FoundEdge> edges;
-	if (LinkPass::unsectInX == linkPass)
-		edge->matchUnsectable(linkMatch, &unsectInX, edges);
-	else {
-		const OpSegment* segment = edge->segment;
-		bool hasPal = segment->activeAtT(edge, linkMatch, edges, AllowReversal::no);
-		hasPal |= segment->activeNeighbor(edge, linkMatch, edges);
-		if (hasPal)
-			edge->skipPals(linkMatch, edges);
-	}
-	if (edges.size() > 1)
-		(EdgeMatch::start == linkMatch ? edge->priorLink : edge->nextLink) = EdgeLink::multiple;
-	if (1 != edges.size()) {
-		edge->prepareForLinkup();
-		linkups.push_back(edge);
-		return nullptr;
-	}
-	FoundEdge found = edges.front();
-	OP_ASSERT(!found.edge->isLoop());
-	edge->linkToEdge(found, linkMatch);
-	OP_ASSERT(edge->whichPtT(linkMatch).pt == found.edge->flipPtT(linkMatch).pt);
-	OpEdge* firstEdge = EdgeMatch::start == linkMatch ? edge : found.edge;
-	OpEdge* leftOvers = nullptr;
-	if (firstEdge->detachIfLoop(path, &leftOvers)) {
-		if (leftOvers)
-			return linkUp(leftOvers, path);
-		return nullptr;
-	}
-	return linkUp(firstEdge, path);	// recurse
-}
-
-// at this point all singly linked edges have been found
-// every active set of links at this point must form a loop
-bool OpEdges::matchLinks(OpEdge* edge) {
-	OpEdge* lastEdge = edge->lastEdge;
-	OP_ASSERT(lastEdge);
-	OP_ASSERT(EdgeMatch::start == lastEdge->whichEnd || EdgeMatch::end == lastEdge->whichEnd);
-	// count intersections equaling end
-	// each intersection has zero, one, or two active edges
-	std::vector<FoundEdge> found;
-	const OpSegment* last = lastEdge->segment;
-	// should be able to ignore result because pals have already been marked inactive
-	(void) last->activeAtT(lastEdge, EdgeMatch::end, found, AllowReversal::yes);
-	(void) last->activeNeighbor(edge, EdgeMatch::end, found);
-	OpEdge* closest = nullptr;
-	EdgeMatch closestEnd = EdgeMatch::none;
-	AllowReversal closestReverse = AllowReversal::no;
-	if (!found.size()) {
-		OpPoint matchPt = lastEdge->whichPtT(EdgeMatch::end).pt;
-		float closestDistance = OpInfinity;
-		for (size_t index = 0; index < linkups.size(); ++index) {
-			OpEdge* linkup = linkups[index];
-			if (edge == linkup)
-				continue;
-			if (!linkup->priorEdge) {
-				float distance = (linkup->whichPtT().pt - matchPt).length();
-				if (closestDistance > distance) {
-					found.clear();
-					closestDistance = distance;
-					closest = linkup;
-					closestEnd = linkup->whichEnd;
-					closestReverse = AllowReversal::no;
-				} else if (closestDistance == distance)
-					found.emplace_back(linkup, linkup->whichEnd, AllowReversal::no);	// keep ties
-			}
-			if (linkup->lastEdge && !linkup->lastEdge->nextEdge) {
-				OP_ASSERT(!linkup->lastEdge->nextEdge);
-				float distance = (linkup->lastEdge->whichPtT(EdgeMatch::end).pt - matchPt).length();
-				if (closestDistance > distance) {
-					found.clear();
-					closestDistance = distance;
-					closest = linkup->lastEdge;
-					closestEnd = Opposite(linkup->lastEdge->whichEnd);
-					closestReverse = AllowReversal::yes;
-				} else if (closestDistance == distance)
-					found.emplace_back(linkup->lastEdge, Opposite(linkup->lastEdge->whichEnd),
-							AllowReversal::yes);	// keep ties
-			}
-		}
-		if (!closest) {	// look for a run of unsectables that close the gap
-			OP_ASSERT(!edge->priorEdge);
-			OP_ASSERT(!lastEdge->nextEdge);
-			if (OpEdge* result = linkUp(edge))
-				return result;
-		}
-#if OP_DEBUG
-		if (!closest) {
-			focus(edge->id);
-			oo(10);
-			showPoints();
-			showHex();
-			OpDebugOut("");
-		}
-#endif
-		OP_ASSERT(closest);
-		found.emplace_back(closest, closestEnd, closestReverse);
-	}
-	OP_ASSERT(found.size());
-	OpRect bestBounds;
-	closest = nullptr;
-	closestEnd = EdgeMatch::none;
-	closestReverse = AllowReversal::no;
-	for (int trial = 0; !closest && trial < 2; ++trial) {
-		for (const auto& foundOne : found) {
-			OpEdge* oppEdge = foundOne.edge;
-			// skip edges which flip the fill sum total, implying there is a third edge inbetween
-			OP_ASSERT(EdgeMatch::start == foundOne.whichEnd || EdgeMatch::end == foundOne.whichEnd);
-			               // e.g., one if normals point to different fill sums       
-			if (!trial && (((lastEdge->sum.sum() + oppEdge->sum.sum()) & 1) 
-			// e.g., one if last start-to-end connects to found start-to-end (end connects to start)
-					== (lastEdge->whichEnd == foundOne.whichEnd)))
-				continue;
-			// choose smallest closed loop -- this is an arbitrary choice
-			OpPointBounds testBounds = edge->setLinkBounds();
-			testBounds.add(oppEdge->setLinkBounds());
-			if (!(bestBounds.area() < testBounds.area())) {	// 'not' logic since best = NaN at first
-				bestBounds = testBounds;
-				closest = oppEdge;
-				closestEnd = foundOne.whichEnd;
-				closestReverse = foundOne.reverse;
-			}
-		}
-	}
-	OP_ASSERT(closest); // !!! if found is not empty, but no edge has the right sum, choose one anyway?
-	OP_ASSERT(AllowReversal::yes == closestReverse || closest->lastEdge);
-	if (AllowReversal::yes == closestReverse)
-		closest->setLinkDirection(closestEnd);
-	OpEdge* clearClosest = closest;
-	do {
-		clearClosest->clearActiveAndPals();
-		clearClosest = clearClosest->nextEdge;
-	} while (clearClosest && clearClosest->isActive());
-	closest->setPriorEdge(lastEdge);
-	closest->priorLink = EdgeLink::single;
-	lastEdge->setNextEdge(closest);
-	lastEdge->nextLink = EdgeLink::single;
-	lastEdge = closest->lastEdge;
-	closest->lastEdge = nullptr;
-	OP_ASSERT(lastEdge);
-#if 0
-	if (lastEdge->isClosed(this) 
-			|| last->contour->contours->closeGap(lastEdge, this, unsectInX))
-		return lastEdge->validLoop();
-#else
-	if (lastEdge->isLoop()) {
-		OP_ASSERT(lastEdge->debugValidLoop());
-		return lastEdge;
-	}
-#endif
-	if (!lastEdge->nextEdge)
-		return matchLinks(edge);
-	return matchLinks(lastEdge);
-}
-
-
-void OpEdges::MarkUnsectableGroups(std::vector<EdgeDistance>& distance) {
+void OpWinder::MarkUnsectableGroups(std::vector<EdgeDistance>& distance) {
 	int edgeIndex = (int) distance.size();
 	while (--edgeIndex >= 0) {
 		float dist = distance[edgeIndex].distance;
@@ -589,7 +379,7 @@ void OpEdges::MarkUnsectableGroups(std::vector<EdgeDistance>& distance) {
 	}
 }
 
-void OpEdges::markUnsortable(OpEdge* edge, Axis axis, ZeroReason reason) {
+void OpWinder::markUnsortable(OpEdge* edge, Axis axis, ZeroReason reason) {
 	if (Axis::vertical == axis || inY.end() == std::find(inY.begin(), inY.end(), edge)) {
 //		edge->winding.zero(reason);
 		edge->sumType = EdgeSum::unsortable;
@@ -598,7 +388,7 @@ void OpEdges::markUnsortable(OpEdge* edge, Axis axis, ZeroReason reason) {
 	edge->fail = Axis::vertical == axis ? EdgeFail::vertical : EdgeFail::horizontal;
 }
 
-void OpEdges::SetEdgeMultiple(Axis axis, EdgeDistance* edgeDist  
+void OpWinder::SetEdgeMultiple(Axis axis, EdgeDistance* edgeDist  
 		OP_DEBUG_PARAMS(std::vector<EdgeDistance>& distance)) {
 	OpEdge* edge = edgeDist->edge;
 	NormalDirection edgeNorm = edge->normalDirection(axis, edgeDist->t);
@@ -633,7 +423,7 @@ void OpEdges::SetEdgeMultiple(Axis axis, EdgeDistance* edgeDist
 }
 
 // if horizontal axis, look at rect top/bottom
-ChainFail OpEdges::setSumChain(size_t inIndex, Axis axis) {
+ChainFail OpWinder::setSumChain(size_t inIndex, Axis axis) {
 	// see if normal at center point is in direction of ray
 	std::vector<OpEdge*>& inArray = Axis::horizontal == axis ? inX : inY;
 	OpEdge* edge = inArray[inIndex];
@@ -684,7 +474,7 @@ ChainFail OpEdges::setSumChain(size_t inIndex, Axis axis) {
 }
 
 // distance array may include edges to right. Remove code that collects that?
-ResolveWinding OpEdges::setWindingByDistance(OpEdge* edge, Axis axis, 
+ResolveWinding OpWinder::setWindingByDistance(OpEdge* edge, Axis axis, 
 		std::vector<EdgeDistance>& distance) {
 	if (1 == distance.size()) {
 		OP_ASSERT(edge == distance[0].edge);
@@ -756,7 +546,7 @@ ResolveWinding OpEdges::setWindingByDistance(OpEdge* edge, Axis axis,
 	return ResolveWinding::resolved;
 }
 
-FoundWindings OpEdges::setWindings(OpContours* contours) {
+FoundWindings OpWinder::setWindings(OpContours* contours) {
 	// test sum chain for correctness; recompute if prior or next are inconsistent
 	for (Axis axis : { Axis::horizontal, Axis::vertical }) {
 		std::vector<OpEdge*>& edges = Axis::horizontal == axis ? inX : inY;
@@ -813,8 +603,8 @@ static bool compareYCenter(const OpEdge* s1, const OpEdge* s2) {
 	return s1->ptBounds.top < s2->ptBounds.top;
 }
 
-void OpEdges::sort(EdgesToSort sortBy) {
-	if (EdgesToSort::byBox == sortBy || EdgesToSort::unsectable == sortBy) {
+void OpWinder::sort(EdgesToSort sortBy) {
+	if (EdgesToSort::byBox == sortBy) {
 		std::sort(inX.begin(), inX.end(), compareXBox);
 		return;
 	}

@@ -1,11 +1,10 @@
-#ifndef OpEdges_DEFINED
-#define OpEdges_DEFINED
+#ifndef OpWinder_DEFINED
+#define OpWinder_DEFINED
 
 #include "OpMath.h"
 
 struct OpContours;
 struct OpEdge;
-struct OpOutPath;
 
 enum class ChainFail {
 	none,
@@ -15,10 +14,16 @@ enum class ChainFail {
 	normalizeUnderflow
 };
 
+enum class DistMult {
+	none,
+	first,
+	mid,
+	last,
+};
+
 enum class EdgesToSort {
 	byBox,		// when walking to intersect, use box only
-	byCenter,	// when walking to determine winding, use box and center ray
-	unsectable
+	byCenter 	// when walking to determine winding, use box and center ray
 };
 
 enum class FoundIntersections {
@@ -36,19 +41,6 @@ enum class FoundIntercept {
 enum class FoundWindings {
 	fail,
 	yes
-};
-
-
-enum class DistMult {
-	none,
-	first,
-	mid,
-	last,
-};
-
-enum class LinkPass {
-	unambiguous,
-	unsectInX
 };
 
 // !!! is it worth wrapping a vector of these in a structure so methods can be associated?
@@ -70,11 +62,9 @@ struct EdgeDistance {
 	bool edgeMultiple;
 };
 
-struct OpEdges {
-	OpEdges(OpContours& contours, EdgesToSort);
-	OpEdges(OpEdge* sEdge, OpEdge* oEdge);
-	bool activeUnsectable(const OpEdge* edge, EdgeMatch match, 
-        std::vector<FoundEdge>& oppEdges);
+struct OpWinder {
+	OpWinder(OpContours& contours, EdgesToSort edgesToSort);
+	OpWinder(OpEdge* sEdge, OpEdge* oEdge);
 	void addEdge(OpEdge* , EdgesToSort );
 	static void AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge);
 	static void AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped, OpPtT cPtT, OpPtT dPtT,
@@ -86,11 +76,8 @@ struct OpEdges {
 	static IntersectResult CoincidentCheck(const OpEdge& edge, const OpEdge& opp);
 	FoundIntercept findRayIntercept(size_t inIndex, Axis , OpEdge* edge, float center, 
 			float normal, float edgeCenterT, std::vector<EdgeDistance>* );
-	void linkUnambiguous(OpOutPath path);
-	OpEdge* linkUp(OpEdge* edge);
 	static void MarkUnsectableGroups(std::vector<EdgeDistance>& distance);
 	void markUnsortable(OpEdge* edge, Axis , ZeroReason);
-	bool matchLinks(OpEdge* edge);
 	static void SetEdgeMultiple(Axis axis, EdgeDistance* edgeDist  
 			OP_DEBUG_PARAMS(std::vector<EdgeDistance>& distance));
 	ChainFail setSumChain(size_t inIndex, Axis );
@@ -103,20 +90,15 @@ struct OpEdges {
 #endif
 #if OP_DEBUG_DUMP
 	void dump() const;
-	void dumpAxis(Axis ) const;
+	void dumpAxis(Axis axis) const;
 	DUMP_COMMON_DECLARATIONS();
 #endif
 #if OP_DEBUG_IMAGE
-//	void debugAdd() const;
 	void debugDraw() const;
 #endif
 
 	std::vector<OpEdge*> inX;
 	std::vector<OpEdge*> inY;
-	std::vector<OpEdge*> unsectInX;
-	std::vector<OpEdge*> linkups;
-	EdgeMatch linkMatch;
-	LinkPass linkPass;
 };
 
 #endif

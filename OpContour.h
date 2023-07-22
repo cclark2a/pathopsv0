@@ -127,7 +127,7 @@ struct OpContours {
     bool assemble(OpOutPath );
     bool build(OpInPath path, OpOperand operand);   // provided by graphics implementation
 
-    bool closeGap(OpEdge* last, OpEdge* first, std::vector<OpEdge*>& );
+//    bool closeGap(OpEdge* last, OpEdge* first, std::vector<OpEdge*>& );
     void finishAll();
 
     int leftFillTypeMask() const {

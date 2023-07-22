@@ -5,8 +5,9 @@
 #include "OpContour.h"
 #include "OpEdge.h"
 #include "OpCurveCurve.h"
-#include "OpEdges.h"
+#include "OpJoiner.h"
 #include "OpSegments.h"
+#include "OpWinder.h"
 #include "PathOps.h"
 
 #ifdef _WIN32
@@ -605,37 +606,6 @@ std::string OpEdge::debugDumpBrief() const {
     return s;
 }
 
-struct DebugLinkedName {
-    EdgeLink linked;
-    const char* name;
-};
-
-#define LINKED_NAME(r) { EdgeLink::r, #r }
-
-static DebugLinkedName debugLinkedNames[] {
-    LINKED_NAME(unlinked),
-    LINKED_NAME(single),
-    LINKED_NAME(multiple),
-};
-
-std::string debugLinkedUp(EdgeLink linked) {
-    std::string result;
-    bool outOfDate = false;
-    for (unsigned index = 0; index < ARRAY_COUNT(debugLinkedNames); ++index) {
-        if (!outOfDate && (unsigned)debugLinkedNames[index].linked != index) {
-            OpDebugOut("debugLinkedNames out of date\n");
-            outOfDate = true;
-        }
-        if (linked != debugLinkedNames[index].linked)
-            continue;
-        if (outOfDate)
-            result += STR((int)linked);
-        else
-            result += std::string(debugLinkedNames[(int)linked].name);
-    }
-    return result;
-}
-
 struct DebugMatchName {
     EdgeMatch match;
     const char* name;
@@ -868,10 +838,6 @@ std::string OpEdge::debugDumpDetail() const {
         for (auto pal : pals)
             s += STR(pal->id) + " ";
     }
-    if (EdgeLink::unlinked != nextLink)
-        s += "next:" + debugLinkedUp(nextLink) + " ";
-    if (EdgeLink::unlinked != priorLink)
-        s += "prior:" + debugLinkedUp(priorLink) + " ";
     if (EdgeMatch::none != whichEnd)
         s += "which:" + debugEdgeMatch(whichEnd) + " ";
     if (EdgeFail::none != fail)
@@ -998,10 +964,6 @@ std::string OpEdge::debugDump() const {
         s += "l/r:" + (OpMax != sum.left() ? STR(sum.left()) : "--");
         s += "/" + (OpMax != sum.right() ? STR(sum.right()) : "--") + " ";
     }
-    if (EdgeLink::unlinked != priorLink)
-        s += "prior:" + debugLinkedUp(priorLink) + " ";
-    if (EdgeLink::unlinked != nextLink)
-        s += "next:" + debugLinkedUp(nextLink) + " ";
     if (EdgeMatch::none != whichEnd)
         s += "which:" + debugEdgeMatch(whichEnd) + " ";
     if (EdgeFail::none != fail)
@@ -1010,14 +972,32 @@ std::string OpEdge::debugDump() const {
     if (EdgeSplit::yes == doSplit) s += "yes ";
     if (isLine_impl) s += "isLine ";
     s += "sumType:" + debugEdgeSumName(sumType) + " ";
-//    if (isPoint) s += "isPoint ";
-//    if (unsortable) s += "unsortable ";
     s += "seg:" + STR(segment->id);
     return s;
 }
 
 // !!! move to OpDebug.cpp
 void OpEdge::debugValidate() const {
+    bool loopy = isLoop();
+    if (loopy) {
+        const OpEdge* test = this;
+        do {
+            OP_ASSERT(test->priorEdge->nextEdge == test);
+            OP_ASSERT(test->nextEdge->priorEdge == test);
+            OP_ASSERT(!test->lastEdge);
+            test = test->nextEdge;
+        } while (test != this);
+    } else {
+        const OpEdge* linkStart = debugAdvanceToEnd(EdgeMatch::start);
+        OP_ASSERT(linkStart->lastEdge);
+        const OpEdge* linkEnd = debugAdvanceToEnd(EdgeMatch::end);
+        OP_ASSERT(linkStart->lastEdge == linkEnd);
+        const OpEdge* test = linkStart;
+        while ((test = test->nextEdge)) {
+            OP_ASSERT(!test->lastEdge);
+            OP_ASSERT(linkEnd == test ? !test->nextEdge : !!test->nextEdge);
+        }
+    }
     for (auto& edge : segment->edges) {
         if (&edge == this)
             return;
@@ -1121,14 +1101,37 @@ void OpEdge::dumpWinding() const {
 DUMP_STRUCT_DEFINITIONS(OpEdge)
 DEBUG_DUMP_ID_DEFINITION(OpEdge, id)
 
-void OpEdges::debugValidate() const {
+// !!! also debug prev/next edges (links)
+void OpJoiner::debugValidate() const {
+    for (auto& edge : inX)
+        edge->debugValidate();
+    for (auto& edge : unsectInX)
+        edge->debugValidate();
+}
+
+void OpJoiner::dump() const {
+    if (inX.size()) {
+        OpDebugOut("-- sorted in x --\n");
+        ::dump(inX);
+    }
+    if (unsectInX.size()) {
+        OpDebugOut("-- unsectable sorted in x --\n");
+        ::dump(unsectInX);
+    }
+}
+
+void dump(const OpJoiner& edges) {
+    edges.dump();
+}
+
+void OpWinder::debugValidate() const {
     for (auto& edge : inX)
         edge->debugValidate();
     for (auto& edge : inY)
         edge->debugValidate();
 }
 
-void OpEdges::dumpAxis(Axis axis) const {
+void OpWinder::dumpAxis(Axis axis) const {
     std::string s = "";
     for (const auto edge : Axis::vertical == axis ? inY : inX) {
         s += edge->debugDump() + "\n";
@@ -1136,7 +1139,7 @@ void OpEdges::dumpAxis(Axis axis) const {
     OpDebugOut(s);
 }
 
-void OpEdges::dump() const {
+void OpWinder::dump() const {
     if (inX.size()) {
         OpDebugOut("-- sorted in x --\n");
         dumpAxis(Axis::horizontal);
@@ -1147,13 +1150,13 @@ void OpEdges::dump() const {
     }
 }
 
-void dump(const OpEdges& edges) {
+void dump(const OpWinder& edges) {
     edges.dump();
 }
 
-DUMP_STRUCT_DEFINITIONS(OpEdges)
-
 DUMP_STRUCT_DEFINITIONS(OpCurveCurve)
+DUMP_STRUCT_DEFINITIONS(OpJoiner)
+DUMP_STRUCT_DEFINITIONS(OpWinder)
 
 struct DistMultName {
     DistMult distMult;
@@ -1750,6 +1753,12 @@ void dump(const std::vector<const OpEdge*>& edges) {
 void dump(const std::vector<FoundEdge>& found) {
     for (auto foundOne : found) {
         OpDebugOut(debugEdgeMatch(foundOne.whichEnd) + " " + foundOne.edge->debugDump() + "\n");
+    }
+}
+
+void dumpDetail(const std::vector<FoundEdge>& found) {
+    for (auto foundOne : found) {
+        OpDebugOut(debugEdgeMatch(foundOne.whichEnd) + " " + foundOne.edge->debugDumpDetail() + "\n");
     }
 }
 

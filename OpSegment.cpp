@@ -57,17 +57,17 @@ bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
         if (start && start != edge && (skipCheck(edge)
                 || edge->windZero == checkZero(start, EdgeMatch::start) || skipCheck(start))) {
             if (!start->hasLinkTo(match))
-                oppEdges.emplace_back(start, EdgeMatch::start, AllowReversal::no);
+                oppEdges.emplace_back(start, EdgeMatch::none);
             else if (AllowReversal::yes == canReverse && !start->hasLinkTo(Opposite(match)))
-                oppEdges.emplace_back(start, EdgeMatch::end, canReverse);
+                oppEdges.emplace_back(start, EdgeMatch::end);
         }
         OpEdge* end = sectSeg->findActive(oppPtT, EdgeMatch::end);
         if (end && end != edge && (skipCheck(edge) 
                 || edge->windZero == checkZero(end, EdgeMatch::end) || skipCheck(end))) {
             if (!end->hasLinkTo(match))
-                oppEdges.emplace_back(end, EdgeMatch::end, AllowReversal::no);
+                oppEdges.emplace_back(end, EdgeMatch::none);
             else if (AllowReversal::yes == canReverse && !end->hasLinkTo(Opposite(match)))
-                oppEdges.emplace_back(end, EdgeMatch::start, canReverse);
+                oppEdges.emplace_back(end, EdgeMatch::start);
         }
     }
     for (unsigned index = edgesSize; index < oppEdges.size(); ++index) {
@@ -97,7 +97,7 @@ bool OpSegment::activeNeighbor(const OpEdge* edge, EdgeMatch match,
         return edge->many.isSet() || EdgeSum::unsortable == edge->sumType;
     };
     if (skipCheck(edge) || edge->windZero == nextDoor->windZero || skipCheck(nextDoor)) {
-        oppEdges.emplace_back(nextDoor, neighbor, AllowReversal::no);
+        oppEdges.emplace_back(nextDoor, EdgeMatch::none);
         return !!nextDoor->pals.size();
     }
     return false;

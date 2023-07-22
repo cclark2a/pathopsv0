@@ -5,53 +5,93 @@
 
 #include <vector>
 
-struct EdgeDistance;
-struct FoundEdge;
-struct OpContour;
-struct OpEdge;
-struct OpEdges;
-struct OpIntersection;
-struct OpOutPath;
-struct OpPoint;
-struct OpPointBounds;
-struct OpPtT;
-struct OpRect;
-struct OpSegment;
-struct OpTightBounds;
+#define VECTOR_STRUCTS \
+OP_X(CoinPair) \
+OP_X(EdgeDistance) \
+OP_X(ExtremaT) \
+OP_X(FoundEdge) \
+OP_X(LoopCheck) \
+OP_X(MissingIntersection) \
+OP_X(OpContour) \
+OP_X(OpEdge) \
+OP_X(OpIntersection) \
+OP_X(OpSegment)
 
-extern void dump(const std::vector<EdgeDistance>& );
-extern void dump(const std::vector<FoundEdge>& );
-extern void dump(const std::vector<OpEdge>& );  // to dump edge list built from intersections
-extern void dump(const std::vector<OpEdge*>& ); // to dump assemble linkups
-extern void dump(const std::vector<const OpEdge*>& ); // to dump debug image edges
-extern void dump(const std::vector<OpSegment*>& ); // to dump segment intersection pairs
+#define OP_STRUCTS \
+OP_X(OpEdge) \
+OP_X(OpEdges) \
+OP_X(OpIntersection) \
+OP_X(OpOutPath) \
+OP_X(OpPtT) \
+OP_X(OpPoint) \
+OP_X(OpPointBounds) \
+OP_X(OpRect) \
+OP_X(OpSegment) \
+OP_X(OpTightBounds)
 
-extern void dump(const OpEdge* );
-extern void dump(const OpEdge& );
+#define OP_X(Thing) \
+struct Thing;
+VECTOR_STRUCTS
+OP_STRUCTS
+#undef OP_X
+
+#define VECTOR_PTRS \
+OP_X(OpEdge*) \
+OP_X(const OpEdge*) \
+OP_X(OpIntersection*) \
+OP_X(OpSegment*)
+
+#define OP_X(Thing) \
+extern void dump(const std::vector<Thing>& ); \
+extern void dumpDetail(const std::vector<Thing>& );
+VECTOR_STRUCTS
+VECTOR_PTRS
+#undef OP_X
+
+#define OP_X(Thing) \
+extern void dump(const Thing* ); \
+extern void dump(const Thing& );
+OP_STRUCTS
+#undef OP_X
+
 extern void dumpLink(const OpEdge* );
 extern void dumpLink(const OpEdge& );
-extern void dump(const OpEdges& );
-extern void dump(const OpOutPath& );
-extern void dump(const OpPtT* );
-extern void dump(const OpPtT& );
-extern void dump(const OpPoint* );
-extern void dump(const OpPoint& );
-extern void dump(const OpPointBounds* );
-extern void dump(const OpPointBounds& );
-extern void dump(const OpRect* );
-extern void dump(const OpRect& );
-extern void dump(const OpSegment* );
-extern void dump(const OpSegment& );
 extern void dumpFull(const OpSegment* );
 extern void dumpFull(const OpSegment& );
-extern void dump(const OpTightBounds* );
-extern void dump(const OpTightBounds& );
 
-extern void dumpActive();
-extern void dumpEdges();
-extern void dumpIntersections();
-extern void dumpSects();
-extern void dumpSegments();
+#define DUMP_GROUP \
+OP_X(Active) \
+OP_X(Contours) \
+OP_X(Edges) \
+OP_X(Intersections) \
+OP_X(Sects) \
+OP_X(Segments)
+
+#define OP_X(Thing) \
+extern void dump##Thing();
+DUMP_GROUP
+#undef OP_X
+
+#define DEBUG_DUMP \
+OP_X() \
+OP_X(Detail) \
+OP_X(Edges) \
+OP_X(Full) \
+OP_X(Hex) \
+OP_X(ID) \
+OP_X(Intersections) \
+OP_X(Link) \
+OP_X(LinkDetail) \
+OP_X(Sum) \
+OP_X(SumDetail) \
+OP_X(Winding)
+
+#if 0	// replacement for DEBUG_COMMON_DECLARATIONS()
+#define OP_X(Thing) \
+std::string debugDump##Thing() const;
+DEBUG_DUMP
+#undef OP_X
+#endif
 
 #define DEBUG_COMMON_DECLARATIONS() \
     std::string debugDump() const; \
@@ -72,9 +112,25 @@ extern void dumpSegments();
 		return std::to_string(_id); \
 	}
 
+#define DUMP_BY_ID \
+OP_X() \
+OP_X(Coin) \
+OP_X(Coincidence) \
+OP_X(Detail) \
+OP_X(End) \
+OP_X(Full) \
+OP_X(Hex) \
+OP_X(Link) \
+OP_X(LinkDetail) \
+OP_X(SegmentEdges) \
+OP_X(SegmentIntersections) \
+OP_X(SegmentSects) \
+OP_X(Start) \
+OP_X(Winding)
+
 #define DUMP_COMMON_DECLARATIONS() \
-	void dumpActive() const; \
 	void dump(int id) const; \
+	void dumpActive() const; \
     void dumpCoin(int id) const; \
     void dumpCoincidence(int id) const; \
 	void dumpDetail(int id) const; \

@@ -31,19 +31,13 @@ enum class MatchSect {
 };
 
 struct FoundEdge {
-    FoundEdge(OpEdge* e, EdgeMatch w, AllowReversal reversal = AllowReversal::no) 
+    FoundEdge(OpEdge* e, EdgeMatch w) 
         : edge(e)
-        , whichEnd(w)
-        , reverse(reversal) {
-        OP_ASSERT(e);
-        OP_ASSERT(e->winding.visible());
-        OP_ASSERT(e->active_impl || (EdgeSum::unsectable == e->sumType && !e->inOutput
-                && !e->inOutQueue));
+        , whichEnd(w) {
     }
 
     OpEdge* edge;
     EdgeMatch whichEnd;
-    AllowReversal reverse;
 };
 
 struct MissingIntersection {

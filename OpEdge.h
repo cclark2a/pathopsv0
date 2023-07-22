@@ -8,6 +8,7 @@
 struct FoundEdge;
 struct OpContours;
 struct OpIntersection;
+struct OpOutPath;
 struct OpSegment;
 
 enum class OpOperand {
@@ -72,12 +73,6 @@ enum class EdgeFail : uint8_t {
 	priorDistance,
 	recalcCenter,
 	vertical
-};
-
-enum class EdgeLink : uint8_t {
-	unlinked,	// when assembled, does not connect to another edge
-	single,		// end of assembled run of edges; connects to one other edge
-	multiple	// connects to multiple edges
 };
 
 enum class WindingEdge {
@@ -394,8 +389,6 @@ private:
 		, winding(WindingUninitialized::dummy)
 		, sum(WindingUninitialized::dummy)
 		, many(WindingUninitialized::dummy)
-		, nextLink(EdgeLink::unlinked)
-		, priorLink(EdgeLink::unlinked)
 		, whichEnd(EdgeMatch::none)
 		, fail(EdgeFail::none)
 		, windZero(WindZero::noFlip)
@@ -455,6 +448,7 @@ public:
 #endif
 	CalcFail addIfUR(Axis xis, float t, OpWinding* );
 	CalcFail addSub(Axis axis, float t, OpWinding* );
+	OpEdge* advanceToEnd(EdgeMatch );
 	void apply();
 	bool calcCenterT();
 	CalcFail calcWinding(Axis axis, float centerT);
@@ -462,33 +456,33 @@ public:
 	void clearNextEdge();
 	void clearPriorEdge();
 	void complete();
-	bool containsLink(const OpEdge* edge) const; // { return containsChain(edge, EdgeLoop::link); }
-	bool detachIfLoop();
+	bool containsLink(const OpEdge* edge) const;
 	float findT(Axis , float oppXY) const;
-	OpPtT flipPtT(EdgeMatch match) const { return match == whichEnd ? end : start; }
-	void flipWhich() { whichEnd = (EdgeMatch)((int)whichEnd ^ (int)EdgeMatch::both); }
+	OpPtT flipPtT(EdgeMatch match) const { 
+		return match == whichEnd ? end : start; }
+	void flipWhich() { 
+		whichEnd = (EdgeMatch)((int)whichEnd ^ (int)EdgeMatch::both); }
 	bool hasLinkTo(EdgeMatch match) const { 
-		return EdgeLink::single == (EdgeMatch::start == match ? nextLink : priorLink); }
-	OpEdge* hasLoop(WhichLoop w, LeadingLoop l) {
-		return const_cast<OpEdge*>((const_cast<const OpEdge*>(this))->isLoop(w, l)); }
+		return EdgeMatch::start == match ? nextEdge : priorEdge; }
 	bool isActive() const { 
 		return active_impl; }
-	bool isClosed(OpEdge* test);
-	const OpEdge* isLoop(WhichLoop , LeadingLoop ) const;
+//	bool isClosed(OpEdge* test);
+	bool isLoop() const {
+		return isLoop(WhichLoop::prior) || isLoop(WhichLoop::next); }
+	const OpEdge* isLoop(WhichLoop , LeadingLoop = LeadingLoop::will) const;
 	void linkToEdge(FoundEdge& , EdgeMatch );
-	OpEdge* linkUp(EdgeMatch , std::vector<OpEdge*>* unsectInX);
-	void linkNextPrior(OpEdge* first, OpEdge* last);
-	bool matchLink(std::vector<OpEdge*>& linkups, std::vector<OpEdge*>& unsectInX);
+//	void linkNextPrior(OpEdge* first, OpEdge* last);
 	void matchUnsectable(EdgeMatch , std::vector<OpEdge*>* unsectInX, std::vector<FoundEdge>& );
 	NormalDirection normalDirection(Axis axis, float t);
 	void output(OpOutPath path);	// provided by the graphics implmentation
-	OpEdge* prepareForLinkup();
 	OpPtT ptT(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? start : end; }
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
-	void setFromPoints(const OpPoint pts[]);
-	OpPointBounds setLinkBounds();
 	const OpCurve& setCurve();
+	void setFromPoints(const OpPoint pts[]);
+	OpEdge* setLastEdge(OpEdge* old = nullptr);
+	void setLinkActive();
+	OpPointBounds setLinkBounds();
 	void setLinkDirection(EdgeMatch ); // reverse links if handed link end instead of link start
 	bool setLinear();
 	void setNextEdge(OpEdge*);  // setter exists so debug breakpoints can be set
@@ -500,7 +494,6 @@ public:
 	void skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) const; 
 	void subDivide();
 	CalcFail subIfDL(Axis axis, float t, OpWinding* );
-	bool validLoop() const;
 	OpPtT whichPtT(EdgeMatch match = EdgeMatch::start) const { 
 		return match == whichEnd ? start : end; }
 
@@ -510,12 +503,20 @@ public:
 	OpEdge(std::string );
 	OpEdge(OpPtT data[2]);
 	OpEdge(OpHexPtT data[2]);
+	const OpEdge* debugAdvanceToEnd(EdgeMatch match) const {
+		 return const_cast<OpEdge*>(this)->advanceToEnd(match); }
 	void debugCompare(std::string ) const;
 	std::string debugDumpBrief() const;
 	std::string debugDumpChain(WhichLoop , bool detail) const;
 	void debugValidate() const;    // make sure pointer to edge is valid
+	bool debugValidLoop() const;
 	void dumpChain(bool detail = false) const;
-	DEBUG_COMMON_DECLARATIONS();
+
+#define OP_X(Thing) \
+	std::string debugDump##Thing() const;
+	DEBUG_DUMP
+#undef OP_X
+//	DEBUG_COMMON_DECLARATIONS();
 	DUMP_COMMON_DECLARATIONS();
 	DUMP_IMPL_DECLARATIONS();
 #endif
@@ -550,8 +551,6 @@ public:
 	// !!! many, pals are hopefully temporary while I figure out something better
 	std::vector<OpEdge* > pals;	// pointers to unsectable adjacent edges 
 	int id;
-	EdgeLink nextLink;
-	EdgeLink priorLink;
 	EdgeMatch whichEnd;	// if 'start', prior link end equals start; if 'end' prior end matches end
 	EdgeFail fail;	// how computation (e.g., center) failed (on fail, windings are set to zero)
 	WindZero windZero; // normal means edge normal points to zero side; opposite, normal is non-zero

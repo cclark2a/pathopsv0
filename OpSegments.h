@@ -1,9 +1,11 @@
 #ifndef OpSegments_DEFINED
 #define OpSegments_DEFINED
 
-#include "OpEdges.h"
+#include "OpMath.h"
 
+struct OpContours;
 struct OpSegment;
+enum class FoundIntersections;
 
 struct OpSegments {
     OpSegments(OpContours& contours);

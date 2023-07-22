@@ -164,7 +164,7 @@ bool testPathOpBase(skiatest::Reporter* , const SkPath& a, const SkPath& b,
     OP_ASSERT(success || v0MayFail);
     bool skSuccess = Op(a, b, op, &skresult);
     OP_ASSERT(skSuccess || skiaMayFail);
-    if (name == "op_1") {
+    if ((0) && name == "op_1") {
         OpDebugOut("v0 result:\n");
         result.dump();
         OpDebugOut("sk result:\n");
@@ -9320,13 +9320,37 @@ path2.close();
     testPathOp(reporter, path, path2, kIntersect_SkPathOp, filename);
 }
 
+static void issue12556(skiatest::Reporter* reporter, const char* filename) {
+SkPath patha;
+      patha.moveTo(SkBits2Float(0x44f61000), SkBits2Float(0x45ce1700));  // 1968.5f, 6594.88f
+      patha.lineTo(SkBits2Float(0x45c4d9ab), SkBits2Float(0x45ce1700));  // 6299.21f, 6594.88f
+      patha.lineTo(SkBits2Float(0x45c49700), SkBits2Float(0x45ce59ab));  // 6290.88f, 6603.21f
+      patha.lineTo(SkBits2Float(0x44f71aab), SkBits2Float(0x45ce59ab));  // 1976.83f, 6603.21f
+      patha.lineTo(SkBits2Float(0x44f71aba), SkBits2Float(0x45e061e5));  // 1976.84f, 7180.24f
+      patha.lineTo(SkBits2Float(0x45c4970f), SkBits2Float(0x45e061e5));  // 6290.88f, 7180.24f
+      patha.lineTo(SkBits2Float(0x45c4d9be), SkBits2Float(0x45e0a493));  // 6299.22f, 7188.57f
+      patha.lineTo(SkBits2Float(0x44f61000), SkBits2Float(0x45e0a493));  // 1968.5f, 7188.57f
+      patha.lineTo(SkBits2Float(0x44f61000), SkBits2Float(0x45ce1700));  // 1968.5f, 6594.88f
+      patha.close();
+SkPath pathb;
+      pathb.moveTo(SkBits2Float(0x45c4d9be), SkBits2Float(0x45ce1700));  // 6299.22f, 6594.88f
+      pathb.lineTo(SkBits2Float(0x45c4d9be), SkBits2Float(0x45e0a493));  // 6299.22f, 7188.57f
+      pathb.lineTo(SkBits2Float(0x45c4970f), SkBits2Float(0x45e061e5));  // 6290.88f, 7180.24f
+      pathb.lineTo(SkBits2Float(0x45c4970f), SkBits2Float(0x45ce59af));  // 6290.88f, 6603.21f
+      pathb.lineTo(SkBits2Float(0x45c4d9be), SkBits2Float(0x45ce1700));  // 6299.22f, 6594.88f
+      pathb.close();
+SkPathOp op = kUnion_SkPathOp;
+    testPathOp(reporter, patha, pathb, op, filename);
+}
+
 static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
-static void (*firstTest)(skiatest::Reporter* , const char* filename) = cubics_d3;
+static void (*firstTest)(skiatest::Reporter* , const char* filename) = bug8228; // cubics_d3;
 static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 
 #define TEST(name) { name, #name }
 
 static struct TestDesc tests[] = {
+    TEST(issue12556),
     TEST(bug8380),
     TEST(bug8228),
     TEST(op_4),

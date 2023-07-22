@@ -18,10 +18,11 @@
 #include "OpContour.h"
 #include "OpCurveCurve.h"
 #include "OpEdge.h"
-#include "OpEdges.h"
+#include "OpJoiner.h"
 #include "OpMath.h"
 #include "OpSegment.h"
 #include "OpTightBounds.h"
+#include "OpWinder.h"
 #include "PathOps.h"
 
 SkBitmap bitmap;
@@ -1130,17 +1131,22 @@ void OpEdge::drawSum() const {
 }
 #endif
 
-
-void OpEdges::debugAdd() const {
+void OpJoiner::debugDraw() const {
+	OpDebugImage::clearLocalEdges();
 	for (auto edge : inX)
+		OpDebugImage::add(edge);
+	for (auto edge : unsectInX)
 		OpDebugImage::add(edge);
 	OpDebugImage::focusEdges();
 }
 
-
-void OpEdges::debugDraw() const {
+void OpWinder::debugDraw() const {
 	OpDebugImage::clearLocalEdges();
-	debugAdd();
+	for (auto edge : inX)
+		OpDebugImage::add(edge);
+	for (auto edge : inY)
+		OpDebugImage::add(edge);
+	OpDebugImage::focusEdges();
 }
 
 void OpCurveCurve::draw() const {

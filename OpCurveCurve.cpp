@@ -1,7 +1,7 @@
 #include "OpContour.h"
 #include "OpCurveCurve.h"
-#include "OpEdges.h"
 #include "OpSegment.h"
+#include "OpWinder.h"
 
 // trim front and back of ranges
 SectFound OpCurveCurve::addUnsectable() {
@@ -234,7 +234,7 @@ void OpCurveCurve::LinearIntersect(std::vector<OpEdge>& edgeParts,
 			opp.setPointBounds();
 			if (!edge.ptBounds.intersects(opp.ptBounds))
 				continue;
-			OpEdges::AddLineCurveIntersection(opp, edge);
+			OpWinder::AddLineCurveIntersection(opp, edge);
 		}
 	}
 }
