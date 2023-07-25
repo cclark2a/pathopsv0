@@ -19,7 +19,7 @@ OpContours::OpContours(OpInPath& l, OpInPath& r, OpOperator op)
     , rightIn(r)
     , opIn(op)
 {
-    _operator = OpInverse[+op][l.isInverted()][r.isInverted()];
+    opOperator = OpInverse[+op][l.isInverted()][r.isInverted()];
     sectStorage = new OpSectStorage;
 #if OP_DEBUG
     debugInPathOps = false;
@@ -229,9 +229,7 @@ bool OpContours::assemble(OpOutPath path) {
     for (auto unsectable : joiner.unsectInX) {
         unsectable->setActive(true);
     }
-    for (auto unsortable : unsortables) {
-        unsortable->setActive(true);
-    }
+    // unsortables are not marked active, since they may or may not be part of the output
 #if 01 && OP_DEBUG
     ::clear();
     ::hideSegmentEdges();
@@ -242,53 +240,11 @@ bool OpContours::assemble(OpOutPath path) {
     OpDebugOut("");
 #endif
     joiner.linkUnambiguous();
-    for (auto linkup : joiner.linkups) {
-        linkup->setLinkActive();
-    }
 #if 01 && OP_DEBUG
     OpDebugOut("");
 #endif
-    // !!! to do : find edges to fill gaps in remaining pieces, starting with the largest
-    for (auto linkup : joiner.linkups) {
-        if (!linkup->isActive())
-            continue;
-        if (!joiner.matchLinks(linkup))
-            return false;
-    }
-    return true;
+    return joiner.linkRemaining();
 }
-
-#if 0
-bool OpContours::closeGap(OpEdge* last, OpEdge* first, std::vector<OpEdge*>& unsectInX) {
-    OpPoint start = first->whichPtT(EdgeMatch::start).pt;
-    OpPoint end = last->whichPtT(EdgeMatch::end).pt;
-    auto connectBetween = [=](OpEdge* edge) {  // lambda
-        if (start != edge->start.pt && end != edge->start.pt)
-            return false;
-        if (start != edge->end.pt && end != edge->end.pt)
-            return false;
-        edge->linkNextPrior(first, last);
-        return true;
-    };
-    for (auto edge : unsectInX) {
-        if (edge->inOutput || edge->inOutQueue)
-            continue;
-        if (connectBetween(edge)) {
-            OP_ASSERT(EdgeSum::unsectable == edge->sumType);
-            edge->clearActiveAndPals();   // only use edge once
-            return true;
-        }
-    }
-    for (auto edge : unsortables) {
-        if (connectBetween(edge)) {
-            OP_ASSERT(EdgeSum::unsortable == edge->sumType);
-            edge->sumType = EdgeSum::unset;   // only use edge once
-            return true;
-        }
-    }
-    return false;
-}
-#endif
 
 void OpContours::finishAll() {
     for (auto& contour : contours)
@@ -333,7 +289,7 @@ bool OpContours::pathOps(OpOutPath result) {
     apply();  // suppress edges which don't meet op criteria
     if (!assemble(result))
         OP_DEBUG_FAIL(*this, false);
-    bool inverseFill = OutInverse[+_operator][leftIn.isInverted()][rightIn.isInverted()];
+    bool inverseFill = OutInverse[+opOperator][leftIn.isInverted()][rightIn.isInverted()];
     result.setInverted(inverseFill);
     OP_DEBUG_SUCCESS(*this, true);
 }

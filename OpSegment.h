@@ -8,11 +8,6 @@
 
 struct OpContour;
 
-enum class AllowReversal {
-    no,
-    yes
-};
-
 enum class FoundPtT {
     single,
     multiple
@@ -58,9 +53,8 @@ struct OpSegment {
     OpSegment(const OpCurve& pts, OpType type, OpContour*  
             OP_DEBUG_PARAMS(SectReason , SectReason ));
     OpSegment(const LinePts& pts, OpContour*  OP_DEBUG_PARAMS(SectReason , SectReason ));
-    bool activeAtT(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& , AllowReversal ) const;
-    bool activeNeighbor(const OpEdge* edge, EdgeMatch match, 
-            std::vector<FoundEdge>& oppEdges) const;
+    bool activeAtT(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const;
+    bool activeNeighbor(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const;
     OpIntersection* addEdgeSect(const OpPtT&  
             OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason ,
             const OpEdge* e, const OpEdge* o));
@@ -81,7 +75,7 @@ struct OpSegment {
     int coinID(bool flipped) const;
     void complete(OpContour* );
     bool containsIntersection(OpPtT , const OpSegment* ) const;
-    OpEdge* findActive(OpPtT , EdgeMatch ) const;
+    OpEdge* findEnabled(OpPtT , EdgeMatch ) const;
 //    void fixEdges(OpPoint alias, OpPoint master  OP_DEBUG_PARAMS(int masterSectID));
 //    void fixIntersections(OpPoint alias, OpPoint master  OP_DEBUG_PARAMS(int masterSectID));
     float findPtT(float start, float end, OpPoint opp) const;
@@ -102,12 +96,14 @@ struct OpSegment {
 //    void resolvePoints();
     void setCoincident(XyChoice , OpPoint newA, OpPoint newB, bool flipped, OpSegment* oppSegment
             OP_DEBUG_PARAMS(const OpEdge& opp, const OpEdge& edge));
+	void setDisabled(OP_DEBUG_CODE(ZeroReason reason)) {
+		disabled = true; OP_DEBUG_CODE(debugZero = reason); }
     void sortIntersections();
 //    bool splitAtWinding(const std::vector<const OpEdge*>& windingChanges, const OpEdge* first,
 //            int direction  OP_DEBUG_PARAMS(const OpIntersection* last, EdgeMatch oppositeMatch,
 //            const OpEdge* firstEdge, SectReason ));
     void windCoincidences();
-    int unsectableID(bool flipped) const;
+    int unsectableID() const;
 //    OpEdge* visibleAdjacent(OpEdge* , const OpPtT& );
 
     bool debugFail() const;
@@ -134,12 +130,14 @@ struct OpSegment {
     // all intersections are stored here before edges are rewritten
     std::vector<OpIntersection*> intersections;
     OpWinding winding;
+    bool disabled; // winding has canceled this edge out
     bool recomputeBounds;
     bool resortIntersections;
     int id;     // !!! could be debug only; currently used to disambiguate sort, may be unneeded
 #if OP_DEBUG
     SectReason debugStart;
     SectReason debugEnd;
+    ZeroReason debugZero;
 #endif
 };
 

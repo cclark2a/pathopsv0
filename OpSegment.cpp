@@ -4,21 +4,29 @@
 OpSegment::OpSegment(const OpCurve& pts, OpType type, OpContour* contourPtr
         OP_DEBUG_PARAMS(SectReason startReason, SectReason endReason))
     : c(pts.pts, pts.weight, type)
-    , winding(WindingUninitialized::dummy) {
+    , winding(WindingUninitialized::dummy)
+    , disabled(false)
+    , recomputeBounds(false) 
+    , resortIntersections(false) {
     complete(contourPtr);  // only for id, which could be debug code if id is not needed
     OP_DEBUG_CODE(contour = nullptr);   // can't set up here because it may still move
     OP_DEBUG_CODE(debugStart = startReason);
     OP_DEBUG_CODE(debugEnd = endReason);
+    OP_DEBUG_CODE(debugZero = ZeroReason::uninitialized);
 }
 
 OpSegment::OpSegment(const LinePts& pts, OpContour* contourPtr
         OP_DEBUG_PARAMS(SectReason startReason, SectReason endReason))
     : c(&pts.pts.front(), OpType::line)
-    , winding(WindingUninitialized::dummy) {
+    , winding(WindingUninitialized::dummy)
+    , disabled(false)
+    , recomputeBounds(false) 
+    , resortIntersections(false) {
     complete(contourPtr);  // only for id, which could be debug code if id is not needed
     OP_DEBUG_CODE(contour = nullptr);   // can't set up here because it may still move
     OP_DEBUG_CODE(debugStart = startReason);
     OP_DEBUG_CODE(debugEnd = endReason);
+    OP_DEBUG_CODE(debugZero = ZeroReason::uninitialized);
 }
 
 // !!! optimization:  if called from opedge linkup, could abort if >1 active found
@@ -27,10 +35,15 @@ OpSegment::OpSegment(const LinePts& pts, OpContour* contourPtr
 // Unsectable edges may or may not be able to have their wind zero side computed;
 // for now, treat any unsectable multiple as having a zero side whether it does or not.
 // returns true if emplaced edge has pals
-bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<FoundEdge>& oppEdges,
-        AllowReversal canReverse) const {
+
+// instead of returning more than one, it should return:
+// 1 edge to match if there is only one
+// there are more than one possible (even if only one is active) so none are returned
+// rediscover why activeNeighbor is called separately
+// document why (or why not) operator is immaterial
+bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<FoundEdge>& oppEdges) const {
     unsigned edgesSize = oppEdges.size();
-    OP_ASSERT(edge->winding.visible());
+    OP_ASSERT(!edge->disabled);
     // each prospective match normal must agree with edge, indicating direction of area outside fill
     OpPtT ptT = edge->whichPtT(match);
     for (auto sectPtr : intersections) {
@@ -43,9 +56,10 @@ bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
         if (ptT.pt != oppPtT.pt)
             continue;
         auto skipCheck = [](const OpEdge* edge) {
-            return edge->many.isSet() || EdgeSum::unsortable == edge->sumType;
+            return edge->many.isSet() || edge->unsortable;
         };
         // flip zero if operator is diff/revdiff and edges are from both operands
+        // if operator is xor, all zeroes match each other
         auto checkZero = [match](const OpEdge* edge, EdgeMatch eMatch) {
             WindZero zeroSide = edge->windZero;
             if (eMatch == match)
@@ -53,21 +67,23 @@ bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
             return zeroSide;
         };
         const OpSegment* sectSeg = sect.opp->segment;
-        OpEdge* start = sectSeg->findActive(oppPtT, EdgeMatch::start);  // !!! optimization: walk edges in order
+        OpEdge* start = sectSeg->findEnabled(oppPtT, EdgeMatch::start);  // !!! optimization: walk edges in order
         if (start && start != edge && (skipCheck(edge)
                 || edge->windZero == checkZero(start, EdgeMatch::start) || skipCheck(start))) {
             if (!start->hasLinkTo(match))
                 oppEdges.emplace_back(start, EdgeMatch::none);
-            else if (AllowReversal::yes == canReverse && !start->hasLinkTo(Opposite(match)))
-                oppEdges.emplace_back(start, EdgeMatch::end);
+            // disable assuming that these are reversed and are therefore disqualified
+     //       else if (!start->hasLinkTo(Opposite(match)))
+     //           oppEdges.emplace_back(start, EdgeMatch::end);
         }
-        OpEdge* end = sectSeg->findActive(oppPtT, EdgeMatch::end);
+        OpEdge* end = sectSeg->findEnabled(oppPtT, EdgeMatch::end);
         if (end && end != edge && (skipCheck(edge) 
                 || edge->windZero == checkZero(end, EdgeMatch::end) || skipCheck(end))) {
             if (!end->hasLinkTo(match))
                 oppEdges.emplace_back(end, EdgeMatch::none);
-            else if (AllowReversal::yes == canReverse && !end->hasLinkTo(Opposite(match)))
-                oppEdges.emplace_back(end, EdgeMatch::start);
+            // disable assuming that these are reversed and are therefore disqualified
+   //         else if (!end->hasLinkTo(Opposite(match)))
+   //             oppEdges.emplace_back(end, EdgeMatch::start);
         }
     }
     for (unsigned index = edgesSize; index < oppEdges.size(); ++index) {
@@ -85,7 +101,7 @@ bool OpSegment::activeNeighbor(const OpEdge* edge, EdgeMatch match,
         return false;
     EdgeMatch neighbor = EdgeMatch::start == match ? Opposite(edge->whichEnd) : edge->whichEnd;
     OpPtT ptT = edge->whichPtT(match);
-    OpEdge* nextDoor = findActive(ptT, neighbor);
+    OpEdge* nextDoor = findEnabled(ptT, neighbor);
     if (!nextDoor) 
        return false;
     for (auto& alreadyFound : oppEdges)
@@ -94,7 +110,7 @@ bool OpSegment::activeNeighbor(const OpEdge* edge, EdgeMatch match,
     if (nextDoor->hasLinkTo(match))
         return false;
     auto skipCheck = [](const OpEdge* edge) { 
-        return edge->many.isSet() || EdgeSum::unsortable == edge->sumType;
+        return edge->many.isSet() || edge->unsortable;
     };
     if (skipCheck(edge) || edge->windZero == nextDoor->windZero || skipCheck(nextDoor)) {
         oppEdges.emplace_back(nextDoor, EdgeMatch::none);
@@ -180,8 +196,6 @@ int OpSegment::coinID(bool flipped) const {
 
 void OpSegment::complete(OpContour* contourPtr) {
     ptBounds.set(c);
-    recomputeBounds = false;
-    resortIntersections = false;
 // #if OP_DEBUG     // used only by sort; probably unnecessary there
     id = contourPtr->contours->id++;  // contour pointer is not set up
 // #endif
@@ -198,11 +212,10 @@ bool OpSegment::containsIntersection(OpPtT ptT, const OpSegment* opp) const {
 }
 
 // !!! would it be any better (faster) to split this into findStart / findEnd instead?
-OpEdge* OpSegment::findActive(OpPtT ptT, EdgeMatch match) const {
+OpEdge* OpSegment::findEnabled(OpPtT ptT, EdgeMatch match) const {
     for (auto& edge : edges) {
         if (ptT == (EdgeMatch::start == match ? edge.start : edge.end))
-            return !edge.isActive() || !edge.winding.visible() ?
-                    nullptr : const_cast<OpEdge*>(&edge);
+            return edge.disabled ? nullptr : const_cast<OpEdge*>(&edge);
     }
     return nullptr;
 }
@@ -283,7 +296,7 @@ std::vector<OpIntersection*> OpSegment::intersectRange(const OpSegment* opp) {
 
 void OpSegment::makeEdge(OP_DEBUG_CODE(EdgeMaker maker, int line, std::string file)) {
     if (!edges.size()) 
-        edges.emplace_back(this, OpPtT(c.pts[0], 0), OpPtT(c.lastPt(), 1), EdgeSum::unset
+        edges.emplace_back(this, OpPtT(c.pts[0], 0), OpPtT(c.lastPt(), 1)
                 OP_DEBUG_PARAMS(maker, line, file, nullptr, nullptr));
 }
 
@@ -303,9 +316,10 @@ void OpSegment::makeEdges() {
     for (auto sectPtr : intersections) {
         const OpIntersection& sect = *sectPtr;
         if (sect.ptT.t != last->ptT.t) {
-            edges.emplace_back(this, last->ptT, sect.ptT, 
-                    unsectables.size() ? EdgeSum::unsectable : EdgeSum::unset
+            edges.emplace_back(this, last->ptT, sect.ptT
                     OP_DEBUG_PARAMS(EDGE_MAKER(makeEdges), last, sectPtr));
+            if (unsectables.size())
+                edges.back().unsectableID = unsectables.back();
         }
         if (sect.unsectableID) {
             auto found = std::find(unsectables.begin(), unsectables.end(), sect.unsectableID);
@@ -379,9 +393,8 @@ void OpSegment::sortIntersections() {
     resortIntersections = false;
 }
 
-int OpSegment::unsectableID(bool flipped) const {
-    int unsectableID = ++contour->contours->unsectableID;
-    return flipped ? -unsectableID : unsectableID;
+int OpSegment::unsectableID() const {
+    return ++contour->contours->unsectableID;
 }
 
 struct CoinPair {
@@ -401,7 +414,7 @@ struct CoinPair {
 void OpSegment::windCoincidences() {
     if (OpType::line != c.type)
         return;
-    if (!winding.visible())
+    if (disabled)
         return;
     OpVector tangent = c.asLine().tangent();
     if (tangent.dx && tangent.dy)
@@ -432,7 +445,7 @@ void OpSegment::windCoincidences() {
         }
         if (!coinID && coinPairs.empty())
             continue;
-        if (!edge->winding.visible()) {
+        if (edge->disabled) {
             if (coinID)
                 coinPairs.emplace_back(nullptr, coinID, EdgeMatch::none
                         OP_DEBUG_PARAMS(nullptr));
@@ -470,7 +483,7 @@ void OpSegment::windCoincidences() {
             OP_ASSERT(edge->start.pt == coinPair.opp->ptT(coinPair.match).pt);
             OP_ASSERT(edge->end.pt == coinPair.opp->ptT(Opposite(coinPair.match)).pt);
             edge->winding.move(coinPair.opp->winding, contour->contours, coinPair.coinID < 0);
-            coinPair.opp->winding.zero(ZeroReason::hvCoincidence);
+            coinPair.opp->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence));
             if (coinPair.coinID > 0) {
                 if (coinPair.opp < &coinPair.oppEdges->back())
                     ++coinPair.opp;

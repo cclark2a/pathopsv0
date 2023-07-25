@@ -9344,7 +9344,7 @@ SkPathOp op = kUnion_SkPathOp;
 }
 
 static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
-static void (*firstTest)(skiatest::Reporter* , const char* filename) = bug8228; // cubics_d3;
+static void (*firstTest)(skiatest::Reporter* , const char* filename) = cubics_o; // ;
 static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 
 #define TEST(name) { name, #name }

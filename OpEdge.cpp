@@ -90,56 +90,52 @@ OpEdge* OpEdge::advanceToEnd(EdgeMatch match) {
 			1					1					---
 */
 void OpEdge::apply() {
-	if (!winding.visible() || EdgeSum::unsortable == sumType)
+	if (disabled || unsortable)
 		return;
-	if (many.isSet())
-		std::swap(many, sum);
+	OpWinding su = many.isSet() ? many : sum;
+	OpWinding wi = many.isSet() ? palWinding() : winding;
 	OpContours* contours = segment->contour->contours;
-	WindState leftState = contours->windState(winding.left(), sum.left(), OpOperand::left);
-	WindState rightState = contours->windState(winding.right(), sum.right(), OpOperand::right);
-	if (leftState != WindState::flipOff && leftState != WindState::flipOn
-			&& rightState != WindState::flipOff && rightState != WindState::flipOn) {
-		winding.zero(ZeroReason::noFlip);
+	WindState left = contours->windState(wi.left(), su.left(), OpOperand::left);
+	WindState right = contours->windState(wi.right(), su.right(), OpOperand::right);
+	if (left != WindState::flipOff && left != WindState::flipOn
+			&& right != WindState::flipOff && right != WindState::flipOn) {
+		setDisabled(OP_DEBUG_CODE(ZeroReason::noFlip));
 		return;
 	}
-	bool bothFlipped = (leftState == WindState::flipOff || leftState == WindState::flipOn)
-			&& (rightState == WindState::flipOff || rightState == WindState::flipOn);
+	bool bothFlipped = (left == WindState::flipOff || left == WindState::flipOn)
+			&& (right == WindState::flipOff || right == WindState::flipOn);
 	bool keep = false;
-	switch (contours->_operator) {
+	switch (contours->opOperator) {
 	case OpOperator::Subtract:
-		keep = bothFlipped ? leftState != rightState :
-				WindState::one == leftState || WindState::zero == rightState;
+		keep = bothFlipped ? left != right : WindState::one == left || WindState::zero == right;
 		if (keep)
-			windZero = sum.right() || 0 == sum.left() ? WindZero::normal : WindZero::opp;
+			windZero = su.right() || !su.left() ? WindZero::normal : WindZero::opp;
 		break;
 	case OpOperator::Intersect:
-		keep = bothFlipped ? leftState == rightState :
-				WindState::zero != leftState && WindState::zero != rightState;
+		keep = bothFlipped ? left == right : WindState::zero != left && WindState::zero != right;
 		if (keep)
-			windZero = !sum.left() || !sum.right() ? WindZero::normal : WindZero::opp;
+			windZero = !su.left() || !su.right() ? WindZero::normal : WindZero::opp;
 		break;
 	case OpOperator::Union:
-		keep = bothFlipped ? leftState == rightState :
-				WindState::one != leftState && WindState::one != rightState;
+		keep = bothFlipped ? left == right : WindState::one != left && WindState::one != right;
 		if (keep)
 			windZero = WindZero::opp;
 		break;
 	case OpOperator::ExclusiveOr:
 		keep = !bothFlipped;
 		if (keep)
-			windZero = (0 == sum.left()) == (0 == sum.right()) ? WindZero::normal : WindZero::opp;
+			windZero = !su.left() == !su.right() ? WindZero::normal : WindZero::opp;
 		break;
 	case OpOperator::ReverseSubtract:
-		keep = bothFlipped ? leftState == rightState : 
-				WindState::zero == leftState || WindState::one == rightState;
+		keep = bothFlipped ? left == right : WindState::zero == left || WindState::one == right;
 		if (keep)
-			windZero = sum.left() || 0 == sum.right() ? WindZero::normal : WindZero::opp;
+			windZero = su.left() || !su.right() ? WindZero::normal : WindZero::opp;
 		break;
 	default:
 		OP_ASSERT(0);
 	}
 	if (!keep)
-		winding.zero(ZeroReason::applyOp);
+		setDisabled(OP_DEBUG_CODE(ZeroReason::applyOp));
 }
 
 // for center t (and center t only), use edge geometry since center is on edge even if there is error
@@ -151,7 +147,7 @@ bool OpEdge::calcCenterT() {
 	const OpCurve& curve = setCurve();
 	float t = curve.center(axis, middle);
 	if (OpMath::IsNaN(t)) {
-		winding.zero(ZeroReason::centerNaN);
+		setDisabled(OP_DEBUG_CODE(ZeroReason::centerNaN));
 		fail = EdgeFail::center;
 		return true;
 	}
@@ -218,24 +214,6 @@ float OpEdge::findT(Axis axis, float oppXY) const {
 	return result;
 }
 
-#if 0
-// note that caller clears active flag if loop is closed
-bool OpEdge::isClosed(OpEdge* test) {
-	if (isLoop(WhichLoop::prior, LeadingLoop::will) 
-			|| isLoop(WhichLoop::next, LeadingLoop::will))
-		return true;
-	if (flipPtT(EdgeMatch::start).pt != test->whichPtT().pt)
-		return false;
-	OP_ASSERT(!nextEdge || nextEdge == test);
-	setNextEdge(test);
-	OP_ASSERT(!test->priorEdge || test->priorEdge == this);
-	test->setPriorEdge(this);
-	winding.zero(ZeroReason::looped);
-	test->winding.zero(ZeroReason::looped);
-	return true;
-}
-#endif
-
 // keep this in sync with op edge : debug dump chain
 // ignore axis changes when detecting sum loops (for now)
 // !!! if the axis change is required to detect for sum loops, document why!
@@ -259,16 +237,6 @@ const OpEdge* OpEdge::isLoop(WhichLoop which, LeadingLoop leading) const {
 	}
 	return nullptr;
 }
-
-#if 0
-void OpEdge::linkNextPrior(OpEdge* first, OpEdge* last) {
-    last->setNextEdge(this);
-    first->setPriorEdge(this);
-    setNextEdge(first);
-    setPriorEdge(last);
-    whichEnd = whichPtT(EdgeMatch::start).pt == end.pt ? EdgeMatch::start : EdgeMatch::end;
-}
-#endif
 
 void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 	OpEdge* oppEdge = found.edge;
@@ -330,9 +298,31 @@ void OpEdge::matchUnsectable(EdgeMatch match, std::vector<OpEdge*>* unsectInX,
 	}
 }
 
+void OpEdge::matchUnsortable(EdgeMatch match, std::vector<OpEdge*>* unsortables, 
+		std::vector<FoundEdge>& edges) {
+	const OpPoint firstPt = whichPtT(match).pt;
+	for (OpEdge* nosort : *unsortables) {
+		if (nosort->inOutput || nosort->inOutQueue)
+			continue;
+		if (firstPt == nosort->start.pt)
+			edges.emplace_back(nosort, EdgeMatch::start);
+		if (firstPt == nosort->end.pt)
+			edges.emplace_back(nosort, EdgeMatch::end);
+	}
+}
+
 NormalDirection OpEdge::normalDirection(Axis axis, float t) {
 	const OpCurve& curve = setCurve();
 	return curve.normalDirection(axis, t);
+}
+
+OpWinding OpEdge::palWinding() const {
+	OP_ASSERT(unsectableID);
+	OpWinding result = winding;
+	for (auto pal : pals) {
+		result += unsectableID * pal->unsectableID > 0 ? pal->winding : -pal->winding;
+	}
+	return result;
 }
 
 // in function to make setting breakpoints easier
@@ -394,16 +384,6 @@ bool OpEdge::setLinear() {
 	lineSet = true;
 	const OpCurve& curve = setCurve();
 	return (isLine_impl = curve.isLinear());
-}
-
-void OpEdge::setLinkActive() {
-    OP_ASSERT(!isLoop());
-    OP_ASSERT(lastEdge);
-    OP_ASSERT(!priorEdge);
-	OpEdge* linkup = this;
-    do {
-        linkup->setActive(true);
-    } while ((linkup = linkup->nextEdge));
 }
 
 OpPointBounds OpEdge::setLinkBounds() {
@@ -509,7 +489,7 @@ void OpEdge::subDivide() {
 	}
  	if (start.pt == end.pt) {
 		OP_ASSERT(0);	// !!! check to see if this can still happen
-		winding.zero(ZeroReason::isPoint);
+		setDisabled(OP_DEBUG_CODE(ZeroReason::isPoint));
 	}
 }
 
@@ -556,7 +536,6 @@ bool OpEdge::debugValidLoop() const {
 	}
 }
 
-// !!! add zero reason here
 void OpWinding::move(OpWinding opp, const OpContours* contours, bool backwards) {
 	OP_ASSERT(WindingType::winding == debugType);
 	OP_ASSERT(WindingType::winding == opp.debugType);
@@ -568,10 +547,6 @@ void OpWinding::move(OpWinding opp, const OpContours* contours, bool backwards) 
 		right_impl += backwards ? -opp.right() : opp.right();
 	else
 		right_impl ^= opp.right();
-#if OP_DEBUG
-	debugReason = 0 == left_impl && 0 == right_impl ? ZeroReason::move :
-			ZeroReason::uninitialized;
-#endif
 }
 
 void OpWinding::setSum(OpWinding winding, const OpSegment* segment) {

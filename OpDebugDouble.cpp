@@ -36,24 +36,24 @@ struct DebugOpPoint {
         , color(DebugColor::black) {
     }
 
-    DebugOpPoint(double _x, double _y) 
-        : x(_x)
-        , y(_y)
+    DebugOpPoint(double xIn, double yIn) 
+        : x(xIn)
+        , y(yIn)
         , t(OpNaN)
         , color(DebugColor::black) {
     }
 
-    DebugOpPoint(double _x, double _y, DebugColor c) 
-        : x(_x)
-        , y(_y)
+    DebugOpPoint(double xIn, double yIn, DebugColor c) 
+        : x(xIn)
+        , y(yIn)
         , t(OpNaN)
         , color(c) {
     }
 
-    DebugOpPoint(double _x, double _y, float _t, DebugColor c) 
-        : x(_x)
-        , y(_y)
-        , t(_t)
+    DebugOpPoint(double xIn, double yIn, float tIn, DebugColor c) 
+        : x(xIn)
+        , y(yIn)
+        , t(tIn)
         , color(c) {
     }
 
@@ -730,7 +730,7 @@ void DebugOpDrawEdges(std::vector<DebugOpCurve>& curves) {
         const OpEdge* edge = findEdge(curve.id);
         if (nullptr == edge)
             OpDebugOut("edge " + STR(curve.id) + " not found\n");
-        else if (EdgeSum::unsectable == edge->sumType)
+        else if (edge->unsectableID)
             isUnsectable = edge->debugUnOpp ? UnsectType::edge : UnsectType::opp;
         if (unsectablePath != isUnsectable) {
             if (!path.isEmpty()) {
@@ -1281,8 +1281,8 @@ void DebugOpDrawSegmentID(const OpSegment* segment, std::vector<int>& ids) {
             OpCurve curve;
             drawnSeg.mapTo(curve);
             OpPoint midTPt = curve.ptAtT(.5);
-            if (OpDebugImage::drawValue(midTPt, STR(segment->id), segment->winding.visible()
-                    ? SK_ColorBLACK : SK_ColorRED))
+            if (OpDebugImage::drawValue(midTPt, STR(segment->id), segment->disabled
+                    ? SK_ColorRED : SK_ColorBLACK))
                 break;
         }
 }

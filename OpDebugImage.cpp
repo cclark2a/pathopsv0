@@ -456,7 +456,7 @@ void OpDebugImage::drawDoubleFocus() {
 
 			if (drawIDsOn) {
 				SkColor color = SK_ColorBLACK;
-				if (!edge->winding.visible())
+				if (edge->disabled)
 					color = SK_ColorRED;
 				else if (edgeIter.isTemporary)
 					color = edgeIter.isOpp ? 0xFFFFA500 : 0xFF008000;  // orange, dark green
@@ -1196,22 +1196,32 @@ bool OpDebugImage::drawEdgeWinding(OpVector norm, OpPoint midTPt, const OpEdge* 
 	SkPaint paint;
 	paint.setAntiAlias(true);
 	paint.setColor(SK_ColorBLACK);
-	std::string sumLeft = OpMax == edge->sum.left() ? "?" : STR(edge->sum.left());
+	OpWinding sum = edge->many.isSet() ? edge->many : edge->sum;
+	std::string sumLeft = OpMax == sum.left() ? "?" : STR(sum.left());
 	textLayer.drawString(SkString(sumLeft), sumSide.x, sumSide.y, labelFont, paint);
 	paint.setColor(SK_ColorRED);
-	std::string sumRight = OpMax == edge->sum.right() ? "?" : STR(edge->sum.right());
+	std::string sumRight = OpMax == sum.right() ? "?" : STR(sum.right());
 	textLayer.drawString(SkString(sumRight), sumSide.x + 20, sumSide.y, labelFont, paint);
 	paint.setColor(SK_ColorBLACK);
-	int windLeft = ZeroReason::none >= edge->winding.debugReason ? edge->winding.left() :
-			edge->winding.debugLeft;
-	std::string oppLeft = OpMax == edge->sum.left() ? STR(windLeft) : 
-			STR(edge->sum.left() - windLeft);
+	int windLeft = edge->winding.left();
+	if (edge->many.isSet()) {
+		for (auto pal : edge->pals) {
+			int palLeft = pal->winding.left();
+			windLeft += edge->unsectableID * pal->unsectableID > 0 ? palLeft : -palLeft;
+		}
+	}
+	std::string oppLeft = OpMax == sum.left() ? STR(windLeft) : 
+			STR(sum.left() - windLeft);
 	textLayer.drawString(SkString(oppLeft), oppSide.x, oppSide.y, labelFont, paint);
 	paint.setColor(SK_ColorRED);
-	int windRight = ZeroReason::none >= edge->winding.debugReason ?
-			edge->winding.right() : edge->winding.debugRight;
-	std::string oppRight = OpMax == edge->sum.left() ? STR(windRight) : 
-			STR(edge->sum.right() - windRight);
+	int windRight = edge->winding.right();
+	if (edge->many.isSet()) {
+		for (auto pal : edge->pals) {
+			int palRight = pal->winding.right();
+			windRight += edge->unsectableID * pal->unsectableID > 0 ? palRight : -palRight;
+		}
+	}
+	std::string oppRight = OpMax == sum.left() ? STR(windRight) : STR(sum.right() - windRight);
 	textLayer.drawString(SkString(oppRight), oppSide.x + 20, oppSide.y, labelFont, paint);
 	return true;
 }
@@ -1242,28 +1252,28 @@ void OpDebugImage::drawLines() {
 }
 #endif
 
-void add(const std::vector<OpEdge*>& _edges) {
-	for (auto edge : _edges) {
+void add(const std::vector<OpEdge*>& e) {
+	for (auto edge : e) {
 		OpDebugImage::add(edge);
 	}
 	OpDebugImage::focusEdges();
 }
 
-void add(const std::vector<OpEdge>& _edges) {
-	for (auto& edge : _edges) {
+void add(const std::vector<OpEdge>& e) {
+	for (auto& edge : e) {
 		OpDebugImage::add(&edge);
 	}
 	OpDebugImage::focusEdges();
 }
 
-void draw(const std::vector<OpEdge*>& _edges) {
+void draw(const std::vector<OpEdge*>& e) {
 	OpDebugImage::clearLocalEdges();
-	add(_edges);
+	add(e);
 }
 
-void draw(const std::vector<OpEdge>& _edges) {
+void draw(const std::vector<OpEdge>& e) {
 	OpDebugImage::clearLocalEdges();
-	add(_edges);
+	add(e);
 }
 
 void draw(Axis axis, float value) {

@@ -91,27 +91,16 @@ enum class WindingTemp {	// used to accumulate winding sum before it is applied
 	dummy
 };
 
-enum class ZeroReason : int8_t {
-	uninitialized = -1,
-	none,
+enum class ZeroReason : uint8_t {
+	uninitialized,
 	addIntersection,
-	addTemp,
 	applyOp,
 	centerNaN,
 	findCoincidences,
 	hvCoincidence,
-	isCoinPoint,
 	isPoint,
-	looped,
-	move,
+	many,
 	noFlip,
-	noNormal,
-	recalcCenter,
-	resolveCoin,
-	setWind,
-	subTemp,
-	swapped,
-	tangentXRay
 };
 
 
@@ -125,15 +114,11 @@ enum class WindingType  {
 struct OpWinding {
 private:
 	// used by operator-
-	OpWinding(int l, int r  OP_DEBUG_PARAMS(int s, ZeroReason z))
+	OpWinding(int l, int r)
 		: left_impl(l)
 		, right_impl(r)
 #if OP_DEBUG
-		, debugLeft(OpMax)
-		, debugRight(OpMax)
-		, debugSetter(s)
 		, debugType(WindingType::winding)
-		, debugReason(z)
 #endif
 	{
 	}
@@ -143,11 +128,7 @@ public:
 		: left_impl(0)
 		, right_impl(0)
 #if OP_DEBUG
-		, debugLeft(OpMax)
-		, debugRight(OpMax)
-		, debugSetter(0)
 		, debugType(WindingType::temp)
-		, debugReason(ZeroReason::none)
 #endif
 	{
 	}
@@ -157,11 +138,7 @@ public:
 #if OP_DEBUG
 		: left_impl(OpMax)
 		, right_impl(OpMax)
-		, debugLeft(OpMax)
-		, debugRight(OpMax)
-		, debugSetter(0)
 		, debugType(WindingType::uninitialized)
-		, debugReason(ZeroReason::uninitialized)
 #endif	
 	{
 	}
@@ -170,11 +147,7 @@ public:
 		: left_impl(OpOperand::left == operand ? 1 : 0)
 		, right_impl(OpOperand::right == operand ? 1 : 0)
 #if OP_DEBUG
-		, debugLeft(OpMax)
-		, debugRight(OpMax)
-		, debugSetter(0)
 		, debugType(WindingType::winding)
-		, debugReason(ZeroReason::none)
 #endif	
 	{
 	}
@@ -185,18 +158,13 @@ public:
 
 	OpWinding operator-() const {
 		OP_ASSERT(WindingType::winding == debugType);
-		return { -left_impl, -right_impl  OP_DEBUG_PARAMS(0, ZeroReason::none) };
+		return { -left_impl, -right_impl };
 	}
 
 	OpWinding& operator+=(const OpWinding& w) {
 		OP_ASSERT(WindingType::temp == debugType || WindingType::winding == debugType);
 		left_impl += w.left_impl;
 		right_impl += w.right_impl;
-	#if OP_DEBUG
-		if (WindingType::winding == debugType)
-			debugReason = 0 == left_impl && 0 == right_impl ? ZeroReason::addTemp :
-					ZeroReason::uninitialized;
-	#endif
 		return *this;
 	}
 
@@ -204,11 +172,6 @@ public:
 		OP_ASSERT(WindingType::temp == debugType || WindingType::winding == debugType);
 		left_impl -= w.left_impl;
 		right_impl -= w.right_impl;
-	#if OP_DEBUG
-		if (WindingType::winding == debugType)
-			debugReason = 0 == left_impl && 0 == right_impl ? ZeroReason::subTemp :
-					ZeroReason::uninitialized;
-	#endif
 		return *this;
 	}
 
@@ -239,8 +202,6 @@ public:
 		right_impl = right;
 	#if OP_DEBUG
 		debugType = WindingType::winding;
-		debugReason = 0 == left_impl && 0 == right_impl ? ZeroReason::setWind :
-				ZeroReason::uninitialized;
 	#endif
 	}
 
@@ -252,20 +213,6 @@ public:
 		return left_impl || right_impl;
 	}
 
-	// debug parameter tracks the caller that zeroed the edge
-	void zero(ZeroReason r) {
-#if OP_DEBUG
-		// if we already zeroed, don't zero again?
-		if (ZeroReason::none == debugReason || ZeroReason::uninitialized == debugReason) {  
-			debugLeft = left_impl;
-			debugRight = right_impl;
-			debugReason = r;
-		}
-#endif
-		left_impl = 0;
-		right_impl = 0;
-	}
-
 #if OP_DEBUG_DUMP
 	std::string debugDump() const;
 	void dump() const;
@@ -275,11 +222,7 @@ public:
 	int right_impl;
 
 #if OP_DEBUG
-	int debugLeft;	// value prior to zero
-	int debugRight;
-	int debugSetter;
 	WindingType debugType;
-	ZeroReason debugReason;
 #endif
 };
 
@@ -327,13 +270,6 @@ enum class EdgeLoop {
 enum class EdgeSplit : uint8_t {
 	no,
 	yes,
-};
-
-enum class EdgeSum : uint8_t {
-	unset,
-	set,			// edge is ray ordered
-	unsectable,		// too close to another edge to sort by ray
-	unsortable,     // sum was not resolvable by ray in either axis (likely edge is very small) 
 };
 
 enum class LeadingLoop {
@@ -389,11 +325,11 @@ private:
 		, winding(WindingUninitialized::dummy)
 		, sum(WindingUninitialized::dummy)
 		, many(WindingUninitialized::dummy)
+		, unsectableID(0)
 		, whichEnd(EdgeMatch::none)
 		, fail(EdgeFail::none)
 		, windZero(WindZero::noFlip)
 		, doSplit(EdgeSplit::no)
-		, sumType(EdgeSum::unset)
 		, curveSet(false)
 		, lineSet(false)
 		, verticalSet(false)
@@ -401,11 +337,14 @@ private:
 		, active_impl(false)
 		, inOutput(false)
 		, inOutQueue(false)
+		, disabled(false)
+		, unsortable(false)
 	{
 #if OP_DEBUG
 		debugStart = nullptr;
 		debugEnd = nullptr;
 		debugMaker = EdgeMaker::empty;
+		debugZero = ZeroReason::uninitialized;
 		debugMakerLine = 0;
 		debugSetSumLine = 0;
 		debugParentID = 0;
@@ -413,14 +352,13 @@ private:
 #endif
 	}
 public:
-	OpEdge(const OpSegment* s, const OpPtT& t1, const OpPtT& t2, EdgeSum type
+	OpEdge(const OpSegment* s, const OpPtT& t1, const OpPtT& t2
 			OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file, const OpIntersection* i1, 
 			const OpIntersection* i2))
 		: OpEdge() {
 		segment = s;
 		start = t1;
 		end = t2;
-		sumType = type;
 #if OP_DEBUG
 		debugStart = i1;
 		debugEnd = i2;
@@ -473,15 +411,18 @@ public:
 	void linkToEdge(FoundEdge& , EdgeMatch );
 //	void linkNextPrior(OpEdge* first, OpEdge* last);
 	void matchUnsectable(EdgeMatch , std::vector<OpEdge*>* unsectInX, std::vector<FoundEdge>& );
+	void matchUnsortable(EdgeMatch , std::vector<OpEdge*>* unsortables, std::vector<FoundEdge>& );
 	NormalDirection normalDirection(Axis axis, float t);
 	void output(OpOutPath path);	// provided by the graphics implmentation
+	OpWinding palWinding() const;
 	OpPtT ptT(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? start : end; }
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
 	const OpCurve& setCurve();
+	void setDisabled(OP_DEBUG_CODE(ZeroReason reason)) {
+		disabled = true; OP_DEBUG_CODE(debugZero = reason); }
 	void setFromPoints(const OpPoint pts[]);
 	OpEdge* setLastEdge(OpEdge* old = nullptr);
-	void setLinkActive();
 	OpPointBounds setLinkBounds();
 	void setLinkDirection(EdgeMatch ); // reverse links if handed link end instead of link start
 	bool setLinear();
@@ -551,11 +492,11 @@ public:
 	// !!! many, pals are hopefully temporary while I figure out something better
 	std::vector<OpEdge* > pals;	// pointers to unsectable adjacent edges 
 	int id;
+	int unsectableID;
 	EdgeMatch whichEnd;	// if 'start', prior link end equals start; if 'end' prior end matches end
 	EdgeFail fail;	// how computation (e.g., center) failed (on fail, windings are set to zero)
 	WindZero windZero; // normal means edge normal points to zero side; opposite, normal is non-zero
 	EdgeSplit doSplit; // used by curve/curve intersection to track subdivision
-	EdgeSum sumType;
 	bool curveSet;
 	bool lineSet;
 	bool verticalSet;
@@ -563,10 +504,13 @@ public:
 	bool active_impl;  // used by ray casting to mark edges that may be to the left of casting edge
 	bool inOutput;	// likely only used to find inactive unsectables that are not on output path
 	bool inOutQueue; // ditto. Marks unsectable edges pushed in contour::assemble linkups vector
+	bool disabled;	// winding is zero, or apply disqualified edge from appearing in output
+	bool unsortable;
 #if OP_DEBUG
 	const OpIntersection* debugStart;
 	const OpIntersection* debugEnd;
 	EdgeMaker debugMaker;
+	ZeroReason debugZero;	// why edge was disabled
 	int debugMakerLine;
 	std::string debugMakerFile;
 	int debugParentID;

@@ -43,12 +43,12 @@ struct OpOutPath {
 #endif
 };
 
-bool PathOps(OpInPath left, OpInPath right, OpOperator op, OpOutPath result);
+bool PathOps(OpInPath left, OpInPath right, OpOperator , OpOutPath result);
 bool PathSimplify(OpInPath path, OpOutPath result);
 
 #if OP_DEBUG
 // entry point if operation success is already known
-bool DebugPathOps(OpInPath left, OpInPath right, OpOperator _operator, OpOutPath result,
+bool DebugPathOps(OpInPath left, OpInPath right, OpOperator , OpOutPath result,
         OpDebugExpect expected);
 #endif
 

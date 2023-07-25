@@ -169,9 +169,9 @@ struct OpVector {
 
     OpVector(OpPoint );
 
-    OpVector(float _x, float _y) {
-        dx = _x;
-        dy = _y;
+    OpVector(float x, float y) {
+        dx = x;
+        dy = y;
     }
 
     OpVector operator-() const {
@@ -277,9 +277,9 @@ struct OpPoint {
         , y(OpNaN) {
     }
 
-    OpPoint(float _x, float _y) 
-        : x(_x)
-        , y(_y) {
+    OpPoint(float xIn, float yIn) 
+        : x(xIn)
+        , y(yIn) {
     }
 
     OpPoint(OpVector v) 
@@ -432,9 +432,9 @@ struct OpPoint {
 
 #if OP_DEBUG_DUMP
 struct OpHexPoint : OpPoint {
-    OpHexPoint(int32_t _x, int32_t _y) {
-        x = OpDebugBitsToFloat(_x);
-        y = OpDebugBitsToFloat(_y);
+    OpHexPoint(int32_t xIn, int32_t yIn) {
+        x = OpDebugBitsToFloat(xIn);
+        y = OpDebugBitsToFloat(yIn);
     }
 };
 #endif
@@ -511,9 +511,9 @@ struct OpPtT {
         : t(OpNaN) {
     }
 
-    OpPtT(OpPoint _pt, float _t)
-        : pt(_pt)
-        , t(_t) {
+    OpPtT(OpPoint ptIn, float tIn)
+        : pt(ptIn)
+        , t(tIn) {
     }
 
     friend bool operator==(OpPtT a, OpPtT b) {
@@ -550,9 +550,9 @@ struct OpPtT {
 
 #if OP_DEBUG_DUMP
 struct OpHexPtT : OpPtT {
-    OpHexPtT(OpHexPoint _pt, int32_t _t) {
-        pt = OpHexPoint(_pt);
-        t = OpDebugBitsToFloat(_t);
+    OpHexPtT(OpHexPoint ptIn, int32_t tIn) {
+        pt = OpHexPoint(ptIn);
+        t = OpDebugBitsToFloat(tIn);
     }
 };
 #endif

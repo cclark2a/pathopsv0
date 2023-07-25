@@ -780,8 +780,8 @@ void OpCubicTest() {
 	ASSERT(OpMath::Between(-.0001f, normaledt.dy - normaledr.dy, .0001f));
 }
 
-#include "OpEdgeBuilder.h"
-#include "OpEdges.h"
+#include "OpContour.h"
+#include "OpEdge.h"
 #include "PathOps.h"
 
 bool OpPathOpsTest1(const SkPath& one, const SkPath& two, SkPath* result) {

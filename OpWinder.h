@@ -8,6 +8,7 @@ struct OpEdge;
 
 enum class ChainFail {
 	none,
+	betweenUnsectables,
 	failIntercept,
 	noNormal,
 	normalizeOverflow,
@@ -45,11 +46,11 @@ enum class FoundWindings {
 
 // !!! is it worth wrapping a vector of these in a structure so methods can be associated?
 struct EdgeDistance {
-	EdgeDistance(OpEdge* e, float d, float n, float _t)
+	EdgeDistance(OpEdge* e, float d, float n, float tIn)
 		: edge(e)
 		, distance(d)
 		, normal(n)
-		, t(_t)
+		, t(tIn)
 		, multiple(DistMult::none)
 		, edgeMultiple(false) {
 	}
@@ -71,13 +72,14 @@ struct OpWinder {
 			OpSegment* segment, OpSegment* oppSegment, int coinID);
 	static IntersectResult AddPair(XyChoice offset, OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpPtT dPtT,
 			bool flipped, OpSegment* segment, OpSegment* oppSegment);
+	static bool BetweenUnsectables(OpEdge* , std::vector<EdgeDistance>& );
 	static IntersectResult CoincidentCheck(OpPtT ptTa, OpPtT ptTb, OpPtT ptTc, OpPtT ptTd,
 			OpSegment* segment, OpSegment* oppSegment);
 	static IntersectResult CoincidentCheck(const OpEdge& edge, const OpEdge& opp);
 	FoundIntercept findRayIntercept(size_t inIndex, Axis , OpEdge* edge, float center, 
 			float normal, float edgeCenterT, std::vector<EdgeDistance>* );
-	static void MarkUnsectableGroups(std::vector<EdgeDistance>& distance);
-	void markUnsortable(OpEdge* edge, Axis , ZeroReason);
+	static void MarkUnsectableGroups(Axis axis, std::vector<EdgeDistance>& distance);
+	void markUnsortable(OpEdge* edge, Axis );
 	static void SetEdgeMultiple(Axis axis, EdgeDistance* edgeDist  
 			OP_DEBUG_PARAMS(std::vector<EdgeDistance>& distance));
 	ChainFail setSumChain(size_t inIndex, Axis );

@@ -46,19 +46,21 @@ SectFound OpCurveCurve::addUnsectable() {
 			if (!oppEnd.pt.isFinite())
 				oppEnd.pt = edgeEnd.pt;
 			OpSegment* segment = const_cast<OpSegment*>(edge.segment);
-			int unsectableID = segment->unsectableID(flipped);
+			int unsectableID = segment->unsectableID();
 			OpIntersection* segSect1 = segment->addUnsectable(edgeStart, unsectableID, opp.segment  
 					OP_DEBUG_PARAMS(SECT_MAKER(unsectableStart)));
 			OpIntersection* segSect2 = segment->addUnsectable(edgeEnd, unsectableID, opp.segment  
 					OP_DEBUG_PARAMS(SECT_MAKER(unsectableEnd)));
 			OpSegment* oppSegment = const_cast<OpSegment*>(opp.segment);
-			OpIntersection* oppSect1 = oppSegment->addUnsectable(oppStart, unsectableID, segment  
+			OpIntersection* oppSect1 = oppSegment->addUnsectable(oppStart, 
+					flipped ? -unsectableID : unsectableID, segment  
 					OP_DEBUG_PARAMS(
-				   flipped ? IntersectMaker::unsectableOppEnd : IntersectMaker::unsectableOppStart,
+				    flipped ? IntersectMaker::unsectableOppEnd : IntersectMaker::unsectableOppStart,
 					__LINE__, __FILE__));
-			OpIntersection* oppSect2 = oppSegment->addUnsectable(oppEnd, unsectableID, segment  
+			OpIntersection* oppSect2 = oppSegment->addUnsectable(oppEnd, 
+					flipped ? -unsectableID : unsectableID, segment  
 					OP_DEBUG_PARAMS(
-				   flipped ? IntersectMaker::unsectableOppStart : IntersectMaker::unsectableOppEnd,
+				    flipped ? IntersectMaker::unsectableOppStart : IntersectMaker::unsectableOppEnd,
 					__LINE__, __FILE__));
 			segSect1->pair(flipped ? oppSect2 : oppSect1);
 			segSect2->pair(flipped ? oppSect1 : oppSect2);

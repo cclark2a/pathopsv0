@@ -30,9 +30,9 @@ OP_X(OpSegment) \
 OP_X(OpTightBounds)
 
 #define OP_X(Thing) \
-struct Thing;
-VECTOR_STRUCTS
-OP_STRUCTS
+	struct Thing;
+	VECTOR_STRUCTS
+	OP_STRUCTS
 #undef OP_X
 
 #define VECTOR_PTRS \
@@ -42,16 +42,16 @@ OP_X(OpIntersection*) \
 OP_X(OpSegment*)
 
 #define OP_X(Thing) \
-extern void dump(const std::vector<Thing>& ); \
-extern void dumpDetail(const std::vector<Thing>& );
-VECTOR_STRUCTS
-VECTOR_PTRS
+	extern void dump(const std::vector<Thing>& ); \
+	extern void dumpDetail(const std::vector<Thing>& );
+	VECTOR_STRUCTS
+	VECTOR_PTRS
 #undef OP_X
 
 #define OP_X(Thing) \
-extern void dump(const Thing* ); \
-extern void dump(const Thing& );
-OP_STRUCTS
+	extern void dump(const Thing* ); \
+	extern void dump(const Thing& );
+	OP_STRUCTS
 #undef OP_X
 
 extern void dumpLink(const OpEdge* );
@@ -68,8 +68,8 @@ OP_X(Sects) \
 OP_X(Segments)
 
 #define OP_X(Thing) \
-extern void dump##Thing();
-DUMP_GROUP
+	extern void dump##Thing();
+	DUMP_GROUP
 #undef OP_X
 
 #define DEBUG_DUMP \
@@ -88,8 +88,8 @@ OP_X(Winding)
 
 #if 0	// replacement for DEBUG_COMMON_DECLARATIONS()
 #define OP_X(Thing) \
-std::string debugDump##Thing() const;
-DEBUG_DUMP
+	std::string debugDump##Thing() const;
+	DEBUG_DUMP
 #undef OP_X
 #endif
 
@@ -107,9 +107,9 @@ DEBUG_DUMP
 	std::string debugDumpSumDetail() const; \
 	std::string debugDumpWinding() const; \
 
-#define DEBUG_DUMP_ID_DEFINITION(_owner, _id) \
-	std::string _owner::debugDumpID() const { \
-		return std::to_string(_id); \
+#define DEBUG_DUMP_ID_DEFINITION(OWNER, ID) \
+	std::string OWNER::debugDumpID() const { \
+		return std::to_string(ID); \
 	}
 
 #define DUMP_BY_ID \
@@ -127,6 +127,30 @@ OP_X(SegmentIntersections) \
 OP_X(SegmentSects) \
 OP_X(Start) \
 OP_X(Winding)
+
+#define DUMP_POINT \
+OP_X(Match)
+
+#if 0	// replacement for DUMP_COMMON_DECLARATIONS()
+#define OP_X(Thing) \
+	void dump##Thing(int id) const;
+	DUMP_BY_ID
+#undef OP_X
+#define OP_X(Thing) \
+	void dump##Thing() const;
+	DUMP_GROUP
+#undef OP_X
+#define OP_X(Thing) \
+	void dump##Thing(const OpPoint& ) const;
+	DUMP_POINT
+#undef OP_X
+#define OP_X(Thing) \
+	void dump(const std::vector<Thing>& ); \
+	void dumpDetail(const std::vector<Thing>& );
+	VECTOR_STRUCTS
+	VECTOR_PTRS
+#undef OP_X
+#endif
 
 #define DUMP_COMMON_DECLARATIONS() \
 	void dump(int id) const; \
@@ -150,6 +174,13 @@ OP_X(Winding)
 	void dumpStart(int id) const; \
 	void dumpWinding(int id) const; \
 
+#if 0  // replacement for DUMP_IMPL_DECLARATIONS() 
+#define OP_X(Thing) \
+	void dump##Thing() const;
+	DUMP_BY_ID
+#undef OP_X
+#endif
+
 #define DUMP_IMPL_DECLARATIONS() \
 	void dump() const; \
     void dumpCoin() const; \
@@ -166,41 +197,49 @@ OP_X(Winding)
 	void dumpStart() const; \
 	void dumpWinding() const; \
 
-#define DUMP_STRUCT_DEFINITION(_owner, _method) \
-	void _owner::_method() const { \
-		debugGlobalContours->_method(); \
+#if 0  // replacement for DUMP_STRUCT_DEFINITIONS(OWNER)
+		// ... don't know how to do this ...
+#define OP_X(Thing) \
+	DUMP_STRUCT_DEF_ID(OWNER, Thing)
+	DUMP_BY_ID
+#undef OP_X
+#endif
+
+#define DUMP_STRUCT_DEFINITION(OWNER, METHOD) \
+	void OWNER::METHOD() const { \
+		debugGlobalContours->METHOD(); \
 	}
 
-#define DUMP_STRUCT_DEF_ID(_owner, _method) \
-	void _owner::_method(int ID) const { \
-		debugGlobalContours->_method(ID); \
+#define DUMP_STRUCT_DEF_ID(OWNER, METHOD) \
+	void OWNER::METHOD(int ID) const { \
+		debugGlobalContours->METHOD(ID); \
 	}
 
-#define DUMP_STRUCT_DEF_MATCH(_owner, _method) \
-	void _owner::_method(const OpPoint& pt) const { \
-		debugGlobalContours->_method(pt); \
+#define DUMP_STRUCT_DEF_POINT(OWNER, METHOD) \
+	void OWNER::METHOD(const OpPoint& pt) const { \
+		debugGlobalContours->METHOD(pt); \
 	}
 
-#define DUMP_STRUCT_DEFINITIONS(_owner) \
-	DUMP_STRUCT_DEF_ID(_owner, dump) \
-	DUMP_STRUCT_DEF_ID(_owner, dumpCoin) \
-	DUMP_STRUCT_DEF_ID(_owner, dumpCoincidence) \
-	DUMP_STRUCT_DEF_ID(_owner, dumpDetail) \
-	DUMP_STRUCT_DEFINITION(_owner, dumpEdges) \
-	DUMP_STRUCT_DEF_ID(_owner, dumpEnd) \
-	DUMP_STRUCT_DEF_ID(_owner, dumpFull) \
-	DUMP_STRUCT_DEF_ID(_owner, dumpHex) \
-	DUMP_STRUCT_DEFINITION(_owner, dumpIntersections) \
-	DUMP_STRUCT_DEF_ID(_owner, dumpLink) \
-	DUMP_STRUCT_DEF_ID(_owner, dumpLinkDetail) \
-	DUMP_STRUCT_DEF_MATCH(_owner, dumpMatch) \
-	DUMP_STRUCT_DEFINITION(_owner, dumpSects) \
-	DUMP_STRUCT_DEF_ID(_owner, dumpSegmentEdges) \
-	DUMP_STRUCT_DEF_ID(_owner, dumpSegmentIntersections) \
-	DUMP_STRUCT_DEF_ID(_owner, dumpSegmentSects) \
-	DUMP_STRUCT_DEFINITION(_owner, dumpSegments) \
-	DUMP_STRUCT_DEF_ID(_owner, dumpStart) \
-	DUMP_STRUCT_DEF_ID(_owner, dumpWinding) \
+#define DUMP_STRUCT_DEFINITIONS(OWNER) \
+	DUMP_STRUCT_DEF_ID(OWNER, dump) \
+	DUMP_STRUCT_DEF_ID(OWNER, dumpCoin) \
+	DUMP_STRUCT_DEF_ID(OWNER, dumpCoincidence) \
+	DUMP_STRUCT_DEF_ID(OWNER, dumpDetail) \
+	DUMP_STRUCT_DEFINITION(OWNER, dumpEdges) \
+	DUMP_STRUCT_DEF_ID(OWNER, dumpEnd) \
+	DUMP_STRUCT_DEF_ID(OWNER, dumpFull) \
+	DUMP_STRUCT_DEF_ID(OWNER, dumpHex) \
+	DUMP_STRUCT_DEFINITION(OWNER, dumpIntersections) \
+	DUMP_STRUCT_DEF_ID(OWNER, dumpLink) \
+	DUMP_STRUCT_DEF_ID(OWNER, dumpLinkDetail) \
+	DUMP_STRUCT_DEF_POINT(OWNER, dumpMatch) \
+	DUMP_STRUCT_DEFINITION(OWNER, dumpSects) \
+	DUMP_STRUCT_DEF_ID(OWNER, dumpSegmentEdges) \
+	DUMP_STRUCT_DEF_ID(OWNER, dumpSegmentIntersections) \
+	DUMP_STRUCT_DEF_ID(OWNER, dumpSegmentSects) \
+	DUMP_STRUCT_DEFINITION(OWNER, dumpSegments) \
+	DUMP_STRUCT_DEF_ID(OWNER, dumpStart) \
+	DUMP_STRUCT_DEF_ID(OWNER, dumpWinding) \
 
 #define DUMP_GLOBAL_DEFINITION(global_function) \
 	void global_function() { \
@@ -212,7 +251,7 @@ OP_X(Winding)
 		debugGlobalContours->global_function(id); \
 	}
 
-#define DUMP_GLOBAL_DEF_MATCH(global_function) \
+#define DUMP_GLOBAL_DEF_POINT(global_function) \
 	void global_function(const OpPoint& pt) { \
 		debugGlobalContours->global_function(pt); \
 	}
@@ -230,7 +269,7 @@ OP_X(Winding)
 	DUMP_GLOBAL_DEFINITION(dumpIntersections) \
 	DUMP_GLOBAL_DEF_ID(dumpLink) \
 	DUMP_GLOBAL_DEF_ID(dumpLinkDetail) \
-	DUMP_GLOBAL_DEF_MATCH(dumpMatch) \
+	DUMP_GLOBAL_DEF_POINT(dumpMatch) \
 	DUMP_GLOBAL_DEFINITION(dumpSects) \
 	DUMP_GLOBAL_DEF_ID(dumpSegmentEdges) \
 	DUMP_GLOBAL_DEF_ID(dumpSegmentIntersections) \
@@ -245,7 +284,7 @@ OP_X(Winding)
 #define DUMP_GLOBAL_DECL_ID(global_function) \
 	extern void global_function(int id);
 
-#define DUMP_GLOBAL_DECL_MATCH(global_function) \
+#define DUMP_GLOBAL_DECL_POINT(global_function) \
 	extern void global_function(const OpPoint& pt);
 
 #define DUMP_GLOBAL_DECLARATIONS() \
@@ -260,7 +299,7 @@ OP_X(Winding)
 	DUMP_GLOBAL_DECLARATION(dumpIntersections) \
 	DUMP_GLOBAL_DECL_ID(dumpLink) \
 	DUMP_GLOBAL_DECL_ID(dumpLinkDetail) \
-	DUMP_GLOBAL_DECL_MATCH(dumpMatch) \
+	DUMP_GLOBAL_DECL_POINT(dumpMatch) \
 	DUMP_GLOBAL_DECLARATION(dumpSects) \
 	DUMP_GLOBAL_DECL_ID(dumpSegmentEdges) \
 	DUMP_GLOBAL_DECL_ID(dumpSegmentIntersections) \

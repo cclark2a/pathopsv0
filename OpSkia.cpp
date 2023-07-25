@@ -1,4 +1,5 @@
-#include "OpEdgeBuilder.h"
+#include "OpContour.h"
+#include "OpEdge.h"
 #include "PathOps.h"
 
 #if PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_SKIA

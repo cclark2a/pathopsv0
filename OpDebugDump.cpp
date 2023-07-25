@@ -46,13 +46,13 @@ void OpContours::dumpActive() const {
             for (const auto& edge : seg.edges) {
                 if (edge.isActive())
                     edge.dump();
-                else if (EdgeSum::unsectable == edge.sumType && !edge.inOutput && !edge.inOutQueue)
+                else if (edge.unsectableID && !edge.inOutput && !edge.inOutQueue)
                     edge.dumpDetail();
             }
         }
     }
     for (auto edge : unsortables) {
-        if (EdgeSum::unsortable == edge->sumType)
+        if (edge->unsortable)
             edge->dumpDetail();
     }
 }
@@ -775,38 +775,6 @@ std::string debugAxisName(Axis axis) {
     return result;
 }
 
-struct EdgeSumName {
-    EdgeSum edgeSum;
-    const char* name;
-};
-
-#define EDGE_SUM_NAME(r) { EdgeSum::r, #r }
-
-static EdgeSumName edgeSumNames[] {
-    EDGE_SUM_NAME(unset),
-    EDGE_SUM_NAME(set),
-    EDGE_SUM_NAME(unsectable),
-    EDGE_SUM_NAME(unsortable),
-};
-
-std::string debugEdgeSumName(EdgeSum edgeSum) {
-    std::string result;
-    bool outOfDate = false;
-    for (unsigned index = 0; index < ARRAY_COUNT(edgeSumNames); ++index) {
-        if (!outOfDate && ((unsigned) edgeSumNames[index].edgeSum) != index) {
-            OpDebugOut("edgeSumNames out of date\n");
-            outOfDate = true;
-        }
-        if (edgeSum != edgeSumNames[index].edgeSum)
-            continue;
-        if (outOfDate)
-            result += STR((int) edgeSum);
-        else
-            result += std::string(edgeSumNames[index].name);
-    }
-    return result;
-}
-
 std::string OpEdge::debugDumpDetail() const {
     std::string s = "edge[" + STR(id) + "] segment[" + STR(segment->id) + "] contour["
             + STR(segment->contour->id) + "]\n";
@@ -843,10 +811,10 @@ std::string OpEdge::debugDumpDetail() const {
     if (EdgeFail::none != fail)
         s += "fail:" + debugEdgeFail(fail) + " ";
     s += "windZero:" + debugEdgeWindZero(windZero) + "\n";
+    if (unsectableID) s += "unsectable:" + STR(unsectableID) + " ";
     if (EdgeSplit::no != doSplit) s += "doSplit";
     if (EdgeSplit::yes == doSplit) s += ":yes";
     if (EdgeSplit::no != doSplit) s += " ";
-    s += "sumType:" + debugEdgeSumName(sumType) + " ";
     if (curveSet) s += "curveSet ";
     if (lineSet) s += "lineSet ";
     if (verticalSet) s += "verticalSet ";
@@ -854,6 +822,7 @@ std::string OpEdge::debugDumpDetail() const {
     if (active_impl) s += "active ";
     if (inOutput) s += "inOutput ";
     if (inOutQueue) s += "inOutQueue ";
+    if (unsortable) s += "unsortable ";
     if (debugStart) s += "debugStart:" + STR(debugStart->id) + " ";
     if (debugEnd) s += "debugEnd:" + STR(debugEnd->id) + " ";
     s += "debugMaker:" + debugEdgeDebugMaker(debugMaker) + " ";
@@ -939,7 +908,32 @@ void OpEdge::debugCompare(std::string s) const {
     OP_ASSERT(end == test.end);
 }
 
+struct DebugReasonName {
+    ZeroReason reason;
+    const char* name;
+};
+
+#define REASON_NAME(r) { ZeroReason::r, #r }
+
+static DebugReasonName debugReasonNames[] {
+    REASON_NAME(uninitialized),
+    REASON_NAME(addIntersection),
+    REASON_NAME(applyOp),
+    REASON_NAME(centerNaN),
+    REASON_NAME(findCoincidences),
+    REASON_NAME(hvCoincidence),
+    REASON_NAME(isPoint),
+    REASON_NAME(many),
+    REASON_NAME(noFlip),
+};
+
 std::string OpEdge::debugDump() const {
+    bool outOfDate = false;
+    for (unsigned index = 0; index < ARRAY_COUNT(debugReasonNames); ++index)
+       if (!outOfDate && (unsigned) debugReasonNames[index].reason != index) {
+           OpDebugOut("debugReasonNames out of date\n");
+           outOfDate = true;
+       }
     std::string s;
     if (priorEdge || nextEdge) {
         s += "p/n:" + (priorEdge ? STR(priorEdge->id) : "-");
@@ -971,7 +965,16 @@ std::string OpEdge::debugDump() const {
     if (EdgeSplit::no != doSplit) s += "doSplit ";
     if (EdgeSplit::yes == doSplit) s += "yes ";
     if (isLine_impl) s += "isLine ";
-    s += "sumType:" + debugEdgeSumName(sumType) + " ";
+    if (unsectableID) s += "uID:" + STR(unsectableID) + " ";
+    if (unsortable) s += "unsortable ";
+    if (ZeroReason::uninitialized != debugZero) {
+        s += " reason:";
+        if (outOfDate)
+            s += STR((int)debugZero);
+        else
+            s += std::string(debugReasonNames[(int)debugZero].name);
+        s += " ";
+    }
     s += "seg:" + STR(segment->id);
     return s;
 }
@@ -1472,8 +1475,21 @@ std::string OpSegment::debugDump() const {
 }
 
 std::string OpSegment::debugDumpDetail() const {
+    bool outOfDate = false;
+    for (unsigned index = 0; index < ARRAY_COUNT(debugReasonNames); ++index)
+       if (!outOfDate && (unsigned) debugReasonNames[index].reason != index) {
+           OpDebugOut("debugReasonNames out of date\n");
+           outOfDate = true;
+       }
     std::string s = debugDump() + "\n";
     s += " winding: " + winding.debugDump() + " ";
+    if (ZeroReason::uninitialized != debugZero) {
+        s += " reason: ";
+        if (outOfDate)
+            s += STR((int)debugZero);
+        else
+            s += std::string(debugReasonNames[(int)debugZero].name);
+    }
     if (recomputeBounds)
         s += "recomputeBounds ";
     if (resortIntersections)
@@ -1569,36 +1585,6 @@ void OpSegment::dumpStart() const {
 DEBUG_DUMP_ID_DEFINITION(OpSegment, id)
 DUMP_STRUCT_DEFINITIONS(OpSegment)
 
-struct DebugReasonName {
-    ZeroReason reason;
-    const char* name;
-};
-
-#define REASON_NAME(r) { ZeroReason::r, #r }
-
-static DebugReasonName debugReasonNames[] {
-    REASON_NAME(uninitialized),
-    REASON_NAME(none),
-    REASON_NAME(addIntersection),
-    REASON_NAME(addTemp),
-    REASON_NAME(applyOp),
-    REASON_NAME(centerNaN),
-    REASON_NAME(findCoincidences),
-    REASON_NAME(hvCoincidence),
-    REASON_NAME(isCoinPoint),
-    REASON_NAME(isPoint),
-    REASON_NAME(looped),
-    REASON_NAME(move),
-    REASON_NAME(noFlip),
-    REASON_NAME(noNormal),
-    REASON_NAME(recalcCenter),
-    REASON_NAME(resolveCoin),
-    REASON_NAME(setWind),
-    REASON_NAME(subTemp),
-    REASON_NAME(swapped),
-    REASON_NAME(tangentXRay)
-};
-
 struct DebugWindingTypeName {
     WindingType windType;
     const char* name;
@@ -1614,12 +1600,6 @@ static DebugWindingTypeName debugWindingTypeNames[] = {
 };
 
 std::string OpWinding::debugDump() const {
-    bool outOfDate = false;
-    for (signed index = 0; index < (signed) ARRAY_COUNT(debugReasonNames); ++index)
-       if (!outOfDate && (signed) debugReasonNames[index].reason != index - 1) {
-           OpDebugOut("debugReasonNames out of date\n");
-           outOfDate = true;
-       }
     bool outOfDateWT = false;
     for (signed index = 0; index < (signed) ARRAY_COUNT(debugWindingTypeNames); ++index)
        if (!outOfDateWT && (signed) debugWindingTypeNames[index].windType != index - 1) {
@@ -1633,19 +1613,6 @@ std::string OpWinding::debugDump() const {
         result += std::string(debugWindingTypeNames[(int)debugType + 1].name);
     result += " left: " + (INT_MAX == left() ? std::string("unset") : STR(left()));
     result += " right: " + (INT_MAX == right() ? std::string("unset") : STR(right()));
-    if (debugSetter)
-        result += " setter: " + (0 == debugSetter ? std::string("unset") : STR(debugSetter));
-    if (ZeroReason::none != debugReason) {
-        result += " reason: ";
-        if (outOfDate)
-            result += STR((signed)debugReason);
-        else
-            result += std::string(debugReasonNames[(int)debugReason + 1].name);
-        if (OpMax != debugLeft)
-            result += " old left: " + STR(debugLeft);
-        if (OpMax != debugRight)
-            result += " old right: " + STR(debugRight);
-    }
     return result;
 }
 

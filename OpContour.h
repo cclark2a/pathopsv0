@@ -214,7 +214,7 @@ struct OpContours {
     OpSectStorage* sectStorage;
     OpFillType left;
     OpFillType right;
-    OpOperator _operator;
+    OpOperator opOperator;
     int coincidenceID = 0; // not debug since it is required for coin disambiguation
     int unsectableID = 0;
     int id = 0;

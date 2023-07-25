@@ -18,13 +18,15 @@ struct OpJoiner {
 	bool activeUnsectable(const OpEdge* edge, EdgeMatch match, std::vector<FoundEdge>& oppEdges);
 	void addEdge(OpEdge* );
 	void addToLinkups(OpEdge* edge);
-	bool detachIfLoop(OpEdge* edge, OpEdge** leftOvers);
+	bool detachIfLoop(OpEdge* edge);
+	bool linkRemaining();
 	void linkUnambiguous();
 	OpEdge* linkUp(OpEdge* edge);
-	bool matchLinks(OpEdge* edge);
+	bool matchLinks(OpEdge* edge, bool popLast);
 	void sort();
 
 #if OP_DEBUG
+	int debugActive() const;
 	void debugValidate() const;
 #endif
 #if OP_DEBUG_DUMP
@@ -38,6 +40,7 @@ struct OpJoiner {
 	OpOutPath& path;	// !!! move op joiner into op contours to eliminate reference?
 	std::vector<OpEdge*> inX;
 	std::vector<OpEdge*> unsectInX;
+    std::vector<OpEdge*>& unsortable;
 	std::vector<OpEdge*> linkups;
 	EdgeMatch linkMatch;
 	LinkPass linkPass;

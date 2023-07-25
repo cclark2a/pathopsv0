@@ -1,16 +1,16 @@
 #include "OpContour.h"
 #include "PathOps.h"
 
-bool PathOps(OpInPath left, OpInPath right, OpOperator _operator, OpOutPath result) {
-    OpContours contourList(left, right, _operator);
+bool PathOps(OpInPath left, OpInPath right, OpOperator opOperator, OpOutPath result) {
+    OpContours contourList(left, right, opOperator);
     return contourList.pathOps(result);
 }
 
 #if OP_DEBUG
 // entry point if operation success is already known
-bool DebugPathOps(OpInPath left, OpInPath right, OpOperator _operator, OpOutPath result,
+bool DebugPathOps(OpInPath left, OpInPath right, OpOperator opOperator, OpOutPath result,
         OpDebugExpect expected) {
-    OpContours contourList(left, right, _operator);
+    OpContours contourList(left, right, opOperator);
     contourList.debugExpect = expected;
     contourList.debugResult = &result;
     contourList.debugInPathOps = true;

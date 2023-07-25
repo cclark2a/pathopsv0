@@ -40,7 +40,7 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
         return; // IntersectResult::no;
     if (OpType::line == opp->c.type && MatchEnds::both == common) {
         seg->winding.move(opp->winding, seg->contour->contours, seg->c.pts[0] != opp->c.pts[0]);
-        opp->winding.zero(ZeroReason::addIntersection);
+        opp->setDisabled(OP_DEBUG_CODE(ZeroReason::addIntersection));
         return; // IntersectResult::yes;
     }
     if (2 == septs.count && OpType::line == opp->c.type)
@@ -87,11 +87,11 @@ void OpSegments::findCoincidences() {
     // take care of totally coincident segments
     for (auto segIter = inX.begin(); segIter != inX.end(); ++segIter) {
         OpSegment* seg = const_cast<OpSegment*>(*segIter);
-        if (!seg->winding.visible())
+        if (seg->disabled)
             continue;
         for (auto oppIter = segIter + 1; oppIter != inX.end(); ++oppIter) {
             OpSegment* opp = const_cast<OpSegment*>(*oppIter);
-            if (!opp->winding.visible())
+            if (opp->disabled)
                 continue;
             if (seg->ptBounds != opp->ptBounds)
                 continue;
@@ -121,9 +121,7 @@ void OpSegments::findCoincidences() {
                 }
                 if (coincident) {
                     seg->winding.move(opp->winding, seg->contour->contours, reversed);
-                    opp->winding.zero(ZeroReason::findCoincidences);
-                    if (!seg->winding.visible() || !opp->winding.visible())
-                        continue;
+                    opp->setDisabled(OP_DEBUG_CODE(ZeroReason::findCoincidences));
                 }
             }
         }
@@ -132,13 +130,13 @@ void OpSegments::findCoincidences() {
 
 bool OpSegments::lineCoincidence(OpSegment* seg, OpSegment* opp) {
     OP_ASSERT(OpType::line == seg->c.type);
-    OP_ASSERT(seg->winding.visible());
+    OP_ASSERT(!seg->disabled);
     OpVector tangent = seg->c.asLine().tangent();
     if (tangent.dx && tangent.dy)
         return false;
     OP_ASSERT(tangent.dx || tangent.dy);
     OP_ASSERT(OpType::line == opp->c.type);
-    OP_ASSERT(opp->winding.visible());
+    OP_ASSERT(!opp->disabled);
     OpVector oTangent = opp->c.asLine().tangent();
     if (oTangent.dx && oTangent.dy)
         return false;
@@ -156,11 +154,11 @@ bool OpSegments::lineCoincidence(OpSegment* seg, OpSegment* opp) {
 FoundIntersections OpSegments::findIntersections() {
     for (auto segIter = inX.begin(); segIter != inX.end(); ++segIter) {
         OpSegment* seg = const_cast<OpSegment*>(*segIter);
-        if (!seg->winding.visible())
+        if (seg->disabled)
             continue;
         for (auto oppIter = segIter + 1; oppIter != inX.end(); ++oppIter) {
             OpSegment* opp = const_cast<OpSegment*>(*oppIter);
-            if (!opp->winding.visible())
+            if (opp->disabled)
                 continue;
             if (seg->ptBounds.right < opp->ptBounds.left)
                 break;
