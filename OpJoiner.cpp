@@ -125,6 +125,8 @@ bool OpJoiner::detachIfLoop(OpEdge* edge) {
 				bound != edges.end() && bound->pt == testCheck.pt)
 			return EdgeMatch::start == linkMatch ? detachNext(bound->edge, test) : 
 					detachPrior(bound->edge, test);
+#if 0
+		// wait until loop fails to form because wrong pal was chosen before coding this
 		for (auto pal : test->pals) {
 			LoopCheck palCheck(pal, Opposite(linkMatch));
 			if (auto bound = std::lower_bound(edges.begin(), edges.end(), palCheck);
@@ -137,6 +139,7 @@ bool OpJoiner::detachIfLoop(OpEdge* edge) {
 						detachPrior(bound->edge, test);
 			}
 		}
+#endif
 	}
 	return false;
 }
@@ -154,22 +157,20 @@ bool OpJoiner::linkRemaining() {
 void OpJoiner::linkUnambiguous() {
     // match up edges that have only a single possible prior or next link, and add them to new list
     linkPass = LinkPass::unambiguous;
-    for (auto& leftMost : inX) {
-        if (leftMost->disabled)
+    for (auto& edge : inX) {
+        if (edge->disabled)
             continue;   // likely marked as part of a loop below
-        if (!leftMost->isActive())  // check if already saved in linkups
+        if (!edge->isActive())  // check if already saved in linkups
             continue;
-		OP_ASSERT(!leftMost->priorEdge);
-		OP_ASSERT(!leftMost->nextEdge);
-		do {
-			leftMost->whichEnd = EdgeMatch::start;
-			linkMatch = EdgeMatch::start;
-			leftMost = linkUp(leftMost);
-			if (!leftMost)
-				break;
-			OP_ASSERT(!leftMost->isLoop());
-			linkMatch = EdgeMatch::end;
-		} while ((leftMost = linkUp(leftMost)));
+		OP_ASSERT(!edge->priorEdge);
+		OP_ASSERT(!edge->nextEdge);
+		edge->whichEnd = EdgeMatch::start;
+		linkMatch = EdgeMatch::start;
+		if (!linkUp(edge))
+			break;
+		OP_ASSERT(!edge->isLoop());
+		linkMatch = EdgeMatch::end;
+		(void) linkUp(edge->setLastEdge(nullptr));
     }
 }
 
@@ -186,7 +187,7 @@ void OpJoiner::linkUnambiguous() {
 // links a single edge or (link of edges) with another edge
 // first pass: only allow unambiguous connections; only one choice, matching zero side, etc.
 // second pass: check for unambiuous, then allow reversing, pick smallest area, etc.
-OpEdge* OpJoiner::linkUp(OpEdge* edge) {
+bool OpJoiner::linkUp(OpEdge* edge) {
 	OP_ASSERT(!edge->isLoop(WhichLoop::next, LeadingLoop::will));
 	std::vector<FoundEdge> edges;
 	if (LinkPass::unsectInX == linkPass) {
@@ -194,7 +195,6 @@ OpEdge* OpJoiner::linkUp(OpEdge* edge) {
 		if (!edges.size())
 			edge->matchUnsortable(linkMatch, &unsortable, edges);
 	} else {
-		OpDebugPlayback(edge, 331);
 		const OpSegment* segment = edge->segment;
 		bool hasPal = segment->activeAtT(edge, linkMatch, edges);
 		hasPal |= segment->activeNeighbor(edge, linkMatch, edges);
@@ -203,17 +203,17 @@ OpEdge* OpJoiner::linkUp(OpEdge* edge) {
 	}
 	if (1 != edges.size() || !edges[0].edge->isActive()) {
 		if (EdgeMatch::start == linkMatch)
-			return edge;  // 1) found multiple possibilities, try end
+			return true;  // 1) found multiple possibilities, try end
 		if (LinkPass::unambiguous == linkPass)
 			addToLinkups(edge);
-		return LinkPass::unsectInX == linkPass ? edge : nullptr;  // 2) found multiple possibilities (end)
+		return LinkPass::unsectInX == linkPass;  // 2) found multiple possibilities (end)
 	}
 	FoundEdge found = edges.front();
 	OP_ASSERT(!found.edge->isLoop());
 	edge->linkToEdge(found, linkMatch);
 	OP_ASSERT(edge->whichPtT(linkMatch).pt == found.edge->flipPtT(linkMatch).pt);
 	if (detachIfLoop(edge))
-		return nullptr; // 4) found loop, nothing leftover; caller to move on to next edge
+		return false; // 4) found loop, nothing leftover; caller to move on to next edge
 	// move to the front or back edge depending on link match
 	OpEdge* recurse = found.edge->advanceToEnd(linkMatch);
 	return linkUp(recurse);	// 5)  recurse to extend prior or next

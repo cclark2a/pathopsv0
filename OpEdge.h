@@ -213,6 +213,9 @@ public:
 		return left_impl || right_impl;
 	}
 
+	void zero() {
+		left_impl = right_impl = 0;	// only used by coincident lines
+	}
 #if OP_DEBUG_DUMP
 	std::string debugDump() const;
 	void dump() const;
@@ -419,8 +422,7 @@ public:
 		return EdgeMatch::start == match ? start : end; }
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
 	const OpCurve& setCurve();
-	void setDisabled(OP_DEBUG_CODE(ZeroReason reason)) {
-		disabled = true; OP_DEBUG_CODE(debugZero = reason); }
+	void setDisabled(OP_DEBUG_CODE(ZeroReason reason));
 	void setFromPoints(const OpPoint pts[]);
 	OpEdge* setLastEdge(OpEdge* old = nullptr);
 	OpPointBounds setLinkBounds();

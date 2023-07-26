@@ -60,16 +60,18 @@ bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
         };
         // flip zero if operator is diff/revdiff and edges are from both operands
         // if operator is xor, all zeroes match each other
-        auto checkZero = [match](const OpEdge* edge, EdgeMatch eMatch) {
+        auto checkZero = [match](const OpEdge* edge, EdgeMatch eWhich, EdgeMatch eMatch) {
             WindZero zeroSide = edge->windZero;
-            if (eMatch == match)
+            EdgeMatch which = eWhich == eMatch ? EdgeMatch::start : EdgeMatch::end;
+            if (which == match)
                 WindZeroFlip(&zeroSide);
             return zeroSide;
         };
         const OpSegment* sectSeg = sect.opp->segment;
         OpEdge* start = sectSeg->findEnabled(oppPtT, EdgeMatch::start);  // !!! optimization: walk edges in order
         if (start && start != edge && (skipCheck(edge)
-                || edge->windZero == checkZero(start, EdgeMatch::start) || skipCheck(start))) {
+                || edge->windZero == checkZero(start, edge->whichEnd, EdgeMatch::start) 
+                || skipCheck(start))) {
             if (!start->hasLinkTo(match))
                 oppEdges.emplace_back(start, EdgeMatch::none);
             // disable assuming that these are reversed and are therefore disqualified
@@ -78,7 +80,8 @@ bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
         }
         OpEdge* end = sectSeg->findEnabled(oppPtT, EdgeMatch::end);
         if (end && end != edge && (skipCheck(edge) 
-                || edge->windZero == checkZero(end, EdgeMatch::end) || skipCheck(end))) {
+                || edge->windZero == checkZero(end, edge->whichEnd, EdgeMatch::end) 
+                || skipCheck(end))) {
             if (!end->hasLinkTo(match))
                 oppEdges.emplace_back(end, EdgeMatch::none);
             // disable assuming that these are reversed and are therefore disqualified
@@ -372,6 +375,12 @@ MatchEnds OpSegment::matchExisting(const OpSegment* opp) const {
     return MatchEnds::none;
 }
 
+// should be inlined. Out of line for ease of setting debugging breakpoints
+void OpSegment::setDisabled(OP_DEBUG_CODE(ZeroReason reason)) {
+	disabled = true; 
+    OP_DEBUG_CODE(debugZero = reason); 
+}
+
 void OpSegment::sortIntersections() {
     if (!resortIntersections) {
 #if OP_DEBUG
@@ -483,6 +492,9 @@ void OpSegment::windCoincidences() {
             OP_ASSERT(edge->start.pt == coinPair.opp->ptT(coinPair.match).pt);
             OP_ASSERT(edge->end.pt == coinPair.opp->ptT(Opposite(coinPair.match)).pt);
             edge->winding.move(coinPair.opp->winding, contour->contours, coinPair.coinID < 0);
+            if (!edge->winding.visible())
+                edge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence));
+            coinPair.opp->winding.zero();
             coinPair.opp->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence));
             if (coinPair.coinID > 0) {
                 if (coinPair.opp < &coinPair.oppEdges->back())

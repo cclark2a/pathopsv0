@@ -229,7 +229,11 @@ bool OpContours::assemble(OpOutPath path) {
     for (auto unsectable : joiner.unsectInX) {
         unsectable->setActive(true);
     }
-    // unsortables are not marked active, since they may or may not be part of the output
+    // although unsortables are marked active, care must be taken since they may or may not
+    // be part of the output
+    for (auto unsortable : unsortables) {
+        unsortable->setActive(true);
+    }
 #if 01 && OP_DEBUG
     ::clear();
     ::hideSegmentEdges();

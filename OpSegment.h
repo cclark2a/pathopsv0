@@ -94,10 +94,7 @@ struct OpSegment {
 //            std::vector<MissingIntersection>& ) const;
     bool resolveCoincidence();
 //    void resolvePoints();
-    void setCoincident(XyChoice , OpPoint newA, OpPoint newB, bool flipped, OpSegment* oppSegment
-            OP_DEBUG_PARAMS(const OpEdge& opp, const OpEdge& edge));
-	void setDisabled(OP_DEBUG_CODE(ZeroReason reason)) {
-		disabled = true; OP_DEBUG_CODE(debugZero = reason); }
+	void setDisabled(OP_DEBUG_CODE(ZeroReason reason));
     void sortIntersections();
 //    bool splitAtWinding(const std::vector<const OpEdge*>& windingChanges, const OpEdge* first,
 //            int direction  OP_DEBUG_PARAMS(const OpIntersection* last, EdgeMatch oppositeMatch,

@@ -40,6 +40,9 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
         return; // IntersectResult::no;
     if (OpType::line == opp->c.type && MatchEnds::both == common) {
         seg->winding.move(opp->winding, seg->contour->contours, seg->c.pts[0] != opp->c.pts[0]);
+        if (!seg->winding.visible())
+            seg->setDisabled(OP_DEBUG_CODE(ZeroReason::addIntersection));
+        opp->winding.zero();
         opp->setDisabled(OP_DEBUG_CODE(ZeroReason::addIntersection));
         return; // IntersectResult::yes;
     }
@@ -121,6 +124,9 @@ void OpSegments::findCoincidences() {
                 }
                 if (coincident) {
                     seg->winding.move(opp->winding, seg->contour->contours, reversed);
+                    if (!seg->winding.visible())
+                        seg->setDisabled(OP_DEBUG_CODE(ZeroReason::findCoincidences));
+                    opp->winding.zero();
                     opp->setDisabled(OP_DEBUG_CODE(ZeroReason::findCoincidences));
                 }
             }

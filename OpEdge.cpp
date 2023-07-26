@@ -242,7 +242,7 @@ void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 	OpEdge* oppEdge = found.edge;
 	OP_ASSERT(!oppEdge->hasLinkTo(match));
 	OP_ASSERT(oppEdge != this);
-	const OpPoint edgePt = ptT(match).pt;
+	const OpPoint edgePt = whichPtT(match).pt;
 	if (EdgeMatch::start == match) {
 		OP_ASSERT(!priorEdge);
 		setPriorEdge(oppEdge);
@@ -350,6 +350,12 @@ const OpCurve& OpEdge::setCurve() {
 	curve_impl.debugIntersect = OpDebugIntersect::edge;
 #endif
 	return curve_impl;
+}
+
+// should be inlined. Out of line for ease of setting debugging breakpoints
+void OpEdge::setDisabled(OP_DEBUG_CODE(ZeroReason reason)) {
+	disabled = true; 
+	OP_DEBUG_CODE(debugZero = reason); 
 }
 
 void OpEdge::setFromPoints(const OpPoint pts[]) {

@@ -21,7 +21,7 @@ struct OpJoiner {
 	bool detachIfLoop(OpEdge* edge);
 	bool linkRemaining();
 	void linkUnambiguous();
-	OpEdge* linkUp(OpEdge* edge);
+	bool linkUp(OpEdge* edge);
 	bool matchLinks(OpEdge* edge, bool popLast);
 	void sort();
 

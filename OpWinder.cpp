@@ -257,20 +257,26 @@ void OpWinder::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
 // !!! for now, require strict inclusion; this may be insufficent to catch all cases
 bool OpWinder::BetweenUnsectables(OpEdge* edge, std::vector<EdgeDistance>& distance) {
 	std::vector<int> uIDs;
+	bool edgeFound = false;
 	for (const auto& dist : distance) {
 		if (edge == dist.edge) {
 			OP_ASSERT(!dist.distance);
-			return !!uIDs.size();
+			edgeFound = true;
+			continue;
 		}
 		if (!dist.distance)
 			return false;	// if edge and one other has zero distance, it is unsectable
 		if (!dist.edge->unsectableID)
 			continue;
 		auto uIter = std::find(uIDs.begin(), uIDs.end(), dist.edge->unsectableID);
-		if (uIDs.end() == uIter)
-			uIDs.push_back(dist.edge->unsectableID);
-		else
+		if (uIDs.end() == uIter) {
+			if (!edgeFound)
+				uIDs.push_back(dist.edge->unsectableID);
+		} else {
+			if (edgeFound)
+				return true;
 			uIDs.erase(uIter);
+		}
 	}
 	return false;
 }
@@ -485,12 +491,12 @@ ChainFail OpWinder::setSumChain(size_t inIndex, Axis axis) {
 		return ChainFail::failIntercept;
 	if (FoundIntercept::overflow == foundIntercept)
 		return ChainFail::normalizeOverflow;
-	if (BetweenUnsectables(edge, distance)) {
+	std::sort(distance.begin(), distance.end(), CompareDistance());	// sorts from high to low
+	if (!edge->unsectableID && BetweenUnsectables(edge, distance)) {
 		markUnsortable(edge, axis);
 		return ChainFail::betweenUnsectables;	// nonfatal error
 	}
 	OP_ASSERT(Axis::vertical == axis || FoundIntercept::set != foundIntercept);
-	std::sort(distance.begin(), distance.end(), CompareDistance());	// sorts from high to low
 	// walk edge from low to high (backwards) until simple edge with sum winding is found
 	// if edge is unsectable and next to another unsectable, don't set its sum winding, 
 	// but accumulate its winding for other edges and store accumulated total in each unsectable
