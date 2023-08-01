@@ -55,6 +55,11 @@ struct EdgeDistance {
 		, edgeMultiple(false) {
 	}
 
+#if OP_DEBUG
+	void dump() const;
+	void dumpDetail() const;
+#endif
+
 	OpEdge* edge;
 	float distance;
 	float normal;
@@ -72,13 +77,15 @@ struct OpWinder {
 			OpSegment* segment, OpSegment* oppSegment, int coinID);
 	static IntersectResult AddPair(XyChoice offset, OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpPtT dPtT,
 			bool flipped, OpSegment* segment, OpSegment* oppSegment);
-	static bool BetweenUnsectables(OpEdge* , std::vector<EdgeDistance>& );
+	static bool BetweenUnsectables(OpEdge* , Axis , std::vector<EdgeDistance>& );
 	static IntersectResult CoincidentCheck(OpPtT ptTa, OpPtT ptTb, OpPtT ptTc, OpPtT ptTd,
 			OpSegment* segment, OpSegment* oppSegment);
 	static IntersectResult CoincidentCheck(const OpEdge& edge, const OpEdge& opp);
 	FoundIntercept findRayIntercept(size_t inIndex, Axis , OpEdge* edge, float center, 
 			float normal, float edgeCenterT, std::vector<EdgeDistance>* );
+	static void MarkPairUnsectable(Axis axis, EdgeDistance& dist1, EdgeDistance& dist2);
 	static void MarkUnsectableGroups(Axis axis, std::vector<EdgeDistance>& distance);
+	void markUnsortable();
 	void markUnsortable(OpEdge* edge, Axis );
 	static void SetEdgeMultiple(Axis axis, EdgeDistance* edgeDist  
 			OP_DEBUG_PARAMS(std::vector<EdgeDistance>& distance));
@@ -91,9 +98,8 @@ struct OpWinder {
 	void debugValidate() const;
 #endif
 #if OP_DEBUG_DUMP
-	void dump() const;
 	void dumpAxis(Axis axis) const;
-	DUMP_COMMON_DECLARATIONS();
+#include "OpDebugDeclarations.h"
 #endif
 #if OP_DEBUG_IMAGE
 	void debugDraw() const;

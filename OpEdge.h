@@ -319,6 +319,22 @@ enum class EdgeMaker {
 
 #endif
 
+// !!! may need edge only
+// if priorWind only contains edges with positive distances, and nextWind the negative,
+// then all we care about is that sign of edge and opp is different (e.g., not both prior or next)
+// if they are the same, then the edges are unsectable
+struct WindDist {
+	WindDist(OpEdge* e, float d, Axis a)
+		: edge(e)
+		, distance(d)
+		, axis(a) {
+	}
+
+	OpEdge* edge;
+	float distance;
+	Axis axis;
+};
+
 struct OpEdge {
 private:
 	OpEdge()	// note : all values are zero
@@ -342,6 +358,7 @@ private:
 		, inOutQueue(false)
 		, disabled(false)
 		, unsortable(false)
+		, between(false)
 	{
 #if OP_DEBUG
 		debugStart = nullptr;
@@ -407,20 +424,20 @@ public:
 		return EdgeMatch::start == match ? nextEdge : priorEdge; }
 	bool isActive() const { 
 		return active_impl; }
-//	bool isClosed(OpEdge* test);
-	bool isLoop() const {
-		return isLoop(WhichLoop::prior) || isLoop(WhichLoop::next); }
-	const OpEdge* isLoop(WhichLoop , LeadingLoop = LeadingLoop::will) const;
+	bool isPal(const OpEdge* opp) const {
+		return pals.end() != std::find(pals.begin(), pals.end(), opp); }
 	void linkToEdge(FoundEdge& , EdgeMatch );
 //	void linkNextPrior(OpEdge* first, OpEdge* last);
-	void matchUnsectable(EdgeMatch , std::vector<OpEdge*>* unsectInX, std::vector<FoundEdge>& );
-	void matchUnsortable(EdgeMatch , std::vector<OpEdge*>* unsortables, std::vector<FoundEdge>& );
+	void markUnsectable(OpEdge* opp, Axis axis, float t, float oppT);
+	void matchUnsectable(EdgeMatch , const std::vector<OpEdge*>& unsectInX, std::vector<FoundEdge>& );
+	void matchUnsortable(EdgeMatch , const std::vector<OpEdge*>& unsortables, std::vector<FoundEdge>& );
 	NormalDirection normalDirection(Axis axis, float t);
 	void output(OpOutPath path);	// provided by the graphics implmentation
 	OpWinding palWinding() const;
 	OpPtT ptT(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? start : end; }
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
+	void setBetween();  // setter exists so debug breakpoints can be set
 	const OpCurve& setCurve();
 	void setDisabled(OP_DEBUG_CODE(ZeroReason reason));
 	void setFromPoints(const OpPoint pts[]);
@@ -433,8 +450,9 @@ public:
 	void setPriorEdge(OpEdge* );  // setter exists so debug breakpoints can be set
 	void setSumImpl(OpWinding w) {	// use debug macro instead to record line/file
 		sum.setSum(w, segment); }
+	void setUnsortable();
 	const OpCurve& setVertical();
-	void skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) const; 
+	void skipPals(EdgeMatch match, std::vector<FoundEdge>& edges); 
 	void subDivide();
 	CalcFail subIfDL(Axis axis, float t, OpWinding* );
 	OpPtT whichPtT(EdgeMatch match = EdgeMatch::start) const { 
@@ -451,17 +469,14 @@ public:
 	void debugCompare(std::string ) const;
 	std::string debugDumpBrief() const;
 	std::string debugDumpChain(WhichLoop , bool detail) const;
+	bool debugIsLoop() const {
+		return debugIsLoop(WhichLoop::prior) || debugIsLoop(WhichLoop::next); }
+	const OpEdge* debugIsLoop(WhichLoop , LeadingLoop = LeadingLoop::will) const;
 	void debugValidate() const;    // make sure pointer to edge is valid
 	bool debugValidLoop() const;
 	void dumpChain(bool detail = false) const;
 
-#define OP_X(Thing) \
-	std::string debugDump##Thing() const;
-	DEBUG_DUMP
-#undef OP_X
-//	DEBUG_COMMON_DECLARATIONS();
-	DUMP_COMMON_DECLARATIONS();
-	DUMP_IMPL_DECLARATIONS();
+#include "OpDebugDeclarations.h"
 #endif
 #if OP_DEBUG_IMAGE
 	void addLink() const;
@@ -472,6 +487,8 @@ public:
 #endif
 
 	const OpSegment* segment;
+	std::vector<WindDist> priorWind;	// used solely to detect unsectable found during wind computation
+	std::vector<WindDist> nextWind;
 	OpEdge* priorEdge;	// edges that link to form completed contour
 	OpEdge* nextEdge;
 	OpEdge* lastEdge;
@@ -508,6 +525,7 @@ public:
 	bool inOutQueue; // ditto. Marks unsectable edges pushed in contour::assemble linkups vector
 	bool disabled;	// winding is zero, or apply disqualified edge from appearing in output
 	bool unsortable;
+	bool between;  // between unsectables (also unsortable); !!! begs for an enum class, instead...
 #if OP_DEBUG
 	const OpIntersection* debugStart;
 	const OpIntersection* debugEnd;

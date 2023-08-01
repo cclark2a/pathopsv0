@@ -7,6 +7,7 @@
 #include <vector>
 
 struct LinePts;
+struct LinkUps;
 struct OpCurve;
 struct OpEdge;
 struct OpInPath;
@@ -45,10 +46,14 @@ struct OpDebugImage {
 	static void drawDoubleFocus();
 	static void drawDoubleFocus(const OpPointBounds& , bool add);
 	static void drawGrid();
-	static void drawDoubleFill(const class SkPath& path, uint32_t color = 0xFF000000, bool stroke = false);
-	static void drawDoublePath(const class SkPath& path, uint32_t color = 0xFF000000, bool stroke = false);
-	static bool drawEdgeNormal(OpVector norm, OpPoint midTPt, int edgeID, uint32_t color = 0xFF000000);
-	static bool drawEdgeTangent(OpVector tan, OpPoint midTPt, int edgeID, uint32_t color = 0xFF000000);
+	static void drawDoubleFill(const class SkPath& path, uint32_t color = 0xFF000000, 
+			bool stroke = false);
+	static void drawDoublePath(const class SkPath& path, uint32_t color = 0xFF000000, 
+			float strokeWidth = 0);
+	static bool drawEdgeNormal(OpVector norm, OpPoint midTPt, int edgeID, 
+			uint32_t color = 0xFF000000);
+	static bool drawEdgeTangent(OpVector tan, OpPoint midTPt, int edgeID, 
+			uint32_t color = 0xFF000000);
 	static bool drawEdgeWinding(OpVector norm, OpPoint midTPt, const OpEdge* edge, uint32_t color);
 	static void drawPath(const class SkPath& path, uint32_t color = 0xFF000000);
 	static void drawPoints();
@@ -69,9 +74,12 @@ extern void clear();
 extern void clearLines();
 
 extern void add(const std::vector<OpEdge>& );  // to draw edge list built from intersections
-extern void add(const std::vector<OpEdge*>& ); // to draw assemble linkups
+extern void add(const std::vector<OpEdge*>& ); // to draw unsortables
 extern void draw(const std::vector<OpEdge>& );  // to draw edge list built from intersections
-extern void draw(const std::vector<OpEdge*>& ); // to draw assemble linkups
+extern void draw(const std::vector<OpEdge*>& ); // to draw unsortables
+extern void highlight(const LinkUps& ); // to draw assemble linkups
+extern void highlightLinked(const OpEdge& );
+extern void highlightLinked(const OpEdge* );
 extern void draw(Axis , float );	// horizontal or vertical ray
 extern void draw(const LinePts& );	// arbitrary angled ray
 extern void draw();  // draw all current state
@@ -99,6 +107,7 @@ OP_X(Fill) \
 OP_X(Grid) \
 OP_X(Guides) \
 OP_X(Hex) \
+OP_X(Highlight) \
 OP_X(IDs) \
 OP_X(Intersections) \
 OP_X(Left) \

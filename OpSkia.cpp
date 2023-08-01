@@ -28,6 +28,10 @@ void OpOutPath::setInverted(bool wasInverted) {
 
 #if OP_DEBUG_DUMP
 
+bool OpOutPath::debugIsEmpty() const {
+    return skPath->isEmpty();
+}
+
 void OpOutPath::dump() const {
     skPath->dump();
 }

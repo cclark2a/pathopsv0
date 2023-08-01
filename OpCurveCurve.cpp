@@ -5,8 +5,8 @@
 
 // trim front and back of ranges
 SectFound OpCurveCurve::addUnsectable() {
-	std::vector<OpEdge> edgeRuns = findEdgesTRanges(CurveRef::edge);
-	std::vector<OpEdge> oppRuns = findEdgesTRanges(CurveRef::opp);
+	findEdgesTRanges(CurveRef::edge);
+	findEdgesTRanges(CurveRef::opp);
 	Axis larger = originalEdge->ptBounds.width() > originalEdge->ptBounds.height() ? 
 			Axis::vertical : Axis::horizontal;
 	for (auto& edge : edgeRuns) {
@@ -29,22 +29,22 @@ SectFound OpCurveCurve::addUnsectable() {
 					opp.ptBounds.rbChoice(larger));
 			OP_ASSERT(minXY < maxXY);
 			if (edge.start.pt.choice(larger) > edge.end.pt.choice(larger))
-				std::swap(minXY, maxXY);
+				std::swap(minXY, maxXY); // make max/min agree with edge start/end
 			findMatch(minXY, edge, edgeStart);
 			findMatch(maxXY, edge, edgeEnd);
 			findMatch(minXY, opp, oppStart);
 			findMatch(maxXY, opp, oppEnd);
 			bool flipped = oppStart.t > oppEnd.t;
 			if (flipped)
-				std::swap(oppStart, oppEnd);
+				std::swap(oppStart, oppEnd); // flip to fix opp t (now opp pts are flipped vs. edge)
 			if (!edgeStart.pt.isFinite())
 				edgeStart.pt = oppStart.pt;
 			if (!edgeEnd.pt.isFinite())
 				edgeEnd.pt = oppEnd.pt;
 			if (!oppStart.pt.isFinite())
-				oppStart.pt = edgeStart.pt;
+				oppStart.pt = flipped ? edgeEnd.pt : edgeStart.pt;
 			if (!oppEnd.pt.isFinite())
-				oppEnd.pt = edgeEnd.pt;
+				oppEnd.pt = flipped ? edgeStart.pt : edgeEnd.pt;
 			OpSegment* segment = const_cast<OpSegment*>(edge.segment);
 			int unsectableID = segment->unsectableID();
 			OpIntersection* segSect1 = segment->addUnsectable(edgeStart, unsectableID, opp.segment  
@@ -199,9 +199,8 @@ SectFound OpCurveCurve::divideAndConquer() {
 	return SectFound::no;
 }
 
-std::vector<OpEdge> OpCurveCurve::findEdgesTRanges(CurveRef curveRef) {
+void OpCurveCurve::findEdgesTRanges(CurveRef curveRef) {
 	const std::vector<OpEdge>& curves = CurveRef::edge == curveRef ? edgeCurves : oppCurves;
-	std::vector<OpEdge> runs;
 	std::vector <const OpEdge*> ordered;
 	for (const auto& edge : curves) {
 		if (EdgeSplit::yes != edge.doSplit)	 // edge bounds didn't overlap opposite
@@ -212,6 +211,7 @@ std::vector<OpEdge> OpCurveCurve::findEdgesTRanges(CurveRef curveRef) {
 		return lhs->start.t < rhs->start.t; 
 	});
 	// if curve pieces are continuous, join them up
+	std::vector<OpEdge>& runs = CurveRef::edge == curveRef ? edgeRuns : oppRuns;
 	for (auto edge : ordered) {
 		if (!runs.size() || runs.back().end.t != edge->start.t)
 			runs.push_back(*edge);
@@ -222,7 +222,6 @@ std::vector<OpEdge> OpCurveCurve::findEdgesTRanges(CurveRef curveRef) {
 		OP_ASSERT(WindingType::winding == edge.winding.debugType);
 		edge.subDivide();
 	}
-	return runs;
 }
 
 // Edge parts are all linear. See if each intersects with any of the opposite edges

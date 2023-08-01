@@ -29,22 +29,18 @@ OpSegment::OpSegment(const LinePts& pts, OpContour* contourPtr
     OP_DEBUG_CODE(debugZero = ZeroReason::uninitialized);
 }
 
-// !!! optimization:  if called from opedge linkup, could abort if >1 active found
-// if operand is diff or reverse diff, the subtracted path has an interior of zero
-// if the operand is union or intersection, both paths have an interior of one
+// !!! optimization:  if called from opedge linkup, could abort if >1 active found?
+
 // Unsectable edges may or may not be able to have their wind zero side computed;
 // for now, treat any unsectable multiple as having a zero side whether it does or not.
 // returns true if emplaced edge has pals
 
-// instead of returning more than one, it should return:
-// 1 edge to match if there is only one
-// there are more than one possible (even if only one is active) so none are returned
-// rediscover why activeNeighbor is called separately
-// document why (or why not) operator is immaterial
+// activeNeighbor is called separately because this iterates through opposite intersections only
 bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<FoundEdge>& oppEdges) const {
     unsigned edgesSize = oppEdges.size();
     OP_ASSERT(!edge->disabled);
     // each prospective match normal must agree with edge, indicating direction of area outside fill
+    // if number of matching sects doesn't agree with opposite, collect next indirection as well
     OpPtT ptT = edge->whichPtT(match);
     for (auto sectPtr : intersections) {
         OpIntersection& sect = *sectPtr;
@@ -52,14 +48,14 @@ bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
             continue;  // !!! could binary search for 1st if intersection list is extremely long
         if (sect.ptT.t > ptT.t)
             break;
-        OpPtT oppPtT = sect.opp->ptT;
-        if (ptT.pt != oppPtT.pt)
+        OpIntersection* oSect = sect.opp;
+        if (ptT.pt != oSect->ptT.pt)
             continue;
+
         auto skipCheck = [](const OpEdge* edge) {
             return edge->many.isSet() || edge->unsortable;
         };
-        // flip zero if operator is diff/revdiff and edges are from both operands
-        // if operator is xor, all zeroes match each other
+        // op operator is not needed since zero side was computed by apply
         auto checkZero = [match](const OpEdge* edge, EdgeMatch eWhich, EdgeMatch eMatch) {
             WindZero zeroSide = edge->windZero;
             EdgeMatch which = eWhich == eMatch ? EdgeMatch::start : EdgeMatch::end;
@@ -67,27 +63,17 @@ bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
                 WindZeroFlip(&zeroSide);
             return zeroSide;
         };
-        const OpSegment* sectSeg = sect.opp->segment;
-        OpEdge* start = sectSeg->findEnabled(oppPtT, EdgeMatch::start);  // !!! optimization: walk edges in order
-        if (start && start != edge && (skipCheck(edge)
-                || edge->windZero == checkZero(start, edge->whichEnd, EdgeMatch::start) 
-                || skipCheck(start))) {
-            if (!start->hasLinkTo(match))
-                oppEdges.emplace_back(start, EdgeMatch::none);
-            // disable assuming that these are reversed and are therefore disqualified
-     //       else if (!start->hasLinkTo(Opposite(match)))
-     //           oppEdges.emplace_back(start, EdgeMatch::end);
-        }
-        OpEdge* end = sectSeg->findEnabled(oppPtT, EdgeMatch::end);
-        if (end && end != edge && (skipCheck(edge) 
-                || edge->windZero == checkZero(end, edge->whichEnd, EdgeMatch::end) 
-                || skipCheck(end))) {
-            if (!end->hasLinkTo(match))
-                oppEdges.emplace_back(end, EdgeMatch::none);
-            // disable assuming that these are reversed and are therefore disqualified
-   //         else if (!end->hasLinkTo(Opposite(match)))
-   //             oppEdges.emplace_back(end, EdgeMatch::start);
-        }
+        auto saveMatch = [edge, match, &oppEdges, &oSect, skipCheck, checkZero](EdgeMatch testEnd) {
+            OpSegment* oSeg = oSect->segment;
+            OpEdge* test = oSeg->findEnabled(oSect->ptT, testEnd);  // !!! optimization: walk edges in order
+            if (test && test != edge && (skipCheck(edge) || skipCheck(test)
+                    || edge->windZero == checkZero(test, edge->whichEnd, testEnd))) {
+                if (!test->hasLinkTo(match) && !test->isPal(edge))
+                    oppEdges.emplace_back(test, EdgeMatch::none);
+            }
+        };
+        saveMatch(EdgeMatch::start);
+        saveMatch(EdgeMatch::end);
     }
     for (unsigned index = edgesSize; index < oppEdges.size(); ++index) {
         if (oppEdges[index].edge->pals.size())
@@ -204,7 +190,7 @@ void OpSegment::complete(OpContour* contourPtr) {
 // #endif
 }
 
-bool OpSegment::containsIntersection(OpPtT ptT, const OpSegment* opp) const {
+bool OpSegment::containsIntersection(const OpPtT& ptT, const OpSegment* opp) const {
     for (auto sect : intersections) {
         if (sect->opp->segment != opp)
             continue;
@@ -215,9 +201,9 @@ bool OpSegment::containsIntersection(OpPtT ptT, const OpSegment* opp) const {
 }
 
 // !!! would it be any better (faster) to split this into findStart / findEnd instead?
-OpEdge* OpSegment::findEnabled(OpPtT ptT, EdgeMatch match) const {
+OpEdge* OpSegment::findEnabled(const OpPtT& ptT, EdgeMatch match) const {
     for (auto& edge : edges) {
-        if (ptT == (EdgeMatch::start == match ? edge.start : edge.end))
+        if (ptT == edge.ptT(match))
             return edge.disabled ? nullptr : const_cast<OpEdge*>(&edge);
     }
     return nullptr;
@@ -313,7 +299,12 @@ void OpSegment::makeEdges() {
         return;
     edges.clear();
     edges.reserve(intersections.size() - 1);
-    std::vector<int> unsectables;
+    std::vector<const OpIntersection*> unsectables;
+ //   start here;
+    // detect if segment is monotonic in x and y
+    // if points are out of order, mark intersections as unsortable, between
+    // generated edges should be linear, since control points can't be meaningful
+    // !!! recompute points?
     const OpIntersection* last = intersections.front();
     OP_ASSERT(!resortIntersections);
     for (auto sectPtr : intersections) {
@@ -321,15 +312,48 @@ void OpSegment::makeEdges() {
         if (sect.ptT.t != last->ptT.t) {
             edges.emplace_back(this, last->ptT, sect.ptT
                     OP_DEBUG_PARAMS(EDGE_MAKER(makeEdges), last, sectPtr));
+            OpEdge& newEdge = edges.back();
             if (unsectables.size())
-                edges.back().unsectableID = unsectables.back();
+                newEdge.unsectableID = unsectables.back()->unsectableID;
+            if (last->betweenID > 0)
+                newEdge.setBetween();
         }
         if (sect.unsectableID) {
-            auto found = std::find(unsectables.begin(), unsectables.end(), sect.unsectableID);
+            auto found = std::find_if(unsectables.begin(), unsectables.end(), 
+                    [&sect](const OpIntersection* uT) { return uT->unsectableID == sect.unsectableID; });
             if (unsectables.end() == found)
-                unsectables.push_back(sect.unsectableID);
+                unsectables.push_back(&sect);
             else
                 unsectables.erase(found);
+        } else { // if we are inside a unsectable span, see if the pal has the other end
+            OpIntersection* sectOpp = sect.opp;
+            for (auto unsectable : unsectables) {
+                 if (unsectable->ptT.t == sect.ptT.t)
+                     continue;
+                 bool foundStart = false;
+                 for (OpIntersection* pal : unsectable->opp->segment->intersections) {
+                    if (pal->unsectableID == unsectable->unsectableID) {
+                        if (foundStart)
+                            break;
+                        foundStart = true;
+                        continue;
+                    }
+                    if (!foundStart)
+                        continue;
+                    OpIntersection* palOpp = pal->opp;
+                    if (sectOpp->segment != palOpp->segment)
+                        continue;
+                    // found same segment intersections on both unsectables; mark as between
+                    if (palOpp->ptT.t > sectOpp->ptT.t)
+                        std::swap(palOpp, sectOpp);
+                    int uID = abs(unsectable->unsectableID);
+                    palOpp->betweenID = uID;
+                    sectOpp->betweenID = -uID;
+                    // mark the edges, if they've been allocated, as betweeners
+                    palOpp->betweenPair(sectOpp);
+                    break;
+                 }
+            }
         }
         if (sect.ptT.t != last->ptT.t)
             last = &sect;
@@ -523,4 +547,27 @@ bool OpSegment::debugSuccess() const {
     return contour->contours->debugSuccess();
 #endif
     return true;
+}
+
+OpIntersection* OpSegment::debugAlreadyContains(const OpPoint& pt, const OpSegment* oppSegment) const {
+	for (auto sectPtr : intersections) {
+		const OpIntersection& sect = *sectPtr;
+        if (!sect.opp)
+            continue;
+		if (oppSegment == sect.opp->segment && (pt == sect.ptT.pt || pt == sect.ptT.pt))
+			return sectPtr;
+	}
+	return nullptr;
+}
+
+// !!! probably should have its own file
+void OpIntersection::betweenPair(OpIntersection* end) {
+    for (OpEdge& edge : segment->edges) {
+        if (edge.start.t < ptT.t)
+            continue;
+        OP_ASSERT(ptT.t <= edge.start.t && edge.start.t < end->ptT.t);
+        edge.setBetween();
+        if (end->ptT.t == edge.end.t)
+            break;
+    }
 }

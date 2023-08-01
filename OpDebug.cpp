@@ -257,7 +257,7 @@ void OpIntersection::debugValidate() const {
     OpMath::DebugCompare(pt, oPt);
 }
 
-bool OpSegment::debugContains(OpPtT ptT, const OpSegment* opp) const {
+bool OpSegment::debugContains(const OpPtT& ptT, const OpSegment* opp) const {
     for (auto sect : intersections) {
         if ((sect->ptT.pt == ptT.pt || sect->ptT.t == ptT.t) 
                 && sect->opp->segment == opp)

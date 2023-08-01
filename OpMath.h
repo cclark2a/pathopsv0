@@ -91,6 +91,8 @@ struct OpRoots {
         return &roots[count - 1];
     }
 
+    void prioritize01();
+
     bool replaceClosest(float root);
 
     void sort() {
@@ -99,6 +101,7 @@ struct OpRoots {
 
 #ifdef OP_DEBUG_DUMP
     void dump() const;
+	void dumpDetail() const;
     void dumpHex() const;
 #endif
 
@@ -423,6 +426,7 @@ struct OpPoint {
     std::string debugDump() const;
     std::string debugDumpHex() const;
     void dump() const;
+	void dumpDetail() const;
     void dumpHex() const;
 #endif
 
@@ -492,6 +496,7 @@ struct OpRect {
     std::string debugDump() const;
     std::string debugDumpHex() const;
     void dump() const;
+	void dumpDetail() const;
     void dumpHex() const;
 #endif
 
@@ -541,6 +546,7 @@ struct OpPtT {
     std::string debugDump() const;
     std::string debugDumpHex() const;
     void dump() const;
+	void dumpDetail() const;
     void dumpHex() const;
 #endif
 

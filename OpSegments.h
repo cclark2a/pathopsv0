@@ -16,8 +16,7 @@ struct OpSegments {
     bool lineCoincidence(OpSegment* seg, OpSegment* opp);
 
 #if OP_DEBUG_DUMP
-    DUMP_COMMON_DECLARATIONS();
-    DUMP_IMPL_DECLARATIONS();
+#include "OpDebugDeclarations.h"
 #endif
 #if OP_DEBUG_IMAGE
     void draw() const;

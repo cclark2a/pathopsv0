@@ -30,21 +30,21 @@ OpSegments::OpSegments(OpContours& contours) {
 
 // !!! I'm bothered that curve / curve calls a different form of this with edges
 void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
-    OpRoots septs;
+    OP_ASSERT(opp != seg);
     OP_ASSERT(OpType::line == seg->c.type);
     LinePts edgePts { seg->c.pts[0], seg->c.pts[1] };
-    septs = opp->c.rayIntersect(edgePts);
+    OpRoots septs = opp->c.rayIntersect(edgePts);
     bool reversed;
     MatchEnds common = seg->matchEnds(opp, &reversed, MatchSect::existing);
     if (!septs.count && MatchEnds::none == common)
-        return; // IntersectResult::no;
+        return;
     if (OpType::line == opp->c.type && MatchEnds::both == common) {
         seg->winding.move(opp->winding, seg->contour->contours, seg->c.pts[0] != opp->c.pts[0]);
         if (!seg->winding.visible())
             seg->setDisabled(OP_DEBUG_CODE(ZeroReason::addIntersection));
         opp->winding.zero();
         opp->setDisabled(OP_DEBUG_CODE(ZeroReason::addIntersection));
-        return; // IntersectResult::yes;
+        return;
     }
     if (2 == septs.count && OpType::line == opp->c.type)
         return (void) OpWinder::CoincidentCheck({ seg->c.pts[0], 0 }, { seg->c.pts[1], 1 },
@@ -53,36 +53,42 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
         septs.addEnd(reversed ? 1 : 0);
     if ((int) MatchEnds::end & (int) common)
         septs.addEnd(reversed ? 0 : 1);
-    // !!! is sorting needed?
-//    if (septs.count > 1)
-//        std::sort(&septs.roots[0], &septs.roots[septs.count]);
     MatchEnds existingMatch = seg->matchExisting(opp);
+    std::vector<OpPtT> oppPtTs;
+    std::vector<OpPtT> edgePtTs;
+    septs.prioritize01();
     for (unsigned index = 0; index < septs.count; ++index) {
-        OpPtT oppPtT { opp->c.ptAtT(septs.get(index)), septs.get(index) };
-    // this fails if pt is outside the ptBounds, easily the case for axis aligned lines : ex. filinmangust14
-	//	if (!seg->ptBounds.contains(oppPtT.pt))
-	//		continue;
+        oppPtTs.emplace_back(opp->c.ptAtT(septs.get(index)), septs.get(index));
+        OpPtT& oppPtT = oppPtTs.back();
         float edgeT = seg->findPtT(0, 1, oppPtT.pt);
         if (OpMath::IsNaN(edgeT))
             continue;
-        // pin point to both bounds, but only if it is on edge
- //       OP_DEBUG_CODE(OpPoint debugPt = oppPtT.pt);
         seg->ptBounds.pin(&oppPtT.pt);
- //       OP_ASSERT(debugPt == oppPtT.pt);	// triggered by test filinmangust14
         opp->ptBounds.pin(&oppPtT.pt);
- //       OP_ASSERT(debugPt == oppPtT.pt);	// triggered by test filinmangust14
-        OpPtT edgePtT { oppPtT.pt, edgeT };
+        edgePtTs.emplace_back(oppPtT.pt, edgeT);
+        OpPtT& edgePtT = edgePtTs.back();
         if (MatchEnds::start == existingMatch && (edgePtT.pt == seg->c.pts[0] || 0 == edgeT
                 || oppPtT.pt == opp->c.lastPt() || 1 == oppPtT.t))
             continue;
         if (MatchEnds::end == existingMatch && (edgePtT.pt == seg->c.lastPt() || 1 == edgeT
                 || oppPtT.pt == opp->c.pts[0] || 0 == oppPtT.t))
             continue;
-        OpIntersection* sect = seg->addSegSect(edgePtT  
-                OP_DEBUG_PARAMS(SECT_MAKER(segmentLineCurve), SectReason::lineCurve, opp));
-        OpIntersection* oSect = opp->addSegSect(oppPtT  
-                OP_DEBUG_PARAMS(SECT_MAKER(segmentLineCurveOpp), SectReason::lineCurve, opp));
-        sect->pair(oSect);
+        for (size_t earlier = 1; earlier < oppPtTs.size(); ++earlier) {
+            if (oppPtTs[earlier - 1].t == oppPtT.t)
+                goto duplicate;
+        }
+        for (size_t earlier = 1; earlier < edgePtTs.size(); ++earlier) {
+            if (edgePtTs[earlier - 1].t == edgePtT.t)
+                goto duplicate;
+        }
+        {
+            OpIntersection* sect = seg->addSegSect(edgePtT  
+                    OP_DEBUG_PARAMS(SECT_MAKER(segmentLineCurve), SectReason::lineCurve, opp));
+            OpIntersection* oSect = opp->addSegSect(oppPtT  
+                    OP_DEBUG_PARAMS(SECT_MAKER(segmentLineCurveOpp), SectReason::lineCurve, opp));
+            sect->pair(oSect);
+        }
+duplicate: ;
     }
 }
 

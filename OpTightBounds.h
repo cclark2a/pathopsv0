@@ -57,12 +57,13 @@ struct OpPointBounds : OpRect {
         return pt;
     }
 
-    void add(const OpPointBounds& bounds) {
+    OpPointBounds& add(const OpPointBounds& bounds) {
         OP_ASSERT(bounds.isFinite());
         left = std::min(left, bounds.left);
         top = std::min(top, bounds.top);
         right = std::max(right, bounds.right);
         bottom = std::max(bottom, bounds.bottom);
+        return *this;
     }
 
     bool contains(OpPoint pt) const {

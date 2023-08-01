@@ -198,10 +198,8 @@ struct OpContours {
 #if OP_DEBUG_DUMP
     void debugCompare(std::string s) const;
     std::string debugDumpHex(std::string label) const;
-//    void dumpCount(std::string label) const;
-    DEBUG_COMMON_DECLARATIONS();
-    DUMP_COMMON_DECLARATIONS();
-    FIND_COMMON_DECLARATIONS(const, const;)
+#include "OpDebugDeclarations.h"
+
 #endif
 #if OP_DEBUG_IMAGE
     void draw() const;

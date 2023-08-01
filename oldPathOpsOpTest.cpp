@@ -218,7 +218,7 @@ void markTestFlakyForPathKit() {
 }
 
 void CubicPathToQuads(const SkPath& cubicPath, SkPath* quadPath) {
-    OpDebugOut("!!! cubic path to quads unimplmented (leaving as cubic for now)\n");
+    OpDebugOut("!!! cubic path to quads unimplemented (leaving as cubic for now)\n");
     *quadPath = cubicPath;
 }
 
@@ -9344,7 +9344,7 @@ SkPathOp op = kUnion_SkPathOp;
 }
 
 static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
-static void (*firstTest)(skiatest::Reporter* , const char* filename) = filinmangust14; // ;
+static void (*firstTest)(skiatest::Reporter* , const char* filename) = cubics14d; // ;
 static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 
 #define TEST(name) { name, #name }

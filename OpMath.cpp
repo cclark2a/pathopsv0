@@ -57,6 +57,21 @@ OpRoots OpRoots::keepValidTs(float start, float end) {
     return *this;
 }
 
+// move zero and one to the front so they get processed first
+void OpRoots::prioritize01() {
+    if (count <= 1)
+        return;
+    sort(); // zero, if present, is moved to front
+    if (roots[count - 1] != 1)
+        return; 
+    if (roots[0] != 0) {
+        std::swap(roots[0], roots[count - 1]);  // move 1 to front
+        return;
+    }
+    if (count > 2)
+        std::swap(roots[1], roots[count - 1]);  // zero in front, move 1 to second position
+}
+
 OpVector OpVector::normalize(bool* overflow) {
     float len = length();
     *overflow = false;

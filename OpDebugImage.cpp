@@ -31,6 +31,7 @@ SkFont labelFont(nullptr, 14, 1, 0);
 std::vector<const OpIntersection*> coincidences;
 std::vector<const OpEdge*> localEdges;
 std::vector<const OpEdge*> foundEdges;
+std::vector<const OpEdge*> highlights;
 std::vector<OpDebugRay> lines;
 std::vector<OpInPath> operands;
 std::vector<const SkPath*> paths;
@@ -119,8 +120,8 @@ struct OpDebugEdgeIter {
 			localEdgeIndex += OpCurveCurve::debugActive->oppCurves.size();
 			localEdgeIndex += OpCurveCurve::debugActive->edgeLines.size();
 			localEdgeIndex += OpCurveCurve::debugActive->oppLines.size();
-			localEdgeIndex += OpCurveCurve::debugActive->edgeResults.size();
-			localEdgeIndex += OpCurveCurve::debugActive->oppResults.size();
+			localEdgeIndex += OpCurveCurve::debugActive->edgeRuns.size();
+			localEdgeIndex += OpCurveCurve::debugActive->oppRuns.size();
 		}
 	}
 
@@ -174,12 +175,13 @@ struct OpDebugEdgeIter {
 				index += edges.size();
 				return (const OpEdge* ) nullptr;
 			};
-			for (auto edgePtr : { &OpCurveCurve::debugActive->edgeCurves,
+			for (auto edgePtr : { 
+					&OpCurveCurve::debugActive->edgeCurves,
 					&OpCurveCurve::debugActive->oppCurves,
 					&OpCurveCurve::debugActive->edgeLines,
 					&OpCurveCurve::debugActive->oppLines,
-					&OpCurveCurve::debugActive->edgeResults,
-					&OpCurveCurve::debugActive->oppResults } ) {
+					&OpCurveCurve::debugActive->edgeRuns,
+					&OpCurveCurve::debugActive->oppRuns } ) {
 				const OpEdge* result = advanceEdge(*edgePtr, false, false);
 				if (result)
 					return result;
@@ -404,6 +406,8 @@ void OpDebugImage::drawDoubleFocus() {
 			drawDoubleFill(operands[1].skPath->makeTransform(matrix), SkColorSetARGB(10, 0, 0, 255));
 //	was:	DebugOpFill(operands[1], SkColorSetARGB(63, 0, 0, 255));
 	}
+	if (drawHighlightOn)
+		DebugOpHighlight(highlights);
 	if (drawLeftOn || drawRightOn)
 		DebugOpClearInputs();
 	if (drawLeftOn)
@@ -540,16 +544,18 @@ void OpDebugImage::drawDoubleFill(const SkPath& path, uint32_t color, bool strok
 	offscreen.drawPath(path, paint);
 }
 
-void OpDebugImage::drawDoublePath(const SkPath& path, uint32_t color, bool strokeAndFill) {
+void OpDebugImage::drawDoublePath(const SkPath& path, uint32_t color, float strokeWidth) {
 	SkCanvas offscreen(bitmap);
 	SkPaint paint;
 	paint.setAntiAlias(true);
 	paint.setColor(color);
-	if (strokeAndFill) {
+	if (strokeWidth < 0) {
 		offscreen.drawPath(path, paint);
 		paint.setColor(SK_ColorBLACK);
 	}
 	paint.setStyle(SkPaint::kStroke_Style);
+	if (strokeWidth > 0)
+		paint.setStrokeWidth(strokeWidth);
 	offscreen.drawPath(path, paint);
 }
 
@@ -1153,7 +1159,7 @@ void OpCurveCurve::draw() const {
 	if (!edgeCurves.size() && !edgeLines.size())
 		return OpDebugOut("OpCurveCurve missing edgeCurves\n");
 	OpPointBounds focusRect = edgeCurves.front().ptBounds;
-	for (auto edgesPtrs : { &edgeCurves, &oppCurves, &edgeLines, &oppLines, &edgeResults, &oppResults }) {
+	for (auto edgesPtrs : { &edgeCurves, &oppCurves, &edgeLines, &oppLines, &edgeRuns ,&oppRuns }) {
 		for (auto& edge : *edgesPtrs)
 			focusRect.add(edge.ptBounds);
 	}
@@ -1316,6 +1322,31 @@ void help() {
 	OpDebugOut("focus(id) resetFocus() center(id) clear()\n");
 	OpDebugOut("showLeft() showRight() showPoints() showIDs()\n");
 	OpDebugOut("hideIDs() hideValues() hideHex()\n");
+}
+
+void highlight(const LinkUps& linkups) {
+	highlights.clear();
+	for (auto edge : linkups.l)
+		highlights.push_back(edge);
+	OpDebugImage::drawDoubleFocus();
+}
+
+void highlightLinked(const OpEdge& e) {
+	highlights.clear();
+	const OpEdge* edge = &e;
+	do {
+		highlights.push_back(edge);
+		edge = edge->nextEdge;
+	} while (edge);
+	edge = &e;
+	while ((edge = edge->priorEdge)) 
+		highlights.push_back(edge);
+	drawHighlightOn = true;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void highlightLinked(const OpEdge* e) {
+	highlightLinked(*e);
 }
 
 void resetFocus() {

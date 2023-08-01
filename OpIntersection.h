@@ -6,15 +6,6 @@
 struct OpEdge;
 struct OpSegment;
 
-// keep -1/0/1 values so these can be used when sorting intersections
-enum class SectFlavor {
-	unsectableStart = -1,
-	none,
-	unsectableEnd,
-	missing,	// missing coincidence (will likely remove)
-	split,		// winding changed requiring new intersection (will likely remove)
-};
-
 #if OP_DEBUG
 // !!! this seems absurdly long
 enum class IntersectMaker {
@@ -87,6 +78,8 @@ enum class IntersectMaker {
 struct OpIntersection {
 	OpIntersection() {}
 
+	void betweenPair(OpIntersection* );
+
 	void pair(OpIntersection* o) {
 		opp = o;
 		o->opp = this;
@@ -101,14 +94,12 @@ struct OpIntersection {
 		ptT = t;
 		coincidenceID = cID;	// 0 if no coincidence; negative if coincident pairs are reversed
 		unsectableID = uID;		// 0 if not unsectable; negative if curves are reversed
-//		flavor = flavor_;
-//		aliased = false;
+		betweenID = 0;
 #if OP_DEBUG
 		debugSetID();		// debug for now
 		debugID = ID;
 		debugOppID = oppID;
 		debugCoincidenceID = 0;
-//		debugAliasID = 0;
 		debugMaker = maker;
 		debugMakerLine = line;
 		debugMakerFile = file;
@@ -139,9 +130,7 @@ struct OpIntersection {
 	std::string debugDumpDetail(bool fromDumpIntersections) const;
 	std::string debugDumpBrief() const;
 	void dumpPt() const;
-	DEBUG_COMMON_DECLARATIONS();
-	DUMP_COMMON_DECLARATIONS();
-	DUMP_IMPL_DECLARATIONS();
+#include "OpDebugDeclarations.h"
 #endif
 
 	OpSegment* segment;
@@ -149,15 +138,12 @@ struct OpIntersection {
 	OpPtT ptT;
 	int coincidenceID;
 	int unsectableID;	// !!! may be able to be merged with coincident ID; keep separate for now
-//	SectFlavor flavor;	// none, missing(?), split(?), unsectable (curve/curve)
-//	bool aliased;     // true if point value was changed to match an intersection with the same t
+	int betweenID;  // is on unsectable with this id, between ends; use to mark edge unsortable
 #if OP_DEBUG
 	int id;
 	int debugID;	// pair of edges or segments that intersected
 	int debugOppID;
-//	OpPoint debugOriginal;	// point value prior to aliasing
 	int debugCoincidenceID;	// this one does not get erased
-//	int debugAliasID;
 	IntersectMaker debugMaker;	// where intersection was made
 	int debugMakerLine;
 	std::string debugMakerFile;

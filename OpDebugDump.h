@@ -5,29 +5,31 @@
 
 #include <vector>
 
+// removed OP_X(CoinPair) for now
+// removed OP_X(ExtremaT) for now
+// removed OP_X(LoopCheck) for now
+// removed OP_X(MissingIntersection) for now
 #define VECTOR_STRUCTS \
-OP_X(CoinPair) \
 OP_X(EdgeDistance) \
-OP_X(ExtremaT) \
 OP_X(FoundEdge) \
-OP_X(LoopCheck) \
-OP_X(MissingIntersection) \
 OP_X(OpContour) \
 OP_X(OpEdge) \
 OP_X(OpIntersection) \
 OP_X(OpSegment)
 
 #define OP_STRUCTS \
-OP_X(OpEdge) \
-OP_X(OpEdges) \
-OP_X(OpIntersection) \
+OP_X(LinkUps) \
+OP_X(OpContours) \
+OP_X(OpCurveCurve) \
+OP_X(OpJoiner) \
 OP_X(OpOutPath) \
 OP_X(OpPtT) \
 OP_X(OpPoint) \
 OP_X(OpPointBounds) \
 OP_X(OpRect) \
-OP_X(OpSegment) \
-OP_X(OpTightBounds)
+OP_X(OpSegments) \
+OP_X(OpTightBounds) \
+OP_X(OpWinder)
 
 #define OP_X(Thing) \
 	struct Thing;
@@ -54,10 +56,18 @@ OP_X(OpSegment*)
 	OP_STRUCTS
 #undef OP_X
 
-extern void dumpLink(const OpEdge* );
-extern void dumpLink(const OpEdge& );
-extern void dumpFull(const OpSegment* );
-extern void dumpFull(const OpSegment& );
+#define DETAIL_STRUCTS \
+OP_X(Link, Edge) \
+OP_X(Full, Segment)
+
+#define OP_X(Thing, Struct) \
+extern void dump##Thing(const Op##Struct* ); \
+extern void dump##Thing(const Op##Struct& );
+DETAIL_STRUCTS
+#undef OP_X
+
+extern void dumpMatch(const OpPoint& );
+extern void dumpMatch(const OpPtT& );
 
 #define DUMP_GROUP \
 OP_X(Active) \
@@ -73,7 +83,6 @@ OP_X(Segments)
 #undef OP_X
 
 #define DEBUG_DUMP \
-OP_X() \
 OP_X(Detail) \
 OP_X(Edges) \
 OP_X(Full) \
@@ -82,30 +91,7 @@ OP_X(ID) \
 OP_X(Intersections) \
 OP_X(Link) \
 OP_X(LinkDetail) \
-OP_X(Sum) \
-OP_X(SumDetail) \
 OP_X(Winding)
-
-#if 0	// replacement for DEBUG_COMMON_DECLARATIONS()
-#define OP_X(Thing) \
-	std::string debugDump##Thing() const;
-	DEBUG_DUMP
-#undef OP_X
-#endif
-
-#define DEBUG_COMMON_DECLARATIONS() \
-    std::string debugDump() const; \
-	std::string debugDumpDetail() const; \
-	std::string debugDumpEdges() const; \
-	std::string debugDumpFull() const; \
-	std::string debugDumpHex() const; \
-    std::string debugDumpID() const; \
-	std::string debugDumpIntersections() const; \
-	std::string debugDumpLink() const; \
-	std::string debugDumpLinkDetail() const; \
-	std::string debugDumpSum() const; \
-	std::string debugDumpSumDetail() const; \
-	std::string debugDumpWinding() const; \
 
 #define DEBUG_DUMP_ID_DEFINITION(OWNER, ID) \
 	std::string OWNER::debugDumpID() const { \
@@ -113,7 +99,6 @@ OP_X(Winding)
 	}
 
 #define DUMP_BY_ID \
-OP_X() \
 OP_X(Coin) \
 OP_X(Coincidence) \
 OP_X(Detail) \
@@ -130,72 +115,6 @@ OP_X(Winding)
 
 #define DUMP_POINT \
 OP_X(Match)
-
-#if 0	// replacement for DUMP_COMMON_DECLARATIONS()
-#define OP_X(Thing) \
-	void dump##Thing(int id) const;
-	DUMP_BY_ID
-#undef OP_X
-#define OP_X(Thing) \
-	void dump##Thing() const;
-	DUMP_GROUP
-#undef OP_X
-#define OP_X(Thing) \
-	void dump##Thing(const OpPoint& ) const;
-	DUMP_POINT
-#undef OP_X
-#define OP_X(Thing) \
-	void dump(const std::vector<Thing>& ); \
-	void dumpDetail(const std::vector<Thing>& );
-	VECTOR_STRUCTS
-	VECTOR_PTRS
-#undef OP_X
-#endif
-
-#define DUMP_COMMON_DECLARATIONS() \
-	void dump(int id) const; \
-	void dumpActive() const; \
-    void dumpCoin(int id) const; \
-    void dumpCoincidence(int id) const; \
-	void dumpDetail(int id) const; \
-	void dumpEdges() const; \
-	void dumpEnd(int id) const; \
-	void dumpFull(int id) const; \
-	void dumpHex(int id) const; \
-	void dumpIntersections() const; \
-    void dumpLink(int id) const; \
-    void dumpLinkDetail(int id) const; \
-	void dumpMatch(const OpPoint& ) const; \
-	void dumpSects() const; \
-	void dumpSegmentEdges(int id) const; \
-	void dumpSegmentIntersections(int id) const; \
-	void dumpSegmentSects(int id) const; \
-	void dumpSegments() const; \
-	void dumpStart(int id) const; \
-	void dumpWinding(int id) const; \
-
-#if 0  // replacement for DUMP_IMPL_DECLARATIONS() 
-#define OP_X(Thing) \
-	void dump##Thing() const;
-	DUMP_BY_ID
-#undef OP_X
-#endif
-
-#define DUMP_IMPL_DECLARATIONS() \
-	void dump() const; \
-    void dumpCoin() const; \
-    void dumpCoincidence() const; \
-	void dumpDetail() const; \
-	void dumpEnd() const; \
-	void dumpFull() const; \
-	void dumpHex() const; \
-    void dumpLink() const; \
-    void dumpLinkDetail() const; \
-	void dumpSegmentEdges() const; \
-	void dumpSegmentIntersections() const; \
-	void dumpSegmentSects() const; \
-	void dumpStart() const; \
-	void dumpWinding() const; \
 
 #if 0  // replacement for DUMP_STRUCT_DEFINITIONS(OWNER)
 		// ... don't know how to do this ...

@@ -40,7 +40,7 @@ struct OpCurveCurve {
 	SectFound addUnsectable(); // if curve doesn't devolve into line segments
 	SectFound curvesIntersect(CurveRef );
 	SectFound divideAndConquer();
-	std::vector<OpEdge> findEdgesTRanges(CurveRef );
+	void findEdgesTRanges(CurveRef );
 	static void LinearIntersect(std::vector<OpEdge>& lines, std::vector<OpEdge>& linesOrCurves);
 	bool split(CurveRef , DoSplit );
 	bool tooFew(CurveRef );
@@ -56,9 +56,7 @@ struct OpCurveCurve {
 	void debugSaveID();
 	void debugRestoreID();
 	void dump(bool detail) const;
-	void dump() const { dump(false); }
-	void dumpDetail() const { dump(true); }
-	DUMP_COMMON_DECLARATIONS();
+#include "OpDebugDeclarations.h"
 #endif
 #if OP_DEBUG_IMAGE
 	void draw() const;
@@ -69,8 +67,8 @@ struct OpCurveCurve {
 	std::vector<OpEdge> edgeLines;
 	std::vector<OpEdge> oppCurves;
 	std::vector<OpEdge> oppLines;
-	std::vector<OpEdge> edgeResults;
-	std::vector<OpEdge> oppResults;
+	std::vector<OpEdge> edgeRuns;
+	std::vector<OpEdge> oppRuns;
 };
 
 #endif
