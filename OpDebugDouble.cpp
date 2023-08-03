@@ -623,6 +623,8 @@ void DebugOpCurve::rectCurves(std::vector<DebugOpCurve>& bounded) const {
     std::vector<double> cepts;
     if (tInRect(0, bounds))
         cepts.push_back(0);
+	if (190 == id)
+		OpDebugOut("");
     for (int index = 0; index < lefts.count; ++index) {
         DebugOpPoint pt = ptAtT(lefts.roots[index]);
         if (bounds.top <= pt.y && pt.y <= bounds.bottom)

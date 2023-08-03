@@ -426,6 +426,7 @@ public:
 		return active_impl; }
 	bool isPal(const OpEdge* opp) const {
 		return pals.end() != std::find(pals.begin(), pals.end(), opp); }
+	float linkedArea() const;
 	void linkToEdge(FoundEdge& , EdgeMatch );
 //	void linkNextPrior(OpEdge* first, OpEdge* last);
 	void markUnsectable(OpEdge* opp, Axis axis, float t, float oppT);
@@ -464,8 +465,7 @@ public:
 	OpEdge(std::string );
 	OpEdge(OpPtT data[2]);
 	OpEdge(OpHexPtT data[2]);
-	const OpEdge* debugAdvanceToEnd(EdgeMatch match) const {
-		 return const_cast<OpEdge*>(this)->advanceToEnd(match); }
+	const OpEdge* debugAdvanceToEnd(EdgeMatch match) const;
 	void debugCompare(std::string ) const;
 	std::string debugDumpBrief() const;
 	std::string debugDumpChain(WhichLoop , bool detail) const;

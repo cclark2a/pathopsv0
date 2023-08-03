@@ -1139,9 +1139,9 @@ void OpEdge::drawSum() const {
 
 void OpJoiner::debugDraw() const {
 	OpDebugImage::clearLocalEdges();
-	for (auto edge : inX)
+	for (auto edge : byArea)
 		OpDebugImage::add(edge);
-	for (auto edge : unsectInX)
+	for (auto edge : unsectByArea)
 		OpDebugImage::add(edge);
 	OpDebugImage::focusEdges();
 }

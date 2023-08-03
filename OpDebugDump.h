@@ -68,6 +68,8 @@ DETAIL_STRUCTS
 
 extern void dumpMatch(const OpPoint& );
 extern void dumpMatch(const OpPtT& );
+extern void dumpMatchDetail(const OpPoint& );
+extern void dumpMatchDetail(const OpPtT& );
 
 #define DUMP_GROUP \
 OP_X(Active) \
@@ -114,7 +116,8 @@ OP_X(Start) \
 OP_X(Winding)
 
 #define DUMP_POINT \
-OP_X(Match)
+OP_X(Match) \
+OP_X(MatchDetail)
 
 #if 0  // replacement for DUMP_STRUCT_DEFINITIONS(OWNER)
 		// ... don't know how to do this ...
@@ -152,6 +155,7 @@ OP_X(Match)
 	DUMP_STRUCT_DEF_ID(OWNER, dumpLink) \
 	DUMP_STRUCT_DEF_ID(OWNER, dumpLinkDetail) \
 	DUMP_STRUCT_DEF_POINT(OWNER, dumpMatch) \
+	DUMP_STRUCT_DEF_POINT(OWNER, dumpMatchDetail) \
 	DUMP_STRUCT_DEFINITION(OWNER, dumpSects) \
 	DUMP_STRUCT_DEF_ID(OWNER, dumpSegmentEdges) \
 	DUMP_STRUCT_DEF_ID(OWNER, dumpSegmentIntersections) \
@@ -189,6 +193,7 @@ OP_X(Match)
 	DUMP_GLOBAL_DEF_ID(dumpLink) \
 	DUMP_GLOBAL_DEF_ID(dumpLinkDetail) \
 	DUMP_GLOBAL_DEF_POINT(dumpMatch) \
+	DUMP_GLOBAL_DEF_POINT(dumpMatchDetail) \
 	DUMP_GLOBAL_DEFINITION(dumpSects) \
 	DUMP_GLOBAL_DEF_ID(dumpSegmentEdges) \
 	DUMP_GLOBAL_DEF_ID(dumpSegmentIntersections) \
@@ -219,6 +224,7 @@ OP_X(Match)
 	DUMP_GLOBAL_DECL_ID(dumpLink) \
 	DUMP_GLOBAL_DECL_ID(dumpLinkDetail) \
 	DUMP_GLOBAL_DECL_POINT(dumpMatch) \
+	DUMP_GLOBAL_DECL_POINT(dumpMatchDetail) \
 	DUMP_GLOBAL_DECLARATION(dumpSects) \
 	DUMP_GLOBAL_DECL_ID(dumpSegmentEdges) \
 	DUMP_GLOBAL_DECL_ID(dumpSegmentIntersections) \

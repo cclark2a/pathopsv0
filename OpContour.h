@@ -217,8 +217,11 @@ struct OpContours {
     int unsectableID = 0;
     int id = 0;
 #if OP_DEBUG
+    int debugValidateEdgeIndex;
+    int debugValidateJoinerIndex;
     bool debugInPathOps;
     bool debugInClearEdges;
+    bool debugCheckLastEdge;
     OpOutPath* debugResult;
     OpDebugExpect debugExpect;
 #endif

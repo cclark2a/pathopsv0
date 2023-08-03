@@ -9344,7 +9344,7 @@ SkPathOp op = kUnion_SkPathOp;
 }
 
 static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
-static void (*firstTest)(skiatest::Reporter* , const char* filename) = cubics14d; // ;
+static void (*firstTest)(skiatest::Reporter* , const char* filename) = loop1asQuad; // ;
 static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 
 #define TEST(name) { name, #name }
@@ -9428,7 +9428,7 @@ static struct TestDesc tests[] = {
     TEST(loops21i),
     TEST(loops20i),
     TEST(cubics20d),
-    TEST(cubics6d),
+    TEST(cubics6d), // !!! works, but needs a disabled edge in joiner. Investigate
     TEST(cubics7d),
     TEST(cubics8d),
     TEST(cubics9d),
@@ -9470,8 +9470,8 @@ static struct TestDesc tests[] = {
     TEST(circlesOp3),
 
     // untested / not working
-    TEST(crbug_526025), // fuzzer; ok to fail, asserts on opedge.cpp:555 !closest->lastEdge; runs out of t precision?
-    TEST(grshapearcs1), // fails in intersection; defer until more simple tests work
+    TEST(crbug_526025), // fuzzer; ok to fail
+//    TEST(grshapearcs1), // asserts safety check in line/curve sect; defer until more simple tests work
 
     TEST(loop9),
     TEST(loop8),

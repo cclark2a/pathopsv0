@@ -456,6 +456,10 @@ void OpWinder::MarkPairUnsectable(Axis axis, EdgeDistance& iDist, EdgeDistance& 
 }
 
 // mark all adjacent zero distant edges, and edges with matching unsectableID values, as pals
+// start here;
+// if first edge is smaller than other in the pair, defer marking the other as unsectable, since
+// the non-overlapping part may be fine
+// just test the non-overlapping part of orderability?
 void OpWinder::MarkUnsectableGroups(Axis axis, std::vector<EdgeDistance>& distance) {
 	int lastID = 0;
 	float lastDistance = OpInfinity;
@@ -572,12 +576,45 @@ ChainFail OpWinder::setSumChain(size_t inIndex, Axis axis) {
 // distance array may include edges to right. Remove code that collects that?
 ResolveWinding OpWinder::setWindingByDistance(OpEdge* edge, Axis axis, 
 		std::vector<EdgeDistance>& distance) {
-	dump(distance);
 	if (1 == distance.size()) {
 		OP_ASSERT(edge == distance[0].edge);
 		OP_ASSERT(!edge->unsectableID);
 		return CalcFail::fail == edge->calcWinding(axis, distance[0].t) ?
 				ResolveWinding::fail : ResolveWinding::resolved;
+	}
+	if (edge->unsectableID) {
+		int uID = abs(edge->unsectableID);
+		// see if : any pals are in distance; if not, if a pal could be to the right
+		bool palInDistance = false;
+		for (auto dist : distance) {
+			if (abs(dist.edge->unsectableID) != uID || edge == dist.edge)
+				continue;
+			palInDistance = true;
+			break;
+		}
+		if (!palInDistance) {
+			float normal = distance[0].normal;
+			for (auto pal : edge->pals) {
+				if (!OpMath::Between(pal->start.pt.choice(axis), normal, pal->end.pt.choice(axis)))
+					continue;
+				palInDistance = true;
+				break;
+			}
+		}
+		if (!palInDistance) {
+			for (auto pal : edge->pals) {
+				OP_ASSERT(abs(pal->unsectableID) == abs(edge->unsectableID));
+				auto edgeInPal = std::find(pal->pals.begin(), pal->pals.end(), edge);
+				OP_ASSERT(pal->pals.end() != edgeInPal);
+				pal->pals.erase(edgeInPal);
+				if (!pal->pals.size()) {
+					pal->unsectableID = 0;
+					pal->setUnsortable();
+				}
+			}
+			edge->unsectableID = 0;
+			edge->pals.clear();
+		}
 	}
 	// mark consecutive pairs or more of unsectable as multiples
 	MarkUnsectableGroups(axis, distance);

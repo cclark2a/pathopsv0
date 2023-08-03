@@ -33,12 +33,13 @@ bool OpJoiner::activeUnsectable(const OpEdge* edge, EdgeMatch match,
 }
 
 void OpJoiner::addEdge(OpEdge* edge) {
+	OP_ASSERT(!edge->debugIsLoop());
 	if (edge->disabled || edge->unsortable)
 		return;
 	if (edge->unsectableID)
-		unsectInX.push_back(edge);
+		unsectByArea.push_back(edge);
 	else
-		inX.push_back(edge);
+		byArea.push_back(edge);
 }
 
 void OpJoiner::addToLinkups(OpEdge* edge) {
@@ -95,7 +96,13 @@ bool OpJoiner::detachIfLoop(OpEdge* edge) {
 	std::vector<LoopCheck> edges;
 	OpEdge* test = edge;
 	// walk forwards to end, keeping one point per edge
+	OP_ASSERT(!edge->debugIsLoop());
 	while (test) {
+		if (edges.end() != std::find_if(edges.begin(), edges.end(), 
+				[&test](const LoopCheck& check) {
+			return check.edge == test; } )) {
+			break;
+		}
 		edges.emplace_back(test, linkMatch);
 		test = EdgeMatch::start == linkMatch ? test->nextEdge : test->priorEdge;
 		if (edge == test)
@@ -161,6 +168,9 @@ bool OpJoiner::linkRemaining() {
 	linkPass = LinkPass::unsectInX;
 	// match links may add or remove from link ups. Iterate as long as link ups is not empty
     while (linkups.l.size()) {
+		// sort to process largest first
+		// !!! could optimize to avoid search, but for now, this is the simplest
+		linkups.sort();
         if (!matchLinks(linkups.l.back(), true))
 			return false;
     }
@@ -170,8 +180,9 @@ bool OpJoiner::linkRemaining() {
 void OpJoiner::linkUnambiguous() {
     // match up edges that have only a single possible prior or next link, and add them to new list
     linkPass = LinkPass::unambiguous;
-    for (auto& edge : inX) {
-        if (edge->disabled)
+	OP_DEBUG_CODE(debugValidate());
+    for (auto& edge : byArea) {
+		if (edge->disabled)
             continue;   // likely marked as part of a loop below
         if (!edge->isActive())  // check if already saved in linkups
             continue;
@@ -181,9 +192,11 @@ void OpJoiner::linkUnambiguous() {
 		linkMatch = EdgeMatch::start;
 		if (!linkUp(edge))
 			continue;
-		OP_ASSERT(!edge->debugIsLoop());
+		OP_DEBUG_CODE(debugValidate());
 		linkMatch = EdgeMatch::end;
 		(void) linkUp(edge->setLastEdge(nullptr));
+		OP_DEBUG_CODE(debugValidate());
+		OpDebugOut("");
     }
 }
 
@@ -219,11 +232,13 @@ bool OpJoiner::linkUp(OpEdge* edge) {
 		return false;  // 2) found multiple possibilities (end)
 	}
 	FoundEdge found = edges.front();
-	OP_ASSERT(!found.edge->debugIsLoop());
+	OP_DEBUG_CODE(debugValidate());
 	edge->linkToEdge(found, linkMatch);
 	OP_ASSERT(edge->whichPtT(linkMatch).pt == found.edge->flipPtT(linkMatch).pt);
+	OP_DEBUG_CODE(debugValidate());
 	if (detachIfLoop(edge))
 		return false; // 4) found loop, nothing leftover; caller to move on to next edge
+	OP_DEBUG_CODE(debugValidate());
 	// move to the front or back edge depending on link match
 	OpEdge* recurse = found.edge->advanceToEnd(linkMatch);
 	return linkUp(recurse);	// 5)  recurse to extend prior or next
@@ -232,6 +247,7 @@ bool OpJoiner::linkUp(OpEdge* edge) {
 // at this point all singly linked edges have been found
 // every active set of links at this point must form a loop
 bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
+	OP_DEBUG_CODE(debugValidate());
 	OpEdge* lastEdge = edge->lastEdge;
 	OP_ASSERT(lastEdge);
 	OP_ASSERT(EdgeMatch::start == lastEdge->whichEnd || EdgeMatch::end == lastEdge->whichEnd);
@@ -244,6 +260,7 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 	for (size_t index = 0; index < linkups.l.size(); ++index) {
 		OpEdge* linkup = linkups.l[index];
 		OP_ASSERT(!linkup->priorEdge);
+		OP_ASSERT(!linkup->debugIsLoop());
 		if (lastEdge != linkup && linkup->whichPtT().pt == matchPt)
 			found.emplace_back(linkup, index, EdgeMatch::none);
 		OpEdge* lastLink = linkup->lastEdge;
@@ -257,7 +274,9 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 	OP_ASSERT(!edge->priorEdge);
 	OP_ASSERT(!lastEdge->nextEdge);
 	// don't match unsectable with a pal that is already in edge link list
-	lastEdge->matchUnsectable(EdgeMatch::end, unsectInX, found);
+	lastEdge->matchUnsectable(EdgeMatch::end, unsectByArea, found);
+	OP_ASSERT(!lastEdge->debugIsLoop());
+	OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
 	// if nothing found, look for member of linkups that ends in a pal of lastEdge
 	// figure out how to write (clear) code to recursively remove an edge, fixing up prior/next/last
 	if (lastEdge->pals.size()) {
@@ -271,7 +290,9 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 				nextLink->lastEdge = link->lastEdge;
 				link->setNextEdge(nullptr);
 				link->lastEdge = nullptr;
+				OP_ASSERT(!nextLink->debugIsLoop());
 				found.emplace_back(nextLink, index, nextLink->whichEnd);
+				OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
 			} else {
 				OpEdge* linkLast = link->lastEdge;
 				OP_ASSERT(linkLast);
@@ -285,15 +306,22 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 			}
 		}
 	}
-	if (!found.size())
+	if (!found.size()) {
 		lastEdge->matchUnsortable(EdgeMatch::end, unsortables, found);
+		OP_ASSERT(!lastEdge->debugIsLoop());
+		OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
+	}
 	// look for a disabled edge that closes the gap
 	// it's likely that this edge is very small, but don't know how to quantify that (yet)
 	if (!found.size()) {
 		if (!disabledBuilt)
 			buildDisabled(*edge->segment->contour->contours);
 		lastEdge->matchUnsortable(EdgeMatch::end, disabled, found);
+		draw();
+		OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
 	}
+	if (!found.size() && edge->between)	// !!! if this is all that's left, drop it on the floor?
+		return true;
 #if OP_DEBUG
 	if (!found.size()) {
 		focus(edge->id);
@@ -330,45 +358,56 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 		}
 	}
 	OP_ASSERT(smallest.edge); // !!! if found is not empty, but no edge has the right sum, choose one anyway?
-	if (smallest.edge->unsectableID || smallest.edge->disabled || smallest.edge->unsortable) {
-		smallest.edge->whichEnd = smallest.whichEnd;
-		smallest.edge->lastEdge = smallest.edge;
-	} else if (!smallest.edge->lastEdge)
-		smallest.edge->setLinkDirection(EdgeMatch::end);
-	else if (smallest.edge->lastEdge == smallest.edge && EdgeMatch::end == smallest.whichEnd
-			&& EdgeMatch::start == smallest.edge->whichEnd)
-		smallest.edge->whichEnd = EdgeMatch::end;
-	OP_ASSERT(smallest.edge->whichPtT(EdgeMatch::start).pt == lastEdge->whichPtT(EdgeMatch::end).pt);
-	smallest.edge->setPriorEdge(lastEdge);
-	lastEdge->setNextEdge(smallest.edge);
-	lastEdge = smallest.edge->setLastEdge(lastEdge);
+	OpEdge* best = smallest.edge;
+	if ((best->unsectableID || best->disabled || best->unsortable) 
+			&& !best->priorEdge && !best->nextEdge) {
+		OP_ASSERT(EdgeMatch::none == best->whichEnd);
+		best->whichEnd = smallest.whichEnd;
+		OP_ASSERT(!best->lastEdge);
+		best->lastEdge = smallest.edge;
+	} else if (!best->lastEdge)
+		best->setLinkDirection(EdgeMatch::end);
+	else if (best->lastEdge == best && EdgeMatch::end == smallest.whichEnd
+			&& EdgeMatch::start == best->whichEnd)
+		best->whichEnd = EdgeMatch::end;
+	if (!best->containsLink(lastEdge)) {
+		OP_ASSERT(!best->debugIsLoop());
+		OP_ASSERT(!lastEdge->debugIsLoop());
+		OP_ASSERT(best->whichPtT(EdgeMatch::start).pt == lastEdge->whichPtT(EdgeMatch::end).pt);
+		best->setPriorEdge(lastEdge);
+		lastEdge->setNextEdge(best);
+		OP_ASSERT(!lastEdge->debugIsLoop());
+		lastEdge = best->setLastEdge(lastEdge);
 	// delete 'smallest.edge' from linkups; entry no longer points to edge link head
-	if (smallest.index >= 0)
-		linkups.l.erase(linkups.l.begin() + smallest.index);
-	OP_ASSERT(lastEdge);
-	linkMatch = EdgeMatch::start;	// since closest prior is set to last edge, use start
+		if (smallest.index >= 0) {
+			OP_ASSERT((unsigned) smallest.index < linkups.l.size());
+			linkups.l.erase(linkups.l.begin() + smallest.index);
+		}
+		OP_ASSERT(lastEdge);
+	}
 	// if there is a loop, remove entries in link ups which are output
-	if (detachIfLoop(smallest.edge))
+	linkMatch = EdgeMatch::start;	// since closest prior is set to last edge, use start
+	if (detachIfLoop(best))
 		return true; // found loop
+	edge = edge->advanceToEnd(EdgeMatch::start);
 	return matchLinks(edge, false);
 }
 
-static bool compareXBox(const OpEdge* s1, const OpEdge* s2) {
+static bool compareSize(const OpEdge* s1, const OpEdge* s2) {
 	const OpRect& r1 = s1->ptBounds;
 	const OpRect& r2 = s2->ptBounds;
-	if (r1.left < r2.left)
-		return true;
-	if (r1.left > r2.left)
-		return false;
-	if (r1.left == r2.left && r1.right < r2.right)
-		return true;
-	if (r1.left == r2.left && r1.right > r2.right)
-		return false;
-	return s1->id < s2->id;
+	return r1.area() > r2.area();
 }
 
-// !!! is sorting helpful? would unsorted be just as good?
+// sort by size so that tiny edges with poor winding don't run the show
 void OpJoiner::sort() {
-	std::sort(inX.begin(), inX.end(), compareXBox);
-	std::sort(unsectInX.begin(), unsectInX.end(), compareXBox);
+	std::sort(byArea.begin(), byArea.end(), compareSize);
+	std::sort(unsectByArea.begin(), unsectByArea.end(), compareSize);
+}
+
+// sort by size to process largest (tail) first
+void LinkUps::sort() {
+	std::sort(l.begin(), l.end(), [](const auto& s1, const auto& s2) {
+		return s1->linkedArea() < s2->linkedArea(); 
+	} );
 }

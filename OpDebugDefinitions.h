@@ -31,6 +31,15 @@ void OWNER::dump(int ID) const {
 	DUMP_BY_ID
 #undef OP_X
 #define OP_X(Thing) \
+	void OWNER::dump##Thing(const OpPtT* p) const { \
+		::dump##Thing(p->pt); \
+	} \
+	void OWNER::dump##Thing(const OpPtT& p) const { \
+		::dump##Thing(p.pt); \
+	} \
+	void OWNER::dump##Thing(const OpPoint* p) const { \
+		::dump##Thing(*p); \
+	} \
 	void OWNER::dump##Thing(const OpPoint& p) const { \
 		::dump##Thing(p); \
 	}

@@ -15,12 +15,13 @@ enum class LinkPass {
 };
 
 struct LinkUps {
-	std::vector<OpEdge*> l;
-
+	void sort();
 #if OP_DEBUG_DUMP
 	void dump() const;
 	void dumpDetail() const;
 #endif
+
+	std::vector<OpEdge*> l;
 };
 
 struct OpJoiner {
@@ -35,7 +36,6 @@ struct OpJoiner {
 	bool linkUp(OpEdge* );
 	bool matchLinks(OpEdge* , bool popLast);
 	void sort();
-
 #if OP_DEBUG
 	int debugActive() const;
 	void debugValidate() const;
@@ -48,8 +48,8 @@ struct OpJoiner {
 #endif
 
 	OpOutPath& path;	// !!! move op joiner into op contours to eliminate reference?
-	std::vector<OpEdge*> inX;
-	std::vector<OpEdge*> unsectInX;
+	std::vector<OpEdge*> byArea;
+	std::vector<OpEdge*> unsectByArea;
 	std::vector<OpEdge*> disabled;
     std::vector<OpEdge*>& unsortables;
 	LinkUps linkups;  // a structure to allow data specific debugging / dumping

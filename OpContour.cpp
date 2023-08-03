@@ -22,8 +22,11 @@ OpContours::OpContours(OpInPath& l, OpInPath& r, OpOperator op)
     opOperator = OpInverse[+op][l.isInverted()][r.isInverted()];
     sectStorage = new OpSectStorage;
 #if OP_DEBUG
+    debugValidateEdgeIndex = 0;
+    debugValidateJoinerIndex = 0;
     debugInPathOps = false;
     debugInClearEdges = false;
+    debugCheckLastEdge = false;
     debugResult = nullptr;
     debugExpect = OpDebugExpect::unknown;
 #endif
@@ -221,12 +224,14 @@ OpIntersection* OpContours::allocateIntersection() {
 // prefer smaller total bounds
 bool OpContours::assemble(OpOutPath path) {
     OpJoiner joiner(*this, path);  // collect active edges and sort them
-    if (!joiner.inX.size())  // !!! all remaining edges could be unsectable...
+    OP_DEBUG_CODE(joiner.debugValidate());
+    if (!joiner.byArea.size())  // !!! all remaining edges could be unsectable...
         return true;
-    for (auto edge : joiner.inX) {
+    joiner.sort();  // join up largest edges first
+    for (auto edge : joiner.byArea) {
         edge->setActive(true);
     }
-    for (auto unsectable : joiner.unsectInX) {
+    for (auto unsectable : joiner.unsectByArea) {
         unsectable->setActive(true);
     }
     // although unsortables are marked active, care must be taken since they may or may not
@@ -243,10 +248,8 @@ bool OpContours::assemble(OpOutPath path) {
     ::redraw();
     OpDebugOut("");
 #endif
+    OP_DEBUG_CODE(joiner.debugValidate());
     joiner.linkUnambiguous();
-#if 01 && OP_DEBUG
-    OpDebugOut("");
-#endif
     return joiner.linkRemaining();
 }
 

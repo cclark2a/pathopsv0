@@ -172,6 +172,7 @@ void OpEdge::clearActiveAndPals() {
     for (auto pal : pals) {
         pal->setActive(false); 
     }
+	lastEdge = nullptr;
 }
 
 void OpEdge::clearNextEdge() {
@@ -212,6 +213,16 @@ float OpEdge::findT(Axis axis, float oppXY) const {
 	return result;
 }
 
+float OpEdge::linkedArea() const {
+	OP_ASSERT(!priorEdge);
+	float area = 0;
+	const OpEdge* link = this;
+	do {
+		area += link->ptBounds.area();
+	} while ((link = link->nextEdge));
+	return area;
+}
+
 void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 	OpEdge* oppEdge = found.edge;
 	OP_ASSERT(!oppEdge->hasLinkTo(match));
@@ -235,6 +246,7 @@ void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 }
 
 void OpEdge::markUnsectable(OpEdge* opp, Axis axis, float t, float oppT) {
+	OpDebugBreakIf(this, 358, 359 == opp->id);
 	NormalDirection edgeNorm = normalDirection(axis, t);
 	OP_ASSERT(NormalDirection::underflow != edgeNorm && NormalDirection::overflow != edgeNorm);
 	NormalDirection oEdgeNorm = opp->normalDirection(axis, oppT);
@@ -264,13 +276,17 @@ void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsect
 			}
 			return false;
 		};
-		auto checkEnds = [this, &edges, firstPt, isDupe, index](OpEdge* unsectable) {
+		auto checkEnds = [this, &edges, firstPt, isDupe](OpEdge* unsectable) {
 			if (unsectable->inOutput || unsectable->inOutQueue)
 				return false;
 			if (this == unsectable)
 				return false;
-			bool startMatch = firstPt == unsectable->start.pt;
-			bool endMatch = firstPt == unsectable->end.pt;
+			bool startMatch = firstPt == unsectable->start.pt 
+					&& (EdgeMatch::start == unsectable->whichEnd ? !unsectable->priorEdge : 
+					!unsectable->nextEdge);
+			bool endMatch = firstPt == unsectable->end.pt 
+					&& (EdgeMatch::end == unsectable->whichEnd ? !unsectable->priorEdge : 
+					!unsectable->nextEdge);
 			if (!startMatch && !endMatch)
 				return false;
 			if (isDupe(unsectable))
@@ -285,7 +301,8 @@ void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsect
 					link = link->priorEdge;
 				} while (link);
 			}
-			edges.emplace_back(unsectable, -index, startMatch ? EdgeMatch::start : EdgeMatch::end);
+			OP_ASSERT(!unsectable->debugIsLoop());
+			edges.emplace_back(unsectable, startMatch ? EdgeMatch::start : EdgeMatch::end);
 			return true;
 		};
 		if (checkEnds(unsectable))
@@ -358,7 +375,6 @@ const OpCurve& OpEdge::setCurve() {
 
 // should be inlined. Out of line for ease of setting debugging breakpoints
 void OpEdge::setDisabled(OP_DEBUG_CODE(ZeroReason reason)) {
-	OpDebugBreak(this, 558);
 	disabled = true; 
 	OP_DEBUG_CODE(debugZero = reason); 
 }
@@ -427,9 +443,9 @@ void OpEdge::setLinkDirection(EdgeMatch match) {
 	lastEdge = edge;
 }
 
-// setter to make adding breakpoints easier
-// !!! if release doesn't inline, restructure more cleverly...
 void OpEdge::setNextEdge(OpEdge* edge) {
+	if (nextEdge)
+		nextEdge->priorEdge = nullptr;
 	nextEdge = edge;
 }
 
@@ -444,9 +460,9 @@ void OpEdge::setPointBounds() {
 #endif
 }
 
-// setter to make adding breakpoints easier
-// !!! if release doesn't inline, restructure more cleverly...
 void OpEdge::setPriorEdge(OpEdge* edge) {
+	if (priorEdge)
+		priorEdge->nextEdge = nullptr;
 	priorEdge = edge;
 }
 

@@ -372,12 +372,13 @@ void checkReason() {
     }
 }
 
-void dumpMatch(const OpPoint& pt) {
+void dumpMatch(const OpPoint& pt, bool detail) {
     checkReason();
     for (const auto& c : debugGlobalContours->contours) {
         for (const auto& seg : c.segments) {
             if (pt == seg.c.pts[0] || pt == seg.c.lastPt()) {
-                std::string str = "seg: " + seg.debugDump();
+                std::string str = "seg: " 
+                        + (detail ? seg.debugDumpDetail() : seg.debugDump());
                 if (pt == seg.c.pts[0] && seg.debugStart != SectReason::startPt)
                     str += "; start is " + sectReasonNames[(int) seg.debugStart].name;
                 if (pt == seg.c.lastPt() && seg.debugEnd != SectReason::endPt)
@@ -387,25 +388,37 @@ void dumpMatch(const OpPoint& pt) {
             for (const auto sect : seg.intersections) {
                 if (sect->ptT.pt == pt) {
                     OpDebugOut("sect: ");
-                    sect->dump();
+                    detail ? sect->dumpDetail() : sect->dump();
                 }
             }
             for (const auto& edge : seg.edges) {
                 if (edge.start.pt == pt) {
                     OpDebugOut("edge start: ");
-                    edge.dump();
+                    detail ? edge.dumpDetail() : edge.dump();
                 }
                 if (edge.end.pt == pt) {
                     OpDebugOut("edge end: ");
-                    edge.dump();
+                    detail ? edge.dumpDetail() : edge.dump();
                 }
             }
         }
     }
 }
 
+void dumpMatch(const OpPoint& pt) {
+    dumpMatch(pt, false);
+}
+
 void dumpMatch(const OpPtT& ptT) {
-    dumpMatch(ptT.pt);
+    dumpMatch(ptT.pt, false);
+}
+
+void dumpMatchDetail(const OpPoint& pt) {
+    dumpMatch(pt, true);
+}
+
+void dumpMatchDetail(const OpPtT& ptT) {
+    dumpMatch(ptT.pt, true);
 }
 
 void dumpStart(int ID) {
@@ -939,6 +952,19 @@ OpEdge::OpEdge(OpPtT ptT[2])
     end = ptT[1];
 }
 
+const OpEdge* OpEdge::debugAdvanceToEnd(EdgeMatch match) const {
+	const OpEdge* result = this;
+	while (const OpEdge* edge = (EdgeMatch::start == match ? result->priorEdge : result->nextEdge)) {
+        OP_ASSERT(EdgeMatch::start == match ? 
+                result->priorEdge->nextEdge == result : 
+                result->nextEdge->priorEdge == result);
+		result = edge;
+	}
+    OP_ASSERT(result == const_cast<OpEdge*>(this)->advanceToEnd(match));
+	return result;
+}
+
+
 void OpEdge::debugCompare(std::string s) const {
     OpEdge test(s);
     OP_ASSERT(segment->id == test.segment->id);
@@ -973,9 +999,14 @@ std::string OpEdge::debugDump() const {
            outOfDate = true;
        }
     std::string s;
-    if (priorEdge || nextEdge) {
-        s += "p/n:" + (priorEdge ? STR(priorEdge->id) : "-");
+    if (priorEdge || nextEdge || lastEdge) {
+        s += "p/n";
+        if (lastEdge)
+            s +=  "/l";
+        s += ":" + (priorEdge ? STR(priorEdge->id) : "-");
         s += "/" + (nextEdge ? STR(nextEdge->id) : "-");
+        if (lastEdge)
+            s += "/" + STR(lastEdge->id);
         s += " ";
     }
     s += "[" + STR(id) + "] ";
@@ -1019,20 +1050,23 @@ std::string OpEdge::debugDump() const {
 
 // !!! move to OpDebug.cpp
 void OpEdge::debugValidate() const {
+    debugGlobalContours->debugValidateEdgeIndex += 1;
     bool loopy = debugIsLoop();
     if (loopy) {
         const OpEdge* test = this;
         do {
-            OP_ASSERT(test->priorEdge->nextEdge == test);
-            OP_ASSERT(test->nextEdge->priorEdge == test);
-            OP_ASSERT(!test->lastEdge);
+            OP_ASSERT(!test->priorEdge || test->priorEdge->nextEdge == test);
+            OP_ASSERT(!test->nextEdge || test->nextEdge->priorEdge == test);
+//            OP_ASSERT(!test->lastEdge);
             test = test->nextEdge;
         } while (test != this);
-    } else {
+    } else if ((priorEdge || lastEdge) && debugGlobalContours->debugCheckLastEdge) {
         const OpEdge* linkStart = debugAdvanceToEnd(EdgeMatch::start);
-        OP_ASSERT(linkStart->lastEdge);
         const OpEdge* linkEnd = debugAdvanceToEnd(EdgeMatch::end);
-        OP_ASSERT(linkStart->lastEdge == linkEnd);
+        OP_ASSERT(linkStart);
+        OP_ASSERT(linkEnd);
+        OP_ASSERT(debugGlobalContours->debugCheckLastEdge ? !!linkStart->lastEdge : !linkStart->lastEdge);
+        OP_ASSERT(debugGlobalContours->debugCheckLastEdge ? linkStart->lastEdge == linkEnd : true);
         const OpEdge* test = linkStart;
         while ((test = test->nextEdge)) {
             OP_ASSERT(!test->lastEdge);
@@ -1150,24 +1184,45 @@ DEBUG_DUMP_ID_DEFINITION(OpEdge, id)
 
 // !!! also debug prev/next edges (links)
 void OpJoiner::debugValidate() const {
-    for (auto& edge : inX)
+    debugGlobalContours->debugValidateJoinerIndex += 1;
+    debugGlobalContours->debugCheckLastEdge = false;
+    if (LinkPass::unambiguous == linkPass) {
+        for (auto edge : byArea) {
+            edge->debugValidate();
+            OP_ASSERT(!edge->isActive() || !edge->debugIsLoop());
+        }
+    }
+    for (auto edge : unsectByArea) {
         edge->debugValidate();
-    for (auto& edge : unsectInX)
+        OP_ASSERT(!edge->isActive() || !edge->debugIsLoop());
+    }
+    for (auto edge : disabled) {
         edge->debugValidate();
+//        OP_ASSERT(!edge->debugIsLoop());
+    }
+    for (auto edge : unsortables) {
+        edge->debugValidate();
+        OP_ASSERT(!edge->isActive() || !edge->debugIsLoop());
+    }
+    debugGlobalContours->debugCheckLastEdge = true;
+    for (auto edge : linkups.l) {
+        edge->debugValidate();
+        OP_ASSERT(!edge->debugIsLoop());
+    }
 }
 
 void dump(const OpJoiner& edges) {
     if (!edges.path.debugIsEmpty())
         edges.path.dump();
-    if (edges.inX.size()) {
+    if (edges.byArea.size()) {
         OpDebugOut("-- sorted in x --\n");
-        for (auto edge : edges.inX)
+        for (auto edge : edges.byArea)
             if (edge->isActive())
                 edge->dump();
     }
-    if (edges.unsectInX.size()) {
+    if (edges.unsectByArea.size()) {
         OpDebugOut("-- unsectable sorted in x --\n");
-        for (auto edge : edges.unsectInX)
+        for (auto edge : edges.unsectByArea)
             if (edge->isActive())
                 edge->dump();
     }
@@ -1703,15 +1758,15 @@ void DumpLinkups(const std::vector<OpEdge*>& linkups) {
         OP_ASSERT(!looped || count == priorCount);
         if (looped)
             priorCount = 0;
-        std::string str = "linkup count: " + STR(count + priorCount);
+        std::string str = "linkup count:" + STR(count + priorCount);
         if (priorCount && !looped)
-            str += " (prior count: " + STR(priorCount) + ")";
+            str += " (prior count:" + STR(priorCount) + ")";
         if (looped)
             str += " loop";
-        OpDebugOut(str + "\n");
+        OpDebugOut(str + " area:" + STR(linkup->linkedArea()) + "\n");
         if (!looped) {
-            if (1 == count + priorCount)
-                OpDebugOut("p/n:-/- ");
+            if (1 == count + priorCount && !linkup->lastEdge)
+                OpDebugOut("p/n/l:-/-/- ");
             else if (priorCount) {
                 prior->dump();
                 str = "";

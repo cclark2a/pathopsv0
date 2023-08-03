@@ -25,7 +25,10 @@ void dump(int ID) const;
 	DUMP_BY_ID
 #undef OP_X
 #define OP_X(Thing) \
-	void dump##Thing(const OpPoint& ) const;
+	void dump##Thing(const OpPoint* ) const; \
+	void dump##Thing(const OpPtT* ) const; \
+	void dump##Thing(const OpPoint& ) const; \
+	void dump##Thing(const OpPtT& ) const;
 	DUMP_POINT
 #undef OP_X
 #define OP_X(Thing) \
