@@ -431,16 +431,16 @@ int OpSegment::unsectableID() const {
 }
 
 struct CoinPair {
-    CoinPair(OpEdge* o, int id, EdgeMatch m  OP_DEBUG_PARAMS(std::vector<OpEdge>* oE))
+    CoinPair(OpEdge* o, int id, EdgeMatch m, std::vector<OpEdge>* oE)
         : opp(o)
         , coinID(id) 
         , match(m)
-        OP_DEBUG_PARAMS(oppEdges(oE)) {
+        , oppEdges(oE) {
     }
     OpEdge* opp;
     int coinID;
     EdgeMatch match;
-    OP_DEBUG_CODE(std::vector<OpEdge>* oppEdges);
+    std::vector<OpEdge>* oppEdges;
 };
 
 // at present, only applies to horizontal and vertical lines
@@ -480,8 +480,7 @@ void OpSegment::windCoincidences() {
             continue;
         if (edge->disabled) {
             if (coinID)
-                coinPairs.emplace_back(nullptr, coinID, EdgeMatch::none
-                        OP_DEBUG_PARAMS(nullptr));
+                coinPairs.emplace_back(nullptr, coinID, EdgeMatch::none, nullptr);
             continue;
         }
         if (coinID) {
@@ -496,7 +495,7 @@ void OpSegment::windCoincidences() {
                 OP_ASSERT(oppEdge < &oppEdges.back());
                 ++oppEdge;
             }
-            coinPairs.emplace_back(oppEdge, coinID, match  OP_DEBUG_PARAMS(&oppEdges));
+            coinPairs.emplace_back(oppEdge, coinID, match, &oppEdges);
         }
         for (auto& coinPair : coinPairs) {
             if (!coinPair.opp)
@@ -549,6 +548,7 @@ bool OpSegment::debugSuccess() const {
     return true;
 }
 
+#if OP_DEBUG
 OpIntersection* OpSegment::debugAlreadyContains(const OpPoint& pt, const OpSegment* oppSegment) const {
 	for (auto sectPtr : intersections) {
 		const OpIntersection& sect = *sectPtr;
@@ -559,6 +559,7 @@ OpIntersection* OpSegment::debugAlreadyContains(const OpPoint& pt, const OpSegme
 	}
 	return nullptr;
 }
+#endif
 
 // !!! probably should have its own file
 void OpIntersection::betweenPair(OpIntersection* end) {

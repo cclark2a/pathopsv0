@@ -246,7 +246,7 @@ void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 }
 
 void OpEdge::markUnsectable(OpEdge* opp, Axis axis, float t, float oppT) {
-	OpDebugBreakIf(this, 358, 359 == opp->id);
+//	OpDebugBreakIf(this, 358, 359 == opp->id);
 	NormalDirection edgeNorm = normalDirection(axis, t);
 	OP_ASSERT(NormalDirection::underflow != edgeNorm && NormalDirection::overflow != edgeNorm);
 	NormalDirection oEdgeNorm = opp->normalDirection(axis, oppT);

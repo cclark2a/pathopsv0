@@ -37,7 +37,7 @@ struct OpContours;
 #ifdef NDEBUG
 
 #define OP_DEBUG_PARAMS(...)
-#define OP_DEBUG_CODE(x)
+#define OP_DEBUG_CODE(...)
 #define OP_DEBUG 0
 #define OP_DEBUG_DUMP 0
 #define OP_DEBUG_IMAGE 0

@@ -317,7 +317,6 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 		if (!disabledBuilt)
 			buildDisabled(*edge->segment->contour->contours);
 		lastEdge->matchUnsortable(EdgeMatch::end, disabled, found);
-		draw();
 		OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
 	}
 	if (!found.size() && edge->between)	// !!! if this is all that's left, drop it on the floor?

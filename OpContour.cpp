@@ -253,6 +253,14 @@ bool OpContours::assemble(OpOutPath path) {
     return joiner.linkRemaining();
 }
 
+bool OpContours::debugFail() const {
+#if OP_DEBUG
+    return OpDebugExpect::unknown == debugExpect || OpDebugExpect::fail == debugExpect;
+#else
+    return false;
+#endif
+}
+
 void OpContours::finishAll() {
     for (auto& contour : contours)
         contour.finish();

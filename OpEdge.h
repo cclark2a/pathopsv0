@@ -541,7 +541,7 @@ public:
 };
 
 #if OP_DEBUG == 0
-#define OP_EDGE_SET_SUM(edge, winding) edge->setSum(winding)
+#define OP_EDGE_SET_SUM(edge, winding) edge->setSumImpl(winding)
 #else
 #define OP_EDGE_SET_SUM(edge, winding) \
 	do {	\

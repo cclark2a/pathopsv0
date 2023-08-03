@@ -9344,7 +9344,7 @@ SkPathOp op = kUnion_SkPathOp;
 }
 
 static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
-static void (*firstTest)(skiatest::Reporter* , const char* filename) = loop1asQuad; // ;
+static void (*firstTest)(skiatest::Reporter* , const char* filename) = nullptr; // loop1asQuad; << test next
 static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 
 #define TEST(name) { name, #name }
@@ -9471,7 +9471,7 @@ static struct TestDesc tests[] = {
 
     // untested / not working
     TEST(crbug_526025), // fuzzer; ok to fail
-//    TEST(grshapearcs1), // asserts safety check in line/curve sect; defer until more simple tests work
+    TEST(grshapearcs1), // asserts safety check in line/curve sect; defer until more simple tests work
 
     TEST(loop9),
     TEST(loop8),

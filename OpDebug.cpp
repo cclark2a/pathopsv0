@@ -230,10 +230,6 @@ constexpr auto to_array(T&&... t)->std::array < V, sizeof...(T) > {
 #include "OpSegment.h"
 
 
-bool OpContours::debugFail() const {
-    return OpDebugExpect::unknown == debugExpect || OpDebugExpect::fail == debugExpect;
-}
-
 bool OpContours::debugSuccess() const {
     return OpDebugExpect::unknown == debugExpect || OpDebugExpect::success == debugExpect;
 }

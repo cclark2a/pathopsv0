@@ -191,8 +191,8 @@ struct OpContours {
         return WindState::flipOn;
     }
 
-#if OP_DEBUG
     bool debugFail() const;
+#if OP_DEBUG
     bool debugSuccess() const;
 #endif
 #if OP_DEBUG_DUMP
