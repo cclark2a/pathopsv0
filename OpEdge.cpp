@@ -207,7 +207,7 @@ bool OpEdge::containsLink(const OpEdge* edge) const {
 
 float OpEdge::findT(Axis axis, float oppXY) const {
 	float result;
-    FoundPtT foundPtT = segment->findPtT(axis, start.t, end.t, oppXY, &result);
+    OP_DEBUG_CODE(FoundPtT foundPtT =) segment->findPtT(axis, start.t, end.t, oppXY, &result);
 	OP_ASSERT(FoundPtT::single == foundPtT);
 	OP_ASSERT(OpNaN != result);
 	return result;
@@ -554,11 +554,13 @@ CalcFail OpEdge::subIfDL(Axis axis, float t, OpWinding* sumWinding) {
 bool OpEdge::debugFail() const {
     return segment->debugFail();
 }
+#endif
 
 // keep this in sync with op edge : debug dump chain
 // ignore axis changes when detecting sum loops (for now)
 // !!! if the axis change is required to detect for sum loops, document why!
 // !!! either add 'stamp' or rewalk links instead of find
+#if OP_DEBUG_DUMP || OP_DEBUG
 const OpEdge* OpEdge::debugIsLoop(WhichLoop which, LeadingLoop leading) const {
 	if (!(WhichLoop::prior == which ? priorEdge : nextEdge))
 		return nullptr;
@@ -578,7 +580,9 @@ const OpEdge* OpEdge::debugIsLoop(WhichLoop which, LeadingLoop leading) const {
 	}
 	return nullptr;
 }
+#endif
 
+#if OP_DEBUG
 bool OpEdge::debugSuccess() const {
     return segment->debugSuccess();
 }

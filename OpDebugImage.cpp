@@ -260,6 +260,7 @@ OpDebugIntersectionIterator intersectionIterator;
 
 
 struct OpDebugDefeatDelete {
+#if OP_DEBUG
 	OpDebugDefeatDelete() {
 		save = debugGlobalContours->debugInPathOps;
 		debugGlobalContours->debugInPathOps = false;
@@ -269,6 +270,7 @@ struct OpDebugDefeatDelete {
 	}
 
 	bool save;
+#endif
 };
 
 void OpDebugImage::addToPath(const OpCurve& curve, SkPath& path) {
@@ -386,7 +388,7 @@ void OpDebugImage::drawPath(const SkPath& path, uint32_t color) {
 }
 
 void OpDebugImage::drawDoubleFocus() {
-	OpDebugDefeatDelete defeater;
+	OP_DEBUG_CODE(OpDebugDefeatDelete defeater);
 	std::vector<int> ids;
 	clearScreen();
 	if (drawOperandsOn != lastDrawOperandsOn) {
@@ -416,8 +418,10 @@ void OpDebugImage::drawDoubleFocus() {
 		DebugOpAdd(operands[1]);
 	if (drawLeftOn || drawRightOn)
 		DebugOpDrawInputs();
+#if OP_DEBUG
 	if (drawOutputsOn && debugGlobalContours->debugResult)
 		DebugOpDraw(debugGlobalContours->debugResult);
+#endif
 	if (drawPathsOn)
 		DebugOpDraw(paths);
 	if (drawLinesOn)
@@ -669,6 +673,7 @@ void OpDebugImage::find(int id, ConstOpPointBoundsPtr* boundsPtr, ConstOpPointPt
 		*boundsPtr = &segment->ptBounds;
 		return;
 	}
+#if OP_DEBUG
 	const OpIntersection* sect = nullptr;
 	for (auto i : intersectionIterator) {
 		if (id == i->id)
@@ -680,6 +685,8 @@ void OpDebugImage::find(int id, ConstOpPointBoundsPtr* boundsPtr, ConstOpPointPt
 		*pointPtr = &sect->ptT.pt;
 		return;
 	}
+#endif
+#if OP_DEBUG
 	const OpIntersection* coin = nullptr;
 	for (auto c : coincidences) {
 		if (id == c->id)
@@ -696,6 +703,7 @@ void OpDebugImage::find(int id, ConstOpPointBoundsPtr* boundsPtr, ConstOpPointPt
 		*boundsPtr = &coin->segment->ptBounds;
 		return;
 	}
+#endif
 	OpDebugOut("id " + STR(id) + " not found\n");
 }
 
@@ -1077,10 +1085,12 @@ void OpContours::draw() const {
 }
 
 OpEdge::~OpEdge() {
+#if OP_DEBUG
 	if (debugGlobalContours->debugInClearEdges)
 		return;
 	if (!debugGlobalContours->debugInPathOps)
 		return;
+#endif
 	OP_ASSERT(!segment->debugContains(this));
 	for (auto edge = foundEdges.begin(); edge != foundEdges.end(); ++edge) {
 		if (id == (*edge)->id) {

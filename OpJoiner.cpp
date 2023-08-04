@@ -395,7 +395,7 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 static bool compareSize(const OpEdge* s1, const OpEdge* s2) {
 	const OpRect& r1 = s1->ptBounds;
 	const OpRect& r2 = s2->ptBounds;
-	return r1.area() > r2.area();
+	return r1.width() + r1.height() > r2.width() + r2.height();
 }
 
 // sort by size so that tiny edges with poor winding don't run the show
@@ -407,6 +407,7 @@ void OpJoiner::sort() {
 // sort by size to process largest (tail) first
 void LinkUps::sort() {
 	std::sort(l.begin(), l.end(), [](const auto& s1, const auto& s2) {
-		return s1->linkedArea() < s2->linkedArea(); 
+		return s1->ptBounds.width() + s1->ptBounds.height() 
+				< s2->ptBounds.width() + s2->ptBounds.height(); 
 	} );
 }

@@ -38,7 +38,7 @@ struct FoundEdge {
 		, whichEnd(w) {
 	}
 
-#if OP_DEBUG
+#if OP_DEBUG_DUMP
 	void dump() const;
 	void dumpDetail() const;
 #endif

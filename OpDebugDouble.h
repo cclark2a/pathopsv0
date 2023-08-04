@@ -2,6 +2,9 @@
 #define OpDebugDouble_DEFINED
 
 #include <vector>
+//#ifndef _WIN32
+#include <float.h>
+//#endif
 
 enum class Axis : int8_t ;
 struct OpEdge;

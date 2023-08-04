@@ -1,6 +1,6 @@
 #include "OpDebug.h"
 
-#if OP_DEBUG
+#if OP_DEBUG || OP_DEBUG_IMAGE || OP_DEBUG_DUMP
 OpContours* debugGlobalContours;
 #endif
 
@@ -54,8 +54,7 @@ float OpTicksToSeconds(uint64_t diff, uint64_t frequency) {
 
 #endif
 
-#if OP_DEBUG
-
+#if !defined(NDEBUG) || OP_RELEASE_TEST
 void OpDebugOut(const std::string& s) {
 #ifdef _WIN32
     OutputDebugStringA(s.c_str());
@@ -63,6 +62,9 @@ void OpDebugOut(const std::string& s) {
     fprintf(stderr, "%s", s.c_str());
 #endif
 }
+#endif
+
+#if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE
 
 #include "OpCurve.h"
 
@@ -170,6 +172,10 @@ std::string OpDebugToString(float value, int precision) {
     s.resize(written);
     return s;
 }
+
+#endif
+
+#if OP_DEBUG
 
 void OpMath::DebugCompare(float a, float b) {
     float diff = fabsf(a - b);

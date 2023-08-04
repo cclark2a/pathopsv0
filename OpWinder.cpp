@@ -175,9 +175,9 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 	OpIntersection* oSect1 = findSect(oRange, { aPtT.pt, -1 });
 	OpIntersection* oSect2 = findSect(oRange, { bPtT.pt, -1 });
 	// add the opposite that goes with the created segment sect
-	float oStart  OP_DEBUG_INITIALIZE_TO_SILENCE_WARNING;
-	float oTRange  OP_DEBUG_INITIALIZE_TO_SILENCE_WARNING;
-	float oXYRange  OP_DEBUG_INITIALIZE_TO_SILENCE_WARNING;
+	float oStart = 0; // !!! initialize to silence warning
+	float oTRange = 0; // !!! initialize to silence warning
+	float oXYRange = 0; // !!! initialize to silence warning
 	if (!oSect1 || !oSect2) {
 		if (flipped)
 			std::swap(cPtT, dPtT);
@@ -620,7 +620,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpEdge* edge, Axis axis,
 	MarkUnsectableGroups(axis, distance);
 	// find edge; then walk backwards to first known sum 
 	int sumIndex = (int) distance.size();
-	int edgeIndex  OP_DEBUG_CODE(= -1);
+	int edgeIndex = -1;	// !!! initialized to suppress warning (?)
 	while (--sumIndex >= 0) {
 		EdgeDistance* edgeDist = &distance[sumIndex];
 		if (edgeDist->distance < 0)

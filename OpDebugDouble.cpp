@@ -623,8 +623,6 @@ void DebugOpCurve::rectCurves(std::vector<DebugOpCurve>& bounded) const {
     std::vector<double> cepts;
     if (tInRect(0, bounds))
         cepts.push_back(0);
-	if (190 == id)
-		OpDebugOut("");
     for (int index = 0; index < lefts.count; ++index) {
         DebugOpPoint pt = ptAtT(lefts.roots[index]);
         if (bounds.top <= pt.y && pt.y <= bounds.bottom)
@@ -755,14 +753,17 @@ void DebugOpDrawEdges(std::vector<DebugOpCurve>& curves, DrawEdgeType edgeType) 
         const OpEdge* edge = findEdge(curve.id);
         if (nullptr == edge)
             OpDebugOut("edge " + STR(curve.id) + " not found\n");
+#if OP_DEBUG
         else if (edge->unsectableID)
             isUnsectable = edge->debugUnOpp ? UnsectType::edge : UnsectType::opp;
+#endif
         if (unsectablePath != isUnsectable) {
             if (!path.isEmpty()) {
                 OpDebugImage::drawDoublePath(path, DebugColorToSkColor(color), strokeWidth);
                 path.reset();
             }
             // draw between edges differently
+#if OP_DEBUG
             if (DrawEdgeType::normal == edgeType)
                 color = edge->between ? DebugColor::orange :
                     UnsectType::none == isUnsectable ? DebugColor::black :
@@ -771,6 +772,7 @@ void DebugOpDrawEdges(std::vector<DebugOpCurve>& curves, DrawEdgeType edgeType) 
                 color = edge->between ? DebugColor::transOrange :
                     UnsectType::none == isUnsectable ? DebugColor::transBlack :
                     edge->debugUnOpp ? DebugColor::transBlue : DebugColor::transDarkGreen;
+#endif
             unsectablePath = isUnsectable;
         }
         OpCurve c;
@@ -1314,11 +1316,13 @@ void DebugOpDrawEdgeWinding(const OpEdge* edge, uint32_t color) {
 }
 
 void DebugOpDrawIntersectionID(const OpIntersection* sect, std::vector<int>& ids) {
+#if OP_DEBUG
     if (ids.end() != std::find(ids.begin(), ids.end(), sect->id))
         return;
     ids.push_back(sect->id);
     OpPoint mapped = DebugOpPtToPt(sect->ptT.pt);
     (void) OpDebugImage::drawValue(mapped, STR(sect->id));
+#endif
 }
 
 void DebugOpDrawSegmentID(const OpSegment* segment, std::vector<int>& ids) {

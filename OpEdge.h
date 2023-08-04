@@ -135,8 +135,8 @@ public:
 
 
 	OpWinding(WindingUninitialized)	 // used by edge and segment winding before they are set
-#if OP_DEBUG
 		: left_impl(OpMax)
+#if OP_DEBUG
 		, right_impl(OpMax)
 		, debugType(WindingType::uninitialized)
 #endif	
@@ -469,14 +469,17 @@ public:
 	void debugCompare(std::string ) const;
 	std::string debugDumpBrief() const;
 	std::string debugDumpChain(WhichLoop , bool detail) const;
-	bool debugIsLoop() const {
-		return debugIsLoop(WhichLoop::prior) || debugIsLoop(WhichLoop::next); }
-	const OpEdge* debugIsLoop(WhichLoop , LeadingLoop = LeadingLoop::will) const;
 	void debugValidate() const;    // make sure pointer to edge is valid
 	bool debugValidLoop() const;
 	void dumpChain(bool detail = false) const;
 
 #include "OpDebugDeclarations.h"
+#endif
+#if OP_DEBUG_DUMP || OP_DEBUG
+	bool debugIsLoop() const {
+		return debugIsLoop(WhichLoop::prior) || debugIsLoop(WhichLoop::next); }
+	const OpEdge* debugIsLoop(WhichLoop , LeadingLoop = LeadingLoop::will) const;
+
 #endif
 #if OP_DEBUG_IMAGE
 	void addLink() const;

@@ -20,7 +20,7 @@
 
 #if !defined(NDEBUG) || OP_RELEASE_TEST
 #include <string>
-
+void OpDebugOut(const std::string&) ;
 void OpPrintOut(const std::string& );
 uint64_t OpInitTimer();
 uint64_t OpReadTimer();
@@ -42,7 +42,6 @@ struct OpContours;
 #define OP_DEBUG_DUMP 0
 #define OP_DEBUG_IMAGE 0
 #define OP_DEBUG_INITIALIZE_TO_SILENCE_WARNING
-#define OpDebugOut(string)
 #define OP_ASSERT(expr)
 #define OP_DEBUG_FAIL(object, returnValue) return returnValue
 #define OP_DEBUG_SUCCESS(object, returnValue) return returnValue
@@ -74,7 +73,6 @@ struct OpContours;
 #include <string>
 
 // debug compare, debug dump, and debug image as written only work when testing uses a single thread
-extern OpContours* debugGlobalContours;
 extern OpDebugIntersect debugGlobalIntersect;
 
 enum class OpDebugExpect {
@@ -82,22 +80,6 @@ enum class OpDebugExpect {
 	fail,
 	success,
 };
-
-float OpDebugBitsToFloat(int32_t);
-std::string OpDebugDump(float);
-std::string OpDebugDumpHex(float);
-std::string OpDebugDumpHexToFloat(float);
-int32_t OpDebugFloatToBits(float);
-int32_t OpDebugHexToInt(const char*& str);
-float OpDebugHexToFloat(const char*& str);
-void OpDebugOut(const std::string&);
-void OpDebugSkip(const char*& str, const char* match);
-std::string OpDebugToString(float value, int precision);
-inline std::string OpDebugStr(int32_t x) { return std::to_string(x); }
-inline std::string OpDebugStr(size_t x) { return std::to_string(x); }
-inline std::string OpDebugStr(float x) { return std::to_string(x); }
-
-#define STR(x) OpDebugStr(x)
 
 #define OpDebugBreak(opObject, ID) \
 	do { if ((ID) == (opObject)->id) OP_DEBUG_BREAK(); } while (false)
@@ -111,6 +93,31 @@ inline std::string OpDebugStr(float x) { return std::to_string(x); }
 #define OpDebugPlaybackIf(opObject, ID, doBreak) \
 	do { if ((doBreak) && (ID) == (opObject)->id) { playback(); OP_DEBUG_BREAK(); } } while (false)
 
+#endif
+
+#if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE
+#define STR(x) OpDebugStr(x)
+#if OP_DEBUG
+#define OP_DEBUG_STR_ID(x) OpDebugStr(x->id)
+#else
+#define OP_DEBUG_STR_ID(x) OpDebugStr(x)
+#endif
+
+extern OpContours* debugGlobalContours;
+
+float OpDebugBitsToFloat(int32_t);
+std::string OpDebugDump(float);
+std::string OpDebugDumpHex(float);
+std::string OpDebugDumpHexToFloat(float);
+int32_t OpDebugFloatToBits(float);
+float OpDebugHexToFloat(const char*& str);
+int32_t OpDebugHexToInt(const char*& str);
+void OpDebugSkip(const char*& str, const char* match);
+inline std::string OpDebugStr(void* x) { return std::to_string((unsigned long long)(void**)x); }
+inline std::string OpDebugStr(int32_t x) { return std::to_string(x); }
+inline std::string OpDebugStr(size_t x) { return std::to_string(x); }
+inline std::string OpDebugStr(float x) { return std::to_string(x); }
+std::string OpDebugToString(float value, int precision);
 #endif
 
 
