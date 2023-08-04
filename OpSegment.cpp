@@ -431,16 +431,16 @@ int OpSegment::unsectableID() const {
 }
 
 struct CoinPair {
-    CoinPair(OpEdge* o, int id, EdgeMatch m, std::vector<OpEdge>* oE)
+    CoinPair(OpEdge* o, OpEdge* l, int id)
         : opp(o)
+        , last(l)
         , coinID(id) 
-        , match(m)
-        , oppEdges(oE) {
+        , processed(false) {
     }
     OpEdge* opp;
+    OpEdge* last;
     int coinID;
-    EdgeMatch match;
-    std::vector<OpEdge>* oppEdges;
+    bool processed;
 };
 
 // at present, only applies to horizontal and vertical lines
@@ -464,72 +464,52 @@ void OpSegment::windCoincidences() {
             OP_ASSERT(edge < &edges.back());
             ++edge;
             OP_ASSERT(edge->start.t == sectPtr->ptT.t);
+            for (auto& coinPair : coinPairs) {
+                if (coinPair.opp == coinPair.last)
+                    continue;
+                coinPair.coinID > 0 ?  ++coinPair.opp : --coinPair.opp;
+                coinPair.processed = false;
+            }
         }
         int coinID = sectPtr->coincidenceID;
-        auto pairID = [coinID](CoinPair& pair) { 
-            return coinID == pair.coinID; 
-        };
         if (coinID) {
+            auto pairID = [coinID](CoinPair& pair) { 
+                return coinID == pair.coinID; 
+            };
             auto coinIter = std::find_if(coinPairs.begin(), coinPairs.end(), pairID);
             if (coinPairs.end() != coinIter) {
                 coinPairs.erase(coinIter);
-                coinID = 0;
-            }
-        }
-        if (!coinID && coinPairs.empty())
-            continue;
-        if (edge->disabled) {
-            if (coinID)
-                coinPairs.emplace_back(nullptr, coinID, EdgeMatch::none, nullptr);
-            continue;
-        }
-        if (coinID) {
-            OpSegment* oppSegment = sectPtr->opp->segment;
-            OP_ASSERT(tangent.dot(oppSegment->c.asLine().tangent())); 
-            auto& oppEdges = sectPtr->opp->segment->edges;
-            OpEdge* oppEdge = &oppEdges.front();
-            EdgeMatch match = coinID > 0 ? EdgeMatch::start : EdgeMatch::end;
-            while (oppEdge->segment != oppSegment || oppEdge->ptT(match) != sectPtr->opp->ptT) {
-                OP_ASSERT(EdgeMatch::end == match || oppEdge->ptT(match).t <= sectPtr->ptT.t);
-                OP_ASSERT(EdgeMatch::start == match || oppEdge->ptT(match).t >= sectPtr->ptT.t);
-                OP_ASSERT(oppEdge < &oppEdges.back());
-                ++oppEdge;
-            }
-            coinPairs.emplace_back(oppEdge, coinID, match, &oppEdges);
-        }
-        for (auto& coinPair : coinPairs) {
-            if (!coinPair.opp)
-                continue;
-            if (coinPair.opp->ptT(coinPair.match).pt != sectPtr->ptT.pt) {
-#if OP_DEBUG
-                if (EdgeMatch::start == coinPair.match) {
-                    OP_ASSERT(coinPair.opp > &coinPair.oppEdges->front());
-                    OP_ASSERT((coinPair.opp - 1)->ptT(coinPair.match).pt == sectPtr->ptT.pt);
-                } else {
-                    OP_ASSERT(coinPair.opp < &coinPair.oppEdges->back());
-                    OP_ASSERT((coinPair.opp + 1)->ptT(coinPair.match).pt == sectPtr->ptT.pt);
+            } else {
+                OpSegment* oppSegment = sectPtr->opp->segment;
+                OP_ASSERT(tangent.dot(oppSegment->c.asLine().tangent())); 
+                auto& oppEdges = oppSegment->edges;
+                EdgeMatch match = coinID > 0 ? EdgeMatch::start : EdgeMatch::end;
+                OpEdge* oppEdge = &oppEdges.front();
+                while (oppEdge->ptT(match) != sectPtr->opp->ptT) {
+                    ++oppEdge;
+                    OP_ASSERT(oppEdge <= &oppEdges.back());
                 }
-#endif
-                continue;
+                coinPairs.emplace_back(oppEdge, EdgeMatch::start == match ?
+                        &oppEdges.back() : &oppEdges.front(), coinID);
             }
-            OP_ASSERT(edge->start.pt == coinPair.opp->ptT(coinPair.match).pt);
-            OP_ASSERT(edge->end.pt == coinPair.opp->ptT(Opposite(coinPair.match)).pt);
+        } else if (coinPairs.empty())
+            continue;
+        if (edge->disabled)
+            continue;
+        for (auto& coinPair : coinPairs) {
+            if (coinPair.processed)
+                continue;
+            EdgeMatch match = coinPair.coinID > 0 ? EdgeMatch::start : EdgeMatch::end;
+            if (coinPair.opp->ptT(match).pt != sectPtr->ptT.pt)
+                continue;
+            OP_ASSERT(edge->start.pt == coinPair.opp->ptT(match).pt);
+            OP_ASSERT(edge->end.pt == coinPair.opp->ptT(Opposite(match)).pt);
             edge->winding.move(coinPair.opp->winding, contour->contours, coinPair.coinID < 0);
             if (!edge->winding.visible())
                 edge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence));
             coinPair.opp->winding.zero();
             coinPair.opp->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence));
-            if (coinPair.coinID > 0) {
-                if (coinPair.opp < &coinPair.oppEdges->back())
-                    ++coinPair.opp;
-                else
-                    coinPair.opp = nullptr;
-            } else {
-                if (coinPair.opp > &coinPair.oppEdges->front())
-                    --coinPair.opp;
-                else
-                    coinPair.opp = nullptr;
-            }
+            coinPair.processed = true;
         }
     }
 }

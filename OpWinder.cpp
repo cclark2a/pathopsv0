@@ -499,8 +499,10 @@ void OpWinder::SetEdgeMultiple(Axis axis, EdgeDistance* edgeDist
 			edge->many -= dist.edge->winding;
 		OP_ASSERT(edge->isPal(dist.edge));
 	};
-	OP_ASSERT(NormalDirection::downLeft == edgeNorm
-			|| NormalDirection::upRight == edgeNorm);
+	if (NormalDirection::underflow == edgeNorm || NormalDirection::overflow == edgeNorm) {
+		edge->setUnsortable();
+		return;
+	}
 	edgeDist->edgeMultiple = true;
 	EdgeDistance* edgeFirst = edgeDist;
 	OP_ASSERT(WindingType::uninitialized == edge->many.debugType);
@@ -659,7 +661,10 @@ ResolveWinding OpWinder::setWindingByDistance(OpEdge* edge, Axis axis,
 			break;
 		OpEdge* prior = dist.edge;
 		NormalDirection normDir = prior->normalDirection(axis, dist.t);
-		OP_ASSERT(NormalDirection::downLeft == normDir || NormalDirection::upRight == normDir);
+		if (NormalDirection::underflow == normDir || NormalDirection::overflow == normDir) {
+			prior->setUnsortable();
+			continue;
+		}
 		bool sumSet = !prior->unsectableID || prior == edge;
 		if (sumSet && NormalDirection::downLeft == normDir)
 			OP_EDGE_SET_SUM(prior, sumWinding);

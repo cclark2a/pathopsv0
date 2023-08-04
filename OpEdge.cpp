@@ -246,11 +246,15 @@ void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 }
 
 void OpEdge::markUnsectable(OpEdge* opp, Axis axis, float t, float oppT) {
-//	OpDebugBreakIf(this, 358, 359 == opp->id);
 	NormalDirection edgeNorm = normalDirection(axis, t);
-	OP_ASSERT(NormalDirection::underflow != edgeNorm && NormalDirection::overflow != edgeNorm);
+	bool normalOK = NormalDirection::underflow != edgeNorm && NormalDirection::overflow != edgeNorm;		
 	NormalDirection oEdgeNorm = opp->normalDirection(axis, oppT);
-	OP_ASSERT(NormalDirection::underflow != oEdgeNorm && NormalDirection::overflow != oEdgeNorm);
+	normalOK &= NormalDirection::underflow != oEdgeNorm && NormalDirection::overflow != oEdgeNorm;
+	if (!normalOK) {
+		setUnsortable();
+		opp->setUnsortable();
+		return;
+	}
 	bool reversed = edgeNorm != oEdgeNorm;
 	OP_ASSERT(!unsectableID);
 	unsectableID = segment->unsectableID();

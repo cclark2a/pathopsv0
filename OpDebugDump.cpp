@@ -36,6 +36,16 @@
 	}
 	VECTOR_PTRS
 #undef OP_X
+#define OP_X(Thing) \
+	void dump(const std::vector<Thing>* things) { \
+        dump(*things); \
+    } \
+	void dumpDetail(const std::vector<Thing>* things) { \
+        dumpDetail(*things); \
+    }
+	VECTOR_STRUCTS
+	VECTOR_PTRS
+#undef OP_X
 
 #define OP_STRUCTS_2 \
 OP_X(LinkUps) \
@@ -405,6 +415,22 @@ void dumpMatch(const OpPoint& pt, bool detail) {
             }
         }
     }
+}
+
+void dumpMatch(const OpPoint* pt) {
+    dumpMatch(*pt, false);
+}
+
+void dumpMatch(const OpPtT* ptT) {
+    dumpMatch(ptT->pt, false);
+}
+
+void dumpMatchDetail(const OpPoint* pt) {
+    dumpMatch(*pt, true);
+}
+
+void dumpMatchDetail(const OpPtT* ptT) {
+    dumpMatch(ptT->pt, true);
 }
 
 void dumpMatch(const OpPoint& pt) {

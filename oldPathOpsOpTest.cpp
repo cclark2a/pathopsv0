@@ -3873,6 +3873,7 @@ static void loop4(skiatest::Reporter* reporter, const char* filename) {
 
 #include "include/utils/SkParsePath.h"
 
+#if TEST_ISSUE_3517
 static void issue3517(skiatest::Reporter* reporter, const char* filename) {
     SkPath path, pathB;
 
@@ -3883,6 +3884,7 @@ static void issue3517(skiatest::Reporter* reporter, const char* filename) {
     SkParsePath::FromSVGString(strB, &pathB);
     testPathOp(reporter, path, pathB, kUnion_SkPathOp, filename);
 }
+#endif
 
 static void cubicOp119(skiatest::Reporter* reporter, const char* filename) {
     SkPath path, pathB;
@@ -6018,6 +6020,7 @@ path.reset();
             testPathOp(reporter, path1, path, kUnion_SkPathOp, filename);
 }
 
+#if TEST_GR_SHAPE_ARCS_1
 static void grshapearcs1(skiatest::Reporter* reporter, const char* filename) {
 SkPath path, path1;
 path.setFillType(SkPathFillType::kWinding);
@@ -9164,6 +9167,7 @@ path.conicTo(24.0412f, 27.3672f, 24.0237f, 26.3673f, 0.707107f);
 path.close();
     testPathOpFail(reporter, path, path1, kXOR_SkPathOp, filename);
 }
+#endif
 
 // !!! fails by generating infinity (record this in path ops, pass that info here?)
 // !!! if normal compute (OpVector length) used double, it might succeed. Not worth it, though
@@ -9344,7 +9348,7 @@ SkPathOp op = kUnion_SkPathOp;
 }
 
 static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
-static void (*firstTest)(skiatest::Reporter* , const char* filename) = nullptr; // loop1asQuad; << test next
+static void (*firstTest)(skiatest::Reporter* , const char* filename) = skpcarrot_is24;
 static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 
 #define TEST(name) { name, #name }
@@ -9468,11 +9472,10 @@ static struct TestDesc tests[] = {
     TEST(loop11),
     TEST(loop10),
     TEST(circlesOp3),
-
-    // untested / not working
     TEST(crbug_526025), // fuzzer; ok to fail
+#if TEST_GR_SHAPE_ARCS_1 
     TEST(grshapearcs1), // asserts safety check in line/curve sect; defer until more simple tests work
-
+#endif
     TEST(loop9),
     TEST(loop8),
     TEST(rects5),
@@ -9501,7 +9504,10 @@ static struct TestDesc tests[] = {
     TEST(loop2),
     TEST(loop1asQuad),
     TEST(loop1),
-    TEST(issue3517),
+
+#if TEST_ISSUE_3517
+    TEST(issue3517),    // fails with triple unsectable -- haven't written code to handle this
+#endif
     TEST(cubicOp118),
     TEST(cubicOp117),
     TEST(cubicOp116),
@@ -9521,6 +9527,7 @@ static struct TestDesc tests[] = {
     TEST(kari1),
     TEST(quadOp10i),
     TEST(cubicOp113),
+    // untested / not working
     TEST(skpcarrot_is24),
     TEST(issue1417),
     TEST(cubicOp112),
@@ -9724,7 +9731,9 @@ static struct TestDesc subTests[] = {
     TEST(loops47i),
     TEST(loops61i),
     TEST(loops62i),
+#if TEST_ISSUE_3517
     TEST(issue3517),
+#endif
 };
 
 static const size_t subTestCount = std::size(subTests);

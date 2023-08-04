@@ -44,6 +44,8 @@ OP_X(OpIntersection*) \
 OP_X(OpSegment*)
 
 #define OP_X(Thing) \
+	extern void dump(const std::vector<Thing>* ); \
+	extern void dumpDetail(const std::vector<Thing>* ); \
 	extern void dump(const std::vector<Thing>& ); \
 	extern void dumpDetail(const std::vector<Thing>& );
 	VECTOR_STRUCTS
@@ -66,8 +68,12 @@ extern void dump##Thing(const Op##Struct& );
 DETAIL_STRUCTS
 #undef OP_X
 
+extern void dumpMatch(const OpPoint* );
+extern void dumpMatch(const OpPtT* );
 extern void dumpMatch(const OpPoint& );
 extern void dumpMatch(const OpPtT& );
+extern void dumpMatchDetail(const OpPoint* );
+extern void dumpMatchDetail(const OpPtT* );
 extern void dumpMatchDetail(const OpPoint& );
 extern void dumpMatchDetail(const OpPtT& );
 
