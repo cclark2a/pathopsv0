@@ -372,7 +372,7 @@ private:
 #endif
 	}
 public:
-	OpEdge(const OpSegment* s, const OpPtT& t1, const OpPtT& t2
+	OpEdge(OpSegment* s, const OpPtT& t1, const OpPtT& t2
 			OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file, const OpIntersection* i1, 
 			const OpIntersection* i2))
 		: OpEdge() {
@@ -472,6 +472,10 @@ public:
 	void debugValidate() const;    // make sure pointer to edge is valid
 	bool debugValidLoop() const;
 	void dumpChain(bool detail = false) const;
+	void dumpEnd() const;
+	void dumpLink() const;
+	void dumpLinkDetail() const;
+	void dumpStart() const;
 
 #include "OpDebugDeclarations.h"
 #endif

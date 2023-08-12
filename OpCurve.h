@@ -108,7 +108,9 @@ struct OpCurve {
 #if OP_DEBUG_DUMP
     std::string debugDump() const;
     std::string debugDumpHex() const;
-    void dump() const { return OpDebugOut(debugDumpHex()); }
+    void dump() const;
+    void dumpDetail() const;
+    void dumpHex() const;
 #endif
 #if OP_DEBUG
     OpVector debugTangent(float t) const;

@@ -598,6 +598,11 @@ void DebugOpBounds(double& left, double& top, double& right, double& bottom) {
     bottom = dRect.bottom;
 }
 
+void DebugOpScreenBounds(int& left, int&top, int& right, int& bottom) {
+    left = top = debugMargin;
+    right = bottom = bitmapWH - debugMargin;
+}
+
 void DebugOpRecord(FILE* recordFile) {
     fprintf(recordFile, "debugZoom: %.*g\n", DBL_DECIMAL_DIG, debugZoom);
     fprintf(recordFile, "debugCenter: %.*g, %.*g\n", DBL_DECIMAL_DIG, debugCenter.x, 
@@ -625,22 +630,22 @@ void DebugOpCurve::rectCurves(std::vector<DebugOpCurve>& bounded) const {
         cepts.push_back(0);
     for (int index = 0; index < lefts.count; ++index) {
         DebugOpPoint pt = ptAtT(lefts.roots[index]);
-        if (bounds.top <= pt.y && pt.y <= bounds.bottom)
+        if (bounds.top <= pt.y + OpEpsilon && pt.y - OpEpsilon <= bounds.bottom)
             cepts.push_back(lefts.roots[index]);
     }
     for (int index = 0; index < tops.count; ++index) {
         DebugOpPoint pt = ptAtT(tops.roots[index]);
-        if (bounds.left < pt.x && pt.x < bounds.right)
+        if (bounds.left < pt.x + OpEpsilon && pt.x - OpEpsilon < bounds.right)
             cepts.push_back(tops.roots[index]);
     }
     for (int index = 0; index < rights.count; ++index) {
         DebugOpPoint pt = ptAtT(rights.roots[index]);
-        if (bounds.top <= pt.y && pt.y <= bounds.bottom)
+        if (bounds.top <= pt.y + OpEpsilon && pt.y - OpEpsilon <= bounds.bottom)
             cepts.push_back(rights.roots[index]);
     }
     for (int index = 0; index < bottoms.count; ++index) {
         DebugOpPoint pt = ptAtT(bottoms.roots[index]);
-        if (bounds.left < pt.x && pt.x < bounds.right)
+        if (bounds.left < pt.x + OpEpsilon && pt.x - OpEpsilon < bounds.right)
             cepts.push_back(bottoms.roots[index]);
     }
     if (tInRect(1, bounds))

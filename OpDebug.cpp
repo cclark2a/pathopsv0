@@ -226,47 +226,4 @@ OpVector OpCubic::debugTangent(float t) const {
 
 #endif
 
-#if OP_DEBUG
-template <typename V, typename... T>   // replace with std::to_array in c++20
-constexpr auto to_array(T&&... t)->std::array < V, sizeof...(T) > {
-    return { { std::forward<T>(t)... } };
-}
-
-#include "OpContour.h"
-#include "OpSegment.h"
-
-
-bool OpContours::debugSuccess() const {
-    return OpDebugExpect::unknown == debugExpect || OpDebugExpect::success == debugExpect;
-}
-
-void OpIntersection::debugSetID() {
-    id = segment->contour->contours->id++;
-if (68 == id)
-OpDebugOut("");
-#if 1
-    auto match = to_array<int>(68);  // c++20: std::to_array<int>({... (brace)
-    if (match.end() != std::find(match.begin(), match.end(), id))
-        OpDebugOut("");
-#endif
-}
-
-void OpIntersection::debugValidate() const {
-    OP_ASSERT(OpMath::Between(0, ptT.t, 1));
-    OpPoint pt = segment->c.ptAtT(ptT.t);
-    OpMath::DebugCompare(pt, ptT.pt);
-    OpPoint oPt = opp->segment->c.ptAtT(opp->ptT.t);
-    OpMath::DebugCompare(pt, oPt);
-}
-
-bool OpSegment::debugContains(const OpPtT& ptT, const OpSegment* opp) const {
-    for (auto sect : intersections) {
-        if ((sect->ptT.pt == ptT.pt || sect->ptT.t == ptT.t) 
-                && sect->opp->segment == opp)
-            return true;
-    }
-    return false;
-}
-
-#endif
 

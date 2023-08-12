@@ -257,7 +257,7 @@ void OpEdge::markUnsectable(OpEdge* opp, Axis axis, float t, float oppT) {
 	}
 	bool reversed = edgeNorm != oEdgeNorm;
 	OP_ASSERT(!unsectableID);
-	unsectableID = segment->unsectableID();
+	unsectableID = segment->nextID();
 	OP_ASSERT(!opp->unsectableID);
 	opp->unsectableID = reversed ? -unsectableID : unsectableID;
 }
@@ -527,7 +527,7 @@ void OpEdge::skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) {
 
 // use already computed points stored in edge
 void OpEdge::subDivide() {
-	id = segment->contour->contours->id++;
+	id = segment->nextID();
 	OpCurve pts = segment->c.subDivide(start, end);
 	weight = pts.weight;
 	setFromPoints(pts.pts);

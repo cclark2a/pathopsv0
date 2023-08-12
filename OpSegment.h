@@ -48,20 +48,6 @@ struct FoundEdge {
     EdgeMatch whichEnd;
 };
 
-struct MissingIntersection {
-    MissingIntersection(const OpPtT& start_, const OpPtT& end_,
-            OpSegment* segment_, const OpIntersection& intersection_) 
-        : start(start_)
-        , end(end_)
-        , segment(segment_)
-        , intersection(intersection_) {
-    }
-    const OpPtT& start;
-    const OpPtT& end;
-    OpSegment* segment;  // segment new intersection will be added to
-    const OpIntersection& intersection;   // intersection point and t are copied from
-};
-
 struct OpSegment {
     OpSegment(const OpCurve& pts, OpType type, OpContour*  
             OP_DEBUG_PARAMS(SectReason , SectReason ));
@@ -77,38 +63,39 @@ struct OpSegment {
             OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason , const OpSegment* o));
     OpIntersection* addCoin(const OpPtT& , int coinID  
             OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason , const OpSegment* o));
-    OpIntersection* addUnsectable(const OpPtT& , int unsectableID, const OpSegment* o 
+    OpIntersection* addUnsectable(const OpPtT& , int unsectableID, bool end, const OpSegment* o 
             OP_DEBUG_PARAMS(IntersectMaker , int , std::string));
-    OpIntersection* alreadyContains(const OpPtT& edgePtT, const OpSegment* opp) const;
     void apply();
     int coinID(bool flipped) const;
     void complete(OpContour* );
-    bool containsIntersection(const OpPtT& , const OpSegment* ) const;
     OpEdge* findEnabled(const OpPtT& , EdgeMatch ) const;
     float findPtT(float start, float end, OpPoint opp) const;
     FoundPtT findPtT(Axis , float start, float end, float oppXY, float* result) const;
     FoundPtT findPtT(float start, float end, OpPoint opp, float* result) const;
     FoundPtT findPtT(const OpPtT& start, const OpPtT& end, OpPoint opp, float* result) const;
-    std::vector<OpIntersection*> intersectRange(const OpSegment* );
     // count and sort extrema; create an edge for each extrema + 1
     void makeEdge(OP_DEBUG_CODE(EdgeMaker maker, int line, std::string file));
     void makeEdges();
     MatchEnds matchEnds(const OpSegment* opp, bool* reversed, MatchSect ) const;
     MatchEnds matchExisting(const OpSegment* opp) const;
+    int nextID() const { 
+        return nextID(contour); }
+    int nextID(OpContour* ) const;
 	void setDisabled(OP_DEBUG_CODE(ZeroReason reason));
-    void sortIntersections();
     void windCoincidences();
-    int unsectableID() const;
 
     bool debugFail() const;
     bool debugSuccess() const;
 #if OP_DEBUG
-    OpIntersection* debugAlreadyContains(const OpPoint& pt, const OpSegment* oppSegment) const;
-    bool debugContains(const OpPtT& , const OpSegment* opp) const;  // check for duplicates
     void debugValidate() const;
 #endif
 #if OP_DEBUG_DUMP
     void dumpCount() const;
+    #define OP_X(Thing) \
+    void dump##Thing() const;
+    SEGMENT_DETAIL
+    EDGE_OR_SEGMENT_DETAIL
+    #undef OP_X
 #include "OpDebugDeclarations.h"
 #endif
 #if OP_DEBUG_IMAGE
@@ -119,13 +106,11 @@ struct OpSegment {
     OpContour* contour;
     OpCurve c;
     OpPointBounds ptBounds;
+    OpIntersections sects;
     std::vector<OpEdge> edges;
-    // all intersections are stored here before edges are rewritten
-    std::vector<OpIntersection*> intersections;
     OpWinding winding;
     bool disabled; // winding has canceled this edge out
     bool recomputeBounds;
-    bool resortIntersections;
     int id;     // !!! could be debug only; currently used to disambiguate sort, may be unneeded
 #if OP_DEBUG
     SectReason debugStart;

@@ -62,7 +62,7 @@ IntersectResult OpWinder::CoincidentCheck(OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, Op
 	float CorD = CinAB ? C : D;
 	OpPtT ptTCorD = CinAB ? cPtT : dPtT;
 	if (AorB == CorD) {
-		if (segment->containsIntersection(ptTAorB, oppSegment))
+		if (segment->sects.contains(ptTAorB, oppSegment))
 			return IntersectResult::yes;
 		OpIntersection* sect = segment->addSegSect(ptTAorB  OP_DEBUG_PARAMS(
 				SECT_MAKER(addCoincidentCheck), SectReason::coinPtsMatch, oppSegment));
@@ -107,7 +107,7 @@ void OpWinder::AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped,
 IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpPtT dPtT,
 	bool flipped, OpSegment* segment, OpSegment* oppSegment) {
 	// set range to contain intersections that match this segment and opposite segment
-	std::vector<OpIntersection*> range = segment->intersectRange(oppSegment);
+	std::vector<OpIntersection*> range = segment->sects.range(oppSegment);
 	// return existing intersection that matches segment coincident ends
 	auto findSect = [](const std::vector<OpIntersection*>& range, OpPtT ptT) {	// lambda
 		for (auto entry : range) {
@@ -171,7 +171,7 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 			sect2 = segment->addCoin(bPtT, coinID
 				OP_DEBUG_PARAMS(SECT_MAKER(addPair_bPtT), SectReason::coinPtsMatch, oppSegment));
 	}
-	std::vector<OpIntersection*> oRange = oppSegment->intersectRange(segment);
+	std::vector<OpIntersection*> oRange = oppSegment->sects.range(segment);
 	OpIntersection* oSect1 = findSect(oRange, { aPtT.pt, -1 });
 	OpIntersection* oSect2 = findSect(oRange, { bPtT.pt, -1 });
 	// add the opposite that goes with the created segment sect
@@ -260,7 +260,7 @@ void OpWinder::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
 #else
 		OpPtT edgePtT { oppPtT.pt, OpMath::Interp(edge.start.t, edge.end.t, edgeT) };
 #endif
-		if (eSegment->alreadyContains(edgePtT, oSegment))
+		if (eSegment->sects.alreadyContains(edgePtT, oSegment))
 			; // OP_ASSERT(oSegment->debugAlreadyContains(oppPtT.pt, eSegment));	// !!! debug loops51i
 		else {
 			OpIntersection* sect = eSegment->addEdgeSect(edgePtT  
@@ -366,6 +366,7 @@ struct CompareDistance {
 
 FoundIntercept OpWinder::findRayIntercept(size_t inIndex, Axis axis, OpEdge* edge, float center,
 		float normal, float edgeCenterT, std::vector<EdgeDistance>* distance) {
+	OpDebugBreak(edge, 60);
 	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
 	Axis perpendicular = !axis;
 	OpVector backRay = -ray;
@@ -389,7 +390,15 @@ FoundIntercept OpWinder::findRayIntercept(size_t inIndex, Axis axis, OpEdge* edg
 			if (test->disabled)
 				continue;
 			{
+				// !!! EXPERIMENT
+				// try using segment's curve instead of edge curve
+				// edge curve's control points, especially small ones, may magnify error
+			#define RAY_USE_SEGMENT 0
+			#if RAY_USE_SEGMENT
+				const OpCurve& testCurve = test->segment->c;
+			#else
 				const OpCurve& testCurve = test->setCurve();
+			#endif
 				OpRoots cepts = testCurve.axisRayHit(axis, normal);
 				// get the normal at the intersect point and see if it is usable
 				if (1 != cepts.count) {
@@ -399,17 +408,20 @@ FoundIntercept OpWinder::findRayIntercept(size_t inIndex, Axis axis, OpEdge* edg
 					continue;
 				}
 				float cept = cepts.get(0);
-				if (OpMath::IsNaN(cept) || 0 == cept || 1 == cept)
+			#if RAY_USE_SEGMENT
+				if (OpMath::IsNaN(cept) || test->start.t >= cept || cept >= test->end.t)
 					goto tryADifferentCenter;
+			#else
+				if (OpMath::IsNaN(cept) || 0 == cept || cept == 1)
+					goto tryADifferentCenter;
+			#endif
 				bool overflow;
 				OpVector tangent = testCurve.tangent(cept).normalize(&overflow);
 				if (overflow)
 					OP_DEBUG_FAIL(*test, FoundIntercept::overflow);
 				float tNxR = tangent.cross(backRay);
-				if (fabs(tNxR) < WINDING_NORMAL_LIMIT
-					&& (!test->setLinear() || test->start.t >= cept || cept >= test->end.t)) {
+				if (fabs(tNxR) < WINDING_NORMAL_LIMIT)
 					goto tryADifferentCenter;
-				}
 				OpPoint pt = testCurve.ptAtT(cept);
 				float span = center - pt.choice(perpendicular);
 #if 0	// wait until this is required to make a test work
@@ -578,6 +590,8 @@ ChainFail OpWinder::setSumChain(size_t inIndex, Axis axis) {
 // distance array may include edges to right. Remove code that collects that?
 ResolveWinding OpWinder::setWindingByDistance(OpEdge* edge, Axis axis, 
 		std::vector<EdgeDistance>& distance) {
+	OpDebugBreak(edge, 60);
+	OpDebugBreak(edge, 73);
 	if (1 == distance.size()) {
 		OP_ASSERT(edge == distance[0].edge);
 		OP_ASSERT(!edge->unsectableID);

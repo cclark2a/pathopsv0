@@ -34,31 +34,31 @@ SectFound OpCurveCurve::addUnsectable() {
 			findMatch(maxXY, edge, edgeEnd);
 			findMatch(minXY, opp, oppStart);
 			findMatch(maxXY, opp, oppEnd);
-			bool flipped = oppStart.t > oppEnd.t;
-			if (flipped)
-				std::swap(oppStart, oppEnd); // flip to fix opp t (now opp pts are flipped vs. edge)
 			if (!edgeStart.pt.isFinite())
 				edgeStart.pt = oppStart.pt;
 			if (!edgeEnd.pt.isFinite())
 				edgeEnd.pt = oppEnd.pt;
 			if (!oppStart.pt.isFinite())
-				oppStart.pt = flipped ? edgeEnd.pt : edgeStart.pt;
+				oppStart.pt = edgeStart.pt;
 			if (!oppEnd.pt.isFinite())
-				oppEnd.pt = flipped ? edgeStart.pt : edgeEnd.pt;
+				oppEnd.pt = edgeEnd.pt;
+			bool flipped = oppStart.t > oppEnd.t;
+			if (flipped)
+				std::swap(oppStart, oppEnd); // flip to fix opp t (now opp pts are flipped vs. edge)
 			OpSegment* segment = const_cast<OpSegment*>(edge.segment);
-			int unsectableID = segment->unsectableID();
-			OpIntersection* segSect1 = segment->addUnsectable(edgeStart, unsectableID, opp.segment  
-					OP_DEBUG_PARAMS(SECT_MAKER(unsectableStart)));
-			OpIntersection* segSect2 = segment->addUnsectable(edgeEnd, unsectableID, opp.segment  
-					OP_DEBUG_PARAMS(SECT_MAKER(unsectableEnd)));
+			int unsectableID = segment->nextID();
+			OpIntersection* segSect1 = segment->addUnsectable(edgeStart, unsectableID, 
+					false, opp.segment  OP_DEBUG_PARAMS(SECT_MAKER(unsectableStart)));
+			OpIntersection* segSect2 = segment->addUnsectable(edgeEnd, unsectableID,
+					true, opp.segment  OP_DEBUG_PARAMS(SECT_MAKER(unsectableEnd)));
 			OpSegment* oppSegment = const_cast<OpSegment*>(opp.segment);
 			OpIntersection* oppSect1 = oppSegment->addUnsectable(oppStart, 
-					flipped ? -unsectableID : unsectableID, segment  
+					flipped ? -unsectableID : unsectableID, flipped, segment  
 					OP_DEBUG_PARAMS(
 				    flipped ? IntersectMaker::unsectableOppEnd : IntersectMaker::unsectableOppStart,
 					__LINE__, __FILE__));
 			OpIntersection* oppSect2 = oppSegment->addUnsectable(oppEnd, 
-					flipped ? -unsectableID : unsectableID, segment  
+					flipped ? -unsectableID : unsectableID, !flipped, segment  
 					OP_DEBUG_PARAMS(
 				    flipped ? IntersectMaker::unsectableOppStart : IntersectMaker::unsectableOppEnd,
 					__LINE__, __FILE__));

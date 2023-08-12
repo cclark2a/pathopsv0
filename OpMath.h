@@ -493,11 +493,11 @@ struct OpRect {
     float width() const { return right - left; }
 
 #if OP_DEBUG_DUMP
-    std::string debugDump() const;
-    std::string debugDumpHex() const;
-    void dump() const;
-	void dumpDetail() const;
-    void dumpHex() const;
+    virtual std::string debugDump() const;
+    virtual std::string debugDumpHex() const;
+    virtual void dump() const;
+    virtual void dumpDetail() const;
+    virtual void dumpHex() const;
 #endif
 
     void debugValidate() const {

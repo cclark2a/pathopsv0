@@ -85,7 +85,7 @@ struct OpIntersection {
 		o->opp = this;
 	}
 
-	void set(const OpPtT& t, OpSegment* seg, int cID, int uID
+	void set(const OpPtT& t, OpSegment* seg, int cID, int uID, bool end
 			OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
 			int ID, int oppID)) {
 		segment = seg;
@@ -93,8 +93,11 @@ struct OpIntersection {
 		OP_ASSERT(OpMath::Between(0, t.t, 1));
 		ptT = t;
 		coincidenceID = cID;	// 0 if no coincidence; negative if coincident pairs are reversed
-		unsectableID = uID;		// 0 if not unsectable; negative if curves are reversed
+		unsectID = uID;		// 0 if not unsectable; negative if curves are reversed
+		if (512 == uID) 
+			OpDebugOut("");
 		betweenID = 0;
+		unsectEnd = end;
 #if OP_DEBUG
 		debugSetID();		// debug for now
 		debugID = ID;
@@ -129,7 +132,6 @@ struct OpIntersection {
 	std::string debugDump(bool fromDumpFull, bool fromDumpDetail) const;
 	std::string debugDumpDetail(bool fromDumpIntersections) const;
 	std::string debugDumpBrief() const;
-	void dumpPt() const;
 #include "OpDebugDeclarations.h"
 #endif
 
@@ -137,8 +139,9 @@ struct OpIntersection {
 	OpIntersection* opp;
 	OpPtT ptT;
 	int coincidenceID;
-	int unsectableID;	// !!! may be able to be merged with coincident ID; keep separate for now
+	int unsectID;	// !!! may be able to be merged with coincident ID; keep separate for now
 	int betweenID;  // is on unsectable with this id, between ends; use to mark edge unsortable
+	bool unsectEnd;
 #if OP_DEBUG
 	int id;
 	int debugID;	// pair of edges or segments that intersected
@@ -150,6 +153,41 @@ struct OpIntersection {
 	SectReason debugReason;	// reason intersection was found
 	mutable bool debugErased;
 #endif
+};
+
+struct OpIntersections {
+	OpIntersections();
+	OpIntersection* add(OpIntersection* );
+    OpIntersection* alreadyContains(const OpPtT& , const OpSegment* opp) const;
+    bool contains(const OpPtT& , const OpSegment* ) const;
+	void makeEdges(OpSegment* );
+    std::vector<OpIntersection*> range(const OpSegment* );
+    void sort();
+	void windCoincidences(OpVector tangent, std::vector<OpEdge>& edges);
+#if OP_DEBUG
+    OpIntersection* debugAlreadyContains(const OpPoint& , const OpSegment* opp) const;
+    bool debugContains(const OpPtT& , const OpSegment* opp) const;  // check for duplicates
+	void dump() const;
+	void dumpDetail() const;
+#endif
+
+	// all intersections are stored here before edges are rewritten
+    std::vector<OpIntersection*> i;
+    bool resort;
+};
+
+struct MissingIntersection {
+    MissingIntersection(const OpPtT& start_, const OpPtT& end_,
+            OpSegment* segment_, const OpIntersection& intersection_) 
+        : start(start_)
+        , end(end_)
+        , segment(segment_)
+        , intersection(intersection_) {
+    }
+    const OpPtT& start;
+    const OpPtT& end;
+    OpSegment* segment;  // segment new intersection will be added to
+    const OpIntersection& intersection;   // intersection point and t are copied from
 };
 
 // allocating storage separately allows intersections to be immobile and have reliable pointers

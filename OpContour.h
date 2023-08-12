@@ -39,7 +39,7 @@ struct OpContour {
     OpIntersection* addEdgeSect(const OpPtT& t, OpSegment* seg
             OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
             const OpEdge* edge, const OpEdge* oEdge));
-    OpIntersection* addSegSect(const OpPtT& t, OpSegment* seg, int cID, int uID
+    OpIntersection* addSegSect(const OpPtT& t, OpSegment* seg, int cID, int uID, bool end
             OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
             const OpSegment* oSeg));
     void addLine(const OpPoint pts[2]);
@@ -60,6 +60,8 @@ struct OpContour {
         }
     }
 
+    int nextID() const;
+
     void setBounds() {
         for (auto& segment : segments) {
             ptBounds.add(segment.ptBounds);
@@ -68,7 +70,7 @@ struct OpContour {
 
     void sortIntersections() {
         for (auto& segment : segments) {
-            segment.sortIntersections();
+            segment.sects.sort();
         }
     }
 
@@ -85,8 +87,12 @@ struct OpContour {
     std::string debugDump() const;
     void dump() const;
     void dumpDetail() const;
-    void dumpFull() const;
     void dumpHex() const;
+    #define OP_X(Thing) \
+    void dump##Thing() const;
+    SEGMENT_DETAIL
+    EDGE_OR_SEGMENT_DETAIL
+    #undef OP_X
 #endif
 #if OP_DEBUG_IMAGE
     void draw() const;
@@ -210,12 +216,10 @@ struct OpContours {
     std::vector<OpContour> contours;
     std::vector<OpEdge*> unsortables;
     OpSectStorage* sectStorage;
-    OpFillType left;
-    OpFillType right;
+    OpFillType left = OpFillType::unset;
+    OpFillType right = OpFillType::unset;
     OpOperator opOperator;
-    int coincidenceID = 0; // not debug since it is required for coin disambiguation
-    int unsectableID = 0;
-    int id = 0;
+    int uniqueID = 0;  // used for object id, unsectable id, coincidence id
 #if OP_DEBUG
     int debugValidateEdgeIndex;
     int debugValidateJoinerIndex;

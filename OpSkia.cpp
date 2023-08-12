@@ -32,8 +32,8 @@ bool OpOutPath::debugIsEmpty() const {
     return skPath->isEmpty();
 }
 
-void OpOutPath::dump() const {
-    skPath->dump();
+void dmp(const OpOutPath& outPath)  {
+    outPath.skPath->dump();
 }
 
 #endif

@@ -219,7 +219,7 @@ struct OpDebugIntersectionIter {
 			return;
 		for (const auto& c : debugGlobalContours->contours) {
 			for (const auto& seg : c.segments) {
-				localIntersectionIndex += seg.intersections.size();
+				localIntersectionIndex += seg.sects.i.size();
 			}
 		}
 	}
@@ -232,7 +232,7 @@ struct OpDebugIntersectionIter {
 		size_t index = 0;
 		for (const auto& c : debugGlobalContours->contours) {
 			for (const auto& seg : c.segments) {
-				for (const auto sect : seg.intersections) {
+				for (const auto sect : seg.sects.i) {
 					if (index == localIntersectionIndex)
 						return sect;
 					++index;
@@ -529,7 +529,7 @@ void OpDebugImage::drawDoubleCenter(OpPoint pt, bool add) {
 	drawDoubleFocus();
 }
 
-void OpDebugImage::drawDoubleFocus(const OpPointBounds& b, bool add) {
+void OpDebugImage::drawDoubleFocus(const OpRect& b, bool add) {
 	add ? DebugOpAddBounds(b.left, b.top, b.right, b.bottom) :
 			DebugOpSetBounds(b.left, b.top, b.right, b.bottom);
 	drawDoubleFocus();
@@ -575,6 +575,38 @@ void OpDebugImage::drawGrid() {
 	const int xOffset = 2;
 	double left, top, right, bottom;
 	DebugOpBounds(left, top, right, bottom);
+	int32_t leftH = OpDebugFloatToBits((float) left);
+	int32_t topH = OpDebugFloatToBits((float) top);
+	int32_t rightH = OpDebugFloatToBits((float) right);
+	int32_t bottomH = OpDebugFloatToBits((float) bottom);
+	int xGridIntervals = gridIntervals;
+	int xInterval = (rightH - leftH) / xGridIntervals;
+	int yGridIntervals = gridIntervals;
+	int yInterval = (bottomH - topH) / yGridIntervals;
+	int leftS, topS, rightS, bottomS;
+	DebugOpScreenBounds(leftS, topS, rightS, bottomS);
+	for (int x = leftH; x < rightH; x += xInterval) {
+		float fx = OpDebugBitsToFloat(x);
+		float sx = leftS + (fx - left) / (right - left) * (rightS - leftS);
+		offscreen.drawLine(sx, topS, sx, bottomS, paint);
+		if (!drawValuesOn)
+			continue;
+		std::string xValStr = drawHexOn ? OpDebugDumpHex(fx) : OpDebugToString(fx, valuePrecision);
+		offscreen.drawString(SkString(xValStr), sx + xOffset, bitmapWH - xOffset, labelFont, textPaint);
+	}
+	for (int y = topH; y < bottomH; y += yInterval) {
+		float fy = OpDebugBitsToFloat(y);
+		float sy = topS + (fy - top) / (bottom - top) * (bottomS - topS);
+		offscreen.drawLine(leftS, sy, rightS, sy, paint);
+		if (!drawValuesOn)
+			continue;
+		offscreen.save();
+		offscreen.rotate(-90, 15, sy - xOffset);
+		std::string yValStr = drawHexOn ? OpDebugDumpHex(fy) : OpDebugToString(fy, valuePrecision);
+		offscreen.drawString(SkString(yValStr), 15, sy - xOffset, labelFont, textPaint);
+		offscreen.restore();
+	}
+	return;
 	float xVal = left;
 	float yVal = top;
 	for (float x = 0; x < wh; x += interval) {
@@ -637,18 +669,16 @@ void textSize(float s) {
 }
 
 void OpDebugImage::center(int id, bool add) {
-	ConstOpPointBoundsPtr pointBoundsPtr = nullptr;
-	ConstOpPointPtr pointPtr = nullptr;
-	find(id, &pointBoundsPtr, &pointPtr);
-	if (pointBoundsPtr)
-		return OpDebugImage::drawDoubleCenter(pointBoundsPtr->center(), add);
-	if (pointPtr)
-		return OpDebugImage::drawDoubleCenter(*pointPtr, add);
+	OpPointBounds pointBounds;
+	OpPoint point;
+	find(id, &pointBounds, &point);
+	if (pointBounds.isFinite())
+		return OpDebugImage::drawDoubleCenter(pointBounds.center(), add);
+	if (point.isFinite())
+		return OpDebugImage::drawDoubleCenter(point, add);
 }
 
-typedef const OpPointBounds* ConstOpPointBoundsPtr;
-
-void OpDebugImage::find(int id, ConstOpPointBoundsPtr* boundsPtr, ConstOpPointPtr* pointPtr) {
+void OpDebugImage::find(int id, OpPointBounds* boundsPtr, OpPoint* pointPtr) {
 	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 		const OpEdge* edge = *edgeIter;
 		if (id != edge->id)
@@ -660,7 +690,7 @@ void OpDebugImage::find(int id, ConstOpPointBoundsPtr* boundsPtr, ConstOpPointPt
 				&& foundEdges.end() == std::find(foundEdges.begin(), foundEdges.end(), edge))
 			foundEdges.push_back(edge);
 		DRAW_IDS_ON(Edges);
-		*boundsPtr = &edge->ptBounds;
+		*boundsPtr = edge->ptBounds;
 		return;
 	}
 	const OpSegment* segment = nullptr;
@@ -670,7 +700,7 @@ void OpDebugImage::find(int id, ConstOpPointBoundsPtr* boundsPtr, ConstOpPointPt
 	}
 	if (segment) {
 		DRAW_IDS_ON(Segments);
-		*boundsPtr = &segment->ptBounds;
+		*boundsPtr = segment->ptBounds;
 		return;
 	}
 #if OP_DEBUG
@@ -682,25 +712,21 @@ void OpDebugImage::find(int id, ConstOpPointBoundsPtr* boundsPtr, ConstOpPointPt
 	if (sect) {
 		DRAW_IDS_ON(Intersections);
 		// don't change zoom
-		*pointPtr = &sect->ptT.pt;
+		*pointPtr = sect->ptT.pt;
 		return;
 	}
 #endif
 #if OP_DEBUG
-	const OpIntersection* coin = nullptr;
-	for (auto c : coincidences) {
-		if (id == c->id)
-			coin = c;
-	}
-	if (!coin) {
-		coin = findCoincidence(id);
-		if (coin)
+	auto coins = findCoincidence(id);
+	for (auto coin : coins) {
+		if (coincidences.end() == std::find(coincidences.begin(), coincidences.end(), coin))
 			coincidences.push_back(coin);
 	}
-	if (coin) {
+	if (coincidences.size()) {
 		DRAW_IDS_ON(Coincidences);
 		// !!! wrong: add rect formed by both intersections with this id
-		*boundsPtr = &coin->segment->ptBounds;
+		for (auto coin : coins)
+			boundsPtr->add(coin->ptT.pt);
 		return;
 	}
 #endif
@@ -708,17 +734,88 @@ void OpDebugImage::find(int id, ConstOpPointBoundsPtr* boundsPtr, ConstOpPointPt
 }
 
 void OpDebugImage::focus(int id, bool add) {
-	ConstOpPointBoundsPtr pointBoundsPtr = nullptr;
-	ConstOpPointPtr pointPtr = nullptr;
-	find(id, &pointBoundsPtr, &pointPtr);
-	if (pointBoundsPtr)
-		return OpDebugImage::drawDoubleFocus(*pointBoundsPtr, add);
-	if (pointPtr)
-		return OpDebugImage::drawDoubleCenter(*pointPtr, add);
+	OpPointBounds pointBounds;
+	OpPoint point;
+	find(id, &pointBounds, &point);
+	if (pointBounds.isFinite())
+		return OpDebugImage::drawDoubleFocus(pointBounds, add);
+	if (point.isFinite())
+		return OpDebugImage::drawDoubleCenter(point, add);
 }
 
-void addFocus(int id){
+void addFocus(int id) {
 	OpDebugImage::focus(id, true);
+}
+
+void addFocus(const OpContour& contour) {
+	addFocus(contour.ptBounds);
+}
+
+void addFocus(const OpContours& contours) {
+	OpPointBounds bounds;
+	for (auto& contour : contours.contours)
+		bounds.add(contour.ptBounds);
+	addFocus(bounds);
+}
+
+void addFocus(const OpEdge& edge) {
+	addFocus(edge.ptBounds);
+}
+
+void addFocus(const OpIntersection& sect) {
+	addFocus(sect.ptT);
+}
+
+void addFocus(const OpPoint& pt) {
+	OpDebugImage::drawDoubleCenter(pt, true);
+}
+
+void addFocus(const OpPtT& ptT) {
+	addFocus(ptT.pt);
+}
+
+void addFocus(const OpRect& rect) {
+	OpDebugImage::drawDoubleFocus(rect, true);
+}
+
+void addFocus(const OpSegment& segment) {
+	addFocus(segment.ptBounds);
+}
+
+void addFocus(const OpContour* contour) {
+	addFocus(*contour);
+}
+
+void addFocus(const OpContours* contours) {
+	addFocus(*contours);
+}
+
+void addFocus(const OpEdge* edge) {
+	addFocus(*edge);
+}
+
+void addFocus(const OpIntersection* sect) {
+	addFocus(*sect);
+}
+
+void addFocus(const OpPoint* pt) {
+	addFocus(*pt);
+}
+
+void addFocus(const OpPtT* ptT) {
+	addFocus(*ptT);
+}
+
+void addFocus(const OpRect* rect) {
+	addFocus(*rect);
+}
+
+void addFocus(const OpSegment* segment) {
+	addFocus(*segment);
+}
+
+void center() {
+	center(*debugGlobalContours);
 }
 
 void center(int id) {
@@ -726,20 +823,121 @@ void center(int id) {
 }
 
 void center(float x, float y) {
-	OpPoint c(x, y);
-	OpDebugImage::drawDoubleCenter(c, false);
+	center(OpPoint(x, y));
+}
+
+void center(const OpContour& contour) {
+	center(contour.ptBounds);
+}
+
+void center(const OpContours& contours) {
+	OpPointBounds bounds;
+	for (auto& contour : contours.contours)
+		bounds.add(contour.ptBounds);
+	center(bounds);
+}
+
+void center(const OpEdge& edge) {
+	center(edge.ptBounds);
+}
+
+void center(const OpIntersection& sect) {
+	center(sect.ptT);
 }
 
 void center(const OpPoint& pt) {
-	center(pt.x, pt.y);
+	OpDebugImage::drawDoubleCenter(pt, false);
 }
 
 void center(const OpPtT& ptT) {
 	center(ptT.pt);
 }
 
+void center(const OpRect& rect) {
+	center(rect.center());
+}
+
+void center(const OpSegment& segment) {
+	center(segment.ptBounds);
+}
+
+void center(const OpContour* contour) {
+	center(*contour);
+}
+
+void center(const OpContours* contours) {
+	center(*contours);
+}
+
+void center(const OpEdge* edge) {
+	center(*edge);
+}
+
+void center(const OpIntersection* sect) {
+	center(*sect);
+}
+
+void center(const OpPoint* pt) {
+	center(*pt);
+}
+
+void center(const OpPtT* ptT) {
+	center(*ptT);
+}
+
+void center(const OpRect* rect) {
+	center(*rect);
+}
+
+void center(const OpSegment* segment) {
+	center(*segment);
+}
+
 void focus(int id) {
 	OpDebugImage::focus(id, false);
+}
+
+void focus(const OpContour& contour) {
+	focus(contour.ptBounds);
+}
+
+void focus(const OpContours& contours) {
+	OpPointBounds bounds;
+	for (auto& contour : contours.contours)
+		bounds.add(contour.ptBounds);
+	focus(bounds);
+}
+
+void focus(const OpEdge& edge) {
+	focus(edge.ptBounds);
+}
+
+void focus(const OpRect& rect) {
+	OpDebugImage::drawDoubleFocus(rect, false);
+}
+
+void focus(const OpSegment& segment) {
+	focus(segment.ptBounds);
+}
+
+void focus(const OpContour* contour) {
+	focus(*contour);
+}
+
+void focus(const OpContours* contours) {
+	focus(*contours);
+}
+
+void focus(const OpEdge* edge) {
+	focus(*edge);
+}
+
+void focus(const OpRect* rect) {
+	focus(*rect);
+}
+
+void focus(const OpSegment* segment) {
+	focus(*segment);
 }
 
 void OpDebugImage::focusEdges() {

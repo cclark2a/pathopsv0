@@ -8,7 +8,10 @@
 
 struct LinePts;
 struct LinkUps;
+struct OpContour;
+struct OpContours;
 struct OpCurve;
+struct OpDebugRay;
 struct OpEdge;
 struct OpInPath;
 struct OpIntersection;
@@ -17,12 +20,10 @@ struct OpOutPath;
 struct OpPoint;
 struct OpPointBounds;
 struct OpPtT;
-struct OpDebugRay;
+struct OpRect;
 struct OpSegment;
 struct OpVector;
 enum class Axis : int8_t;
-typedef const OpPointBounds* ConstOpPointBoundsPtr;
-typedef const OpPoint* ConstOpPointPtr;
 
 constexpr int bitmapWH = 1000;
 static_assert(bitmapWH / 2 * 2 == bitmapWH);	// must be multiple of 2
@@ -44,7 +45,7 @@ struct OpDebugImage {
 	static void clearScreen();
 	static void drawDoubleCenter(OpPoint , bool add);
 	static void drawDoubleFocus();
-	static void drawDoubleFocus(const OpPointBounds& , bool add);
+	static void drawDoubleFocus(const OpRect& , bool add);
 	static void drawGrid();
 	static void drawDoubleFill(const class SkPath& path, uint32_t color = 0xFF000000, 
 			bool stroke = false);
@@ -58,23 +59,53 @@ struct OpDebugImage {
 	static void drawPath(const class SkPath& path, uint32_t color = 0xFF000000);
 	static void drawPoints();
 	static bool drawValue(OpPoint pt, std::string ptStr, uint32_t color = 0xFF000000);
-	static void find(int id, ConstOpPointBoundsPtr* ,ConstOpPointPtr* );
+	static void find(int id, OpPointBounds* , OpPoint* );
 	static void focus(int id, bool add);
 	static void focusEdges();
 	static void init(const OpInPath& left, const OpInPath& right);
 };
 
 // call these inline or from the immediate window while debugging
-extern void addFocus(int id);
-extern void center(int id);
-extern void center(float x, float y);
-extern void center(const OpPoint& );
-extern void center(const OpPtT& );
-extern void clear();
-extern void clearLines();
-
 extern void add(const std::vector<OpEdge>& );  // to draw edge list built from intersections
 extern void add(const std::vector<OpEdge*>& ); // to draw unsortables
+extern void addFocus(int id);
+extern void addFocus(const OpContour& );
+extern void addFocus(const OpContours& );
+extern void addFocus(const OpEdge& );
+extern void addFocus(const OpIntersection& );
+extern void addFocus(const OpPoint& );
+extern void addFocus(const OpPtT& );
+extern void addFocus(const OpRect& );
+extern void addFocus(const OpSegment& );
+extern void addFocus(const OpContour* );
+extern void addFocus(const OpContours* );
+extern void addFocus(const OpEdge* );
+extern void addFocus(const OpIntersection* );
+extern void addFocus(const OpPoint* );
+extern void addFocus(const OpPtT* );
+extern void addFocus(const OpRect* );
+extern void addFocus(const OpSegment* );
+extern void center();
+extern void center(int id);
+extern void center(float x, float y);
+extern void center(const OpContour& );
+extern void center(const OpContours& );
+extern void center(const OpEdge& );
+extern void center(const OpIntersection& );
+extern void center(const OpRect& );
+extern void center(const OpPoint& );
+extern void center(const OpPtT& );
+extern void center(const OpSegment& );
+extern void center(const OpContour* );
+extern void center(const OpContours* );
+extern void center(const OpEdge* );
+extern void center(const OpIntersection* );
+extern void center(const OpRect* );
+extern void center(const OpPoint* );
+extern void center(const OpPtT* );
+extern void center(const OpSegment* );
+extern void clear();
+extern void clearLines();
 extern void draw(const std::vector<OpEdge>& );  // to draw edge list built from intersections
 extern void draw(const std::vector<OpEdge*>& ); // to draw unsortables
 extern void highlight(const LinkUps& ); // to draw assemble linkups
@@ -83,8 +114,17 @@ extern void highlightLinked(const OpEdge* );
 extern void draw(Axis , float );	// horizontal or vertical ray
 extern void draw(const LinePts& );	// arbitrary angled ray
 extern void draw();  // draw all current state
-
 extern void focus(int id);
+extern void focus(const OpContour& );
+extern void focus(const OpContours& );
+extern void focus(const OpEdge& );
+extern void focus(const OpRect& );
+extern void focus(const OpSegment& );
+extern void focus(const OpContour* );
+extern void focus(const OpContours* );
+extern void focus(const OpEdge* );
+extern void focus(const OpRect* );
+extern void focus(const OpSegment* );
 extern void gridCenter(int x, int y);
 extern void gridLines(int );
 extern void gridStep(float dxy);

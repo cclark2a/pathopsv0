@@ -68,6 +68,7 @@ OpPoint DebugOpPtToPt(OpPoint src);
 void DebugOpRecord(FILE* recordFile);
 void DebugOpResetBounds();
 void DebugOpResetFocus();
+void DebugOpScreenBounds(int& left, int&top, int& right, int& bottom);
 void DebugOpSetBounds(double, double, double, double);
 void DebugOpSetCenter(double x, double y);
 void DebugOpSetZoom(double z);	// zoom number (log2 of zoom factor)

@@ -132,6 +132,10 @@ struct OpPointBounds : OpRect {
         return OpMath::Between(left, bounds.left, right) && OpMath::Between(left, bounds.right, right)
                 && OpMath::Between(top, bounds.top, bottom) && OpMath::Between(top, bounds.bottom, bottom);
     }
+
+    void dump() const override;
+    void dumpDetail() const override;
+    void dumpHex() const override;
 #endif
 
 };
@@ -240,7 +244,7 @@ struct OpTightBounds : OpPointBounds {
     }
 
 #if OP_DEBUG_DUMP
-    std::string debugDump() const {
+    std::string debugDump() const override {
         std::string s = OpRect::debugDump();
         if (!OpMath::IsNaN(xExtrema[0].t) || !OpMath::IsNaN(xExtrema[1].t))
             s += "\n    xExtrema: " + xExtrema[0].debugDump() + ", " + xExtrema[1].debugDump();
@@ -250,6 +254,11 @@ struct OpTightBounds : OpPointBounds {
             s += "\n    inflections: " + inflections[0].debugDump() + ", " + inflections[1].debugDump();
         return s;
     }
+
+    void dump() const override;
+    void dumpDetail() const override;
+    void dumpHex() const override;
+
 #endif
 
     OpPtT xExtrema[2];

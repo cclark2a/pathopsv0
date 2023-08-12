@@ -121,7 +121,7 @@ OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
         const OpEdge* edge, const OpEdge* oEdge)) {
     OpIntersection* next = contours->allocateIntersection();
-    next->set(t, seg, 0, 0  OP_DEBUG_PARAMS(maker, line, file, reason, edge->id, oEdge->id));
+    next->set(t, seg, 0, 0, false  OP_DEBUG_PARAMS(maker, line, file, reason, edge->id, oEdge->id));
     return next;
 }
 
@@ -140,11 +140,11 @@ OpContour* OpContour::addMove(const OpPoint pts[1]) {
     return &contours->contours.back();
 }
 
-OpIntersection* OpContour::addSegSect(const OpPtT& t, OpSegment* seg, int cID, int uID
+OpIntersection* OpContour::addSegSect(const OpPtT& t, OpSegment* seg, int cID, int uID, bool end
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason,
         const OpSegment* oSeg)) {
     OpIntersection* next = contours->allocateIntersection();
-    next->set(t, seg, cID, uID  OP_DEBUG_PARAMS(maker, line, file, reason, seg->id, oSeg->id));
+    next->set(t, seg, cID, uID, end  OP_DEBUG_PARAMS(maker, line, file, reason, seg->id, oSeg->id));
     return next;
 }
 
@@ -192,7 +192,7 @@ void OpContour::finish() {
     OP_ASSERT(segments.size() >= 2);
     OpSegment* last = &segments.back();
     last->contour = this;
-    last->resortIntersections = true; // 1 gets added before 0
+    last->sects.resort = true; // 1 gets added before 0
     for (auto& segment : segments) {
         segment.contour = this;
         segment.winding = operand;
@@ -204,6 +204,10 @@ void OpContour::finish() {
         sect->pair(oSect);
         last = &segment;
     }
+}
+
+int OpContour::nextID() const {
+    return ++contours->uniqueID;
 }
 
 // end of contour; start of contours
@@ -311,7 +315,11 @@ bool OpContours::pathOps(OpOutPath result) {
 
 #if OP_DEBUG
 void OpContour::debugComplete() {
-    id = contours->id++;
+    id = nextID();
 }
-#endif
 
+bool OpContours::debugSuccess() const {
+    return OpDebugExpect::unknown == debugExpect || OpDebugExpect::success == debugExpect;
+}
+
+#endif

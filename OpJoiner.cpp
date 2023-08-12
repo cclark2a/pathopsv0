@@ -314,6 +314,7 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 	// look for a disabled edge that closes the gap
 	// it's likely that this edge is very small, but don't know how to quantify that (yet)
 	if (!found.size()) {
+		showSegmentEdges();
 		if (!disabledBuilt)
 			buildDisabled(*edge->segment->contour->contours);
 		lastEdge->matchUnsortable(EdgeMatch::end, disabled, found);
