@@ -319,22 +319,6 @@ enum class EdgeMaker {
 
 #endif
 
-// !!! may need edge only
-// if priorWind only contains edges with positive distances, and nextWind the negative,
-// then all we care about is that sign of edge and opp is different (e.g., not both prior or next)
-// if they are the same, then the edges are unsectable
-struct WindDist {
-	WindDist(OpEdge* e, float d, Axis a)
-		: edge(e)
-		, distance(d)
-		, axis(a) {
-	}
-
-	OpEdge* edge;
-	float distance;
-	Axis axis;
-};
-
 struct OpEdge {
 private:
 	OpEdge()	// note : all values are zero
@@ -494,8 +478,8 @@ public:
 #endif
 
 	const OpSegment* segment;
-	std::vector<WindDist> priorWind;	// used solely to detect unsectable found during wind computation
-	std::vector<WindDist> nextWind;
+	std::vector<OpEdge*> priorWind;	// used solely to detect unsectable found during wind computation
+	std::vector<OpEdge*> nextWind;
 	OpEdge* priorEdge;	// edges that link to form completed contour
 	OpEdge* nextEdge;
 	OpEdge* lastEdge;

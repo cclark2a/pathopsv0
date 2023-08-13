@@ -46,10 +46,9 @@ enum class FoundWindings {
 
 // !!! is it worth wrapping a vector of these in a structure so methods can be associated?
 struct EdgeDistance {
-	EdgeDistance(OpEdge* e, float d, float n, float tIn)
+	EdgeDistance(OpEdge* e, float c, float tIn)
 		: edge(e)
-		, distance(d)
-		, normal(n)
+		, cept(c)
 		, t(tIn)
 		, multiple(DistMult::none)
 		, edgeMultiple(false) {
@@ -61,11 +60,11 @@ struct EdgeDistance {
 #endif
 
 	OpEdge* edge;
-	float distance;
-	float normal;
+	float cept;		// where normal intersects edge (for home edge, equals center)
 	float t;
 	DistMult multiple;
 	bool edgeMultiple;
+	bool isHome;
 };
 
 struct OpWinder {
@@ -77,20 +76,17 @@ struct OpWinder {
 			OpSegment* segment, OpSegment* oppSegment, int coinID);
 	static IntersectResult AddPair(XyChoice offset, OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpPtT dPtT,
 			bool flipped, OpSegment* segment, OpSegment* oppSegment);
-	static bool BetweenUnsectables(OpEdge* , Axis , std::vector<EdgeDistance>& );
+	bool betweenUnsectables();
 	static IntersectResult CoincidentCheck(OpPtT ptTa, OpPtT ptTb, OpPtT ptTc, OpPtT ptTd,
 			OpSegment* segment, OpSegment* oppSegment);
 	static IntersectResult CoincidentCheck(const OpEdge& edge, const OpEdge& opp);
-	FoundIntercept findRayIntercept(size_t inIndex, Axis , OpEdge* edge, float center, 
-			float normal, float edgeCenterT, std::vector<EdgeDistance>* );
-	static void MarkPairUnsectable(Axis axis, EdgeDistance& dist1, EdgeDistance& dist2);
-	static void MarkUnsectableGroups(Axis axis, std::vector<EdgeDistance>& distance);
+	FoundIntercept findRayIntercept(size_t inIndex);
+	void markPairUnsectable(EdgeDistance& dist1, EdgeDistance& dist2);
+	void markUnsectableGroups();
 	void markUnsortable();
-	void markUnsortable(OpEdge* edge, Axis );
-	static void SetEdgeMultiple(Axis axis, EdgeDistance* edgeDist  
-			OP_DEBUG_PARAMS(std::vector<EdgeDistance>& distance));
-	ChainFail setSumChain(size_t inIndex, Axis );
-	ResolveWinding setWindingByDistance(OpEdge* edge, Axis , std::vector<EdgeDistance>& );
+	void setEdgeMultiple(EdgeDistance* edgeDist);
+	ChainFail setSumChain(size_t inIndex);
+	ResolveWinding setWindingByDistance();
 	FoundWindings setWindings(OpContours* );
 	void sort(EdgesToSort);
 
@@ -107,6 +103,11 @@ struct OpWinder {
 
 	std::vector<OpEdge*> inX;
 	std::vector<OpEdge*> inY;
+	std::vector<EdgeDistance> distances;
+	OpEdge* home;
+	Axis axis;
+	float normal;  // ray used to find windings on home edge
+	float homeCept;  // intersection of normal on home edge
 };
 
 #endif

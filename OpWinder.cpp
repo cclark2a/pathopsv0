@@ -274,55 +274,40 @@ void OpWinder::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
 	}
 }
 
+// this catches unsectables by keeping track of edges that are found to be adjacent
+// each time a ray is cast. If the edge is seen to the left during one ray cast, and to the right
+// on another, it is marked as between an unsectable pair. (I think...)
 // !!! for now, require strict inclusion; this may be insufficent to catch all cases
-bool OpWinder::BetweenUnsectables(OpEdge* edge, Axis axis, std::vector<EdgeDistance>& distance) {
+bool OpWinder::betweenUnsectables() {
 	// use sorted distances to mark previous and next edges by winding order
 	OpEdge* checkEdge = nullptr;
-	auto hasEdge = [&checkEdge](const WindDist& windDist) {
-		return checkEdge == windDist.edge;
+	auto hasEdge = [&checkEdge](OpEdge* windDist) {
+		return checkEdge == windDist;
 	};
-	auto addWind = [hasEdge, &checkEdge, axis](OpEdge* edge, WhichLoop which, 
-			const EdgeDistance& dist) {
-		checkEdge = dist.edge;
-		if (WhichLoop::prior == which) {
-			OP_ASSERT(edge->priorWind.end() == std::find_if(edge->priorWind.begin(), 
-					edge->priorWind.end(), hasEdge));
-			edge->priorWind.emplace_back(dist.edge, dist.distance, axis);
-			checkEdge = edge;
-			if (dist.edge->priorWind.end() != std::find_if(dist.edge->priorWind.begin(), 
-					dist.edge->priorWind.end(), hasEdge)) {
-				return false;
-			}
-		} else {
-			OP_ASSERT(edge->nextWind.end() == std::find_if(edge->nextWind.begin(), 
-					edge->nextWind.end(), hasEdge));
-			OP_ASSERT(WhichLoop::next == which);
-			edge->nextWind.emplace_back(dist.edge, dist.distance, axis);
-			checkEdge = edge;
-			if (dist.edge->nextWind.end() != std::find_if(dist.edge->nextWind.begin(), 
-					dist.edge->nextWind.end(), hasEdge)) {
-				return false;
-			}
-		}
-		return true;
+	auto addWind = [hasEdge, &checkEdge](OpEdge* edge, std::vector<OpEdge*>& winds, OpEdge* dist) {
+		OP_DEBUG_CODE(checkEdge = dist);
+		OP_ASSERT(winds.end() == std::find_if(winds.begin(), winds.end(), hasEdge));
+		winds.push_back(dist);
+		checkEdge = edge;
+		return winds.end() == std::find_if(winds.begin(), winds.end(), hasEdge);
 	};
-	EdgeDistance* last = &distance.front();
-	for (size_t index = 1; index < distance.size(); ++index) {
-		EdgeDistance& dist = distance[index];
-		OP_ASSERT(last->distance >= dist.distance);
-		if (dist.distance > 0) 
+	EdgeDistance* last = &distances.front();
+	for (size_t index = 1; index < distances.size(); ++index) {
+		EdgeDistance& dist = distances[index];
+		OP_ASSERT(last->cept >= dist.cept);
+		if (dist.cept > homeCept) 
 			goto next;
-		if (last->distance < 0)
+		if (last->cept < homeCept)
 			break;
-		if (!dist.distance && !last->distance)
+		if (dist.cept == homeCept && last->cept == homeCept)
 			goto next;
-		OP_ASSERT((last->distance > 0 && dist.distance == 0) 
-				|| (last->distance == 0 && dist.distance < 0));
-		if (dist.distance) {
-			if (!addWind(last->edge, WhichLoop::next, dist))
+		OP_ASSERT((last->cept > homeCept && dist.cept == homeCept) 
+				|| (last->cept == homeCept && dist.cept < homeCept));
+		if (dist.cept < homeCept) {
+			if (!addWind(last->edge, last->edge->nextWind, dist.edge))
 				dist.edge->markUnsectable(last->edge, axis, dist.t, last->t);
 		} else {
-			if (!addWind(dist.edge, WhichLoop::prior, *last))
+			if (!addWind(dist.edge, dist.edge->priorWind, last->edge))
 				dist.edge->markUnsectable(last->edge, axis, dist.t, last->t);
 		}
 next:
@@ -330,13 +315,13 @@ next:
 	}
 	std::vector<int> uIDs;
 	bool edgeFound = false;
-	for (const auto& dist : distance) {
-		if (edge == dist.edge) {
-			OP_ASSERT(!dist.distance);
+	for (const auto& dist : distances) {
+		if (home == dist.edge) {
+			OP_ASSERT(dist.cept == homeCept);
 			edgeFound = true;
 			continue;
 		}
-		if (!dist.distance)
+		if (dist.cept == homeCept)
 			return false;	// if edge and one other has zero distance, it is unsectable
 		if (!dist.edge->unsectableID)
 			continue;
@@ -356,7 +341,7 @@ next:
 // note: sorts from high to low
 struct CompareDistance {
 	bool operator()(const EdgeDistance& s1, const EdgeDistance& s2) {
-		return s1.distance > s2.distance;
+		return s1.cept > s2.cept;
 	}
 };
 
@@ -364,22 +349,29 @@ struct CompareDistance {
 // for now, keep making it smaller until it breaks
 #define WINDING_NORMAL_LIMIT  0.001 // !!! no idea what this should be
 
-FoundIntercept OpWinder::findRayIntercept(size_t inIndex, Axis axis, OpEdge* edge, float center,
-		float normal, float edgeCenterT, std::vector<EdgeDistance>* distance) {
-	OpDebugBreak(edge, 60);
+FoundIntercept OpWinder::findRayIntercept(size_t inIndex) {
 	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
 	Axis perpendicular = !axis;
 	OpVector backRay = -ray;
 	float mid = .5;
 	float midEnd = .5;
 	std::vector<OpEdge*>& inArray = Axis::horizontal == axis ? inX : inY;
+	float homeMidT = home->center.t;
+#define RAY_USE_SEGMENT 0
+#if RAY_USE_SEGMENT
+	const OpCurve& homeCurve = home->segment->c;
+#else
+	const OpCurve& homeCurve = home->setCurve();  // ok to be in loop (lazy)
+#endif
+	float homeMidXY = homeCurve.ptAtT(homeMidT).choice(perpendicular);
 	do {
-		distance->emplace_back(edge, 0, normal, edgeCenterT);
+		distances.clear();
+		distances.emplace_back(home, homeMidXY, homeMidT);
 		int index = inIndex;
 		// start at edge with left equal to or left of center
 		while (index != 0) {
 			OpEdge* test = inArray[--index];
-			if (test == edge)
+			if (test == home)
 				continue;
 			if (test->ptBounds.ltChoice(axis) > normal)
 				continue;
@@ -390,70 +382,66 @@ FoundIntercept OpWinder::findRayIntercept(size_t inIndex, Axis axis, OpEdge* edg
 			if (test->disabled)
 				continue;
 			{
+				// start here;
+				// failed to switch over to segment everywhere, may explain why experiment failed
 				// !!! EXPERIMENT
 				// try using segment's curve instead of edge curve
 				// edge curve's control points, especially small ones, may magnify error
-			#define RAY_USE_SEGMENT 0
 			#if RAY_USE_SEGMENT
 				const OpCurve& testCurve = test->segment->c;
 			#else
 				const OpCurve& testCurve = test->setCurve();
 			#endif
-				OpRoots cepts = testCurve.axisRayHit(axis, normal);
+				OpRoots roots = testCurve.axisRayHit(axis, normal);
 				// get the normal at the intersect point and see if it is usable
-				if (1 != cepts.count) {
+				if (1 != roots.count) {
 					// !!! if intercepts is 2 or 3, figure out why (and what to do)
 					// !!! likely need to try a different ray
-					OP_ASSERT(0 == cepts.count);
+					OP_ASSERT(0 == roots.count);
 					continue;
 				}
-				float cept = cepts.get(0);
+				float root = roots.get(0);
 			#if RAY_USE_SEGMENT
-				if (OpMath::IsNaN(cept) || test->start.t >= cept || cept >= test->end.t)
+				if (OpMath::IsNaN(root) || test->start.t >= root || root >= test->end.t)
 					goto tryADifferentCenter;
 			#else
-				if (OpMath::IsNaN(cept) || 0 == cept || cept == 1)
+				if (OpMath::IsNaN(root) || 0 == root || root == 1)
 					goto tryADifferentCenter;
 			#endif
 				bool overflow;
-				OpVector tangent = testCurve.tangent(cept).normalize(&overflow);
+				OpVector tangent = testCurve.tangent(root).normalize(&overflow);
 				if (overflow)
 					OP_DEBUG_FAIL(*test, FoundIntercept::overflow);
 				float tNxR = tangent.cross(backRay);
 				if (fabs(tNxR) < WINDING_NORMAL_LIMIT)
 					goto tryADifferentCenter;
-				OpPoint pt = testCurve.ptAtT(cept);
-				float span = center - pt.choice(perpendicular);
-#if 0	// wait until this is required to make a test work
-				if (-OpEpsilon < span && span < OpEpsilon)
-					span = 0;
-#endif
-				distance->emplace_back(test, span, normal, cept);
+				OpPoint pt = testCurve.ptAtT(root);
+				float testXY = pt.choice(perpendicular);
+				distances.emplace_back(test, testXY, root);
 			}
 		}
 		return FoundIntercept::yes;
 	tryADifferentCenter:
 		mid /= 2;
 		midEnd = midEnd < .5 ? 1 - mid : mid;
-		float middle = OpMath::Interp(edge->ptBounds.ltChoice(axis), edge->ptBounds.rbChoice(axis), 
+		float middle = OpMath::Interp(home->ptBounds.ltChoice(axis), home->ptBounds.rbChoice(axis), 
 				midEnd);
-		const OpCurve& edgeCurve = edge->setCurve();  // ok to be in loop (lazy)
-		edgeCenterT = edgeCurve.center(axis, middle);
-		if (OpMath::IsNaN(edgeCenterT) || mid <= 1.f / 256.f) {	// give it at most eight tries
-			markUnsortable(edge, axis);
+		const OpCurve& edgeCurve = home->setCurve();  // ok to be in loop (lazy)
+		homeMidT = edgeCurve.center(axis, middle);
+		if (OpMath::IsNaN(homeMidT) || mid <= 1.f / 256.f) {	// give it at most eight tries
+			markUnsortable();
 			return FoundIntercept::fail;	// nonfatal error (!!! give it a different name!)
 		}
 		// if find ray intercept can't find, restart with new center, normal, distance, etc.
-		center = edgeCurve.ptAtT(edgeCenterT).choice(perpendicular);
-		OP_ASSERT(!OpMath::IsNaN(center));
-		normal = edgeCurve.ptAtT(edgeCenterT).choice(axis);
+		homeCept = edgeCurve.ptAtT(homeMidT).choice(perpendicular);
+		OP_ASSERT(!OpMath::IsNaN(homeCept));
+		normal = edgeCurve.ptAtT(homeMidT).choice(axis);
 		OP_ASSERT(!OpMath::IsNaN(normal));
-		distance->clear();
 	} while (true);
 }
 
 	// restructure to mark all zero distance as unsectableID (if there is more than one)
-void OpWinder::MarkPairUnsectable(Axis axis, EdgeDistance& iDist, EdgeDistance& oDist) {
+void OpWinder::markPairUnsectable(EdgeDistance& iDist, EdgeDistance& oDist) {
 	iDist.multiple = DistMult::none == iDist.multiple ? DistMult::first : DistMult::mid;
 	OpEdge* iEdge = iDist.edge;
 	oDist.multiple = DistMult::last;
@@ -472,30 +460,29 @@ void OpWinder::MarkPairUnsectable(Axis axis, EdgeDistance& iDist, EdgeDistance& 
 // if first edge is smaller than other in the pair, defer marking the other as unsectable, since
 // the non-overlapping part may be fine
 // just test the non-overlapping part of orderability?
-void OpWinder::MarkUnsectableGroups(Axis axis, std::vector<EdgeDistance>& distance) {
+void OpWinder::markUnsectableGroups() {
 	int lastID = 0;
-	float lastDistance = OpInfinity;
-	for (size_t index = 0; index < distance.size(); ++index) {
-		float dist = distance[index].distance;
-		OP_ASSERT(lastDistance >= dist);
-		OpEdge* edge = distance[index].edge;
-		if (0 == dist && 0 == lastDistance)
-			MarkPairUnsectable(axis, distance[index - 1], distance[index]);
+	float lastCept = OpInfinity;
+	for (size_t index = 0; index < distances.size(); ++index) {
+		float cept = distances[index].cept;
+		OP_ASSERT(lastCept >= cept);
+		OpEdge* edge = distances[index].edge;
+		if (cept == lastCept)
+			markPairUnsectable(distances[index - 1], distances[index]);
 		else if (lastID && abs(lastID) == abs(edge->unsectableID))
-			MarkPairUnsectable(axis, distance[index - 1], distance[index]);
-		lastDistance = dist;
+			markPairUnsectable(distances[index - 1], distances[index]);
+		lastCept = cept;
 		lastID = edge->unsectableID;
 	}
 }
 
-void OpWinder::markUnsortable(OpEdge* edge, Axis axis) {
-	if (Axis::vertical == axis || inY.end() == std::find(inY.begin(), inY.end(), edge)) 
-		edge->setUnsortable();
-	edge->fail = Axis::vertical == axis ? EdgeFail::vertical : EdgeFail::horizontal;
+void OpWinder::markUnsortable() {
+	if (Axis::vertical == axis || inY.end() == std::find(inY.begin(), inY.end(), home)) 
+		home->setUnsortable();
+	home->fail = Axis::vertical == axis ? EdgeFail::vertical : EdgeFail::horizontal;
 }
 
-void OpWinder::SetEdgeMultiple(Axis axis, EdgeDistance* edgeDist  
-		OP_DEBUG_PARAMS(std::vector<EdgeDistance>& distance)) {
+void OpWinder::setEdgeMultiple(EdgeDistance* edgeDist) {
 	OpEdge* edge = edgeDist->edge;
 	NormalDirection edgeNorm = edge->normalDirection(axis, edgeDist->t);
 	auto addToMany = [=](EdgeDistance& dist, OpEdge* edge  
@@ -520,12 +507,12 @@ void OpWinder::SetEdgeMultiple(Axis axis, EdgeDistance* edgeDist
 	OP_ASSERT(WindingType::uninitialized == edge->many.debugType);
 	edge->many = edge->winding;
 	while (DistMult::first != edgeFirst->multiple) {
-		OP_ASSERT(edgeFirst > &distance.front() && edgeFirst <= &distance.back());
+		OP_ASSERT(edgeFirst > &distances.front() && edgeFirst <= &distances.back());
 		addToMany(*--edgeFirst, edge  OP_DEBUG_PARAMS(DistMult::first));
 	}
 	EdgeDistance* edgeLast = edgeDist;
 	while (DistMult::last != edgeLast->multiple) {
-		OP_ASSERT(edgeLast >= &distance.front() && edgeLast < &distance.back());
+		OP_ASSERT(edgeLast >= &distances.front() && edgeLast < &distances.back());
 		addToMany(*++edgeLast, edge  OP_DEBUG_PARAMS(DistMult::last));
 	}
 	if (!edge->many.visible())
@@ -533,84 +520,77 @@ void OpWinder::SetEdgeMultiple(Axis axis, EdgeDistance* edgeDist
 }
 
 // if horizontal axis, look at rect top/bottom
-ChainFail OpWinder::setSumChain(size_t inIndex, Axis axis) {
+ChainFail OpWinder::setSumChain(size_t inIndex) {
 	// see if normal at center point is in direction of ray
 	std::vector<OpEdge*>& inArray = Axis::horizontal == axis ? inX : inY;
-	OpEdge* edge = inArray[inIndex];
-	OP_ASSERT(!edge->disabled);
-	const OpSegment* edgeSeg = edge->segment;
+	home = inArray[inIndex];
+	OP_ASSERT(!home->disabled);
+	const OpSegment* edgeSeg = home->segment;
 	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
 	bool overflow;
-	float NxR = edgeSeg->c.tangent(edge->center.t).normalize(&overflow).cross(ray);
+	float NxR = edgeSeg->c.tangent(home->center.t).normalize(&overflow).cross(ray);
 	if (overflow)
-		OP_DEBUG_FAIL(*edge, ChainFail::normalizeOverflow);
+		OP_DEBUG_FAIL(*home, ChainFail::normalizeOverflow);
 	if (fabs(NxR) < WINDING_NORMAL_LIMIT) {
-		markUnsortable(edge, axis);
+		markUnsortable();
 		return ChainFail::normalizeUnderflow;  // nonfatal error
 	}
 	// intersect normal with every edge in the direction of ray until we run out 
 	Axis perpendicular = !axis;
-	float center = edge->center.pt.choice(perpendicular);
-	float normal = edge->center.pt.choice(axis);
-	if (normal == edge->start.pt.choice(axis)
-			|| normal == edge->end.pt.choice(axis)) {
-		markUnsortable(edge, axis);
+	normal = home->center.pt.choice(axis);
+	if (normal == home->start.pt.choice(axis)
+			|| normal == home->end.pt.choice(axis)) {
+		markUnsortable();
 		return ChainFail::noNormal;  // nonfatal error
 	}
-	float edgeCenterT = edge->center.t;
+	homeCept = home->center.pt.choice(perpendicular);
 	// advance to furthest that could influence the sum winding of this edge
 	inIndex += 1;
 	for (; inIndex < inArray.size(); ++inIndex) {
 		OpEdge* advance = inArray[inIndex];
-		if (advance->ptBounds.ltChoice(perpendicular) > center)
+		if (advance->ptBounds.ltChoice(perpendicular) > homeCept)
 			break;
 	}
-	std::vector<EdgeDistance> distance;
-	FoundIntercept foundIntercept = findRayIntercept(inIndex, axis, edge, center, normal,
-			edgeCenterT, &distance);
-	OP_ASSERT(distance.size());
+	FoundIntercept foundIntercept = findRayIntercept(inIndex);
+	OP_ASSERT(distances.size());
 	if (FoundIntercept::fail == foundIntercept)
 		return ChainFail::failIntercept;
 	if (FoundIntercept::overflow == foundIntercept)
 		return ChainFail::normalizeOverflow;
-	std::sort(distance.begin(), distance.end(), CompareDistance());	// sorts from high to low
-	if (!edge->unsectableID && BetweenUnsectables(edge, axis, distance)) {
-		edge->setBetween();
+	std::sort(distances.begin(), distances.end(), CompareDistance());	// sorts from high to low
+	if (!home->unsectableID && betweenUnsectables()) {
+		home->setBetween();
 		return ChainFail::betweenUnsectables;	// nonfatal error (but, do not retry vertically)
 	}
 	OP_ASSERT(Axis::vertical == axis || FoundIntercept::set != foundIntercept);
 	// walk edge from low to high (backwards) until simple edge with sum winding is found
 	// if edge is unsectable and next to another unsectable, don't set its sum winding, 
 	// but accumulate its winding for other edges and store accumulated total in each unsectable
-	if (ResolveWinding::fail == setWindingByDistance(edge, axis, distance))
+	if (ResolveWinding::fail == setWindingByDistance())
 		return ChainFail::failIntercept;	// !!! replace with unique fail state
 	return ChainFail::none;
 }
 
 // distance array may include edges to right. Remove code that collects that?
-ResolveWinding OpWinder::setWindingByDistance(OpEdge* edge, Axis axis, 
-		std::vector<EdgeDistance>& distance) {
-	OpDebugBreak(edge, 60);
-	OpDebugBreak(edge, 73);
-	if (1 == distance.size()) {
-		OP_ASSERT(edge == distance[0].edge);
-		OP_ASSERT(!edge->unsectableID);
-		return CalcFail::fail == edge->calcWinding(axis, distance[0].t) ?
+ResolveWinding OpWinder::setWindingByDistance() {
+	if (1 == distances.size()) {
+		OP_ASSERT(home == distances[0].edge);
+		OP_ASSERT(!home->unsectableID);
+		return CalcFail::fail == home->calcWinding(axis, distances[0].t) ?
 				ResolveWinding::fail : ResolveWinding::resolved;
 	}
-	if (edge->unsectableID) {
-		int uID = abs(edge->unsectableID);
+	if (home->unsectableID) {
+		int uID = abs(home->unsectableID);
 		// see if : any pals are in distance; if not, if a pal could be to the right
 		bool palInDistance = false;
-		for (auto dist : distance) {
-			if (abs(dist.edge->unsectableID) != uID || edge == dist.edge)
+		for (const auto& dist : distances) {
+			if (abs(dist.edge->unsectableID) != uID || home == dist.edge)
 				continue;
 			palInDistance = true;
 			break;
 		}
 		if (!palInDistance) {
-			float normal = distance[0].normal;
-			for (auto pal : edge->pals) {
+			for (auto pal : home->pals) {
 				if (!OpMath::Between(pal->start.pt.choice(axis), normal, pal->end.pt.choice(axis)))
 					continue;
 				palInDistance = true;
@@ -618,9 +598,9 @@ ResolveWinding OpWinder::setWindingByDistance(OpEdge* edge, Axis axis,
 			}
 		}
 		if (!palInDistance) {
-			for (auto pal : edge->pals) {
-				OP_ASSERT(abs(pal->unsectableID) == abs(edge->unsectableID));
-				auto edgeInPal = std::find(pal->pals.begin(), pal->pals.end(), edge);
+			for (auto pal : home->pals) {
+				OP_ASSERT(abs(pal->unsectableID) == abs(home->unsectableID));
+				auto edgeInPal = std::find(pal->pals.begin(), pal->pals.end(), home);
 				OP_ASSERT(pal->pals.end() != edgeInPal);
 				pal->pals.erase(edgeInPal);
 				if (!pal->pals.size()) {
@@ -628,29 +608,29 @@ ResolveWinding OpWinder::setWindingByDistance(OpEdge* edge, Axis axis,
 					pal->setUnsortable();
 				}
 			}
-			edge->unsectableID = 0;
-			edge->pals.clear();
+			home->unsectableID = 0;
+			home->pals.clear();
 		}
 	}
 	// mark consecutive pairs or more of unsectable as multiples
-	MarkUnsectableGroups(axis, distance);
+	markUnsectableGroups();
 	// find edge; then walk backwards to first known sum 
-	int sumIndex = (int) distance.size();
+	int sumIndex = (int) distances.size();
 	int edgeIndex = -1;	// !!! initialized to suppress warning (?)
 	while (--sumIndex >= 0) {
-		EdgeDistance* edgeDist = &distance[sumIndex];
-		if (edgeDist->distance < 0)
+		EdgeDistance* edgeDist = &distances[sumIndex];
+		if (edgeDist->cept < homeCept)
 			continue;
-		if (edgeDist->edge == edge) {
-			OP_ASSERT(0 == edgeDist->distance);
+		if (edgeDist->edge == home) {
+			OP_ASSERT(homeCept == edgeDist->cept);
 			edgeIndex = sumIndex;
 			if (DistMult::none != edgeDist->multiple)
-				SetEdgeMultiple(axis, edgeDist  OP_DEBUG_PARAMS(distance));
+				setEdgeMultiple(edgeDist);
 			continue;
 		}
-		if (0 == edgeDist->distance)
+		if (homeCept == edgeDist->cept)
 			continue;
-		OP_ASSERT(edgeDist->distance > 0);
+		OP_ASSERT(edgeDist->cept > homeCept);
 		OpEdge* prior = edgeDist->edge;
 		if (!prior->unsectableID && prior->sum.isSet())
 			break;
@@ -658,7 +638,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpEdge* edge, Axis axis,
 	// starting with found or zero if none, accumulate sum up to winding
 	OpWinding sumWinding(WindingTemp::dummy);
 	if (sumIndex >= 0) {
-		EdgeDistance& sumDistance = distance[sumIndex];
+		EdgeDistance& sumDistance = distances[sumIndex];
 		OpEdge* sumEdge = sumDistance.edge;
 		sumWinding = sumEdge->sum;
 		OP_DEBUG_CODE(sumWinding.debugType = WindingType::temp);
@@ -670,7 +650,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpEdge* edge, Axis axis,
 	int walkIndex = sumIndex;
 	OP_ASSERT(edgeIndex >= 0);
 	while (++walkIndex <= edgeIndex) {
-		EdgeDistance& dist = distance[walkIndex];
+		EdgeDistance& dist = distances[walkIndex];
 		if (dist.edgeMultiple)
 			break;
 		OpEdge* prior = dist.edge;
@@ -679,7 +659,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpEdge* edge, Axis axis,
 			prior->setUnsortable();
 			continue;
 		}
-		bool sumSet = !prior->unsectableID || prior == edge;
+		bool sumSet = !prior->unsectableID || prior == home;
 		if (sumSet && NormalDirection::downLeft == normDir)
 			OP_EDGE_SET_SUM(prior, sumWinding);
 		if (CalcFail::fail == prior->addSub(axis, dist.t, &sumWinding)) // if d/l sub; if u/r add
@@ -688,19 +668,20 @@ ResolveWinding OpWinder::setWindingByDistance(OpEdge* edge, Axis axis,
 			OP_EDGE_SET_SUM(prior, sumWinding);
 	}
 	// accumate the winding for all in the group, then set all sums to that accumulation
-	if (distance[edgeIndex].edgeMultiple) {
-		NormalDirection normDir = edge->normalDirection(axis, distance[edgeIndex].t);
+	if (distances[edgeIndex].edgeMultiple) {
+		NormalDirection normDir = home->normalDirection(axis, distances[edgeIndex].t);
 		OP_ASSERT(NormalDirection::downLeft == normDir || NormalDirection::upRight == normDir);
 		if (NormalDirection::upRight == normDir)
-			sumWinding += edge->many;
-		OP_EDGE_SET_SUM(edge, sumWinding);
+			sumWinding += home->many;
+		OP_EDGE_SET_SUM(home, sumWinding);
 	}
 	return ResolveWinding::resolved;
 }
 
 FoundWindings OpWinder::setWindings(OpContours* contours) {
 	// test sum chain for correctness; recompute if prior or next are inconsistent
-	for (Axis axis : { Axis::horizontal, Axis::vertical }) {
+	for (Axis a : { Axis::horizontal, Axis::vertical }) {
+		axis = a;
 		std::vector<OpEdge*>& edges = Axis::horizontal == axis ? inX : inY;
 		for (size_t index = 0; index < edges.size(); ++index) {
 			OpEdge* edge = edges[index];
@@ -714,7 +695,7 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 				edge->fail = EdgeFail::none;
 			else if (edge->unsortable)  // may be too small
 				continue;
-			ChainFail chainFail = setSumChain(index, axis);
+			ChainFail chainFail = setSumChain(index);
 			if (ChainFail::normalizeOverflow == chainFail)
 				OP_DEBUG_FAIL(*edge, FoundWindings::fail);
 		}

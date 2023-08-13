@@ -937,13 +937,13 @@ std::string OpEdge::debugDumpDetail() const {
             OP_DEBUG_CODE(+ STR(segment->contour->id)) + std::string("]\n");
     if (priorWind.size()) {
         s += "priorW:";
-        for (const WindDist& wd : priorWind)
-            s += STR(wd.edge->id) + " ";
+        for (const OpEdge* wd : priorWind)
+            s += STR(wd->id) + " ";
     }   
     if (nextWind.size()) {
         s += " nextW:";
-        for (const WindDist& wd : nextWind)
-            s += STR(wd.edge->id) + " ";
+        for (const OpEdge* wd : nextWind)
+            s += STR(wd->id) + " ";
     }
     if (priorWind.size() || nextWind.size())
         s += "\n";
@@ -1405,8 +1405,7 @@ void checkDistMult() {
 void dmp(const EdgeDistance& distance) {
     checkDistMult();
     OpDebugOut(distance.edge->debugDump() + "\n");
-    OpDebugOut("distance:" + STR(distance.distance) + " ");
-    OpDebugOut("normal:" + STR(distance.normal) + " ");
+    OpDebugOut("cept:" + STR(distance.cept) + " ");
     OpDebugOut("t:" + STR(distance.t) + " ");
     if (distMultOutOfDate)
         OpDebugOut("(distMult out of date) " + STR((int)distance.multiple));
@@ -1417,8 +1416,7 @@ void dmp(const EdgeDistance& distance) {
 void dmpDetail(const EdgeDistance& distance) {
     checkDistMult();
     OpDebugOut(distance.edge->debugDumpDetail() + "\n");
-    OpDebugOut("distance:" + STR(distance.distance) + " ");
-    OpDebugOut("normal:" + STR(distance.normal) + " ");
+    OpDebugOut("cept:" + STR(distance.cept) + " ");
     OpDebugOut("t:" + STR(distance.t) + " ");
     if (distMultOutOfDate)
         OpDebugOut("(distMult out of date) " + STR((int)distance.multiple));
