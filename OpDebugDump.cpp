@@ -526,8 +526,8 @@ std::vector<const OpIntersection*> findCoincidence(int ID) {
     for (const auto& c : debugGlobalContours->contours) {
         for (const auto& seg : c.segments) {
             for (const auto intersection : seg.sects.i) {
-                if (ID == fabs(intersection->coincidenceID) 
-                        OP_DEBUG_CODE(|| ID == fabs(intersection->debugCoincidenceID)))
+                if (ID == abs(intersection->coincidenceID) 
+                        OP_DEBUG_CODE(|| ID == abs(intersection->debugCoincidenceID)))
                     result.push_back(intersection);
             }
         }
@@ -553,6 +553,10 @@ const OpEdge* findEdge(int ID) {
             }
         }
     }
+    for (const auto& c : debugGlobalContours->filler) {
+        if (ID == c.id)
+            return &c;
+    }
     // if edge intersect is active, search there too
     if (OpCurveCurve::debugActive) {
 	    for (auto edgePtrs : { 
@@ -577,7 +581,7 @@ std::vector<const OpEdge*> findEdgeUnsectable(int ID) {
     for (const auto& c : debugGlobalContours->contours) {
         for (const auto& seg : c.segments) {
             for (const auto& edge : seg.edges) {
-                if (ID == fabs(edge.unsectableID))
+                if (ID == abs(edge.unsectableID))
                     result.push_back(&edge);
             }
         }
@@ -604,7 +608,7 @@ std::vector<const OpIntersection*> findSectUnsectable(int ID) {
     for (const auto& c : debugGlobalContours->contours) {
         for (const auto& seg : c.segments) {
             for (const auto intersection : seg.sects.i) {
-                if (ID == fabs(intersection->unsectID))
+                if (ID == abs(intersection->unsectID))
                     result.push_back(intersection);
             }
         }
@@ -838,6 +842,7 @@ struct EdgeMakerName {
 
 static EdgeMakerName edgeMakerNames[] {
     EDGE_MAKER_NAME(empty),
+    EDGE_MAKER_NAME(filler),
     EDGE_MAKER_NAME(intersectEdge1),
     EDGE_MAKER_NAME(intersectEdge2),
     EDGE_MAKER_NAME(makeEdges),
@@ -1273,8 +1278,16 @@ void dmpLink(const OpEdge& edge) {
     edge.dumpChain();
 }
 
+void OpEdge::dumpLink() const {
+    dmpLink(*this);
+}
+
 void dmpLinkDetail(const OpEdge& edge) {
     edge.dumpChain(true);
+}
+
+void OpEdge::dumpLinkDetail() const {
+    dmpLinkDetail(*this);
 }
 
 void dmpStart(const OpEdge& edge) {
@@ -1354,9 +1367,9 @@ void OpWinder::debugValidate() const {
 }
 #endif
 
-void OpWinder::dumpAxis(Axis axis) const {
+void OpWinder::dumpAxis(Axis a) const {
     std::string s = "";
-    for (const auto edge : Axis::vertical == axis ? inY : inX) {
+    for (const auto edge : Axis::vertical == a ? inY : inX) {
         s += edge->debugDump() + "\n";
     }
     OpDebugOut(s);
@@ -1974,7 +1987,6 @@ std::string OpPoint::debugDumpHex() const {
 
 void dmp(const OpPoint& pt) {
     OpDebugOut("OpPoint pt { " + pt.debugDump() + " };\n");
-    pt.dump();
 }
 
 void dmpHex(const OpPoint& pt) {

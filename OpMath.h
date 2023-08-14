@@ -398,23 +398,9 @@ struct OpPoint {
         return *asPtr(xyChoice);
     }
 
-#if 0
-    static OpPoint Min1(OpPoint a, OpPoint b) {
-        return { std::min(a.x, b.x), std::min(a.y, b.y) };
-    }
-
-    static OpPoint Min2(OpPoint a, OpPoint b) {
-        return { a.x < b.x ? a.x : b.x, a.y < b.y ? a.y : b.y };
-    }
-
-    OpPoint min1(OpPoint a) {
-        return { std::min(a.x, x), std::min(a.y, y) };
-    }
-
-    OpPoint min2(OpPoint a) {
-        return { x < a.x ? x : a.x, y < a.y ? y : a.y };
-    }
-#endif
+//    bool isNearly(OpPoint test) const {
+//        return OpEpsilon >= fabs(test.x - x) && OpEpsilon >= fabs(test.y - y);
+//    }
 
     void pin(const OpPoint , const OpPoint );
     void pin(const OpRect& );
@@ -493,6 +479,9 @@ struct OpRect {
     float width() const { return right - left; }
 
 #if OP_DEBUG_DUMP
+    virtual ~OpRect() {}
+    OpRect(const OpRect& r) = default;
+    OpRect& operator=(const OpRect& ) = default;
     virtual std::string debugDump() const;
     virtual std::string debugDumpHex() const;
     virtual void dump() const;

@@ -294,16 +294,16 @@ bool OpWinder::betweenUnsectables() {
 	EdgeDistance* last = &distances.front();
 	for (size_t index = 1; index < distances.size(); ++index) {
 		EdgeDistance& dist = distances[index];
-		OP_ASSERT(last->cept >= dist.cept);
-		if (dist.cept > homeCept) 
+		OP_ASSERT(last->cept <= dist.cept);
+		if (dist.cept < homeCept) 
 			goto next;
-		if (last->cept < homeCept)
+		if (last->cept > homeCept)
 			break;
 		if (dist.cept == homeCept && last->cept == homeCept)
 			goto next;
-		OP_ASSERT((last->cept > homeCept && dist.cept == homeCept) 
-				|| (last->cept == homeCept && dist.cept < homeCept));
-		if (dist.cept < homeCept) {
+		OP_ASSERT((last->cept < homeCept && dist.cept == homeCept) 
+				|| (last->cept == homeCept && dist.cept > homeCept));
+		if (dist.cept > homeCept) {
 			if (!addWind(last->edge, last->edge->nextWind, dist.edge))
 				dist.edge->markUnsectable(last->edge, axis, dist.t, last->t);
 		} else {
@@ -338,13 +338,6 @@ next:
 	return false;
 }
 
-// note: sorts from high to low
-struct CompareDistance {
-	bool operator()(const EdgeDistance& s1, const EdgeDistance& s2) {
-		return s1.cept > s2.cept;
-	}
-};
-
 // at some point, do some math or rigorous testing to figure out how extreme this can be
 // for now, keep making it smaller until it breaks
 #define WINDING_NORMAL_LIMIT  0.001 // !!! no idea what this should be
@@ -357,16 +350,9 @@ FoundIntercept OpWinder::findRayIntercept(size_t inIndex) {
 	float midEnd = .5;
 	std::vector<OpEdge*>& inArray = Axis::horizontal == axis ? inX : inY;
 	float homeMidT = home->center.t;
-#define RAY_USE_SEGMENT 0
-#if RAY_USE_SEGMENT
-	const OpCurve& homeCurve = home->segment->c;
-#else
-	const OpCurve& homeCurve = home->setCurve();  // ok to be in loop (lazy)
-#endif
-	float homeMidXY = homeCurve.ptAtT(homeMidT).choice(perpendicular);
 	do {
 		distances.clear();
-		distances.emplace_back(home, homeMidXY, homeMidT);
+		distances.emplace_back(home, homeCept, homeMidT);
 		int index = inIndex;
 		// start at edge with left equal to or left of center
 		while (index != 0) {
@@ -387,6 +373,7 @@ FoundIntercept OpWinder::findRayIntercept(size_t inIndex) {
 				// !!! EXPERIMENT
 				// try using segment's curve instead of edge curve
 				// edge curve's control points, especially small ones, may magnify error
+			#define RAY_USE_SEGMENT 0
 			#if RAY_USE_SEGMENT
 				const OpCurve& testCurve = test->segment->c;
 			#else
@@ -426,16 +413,20 @@ FoundIntercept OpWinder::findRayIntercept(size_t inIndex) {
 		midEnd = midEnd < .5 ? 1 - mid : mid;
 		float middle = OpMath::Interp(home->ptBounds.ltChoice(axis), home->ptBounds.rbChoice(axis), 
 				midEnd);
-		const OpCurve& edgeCurve = home->setCurve();  // ok to be in loop (lazy)
-		homeMidT = edgeCurve.center(axis, middle);
+#if RAY_USE_SEGMENT
+		const OpCurve& homeCurve = home->segment->c;
+#else
+		const OpCurve& homeCurve = home->setCurve();  // ok to be in loop (lazy)
+#endif
+		homeMidT = homeCurve.center(axis, middle);
 		if (OpMath::IsNaN(homeMidT) || mid <= 1.f / 256.f) {	// give it at most eight tries
 			markUnsortable();
 			return FoundIntercept::fail;	// nonfatal error (!!! give it a different name!)
 		}
 		// if find ray intercept can't find, restart with new center, normal, distance, etc.
-		homeCept = edgeCurve.ptAtT(homeMidT).choice(perpendicular);
+		homeCept =homeCurve.ptAtT(homeMidT).choice(perpendicular);
 		OP_ASSERT(!OpMath::IsNaN(homeCept));
-		normal = edgeCurve.ptAtT(homeMidT).choice(axis);
+		normal = homeCurve.ptAtT(homeMidT).choice(axis);
 		OP_ASSERT(!OpMath::IsNaN(normal));
 	} while (true);
 }
@@ -462,10 +453,10 @@ void OpWinder::markPairUnsectable(EdgeDistance& iDist, EdgeDistance& oDist) {
 // just test the non-overlapping part of orderability?
 void OpWinder::markUnsectableGroups() {
 	int lastID = 0;
-	float lastCept = OpInfinity;
+	float lastCept = -OpInfinity;
 	for (size_t index = 0; index < distances.size(); ++index) {
 		float cept = distances[index].cept;
-		OP_ASSERT(lastCept >= cept);
+		OP_ASSERT(lastCept <= cept);
 		OpEdge* edge = distances[index].edge;
 		if (cept == lastCept)
 			markPairUnsectable(distances[index - 1], distances[index]);
@@ -557,7 +548,9 @@ ChainFail OpWinder::setSumChain(size_t inIndex) {
 		return ChainFail::failIntercept;
 	if (FoundIntercept::overflow == foundIntercept)
 		return ChainFail::normalizeOverflow;
-	std::sort(distances.begin(), distances.end(), CompareDistance());	// sorts from high to low
+	std::sort(distances.begin(), distances.end(), [](const EdgeDistance& s1, const EdgeDistance& s2) {
+		return s1.cept < s2.cept;
+	});
 	if (!home->unsectableID && betweenUnsectables()) {
 		home->setBetween();
 		return ChainFail::betweenUnsectables;	// nonfatal error (but, do not retry vertically)
@@ -619,7 +612,7 @@ ResolveWinding OpWinder::setWindingByDistance() {
 	int edgeIndex = -1;	// !!! initialized to suppress warning (?)
 	while (--sumIndex >= 0) {
 		EdgeDistance* edgeDist = &distances[sumIndex];
-		if (edgeDist->cept < homeCept)
+		if (edgeDist->cept > homeCept)
 			continue;
 		if (edgeDist->edge == home) {
 			OP_ASSERT(homeCept == edgeDist->cept);
@@ -630,7 +623,7 @@ ResolveWinding OpWinder::setWindingByDistance() {
 		}
 		if (homeCept == edgeDist->cept)
 			continue;
-		OP_ASSERT(edgeDist->cept > homeCept);
+		OP_ASSERT(edgeDist->cept < homeCept);
 		OpEdge* prior = edgeDist->edge;
 		if (!prior->unsectableID && prior->sum.isSet())
 			break;

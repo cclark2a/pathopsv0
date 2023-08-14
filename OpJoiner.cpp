@@ -311,10 +311,33 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 		OP_ASSERT(!lastEdge->debugIsLoop());
 		OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
 	}
+#if 1
+	if (!found.size()) {
+		// its possible that the intersections for very very small edges were missed (skpadspert_net23)
+		// before going down the disabled rabbit hole, see if the is a small gap that can be closed
+		// look for a pair of intersections with different pt values, but the same t value in 
+		//   lastEdge's segment
+		float lastEdgeT = lastEdge->whichPtT(EdgeMatch::end).t;
+		OpIntersection* last = nullptr;
+		for (auto sect : lastEdge->segment->sects.i) {
+			if (sect->ptT.t != lastEdgeT)
+				continue;
+			if (!last) {
+				last = sect;
+				continue;
+			}
+			OP_ASSERT(last->ptT.pt != sect->ptT.pt);
+			if (matchPt == last->ptT.pt)
+				std::swap(last, sect);
+			else if (matchPt != sect->ptT.pt)
+				continue;
+			found.emplace_back(edge->segment->contour->addFiller(last, sect), EdgeMatch::end);
+		}
+	}
+#endif
 	// look for a disabled edge that closes the gap
 	// it's likely that this edge is very small, but don't know how to quantify that (yet)
 	if (!found.size()) {
-		showSegmentEdges();
 		if (!disabledBuilt)
 			buildDisabled(*edge->segment->contour->contours);
 		lastEdge->matchUnsortable(EdgeMatch::end, disabled, found);
@@ -339,7 +362,8 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 			OpEdge* oppEdge = foundOne.edge;
 			// skip edges which flip the fill sum total, implying there is a third edge inbetween
 			               // e.g., one if normals point to different fill sums       
-			if (!trial && !oppEdge->unsectableID && (((lastEdge->sum.sum() + oppEdge->sum.sum()) & 1) 
+			if (!trial && !oppEdge->unsectableID && !oppEdge->disabled 
+					&& (((lastEdge->sum.sum() + oppEdge->sum.sum()) & 1) 
 			// e.g., one if last start-to-end connects to found start-to-end (end connects to start)
 					== (lastEdge->whichEnd == foundOne.whichEnd)))
 				continue;
@@ -352,6 +376,17 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 				testBounds.add(foundOne.index > 0 ? firstEdge->setLinkBounds() : firstEdge->ptBounds);
 			}
 			if (!(bestBounds.area() < testBounds.area())) {	// 'not' logic since best = NaN at first
+				if (bestBounds.area() == testBounds.area()) {
+					// see which end is closer to desired close
+					OpPoint start = edge->whichPtT(EdgeMatch::start).pt;
+					float testDistance = (start 
+							- foundOne.edge->ptT(Opposite(foundOne.whichEnd)).pt).lengthSquared();
+					float bestDistance = (start
+							- smallest.edge->ptT(Opposite(smallest.whichEnd)).pt).lengthSquared();
+					if (testDistance > bestDistance)
+						continue;
+					// !!! if test equals best, do we need another way to pick the better one?
+				}
 				bestBounds = testBounds;
 				smallest = foundOne;
 			}

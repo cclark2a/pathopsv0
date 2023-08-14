@@ -132,7 +132,12 @@ struct OpPointBounds : OpRect {
         return OpMath::Between(left, bounds.left, right) && OpMath::Between(left, bounds.right, right)
                 && OpMath::Between(top, bounds.top, bottom) && OpMath::Between(top, bounds.bottom, bottom);
     }
+#endif
 
+#if OP_DEBUG_DUMP
+    ~OpPointBounds() override {}
+    OpPointBounds(const OpPointBounds& p) = default;
+    OpPointBounds& operator=(const OpPointBounds& p) = default;
     void dump() const override;
     void dumpDetail() const override;
     void dumpHex() const override;
@@ -255,6 +260,9 @@ struct OpTightBounds : OpPointBounds {
         return s;
     }
 
+    ~OpTightBounds() override {}
+    OpTightBounds(const OpTightBounds& p) = default;
+    OpTightBounds& operator=(const OpTightBounds& p) = default;
     void dump() const override;
     void dumpDetail() const override;
     void dumpHex() const override;

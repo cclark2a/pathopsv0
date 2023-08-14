@@ -39,6 +39,7 @@ struct OpContour {
     OpIntersection* addEdgeSect(const OpPtT& t, OpSegment* seg
             OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
             const OpEdge* edge, const OpEdge* oEdge));
+    OpEdge* addFiller(OpIntersection* start, OpIntersection* end);
     OpIntersection* addSegSect(const OpPtT& t, OpSegment* seg, int cID, int uID, bool end
             OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
             const OpSegment* oSeg));
@@ -116,12 +117,18 @@ struct OpContours {
             delete sectStorage;
             sectStorage = next;
         } while (sectStorage);
+        while (edgeStorage) {
+            OpEdgeStorage* next = edgeStorage->next;
+            delete edgeStorage;
+            edgeStorage = next;
+        }
 #if OP_DEBUG
         debugInPathOps = false;
         debugInClearEdges = false;
 #endif
     }
 
+    void* allocateFiller();
     OpIntersection* allocateIntersection();
 
     void apply() {
@@ -133,7 +140,6 @@ struct OpContours {
     bool assemble(OpOutPath );
     bool build(OpInPath path, OpOperand operand);   // provided by graphics implementation
 
-//    bool closeGap(OpEdge* last, OpEdge* first, std::vector<OpEdge*>& );
     void finishAll();
 
     int leftFillTypeMask() const {
@@ -215,11 +221,13 @@ struct OpContours {
     OpOperator opIn;
     std::vector<OpContour> contours;
     std::vector<OpEdge*> unsortables;
+    std::vector<OpEdge> filler;
+    OpEdgeStorage* edgeStorage;
     OpSectStorage* sectStorage;
-    OpFillType left = OpFillType::unset;
-    OpFillType right = OpFillType::unset;
+    OpFillType left;
+    OpFillType right;
     OpOperator opOperator;
-    int uniqueID = 0;  // used for object id, unsectable id, coincidence id
+    int uniqueID;  // used for object id, unsectable id, coincidence id
 #if OP_DEBUG
     int debugValidateEdgeIndex;
     int debugValidateJoinerIndex;

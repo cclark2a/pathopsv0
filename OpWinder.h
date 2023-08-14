@@ -64,7 +64,6 @@ struct EdgeDistance {
 	float t;
 	DistMult multiple;
 	bool edgeMultiple;
-	bool isHome;
 };
 
 struct OpWinder {
@@ -94,7 +93,7 @@ struct OpWinder {
 	void debugValidate() const;
 #endif
 #if OP_DEBUG_DUMP
-	void dumpAxis(Axis axis) const;
+	void dumpAxis(Axis ) const;
 #include "OpDebugDeclarations.h"
 #endif
 #if OP_DEBUG_IMAGE

@@ -4,34 +4,6 @@
 #include "OpWinder.h"
 #include "PathOps.h"
 
-static const OpOperator OpInverse[+OpOperator::ReverseSubtract + 1][2][2] {
-    //                inside minuend                                  outside minuend
-    //  inside subtrahend     outside subtrahend         inside subtrahend   outside subtrahend
-    { { OpOperator::Subtract, OpOperator::Intersect }, { OpOperator::Union, OpOperator::ReverseSubtract } },
-    { { OpOperator::Intersect, OpOperator::Subtract }, { OpOperator::ReverseSubtract, OpOperator::Union } },
-    { { OpOperator::Union, OpOperator::ReverseSubtract }, { OpOperator::Subtract, OpOperator::Intersect } },
-    { { OpOperator::ExclusiveOr, OpOperator::ExclusiveOr }, { OpOperator::ExclusiveOr, OpOperator::ExclusiveOr } },
-    { { OpOperator::ReverseSubtract, OpOperator::Union }, { OpOperator::Intersect, OpOperator::Subtract } },
-};
-
-OpContours::OpContours(OpInPath& l, OpInPath& r, OpOperator op) 
-    : leftIn(l)
-    , rightIn(r)
-    , opIn(op)
-{
-    opOperator = OpInverse[+op][l.isInverted()][r.isInverted()];
-    sectStorage = new OpSectStorage;
-#if OP_DEBUG
-    debugValidateEdgeIndex = 0;
-    debugValidateJoinerIndex = 0;
-    debugInPathOps = false;
-    debugInClearEdges = false;
-    debugCheckLastEdge = false;
-    debugResult = nullptr;
-    debugExpect = OpDebugExpect::unknown;
-#endif
-}
-
 bool OpContour::addClose() {
     if (!segments.size())
         return false;
@@ -125,6 +97,14 @@ OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg
     return next;
 }
 
+OpEdge* OpContour::addFiller(OpIntersection* start, OpIntersection* end) {
+    void* block = contours->allocateFiller();
+    OpEdge* filler = new(block) OpEdge(start->segment, start->ptT, end->ptT
+            OP_DEBUG_PARAMS(EdgeMaker::filler, __LINE__, __FILE__, start, end));
+    filler->disabled = true;
+    return filler;
+}
+
 void OpContour::addLine(const OpPoint pts[2]) {
     if (pts[0] == pts[1])   // !!! should be fill only, not frame
         return;
@@ -212,6 +192,38 @@ int OpContour::nextID() const {
 
 // end of contour; start of contours
 
+static const OpOperator OpInverse[+OpOperator::ReverseSubtract + 1][2][2] {
+    //                inside minuend                                  outside minuend
+    //  inside subtrahend     outside subtrahend         inside subtrahend   outside subtrahend
+    { { OpOperator::Subtract, OpOperator::Intersect }, { OpOperator::Union, OpOperator::ReverseSubtract } },
+    { { OpOperator::Intersect, OpOperator::Subtract }, { OpOperator::ReverseSubtract, OpOperator::Union } },
+    { { OpOperator::Union, OpOperator::ReverseSubtract }, { OpOperator::Subtract, OpOperator::Intersect } },
+    { { OpOperator::ExclusiveOr, OpOperator::ExclusiveOr }, { OpOperator::ExclusiveOr, OpOperator::ExclusiveOr } },
+    { { OpOperator::ReverseSubtract, OpOperator::Union }, { OpOperator::Intersect, OpOperator::Subtract } },
+};
+
+OpContours::OpContours(OpInPath& l, OpInPath& r, OpOperator op) 
+    : leftIn(l)
+    , rightIn(r)
+    , opIn(op)
+    , edgeStorage(nullptr)
+    , left(OpFillType::unset)
+    , right(OpFillType::unset)
+    , uniqueID(0)
+{
+    opOperator = OpInverse[+op][l.isInverted()][r.isInverted()];
+    sectStorage = new OpSectStorage;
+#if OP_DEBUG
+    debugValidateEdgeIndex = 0;
+    debugValidateJoinerIndex = 0;
+    debugInPathOps = false;
+    debugInClearEdges = false;
+    debugCheckLastEdge = false;
+    debugResult = nullptr;
+    debugExpect = OpDebugExpect::unknown;
+#endif
+}
+
 OpIntersection* OpContours::allocateIntersection() {
     if (sectStorage->used == ARRAY_COUNT(sectStorage->storage)) {
         OpSectStorage* next = new OpSectStorage;
@@ -220,6 +232,20 @@ OpIntersection* OpContours::allocateIntersection() {
     }
     return &sectStorage->storage[sectStorage->used++];
 }
+
+void* OpContours::allocateFiller() {
+    if (!edgeStorage)
+        edgeStorage = new OpEdgeStorage;
+    if (edgeStorage->used == sizeof(edgeStorage->storage) / sizeof(OpEdge)) {
+        OpEdgeStorage* next = new OpEdgeStorage;
+        next->next = edgeStorage;
+        edgeStorage = next;
+    }
+    void* result = &edgeStorage->storage[edgeStorage->used];
+    edgeStorage->used += sizeof(OpEdge);
+    return result;
+}
+
 
 // build list of linked edges
 // if they are closed, done

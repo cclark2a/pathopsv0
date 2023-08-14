@@ -570,8 +570,6 @@ void OpDebugImage::drawGrid() {
 	paint.setColor(0x3f000000);
 	SkPaint textPaint = paint;
 	paint.setStyle(SkPaint::kStroke_Style);
-	const float wh = (float) bitmapWH;
- 	const float interval = wh / gridIntervals;
 	const int xOffset = 2;
 	double left, top, right, bottom;
 	DebugOpBounds(left, top, right, bottom);
@@ -605,26 +603,6 @@ void OpDebugImage::drawGrid() {
 		std::string yValStr = drawHexOn ? OpDebugDumpHex(fy) : OpDebugToString(fy, valuePrecision);
 		offscreen.drawString(SkString(yValStr), 15, sy - xOffset, labelFont, textPaint);
 		offscreen.restore();
-	}
-	return;
-	float xVal = left;
-	float yVal = top;
-	for (float x = 0; x < wh; x += interval) {
-		if (x != 0) {
-			offscreen.drawLine(x, 0, x, wh, paint);
-			offscreen.drawLine(0, x, wh, x, paint);
-		}
-		if (!drawValuesOn)
-			continue;
-		std::string xValStr = drawHexOn ? OpDebugDumpHex(xVal) : OpDebugToString(xVal, valuePrecision);
-		offscreen.drawString(SkString(xValStr), x + xOffset, bitmapWH - xOffset, labelFont, textPaint);
-		xVal += (right - left) / gridIntervals;
-		offscreen.save();
-		offscreen.rotate(-90, 15, x - xOffset);
-		std::string yValStr = drawHexOn ? OpDebugDumpHex(yVal) : OpDebugToString(yVal, valuePrecision);
-		offscreen.drawString(SkString(yValStr), 15, x - xOffset, labelFont, textPaint);
-		offscreen.restore();
-		yVal += (bottom - top) / gridIntervals;
 	}
 }
 

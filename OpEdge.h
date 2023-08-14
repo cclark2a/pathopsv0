@@ -301,6 +301,7 @@ enum class WhichLoop {
 #if OP_DEBUG
 enum class EdgeMaker {
 	empty,
+	filler,
 	intersectEdge1,
 	intersectEdge2,
 	makeEdges,
@@ -320,6 +321,7 @@ enum class EdgeMaker {
 #endif
 
 struct OpEdge {
+	friend struct OpEdgeStorage;
 private:
 	OpEdge()	// note : all values are zero
 		: priorEdge(nullptr)
@@ -529,6 +531,17 @@ public:
 	std::string debugSetSumFile;
 	bool debugUnOpp;	// used to distinguish left unsectables from right unsectables
 #endif
+};
+
+// allocating storage separately allows filler edges to be immobile and have reliable pointers
+struct OpEdgeStorage {
+	OpEdgeStorage()
+		: next(nullptr)
+		, used(0) {
+	}
+	OpEdgeStorage* next;
+	uint8_t storage[sizeof(OpEdge) * 256];
+	int used;
 };
 
 #if OP_DEBUG == 0
