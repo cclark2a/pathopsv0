@@ -398,9 +398,9 @@ struct OpPoint {
         return *asPtr(xyChoice);
     }
 
-//    bool isNearly(OpPoint test) const {
-//        return OpEpsilon >= fabs(test.x - x) && OpEpsilon >= fabs(test.y - y);
-//    }
+    bool isNearly(OpPoint test) const {
+        return nexttowardf(test.x, x) == x && nexttowardf(test.y, y) == y;
+    }
 
     void pin(const OpPoint , const OpPoint );
     void pin(const OpRect& );

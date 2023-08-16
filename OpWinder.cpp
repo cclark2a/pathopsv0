@@ -278,18 +278,18 @@ void OpWinder::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
 // each time a ray is cast. If the edge is seen to the left during one ray cast, and to the right
 // on another, it is marked as between an unsectable pair. (I think...)
 // !!! for now, require strict inclusion; this may be insufficent to catch all cases
+// !!! goofy coding; this glues two unrelated functions together. The first half only is only related
+// to the second in that it marks more edges as unsectable
+// but things should be restructured so that all unsectables are marked before any betweenness is
+// found
+// in rework: edge only marks itself as unsectable, but tracks through nextWind/priorWind neighbors
 bool OpWinder::betweenUnsectables() {
 	// use sorted distances to mark previous and next edges by winding order
-	OpEdge* checkEdge = nullptr;
-	auto hasEdge = [&checkEdge](OpEdge* windDist) {
-		return checkEdge == windDist;
-	};
-	auto addWind = [hasEdge, &checkEdge](OpEdge* edge, std::vector<OpEdge*>& winds, OpEdge* dist) {
-		OP_DEBUG_CODE(checkEdge = dist);
-		OP_ASSERT(winds.end() == std::find_if(winds.begin(), winds.end(), hasEdge));
-		winds.push_back(dist);
-		checkEdge = edge;
-		return winds.end() == std::find_if(winds.begin(), winds.end(), hasEdge);
+	auto addWind = [](OpEdge* edge, std::vector<OpEdge*>& edgeWinds, OpEdge* dist) {
+		OP_ASSERT(edgeWinds.end() == std::find(edgeWinds.begin(), edgeWinds.end(), dist));
+		edgeWinds.push_back(dist);	// this keeps track of the list of edges adjacent to edge
+		// this checks if the edge's list of adjacent edges contains itself // !!! not sure how this is possible
+		return edgeWinds.end() == std::find(edgeWinds.begin(), edgeWinds.end(), edge);
 	};
 	EdgeDistance* last = &distances.front();
 	for (size_t index = 1; index < distances.size(); ++index) {
@@ -304,15 +304,22 @@ bool OpWinder::betweenUnsectables() {
 		OP_ASSERT((last->cept < homeCept && dist.cept == homeCept) 
 				|| (last->cept == homeCept && dist.cept > homeCept));
 		if (dist.cept > homeCept) {
-			if (!addWind(last->edge, last->edge->nextWind, dist.edge))
+			if (!addWind(last->edge, last->edge->nextWind, dist.edge)) {
+				OP_ASSERT(0); // !!! determine how this is possible and document for posterity
 				dist.edge->markUnsectable(last->edge, axis, dist.t, last->t);
+			}
 		} else {
-			if (!addWind(dist.edge, dist.edge->priorWind, last->edge))
+			if (!addWind(dist.edge, dist.edge->priorWind, last->edge)) {
+				OP_ASSERT(0); // !!! determine how this is possible and document for posterity
 				dist.edge->markUnsectable(last->edge, axis, dist.t, last->t);
+			}
 		}
 next:
 		last = &dist;
 	}
+	// !!! this logic requires uIDs exist in pairs
+	// we need to a) use a different convention to represent single edges whose ray has zero distances
+	//     and/or b) defer this check until after all ray zero distance pairs have been found
 	std::vector<int> uIDs;
 	bool edgeFound = false;
 	for (const auto& dist : distances) {
@@ -331,7 +338,7 @@ next:
 				uIDs.push_back(dist.edge->unsectableID);
 		} else {
 			if (edgeFound)
-				return true;
+				return true;	// if one of pair of usect IDs is seen, when scanning for home 
 			uIDs.erase(uIter);
 		}
 	}
@@ -431,11 +438,10 @@ FoundIntercept OpWinder::findRayIntercept(size_t inIndex) {
 	} while (true);
 }
 
-	// restructure to mark all zero distance as unsectableID (if there is more than one)
+	// !!! restructure to mark all zero distance as unsectableID (if there is more than one) ?
+// wait for actual test case where 3 or more edges are unsectable before rewriting
 void OpWinder::markPairUnsectable(EdgeDistance& iDist, EdgeDistance& oDist) {
-	iDist.multiple = DistMult::none == iDist.multiple ? DistMult::first : DistMult::mid;
 	OpEdge* iEdge = iDist.edge;
-	oDist.multiple = DistMult::last;
 	OpEdge* oEdge = oDist.edge;
 	if (oEdge->isPal(iEdge))
 		return;
@@ -446,23 +452,46 @@ void OpWinder::markPairUnsectable(EdgeDistance& iDist, EdgeDistance& oDist) {
 	iEdge->pals.push_back(oEdge);
 }
 
-// mark all adjacent zero distant edges, and edges with matching unsectableID values, as pals
+// this used to mark all adjacent zero distant edges as pals
+// separately, it marks edges with matching unsectableID values as pals
+// keep track of adjacent edges in zero distance array, so that they can be paired later
 // start here;
 // if first edge is smaller than other in the pair, defer marking the other as unsectable, since
 // the non-overlapping part may be fine
 // just test the non-overlapping part of orderability?
 void OpWinder::markUnsectableGroups() {
 	int lastID = 0;
-	float lastCept = -OpInfinity;
 	for (size_t index = 0; index < distances.size(); ++index) {
 		float cept = distances[index].cept;
-		OP_ASSERT(lastCept <= cept);
+		for (size_t testI = index + 1; testI < distances.size(); ++testI) {
+			OP_ASSERT(cept <= distances[testI].cept);
+			if (distances[testI].cept != cept) {
+				if (DistMult::mid == distances[testI - 1].multiple)
+					distances[testI - 1].multiple = DistMult::last;
+				break;
+			}
+			if (testI == index + 1)
+				distances[index].multiple = DistMult::first;
+			distances[testI].multiple = DistMult::mid;
+			if (distances[testI].edge == home)
+				continue;
+			if (homeCept == cept) {  // mark all adjacent edges for possible future unsectability
+				const auto& zeroes = distances[testI].edge->zeroDistance;
+				if (zeroes.end() != std::find(zeroes.begin(), zeroes.end(), home)) {
+					size_t homeI = index;
+					for (; homeI < distances.size(); ++homeI) {
+						if (distances[homeI].edge == home)
+							break;
+					}
+					OP_ASSERT(homeI < distances.size());
+					markPairUnsectable(distances[testI], distances[homeI]);
+				} else
+					home->zeroDistance.push_back(distances[testI].edge);
+			}
+		}
 		OpEdge* edge = distances[index].edge;
-		if (cept == lastCept)
+		if (lastID && abs(lastID) == abs(edge->unsectableID))
 			markPairUnsectable(distances[index - 1], distances[index]);
-		else if (lastID && abs(lastID) == abs(edge->unsectableID))
-			markPairUnsectable(distances[index - 1], distances[index]);
-		lastCept = cept;
 		lastID = edge->unsectableID;
 	}
 }

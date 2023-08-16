@@ -317,23 +317,54 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 		// before going down the disabled rabbit hole, see if the is a small gap that can be closed
 		// look for a pair of intersections with different pt values, but the same t value in 
 		//   lastEdge's segment
-		float lastEdgeT = lastEdge->whichPtT(EdgeMatch::end).t;
-		OpIntersection* last = nullptr;
-		for (auto sect : lastEdge->segment->sects.i) {
-			if (sect->ptT.t != lastEdgeT)
-				continue;
-			if (!last) {
-				last = sect;
-				continue;
+		auto checkMissed = [&found, matchPt](OpEdge* test, EdgeMatch whichEnd) {
+			float testT = test->whichPtT(whichEnd).t;
+			OpIntersection* last = nullptr;
+			for (auto sect : test->segment->sects.i) {
+				if (sect->ptT.t != testT)
+					continue;
+				if (!last) {
+					last = sect;
+					continue;
+				}
+				OP_ASSERT(last->ptT.pt != sect->ptT.pt);
+				if (matchPt == last->ptT.pt)
+					std::swap(last, sect);
+				else if (matchPt != sect->ptT.pt)
+					continue;
+				OpContour* contour = test->segment->contour;
+				OpEdge* filler = EdgeMatch::start == whichEnd ? contour->addFiller(sect, last) 
+						: contour->addFiller(last, sect);
+				found.emplace_back(filler, whichEnd);
 			}
-			OP_ASSERT(last->ptT.pt != sect->ptT.pt);
-			if (matchPt == last->ptT.pt)
-				std::swap(last, sect);
-			else if (matchPt != sect->ptT.pt)
-				continue;
-			found.emplace_back(edge->segment->contour->addFiller(last, sect), EdgeMatch::end);
+		};
+		checkMissed(edge, EdgeMatch::start);
+		checkMissed(lastEdge, EdgeMatch::end);
+	}
+#endif
+#if 0
+	// if nothing found to this point, see if forcing a very small edge will fill the bill (cubics10u)
+	if (!found.size()) {
+		OpIntersection* lastEnd = lastEdge->segment->sects.i.back();
+		if (edge->whichPtT().pt.isNearly(matchPt)) {
+			OpIntersection* edgeStart = edge->segment->sects.i.front();
+			found.emplace_back(edge->segment->contour->addFiller(edgeStart, lastEnd), EdgeMatch::end);
+		}
+		for (size_t index = 0; index < linkups.l.size(); ++index) {
+			OpEdge* linkup = linkups.l[index];
+			OP_ASSERT(!linkup->priorEdge);
+			OP_ASSERT(!linkup->debugIsLoop());
+			if (lastEdge != linkup && linkup->whichPtT().pt.isNearly(matchPt)) {
+				OpIntersection* linkStart = linkup->segment->sects.i.front();
+				found.emplace_back(edge->segment->contour->addFiller(linkStart, lastEnd), EdgeMatch::end);
+			}
+			OpEdge* lastLink = linkup->lastEdge;
+			OP_ASSERT(lastLink);
+			if (lastEdge != lastLink && lastLink->whichPtT(EdgeMatch::end).pt == matchPt)
+				found.emplace_back(lastLink, index, Opposite(lastLink->whichEnd));
 		}
 	}
+
 #endif
 	// look for a disabled edge that closes the gap
 	// it's likely that this edge is very small, but don't know how to quantify that (yet)

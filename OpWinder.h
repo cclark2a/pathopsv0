@@ -62,7 +62,7 @@ struct EdgeDistance {
 	OpEdge* edge;
 	float cept;		// where normal intersects edge (for home edge, equals center)
 	float t;
-	DistMult multiple;
+	DistMult multiple;  // set for sorted edge distance elements with identical cept values
 	bool edgeMultiple;
 };
 

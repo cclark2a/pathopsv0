@@ -480,8 +480,10 @@ public:
 #endif
 
 	const OpSegment* segment;
+	// !!! the wind/distance vectors are a work in progress
 	std::vector<OpEdge*> priorWind;	// used solely to detect unsectable found during wind computation
 	std::vector<OpEdge*> nextWind;
+	std::vector<OpEdge*> zeroDistance; // tracks adjacent edges found with a ray
 	OpEdge* priorEdge;	// edges that link to form completed contour
 	OpEdge* nextEdge;
 	OpEdge* lastEdge;

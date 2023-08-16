@@ -256,6 +256,8 @@ void OpEdge::markUnsectable(OpEdge* opp, Axis axis, float t, float oppT) {
 		return;
 	}
 	bool reversed = edgeNorm != oEdgeNorm;
+	// !!! assert here probably means more code needs to be written to handle 3 or more edges
+	// which are all unsectable with each other
 	OP_ASSERT(!unsectableID);
 	unsectableID = segment->nextID();
 	OP_ASSERT(!opp->unsectableID);
