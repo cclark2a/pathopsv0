@@ -89,7 +89,7 @@ bool OpContours::build(OpInPath path, OpOperand operand) {
         verb = iter.next((SkPoint*) pts);
         switch (verb) {
         case SkPath::kMove_Verb:
-            head = head->addMove(pts);
+            head = addMove(head, operand, pts);
             break;
         case SkPath::kLine_Verb:
             head->addLine(pts);

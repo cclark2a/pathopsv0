@@ -91,8 +91,8 @@ OpEdge* OpEdge::advanceToEnd(EdgeMatch match) {
 void OpEdge::apply() {
 	if (disabled || unsortable)
 		return;
-	OpWinding su = many.isSet() ? many : sum;
-	OpWinding wi = many.isSet() ? palWinding() : winding;
+	OpWinding su = sum;
+	OpWinding wi = winding;
 	OpContours* contours = segment->contour->contours;
 	WindState left = contours->windState(wi.left(), su.left(), OpOperand::left);
 	WindState right = contours->windState(wi.right(), su.right(), OpOperand::right);
@@ -158,19 +158,10 @@ bool OpEdge::calcCenterT() {
 	return start.t < center.t && center.t < end.t;
 }
 
-CalcFail OpEdge::calcWinding(Axis axis, float t) {
-	OpWinding prev(WindingTemp::dummy);
-	// look at direction of edge relative to ray and figure winding/oppWinding contribution
-	if (CalcFail::fail == addIfUR(axis, t, &prev))
-		OP_DEBUG_FAIL(*this, CalcFail::fail);
-	OP_EDGE_SET_SUM(this, prev);
-	return CalcFail::none;
-}
-
 void OpEdge::clearActiveAndPals() {
 	setActive(false);
-    for (auto pal : pals) {
-        pal->setActive(false); 
+    for (auto& pal : pals) {
+        pal.edge->setActive(false); 
     }
 	lastEdge = nullptr;
 }
@@ -276,8 +267,8 @@ void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsect
 			for (const auto& found : edges) {
 				if (found.edge == test)
 					return true;
-				for (auto pal : found.edge->pals)
-					if (pal == test)
+				for (auto& pal : found.edge->pals)
+					if (pal.edge == test)
 						return true;
 			}
 			return false;
@@ -313,8 +304,8 @@ void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsect
 		};
 		if (checkEnds(unsectable))
 			continue;
-		for (auto pal : unsectable->pals) {
-			if (checkEnds(pal))
+		for (auto& pal : unsectable->pals) {
+			if (checkEnds(pal.edge))
 				break;
 		}
 	}
@@ -338,15 +329,6 @@ NormalDirection OpEdge::normalDirection(Axis axis, float t) {
 	return curve.normalDirection(axis, t);
 }
 
-OpWinding OpEdge::palWinding() const {
-	OP_ASSERT(unsectableID);
-	OpWinding result = winding;
-	for (auto pal : pals) {
-		result += unsectableID * pal->unsectableID > 0 ? pal->winding : -pal->winding;
-	}
-	return result;
-}
-
 // in function to make setting breakpoints easier
 // !!! if this is not inlined in release, do something more cleverer
 void OpEdge::setActive(bool state) {
@@ -359,23 +341,10 @@ void OpEdge::setBetween() {
 }
 
 const OpCurve& OpEdge::setCurve() {
-	if (curveSet)
-		return curve_impl;
-	curveSet = true;
-	curve_impl.pts[0] = start.pt;
-	unsigned index = 0;
-	unsigned ptCount = segment->c.pointCount();
-	while (++index < ptCount - 1)
-		curve_impl.pts[index] = ctrlPts[index - 1];
-	if (1 == ptCount)
-		--index;
-	curve_impl.pts[index] = end.pt;
-	OP_ASSERT(++index == ptCount);
-	curve_impl.weight = weight;
-	curve_impl.type = segment->c.type;
-#if OP_DEBUG
-	curve_impl.debugIntersect = OpDebugIntersect::edge;
-#endif
+	if (!curveSet) {
+		curveSet = true;
+		curve_impl.set(start.pt, ctrlPts, end.pt, segment->c.pointCount(), segment->c.type, weight);
+	}
 	return curve_impl;
 }
 

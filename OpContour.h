@@ -44,7 +44,6 @@ struct OpContour {
             OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
             const OpSegment* oSeg));
     void addLine(const OpPoint pts[2]);
-    OpContour* addMove(const OpPoint pts[1]);
     void addQuad(const OpPoint pts[3]);
 
     void apply() {
@@ -128,6 +127,7 @@ struct OpContours {
 #endif
     }
 
+    OpContour* addMove(OpContour* , OpOperand , const OpPoint pts[1]);
     void* allocateFiller();
     OpIntersection* allocateIntersection();
 

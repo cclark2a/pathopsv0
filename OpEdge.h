@@ -99,7 +99,6 @@ enum class ZeroReason : uint8_t {
 	findCoincidences,
 	hvCoincidence,
 	isPoint,
-	many,
 	noFlip,
 };
 
@@ -252,6 +251,50 @@ inline void WindZeroFlip(WindZero* windZero) {
     *windZero = WindZero::normal == *windZero ? WindZero::opp : WindZero::normal;
 }
 
+struct EdgeDistance {
+	EdgeDistance(OpEdge* e, float c, float tIn)
+		: edge(e)
+		, cept(c)
+		, t(tIn) {
+	}
+
+#if OP_DEBUG_DUMP
+	void dump() const;
+	void dumpDetail() const;
+#endif
+
+	OpEdge* edge;
+	float cept;		// where normal intersects edge (for home edge, equals center)
+	float t;
+};
+
+// captures ray info from edge that intersects other edges, horizontally or vertically
+struct SectRay {
+#if RAY_POINTER
+	SectRay(float n, float h, Axis a) 
+		: normal(n)
+		, homeCept(h)
+		, axis(a) {
+	}
+#else
+	SectRay()
+		: normal(OpNaN)
+		, homeCept(OpNaN)
+		, axis(Axis::neither) {
+	}
+#endif
+	bool betweenUnsectables(OpEdge* );
+	bool findIntercept(OpEdge* );
+	void markPals(OpEdge* );
+	void markUnsectableGroups(OpEdge* );
+	bool markUnsectables(OpEdge* );
+
+	std::vector<EdgeDistance> distances;
+	float normal;  // ray used to find windings on home edge
+	float homeCept;  // intersection of normal on home edge
+	Axis axis;
+};
+
 enum class CalcFail {
 	none,
 	fail,
@@ -321,15 +364,18 @@ enum class EdgeMaker {
 #endif
 
 struct OpEdge {
-	friend struct OpEdgeStorage;
 private:
 	OpEdge()	// note : all values are zero
-		: priorEdge(nullptr)
+		: 
+#define RAY_POINTER 0
+#if RAY_POINTER
+		ray(nullptr),
+#endif
+		 priorEdge(nullptr)
 		, nextEdge(nullptr)
 		, lastEdge(nullptr)
 		, winding(WindingUninitialized::dummy)
 		, sum(WindingUninitialized::dummy)
-		, many(WindingUninitialized::dummy)
 		, unsectableID(0)
 		, whichEnd(EdgeMatch::none)
 		, fail(EdgeFail::none)
@@ -355,6 +401,15 @@ private:
 		debugSetSumLine = 0;
 		debugParentID = 0;
 		debugUnOpp = false;
+#endif
+	}
+public:
+	~OpEdge() {
+#if OP_DEBUG_IMAGE
+		debugDestroy();
+#endif
+#if RAY_POINTER
+		delete ray;
 #endif
 	}
 public:
@@ -388,14 +443,14 @@ public:
 	OpEdge(OpEdge&&) = default;
 	OpEdge& operator=(const OpEdge&) = default;
 	OpEdge& operator=(OpEdge&&) = default;
-	~OpEdge();	// reason: removes temporary edges from image list
+	void debugDestroy();
+	struct DebugOpCurve debugSetCurve() const;
 #endif
 	CalcFail addIfUR(Axis xis, float t, OpWinding* );
 	CalcFail addSub(Axis axis, float t, OpWinding* );
 	OpEdge* advanceToEnd(EdgeMatch );
 	void apply();
 	bool calcCenterT();
-	CalcFail calcWinding(Axis axis, float centerT);
 	void clearActiveAndPals();
 	void clearNextEdge();
 	void clearPriorEdge();
@@ -411,7 +466,8 @@ public:
 	bool isActive() const { 
 		return active_impl; }
 	bool isPal(const OpEdge* opp) const {
-		return pals.end() != std::find(pals.begin(), pals.end(), opp); }
+		return pals.end() != std::find_if(pals.begin(), pals.end(), 
+				[opp](const auto& test) { return opp == test.edge; }); }
 	float linkedArea() const;
 	void linkToEdge(FoundEdge& , EdgeMatch );
 //	void linkNextPrior(OpEdge* first, OpEdge* last);
@@ -420,7 +476,6 @@ public:
 	void matchUnsortable(EdgeMatch , const std::vector<OpEdge*>& unsortables, std::vector<FoundEdge>& );
 	NormalDirection normalDirection(Axis axis, float t);
 	void output(OpOutPath path);	// provided by the graphics implmentation
-	OpWinding palWinding() const;
 	OpPtT ptT(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? start : end; }
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
@@ -480,10 +535,11 @@ public:
 #endif
 
 	const OpSegment* segment;
-	// !!! the wind/distance vectors are a work in progress
-	std::vector<OpEdge*> priorWind;	// used solely to detect unsectable found during wind computation
-	std::vector<OpEdge*> nextWind;
-	std::vector<OpEdge*> zeroDistance; // tracks adjacent edges found with a ray
+#if RAY_POINTER
+	SectRay* ray;
+#else
+	SectRay ray;
+#endif
 	OpEdge* priorEdge;	// edges that link to form completed contour
 	OpEdge* nextEdge;
 	OpEdge* lastEdge;
@@ -502,9 +558,7 @@ public:
 	OpPointBounds linkBounds;
 	OpWinding winding;	// contribution: always starts as 1, 0 (or 0, 1)
 	OpWinding sum; // total incl. normal side of edge for operands (fill count in normal direction)
-	OpWinding many;	 // if two or more edges are unsortable by ray, store their cumulative winding
-	// !!! many, pals are hopefully temporary while I figure out something better
-	std::vector<OpEdge* > pals;	// pointers to unsectable adjacent edges 
+	std::vector<EdgeDistance> pals;	// list of unsectable adjacent edges !!! should be pointers?
 	int id;
 	int unsectableID;
 	EdgeMatch whichEnd;	// if 'start', prior link end equals start; if 'end' prior end matches end

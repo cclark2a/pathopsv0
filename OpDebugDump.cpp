@@ -940,18 +940,19 @@ std::string debugAxisName(Axis axis) {
 std::string OpEdge::debugDumpDetail() const {
     std::string s = "edge[" + STR(id) + "] segment[" + STR(segment->id) + "] contour["
             OP_DEBUG_CODE(+ STR(segment->contour->id)) + std::string("]\n");
-    if (priorWind.size()) {
-        s += "priorW:";
-        for (const OpEdge* wd : priorWind)
-            s += STR(wd->id) + " ";
-    }   
-    if (nextWind.size()) {
-        s += " nextW:";
-        for (const OpEdge* wd : nextWind)
-            s += STR(wd->id) + " ";
+#if RAY_POINTER
+    if (ray && ray->distances.size()) {
+		const SectRay& rayRef = *ray;
+#else
+    if (ray.distances.size()) {
+		const SectRay& rayRef = ray;
+#endif
+        s += "ray count:" + STR(rayRef.distances.size()) + " normal:" + STR(rayRef.normal);
+        s += " cept:" + STR(rayRef.homeCept) + " axis:" + debugAxisName(rayRef.axis) + "\n";
+        for (const EdgeDistance& dist : rayRef.distances) {
+            s += ::debugDump(dist, DebugLevel::brief);
+        }
     }
-    if (priorWind.size() || nextWind.size())
-        s += "\n";
     if (priorEdge || nextEdge || lastEdge) {
         s += "priorE/nextE/lastE:" + (priorEdge ? STR(priorEdge->id) : "-");
         s += "/" + (nextEdge ? STR(nextEdge->id) : "-");
@@ -978,7 +979,7 @@ std::string OpEdge::debugDumpDetail() const {
     if (pals.size()) {
         s += "pals: ";
         for (auto pal : pals)
-            s += STR(pal->id) + " ";
+            s += STR(pal.edge->id) + " ";
     }
     if (EdgeMatch::none != whichEnd)
         s += "which:" + debugEdgeMatch(whichEnd) + " ";
@@ -1110,7 +1111,6 @@ static DebugReasonName debugReasonNames[] {
     REASON_NAME(findCoincidences),
     REASON_NAME(hvCoincidence),
     REASON_NAME(isPoint),
-    REASON_NAME(many),
     REASON_NAME(noFlip),
 };
 
@@ -1224,7 +1224,7 @@ std::string OpEdge::debugDumpChain(WhichLoop which, bool detail) const {
         chain = WhichLoop::prior == which ? chain->priorEdge : chain->nextEdge;
 		if (!chain)
 			break;
-        if (++safetyCount > 100) {
+        if (++safetyCount > 250) {
             OpDebugOut(std::string("!!! %s likely loops forever: ") + 
                     (WhichLoop::prior == which ? "prior " : "next "));
             break;
@@ -1238,8 +1238,6 @@ std::string OpEdge::debugDumpWinding() const {
     s += "winding: " + winding.debugDump();
     if (sum.isSet())
         s += "\nsum: " + sum.debugDump();
-    if (many.isSet())
-        s += "\nmany: " + many.debugDump();
     return s;
 }
 
@@ -1386,55 +1384,21 @@ void dmp(const OpWinder& edges) {
     }
 }
 
-struct DistMultName {
-    DistMult distMult;
-    std::string name;
-};
-
-#define DIST_MULT_NAME(r) { DistMult::r, #r }
-
-DistMultName distMultNames[] {
-	DIST_MULT_NAME(none),
-	DIST_MULT_NAME(first),
-	DIST_MULT_NAME(mid),
-	DIST_MULT_NAME(last),
-};
-
-static bool distMultOutOfDate = false;
-
-void checkDistMult() {
-    static bool distMultOutChecked = false;
-    if (!distMultOutChecked) {
-        for (unsigned index = 0; index < ARRAY_COUNT(distMultNames); ++index)
-           if (!distMultOutOfDate && (unsigned) distMultNames[index].distMult != index) {
-               OpDebugOut("!!! distMultNames out of date\n");
-               distMultOutOfDate = true;
-               break;
-           }
-        distMultOutChecked = true;
-    }
-}
-
-void dmp(const EdgeDistance& distance) {
-    checkDistMult();
-    OpDebugOut(distance.edge->debugDump() + "\n");
-    OpDebugOut("cept:" + STR(distance.cept) + " ");
-    OpDebugOut("t:" + STR(distance.t) + " ");
-    if (distMultOutOfDate)
-        OpDebugOut("(distMult out of date) " + STR((int)distance.multiple));
-    else
-        OpDebugOut("multiple:" + distMultNames[(int)distance.multiple].name + "\n");
+std::string debugDump(const EdgeDistance& distance, DebugLevel level) {
+    std::string s = DebugLevel::brief == level ? "id:" + STR(distance.edge->id) + " " : 
+            DebugLevel::detailed == level ? " " + distance.edge->debugDumpDetail() + "\n" :
+            distance.edge->debugDump() + " ";
+    s += "cept:" + STR(distance.cept) + " ";
+    s += "t:" + STR(distance.t) + "\n";
+    return s;
 }
 
 void dmpDetail(const EdgeDistance& distance) {
-    checkDistMult();
-    OpDebugOut(distance.edge->debugDumpDetail() + "\n");
-    OpDebugOut("cept:" + STR(distance.cept) + " ");
-    OpDebugOut("t:" + STR(distance.t) + " ");
-    if (distMultOutOfDate)
-        OpDebugOut("(distMult out of date) " + STR((int)distance.multiple));
-    else
-        OpDebugOut("multiple:" + distMultNames[(int)distance.multiple].name + "\n");
+    OpDebugOut(debugDump(distance, DebugLevel::detailed));
+}
+
+void dmp(const EdgeDistance& distance) {
+    OpDebugOut(debugDump(distance, DebugLevel::normal));
 }
 
 const OpCurveCurve* OpCurveCurve::debugActive;

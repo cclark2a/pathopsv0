@@ -178,6 +178,24 @@ OpPoint OpCurve::ptAtT(float t) const {
     return OpPoint();
 }
 
+const OpCurve& OpCurve::set(OpPoint start, const OpPoint ctrlPts[2], OpPoint end, unsigned ptCount, 
+            OpType opType, float w) {
+	pts[0] = start;
+	unsigned index = 0;
+	while (++index < ptCount - 1)
+		pts[index] = ctrlPts[index - 1];
+	if (1 == ptCount)
+		--index;
+	pts[index] = end;
+	OP_ASSERT(++index == ptCount);
+	weight = w;
+	type = opType;
+#if OP_DEBUG
+	debugIntersect = OpDebugIntersect::edge;
+#endif
+	return *this;
+}
+
 OpCurve OpCurve::subDivide(OpPtT ptT1, OpPtT ptT2) const {
     OpCurve result;
     switch (type) {

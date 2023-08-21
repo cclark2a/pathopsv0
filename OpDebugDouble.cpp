@@ -896,27 +896,25 @@ void DebugOpDrawSegments() {
     DebugOpDraw(debugSegments);
 }
 
-void DebugOpBuild(const OpEdge& edge, std::vector<DebugOpCurve>& debugEs) {
+DebugOpCurve OpEdge::debugSetCurve() const {
     DebugOpCurve curve;
-    OpEdge copy(edge);
-    const OpCurve& c = copy.setCurve();
+    OpCurve c;
+    c.set(start.pt, ctrlPts, end.pt, segment->c.pointCount(), segment->c.type, weight);
     for (int i = 0; i < 4; ++i)
         curve.pts[i] = { c.pts[i].x, c.pts[i].y } ;
     curve.weight = c.weight;
     curve.type = c.type;
-    curve.id = edge.id;
+    curve.id = id;
+    return curve;
+}
+
+void DebugOpBuild(const OpEdge& edge, std::vector<DebugOpCurve>& debugEs) {
+    DebugOpCurve curve = edge.debugSetCurve();
     curve.rectCurves(debugEs);
 }
 
 void DebugOpBuild(const OpEdge& edge, const OpDebugRay& ray) {
-    DebugOpCurve curve;
-    OpEdge copy(edge);
-    const OpCurve& c = copy.setCurve();
-    for (int i = 0; i < 4; ++i)
-        curve.pts[i] = { c.pts[i].x, c.pts[i].y } ;
-    curve.weight = c.weight;
-    curve.type = c.type;
-    curve.id = edge.id;
+    DebugOpCurve curve = edge.debugSetCurve();
     DebugOpRoots roots = curve.rayIntersect(ray);
     for (int index = 0; index < roots.count; ++index) {
         DebugOpPoint pt = curve.ptAtT(roots.roots[index]);
@@ -924,6 +922,11 @@ void DebugOpBuild(const OpEdge& edge, const OpDebugRay& ray) {
         pt.color = DebugColor::black;
         DebugOpBuild(pt);
     }
+}
+
+void DebugOpBuild(Axis axis, float normal, float cept) {
+    DebugOpPoint pt = Axis::horizontal == axis ? DebugOpPoint(cept, normal) : DebugOpPoint(normal, cept);
+    DebugOpBuild(pt);
 }
 
 OpPoint DebugOpPtToPt(OpPoint src) {

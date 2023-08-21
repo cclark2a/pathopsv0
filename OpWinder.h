@@ -15,13 +15,6 @@ enum class ChainFail {
 	normalizeUnderflow
 };
 
-enum class DistMult {
-	none,
-	first,
-	mid,
-	last,
-};
-
 enum class EdgesToSort {
 	byBox,		// when walking to intersect, use box only
 	byCenter 	// when walking to determine winding, use box and center ray
@@ -44,28 +37,6 @@ enum class FoundWindings {
 	yes
 };
 
-// !!! is it worth wrapping a vector of these in a structure so methods can be associated?
-struct EdgeDistance {
-	EdgeDistance(OpEdge* e, float c, float tIn)
-		: edge(e)
-		, cept(c)
-		, t(tIn)
-		, multiple(DistMult::none)
-		, edgeMultiple(false) {
-	}
-
-#if OP_DEBUG_DUMP
-	void dump() const;
-	void dumpDetail() const;
-#endif
-
-	OpEdge* edge;
-	float cept;		// where normal intersects edge (for home edge, equals center)
-	float t;
-	DistMult multiple;  // set for sorted edge distance elements with identical cept values
-	bool edgeMultiple;
-};
-
 struct OpWinder {
 	OpWinder(OpContours& contours, EdgesToSort edgesToSort);
 	OpWinder(OpEdge* sEdge, OpEdge* oEdge);
@@ -75,15 +46,12 @@ struct OpWinder {
 			OpSegment* segment, OpSegment* oppSegment, int coinID);
 	static IntersectResult AddPair(XyChoice offset, OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpPtT dPtT,
 			bool flipped, OpSegment* segment, OpSegment* oppSegment);
-	bool betweenUnsectables();
 	static IntersectResult CoincidentCheck(OpPtT ptTa, OpPtT ptTb, OpPtT ptTc, OpPtT ptTd,
 			OpSegment* segment, OpSegment* oppSegment);
 	static IntersectResult CoincidentCheck(const OpEdge& edge, const OpEdge& opp);
-	FoundIntercept findRayIntercept(size_t inIndex);
-	void markPairUnsectable(EdgeDistance& dist1, EdgeDistance& dist2);
-	void markUnsectableGroups();
+	FoundIntercept findRayIntercept(size_t inIndex, float normal, float homeCept);
 	void markUnsortable();
-	void setEdgeMultiple(EdgeDistance* edgeDist);
+	void setEdgeMany(EdgeDistance* );
 	ChainFail setSumChain(size_t inIndex);
 	ResolveWinding setWindingByDistance();
 	FoundWindings setWindings(OpContours* );
@@ -102,11 +70,8 @@ struct OpWinder {
 
 	std::vector<OpEdge*> inX;
 	std::vector<OpEdge*> inY;
-	std::vector<EdgeDistance> distances;
 	OpEdge* home;
-	Axis axis;
-	float normal;  // ray used to find windings on home edge
-	float homeCept;  // intersection of normal on home edge
+	Axis workingAxis;
 };
 
 #endif

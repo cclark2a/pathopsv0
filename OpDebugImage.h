@@ -157,6 +157,7 @@ OP_X(Operands) \
 OP_X(Outputs) \
 OP_X(Paths) \
 OP_X(Points) \
+OP_X(Rays) \
 OP_X(Right) \
 OP_X(SegmentEdges) \
 OP_X(Segments) \

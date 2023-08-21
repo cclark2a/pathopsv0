@@ -403,10 +403,8 @@ void OpDebugImage::drawDoubleFocus() {
 		matrix.postTranslate(DebugOpGetOffsetX(), DebugOpGetOffsetY());
 		if (drawLeftOn) 
 			drawDoubleFill(operands[0].skPath->makeTransform(matrix), SkColorSetARGB(10, 255, 0, 0));
-// was:		DebugOpFill(operands[0], SkColorSetARGB(63, 255, 0, 0));
 		if (drawRightOn)
 			drawDoubleFill(operands[1].skPath->makeTransform(matrix), SkColorSetARGB(10, 0, 0, 255));
-//	was:	DebugOpFill(operands[1], SkColorSetARGB(63, 0, 0, 255));
 	}
 	if (drawHighlightOn)
 		DebugOpHighlight(highlights);
@@ -426,6 +424,23 @@ void OpDebugImage::drawDoubleFocus() {
 		DebugOpDraw(paths);
 	if (drawLinesOn)
 		DebugOpDraw(lines);
+	if (drawRaysOn) {
+		std::vector<OpDebugRay> rays;
+		for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+#if RAY_POINTER
+			const SectRay* sectRay = (*edgeIter)->ray;
+			if (!sectRay || !sectRay->distances.size())
+				continue;
+			rays.emplace_back(sectRay->axis, sectRay->normal);
+#else
+			const SectRay& sectRay = (*edgeIter)->ray;
+			if (!sectRay.distances.size())
+				continue;
+			rays.emplace_back(sectRay.axis, sectRay.normal);
+#endif
+		}
+		DebugOpDraw(rays);
+	}
 	if (drawSegmentsOn) {
 		DebugOpClearSegments();
 		for (auto segment : segmentIterator)
@@ -1129,13 +1144,26 @@ void OpDebugImage::drawPoints() {
 			}
 			if (drawEdgesOn)
 				for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
-					const OpEdge* edge = *edgeIter;
 					if (!drawTemporaryEdgesOn && edgeIter.isLocal)
 						continue;
 					if (!drawSegmentEdgesOn && !edgeIter.isLocal)
 						continue;
-					DebugOpBuild(*edge, line);
+					DebugOpBuild(**edgeIter, line);
 				}
+		}
+	}
+	if (drawRaysOn && drawEdgesOn) {
+		for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+			const OpEdge* edge = *edgeIter;
+#if RAY_POINTER
+			if (!edge->ray)
+				continue;
+			const SectRay& ray = *(edge->ray);
+#else
+			const SectRay& ray = edge->ray;
+#endif
+			for (auto dist :ray.distances)
+				DebugOpBuild(ray.axis, ray.normal, dist.cept);
 		}
 	}
 	if (drawValuesOn) {
@@ -1260,7 +1288,7 @@ void OpContours::draw() const {
 	OpDebugImage::drawDoubleFocus();
 }
 
-OpEdge::~OpEdge() {
+void OpEdge::debugDestroy() {
 #if OP_DEBUG
 	if (debugGlobalContours->debugInClearEdges)
 		return;
@@ -1388,7 +1416,7 @@ bool OpDebugImage::drawEdgeWinding(OpVector norm, OpPoint midTPt, const OpEdge* 
 	SkPaint paint;
 	paint.setAntiAlias(true);
 	paint.setColor(SK_ColorBLACK);
-	OpWinding sum = edge->many.isSet() ? edge->many : edge->sum;
+	OpWinding sum = edge->sum;
 	std::string sumLeft = OpMax == sum.left() ? "?" : STR(sum.left());
 	textLayer.drawString(SkString(sumLeft), sumSide.x, sumSide.y, labelFont, paint);
 	paint.setColor(SK_ColorRED);
@@ -1396,23 +1424,11 @@ bool OpDebugImage::drawEdgeWinding(OpVector norm, OpPoint midTPt, const OpEdge* 
 	textLayer.drawString(SkString(sumRight), sumSide.x + 20, sumSide.y, labelFont, paint);
 	paint.setColor(SK_ColorBLACK);
 	int windLeft = edge->winding.left();
-	if (edge->many.isSet()) {
-		for (auto pal : edge->pals) {
-			int palLeft = pal->winding.left();
-			windLeft += edge->unsectableID * pal->unsectableID > 0 ? palLeft : -palLeft;
-		}
-	}
 	std::string oppLeft = OpMax == sum.left() ? STR(windLeft) : 
 			STR(sum.left() - windLeft);
 	textLayer.drawString(SkString(oppLeft), oppSide.x, oppSide.y, labelFont, paint);
 	paint.setColor(SK_ColorRED);
 	int windRight = edge->winding.right();
-	if (edge->many.isSet()) {
-		for (auto pal : edge->pals) {
-			int palRight = pal->winding.right();
-			windRight += edge->unsectableID * pal->unsectableID > 0 ? palRight : -palRight;
-		}
-	}
 	std::string oppRight = OpMax == sum.left() ? STR(windRight) : STR(sum.right() - windRight);
 	textLayer.drawString(SkString(oppRight), oppSide.x + 20, oppSide.y, labelFont, paint);
 	return true;

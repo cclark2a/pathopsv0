@@ -112,14 +112,6 @@ void OpContour::addLine(const OpPoint pts[2]) {
     segments.emplace_back(linePts, this  OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
 }
 
-OpContour* OpContour::addMove(const OpPoint pts[1]) {
-            // !!! if frame paths are supported, don't add close unless fill is set
-    if (addClose())
-        contours->contours.emplace_back(contours, operand);
-    // keep point as its own segment in the future?
-    return &contours->contours.back();
-}
-
 OpIntersection* OpContour::addSegSect(const OpPtT& t, OpSegment* seg, int cID, int uID, bool end
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason,
         const OpSegment* oSeg)) {
@@ -222,6 +214,14 @@ OpContours::OpContours(OpInPath& l, OpInPath& r, OpOperator op)
     debugResult = nullptr;
     debugExpect = OpDebugExpect::unknown;
 #endif
+}
+
+OpContour* OpContours::addMove(OpContour* last, OpOperand operand , const OpPoint pts[1]) {
+    // !!! if frame paths are supported, don't add close unless fill is set
+    if (last->addClose())
+        return makeContour(operand);
+    // keep point as its own segment in the future?
+    return &contours.back();
 }
 
 OpIntersection* OpContours::allocateIntersection() {

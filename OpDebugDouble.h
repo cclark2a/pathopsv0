@@ -27,6 +27,7 @@ void DebugOpBounds(double& left, double& top, double& right, double& bottom);
 void DebugOpBuild(OpPoint );
 void DebugOpBuild(OpPoint , bool opp);
 void DebugOpBuild(OpPoint , float t, bool opp);
+void DebugOpBuild(Axis axis, float normal, float cept);
 void DebugOpBuild(const OpEdge& , const struct OpDebugRay& );
 void DebugOpBuild(const OpSegment& , const struct OpDebugRay& );
 void DebugOpBuild(const SkPath& , const struct OpDebugRay& );

@@ -98,6 +98,8 @@ struct OpCurve {
         return static_cast<int>(type) + (type < OpType::conic);
     }
 
+    const OpCurve& set(OpPoint start, const OpPoint ctrlPts[2], OpPoint end, unsigned ptCount, 
+            OpType opType, float w);
     OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
     OpVector tangent(float t) const;
 

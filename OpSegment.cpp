@@ -49,10 +49,6 @@ bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
         OpIntersection* oSect = sect.opp;
         if (ptT.pt != oSect->ptT.pt)
             continue;
-
-        auto skipCheck = [](const OpEdge* edge) {
-            return edge->many.isSet() || edge->unsortable;
-        };
         // op operator is not needed since zero side was computed by apply
         auto checkZero = [match](const OpEdge* edge, EdgeMatch eWhich, EdgeMatch eMatch) {
             WindZero zeroSide = edge->windZero;
@@ -61,10 +57,10 @@ bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
                 WindZeroFlip(&zeroSide);
             return zeroSide;
         };
-        auto saveMatch = [edge, match, &oppEdges, &oSect, skipCheck, checkZero](EdgeMatch testEnd) {
+        auto saveMatch = [edge, match, &oppEdges, &oSect, checkZero](EdgeMatch testEnd) {
             OpSegment* oSeg = oSect->segment;
             OpEdge* test = oSeg->findEnabled(oSect->ptT, testEnd);  // !!! optimization: walk edges in order
-            if (test && test != edge && (skipCheck(edge) || skipCheck(test)
+            if (test && test != edge && (edge->unsortable || test->unsortable
                     || edge->windZero == checkZero(test, edge->whichEnd, testEnd))) {
                 if (!test->hasLinkTo(match) && !test->isPal(edge))
                     oppEdges.emplace_back(test, EdgeMatch::none);
@@ -96,10 +92,7 @@ bool OpSegment::activeNeighbor(const OpEdge* edge, EdgeMatch match,
             return false;
     if (nextDoor->hasLinkTo(match))
         return false;
-    auto skipCheck = [](const OpEdge* edge) { 
-        return edge->many.isSet() || edge->unsortable;
-    };
-    if (skipCheck(edge) || edge->windZero == nextDoor->windZero || skipCheck(nextDoor)) {
+    if (edge->unsortable || edge->windZero == nextDoor->windZero || nextDoor->unsortable) {
         oppEdges.emplace_back(nextDoor, EdgeMatch::none);
         return !!nextDoor->pals.size();
     }

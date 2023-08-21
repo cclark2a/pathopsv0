@@ -198,6 +198,14 @@ extern const OpIntersection* findIntersection(int id);
 extern const OpSegment* findSegment(int id);
 extern std::vector<const OpIntersection*> findSectUnsectable(int id);
 
+enum class DebugLevel {
+	brief,
+	normal,
+	detailed
+};
+
+std::string debugDump(const EdgeDistance& distance, DebugLevel level);
+
 #endif
 
 #endif
