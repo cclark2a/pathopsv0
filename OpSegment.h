@@ -29,13 +29,17 @@ struct FoundEdge {
     FoundEdge(OpEdge* e, EdgeMatch w) 
         : edge(e)
         , index(-1)
-        , whichEnd(w) {
+        , whichEnd(w)
+        , connects(false)
+        , loops(false) {
     }
 
 	FoundEdge(OpEdge* e, int i, EdgeMatch w)
 		: edge(e)
 		, index(i)
-		, whichEnd(w) {
+		, whichEnd(w)        
+        , connects(false)
+        , loops(false) {
 	}
 
 #if OP_DEBUG_DUMP
@@ -46,6 +50,8 @@ struct FoundEdge {
     OpEdge* edge;
     int index;  // used to track entry in linkups to remove after use
     EdgeMatch whichEnd;
+    bool connects; // true if edge connects in correct direction with existing link
+    bool loops;  // true if edge when connected to existing link forms a loop
 };
 
 struct OpSegment {

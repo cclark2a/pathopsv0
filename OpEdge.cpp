@@ -89,7 +89,7 @@ OpEdge* OpEdge::advanceToEnd(EdgeMatch match) {
 			1					1					---
 */
 void OpEdge::apply() {
-	if (disabled || unsortable)
+	if (disabled || unsortable || unsectableID)
 		return;
 	OpWinding su = sum;
 	OpWinding wi = winding;
@@ -202,16 +202,6 @@ float OpEdge::findT(Axis axis, float oppXY) const {
 	OP_ASSERT(FoundPtT::single == foundPtT);
 	OP_ASSERT(OpNaN != result);
 	return result;
-}
-
-float OpEdge::linkedArea() const {
-	OP_ASSERT(!priorEdge);
-	float area = 0;
-	const OpEdge* link = this;
-	do {
-		area += link->ptBounds.area();
-	} while ((link = link->nextEdge));
-	return area;
 }
 
 void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
@@ -376,6 +366,22 @@ OpEdge* OpEdge::setLastEdge(OpEdge* old) {
 	return linkEnd;
 }
 
+// this sets up the edge linked list to be suitable for joining another linked list
+// the edits are nondestructive 
+void OpEdge::setLastLink(EdgeMatch match) {
+	if ((unsectableID || disabled || unsortable) && !priorEdge && !nextEdge) {
+		if (EdgeMatch::none == whichEnd) {
+			whichEnd = match;
+			OP_ASSERT(!lastEdge);
+			lastEdge = this;
+		} else
+			OP_ASSERT(lastEdge);
+	} else if (!lastEdge)
+		setLinkDirection(EdgeMatch::end);
+	else if (lastEdge == this && EdgeMatch::end == match && EdgeMatch::start == whichEnd)
+		whichEnd = EdgeMatch::end;
+}
+
 // this compares against float epsilon instead of zero
 // when comparing against a line, an edge close to zero can fall into denormalized numbers,
 //   causing the calling subdivision to continue for way too long. Using epsilon as a stopgap
@@ -484,7 +490,7 @@ void OpEdge::skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) {
 				continue;
 			duplicates = true;
 			OpRect testBounds = first->setLinkBounds().add(test.edge->ptBounds);
-			if (bestBounds.area() <= testBounds.area())
+			if (bestBounds.perimeter() <= testBounds.perimeter())
 				continue;
 			std::swap(test, keeper);
 			std::swap(bestBounds, testBounds);

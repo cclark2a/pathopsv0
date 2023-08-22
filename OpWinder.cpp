@@ -292,10 +292,12 @@ void SectRay::markPals(OpEdge* edge) {
 		if (pal && home)
 			break;
 	}
-	// if pal couldn't be found, check the intersections
-	OP_ASSERT(pal);
 	OP_ASSERT(home);
-	edge->pals.push_back(*pal);
+	if (!pal) {
+		edge->unsectableID = 0;
+		edge->unsortable = true;
+	} else
+		edge->pals.push_back(*pal);
 }
 
 // this used to mark all adjacent zero distant edges as pals
@@ -321,6 +323,8 @@ void SectRay::markUnsectableGroups(OpEdge* home) {
 	});
 	for (auto test = lesser; test < greater; ++test) {
 		if (test == homePos)
+			continue;
+		if (home->unsectableID && abs(home->unsectableID) == abs(test->edge->unsectableID))
 			continue;
 		auto& testDist = test->edge->ray.distances;
 		auto testDistI = std::find_if(testDist.begin(), testDist.end(), 
@@ -585,6 +589,7 @@ ChainFail OpWinder::setSumChain(size_t inIndex) {
 
 ResolveWinding OpWinder::setWindingByDistance() {
 	// find edge; then walk backwards to first known sum 
+	OpDebugBreak(home, 333);
 #if RAY_POINTER
 	SectRay& ray = *(home->ray);
 #else
@@ -611,6 +616,7 @@ ResolveWinding OpWinder::setWindingByDistance() {
 	int sumIndex = ray.distances.size();
 	while (ray.distances[--sumIndex].edge != home) 
 		OP_ASSERT(sumIndex > 0);
+	float homeT = ray.distances[sumIndex].t;  // used by unsectable, later
 	while (--sumIndex >= 0 && !ray.distances[sumIndex].edge->sum.isSet())
 		;
 	if (sumIndex >= 0) {
@@ -625,9 +631,12 @@ ResolveWinding OpWinder::setWindingByDistance() {
 	}
 	// walk from the known sum to (and including) the edge
 	OpEdge* prior;
+	bool sawHome = false;
 	do {
 		EdgeDistance& dist = ray.distances[++sumIndex];
 		prior = dist.edge;
+		if (sawHome && (!home->unsectableID || abs(prior->unsectableID) != abs(home->unsectableID)))
+			break;
 		NormalDirection normDir = prior->normalDirection(ray.axis, dist.t);
 		if (NormalDirection::underflow == normDir || NormalDirection::overflow == normDir) {
 			prior->setUnsortable();
@@ -639,7 +648,27 @@ ResolveWinding OpWinder::setWindingByDistance() {
 			OP_DEBUG_FAIL(*prior, ResolveWinding::fail);
 		if (NormalDirection::upRight == normDir && !prior->pals.size())
 			OP_EDGE_SET_SUM(prior, sumWinding);
-	} while (home != prior);
+		sawHome |= home == prior;
+	} while (!sawHome || home->unsectableID);
+	if (!home->unsectableID)
+		return ResolveWinding::resolved;
+	// if home is unsectable, set its sum winding as if all of its pals' windings were a single edge
+	OP_ASSERT(!home->many.isSet());
+	// winding must be replaced by all unsectable windings -- however, other unsectables will want 
+	//   to see the original winding. This is why 'many' is used. After all sums are computed
+	//   replace winding with many.
+	home->many = home->winding;
+	OpContours* contours = home->segment->contour->contours;
+	NormalDirection normDir = home->normalDirection(ray.axis, homeT);
+	OP_ASSERT(NormalDirection::underflow != normDir && NormalDirection::overflow != normDir);
+	for (const auto& pal : home->pals) {
+		NormalDirection palDir = pal.edge->normalDirection(ray.axis, homeT);
+		OP_ASSERT(NormalDirection::underflow != palDir && NormalDirection::overflow != palDir);
+		home->many.move(pal.edge->winding, contours, normDir != palDir);
+	}
+	if (CalcFail::fail == home->addIfUR(ray.axis, homeT, &sumWinding))
+		OP_DEBUG_FAIL(*home, ResolveWinding::fail);
+	OP_EDGE_SET_SUM(home, sumWinding);
 	return ResolveWinding::resolved;
 }
 
@@ -719,14 +748,14 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 			for (auto& edge : segment.edges) {
 				if (edge.disabled)
 					continue;
+				if (edge.unsectableID) {
+					OP_ASSERT(edge.pals.size());
+					std::swap(edge.winding, edge.many);
+				}
 				if (edge.sum.isSet())
 					continue;
 				if (edge.unsortable)
 					continue;
-				if (edge.unsectableID) {
-					OP_ASSERT(edge.pals.size());
-					continue;
-				}
 				if (edge.fail == EdgeFail::horizontal)
 					continue;
 				OP_DEBUG_FAIL(edge, FoundWindings::fail);

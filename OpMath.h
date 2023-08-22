@@ -450,17 +450,14 @@ struct OpRect {
     }
 
     friend bool operator==(OpRect a, OpRect b) {
-        return a.left == b.left && a.top == b.top && a.right == b.right && a.bottom == b.bottom;
-    }
-
+        return a.left == b.left && a.top == b.top && a.right == b.right && a.bottom == b.bottom; }
     friend bool operator!=(OpRect a, OpRect b) {
-        return a.left != b.left || a.top != b.top || a.right != b.right || a.bottom != b.bottom;
-    }
-
-    float area() const { return width() * height(); }
-    OpPoint center() const { return { (left + right) / 2, (top + bottom) / 2 }; }
+        return a.left != b.left || a.top != b.top || a.right != b.right || a.bottom != b.bottom; }
+    OpPoint center() const { 
+        return { (left + right) / 2, (top + bottom) / 2 }; }
     bool isFinite() const;
-    float height() const { return bottom - top; }
+    float height() const { 
+        return bottom - top; }
 
     bool intersects(const OpRect& r) const {
         debugValidate();
@@ -469,14 +466,13 @@ struct OpRect {
     }
 
     float ltChoice(Axis axis) const { 
-        return *(&left + +axis); 
-    }
-
+        return *(&left + +axis);  }
+    float perimeter() const { 
+        return width() + height(); }
     float rbChoice(Axis axis) const {
-        return *(&right + +axis);
-    }
-
-    float width() const { return right - left; }
+        return *(&right + +axis); }
+    float width() const { 
+        return right - left; }
 
 #if OP_DEBUG_DUMP
     virtual ~OpRect() {}

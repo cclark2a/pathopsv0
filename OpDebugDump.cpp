@@ -1873,7 +1873,7 @@ void DumpLinkups(const std::vector<OpEdge*>& linkups) {
             str += " (prior count:" + STR(priorCount) + ")";
         if (looped)
             str += " loop";
-        OpDebugOut(str + " area:" + STR(linkup->linkedArea()) + "\n");
+        OpDebugOut(str + " bounds:" + linkup->linkBounds.debugDump() + "\n");
         if (!looped) {
             if (1 == count + priorCount && !linkup->lastEdge)
                 OpDebugOut("p/n/l:-/-/- ");

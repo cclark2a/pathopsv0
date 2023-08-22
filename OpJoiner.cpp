@@ -58,6 +58,7 @@ void OpJoiner::addToLinkups(OpEdge* edge) {
 		next = next->nextEdge;
 	} while (next);
 	first->lastEdge = last;
+	first->setLinkBounds();
     linkups.l.push_back(first);
 }
 
@@ -167,6 +168,9 @@ bool OpJoiner::detachIfLoop(OpEdge* edge) {
 bool OpJoiner::linkRemaining() {
 	linkPass = LinkPass::unsectInX;
 	// match links may add or remove from link ups. Iterate as long as link ups is not empty
+	for (auto edge : linkups.l) {
+		edge->setLinkBounds();
+	}
     while (linkups.l.size()) {
 		// sort to process largest first
 		// !!! could optimize to avoid search, but for now, this is the simplest
@@ -317,22 +321,30 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 		// before going down the disabled rabbit hole, see if the is a small gap that can be closed
 		// look for a pair of intersections with different pt values, but the same t value in 
 		//   lastEdge's segment
+		// also look for an intersection where the points don't match
 		auto checkMissed = [&found, matchPt](OpEdge* test, EdgeMatch whichEnd) {
 			float testT = test->whichPtT(whichEnd).t;
+			OpContour* contour = test->segment->contour;
 			OpIntersection* last = nullptr;
 			for (auto sect : test->segment->sects.i) {
 				if (sect->ptT.t != testT)
 					continue;
+				OpIntersection* opp = sect->opp;
+				if (sect->ptT.pt != opp->ptT.pt) {
+					OpEdge* filler = EdgeMatch::start == whichEnd ? contour->addFiller(sect, opp) 
+							: contour->addFiller(opp, sect);
+					found.emplace_back(filler, whichEnd);
+				}
 				if (!last) {
 					last = sect;
 					continue;
 				}
-				OP_ASSERT(last->ptT.pt != sect->ptT.pt);
+				if (last->ptT.pt == sect->ptT.pt)
+					continue;
 				if (matchPt == last->ptT.pt)
 					std::swap(last, sect);
 				else if (matchPt != sect->ptT.pt)
 					continue;
-				OpContour* contour = test->segment->contour;
 				OpEdge* filler = EdgeMatch::start == whichEnd ? contour->addFiller(sect, last) 
 						: contour->addFiller(last, sect);
 				found.emplace_back(filler, whichEnd);
@@ -386,56 +398,71 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 	}
 #endif
 	OP_ASSERT(found.size());
+//	start here;
+
+	// if more than one was found, check to see if selected, one makes a complete loop
+	// additionally, store in found how far end is from loop
 	OpRect bestBounds;
-	FoundEdge smallest = { nullptr, INT_MAX, EdgeMatch::none };
-	for (int trial = 0; !smallest.edge && trial < 2; ++trial) {
-		for (const auto& foundOne : found) {
+	FoundEdge smallest = found.front();
+	if (found.size() > 1) {
+		for (auto& foundOne : found) {
 			OpEdge* oppEdge = foundOne.edge;
-			// skip edges which flip the fill sum total, implying there is a third edge inbetween
-			               // e.g., one if normals point to different fill sums       
-			if (!trial && !oppEdge->unsectableID && !oppEdge->disabled 
-					&& (((lastEdge->sum.sum() + oppEdge->sum.sum()) & 1) 
+			foundOne.connects = oppEdge->unsectableID || oppEdge->disabled 
+					|| (((lastEdge->sum.sum() + oppEdge->sum.sum()) & 1) 
 			// e.g., one if last start-to-end connects to found start-to-end (end connects to start)
-					== (lastEdge->whichEnd == foundOne.whichEnd)))
-				continue;
-			// choose smallest closed loop -- this is an arbitrary choice
-			OpPointBounds testBounds = edge->setLinkBounds();
-			if (!edge->containsLink(oppEdge)) {
-				OpEdge* firstEdge = oppEdge;
-				while (firstEdge->priorEdge)
-					firstEdge = firstEdge->priorEdge;
-				testBounds.add(foundOne.index > 0 ? firstEdge->setLinkBounds() : firstEdge->ptBounds);
-			}
-			if (!(bestBounds.area() < testBounds.area())) {	// 'not' logic since best = NaN at first
-				if (bestBounds.area() == testBounds.area()) {
-					// see which end is closer to desired close
-					OpPoint start = edge->whichPtT(EdgeMatch::start).pt;
-					float testDistance = (start 
-							- foundOne.edge->ptT(Opposite(foundOne.whichEnd)).pt).lengthSquared();
-					float bestDistance = (start
-							- smallest.edge->ptT(Opposite(smallest.whichEnd)).pt).lengthSquared();
-					if (testDistance > bestDistance)
+					== (lastEdge->whichEnd != foundOne.whichEnd));
+			oppEdge->setLastLink(foundOne.whichEnd);
+			for (const OpEdge* eTest = edge; eTest != nullptr; eTest = eTest->nextEdge) {
+				for (const OpEdge* fTst = foundOne.edge; fTst != nullptr; fTst = fTst->nextEdge) {
+					// look for eTest whichEnd (start) equalling fTst opposite whichEnd (end)
+					if (eTest->whichPtT(EdgeMatch::start).pt != fTst->whichPtT(EdgeMatch::end).pt)
 						continue;
-					// !!! if test equals best, do we need another way to pick the better one?
+					foundOne.loops = true;
+					goto done;
 				}
-				bestBounds = testBounds;
-				smallest = foundOne;
+			}
+		done:
+			;
+		}
+		for (int trial = 0; !bestBounds.isFinite() && trial < 2; ++trial) {
+			for (const auto& foundOne : found) {
+				OpEdge* oppEdge = foundOne.edge;
+				// skip edges which flip the fill sum total, implying there is a third edge inbetween
+							   // e.g., one if normals point to different fill sums       
+				if (!trial && !foundOne.connects)
+					continue;
+				// choose smallest closed loop -- this is an arbitrary choice
+				OpPointBounds testBounds = edge->setLinkBounds();
+				if (!edge->containsLink(oppEdge)) {
+					OpEdge* firstEdge = oppEdge;
+					while (firstEdge->priorEdge)
+						firstEdge = firstEdge->priorEdge;
+					testBounds.add(foundOne.index > 0 ? firstEdge->setLinkBounds() : firstEdge->ptBounds);
+				}
+				if (smallest.loops < foundOne.loops)
+					smallest = foundOne;
+				else if (smallest.loops == foundOne.loops &&
+					!(bestBounds.perimeter() < testBounds.perimeter())) {	// 'not' logic since best = NaN at first
+					if (bestBounds.perimeter() == testBounds.perimeter()) {
+						// see which end is closer to desired close
+						OpPoint start = edge->whichPtT(EdgeMatch::start).pt;
+						float testDistance = (start 
+								- foundOne.edge->whichPtT(EdgeMatch::end).pt).lengthSquared();
+						float bestDistance = (start
+								- smallest.edge->whichPtT(EdgeMatch::end).pt).lengthSquared();
+						if (testDistance > bestDistance)
+							continue;
+						// !!! if test equals best, do we need another way to pick the better one?
+					}
+					bestBounds = testBounds;
+					smallest = foundOne;
+				}
 			}
 		}
 	}
 	OP_ASSERT(smallest.edge); // !!! if found is not empty, but no edge has the right sum, choose one anyway?
 	OpEdge* best = smallest.edge;
-	if ((best->unsectableID || best->disabled || best->unsortable) 
-			&& !best->priorEdge && !best->nextEdge) {
-		OP_ASSERT(EdgeMatch::none == best->whichEnd);
-		best->whichEnd = smallest.whichEnd;
-		OP_ASSERT(!best->lastEdge);
-		best->lastEdge = smallest.edge;
-	} else if (!best->lastEdge)
-		best->setLinkDirection(EdgeMatch::end);
-	else if (best->lastEdge == best && EdgeMatch::end == smallest.whichEnd
-			&& EdgeMatch::start == best->whichEnd)
-		best->whichEnd = EdgeMatch::end;
+	best->setLastLink(smallest.whichEnd);	// make edge suitable for linking up to a chain of links
 	if (!best->containsLink(lastEdge)) {
 		OP_ASSERT(!best->debugIsLoop());
 		OP_ASSERT(!lastEdge->debugIsLoop());
@@ -444,12 +471,12 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 		lastEdge->setNextEdge(best);
 		OP_ASSERT(!lastEdge->debugIsLoop());
 		lastEdge = best->setLastEdge(lastEdge);
+		OP_ASSERT(lastEdge);
 	// delete 'smallest.edge' from linkups; entry no longer points to edge link head
 		if (smallest.index >= 0) {
 			OP_ASSERT((unsigned) smallest.index < linkups.l.size());
 			linkups.l.erase(linkups.l.begin() + smallest.index);
 		}
-		OP_ASSERT(lastEdge);
 	}
 	// if there is a loop, remove entries in link ups which are output
 	linkMatch = EdgeMatch::start;	// since closest prior is set to last edge, use start
@@ -472,9 +499,10 @@ void OpJoiner::sort() {
 }
 
 // sort by size to process largest (tail) first
+// sort should consider all edges in link
 void LinkUps::sort() {
 	std::sort(l.begin(), l.end(), [](const auto& s1, const auto& s2) {
-		return s1->ptBounds.width() + s1->ptBounds.height() 
-				< s2->ptBounds.width() + s2->ptBounds.height(); 
+		return s1->linkBounds.perimeter() 
+				< s2->linkBounds.perimeter(); 
 	} );
 }

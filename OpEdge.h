@@ -376,6 +376,7 @@ private:
 		, lastEdge(nullptr)
 		, winding(WindingUninitialized::dummy)
 		, sum(WindingUninitialized::dummy)
+		, many(WindingUninitialized::dummy)
 		, unsectableID(0)
 		, whichEnd(EdgeMatch::none)
 		, fail(EdgeFail::none)
@@ -468,7 +469,6 @@ public:
 	bool isPal(const OpEdge* opp) const {
 		return pals.end() != std::find_if(pals.begin(), pals.end(), 
 				[opp](const auto& test) { return opp == test.edge; }); }
-	float linkedArea() const;
 	void linkToEdge(FoundEdge& , EdgeMatch );
 //	void linkNextPrior(OpEdge* first, OpEdge* last);
 	void markUnsectable(OpEdge* opp, Axis axis, float t, float oppT);
@@ -484,6 +484,7 @@ public:
 	void setDisabled(OP_DEBUG_CODE(ZeroReason reason));
 	void setFromPoints(const OpPoint pts[]);
 	OpEdge* setLastEdge(OpEdge* old = nullptr);
+	void setLastLink(EdgeMatch );
 	OpPointBounds setLinkBounds();
 	void setLinkDirection(EdgeMatch ); // reverse links if handed link end instead of link start
 	bool setLinear();
@@ -558,6 +559,7 @@ public:
 	OpPointBounds linkBounds;
 	OpWinding winding;	// contribution: always starts as 1, 0 (or 0, 1)
 	OpWinding sum; // total incl. normal side of edge for operands (fill count in normal direction)
+	OpWinding many; // temporary used by unsectables to contain all pal windings combined
 	std::vector<EdgeDistance> pals;	// list of unsectable adjacent edges !!! should be pointers?
 	int id;
 	int unsectableID;
