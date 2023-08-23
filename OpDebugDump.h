@@ -205,6 +205,7 @@ enum class DebugLevel {
 };
 
 std::string debugDump(const EdgeDistance& distance, DebugLevel level);
+std::string debugDumpHex(const EdgeDistance& distance, DebugLevel level);
 
 #endif
 

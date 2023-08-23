@@ -342,14 +342,35 @@ void SectRay::markUnsectableGroups(OpEdge* home) {
 
 // this catches unsectables by keeping track of edges that are found to be adjacent
 // each time a ray is cast. If the edge is seen to the left during one ray cast, and to the right
-// on another, it is marked as between an unsectable pair. (I think...)
-// !!! for now, require strict inclusion; this may be insufficent to catch all cases
-bool SectRay::markUnsectables(OpEdge* home) {
+// on another, it is marked as an unsectable pair.
+void SectRay::markUnsectables(OpEdge* home) {
+	EdgeDistance* last = &distances[0];
+	for (EdgeDistance* test = &distances[1]; test <= &distances.back(); ++test) {
+		auto& lastMore = last->edge->moreRay;
+		if (lastMore.end() == std::find(lastMore.begin(), lastMore.end(), test->edge))
+			lastMore.push_back(test->edge);
+		auto& lastLess = last->edge->lessRay;
+		if (lastLess.end() != std::find(lastLess.begin(), lastLess.end(), test->edge))
+			goto markIfUnmarked;
+		{	
+			auto& testLess = test->edge->lessRay;
+			if (testLess.end() == std::find(testLess.begin(), testLess.end(), last->edge))
+				testLess.push_back(last->edge);
+			auto& testMore = test->edge->moreRay;
+			if (testMore.end() == std::find(testMore.begin(), testMore.end(), last->edge))
+				continue;
+		}
+	markIfUnmarked:
+		if (!test->edge->unsectableID) {
+			OP_ASSERT(!last->edge->unsectableID);
+			test->edge->markUnsectable(last->edge, axis, test->t, last->t);
+		}
+	}
+#if 0
 	// use sorted distances to mark previous and next edges by winding order
 	auto homePos = std::find_if(distances.begin(), distances.end(), 
 			[&home](const EdgeDistance& dist) {
 		return home == dist.edge; });
-	bool markedUnsectable = false;
 	OP_ASSERT(distances.end() != homePos);
 	// returns iterator to distance with cept just less than home cept, if any
 	auto lesser = std::lower_bound(distances.begin(), distances.end(), *homePos,
@@ -365,10 +386,8 @@ bool SectRay::markUnsectables(OpEdge* home) {
 		auto homeInLesser = std::find_if(lesserDist.begin(), lesserDist.end(), 
 				[&home](const EdgeDistance& dist) {
 				return home == dist.edge; });
-		if (homeInLesser < lesserPos) {
+		if (homeInLesser < lesserPos)
 			home->markUnsectable(lesserPos->edge, axis, homePos->t, lesserPos->t);
-			markedUnsectable = true;
-		}
 	}
 	// returns iterator to distance with cept just more than home cept, if any
 	auto greater = std::upper_bound(distances.begin(), distances.end(), *homePos,
@@ -376,7 +395,6 @@ bool SectRay::markUnsectables(OpEdge* home) {
 			return a.cept < nextafterf(b.cept, OpInfinity);
 	});
 	if (homePos < greater && greater != distances.end()) {
-		OP_ASSERT(!markedUnsectable);  // if asserts, add logic to handle both adjacent edges
 		const auto& greaterDist = greater->edge->ray.distances;
 		auto greaterPos = std::find_if(greaterDist.begin(), greaterDist.end(), 
 				[&greater](const EdgeDistance& dist) {
@@ -385,12 +403,10 @@ bool SectRay::markUnsectables(OpEdge* home) {
 		auto homeInGreater = std::find_if(greaterDist.begin(), greaterDist.end(), 
 				[&home](const EdgeDistance& dist) {
 				return home == dist.edge; });
-		if (homeInGreater > greaterPos) {
+		if (homeInGreater > greaterPos)
 			home->markUnsectable(greaterPos->edge, axis, homePos->t, greaterPos->t);
-			markedUnsectable = true;
-		}
 	}
-	return markedUnsectable;
+#endif
 }
 
 bool SectRay::betweenUnsectables(OpEdge* home) {
@@ -589,7 +605,6 @@ ChainFail OpWinder::setSumChain(size_t inIndex) {
 
 ResolveWinding OpWinder::setWindingByDistance() {
 	// find edge; then walk backwards to first known sum 
-	OpDebugBreak(home, 333);
 #if RAY_POINTER
 	SectRay& ray = *(home->ray);
 #else
@@ -617,7 +632,8 @@ ResolveWinding OpWinder::setWindingByDistance() {
 	while (ray.distances[--sumIndex].edge != home) 
 		OP_ASSERT(sumIndex > 0);
 	float homeT = ray.distances[sumIndex].t;  // used by unsectable, later
-	while (--sumIndex >= 0 && !ray.distances[sumIndex].edge->sum.isSet())
+	while (--sumIndex >= 0 && (ray.distances[sumIndex].edge->unsectableID 
+			|| !ray.distances[sumIndex].edge->sum.isSet()))
 		;
 	if (sumIndex >= 0) {
 		EdgeDistance& sumDistance = ray.distances[sumIndex];
@@ -631,11 +647,11 @@ ResolveWinding OpWinder::setWindingByDistance() {
 	}
 	// walk from the known sum to (and including) the edge
 	OpEdge* prior;
-	bool sawHome = false;
 	do {
+		OP_ASSERT(sumIndex + 1 < (int) ray.distances.size());
 		EdgeDistance& dist = ray.distances[++sumIndex];
 		prior = dist.edge;
-		if (sawHome && (!home->unsectableID || abs(prior->unsectableID) != abs(home->unsectableID)))
+		if (home->unsectableID && abs(prior->unsectableID) == abs(home->unsectableID))
 			break;
 		NormalDirection normDir = prior->normalDirection(ray.axis, dist.t);
 		if (NormalDirection::underflow == normDir || NormalDirection::overflow == normDir) {
@@ -648,8 +664,7 @@ ResolveWinding OpWinder::setWindingByDistance() {
 			OP_DEBUG_FAIL(*prior, ResolveWinding::fail);
 		if (NormalDirection::upRight == normDir && !prior->pals.size())
 			OP_EDGE_SET_SUM(prior, sumWinding);
-		sawHome |= home == prior;
-	} while (!sawHome || home->unsectableID);
+	} while (home != prior);
 	if (!home->unsectableID)
 		return ResolveWinding::resolved;
 	// if home is unsectable, set its sum winding as if all of its pals' windings were a single edge
@@ -657,19 +672,20 @@ ResolveWinding OpWinder::setWindingByDistance() {
 	// winding must be replaced by all unsectable windings -- however, other unsectables will want 
 	//   to see the original winding. This is why 'many' is used. After all sums are computed
 	//   replace winding with many.
-	home->many = home->winding;
+	home->many = home->winding;	// back up winding
 	OpContours* contours = home->segment->contour->contours;
 	NormalDirection normDir = home->normalDirection(ray.axis, homeT);
 	OP_ASSERT(NormalDirection::underflow != normDir && NormalDirection::overflow != normDir);
 	for (const auto& pal : home->pals) {
 		NormalDirection palDir = pal.edge->normalDirection(ray.axis, homeT);
 		OP_ASSERT(NormalDirection::underflow != palDir && NormalDirection::overflow != palDir);
-		home->many.move(pal.edge->winding, contours, normDir != palDir);
+		home->winding.move(pal.edge->winding, contours, normDir != palDir);
 	}
 	if (CalcFail::fail == home->addIfUR(ray.axis, homeT, &sumWinding))
 		OP_DEBUG_FAIL(*home, ResolveWinding::fail);
 	OP_EDGE_SET_SUM(home, sumWinding);
-	return ResolveWinding::resolved;
+	std::swap(home->many, home->winding);  // restore winding, put total of pals in many
+	return ResolveWinding::resolved;	   // (will copy many to winding after all many are found)
 }
 
 FoundWindings OpWinder::setWindings(OpContours* contours) {
@@ -715,6 +731,18 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 				// but accumulate its winding for other edges and store accumulated total in each unsectable
 				// mark consecutive pairs or more of unsectable as multiples
 				ray.markUnsectableGroups(&edge);
+			}
+		}
+	}
+	for (auto& contour : contours->contours) {
+		for (auto& segment : contour.segments) {
+			for (auto& edge : segment.edges) {
+	#if RAY_POINTER
+				SectRay& ray = *(edge->ray);
+	#else
+				SectRay& ray = edge.ray;
+	#endif
+
 				if (edge.unsectableID)
 					ray.markPals(&edge);
 			}

@@ -1393,12 +1393,25 @@ std::string debugDump(const EdgeDistance& distance, DebugLevel level) {
     return s;
 }
 
+std::string debugDumpHex(const EdgeDistance& distance, DebugLevel level) {
+    std::string s = DebugLevel::brief == level ? "id:" + STR(distance.edge->id) + " " : 
+            DebugLevel::detailed == level ? " " + distance.edge->debugDumpDetail() + "\n" :
+            distance.edge->debugDumpHex() + " ";
+    s += "cept:" + OpDebugDumpHex(distance.cept) + " ";
+    s += "t:" + OpDebugDumpHex(distance.t) + "\n";
+    return s;
+}
+
 void dmpDetail(const EdgeDistance& distance) {
     OpDebugOut(debugDump(distance, DebugLevel::detailed));
 }
 
 void dmp(const EdgeDistance& distance) {
     OpDebugOut(debugDump(distance, DebugLevel::normal));
+}
+
+void dmpHex(const EdgeDistance& distance) {
+    OpDebugOut(debugDumpHex(distance, DebugLevel::normal));
 }
 
 const OpCurveCurve* OpCurveCurve::debugActive;

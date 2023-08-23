@@ -89,7 +89,7 @@ OpEdge* OpEdge::advanceToEnd(EdgeMatch match) {
 			1					1					---
 */
 void OpEdge::apply() {
-	if (disabled || unsortable || unsectableID)
+	if (disabled || unsortable)
 		return;
 	OpWinding su = sum;
 	OpWinding wi = winding;

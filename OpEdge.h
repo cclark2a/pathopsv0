@@ -287,7 +287,7 @@ struct SectRay {
 	bool findIntercept(OpEdge* );
 	void markPals(OpEdge* );
 	void markUnsectableGroups(OpEdge* );
-	bool markUnsectables(OpEdge* );
+	void markUnsectables(OpEdge* );
 
 	std::vector<EdgeDistance> distances;
 	float normal;  // ray used to find windings on home edge
@@ -545,7 +545,6 @@ public:
 	OpEdge* nextEdge;
 	OpEdge* lastEdge;
 	OpPoint ctrlPts[2];	// quad, conic, cubic
-	float weight;
 	// !!! Can start, end be shared with intersection?
 	// what about id/ptr struct (union?) with intersect id and ptr
 	// ptr is set up once intersects is sorted
@@ -553,14 +552,17 @@ public:
 	OpPtT start;
 	OpPtT center;  // curve location used to find winding contribution
 	OpPtT end;
-	OpCurve curve_impl;	// only access through set curve function
+	OpCurve curve_impl;	 // only access through set curve function
 	OpCurve vertical_impl;	// only access through set vertical function
 	OpPointBounds ptBounds;
 	OpPointBounds linkBounds;
 	OpWinding winding;	// contribution: always starts as 1, 0 (or 0, 1)
-	OpWinding sum; // total incl. normal side of edge for operands (fill count in normal direction)
-	OpWinding many; // temporary used by unsectables to contain all pal windings combined
-	std::vector<EdgeDistance> pals;	// list of unsectable adjacent edges !!! should be pointers?
+	OpWinding sum;  // total incl. normal side of edge for operands (fill count in normal direction)
+	OpWinding many;  // temporary used by unsectables to contain all pal windings combined
+	std::vector<EdgeDistance> pals;	 // list of unsectable adjacent edges !!! should be pointers?
+	std::vector<OpEdge*> lessRay;  // edges found placed with smaller edge distance cept values
+	std::vector<OpEdge*> moreRay;  // edges found placed with larger edge distance cept values
+	float weight;
 	int id;
 	int unsectableID;
 	EdgeMatch whichEnd;	// if 'start', prior link end equals start; if 'end' prior end matches end
