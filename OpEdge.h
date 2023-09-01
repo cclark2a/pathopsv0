@@ -401,6 +401,7 @@ private:
 #if OP_DEBUG
 		debugStart = nullptr;
 		debugEnd = nullptr;
+		debugMatch = nullptr;
 		debugMaker = EdgeMaker::empty;
 		debugZero = ZeroReason::uninitialized;
 		debugOutPath = 0;
@@ -585,6 +586,7 @@ public:
 #if OP_DEBUG
 	const OpIntersection* debugStart;
 	const OpIntersection* debugEnd;
+	OpEdge* debugMatch;  // left side of nonzero ray from this edge
 	EdgeMaker debugMaker;
 	ZeroReason debugZero;	// why edge was disabled
 	OpDebugMaker debugSetMaker;

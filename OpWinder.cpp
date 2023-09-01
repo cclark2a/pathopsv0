@@ -344,6 +344,8 @@ void SectRay::markUnsectableGroups(OpEdge* home) {
 // each time a ray is cast. If the edge is seen to the left during one ray cast, and to the right
 // on another, it is marked as an unsectable pair.
 void SectRay::markUnsectables(OpEdge* home) {
+	OpDebugBreak(home, 564);
+	OpDebugBreak(home, 548);
 	EdgeDistance* last = &distances[0];
 	for (EdgeDistance* test = &distances[1]; test <= &distances.back(); ++test) {
 		auto& lastMore = last->edge->moreRay;

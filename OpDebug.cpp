@@ -277,9 +277,10 @@ void OpEdge::debugValidate() const {
 void::OpJoiner::debugMatchRay() {
     OpDebugOut("");
 	for (auto linkup : linkups.l) {
-        int nextID = 0;
         OP_ASSERT(!linkup->priorEdge);
         OP_ASSERT(linkup->lastEdge);
+        OpEdge* firstLink = linkup;
+        // search ray list for possible nonzero ray connected edge pair
         do {
             if (!linkup->ray.distances.size())
                 continue;
@@ -301,39 +302,67 @@ void::OpJoiner::debugMatchRay() {
                 dTest = test;
                 break;
             }
+            float x = dTest->start.pt.x;
+            int a = x;
             // look to see if edge maps a non-zero ray to a prior edge
             WindZero linkZero = linkup->windZero;
             OP_ASSERT(WindZero::noFlip != linkZero);
 	        NormalDirection NdotR = linkup->normalDirection(-linkup->ray.axis, linkDist->t);
             if (NormalDirection::downLeft == NdotR)
                 WindZeroFlip(&linkZero);    // get wind zero for edge normal pointing left
-            bool rayFills = WindZero::opp == linkZero;                
-            OP_ASSERT(!nextID || !rayFills || !linkup->debugRayMatch 
-                    || nextID == linkup->debugRayMatch);
-            if (int match = linkup->debugRayMatch)
-                nextID = match;
-            else if (rayFills && !nextID) {
-                OP_ASSERT(dTest);
-                int testID = dTest->debugRayMatch;
-                OP_ASSERT(!nextID || !testID || nextID == testID);
-                nextID = testID;
-            } 
-            if (!nextID)
-                nextID = linkup->segment->nextID();
-            if (rayFills)
-                dTest->debugRayMatch = nextID;
-            linkup->debugRayMatch = nextID;        
+            if (WindZero::opp == linkZero) {
+                OP_ASSERT(dTest->inLinkups);
+                linkup->debugMatch = dTest;
+            }
 #if OP_DEBUG
-            if (!rayFills)
-                continue;
             WindZero distZero = dTest->windZero;
-            OP_ASSERT(!rayFills || WindZero::noFlip != distZero);
             NdotR = dTest->normalDirection(linkup->ray.axis, dDist->t);
             if (NormalDirection::downLeft == NdotR)
                 WindZeroFlip(&distZero);    // get wind zero for prior normal pointing right
-            // either neither zero should be opp, or both should be 
-            OP_ASSERT(!rayFills || WindZero::opp == distZero);
+                // either neither zero should be opp, or both should be 
+            OP_ASSERT((WindZero::opp == distZero) == (WindZero::opp == linkZero));
 #endif
+        } while ((linkup = linkup->nextEdge));
+        // search links and ray matches for an ID
+        linkup = firstLink;
+        int nextID = 0;
+        do {
+            if ((nextID = linkup->debugRayMatch))
+                break;
+            // don't recurse: just check one level below
+            const OpEdge* match = linkup->debugMatch;
+            if (!match)
+                continue;
+            if ((nextID = match->debugRayMatch))
+                break;
+        } while ((linkup = linkup->nextEdge));
+        if (!nextID)
+            nextID = firstLink->segment->nextID();
+        // apply ID to all links
+        linkup = firstLink;
+        do {
+            OP_ASSERT(!linkup->debugRayMatch || nextID == linkup->debugRayMatch);
+            linkup->debugRayMatch = nextID;
+        } while ((linkup = linkup->nextEdge));
+        // apply ID to all ray-matched links
+        linkup = firstLink;
+        do {
+            OpEdge* match = linkup->debugMatch;
+            if (!match)
+                continue;
+            OP_ASSERT(!match->debugRayMatch || nextID == match->debugRayMatch);
+            if (match->debugRayMatch)   // !!! could assert that all linked edges are ID'd
+                continue;
+            OpEdge* firstMatch = match;
+            do {
+                OP_ASSERT(!match->debugRayMatch);
+                match->debugRayMatch = nextID;
+            } while ((match = match->nextEdge));
+            match = firstMatch;
+            while ((match = match->priorEdge)) {
+                OP_ASSERT(!match->debugRayMatch);
+                match->debugRayMatch = nextID;
+            }
         } while ((linkup = linkup->nextEdge));
     }
 }
