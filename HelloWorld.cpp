@@ -212,6 +212,10 @@ void HelloWorld::onPaint(SkSurface* surface) {
     canvas->restore();
     return;
 #else
+    if (GENERATE_COLOR_FILES) {
+        OpDebugGenerateColorFiles();
+        return;
+    }
     OpTest(nullptr != surface); // trickery to avoid compiler warning
 #endif
 #if 0

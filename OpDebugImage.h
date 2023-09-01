@@ -1,6 +1,9 @@
 #ifndef OpDebugImage_DEFINED
 #define OpDebugImage_DEFINED
 
+#define GENERATE_COLOR_FILES 0
+void OpDebugGenerateColorFiles();
+
 #if OP_DEBUG_IMAGE
 
 #include <string>
@@ -60,6 +63,7 @@ struct OpDebugImage {
 	static void drawPoints();
 	static bool drawValue(OpPoint pt, std::string ptStr, uint32_t color = 0xFF000000);
 	static void find(int id, OpPointBounds* , OpPoint* );
+	static std::vector<const OpEdge*> find(int id);
 	static void focus(int id, bool add);
 	static void focusEdges();
 	static void init(const OpInPath& left, const OpInPath& right);
@@ -106,6 +110,8 @@ extern void center(const OpPtT* );
 extern void center(const OpSegment* );
 extern void clear();
 extern void clearLines();
+extern void color(int id);
+extern void color(int id, uint32_t color);
 extern void draw(const std::vector<OpEdge>& );  // to draw edge list built from intersections
 extern void draw(const std::vector<OpEdge*>& ); // to draw unsortables
 extern void highlight(const LinkUps& ); // to draw assemble linkups

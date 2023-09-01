@@ -37,11 +37,15 @@ struct OpOutPath {
 #endif
 #if OP_DEBUG_DUMP
 	bool debugIsEmpty() const;
+	int debugNextID(struct OpEdge* );
 	void dump() const;
 	void dumpDetail() const;
 #endif
 #if PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_SKIA
 	SkPath* skPath;
+#endif
+#if OP_DEBUG_DUMP
+	int debugID;
 #endif
 };
 

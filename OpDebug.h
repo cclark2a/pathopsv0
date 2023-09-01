@@ -105,6 +105,23 @@ enum class OpDebugExpect {
 #define OP_DEBUG_STR_ID(x) OpDebugStr(x)
 #endif
 
+struct OpDebugMaker {
+	OpDebugMaker()
+		: line(0) {
+	}
+
+	OpDebugMaker(std::string f, int l)
+		: file(f)
+		, line(l) {
+	}
+
+#if OP_DEBUG_DUMP
+	std::string debugDump() const;
+#endif
+	std::string file;
+	int line;
+};
+
 extern OpContours* debugGlobalContours;
 
 float OpDebugBitsToFloat(int32_t);

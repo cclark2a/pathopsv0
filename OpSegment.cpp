@@ -135,8 +135,6 @@ OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int unsectableID, boo
     if (sect) {
         OP_ASSERT(!sect->unsectID);
         sect->unsectID = unsectableID;
-        if (512 == unsectableID)
-            OpDebugOut("");
         sect->unsectEnd = end;
         return sect;
     }

@@ -288,6 +288,11 @@ struct SectRay {
 	void markPals(OpEdge* );
 	void markUnsectableGroups(OpEdge* );
 	void markUnsectables(OpEdge* );
+#if OP_DEBUG_DUMP
+	void dump() const;
+	void dumpDetail() const;
+	void dumpHex() const;
+#endif
 
 	std::vector<EdgeDistance> distances;
 	float normal;  // ray used to find windings on home edge
@@ -387,8 +392,8 @@ private:
 		, verticalSet(false)
 		, isLine_impl(false)
 		, active_impl(false)
+		, inLinkups(false)
 		, inOutput(false)
-		, inOutQueue(false)
 		, disabled(false)
 		, unsortable(false)
 		, between(false)
@@ -398,10 +403,9 @@ private:
 		debugEnd = nullptr;
 		debugMaker = EdgeMaker::empty;
 		debugZero = ZeroReason::uninitialized;
-		debugMakerLine = 0;
-		debugSetSumLine = 0;
+		debugOutPath = 0;
 		debugParentID = 0;
-		debugUnOpp = false;
+		debugRayMatch = 0;
 #endif
 	}
 public:
@@ -425,9 +429,7 @@ public:
 		debugStart = i1;
 		debugEnd = i2;
 		debugMaker = maker;
-		debugMakerLine = line;
-		debugMakerFile = file;
-		debugParentID = 0;
+		debugSetMaker = { file, line };
 #endif
 		complete();
 	}
@@ -473,7 +475,7 @@ public:
 //	void linkNextPrior(OpEdge* first, OpEdge* last);
 	void markUnsectable(OpEdge* opp, Axis axis, float t, float oppT);
 	void matchUnsectable(EdgeMatch , const std::vector<OpEdge*>& unsectInX, std::vector<FoundEdge>& );
-	void matchUnsortable(EdgeMatch , const std::vector<OpEdge*>& unsortables, std::vector<FoundEdge>& );
+	OpEdge* nextOut();
 	NormalDirection normalDirection(Axis axis, float t);
 	void output(OpOutPath path);	// provided by the graphics implmentation
 	OpPtT ptT(EdgeMatch match) const { 
@@ -498,6 +500,7 @@ public:
 	void skipPals(EdgeMatch match, std::vector<FoundEdge>& edges); 
 	void subDivide();
 	CalcFail subIfDL(Axis axis, float t, OpWinding* );
+	OpType type();
 	OpPtT whichPtT(EdgeMatch match = EdgeMatch::start) const { 
 		return match == whichEnd ? start : end; }
 
@@ -574,8 +577,8 @@ public:
 	bool verticalSet;
 	bool isLine_impl;	// ptBounds 0=h/0=w catches horz/vert lines; if true, line is diagonal(?)
 	bool active_impl;  // used by ray casting to mark edges that may be to the left of casting edge
+	bool inLinkups; // like inOutput, to marks unsectable edges; all edges in linkups l vector
 	bool inOutput;	// likely only used to find inactive unsectables that are not on output path
-	bool inOutQueue; // ditto. Marks unsectable edges pushed in contour::assemble linkups vector
 	bool disabled;	// winding is zero, or apply disqualified edge from appearing in output
 	bool unsortable;
 	bool between;  // between unsectables (also unsortable); !!! begs for an enum class, instead...
@@ -584,12 +587,11 @@ public:
 	const OpIntersection* debugEnd;
 	EdgeMaker debugMaker;
 	ZeroReason debugZero;	// why edge was disabled
-	int debugMakerLine;
-	std::string debugMakerFile;
+	OpDebugMaker debugSetMaker;
+	OpDebugMaker debugSetSum;
+	int debugOutPath;	// id to color output contours
 	int debugParentID;
-	int debugSetSumLine;
-	std::string debugSetSumFile;
-	bool debugUnOpp;	// used to distinguish left unsectables from right unsectables
+	int debugRayMatch;	// id that denotes edges in common output contour determined from ray
 #endif
 };
 
@@ -611,8 +613,7 @@ struct OpEdgeStorage {
 	do {	\
 		OP_ASSERT(!edge->sum.isSet());  \
 		edge->setSumImpl(winding); \
-		edge->debugSetSumLine = __LINE__; \
-		edge->debugSetSumFile = __FILE__; \
+		edge->debugSetSum = { __FILE__, __LINE__ }; \
 	} while (false)
 #endif
 

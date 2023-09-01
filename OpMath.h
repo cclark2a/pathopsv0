@@ -10,6 +10,7 @@
 #endif
 
 #include "OpDebug.h"
+#include "OpDebugColor.h"
 #include "OpDebugDouble.h"
 #include "OpDebugDump.h"
 #include "OpDebugImage.h"

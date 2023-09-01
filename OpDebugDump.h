@@ -8,7 +8,6 @@
 // removed OP_X(CoinPair) for now
 // removed OP_X(ExtremaT) for now
 // removed OP_X(LoopCheck) for now
-// removed OP_X(MissingIntersection) for now
 #define VECTOR_STRUCTS \
 OP_X(EdgeDistance) \
 OP_X(FoundEdge) \
@@ -31,7 +30,8 @@ OP_X(OpPointBounds) \
 OP_X(OpRect) \
 OP_X(OpSegments) \
 OP_X(OpTightBounds) \
-OP_X(OpWinder)
+OP_X(OpWinder) \
+OP_X(SectRay)
 
 #define OP_X(Thing) \
 	struct Thing;
@@ -146,21 +146,22 @@ EDGE_OR_SEGMENT_DETAIL
 #undef OP_X
 
 #define DUMP_HEX \
-OP_X(Contour) \
-OP_X(Curve) \
-OP_X(Edge) \
-OP_X(Intersection) \
-OP_X(Point) \
-OP_X(PointBounds) \
-OP_X(PtT) \
-OP_X(Rect) \
-OP_X(Roots) \
-OP_X(Segment) \
-OP_X(TightBounds)
+OP_X(OpContour) \
+OP_X(OpCurve) \
+OP_X(OpEdge) \
+OP_X(OpIntersection) \
+OP_X(OpPoint) \
+OP_X(OpPointBounds) \
+OP_X(OpPtT) \
+OP_X(OpRect) \
+OP_X(OpRoots) \
+OP_X(OpSegment) \
+OP_X(OpTightBounds) \
+OP_X(SectRay)
 
 #define OP_X(Thing) \
-	extern void dmpHex(const struct Op##Thing& ); \
-	extern void dmpHex(const struct Op##Thing* );
+	extern void dmpHex(const struct Thing& ); \
+	extern void dmpHex(const struct Thing* );
 DUMP_HEX
 #undef OP_X
 
@@ -193,10 +194,12 @@ extern void dmpUnsortable();
 extern std::vector<const OpIntersection*> findCoincidence(int id);
 extern const OpContour* findContour(int id);
 extern const OpEdge* findEdge(int id);
+extern std::vector<const OpEdge*> findEdgeOutput(int id);
+extern std::vector<const OpEdge*> findEdgeRayMatch(int id);
 extern std::vector<const OpEdge*> findEdgeUnsectable(int id);
 extern const OpIntersection* findIntersection(int id);
-extern const OpSegment* findSegment(int id);
 extern std::vector<const OpIntersection*> findSectUnsectable(int id);
+extern const OpSegment* findSegment(int id);
 
 enum class DebugLevel {
 	brief,
@@ -204,8 +207,11 @@ enum class DebugLevel {
 	detailed
 };
 
-std::string debugDump(const EdgeDistance& distance, DebugLevel level);
-std::string debugDumpHex(const EdgeDistance& distance, DebugLevel level);
+// !!! will likely macro-tize these as pattern emerges
+std::string debugDump(const EdgeDistance& , DebugLevel );
+std::string debugDumpHex(const EdgeDistance& , DebugLevel );
+std::string debugDump(const SectRay& , DebugLevel );
+std::string debugDumpHex(const SectRay& , DebugLevel );
 
 #endif
 

@@ -265,20 +265,9 @@ void OpIntersections::windCoincidences(OpVector tangent, std::vector<OpEdge>& ed
 }
 
 #if OP_DEBUG
-template <typename V, typename... T>   // replace with std::to_array in c++20
-constexpr auto to_array(T&&... t)->std::array < V, sizeof...(T) > {
-    return { { std::forward<T>(t)... } };
-}
 
 void OpIntersection::debugSetID() {
     id = segment->nextID();
-if (68 == id)
-OpDebugOut("");
-#if 1
-    auto match = to_array<int>(68);  // c++20: std::to_array<int>({... (brace)
-    if (match.end() != std::find(match.begin(), match.end(), id))
-        OpDebugOut("");
-#endif
 }
 
 void OpIntersection::debugValidate() const {
@@ -308,4 +297,5 @@ OpIntersection* OpIntersections::debugAlreadyContains(const OpPoint& pt, const O
 	}
 	return nullptr;
 }
+
 #endif

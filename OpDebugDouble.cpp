@@ -1,20 +1,18 @@
 #include "OpDebug.h"
 #if OP_RELEASE_TEST
 
+#ifdef _WIN32
+#pragma optimize( "", off )
+#endif
+
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <vector>
 
+#include "OpContour.h"
 #include "OpCurve.h"
-#include "OpDebugDouble.h"
 #include "PathOps.h"
-
-#if OP_DEBUG_IMAGE
-#ifdef _WIN32
-#pragma optimize( "", off )
-#endif
-#endif
 
 enum class DebugColor {
     black,
@@ -748,43 +746,71 @@ enum class DrawEdgeType {
     highlight
 };
 
+// !!! haven't decided how I want to abstract this : for now, just reference directly
+#include "OpDebugColor.h"
+
 void DebugOpDrawEdges(std::vector<DebugOpCurve>& curves, DrawEdgeType edgeType) {
     float strokeWidth = DrawEdgeType::normal == edgeType ? 0 : 5;
-    DebugColor color = DrawEdgeType::normal == edgeType ? DebugColor::black : DebugColor::transBlack;
+    uint32_t first = DrawEdgeType::normal == edgeType ? black : 0x1F000000;
+    uint32_t last = first;
+    uint32_t color = last;
     SkPath path;
-    UnsectType unsectablePath = UnsectType::none;
     for (auto& curve : curves) {
-        UnsectType isUnsectable = UnsectType::none;
         const OpEdge* edge = findEdge(curve.id);
-        if (nullptr == edge)
-            OpDebugOut("edge " + STR(curve.id) + " not found\n");
-#if OP_DEBUG
-        else if (edge->unsectableID)
-            isUnsectable = edge->debugUnOpp ? UnsectType::edge : UnsectType::opp;
-#endif
-        if (unsectablePath != isUnsectable) {
-            if (!path.isEmpty()) {
-                OpDebugImage::drawDoublePath(path, DebugColorToSkColor(color), strokeWidth);
-                path.reset();
+        if (edge) {
+            std::vector<uint32_t> colors;
+            if (colorActiveOn && colorActiveColor != black && edge->isActive())
+                colors.push_back(colorActiveColor);
+            if (colorBetweenOn && colorBetweenColor != black && edge->between)
+                colors.push_back(colorBetweenColor);
+            if (colorDisabledOn && colorDisabledColor != black && edge->disabled)
+                colors.push_back(colorDisabledColor);
+            if (colorOppOn && colorOppColor != black && OpOperand::right == edge->segment->contour->operand)
+                colors.push_back(colorOppColor);
+            if (colorOutOn && colorOutColor != black && edge->inOutput) {
+                if (OP_DEBUG_MULTICOLORED != colorOutColor)
+                    colors.push_back(colorOutColor);
+                else
+                    colors.push_back(debugColorArray[(edge->debugOutPath * 10) % 107]);  // exclude whites
             }
-            // draw between edges differently
-#if OP_DEBUG
-            if (DrawEdgeType::normal == edgeType)
-                color = edge->between ? DebugColor::orange :
-                    UnsectType::none == isUnsectable ? DebugColor::black :
-                    edge->debugUnOpp ? DebugColor::blue : DebugColor::darkGreen;
-            else
-                color = edge->between ? DebugColor::transOrange :
-                    UnsectType::none == isUnsectable ? DebugColor::transBlack :
-                    edge->debugUnOpp ? DebugColor::transBlue : DebugColor::transDarkGreen;
-#endif
-            unsectablePath = isUnsectable;
+            if (colorLinkupsOn && colorLinkupsColor != black && edge->inLinkups)
+                colors.push_back(colorLinkupsColor);
+            if (colorUnsectablesOn && colorUnsectablesColor != black && edge->unsectableID)
+                colors.push_back(colorUnsectablesColor);
+            if (colorUnsortablesOn && colorUnsortablesColor != black && edge->unsortable)
+                colors.push_back(colorUnsortablesColor);
+            if (colorID && (edge->id == colorID || edge->unsectableID == colorID || 
+                    edge->debugOutPath == colorID || edge->debugRayMatch == colorID))
+                colors.push_back(colorIDColor);
+            color = black;  // no colors or many colors
+            if (1 == colors.size())
+                color = colors.back();
+            else if (colors.size()) {
+                for (int shift = 0; shift < 24; shift += 8) {
+                    uint32_t sum = 0;
+                    for (auto c : colors)
+                        sum += c & (0xFF << shift);
+                    color |= sum / colors.size();
+                }
+                uint32_t alpha = black;
+                for (auto c : colors)
+                    alpha = std::min(alpha, c);
+                color = (color & 0x00FFFFFF) | (alpha & 0xFF000000);
+                if (black == color)
+                    color = first;
+            }
+        } else
+            OpDebugOut("edge " + STR(curve.id) + " not found\n");
+        if (!path.isEmpty() && last != color) {
+            OpDebugImage::drawDoublePath(path, last, strokeWidth);
+            path.reset();
         }
+        last = color;
         OpCurve c;
         curve.mapTo(c);
         OpDebugImage::addToPath(c, path);
     }
-    OpDebugImage::drawDoublePath(path, DebugColorToSkColor(color), strokeWidth);
+    OpDebugImage::drawDoublePath(path, color, strokeWidth);
 }
 
 void DebugOpDraw(std::vector<DebugOpCurve>& curves, SkColor color = SK_ColorBLACK) {
@@ -982,12 +1008,12 @@ void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs, ClipTo
     SkPoint lastPoint {0, 0};
     bool hasLastPoint = false;
     DebugOpCurve curve;
-    curve.pathContour = ++nextContourID;
     do {
         SkPoint pts[4];
         verb = iter.next(pts);
         switch (verb) {
         case SkPath::kMove_Verb:
+            curve.pathContour = ++nextContourID;
             // !!! if frame paths are supported, don't add close unless fill is set
             if (hasLastPoint && lastPoint != curveStart) {
                 curve.pts[0] = { lastPoint.fX, lastPoint.fY } ; 
@@ -1000,7 +1026,6 @@ void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs, ClipTo
                 hasLastPoint = false;
             }
             curveStart = pts[0];
-            curve.pathContour = ++nextContourID;
             continue;
         case SkPath::kLine_Verb:
             curve.pts[0] = { pts[0].fX, pts[0].fY } ; 

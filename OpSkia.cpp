@@ -48,9 +48,8 @@ void OpEdge::output(OpOutPath path) {
     const OpEdge* firstEdge = this;
     OpEdge* edge = this;
     do {
-        SkPoint skEndPt = (EdgeMatch::start == edge->whichEnd ? edge->end : edge->start)
-                .pt.toSkPoint();
-        OpType type = edge->setLinear() ? OpType::line : edge->segment->c.type;
+        SkPoint skEndPt = edge->whichPtT(EdgeMatch::end).pt.toSkPoint();
+        OpType type = edge->type();
         if (OpType::line == type) 
             skPath->lineTo(skEndPt); 
         else {
@@ -67,9 +66,7 @@ void OpEdge::output(OpOutPath path) {
                 skPath->cubicTo(skCtrlPt0, skCtrlPt1, skEndPt);
             }
         }
-        edge->clearActiveAndPals();
-        edge->inOutput = true;
-        edge = edge->nextEdge;
+        edge = edge->nextOut();
     } while (firstEdge != edge);
     skPath->close();
 }

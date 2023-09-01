@@ -94,8 +94,6 @@ struct OpIntersection {
 		ptT = t;
 		coincidenceID = cID;	// 0 if no coincidence; negative if coincident pairs are reversed
 		unsectID = uID;		// 0 if not unsectable; negative if curves are reversed
-		if (512 == uID) 
-			OpDebugOut("");
 		betweenID = 0;
 		unsectEnd = end;
 #if OP_DEBUG
@@ -104,8 +102,7 @@ struct OpIntersection {
 		debugOppID = oppID;
 		debugCoincidenceID = 0;
 		debugMaker = maker;
-		debugMakerLine = line;
-		debugMakerFile = file;
+		debugSetMaker = { file, line };
 		debugReason = reason;
 		debugErased = false;
 #endif
@@ -148,8 +145,7 @@ struct OpIntersection {
 	int debugOppID;
 	int debugCoincidenceID;	// this one does not get erased
 	IntersectMaker debugMaker;	// where intersection was made
-	int debugMakerLine;
-	std::string debugMakerFile;
+	OpDebugMaker debugSetMaker;
 	SectReason debugReason;	// reason intersection was found
 	mutable bool debugErased;
 #endif
@@ -174,20 +170,6 @@ struct OpIntersections {
 	// all intersections are stored here before edges are rewritten
     std::vector<OpIntersection*> i;
     bool resort;
-};
-
-struct MissingIntersection {
-    MissingIntersection(const OpPtT& start_, const OpPtT& end_,
-            OpSegment* segment_, const OpIntersection& intersection_) 
-        : start(start_)
-        , end(end_)
-        , segment(segment_)
-        , intersection(intersection_) {
-    }
-    const OpPtT& start;
-    const OpPtT& end;
-    OpSegment* segment;  // segment new intersection will be added to
-    const OpIntersection& intersection;   // intersection point and t are copied from
 };
 
 // allocating storage separately allows intersections to be immobile and have reliable pointers

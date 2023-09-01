@@ -63,10 +63,10 @@
     OP_STRUCTS
 #undef OP_X
 #define OP_X(Thing) \
-    void Op##Thing::dumpHex() const { \
+    void Thing::dumpHex() const { \
         dmpHex(*this); \
     } \
-    void dmpHex(const Op##Thing* thing) { \
+    void dmpHex(const Thing* thing) { \
         dmpHex(*thing); \
     }
     DUMP_HEX
@@ -148,7 +148,25 @@ EDGE_DETAIL
             edge->Method(); \
             found = true; \
         } \
+        if (std::vector<const OpEdge*> outputs = findEdgeOutput(ID); outputs.size()) { \
+            for (auto output : outputs) { \
+                output->Method(); \
+                found = true; \
+            } \
+        } \
+        if (std::vector<const OpEdge*> matches = findEdgeRayMatch(ID); matches.size()) { \
+            for (auto match : matches) { \
+                match->Method(); \
+                found = true; \
+            } \
+        } \
         if (std::vector<const OpEdge*> uSects = findEdgeUnsectable(ID); uSects.size()) { \
+            for (auto uSect : uSects) { \
+                uSect->Method(); \
+                found = true; \
+            } \
+        } \
+        if (std::vector<const OpEdge*> uSects = findEdgeOutput(ID); uSects.size()) { \
             for (auto uSect : uSects) { \
                 uSect->Method(); \
                 found = true; \
@@ -167,6 +185,12 @@ EDGE_DETAIL
         if (const OpSegment* segment = findSegment(ID)) { \
             segment->Method(); \
             found = true; \
+        } \
+        if (std::vector<const OpEdge*> oEdges = findEdgeOutput(ID); oEdges.size()) { \
+            for (auto oEdge : oEdges) { \
+                oEdge->Method(); \
+                found = true; \
+            } \
         } \
         if (!found) \
             OpDebugOut("ID: " + STR(ID) + " not found\n"); \
@@ -297,7 +321,7 @@ void dmpJoin() {
     for (const auto& c : debugGlobalContours->contours) {
         for (const auto& seg : c.segments) {
             for (const auto& edge : seg.edges) {
-                if (!edge.isActive() && edge.unsectableID && !edge.inOutput && !edge.inOutQueue)
+                if (!edge.isActive() && edge.unsectableID && !edge.inOutput && !edge.inLinkups)
                     edge.dumpDetail();
             }
         }
@@ -574,6 +598,32 @@ const OpEdge* findEdge(int ID) {
         }
    }
     return nullptr;
+}
+
+std::vector<const OpEdge*> findEdgeOutput(int ID) {
+    std::vector<const OpEdge*> result;
+    for (const auto& c : debugGlobalContours->contours) {
+        for (const auto& seg : c.segments) {
+            for (const auto& edge : seg.edges) {
+                if (ID == abs(edge.debugOutPath))
+                    result.push_back(&edge);
+            }
+        }
+    }
+    return result;
+}
+
+std::vector<const OpEdge*> findEdgeRayMatch(int ID) {
+    std::vector<const OpEdge*> result;
+    for (const auto& c : debugGlobalContours->contours) {
+        for (const auto& seg : c.segments) {
+            for (const auto& edge : seg.edges) {
+                if (ID == edge.debugRayMatch)
+                    result.push_back(&edge);
+            }
+        }
+    }
+    return result;
 }
 
 std::vector<const OpEdge*> findEdgeUnsectable(int ID) {
@@ -940,19 +990,6 @@ std::string debugAxisName(Axis axis) {
 std::string OpEdge::debugDumpDetail() const {
     std::string s = "edge[" + STR(id) + "] segment[" + STR(segment->id) + "] contour["
             OP_DEBUG_CODE(+ STR(segment->contour->id)) + std::string("]\n");
-#if RAY_POINTER
-    if (ray && ray->distances.size()) {
-		const SectRay& rayRef = *ray;
-#else
-    if (ray.distances.size()) {
-		const SectRay& rayRef = ray;
-#endif
-        s += "ray count:" + STR(rayRef.distances.size()) + " normal:" + STR(rayRef.normal);
-        s += " cept:" + STR(rayRef.homeCept) + " axis:" + debugAxisName(rayRef.axis) + "\n";
-        for (const EdgeDistance& dist : rayRef.distances) {
-            s += ::debugDump(dist, DebugLevel::brief);
-        }
-    }
     if (priorEdge || nextEdge || lastEdge) {
         s += "priorE/nextE/lastE:" + (priorEdge ? STR(priorEdge->id) : "-");
         s += "/" + (nextEdge ? STR(nextEdge->id) : "-");
@@ -961,6 +998,15 @@ std::string OpEdge::debugDumpDetail() const {
     }
     if (priorEdge || nextEdge || lastEdge /* || priorSum_impl || loopStart || Axis::neither != sumAxis */ )
         s += "\n";
+#if RAY_POINTER
+    if (ray && ray->distances.size()) {
+		const SectRay& rayRef = *ray;
+#else
+    if (ray.distances.size()) {
+		const SectRay& rayRef = ray;
+#endif
+        s += ::debugDump(rayRef, DebugLevel::brief);
+    }
     s += "{" + start.debugDump() + ", ";
     for (int i = 0; i < segment->c.pointCount() - 2; ++i)
         s += ctrlPts[i].debugDump() + ", ";
@@ -996,7 +1042,7 @@ std::string OpEdge::debugDumpDetail() const {
     if (isLine_impl) s += "isLine ";
     if (active_impl) s += "active ";
     if (inOutput) s += "inOutput ";
-    if (inOutQueue) s += "inOutQueue ";
+    if (inLinkups) s += "inLinkups ";
     if (disabled) s += "disabled ";
     if (unsortable) s += "unsortable ";
     if (between) s += "between ";
@@ -1004,12 +1050,11 @@ std::string OpEdge::debugDumpDetail() const {
     if (debugStart) s += "debugStart:" + STR(debugStart->id) + " ";
     if (debugEnd) s += "debugEnd:" + STR(debugEnd->id) + " ";
     s += "debugMaker:" + debugEdgeDebugMaker(debugMaker) + " ";
-    s += debugMakerFile.substr(debugMakerFile.find("Op")) + ":" + STR(debugMakerLine) + " ";
+    s += debugSetMaker.debugDump() + " ";
     if (debugParentID) s += "debugParentID:" + STR(debugParentID) + " ";
-    if (debugSetSumLine)
-        s += debugSetSumFile.substr(debugSetSumFile.find("Op")) + ":" + STR(debugSetSumLine) + " ";
-    if (debugUnOpp)
-        s += "debugUnOpp ";
+    if (debugRayMatch) s += "debugRayMatch:" + STR(debugRayMatch) + " ";
+    if (debugSetSum.line)
+        s += debugSetSum.debugDump() + " ";
     s += "\n";
 #endif
     std::vector<OpIntersection*> startSects;
@@ -1173,40 +1218,6 @@ std::string OpEdge::debugDump() const {
     return s;
 }
 
-#if OP_DEBUG    
-// !!! move to OpDebug.cpp
-void OpEdge::debugValidate() const {
-    debugGlobalContours->debugValidateEdgeIndex += 1;
-    bool loopy = debugIsLoop();
-    if (loopy) {
-        const OpEdge* test = this;
-        do {
-            OP_ASSERT(!test->priorEdge || test->priorEdge->nextEdge == test);
-            OP_ASSERT(!test->nextEdge || test->nextEdge->priorEdge == test);
-//            OP_ASSERT(!test->lastEdge);
-            test = test->nextEdge;
-        } while (test != this);
-    } else if ((priorEdge || lastEdge) && debugGlobalContours->debugCheckLastEdge) {
-        const OpEdge* linkStart = debugAdvanceToEnd(EdgeMatch::start);
-        const OpEdge* linkEnd = debugAdvanceToEnd(EdgeMatch::end);
-        OP_ASSERT(linkStart);
-        OP_ASSERT(linkEnd);
-        OP_ASSERT(debugGlobalContours->debugCheckLastEdge ? !!linkStart->lastEdge : !linkStart->lastEdge);
-        OP_ASSERT(debugGlobalContours->debugCheckLastEdge ? linkStart->lastEdge == linkEnd : true);
-        const OpEdge* test = linkStart;
-        while ((test = test->nextEdge)) {
-            OP_ASSERT(!test->lastEdge);
-            OP_ASSERT(linkEnd == test ? !test->nextEdge : !!test->nextEdge);
-        }
-    }
-    for (auto& edge : segment->edges) {
-        if (&edge == this)
-            return;
-    }
-    OP_ASSERT(0);
-}
-#endif
-
 // keep this in sync with op edge : is loop
 std::string OpEdge::debugDumpChain(WhichLoop which, bool detail) const {
     std::string s = "chain:";
@@ -1292,37 +1303,6 @@ void dmpStart(const OpEdge& edge) {
     edge.segment->contour->contours->dumpMatch(edge.start.pt);
 }
 
-// !!! also debug prev/next edges (links)
-#if OP_DEBUG
-void OpJoiner::debugValidate() const {
-    debugGlobalContours->debugValidateJoinerIndex += 1;
-    debugGlobalContours->debugCheckLastEdge = false;
-    if (LinkPass::unambiguous == linkPass) {
-        for (auto edge : byArea) {
-            edge->debugValidate();
-            OP_ASSERT(!edge->isActive() || !edge->debugIsLoop());
-        }
-    }
-    for (auto edge : unsectByArea) {
-        edge->debugValidate();
-        OP_ASSERT(!edge->isActive() || !edge->debugIsLoop());
-    }
-    for (auto edge : disabled) {
-        edge->debugValidate();
-//        OP_ASSERT(!edge->debugIsLoop());
-    }
-    for (auto edge : unsortables) {
-        edge->debugValidate();
-        OP_ASSERT(!edge->isActive() || !edge->debugIsLoop());
-    }
-    debugGlobalContours->debugCheckLastEdge = true;
-    for (auto edge : linkups.l) {
-        edge->debugValidate();
-        OP_ASSERT(!edge->debugIsLoop());
-    }
-}
-#endif
-
 void dmp(const OpJoiner& edges) {
     if (!edges.path.debugIsEmpty())
         edges.path.dump();
@@ -1355,15 +1335,6 @@ void dmp(const OpJoiner& edges) {
     OpDebugOut("linkMatch:" + STR((int) edges.linkMatch) + " linkPass:" + STR((int) edges.linkPass) 
             + " disabledBuilt:" + STR((int) edges.disabledBuilt) + "\n");
 }
-
-#if OP_DEBUG
-void OpWinder::debugValidate() const {
-    for (auto& edge : inX)
-        edge->debugValidate();
-    for (auto& edge : inY)
-        edge->debugValidate();
-}
-#endif
 
 void OpWinder::dumpAxis(Axis a) const {
     std::string s = "";
@@ -1412,6 +1383,38 @@ void dmp(const EdgeDistance& distance) {
 
 void dmpHex(const EdgeDistance& distance) {
     OpDebugOut(debugDumpHex(distance, DebugLevel::normal));
+}
+
+std::string debugDump(const SectRay& ray, DebugLevel level) {
+    std::string s;
+    s = "ray count:" + STR(ray.distances.size()) + " normal:" + STR(ray.normal);
+    s += " cept:" + STR(ray.homeCept) + " axis:" + debugAxisName(ray.axis) + "\n";
+    for (const EdgeDistance& dist : ray.distances) {
+        s += ::debugDump(dist, level);
+    }
+    return s;
+}
+
+std::string debugDumpHex(const SectRay& ray, DebugLevel level) {
+    std::string s;
+    s = "ray count:" + STR(ray.distances.size()) + " normal:" + OpDebugDumpHex(ray.normal);
+    s += " cept:" + OpDebugDumpHex(ray.homeCept) + " axis:" + debugAxisName(ray.axis) + "\n";
+    for (const EdgeDistance& dist : ray.distances) {
+        s += ::debugDumpHex(dist, level);
+    }
+    return s;
+}
+
+void dmpDetail(const SectRay& ray) {
+    OpDebugOut(debugDump(ray, DebugLevel::detailed));
+}
+
+void dmp(const SectRay& ray) {
+    OpDebugOut(debugDump(ray, DebugLevel::normal));
+}
+
+void dmpHex(const SectRay& ray) {
+    OpDebugOut(debugDumpHex(ray, DebugLevel::normal));
 }
 
 const OpCurveCurve* OpCurveCurve::debugActive;
@@ -1561,7 +1564,7 @@ std::string OpIntersection::debugDump(bool fromDumpFull, bool fromDumpDetail) co
     else
         s += intersectMakerNames[(int)debugMaker].name;
     if (fromDumpDetail)
-        s += " " + debugMakerFile.substr(debugMakerFile.find("Op")) + ":" + STR(debugMakerLine);
+        s += " " + debugSetMaker.debugDump();
     s += " reason:";
     if (reasonOutOfDate)
         s += " (reason out of date) " + STR((int)debugReason);
@@ -1757,14 +1760,6 @@ std::string OpSegment::debugDumpIntersectionsDetail() const {
         s += i->debugDumpDetail(true) + "\n";
     return s;
 }
-
-// !!! move to OpDebug.cpp
-#if OP_DEBUG
-void OpSegment::debugValidate() const {
-    for (auto i : sects.i)
-        i->debugValidate();
-}
-#endif
 
 void dmp(const OpSegment& seg) {
     OpDebugOut(seg.debugDump() + "\n");
@@ -2036,6 +2031,15 @@ void OpRoots::dump() const {
     }
     s += " }}, " + STR(count) + " };\n";
     OpDebugOut(s);
+}
+
+
+int OpOutPath::debugNextID(OpEdge* edge) {
+    return edge->segment->contour->nextID();
+}
+
+std::string OpDebugMaker::debugDump() const {
+	return file.substr(file.find("Op")) + ":" + STR(line);
 }
 
 void dmpHex(const OpRoots& roots) {

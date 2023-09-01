@@ -1,5 +1,17 @@
 #include "OpDebug.h"
 
+#if 0
+// code pattern to find one of several id values
+template <typename V, typename... T>   // replace with std::to_array in c++20
+constexpr auto to_array(T&&... t)->std::array < V, sizeof...(T) > {
+    return { { std::forward<T>(t)... } };
+}
+
+    auto match = to_array<int>(68);  // c++20: std::to_array<int>({... (brace)
+    if (match.end() != std::find(match.begin(), match.end(), id))
+        OP_ASSERT(0);
+#endif
+
 #if OP_DEBUG || OP_DEBUG_IMAGE || OP_DEBUG_DUMP
 OpContours* debugGlobalContours;
 #endif
@@ -223,6 +235,152 @@ OpVector OpCubic::debugTangent(float t) const {
     }
     return result;
 }
+
+#include "OpContour.h"
+#include "OpEdge.h"
+
+void OpEdge::debugValidate() const {
+    debugGlobalContours->debugValidateEdgeIndex += 1;
+    bool loopy = debugIsLoop();
+    if (loopy) {
+        const OpEdge* test = this;
+        do {
+            OP_ASSERT(!test->priorEdge || test->priorEdge->nextEdge == test);
+            OP_ASSERT(!test->nextEdge || test->nextEdge->priorEdge == test);
+//            OP_ASSERT(!test->lastEdge);
+            test = test->nextEdge;
+        } while (test != this);
+    } else if ((priorEdge || lastEdge) && debugGlobalContours->debugCheckLastEdge) {
+        const OpEdge* linkStart = debugAdvanceToEnd(EdgeMatch::start);
+        const OpEdge* linkEnd = debugAdvanceToEnd(EdgeMatch::end);
+        OP_ASSERT(linkStart);
+        OP_ASSERT(linkEnd);
+        OP_ASSERT(debugGlobalContours->debugCheckLastEdge ? !!linkStart->lastEdge : !linkStart->lastEdge);
+        OP_ASSERT(debugGlobalContours->debugCheckLastEdge ? linkStart->lastEdge == linkEnd : true);
+        const OpEdge* test = linkStart;
+        while ((test = test->nextEdge)) {
+            OP_ASSERT(!test->lastEdge);
+            OP_ASSERT(linkEnd == test ? !test->nextEdge : !!test->nextEdge);
+        }
+    }
+    for (auto& edge : segment->edges) {
+        if (&edge == this)
+            return;
+    }
+    OP_ASSERT(0);
+}
+
+#include "OpJoiner.h"
+
+// assign the same ID for all edges linked together
+// also assign that ID to edges whose non-zero crossing rays attach to those edges
+void::OpJoiner::debugMatchRay() {
+    OpDebugOut("");
+	for (auto linkup : linkups.l) {
+        int nextID = 0;
+        OP_ASSERT(!linkup->priorEdge);
+        OP_ASSERT(linkup->lastEdge);
+        do {
+            if (!linkup->ray.distances.size())
+                continue;
+            const EdgeDistance* linkDist = nullptr;
+            OpEdge* dTest = nullptr;
+            OP_DEBUG_CODE(const EdgeDistance* dDist = nullptr);
+            for (const EdgeDistance* dist = &linkup->ray.distances.back(); 
+                    dist >= &linkup->ray.distances.front(); --dist) {
+                OpEdge* test = dist->edge;
+                if (test == linkup) {
+                    linkDist = dist;
+                    continue;
+                }
+                if (!linkDist)
+                    continue;
+                if (linkup->unsectableID && linkup->unsectableID == test->unsectableID)
+                    continue;
+                OP_DEBUG_CODE(dDist = dist);
+                dTest = test;
+                break;
+            }
+            // look to see if edge maps a non-zero ray to a prior edge
+            WindZero linkZero = linkup->windZero;
+            OP_ASSERT(WindZero::noFlip != linkZero);
+	        NormalDirection NdotR = linkup->normalDirection(-linkup->ray.axis, linkDist->t);
+            if (NormalDirection::downLeft == NdotR)
+                WindZeroFlip(&linkZero);    // get wind zero for edge normal pointing left
+            bool rayFills = WindZero::opp == linkZero;                
+            OP_ASSERT(!nextID || !rayFills || !linkup->debugRayMatch 
+                    || nextID == linkup->debugRayMatch);
+            if (int match = linkup->debugRayMatch)
+                nextID = match;
+            else if (rayFills && !nextID) {
+                OP_ASSERT(dTest);
+                int testID = dTest->debugRayMatch;
+                OP_ASSERT(!nextID || !testID || nextID == testID);
+                nextID = testID;
+            } 
+            if (!nextID)
+                nextID = linkup->segment->nextID();
+            if (rayFills)
+                dTest->debugRayMatch = nextID;
+            linkup->debugRayMatch = nextID;        
+#if OP_DEBUG
+            if (!rayFills)
+                continue;
+            WindZero distZero = dTest->windZero;
+            OP_ASSERT(!rayFills || WindZero::noFlip != distZero);
+            NdotR = dTest->normalDirection(linkup->ray.axis, dDist->t);
+            if (NormalDirection::downLeft == NdotR)
+                WindZeroFlip(&distZero);    // get wind zero for prior normal pointing right
+            // either neither zero should be opp, or both should be 
+            OP_ASSERT(!rayFills || WindZero::opp == distZero);
+#endif
+        } while ((linkup = linkup->nextEdge));
+    }
+}
+
+// !!! also debug prev/next edges (links)
+void OpJoiner::debugValidate() const {
+    debugGlobalContours->debugValidateJoinerIndex += 1;
+    debugGlobalContours->debugCheckLastEdge = false;
+    if (LinkPass::unambiguous == linkPass) {
+        for (auto edge : byArea) {
+            edge->debugValidate();
+            OP_ASSERT(!edge->isActive() || !edge->debugIsLoop());
+        }
+    }
+    for (auto edge : unsectByArea) {
+        edge->debugValidate();
+        OP_ASSERT(!edge->isActive() || !edge->debugIsLoop());
+    }
+    for (auto edge : disabled) {
+        edge->debugValidate();
+//        OP_ASSERT(!edge->debugIsLoop());
+    }
+    for (auto edge : unsortables) {
+        edge->debugValidate();
+        OP_ASSERT(!edge->isActive() || !edge->debugIsLoop());
+    }
+    debugGlobalContours->debugCheckLastEdge = true;
+    for (auto edge : linkups.l) {
+        edge->debugValidate();
+        OP_ASSERT(!edge->debugIsLoop());
+    }
+}
+
+void OpSegment::debugValidate() const {
+    for (auto i : sects.i)
+        i->debugValidate();
+}
+
+#include "OpWinder.h"
+
+void OpWinder::debugValidate() const {
+    for (auto& edge : inX)
+        edge->debugValidate();
+    for (auto& edge : inY)
+        edge->debugValidate();
+}
+
 
 #endif
 

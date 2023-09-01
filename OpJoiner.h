@@ -34,10 +34,12 @@ struct OpJoiner {
 	bool linkRemaining();
 	void linkUnambiguous();
 	bool linkUp(OpEdge* );
+	void matchLeftover(OpPoint , const std::vector<OpEdge*>& leftovers, std::vector<FoundEdge>& );
 	bool matchLinks(OpEdge* , bool popLast);
 	void sort();
 #if OP_DEBUG
 	int debugActive() const;
+	void debugMatchRay();
 	void debugValidate() const;
 #endif
 #if OP_DEBUG_DUMP

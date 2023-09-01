@@ -12,8 +12,7 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight
 	debugStart = i1;
 	debugEnd = i2;
 	debugMaker = maker;
-	debugMakerLine = line;
-	debugMakerFile = file;
+	debugSetMaker = { file, line };
 	debugParentID = edge->id;
 #endif	
 	complete();
@@ -31,8 +30,7 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e
 	debugStart = i1;
 	debugEnd = i2;
 	debugMaker = maker;
-	debugMakerLine = line;
-	debugMakerFile = file;
+	debugSetMaker = { file, line };
 	debugParentID = edge->id;
 #endif	
 	winding = edge->winding;
@@ -264,7 +262,7 @@ void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsect
 			return false;
 		};
 		auto checkEnds = [this, &edges, firstPt, isDupe](OpEdge* unsectable) {
-			if (unsectable->inOutput || unsectable->inOutQueue)
+			if (unsectable->inOutput || unsectable->inLinkups)
 				return false;
 			if (this == unsectable)
 				return false;
@@ -301,22 +299,19 @@ void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsect
 	}
 }
 
-void OpEdge::matchUnsortable(EdgeMatch match, const std::vector<OpEdge*>& unsortables, 
-		std::vector<FoundEdge>& edges) {
-	const OpPoint firstPt = whichPtT(match).pt;
-	for (OpEdge* nosort : unsortables) {
-		if (nosort->inOutput || nosort->inOutQueue)
-			continue;
-		if (firstPt == nosort->start.pt)
-			edges.emplace_back(nosort, EdgeMatch::start);
-		if (firstPt == nosort->end.pt)
-			edges.emplace_back(nosort, EdgeMatch::end);
-	}
+OpEdge* OpEdge::nextOut() {
+	clearActiveAndPals();
+    inOutput = true;
+    return nextEdge;
 }
 
 NormalDirection OpEdge::normalDirection(Axis axis, float t) {
 	const OpCurve& curve = setCurve();
 	return curve.normalDirection(axis, t);
+}
+
+OpType OpEdge::type() {
+	return setLinear() ? OpType::line : segment->c.type; 
 }
 
 // in function to make setting breakpoints easier

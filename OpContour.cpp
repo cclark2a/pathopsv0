@@ -276,10 +276,10 @@ bool OpContours::assemble(OpOutPath path) {
     joiner.debugDraw();
     ::add(unsortables);
     ::redraw();
-    OpDebugOut("");
 #endif
     OP_DEBUG_CODE(joiner.debugValidate());
     joiner.linkUnambiguous();
+    OP_DEBUG_CODE(joiner.debugMatchRay());
     return joiner.linkRemaining();
 }
 

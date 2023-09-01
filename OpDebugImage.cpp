@@ -1,7 +1,6 @@
 #include "OpDebug.h"
-#include "OpDebugImage.h"
-
 #if OP_DEBUG_IMAGE
+
 #ifdef _WIN32
 #pragma optimize( "", off )
 #endif
@@ -13,8 +12,6 @@
 #include "include/core/SkImageInfo.h"
 #include "include/core/SkPath.h"
 #include "include/core/SkPaint.h"
-#include "OpDebugDouble.h"
-#include "OpDebugDump.h"
 #include "OpContour.h"
 #include "OpCurveCurve.h"
 #include "OpEdge.h"
@@ -351,22 +348,44 @@ void playback() {
 	}
 	valuePrecision = precision;
 	// optional
+{
 #define OP_X(Thing) \
 	draw##Thing##On = false;
 	MASTER_LIST
 #undef OP_X
+#define OP_X(Thing) \
+	color##Thing##On = false; \
+	color##Thing##Color = 0xFF000000;
+	COLOR_LIST
+#undef OP_X
+	uint32_t* colorPtr = nullptr;
 	while (fgets(str, sizeof(str), file)) {
+		if (colorPtr) {
+			*colorPtr = std::stoul(str, nullptr, 16);
+			colorPtr = nullptr;
+		} else
 #define OP_X(Thing) \
 		if (strlen(str) - 1 == strlen(#Thing) && 0 == strncmp(#Thing, str, strlen(#Thing))) \
 			draw##Thing##On = true; \
 		else
 	MASTER_LIST
 #undef OP_X
+#define OP_X(Thing) \
+		if (strlen(str) - 1 == strlen("color" #Thing) && \
+				0 == strncmp("color" #Thing, str, strlen("color" #Thing))) \
+			color##Thing##On = true; \
+		else if (strlen(str) - 1 == strlen("color" #Thing "Color") && \
+				0 == strncmp("color" #Thing "Color", str, strlen("color" #Thing "Color"))) \
+			colorPtr = &color##Thing##Color; \
+		else
+	COLOR_LIST
+#undef OP_X
 		{
 			OpDebugOut("no match: " + std::string(str)); goto bail;
 		}
 	}
 	redraw();
+}
 bail:
 	fclose(file);
 }
@@ -533,6 +552,13 @@ void record() {
 		fprintf(recordFile, "%s\n", #Thing);
 	MASTER_LIST
 #undef OP_X
+#define OP_X(Thing) \
+	if (color##Thing##On) \
+		fprintf(recordFile, "%s\n", "color" #Thing); \
+	if (color##Thing##Color != 0xFF000000) \
+		fprintf(recordFile, "0x%08x\n", color##Thing##Color);
+	COLOR_LIST
+#undef OP_X
 	fclose(recordFile);
 }
 
@@ -593,12 +619,12 @@ void OpDebugImage::drawGrid() {
 	int32_t rightH = OpDebugFloatToBits((float) right);
 	int32_t bottomH = OpDebugFloatToBits((float) bottom);
 	int xGridIntervals = gridIntervals;
-	int xInterval = (rightH - leftH) / xGridIntervals;
+	int xInterval = std::max(1, (rightH - leftH) / xGridIntervals);
 	int yGridIntervals = gridIntervals;
-	int yInterval = (bottomH - topH) / yGridIntervals;
+	int yInterval = std::max(1, (bottomH - topH) / yGridIntervals);
 	int leftS, topS, rightS, bottomS;
 	DebugOpScreenBounds(leftS, topS, rightS, bottomS);
-	for (int x = leftH; x < rightH; x += xInterval) {
+	for (int x = leftH; x <= rightH; x += xInterval) {
 		float fx = OpDebugBitsToFloat(x);
 		float sx = leftS + (fx - left) / (right - left) * (rightS - leftS);
 		offscreen.drawLine(sx, topS, sx, bottomS, paint);
@@ -607,7 +633,7 @@ void OpDebugImage::drawGrid() {
 		std::string xValStr = drawHexOn ? OpDebugDumpHex(fx) : OpDebugToString(fx, valuePrecision);
 		offscreen.drawString(SkString(xValStr), sx + xOffset, bitmapWH - xOffset, labelFont, textPaint);
 	}
-	for (int y = topH; y < bottomH; y += yInterval) {
+	for (int y = topH; y <= bottomH; y += yInterval) {
 		float fy = OpDebugBitsToFloat(y);
 		float sy = topS + (fy - top) / (bottom - top) * (bottomS - topS);
 		offscreen.drawLine(leftS, sy, rightS, sy, paint);
@@ -724,6 +750,21 @@ void OpDebugImage::find(int id, OpPointBounds* boundsPtr, OpPoint* pointPtr) {
 	}
 #endif
 	OpDebugOut("id " + STR(id) + " not found\n");
+}
+
+// !!! not sure I need this; but it does raise the question if dump and image need their own finds
+std::vector<const OpEdge*> OpDebugImage::find(int id) {
+	extern const OpEdge* findEdge(int id);
+	extern std::vector<const OpEdge*> findEdgeOutput(int id);
+	extern std::vector<const OpEdge*> findEdgeUnsectable(int id);
+	std::vector<const OpEdge*> result;
+	if (const OpEdge* edge = findEdge(id))
+		result.push_back(edge);
+	if (std::vector<const OpEdge*> uSects = findEdgeUnsectable(id); uSects.size())
+		result.insert(result.end(), uSects.begin(), uSects.end());
+	if (std::vector<const OpEdge*> oEdges = findEdgeOutput(id); oEdges.size())
+		result.insert(result.end(), oEdges.begin(), oEdges.end());
+	return result;
 }
 
 void OpDebugImage::focus(int id, bool add) {
@@ -1275,6 +1316,46 @@ void toggle##Thing() { \
 }
 MASTER_LIST
 #undef OP_X
+
+#define OP_X(Thing) \
+void color##Thing() { \
+	color##Thing##On = true; \
+	color##Thing##Color = OP_DEBUG_MULTICOLORED; \
+	OpDebugImage::drawDoubleFocus(); \
+} \
+void color##Thing(uint32_t color) { \
+	color##Thing##On = true; \
+	color##Thing##Color = color; \
+	OpDebugImage::drawDoubleFocus(); \
+} \
+void color##Thing(uint8_t alpha, uint32_t color) { \
+	color##Thing##On = true; \
+	color##Thing##Color = (alpha << 24) | (color & 0x00FFFFFF); \
+	OpDebugImage::drawDoubleFocus(); \
+} \
+void uncolor##Thing() { \
+	color##Thing##On = false; \
+	OpDebugImage::drawDoubleFocus(); \
+}
+COLOR_LIST
+#undef OP_X
+
+void color(int id) {
+	colorID = id;
+	colorIDColor = OP_DEBUG_MULTICOLORED;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void color(int id, uint32_t c) {
+	colorID = id;
+	colorIDColor = c;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void uncolor(int id) {
+	colorID = 0;
+	OpDebugImage::drawDoubleFocus();
+}
 
 void OpContour::draw() const {
 	if (!drawSegmentsOn && !drawEdgesOn)
