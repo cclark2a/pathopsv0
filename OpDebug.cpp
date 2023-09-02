@@ -284,6 +284,8 @@ void::OpJoiner::debugMatchRay() {
         do {
             if (!linkup->ray.distances.size())
                 continue;
+            if (linkup->unsortable)
+                continue;
             const EdgeDistance* linkDist = nullptr;
             OpEdge* dTest = nullptr;
             OP_DEBUG_CODE(const EdgeDistance* dDist = nullptr);
@@ -298,12 +300,12 @@ void::OpJoiner::debugMatchRay() {
                     continue;
                 if (linkup->unsectableID && linkup->unsectableID == test->unsectableID)
                     continue;
+                if (test->disabled)
+                    continue;
                 OP_DEBUG_CODE(dDist = dist);
                 dTest = test;
                 break;
             }
-            float x = dTest->start.pt.x;
-            int a = x;
             // look to see if edge maps a non-zero ray to a prior edge
             WindZero linkZero = linkup->windZero;
             OP_ASSERT(WindZero::noFlip != linkZero);
@@ -311,10 +313,20 @@ void::OpJoiner::debugMatchRay() {
             if (NormalDirection::downLeft == NdotR)
                 WindZeroFlip(&linkZero);    // get wind zero for edge normal pointing left
             if (WindZero::opp == linkZero) {
-                OP_ASSERT(dTest->inLinkups);
+#if OP_DEBUG
+                OP_ASSERT(dTest);
+                if (!dTest->inLinkups) {
+                    bool found = false;
+                    for (auto& pal : dTest->pals)
+                        found |= pal.edge->inLinkups;
+                    OP_ASSERT(found);
+                }
+#endif
                 linkup->debugMatch = dTest;
             }
 #if OP_DEBUG
+            if (!dTest)
+                continue;
             WindZero distZero = dTest->windZero;
             NdotR = dTest->normalDirection(linkup->ray.axis, dDist->t);
             if (NormalDirection::downLeft == NdotR)

@@ -344,71 +344,26 @@ void SectRay::markUnsectableGroups(OpEdge* home) {
 // each time a ray is cast. If the edge is seen to the left during one ray cast, and to the right
 // on another, it is marked as an unsectable pair.
 void SectRay::markUnsectables(OpEdge* home) {
-	OpDebugBreak(home, 564);
-	OpDebugBreak(home, 548);
-	EdgeDistance* last = &distances[0];
-	for (EdgeDistance* test = &distances[1]; test <= &distances.back(); ++test) {
-		auto& lastMore = last->edge->moreRay;
-		if (lastMore.end() == std::find(lastMore.begin(), lastMore.end(), test->edge))
-			lastMore.push_back(test->edge);
-		auto& lastLess = last->edge->lessRay;
-		if (lastLess.end() != std::find(lastLess.begin(), lastLess.end(), test->edge))
-			goto markIfUnmarked;
-		{	
-			auto& testLess = test->edge->lessRay;
-			if (testLess.end() == std::find(testLess.begin(), testLess.end(), last->edge))
-				testLess.push_back(last->edge);
-			auto& testMore = test->edge->moreRay;
-			if (testMore.end() == std::find(testMore.begin(), testMore.end(), last->edge))
-				continue;
-		}
-	markIfUnmarked:
-		if (!test->edge->unsectableID) {
-			OP_ASSERT(!last->edge->unsectableID);
-			test->edge->markUnsectable(last->edge, axis, test->t, last->t);
+	if (!home->ray.distances.size())
+		return;
+// test position of edges to the right of home
+	for (EdgeDistance* test = &distances.back(); test >= &distances.front(); --test) {
+		if (test->edge == home)
+			break;
+		std::vector<EdgeDistance>& rightDists = test->edge->ray.distances;
+		// look for home to be to the right of test to indicate unsectable
+		for (EdgeDistance* rTest = &rightDists.back(); rTest >= &rightDists.front(); --rTest) {
+			if (rTest->edge == test->edge)
+				break;
+			if (rTest->edge == home) {
+				if (!test->edge->unsectableID) {
+					OP_ASSERT(!home->unsectableID);
+					OP_ASSERT(axis == test->edge->ray.axis);
+					test->edge->markUnsectable(home, axis, test->t, rTest->t);
+				}
+			}
 		}
 	}
-#if 0
-	// use sorted distances to mark previous and next edges by winding order
-	auto homePos = std::find_if(distances.begin(), distances.end(), 
-			[&home](const EdgeDistance& dist) {
-		return home == dist.edge; });
-	OP_ASSERT(distances.end() != homePos);
-	// returns iterator to distance with cept just less than home cept, if any
-	auto lesser = std::lower_bound(distances.begin(), distances.end(), *homePos,
-			[](const EdgeDistance& a, const EdgeDistance& b) {
-			return a.cept < nextafterf(b.cept, -OpInfinity);
-	});
-	if (lesser < homePos) {
-		const auto& lesserDist = lesser->edge->ray.distances;
-		auto lesserPos = std::find_if(lesserDist.begin(), lesserDist.end(), 
-				[&lesser](const EdgeDistance& dist) {
-				return lesser->edge == dist.edge; });
-		OP_ASSERT(lesserDist.end() != lesserPos);
-		auto homeInLesser = std::find_if(lesserDist.begin(), lesserDist.end(), 
-				[&home](const EdgeDistance& dist) {
-				return home == dist.edge; });
-		if (homeInLesser < lesserPos)
-			home->markUnsectable(lesserPos->edge, axis, homePos->t, lesserPos->t);
-	}
-	// returns iterator to distance with cept just more than home cept, if any
-	auto greater = std::upper_bound(distances.begin(), distances.end(), *homePos,
-			[](const EdgeDistance& a, const EdgeDistance& b) {
-			return a.cept < nextafterf(b.cept, OpInfinity);
-	});
-	if (homePos < greater && greater != distances.end()) {
-		const auto& greaterDist = greater->edge->ray.distances;
-		auto greaterPos = std::find_if(greaterDist.begin(), greaterDist.end(), 
-				[&greater](const EdgeDistance& dist) {
-				return greater->edge == dist.edge; });
-		OP_ASSERT(greaterDist.end() != greaterPos);
-		auto homeInGreater = std::find_if(greaterDist.begin(), greaterDist.end(), 
-				[&home](const EdgeDistance& dist) {
-				return home == dist.edge; });
-		if (homeInGreater > greaterPos)
-			home->markUnsectable(greaterPos->edge, axis, homePos->t, greaterPos->t);
-	}
-#endif
 }
 
 bool SectRay::betweenUnsectables(OpEdge* home) {
