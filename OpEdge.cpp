@@ -116,7 +116,7 @@ void OpEdge::apply() {
 	case OpOperator::Union:
 		keep = bothFlipped ? left == right : WindState::one != left && WindState::one != right;
 		if (keep)
-			windZero = WindZero::opp;
+			windZero = !su.left() && !su.right() ? WindZero::normal : WindZero::opp;
 		break;
 	case OpOperator::ExclusiveOr:
 		keep = !bothFlipped;

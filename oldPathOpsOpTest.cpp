@@ -9356,7 +9356,7 @@ SkPathOp op = kUnion_SkPathOp;
 }
 
 static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
-static void (*firstTest)(skiatest::Reporter* , const char* filename) = cubics45u;
+static void (*firstTest)(skiatest::Reporter* , const char* filename) = loops63i;
 static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 
 #define TEST(name) { name, #name }
