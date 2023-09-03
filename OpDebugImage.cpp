@@ -446,17 +446,10 @@ void OpDebugImage::drawDoubleFocus() {
 	if (drawRaysOn) {
 		std::vector<OpDebugRay> rays;
 		for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
-#if RAY_POINTER
-			const SectRay* sectRay = (*edgeIter)->ray;
-			if (!sectRay || !sectRay->distances.size())
-				continue;
-			rays.emplace_back(sectRay->axis, sectRay->normal);
-#else
 			const SectRay& sectRay = (*edgeIter)->ray;
 			if (!sectRay.distances.size())
 				continue;
 			rays.emplace_back(sectRay.axis, sectRay.normal);
-#endif
 		}
 		DebugOpDraw(rays);
 	}
@@ -1196,13 +1189,7 @@ void OpDebugImage::drawPoints() {
 	if (drawRaysOn && drawEdgesOn) {
 		for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 			const OpEdge* edge = *edgeIter;
-#if RAY_POINTER
-			if (!edge->ray)
-				continue;
-			const SectRay& ray = *(edge->ray);
-#else
 			const SectRay& ray = edge->ray;
-#endif
 			for (auto dist :ray.distances)
 				DebugOpBuild(ray.axis, ray.normal, dist.cept);
 		}

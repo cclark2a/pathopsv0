@@ -279,7 +279,7 @@ bool OpContours::assemble(OpOutPath path) {
 #endif
     OP_DEBUG_CODE(joiner.debugValidate());
     joiner.linkUnambiguous();
-    OP_DEBUG_CODE(joiner.debugMatchRay());
+    OP_DEBUG_CODE(joiner.debugMatchRay(this));
     return joiner.linkRemaining();
 }
 

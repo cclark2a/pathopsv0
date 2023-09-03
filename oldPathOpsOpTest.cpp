@@ -4367,7 +4367,7 @@ static void cubics138(skiatest::Reporter* reporter, const char* filename) {
     testPathOp(reporter, path, pathB, kDifference_SkPathOp, filename);
 }
 
-#define ON_DESKTOP 0
+#define ON_DESKTOP 01   // !!! likely the difference between optimizing compilers
 #if ON_DESKTOP
 // three curves intersect successfully nearby -- the angle only gets 2 of the 3 pts
 static void cubicOp139(skiatest::Reporter* reporter, const char* filename) {
@@ -9356,7 +9356,7 @@ SkPathOp op = kUnion_SkPathOp;
 }
 
 static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
-static void (*firstTest)(skiatest::Reporter* , const char* filename) = loops63i;
+static void (*firstTest)(skiatest::Reporter* , const char* filename) = crbug_526025;
 static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 
 #define TEST(name) { name, #name }

@@ -438,8 +438,6 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 	}
 #endif
 	OP_ASSERT(found.size());
-//	start here;
-
 	// if more than one was found, check to see if selected, one makes a complete loop
 	// additionally, store in found how far end is from loop
 	OpRect bestBounds;
@@ -451,7 +449,12 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 					|| (((lastEdge->sum.sum() + oppEdge->sum.sum()) & 1) 
 			// e.g., one if last start-to-end connects to found start-to-end (end connects to start)
 					== (lastEdge->whichEnd != foundOne.whichEnd));
-			oppEdge->setLastLink(foundOne.whichEnd);
+			// if opp edge contains member of linkups via links, detach from this
+			// but remember to reattach if candidate is not best
+			if (oppEdge->setLastLink(foundOne.whichEnd) && foundOne.index >= 0) {
+				oppEdge->setLinkBounds();
+				linkups.l[foundOne.index] = oppEdge;  // link start changed
+			}
 			for (const OpEdge* eTest = edge; eTest != nullptr; eTest = eTest->nextEdge) {
 				for (const OpEdge* fTst = foundOne.edge; fTst != nullptr; fTst = fTst->nextEdge) {
 					// look for eTest whichEnd (start) equalling fTst opposite whichEnd (end)
@@ -472,7 +475,7 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 				if (!trial && !foundOne.connects)
 					continue;
 				// choose smallest closed loop -- this is an arbitrary choice
-				OpPointBounds testBounds = edge->setLinkBounds();
+				OpPointBounds testBounds = edge->advanceToEnd(EdgeMatch::start)->setLinkBounds();
 				if (!edge->containsLink(oppEdge)) {
 					OpEdge* firstEdge = oppEdge;
 					while (firstEdge->priorEdge)
@@ -502,7 +505,7 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 	}
 	OP_ASSERT(smallest.edge); // !!! if found is not empty, but no edge has the right sum, choose one anyway?
 	OpEdge* best = smallest.edge;
-	best->setLastLink(smallest.whichEnd);	// make edge suitable for linking up to a chain of links
+	(void) best->setLastLink(smallest.whichEnd);  // make edge suitable for linking to a chain
 	if (!best->containsLink(lastEdge)) {
 		OP_ASSERT(!best->debugIsLoop());
 		OP_ASSERT(!lastEdge->debugIsLoop());
@@ -516,6 +519,10 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 		if (smallest.index >= 0) {
 			OP_ASSERT((unsigned) smallest.index < linkups.l.size());
 			linkups.l.erase(linkups.l.begin() + smallest.index);
+		} else if (best->disabled) {
+			auto disabledPos = std::find(disabled.begin(), disabled.end(), best);
+			if (disabled.end() != disabledPos)
+				disabled.erase(disabledPos);
 		}
 	}
 	// if there is a loop, remove entries in link ups which are output
@@ -542,7 +549,6 @@ void OpJoiner::sort() {
 // sort should consider all edges in link
 void LinkUps::sort() {
 	std::sort(l.begin(), l.end(), [](const auto& s1, const auto& s2) {
-		return s1->linkBounds.perimeter() 
-				< s2->linkBounds.perimeter(); 
+		return s1->linkBounds.perimeter() < s2->linkBounds.perimeter(); 
 	} );
 }

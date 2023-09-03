@@ -998,13 +998,8 @@ std::string OpEdge::debugDumpDetail() const {
     }
     if (priorEdge || nextEdge || lastEdge /* || priorSum_impl || loopStart || Axis::neither != sumAxis */ )
         s += "\n";
-#if RAY_POINTER
-    if (ray && ray->distances.size()) {
-		const SectRay& rayRef = *ray;
-#else
     if (ray.distances.size()) {
 		const SectRay& rayRef = ray;
-#endif
         s += ::debugDump(rayRef, DebugLevel::brief);
     }
     s += "{" + start.debugDump() + ", ";

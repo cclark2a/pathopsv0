@@ -274,7 +274,8 @@ void OpEdge::debugValidate() const {
 
 // assign the same ID for all edges linked together
 // also assign that ID to edges whose non-zero crossing rays attach to those edges
-void::OpJoiner::debugMatchRay() {
+void::OpJoiner::debugMatchRay(OP_DEBUG_CODE(const OpContours* contours)) {
+    OP_DEBUG_CODE(bool mayFail = OpDebugExpect::unknown == contours->debugExpect);
     OpDebugOut("");
 	for (auto linkup : linkups.l) {
         OP_ASSERT(!linkup->priorEdge);
@@ -319,7 +320,9 @@ void::OpJoiner::debugMatchRay() {
                     bool found = false;
                     for (auto& pal : dTest->pals)
                         found |= pal.edge->inLinkups;
-                    OP_ASSERT(found);
+                    for (auto& us : unsectByArea)
+                        found |= dTest == us && dTest->isActive();
+                    OP_ASSERT(found ||mayFail);
                 }
 #endif
                 linkup->debugMatch = dTest;
@@ -365,6 +368,10 @@ void::OpJoiner::debugMatchRay() {
             OP_ASSERT(!match->debugRayMatch || nextID == match->debugRayMatch);
             if (match->debugRayMatch)   // !!! could assert that all linked edges are ID'd
                 continue;
+            if (match->debugIsLoop()) {
+                OP_ASSERT(mayFail);
+                continue;
+            }
             OpEdge* firstMatch = match;
             do {
                 OP_ASSERT(!match->debugRayMatch);
@@ -404,6 +411,8 @@ void OpJoiner::debugValidate() const {
     debugGlobalContours->debugCheckLastEdge = true;
     for (auto edge : linkups.l) {
         edge->debugValidate();
+        OP_ASSERT(!edge->priorEdge);
+        OP_ASSERT(edge->lastEdge);
         OP_ASSERT(!edge->debugIsLoop());
     }
 }

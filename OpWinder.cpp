@@ -343,26 +343,37 @@ void SectRay::markUnsectableGroups(OpEdge* home) {
 // this catches unsectables by keeping track of edges that are found to be adjacent
 // each time a ray is cast. If the edge is seen to the left during one ray cast, and to the right
 // on another, it is marked as an unsectable pair.
+// !!! There may be unsectable pairs with other edges between. Wait for that before coding.
 void SectRay::markUnsectables(OpEdge* home) {
 	if (!home->ray.distances.size())
 		return;
-// test position of edges to the right of home
-	for (EdgeDistance* test = &distances.back(); test >= &distances.front(); --test) {
-		if (test->edge == home)
-			break;
+	auto checkUnsectable = [home, this](EdgeDistance* test, EdgeDistance* rTest) {
+		if (rTest->edge == home && !test->edge->unsectableID) {
+			OP_ASSERT(!home->unsectableID);
+			OP_ASSERT(axis == test->edge->ray.axis);
+			test->edge->markUnsectable(home, axis, test->t, rTest->t);
+		}
+	};
+	auto check = [checkUnsectable](EdgeDistance* test, bool leftOf) {
 		std::vector<EdgeDistance>& rightDists = test->edge->ray.distances;
 		// look for home to be to the right of test to indicate unsectable
 		for (EdgeDistance* rTest = &rightDists.back(); rTest >= &rightDists.front(); --rTest) {
-			if (rTest->edge == test->edge)
+			if (rTest->edge == test->edge) {
+				if (leftOf && --rTest >= &rightDists.front())
+					checkUnsectable(test, rTest);
 				break;
-			if (rTest->edge == home) {
-				if (!test->edge->unsectableID) {
-					OP_ASSERT(!home->unsectableID);
-					OP_ASSERT(axis == test->edge->ray.axis);
-					test->edge->markUnsectable(home, axis, test->t, rTest->t);
-				}
 			}
+			if (!leftOf)
+				checkUnsectable(test, rTest);
 		}
+	};
+	for (EdgeDistance* test = &distances.back(); test >= &distances.front(); --test) {
+		if (test->edge == home) {
+			if (--test >= &distances.front())  // if present, test first edge to the left of home
+				check(test, true);
+			break;
+		}
+		check(test, false);  // test position of edges to the right of home
 	}
 }
 
@@ -452,16 +463,10 @@ bool SectRay::findIntercept(OpEdge* test) {
 }
 
 FoundIntercept OpWinder::findRayIntercept(size_t inIndex, float normal, float homeCept) {
-#if RAY_POINTER
-	if (!home->ray)
-		home->ray = new SectRay(normal, homeCept, axis);
-	SectRay& ray = *home->ray;
-#else
 	SectRay& ray =  home->ray;
 	ray.normal = normal;
 	ray.homeCept = homeCept;
 	ray.axis = workingAxis;
-#endif
 	Axis perpendicular = !workingAxis;
 	float mid = .5;
 	float midEnd = .5;
@@ -542,13 +547,8 @@ ChainFail OpWinder::setSumChain(size_t inIndex) {
 			break;
 	}
 	FoundIntercept foundIntercept = findRayIntercept(inIndex, normal, homeCept);
-#if RAY_POINTER
-	OP_ASSERT(home->ray && home->ray->distances.size());
-	SectRay& ray = *(home->ray);
-#else
 	OP_ASSERT(home->ray.distances.size());
 	SectRay& ray = home->ray;
-#endif
 	if (FoundIntercept::fail == foundIntercept)
 		return ChainFail::failIntercept;
 	if (FoundIntercept::overflow == foundIntercept)
@@ -562,11 +562,7 @@ ChainFail OpWinder::setSumChain(size_t inIndex) {
 
 ResolveWinding OpWinder::setWindingByDistance() {
 	// find edge; then walk backwards to first known sum 
-#if RAY_POINTER
-	SectRay& ray = *(home->ray);
-#else
 	SectRay& ray = home->ray;
-#endif
 	OP_ASSERT(ray.distances.size());
 	if (1 == ray.distances.size()) {
 		OP_ASSERT(home == ray.distances[0].edge);
@@ -672,11 +668,7 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 	for (auto& contour : contours->contours) {
 		for (auto& segment : contour.segments) {
 			for (auto& edge : segment.edges) {
-	#if RAY_POINTER
-				SectRay& ray = *(edge->ray);
-	#else
 				SectRay& ray = edge.ray;
-	#endif
 				if (edge.disabled)
 					continue;
 				if (edge.unsortable)
@@ -694,39 +686,38 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 	for (auto& contour : contours->contours) {
 		for (auto& segment : contour.segments) {
 			for (auto& edge : segment.edges) {
-	#if RAY_POINTER
-				SectRay& ray = *(edge->ray);
-	#else
 				SectRay& ray = edge.ray;
-	#endif
-
 				if (edge.unsectableID)
 					ray.markPals(&edge);
 			}
 		}
 	}
+	// sort edges so that largest edges' winding sums are computed first
+	std::vector<OpEdge*> bySize;
 	for (auto& contour : contours->contours) {
 		for (auto& segment : contour.segments) {
 			for (auto& edge : segment.edges) {
-				if (edge.sum.isSet())
-					continue;
 				if (edge.disabled)
 					continue;
 				if (edge.unsortable)
 					continue;
-	#if RAY_POINTER
-				SectRay& ray = *(edge->ray);
-	#else
 				SectRay& ray = edge.ray;
-	#endif
 				if (!ray.distances.size())
 					continue;
-				home = &edge;
-				ResolveWinding resolveWinding = setWindingByDistance();
-				if (ResolveWinding::fail == resolveWinding)
-					OP_DEBUG_FAIL(edge, FoundWindings::fail);
+				bySize.push_back(&edge);
 			}
 		}
+	}
+	std::sort(bySize.begin(), bySize.end(), [](const auto& s1, const auto& s2) {
+		return s1->ptBounds.perimeter() > s2->ptBounds.perimeter(); 
+	} );
+	for (auto edge : bySize) {
+		if (edge->sum.isSet())
+			continue;
+		home = edge;
+		ResolveWinding resolveWinding = setWindingByDistance();
+		if (ResolveWinding::fail == resolveWinding)
+			OP_DEBUG_FAIL(*home, FoundWindings::fail);
 	}
 	for (auto& contour : contours->contours) {
 		for (auto& segment : contour.segments) {

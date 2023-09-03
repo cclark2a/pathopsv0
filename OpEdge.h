@@ -270,19 +270,11 @@ struct EdgeDistance {
 
 // captures ray info from edge that intersects other edges, horizontally or vertically
 struct SectRay {
-#if RAY_POINTER
-	SectRay(float n, float h, Axis a) 
-		: normal(n)
-		, homeCept(h)
-		, axis(a) {
-	}
-#else
 	SectRay()
 		: normal(OpNaN)
 		, homeCept(OpNaN)
 		, axis(Axis::neither) {
 	}
-#endif
 	bool betweenUnsectables(OpEdge* );
 	bool findIntercept(OpEdge* );
 	void markPals(OpEdge* );
@@ -371,12 +363,7 @@ enum class EdgeMaker {
 struct OpEdge {
 private:
 	OpEdge()	// note : all values are zero
-		: 
-#define RAY_POINTER 0
-#if RAY_POINTER
-		ray(nullptr),
-#endif
-		 priorEdge(nullptr)
+		: priorEdge(nullptr)
 		, nextEdge(nullptr)
 		, lastEdge(nullptr)
 		, winding(WindingUninitialized::dummy)
@@ -413,9 +400,6 @@ public:
 	~OpEdge() {
 #if OP_DEBUG_IMAGE
 		debugDestroy();
-#endif
-#if RAY_POINTER
-		delete ray;
 #endif
 	}
 public:
@@ -478,7 +462,7 @@ public:
 	void matchUnsectable(EdgeMatch , const std::vector<OpEdge*>& unsectInX, std::vector<FoundEdge>& );
 	OpEdge* nextOut();
 	NormalDirection normalDirection(Axis axis, float t);
-	void output(OpOutPath path);	// provided by the graphics implmentation
+	void output(OpOutPath path);  // provided by the graphics implmentation
 	OpPtT ptT(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? start : end; }
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
@@ -487,9 +471,9 @@ public:
 	void setDisabled(OP_DEBUG_CODE(ZeroReason reason));
 	void setFromPoints(const OpPoint pts[]);
 	OpEdge* setLastEdge(OpEdge* old = nullptr);
-	void setLastLink(EdgeMatch );
+	bool setLastLink(EdgeMatch );  // returns true if link order was changed
 	OpPointBounds setLinkBounds();
-	void setLinkDirection(EdgeMatch ); // reverse links if handed link end instead of link start
+	bool setLinkDirection(EdgeMatch );  // reverse links if handed link end instead of link start
 	bool setLinear();
 	void setNextEdge(OpEdge*);  // setter exists so debug breakpoints can be set
 	void setPointBounds();
@@ -515,7 +499,7 @@ public:
 	void debugCompare(std::string ) const;
 	std::string debugDumpBrief() const;
 	std::string debugDumpChain(WhichLoop , bool detail) const;
-	void debugValidate() const;    // make sure pointer to edge is valid
+	void debugValidate() const;  // make sure pointer to edge is valid
 	bool debugValidLoop() const;
 	void dumpChain(bool detail = false) const;
 	void dumpEnd() const;
@@ -540,11 +524,7 @@ public:
 #endif
 
 	const OpSegment* segment;
-#if RAY_POINTER
-	SectRay* ray;
-#else
 	SectRay ray;
-#endif
 	OpEdge* priorEdge;	// edges that link to form completed contour
 	OpEdge* nextEdge;
 	OpEdge* lastEdge;

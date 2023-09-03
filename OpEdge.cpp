@@ -363,7 +363,7 @@ OpEdge* OpEdge::setLastEdge(OpEdge* old) {
 
 // this sets up the edge linked list to be suitable for joining another linked list
 // the edits are nondestructive 
-void OpEdge::setLastLink(EdgeMatch match) {
+bool OpEdge::setLastLink(EdgeMatch match) {
 	if ((unsectableID || disabled || unsortable) && !priorEdge && !nextEdge) {
 		if (EdgeMatch::none == whichEnd) {
 			whichEnd = match;
@@ -371,10 +371,13 @@ void OpEdge::setLastLink(EdgeMatch match) {
 			lastEdge = this;
 		} else
 			OP_ASSERT(lastEdge);
-	} else if (!lastEdge)
-		setLinkDirection(EdgeMatch::end);
-	else if (lastEdge == this && EdgeMatch::end == match && EdgeMatch::start == whichEnd)
+		return false;
+	} 
+	if (!lastEdge)
+		return setLinkDirection(EdgeMatch::end);
+	if (lastEdge == this && EdgeMatch::end == match && EdgeMatch::start == whichEnd)
 		whichEnd = EdgeMatch::end;
+	return false;
 }
 
 // this compares against float epsilon instead of zero
@@ -404,9 +407,9 @@ OpPointBounds OpEdge::setLinkBounds() {
 
 // reverses link walk
 // if the edge chain is one long, match is required to know if it must be reversed
-void OpEdge::setLinkDirection(EdgeMatch match) {
+bool OpEdge::setLinkDirection(EdgeMatch match) {
 	if (EdgeMatch::start == match && lastEdge)	// !!! this requires that lastEdge only be at start
-		return;
+		return false;
 	OpEdge* edge = this;
 	while (edge->priorEdge) {
 		std::swap(edge->priorEdge, edge->nextEdge);
@@ -417,6 +420,7 @@ void OpEdge::setLinkDirection(EdgeMatch match) {
 	edge->whichEnd = Opposite(edge->whichEnd);
 	edge->lastEdge = nullptr;
 	lastEdge = edge;
+	return true;
 }
 
 void OpEdge::setNextEdge(OpEdge* edge) {
