@@ -375,8 +375,12 @@ bool OpEdge::setLastLink(EdgeMatch match) {
 	} 
 	if (!lastEdge)
 		return setLinkDirection(EdgeMatch::end);
-	if (lastEdge == this && EdgeMatch::end == match && EdgeMatch::start == whichEnd)
-		whichEnd = EdgeMatch::end;
+	if (lastEdge == this) {
+		if (EdgeMatch::end == match && EdgeMatch::start == whichEnd)
+			whichEnd = EdgeMatch::end;
+		else if (EdgeMatch::start == match && EdgeMatch::end == whichEnd)
+			whichEnd = EdgeMatch::start;
+	}
 	return false;
 }
 

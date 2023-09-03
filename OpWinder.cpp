@@ -628,10 +628,16 @@ ResolveWinding OpWinder::setWindingByDistance() {
 	home->many = home->winding;	// back up winding
 	OpContours* contours = home->segment->contour->contours;
 	NormalDirection normDir = home->normalDirection(ray.axis, homeT);
-	OP_ASSERT(NormalDirection::underflow != normDir && NormalDirection::overflow != normDir);
+	if (NormalDirection::underflow == normDir || NormalDirection::overflow == normDir) {
+		home->setUnsortable();
+		return ResolveWinding::resolved;
+	}
 	for (const auto& pal : home->pals) {
 		NormalDirection palDir = pal.edge->normalDirection(ray.axis, homeT);
-		OP_ASSERT(NormalDirection::underflow != palDir && NormalDirection::overflow != palDir);
+		if (NormalDirection::underflow == palDir || NormalDirection::overflow == palDir) {
+			pal.edge->setUnsortable();
+			continue;
+		}
 		home->winding.move(pal.edge->winding, contours, normDir != palDir);
 	}
 	if (CalcFail::fail == home->addIfUR(ray.axis, homeT, &sumWinding))

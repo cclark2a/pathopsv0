@@ -4087,6 +4087,8 @@ static void complex_to_quads(const SkPoint pts[], SkPath* path) {
     }
 }
 
+// there is a typo below: second call to complex_to_quads meant to pass pathB
+// but, that's the way the test was written, so I'm not going to change it
 static void cubicOp130a(skiatest::Reporter* reporter, const char* filename) {
     SkPath path, pathB;
     path.setFillType(SkPathFillType::kWinding);
@@ -9356,7 +9358,7 @@ SkPathOp op = kUnion_SkPathOp;
 }
 
 static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
-static void (*firstTest)(skiatest::Reporter* , const char* filename) = crbug_526025;
+static void (*firstTest)(skiatest::Reporter* , const char* filename) = issue1435;
 static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 
 #define TEST(name) { name, #name }
@@ -9539,7 +9541,6 @@ static struct TestDesc tests[] = {
     TEST(kari1),
     TEST(quadOp10i),
     TEST(cubicOp113),
-    // untested / not working
     TEST(skpcarrot_is24),
 #if TEST_ISSUE_1417 // fails with unsectable sorting
     TEST(issue1417),
@@ -9566,6 +9567,9 @@ static struct TestDesc tests[] = {
     TEST(cubicOp100),
     TEST(cubicOp99),
     TEST(issue1435),
+
+
+    // untested / not working
     TEST(cubicOp98x),
     TEST(cubicOp97x),
     TEST(skpcarpetplanet_ru22),
