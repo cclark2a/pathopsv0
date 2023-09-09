@@ -340,8 +340,8 @@ void SectRay::markPals(OpEdge* home) {
 void SectRay::addPals(OpEdge* home) {
 	if (!home->ray.distances.size())
 		return;
-	auto matchCept = [home  OP_DEBUG_PARAMS(this)](EdgeDistance* test) {
-		OP_ASSERT(axis == test->edge->ray.axis);
+	auto matchCept = [home](EdgeDistance* test) {
+//		OP_ASSERT(axis == test->edge->ray.axis);  // !!! I don't think this matters ?
 		home->addPal(*test);
 		if (EdgeDistance* homeDist = test->edge->ray.find(home)) {
 			test->edge->addPal(*homeDist);

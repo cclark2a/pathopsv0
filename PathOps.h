@@ -14,11 +14,17 @@ struct OpInPath {
 		: skPath(sk) {
 		OP_ASSERT(skPath);
 	}
+#elif PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_PENTREK
+	OpInPath(const void* ext) 
+		: externalReference(ext) {
+	}
 #endif
 
 	bool isInverted() const;
 #if PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_SKIA
 	const SkPath* skPath;
+#elif PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_PENTREK
+	const void* externalReference;
 #endif
 };
 
@@ -27,6 +33,10 @@ struct OpOutPath {
 	OpOutPath(SkPath* sk)
 		: skPath(sk) {
 		OP_ASSERT(skPath);
+	}
+#elif PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_PENTREK
+	OpOutPath(const void* ext) 
+		: externalReference(ext) {
 	}
 #endif
 
@@ -43,6 +53,8 @@ struct OpOutPath {
 #endif
 #if PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_SKIA
 	SkPath* skPath;
+#elif PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_PENTREK
+	const void* externalReference;
 #endif
 #if OP_DEBUG_DUMP
 	int debugID;

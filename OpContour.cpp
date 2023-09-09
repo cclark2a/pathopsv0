@@ -270,7 +270,7 @@ bool OpContours::assemble(OpOutPath path) {
     for (auto unsortable : unsortables) {
         unsortable->setActive(true);
     }
-#if 01 && OP_DEBUG
+#if 01 && OP_DEBUG_IMAGE
     ::clear();
     ::hideSegmentEdges();
     ::hideIntersections();

@@ -50,7 +50,7 @@ void OpJoiner::addToLinkups(OpEdge* edge) {
 	do {
 		if (LinkPass::unambiguous == linkPass) {
 			OP_ASSERT(next->isActive());
-			next->clearActiveAndPals();
+			next->clearActiveAndPals(ZeroReason::none);
 		}
 		next->lastEdge = nullptr;
 		next->inLinkups = true;
@@ -114,9 +114,8 @@ bool OpJoiner::detachIfLoop(OpEdge* edge) {
 #if OP_DEBUG
 		const OpEdge* firstEdge = edge;
 		do {
-			edge->inLinkups = false;
 			edge->debugOutPath = path.debugID;
-			edge = edge->nextOut();
+			edge = edge->nextEdge;
 		} while (firstEdge != edge);
 		path.debugNextID(edge);
 #endif
@@ -180,12 +179,15 @@ bool OpJoiner::linkRemaining() {
 	for (auto edge : linkups.l) {
 		edge->setLinkBounds();
 	}
+	OP_DEBUG_CODE(int debugLoopCounter = 0);
     while (linkups.l.size()) {
 		// sort to process largest first
 		// !!! could optimize to avoid search, but for now, this is the simplest
 		linkups.sort();
+		OP_DEBUG_CODE(if (-1 == debugLoopCounter) OP_DEBUG_BREAK());
         if (!matchLinks(linkups.l.back(), true))
 			return false;
+		OP_DEBUG_CODE(++debugLoopCounter);
     }
 	return true;
 }
@@ -428,7 +430,7 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 	}
 	if (!found.size() && edge->between)	// !!! if this is all that's left, drop it on the floor?
 		return true;
-#if OP_DEBUG
+#if OP_DEBUG_IMAGE
 	if (!found.size()) {
 		focus(edge->id);
 		oo(10);

@@ -93,6 +93,7 @@ enum class WindingTemp {	// used to accumulate winding sum before it is applied
 
 enum class ZeroReason : uint8_t {
 	uninitialized,
+	addedPalToOutput,
 	addIntersection,
 	applyOp,
 	centerNaN,
@@ -100,6 +101,7 @@ enum class ZeroReason : uint8_t {
 	hvCoincidence,
 	isPoint,
 	noFlip,
+	none
 };
 
 
@@ -450,7 +452,7 @@ public:
 	OpEdge* advanceToEnd(EdgeMatch );
 	void apply();
 	bool calcCenterT();
-	void clearActiveAndPals();
+	void clearActiveAndPals(ZeroReason );
 	void clearNextEdge();
 	void clearPriorEdge();
 	void complete();

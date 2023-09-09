@@ -6,10 +6,11 @@
 #endif
 
 #define PATH_OPS_V0_FOR_SKIA 1
-#define PATH_OPS_V0_FOR_PENTEK 2
+#define PATH_OPS_V0_FOR_PENTREK 2
 
 // set targeted platform here
 #define PATH_OPS_V0_TARGET PATH_OPS_V0_FOR_SKIA
+// #define PATH_OPS_V0_TARGET PATH_OPS_V0_FOR_PENTREK
 
 #define OP_RELEASE_TEST 1	// !!! set to zero to remove tests from release build
 #define TEST_GR_SHAPE_ARCS_1 0	// save complicated test for later, once much simpler tests work
@@ -22,7 +23,7 @@
 
 #if !defined(NDEBUG) || OP_RELEASE_TEST
 #include <string>
-void OpDebugOut(const std::string&) ;
+void OpDebugOut(const std::string& );
 void OpPrintOut(const std::string& );
 uint64_t OpInitTimer();
 uint64_t OpReadTimer();

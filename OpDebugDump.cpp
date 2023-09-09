@@ -1000,6 +1000,7 @@ struct DebugReasonName {
 
 static DebugReasonName debugReasonNames[] {
     REASON_NAME(uninitialized),
+    REASON_NAME(addedPalToOutput),
     REASON_NAME(addIntersection),
     REASON_NAME(applyOp),
     REASON_NAME(centerNaN),
@@ -1007,6 +1008,7 @@ static DebugReasonName debugReasonNames[] {
     REASON_NAME(hvCoincidence),
     REASON_NAME(isPoint),
     REASON_NAME(noFlip),
+    REASON_NAME(none)
 };
 
 std::string OpEdge::debugDumpDetail() const {

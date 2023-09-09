@@ -162,10 +162,12 @@ bool OpEdge::calcCenterT() {
 	return start.t < center.t && center.t < end.t;
 }
 
-void OpEdge::clearActiveAndPals() {
+void OpEdge::clearActiveAndPals(ZeroReason reason) {
 	setActive(false);
     for (auto& pal : pals) {
-        pal.edge->setActive(false); 
+        pal.edge->setActive(false);
+		if (ZeroReason::none != reason)
+			pal.edge->setDisabled(OP_DEBUG_CODE(reason));
     }
 	lastEdge = nullptr;
 }
@@ -249,7 +251,7 @@ void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsect
 			return false;
 		};
 		auto checkEnds = [this, &edges, firstPt, isDupe](OpEdge* unsectable) {
-			if (unsectable->inOutput || unsectable->inLinkups)
+			if (unsectable->inOutput || unsectable->inLinkups || unsectable->disabled)
 				return false;
 			if (this == unsectable)
 				return false;
@@ -287,7 +289,8 @@ void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsect
 }
 
 OpEdge* OpEdge::nextOut() {
-	clearActiveAndPals();
+	clearActiveAndPals(ZeroReason::addedPalToOutput);
+	inLinkups = false;
     inOutput = true;
     return nextEdge;
 }
@@ -351,13 +354,13 @@ OpEdge* OpEdge::setLastEdge(OpEdge* old) {
 // this sets up the edge linked list to be suitable for joining another linked list
 // the edits are nondestructive 
 bool OpEdge::setLastLink(EdgeMatch match) {
-	if ((pals.size() || disabled || unsortable) && !priorEdge && !nextEdge) {
+	if (!priorEdge && !nextEdge) {
 		if (EdgeMatch::none == whichEnd) {
-			whichEnd = match;
 			OP_ASSERT(!lastEdge);
 			lastEdge = this;
 		} else
 			OP_ASSERT(lastEdge);
+		whichEnd = match;
 		return false;
 	} 
 	if (!lastEdge)
@@ -438,8 +441,6 @@ void OpEdge::setPriorEdge(OpEdge* edge) {
 }
 
 void OpEdge::setUnsortable() {
-	OpDebugBreak(this, 456);
-	OpDebugBreak(this, 418);
 	if (unsortable)
 		return;
 	unsortable = true;
@@ -471,23 +472,27 @@ void OpEdge::skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) {
 	OP_ASSERT(unsectables.size());
 	OpEdge* first = advanceToEnd(EdgeMatch::start);
 	first->setLastEdge(nullptr);
-	for (unsigned outer = 1; outer < unsectables.size(); ++outer) {
-		FoundEdge& keeper = unsectables[outer - 1];	// note: cannot underflow
-		auto& kPals = keeper.edge->pals;
-		OpRect bestBounds = first->setLinkBounds().add(keeper.edge->ptBounds);
-		for (unsigned inner = outer; inner < unsectables.size(); ++inner) {
-			FoundEdge& test = unsectables[inner];
-			if (kPals.end() != std::find_if(kPals.begin(), kPals.end(), [&test](auto kPal) {
-					return kPal.edge == test.edge; }))
+	for (unsigned oIndex = 1; oIndex < unsectables.size(); ++oIndex) {
+		FoundEdge& outer = unsectables[oIndex - 1];	// note: cannot underflow
+		auto& oPals = outer.edge->pals;
+		OpRect outerBounds = first->setLinkBounds().add(outer.edge->ptBounds);
+		for (unsigned iIndex = oIndex; iIndex < unsectables.size(); ++iIndex) {
+			FoundEdge& inner = unsectables[iIndex];
+			bool outerTouchesInner = oPals.end() != std::find_if(oPals.begin(), oPals.end(), 
+					[&inner](auto oPal) { return oPal.edge == inner.edge; });
+			auto& iPals = inner.edge->pals;
+			bool innerTouchesOuter = iPals.end() != std::find_if(iPals.begin(), iPals.end(), 
+					[&outer](auto iPal) { return iPal.edge == outer.edge; });
+			if (!outerTouchesInner && !innerTouchesOuter)
 				continue;
 			duplicates = true;
-			OpRect testBounds = first->setLinkBounds().add(test.edge->ptBounds);
-			if (bestBounds.perimeter() <= testBounds.perimeter())
+			OpRect innerBounds = first->setLinkBounds().add(inner.edge->ptBounds);
+			if (outerBounds.perimeter() <= innerBounds.perimeter())
 				continue;
-			std::swap(test, keeper);
-			std::swap(bestBounds, testBounds);
+			std::swap(inner, outer);
+			std::swap(innerBounds, outerBounds);
 		}
-		sectables.push_back(keeper);
+		sectables.push_back(outer);
 	}
 	if (!duplicates)
 		return;

@@ -56,7 +56,6 @@ void OpIntersections::makeEdges(OpSegment* segment) {
     OP_ASSERT(!resort);
     for (auto sectPtr : i) {
         const OpIntersection& sect = *sectPtr;
-//        if (512 == abs(sect.unsectID)) OP_DEBUG_BREAK();
         if (sect.ptT.t != last->ptT.t) {
             segment->edges.emplace_back(segment, last->ptT, sect.ptT
                     OP_DEBUG_PARAMS(EDGE_MAKER(makeEdges), last, sectPtr));
