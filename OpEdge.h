@@ -252,10 +252,11 @@ inline void WindZeroFlip(WindZero* windZero) {
 }
 
 struct EdgeDistance {
-	EdgeDistance(OpEdge* e, float c, float tIn)
+	EdgeDistance(OpEdge* e, float c, float tIn, bool r)
 		: edge(e)
 		, cept(c)
-		, t(tIn) {
+		, t(tIn)
+		, reversed(r) {
 	}
 
 #if OP_DEBUG_DUMP
@@ -266,6 +267,14 @@ struct EdgeDistance {
 	OpEdge* edge;
 	float cept;		// where normal intersects edge (for home edge, equals center)
 	float t;
+	bool reversed;
+};
+
+enum class FindCept {
+	ok,
+	retry,
+	unsectable,
+	unsortable
 };
 
 // captures ray info from edge that intersects other edges, horizontally or vertically
@@ -275,11 +284,10 @@ struct SectRay {
 		, homeCept(OpNaN)
 		, axis(Axis::neither) {
 	}
-	bool betweenUnsectables(OpEdge* );
-	bool findIntercept(OpEdge* );
+	void addPals(OpEdge* );
+	FindCept findIntercept(OpEdge* );
 	void markPals(OpEdge* );
-	void markUnsectableGroups(OpEdge* );
-	void markUnsectables(OpEdge* );
+	EdgeDistance* find(OpEdge* );
 #if OP_DEBUG_DUMP
 	void dump() const;
 	void dumpDetail() const;
@@ -287,8 +295,10 @@ struct SectRay {
 #endif
 
 	std::vector<EdgeDistance> distances;
+	OpVector homeTangent;  // used to determine if unsectable edge is reversed
 	float normal;  // ray used to find windings on home edge
 	float homeCept;  // intersection of normal on home edge
+	float homeT;
 	Axis axis;
 };
 
@@ -376,6 +386,7 @@ private:
 		, doSplit(EdgeSplit::no)
 		, curveSet(false)
 		, lineSet(false)
+		, palSet(false)
 		, verticalSet(false)
 		, isLine_impl(false)
 		, active_impl(false)
@@ -397,12 +408,11 @@ private:
 #endif
 	}
 public:
-	~OpEdge() {
 #if OP_DEBUG_IMAGE
+	~OpEdge() {
 		debugDestroy();
-#endif
 	}
-public:
+#endif
 	OpEdge(OpSegment* s, const OpPtT& t1, const OpPtT& t2
 			OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file, const OpIntersection* i1, 
 			const OpIntersection* i2))
@@ -435,6 +445,7 @@ public:
 	struct DebugOpCurve debugSetCurve() const;
 #endif
 	CalcFail addIfUR(Axis xis, float t, OpWinding* );
+	void addPal(EdgeDistance& );
 	CalcFail addSub(Axis axis, float t, OpWinding* );
 	OpEdge* advanceToEnd(EdgeMatch );
 	void apply();
@@ -453,12 +464,12 @@ public:
 		return EdgeMatch::start == match ? nextEdge : priorEdge; }
 	bool isActive() const { 
 		return active_impl; }
+	bool isLinear();
 	bool isPal(const OpEdge* opp) const {
 		return pals.end() != std::find_if(pals.begin(), pals.end(), 
 				[opp](const auto& test) { return opp == test.edge; }); }
 	void linkToEdge(FoundEdge& , EdgeMatch );
 //	void linkNextPrior(OpEdge* first, OpEdge* last);
-	void markUnsectable(OpEdge* opp, Axis axis, float t, float oppT);
 	void matchUnsectable(EdgeMatch , const std::vector<OpEdge*>& unsectInX, std::vector<FoundEdge>& );
 	OpEdge* nextOut();
 	NormalDirection normalDirection(Axis axis, float t);
@@ -474,7 +485,6 @@ public:
 	bool setLastLink(EdgeMatch );  // returns true if link order was changed
 	OpPointBounds setLinkBounds();
 	bool setLinkDirection(EdgeMatch );  // reverse links if handed link end instead of link start
-	bool setLinear();
 	void setNextEdge(OpEdge*);  // setter exists so debug breakpoints can be set
 	void setPointBounds();
 	void setPriorEdge(OpEdge* );  // setter exists so debug breakpoints can be set
@@ -548,13 +558,14 @@ public:
 	std::vector<OpEdge*> moreRay;  // edges found placed with larger edge distance cept values
 	float weight;
 	int id;
-	int unsectableID;
+	int unsectableID;	// used to pair unsectable intersections and find edges between
 	EdgeMatch whichEnd;	// if 'start', prior link end equals start; if 'end' prior end matches end
 	EdgeFail fail;	// how computation (e.g., center) failed (on fail, windings are set to zero)
 	WindZero windZero; // normal means edge normal points to zero side; opposite, normal is non-zero
 	EdgeSplit doSplit; // used by curve/curve intersection to track subdivision
 	bool curveSet;
 	bool lineSet;
+	bool palSet;  // set before all edges exist; later pass can set pal
 	bool verticalSet;
 	bool isLine_impl;	// ptBounds 0=h/0=w catches horz/vert lines; if true, line is diagonal(?)
 	bool active_impl;  // used by ray casting to mark edges that may be to the left of casting edge

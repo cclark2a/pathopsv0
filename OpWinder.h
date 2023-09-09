@@ -3,6 +3,7 @@
 
 #include "OpMath.h"
 
+enum class MatchEnds;  // for coin intersections
 struct OpContours;
 struct OpEdge;
 
@@ -43,17 +44,17 @@ struct OpWinder {
 	void addEdge(OpEdge* , EdgesToSort );
 	static void AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge);
 	static void AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped, OpPtT cPtT, OpPtT dPtT,
-			OpSegment* segment, OpSegment* oppSegment, int coinID);
+			OpSegment* segment, OpSegment* oppSegment, int coinID, MatchEnds );
 	static IntersectResult AddPair(XyChoice offset, OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpPtT dPtT,
 			bool flipped, OpSegment* segment, OpSegment* oppSegment);
 	static IntersectResult CoincidentCheck(OpPtT ptTa, OpPtT ptTb, OpPtT ptTc, OpPtT ptTd,
 			OpSegment* segment, OpSegment* oppSegment);
 	static IntersectResult CoincidentCheck(const OpEdge& edge, const OpEdge& opp);
-	FoundIntercept findRayIntercept(size_t inIndex, float normal, float homeCept);
+	FoundIntercept findRayIntercept(size_t inIndex, OpVector tangent, float normal, float homeCept);
 	void markUnsortable();
 	void setEdgeMany(EdgeDistance* );
 	ChainFail setSumChain(size_t inIndex);
-	ResolveWinding setWindingByDistance();
+	ResolveWinding setWindingByDistance(OpContours* );
 	FoundWindings setWindings(OpContours* );
 	void sort(EdgesToSort);
 

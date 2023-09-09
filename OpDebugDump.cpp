@@ -120,6 +120,10 @@ EDGE_OR_SEGMENT_DETAIL
     void dmp##Thing(int id) { \
         if (auto seg = findSegment(id)) \
             return dmp##Thing(seg); \
+        if (auto edge = findEdge(id)) \
+            return dmp##Thing(edge->segment); \
+        if (auto intersection = findIntersection(id)) \
+            return dmp##Thing(intersection->segment); \
     }
 SEGMENT_DETAIL
 #undef OP_X
@@ -987,7 +991,31 @@ std::string debugAxisName(Axis axis) {
     return result;
 }
 
+struct DebugReasonName {
+    ZeroReason reason;
+    const char* name;
+};
+
+#define REASON_NAME(r) { ZeroReason::r, #r }
+
+static DebugReasonName debugReasonNames[] {
+    REASON_NAME(uninitialized),
+    REASON_NAME(addIntersection),
+    REASON_NAME(applyOp),
+    REASON_NAME(centerNaN),
+    REASON_NAME(findCoincidences),
+    REASON_NAME(hvCoincidence),
+    REASON_NAME(isPoint),
+    REASON_NAME(noFlip),
+};
+
 std::string OpEdge::debugDumpDetail() const {
+    bool outOfDate = false;
+    for (unsigned index = 0; index < ARRAY_COUNT(debugReasonNames); ++index)
+       if (!outOfDate && (unsigned) debugReasonNames[index].reason != index) {
+           OpDebugOut("debugReasonNames out of date\n");
+           outOfDate = true;
+       }
     std::string s = "edge[" + STR(id) + "] segment[" + STR(segment->id) + "] contour["
             OP_DEBUG_CODE(+ STR(segment->contour->id)) + std::string("]\n");
     if (priorEdge || nextEdge || lastEdge) {
@@ -1039,6 +1067,16 @@ std::string OpEdge::debugDumpDetail() const {
     if (inOutput) s += "inOutput ";
     if (inLinkups) s += "inLinkups ";
     if (disabled) s += "disabled ";
+#if OP_DEBUG
+    if (ZeroReason::uninitialized != debugZero) {
+        s += " reason:";
+        if (outOfDate)
+            s += STR((int)debugZero);
+        else
+            s += std::string(debugReasonNames[(int)debugZero].name);
+        s += " ";
+    }
+#endif
     if (unsortable) s += "unsortable ";
     if (between) s += "between ";
 #if OP_DEBUG
@@ -1136,31 +1174,7 @@ void OpEdge::debugCompare(std::string s) const {
     OP_ASSERT(end == test.end);
 }
 
-struct DebugReasonName {
-    ZeroReason reason;
-    const char* name;
-};
-
-#define REASON_NAME(r) { ZeroReason::r, #r }
-
-static DebugReasonName debugReasonNames[] {
-    REASON_NAME(uninitialized),
-    REASON_NAME(addIntersection),
-    REASON_NAME(applyOp),
-    REASON_NAME(centerNaN),
-    REASON_NAME(findCoincidences),
-    REASON_NAME(hvCoincidence),
-    REASON_NAME(isPoint),
-    REASON_NAME(noFlip),
-};
-
 std::string OpEdge::debugDump() const {
-    bool outOfDate = false;
-    for (unsigned index = 0; index < ARRAY_COUNT(debugReasonNames); ++index)
-       if (!outOfDate && (unsigned) debugReasonNames[index].reason != index) {
-           OpDebugOut("debugReasonNames out of date\n");
-           outOfDate = true;
-       }
     std::string s;
     if (priorEdge || nextEdge || lastEdge) {
         s += "p/n";
@@ -1180,12 +1194,14 @@ std::string OpEdge::debugDump() const {
     if (1 != weight)
         s += "w:" + OpDebugDump(weight) + " ";
     s += "t{" + OpDebugDump(start.t) + ", " +
-        OpDebugDump(center.t) + ", " + OpDebugDump(end.t) + "}\n";
+        OpDebugDump(center.t) + ", " + OpDebugDump(end.t) + "}";
+#if 0   // show bounds in detail view only
     if (ptBounds.isSet())
         s += "    pb:" + ptBounds.debugDump() + " ";
     if (linkBounds.isSet())
         s += "    lb:" + linkBounds.debugDump() + " ";
-    s += "wind:" + STR(winding.left()) + "/" + STR(winding.right()) + " ";
+#endif
+    s += " wind:" + STR(winding.left()) + "/" + STR(winding.right()) + " ";
     if (OpMax != sum.left() || OpMax != sum.right()) {
         s += "l/r:" + (OpMax != sum.left() ? STR(sum.left()) : "--");
         s += "/" + (OpMax != sum.right() ? STR(sum.right()) : "--") + " ";
@@ -1197,18 +1213,9 @@ std::string OpEdge::debugDump() const {
     if (EdgeSplit::no != doSplit) s += "doSplit ";
     if (EdgeSplit::yes == doSplit) s += "yes ";
     if (isLine_impl) s += "isLine ";
+    if (disabled) s += "disabled ";
     if (unsectableID) s += "uID:" + STR(unsectableID) + " ";
     if (unsortable) s += "unsortable ";
-#if OP_DEBUG
-    if (ZeroReason::uninitialized != debugZero) {
-        s += " reason:";
-        if (outOfDate)
-            s += STR((int)debugZero);
-        else
-            s += std::string(debugReasonNames[(int)debugZero].name);
-        s += " ";
-    }
-#endif
     s += "seg:" + STR(segment->id);
     return s;
 }
@@ -1267,11 +1274,19 @@ void dmpEnd(const OpEdge& edge)  {
 }
 
 void dmpFull(const OpEdge& edge) { 
-    edge.dumpDetail(); 
+    edge.segment->dumpFull(); 
 }
 
 void dmpFullDetail(const OpEdge& edge) { 
-    edge.dumpDetail(); 
+    edge.segment->dumpFullDetail(); 
+}
+
+void dmpFull(const OpEdge* edge) { 
+    edge->segment->dumpFull(); 
+}
+
+void dmpFullDetail(const OpEdge* edge) { 
+    edge->segment->dumpFullDetail(); 
 }
 
 void dmpHex(const OpEdge& edge) {
@@ -1516,12 +1531,11 @@ IntersectMakerName intersectMakerNames[] {
 	INTERSECT_MAKER_NAME(opTestEdgeZero3),
 	INTERSECT_MAKER_NAME(opTestEdgeZero4),
 };
-#endif
 
-std::string OpIntersection::debugDump(bool fromDumpFull, bool fromDumpDetail) const {
-#if OP_DEBUG
+static bool makerOutOfDate = false;
+
+void checkMaker() {
     static bool makerChecked = false;
-    static bool makerOutOfDate = false;
     if (!makerChecked) {
         for (unsigned index = 0; index < ARRAY_COUNT(intersectMakerNames); ++index)
            if (!makerOutOfDate && (unsigned) intersectMakerNames[index].maker != index) {
@@ -1531,7 +1545,48 @@ std::string OpIntersection::debugDump(bool fromDumpFull, bool fromDumpDetail) co
            }
         makerChecked = true;
     }
+}
 #endif
+
+struct MatchEndsName {
+    MatchEnds end;
+    const char* name;
+};
+
+#define MATCH_ENDS_NAME(r) { MatchEnds::r, #r }
+
+MatchEndsName matchEndsNames[] {
+	MATCH_ENDS_NAME(none),
+    MATCH_ENDS_NAME(start),
+    MATCH_ENDS_NAME(end),
+    MATCH_ENDS_NAME(both)
+};
+
+static bool matchEndsOutOfDate = false;
+
+// !!! macro-ize this pattern?
+void checkMatchEnds() {
+    static bool matchEndsChecked = false;
+    if (!matchEndsChecked) {
+        for (unsigned index = 0; index < ARRAY_COUNT(matchEndsNames); ++index)
+           if (!matchEndsOutOfDate && (unsigned) matchEndsNames[index].end != index) {
+               OpDebugOut("!!! matchEndsNames out of date\n");
+               matchEndsOutOfDate = true;
+               break;
+           }
+        matchEndsChecked = true;
+    }
+}
+
+std::string OpIntersection::debugDump(bool fromDumpFull, bool fromDumpDetail) const {
+    auto matchEndStr = [this]() {
+        return matchEndsOutOfDate ? " (matchEnds out of date) " + STR((int)sectEnd)
+                : matchEndsNames[(int)sectEnd].name;
+    };
+#if OP_DEBUG
+    checkMaker();
+#endif
+    checkMatchEnds();
     checkReason();
     std::string s;
     std::string segmentID = segment ? segment->debugDumpID() : "--";
@@ -1546,10 +1601,16 @@ std::string OpIntersection::debugDump(bool fromDumpFull, bool fromDumpDetail) co
     if (!fromDumpFull || !segment)
         s += " segment:" + segmentID;
     s += " opp/sect:" + oppParentID + "/" + oppID;
-    if (coincidenceID  OP_DEBUG_CODE(|| debugCoincidenceID))
+    if (coincidenceID  OP_DEBUG_CODE(|| debugCoincidenceID)) {
         s += " coinID:" + STR(coincidenceID)  OP_DEBUG_CODE(+ "/" + STR(debugCoincidenceID));
-    if (unsectID)
+        s += " " + matchEndStr();
+    }
+    if (unsectID) {
         s += " unsectID:" + STR(unsectID);
+        s += " " + matchEndStr();
+    }
+    if (!coincidenceID  OP_DEBUG_CODE(&& !debugCoincidenceID) && !unsectID && MatchEnds::none != sectEnd)
+        s += "!!! (unexpected) " +  matchEndStr();
     if (betweenID)
         s += " betweenID:" + STR(betweenID);
     s += " maker:";
@@ -1568,12 +1629,6 @@ std::string OpIntersection::debugDump(bool fromDumpFull, bool fromDumpDetail) co
 #endif
     return s;
 }
-
-#if OP_DEBUG == 0
-std::string OpIntersection::debugDumpID() const {
-    return "";
-}
-#endif
 
 std::string OpIntersection::debugDumpBrief() const {
     std::string s;
@@ -1727,6 +1782,7 @@ std::string OpSegment::debugDumpEdgesDetail() const {
 std::string OpSegment::debugDumpFull() const {
     std::string s = debugDump() + "\n";
     s += debugDumpIntersections();
+    s += "edges:\n";
     s += debugDumpEdges();
     return s;
 }

@@ -40,7 +40,7 @@ struct OpContour {
             OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
             const OpEdge* edge, const OpEdge* oEdge));
     OpEdge* addFiller(OpIntersection* start, OpIntersection* end);
-    OpIntersection* addSegSect(const OpPtT& t, OpSegment* seg, int cID, int uID, bool end
+    OpIntersection* addSegSect(const OpPtT& t, OpSegment* seg, int cID, int uID, MatchEnds end
             OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
             const OpSegment* oSeg));
     void addLine(const OpPoint pts[2]);

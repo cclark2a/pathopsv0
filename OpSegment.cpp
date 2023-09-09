@@ -111,7 +111,7 @@ OpIntersection* OpSegment::addSegBase(const OpPtT& ptT
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
         const OpSegment* oSeg)) {
     OP_ASSERT(!sects.debugContains(ptT, oSeg));
-    return sects.add(contour->addSegSect(ptT, this, 0, 0, false  
+    return sects.add(contour->addSegSect(ptT, this, 0, 0, MatchEnds::none  
             OP_DEBUG_PARAMS(maker, line, file, reason, oSeg)));
 }
 
@@ -121,24 +121,24 @@ OpIntersection* OpSegment::addSegSect(const OpPtT& ptT
     return addSegBase(ptT  OP_DEBUG_PARAMS(maker, line, file, reason, oSeg));
 }
 
-OpIntersection* OpSegment::addCoin(const OpPtT& ptT, int coinID  
+OpIntersection* OpSegment::addCoin(const OpPtT& ptT, int coinID, MatchEnds coinEnd  
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
         const OpSegment* oSeg)) {
     OP_ASSERT(!sects.debugContains(ptT, oSeg));
-    return sects.add(contour->addSegSect(ptT, this, coinID, 0, false  
+    return sects.add(contour->addSegSect(ptT, this, coinID, 0, coinEnd  
             OP_DEBUG_PARAMS(maker, line, file, reason, oSeg)));
 }
 
-OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int unsectableID, bool end,
+OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int usectID, MatchEnds end,
         const OpSegment* oSeg  OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file)) {
     OpIntersection* sect = sects.alreadyContains(ptT, oSeg);
     if (sect) {
         OP_ASSERT(!sect->unsectID);
-        sect->unsectID = unsectableID;
-        sect->unsectEnd = end;
+        sect->unsectID = usectID;
+        sect->sectEnd = end;
         return sect;
     }
-    return sects.add(contour->addSegSect(ptT, this, 0, unsectableID, end  
+    return sects.add(contour->addSegSect(ptT, this, 0, usectID, end  
             OP_DEBUG_PARAMS(maker, line, file, SectReason::curveCurveUnsectable, oSeg)));
 }
 
@@ -304,7 +304,7 @@ void OpSegment::windCoincidences() {
     if (tangent.dx && tangent.dy)
         return;
     OP_ASSERT(tangent.dx || tangent.dy);
-    sects.windCoincidences(tangent, edges);
+    sects.windCoincidences(edges  OP_DEBUG_PARAMS(tangent));
 }
 
 bool OpSegment::debugFail() const {

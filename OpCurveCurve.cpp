@@ -46,19 +46,19 @@ SectFound OpCurveCurve::addUnsectable() {
 			if (flipped)
 				std::swap(oppStart, oppEnd); // flip to fix opp t (now opp pts are flipped vs. edge)
 			OpSegment* segment = const_cast<OpSegment*>(edge.segment);
-			int unsectableID = segment->nextID();
-			OpIntersection* segSect1 = segment->addUnsectable(edgeStart, unsectableID, 
-					false, opp.segment  OP_DEBUG_PARAMS(SECT_MAKER(unsectableStart)));
-			OpIntersection* segSect2 = segment->addUnsectable(edgeEnd, unsectableID,
-					true, opp.segment  OP_DEBUG_PARAMS(SECT_MAKER(unsectableEnd)));
+			int usectID = segment->nextID();
+			OpIntersection* segSect1 = segment->addUnsectable(edgeStart, usectID, 
+					MatchEnds::start, opp.segment  OP_DEBUG_PARAMS(SECT_MAKER(unsectableStart)));
+			OpIntersection* segSect2 = segment->addUnsectable(edgeEnd, usectID,
+					MatchEnds::end, opp.segment  OP_DEBUG_PARAMS(SECT_MAKER(unsectableEnd)));
 			OpSegment* oppSegment = const_cast<OpSegment*>(opp.segment);
 			OpIntersection* oppSect1 = oppSegment->addUnsectable(oppStart, 
-					flipped ? -unsectableID : unsectableID, flipped, segment  
+					flipped ? -usectID : usectID, flipped ? MatchEnds::end : MatchEnds::start, segment  
 					OP_DEBUG_PARAMS(
 				    flipped ? IntersectMaker::unsectableOppEnd : IntersectMaker::unsectableOppStart,
 					__LINE__, __FILE__));
 			OpIntersection* oppSect2 = oppSegment->addUnsectable(oppEnd, 
-					flipped ? -unsectableID : unsectableID, !flipped, segment  
+					flipped ? -usectID : usectID, flipped ? MatchEnds::start : MatchEnds::end, segment  
 					OP_DEBUG_PARAMS(
 				    flipped ? IntersectMaker::unsectableOppStart : IntersectMaker::unsectableOppEnd,
 					__LINE__, __FILE__));
@@ -256,7 +256,7 @@ bool OpCurveCurve::split(CurveRef curveRef, DoSplit doSplit) {
 					OP_DEBUG_PARAMS(EDGE_MAKER(split1), nullptr, nullptr));
 //					CurveRef::edge == curveRef ? originalEdge : originalOpp,
 //					CurveRef::edge == curveRef ? originalOpp : originalEdge));
-			if (splits.back().setLinear()) {
+			if (splits.back().isLinear()) {
 				lines.push_back(splits.back());
 				splits.pop_back();
 			}

@@ -36,7 +36,7 @@ void OpJoiner::addEdge(OpEdge* edge) {
 	OP_ASSERT(!edge->debugIsLoop());
 	if (edge->disabled || edge->unsortable)
 		return;
-	if (edge->unsectableID)
+	if (edge->pals.size())
 		unsectByArea.push_back(edge);
 	else
 		byArea.push_back(edge);
@@ -66,7 +66,7 @@ void OpJoiner::buildDisabled(OpContours& contours) {
 	for (auto& contour : contours.contours) {
 		for (auto& segment : contour.segments) {
 			for (auto& edge : segment.edges) {
-				if (edge.disabled && !edge.unsortable && !edge.unsectableID)
+				if (edge.disabled && !edge.unsortable && !edge.pals.size())
 					disabled.push_back(&edge);
 			}
 		}
@@ -125,7 +125,7 @@ bool OpJoiner::detachIfLoop(OpEdge* edge) {
 	// walk backwards to start
 	std::sort(edges.begin(), edges.end());
 	auto detachEdge = [this](OpEdge* edge, EdgeMatch match) {
-		if (edge->unsectableID || edge->unsortable)
+		if (edge->pals.size() || edge->unsortable)
 			return;	// skip unsectable, unsortable (for now)
 		if (OpEdge* detach = EdgeMatch::start == match ? edge->priorEdge : edge->nextEdge) {
 			EdgeMatch::start == match ? detach->clearNextEdge() : detach->clearPriorEdge();
@@ -445,7 +445,7 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 	if (found.size() > 1) {
 		for (auto& foundOne : found) {
 			OpEdge* oppEdge = foundOne.edge;
-			foundOne.connects = oppEdge->unsectableID || oppEdge->disabled 
+			foundOne.connects = oppEdge->pals.size() || oppEdge->disabled 
 					|| (((lastEdge->sum.sum() + oppEdge->sum.sum()) & 1) 
 			// e.g., one if last start-to-end connects to found start-to-end (end connects to start)
 					== (lastEdge->whichEnd != foundOne.whichEnd));

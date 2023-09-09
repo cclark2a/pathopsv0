@@ -93,7 +93,8 @@ OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
         const OpEdge* edge, const OpEdge* oEdge)) {
     OpIntersection* next = contours->allocateIntersection();
-    next->set(t, seg, 0, 0, false  OP_DEBUG_PARAMS(maker, line, file, reason, edge->id, oEdge->id));
+    next->set(t, seg, 0, 0, MatchEnds::none  
+            OP_DEBUG_PARAMS(maker, line, file, reason, edge->id, oEdge->id));
     return next;
 }
 
@@ -112,7 +113,7 @@ void OpContour::addLine(const OpPoint pts[2]) {
     segments.emplace_back(linePts, this  OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
 }
 
-OpIntersection* OpContour::addSegSect(const OpPtT& t, OpSegment* seg, int cID, int uID, bool end
+OpIntersection* OpContour::addSegSect(const OpPtT& t, OpSegment* seg, int cID, int uID, MatchEnds end
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason,
         const OpSegment* oSeg)) {
     OpIntersection* next = contours->allocateIntersection();

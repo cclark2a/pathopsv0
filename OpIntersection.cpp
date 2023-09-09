@@ -63,15 +63,16 @@ void OpIntersections::makeEdges(OpSegment* segment) {
             OpEdge& newEdge = segment->edges.back();
             if (unsectables.size()) {
                 const OpIntersection* unsectable = unsectables.back();
-                int unsectableID = abs(unsectable->unsectID);
+                int usectID = abs(unsectable->unsectID);
                 // check if the bounds of the edge intersects the bounds of the pal's intersections
-  //              OpPointBounds bounds;
+ //               OpPointBounds bounds;
  //               for (OpIntersection* pal : unsectable->opp->segment->sects.i) {
- //                   if (abs(pal->unsectID) == unsectableID)
+ //                   if (abs(pal->unsectID) == usectID)
  //                       bounds.add(pal->ptT.pt);
  //               }
  //               if (newEdge.ptBounds.intersects(bounds))
-                    newEdge.unsectableID = unsectableID;
+                newEdge.unsectableID = usectID;
+                newEdge.palSet = true;  // defer setting pal until all edges are made
             }
             if (last->betweenID > 0)
                 newEdge.setBetween();
@@ -155,8 +156,13 @@ void OpIntersections::sort() {
                 fixTs |= s1->ptT.pt == s2->ptT.pt;
                 return s1->ptT.t < s2->ptT.t;
             }
-            int id1 = s1->unsectID * (s1->unsectEnd ? -1 : 1);
-            int id2 = s2->unsectID * (s2->unsectEnd ? -1 : 1);
+            if (s1->unsectID || s2->unsectID) {
+                int id1 = s1->unsectID * (MatchEnds::end == s1->sectEnd ? -1 : 1);
+                int id2 = s2->unsectID * (MatchEnds::end == s2->sectEnd ? -1 : 1);
+                return id1 < id2;
+            }
+            int id1 = abs(s1->coincidenceID) * (MatchEnds::end == s1->sectEnd ? -1 : 1);
+            int id2 = abs(s2->coincidenceID) * (MatchEnds::end == s2->sectEnd ? -1 : 1);
             return id1 < id2;
         });
     if (!fixTs) {
@@ -189,78 +195,114 @@ void OpIntersections::sort() {
 }
 
 struct CoinPair {
-    CoinPair(OpEdge* o, OpEdge* l, int id)
-        : opp(o)
-        , last(l)
-        , coinID(id) 
-        , processed(false) {
+    CoinPair(OpIntersection* s, OpEdge* e, OpEdge* o, int id  OP_DEBUG_PARAMS(OpEdge* l))
+        : start(s)
+        , end(nullptr)
+        , oStart(s->opp)
+        , oEnd(nullptr)
+        , edge(e)
+        , oppEdge(o)
+        , coinID(id)
+        OP_DEBUG_PARAMS(lastEdge(l)) {
     }
-    OpEdge* opp;
-    OpEdge* last;
+    OpIntersection* start;
+    OpIntersection* end;
+    OpIntersection* oStart;
+    OpIntersection* oEnd;
+    OpEdge* edge;
+    OpEdge* oppEdge;
     int coinID;
-    bool processed;
+    OP_DEBUG_CODE(OpEdge* lastEdge);
 };
 
-void OpIntersections::windCoincidences(OpVector tangent, std::vector<OpEdge>& edges) {
+void OpIntersections::windCoincidences(std::vector<OpEdge>& edges  
+        OP_DEBUG_PARAMS(OpVector tangent)) {
     OP_ASSERT(!resort);
-    std::vector<CoinPair> coinPairs;
+    std::vector<CoinPair> pairs;
+    std::vector<int> disabled;
     OpEdge* edge = &edges.front();
     for (auto sectPtr : i) {
-        if (1 == sectPtr->ptT.t)
-            break;
-        if (edge->start.t != sectPtr->ptT.t) {
-            OP_ASSERT(edge->start.t < sectPtr->ptT.t);
-            OP_ASSERT(edge < &edges.back());
-            ++edge;
-            OP_ASSERT(edge->start.t == sectPtr->ptT.t);
-            for (auto& coinPair : coinPairs) {
-                if (coinPair.opp == coinPair.last)
-                    continue;
-                coinPair.coinID > 0 ?  ++coinPair.opp : --coinPair.opp;
-                coinPair.processed = false;
-            }
-        }
         int coinID = sectPtr->coincidenceID;
-        if (coinID) {
-            auto pairID = [coinID](CoinPair& pair) { 
-                return coinID == pair.coinID; 
-            };
-            auto coinIter = std::find_if(coinPairs.begin(), coinPairs.end(), pairID);
-            if (coinPairs.end() != coinIter) {
-                coinPairs.erase(coinIter);
-            } else {
-                OpSegment* oppSegment = sectPtr->opp->segment;
-                OP_ASSERT(tangent.dot(oppSegment->c.asLine().tangent())); 
-                auto& oppEdges = oppSegment->edges;
-                EdgeMatch match = coinID > 0 ? EdgeMatch::start : EdgeMatch::end;
-                OpEdge* oppEdge = &oppEdges.front();
-                while (oppEdge->ptT(match) != sectPtr->opp->ptT) {
-                    ++oppEdge;
-                    OP_ASSERT(oppEdge <= &oppEdges.back());
-                }
-                coinPairs.emplace_back(oppEdge, EdgeMatch::start == match ?
-                        &oppEdges.back() : &oppEdges.front(), coinID);
+        if (!coinID)
+            continue;
+        if (disabled.end() != std::find(disabled.begin(), disabled.end(), coinID))
+            continue;
+        auto pairIter = std::find_if(pairs.begin(), pairs.end(), [coinID](CoinPair& pair) { 
+            return coinID == pair.coinID; 
+        });
+        if (pairs.end() == pairIter) {  // set up start
+            while (edge->start.t != sectPtr->ptT.t) {
+                OP_ASSERT(edge->start.t < sectPtr->ptT.t);
+                OP_ASSERT(edge < &edges.back());
+                ++edge;
             }
-        } else if (coinPairs.empty())
-            continue;
-        if (edge->disabled)
-            continue;
-        for (auto& coinPair : coinPairs) {
-            if (coinPair.processed)
+            if (edge->disabled) {
+                disabled.push_back(coinID);
                 continue;
-            EdgeMatch match = coinPair.coinID > 0 ? EdgeMatch::start : EdgeMatch::end;
-            if (coinPair.opp->ptT(match).pt != sectPtr->ptT.pt)
+            }
+            OP_ASSERT(edge->start.t == sectPtr->ptT.t);
+            OpSegment* oppSegment = sectPtr->opp->segment;
+            OP_ASSERT(tangent.dot(oppSegment->c.asLine().tangent())); 
+            auto& oppEdges = oppSegment->edges;
+            EdgeMatch match = coinID > 0 ? EdgeMatch::start : EdgeMatch::end;
+            OpEdge* oppEdge = &oppEdges.front();
+            while (oppEdge->ptT(match) != sectPtr->opp->ptT) {
+                ++oppEdge;
+                OP_ASSERT(oppEdge <= &oppEdges.back());
+            }
+            if (oppEdge->disabled) {
+                disabled.push_back(coinID);
                 continue;
-            OP_ASSERT(edge->start.pt == coinPair.opp->ptT(match).pt);
-            OP_ASSERT(edge->end.pt == coinPair.opp->ptT(Opposite(match)).pt);
-            OpContours* contours = edge->segment->contour->contours;
-            edge->winding.move(coinPair.opp->winding, contours, coinPair.coinID < 0);
-            if (!edge->winding.visible())
-                edge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence));
-            coinPair.opp->winding.zero();
-            coinPair.opp->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence));
-            coinPair.processed = true;
+            }
+            pairs.emplace_back(sectPtr, edge, oppEdge, coinID
+                    OP_DEBUG_PARAMS(EdgeMatch::start == match ? &oppEdges.back() : &oppEdges.front()));
+        } else {    // set up end
+            OP_ASSERT(!pairIter->end);
+            pairIter->end = sectPtr;
+            pairIter->oEnd = sectPtr->opp;
         }
+    }    
+    for (auto& coinPair : pairs) {
+        EdgeMatch match = coinPair.coinID > 0 ? EdgeMatch::start : EdgeMatch::end;
+        OP_ASSERT(coinPair.oppEdge->ptT(match).pt == coinPair.start->ptT.pt);
+        OP_ASSERT(coinPair.edge->start == coinPair.start->ptT);
+        // In rare cases (e.g. issue1435) coincidence points may not match; one seg has extra.
+        // Defer thinking about this if the winding is uniform. Assert to fix this in the future.
+        edge = coinPair.edge;
+        OpEdge* edgeBack = edge;  // find final edge corresponding to final sect
+        while (edgeBack->end.t < coinPair.end->ptT.t) {
+            OP_ASSERT(edgeBack < &edges.back());
+            ++edgeBack;
+            // if assert, more code to write; add point if needed to edge list to match
+            OP_ASSERT(edge->winding == edgeBack->winding);
+        }
+        OP_ASSERT(edgeBack->end == coinPair.end->ptT);
+        OpEdge* oppEdge = coinPair.oppEdge;
+        OpEdge* oppBack = oppEdge;
+        while (oppBack->ptT(Opposite(match)).t != coinPair.oEnd->ptT.t) {
+            OP_ASSERT(coinPair.coinID > 0 ? oppBack < coinPair.lastEdge : oppBack > coinPair.lastEdge);
+            coinPair.coinID > 0 ? ++oppBack : --oppBack;
+            // more code to write; add point if needed to edge list to match
+            OP_ASSERT(oppEdge->winding == oppBack->winding);
+        }
+        OpContours* contours = edge->segment->contour->contours;
+        edge->winding.move(oppEdge->winding, contours, coinPair.coinID < 0);
+        OpWinding winding = edge->winding;
+        if (winding.visible()) {
+            while (edge != edgeBack)
+                (++edge)->winding = winding;
+        } else {
+            do {
+                edge->winding.zero();
+                edge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence));
+            } while (edge++ != edgeBack);
+        }
+        if (coinPair.coinID < 0)
+            std::swap(oppEdge, oppBack);
+        do {
+            oppEdge->winding.zero();
+            oppEdge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence));
+        } while (oppEdge++ != oppBack);
     }
 }
 

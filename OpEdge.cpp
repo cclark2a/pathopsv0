@@ -46,6 +46,12 @@ CalcFail OpEdge::addIfUR(Axis axis, float t, OpWinding* sumWinding) {
 	return CalcFail::none;
 }
 
+void OpEdge::addPal(EdgeDistance& dist) {
+	if (pals.end() == std::find_if(pals.begin(), pals.end(), 
+			[dist](auto pal) { return dist.edge == pal.edge; }))
+		pals.push_back(dist);
+}
+
 // given an intersecting ray and edge t, add or subtract edge winding to sum winding
 // but don't change edge's sum, since an unsectable edge does not allow that accumulation
 CalcFail OpEdge::addSub(Axis axis, float t, OpWinding* sumWinding) {
@@ -224,25 +230,6 @@ void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 	}
 }
 
-void OpEdge::markUnsectable(OpEdge* opp, Axis axis, float t, float oppT) {
-	NormalDirection edgeNorm = normalDirection(axis, t);
-	bool normalOK = NormalDirection::underflow != edgeNorm && NormalDirection::overflow != edgeNorm;		
-	NormalDirection oEdgeNorm = opp->normalDirection(axis, oppT);
-	normalOK &= NormalDirection::underflow != oEdgeNorm && NormalDirection::overflow != oEdgeNorm;
-	if (!normalOK) {
-		setUnsortable();
-		opp->setUnsortable();
-		return;
-	}
-	bool reversed = edgeNorm != oEdgeNorm;
-	// !!! assert here probably means more code needs to be written to handle 3 or more edges
-	// which are all unsectable with each other
-	OP_ASSERT(!unsectableID);
-	unsectableID = segment->nextID();
-	OP_ASSERT(!opp->unsectableID);
-	opp->unsectableID = reversed ? -unsectableID : unsectableID;
-}
-
 // keep only one unsectable from any set of pals
 void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsectInX,
 		std::vector<FoundEdge>& edges) {
@@ -311,7 +298,7 @@ NormalDirection OpEdge::normalDirection(Axis axis, float t) {
 }
 
 OpType OpEdge::type() {
-	return setLinear() ? OpType::line : segment->c.type; 
+	return isLinear() ? OpType::line : segment->c.type; 
 }
 
 // in function to make setting breakpoints easier
@@ -364,7 +351,7 @@ OpEdge* OpEdge::setLastEdge(OpEdge* old) {
 // this sets up the edge linked list to be suitable for joining another linked list
 // the edits are nondestructive 
 bool OpEdge::setLastLink(EdgeMatch match) {
-	if ((unsectableID || disabled || unsortable) && !priorEdge && !nextEdge) {
+	if ((pals.size() || disabled || unsortable) && !priorEdge && !nextEdge) {
 		if (EdgeMatch::none == whichEnd) {
 			whichEnd = match;
 			OP_ASSERT(!lastEdge);
@@ -388,7 +375,7 @@ bool OpEdge::setLastLink(EdgeMatch match) {
 // when comparing against a line, an edge close to zero can fall into denormalized numbers,
 //   causing the calling subdivision to continue for way too long. Using epsilon as a stopgap
 //   avoids this. The alternative would be to change the math to disallow denormalized numbers
-bool OpEdge::setLinear() {
+bool OpEdge::isLinear() {
 	if (lineSet)
 		return isLine_impl;
 	lineSet = true;
@@ -451,6 +438,8 @@ void OpEdge::setPriorEdge(OpEdge* edge) {
 }
 
 void OpEdge::setUnsortable() {
+	OpDebugBreak(this, 456);
+	OpDebugBreak(this, 418);
 	if (unsortable)
 		return;
 	unsortable = true;
@@ -473,7 +462,7 @@ void OpEdge::skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) {
 	std::vector<FoundEdge> sectables;
 	std::vector<FoundEdge> unsectables;
 	for (const auto& found : edges) {
-		if (found.edge->unsectableID)
+		if (found.edge->pals.size())
 			unsectables.push_back(found);
 		else
 			sectables.push_back(found);
@@ -484,12 +473,12 @@ void OpEdge::skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) {
 	first->setLastEdge(nullptr);
 	for (unsigned outer = 1; outer < unsectables.size(); ++outer) {
 		FoundEdge& keeper = unsectables[outer - 1];	// note: cannot underflow
+		auto& kPals = keeper.edge->pals;
 		OpRect bestBounds = first->setLinkBounds().add(keeper.edge->ptBounds);
-		int oID = abs(keeper.edge->unsectableID);
 		for (unsigned inner = outer; inner < unsectables.size(); ++inner) {
 			FoundEdge& test = unsectables[inner];
-			int iID = abs(test.edge->unsectableID);
-			if (oID != iID)
+			if (kPals.end() != std::find_if(kPals.begin(), kPals.end(), [&test](auto kPal) {
+					return kPal.edge == test.edge; }))
 				continue;
 			duplicates = true;
 			OpRect testBounds = first->setLinkBounds().add(test.edge->ptBounds);
