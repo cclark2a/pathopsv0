@@ -161,23 +161,21 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 	// assign a new or existing coin id if sect doesn't already have one
 	// this is called in cases as simple as two coincident line segments
 	if (!aInCoincidence) {
-		if (sect1) {
-			OP_ASSERT(0);	// not sure what this code is doing; document, include test that triggers
+		if (sect1) {  // segment already has intersection (segment start); e.g., line doubles back
 			OP_ASSERT(!sect1->coincidenceID);
 			sect1->coincidenceID = coinID;
 			OP_ASSERT(MatchEnds::none == sect1->sectEnd);
-			sect1->sectEnd = MatchEnds::start;	// !!! added without testing
+			sect1->sectEnd = MatchEnds::start;
 		} else	// or if it doesn't exist and isn't in a coin range, make one
 			sect1 = segment->addCoin(aPtT, coinID, MatchEnds::start
 				OP_DEBUG_PARAMS(SECT_MAKER(addPair_aPtT), SectReason::coinPtsMatch, oppSegment));
 	}
 	if (!bInCoincidence) {
-		if (sect2) {
-			OP_ASSERT(0);	// not sure what this code is doing; document, include test that triggers
+		if (sect2) {  // segment already has intersection (segment end); e.g., line doubles back
 			OP_ASSERT(!sect2->coincidenceID);
 			sect2->coincidenceID = coinID;
 			OP_ASSERT(MatchEnds::none == sect2->sectEnd);
-			sect2->sectEnd = MatchEnds::end;	// !!! added without testing
+			sect2->sectEnd = MatchEnds::end;
 		} else
 			sect2 = segment->addCoin(bPtT, coinID, MatchEnds::end
 				OP_DEBUG_PARAMS(SECT_MAKER(addPair_bPtT), SectReason::coinPtsMatch, oppSegment));
@@ -204,8 +202,7 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 		oSect1 = oppSegment->addCoin(oCoinStart, coinID, flipped ? MatchEnds::end : MatchEnds::start
 				OP_DEBUG_PARAMS(SECT_MAKER(addPair_oppStart), SectReason::coinPtsMatch, segment));
 		sect1->pair(oSect1);
-	} else {
-		OP_ASSERT(0);	// not sure what this code is doing; document, include test that triggers
+	} else {  // segment already has intersection (start or end); e.g., line doubles back
 		if (!(inCoinRange(oRange, oSect1->ptT.t, nullptr) & 1)) {
 			OP_ASSERT(!oSect1->coincidenceID);
 			oSect1->coincidenceID = coinID;
@@ -220,8 +217,7 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 		oSect2 = oppSegment->addCoin(oCoinEnd, coinID, flipped ? MatchEnds::start : MatchEnds::end
 				OP_DEBUG_PARAMS(SECT_MAKER(addPair_oppEnd), SectReason::coinPtsMatch, segment));
 		sect2->pair(oSect2);
-	} else {
-		OP_ASSERT(0);	// not sure what this code is doing; document, include test that triggers
+	} else {  // segment already has intersection (start or end); e.g., line doubles back
 		if (!(inCoinRange(oRange, oSect2->ptT.t, nullptr) & 1)) {
 			OP_ASSERT(!oSect2->coincidenceID);
 			oSect2->coincidenceID = coinID;
@@ -621,8 +617,10 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 	for (const auto& pal : home->pals) {
 		home->winding.move(pal.edge->winding, contours, pal.reversed);
 	}
-	if (CalcFail::fail == home->addIfUR(ray.axis, homeT, &sumWinding))
-		OP_DEBUG_FAIL(*home, ResolveWinding::fail);
+	if (CalcFail::fail == home->addIfUR(ray.axis, homeT, &sumWinding)) {
+		home->setUnsortable();
+		return ResolveWinding::resolved;  // failed, but not fatally
+	}
 	OP_EDGE_SET_SUM(home, sumWinding);
 	std::swap(home->many, home->winding);  // restore winding, put total of pals in many
 	return ResolveWinding::resolved;	   // (will copy many to winding after all many are found)

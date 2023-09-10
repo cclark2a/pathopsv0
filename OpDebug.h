@@ -68,6 +68,8 @@ struct OpContours;
 #define OP_DEBUG_IMAGE (PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_SKIA)
 #define OP_DEBUG_INITIALIZE_TO_SILENCE_WARNING = 0
 
+// Use these defines where failure or success is logical, but we want it to break to verify
+// that the decision is correct. Once verified, the macro is replaced with an error return.
 #define OP_DEBUG_FAIL(object, returnValue) \
 	do { if (!(object).debugFail()) OP_DEBUG_BREAK(); return returnValue; } while (false)
 #define OP_DEBUG_SUCCESS(object, returnValue) \

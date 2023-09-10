@@ -30,6 +30,7 @@ struct OpJoiner {
 	void addEdge(OpEdge* );
 	void addToLinkups(OpEdge* );
 	void buildDisabled(OpContours& );
+	void buildDisabledPals(OpContours& );
 	bool detachIfLoop(OpEdge* );
 	bool linkRemaining();
 	void linkUnambiguous();
@@ -53,11 +54,13 @@ struct OpJoiner {
 	std::vector<OpEdge*> byArea;
 	std::vector<OpEdge*> unsectByArea;
 	std::vector<OpEdge*> disabled;
+	std::vector<OpEdge*> disabledPals;
     std::vector<OpEdge*>& unsortables;
 	LinkUps linkups;  // a structure to allow data specific debugging / dumping
 	EdgeMatch linkMatch;
 	LinkPass linkPass;
 	bool disabledBuilt;
+	bool disabledPalsBuilt;
 };
 
 #endif

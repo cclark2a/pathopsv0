@@ -9,7 +9,8 @@ OpJoiner::OpJoiner(OpContours& contours, OpOutPath& p)
 	, unsortables(contours.unsortables)
 	, linkMatch(EdgeMatch::none)
 	, linkPass(LinkPass::none)
-	, disabledBuilt(false) {
+	, disabledBuilt(false)
+	, disabledPalsBuilt(false) {
 	for (auto& contour : contours.contours) {
 		for (auto& segment : contour.segments) {
 			for (auto& edge : segment.edges) {
@@ -72,6 +73,18 @@ void OpJoiner::buildDisabled(OpContours& contours) {
 		}
 	}
 	disabledBuilt = true;
+}
+
+void OpJoiner::buildDisabledPals(OpContours& contours) {
+	for (auto& contour : contours.contours) {
+		for (auto& segment : contour.segments) {
+			for (auto& edge : segment.edges) {
+				if (edge.disabled && !edge.unsortable && edge.pals.size() && !edge.inOutput)
+					disabledPals.push_back(&edge);
+			}
+		}
+	}
+	disabledPalsBuilt = true;
 }
 
 struct LoopCheck {
@@ -184,8 +197,17 @@ bool OpJoiner::linkRemaining() {
 		// sort to process largest first
 		// !!! could optimize to avoid search, but for now, this is the simplest
 		linkups.sort();
-		OP_DEBUG_CODE(if (-1 == debugLoopCounter) OP_DEBUG_BREAK());
-        if (!matchLinks(linkups.l.back(), true))
+		OP_DEBUG_CODE(if (-2 == debugLoopCounter) OP_DEBUG_BREAK());
+		OpEdge* lastEdge;
+		for (;;) {
+			lastEdge = linkups.l.back();
+			if (!lastEdge->disabled)  // may be pal whose partner has already been added (loops44i)
+				break;
+			linkups.l.pop_back();
+			if (!linkups.l.size())
+				return true;
+		}
+        if (!matchLinks(lastEdge, true))
 			return false;
 		OP_DEBUG_CODE(++debugLoopCounter);
     }
@@ -331,6 +353,13 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 				}
 			}
 		}
+	}
+	// look for disabled pal that is not in output, and completes loop (cubics14d)
+	if (!found.size()) {
+		if (!disabledPalsBuilt)
+			buildDisabledPals(*edge->segment->contour->contours);
+		matchLeftover(matchPt, disabledPals, found);
+		OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
 	}
 	if (!found.size()) {
 		matchLeftover(matchPt, unsortables, found);

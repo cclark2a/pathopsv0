@@ -42,7 +42,7 @@ CalcFail OpEdge::addIfUR(Axis axis, float t, OpWinding* sumWinding) {
 	if (NormalDirection::upRight == NdotR)
 		*sumWinding += winding;
 	else if (NormalDirection::downLeft != NdotR)
-		OP_DEBUG_FAIL(*this, CalcFail::fail);
+		return CalcFail::fail; // e.g., may underflow if edge is too small
 	return CalcFail::none;
 }
 
