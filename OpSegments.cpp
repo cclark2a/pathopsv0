@@ -67,10 +67,10 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
         opp->ptBounds.pin(&oppPtT.pt);
         edgePtTs.emplace_back(oppPtT.pt, edgeT);
         OpPtT& edgePtT = edgePtTs.back();
-        if (MatchEnds::start == existingMatch && (edgePtT.pt == seg->c.pts[0] || 0 == edgeT
+        if ((int) MatchEnds::start & (int) existingMatch && (edgePtT.pt == seg->c.pts[0] || 0 == edgeT
                 || oppPtT.pt == opp->c.lastPt() || 1 == oppPtT.t))
             continue;
-        if (MatchEnds::end == existingMatch && (edgePtT.pt == seg->c.lastPt() || 1 == edgeT
+        if ((int) MatchEnds::end & (int) existingMatch && (edgePtT.pt == seg->c.lastPt() || 1 == edgeT
                 || oppPtT.pt == opp->c.pts[0] || 0 == oppPtT.t))
             continue;
         for (size_t earlier = 1; earlier < oppPtTs.size(); ++earlier) {

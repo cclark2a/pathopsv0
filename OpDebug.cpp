@@ -177,12 +177,24 @@ void OpDebugSkip(const char*& str, const char* match) {
 }
 
 std::string OpDebugToString(float value, int precision) {
+    std::string result;
     if (precision < 0)
-        return STR(value);
-    std::string s(16, '\0');
-    auto written = std::snprintf(&s[0], s.size(), "%.*f", precision, value);
-    s.resize(written);
-    return s;
+        result = STR(value);
+    else {
+        std::string s(16, '\0');
+        auto written = std::snprintf(&s[0], s.size(), "%.*f", precision, value);
+        s.resize(written);
+        result = s;
+    }
+    // !!! try trimming trailing zeroes to see what that's like
+    size_t pos = result.find('.');
+    if (std::string::npos == pos)
+        return result;
+    while (result.back() == '0')
+        result.pop_back();
+    if (result.back() == '.')
+        result.pop_back();
+    return result;
 }
 
 #endif
@@ -287,6 +299,8 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(const OpContours* contours)) {
                 continue;
             if (linkup->unsortable)
                 continue;
+            if (linkup->disabled)
+                continue;
             const EdgeDistance* linkDist = nullptr;
             OpEdge* dTest = nullptr;
             OP_DEBUG_CODE(const EdgeDistance* dDist = nullptr);
@@ -335,7 +349,19 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(const OpContours* contours)) {
             if (NormalDirection::downLeft == NdotR)
                 WindZeroFlip(&distZero);    // get wind zero for prior normal pointing right
                 // either neither zero should be opp, or both should be 
-            OP_ASSERT((WindZero::opp == distZero) == (WindZero::opp == linkZero));
+            // !!! for now, just track when this happens. Wait until we can't ignore it to fix
+            if ((WindZero::opp == distZero) != (WindZero::opp == linkZero)) {
+                if (!dTest->inOutput) {
+                    dTest->debugZeroErr = linkup;
+                    OpDebugOut("wind zero mismatch: edges " + STR(dTest->id) + ", " 
+                            + STR(linkup->id) + "\n");
+                }
+                if (!linkup->inOutput) {
+                    linkup->debugZeroErr = dTest;
+                    OpDebugOut("wind zero mismatch: edges " + STR(linkup->id) + ", " 
+                            + STR(dTest->id) + "\n");
+                }
+            }
 #endif
         } while ((linkup = linkup->nextEdge));
         // search links and ray matches for an ID

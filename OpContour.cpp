@@ -17,7 +17,8 @@ bool OpContour::addClose() {
     return true;
 }
 
-void OpContour::addConic(const OpPoint pts[3], float weight) {
+void OpContour::addConic(OpPoint pts[3], float weight) {
+    OpMath::ZeroTiny(pts, 3);
     if (pts[0] == pts[2])   // !!! should be fill only, not frame
         return;
     OpTightBounds bounds;
@@ -53,7 +54,8 @@ void OpContour::addConic(const OpPoint pts[3], float weight) {
     }
 }
 
-void OpContour::addCubic(const OpPoint pts[4]) {
+void OpContour::addCubic(OpPoint pts[4]) {
+    OpMath::ZeroTiny(pts, 4);
     // reduction to point if pt 0 equals pt 3 complicated since it requires pts 1, 2 be linear..
     OP_ASSERT(pts[0] != pts[3]); // !!! detect possible degenerate to code from actual test data
     OpTightBounds bounds;
@@ -106,7 +108,8 @@ OpEdge* OpContour::addFiller(OpIntersection* start, OpIntersection* end) {
     return filler;
 }
 
-void OpContour::addLine(const OpPoint pts[2]) {
+void OpContour::addLine(OpPoint pts[2]) {
+    OpMath::ZeroTiny(pts, 2);
     if (pts[0] == pts[1])   // !!! should be fill only, not frame
         return;
     LinePts linePts = {{ pts[0], pts[1] }};
@@ -121,7 +124,8 @@ OpIntersection* OpContour::addSegSect(const OpPtT& t, OpSegment* seg, int cID, i
     return next;
 }
 
-void OpContour::addQuad(const OpPoint pts[3]) {
+void OpContour::addQuad(OpPoint pts[3]) {
+    OpMath::ZeroTiny(pts, 3);
     if (pts[0] == pts[2])   // !!! should be fill only, not frame
         return;
     OpTightBounds bounds;

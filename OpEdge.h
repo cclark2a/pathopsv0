@@ -354,15 +354,10 @@ enum class WhichLoop {
 enum class EdgeMaker {
 	empty,
 	filler,
-	intersectEdge1,
-	intersectEdge2,
 	makeEdges,
 	oppSect,
-	resolveCoin1,
-	resolveCoin2,
 	segSect,
 	split1,
-	split2,
 	// tests only
 	addTest,
 	opTest,
@@ -402,6 +397,7 @@ private:
 		debugStart = nullptr;
 		debugEnd = nullptr;
 		debugMatch = nullptr;
+		debugZeroErr = nullptr;
 		debugMaker = EdgeMaker::empty;
 		debugZero = ZeroReason::uninitialized;
 		debugOutPath = 0;
@@ -580,6 +576,7 @@ public:
 	const OpIntersection* debugStart;
 	const OpIntersection* debugEnd;
 	OpEdge* debugMatch;  // left side of nonzero ray from this edge
+	OpEdge* debugZeroErr;  // debug match ray found edge that does not match -- diagnostic for now
 	EdgeMaker debugMaker;
 	ZeroReason debugZero;	// why edge was disabled
 	OpDebugMaker debugSetMaker;

@@ -260,7 +260,7 @@ MatchEnds OpSegment::matchEnds(const OpSegment* opp, bool* reversed, MatchSect m
     else if (c.lastPt() == opp->c.lastPt())
         foundEnd = true;
     if (foundEnd) {
-        result = (MatchEnds)((int) result | (int) MatchEnds::end);
+        result = (MatchEnds) ((int) result | (int) MatchEnds::end);
         OP_ASSERT(MatchEnds::end == result || MatchEnds::both == result);
     }
     if (MatchEnds::none == result || MatchEnds::both == result)
@@ -273,15 +273,14 @@ MatchEnds OpSegment::matchEnds(const OpSegment* opp, bool* reversed, MatchSect m
 }
 
 MatchEnds OpSegment::matchExisting(const OpSegment* opp) const {
-    if (contour != opp->contour || 2 == contour->segments.size())
-        return MatchEnds::none;
-    if (this + 1 == opp
-            || (&contour->segments.front() == opp && &contour->segments.back() == this))
-        return MatchEnds::end;
-    if (this - 1 == opp
-            || (&contour->segments.front() == this && &contour->segments.back() == opp))
-        return MatchEnds::start;
-    return MatchEnds::none;
+    MatchEnds result = MatchEnds::none;
+    if (contour != opp->contour)  //  || 2 == contour->segments.size() : curve/line e.g. cubicOp97x
+        return result;
+    if (this - 1 == opp || (&contour->segments.front() == this && &contour->segments.back() == opp))
+        result = MatchEnds::start;
+    if (this + 1 == opp || (&contour->segments.front() == opp && &contour->segments.back() == this))
+        result = (MatchEnds) ((int) result | (int) MatchEnds::end);
+    return result;
 }
 
 int OpSegment::nextID(OpContour* contourPtr) const {

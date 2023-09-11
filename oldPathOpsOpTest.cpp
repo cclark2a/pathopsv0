@@ -9358,7 +9358,7 @@ SkPathOp op = kUnion_SkPathOp;
 }
 
 static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
-static void (*firstTest)(skiatest::Reporter* , const char* filename) = testRect2;
+static void (*firstTest)(skiatest::Reporter* , const char* filename) = skpact_com43;
 static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 
 #define TEST(name) { name, #name }
@@ -9567,9 +9567,6 @@ static struct TestDesc tests[] = {
     TEST(cubicOp100),
     TEST(cubicOp99),
     TEST(issue1435),
-
-
-    // untested / not working
     TEST(cubicOp98x),
     TEST(cubicOp97x),
     TEST(skpcarpetplanet_ru22),
@@ -9592,6 +9589,8 @@ static struct TestDesc tests[] = {
     TEST(skpcavablar_net563),
     TEST(skpinsomnia_gr72),
     TEST(skpadbox_lt8),
+
+    // untested / not working
     TEST(skpact_com43),
     TEST(skpacesoftech_com47),
     TEST(skpabcspark_ca103),

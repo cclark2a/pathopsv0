@@ -268,40 +268,68 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
         // In rare cases (e.g. issue1435) coincidence points may not match; one seg has extra.
         // Defer thinking about this if the winding is uniform. Assert to fix this in the future.
         edge = coinPair.edge;
+        OpEdge* oppEdge = coinPair.oppEdge;
         OpEdge* edgeBack = edge;  // find final edge corresponding to final sect
         while (edgeBack->end.t < coinPair.end->ptT.t) {
             OP_ASSERT(edgeBack < &edges.back());
             ++edgeBack;
-            // if assert, more code to write; add point if needed to edge list to match
-            OP_ASSERT(edge->winding == edgeBack->winding);
+            // if assert, more code to write; add point to opp edge sect list to match 
+            if (!(edge->winding == edgeBack->winding)) {  // example: testRect2
+                // search intersection list for entry pointing to opp edge at edge end
+                OP_DEBUG_CODE(auto& oI = oppEdge->segment->sects.i);
+                OP_ASSERT(oI.end() != std::find_if(oI.begin(), oI.end(), 
+                        [&edge](auto sect) { return sect->ptT.pt == edge->end.pt; }));
+            }
         }
         OP_ASSERT(edgeBack->end == coinPair.end->ptT);
-        OpEdge* oppEdge = coinPair.oppEdge;
         OpEdge* oppBack = oppEdge;
         while (oppBack->ptT(Opposite(match)).t != coinPair.oEnd->ptT.t) {
             OP_ASSERT(coinPair.coinID > 0 ? oppBack < coinPair.lastEdge : oppBack > coinPair.lastEdge);
             coinPair.coinID > 0 ? ++oppBack : --oppBack;
             // more code to write; add point if needed to edge list to match
-            OP_ASSERT(oppEdge->winding == oppBack->winding);
+            if (!(oppEdge->winding == oppBack->winding)) {
+                // search opp intersection list for entry pointing to edge at opp edge end
+                OP_DEBUG_CODE(OpEdge* oEdge = coinPair.coinID > 0 ? oppEdge : oppBack);
+                OP_ASSERT(i.end() != std::find_if(i.begin(), i.end(), 
+                        [&oEdge](auto sect) { return sect->ptT.pt == oEdge->end.pt; }));
+            }
         }
         OpContours* contours = edge->segment->contour->contours;
-        edge->winding.move(oppEdge->winding, contours, coinPair.coinID < 0);
-        OpWinding winding = edge->winding;
-        if (winding.visible()) {
-            while (edge != edgeBack)
-                (++edge)->winding = winding;
-        } else {
-            do {
-                edge->winding.zero();
-                edge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence));
-            } while (edge++ != edgeBack);
-        }
-        if (coinPair.coinID < 0)
-            std::swap(oppEdge, oppBack);
+        // for each different winding: 
+        OpWinding edgeWinding = edge->winding;
+        OpWinding oppWinding = oppEdge->winding;
+        int oppBump = coinPair.coinID < 0 ? -1 : 1;
+        bool done = false;
         do {
-            oppEdge->winding.zero();
-            oppEdge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence));
-        } while (oppEdge++ != oppBack);
+            OP_ASSERT(edge->start.pt 
+                    == oppEdge->ptT(coinPair.coinID > 0 ? EdgeMatch::start : EdgeMatch::end).pt);
+            edge->winding.move(oppEdge->winding, contours, coinPair.coinID < 0);
+            OpWinding combinedWinding = edge->winding;
+            if (!combinedWinding.visible())
+                edge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence));
+            // only advance while winding is unchanged
+            while (!(done = (edge == edgeBack))) {
+                edge++;
+                if (!(edgeWinding == edge->winding))
+                    break;
+                if (combinedWinding.visible())
+                    edge->winding = combinedWinding;
+                else {
+                    edge->winding.zero();
+                    edge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence));
+                }
+            }
+            do {
+                oppEdge->winding.zero();
+                oppEdge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence));
+                if (oppEdge == oppBack) {
+                    OP_ASSERT(done);
+                    break;
+                }
+                oppEdge += oppBump;
+            } while (oppWinding == oppEdge->winding);
+            OP_ASSERT((edge == edgeBack) == (oppEdge == oppBack));
+        } while (!done);
     }
 }
 

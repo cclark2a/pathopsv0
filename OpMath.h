@@ -408,6 +408,13 @@ struct OpPoint {
     SkPoint toSkPoint() const;
 #endif
 
+    void zeroTiny() {  // set denormalized inputs to zero
+        if (fabsf(x) < OpEpsilon)
+            x = 0;
+        if (fabsf(y) < OpEpsilon)
+            y = 0;
+    }
+
 #if OP_DEBUG_DUMP
     OpPoint(const char*& );
     std::string debugDump() const;
@@ -638,6 +645,11 @@ struct OpMath {
     // example: finding extrema of cubic (3, 0, -2/3, 1) (see loop9)
     static OpRoots QuadRootsInteriorT(float A, float B, float C) {
         return QuadRootsDouble(A, B, C).keepInteriorTs();
+    }
+
+    static void ZeroTiny(OpPoint* pts, size_t count) {
+        for (size_t index = 0; index < count; ++index)
+            pts[index].zeroTiny();
     }
 
 #if OP_DEBUG

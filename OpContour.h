@@ -34,8 +34,8 @@ struct OpContour {
     }
 
     bool addClose();
-    void addConic(const OpPoint pts[3], float weight);
-    void addCubic(const OpPoint pts[4]);
+    void addConic(OpPoint pts[3], float weight);
+    void addCubic(OpPoint pts[4]);
     OpIntersection* addEdgeSect(const OpPtT& t, OpSegment* seg
             OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
             const OpEdge* edge, const OpEdge* oEdge));
@@ -43,8 +43,8 @@ struct OpContour {
     OpIntersection* addSegSect(const OpPtT& t, OpSegment* seg, int cID, int uID, MatchEnds end
             OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
             const OpSegment* oSeg));
-    void addLine(const OpPoint pts[2]);
-    void addQuad(const OpPoint pts[3]);
+    void addLine(OpPoint pts[2]);
+    void addQuad(OpPoint pts[3]);
 
     void apply() {
         for (auto& segment : segments) {

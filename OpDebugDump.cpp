@@ -897,15 +897,10 @@ struct EdgeMakerName {
 static EdgeMakerName edgeMakerNames[] {
     EDGE_MAKER_NAME(empty),
     EDGE_MAKER_NAME(filler),
-    EDGE_MAKER_NAME(intersectEdge1),
-    EDGE_MAKER_NAME(intersectEdge2),
     EDGE_MAKER_NAME(makeEdges),
     EDGE_MAKER_NAME(oppSect),
-    EDGE_MAKER_NAME(resolveCoin1),
-    EDGE_MAKER_NAME(resolveCoin2),
     EDGE_MAKER_NAME(segSect),
     EDGE_MAKER_NAME(split1),
-    EDGE_MAKER_NAME(split2),
     EDGE_MAKER_NAME(addTest),
     EDGE_MAKER_NAME(opTest),
 };

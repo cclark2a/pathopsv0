@@ -15,6 +15,7 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight
 	debugSetMaker = { file, line };
 	debugParentID = edge->id;
 #endif	
+
 	complete();
 }
 
