@@ -14,6 +14,7 @@ constexpr auto to_array(T&&... t)->std::array < V, sizeof...(T) > {
 
 #if OP_DEBUG || OP_DEBUG_IMAGE || OP_DEBUG_DUMP
 OpContours* debugGlobalContours;
+int debugTestsRun = 0;
 #endif
 
 #if OP_DEBUG || OP_RELEASE_TEST
@@ -288,6 +289,9 @@ void OpEdge::debugValidate() const {
 // also assign that ID to edges whose non-zero crossing rays attach to those edges
 void OpJoiner::debugMatchRay(OP_DEBUG_CODE(const OpContours* contours)) {
     OP_DEBUG_CODE(bool mayFail = OpDebugExpect::unknown == contours->debugExpect);
+                    // !!! logic needs work in xor case ...
+    if (OpOperator::ExclusiveOr == contours->opOperator)
+        return;
     OpDebugOut("");
 	for (auto linkup : linkups.l) {
         OP_ASSERT(!linkup->priorEdge);
@@ -329,8 +333,7 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(const OpContours* contours)) {
                 WindZeroFlip(&linkZero);    // get wind zero for edge normal pointing left
             if (WindZero::opp == linkZero) {
 #if OP_DEBUG
-                OP_ASSERT(dTest);
-                if (!dTest->inLinkups) {
+                if (dTest && !dTest->inLinkups) {
                     bool found = false;
                     for (auto& pal : dTest->pals)
                         found |= pal.edge->inLinkups;
@@ -339,7 +342,10 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(const OpContours* contours)) {
                     OP_ASSERT(found || mayFail);
                 }
 #endif
-                linkup->debugMatch = dTest;
+                if (dTest)
+                    linkup->debugMatch = dTest;
+                else
+                    OpDebugOut("wind zero missing: edge " + STR(linkup->id) + "\n");
             }
 #if OP_DEBUG
             if (!dTest)

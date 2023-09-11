@@ -617,6 +617,42 @@ void OpDebugImage::drawGrid() {
 	int yInterval = std::max(1, (bottomH - topH) / yGridIntervals);
 	int leftS, topS, rightS, bottomS;
 	DebugOpScreenBounds(leftS, topS, rightS, bottomS);
+	bool hexOverflow = false;
+	for (int x = leftH; x <= rightH; x += xInterval) {
+		if (--xGridIntervals < -gridIntervals) {
+			hexOverflow = true;
+			break;
+		}
+	}
+	for (int y = topH; y <= bottomH; y += yInterval) {
+		if (--yGridIntervals < -gridIntervals) {
+			hexOverflow = true;
+			break;
+		}
+	}
+	// doesn't work if hex intervals are large
+	if (hexOverflow) {
+		for (double fx = left; fx < right; fx += (right - left) / gridIntervals) {
+			float sx = leftS + (fx - left) / (right - left) * (rightS - leftS);
+			offscreen.drawLine(sx, topS, sx, bottomS, paint);
+			if (!drawValuesOn)
+				continue;
+			std::string xValStr = OpDebugToString(fx, valuePrecision);
+			offscreen.drawString(SkString(xValStr), sx + xOffset, bitmapWH - xOffset, labelFont, textPaint);
+		}
+		for (double fy = top; fy < bottom; fy += (bottom - top) / gridIntervals) {
+			float sy = topS + (fy - top) / (bottom - top) * (bottomS - topS);
+			offscreen.drawLine(leftS, sy, rightS, sy, paint);
+			if (!drawValuesOn)
+				continue;
+			offscreen.save();
+			offscreen.rotate(-90, 15, sy - xOffset);
+			std::string yValStr = OpDebugToString(fy, valuePrecision);
+			offscreen.drawString(SkString(yValStr), 15, sy - xOffset, labelFont, textPaint);
+			offscreen.restore();
+		}
+		return;
+	}
 	for (int x = leftH; x <= rightH; x += xInterval) {
 		float fx = OpDebugBitsToFloat(x);
 		float sx = leftS + (fx - left) / (right - left) * (rightS - leftS);

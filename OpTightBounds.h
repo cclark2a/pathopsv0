@@ -180,8 +180,8 @@ struct OpTightBounds : OpPointBounds {
         if (!cubic.monotonic(XyChoice::inX)) {
             OpRoots extremaTs = cubic.extrema(XyChoice::inX);
             int count = extremaTs.count;
-            if (!count)
-                cubic.pinCtrls(XyChoice::inX);
+//            if (!count)  // if there's no extrema, pinning the control points on the original cubic is wrong (cubicOp66u)
+//                cubic.pinCtrls(XyChoice::inX);  // if needed, document when and why
             while (count--) {
                 xExtrema[count] = { add(cubic.ptAtT(extremaTs.roots[count])), extremaTs.roots[count] };
             }
@@ -189,9 +189,9 @@ struct OpTightBounds : OpPointBounds {
         if (!cubic.monotonic(XyChoice::inY)) {
             OpRoots extremaTs = cubic.extrema(XyChoice::inY);
             int count = extremaTs.count;
-            if (!extremaTs.count)
-                cubic.pinCtrls(XyChoice::inY);
-              while (count--) {
+//            if (!count)
+//                cubic.pinCtrls(XyChoice::inY);
+            while (count--) {
                 yExtrema[count] = { add(cubic.ptAtT(extremaTs.roots[count])), extremaTs.roots[count] };
             }
         }

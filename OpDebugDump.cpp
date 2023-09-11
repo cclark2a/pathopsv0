@@ -1000,7 +1000,9 @@ static DebugReasonName debugReasonNames[] {
     REASON_NAME(applyOp),
     REASON_NAME(centerNaN),
     REASON_NAME(findCoincidences),
-    REASON_NAME(hvCoincidence),
+    REASON_NAME(hvCoincidence1),
+    REASON_NAME(hvCoincidence2),
+    REASON_NAME(hvCoincidence3),
     REASON_NAME(isPoint),
     REASON_NAME(noFlip),
     REASON_NAME(none)

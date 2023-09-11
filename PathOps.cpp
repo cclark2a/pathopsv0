@@ -27,7 +27,9 @@ bool DebugPathOps(OpInPath left, OpInPath right, OpOperator opOperator, OpOutPat
     OpDebugImage::init(left.skPath, right.skPath);
     oo();
 #endif
-    return contourList.pathOps(result);
+    bool success = contourList.pathOps(result);
+    ++debugTestsRun;
+    return success;
 }
 #endif
 

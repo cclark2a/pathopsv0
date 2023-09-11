@@ -126,6 +126,7 @@ struct OpDebugMaker {
 };
 
 extern OpContours* debugGlobalContours;
+extern int debugTestsRun;
 
 float OpDebugBitsToFloat(int32_t);
 std::string OpDebugDump(float);

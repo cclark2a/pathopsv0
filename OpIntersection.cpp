@@ -306,7 +306,9 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
             edge->winding.move(oppEdge->winding, contours, coinPair.coinID < 0);
             OpWinding combinedWinding = edge->winding;
             if (!combinedWinding.visible())
-                edge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence));
+                edge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence1));
+            else if (edge->disabled)
+                edge->reenable();  // un-disable it; was disabled from earlier coincidence
             // only advance while winding is unchanged
             while (!(done = (edge == edgeBack))) {
                 edge++;
@@ -316,12 +318,12 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
                     edge->winding = combinedWinding;
                 else {
                     edge->winding.zero();
-                    edge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence));
+                    edge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence2));
                 }
             }
             do {
                 oppEdge->winding.zero();
-                oppEdge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence));
+                oppEdge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence3));
                 if (oppEdge == oppBack) {
                     OP_ASSERT(done);
                     break;

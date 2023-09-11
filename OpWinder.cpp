@@ -558,13 +558,15 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 	OP_ASSERT(ray.distances.size());
 	if (1 == ray.distances.size()) {
 		OP_ASSERT(home == ray.distances[0].edge);
-		OP_ASSERT(!home->pals.size());
-		OP_ASSERT(!home->unsectableID);
-		OpWinding prev(WindingTemp::dummy);
-		// look at direction of edge relative to ray and figure winding/oppWinding contribution
-		if (CalcFail::fail == home->addIfUR(ray.axis, ray.distances[0].t, &prev))
-			OP_DEBUG_FAIL(*home, ResolveWinding::fail);
-		OP_EDGE_SET_SUM(home, prev);
+		if (home->pals.size() || home->unsectableID)
+			home->setUnsortable();
+		else {
+			OpWinding prev(WindingTemp::dummy);
+			// look at direction of edge relative to ray and figure winding/oppWinding contribution
+			if (CalcFail::fail == home->addIfUR(ray.axis, ray.distances[0].t, &prev))
+				OP_DEBUG_FAIL(*home, ResolveWinding::fail);
+			OP_EDGE_SET_SUM(home, prev);
+		}
 		return ResolveWinding::resolved;
 	}
 	// starting with found or zero if none, accumulate sum up to winding

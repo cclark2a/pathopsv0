@@ -98,7 +98,9 @@ enum class ZeroReason : uint8_t {
 	applyOp,
 	centerNaN,
 	findCoincidences,
-	hvCoincidence,
+	hvCoincidence1,
+	hvCoincidence2,
+	hvCoincidence3,
 	isPoint,
 	noFlip,
 	none
@@ -474,6 +476,8 @@ public:
 	void output(OpOutPath path);  // provided by the graphics implmentation
 	OpPtT ptT(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? start : end; }
+	void reenable() {
+		disabled = false; OP_DEBUG_CODE(debugZero = ZeroReason::uninitialized); }
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
 	void setBetween();  // setter exists so debug breakpoints can be set
 	const OpCurve& setCurve();

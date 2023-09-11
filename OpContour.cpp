@@ -285,7 +285,9 @@ bool OpContours::assemble(OpOutPath path) {
     OP_DEBUG_CODE(joiner.debugValidate());
     joiner.linkUnambiguous();
     OP_DEBUG_CODE(joiner.debugMatchRay(this));
-    return joiner.linkRemaining();
+    bool result = joiner.linkRemaining();
+    OpDebugOut("");
+    return result;
 }
 
 bool OpContours::debugFail() const {
