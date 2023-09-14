@@ -4,27 +4,10 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-#include <string>
-
-#include "include/core/SkBitmap.h"
-#include "include/core/SkCanvas.h"
-#include "include/core/SkPath.h"
-#include "include/core/SkRegion.h"
-#include "include/pathops/SkPathOps.h"
 #include "src/pathops/SkPathOpsCubic.h"
 #include "src/pathops/SkPathOpsQuad.h"
-#include "OpDebug.h"
-#include "PathOps.h"
 
-namespace skiatest {
-    struct Reporter {
-    
-    };
-}
-
-#define DEF_TEST(name, reporter)                                \
-    static void test_##name(skiatest::Reporter*);               \
-    void test_##name(skiatest::Reporter* reporter)
+#include "OpDebugSkiaTests.h"
 
 struct TestDesc {
     void (*fun)(skiatest::Reporter*, const char* filename);
@@ -45,147 +28,6 @@ struct CubicPts {
     static const int kPointCount = 4;
     SkDPoint fPts[kPointCount];
 };
-
-// !!! move to Skia test utilities, I guess
-const int bitWidth = 64;
-const int bitHeight = 64;
-
-static void debug_scale_matrix(const SkPath& one, const SkPath* two, SkMatrix& scale) {
-    SkRect larger = one.getBounds();
-    if (two) {
-        larger.join(two->getBounds());
-    }
-    SkScalar largerWidth = larger.width();
-    if (largerWidth < 4) {
-        largerWidth = 4;
-    }
-    SkScalar largerHeight = larger.height();
-    if (largerHeight < 4) {
-        largerHeight = 4;
-    }
-    SkScalar hScale = (bitWidth - 2) / largerWidth;
-    SkScalar vScale = (bitHeight - 2) / largerHeight;
-    scale.reset();
-    scale.preScale(hScale, vScale);
-    larger.fLeft *= hScale;
-    larger.fRight *= hScale;
-    larger.fTop *= vScale;
-    larger.fBottom *= vScale;
-    SkScalar dx = -16000 > larger.fLeft ? -16000 - larger.fLeft
-        : 16000 < larger.fRight ? 16000 - larger.fRight : 0;
-    SkScalar dy = -16000 > larger.fTop ? -16000 - larger.fTop
-        : 16000 < larger.fBottom ? 16000 - larger.fBottom : 0;
-    scale.preTranslate(dx, dy);
-}
-
-static int debug_paths_draw_the_same(const SkPath& one, const SkPath& two, SkBitmap& bits) {
-    if (bits.width() == 0) {
-        bits.allocN32Pixels(bitWidth * 2, bitHeight);
-    }
-    SkCanvas canvas(bits);
-    canvas.drawColor(SK_ColorWHITE);
-    SkPaint paint;
-    canvas.save();
-    const SkRect& bounds1 = one.getBounds();
-    canvas.translate(-bounds1.fLeft + 1, -bounds1.fTop + 1);
-    canvas.drawPath(one, paint);
-    canvas.restore();
-    canvas.save();
-    canvas.translate(-bounds1.fLeft + 1 + bitWidth, -bounds1.fTop + 1);
-    canvas.drawPath(two, paint);
-    canvas.restore();
-    int errors = 0;
-    for (int y = 0; y < bitHeight - 1; ++y) {
-        uint32_t* addr1 = bits.getAddr32(0, y);
-        uint32_t* addr2 = bits.getAddr32(0, y + 1);
-        uint32_t* addr3 = bits.getAddr32(bitWidth, y);
-        uint32_t* addr4 = bits.getAddr32(bitWidth, y + 1);
-        for (int x = 0; x < bitWidth - 1; ++x) {
-            // count 2x2 blocks
-            bool err = addr1[x] != addr3[x];
-            if (err) {
-                errors += addr1[x + 1] != addr3[x + 1]
-                    && addr2[x] != addr4[x] && addr2[x + 1] != addr4[x + 1];
-            }
-        }
-    }
-    return errors;
-}
-
-void VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op,
-        const SkPath& result) {
-    SkPath pathOut, scaledPathOut;
-    SkRegion rgnA, rgnB, openClip, rgnOut;
-    openClip.setRect({ -16000, -16000, 16000, 16000 });
-    rgnA.setPath(one, openClip);
-    rgnB.setPath(two, openClip);
-    rgnOut.op(rgnA, rgnB, (SkRegion::Op)op);
-    rgnOut.getBoundaryPath(&pathOut);
-    SkMatrix scale;
-    debug_scale_matrix(one, &two, scale);
-    SkRegion scaledRgnA, scaledRgnB, scaledRgnOut;
-    SkPath scaledA, scaledB;
-    scaledA.addPath(one, scale);
-    scaledA.setFillType(one.getFillType());
-    scaledB.addPath(two, scale);
-    scaledB.setFillType(two.getFillType());
-    scaledRgnA.setPath(scaledA, openClip);
-    scaledRgnB.setPath(scaledB, openClip);
-    scaledRgnOut.op(scaledRgnA, scaledRgnB, (SkRegion::Op)op);
-    scaledRgnOut.getBoundaryPath(&scaledPathOut);
-    SkBitmap bitmap;
-    SkPath scaledOut;
-    scaledOut.addPath(result, scale);
-    scaledOut.setFillType(result.getFillType());
-    int errors = debug_paths_draw_the_same(scaledPathOut, scaledOut, bitmap);
-    const int MAX_ERRORS = 9;
-    if (errors > MAX_ERRORS) {
-        fprintf(stderr, "// Op did not expect errors=%d\n", errors);
-//        DumpOp(stderr, one, two, op, "opTest");
-        fflush(stderr);
-        OP_ASSERT(0);
-    }
-}
-
-bool testPathOpBase(skiatest::Reporter* , const SkPath& a, const SkPath& b, 
-        SkPathOp op, const char* filename, bool v0MayFail, bool skiaMayFail) {
-    SkPath result, skresult, xorResult;
-    std::string name = std::string(filename);
-    OpDebugOut(name + "\n");
-	OpInPath op1(&a);
-	OpInPath op2(&b);
-	OpOutPath opOut(&result);
-    bool success = 
-#if OP_DEBUG
-        DebugPathOps(op1, op2, (OpOperator) op, opOut, v0MayFail ? OpDebugExpect::unknown :
-                OpDebugExpect::success);
-#else
-        PathOps(op1, op2, (OpOperator) op, opOut);
-#endif
-    OP_ASSERT(success || v0MayFail);
-    bool skSuccess = Op(a, b, op, &skresult);
-    OP_ASSERT(skSuccess || skiaMayFail);
-    if ((0) && name == "op_1") {
-        OpDebugOut("v0 result:\n");
-        result.dump();
-        OpDebugOut("sk result:\n");
-        skresult.dump();
-        OpDebugOut("");
-    }
-#if 0
-    bool xorSucess = Op(result, skresult, kXOR_SkPathOp, &xorResult);
-    OP_ASSERT(xorSucess);
-    OP_ASSERT(xorResult.isEmpty());
-#else
-    if (success && skSuccess) VerifyOp(a, b, op, result);
-#endif
-    return true;
-}
-
-bool testPathOp(skiatest::Reporter*, const SkPath& a, const SkPath& b,
-        SkPathOp op, const char* filename) {
-    return testPathOpBase(nullptr, a, b, op, filename, false, false);
-}
 
 void testPathOpCheck(skiatest::Reporter*, SkPath& a, SkPath& b, SkPathOp op, const char* filename,
         bool checkFail) {
@@ -9358,13 +9200,251 @@ SkPathOp op = kUnion_SkPathOp;
     testPathOp(reporter, patha, pathb, op, filename);
 }
 
+static void pentrek1(skiatest::Reporter* reporter, const char* filename) {
+SkPath b;
+b.moveTo({441.505,264.541});
+b.quadTo({465.507,252.904}, {486.118,246.702});
+b.quadTo({506.339,240.617}, {538.643,233.581});
+b.quadTo({570.923,226.55}, {605.627,221.6});
+b.quadTo({640.469,216.631}, {668.496,215.479});
+b.quadTo({696.491,214.329}, {713.175,215.219});
+b.quadTo({730.026,216.119}, {740.911,218.108});
+b.cubicTo({740.911,218.108}, {746.341,224.314}, {749.943,224.314});
+b.cubicTo({748.95,229.743}, {747.958,238.775}, {742.744,238.775});
+b.quadTo({727.685,236.022}, {712.11,235.191});
+b.quadTo({696.368,234.351}, {669.317,235.462});
+b.quadTo({642.296,236.572}, {608.451,241.4});
+b.quadTo({574.468,246.247}, {542.9,253.122});
+b.quadTo({511.356,259.993}, {491.882,265.853});
+b.quadTo({472.797,271.596}, {450.23,282.537});
+b.cubicTo({450.23,282.537}, {445.263,282.868}, {439.277,282.868});
+b.cubicTo({436.869,277.902}, {434.461,266.949}, {436.538,266.949});
+b.close();
+SkPath left(b);
+b.reset();
+b.moveTo({457.062,207.276});
+b.quadTo({459.401,218.797}, {459.756,227.626});
+b.quadTo({460.073,235.527}, {460.799,246.604});
+b.quadTo({461.449,256.519}, {466.945,272.989});
+b.quadTo({472.598,289.93}, {483.772,311.371});
+b.quadTo({495.058,333.025}, {505.284,348.272});
+b.quadTo({515.746,363.871}, {521.259,371.657});
+b.quadTo({525.983,378.328}, {533.581,384.209});
+b.cubicTo({533.581,384.209}, {537.946,393.873}, {538.747,393.873});
+b.cubicTo({535.369,398.238}, {531.991,403.403}, {525.705,403.403});
+b.quadTo({511.384,392.32}, {504.936,383.214});
+b.quadTo({499.277,375.222}, {488.673,359.412});
+b.quadTo({477.833,343.248}, {466.036,320.614});
+b.quadTo({454.129,297.766}, {447.973,279.32});
+b.quadTo({441.66,260.402}, {440.842,247.912});
+b.quadTo({440.099,236.582}, {439.772,228.428});
+b.quadTo({439.482,221.203}, {437.462,211.256});
+b.cubicTo({437.462,211.256}, {436.363,200.564}, {439.863,200.564});
+b.cubicTo({445.272,199.466}, {450.681,201.867}, {455.963,201.867});
+b.close();
+    testPathOp(reporter, left, b, kIntersect_SkPathOp, filename);
+}
+
+
+static void pentrek2(skiatest::Reporter* reporter, const char* filename) {
+SkPath b;
+b.moveTo({0x1.b98132p+8,0x1.088a72p+8});
+b.quadTo({0x1.d181dcp+8,0x1.f9cedp+7}, {0x1.e61e5p+8,0x1.ed672ep+7});
+b.quadTo({0x1.fa56c8p+8,0x1.e13bb8p+7}, {0x1.0d525ap+9,0x1.d3294ap+7});
+b.quadTo({0x1.1d7622p+9,0x1.c5199ep+7}, {0x1.2ed044p+9,0x1.bb334cp+7});
+b.quadTo({0x1.403c1p+9,0x1.b142e6p+7}, {0x1.4e3f74p+9,0x1.aef55p+7});
+b.quadTo({0x1.5c3edap+9,0x1.aca864p+7}, {0x1.649676p+9,0x1.ae7046p+7});
+b.quadTo({0x1.6d034ap+9,0x1.b03cbp+7}, {0x1.7274a8p+9,0x1.b43772p+7});
+b.cubicTo({0x1.7274a8p+9,0x1.b43772p+7}, {0x1.752b98p+9,0x1.c0a0dep+7}, {0x1.76f8aap+9,0x1.c0a0dep+7});
+b.cubicTo({0x1.7679a4p+9,0x1.cb7c9ep+7}, {0x1.75fa9cp+9,0x1.dd8ca8p+7}, {0x1.735f48p+9,0x1.dd8ca8p+7});
+b.quadTo({0x1.6bd7b6p+9,0x1.d80b5p+7}, {0x1.640e0ap+9,0x1.d661bap+7});
+b.quadTo({0x1.5c2f26p+9,0x1.d4b39cp+7}, {0x1.4ea88cp+9,0x1.d6ecbp+7});
+b.quadTo({0x1.4125fp+9,0x1.d9251ap+7}, {0x1.3039bcp+9,0x1.e2ccb4p+7});
+b.quadTo({0x1.1f3bdep+9,0x1.ec7e62p+7}, {0x1.0f7326p+9,0x1.fa3eb6p+7});
+b.quadTo({0x1.ff5b38p+8,0x1.03fe24p+8}, {0x1.ebe1bp+8,0x1.09da6ap+8});
+b.quadTo({0x1.d8cc24p+8,0x1.0f9898p+8}, {0x1.c23acep+8,0x1.1a898ep+8});
+b.cubicTo({0x1.c23acep+8,0x1.1a898ep+8}, {0x1.bd437p+8,0x1.1ade2cp+8}, {0x1.b746d4p+8,0x1.1ade2cp+8});
+b.cubicTo({0x1.b4de72p+8,0x1.15e6cep+8}, {0x1.b27612p+8,0x1.0af2d4p+8}, {0x1.b489d4p+8,0x1.0af2d4p+8});
+b.close();
+SkPath left(b);
+b.reset();
+b.moveTo({0x1.c90fcep+8,0x1.9e8d24p+7});
+b.quadTo({0x1.cb66b2p+8,0x1.b597fp+7}, {0x1.cbc17p+8,0x1.c7409ep+7});
+b.quadTo({0x1.cc12a4p+8,0x1.d70ddp+7}, {0x1.cccc84p+8,0x1.ed351ap+7});
+b.quadTo({0x1.cd72eap+8,0x1.0084f6p+8}, {0x1.d2f1dcp+8,0x1.10fd28p+8});
+b.quadTo({0x1.d8991p+8,0x1.21edfap+8}, {0x1.e3c5bp+8,0x1.375edap+8});
+b.quadTo({0x1.ef0ed8p+8,0x1.4d067ap+8}, {0x1.f94898p+8,0x1.5c458ep+8});
+b.quadTo({0x1.01df82p+9,0x1.6bdf18p+8}, {0x1.04a12p+9,0x1.73a81cp+8});
+b.quadTo({0x1.06fdd6p+9,0x1.7a5418p+8}, {0x1.0aca68p+9,0x1.80357ap+8});
+b.cubicTo({0x1.0aca68p+9,0x1.80357ap+8}, {0x1.0cf918p+9,0x1.89df74p+8}, {0x1.0d5fa2p+9,0x1.89df74p+8});
+b.cubicTo({0x1.0baf42p+9,0x1.8e3cd2p+8}, {0x1.09fee2p+9,0x1.936746p+8}, {0x1.06da46p+9,0x1.936746p+8});
+b.quadTo({0x1.ff6252p+8,0x1.8851e8p+8}, {0x1.f8efbep+8,0x1.7f36e4p+8});
+b.quadTo({0x1.f346fcp+8,0x1.7738e8p+8}, {0x1.e8ac68p+8,0x1.676972p+8});
+b.quadTo({0x1.ddd528p+8,0x1.573f86p+8}, {0x1.d2095p+8,0x1.409d26p+8});
+b.quadTo({0x1.c620fp+8,0x1.29c406p+8}, {0x1.bff924p+8,0x1.1751d8p+8});
+b.quadTo({0x1.b9a916p+8,0x1.04670ap+8}, {0x1.b8d77cp+8,0x1.efd2e6p+7});
+b.quadTo({0x1.b8195cp+8,0x1.d92a3p+7}, {0x1.b7c59p+8,0x1.c8db62p+7});
+b.quadTo({0x1.b77b4ep+8,0x1.ba681p+7}, {0x1.b57632p+8,0x1.a682dcp+7});
+b.cubicTo({0x1.b57632p+8,0x1.a682dcp+7}, {0x1.b45d0ap+8,0x1.9120b8p+7}, {0x1.b7dceep+8,0x1.9120b8p+7});
+b.cubicTo({0x1.bd4592p+8,0x1.8eee66p+7}, {0x1.c2ae38p+8,0x1.93bbdap+7}, {0x1.c7f6a4p+8,0x1.93bbdap+7});
+b.close();
+    testPathOp(reporter, left, b, kIntersect_SkPathOp, filename);
+}
+
+static void pentrek3(skiatest::Reporter* reporter, const char* filename) {
+SkPath b;
+b.moveTo({0x1.2cb41ep+9,0x1.4bab78p+8});
+b.quadTo({0x1.27abb6p+9,0x1.51fef6p+8}, {0x1.255c2p+9,0x1.55dce8p+8});
+b.quadTo({0x1.230d52p+9,0x1.59b98ep+8}, {0x1.205328p+9,0x1.5fbc52p+8});
+b.quadTo({0x1.1db57ep+9,0x1.658048p+8}, {0x1.1b7252p+9,0x1.6d2768p+8});
+b.quadTo({0x1.195e7ap+9,0x1.742e7p+8}, {0x1.186614p+9,0x1.7e5ab6p+8});
+b.quadTo({0x1.176b5p+9,0x1.889fbap+8}, {0x1.186e1cp+9,0x1.973346p+8});
+b.quadTo({0x1.1974ccp+9,0x1.a5fee6p+8}, {0x1.1d4782p+9,0x1.b712e8p+8});
+b.quadTo({0x1.2127b2p+9,0x1.c86326p+8}, {0x1.27101ep+9,0x1.d7d258p+8});
+b.quadTo({0x1.2cfc84p+9,0x1.e74bf2p+8}, {0x1.330cc8p+9,0x1.f168fp+8});
+b.quadTo({0x1.3911eep+9,0x1.fb735cp+8}, {0x1.3e2b4p+9,0x1.0030eap+9});
+b.quadTo({0x1.43318p+9,0x1.029eeep+9}, {0x1.477c1cp+9,0x1.035f28p+9});
+b.quadTo({0x1.4bbbdap+9,0x1.041d7ap+9}, {0x1.50b6e6p+9,0x1.038298p+9});
+b.quadTo({0x1.55e63p+9,0x1.02e15cp+9}, {0x1.5b75dp+9,0x1.00f342p+9});
+b.quadTo({0x1.60f6bep+9,0x1.fe1486p+8}, {0x1.667374p+9,0x1.f706ecp+8});
+b.quadTo({0x1.6be7f6p+9,0x1.f003ep+8}, {0x1.70186ap+9,0x1.e6f964p+8});
+b.quadTo({0x1.74029ep+9,0x1.de8688p+8}, {0x1.75534p+9,0x1.d70c2cp+8});
+b.quadTo({0x1.76b608p+9,0x1.cf2a8ep+8}, {0x1.76c3d6p+9,0x1.c5e04ap+8});
+b.quadTo({0x1.76d2aep+9,0x1.bbe25ap+8}, {0x1.75dd7ep+9,0x1.b12c28p+8});
+b.quadTo({0x1.74f346p+9,0x1.a6f0b8p+8}, {0x1.7302b4p+9,0x1.9f2422p+8});
+b.quadTo({0x1.71176ap+9,0x1.976ccap+8}, {0x1.6e0e4cp+9,0x1.9117aep+8});
+b.quadTo({0x1.6ad6c6p+9,0x1.8a61c6p+8}, {0x1.669ed8p+9,0x1.84867ep+8});
+b.quadTo({0x1.622e86p+9,0x1.7e5ceap+8}, {0x1.5e7a24p+9,0x1.7a2e76p+8});
+b.quadTo({0x1.5ab122p+9,0x1.75e8b8p+8}, {0x1.5737cep+9,0x1.727c6cp+8});
+b.cubicTo({0x1.5737cep+9,0x1.727c6cp+8}, {0x1.54be18p+9,0x1.6a0c0ap+8}, {0x1.53b912p+9,0x1.6a0c0ap+8});
+b.cubicTo({0x1.54f14ap+9,0x1.65189cp+8}, {0x1.562982p+9,0x1.5e1b26p+8}, {0x1.59297ap+9,0x1.5e1b26p+8});
+b.quadTo({0x1.5f5cdep+9,0x1.643748p+8}, {0x1.63645cp+9,0x1.68c38ap+8});
+b.quadTo({0x1.67807ap+9,0x1.6d6716p+8}, {0x1.6c52a8p+9,0x1.741882p+8});
+b.quadTo({0x1.715d3ap+9,0x1.7b183ap+8}, {0x1.754634p+9,0x1.834052p+8});
+b.quadTo({0x1.795d96p+9,0x1.8bc936p+8}, {0x1.7bf6ccp+9,0x1.963bdep+8});
+b.quadTo({0x1.7e8abap+9,0x1.a09948p+8}, {0x1.7fb582p+9,0x1.ada6d8p+8});
+b.quadTo({0x1.80d552p+9,0x1.ba39a6p+8}, {0x1.80c3aap+9,0x1.c61bb6p+8});
+b.quadTo({0x1.80b0f8p+9,0x1.d2b172p+8}, {0x1.7ec24p+9,0x1.ddaed4p+8});
+b.quadTo({0x1.7cc162p+9,0x1.e91378p+8}, {0x1.776e16p+9,0x1.f4919cp+8});
+b.quadTo({0x1.72610ap+9,0x1.ff782p+8}, {0x1.6bdb8cp+9,0x1.03ed0ap+9});
+b.quadTo({0x1.655e42p+9,0x1.0818bcp+9}, {0x1.5ebd3p+9,0x1.0a65bep+9});
+b.quadTo({0x1.582adp+9,0x1.0cada4p+9}, {0x1.51eb9ap+9,0x1.0d6fe8p+9});
+b.quadTo({0x1.4b7826p+9,0x1.0e3886p+9}, {0x1.45c2e4p+9,0x1.0d38d8p+9});
+b.quadTo({0x1.40188p+9,0x1.0c3b12p+9}, {0x1.39d0cp+9,0x1.093196p+9});
+b.quadTo({0x1.339c12p+9,0x1.063152p+9}, {0x1.2ca538p+9,0x1.006288p+9});
+b.quadTo({0x1.25b97cp+9,0x1.f53a0ep+8}, {0x1.1f1f62p+9,0x1.e3faa8p+8});
+b.quadTo({0x1.18814ep+9,0x1.d2b0dap+8}, {0x1.1426fep+9,0x1.bf3f18p+8});
+b.quadTo({0x1.0fbf34p+9,0x1.ab911ap+8}, {0x1.0e8664p+9,0x1.99f2bap+8});
+b.quadTo({0x1.0d49bp+9,0x1.881c46p+8}, {0x1.0e936cp+9,0x1.7a9b4ap+8});
+b.quadTo({0x1.0fdf86p+9,0x1.6d019p+8}, {0x1.12d6aep+9,0x1.62f998p+8});
+b.quadTo({0x1.159e82p+9,0x1.5991b8p+8}, {0x1.18eb58p+9,0x1.524baep+8});
+b.quadTo({0x1.1c1baep+9,0x1.4b4472p+8}, {0x1.1ef16p+9,0x1.468618p+8});
+b.quadTo({0x1.21c64ap+9,0x1.41c90ap+8}, {0x1.2761e2p+9,0x1.3abc88p+8});
+b.cubicTo({0x1.2761e2p+9,0x1.3abc88p+8}, {0x1.29b804p+9,0x1.393582p+8}, {0x1.2cced2p+9,0x1.393582p+8});
+b.cubicTo({0x1.2e46bcp+9,0x1.3de1c6p+8}, {0x1.2fbea8p+9,0x1.48bba4p+8}, {0x1.2f0a3ep+9,0x1.48bba4p+8});
+b.close();
+SkPath left(b);
+b.reset();
+b.moveTo({0x1.2cee94p+9,0x1.b0d972p+8});
+b.quadTo({0x1.30d7acp+9,0x1.a625ecp+8}, {0x1.325f6ap+9,0x1.a1b576p+8});
+b.quadTo({0x1.33f1ap+9,0x1.9d269ep+8}, {0x1.35dfd8p+9,0x1.9790c8p+8});
+b.quadTo({0x1.37ee56p+9,0x1.919d88p+8}, {0x1.3a26b6p+9,0x1.8c498ep+8});
+b.quadTo({0x1.3c8a1p+9,0x1.868e68p+8}, {0x1.3ebf2cp+9,0x1.82f936p+8});
+b.quadTo({0x1.4151eep+9,0x1.7ecbfep+8}, {0x1.45031cp+9,0x1.7c7d18p+8});
+b.quadTo({0x1.4904ccp+9,0x1.79fbdcp+8}, {0x1.4cf898p+9,0x1.7b98a8p+8});
+b.quadTo({0x1.50c5c2p+9,0x1.7d25b2p+8}, {0x1.536cd4p+9,0x1.812844p+8});
+b.quadTo({0x1.559c82p+9,0x1.84765ap+8}, {0x1.5803dcp+9,0x1.8a1d9cp+8});
+b.quadTo({0x1.5a33b2p+9,0x1.8f425p+8}, {0x1.5cda52p+9,0x1.96b3cep+8});
+b.quadTo({0x1.5f560ap+9,0x1.9dacd8p+8}, {0x1.62dedp+9,0x1.a7000ep+8});
+b.quadTo({0x1.663d7ep+9,0x1.afe434p+8}, {0x1.6ba1eep+9,0x1.baa47cp+8});
+b.quadTo({0x1.710152p+9,0x1.c55aaep+8}, {0x1.77c024p+9,0x1.cf4818p+8});
+b.quadTo({0x1.7e9138p+9,0x1.d95062p+8}, {0x1.8619fep+9,0x1.e1f228p+8});
+b.quadTo({0x1.8dbc02p+9,0x1.eab0d8p+8}, {0x1.95a85ap+9,0x1.f25f68p+8});
+b.quadTo({0x1.9d8328p+9,0x1.f9fcf2p+8}, {0x1.a4a97cp+9,0x1.ff3e18p+8});
+b.quadTo({0x1.abcfa2p+9,0x1.023f8ep+9}, {0x1.b2ace6p+9,0x1.04051ep+9});
+b.quadTo({0x1.b99a6p+9,0x1.05cedep+9}, {0x1.bf3c1ep+9,0x1.06d3fep+9});
+b.quadTo({0x1.c4e942p+9,0x1.07db2ep+9}, {0x1.c8721ap+9,0x1.084bcep+9});
+b.quadTo({0x1.cbfd72p+9,0x1.08bcbcp+9}, {0x1.cdf622p+9,0x1.08e15cp+9});
+b.quadTo({0x1.cee07ap+9,0x1.08f25cp+9}, {0x1.cfc68ep+9,0x1.0892cp+9});
+b.quadTo({0x1.cf8524p+9,0x1.08adeep+9}, {0x1.cf7992p+9,0x1.08d7c8p+9});
+b.quadTo({0x1.cfe046p+9,0x1.076474p+9}, {0x1.cfbf32p+9,0x1.0376d6p+9});
+b.quadTo({0x1.cf9b54p+9,0x1.fe694p+8}, {0x1.ce41ep+9,0x1.f172dp+8});
+b.quadTo({0x1.ccdc26p+9,0x1.e4068p+8}, {0x1.cadf04p+9,0x1.d665c2p+8});
+b.quadTo({0x1.c8d304p+9,0x1.c85f22p+8}, {0x1.c75308p+9,0x1.bdee8p+8});
+b.quadTo({0x1.c5c9aap+9,0x1.b33c92p+8}, {0x1.c50992p+9,0x1.ac9b18p+8});
+b.quadTo({0x1.c4562ap+9,0x1.a669ap+8}, {0x1.c3c7e8p+9,0x1.a22658p+8});
+b.quadTo({0x1.c363dap+9,0x1.9f26d4p+8}, {0x1.c27726p+9,0x1.9c1d2p+8});
+b.quadTo({0x1.c1bb02p+9,0x1.99b302p+8}, {0x1.bf19fep+9,0x1.962bb6p+8});
+b.quadTo({0x1.bc08eap+9,0x1.920e06p+8}, {0x1.b5e066p+9,0x1.8d601cp+8});
+b.quadTo({0x1.af9436p+9,0x1.889716p+8}, {0x1.a8944cp+9,0x1.85d666p+8});
+b.quadTo({0x1.a1d42cp+9,0x1.832ecep+8}, {0x1.9dd89p+9,0x1.83c848p+8});
+b.quadTo({0x1.9adb04p+9,0x1.843b84p+8}, {0x1.99d0f6p+9,0x1.860ee6p+8});
+b.quadTo({0x1.9815a8p+9,0x1.8919a6p+8}, {0x1.964476p+9,0x1.8f00b8p+8});
+b.quadTo({0x1.941d6cp+9,0x1.95fe9cp+8}, {0x1.918a0ap+9,0x1.9f4338p+8});
+b.quadTo({0x1.8eeab4p+9,0x1.a8b2dap+8}, {0x1.8c6b16p+9,0x1.b1d1f4p+8});
+b.quadTo({0x1.89ea4cp+9,0x1.baf55ap+8}, {0x1.881e82p+9,0x1.c18d3ep+8});
+b.quadTo({0x1.8659dp+9,0x1.c80b1ep+8}, {0x1.854bbep+9,0x1.cc299ap+8});
+b.quadTo({0x1.844a78p+9,0x1.d01622p+8}, {0x1.834aa8p+9,0x1.d4c28cp+8});
+b.quadTo({0x1.81eefcp+9,0x1.db1c9ep+8}, {0x1.7fa662p+9,0x1.e08f38p+8});
+b.quadTo({0x1.7cd7bcp+9,0x1.e74192p+8}, {0x1.74a244p+9,0x1.ebce0ep+8});
+b.cubicTo({0x1.74a244p+9,0x1.ebce0ep+8}, {0x1.71f978p+9,0x1.ea2826p+8}, {0x1.6f379ap+9,0x1.ea2826p+8});
+b.cubicTo({0x1.6e7af8p+9,0x1.e4d68ap+8}, {0x1.6dbe58p+9,0x1.da0132p+8}, {0x1.6f4deep+9,0x1.da0132p+8});
+b.quadTo({0x1.772d44p+9,0x1.d5a46ep+8}, {0x1.77fc9ep+9,0x1.d3b5c8p+8});
+b.quadTo({0x1.795204p+9,0x1.d08762p+8}, {0x1.7a18d8p+9,0x1.cce574p+8});
+b.quadTo({0x1.7b3b88p+9,0x1.c795dep+8}, {0x1.7c6542p+9,0x1.c30b66p+8});
+b.quadTo({0x1.7d823p+9,0x1.beb2e2p+8}, {0x1.7f567ep+9,0x1.b7fbc2p+8});
+b.quadTo({0x1.8123b4p+9,0x1.b15ea6p+8}, {0x1.83a5eap+9,0x1.a8360cp+8});
+b.quadTo({0x1.86294cp+9,0x1.9f0926p+8}, {0x1.88cc76p+9,0x1.958bc8p+8});
+b.quadTo({0x1.8b7b94p+9,0x1.8be364p+8}, {0x1.8dc08ap+9,0x1.848448p+8});
+b.quadTo({0x1.905b58p+9,0x1.7c0e5ap+8}, {0x1.93378ap+9,0x1.77081ap+8});
+b.quadTo({0x1.96c4fcp+9,0x1.70ca7cp+8}, {0x1.9d187p+9,0x1.6fd6b8p+8});
+b.quadTo({0x1.a26dd4p+9,0x1.6f0932p+8}, {0x1.aa8234p+9,0x1.72369ap+8});
+b.quadTo({0x1.b256cap+9,0x1.754aeap+8}, {0x1.b96d9ap+9,0x1.7aade4p+8});
+b.quadTo({0x1.c0a816p+9,0x1.802bfap+8}, {0x1.c4ac82p+9,0x1.85904ap+8});
+b.quadTo({0x1.c920fep+9,0x1.8b8afep+8}, {0x1.cb01dap+9,0x1.91b6ep+8});
+b.quadTo({0x1.ccb226p+9,0x1.97432cp+8}, {0x1.cd7518p+9,0x1.9d1aa8p+8});
+b.quadTo({0x1.ce0dd6p+9,0x1.a1ae6p+8}, {0x1.ceca6ep+9,0x1.a830e8p+8});
+b.quadTo({0x1.cf7a56p+9,0x1.ae436ep+8}, {0x1.d0ef78p+9,0x1.b8688p+8});
+b.quadTo({0x1.d26dfcp+9,0x1.c2cedep+8}, {0x1.d4787cp+9,0x1.d0cb3ep+8});
+b.quadTo({0x1.d691dap+9,0x1.df2d8p+8}, {0x1.d80c2p+9,0x1.ed5f3p+8});
+b.quadTo({0x1.d992acp+9,0x1.fc06cp+8}, {0x1.d9bdcep+9,0x1.0322aap+9});
+b.quadTo({0x1.d9ebbap+9,0x1.08968cp+9}, {0x1.d91ceep+9,0x1.0b8238p+9});
+b.quadTo({0x1.d7dbdcp+9,0x1.100b12p+9}, {0x1.d39cf2p+9,0x1.11cecp+9});
+b.quadTo({0x1.d08586p+9,0x1.1317a4p+9}, {0x1.cd3cdep+9,0x1.12daa4p+9});
+b.quadTo({0x1.cb028ep+9,0x1.12b144p+9}, {0x1.c735e6p+9,0x1.123832p+9});
+b.quadTo({0x1.c366bep+9,0x1.11bed2p+9}, {0x1.bd73e2p+9,0x1.10ab02p+9});
+b.quadTo({0x1.b775ap+9,0x1.0f9522p+9}, {0x1.b02d1ap+9,0x1.0db3e2p+9});
+b.quadTo({0x1.a8d45ep+9,0x1.0bce72p+9}, {0x1.a13684p+9,0x1.0901f4p+9});
+b.quadTo({0x1.9998d8p+9,0x1.063588p+9}, {0x1.914ba6p+9,0x1.022f4cp+9});
+b.quadTo({0x1.890ffep+9,0x1.fc6328p+8}, {0x1.812182p+9,0x1.f34cd8p+8});
+b.quadTo({0x1.7919c8p+9,0x1.ea199ep+8}, {0x1.71d2dcp+9,0x1.df63e8p+8});
+b.quadTo({0x1.6a79aep+9,0x1.d49352p+8}, {0x1.649292p+9,0x1.c8ce84p+8});
+b.quadTo({0x1.5eb082p+9,0x1.bd13ccp+8}, {0x1.5ae6bp+9,0x1.b314f2p+8});
+b.quadTo({0x1.5746f6p+9,0x1.a98528p+8}, {0x1.54b52ep+9,0x1.a24e32p+8});
+b.quadTo({0x1.524e4ep+9,0x1.9b8fbp+8}, {0x1.5065a4p+9,0x1.971264p+8});
+b.quadTo({0x1.4eb47ep+9,0x1.9317a6p+8}, {0x1.4d652cp+9,0x1.911cbcp+8});
+b.quadTo({0x1.4c8d3ep+9,0x1.8fd64ep+8}, {0x1.4af8e8p+9,0x1.8f3158p+8});
+b.quadTo({0x1.498b34p+9,0x1.8e9c24p+8}, {0x1.47fee4p+9,0x1.8f93e8p+8});
+b.quadTo({0x1.462212p+9,0x1.90be02p+8}, {0x1.450c54p+9,0x1.9280cap+8});
+b.quadTo({0x1.4398fp+9,0x1.94db98p+8}, {0x1.41d54ap+9,0x1.991772p+8});
+b.quadTo({0x1.3fe6aap+9,0x1.9dba78p+8}, {0x1.3e19a8p+9,0x1.a2f038p+8});
+b.quadTo({0x1.3c2c6p+9,0x1.a88362p+8}, {0x1.3a9b16p+9,0x1.ad0f8ap+8});
+b.quadTo({0x1.38ff54p+9,0x1.b1ba14p+8}, {0x1.35016cp+9,0x1.bca68ep+8});
+b.cubicTo({0x1.35016cp+9,0x1.bca68ep+8}, {0x1.336092p+9,0x1.c2148ap+8}, {0x1.303f16p+9,0x1.c2148ap+8});
+b.cubicTo({0x1.2e04b8p+9,0x1.bed2d6p+8}, {0x1.2bca5cp+9,0x1.b54e2ap+8}, {0x1.2b4dbcp+9,0x1.b54e2ap+8});
+b.close();
+    testPathOp(reporter, left, b, kIntersect_SkPathOp, filename);
+}
+
 static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
-static void (*firstTest)(skiatest::Reporter* , const char* filename) = testXor1;
+static void (*firstTest)(skiatest::Reporter* , const char* filename) = pentrek3;
 static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 
 #define TEST(name) { name, #name }
 
 static struct TestDesc tests[] = {
+    TEST(pentrek2),
+    TEST(pentrek1),
     TEST(issue12556),
     TEST(bug8380),
     TEST(bug8228),

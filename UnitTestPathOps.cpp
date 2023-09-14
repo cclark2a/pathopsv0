@@ -1105,6 +1105,7 @@ void OpTestQuadCoin2() {
 
 extern void run_all_tests();
 extern void run_all_tests2();
+extern void run_all_tests3();
 
 #if OP_DEBUG
 void onetest() {
@@ -1140,6 +1141,7 @@ void OpTest(bool terminateEarly) {
 	if (terminateEarly)
 		exit(0);
 #endif
+//	run_all_tests3();
 //	run_all_tests2();  // ran to completion with no errors 9/14/23. Commented out because it takes ~90 minutes to run
 	run_all_tests();
 	OpTest_WindState();
