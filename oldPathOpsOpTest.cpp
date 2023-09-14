@@ -46,6 +46,7 @@ struct CubicPts {
     SkDPoint fPts[kPointCount];
 };
 
+// !!! move to Skia test utilities, I guess
 const int bitWidth = 64;
 const int bitHeight = 64;
 
@@ -112,7 +113,7 @@ static int debug_paths_draw_the_same(const SkPath& one, const SkPath& two, SkBit
 }
 
 void VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op,
-    const SkPath& result) {
+        const SkPath& result) {
     SkPath pathOut, scaledPathOut;
     SkRegion rgnA, rgnB, openClip, rgnOut;
     openClip.setRect({ -16000, -16000, 16000, 16000 });
@@ -12714,7 +12715,7 @@ static struct TestDesc failTests[] = {
     TEST(fuzz754434_4),
     TEST(fuzzhang_3),
     TEST(fuzzhang_2),
-    TEST(release_13),
+    TEST(release_13),  // asserts in divide and conquer presumably because maxDepth is too small
     TEST(fuzzhang_1),
     TEST(fuzz763_57),
     TEST(fuzz763_56),

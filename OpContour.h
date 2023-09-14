@@ -205,6 +205,7 @@ struct OpContours {
 
     bool debugFail() const;
 #if OP_DEBUG
+    void debugRemap(int oldRayMatch, int newRayMatch);
     bool debugSuccess() const;
 #endif
 #if OP_DEBUG_DUMP
@@ -228,9 +229,11 @@ struct OpContours {
     OpFillType right;
     OpOperator opOperator;
     int uniqueID;  // used for object id, unsectable id, coincidence id
-#if OP_DEBUG
+#if OP_DEBUG_VALIDATE
     int debugValidateEdgeIndex;
     int debugValidateJoinerIndex;
+#endif
+#if OP_DEBUG
     bool debugInPathOps;
     bool debugInClearEdges;
     bool debugCheckLastEdge;

@@ -5,10 +5,10 @@
 
 #include <vector>
 
-// removed OP_X(CoinPair) for now
 // removed OP_X(ExtremaT) for now
 // removed OP_X(LoopCheck) for now
 #define VECTOR_STRUCTS \
+OP_X(CoinPair) \
 OP_X(EdgeDistance) \
 OP_X(FoundEdge) \
 OP_X(OpContour) \

@@ -85,7 +85,7 @@ struct OpSegment {
 
     bool debugFail() const;
     bool debugSuccess() const;
-#if OP_DEBUG
+#if OP_DEBUG_VALIDATE
     void debugValidate() const;
 #endif
 #if OP_DEBUG_DUMP

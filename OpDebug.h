@@ -8,6 +8,8 @@
 #define PATH_OPS_V0_FOR_SKIA 1
 #define PATH_OPS_V0_FOR_PENTREK 2
 
+#define OP_DEBUG_FAST_TEST 0  // in a debug build: set to zero to enable debug dump, debug image
+
 // set targeted platform here
 #define PATH_OPS_V0_TARGET PATH_OPS_V0_FOR_SKIA
 // #define PATH_OPS_V0_TARGET PATH_OPS_V0_FOR_PENTREK
@@ -41,6 +43,7 @@ struct OpContours;
 
 #define OP_DEBUG_PARAMS(...)
 #define OP_DEBUG_CODE(...)
+#define OP_DEBUG_VALIDATE_CODE(...)
 #define OP_DEBUG 0
 #define OP_DEBUG_DUMP 0
 #define OP_DEBUG_IMAGE 0
@@ -61,11 +64,23 @@ struct OpContours;
 #define OP_ASSERT(expr) assert(expr)
 #endif
 
+#if OP_DEBUG_FAST_TEST
+	#define OP_DEBUG_DUMP 0
+	#define OP_DEBUG_IMAGE 0
+	#define OP_DEBUG_VALIDATE 0
+#else
+	#define OP_DEBUG_DUMP 1
+	#define OP_DEBUG_IMAGE (PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_SKIA)
+	#define OP_DEBUG_VALIDATE 1
+#endif
 #define OP_DEBUG_PARAMS(...) , __VA_ARGS__
 #define OP_DEBUG_CODE(...) __VA_ARGS__
+#if OP_DEBUG_VALIDATE
+	#define OP_DEBUG_VALIDATE_CODE(...) __VA_ARGS__
+#else
+	#define OP_DEBUG_VALIDATE_CODE(...)
+#endif
 #define OP_DEBUG 1
-#define OP_DEBUG_DUMP 1
-#define OP_DEBUG_IMAGE (PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_SKIA)
 #define OP_DEBUG_INITIALIZE_TO_SILENCE_WARNING = 0
 
 // Use these defines where failure or success is logical, but we want it to break to verify

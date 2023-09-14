@@ -193,51 +193,23 @@ void OpIntersections::sort() {
     sort();
 }
 
-struct CoinPair {
-    CoinPair(OpIntersection* s, OpEdge* e, OpEdge* o, int id  OP_DEBUG_PARAMS(OpEdge* l))
-        : start(s)
-        , end(nullptr)
-        , oStart(s->opp)
-        , oEnd(nullptr)
-        , edge(e)
-        , oppEdge(o)
-        , coinID(id)
-        OP_DEBUG_PARAMS(lastEdge(l)) {
-    }
-    OpIntersection* start;
-    OpIntersection* end;
-    OpIntersection* oStart;
-    OpIntersection* oEnd;
-    OpEdge* edge;
-    OpEdge* oppEdge;
-    int coinID;
-    OP_DEBUG_CODE(OpEdge* lastEdge);
-};
-
 void OpIntersections::windCoincidences(std::vector<OpEdge>& edges  
         OP_DEBUG_PARAMS(OpVector tangent)) {
     OP_ASSERT(!resort);
     std::vector<CoinPair> pairs;
-    std::vector<int> disabled;
     OpEdge* edge = &edges.front();
     for (auto sectPtr : i) {
         int coinID = sectPtr->coincidenceID;
         if (!coinID)
             continue;
-        if (disabled.end() != std::find(disabled.begin(), disabled.end(), coinID))
-            continue;
         auto pairIter = std::find_if(pairs.begin(), pairs.end(), [coinID](CoinPair& pair) { 
-            return coinID == pair.coinID; 
+            return coinID == pair.id; 
         });
         if (pairs.end() == pairIter) {  // set up start
             while (edge->start.t != sectPtr->ptT.t) {
                 OP_ASSERT(edge->start.t < sectPtr->ptT.t);
                 OP_ASSERT(edge < &edges.back());
                 ++edge;
-            }
-            if (edge->disabled) {
-                disabled.push_back(coinID);
-                continue;
             }
             OP_ASSERT(edge->start.t == sectPtr->ptT.t);
             OpSegment* oppSegment = sectPtr->opp->segment;
@@ -249,11 +221,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
                 ++oppEdge;
                 OP_ASSERT(oppEdge <= &oppEdges.back());
             }
-            if (oppEdge->disabled) {
-                disabled.push_back(coinID);
-                continue;
-            }
-            pairs.emplace_back(sectPtr, edge, oppEdge, coinID
+            pairs.emplace_back(sectPtr, sectPtr->opp, edge, oppEdge, coinID
                     OP_DEBUG_PARAMS(EdgeMatch::start == match ? &oppEdges.back() : &oppEdges.front()));
         } else {    // set up end
             OP_ASSERT(!pairIter->end);
@@ -262,7 +230,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
         }
     }    
     for (auto& coinPair : pairs) {
-        EdgeMatch match = coinPair.coinID > 0 ? EdgeMatch::start : EdgeMatch::end;
+        EdgeMatch match = coinPair.id > 0 ? EdgeMatch::start : EdgeMatch::end;
         OP_ASSERT(coinPair.oppEdge->ptT(match).pt == coinPair.start->ptT.pt);
         OP_ASSERT(coinPair.edge->start == coinPair.start->ptT);
         // In rare cases (e.g. issue1435) coincidence points may not match; one seg has extra.
@@ -284,69 +252,79 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
         OP_ASSERT(edgeBack->end == coinPair.end->ptT);
         OpEdge* oppBack = oppEdge;
         while (oppBack->ptT(Opposite(match)).t != coinPair.oEnd->ptT.t) {
-            OP_ASSERT(coinPair.coinID > 0 ? oppBack < coinPair.lastEdge : oppBack > coinPair.lastEdge);
-            coinPair.coinID > 0 ? ++oppBack : --oppBack;
+            OP_ASSERT(coinPair.id > 0 ? oppBack < coinPair.lastEdge : oppBack > coinPair.lastEdge);
+            coinPair.id > 0 ? ++oppBack : --oppBack;
             // more code to write; add point if needed to edge list to match
             if (!(oppEdge->winding == oppBack->winding)) {
                 // search opp intersection list for entry pointing to edge at opp edge end
-                OP_DEBUG_CODE(OpEdge* oEdge = coinPair.coinID > 0 ? oppEdge : oppBack);
+                OP_DEBUG_CODE(OpEdge* oEdge = coinPair.id > 0 ? oppEdge : oppBack);
                 OP_ASSERT(i.end() != std::find_if(i.begin(), i.end(), 
                         [&oEdge](auto sect) { return sect->ptT.pt == oEdge->end.pt; }));
             }
         }
         OpContours* contours = edge->segment->contour->contours;
         // for each different winding: 
-        OpWinding edgeWinding = edge->winding;
-        OpWinding oppWinding = oppEdge->winding;
-        int oppBump = coinPair.coinID < 0 ? -1 : 1;
-        bool done = false;
-        do {
+        int oppBump = coinPair.id < 0 ? -1 : 1;
+        // surprisingly difficult to get right ...
+        for (;;) {
+            OP_DEBUG_CODE(OpWinding edgeWinding = edge->winding);
+            OP_DEBUG_CODE(OpWinding oppWinding = oppEdge->winding);
             OP_ASSERT(edge->start.pt 
-                    == oppEdge->ptT(coinPair.coinID > 0 ? EdgeMatch::start : EdgeMatch::end).pt);
-            edge->winding.move(oppEdge->winding, contours, coinPair.coinID < 0);
+                    == oppEdge->ptT(coinPair.id > 0 ? EdgeMatch::start : EdgeMatch::end).pt);
+            edge->winding.move(oppEdge->winding, contours, coinPair.id < 0);
             OpWinding combinedWinding = edge->winding;
             if (!combinedWinding.visible())
                 edge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence1));
             else if (edge->disabled)
                 edge->reenable();  // un-disable it; was disabled from earlier coincidence
-            // only advance while winding is unchanged
-            while (!(done = (edge == edgeBack))) {
-                edge++;
-                if (!(edgeWinding == edge->winding))
+            oppEdge->setDisabledZero(OP_DEBUG_CODE(ZeroReason::hvCoincidence3));
+            for (;;) {
+                OpPoint oppEnd = oppEdge->ptT(coinPair.id > 0 
+                        ? EdgeMatch::end : EdgeMatch::start).pt;
+                if (edge->end.pt == oppEnd)
                     break;
-                if (combinedWinding.visible())
-                    edge->winding = combinedWinding;
-                else {
-                    edge->winding.zero();
-                    edge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence2));
+                bool oppInEdge = edge->ptBounds.contains(oppEnd);
+                bool edgeInOpp = oppEdge->ptBounds.contains(edge->end.pt);
+                OP_ASSERT(oppInEdge != edgeInOpp);
+                if (oppInEdge) {
+                    oppEdge += oppBump;
+                    OP_ASSERT(oppWinding == oppEdge->winding);
+                    oppEdge->setDisabledZero(OP_DEBUG_CODE(ZeroReason::hvCoincidence3));
+                } else {
+                    ++edge;
+                    OP_ASSERT(edgeWinding == edge->winding);
+                    if (combinedWinding.visible()) {
+                        edge->winding = combinedWinding;
+                        if (edge->disabled)
+                            edge->reenable();
+                    } else
+                        edge->setDisabledZero(OP_DEBUG_CODE(ZeroReason::hvCoincidence2));
                 }
             }
-            do {
-                oppEdge->winding.zero();
-                oppEdge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence3));
-                if (oppEdge == oppBack) {
-                    OP_ASSERT(done);
-                    break;
-                }
-                oppEdge += oppBump;
-            } while (oppWinding == oppEdge->winding);
-            OP_ASSERT((edge == edgeBack) == (oppEdge == oppBack));
-        } while (!done);
+            if (edge == edgeBack) {
+                OP_ASSERT(oppEdge == oppBack);
+                break;
+            }
+            ++edge;
+            OP_ASSERT(oppEdge != oppBack);
+            oppEdge += oppBump;
+        }
     }
 }
 
-#if OP_DEBUG
-
-void OpIntersection::debugSetID() {
-    id = segment->nextID();
-}
-
+#if OP_DEBUG_VALIDATE
 void OpIntersection::debugValidate() const {
     OP_ASSERT(OpMath::Between(0, ptT.t, 1));
     OpPoint pt = segment->c.ptAtT(ptT.t);
     OpMath::DebugCompare(pt, ptT.pt);
     OpPoint oPt = opp->segment->c.ptAtT(opp->ptT.t);
     OpMath::DebugCompare(pt, oPt);
+}
+#endif
+
+#if OP_DEBUG
+void OpIntersection::debugSetID() {
+    id = segment->nextID();
 }
 
 bool OpIntersections::debugContains(const OpPtT& ptT, const OpSegment* opp) const {
@@ -368,5 +346,4 @@ OpIntersection* OpIntersections::debugAlreadyContains(const OpPoint& pt, const O
 	}
 	return nullptr;
 }
-
 #endif

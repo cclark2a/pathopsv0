@@ -70,6 +70,34 @@ enum class MatchEnds {
     both
 };
 
+struct CoinPair {
+    CoinPair(OpIntersection* s, OpIntersection* os, OpEdge* e, OpEdge* o, int ID  
+			OP_DEBUG_PARAMS(OpEdge* l))
+        : start(s)
+        , end(nullptr)
+        , oStart(os)
+        , oEnd(nullptr)
+        , edge(e)
+        , oppEdge(o)
+        , id(ID)
+        OP_DEBUG_PARAMS(lastEdge(l)) {
+    }
+
+#if OP_DEBUG_DUMP
+	void dump() const;
+	void dumpDetail() const;
+#endif
+
+	OpIntersection* start;
+    OpIntersection* end;
+    OpIntersection* oStart;
+    OpIntersection* oEnd;
+    OpEdge* edge;
+    OpEdge* oppEdge;
+    int id;
+    OP_DEBUG_CODE(OpEdge* lastEdge);
+};
+
 // Places where a pair of segments cross are recorded as intersections.
 // Pairs of intersections, along with segments' ends, extremas, and inflections,
 // are used to create edges. Edges may then be subdivided so that each edge has
@@ -129,6 +157,8 @@ struct OpIntersection {
 
 #if OP_DEBUG
 	void debugSetID();
+#endif
+#if OP_DEBUG_VALIDATE
 	void debugValidate() const;
 #endif
 #if OP_DEBUG_DUMP

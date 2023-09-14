@@ -58,7 +58,7 @@ struct OpWinder {
 	FoundWindings setWindings(OpContours* );
 	void sort(EdgesToSort);
 
-#if OP_DEBUG
+#if OP_DEBUG_VALIDATE
 	void debugValidate() const;
 #endif
 #if OP_DEBUG_DUMP

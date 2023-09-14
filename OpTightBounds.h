@@ -116,8 +116,10 @@ struct OpPointBounds : OpRect {
     }
 
     bool touches(const OpPointBounds& r) const {
+#if OP_DEBUG_VALIDATE
         debugValidate();
         r.debugValidate();
+#endif
         return r.left == right || left == r.right || r.top == bottom || top == r.bottom;
     }
 

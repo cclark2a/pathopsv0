@@ -217,7 +217,7 @@ bool OpJoiner::linkRemaining() {
 void OpJoiner::linkUnambiguous() {
     // match up edges that have only a single possible prior or next link, and add them to new list
     linkPass = LinkPass::unambiguous;
-	OP_DEBUG_CODE(debugValidate());
+	OP_DEBUG_VALIDATE_CODE(debugValidate());
     for (auto& edge : byArea) {
 		if (edge->disabled)
             continue;   // likely marked as part of a loop below
@@ -229,10 +229,10 @@ void OpJoiner::linkUnambiguous() {
 		linkMatch = EdgeMatch::start;
 		if (!linkUp(edge))
 			continue;
-		OP_DEBUG_CODE(debugValidate());
+		OP_DEBUG_VALIDATE_CODE(debugValidate());
 		linkMatch = EdgeMatch::end;
 		(void) linkUp(edge->setLastEdge(nullptr));
-		OP_DEBUG_CODE(debugValidate());
+		OP_DEBUG_VALIDATE_CODE(debugValidate());
     }
 }
 
@@ -268,13 +268,13 @@ bool OpJoiner::linkUp(OpEdge* edge) {
 		return false;  // 2) found multiple possibilities (end)
 	}
 	FoundEdge found = edges.front();
-	OP_DEBUG_CODE(debugValidate());
+	OP_DEBUG_VALIDATE_CODE(debugValidate());
 	edge->linkToEdge(found, linkMatch);
 	OP_ASSERT(edge->whichPtT(linkMatch).pt == found.edge->flipPtT(linkMatch).pt);
-	OP_DEBUG_CODE(debugValidate());
+	OP_DEBUG_VALIDATE_CODE(debugValidate());
 	if (detachIfLoop(edge))
 		return false; // 4) found loop, nothing leftover; caller to move on to next edge
-	OP_DEBUG_CODE(debugValidate());
+	OP_DEBUG_VALIDATE_CODE(debugValidate());
 	// move to the front or back edge depending on link match
 	OpEdge* recurse = found.edge->advanceToEnd(linkMatch);
 	return linkUp(recurse);	// 5)  recurse to extend prior or next
@@ -295,7 +295,7 @@ void OpJoiner::matchLeftover(OpPoint matchPt, const std::vector<OpEdge*>& leftov
 // at this point all singly linked edges have been found
 // every active set of links at this point must form a loop
 bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
-	OP_DEBUG_CODE(debugValidate());
+	OP_DEBUG_VALIDATE_CODE(debugValidate());
 	OpEdge* lastEdge = edge->lastEdge;
 	OP_ASSERT(lastEdge);
 	OP_ASSERT(EdgeMatch::start == lastEdge->whichEnd || EdgeMatch::end == lastEdge->whichEnd);
@@ -465,7 +465,7 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 		oo(10);
 		showPoints();
 		showValues();
-		OpDebugOut("");
+		OpDebugOut("");  // allows setting a breakpoint when joining edge isn't found
 	}
 #endif
 	OP_ASSERT(found.size());

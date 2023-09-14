@@ -1153,19 +1153,6 @@ OpEdge::OpEdge(OpPtT ptT[2])
     end = ptT[1];
 }
 
-const OpEdge* OpEdge::debugAdvanceToEnd(EdgeMatch match) const {
-	const OpEdge* result = this;
-	while (const OpEdge* edge = (EdgeMatch::start == match ? result->priorEdge : result->nextEdge)) {
-        OP_ASSERT(EdgeMatch::start == match ? 
-                result->priorEdge->nextEdge == result : 
-                result->nextEdge->priorEdge == result);
-		result = edge;
-	}
-    OP_ASSERT(result == const_cast<OpEdge*>(this)->advanceToEnd(match));
-	return result;
-}
-
-
 void OpEdge::debugCompare(std::string s) const {
     OpEdge test(s);
     OP_ASSERT(segment->id == test.segment->id);
@@ -1215,6 +1202,7 @@ std::string OpEdge::debugDump() const {
     if (disabled) s += "disabled ";
     if (unsectableID) s += "uID:" + STR(unsectableID) + " ";
     if (unsortable) s += "unsortable ";
+    if (debugRayMatch) s += "debugRayMatch:" + STR(debugRayMatch) + " ";
     s += "seg:" + STR(segment->id);
     return s;
 }
@@ -1392,6 +1380,52 @@ void dmp(const EdgeDistance& distance) {
 
 void dmpHex(const EdgeDistance& distance) {
     OpDebugOut(debugDumpHex(distance, DebugLevel::normal));
+}
+
+std::string debugDump(const CoinPair& pair, DebugLevel level) {
+    std::string s = DebugLevel::brief == level ? "start id:" + STR(pair.start->id) + " " : 
+            DebugLevel::detailed == level ? "start:" + pair.start->debugDumpDetail() + "\n" :
+            "start:" + pair.start->debugDump() + "\n";
+    if (pair.end) s += "end:" + pair.end->debugDump() + "\n";
+    if (pair.oStart) s += DebugLevel::brief == level ? "oStart id:" + STR(pair.oStart->id) + " " : 
+            DebugLevel::detailed == level ? "oStart:" + pair.oStart->debugDumpDetail() + "\n" :
+            "oStart:" + pair.oStart->debugDump() + "\n";
+    if (pair.oEnd) s += "oEnd:" + pair.oEnd->debugDump() + "\n";
+    if (pair.edge) s += "edge:" + pair.edge->debugDump() + "\n";
+    if (pair.oppEdge) s += "oppEdge:" + pair.oppEdge->debugDump() + "\n";
+    s += "id:" + STR(pair.id) + " ";
+    if (pair.lastEdge) s += "lastEdge:" + pair.lastEdge->debugDump();
+    s += "\n";
+    return s;
+}
+
+std::string debugDumpHex(const CoinPair& pair, DebugLevel level) {
+    std::string s = DebugLevel::brief == level ? "start id:" + STR(pair.start->id) + " " : 
+            DebugLevel::detailed == level ? "start:" + pair.start->debugDumpDetail() + "\n" :
+            "start:" + pair.start->debugDumpHex() + "\n";
+    if (pair.end) s += "end:" + pair.end->debugDumpHex() + "\n";
+    if (pair.oStart) s += DebugLevel::brief == level ? "oStart id:" + STR(pair.oStart->id) + " " : 
+            DebugLevel::detailed == level ? "oStart:" + pair.oStart->debugDumpDetail() + "\n" :
+            "oStart:" + pair.oStart->debugDumpHex() + "\n";
+    if (pair.oEnd) s += "oEnd:" + pair.oEnd->debugDumpHex() + "\n";
+    if (pair.edge) s += "edge:" + pair.edge->debugDumpHex() + "\n";
+    if (pair.oppEdge) s += "oppEdge:" + pair.oppEdge->debugDumpHex() + "\n";
+    s += "id:" + STR(pair.id) + " ";
+    if (pair.lastEdge) s += "lastEdge:" + pair.lastEdge->debugDumpHex();
+    s += "\n";
+    return s;
+}
+
+void dmp(const CoinPair& pair) {
+    OpDebugOut(debugDump(pair, DebugLevel::normal));
+}
+
+void dmpDetail(const CoinPair& pair) {
+    OpDebugOut(debugDump(pair, DebugLevel::detailed));
+}
+
+void dmpHex(const CoinPair& pair) {
+    OpDebugOut(debugDumpHex(pair, DebugLevel::normal));
 }
 
 std::string debugDump(const SectRay& ray, DebugLevel level) {
@@ -1658,6 +1692,10 @@ std::string OpIntersection::debugDumpDetail(bool fromDumpIntersections) const {
         s += edgeOrSegment(debugOppID, "debugOpp:");
 #endif
     return s;
+}
+
+std::string OpIntersection::debugDump() const {
+    return debugDump(false, false);
 }
 
 std::string OpIntersection::debugDumpDetail() const {
@@ -2083,10 +2121,6 @@ void OpRoots::dump() const {
     OpDebugOut(s);
 }
 
-
-int OpOutPath::debugNextID(OpEdge* edge) {
-    return edge->segment->contour->nextID();
-}
 
 std::string OpDebugMaker::debugDump() const {
 	return file.substr(file.find("Op")) + ":" + STR(line);

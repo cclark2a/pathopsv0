@@ -45,18 +45,21 @@ struct OpOutPath {
 #if OP_DEBUG_IMAGE
 	void draw() const;
 #endif
-#if OP_DEBUG_DUMP
+#if OP_DEBUG
 	bool debugIsEmpty() const;
 	int debugNextID(struct OpEdge* );
+#endif
+#if OP_DEBUG_DUMP
 	void dump() const;
 	void dumpDetail() const;
 #endif
+
 #if PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_SKIA
 	SkPath* skPath;
 #elif PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_PENTREK
 	const void* externalReference;
 #endif
-#if OP_DEBUG_DUMP
+#if OP_DEBUG
 	int debugID;
 #endif
 };

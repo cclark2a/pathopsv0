@@ -561,32 +561,6 @@ const OpEdge* OpEdge::debugIsLoop(WhichLoop which, LeadingLoop leading) const {
 }
 #endif
 
-#if OP_DEBUG
-bool OpEdge::debugSuccess() const {
-    return segment->debugSuccess();
-}
-
-// fuzz-generated test crbug_526025 generated an edge link that is invalid.
-// !!! move this into debugValidate
-bool OpEdge::debugValidLoop() const {
-	std::vector<const OpEdge*> seen;
-	const OpEdge* last = this;
-	for (;;) {
-		if (seen.end() != std::find(seen.begin(), seen.end(), last)) {
-			return true;
-		}
-		seen.push_back(last);
-		if (!last->nextEdge)
-			return true;
-		if (last != last->nextEdge->priorEdge) {
-			OP_ASSERT(0);
-			return false;
-		}
-		last = last->nextEdge;
-	}
-}
-#endif
-
 void OpWinding::move(OpWinding opp, const OpContours* contours, bool backwards) {
 	OP_ASSERT(WindingType::winding == debugType);
 	OP_ASSERT(WindingType::winding == opp.debugType);

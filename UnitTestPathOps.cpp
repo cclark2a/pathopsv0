@@ -384,7 +384,9 @@ void OpCurveTest() {
 	ASSERT(6 == rotated.pts[0].x);
 	ASSERT(6 == rotated.pts[1].x);
 	ASSERT(-6 == rotated.pts[2].x);
-	OP_DEBUG_CODE(curve.dump());
+#if OP_DEBUG_DUMP
+	curve.dump();
+#endif
 }
 
 void OpLineTest() {
@@ -1102,6 +1104,7 @@ void OpTestQuadCoin2() {
 }
 
 extern void run_all_tests();
+extern void run_all_tests2();
 
 #if OP_DEBUG
 void onetest() {
@@ -1137,6 +1140,7 @@ void OpTest(bool terminateEarly) {
 	if (terminateEarly)
 		exit(0);
 #endif
+//	run_all_tests2();  // ran to completion with no errors 9/14/23. Commented out because it takes ~90 minutes to run
 	run_all_tests();
 	OpTest_WindState();
 //	OpTest_WindZero();

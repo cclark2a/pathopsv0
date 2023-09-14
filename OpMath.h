@@ -468,8 +468,10 @@ struct OpRect {
         return bottom - top; }
 
     bool intersects(const OpRect& r) const {
+#if OP_DEBUG_VALIDATE
         debugValidate();
         r.debugValidate();
+#endif
         return r.left <= right && left <= r.right && r.top <= bottom && top <= r.bottom;
     }
 
@@ -493,10 +495,12 @@ struct OpRect {
     virtual void dumpHex() const;
 #endif
 
+#if OP_DEBUG_VALIDATE
     void debugValidate() const {
         OP_ASSERT(left <= right);
         OP_ASSERT(top <= bottom);
     }
+#endif
 
     float left;
     float top;

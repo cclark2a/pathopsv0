@@ -252,6 +252,19 @@ OpVector OpCubic::debugTangent(float t) const {
 #include "OpContour.h"
 #include "OpEdge.h"
 
+const OpEdge* OpEdge::debugAdvanceToEnd(EdgeMatch match) const {
+	const OpEdge* result = this;
+	while (const OpEdge* edge = (EdgeMatch::start == match ? result->priorEdge : result->nextEdge)) {
+        OP_ASSERT(EdgeMatch::start == match ? 
+                result->priorEdge->nextEdge == result : 
+                result->nextEdge->priorEdge == result);
+		result = edge;
+	}
+    OP_ASSERT(result == const_cast<OpEdge*>(this)->advanceToEnd(match));
+	return result;
+}
+
+#if OP_DEBUG_VALIDATE
 void OpEdge::debugValidate() const {
     debugGlobalContours->debugValidateEdgeIndex += 1;
     bool loopy = debugIsLoop();
@@ -282,17 +295,51 @@ void OpEdge::debugValidate() const {
     }
     OP_ASSERT(0);
 }
+#endif
+
+bool OpEdge::debugSuccess() const {
+    return segment->debugSuccess();
+}
+
+// fuzz-generated test crbug_526025 generated an edge link that is invalid.
+// this is currently unused
+#if 0
+bool OpEdge::debugValidLoop() const {
+	std::vector<const OpEdge*> seen;
+	const OpEdge* last = this;
+	for (;;) {
+		if (seen.end() != std::find(seen.begin(), seen.end(), last)) {
+			return true;
+		}
+		seen.push_back(last);
+		if (!last->nextEdge)
+			return true;
+		if (last != last->nextEdge->priorEdge) {
+			OP_ASSERT(0);
+			return false;
+		}
+		last = last->nextEdge;
+	}
+}
+#endif
 
 #include "OpJoiner.h"
 
+void OpContours::debugRemap(int oldRayMatch, int newRayMatch) {
+    for (auto& contour : contours) {
+        for (auto& segment : contour.segments) {
+            for (auto& edge : segment.edges) {
+                if (oldRayMatch == edge.debugRayMatch)
+                    edge.debugRayMatch = newRayMatch;
+            }
+        }
+    }
+}
+
 // assign the same ID for all edges linked together
 // also assign that ID to edges whose non-zero crossing rays attach to those edges
-void OpJoiner::debugMatchRay(OP_DEBUG_CODE(const OpContours* contours)) {
+void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContours* contours)) {
     OP_DEBUG_CODE(bool mayFail = OpDebugExpect::unknown == contours->debugExpect);
-                    // !!! logic needs work in xor case ...
-    if (OpOperator::ExclusiveOr == contours->opOperator)
-        return;
-    OpDebugOut("");
 	for (auto linkup : linkups.l) {
         OP_ASSERT(!linkup->priorEdge);
         OP_ASSERT(linkup->lastEdge);
@@ -333,7 +380,7 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(const OpContours* contours)) {
                 WindZeroFlip(&linkZero);    // get wind zero for edge normal pointing left
             if (WindZero::opp == linkZero) {
 #if OP_DEBUG
-                if (dTest && !dTest->inLinkups) {
+                if (dTest && !dTest->inLinkups && !dTest->inOutput) {
                     bool found = false;
                     for (auto& pal : dTest->pals)
                         found |= pal.edge->inLinkups;
@@ -397,11 +444,13 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(const OpContours* contours)) {
             OpEdge* match = linkup->debugMatch;
             if (!match)
                 continue;
-            OP_ASSERT(!match->debugRayMatch || nextID == match->debugRayMatch);
+            if (match->debugRayMatch && nextID != match->debugRayMatch)
+                // remap everything with old match to next id (don't know how to do this efficiently
+                contours->debugRemap(match->debugRayMatch, nextID);
             if (match->debugRayMatch)   // !!! could assert that all linked edges are ID'd
                 continue;
             if (match->debugIsLoop()) {
-                OP_ASSERT(mayFail);
+                OP_ASSERT(mayFail || match->inOutput);
                 continue;
             }
             OpEdge* firstMatch = match;
@@ -418,6 +467,7 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(const OpContours* contours)) {
     }
 }
 
+#if OP_DEBUG_VALIDATE
 // !!! also debug prev/next edges (links)
 void OpJoiner::debugValidate() const {
     debugGlobalContours->debugValidateJoinerIndex += 1;
@@ -462,8 +512,12 @@ void OpWinder::debugValidate() const {
     for (auto& edge : inY)
         edge->debugValidate();
 }
-
-
 #endif
 
+#include "PathOps.h"
 
+int OpOutPath::debugNextID(OpEdge* edge) {
+    return edge->segment->contour->nextID();
+}
+
+#endif

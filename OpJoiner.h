@@ -40,7 +40,9 @@ struct OpJoiner {
 	void sort();
 #if OP_DEBUG
 	int debugActive() const;
-	void debugMatchRay(OP_DEBUG_CODE(const OpContours* contours));
+	void debugMatchRay(OP_DEBUG_CODE(OpContours* contours));
+#endif
+#if OP_DEBUG_VALIDATE
 	void debugValidate() const;
 #endif
 #if OP_DEBUG_DUMP

@@ -210,9 +210,11 @@ OpContours::OpContours(OpInPath& l, OpInPath& r, OpOperator op)
 {
     opOperator = OpInverse[+op][l.isInverted()][r.isInverted()];
     sectStorage = new OpSectStorage;
-#if OP_DEBUG
+#if OP_DEBUG_VALIDATE
     debugValidateEdgeIndex = 0;
     debugValidateJoinerIndex = 0;
+#endif
+#if OP_DEBUG
     debugInPathOps = false;
     debugInClearEdges = false;
     debugCheckLastEdge = false;
@@ -259,7 +261,7 @@ void* OpContours::allocateFiller() {
 // prefer smaller total bounds
 bool OpContours::assemble(OpOutPath path) {
     OpJoiner joiner(*this, path);  // collect active edges and sort them
-    OP_DEBUG_CODE(joiner.debugValidate());
+    OP_DEBUG_VALIDATE_CODE(joiner.debugValidate());
     if (!joiner.byArea.size())  // !!! all remaining edges could be unsectable...
         return true;
     joiner.sort();  // join up largest edges first
@@ -282,12 +284,11 @@ bool OpContours::assemble(OpOutPath path) {
     ::add(unsortables);
     ::redraw();
 #endif
-    OP_DEBUG_CODE(joiner.debugValidate());
+    OP_DEBUG_VALIDATE_CODE(joiner.debugValidate());
     joiner.linkUnambiguous();
     OP_DEBUG_CODE(joiner.debugMatchRay(this));
     bool result = joiner.linkRemaining();
-    OpDebugOut("");
-    return result;
+    return result;  // allows setting a breakpoint after link remaining
 }
 
 bool OpContours::debugFail() const {

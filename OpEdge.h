@@ -482,6 +482,8 @@ public:
 	void setBetween();  // setter exists so debug breakpoints can be set
 	const OpCurve& setCurve();
 	void setDisabled(OP_DEBUG_CODE(ZeroReason reason));
+	void setDisabledZero(OP_DEBUG_CODE(ZeroReason reason)) {
+		winding.zero(); setDisabled(OP_DEBUG_CODE(reason)); }
 	void setFromPoints(const OpPoint pts[]);
 	OpEdge* setLastEdge(OpEdge* old = nullptr);
 	bool setLastLink(EdgeMatch );  // returns true if link order was changed
@@ -507,12 +509,9 @@ public:
 	OpEdge(std::string );
 	OpEdge(OpPtT data[2]);
 	OpEdge(OpHexPtT data[2]);
-	const OpEdge* debugAdvanceToEnd(EdgeMatch match) const;
 	void debugCompare(std::string ) const;
 	std::string debugDumpBrief() const;
 	std::string debugDumpChain(WhichLoop , bool detail) const;
-	void debugValidate() const;  // make sure pointer to edge is valid
-	bool debugValidLoop() const;
 	void dumpChain(bool detail = false) const;
 	void dumpEnd() const;
 	void dumpLink() const;
@@ -521,11 +520,13 @@ public:
 
 #include "OpDebugDeclarations.h"
 #endif
-#if OP_DEBUG_DUMP || OP_DEBUG
+#if OP_DEBUG
+	const OpEdge* debugAdvanceToEnd(EdgeMatch match) const;
 	bool debugIsLoop() const {
 		return debugIsLoop(WhichLoop::prior) || debugIsLoop(WhichLoop::next); }
 	const OpEdge* debugIsLoop(WhichLoop , LeadingLoop = LeadingLoop::will) const;
-
+	void debugValidate() const;  // make sure pointer to edge is valid
+//	bool debugValidLoop() const;  // currently unused
 #endif
 #if OP_DEBUG_IMAGE
 	void addLink() const;

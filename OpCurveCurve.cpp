@@ -147,7 +147,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 	for (int depth = 1; depth < maxDepth; ++depth) {
 #if OP_DEBUG_IMAGE
 		if (breakAtDraw && 8 <= depth)
-			OpDebugOut("");
+			OpDebugOut("");  // allows setting a breakpoint to debug curve/curve
 #endif
 		if (edgeLines.size() && oppLines.size())
 			LinearIntersect(edgeLines, oppLines);
@@ -191,7 +191,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 		if (breakAtDraw) {
 			draw();
 			if (depth >= 5)
-				OpDebugOut("");
+				OpDebugOut("");  // allows setting a breakpoint to debug curve/curve
 		}
 #endif
 	}
