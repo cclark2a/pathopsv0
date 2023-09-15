@@ -21,6 +21,7 @@ OP_X(LinkUps) \
 OP_X(OpContours) \
 OP_X(OpCurve) \
 OP_X(OpCurveCurve) \
+OP_X(OpEdgeStorage) \
 OP_X(OpIntersections) \
 OP_X(OpJoiner) \
 OP_X(OpOutPath) \

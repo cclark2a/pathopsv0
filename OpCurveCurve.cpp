@@ -79,14 +79,17 @@ SectFound OpCurveCurve::curvesIntersect(CurveRef curveRef) {
 	std::vector<OpEdge>& oppParts = CurveRef::edge == curveRef ? oppCurves : edgeCurves;
 	SectFound result = SectFound::no;	// assumes no pair intersects; we're done
 	for (auto& edge : edgeParts) {
-		// !!! if OP_ASSERT fires, we missed detecting linear edge earlier
-		OP_ASSERT(edge.start.t < edge.center.t && edge.center.t < edge.end.t);
-		OP_ASSERT(!edge.isLine_impl);
+		if (edge.start.t >= edge.center.t || edge.center.t >= edge.end.t) {
+			OP_ASSERT(OpDebugExpect::unknown == edge.segment->contour->contours->debugExpect);
+			return SectFound::fail;  // triggered by fuzz763_47
+		}
+		if (edge.isLine_impl)
+			return SectFound::fail;  // triggered by fuzz753_91
 		// rotate each to see if tight rotated bounds (with extrema) touch
 		LinePts edgeLine { edge.start.pt, edge.end.pt };
 		OpCurve& edgeRotated = const_cast<OpCurve&>(edge.setVertical());
 		if (!edgeRotated.isFinite())
-			OP_DEBUG_FAIL(*originalEdge, SectFound::fail);
+			return SectFound::fail;  // triggered by fuzzhang_1
 		OpTightBounds edgeRotatedBounds(edgeRotated);
 		for (auto& opp : oppParts) {
 			OP_ASSERT(!opp.isLine_impl);
@@ -157,7 +160,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 			LinearIntersect(oppLines, edgeCurves);
 		SectFound oppResult = curvesIntersect(CurveRef::edge);
 		if (SectFound::fail == oppResult)
-			OP_DEBUG_FAIL(*originalEdge, oppResult);
+			return oppResult;  // triggered by fuzzhang_1
 		SectFound edgeResult = curvesIntersect(CurveRef::opp);
 		if (SectFound::fail == edgeResult)
 			OP_DEBUG_FAIL(*originalEdge, edgeResult);
@@ -195,8 +198,8 @@ SectFound OpCurveCurve::divideAndConquer() {
 		}
 #endif
 	}
-	OP_ASSERT(0);
-	return SectFound::no;
+// OP_ASSERT(0);  // triggered by release_13, a fuzzer test expected to fail
+	return SectFound::fail;
 }
 
 void OpCurveCurve::findEdgesTRanges(CurveRef curveRef) {

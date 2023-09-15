@@ -17,13 +17,14 @@ bool OpContour::addClose() {
     return true;
 }
 
-void OpContour::addConic(OpPoint pts[3], float weight) {
+bool OpContour::addConic(OpPoint pts[3], float weight) {
     OpMath::ZeroTiny(pts, 3);
     if (pts[0] == pts[2])   // !!! should be fill only, not frame
-        return;
+        return true;
     OpTightBounds bounds;
     OpConic conic(pts, weight);
-    bounds.calcBounds(conic);
+    if (!bounds.calcBounds(conic))
+        return false;
     std::vector<ExtremaT> extrema = bounds.findExtrema(pts[0], pts[2]);
     if (!extrema.size()) {
         OpCurve whole(pts, weight, OpType::conic);
@@ -35,7 +36,7 @@ void OpContour::addConic(OpPoint pts[3], float weight) {
         } else
             segments.emplace_back(whole, OpType::conic, this  
                     OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
-        return;
+        return true;
     }
     ExtremaT start = {{ pts[0], 0 }  OP_DEBUG_PARAMS(SectReason::startPt)};
     for (unsigned index = 0; index <= extrema.size(); ++index) {
@@ -52,15 +53,17 @@ void OpContour::addConic(OpPoint pts[3], float weight) {
                     OP_DEBUG_PARAMS(start.reason, end.reason));
         start = end;
     }
+    return true;
 }
 
-void OpContour::addCubic(OpPoint pts[4]) {
+bool OpContour::addCubic(OpPoint pts[4]) {
     OpMath::ZeroTiny(pts, 4);
     // reduction to point if pt 0 equals pt 3 complicated since it requires pts 1, 2 be linear..
     OP_ASSERT(pts[0] != pts[3]); // !!! detect possible degenerate to code from actual test data
     OpTightBounds bounds;
     OpCubic cubic(pts);
-    bounds.calcBounds(cubic);
+    if (!bounds.calcBounds(cubic))
+        return false;
     std::vector<ExtremaT> extrema = bounds.findExtrema(pts[0], pts[3]);
 
     if (!extrema.size()) {
@@ -73,7 +76,7 @@ void OpContour::addCubic(OpPoint pts[4]) {
         } else
             segments.emplace_back(whole, OpType::cubic, this  
                     OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
-        return;
+        return true;
     }
     ExtremaT start = {{ pts[0], 0 }  OP_DEBUG_PARAMS(SectReason::startPt)};
     for (unsigned index = 0; index <= extrema.size(); ++index) {
@@ -89,6 +92,7 @@ void OpContour::addCubic(OpPoint pts[4]) {
                     OP_DEBUG_PARAMS(start.reason, end.reason));
         start = end;
     }
+    return true;
 }
 
 OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg
@@ -101,6 +105,8 @@ OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg
 }
 
 OpEdge* OpContour::addFiller(OpIntersection* start, OpIntersection* end) {
+    if (contours->edgeStorage && contours->edgeStorage->contains(start, end))
+        return nullptr;
     void* block = contours->allocateFiller();
     OpEdge* filler = new(block) OpEdge(start->segment, start->ptT, end->ptT
             OP_DEBUG_PARAMS(EdgeMaker::filler, __LINE__, __FILE__, start, end));
@@ -124,13 +130,14 @@ OpIntersection* OpContour::addSegSect(const OpPtT& t, OpSegment* seg, int cID, i
     return next;
 }
 
-void OpContour::addQuad(OpPoint pts[3]) {
+bool OpContour::addQuad(OpPoint pts[3]) {
     OpMath::ZeroTiny(pts, 3);
     if (pts[0] == pts[2])   // !!! should be fill only, not frame
-        return;
+        return true;
     OpTightBounds bounds;
     OpQuad quad(pts);
-    bounds.calcBounds(quad);
+    if (!bounds.calcBounds(quad))
+        return false;
     std::vector<ExtremaT> extrema = bounds.findExtrema(pts[0], pts[2]);
     if (!extrema.size()) {
         OpCurve whole(pts, OpType::quad);
@@ -142,7 +149,7 @@ void OpContour::addQuad(OpPoint pts[3]) {
         } else
             segments.emplace_back(whole, OpType::quad, this  
                     OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
-        return;
+        return true;
     }
     ExtremaT start = {{ pts[0], 0 }  OP_DEBUG_PARAMS(SectReason::startPt)};
     for (unsigned index = 0; index <= extrema.size(); ++index) {
@@ -159,6 +166,7 @@ void OpContour::addQuad(OpPoint pts[3]) {
                     OP_DEBUG_PARAMS(start.reason, end.reason));
         start = end;
     }
+    return true;
 }
 
 
@@ -243,7 +251,7 @@ OpIntersection* OpContours::allocateIntersection() {
 void* OpContours::allocateFiller() {
     if (!edgeStorage)
         edgeStorage = new OpEdgeStorage;
-    if (edgeStorage->used == sizeof(edgeStorage->storage) / sizeof(OpEdge)) {
+    if (edgeStorage->used == sizeof(edgeStorage->storage)) {
         OpEdgeStorage* next = new OpEdgeStorage;
         next->next = edgeStorage;
         edgeStorage = next;
@@ -273,7 +281,7 @@ bool OpContours::assemble(OpOutPath path) {
     }
     // although unsortables are marked active, care must be taken since they may or may not
     // be part of the output
-    for (auto unsortable : unsortables) {
+    for (auto unsortable : joiner.unsortables) {
         unsortable->setActive(true);
     }
 #if 01 && OP_DEBUG_IMAGE
@@ -281,7 +289,7 @@ bool OpContours::assemble(OpOutPath path) {
     ::hideSegmentEdges();
     ::hideIntersections();
     joiner.debugDraw();
-    ::add(unsortables);
+    ::add(joiner.unsortables);
     ::redraw();
 #endif
     OP_DEBUG_VALIDATE_CODE(joiner.debugValidate());
@@ -331,7 +339,7 @@ bool OpContours::pathOps(OpOutPath result) {
     }
     sortedSegments.findCoincidences();  // check for exact curves and full lines
     if (FoundIntersections::fail == sortedSegments.findIntersections())
-        OP_DEBUG_FAIL(*this, false);
+        return false;  // triggered by fuzzhang_1
     sortIntersections();
     makeEdges();
     windCoincidences();  // for partial h/v lines, compute their winding considiering coincidence

@@ -15,9 +15,7 @@
 #include "OpDebugDump.h"
 #include "OpDebugImage.h"
 
-#if PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_SKIA
 struct SkPoint;
-#endif
 
 // !!! move to OpTypes.h one day
 template <typename T, size_t N> char (&ArrayCountHelper(T (&array)[N]))[N];
@@ -404,9 +402,7 @@ struct OpPoint {
 
     void pin(const OpPoint , const OpPoint );
     void pin(const OpRect& );
-#if PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_SKIA
     SkPoint toSkPoint() const;
-#endif
 
     void zeroTiny() {  // set denormalized inputs to zero
         if (fabsf(x) < OpEpsilon)

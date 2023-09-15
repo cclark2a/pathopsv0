@@ -2,10 +2,12 @@
 #include "OpEdge.h"
 #include "PathOps.h"
 
-#if PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_SKIA
-
 #include "include/core/SkPathTypes.h"
 #include "include/core/SkPath.h"
+
+static SkPath* skPath(const void* extRef) {
+    return (SkPath*) extRef;
+}
 
 bool PathSimplify(OpInPath path, OpOutPath result) {
     SkPath empty;
@@ -14,26 +16,26 @@ bool PathSimplify(OpInPath path, OpOutPath result) {
 }
 
 bool OpInPath::isInverted() const {
-	return skPath->isInverseFillType();
+	return skPath()->isInverseFillType();
 }
 
 void OpOutPath::setEmpty() {
-	skPath->reset();
+	skPath()->reset();
 }
 
 void OpOutPath::setInverted(bool wasInverted) {
     SkPathFillType fillType = wasInverted ? SkPathFillType::kInverseEvenOdd : SkPathFillType::kEvenOdd;
-    skPath->setFillType(fillType);
+    skPath()->setFillType(fillType);
 }
 
 #if OP_DEBUG_DUMP
 
 bool OpOutPath::debugIsEmpty() const {
-    return skPath->isEmpty();
+    return skPath()->isEmpty();
 }
 
 void dmp(const OpOutPath& outPath)  {
-    outPath.skPath->dump();
+    outPath.skPath()->dump();
 }
 
 #endif
@@ -43,43 +45,43 @@ SkPoint OpPoint::toSkPoint() const {
 }
 
 void OpEdge::output(OpOutPath path) {
-    SkPath* skPath = path.skPath;
-    skPath->moveTo(whichPtT().pt.toSkPoint());
+    SkPath* skpath = skPath(path.externalReference);
+    skpath->moveTo(whichPtT().pt.toSkPoint());
     const OpEdge* firstEdge = this;
     OpEdge* edge = this;
     do {
         SkPoint skEndPt = edge->whichPtT(EdgeMatch::end).pt.toSkPoint();
         OpType type = edge->type();
         if (OpType::line == type) 
-            skPath->lineTo(skEndPt); 
+            skpath->lineTo(skEndPt); 
         else {
             SkPoint skCtrlPt0 = edge->ctrlPts[0].toSkPoint();
             if (OpType::quad == type) 
-                skPath->quadTo(skCtrlPt0, skEndPt); 
+                skpath->quadTo(skCtrlPt0, skEndPt); 
             else if (OpType::conic == type) 
-                skPath->conicTo(skCtrlPt0, skEndPt, edge->weight);
+                skpath->conicTo(skCtrlPt0, skEndPt, edge->weight);
             else {
                 OP_ASSERT(OpType::cubic == type);
                 SkPoint skCtrlPt1 = edge->ctrlPts[1].toSkPoint();
                 if (EdgeMatch::end == edge->whichEnd)
                     std::swap(skCtrlPt0, skCtrlPt1);
-                skPath->cubicTo(skCtrlPt0, skCtrlPt1, skEndPt);
+                skpath->cubicTo(skCtrlPt0, skCtrlPt1, skEndPt);
             }
         }
         edge = edge->nextOut();
     } while (firstEdge != edge);
-    skPath->close();
+    skpath->close();
 }
 
 bool OpContours::build(OpInPath path, OpOperand operand) {
-    const SkPath& skPath = *path.skPath;
-    if (!skPath.isFinite())
+    const SkPath& skpath = *skPath(path.externalReference);
+    if (!skpath.isFinite())
         return debugFail();
-    setFillType(operand, SkPathFillType::kEvenOdd == skPath.getFillType()
-            || SkPathFillType::kInverseEvenOdd == skPath.getFillType() 
+    setFillType(operand, SkPathFillType::kEvenOdd == skpath.getFillType()
+            || SkPathFillType::kInverseEvenOdd == skpath.getFillType() 
             ? OpFillType::evenOdd : OpFillType::winding);
     OpContour* head = makeContour(operand);
-    SkPath::RawIter iter(skPath);
+    SkPath::RawIter iter(skpath);
     SkPath::Verb verb;
     do {
         OpPoint pts[4];
@@ -92,13 +94,16 @@ bool OpContours::build(OpInPath path, OpOperand operand) {
             head->addLine(pts);
             break;
         case SkPath::kQuad_Verb:
-            head->addQuad(pts);
+            if (!head->addQuad(pts))
+                return false;
             break;
         case SkPath::kConic_Verb:
-            head->addConic(pts, iter.conicWeight());
+            if (!head->addConic(pts, iter.conicWeight()))
+                return false;
             break;
         case SkPath::kCubic_Verb:
-            head->addCubic(pts);
+            if (!head->addCubic(pts))
+                return false;
             break;
         case SkPath::kClose_Verb:
             break;
@@ -109,5 +114,3 @@ bool OpContours::build(OpInPath path, OpOperand operand) {
     head->addClose();
     return true;
 }
-
-#endif

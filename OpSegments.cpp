@@ -224,7 +224,7 @@ FoundIntersections OpSegments::findIntersections() {
             OpCurveCurve cc(&seg->edges.back(), &opp->edges.back());
             SectFound result = cc.divideAndConquer();
             if (SectFound::fail == result)
-                OP_DEBUG_FAIL(*seg, FoundIntersections::fail);
+                return FoundIntersections::fail;  // triggered by fuzzhang_1
         }
     }
     return FoundIntersections::yes; // !!! if something can fail, return 'fail' (don't return 'no')

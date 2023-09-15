@@ -462,6 +462,7 @@ public:
 		whichEnd = (EdgeMatch)((int)whichEnd ^ (int)EdgeMatch::both); }
 	bool hasLinkTo(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? nextEdge : priorEdge; }
+	bool hasLinkTo(OpEdge* match) const;
 	bool isActive() const { 
 		return active_impl; }
 	bool isLinear();
@@ -525,6 +526,7 @@ public:
 	bool debugIsLoop() const {
 		return debugIsLoop(WhichLoop::prior) || debugIsLoop(WhichLoop::next); }
 	const OpEdge* debugIsLoop(WhichLoop , LeadingLoop = LeadingLoop::will) const;
+	int debugLinkCount() const;
 	void debugValidate() const;  // make sure pointer to edge is valid
 //	bool debugValidLoop() const;  // currently unused
 #endif
@@ -598,6 +600,13 @@ struct OpEdgeStorage {
 		: next(nullptr)
 		, used(0) {
 	}
+	bool contains(OpIntersection* start, OpIntersection* end) const;
+#if OP_DEBUG_DUMP
+	const OpEdge* debugFind(int id) const;
+	void dump() const;
+	void dumpDetail() const;
+#endif
+
 	OpEdgeStorage* next;
 	uint8_t storage[sizeof(OpEdge) * 256];
 	int used;

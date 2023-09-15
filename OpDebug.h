@@ -5,14 +5,7 @@
 #include <assert.h>
 #endif
 
-#define PATH_OPS_V0_FOR_SKIA 1
-#define PATH_OPS_V0_FOR_PENTREK 2
-
 #define OP_DEBUG_FAST_TEST 0  // in a debug build: set to zero to enable debug dump, debug image
-
-// set targeted platform here
-#define PATH_OPS_V0_TARGET PATH_OPS_V0_FOR_SKIA
-// #define PATH_OPS_V0_TARGET PATH_OPS_V0_FOR_PENTREK
 
 #define OP_RELEASE_TEST 1	// !!! set to zero to remove tests from release build
 #define TEST_GR_SHAPE_ARCS_1 0	// save complicated test for later, once much simpler tests work
@@ -70,7 +63,7 @@ struct OpContours;
 	#define OP_DEBUG_VALIDATE 0
 #else
 	#define OP_DEBUG_DUMP 1
-	#define OP_DEBUG_IMAGE (PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_SKIA)
+	#define OP_DEBUG_IMAGE 1
 	#define OP_DEBUG_VALIDATE 1
 #endif
 #define OP_DEBUG_PARAMS(...) , __VA_ARGS__
@@ -116,6 +109,8 @@ enum class OpDebugExpect {
 #endif
 
 #if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE
+class SkPath;
+
 #define STR(x) OpDebugStr(x)
 #if OP_DEBUG
 #define OP_DEBUG_STR_ID(x) OpDebugStr(x->id)

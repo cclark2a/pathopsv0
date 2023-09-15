@@ -49,7 +49,8 @@ struct OpPointBounds : OpRect {
     }
 
     OpPoint add(OpPoint pt) {
-        OP_ASSERT(pt.isFinite());
+        if (!pt.isFinite())
+            return OpPoint();
         left = std::min(left, pt.x);
         top = std::min(top, pt.y);
         right = std::max(right, pt.x);
@@ -153,31 +154,41 @@ struct OpTightBounds : OpPointBounds {
         set(curve);
     }
 
-    void calcBounds(const OpQuad& quad) {
+    bool calcBounds(const OpQuad& quad) {
         OpPointBounds::set(quad.pts[0], quad.pts[2]);
         if (!quad.monotonic(XyChoice::inX)) {
             OpRoots extremaTs = quad.extrema(XyChoice::inX);
             *xExtrema = { add(quad.ptAtT(extremaTs.roots[0])), extremaTs.roots[0] };
+            if (!xExtrema->pt.isFinite())
+                return false;
         }
         if (!quad.monotonic(XyChoice::inY)) {
             OpRoots extremaTs = quad.extrema(XyChoice::inY);
             *yExtrema = { add(quad.ptAtT(extremaTs.roots[0])), extremaTs.roots[0] };
+            if (!yExtrema->pt.isFinite())
+                return false;
         }
+        return true;
     }
 
-    void calcBounds(const OpConic& conic) {
+    bool calcBounds(const OpConic& conic) {
         OpPointBounds::set(conic.pts[0], conic.pts[2]);
         if (!conic.monotonic(XyChoice::inX)) {
             OpRoots extremaTs = conic.extrema(XyChoice::inX);
             *xExtrema = { add(conic.ptAtT(extremaTs.roots[0])), extremaTs.roots[0] };
+            if (!xExtrema->pt.isFinite())
+                return false;
         }
         if (!conic.monotonic(XyChoice::inY)) {
             OpRoots extremaTs = conic.extrema(XyChoice::inY);
             *yExtrema = { add(conic.ptAtT(extremaTs.roots[0])), extremaTs.roots[0] };
+            if (!yExtrema->pt.isFinite())
+                return false;
         }
+        return true;
     }
 
-    void calcBounds(OpCubic& cubic) {
+    bool calcBounds(OpCubic& cubic) {
         OpPointBounds::set(cubic.pts[0], cubic.pts[3]);
         if (!cubic.monotonic(XyChoice::inX)) {
             OpRoots extremaTs = cubic.extrema(XyChoice::inX);
@@ -186,6 +197,8 @@ struct OpTightBounds : OpPointBounds {
 //                cubic.pinCtrls(XyChoice::inX);  // if needed, document when and why
             while (count--) {
                 xExtrema[count] = { add(cubic.ptAtT(extremaTs.roots[count])), extremaTs.roots[count] };
+                if (!xExtrema[count].pt.isFinite())
+                    return false;
             }
         }
         if (!cubic.monotonic(XyChoice::inY)) {
@@ -195,6 +208,8 @@ struct OpTightBounds : OpPointBounds {
 //                cubic.pinCtrls(XyChoice::inY);
             while (count--) {
                 yExtrema[count] = { add(cubic.ptAtT(extremaTs.roots[count])), extremaTs.roots[count] };
+                if (!yExtrema[count].pt.isFinite())
+                    return false;
             }
         }
         OpRoots extremaTs = cubic.inflections();
@@ -202,6 +217,7 @@ struct OpTightBounds : OpPointBounds {
         while (count--) {
             inflections[count] = { add(cubic.ptAtT(extremaTs.roots[count])), extremaTs.roots[count] };
         }
+        return true;
     }
     
     std::vector<ExtremaT> findExtrema(OpPoint start, OpPoint end) {

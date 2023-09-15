@@ -6,7 +6,6 @@
 
 OpJoiner::OpJoiner(OpContours& contours, OpOutPath& p)
 	: path(p)
-	, unsortables(contours.unsortables)
 	, linkMatch(EdgeMatch::none)
 	, linkPass(LinkPass::none)
 	, disabledBuilt(false)
@@ -35,9 +34,11 @@ bool OpJoiner::activeUnsectable(const OpEdge* edge, EdgeMatch match,
 
 void OpJoiner::addEdge(OpEdge* edge) {
 	OP_ASSERT(!edge->debugIsLoop());
-	if (edge->disabled || edge->unsortable)
+	if (edge->disabled)
 		return;
-	if (edge->pals.size())
+	if (edge->unsortable)
+		unsortables.push_back(edge);
+	else if (edge->pals.size())
 		unsectByArea.push_back(edge);
 	else
 		byArea.push_back(edge);
@@ -280,10 +281,12 @@ bool OpJoiner::linkUp(OpEdge* edge) {
 	return linkUp(recurse);	// 5)  recurse to extend prior or next
 }
 
-void OpJoiner::matchLeftover(OpPoint matchPt, const std::vector<OpEdge*>& leftovers, 
-		std::vector<FoundEdge>& edges) {
+void OpJoiner::matchLeftover(OpPoint matchPt, const OpEdge* links, 
+		const std::vector<OpEdge*>& leftovers, std::vector<FoundEdge>& edges) {
 	for (OpEdge* nosort : leftovers) {
 		if (nosort->inOutput || nosort->inLinkups)
+			continue;
+		if (links->hasLinkTo(nosort))
 			continue;
 		if (matchPt == nosort->start.pt)
 			edges.emplace_back(nosort, EdgeMatch::start);
@@ -354,16 +357,16 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 			}
 		}
 	}
-	// look for disabled pal that is not in output, and completes loop (cubics14d)
 	if (!found.size()) {
+		matchLeftover(matchPt, edge, unsortables, found);
+		OP_ASSERT(!lastEdge->debugIsLoop());
+		OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
+//	}
+	// look for disabled pal that is not in output, and completes loop (cubics14d)
+//	if (!found.size()) {
 		if (!disabledPalsBuilt)
 			buildDisabledPals(*edge->segment->contour->contours);
-		matchLeftover(matchPt, disabledPals, found);
-		OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
-	}
-	if (!found.size()) {
-		matchLeftover(matchPt, unsortables, found);
-		OP_ASSERT(!lastEdge->debugIsLoop());
+		matchLeftover(matchPt, edge, disabledPals, found);
 		OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
 	}
 #if 1
@@ -384,6 +387,8 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 				if (sect->ptT.pt != opp->ptT.pt) {
 					OpEdge* filler = EdgeMatch::start == whichEnd ? contour->addFiller(sect, opp) 
 							: contour->addFiller(opp, sect);
+					if (!filler)
+						return false;
 					found.emplace_back(filler, whichEnd);
 				}
 				if (!last) {
@@ -398,11 +403,16 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 					continue;
 				OpEdge* filler = EdgeMatch::start == whichEnd ? contour->addFiller(sect, last) 
 						: contour->addFiller(last, sect);
+					if (!filler)
+						return false;
 				found.emplace_back(filler, whichEnd);
 			}
+			return true;
 		};
-		checkMissed(edge, EdgeMatch::start);
-		checkMissed(lastEdge, EdgeMatch::end);
+		if (!checkMissed(edge, EdgeMatch::start))
+			return false;
+		if (!checkMissed(lastEdge, EdgeMatch::end))
+			return false;
 	}
 #endif
 	// if there's no remaining active edges in linkups or unsectables, just close what's left (loops63i)
@@ -423,6 +433,8 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 			break;
 		}
 		OpEdge* filler = contour->addFiller(last, sect);
+				if (!filler)
+					return false;
 		found.emplace_back(filler, EdgeMatch::start);
 	}
 #if 0
@@ -431,7 +443,10 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 		OpIntersection* lastEnd = lastEdge->segment->sects.i.back();
 		if (edge->whichPtT().pt.isNearly(matchPt)) {
 			OpIntersection* edgeStart = edge->segment->sects.i.front();
-			found.emplace_back(edge->segment->contour->addFiller(edgeStart, lastEnd), EdgeMatch::end);
+			OpEdge* filler = edge->segment->contour->addFiller(edgeStart, lastEnd);
+			if (!filler)
+				return false;
+			found.emplace_back(filler, EdgeMatch::end);
 		}
 		for (size_t index = 0; index < linkups.l.size(); ++index) {
 			OpEdge* linkup = linkups.l[index];
@@ -439,7 +454,10 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 			OP_ASSERT(!linkup->debugIsLoop());
 			if (lastEdge != linkup && linkup->whichPtT().pt.isNearly(matchPt)) {
 				OpIntersection* linkStart = linkup->segment->sects.i.front();
-				found.emplace_back(edge->segment->contour->addFiller(linkStart, lastEnd), EdgeMatch::end);
+				OpEdge* filler = edge->segment->contour->addFiller(linkStart, lastEnd);
+				if (!filler)
+					return false;
+				found.emplace_back(filler, EdgeMatch::end);
 			}
 			OpEdge* lastLink = linkup->lastEdge;
 			OP_ASSERT(lastLink);
@@ -454,7 +472,7 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 	if (!found.size()) {
 		if (!disabledBuilt)
 			buildDisabled(*edge->segment->contour->contours);
-		matchLeftover(matchPt, disabled, found);
+		matchLeftover(matchPt, edge, disabled, found);
 		OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
 	}
 	if (!found.size() && edge->between)	// !!! if this is all that's left, drop it on the floor?
@@ -550,18 +568,31 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 		if (smallest.index >= 0) {
 			OP_ASSERT((unsigned) smallest.index < linkups.l.size());
 			linkups.l.erase(linkups.l.begin() + smallest.index);
-		} else if (best->disabled) {
-			auto disabledPos = std::find(disabled.begin(), disabled.end(), best);
-			if (disabled.end() != disabledPos)
-				disabled.erase(disabledPos);
 		}
+	}
+	if (best->disabled) {
+		auto disabledPos = std::find(disabled.begin(), disabled.end(), best);
+		if (disabled.end() != disabledPos)
+			disabled.erase(disabledPos);
 	}
 	// if there is a loop, remove entries in link ups which are output
 	linkMatch = EdgeMatch::start;	// since closest prior is set to last edge, use start
 	if (detachIfLoop(best))
 		return true; // found loop
 	edge = edge->advanceToEnd(EdgeMatch::start);
-	return matchLinks(edge, false);
+#if OP_DEBUG
+	auto index = std::find(debugTrack.begin(), debugTrack.end(), edge);
+	if (debugTrack.end() != index) {
+		auto oldCount = debugLinks[index - debugTrack.begin()];
+		OP_ASSERT(oldCount != edge->debugLinkCount());
+	}
+	debugTrack.push_back(edge);
+	debugLinks.push_back(edge->debugLinkCount());
+#endif
+	bool result = matchLinks(edge, false);
+	OP_DEBUG_CODE(debugTrack.pop_back());
+	OP_DEBUG_CODE(debugLinks.pop_back());
+	return result;
 }
 
 static bool compareSize(const OpEdge* s1, const OpEdge* s2) {

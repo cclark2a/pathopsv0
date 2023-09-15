@@ -216,6 +216,8 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 		OP_ASSERT(OpMath::Between(cPtT.t, oCoinEnd.t, dPtT.t));
 		oSect2 = oppSegment->addCoin(oCoinEnd, coinID, flipped ? MatchEnds::start : MatchEnds::end
 				OP_DEBUG_PARAMS(SECT_MAKER(addPair_oppEnd), SectReason::coinPtsMatch, segment));
+		if (!oSect2)
+			return IntersectResult::fail; // triggered by fuzz763_13
 		sect2->pair(oSect2);
 	} else {  // segment already has intersection (start or end); e.g., line doubles back
 		if (!(inCoinRange(oRange, oSect2->ptT.t, nullptr) & 1)) {

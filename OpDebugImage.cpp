@@ -305,8 +305,8 @@ void OpDebugImage::init(const OpInPath& left, const OpInPath& right) {
 	drawRightOn = true;
 	drawSegmentEdgesOn = true;
 	drawTemporaryEdgesOn = true;
-	SkRect opBounds = left.skPath->getBounds();
-	opBounds.join(right.skPath->getBounds());
+	SkRect opBounds = left.skPath()->getBounds();
+	opBounds.join(right.skPath()->getBounds());
 	DebugOpSetBounds(opBounds.fLeft, opBounds.fTop, opBounds.fRight, opBounds.fBottom);
 }
 
@@ -421,9 +421,9 @@ void OpDebugImage::drawDoubleFocus() {
 		matrix.preTranslate(-DebugOpGetCenterX(), -DebugOpGetCenterY());
 		matrix.postTranslate(DebugOpGetOffsetX(), DebugOpGetOffsetY());
 		if (drawLeftOn) 
-			drawDoubleFill(operands[0].skPath->makeTransform(matrix), SkColorSetARGB(10, 255, 0, 0));
+			drawDoubleFill(operands[0].skPath()->makeTransform(matrix), SkColorSetARGB(10, 255, 0, 0));
 		if (drawRightOn)
-			drawDoubleFill(operands[1].skPath->makeTransform(matrix), SkColorSetARGB(10, 0, 0, 255));
+			drawDoubleFill(operands[1].skPath()->makeTransform(matrix), SkColorSetARGB(10, 0, 0, 255));
 	}
 	if (drawHighlightOn)
 		DebugOpHighlight(highlights);
@@ -1162,9 +1162,9 @@ void OpDebugImage::drawPoints() {
 		} while (verb != SkPath::kDone_Verb);
 	};
 	if (drawLeftOn)
-		drawPathPt(operands[0].skPath);
+		drawPathPt(operands[0].skPath());
 	if (drawRightOn)
-		drawPathPt(operands[1].skPath);
+		drawPathPt(operands[1].skPath());
 	if (drawSegmentsOn) {
 		for (auto seg : segmentIterator) {
 			DebugOpBuild(seg->c.pts[0]);
@@ -1204,9 +1204,9 @@ void OpDebugImage::drawPoints() {
 	if (drawLinesOn) {
 		for (const auto& line : lines) {
 			if (drawLeftOn)
-				DebugOpBuild(*operands[0].skPath, line);
+				DebugOpBuild(*operands[0].skPath(), line);
 			if (drawRightOn)
-				DebugOpBuild(*operands[1].skPath, line);
+				DebugOpBuild(*operands[1].skPath(), line);
 			if (drawSegmentsOn) {
 				for (auto seg : segmentIterator) {
 					DebugOpBuild(*seg, line);
@@ -1660,7 +1660,7 @@ void resetFocus() {
 		return OpDebugOut("missing operands\n");
 	OpPointBounds focusRect;
 	for (unsigned index = 0; index < operands.size(); ++index) {
-		SkRect skrect = operands[index].skPath->getBounds();
+		SkRect skrect = operands[index].skPath()->getBounds();
 		focusRect.left = std::min(skrect.fLeft, focusRect.left);
 		focusRect.top = std::min(skrect.fTop, focusRect.top);
 		focusRect.right = std::max(skrect.fRight, focusRect.right);

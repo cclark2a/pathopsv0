@@ -4,47 +4,25 @@
 #include "OpDebug.h"
 #include "OpOperators.h"
 
-#if PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_SKIA
-class SkPath;
-#endif
-
 struct OpInPath {
-#if PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_SKIA
-	OpInPath(const SkPath* sk)
-		: skPath(sk) {
-		OP_ASSERT(skPath);
-	}
-#elif PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_PENTREK
 	OpInPath(const void* ext) 
 		: externalReference(ext) {
 	}
+#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
+	const SkPath* skPath() const { return (const SkPath*) externalReference; }
 #endif
 
 	bool isInverted() const;
-#if PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_SKIA
-	const SkPath* skPath;
-#elif PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_PENTREK
 	const void* externalReference;
-#endif
 };
 
 struct OpOutPath {
-#if PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_SKIA
-	OpOutPath(SkPath* sk)
-		: skPath(sk) {
-		OP_ASSERT(skPath);
-	}
-#elif PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_PENTREK
-	OpOutPath(const void* ext) 
+	OpOutPath(void* ext) 
 		: externalReference(ext) {
 	}
-#endif
 
 	void setEmpty();
 	void setInverted(bool wasInverted);
-#if OP_DEBUG_IMAGE
-	void draw() const;
-#endif
 #if OP_DEBUG
 	bool debugIsEmpty() const;
 	int debugNextID(struct OpEdge* );
@@ -53,12 +31,15 @@ struct OpOutPath {
 	void dump() const;
 	void dumpDetail() const;
 #endif
-
-#if PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_SKIA
-	SkPath* skPath;
-#elif PATH_OPS_V0_TARGET == PATH_OPS_V0_FOR_PENTREK
-	const void* externalReference;
+#if OP_DEBUG_IMAGE
+	void draw() const;
 #endif
+#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
+	SkPath* skPath() { return (SkPath*) externalReference; }
+	const SkPath* skPath() const { return (const SkPath*) externalReference; }
+#endif
+
+	void* externalReference;
 #if OP_DEBUG
 	int debugID;
 #endif

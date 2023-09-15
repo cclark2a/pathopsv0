@@ -211,6 +211,20 @@ float OpEdge::findT(Axis axis, float oppXY) const {
 	return result;
 }
 
+bool OpEdge::hasLinkTo(OpEdge* match) const {
+	if (this == match)
+		return true;
+	OP_ASSERT(!priorEdge);
+	OP_ASSERT(lastEdge);
+	OP_ASSERT(!debugIsLoop());
+	const OpEdge* test = this;
+	while ((test = test->nextEdge)) {
+		if (test == match)
+			return true;
+	}
+	return false;
+}
+
 void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 	OpEdge* oppEdge = found.edge;
 	OP_ASSERT(!oppEdge->hasLinkTo(match));
@@ -442,10 +456,7 @@ void OpEdge::setPriorEdge(OpEdge* edge) {
 }
 
 void OpEdge::setUnsortable() {
-	if (unsortable)
-		return;
 	unsortable = true;
-	segment->contour->contours->unsortables.push_back(this);
 }
 
 const OpCurve& OpEdge::setVertical() {
@@ -560,6 +571,18 @@ const OpEdge* OpEdge::debugIsLoop(WhichLoop which, LeadingLoop leading) const {
 	return nullptr;
 }
 #endif
+
+bool OpEdgeStorage::contains(OpIntersection* start, OpIntersection* end) const {
+	for (int index = 0; index < used; index += sizeof(OpEdge)) {
+		const OpEdge* test = (const OpEdge*) &storage[index];
+		if (test->segment == start->segment && test->start == start->ptT
+				&& test->end == end->ptT)
+			return true;
+	}
+	if (!next)
+		return false;
+	return next->contains(start, end);
+}
 
 void OpWinding::move(OpWinding opp, const OpContours* contours, bool backwards) {
 	OP_ASSERT(WindingType::winding == debugType);

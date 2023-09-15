@@ -357,9 +357,13 @@ void dmpUnsectable() {
 }
 
 void dmpUnsortable() {
-    for (auto edge : debugGlobalContours->unsortables) {
-        if (edge->unsortable)
-            edge->dumpDetail();
+    for (const auto& c : debugGlobalContours->contours) {
+        for (const auto& seg : c.segments) {
+            for (const auto& edge : seg.edges) {
+                if (edge.unsortable)
+                    edge.dumpDetail();
+            }
+        }
     }
 }
 
@@ -581,10 +585,9 @@ const OpEdge* findEdge(int ID) {
             }
         }
     }
-    for (const auto& c : debugGlobalContours->filler) {
-        if (ID == c.id)
-            return &c;
-    }
+    if (const OpEdge* filler = debugGlobalContours->edgeStorage
+            ? debugGlobalContours->edgeStorage->debugFind(ID) : nullptr)
+        return filler;
     // if edge intersect is active, search there too
     if (OpCurveCurve::debugActive) {
 	    for (auto edgePtrs : { 
@@ -1298,6 +1301,35 @@ void OpEdge::dumpLinkDetail() const {
 
 void dmpStart(const OpEdge& edge) {
     edge.segment->contour->contours->dumpMatch(edge.start.pt);
+}
+
+const OpEdge* OpEdgeStorage::debugFind(int ID) const {
+	for (int index = 0; index < used; index += sizeof(OpEdge)) {
+		const OpEdge* test = (const OpEdge*) &storage[index];
+        if (test->id == ID)
+            return test;
+	}
+    if (!next)
+        return nullptr;
+    return next->debugFind(ID);
+}
+
+void dmp(const OpEdgeStorage& edges) {
+	for (int index = 0; index < edges.used; index += sizeof(OpEdge)) {
+		const OpEdge* test = (const OpEdge*) &edges.storage[index];
+        test->dump();
+	}
+    if (edges.next)
+	    dmp(*edges.next);
+}
+
+void dmpDetail(const OpEdgeStorage& edges) {
+	for (int index = 0; index < edges.used; index += sizeof(OpEdge)) {
+		const OpEdge* test = (const OpEdge*) &edges.storage[index];
+        test->dumpDetail();
+	}
+    if (edges.next)
+	    dmpDetail(*edges.next);
 }
 
 void dmp(const OpJoiner& edges) {

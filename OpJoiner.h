@@ -35,7 +35,8 @@ struct OpJoiner {
 	bool linkRemaining();
 	void linkUnambiguous();
 	bool linkUp(OpEdge* );
-	void matchLeftover(OpPoint , const std::vector<OpEdge*>& leftovers, std::vector<FoundEdge>& );
+	void matchLeftover(OpPoint , const OpEdge* links, const std::vector<OpEdge*>& leftovers, 
+			std::vector<FoundEdge>& );
 	bool matchLinks(OpEdge* , bool popLast);
 	void sort();
 #if OP_DEBUG
@@ -57,12 +58,17 @@ struct OpJoiner {
 	std::vector<OpEdge*> unsectByArea;
 	std::vector<OpEdge*> disabled;
 	std::vector<OpEdge*> disabledPals;
-    std::vector<OpEdge*>& unsortables;
+    std::vector<OpEdge*> unsortables;
 	LinkUps linkups;  // a structure to allow data specific debugging / dumping
 	EdgeMatch linkMatch;
 	LinkPass linkPass;
 	bool disabledBuilt;
 	bool disabledPalsBuilt;
+
+#if OP_DEBUG
+	std::vector<OpEdge*> debugTrack;
+	std::vector<int> debugLinks;
+#endif
 };
 
 #endif

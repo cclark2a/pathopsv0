@@ -297,6 +297,27 @@ void OpEdge::debugValidate() const {
 }
 #endif
 
+int OpEdge::debugLinkCount() const {
+    int count = 1;
+    std::vector<const OpEdge*> visited;
+    visited.push_back(this);
+    auto visit = [&visited, &count](const OpEdge* test) {
+        if (visited.end() != std::find(visited.begin(), visited.end(), test))
+            return;
+        visited.push_back(test);
+        count += 1;
+    };
+    const OpEdge* test = this;
+    while ((test = test->priorEdge)) {
+        visit(test);
+    }
+    test = this;
+    while ((test = test->nextEdge)) {
+        visit(test);
+    }
+    return count;
+}
+
 bool OpEdge::debugSuccess() const {
     return segment->debugSuccess();
 }
