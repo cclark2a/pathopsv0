@@ -1,3 +1,4 @@
+// (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpCurve.h"
 
 OpRoots OpLine::axisRawHit(Axis axis, float axisIntercept) const {

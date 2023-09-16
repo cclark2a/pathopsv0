@@ -1,4 +1,4 @@
-
+// (c) 2023, Cary Clark cclark2@gmail.com
 #if OP_DEBUG_COMPARE
 #include <string>
 

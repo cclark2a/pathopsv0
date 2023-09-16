@@ -1,4 +1,4 @@
-
+// (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpDebug.h"
 
 #if OP_DEBUG_COMPARE

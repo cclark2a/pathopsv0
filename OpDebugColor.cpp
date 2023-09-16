@@ -1,3 +1,4 @@
+// (c) 2023, Cary Clark cclark2@gmail.com
 // This file is generated. Edit OpDebugColor.txt instead.
 
 #include "OpDebugColor.h"

@@ -1,6 +1,7 @@
 #ifndef PathOps_DEFINED
 #define PathOps_DEFINED
 
+// (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpDebug.h"
 #include "OpOperators.h"
 

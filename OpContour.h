@@ -1,3 +1,4 @@
+// (c) 2023, Cary Clark cclark2@gmail.com
 #ifndef OpContour_DEFINED
 #define OpContour_DEFINED
 

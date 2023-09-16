@@ -1,3 +1,4 @@
+// (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpContour.h"
 #include "OpEdge.h"
 #include "PathOps.h"

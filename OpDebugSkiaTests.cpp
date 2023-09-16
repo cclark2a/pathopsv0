@@ -1,4 +1,4 @@
-// op debug skia tests
+// (c) 2023, Cary Clark cclark2@gmail.com
 #include "include/core/SkBitmap.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkRegion.h"
@@ -151,6 +151,16 @@ bool testPathOpBase(skiatest::Reporter* , const SkPath& a, const SkPath& b,
 bool testPathOp(skiatest::Reporter*, const SkPath& a, const SkPath& b,
         SkPathOp op, const char* filename) {
     return testPathOpBase(nullptr, a, b, op, filename, false, false);
+}
+
+void RunTestSet(skiatest::Reporter* reporter, TestDesc tests[], size_t count,
+        void (*firstTest)(skiatest::Reporter*, const char* filename),
+        void (*skipTest)(skiatest::Reporter*, const char* filename),
+        void (*stopTest)(skiatest::Reporter*, const char* filename), bool reverse) {
+    if (firstTest)
+        (*firstTest)(reporter, "first");
+    for (size_t i = 0; i < count; ++i)
+        (*tests[i].fun)(reporter, tests[i].str);
 }
 
 void VerifySimplify(const SkPath& one, const SkPath& result) {

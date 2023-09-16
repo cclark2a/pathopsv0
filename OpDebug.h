@@ -1,3 +1,4 @@
+// (c) 2023, Cary Clark cclark2@gmail.com
 #ifndef OpDebug_DEFINED
 #define OpDebug_DEFINED
 
@@ -9,7 +10,8 @@
 
 #define OP_RELEASE_TEST 1	// !!! set to zero to remove tests from release build
 #define TEST_GR_SHAPE_ARCS_1 0	// save complicated test for later, once much simpler tests work
-#define TEST_ISSUE_3517 0	// not as bad as the one above, but still complicated; defer
+#define TEST_HARD_ISSUE 1	// not as bad as the one above, but still complicated; defer
+#define TESTABLE_ON_DESKTOP_ONLY 1   // !!! likely the difference between optimizing compilers
 
 #define OP_DEBUG_COMPARE 0	// set to one to compare successive runs
 #if OP_DEBUG_COMPARE

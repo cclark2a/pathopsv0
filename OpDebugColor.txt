@@ -1,4 +1,5 @@
 $ prefix for OpDebugColor.h
+// (c) 2023, Cary Clark cclark2@gmail.com
 // This file is generated. Edit OpDebugColor.txt instead.
 
 #ifndef OpDebugColor_DEFINED
@@ -34,6 +35,7 @@ extern uint32_t colorIDColor;
 extern uint32_t OP_DEBUG_MULTICOLORED;
 
 $ prefix for OpDebugColor.cpp
+// (c) 2023, Cary Clark cclark2@gmail.com
 // This file is generated. Edit OpDebugColor.txt instead.
 
 #include "OpDebugColor.h"

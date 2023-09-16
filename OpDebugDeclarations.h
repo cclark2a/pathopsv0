@@ -1,3 +1,4 @@
+// (c) 2023, Cary Clark cclark2@gmail.com
 // Including this in a struct provides debug methods in that struct's context
 // to dump data specific to that struct and outside that struct.
 

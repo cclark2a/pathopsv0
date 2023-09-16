@@ -1,3 +1,4 @@
+// (c) 2023, Cary Clark cclark2@gmail.com
 #ifndef OpDebugSkiaTests_DEFINED
 #define OpDebugSkiaTests_DEFINED
 
@@ -46,11 +47,20 @@ struct PathOpsThreadedTestRunner {
     void render() {}
 };
 
+struct TestDesc {
+    void (*fun)(skiatest::Reporter*, const char* filename);
+    const char* str;
+};
+
 #define DEF_TEST(name, reporter)                                \
     static void test_##name(skiatest::Reporter*);               \
     void test_##name(skiatest::Reporter* reporter)
 
 
+void RunTestSet(skiatest::Reporter* reporter, TestDesc tests[], size_t count,
+        void (*firstTest)(skiatest::Reporter*, const char* filename),
+        void (*skipTest)(skiatest::Reporter*, const char* filename),
+        void (*stopTest)(skiatest::Reporter*, const char* filename), bool reverse);
 void VerifySimplify(const SkPath& one, const SkPath& result);
 void initializeTests(skiatest::Reporter* , const char* );
 bool testPathOp(skiatest::Reporter*, const SkPath& a, const SkPath& b,
@@ -58,5 +68,10 @@ bool testPathOp(skiatest::Reporter*, const SkPath& a, const SkPath& b,
 bool testPathOpBase(skiatest::Reporter* , const SkPath& a, const SkPath& b, 
         SkPathOp op, const char* filename, bool v0MayFail, bool skiaMayFail);
 bool testSimplify(SkPath& path, bool useXor, SkPath& out, skiatest::PathOpsThreadState& , const char* );
+
+void run_all_battle_tests();
+void run_all_circle_tests();
+void run_all_op_tests();
+void run_all_simplify_rect_tests();
 
 #endif

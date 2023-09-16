@@ -4,6 +4,7 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
+// (c) 2023, Cary Clark cclark2@gmail.com
 
 #include "OpDebugSkiaTests.h"
 
@@ -357,7 +358,7 @@ path.close();
 testFail(path);
 }
 
-void run_all_tests2() {
+void run_all_simplify_rect_tests() {
     fail6();
     fail5();
     fail4();

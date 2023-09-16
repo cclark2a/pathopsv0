@@ -1,3 +1,4 @@
+// (c) 2023, Cary Clark cclark2@gmail.com
 #include <cmath>
 #include "OpContour.h"
 #include "OpCurveCurve.h"

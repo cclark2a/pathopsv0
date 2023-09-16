@@ -4,7 +4,7 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-
+// (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpDebugSkiaTests.h"
 
 using namespace skiatest;
@@ -120,7 +120,7 @@ SkPath b(path);
 testFail(a, b, kDifference_SkPathOp);
 }
 
-void run_all_tests3() {
+void run_all_circle_tests() {
     thread_circles14545();
     skiatest::Reporter* reporter = nullptr;
     test_PathOpsOpCircleThreaded(reporter);

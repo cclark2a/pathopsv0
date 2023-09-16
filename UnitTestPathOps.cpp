@@ -1,3 +1,4 @@
+// (c) 2023, Cary Clark cclark2@gmail.com
 //       1         2         3         4         5         6         7         8         9         0
 //34567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
 #include "OpDebug.h"
@@ -5,9 +6,9 @@
 
 // math test
 #include <random>
-#include <string>
 #include "OpMath.h"
 #include "OpContour.h"
+#include "OpDebugSkiaTests.h"
 #include "src/pathops/SkPathOpsConic.h"
 #include "src/pathops/SkPathOpsCubic.h"
 #include "src/pathops/SkPathOpsQuad.h"
@@ -1103,10 +1104,6 @@ void OpTestQuadCoin2() {
 	OpDebugOut("");
 }
 
-extern void run_all_tests();
-extern void run_all_tests2();
-extern void run_all_tests3();
-
 #if OP_DEBUG
 void onetest() {
 	OpPoint data[] = { 
@@ -1141,9 +1138,12 @@ void OpTest(bool terminateEarly) {
 	if (terminateEarly)
 		exit(0);
 #endif
+	run_all_battle_tests();
+	run_all_circle_tests();  // ran to completion with no errors 9/14/23. Takes ~90 minutes to run
+	run_all_op_tests();
+	run_all_simplify_rect_tests();
 //	run_all_tests3();
-//	run_all_tests2();  // ran to completion with no errors 9/14/23. Commented out because it takes ~90 minutes to run
-	run_all_tests();
+//	run_all_tests2();  
 	OpTest_WindState();
 //	OpTest_WindZero();
 	OpTest_EdgeZero();

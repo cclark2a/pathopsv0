@@ -1,3 +1,4 @@
+// (c) 2023, Cary Clark cclark2@gmail.com
 #ifndef OpCurveCurve_DEFINED
 #define OpCurveCurve_DEFINED
 

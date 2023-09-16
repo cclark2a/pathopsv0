@@ -4,15 +4,12 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
+// (c) 2023, Cary Clark cclark2@gmail.com
+
 #include "src/pathops/SkPathOpsCubic.h"
 #include "src/pathops/SkPathOpsQuad.h"
 
 #include "OpDebugSkiaTests.h"
-
-struct TestDesc {
-    void (*fun)(skiatest::Reporter*, const char* filename);
-    const char* str;
-};
 
 struct QuadPts {
     static const int kPointCount = 3;
@@ -41,16 +38,6 @@ void testPathOpFuzz(skiatest::Reporter*, SkPath& a, SkPath& b, SkPathOp op, cons
 bool testPathOpFail(skiatest::Reporter* reporter, const SkPath& a, const SkPath& b,
         const SkPathOp op, const char* testName) {
     return testPathOpBase(nullptr, a, b, op, testName, false, true);
-}
-
-void RunTestSet(skiatest::Reporter* reporter, TestDesc tests[], size_t count,
-        void (*firstTest)(skiatest::Reporter*, const char* filename),
-        void (*skipTest)(skiatest::Reporter*, const char* filename),
-        void (*stopTest)(skiatest::Reporter*, const char* filename), bool reverse) {
-    if (firstTest)
-        (*firstTest)(reporter, "first");
-    for (size_t i = 0; i < count; ++i)
-        (*tests[i].fun)(reporter, tests[i].str);
 }
 
 void REPORTER_ASSERT(skiatest::Reporter* , bool test) {
@@ -1899,8 +1886,6 @@ static void skpkkiste_to98(skiatest::Reporter* reporter, const char* filename) {
     testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-#define TEST_ISSUE_1417 0
-#if TEST_ISSUE_1417
 static void issue1417(skiatest::Reporter* reporter, const char* filename) {
     SkPath path1;
     path1.moveTo(122.58908843994140625f, 82.2836456298828125f);
@@ -2012,7 +1997,6 @@ static void issue1417(skiatest::Reporter* reporter, const char* filename) {
     // FIXME : difficult data, circle back later
     testPathOp(reporter, path1, path2, kUnion_SkPathOp, filename);
 }
-#endif
 
 static void issue1418(skiatest::Reporter* reporter, const char* filename) {
     SkPath path1;
@@ -3719,7 +3703,7 @@ static void loop4(skiatest::Reporter* reporter, const char* filename) {
 
 #include "include/utils/SkParsePath.h"
 
-#if TEST_ISSUE_3517
+#if TEST_HARD_ISSUE
 static void issue3517(skiatest::Reporter* reporter, const char* filename) {
     SkPath path, pathB;
 
@@ -4212,8 +4196,7 @@ static void cubics138(skiatest::Reporter* reporter, const char* filename) {
     testPathOp(reporter, path, pathB, kDifference_SkPathOp, filename);
 }
 
-#define ON_DESKTOP 01   // !!! likely the difference between optimizing compilers
-#if ON_DESKTOP
+#if TESTABLE_ON_DESKTOP_ONLY
 // three curves intersect successfully nearby -- the angle only gets 2 of the 3 pts
 static void cubicOp139(skiatest::Reporter* reporter, const char* filename) {
     SkPath path, pathB;
@@ -4419,7 +4402,7 @@ static void cubics10u(skiatest::Reporter* reporter, const char* filename) {
     testPathOp(reporter, path, pathB, kUnion_SkPathOp, filename);
 }
 
-#if ON_DESKTOP
+#if TESTABLE_ON_DESKTOP_ONLY
 static void cubics11i(skiatest::Reporter* reporter, const char* filename) {
     SkPath path, pathB;
     path.setFillType(SkPathFillType::kWinding);
@@ -9644,12 +9627,13 @@ b.close();
 }
 
 static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
-static void (*firstTest)(skiatest::Reporter* , const char* filename) = pentrek5;
+static void (*firstTest)(skiatest::Reporter* , const char* filename) = issue1417;
 static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 
 #define TEST(name) { name, #name }
 
 static struct TestDesc tests[] = {
+    TEST(pentrek5),
     TEST(pentrek3),
     TEST(pentrek2),
     TEST(pentrek1),
@@ -9736,7 +9720,7 @@ static struct TestDesc tests[] = {
     TEST(cubics8d),
     TEST(cubics9d),
     TEST(cubics10u),
-#if ON_DESKTOP
+#if TESTABLE_ON_DESKTOP_ONLY
     TEST(cubics11i), // !!! fails on laptop only
 #endif
     TEST(cubics12d),
@@ -9760,7 +9744,7 @@ static struct TestDesc tests[] = {
     TEST(cubicOp58d),
     TEST(loops5i),
     TEST(cubicOp140),
-#if ON_DESKTOP
+#if TESTABLE_ON_DESKTOP_ONLY
     TEST(cubicOp139),
 #endif
     TEST(cubics138),
@@ -9808,8 +9792,8 @@ static struct TestDesc tests[] = {
     TEST(loop1asQuad),
     TEST(loop1),
 
-#if TEST_ISSUE_3517
-    TEST(issue3517),    // fails with triple unsectable -- haven't written code to handle this
+#if TEST_HARD_ISSUE
+    TEST(issue3517),    // fails to connect linked edges that share debugMatch, separated by unsortable 
 #endif
     TEST(cubicOp118),
     TEST(cubicOp117),
@@ -9831,9 +9815,7 @@ static struct TestDesc tests[] = {
     TEST(quadOp10i),
     TEST(cubicOp113),
     TEST(skpcarrot_is24),
-#if TEST_ISSUE_1417 // fails with unsectable sorting
     TEST(issue1417),
-#endif
     TEST(cubicOp112),
     TEST(skpadspert_net23),
     TEST(skpadspert_de11),
@@ -10038,7 +10020,7 @@ static struct TestDesc subTests[] = {
     TEST(loops47i),
     TEST(loops61i),
     TEST(loops62i),
-#if TEST_ISSUE_3517
+#if TEST_HARD_ISSUE
     TEST(issue3517),
 #endif
 };
@@ -13099,7 +13081,7 @@ DEF_TEST(PathOpsRepOp, reporter) {
         RunTestSet(reporter, repTests, std::size(repTests), nullptr, nullptr, nullptr, false);
 }
 
-void run_all_tests() {
+void run_all_op_tests() {
     skiatest::Reporter* reporter = nullptr;
     test_PathOpsOp(reporter);
     test_PathOpsFailOp(reporter);
