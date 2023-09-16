@@ -9644,7 +9644,7 @@ b.close();
 }
 
 static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
-static void (*firstTest)(skiatest::Reporter* , const char* filename) = pentrek5;
+static void (*firstTest)(skiatest::Reporter* , const char* filename) = cubics14d;
 static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 
 #define TEST(name) { name, #name }
