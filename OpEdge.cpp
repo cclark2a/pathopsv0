@@ -475,14 +475,21 @@ const OpCurve& OpEdge::setVertical() {
 void OpEdge::skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) {
 	std::vector<FoundEdge> sectables;
 	std::vector<FoundEdge> unsectables;
+	bool duplicates = false;
 	for (const auto& found : edges) {
-		if (found.edge->pals.size())
-			unsectables.push_back(found);
-		else
+		if (found.edge->pals.size()) {
+			bool refsLinkups = false;
+			for (auto pal : found.edge->pals) {
+				if ((refsLinkups = pal.edge->inLinkups))
+					break;
+			}
+			if (refsLinkups)
+				duplicates = true;
+			else
+				unsectables.push_back(found);
+		} else
 			sectables.push_back(found);
 	}
-	bool duplicates = false;
-	OP_ASSERT(unsectables.size());
 	OpEdge* first = advanceToEnd(EdgeMatch::start);
 	first->setLastEdge(nullptr);
 	for (unsigned oIndex = 1; oIndex < unsectables.size(); ++oIndex) {

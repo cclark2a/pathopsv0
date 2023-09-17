@@ -491,7 +491,7 @@ FoundIntercept OpWinder::findRayIntercept(size_t inIndex, OpVector homeTan, floa
 				touching.erase(std::remove_if(touching.begin(), touching.end(), 
 						[&test](auto dist){ return dist.edge == test; }), touching.end());
 			}
-			if (!home->unsectableID)
+			if (!home->unsectableID && !home->pals.size())
 				markUnsortable();
 			return FoundIntercept::fail;	// nonfatal error (!!! give it a different name!)
 		}

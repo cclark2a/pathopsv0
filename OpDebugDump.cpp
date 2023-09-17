@@ -1957,8 +1957,8 @@ std::string OpWinding::debugDump() const {
     else
         result += std::string(debugWindingTypeNames[(int)debugType + 1].name);
 #endif
-    result += " left: " + (INT_MAX == left() ? std::string("unset") : STR(left()));
-    result += " right: " + (INT_MAX == right() ? std::string("unset") : STR(right()));
+    result += " left: " + (OpMax == left() ? std::string("unset") : STR(left()));
+    result += " right: " + (OpMax == right() ? std::string("unset") : STR(right()));
     return result;
 }
 

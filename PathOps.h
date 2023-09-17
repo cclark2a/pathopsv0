@@ -9,7 +9,7 @@ struct OpInPath {
 	OpInPath(const void* ext) 
 		: externalReference(ext) {
 	}
-#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
+#if OP_DEBUG
 	const SkPath* skPath() const { return (const SkPath*) externalReference; }
 #endif
 
@@ -35,7 +35,7 @@ struct OpOutPath {
 #if OP_DEBUG_IMAGE
 	void draw() const;
 #endif
-#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
+#if OP_DEBUG
 	SkPath* skPath() { return (SkPath*) externalReference; }
 	const SkPath* skPath() const { return (const SkPath*) externalReference; }
 #endif

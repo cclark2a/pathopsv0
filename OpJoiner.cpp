@@ -264,8 +264,10 @@ bool OpJoiner::linkUp(OpEdge* edge) {
 	// if there's not enough info here to do that, the pal choice should be reconsidered
 	//   when match links is called
 	// !!! maybe the right choice here is the wrong choice later?!
-	if (hasPal)
+	if (hasPal) {
+		// if edges[x] has pals and pal is in linkups, remove edges[x]
 		edge->skipPals(linkMatch, edges);
+	}
 	if (1 != edges.size() || !edges[0].edge->isActive()) {
 		if (EdgeMatch::start == linkMatch)
 			return true;  // 1) found multiple possibilities, try end
