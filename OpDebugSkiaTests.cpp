@@ -198,15 +198,17 @@ bool testSimplify(SkPath& path, bool useXor, SkPath& out, skiatest::PathOpsThrea
     bool success = PathSimplify(op1, opOut);
     OP_ASSERT(success);
     SkPath skOut;
-    bool skSuccess = Simplify(path, &skOut);
+    OP_DEBUG_CODE(bool skSuccess =) Simplify(path, &skOut);
     OP_ASSERT(skSuccess);
     if (success) 
         VerifySimplify(path, out);
+#if OP_DEBUG
     ++debugTestsRun;
     if ((debugTestsRun % 100) == 0) {
         OpDebugOut(".");
         if ((debugTestsRun % 5000) == 0) 
             OpDebugOut("\n");
     }
+#endif
     return true;
 }

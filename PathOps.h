@@ -9,9 +9,7 @@ struct OpInPath {
 	OpInPath(const void* ext) 
 		: externalReference(ext) {
 	}
-#if OP_DEBUG
 	const SkPath* skPath() const { return (const SkPath*) externalReference; }
-#endif
 
 	bool isInverted() const;
 	const void* externalReference;
@@ -24,6 +22,8 @@ struct OpOutPath {
 
 	void setEmpty();
 	void setInverted(bool wasInverted);
+	SkPath* skPath() { return (SkPath*) externalReference; }
+	const SkPath* skPath() const { return (const SkPath*) externalReference; }
 #if OP_DEBUG
 	bool debugIsEmpty() const;
 	int debugNextID(struct OpEdge* );
@@ -34,10 +34,6 @@ struct OpOutPath {
 #endif
 #if OP_DEBUG_IMAGE
 	void draw() const;
-#endif
-#if OP_DEBUG
-	SkPath* skPath() { return (SkPath*) externalReference; }
-	const SkPath* skPath() const { return (const SkPath*) externalReference; }
 #endif
 
 	void* externalReference;

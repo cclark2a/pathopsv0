@@ -122,10 +122,9 @@ OpIntersection* OpSegment::addSegSect(const OpPtT& ptT
     return addSegBase(ptT  OP_DEBUG_PARAMS(maker, line, file, reason, oSeg));
 }
 
-OpIntersection* OpSegment::addCoin(const OpPtT& ptT, int coinID, MatchEnds coinEnd  
-        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
-        const OpSegment* oSeg)) {
-    if (sects.debugContains(ptT, oSeg))  // triggered by fuzz763_13
+OpIntersection* OpSegment::addCoin(const OpPtT& ptT, int coinID, MatchEnds coinEnd, const OpSegment* oSeg  
+        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason)) {
+    if (sects.contains(ptT, oSeg))  // triggered by fuzz763_13
         return nullptr;
     return sects.add(contour->addSegSect(ptT, this, coinID, 0, coinEnd  
             OP_DEBUG_PARAMS(maker, line, file, reason, oSeg)));
