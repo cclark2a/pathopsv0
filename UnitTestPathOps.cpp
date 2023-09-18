@@ -1138,9 +1138,9 @@ void OpTest(bool terminateEarly) {
 	if (terminateEarly)
 		exit(0);
 #endif
+	run_all_op_tests();
 	run_all_battle_tests();
 	run_all_circle_tests();  // ran to completion with no errors 9/14/23. Takes ~90 minutes to run
-	run_all_op_tests();
 	run_all_simplify_rect_tests();
 //	run_all_tests3();
 //	run_all_tests2();  

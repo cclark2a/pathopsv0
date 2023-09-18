@@ -219,6 +219,13 @@ FoundIntersections OpSegments::findIntersections() {
                         SectReason::sharedEnd, seg));
                 sect->pair(oppSect);
             }
+            // if the bounds only share a corner, there's nothing more to do
+            bool sharesHorizontal = seg->ptBounds.right == opp->ptBounds.left
+                    || seg->ptBounds.left == opp->ptBounds.right;
+            bool sharesVertical = seg->ptBounds.bottom == opp->ptBounds.top
+                    || seg->ptBounds.top == opp->ptBounds.bottom;
+            if (sharesHorizontal && sharesVertical)
+                continue;
             // look for curve curve intersections (skip coincidence already found)
             seg->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(segSect)));
             opp->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(oppSect)));
