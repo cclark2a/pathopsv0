@@ -6,7 +6,7 @@
 */
 // (c) 2023, Cary Clark cclark2@gmail.com
 
-#include "example/HelloWorld.h"
+#include "HelloWorld.h"
 
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColor.h"
@@ -24,8 +24,8 @@
 #include "tools/sk_app/DisplayParams.h"
 
 
-#include "example/OpCurve.h"
-#include "example/PathOps.h"
+#include "OpCurve.h"
+#include "PathOps.h"
 
 #include <string>
 
