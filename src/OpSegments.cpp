@@ -141,26 +141,25 @@ void OpSegments::findCoincidences() {
     }
 }
 
-bool OpSegments::lineCoincidence(OpSegment* seg, OpSegment* opp) {
+IntersectResult OpSegments::lineCoincidence(OpSegment* seg, OpSegment* opp) {
     OP_ASSERT(OpType::line == seg->c.type);
     OP_ASSERT(!seg->disabled);
     OpVector tangent = seg->c.asLine().tangent();
     if (tangent.dx && tangent.dy)
-        return false;
+        return IntersectResult::no;
     OP_ASSERT(tangent.dx || tangent.dy);
     OP_ASSERT(OpType::line == opp->c.type);
     OP_ASSERT(!opp->disabled);
     OpVector oTangent = opp->c.asLine().tangent();
     if (oTangent.dx && oTangent.dy)
-        return false;
+        return IntersectResult::no;
     OP_ASSERT(oTangent.dx || oTangent.dy);
     if (!tangent.dot(oTangent))  // if at right angles, skip
-        return false;
+        return IntersectResult::no;
     OP_ASSERT(seg->ptBounds.intersects(opp->ptBounds));
     seg->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(segSect)));
     opp->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(oppSect)));
-    (void) OpWinder::CoincidentCheck(seg->edges.front(), opp->edges.front());
-    return true;
+    return OpWinder::CoincidentCheck(seg->edges.front(), opp->edges.front());
 }
 
 // note: ends have already been matched for consecutive segments
@@ -179,8 +178,13 @@ FoundIntersections OpSegments::findIntersections() {
                 continue;
             // for line-curve intersection we can directly intersect
             if (OpType::line == seg->c.type) {
-                if (OpType::line == opp->c.type && lineCoincidence(seg, opp))
-                    continue;
+                if (OpType::line == opp->c.type) {
+                    IntersectResult lineCoin = lineCoincidence(seg, opp);
+                    if (IntersectResult::fail == lineCoin)
+                        return FoundIntersections::fail;
+                    if (IntersectResult::yes == lineCoin)
+                        continue;
+                }
                 AddLineCurveIntersection(opp, seg);
                 continue;
             } else if (OpType::line == opp->c.type) {

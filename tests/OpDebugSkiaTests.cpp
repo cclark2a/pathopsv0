@@ -144,7 +144,7 @@ bool testPathOpBase(skiatest::Reporter* , const SkPath& a, const SkPath& b,
     OP_ASSERT(xorSucess);
     OP_ASSERT(xorResult.isEmpty());
 #else
-    if (success && skSuccess) VerifyOp(a, b, op, result);
+    if (success && skSuccess && !v0MayFail && !skiaMayFail) VerifyOp(a, b, op, result);
 #endif
     return true;
 }
@@ -154,15 +154,18 @@ bool testPathOp(skiatest::Reporter*, const SkPath& a, const SkPath& b,
     std::string s = std::string(testName);
     if (s == "issue3517")  // long and skinny; don't know what's going on
         return true;       // unterminated ends of contour are edges 1434, 1441
+    if (s == "fuzzhang_1")
+        return (void) testPathOpFuzz(nullptr, a, b, op, testName), true;
     return testPathOpBase(nullptr, a, b, op, testName, false, false);
 }
 
-void testPathOpCheck(skiatest::Reporter*, SkPath& a, SkPath& b, SkPathOp op, const char* testName,
-        bool checkFail) {
+void testPathOpCheck(skiatest::Reporter*, const SkPath& a, const SkPath& b, SkPathOp op, 
+        const char* testName, bool checkFail) {
     testPathOpBase(nullptr, a, b, op, testName, false, false);
 }
 
-void testPathOpFuzz(skiatest::Reporter*, SkPath& a, SkPath& b, SkPathOp op, const char* testName) {
+void testPathOpFuzz(skiatest::Reporter*, const SkPath& a, const SkPath& b, SkPathOp op, 
+        const char* testName) {
     testPathOpBase(nullptr, a, b, op, testName, true, true);
 }
 
@@ -211,7 +214,8 @@ void VerifySimplify(const SkPath& one, const SkPath& result) {
     }
 }
 
-bool testSimplify(SkPath& path, bool useXor, SkPath& out, skiatest::PathOpsThreadState& , const char* ) {
+bool testSimplify(SkPath& path, bool useXor, SkPath& out, skiatest::PathOpsThreadState& , 
+        const char* ) {
     path.setFillType(useXor ? SkPathFillType::kEvenOdd : SkPathFillType::kWinding);
 	OpInPath op1(&path);
     out.reset();

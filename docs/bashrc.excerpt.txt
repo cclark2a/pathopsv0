@@ -1,0 +1,9 @@
+function g() {
+    grep -n "$1" /d/gerrit/skia/example/Op* /d/gerrit/skia/example/PathOps* \
+        | sed 's:/d/gerrit/skia/example/\(.*\):\1:'
+    grep -n "$1" /d/gerrit/skia/example/src/Op* \
+        | sed 's:/d/gerrit/skia/example/src/\(.*\):\1:'
+    grep -n "$1" /d/gerrit/skia/example/debug/OpDebug* \
+        | sed 's:/d/gerrit/skia/example/debug/\(.*\):\1:'
+}
+

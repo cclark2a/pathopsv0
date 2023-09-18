@@ -102,7 +102,8 @@ void OpWinder::AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped, OpPtT cPtT
 	OpIntersection* oSect = oppSegment->addCoin(oCoinStart, coinID, 
 			flipped ? MatchEnds::start : MatchEnds::end, segment 
 			OP_DEBUG_PARAMS(SECT_MAKER(addMixOpp), SectReason::coinPtsMatch));
-	sect->pair(oSect);
+	if (oSect) // required by fuzz763_3
+		sect->pair(oSect);
 }
 
 // If we got here because a pair of edges are coincident, that coincidence may have already been
@@ -202,7 +203,8 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 		OP_ASSERT(OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t));
 		oSect1 = oppSegment->addCoin(oCoinStart, coinID, flipped ? MatchEnds::end : MatchEnds::start, segment
 				OP_DEBUG_PARAMS(SECT_MAKER(addPair_oppStart), SectReason::coinPtsMatch));
-		sect1->pair(oSect1);
+		if (oSect1)  // required for fuzz763_3 
+			sect1->pair(oSect1);
 	} else {  // segment already has intersection (start or end); e.g., line doubles back
 		if (!(inCoinRange(oRange, oSect1->ptT.t, nullptr) & 1)) {
 			OP_ASSERT(!oSect1->coincidenceID);

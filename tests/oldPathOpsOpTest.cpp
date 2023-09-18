@@ -12446,6 +12446,7 @@ path.conicTo(SkBits2Float(0x6c8879ff), SkBits2Float(0x08761b1b), SkBits2Float(0x
 }
 
 static struct TestDesc failTests[] = {
+    TEST(bufferOverflow),
     TEST(fuzz767834),
     TEST(fuzz754434_1),
     TEST(fuzz754434_2),
@@ -12553,7 +12554,7 @@ DEF_TEST(PathOpsRepOp, reporter) {
 
 void run_all_op_tests() {
     skiatest::Reporter* reporter = nullptr;
-    test_PathOpsOp(reporter);
     test_PathOpsFailOp(reporter);
+    test_PathOpsOp(reporter);
     test_PathOpsRepOp(reporter);
 }

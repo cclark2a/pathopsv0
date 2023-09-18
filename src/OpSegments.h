@@ -7,6 +7,7 @@
 struct OpContours;
 struct OpSegment;
 enum class FoundIntersections;
+enum class IntersectResult;
 
 struct OpSegments {
     OpSegments(OpContours& contours);
@@ -14,7 +15,7 @@ struct OpSegments {
     void findCoincidences();
 //    void findLineCoincidences();
     FoundIntersections findIntersections();
-    bool lineCoincidence(OpSegment* seg, OpSegment* opp);
+    IntersectResult lineCoincidence(OpSegment* seg, OpSegment* opp);
 
 #if OP_DEBUG_DUMP
 #include "OpDebugDeclarations.h"

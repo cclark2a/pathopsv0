@@ -67,12 +67,14 @@ bool testPathOp(skiatest::Reporter*, const SkPath& a, const SkPath& b,
         SkPathOp op, const char* filename);
 bool testPathOpBase(skiatest::Reporter* , const SkPath& a, const SkPath& b, 
         SkPathOp op, const char* filename, bool v0MayFail, bool skiaMayFail);
-void testPathOpCheck(skiatest::Reporter*, SkPath& a, SkPath& b, SkPathOp op, const char* filename,
-        bool checkFail);
-void testPathOpFuzz(skiatest::Reporter*, SkPath& a, SkPath& b, SkPathOp op, const char* filename);
+void testPathOpCheck(skiatest::Reporter*, const SkPath& a, const SkPath& b, SkPathOp op, 
+        const char* filename, bool checkFail);
+void testPathOpFuzz(skiatest::Reporter*, const SkPath& a, const SkPath& b, SkPathOp op, 
+        const char* filename);
 bool testPathOpFail(skiatest::Reporter* reporter, const SkPath& a, const SkPath& b,
         const SkPathOp op, const char* testName);
-bool testSimplify(SkPath& path, bool useXor, SkPath& out, skiatest::PathOpsThreadState& , const char* );
+bool testSimplify(SkPath& path, bool useXor, SkPath& out, skiatest::PathOpsThreadState& , 
+        const char* );
 
 void run_all_battle_tests();
 void run_all_circle_tests();
