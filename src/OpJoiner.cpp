@@ -331,7 +331,7 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 	OP_ASSERT(!edge->priorEdge);
 	OP_ASSERT(!lastEdge->nextEdge);
 	// don't match unsectable with a pal that is already in edge link list
-	lastEdge->matchUnsectable(EdgeMatch::end, unsectByArea, found);
+	lastEdge->matchUnsectable(EdgeMatch::end, unsectByArea, found, false);
 	OP_ASSERT(!lastEdge->debugIsLoop());
 	OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
 	// if nothing found, look for member of linkups that ends in a pal of lastEdge
@@ -422,7 +422,10 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 	}
 #endif
 	// if there's no remaining active edges in linkups or unsectables, just close what's left (loops63i)
-	if (!found.size() && !linkups.l.size() && !unsortables.size()) {
+	auto unsortableCount = [this](const auto edge) {
+		return unsortables.size() - edge->countUnsortable();
+	};
+	if (!found.size() && !linkups.l.size() && !unsortableCount(edge)) {
 		OpContour* contour = edge->segment->contour;
 		OpIntersection* sect = nullptr;
 		for (auto test : edge->segment->sects.i) {
@@ -473,6 +476,8 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 	}
 
 #endif
+	if (!found.size())
+		lastEdge->matchUnsectable(EdgeMatch::end, unsectByArea, found, true);
 	// look for a disabled edge that closes the gap
 	// it's likely that this edge is very small, but don't know how to quantify that (yet)
 	if (!found.size()) {

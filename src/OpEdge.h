@@ -456,6 +456,7 @@ public:
 	void clearPriorEdge();
 	void complete();
 	bool containsLink(const OpEdge* edge) const;
+	size_t countUnsortable() const;
 	float findT(Axis , float oppXY) const;
 	OpPtT flipPtT(EdgeMatch match) const { 
 		return match == whichEnd ? end : start; }
@@ -472,7 +473,8 @@ public:
 				[opp](const auto& test) { return opp == test.edge; }); }
 	void linkToEdge(FoundEdge& , EdgeMatch );
 //	void linkNextPrior(OpEdge* first, OpEdge* last);
-	void matchUnsectable(EdgeMatch , const std::vector<OpEdge*>& unsectInX, std::vector<FoundEdge>& );
+	void matchUnsectable(EdgeMatch , const std::vector<OpEdge*>& unsectInX, 
+			std::vector<FoundEdge>& , bool allowPals);
 	OpEdge* nextOut();
 	NormalDirection normalDirection(Axis axis, float t);
 	void output(OpOutPath path);  // provided by the graphics implmentation

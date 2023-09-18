@@ -187,6 +187,19 @@ void OpEdge::complete() {
 	subDivide();	// uses already computed points stored in edge
 }
 
+size_t OpEdge::countUnsortable() const {
+	OP_ASSERT(!priorEdge);
+	OP_ASSERT(lastEdge);
+	OP_ASSERT(!debugIsLoop());
+	const OpEdge* test = this;
+	size_t count = 0;
+	do {
+		if (test->unsortable)
+			count++;
+	} while ((test = test->nextEdge));
+	return count;
+}
+
 // !!! either: implement 'stamp' that puts a unique # on the edge to track if it has been visited;
 // or, re-walk the chain from this (where the find is now) to see if chain has been seen
 bool OpEdge::containsLink(const OpEdge* edge) const {
@@ -250,7 +263,7 @@ void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 
 // keep only one unsectable from any set of pals
 void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsectInX,
-		std::vector<FoundEdge>& edges) {
+		std::vector<FoundEdge>& edges, bool allowPals) {
 	const OpPoint firstPt = whichPtT(match).pt;
 	for (int index = 0; index < (int) unsectInX.size(); ++index) {
 		OpEdge* unsectable = unsectInX[index];
@@ -266,7 +279,7 @@ void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsect
 			}
 			return false;
 		};
-		auto checkEnds = [this, &edges, firstPt, isDupe](OpEdge* unsectable) {
+		auto checkEnds = [this, &edges, firstPt, isDupe, allowPals](OpEdge* unsectable) {
 			if (unsectable->inOutput || unsectable->inLinkups || unsectable->disabled)
 				return false;
 			if (this == unsectable)
@@ -281,7 +294,7 @@ void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsect
 				return false;
 			if (isDupe(unsectable))
 				return false;
-			if (unsectable->pals.size()) {
+			if (unsectable->pals.size() && !allowPals) {
 				const OpEdge* link = this;
 				OP_ASSERT(!link->nextEdge);
 				OP_ASSERT(!link->debugIsLoop());

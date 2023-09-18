@@ -37,7 +37,7 @@ OpIntersection* OpIntersections::alreadyContains(const OpPtT& ptT, const OpSegme
 
 bool OpIntersections::contains(const OpPtT& ptT, const OpSegment* opp) const {
     for (auto sect : i) {
-        if (sect->opp->segment != opp)
+        if (sect->opp && sect->opp->segment != opp)
             continue;
         if (sect->ptT.t == ptT.t || sect->ptT.pt == ptT.pt)
             return true;

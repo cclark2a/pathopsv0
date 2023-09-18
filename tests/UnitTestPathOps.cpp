@@ -1138,6 +1138,7 @@ void OpTest(bool terminateEarly) {
 	if (terminateEarly)
 		exit(0);
 #endif
+	if (0) run_v0_tests();  // temporary disable while focusing on other tests
 	run_all_op_tests();
 	run_all_battle_tests();
 	run_all_circle_tests();  // ran to completion with no errors 9/14/23. Takes ~90 minutes to run
