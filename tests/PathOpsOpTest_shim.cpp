@@ -17,8 +17,7 @@ struct CubicPts {
 #include "tests/PathOpsOpTest.cpp"
 
 void run_all_op_tests() {
-    skiatest::Reporter* reporter = nullptr;
-    test_PathOpsFailOp(reporter);
-    test_PathOpsOp(reporter);
-    test_PathOpsRepOp(reporter);
+    test_PathOpsFailOp(nullptr);
+    test_PathOpsOp(nullptr);
+    test_PathOpsRepOp(nullptr);
 }

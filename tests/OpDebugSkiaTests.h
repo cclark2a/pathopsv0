@@ -18,24 +18,6 @@ namespace skiatest {
         bool verbose() { return false; }
     };
 
-    struct PathOpsThreadState {
-        PathOpsThreadState(int a, int b, int c, int d)
-            : fA(a), fB(b), fC(c), fD(d) {
-        }
-        unsigned char fA;
-        unsigned char fB;
-        unsigned char fC;
-        unsigned char fD;
-        std::string fPathStr;
-        const char* fKey;
-        char fSerialNo[256];
-        skiatest::Reporter* fReporter;
-        SkBitmap* fBitmap;
-
-        void outputProgress(const char* pathStr, SkPathFillType) {}
-        void outputProgress(const char* pathStr, SkPathOp) {}
-    };
-
 }
 
 struct PathOpsDebug {
@@ -43,9 +25,42 @@ struct PathOpsDebug {
     static bool gJson;
 };
 
+struct PathOpsThreadState {
+    PathOpsThreadState() {}
+    PathOpsThreadState(int a, int b, int c, int d)
+        : fA(a), fB(b), fC(c), fD(d) {
+    }
+    unsigned char fA;
+    unsigned char fB;
+    unsigned char fC;
+    unsigned char fD;
+
+    skiatest::Reporter* fReporter = nullptr;
+
+    void outputProgress(const char* pathStr, SkPathFillType) {}
+    void outputProgress(const char* pathStr, SkPathOp) {}
+};
+
+struct PathOpsThreadedTestRunner;
+
+struct PathOpsThreadedRunnable {
+    PathOpsThreadedRunnable(void (*fun)(PathOpsThreadState *),
+            int a, int b, int c, int d, PathOpsThreadedTestRunner* );
+
+    void (*fun)(PathOpsThreadState* );
+};
+
+struct DebugOneShot {
+    PathOpsThreadedRunnable** append(); 
+    PathOpsThreadState data;
+    PathOpsThreadedRunnable* slot;
+};
+
 struct PathOpsThreadedTestRunner {
-    PathOpsThreadedTestRunner(skiatest::Reporter*) {}
-    void render() {}
+    PathOpsThreadedTestRunner(skiatest::Reporter*);
+    void render();
+
+    DebugOneShot fRunnables;
 };
 
 struct TestDesc {
@@ -73,7 +88,7 @@ void testPathOpFuzz(skiatest::Reporter*, const SkPath& a, const SkPath& b, SkPat
         const char* filename);
 bool testPathOpFail(skiatest::Reporter* reporter, const SkPath& a, const SkPath& b,
         const SkPathOp op, const char* testName);
-bool testSimplify(SkPath& path, bool useXor, SkPath& out, skiatest::PathOpsThreadState& , 
+bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& , 
         const char* );
 
 void run_all_battle_tests();

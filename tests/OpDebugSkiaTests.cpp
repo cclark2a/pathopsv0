@@ -10,7 +10,10 @@ bool PathOpsDebug::gJson = false;
 
 using namespace skiatest;
 
-void initializeTests(skiatest::Reporter* , const char* ) {
+std::string currentTest;
+
+void initializeTests(skiatest::Reporter* , const char* filename) {
+    currentTest = filename;
 }
 
 // !!! move to Skia test utilities, I guess
@@ -214,7 +217,7 @@ void VerifySimplify(const SkPath& one, const SkPath& result) {
     }
 }
 
-bool testSimplify(SkPath& path, bool useXor, SkPath& out, skiatest::PathOpsThreadState& , 
+bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& , 
         const char* ) {
     path.setFillType(useXor ? SkPathFillType::kEvenOdd : SkPathFillType::kWinding);
 	OpInPath op1(&path);
@@ -236,4 +239,25 @@ bool testSimplify(SkPath& path, bool useXor, SkPath& out, skiatest::PathOpsThrea
     }
 #endif
     return true;
+}
+
+PathOpsThreadedRunnable** DebugOneShot::append() {
+    if (slot)
+        (*slot->fun)(&data);
+    delete slot;
+    return &slot;
+}
+
+PathOpsThreadedRunnable::PathOpsThreadedRunnable(void (*f)(PathOpsThreadState *),
+            int a, int b, int c, int d, PathOpsThreadedTestRunner* runner) {
+    fun = f;
+    runner->fRunnables.data = { a, b, c, d };
+}
+
+PathOpsThreadedTestRunner::PathOpsThreadedTestRunner(skiatest::Reporter*) {
+    fRunnables.slot = nullptr;
+}
+
+void PathOpsThreadedTestRunner::render() {
+    fRunnables.append();
 }
