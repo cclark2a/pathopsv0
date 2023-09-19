@@ -203,8 +203,11 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 		OP_ASSERT(OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t));
 		oSect1 = oppSegment->addCoin(oCoinStart, coinID, flipped ? MatchEnds::end : MatchEnds::start, segment
 				OP_DEBUG_PARAMS(SECT_MAKER(addPair_oppStart), SectReason::coinPtsMatch));
-		if (oSect1)  // required for fuzz763_3 
-			sect1->pair(oSect1);
+		if (!oSect1)  // triggered by fuzz763_3 
+			return IntersectResult::fail; // triggered by pentrek7 (maybe)
+		if (!sect1)
+			return IntersectResult::fail; // triggered by pentrek7 (maybe)
+		sect1->pair(oSect1);
 	} else {  // segment already has intersection (start or end); e.g., line doubles back
 		if (!(inCoinRange(oRange, oSect1->ptT.t, nullptr) & 1)) {
 			OP_ASSERT(!oSect1->coincidenceID);
@@ -221,6 +224,8 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 				OP_DEBUG_PARAMS(SECT_MAKER(addPair_oppEnd), SectReason::coinPtsMatch));
 		if (!oSect2)
 			return IntersectResult::fail; // triggered by fuzz763_13
+		if (!sect2)
+			return IntersectResult::fail;
 		sect2->pair(oSect2);
 	} else {  // segment already has intersection (start or end); e.g., line doubles back
 		if (!(inCoinRange(oRange, oSect2->ptT.t, nullptr) & 1)) {

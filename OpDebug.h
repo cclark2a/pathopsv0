@@ -6,7 +6,7 @@
 #include <assert.h>
 #endif
 
-#define OP_DEBUG_FAST_TEST 01  // in a debug build: set to zero to enable debug dump, debug image
+#define OP_DEBUG_FAST_TEST 1  // in a debug build: set to zero to enable debug dump, debug image
 
 #define OP_RELEASE_TEST 1	// !!! set to zero to remove tests from release build
 #define TEST_GR_SHAPE_ARCS_1 0	// save complicated test for later, once much simpler tests work
