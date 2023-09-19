@@ -11,6 +11,11 @@
 #endif
 
 #include "OpDebug.h"
+
+#if OP_DEBUG
+#include <cmath>
+#endif
+
 #include "OpDebugColor.h"
 #include "OpDebugDouble.h"
 #include "OpDebugDump.h"
@@ -113,6 +118,10 @@ constexpr auto OpInfinity = std::numeric_limits<float>::infinity();
 constexpr auto OpNaN = std::numeric_limits<float>::quiet_NaN();
 constexpr auto OpMax = std::numeric_limits<int>::max();
 constexpr auto OpEpsilon = std::numeric_limits<float>::epsilon();
+
+#if OP_DEBUG
+const float OpDebugNaN = std::numeric_limits<float>::signaling_NaN(); // std::nanf("1");
+#endif
 
 struct OpPoint;
 struct OpRect;
@@ -273,8 +282,20 @@ struct OpVector {
     float dy;
 };
 
+enum class SetToNaN {
+    dummy
+};
+
 struct OpPoint {
     OpPoint() 
+#if OP_DEBUG
+        : x(OpDebugNaN)
+        , y(OpDebugNaN) 
+#endif
+    {
+    }
+
+    OpPoint(SetToNaN) 
         : x(OpNaN)
         , y(OpNaN) {
     }
@@ -510,6 +531,11 @@ struct OpPtT {
         : t(OpNaN) {
     }
 
+    OpPtT(SetToNaN)
+        : pt(SetToNaN::dummy)
+        , t(OpNaN) {
+    }
+
     OpPtT(OpPoint ptIn, float tIn)
         : pt(ptIn)
         , t(tIn) {
@@ -582,7 +608,7 @@ struct OpMath {
 
     // !!! could optimize with float bits trick
     static bool IsFinite(float x) {
-        return OpInfinity != x && -OpInfinity != x && !OpMath::IsNaN(x);
+        return x * 0 == 0;
     }
 
     static bool IsInt(float x) {

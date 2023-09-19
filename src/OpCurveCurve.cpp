@@ -20,10 +20,13 @@ SectFound OpCurveCurve::addUnsectable() {
 					found = edge.start;
 				else if (xy == edge.end.pt.choice(larger))
 					found = edge.end;
-				else
+				else {
+					found.pt.x = OpNaN;
 					found.t = edge.findT(larger, xy);
+				}
 			};
-			OpPtT edgeStart, edgeEnd, oppStart, oppEnd;
+			OpPtT edgeStart(SetToNaN::dummy), edgeEnd(SetToNaN::dummy),
+					oppStart(SetToNaN::dummy), oppEnd(SetToNaN::dummy);
 			float minXY = std::max(edge.ptBounds.ltChoice(larger), 
 					opp.ptBounds.ltChoice(larger));
 			float maxXY = std::min(edge.ptBounds.rbChoice(larger), 

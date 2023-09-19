@@ -101,6 +101,16 @@ bool OpPoint::Between(OpPoint start, OpPoint mid, OpPoint end) {
 }
 
 bool OpPoint::isFinite() const {
+#if OP_DEBUG
+    if (OpMath::IsNaN(x)) {
+        int32_t xBits = OpDebugFloatToBits(x);
+        OP_ASSERT(!(xBits & 1));
+    }
+    if (OpMath::IsNaN(y)) {
+        int32_t yBits = OpDebugFloatToBits(y);
+        OP_ASSERT(!(yBits & 1));
+    }
+#endif
     return OpMath::IsFinite(x) && OpMath::IsFinite(y);
 }
 

@@ -51,7 +51,7 @@ struct OpPointBounds : OpRect {
 
     OpPoint add(OpPoint pt) {
         if (!pt.isFinite())
-            return OpPoint();
+            return OpPoint(SetToNaN::dummy);
         left = std::min(left, pt.x);
         top = std::min(top, pt.y);
         right = std::max(right, pt.x);
