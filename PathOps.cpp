@@ -29,7 +29,6 @@ bool DebugPathOps(OpInPath left, OpInPath right, OpOperator opOperator, OpOutPat
     oo();
 #endif
     bool success = contourList.pathOps(result);
-    ++debugTestsRun;
     return success;
 }
 #endif

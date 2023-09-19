@@ -10,14 +10,26 @@
 #include "OpDebug.h"
 #include "PathOps.h"
 
+// since we're defining our own test harness, don't allow this to be included
+#define PathOpsDebug_DEFINED
+#define PathOpsExtendedTest_DEFINED
+#define PathOpsTestCommon_DEFINED
+
 class SkBitmap;
 
 namespace skiatest {
     struct Reporter {
-        bool allowExtendedTest() { return true; }
+        Reporter() {}
+        Reporter(const char* name, const char* sub) {
+            filename = name;
+            subname = sub;
+        }
+        bool allowExtendedTest();
         bool verbose() { return false; }
-    };
 
+        std::string filename;  // not in skia's version
+        std::string subname;  // not in skia's version
+    };
 }
 
 struct PathOpsDebug {
@@ -105,7 +117,11 @@ inline void markTestFlakyForPathKit() {
 }
 
 inline void CubicPathToQuads(const SkPath& cubicPath, SkPath* quadPath) {
-    OpDebugOut("!!! cubic path to quads unimplemented (leaving as cubic for now)\n");
+    static bool oneTime = true;
+    if (oneTime) {
+        OpDebugOut("!!! cubic path to quads unimplemented (leaving as cubic for now)\n");
+        oneTime = false;
+    }
     *quadPath = cubicPath;
 }
 

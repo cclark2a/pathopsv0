@@ -10,14 +10,13 @@ struct CubicPts {
     SkDPoint fPts[kPointCount];
 };
 
-#define PathOpsDebug_DEFINED
-#define PathOpsExtendedTest_DEFINED
-#define PathOpsTestCommon_DEFINED
-
 #include "tests/PathOpsOpTest.cpp"
 
 void run_all_op_tests() {
-    test_PathOpsFailOp(nullptr);
-    test_PathOpsOp(nullptr);
-    test_PathOpsRepOp(nullptr);
+    skiatest::Reporter rfail = { "opTest", "fail" };
+    test_PathOpsFailOp(&rfail);
+    skiatest::Reporter rmain = { "opTest", "main" };
+    test_PathOpsOp(&rmain);
+    skiatest::Reporter rrep = { "opTest", "rep" };
+    test_PathOpsRepOp(&rrep);
 }
