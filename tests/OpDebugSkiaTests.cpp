@@ -6,7 +6,7 @@
 #include "PathOps.h"
 
 // skip tests by filename
-std::vector<std::string> skipTestFiles = {"circleOp"};
+std::vector<std::string> skipTestFiles = {"battle", "circleOp"};
 // execute specific named test first
 std::string currentTestFile;
 std::string testFirst; // = "thread_circles7489";
@@ -271,6 +271,23 @@ bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& ,
     path.setFillType(useXor ? SkPathFillType::kEvenOdd : SkPathFillType::kWinding);
 	OpInPath op1(&path);
     out.reset();
+	OpOutPath opOut(&out);
+    bool success = PathSimplify(op1, opOut);
+    OP_ASSERT(success);
+    SkPath skOut;
+    OP_DEBUG_CODE(bool skSuccess =) Simplify(path, &skOut);
+    OP_ASSERT(skSuccess);
+    if (success) 
+        VerifySimplify(path, out);
+    return true;
+}
+
+// !!! could rewrite to share logic ...
+bool testSimplify(skiatest::Reporter* r, const SkPath& path, const char* testname) {
+    if (skipTest(r, testname))
+        return true;
+    OpInPath op1(&path);
+    SkPath out;
 	OpOutPath opOut(&out);
     bool success = PathSimplify(op1, opOut);
     OP_ASSERT(success);

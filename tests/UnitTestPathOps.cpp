@@ -1142,6 +1142,7 @@ void OpTest(bool terminateEarly) {
 	run_v0_tests();  // temporary disable while focusing on other tests
 	run_all_op_tests();
 	run_all_battle_tests();
+	run_all_chalkboard_tests();
 	run_all_circle_tests();
 	run_all_simplify_rect_tests();
 //	run_all_tests3();

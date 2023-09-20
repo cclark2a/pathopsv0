@@ -14,6 +14,7 @@
 #define PathOpsDebug_DEFINED
 #define PathOpsExtendedTest_DEFINED
 #define PathOpsTestCommon_DEFINED
+#define PathOpsThreadedCommon_DEFINED
 
 class SkBitmap;
 
@@ -102,8 +103,10 @@ bool testPathOpFail(skiatest::Reporter* reporter, const SkPath& a, const SkPath&
         const SkPathOp op, const char* testName);
 bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& , 
         const char* );
+bool testSimplify(skiatest::Reporter* , const SkPath& path, const char* filename);
 
 void run_all_battle_tests();
+void run_all_chalkboard_tests();
 void run_all_circle_tests();
 void run_all_op_tests();
 void run_all_simplify_rect_tests();
