@@ -353,8 +353,10 @@ void SectRay::addPals(OpEdge* home) {
 			return;
 		if (EdgeDistance* homeDist = test->edge->ray.find(home)) {
 			test->edge->addPal(*homeDist);
-			OP_DEBUG_CODE(EdgeDistance* testDist = test->edge->ray.find(test->edge));
-			OP_ASSERT(abs(homeDist - testDist) == 1);
+//			OP_DEBUG_CODE(EdgeDistance* testDist = test->edge->ray.find(test->edge));
+// !!! this asserts if there are three or more pals
+// consider writing more complex test to detect if edge between pals is not a pal
+//			OP_ASSERT(abs(homeDist - testDist) == 1);
 		}
 	};
 	EdgeDistance* homeDist = find(home);

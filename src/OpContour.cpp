@@ -343,7 +343,8 @@ bool OpContours::pathOps(OpOutPath result) {
         return false;  // triggered by fuzzhang_1
     sortIntersections();
     makeEdges();
-    windCoincidences();  // for partial h/v lines, compute their winding considiering coincidence
+    // made edges may include lines that are coincident with other edges. Undetected for now...
+    windCoincidences();  // for segment h/v lines, compute their winding considering coincidence
     OpWinder windingEdges(*this, EdgesToSort::byCenter);
     FoundWindings foundWindings = windingEdges.setWindings(this);  // walk edge list, compute windings
     if (FoundWindings::fail == foundWindings)

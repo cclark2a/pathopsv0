@@ -1144,7 +1144,9 @@ void OpTest(bool terminateEarly) {
 	run_all_battle_tests();
 	run_all_chalkboard_tests();
 	run_all_circle_tests();
+	run_all_issue3651_tests();
 	run_all_simplify_rect_tests();
+	initializeTests(nullptr, "skia tests done");
 //	run_all_tests3();
 //	run_all_tests2();  
 	OpTest_WindState();

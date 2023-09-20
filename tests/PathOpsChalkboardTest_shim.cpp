@@ -4,6 +4,5 @@
 #include "tests/PathOpsChalkboardTest.cpp"
 
 void run_all_chalkboard_tests() {
-    initializeTests(nullptr, "chalkboard");
     test_PathOpsChalkboard(nullptr);
 }
