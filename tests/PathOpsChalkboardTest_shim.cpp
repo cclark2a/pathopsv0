@@ -1,5 +1,5 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
-#include "OpDebugSkiaTests.h"
+#include "OpSkiaTests.h"
 
 #include "tests/PathOpsChalkboardTest.cpp"
 

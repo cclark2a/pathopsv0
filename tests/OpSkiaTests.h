@@ -1,6 +1,6 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
-#ifndef OpDebugSkiaTests_DEFINED
-#define OpDebugSkiaTests_DEFINED
+#ifndef OpSkiaTests_DEFINED
+#define OpSkiaTests_DEFINED
 
 #include <string>
 #include "include/pathops/SkPathOps.h"
@@ -108,8 +108,11 @@ bool testSimplify(skiatest::Reporter* , const SkPath& path, const char* filename
 
 void run_all_battle_tests();
 void run_all_chalkboard_tests();
-void run_all_circle_tests();
+void run_all_fuzz763_tests();
+void run_all_inverse_tests();
 void run_all_issue3651_tests();
+void run_all_op_circle_tests();
+void run_all_op_rect_tests();
 void run_all_op_tests();
 void run_all_simplify_rect_tests();
 void run_v0_tests();

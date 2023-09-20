@@ -3,7 +3,7 @@
 #include "src/pathops/SkPathOpsQuad.h"
 #include "src/pathops/SkPathOpsPoint.h"
 
-#include "OpDebugSkiaTests.h"
+#include "OpSkiaTests.h"
 
 struct CubicPts {
     static const int kPointCount = 4;

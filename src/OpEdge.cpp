@@ -167,9 +167,10 @@ bool OpEdge::calcCenterT() {
 void OpEdge::clearActiveAndPals(ZeroReason reason) {
 	setActive(false);
     for (auto& pal : pals) {
-        pal.edge->setActive(false);
-		if (ZeroReason::none != reason)
+		if (ZeroReason::none != reason) {
+			pal.edge->setActive(false);
 			pal.edge->setDisabled(OP_DEBUG_CODE(reason));
+		}
     }
 	lastEdge = nullptr;
 }

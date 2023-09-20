@@ -1,4 +1,4 @@
-#include "OpDebugSkiaTests.h"
+#include "OpSkiaTests.h"
 
 static void issue12556(skiatest::Reporter* reporter, const char* filename) {
 SkPath patha;

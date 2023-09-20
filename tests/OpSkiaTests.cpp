@@ -2,13 +2,15 @@
 #include "include/core/SkBitmap.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkRegion.h"
-#include "OpDebugSkiaTests.h"
+#include "OpSkiaTests.h"
 
 // skip tests by filename
-std::vector<std::string> skipTestFiles = {"battle", "circleOp"};
+std::vector<std::string> skipTestFiles; // = {"battle", "circleOp"};
+std::vector<std::string> skipRestFiles = {"issue3651_7", "thread_circles7490", "battleOp21", 
+        "fuzz763_2674194", "fast802" };
 // execute specific named test first
 std::string currentTestFile;
-std::string testFirst = "issue3651_7"; // "thread_circles7489";
+std::string testFirst; // = "issue3651_7"; // "thread_circles7489";
 bool skiatest::Reporter::allowExtendedTest() { return false; }
 
 bool showTestName = false;
@@ -16,6 +18,7 @@ int testsRun = 0;
 int totalRun = 0;
 int testsSkipped = 0;
 int totalSkipped = 0;
+int testOpNameCount = 0;
 
 bool PathOpsDebug::gCheckForDuplicateNames = false;
 bool PathOpsDebug::gJson = false;
@@ -28,21 +31,36 @@ void initializeTests(skiatest::Reporter* , const char* filename) {
                 + " total:" + STR(totalRun) + " skipped:" + STR(totalSkipped) + "\n");
     }
     currentTestFile = filename;
+    if ("testOp" == currentTestFile) {  // used more than once, unfortunately
+        if (0 == testOpNameCount)
+            currentTestFile = "fastRect";
+        else if (1 == testOpNameCount)
+            currentTestFile = "opRect";
+        else
+            OP_ASSERT(0);
+        ++testOpNameCount;
+    }
     testsRun = 0;
     testsSkipped = 0;
     OpDebugOut(currentTestFile + "\n");
 }
 
-bool skipTest(skiatest::Reporter* r, const char* testname) {
+bool skipTest(skiatest::Reporter* reporter, const char* testname) {
     std::string name = std::string(testname);
+ //   if ("thread_circles7489" == name || "thread_circles7490" == name)
+ //       OpDebugOut("");
     if ("" != testFirst && name != testFirst) {
         ++testsSkipped;
         return true;
     }
-    if (r) {
-        std::string filename = r->filename + '_' + r->subname;
+    if (reporter) {
+        std::string filename = reporter->filename + '_' + reporter->subname;
         if (currentTestFile != filename)
-            initializeTests(r, filename.c_str());
+            initializeTests(reporter, filename.c_str());
+    }
+    if (skipRestFiles.end() != std::find(skipRestFiles.begin(), skipRestFiles.end(),
+            name)) {
+        skipTestFiles.push_back(currentTestFile);
     }
     if (skipTestFiles.end() != std::find(skipTestFiles.begin(), skipTestFiles.end(), 
             currentTestFile)) {
@@ -199,12 +217,14 @@ bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
 bool testPathOp(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
         SkPathOp op, const char* testName) {
     std::string s = std::string(testName);
-//    if (s == "pentrek4")  // complicated input; worth debugging at some point
-//        return true;
-    if (s == "issue3517")  // long and skinny; don't know what's going on
+    if (s == "issue3517") { // long and skinny; don't know what's going on
+        ++testsSkipped;
         return true;       // unterminated ends of contour are edges 1434, 1441
-    if (s == "thread_circles7489")  // pair of conics do not find intersection
+    }
+    if (s == "thread_circles7489") { // pair of conics do not find intersection
+        ++testsSkipped;
         return true;       // when reduced to line/conic, there's error finding roots
+    }
     if (s == "fuzzhang_1") // test passes in skia, not in v0; but its a fuzz, don't care for now
         return (void) testPathOpFuzz(r, a, b, op, testName), true;
     return testPathOpBase(r, a, b, op, testName, false, false);
@@ -223,8 +243,10 @@ void testPathOpFuzz(skiatest::Reporter* r, const SkPath& a, const SkPath& b, SkP
 bool testPathOpFail(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
         const SkPathOp op, const char* testName) {
     std::string s = std::string(testName);
-    if (s == "grshapearcs1") // very complicated; defer. Asserts in OpWinder::AddLineCurveIntersection
+    if (s == "grshapearcs1") { // very complicated; defer. Asserts in OpWinder::AddLineCurveIntersection
+        ++testsSkipped;
         return true;        // a 'more code needed?' alert that oSegment pinned to bounds
+    }
     return testPathOpBase(r, a, b, op, testName, false, true);
 }
 

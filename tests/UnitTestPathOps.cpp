@@ -8,7 +8,7 @@
 #include <random>
 #include "OpMath.h"
 #include "OpContour.h"
-#include "OpDebugSkiaTests.h"
+#include "OpSkiaTests.h"
 #include "src/pathops/SkPathOpsConic.h"
 #include "src/pathops/SkPathOpsCubic.h"
 #include "src/pathops/SkPathOpsQuad.h"
@@ -1143,10 +1143,17 @@ void OpTest(bool terminateEarly) {
 	run_all_op_tests();
 	run_all_battle_tests();
 	run_all_chalkboard_tests();
-	run_all_circle_tests();
+	run_all_fuzz763_tests();
+	run_all_inverse_tests();
 	run_all_issue3651_tests();
+	run_all_op_circle_tests();
+	run_all_op_rect_tests();
 	run_all_simplify_rect_tests();
 	initializeTests(nullptr, "skia tests done");
+	if (terminateEarly)
+		exit(0);
+	// !!! for now, just run tests to verify operation. Circle back around and 
+	// write internal tests later
 //	run_all_tests3();
 //	run_all_tests2();  
 	OpTest_WindState();
