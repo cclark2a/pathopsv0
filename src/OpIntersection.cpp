@@ -48,7 +48,7 @@ bool OpIntersections::contains(const OpPtT& ptT, const OpSegment* opp) const {
 // count and sort extrema; create an edge for each extrema + 1
 void OpIntersections::makeEdges(OpSegment* segment) {
     std::vector<const OpIntersection*> unsectables;
- //   start here;
+ //   start here (still thinking about it)
     // detect if segment is monotonic in x and y
     // if points are out of order, mark intersections as unsortable, between
     // generated edges should be linear, since control points can't be meaningful

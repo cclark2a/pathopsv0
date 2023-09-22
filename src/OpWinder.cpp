@@ -385,7 +385,7 @@ FindCept SectRay::findIntercept(OpEdge* test) {
 		return FindCept::unsortable;
 	if (test->disabled)
 		return FindCept::ok;
-	// start here;
+	// start here (eventually)
 	// failed to switch over to segment everywhere, may explain why experiment failed
 	// !!! EXPERIMENT
 	// try using segment's curve instead of edge curve
@@ -452,6 +452,9 @@ FoundIntercept OpWinder::findRayIntercept(size_t inIndex, OpVector homeTan, floa
 	//   if it failed because closest edge was too close, mark pair as unsectable
 	std::vector<EdgeDistance> touching;
 	do {
+		// !!! restructure this slightly to break out to try a different center when touching is pushed back,
+		// unless it's the last go round; then, find all ray intersections before marking it unsectable/unsortable
+		size_t touches = touching.size();
 		ray.distances.clear();
 		ray.distances.emplace_back(home, homeCept, ray.homeT, false);
 		int index = inIndex;
@@ -469,14 +472,13 @@ FoundIntercept OpWinder::findRayIntercept(size_t inIndex, OpVector homeTan, floa
 					// to code
 					// !!! not sure how to assert for this
 					home->addPal(tDist);
-				else {
+				else if (touches == touching.size())
 					touching.push_back(ray.distances.back());
-					goto tryADifferentCenter;
-				}
 			} else if (FindCept::retry == findCept)
 				goto tryADifferentCenter;
 		}
-		return FoundIntercept::yes;
+		if (touches == touching.size())
+			return FoundIntercept::yes;
 	tryADifferentCenter:
 		mid /= 2;
 		midEnd = midEnd < .5 ? 1 - mid : mid;

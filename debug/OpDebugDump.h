@@ -185,6 +185,7 @@ extern void dmpCoincidences();
 extern void dmpCoins();
 extern void dmpDisabled();
 extern void dmpEdges();
+extern void dmpInOutput();
 extern void dmpIntersections();
 extern void dmpJoin();
 extern void dmpSects();

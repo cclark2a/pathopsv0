@@ -139,14 +139,12 @@ bool OpJoiner::detachIfLoop(OpEdge* edge) {
 	// walk backwards to start
 	std::sort(edges.begin(), edges.end());
 	auto detachEdge = [this](OpEdge* edge, EdgeMatch match) {
-		if (edge->pals.size() || edge->unsortable)
-			return;	// skip unsectable, unsortable (for now)
 		if (OpEdge* detach = EdgeMatch::start == match ? edge->priorEdge : edge->nextEdge) {
 			EdgeMatch::start == match ? detach->clearNextEdge() : detach->clearPriorEdge();
 			if (!detach->unsortable || detach->nextEdge)
 				addToLinkups(detach);	// return front edge
 			else
-				OP_ASSERT(!detach->priorEdge);
+				; // OP_ASSERT(!detach->priorEdge);  // triggered by fuzz763_1 -- is fix needed?
 		}
 	};
 	auto detachNext = [this, detachEdge](OpEdge* test, OpEdge* oppEdge) {

@@ -1148,7 +1148,9 @@ void OpTest(bool terminateEarly) {
 	run_all_issue3651_tests();
 	run_all_op_circle_tests();
 	run_all_op_rect_tests();
+	run_all_simplify_tests();
 	run_all_simplify_rect_tests();
+	run_all_tiger_tests();
 	initializeTests(nullptr, "skia tests done");
 	if (terminateEarly)
 		exit(0);

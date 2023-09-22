@@ -5,12 +5,11 @@
 #include "OpSkiaTests.h"
 
 // skip tests by filename
-std::vector<std::string> skipTestFiles; // = {"battle", "circleOp"};
-std::vector<std::string> skipRestFiles = {"issue3651_7", "thread_circles7490", "battleOp21", 
-        "fuzz763_2674194", "fast802" };
-// execute specific named test first
+std::vector<std::string> skipTestFiles = { TEST_PATH_OP_SKIP_FILES };
+std::vector<std::string> skipRestFiles = { TEST_PATH_OP_SKIP_REST };
 std::string currentTestFile;
-std::string testFirst; // = "issue3651_7"; // "thread_circles7489";
+std::string testFirst = TEST_PATH_OP_FIRST;
+std::string skipToFile = TEST_PATH_OP_SKIP_TO_FILE;
 bool skiatest::Reporter::allowExtendedTest() { return false; }
 
 bool showTestName = false;
@@ -62,7 +61,8 @@ bool skipTest(skiatest::Reporter* reporter, const char* testname) {
             name)) {
         skipTestFiles.push_back(currentTestFile);
     }
-    if (skipTestFiles.end() != std::find(skipTestFiles.begin(), skipTestFiles.end(), 
+    if ((skipToFile.size() && currentTestFile != skipToFile) 
+            || skipTestFiles.end() != std::find(skipTestFiles.begin(), skipTestFiles.end(), 
             currentTestFile)) {
         ++testsSkipped;
         return true;
@@ -197,13 +197,6 @@ bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
     OP_ASSERT(success || v0MayFail);
     bool skSuccess = Op(a, b, op, &skresult);
     OP_ASSERT(skSuccess || skiaMayFail);
-    if ((0) && testname == std::string("op_1")) {
-        OpDebugOut("v0 result:\n");
-        result.dump();
-        OpDebugOut("sk result:\n");
-        skresult.dump();
-        OpDebugOut("");
-    }
 #if 0
     bool xorSucess = Op(result, skresult, kXOR_SkPathOp, &xorResult);
     OP_ASSERT(xorSucess);
@@ -217,15 +210,13 @@ bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
 bool testPathOp(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
         SkPathOp op, const char* testName) {
     std::string s = std::string(testName);
-    if (s == "issue3517") { // long and skinny; don't know what's going on
+    std::vector<std::string> skip = { TEST_PATH_OP_EXCEPTIONS };  // see OpTestDrive.h
+    if (skip.end() != std::find(skip.begin(), skip.end(), s)) {
         ++testsSkipped;
-        return true;       // unterminated ends of contour are edges 1434, 1441
+        return true;
     }
-    if (s == "thread_circles7489") { // pair of conics do not find intersection
-        ++testsSkipped;
-        return true;       // when reduced to line/conic, there's error finding roots
-    }
-    if (s == "fuzzhang_1") // test passes in skia, not in v0; but its a fuzz, don't care for now
+    std::vector<std::string> fuzz = { TEST_PATH_OP_MAP_TO_FUZZ };  // see OpTestDrive.h
+    if (fuzz.end() != std::find(fuzz.begin(), fuzz.end(), s))
         return (void) testPathOpFuzz(r, a, b, op, testName), true;
     return testPathOpBase(r, a, b, op, testName, false, false);
 }
@@ -243,9 +234,10 @@ void testPathOpFuzz(skiatest::Reporter* r, const SkPath& a, const SkPath& b, SkP
 bool testPathOpFail(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
         const SkPathOp op, const char* testName) {
     std::string s = std::string(testName);
-    if (s == "grshapearcs1") { // very complicated; defer. Asserts in OpWinder::AddLineCurveIntersection
+    std::vector<std::string> fail = { TEST_PATH_OP_FAIL_EXCEPTIONS };  // see OpTestDrive.h
+    if (fail.end() != std::find(fail.begin(), fail.end(), s)) {
         ++testsSkipped;
-        return true;        // a 'more code needed?' alert that oSegment pinned to bounds
+        return true;
     }
     return testPathOpBase(r, a, b, op, testName, false, true);
 }
@@ -318,6 +310,10 @@ bool testSimplify(skiatest::Reporter* r, const SkPath& path, const char* testnam
     if (success) 
         VerifySimplify(path, out);
     return true;
+}
+
+bool testSimplifyFail(skiatest::Reporter* r, const SkPath& path, const char* testname) {
+    return testSimplify(r, path, testname);
 }
 
 PathOpsThreadedRunnable** DebugOneShot::append() {

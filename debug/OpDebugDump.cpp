@@ -308,6 +308,18 @@ void dmpDisabled() {
     }
 }
 
+void dmpInOutput() {
+    for (const auto& c : debugGlobalContours->contours) {
+        for (const auto& seg : c.segments) {
+            for (const auto& edge : seg.edges) {
+                if (edge.inOutput)
+                    edge.dumpDetail();
+            }
+        }
+    }
+
+}
+
 void dmpIntersections() {
     std::string s;
     for (const auto& c : debugGlobalContours->contours) {
