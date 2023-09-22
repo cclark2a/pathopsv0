@@ -262,6 +262,32 @@ void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 	}
 }
 
+// Find pals for unsectables created during curve/curve intersection. There should be at most
+// two matching unsectable ids in the distances array. Mark between edges as well.
+void OpEdge::markPals() {
+	EdgeDistance* pal = nullptr;
+	bool foundUnsectable = false;
+	for (auto& dist : ray.distances) {
+		if (dist.edge->unsectableID == unsectableID) {
+			if (this != dist.edge)
+				pal = &dist;
+			if (foundUnsectable) {	// found both ends
+				if (pals.end() == std::find_if(pals.begin(), pals.end(), 
+						[&pal](auto& p) { return p.edge == pal->edge; } ))
+					pals.push_back(*pal);
+				return;
+			}
+			foundUnsectable = true;
+			continue;
+		}
+		if (!foundUnsectable)
+			continue;
+		if (!dist.edge->unsectableID && !dist.edge->pals.size())
+			dist.edge->between = true;
+	}
+	// !!! not sure how to assert an error if information was inconsistent (e.g., unpaired)
+}
+
 // keep only one unsectable from any set of pals
 void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsectInX,
 		std::vector<FoundEdge>& edges, bool allowPals) {

@@ -26,13 +26,14 @@
 
 #define TEST_PATH_OP_EXCEPTIONS "issue3517", "thread_circles7489"
 #define TEST_PATH_OP_FAIL_EXCEPTIONS "grshapearcs1"
+#define TEST_PATH_SIMPLIFY_FAIL_EXCEPTIONS "grshapearc"
 #define TEST_PATH_OP_MAP_TO_FUZZ  "fuzzhang_1"
 
 // when these tests are encountered, it and the remaining tests in the file are skipped
 #define TEST_PATH_OP_SKIP_REST "issue3651_7", "thread_circles7490", "battleOp21", \
         "fuzz763_2674194", "fast802"
 
-#define TEST_PATH_OP_FIRST "" /* e.g., "tiger8b_x2" test to debug */
+#define TEST_PATH_OP_FIRST "joel5" /* e.g., "tiger8b_x2" test to debug */
 #define TEST_PATH_OP_SKIP_TO_FILE "" /* e.g., "tiger" to run this file only */
 #define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */
 #endif

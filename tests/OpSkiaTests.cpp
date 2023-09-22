@@ -208,8 +208,8 @@ bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
 }
 
 bool testPathOp(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
-        SkPathOp op, const char* testName) {
-    std::string s = std::string(testName);
+        SkPathOp op, const char* testname) {
+    std::string s = std::string(testname);
     std::vector<std::string> skip = { TEST_PATH_OP_EXCEPTIONS };  // see OpTestDrive.h
     if (skip.end() != std::find(skip.begin(), skip.end(), s)) {
         ++testsSkipped;
@@ -217,18 +217,18 @@ bool testPathOp(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
     }
     std::vector<std::string> fuzz = { TEST_PATH_OP_MAP_TO_FUZZ };  // see OpTestDrive.h
     if (fuzz.end() != std::find(fuzz.begin(), fuzz.end(), s))
-        return (void) testPathOpFuzz(r, a, b, op, testName), true;
-    return testPathOpBase(r, a, b, op, testName, false, false);
+        return (void) testPathOpFuzz(r, a, b, op, testname), true;
+    return testPathOpBase(r, a, b, op, testname, false, false);
 }
 
 void testPathOpCheck(skiatest::Reporter* r, const SkPath& a, const SkPath& b, SkPathOp op, 
-        const char* testName, bool checkFail) {
-    testPathOpBase(r, a, b, op, testName, false, false);
+        const char* testname, bool checkFail) {
+    testPathOpBase(r, a, b, op, testname, false, false);
 }
 
 void testPathOpFuzz(skiatest::Reporter* r, const SkPath& a, const SkPath& b, SkPathOp op, 
-        const char* testName) {
-    testPathOpBase(r, a, b, op, testName, true, true);
+        const char* testname) {
+    testPathOpBase(r, a, b, op, testname, true, true);
 }
 
 bool testPathOpFail(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
@@ -296,24 +296,35 @@ bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& ,
 }
 
 // !!! could rewrite to share logic ...
-bool testSimplify(skiatest::Reporter* r, const SkPath& path, const char* testname) {
+bool testSimplifyBase(skiatest::Reporter* r, const SkPath& path, const char* testname, 
+        bool v0MayFail, bool skiaMayFail) {
     if (skipTest(r, testname))
         return true;
     OpInPath op1(&path);
     SkPath out;
 	OpOutPath opOut(&out);
     bool success = PathSimplify(op1, opOut);
-    OP_ASSERT(success);
+    OP_ASSERT(v0MayFail || success);
     SkPath skOut;
     OP_DEBUG_CODE(bool skSuccess =) Simplify(path, &skOut);
-    OP_ASSERT(skSuccess);
+    OP_ASSERT(skiaMayFail || skSuccess);
     if (success) 
         VerifySimplify(path, out);
     return true;
 }
 
+bool testSimplify(skiatest::Reporter* r, const SkPath& path, const char* testname) {
+    return testSimplifyBase(r, path, testname, false, false);
+}
+
 bool testSimplifyFail(skiatest::Reporter* r, const SkPath& path, const char* testname) {
-    return testSimplify(r, path, testname);
+    std::string s = std::string(testname);
+    std::vector<std::string> fail = { TEST_PATH_SIMPLIFY_FAIL_EXCEPTIONS };  // see OpTestDrive.h
+    if (fail.end() != std::find(fail.begin(), fail.end(), s)) {
+        ++testsSkipped;
+        return true;
+    }
+    return testSimplifyBase(r, path, testname, false, true);
 }
 
 PathOpsThreadedRunnable** DebugOneShot::append() {

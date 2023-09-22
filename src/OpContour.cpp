@@ -107,7 +107,7 @@ OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg
 
 OpEdge* OpContour::addFiller(OpIntersection* start, OpIntersection* end) {
     if (contours->edgeStorage && contours->edgeStorage->contains(start, end))
-        return nullptr;
+        return nullptr;  // !!! when does this happen? what is the implication? e.g. fuzz433
     void* block = contours->allocateFiller();
     OpEdge* filler = new(block) OpEdge(start->segment, start->ptT, end->ptT
             OP_DEBUG_PARAMS(EdgeMaker::filler, __LINE__, __FILE__, start, end));

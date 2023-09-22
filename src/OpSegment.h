@@ -20,21 +20,14 @@ enum class MatchSect {
 };
 
 struct FoundEdge {
-    FoundEdge(OpEdge* e, EdgeMatch w) 
+    FoundEdge(OpEdge* e, EdgeMatch w, int i = -1) 
         : edge(e)
-        , index(-1)
+        , index(i)
         , whichEnd(w)
+        , addBack(false)
         , connects(false)
         , loops(false) {
     }
-
-	FoundEdge(OpEdge* e, int i, EdgeMatch w)
-		: edge(e)
-		, index(i)
-		, whichEnd(w)        
-        , connects(false)
-        , loops(false) {
-	}
 
 #if OP_DEBUG_DUMP
 	void dump() const;
@@ -44,6 +37,7 @@ struct FoundEdge {
     OpEdge* edge;
     int index;  // used to track entry in linkups to remove after use
     EdgeMatch whichEnd;
+    bool addBack; // set true if edge, unused, should be added back to linkups
     bool connects; // true if edge connects in correct direction with existing link
     bool loops;  // true if edge when connected to existing link forms a loop
 };

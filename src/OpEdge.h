@@ -291,7 +291,6 @@ struct SectRay {
 	}
 	void addPals(OpEdge* );
 	FindCept findIntercept(OpEdge* );
-	void markPals(OpEdge* );
 	EdgeDistance* find(OpEdge* );
 #if OP_DEBUG_DUMP
 	void dump() const;
@@ -473,6 +472,7 @@ public:
 				[opp](const auto& test) { return opp == test.edge; }); }
 	void linkToEdge(FoundEdge& , EdgeMatch );
 //	void linkNextPrior(OpEdge* first, OpEdge* last);
+	void markPals();
 	void matchUnsectable(EdgeMatch , const std::vector<OpEdge*>& unsectInX, 
 			std::vector<FoundEdge>& , bool allowPals);
 	OpEdge* nextOut();

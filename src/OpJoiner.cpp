@@ -200,7 +200,6 @@ bool OpJoiner::linkRemaining() {
 		// sort to process largest first
 		// !!! could optimize to avoid search, but for now, this is the simplest
 		linkups.sort();
-		OP_DEBUG_CODE(if (-2 == debugLoopCounter) OP_DEBUG_BREAK());
 		OpEdge* lastEdge;
 		for (;;) {
 			lastEdge = linkups.l.back();
@@ -212,7 +211,7 @@ bool OpJoiner::linkRemaining() {
 		}
         if (!matchLinks(lastEdge, true))
 			return false;
-		OP_DEBUG_CODE(++debugLoopCounter);
+		OP_DEBUG_CODE(if (++debugLoopCounter < 0) OpDebugOut(""));
     }
 	return true;
 }
@@ -317,11 +316,11 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 		OP_ASSERT(!linkup->priorEdge);
 		OP_ASSERT(!linkup->debugIsLoop());
 		if (lastEdge != linkup && linkup->whichPtT().pt == matchPt)
-			found.emplace_back(linkup, index, linkup->whichEnd);
+			found.emplace_back(linkup, linkup->whichEnd, index);
 		OpEdge* lastLink = linkup->lastEdge;
 		OP_ASSERT(lastLink);
 		if (lastEdge != lastLink && lastLink->whichPtT(EdgeMatch::end).pt == matchPt)
-			found.emplace_back(lastLink, index, Opposite(lastLink->whichEnd));
+			found.emplace_back(lastLink, Opposite(lastLink->whichEnd), index);
 	}
 	if (popLast)
 		linkups.l.pop_back();
@@ -340,13 +339,15 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 			OP_ASSERT(!link->debugIsLoop());
 			if (lastEdge->isPal(link) && link->nextEdge 
 					&& link->whichPtT(EdgeMatch::end).pt == matchPt) {
+				// if found edge is not best, found needs to be added back to linkups.l
 				OpEdge* nextLink = link->nextEdge;
 				nextLink->setPriorEdge(nullptr);
 				nextLink->lastEdge = link->lastEdge;
 				link->setNextEdge(nullptr);
-				link->lastEdge = nullptr;
+				link->lastEdge = link;
 				OP_ASSERT(!nextLink->debugIsLoop());
-				found.emplace_back(nextLink, index, nextLink->whichEnd);
+				found.emplace_back(nextLink, nextLink->whichEnd);
+				found.back().addBack = true;
 				OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
 			} else {
 				OpEdge* linkLast = link->lastEdge;
@@ -357,6 +358,7 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 					lastPrior->setNextEdge(nullptr);
 					link->lastEdge = lastPrior;
 					linkLast->setPriorEdge(nullptr);
+					OP_ASSERT(0);  // !!! isn't this supposed to put link in found?
 				}
 			}
 		}
@@ -413,8 +415,8 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 			}
 			return true;
 		};
-		if (!checkMissed(edge, EdgeMatch::start))
-			return false;
+//		if (!checkMissed(edge, EdgeMatch::start))  // odd code: expect to only match lastEdge end...
+//			return false;
 		if (!checkMissed(lastEdge, EdgeMatch::end))
 			return false;
 	}
@@ -440,8 +442,8 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 			break;
 		}
 		OpEdge* filler = contour->addFiller(last, sect);
-				if (!filler)
-					return false;
+		if (!filler)
+			return false;
 		found.emplace_back(filler, EdgeMatch::start);
 	}
 #if 0
@@ -469,7 +471,7 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 			OpEdge* lastLink = linkup->lastEdge;
 			OP_ASSERT(lastLink);
 			if (lastEdge != lastLink && lastLink->whichPtT(EdgeMatch::end).pt == matchPt)
-				found.emplace_back(lastLink, index, Opposite(lastLink->whichEnd));
+				found.emplace_back(lastLink, Opposite(lastLink->whichEnd, index));
 		}
 	}
 
@@ -560,6 +562,11 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 				}
 			}
 		}
+	}
+	// add back found as needed
+	for (const auto& foundOne : found) {
+		if (foundOne.edge != smallest.edge && foundOne.addBack)
+			linkups.l.push_back(foundOne.edge);
 	}
 	OP_ASSERT(smallest.edge); // !!! if found is not empty, but no edge has the right sum, choose one anyway?
 	OpEdge* best = smallest.edge;

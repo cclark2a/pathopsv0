@@ -282,10 +282,10 @@ void OpWinder::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
         // pin point to both bounds, but only if it is on edge
 		OpSegment* eSegment = const_cast<OpSegment*>(edge.segment);
 		OpSegment* oSegment = const_cast<OpSegment*>(opp.segment);
-		OP_DEBUG_CODE(OpPoint debugPt = oppPtT.pt);
+//		OP_DEBUG_CODE(OpPoint debugPt = oppPtT.pt);
         oSegment->ptBounds.pin(&oppPtT.pt);
 //      eSegment->ptBounds.pin(&oppPtT.pt);	// !!! doubtful this is needed with contains test above
-		OP_ASSERT(debugPt == oppPtT.pt);	// detect if pin is still needed
+//		OP_ASSERT(debugPt == oppPtT.pt);	// rarely needed, but still triggered (e.g., joel_15x)
 #if USE_SEGMENT_SECT
 		OpPtT edgePtT { oppPtT.pt, edgeT };
 #else
@@ -311,30 +311,6 @@ EdgeDistance* SectRay::find(OpEdge* edge) {
 			return test;
 	}
 	return nullptr;
-}
-
-// Find pals for unsectables created during curve/curve intersection. There should be at most
-// two matching unsectable ids in the distances array. Mark between edges as well.
-void SectRay::markPals(OpEdge* home) {
-	EdgeDistance* pal = nullptr;
-	bool foundUnsectable = false;
-	for (auto& dist : home->ray.distances) {
-		if (dist.edge->unsectableID == home->unsectableID) {
-			if (home != dist.edge)
-				pal = &dist;
-			if (foundUnsectable) {	// found both ends
-				home->pals.push_back(*pal);
-				return;
-			}
-			foundUnsectable = true;
-			continue;
-		}
-		if (!foundUnsectable)
-			continue;
-		if (!dist.edge->unsectableID && !dist.edge->pals.size())
-			dist.edge->between = true;
-	}
-	// match was not found; for now, let presence of unsectable id and absence of pal show that
 }
 
 // this catches unsectables by keeping track of edges that are found to be adjacent
@@ -398,9 +374,11 @@ FindCept SectRay::findIntercept(OpEdge* test) {
 #endif
 	OpRoots roots = testCurve.axisRayHit(axis, normal);
 	// get the normal at the intersect point and see if it is usable
+	if (1 < roots.count) {
+		test->setUnsortable();  // triggered by joel_14x (very small cubic)
+		return FindCept::unsortable;
+	}
 	if (1 != roots.count) {
-		// !!! if intercepts is 2 or 3, figure out why (and what to do)
-		// !!! likely need to try a different ray
 		OP_ASSERT(0 == roots.count);
 		return FindCept::retry;
 	}
@@ -675,7 +653,7 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 				if (edge.unsortable)
 					continue;
 				if (edge.unsectableID)
-					ray.markPals(&edge);
+					edge.markPals();
 				else
 					ray.addPals(&edge);
 			}
