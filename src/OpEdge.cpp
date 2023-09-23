@@ -153,7 +153,7 @@ bool OpEdge::calcCenterT() {
 	float t = curve.center(axis, middle);
 	if (OpMath::IsNaN(t)) {
 		setDisabled(OP_DEBUG_CODE(ZeroReason::centerNaN));
-		fail = EdgeFail::center;
+		rayFail = EdgeFail::center;
 		return true;
 	}
 	center.t = OpMath::Interp(start.t, end.t, t);

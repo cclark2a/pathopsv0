@@ -878,9 +878,6 @@ static DebugFailName debugFailNames[] {
     FAIL_NAME(none),
     FAIL_NAME(center),
     FAIL_NAME(horizontal),
-    FAIL_NAME(nextDistance),
-    FAIL_NAME(priorDistance),
-    FAIL_NAME(recalcCenter),
     FAIL_NAME(vertical),
 };
 
@@ -1067,8 +1064,8 @@ std::string OpEdge::debugDumpDetail() const {
     }
     if (EdgeMatch::none != whichEnd)
         s += "which:" + debugEdgeMatch(whichEnd) + " ";
-    if (EdgeFail::none != fail)
-        s += "fail:" + debugEdgeFail(fail) + " ";
+    if (EdgeFail::none != rayFail)
+        s += "rayFail:" + debugEdgeFail(rayFail) + " ";
     s += "windZero:" + debugEdgeWindZero(windZero) + "\n";
     if (unsectableID) s += "unsectable:" + STR(unsectableID) + " ";
     if (EdgeSplit::no != doSplit) s += "doSplit";
@@ -1210,8 +1207,8 @@ std::string OpEdge::debugDump() const {
     }
     if (EdgeMatch::none != whichEnd)
         s += "which:" + debugEdgeMatch(whichEnd) + " ";
-    if (EdgeFail::none != fail)
-        s += "fail:" + debugEdgeFail(fail) + " ";
+    if (EdgeFail::none != rayFail)
+        s += "rayFail:" + debugEdgeFail(rayFail) + " ";
     if (EdgeSplit::no != doSplit) s += "doSplit ";
     if (EdgeSplit::yes == doSplit) s += "yes ";
     if (isLine_impl) s += "isLine ";
@@ -2064,6 +2061,10 @@ void dmp(const FoundEdge& foundOne) {
 
 void dmpDetail(const FoundEdge& foundOne) {
     OpDebugOut(debugEdgeMatch(foundOne.whichEnd) + " " + foundOne.edge->debugDumpDetail() + "\n");
+}
+
+void dmpHex(float f) {
+    OpDebugOut(OpDebugDumpHex(f) + "\n");
 }
 
 std::string OpVector::debugDump() const {

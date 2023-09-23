@@ -12,7 +12,7 @@ std::string testFirst = TEST_PATH_OP_FIRST;
 std::string skipToFile = TEST_PATH_OP_SKIP_TO_FILE;
 bool skiatest::Reporter::allowExtendedTest() { return false; }
 
-bool showTestName = false;
+bool showTestName = OP_SHOW_TEST_NAME;
 int testsRun = 0;
 int totalRun = 0;
 int testsSkipped = 0;

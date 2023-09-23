@@ -66,10 +66,10 @@ IntersectResult OpWinder::CoincidentCheck(OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, Op
 	if (AorB == CorD) {
 		if (segment->sects.contains(ptTAorB, oppSegment))
 			return IntersectResult::yes;
-		OpIntersection* sect = segment->addSegSect(ptTAorB  OP_DEBUG_PARAMS(
-				SECT_MAKER(addCoincidentCheck), SectReason::coinPtsMatch, oppSegment));
-		OpIntersection* oSect = oppSegment->addSegSect(ptTCorD  OP_DEBUG_PARAMS(
-				SECT_MAKER(addCoincidentCheckOpp), SectReason::coinPtsMatch, segment));
+		OpIntersection* sect = segment->addSegSect(ptTAorB, oppSegment  
+				OP_DEBUG_PARAMS(SECT_MAKER(addCoincidentCheck), SectReason::coinPtsMatch));
+		OpIntersection* oSect = oppSegment->addSegSect(ptTCorD, segment  
+				OP_DEBUG_PARAMS(SECT_MAKER(addCoincidentCheckOpp), SectReason::coinPtsMatch));
 		sect->pair(oSect);
 		return IntersectResult::yes;
 	}
@@ -437,11 +437,12 @@ FoundIntercept OpWinder::findRayIntercept(size_t inIndex, OpVector homeTan, floa
 		ray.distances.emplace_back(home, homeCept, ray.homeT, false);
 		int index = inIndex;
 		// start at edge with left equal to or left of center
+		FindCept findCept = FindCept::ok;
 		while (index != 0) {
 			OpEdge* test = inArray[--index];
 			if (test == home)
 				continue;
-			FindCept findCept = ray.findIntercept(test);
+			findCept = ray.findIntercept(test);
 			if (FindCept::unsectable == findCept) {
 				EdgeDistance& tDist = ray.distances.back();
 				if (home->isLinear() && test->isLinear())
@@ -468,8 +469,12 @@ FoundIntercept OpWinder::findRayIntercept(size_t inIndex, OpVector homeTan, floa
 		const OpCurve& homeCurve = home->setCurve();  // ok to be in loop (lazy)
 #endif
 		float homeMidT = homeCurve.center(workingAxis, middle);
-		if (OpMath::IsNaN(homeMidT) || mid <= 1.f / 256.f) {	// give it at most eight tries
+		if (OpMath::IsNaN(homeMidT) || mid <= 1.f / 256.f) {  // give it at most eight tries
 			// look for the same edge touching multiple times; the pair are unsectable
+			if (FindCept::unsectable == findCept) {
+				markUnsortable();
+				return FoundIntercept::fail;	// nonfatal error (!!! give it a different name!)
+			}
 			while (touching.size()) {
 				EdgeDistance& touch = touching[0];
 				OpEdge* test = touch.edge;
@@ -496,7 +501,7 @@ FoundIntercept OpWinder::findRayIntercept(size_t inIndex, OpVector homeTan, floa
 void OpWinder::markUnsortable() {
 	if (Axis::vertical == workingAxis || inY.end() == std::find(inY.begin(), inY.end(), home)) 
 		home->setUnsortable();
-	home->fail = Axis::vertical == workingAxis ? EdgeFail::vertical : EdgeFail::horizontal;
+	home->rayFail = Axis::vertical == workingAxis ? EdgeFail::vertical : EdgeFail::horizontal;
 }
 
 // if horizontal axis, look at rect top/bottom
@@ -629,14 +634,14 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 		std::vector<OpEdge*>& edges = Axis::horizontal == workingAxis ? inX : inY;
 		for (size_t index = 0; index < edges.size(); ++index) {
 			home = edges[index];
-			if (home->ray.distances.size())
+			if (home->ray.distances.size() && EdgeFail::none == home->rayFail)
 				continue;
 			if (home->disabled)	// may not be visible in vertical pass
 				continue;
 			if (home->between)
 				continue;
-			if (EdgeFail::horizontal == home->fail && Axis::vertical == workingAxis)
-				home->fail = EdgeFail::none;
+			if (EdgeFail::horizontal == home->rayFail && Axis::vertical == workingAxis)
+				home->rayFail = EdgeFail::none;
 			else if (home->unsortable)  // may be too small
 				continue;
 			ChainFail chainFail = setSumChain(index);
@@ -697,7 +702,7 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 					continue;
 				if (edge.unsortable)
 					continue;
-				if (edge.fail == EdgeFail::horizontal)
+				if (edge.rayFail == EdgeFail::horizontal)
 					continue;
 				OP_DEBUG_FAIL(edge, FoundWindings::fail);
 			}

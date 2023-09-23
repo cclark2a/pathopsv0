@@ -116,9 +116,10 @@ OpIntersection* OpSegment::addSegBase(const OpPtT& ptT
             OP_DEBUG_PARAMS(maker, line, file, reason, oSeg)));
 }
 
-OpIntersection* OpSegment::addSegSect(const OpPtT& ptT  
-        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
-        const OpSegment* oSeg)) {
+OpIntersection* OpSegment::addSegSect(const OpPtT& ptT, const OpSegment* oSeg  
+        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason)) {
+    if (sects.contains(ptT, oSeg))
+        return nullptr;
     return addSegBase(ptT  OP_DEBUG_PARAMS(maker, line, file, reason, oSeg));
 }
 

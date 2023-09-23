@@ -70,9 +70,6 @@ enum class EdgeFail : uint8_t {
 	none,
 	center,
 	horizontal,
-	nextDistance,
-	priorDistance,
-	recalcCenter,
 	vertical
 };
 
@@ -380,7 +377,7 @@ private:
 		, many(WindingUninitialized::dummy)
 		, unsectableID(0)
 		, whichEnd(EdgeMatch::none)
-		, fail(EdgeFail::none)
+		, rayFail(EdgeFail::none)
 		, windZero(WindZero::noFlip)
 		, doSplit(EdgeSplit::no)
 		, curveSet(false)
@@ -568,7 +565,7 @@ public:
 	int id;
 	int unsectableID;	// used to pair unsectable intersections and find edges between
 	EdgeMatch whichEnd;	// if 'start', prior link end equals start; if 'end' prior end matches end
-	EdgeFail fail;	// how computation (e.g., center) failed (on fail, windings are set to zero)
+	EdgeFail rayFail;	// how computation (e.g., center) failed (on fail, windings are set to zero)
 	WindZero windZero; // normal means edge normal points to zero side; opposite, normal is non-zero
 	EdgeSplit doSplit; // used by curve/curve intersection to track subdivision
 	bool curveSet;

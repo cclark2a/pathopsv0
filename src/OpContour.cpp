@@ -60,7 +60,9 @@ bool OpContour::addConic(OpPoint pts[3], float weight) {
 bool OpContour::addCubic(OpPoint pts[4]) {
     OpMath::ZeroTiny(pts, 4);
     // reduction to point if pt 0 equals pt 3 complicated since it requires pts 1, 2 be linear..
-    OP_ASSERT(pts[0] != pts[3]); // !!! detect possible degenerate to code from actual test data
+    if (pts[0] == pts[3]) { // !!! detect possible degenerate to code from actual test data
+        OP_ASSERT(pts[1] != pts[0] || pts[2] != pts[0]);
+    }
     OpTightBounds bounds;
     OpCubic cubic(pts);
     if (!bounds.calcBounds(cubic))

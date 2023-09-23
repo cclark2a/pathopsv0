@@ -83,10 +83,10 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
                 goto duplicate;
         }
         {
-            OpIntersection* sect = seg->addSegSect(edgePtT  
-                    OP_DEBUG_PARAMS(SECT_MAKER(segmentLineCurve), SectReason::lineCurve, opp));
-            OpIntersection* oSect = opp->addSegSect(oppPtT  
-                    OP_DEBUG_PARAMS(SECT_MAKER(segmentLineCurveOpp), SectReason::lineCurve, opp));
+            OpIntersection* sect = seg->addSegSect(edgePtT, opp  
+                    OP_DEBUG_PARAMS(SECT_MAKER(segmentLineCurve), SectReason::lineCurve));
+            OpIntersection* oSect = opp->addSegSect(oppPtT, seg  
+                    OP_DEBUG_PARAMS(SECT_MAKER(segmentLineCurveOpp), SectReason::lineCurve));
             sect->pair(oSect);
         }
 duplicate: ;
@@ -196,32 +196,38 @@ FoundIntersections OpSegments::findIntersections() {
             MatchEnds match = seg->matchEnds(opp, &reversed, MatchSect::existing);
             OpIntersection* oppSect;
             if ((int) MatchEnds::start & (int) match) {
-                auto sect = seg->addSegSect(OpPtT{ seg->c.pts[0], 0 }
+                auto sect = seg->addSegSect(OpPtT{ seg->c.pts[0], 0 }, opp
                         OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_start), 
-                        SectReason::sharedEnd, opp));
-                if (reversed)
-                    oppSect = opp->addSegSect(OpPtT{ opp->c.lastPt(), 1 }
-                        OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_startOppReversed),
-                        SectReason::sharedEnd, seg));
-                else
-                    oppSect = opp->addSegSect(OpPtT{ opp->c.pts[0], 0 }
-                        OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_startOpp),
-                        SectReason::sharedEnd, seg));
-                sect->pair(oppSect);
+                        SectReason::sharedEnd));
+                if (sect) {
+                    if (reversed)
+                        oppSect = opp->addSegSect(OpPtT{ opp->c.lastPt(), 1 }, seg
+                            OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_startOppReversed),
+                            SectReason::sharedEnd));
+                    else
+                        oppSect = opp->addSegSect(OpPtT{ opp->c.pts[0], 0 }, seg
+                            OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_startOpp),
+                            SectReason::sharedEnd));
+                    OP_ASSERT(oppSect);
+                    sect->pair(oppSect);
+                }
             }
             if ((int) MatchEnds::end & (int) match) {
-                auto sect = seg->addSegSect(OpPtT{ seg->c.lastPt(), 1 }
+                auto sect = seg->addSegSect(OpPtT{ seg->c.lastPt(), 1 }, opp
                         OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_end),
-                        SectReason::sharedEnd, opp));
-                if (reversed)
-                    oppSect = opp->addSegSect(OpPtT{ opp->c.pts[0], 0 }
-                        OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_endOppReversed),
-                        SectReason::sharedEnd, seg));
-                else
-                    oppSect = opp->addSegSect(OpPtT{ opp->c.lastPt(), 1 }
-                        OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_endOpp),
-                        SectReason::sharedEnd, seg));
-                sect->pair(oppSect);
+                        SectReason::sharedEnd));
+                if (sect) {
+                    if (reversed)
+                        oppSect = opp->addSegSect(OpPtT{ opp->c.pts[0], 0 }, seg
+                            OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_endOppReversed),
+                            SectReason::sharedEnd));
+                    else
+                        oppSect = opp->addSegSect(OpPtT{ opp->c.lastPt(), 1 }, seg
+                            OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_endOpp),
+                            SectReason::sharedEnd));
+                    OP_ASSERT(oppSect);
+                    sect->pair(oppSect);
+                }
             }
             // if the bounds only share a corner, there's nothing more to do
             bool sharesHorizontal = seg->ptBounds.right == opp->ptBounds.left

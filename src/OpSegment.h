@@ -53,8 +53,8 @@ struct OpSegment {
             const OpEdge* e, const OpEdge* o));
     OpIntersection* addSegBase(const OpPtT&  
             OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason , const OpSegment* o));
-    OpIntersection* addSegSect(const OpPtT&  
-            OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason , const OpSegment* o));
+    OpIntersection* addSegSect(const OpPtT& , const OpSegment* o  
+            OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason));
     OpIntersection* addCoin(const OpPtT& , int coinID, MatchEnds coinEnd, const OpSegment* o  
             OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason ));
     OpIntersection* addUnsectable(const OpPtT& , int usectID, MatchEnds end, const OpSegment* o 

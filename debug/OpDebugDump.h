@@ -211,10 +211,12 @@ enum class DebugLevel {
 };
 
 // !!! will likely macro-tize these as pattern emerges
-std::string debugDump(const EdgeDistance& , DebugLevel );
-std::string debugDumpHex(const EdgeDistance& , DebugLevel );
-std::string debugDump(const SectRay& , DebugLevel );
-std::string debugDumpHex(const SectRay& , DebugLevel );
+extern std::string debugDump(const EdgeDistance& , DebugLevel );
+extern std::string debugDumpHex(const EdgeDistance& , DebugLevel );
+extern std::string debugDump(const SectRay& , DebugLevel );
+extern std::string debugDumpHex(const SectRay& , DebugLevel );
+
+extern void dmpHex(float );
 
 #endif
 
