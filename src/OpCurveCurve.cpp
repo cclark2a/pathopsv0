@@ -100,7 +100,8 @@ SectFound OpCurveCurve::curvesIntersect(CurveRef curveRef) {
 			return SectFound::fail;  // triggered by fuzzhang_1
 		OpTightBounds edgeRotatedBounds(edgeRotated);
 		for (auto& opp : oppParts) {
-			OP_ASSERT(!opp.isLine_impl);
+			if (opp.isLine_impl)
+				return SectFound::fail;  // triggered by fuzz763_4
 			if (!edge.ptBounds.intersects(opp.ptBounds))
 				continue;
 			const OpCurve& oppCurve = opp.setCurve();

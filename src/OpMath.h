@@ -509,7 +509,7 @@ struct OpRect {
     virtual std::string debugDump() const;
     virtual std::string debugDumpHex() const;
     virtual void dump() const;
-    virtual void dumpDetail() const;
+    virtual void dumpDetail() const;  // not meaningful, but required to complete debug dump macro
     virtual void dumpHex() const;
 #endif
 

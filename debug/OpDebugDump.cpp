@@ -2108,19 +2108,24 @@ void dmpHex(const OpRect& r) {
 }
 
 void dmp(const OpPointBounds& pb) {
-    OpDebugOut(pb.debugDump() + "\n");
+    dmp((const OpRect& ) pb);
 }
 
 void dmpHex(const OpPointBounds& pb) {
-    OpDebugOut(pb.debugDumpHex() + " // " + pb.debugDump() + "\n");
+    dmpHex((const OpRect& ) pb);
 }
 
 void dmp(const OpTightBounds& tb) {
-    OpDebugOut(tb.debugDump() + "\n");
+    std::string s = tb.debugDump();
+    if (tb.debugXExtremaFailed)
+        s += " debugXExtremaFailed";
+    if (tb.debugYExtremaFailed)
+        s += " debugYExtremaFailed";
+    OpDebugOut(s + "\n");
 }
 
 void dmpHex(const OpTightBounds& tb) {
-    OpDebugOut(tb.debugDumpHex() + " // " + tb.debugDump() + "\n");
+    dmpHex((const OpRect& ) tb);
 }
 
 OpPtT::OpPtT(const char*& str) {

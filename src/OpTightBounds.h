@@ -143,14 +143,19 @@ struct OpPointBounds : OpRect {
     OpPointBounds(const OpPointBounds& p) = default;
     OpPointBounds& operator=(const OpPointBounds& p) = default;
     void dump() const override;
-    void dumpDetail() const override;
+    void dumpDetail() const override;  // not meaningful, but required to complete debug dump macro
     void dumpHex() const override;
 #endif
 
 };
 
 struct OpTightBounds : OpPointBounds {
-    OpTightBounds() {}
+    OpTightBounds() {
+#if OP_DEBUG
+        debugXExtremaFailed = false;
+        debugYExtremaFailed = false;
+#endif
+    }
     OpTightBounds(OpCurve& curve) {
         set(curve);
     }
@@ -159,15 +164,23 @@ struct OpTightBounds : OpPointBounds {
         OpPointBounds::set(quad.pts[0], quad.pts[2]);
         if (!quad.monotonic(XyChoice::inX)) {
             OpRoots extremaTs = quad.extrema(XyChoice::inX);
-            *xExtrema = { add(quad.ptAtT(extremaTs.roots[0])), extremaTs.roots[0] };
-            if (!xExtrema->pt.isFinite())
-                return false;
+            if (extremaTs.count) {
+                OP_ASSERT(extremaTs.count == 1);
+                *xExtrema = { add(quad.ptAtT(extremaTs.roots[0])), extremaTs.roots[0] };
+                if (!xExtrema->pt.isFinite())
+                    return false;
+            } else  // fuzz may trigger, but I suspect non-fuzz could fail as well; defer total failure for now
+                OP_DEBUG_CODE(debugXExtremaFailed = true);  // triggered by fuzz767834
         }
         if (!quad.monotonic(XyChoice::inY)) {
             OpRoots extremaTs = quad.extrema(XyChoice::inY);
-            *yExtrema = { add(quad.ptAtT(extremaTs.roots[0])), extremaTs.roots[0] };
-            if (!yExtrema->pt.isFinite())
-                return false;
+            if (extremaTs.count) {
+                OP_ASSERT(extremaTs.count == 1);
+                *yExtrema = { add(quad.ptAtT(extremaTs.roots[0])), extremaTs.roots[0] };
+                if (!yExtrema->pt.isFinite())
+                    return false;
+            } else  // see above
+                OP_DEBUG_CODE(debugYExtremaFailed = true);  // triggered by fuzz767834
         }
         return true;
     }
@@ -176,15 +189,23 @@ struct OpTightBounds : OpPointBounds {
         OpPointBounds::set(conic.pts[0], conic.pts[2]);
         if (!conic.monotonic(XyChoice::inX)) {
             OpRoots extremaTs = conic.extrema(XyChoice::inX);
-            *xExtrema = { add(conic.ptAtT(extremaTs.roots[0])), extremaTs.roots[0] };
-            if (!xExtrema->pt.isFinite())
-                return false;
+            if (extremaTs.count) {
+                OP_ASSERT(extremaTs.count == 1);
+                *xExtrema = { add(conic.ptAtT(extremaTs.roots[0])), extremaTs.roots[0] };
+                if (!xExtrema->pt.isFinite())
+                    return false;
+            } else  // see above
+                OP_DEBUG_CODE(debugXExtremaFailed = true);  // triggered by fuzzhang_2
         }
         if (!conic.monotonic(XyChoice::inY)) {
             OpRoots extremaTs = conic.extrema(XyChoice::inY);
-            *yExtrema = { add(conic.ptAtT(extremaTs.roots[0])), extremaTs.roots[0] };
-            if (!yExtrema->pt.isFinite())
-                return false;
+            if (extremaTs.count) {
+                OP_ASSERT(extremaTs.count == 1);
+                *yExtrema = { add(conic.ptAtT(extremaTs.roots[0])), extremaTs.roots[0] };
+                if (!yExtrema->pt.isFinite())
+                    return false;
+            } else  // see above
+                OP_DEBUG_CODE(debugYExtremaFailed = true);  // triggered by fuzz754434_2
         }
         return true;
     }
@@ -193,25 +214,31 @@ struct OpTightBounds : OpPointBounds {
         OpPointBounds::set(cubic.pts[0], cubic.pts[3]);
         if (!cubic.monotonic(XyChoice::inX)) {
             OpRoots extremaTs = cubic.extrema(XyChoice::inX);
-            int count = extremaTs.count;
-//            if (!count)  // if there's no extrema, pinning the control points on the original cubic is wrong (cubicOp66u)
-//                cubic.pinCtrls(XyChoice::inX);  // if needed, document when and why
-            while (count--) {
-                xExtrema[count] = { add(cubic.ptAtT(extremaTs.roots[count])), extremaTs.roots[count] };
-                if (!xExtrema[count].pt.isFinite())
-                    return false;
-            }
+            if (int count = extremaTs.count) {
+                OP_ASSERT(extremaTs.count < 3);
+    //          if (!count)  // if there's no extrema, pinning the control points on the original cubic is wrong (cubicOp66u)
+    //              cubic.pinCtrls(XyChoice::inX);  // if needed, document when and why
+                while (count--) {
+                    xExtrema[count] = { add(cubic.ptAtT(extremaTs.roots[count])), extremaTs.roots[count] };
+                    if (!xExtrema[count].pt.isFinite())
+                        return false;
+                }
+            } else  // see above
+                OP_DEBUG_CODE(debugXExtremaFailed = true);  // triggered by pentrek4
         }
         if (!cubic.monotonic(XyChoice::inY)) {
             OpRoots extremaTs = cubic.extrema(XyChoice::inY);
-            int count = extremaTs.count;
-//            if (!count)
-//                cubic.pinCtrls(XyChoice::inY);
-            while (count--) {
-                yExtrema[count] = { add(cubic.ptAtT(extremaTs.roots[count])), extremaTs.roots[count] };
-                if (!yExtrema[count].pt.isFinite())
-                    return false;
-            }
+            if (int count = extremaTs.count) {
+                OP_ASSERT(extremaTs.count < 3);
+    //          if (!count)
+    //              cubic.pinCtrls(XyChoice::inY);
+                while (count--) {
+                    yExtrema[count] = { add(cubic.ptAtT(extremaTs.roots[count])), extremaTs.roots[count] };
+                    if (!yExtrema[count].pt.isFinite())
+                        return false;
+                }
+            } else  // see above
+                OP_DEBUG_CODE(debugYExtremaFailed = true);  // triggered by pentrek7
         }
         OpRoots extremaTs = cubic.inflections();
         int count = extremaTs.count;
@@ -251,12 +278,16 @@ struct OpTightBounds : OpPointBounds {
     }
 
     void set(OpCurve& c) {
+#if OP_DEBUG
+        debugXExtremaFailed = false;
+        debugYExtremaFailed = false;
+#endif
         switch (c.type) {
-        case OpType::line: OpPointBounds::set(c.pts, 2); break;
-        case OpType::quad: calcBounds(c.asQuad()); break;
-        case OpType::conic: calcBounds(c.asConic()); break;
-        case OpType::cubic: calcBounds(c.asCubic()); break;
-        default: OP_ASSERT(0);
+            case OpType::line: OpPointBounds::set(c.pts, 2); break;
+            case OpType::quad: calcBounds(c.asQuad()); break;
+            case OpType::conic: calcBounds(c.asConic()); break;
+            case OpType::cubic: calcBounds(c.asCubic()); break;
+            default: OP_ASSERT(0);
         }
     }
 
@@ -283,7 +314,7 @@ struct OpTightBounds : OpPointBounds {
     OpTightBounds(const OpTightBounds& p) = default;
     OpTightBounds& operator=(const OpTightBounds& p) = default;
     void dump() const override;
-    void dumpDetail() const override;
+    void dumpDetail() const override;  // not meaningful, but required to complete debug dump macro
     void dumpHex() const override;
 
 #endif
@@ -291,6 +322,11 @@ struct OpTightBounds : OpPointBounds {
     OpPtT xExtrema[2];
     OpPtT yExtrema[2];
     OpPtT inflections[2];
+#if OP_DEBUG
+    // set when curve is not monotonic but extrema calculation returned zero roots
+    bool debugXExtremaFailed;
+    bool debugYExtremaFailed;
+#endif
 };
 
 #endif

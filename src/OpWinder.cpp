@@ -102,7 +102,7 @@ void OpWinder::AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped, OpPtT cPtT
 	OpIntersection* oSect = oppSegment->addCoin(oCoinStart, coinID, 
 			flipped ? MatchEnds::start : MatchEnds::end, segment 
 			OP_DEBUG_PARAMS(SECT_MAKER(addMixOpp), SectReason::coinPtsMatch));
-	if (oSect) // required by fuzz763_3
+	if (sect && oSect) // required by fuzz763_3, fuzz763_5
 		sect->pair(oSect);
 }
 
