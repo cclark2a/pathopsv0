@@ -212,13 +212,13 @@ void HelloWorld::onPaint(SkSurface* surface) {
     cubics44dDraw(canvas);
     canvas->restore();
     return;
-#else
+#elif OP_DEBUG_IMAGE
     if (GENERATE_COLOR_FILES) {
         OpDebugGenerateColorFiles();
         return;
     }
-    OpTest(nullptr != surface); // trickery to avoid compiler warning
 #endif
+    OpTest(nullptr != surface); // trickery to avoid compiler warning
 #if 0
     canvas->scale(75, 75);
     OpQuadDraw(canvas);

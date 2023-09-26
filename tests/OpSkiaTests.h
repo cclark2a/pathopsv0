@@ -16,6 +16,7 @@
 #define PathOpsExtendedTest_DEFINED
 #define PathOpsTestCommon_DEFINED
 #define PathOpsThreadedCommon_DEFINED
+#define skiatest_Test_DEFINED
 
 class SkBitmap;
 

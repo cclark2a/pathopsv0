@@ -46,6 +46,6 @@
         "fuzz763_2674194", "battleOp33", "tiger8b", "fast802"
 
 #define TEST_PATH_OP_FIRST "" /* e.g., "tiger8b_x2" test to debug */
-#define TEST_PATH_OP_SKIP_TO_FILE "rect" /* e.g., "tiger" to run this file only */
+#define TEST_PATH_OP_SKIP_TO_FILE "" /* e.g., "tiger" to run this file only */
 #define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */
 #endif

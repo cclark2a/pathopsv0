@@ -3,6 +3,7 @@
 #include "include/core/SkCanvas.h"
 #include "include/core/SkRegion.h"
 #include "OpSkiaTests.h"
+#include <vector>
 
 // skip tests by filename
 std::vector<std::string> skipTestFiles = { TEST_PATH_OP_SKIP_FILES };
