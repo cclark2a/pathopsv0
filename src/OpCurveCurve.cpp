@@ -38,6 +38,10 @@ SectFound OpCurveCurve::addUnsectable() {
 			findMatch(maxXY, edge, edgeEnd);
 			findMatch(minXY, opp, oppStart);
 			findMatch(maxXY, opp, oppEnd);
+			OP_ASSERT(!OpMath::IsNaN(edgeStart.t));  // !!! troubling: tripped by fuzz763_9 once...
+			OP_ASSERT(!OpMath::IsNaN(edgeEnd.t));
+			OP_ASSERT(!OpMath::IsNaN(oppStart.t));
+			OP_ASSERT(!OpMath::IsNaN(oppEnd.t));
 			if (!edgeStart.pt.isFinite())
 				edgeStart.pt = oppStart.pt;
 			if (!edgeEnd.pt.isFinite())

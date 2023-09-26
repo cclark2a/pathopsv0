@@ -3,7 +3,6 @@
 
 #include "tests/PathOpsTigerTest.cpp"
 
-void run_all_tiger_tests() {
-    initializeTests(nullptr, "tiger");
+void run_tiger_tests() {
     test_PathOpsTiger(nullptr);
 }

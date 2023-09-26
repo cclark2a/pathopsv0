@@ -3,6 +3,6 @@
 
 #include "tests/PathOpsSimplifyRectThreadedTest.cpp"
 
-void run_all_simplify_rect_tests() {
+void run_simplify_rect_tests() {
     test_PathOpsSimplifyRectsThreaded(nullptr);
 }

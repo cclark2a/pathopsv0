@@ -2,6 +2,17 @@
 #include "OpContour.h"
 #include "OpSegment.h"
 
+void FoundEdge::check(std::vector<FoundEdge>* edges, OpEdge* test, EdgeMatch em, OpPoint match) {
+    if (edges && edges->size())
+        return;
+    float gapSq = (test->whichPtT(em).pt - match).lengthSquared();
+	if (distSq > gapSq) {
+		distSq = gapSq;
+		edge = test;
+        whichEnd = EdgeMatch::start == em ? test->whichEnd : Opposite(test->whichEnd);
+	}
+}
+
 OpSegment::OpSegment(const OpCurve& pts, OpType type, OpContour* contourPtr
         OP_DEBUG_PARAMS(SectReason startReason, SectReason endReason))
     : c(pts.pts, pts.weight, type)
@@ -35,12 +46,14 @@ OpSegment::OpSegment(const LinePts& pts, OpContour* contourPtr
 // returns true if emplaced edge has pals
 
 // activeNeighbor is called separately because this iterates through opposite intersections only
-bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<FoundEdge>& oppEdges) const {
+bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<FoundEdge>& oppEdges,
+        bool* hadLinkTo) const {
     unsigned edgesSize = oppEdges.size();
     OP_ASSERT(!edge->disabled);
     // each prospective match normal must agree with edge, indicating direction of area outside fill
     // if number of matching sects doesn't agree with opposite, collect next indirection as well
     OpPtT ptT = edge->whichPtT(match);
+    *hadLinkTo = false;
     for (auto sectPtr : sects.i) {
         OpIntersection& sect = *sectPtr;
         if (sect.ptT.t < ptT.t)
@@ -61,14 +74,17 @@ bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
         auto saveMatch = [edge, match, &oppEdges, &oSect, checkZero](EdgeMatch testEnd) {
             OpSegment* oSeg = oSect->segment;
             OpEdge* test = oSeg->findEnabled(oSect->ptT, testEnd);  // !!! optimization: walk edges in order
+            bool result = false;
             if (test && test != edge && (edge->unsortable || test->unsortable
                     || edge->windZero == checkZero(test, edge->whichEnd, testEnd))) {
-                if (!test->hasLinkTo(match) && !test->isPal(edge))
+                result = test->hasLinkTo(match);
+                if (!result && !test->isPal(edge))
                     oppEdges.emplace_back(test, EdgeMatch::none);
             }
+            return result;
         };
-        saveMatch(EdgeMatch::start);
-        saveMatch(EdgeMatch::end);
+        *hadLinkTo |= saveMatch(EdgeMatch::start);
+        *hadLinkTo |= saveMatch(EdgeMatch::end);
     }
     for (unsigned index = edgesSize; index < oppEdges.size(); ++index) {
         if (oppEdges[index].edge->pals.size())

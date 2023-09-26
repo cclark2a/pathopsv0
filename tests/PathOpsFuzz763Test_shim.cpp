@@ -3,7 +3,6 @@
 
 #include "tests/PathOpsFuzz763Test.cpp"
 
-void run_all_fuzz763_tests() {
-    initializeTests(nullptr, "fuzz763");
+void run_fuzz763_tests() {
     test_PathOpsFuzz763(nullptr);
 }

@@ -3,7 +3,6 @@
 
 #include "tests/PathOpsSimplifyTest.cpp"
 
-void run_all_simplify_tests() {
-    initializeTests(nullptr, "simplify");
+void run_simplify_tests() {
     test_PathOpsSimplify(nullptr);
 }

@@ -3,7 +3,6 @@
 
 #include "tests/PathOpsIssue3651.cpp"
 
-void run_all_issue3651_tests() {
-    initializeTests(nullptr, "issue3651");
+void run_issue3651_tests() {
     test_PathOpsIssue3651(nullptr);
 }

@@ -1138,20 +1138,7 @@ void OpTest(bool terminateEarly) {
 	if (terminateEarly)
 		exit(0);
 #endif
-	OpDebugOut("\n");
-	run_v0_tests();  // temporary disable while focusing on other tests
-	run_all_op_tests();
-	run_all_battle_tests();
-	run_all_chalkboard_tests();
-	run_all_fuzz763_tests();
-	run_all_inverse_tests();
-	run_all_issue3651_tests();
-	run_all_op_circle_tests();
-	run_all_op_rect_tests();
-	run_all_simplify_tests();
-	run_all_simplify_rect_tests();
-	run_all_tiger_tests();
-	initializeTests(nullptr, "skia tests done");
+	runTests();
 	if (terminateEarly)
 		exit(0);
 	// !!! for now, just run tests to verify operation. Circle back around and 

@@ -3,6 +3,6 @@
 
 #include "tests/PathOpsOpCircleThreadedTest.cpp"
 
-void run_all_op_circle_tests() {
+void run_op_circle_tests() {
     test_PathOpsOpCircleThreaded(nullptr);
 }

@@ -273,7 +273,7 @@ void* OpContours::allocateFiller() {
 bool OpContours::assemble(OpOutPath path) {
     OpJoiner joiner(*this, path);  // collect active edges and sort them
     OP_DEBUG_VALIDATE_CODE(joiner.debugValidate());
-    if (!joiner.byArea.size())  // !!! all remaining edges could be unsectable...
+    if (!joiner.byArea.size() && !joiner.unsectByArea.size())
         return true;
     joiner.sort();  // join up largest edges first
     for (auto edge : joiner.byArea) {

@@ -12,7 +12,7 @@ struct CubicPts {
 
 #include "tests/PathOpsOpTest.cpp"
 
-void run_all_op_tests() {
+void run_op_tests() {
     skiatest::Reporter rfail = { "opTest", "fail" };
     test_PathOpsFailOp(&rfail);
     skiatest::Reporter rmain = { "opTest", "main" };

@@ -3,6 +3,6 @@
 
 #include "tests/PathOpsChalkboardTest.cpp"
 
-void run_all_chalkboard_tests() {
+void run_chalkboard_tests() {
     test_PathOpsChalkboard(nullptr);
 }

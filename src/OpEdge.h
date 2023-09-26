@@ -303,6 +303,16 @@ struct SectRay {
 	Axis axis;
 };
 
+enum class AllowPals {
+	no,
+	yes
+};
+
+enum class AllowClose {
+	no,
+	yes
+};
+
 enum class CalcFail {
 	none,
 	fail,
@@ -453,6 +463,7 @@ public:
 	void complete();
 	bool containsLink(const OpEdge* edge) const;
 	size_t countUnsortable() const;
+	OpIntersection* findSect(EdgeMatch );
 	float findT(Axis , float oppXY) const;
 	OpPtT flipPtT(EdgeMatch match) const { 
 		return match == whichEnd ? end : start; }
@@ -471,7 +482,7 @@ public:
 //	void linkNextPrior(OpEdge* first, OpEdge* last);
 	void markPals();
 	void matchUnsectable(EdgeMatch , const std::vector<OpEdge*>& unsectInX, 
-			std::vector<FoundEdge>& , bool allowPals);
+			std::vector<FoundEdge>& , AllowPals , AllowClose );
 	OpEdge* nextOut();
 	NormalDirection normalDirection(Axis axis, float t);
 	void output(OpOutPath path);  // provided by the graphics implmentation

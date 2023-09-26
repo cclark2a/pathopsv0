@@ -22,7 +22,10 @@ int testOpNameCount = 0;
 bool PathOpsDebug::gCheckForDuplicateNames = false;
 bool PathOpsDebug::gJson = false;
 
-void initializeTests(skiatest::Reporter* , const char* filename) {
+void initializeTests(skiatest::Reporter* , const char* ) {
+}
+
+void initTests(std::string filename) {
     if (currentTestFile.size()) {
         totalRun += testsRun;
         totalSkipped += testsSkipped;
@@ -30,32 +33,15 @@ void initializeTests(skiatest::Reporter* , const char* filename) {
                 + " total:" + STR(totalRun) + " skipped:" + STR(totalSkipped) + "\n");
     }
     currentTestFile = filename;
-    if ("testOp" == currentTestFile) {  // used more than once, unfortunately
-        if (0 == testOpNameCount)
-            currentTestFile = "fastRect";
-        else if (1 == testOpNameCount)
-            currentTestFile = "opRect";
-        else
-            OP_ASSERT(0);
-        ++testOpNameCount;
-    }
     testsRun = 0;
     testsSkipped = 0;
     OpDebugOut(currentTestFile + "\n");
 }
 
-bool skipTest(skiatest::Reporter* reporter, const char* testname) {
-    std::string name = std::string(testname);
- //   if ("thread_circles7489" == name || "thread_circles7490" == name)
- //       OpDebugOut("");
+bool skipTest(std::string name) {
     if ("" != testFirst && name != testFirst) {
         ++testsSkipped;
         return true;
-    }
-    if (reporter) {
-        std::string filename = reporter->filename + '_' + reporter->subname;
-        if (currentTestFile != filename)
-            initializeTests(reporter, filename.c_str());
     }
     if (skipRestFiles.end() != std::find(skipRestFiles.begin(), skipRestFiles.end(),
             name)) {
@@ -76,6 +62,52 @@ bool skipTest(skiatest::Reporter* reporter, const char* testname) {
             OpDebugOut("\n");
     }
     return false;
+}
+
+struct testPair {
+    void (*func)();
+    std::string name;
+};
+
+std::vector<testPair> testPairs = {
+    { run_battle_tests, "battle" },
+    { run_chalkboard_tests, "chalkboard" },
+    { run_fuzz763_tests, "fuzz763" },
+    { run_inverse_tests, "inverse" },
+    { run_issue3651_tests, "issue3651" },
+    { run_op_tests, "op" },
+    { run_op_circle_tests, "circle" },
+    { run_op_rect_tests, "rect" },
+    { run_simplify_tests, "simplify" },
+    { run_simplify_rect_tests, "simplifyRect" },
+    { run_tiger_tests, "tiger" },
+    { run_v0_tests, "v0" },
+};
+
+void runTests() {
+    auto runTest = [](std::string s) {
+        for (auto pair : testPairs) {
+            if (pair.name == s) {
+                initTests(pair.name);
+                (*pair.func)();
+                return;
+            }
+        }
+    };
+	OpDebugOut("\n");
+    if (skipToFile.size()) {
+        runTest(skipToFile);
+        return;
+    }
+    if (OP_DEBUG_FAST_TEST || !skipToFile.size()) {
+        runTest("v0");  // check for these failures first
+        runTest("op");
+        for (auto pair : testPairs) {
+            if (pair.name != "v0" && pair.name != "op")
+                runTest(pair.name);
+        }
+    }
+    initTests("skia tests done");
 }
 
 // !!! move to Skia test utilities, I guess
@@ -181,7 +213,7 @@ void VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op,
 
 bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b, 
         SkPathOp op, const char* testname, bool v0MayFail, bool skiaMayFail) {
-    if (skipTest(r, testname))
+    if (skipTest(testname))
         return true;
     SkPath result, skresult, xorResult;
 	OpInPath op1(&a);
@@ -279,7 +311,7 @@ void VerifySimplify(const SkPath& one, const SkPath& result) {
 
 bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& , 
         const char* testname) {
-    if (skipTest(nullptr, testname))
+    if (skipTest(testname))
         return true;
     path.setFillType(useXor ? SkPathFillType::kEvenOdd : SkPathFillType::kWinding);
 	OpInPath op1(&path);
@@ -298,7 +330,7 @@ bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& ,
 // !!! could rewrite to share logic ...
 bool testSimplifyBase(skiatest::Reporter* r, const SkPath& path, const char* testname, 
         bool v0MayFail, bool skiaMayFail) {
-    if (skipTest(r, testname))
+    if (skipTest(testname))
         return true;
     OpInPath op1(&path);
     SkPath out;
@@ -314,6 +346,12 @@ bool testSimplifyBase(skiatest::Reporter* r, const SkPath& path, const char* tes
 }
 
 bool testSimplify(skiatest::Reporter* r, const SkPath& path, const char* testname) {
+    std::string s = std::string(testname);
+    std::vector<std::string> fail = { TEST_PATH_SIMPLIFY_EXCEPTIONS };  // see OpTestDrive.h
+    if (fail.end() != std::find(fail.begin(), fail.end(), s)) {
+        ++testsSkipped;
+        return true;
+    }
     return testSimplifyBase(r, path, testname, false, false);
 }
 

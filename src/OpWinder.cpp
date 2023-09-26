@@ -320,7 +320,8 @@ EdgeDistance* SectRay::find(OpEdge* edge) {
 // !!! This is now detected when rays are cast. Change this temporarily to assert that it is not
 //     needed
 void SectRay::addPals(OpEdge* home) {
-	if (!home->ray.distances.size())
+	OP_ASSERT(this == &home->ray);
+	if (!distances.size())
 		return;
 	auto matchCept = [home](EdgeDistance* test) {
 //		OP_ASSERT(axis == test->edge->ray.axis);  // !!! I don't think this matters ?
@@ -339,11 +340,13 @@ void SectRay::addPals(OpEdge* home) {
 	EdgeDistance* test = homeDist;
 	float lowLimit = std::nextafterf(homeCept, -OpInfinity);
 	while (test > &distances.front() && (--test)->cept >= lowLimit) {
+		OP_ASSERT((test + 1)->cept >= test->cept);
 		matchCept(test);
 	}
 	test = homeDist;
 	float highLimit = std::nextafterf(homeCept, +OpInfinity);
 	while (test < &distances.back() && (++test)->cept <= highLimit) {
+		OP_ASSERT((test - 1)->cept <= test->cept);
 		matchCept(test);
 	}
 }
@@ -540,14 +543,14 @@ ChainFail OpWinder::setSumChain(size_t inIndex) {
 	FoundIntercept foundIntercept = findRayIntercept(inIndex, homeTangent, normal, homeCept);
 	OP_ASSERT(home->ray.distances.size());
 	SectRay& ray = home->ray;
-	if (FoundIntercept::fail == foundIntercept)
-		return ChainFail::failIntercept;
-	if (FoundIntercept::overflow == foundIntercept)
-		return ChainFail::normalizeOverflow;
 	std::sort(ray.distances.begin(), ray.distances.end(), 
 			[](const EdgeDistance& s1, const EdgeDistance& s2) {
 		return s1.cept < s2.cept;
 	});
+	if (FoundIntercept::fail == foundIntercept)
+		return ChainFail::failIntercept;
+	if (FoundIntercept::overflow == foundIntercept)
+		return ChainFail::normalizeOverflow;
 	return ChainFail::none;
 }
 

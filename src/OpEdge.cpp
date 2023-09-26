@@ -218,6 +218,14 @@ bool OpEdge::containsLink(const OpEdge* edge) const {
 	return false;
 }
 
+OpIntersection* OpEdge::findSect(EdgeMatch match) {
+	OpPoint pt = whichPtT(match).pt;
+	auto& i = segment->sects.i;
+    auto found = std::find_if(i.begin(), i.end(), [pt](auto sect) { return sect->ptT.pt == pt; });
+	OP_ASSERT(found != i.end());
+	return *found;
+}
+
 float OpEdge::findT(Axis axis, float oppXY) const {
 	float result;
     OP_DEBUG_CODE(FoundPtT foundPtT =) segment->findPtT(axis, start.t, end.t, oppXY, &result);
@@ -272,9 +280,7 @@ void OpEdge::markPals() {
 			if (this != dist.edge)
 				pal = &dist;
 			if (foundUnsectable) {	// found both ends
-				if (pals.end() == std::find_if(pals.begin(), pals.end(), 
-						[&pal](auto& p) { return p.edge == pal->edge; } ))
-					pals.push_back(*pal);
+				addPal(*pal);
 				return;
 			}
 			foundUnsectable = true;
@@ -290,7 +296,7 @@ void OpEdge::markPals() {
 
 // keep only one unsectable from any set of pals
 void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsectInX,
-		std::vector<FoundEdge>& edges, bool allowPals) {
+		std::vector<FoundEdge>& edges, AllowPals allowPals, AllowClose allowClose) {
 	const OpPoint firstPt = whichPtT(match).pt;
 	for (int index = 0; index < (int) unsectInX.size(); ++index) {
 		OpEdge* unsectable = unsectInX[index];
@@ -306,23 +312,35 @@ void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsect
 			}
 			return false;
 		};
-		auto checkEnds = [this, &edges, firstPt, isDupe, allowPals](OpEdge* unsectable) {
+		auto checkEnds = [this, &edges, firstPt, isDupe, allowPals, allowClose]
+				(OpEdge* unsectable) {
 			if (unsectable->inOutput || unsectable->inLinkups || unsectable->disabled)
 				return false;
 			if (this == unsectable)
 				return false;
-			bool startMatch = firstPt == unsectable->start.pt 
-					&& (EdgeMatch::start == unsectable->whichEnd ? !unsectable->priorEdge : 
-					!unsectable->nextEdge);
-			bool endMatch = firstPt == unsectable->end.pt 
-					&& (EdgeMatch::end == unsectable->whichEnd ? !unsectable->priorEdge : 
-					!unsectable->nextEdge);
+#if 0
+			bool startMatch = (firstPt == unsectable->whichPtT().pt || AllowClose::yes == allowClose)
+					&& !unsectable->priorEdge;
+			bool endMatch = (firstPt == unsectable->whichPtT(EdgeMatch::end).pt
+					|| AllowClose::yes == allowClose) && !unsectable->nextEdge;
+#else
+            bool startMatch = firstPt == unsectable->start.pt
+                    && (EdgeMatch::start == unsectable->whichEnd ? !unsectable->priorEdge :
+                    !unsectable->nextEdge);
+            bool endMatch = firstPt == unsectable->end.pt
+                    && (EdgeMatch::end == unsectable->whichEnd ? !unsectable->priorEdge :
+                    !unsectable->nextEdge);
+#endif
 			if (!startMatch && !endMatch)
 				return false;
-			if (isDupe(unsectable))
+			if (AllowClose::no == allowClose && isDupe(unsectable))
 				return false;
-			if (unsectable->pals.size() && !allowPals) {
-				const OpEdge* link = this;
+#if 0
+			if (unsectable->pals.size() && AllowPals::yes == allowPals) {
+#else
+			if (unsectable->pals.size() && AllowPals::no == allowPals) {
+#endif
+			const OpEdge* link = this;
 				OP_ASSERT(!link->nextEdge);
 				OP_ASSERT(!link->debugIsLoop());
 				do {
@@ -332,10 +350,22 @@ void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsect
 				} while (link);
 			}
 			OP_ASSERT(!unsectable->debugIsLoop());
-			edges.emplace_back(unsectable, startMatch ? EdgeMatch::start : EdgeMatch::end);
+			if (AllowClose::yes == allowClose) {
+				OP_ASSERT(1 == edges.size());
+				edges.back().check(nullptr, unsectable, 
+						startMatch ? EdgeMatch::start : EdgeMatch::end, firstPt);
+			} else
+#if 0
+				edges.emplace_back(unsectable, startMatch ? unsectable->whichEnd 
+						: Opposite(unsectable->whichEnd));
+#else
+				edges.emplace_back(unsectable, startMatch ? EdgeMatch::start : EdgeMatch::end);
+#endif
 			return true;
 		};
 		if (checkEnds(unsectable))
+			continue;
+		if (AllowPals::no == allowPals)
 			continue;
 		for (auto& pal : unsectable->pals) {
 			if (checkEnds(pal.edge))

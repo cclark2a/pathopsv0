@@ -614,6 +614,6 @@ DEF_TEST(OpsV0, reporter) {
 }
 
 void run_v0_tests() {
-    skiatest::Reporter* reporter = nullptr;
-    test_OpsV0(reporter);
+    initializeTests(nullptr, "v0");
+    test_OpsV0(nullptr);
 }

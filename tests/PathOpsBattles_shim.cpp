@@ -3,7 +3,6 @@
 
 #include "tests/PathOpsBattles.cpp"
 
-void run_all_battle_tests() {
-    initializeTests(nullptr, "battle");
+void run_battle_tests() {
     test_PathOpsBattle(nullptr);
 }

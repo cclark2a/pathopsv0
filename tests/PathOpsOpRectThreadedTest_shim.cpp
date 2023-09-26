@@ -3,7 +3,7 @@
 
 #include "tests/PathOpsOpRectThreadedTest.cpp"
 
-void run_all_op_rect_tests() {
+void run_op_rect_tests() {
     test_PathOpsFastThreaded(nullptr);
     test_PathOpsRectsThreaded(nullptr);
 }

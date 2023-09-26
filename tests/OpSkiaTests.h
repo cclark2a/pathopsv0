@@ -106,19 +106,19 @@ bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& ,
         const char* );
 bool testSimplify(skiatest::Reporter* , const SkPath& path, const char* filename);
 bool testSimplifyFail(skiatest::Reporter* , const SkPath& path, const char* filename);
-
-void run_all_battle_tests();
-void run_all_chalkboard_tests();
-void run_all_fuzz763_tests();
-void run_all_inverse_tests();
-void run_all_issue3651_tests();
-void run_all_op_circle_tests();
-void run_all_op_rect_tests();
-void run_all_op_tests();
-void run_all_simplify_tests();
-void run_all_simplify_rect_tests();
-void run_all_tiger_tests();
+void run_battle_tests();
+void run_chalkboard_tests();
+void run_fuzz763_tests();
+void run_inverse_tests();
+void run_issue3651_tests();
+void run_op_circle_tests();
+void run_op_rect_tests();
+void run_op_tests();
+void run_simplify_tests();
+void run_simplify_rect_tests();
+void run_tiger_tests();
 void run_v0_tests();
+void runTests();
 
 inline void REPORTER_ASSERT(skiatest::Reporter* , bool test) {
     OP_ASSERT(test);

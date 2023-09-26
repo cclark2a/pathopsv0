@@ -3,7 +3,6 @@
 
 #include "tests/PathOpsInverseTest.cpp"
 
-void run_all_inverse_tests() {
-    initializeTests(nullptr, "inverse");
+void run_inverse_tests() {
     test_PathOpsInverse(nullptr);
 }

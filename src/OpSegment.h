@@ -19,9 +19,14 @@ enum class MatchSect {
     existing    // consecutive segments cannot match
 };
 
+enum class FoundGap {
+    dummy
+};
+
 struct FoundEdge {
     FoundEdge(OpEdge* e, EdgeMatch w, int i = -1) 
         : edge(e)
+        , distSq(0)
         , index(i)
         , whichEnd(w)
         , addBack(false)
@@ -29,12 +34,24 @@ struct FoundEdge {
         , loops(false) {
     }
 
+    FoundEdge(FoundGap ) 
+        : edge(nullptr)
+        , distSq(OpInfinity)
+        , index(-1)
+        , whichEnd(EdgeMatch::none)
+        , addBack(false)
+        , connects(false)
+        , loops(false) {
+    }
+
+    void check(std::vector<FoundEdge>* edges, OpEdge* test, EdgeMatch , OpPoint match);
 #if OP_DEBUG_DUMP
 	void dump() const;
 	void dumpDetail() const;
 #endif
 
     OpEdge* edge;
+    float distSq;  // used to track closest edge if no exact match was found
     int index;  // used to track entry in linkups to remove after use
     EdgeMatch whichEnd;
     bool addBack; // set true if edge, unused, should be added back to linkups
@@ -46,7 +63,7 @@ struct OpSegment {
     OpSegment(const OpCurve& pts, OpType type, OpContour*  
             OP_DEBUG_PARAMS(SectReason , SectReason ));
     OpSegment(const LinePts& pts, OpContour*  OP_DEBUG_PARAMS(SectReason , SectReason ));
-    bool activeAtT(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const;
+    bool activeAtT(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& , bool* hadLinkTo) const;
     bool activeNeighbor(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const;
     OpIntersection* addEdgeSect(const OpPtT&  
             OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason ,
