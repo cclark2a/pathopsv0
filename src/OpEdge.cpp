@@ -132,7 +132,7 @@ void OpEdge::apply() {
 			windZero = !su.left() == !su.right() ? WindZero::normal : WindZero::opp;
 		break;
 	case OpOperator::ReverseSubtract:
-		keep = bothFlipped ? left == right : WindState::zero == left || WindState::one == right;
+		keep = bothFlipped ? left != right : WindState::zero == left || WindState::one == right;
 		if (keep)
 			windZero = su.left() || !su.right() ? WindZero::normal : WindZero::opp;
 		break;

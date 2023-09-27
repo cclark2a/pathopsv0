@@ -14,6 +14,7 @@
 #endif
 
 #define OP_SHOW_TEST_NAME 0
+#define OP_TEST_ALLOW_EXTENDED 0
 
 // issue3517:  long and skinny; don't know what's going on
 //             unterminated ends of contour are edges 1434, 
@@ -33,7 +34,7 @@
 
 // tiger8b: no matching link found (have not debugged)
 
-// fast802: fails verify (have not debugged)
+// fast802: ok
 
 #define TEST_PATH_OP_EXCEPTIONS "issue3517", "thread_circles7489"
 #define TEST_PATH_OP_FAIL_EXCEPTIONS "grshapearcs1"
@@ -43,7 +44,7 @@
 
 // when these tests are encountered, it and the remaining tests in the file are skipped
 #define TEST_PATH_OP_SKIP_REST "issue3651_7", "thread_circles7490", \
-        "fuzz763_2674194", "battleOp33", "tiger8b", "fast802"
+        "fuzz763_2674194", "battleOp33", "tiger8b"
 
 #define TEST_PATH_OP_FIRST "" /* e.g., "tiger8b_x2" test to debug */
 #define TEST_PATH_OP_SKIP_TO_FILE "" /* e.g., "tiger" to run this file only */

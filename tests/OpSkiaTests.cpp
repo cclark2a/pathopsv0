@@ -11,7 +11,7 @@ std::vector<std::string> skipRestFiles = { TEST_PATH_OP_SKIP_REST };
 std::string currentTestFile;
 std::string testFirst = TEST_PATH_OP_FIRST;
 std::string skipToFile = TEST_PATH_OP_SKIP_TO_FILE;
-bool skiatest::Reporter::allowExtendedTest() { return false; }
+bool skiatest::Reporter::allowExtendedTest() { return OP_TEST_ALLOW_EXTENDED; }
 
 bool showTestName = OP_SHOW_TEST_NAME;
 int testsRun = 0;
