@@ -571,6 +571,36 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 		}
 		return ResolveWinding::resolved;
 	}
+	// walk from the known sum to (and including) the edge (e.g., edge 669 in issue1417)
+	//   if an edge is in another edge's pal list, even if it is not reciprocal: 
+	//   only count the edge with the pal list
+	// might require 2 passes; one to find edge with pals, one to mark those edges not to be counted
+//	OpDebugBreak(home, 669);
+	int rayIndex = -1;  // pal detection needs to start before first valid sum
+	OpEdge* palEdge;
+	std::vector<OpEdge*> pals;
+	while ((palEdge = ray.distances[++rayIndex].edge) != home) {
+		if (!palEdge->pals.size())
+			continue;
+		if (pals.end() != std::find_if(pals.begin(), pals.end(), [&palEdge](OpEdge* palOwner) { 
+				return palEdge->isPal(palOwner) && palOwner->isPal(palEdge); }))
+			continue;
+		pals.push_back(palEdge);
+	}
+	if (pals.size()) {
+		rayIndex = -1;
+		OpEdge* test;
+		while ((test = ray.distances[++rayIndex].edge) != home) {
+			if (pals.end() != std::find(pals.begin(), pals.end(), test))
+				continue;
+			auto testInEdge = std::find_if(pals.begin(), pals.end(), [&test](OpEdge* palOwner) { 
+					return !test->isPal(palOwner) && palOwner->isPal(test); });
+			if (pals.end() != testInEdge) {
+				ray.distances[rayIndex].skipPal = (*testInEdge)->sum.isSet();
+				ray.distances[rayIndex].skipSum = true;
+			}
+		}
+	}
 	// starting with found or zero if none, accumulate sum up to winding
 	OpWinding sumWinding(WindingTemp::dummy);
 	int sumIndex = ray.distances.size();
@@ -578,7 +608,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 		OP_ASSERT(sumIndex > 0);
 	float homeT = ray.distances[sumIndex].t;  // used by unsectable, later
 	while (--sumIndex >= 0 && (ray.distances[sumIndex].edge->pals.size() 
-			|| !ray.distances[sumIndex].edge->sum.isSet()))
+			|| !ray.distances[sumIndex].edge->sum.isSet() || ray.distances[sumIndex].skipSum))
 		;
 	if (sumIndex >= 0) {
 		EdgeDistance& sumDistance = ray.distances[sumIndex];
@@ -590,7 +620,6 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 		if (CalcFail::fail == sumEdge->subIfDL(ray.axis, sumDistance.t, &sumWinding))  
 			OP_DEBUG_FAIL(*sumEdge, ResolveWinding::fail);
 	}
-	// walk from the known sum to (and including) the edge
 	OpEdge* prior;
 	do {
 		OP_ASSERT(sumIndex + 1 < (int) ray.distances.size());
@@ -603,11 +632,13 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 			prior->setUnsortable();
 			continue;
 		}
-		if (NormalDirection::downLeft == normDir && !prior->pals.size())
+		if (dist.skipPal)  // true if another distance in ray has a pal list with prior in it
+			continue;
+		if (NormalDirection::downLeft == normDir && !prior->pals.size() && !dist.skipSum)
 			OP_EDGE_SET_SUM(prior, sumWinding);
 		if (CalcFail::fail == prior->addSub(ray.axis, dist.t, &sumWinding)) // if d/l sub; if u/r add
 			OP_DEBUG_FAIL(*prior, ResolveWinding::fail);
-		if (NormalDirection::upRight == normDir && !prior->pals.size())
+		if (NormalDirection::upRight == normDir && !prior->pals.size() && !dist.skipSum)
 			OP_EDGE_SET_SUM(prior, sumWinding);
 	} while (home != prior);
 	if (!home->pals.size())
