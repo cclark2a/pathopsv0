@@ -4,7 +4,7 @@
 
 // this puts all switches that decide which tests to run and how to run them in one place
 
-#define OP_DEBUG_FAST_TEST 1  // in a debug build: set to zero to enable debug dump, debug image
+#define OP_DEBUG_FAST_TEST 0  // in a debug build: set to zero to enable debug dump, debug image
 
 #define OP_RELEASE_TEST 1	// !!! set to zero to remove tests from release build
 

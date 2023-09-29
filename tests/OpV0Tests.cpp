@@ -589,6 +589,90 @@ b.close();
     testPathOp(reporter, left, b, kIntersect_SkPathOp, filename);
 }
 
+static void pentrek8(skiatest::Reporter* reporter, const char* filename) {
+SkPath b;
+b.moveTo(0x1.1d815ep+9, 0x1.2ac52cp+7);
+b.quadTo(0x1.19d00cp+9, 0x1.2c49ccp+7, 0x1.169b82p+9, 0x1.2f4974p+7);
+b.quadTo(0x1.13ad6p+9, 0x1.32074p+7, 0x1.d19f4ep+8, 0x1.88edf2p+7);
+b.quadTo(0x1.7b9e44p+8, 0x1.e01b3p+7, 0x1.644cf6p+8, 0x1.01b5ep+8);
+b.quadTo(0x1.4d6f54p+8, 0x1.13068cp+8, 0x1.42a842p+8, 0x1.21c008p+8);
+b.quadTo(0x1.393d4ep+8, 0x1.2e9deap+8, 0x1.3a3cf4p+8, 0x1.39daeap+8);
+b.quadTo(0x1.3b4abp+8, 0x1.45b662p+8, 0x1.460926p+8, 0x1.52848cp+8);
+b.quadTo(0x1.51b41ep+8, 0x1.606c9ap+8, 0x1.635858p+8, 0x1.6add6ap+8);
+b.quadTo(0x1.75a35ep+8, 0x1.75b0fp+8, 0x1.868846p+8, 0x1.7bc22ap+8);
+b.quadTo(0x1.97b05p+8, 0x1.81eb8p+8, 0x1.a4f588p+8, 0x1.84c188p+8);
+b.quadTo(0x1.b294d8p+8, 0x1.87aad4p+8, 0x1.bc6e46p+8, 0x1.892306p+8);
+b.quadTo(0x1.c6e4c4p+8, 0x1.8ab2aap+8, 0x1.d03e64p+8, 0x1.8cb014p+8);
+b.quadTo(0x1.d9eb0cp+8, 0x1.8ebf2ap+8, 0x1.e8c88ep+8, 0x1.93f66p+8);
+b.cubicTo(0x1.e8c88ep+8, 0x1.93f66p+8, 0x1.edfdc6p+8, 0x1.9b8056p+8, 0x1.f0bc68p+8, 0x1.9b8056p+8);
+b.cubicTo(0x1.eee8ap+8, 0x1.a0b58ep+8, 0x1.ed14dap+8, 0x1.a8a968p+8, 0x1.e75eaap+8, 0x1.a8a968p+8);
+b.quadTo(0x1.d480f4p+8, 0x1.a20ad6p+8, 0x1.cc149cp+8, 0x1.a03fecp+8);
+b.quadTo(0x1.c3553cp+8, 0x1.9e6356p+8, 0x1.b97abap+8, 0x1.9ceafap+8);
+b.quadTo(0x1.af0328p+8, 0x1.9b5b2cp+8, 0x1.a0c778p+8, 0x1.985078p+8);
+b.quadTo(0x1.9231bp+8, 0x1.95328p+8, 0x1.7fc5bap+8, 0x1.8e94d6p+8);
+b.quadTo(0x1.6d16a2p+8, 0x1.87df1p+8, 0x1.5928a8p+8, 0x1.7c1396p+8);
+b.quadTo(0x1.4493e2p+8, 0x1.6fe566p+8, 0x1.36b6dap+8, 0x1.5f5f74p+8);
+b.quadTo(0x1.27ed5p+8, 0x1.4dbf9ep+8, 0x1.26510cp+8, 0x1.3ba016p+8);
+b.quadTo(0x1.24a6b2p+8, 0x1.28e216p+8, 0x1.3284bep+8, 0x1.15eff8p+8);
+b.quadTo(0x1.3f06acp+8, 0x1.04d974p+8, 0x1.583a0ap+8, 0x1.e38842p+7);
+b.quadTo(0x1.70f9bcp+8, 0x1.be0cdp+7, 0x1.c894b2p+8, 0x1.65400ep+7);
+b.quadTo(0x1.103aap+9, 0x1.0c2ccp+7, 0x1.14547ep+9, 0x1.08568cp+7);
+b.quadTo(0x1.1827f4p+9, 0x1.04c234p+7, 0x1.1c7ba2p+9, 0x1.02fad4p+7);
+b.cubicTo(0x1.1c7ba2p+9, 0x1.02fad4p+7, 0x1.1f3a62p+9, 0x1.09d98cp+7, 0x1.21af92p+9, 0x1.09d98cp+7);
+b.cubicTo(0x1.21f7cap+9, 0x1.14d48ap+7, 0x1.224004p+9, 0x1.29a444p+7, 0x1.20401ep+9, 0x1.29a444p+7);
+b.close();
+SkPath left(b);
+b.reset();
+b.moveTo(0x1.679a9cp+8, 0x1.7643bap+6);
+b.quadTo(0x1.760ddp+8, 0x1.b57adcp+6, 0x1.83884ep+8, 0x1.e55d5ap+6);
+b.quadTo(0x1.914dep+8, 0x1.0b254ap+7, 0x1.a3e0e8p+8, 0x1.2a7b28p+7);
+b.quadTo(0x1.b6b87ap+8, 0x1.4a44aap+7, 0x1.c61adep+8, 0x1.66a8fap+7);
+b.quadTo(0x1.d5f2fap+8, 0x1.83e688p+7, 0x1.dea5fep+8, 0x1.9a7da6p+7);
+b.quadTo(0x1.e7fceep+8, 0x1.b2be72p+7, 0x1.eae64p+8, 0x1.c6e6ecp+7);
+b.quadTo(0x1.ee362p+8, 0x1.ddd57p+7, 0x1.ea2dd4p+8, 0x1.f3053ap+7);
+b.quadTo(0x1.e65a72p+8, 0x1.038f88p+8, 0x1.da8e6p+8, 0x1.0ce078p+8);
+b.quadTo(0x1.cfa38ep+8, 0x1.157f88p+8, 0x1.bc1074p+8, 0x1.1c7fdap+8);
+b.quadTo(0x1.a9773ep+8, 0x1.2326c8p+8, 0x1.90a8dap+8, 0x1.28c7eap+8);
+b.quadTo(0x1.78bbcp+8, 0x1.2e35eap+8, 0x1.66047ep+8, 0x1.33a7f6p+8);
+b.quadTo(0x1.54e3bcp+8, 0x1.38a3bcp+8, 0x1.4f8492p+8, 0x1.3ce306p+8);
+b.quadTo(0x1.4cdc84p+8, 0x1.3efcb6p+8, 0x1.4c45d8p+8, 0x1.4032d2p+8);
+b.quadTo(0x1.4c6564p+8, 0x1.3ff1e4p+8, 0x1.4c65ccp+8, 0x1.3f6296p+8);
+b.quadTo(0x1.4c649ap+8, 0x1.410944p+8, 0x1.4dc2b4p+8, 0x1.42f66p+8);
+b.quadTo(0x1.500d82p+8, 0x1.4630ep+8, 0x1.5511aep+8, 0x1.49e26cp+8);
+b.quadTo(0x1.5a9a32p+8, 0x1.4df568p+8, 0x1.63dd5cp+8, 0x1.525828p+8);
+b.quadTo(0x1.6da656p+8, 0x1.56fa44p+8, 0x1.7b34cep+8, 0x1.5c27ecp+8);
+b.quadTo(0x1.89117ap+8, 0x1.617374p+8, 0x1.98fa98p+8, 0x1.674fa6p+8);
+b.quadTo(0x1.a8daeap+8, 0x1.6d289ep+8, 0x1.b8c512p+8, 0x1.72ac86p+8);
+b.quadTo(0x1.c86eb8p+8, 0x1.781a14p+8, 0x1.e3dae6p+8, 0x1.7f6d16p+8);
+b.cubicTo(0x1.e3dae6p+8, 0x1.7f6d16p+8, 0x1.e92ff2p+8, 0x1.8655eep+8, 0x1.ec5c32p+8, 0x1.8655eep+8);
+b.cubicTo(0x1.eaef9cp+8, 0x1.8baafcp+8, 0x1.e98304p+8, 0x1.942c48p+8, 0x1.e406c4p+8, 0x1.942c48p+8);
+b.quadTo(0x1.c291e4p+8, 0x1.8b3cb4p+8, 0x1.b2388ap+8, 0x1.859242p+8);
+b.quadTo(0x1.a21fb2p+8, 0x1.7ffe2ap+8, 0x1.921104p+8, 0x1.7a1422p+8);
+b.quadTo(0x1.820b22p+8, 0x1.742d54p+8, 0x1.7411cep+8, 0x1.6ed6dcp+8);
+b.quadTo(0x1.65ca46p+8, 0x1.696284p+8, 0x1.5b4e4p+8, 0x1.646bap+8);
+b.quadTo(0x1.504c6ap+8, 0x1.5f356p+8, 0x1.4935eep+8, 0x1.59fd5cp+8);
+b.quadTo(0x1.419b1ap+8, 0x1.5463e8p+8, 0x1.3d73e8p+8, 0x1.4e8a68p+8);
+b.quadTo(0x1.386002p+8, 0x1.476384p+8, 0x1.3865dp+8, 0x1.3f5432p+8);
+b.quadTo(0x1.3868b4p+8, 0x1.3b510cp+8, 0x1.3a48acp+8, 0x1.37753ap+8);
+b.quadTo(0x1.3cdeep+8, 0x1.32225ep+8, 0x1.431d0ap+8, 0x1.2d32c2p+8);
+b.quadTo(0x1.4b8cep+8, 0x1.26870cp+8, 0x1.606e1ep+8, 0x1.2073d2p+8);
+b.quadTo(0x1.73b8dcp+8, 0x1.1ad6dep+8, 0x1.8c3bc2p+8, 0x1.1546dep+8);
+b.quadTo(0x1.a3dd5ep+8, 0x1.0feap+8, 0x1.b55428p+8, 0x1.09aaeep+8);
+b.quadTo(0x1.c5d10ep+8, 0x1.03c54p+8, 0x1.ce293cp+8, 0x1.fa5c9ep+7);
+b.quadTo(0x1.d5a02ap+8, 0x1.ee9282p+7, 0x1.d77cc8p+8, 0x1.e4ca56p+7);
+b.quadTo(0x1.d9247cp+8, 0x1.dc182p+7, 0x1.d7af5cp+8, 0x1.d200a4p+7);
+b.quadTo(0x1.d5d3aep+8, 0x1.c5231ep+7, 0x1.cecd9ep+8, 0x1.b2e5eap+7);
+b.quadTo(0x1.c723a2p+8, 0x1.9eff08p+7, 0x1.b88abep+8, 0x1.840e96p+7);
+b.quadTo(0x1.a97c22p+8, 0x1.6844e6p+7, 0x1.96fbb4p+8, 0x1.490e68p+7);
+b.quadTo(0x1.8436bcp+8, 0x1.296446p+7, 0x1.76404ep+8, 0x1.1096e2p+7);
+b.quadTo(0x1.67feccp+8, 0x1.ee8844p+6, 0x1.58d8p+8, 0x1.ac3f66p+6);
+b.cubicTo(0x1.58d8p+8, 0x1.ac3f66p+6, 0x1.551e96p+8, 0x1.82a1f8p+6, 0x1.55671cp+8, 0x1.82a1f8p+6);
+b.cubicTo(0x1.5979d8p+8, 0x1.73bc54p+6, 0x1.5d8c96p+8, 0x1.65f8c6p+6, 0x1.63e134p+8, 0x1.65f8c6p+6);
+b.close();
+    testPathOp(reporter, left, b, kIntersect_SkPathOp, filename);
+}
+
+
 static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
 static void (*firstTest)(skiatest::Reporter* , const char* filename) = nullptr;
 static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
@@ -596,6 +680,7 @@ static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 #define TEST(name) { name, #name }
 
 static struct TestDesc tests[] = {
+    TEST(pentrek8),
     TEST(pentrek7),
     TEST(pentrek6),
     TEST(pentrek5),
