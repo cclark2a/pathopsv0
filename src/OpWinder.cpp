@@ -243,6 +243,12 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 //     bugs that introduces
 // !!! I'm bothered that segment / segment calls a different form of this
 void OpWinder::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
+#if 0 && OP_DEBUG
+	OP_ASSERT(edge.segment->c.ptAtT(edge.start.t) == edge.start.pt);
+	OP_ASSERT(edge.segment->c.ptAtT(edge.end.t) == edge.end.pt);
+	OP_ASSERT(opp.segment->c.ptAtT(opp.start.t) == opp.start.pt);
+	OP_ASSERT(opp.segment->c.ptAtT(opp.end.t) == opp.end.pt);
+#endif
 	OP_ASSERT(opp.segment != edge.segment);
 	OP_ASSERT(edge.isLine_impl);
 	LinePts edgePts { edge.start.pt, edge.end.pt };
@@ -279,8 +285,12 @@ void OpWinder::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
 			return;
 		if (!OpMath::Between(0, edgeT, 1))
 			continue;
-        // pin point to both bounds, but only if it is on edge
 		OpSegment* eSegment = const_cast<OpSegment*>(edge.segment);
+		if (0 == edgeT)
+			oppPtT.pt = eSegment->c.pts[0];
+		else if (1 == edgeT)
+			oppPtT.pt = eSegment->c.lastPt();
+        // pin point to both bounds, but only if it is on edge
 		OpSegment* oSegment = const_cast<OpSegment*>(opp.segment);
 //		OP_DEBUG_CODE(OpPoint debugPt = oppPtT.pt);
         oSegment->ptBounds.pin(&oppPtT.pt);

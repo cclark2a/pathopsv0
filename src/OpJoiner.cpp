@@ -393,20 +393,6 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 				OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
 			} else
 				bestGap.check(&found, link, EdgeMatch::end, matchPt);
-#if 0  // !!! not triggered in current testing, doubt it is needed			
-			else {
-				OpEdge* linkLast = link->lastEdge;
-				OP_ASSERT(linkLast);
-				if (lastEdge->isPal(linkLast) && linkLast != link
-						&& linkLast->whichPtT(EdgeMatch::start).pt == matchPt) {
-					OpEdge* lastPrior = linkLast->priorEdge;
-					lastPrior->setNextEdge(nullptr);
-					link->lastEdge = lastPrior;
-					linkLast->setPriorEdge(nullptr);
-					OP_ASSERT(0);  // !!! isn't this supposed to put link in found?
-				}
-			}
-#endif
 		}
 	}
 	// best gap has the distance from the match point to the next available edge
@@ -486,7 +472,12 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 #endif
 	// if there's no remaining active edges in linkups or unsectables, just close what's left (loops63i)
 	auto unsortableCount = [this](const auto edge) {
-		return unsortables.size() - edge->countUnsortable();
+		int unusedUnsortables = 0;
+		for (auto u : unsortables) {
+			if (!u->inOutput)
+				++unusedUnsortables;
+		}
+		return unusedUnsortables - edge->countUnsortable();
 	};
 	if (!found.size() && !linkups.l.size() && !unsortableCount(edge)) {
 		OpContour* contour = edge->segment->contour;
@@ -569,7 +560,10 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 		OpDebugOut("");  // allows setting a breakpoint when joining edge isn't found
 	}
 #endif
-	OP_ASSERT(found.size());
+	OP_ASSERT(edge->segment->contour->contours->debugExpect == OpDebugExpect::unknown
+			|| found.size());
+	if (!found.size())  // triggered by fuzz763_1c
+		return false;
 	// if more than one was found, check to see if selected, one makes a complete loop
 	// additionally, store in found how far end is from loop
 	OpRect bestBounds;

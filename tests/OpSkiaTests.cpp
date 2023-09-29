@@ -40,7 +40,9 @@ void initTests(std::string filename) {
 }
 
 bool skipTest(std::string name) {
-    if ("" != testFirst && name != testFirst) {
+    if (name == testFirst)
+        return false;
+    if ("" != testFirst) {
         ++testsSkipped;
         return true;
     }

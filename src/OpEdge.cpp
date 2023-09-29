@@ -143,22 +143,36 @@ void OpEdge::apply() {
 		setDisabled(OP_DEBUG_CODE(ZeroReason::applyOp));
 }
 
+// old thinking:
 // for center t (and center t only), use edge geometry since center is on edge even if there is error
 // and using segment instead might return more than one intersection
+// new thinking:
+// segments are now broken monotonically when they are built, so they should not return more than
+// one intersection anymore often than edges. 
 bool OpEdge::calcCenterT() {
 	const OpRect& r = ptBounds;
 	Axis axis = r.width() >= r.height() ? Axis::vertical : Axis::horizontal;
 	float middle = (r.ltChoice(axis) + r.rbChoice(axis)) / 2;
+#if USE_SEGMENT_CENTER
+	const OpCurve& curve = segment->c;
+#else
 	const OpCurve& curve = setCurve();
+#endif
 	float t = curve.center(axis, middle);
 	if (OpMath::IsNaN(t)) {
 		setDisabled(OP_DEBUG_CODE(ZeroReason::centerNaN));
 		rayFail = EdgeFail::center;
 		return true;
 	}
+#if USE_SEGMENT_CENTER
+	center.t = t;
+#else
 	center.t = OpMath::Interp(start.t, end.t, t);
+#endif
 	center.pt = curve.ptAtT(t);
-	center.pt.pin(ptBounds);
+//#if !USE_SEGMENT_CENTER
+	center.pt.pin(ptBounds);  // required by pentrek6
+//#endif
 	OP_ASSERT(OpMath::Between(ptBounds.left, center.pt.x, ptBounds.right));
 	OP_ASSERT(OpMath::Between(ptBounds.top, center.pt.y, ptBounds.bottom));
 	return start.t < center.t && center.t < end.t;
@@ -604,7 +618,7 @@ void OpEdge::subDivide() {
 		center.pt = ptBounds.center();
 	}
  	if (start.pt == end.pt) {
-		OP_ASSERT(0);	// !!! check to see if this can still happen
+//		OP_ASSERT(0);	// triggered by fuzz763_9
 		setDisabled(OP_DEBUG_CODE(ZeroReason::isPoint));
 	}
 }

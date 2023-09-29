@@ -32,6 +32,8 @@ struct LinePts {
     std::array<OpPoint, 2> pts;
 };
 
+#define USE_SEGMENT_CENTER 1
+
 struct OpCurve {
     OpCurve() 
         : weight(1)

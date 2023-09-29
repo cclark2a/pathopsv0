@@ -9,7 +9,7 @@ void FoundEdge::check(std::vector<FoundEdge>* edges, OpEdge* test, EdgeMatch em,
 	if (distSq > gapSq) {
 		distSq = gapSq;
 		edge = test;
-        whichEnd = EdgeMatch::start == em ? test->whichEnd : Opposite(test->whichEnd);
+        whichEnd = em;
 	}
 }
 
@@ -263,7 +263,8 @@ void OpSegment::makeEdges() {
     sects.makeEdges(this);
 }
 
-MatchEnds OpSegment::matchEnds(const OpSegment* opp, bool* reversed, MatchSect matchSect) const {
+MatchEnds OpSegment::matchEnds(const OpSegment* opp, bool* reversed, MatchEnds* existing,
+        MatchSect matchSect) const {
     MatchEnds result = MatchEnds::none;
     *reversed = false;
     if (c.pts[0] == opp->c.pts[0])
@@ -281,6 +282,8 @@ MatchEnds OpSegment::matchEnds(const OpSegment* opp, bool* reversed, MatchSect m
         result = (MatchEnds) ((int) result | (int) MatchEnds::end);
         OP_ASSERT(MatchEnds::end == result || MatchEnds::both == result);
     }
+    if (existing)
+        *existing = result;
     if (MatchEnds::none == result || MatchEnds::both == result)
         return result;
     if (MatchSect::existing != matchSect || !*reversed)

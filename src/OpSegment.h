@@ -87,7 +87,7 @@ struct OpSegment {
     // count and sort extrema; create an edge for each extrema + 1
     void makeEdge(OP_DEBUG_CODE(EdgeMaker maker, int line, std::string file));
     void makeEdges();
-    MatchEnds matchEnds(const OpSegment* opp, bool* reversed, MatchSect ) const;
+    MatchEnds matchEnds(const OpSegment* opp, bool* reversed, MatchEnds* existing, MatchSect ) const;
     MatchEnds matchExisting(const OpSegment* opp) const;
     int nextID() const { 
         return nextID(contour); }

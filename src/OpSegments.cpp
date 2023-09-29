@@ -36,7 +36,7 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
     LinePts edgePts { seg->c.pts[0], seg->c.pts[1] };
     OpRoots septs = opp->c.rayIntersect(edgePts);
     bool reversed;
-    MatchEnds common = seg->matchEnds(opp, &reversed, MatchSect::existing);
+    MatchEnds common = seg->matchEnds(opp, &reversed, nullptr, MatchSect::existing);
     if (!septs.count && MatchEnds::none == common)
         return;
     if (OpType::line == opp->c.type && MatchEnds::both == common) {
@@ -106,7 +106,7 @@ void OpSegments::findCoincidences() {
             if (seg->ptBounds != opp->ptBounds)
                 continue;
             bool reversed;
-            MatchEnds match = seg->matchEnds(opp, &reversed, MatchSect::allow);
+            MatchEnds match = seg->matchEnds(opp, &reversed, nullptr, MatchSect::allow);
             if (MatchEnds::both == match && seg->c.type == opp->c.type) {
                 // if control points and weight match, treat as coincident: transfer winding
                 bool coincident = false;
@@ -193,7 +193,8 @@ FoundIntersections OpSegments::findIntersections() {
             }
             // check if segments share endpoints
             bool reversed;
-            MatchEnds match = seg->matchEnds(opp, &reversed, MatchSect::existing);
+            MatchEnds existing;
+            MatchEnds match = seg->matchEnds(opp, &reversed, &existing, MatchSect::existing);
             OpIntersection* oppSect;
             if ((int) MatchEnds::start & (int) match) {
                 auto sect = seg->addSegSect(OpPtT{ seg->c.pts[0], 0 }, opp
@@ -235,6 +236,9 @@ FoundIntersections OpSegments::findIntersections() {
             bool sharesVertical = seg->ptBounds.bottom == opp->ptBounds.top
                     || seg->ptBounds.top == opp->ptBounds.bottom;
             if (sharesHorizontal && sharesVertical)
+                continue;
+            // if the bounds share only an edge, and ends match, there's nothing more to do
+            if ((sharesHorizontal || sharesVertical) && MatchEnds::none != existing)
                 continue;
             // look for curve curve intersections (skip coincidence already found)
             seg->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(segSect)));

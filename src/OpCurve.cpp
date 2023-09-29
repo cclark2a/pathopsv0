@@ -55,7 +55,12 @@ OpRoots OpCurve::axisRayHit(Axis axis, float axisIntercept, float start,
 
 // call only with edge generated curves
 float OpCurve::center(Axis axis, float intercept) const {
+#if USE_SEGMENT_CENTER
+    // !!! at present, could be either...
+//    OP_ASSERT(OpDebugIntersect::segment == debugIntersect);  
+#else
     OP_ASSERT(OpDebugIntersect::edge == debugIntersect);  
+#endif
     OpRoots roots;
     switch (type) {
     case OpType::line: { 
@@ -148,7 +153,9 @@ OpRoots OpCurve::rayIntersect(const LinePts& line) const {
             XyChoice::inX : XyChoice::inY;
     for (unsigned index = 0; index < rawRoots.count; ++index) {
         OpPoint hit = ptAtT(rawRoots.roots[index]);
-        if (OpMath::Between(line.pts[0].choice(xy), hit.choice(xy), line.pts[1].choice(xy)))
+        // in thread_circles36945 : conic mid touches opposite conic only at end point
+        // without this fix, in one direction, intersection misses by 2 epsilon, in the other 1 eps
+        if (OpMath::Betweenish(line.pts[0].choice(xy), hit.choice(xy), line.pts[1].choice(xy)))
             realRoots.add(rawRoots.roots[index]);
     }
     return realRoots;
@@ -191,9 +198,7 @@ const OpCurve& OpCurve::set(OpPoint start, const OpPoint ctrlPts[2], OpPoint end
 	OP_ASSERT(++index == ptCount);
 	weight = w;
 	type = opType;
-#if OP_DEBUG
-	debugIntersect = OpDebugIntersect::edge;
-#endif
+	OP_DEBUG_CODE(debugIntersect = OpDebugIntersect::edge);
 	return *this;
 }
 

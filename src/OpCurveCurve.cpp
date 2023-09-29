@@ -141,7 +141,7 @@ SectFound OpCurveCurve::curvesIntersect(CurveRef curveRef) {
 */
 SectFound OpCurveCurve::divideAndConquer() {
 #if OP_DEBUG_IMAGE
-	bool breakAtDraw = 28 == originalEdge->id && 61 == originalOpp->id;
+	bool breakAtDraw = 104 == originalEdge->id && 106 == originalOpp->id;
 	if (breakAtDraw) {
 		hideOperands();
 		hideSegmentEdges();
@@ -201,9 +201,10 @@ SectFound OpCurveCurve::divideAndConquer() {
 		// draw rays through the center of all edges, tracking if each is left/top or right/bottom
 #if OP_DEBUG_IMAGE
 		if (breakAtDraw) {
-			draw();
-			if (depth >= 5)
+				draw();
+			if (depth >= 5) {
 				OpDebugOut("");  // allows setting a breakpoint to debug curve/curve
+			}
 		}
 #endif
 	}
