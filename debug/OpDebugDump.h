@@ -32,6 +32,7 @@ OP_X(OpPointBounds) \
 OP_X(OpRect) \
 OP_X(OpSegments) \
 OP_X(OpTightBounds) \
+OP_X(OpVector) \
 OP_X(OpWinder) \
 OP_X(SectRay)
 
@@ -119,6 +120,8 @@ OP_X(End) \
 OP_X(Start)
 
 #define EDGE_DETAIL \
+OP_X(Center) \
+OP_X(CenterHex) \
 OP_X(Link) \
 OP_X(LinkDetail)
 
@@ -159,6 +162,7 @@ OP_X(OpRect) \
 OP_X(OpRoots) \
 OP_X(OpSegment) \
 OP_X(OpTightBounds) \
+OP_X(OpVector) \
 OP_X(SectRay)
 
 #define OP_X(Thing) \

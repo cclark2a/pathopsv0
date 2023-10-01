@@ -528,6 +528,7 @@ public:
 	void debugCompare(std::string ) const;
 	std::string debugDumpBrief() const;
 	std::string debugDumpChain(WhichLoop , bool detail) const;
+	void dumpCenter(bool asHex) const;
 	void dumpChain(bool detail = false) const;
 	void dumpEnd() const;
 	void dumpLink() const;

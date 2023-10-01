@@ -672,6 +672,29 @@ b.close();
     testPathOp(reporter, left, b, kIntersect_SkPathOp, filename);
 }
 
+static void pentrek9(skiatest::Reporter* reporter, const char* filename) {
+SkPath b;
+b.moveTo(0x1.357ca2p+8, 0x1.9ca62cp+6);
+b.lineTo(0x1.a2f942p+7, 0x1.93298cp+8);
+b.cubicTo(0x1.a2f942p+7, 0x1.93298cp+8, 0x1.9f7baap+7, 0x1.9b3b6ep+8, 0x1.9425b6p+7, 0x1.9b3b6ep+8);
+b.cubicTo(0x1.89aceap+7, 0x1.997ca2p+8, 0x1.7f341ep+7, 0x1.9212dap+8, 0x1.798924p+7, 0x1.9212dap+8);
+b.lineTo(0x1.22835ep+8, 0x1.8359d4p+6);
+b.cubicTo(0x1.22835ep+8, 0x1.8359d4p+6, 0x1.24422cp+8, 0x1.63124ap+6, 0x1.29ed26p+8, 0x1.63124ap+6);
+b.cubicTo(0x1.2f298cp+8, 0x1.6a0d7cp+6, 0x1.3465fp+8, 0x1.87b496p+6, 0x1.373b6ep+8, 0x1.87b496p+6);
+b.close();
+SkPath left(b);
+b.reset();
+b.moveTo(0x1.2e5f28p+8, 0x1.93298cp+6);
+b.lineTo(0x1.94be5p+7, 0x1.90ca62p+8);
+b.cubicTo(0x1.94be5p+7, 0x1.90ca62p+8, 0x1.93deeap+7, 0x1.92cedcp+8, 0x1.91096ep+7, 0x1.92cedcp+8);
+b.cubicTo(0x1.8e6b3ap+7, 0x1.925f28p+8, 0x1.8bcd08p+7, 0x1.9084b6p+8, 0x1.8a624ap+7, 0x1.9084b6p+8);
+b.lineTo(0x1.29a0d8p+8, 0x1.8cd674p+6);
+b.cubicTo(0x1.29a0d8p+8, 0x1.8cd674p+6, 0x1.2a108ap+8, 0x1.84c492p+6, 0x1.2b7b4ap+8, 0x1.84c492p+6);
+b.cubicTo(0x1.2cca62p+8, 0x1.86835ep+6, 0x1.2e197cp+8, 0x1.8ded26p+6, 0x1.2ecedcp+8, 0x1.8ded26p+6);
+b.close();
+    testPathOp(reporter, left, b, kDifference_SkPathOp, filename);
+}
+
 
 static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
 static void (*firstTest)(skiatest::Reporter* , const char* filename) = nullptr;
@@ -680,6 +703,7 @@ static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 #define TEST(name) { name, #name }
 
 static struct TestDesc tests[] = {
+    TEST(pentrek9),
     TEST(pentrek8),
     TEST(pentrek7),
     TEST(pentrek6),

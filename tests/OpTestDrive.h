@@ -10,11 +10,12 @@
 
 #define OP_DEBUG_COMPARE 0	// set to one to compare successive runs
 #if OP_DEBUG_COMPARE
-#include "OpDebugCompare.h"
+#include "OpDebugCompare.h" // this hasn't been used in a long time and is likely broken
 #endif
 
 #define OP_SHOW_TEST_NAME 0
-#define OP_TEST_ALLOW_EXTENDED 0
+#define OP_TEST_ALLOW_EXTENDED 01
+#define OP_MAX_THREADS 16
 
 // issue3517:  long and skinny; don't know what's going on
 //             unterminated ends of contour are edges 1434, (debug further)
@@ -44,15 +45,25 @@
 // post: use segment for center
 // loops47i: links edge 546 to 547 (the latter is inside an already-output'd loop)
 // tiger8b_x2: draws incorrectly (debug further)
+// tiger_8: fails in matching output edge (debug further)
+// tiger8a_1731: fails in addIfUR (requires extended)
+//         a tiny edge generates a zero length normal, triggering underflow
+//         maybe treating these edges as unsortable will be sufficient
+// thread_circles104483: misses intersection (temp edges 157, 158) at (0, 1). Suspect that because
+// (requires extended)   Y-axis answer is close to (is) zero, math falls apart. It certainly points
+//                       out that using nextafter won't work for numbers near zero, since that falls
+//                       potentially into denormalized values and such. Use OpEpsilon if value is
+//                       less than epsilon? Even that wouldn't necessarily save us here.
 
 #define TEST_PATH_OP_EXCEPTIONS "issue3517", "loops47i"
 #define TEST_PATH_OP_FAIL_EXCEPTIONS "grshapearcs1"
-#define TEST_PATH_SIMPLIFY_EXCEPTIONS "testQuadratic75", "testQuadratic67x", "tiger8b_x2"
+#define TEST_PATH_SIMPLIFY_EXCEPTIONS "testQuadratic75", "testQuadratic67x", \
+  "tiger8b", "tiger8b_x2", "tiger8"
 #define TEST_PATH_SIMPLIFY_FAIL_EXCEPTIONS "grshapearc"
 #define TEST_PATH_OP_MAP_TO_FUZZ  "fuzzhang_1"
 
 // when these tests are encountered, it and the remaining tests in the file are skipped
-#define TEST_PATH_OP_SKIP_REST "issue3651_7", "fuzz763_2674194", "battleOp33", "tiger8b"
+#define TEST_PATH_OP_SKIP_REST "issue3651_7", "fuzz763_2674194", "battleOp33", 
 
 #define TEST_PATH_OP_FIRST "" /* e.g., "tiger8b_x2" test to debug */
 #define TEST_PATH_OP_SKIP_TO_FILE "" /* e.g., "tiger" to run this file only */

@@ -576,8 +576,9 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 			OpWinding prev(WindingTemp::dummy);
 			// look at direction of edge relative to ray and figure winding/oppWinding contribution
 			if (CalcFail::fail == home->addIfUR(ray.axis, ray.distances[0].t, &prev))
-				OP_DEBUG_FAIL(*home, ResolveWinding::fail);
-			OP_EDGE_SET_SUM(home, prev);
+				home->setUnsortable();
+			else
+				OP_EDGE_SET_SUM(home, prev);
 		}
 		return ResolveWinding::resolved;
 	}

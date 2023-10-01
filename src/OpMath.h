@@ -274,8 +274,12 @@ struct OpVector {
     OpVector normalize(bool* overflow);
 
 #if OP_DEBUG_DUMP
+    OpVector(const char*& );
     std::string debugDump() const;
     std::string debugDumpHex() const;
+    void dump() const;
+	void dumpDetail() const;
+    void dumpHex() const;
 #endif
 
     float dx;

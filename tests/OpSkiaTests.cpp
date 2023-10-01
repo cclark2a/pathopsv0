@@ -3,6 +3,9 @@
 #include "include/core/SkCanvas.h"
 #include "include/core/SkRegion.h"
 #include "OpSkiaTests.h"
+#if OP_DEBUG_FAST_TEST
+#include "CTPL_old/ctpl_stl.h"
+#endif
 #include <vector>
 
 // skip tests by filename
@@ -23,16 +26,18 @@ int testOpNameCount = 0;
 bool PathOpsDebug::gCheckForDuplicateNames = false;
 bool PathOpsDebug::gJson = false;
 
+#if OP_DEBUG_FAST_TEST
+ctpl::thread_pool threadpool(OP_MAX_THREADS);
+#endif
+
 void initializeTests(skiatest::Reporter* , const char* ) {
 }
 
 void initTests(std::string filename) {
-    if (currentTestFile.size()) {
-        totalRun += testsRun;
-        totalSkipped += testsSkipped;
-        OpDebugOut(currentTestFile + " run:" + STR(testsRun) + " skipped:" + STR(testsSkipped)
-                + " total:" + STR(totalRun) + " skipped:" + STR(totalSkipped) + "\n");
-    }
+    totalRun += testsRun;
+    totalSkipped += testsSkipped;
+    OpDebugOut(currentTestFile + " run:" + STR(testsRun) + " skipped:" + STR(testsSkipped)
+            + " total:" + STR(totalRun) + " skipped:" + STR(totalSkipped) + "\n");
     currentTestFile = filename;
     testsRun = 0;
     testsSkipped = 0;
@@ -214,10 +219,8 @@ void VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op,
     }
 }
 
-bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b, 
-        SkPathOp op, const char* testname, bool v0MayFail, bool skiaMayFail) {
-    if (skipTest(testname))
-        return true;
+void threadablePathOpTest(int id, const SkPath& a, const SkPath& b, 
+        SkPathOp op, bool v0MayFail, bool skiaMayFail) {
     SkPath result, skresult, xorResult;
 	OpInPath op1(&a);
 	OpInPath op2(&b);
@@ -232,12 +235,17 @@ bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
     OP_ASSERT(success || v0MayFail);
     bool skSuccess = Op(a, b, op, &skresult);
     OP_ASSERT(skSuccess || skiaMayFail);
-#if 0
-    bool xorSucess = Op(result, skresult, kXOR_SkPathOp, &xorResult);
-    OP_ASSERT(xorSucess);
-    OP_ASSERT(xorResult.isEmpty());
-#else
     if (success && skSuccess && !v0MayFail && !skiaMayFail) VerifyOp(a, b, op, result);
+}
+
+bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b, 
+        SkPathOp op, const char* testname, bool v0MayFail, bool skiaMayFail) {
+    if (skipTest(testname))
+        return true;
+#if OP_DEBUG_FAST_TEST
+    threadpool.push(threadablePathOpTest, a, b, op, v0MayFail, skiaMayFail);
+#else
+    threadablePathOpTest(0, a, b, op, v0MayFail, skiaMayFail);
 #endif
     return true;
 }
@@ -285,6 +293,7 @@ void RunTestSet(skiatest::Reporter* r, TestDesc tests[], size_t count,
         (*tests[i].fun)(r, tests[i].str);
 }
 
+
 void VerifySimplify(const SkPath& one, const SkPath& result) {
     SkPath pathOut, scaledPathOut;
     SkRegion rgnA, openClip, rgnOut;
@@ -312,11 +321,7 @@ void VerifySimplify(const SkPath& one, const SkPath& result) {
     }
 }
 
-bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& , 
-        const char* testname) {
-    if (skipTest(testname))
-        return true;
-    path.setFillType(useXor ? SkPathFillType::kEvenOdd : SkPathFillType::kWinding);
+void threadableSimplifyTest(int id, const SkPath& path, SkPath& out, bool v0MayFail, bool skiaMayFail) {
 	OpInPath op1(&path);
     out.reset();
 	OpOutPath opOut(&out);
@@ -327,24 +332,31 @@ bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& ,
     OP_ASSERT(skSuccess);
     if (success) 
         VerifySimplify(path, out);
+}
+
+bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& , 
+        const char* testname) {
+    if (skipTest(testname))
+        return true;
+    path.setFillType(useXor ? SkPathFillType::kEvenOdd : SkPathFillType::kWinding);
+#if OP_DEBUG_FAST_TEST
+    threadpool.push(threadableSimplifyTest, path, out, false, false);
+#else
+    threadableSimplifyTest(0, path, out, false, false);
+#endif
     return true;
 }
 
-// !!! could rewrite to share logic ...
 bool testSimplifyBase(skiatest::Reporter* r, const SkPath& path, const char* testname, 
         bool v0MayFail, bool skiaMayFail) {
     if (skipTest(testname))
         return true;
-    OpInPath op1(&path);
     SkPath out;
-	OpOutPath opOut(&out);
-    bool success = PathSimplify(op1, opOut);
-    OP_ASSERT(v0MayFail || success);
-    SkPath skOut;
-    OP_DEBUG_CODE(bool skSuccess =) Simplify(path, &skOut);
-    OP_ASSERT(skiaMayFail || skSuccess);
-    if (success) 
-        VerifySimplify(path, out);
+#if OP_DEBUG_FAST_TEST
+    threadpool.push(threadableSimplifyTest, path, out, v0MayFail, skiaMayFail);
+#else
+    threadableSimplifyTest(0, path, out, v0MayFail, skiaMayFail);
+#endif
     return true;
 }
 

@@ -215,6 +215,7 @@ OP_X(OpPoint) \
 OP_X(OpPointBounds) \
 OP_X(OpRect) \
 OP_X(OpTightBounds) \
+OP_X(OpVector) \
 OP_X(OpWinder)
 
 #define OP_X(Thing) \
@@ -1293,6 +1294,48 @@ void dmpHex(const OpEdge& edge) {
     OpDebugOut(edge.debugDumpHex() + "\n");
 }
 
+void dmpCenter(const OpEdge& edge) {
+    edge.dumpCenter(false);
+}
+
+void dmpCenterHex(const OpEdge& edge) {
+    edge.dumpCenter(true);
+}
+
+// don't just dump it, find the best theoretical one through binary search
+void OpEdge::dumpCenter(bool asHex) const {
+    std::string s = "[" + STR(id) + "] center:" + (asHex ? center.debugDumpHex() : center.debugDump());
+    OpPoint c = { (ptBounds.left + ptBounds.right) / 2, (ptBounds.top + ptBounds.bottom) / 2 };
+    s += " bounds center:" + (asHex ? c.debugDumpHex() : c.debugDump()) + "\n";
+    float lo = start.t;
+    float hi = end.t;
+    OpPoint bestXPt, bestYPt;
+    float bestXt = OpNaN;
+    float bestYt = OpNaN;
+    for (XyChoice xy : { XyChoice::inX, XyChoice::inY } ) {
+        for (;;) {
+            float mid = (lo + hi) / 2;
+            OpPoint loPt = segment->c.ptAtT(lo);
+            OpPoint midPt = segment->c.ptAtT(mid);
+            OpPoint hiPt = segment->c.ptAtT(hi);
+            bool inLo = OpMath::Between(loPt.choice(xy), c.choice(xy), midPt.choice(xy));
+            bool inHi = OpMath::Between(midPt.choice(xy), c.choice(xy), hiPt.choice(xy));
+            OP_ASSERT(inLo || inHi);
+            if ((inLo && inHi) || lo >= mid || mid >= hi) {
+                (XyChoice::inX == xy ? bestXPt : bestYPt) = midPt;
+                (XyChoice::inX == xy ? bestXt : bestYt) = mid;
+                break;
+            }
+            (inLo ? hi : lo) = mid;
+        }
+    }
+    s += "bestX: {" + (asHex ? bestXPt.debugDumpHex() : bestXPt.debugDump()) + "} t:" 
+            + (asHex ? OpDebugDumpHex(bestXt) : STR(bestXt));
+    s += " bestY: {" + (asHex ? bestYPt.debugDumpHex() : bestYPt.debugDump()) + "} t:" 
+            + (asHex ? OpDebugDumpHex(bestYt) : STR(bestYt));
+    OpDebugOut(s + "\n");
+}
+
 void dmpLink(const OpEdge& edge) {
     edge.dumpChain();
 }
@@ -2067,12 +2110,28 @@ void dmpHex(float f) {
     OpDebugOut(OpDebugDumpHex(f) + "\n");
 }
 
+OpVector::OpVector(const char*& str) {
+    OpDebugSkip(str, "{");
+    dx = OpDebugHexToFloat(str);
+    OpDebugSkip(str, ", ");
+    dy = OpDebugHexToFloat(str);
+    OpDebugSkip(str, "}");
+}
+
 std::string OpVector::debugDump() const {
     return "{" + OpDebugDump(dx) + ", " + OpDebugDump(dy) + "}";
 }
 
 std::string OpVector::debugDumpHex() const {
     return "{" + OpDebugDumpHex(dx) + ", " + OpDebugDumpHex(dy) + "}";
+}
+
+void dmp(const OpVector& pt) {
+    OpDebugOut("OpVector v { " + pt.debugDump() + " };\n");
+}
+
+void dmpHex(const OpVector& pt) {
+    OpDebugOut("OpVector v { " + pt.debugDumpHex() + " };  // " + pt.debugDump() + "\n");
 }
 
 OpPoint::OpPoint(const char*& str) {
