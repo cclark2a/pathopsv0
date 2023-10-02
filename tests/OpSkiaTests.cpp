@@ -92,6 +92,9 @@ std::vector<testPair> testPairs = {
     { run_v0_tests, "v0" },
 };
 
+uint64_t timerFrequency;
+uint64_t timerStart;
+
 void runTests() {
     auto runTest = [](std::string s) {
         for (auto pair : testPairs) {
@@ -103,6 +106,8 @@ void runTests() {
         }
     };
 	OpDebugOut("\n");
+    timerFrequency = OpInitTimer();
+    timerStart = OpReadTimer();
     if (skipToFile.size()) {
         runTest(skipToFile);
         return;
@@ -115,7 +120,9 @@ void runTests() {
                 runTest(pair.name);
         }
     }
-    initTests("skia tests done");
+    uint64_t end = OpReadTimer();
+    float elapsed = OpTicksToSeconds(end - timerStart, timerFrequency);
+    initTests("skia tests done: " + STR(elapsed) + "s\n");
 }
 
 // !!! move to Skia test utilities, I guess
@@ -184,7 +191,14 @@ static int debug_paths_draw_the_same(const SkPath& one, const SkPath& two, SkBit
     return errors;
 }
 
-void VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op,
+void ReportError(std::string testname, int errors) {
+    uint64_t end = OpReadTimer();
+    float elapsed = OpTicksToSeconds(end - timerStart, timerFrequency);
+    OpDebugOut(testname + " had errors=" + STR(errors) + " tests:" + STR(totalRun)
+            + " time:" + STR(elapsed) + "s\n");
+}
+
+void VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op, std::string testname,
         const SkPath& result) {
     SkPath pathOut, scaledPathOut;
     SkRegion rgnA, rgnB, openClip, rgnOut;
@@ -212,15 +226,15 @@ void VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op,
     int errors = debug_paths_draw_the_same(scaledPathOut, scaledOut, bitmap);
     const int MAX_ERRORS = 9;
     if (errors > MAX_ERRORS) {
-        fprintf(stderr, "// Op did not expect errors=%d\n", errors);
-//        DumpOp(stderr, one, two, op, "opTest");
-        fflush(stderr);
+#if !defined(NDEBUG) || OP_RELEASE_TEST
+        ReportError(testname, errors);
+#endif
         OP_ASSERT(0);
     }
 }
 
 void threadablePathOpTest(int id, const SkPath& a, const SkPath& b, 
-        SkPathOp op, bool v0MayFail, bool skiaMayFail) {
+        SkPathOp op, std::string testname, bool v0MayFail, bool skiaMayFail) {
     SkPath result, skresult, xorResult;
 	OpInPath op1(&a);
 	OpInPath op2(&b);
@@ -235,17 +249,19 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     OP_ASSERT(success || v0MayFail);
     bool skSuccess = Op(a, b, op, &skresult);
     OP_ASSERT(skSuccess || skiaMayFail);
-    if (success && skSuccess && !v0MayFail && !skiaMayFail) VerifyOp(a, b, op, result);
+    if (success && skSuccess && !v0MayFail && !skiaMayFail)
+        VerifyOp(a, b, op, testname, result);
 }
 
 bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b, 
-        SkPathOp op, const char* testname, bool v0MayFail, bool skiaMayFail) {
-    if (skipTest(testname))
+        SkPathOp op, const char* name, bool v0MayFail, bool skiaMayFail) {
+    if (skipTest(name))
         return true;
 #if OP_DEBUG_FAST_TEST
-    threadpool.push(threadablePathOpTest, a, b, op, v0MayFail, skiaMayFail);
+    std::string testname(name);
+    threadpool.push(threadablePathOpTest, a, b, op, testname, v0MayFail, skiaMayFail);
 #else
-    threadablePathOpTest(0, a, b, op, v0MayFail, skiaMayFail);
+    threadablePathOpTest(0, a, b, op, name, v0MayFail, skiaMayFail);
 #endif
     return true;
 }
@@ -294,7 +310,7 @@ void RunTestSet(skiatest::Reporter* r, TestDesc tests[], size_t count,
 }
 
 
-void VerifySimplify(const SkPath& one, const SkPath& result) {
+void VerifySimplify(const SkPath& one, std::string testname, const SkPath& result) {
     SkPath pathOut, scaledPathOut;
     SkRegion rgnA, openClip, rgnOut;
     openClip.setRect({ -16000, -16000, 16000, 16000 });
@@ -315,13 +331,15 @@ void VerifySimplify(const SkPath& one, const SkPath& result) {
     int errors = debug_paths_draw_the_same(scaledPathOut, scaledOut, bitmap);
     const int MAX_ERRORS = 9;
     if (errors > MAX_ERRORS) {
-        fprintf(stderr, "// Op did not expect errors=%d\n", errors);
-        fflush(stderr);
+#if !defined(NDEBUG) || OP_RELEASE_TEST
+        ReportError(testname, errors);
+#endif
         OP_ASSERT(0);
     }
 }
 
-void threadableSimplifyTest(int id, const SkPath& path, SkPath& out, bool v0MayFail, bool skiaMayFail) {
+void threadableSimplifyTest(int id, const SkPath& path, std::string testname, 
+            SkPath& out, bool v0MayFail, bool skiaMayFail) {
 	OpInPath op1(&path);
     out.reset();
 	OpOutPath opOut(&out);
@@ -331,31 +349,33 @@ void threadableSimplifyTest(int id, const SkPath& path, SkPath& out, bool v0MayF
     OP_DEBUG_CODE(bool skSuccess =) Simplify(path, &skOut);
     OP_ASSERT(skSuccess);
     if (success) 
-        VerifySimplify(path, out);
+        VerifySimplify(path, testname, out);
 }
 
 bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& , 
-        const char* testname) {
-    if (skipTest(testname))
+        const char* name) {
+    if (skipTest(name))
         return true;
     path.setFillType(useXor ? SkPathFillType::kEvenOdd : SkPathFillType::kWinding);
 #if OP_DEBUG_FAST_TEST
-    threadpool.push(threadableSimplifyTest, path, out, false, false);
+    std::string testname(name);
+    threadpool.push(threadableSimplifyTest, path, testname, out, false, false);
 #else
-    threadableSimplifyTest(0, path, out, false, false);
+    threadableSimplifyTest(0, path, name, out, false, false);
 #endif
     return true;
 }
 
-bool testSimplifyBase(skiatest::Reporter* r, const SkPath& path, const char* testname, 
+bool testSimplifyBase(skiatest::Reporter* r, const SkPath& path, const char* name, 
         bool v0MayFail, bool skiaMayFail) {
-    if (skipTest(testname))
+    if (skipTest(name))
         return true;
     SkPath out;
 #if OP_DEBUG_FAST_TEST
-    threadpool.push(threadableSimplifyTest, path, out, v0MayFail, skiaMayFail);
+    std::string testname(name);
+    threadpool.push(threadableSimplifyTest, path, testname, out, v0MayFail, skiaMayFail);
 #else
-    threadableSimplifyTest(0, path, out, v0MayFail, skiaMayFail);
+    threadableSimplifyTest(0, path, name, out, v0MayFail, skiaMayFail);
 #endif
     return true;
 }

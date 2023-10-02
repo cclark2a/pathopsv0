@@ -242,7 +242,7 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 // !!! conditionally, upscale t so we can call segment line curve intersection to see what 
 //     bugs that introduces
 // !!! I'm bothered that segment / segment calls a different form of this
-void OpWinder::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
+void OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bool secondAttempt) {
 #if 0 && OP_DEBUG
 	OP_ASSERT(edge.segment->c.ptAtT(edge.start.t) == edge.start.pt);
 	OP_ASSERT(edge.segment->c.ptAtT(edge.end.t) == edge.end.pt);
@@ -266,10 +266,12 @@ void OpWinder::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
 	// compute the actual coincident start and end without the roots introducing error.
 	if (2 == septs.count && opp.isLinear())
 		return (void) CoincidentCheck(edge, opp);
+	bool tInRange = false;
 	for (unsigned index = 0; index < septs.count; ++index) {
 #if USE_SEGMENT_SECT
 		if (opp.start.t > septs.get(index) || septs.get(index) > opp.end.t)
 			continue;
+		tInRange = true;
 		OpPtT oppPtT { opp.segment->c.ptAtT(septs.get(index)), septs.get(index) };
 #else
 		float oppT = OpMath::Interp(opp.start.t, opp.end.t, septs.get(index));
@@ -313,6 +315,8 @@ void OpWinder::AddLineCurveIntersection(OpEdge& opp, const OpEdge& edge) {
 			sect->pair(oSect);
 		}
 	}
+	if (!tInRange && opp.isLine_impl && !secondAttempt)
+		AddLineCurveIntersection(edge, opp, true);
 }
 
 EdgeDistance* SectRay::find(OpEdge* edge) {
