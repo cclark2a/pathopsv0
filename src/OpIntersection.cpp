@@ -285,7 +285,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
                 if (edge->end.pt == oppEnd)
                     break;
                 bool oppInEdge = edge->ptBounds.contains(oppEnd);
-                bool edgeInOpp = oppEdge->ptBounds.contains(edge->end.pt);
+                OP_DEBUG_CODE(bool edgeInOpp = oppEdge->ptBounds.contains(edge->end.pt));
                 OP_ASSERT(oppInEdge != edgeInOpp);
                 if (oppInEdge) {
                     oppEdge += oppBump;

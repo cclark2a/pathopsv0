@@ -122,6 +122,9 @@ void runTests() {
     }
     uint64_t end = OpReadTimer();
     float elapsed = OpTicksToSeconds(end - timerStart, timerFrequency);
+#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
+    threadpool.stop(true);
+#endif
     initTests("skia tests done: " + STR(elapsed) + "s\n");
 }
 
@@ -235,11 +238,14 @@ void VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op, std::string tes
 
 void threadablePathOpTest(int id, const SkPath& a, const SkPath& b, 
         SkPathOp op, std::string testname, bool v0MayFail, bool skiaMayFail) {
-    SkPath result, skresult, xorResult;
+#if OP_TEST_V0
+    SkPath result;
 	OpInPath op1(&a);
 	OpInPath op2(&b);
 	OpOutPath opOut(&result);
+#if OP_DEBUG || OP_TEST_REGION
     bool success = 
+#endif
 #if OP_DEBUG
         DebugPathOps(op1, op2, (OpOperator) op, opOut, v0MayFail ? OpDebugExpect::unknown :
                 OpDebugExpect::success);
@@ -247,10 +253,18 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
         PathOps(op1, op2, (OpOperator) op, opOut);
 #endif
     OP_ASSERT(success || v0MayFail);
+#endif
+#if OP_TEST_SKIA
+    SkPath skresult;
     bool skSuccess = Op(a, b, op, &skresult);
     OP_ASSERT(skSuccess || skiaMayFail);
+#elif OP_TEST_REGION
+    bool skSuccess = true;
+#endif
+#if OP_TEST_V0 && OP_TEST_REGION
     if (success && skSuccess && !v0MayFail && !skiaMayFail)
         VerifyOp(a, b, op, testname, result);
+#endif
 }
 
 bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b, 
@@ -340,16 +354,25 @@ void VerifySimplify(const SkPath& one, std::string testname, const SkPath& resul
 
 void threadableSimplifyTest(int id, const SkPath& path, std::string testname, 
             SkPath& out, bool v0MayFail, bool skiaMayFail) {
+#if OP_TEST_V0
 	OpInPath op1(&path);
     out.reset();
 	OpOutPath opOut(&out);
-    bool success = PathSimplify(op1, opOut);
+#if OP_DEBUG || OP_TEST_REGION
+    bool success = 
+#endif
+        PathSimplify(op1, opOut);
     OP_ASSERT(v0MayFail || success);
+#endif
+#if OP_TEST_SKIA
     SkPath skOut;
     OP_DEBUG_CODE(bool skSuccess =) Simplify(path, &skOut);
     OP_ASSERT(skiaMayFail || skSuccess);
+#endif
+#if OP_TEST_V0 && OP_TEST_REGION
     if (success) 
         VerifySimplify(path, testname, out);
+#endif
 }
 
 bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& , 

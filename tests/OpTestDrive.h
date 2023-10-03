@@ -17,6 +17,9 @@
 #define OP_TEST_ALLOW_EXTENDED 0
 #define OP_TEST_ENABLE_THREADS 01
 #define OP_MAX_THREADS 16
+#define OP_TEST_V0 1
+#define OP_TEST_SKIA 1
+#define OP_TEST_REGION 1
 
 // issue3517:  edge 970 and 692 are 1 hex bit from looping, but that isn't detected in matchlinks
 

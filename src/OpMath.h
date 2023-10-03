@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <limits>
 
 #ifndef _WIN32
@@ -11,10 +12,6 @@
 #endif
 
 #include "OpDebug.h"
-
-#if OP_DEBUG
-#include <cmath>
-#endif
 
 #include "OpDebugColor.h"
 #include "OpDebugDouble.h"

@@ -15,6 +15,13 @@ void OpPrintOut(const std::string& );
 uint64_t OpInitTimer();
 uint64_t OpReadTimer();
 float OpTicksToSeconds(uint64_t ticks, uint64_t frequency);
+
+#define STR(x) OpDebugStr(x)
+inline std::string OpDebugStr(void* x) { return std::to_string((unsigned long long)(void**)x); }
+inline std::string OpDebugStr(int32_t x) { return std::to_string(x); }
+inline std::string OpDebugStr(size_t x) { return std::to_string(x); }
+inline std::string OpDebugStr(float x) { return std::to_string(x); }
+
 #endif
 
 enum class OpDebugIntersect {
@@ -103,7 +110,6 @@ enum class OpDebugExpect {
 #if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE
 class SkPath;
 
-#define STR(x) OpDebugStr(x)
 #if OP_DEBUG
 #define OP_DEBUG_STR_ID(x) OpDebugStr(x->id)
 #else
@@ -137,10 +143,6 @@ int32_t OpDebugFloatToBits(float);
 float OpDebugHexToFloat(const char*& str);
 int32_t OpDebugHexToInt(const char*& str);
 void OpDebugSkip(const char*& str, const char* match);
-inline std::string OpDebugStr(void* x) { return std::to_string((unsigned long long)(void**)x); }
-inline std::string OpDebugStr(int32_t x) { return std::to_string(x); }
-inline std::string OpDebugStr(size_t x) { return std::to_string(x); }
-inline std::string OpDebugStr(float x) { return std::to_string(x); }
 std::string OpDebugToString(float value, int precision);
 #endif
 
