@@ -967,6 +967,103 @@ b.close();
     testPathOp(reporter, left, b, kDifference_SkPathOp, filename);
 }
 
+static void pentrek12(skiatest::Reporter* reporter, const char* filename) {
+SkPath b;
+//b.setFillType(SkPathFillType::kEvenOdd);
+b.moveTo(0x1.0f4bbcp+9, 0x1.2de136p+7);
+b.quadTo(0x1.4b30b2p+8, 0x1.4c99eep+8, 0x1.3d8692p+8, 0x1.5e60b4p+8);
+b.cubicTo(0x1.3d8692p+8, 0x1.5e60b4p+8, 0x1.3d2e1ep+8, 0x1.5e1308p+8, 0x1.3dc506p+8, 0x1.5e1308p+8);
+b.quadTo(0x1.335046p+8, 0x1.6b3018p+8, 0x1.3daa2ap+8, 0x1.7d1fe4p+8);
+b.cubicTo(0x1.3daa2ap+8, 0x1.7d1fe4p+8, 0x1.3d8acep+8, 0x1.7d798ep+8, 0x1.3ddc6ap+8, 0x1.7d798ep+8);
+b.quadTo(0x1.4992a4p+8, 0x1.9285f2p+8, 0x1.c5c8a6p+8, 0x1.de872ap+8);
+b.cubicTo(0x1.c5c8a6p+8, 0x1.de872ap+8, 0x1.ca7dd4p+8, 0x1.e791c8p+8, 0x1.cbf992p+8, 0x1.e791c8p+8);
+b.cubicTo(0x1.c9181ep+8, 0x1.ec46f6p+8, 0x1.c636acp+8, 0x1.f277e2p+8, 0x1.c00d8p+8, 0x1.f277e2p+8);
+b.quadTo(0x1.3aa6cp+8, 0x1.a0d706p+8, 0x1.2c43ep+8, 0x1.86fc3p+8);
+b.lineTo(0x1.2c579ep+8, 0x1.871f08p+8);
+b.quadTo(0x1.1b2d72p+8, 0x1.6960bp+8, 0x1.2dc75p+8, 0x1.520c8ep+8);
+b.lineTo(0x1.2dab46p+8, 0x1.52306p+8);
+b.quadTo(0x1.3c973ep+8, 0x1.3ec6e6p+8, 0x1.08c744p+9, 0x1.0f8acap+7);
+b.cubicTo(0x1.08c744p+9, 0x1.0f8acap+7, 0x1.0adf12p+9, 0x1.094dep+7, 0x1.0e07e2p+9, 0x1.094dep+7);
+b.cubicTo(0x1.0fd44ep+9, 0x1.11ad14p+7, 0x1.11a0bap+9, 0x1.26af84p+7, 0x1.116388p+9, 0x1.26af84p+7);
+b.close();
+SkPath left(b);
+b.reset();
+//b.setFillType(SkPathFillType::kEvenOdd);
+b.moveTo(0x1.0cda0ep+9, 0x1.2280cep+7);
+b.quadTo(0x1.45b726p+8, 0x1.476acap+8, 0x1.379456p+8, 0x1.59ce94p+8);
+b.cubicTo(0x1.379456p+8, 0x1.59ce94p+8, 0x1.377e38p+8, 0x1.59bb2ap+8, 0x1.37a3f2p+8, 0x1.59bb2ap+8);
+b.quadTo(0x1.2a4336p+8, 0x1.6a825p+8, 0x1.372b36p+8, 0x1.80df92p+8);
+b.cubicTo(0x1.372b36p+8, 0x1.80df92p+8, 0x1.37235ep+8, 0x1.80f5fcp+8, 0x1.3737c6p+8, 0x1.80f5fcp+8);
+b.quadTo(0x1.43fa2ep+8, 0x1.97e45ap+8, 0x1.c1de86p+8, 0x1.e4ece4p+8);
+b.cubicTo(0x1.c1de86p+8, 0x1.e4ece4p+8, 0x1.c30bd2p+8, 0x1.e72f8cp+8, 0x1.c36ac2p+8, 0x1.e72f8cp+8);
+b.cubicTo(0x1.c2b264p+8, 0x1.e85cd6p+8, 0x1.c1fa08p+8, 0x1.e9e912p+8, 0x1.c06fbcp+8, 0x1.e9e912p+8);
+b.quadTo(0x1.403f36p+8, 0x1.9b789ep+8, 0x1.32d1a2p+8, 0x1.8356a4p+8);
+b.lineTo(0x1.32d692p+8, 0x1.835f5ap+8);
+b.quadTo(0x1.243a82p+8, 0x1.6a0e78p+8, 0x1.33a484p+8, 0x1.56b98cp+8);
+b.lineTo(0x1.339d82p+8, 0x1.56c28p+8);
+b.quadTo(0x1.4210cap+8, 0x1.43f60ap+8, 0x1.0b38f2p+9, 0x1.1aeb32p+7);
+b.cubicTo(0x1.0b38f2p+9, 0x1.1aeb32p+7, 0x1.0bbee4p+9, 0x1.195bf8p+7, 0x1.0c8918p+9, 0x1.195bf8p+7);
+b.cubicTo(0x1.0cfc34p+9, 0x1.1b73c4p+7, 0x1.0d6f4ep+9, 0x1.20b462p+7, 0x1.0d6002p+9, 0x1.20b462p+7);
+b.close();
+    testPathOp(reporter, left, b, kDifference_SkPathOp, filename);
+}
+
+static void pentrek13(skiatest::Reporter* reporter, const char* filename) {
+SkPath b;
+b.moveTo(0x1.1c44ccp+9, 0x1.bbff7p+7);
+b.quadTo(0x1.b0e0f2p+8, 0x1.a86512p+7, 0x1.72767p+8, 0x1.6ba0f4p+7);
+b.quadTo(0x1.576b86p+8, 0x1.514d0ep+7, 0x1.470454p+8, 0x1.2d2596p+7);
+b.lineTo(0x1.4d6486p+8, 0x1.38f3e8p+7);
+b.quadTo(0x1.55f3fp+8, 0x1.463cd4p+7, 0x1.6373fp+8, 0x1.47c2acp+7);
+b.quadTo(0x1.724462p+8, 0x1.496e72p+7, 0x1.7f0c3cp+8, 0x1.39db6cp+7);
+b.quadTo(0x1.8f7a0cp+8, 0x1.25d60cp+7, 0x1.94580ap+8, 0x1.0145cap+7);
+b.quadTo(0x1.967178p+8, 0x1.e3014p+6, 0x1.95972cp+8, 0x1.c710dep+6);
+b.quadTo(0x1.99a1bcp+8, 0x1.25bdb8p+7, 0x1.2bacd2p+9, 0x1.eb8efp+8);
+b.cubicTo(0x1.2bacd2p+9, 0x1.eb8efp+8, 0x1.32540cp+9, 0x1.111518p+9, 0x1.2dea84p+9, 0x1.111518p+9);
+b.cubicTo(0x1.21d408p+9, 0x1.17bc52p+9, 0x1.15bd8ap+9, 0x1.19fa04p+9, 0x1.068668p+9, 0x1.19fa04p+9);
+b.quadTo(0x1.38b5bp+8, 0x1.645478p+7, 0x1.3253d8p+8, 0x1.f789e2p+6);
+b.quadTo(0x1.30d6ccp+8, 0x1.c6c5p+6, 0x1.33b5bep+8, 0x1.9ba334p+6);
+b.quadTo(0x1.392b24p+8, 0x1.499fep+6, 0x1.4b041p+8, 0x1.1e202p+6);
+b.quadTo(0x1.58d18ap+8, 0x1.f8f8e6p+5, 0x1.69158p+8, 0x1.0027dp+6);
+b.quadTo(0x1.7aaap+8, 0x1.041f24p+6, 0x1.8ab28ep+8, 0x1.35e32p+6);
+b.cubicTo(0x1.8ab28ep+8, 0x1.35e32p+6, 0x1.8cfdbcp+8, 0x1.44e624p+6, 0x1.8f1f5p+8, 0x1.44e624p+6);
+b.quadTo(0x1.94858ep+8, 0x1.5cb354p+6, 0x1.9e3b1p+8, 0x1.6f9af2p+6);
+b.quadTo(0x1.cb502ap+8, 0x1.c762f4p+6, 0x1.1fdf34p+9, 0x1.e9092p+6);
+b.cubicTo(0x1.1fdf34p+9, 0x1.e9092p+6, 0x1.2da248p+9, 0x1.286a88p+7, 0x1.37ffe8p+9, 0x1.286a88p+7);
+b.cubicTo(0x1.37015cp+9, 0x1.5f76d2p+7, 0x1.3602dp+9, 0x1.bff9ap+7, 0x1.2a07dep+9, 0x1.bff9ap+7);
+b.close();
+SkPath left(b);
+b.reset();
+b.moveTo(0x1.1d9eb2p+9, 0x1.71315cp+7);
+b.quadTo(0x1.8d1c3ep+8, 0x1.5807dap+7, 0x1.62c9bcp+8, 0x1.f57ee4p+6);
+b.lineTo(0x1.6461cap+8, 0x1.fb660ep+6);
+b.quadTo(0x1.63791p+8, 0x1.f893b6p+6, 0x1.62f9b8p+8, 0x1.f77772p+6);
+b.quadTo(0x1.6309e6p+8, 0x1.f79b9p+6, 0x1.6345b4p+8, 0x1.f7f518p+6);
+b.quadTo(0x1.64484cp+8, 0x1.f97836p+6, 0x1.659084p+8, 0x1.f9c244p+6);
+b.quadTo(0x1.68b952p+8, 0x1.fa78bap+6, 0x1.6b892cp+8, 0x1.f39e54p+6);
+b.quadTo(0x1.6f1c74p+8, 0x1.eae784p+6, 0x1.701b2ep+8, 0x1.dbf47p+6);
+b.quadTo(0x1.70460ap+8, 0x1.d97092p+6, 0x1.704f2cp+8, 0x1.d7628ap+6);
+b.quadTo(0x1.7050f6p+8, 0x1.d6fbcap+6, 0x1.7050d4p+8, 0x1.d6e722p+6);
+b.quadTo(0x1.70523cp+8, 0x1.d7bf2ep+6, 0x1.705deep+8, 0x1.d93e54p+6);
+b.quadTo(0x1.754938p+8, 0x1.3d364p+7, 0x1.1b3fb4p+9, 0x1.fda3fcp+8);
+b.cubicTo(0x1.1b3fb4p+9, 0x1.fda3fcp+8, 0x1.1ce982p+9, 0x1.05a566p+9, 0x1.1bcf22p+9, 0x1.05a566p+9);
+b.cubicTo(0x1.18c982p+9, 0x1.074f34p+9, 0x1.15c3e2p+9, 0x1.07dea2p+9, 0x1.11f61ap+9, 0x1.07dea2p+9);
+b.quadTo(0x1.5d0e34p+8, 0x1.4cdbfp+7, 0x1.578d16p+8, 0x1.e55c6cp+6);
+b.quadTo(0x1.575c6p+8, 0x1.df2042p+6, 0x1.5753p+8, 0x1.d982d6p+6);
+b.quadTo(0x1.574b2ap+8, 0x1.d4d13ap+6, 0x1.575e94p+8, 0x1.d073bep+6);
+b.quadTo(0x1.577fe6p+8, 0x1.c8f586p+6, 0x1.57f29ap+8, 0x1.c23a58p+6);
+b.quadTo(0x1.5988bcp+8, 0x1.aa6474p+6, 0x1.5e872p+8, 0x1.9e38a4p+6);
+b.quadTo(0x1.625c9ap+8, 0x1.94e09ep+6, 0x1.66f8ecp+8, 0x1.95eae4p+6);
+b.quadTo(0x1.697c4p+8, 0x1.967c0ap+6, 0x1.6c0904p+8, 0x1.9a4d4p+6);
+b.quadTo(0x1.6d9252p+8, 0x1.9c9a0cp+6, 0x1.6f2898p+8, 0x1.a024fap+6);
+b.quadTo(0x1.714e6p+8, 0x1.a4f042p+6, 0x1.73b54ap+8, 0x1.ac64e2p+6);
+b.cubicTo(0x1.73b54ap+8, 0x1.ac64e2p+6, 0x1.7447fep+8, 0x1.b026p+6, 0x1.74d09p+8, 0x1.b026p+6);
+b.quadTo(0x1.98e5a6p+8, 0x1.279a82p+7, 0x1.1e854ep+9, 0x1.3f52a4p+7);
+b.cubicTo(0x1.1e854ep+9, 0x1.3f52a4p+7, 0x1.21f612p+9, 0x1.4c4c22p+7, 0x1.248d7ap+9, 0x1.4c4c22p+7);
+b.cubicTo(0x1.244dd8p+9, 0x1.5a0f34p+7, 0x1.240e34p+9, 0x1.722fe8p+7, 0x1.210f78p+9, 0x1.722fe8p+7);
+b.close();
+    testPathOp(reporter, left, b, kDifference_SkPathOp, filename);
+}
 
 static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
 static void (*firstTest)(skiatest::Reporter* , const char* filename) = nullptr;
@@ -975,6 +1072,8 @@ static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 #define TEST(name) { name, #name }
 
 static struct TestDesc tests[] = {
+    TEST(pentrek13),
+    TEST(pentrek12),
     TEST(pentrek11),
     TEST(pentrek10),
     TEST(pentrek9),

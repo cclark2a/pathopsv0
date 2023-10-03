@@ -1101,6 +1101,8 @@ std::string OpEdge::debugDumpDetail() const {
     if (debugRayMatch) s += "debugRayMatch:" + STR(debugRayMatch) + " ";
     if (debugSetSum.line)
         s += debugSetSum.debugDump() + " ";
+    if (debugFiller)
+        s += "filler ";
     s += "\n";
 #endif
     std::vector<OpIntersection*> startSects;
@@ -1213,7 +1215,7 @@ std::string OpEdge::debugDump() const {
     if (EdgeSplit::no != doSplit) s += "doSplit ";
     if (EdgeSplit::yes == doSplit) s += "yes ";
     if (isLine_impl) s += "isLine ";
-    if (disabled) s += "disabled ";
+    if (disabled) s += OP_DEBUG_CODE(debugFiller ? "filler " : ) "disabled ";
     if (unsectableID) s += "uID:" + STR(unsectableID) + " ";
     if (unsortable) s += "unsortable ";
     if (debugRayMatch) s += "debugRayMatch:" + STR(debugRayMatch) + " ";
@@ -2102,8 +2104,55 @@ void dmp(const FoundEdge& foundOne) {
     OpDebugOut(debugEdgeMatch(foundOne.whichEnd) + " " + foundOne.edge->debugDump() + "\n");
 }
 
+// !!! macro-ize this pattern (too much typing!)
+struct DebugChopUnsortable {
+    ChopUnsortable chop;
+    const char* name;
+};
+
+#define CHOP_NAME(w) { ChopUnsortable::w, #w }
+
+static DebugChopUnsortable debugChopNames[] = {
+    CHOP_NAME(none),
+	CHOP_NAME(prior),
+	CHOP_NAME(next),
+};
+
+std::string debugChopUnsortable(ChopUnsortable match) {
+    std::string result;
+    bool outOfDate = false;
+    for (unsigned index = 0; index < ARRAY_COUNT(debugChopNames); ++index) {
+        if (!outOfDate && (unsigned)debugChopNames[index].chop != index) {
+            OpDebugOut("debugChopNames out of date\n");
+            outOfDate = true;
+        }
+        if (match != debugChopNames[index].chop)
+            continue;
+        if (outOfDate)
+            result += STR((int)match);
+        else
+            result += std::string(debugChopNames[(int)match].name);
+    }
+    return result;
+}
+
 void dmpDetail(const FoundEdge& foundOne) {
-    OpDebugOut(debugEdgeMatch(foundOne.whichEnd) + " " + foundOne.edge->debugDumpDetail() + "\n");
+    std::string s = foundOne.edge->debugDumpDetail() + "\n";
+    if (!foundOne.distSq)
+        s += "distSq:" + STR(foundOne.distSq) + " ";
+    if (foundOne.index >= 0)
+        s += "index:" + STR(foundOne.index) + " ";
+    if (foundOne.whichEnd != EdgeMatch::none)
+        s += "whichEnd:" + debugEdgeMatch(foundOne.whichEnd) + " ";
+    if (foundOne.addBack)
+        s += "addBack ";
+    if (foundOne.connects)
+        s += "connects ";
+    if (foundOne.loops)
+        s += "loops ";
+    if (ChopUnsortable::none != foundOne.chop)
+        s += "chopUnsortable:" + debugChopUnsortable(foundOne.chop) + " ";
+    OpDebugOut(s + "\n");
 }
 
 void dmpHex(float f) {

@@ -416,6 +416,7 @@ private:
 		debugOutPath = 0;
 		debugParentID = 0;
 		debugRayMatch = 0;
+		debugFiller = false;
 #endif
 	}
 public:
@@ -607,6 +608,7 @@ public:
 	int debugOutPath;	// id to color output contours
 	int debugParentID;
 	int debugRayMatch;	// id that denotes edges in common output contour determined from ray
+	bool debugFiller;  // edge created to span short gaps
 #endif
 };
 

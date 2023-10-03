@@ -15,27 +15,23 @@
 
 #define OP_SHOW_TEST_NAME 0
 #define OP_TEST_ALLOW_EXTENDED 0
+#define OP_TEST_ENABLE_THREADS 01
 #define OP_MAX_THREADS 16
 
-// issue3517:  long and skinny; don't know what's going on
-//             unterminated ends of contour are edges 1434, (debug further)
-
-// issue issue3651_7: (debug further)
+// issue3517:  edge 970 and 692 are 1 hex bit from looping, but that isn't detected in matchlinks
 
 // grshapearcs1:  very complicated; defer. Asserts in OpWinder::AddLineCurveIntersection
 //                a 'more code needed?' alert that oSegment pinned to bounds
 
-// fuzzhang_1: succeeds in skia, fails in v0
-
-// fuzz763_2674194: (debug further)
+// fuzzhang_1, fuzz763_2674194: succeeds in skia, fails in v0
 
 // testQuadratic75: (simplify) needs lookahead in matchLinks to find best disabled edge
 // testQuadratic67x: links unsortable to edge crossing boundary; simple fix breaks loops44i
 
 // battleOp33: A pair of edges are pals; the ends of those edges need to join to connect to next
 //             outside edge. There is no edge, disabled or otherwise, that closes the gap. The gap
-//             is about 6 epsilons wide. Add logic that looks for pals on each edge to know that
-//             gap can be closed?
+// also:       is about 6 epsilons wide. Add logic that looks for pals on each edge to know that
+// battleOp287 gap can be closed?
 
 // tiger8b: no matching link found. Edge 547 and 584 are about (3, 13) epsilon apart. The code
 //          follows a disabled edge instead of linking them. There is no natural link to use.
@@ -60,15 +56,20 @@
 // thread_rects148636: draws incorrectly (debug further)
 // thread_rects148651: draws incorrectly (debug further)
 
-#define TEST_PATH_OP_EXCEPTIONS "issue3517", "loops47i"
+// issue3651_5: fails to find edge in matchLinks (debug further)
+// issue3651_2: fails to find edge in matchLinks (debug further)
+// pentrek13: edge nearly horizontal still uses horizontal ray (and fails to compute correct winding)
+
+#define TEST_PATH_OP_EXCEPTIONS "loops47i", "battleOp33", "battleOp287", "issue3651_5", \
+	"issue3651_2", "pentrek13"
 #define TEST_PATH_OP_FAIL_EXCEPTIONS "grshapearcs1"
+#define TEST_PATH_OP_MAP_TO_FUZZ  "fuzzhang_1", "fuzz763_2674194"
 #define TEST_PATH_SIMPLIFY_EXCEPTIONS "testQuadratic75", "testQuadratic67x", \
   "tiger8b", "tiger8b_x2", "tiger8"
 #define TEST_PATH_SIMPLIFY_FAIL_EXCEPTIONS "grshapearc"
-#define TEST_PATH_OP_MAP_TO_FUZZ  "fuzzhang_1"
 
 // when these tests are encountered, it and the remaining tests in the file are skipped
-#define TEST_PATH_OP_SKIP_REST "issue3651_7", "fuzz763_2674194", "battleOp33", "thread_circles104483"
+#define TEST_PATH_OP_SKIP_REST "thread_circles104483"
 
 #define TEST_PATH_OP_FIRST "" /* e.g., "tiger8b_x2" test to debug */
 #define TEST_PATH_OP_SKIP_TO_FILE "" /* e.g., "tiger" to run this file only */

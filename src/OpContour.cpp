@@ -113,6 +113,7 @@ OpEdge* OpContour::addFiller(OpIntersection* start, OpIntersection* end) {
     void* block = contours->allocateFiller();
     OpEdge* filler = new(block) OpEdge(start->segment, start->ptT, end->ptT
             OP_DEBUG_PARAMS(EdgeMaker::filler, __LINE__, __FILE__, start, end));
+    OP_DEBUG_CODE(filler->debugFiller = true);
     filler->disabled = true;
     return filler;
 }

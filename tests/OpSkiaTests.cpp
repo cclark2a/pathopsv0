@@ -3,7 +3,7 @@
 #include "include/core/SkCanvas.h"
 #include "include/core/SkRegion.h"
 #include "OpSkiaTests.h"
-#if OP_DEBUG_FAST_TEST
+#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
 #include "CTPL_old/ctpl_stl.h"
 #endif
 #include <vector>
@@ -26,7 +26,7 @@ int testOpNameCount = 0;
 bool PathOpsDebug::gCheckForDuplicateNames = false;
 bool PathOpsDebug::gJson = false;
 
-#if OP_DEBUG_FAST_TEST
+#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
 ctpl::thread_pool threadpool(OP_MAX_THREADS);
 #endif
 
@@ -257,7 +257,7 @@ bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
         SkPathOp op, const char* name, bool v0MayFail, bool skiaMayFail) {
     if (skipTest(name))
         return true;
-#if OP_DEBUG_FAST_TEST
+#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
     std::string testname(name);
     threadpool.push(threadablePathOpTest, a, b, op, testname, v0MayFail, skiaMayFail);
 #else
@@ -270,12 +270,12 @@ bool testPathOp(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
         SkPathOp op, const char* testname) {
     std::string s = std::string(testname);
     std::vector<std::string> skip = { TEST_PATH_OP_EXCEPTIONS };  // see OpTestDrive.h
-    if (skip.end() != std::find(skip.begin(), skip.end(), s)) {
+    if (skip.end() != std::find(skip.begin(), skip.end(), s) && s != TEST_PATH_OP_FIRST) {
         ++testsSkipped;
         return true;
     }
     std::vector<std::string> fuzz = { TEST_PATH_OP_MAP_TO_FUZZ };  // see OpTestDrive.h
-    if (fuzz.end() != std::find(fuzz.begin(), fuzz.end(), s))
+    if (fuzz.end() != std::find(fuzz.begin(), fuzz.end(), s) && s != TEST_PATH_OP_FIRST)
         return (void) testPathOpFuzz(r, a, b, op, testname), true;
     return testPathOpBase(r, a, b, op, testname, false, false);
 }
@@ -294,7 +294,7 @@ bool testPathOpFail(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
         const SkPathOp op, const char* testName) {
     std::string s = std::string(testName);
     std::vector<std::string> fail = { TEST_PATH_OP_FAIL_EXCEPTIONS };  // see OpTestDrive.h
-    if (fail.end() != std::find(fail.begin(), fail.end(), s)) {
+    if (fail.end() != std::find(fail.begin(), fail.end(), s) && s != TEST_PATH_OP_FIRST) {
         ++testsSkipped;
         return true;
     }
@@ -344,10 +344,10 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
     out.reset();
 	OpOutPath opOut(&out);
     bool success = PathSimplify(op1, opOut);
-    OP_ASSERT(success);
+    OP_ASSERT(v0MayFail || success);
     SkPath skOut;
     OP_DEBUG_CODE(bool skSuccess =) Simplify(path, &skOut);
-    OP_ASSERT(skSuccess);
+    OP_ASSERT(skiaMayFail || skSuccess);
     if (success) 
         VerifySimplify(path, testname, out);
 }
@@ -357,7 +357,7 @@ bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& ,
     if (skipTest(name))
         return true;
     path.setFillType(useXor ? SkPathFillType::kEvenOdd : SkPathFillType::kWinding);
-#if OP_DEBUG_FAST_TEST
+#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
     std::string testname(name);
     threadpool.push(threadableSimplifyTest, path, testname, out, false, false);
 #else
@@ -371,7 +371,7 @@ bool testSimplifyBase(skiatest::Reporter* r, const SkPath& path, const char* nam
     if (skipTest(name))
         return true;
     SkPath out;
-#if OP_DEBUG_FAST_TEST
+#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
     std::string testname(name);
     threadpool.push(threadableSimplifyTest, path, testname, out, v0MayFail, skiaMayFail);
 #else
@@ -383,7 +383,7 @@ bool testSimplifyBase(skiatest::Reporter* r, const SkPath& path, const char* nam
 bool testSimplify(skiatest::Reporter* r, const SkPath& path, const char* testname) {
     std::string s = std::string(testname);
     std::vector<std::string> fail = { TEST_PATH_SIMPLIFY_EXCEPTIONS };  // see OpTestDrive.h
-    if (fail.end() != std::find(fail.begin(), fail.end(), s)) {
+    if (fail.end() != std::find(fail.begin(), fail.end(), s) && s != TEST_PATH_OP_FIRST) {
         ++testsSkipped;
         return true;
     }
@@ -393,7 +393,7 @@ bool testSimplify(skiatest::Reporter* r, const SkPath& path, const char* testnam
 bool testSimplifyFail(skiatest::Reporter* r, const SkPath& path, const char* testname) {
     std::string s = std::string(testname);
     std::vector<std::string> fail = { TEST_PATH_SIMPLIFY_FAIL_EXCEPTIONS };  // see OpTestDrive.h
-    if (fail.end() != std::find(fail.begin(), fail.end(), s)) {
+    if (fail.end() != std::find(fail.begin(), fail.end(), s) && s != TEST_PATH_OP_FIRST) {
         ++testsSkipped;
         return true;
     }

@@ -367,7 +367,7 @@ void SectRay::addPals(OpEdge* home) {
 
 // at some point, do some math or rigorous testing to figure out how extreme this can be
 // for now, keep making it smaller until it breaks
-#define WINDING_NORMAL_LIMIT  0.001 // !!! no idea what this should be
+#define WINDING_NORMAL_LIMIT  0.004 // !!! fails (I think) on pentreck13 edge 1045 NxR:00221
 
 FindCept SectRay::findIntercept(OpEdge* test) {
 	if (test->ptBounds.ltChoice(axis) > normal)
@@ -414,6 +414,7 @@ FindCept SectRay::findIntercept(OpEdge* test) {
 	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
 	OpVector backRay = -ray;
 	float tNxR = tangent.cross(backRay);
+	OpDebugBreak(test, 1045);
 	if (fabs(tNxR) < WINDING_NORMAL_LIMIT)
 		return FindCept::retry;
 	OpPoint pt = testCurve.ptAtT(root);

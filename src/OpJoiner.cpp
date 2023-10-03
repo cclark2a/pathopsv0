@@ -341,6 +341,8 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 		OpEdge* linkup = linkups.l[index];
 		OP_ASSERT(!linkup->priorEdge);
 		OP_ASSERT(!linkup->debugIsLoop());
+//		start here;
+		// while linkup or linkup->lastEdge are unsortable, try them, then try the next
 		if (lastEdge != linkup) {
 			if (linkup->whichPtT().pt == matchPt)
 				found.emplace_back(linkup, linkup->whichEnd, index);
@@ -356,11 +358,42 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 				bestGap.check(&found, lastLink, EdgeMatch::end, matchPt);
 		}
 	}
+	if (edge != lastEdge)
+		bestGap.check(&found, edge, EdgeMatch::start, matchPt);
 	if (popLast)
 		linkups.l.pop_back();
 	// look for (a run of) unsectables / unsortables that close the gap
 	OP_ASSERT(!edge->priorEdge);
 	OP_ASSERT(!lastEdge->nextEdge);
+
+	if (!found.size()) {
+		for (size_t index = 0; index < linkups.l.size(); ++index) {
+			OpEdge* linkup = linkups.l[index];
+			// while linkup or linkup->lastEdge are unsortable, try them, then try the next
+			while (linkup->unsortable) {
+				linkup = linkup->nextEdge;
+				if (!linkup || lastEdge == linkup)
+					break;
+				if (linkup->whichPtT().pt == matchPt) {
+					found.emplace_back(linkup, linkup->whichEnd, index);
+					found.back().chop = ChopUnsortable::prior;
+					break;
+				}
+			}
+			OpEdge* lastLink = linkups.l[index]->lastEdge;
+			while (lastLink->unsortable) {
+				lastLink = lastLink->priorEdge;
+				if (!lastLink || lastEdge == lastLink)
+					break;
+				if (lastLink->whichPtT(EdgeMatch::end).pt == matchPt) {
+					found.emplace_back(lastLink, Opposite(lastLink->whichEnd), index);
+					found.back().chop = ChopUnsortable::next;
+					break;
+				}
+			}
+		}
+	}
+
 	// don't match unsectable with a pal that is already in edge link list
 	lastEdge->matchUnsectable(EdgeMatch::end, unsectByArea, found, AllowPals::no, AllowClose::no);
 	if (!found.size()) {
@@ -568,7 +601,7 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 	// additionally, store in found how far end is from loop
 	OpRect bestBounds;
 	FoundEdge smallest = found.front();
-	if (found.size() > 1) {
+	if (found.size() > 1 || ChopUnsortable::none != smallest.chop) {
 		for (auto& foundOne : found) {
 			OpEdge* oppEdge = foundOne.edge;
 			foundOne.connects = oppEdge->pals.size() || oppEdge->disabled || oppEdge->unsortable
@@ -577,6 +610,18 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 					== (lastEdge->whichEnd != foundOne.whichEnd));
 			// if opp edge contains member of linkups via links, detach from this
 			// but remember to reattach if candidate is not best
+			if (ChopUnsortable::none != foundOne.chop) {
+				OpEdge*& unsort = ChopUnsortable::prior == foundOne.chop 
+						? oppEdge->priorEdge : oppEdge->nextEdge;
+				OP_ASSERT(unsort->unsortable);
+				OpEdge* u = unsort;
+				(ChopUnsortable::prior == foundOne.chop 
+						? u->nextEdge = nullptr : u->priorEdge) = nullptr;
+				u->setActive(true);
+				unsortables.push_back(u);
+				unsort = nullptr;
+				oppEdge->setLastEdge(u);
+			}
 			if (oppEdge->setLastLink(foundOne.whichEnd) && foundOne.index >= 0) {
 				oppEdge->setLinkBounds();
 				linkups.l[foundOne.index] = oppEdge;  // link start changed

@@ -23,12 +23,19 @@ enum class FoundGap {
     dummy
 };
 
+enum class ChopUnsortable {
+    none,
+    prior,
+    next
+};
+
 struct FoundEdge {
     FoundEdge(OpEdge* e, EdgeMatch w, int i = -1) 
         : edge(e)
         , distSq(0)
         , index(i)
         , whichEnd(w)
+        , chop(ChopUnsortable::none)
         , addBack(false)
         , connects(false)
         , loops(false) {
@@ -39,6 +46,7 @@ struct FoundEdge {
         , distSq(OpInfinity)
         , index(-1)
         , whichEnd(EdgeMatch::none)
+        , chop(ChopUnsortable::none)
         , addBack(false)
         , connects(false)
         , loops(false) {
@@ -54,6 +62,7 @@ struct FoundEdge {
     float distSq;  // used to track closest edge if no exact match was found
     int index;  // used to track entry in linkups to remove after use
     EdgeMatch whichEnd;
+    ChopUnsortable chop;  // true if edge has one or more linked unsortables to be removed
     bool addBack; // set true if edge, unused, should be added back to linkups
     bool connects; // true if edge connects in correct direction with existing link
     bool loops;  // true if edge when connected to existing link forms a loop
