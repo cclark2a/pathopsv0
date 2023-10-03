@@ -414,7 +414,6 @@ FindCept SectRay::findIntercept(OpEdge* test) {
 	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
 	OpVector backRay = -ray;
 	float tNxR = tangent.cross(backRay);
-	OpDebugBreak(test, 1045);
 	if (fabs(tNxR) < WINDING_NORMAL_LIMIT)
 		return FindCept::retry;
 	OpPoint pt = testCurve.ptAtT(root);
@@ -591,7 +590,6 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 	//   if an edge is in another edge's pal list, even if it is not reciprocal: 
 	//   only count the edge with the pal list
 	// might require 2 passes; one to find edge with pals, one to mark those edges not to be counted
-//	OpDebugBreak(home, 669);
 	int rayIndex = -1;  // pal detection needs to start before first valid sum
 	OpEdge* palEdge;
 	std::vector<OpEdge*> pals;

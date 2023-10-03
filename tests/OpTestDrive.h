@@ -58,10 +58,9 @@
 
 // issue3651_5: fails to find edge in matchLinks (debug further)
 // issue3651_2: fails to find edge in matchLinks (debug further)
-// pentrek13: edge nearly horizontal still uses horizontal ray (and fails to compute correct winding)
 
 #define TEST_PATH_OP_EXCEPTIONS "loops47i", "battleOp33", "battleOp287", "issue3651_5", \
-	"issue3651_2", "pentrek13"
+	"issue3651_2"
 #define TEST_PATH_OP_FAIL_EXCEPTIONS "grshapearcs1"
 #define TEST_PATH_OP_MAP_TO_FUZZ  "fuzzhang_1", "fuzz763_2674194"
 #define TEST_PATH_SIMPLIFY_EXCEPTIONS "testQuadratic75", "testQuadratic67x", \
