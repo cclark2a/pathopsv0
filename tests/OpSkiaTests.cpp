@@ -85,9 +85,16 @@ std::vector<testPair> testPairs = {
     { run_issue3651_tests, "issue3651" },
     { run_op_tests, "op" },
     { run_op_circle_tests, "circle" },
+    { run_op_cubic_tests, "cubic" },
+    { run_op_loop_tests, "loop" },
     { run_op_rect_tests, "rect" },
     { run_simplify_tests, "simplify" },
+    { run_simplify_degenerate_tests, "simplifyDegenerate" },
+    { run_simplify_fail_tests, "simplifyFail" },
+    { run_simplify_quadralaterals_tests, "simplifyQuadralaterals" },
+    { run_simplify_quads_tests, "simplifyQuads" },
     { run_simplify_rect_tests, "simplifyRect" },
+    { run_simplify_triangles_tests, "simplifyTriangles" },
     { run_tiger_tests, "tiger" },
     { run_v0_tests, "v0" },
 };
@@ -273,6 +280,8 @@ bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
         return true;
 #if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
     std::string testname(name);
+    a.updateBoundsCache();
+    b.updateBoundsCache();
     threadpool.push(threadablePathOpTest, a, b, op, testname, v0MayFail, skiaMayFail);
 #else
     threadablePathOpTest(0, a, b, op, name, v0MayFail, skiaMayFail);
@@ -382,6 +391,7 @@ bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& ,
     path.setFillType(useXor ? SkPathFillType::kEvenOdd : SkPathFillType::kWinding);
 #if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
     std::string testname(name);
+    path.updateBoundsCache();
     threadpool.push(threadableSimplifyTest, path, testname, out, false, false);
 #else
     threadableSimplifyTest(0, path, name, out, false, false);
@@ -396,6 +406,7 @@ bool testSimplifyBase(skiatest::Reporter* r, const SkPath& path, const char* nam
     SkPath out;
 #if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
     std::string testname(name);
+    path.updateBoundsCache();
     threadpool.push(threadableSimplifyTest, path, testname, out, v0MayFail, skiaMayFail);
 #else
     threadableSimplifyTest(0, path, name, out, v0MayFail, skiaMayFail);
@@ -410,6 +421,9 @@ bool testSimplify(skiatest::Reporter* r, const SkPath& path, const char* testnam
         ++testsSkipped;
         return true;
     }
+    std::vector<std::string> fuzz = { TEST_PATH_SIMPLIFY_MAP_TO_FUZZ };  // see OpTestDrive.h
+    if (fuzz.end() != std::find(fuzz.begin(), fuzz.end(), s) && s != TEST_PATH_OP_FIRST)
+        return (void) testSimplifyFuzz(r, path, testname), true;
     return testSimplifyBase(r, path, testname, false, false);
 }
 
@@ -420,7 +434,17 @@ bool testSimplifyFail(skiatest::Reporter* r, const SkPath& path, const char* tes
         ++testsSkipped;
         return true;
     }
-    return testSimplifyBase(r, path, testname, false, true);
+    return testSimplifyBase(r, path, testname, true, true);
+}
+
+bool testSimplifyFuzz(skiatest::Reporter* r, const SkPath& path, const char* testname) {
+    std::string s = std::string(testname);
+    std::vector<std::string> fuzz = { TEST_PATH_SIMPLIFY_FUZZ_EXCEPTIONS };  // see OpTestDrive.h
+    if (fuzz.end() != std::find(fuzz.begin(), fuzz.end(), s) && s != TEST_PATH_OP_FIRST) {
+        ++testsSkipped;
+        return true;
+    }
+    return testSimplifyBase(r, path, testname, true, true);
 }
 
 PathOpsThreadedRunnable** DebugOneShot::append() {

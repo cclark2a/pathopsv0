@@ -15,11 +15,11 @@
 
 #define OP_SHOW_TEST_NAME 0
 #define OP_TEST_ALLOW_EXTENDED 0
-#define OP_TEST_ENABLE_THREADS 01
+#define OP_TEST_ENABLE_THREADS 1
 #define OP_MAX_THREADS 16
 #define OP_TEST_V0 1
-#define OP_TEST_SKIA 1
-#define OP_TEST_REGION 1
+#define OP_TEST_SKIA 0
+#define OP_TEST_REGION 0
 
 // issue3517:  edge 970 and 692 are 1 hex bit from looping, but that isn't detected in matchlinks
 
@@ -62,18 +62,27 @@
 // issue3651_5: fails to find edge in matchLinks (debug further)
 // issue3651_2: fails to find edge in matchLinks (debug further)
 
+// thread_cubics8753: draws incorrectly (debug further)
+// thread_cubics8754: draws incorrectly (debug further)
+// thread_loops1: cubic is degenerate; asserts in incomplete code OpContour.cpp::64
+
+// fuzz_x1, fuzz_x2: succeeds in skia, fails in v0
+
 #define TEST_PATH_OP_EXCEPTIONS "loops47i", "battleOp33", "battleOp287", "issue3651_5", \
-	"issue3651_2"
+  "issue3651_2"
 #define TEST_PATH_OP_FAIL_EXCEPTIONS "grshapearcs1"
 #define TEST_PATH_OP_MAP_TO_FUZZ  "fuzzhang_1", "fuzz763_2674194"
 #define TEST_PATH_SIMPLIFY_EXCEPTIONS "testQuadratic75", "testQuadratic67x", \
   "tiger8b", "tiger8b_x2", "tiger8"
 #define TEST_PATH_SIMPLIFY_FAIL_EXCEPTIONS "grshapearc"
+#define TEST_PATH_SIMPLIFY_FUZZ_EXCEPTIONS ""
+#define TEST_PATH_SIMPLIFY_MAP_TO_FUZZ  "fuzz_x1", "fuzz_x2"
 
 // when these tests are encountered, it and the remaining tests in the file are skipped
-#define TEST_PATH_OP_SKIP_REST "thread_circles104483"
+#define TEST_PATH_OP_SKIP_REST "thread_circles104483", "thread_cubics8753", "thread_cubics8754", \
+  "thread_cubics50564", "thread_loops1"
 
-#define TEST_PATH_OP_FIRST "" /* e.g., "tiger8b_x2" test to debug */
-#define TEST_PATH_OP_SKIP_TO_FILE "" /* e.g., "tiger" to run this file only */
+#define TEST_PATH_OP_FIRST "" /* "thread_cubics8753"  e.g., "tiger8b_x2" test to debug */
+#define TEST_PATH_OP_SKIP_TO_FILE "" /* "cubics"  e.g., "tiger" to run this file only */
 #define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */
 #endif

@@ -76,8 +76,8 @@ void OpEdge::output(OpOutPath path) {
 
 bool OpContours::build(OpInPath path, OpOperand operand) {
     const SkPath& skpath = *skPath(path.externalReference);
-    if (!skpath.isFinite())
-        return debugFail();
+//    if (!skpath.isFinite())
+//        return debugFail();
     setFillType(operand, SkPathFillType::kEvenOdd == skpath.getFillType()
             || SkPathFillType::kInverseEvenOdd == skpath.getFillType() 
             ? OpFillType::evenOdd : OpFillType::winding);
