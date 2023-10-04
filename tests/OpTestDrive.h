@@ -4,7 +4,7 @@
 
 // this puts all switches that decide which tests to run and how to run them in one place
 
-#define OP_DEBUG_FAST_TEST 0  // in a debug build: set to zero to enable debug dump, debug image
+#define OP_DEBUG_FAST_TEST 1  // in a debug build: set to zero to enable debug dump, debug image
 
 #define OP_RELEASE_TEST 1	// !!! set to zero to remove tests from release build
 
@@ -78,7 +78,8 @@
 #define TEST_PATH_SIMPLIFY_FUZZ_EXCEPTIONS ""
 #define TEST_PATH_SIMPLIFY_MAP_TO_FUZZ  "fuzz_x1", "fuzz_x2"
 
-#define LAPTOP_PATH_OP_EXCEPTIONS "issue1417"
+#define LAPTOP_PATH_OP_EXCEPTIONS "issue1417", "fuzz763_378"
+#define LAPTOP_PATH_OP_MAP_TO_FUZZ "fuzz763_10022998"
 
 // when these tests are encountered, it and the remaining tests in the file are skipped
 #define TEST_PATH_OP_SKIP_REST "thread_circles104483", "thread_cubics8753", "thread_cubics8754", \

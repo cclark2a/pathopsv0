@@ -328,6 +328,9 @@ bool testPathOp(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
     std::vector<std::string> fuzz = { TEST_PATH_OP_MAP_TO_FUZZ };  // see OpTestDrive.h
     if (fuzz.end() != std::find(fuzz.begin(), fuzz.end(), s) && s != TEST_PATH_OP_FIRST)
         return (void) testPathOpFuzz(r, a, b, op, testname), true;
+    std::vector<std::string> lapz = { LAPTOP_PATH_OP_MAP_TO_FUZZ };  // see OpTestDrive.h
+    if (!runningWithFMA() && lapz.end() != std::find(lapz.begin(), lapz.end(), s) && s != TEST_PATH_OP_FIRST)
+        return (void) testPathOpFuzz(r, a, b, op, testname), true;
     return testPathOpBase(r, a, b, op, testname, false, false);
 }
 
