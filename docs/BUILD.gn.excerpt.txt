@@ -56,10 +56,17 @@
         "example/tests/PathOpsInverseTest_shim.cpp",
         "example/tests/PathOpsIssue3651_shim.cpp",
         "example/tests/PathOpsOpCircleThreadedTest_shim.cpp",
+        "example/tests/PathOpsOpCubicThreadedTest_shim.cpp",
+        "example/tests/PathOpsOpLoopThreadedTest_shim.cpp",
         "example/tests/PathOpsOpRectThreadedTest_shim.cpp",
         "example/tests/PathOpsOpTest_shim.cpp",
+        "example/tests/PathOpsSimplifyDegenerateThreadedTest_shim.cpp",
+        "example/tests/PathOpsSimplifyFailTest_shim.cpp",
+        "example/tests/PathOpsSimplifyQuadralateralsThreadedTest_shim.cpp",
+        "example/tests/PathOpsSimplifyQuadThreadedTest_shim.cpp",
         "example/tests/PathOpsSimplifyRectThreadedTest_shim.cpp",
         "example/tests/PathOpsSimplifyTest_shim.cpp",
+        "example/tests/PathOpsSimplifyTrianglesThreadedTest_shim.cpp",
         "example/tests/PathOpsTigerTest_shim.cpp",
         "example/tests/UnitTestPathOps.cpp"
       ]
