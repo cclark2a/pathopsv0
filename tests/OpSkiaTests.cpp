@@ -3,6 +3,7 @@
 #include "include/core/SkCanvas.h"
 #include "include/core/SkRegion.h"
 #include "OpSkiaTests.h"
+#include "OpCurve.h"
 #if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
 #include "CTPL_old/ctpl_stl.h"
 #endif
@@ -29,6 +30,28 @@ bool PathOpsDebug::gJson = false;
 #if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
 ctpl::thread_pool threadpool(OP_MAX_THREADS);
 #endif
+
+// If code is built with the right architecture, the numerics use float multiply-add, which is
+// signficantly more accurate that separate multiply and add instructions. Both should work.
+// Since many tests may fail with one or the other, detect it, and use it to filter the test list
+// accordingly.
+bool runningWithFMA() {
+    static bool calculated = false;
+    static bool runWithFMA = false;
+    if (calculated)
+        return runWithFMA;
+    // this is fragile, but as of 10/04/23, detects FMA with these values.
+    LinePts line = { OpPoint(OpDebugBitsToFloat(0x4308f83e), OpDebugBitsToFloat(0x4326aaab)),  // {136.97, 166.667}
+        OpPoint(OpDebugBitsToFloat(0x42c55d28), OpDebugBitsToFloat(0x430c5806)) };  // {98.68195, 140.344}
+    OpCurve c = { { OpDebugBitsToFloat(0x42f16017), OpDebugBitsToFloat(0x431b7908) }, // {120.688, 155.473}
+        { OpDebugBitsToFloat(0x42ed5d28), OpDebugBitsToFloat(0x43205806) } }; // {118.682, 160.344}
+    OpCurve rotated = c.toVertical(line);
+    OP_ASSERT(rotated.pts[0].x == OpDebugBitsToFloat(0x390713e0)     // 0.00012882007
+            || rotated.pts[0].x == OpDebugBitsToFloat(0x39000000));  // 0.00012207031
+    runWithFMA = rotated.pts[0].x == OpDebugBitsToFloat(0x390713e0);
+    calculated = true;
+    return runWithFMA;
+}
 
 void initializeTests(skiatest::Reporter* , const char* ) {
 }
@@ -294,6 +317,11 @@ bool testPathOp(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
     std::string s = std::string(testname);
     std::vector<std::string> skip = { TEST_PATH_OP_EXCEPTIONS };  // see OpTestDrive.h
     if (skip.end() != std::find(skip.begin(), skip.end(), s) && s != TEST_PATH_OP_FIRST) {
+        ++testsSkipped;
+        return true;
+    }
+    std::vector<std::string> lap = { LAPTOP_PATH_OP_EXCEPTIONS };  // see OpTestDrive.h
+    if (!runningWithFMA() && lap.end() != std::find(lap.begin(), lap.end(), s) && s != TEST_PATH_OP_FIRST) {
         ++testsSkipped;
         return true;
     }

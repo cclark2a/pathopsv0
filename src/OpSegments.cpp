@@ -34,6 +34,7 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
     OP_ASSERT(opp != seg);
     OP_ASSERT(OpType::line == seg->c.type);
     LinePts edgePts { seg->c.pts[0], seg->c.pts[1] };
+    OpDebugBreakIf(opp, 54, 14 == seg->id);
     OpRoots septs = opp->c.rayIntersect(edgePts);
     bool reversed;
     MatchEnds common = seg->matchEnds(opp, &reversed, nullptr, MatchSect::existing);
