@@ -2,9 +2,15 @@
 #ifndef OpTestDrive_DEFINED
 #define OpTestDrive_DEFINED
 
+#if defined(__llvm__)
+#error "on desktop"
+#else
+// #error "on laptop"
+#endif
+
 // this puts all switches that decide which tests to run and how to run them in one place
 
-#define OP_DEBUG_FAST_TEST 1  // in a debug build: set to zero to enable debug dump, debug image
+#define OP_DEBUG_FAST_TEST 0  // in a debug build: set to zero to enable debug dump, debug image
 
 #define OP_RELEASE_TEST 1	// !!! set to zero to remove tests from release build
 
@@ -85,7 +91,7 @@
 #define TEST_PATH_OP_SKIP_REST "thread_circles104483", "thread_cubics8753", "thread_cubics8754", \
   "thread_cubics50564", "thread_loops1"
 
-#define TEST_PATH_OP_FIRST "" /* "thread_cubics8753"  e.g., "tiger8b_x2" test to debug */
-#define TEST_PATH_OP_SKIP_TO_FILE "" /* "cubics"  e.g., "tiger" to run this file only */
+#define TEST_PATH_OP_FIRST "issue3651_5" /* ""  e.g., "tiger8b_x2" test to debug */
+#define TEST_PATH_OP_SKIP_TO_FILE "issue3651" /* "cubics"  e.g., "tiger" to run this file only */
 #define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */
 #endif

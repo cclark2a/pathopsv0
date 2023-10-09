@@ -11,6 +11,12 @@
 #include <math.h>
 #endif
 
+constexpr auto OpPI = 3.14159265f;
+constexpr auto OpInfinity = std::numeric_limits<float>::infinity();
+constexpr auto OpNaN = std::numeric_limits<float>::quiet_NaN();
+constexpr auto OpMax = std::numeric_limits<int>::max();
+constexpr auto OpEpsilon = std::numeric_limits<float>::epsilon();
+
 #include "OpDebug.h"
 
 #include "OpDebugColor.h"
@@ -33,6 +39,7 @@ typedef double OpCubicFloatType;
 struct OpRoots {
     OpRoots() 
         : count(0) {
+        OP_DEBUG_CODE(roots[0] = OpNaN);
     }
 
     OpRoots(int ) = delete; // disallow old pattern that returned number of roots
@@ -109,12 +116,6 @@ struct OpRoots {
     std::array<float, 5> roots;
     size_t count;
 };
-
-constexpr auto OpPI = 3.14159265f;
-constexpr auto OpInfinity = std::numeric_limits<float>::infinity();
-constexpr auto OpNaN = std::numeric_limits<float>::quiet_NaN();
-constexpr auto OpMax = std::numeric_limits<int>::max();
-constexpr auto OpEpsilon = std::numeric_limits<float>::epsilon();
 
 #if OP_DEBUG
 const float OpDebugNaN = std::numeric_limits<float>::signaling_NaN(); // std::nanf("1");

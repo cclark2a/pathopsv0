@@ -17,7 +17,8 @@ struct OpInPath {
 
 struct OpOutPath {
 	OpOutPath(void* ext) 
-		: externalReference(ext) {
+		: externalReference(ext) { 
+		OP_DEBUG_CODE(debugID = 0);
 	}
 
 	void setEmpty();

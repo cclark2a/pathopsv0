@@ -112,7 +112,25 @@ struct CoinPair {
 // intersection to point at each other at time of creation.
 
 struct OpIntersection {
-	OpIntersection() {}
+	OpIntersection() {
+#if OP_DEBUG
+	segment = nullptr;
+	opp = nullptr;
+	OpPtT ptT;
+	coincidenceID = 0;
+	unsectID = 0;
+	betweenID = 0;
+	sectEnd = MatchEnds::none;
+	id = 0;
+	debugID = 0;
+	debugOppID = 0;
+	debugCoincidenceID = 0;
+	debugMaker = IntersectMaker::opTestEdgeZero4;
+	debugSetMaker = { "", 0 };
+	debugReason = SectReason::test;	// reason intersection was found
+	debugErased = false;
+#endif
+    }
 
 	void betweenPair(OpIntersection* );
 

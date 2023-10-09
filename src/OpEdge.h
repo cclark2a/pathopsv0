@@ -288,7 +288,9 @@ struct SectRay {
 	SectRay()
 		: normal(OpNaN)
 		, homeCept(OpNaN)
-		, axis(Axis::neither) {
+		, homeT(OpNaN)
+        , axis(Axis::neither)
+	{
 	}
 	void addPals(OpEdge* );
 	FindCept findIntercept(OpEdge* );
@@ -407,6 +409,9 @@ private:
 		, between(false)
 	{
 #if OP_DEBUG
+        id = 0;
+        segment = nullptr;
+        weight = 0;
 		debugStart = nullptr;
 		debugEnd = nullptr;
 		debugMatch = nullptr;
@@ -617,6 +622,7 @@ struct OpEdgeStorage {
 	OpEdgeStorage()
 		: next(nullptr)
 		, used(0) {
+        OP_DEBUG_CODE(storage[0] = 0);
 	}
 	bool contains(OpIntersection* start, OpIntersection* end) const;
 #if OP_DEBUG_DUMP

@@ -1060,7 +1060,7 @@ std::string OpEdge::debugDumpDetail() const {
     s += debugDumpWinding() + " ";
     if (pals.size()) {
         s += "pals: ";
-        for (auto pal : pals)
+        for (auto& pal : pals)
             s += STR(pal.edge->id) + " ";
     }
     if (EdgeMatch::none != whichEnd)
@@ -1809,6 +1809,8 @@ OpIntersection::OpIntersection(std::string s) {
     segment = const_cast<OpSegment*>(::findSegment(segmentID));
     OP_ASSERT(segment);
     // don't call comnplete because we don't want to advance debug id
+    set(ptT, segment, 0, 0, MatchEnds::none  OP_DEBUG_PARAMS(IntersectMaker::opTestEdgeZero1, 
+            __LINE__, __FILE__, SectReason::test, 0, 0));
 }
 
 void OpIntersection::debugCompare(std::string s) const {
@@ -2022,6 +2024,10 @@ void OpWinding::dump() const {
 
 void DumpLinkups(const std::vector<OpEdge*>& linkups) {
     for (const auto& linkup : linkups) {
+        if (!linkup) {
+           OpDebugOut("!!! expected non-null linkup\n");
+           return;
+        }
         int count = 0;
         auto next = linkup;
         auto looped = linkup->debugIsLoop(WhichLoop::prior, LeadingLoop::in);
@@ -2039,7 +2045,7 @@ void DumpLinkups(const std::vector<OpEdge*>& linkups) {
         }
         auto prior = linkup;
         int priorCount = 0;
-        while (prior->priorEdge) {
+        while (prior && prior->priorEdge) {
             prior = prior->priorEdge;
             ++priorCount;
             if (looped == prior) {

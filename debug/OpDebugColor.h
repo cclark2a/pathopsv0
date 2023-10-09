@@ -10,29 +10,6 @@
 
 #include <vector>
 
-#define COLOR_LIST \
-OP_X(Active) \
-OP_X(Between) \
-OP_X(Disabled) \
-OP_X(Linkups) \
-OP_X(Opp) \
-OP_X(Out) \
-OP_X(Unsectables) \
-OP_X(Unsortables)
-
-#define OP_X(Thing) \
-	extern void color##Thing(); \
-	extern void color##Thing(uint32_t color); \
-	extern void color##Thing(uint8_t alpha, uint32_t color); \
-	extern void uncolor##Thing(); \
-	extern bool color##Thing##On; \
-	extern uint32_t color##Thing##Color; 
-	COLOR_LIST
-#undef OP_X
-extern int colorID;
-extern uint32_t colorIDColor;
-extern uint32_t OP_DEBUG_MULTICOLORED;
-
 extern uint32_t maroon;
 extern uint32_t Maroon;
 extern uint32_t darkred;

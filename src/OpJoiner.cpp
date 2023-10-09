@@ -112,7 +112,7 @@ bool OpJoiner::detachIfLoop(OpEdge* edge) {
 	std::vector<LoopCheck> edges;
 	OpEdge* test = edge;
 	// walk forwards to end, keeping one point per edge
-	OP_ASSERT(!edge->debugIsLoop());
+	OP_ASSERT(edge && !edge->debugIsLoop());
 	while (test) {
 		if (edges.end() != std::find_if(edges.begin(), edges.end(), 
 				[&test](const LoopCheck& check) {

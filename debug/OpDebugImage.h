@@ -113,6 +113,9 @@ extern void clear();
 extern void clearLines();
 extern void color(int id);
 extern void color(int id, uint32_t color);
+extern void colorLink(int id, uint32_t color = 0xAbeBeBad);
+extern void colorLink(const OpEdge& , uint32_t color = 0xAbeBeBad);
+extern void colorLink(const OpEdge* , uint32_t color = 0xAbeBeBad);
 extern void draw(const std::vector<OpEdge>& );  // to draw edge list built from intersections
 extern void draw(const std::vector<OpEdge*>& ); // to draw unsortables
 extern void highlight(const LinkUps& ); // to draw assemble linkups
@@ -174,6 +177,32 @@ OP_X(TemporaryEdges) \
 OP_X(Ts) \
 OP_X(Values) \
 OP_X(Windings)
+
+#define COLOR_LIST \
+OP_X(Active) \
+OP_X(Between) \
+OP_X(Disabled) \
+OP_X(Linkups) \
+OP_X(Opp) \
+OP_X(Out) \
+OP_X(Unsectables) \
+OP_X(Unsortables)
+
+#define OP_X(Thing) \
+	extern void color##Thing(); \
+	extern void color##Thing(uint32_t color); \
+	extern void color##Thing(uint8_t alpha, uint32_t color); \
+	extern void uncolor##Thing(); \
+	extern bool color##Thing##On; \
+	extern uint32_t color##Thing##Color; 
+	COLOR_LIST
+#undef OP_X
+
+extern int colorID;
+extern uint32_t colorIDColor;
+extern const OpEdge* colorLinkEdge;
+extern uint32_t colorLinkColor;
+extern uint32_t OP_DEBUG_MULTICOLORED;
 
 #define OP_X(Thing) \
 	extern void hide##Thing(); \

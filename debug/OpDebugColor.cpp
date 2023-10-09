@@ -5,15 +5,6 @@
 
 #if OP_DEBUG_IMAGE
 
-#define OP_X(Thing) \
-bool color##Thing##On = false; \
-uint32_t color##Thing##Color = 0xFF000000; 
-COLOR_LIST
-#undef OP_X
-int colorID;
-uint32_t colorIDColor;
-uint32_t OP_DEBUG_MULTICOLORED = 0xAbeBeBad;
-
 uint32_t maroon = 0xFF800000;
 uint32_t Maroon = 0xFF800000;
 uint32_t darkred = 0xFF8B0000;

@@ -760,6 +760,8 @@ void DebugOpDrawEdges(std::vector<DebugOpCurve>& curves, DrawEdgeType edgeType) 
         const OpEdge* edge = findEdge(curve.id);
         if (edge) {
             std::vector<uint32_t> colors;
+            if (colorLinkEdge && colorLinkColor != black && colorLinkEdge->containsLink(edge))
+                colors.push_back(colorLinkColor);
             if (colorActiveOn && colorActiveColor != black && edge->isActive())
                 colors.push_back(colorActiveColor);
             if (colorBetweenOn && colorBetweenColor != black && edge->between)
@@ -780,7 +782,7 @@ void DebugOpDrawEdges(std::vector<DebugOpCurve>& curves, DrawEdgeType edgeType) 
                 colors.push_back(colorUnsectablesColor);
             if (colorUnsortablesOn && colorUnsortablesColor != black && edge->unsortable)
                 colors.push_back(colorUnsortablesColor);
-            if (colorID && (edge->id == colorID || edge->unsectableID == colorID || 
+            if (colorID && colorIDColor != black && (edge->id == colorID || edge->unsectableID == colorID || 
                     edge->debugOutPath == colorID || edge->debugRayMatch == colorID))
                 colors.push_back(colorIDColor);
             color = black;  // no colors or many colors

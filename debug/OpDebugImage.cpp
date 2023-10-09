@@ -43,6 +43,17 @@ MASTER_LIST
 #undef OP_X
 bool lastDrawOperandsOn = false;
 
+#define OP_X(Thing) \
+bool color##Thing##On = false; \
+uint32_t color##Thing##Color = 0xFF000000; 
+COLOR_LIST
+#undef OP_X
+int colorID;
+uint32_t colorIDColor;
+const OpEdge* colorLinkEdge = nullptr;
+uint32_t colorLinkColor;
+uint32_t OP_DEBUG_MULTICOLORED = 0xAbeBeBad;
+
 #define DRAW_IDS_ON(Thing) \
 	do { \
 		draw##Thing##On = true; \
@@ -1364,6 +1375,7 @@ void uncolor##Thing() { \
 COLOR_LIST
 #undef OP_X
 
+
 void color(int id) {
 	colorID = id;
 	colorIDColor = OP_DEBUG_MULTICOLORED;
@@ -1379,6 +1391,19 @@ void color(int id, uint32_t c) {
 void uncolor(int id) {
 	colorID = 0;
 	OpDebugImage::drawDoubleFocus();
+}
+
+void colorLink(const OpEdge* edge, uint32_t color) {
+	colorLinkEdge = edge;
+	colorLinkColor = color;
+}
+
+void colorLink(const OpEdge& edge, uint32_t color) {
+	colorLink(&edge, color);
+}
+
+void colorLink(int id, uint32_t color) {
+	colorLink(findEdge(id), color);
 }
 
 void OpContour::draw() const {
