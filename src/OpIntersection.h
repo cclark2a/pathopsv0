@@ -116,11 +116,11 @@ struct OpIntersection {
 #if OP_DEBUG
 	segment = nullptr;
 	opp = nullptr;
-	OpPtT ptT;
 	coincidenceID = 0;
 	unsectID = 0;
 	betweenID = 0;
 	sectEnd = MatchEnds::none;
+	coincidenceProcessed = false;
 	id = 0;
 	debugID = 0;
 	debugOppID = 0;
@@ -151,6 +151,7 @@ struct OpIntersection {
 		betweenID = 0;
 		OP_ASSERT(MatchEnds::both != end);
 		sectEnd = end;  // used by coin and unsectable to distinguish start from end
+		coincidenceProcessed = false;
 #if OP_DEBUG
 		debugSetID();  // debug for now
 		debugID = ID;
@@ -196,6 +197,7 @@ struct OpIntersection {
 	int unsectID;	// !!! may be able to be merged with coincident ID; keep separate for now
 	int betweenID;  // is on unsectable with this id, between ends; use to mark edge unsortable
 	MatchEnds sectEnd;  // used by coin and unsectable to distinguish start from end
+	bool coincidenceProcessed;
 #if OP_DEBUG
 	int id;
 	int debugID;	// pair of edges or segments that intersected

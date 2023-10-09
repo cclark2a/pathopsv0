@@ -665,12 +665,13 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 	home->many = home->winding;	// back up winding
 	for (const auto& pal : home->pals) {
 		home->winding.move(pal.edge->winding, contours, pal.reversed);
+		if (!home->winding.visible())
+			home->setDisabled(OP_DEBUG_CODE(ZeroReason::palWinding));
 	}
-	if (CalcFail::fail == home->addIfUR(ray.axis, homeT, &sumWinding)) {
+	if (CalcFail::fail == home->addIfUR(ray.axis, homeT, &sumWinding))
 		home->setUnsortable();
-		return ResolveWinding::resolved;  // failed, but not fatally
-	}
-	OP_EDGE_SET_SUM(home, sumWinding);
+	else
+		OP_EDGE_SET_SUM(home, sumWinding);
 	std::swap(home->many, home->winding);  // restore winding, put total of pals in many
 	return ResolveWinding::resolved;	   // (will copy many to winding after all many are found)
 }

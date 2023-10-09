@@ -203,6 +203,9 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
         int coinID = sectPtr->coincidenceID;
         if (!coinID)
             continue;
+        // start here; 
+        if (sectPtr->coincidenceProcessed)
+            continue;
         auto pairIter = std::find_if(pairs.begin(), pairs.end(), [coinID](CoinPair& pair) { 
             return coinID == pair.id; 
         });
@@ -231,6 +234,10 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
         }
     }    
     for (auto& coinPair : pairs) {
+        coinPair.start->coincidenceProcessed = true;
+        coinPair.end->coincidenceProcessed = true;
+        coinPair.oStart->coincidenceProcessed = true;
+        coinPair.oEnd->coincidenceProcessed = true;
         EdgeMatch match = coinPair.id > 0 ? EdgeMatch::start : EdgeMatch::end;
         OP_ASSERT(coinPair.oppEdge->ptT(match).pt == coinPair.start->ptT.pt);
         OP_ASSERT(coinPair.edge->start == coinPair.start->ptT);
@@ -278,7 +285,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
                 edge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence1));
             else if (edge->disabled)
                 edge->reenable();  // un-disable it; was disabled from earlier coincidence
-            oppEdge->setDisabledZero(OP_DEBUG_CODE(ZeroReason::hvCoincidence3));
+            oppEdge->setDisabledZero(OP_DEBUG_CODE(ZeroReason::hvCoincidence2));
             for (;;) {
                 OpPoint oppEnd = oppEdge->ptT(coinPair.id > 0 
                         ? EdgeMatch::end : EdgeMatch::start).pt;
@@ -299,7 +306,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
                         if (edge->disabled)
                             edge->reenable();
                     } else
-                        edge->setDisabledZero(OP_DEBUG_CODE(ZeroReason::hvCoincidence2));
+                        edge->setDisabledZero(OP_DEBUG_CODE(ZeroReason::hvCoincidence4));
                 }
             }
             if (edge == edgeBack) {

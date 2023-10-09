@@ -1013,13 +1013,15 @@ static DebugReasonName debugReasonNames[] {
     REASON_NAME(addIntersection),
     REASON_NAME(applyOp),
     REASON_NAME(centerNaN),
-    REASON_NAME(findCoincidences),
+    REASON_NAME(findCoincidences), 
     REASON_NAME(hvCoincidence1),
     REASON_NAME(hvCoincidence2),
     REASON_NAME(hvCoincidence3),
+    REASON_NAME(hvCoincidence4),
     REASON_NAME(isPoint),
     REASON_NAME(noFlip),
-    REASON_NAME(none)
+    REASON_NAME(none),
+    REASON_NAME(palWinding),
 };
 
 std::string OpEdge::debugDumpDetail() const {
@@ -1733,8 +1735,10 @@ std::string OpIntersection::debugDump(bool fromDumpFull, bool fromDumpDetail) co
         s += "!!! (unexpected) " +  matchEndStr();
     if (betweenID)
         s += " betweenID:" + STR(betweenID);
-    s += " maker:";
+    if (coincidenceProcessed)
+        s += " coincidenceProcessed";
 #if OP_DEBUG
+    s += " maker:";
     if (makerOutOfDate)
         s += " (maker out of date) " + STR((int)debugMaker);
     else

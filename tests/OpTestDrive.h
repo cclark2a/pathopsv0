@@ -3,14 +3,14 @@
 #define OpTestDrive_DEFINED
 
 #if defined(__llvm__)
-#error "on desktop"
+#define OP_HAS_FMA
 #else
-// #error "on laptop"
+#define OP_NO_FMA
 #endif
 
 // this puts all switches that decide which tests to run and how to run them in one place
 
-#define OP_DEBUG_FAST_TEST 0  // in a debug build: set to zero to enable debug dump, debug image
+#define OP_DEBUG_FAST_TEST 1  // in a debug build: set to zero to enable debug dump, debug image
 
 #define OP_RELEASE_TEST 1	// !!! set to zero to remove tests from release build
 
@@ -65,7 +65,6 @@
 // thread_rects148636: draws incorrectly (debug further)
 // thread_rects148651: draws incorrectly (debug further)
 
-// issue3651_5: fails to find edge in matchLinks (debug further)
 // issue3651_2: fails to find edge in matchLinks (debug further)
 
 // thread_cubics8753: draws incorrectly (debug further)
@@ -74,7 +73,7 @@
 
 // fuzz_x1, fuzz_x2: succeeds in skia, fails in v0
 
-#define TEST_PATH_OP_EXCEPTIONS "loops47i", "battleOp33", "battleOp287", "issue3651_5", \
+#define TEST_PATH_OP_EXCEPTIONS "loops47i", "battleOp33", "battleOp287", \
   "issue3651_2"
 #define TEST_PATH_OP_FAIL_EXCEPTIONS "grshapearcs1"
 #define TEST_PATH_OP_MAP_TO_FUZZ  "fuzzhang_1", "fuzz763_2674194"
@@ -91,7 +90,7 @@
 #define TEST_PATH_OP_SKIP_REST "thread_circles104483", "thread_cubics8753", "thread_cubics8754", \
   "thread_cubics50564", "thread_loops1"
 
-#define TEST_PATH_OP_FIRST "issue3651_5" /* ""  e.g., "tiger8b_x2" test to debug */
-#define TEST_PATH_OP_SKIP_TO_FILE "issue3651" /* "cubics"  e.g., "tiger" to run this file only */
+#define TEST_PATH_OP_FIRST "" /* ""  e.g., "tiger8b_x2" test to debug */
+#define TEST_PATH_OP_SKIP_TO_FILE "" /* "cubics"  e.g., "tiger" to run this file only */
 #define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */
 #endif

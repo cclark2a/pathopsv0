@@ -99,9 +99,11 @@ enum class ZeroReason : uint8_t {
 	hvCoincidence1,
 	hvCoincidence2,
 	hvCoincidence3,
+	hvCoincidence4,
 	isPoint,
 	noFlip,
-	none
+	none,
+	palWinding,
 };
 
 
