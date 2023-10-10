@@ -17,12 +17,13 @@ bool PathOps(OpInPath left, OpInPath right, OpOperator opOperator, OpOutPath res
 #if OP_DEBUG
 // entry point if operation success is already known
 bool DebugPathOps(OpInPath left, OpInPath right, OpOperator opOperator, OpOutPath result,
-        OpDebugExpect expected) {
+        OpDebugExpect expected, std::string testname) {
     OpContours contourList(left, right, opOperator);
     contourList.debugExpect = expected;
     contourList.debugResult = &result;
     contourList.debugInPathOps = true;
     contourList.debugInClearEdges = false;
+    contourList.debugTestname = testname;
     debugGlobalContours = &contourList;
 #if OP_DEBUG_IMAGE
     OpDebugImage::init(left.externalReference, right.externalReference);

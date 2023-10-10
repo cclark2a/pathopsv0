@@ -278,7 +278,7 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
 #endif
 #if OP_DEBUG
         DebugPathOps(op1, op2, (OpOperator) op, opOut, v0MayFail ? OpDebugExpect::unknown :
-                OpDebugExpect::success);
+                OpDebugExpect::success, testname);
 #else
         PathOps(op1, op2, (OpOperator) op, opOut);
 #endif
@@ -399,9 +399,11 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
     out.reset();
 	OpOutPath opOut(&out);
 #if OP_DEBUG || OP_TEST_REGION
-    bool success = 
+    bool success = DebugPathSimplify(op1, opOut, v0MayFail ? OpDebugExpect::unknown :
+                OpDebugExpect::success, testname);
+#else
+    PathSimplify(op1, opOut);
 #endif
-        PathSimplify(op1, opOut);
     OP_ASSERT(v0MayFail || success);
 #endif
 #if OP_TEST_SKIA

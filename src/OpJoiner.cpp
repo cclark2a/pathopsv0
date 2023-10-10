@@ -515,25 +515,7 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 		return unusedUnsortables - edge->countUnsortable();
 	};
 	if (!found.size() && !linkups.l.size() && !unsortableCount(edge)) {
-		OpContour* contour = edge->segment->contour;
-		OpIntersection* sect = nullptr;
-		// !!! is there an edge method that does this?
-		for (auto test : edge->segment->sects.i) {
-			if (test->ptT != edge->whichPtT())
-				continue;
-			sect = test;
-			break;
-		}
-		OP_ASSERT(sect);
-		OpIntersection* last = nullptr;
-		for (auto test : lastEdge->segment->sects.i) {
-			if (test->ptT != lastEdge->whichPtT(EdgeMatch::end))
-				continue;
-			last = test;
-			break;
-		}
-		OP_ASSERT(last);
-		OpEdge* filler = contour->addFiller(last, sect);
+		OpEdge* filler = edge->segment->contour->addFiller(edge, lastEdge);
 		if (!filler)
 			return false;
 		found.emplace_back(filler, EdgeMatch::start);
@@ -595,6 +577,13 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 		OpDebugOut("");  // allows setting a breakpoint when joining edge isn't found
 	}
 #endif
+	if (!found.size()) {  // last, last resort
+		OP_WARNING("no edge found: last, last resort\n");
+		OpEdge* filler = edge->segment->contour->addFiller(edge, lastEdge);
+		if (!filler)
+			return false;
+		found.emplace_back(filler, EdgeMatch::start);
+	}
 	OP_ASSERT(edge->segment->contour->contours->debugExpect == OpDebugExpect::unknown
 			|| found.size());
 	if (!found.size())  // triggered by fuzz763_1c

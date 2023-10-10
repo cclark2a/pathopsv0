@@ -27,8 +27,6 @@
 #define OP_TEST_SKIA 0
 #define OP_TEST_REGION 0
 
-// issue3517:  edge 970 and 692 are 1 hex bit from looping, but that isn't detected in matchlinks
-
 // grshapearcs1:  very complicated; defer. Asserts in OpWinder::AddLineCurveIntersection
 //                a 'more code needed?' alert that oSegment pinned to bounds
 
@@ -46,11 +44,14 @@
 //          follows a disabled edge instead of linking them. There is no natural link to use.
 //          Edges 547, 584 don't have matching debugRayMatch IDs. Not sure what to do.
 
-
-// post: use segment for center
 // loops47i: links edge 546 to 547 (the latter is inside an already-output'd loop)
-// tiger8b_x2: draws incorrectly (debug further)
-// tiger_8: fails in matching output edge (debug further)
+
+// tiger8: edges 706 and 767 are far apart but separated by a fairly straight line. Along that line
+//         are many edges, some of which are disabled and others have formed their own loops.
+//         Solve for now by adding a filler edge to close the gap, rather than failing.
+//         (emits debug string: "last, last resort")
+// tiger8b_x2: triggers "last, last" three times (other tiger tests also trigger, but do not fail)
+
 // tiger8a_1731: fails in addIfUR (requires extended)
 //         a tiny edge generates a zero length normal, triggering underflow
 //         maybe treating these edges as unsortable will be sufficient
@@ -71,16 +72,13 @@
 //              has nothing to connect to; but it should be able to connect to the unused half of
 //              edge 2489
 
-// thread_loops1: cubic is degenerate; asserts in incomplete code OpContour.cpp::64
-
 // fuzz_x1, fuzz_x2: succeeds in skia, fails in v0
 
 #define TEST_PATH_OP_EXCEPTIONS "loops47i", "battleOp33", "battleOp287", \
   "issue3651_2"
 #define TEST_PATH_OP_FAIL_EXCEPTIONS "grshapearcs1"
 #define TEST_PATH_OP_MAP_TO_FUZZ  "fuzzhang_1", "fuzz763_2674194"
-#define TEST_PATH_SIMPLIFY_EXCEPTIONS "testQuadratic75", "testQuadratic67x", \
-  "tiger8b", "tiger8b_x2", "tiger8"
+#define TEST_PATH_SIMPLIFY_EXCEPTIONS "testQuadratic75", "testQuadratic67x"
 #define TEST_PATH_SIMPLIFY_FAIL_EXCEPTIONS "grshapearc"
 #define TEST_PATH_SIMPLIFY_FUZZ_EXCEPTIONS ""
 #define TEST_PATH_SIMPLIFY_MAP_TO_FUZZ  "fuzz_x1", "fuzz_x2"
@@ -89,9 +87,9 @@
 #define LAPTOP_PATH_OP_MAP_TO_FUZZ "fuzz763_10022998"
 
 // when these tests are encountered, it and the remaining tests in the file are skipped
-#define TEST_PATH_OP_SKIP_REST "thread_circles104483", "thread_loops1"
+#define TEST_PATH_OP_SKIP_REST "thread_circles104483"
 
-#define TEST_PATH_OP_FIRST "" /* ""  e.g., "tiger8b_x2" test to debug */
-#define TEST_PATH_OP_SKIP_TO_FILE "" /* "cubic"  e.g., "tiger" to run this file only */
+#define TEST_PATH_OP_FIRST "" /* e.g., "tiger8b_x2" test to debug */
+#define TEST_PATH_OP_SKIP_TO_FILE "" /* e.g., "tiger" to run this file only */
 #define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */
 #endif

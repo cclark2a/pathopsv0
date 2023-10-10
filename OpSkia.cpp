@@ -16,54 +16,63 @@ bool PathSimplify(OpInPath path, OpOutPath result) {
     return PathOps(path, emptyPath, OpOperator::Union, result);
 }
 
+#if OP_DEBUG
+bool DebugPathSimplify(OpInPath path, OpOutPath result, 
+		OpDebugExpect expected, std::string testname) {
+    SkPath empty;
+	OpInPath emptyPath(&empty);
+    return DebugPathOps(path, emptyPath, OpOperator::Union, result, expected, testname);
+}
+#endif
+
 bool OpInPath::isInverted() const {
-	return skPath()->isInverseFillType();
+	return skPath(externalReference)->isInverseFillType();
 }
 
 void OpOutPath::setEmpty() {
-	skPath()->reset();
+	skPath(externalReference)->reset();
 }
 
 void OpOutPath::setInverted(bool wasInverted) {
     SkPathFillType fillType = wasInverted ? SkPathFillType::kInverseEvenOdd : SkPathFillType::kEvenOdd;
-    skPath()->setFillType(fillType);
+    skPath(externalReference)->setFillType(fillType);
 }
 
 #if OP_DEBUG_DUMP
 
 bool OpOutPath::debugIsEmpty() const {
-    return skPath()->isEmpty();
+    return skPath(externalReference)->isEmpty();
 }
 
 void dmp(const OpOutPath& outPath)  {
-    outPath.skPath()->dump();
+    ((SkPath*) outPath.externalReference)->dump();
 }
 
 #endif
 
-SkPoint OpPoint::toSkPoint() const {
-    return SkPoint::Make(x, y);
+static SkPoint toSkPoint(OpPoint pt) {
+    return SkPoint::Make(pt.x, pt.y);
 }
 
 void OpEdge::output(OpOutPath path) {
     SkPath* skpath = skPath(path.externalReference);
-    skpath->moveTo(whichPtT().pt.toSkPoint());
+    skpath->moveTo(toSkPoint(whichPtT().pt));
     const OpEdge* firstEdge = this;
     OpEdge* edge = this;
     do {
-        SkPoint skEndPt = edge->whichPtT(EdgeMatch::end).pt.toSkPoint();
+        SkPoint skEndPt = toSkPoint(edge->whichPtT(EdgeMatch::end).pt);
         OpType type = edge->type();
         if (OpType::line == type) 
             skpath->lineTo(skEndPt); 
         else {
-            SkPoint skCtrlPt0 = edge->ctrlPts[0].toSkPoint();
+            SkPoint skCtrlPt0 = toSkPoint(edge->ctrlPts[0]);
             if (OpType::quad == type) 
                 skpath->quadTo(skCtrlPt0, skEndPt); 
             else if (OpType::conic == type) 
                 skpath->conicTo(skCtrlPt0, skEndPt, edge->weight);
             else {
                 OP_ASSERT(OpType::cubic == type);
-                SkPoint skCtrlPt1 = edge->ctrlPts[1].toSkPoint();
+                SkPoint skCtrlPt1 = toSkPoint(edge->ctrlPts[1]);
                 if (EdgeMatch::end == edge->whichEnd)
                     std::swap(skCtrlPt0, skCtrlPt1);
                 skpath->cubicTo(skCtrlPt0, skCtrlPt1, skEndPt);
@@ -76,8 +85,6 @@ void OpEdge::output(OpOutPath path) {
 
 bool OpContours::build(OpInPath path, OpOperand operand) {
     const SkPath& skpath = *skPath(path.externalReference);
-//    if (!skpath.isFinite())
-//        return debugFail();
     setFillType(operand, SkPathFillType::kEvenOdd == skpath.getFillType()
             || SkPathFillType::kInverseEvenOdd == skpath.getFillType() 
             ? OpFillType::evenOdd : OpFillType::winding);

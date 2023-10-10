@@ -61,7 +61,8 @@ bool OpContour::addCubic(OpPoint pts[4]) {
     OpMath::ZeroTiny(pts, 4);
     // reduction to point if pt 0 equals pt 3 complicated since it requires pts 1, 2 be linear..
     if (pts[0] == pts[3]) { // !!! detect possible degenerate to code from actual test data
-        OP_ASSERT(pts[1] != pts[0] || pts[2] != pts[0]);
+        if (pts[1] == pts[0] && pts[2] == pts[0])
+            return true;
     }
     OpTightBounds bounds;
     OpCubic cubic(pts);
@@ -105,6 +106,30 @@ OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg
     next->set(t, seg, 0, 0, MatchEnds::none  
             OP_DEBUG_PARAMS(maker, line, file, reason, edge->id, oEdge->id));
     return next;
+}
+
+OpEdge* OpContour::addFiller(OpEdge* edge, OpEdge* lastEdge) {
+	// break this off into its own callable function
+	// as a last, last resort: do this rather than returning false
+	OpContour* contour = edge->segment->contour;
+	OpIntersection* sect = nullptr;
+	// !!! is there an edge method that does this?
+	for (auto test : edge->segment->sects.i) {
+		if (test->ptT != edge->whichPtT())
+			continue;
+		sect = test;
+		break;
+	}
+	OP_ASSERT(sect);
+	OpIntersection* last = nullptr;
+	for (auto test : lastEdge->segment->sects.i) {
+		if (test->ptT != lastEdge->whichPtT(EdgeMatch::end))
+			continue;
+		last = test;
+		break;
+	}
+	OP_ASSERT(last);
+	return contour->addFiller(last, sect);
 }
 
 OpEdge* OpContour::addFiller(OpIntersection* start, OpIntersection* end) {

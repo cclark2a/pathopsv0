@@ -9,9 +9,8 @@ struct OpInPath {
 	OpInPath(const void* ext) 
 		: externalReference(ext) {
 	}
-	const SkPath* skPath() const { return (const SkPath*) externalReference; }
-
 	bool isInverted() const;
+
 	const void* externalReference;
 };
 
@@ -23,8 +22,6 @@ struct OpOutPath {
 
 	void setEmpty();
 	void setInverted(bool wasInverted);
-	SkPath* skPath() { return (SkPath*) externalReference; }
-	const SkPath* skPath() const { return (const SkPath*) externalReference; }
 #if OP_DEBUG
 	bool debugIsEmpty() const;
 	int debugNextID(struct OpEdge* );
@@ -49,7 +46,9 @@ bool PathSimplify(OpInPath path, OpOutPath result);
 #if OP_DEBUG
 // entry point if operation success is already known
 bool DebugPathOps(OpInPath left, OpInPath right, OpOperator , OpOutPath result,
-        OpDebugExpect expected);
+        OpDebugExpect expected, std::string testname);
+bool DebugPathSimplify(OpInPath path, OpOutPath result, 
+		OpDebugExpect expected, std::string testname);
 #endif
 
 #endif

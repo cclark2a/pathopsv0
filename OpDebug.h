@@ -33,6 +33,7 @@ struct OpContours;
 
 #ifdef NDEBUG
 
+#define OP_ASSERT(expr)
 #define OP_DEBUG_PARAMS(...)
 #define OP_DEBUG_CODE(...)
 #define OP_DEBUG_VALIDATE_CODE(...)
@@ -40,9 +41,9 @@ struct OpContours;
 #define OP_DEBUG_DUMP 0
 #define OP_DEBUG_IMAGE 0
 #define OP_DEBUG_INITIALIZE_TO_SILENCE_WARNING
-#define OP_ASSERT(expr)
 #define OP_DEBUG_FAIL(object, returnValue) return returnValue
 #define OP_DEBUG_SUCCESS(object, returnValue) return returnValue
+#define OP_WARNING(str)
 
 #else
 
@@ -55,6 +56,9 @@ struct OpContours;
 #define OP_DEBUG_BREAK() __builtin_trap()
 #define OP_ASSERT(expr) assert(expr)
 #endif
+
+#define OP_WARNING(str) \
+		OpDebugOut(debugGlobalContours->debugTestname + ": " + std::string(str) + "\n")
 
 #if OP_DEBUG_FAST_TEST
 	#define OP_DEBUG_DUMP 0

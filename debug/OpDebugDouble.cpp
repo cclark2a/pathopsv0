@@ -1220,14 +1220,14 @@ void DebugOpClearInputs() {
 
 void DebugOpAdd(const OpInPath& input) {
     if (input.externalReference)
-        DebugOpBuild(*input.skPath(), debugInputs, ClipToBounds::clip);
+        DebugOpBuild(*(SkPath*)input.externalReference, debugInputs, ClipToBounds::clip);
 }
 
 void DebugOpFill(const OpInPath& input, uint32_t color) {
     if (!input.externalReference)
         return;
     debugFills.clear();
-    DebugOpBuild(*input.skPath(), debugFills, ClipToBounds::noClip);
+    DebugOpBuild(*(SkPath*)input.externalReference, debugFills, ClipToBounds::noClip);
     DebugOpFill(debugFills, color);
 }
 
@@ -1237,7 +1237,7 @@ void DebugOpDrawInputs() {
 
 void DebugOpDraw(const OpOutPath* output) {
     if (output->externalReference)
-        DebugOpBuild(*output->skPath(), debugOutputs, ClipToBounds::clip);
+        DebugOpBuild(*(SkPath*)output->externalReference, debugOutputs, ClipToBounds::clip);
     DebugOpDraw(debugOutputs, SK_ColorBLUE);
 }
 

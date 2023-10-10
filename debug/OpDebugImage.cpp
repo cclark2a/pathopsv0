@@ -306,6 +306,10 @@ void OpDebugImage::addToPath(const OpCurve& curve, SkPath& path) {
 	}
 }
 
+static SkPath* skPath(const OpInPath& opPath) {
+	return (SkPath*) opPath.externalReference;
+}
+
 void OpDebugImage::init(const OpInPath& left, const OpInPath& right) {
 	bitmap.allocPixels(SkImageInfo::MakeN32Premul(bitmapWH, bitmapWH));
 	::clear();
@@ -317,8 +321,8 @@ void OpDebugImage::init(const OpInPath& left, const OpInPath& right) {
 	drawRightOn = true;
 	drawSegmentEdgesOn = true;
 	drawTemporaryEdgesOn = true;
-	SkRect opBounds = left.skPath()->getBounds();
-	opBounds.join(right.skPath()->getBounds());
+	SkRect opBounds = skPath(left)->getBounds();
+	opBounds.join(skPath(right)->getBounds());
 	DebugOpSetBounds(opBounds.fLeft, opBounds.fTop, opBounds.fRight, opBounds.fBottom);
 }
 
@@ -418,6 +422,14 @@ void OpDebugImage::drawPath(const SkPath& path, uint32_t color) {
 	offscreen.drawPath(path, paint);
 }
 
+static SkPath* sk0() {
+	return (SkPath*) operands[0].externalReference;
+}
+
+static SkPath* sk1() {
+	return (SkPath*) operands[1].externalReference;
+}
+
 void OpDebugImage::drawDoubleFocus() {
 	OP_DEBUG_CODE(OpDebugDefeatDelete defeater);
 	std::vector<int> ids;
@@ -433,9 +445,9 @@ void OpDebugImage::drawDoubleFocus() {
 		matrix.preTranslate(-DebugOpGetCenterX(), -DebugOpGetCenterY());
 		matrix.postTranslate(DebugOpGetOffsetX(), DebugOpGetOffsetY());
 		if (drawLeftOn) 
-			drawDoubleFill(operands[0].skPath()->makeTransform(matrix), SkColorSetARGB(10, 255, 0, 0));
+			drawDoubleFill(sk0()->makeTransform(matrix), SkColorSetARGB(10, 255, 0, 0));
 		if (drawRightOn)
-			drawDoubleFill(operands[1].skPath()->makeTransform(matrix), SkColorSetARGB(10, 0, 0, 255));
+			drawDoubleFill(sk1()->makeTransform(matrix), SkColorSetARGB(10, 0, 0, 255));
 	}
 	if (drawHighlightOn)
 		DebugOpHighlight(highlights);
@@ -1124,7 +1136,7 @@ bool OpDebugImage::drawValue(OpPoint pt, std::string ptStr, uint32_t color) {
 							}
 						}
 						paint.setAlpha(63);
-						offscreen.drawLine(closestSide.toSkPoint(), pt.toSkPoint(), paint);
+						offscreen.drawLine(closestSide.x, closestSide.y, pt.x, pt.y, paint);
 					}
 					return true;
 				loopEnd:
@@ -1174,9 +1186,9 @@ void OpDebugImage::drawPoints() {
 		} while (verb != SkPath::kDone_Verb);
 	};
 	if (drawLeftOn)
-		drawPathPt(operands[0].skPath());
+		drawPathPt(sk0());
 	if (drawRightOn)
-		drawPathPt(operands[1].skPath());
+		drawPathPt(sk1());
 	if (drawSegmentsOn) {
 		for (auto seg : segmentIterator) {
 			DebugOpBuild(seg->c.pts[0]);
@@ -1216,9 +1228,9 @@ void OpDebugImage::drawPoints() {
 	if (drawLinesOn) {
 		for (const auto& line : lines) {
 			if (drawLeftOn)
-				DebugOpBuild(*operands[0].skPath(), line);
+				DebugOpBuild(*sk0(), line);
 			if (drawRightOn)
-				DebugOpBuild(*operands[1].skPath(), line);
+				DebugOpBuild(*sk1(), line);
 			if (drawSegmentsOn) {
 				for (auto seg : segmentIterator) {
 					DebugOpBuild(*seg, line);
@@ -1686,7 +1698,7 @@ void resetFocus() {
 		return OpDebugOut("missing operands\n");
 	OpPointBounds focusRect;
 	for (unsigned index = 0; index < operands.size(); ++index) {
-		SkRect skrect = operands[index].skPath()->getBounds();
+		SkRect skrect = ((SkPath*) operands[index].externalReference)->getBounds();
 		focusRect.left = std::min(skrect.fLeft, focusRect.left);
 		focusRect.top = std::min(skrect.fTop, focusRect.top);
 		focusRect.right = std::max(skrect.fRight, focusRect.right);

@@ -24,8 +24,6 @@ constexpr auto OpEpsilon = std::numeric_limits<float>::epsilon();
 #include "OpDebugDump.h"
 #include "OpDebugImage.h"
 
-struct SkPoint;
-
 // !!! move to OpTypes.h one day
 template <typename T, size_t N> char (&ArrayCountHelper(T (&array)[N]))[N];
 #define ARRAY_COUNT(array) (sizeof(ArrayCountHelper(array)))
@@ -426,7 +424,6 @@ struct OpPoint {
 
     void pin(const OpPoint , const OpPoint );
     void pin(const OpRect& );
-    SkPoint toSkPoint() const;
 
     void zeroTiny() {  // set denormalized inputs to zero
         if (fabsf(x) < OpEpsilon)
