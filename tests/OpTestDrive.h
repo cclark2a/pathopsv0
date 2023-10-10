@@ -65,10 +65,12 @@
 // thread_rects148636: draws incorrectly (debug further)
 // thread_rects148651: draws incorrectly (debug further)
 
-// issue3651_2: fails to find edge in matchLinks (debug further)
+// issue3651_2: very large test case; defer til later (fails with unmatched edge in joiner)
+//              possible explanation: edge 2489 is in output, but represents two edges (winding 1, 1)
+//              edge 2489 is connected to a single edge 2732 (winding 0, 1). Later, edge 2380
+//              has nothing to connect to; but it should be able to connect to the unused half of
+//              edge 2489
 
-// thread_cubics8753: draws incorrectly (debug further)
-// thread_cubics8754: draws incorrectly (debug further)
 // thread_loops1: cubic is degenerate; asserts in incomplete code OpContour.cpp::64
 
 // fuzz_x1, fuzz_x2: succeeds in skia, fails in v0
@@ -87,10 +89,9 @@
 #define LAPTOP_PATH_OP_MAP_TO_FUZZ "fuzz763_10022998"
 
 // when these tests are encountered, it and the remaining tests in the file are skipped
-#define TEST_PATH_OP_SKIP_REST "thread_circles104483", "thread_cubics8753", "thread_cubics8754", \
-  "thread_cubics50564", "thread_loops1"
+#define TEST_PATH_OP_SKIP_REST "thread_circles104483", "thread_loops1"
 
 #define TEST_PATH_OP_FIRST "" /* ""  e.g., "tiger8b_x2" test to debug */
-#define TEST_PATH_OP_SKIP_TO_FILE "" /* "cubics"  e.g., "tiger" to run this file only */
+#define TEST_PATH_OP_SKIP_TO_FILE "" /* "cubic"  e.g., "tiger" to run this file only */
 #define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */
 #endif

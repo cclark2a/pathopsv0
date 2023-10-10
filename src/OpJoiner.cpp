@@ -209,8 +209,10 @@ bool OpJoiner::linkRemaining() {
 			if (!linkups.l.size())
 				return true;
 		}
+		OP_DEBUG_VALIDATE_CODE(debugValidate());
         if (!matchLinks(lastEdge, true))
 			return false;
+		OP_DEBUG_VALIDATE_CODE(debugValidate());
 		OP_DEBUG_CODE(if (++debugLoopCounter < 0) OpDebugOut(""));  // allows seeing loop iteration that failed
     }
 	return true;
@@ -643,7 +645,7 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 				OpEdge* oppEdge = foundOne.edge;
 				// skip edges which flip the fill sum total, implying there is a third edge inbetween
 							   // e.g., one if normals point to different fill sums       
-				if (!trial && !foundOne.connects)
+				if (!trial && !foundOne.connects && !foundOne.loops)
 					continue;
 				// choose smallest closed loop -- this is an arbitrary choice
 				OpPointBounds testBounds = edge->advanceToEnd(EdgeMatch::start)->setLinkBounds();
