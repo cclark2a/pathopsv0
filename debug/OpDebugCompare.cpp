@@ -33,7 +33,7 @@ void OpDebugCompare::close() {
 
 void OpDebugCompare::edges(const OpEdge* edge, const OpEdge* opp) {
 	std::string nextStr = "e:" + STR(edge->id) + " o:" + STR(opp->id)
-		+ " id:" + STR(debugGlobalContours->id);
+		+ " id:" + STR(edge->contour->contours->id);
 	if (bufferPtr) {
 		const char* limit = strchr(bufferPtr, '\n');
 		int lf = 0;

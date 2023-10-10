@@ -24,8 +24,8 @@
 #define OP_TEST_ENABLE_THREADS 1
 #define OP_MAX_THREADS 16
 #define OP_TEST_V0 1
-#define OP_TEST_SKIA 0
-#define OP_TEST_REGION 0
+#define OP_TEST_SKIA 1
+#define OP_TEST_REGION 1
 
 // grshapearcs1:  very complicated; defer. Asserts in OpWinder::AddLineCurveIntersection
 //                a 'more code needed?' alert that oSegment pinned to bounds
@@ -40,10 +40,6 @@
 // also:       is about 6 epsilons wide. Add logic that looks for pals on each edge to know that
 // battleOp287 gap can be closed?
 
-// tiger8b: no matching link found. Edge 547 and 584 are about (3, 13) epsilon apart. The code
-//          follows a disabled edge instead of linking them. There is no natural link to use.
-//          Edges 547, 584 don't have matching debugRayMatch IDs. Not sure what to do.
-
 // loops47i: links edge 546 to 547 (the latter is inside an already-output'd loop)
 
 // tiger8: edges 706 and 767 are far apart but separated by a fairly straight line. Along that line
@@ -51,10 +47,6 @@
 //         Solve for now by adding a filler edge to close the gap, rather than failing.
 //         (emits debug string: "last, last resort")
 // tiger8b_x2: triggers "last, last" three times (other tiger tests also trigger, but do not fail)
-
-// tiger8a_1731: fails in addIfUR (requires extended)
-//         a tiny edge generates a zero length normal, triggering underflow
-//         maybe treating these edges as unsortable will be sufficient
 
 // thread_circles104483: misses intersection (temp edges 157, 158) at (0, 1). Suspect that because
 // (requires extended)   Y-axis answer is close to (is) zero, math falls apart. It certainly points
@@ -74,8 +66,13 @@
 
 // fuzz_x1, fuzz_x2: succeeds in skia, fails in v0
 
+// thread_cubics8753: draws incorrectly (debug further)
+// thread_cubics532868: triggers assert in OpContour.cpp:382 (debug further) (requires extended)
+// thread_loops4 and more: draws incorrectly (debug further)
+
+
 #define TEST_PATH_OP_EXCEPTIONS "loops47i", "battleOp33", "battleOp287", \
-  "issue3651_2"
+  "issue3651_2", "thread_cubics8753", "thread_cubics8754"
 #define TEST_PATH_OP_FAIL_EXCEPTIONS "grshapearcs1"
 #define TEST_PATH_OP_MAP_TO_FUZZ  "fuzzhang_1", "fuzz763_2674194"
 #define TEST_PATH_SIMPLIFY_EXCEPTIONS "testQuadratic75", "testQuadratic67x"

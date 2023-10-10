@@ -5,6 +5,9 @@
 #include "OpSegment.h"
 #include "OpTightBounds.h"
 #include <vector>
+#if OP_DEBUG
+#include <atomic>
+#endif
 
 enum class EdgeMatch : uint8_t;
 struct FoundEdge;
@@ -209,6 +212,7 @@ struct OpContours {
 #if OP_DEBUG
     void debugRemap(int oldRayMatch, int newRayMatch);
     bool debugSuccess() const;
+    void debugWarning(std::string ) const;
 #endif
 #if OP_DEBUG_DUMP
     void debugCompare(std::string s) const;

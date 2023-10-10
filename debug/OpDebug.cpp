@@ -13,12 +13,12 @@ constexpr auto to_array(T&&... t)->std::array < V, sizeof...(T) > {
         OP_ASSERT(0);
 #endif
 
-#if OP_DEBUG || OP_DEBUG_IMAGE || OP_DEBUG_DUMP
+#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
 OpContours* debugGlobalContours;
-int debugTestsRun = 0;
 #endif
 
 #if OP_DEBUG || OP_RELEASE_TEST
+#include <atomic>
 #include <string>
 #ifdef _WIN32
 #include <windows.h>
@@ -267,7 +267,8 @@ const OpEdge* OpEdge::debugAdvanceToEnd(EdgeMatch match) const {
 
 #if OP_DEBUG_VALIDATE
 void OpEdge::debugValidate() const {
-    debugGlobalContours->debugValidateEdgeIndex += 1;
+    OpContours* contours = segment->contour->contours;
+    contours->debugValidateEdgeIndex += 1;
     bool loopy = debugIsLoop();
     if (loopy) {
         const OpEdge* test = this;
@@ -277,13 +278,13 @@ void OpEdge::debugValidate() const {
 //            OP_ASSERT(!test->lastEdge);
             test = test->nextEdge;
         } while (test != this);
-    } else if ((priorEdge || lastEdge) && debugGlobalContours->debugCheckLastEdge) {
+    } else if ((priorEdge || lastEdge) && contours->debugCheckLastEdge) {
         const OpEdge* linkStart = debugAdvanceToEnd(EdgeMatch::start);
         const OpEdge* linkEnd = debugAdvanceToEnd(EdgeMatch::end);
         OP_ASSERT(linkStart);
         OP_ASSERT(linkEnd);
-        OP_ASSERT(debugGlobalContours->debugCheckLastEdge ? !!linkStart->lastEdge : !linkStart->lastEdge);
-        OP_ASSERT(debugGlobalContours->debugCheckLastEdge ? linkStart->lastEdge == linkEnd : true);
+        OP_ASSERT(contours->debugCheckLastEdge ? !!linkStart->lastEdge : !linkStart->lastEdge);
+        OP_ASSERT(contours->debugCheckLastEdge ? linkStart->lastEdge == linkEnd : true);
         const OpEdge* test = linkStart;
         while ((test = test->nextEdge)) {
             OP_ASSERT(!test->lastEdge);
@@ -358,6 +359,16 @@ void OpContours::debugRemap(int oldRayMatch, int newRayMatch) {
     }
 }
 
+std::atomic_int testsWarn;
+
+void OpContours::debugWarning(std::string str) const {
+	if (debugExpect != OpDebugExpect::unknown) {
+		OpDebugOut(debugTestname + ": " + std::string(str) + "\n");
+        testsWarn++;
+	}
+}
+
+
 // assign the same ID for all edges linked together
 // also assign that ID to edges whose non-zero crossing rays attach to those edges
 void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContours* contours)) {
@@ -413,8 +424,9 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContours* contours)) {
 #endif
                 if (dTest)
                     linkup->debugMatch = dTest;
-                else
-                    OpDebugOut("wind zero missing: edge " + STR(linkup->id) + "\n");
+// if verbose...
+//                else
+//                    OpDebugOut("wind zero missing: edge " + STR(linkup->id) + "\n");
             }
 #if OP_DEBUG
             if (!dTest)
@@ -428,13 +440,15 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContours* contours)) {
             if ((WindZero::opp == distZero) != (WindZero::opp == linkZero)) {
                 if (!dTest->inOutput) {
                     dTest->debugZeroErr = linkup;
-                    OpDebugOut("wind zero mismatch: edges " + STR(dTest->id) + ", " 
-                            + STR(linkup->id) + "\n");
+// if verbose...
+//                    OpDebugOut("wind zero mismatch: edges " + STR(dTest->id) + ", " 
+//                            + STR(linkup->id) + "\n");
                 }
                 if (!linkup->inOutput) {
                     linkup->debugZeroErr = dTest;
-                    OpDebugOut("wind zero mismatch: edges " + STR(linkup->id) + ", " 
-                            + STR(dTest->id) + "\n");
+// if verbose...
+//                    OpDebugOut("wind zero mismatch: edges " + STR(linkup->id) + ", " 
+//                            + STR(dTest->id) + "\n");
                 }
             }
 #endif
@@ -492,8 +506,14 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContours* contours)) {
 #if OP_DEBUG_VALIDATE
 // !!! also debug prev/next edges (links)
 void OpJoiner::debugValidate() const {
-    debugGlobalContours->debugValidateJoinerIndex += 1;
-    debugGlobalContours->debugCheckLastEdge = false;
+    OpEdge* anEdge = byArea.size() ? byArea[0] : unsectByArea.size() ? unsectByArea[0] : 
+            disabled.size() ? disabled[0] : unsortables.size() ? unsortables[0] :
+            linkups.l.size() ? linkups.l[0] : nullptr;
+    if (!anEdge)
+        return;
+    OpContours* contours = anEdge->segment->contour->contours;
+    contours->debugValidateJoinerIndex += 1;
+    contours->debugCheckLastEdge = false;
     if (LinkPass::unambiguous == linkPass) {
         for (auto edge : byArea) {
             edge->debugValidate();
@@ -512,7 +532,7 @@ void OpJoiner::debugValidate() const {
         edge->debugValidate();
         OP_ASSERT(!edge->isActive() || !edge->debugIsLoop());
     }
-    debugGlobalContours->debugCheckLastEdge = true;
+    contours->debugCheckLastEdge = true;
     for (auto edge : linkups.l) {
         edge->debugValidate();
         OP_ASSERT(!edge->priorEdge);

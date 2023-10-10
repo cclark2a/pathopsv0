@@ -43,7 +43,7 @@ struct OpContours;
 #define OP_DEBUG_INITIALIZE_TO_SILENCE_WARNING
 #define OP_DEBUG_FAIL(object, returnValue) return returnValue
 #define OP_DEBUG_SUCCESS(object, returnValue) return returnValue
-#define OP_WARNING(str)
+#define OP_WARNING(contours, str)
 
 #else
 
@@ -57,8 +57,7 @@ struct OpContours;
 #define OP_ASSERT(expr) assert(expr)
 #endif
 
-#define OP_WARNING(str) \
-		OpDebugOut(debugGlobalContours->debugTestname + ": " + std::string(str) + "\n")
+#define OP_WARNING(contours, str) contours->debugWarning(str)
 
 #if OP_DEBUG_FAST_TEST
 	#define OP_DEBUG_DUMP 0
@@ -137,7 +136,9 @@ struct OpDebugMaker {
 	int line;
 };
 
+#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
 extern OpContours* debugGlobalContours;
+#endif
 
 float OpDebugBitsToFloat(int32_t);
 std::string OpDebugDump(float);

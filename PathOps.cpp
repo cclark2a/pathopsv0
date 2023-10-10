@@ -4,7 +4,7 @@
 
 bool PathOps(OpInPath left, OpInPath right, OpOperator opOperator, OpOutPath result) {
     OpContours contourList(left, right, opOperator);
-#if OP_DEBUG || OP_DEBUG_IMAGE || OP_DEBUG_DUMP
+#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = &contourList;
 #endif
 #if OP_DEBUG_IMAGE
@@ -24,7 +24,9 @@ bool DebugPathOps(OpInPath left, OpInPath right, OpOperator opOperator, OpOutPat
     contourList.debugInPathOps = true;
     contourList.debugInClearEdges = false;
     contourList.debugTestname = testname;
+#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = &contourList;
+#endif
 #if OP_DEBUG_IMAGE
     OpDebugImage::init(left.externalReference, right.externalReference);
     oo();

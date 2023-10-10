@@ -578,7 +578,7 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 	}
 #endif
 	if (!found.size()) {  // last, last resort
-		OP_WARNING("no edge found: last, last resort\n");
+		OP_WARNING(edge->segment->contour->contours, "no edge found: last, last resort\n");
 		OpEdge* filler = edge->segment->contour->addFiller(edge, lastEdge);
 		if (!filler)
 			return false;

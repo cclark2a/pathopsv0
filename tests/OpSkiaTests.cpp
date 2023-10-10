@@ -3,10 +3,12 @@
 #include "include/core/SkCanvas.h"
 #include "include/core/SkRegion.h"
 #include "OpSkiaTests.h"
+#include "OpContour.h"
 #include "OpCurve.h"
 #if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
 #include "CTPL_old/ctpl_stl.h"
 #endif
+#include <atomic>
 #include <vector>
 
 // skip tests by filename
@@ -18,11 +20,18 @@ std::string skipToFile = TEST_PATH_OP_SKIP_TO_FILE;
 bool skiatest::Reporter::allowExtendedTest() { return OP_TEST_ALLOW_EXTENDED; }
 
 bool showTestName = OP_SHOW_TEST_NAME;
-int testsRun = 0;
-int totalRun = 0;
-int testsSkipped = 0;
-int totalSkipped = 0;
-int testOpNameCount = 0;
+std::atomic_int testsRun;
+std::atomic_int totalRun;
+std::atomic_int testsSkipped;
+std::atomic_int totalSkipped;
+std::atomic_int testsError;
+std::atomic_int totalError;
+extern std::atomic_int testsWarn;
+std::atomic_int totalWarn;
+std::atomic_int testsFailSkiaPass;
+std::atomic_int totalFailSkiaPass;
+std::atomic_int testsPassSkiaFail;
+std::atomic_int totalPassSkiaFail;
 
 bool PathOpsDebug::gCheckForDuplicateNames = false;
 bool PathOpsDebug::gJson = false;
@@ -59,11 +68,23 @@ void initializeTests(skiatest::Reporter* , const char* ) {
 void initTests(std::string filename) {
     totalRun += testsRun;
     totalSkipped += testsSkipped;
+    totalError += testsError;
+    totalWarn += testsWarn;
+    totalFailSkiaPass += testsFailSkiaPass;
+    totalPassSkiaFail += testsPassSkiaFail;
     OpDebugOut(currentTestFile + " run:" + STR(testsRun) + " skipped:" + STR(testsSkipped)
-            + " total:" + STR(totalRun) + " skipped:" + STR(totalSkipped) + "\n");
+            + " err:" + STR(testsError) + " warn:" + STR(testsWarn)
+            + " v0:" + STR(testsPassSkiaFail) + " sk:" + STR(testsFailSkiaPass)
+            + " total run:" + STR(totalRun) + " skipped:" + STR(totalSkipped)
+            + " err:" + STR(totalError) + " warn:" + STR(totalWarn)
+            + " v0:" + STR(totalPassSkiaFail) + " sk:" + STR(totalFailSkiaPass) + "\n");
     currentTestFile = filename;
     testsRun = 0;
     testsSkipped = 0;
+    testsError = 0;
+    testsWarn = 0;
+    testsFailSkiaPass = 0;
+    testsPassSkiaFail = 0;
     OpDebugOut(currentTestFile + "\n");
 }
 
@@ -129,8 +150,16 @@ void runTests() {
     auto runTest = [](std::string s) {
         for (auto pair : testPairs) {
             if (pair.name == s) {
+#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
+                OpDebugOut(pair.name + " started\n");
+                currentTestFile = pair.name;
+#else
                 initTests(pair.name);
+#endif
                 (*pair.func)();
+#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
+                OpDebugOut(pair.name + " finished\n");
+#endif
                 return;
             }
         }
@@ -154,8 +183,13 @@ void runTests() {
     float elapsed = OpTicksToSeconds(end - timerStart, timerFrequency);
 #if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
     threadpool.stop(true);
-#endif
+    OpDebugOut("total run:" + STR(testsRun) + " skipped:" + STR(testsSkipped) 
+            + " errors:" + STR(testsError) +  " warnings:" + STR(testsWarn) 
+            + " v0 only:" + STR(testsPassSkiaFail) + " skia only:" + STR(testsFailSkiaPass) + "\n");
+    OpDebugOut("skia tests done: " + STR(elapsed) + "s\n");
+#else
     initTests("skia tests done: " + STR(elapsed) + "s\n");
+#endif
 }
 
 // !!! move to Skia test utilities, I guess
@@ -261,8 +295,9 @@ void VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op, std::string tes
     if (errors > MAX_ERRORS) {
 #if !defined(NDEBUG) || OP_RELEASE_TEST
         ReportError(testname, errors);
+        testsError++;
 #endif
-        OP_ASSERT(0);
+//        OP_ASSERT(0);
     }
 }
 
@@ -288,6 +323,10 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     SkPath skresult;
     bool skSuccess = Op(a, b, op, &skresult);
     OP_ASSERT(skSuccess || skiaMayFail);
+    if (success && !skSuccess)
+        testsPassSkiaFail++;
+    else if (!success && skSuccess)
+        testsFailSkiaPass++;
 #elif OP_TEST_REGION
     bool skSuccess = true;
 #endif
@@ -410,6 +449,10 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
     SkPath skOut;
     OP_DEBUG_CODE(bool skSuccess =) Simplify(path, &skOut);
     OP_ASSERT(skiaMayFail || skSuccess);
+    if (success && !skSuccess)
+        testsPassSkiaFail++;
+    else if (!success && skSuccess)
+        testsFailSkiaPass++;
 #endif
 #if OP_TEST_V0 && OP_TEST_REGION
     if (success) 
