@@ -1,6 +1,7 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpContour.h"
 #include "OpCurveCurve.h"
+#include "OpDebugRecord.h"
 #include "OpSegment.h"
 #include "OpSegments.h"
 #include "OpWinder.h"
@@ -29,7 +30,7 @@ OpSegments::OpSegments(OpContours& contours) {
     std::sort(inX.begin(), inX.end(), compareXBox);
 }
 
-// !!! I'm bothered that curve / curve calls a different form of this with edges
+// somewhat different from 
 void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
     OP_ASSERT(opp != seg);
     OP_ASSERT(OpType::line == seg->c.type);
@@ -185,10 +186,22 @@ FoundIntersections OpSegments::findIntersections() {
                     if (IntersectResult::yes == lineCoin)
                         continue;
                 }
+#if OP_DEBUG_RECORD
+                OpDebugRecordPause();
+#endif
                 AddLineCurveIntersection(opp, seg);
+#if OP_DEBUG_RECORD
+                OpDebugRecordResume();
+#endif
                 continue;
             } else if (OpType::line == opp->c.type) {
+#if OP_DEBUG_RECORD
+                OpDebugRecordPause();
+#endif
                 AddLineCurveIntersection(seg, opp);
+#if OP_DEBUG_RECORD
+                OpDebugRecordResume();
+#endif
                 continue;
             }
             // check if segments share endpoints
@@ -241,6 +254,10 @@ FoundIntersections OpSegments::findIntersections() {
             if ((sharesHorizontal || sharesVertical) && MatchEnds::none != existing)
                 continue;
             // look for curve curve intersections (skip coincidence already found)
+//            OpDebugBreakIf(seg, 4, 7 == opp->id);
+//            OpDebugBreakIf(seg, 2, 7 == opp->id);
+//            OpDebugBreakIf(seg, 7, 4 == opp->id);
+//            OpDebugBreakIf(seg, 7, 2 == opp->id);
             seg->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(segSect)));
             opp->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(oppSect)));
             OpCurveCurve cc(&seg->edges.back(), &opp->edges.back());

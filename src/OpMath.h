@@ -36,18 +36,21 @@ typedef double OpCubicFloatType;
 // then add two more in case error in root finding misses roots at zero and one
 struct OpRoots {
     OpRoots() 
-        : count(0) {
+        : count(0)
+        , rawIntersectFailed(false) {
         OP_DEBUG_CODE(roots[0] = OpNaN);
     }
 
     OpRoots(int ) = delete; // disallow old pattern that returned number of roots
 
     OpRoots(float one)
-        : count(1) {
+        : count(1)
+        , rawIntersectFailed(false) {
         roots[0] = one;
     }
 
-    OpRoots(float one, float two) {
+    OpRoots(float one, float two)
+        : rawIntersectFailed(false) {
         count = 1 + (one != two);
         roots[0] = one;
         roots[1] = two;
@@ -55,7 +58,8 @@ struct OpRoots {
 
     // testing only
 #if OP_RELEASE_TEST
-    OpRoots(float one, float two, float three) {
+    OpRoots(float one, float two, float three)
+        : rawIntersectFailed(false) {
         count = 3;
         roots[0] = one;
         roots[1] = two;
@@ -113,6 +117,7 @@ struct OpRoots {
 
     std::array<float, 5> roots;
     size_t count;
+    bool rawIntersectFailed;
 };
 
 #if OP_DEBUG

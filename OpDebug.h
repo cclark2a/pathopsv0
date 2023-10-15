@@ -111,7 +111,6 @@ enum class OpDebugExpect {
 #endif
 
 #if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE
-class SkPath;
 
 #if OP_DEBUG
 #define OP_DEBUG_STR_ID(x) OpDebugStr(x->id)
@@ -138,12 +137,11 @@ struct OpDebugMaker {
 
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
 extern OpContours* debugGlobalContours;
+extern bool debugHexFloat;
 #endif
 
 float OpDebugBitsToFloat(int32_t);
-std::string OpDebugDump(float);
 std::string OpDebugDumpHex(float);
-std::string OpDebugDumpHexToFloat(float);
 int32_t OpDebugFloatToBits(float);
 float OpDebugHexToFloat(const char*& str);
 int32_t OpDebugHexToInt(const char*& str);

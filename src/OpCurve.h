@@ -32,6 +32,32 @@ struct LinePts {
     std::array<OpPoint, 2> pts;
 };
 
+// used to pass pairs of values where SIMD allows computing two at once
+struct OpPair {
+    friend OpPair operator+(OpPair a, OpPair b) {
+        return { a.s + b.s, a.l + b.l };
+    }
+
+    friend OpPair operator-(float a, OpPair b) {
+        return { a - b.s, a - b.l };
+    }
+
+    friend OpPair operator*(OpPair a, OpPair b) {
+        return { a.s * b.s, a.l * b.l };
+    }
+
+    friend OpPair operator*(float a, OpPair b) {
+        return { a * b.s, a * b.l };
+    }
+
+    friend OpPair operator*(OpPair a, float b) {
+        return { a.s * b, a.l * b };
+    }
+
+    float s;  // smaller
+    float l;  // larger
+};
+
 #define USE_SEGMENT_CENTER 1
 
 struct OpCurve {
@@ -109,6 +135,9 @@ struct OpCurve {
     // rotates curve in a space where line's (pt[0], pt[1]) moves to ((0, 0), (0, line[1].y - line[0].y))
     // curve scale is not preserved
     OpCurve toVertical(const LinePts& line) const;
+    // !!! thread_cubics8753 fails to find intersection of edges 54, 55; see if vertical is to blame
+    // OpCurve toVerticalDouble(const LinePts& line) const;
+    float tZeroX(float t1, float t2) const;
 
 #if OP_DEBUG_DUMP
     std::string debugDump() const;
@@ -234,7 +263,7 @@ struct OpCubic : OpCurve {
 //    OpRoots axisRayHit(Axis offset, float axisIntercept) const;
 //    OpRoots axisRayHit(Axis offset, float axisIntercept, OpPtT start, OpPtT end) const;
     OpCubicCoefficients coefficients(Axis offset) const;
-    OpPoint doublePtAtT(float t) const;
+//    OpPoint doublePtAtT(float t) const;  // unused
     OpRoots extrema(XyChoice ) const;
     OpRoots inflections() const;
     OpPoint interp(float t) const;
@@ -246,6 +275,8 @@ struct OpCubic : OpCurve {
     OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
     float tangent(XyChoice , double t) const;
     OpVector tangent(float t) const;
+    float tZeroX(float t1, float t2) const;
+    OpPair xAtT(OpPair ) const;
 #if OP_DEBUG
     OpVector debugTangent(float t) const;
 #endif

@@ -2,6 +2,7 @@
 #include <cmath>
 #include "OpContour.h"
 #include "OpCurveCurve.h"
+#include "OpDebugRecord.h"
 #include "OpSegment.h"
 #include "OpWinder.h"
 #include "PathOps.h"
@@ -243,24 +244,18 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 //     bugs that introduces
 // !!! I'm bothered that segment / segment calls a different form of this
 void OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bool secondAttempt) {
-#if 0 && OP_DEBUG
-	OP_ASSERT(edge.segment->c.ptAtT(edge.start.t) == edge.start.pt);
-	OP_ASSERT(edge.segment->c.ptAtT(edge.end.t) == edge.end.pt);
-	OP_ASSERT(opp.segment->c.ptAtT(opp.start.t) == opp.start.pt);
-	OP_ASSERT(opp.segment->c.ptAtT(opp.end.t) == opp.end.pt);
-#endif
 	OP_ASSERT(opp.segment != edge.segment);
 	OP_ASSERT(edge.isLine_impl);
 	LinePts edgePts { edge.start.pt, edge.end.pt };
-#define USE_SEGMENT_SECT 1
-#if USE_SEGMENT_SECT
     OpRoots septs = opp.segment->c.rayIntersect(edgePts);
-#else
-	const OpCurve& oppCurve = opp.setCurve();
-	OpRoots septs = oppCurve.rayIntersect(edgePts);
-#endif
-	if (!septs.count)
+	if (septs.rawIntersectFailed) {
+		// binary search on opp t-range to find where vert crosses zero
+		OpCurve rotated = opp.segment->c.toVertical(edgePts);
+		septs.roots[0] = rotated.tZeroX(opp.start.t, opp.end.t);
+		septs.count = 1;
+	} else if (!septs.count)
 		return;
+
 	// Note that coincident check does not receive intercepts as a parameter; in fact, the intercepts
 	// were not calculated (the roots are uninitialized). This is because coincident check will 
 	// compute the actual coincident start and end without the roots introducing error.
@@ -268,25 +263,19 @@ void OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bool secondAt
 		return (void) CoincidentCheck(edge, opp);
 	bool tInRange = false;
 	for (unsigned index = 0; index < septs.count; ++index) {
-#if USE_SEGMENT_SECT
 		if (opp.start.t > septs.get(index) || septs.get(index) > opp.end.t)
 			continue;
 		tInRange = true;
 		OpPtT oppPtT { opp.segment->c.ptAtT(septs.get(index)), septs.get(index) };
-#else
-		float oppT = OpMath::Interp(opp.start.t, opp.end.t, septs.get(index));
-		OpPtT oppPtT { oppCurve.ptAtT(septs.get(index)), oppT };
-#endif
 		float edgeT;
-#if USE_SEGMENT_SECT
 		FoundPtT foundPtT = edge.segment->findPtT(0, 1, oppPtT.pt, &edgeT);
-#else
-		FoundPtT foundPtT = edge.segment->findPtT(edge.start.t, edge.end.t, oppPtT.pt, &edgeT);
-#endif
 		if (FoundPtT::multiple == foundPtT)
 			return;
 		if (!OpMath::Between(0, edgeT, 1))
 			continue;
+#if OP_DEBUG_RECORD
+		OpDebugRecordSuccess(index);
+#endif
 		OpSegment* eSegment = const_cast<OpSegment*>(edge.segment);
 		if (0 == edgeT)
 			oppPtT.pt = eSegment->c.pts[0];
@@ -298,11 +287,7 @@ void OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bool secondAt
         oSegment->ptBounds.pin(&oppPtT.pt);
 //      eSegment->ptBounds.pin(&oppPtT.pt);	// !!! doubtful this is needed with contains test above
 //		OP_ASSERT(debugPt == oppPtT.pt);	// rarely needed, but still triggered (e.g., joel_15x)
-#if USE_SEGMENT_SECT
 		OpPtT edgePtT { oppPtT.pt, edgeT };
-#else
-		OpPtT edgePtT { oppPtT.pt, OpMath::Interp(edge.start.t, edge.end.t, edgeT) };
-#endif
 		if (eSegment->sects.alreadyContains(edgePtT, oSegment))
 			; // OP_ASSERT(oSegment->debugAlreadyContains(oppPtT.pt, eSegment));	// !!! debug loops51i
 		else {
@@ -315,8 +300,10 @@ void OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bool secondAt
 			sect->pair(oSect);
 		}
 	}
-	if (!tInRange && opp.isLine_impl && !secondAttempt)
+	if (!tInRange && opp.isLine_impl && !secondAttempt) {
+		OpDebugRecordStart(edge, opp);
 		AddLineCurveIntersection(edge, opp, true);
+	}
 }
 
 EdgeDistance* SectRay::find(OpEdge* edge) {
@@ -419,12 +406,6 @@ FindCept SectRay::findIntercept(OpEdge* test) {
 	OpPoint pt = testCurve.ptAtT(root);
 	Axis perpendicular = !axis;
 	float testXY = pt.choice(perpendicular);
-#if 0 && OP_DEBUG
-	OpDebugOut("testXY:" + OpDebugDumpHex(testXY) + " homeCept:" + OpDebugDumpHex(homeCept)
-			+ " nextafter:" + OpDebugDumpHex(std::nextafterf(testXY, homeCept))
-			+ " nextafter(testXY, homeCept) == homeCept:"
-			+ (std::nextafterf(testXY, homeCept) == homeCept ? "true\n" : "false\n"));
-#endif
 	bool reversed = tangent.dot(homeTangent) < 0;
 	distances.emplace_back(test, testXY, root, reversed);
 	return std::nextafterf(testXY, homeCept) == homeCept ? FindCept::unsectable : FindCept::ok;

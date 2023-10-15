@@ -7,18 +7,16 @@ bool LinePts::isPoint() const {
 
 bool OpCurve::isLinear() const {
     OP_ASSERT(type >= OpType::quad);
-    OpVector diffs[3];
+    OpVector diffs[2];
     diffs[0] = pts[1] - pts[0];
-    diffs[1] = pts[2] - pts[0];
+    diffs[1] = (OpType::cubic == type ? pts[3] : pts[2]) - pts[0];
     bool linear = fabsf(diffs[0].dx * diffs[1].dy - diffs[1].dx * diffs[0].dy) <= OpEpsilon;
     if (!linear)
         return false;
     if (OpType::cubic != type)
         return true;
-    diffs[2] = pts[3] - pts[0];
-    if (0 == diffs[0].dx && 0 == diffs[0].dy)
-        diffs[0] = diffs[1];
-    return fabsf(diffs[0].dx * diffs[2].dy - diffs[2].dx * diffs[0].dy) <= OpEpsilon;
+    diffs[0] = pts[2] - pts[0];
+    return fabsf(diffs[0].dx * diffs[1].dy - diffs[1].dx * diffs[0].dy) <= OpEpsilon;
 }
 
 OpLine& OpCurve::asLine() { OP_ASSERT(OpType::line == type); return *static_cast<OpLine*>(this); }
@@ -146,7 +144,7 @@ OpRoots OpCurve::rawIntersect(const LinePts& linePt) const {
 OpRoots OpCurve::rayIntersect(const LinePts& line) const {
     OpRoots rawRoots = rawIntersect(line);
     rawRoots.keepValidTs();
-    if (!rawRoots.count)
+    if (!rawRoots.count || rawRoots.rawIntersectFailed)
         return rawRoots;
     OpRoots realRoots;
     XyChoice xy = fabsf(line.pts[1].x - line.pts[0].x) >= fabsf(line.pts[1].y - line.pts[0].y) ?
@@ -234,20 +232,41 @@ OpVector OpCurve::tangent(float t) const {
     return OpVector();
 }
 
-// this can fail (if rotated pts are not finite); can happen when input is finite
-// however, callers include sort predicate, which cannot return failure; so don't return failure here
-OpCurve OpCurve::toVertical(const LinePts& line) const {
-#define TRY_DOUBLE 0 // mistaken in thinking this was required to fix a bug. Disable until needed
-#if TRY_DOUBLE
-    double adj = (double) line[1].x - line[0].x;
-    double opp = (double) line[1].y - line[0].y;
+// !!! incomplete while testing viability
+float OpCurve::tZeroX(float t1, float t2) const {
+    switch (type) {
+    case OpType::line: // return asLine().tZeroX(t1, t2);
+    case OpType::quad: // return asQuad().tZeroX(t1, t2);
+    case OpType::conic: // return asConic().tZeroX(t1, t2);
+    case OpType::cubic: return asCubic().tZeroX(t1, t2);
+    default:
+        OP_ASSERT(0);
+    }
+    return OpNaN;
+}
+
+// !!! debugging failure in thread_cubics8753
+#if 0
+OpCurve OpCurve::toVerticalDouble(const LinePts& line) const {
+    OpCurve rotated;
+    double adj = (double) line.pts[1].x - line.pts[0].x;
+    double opp = (double) line.pts[1].y - line.pts[0].y;
     for (int n = 0; n < pointCount(); ++n) {
-        double vdx = (double) pts[n].x - line[0].x;
-        double vdy = (double) pts[n].y - line[0].y;
+        double vdx = (double) pts[n].x - line.pts[0].x;
+        double vdy = (double) pts[n].y - line.pts[0].y;
         rotated.pts[n].x = (float) (vdy * adj - vdx * opp);
         rotated.pts[n].y = (float) (vdy * opp + vdx * adj);
     }
-#else
+    rotated.weight = weight;
+    rotated.type = type;
+    OP_DEBUG_CODE(rotated.debugIntersect = debugIntersect);
+    return rotated;
+}
+#endif
+
+// this can fail (if rotated pts are not finite); can happen when input is finite
+// however, callers include sort predicate, which cannot return failure; so don't return failure here
+OpCurve OpCurve::toVertical(const LinePts& line) const {
     OpCurve rotated;
     float adj = line.pts[1].x - line.pts[0].x;
     float opp = line.pts[1].y - line.pts[0].y;
@@ -256,7 +275,6 @@ OpCurve OpCurve::toVertical(const LinePts& line) const {
         rotated.pts[n].x = v.dy * adj - v.dx * opp;
         rotated.pts[n].y = v.dy * opp + v.dx * adj;
     }
-#endif
     rotated.weight = weight;
     rotated.type = type;
     OP_DEBUG_CODE(rotated.debugIntersect = debugIntersect);

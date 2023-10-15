@@ -795,7 +795,7 @@ std::string OpCurve::debugDump() const {
     }
     s += " }";
     if (1 != weight)
-        s += " w:" + OpDebugDump(weight);
+        s += " w:" + STR(weight);
     s += " " + (OpType::no <= type && type <= OpType::cubic ? names[(int) type] :
         "broken type [" + STR((int) type) + "]");
     return s;
@@ -813,7 +813,7 @@ std::string OpCurve::debugDumpHex() const {
     }
     s += "};";
     if (1 != weight)
-        s += "  // weight:" + OpDebugDumpHex(weight) + " // " + OpDebugDump(weight) + "\n";
+        s += "  // weight:" + OpDebugDumpHex(weight) + " // " + STR(weight) + "\n";
     s += "  // type:" + (OpType::no <= type && type <= OpType::cubic ? names[(int) type] :
         "broken type [" + STR((int) type) + "]");
     return s;
@@ -1050,7 +1050,7 @@ std::string OpEdge::debugDumpDetail() const {
         s += ctrlPts[i].debugDump() + ", ";
     s += end.debugDump() + "} ";
     if (1 != weight)
-        s += "w:" + OpDebugDump(weight) + " ";
+        s += "w:" + STR(weight) + " ";
     s += "\ncenter:" + center.debugDump() + " ";
     s += "\n";
     if (ptBounds.isSet())
@@ -1196,9 +1196,8 @@ std::string OpEdge::debugDump() const {
         s += ctrlPts[i].debugDump() + ", ";
     s += end.pt.debugDump() + "} ";
     if (1 != weight)
-        s += "w:" + OpDebugDump(weight) + " ";
-    s += "t{" + OpDebugDump(start.t) + ", " +
-        OpDebugDump(center.t) + ", " + OpDebugDump(end.t) + "}";
+        s += "w:" + STR(weight) + " ";
+    s += "t{" + STR(start.t) + ", " + STR(center.t) + ", " + STR(end.t) + "}";
 #if 0   // show bounds in detail view only
     if (ptBounds.isSet())
         s += "    pb:" + ptBounds.debugDump() + " ";
@@ -2178,7 +2177,7 @@ OpVector::OpVector(const char*& str) {
 }
 
 std::string OpVector::debugDump() const {
-    return "{" + OpDebugDump(dx) + ", " + OpDebugDump(dy) + "}";
+    return "{" + STR(dx) + ", " + STR(dy) + "}";
 }
 
 std::string OpVector::debugDumpHex() const {
@@ -2202,7 +2201,7 @@ OpPoint::OpPoint(const char*& str) {
 }
 
 std::string OpPoint::debugDump() const {
-    return "{" + OpDebugDump(x) + ", " + OpDebugDump(y) + "}";
+    return "{" + STR(x) + ", " + STR(y) + "}";
 }
 
 std::string OpPoint::debugDumpHex() const {
@@ -2253,7 +2252,7 @@ OpPtT::OpPtT(const char*& str) {
 }
 
 std::string OpPtT::debugDump() const {
-    return pt.debugDump() + " t:" + OpDebugDump(t);
+    return pt.debugDump() + " t:" + STR(t);
 }
 
 std::string OpPtT::debugDumpHex() const {
@@ -2269,8 +2268,7 @@ void dmpHex(const OpPtT& ptT) {
 }
 
 std::string OpRect::debugDump() const {
-    return "{" + OpDebugDump(left) + ", " + OpDebugDump(top) + ", "
-        + OpDebugDump(right) + ", " + OpDebugDump(bottom) + "}";
+    return "{" + STR(left) + ", " + STR(top) + ", " + STR(right) + ", " + STR(bottom) + "}";
 }
 
 std::string OpRect::debugDumpHex() const {
@@ -2282,7 +2280,7 @@ void OpRoots::dump() const {
     std::string s = "OpRoots roots {\n"
         "{{ ";
     for (size_t index = 0; index < count; ++index) {
-        s += OpDebugDump(roots[index]);
+        s += STR(roots[index]);
         if (index < count - 1)
             s += ", ";
     }
@@ -2301,7 +2299,7 @@ void dmpHex(const OpRoots& roots) {
         s += "  " + OpDebugDumpHex(roots.roots[index]);
         if (index < roots.count - 1)
             s += ", ";
-        s += "  // " + OpDebugDump(roots.roots[index]) + "\n";
+        s += "  // " + STR(roots.roots[index]) + "\n";
     }
     s += "}}, " + STR(roots.count) + " };\n";
     OpDebugOut(s);

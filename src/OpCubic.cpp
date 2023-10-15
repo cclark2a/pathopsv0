@@ -1,5 +1,6 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpCurve.h"
+#include "OpDebugRecord.h"
 #include <cmath>
 
 OpRoots OpCubic::axisRawHit(Axis axis, float axisIntercept) const {
@@ -50,15 +51,6 @@ OpPoint OpCubic::interp(float t) const {
     return abcd;
 }
 
-OpRoots OpCubic::rawIntersect(const LinePts& line) const {
-    if (line.pts[0].x == line.pts[1].x)
-        return axisRawHit(Axis::vertical, line.pts[0].x);
-    if (line.pts[0].y == line.pts[1].y)
-        return axisRawHit(Axis::horizontal, line.pts[0].y);
-    OpCurve rotated = toVertical(line);
-    return rotated.asCubic().axisRawHit(Axis::vertical, 0);
-}
-
 bool OpCubic::monotonic(XyChoice offset) const {
     const float* ptr = &pts[0].x + +offset;
     return OpMath::Between(ptr[0], ptr[2], ptr[6])
@@ -85,6 +77,7 @@ OpPoint OpCubic::ptAtT(float t) const {
     return a * pts[0] + b * pts[1] + c * pts[2] + d * pts[3];
 }
 
+#if 0 // unused
 OpPoint OpCubic::doublePtAtT(float t) const {
     if (0 == t)
         return pts[0];
@@ -102,6 +95,7 @@ OpPoint OpCubic::doublePtAtT(float t) const {
         (float)(a * pts[0].y + b * pts[1].y + c * pts[2].y + d * pts[3].y)
     };
 }
+#endif
 
 void OpCubic::pinCtrls(XyChoice offset) {
     OP_DEBUG_CODE(float orig1 = pts[1].choice(offset));
@@ -114,6 +108,32 @@ void OpCubic::pinCtrls(XyChoice offset) {
     if (orig2 != pts[2].choice(offset))
         *debugOriginalCtrls[1].asPtr(offset) = orig2;
 #endif
+}
+
+#define RAW_INTERSECT_LIMIT 0.00005f  // errors this large or larger mean the crossing was not found
+
+OpRoots OpCubic::rawIntersect(const LinePts& line) const {
+    if (line.pts[0].x == line.pts[1].x)
+        return axisRawHit(Axis::vertical, line.pts[0].x);
+    if (line.pts[0].y == line.pts[1].y)
+        return axisRawHit(Axis::horizontal, line.pts[0].y);
+    OpCurve rotated = toVertical(line);
+    OpRoots result = rotated.asCubic().axisRawHit(Axis::vertical, 0);
+    // for thread_cubics8753, edges 54 and 55 fail to find intersection; check for error here
+    for (size_t index = 0; index < result.count; ++index) {
+        float t = result.roots[index];
+        if (0 > t || t > 1)
+            continue;
+        OpPoint vertPt = rotated.asCubic().ptAtT(t);
+#if OP_DEBUG_RECORD
+        OpDebugRecord(rotated, t, vertPt, result);
+#endif
+        if (fabsf(vertPt.x) >= RAW_INTERSECT_LIMIT) {
+            result.rawIntersectFailed = true;
+            break;
+        }
+    }
+    return result;
 }
 
 OpCurve OpCubic::subDivide(OpPtT ptT1, OpPtT ptT2) const {
@@ -169,19 +189,47 @@ OpCurve OpCubic::subDivide(OpPtT ptT1, OpPtT ptT2) const {
     return result;
 }
 
-// !!! this does not handle if t == 0 and pt[0] == pt[1] or if t == 1 and pt[2] == pt[3]
-// don't think this is needed for pathops, but is used by debugging (image drawing)
-// for now, put the additional logic there
-float OpCubic::tangent(XyChoice offset, double t) const {
-    const float* ptr = &pts[0].x + +offset;
-    double one_t = 1 - t;
-    double a = ptr[0];
-    double b = ptr[2];
-    double c = ptr[4];
-    double d = ptr[6];
-    return 3 * ((b - a) * one_t * one_t + 2 * (c - b) * t * one_t + (d - c) * t * t);
+OpVector OpCubic::tangent(float t) const {
+    // !!! this does not handle if t == 0 and pt[0] == pt[1] or if t == 1 and pt[2] == pt[3]
+    // don't think this is needed for pathops, but is used by debugging (image drawing)
+    // for now, put the additional logic there
+    // !!! document why this needs to be double (include example test requiring it)
+    auto tangent = [this](XyChoice offset, double t) {
+        const float* ptr = &pts[0].x + +offset;
+        double one_t = 1 - t;
+        double a = ptr[0];
+        double b = ptr[2];
+        double c = ptr[4];
+        double d = ptr[6];
+        return (float) (3 * ((b - a) * one_t * one_t + 2 * (c - b) * t * one_t + (d - c) * t * t));
+    };
+    return { tangent(XyChoice::inX, t), tangent(XyChoice::inY, t) };
 }
 
-OpVector OpCubic::tangent(float t) const {
-    return { tangent(XyChoice::inX, t), tangent(XyChoice::inY, t) };
+float OpCubic::tZeroX(float t1, float t2) const {
+    OpPair endCheck = xAtT( { t1, t2 } );
+    if (endCheck.s * endCheck.l > 0)  // if both are non zero and same sign, there's no crossing
+        return OpNaN;
+    float mid = (t1 + t2) * .5;
+    float step = (mid - t1) * .5;
+    while (step > OpEpsilon) {
+        OpPair test = { mid - step, mid + step };
+        OpPair x = xAtT(test);
+        if (x.s * x.l > 0)  // both same sign?
+            mid = (x.s * endCheck.s > 0) ? test.l : test.s; // same as t1? use step towards t2
+        step = step * .5;
+    }
+    return mid;
+}
+
+// given a pair of t values, return a pair of x values
+OpPair OpCubic::xAtT(OpPair t) const {
+    OpPair one_t = 1 - t;
+    OpPair one_t2 = one_t * one_t;
+    OpPair a = one_t2 * one_t;
+    OpPair b = 3 * one_t2 * t;
+    OpPair t2 = t * t;
+    OpPair c = 3 * one_t * t2;
+    OpPair d = t2 * t;
+    return a * pts[0].x + b * pts[1].x + c * pts[2].x + d * pts[3].x;
 }

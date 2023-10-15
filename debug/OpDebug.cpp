@@ -15,6 +15,7 @@ constexpr auto to_array(T&&... t)->std::array < V, sizeof...(T) > {
 
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
 OpContours* debugGlobalContours;
+bool debugHexFloat = false;
 #endif
 
 #if OP_DEBUG || OP_RELEASE_TEST
@@ -119,26 +120,25 @@ std::string OpDebugDump(float f) {
     return s;
 }
 
+#if OP_DEBUG_DUMP || OP_DEBUG_IMAGE
 std::string OpDebugDumpHex(float f) {
-    std::string s = "0x";
-    int32_t hex = OpDebugFloatToBits(f);
-    for (int index = 28; index >= 0; index -= 4) {
-        int nybble = (hex >> index) & 0xF;
-        if (nybble <= 9)
-            s += '0' + nybble;
-        else 
-            s += 'a' + nybble - 10;
+    if (!debugHexFloat) {
+        std::string s = "0x";
+        int32_t hex = OpDebugFloatToBits(f);
+        for (int index = 28; index >= 0; index -= 4) {
+            int nybble = (hex >> index) & 0xF;
+            if (nybble <= 9)
+                s += '0' + nybble;
+            else 
+                s += 'a' + nybble - 10;
+        }
+        return s;
     }
-    return s;
+    char buffer[256];
+    int bytes = snprintf(buffer, sizeof(buffer), "%af", f);
+    return std::string(buffer, bytes);
 }
-
-void OpDumpHex(float f) {
-    OpDebugOut(OpDebugDumpHex(f));
-}
-
-std::string OpDebugDumpHexToFloat(float f) {
-    return "OpDebugBitsToFloat(" + OpDebugDumpHex(f) + ")";    
-}
+#endif
 
 int32_t OpDebugFloatToBits(float f) {
     FloatIntUnion d;
@@ -147,6 +147,7 @@ int32_t OpDebugFloatToBits(float f) {
 }
 
 float OpDebugHexToFloat(const char*& str) {
+    // !!! add support for hex float %a format
     FloatIntUnion d;
     d.i = OpDebugHexToInt(str);
     return d.f;

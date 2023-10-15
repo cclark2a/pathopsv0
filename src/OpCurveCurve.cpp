@@ -1,6 +1,7 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpContour.h"
 #include "OpCurveCurve.h"
+#include "OpDebugRecord.h"
 #include "OpSegment.h"
 #include "OpWinder.h"
 
@@ -141,7 +142,7 @@ SectFound OpCurveCurve::curvesIntersect(CurveRef curveRef) {
 */
 SectFound OpCurveCurve::divideAndConquer() {
 #if OP_DEBUG_IMAGE
-	bool breakAtDraw = 941 == originalEdge->id && 1964 == originalOpp->id;
+	bool breakAtDraw = 21 == originalEdge->id && 22 == originalOpp->id;
 	if (breakAtDraw) {
 		hideOperands();
 		hideSegmentEdges();
@@ -248,7 +249,13 @@ void OpCurveCurve::LinearIntersect(std::vector<OpEdge>& edgeParts,
 			opp.setPointBounds();
 			if (!edge.ptBounds.intersects(opp.ptBounds))
 				continue;
+#if OP_DEBUG_RECORD
+			OpDebugRecordStart(opp, edge);
+#endif
 			OpWinder::AddLineCurveIntersection(opp, edge);
+#if OP_DEBUG_RECORD
+			OpDebugRecordEnd();
+#endif
 		}
 	}
 }

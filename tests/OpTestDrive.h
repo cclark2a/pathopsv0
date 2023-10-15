@@ -2,6 +2,7 @@
 #ifndef OpTestDrive_DEFINED
 #define OpTestDrive_DEFINED
 
+// this isn't used yet, but works and provides an alternative to runningWithFMA()
 #if defined(__llvm__)
 #define OP_HAS_FMA
 #else
@@ -24,8 +25,9 @@
 #define OP_TEST_ENABLE_THREADS 1
 #define OP_MAX_THREADS 16
 #define OP_TEST_V0 1
-#define OP_TEST_SKIA 1
-#define OP_TEST_REGION 1
+#define OP_TEST_SKIA 1  // see if skia's path ops can execute the same test
+#define OP_TEST_REGION 1  // test result of v0 against skia regions
+#define OP_DEBUG_RECORD 0  // track some statistic or other while running
 
 // grshapearcs1:  very complicated; defer. Asserts in OpWinder::AddLineCurveIntersection
 //                a 'more code needed?' alert that oSegment pinned to bounds
@@ -66,13 +68,23 @@
 
 // fuzz_x1, fuzz_x2: succeeds in skia, fails in v0
 
-// thread_cubics8753: draws incorrectly (debug further)
+// thread_cubics8753: draws incorrectly (debug further) (+10 more)
+// thread_cubics70835: draws incorrectly (debug further) (+3 more)
+// thread_cubics113075: draws incorrectly (debug further) (+3 more)
 // thread_cubics532868: triggers assert in OpContour.cpp:382 (debug further) (requires extended)
 // thread_loops4 and more: draws incorrectly (debug further)
 
+/*
+recordVert
+{test=1 name="thread_cubics41649" x=9.24273991e-11 }
+recordSect
+{test=14387 name="thread_cubics8755" x=0.000223421957 }
+{test=1 name="thread_cubics8756" x=0.000223421957 }
+*/
 
 #define TEST_PATH_OP_EXCEPTIONS "loops47i", "battleOp33", "battleOp287", \
-  "issue3651_2", "thread_cubics8753", "thread_cubics8754"
+  "issue3651_2"
+// , "thread_cubics8753", "thread_cubics8754", "thread_cubics8755"
 #define TEST_PATH_OP_FAIL_EXCEPTIONS "grshapearcs1"
 #define TEST_PATH_OP_MAP_TO_FUZZ  "fuzzhang_1", "fuzz763_2674194"
 #define TEST_PATH_SIMPLIFY_EXCEPTIONS "testQuadratic75", "testQuadratic67x"
@@ -86,7 +98,7 @@
 // when these tests are encountered, it and the remaining tests in the file are skipped
 #define TEST_PATH_OP_SKIP_REST "thread_circles104483"
 
-#define TEST_PATH_OP_FIRST "" /* e.g., "tiger8b_x2" test to debug */
-#define TEST_PATH_OP_SKIP_TO_FILE "" /* e.g., "tiger" to run this file only */
+#define TEST_PATH_OP_FIRST "" /* e.g., "thread_cubics8753" test to debug */
+#define TEST_PATH_OP_SKIP_TO_FILE "" /* e.g., "cubic" to run this file only */
 #define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */
 #endif
