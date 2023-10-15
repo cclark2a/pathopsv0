@@ -63,6 +63,7 @@ struct OpJoiner {
 	LinkUps linkups;  // a structure to allow data specific debugging / dumping
 	EdgeMatch linkMatch;
 	LinkPass linkPass;
+	const OpEdge* baseUnsectable;
 	bool disabledBuilt;
 	bool disabledPalsBuilt;
 

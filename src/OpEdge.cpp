@@ -567,6 +567,17 @@ void OpEdge::skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) {
 			for (auto pal : found.edge->pals) {
 				if ((refsLinkups = pal.edge->inLinkups))
 					break;
+				OpEdge* test = this;
+				OP_ASSERT(!test->debugIsLoop());
+				do {
+					if ((refsLinkups = (test == pal.edge)))
+						break;
+				} while ((test = test->priorEdge));
+				test = this;
+				while ((test = test->nextEdge)) {
+					if ((refsLinkups = (test == pal.edge)))
+						break;
+				}
 			}
 			if (refsLinkups)
 				duplicates = true;

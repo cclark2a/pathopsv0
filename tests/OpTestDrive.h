@@ -13,16 +13,16 @@
 
 #define OP_DEBUG_FAST_TEST 1  // in a debug build: set to zero to enable debug dump, debug image
 
-#define OP_RELEASE_TEST 1	// !!! set to zero to remove tests from release build
+#define OP_RELEASE_TEST 1	// !!! set to zero to remove tests from release build (untested)
 
 #define OP_DEBUG_COMPARE 0	// set to one to compare successive runs
 #if OP_DEBUG_COMPARE
 #include "OpDebugCompare.h" // this hasn't been used in a long time and is likely broken
 #endif
 
-#define OP_SHOW_TEST_NAME 0
-#define OP_TEST_ALLOW_EXTENDED 0
-#define OP_TEST_ENABLE_THREADS 1
+#define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
+#define OP_TEST_ALLOW_EXTENDED 0  // some Skia tests have extended versions which take longer
+#define OP_TEST_ENABLE_THREADS 1  // additionally, fast test above must be 1 to use threading
 #define OP_MAX_THREADS 16
 #define OP_TEST_V0 1
 #define OP_TEST_SKIA 1  // see if skia's path ops can execute the same test
@@ -68,23 +68,13 @@
 
 // fuzz_x1, fuzz_x2: succeeds in skia, fails in v0
 
-// thread_cubics8753: draws incorrectly (debug further) (+10 more)
 // thread_cubics70835: draws incorrectly (debug further) (+3 more)
 // thread_cubics113075: draws incorrectly (debug further) (+3 more)
 // thread_cubics532868: triggers assert in OpContour.cpp:382 (debug further) (requires extended)
-// thread_loops4 and more: draws incorrectly (debug further)
-
-/*
-recordVert
-{test=1 name="thread_cubics41649" x=9.24273991e-11 }
-recordSect
-{test=14387 name="thread_cubics8755" x=0.000223421957 }
-{test=1 name="thread_cubics8756" x=0.000223421957 }
-*/
+// thread_loops54 and more: draws incorrectly (debug further)
 
 #define TEST_PATH_OP_EXCEPTIONS "loops47i", "battleOp33", "battleOp287", \
   "issue3651_2"
-// , "thread_cubics8753", "thread_cubics8754", "thread_cubics8755"
 #define TEST_PATH_OP_FAIL_EXCEPTIONS "grshapearcs1"
 #define TEST_PATH_OP_MAP_TO_FUZZ  "fuzzhang_1", "fuzz763_2674194"
 #define TEST_PATH_SIMPLIFY_EXCEPTIONS "testQuadratic75", "testQuadratic67x"

@@ -9,6 +9,7 @@ OpJoiner::OpJoiner(OpContours& contours, OpOutPath& p)
 	: path(p)
 	, linkMatch(EdgeMatch::none)
 	, linkPass(LinkPass::none)
+	, baseUnsectable(nullptr)
 	, disabledBuilt(false)
 	, disabledPalsBuilt(false) {
 	for (auto& contour : contours.contours) {
@@ -248,6 +249,7 @@ void OpJoiner::linkUnambiguous() {
             continue;
 		OP_ASSERT(!edge->priorEdge);
 		OP_ASSERT(!edge->nextEdge);
+		baseUnsectable = edge;
 		edge->whichEnd = EdgeMatch::start;
 		linkMatch = EdgeMatch::start;
 		if (!linkUp(edge))
