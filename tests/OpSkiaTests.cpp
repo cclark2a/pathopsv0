@@ -11,6 +11,33 @@
 #include <atomic>
 #include <vector>
 
+struct testPair {
+    void (*func)();
+    std::string name;
+};
+
+std::vector<testPair> testPairs = {
+    { run_battle_tests, "battle" },
+    { run_chalkboard_tests, "chalkboard" },
+    { run_fuzz763_tests, "fuzz763" },
+    { run_inverse_tests, "inverse" },
+    { run_issue3651_tests, "issue3651" },
+    { run_op_tests, "op" },
+    { run_op_circle_tests, "circle" },
+    { run_op_cubic_tests, "cubic" },
+    { run_op_loop_tests, "loop" },
+    { run_op_rect_tests, "rect" },
+    { run_simplify_tests, "simplify" },
+    { run_simplify_degenerate_tests, "simplifyDegenerate" },
+    { run_simplify_fail_tests, "simplifyFail" },
+    { run_simplify_quadralaterals_tests, "simplifyQuadralaterals" },
+    { run_simplify_quads_tests, "simplifyQuads" },
+    { run_simplify_rect_tests, "simplifyRect" },
+    { run_simplify_triangles_tests, "simplifyTriangles" },
+    { run_tiger_tests, "tiger" },
+    { run_v0_tests, "v0" },
+};
+
 // skip tests by filename
 std::vector<std::string> skipTestFiles = { TEST_PATH_OP_SKIP_FILES };
 std::vector<std::string> skipRestFiles = { TEST_PATH_OP_SKIP_REST };
@@ -115,33 +142,6 @@ bool skipTest(std::string name) {
     }
     return false;
 }
-
-struct testPair {
-    void (*func)();
-    std::string name;
-};
-
-std::vector<testPair> testPairs = {
-    { run_battle_tests, "battle" },
-    { run_chalkboard_tests, "chalkboard" },
-    { run_fuzz763_tests, "fuzz763" },
-    { run_inverse_tests, "inverse" },
-    { run_issue3651_tests, "issue3651" },
-    { run_op_tests, "op" },
-    { run_op_circle_tests, "circle" },
-    { run_op_cubic_tests, "cubic" },
-    { run_op_loop_tests, "loop" },
-    { run_op_rect_tests, "rect" },
-    { run_simplify_tests, "simplify" },
-    { run_simplify_degenerate_tests, "simplifyDegenerate" },
-    { run_simplify_fail_tests, "simplifyFail" },
-    { run_simplify_quadralaterals_tests, "simplifyQuadralaterals" },
-    { run_simplify_quads_tests, "simplifyQuads" },
-    { run_simplify_rect_tests, "simplifyRect" },
-    { run_simplify_triangles_tests, "simplifyTriangles" },
-    { run_tiger_tests, "tiger" },
-    { run_v0_tests, "v0" },
-};
 
 uint64_t timerFrequency;
 uint64_t timerStart;

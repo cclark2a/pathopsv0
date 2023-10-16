@@ -374,12 +374,7 @@ void playback() {
 	color##Thing##Color = 0xFF000000;
 	COLOR_LIST
 #undef OP_X
-	uint32_t* colorPtr = nullptr;
 	while (fgets(str, sizeof(str), file)) {
-		if (colorPtr) {
-			*colorPtr = std::stoul(str, nullptr, 16);
-			colorPtr = nullptr;
-		} else
 #define OP_X(Thing) \
 		if (strlen(str) - 1 == strlen(#Thing) && 0 == strncmp(#Thing, str, strlen(#Thing))) \
 			draw##Thing##On = true; \
@@ -390,9 +385,9 @@ void playback() {
 		if (strlen(str) - 1 == strlen("color" #Thing) && \
 				0 == strncmp("color" #Thing, str, strlen("color" #Thing))) \
 			color##Thing##On = true; \
-		else if (strlen(str) - 1 == strlen("color" #Thing "Color") && \
-				0 == strncmp("color" #Thing "Color", str, strlen("color" #Thing "Color"))) \
-			colorPtr = &color##Thing##Color; \
+		else if (size_t c##Thing = strlen("color" #Thing "Color: 0x"); strlen(str) - 1 > c##Thing \
+				&& 0 == strncmp("color" #Thing "Color: 0x", str, c##Thing)) \
+			color##Thing##Color = std::stoul(str + c##Thing, nullptr, 16); \
 		else
 	COLOR_LIST
 #undef OP_X
@@ -573,7 +568,7 @@ void record() {
 	if (color##Thing##On) \
 		fprintf(recordFile, "%s\n", "color" #Thing); \
 	if (color##Thing##Color != 0xFF000000) \
-		fprintf(recordFile, "0x%08x\n", color##Thing##Color);
+		fprintf(recordFile, "color" #Thing "Color: 0x%08x\n", color##Thing##Color);
 	COLOR_LIST
 #undef OP_X
 	fclose(recordFile);

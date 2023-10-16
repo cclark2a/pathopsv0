@@ -36,6 +36,12 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
     OP_ASSERT(OpType::line == seg->c.type);
     LinePts edgePts { seg->c.pts[0], seg->c.pts[1] };
     OpRoots septs = opp->c.rayIntersect(edgePts);
+	if (septs.rawIntersectFailed) {
+		// binary search on opp t-range to find where vert crosses zero
+		OpCurve rotated = opp->c.toVertical(edgePts);
+		septs.roots[0] = rotated.tZeroX(0, 1);
+		septs.count = 1;
+	}
     bool reversed;
     MatchEnds common = seg->matchEnds(opp, &reversed, nullptr, MatchSect::existing);
     if (!septs.count && MatchEnds::none == common)
@@ -83,11 +89,15 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
             if (edgePtTs[earlier - 1].t == edgePtT.t)
                 goto duplicate;
         }
+        if (seg->sects.contains(edgePtT, opp))
+            goto duplicate;
+        if (opp->sects.contains(oppPtT, seg))
+            goto duplicate;
         {
-            OpIntersection* sect = seg->addSegSect(edgePtT, opp  
-                    OP_DEBUG_PARAMS(SECT_MAKER(segmentLineCurve), SectReason::lineCurve));
-            OpIntersection* oSect = opp->addSegSect(oppPtT, seg  
-                    OP_DEBUG_PARAMS(SECT_MAKER(segmentLineCurveOpp), SectReason::lineCurve));
+            OpIntersection* sect = seg->addSegBase(edgePtT  
+                    OP_DEBUG_PARAMS(SECT_MAKER(segmentLineCurve), SectReason::lineCurve, opp));
+            OpIntersection* oSect = opp->addSegBase(oppPtT  
+                    OP_DEBUG_PARAMS(SECT_MAKER(segmentLineCurveOpp), SectReason::lineCurve, seg));
             sect->pair(oSect);
         }
 duplicate: ;

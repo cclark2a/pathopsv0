@@ -75,8 +75,11 @@ struct OpRoots {
     void addEnd(float root) {
         if (contains(root))
             return;
-        if (replaceClosest(root))
-            return;
+// !!! add in only called by segment line/curve, not edge line/curve
+// replaceClosest hides intersections when line hits curve in two places
+// suspect this is why thread_loops54 fails; see what else fails if this is removed
+//        if (replaceClosest(root))
+//            return;
         add(root);
     }
 
