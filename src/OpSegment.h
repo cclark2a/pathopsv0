@@ -101,6 +101,8 @@ struct OpSegment {
     int nextID() const { 
         return nextID(contour); }
     int nextID(OpContour* ) const;
+	void reenable() {
+		disabled = false; OP_DEBUG_CODE(debugZero = ZeroReason::uninitialized); }
 	void setDisabled(OP_DEBUG_CODE(ZeroReason reason));
     void windCoincidences();
 

@@ -1863,13 +1863,16 @@ std::string OpSegment::debugDumpDetail() const {
        }
     std::string s = debugDump() + "\n";
     s += " winding: " + winding.debugDump() + " ";
+    if (disabled)
+        s += "disabled ";
 #if OP_DEBUG
     if (ZeroReason::uninitialized != debugZero) {
-        s += " reason: ";
+        s += "reason: ";
         if (outOfDate)
             s += STR((int)debugZero);
         else
             s += std::string(debugReasonNames[(int)debugZero].name);
+        s += " ";
     }
 #endif
     if (recomputeBounds)

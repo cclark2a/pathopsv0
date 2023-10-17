@@ -144,6 +144,8 @@ void OpSegments::findCoincidences() {
                     seg->winding.move(opp->winding, seg->contour->contours, reversed);
                     if (!seg->winding.visible())
                         seg->setDisabled(OP_DEBUG_CODE(ZeroReason::findCoincidences));
+                    else if (seg->disabled)
+                        seg->reenable();
                     opp->winding.zero();
                     opp->setDisabled(OP_DEBUG_CODE(ZeroReason::findCoincidences));
                 }

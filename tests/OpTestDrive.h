@@ -61,10 +61,6 @@ thread_circles104483: misses intersection (temp edges 157, 158) at (0, 1). Suspe
 also:                 potentially into denormalized values and such. Use OpEpsilon if value is
 thread_circles104487  less than epsilon? Even that wouldn't necessarily save us here.
 
-thread_rects148587: four coincident lines mixing winding + xor; gets confused
-thread_rects148636: draws incorrectly (debug further)
-thread_rects148651: draws incorrectly (debug further)
-
 issue3651_2: very large test case; defer til later (fails with unmatched edge in joiner)
              possible explanation: edge 2489 is in output, but represents two edges (winding 1, 1)
              edge 2489 is connected to a single edge 2732 (winding 0, 1). Later, edge 2380
