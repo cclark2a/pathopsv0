@@ -50,7 +50,19 @@ OpRoots OpConic::rawIntersect(const LinePts& line) const {
     if (line.pts[0].y == line.pts[1].y)
         return axisRawHit(Axis::horizontal, line.pts[0].y);
     OpCurve rotated = toVertical(line);
-    return rotated.asConic().axisRawHit(Axis::vertical, 0);
+    OpRoots result = rotated.asConic().axisRawHit(Axis::vertical, 0);
+    // for thread_circles104483, edges 113 and 117 fail to find intersection; check for error here
+    for (size_t index = 0; index < result.count; ++index) {
+        float t = result.roots[index];
+        if (0 > t || t > 1)
+            continue;
+        OpPoint vertPt = rotated.asConic().ptAtT(t);
+        if (fabsf(vertPt.x) >= RAW_INTERSECT_LIMIT) {
+            result.rawIntersectFailed = true;
+            break;
+        }
+    }
+    return result;
 }
 
 bool OpConic::monotonic(XyChoice offset) const {
@@ -128,4 +140,29 @@ float OpConic::tangent(XyChoice offset, float t) const {
 
 OpVector OpConic::tangent(float t) const {
     return { tangent(XyChoice::inX, t), tangent(XyChoice::inY, t) };
+}
+
+float OpConic::tAtXY(float t1, float t2, XyChoice xy, float goal) const {
+    OpPair endCheck = xyAtT( { t1, t2 }, xy );
+    if (!OpMath::Between(endCheck.s, goal, endCheck.l))
+        return OpNaN;
+    float mid = (t1 + t2) * .5;
+    float step = (mid - t1) * .5;
+    while (step > OpEpsilon) {
+        OpPair test = { mid - step, mid + step };
+        OpPair x = xyAtT(test, xy);
+        bool ordered = x.s < x.l;
+        if (ordered ? goal < x.s : goal > x.s)
+            mid = test.s;
+        else if (ordered ? goal > x.l : goal < x.l)
+            mid = test.l;
+        step = step * .5;
+    }
+    return mid;
+}
+
+// given a pair of t values, return a pair of x values
+// !!! implementation is non-optimal; but see if it works at all, and wonder, who uses conics?
+OpPair OpConic::xyAtT(OpPair t, XyChoice xy) const {
+    return { ptAtT(t.s).choice(xy), ptAtT(t.l).choice(xy) };
 }

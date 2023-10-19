@@ -98,13 +98,19 @@ void OpWinder::AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped, OpPtT cPtT
 	float oTRange = dPtT.t - cPtT.t;
 	OpPtT oCoinStart { ptTAorB.pt, cPtT.t + (eStart - oStart) / (oEnd - oStart) * oTRange };
 	OP_ASSERT(OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t));
-	OpIntersection* sect = segment->addCoin(ptTAorB, coinID, match, oppSegment
-			OP_DEBUG_PARAMS(SECT_MAKER(addMix), SectReason::coinPtsMatch));
-	OpIntersection* oSect = oppSegment->addCoin(oCoinStart, coinID, 
-			flipped ? MatchEnds::start : MatchEnds::end, segment 
-			OP_DEBUG_PARAMS(SECT_MAKER(addMixOpp), SectReason::coinPtsMatch));
-	if (sect && oSect) // required by fuzz763_3, fuzz763_5
-		sect->pair(oSect);
+    if (segment->sects.contains(ptTAorB, oppSegment))   // required by fuzz763_3, fuzz763_5
+        return;
+    if (oppSegment->sects.contains(oCoinStart, segment))
+        return;
+    OpIntersection* sect = segment->contour->addSegSect(ptTAorB, segment, coinID, 0, match  
+			OP_DEBUG_PARAMS(SECT_MAKER(addMix), SectReason::coinPtsMatch, oppSegment));
+	segment->sects.add(sect);
+	OpIntersection* oSect = oppSegment->contour->addSegSect(oCoinStart, oppSegment, coinID, 0,
+			flipped ? MatchEnds::start : MatchEnds::end 
+			OP_DEBUG_PARAMS(SECT_MAKER(addMixOpp), SectReason::coinPtsMatch, segment));
+	oppSegment->sects.add(oSect);
+	OP_ASSERT(sect && oSect);
+	sect->pair(oSect);
 }
 
 // If we got here because a pair of edges are coincident, that coincidence may have already been
@@ -247,7 +253,28 @@ void OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bool secondAt
 	OP_ASSERT(opp.segment != edge.segment);
 	OP_ASSERT(edge.isLine_impl);
 	LinePts edgePts { edge.start.pt, edge.end.pt };
-    OpRoots septs = opp.segment->c.rayIntersect(edgePts);
+    OpRoots septs = opp.segment->c.rayIntersect(edgePts); 
+	// !!! hacky: consider conics only until we find lines/quads/cubics that fail here as well
+	if (!septs.count && OpType::conic == opp.segment->c.type) {
+		for (XyChoice xy : { XyChoice::inX, XyChoice::inY } ) {
+			for (int index : {0, 1} ) {
+				const OpCurve& oppCurve = opp.segment->c;
+				float goal = edgePts.pts[index].choice(xy);
+				septs.roots[0] = oppCurve.tAtXY(opp.start.t, opp.end.t, xy, goal);
+				if (OpMath::IsNaN(septs.roots[0]))
+					continue;
+				OpPoint oppPt = opp.segment->c.ptAtT(septs.roots[0]);
+				float edgepT;
+				FoundPtT foundPtT = edge.segment->findPtT(edge.start.t, edge.end.t, oppPt, &edgepT);
+				if (FoundPtT::single != foundPtT || OpMath::IsNaN(edgepT))
+					continue;
+				++septs.count;
+				goto doneWithConics;
+			}
+		}
+	doneWithConics:
+		;
+	}
 	if (septs.rawIntersectFailed) {
 		// binary search on opp t-range to find where vert crosses zero
 		OpCurve rotated = opp.segment->c.toVertical(edgePts);
@@ -288,9 +315,8 @@ void OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bool secondAt
 //      eSegment->ptBounds.pin(&oppPtT.pt);	// !!! doubtful this is needed with contains test above
 //		OP_ASSERT(debugPt == oppPtT.pt);	// rarely needed, but still triggered (e.g., joel_15x)
 		OpPtT edgePtT { oppPtT.pt, edgeT };
-		if (eSegment->sects.alreadyContains(edgePtT, oSegment))
-			; // OP_ASSERT(oSegment->debugAlreadyContains(oppPtT.pt, eSegment));	// !!! debug loops51i
-		else {
+		if (!eSegment->sects.contains(edgePtT, oSegment)
+				&& !oSegment->sects.contains(oppPtT, eSegment)) {
 			OpIntersection* sect = eSegment->addEdgeSect(edgePtT  
 					OP_DEBUG_PARAMS(SECT_MAKER(edgeLineCurve), SectReason::lineCurve, 
 					&edge, &opp));

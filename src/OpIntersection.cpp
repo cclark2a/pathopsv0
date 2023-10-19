@@ -24,25 +24,14 @@ OpIntersection* OpIntersections::add(OpIntersection* sect) {
     return sect;
 }
 
-OpIntersection* OpIntersections::alreadyContains(const OpPtT& ptT, const OpSegment* oppSegment) const {
-	for (auto sectPtr : i) {
-		const OpIntersection& sect = *sectPtr;
-        if (!sect.opp)
+OpIntersection* OpIntersections::contains(const OpPtT& ptT, const OpSegment* opp) const {
+	for (auto sect : i) {
+        if (!sect->opp || sect->opp->segment != opp)
             continue;
-		if (oppSegment == sect.opp->segment && (ptT.pt == sect.ptT.pt || ptT.t == sect.ptT.t))
-			return sectPtr;
+		if (ptT.pt == sect->ptT.pt || ptT.t == sect->ptT.t)
+			return sect;
 	}
 	return nullptr;
-}
-
-bool OpIntersections::contains(const OpPtT& ptT, const OpSegment* opp) const {
-    for (auto sect : i) {
-        if (sect->opp && sect->opp->segment != opp)
-            continue;
-        if (sect->ptT.t == ptT.t || sect->ptT.pt == ptT.pt)
-            return true;
-    }
-    return false;
 }
 
 // count and sort extrema; create an edge for each extrema + 1

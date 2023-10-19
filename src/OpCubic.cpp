@@ -110,8 +110,6 @@ void OpCubic::pinCtrls(XyChoice offset) {
 #endif
 }
 
-#define RAW_INTERSECT_LIMIT 0.00005f  // errors this large or larger mean the crossing was not found
-
 OpRoots OpCubic::rawIntersect(const LinePts& line) const {
     if (line.pts[0].x == line.pts[1].x)
         return axisRawHit(Axis::vertical, line.pts[0].x);

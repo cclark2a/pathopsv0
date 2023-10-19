@@ -149,7 +149,7 @@ OpIntersection* OpSegment::addCoin(const OpPtT& ptT, int coinID, MatchEnds coinE
 
 OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int usectID, MatchEnds end,
         const OpSegment* oSeg  OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file)) {
-    OpIntersection* sect = sects.alreadyContains(ptT, oSeg);
+    OpIntersection* sect = sects.contains(ptT, oSeg);
     if (sect) {
         OP_ASSERT(!sect->unsectID);
         sect->unsectID = usectID;

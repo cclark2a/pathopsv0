@@ -4,6 +4,8 @@
 
 #include "OpMath.h"
 
+#define RAW_INTERSECT_LIMIT 0.00005f  // errors this large or larger mean the crossing was not found
+
 struct OpLine;
 struct OpQuad;
 struct OpConic;
@@ -106,39 +108,31 @@ struct OpCurve {
     const OpConic& asConic() const;
     const OpQuad& asConicQuad() const;
     const OpCubic& asCubic() const;
-
     OpRoots axisRayHit(Axis offset, float axisIntercept, float start = 0, float end = 1) const;
     float center(Axis offset, float axisIntercept) const;
     OpPtT findIntersect(Axis offset, const OpPtT& ) const;
     bool isFinite() const;
     bool isLinear() const;
-
     OpPoint lastPt() const {
-        return pts[pointCount() - 1];
-    }
-
+        return pts[pointCount() - 1]; }
     OpVector normal(float t) const;
     NormalDirection normalDirection(Axis axis, float t) const;
     OpPoint ptAtT(float t) const;
+    int pointCount() const {
+        return static_cast<int>(type) + (type < OpType::conic); }
     OpRoots rawIntersect(const LinePts& line) const;
     OpRoots rayIntersect(const LinePts& line) const;
-
-    int pointCount() const {
-        return static_cast<int>(type) + (type < OpType::conic);
-    }
-
     const OpCurve& set(OpPoint start, const OpPoint ctrlPts[2], OpPoint end, unsigned ptCount, 
             OpType opType, float w);
     OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
     OpVector tangent(float t) const;
-
+    float tAtXY(float t1, float t2, XyChoice , float goal) const;
     // rotates curve in a space where line's (pt[0], pt[1]) moves to ((0, 0), (0, line[1].y - line[0].y))
     // curve scale is not preserved
     OpCurve toVertical(const LinePts& line) const;
     // !!! thread_cubics8753 fails to find intersection of edges 54, 55; see if vertical is to blame
     // OpCurve toVerticalDouble(const LinePts& line) const;
     float tZeroX(float t1, float t2) const;
-
 #if OP_DEBUG_DUMP
     std::string debugDump() const;
     std::string debugDumpHex() const;
@@ -238,6 +232,8 @@ struct OpConic : OpCurve {
     OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
     float tangent(XyChoice offset, float t) const;
     OpVector tangent(float t) const;
+    float tAtXY(float t1, float t2, XyChoice , float xy) const;
+    OpPair xyAtT(OpPair t, XyChoice ) const;
 #if OP_DEBUG
     OpVector debugTangent(float t) const;
 #endif

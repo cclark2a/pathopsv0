@@ -233,6 +233,19 @@ OpVector OpCurve::tangent(float t) const {
 }
 
 // !!! incomplete while testing viability
+float OpCurve::tAtXY(float t1, float t2, XyChoice xy, float goal) const {
+    switch (type) {
+    case OpType::line: // return asLine().tZeroX(t1, t2);
+    case OpType::quad: // return asQuad().tZeroX(t1, t2);
+    case OpType::conic: return asConic().tAtXY(t1, t2, xy, goal);
+    case OpType::cubic: //return asCubic().tZeroX(t1, t2);
+    default:
+        OP_ASSERT(0);
+    }
+    return OpNaN;
+}
+
+// !!! incomplete while testing viability
 float OpCurve::tZeroX(float t1, float t2) const {
     switch (type) {
     case OpType::line: // return asLine().tZeroX(t1, t2);
@@ -280,3 +293,4 @@ OpCurve OpCurve::toVertical(const LinePts& line) const {
     OP_DEBUG_CODE(rotated.debugIntersect = debugIntersect);
     return rotated;
 }
+

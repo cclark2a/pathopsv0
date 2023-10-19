@@ -4,10 +4,12 @@
 
 // this puts all switches that decide which tests to run and how to run them in one place
 
-#define OP_DEBUG_FAST_TEST 1  // in a debug build: set to zero to enable debug dump, debug image
+#define OP_DEBUG_FAST_TEST 0  // in a debug build: set to zero to enable debug dump, debug image
+#define TEST_PATH_OP_FIRST "thread_circles76451" /* e.g., "thread_circles194387" test to debug */
+#define TEST_PATH_OP_SKIP_TO_FILE "circle" /* e.g., "cubic" tests only (see OpSkiaTests.cpp) */
 
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
-#define OP_TEST_ALLOW_EXTENDED 0  // some Skia tests have extended versions which take longer
+#define OP_TEST_ALLOW_EXTENDED 1  // some Skia tests have extended versions which take longer
 #define OP_TEST_ENABLE_THREADS 1  // additionally, fast test above must be 1 to use threading
 #define OP_MAX_THREADS 16
 #define OP_TEST_V0 1
@@ -27,10 +29,7 @@
 #define LAPTOP_PATH_OP_MAP_TO_FUZZ "fuzz763_10022998"
 
 // when these tests are encountered, it and the remaining tests in the file are skipped
-#define TEST_PATH_OP_SKIP_REST "thread_circles104483"
-
-#define TEST_PATH_OP_FIRST "" /* e.g., "thread_cubics8753" test to debug */
-#define TEST_PATH_OP_SKIP_TO_FILE "" /* e.g., "cubic" tests only (see OpSkiaTests.cpp) */
+#define TEST_PATH_OP_SKIP_REST ""
 #define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */
 
 /* test failure descriptions:
@@ -55,11 +54,14 @@ tiger8: edges 706 and 767 are far apart but separated by a fairly straight line.
         (emits debug string: "last, last resort")
 tiger8b_x2: triggers "last, last" three times (other tiger tests also trigger, but do not fail)
 
-thread_circles104483: misses intersection (temp edges 157, 158) at (0, 1). Suspect that because
-(requires extended)   Y-axis answer is close to (is) zero, math falls apart. It certainly points
-                      out that using nextafter won't work for numbers near zero, since that falls
-also:                 potentially into denormalized values and such. Use OpEpsilon if value is
-thread_circles104487  less than epsilon? Even that wouldn't necessarily save us here.
+thread_circles76451: requires lookahead method described in OpJoiner.cpp:562
+thread_circles104481 had errors=82 tests:0 time:5602.521973s (requires extended)
+thread_circles104485 had errors=82 tests:0 time:5604.191895s
+thread_circles104489 had errors=82 tests:0 time:5605.783203s
+thread_circles104493 had errors=82 tests:0 time:5607.452148s
++ many, many more :(
+thread_circles1590916: asserts in debugMatchRay() (OpDebug.cpp:423)
+                       edge 187 is unsortable, may be why    
 
 issue3651_2: very large test case; defer til later (fails with unmatched edge in joiner)
              possible explanation: edge 2489 is in output, but represents two edges (winding 1, 1)

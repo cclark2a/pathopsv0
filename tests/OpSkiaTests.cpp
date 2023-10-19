@@ -169,9 +169,7 @@ void runTests() {
     timerStart = OpReadTimer();
     if (skipToFile.size()) {
         runTest(skipToFile);
-        return;
-    }
-    if (OP_DEBUG_FAST_TEST || !skipToFile.size()) {
+    } else {
         runTest("v0");  // check for these failures first
         runTest("op");
         for (auto pair : testPairs) {
@@ -179,17 +177,19 @@ void runTests() {
                 runTest(pair.name);
         }
     }
+#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
+    threadpool.stop(true);
+#endif
     uint64_t end = OpReadTimer();
     float elapsed = OpTicksToSeconds(end - timerStart, timerFrequency);
 #if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
-    threadpool.stop(true);
-    OpDebugOut("total run:" + STR(testsRun) + " skipped:" + STR(testsSkipped) 
-            + " errors:" + STR(testsError) +  " warnings:" + STR(testsWarn) 
-            + " v0 only:" + STR(testsPassSkiaFail) + " skia only:" + STR(testsFailSkiaPass) + "\n");
     OpDebugOut("skia tests done: " + STR(elapsed) + "s\n");
 #else
     initTests("skia tests done: " + STR(elapsed) + "s\n");
 #endif
+    OpDebugOut("total run:" + STR(testsRun) + " skipped:" + STR(testsSkipped) 
+            + " errors:" + STR(testsError) +  " warnings:" + STR(testsWarn) 
+            + " v0 only:" + STR(testsPassSkiaFail) + " skia only:" + STR(testsFailSkiaPass) + "\n");
 }
 
 // !!! move to Skia test utilities, I guess
@@ -351,9 +351,15 @@ bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
     return true;
 }
 
+bool ranFirstTest = false;
+
 bool testPathOp(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
         SkPathOp op, const char* testname) {
+    if (ranFirstTest)
+        return true;
     std::string s = std::string(testname);
+    if (s == TEST_PATH_OP_FIRST)
+        ranFirstTest = true;
     std::vector<std::string> skip = { TEST_PATH_OP_EXCEPTIONS };  // see OpTestDrive.h
     if (skip.end() != std::find(skip.begin(), skip.end(), s) && s != TEST_PATH_OP_FIRST) {
         ++testsSkipped;

@@ -213,8 +213,7 @@ struct OpIntersection {
 struct OpIntersections {
 	OpIntersections();
 	OpIntersection* add(OpIntersection* );
-    OpIntersection* alreadyContains(const OpPtT& , const OpSegment* opp) const;
-    bool contains(const OpPtT& , const OpSegment* ) const;
+    OpIntersection* contains(const OpPtT& , const OpSegment* ) const;
 	void makeEdges(OpSegment* );
     std::vector<OpIntersection*> range(const OpSegment* );
     void sort();
