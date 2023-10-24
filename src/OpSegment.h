@@ -19,10 +19,6 @@ enum class MatchSect {
     existing    // consecutive segments cannot match
 };
 
-enum class FoundGap {
-    dummy
-};
-
 enum class ChopUnsortable {
     none,
     prior,
@@ -30,6 +26,10 @@ enum class ChopUnsortable {
 };
 
 struct FoundEdge {
+    FoundEdge() {
+        reset();
+    }
+
     FoundEdge(OpEdge* e, EdgeMatch w, int i = -1) 
         : edge(e)
         , distSq(0)
@@ -41,18 +41,8 @@ struct FoundEdge {
         , loops(false) {
     }
 
-    FoundEdge(FoundGap ) 
-        : edge(nullptr)
-        , distSq(OpInfinity)
-        , index(-1)
-        , whichEnd(EdgeMatch::none)
-        , chop(ChopUnsortable::none)
-        , addBack(false)
-        , connects(false)
-        , loops(false) {
-    }
-
     void check(std::vector<FoundEdge>* edges, OpEdge* test, EdgeMatch , OpPoint match);
+    void reset();
 #if OP_DEBUG_DUMP
 	void dump() const;
 	void dumpDetail() const;

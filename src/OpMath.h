@@ -51,7 +51,7 @@ struct OpRoots {
 
     OpRoots(float one, float two)
         : rawIntersectFailed(false) {
-        count = 1 + (one != two);
+        count = 1 + (int) (one != two);
         roots[0] = one;
         roots[1] = two;
     }

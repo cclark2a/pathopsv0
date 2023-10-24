@@ -333,6 +333,7 @@ void OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bool secondAt
 }
 
 EdgeDistance* SectRay::find(OpEdge* edge) {
+    OP_ASSERT(distances.size());
 	for (auto test = &distances.back(); test >= &distances.front(); --test) {
 		if (test->edge == edge)
 			return test;
@@ -366,16 +367,43 @@ void SectRay::addPals(OpEdge* home) {
 	EdgeDistance* homeDist = find(home);
 	EdgeDistance* test = homeDist;
 	float lowLimit = std::nextafterf(homeCept, -OpInfinity);
+    bool priorIsPal = false;
 	while (test > &distances.front() && (--test)->cept >= lowLimit) {
 		OP_ASSERT((test + 1)->cept >= test->cept);
 		matchCept(test);
+        priorIsPal = true;
 	}
 	test = homeDist;
 	float highLimit = std::nextafterf(homeCept, +OpInfinity);
+    bool nextIsPal = false;
 	while (test < &distances.back() && (++test)->cept <= highLimit) {
 		OP_ASSERT((test - 1)->cept <= test->cept);
 		matchCept(test);
+        nextIsPal = true;
 	}
+    // check next ray intersected edge if it hasn't been checked already
+    // !!! stops at 1; don't know if we may need more than one
+    // !!! thread_circles54530 failed only on laptop 
+    if (homeDist > &distances.front() && !priorIsPal) {
+        OpEdge* priorEdge = (homeDist - 1)->edge;
+        if (priorEdge->ray.distances.size()) {
+            EdgeDistance* priorDist = priorEdge->ray.find(priorEdge);
+            if (priorDist > &priorEdge->ray.distances.front() && (priorDist - 1)->edge == home) {
+                home->addPal(*priorDist);
+                priorEdge->addPal(*homeDist);
+            }
+        }
+    }
+    if (homeDist < &distances.back() && !nextIsPal) {
+        OpEdge* nextEdge = (homeDist + 1)->edge;
+        if (nextEdge->ray.distances.size()) {
+            EdgeDistance* nextDist = nextEdge->ray.find(nextEdge);
+            if (nextDist < &nextEdge->ray.distances.back() && (nextDist + 1)->edge == home) {
+                home->addPal(*nextDist);
+                nextEdge->addPal(*homeDist);
+            }
+        }
+    }
 }
 
 // at some point, do some math or rigorous testing to figure out how extreme this can be

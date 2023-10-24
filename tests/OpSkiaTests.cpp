@@ -259,10 +259,7 @@ static int debug_paths_draw_the_same(const SkPath& one, const SkPath& two, SkBit
 }
 
 void ReportError(std::string testname, int errors) {
-    uint64_t end = OpReadTimer();
-    float elapsed = OpTicksToSeconds(end - timerStart, timerFrequency);
-    OpDebugOut(testname + " had errors=" + STR(errors) + " tests:" + STR(totalRun)
-            + " time:" + STR(elapsed) + "s\n");
+    OpDebugOut(testname + " had errors=" + STR(errors) + "\n");
 }
 
 void VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op, std::string testname,

@@ -13,6 +13,17 @@ void FoundEdge::check(std::vector<FoundEdge>* edges, OpEdge* test, EdgeMatch em,
 	}
 }
 
+void FoundEdge::reset() {
+    edge = nullptr;
+    distSq = OpInfinity;
+    index = -1;
+    whichEnd = EdgeMatch::none;
+    chop = ChopUnsortable::none;
+    addBack = false;
+    connects = false;
+    loops = false;
+}
+
 OpSegment::OpSegment(const OpCurve& pts, OpType type, OpContour* contourPtr
         OP_DEBUG_PARAMS(SectReason startReason, SectReason endReason))
     : c(pts.pts, pts.weight, type)

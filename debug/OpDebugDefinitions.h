@@ -9,7 +9,12 @@
 // All Macros below are defined in OpDebugDump.h
 
 void OWNER::dump(int ID) const {
+#ifdef OP_HAS_FMA
 	dmp(ID);
+#endif
+#ifdef OP_NO_FMA
+	dmpid(ID);
+#endif
 }
 
 #define OP_X(Thing) \

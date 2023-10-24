@@ -415,12 +415,12 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContours* contours)) {
             if (WindZero::opp == linkZero) {
 #if OP_DEBUG
                 if (dTest && !dTest->inLinkups && !dTest->inOutput) {
-                    bool found = false;
+                    bool foundOne = false;
                     for (auto& pal : dTest->pals)
-                        found |= pal.edge->inLinkups;
+                        foundOne |= pal.edge->inLinkups;
                     for (auto& us : unsectByArea)
-                        found |= dTest == us && dTest->isActive();
-                    OP_ASSERT(found || mayFail);
+                        foundOne |= dTest == us && dTest->isActive();
+                    OP_ASSERT(foundOne || mayFail);
                 }
 #endif
                 if (dTest)

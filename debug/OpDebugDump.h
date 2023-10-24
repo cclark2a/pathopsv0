@@ -171,10 +171,18 @@ OP_X(SectRay)
 DUMP_HEX
 #undef OP_X
 
+#ifdef OP_HAS_FMA
 #define DUMP_BY_DUMPID \
 OP_X(dmp, dump) \
 OP_X(dmpDetail, dumpDetail) \
 OP_X(dmpHex, dumpHex)
+#endif
+#ifdef OP_NO_FMA
+#define DUMP_BY_DUMPID \
+OP_X(dmpid, dump) \
+OP_X(dmpDetail, dumpDetail) \
+OP_X(dmpHex, dumpHex)
+#endif
 #define OP_X(Global, Method) \
 	extern void Global(int id);
 DUMP_BY_DUMPID

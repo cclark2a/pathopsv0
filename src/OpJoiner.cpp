@@ -299,16 +299,16 @@ bool OpJoiner::linkUp(OpEdge* edge) {
 		addToLinkups(edge);
 		return false;  // 2) found multiple possibilities (end)
 	}
-	FoundEdge found = edges.front();
+	FoundEdge foundOne = edges.front();
 	OP_DEBUG_VALIDATE_CODE(debugValidate());
-	edge->linkToEdge(found, linkMatch);
-	OP_ASSERT(edge->whichPtT(linkMatch).pt == found.edge->flipPtT(linkMatch).pt);
+	edge->linkToEdge(foundOne, linkMatch);
+	OP_ASSERT(edge->whichPtT(linkMatch).pt == foundOne.edge->flipPtT(linkMatch).pt);
 	OP_DEBUG_VALIDATE_CODE(debugValidate());
 	if (detachIfLoop(edge))
 		return false; // 4) found loop, nothing leftover; caller to move on to next edge
 	OP_DEBUG_VALIDATE_CODE(debugValidate());
 	// move to the front or back edge depending on link match
-	OpEdge* recurse = found.edge->advanceToEnd(linkMatch);
+	OpEdge* recurse = foundOne.edge->advanceToEnd(linkMatch);
 	return linkUp(recurse);	// 5)  recurse to extend prior or next
 }
 
@@ -326,21 +326,9 @@ void OpJoiner::matchLeftover(OpPoint matchPt, const OpEdge* links,
 	}
 }
 
-// at this point all singly linked edges have been found
-// every active set of links at this point must form a loop
-bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
-	OP_DEBUG_VALIDATE_CODE(debugValidate());
-	OpEdge* lastEdge = edge->lastEdge;
-	OP_ASSERT(lastEdge);
-	OP_ASSERT(EdgeMatch::start == lastEdge->whichEnd || EdgeMatch::end == lastEdge->whichEnd);
-	// count intersections equaling end
-	// each intersection has zero, one, or two active edges
-	std::vector<FoundEdge> found;
-	// the only distance that matters is zero. We should never have unexplained gaps
-	OpPoint matchPt = lastEdge->whichPtT(EdgeMatch::end).pt;
-	// however, we should track the smallest gap available, when all else fails (e.g., battleOp21)
-	FoundEdge bestGap(FoundGap::dummy);
-	// pop last allows first attempt for edge to scan itself, in case it is an unclosed loop
+// count intersections equaling end
+// each intersection has zero, one, or two active edges
+void OpJoiner::checkLinkups(OpEdge* lastEdge, OpPoint matchPt) {
 	for (size_t index = 0; index < linkups.l.size(); ++index) {
 		OpEdge* linkup = linkups.l[index];
 		OP_ASSERT(!linkup->priorEdge);
@@ -362,151 +350,108 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 				bestGap.check(&found, lastLink, EdgeMatch::end, matchPt);
 		}
 	}
-	if (edge != lastEdge)
-		bestGap.check(&found, edge, EdgeMatch::start, matchPt);
-	if (popLast)
-		linkups.l.pop_back();
-	// look for (a run of) unsectables / unsortables that close the gap
-	OP_ASSERT(!edge->priorEdge);
-	OP_ASSERT(!lastEdge->nextEdge);
+}
 
-	if (!found.size()) {
-		for (size_t index = 0; index < linkups.l.size(); ++index) {
-			OpEdge* linkup = linkups.l[index];
-			// while linkup or linkup->lastEdge are unsortable, try them, then try the next
-			while (linkup->unsortable) {
-				linkup = linkup->nextEdge;
-				if (!linkup || lastEdge == linkup)
-					break;
-				if (linkup->whichPtT().pt == matchPt) {
-					found.emplace_back(linkup, linkup->whichEnd, index);
-					found.back().chop = ChopUnsortable::prior;
-					break;
-				}
+// chop records the link end that may be later removed
+void OpJoiner::checkUnables(OpEdge* lastEdge, OpPoint matchPt) {
+	for (size_t index = 0; index < linkups.l.size(); ++index) {
+		OpEdge* linkup = linkups.l[index];
+		// while linkup or linkup->lastEdge are unsortable, try them, then try the next
+		while (linkup->unsortable) {
+			linkup = linkup->nextEdge;
+			if (!linkup || lastEdge == linkup)
+				break;
+			if (linkup->whichPtT().pt == matchPt) {
+				found.emplace_back(linkup, linkup->whichEnd, index);
+				found.back().chop = ChopUnsortable::prior;
+				break;
 			}
-			OpEdge* lastLink = linkups.l[index]->lastEdge;
-			while (lastLink->unsortable) {
-				lastLink = lastLink->priorEdge;
-				if (!lastLink || lastEdge == lastLink)
-					break;
-				if (lastLink->whichPtT(EdgeMatch::end).pt == matchPt) {
-					found.emplace_back(lastLink, Opposite(lastLink->whichEnd), index);
-					found.back().chop = ChopUnsortable::next;
-					break;
-				}
+		}
+		OpEdge* lastLink = linkups.l[index]->lastEdge;
+		while (lastLink->unsortable) {
+			lastLink = lastLink->priorEdge;
+			if (!lastLink || lastEdge == lastLink)
+				break;
+			if (lastLink->whichPtT(EdgeMatch::end).pt == matchPt) {
+				found.emplace_back(lastLink, Opposite(lastLink->whichEnd), index);
+				found.back().chop = ChopUnsortable::next;
+				break;
 			}
 		}
 	}
+}
 
-	// don't match unsectable with a pal that is already in edge link list
-	lastEdge->matchUnsectable(EdgeMatch::end, unsectByArea, found, AllowPals::no, AllowClose::no);
-	if (!found.size()) {
-		std::vector<FoundEdge> gaps;
-		gaps.push_back(bestGap);
-		lastEdge->matchUnsectable(EdgeMatch::end, unsectByArea, gaps, AllowPals::no, AllowClose::yes);
-	}
+// for each joined edge: if it ends in a pal, see if removing the pal would permit connecting to 
+// another joined edge
+// !!! this fixes a problem that should have never occurred in the first place
+//     when the unsectable edge gets added to a linked list, it should have been excluded if another
+//     unsectable edge leads to a better outcome (e.g., the other in turn links to a regular edge)
+//     once we have sufficient lookahead, this should no longer be necessary
+void OpJoiner::matchPals(OpEdge* edge) {
+	OpEdge* lastEdge = edge->lastEdge;
+    if (!lastEdge->pals.size())
+        return;
+    OpPoint matchPt = lastEdge->whichPtT(EdgeMatch::end).pt;
 	OP_ASSERT(!lastEdge->debugIsLoop());
 	OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
-	// if nothing found, look for member of linkups that ends in a pal of lastEdge
+	// look for member of linkups that ends in a pal of lastEdge
 	// figure out how to write (clear) code to recursively remove an edge, fixing up prior/next/last
-	if (lastEdge->pals.size()) {
-		for (size_t index = 0; index < linkups.l.size(); ++index) {
-			OpEdge* link = linkups.l[index];
-			OP_ASSERT(!link->debugIsLoop());
-			if (!lastEdge->isPal(link))
-				continue;
-			if (!link->nextEdge)
-				continue;
-			if (link->whichPtT(EdgeMatch::end).pt == matchPt) {
-				// if found edge is not best, found needs to be added back to linkups.l
-				OpEdge* nextLink = link->nextEdge;
-				nextLink->setPriorEdge(nullptr);
-				nextLink->lastEdge = link->lastEdge;
-				link->setNextEdge(nullptr);
-				link->lastEdge = link;
-				OP_ASSERT(!nextLink->debugIsLoop());
-				found.emplace_back(nextLink, nextLink->whichEnd);
-				found.back().addBack = true;
-				OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
-			} else
-				bestGap.check(&found, link, EdgeMatch::end, matchPt);
-		}
+	for (size_t index = 0; index < linkups.l.size(); ++index) {
+		OpEdge* link = linkups.l[index];
+		OP_ASSERT(!link->debugIsLoop());
+		if (!lastEdge->isPal(link))
+			continue;
+		OpEdge* nextLink = link->nextEdge;
+		if (!nextLink)
+			continue;
+		if (link->whichPtT(EdgeMatch::end).pt != matchPt)
+            continue;
+		// if found edge is not best, found needs to be added back to linkups.l
+		nextLink->setPriorEdge(nullptr);
+		nextLink->lastEdge = link->lastEdge;
+		link->setNextEdge(nullptr);
+		link->lastEdge = link;
+// !!! seems unnecessary to add back, since edge is unsectable and is held in its own array
+//		found.emplace_back(nextLink, nextLink->whichEnd);
+//		found.back().addBack = true;
+// !!! doesn't this need to check the other end of the linked list as well?
 	}
-	// best gap has the distance from the match point to the next available edge
-	// if it is very small (?) just use it
-	if (!found.size() && OpMath::IsFinite(bestGap.distSq)) {  // triggered by battleOp21
-		OpVector nextDoor = {
-				std::nextafterf(fabsf(matchPt.x), OpInfinity) - fabsf(matchPt.x),
-				std::nextafterf(fabsf(matchPt.y), OpInfinity) - fabsf(matchPt.y) };
-		if (nextDoor.lengthSquared() >= bestGap.distSq) {
-			OpContour* contour = lastEdge->segment->contour;
-			OpIntersection* lastI = lastEdge->findSect(EdgeMatch::end);
-			OpIntersection* gapEnd = bestGap.edge->findSect(bestGap.whichEnd);
-			OpEdge* filler = contour->addFiller(lastI, gapEnd);
-			if (filler)
-				found.emplace_back(filler, EdgeMatch::start);
-		}
-	}
-	// if it is smaller (much smaller?) that unsortable/disabled pal/missed/etc, use it instead?
-		// !!! wait for test case to show up before writing code
-	if (!found.size()) {
-		matchLeftover(matchPt, edge, unsortables, found);
-		OP_ASSERT(!lastEdge->debugIsLoop());
-		OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
-//	}
-	// look for disabled pal that is not in output, and completes loop (cubics14d)
-//	if (!found.size()) {
-		if (!disabledPalsBuilt)
-			buildDisabledPals(*edge->segment->contour->contours);
-		matchLeftover(matchPt, edge, disabledPals, found);
-		OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
-	}
-#if 1
-	if (!found.size()) {
-		// its possible that the intersections for very very small edges were missed (skpadspert_net23)
-		// before going down the disabled rabbit hole, see if the is a small gap that can be closed
-		// look for a pair of intersections with different pt values, but the same t value in 
-		//   lastEdge's segment
-		// also look for an intersection where the points don't match
-		auto checkMissed = [&found, matchPt](OpEdge* test, EdgeMatch whichEnd) {
-			float testT = test->whichPtT(whichEnd).t;
-			OpContour* contour = test->segment->contour;
-			OpIntersection* last = nullptr;
-			for (auto sect : test->segment->sects.i) {
-				if (sect->ptT.t != testT)
-					continue;
-				OpIntersection* opp = sect->opp;
-				if (sect->ptT.pt != opp->ptT.pt) {
-					OpEdge* filler = EdgeMatch::start == whichEnd ? contour->addFiller(sect, opp) 
-							: contour->addFiller(opp, sect);
-					if (!filler)
-						return false;
-					found.emplace_back(filler, whichEnd);
-				}
-				if (!last) {
-					last = sect;
-					continue;
-				}
-				if (last->ptT.pt == sect->ptT.pt)
-					continue;
-				if (matchPt == last->ptT.pt)
-					std::swap(last, sect);
-				else if (matchPt != sect->ptT.pt)
-					continue;
-				OpEdge* filler = EdgeMatch::start == whichEnd ? contour->addFiller(sect, last) 
-						: contour->addFiller(last, sect);
-					if (!filler)
-						return false;
-				found.emplace_back(filler, whichEnd);
-			}
-			return true;
-		};
-//		if (!checkMissed(edge, EdgeMatch::start))  // odd code: expect to only match lastEdge end...
-//			return false;
-		if (!checkMissed(lastEdge, EdgeMatch::end))
-			return false;
-	}
-#endif
+}
+
+// look for a disabled edge that closes the gap
+// it's likely that this edge is very small, but don't know how to quantify that (yet)
+void OpJoiner::checkDisabled(OpEdge* edge, OpPoint matchPt) {
+	if (!disabledBuilt)
+		buildDisabled(*edge->segment->contour->contours);
+	// need a lookahead method (e.g., testQuadratic75: (simplify))
+	// sometimes the best choice is not the one that makes the area smallest
+	// if we could look ahead as few as two edges, testQuadratic7 (simplify) for instance
+	// could land on correct result
+	matchLeftover(matchPt, edge, disabled, found);
+	OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
+}
+
+// best gap has the distance from the match point to the next available edge
+// if it is very small (?) just use it
+// if it is smaller (much smaller?) that unsortable/disabled pal/missed/etc, use it instead?
+	// !!! wait for test case to show up before writing code
+void OpJoiner::checkGap(OpEdge* lastEdge, OpPoint matchPt) {
+     if (!OpMath::IsFinite(bestGap.distSq))  // triggered by battleOp21
+        return;
+    OpVector nextDoor = {
+			std::nextafterf(fabsf(matchPt.x), OpInfinity) - fabsf(matchPt.x),
+			std::nextafterf(fabsf(matchPt.y), OpInfinity) - fabsf(matchPt.y) };
+	if (nextDoor.lengthSquared() < bestGap.distSq)
+        return;
+	OpContour* contour = lastEdge->segment->contour;
+	OpIntersection* lastI = lastEdge->findSect(EdgeMatch::end);
+	OpIntersection* gapEnd = bestGap.edge->findSect(bestGap.whichEnd);
+	OpEdge* filler = contour->addFiller(lastI, gapEnd);
+	if (filler)
+		found.emplace_back(filler, EdgeMatch::start);
+}
+
+void OpJoiner::checkNothingLeft(OpEdge* edge, OpEdge* lastEdge) {
 	// if there's no remaining active edges in linkups or unsectables, just close what's left (loops63i)
 	auto unsortableCount = [this](const auto edge) {
 		int unusedUnsortables = 0;
@@ -516,56 +461,235 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 		}
 		return unusedUnsortables - edge->countUnsortable();
 	};
-	if (!found.size() && !linkups.l.size() && !unsortableCount(edge)) {
+	if (!linkups.l.size() && !unsortableCount(edge)) {
 		OpEdge* filler = edge->segment->contour->addFiller(edge, lastEdge);
 		if (!filler)
-			return false;
+			return;
 		found.emplace_back(filler, EdgeMatch::start);
 	}
-#if 0
+}
+
+bool OpJoiner::checkSectGap(OpEdge* lastEdge, OpPoint matchPt) {
+	// its possible that the intersections for very very small edges were missed (skpadspert_net23)
+	// before going down the disabled rabbit hole, see if the is a small gap that can be closed
+	// look for a pair of intersections with different pt values, but the same t value in 
+	//   lastEdge's segment
+	// also look for an intersection where the points don't match
+	auto checkMissed = [&found = found, matchPt](OpEdge* test, EdgeMatch whichEnd) {
+		float testT = test->whichPtT(whichEnd).t;
+		OpContour* contour = test->segment->contour;
+		OpIntersection* last = nullptr;
+		for (auto sect : test->segment->sects.i) {
+			if (sect->ptT.t != testT)
+				continue;
+			OpIntersection* opp = sect->opp;
+			if (sect->ptT.pt != opp->ptT.pt) {
+				OpEdge* filler = EdgeMatch::start == whichEnd ? contour->addFiller(sect, opp) 
+						: contour->addFiller(opp, sect);
+				if (!filler)
+					return false;
+				found.emplace_back(filler, whichEnd);
+			}
+			if (!last) {
+				last = sect;
+				continue;
+			}
+			if (last->ptT.pt == sect->ptT.pt)
+				continue;
+			if (matchPt == last->ptT.pt)
+				std::swap(last, sect);
+			else if (matchPt != sect->ptT.pt)
+				continue;
+			OpEdge* filler = EdgeMatch::start == whichEnd ? contour->addFiller(sect, last) 
+					: contour->addFiller(last, sect);
+				if (!filler)
+					return false;
+			found.emplace_back(filler, whichEnd);
+		}
+        return true;
+	};
+//		if (!checkMissed(edge, EdgeMatch::start))  // odd code: expect to only match lastEdge end...
+//			return false;
+	return checkMissed(lastEdge, EdgeMatch::end);
+}
+
+void OpJoiner::checkUnsectableGap(OpEdge* lastEdge) {    // find unsectable with small gap
+	std::vector<FoundEdge> gaps;
+	gaps.push_back(bestGap);
+	lastEdge->matchUnsectable(EdgeMatch::end, unsectByArea, gaps, AllowPals::no, AllowClose::yes);
+}
+
+void OpJoiner::checkUnsortableAndDisabled(OpEdge* edge, OpEdge* lastEdge, OpPoint matchPt) {
+	matchLeftover(matchPt, edge, unsortables, found);
+	OP_ASSERT(!lastEdge->debugIsLoop());
+	OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
+// look for disabled pal that is not in output, and completes loop (cubics14d)
+	if (!disabledPalsBuilt)
+		buildDisabledPals(*edge->segment->contour->contours);
+	matchLeftover(matchPt, edge, disabledPals, found);
+	OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
+}
+
+FoundEdge OpJoiner::chooseSmallest(OpEdge* edge, OpEdge* lastEdge) {
+	OpRect bestBounds;
+    FoundEdge smallest = found.front();
+	for (int trial = 0; !bestBounds.isFinite() && trial < 2; ++trial) {
+		for (const auto& foundOne : found) {
+			OpEdge* oppEdge = foundOne.edge;
+			// skip edges which flip the fill sum total, implying there is a third edge inbetween
+							// e.g., one if normals point to different fill sums       
+			if (!trial && !foundOne.connects && !foundOne.loops)
+				continue;
+			// choose smallest closed loop -- this is an arbitrary choice
+			OpPointBounds testBounds = edge->advanceToEnd(EdgeMatch::start)->setLinkBounds();
+			if (!edge->containsLink(oppEdge)) {
+				OpEdge* firstEdge = oppEdge;
+				while (firstEdge->priorEdge)
+					firstEdge = firstEdge->priorEdge;
+				testBounds.add(foundOne.index > 0 ? firstEdge->setLinkBounds() : firstEdge->ptBounds);
+			}
+			if (smallest.loops < foundOne.loops)
+				smallest = foundOne;
+			else if (smallest.loops == foundOne.loops &&
+				!(bestBounds.perimeter() < testBounds.perimeter())) {	// 'not' logic since best = NaN at first
+				if (bestBounds.perimeter() == testBounds.perimeter()) {
+					// see which end is closer to desired close
+					OpPoint start = edge->whichPtT(EdgeMatch::start).pt;
+					float testDistance = (start 
+							- foundOne.edge->whichPtT(EdgeMatch::end).pt).lengthSquared();
+					float bestDistance = (start
+							- smallest.edge->whichPtT(EdgeMatch::end).pt).lengthSquared();
+					if (testDistance > bestDistance)
+						continue;
+					// !!! if test equals best, do we need another way to pick the better one?
+				}
+				bestBounds = testBounds;
+				smallest = foundOne;
+			}
+		}
+	}
+    return smallest;
+}
+
 	// if nothing found to this point, see if forcing a very small edge will fill the bill (cubics10u)
-	if (!found.size()) {
-		OpIntersection* lastEnd = lastEdge->segment->sects.i.back();
-		if (edge->whichPtT().pt.isNearly(matchPt)) {
-			OpIntersection* edgeStart = edge->segment->sects.i.front();
-			OpEdge* filler = edge->segment->contour->addFiller(edgeStart, lastEnd);
+bool OpJoiner::forceSmallEdge(OpEdge* edge, OpEdge* lastEdge, OpPoint matchPt) {
+	OpIntersection* lastEnd = lastEdge->segment->sects.i.back();
+	if (edge->whichPtT().pt.isNearly(matchPt)) {
+		OpIntersection* edgeStart = edge->segment->sects.i.front();
+		OpEdge* filler = edge->segment->contour->addFiller(edgeStart, lastEnd);
+		if (!filler)
+			return false;
+		found.emplace_back(filler, EdgeMatch::end);
+	}
+	for (size_t index = 0; index < linkups.l.size(); ++index) {
+		OpEdge* linkup = linkups.l[index];
+		OP_ASSERT(!linkup->priorEdge);
+		OP_ASSERT(!linkup->debugIsLoop());
+		if (lastEdge != linkup && linkup->whichPtT().pt.isNearly(matchPt)) {
+			OpIntersection* linkStart = linkup->segment->sects.i.front();
+			OpEdge* filler = edge->segment->contour->addFiller(linkStart, lastEnd);
 			if (!filler)
 				return false;
 			found.emplace_back(filler, EdgeMatch::end);
 		}
-		for (size_t index = 0; index < linkups.l.size(); ++index) {
-			OpEdge* linkup = linkups.l[index];
-			OP_ASSERT(!linkup->priorEdge);
-			OP_ASSERT(!linkup->debugIsLoop());
-			if (lastEdge != linkup && linkup->whichPtT().pt.isNearly(matchPt)) {
-				OpIntersection* linkStart = linkup->segment->sects.i.front();
-				OpEdge* filler = edge->segment->contour->addFiller(linkStart, lastEnd);
-				if (!filler)
-					return false;
-				found.emplace_back(filler, EdgeMatch::end);
-			}
-			OpEdge* lastLink = linkup->lastEdge;
-			OP_ASSERT(lastLink);
-			if (lastEdge != lastLink && lastLink->whichPtT(EdgeMatch::end).pt == matchPt)
-				found.emplace_back(lastLink, Opposite(lastLink->whichEnd, index));
-		}
+		OpEdge* lastLink = linkup->lastEdge;
+		OP_ASSERT(lastLink);
+		if (lastEdge != lastLink && lastLink->whichPtT(EdgeMatch::end).pt == matchPt)
+			found.emplace_back(lastLink, Opposite(lastLink->whichEnd));
 	}
+    return true;
+}
 
+bool OpJoiner::lastLastResort(OpEdge* edge, OpEdge* lastEdge) {
+	OP_WARNING(edge->segment->contour->contours, "no edge found: last, last resort\n");
+	OpEdge* filler = edge->segment->contour->addFiller(edge, lastEdge);
+	if (!filler)
+		return false;
+	found.emplace_back(filler, EdgeMatch::start);
+    return true;
+}
+
+void OpJoiner::detachChoppedEtc(OpEdge* edge, OpEdge* lastEdge) {
+	for (auto& foundOne : found) {
+		OpEdge* oppEdge = foundOne.edge;
+		foundOne.connects = oppEdge->pals.size() || oppEdge->disabled || oppEdge->unsortable
+				|| (((lastEdge->sum.sum() + oppEdge->sum.sum()) & 1) 
+		// e.g., one if last start-to-end connects to found start-to-end (end connects to start)
+				== (lastEdge->whichEnd != foundOne.whichEnd));
+		// if opp edge contains member of linkups via links, detach from this
+		// but remember to reattach if candidate is not best
+		if (ChopUnsortable::none != foundOne.chop) {
+			OpEdge*& unsort = ChopUnsortable::prior == foundOne.chop 
+					? oppEdge->priorEdge : oppEdge->nextEdge;
+			OP_ASSERT(unsort->unsortable);
+			OpEdge* u = unsort;
+			(ChopUnsortable::prior == foundOne.chop 
+					? u->nextEdge = nullptr : u->priorEdge) = nullptr;
+			u->setActive(true);
+			unsortables.push_back(u);
+			unsort = nullptr;
+			oppEdge->setLastEdge(u);
+		}
+		if (oppEdge->setLastLink(foundOne.whichEnd) && foundOne.index >= 0) {
+			oppEdge->setLinkBounds();
+			linkups.l[foundOne.index] = oppEdge;  // link start changed
+		}
+		for (const OpEdge* eTest = edge; eTest != nullptr; eTest = eTest->nextEdge) {
+			for (const OpEdge* fTst = foundOne.edge; fTst != nullptr; fTst = fTst->nextEdge) {
+				// look for eTest whichEnd (start) equalling fTst opposite whichEnd (end)
+				if (eTest->whichPtT(EdgeMatch::start).pt != fTst->whichPtT(EdgeMatch::end).pt)
+					continue;
+				foundOne.loops = true;
+				goto done;
+			}
+		}
+	done:
+		;
+	}
+}
+
+// at this point all singly linked edges have been found
+// every active set of links at this point must form a loop
+// the only distance that matters is zero. We should never have unexplained gaps (ideal, not real)
+bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
+	OP_DEBUG_VALIDATE_CODE(debugValidate());
+	OP_ASSERT(!edge->priorEdge);
+	OpEdge* lastEdge = edge->lastEdge;
+	OP_ASSERT(lastEdge);
+	OP_ASSERT(!lastEdge->nextEdge);
+	OP_ASSERT(EdgeMatch::start == lastEdge->whichEnd || EdgeMatch::end == lastEdge->whichEnd);
+	found.clear();
+	OpPoint matchPt = lastEdge->whichPtT(EdgeMatch::end).pt;
+	bestGap.reset();  // track the smallest gap available, when all else fails (e.g., battleOp21)
+    checkLinkups(lastEdge, matchPt);
+	if (edge != lastEdge)
+		bestGap.check(&found, edge, EdgeMatch::start, matchPt);
+	if (popLast)  // allows first attempt for edge to scan itself, in case it is an unclosed loop
+		linkups.l.pop_back();
+    if (!found.size())
+	    checkUnables(lastEdge, matchPt);  // find unsectables and unsortables that continue the edge
+	// don't match unsectable with a pal that is already in edge link list
+	lastEdge->matchUnsectable(EdgeMatch::end, unsectByArea, found, AllowPals::no, AllowClose::no);
+	if (!found.size())
+        checkUnsectableGap(lastEdge);
+	if (!found.size())
+        checkGap(lastEdge, matchPt);  // use best gap if very small
+	if (!found.size()) 
+        checkUnsortableAndDisabled(edge, lastEdge, matchPt);
+	if (!found.size())
+        if (!checkSectGap(lastEdge, matchPt))
+            return false;
+    if (!found.size())
+        checkNothingLeft(edge, lastEdge);
+#if 0
+	if (!found.size())
+        if (!forceSmallEdge(edge, lastEdge, matchPt))
+            return false;
 #endif
 	if (!found.size())
 		lastEdge->matchUnsectable(EdgeMatch::end, unsectByArea, found, AllowPals::yes, AllowClose::no);
-	// look for a disabled edge that closes the gap
-	// it's likely that this edge is very small, but don't know how to quantify that (yet)
-	if (!found.size()) {
-		if (!disabledBuilt)
-			buildDisabled(*edge->segment->contour->contours);
-		// need a lookahead method (e.g., testQuadratic75: (simplify))
-		// sometimes the best choice is not the one that makes the area smallest
-		// if we could look ahead as few as two edges, testQuadratic7 (simplify) for instance
-		// could land on correct result
-		matchLeftover(matchPt, edge, disabled, found);
-		OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
-	}
+	if (!found.size())
+        checkDisabled(edge, matchPt);
 	if (!found.size() && edge->between)	// !!! if this is all that's left, drop it on the floor?
 		return true;
 	if (!found.size() && !linkups.l.size() && edge->pals.size() && !edge->priorEdge && !edge->nextEdge)
@@ -579,93 +703,22 @@ bool OpJoiner::matchLinks(OpEdge* edge, bool popLast) {
 		OpDebugOut("");  // allows setting a breakpoint when joining edge isn't found
 	}
 #endif
-	if (!found.size()) {  // last, last resort
-		OP_WARNING(edge->segment->contour->contours, "no edge found: last, last resort\n");
-		OpEdge* filler = edge->segment->contour->addFiller(edge, lastEdge);
-		if (!filler)
-			return false;
-		found.emplace_back(filler, EdgeMatch::start);
-	}
+	if (!found.size())
+        lastLastResort(edge, lastEdge);
 	OP_ASSERT(edge->segment->contour->contours->debugExpect == OpDebugExpect::unknown
 			|| found.size());
 	if (!found.size())  // triggered by fuzz763_1c
 		return false;
 	// if more than one was found, check to see if selected, one makes a complete loop
 	// additionally, store in found how far end is from loop
-	OpRect bestBounds;
+//start here;
+// if there is more than one found, bifurcate and try both paths before deciding which is best
+// in addition to using the edge that minimizes the total area, if both edges are pals, unsortable, 
+// or disabled, choose the edge that gets us back to a normal, desirable (correct zero crossing) edge
 	FoundEdge smallest = found.front();
 	if (found.size() > 1 || ChopUnsortable::none != smallest.chop) {
-		for (auto& foundOne : found) {
-			OpEdge* oppEdge = foundOne.edge;
-			foundOne.connects = oppEdge->pals.size() || oppEdge->disabled || oppEdge->unsortable
-					|| (((lastEdge->sum.sum() + oppEdge->sum.sum()) & 1) 
-			// e.g., one if last start-to-end connects to found start-to-end (end connects to start)
-					== (lastEdge->whichEnd != foundOne.whichEnd));
-			// if opp edge contains member of linkups via links, detach from this
-			// but remember to reattach if candidate is not best
-			if (ChopUnsortable::none != foundOne.chop) {
-				OpEdge*& unsort = ChopUnsortable::prior == foundOne.chop 
-						? oppEdge->priorEdge : oppEdge->nextEdge;
-				OP_ASSERT(unsort->unsortable);
-				OpEdge* u = unsort;
-				(ChopUnsortable::prior == foundOne.chop 
-						? u->nextEdge = nullptr : u->priorEdge) = nullptr;
-				u->setActive(true);
-				unsortables.push_back(u);
-				unsort = nullptr;
-				oppEdge->setLastEdge(u);
-			}
-			if (oppEdge->setLastLink(foundOne.whichEnd) && foundOne.index >= 0) {
-				oppEdge->setLinkBounds();
-				linkups.l[foundOne.index] = oppEdge;  // link start changed
-			}
-			for (const OpEdge* eTest = edge; eTest != nullptr; eTest = eTest->nextEdge) {
-				for (const OpEdge* fTst = foundOne.edge; fTst != nullptr; fTst = fTst->nextEdge) {
-					// look for eTest whichEnd (start) equalling fTst opposite whichEnd (end)
-					if (eTest->whichPtT(EdgeMatch::start).pt != fTst->whichPtT(EdgeMatch::end).pt)
-						continue;
-					foundOne.loops = true;
-					goto done;
-				}
-			}
-		done:
-			;
-		}
-		for (int trial = 0; !bestBounds.isFinite() && trial < 2; ++trial) {
-			for (const auto& foundOne : found) {
-				OpEdge* oppEdge = foundOne.edge;
-				// skip edges which flip the fill sum total, implying there is a third edge inbetween
-							   // e.g., one if normals point to different fill sums       
-				if (!trial && !foundOne.connects && !foundOne.loops)
-					continue;
-				// choose smallest closed loop -- this is an arbitrary choice
-				OpPointBounds testBounds = edge->advanceToEnd(EdgeMatch::start)->setLinkBounds();
-				if (!edge->containsLink(oppEdge)) {
-					OpEdge* firstEdge = oppEdge;
-					while (firstEdge->priorEdge)
-						firstEdge = firstEdge->priorEdge;
-					testBounds.add(foundOne.index > 0 ? firstEdge->setLinkBounds() : firstEdge->ptBounds);
-				}
-				if (smallest.loops < foundOne.loops)
-					smallest = foundOne;
-				else if (smallest.loops == foundOne.loops &&
-					!(bestBounds.perimeter() < testBounds.perimeter())) {	// 'not' logic since best = NaN at first
-					if (bestBounds.perimeter() == testBounds.perimeter()) {
-						// see which end is closer to desired close
-						OpPoint start = edge->whichPtT(EdgeMatch::start).pt;
-						float testDistance = (start 
-								- foundOne.edge->whichPtT(EdgeMatch::end).pt).lengthSquared();
-						float bestDistance = (start
-								- smallest.edge->whichPtT(EdgeMatch::end).pt).lengthSquared();
-						if (testDistance > bestDistance)
-							continue;
-						// !!! if test equals best, do we need another way to pick the better one?
-					}
-					bestBounds = testBounds;
-					smallest = foundOne;
-				}
-			}
-		}
+        detachChoppedEtc(edge, lastEdge);
+        smallest = chooseSmallest(edge, lastEdge);
 	}
 	// add back found as needed
 	for (const auto& foundOne : found) {
