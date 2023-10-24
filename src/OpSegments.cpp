@@ -54,9 +54,11 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
         opp->setDisabled(OP_DEBUG_CODE(ZeroReason::addIntersection));
         return;
     }
-    if (2 == septs.count && OpType::line == opp->c.type)
-        return (void) OpWinder::CoincidentCheck({ seg->c.pts[0], 0 }, { seg->c.pts[1], 1 },
+    if (2 == septs.count && OpType::line == opp->c.type) {
+        OpWinder::CoincidentCheck({ seg->c.pts[0], 0 }, { seg->c.pts[1], 1 },
                 { opp->c.pts[0], 0}, { opp->c.pts[1], 1 }, seg, opp );
+        return;
+    }
     if ((int) MatchEnds::start & (int) common)
         septs.addEnd(reversed ? 1 : 0);
     if ((int) MatchEnds::end & (int) common)

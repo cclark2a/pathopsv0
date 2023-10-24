@@ -4,12 +4,13 @@
 
 // this puts all switches that decide which tests to run and how to run them in one place
 
-#define OP_DEBUG_FAST_TEST 0  // in a debug build: set to zero to enable debug dump, debug image
-#define TEST_PATH_OP_FIRST "thread_circles76451" /* e.g., "thread_circles194387" test to debug */
-#define TEST_PATH_OP_SKIP_TO_FILE "circle" /* e.g., "cubic" tests only (see OpSkiaTests.cpp) */
+#define OP_DEBUG_FAST_TEST 1  // in a debug build: set to zero to enable debug dump, debug image
+#define TEST_PATH_OP_FIRST "" /* e.g., "thread_circles194387" test to debug */
+#define TEST_PATH_OP_SKIP_TO_FILE "" /* e.g., "cubic" tests only (see OpSkiaTests.cpp) */
 
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
-#define OP_TEST_ALLOW_EXTENDED 1  // some Skia tests have extended versions which take longer
+#define OP_TEST_ALLOW_EXTENDED 0  // some Skia tests have extended versions which take longer
+                                  // max run: 8,430,493: skipped: 5 error: 335
 #define OP_TEST_ENABLE_THREADS 1  // additionally, fast test above must be 1 to use threading
 #define OP_MAX_THREADS 16
 #define OP_TEST_V0 1
@@ -19,7 +20,7 @@
 
 #define TEST_PATH_OP_EXCEPTIONS "loops47i", "battleOp33", "battleOp287", "issue3651_2"
 #define TEST_PATH_OP_FAIL_EXCEPTIONS "grshapearcs1"
-#define TEST_PATH_OP_MAP_TO_FUZZ  "fuzzhang_1", "fuzz763_2674194"
+#define TEST_PATH_OP_MAP_TO_FUZZ  "fuzzhang_1", "fuzz763_2674194", "fuzzX_392"
 #define TEST_PATH_SIMPLIFY_EXCEPTIONS "testQuadratic75", "testQuadratic67x"
 #define TEST_PATH_SIMPLIFY_FAIL_EXCEPTIONS "grshapearc"
 #define TEST_PATH_SIMPLIFY_FUZZ_EXCEPTIONS ""
@@ -48,18 +49,11 @@ battleOp287 gap can be closed?
 
 loops47i: links edge 546 to 547 (the latter is inside an already-output'd loop)
 
-tiger8: edges 706 and 767 are far apart but separated by a fairly straight line. Along that line
-        are many edges, some of which are disabled and others have formed their own loops.
-        Solve for now by adding a filler edge to close the gap, rather than failing.
-        (emits debug string: "last, last resort")
-tiger8b_x2: triggers "last, last" three times (other tiger tests also trigger, but do not fail)
+tiger8b_x2: triggers "last, last" three times (does not fail) (other tests also trigger last, last)
 
 thread_circles76451: requires lookahead method described in OpJoiner.cpp:562
-thread_circles104481 had errors=82 tests:0 time:5602.521973s (requires extended)
-thread_circles104485 had errors=82 tests:0 time:5604.191895s
-thread_circles104489 had errors=82 tests:0 time:5605.783203s
-thread_circles104493 had errors=82 tests:0 time:5607.452148s
 + many, many more :(
+thread_circles669495: asserts because assemble() failed for a nonfailing test case (extended)
 thread_circles1590916: asserts in debugMatchRay() (OpDebug.cpp:423)
                        edge 187 is unsortable, may be why    
 
@@ -72,7 +66,8 @@ issue3651_2: very large test case; defer til later (fails with unmatched edge in
 fuzz_x1, fuzz_x2: succeeds in skia, fails in v0
 
 thread_cubics532868: triggers assert in OpContour.cpp:382 (debug further) (requires extended)
-thread_loops54 and more: draws incorrectly (debug further)
+thread_loops121: draws incorrectly (debug further)
++ many, many more :(
 */
 
 #define OP_RELEASE_TEST 1	// !!! set to zero to remove tests from release build (untested)

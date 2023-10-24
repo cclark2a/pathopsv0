@@ -204,22 +204,6 @@ OpVector OpCubic::tangent(float t) const {
     return { tangent(XyChoice::inX, t), tangent(XyChoice::inY, t) };
 }
 
-float OpCubic::tZeroX(float t1, float t2) const {
-    OpPair endCheck = xAtT( { t1, t2 } );
-    if (endCheck.s * endCheck.l > 0)  // if both are non zero and same sign, there's no crossing
-        return OpNaN;
-    float mid = (t1 + t2) * .5;
-    float step = (mid - t1) * .5;
-    while (step > OpEpsilon) {
-        OpPair test = { mid - step, mid + step };
-        OpPair x = xAtT(test);
-        if (x.s * x.l > 0)  // both same sign?
-            mid = (x.s * endCheck.s > 0) ? test.l : test.s; // same as t1? use step towards t2
-        step = step * .5;
-    }
-    return mid;
-}
-
 // given a pair of t values, return a pair of x values
 OpPair OpCubic::xAtT(OpPair t) const {
     OpPair one_t = 1 - t;

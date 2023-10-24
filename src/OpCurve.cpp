@@ -235,27 +235,30 @@ OpVector OpCurve::tangent(float t) const {
 // !!! incomplete while testing viability
 float OpCurve::tAtXY(float t1, float t2, XyChoice xy, float goal) const {
     switch (type) {
-    case OpType::line: // return asLine().tZeroX(t1, t2);
-    case OpType::quad: // return asQuad().tZeroX(t1, t2);
+    case OpType::line: break; // return asLine().tZeroX(t1, t2);
+    case OpType::quad: break; // return asQuad().tZeroX(t1, t2);
     case OpType::conic: return asConic().tAtXY(t1, t2, xy, goal);
-    case OpType::cubic: //return asCubic().tZeroX(t1, t2);
+    case OpType::cubic: break; //return asCubic().tZeroX(t1, t2);
     default:
         OP_ASSERT(0);
     }
     return OpNaN;
 }
 
-// !!! incomplete while testing viability
 float OpCurve::tZeroX(float t1, float t2) const {
-    switch (type) {
-    case OpType::line: // return asLine().tZeroX(t1, t2);
-    case OpType::quad: // return asQuad().tZeroX(t1, t2);
-    case OpType::conic: // return asConic().tZeroX(t1, t2);
-    case OpType::cubic: return asCubic().tZeroX(t1, t2);
-    default:
-        OP_ASSERT(0);
+    OpPair endCheck = xAtT( { t1, t2 } );
+    if (endCheck.s * endCheck.l > 0)  // if both are non zero and same sign, there's no crossing
+        return OpNaN;
+    float mid = (t1 + t2) * .5;
+    float step = (mid - t1) * .5;
+    while (step > OpEpsilon) {
+        OpPair test = { mid - step, mid + step };
+        OpPair x = xAtT(test);
+        if (x.s * x.l > 0)  // both same sign?
+            mid = (x.s * endCheck.s > 0) ? test.l : test.s; // same as t1? use step towards t2
+        step = step * .5;
     }
-    return OpNaN;
+    return mid;
 }
 
 // !!! debugging failure in thread_cubics8753
@@ -292,5 +295,19 @@ OpCurve OpCurve::toVertical(const LinePts& line) const {
     rotated.type = type;
     OP_DEBUG_CODE(rotated.debugIntersect = debugIntersect);
     return rotated;
+}
+
+// !!! incomplete while testing viability
+OpPair OpCurve::xAtT(OpPair t) const {
+    switch (type) {
+    case OpType::line: break; // return asLine().xAtT(t);
+    case OpType::quad: break; // return asQuad().xAtT(t);
+    case OpType::conic: return asConic().xAtT(t);
+    case OpType::cubic: return asCubic().xAtT(t);
+    default:
+        break;
+    }
+    OP_ASSERT(0);
+    return OpPair();
 }
 

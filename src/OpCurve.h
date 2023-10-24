@@ -133,6 +133,7 @@ struct OpCurve {
     // !!! thread_cubics8753 fails to find intersection of edges 54, 55; see if vertical is to blame
     // OpCurve toVerticalDouble(const LinePts& line) const;
     float tZeroX(float t1, float t2) const;
+    OpPair xAtT(OpPair t) const;
 #if OP_DEBUG_DUMP
     std::string debugDump() const;
     std::string debugDumpHex() const;
@@ -233,6 +234,7 @@ struct OpConic : OpCurve {
     float tangent(XyChoice offset, float t) const;
     OpVector tangent(float t) const;
     float tAtXY(float t1, float t2, XyChoice , float xy) const;
+    OpPair xAtT(OpPair t) const;
     OpPair xyAtT(OpPair t, XyChoice ) const;
 #if OP_DEBUG
     OpVector debugTangent(float t) const;
@@ -271,7 +273,6 @@ struct OpCubic : OpCurve {
     OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
     float tangent(XyChoice , double t) const;
     OpVector tangent(float t) const;
-    float tZeroX(float t1, float t2) const;
     OpPair xAtT(OpPair ) const;
 #if OP_DEBUG
     OpVector debugTangent(float t) const;
