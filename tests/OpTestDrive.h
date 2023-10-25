@@ -48,8 +48,6 @@ battleOp33: A pair of edges are pals; the ends of those edges need to join to co
 also:       is about 6 epsilons wide. Add logic that looks for pals on each edge to know that
 battleOp287 gap can be closed?
 
-battleOp177 had errors=414
-
 loops47i: links edge 546 to 547 (the latter is inside an already-output'd loop)
 
 tiger8b_x2: triggers "last, last" three times (does not fail) (other tests also trigger last, last)

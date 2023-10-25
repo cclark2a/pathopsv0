@@ -104,7 +104,6 @@ void OpEdge::apply() {
 	WindState right = contours->windState(wi.right(), su.right(), OpOperand::right);
 	if (left != WindState::flipOff && left != WindState::flipOn
 			&& right != WindState::flipOff && right != WindState::flipOn) {
-		OpDebugBreak(this, 534);
 		setDisabled(OP_DEBUG_CODE(ZeroReason::noFlip));
 		return;
 	}

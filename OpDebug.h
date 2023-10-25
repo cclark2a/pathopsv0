@@ -10,6 +10,14 @@
 
 #if !defined(NDEBUG) || OP_RELEASE_TEST
 #include <string>
+
+enum class OpDebugExpect {
+	unknown,
+	fail,
+	success,
+};
+
+float OpDebugBitsToFloat(int32_t);
 void OpDebugOut(const std::string& );
 void OpPrintOut(const std::string& );
 uint64_t OpInitTimer();
@@ -90,12 +98,6 @@ struct OpContours;
 // debug compare, debug dump, and debug image as written only work when testing uses a single thread
 extern OpDebugIntersect debugGlobalIntersect;
 
-enum class OpDebugExpect {
-	unknown,
-	fail,
-	success,
-};
-
 #define OpDebugBreak(opObject, ID) \
 	do { if ((ID) == (opObject)->id) OP_DEBUG_BREAK(); } while (false)
 
@@ -140,7 +142,6 @@ extern OpContours* debugGlobalContours;
 extern bool debugHexFloat;
 #endif
 
-float OpDebugBitsToFloat(int32_t);
 std::string OpDebugDumpHex(float);
 int32_t OpDebugFloatToBits(float);
 float OpDebugHexToFloat(const char*& str);

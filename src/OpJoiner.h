@@ -30,26 +30,26 @@ struct OpJoiner {
 	void addToLinkups(OpEdge* );
 	void buildDisabled(OpContours& );
 	void buildDisabledPals(OpContours& );
-    void checkDisabled(OpEdge* edge, OpPoint matchPt);
-    void checkGap(OpEdge* lastEdge, OpPoint matchPt);
-    void checkLinkups(OpEdge* lastEdge, OpPoint matchPt);
-    void checkNothingLeft(OpEdge* edge, OpEdge* lastEdge);
-    bool checkSectGap(OpEdge* lastEdge, OpPoint matchPt);
-    void checkUnsectableGap(OpEdge* lastEdge);
-    void checkUnsortableAndDisabled(OpEdge* edge, OpEdge* lastEdge, OpPoint matchPt);
-    void checkUnables(OpEdge* lastEdge, OpPoint matchPt);
-    FoundEdge chooseSmallest(OpEdge* edge, OpEdge* lastEdge);
-    void detachChoppedEtc(OpEdge* edge, OpEdge* lastEdge);
+    void checkDisabled();
+    void checkGap();
+    void checkLinkups();
+    void checkNothingLeft();
+    bool checkSectGap();
+    void checkUnsectableGap();
+    void checkUnsortableAndDisabled();
+    void checkUnables();
+    FoundEdge chooseSmallest();
+    void detachChoppedEtc();
 	bool detachIfLoop(OpEdge* );
-    bool forceSmallEdge(OpEdge* edge, OpEdge* lastEdge, OpPoint matchPt);
-    bool lastLastResort(OpEdge* edge, OpEdge* lastEdge);
+    bool forceSmallEdge();
+    bool lastLastResort();
 	bool linkRemaining();
 	void linkUnambiguous();
 	bool linkUp(OpEdge* );
 	void matchLeftover(OpPoint , const OpEdge* links, const std::vector<OpEdge*>& leftovers, 
 			std::vector<FoundEdge>& );
-	bool matchLinks(OpEdge* , bool popLast);
-    void matchPals(OpEdge* );
+	bool matchLinks(bool popLast);
+    void matchPals();
 	void sort();
 #if OP_DEBUG
 	int debugActive() const;
@@ -77,6 +77,9 @@ struct OpJoiner {
 	EdgeMatch linkMatch;
 	LinkPass linkPass;
 	const OpEdge* baseUnsectable;
+	OpEdge* edge;
+	OpEdge* lastEdge;
+	OpPoint matchPt;
 	bool disabledBuilt;
 	bool disabledPalsBuilt;
 

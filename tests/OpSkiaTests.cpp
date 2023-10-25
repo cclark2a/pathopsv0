@@ -116,21 +116,21 @@ void initTests(std::string filename) {
 }
 
 bool skipTest(std::string name) {
-    if (name == testFirst)
-        return false;
-    if ("" != testFirst) {
-        ++testsSkipped;
-        return true;
-    }
-    if (skipRestFiles.end() != std::find(skipRestFiles.begin(), skipRestFiles.end(),
-            name)) {
-        skipTestFiles.push_back(currentTestFile);
-    }
-    if ((skipToFile.size() && currentTestFile != skipToFile) 
-            || skipTestFiles.end() != std::find(skipTestFiles.begin(), skipTestFiles.end(), 
-            currentTestFile)) {
-        ++testsSkipped;
-        return true;
+    if (name != testFirst) {
+        if ("" != testFirst) {
+            ++testsSkipped;
+            return true;
+        }
+        if (skipRestFiles.end() != std::find(skipRestFiles.begin(), skipRestFiles.end(),
+                name)) {
+            skipTestFiles.push_back(currentTestFile);
+        }
+        if ((skipToFile.size() && currentTestFile != skipToFile) 
+                || skipTestFiles.end() != std::find(skipTestFiles.begin(), skipTestFiles.end(), 
+                currentTestFile)) {
+            ++testsSkipped;
+            return true;
+        }
     }
     ++testsRun;
     if (showTestName)
@@ -320,10 +320,15 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     SkPath skresult;
     bool skSuccess = Op(a, b, op, &skresult);
     OP_ASSERT(skSuccess || skiaMayFail);
+#if OP_TEST_V0
     if (success && !skSuccess)
         testsPassSkiaFail++;
     else if (!success && skSuccess)
         testsFailSkiaPass++;
+#else
+    if (skiaMayFail && skSuccess)
+        testsFailSkiaPass++;
+#endif
 #elif OP_TEST_REGION
     bool skSuccess = true;
 #endif
@@ -441,21 +446,29 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
     out.reset();
 	OpOutPath opOut(&out);
 #if OP_DEBUG || OP_TEST_REGION
-    bool success = DebugPathSimplify(op1, opOut, v0MayFail ? OpDebugExpect::unknown :
+    bool success =
+#endif
+#if OP_DEBUG
+        DebugPathSimplify(op1, opOut, v0MayFail ? OpDebugExpect::unknown :
                 OpDebugExpect::success, testname);
 #else
-    PathSimplify(op1, opOut);
+        PathSimplify(op1, opOut);
 #endif
     OP_ASSERT(v0MayFail || success);
 #endif
 #if OP_TEST_SKIA
     SkPath skOut;
-    OP_DEBUG_CODE(bool skSuccess =) Simplify(path, &skOut);
+    bool skSuccess = Simplify(path, &skOut);
     OP_ASSERT(skiaMayFail || skSuccess);
+#if OP_TEST_V0
     if (success && !skSuccess)
         testsPassSkiaFail++;
     else if (!success && skSuccess)
         testsFailSkiaPass++;
+#else
+    if (skiaMayFail && skSuccess)
+        testsFailSkiaPass++;
+#endif
 #endif
 #if OP_TEST_V0 && OP_TEST_REGION
     if (success) 

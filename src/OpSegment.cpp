@@ -19,7 +19,6 @@ void FoundEdge::reset() {
     index = -1;
     whichEnd = EdgeMatch::none;
     chop = ChopUnsortable::none;
-    addBack = false;
     connects = false;
     loops = false;
 }

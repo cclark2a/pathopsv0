@@ -2156,8 +2156,6 @@ void dmpDetail(const FoundEdge& foundOne) {
         s += "index:" + STR(foundOne.index) + " ";
     if (foundOne.whichEnd != EdgeMatch::none)
         s += "whichEnd:" + debugEdgeMatch(foundOne.whichEnd) + " ";
-    if (foundOne.addBack)
-        s += "addBack ";
     if (foundOne.connects)
         s += "connects ";
     if (foundOne.loops)

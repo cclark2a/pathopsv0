@@ -36,7 +36,6 @@ struct FoundEdge {
         , index(i)
         , whichEnd(w)
         , chop(ChopUnsortable::none)
-        , addBack(false)
         , connects(false)
         , loops(false) {
     }
@@ -53,7 +52,6 @@ struct FoundEdge {
     int index;  // used to track entry in linkups to remove after use
     EdgeMatch whichEnd;
     ChopUnsortable chop;  // true if edge has one or more linked unsortables to be removed
-    bool addBack; // set true if edge, unused, should be added back to linkups
     bool connects; // true if edge connects in correct direction with existing link
     bool loops;  // true if edge when connected to existing link forms a loop
 };

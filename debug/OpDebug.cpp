@@ -25,6 +25,19 @@ bool debugHexFloat = false;
 #include <windows.h>
 #endif
 
+std::atomic_int testsWarn;
+
+union FloatIntUnion {
+    float   f;
+    int32_t i;
+};
+
+float OpDebugBitsToFloat(int32_t i) {
+    FloatIntUnion d;
+    d.i = i;
+    return d.f;
+}
+
 void OpPrintOut(const std::string& s) {
 #ifdef _WIN32
     OutputDebugStringA(s.c_str());
@@ -83,15 +96,11 @@ void OpDebugOut(const std::string& s) {
 
 #include "OpCurve.h"
 
-union FloatIntUnion {
-    float   f;
-    int32_t i;
-};
-
-float OpDebugBitsToFloat(int32_t i) {
-    FloatIntUnion d;
-    d.i = i;
-    return d.f;
+void OpContours::debugWarning(std::string str) const {
+	if (debugExpect != OpDebugExpect::unknown) {
+		OpDebugOut(debugTestname + ": " + std::string(str) + "\n");
+        testsWarn++;
+	}
 }
 
 std::string OpDebugDump(float f) {
@@ -359,16 +368,6 @@ void OpContours::debugRemap(int oldRayMatch, int newRayMatch) {
         }
     }
 }
-
-std::atomic_int testsWarn;
-
-void OpContours::debugWarning(std::string str) const {
-	if (debugExpect != OpDebugExpect::unknown) {
-		OpDebugOut(debugTestname + ": " + std::string(str) + "\n");
-        testsWarn++;
-	}
-}
-
 
 // assign the same ID for all edges linked together
 // also assign that ID to edges whose non-zero crossing rays attach to those edges
