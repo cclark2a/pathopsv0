@@ -250,39 +250,65 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 //     bugs that introduces
 // !!! I'm bothered that segment / segment calls a different form of this
 void OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bool secondAttempt) {
-	OP_ASSERT(opp.segment != edge.segment);
+	OpSegment* eSegment = const_cast<OpSegment*>(edge.segment);
+	OpSegment* oSegment = const_cast<OpSegment*>(opp.segment);
+	OP_ASSERT(oSegment != eSegment);
 	OP_ASSERT(edge.isLine_impl);
 	LinePts edgePts { edge.start.pt, edge.end.pt };
-    OpRoots septs = opp.segment->c.rayIntersect(edgePts); 
+    OpRoots septs = oSegment->c.rayIntersect(edgePts); 
 	// !!! hacky: consider conics only until we find lines/quads/cubics that fail here as well
-	if (!septs.count && OpType::conic == opp.segment->c.type) {
-		for (XyChoice xy : { XyChoice::inX, XyChoice::inY } ) {
-			for (int index : {0, 1} ) {
-				const OpCurve& oppCurve = opp.segment->c;
-				float goal = edgePts.pts[index].choice(xy);
-				septs.roots[0] = oppCurve.tAtXY(opp.start.t, opp.end.t, xy, goal);
-				if (OpMath::IsNaN(septs.roots[0]))
-					continue;
-				OpPoint oppPt = opp.segment->c.ptAtT(septs.roots[0]);
-				float edgepT;
-				FoundPtT foundPtT = edge.segment->findPtT(edge.start.t, edge.end.t, oppPt, &edgepT);
-				if (FoundPtT::single != foundPtT || OpMath::IsNaN(edgepT))
-					continue;
-				++septs.count;
-				goto doneWithConics;
-			}
+	// check the ends of each edge to see if they intersect the opposite edge (if missed earlier)
+	auto addPair = [eSegment, oSegment  OP_DEBUG_PARAMS(opp, edge)](OpPtT oppPtT, OpPtT edgePtT) {
+		if (!eSegment->sects.contains(edgePtT, oSegment)
+				&& !oSegment->sects.contains(oppPtT, eSegment)) {
+			OpIntersection* sect = eSegment->addEdgeSect(edgePtT  
+					OP_DEBUG_PARAMS(SECT_MAKER(edgeLineCurve), SectReason::lineCurve, 
+					&edge, &opp));
+			OpIntersection* oSect = oSegment->addEdgeSect(oppPtT  
+					OP_DEBUG_PARAMS(SECT_MAKER(edgeLineCurveOpp), SectReason::lineCurve, 
+					&edge, &opp));
+			sect->pair(oSect);
 		}
-	doneWithConics:
-		;
+	};
+	if (!septs.count && OpType::conic == oSegment->c.type) {
+		auto checkEnd = [opp](OpPtT& start) {
+			const OpCurve& curve = opp.segment->c;
+			float xRoot = curve.tAtXY(opp.start.t, opp.end.t, XyChoice::inX, start.pt.x);
+			float yRoot = curve.tAtXY(opp.start.t, opp.end.t, XyChoice::inY, start.pt.y);
+			OpVector xTan = curve.tangent(xRoot);
+			OpVector yTan = curve.tangent(yRoot);
+			float yPos = fabsf(xTan.dx) < fabsf(xTan.dy) * 2 ? curve.ptAtT(xRoot).y : OpNaN;
+			float xPos = fabsf(yTan.dy) < fabsf(yTan.dx) * 2 ? curve.ptAtT(yRoot).x : OpNaN;
+			if (OpMath::IsNaN(yPos) && OpMath::IsNaN(xPos))
+				return OpPtT();
+			if (std::nextafterf(yPos, -OpInfinity) <= start.pt.y 
+					&& start.pt.y <= std::nextafter(yPos, +OpInfinity))
+				return OpPtT(start.pt, xRoot);
+			if (std::nextafterf(xPos, -OpInfinity) <= start.pt.x 
+					&& start.pt.x <= std::nextafter(xPos, +OpInfinity))
+				return OpPtT(start.pt, yRoot);
+			return OpPtT();
+		};
+		bool foundOne = false;
+		OpPtT oppStart = checkEnd(edge.start);
+		if (!OpMath::IsNaN(oppStart.t)) {
+			addPair(oppStart, edge.start);
+			foundOne = true;
+		}
+		OpPtT oppEnd = checkEnd(edge.end);
+		if (!OpMath::IsNaN(oppEnd.t)) {
+			addPair(oppEnd, edge.end);
+			foundOne = true;
+		}
+		if (foundOne)
+			return;
 	}
 	if (septs.rawIntersectFailed) {
 		// binary search on opp t-range to find where vert crosses zero
 		OpCurve rotated = opp.segment->c.toVertical(edgePts);
 		septs.roots[0] = rotated.tZeroX(opp.start.t, opp.end.t);
 		septs.count = 1;
-	} else if (!septs.count)
-		return;
-
+	}
 	// Note that coincident check does not receive intercepts as a parameter; in fact, the intercepts
 	// were not calculated (the roots are uninitialized). This is because coincident check will 
 	// compute the actual coincident start and end without the roots introducing error.
@@ -303,28 +329,17 @@ void OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bool secondAt
 #if OP_DEBUG_RECORD
 		OpDebugRecordSuccess(index);
 #endif
-		OpSegment* eSegment = const_cast<OpSegment*>(edge.segment);
 		if (0 == edgeT)
 			oppPtT.pt = eSegment->c.pts[0];
 		else if (1 == edgeT)
 			oppPtT.pt = eSegment->c.lastPt();
         // pin point to both bounds, but only if it is on edge
-		OpSegment* oSegment = const_cast<OpSegment*>(opp.segment);
 //		OP_DEBUG_CODE(OpPoint debugPt = oppPtT.pt);
         oSegment->ptBounds.pin(&oppPtT.pt);
 //      eSegment->ptBounds.pin(&oppPtT.pt);	// !!! doubtful this is needed with contains test above
 //		OP_ASSERT(debugPt == oppPtT.pt);	// rarely needed, but still triggered (e.g., joel_15x)
 		OpPtT edgePtT { oppPtT.pt, edgeT };
-		if (!eSegment->sects.contains(edgePtT, oSegment)
-				&& !oSegment->sects.contains(oppPtT, eSegment)) {
-			OpIntersection* sect = eSegment->addEdgeSect(edgePtT  
-					OP_DEBUG_PARAMS(SECT_MAKER(edgeLineCurve), SectReason::lineCurve, 
-					&edge, &opp));
-			OpIntersection* oSect = oSegment->addEdgeSect(oppPtT  
-					OP_DEBUG_PARAMS(SECT_MAKER(edgeLineCurveOpp), SectReason::lineCurve, 
-					&edge, &opp));
-			sect->pair(oSect);
-		}
+		addPair(oppPtT, edgePtT);
 	}
 	if (!tInRange && opp.isLine_impl && !secondAttempt) {
 		OpDebugRecordStart(edge, opp);

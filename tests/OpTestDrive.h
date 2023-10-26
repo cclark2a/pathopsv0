@@ -62,6 +62,8 @@ thread_circles669495: asserts because assemble() failed for a nonfailing test ca
 thread_circles1590916: asserts in debugMatchRay() (OpDebug.cpp:423)
                        edge 187 is unsortable, may be why    
 
+issue3517 had errors=22  regression after rewriting line/curve intersection (investigate)
+
 issue3651_2: very large test case; defer til later (fails with unmatched edge in joiner)
              possible explanation: edge 2489 is in output, but represents two edges (winding 1, 1)
              edge 2489 is connected to a single edge 2732 (winding 0, 1). Later, edge 2380

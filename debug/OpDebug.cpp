@@ -96,13 +96,6 @@ void OpDebugOut(const std::string& s) {
 
 #include "OpCurve.h"
 
-void OpContours::debugWarning(std::string str) const {
-	if (debugExpect != OpDebugExpect::unknown) {
-		OpDebugOut(debugTestname + ": " + std::string(str) + "\n");
-        testsWarn++;
-	}
-}
-
 std::string OpDebugDump(float f) {
     if (OpMath::IsNaN(f))
         return "NaN";
@@ -262,6 +255,13 @@ OpVector OpCubic::debugTangent(float t) const {
 
 #include "OpContour.h"
 #include "OpEdge.h"
+
+void OpContours::debugWarning(std::string str) const {
+	if (debugExpect != OpDebugExpect::unknown) {
+		OpDebugOut(debugTestname + ": " + std::string(str) + "\n");
+        testsWarn++;
+	}
+}
 
 const OpEdge* OpEdge::debugAdvanceToEnd(EdgeMatch match) const {
 	const OpEdge* result = this;
@@ -515,29 +515,29 @@ void OpJoiner::debugValidate() const {
     contours->debugValidateJoinerIndex += 1;
     contours->debugCheckLastEdge = false;
     if (LinkPass::unambiguous == linkPass) {
-        for (auto edge : byArea) {
-            edge->debugValidate();
-            OP_ASSERT(!edge->isActive() || !edge->debugIsLoop());
+        for (auto e : byArea) {
+            e->debugValidate();
+            OP_ASSERT(!e->isActive() || !e->debugIsLoop());
         }
     }
-    for (auto edge : unsectByArea) {
-        edge->debugValidate();
-        OP_ASSERT(!edge->isActive() || !edge->debugIsLoop());
+    for (auto e : unsectByArea) {
+        e->debugValidate();
+        OP_ASSERT(!e->isActive() || !e->debugIsLoop());
     }
-    for (auto edge : disabled) {
-        edge->debugValidate();
-//        OP_ASSERT(!edge->debugIsLoop());
+    for (auto e : disabled) {
+        e->debugValidate();
+//        OP_ASSERT(!e->debugIsLoop());
     }
-    for (auto edge : unsortables) {
-        edge->debugValidate();
-        OP_ASSERT(!edge->isActive() || !edge->debugIsLoop());
+    for (auto e : unsortables) {
+        e->debugValidate();
+        OP_ASSERT(!e->isActive() || !e->debugIsLoop());
     }
     contours->debugCheckLastEdge = true;
-    for (auto edge : linkups.l) {
-        edge->debugValidate();
-        OP_ASSERT(!edge->priorEdge);
-        OP_ASSERT(edge->lastEdge);
-        OP_ASSERT(!edge->debugIsLoop());
+    for (auto e : linkups.l) {
+        e->debugValidate();
+        OP_ASSERT(!e->priorEdge);
+        OP_ASSERT(e->lastEdge);
+        OP_ASSERT(!e->debugIsLoop());
     }
 }
 
