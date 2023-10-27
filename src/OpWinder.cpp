@@ -477,7 +477,14 @@ FindCept SectRay::findIntercept(OpEdge* test) {
 	float testXY = pt.choice(perpendicular);
 	bool reversed = tangent.dot(homeTangent) < 0;
 	distances.emplace_back(test, testXY, root, reversed);
-	return std::nextafterf(testXY, homeCept) == homeCept ? FindCept::unsectable : FindCept::ok;
+	return std::nextafterf(testXY, homeCept) == homeCept ? FindCept::unsectable : FindCept::okNew;
+}
+
+void SectRay::sort() {
+	std::sort(distances.begin(), distances.end(), 
+			[](const EdgeDistance& s1, const EdgeDistance& s2) {
+		return s1.cept < s2.cept || (s1.cept == s2.cept && s1.edge->id < s2.edge->id);
+	});
 }
 
 FoundIntercept OpWinder::findRayIntercept(size_t inIndex, OpVector homeTan, float normal, 
@@ -523,8 +530,28 @@ FoundIntercept OpWinder::findRayIntercept(size_t inIndex, OpVector homeTan, floa
 			} else if (FindCept::retry == findCept)
 				goto tryADifferentCenter;
 		}
-		if (touches == touching.size())
+		if (touches != touching.size())
+			goto tryADifferentCenter;
+		if (ray.distances.size() <= 1) 
 			return FoundIntercept::yes;
+		ray.sort();
+		if (ray.distances.front().edge == home)
+			return FoundIntercept::yes;
+		for (EdgeDistance* dist = &ray.distances.front(); (dist + 1)->edge != home; ++dist) {
+			OpEdge* prior = dist->edge;
+			OpEdge* last = (dist + 1)->edge; 
+			if (last->ray.distances.size() > 1) {
+				EdgeDistance* lastDist = last->ray.find(last);
+				if (lastDist < &last->ray.distances.back() && (lastDist + 1)->edge == prior)
+					goto tryADifferentCenter;
+			}
+			if (prior->ray.distances.size() > 1) {
+				EdgeDistance* priorDist = prior->ray.find(prior);
+				if (priorDist > &prior->ray.distances.front() && (priorDist - 1)->edge == last)
+					goto tryADifferentCenter;
+			}
+		}
+		return FoundIntercept::yes;
 	tryADifferentCenter:
 		mid /= 2;
 		midEnd = midEnd < .5 ? 1 - mid : mid;
@@ -540,7 +567,7 @@ FoundIntercept OpWinder::findRayIntercept(size_t inIndex, OpVector homeTan, floa
 			// look for the same edge touching multiple times; the pair are unsectable
 			if (FindCept::unsectable == findCept) {
 				markUnsortable();
-				return FoundIntercept::fail;	// nonfatal error (!!! give it a different name!)
+				break;	// give up
 			}
 			while (touching.size()) {
 				EdgeDistance& touch = touching[0];
@@ -554,7 +581,7 @@ FoundIntercept OpWinder::findRayIntercept(size_t inIndex, OpVector homeTan, floa
 			}
 			if (!home->unsectableID && !home->pals.size())
 				markUnsortable();
-			return FoundIntercept::fail;	// nonfatal error (!!! give it a different name!)
+			break;	// give up
 		}
 		// if find ray intercept can't find, restart with new center, normal, distance, etc.
 		ray.homeCept = homeCept = homeCurve.ptAtT(homeMidT).choice(perpendicular);
@@ -563,6 +590,9 @@ FoundIntercept OpWinder::findRayIntercept(size_t inIndex, OpVector homeTan, floa
 		ray.homeT = homeMidT;
 		OP_ASSERT(!OpMath::IsNaN(normal));
 	} while (true);
+	// give up case: sort and go home
+	ray.sort();
+	return FoundIntercept::fail;	// nonfatal error (!!! give it a different name!)
 }
 
 void OpWinder::markUnsortable() {
@@ -605,12 +635,6 @@ ChainFail OpWinder::setSumChain(size_t inIndex) {
 			break;
 	}
 	FoundIntercept foundIntercept = findRayIntercept(inIndex, homeTangent, normal, homeCept);
-	OP_ASSERT(home->ray.distances.size());
-	SectRay& ray = home->ray;
-	std::sort(ray.distances.begin(), ray.distances.end(), 
-			[](const EdgeDistance& s1, const EdgeDistance& s2) {
-		return s1.cept < s2.cept;
-	});
 	if (FoundIntercept::fail == foundIntercept)
 		return ChainFail::failIntercept;
 	if (FoundIntercept::overflow == foundIntercept)

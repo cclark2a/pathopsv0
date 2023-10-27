@@ -19,14 +19,15 @@
 #define OP_DEBUG_RECORD 0  // track some statistic or other while running
 
 // see descriptions for exceptions below
-#define TEST_PATH_OP_EXCEPTIONS "loops47i", "battleOp33", "battleOp287", "issue3651_2"
-#define TEST_PATH_OP_FAIL_EXCEPTIONS "grshapearcs1"
-#define TEST_PATH_OP_MAP_TO_FUZZ  "fuzzhang_1", "fuzz763_2674194", "fuzzX_392"
-#define TEST_PATH_SIMPLIFY_EXCEPTIONS "testQuadratic75", "testQuadratic67x"
+#define TEST_PATH_OP_EXCEPTIONS "battleOp287"
+#define TEST_PATH_OP_FAIL_EXCEPTIONS ""
+#define TEST_PATH_OP_MAP_TO_FUZZ "fuzzhang_1"
+#define TEST_PATH_SIMPLIFY_EXCEPTIONS ""
 #define TEST_PATH_SIMPLIFY_FAIL_EXCEPTIONS "grshapearc"
 #define TEST_PATH_SIMPLIFY_FUZZ_EXCEPTIONS ""
-#define TEST_PATH_SIMPLIFY_MAP_TO_FUZZ  "fuzz_x1", "fuzz_x2"
+#define TEST_PATH_SIMPLIFY_MAP_TO_FUZZ  ""
 
+// !!! need to update laptop exceptions with latest
 #define LAPTOP_PATH_OP_EXCEPTIONS "issue1417", "fuzz763_378"
 #define LAPTOP_PATH_OP_MAP_TO_FUZZ "fuzz763_10022998"
 
@@ -35,50 +36,34 @@
 #define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */
 
 /* test failure descriptions:
-grshapearcs1:  very complicated; defer. Asserts in OpWinder::AddLineCurveIntersection
-               a 'more code needed?' alert that oSegment pinned to bounds
+total run:735267 skipped:2 errors:12 warnings:21 v0 only:3 skia only:70
 
-fuzzhang_1, fuzz763_2674194: succeeds in skia, fails in v0
+grshapearc: hangs in chooseSmallest looping on priorEdge pointing to two edge loop (77719, 77720)
+fuzzhang_1: succeeds in skia, fails in v0 (investigate)
+battleOp287: addFiller() fails; intersection not found (investigate)
+issue3517: no edge found: last, last resort; had errors=22
+issue1435: no edge found: last, last resort; had errors=512
+fuzz763_378b: no edge found: last, last resort
+fuzz763_378: no edge found: last, last resort (x2); had errors=30
+issue3651_4: no edge found: last, last resort
+issue3651_7: no edge found: last, last resort
+issue3651_2: no edge found: last, last resort
+thread_cubics78212 had errors=223  (investigate: likely same error as below)
+        (was: xor fill makes closed loop out of hole (winding looks fine))
+thread_cubics78216: no edge found: last, last resort; had errors=223
+thread_cubics78220: no edge found: last, last resort; had errors=223
+thread_cubics78224: no edge found: last, last resort; had errors=223
+thread_cubics132356: no edge found: last, last resort (x2); had errors=26 (investigate)
+thread_cubics132360: no edge found: last, last resort (x2); had errors=26
+thread_cubics132364: no edge found: last, last resort (x2); had errors=26
+thread_cubics132368: no edge found: last, last resort (x2); had errors=26
+thread_loops1658 had errors=73
 
-testQuadratic75: (simplify) needs lookahead in matchLinks to find best disabled edge
-testQuadratic67x: links unsortable to edge crossing boundary; simple fix breaks loops44i
-
-battleOp33: A pair of edges are pals; the ends of those edges need to join to connect to next
-            outside edge. There is no edge, disabled or otherwise, that closes the gap. The gap
-also:       is about 6 epsilons wide. Add logic that looks for pals on each edge to know that
-battleOp287 gap can be closed?
-
-loops47i: links edge 546 to 547 (the latter is inside an already-output'd loop)
-
-tiger8b_x2: triggers "last, last" three times (does not fail) (other tests also trigger last, last)
-
-thread_circles50722 had errors=2016 tests:0 time:20.021664s
-thread_circles50726 had errors=2016 tests:0 time:20.022068s
-thread_circles50730 had errors=2016 tests:0 time:20.023123s
-thread_circles50734 had errors=2016 tests:0
-thread_circles76451: requires lookahead method described in OpJoiner.cpp:562
-+ many, many more :(
+!!! need to verify that extended still fails as listed: (not all fails are listed)
 thread_circles669495: asserts because assemble() failed for a nonfailing test case (extended)
 thread_circles1590916: asserts in debugMatchRay() (OpDebug.cpp:423)
                        edge 187 is unsortable, may be why    
-
-issue3517 had errors=22  regression after rewriting line/curve intersection (investigate)
-
-issue3651_2: very large test case; defer til later (fails with unmatched edge in joiner)
-             possible explanation: edge 2489 is in output, but represents two edges (winding 1, 1)
-             edge 2489 is connected to a single edge 2732 (winding 0, 1). Later, edge 2380
-             has nothing to connect to; but it should be able to connect to the unused half of
-             edge 2489
-
-fuzz_x1, fuzz_x2: succeeds in skia, fails in v0
-
 thread_cubics532868: triggers assert in OpContour.cpp:382 (debug further) (requires extended)
-thread_loops998 had errors=13 tests:0 time:42.050385s  (debug further)
-thread_loops1107 had errors=14 tests:0 time:42.060959s
-thread_loops1331 had errors=71 tests:0 time:42.082119s
-thread_loops1359 had errors=171 tests:0 time:42.085110s
-thread_loops1467 had errors=171 tests:0 time:42.095474s
-thread_loops1658 had errors=73 tests:0 time:42.113949s
 */
 
 #define OP_RELEASE_TEST 1	// !!! set to zero to remove tests from release build (untested)
@@ -88,7 +73,8 @@ thread_loops1658 had errors=73 tests:0 time:42.113949s
 #include "OpDebugCompare.h" // this hasn't been used in a long time and is likely broken
 #endif
 
-// this isn't used yet, but works and provides an alternative to runningWithFMA()
+// an alternative to runningWithFMA()
+// only used to attempt to fix debugging on laptop (unsuccessful)
 #if defined(__llvm__)
 #define OP_HAS_FMA
 #else

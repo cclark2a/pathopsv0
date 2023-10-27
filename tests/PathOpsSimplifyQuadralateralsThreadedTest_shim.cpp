@@ -4,5 +4,6 @@
 #include "tests/PathOpsSimplifyQuadralateralsThreadedTest.cpp"
 
 void run_simplify_quadralaterals_tests() {
-    test_PathOpsSimplifyQuadralateralsThreaded(nullptr);
+    skiatest::Reporter r;
+    test_PathOpsSimplifyQuadralateralsThreaded(&r);
 }

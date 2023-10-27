@@ -89,7 +89,9 @@ bool runningWithFMA() {
     return runWithFMA;
 }
 
-void initializeTests(skiatest::Reporter* , const char* ) {
+void initializeTests(skiatest::Reporter* r, const char* name) {
+    if (r)
+        r->testname = name;
 }
 
 void initTests(std::string filename) {
@@ -434,8 +436,9 @@ void VerifySimplify(const SkPath& one, std::string testname, const SkPath& resul
     if (errors > MAX_ERRORS) {
 #if !defined(NDEBUG) || OP_RELEASE_TEST
         ReportError(testname, errors);
+        testsError++;
 #endif
-        OP_ASSERT(0);
+//        OP_ASSERT(0);
     }
 }
 
@@ -476,17 +479,20 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
 #endif
 }
 
-bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& , 
+bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& state, 
         const char* name) {
-    if (skipTest(name))
+    std::string testname(name);
+    if ("" == testname) {
+        testname = state.fReporter->testname + STR(++state.fReporter->unnamedCount);
+    }
+    if (skipTest(testname.c_str()))
         return true;
     path.setFillType(useXor ? SkPathFillType::kEvenOdd : SkPathFillType::kWinding);
 #if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
-    std::string testname(name);
     path.updateBoundsCache();
     threadpool.push(threadableSimplifyTest, path, testname, out, false, false);
 #else
-    threadableSimplifyTest(0, path, name, out, false, false);
+    threadableSimplifyTest(0, path, testname.c_str(), out, false, false);
 #endif
     return true;
 }
@@ -549,11 +555,15 @@ PathOpsThreadedRunnable** DebugOneShot::append() {
 PathOpsThreadedRunnable::PathOpsThreadedRunnable(void (*f)(PathOpsThreadState *),
             int a, int b, int c, int d, PathOpsThreadedTestRunner* runner) {
     fun = f;
-    runner->fRunnables.data = { a, b, c, d };
+    runner->fRunnables.data.fA = a;
+    runner->fRunnables.data.fB = b;
+    runner->fRunnables.data.fC = c;
+    runner->fRunnables.data.fD = d;
 }
 
-PathOpsThreadedTestRunner::PathOpsThreadedTestRunner(skiatest::Reporter*) {
+PathOpsThreadedTestRunner::PathOpsThreadedTestRunner(skiatest::Reporter* r) {
     fRunnables.slot = nullptr;
+    fRunnables.data.fReporter = r;
 }
 
 void PathOpsThreadedTestRunner::render() {

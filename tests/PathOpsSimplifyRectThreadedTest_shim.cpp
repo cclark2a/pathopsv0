@@ -4,5 +4,6 @@
 #include "tests/PathOpsSimplifyRectThreadedTest.cpp"
 
 void run_simplify_rect_tests() {
-    test_PathOpsSimplifyRectsThreaded(nullptr);
+    skiatest::Reporter r;
+    test_PathOpsSimplifyRectsThreaded(&r);
 }

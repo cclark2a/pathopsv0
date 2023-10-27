@@ -4,5 +4,6 @@
 #include "tests/PathOpsSimplifyDegenerateThreadedTest.cpp"
 
 void run_simplify_degenerate_tests() {
-    test_PathOpsSimplifyDegeneratesThreaded(nullptr);
+    skiatest::Reporter r;
+    test_PathOpsSimplifyDegeneratesThreaded(&r);
 }

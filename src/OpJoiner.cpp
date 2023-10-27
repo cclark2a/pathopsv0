@@ -595,7 +595,7 @@ bool OpJoiner::forceSmallEdge() {
 }
 
 bool OpJoiner::lastLastResort() {
-	OP_WARNING(edge->segment->contour->contours, "no edge found: last, last resort\n");
+	OP_WARNING(edge->segment->contour->contours, "no edge found: last, last resort");
 	OpEdge* filler = edge->segment->contour->addFiller(edge, lastEdge);
 	if (!filler)
 		return false;

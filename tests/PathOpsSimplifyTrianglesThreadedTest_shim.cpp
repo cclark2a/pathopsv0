@@ -4,5 +4,6 @@
 #include "tests/PathOpsSimplifyTrianglesThreadedTest.cpp"
 
 void run_simplify_triangles_tests() {
-    test_PathOpsSimplifyTrianglesThreaded(nullptr);
+    skiatest::Reporter r;
+    test_PathOpsSimplifyTrianglesThreaded(&r);
 }

@@ -280,6 +280,7 @@ struct EdgeDistance {
 
 enum class FindCept {
 	ok,
+	okNew,	// intercept was found, and new distance was pushed
 	retry,
 	unsectable,
 	unsortable
@@ -297,6 +298,7 @@ struct SectRay {
 	void addPals(OpEdge* );
 	FindCept findIntercept(OpEdge* );
 	EdgeDistance* find(OpEdge* );
+	void sort();
 #if OP_DEBUG_DUMP
 	void dump() const;
 	void dumpDetail() const;
