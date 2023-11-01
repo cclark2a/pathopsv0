@@ -576,145 +576,145 @@ uint32_t white_smoke = 0xFFF5F5F5;
 uint32_t white = 0xFFFFFFFF;
 uint32_t White = 0xFFFFFFFF;
 
-std::vector<uint32_t> debugColorArray = {
-    0xFF800000, // maroon
-    0xFF8B0000, // darkred
-    0xFFA52A2A, // brown
-    0xFFB22222, // firebrick
-    0xFFDC143C, // crimson
-    0xFFFF0000, // red
-    0xFFFF6347, // tomato
-    0xFFFF7F50, // coral
-    0xFFCD5C5C, // indianred
-    0xFFF08080, // lightcoral
-    0xFFE9967A, // darksalmon
-    0xFFFA8072, // salmon
-    0xFFFFA07A, // lightsalmon
-    0xFFFF4500, // orangered
-    0xFFFF8C00, // darkorange
-    0xFFFFA500, // orange
-    0xFFFFD700, // gold
-    0xFFB8860B, // darkgoldenrod
-    0xFFDAA520, // goldenrod
-    0xFFEEE8AA, // palegoldenrod
-    0xFFBDB76B, // darkkhaki
-    0xFFF0E68C, // khaki
-    0xFF808000, // olive
-    0xFFFFFF00, // yellow
-    0xFF9ACD32, // yellowgreen
-    0xFF556B2F, // darkolivegreen
-    0xFF6B8E23, // olivedrab
-    0xFF7CFC00, // lawngreen
-    0xFF7FFF00, // chartreuse
-    0xFFADFF2F, // greenyellow
-    0xFF006400, // darkgreen
-    0xFF008000, // green
-    0xFF228B22, // forestgreen
-    0xFF00FF00, // lime
-    0xFF32CD32, // limegreen
-    0xFF90EE90, // lightgreen
-    0xFF98FB98, // palegreen
-    0xFF8FBC8F, // darkseagreen
-    0xFF00FA9A, // mediumspringgreen
-    0xFF00FF7F, // springgreen
-    0xFF2E8B57, // seagreen
-    0xFF66CDAA, // mediumaquamarine
-    0xFF3CB371, // mediumseagreen
-    0xFF20B2AA, // lightseagreen
-    0xFF2F4F4F, // darkslategray
-    0xFF008080, // teal
-    0xFF008B8B, // darkcyan
-    0xFF00FFFF, // aqua
-    0xFFE0FFFF, // lightcyan
-    0xFF00CED1, // darkturquoise
-    0xFF40E0D0, // turquoise
-    0xFF48D1CC, // mediumturquoise
-    0xFFAFEEEE, // paleturquoise
-    0xFF7FFFD4, // aquamarine
-    0xFFB0E0E6, // powderblue
-    0xFF5F9EA0, // cadetblue
-    0xFF4682B4, // steelblue
-    0xFF6495ED, // cornflowerblue
-    0xFF00BFFF, // deepskyblue
-    0xFF1E90FF, // dodgerblue
-    0xFFADD8E6, // lightblue
-    0xFF87CEEB, // skyblue
-    0xFF87CEFA, // lightskyblue
-    0xFF191970, // midnightblue
-    0xFF000080, // navy
-    0xFF00008B, // darkblue
-    0xFF0000CD, // mediumblue
-    0xFF0000FF, // blue
-    0xFF4169E1, // royalblue
-    0xFF8A2BE2, // blueviolet
-    0xFF4B0082, // indigo
-    0xFF483D8B, // darkslateblue
-    0xFF6A5ACD, // slateblue
-    0xFF7B68EE, // mediumslateblue
-    0xFF9370DB, // mediumpurple
-    0xFF8B008B, // darkmagenta
-    0xFF9400D3, // darkviolet
-    0xFF9932CC, // darkorchid
-    0xFFBA55D3, // mediumorchid
-    0xFF800080, // purple
-    0xFFD8BFD8, // thistle
-    0xFFDDA0DD, // plum
-    0xFFEE82EE, // violet
-    0xFFFF00FF, // fuchsia
-    0xFFDA70D6, // orchid
-    0xFFC71585, // mediumvioletred
-    0xFFDB7093, // palevioletred
-    0xFFFF1493, // deeppink
-    0xFFFF69B4, // hotpink
-    0xFFFFB6C1, // lightpink
-    0xFFFFC0CB, // pink
-    0xFFFAEBD7, // antiquewhite
-    0xFFF5F5DC, // beige
-    0xFFFFE4C4, // bisque
-    0xFFFFEBCD, // blanchedalmond
-    0xFFF5DEB3, // wheat
-    0xFFFFF8DC, // cornsilk
-    0xFFFFFACD, // lemonchiffon
-    0xFFFAFAD2, // lightgoldenrodyellow
-    0xFFFFFFE0, // lightyellow
-    0xFF8B4513, // saddlebrown
-    0xFFA0522D, // sienna
-    0xFFD2691E, // chocolate
-    0xFFCD853F, // peru
-    0xFFF4A460, // sandybrown
-    0xFFDEB887, // burlywood
-    0xFFD2B48C, // tanbrown
-    0xFFBC8F8F, // rosybrown
-    0xFFFFE4B5, // moccasin
-    0xFFFFDEAD, // navajowhite
-    0xFFFFDAB9, // peachpuff
-    0xFFFFE4E1, // mistyrose
-    0xFFFFF0F5, // lavenderblush
-    0xFFFAF0E6, // linen
-    0xFFFDF5E6, // oldlace
-    0xFFFFEFD5, // papayawhip
-    0xFFFFF5EE, // seashell
-    0xFFF5FFFA, // mintcream
-    0xFF708090, // slategray
-    0xFF778899, // lightslategray
-    0xFFB0C4DE, // lightsteelblue
-    0xFFE6E6FA, // lavender
-    0xFFFFFAF0, // floralwhite
-    0xFFF0F8FF, // aliceblue
-    0xFFF8F8FF, // ghostwhite
-    0xFFF0FFF0, // honeydew
-    0xFFFFFFF0, // ivory
-    0xFFF0FFFF, // azure
-    0xFFFFFAFA, // snow
-    0xFF000000, // black
-    0xFF696969, // dimgray
-    0xFF808080, // gray
-    0xFFA9A9A9, // darkgray
-    0xFFC0C0C0, // silver
-    0xFFD3D3D3, // lightgray
-    0xFFDCDCDC, // gainsboro
-    0xFFF5F5F5, // whitesmoke
-    0xFFFFFFFF  // white
+std::vector<std::pair<uint32_t, std::string>> debugColorArray = {
+    { 0xFF800000, "maroon" },
+    { 0xFF8B0000, "darkred" },
+    { 0xFFA52A2A, "brown" },
+    { 0xFFB22222, "firebrick" },
+    { 0xFFDC143C, "crimson" },
+    { 0xFFFF0000, "red" },
+    { 0xFFFF6347, "tomato" },
+    { 0xFFFF7F50, "coral" },
+    { 0xFFCD5C5C, "indianred" },
+    { 0xFFF08080, "lightcoral" },
+    { 0xFFE9967A, "darksalmon" },
+    { 0xFFFA8072, "salmon" },
+    { 0xFFFFA07A, "lightsalmon" },
+    { 0xFFFF4500, "orangered" },
+    { 0xFFFF8C00, "darkorange" },
+    { 0xFFFFA500, "orange" },
+    { 0xFFFFD700, "gold" },
+    { 0xFFB8860B, "darkgoldenrod" },
+    { 0xFFDAA520, "goldenrod" },
+    { 0xFFEEE8AA, "palegoldenrod" },
+    { 0xFFBDB76B, "darkkhaki" },
+    { 0xFFF0E68C, "khaki" },
+    { 0xFF808000, "olive" },
+    { 0xFFFFFF00, "yellow" },
+    { 0xFF9ACD32, "yellowgreen" },
+    { 0xFF556B2F, "darkolivegreen" },
+    { 0xFF6B8E23, "olivedrab" },
+    { 0xFF7CFC00, "lawngreen" },
+    { 0xFF7FFF00, "chartreuse" },
+    { 0xFFADFF2F, "greenyellow" },
+    { 0xFF006400, "darkgreen" },
+    { 0xFF008000, "green" },
+    { 0xFF228B22, "forestgreen" },
+    { 0xFF00FF00, "lime" },
+    { 0xFF32CD32, "limegreen" },
+    { 0xFF90EE90, "lightgreen" },
+    { 0xFF98FB98, "palegreen" },
+    { 0xFF8FBC8F, "darkseagreen" },
+    { 0xFF00FA9A, "mediumspringgreen" },
+    { 0xFF00FF7F, "springgreen" },
+    { 0xFF2E8B57, "seagreen" },
+    { 0xFF66CDAA, "mediumaquamarine" },
+    { 0xFF3CB371, "mediumseagreen" },
+    { 0xFF20B2AA, "lightseagreen" },
+    { 0xFF2F4F4F, "darkslategray" },
+    { 0xFF008080, "teal" },
+    { 0xFF008B8B, "darkcyan" },
+    { 0xFF00FFFF, "aqua" },
+    { 0xFFE0FFFF, "lightcyan" },
+    { 0xFF00CED1, "darkturquoise" },
+    { 0xFF40E0D0, "turquoise" },
+    { 0xFF48D1CC, "mediumturquoise" },
+    { 0xFFAFEEEE, "paleturquoise" },
+    { 0xFF7FFFD4, "aquamarine" },
+    { 0xFFB0E0E6, "powderblue" },
+    { 0xFF5F9EA0, "cadetblue" },
+    { 0xFF4682B4, "steelblue" },
+    { 0xFF6495ED, "cornflowerblue" },
+    { 0xFF00BFFF, "deepskyblue" },
+    { 0xFF1E90FF, "dodgerblue" },
+    { 0xFFADD8E6, "lightblue" },
+    { 0xFF87CEEB, "skyblue" },
+    { 0xFF87CEFA, "lightskyblue" },
+    { 0xFF191970, "midnightblue" },
+    { 0xFF000080, "navy" },
+    { 0xFF00008B, "darkblue" },
+    { 0xFF0000CD, "mediumblue" },
+    { 0xFF0000FF, "blue" },
+    { 0xFF4169E1, "royalblue" },
+    { 0xFF8A2BE2, "blueviolet" },
+    { 0xFF4B0082, "indigo" },
+    { 0xFF483D8B, "darkslateblue" },
+    { 0xFF6A5ACD, "slateblue" },
+    { 0xFF7B68EE, "mediumslateblue" },
+    { 0xFF9370DB, "mediumpurple" },
+    { 0xFF8B008B, "darkmagenta" },
+    { 0xFF9400D3, "darkviolet" },
+    { 0xFF9932CC, "darkorchid" },
+    { 0xFFBA55D3, "mediumorchid" },
+    { 0xFF800080, "purple" },
+    { 0xFFD8BFD8, "thistle" },
+    { 0xFFDDA0DD, "plum" },
+    { 0xFFEE82EE, "violet" },
+    { 0xFFFF00FF, "fuchsia" },
+    { 0xFFDA70D6, "orchid" },
+    { 0xFFC71585, "mediumvioletred" },
+    { 0xFFDB7093, "palevioletred" },
+    { 0xFFFF1493, "deeppink" },
+    { 0xFFFF69B4, "hotpink" },
+    { 0xFFFFB6C1, "lightpink" },
+    { 0xFFFFC0CB, "pink" },
+    { 0xFFFAEBD7, "antiquewhite" },
+    { 0xFFF5F5DC, "beige" },
+    { 0xFFFFE4C4, "bisque" },
+    { 0xFFFFEBCD, "blanchedalmond" },
+    { 0xFFF5DEB3, "wheat" },
+    { 0xFFFFF8DC, "cornsilk" },
+    { 0xFFFFFACD, "lemonchiffon" },
+    { 0xFFFAFAD2, "lightgoldenrodyellow" },
+    { 0xFFFFFFE0, "lightyellow" },
+    { 0xFF8B4513, "saddlebrown" },
+    { 0xFFA0522D, "sienna" },
+    { 0xFFD2691E, "chocolate" },
+    { 0xFFCD853F, "peru" },
+    { 0xFFF4A460, "sandybrown" },
+    { 0xFFDEB887, "burlywood" },
+    { 0xFFD2B48C, "tanbrown" },
+    { 0xFFBC8F8F, "rosybrown" },
+    { 0xFFFFE4B5, "moccasin" },
+    { 0xFFFFDEAD, "navajowhite" },
+    { 0xFFFFDAB9, "peachpuff" },
+    { 0xFFFFE4E1, "mistyrose" },
+    { 0xFFFFF0F5, "lavenderblush" },
+    { 0xFFFAF0E6, "linen" },
+    { 0xFFFDF5E6, "oldlace" },
+    { 0xFFFFEFD5, "papayawhip" },
+    { 0xFFFFF5EE, "seashell" },
+    { 0xFFF5FFFA, "mintcream" },
+    { 0xFF708090, "slategray" },
+    { 0xFF778899, "lightslategray" },
+    { 0xFFB0C4DE, "lightsteelblue" },
+    { 0xFFE6E6FA, "lavender" },
+    { 0xFFFFFAF0, "floralwhite" },
+    { 0xFFF0F8FF, "aliceblue" },
+    { 0xFFF8F8FF, "ghostwhite" },
+    { 0xFFF0FFF0, "honeydew" },
+    { 0xFFFFFFF0, "ivory" },
+    { 0xFFF0FFFF, "azure" },
+    { 0xFFFFFAFA, "snow" },
+    { 0xFF000000, "black" },
+    { 0xFF696969, "dimgray" },
+    { 0xFF808080, "gray" },
+    { 0xFFA9A9A9, "darkgray" },
+    { 0xFFC0C0C0, "silver" },
+    { 0xFFD3D3D3, "lightgray" },
+    { 0xFFDCDCDC, "gainsboro" },
+    { 0xFFF5F5F5, "whitesmoke" },
+    { 0xFFFFFFFF, "white" }
 };
 
 #endif

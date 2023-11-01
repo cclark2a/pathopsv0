@@ -7,6 +7,7 @@
 #endif
 
 #include <algorithm>
+#include <functional>
 #include "include/core/SkBitmap.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkFont.h"
@@ -26,14 +27,9 @@
 SkBitmap bitmap;
 SkFont labelFont(nullptr, 14, 1, 0);
 
-std::vector<const OpIntersection*> coincidences;
-std::vector<const OpEdge*> localEdges;
-std::vector<const OpEdge*> foundEdges;
-std::vector<const OpEdge*> highlights;
 std::vector<OpDebugRay> lines;
 std::vector<OpInPath> operands;
 std::vector<const SkPath*> paths;
-std::vector<const OpSegment*> localSegments;	// segments not yet added to global debug contour
 int gridIntervals = 8;
 int valuePrecision = -1;		// minus one means unset
 
@@ -43,15 +39,6 @@ MASTER_LIST
 #undef OP_X
 bool lastDrawOperandsOn = false;
 
-#define OP_X(Thing) \
-bool color##Thing##On = false; \
-uint32_t color##Thing##Color = 0xFF000000; 
-COLOR_LIST
-#undef OP_X
-int colorID;
-uint32_t colorIDColor;
-const OpEdge* colorLinkEdge = nullptr;
-uint32_t colorLinkColor;
 uint32_t OP_DEBUG_MULTICOLORED = 0xAbeBeBad;
 
 #define DRAW_IDS_ON(Thing) \
@@ -63,40 +50,36 @@ uint32_t OP_DEBUG_MULTICOLORED = 0xAbeBeBad;
 
 struct OpDebugSegmentIter {
     OpDebugSegmentIter(bool start) {
-		if (start) {
-			localSegmentIndex = 0;
+		segmentIndex = 0;
+		if (start)
 			return;
-		}
-		localSegmentIndex = localSegments.size();
 		for (const auto& c : debugGlobalContours->contours) {
-			localSegmentIndex += c.segments.size();
+			segmentIndex += c.segments.size();
 		}
 	}
 
     bool operator!=(OpDebugSegmentIter rhs) { 
-		return localSegmentIndex != rhs.localSegmentIndex; 
+		return segmentIndex != rhs.segmentIndex; 
 	}
 
     const OpSegment* operator*() {
-		if (localSegmentIndex < localSegments.size())
-			return localSegments[localSegmentIndex];
-		size_t index = localSegments.size();
+		size_t index = 0;
 		for (const auto& c : debugGlobalContours->contours) {
 			for (const auto& seg : c.segments) {
-				if (index == localSegmentIndex)
+				if (index == segmentIndex)
 					return &seg;
 				++index;
 			}
 		}
-		OpDebugOut("iterator out of bounds! localSegmentIndex: " + STR(localSegmentIndex) + "\n");
+		OpDebugOut("iterator out of bounds! segmentIndex: " + STR(segmentIndex) + "\n");
 		return nullptr; 
 	}
 
     void operator++() { 
-		++localSegmentIndex;
+		++segmentIndex;
 	}
 
-	size_t localSegmentIndex;
+	size_t segmentIndex;
 };
 
 struct OpDebugSegmentIterator {
@@ -109,77 +92,67 @@ OpDebugSegmentIterator segmentIterator;
 
 struct OpDebugEdgeIter {
     OpDebugEdgeIter(bool start)
-		: isFound(false)
-		, isLocal(false)
-		, isTemporary(false)
+		: isCurveCurve(false)
+		, isFiller(false)
 		, isOpp(false)
 		, isLine(false) {
-		if (start) {
-			localEdgeIndex = 0;
+		edgeIndex = 0;
+		if (start)
 			return;
-		}
-		localEdgeIndex = localEdges.size();
-		localEdgeIndex += foundEdges.size();
 		for (const auto& c : debugGlobalContours->contours) {
 			for (const auto& s : c.segments)
-				localEdgeIndex += s.edges.size();
+				edgeIndex += s.edges.size();
 		}
+		if (debugGlobalContours->edgeStorage)
+			edgeIndex += debugGlobalContours->edgeStorage->debugCount();
 		if (OpCurveCurve::debugActive) {
-			localEdgeIndex += OpCurveCurve::debugActive->edgeCurves.size();
-			localEdgeIndex += OpCurveCurve::debugActive->oppCurves.size();
-			localEdgeIndex += OpCurveCurve::debugActive->edgeLines.size();
-			localEdgeIndex += OpCurveCurve::debugActive->oppLines.size();
-			localEdgeIndex += OpCurveCurve::debugActive->edgeRuns.size();
-			localEdgeIndex += OpCurveCurve::debugActive->oppRuns.size();
+			edgeIndex += OpCurveCurve::debugActive->edgeCurves.size();
+			edgeIndex += OpCurveCurve::debugActive->oppCurves.size();
+			edgeIndex += OpCurveCurve::debugActive->edgeLines.size();
+			edgeIndex += OpCurveCurve::debugActive->oppLines.size();
+			edgeIndex += OpCurveCurve::debugActive->edgeRuns.size();
+			edgeIndex += OpCurveCurve::debugActive->oppRuns.size();
 		}
 	}
 
     bool operator!=(OpDebugEdgeIter rhs) { 
-		return localEdgeIndex != rhs.localEdgeIndex; 
+		return edgeIndex != rhs.edgeIndex; 
 	}
 
     const OpEdge* operator*() {
-		if (localEdgeIndex < localEdges.size()) {
-			isFound = false;
-			isLocal = true;
-			isTemporary = false;
-			isOpp = false;   // !!! unset, at present, for local edges
-			isLine = false;
-			return localEdges[localEdgeIndex];
-		}
-		size_t index = localEdges.size();
-		if (localEdgeIndex < index + foundEdges.size()) {
-			isFound = true;
-			isLocal = false;
-			isTemporary = false;
-			isOpp = false;
-			isLine = false;
-			return foundEdges[localEdgeIndex - index];
-		}
-		index += foundEdges.size();
+		size_t index = 0;
 		for (const auto& c : debugGlobalContours->contours) {
 			for (const auto& s : c.segments) {
 				for (const auto& edge : s.edges) {
-					if (index == localEdgeIndex) {
-						isFound = false;
-						isLocal = false;
-						isTemporary = false;
-						isOpp = false; // !!! unset, at present, for permanent edges
+					if (index == edgeIndex) {
+						isCurveCurve = false;
+						isFiller = false;
+						isOpp = OpOperand::right == c.operand;
+						isLine = edge.isLine_impl;
 						return &edge;
 					}
 					++index;
 				}
 			}
 		}
+		if (debugGlobalContours->edgeStorage) {
+			const OpEdge* filler = debugGlobalContours->edgeStorage->debugIndex(edgeIndex - index);
+			if (filler) {
+				isCurveCurve = false;
+				isFiller = true;
+				isOpp = false;
+				isLine = true;
+				return filler;
+			}
+		}
 		if (OpCurveCurve::debugActive) {
 			auto advanceEdge = [&](const std::vector<OpEdge>& edges, bool opp, bool line) {	// lambda
-				if (index + edges.size() > localEdgeIndex) {
-					isFound = false;
-					isLocal = true;
-					isTemporary = true;
+				if (index + edges.size() > edgeIndex) {
+					isCurveCurve = true;
+					isFiller = false;
 					isOpp = opp;
 					isLine = line;
-					return &edges[localEdgeIndex - index];
+					return &edges[edgeIndex - index];
 				}
 				index += edges.size();
 				return (const OpEdge* ) nullptr;
@@ -196,21 +169,20 @@ struct OpDebugEdgeIter {
 					return result;
 			}
 		}
-		OpDebugOut("iterator out of bounds! localEdgeIndex: " + STR(localEdgeIndex) + 
+		OpDebugOut("iterator out of bounds! edgeIndex: " + STR(edgeIndex) + 
 				"; max index: " + STR(index) + "\n");
 		return nullptr; 
 	}
 
     void operator++() { 
-		++localEdgeIndex;
+		++edgeIndex;
 	}
 
-	bool isFound;
-	bool isLocal;
-	bool isTemporary;
+	bool isCurveCurve;
+	bool isFiller;
 	bool isOpp;
 	bool isLine;
-	size_t localEdgeIndex;
+	size_t edgeIndex;
 };
 
 struct OpDebugEdgeIterator {
@@ -319,8 +291,6 @@ void OpDebugImage::init(const OpInPath& left, const OpInPath& right) {
 	operands.push_back(right);
 	drawLeftOn = true;
 	drawRightOn = true;
-	drawSegmentEdgesOn = true;
-	drawTemporaryEdgesOn = true;
 	SkRect opBounds = skPath(left)->getBounds();
 	opBounds.join(skPath(right)->getBounds());
 	DebugOpSetBounds(opBounds.fLeft, opBounds.fTop, opBounds.fRight, opBounds.fBottom);
@@ -339,65 +309,69 @@ void playback() {
 	// required
 	if (fscanf(file, "debugZoom: %lg\n", &debugZoom) != 1) {
 		OpDebugOut("reading debugZoom failed\n");
-		goto bail;
+		fclose(file);
+		return;
 	}
 	DebugOpSetZoom(debugZoom);
 	if (fscanf(file, "debugCenter: %lg, %lg\n", &debugCenter[0], &debugCenter[1]) != 2) {
 		OpDebugOut("reading debugCenter failed\n");
-		goto bail;
+		fclose(file);
+		return;
 	}
 	DebugOpSetCenter(debugCenter[0], debugCenter[1]);
 	DebugOpResetBounds();
 	if (fscanf(file, "textSize: %g\n", &textSize) != 1) {
 		OpDebugOut("reading textSize failed\n");
-		goto bail;
+		fclose(file);
+		return;
 	}
 	labelFont.setSize(textSize);
 	if (fscanf(file, "gridIntervals: %d\n", &intervals) != 1) {
 		OpDebugOut("reading gridIntervals failed\n");
-		goto bail;
+		fclose(file);
+		return;
 	}
 	gridIntervals = intervals;
 	if (fscanf(file, "valuePrecision: %d\n", &precision) != 1) {
 		OpDebugOut("reading valuePrecision failed\n");
-		goto bail;
+		fclose(file);
+		return;
 	}
 	valuePrecision = precision;
 	// optional
-{
-#define OP_X(Thing) \
-	draw##Thing##On = false;
-	MASTER_LIST
-#undef OP_X
-#define OP_X(Thing) \
-	color##Thing##On = false; \
-	color##Thing##Color = 0xFF000000;
-	COLOR_LIST
-#undef OP_X
-	while (fgets(str, sizeof(str), file)) {
-#define OP_X(Thing) \
-		if (strlen(str) - 1 == strlen(#Thing) && 0 == strncmp(#Thing, str, strlen(#Thing))) \
-			draw##Thing##On = true; \
-		else
-	MASTER_LIST
-#undef OP_X
-#define OP_X(Thing) \
-		if (strlen(str) - 1 == strlen("color" #Thing) && \
-				0 == strncmp("color" #Thing, str, strlen("color" #Thing))) \
-			color##Thing##On = true; \
-		else if (size_t c##Thing = strlen("color" #Thing "Color: 0x"); strlen(str) - 1 > c##Thing \
-				&& 0 == strncmp("color" #Thing "Color: 0x", str, c##Thing)) \
-			color##Thing##Color = std::stoul(str + c##Thing, nullptr, 16); \
-		else
-	COLOR_LIST
-#undef OP_X
-		{
-			OpDebugOut("no match: " + std::string(str)); goto bail;
+	auto noMatch = [file](const char* str) {
+		OpDebugOut("no match: " + std::string(str)); 
+		fclose(file);
+	};
+	{
+	#define OP_X(Thing) \
+		draw##Thing##On = false;
+		MASTER_LIST
+	#undef OP_X
+		while (fgets(str, sizeof(str), file)) {
+	#define OP_X(Thing) \
+			if (strlen(str) - 1 == strlen(#Thing) && 0 == strncmp(#Thing, str, strlen(#Thing))) \
+				draw##Thing##On = true; \
+			else
+		MASTER_LIST
+	#undef OP_X
+			if (strlen(str) > strlen("colorID: ")) {
+				const char* idColorStr = str + strlen("colorID: ");
+				int id = strtol(idColorStr, nullptr, 0);
+				OpEdge* edge = (OpEdge*) findEdge(id);
+				uint32_t color = 0;
+				const char* colorStr = strstr(idColorStr, "color: ");
+				if (colorStr)
+					color = strtoul(colorStr + strlen("color: "), nullptr, 0);
+				if (edge && color)
+					edge->debugColor = color;
+				else
+					return noMatch(str);
+			} else 
+				return noMatch(str);
 		}
+		redraw();
 	}
-	redraw();
-}
-bail:
 	fclose(file);
 }
 
@@ -444,8 +418,6 @@ void OpDebugImage::drawDoubleFocus() {
 		if (drawRightOn)
 			drawDoubleFill(sk1()->makeTransform(matrix), SkColorSetARGB(10, 0, 0, 255));
 	}
-	if (drawHighlightOn)
-		DebugOpHighlight(highlights);
 	if (drawLeftOn || drawRightOn)
 		DebugOpClearInputs();
 	if (drawLeftOn)
@@ -482,9 +454,7 @@ void OpDebugImage::drawDoubleFocus() {
 		DebugOpClearEdges();
 		for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 			const OpEdge* edge = *edgeIter;
-			if (!drawTemporaryEdgesOn && edgeIter.isLocal)
-				continue;
-			if (!drawSegmentEdgesOn && !edgeIter.isLocal)
+			if (!edge->debugDraw)
 				continue;
 			DebugOpAdd(edge);
 		}
@@ -500,9 +470,7 @@ void OpDebugImage::drawDoubleFocus() {
 	if (drawEdgesOn && (drawIDsOn || drawNormalsOn || drawTangentsOn || drawWindingsOn)) {
 		for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 			const OpEdge* edge = *edgeIter;
-			if (!drawTemporaryEdgesOn && edgeIter.isLocal)
-				continue;
-			if (!drawSegmentEdgesOn && !edgeIter.isLocal)
+			if (!edge->debugDraw)
 				continue;
 			if (ids.end() != std::find(ids.begin(), ids.end(), edge->id))
 				continue;
@@ -512,7 +480,7 @@ void OpDebugImage::drawDoubleFocus() {
 				SkColor color = SK_ColorBLACK;
 				if (edge->disabled)
 					color = SK_ColorRED;
-				else if (edgeIter.isTemporary)
+				else if (edgeIter.isCurveCurve)
 					color = edgeIter.isOpp ? 0xFFFFA500 : 0xFF008000;  // orange, dark green
 				DebugOpDrawEdgeID(edge, color);
 			}
@@ -564,13 +532,11 @@ void record() {
 		fprintf(recordFile, "%s\n", #Thing);
 	MASTER_LIST
 #undef OP_X
-#define OP_X(Thing) \
-	if (color##Thing##On) \
-		fprintf(recordFile, "%s\n", "color" #Thing); \
-	if (color##Thing##Color != 0xFF000000) \
-		fprintf(recordFile, "color" #Thing "Color: 0x%08x\n", color##Thing##Color);
-	COLOR_LIST
-#undef OP_X
+	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+		const OpEdge* edge = *edgeIter;
+		if (black != edge->debugColor)
+			fprintf(recordFile, "colorID: %d color: 0x%08x\n", edge->id, edge->debugColor);
+	}
 	fclose(recordFile);
 }
 
@@ -747,15 +713,10 @@ void OpDebugImage::center(int id, bool add) {
 
 void OpDebugImage::find(int id, OpPointBounds* boundsPtr, OpPoint* pointPtr) {
 	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
-		const OpEdge* edge = *edgeIter;
+		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
 		if (id != edge->id)
 			continue;
-		if (!drawTemporaryEdgesOn && edgeIter.isLocal 
-				&& foundEdges.end() == std::find(foundEdges.begin(), foundEdges.end(), edge))
-			foundEdges.push_back(edge);
-		if (!drawSegmentEdgesOn && !edgeIter.isLocal 
-				&& foundEdges.end() == std::find(foundEdges.begin(), foundEdges.end(), edge))
-			foundEdges.push_back(edge);
+		edge->debugDraw = true;
 		DRAW_IDS_ON(Edges);
 		*boundsPtr = edge->ptBounds;
 		return;
@@ -785,11 +746,7 @@ void OpDebugImage::find(int id, OpPointBounds* boundsPtr, OpPoint* pointPtr) {
 #endif
 #if OP_DEBUG
 	auto coins = findCoincidence(id);
-	for (auto coin : coins) {
-		if (coincidences.end() == std::find(coincidences.begin(), coincidences.end(), coin))
-			coincidences.push_back(coin);
-	}
-	if (coincidences.size()) {
+	if (coins.size()) {
 		DRAW_IDS_ON(Coincidences);
 		// !!! wrong: add rect formed by both intersections with this id
 		for (auto coin : coins)
@@ -1027,12 +984,9 @@ void OpDebugImage::focusEdges() {
 		return;
 	OpPointBounds focusRect;
 	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
-		const OpEdge* edge = *edgeIter;
-		if (!drawTemporaryEdgesOn && edgeIter.isLocal)
-			continue;
-		if (!drawSegmentEdgesOn && !edgeIter.isLocal)
-			continue;
-		focusRect.add(edge->ptBounds);
+		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
+		if (edge->debugDraw)
+			focusRect.add(edge->ptBounds);
 	}
 	DRAW_IDS_ON(Edges);
 	OpDebugImage::drawDoubleFocus(focusRect, false);
@@ -1053,11 +1007,8 @@ void focusSegments() {
 // note that operands are not cleared
 void clear() {
 	OpDebugImage::clearScreen();
-	coincidences.clear();
 	OpDebugImage::clearLines();
 	paths.clear();
-	OpDebugImage::clearLocalEdges();
-	localSegments.clear();
 	drawLeftOn = false;
 	drawRightOn = false;
 	drawPathsOn = false;
@@ -1198,11 +1149,9 @@ void OpDebugImage::drawPoints() {
 	if (drawEdgesOn) {
 		for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 			const OpEdge* edge = *edgeIter;
-			if (!drawTemporaryEdgesOn && edgeIter.isLocal)
+			if (!edge->debugDraw)
 				continue;
-			if (!drawSegmentEdgesOn && !edgeIter.isLocal)
-				continue;
-			if (edgeIter.isTemporary) {
+			if (edgeIter.isCurveCurve) {
 				DebugOpBuild(edge->start.pt, edgeIter.isOpp);
 				DebugOpBuild(edge->end.pt, edgeIter.isOpp);		
 			} else {
@@ -1233,9 +1182,7 @@ void OpDebugImage::drawPoints() {
 			}
 			if (drawEdgesOn)
 				for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
-					if (!drawTemporaryEdgesOn && edgeIter.isLocal)
-						continue;
-					if (!drawSegmentEdgesOn && !edgeIter.isLocal)
+					if (!(*edgeIter)->debugDraw)
 						continue;
 					DebugOpBuild(**edgeIter, line);
 				}
@@ -1283,19 +1230,6 @@ void OpDebugImage::addArrowHeadToPath(const OpLine& line, SkPath& path) {
 	path.rLineTo(arrowCopy[1].fX, arrowCopy[1].fY);
 }
 
-void OpDebugImage::add(const OpEdge* test) {
-	if (!drawTemporaryEdgesOn)
-		return;
-	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
-		const OpEdge* edge = *edgeIter;
-		if (!drawSegmentEdgesOn && !edgeIter.isLocal)
-			continue;
-		if (test == edge)
-			return;
-	}
-	localEdges.push_back(test);
-}
-
 void OpDebugImage::add(Axis axis, float value) {
 	lines.emplace_back(axis, value);
 }
@@ -1319,17 +1253,6 @@ OpDebugRay::OpDebugRay(const LinePts& pts_)
 
 void OpDebugImage::add(const OpDebugRay& ray) {
 	lines.emplace_back(ray);
-}
-
-void OpDebugImage::add(const OpSegment* segment) {
-	if (localSegments.end() != std::find(localSegments.begin(), localSegments.end(), segment))
-		return;
-	localSegments.push_back(segment);
-}
-
-void OpDebugImage::clearLocalEdges() {
-	foundEdges.clear();
-	localEdges.clear();
 }
 
 void OpDebugImage::clearIntersections() {
@@ -1359,58 +1282,224 @@ void toggle##Thing() { \
 MASTER_LIST
 #undef OP_X
 
+static void operateOnSegmentEdges(std::function<void (OpEdge*)> fun) {
+	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
+		if (edge->debugJoin || edgeIter.isFiller || edgeIter.isCurveCurve)
+			continue;
+		fun(edge);
+	}
+	OpDebugImage::drawDoubleFocus();
+}
+
+void hideSegmentEdges() {
+	operateOnSegmentEdges([](OpEdge* edge) {
+		edge->debugDraw = false;
+	});
+}
+
+void showSegmentEdges() {
+	operateOnSegmentEdges([](OpEdge* edge) {
+		edge->debugDraw = true;
+	});
+}
+
+void toggleSegmentEdges() {
+	operateOnSegmentEdges([](OpEdge* edge) {
+		edge->debugDraw ^= true;
+	});
+}
+
+static void operateOnTemporaryEdges(std::function<void (OpEdge*)> fun) {
+	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
+		if (!edgeIter.isFiller && !edgeIter.isCurveCurve)
+			continue;
+		fun(edge);
+	}
+}
+
+void hideTemporaryEdges() {
+	operateOnTemporaryEdges([](OpEdge* edge) {
+		edge->debugDraw = false;
+	});
+}
+
+void showTemporaryEdges() {
+	operateOnTemporaryEdges([](OpEdge* edge) {
+		edge->debugDraw = true;
+	});
+}
+
+void toggleTemporaryEdges() {
+	operateOnTemporaryEdges([](OpEdge* edge) {
+		edge->debugDraw ^= true;
+	});
+}
+
+void colorActive(uint32_t color) {
+	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
+		if (edge->active_impl) {
+			edge->debugColor = color;
+			edge->debugDraw = true;
+		}
+	}
+	OpDebugImage::drawDoubleFocus();
+}
+
+void colorBetween(uint32_t color) {
+	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
+		if (edge->between) {
+			edge->debugColor = color;
+			edge->debugDraw = true;
+		}
+	}
+	OpDebugImage::drawDoubleFocus();
+}
+
+void colorDisabled(uint32_t color) {
+	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
+		if (edge->disabled) {
+			edge->debugColor = color;
+			edge->debugDraw = true;
+		}
+	}
+	OpDebugImage::drawDoubleFocus();
+}
+
+void colorLinkups(uint32_t color) {
+	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
+		if (edge->inLinkups) {
+			edge->debugColor = color;
+			edge->debugDraw = true;
+		}
+	}
+	OpDebugImage::drawDoubleFocus();
+}
+
+void colorOpp(uint32_t color) {
+	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
+		if (OpOperand::right == edge->segment->contour->operand) {
+			edge->debugColor = color;
+			edge->debugDraw = true;
+		}
+	}
+	OpDebugImage::drawDoubleFocus();
+}
+
+void colorOut(uint32_t color) {
+	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
+		if (edge->inOutput) {
+			edge->debugColor = color;
+			edge->debugDraw = true;
+		}
+	}
+	OpDebugImage::drawDoubleFocus();
+}
+
+void colorUnsectables(uint32_t color) {
+	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
+		if (edge->unsectableID) {
+			edge->debugColor = color;
+			edge->debugDraw = true;
+		}
+	}
+	OpDebugImage::drawDoubleFocus();
+}
+
+void colorUnsortables(uint32_t color) {
+	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
+		if (edge->unsortable) {
+			edge->debugColor = color;
+			edge->debugDraw = true;
+		}
+	}
+	OpDebugImage::drawDoubleFocus();
+}
+
 #define OP_X(Thing) \
 void color##Thing() { \
-	color##Thing##On = true; \
-	color##Thing##Color = OP_DEBUG_MULTICOLORED; \
-	OpDebugImage::drawDoubleFocus(); \
-} \
-void color##Thing(uint32_t color) { \
-	color##Thing##On = true; \
-	color##Thing##Color = color; \
-	OpDebugImage::drawDoubleFocus(); \
+	color##Thing(OP_DEBUG_MULTICOLORED); \
 } \
 void color##Thing(uint8_t alpha, uint32_t color) { \
-	color##Thing##On = true; \
-	color##Thing##Color = (alpha << 24) | (color & 0x00FFFFFF); \
-	OpDebugImage::drawDoubleFocus(); \
+	color##Thing((alpha << 24) | (color & 0x00FFFFFF)); \
 } \
 void uncolor##Thing() { \
-	color##Thing##On = false; \
-	OpDebugImage::drawDoubleFocus(); \
+	color##Thing(black); \
 }
 COLOR_LIST
 #undef OP_X
 
-
 void color(int id) {
-	colorID = id;
-	colorIDColor = OP_DEBUG_MULTICOLORED;
+	OpEdge* edge = (OpEdge*) findEdge(id);
+	if (!edge)
+		return;
+	edge->debugColor = OP_DEBUG_MULTICOLORED;
+	edge->debugDraw = true;
 	OpDebugImage::drawDoubleFocus();
 }
 
 void color(int id, uint32_t c) {
-	colorID = id;
-	colorIDColor = c;
+	OpEdge* edge = (OpEdge*) findEdge(id);
+	if (!edge)
+		return;
+	edge->debugColor = c;
+	edge->debugDraw = true;
 	OpDebugImage::drawDoubleFocus();
 }
 
 void uncolor(int id) {
-	colorID = 0;
+	OpEdge* edge = (OpEdge*) findEdge(id);
+	if (!edge)
+		return;
+	edge->debugColor = black;
+	edge->debugDraw = true;
 	OpDebugImage::drawDoubleFocus();
 }
 
-void colorLink(const OpEdge* edge, uint32_t color) {
-	colorLinkEdge = edge;
-	colorLinkColor = color;
+void colorLink(OpEdge* edge, uint32_t color) {
+	auto colorChain = [edge, color](WhichLoop which) {
+		const OpEdge* looped = edge->debugIsLoop(which, LeadingLoop::in);
+		bool firstLoop = false;
+		int safetyCount = 0;
+		OpEdge* chain = edge;
+		for (;;) {
+			chain->debugColor = color;
+			chain->debugDraw = true;
+			if (chain == looped) {
+				if (firstLoop)
+					return;
+				firstLoop = true;
+			}
+			chain = WhichLoop::prior == which ? chain->priorEdge : chain->nextEdge;
+			if (!chain)
+				break;
+			if (++safetyCount > 250) {
+				OpDebugOut(std::string("!!! %s likely loops forever: ") + 
+						(WhichLoop::prior == which ? "prior " : "next "));
+				break;
+			}
+		}
+	};
+	colorChain(WhichLoop::prior);
+	colorChain(WhichLoop::next);
+	OpDebugImage::drawDoubleFocus();
 }
 
-void colorLink(const OpEdge& edge, uint32_t color) {
+void colorLink(OpEdge& edge, uint32_t color) {
 	colorLink(&edge, color);
 }
 
 void colorLink(int id, uint32_t color) {
-	colorLink(findEdge(id), color);
+	colorLink((OpEdge*) findEdge(id), color);
 }
 
 void OpContour::draw() const {
@@ -1425,84 +1514,51 @@ void OpContours::draw() const {
 	OpDebugImage::drawDoubleFocus();
 }
 
-void OpEdge::debugDestroy() {
-#if OP_DEBUG
-	if (debugGlobalContours->debugInClearEdges)
-		return;
-	if (!debugGlobalContours->debugInPathOps)
-		return;
-#endif
-	OP_ASSERT(!segment->debugContains(this));
-	for (auto edge = foundEdges.begin(); edge != foundEdges.end(); ++edge) {
-		if (id == (*edge)->id) {
-			foundEdges.erase(edge);
-			return;
-		}
-	}
-	for (auto edge = localEdges.begin(); edge != localEdges.end(); ++edge) {
-		if (id == (*edge)->id) {
-			localEdges.erase(edge);
-			return;
-		}
-	}
+void OpEdge::color(uint32_t c) {
+	debugColor = c;
+	OpDebugImage::drawDoubleFocus();
 }
 
-void OpEdge::addLink() const {
-	drawChain();
-}
-
-#if 0
-void OpEdge::addSum() const {
-	drawChain(EdgeLoop::sum);
-}
-#endif
-
-void OpEdge::draw() const {
-	OpDebugImage::add(this);
+void OpEdge::draw() {
+	debugDraw = true;
 	DRAW_IDS_ON(Edges);
 	OpDebugImage::drawDoubleFocus();
 }
 
-void OpEdge::drawChain() const {
-	const OpEdge* chain = this;
-		do {
-			OpDebugImage::add(chain);
-		} while ((chain = chain->nextEdge) && this != chain);
-		chain = this;
-	while ((chain = chain->priorEdge) && this != chain) {
-		OpDebugImage::add(chain);
+void OpEdge::addLink() {
+	OpEdge* chain = this;
+	std::vector<OpEdge*> seen;
+	do {
+		chain->debugDraw = true;
+		seen.push_back(chain);
+	} while ((chain = chain->nextEdge) && seen.end() == std::find(seen.begin(), seen.end(), chain));
+	chain = this;
+	while ((chain = chain->priorEdge) && seen.end() == std::find(seen.begin(), seen.end(), chain)) {
+		chain->debugDraw = true;
+		seen.push_back(chain);
 	}
 	DRAW_IDS_ON(Edges);
 	OpDebugImage::drawDoubleFocus();
 }
 
-void OpEdge::drawLink() const {
-	OpDebugImage::clearLocalEdges();
-	drawChain();
+void OpEdge::drawLink() {
+	hideEdges();
+	addLink();
 }
 
-#if 0
-void OpEdge::drawSum() const {
-	OpDebugImage::clearLocalEdges();
-	drawChain();
-}
-#endif
-
-void OpJoiner::debugDraw() const {
-	OpDebugImage::clearLocalEdges();
+void OpJoiner::debugDraw() {
 	for (auto e : byArea)
-		OpDebugImage::add(e);
+		e->debugDraw = true;
 	for (auto e : unsectByArea)
-		OpDebugImage::add(e);
+		e->debugDraw = true;
 	OpDebugImage::focusEdges();
 }
 
-void OpWinder::debugDraw() const {
-	OpDebugImage::clearLocalEdges();
-	for (auto edge : inX)
-		OpDebugImage::add(edge);
-	for (auto edge : inY)
-		OpDebugImage::add(edge);
+void OpWinder::debugDraw() {
+	for (auto e : inX)
+		e->debugDraw = true;
+	for (auto e : inY)
+		e->debugDraw = true;
 	OpDebugImage::focusEdges();
 }
 
@@ -1597,27 +1653,27 @@ void OpDebugImage::drawLines() {
 }
 #endif
 
-void add(const std::vector<OpEdge*>& e) {
+void add(std::vector<OpEdge*>& e) {
 	for (auto edge : e) {
-		OpDebugImage::add(edge);
+		edge->debugDraw = true;
 	}
 	OpDebugImage::focusEdges();
 }
 
-void add(const std::vector<OpEdge>& e) {
+void add(std::vector<OpEdge>& e) {
 	for (auto& edge : e) {
-		OpDebugImage::add(&edge);
+		edge.debugDraw = true;
 	}
 	OpDebugImage::focusEdges();
 }
 
-void draw(const std::vector<OpEdge*>& e) {
-	OpDebugImage::clearLocalEdges();
+void draw(std::vector<OpEdge*>& e) {
+	hideEdges();
 	add(e);
 }
 
-void draw(const std::vector<OpEdge>& e) {
-	OpDebugImage::clearLocalEdges();
+void draw(std::vector<OpEdge>& e) {
+	hideEdges();
 	add(e);
 }
 
@@ -1634,12 +1690,6 @@ void draw(const LinePts& ray) {
 }
 
 void draw() {
-	OpDebugImage::drawDoubleFocus();
-}
-
-void OpSegment::draw() const {
-	OpDebugImage::add(this);
-	DRAW_IDS_ON(Segments);
 	OpDebugImage::drawDoubleFocus();
 }
 
@@ -1661,31 +1711,6 @@ void help() {
 	OpDebugOut("focus(id) resetFocus() center(id) clear()\n");
 	OpDebugOut("showLeft() showRight() showPoints() showIDs()\n");
 	OpDebugOut("hideIDs() hideValues() hideHex()\n");
-}
-
-void highlight(const LinkUps& linkups) {
-	highlights.clear();
-	for (auto edge : linkups.l)
-		highlights.push_back(edge);
-	OpDebugImage::drawDoubleFocus();
-}
-
-void highlightLinked(const OpEdge& e) {
-	highlights.clear();
-	const OpEdge* edge = &e;
-	do {
-		highlights.push_back(edge);
-		edge = edge->nextEdge;
-	} while (edge);
-	edge = &e;
-	while ((edge = edge->priorEdge)) 
-		highlights.push_back(edge);
-	drawHighlightOn = true;
-	OpDebugImage::drawDoubleFocus();
-}
-
-void highlightLinked(const OpEdge* e) {
-	highlightLinked(*e);
 }
 
 void resetFocus() {

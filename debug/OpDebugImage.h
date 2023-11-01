@@ -30,39 +30,36 @@ struct OpVector;
 enum class Axis : int8_t;
 
 constexpr int bitmapWH = 1000;
+constexpr uint32_t debugBlack = 0xFF000000;
 static_assert(bitmapWH / 2 * 2 == bitmapWH);	// must be multiple of 2
 
 // it should not be necessary to call these implementation functions directly
 struct OpDebugImage {
-	static void add(const OpEdge* );
-	static void add(const OpSegment* );
 	static void add(Axis axis, float value);
 	static void add(const OpDebugRay& );
-
 	static void addArrowHeadToPath(const OpLine& , class SkPath& );
 	static void addDiamondToPath(OpPoint , class SkPath& );
 	static void addToPath(const OpCurve& , class SkPath& );
 	static void center(int id, bool add);
 	static void clearIntersections();
 	static void clearLines();
-	static void clearLocalEdges();
 	static void clearScreen();
 	static void drawDoubleCenter(OpPoint , bool add);
 	static void drawDoubleFocus();
 	static void drawDoubleFocus(const OpRect& , bool add);
 	static void drawGrid();
-	static void drawDoubleFill(const class SkPath& path, uint32_t color = 0xFF000000, 
+	static void drawDoubleFill(const class SkPath& path, uint32_t color = debugBlack, 
 			bool stroke = false);
-	static void drawDoublePath(const class SkPath& path, uint32_t color = 0xFF000000, 
+	static void drawDoublePath(const class SkPath& path, uint32_t color = debugBlack, 
 			float strokeWidth = 0);
 	static bool drawEdgeNormal(OpVector norm, OpPoint midTPt, int edgeID, 
-			uint32_t color = 0xFF000000);
+			uint32_t color = debugBlack);
 	static bool drawEdgeTangent(OpVector tan, OpPoint midTPt, int edgeID, 
-			uint32_t color = 0xFF000000);
+			uint32_t color = debugBlack);
 	static bool drawEdgeWinding(OpVector norm, OpPoint midTPt, const OpEdge* edge, uint32_t color);
-	static void drawPath(const class SkPath& path, uint32_t color = 0xFF000000);
+	static void drawPath(const class SkPath& path, uint32_t color = debugBlack);
 	static void drawPoints();
-	static bool drawValue(OpPoint pt, std::string ptStr, uint32_t color = 0xFF000000);
+	static bool drawValue(OpPoint pt, std::string ptStr, uint32_t color = debugBlack);
 	static void find(int id, OpPointBounds* , OpPoint* );
 	static std::vector<const OpEdge*> find(int id);
 	static void focus(int id, bool add);
@@ -71,8 +68,8 @@ struct OpDebugImage {
 };
 
 // call these inline or from the immediate window while debugging
-extern void add(const std::vector<OpEdge>& );  // to draw edge list built from intersections
-extern void add(const std::vector<OpEdge*>& ); // to draw unsortables
+extern void add(std::vector<OpEdge>& );  // to draw edge list built from intersections
+extern void add(std::vector<OpEdge*>& ); // to draw unsortables
 extern void addFocus(int id);
 extern void addFocus(const OpContour& );
 extern void addFocus(const OpContours& );
@@ -116,11 +113,8 @@ extern void color(int id, uint32_t color);
 extern void colorLink(int id, uint32_t color = 0xAbeBeBad);
 extern void colorLink(const OpEdge& , uint32_t color = 0xAbeBeBad);
 extern void colorLink(const OpEdge* , uint32_t color = 0xAbeBeBad);
-extern void draw(const std::vector<OpEdge>& );  // to draw edge list built from intersections
-extern void draw(const std::vector<OpEdge*>& ); // to draw unsortables
-extern void highlight(const LinkUps& ); // to draw assemble linkups
-extern void highlightLinked(const OpEdge& );
-extern void highlightLinked(const OpEdge* );
+extern void draw(std::vector<OpEdge>& );  // to draw edge list built from intersections
+extern void draw(std::vector<OpEdge*>& ); // to draw unsortables
 extern void draw(Axis , float );	// horizontal or vertical ray
 extern void draw(const LinePts& );	// arbitrary angled ray
 extern void draw();  // draw all current state
@@ -139,17 +133,22 @@ extern void gridCenter(int x, int y);
 extern void gridLines(int );
 extern void gridStep(float dxy);
 extern void help();
+extern void hideSegmentEdges();
+extern void hideTemporaryEdges();
 extern void playback();
 extern void precision(int );
 extern void record();
 extern void redraw();
 extern void resetFocus();
+extern void showSegmentEdges();
+extern void showTemporaryEdges();
 extern void textSize(float );
+extern void toggleSegmentEdges();
+extern void toggleTemporaryEdges();
 
 #define MASTER_LIST \
 OP_X(Bounds) \
 OP_X(Centers) \
-OP_X(Chains) \
 OP_X(Coincidences) \
 OP_X(Controls) \
 OP_X(Edges) \
@@ -157,7 +156,6 @@ OP_X(Fill) \
 OP_X(Grid) \
 OP_X(Guides) \
 OP_X(Hex) \
-OP_X(Highlight) \
 OP_X(IDs) \
 OP_X(Intersections) \
 OP_X(Left) \
@@ -169,11 +167,9 @@ OP_X(Paths) \
 OP_X(Points) \
 OP_X(Rays) \
 OP_X(Right) \
-OP_X(SegmentEdges) \
 OP_X(Segments) \
 OP_X(Sums) \
 OP_X(Tangents) \
-OP_X(TemporaryEdges) \
 OP_X(Ts) \
 OP_X(Values) \
 OP_X(Windings)
@@ -192,16 +188,10 @@ OP_X(Unsortables)
 	extern void color##Thing(); \
 	extern void color##Thing(uint32_t color); \
 	extern void color##Thing(uint8_t alpha, uint32_t color); \
-	extern void uncolor##Thing(); \
-	extern bool color##Thing##On; \
-	extern uint32_t color##Thing##Color; 
+	extern void uncolor##Thing();
 	COLOR_LIST
 #undef OP_X
 
-extern int colorID;
-extern uint32_t colorIDColor;
-extern const OpEdge* colorLinkEdge;
-extern uint32_t colorLinkColor;
 extern uint32_t OP_DEBUG_MULTICOLORED;
 
 #define OP_X(Thing) \

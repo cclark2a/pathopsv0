@@ -1,5 +1,6 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpDebug.h"
+#include "OpDebugColor.h"
 #include "OpDebugDump.h"
 
 #if OP_DEBUG_DUMP
@@ -591,10 +592,14 @@ const OpContour* findContour(int ID) {
 }
 
 const OpEdge* findEdge(int ID) {
+    auto match = [ID](const OpEdge& edge) {
+        return edge.id == ID || edge.unsectableID == ID ||
+                edge.debugOutPath == ID || edge.debugRayMatch == ID;
+    };
     for (const auto& c : debugGlobalContours->contours) {
         for (const auto& seg : c.segments) {
             for (const auto& edge : seg.edges) {
-                if (ID == edge.id)
+                if (match(edge))
                     return &edge;
             }
         }
@@ -613,11 +618,11 @@ const OpEdge* findEdge(int ID) {
                 &OpCurveCurve::debugActive->oppRuns} ) {
             const auto& edges = *edgePtrs;
             for (const auto& edge : edges) {
-                if (ID == edge.id)
+                if (match(edge))
                     return &edge;
             }
         }
-   }
+    }
     return nullptr;
 }
 
@@ -1105,6 +1110,10 @@ std::string OpEdge::debugDumpDetail() const {
         s += debugSetSum.debugDump() + " ";
     if (debugFiller)
         s += "filler ";
+    if (debugBlack != debugColor)
+        s += debugDumpColor(debugColor) + " ";
+    if (debugDraw)
+        s += "draw ";
     s += "\n";
 #endif
     std::vector<OpIntersection*> startSects;
@@ -1359,15 +1368,39 @@ void dmpStart(const OpEdge& edge) {
     edge.segment->contour->contours->dumpMatch(edge.start.pt);
 }
 
+size_t OpEdgeStorage::debugCount() const {
+    size_t result = used;
+    OpEdgeStorage* block = next;
+    while (next) {
+        result += block->used;
+        block = block->next;
+    }
+    return result;
+}
+
 const OpEdge* OpEdgeStorage::debugFind(int ID) const {
 	for (int index = 0; index < used; index += sizeof(OpEdge)) {
-		const OpEdge* test = (const OpEdge*) &storage[index];
-        if (test->id == ID)
-            return test;
+		const OpEdge& test = *(const OpEdge*) &storage[index];
+        if (test.id == ID || test.unsectableID == ID ||
+                test.debugOutPath == ID || test.debugRayMatch == ID)
+            return &test;
 	}
     if (!next)
         return nullptr;
     return next->debugFind(ID);
+}
+
+const OpEdge* OpEdgeStorage::debugIndex(int index) const {
+    const OpEdgeStorage* block = this;
+    while (index > block->used) {
+        index -= block->used;
+        block = block->next;
+        if (!block)
+            return nullptr;
+    }
+    if (block->used <= index)
+        return nullptr;
+    return (const OpEdge*) &block->storage[index];
 }
 
 void dmp(const OpEdgeStorage& edges) {
@@ -1700,9 +1733,9 @@ void checkMatchEnds() {
 }
 
 std::string OpIntersection::debugDump(bool fromDumpFull, bool fromDumpDetail) const {
-    auto matchEndStr = [this]() {
-        return matchEndsOutOfDate ? " (matchEnds out of date) " + STR((int)sectEnd)
-                : matchEndsNames[(int)sectEnd].name;
+    auto matchEndStr = [](MatchEnds matchEnd) {
+        return matchEndsOutOfDate ? " (matchEnds out of date) " + STR((int)matchEnd)
+                : matchEndsNames[(int)matchEnd].name;
     };
 #if OP_DEBUG
     checkMaker();
@@ -1724,14 +1757,15 @@ std::string OpIntersection::debugDump(bool fromDumpFull, bool fromDumpDetail) co
     s += " opp/sect:" + oppParentID + "/" + oppID;
     if (coincidenceID  OP_DEBUG_CODE(|| debugCoincidenceID)) {
         s += " coinID:" + STR(coincidenceID)  OP_DEBUG_CODE(+ "/" + STR(debugCoincidenceID));
-        s += " " + matchEndStr();
+        s += " " + matchEndStr(coinEnd);
     }
     if (unsectID) {
         s += " unsectID:" + STR(unsectID);
-        s += " " + matchEndStr();
+        s += " " + matchEndStr(unsectEnd);
     }
-    if (!coincidenceID  OP_DEBUG_CODE(&& !debugCoincidenceID) && !unsectID && MatchEnds::none != sectEnd)
-        s += "!!! (unexpected) " +  matchEndStr();
+    if (!coincidenceID  OP_DEBUG_CODE(&& !debugCoincidenceID) && !unsectID 
+            && MatchEnds::none != coinEnd)
+        s += "!!! (unexpected) " +  matchEndStr(coinEnd);
     if (betweenID)
         s += " betweenID:" + STR(betweenID);
     if (coincidenceProcessed)
@@ -1811,8 +1845,9 @@ OpIntersection::OpIntersection(std::string s) {
     OpDebugSkip(str, "}");
     segment = const_cast<OpSegment*>(::findSegment(segmentID));
     OP_ASSERT(segment);
-    // don't call comnplete because we don't want to advance debug id
-    set(ptT, segment, 0, 0, MatchEnds::none  OP_DEBUG_PARAMS(IntersectMaker::opTestEdgeZero1, 
+    // don't call complete because we don't want to advance debug id
+    set(ptT, segment  
+            OP_DEBUG_PARAMS(IntersectMaker::opTestEdgeZero1, 
             __LINE__, __FILE__, SectReason::test, 0, 0));
 }
 
@@ -2360,6 +2395,30 @@ void dmpHex(const OpSegments& segs) {
         s += seg->debugDumpHex() + "\n";
     }
     OpDebugOut(s);
+}
+
+std::string debugDumpColor(uint32_t c) {
+    auto result = std::find_if(debugColorArray.begin(), debugColorArray.end(), [c](auto color) {
+        return color.first == c; });
+    char asHex[11];
+    int written = snprintf(asHex, sizeof(asHex), "0x%08x", c);
+    if (written != 10)
+         return "snprintf of " + STR((int) c) + " to hex failed (written:" + STR(written) + ")";
+    if (debugColorArray.end() == result)
+        return "color " + std::to_string(c) + " (" + std::string(asHex) + ") not found";
+    return std::string(asHex) + " " + (*result).second;
+}
+
+void dmpColor(uint32_t c) {
+    OpDebugOut(debugDumpColor(c) + "\n");
+}
+
+void dmpColor(const OpEdge* edge) {
+    dmpColor(edge->debugColor);
+}
+
+void dmpColor(const OpEdge& edge) {
+    dmpColor(edge.debugColor);
 }
 
 #endif

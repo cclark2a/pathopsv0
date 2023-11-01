@@ -163,11 +163,11 @@ SectFound OpCurveCurve::divideAndConquer() {
 			OpDebugOut("");  // allows setting a breakpoint to debug curve/curve
 #endif
 		if (edgeLines.size() && oppLines.size())
-			LinearIntersect(edgeLines, oppLines);
+			linearIntersect(edgeLines, oppLines);
 		if (edgeLines.size())
-			LinearIntersect(edgeLines, oppCurves);
+			linearIntersect(edgeLines, oppCurves);
 		if (oppLines.size())
-			LinearIntersect(oppLines, edgeCurves);
+			linearIntersect(oppLines, edgeCurves);
 		SectFound oppResult = curvesIntersect(CurveRef::edge);
 		if (SectFound::fail == oppResult)
 			return oppResult;  // triggered by fuzzhang_1
@@ -239,7 +239,7 @@ void OpCurveCurve::findEdgesTRanges(CurveRef curveRef) {
 }
 
 // Edge parts are all linear. See if each intersects with any of the opposite edges
-void OpCurveCurve::LinearIntersect(std::vector<OpEdge>& edgeParts,
+void OpCurveCurve::linearIntersect(std::vector<OpEdge>& edgeParts,
 		std::vector<OpEdge>& oppParts) {
 	for (OpEdge& edge : edgeParts) {
 		OP_ASSERT(edge.isLine_impl);
@@ -252,7 +252,8 @@ void OpCurveCurve::LinearIntersect(std::vector<OpEdge>& edgeParts,
 #if OP_DEBUG_RECORD
 			OpDebugRecordStart(opp, edge);
 #endif
-			OpWinder::AddLineCurveIntersection(opp, edge);
+			if (IntersectResult::yes == OpWinder::AddLineCurveIntersection(opp, edge)) 
+				sectResult = true;		
 #if OP_DEBUG_RECORD
 			OpDebugRecordEnd();
 #endif

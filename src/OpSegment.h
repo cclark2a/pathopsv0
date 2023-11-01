@@ -32,6 +32,8 @@ struct FoundEdge {
 
     FoundEdge(OpEdge* e, EdgeMatch w, int i = -1) 
         : edge(e)
+        , perimeter(OpInfinity)
+        , closeSq(OpInfinity)
         , distSq(0)
         , index(i)
         , whichEnd(w)
@@ -48,6 +50,8 @@ struct FoundEdge {
 #endif
 
     OpEdge* edge;
+    float perimeter;
+    float closeSq;  // distance to make a loop if this edge is chosen
     float distSq;  // used to track closest edge if no exact match was found
     int index;  // used to track entry in linkups to remove after use
     EdgeMatch whichEnd;
@@ -110,7 +114,6 @@ struct OpSegment {
 #endif
 #if OP_DEBUG_IMAGE
     bool debugContains(const OpEdge* ) const; // distinguishes owned edges from temporary edges
-    void draw() const;
 #endif
 
     OpContour* contour;

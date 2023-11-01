@@ -38,7 +38,7 @@ struct OpJoiner {
     void checkUnsectableGap();
     void checkUnsortableAndDisabled();
     void checkUnables();
-    FoundEdge chooseSmallest();
+    FoundEdge* chooseSmallest();
     void detachChoppedEtc();
 	bool detachIfLoop(OpEdge* );
     bool forceSmallEdge();
@@ -62,7 +62,7 @@ struct OpJoiner {
 #include "OpDebugDeclarations.h"
 #endif
 #if OP_DEBUG_IMAGE
-	void debugDraw() const;
+	void debugDraw();
 #endif
 
 	OpOutPath& path;	// !!! move op joiner into op contours to eliminate reference?

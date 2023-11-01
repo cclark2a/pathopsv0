@@ -103,8 +103,7 @@ OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
         const OpEdge* edge, const OpEdge* oEdge)) {
     OpIntersection* next = contours->allocateIntersection();
-    next->set(t, seg, 0, 0, MatchEnds::none  
-            OP_DEBUG_PARAMS(maker, line, file, reason, edge->id, oEdge->id));
+    next->set(t, seg  OP_DEBUG_PARAMS(maker, line, file, reason, edge->id, oEdge->id));
     return next;
 }
 
@@ -151,11 +150,33 @@ void OpContour::addLine(OpPoint pts[2]) {
     segments.emplace_back(linePts, this  OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
 }
 
-OpIntersection* OpContour::addSegSect(const OpPtT& t, OpSegment* seg, int cID, int uID, MatchEnds end
+OpIntersection* OpContour::addCoinSect(const OpPtT& t, OpSegment* seg, int cID, MatchEnds coinEnd
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason,
         const OpSegment* oSeg)) {
     OpIntersection* next = contours->allocateIntersection();
-    next->set(t, seg, cID, uID, end  OP_DEBUG_PARAMS(maker, line, file, reason, seg->id, oSeg->id));
+    next->set(t, seg  OP_DEBUG_PARAMS(maker, line, file, reason, seg->id, oSeg->id));
+	next->coincidenceID = cID;  // 0 if no coincidence; negative if coincident pairs are reversed
+	OP_ASSERT(MatchEnds::both != coinEnd);
+	next->coinEnd = coinEnd;
+    return next;
+}
+
+OpIntersection* OpContour::addSegSect(const OpPtT& t, OpSegment* seg
+        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason,
+        const OpSegment* oSeg)) {
+    OpIntersection* next = contours->allocateIntersection();
+    next->set(t, seg  OP_DEBUG_PARAMS(maker, line, file, reason, seg->id, oSeg->id));
+    return next;
+}
+
+OpIntersection* OpContour::addUnsect(const OpPtT& t, OpSegment* seg, int uID, MatchEnds unsectEnd
+        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason,
+        const OpSegment* oSeg)) {
+    OpIntersection* next = contours->allocateIntersection();
+    next->set(t, seg  OP_DEBUG_PARAMS(maker, line, file, reason, seg->id, oSeg->id));
+	next->unsectID = uID;
+	OP_ASSERT(MatchEnds::both != unsectEnd);
+	next->unsectEnd = unsectEnd;
     return next;
 }
 

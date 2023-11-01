@@ -29,7 +29,8 @@ struct OpCurveCurve {
 
 	OpCurveCurve(const OpEdge* edge, const OpEdge* opp)
 		: originalEdge(edge)
-		, originalOpp(opp) {
+		, originalOpp(opp)
+		, sectResult(false) {
 		edgeCurves.emplace_back(*edge);
 		oppCurves.emplace_back(*opp);
 #if OP_DEBUG_DUMP
@@ -42,7 +43,7 @@ struct OpCurveCurve {
 	SectFound curvesIntersect(CurveRef );
 	SectFound divideAndConquer();
 	void findEdgesTRanges(CurveRef );
-	static void LinearIntersect(std::vector<OpEdge>& lines, std::vector<OpEdge>& linesOrCurves);
+	void linearIntersect(std::vector<OpEdge>& lines, std::vector<OpEdge>& linesOrCurves);
 	bool split(CurveRef , DoSplit );
 	bool tooFew(CurveRef );
 
@@ -62,6 +63,7 @@ struct OpCurveCurve {
 #if OP_DEBUG_IMAGE
 	void draw() const;
 #endif
+
 	const OpEdge* originalEdge;
 	const OpEdge* originalOpp;
 	std::vector<OpEdge> edgeCurves;
@@ -70,6 +72,7 @@ struct OpCurveCurve {
 	std::vector<OpEdge> oppLines;
 	std::vector<OpEdge> edgeRuns;
 	std::vector<OpEdge> oppRuns;
+	bool sectResult;
 };
 
 #endif

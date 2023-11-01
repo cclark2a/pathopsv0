@@ -22,10 +22,6 @@ OpWinder::OpWinder(OpContours& contours, EdgesToSort edgesToSort) {
 OpWinder::OpWinder(OpEdge* sEdge, OpEdge* oEdge) {
 	addEdge(sEdge, EdgesToSort::byCenter);
 	addEdge(oEdge, EdgesToSort::byCenter);
-#if OP_DEBUG_IMAGE
-	OpDebugImage::add(sEdge);
-	OpDebugImage::add(oEdge);
-#endif
 	workingAxis = Axis::neither;
 }
 
@@ -102,10 +98,10 @@ void OpWinder::AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped, OpPtT cPtT
         return;
     if (oppSegment->sects.contains(oCoinStart, segment))
         return;
-    OpIntersection* sect = segment->contour->addSegSect(ptTAorB, segment, coinID, 0, match  
+    OpIntersection* sect = segment->contour->addCoinSect(ptTAorB, segment, coinID, match  
 			OP_DEBUG_PARAMS(SECT_MAKER(addMix), SectReason::coinPtsMatch, oppSegment));
 	segment->sects.add(sect);
-	OpIntersection* oSect = oppSegment->contour->addSegSect(oCoinStart, oppSegment, coinID, 0,
+	OpIntersection* oSect = oppSegment->contour->addCoinSect(oCoinStart, oppSegment, coinID, 
 			flipped ? MatchEnds::start : MatchEnds::end 
 			OP_DEBUG_PARAMS(SECT_MAKER(addMixOpp), SectReason::coinPtsMatch, segment));
 	oppSegment->sects.add(oSect);
@@ -173,8 +169,8 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 		if (sect1) {  // segment already has intersection (segment start); e.g., line doubles back
 			OP_ASSERT(!sect1->coincidenceID);
 			sect1->coincidenceID = coinID;
-			OP_ASSERT(MatchEnds::none == sect1->sectEnd);
-			sect1->sectEnd = MatchEnds::start;
+			OP_ASSERT(MatchEnds::none == sect1->coinEnd);
+			sect1->coinEnd = MatchEnds::start;
 		} else	// or if it doesn't exist and isn't in a coin range, make one
 			sect1 = segment->addCoin(aPtT, coinID, MatchEnds::start, oppSegment
 				OP_DEBUG_PARAMS(SECT_MAKER(addPair_aPtT), SectReason::coinPtsMatch));
@@ -183,8 +179,8 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 		if (sect2) {  // segment already has intersection (segment end); e.g., line doubles back
 			OP_ASSERT(!sect2->coincidenceID);
 			sect2->coincidenceID = coinID;
-			OP_ASSERT(MatchEnds::none == sect2->sectEnd);
-			sect2->sectEnd = MatchEnds::end;
+			OP_ASSERT(MatchEnds::none == sect2->coinEnd);
+			sect2->coinEnd = MatchEnds::end;
 		} else
 			sect2 = segment->addCoin(bPtT, coinID, MatchEnds::end, oppSegment
 				OP_DEBUG_PARAMS(SECT_MAKER(addPair_bPtT), SectReason::coinPtsMatch));
@@ -204,6 +200,7 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 		oTRange = dPtT.t - cPtT.t;
 		oXYRange = oEnd - oStart;
 	}
+	bool setOSect1CoinID = false;
 	if (!oSect1) {
 		float eStart = aPtT.pt.choice(xyChoice);
 		OpPtT oCoinStart{ aPtT.pt, cPtT.t + (eStart - oStart) / oXYRange * oTRange };
@@ -216,12 +213,8 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 			return IntersectResult::fail; // triggered by pentrek7 (maybe)
 		sect1->pair(oSect1);
 	} else {  // segment already has intersection (start or end); e.g., line doubles back
-		if (!(inCoinRange(oRange, oSect1->ptT.t, nullptr) & 1)) {
-			OP_ASSERT(!oSect1->coincidenceID);
-			oSect1->coincidenceID = coinID;
-			OP_ASSERT(MatchEnds::none == oSect1->sectEnd);
-			oSect1->sectEnd = flipped ? MatchEnds::end : MatchEnds::start;	// !!! added without testing
-		}
+		if (!(inCoinRange(oRange, oSect1->ptT.t, nullptr) & 1))
+			setOSect1CoinID = true;  // defer so that check of o sect 2 isn't affected
 	}
 	if (!oSect2) {
 		float eEnd = bPtT.pt.choice(xyChoice);
@@ -238,18 +231,26 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 		if (!(inCoinRange(oRange, oSect2->ptT.t, nullptr) & 1)) {
 			OP_ASSERT(!oSect2->coincidenceID);
 			oSect2->coincidenceID = coinID;
-			OP_ASSERT(MatchEnds::none == oSect2->sectEnd);
-			oSect2->sectEnd = flipped ? MatchEnds::start : MatchEnds::end;
+			OP_ASSERT(MatchEnds::none == oSect2->coinEnd);
+			oSect2->coinEnd = flipped ? MatchEnds::start : MatchEnds::end;
 		}
+	}
+	if (setOSect1CoinID) {
+		OP_ASSERT(!oSect1->coincidenceID);
+		oSect1->coincidenceID = coinID;
+		OP_ASSERT(MatchEnds::none == oSect1->coinEnd);
+		oSect1->coinEnd = flipped ? MatchEnds::end : MatchEnds::start;	// !!! added without testing
 	}
 	return IntersectResult::yes;
 }
 
 
-// !!! conditionally, upscale t so we can call segment line curve intersection to see what 
-//     bugs that introduces
+// upscale t to call segment line curve intersection
 // !!! I'm bothered that segment / segment calls a different form of this
-void OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bool secondAttempt) {
+// Return if an intersection was added so that op curve curve can record this
+// then, change op curve curve checks for undetected coincidence between pair of curves if this
+// intersection pair forms such (issue3517)
+IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bool secondAttempt) {
 	OpSegment* eSegment = const_cast<OpSegment*>(edge.segment);
 	OpSegment* oSegment = const_cast<OpSegment*>(opp.segment);
 	OP_ASSERT(oSegment != eSegment);
@@ -301,7 +302,7 @@ void OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bool secondAt
 			foundOne = true;
 		}
 		if (foundOne)
-			return;
+			return IntersectResult::no;
 	}
 	if (septs.rawIntersectFailed) {
 		// binary search on opp t-range to find where vert crosses zero
@@ -313,8 +314,9 @@ void OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bool secondAt
 	// were not calculated (the roots are uninitialized). This is because coincident check will 
 	// compute the actual coincident start and end without the roots introducing error.
 	if (2 == septs.count && opp.isLinear())
-		return (void) CoincidentCheck(edge, opp);
+		return CoincidentCheck(edge, opp);
 	bool tInRange = false;
+	IntersectResult sectAdded = IntersectResult::no;
 	for (unsigned index = 0; index < septs.count; ++index) {
 		if (opp.start.t > septs.get(index) || septs.get(index) > opp.end.t)
 			continue;
@@ -323,7 +325,7 @@ void OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bool secondAt
 		float edgeT;
 		FoundPtT foundPtT = edge.segment->findPtT(0, 1, oppPtT.pt, &edgeT);
 		if (FoundPtT::multiple == foundPtT)
-			return;
+			return IntersectResult::no;
 		if (!OpMath::Between(0, edgeT, 1))
 			continue;
 #if OP_DEBUG_RECORD
@@ -340,11 +342,13 @@ void OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bool secondAt
 //		OP_ASSERT(debugPt == oppPtT.pt);	// rarely needed, but still triggered (e.g., joel_15x)
 		OpPtT edgePtT { oppPtT.pt, edgeT };
 		addPair(oppPtT, edgePtT);
+		sectAdded = IntersectResult::yes;
 	}
 	if (!tInRange && opp.isLine_impl && !secondAttempt) {
 		OpDebugRecordStart(edge, opp);
-		AddLineCurveIntersection(edge, opp, true);
+		return AddLineCurveIntersection(edge, opp, true);
 	}
+	return sectAdded;
 }
 
 EdgeDistance* SectRay::find(OpEdge* edge) {

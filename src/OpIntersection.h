@@ -119,7 +119,8 @@ struct OpIntersection {
 	coincidenceID = 0;
 	unsectID = 0;
 	betweenID = 0;
-	sectEnd = MatchEnds::none;
+	coinEnd = MatchEnds::none;
+	unsectEnd = MatchEnds::none;
 	coincidenceProcessed = false;
 	id = 0;
 	debugID = 0;
@@ -139,21 +140,21 @@ struct OpIntersection {
 		o->opp = this;
 	}
 
-	void set(const OpPtT& t, OpSegment* seg, int cID, int uID, MatchEnds end
+	void set(const OpPtT& t, OpSegment* seg
 			OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
 			int ID, int oppID)) {
 		segment = seg;
+		OP_DEBUG_CODE(debugSetID());  // debug for now
 		opp = nullptr; // SectFlavor::none == flavor_ ? nullptr : this;		!!! if we need this, comment why
 		OP_ASSERT(OpMath::Between(0, t.t, 1));
 		ptT = t;
-		coincidenceID = cID;  // 0 if no coincidence; negative if coincident pairs are reversed
-		unsectID = uID;  // 0 if not unsectable; negative if curves are reversed
 		betweenID = 0;
-		OP_ASSERT(MatchEnds::both != end);
-		sectEnd = end;  // used by coin and unsectable to distinguish start from end
+		coincidenceID = 0;  // 0 if no coincidence; negative if coincident pairs are reversed
+		unsectID = 0;  // 0 if not unsectable; negative if curves are reversed
+		coinEnd = MatchEnds::none;
+		unsectEnd = MatchEnds::none;
 		coincidenceProcessed = false;
 #if OP_DEBUG
-		debugSetID();  // debug for now
 		debugID = ID;
 		debugOppID = oppID;
 		debugCoincidenceID = 0;
@@ -196,7 +197,8 @@ struct OpIntersection {
 	int coincidenceID;
 	int unsectID;	// !!! may be able to be merged with coincident ID; keep separate for now
 	int betweenID;  // is on unsectable with this id, between ends; use to mark edge unsortable
-	MatchEnds sectEnd;  // used by coin and unsectable to distinguish start from end
+	MatchEnds coinEnd;  // used to put start before end on sect sort
+	MatchEnds unsectEnd;
 	bool coincidenceProcessed;
 #if OP_DEBUG
 	int id;
@@ -213,7 +215,9 @@ struct OpIntersection {
 struct OpIntersections {
 	OpIntersections();
 	OpIntersection* add(OpIntersection* );
-    OpIntersection* contains(const OpPtT& , const OpSegment* ) const;
+    OpIntersection* contains(const OpPtT& ptT, const OpSegment* s) const {
+		OpIntersection* const * result = entry(ptT, s); return result ? *result : nullptr; }
+    OpIntersection* const * entry(const OpPtT& , const OpSegment* ) const;
 	void makeEdges(OpSegment* );
     std::vector<OpIntersection*> range(const OpSegment* );
     void sort();

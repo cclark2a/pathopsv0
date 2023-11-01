@@ -8,6 +8,8 @@
 
 #if OP_DEBUG_IMAGE
 
+#include <string>
+#include <utility>
 #include <vector>
 
 extern uint32_t maroon;
@@ -581,7 +583,7 @@ extern uint32_t white_smoke;
 extern uint32_t white;
 extern uint32_t White;
 
-extern std::vector<uint32_t> debugColorArray;
+extern std::vector<std::pair<uint32_t, std::string>> debugColorArray;
 
 #endif
 

@@ -267,6 +267,10 @@ struct OpVector {
 
     bool isFinite() const;
 
+    XyChoice larger() const {
+        return fabsf(dx) > fabsf(dy) ? XyChoice::inX : XyChoice::inY;
+    }
+
     float length() const {
         return sqrtf(lengthSquared());
     }

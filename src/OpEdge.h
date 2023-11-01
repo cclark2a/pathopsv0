@@ -34,6 +34,7 @@ enum class IntersectResult {
 	fail,
 	no,
 	yes,
+	coincident,
 	maybe
 };
 
@@ -427,13 +428,13 @@ private:
 		debugRayMatch = 0;
 		debugFiller = false;
 #endif
+#if OP_DEBUG_IMAGE
+		debugColor = debugBlack;
+		debugDraw = true;
+		debugJoin = false;
+#endif
 	}
 public:
-#if OP_DEBUG_IMAGE
-	~OpEdge() {
-		debugDestroy();
-	}
-#endif
 	OpEdge(OpSegment* s, const OpPtT& t1, const OpPtT& t2
 			OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file, const OpIntersection* i1, 
 			const OpIntersection* i2))
@@ -462,7 +463,6 @@ public:
 	OpEdge(OpEdge&&) = default;
 	OpEdge& operator=(const OpEdge&) = default;
 	OpEdge& operator=(OpEdge&&) = default;
-	void debugDestroy();
 	struct DebugOpCurve debugSetCurve() const;
 #endif
 	CalcFail addIfUR(Axis xis, float t, OpWinding* );
@@ -557,11 +557,10 @@ public:
 //	bool debugValidLoop() const;  // currently unused
 #endif
 #if OP_DEBUG_IMAGE
-	void addLink() const;
-	void addSum() const;
-	void drawChain() const;
-	void drawLink() const;
-	void draw() const;
+	void addLink();
+	void color(uint32_t );
+	void drawLink();
+	void draw();
 #endif
 
 	const OpSegment* segment;
@@ -619,6 +618,11 @@ public:
 	int debugRayMatch;	// id that denotes edges in common output contour determined from ray
 	bool debugFiller;  // edge created to span short gaps
 #endif
+#if OP_DEBUG_IMAGE
+	uint32_t debugColor;
+	bool debugDraw;
+	bool debugJoin;	 // true if included by joiner
+#endif
 };
 
 // allocating storage separately allows filler edges to be immobile and have reliable pointers
@@ -630,7 +634,9 @@ struct OpEdgeStorage {
 	}
 	bool contains(OpIntersection* start, OpIntersection* end) const;
 #if OP_DEBUG_DUMP
+	size_t debugCount() const;
 	const OpEdge* debugFind(int id) const;
+	const OpEdge* debugIndex(int index) const;
 	void dump() const;
 	void dumpDetail() const;
 #endif

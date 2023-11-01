@@ -96,7 +96,7 @@ bool OpVector::isFinite() const {
 // larger provides a better metric of whether multiple curves overlap.
 bool OpPoint::Between(OpPoint start, OpPoint mid, OpPoint end) {
     OpVector scope = end - start;
-    XyChoice xy = fabsf(scope.dx) > fabsf(scope.dy) ? XyChoice::inX : XyChoice::inY;
+    XyChoice xy = scope.larger();
     return OpMath::Between(start.choice(xy), mid.choice(xy), end.choice(xy));
 }
 

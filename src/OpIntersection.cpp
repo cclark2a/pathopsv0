@@ -24,12 +24,13 @@ OpIntersection* OpIntersections::add(OpIntersection* sect) {
     return sect;
 }
 
-OpIntersection* OpIntersections::contains(const OpPtT& ptT, const OpSegment* opp) const {
-	for (auto sect : i) {
+OpIntersection* const * OpIntersections::entry(const OpPtT& ptT, const OpSegment* opp) const {
+	for (unsigned index = 0; index < i.size(); ++index) {
+        OpIntersection* sect = i[index];
         if (!sect->opp || sect->opp->segment != opp)
             continue;
 		if (ptT.pt == sect->ptT.pt || ptT.t == sect->ptT.t)
-			return sect;
+			return &i[index];
 	}
 	return nullptr;
 }
@@ -146,12 +147,12 @@ void OpIntersections::sort() {
                 return s1->ptT.t < s2->ptT.t;
             }
             if (s1->unsectID || s2->unsectID) {
-                int id1 = s1->unsectID * (MatchEnds::end == s1->sectEnd ? -1 : 1);
-                int id2 = s2->unsectID * (MatchEnds::end == s2->sectEnd ? -1 : 1);
+                int id1 = s1->unsectID * (MatchEnds::end == s1->unsectEnd ? -1 : 1);
+                int id2 = s2->unsectID * (MatchEnds::end == s2->unsectEnd ? -1 : 1);
                 return id1 < id2;
             }
-            int id1 = abs(s1->coincidenceID) * (MatchEnds::end == s1->sectEnd ? -1 : 1);
-            int id2 = abs(s2->coincidenceID) * (MatchEnds::end == s2->sectEnd ? -1 : 1);
+            int id1 = abs(s1->coincidenceID) * (MatchEnds::end == s1->coinEnd ? -1 : 1);
+            int id2 = abs(s2->coincidenceID) * (MatchEnds::end == s2->coinEnd ? -1 : 1);
             return id1 < id2;
         });
     if (!fixTs) {

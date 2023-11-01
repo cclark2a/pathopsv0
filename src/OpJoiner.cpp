@@ -38,6 +38,9 @@ void OpJoiner::addEdge(OpEdge* e) {
 	OP_ASSERT(!e->debugIsLoop());
 	if (e->disabled)
 		return;
+#if OP_DEBUG_IMAGE
+	e->debugJoin = true;
+#endif
 	if (e->unsortable)
 		unsortables.push_back(e);
 	else if (e->pals.size())
@@ -435,7 +438,8 @@ void OpJoiner::checkGap() {
     OpVector nextDoor = {
 			std::nextafterf(fabsf(matchPt.x), OpInfinity) - fabsf(matchPt.x),
 			std::nextafterf(fabsf(matchPt.y), OpInfinity) - fabsf(matchPt.y) };
-	if (nextDoor.lengthSquared() < bestGap.distSq)
+	// !!! if we add a factor of 4, it fixes battleOp287 without breaking anything else...
+	if (nextDoor.lengthSquared() * 4 < bestGap.distSq)
         return;
 	OpContour* contour = lastEdge->segment->contour;
 	OpIntersection* lastI = lastEdge->findSect(EdgeMatch::end);
@@ -524,11 +528,14 @@ void OpJoiner::checkUnsortableAndDisabled() {
 	OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
 }
 
-FoundEdge OpJoiner::chooseSmallest() {
-	OpRect bestBounds;
-    FoundEdge smallest = found.front();
-	for (int trial = 0; !bestBounds.isFinite() && trial < 2; ++trial) {
-		for (const auto& foundOne : found) {
+// !!! replace this with proper lookahead that sees if any of the found can connect to an regular 
+//     edge in another iteration. For now, cheat (a lot) and put in some mumbo-jumbo number to say
+//     that one choice is much better than the others...
+FoundEdge* OpJoiner::chooseSmallest() {
+    FoundEdge* smallest = &found.front();
+	OpPoint start = edge->whichPtT(EdgeMatch::start).pt;
+	for (int trial = 0; !OpMath::IsFinite(smallest->perimeter) && trial < 2; ++trial) {
+		for (auto& foundOne : found) {
 			OpEdge* oppEdge = foundOne.edge;
 			// skip edges which flip the fill sum total, implying there is a third edge inbetween
 							// e.g., one if normals point to different fill sums       
@@ -542,23 +549,20 @@ FoundEdge OpJoiner::chooseSmallest() {
 					firstEdge = firstEdge->priorEdge;
 				testBounds.add(foundOne.index > 0 ? firstEdge->setLinkBounds() : firstEdge->ptBounds);
 			}
-			if (smallest.loops < foundOne.loops)
-				smallest = foundOne;
-			else if (smallest.loops == foundOne.loops &&
-				!(bestBounds.perimeter() < testBounds.perimeter())) {	// 'not' logic since best = NaN at first
-				if (bestBounds.perimeter() == testBounds.perimeter()) {
-					// see which end is closer to desired close
-					OpPoint start = edge->whichPtT(EdgeMatch::start).pt;
-					float testDistance = (start 
-							- foundOne.edge->whichPtT(EdgeMatch::end).pt).lengthSquared();
-					float bestDistance = (start
-							- smallest.edge->whichPtT(EdgeMatch::end).pt).lengthSquared();
-					if (testDistance > bestDistance)
-						continue;
-					// !!! if test equals best, do we need another way to pick the better one?
-				}
-				bestBounds = testBounds;
-				smallest = foundOne;
+			OpEdge* last = foundOne.edge->lastEdge;
+			OP_ASSERT(last);
+			foundOne.closeSq = (start - last->whichPtT(EdgeMatch::end).pt).lengthSquared();
+			foundOne.perimeter = testBounds.perimeter();
+			if (&foundOne == &found.front())
+				continue;
+			if (smallest->loops < foundOne.loops)
+				smallest = &foundOne;
+			else if (smallest->loops != foundOne.loops)
+				continue;
+			if (foundOne.closeSq < OpEpsilon * smallest->closeSq
+					|| (smallest->closeSq > OpEpsilon * foundOne.closeSq
+					&& foundOne.perimeter < smallest->perimeter)) {	
+				smallest = &foundOne;
 			}
 		}
 	}
@@ -655,7 +659,7 @@ bool OpJoiner::matchLinks(bool popLast) {
 	found.clear();
 	matchPt = lastEdge->whichPtT(EdgeMatch::end).pt;
 	bestGap.reset();  // track the smallest gap available, when all else fails (e.g., battleOp21)
-    checkLinkups();
+	checkLinkups();
 	if (edge != lastEdge)
 		bestGap.check(&found, edge, EdgeMatch::start, matchPt);
 	if (popLast)  // allows first attempt for edge to scan itself, in case it is an unclosed loop
@@ -711,14 +715,14 @@ bool OpJoiner::matchLinks(bool popLast) {
 // if there is more than one found, bifurcate and try both paths before deciding which is best
 // in addition to using the edge that minimizes the total area, if both edges are pals, unsortable, 
 // or disabled, choose the edge that gets us back to a normal, desirable (correct zero crossing) edge
-	FoundEdge smallest = found.front();
-	if (found.size() > 1 || ChopUnsortable::none != smallest.chop) {
+	FoundEdge* smallest = &found.front();
+	if (found.size() > 1 || ChopUnsortable::none != smallest->chop) {
         detachChoppedEtc();
         smallest = chooseSmallest();
 	}
-	OP_ASSERT(smallest.edge); // !!! if found is not empty, but no edge has the right sum, choose one anyway?
-	OpEdge* best = smallest.edge;
-	(void) best->setLastLink(smallest.whichEnd);  // make edge suitable for linking to a chain
+	OP_ASSERT(smallest->edge); // !!! if found is not empty, but no edge has the right sum, choose one anyway?
+	OpEdge* best = smallest->edge;
+	(void) best->setLastLink(smallest->whichEnd);  // make edge suitable for linking to a chain
 	if (!best->containsLink(lastEdge)) {
 		OP_ASSERT(!best->debugIsLoop());
 		OP_ASSERT(!lastEdge->debugIsLoop());
@@ -729,9 +733,9 @@ bool OpJoiner::matchLinks(bool popLast) {
 		lastEdge = best->setLastEdge(lastEdge);
 		OP_ASSERT(lastEdge);
 	// delete 'smallest.edge' from linkups; entry no longer points to edge link head
-		if (smallest.index >= 0) {
-			OP_ASSERT((unsigned) smallest.index < linkups.l.size());
-			linkups.l.erase(linkups.l.begin() + smallest.index);
+		if (smallest->index >= 0) {
+			OP_ASSERT((unsigned) smallest->index < linkups.l.size());
+			linkups.l.erase(linkups.l.begin() + smallest->index);
 		}
 	}
 	if (best->disabled) {

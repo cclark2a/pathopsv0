@@ -19,7 +19,7 @@
 #define OP_DEBUG_RECORD 0  // track some statistic or other while running
 
 // see descriptions for exceptions below
-#define TEST_PATH_OP_EXCEPTIONS "battleOp287"
+#define TEST_PATH_OP_EXCEPTIONS "fuzz763_378"
 #define TEST_PATH_OP_FAIL_EXCEPTIONS ""
 #define TEST_PATH_OP_MAP_TO_FUZZ "fuzzhang_1"
 #define TEST_PATH_SIMPLIFY_EXCEPTIONS ""
@@ -28,7 +28,7 @@
 #define TEST_PATH_SIMPLIFY_MAP_TO_FUZZ  ""
 
 // !!! need to update laptop exceptions with latest
-#define LAPTOP_PATH_OP_EXCEPTIONS "issue1417", "fuzz763_378"
+#define LAPTOP_PATH_OP_EXCEPTIONS "issue1417"
 #define LAPTOP_PATH_OP_MAP_TO_FUZZ "fuzz763_10022998"
 
 // when these tests are encountered, it and the remaining tests in the file are skipped
@@ -36,28 +36,38 @@
 #define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */
 
 /* test failure descriptions:
+fuzz763_378: asserts after creating two indentical filler edges; breaks debug image drawing
+
+// last successful run
 total run:735267 skipped:2 errors:12 warnings:21 v0 only:3 skia only:70
 
 grshapearc: hangs in chooseSmallest looping on priorEdge pointing to two edge loop (77719, 77720)
 fuzzhang_1: succeeds in skia, fails in v0 (investigate)
-battleOp287: addFiller() fails; intersection not found (investigate)
-issue3517: no edge found: last, last resort; had errors=22
 issue1435: no edge found: last, last resort; had errors=512
-fuzz763_378b: no edge found: last, last resort
 fuzz763_378: no edge found: last, last resort (x2); had errors=30
 issue3651_4: no edge found: last, last resort
 issue3651_7: no edge found: last, last resort
 issue3651_2: no edge found: last, last resort
-thread_cubics78212 had errors=223  (investigate: likely same error as below)
-        (was: xor fill makes closed loop out of hole (winding looks fine))
+thread_cubics78212 no edge found: last, last resort; had errors=223
+        (was: xor operator makes closed loop out of hole (winding looks fine))
+        linkUnambiguous closed loop when it shouldn't've
 thread_cubics78216: no edge found: last, last resort; had errors=223
 thread_cubics78220: no edge found: last, last resort; had errors=223
 thread_cubics78224: no edge found: last, last resort; had errors=223
 thread_cubics132356: no edge found: last, last resort (x2); had errors=26 (investigate)
+        creates fill edge 152 to close edge 136; should have used 143, 144, 135? instead
+        (exposed bug where dump center doesn't see fill edges)
 thread_cubics132360: no edge found: last, last resort (x2); had errors=26
 thread_cubics132364: no edge found: last, last resort (x2); had errors=26
 thread_cubics132368: no edge found: last, last resort (x2); had errors=26
 thread_loops1658 had errors=73
+        edge 102 sends rays to 96, 104
+        ray intersections for 96 isn't done yet so mis-sort goes undetected
+        unclear whether recursive calls to findRayIntercept is a good idea
+        could mark the edge as 'found unset ray' and defer the intercept til later
+        could try to sort better up front
+        think about it...
+tiger8b: no edge found: last, last resort
 
 !!! need to verify that extended still fails as listed: (not all fails are listed)
 thread_circles669495: asserts because assemble() failed for a nonfailing test case (extended)

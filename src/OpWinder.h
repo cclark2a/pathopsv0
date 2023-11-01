@@ -2,7 +2,7 @@
 #ifndef OpWinder_DEFINED
 #define OpWinder_DEFINED
 
-#include "OpMath.h"
+#include "OpEdge.h"
 
 enum class MatchEnds;  // for coin intersections
 struct OpContours;
@@ -43,7 +43,8 @@ struct OpWinder {
 	OpWinder(OpContours& contours, EdgesToSort edgesToSort);
 	OpWinder(OpEdge* sEdge, OpEdge* oEdge);
 	void addEdge(OpEdge* , EdgesToSort );
-	static void AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bool secondAttempt = false);
+	static IntersectResult AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, 
+			bool secondAttempt = false);
 	static void AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped, OpPtT cPtT, OpPtT dPtT,
 			OpSegment* segment, OpSegment* oppSegment, int coinID, MatchEnds );
 	static IntersectResult AddPair(XyChoice offset, OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpPtT dPtT,
@@ -67,7 +68,7 @@ struct OpWinder {
 #include "OpDebugDeclarations.h"
 #endif
 #if OP_DEBUG_IMAGE
-	void debugDraw() const;
+	void debugDraw();
 #endif
 
 	std::vector<OpEdge*> inX;

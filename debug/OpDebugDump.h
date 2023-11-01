@@ -228,6 +228,10 @@ extern std::string debugDumpHex(const EdgeDistance& , DebugLevel );
 extern std::string debugDump(const SectRay& , DebugLevel );
 extern std::string debugDumpHex(const SectRay& , DebugLevel );
 
+extern std::string debugDumpColor(uint32_t c);
+extern void dmpColor(uint32_t );
+extern void dmpColor(const OpEdge* );
+extern void dmpColor(const OpEdge& );
 extern void dmpHex(float );
 
 #endif

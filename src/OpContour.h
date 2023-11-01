@@ -45,7 +45,13 @@ struct OpContour {
             const OpEdge* edge, const OpEdge* oEdge));
     OpEdge* addFiller(OpEdge* edge, OpEdge* lastEdge);
     OpEdge* addFiller(OpIntersection* start, OpIntersection* end);
-    OpIntersection* addSegSect(const OpPtT& t, OpSegment* seg, int cID, int uID, MatchEnds end
+    OpIntersection* addCoinSect(const OpPtT& t, OpSegment* seg, int cID, MatchEnds end
+            OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
+            const OpSegment* oSeg));
+    OpIntersection* addSegSect(const OpPtT& t, OpSegment* seg
+            OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
+            const OpSegment* oSeg));
+    OpIntersection* addUnsect(const OpPtT& t, OpSegment* seg, int uID, MatchEnds end
             OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
             const OpSegment* oSeg));
     void addLine(OpPoint pts[2]);

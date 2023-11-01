@@ -15,6 +15,8 @@ void FoundEdge::check(std::vector<FoundEdge>* edges, OpEdge* test, EdgeMatch em,
 
 void FoundEdge::reset() {
     edge = nullptr;
+    perimeter = OpInfinity;
+    closeSq = OpInfinity;
     distSq = OpInfinity;
     index = -1;
     whichEnd = EdgeMatch::none;
@@ -138,7 +140,7 @@ OpIntersection* OpSegment::addSegBase(const OpPtT& ptT
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
         const OpSegment* oSeg)) {
     OP_ASSERT(!sects.debugContains(ptT, oSeg));
-    return sects.add(contour->addSegSect(ptT, this, 0, 0, MatchEnds::none  
+    return sects.add(contour->addSegSect(ptT, this 
             OP_DEBUG_PARAMS(maker, line, file, reason, oSeg)));
 }
 
@@ -149,11 +151,12 @@ OpIntersection* OpSegment::addSegSect(const OpPtT& ptT, const OpSegment* oSeg
     return addSegBase(ptT  OP_DEBUG_PARAMS(maker, line, file, reason, oSeg));
 }
 
-OpIntersection* OpSegment::addCoin(const OpPtT& ptT, int coinID, MatchEnds coinEnd, const OpSegment* oSeg  
+OpIntersection* OpSegment::addCoin(const OpPtT& ptT, int coinID, MatchEnds coinEnd, 
+        const OpSegment* oSeg  
         OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason)) {
     if (sects.contains(ptT, oSeg))  // triggered by fuzz763_13
         return nullptr;
-    return sects.add(contour->addSegSect(ptT, this, coinID, 0, coinEnd  
+    return sects.add(contour->addCoinSect(ptT, this, coinID, coinEnd  
             OP_DEBUG_PARAMS(maker, line, file, reason, oSeg)));
 }
 
@@ -163,10 +166,10 @@ OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int usectID, MatchEnd
     if (sect) {
         OP_ASSERT(!sect->unsectID);
         sect->unsectID = usectID;
-        sect->sectEnd = end;
+        sect->unsectEnd = end;
         return sect;
     }
-    return sects.add(contour->addSegSect(ptT, this, 0, usectID, end  
+    return sects.add(contour->addUnsect(ptT, this, usectID, end  
             OP_DEBUG_PARAMS(maker, line, file, SectReason::curveCurveUnsectable, oSeg)));
 }
 
