@@ -137,11 +137,13 @@ bool skipTest(std::string name) {
     ++testsRun;
     if (showTestName)
         OpDebugOut(name + "\n");
+#if !OP_SHOW_ERRORS_ONLY    
     else if (testsRun % 100 == 0) {
         OpDebugOut(".");
         if (testsRun % 5000 == 0)
             OpDebugOut("\n");
     }
+#endif
     return false;
 }
 
@@ -153,13 +155,15 @@ void runTests() {
         for (auto pair : testPairs) {
             if (pair.name == s) {
 #if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
+#if !OP_SHOW_ERRORS_ONLY
                 OpDebugOut(pair.name + " started\n");
+#endif
                 currentTestFile = pair.name;
 #else
                 initTests(pair.name);
 #endif
                 (*pair.func)();
-#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
+#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS && !OP_SHOW_ERRORS_ONLY
                 OpDebugOut(pair.name + " finished\n");
 #endif
                 return;
@@ -260,11 +264,28 @@ static int debug_paths_draw_the_same(const SkPath& one, const SkPath& two, SkBit
     return errors;
 }
 
-void ReportError(std::string testname, int errors) {
-    OpDebugOut(testname + " had errors=" + STR(errors) + "\n");
+std::vector<std::string> warningStrings = { "no edge found: last, last resort" };
+
+void ReportError(std::string testname, int errors, std::vector<OpDebugWarning>& warnings) {
+    std::string s = testname;
+    // !!! when there's more than one warning, put this in a loop or lambda or something
+    int count = 0;
+    OpDebugWarning test = OpDebugWarning::lastResort;
+    for (OpDebugWarning w : warnings) {
+        if (test == w)
+            ++count;
+    }
+    if (count) {
+        s += " " + warningStrings[(int) test];
+        if (count > 1)
+            s += " (x" + STR(count) + ")";
+    }
+    if (errors)
+        s += " had errors=" + STR(errors);
+    OpDebugOut(s + "\n");
 }
 
-void VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op, std::string testname,
+int VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op, std::string testname,
         const SkPath& result) {
     SkPath pathOut, scaledPathOut;
     SkRegion rgnA, rgnB, openClip, rgnOut;
@@ -290,14 +311,7 @@ void VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op, std::string tes
     scaledOut.addPath(result, scale);
     scaledOut.setFillType(result.getFillType());
     int errors = debug_paths_draw_the_same(scaledPathOut, scaledOut, bitmap);
-    const int MAX_ERRORS = 9;
-    if (errors > MAX_ERRORS) {
-#if !defined(NDEBUG) || OP_RELEASE_TEST
-        ReportError(testname, errors);
-        testsError++;
-#endif
-//        OP_ASSERT(0);
-    }
+    return errors;
 }
 
 void threadablePathOpTest(int id, const SkPath& a, const SkPath& b, 
@@ -307,12 +321,13 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
 	OpInPath op1(&a);
 	OpInPath op2(&b);
 	OpOutPath opOut(&result);
+    OP_DEBUG_CODE(std::vector<OpDebugWarning> warnings);
 #if OP_DEBUG || OP_TEST_REGION
     bool success = 
 #endif
 #if OP_DEBUG
         DebugPathOps(op1, op2, (OpOperator) op, opOut, v0MayFail ? OpDebugExpect::unknown :
-                OpDebugExpect::success, testname);
+                OpDebugExpect::success, testname, warnings);
 #else
         PathOps(op1, op2, (OpOperator) op, opOut);
 #endif
@@ -335,8 +350,18 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     bool skSuccess = true;
 #endif
 #if OP_TEST_V0 && OP_TEST_REGION
-    if (success && skSuccess && !v0MayFail && !skiaMayFail)
-        VerifyOp(a, b, op, testname, result);
+    if (!success || !skSuccess || v0MayFail || skiaMayFail)
+        return;
+    int errors = VerifyOp(a, b, op, testname, result);
+    const int MAX_ERRORS = 9;
+    if (errors > MAX_ERRORS || warnings.size()) {
+#if !defined(NDEBUG) || OP_RELEASE_TEST
+        ReportError(testname, errors, warnings);
+        if (errors > MAX_ERRORS)
+            testsError++;
+#endif
+    }
+
 #endif
 }
 
@@ -413,7 +438,7 @@ void RunTestSet(skiatest::Reporter* r, TestDesc tests[], size_t count,
 }
 
 
-void VerifySimplify(const SkPath& one, std::string testname, const SkPath& result) {
+int VerifySimplify(const SkPath& one, std::string testname, const SkPath& result) {
     SkPath pathOut, scaledPathOut;
     SkRegion rgnA, openClip, rgnOut;
     openClip.setRect({ -16000, -16000, 16000, 16000 });
@@ -432,14 +457,7 @@ void VerifySimplify(const SkPath& one, std::string testname, const SkPath& resul
     scaledOut.addPath(result, scale);
     scaledOut.setFillType(result.getFillType());
     int errors = debug_paths_draw_the_same(scaledPathOut, scaledOut, bitmap);
-    const int MAX_ERRORS = 9;
-    if (errors > MAX_ERRORS) {
-#if !defined(NDEBUG) || OP_RELEASE_TEST
-        ReportError(testname, errors);
-        testsError++;
-#endif
-//        OP_ASSERT(0);
-    }
+    return errors;
 }
 
 void threadableSimplifyTest(int id, const SkPath& path, std::string testname, 
@@ -448,12 +466,13 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
 	OpInPath op1(&path);
     out.reset();
 	OpOutPath opOut(&out);
+    OP_DEBUG_CODE(std::vector<OpDebugWarning> warnings);
 #if OP_DEBUG || OP_TEST_REGION
     bool success =
 #endif
 #if OP_DEBUG
         DebugPathSimplify(op1, opOut, v0MayFail ? OpDebugExpect::unknown :
-                OpDebugExpect::success, testname);
+                OpDebugExpect::success, testname, warnings);
 #else
         PathSimplify(op1, opOut);
 #endif
@@ -474,8 +493,16 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
 #endif
 #endif
 #if OP_TEST_V0 && OP_TEST_REGION
-    if (success) 
-        VerifySimplify(path, testname, out);
+    if (!success)
+        return;
+    int errors = VerifySimplify(path, testname, out);
+    const int MAX_ERRORS = 9;
+    if (errors > MAX_ERRORS) {
+    #if !defined(NDEBUG) || OP_RELEASE_TEST
+        ReportError(testname, errors, warnings);
+        testsError++;
+    }
+    #endif
 #endif
 }
 

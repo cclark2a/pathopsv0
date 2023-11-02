@@ -216,9 +216,9 @@ struct OpContours {
 
     bool debugFail() const;
 #if OP_DEBUG
+    void addDebugWarning(OpDebugWarning );
     void debugRemap(int oldRayMatch, int newRayMatch);
     bool debugSuccess() const;
-    void debugWarning(std::string ) const;
 #endif
 #if OP_DEBUG_DUMP
     void debugCompare(std::string s) const;
@@ -249,6 +249,7 @@ struct OpContours {
     bool debugCheckLastEdge;
     OpOutPath* debugResult;
     OpDebugExpect debugExpect;
+    std::vector<OpDebugWarning> debugWarnings;
     std::string debugTestname;
 #endif
 };

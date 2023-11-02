@@ -256,11 +256,9 @@ OpVector OpCubic::debugTangent(float t) const {
 #include "OpContour.h"
 #include "OpEdge.h"
 
-void OpContours::debugWarning(std::string str) const {
-	if (debugExpect != OpDebugExpect::unknown) {
-		OpDebugOut(debugTestname + ": " + std::string(str) + "\n");
-        testsWarn++;
-	}
+void OpContours::addDebugWarning(OpDebugWarning warn) {
+    debugWarnings.push_back(warn);
+    testsWarn++;
 }
 
 const OpEdge* OpEdge::debugAdvanceToEnd(EdgeMatch match) const {

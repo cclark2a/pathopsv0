@@ -484,8 +484,7 @@ public:
 	void flipWhich() { 
 		whichEnd = (EdgeMatch)((int)whichEnd ^ (int)EdgeMatch::both); }
 	bool hasLinkTo(EdgeMatch match) const { 
-		return EdgeMatch::start == match ? nextEdge : priorEdge; }
-	bool hasLinkTo(OpEdge* match) const;
+		return EdgeMatch::start == match ? priorEdge : nextEdge; }  // !!! was reversed!
 	bool isActive() const { 
 		return active_impl; }
 	bool isLinear();
@@ -494,6 +493,7 @@ public:
 				[opp](const auto& test) { return opp == test.edge; }); }
 	void linkToEdge(FoundEdge& , EdgeMatch );
 //	void linkNextPrior(OpEdge* first, OpEdge* last);
+	bool linksTo(OpEdge* match) const;
 	void markPals();
 	void matchUnsectable(EdgeMatch , const std::vector<OpEdge*>& unsectInX, 
 			std::vector<FoundEdge>& , AllowPals , AllowClose );

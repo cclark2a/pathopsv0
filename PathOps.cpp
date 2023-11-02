@@ -17,7 +17,7 @@ bool PathOps(OpInPath left, OpInPath right, OpOperator opOperator, OpOutPath res
 #if OP_DEBUG
 // entry point if operation success is already known
 bool DebugPathOps(OpInPath left, OpInPath right, OpOperator opOperator, OpOutPath result,
-        OpDebugExpect expected, std::string testname) {
+        OpDebugExpect expected, std::string testname, std::vector<OpDebugWarning>& warn) {
     OpContours contourList(left, right, opOperator);
     contourList.debugExpect = expected;
     contourList.debugResult = &result;
@@ -32,6 +32,7 @@ bool DebugPathOps(OpInPath left, OpInPath right, OpOperator opOperator, OpOutPat
     oo();
 #endif
     bool success = contourList.pathOps(result);
+    warn = contourList.debugWarnings;
     return success;
 }
 #endif

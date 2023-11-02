@@ -189,9 +189,9 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 	OpIntersection* oSect1 = findSect(oRange, { aPtT.pt, -1 });
 	OpIntersection* oSect2 = findSect(oRange, { bPtT.pt, -1 });
 	// add the opposite that goes with the created segment sect
-	float oStart = 0; // !!! initialize to silence warning
-	float oTRange = 0; // !!! initialize to silence warning
-	float oXYRange = 0; // !!! initialize to silence warning
+	float oStart OP_DEBUG_INITIALIZE_TO_SILENCE_WARNING;
+	float oTRange OP_DEBUG_INITIALIZE_TO_SILENCE_WARNING; 
+	float oXYRange OP_DEBUG_INITIALIZE_TO_SILENCE_WARNING;
 	if (!oSect1 || !oSect2) {
 		if (flipped)
 			std::swap(cPtT, dPtT);
@@ -544,12 +544,12 @@ FoundIntercept OpWinder::findRayIntercept(size_t inIndex, OpVector homeTan, floa
 		for (EdgeDistance* dist = &ray.distances.front(); (dist + 1)->edge != home; ++dist) {
 			OpEdge* prior = dist->edge;
 			OpEdge* last = (dist + 1)->edge; 
-			if (last->ray.distances.size() > 1) {
+			if (last->ray.distances.size() > 1 && last->ray.axis == ray.axis) {
 				EdgeDistance* lastDist = last->ray.find(last);
 				if (lastDist < &last->ray.distances.back() && (lastDist + 1)->edge == prior)
 					goto tryADifferentCenter;
 			}
-			if (prior->ray.distances.size() > 1) {
+			if (prior->ray.distances.size() > 1 && last->ray.axis == ray.axis) {
 				EdgeDistance* priorDist = prior->ray.find(prior);
 				if (priorDist > &prior->ray.distances.front() && (priorDist - 1)->edge == last)
 					goto tryADifferentCenter;

@@ -248,20 +248,6 @@ float OpEdge::findT(Axis axis, float oppXY) const {
 	return result;
 }
 
-bool OpEdge::hasLinkTo(OpEdge* match) const {
-	if (this == match)
-		return true;
-	OP_ASSERT(!priorEdge);
-	OP_ASSERT(lastEdge);
-	OP_ASSERT(!debugIsLoop());
-	const OpEdge* test = this;
-	while ((test = test->nextEdge)) {
-		if (test == match)
-			return true;
-	}
-	return false;
-}
-
 void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 	OpEdge* oppEdge = found.edge;
 	OP_ASSERT(!oppEdge->hasLinkTo(match));
@@ -282,6 +268,20 @@ void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 		OP_ASSERT(edgePt == oppEdge->end.pt);
 		oppEdge->whichEnd = match;
 	}
+}
+
+bool OpEdge::linksTo(OpEdge* match) const {
+	if (this == match)
+		return true;
+	OP_ASSERT(!priorEdge);
+	OP_ASSERT(lastEdge);
+	OP_ASSERT(!debugIsLoop());
+	const OpEdge* test = this;
+	while ((test = test->nextEdge)) {
+		if (test == match)
+			return true;
+	}
+	return false;
 }
 
 // Find pals for unsectables created during curve/curve intersection. There should be at most
@@ -455,11 +455,7 @@ OpEdge* OpEdge::setLastEdge(OpEdge* old) {
 // the edits are nondestructive 
 bool OpEdge::setLastLink(EdgeMatch match) {
 	if (!priorEdge && !nextEdge) {
-		if (EdgeMatch::none == whichEnd) {
-			OP_ASSERT(!lastEdge);
-			lastEdge = this;
-		} else
-			OP_ASSERT(lastEdge);
+		lastEdge = this;
 		whichEnd = match;
 		return false;
 	} 

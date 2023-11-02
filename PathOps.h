@@ -1,9 +1,13 @@
+// (c) 2023, Cary Clark cclark2@gmail.com
 #ifndef PathOps_DEFINED
 #define PathOps_DEFINED
 
-// (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpDebug.h"
 #include "OpOperators.h"
+
+#if OP_DEBUG
+#include <vector>
+#endif
 
 struct OpInPath {
 	OpInPath(const void* ext) 
@@ -46,9 +50,9 @@ bool PathSimplify(OpInPath path, OpOutPath result);
 #if OP_DEBUG
 // entry point if operation success is already known
 bool DebugPathOps(OpInPath left, OpInPath right, OpOperator , OpOutPath result,
-        OpDebugExpect expected, std::string testname);
+        OpDebugExpect expected, std::string testname, std::vector<OpDebugWarning>& );
 bool DebugPathSimplify(OpInPath path, OpOutPath result, 
-		OpDebugExpect expected, std::string testname);
+		OpDebugExpect expected, std::string testname, std::vector<OpDebugWarning>& );
 #endif
 
 #endif

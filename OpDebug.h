@@ -17,6 +17,10 @@ enum class OpDebugExpect {
 	success,
 };
 
+enum class OpDebugWarning {
+	lastResort
+};
+
 float OpDebugBitsToFloat(int32_t);
 void OpDebugOut(const std::string& );
 void OpPrintOut(const std::string& );
@@ -65,7 +69,7 @@ struct OpContours;
 #define OP_ASSERT(expr) assert(expr)
 #endif
 
-#define OP_WARNING(contours, str) contours->debugWarning(str)
+#define OP_WARNING(contours, warn) contours->addDebugWarning(OpDebugWarning::warn)
 
 #if OP_DEBUG_FAST_TEST
 	#define OP_DEBUG_DUMP 0

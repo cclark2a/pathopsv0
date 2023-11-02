@@ -18,10 +18,10 @@ bool PathSimplify(OpInPath path, OpOutPath result) {
 
 #if OP_DEBUG
 bool DebugPathSimplify(OpInPath path, OpOutPath result, 
-		OpDebugExpect expected, std::string testname) {
+		OpDebugExpect expected, std::string testname, std::vector<OpDebugWarning>& warnings) {
     SkPath empty;
 	OpInPath emptyPath(&empty);
-    return DebugPathOps(path, emptyPath, OpOperator::Union, result, expected, testname);
+    return DebugPathOps(path, emptyPath, OpOperator::Union, result, expected, testname, warnings);
 }
 #endif
 

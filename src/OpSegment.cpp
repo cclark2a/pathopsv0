@@ -76,9 +76,9 @@ bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
         if (ptT.pt != oSect->ptT.pt)
             continue;
         // op operator is not needed since zero side was computed by apply
-        auto checkZero = [match](const OpEdge* edge, EdgeMatch eWhich, EdgeMatch eMatch) {
-            WindZero zeroSide = edge->windZero;
-            EdgeMatch which = eWhich == eMatch ? EdgeMatch::start : EdgeMatch::end;
+        auto checkZero = [match](const OpEdge* test, EdgeMatch eWhich, EdgeMatch testEnd) {
+            WindZero zeroSide = test->windZero;
+            EdgeMatch which = eWhich == testEnd ? EdgeMatch::start : EdgeMatch::end;
             if (which == match)
                 WindZeroFlip(&zeroSide);
             return zeroSide;

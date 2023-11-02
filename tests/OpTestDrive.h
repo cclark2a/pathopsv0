@@ -9,6 +9,7 @@
 #define TEST_PATH_OP_SKIP_TO_FILE "" /* e.g., "cubic" tests only (see OpSkiaTests.cpp) */
 
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
+#define OP_SHOW_ERRORS_ONLY 1  // if 1, skip showing dots, test files started/finished
 #define OP_TEST_ALLOW_EXTENDED 0  // some Skia tests have extended versions which take longer
                                   // max run: 8,430,493: skipped: 5 error: 335
 #define OP_TEST_ENABLE_THREADS 1  // additionally, fast test above must be 1 to use threading
@@ -37,29 +38,19 @@
 
 /* test failure descriptions:
 fuzz763_378: asserts after creating two indentical filler edges; breaks debug image drawing
+             was: no edge found: last, last resort (x2); had errors=30 (fails on laptop also)
 
 // last successful run
-total run:735267 skipped:2 errors:12 warnings:21 v0 only:3 skia only:70
+total run:735267 skipped:2 errors:5 warnings:4 v0 only:3 skia only:70
 
 grshapearc: hangs in chooseSmallest looping on priorEdge pointing to two edge loop (77719, 77720)
 fuzzhang_1: succeeds in skia, fails in v0 (investigate)
 issue1435: no edge found: last, last resort; had errors=512
-fuzz763_378: no edge found: last, last resort (x2); had errors=30
-issue3651_4: no edge found: last, last resort
-issue3651_7: no edge found: last, last resort
+battleOp255 no edge found: last, last resort
+battleOp272 had errors=631
 issue3651_2: no edge found: last, last resort
-thread_cubics78212 no edge found: last, last resort; had errors=223
-        (was: xor operator makes closed loop out of hole (winding looks fine))
-        linkUnambiguous closed loop when it shouldn't've
-thread_cubics78216: no edge found: last, last resort; had errors=223
-thread_cubics78220: no edge found: last, last resort; had errors=223
-thread_cubics78224: no edge found: last, last resort; had errors=223
-thread_cubics132356: no edge found: last, last resort (x2); had errors=26 (investigate)
-        creates fill edge 152 to close edge 136; should have used 143, 144, 135? instead
-        (exposed bug where dump center doesn't see fill edges)
-thread_cubics132360: no edge found: last, last resort (x2); had errors=26
-thread_cubics132364: no edge found: last, last resort (x2); had errors=26
-thread_cubics132368: no edge found: last, last resort (x2); had errors=26
+thread_loops998 had errors=13
+thread_loops1107 had errors=14
 thread_loops1658 had errors=73
         edge 102 sends rays to 96, 104
         ray intersections for 96 isn't done yet so mis-sort goes undetected
@@ -67,9 +58,16 @@ thread_loops1658 had errors=73
         could mark the edge as 'found unset ray' and defer the intercept til later
         could try to sort better up front
         think about it...
-tiger8b: no edge found: last, last resort
+tiger8b: no edge found: last, last resort (intermittent, sadly)
 
 !!! need to verify that extended still fails as listed: (not all fails are listed)
+thread_cubics132356: no edge found: last, last resort (x2); had errors=26 (investigate)
+        creates fill edge 152 to close edge 136; should have used 143, 144, 135? instead
+        (exposed bug where dump center doesn't see fill edges)
+thread_cubics132360: no edge found: last, last resort (x2); had errors=26
+thread_cubics132364: no edge found: last, last resort (x2); had errors=26
+thread_cubics132368: no edge found: last, last resort (x2); had errors=26
+
 thread_circles669495: asserts because assemble() failed for a nonfailing test case (extended)
 thread_circles1590916: asserts in debugMatchRay() (OpDebug.cpp:423)
                        edge 187 is unsortable, may be why    
