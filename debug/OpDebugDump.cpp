@@ -1375,7 +1375,7 @@ size_t OpEdgeStorage::debugCount() const {
         result += block->used;
         block = block->next;
     }
-    return result;
+    return result / sizeof(OpEdge);
 }
 
 const OpEdge* OpEdgeStorage::debugFind(int ID) const {
@@ -1392,15 +1392,16 @@ const OpEdge* OpEdgeStorage::debugFind(int ID) const {
 
 const OpEdge* OpEdgeStorage::debugIndex(int index) const {
     const OpEdgeStorage* block = this;
-    while (index > block->used) {
-        index -= block->used;
+    int byteIndex = sizeof(OpEdge) * index;
+    while (byteIndex > block->used) {
+        byteIndex -= block->used;
         block = block->next;
         if (!block)
             return nullptr;
     }
-    if (block->used <= index)
+    if (block->used <= byteIndex)
         return nullptr;
-    return (const OpEdge*) &block->storage[index];
+    return (const OpEdge*) &block->storage[byteIndex];
 }
 
 void dmp(const OpEdgeStorage& edges) {

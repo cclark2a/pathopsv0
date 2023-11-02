@@ -5,8 +5,8 @@
 // this puts all switches that decide which tests to run and how to run them in one place
 
 #define OP_DEBUG_FAST_TEST 1  // in a debug build: set to zero to enable debug dump, debug image
-#define TEST_PATH_OP_FIRST "" /* e.g., "thread_circles194387" test to debug */
-#define TEST_PATH_OP_SKIP_TO_FILE "" /* e.g., "cubic" tests only (see OpSkiaTests.cpp) */
+#define TEST_PATH_OP_FIRST "" /* e.g., "battleOp255" test to debug */
+#define TEST_PATH_OP_SKIP_TO_FILE "" /* e.g., "battle" tests only (see OpSkiaTests.cpp) */
 
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
 #define OP_SHOW_ERRORS_ONLY 1  // if 1, skip showing dots, test files started/finished
@@ -29,8 +29,8 @@
 #define TEST_PATH_SIMPLIFY_MAP_TO_FUZZ  ""
 
 // !!! need to update laptop exceptions with latest
-#define LAPTOP_PATH_OP_EXCEPTIONS ""  // was: "issue1417"
-#define LAPTOP_PATH_OP_MAP_TO_FUZZ "" // was: "fuzz763_10022998"
+#define LAPTOP_PATH_OP_EXCEPTIONS ""
+#define LAPTOP_PATH_OP_MAP_TO_FUZZ ""
 #define LAPTOP_SIMPLIFY_EXCEPTIONS "joel_5"
 
 // when these tests are encountered, it and the remaining tests in the file are skipped
@@ -49,8 +49,6 @@ total run:735266 skipped:3 errors:22 warnings:3 v0 only:3 skia only:70
 grshapearc: hangs in chooseSmallest looping on priorEdge pointing to two edge loop (77719, 77720)
 fuzzhang_1: succeeds in skia, fails in v0 (investigate)
 issue1435: no edge found: last, last resort; had errors=512
-battleOp255 no edge found: last, last resort
-battleOp272 had errors=631
 issue3651_2: no edge found: last, last resort
 thread_loops998 had errors=13
 thread_loops1107 had errors=14

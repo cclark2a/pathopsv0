@@ -394,7 +394,7 @@ bool OpJoiner::detachIfLoop(OpEdge* e) {
 	auto detachEdge = [this](OpEdge* e, EdgeMatch match) {
 		if (OpEdge* detach = EdgeMatch::start == match ? e->priorEdge : e->nextEdge) {
 			EdgeMatch::start == match ? detach->clearNextEdge() : detach->clearPriorEdge();
-			if (!detach->unsortable || detach->nextEdge)
+			if (!detach->unsortable || detach->priorEdge || detach->nextEdge)
 				addToLinkups(detach);	// return front edge
 			else
 				; // OP_ASSERT(!detach->priorEdge);  // triggered by fuzz763_1 -- is fix needed?
@@ -642,6 +642,8 @@ bool OpJoiner::matchLinks(bool popLast) {
 		matchPals();
 	if (!found.size())
         checkGap();  // use best gap if very small
+	if (!found.size() && !linkups.l.size() && edge->pals.size() && !edge->priorEdge && !edge->nextEdge)
+		return true;  // !!! e.g. cr514118, battleOp255: drop on floor (need general solution)
 	if (!found.size()) 
         checkUnsortableAndDisabled();
 	if (!found.size())
@@ -660,8 +662,6 @@ bool OpJoiner::matchLinks(bool popLast) {
         checkDisabled();
 	if (!found.size() && edge->between)	// !!! if this is all that's left, drop it on the floor?
 		return true;
-	if (!found.size() && !linkups.l.size() && edge->pals.size() && !edge->priorEdge && !edge->nextEdge)
-		return true;  // !!! e.g. cr514118, drop on floor (need general solution)
 #if OP_DEBUG_IMAGE
 	if (!found.size()) {
 		focus(edge->id);
