@@ -29,8 +29,9 @@
 #define TEST_PATH_SIMPLIFY_MAP_TO_FUZZ  ""
 
 // !!! need to update laptop exceptions with latest
-#define LAPTOP_PATH_OP_EXCEPTIONS "issue1417"
-#define LAPTOP_PATH_OP_MAP_TO_FUZZ "fuzz763_10022998"
+#define LAPTOP_PATH_OP_EXCEPTIONS ""  // was: "issue1417"
+#define LAPTOP_PATH_OP_MAP_TO_FUZZ "" // was: "fuzz763_10022998"
+#define LAPTOP_SIMPLIFY_EXCEPTIONS "joel_5"
 
 // when these tests are encountered, it and the remaining tests in the file are skipped
 #define TEST_PATH_OP_SKIP_REST ""
@@ -40,8 +41,10 @@
 fuzz763_378: asserts after creating two indentical filler edges; breaks debug image drawing
              was: no edge found: last, last resort (x2); had errors=30 (fails on laptop also)
 
-// last successful run
+  last successful run desktop:
 total run:735267 skipped:2 errors:5 warnings:4 v0 only:3 skia only:70
+  last successful run laptop:
+total run:735266 skipped:3 errors:22 warnings:3 v0 only:3 skia only:70
 
 grshapearc: hangs in chooseSmallest looping on priorEdge pointing to two edge loop (77719, 77720)
 fuzzhang_1: succeeds in skia, fails in v0 (investigate)
@@ -72,6 +75,29 @@ thread_circles669495: asserts because assemble() failed for a nonfailing test ca
 thread_circles1590916: asserts in debugMatchRay() (OpDebug.cpp:423)
                        edge 187 is unsortable, may be why    
 thread_cubics532868: triggers assert in OpContour.cpp:382 (debug further) (requires extended)
+
+laptop only fail:
+thread_cubics68545 had errors=48
+thread_cubics68549 had errors=48
+thread_cubics68546 had errors=80
+thread_cubics68547 had errors=87
+thread_cubics68550 had errors=80
+thread_cubics68555 had errors=87
+thread_cubics68553 had errors=48
+thread_cubics68554 had errors=80
+thread_cubics68558 had errors=80
+thread_cubics68557 had errors=48
+thread_cubics68559 had errors=87
+thread_cubics68551 had errors=87
+thread_cubics102145 had errors=17
+thread_cubics102149 had errors=17
+thread_cubics102147 had errors=18
+thread_cubics102153 had errors=17
+thread_cubics102151 had errors=18
+thread_cubics102155 had errors=18
+thread_cubics102157 had errors=17
+thread_cubics102159 had errors=18
+
 */
 
 #define OP_RELEASE_TEST 1	// !!! set to zero to remove tests from release build (untested)

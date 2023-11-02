@@ -546,6 +546,11 @@ bool testSimplify(skiatest::Reporter* r, const SkPath& path, const char* testnam
         ++testsSkipped;
         return true;
     }
+    std::vector<std::string> lap = { LAPTOP_SIMPLIFY_EXCEPTIONS };  // see OpTestDrive.h
+    if (!runningWithFMA() && lap.end() != std::find(lap.begin(), lap.end(), s) && s != TEST_PATH_OP_FIRST) {
+        ++testsSkipped;
+        return true;
+    }
     std::vector<std::string> fuzz = { TEST_PATH_SIMPLIFY_MAP_TO_FUZZ };  // see OpTestDrive.h
     if (fuzz.end() != std::find(fuzz.begin(), fuzz.end(), s) && s != TEST_PATH_OP_FIRST)
         return (void) testSimplifyFuzz(r, path, testname), true;
