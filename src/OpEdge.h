@@ -297,6 +297,7 @@ struct SectRay {
 	{
 	}
 	void addPals(OpEdge* );
+	bool checkOrder(const OpEdge* ) const;
 	FindCept findIntercept(OpEdge* );
 	EdgeDistance* find(OpEdge* );
 	void sort();
@@ -355,6 +356,7 @@ enum class LeadingLoop {
 enum class ResolveWinding {
 	resolved,
 	loop,
+	retry,
 	fail,
 };
 

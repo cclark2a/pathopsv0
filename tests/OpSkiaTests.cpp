@@ -138,9 +138,9 @@ bool skipTest(std::string name) {
     if (showTestName)
         OpDebugOut(name + "\n");
 #if !OP_SHOW_ERRORS_ONLY    
-    else if (testsRun % 100 == 0) {
+    else if (testsRun % 500 == 0) {
         OpDebugOut(".");
-        if (testsRun % 5000 == 0)
+        if (testsRun % 50000 == 0)
             OpDebugOut("\n");
     }
 #endif

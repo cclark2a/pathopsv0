@@ -20,11 +20,11 @@
 #define OP_DEBUG_RECORD 0  // track some statistic or other while running
 
 // see descriptions for exceptions below
-#define TEST_PATH_OP_EXCEPTIONS "fuzz763_378"
+#define TEST_PATH_OP_EXCEPTIONS ""
 #define TEST_PATH_OP_FAIL_EXCEPTIONS ""
 #define TEST_PATH_OP_MAP_TO_FUZZ "fuzzhang_1"
 #define TEST_PATH_SIMPLIFY_EXCEPTIONS ""
-#define TEST_PATH_SIMPLIFY_FAIL_EXCEPTIONS "grshapearc"
+#define TEST_PATH_SIMPLIFY_FAIL_EXCEPTIONS "" // "grshapearc"
 #define TEST_PATH_SIMPLIFY_FUZZ_EXCEPTIONS ""
 #define TEST_PATH_SIMPLIFY_MAP_TO_FUZZ  ""
 
@@ -38,11 +38,10 @@
 #define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */
 
 /* test failure descriptions:
-fuzz763_378: asserts after creating two indentical filler edges; breaks debug image drawing
-             was: no edge found: last, last resort (x2); had errors=30 (fails on laptop also)
+fuzz763_378: no edge found: last, last resort (x2) had errors=36
 
   last successful run desktop:
-total run:735267 skipped:2 errors:5 warnings:4 v0 only:3 skia only:70
+total run:735269 skipped:0 errors:1 warnings:26 v0 only:3 skia only:70
   last successful run laptop:
 total run:735266 skipped:3 errors:22 warnings:3 v0 only:3 skia only:70
 
@@ -61,18 +60,24 @@ thread_loops1658 had errors=73
         think about it...
 tiger8b: no edge found: last, last resort (intermittent, sadly)
 
-!!! need to verify that extended still fails as listed: (not all fails are listed)
-thread_cubics132356: no edge found: last, last resort (x2); had errors=26 (investigate)
-        creates fill edge 152 to close edge 136; should have used 143, 144, 135? instead
-        (exposed bug where dump center doesn't see fill edges)
-thread_cubics132360: no edge found: last, last resort (x2); had errors=26
-thread_cubics132364: no edge found: last, last resort (x2); had errors=26
-thread_cubics132368: no edge found: last, last resort (x2); had errors=26
-
-thread_circles669495: asserts because assemble() failed for a nonfailing test case (extended)
-thread_circles1590916: asserts in debugMatchRay() (OpDebug.cpp:423)
-                       edge 187 is unsortable, may be why    
-thread_cubics532868: triggers assert in OpContour.cpp:382 (debug further) (requires extended)
+!!!  extended tests: (not all fails are listed)
+extended test did not complete: only (hundreds of) thread circle tests failed
+~5m tests run before first error reported; ~30m tests run in total
+thread_circles104483 had errors=87
+thread_circles104487 had errors=87
+thread_circles104491 had errors=87
+thread_circles104495 had errors=87
+thread_circles189491 had errors=88
+thread_circles189495 had errors=88
+thread_circles189499 had errors=88
+thread_circles189503 had errors=88
+thread_circles279393 had errors=13
+thread_circles279395 had errors=13
+thread_circles279397 had errors=13
+thread_circles279401 had errors=13
+thread_circles279403 had errors=13
+... (many more)
+thread_circles985585: asserts OpWinder.cpp:302  entry->coincidenceID != coinStart->coincidenceID
 
 laptop only fail:
 thread_cubics68545 had errors=48
