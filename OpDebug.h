@@ -100,20 +100,22 @@ struct OpContours;
 #include <string>
 
 // debug compare, debug dump, and debug image as written only work when testing uses a single thread
-extern OpDebugIntersect debugGlobalIntersect;
 
+#if !OP_DEBUG_FAST_TEST
 #define OpDebugBreak(opObject, ID) \
 	do { if ((ID) == (opObject)->id) OP_DEBUG_BREAK(); } while (false)
 
 #define OpDebugBreakIf(opObject, ID, doBreak) \
 	do { if ((doBreak) && (ID) == (opObject)->id) OP_DEBUG_BREAK(); } while (false)
 
+#if OP_DEBUG_DUMP
 #define OpDebugPlayback(opObject, ID) \
 	do { if ((ID) == (opObject)->id) { playback(); OP_DEBUG_BREAK(); } } while (false)
 
 #define OpDebugPlaybackIf(opObject, ID, doBreak) \
 	do { if ((doBreak) && (ID) == (opObject)->id) { playback(); OP_DEBUG_BREAK(); } } while (false)
-
+#endif
+#endif
 #endif
 
 #if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE

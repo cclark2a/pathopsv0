@@ -142,7 +142,7 @@ SectFound OpCurveCurve::curvesIntersect(CurveRef curveRef) {
 */
 SectFound OpCurveCurve::divideAndConquer() {
 #if OP_DEBUG_IMAGE
-	bool breakAtDraw = 27 == originalEdge->id && 63 == originalOpp->id;
+	bool breakAtDraw = 27 == originalEdge->id && 131 == originalOpp->id;
 	if (breakAtDraw) {
 		hideOperands();
 		hideSegmentEdges();

@@ -271,7 +271,6 @@ FoundIntersections OpSegments::findIntersections() {
             seg->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(segSect)));
             opp->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(oppSect)));
             OpCurveCurve cc(&seg->edges.back(), &opp->edges.back());
-            OpDebugBreakIf(cc.originalEdge, 628, 626 == cc.originalOpp->id);
             SectFound result = cc.divideAndConquer();
             if (SectFound::fail == result)
                 return FoundIntersections::fail;  // triggered by fuzzhang_1

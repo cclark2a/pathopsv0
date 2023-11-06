@@ -47,36 +47,35 @@ total run:735266 skipped:3 errors:22 warnings:3 v0 only:3 skia only:70
 
 grshapearc: hangs in chooseSmallest looping on priorEdge pointing to two edge loop (77719, 77720)
 fuzzhang_1: succeeds in skia, fails in v0 (investigate)
-issue1435: no edge found: last, last resort; had errors=512
-issue3651_2: no edge found: last, last resort
-thread_loops998 had errors=13
-thread_loops1107 had errors=14
-thread_loops1658 had errors=73
-        edge 102 sends rays to 96, 104
-        ray intersections for 96 isn't done yet so mis-sort goes undetected
-        unclear whether recursive calls to findRayIntercept is a good idea
-        could mark the edge as 'found unset ray' and defer the intercept til later
-        could try to sort better up front
-        think about it...
 tiger8b: no edge found: last, last resort (intermittent, sadly)
 
 !!!  extended tests: (not all fails are listed)
 extended test did not complete: only (hundreds of) thread circle tests failed
 ~5m tests run before first error reported; ~30m tests run in total
-thread_circles104483 had errors=87
-thread_circles104487 had errors=87
-thread_circles104491 had errors=87
-thread_circles104495 had errors=87
-thread_circles189491 had errors=88
-thread_circles189495 had errors=88
-thread_circles189499 had errors=88
-thread_circles189503 had errors=88
-thread_circles279393 had errors=13
+
 thread_circles279395 had errors=13
 thread_circles279397 had errors=13
 thread_circles279401 had errors=13
 thread_circles279403 had errors=13
-... (many more)
+... (+ 25 more closeby)
+thread_circles315826 had errors=87
+thread_circles315827 had errors=19
+thread_circles315830 had errors=87
+thread_circles315829 had errors=19
+thread_circles315831 had errors=19
+.. (+ 6 more closeby)
+thread_circles392738 had errors=1661
+thread_circles392742 had errors=1661
+thread_circles392746 had errors=1661
+thread_circles392750 had errors=1661
+thread_circles392758 had errors=1661
+.. (+2 more closeby)
+thread_circles401474 had errors=65
+thread_circles401475 had errors=83
+.. (+ 14)
+thread_circles414609 had errors=14
+thread_circles414610 had errors=2671
+.. (+ 10)
 thread_circles985585: asserts OpWinder.cpp:302  entry->coincidenceID != coinStart->coincidenceID
 
 laptop only fail:

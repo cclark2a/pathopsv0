@@ -417,9 +417,11 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 	OP_ASSERT(edge.isLine_impl);
 	LinePts edgePts { edge.start.pt, edge.end.pt };
     OpRoots septs = oSegment->c.rayIntersect(edgePts); 
+	IntersectResult sectAdded = IntersectResult::no;
 	// !!! hacky: consider conics only until we find lines/quads/cubics that fail here as well
 	// check the ends of each edge to see if they intersect the opposite edge (if missed earlier)
-	auto addPair = [eSegment, oSegment  OP_DEBUG_PARAMS(opp, edge)](OpPtT oppPtT, OpPtT edgePtT) {
+	auto addPair = [eSegment, oSegment  OP_DEBUG_PARAMS(opp, edge)](OpPtT oppPtT, OpPtT edgePtT,
+			IntersectResult& added) {
 		if (!eSegment->sects.contains(edgePtT, oSegment)
 				&& !oSegment->sects.contains(oppPtT, eSegment)) {
 			OpIntersection* sect = eSegment->addEdgeSect(edgePtT  
@@ -429,6 +431,7 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 					OP_DEBUG_PARAMS(SECT_MAKER(edgeLineCurveOpp), SectReason::lineCurve, 
 					&edge, &opp));
 			sect->pair(oSect);
+			added = IntersectResult::yes;
 		}
 	};
 	if (!septs.count && OpType::conic == oSegment->c.type) {
@@ -436,12 +439,17 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 			const OpCurve& curve = opp.segment->c;
 			float xRoot = curve.tAtXY(opp.start.t, opp.end.t, XyChoice::inX, start.pt.x);
 			float yRoot = curve.tAtXY(opp.start.t, opp.end.t, XyChoice::inY, start.pt.y);
+			if (std::nextafter(xRoot, -OpInfinity) <= std::nextafter(yRoot, OpInfinity) 
+					&& std::nextafter(xRoot, +OpInfinity) >= std::nextafter(yRoot, -OpInfinity))
+				return OpPtT(start.pt, xRoot);
 			OpVector xTan = curve.tangent(xRoot);
 			OpVector yTan = curve.tangent(yRoot);
 			float yPos = fabsf(xTan.dx) < fabsf(xTan.dy) * 2 ? curve.ptAtT(xRoot).y : OpNaN;
 			float xPos = fabsf(yTan.dy) < fabsf(yTan.dx) * 2 ? curve.ptAtT(yRoot).x : OpNaN;
 			if (OpMath::IsNaN(yPos) && OpMath::IsNaN(xPos))
 				return OpPtT();
+			// next after isn't a very good choice if value is close to zero
+			// but a better choice would be if x/y is between max and min of line segment, maybe?
 			if (std::nextafterf(yPos, -OpInfinity) <= start.pt.y 
 					&& start.pt.y <= std::nextafter(yPos, +OpInfinity))
 				return OpPtT(start.pt, xRoot);
@@ -450,19 +458,14 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 				return OpPtT(start.pt, yRoot);
 			return OpPtT();
 		};
-		bool foundOne = false;
 		OpPtT oppStart = checkEnd(edge.start);
-		if (!OpMath::IsNaN(oppStart.t)) {
-			addPair(oppStart, edge.start);
-			foundOne = true;
-		}
+		if (!OpMath::IsNaN(oppStart.t))
+			addPair(oppStart, edge.start, sectAdded);
 		OpPtT oppEnd = checkEnd(edge.end);
-		if (!OpMath::IsNaN(oppEnd.t)) {
-			addPair(oppEnd, edge.end);
-			foundOne = true;
-		}
-		if (foundOne)
-			return IntersectResult::no;
+		if (!OpMath::IsNaN(oppEnd.t))
+			addPair(oppEnd, edge.end, sectAdded);
+		if (IntersectResult::yes == sectAdded)
+			return sectAdded;
 	}
 	if (septs.rawIntersectFailed) {
 		// binary search on opp t-range to find where vert crosses zero
@@ -476,10 +479,23 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 	if (2 == septs.count && opp.isLinear())
 		return CoincidentCheck(edge, opp);
 	bool tInRange = false;
-	IntersectResult sectAdded = IntersectResult::no;
 	for (unsigned index = 0; index < septs.count; ++index) {
-		if (opp.start.t > septs.get(index) || septs.get(index) > opp.end.t)
-			continue;
+		if (opp.start.t > septs.get(index)) {
+			if (opp.start.pt.isNearly(edge.start.pt))
+				addPair(opp.start, OpPtT(opp.start.pt, edge.start.t), sectAdded);
+			else if (opp.start.pt.isNearly(edge.end.pt))
+				addPair(opp.start, OpPtT(opp.start.pt, edge.end.t), sectAdded);
+			else
+				continue;
+		}
+		if (septs.get(index) > opp.end.t) {
+			if (opp.end.pt.isNearly(edge.start.pt))
+				addPair(opp.end, OpPtT(opp.end.pt, edge.start.t), sectAdded);
+			else if (opp.end.pt.isNearly(edge.end.pt))
+				addPair(opp.end, OpPtT(opp.end.pt, edge.end.t), sectAdded);
+			else
+				continue;
+		}
 		tInRange = true;
 		OpPtT oppPtT { opp.segment->c.ptAtT(septs.get(index)), septs.get(index) };
 		float edgeT;
@@ -501,8 +517,7 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 //      eSegment->ptBounds.pin(&oppPtT.pt);	// !!! doubtful this is needed with contains test above
 //		OP_ASSERT(debugPt == oppPtT.pt);	// rarely needed, but still triggered (e.g., joel_15x)
 		OpPtT edgePtT { oppPtT.pt, edgeT };
-		addPair(oppPtT, edgePtT);
-		sectAdded = IntersectResult::yes;
+		addPair(oppPtT, edgePtT, sectAdded);
 	}
 	if (!tInRange && opp.isLine_impl && !secondAttempt) {
 		OpDebugRecordStart(edge, opp);

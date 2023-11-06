@@ -480,6 +480,12 @@ bool OpJoiner::lastLastResort() {
     return true;
 }
 
+// start here;
+// one thing broken with this overall approach is that very small loops get priority over joining
+// large incomplete segments. See if it can be restructured to finish big things first, then use 
+// the scale of the big things to see if the small remaining things can be ignored
+// first, figure out why the current test fails
+
 bool OpJoiner::linkRemaining() {
 	linkPass = LinkPass::unsectInX;
 	// match links may add or remove from link ups. Iterate as long as link ups is not empty
@@ -647,8 +653,7 @@ bool OpJoiner::matchLinks(bool popLast) {
 	if (!found.size()) 
         checkUnsortableAndDisabled();
 	if (!found.size())
-        if (!checkSectGap())
-            return false;
+        checkSectGap();
     if (!found.size())
         checkNothingLeft();
 #if 0
