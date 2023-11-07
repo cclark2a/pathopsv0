@@ -205,7 +205,7 @@ OpVector OpCubic::tangent(float t) const {
 }
 
 // given a pair of t values, return a pair of x values
-OpPair OpCubic::xAtT(OpPair t) const {
+OpPair OpCubic::xyAtT(OpPair t, XyChoice xy) const {
     OpPair one_t = 1 - t;
     OpPair one_t2 = one_t * one_t;
     OpPair a = one_t2 * one_t;
@@ -213,5 +213,5 @@ OpPair OpCubic::xAtT(OpPair t) const {
     OpPair t2 = t * t;
     OpPair c = 3 * one_t * t2;
     OpPair d = t2 * t;
-    return a * pts[0].x + b * pts[1].x + c * pts[2].x + d * pts[3].x;
+    return a * pts[0].choice(xy) + b * pts[1].choice(xy) + c * pts[2].choice(xy) + d * pts[3].choice(xy);
 }

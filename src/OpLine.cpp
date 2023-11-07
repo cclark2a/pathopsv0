@@ -45,3 +45,7 @@ OpPoint OpLine::ptAtT(float t) const {
 OpVector OpLine::tangent() const {
     return pts[1] - pts[0];
 }
+
+OpPair OpLine::xyAtT(OpPair t, XyChoice xy) const {
+    return (1 - t) * pts[0].choice(xy) + t * pts[1].choice(xy);
+}

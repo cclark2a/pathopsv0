@@ -485,16 +485,24 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 				addPair(opp.start, OpPtT(opp.start.pt, edge.start.t), sectAdded);
 			else if (opp.start.pt.isNearly(edge.end.pt))
 				addPair(opp.start, OpPtT(opp.start.pt, edge.end.t), sectAdded);
-			else
-				continue;
+			else {
+		        OpCurve rotated = opp.segment->c.toVertical(edgePts);
+		        septs.roots[0] = rotated.tZeroX(opp.start.t, opp.end.t);
+				if (opp.start.t > septs.get(index))
+                    continue;
+            }
 		}
 		if (septs.get(index) > opp.end.t) {
 			if (opp.end.pt.isNearly(edge.start.pt))
 				addPair(opp.end, OpPtT(opp.end.pt, edge.start.t), sectAdded);
 			else if (opp.end.pt.isNearly(edge.end.pt))
 				addPair(opp.end, OpPtT(opp.end.pt, edge.end.t), sectAdded);
-			else
-				continue;
+			else {
+		        OpCurve rotated = opp.segment->c.toVertical(edgePts);
+		        septs.roots[0] = rotated.tZeroX(opp.start.t, opp.end.t);
+                if (septs.get(index) > opp.end.t)
+				    continue;
+            }
 		}
 		tInRange = true;
 		OpPtT oppPtT { opp.segment->c.ptAtT(septs.get(index)), septs.get(index) };

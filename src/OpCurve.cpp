@@ -232,28 +232,34 @@ OpVector OpCurve::tangent(float t) const {
     return OpVector();
 }
 
-// !!! incomplete while testing viability
 float OpCurve::tAtXY(float t1, float t2, XyChoice xy, float goal) const {
-    switch (type) {
-    case OpType::line: break; // return asLine().tZeroX(t1, t2);
-    case OpType::quad: break; // return asQuad().tZeroX(t1, t2);
-    case OpType::conic: return asConic().tAtXY(t1, t2, xy, goal);
-    case OpType::cubic: break; //return asCubic().tZeroX(t1, t2);
-    default:
-        OP_ASSERT(0);
+    OpPair endCheck = xyAtT( { t1, t2 }, xy );
+    if (!OpMath::Between(endCheck.s, goal, endCheck.l))
+        return OpNaN;
+    float mid = (t1 + t2) * .5;
+    float step = (mid - t1) * .5;
+    while (step > OpEpsilon) {
+        OpPair test = { mid - step, mid + step };
+        OpPair x = xyAtT(test, xy);
+        bool ordered = x.s < x.l;
+        if (ordered ? goal < x.s : goal > x.s)
+            mid = test.s;
+        else if (ordered ? goal > x.l : goal < x.l)
+            mid = test.l;
+        step = step * .5;
     }
-    return OpNaN;
+    return mid;
 }
 
 float OpCurve::tZeroX(float t1, float t2) const {
-    OpPair endCheck = xAtT( { t1, t2 } );
+    OpPair endCheck = xyAtT( { t1, t2 }, XyChoice::inX);
     if (endCheck.s * endCheck.l > 0)  // if both are non zero and same sign, there's no crossing
         return OpNaN;
     float mid = (t1 + t2) * .5;
     float step = (mid - t1) * .5;
     while (step > OpEpsilon) {
         OpPair test = { mid - step, mid + step };
-        OpPair x = xAtT(test);
+        OpPair x = xyAtT(test, XyChoice::inX);
         if (x.s * x.l > 0)  // both same sign?
             mid = (x.s * endCheck.s > 0) ? test.l : test.s; // same as t1? use step towards t2
         step = step * .5;
@@ -297,17 +303,15 @@ OpCurve OpCurve::toVertical(const LinePts& line) const {
     return rotated;
 }
 
-// !!! incomplete while testing viability
-OpPair OpCurve::xAtT(OpPair t) const {
+OpPair OpCurve::xyAtT(OpPair t, XyChoice xy) const {
     switch (type) {
-    case OpType::line: break; // return asLine().xAtT(t);
-    case OpType::quad: break; // return asQuad().xAtT(t);
-    case OpType::conic: return asConic().xAtT(t);
-    case OpType::cubic: return asCubic().xAtT(t);
+    case OpType::line: return asLine().xyAtT(t, xy);
+    case OpType::quad: return asQuad().xyAtT(t, xy);
+    case OpType::conic: return asConic().xyAtT(t, xy);
+    case OpType::cubic: return asCubic().xyAtT(t, xy);
     default:
-        break;
+        OP_ASSERT(0);
     }
-    OP_ASSERT(0);
     return OpPair();
 }
 

@@ -161,10 +161,6 @@ float OpConic::tAtXY(float t1, float t2, XyChoice xy, float goal) const {
     return mid;
 }
 
-OpPair OpConic::xAtT(OpPair t) const {
-    return xyAtT(t, XyChoice::inX);
-}
-
 // given a pair of t values, return a pair of x values
 // !!! implementation is non-optimal; but see if it works at all, and wonder, who uses conics?
 OpPair OpConic::xyAtT(OpPair t, XyChoice xy) const {

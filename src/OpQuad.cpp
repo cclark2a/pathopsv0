@@ -88,3 +88,12 @@ OpVector OpQuad::tangent(float t) const {
     float c = t;
     return a * pts[0] + b * pts[1] + c * pts[2];
 }
+
+// given a pair of t values, return a pair of x values
+OpPair OpQuad::xyAtT(OpPair t, XyChoice xy) const {
+    OpPair one_t = 1 - t;
+    OpPair a = one_t * one_t;
+    OpPair b = 2 * one_t * t;
+    OpPair c = t * t;
+    return a * pts[0].choice(xy) + b * pts[1].choice(xy) + c * pts[2].choice(xy);
+}

@@ -31,7 +31,7 @@
 // !!! need to update laptop exceptions with latest
 #define LAPTOP_PATH_OP_EXCEPTIONS ""
 #define LAPTOP_PATH_OP_MAP_TO_FUZZ ""
-#define LAPTOP_SIMPLIFY_EXCEPTIONS "joel_5"
+#define LAPTOP_SIMPLIFY_EXCEPTIONS ""
 
 // when these tests are encountered, it and the remaining tests in the file are skipped
 #define TEST_PATH_OP_SKIP_REST ""
