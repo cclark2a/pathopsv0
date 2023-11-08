@@ -133,7 +133,7 @@ struct OpCurve {
     // !!! thread_cubics8753 fails to find intersection of edges 54, 55; see if vertical is to blame
     // OpCurve toVerticalDouble(const LinePts& line) const;
     float tZeroX(float t1, float t2) const;
-    OpPair OpCurve::xyAtT(OpPair t, XyChoice xy) const;
+    OpPair xyAtT(OpPair t, XyChoice xy) const;
 #if OP_DEBUG_DUMP
     std::string debugDump() const;
     std::string debugDumpHex() const;

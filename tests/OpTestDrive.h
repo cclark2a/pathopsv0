@@ -4,8 +4,8 @@
 
 // this puts all switches that decide which tests to run and how to run them in one place
 
-#define OP_DEBUG_FAST_TEST 0  // in a debug build: set to zero to enable debug dump, debug image
-#define TEST_PATH_OP_FIRST "pentrek4" /* e.g., "battleOp255" test to debug */
+#define OP_DEBUG_FAST_TEST 1  // in a debug build: set to zero to enable debug dump, debug image
+#define TEST_PATH_OP_FIRST "" /* e.g., "battleOp255" test to debug */
 #define TEST_PATH_OP_SKIP_TO_FILE "" /* e.g., "battle" tests only (see OpSkiaTests.cpp) */
 
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests

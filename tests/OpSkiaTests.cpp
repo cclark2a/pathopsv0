@@ -423,7 +423,7 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     if (!success || !skSuccess || v0MayFail || skiaMayFail)
         return;
     int errors = VerifyOp(a, b, op, testname, result);
-int altErrors = VerifyOpNoRegion(a, b, op, result);
+//  int altErrors = VerifyOpNoRegion(a, b, op, result);
     const int MAX_ERRORS = 9;
     if (errors > MAX_ERRORS || warnings.size()) {
 #if !defined(NDEBUG) || OP_RELEASE_TEST
