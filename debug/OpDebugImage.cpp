@@ -28,8 +28,6 @@ SkBitmap bitmap;
 SkFont labelFont(nullptr, 14, 1, 0);
 
 std::vector<OpDebugRay> lines;
-std::vector<OpInPath> operands;
-std::vector<const SkPath*> paths;
 int gridIntervals = 8;
 int valuePrecision = -1;		// minus one means unset
 
@@ -282,17 +280,13 @@ static SkPath* skPath(const OpInPath& opPath) {
 	return (SkPath*) opPath.externalReference;
 }
 
-void OpDebugImage::init(const OpInPath& left, const OpInPath& right) {
+void OpDebugImage::init() {
 	bitmap.allocPixels(SkImageInfo::MakeN32Premul(bitmapWH, bitmapWH));
 	::clear();
-	operands.clear();
-	paths.clear();
-	operands.push_back(left);
-	operands.push_back(right);
 	drawLeftOn = true;
 	drawRightOn = true;
-	SkRect opBounds = skPath(left)->getBounds();
-	opBounds.join(skPath(right)->getBounds());
+	SkRect opBounds = skPath(debugGlobalContours->leftIn)->getBounds();
+	opBounds.join(skPath(debugGlobalContours->rightIn)->getBounds());
 	DebugOpSetBounds(opBounds.fLeft, opBounds.fTop, opBounds.fRight, opBounds.fBottom);
 }
 
@@ -392,11 +386,11 @@ void OpDebugImage::drawPath(const SkPath& path, uint32_t color) {
 }
 
 static SkPath* sk0() {
-	return (SkPath*) operands[0].externalReference;
+	return (SkPath*) debugGlobalContours->leftIn.externalReference;
 }
 
 static SkPath* sk1() {
-	return (SkPath*) operands[1].externalReference;
+	return (SkPath*) debugGlobalContours->rightIn.externalReference;
 }
 
 void OpDebugImage::drawDoubleFocus() {
@@ -418,20 +412,31 @@ void OpDebugImage::drawDoubleFocus() {
 		if (drawRightOn)
 			drawDoubleFill(sk1()->makeTransform(matrix), SkColorSetARGB(10, 0, 0, 255));
 	}
+    if (drawResultOn) {
+		SkMatrix matrix;
+		float scale = (float)DebugOpGetZoomScale();
+		matrix.setScale(scale, scale);
+		matrix.preTranslate(-DebugOpGetCenterX(), -DebugOpGetCenterY());
+		matrix.postTranslate(DebugOpGetOffsetX(), DebugOpGetOffsetY());
+		drawDoubleFill(sk0()->makeTransform(matrix), SkColorSetARGB(20, 255, 0, 0));
+		drawDoubleFill(sk1()->makeTransform(matrix), SkColorSetARGB(20, 0, 0, 255));
+        OpOutPath* result = debugGlobalContours->debugResult;
+        if (result)
+		    drawDoubleFill(((SkPath*) result->externalReference)
+                ->makeTransform(matrix), SkColorSetARGB(20, 0, 255, 0));
+    }
 	if (drawLeftOn || drawRightOn)
 		DebugOpClearInputs();
 	if (drawLeftOn)
-		DebugOpAdd(operands[0]);
+		DebugOpAdd(debugGlobalContours->leftIn);
 	if (drawRightOn)
-		DebugOpAdd(operands[1]);
+		DebugOpAdd(debugGlobalContours->rightIn);
 	if (drawLeftOn || drawRightOn)
 		DebugOpDrawInputs();
 #if OP_DEBUG
 	if (drawOutputsOn && debugGlobalContours->debugResult)
 		DebugOpDraw(debugGlobalContours->debugResult);
 #endif
-	if (drawPathsOn)
-		DebugOpDraw(paths);
 	if (drawLinesOn)
 		DebugOpDraw(lines);
 	if (drawRaysOn) {
@@ -1008,10 +1013,8 @@ void focusSegments() {
 void clear() {
 	OpDebugImage::clearScreen();
 	OpDebugImage::clearLines();
-	paths.clear();
 	drawLeftOn = false;
 	drawRightOn = false;
-	drawPathsOn = false;
 	DebugOpResetFocus();
 }
 
@@ -1714,11 +1717,10 @@ void help() {
 }
 
 void resetFocus() {
-	if (!operands.size())
-		return OpDebugOut("missing operands\n");
 	OpPointBounds focusRect;
-	for (unsigned index = 0; index < operands.size(); ++index) {
-		SkRect skrect = ((SkPath*) operands[index].externalReference)->getBounds();
+	for (unsigned index = 0; index < 2; ++index) {
+        OpInPath& inPath = index ? debugGlobalContours->rightIn : debugGlobalContours->leftIn;
+		SkRect skrect = ((SkPath*) inPath.externalReference)->getBounds();
 		focusRect.left = std::min(skrect.fLeft, focusRect.left);
 		focusRect.top = std::min(skrect.fTop, focusRect.top);
 		focusRect.right = std::max(skrect.fRight, focusRect.right);

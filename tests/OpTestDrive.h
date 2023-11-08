@@ -4,14 +4,14 @@
 
 // this puts all switches that decide which tests to run and how to run them in one place
 
-#define OP_DEBUG_FAST_TEST 1  // in a debug build: set to zero to enable debug dump, debug image
-#define TEST_PATH_OP_FIRST "" /* e.g., "battleOp255" test to debug */
+#define OP_DEBUG_FAST_TEST 0  // in a debug build: set to zero to enable debug dump, debug image
+#define TEST_PATH_OP_FIRST "pentrek4" /* e.g., "battleOp255" test to debug */
 #define TEST_PATH_OP_SKIP_TO_FILE "" /* e.g., "battle" tests only (see OpSkiaTests.cpp) */
 
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
 #define OP_SHOW_ERRORS_ONLY 1  // if 1, skip showing dots, test files started/finished
 #define OP_TEST_ALLOW_EXTENDED 0  // some Skia tests have extended versions which take longer
-                                  // max run: 8,430,493: skipped: 5 error: 335
+                                  // (out of date) max run: 8,430,493: skipped: 5 error: 335
 #define OP_TEST_ENABLE_THREADS 1  // additionally, fast test above must be 1 to use threading
 #define OP_MAX_THREADS 16
 #define OP_TEST_V0 1  // set to zero to time Skia running tests
@@ -31,21 +31,21 @@
 // !!! need to update laptop exceptions with latest
 #define LAPTOP_PATH_OP_EXCEPTIONS ""
 #define LAPTOP_PATH_OP_MAP_TO_FUZZ ""
-#define LAPTOP_SIMPLIFY_EXCEPTIONS ""
+#define LAPTOP_SIMPLIFY_EXCEPTIONS "joel_5"
 
 // when these tests are encountered, it and the remaining tests in the file are skipped
 #define TEST_PATH_OP_SKIP_REST ""
 #define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */
 
 /* test failure descriptions:
-fuzz763_378: no edge found: last, last resort (x2) had errors=36
 
   last successful run desktop:
 total run:735269 skipped:0 errors:1 warnings:26 v0 only:3 skia only:70
   last successful run laptop:
-total run:735266 skipped:3 errors:22 warnings:3 v0 only:3 skia only:70
+total run:735268 skipped:1 errors:2 warnings:41 v0 only:4 skia only:70
 
-grshapearc: hangs in chooseSmallest looping on priorEdge pointing to two edge loop (77719, 77720)
+fuzz763_378: no edge found: last, last resort (x2) had errors=36
+grshapearc: no edge found: last, last resort (x37) had errors=976
 fuzzhang_1: succeeds in skia, fails in v0 (investigate)
 tiger8b: no edge found: last, last resort (intermittent, sadly)
 
@@ -79,26 +79,7 @@ thread_circles414610 had errors=2671
 thread_circles985585: asserts OpWinder.cpp:302  entry->coincidenceID != coinStart->coincidenceID
 
 laptop only fail:
-thread_cubics68545 had errors=48
-thread_cubics68549 had errors=48
-thread_cubics68546 had errors=80
-thread_cubics68547 had errors=87
-thread_cubics68550 had errors=80
-thread_cubics68555 had errors=87
-thread_cubics68553 had errors=48
-thread_cubics68554 had errors=80
-thread_cubics68558 had errors=80
-thread_cubics68557 had errors=48
-thread_cubics68559 had errors=87
-thread_cubics68551 had errors=87
-thread_cubics102145 had errors=17
-thread_cubics102149 had errors=17
-thread_cubics102147 had errors=18
-thread_cubics102153 had errors=17
-thread_cubics102151 had errors=18
-thread_cubics102155 had errors=18
-thread_cubics102157 had errors=17
-thread_cubics102159 had errors=18
+issue3517 no edge found: last, last resort
 
 */
 

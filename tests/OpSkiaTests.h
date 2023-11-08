@@ -3,8 +3,8 @@
 #define OpSkiaTests_DEFINED
 
 #include <string>
+
 #include "include/pathops/SkPathOps.h"
-#include "include/core/SkPath.h"
 #include "include/core/SkString.h"
 #include "src/pathops/SkPathOpsDebug.h"
 #include "src/pathops/SkPathOpsTypes.h"

@@ -198,11 +198,10 @@ void runTests() {
             + " v0 only:" + STR(testsPassSkiaFail) + " skia only:" + STR(testsFailSkiaPass) + "\n");
 }
 
-// !!! move to Skia test utilities, I guess
 const int bitWidth = 64;
 const int bitHeight = 64;
 
-static void debug_scale_matrix(const SkPath& one, const SkPath* two, SkMatrix& scale) {
+static SkRect debug_scale_matrix(const SkPath& one, const SkPath* two, SkMatrix& scale) {
     SkRect larger = one.getBounds();
     if (two) {
         larger.join(two->getBounds());
@@ -228,6 +227,7 @@ static void debug_scale_matrix(const SkPath& one, const SkPath* two, SkMatrix& s
     SkScalar dy = -16000 > larger.fTop ? -16000 - larger.fTop
         : 16000 < larger.fBottom ? 16000 - larger.fBottom : 0;
     scale.preTranslate(dx, dy);
+    return larger;
 }
 
 static int debug_paths_draw_the_same(const SkPath& one, const SkPath& two, SkBitmap& bits) {
@@ -283,6 +283,76 @@ void ReportError(std::string testname, int errors, std::vector<OpDebugWarning>& 
     if (errors)
         s += " had errors=" + STR(errors);
     OpDebugOut(s + "\n");
+}
+
+int VerifyOpNoRegion(const SkPath& left, const SkPath& right, SkPathOp op, const SkPath& result) {
+    SkMatrix scale;
+    SkRect bounds = debug_scale_matrix(left, &right, scale);
+    SkPath scaledLeft, scaledRight, scaledResult;
+    scaledLeft.addPath(left, scale);
+    scaledLeft.setFillType(left.getFillType());
+    scaledRight.addPath(right, scale);
+    scaledRight.setFillType(right.getFillType());
+    scaledResult.addPath(result, scale);
+    scaledResult.setFillType(result.getFillType());
+    SkBitmap bitmap;
+    bitmap.allocN32Pixels(bitWidth, bitHeight);
+    SkCanvas canvas(bitmap);
+    canvas.drawColor(SK_ColorBLACK);
+    SkPaint paint;
+    paint.setBlendMode(SkBlendMode::kPlus);
+    constexpr uint32_t leftColor = SK_ColorRED;
+    constexpr uint32_t rightColor = SK_ColorBLUE;
+    constexpr uint32_t resultColor = SK_ColorGREEN;
+    canvas.translate(-bounds.fLeft, -bounds.fTop);
+    paint.setColor(leftColor);
+    canvas.drawPath(scaledLeft, paint);
+    paint.setColor(rightColor);
+    canvas.drawPath(scaledRight, paint);
+    paint.setColor(resultColor);
+    canvas.drawPath(scaledResult, paint);
+    std::vector<uint32_t> okColors = { SK_ColorBLACK };
+    switch (op) {
+        case kDifference_SkPathOp:
+            okColors.push_back(leftColor | resultColor);
+            okColors.push_back(rightColor);
+            okColors.push_back(leftColor | rightColor);
+        break;
+        case kIntersect_SkPathOp:
+            okColors.push_back(leftColor);
+            okColors.push_back(rightColor);
+            okColors.push_back(leftColor | rightColor | resultColor);
+        break;
+        case kUnion_SkPathOp:
+            okColors.push_back(leftColor | resultColor);
+            okColors.push_back(rightColor | resultColor);
+            okColors.push_back(leftColor | rightColor | resultColor);
+        break;
+        case kXOR_SkPathOp:
+            okColors.push_back(leftColor | resultColor);
+            okColors.push_back(rightColor | resultColor);
+            okColors.push_back(leftColor | rightColor);
+        break;
+        case kReverseDifference_SkPathOp:
+            okColors.push_back(leftColor);
+            okColors.push_back(rightColor | resultColor);
+            okColors.push_back(leftColor | rightColor);
+        break;
+        default:
+            OP_ASSERT(0);
+    }
+    int errors = 0;
+    for (int y = 0; y < bitHeight - 1; ++y) {
+        uint32_t* addr1 = bitmap.getAddr32(0, y);
+        for (int x = 0; x < bitWidth - 1; ++x) {
+            if (okColors.end() != std::find(okColors.begin(), okColors.end(), addr1[x]))
+                continue;
+            ++errors;
+        }
+    }
+    if (errors > 9)
+        OpDebugOut("");
+    return errors;
 }
 
 int VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op, std::string testname,
@@ -353,6 +423,7 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     if (!success || !skSuccess || v0MayFail || skiaMayFail)
         return;
     int errors = VerifyOp(a, b, op, testname, result);
+int altErrors = VerifyOpNoRegion(a, b, op, result);
     const int MAX_ERRORS = 9;
     if (errors > MAX_ERRORS || warnings.size()) {
 #if !defined(NDEBUG) || OP_RELEASE_TEST

@@ -64,7 +64,7 @@ struct OpDebugImage {
 	static std::vector<const OpEdge*> find(int id);
 	static void focus(int id, bool add);
 	static void focusEdges();
-	static void init(const OpInPath& left, const OpInPath& right);
+	static void init();
 };
 
 // call these inline or from the immediate window while debugging
@@ -133,17 +133,17 @@ extern void gridCenter(int x, int y);
 extern void gridLines(int );
 extern void gridStep(float dxy);
 extern void help();
-extern void hideSegmentEdges();
+extern void hideSegmentEdges();  // not in master list; immediately changes edge state
 extern void hideTemporaryEdges();
 extern void playback();
 extern void precision(int );
 extern void record();
 extern void redraw();
 extern void resetFocus();
-extern void showSegmentEdges();
+extern void showSegmentEdges();  // not in master list; immediately changes edge state
 extern void showTemporaryEdges();
 extern void textSize(float );
-extern void toggleSegmentEdges();
+extern void toggleSegmentEdges();  // not in master list; immediately changes edge state
 extern void toggleTemporaryEdges();
 
 #define MASTER_LIST \
@@ -163,9 +163,9 @@ OP_X(Lines) \
 OP_X(Normals) \
 OP_X(Operands) \
 OP_X(Outputs) \
-OP_X(Paths) \
 OP_X(Points) \
 OP_X(Rays) \
+OP_X(Result) \
 OP_X(Right) \
 OP_X(Segments) \
 OP_X(Sums) \

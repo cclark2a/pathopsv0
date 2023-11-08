@@ -403,6 +403,9 @@ bool OpContours::pathOps(OpOutPath result) {
         OP_DEBUG_FAIL(*this, false);
     bool inverseFill = OutInverse[+opOperator][leftIn.isInverted()][rightIn.isInverted()];
     result.setInverted(inverseFill);
+#if OP_DEBUG_IMAGE
+    showResult();
+#endif
     OP_DEBUG_SUCCESS(*this, true);
 }
 
