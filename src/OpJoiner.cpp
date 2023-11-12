@@ -20,6 +20,9 @@ OpJoiner::OpJoiner(OpContours& contours, OpOutPath& p)
 		}
 	}
 	sort();
+#if OP_DEBUG
+	contours.debugJoiner = this;
+#endif
 }
 
 // look for active unsectable edges that match
@@ -60,7 +63,7 @@ void OpJoiner::addToLinkups(OpEdge* e) {
 			OP_ASSERT(next->isActive());
 			next->clearActiveAndPals(ZeroReason::none);
 		}
-		next->lastEdge = nullptr;
+		next->clearLastEdge();
 		next->inLinkups = true;
 		last = next;
 		next = next->nextEdge;
@@ -317,10 +320,8 @@ void OpJoiner::detachChoppedEtc() {
 					? oppEdge->priorEdge : oppEdge->nextEdge;
 			OP_ASSERT(unsort->unsortable);
 			OpEdge* u = unsort;
-			(ChopUnsortable::prior == foundOne.chop 
-					? u->nextEdge = nullptr : u->priorEdge) = nullptr;
+			(ChopUnsortable::prior == foundOne.chop ? u->nextEdge : u->priorEdge) = nullptr;
 			u->setActive(true);
-			unsortables.push_back(u);
 			unsort = nullptr;
 			oppEdge->setLastEdge(u);
 		}

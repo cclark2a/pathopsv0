@@ -42,6 +42,7 @@ struct OpCurveCurve {
 	SectFound addUnsectable(); // if curve doesn't devolve into line segments
 	SectFound curvesIntersect(CurveRef );
 	SectFound divideAndConquer();
+	SectFound divideExperiment();
 	void findEdgesTRanges(CurveRef );
 	void linearIntersect(std::vector<OpEdge>& lines, std::vector<OpEdge>& linesOrCurves);
 	bool split(CurveRef , DoSplit );

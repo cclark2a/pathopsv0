@@ -273,6 +273,7 @@ OpContours::OpContours(OpInPath& l, OpInPath& r, OpOperator op)
     debugValidateJoinerIndex = 0;
 #endif
 #if OP_DEBUG
+    debugJoiner = nullptr;
     debugInPathOps = false;
     debugInClearEdges = false;
     debugCheckLastEdge = false;

@@ -83,13 +83,13 @@ bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
                 WindZeroFlip(&zeroSide);
             return zeroSide;
         };
-        auto saveMatch = [edge, match, &oppEdges, &oSect, checkZero](EdgeMatch testEnd) {
+        auto saveMatch = [edge, &oppEdges, &oSect, checkZero](EdgeMatch testEnd) {
             OpSegment* oSeg = oSect->segment;
             OpEdge* test = oSeg->findEnabled(oSect->ptT, testEnd);  // !!! optimization: walk edges in order
             bool result = false;
             if (test && test != edge && (edge->unsortable || test->unsortable
                     || edge->windZero == checkZero(test, edge->whichEnd, testEnd))) {
-                result = test->hasLinkTo(match);
+                result = test->hasLinkTo(testEnd);
                 if (!result && !test->isPal(edge))
                     oppEdges.emplace_back(test, EdgeMatch::none);
             }

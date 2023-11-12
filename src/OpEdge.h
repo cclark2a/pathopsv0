@@ -474,6 +474,7 @@ public:
 	void apply();
 	bool calcCenterT();
 	void clearActiveAndPals(ZeroReason );
+	void clearLastEdge();
 	void clearNextEdge();
 	void clearPriorEdge();
 	void complete();

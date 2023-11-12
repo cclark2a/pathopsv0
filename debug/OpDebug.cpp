@@ -417,6 +417,8 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContours* contours)) {
                         foundOne |= pal.edge->inLinkups;
                     for (auto& us : unsectByArea)
                         foundOne |= dTest == us && dTest->isActive();
+                    for (auto& u : unsortables)
+                        foundOne |= dTest == u && dTest->isActive();
                     OP_ASSERT(foundOne || mayFail);
                 }
 #endif

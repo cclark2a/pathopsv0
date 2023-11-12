@@ -11,6 +11,7 @@
 
 enum class EdgeMatch : uint8_t;
 struct FoundEdge;
+struct OpJoiner;
 
 enum class OpFillType {
     winding = -1,
@@ -247,6 +248,7 @@ struct OpContours {
     bool debugInPathOps;
     bool debugInClearEdges;
     bool debugCheckLastEdge;
+    OpJoiner* debugJoiner;
     OpOutPath* debugResult;
     OpDebugExpect debugExpect;
     std::vector<OpDebugWarning> debugWarnings;

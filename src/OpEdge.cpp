@@ -2,6 +2,10 @@
 #include "OpEdge.h"
 #include "OpContour.h"
 
+#if OP_DEBUG
+#include "OpJoiner.h"
+#endif
+
 OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight  
 		OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file, const OpIntersection* i1, 
 		const OpIntersection* i2))
@@ -186,6 +190,18 @@ void OpEdge::clearActiveAndPals(ZeroReason reason) {
 			pal.edge->setDisabled(OP_DEBUG_CODE(reason));
 		}
     }
+	clearLastEdge();
+}
+
+void OpEdge::clearLastEdge() {
+#if 0 && OP_DEBUG
+	// !!! not ready for prime time
+	// this asserts on cases which are not really errors; fixing it causes more harm than good for now
+	OpJoiner* joiner = segment->contour->contours->debugJoiner;
+	OP_ASSERT(joiner);
+	std::vector<OpEdge*>& l = joiner->linkups.l;
+	OP_ASSERT(l.end() == std::find(l.begin(), l.end(), this));
+#endif
 	lastEdge = nullptr;
 }
 
@@ -443,8 +459,8 @@ void OpEdge::setFromPoints(const OpPoint pts[]) {
 
 OpEdge* OpEdge::setLastEdge(OpEdge* old) {
 	if (old)
-		old->lastEdge = nullptr;
-	lastEdge = nullptr;
+		old->clearLastEdge();
+	clearLastEdge();
 	OpEdge* linkStart = advanceToEnd(EdgeMatch::start);
 	OpEdge* linkEnd = advanceToEnd(EdgeMatch::end);
 	linkStart->lastEdge = linkEnd;
@@ -508,7 +524,7 @@ bool OpEdge::setLinkDirection(EdgeMatch match) {
 	}
 	std::swap(edge->priorEdge, edge->nextEdge);
 	edge->whichEnd = Opposite(edge->whichEnd);
-	edge->lastEdge = nullptr;
+	edge->clearLastEdge();
 	lastEdge = edge;
 	return true;
 }

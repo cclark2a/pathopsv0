@@ -230,8 +230,17 @@ IntersectResult OpWinder::CoincidentCheck(OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, Op
 		sect->pair(oSect);
 		return IntersectResult::yes;
 	}
+	// check if an existing coincidence range is extended
+	int coinID;
+	if (OpIntersection* segSect = segment->sects.contains(ptTAorB, oppSegment);
+			segSect && segSect->coincidenceID)
+		coinID = segSect->coincidenceID;
+	else if (OpIntersection* oppSect = oppSegment->sects.contains(ptTCorD, segment); 
+			oppSect && oppSect->coincidenceID)
+		coinID = oppSect->coincidenceID;
 	// pass a mix of seg and opp; construct one t for each
-	int coinID = segment->coinID(flipped);
+	else
+		coinID = segment->coinID(flipped);
 	AddMix(xyChoice, ptTAorB, flipped, cPtT, dPtT, segment, oppSegment, coinID, MatchEnds::start);
 	AddMix(xyChoice, ptTCorD, flipped, aPtT, bPtT, oppSegment, segment, coinID, MatchEnds::end);
 	return IntersectResult::yes;
@@ -319,10 +328,17 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 	int coinID = 0;
 	bool aInCoincidence = inCoinRange(range, aPtT.t, &coinID);
 	bool bInCoincidence = inCoinRange(range, bPtT.t, &coinID);
+	bool addToExistingRange = false;
+	bool addedSect1 = false;
+	bool addedSect2 = false;
+	bool addedOSect1 = false;
+	bool addedOSect2 = false;
 	if (!coinID)
 		coinID = segment->coinID(flipped);
-	else
+	else {
 		OP_ASSERT(flipped ? coinID < 0 : coinID > 0);	// should never assert
+		addToExistingRange = true;
+	}
 	// assign a new or existing coin id if sect doesn't already have one
 	// this is called in cases as simple as two coincident line segments
 	if (!aInCoincidence) {
@@ -331,9 +347,11 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 			sect1->coincidenceID = coinID;
 			OP_ASSERT(MatchEnds::none == sect1->coinEnd);
 			sect1->coinEnd = MatchEnds::start;
-		} else	// or if it doesn't exist and isn't in a coin range, make one
+		} else {	// or if it doesn't exist and isn't in a coin range, make one
 			sect1 = segment->addCoin(aPtT, coinID, MatchEnds::start, oppSegment
-				OP_DEBUG_PARAMS(SECT_MAKER(addPair_aPtT), SectReason::coinPtsMatch));
+					OP_DEBUG_PARAMS(SECT_MAKER(addPair_aPtT), SectReason::coinPtsMatch));
+			addedSect1 = !!sect1;
+		}
 	}
 	if (!bInCoincidence) {
 		if (sect2) {  // segment already has intersection (segment end); e.g., line doubles back
@@ -341,9 +359,11 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 			sect2->coincidenceID = coinID;
 			OP_ASSERT(MatchEnds::none == sect2->coinEnd);
 			sect2->coinEnd = MatchEnds::end;
-		} else
+		} else {
 			sect2 = segment->addCoin(bPtT, coinID, MatchEnds::end, oppSegment
-				OP_DEBUG_PARAMS(SECT_MAKER(addPair_bPtT), SectReason::coinPtsMatch));
+					OP_DEBUG_PARAMS(SECT_MAKER(addPair_bPtT), SectReason::coinPtsMatch));
+			addedSect2 = !!sect2;
+		}
 	}
 	std::vector<OpIntersection*> oRange = oppSegment->sects.range(segment);
 	OpIntersection* oSect1 = findSect(oRange, { aPtT.pt, -1 });
@@ -361,38 +381,44 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 		oXYRange = oEnd - oStart;
 	}
 	bool setOSect1CoinID = false;
+	bool setOSect2CoinID = false;
 	if (!oSect1) {
-		float eStart = aPtT.pt.choice(xyChoice);
-		OpPtT oCoinStart{ aPtT.pt, cPtT.t + (eStart - oStart) / oXYRange * oTRange };
-		OP_ASSERT(OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t));
-		oSect1 = oppSegment->addCoin(oCoinStart, coinID, flipped ? MatchEnds::end : MatchEnds::start, segment
-				OP_DEBUG_PARAMS(SECT_MAKER(addPair_oppStart), SectReason::coinPtsMatch));
-		if (!oSect1)  // triggered by fuzz763_3 
-			return IntersectResult::fail; // triggered by pentrek7 (maybe)
-		if (!sect1)
-			return IntersectResult::fail; // triggered by pentrek7 (maybe)
-		sect1->pair(oSect1);
+		if (sect1) {  // pentrek7 set to null (maybe)
+			float eStart = aPtT.pt.choice(xyChoice);
+			OpPtT oCoinStart{ aPtT.pt, cPtT.t + (eStart - oStart) / oXYRange * oTRange };
+			OP_ASSERT(OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t));
+			oSect1 = oppSegment->addCoin(oCoinStart, coinID, flipped ? MatchEnds::end 
+					: MatchEnds::start, segment
+					OP_DEBUG_PARAMS(SECT_MAKER(addPair_oppStart), SectReason::coinPtsMatch));
+			if (oSect1) {  // fuzz763_3 set to null
+				sect1->pair(oSect1);
+				addedOSect1 = true;
+			}
+		}
 	} else {  // segment already has intersection (start or end); e.g., line doubles back
 		if (!(inCoinRange(oRange, oSect1->ptT.t, nullptr) & 1))
 			setOSect1CoinID = true;  // defer so that check of o sect 2 isn't affected
 	}
 	if (!oSect2) {
-		float eEnd = bPtT.pt.choice(xyChoice);
-		OpPtT oCoinEnd{ bPtT.pt, cPtT.t + (eEnd - oStart) / oXYRange * oTRange };
-		OP_ASSERT(OpMath::Between(cPtT.t, oCoinEnd.t, dPtT.t));
-		oSect2 = oppSegment->addCoin(oCoinEnd, coinID, flipped ? MatchEnds::start : MatchEnds::end, segment
-				OP_DEBUG_PARAMS(SECT_MAKER(addPair_oppEnd), SectReason::coinPtsMatch));
-		if (!oSect2)
-			return IntersectResult::fail; // triggered by fuzz763_13
-		if (!sect2)
-			return IntersectResult::fail;
-		sect2->pair(oSect2);
+		if (sect2) {
+			float eEnd = bPtT.pt.choice(xyChoice);
+			OpPtT oCoinEnd{ bPtT.pt, cPtT.t + (eEnd - oStart) / oXYRange * oTRange };
+			OP_ASSERT(OpMath::Between(cPtT.t, oCoinEnd.t, dPtT.t));
+			oSect2 = oppSegment->addCoin(oCoinEnd, coinID, flipped ? MatchEnds::start 
+					: MatchEnds::end, segment
+					OP_DEBUG_PARAMS(SECT_MAKER(addPair_oppEnd), SectReason::coinPtsMatch));
+			if (oSect2) {  // fuzz763_13 set to null 
+				sect2->pair(oSect2);
+				addedOSect2 = true;
+			}
+		}
 	} else {  // segment already has intersection (start or end); e.g., line doubles back
 		if (!(inCoinRange(oRange, oSect2->ptT.t, nullptr) & 1)) {
 			OP_ASSERT(!oSect2->coincidenceID);
 			oSect2->coincidenceID = coinID;
 			OP_ASSERT(MatchEnds::none == oSect2->coinEnd);
 			oSect2->coinEnd = flipped ? MatchEnds::start : MatchEnds::end;
+			setOSect2CoinID = true;
 		}
 	}
 	if (setOSect1CoinID) {
@@ -401,7 +427,28 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 		OP_ASSERT(MatchEnds::none == oSect1->coinEnd);
 		oSect1->coinEnd = flipped ? MatchEnds::end : MatchEnds::start;	// !!! added without testing
 	}
-	return IntersectResult::yes;
+	if (addToExistingRange) {
+		auto coinOutside = [](std::vector<OpIntersection*>& range, 
+				bool addedSect1, OpIntersection* sect1, bool addedSect2, OpIntersection* sect2) {
+			if (addedSect1 || addedSect2) {
+				if (addedSect1)
+					range.push_back(sect1);
+				if (addedSect2)
+					range.push_back(sect2);
+				std::sort(range.begin(), range.end(), [](
+						const OpIntersection* s1, const OpIntersection* s2) {
+						return s1->ptT.t < s2->ptT.t; });
+				for (auto sectIter = range.begin() + 1; sectIter < range.end() - 1; ++sectIter)
+					(*sectIter)->coincidenceID = 0;
+			}
+		};
+		coinOutside(range, addedSect1, sect1, addedSect2, sect2);
+		coinOutside(oRange, addedOSect1, oSect1, addedOSect2, oSect2);
+	}
+	if ((setOSect1CoinID || (sect1 && oSect1)) && (setOSect2CoinID || (sect2 && oSect2)))
+		return IntersectResult::yes;
+	else
+		return IntersectResult::fail;
 }
 
 

@@ -213,6 +213,61 @@ SectFound OpCurveCurve::divideAndConquer() {
 	return SectFound::fail;
 }
 
+// Divide only by geometric midpoint. Midpoint is determined by endpoint intersection, or
+// curve bounds if no intersection is found.
+// try several approaches:
+// 1) call existing code for baseline (bounds split on geometric middle, find curve root with line)
+// 2) rotate curve to opp start/end line and use newton method to find intersection
+//    if we're going to rotate, take advantage and do another bounds check
+// 3) if line/line intersects, divide at that point
+// 4) if line/line intersects, divide at corresponding ts
+// 5) split geometric until t doesn't change (expect to be slow)
+// 6) binary search on t (expect to be slower)
+SectFound OpCurveCurve::divideExperiment() {
+#if OP_DEBUG_IMAGE
+	bool breakAtDraw = 27 == originalEdge->id && 131 == originalOpp->id;
+	if (breakAtDraw) {
+		hideOperands();
+		hideSegmentEdges();
+		showTemporaryEdges();
+		showPoints();
+		showValues();
+		showGrid();
+	}
+#endif
+	OP_ASSERT(1 == edgeCurves.size());
+	OP_ASSERT(0 == edgeLines.size());
+	OP_ASSERT(1 == oppCurves.size());
+	OP_ASSERT(0 == oppLines.size());
+	// 3)
+	for (int depth = 1; depth < maxDepth; ++depth) {
+#if OP_DEBUG_IMAGE
+		if (breakAtDraw && 8 <= depth)
+			OpDebugOut("");  // allows setting a breakpoint to debug curve/curve
+#endif
+		for (auto& edge : edgeCurves) {
+			edge.setPointBounds();
+			for (auto& opp : oppCurves) {
+				opp.setPointBounds();
+				if (!edge.ptBounds.intersects(opp.ptBounds))
+					continue;
+				LinePts edgePts { edge.start.pt, edge.end.pt };
+				OpLine oppLine { opp.start.pt, opp.end.pt };
+				OpRoots septs = oppLine.rawIntersect(edgePts);
+				if (1 == septs.count) {
+					OpPoint pt = oppLine.ptAtT(septs.roots[0]);
+					OpDebugOut(STR(pt.x));  // suppress compiler warning for incomplete code
+//					start here;
+					// use the slope of the lines to choose x/y for split?
+				} else {	// ignore coincident for now
+
+				}
+			}
+		}
+	}
+	return SectFound::fail;
+}
+
 void OpCurveCurve::findEdgesTRanges(CurveRef curveRef) {
 	const std::vector<OpEdge>& curves = CurveRef::edge == curveRef ? edgeCurves : oppCurves;
 	std::vector <const OpEdge*> ordered;
