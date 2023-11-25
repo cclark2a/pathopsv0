@@ -25,30 +25,12 @@ constexpr uint32_t debugOpBlack = 0xFF000000;
 struct DebugOpPoint {
     DebugOpPoint() 
         : x(OpNaN)
-        , y(OpNaN)
-        , t(OpNaN)
-        , color(debugOpBlack) {
+        , y(OpNaN) {
     }
 
     DebugOpPoint(double xIn, double yIn) 
         : x(xIn)
-        , y(yIn)
-        , t(OpNaN)
-        , color(debugOpBlack) {
-    }
-
-    DebugOpPoint(double xIn, double yIn, uint32_t c) 
-        : x(xIn)
-        , y(yIn)
-        , t(OpNaN)
-        , color(c) {
-    }
-
-    DebugOpPoint(double xIn, double yIn, float tIn, uint32_t c) 
-        : x(xIn)
-        , y(yIn)
-        , t(tIn)
-        , color(c) {
+        , y(yIn) {
     }
 
     void operator+=(DebugOpPoint v) {
@@ -109,8 +91,40 @@ struct DebugOpPoint {
 
     double x;
     double y;
-    float t;    // for display only
+};
+
+struct DebugColorPt : DebugOpPoint {
+    DebugColorPt(double xIn, double yIn, uint32_t c) 
+        : DebugOpPoint(xIn, yIn)
+        , t(OpNaN)
+        , color(c)
+        , sprite(DebugSprite::diamond) {
+    }
+
+    DebugColorPt(double xIn, double yIn, float tIn, uint32_t c) 
+        : DebugOpPoint(xIn, yIn)
+        , t(tIn)
+        , color(c)
+        , sprite(DebugSprite::diamond) {
+    }
+
+    DebugColorPt(DebugOpPoint pt, double tIn, uint32_t c) 
+        : DebugOpPoint(pt)
+        , t(tIn)
+        , color(c)
+        , sprite(DebugSprite::diamond) {
+    }
+
+    DebugColorPt(double xIn, double yIn, double tIn, uint32_t c, DebugSprite sprite) 
+        : DebugOpPoint(xIn, yIn)
+        , t(tIn)
+        , color(c)
+        , sprite(sprite) {
+    }
+
+    double t;    // for display only
     uint32_t color;
+    DebugSprite sprite;
 };
 
 struct DebugOpRect {
@@ -694,7 +708,7 @@ std::vector<DebugOpCurve> debugHighlights;
 std::vector<DebugOpCurve> debugInputs;
 std::vector<DebugOpCurve> debugOutputs;
 std::vector<DebugOpCurve> debugPaths;
-std::vector<DebugOpPoint> debugPoints;  // used for path end points
+std::vector<DebugColorPt> debugPoints;  // used for path end points
 
 OpPoint DebugOpMap(DebugOpPoint dPt) {
     double z = DebugOpGetZoomScale();
@@ -829,7 +843,7 @@ void DebugOpBuild(const OpSegment& seg, std::vector<DebugOpCurve>& debugSegs) {
     curve.rectCurves(debugSegs);
 }
 
-void DebugOpBuild(const DebugOpPoint& dPt) {
+void DebugOpBuild(const DebugColorPt& dPt) {
     DebugOpRect bounds = ZoomToRect();
     if (!bounds.ptInRect(dPt))
         return;
@@ -845,9 +859,7 @@ void DebugOpBuild(const OpSegment& seg, const OpDebugRay& ray) {
     curve.type = seg.c.type;
     DebugOpRoots roots = curve.rayIntersect(ray);
     for (int index = 0; index < roots.count; ++index) {
-        DebugOpPoint pt = curve.ptAtT(roots.roots[index]);
-        pt.t = roots.roots[index];
-        pt.color = black;
+        DebugColorPt pt { curve.ptAtT(roots.roots[index]), roots.roots[index], black };
         DebugOpBuild(pt);
     }
 }
@@ -886,15 +898,22 @@ void DebugOpBuild(const OpEdge& edge, const OpDebugRay& ray) {
     DebugOpCurve curve = edge.debugSetCurve();
     DebugOpRoots roots = curve.rayIntersect(ray);
     for (int index = 0; index < roots.count; ++index) {
-        DebugOpPoint pt = curve.ptAtT(roots.roots[index]);
-        pt.t = edge.start.t + (edge.end.t - edge.start.t) * roots.roots[index];
-        pt.color = black;
+        DebugColorPt pt = { curve.ptAtT(roots.roots[index]), 
+            edge.start.t + (edge.end.t - edge.start.t) * roots.roots[index], black };
         DebugOpBuild(pt);
     }
 }
 
+DebugOpCurve DebugOpBuild(const OpLine& line, uint32_t color) {
+    DebugOpCurve curve;
+    curve.type = OpType::line;
+    curve.color = color;
+    return curve;
+}
+
 void DebugOpBuild(Axis axis, float normal, float cept) {
-    DebugOpPoint pt = Axis::horizontal == axis ? DebugOpPoint(cept, normal) : DebugOpPoint(normal, cept);
+    DebugColorPt pt = Axis::horizontal == axis 
+        ? DebugColorPt(cept, normal, black) : DebugColorPt(normal, cept, black);
     DebugOpBuild(pt);
 }
 
@@ -1047,9 +1066,7 @@ void DebugOpBuild(const SkPath& path, const struct OpDebugRay& ray) {
     auto axisSect = [&](const DebugOpCurve& curve) {  // lambda
         DebugOpRoots roots = curve.rayIntersect(ray);
         for (int index = 0; index < roots.count; ++index) {
-            DebugOpPoint pt = curve.ptAtT(roots.roots[index]);
-            pt.t = roots.roots[index];
-            pt.color = black;
+            DebugColorPt pt = { curve.ptAtT(roots.roots[index]), roots.roots[index], black };
             DebugOpBuild(pt);
         }
     };
@@ -1140,7 +1157,7 @@ void DebugOpClearPoints() {
 }
 
 void DebugOpBuild(OpPoint pt) {
-    DebugOpPoint dPt { pt.x, pt.y, black };
+    DebugColorPt dPt { pt.x, pt.y, black };
     DebugOpRect bounds = ZoomToRect();
     if (!bounds.ptInRect(dPt))
         return;
@@ -1149,7 +1166,7 @@ void DebugOpBuild(OpPoint pt) {
 }
 
 void DebugOpBuild(OpPoint pt, float t, bool opp) {
-    DebugOpPoint dPt { pt.x, pt.y, t, opp ? blue : darkGreen };
+    DebugColorPt dPt { pt.x, pt.y, t, opp ? blue : darkGreen };
     DebugOpRect bounds = ZoomToRect();
     if (!bounds.ptInRect(dPt))
         return;
@@ -1159,6 +1176,15 @@ void DebugOpBuild(OpPoint pt, float t, bool opp) {
 
 void DebugOpBuild(OpPoint pt, bool opp) {
     DebugOpBuild(pt, OpNaN, opp);
+}
+
+void DebugOpBuild(OpPoint pt, float t, DebugSprite sprite) {
+    DebugColorPt dPt { pt.x, pt.y, t, darkBlue, sprite };
+    DebugOpRect bounds = ZoomToRect();
+    if (!bounds.ptInRect(dPt))
+        return;
+    if (debugPoints.end() == std::find(debugPoints.begin(), debugPoints.end(), dPt))
+        debugPoints.push_back(dPt);
 }
 
 void DebugOpClearInputs() {
@@ -1194,39 +1220,55 @@ void DebugOpDrawArrowHead() {
 
 }
 
-void DebugOpDrawDiamond() {
-    SkPath blackPath;
-    SkPath bluePath;
-    SkPath darkGreenPath;
+struct ColorPath {
+    ColorPath(uint32_t c)
+        : color(c) {
+    }
+    SkPath path;
+    uint32_t color;
+};
+
+void DebugOpDrawSprites() {
+    std::vector<ColorPath> colorPaths;
     for (auto& point : debugPoints) {
         OpPoint pt = DebugOpMap(point);
-        SkPath& path = black == point.color ? blackPath :
-                blue == point.color ? bluePath : darkGreenPath;
-        OpDebugImage::addDiamondToPath(pt, path);
+        auto colorPathIter = std::find_if(colorPaths.begin(), colorPaths.end(),
+                [&point](ColorPath& path) { return path.color == point.color; });
+        SkPath path;
+        if (colorPaths.end() == colorPathIter) {
+            colorPaths.emplace_back(point.color);
+            colorPathIter = colorPaths.end() - 1;
+        }
+        if (DebugSprite::diamond == point.sprite)
+            OpDebugImage::addDiamondToPath(pt, colorPathIter->path);
+        else if (DebugSprite::square == point.sprite)
+            OpDebugImage::addSquareToPath(pt, colorPathIter->path);
+        else
+            OpDebugOut("unknown sprite (%d)" + STR_E(point.sprite) + "\n");
+            
     }
-    OpDebugImage::drawDoublePath(blackPath, black);
-    OpDebugImage::drawDoublePath(bluePath, blue, -1);
-    OpDebugImage::drawDoublePath(darkGreenPath, darkGreen, -1);
+    for (auto& cp : colorPaths)
+        OpDebugImage::drawDoublePath(cp.path, cp.color);
 }
 
-void DebugOpDrawT(bool inHex, int precision) {
+void DebugOpDrawT(bool inHex) {
     for (auto& point : debugPoints) {
         if (OpMath::IsNaN(point.t))
             continue;
         OpPoint pt = DebugOpMap(point);
         std::string ptStr = inHex ? OpDebugDumpHex(point.t) : 
-                OpDebugToString((float) point.t, precision);
+                OpDebugToString((float) point.t);
         (void) OpDebugImage::drawValue(pt, ptStr);
     }
 }
 
-void DebugOpDrawValue(bool inHex, int precision) {
+void DebugOpDrawValue(bool inHex) {
     for (auto& point : debugPoints) {
         OpPoint pt = DebugOpMap(point);
         std::string ptStr = "(";
-        ptStr += inHex ? OpDebugDumpHex(point.x) : OpDebugToString((float) point.x, precision);
+        ptStr += inHex ? OpDebugDumpHex(point.x) : OpDebugToString((float) point.x);
         ptStr += ", ";
-        ptStr += inHex ? OpDebugDumpHex(point.y) : OpDebugToString((float) point.y, precision);
+        ptStr += inHex ? OpDebugDumpHex(point.y) : OpDebugToString((float) point.y);
         ptStr += ")";
         (void) OpDebugImage::drawValue(pt, ptStr);
     }
@@ -1243,6 +1285,19 @@ void DebugOpDrawEdgeID(const OpEdge* edge, uint32_t color) {
         if (OpDebugImage::drawValue(midTPt, STR(edge->id), color))
             break;
     }
+}
+
+void DebugOpDrawEdgeEnds(const OpEdge* edge, uint32_t color) {
+    DebugOpCurve src;
+    src.pts[0] = { edge->start.pt.x, edge->start.pt.y } ;
+    src.pts[1] = { edge->end.pt.x, edge->end.pt.y } ;
+    src.weight = 1;
+    src.type = OpType::line;
+    src.id = edge->id;
+    src.color = color;
+    OpCurve dst;
+    src.mapTo(dst);
+    OpDebugImage::drawCurve(dst, color);
 }
 
 void DebugOpDrawEdgeNormal(const OpEdge* edge, uint32_t color) {

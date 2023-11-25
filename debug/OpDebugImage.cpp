@@ -29,15 +29,21 @@ SkFont labelFont(nullptr, 14, 1, 0);
 
 std::vector<OpDebugRay> lines;
 int gridIntervals = 8;
-int valuePrecision = -1;		// minus one means unset
 
 #define OP_X(Thing) \
 bool draw##Thing##On = false;
 MASTER_LIST
 #undef OP_X
 bool lastDrawOperandsOn = false;
+#if OP_DEBUG_VERBOSE
+int debugVerboseDepth = 0;
+#endif
 
 uint32_t OP_DEBUG_MULTICOLORED = 0xAbeBeBad;
+
+static uint32_t OpDebugAlphaColor(uint32_t alpha, uint32_t color) {
+	return (alpha << 24) | (color & 0x00FFFFFF);
+}
 
 #define DRAW_IDS_ON(Thing) \
 	do { \
@@ -87,6 +93,7 @@ struct OpDebugSegmentIterator {
 };
 
 OpDebugSegmentIterator segmentIterator;
+int edgeIterDvLevel = -1;
 
 struct OpDebugEdgeIter {
     OpDebugEdgeIter(bool start)
@@ -101,15 +108,26 @@ struct OpDebugEdgeIter {
 			for (const auto& s : c.segments)
 				edgeIndex += s.edges.size();
 		}
-		if (debugGlobalContours->edgeStorage)
-			edgeIndex += debugGlobalContours->edgeStorage->debugCount();
-		if (OpCurveCurve::debugActive) {
-			edgeIndex += OpCurveCurve::debugActive->edgeCurves.size();
-			edgeIndex += OpCurveCurve::debugActive->oppCurves.size();
-			edgeIndex += OpCurveCurve::debugActive->edgeLines.size();
-			edgeIndex += OpCurveCurve::debugActive->oppLines.size();
-			edgeIndex += OpCurveCurve::debugActive->edgeRuns.size();
-			edgeIndex += OpCurveCurve::debugActive->oppRuns.size();
+		if (debugGlobalContours->fillerStorage)
+			edgeIndex += debugGlobalContours->fillerStorage->debugCount();
+		OpCurveCurve* cc = debugGlobalContours->debugCurveCurve;
+		if (!cc)
+			return;
+		if (edgeIterDvLevel < 0)
+			edgeIndex += debugGlobalContours->ccStorage->debugCount();
+		else if (!edgeIterDvLevel) {
+			edgeIndex += cc->edgeCurves.size();
+			edgeIndex += cc->edgeLines.size();
+			edgeIndex += cc->oppCurves.size();
+			edgeIndex += cc->oppLines.size();
+			edgeIndex += cc->edgeRuns.size();
+			edgeIndex += cc->oppRuns.size();
+		} else {
+			int dvLevel = std::max(edgeIterDvLevel, (int) cc->dvDepthIndex.size());
+			int lo = cc->dvDepthIndex[dvLevel - 1];
+			int hi = (int) cc->dvDepthIndex.size() <= dvLevel 
+					? (int) cc->dvAll.size() : cc->dvDepthIndex[dvLevel];
+			edgeIndex += hi - lo;
 		}
 	}
 
@@ -133,8 +151,8 @@ struct OpDebugEdgeIter {
 				}
 			}
 		}
-		if (debugGlobalContours->edgeStorage) {
-			const OpEdge* filler = debugGlobalContours->edgeStorage->debugIndex(edgeIndex - index);
+		if (debugGlobalContours->fillerStorage) {
+			const OpEdge* filler = debugGlobalContours->fillerStorage->debugIndex(edgeIndex - index);
 			if (filler) {
 				isCurveCurve = false;
 				isFiller = true;
@@ -142,29 +160,42 @@ struct OpDebugEdgeIter {
 				isLine = true;
 				return filler;
 			}
+			index += debugGlobalContours->fillerStorage->debugCount();
 		}
-		if (OpCurveCurve::debugActive) {
-			auto advanceEdge = [&](const std::vector<OpEdge>& edges, bool opp, bool line) {	// lambda
-				if (index + edges.size() > edgeIndex) {
-					isCurveCurve = true;
-					isFiller = false;
-					isOpp = opp;
-					isLine = line;
-					return &edges[edgeIndex - index];
-				}
-				index += edges.size();
-				return (const OpEdge* ) nullptr;
+		OpCurveCurve* cc = debugGlobalContours->debugCurveCurve;
+		if (cc) {
+			const OpEdge* ccEdge = nullptr;
+			auto checkEdges = [&ccEdge, this, &index](std::vector<OpEdge*> edges) {
+				if (ccEdge)
+					return;
+				if (edgeIndex - index < edges.size())
+					ccEdge = edges[edgeIndex - index];
+				else
+					index += edges.size();
 			};
-			for (auto edgePtr : { 
-					&OpCurveCurve::debugActive->edgeCurves,
-					&OpCurveCurve::debugActive->oppCurves,
-					&OpCurveCurve::debugActive->edgeLines,
-					&OpCurveCurve::debugActive->oppLines,
-					&OpCurveCurve::debugActive->edgeRuns,
-					&OpCurveCurve::debugActive->oppRuns } ) {
-				const OpEdge* result = advanceEdge(*edgePtr, false, false);
-				if (result)
-					return result;
+			if (edgeIterDvLevel < 0)
+				ccEdge = debugGlobalContours->ccStorage->debugIndex(edgeIndex - index);
+			else if (!edgeIterDvLevel) {
+				checkEdges(cc->edgeCurves);
+				checkEdges(cc->edgeLines);
+				checkEdges(cc->oppCurves);
+				checkEdges(cc->oppLines);
+				checkEdges(cc->edgeRuns);
+				checkEdges(cc->oppRuns);
+			} else {	
+				int dvLevel = std::max(edgeIterDvLevel, (int) cc->dvDepthIndex.size());
+				int lo = (int) cc->dvDepthIndex[dvLevel - 1];
+				int hi = (int) cc->dvDepthIndex.size() <= dvLevel 
+						? (int) cc->dvAll.size() : cc->dvDepthIndex[dvLevel];
+				if (index + hi - lo > edgeIndex)
+					ccEdge = cc->dvAll[edgeIndex - index + lo];
+			}
+			if (ccEdge) {
+				isCurveCurve = true;
+				isFiller = false;
+				isOpp = false;
+				isLine = false;
+				return ccEdge;
 			}
 		}
 		OpDebugOut("iterator out of bounds! edgeIndex: " + STR(edgeIndex) + 
@@ -299,7 +330,7 @@ void playback() {
 	double debugCenter[2];
 	float textSize;
 	int intervals;
-	int precision;
+	int pPrecision;
 	// required
 	if (fscanf(file, "debugZoom: %lg\n", &debugZoom) != 1) {
 		OpDebugOut("reading debugZoom failed\n");
@@ -326,12 +357,12 @@ void playback() {
 		return;
 	}
 	gridIntervals = intervals;
-	if (fscanf(file, "valuePrecision: %d\n", &precision) != 1) {
-		OpDebugOut("reading valuePrecision failed\n");
+	if (fscanf(file, "debugPrecision: %d\n", &pPrecision) != 1) {
+		OpDebugOut("reading debugPrecision failed\n");
 		fclose(file);
 		return;
 	}
-	valuePrecision = precision;
+	debugPrecision = pPrecision;
 	// optional
 	auto noMatch = [file](const char* str) {
 		OpDebugOut("no match: " + std::string(str)); 
@@ -394,6 +425,7 @@ static SkPath* sk1() {
 }
 
 void OpDebugImage::drawDoubleFocus() {
+	edgeIterDvLevel = debugVerboseDepth;
 	OP_DEBUG_CODE(OpDebugDefeatDelete defeater);
 	std::vector<int> ids;
 	clearScreen();
@@ -408,9 +440,9 @@ void OpDebugImage::drawDoubleFocus() {
 		matrix.preTranslate(-DebugOpGetCenterX(), -DebugOpGetCenterY());
 		matrix.postTranslate(DebugOpGetOffsetX(), DebugOpGetOffsetY());
 		if (drawLeftOn) 
-			drawDoubleFill(sk0()->makeTransform(matrix), SkColorSetARGB(10, 255, 0, 0));
+			drawDoubleFill(sk0()->makeTransform(matrix), OpDebugAlphaColor(10, red));
 		if (drawRightOn)
-			drawDoubleFill(sk1()->makeTransform(matrix), SkColorSetARGB(10, 0, 0, 255));
+			drawDoubleFill(sk1()->makeTransform(matrix), OpDebugAlphaColor(10, blue));
 	}
     if (drawResultOn) {
 		SkMatrix matrix;
@@ -418,12 +450,12 @@ void OpDebugImage::drawDoubleFocus() {
 		matrix.setScale(scale, scale);
 		matrix.preTranslate(-DebugOpGetCenterX(), -DebugOpGetCenterY());
 		matrix.postTranslate(DebugOpGetOffsetX(), DebugOpGetOffsetY());
-		drawDoubleFill(sk0()->makeTransform(matrix), SkColorSetARGB(20, 255, 0, 0));
-		drawDoubleFill(sk1()->makeTransform(matrix), SkColorSetARGB(20, 0, 0, 255));
+		drawDoubleFill(sk0()->makeTransform(matrix), OpDebugAlphaColor(20, red));
+		drawDoubleFill(sk1()->makeTransform(matrix), OpDebugAlphaColor(20, blue));
         OpOutPath* result = debugGlobalContours->debugResult;
         if (result)
 		    drawDoubleFill(((SkPath*) result->externalReference)
-                ->makeTransform(matrix), SkColorSetARGB(20, 0, 255, 0));
+                ->makeTransform(matrix), OpDebugAlphaColor(20, green));
     }
 	if (drawLeftOn || drawRightOn)
 		DebugOpClearInputs();
@@ -472,7 +504,7 @@ void OpDebugImage::drawDoubleFocus() {
 		for (auto segment : segmentIterator)
 			DebugOpDrawSegmentID(segment, ids);
 	}
-	if (drawEdgesOn && (drawIDsOn || drawNormalsOn || drawTangentsOn || drawWindingsOn)) {
+	if (drawEdgesOn && (drawIDsOn || drawNormalsOn || drawTangentsOn || drawWindingsOn || drawEndsOn)) {
 		for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 			const OpEdge* edge = *edgeIter;
 			if (!edge->debugDraw)
@@ -482,19 +514,21 @@ void OpDebugImage::drawDoubleFocus() {
 			ids.push_back(edge->id);
 
 			if (drawIDsOn) {
-				SkColor color = SK_ColorBLACK;
+				uint32_t color = black;
 				if (edge->disabled)
-					color = SK_ColorRED;
+					color = red;
 				else if (edgeIter.isCurveCurve)
 					color = edgeIter.isOpp ? 0xFFFFA500 : 0xFF008000;  // orange, dark green
 				DebugOpDrawEdgeID(edge, color);
 			}
 			if (drawNormalsOn)
-				DebugOpDrawEdgeNormal(edge, SK_ColorBLACK);
+				DebugOpDrawEdgeNormal(edge, black);
 			if (drawTangentsOn)
-				DebugOpDrawEdgeTangent(edge, SK_ColorBLACK);
+				DebugOpDrawEdgeTangent(edge, black);
 			if (drawWindingsOn)
-				DebugOpDrawEdgeWinding(edge, SK_ColorBLACK);
+				DebugOpDrawEdgeWinding(edge, black);
+			if (drawEndsOn)
+				DebugOpDrawEdgeEnds(edge, OpDebugAlphaColor(40, black));
 		}
 	}
 	if (drawIntersectionsOn && drawIDsOn) {
@@ -513,6 +547,7 @@ void OpDebugImage::drawDoubleFocus() {
 #endif
 	if (drawGridOn)
 		drawGrid();
+	edgeIterDvLevel = -1;
 }
 
 void record() {
@@ -531,7 +566,7 @@ void record() {
 	DebugOpRecord(recordFile);
 	fprintf(recordFile, "textSize: %g\n", labelFont.getSize());
 	fprintf(recordFile, "gridIntervals: %d\n", gridIntervals);
-	fprintf(recordFile, "valuePrecision: %d\n", valuePrecision);
+	fprintf(recordFile, "debugPrecision: %d\n", debugPrecision);
 #define OP_X(Thing) \
 	if (draw##Thing##On) \
 		fprintf(recordFile, "%s\n", #Thing);
@@ -627,7 +662,7 @@ void OpDebugImage::drawGrid() {
 			offscreen.drawLine(sx, topS, sx, bottomS, paint);
 			if (!drawValuesOn)
 				continue;
-			std::string xValStr = OpDebugToString(fx, valuePrecision);
+			std::string xValStr = OpDebugToString(fx);
 			offscreen.drawString(SkString(xValStr), sx + xOffset, bitmapWH - xOffset, labelFont, textPaint);
 		}
 		for (double fy = top; fy < bottom; fy += (bottom - top) / gridIntervals) {
@@ -637,7 +672,7 @@ void OpDebugImage::drawGrid() {
 				continue;
 			offscreen.save();
 			offscreen.rotate(-90, 15, sy - xOffset);
-			std::string yValStr = OpDebugToString(fy, valuePrecision);
+			std::string yValStr = OpDebugToString(fy);
 			offscreen.drawString(SkString(yValStr), 15, sy - xOffset, labelFont, textPaint);
 			offscreen.restore();
 		}
@@ -649,7 +684,7 @@ void OpDebugImage::drawGrid() {
 		offscreen.drawLine(sx, topS, sx, bottomS, paint);
 		if (!drawValuesOn)
 			continue;
-		std::string xValStr = drawHexOn ? OpDebugDumpHex(fx) : OpDebugToString(fx, valuePrecision);
+		std::string xValStr = drawHexOn ? OpDebugDumpHex(fx) : OpDebugToString(fx);
 		offscreen.drawString(SkString(xValStr), sx + xOffset, bitmapWH - xOffset, labelFont, textPaint);
 	}
 	for (int y = topH; y <= bottomH; y += yInterval) {
@@ -660,7 +695,7 @@ void OpDebugImage::drawGrid() {
 			continue;
 		offscreen.save();
 		offscreen.rotate(-90, 15, sy - xOffset);
-		std::string yValStr = drawHexOn ? OpDebugDumpHex(fy) : OpDebugToString(fy, valuePrecision);
+		std::string yValStr = drawHexOn ? OpDebugDumpHex(fy) : OpDebugToString(fy);
 		offscreen.drawString(SkString(yValStr), 15, sy - xOffset, labelFont, textPaint);
 		offscreen.restore();
 	}
@@ -693,7 +728,7 @@ void gridStep(float dxy) {
 }
 
 void precision(int p) {
-	valuePrecision = p;
+	debugPrecision = p;
 	OpDebugImage::drawDoubleFocus();
 }
 
@@ -1155,16 +1190,18 @@ void OpDebugImage::drawPoints() {
 			if (!edge->debugDraw)
 				continue;
 			if (edgeIter.isCurveCurve) {
-				DebugOpBuild(edge->start.pt, edgeIter.isOpp);
-				DebugOpBuild(edge->end.pt, edgeIter.isOpp);		
+				DebugOpBuild(edge->start.pt, edge->start.t, edgeIter.isOpp);
+				DebugOpBuild(edge->end.pt, edge->end.t, edgeIter.isOpp);
 			} else {
-				DebugOpBuild(edge->start.pt);
-				DebugOpBuild(edge->end.pt);
+				DebugOpBuild(edge->start.pt, edge->start.t);
+				DebugOpBuild(edge->end.pt, edge->end.t);
 			}
 			if (drawControlsOn && edge->curveSet) {
 				for (int index = 1; index < edge->curve_impl.pointCount() - 1; ++index)
 					DebugOpBuild(edge->curve_impl.pts[index]);
 			}
+			if (drawCentersOn)
+				DebugOpBuild(edge->center.pt, edge->center.t, DebugSprite::square);
 		}
 	}
 	if (drawIntersectionsOn) {
@@ -1201,22 +1238,15 @@ void OpDebugImage::drawPoints() {
 	}
 	if (drawValuesOn) {
 		if (drawTsOn)
-			DebugOpDrawT(drawHexOn, valuePrecision);
+			DebugOpDrawT(drawHexOn);
 		else
-			DebugOpDrawValue(drawHexOn, valuePrecision);
+			DebugOpDrawValue(drawHexOn);
 	}
-	DebugOpDrawDiamond();
+	DebugOpDrawSprites();
 }
 
-void OpDebugImage::addDiamondToPath(OpPoint pt, SkPath& path) {
-	SkPath diamond;
-	diamond.moveTo(4, 0);
-	diamond.lineTo(0, 4);
-	diamond.lineTo(-4, 0);
-	diamond.lineTo(0, -4);
-	diamond.close();
-	diamond.offset(pt.x, pt.y);
-	path.addPath(diamond);
+void OpDebugImage::add(Axis axis, float value) {
+	lines.emplace_back(axis, value);
 }
 
 void OpDebugImage::addArrowHeadToPath(const OpLine& line, SkPath& path) {
@@ -1233,8 +1263,26 @@ void OpDebugImage::addArrowHeadToPath(const OpLine& line, SkPath& path) {
 	path.rLineTo(arrowCopy[1].fX, arrowCopy[1].fY);
 }
 
-void OpDebugImage::add(Axis axis, float value) {
-	lines.emplace_back(axis, value);
+void OpDebugImage::addDiamondToPath(OpPoint pt, SkPath& path) {
+	SkPath diamond;
+	diamond.moveTo( 4,  0);
+	diamond.lineTo( 0,  4);
+	diamond.lineTo(-4,  0);
+	diamond.lineTo( 0, -4);
+	diamond.close();
+	diamond.offset(pt.x, pt.y);
+	path.addPath(diamond);
+}
+
+void OpDebugImage::addSquareToPath(OpPoint pt, SkPath& path) {
+	SkPath square;
+	square.moveTo(-4, -4);
+	square.lineTo( 4, -4);
+	square.lineTo( 4,  4);
+	square.lineTo(-4,  4);
+	square.close();
+	square.offset(pt.x, pt.y);
+	path.addPath(square);
 }
 
 OpDebugRay::OpDebugRay(const LinePts& pts_) 
@@ -1568,10 +1616,10 @@ void OpWinder::debugDraw() {
 void OpCurveCurve::draw() const {
 	if (!edgeCurves.size() && !edgeLines.size())
 		return OpDebugOut("OpCurveCurve missing edgeCurves\n");
-	OpPointBounds focusRect = edgeCurves.front().ptBounds;
+	OpPointBounds focusRect = edgeCurves.front()->ptBounds;
 	for (auto edgesPtrs : { &edgeCurves, &oppCurves, &edgeLines, &oppLines, &edgeRuns ,&oppRuns }) {
 		for (auto& edge : *edgesPtrs)
-			focusRect.add(edge.ptBounds);
+			focusRect.add(edge->ptBounds);
 	}
 	DRAW_IDS_ON(Edges);
 	OpDebugImage::drawDoubleFocus(focusRect, false);
@@ -1630,6 +1678,15 @@ bool OpDebugImage::drawEdgeWinding(OpVector norm, OpPoint midTPt, const OpEdge* 
 	return true;
 }
 
+bool OpDebugImage::drawCurve(const OpCurve& curve, uint32_t color) {
+	SkPath curvePath;
+	OP_ASSERT(OpType::line == curve.type);  // !!! add more types as needed
+	curvePath.moveTo(curve.pts[0].x, curve.pts[0].y);
+	curvePath.lineTo(curve.pts[1].x, curve.pts[1].y);
+	OpDebugImage::drawPath(curvePath, color);
+	return true;
+}
+
 #if 0
 void OpDebugImage::drawLines() {
 	SkCanvas offscreen(bitmap);
@@ -1669,6 +1726,15 @@ void add(std::vector<OpEdge>& e) {
 	}
 	OpDebugImage::focusEdges();
 }
+
+#if OP_DEBUG_VERBOSE
+void depth(int level) {
+    if (!debugGlobalContours->debugCurveCurve)
+        return;
+    debugVerboseDepth = level;
+	OpDebugImage::drawDoubleFocus();
+}
+#endif
 
 void draw(std::vector<OpEdge*>& e) {
 	hideEdges();

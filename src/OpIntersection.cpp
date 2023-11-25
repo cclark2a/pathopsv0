@@ -260,7 +260,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
                         [&oEdge](auto sect) { return sect->ptT.pt == oEdge->end.pt; }));
             }
         }
-        OpContours* contours = edge->segment->contour->contours;
+        OpContours* contours = edge->contours();
         // for each different winding: 
         int oppBump = coinPair.id < 0 ? -1 : 1;
         // surprisingly difficult to get right ...

@@ -30,6 +30,13 @@ template <typename T, size_t N> char (&ArrayCountHelper(T (&array)[N]))[N];
 
 typedef double OpCubicFloatType;
 
+enum class RootFail {
+    none,
+    rawIntersectFailed,
+    outsideFirstPt,
+    outsideLastPt
+};
+
 // always assume a maximum of (and reserve space for) five roots
 // lines, cubics, and quads only need 2 but reserving three simplifies things,
 // just as all curves reserve 4 points, even though all but cubics need 2 or 3
@@ -37,20 +44,26 @@ typedef double OpCubicFloatType;
 struct OpRoots {
     OpRoots() 
         : count(0)
-        , rawIntersectFailed(false) {
+        , fail(RootFail::none) {
         OP_DEBUG_CODE(roots[0] = OpNaN);
     }
 
     OpRoots(int ) = delete; // disallow old pattern that returned number of roots
 
+    OpRoots(RootFail f)
+        : count(0)
+        , fail(f) {
+        OP_DEBUG_CODE(roots[0] = OpNaN);
+    }
+
     OpRoots(float one)
         : count(1)
-        , rawIntersectFailed(false) {
+        , fail(RootFail::none) {
         roots[0] = one;
     }
 
     OpRoots(float one, float two)
-        : rawIntersectFailed(false) {
+        : fail(RootFail::none) {
         count = 1 + (int) (one != two);
         roots[0] = one;
         roots[1] = two;
@@ -59,7 +72,7 @@ struct OpRoots {
     // testing only
 #if OP_RELEASE_TEST
     OpRoots(float one, float two, float three)
-        : rawIntersectFailed(false) {
+        : fail(RootFail::none) {
         count = 3;
         roots[0] = one;
         roots[1] = two;
@@ -120,7 +133,7 @@ struct OpRoots {
 
     std::array<float, 5> roots;
     size_t count;
-    bool rawIntersectFailed;
+    RootFail fail;
 };
 
 #if OP_DEBUG
@@ -614,6 +627,12 @@ struct OpMath {
     static OpRoots CubicRootsValidT(OpCubicFloatType A, OpCubicFloatType B, OpCubicFloatType C,
             OpCubicFloatType D) {
         return CubicRootsReal(A, B, C, D).keepValidTs();
+    }
+
+    // no_sanitize("float-divide-by-zero")
+    // !!! incomplete; set up attribute as needed for platforms that require it
+    static float FloatDivide(float A, float B) {
+        return A / B;
     }
 
     static float Interp(float A, float B, float t) {

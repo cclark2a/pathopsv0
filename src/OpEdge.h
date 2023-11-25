@@ -197,7 +197,7 @@ public:
 		return right_impl;
 	}
 
-	void setSum(OpWinding winding, const OpSegment* segment);
+	void setSum(OpWinding winding, const OpContours* segment);
 
 	void setWind(int left, int right) {	// shouldn't be 0, 0 (call zero() for that)
 		OP_ASSERT(WindingType::uninitialized == debugType);
@@ -345,8 +345,14 @@ enum class EdgeLoop {
 
 enum class EdgeSplit : uint8_t {
 	no,
-	yes,
+	keep,  // used only by curve experiment
+	defer,  // used only by curve experiment : set split like partner
+	yes = 3, // allows |= keep to set no->keep, keep->keep, yes->yes
 };
+
+inline EdgeSplit& operator|=(EdgeSplit& a, EdgeSplit b) {
+    return a = (EdgeSplit)((int) a | (int) b);
+}
 
 enum class LeadingLoop {
 	in,
@@ -389,9 +395,11 @@ enum class EdgeMaker {
 
 #endif
 
+constexpr float OP_CURVACIOUS_LIMIT = 1.f / 16;  // !!! tune to guess line/line split ratio
+
 struct OpEdge {
 private:
-	OpEdge()	// note : all values are zero
+	OpEdge()	// note : all release values are zero
 		: priorEdge(nullptr)
 		, nextEdge(nullptr)
 		, lastEdge(nullptr)
@@ -404,6 +412,7 @@ private:
 		, windZero(WindZero::noFlip)
 		, doSplit(EdgeSplit::no)
 		, curveSet(false)
+		, curvySet(false)
 		, lineSet(false)
 		, palSet(false)
 		, verticalSet(false)
@@ -415,10 +424,11 @@ private:
 		, unsortable(false)
 		, between(false)
 	{
-#if OP_DEBUG
+#if OP_DEBUG // a few debug values are nonzero. Boo!
         id = 0;
         segment = nullptr;
         weight = 0;
+		curvy = OpNaN;
 		debugStart = nullptr;
 		debugEnd = nullptr;
 		debugMatch = nullptr;
@@ -454,8 +464,7 @@ public:
 	}
 
 	OpEdge(const OpEdge* e, const OpPtT& newPtT, NewEdge isLeftRight  
-			OP_DEBUG_PARAMS(EdgeMaker , int line, std::string file, const OpIntersection* , 
-			const OpIntersection*));
+			OP_DEBUG_PARAMS(EdgeMaker , int line, std::string file));
 	OpEdge(const OpEdge* e, const OpPtT& start, const OpPtT& end  
 			OP_DEBUG_PARAMS(EdgeMaker , int line, std::string file, const OpIntersection* , 
 			const OpIntersection*));
@@ -479,7 +488,9 @@ public:
 	void clearPriorEdge();
 	void complete();
 	bool containsLink(const OpEdge* edge) const;
+	OpContours* contours() const;
 	size_t countUnsortable() const;
+	float curviness();
 	OpIntersection* findSect(EdgeMatch );
 	float findT(Axis , float oppXY) const;
 	OpPtT flipPtT(EdgeMatch match) const { 
@@ -510,6 +521,7 @@ public:
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
 	void setBetween();  // setter exists so debug breakpoints can be set
 	const OpCurve& setCurve();
+	const OpCurve& setCurveCenter();  // adds center point after curve points
 	void setDisabled(OP_DEBUG_CODE(ZeroReason reason));
 	void setDisabledZero(OP_DEBUG_CODE(ZeroReason reason)) {
 		winding.zero(); setDisabled(OP_DEBUG_CODE(reason)); }
@@ -522,7 +534,7 @@ public:
 	void setPointBounds();
 	void setPriorEdge(OpEdge* );  // setter exists so debug breakpoints can be set
 	void setSumImpl(OpWinding w) {	// use debug macro instead to record line/file
-		sum.setSum(w, segment); }
+		sum.setSum(w, contours()); }
 	void setUnsortable();
 	const OpCurve& setVertical();
 	void skipPals(EdgeMatch match, std::vector<FoundEdge>& edges); 
@@ -590,6 +602,7 @@ public:
 	std::vector<OpEdge*> lessRay;  // edges found placed with smaller edge distance cept values
 	std::vector<OpEdge*> moreRay;  // edges found placed with larger edge distance cept values
 	float weight;
+	float curvy;  // rough ratio of midpoint line point line to length of end point line
 	int id;
 	int unsectableID;	// used to pair unsectable intersections and find edges between
 	EdgeMatch whichEnd;	// if 'start', prior link end equals start; if 'end' prior end matches end
@@ -597,6 +610,7 @@ public:
 	WindZero windZero; // normal means edge normal points to zero side; opposite, normal is non-zero
 	EdgeSplit doSplit; // used by curve/curve intersection to track subdivision
 	bool curveSet;
+	bool curvySet;
 	bool lineSet;
 	bool palSet;  // set before all edges exist; later pass can set pal
 	bool verticalSet;

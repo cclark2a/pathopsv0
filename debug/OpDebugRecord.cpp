@@ -43,7 +43,7 @@ struct Fodder {
 		: edge(e)
 		, opp(o)
 	    , found(0) {
-		testname = e.segment->contour->contours->debugTestname;
+		testname = e.contours()->debugTestname;
 	}
 	DebugEdge edge;
 	DebugEdge opp;
@@ -76,7 +76,7 @@ void OpDebugRecordStart(const OpEdge& opp, const OpEdge& edge) {
 	OP_ASSERT(edge.isLine_impl);
 	if (OpType::cubic != opp.segment->c.type)
 		return;
-	if (OpDebugExpect::unknown == edge.segment->contour->contours->debugExpect)
+	if (OpDebugExpect::unknown == edge.contours()->debugExpect)
 		return;
 	recordCubic = true;
 	if (!recordAll && data.size())
@@ -135,7 +135,7 @@ void OpDebugRecordEnd() {
 		const DebugTest& t = f.tests[index];
 		s += "\nt:" + STR(t.t) + " vpt:" + t.sect.debugDump() + " success:" + STR(t.success);
 		OpDebugOut(s + "\n");
-		s = "    " + STR((int) index + 2) + ") ";
+		s = "    " + STR(index + 2) + ") ";
 	}
 #endif
 	recordCubic = false;

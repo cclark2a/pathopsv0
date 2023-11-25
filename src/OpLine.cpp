@@ -4,7 +4,7 @@
 OpRoots OpLine::axisRawHit(Axis axis, float axisIntercept) const {
     const float* ptr = pts[0].asPtr(axis);
     if (!OpMath::Between(ptr[0], axisIntercept, ptr[2]))
-        return OpRoots();
+        return OpRoots(axisIntercept < ptr[0] ? RootFail::outsideFirstPt : RootFail::outsideLastPt);
     // strict equality fails for denomalized numbers
     // if (ptr[2] == ptr[0]) {
     if (fabsf(ptr[2] - ptr[0]) <= OpEpsilon)   // coincident line values are computed later

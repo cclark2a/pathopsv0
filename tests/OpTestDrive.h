@@ -19,6 +19,7 @@
 #define OP_TEST_SKIA 1  // see if skia's path ops can execute the same test
 #define OP_TEST_REGION 1  // test result of v0 against skia regions
 #define OP_DEBUG_RECORD 0  // track some statistic or other while running
+#define OP_DEBUG_VERBOSE 0
 
 // see descriptions for exceptions below
 #define TEST_PATH_OP_EXCEPTIONS ""

@@ -921,7 +921,7 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
 	OpInPath op1(&a);
 	OpInPath op2(&b);
 	OpOutPath opOut(&result);
-    OP_DEBUG_CODE(std::vector<OpDebugWarning> warnings);
+    std::vector<OpDebugWarning> warnings;
 #if OP_DEBUG || OP_TEST_REGION
     bool success = 
 #endif
@@ -1067,7 +1067,7 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
 	OpInPath op1(&path);
     out.reset();
 	OpOutPath opOut(&out);
-    OP_DEBUG_CODE(std::vector<OpDebugWarning> warnings);
+    std::vector<OpDebugWarning> warnings;
 #if OP_DEBUG || OP_TEST_REGION
     bool success =
 #endif

@@ -36,7 +36,7 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
     OP_ASSERT(OpType::line == seg->c.type);
     LinePts edgePts { seg->c.pts[0], seg->c.pts[1] };
     OpRoots septs = opp->c.rayIntersect(edgePts);
-	if (septs.rawIntersectFailed) {
+	if (septs.fail == RootFail::rawIntersectFailed) {
 		// binary search on opp t-range to find where vert crosses zero
 		OpCurve rotated = opp->c.toVertical(edgePts);
 		septs.roots[0] = rotated.tZeroX(0, 1);
@@ -270,8 +270,20 @@ FoundIntersections OpSegments::findIntersections() {
             // look for curve curve intersections (skip coincidence already found)
             seg->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(segSect)));
             opp->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(oppSect)));
+            OpCurveCurve ccx(&seg->edges.back(), &opp->edges.back());
+#if CC_EXPERIMENT
+            static int experiment;
+            int localExperiment = ++experiment;  // (copy so it is visible in debugger)
+            SectFound experimental = ccx.divideExperiment();
+            OP_DEBUG_CODE(ccx.debugDone(seg->contour->contours));
+#endif
             OpCurveCurve cc(&seg->edges.back(), &opp->edges.back());
             SectFound result = cc.divideAndConquer();
+            OP_DEBUG_CODE(cc.debugDone(seg->contour->contours));
+#if CC_EXPERIMENT
+            if (experimental != result)
+                OpDebugOut(STR(localExperiment) + " we disagree");
+#endif
             if (SectFound::fail == result)
                 return FoundIntersections::fail;  // triggered by fuzzhang_1
             // if point was added, check adjacent to see if it is concident (issue3517)

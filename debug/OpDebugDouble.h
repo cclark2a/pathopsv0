@@ -19,6 +19,11 @@ struct OpPointBounds;
 struct OpDebugRay;
 struct OpSegment;
 
+enum class DebugSprite {
+    diamond,
+    square,
+};
+
 void DebugOpAdd(const OpSegment* );
 void DebugOpAdd(const OpEdge* );
 void DebugOpAdd(const OpInPath& );
@@ -28,6 +33,7 @@ void DebugOpBounds(double& left, double& top, double& right, double& bottom);
 void DebugOpBuild(OpPoint );
 void DebugOpBuild(OpPoint , bool opp);
 void DebugOpBuild(OpPoint , float t, bool opp);
+void DebugOpBuild(OpPoint , float t, DebugSprite );
 void DebugOpBuild(Axis axis, float normal, float cept);
 void DebugOpBuild(const OpEdge& , const struct OpDebugRay& );
 void DebugOpBuild(const OpSegment& , const struct OpDebugRay& );
@@ -42,17 +48,18 @@ void DebugOpDraw(const std::vector<OpDebugRay>& );
 void DebugOpDraw(const std::vector<OpEdge>& );
 void DebugOpDraw(const std::vector<const OpEdge*>& );
 void DebugOpDraw(const std::vector<const SkPath*>& );
-void DebugOpDrawDiamond();
 void DebugOpDrawEdges();
 void DebugOpDrawHighlight();
 void DebugOpDrawInputs();
 void DebugOpDrawSegments();
+void DebugOpDrawSprites();
 void DebugOpDrawEdgeID(const OpEdge* , uint32_t color);
 void DebugOpDrawIntersectionID(const OpIntersection* , std::vector<int>& ids);
 void DebugOpDrawPointID(const OpSegment* , std::vector<int>& ids);
 void DebugOpDrawSegmentID(const OpSegment* , std::vector<int>& ids);
-void DebugOpDrawT(bool inHex, int precision);
-void DebugOpDrawValue(bool inHex, int precision);
+void DebugOpDrawT(bool inHex);
+void DebugOpDrawValue(bool inHex);
+void DebugOpDrawEdgeEnds(const OpEdge* , uint32_t color);
 void DebugOpDrawEdgeNormal(const OpEdge* , uint32_t color);
 void DebugOpDrawEdgeTangent(const OpEdge* , uint32_t color);
 void DebugOpDrawEdgeWinding(const OpEdge* , uint32_t color);

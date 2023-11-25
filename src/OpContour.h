@@ -11,6 +11,7 @@
 
 enum class EdgeMatch : uint8_t;
 struct FoundEdge;
+struct OpCurveCurve;
 struct OpJoiner;
 
 enum class OpFillType {
@@ -128,11 +129,8 @@ struct OpContours {
             delete sectStorage;
             sectStorage = next;
         } while (sectStorage);
-        while (edgeStorage) {
-            OpEdgeStorage* next = edgeStorage->next;
-            delete edgeStorage;
-            edgeStorage = next;
-        }
+        release(ccStorage);
+        release(fillerStorage);
 #if OP_DEBUG
         debugInPathOps = false;
         debugInClearEdges = false;
@@ -140,7 +138,7 @@ struct OpContours {
     }
 
     OpContour* addMove(OpContour* , OpOperand , const OpPoint pts[1]);
-    void* allocateFiller();
+    void* allocateEdge(OpEdgeStorage*& );
     OpIntersection* allocateIntersection();
 
     void apply() {
@@ -172,6 +170,8 @@ struct OpContours {
     }
 
     bool pathOps(OpOutPath result);
+    void release(OpEdgeStorage*& );
+    void reuse(OpEdgeStorage* );
 
     int rightFillTypeMask() const {
         return (int) right;
@@ -224,17 +224,18 @@ struct OpContours {
 #if OP_DEBUG_DUMP
     void debugCompare(std::string s) const;
     std::string debugDumpHex(std::string label) const;
-#include "OpDebugDeclarations.h"
-
+    #include "OpDebugDeclarations.h"
 #endif
 #if OP_DEBUG_IMAGE
     void draw() const;
 #endif
+
     OpInPath& leftIn;
     OpInPath& rightIn;
     OpOperator opIn;
     std::vector<OpContour> contours;
-    OpEdgeStorage* edgeStorage;
+    OpEdgeStorage* ccStorage;
+    OpEdgeStorage* fillerStorage;
     OpSectStorage* sectStorage;
     OpFillType left;
     OpFillType right;
@@ -245,14 +246,15 @@ struct OpContours {
     int debugValidateJoinerIndex;
 #endif
 #if OP_DEBUG
+    OpCurveCurve* debugCurveCurve;
+    OpJoiner* debugJoiner;
+    OpOutPath* debugResult;
+    std::vector<OpDebugWarning> debugWarnings;
+    std::string debugTestname;
+    OpDebugExpect debugExpect;
     bool debugInPathOps;
     bool debugInClearEdges;
     bool debugCheckLastEdge;
-    OpJoiner* debugJoiner;
-    OpOutPath* debugResult;
-    OpDebugExpect debugExpect;
-    std::vector<OpDebugWarning> debugWarnings;
-    std::string debugTestname;
 #endif
 };
 

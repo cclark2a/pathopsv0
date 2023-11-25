@@ -9,6 +9,7 @@
 // removed OP_X(ExtremaT) for now
 // removed OP_X(LoopCheck) for now
 #define VECTOR_STRUCTS \
+OP_X(CcCenter) \
 OP_X(CoinPair) \
 OP_X(EdgeDistance) \
 OP_X(FoundEdge) \
@@ -205,6 +206,11 @@ extern void dmpSegments();
 extern void dmpSegments();
 extern void dmpUnsectable();
 extern void dmpUnsortable();
+
+#if OP_DEBUG_VERBOSE
+extern void dmpDepth(int level);
+extern void dmpDepth();
+#endif
 
 extern std::vector<const OpIntersection*> findCoincidence(int id);
 extern const OpContour* findContour(int id);

@@ -369,9 +369,9 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 	OpIntersection* oSect1 = findSect(oRange, { aPtT.pt, -1 });
 	OpIntersection* oSect2 = findSect(oRange, { bPtT.pt, -1 });
 	// add the opposite that goes with the created segment sect
-	float oStart OP_DEBUG_INITIALIZE_TO_SILENCE_WARNING;
-	float oTRange OP_DEBUG_INITIALIZE_TO_SILENCE_WARNING; 
-	float oXYRange OP_DEBUG_INITIALIZE_TO_SILENCE_WARNING;
+	float oStart = 0;
+	float oTRange = 0; 
+	float oXYRange = 0;
 	if (!oSect1 || !oSect2) {
 		if (flipped)
 			std::swap(cPtT, dPtT);
@@ -514,7 +514,7 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 		if (IntersectResult::yes == sectAdded)
 			return sectAdded;
 	}
-	if (septs.rawIntersectFailed) {
+	if (septs.fail == RootFail::rawIntersectFailed) {
 		// binary search on opp t-range to find where vert crosses zero
 		OpCurve rotated = opp.segment->c.toVertical(edgePts);
 		septs.roots[0] = rotated.tZeroX(opp.start.t, opp.end.t);

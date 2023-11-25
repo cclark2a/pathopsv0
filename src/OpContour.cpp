@@ -132,9 +132,9 @@ OpEdge* OpContour::addFiller(OpEdge* edge, OpEdge* lastEdge) {
 }
 
 OpEdge* OpContour::addFiller(OpIntersection* start, OpIntersection* end) {
-    if (contours->edgeStorage && contours->edgeStorage->contains(start, end))
+    if (contours->fillerStorage && contours->fillerStorage->contains(start, end))
         return nullptr;  // !!! when does this happen? what is the implication? e.g. fuzz433
-    void* block = contours->allocateFiller();
+    void* block = contours->allocateEdge(contours->fillerStorage);
     OpEdge* filler = new(block) OpEdge(start->segment, start->ptT, end->ptT
             OP_DEBUG_PARAMS(EdgeMaker::filler, __LINE__, __FILE__, start, end));
     OP_DEBUG_CODE(filler->debugFiller = true);
@@ -261,7 +261,8 @@ OpContours::OpContours(OpInPath& l, OpInPath& r, OpOperator op)
     : leftIn(l)
     , rightIn(r)
     , opIn(op)
-    , edgeStorage(nullptr)
+    , ccStorage(nullptr)
+    , fillerStorage(nullptr)
     , left(OpFillType::unset)
     , right(OpFillType::unset)
     , uniqueID(0)
@@ -273,12 +274,13 @@ OpContours::OpContours(OpInPath& l, OpInPath& r, OpOperator op)
     debugValidateJoinerIndex = 0;
 #endif
 #if OP_DEBUG
+    debugCurveCurve = nullptr;
     debugJoiner = nullptr;
+    debugResult = nullptr;
+    debugExpect = OpDebugExpect::unknown;
     debugInPathOps = false;
     debugInClearEdges = false;
     debugCheckLastEdge = false;
-    debugResult = nullptr;
-    debugExpect = OpDebugExpect::unknown;
 #endif
 }
 
@@ -299,11 +301,13 @@ OpIntersection* OpContours::allocateIntersection() {
     return &sectStorage->storage[sectStorage->used++];
 }
 
-void* OpContours::allocateFiller() {
+void* OpContours::allocateEdge(OpEdgeStorage*& edgeStorage) {
     if (!edgeStorage)
         edgeStorage = new OpEdgeStorage;
     if (edgeStorage->used == sizeof(edgeStorage->storage)) {
-        OpEdgeStorage* next = new OpEdgeStorage;
+        OpEdgeStorage* next = edgeStorage->next;
+        if (!next)
+            next = new OpEdgeStorage;
         next->next = edgeStorage;
         edgeStorage = next;
     }
@@ -311,7 +315,6 @@ void* OpContours::allocateFiller() {
     edgeStorage->used += sizeof(OpEdge);
     return result;
 }
-
 
 // build list of linked edges
 // if they are closed, done
@@ -408,6 +411,22 @@ bool OpContours::pathOps(OpOutPath result) {
     showResult();
 #endif
     OP_DEBUG_SUCCESS(*this, true);
+}
+
+void OpContours::release(OpEdgeStorage*& edgeStorage) {
+    while (edgeStorage) {
+        OpEdgeStorage* next = edgeStorage->next;
+        delete edgeStorage;
+        edgeStorage = next;
+    }
+}
+
+void OpContours::reuse(OpEdgeStorage* edgeStorage) {
+    OpEdgeStorage* next = edgeStorage;
+    while (next) {
+        next->used = 0;
+        next = next->next;
+    }
 }
 
 #if OP_DEBUG

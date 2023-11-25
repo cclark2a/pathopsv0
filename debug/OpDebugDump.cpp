@@ -1,16 +1,19 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpDebug.h"
-#include "OpDebugColor.h"
-#include "OpDebugDump.h"
 
 #if OP_DEBUG_DUMP
+#include "OpCurveCurve.h"
 #include "OpContour.h"
+#include "OpDebugColor.h"
+#include "OpDebugDump.h"
 #include "OpEdge.h"
 #include "OpCurveCurve.h"
 #include "OpJoiner.h"
 #include "OpSegments.h"
 #include "OpWinder.h"
 #include "PathOps.h"
+
+extern std::vector<std::pair<uint32_t, std::string>> debugColorArray;
 
 #ifdef _WIN32
 #pragma optimize( "", off )
@@ -260,6 +263,31 @@ OP_X(OpWinder)
 #include "OpDebugDefinitions.h"
 #undef OWNER
 
+#define ENUM_NAME_STRUCT(enum) \
+struct enum##Name { \
+    enum element; \
+    const char* name; \
+}
+
+#define ENUM_NAME(Enum, enum) \
+static bool enum##OutOfDate = false; \
+\
+std::string enum##Name(Enum element) { \
+    static bool enum##Checked = false; \
+    if (!enum##Checked) { \
+        for (unsigned index = 0; index < ARRAY_COUNT(enum##Names); ++index) \
+           if (!enum##OutOfDate && (unsigned) enum##Names[index].element != index) { \
+               OpDebugOut("!!! enum##Names out of date\n"); \
+               enum##OutOfDate = true; \
+               break; \
+           } \
+        enum##Checked = true; \
+    } \
+    if (enum##OutOfDate) \
+        return STR_E(element); \
+    return enum##Names[(int) element].name; \
+}
+
 void dmpActive() {
     for (const auto& c : debugGlobalContours->contours) {
         for (const auto& seg : c.segments) {
@@ -468,10 +496,7 @@ void dmpContours() {
     dmp(*debugGlobalContours);
 }
 
-struct SectReasonName {
-    SectReason reason;
-    std::string name;
-};
+ENUM_NAME_STRUCT(SectReason);
 
 #define SECT_REASON_NAME(r) { SectReason::r, #r }
 
@@ -498,23 +523,9 @@ SectReasonName sectReasonNames[] {
     SECT_REASON_NAME(test),
 };
 
-static bool reasonOutOfDate = false;
-
-void checkReason() {
-    static bool reasonChecked = false;
-    if (!reasonChecked) {
-        for (unsigned index = 0; index < ARRAY_COUNT(sectReasonNames); ++index)
-           if (!reasonOutOfDate && (unsigned) sectReasonNames[index].reason != index) {
-               OpDebugOut("!!! sectReasonNames out of date\n");
-               reasonOutOfDate = true;
-               break;
-           }
-        reasonChecked = true;
-    }
-}
+ENUM_NAME(SectReason, sectReason)
 
 void dmpMatch(const OpPoint& pt, bool detail) {
-    checkReason();
     for (const auto& c : debugGlobalContours->contours) {
         for (const auto& seg : c.segments) {
             if (pt == seg.c.pts[0] || pt == seg.c.lastPt()) {
@@ -522,9 +533,9 @@ void dmpMatch(const OpPoint& pt, bool detail) {
                         + (detail ? seg.debugDumpDetail() : seg.debugDump());
 #if OP_DEBUG
                 if (pt == seg.c.pts[0] && seg.debugStart != SectReason::startPt)
-                    str += "; start is " + sectReasonNames[(int) seg.debugStart].name;
+                    str += "; start is " + sectReasonName(seg.debugStart);
                 if (pt == seg.c.lastPt() && seg.debugEnd != SectReason::endPt)
-                    str += "; end is " + sectReasonNames[(int) seg.debugEnd].name;
+                    str += "; end is " + sectReasonName(seg.debugEnd);
 #endif
                 OpDebugOut(str + "\n");
             }
@@ -604,25 +615,13 @@ const OpEdge* findEdge(int ID) {
             }
         }
     }
-    if (const OpEdge* filler = debugGlobalContours->edgeStorage
-            ? debugGlobalContours->edgeStorage->debugFind(ID) : nullptr)
+    if (const OpEdge* filler = debugGlobalContours->fillerStorage
+            ? debugGlobalContours->fillerStorage->debugFind(ID) : nullptr)
         return filler;
     // if edge intersect is active, search there too
-    if (OpCurveCurve::debugActive) {
-	    for (auto edgePtrs : { 
-                &OpCurveCurve::debugActive->edgeCurves,
-			    &OpCurveCurve::debugActive->oppCurves,
-			    &OpCurveCurve::debugActive->edgeLines,
-			    &OpCurveCurve::debugActive->oppLines,
-                &OpCurveCurve::debugActive->edgeRuns,
-                &OpCurveCurve::debugActive->oppRuns} ) {
-            const auto& edges = *edgePtrs;
-            for (const auto& edge : edges) {
-                if (match(edge))
-                    return &edge;
-            }
-        }
-    }
+    if (const OpEdge* ccEdge = debugGlobalContours->ccStorage
+            ? debugGlobalContours->ccStorage->debugFind(ID) : nullptr)
+        return ccEdge;
     return nullptr;
 }
 
@@ -801,11 +800,14 @@ std::string OpCurve::debugDump() const {
     s += " }";
     if (1 != weight)
         s += " w:" + STR(weight);
+    if (centerPt)
+        s += " center:" + pts[pointCount()].debugDump();
     s += " " + (OpType::no <= type && type <= OpType::cubic ? names[(int) type] :
-        "broken type [" + STR((int) type) + "]");
+        "broken type [" + STR_E(type) + "]");
     return s;
 }
 
+// !!! convert this to enum macro
 std::string OpCurve::debugDumpHex() const {
     const char* names[] { "noType", "OpType::line", "OpType::quad", "OpType::conic", "OpType::cubic" };
     std::string s;
@@ -819,8 +821,11 @@ std::string OpCurve::debugDumpHex() const {
     s += "};";
     if (1 != weight)
         s += "  // weight:" + OpDebugDumpHex(weight) + " // " + STR(weight) + "\n";
+    if (centerPt)
+        s += "  // center:" + pts[pointCount()].debugDumpHex() + ", // " 
+                + pts[pointCount()].debugDump() + "\n";
     s += "  // type:" + (OpType::no <= type && type <= OpType::cubic ? names[(int) type] :
-        "broken type [" + STR((int) type) + "]");
+        "broken type [" + STR_E(type) + "]");
     return s;
 }
 
@@ -841,76 +846,32 @@ std::string OpEdge::debugDumpBrief() const {
     return s;
 }
 
-struct DebugMatchName {
-    EdgeMatch match;
-    const char* name;
-};
-
+ENUM_NAME_STRUCT(EdgeMatch);
 #define MATCH_NAME(r) { EdgeMatch::r, #r }
 
-static DebugMatchName debugMatchNames[] {
+static EdgeMatchName edgeMatchNames[] {
     MATCH_NAME(none),
     MATCH_NAME(start),
     MATCH_NAME(end),
     MATCH_NAME(both),
 };
 
-std::string debugEdgeMatch(EdgeMatch match) {
-    std::string result;
-    bool outOfDate = false;
-    for (unsigned index = 0; index < ARRAY_COUNT(debugMatchNames); ++index) {
-        if (!outOfDate && (unsigned)debugMatchNames[index].match != index) {
-            OpDebugOut("debugMatchNames out of date\n");
-            outOfDate = true;
-        }
-        if (match != debugMatchNames[index].match)
-            continue;
-        if (outOfDate)
-            result += STR((int)match);
-        else
-            result += std::string(debugMatchNames[(int)match].name);
-    }
-    return result;
-}
+ENUM_NAME(EdgeMatch, edgeMatch)
 
-struct DebugFailName {
-    EdgeFail fail;
-    const char* name;
-};
-
+ENUM_NAME_STRUCT(EdgeFail);
 #define FAIL_NAME(r) { EdgeFail::r, #r }
 
-static DebugFailName debugFailNames[] {
+static EdgeFailName edgeFailNames[] {
     FAIL_NAME(none),
     FAIL_NAME(center),
     FAIL_NAME(horizontal),
     FAIL_NAME(vertical),
 };
 
-std::string debugEdgeFail(EdgeFail fail) {
-    std::string result;
-    bool outOfDate = false;
-    for (unsigned index = 0; index < ARRAY_COUNT(debugFailNames); ++index) {
-        if (!outOfDate && (unsigned)debugFailNames[index].fail != index) {
-            OpDebugOut("debugFailNames out of date\n");
-            outOfDate = true;
-        }
-        if (fail != debugFailNames[index].fail)
-            continue;
-        if (outOfDate)
-            result += STR((int)fail);
-        else
-            result += std::string(debugFailNames[(int)fail].name);
-    }
-    return result;
-}
+ENUM_NAME(EdgeFail, edgeFail)
 
 #if OP_DEBUG
-struct EdgeMakerName {
-    EdgeMaker maker;
-    const char* name;
-};
-
+ENUM_NAME_STRUCT(EdgeMaker);
 #define EDGE_MAKER_NAME(r) { EdgeMaker::r, #r }
 
 static EdgeMakerName edgeMakerNames[] {
@@ -924,30 +885,10 @@ static EdgeMakerName edgeMakerNames[] {
     EDGE_MAKER_NAME(opTest),
 };
 
-std::string debugEdgeDebugMaker(EdgeMaker maker) {
-    std::string result;
-    bool outOfDate = false;
-    for (unsigned index = 0; index < ARRAY_COUNT(edgeMakerNames); ++index) {
-        if (!outOfDate && (unsigned)edgeMakerNames[index].maker != index) {
-            OpDebugOut("edgeMakerNames out of date\n");
-            outOfDate = true;
-        }
-        if (maker != edgeMakerNames[index].maker)
-            continue;
-        if (outOfDate)
-            result += STR((int) maker);
-        else
-            result += std::string(edgeMakerNames[(int) maker].name);
-    }
-    return result;
-}
+ENUM_NAME(EdgeMaker, edgeMaker);
 #endif
 
-struct WindZeroName {
-    WindZero wz;
-    const char* name;
-};
-
+ENUM_NAME_STRUCT(WindZero);
 #define WIND_ZERO_NAME(r) { WindZero::r, #r }
 
 static WindZeroName windZeroNames[] {
@@ -956,29 +897,9 @@ static WindZeroName windZeroNames[] {
     WIND_ZERO_NAME(opp),
 };
 
-std::string debugEdgeWindZero(WindZero wz) {
-    std::string result;
-    bool outOfDate = false;
-    for (unsigned index = 0; index < ARRAY_COUNT(windZeroNames); ++index) {
-        if (!outOfDate && (unsigned)windZeroNames[index].wz != index) {
-            OpDebugOut("windZeroNames out of date\n");
-            outOfDate = true;
-        }
-        if (wz != windZeroNames[index].wz)
-            continue;
-        if (outOfDate)
-            result += STR((int) wz);
-        else
-            result += std::string(windZeroNames[(int) wz].name);
-    }
-    return result;
-}
+ENUM_NAME(WindZero, windZero)
 
-struct AxisName {
-    Axis axis;
-    const char* name;
-};
-
+ENUM_NAME_STRUCT(Axis);
 #define AXIS_NAME(r) { Axis::r, #r }
 
 static AxisName axisNames[] {
@@ -987,32 +908,13 @@ static AxisName axisNames[] {
     AXIS_NAME(horizontal),
 };
 
-std::string debugAxisName(Axis axis) {
-    std::string result;
-    bool outOfDate = false;
-    for (signed index = 0; index < (signed) ARRAY_COUNT(axisNames); ++index) {
-        if (!outOfDate && ((signed) axisNames[index].axis + 1) != index) {
-            OpDebugOut("axisNames out of date\n");
-            outOfDate = true;
-        }
-        if (axis != axisNames[index].axis)
-            continue;
-        if (outOfDate)
-            result += STR((int) axis);
-        else
-            result += std::string(axisNames[index].name);
-    }
-    return result;
-}
+ENUM_NAME(Axis, axis)
 
-struct DebugReasonName {
-    ZeroReason reason;
-    const char* name;
-};
+ENUM_NAME_STRUCT(ZeroReason);
 
 #define REASON_NAME(r) { ZeroReason::r, #r }
 
-static DebugReasonName debugReasonNames[] {
+static ZeroReasonName zeroReasonNames[] {
     REASON_NAME(uninitialized),
     REASON_NAME(addedPalToOutput),
     REASON_NAME(addIntersection),
@@ -1029,14 +931,23 @@ static DebugReasonName debugReasonNames[] {
     REASON_NAME(palWinding),
 };
 
+ENUM_NAME(ZeroReason, zeroReason)
+
+ENUM_NAME_STRUCT(EdgeSplit);
+
+#define SPLIT_NAME(s) { EdgeSplit::s, #s }
+
+static EdgeSplitName edgeSplitNames[] {
+    SPLIT_NAME(no),
+    SPLIT_NAME(keep),
+    SPLIT_NAME(defer),
+    SPLIT_NAME(yes)
+};
+
+ENUM_NAME(EdgeSplit, edgeSplit)
+
 std::string OpEdge::debugDumpDetail() const {
-    bool outOfDate = false;
-    for (unsigned index = 0; index < ARRAY_COUNT(debugReasonNames); ++index)
-       if (!outOfDate && (unsigned) debugReasonNames[index].reason != index) {
-           OpDebugOut("debugReasonNames out of date\n");
-           outOfDate = true;
-       }
-    std::string s = "edge[" + STR(id) + "] segment[" + STR(segment->id) + "] contour["
+   std::string s = "edge[" + STR(id) + "] segment[" + STR(segment->id) + "] contour["
             OP_DEBUG_CODE(+ STR(segment->contour->id)) + std::string("]\n");
     if (priorEdge || nextEdge || lastEdge) {
         s += "priorE/nextE/lastE:" + (priorEdge ? STR(priorEdge->id) : "-");
@@ -1071,14 +982,13 @@ std::string OpEdge::debugDumpDetail() const {
             s += STR(pal.edge->id) + " ";
     }
     if (EdgeMatch::none != whichEnd)
-        s += "which:" + debugEdgeMatch(whichEnd) + " ";
+        s += "which:" + edgeMatchName(whichEnd) + " ";
     if (EdgeFail::none != rayFail)
-        s += "rayFail:" + debugEdgeFail(rayFail) + " ";
-    s += "windZero:" + debugEdgeWindZero(windZero) + "\n";
+        s += "rayFail:" + edgeFailName(rayFail) + " ";
+    s += "windZero:" + windZeroName(windZero) + "\n";
     if (unsectableID) s += "unsectable:" + STR(unsectableID) + " ";
-    if (EdgeSplit::no != doSplit) s += "doSplit";
-    if (EdgeSplit::yes == doSplit) s += ":yes";
-    if (EdgeSplit::no != doSplit) s += " ";
+    if (EdgeSplit::no != doSplit)
+        s += "doSplit:" + edgeSplitName(doSplit) + " ";
     if (curveSet) s += "curveSet ";
     if (lineSet) s += "lineSet ";
     if (verticalSet) s += "verticalSet ";
@@ -1088,21 +998,15 @@ std::string OpEdge::debugDumpDetail() const {
     if (inLinkups) s += "inLinkups ";
     if (disabled) s += "disabled ";
 #if OP_DEBUG
-    if (ZeroReason::uninitialized != debugZero) {
-        s += " reason:";
-        if (outOfDate)
-            s += STR((int)debugZero);
-        else
-            s += std::string(debugReasonNames[(int)debugZero].name);
-        s += " ";
-    }
+    if (ZeroReason::uninitialized != debugZero)
+        s += "reason:" + zeroReasonName(debugZero) + " ";
 #endif
     if (unsortable) s += "unsortable ";
     if (between) s += "between ";
 #if OP_DEBUG
     if (debugStart) s += "debugStart:" + STR(debugStart->id) + " ";
     if (debugEnd) s += "debugEnd:" + STR(debugEnd->id) + " ";
-    s += "debugMaker:" + debugEdgeDebugMaker(debugMaker) + " ";
+    s += "debugMaker:" + edgeMakerName(debugMaker) + " ";
     s += debugSetMaker.debugDump() + " ";
     if (debugParentID) s += "debugParentID:" + STR(debugParentID) + " ";
     if (debugRayMatch) s += "debugRayMatch:" + STR(debugRayMatch) + " ";
@@ -1219,11 +1123,11 @@ std::string OpEdge::debugDump() const {
         s += "/" + (OpMax != sum.right() ? STR(sum.right()) : "--") + " ";
     }
     if (EdgeMatch::none != whichEnd)
-        s += "which:" + debugEdgeMatch(whichEnd) + " ";
+        s += "which:" +edgeMatchName(whichEnd) + " ";
     if (EdgeFail::none != rayFail)
-        s += "rayFail:" + debugEdgeFail(rayFail) + " ";
-    if (EdgeSplit::no != doSplit) s += "doSplit ";
-    if (EdgeSplit::yes == doSplit) s += "yes ";
+        s += "rayFail:" + edgeFailName(rayFail) + " ";
+    if (EdgeSplit::no != doSplit)
+        s += "doSplit:" + edgeSplitName(doSplit) + " ";
     if (isLine_impl) s += "isLine ";
     if (disabled) s += OP_DEBUG_CODE(debugFiller ? "filler " : ) "disabled ";
     if (unsectableID) s += "uID:" + STR(unsectableID) + " ";
@@ -1283,7 +1187,7 @@ void dmpDetail(const OpEdge& edge) {
 }
 
 void dmpEnd(const OpEdge& edge)  {
-    edge.segment->contour->contours->dumpMatch(edge.end.pt);
+    edge.contours()->dumpMatch(edge.end.pt);
 }
 
 void dmpFull(const OpEdge& edge) { 
@@ -1365,10 +1269,12 @@ void OpEdge::dumpLinkDetail() const {
 }
 
 void dmpStart(const OpEdge& edge) {
-    edge.segment->contour->contours->dumpMatch(edge.start.pt);
+    edge.contours()->dumpMatch(edge.start.pt);
 }
 
 size_t OpEdgeStorage::debugCount() const {
+    if (!this)
+        return 0;
     size_t result = used;
     OpEdgeStorage* block = next;
     while (next) {
@@ -1391,6 +1297,8 @@ const OpEdge* OpEdgeStorage::debugFind(int ID) const {
 }
 
 const OpEdge* OpEdgeStorage::debugIndex(int index) const {
+    if (!this)
+        return nullptr;
     const OpEdgeStorage* block = this;
     int byteIndex = sizeof(OpEdge) * index;
     while (byteIndex > block->used) {
@@ -1422,6 +1330,17 @@ void dmpDetail(const OpEdgeStorage& edges) {
 	    dmpDetail(*edges.next);
 }
 
+ENUM_NAME_STRUCT(LinkPass);
+#define LINKPASS_NAME(r) { LinkPass::r, #r }
+
+LinkPassName linkPassNames[] = {
+    LINKPASS_NAME(none),
+	LINKPASS_NAME(unambiguous),
+	LINKPASS_NAME(unsectInX)
+};
+
+ENUM_NAME(LinkPass, linkPass)
+
 void dmp(const OpJoiner& edges) {
     if (!edges.path.debugIsEmpty())
         edges.path.dump();
@@ -1451,8 +1370,8 @@ void dmp(const OpJoiner& edges) {
         OpDebugOut("-- linkups --\n");
         dmp(edges.linkups);
     }
-    OpDebugOut("linkMatch:" + STR((int) edges.linkMatch) + " linkPass:" + STR((int) edges.linkPass) 
-            + " disabledBuilt:" + STR((int) edges.disabledBuilt) + "\n");
+    OpDebugOut("linkMatch:" + edgeMatchName(edges.linkMatch) + " linkPass:" 
+            + linkPassName(edges.linkPass) + " disabledBuilt:" + STR(edges.disabledBuilt) + "\n");
 }
 
 void OpWinder::dumpAxis(Axis a) const {
@@ -1504,6 +1423,54 @@ void dmpHex(const EdgeDistance& distance) {
     OpDebugOut(debugDumpHex(distance, DebugLevel::normal));
 }
 
+ENUM_NAME_STRUCT(CurveRef);
+
+#define CURVEREF_NAME(s) { CurveRef::s, #s }
+
+static CurveRefName curveRefNames[] {
+    CURVEREF_NAME(edge),
+    CURVEREF_NAME(opp),
+};
+
+ENUM_NAME(CurveRef, curveRef)
+
+ENUM_NAME_STRUCT(CenterSet);
+
+#define CENTERSET_NAME(s) { CenterSet::s, #s }
+
+static CenterSetName centerSetNames[] {
+    CENTERSET_NAME(splitNo),
+    CENTERSET_NAME(splitKeep),
+	CENTERSET_NAME(newEdge),
+	CENTERSET_NAME(defer),
+	CENTERSET_NAME(edgeCurvy),
+	CENTERSET_NAME(oppCurvy),
+	CENTERSET_NAME(edgeLineLine),
+	CENTERSET_NAME(oppLineLine),
+};
+
+ENUM_NAME(CenterSet, centerSet)
+
+std::string debugDump(const CcCenter& ccCenter, DebugLevel level) {
+    std::string s = DebugLevel::detailed == level ? ccCenter.edge->debugDumpDetail()
+            : ccCenter.edge->debugDump();
+    s += " adjusted:" + ccCenter.center.debugDump();
+	s += " which:" + curveRefName(ccCenter.which);
+	s += " split:" + edgeSplitName(ccCenter.split);
+	s += " centerSet:" + centerSetName(ccCenter.centerSet);
+	s += " depth:" + STR(ccCenter.depth);
+    s += "\n";
+    return s;
+}
+
+void dmp(const CcCenter& ccCenter) {
+    OpDebugOut(debugDump(ccCenter, DebugLevel::normal));
+}
+
+void dmpDetail(const CcCenter& ccCenter) {
+    OpDebugOut(debugDump(ccCenter, DebugLevel::detailed));
+}
+
 std::string debugDump(const CoinPair& pair, DebugLevel level) {
     std::string s = DebugLevel::brief == level ? "start id:" + STR(pair.start->id) + " " : 
             DebugLevel::detailed == level ? "start:" + pair.start->debugDumpDetail() + "\n" :
@@ -1553,7 +1520,7 @@ void dmpHex(const CoinPair& pair) {
 std::string debugDump(const SectRay& ray, DebugLevel level) {
     std::string s;
     s = "ray count:" + STR(ray.distances.size()) + " normal:" + STR(ray.normal);
-    s += " cept:" + STR(ray.homeCept) + " axis:" + debugAxisName(ray.axis) + "\n";
+    s += " cept:" + STR(ray.homeCept) + " axis:" + axisName(ray.axis) + "\n";
     for (const EdgeDistance& dist : ray.distances) {
         s += ::debugDump(dist, level);
     }
@@ -1563,7 +1530,7 @@ std::string debugDump(const SectRay& ray, DebugLevel level) {
 std::string debugDumpHex(const SectRay& ray, DebugLevel level) {
     std::string s;
     s = "ray count:" + STR(ray.distances.size()) + " normal:" + OpDebugDumpHex(ray.normal);
-    s += " cept:" + OpDebugDumpHex(ray.homeCept) + " axis:" + debugAxisName(ray.axis) + "\n";
+    s += " cept:" + OpDebugDumpHex(ray.homeCept) + " axis:" + axisName(ray.axis) + "\n";
     for (const EdgeDistance& dist : ray.distances) {
         s += ::debugDumpHex(dist, level);
     }
@@ -1582,8 +1549,7 @@ void dmpHex(const SectRay& ray) {
     OpDebugOut(debugDumpHex(ray, DebugLevel::normal));
 }
 
-const OpCurveCurve* OpCurveCurve::debugActive;
-
+#if 0
 static int debugSavedID = -1;
 
 void OpCurveCurve::debugSaveID() {
@@ -1604,6 +1570,7 @@ void OpCurveCurve::debugRestoreID() {
     debugGlobalContours->uniqueID = debugSavedID;
     debugSavedID = -1;
 }
+#endif
 
 void OpCurveCurve::dump(bool detail) const {
     std::string names[] = { "edge curves", "opp curves", "edge lines", "opp lines", "edge runs", "opp runs" };
@@ -1613,7 +1580,7 @@ void OpCurveCurve::dump(bool detail) const {
         if (edges.size()) {
             int splitCount = 0;
             for (auto& edge : edges)
-                splitCount += EdgeSplit::yes == edge.doSplit;
+                splitCount += EdgeSplit::yes == edge->doSplit;
             OpDebugOut("-- " + names[count]);
             if (count < 2)
                 OpDebugOut("curves split: " + STR(splitCount));
@@ -1628,12 +1595,39 @@ void dmp(const OpCurveCurve& cc) {
     cc.dump(false);
 }
 
-#if OP_DEBUG
-struct IntersectMakerName {
-    IntersectMaker maker;
-    const char* name;
-};
+#if OP_DEBUG_VERBOSE
+void dmpDepth(int level) {
+    OpCurveCurve* cc = debugGlobalContours->debugCurveCurve;
+    if (!cc)
+        return;
+    int dvLevels = cc->dvDepthIndex.size();
+    if (dvLevels <= level) {
+        for (const auto e : cc->edgeCurves)
+            e->dump();
+        for (const auto e : cc->oppCurves)
+            e->dump();
+        return;
+    }
+    int lo = (int) cc->dvDepthIndex[level];
+    int hi = (int) cc->dvDepthIndex.size() <= level + 1 ? (int) cc->dvAll.size() 
+            : cc->dvDepthIndex[level + 1];
+    for (int index = lo; index < hi; ++index) {
+        OpEdge* e = cc->dvAll[index];
+        e->dump();
+    }
+}
 
+void dmpDepth() {
+    for (int level = 0; level <= (int) debugGlobalContours->debugCurveCurve->dvDepthIndex.size();
+            ++level) {
+        OpDebugOut("level:" + STR(level) + "\n");
+        dmpDepth(level);
+    }
+}
+#endif
+
+#if OP_DEBUG
+ENUM_NAME_STRUCT(IntersectMaker);
 #define INTERSECT_MAKER_NAME(r) { IntersectMaker::r, #r }
 
 IntersectMakerName intersectMakerNames[] {
@@ -1687,27 +1681,10 @@ IntersectMakerName intersectMakerNames[] {
 	INTERSECT_MAKER_NAME(opTestEdgeZero4),
 };
 
-static bool makerOutOfDate = false;
-
-void checkMaker() {
-    static bool makerChecked = false;
-    if (!makerChecked) {
-        for (unsigned index = 0; index < ARRAY_COUNT(intersectMakerNames); ++index)
-           if (!makerOutOfDate && (unsigned) intersectMakerNames[index].maker != index) {
-               OpDebugOut("!!! intersectMakerNames out of date\n");
-               makerOutOfDate = true;
-               break;
-           }
-        makerChecked = true;
-    }
-}
+ENUM_NAME(IntersectMaker, intersectMaker)
 #endif
 
-struct MatchEndsName {
-    MatchEnds end;
-    const char* name;
-};
-
+ENUM_NAME_STRUCT(MatchEnds);
 #define MATCH_ENDS_NAME(r) { MatchEnds::r, #r }
 
 MatchEndsName matchEndsNames[] {
@@ -1717,32 +1694,9 @@ MatchEndsName matchEndsNames[] {
     MATCH_ENDS_NAME(both)
 };
 
-static bool matchEndsOutOfDate = false;
-
-// !!! macro-ize this pattern?
-void checkMatchEnds() {
-    static bool matchEndsChecked = false;
-    if (!matchEndsChecked) {
-        for (unsigned index = 0; index < ARRAY_COUNT(matchEndsNames); ++index)
-           if (!matchEndsOutOfDate && (unsigned) matchEndsNames[index].end != index) {
-               OpDebugOut("!!! matchEndsNames out of date\n");
-               matchEndsOutOfDate = true;
-               break;
-           }
-        matchEndsChecked = true;
-    }
-}
+ENUM_NAME(MatchEnds, matchEnds)
 
 std::string OpIntersection::debugDump(bool fromDumpFull, bool fromDumpDetail) const {
-    auto matchEndStr = [](MatchEnds matchEnd) {
-        return matchEndsOutOfDate ? " (matchEnds out of date) " + STR((int)matchEnd)
-                : matchEndsNames[(int)matchEnd].name;
-    };
-#if OP_DEBUG
-    checkMaker();
-#endif
-    checkMatchEnds();
-    checkReason();
     std::string s;
     std::string segmentID = segment ? segment->debugDumpID() : "--";
     const OpSegment* oppParent = opp ? opp->segment : nullptr;
@@ -1758,32 +1712,24 @@ std::string OpIntersection::debugDump(bool fromDumpFull, bool fromDumpDetail) co
     s += " opp/sect:" + oppParentID + "/" + oppID;
     if (coincidenceID  OP_DEBUG_CODE(|| debugCoincidenceID)) {
         s += " coinID:" + STR(coincidenceID)  OP_DEBUG_CODE(+ "/" + STR(debugCoincidenceID));
-        s += " " + matchEndStr(coinEnd);
+        s += " " + matchEndsName(coinEnd);
     }
     if (unsectID) {
         s += " unsectID:" + STR(unsectID);
-        s += " " + matchEndStr(unsectEnd);
+        s += " " + matchEndsName(unsectEnd);
     }
     if (!coincidenceID  OP_DEBUG_CODE(&& !debugCoincidenceID) && !unsectID 
             && MatchEnds::none != coinEnd)
-        s += "!!! (unexpected) " +  matchEndStr(coinEnd);
+        s += "!!! (unexpected) " +  matchEndsName(coinEnd);
     if (betweenID)
         s += " betweenID:" + STR(betweenID);
     if (coincidenceProcessed)
         s += " coincidenceProcessed";
 #if OP_DEBUG
-    s += " maker:";
-    if (makerOutOfDate)
-        s += " (maker out of date) " + STR((int)debugMaker);
-    else
-        s += intersectMakerNames[(int)debugMaker].name;
+    s += " maker:" + intersectMakerName(debugMaker);
     if (fromDumpDetail)
         s += " " + debugSetMaker.debugDump();
-    s += " reason:";
-    if (reasonOutOfDate)
-        s += " (reason out of date) " + STR((int)debugReason);
-    else
-        s += sectReasonNames[(int)debugReason].name;
+    s += " reason:" + sectReasonName(debugReason);
 #endif
     return s;
 }
@@ -1891,25 +1837,13 @@ std::string OpSegment::debugDump() const {
 }
 
 std::string OpSegment::debugDumpDetail() const {
-    bool outOfDate = false;
-    for (unsigned index = 0; index < ARRAY_COUNT(debugReasonNames); ++index)
-       if (!outOfDate && (unsigned) debugReasonNames[index].reason != index) {
-           OpDebugOut("debugReasonNames out of date\n");
-           outOfDate = true;
-       }
     std::string s = debugDump() + "\n";
     s += " winding: " + winding.debugDump() + " ";
     if (disabled)
         s += "disabled ";
 #if OP_DEBUG
-    if (ZeroReason::uninitialized != debugZero) {
-        s += "reason: ";
-        if (outOfDate)
-            s += STR((int)debugZero);
-        else
-            s += std::string(debugReasonNames[(int)debugZero].name);
-        s += " ";
-    }
+    if (ZeroReason::uninitialized != debugZero)
+        s += "reason:" + zeroReasonName(debugZero) + " ";
 #endif
     if (recomputeBounds)
         s += "recomputeBounds ";
@@ -1918,16 +1852,9 @@ std::string OpSegment::debugDumpDetail() const {
     s += "\n";
     s += " bounds:" + ptBounds.debugDump() + " ";
     OP_DEBUG_CODE(s += "contour:" + (contour ? STR(contour->id) : std::string("unset")) + "\n");
-    checkReason();
 #if OP_DEBUG
-    if (reasonOutOfDate)
-        s += " (start reason out of date) " + STR((int)debugStart);
-    else
-        s += std::string(" start reason:") + sectReasonNames[(int)debugStart].name;
-    if (reasonOutOfDate)
-        s += " (end reason out of date) " + STR((int)debugEnd);
-    else
-        s += std::string(" end reason:") + sectReasonNames[(int)debugEnd].name;
+    s += " start reason:" + sectReasonName(debugStart);
+    s += " end reason:" + sectReasonName(debugEnd);
 #endif
     return s;
 }
@@ -2027,33 +1954,22 @@ void dmpStart(const OpSegment& seg) {
 
 DEBUG_DUMP_ID_DEFINITION(OpSegment, id)
 
-struct DebugWindingTypeName {
-    WindingType windType;
-    const char* name;
-};
-
+ENUM_NAME_STRUCT(WindingType);
 #define WINDING_NAME(w) { WindingType::w, #w }
 
-static DebugWindingTypeName debugWindingTypeNames[] = {
-    WINDING_NAME(uninitialized),
+static WindingTypeName windingTypeNames[] = {
+    WINDING_NAME(uninitialized),  // note: this is -1
 	WINDING_NAME(temp),
 	WINDING_NAME(winding),
 	WINDING_NAME(sum)
 };
 
+ENUM_NAME(WindingType, windingType)
+
 std::string OpWinding::debugDump() const {
-    bool outOfDateWT = false;
-    for (signed index = 0; index < (signed) ARRAY_COUNT(debugWindingTypeNames); ++index)
-       if (!outOfDateWT && (signed) debugWindingTypeNames[index].windType != index - 1) {
-           OpDebugOut("debugWindingTypeNames out of date\n");
-           outOfDateWT = true;
-       }
     std::string result = "type: ";
 #if OP_DEBUG
-    if (outOfDateWT)
-        result += STR((signed)debugType);
-    else
-        result += std::string(debugWindingTypeNames[(int)debugType + 1].name);
+        result += std::string(windingTypeNames[(int)debugType + 1].name);  // + 1: see above
 #endif
     result += " left: " + (OpMax == left() ? std::string("unset") : STR(left()));
     result += " right: " + (OpMax == right() ? std::string("unset") : STR(right()));
@@ -2149,40 +2065,19 @@ void dmp(const LinkUps& linkups) {
 }
 
 void dmp(const FoundEdge& foundOne) {
-    OpDebugOut(debugEdgeMatch(foundOne.whichEnd) + " " + foundOne.edge->debugDump() + "\n");
+    OpDebugOut(edgeMatchName(foundOne.whichEnd) + " " + foundOne.edge->debugDump() + "\n");
 }
 
-// !!! macro-ize this pattern (too much typing!)
-struct DebugChopUnsortable {
-    ChopUnsortable chop;
-    const char* name;
-};
-
+ENUM_NAME_STRUCT(ChopUnsortable);
 #define CHOP_NAME(w) { ChopUnsortable::w, #w }
 
-static DebugChopUnsortable debugChopNames[] = {
+static ChopUnsortableName chopUnsortableNames[] = {
     CHOP_NAME(none),
 	CHOP_NAME(prior),
 	CHOP_NAME(next),
 };
 
-std::string debugChopUnsortable(ChopUnsortable match) {
-    std::string result;
-    bool outOfDate = false;
-    for (unsigned index = 0; index < ARRAY_COUNT(debugChopNames); ++index) {
-        if (!outOfDate && (unsigned)debugChopNames[index].chop != index) {
-            OpDebugOut("debugChopNames out of date\n");
-            outOfDate = true;
-        }
-        if (match != debugChopNames[index].chop)
-            continue;
-        if (outOfDate)
-            result += STR((int)match);
-        else
-            result += std::string(debugChopNames[(int)match].name);
-    }
-    return result;
-}
+ENUM_NAME(ChopUnsortable, chopUnsortable)
 
 void dmpDetail(const FoundEdge& foundOne) {
     std::string s = foundOne.edge->debugDumpDetail() + "\n";
@@ -2191,13 +2086,13 @@ void dmpDetail(const FoundEdge& foundOne) {
     if (foundOne.index >= 0)
         s += "index:" + STR(foundOne.index) + " ";
     if (foundOne.whichEnd != EdgeMatch::none)
-        s += "whichEnd:" + debugEdgeMatch(foundOne.whichEnd) + " ";
+        s += "whichEnd:" + edgeMatchName(foundOne.whichEnd) + " ";
     if (foundOne.connects)
         s += "connects ";
     if (foundOne.loops)
         s += "loops ";
     if (ChopUnsortable::none != foundOne.chop)
-        s += "chopUnsortable:" + debugChopUnsortable(foundOne.chop) + " ";
+        s += "chopUnsortable:" + chopUnsortableName(foundOne.chop) + " ";
     OpDebugOut(s + "\n");
 }
 
@@ -2404,7 +2299,7 @@ std::string debugDumpColor(uint32_t c) {
     char asHex[11];
     int written = snprintf(asHex, sizeof(asHex), "0x%08x", c);
     if (written != 10)
-         return "snprintf of " + STR((int) c) + " to hex failed (written:" + STR(written) + ")";
+         return "snprintf of " + STR_E(c) + " to hex failed (written:" + STR(written) + ")";
     if (debugColorArray.end() == result)
         return "color " + std::to_string(c) + " (" + std::string(asHex) + ") not found";
     return std::string(asHex) + " " + (*result).second;

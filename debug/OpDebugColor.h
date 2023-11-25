@@ -7,7 +7,6 @@
 #include "OpDebug.h"
 
 #if OP_DEBUG_IMAGE
-
 #include <string>
 #include <utility>
 #include <vector>
@@ -582,8 +581,6 @@ extern uint32_t WhiteSmoke;
 extern uint32_t white_smoke;
 extern uint32_t white;
 extern uint32_t White;
-
-extern std::vector<std::pair<uint32_t, std::string>> debugColorArray;
 
 #endif
 

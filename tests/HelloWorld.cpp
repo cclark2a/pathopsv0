@@ -21,7 +21,7 @@
 #include "include/core/SkSurface.h"
 #include "include/core/SkTileMode.h"
 #include "include/effects/SkGradientShader.h"
-#include "tools/sk_app/DisplayParams.h"
+//#include "tools/sk_app/DisplayParams.h"
 
 
 #include "OpCurve.h"

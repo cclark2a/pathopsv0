@@ -144,7 +144,7 @@ OpRoots OpCurve::rawIntersect(const LinePts& linePt) const {
 OpRoots OpCurve::rayIntersect(const LinePts& line) const {
     OpRoots rawRoots = rawIntersect(line);
     rawRoots.keepValidTs();
-    if (!rawRoots.count || rawRoots.rawIntersectFailed)
+    if (!rawRoots.count || rawRoots.fail == RootFail::rawIntersectFailed)
         return rawRoots;
     OpRoots realRoots;
     XyChoice xy = fabsf(line.pts[1].x - line.pts[0].x) >= fabsf(line.pts[1].y - line.pts[0].y) ?
@@ -292,12 +292,14 @@ OpCurve OpCurve::toVertical(const LinePts& line) const {
     OpCurve rotated;
     float adj = line.pts[1].x - line.pts[0].x;
     float opp = line.pts[1].y - line.pts[0].y;
-    for (int n = 0; n < pointCount(); ++n) {
+    int count = pointCount() + (int) centerPt;
+    for (int n = 0; n < count; ++n) {
         OpVector v = pts[n] - line.pts[0];
         rotated.pts[n].x = v.dy * adj - v.dx * opp;
         rotated.pts[n].y = v.dy * opp + v.dx * adj;
     }
     rotated.weight = weight;
+    rotated.centerPt = centerPt;
     rotated.type = type;
     OP_DEBUG_CODE(rotated.debugIntersect = debugIntersect);
     return rotated;

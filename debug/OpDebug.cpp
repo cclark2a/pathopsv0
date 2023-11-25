@@ -26,6 +26,7 @@ bool debugHexFloat = false;
 #endif
 
 std::atomic_int testsWarn;
+int debugPrecision = -1;		// minus one means unset
 
 union FloatIntUnion {
     float   f;
@@ -38,6 +39,7 @@ float OpDebugBitsToFloat(int32_t i) {
     return d.f;
 }
 
+#if 0
 void OpPrintOut(const std::string& s) {
 #ifdef _WIN32
     OutputDebugStringA(s.c_str());
@@ -48,6 +50,7 @@ void OpPrintOut(const std::string& s) {
     fprintf(stderr, "%s", s.c_str());
 #endif
 }
+#endif
 
 uint64_t OpInitTimer() {
 #ifdef _WIN32
@@ -102,14 +105,14 @@ std::string OpDebugDump(float f) {
     if (!OpMath::IsFinite(f))
         return f > 0 ? "Inf" : "-Inf";
     char buffer[20];
-    int precision = 8;
+    int pPrecision = 8;
     float copyF = f;
     while (copyF >= 10) {
-        if (0 == --precision)
+        if (0 == --pPrecision)
             break;
         copyF /= 10;
     }
-    int size = snprintf(buffer, sizeof(buffer), "%.*g", precision, f);
+    int size = snprintf(buffer, sizeof(buffer), "%.*g", pPrecision, f);
     std::string s(buffer, size);
 //    while ('0' == s.back())
 //        s.pop_back();
@@ -181,13 +184,13 @@ void OpDebugSkip(const char*& str, const char* match) {
     OP_ASSERT(strlen(str));
 }
 
-std::string OpDebugToString(float value, int precision) {
+std::string OpDebugToString(float value) {
     std::string result;
-    if (precision < 0)
-        result = STR(value);
+    if (debugPrecision < 0)
+        result = std::to_string(value);
     else {
         std::string s(16, '\0');
-        auto written = std::snprintf(&s[0], s.size(), "%.*f", precision, value);
+        auto written = std::snprintf(&s[0], s.size(), "%.*f", debugPrecision, value);
         s.resize(written);
         result = s;
     }
@@ -209,8 +212,8 @@ std::string OpDebugToString(float value, int precision) {
 void OpMath::DebugCompare(float a, float b) {
     float diff = fabsf(a - b);
     float max = std::max(fabsf(a), fabsf(b));
-    float precision = diff / max;
-    OP_ASSERT(precision < OpEpsilon);
+    float pPrecision = diff / max;
+    OP_ASSERT(pPrecision < OpEpsilon);
 }
 
 OpVector OpCurve::debugTangent(float t) const {
@@ -275,7 +278,7 @@ const OpEdge* OpEdge::debugAdvanceToEnd(EdgeMatch match) const {
 
 #if OP_DEBUG_VALIDATE
 void OpEdge::debugValidate() const {
-    OpContours* contours = segment->contour->contours;
+    OpContours* contours = this->contours();
     contours->debugValidateEdgeIndex += 1;
     bool loopy = debugIsLoop();
     if (loopy) {
@@ -511,7 +514,7 @@ void OpJoiner::debugValidate() const {
             linkups.l.size() ? linkups.l[0] : nullptr;
     if (!anEdge)
         return;
-    OpContours* contours = anEdge->segment->contour->contours;
+    OpContours* contours = anEdge->contours();
     contours->debugValidateJoinerIndex += 1;
     contours->debugCheckLastEdge = false;
     if (LinkPass::unambiguous == linkPass) {

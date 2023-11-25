@@ -8,7 +8,8 @@ $ prefix for OpDebugColor.h
 #include "OpDebug.h"
 
 #if OP_DEBUG_IMAGE
-
+#include <string>
+#include <utility>
 #include <vector>
 
 $ prefix for OpDebugColor.cpp
@@ -168,8 +169,6 @@ white smoke	#F5F5F5
 white	#FFFFFF
 
 $ postfix for OpDebugColor.h
-
-extern std::vector<uint32_t> debugColorArray;
 
 #endif
 

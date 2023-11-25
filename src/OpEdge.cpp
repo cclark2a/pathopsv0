@@ -7,20 +7,20 @@
 #endif
 
 OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight  
-		OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file, const OpIntersection* i1, 
-		const OpIntersection* i2))
+		OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file))
 	: OpEdge() {
 	segment = edge->segment;
 	start = NewEdge::isLeft == isLeftRight ? edge->start : newPtT;
 	end = NewEdge::isLeft == isLeftRight ? newPtT : edge->end;
+	if (edge->curvySet && edge->curvy <= OP_CURVACIOUS_LIMIT) {
+		curvySet = true;
+		curvy = edge->curvy * .5;  // !!! bogus, but shouldn't matter
+	}
 #if OP_DEBUG
-	debugStart = i1;
-	debugEnd = i2;
 	debugMaker = maker;
 	debugSetMaker = { file, line };
 	debugParentID = edge->id;
 #endif	
-
 	complete();
 }
 
@@ -103,7 +103,7 @@ void OpEdge::apply() {
 		return;
 	OpWinding su = sum;
 	OpWinding wi = winding;
-	OpContours* contours = segment->contour->contours;
+	OpContours* contours = this->contours();
 	WindState left = contours->windState(wi.left(), su.left(), OpOperand::left);
 	WindState right = contours->windState(wi.right(), su.right(), OpOperand::right);
 	if (left != WindState::flipOff && left != WindState::flipOn
@@ -197,7 +197,7 @@ void OpEdge::clearLastEdge() {
 #if 0 && OP_DEBUG
 	// !!! not ready for prime time
 	// this asserts on cases which are not really errors; fixing it causes more harm than good for now
-	OpJoiner* joiner = segment->contour->contours->debugJoiner;
+	OpJoiner* joiner = contours()->debugJoiner;
 	OP_ASSERT(joiner);
 	std::vector<OpEdge*>& l = joiner->linkups.l;
 	OP_ASSERT(l.end() == std::find(l.begin(), l.end(), this));
@@ -216,6 +216,10 @@ void OpEdge::clearPriorEdge() {
 void OpEdge::complete() {
 	winding.setWind(segment->winding.left(), segment->winding.right());
 	subDivide();	// uses already computed points stored in edge
+}
+
+OpContours* OpEdge::contours() const {
+	return segment->contour->contours;
 }
 
 size_t OpEdge::countUnsortable() const {
@@ -246,6 +250,19 @@ bool OpEdge::containsLink(const OpEdge* edge) const {
 			break;
 	}
 	return false;
+}
+
+// Guess if curve is nearly a line by comparing distance between ends and mid t pt to end line.
+// Note that the rotated line is not square, so distances are sloppy as well.
+float OpEdge::curviness() {
+	if (curvySet)
+		return curvy;
+	curvySet = true;
+	const OpCurve& rotated = setVertical();
+	float length = fabsf(rotated.lastPt().y);
+	OpPoint rotatedCenter = rotated.pts[rotated.pointCount()];
+	curvy = OpMath::FloatDivide(fabsf(rotatedCenter.x), length);
+	return curvy;
 }
 
 OpIntersection* OpEdge::findSect(EdgeMatch match) {
@@ -439,6 +456,13 @@ const OpCurve& OpEdge::setCurve() {
 	return curve_impl;
 }
 
+const OpCurve& OpEdge::setCurveCenter() {
+	(void) setCurve();
+	curve_impl.pts[curve_impl.pointCount()] = center.pt;
+	curve_impl.centerPt = true;
+	return curve_impl;
+}
+
 // should be inlined. Out of line for ease of setting debugging breakpoints
 void OpEdge::setDisabled(OP_DEBUG_CODE(ZeroReason reason)) {
 	disabled = true; 
@@ -559,7 +583,7 @@ void OpEdge::setUnsortable() {
 const OpCurve& OpEdge::setVertical() {
 	if (!verticalSet) {
 		verticalSet = true;
-		const OpCurve& curve = setCurve();
+		const OpCurve& curve = setCurveCenter();
 		LinePts edgeLine { start.pt, end.pt };
 		vertical_impl = curve.toVertical(edgeLine);
 	}
@@ -712,11 +736,10 @@ void OpWinding::move(OpWinding opp, const OpContours* contours, bool backwards) 
 		right_impl ^= opp.right();
 }
 
-void OpWinding::setSum(OpWinding winding, const OpSegment* segment) {
+void OpWinding::setSum(OpWinding winding, const OpContours* contours) {
 	OP_ASSERT(WindingType::uninitialized == debugType);
 	OP_ASSERT(WindingType::temp == winding.debugType);
 	OP_DEBUG_CODE(debugType = WindingType::sum);
-	const OpContours& contours = *segment->contour->contours;
-	left_impl = winding.left() & contours.leftFillTypeMask();
-	right_impl = winding.right() & contours.rightFillTypeMask();
+	left_impl = winding.left() & contours->leftFillTypeMask();
+	right_impl = winding.right() & contours->rightFillTypeMask();
 }

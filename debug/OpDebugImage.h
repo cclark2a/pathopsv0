@@ -39,11 +39,13 @@ struct OpDebugImage {
 	static void add(const OpDebugRay& );
 	static void addArrowHeadToPath(const OpLine& , class SkPath& );
 	static void addDiamondToPath(OpPoint , class SkPath& );
+	static void addSquareToPath(OpPoint , class SkPath& );
 	static void addToPath(const OpCurve& , class SkPath& );
 	static void center(int id, bool add);
 	static void clearIntersections();
 	static void clearLines();
 	static void clearScreen();
+	static bool drawCurve(const OpCurve& , uint32_t color = debugBlack);
 	static void drawDoubleCenter(OpPoint , bool add);
 	static void drawDoubleFocus();
 	static void drawDoubleFocus(const OpRect& , bool add);
@@ -146,12 +148,17 @@ extern void textSize(float );
 extern void toggleSegmentEdges();  // not in master list; immediately changes edge state
 extern void toggleTemporaryEdges();
 
+#if OP_DEBUG_VERBOSE
+extern void depth(int level);  // during curve-curve intersection, select edges at given level 
+#endif
+
 #define MASTER_LIST \
 OP_X(Bounds) \
 OP_X(Centers) \
 OP_X(Coincidences) \
 OP_X(Controls) \
 OP_X(Edges) \
+OP_X(Ends) \
 OP_X(Fill) \
 OP_X(Grid) \
 OP_X(Guides) \

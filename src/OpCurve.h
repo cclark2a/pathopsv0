@@ -17,7 +17,7 @@ enum class OpType {
     line,
     quad,
     conic,
-    cubic,
+    cubic
 };
 
 // arranged so down/left is -1, up/right is +1
@@ -65,27 +65,31 @@ struct OpPair {
 struct OpCurve {
     OpCurve() 
         : weight(1)
-        , type(OpType::no) {
+        , type(OpType::no)
+        , centerPt(false) {
         OP_DEBUG_CODE(debugIntersect = OpDebugIntersect::segment);
     }
 
     OpCurve(const OpPoint p[], OpType t) 
         : weight(1)
-        , type(t) {
+        , type(t)
+        , centerPt(false) {
         memcpy(pts, p, pointCount() * sizeof(OpPoint));
         OP_DEBUG_CODE(debugIntersect = OpDebugIntersect::segment);
     }
 
     OpCurve(const OpPoint p[], float w, OpType t)
         : weight(w)
-        , type(t) {
+        , type(t)
+        , centerPt(false) {
         memcpy(pts, p, pointCount() * sizeof(OpPoint));
         OP_DEBUG_CODE(debugIntersect = OpDebugIntersect::segment);
     }
 
     OpCurve(OpPoint p0, OpPoint p1)
         : weight(1)
-        , type(OpType::line) {
+        , type(OpType::line)
+        , centerPt(false) {
         pts[0] = p0;
         pts[1] = p1;
         OP_DEBUG_CODE(debugIntersect = OpDebugIntersect::segment);
@@ -145,9 +149,10 @@ struct OpCurve {
     OpVector debugTangent(float t) const;
 #endif
 
-    OpPoint pts[4];
+    OpPoint pts[5];  // extra point carries cubic center for vertical rotation (used by curve sect)
     float weight;
     OpType type;
+    bool centerPt;  // true if center point follows curve
 #if OP_DEBUG
     OpDebugIntersect debugIntersect;
     OpPoint debugOriginalCtrls[2];   // if cubic ctrl pts are pinned, store originals here

@@ -101,7 +101,7 @@ void OpJoiner::buildDisabledPals(OpContours& contours) {
 // it's likely that this edge is very small, but don't know how to quantify that (yet)
 void OpJoiner::checkDisabled() {
 	if (!disabledBuilt)
-		buildDisabled(*edge->segment->contour->contours);
+		buildDisabled(*edge->contours());
 	// need a lookahead method (e.g., testQuadratic75: (simplify))
 	// sometimes the best choice is not the one that makes the area smallest
 	// if we could look ahead as few as two edges, testQuadratic7 (simplify) for instance
@@ -260,7 +260,7 @@ void OpJoiner::checkUnsortableAndDisabled() {
 	OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
 // look for disabled pal that is not in output, and completes loop (cubics14d)
 	if (!disabledPalsBuilt)
-		buildDisabledPals(*edge->segment->contour->contours);
+		buildDisabledPals(*edge->contours());
 	matchLeftover(matchPt, edge, disabledPals, found);
 	OP_ASSERT(!found.size() || !found.back().edge->debugIsLoop());
 }
@@ -473,7 +473,7 @@ bool OpJoiner::forceSmallEdge() {
 }
 
 bool OpJoiner::lastLastResort() {
-	OP_WARNING(edge->segment->contour->contours, lastResort);
+	OP_WARNING(edge->contours(), lastResort);
 	OpEdge* filler = edge->segment->contour->addFiller(edge, lastEdge);
 	if (!filler)
 		return false;
@@ -679,7 +679,7 @@ bool OpJoiner::matchLinks(bool popLast) {
 #endif
 	if (!found.size())
         lastLastResort();
-	OP_ASSERT(edge->segment->contour->contours->debugExpect == OpDebugExpect::unknown
+	OP_ASSERT(edge->contours()->debugExpect == OpDebugExpect::unknown
 			|| found.size());
 	if (!found.size())  // triggered by fuzz763_1c
 		return false;

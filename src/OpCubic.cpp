@@ -127,7 +127,7 @@ OpRoots OpCubic::rawIntersect(const LinePts& line) const {
         OpDebugRecord(rotated, t, vertPt, result);
 #endif
         if (fabsf(vertPt.x) >= RAW_INTERSECT_LIMIT) {
-            result.rawIntersectFailed = true;
+            result.fail = RootFail::rawIntersectFailed;
             break;
         }
     }

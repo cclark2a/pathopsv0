@@ -58,7 +58,7 @@ OpRoots OpConic::rawIntersect(const LinePts& line) const {
             continue;
         OpPoint vertPt = rotated.asConic().ptAtT(t);
         if (fabsf(vertPt.x) >= RAW_INTERSECT_LIMIT) {
-            result.rawIntersectFailed = true;
+            result.fail = RootFail::rawIntersectFailed;
             break;
         }
     }
