@@ -225,20 +225,48 @@ extern const OpSegment* findSegment(int id);
 enum class DebugLevel {
 	brief,
 	normal,
-	detailed
+	detailed,
+    error      // displays uninitialized and error conditions like nan and infinities
 };
 
-// !!! will likely macro-tize these as pattern emerges
-extern std::string debugDump(const EdgeDistance& , DebugLevel );
-extern std::string debugDumpHex(const EdgeDistance& , DebugLevel );
-extern std::string debugDump(const SectRay& , DebugLevel );
-extern std::string debugDumpHex(const SectRay& , DebugLevel );
+enum class DebugBase {
+    dec,
+    hex
+};
 
 extern std::string debugDumpColor(uint32_t c);
 extern void dmpColor(uint32_t );
 extern void dmpColor(const OpEdge* );
 extern void dmpColor(const OpEdge& );
+extern void dmpFilters();
 extern void dmpHex(float );
+extern void dmpWidth(int );  // max chars before inserting linefeed
+
+enum class EdgeFilter;
+extern void addAlways(EdgeFilter);
+extern void clearAlways();
+extern void addFilter(EdgeFilter);
+extern void clearFilter();
+
+// !!! working around laptop compiler bug; testing new w/o breaking old...
+extern void dp(const OpEdge* );
+extern void dp(const OpEdge& );
+extern void dp(int id);
+extern void dp0x(const OpEdge* );
+extern void dp0x(const OpEdge& );
+extern void dp0x(int id);
+extern void db(const OpEdge* );
+extern void db(const OpEdge& );
+extern void db(int id);
+extern void db0x(const OpEdge* );
+extern void db0x(const OpEdge& );
+extern void db0x(int id);
+extern void deets(const OpEdge* );
+extern void deets(const OpEdge& );
+extern void deets(int id);
+extern void deets0x(const OpEdge* );
+extern void deets0x(const OpEdge& );
+extern void deets0x(int id);
 
 #endif
 

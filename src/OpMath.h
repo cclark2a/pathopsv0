@@ -459,6 +459,7 @@ struct OpPoint {
 
 #if OP_DEBUG_DUMP
     OpPoint(const char*& );
+    std::string debugDump(DebugLevel , DebugBase ) const;
     std::string debugDump() const;
     std::string debugDumpHex() const;
     void dump() const;
@@ -587,6 +588,7 @@ struct OpPtT {
 
 #if OP_DEBUG_DUMP
     OpPtT(const char*& );
+    std::string debugDump(DebugLevel , DebugBase ) const;
     std::string debugDump() const;
     std::string debugDumpHex() const;
     void dump() const;

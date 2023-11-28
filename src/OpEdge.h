@@ -267,6 +267,7 @@ struct EdgeDistance {
 	}
 
 #if OP_DEBUG_DUMP
+    std::string debugDump(DebugLevel , DebugBase ) const;
 	void dump() const;
 	void dumpDetail() const;
 #endif
@@ -302,6 +303,7 @@ struct SectRay {
 	EdgeDistance* find(OpEdge* );
 	void sort();
 #if OP_DEBUG_DUMP
+    std::string debugDump(DebugLevel , DebugBase ) const;
 	void dump() const;
 	void dumpDetail() const;
 	void dumpHex() const;
@@ -551,6 +553,7 @@ public:
 	OpEdge(OpPtT data[2]);
 	OpEdge(OpHexPtT data[2]);
 	void debugCompare(std::string ) const;
+    std::string debugDump(DebugLevel , DebugBase ) const;
 	std::string debugDumpBrief() const;
 	std::string debugDumpChain(WhichLoop , bool detail) const;
 	void dumpCenter(bool asHex) const;
@@ -583,7 +586,7 @@ public:
 	OpEdge* priorEdge;	// edges that link to form completed contour
 	OpEdge* nextEdge;
 	OpEdge* lastEdge;
-	OpPoint ctrlPts[2];	// quad, conic, cubic
+	OpPoint ctrlPts[2];	// quad, conic, cubic  // !!! remove and use points in curve_impl instead
 	// !!! Can start, end be shared with intersection?
 	// what about id/ptr struct (union?) with intersect id and ptr
 	// ptr is set up once intersects is sorted

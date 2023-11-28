@@ -166,4 +166,11 @@ extern int debugPrecision;		// minus one means unset
 #define OP_DEBUG_DUMP_COUNT(contours, label)
 #endif
 
+#if OP_DEBUG_DUMP
+enum class DebugLevel;
+enum class DebugBase;
+
+void OpDebugFormat(std::string );
+#endif
+
 #endif

@@ -139,6 +139,7 @@ struct OpCurve {
     float tZeroX(float t1, float t2) const;
     OpPair xyAtT(OpPair t, XyChoice xy) const;
 #if OP_DEBUG_DUMP
+    std::string debugDump(DebugLevel , DebugBase ) const;
     std::string debugDump() const;
     std::string debugDumpHex() const;
     void dump() const;

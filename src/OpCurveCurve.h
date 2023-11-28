@@ -2,7 +2,7 @@
 #ifndef OpCurveCurve_DEFINED
 #define OpCurveCurve_DEFINED
 
-#define CC_EXPERIMENT 0  /* rewrites curve curve intersection to:
+#define CC_EXPERIMENT 1  /* rewrites curve curve intersection to:
 	- reject segments only by bounds intersection (bounds may be rotated)
 	- use line/line intersection only (no line/curve intersection)
 	- accelerate by guessing better centers for curve splitting

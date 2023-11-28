@@ -4,7 +4,7 @@
 
 // this puts all switches that decide which tests to run and how to run them in one place
 
-#define OP_DEBUG_FAST_TEST 1  // in a debug build: set to zero to enable debug dump, debug image
+#define OP_DEBUG_FAST_TEST 0  // in a debug build: set to zero to enable debug dump, debug image
 #define TEST_PATH_OP_FIRST "" /* e.g., "battleOp255" test to debug */
 #define TEST_PATH_OP_SKIP_TO_FILE "" /* e.g., "battle" tests only (see OpSkiaTests.cpp) */
 #define TEST_FAILS 0  // set to one to run only failures captured in skia tests
@@ -19,7 +19,7 @@
 #define OP_TEST_SKIA 1  // see if skia's path ops can execute the same test
 #define OP_TEST_REGION 1  // test result of v0 against skia regions
 #define OP_DEBUG_RECORD 0  // track some statistic or other while running
-#define OP_DEBUG_VERBOSE 0
+#define OP_DEBUG_VERBOSE 1
 
 // see descriptions for exceptions below
 #define TEST_PATH_OP_EXCEPTIONS ""
