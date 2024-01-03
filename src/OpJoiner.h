@@ -16,8 +16,7 @@ enum class LinkPass {
 struct LinkUps {
 	void sort();
 #if OP_DEBUG_DUMP
-	void dump() const;
-	void dumpDetail() const;
+	DUMP_DECLARATIONS
 #endif
 
 	std::vector<OpEdge*> l;

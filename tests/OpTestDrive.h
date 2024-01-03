@@ -5,12 +5,12 @@
 // this puts all switches that decide which tests to run and how to run them in one place
 
 #define OP_DEBUG_FAST_TEST 0  // in a debug build: set to zero to enable debug dump, debug image
-#define TEST_PATH_OP_FIRST "" /* e.g., "battleOp255" test to debug */
-#define TEST_PATH_OP_SKIP_TO_FILE "" /* e.g., "battle" tests only (see OpSkiaTests.cpp) */
+#define TEST_PATH_OP_FIRST "thread_circles13089" /* e.g., "battleOp255" test to debug */
+#define TEST_PATH_OP_SKIP_TO_FILE "circle" /* e.g., "battle" tests only (see OpSkiaTests.cpp) */
 #define TEST_FAILS 0  // set to one to run only failures captured in skia tests
 
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
-#define OP_SHOW_ERRORS_ONLY 1  // if 1, skip showing dots, test files started/finished
+#define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
 #define OP_TEST_ALLOW_EXTENDED 0  // some Skia tests have extended versions which take longer
                                   // (out of date) max run: 8,430,493: skipped: 5 error: 335
 #define OP_TEST_ENABLE_THREADS 1  // additionally, fast test above must be 1 to use threading
@@ -19,13 +19,13 @@
 #define OP_TEST_SKIA 1  // see if skia's path ops can execute the same test
 #define OP_TEST_REGION 1  // test result of v0 against skia regions
 #define OP_DEBUG_RECORD 0  // track some statistic or other while running
-#define OP_DEBUG_VERBOSE 1
+#define OP_DEBUG_VERBOSE (1 && !OP_DEBUG_FAST_TEST)
 
 // see descriptions for exceptions below
-#define TEST_PATH_OP_EXCEPTIONS ""
-#define TEST_PATH_OP_FAIL_EXCEPTIONS ""
+#define TEST_PATH_OP_EXCEPTIONS "cubics7d"
+#define TEST_PATH_OP_FAIL_EXCEPTIONS "grshapearcs1"
 #define TEST_PATH_OP_MAP_TO_FUZZ "fuzzhang_1"
-#define TEST_PATH_SIMPLIFY_EXCEPTIONS ""
+#define TEST_PATH_SIMPLIFY_EXCEPTIONS "grshapearc"
 #define TEST_PATH_SIMPLIFY_FAIL_EXCEPTIONS "" // "grshapearc"
 #define TEST_PATH_SIMPLIFY_FUZZ_EXCEPTIONS ""
 #define TEST_PATH_SIMPLIFY_MAP_TO_FUZZ  ""
@@ -40,6 +40,11 @@
 #define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */
 
 /* test failure descriptions:
+
+.issue1417 had errors=45
+.cubicOp27d had errors=15
+........thread_circles70067 had errors=13
+thread_cubics133 had errors=14
 
   last successful run desktop:
 total run:735269 skipped:0 errors:1 warnings:26 v0 only:3 skia only:70

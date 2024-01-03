@@ -117,20 +117,25 @@ OpRoots OpCubic::rawIntersect(const LinePts& line) const {
         return axisRawHit(Axis::horizontal, line.pts[0].y);
     OpCurve rotated = toVertical(line);
     OpRoots result = rotated.asCubic().axisRawHit(Axis::vertical, 0);
+#if 0
     // for thread_cubics8753, edges 54 and 55 fail to find intersection; check for error here
     for (size_t index = 0; index < result.count; ++index) {
         float t = result.roots[index];
         if (0 > t || t > 1)
             continue;
-        OpPoint vertPt = rotated.asCubic().ptAtT(t);
 #if OP_DEBUG_RECORD
+        OpPoint vertPt = rotated.asCubic().ptAtT(t);
         OpDebugRecord(rotated, t, vertPt, result);
 #endif
+        // this may be correct in theory, but the raw intersect limit needs to scale with the 
+        // magnitude of vertPt.y. Disable for now until we have more practical failure cases
+        // Then, document the test that supports this limit
         if (fabsf(vertPt.x) >= RAW_INTERSECT_LIMIT) {
             result.fail = RootFail::rawIntersectFailed;
             break;
         }
     }
+#endif
     return result;
 }
 

@@ -125,10 +125,8 @@ struct OpRoots {
         std::sort(roots.begin(), roots.begin() + count);
     }
 
-#ifdef OP_DEBUG_DUMP
-    void dump() const;
-	void dumpDetail() const;
-    void dumpHex() const;
+#if OP_DEBUG_DUMP
+    DUMP_DECLARATIONS
 #endif
 
     std::array<float, 5> roots;
@@ -296,11 +294,7 @@ struct OpVector {
 
 #if OP_DEBUG_DUMP
     OpVector(const char*& );
-    std::string debugDump() const;
-    std::string debugDumpHex() const;
-    void dump() const;
-	void dumpDetail() const;
-    void dumpHex() const;
+    DUMP_DECLARATIONS
 #endif
 
     float dx;
@@ -459,12 +453,7 @@ struct OpPoint {
 
 #if OP_DEBUG_DUMP
     OpPoint(const char*& );
-    std::string debugDump(DebugLevel , DebugBase ) const;
-    std::string debugDump() const;
-    std::string debugDumpHex() const;
-    void dump() const;
-	void dumpDetail() const;
-    void dumpHex() const;
+    DUMP_DECLARATIONS
 #endif
 
     float x;
@@ -531,11 +520,10 @@ struct OpRect {
     virtual ~OpRect() {}
     OpRect(const OpRect& r) = default;
     OpRect& operator=(const OpRect& ) = default;
-    virtual std::string debugDump() const;
-    virtual std::string debugDumpHex() const;
+    virtual std::string debugDump(DebugLevel , DebugBase ) const;
     virtual void dump() const;
-    virtual void dumpDetail() const;  // not meaningful, but required to complete debug dump macro
     virtual void dumpHex() const;
+    virtual void dumpDetail() const;  // not meaningful, but required to complete debug dump macro
 #endif
 
 #if OP_DEBUG_VALIDATE
@@ -588,12 +576,7 @@ struct OpPtT {
 
 #if OP_DEBUG_DUMP
     OpPtT(const char*& );
-    std::string debugDump(DebugLevel , DebugBase ) const;
-    std::string debugDump() const;
-    std::string debugDumpHex() const;
-    void dump() const;
-	void dumpDetail() const;
-    void dumpHex() const;
+    DUMP_DECLARATIONS
 #endif
 
     OpPoint pt;
@@ -608,6 +591,20 @@ struct OpHexPtT : OpPtT {
     }
 };
 #endif
+
+struct OpRootPts {
+    OpRootPts() 
+        : count(0) {
+    }
+
+    void add(OpPoint pt, float t) {
+        ptTs[count++] = { pt, t }; }
+
+    OpRoots raw;  // ray intersect with segment curve (fail may be set)
+    OpRoots valid;  // intersections within edge curve t range
+    std::array<OpPtT, 5> ptTs;  // intersects within line pts longer axis bounds
+    size_t count;  // number of entries in pt-t
+};
 
 struct OpMath {
     // returns true if (a <= b <= c) || (a >= b >= c)

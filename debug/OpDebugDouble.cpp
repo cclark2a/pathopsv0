@@ -1287,7 +1287,33 @@ void DebugOpDrawEdgeID(const OpEdge* edge, uint32_t color) {
     }
 }
 
-void DebugOpDrawEdgeEnds(const OpEdge* edge, uint32_t color) {
+void DebugOpDrawEdgeControlLines(const OpEdge* edge, uint32_t color) {
+    if (!edge->segment)
+        return;
+    int ptCount = edge->segment->c.pointCount();
+    if (ptCount <= 2)
+        return;
+    for (int index = 0; index < ptCount - 1; ++index) {
+        DebugOpCurve src;
+        if (!index)
+            src.pts[0] = { edge->start.pt.x, edge->start.pt.y } ;
+        else
+            src.pts[0] = { edge->ctrlPts[index - 1].x, edge->ctrlPts[index - 1].y } ;
+        if (index < ptCount - 2)
+            src.pts[1] = { edge->ctrlPts[index].x, edge->ctrlPts[index].y } ;
+        else
+            src.pts[1] = { edge->end.pt.x, edge->end.pt.y } ;
+        src.weight = 1;
+        src.type = OpType::line;
+        src.id = edge->id;
+        src.color = color;
+        OpCurve dst;
+        src.mapTo(dst);
+        OpDebugImage::drawCurve(dst, color);
+    }
+}
+
+void DebugOpDrawEdgeEndToEnd(const OpEdge* edge, uint32_t color) {
     DebugOpCurve src;
     src.pts[0] = { edge->start.pt.x, edge->start.pt.y } ;
     src.pts[1] = { edge->end.pt.x, edge->end.pt.y } ;

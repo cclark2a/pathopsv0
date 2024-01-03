@@ -97,10 +97,7 @@ struct OpContour {
     void debugComplete();
 #endif
 #if OP_DEBUG_DUMP
-    std::string debugDump() const;
-    void dump() const;
-    void dumpDetail() const;
-    void dumpHex() const;
+    DUMP_DECLARATIONS
     #define OP_X(Thing) \
     void dump##Thing() const;
     SEGMENT_DETAIL

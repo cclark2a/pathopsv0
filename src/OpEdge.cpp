@@ -43,6 +43,20 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e
 	subDivide();	// uses already computed points stored in edge
 }
 
+OpEdge::OpEdge(const OpEdge* edge, const OpPtT& ptT1, const OpPtT& ptT2
+		OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file))
+	: OpEdge() {
+	segment = edge->segment;
+	start = ptT1;
+	end = ptT2;
+#if OP_DEBUG
+	debugMaker = maker;
+	debugSetMaker = { file, line };
+	debugParentID = edge->id;
+#endif	
+	complete();
+}
+
 CalcFail OpEdge::addIfUR(Axis axis, float t, OpWinding* sumWinding) {
 	NormalDirection NdotR = normalDirection(axis, t);
 	if (NormalDirection::upRight == NdotR)

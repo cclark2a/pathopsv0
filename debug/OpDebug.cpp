@@ -1,6 +1,16 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpDebug.h"
 
+#if OP_DEBUG || OP_RELEASE_TEST
+#include <atomic>
+#include <string>
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+std::atomic_int testsWarn;
+int debugPrecision = -1;		// minus one means unset
+
 #if 0
 // code pattern to find one of several id values
 template <typename V, typename... T>   // replace with std::to_array in c++20
@@ -16,17 +26,8 @@ constexpr auto to_array(T&&... t)->std::array < V, sizeof...(T) > {
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
 OpContours* debugGlobalContours;
 bool debugHexFloat = false;
-#endif
 
-#if OP_DEBUG || OP_RELEASE_TEST
-#include <atomic>
-#include <string>
-#ifdef _WIN32
-#include <windows.h>
 #endif
-
-std::atomic_int testsWarn;
-int debugPrecision = -1;		// minus one means unset
 
 union FloatIntUnion {
     float   f;
@@ -143,6 +144,34 @@ std::string OpDebugDumpHex(float f) {
     int bytes = snprintf(buffer, sizeof(buffer), "%af", f);
     return std::string(buffer, bytes);
 }
+
+void playback() {
+	FILE* file = fopen("OpDebugImageState.txt", "r");
+	if (!file)
+		return;
+    OpDebugImage::playback(file);
+    dmpPlayback(file);
+	fclose(file);
+}
+
+void record() {
+#if 0 && defined _WIN32
+   char full[_MAX_PATH];
+   if( _fullpath( full, ".\\", _MAX_PATH ) != NULL )
+      OpDebugOut( "Full path is: %s" + std::string(full) + "\n");
+   else
+      OpDebugOut( "Invalid path\n" );
+#endif
+	FILE* recordFile = fopen("opDebugImageState.txt", "w");
+	if (!recordFile) {
+		OpDebugOut("failed to open opDebugImageState.txt for writing\n");
+		return;
+	}
+    OpDebugImage::record(recordFile);
+    dmpRecord(recordFile);
+	fclose(recordFile);
+}
+
 #endif
 
 int32_t OpDebugFloatToBits(float f) {

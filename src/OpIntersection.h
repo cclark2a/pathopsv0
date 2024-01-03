@@ -30,6 +30,10 @@ enum class IntersectMaker {
 	curveCenterOpp,
 	edgeIntersections,
 	edgeIntersectionsOpp,
+	edgeCCExact,
+	edgeCCHull,
+	edgeCCNearly,
+	edgeCurveCurve,
 	edgeLineCurve,
 	edgeLineCurveOpp,
 	edgeT,
@@ -43,7 +47,11 @@ enum class IntersectMaker {
 	findIntersections_endOppReversed,
 	findIntersections_endOpp,
 	missingCoincidence,
-	missingCoincidenceOpp,\
+	missingCoincidenceOpp,
+	oppCCExact,
+	oppCCHull,
+	oppCCNearly,
+	oppCurveCurve,
 	segEnd,
 	segmentLineCurve,
 	segmentLineCurveOpp,
@@ -85,8 +93,7 @@ struct CoinPair {
     }
 
 #if OP_DEBUG_DUMP
-	void dump() const;
-	void dumpDetail() const;
+	DUMP_DECLARATIONS
 #endif
 
 	OpIntersection* start;
@@ -215,18 +222,20 @@ struct OpIntersection {
 struct OpIntersections {
 	OpIntersections();
 	OpIntersection* add(OpIntersection* );
-    OpIntersection* contains(const OpPtT& ptT, const OpSegment* s) const {
-		OpIntersection* const * result = entry(ptT, s); return result ? *result : nullptr; }
-    OpIntersection* const * entry(const OpPtT& , const OpSegment* ) const;
+    OpIntersection* contains(const OpPtT& ptT, const OpSegment* opp) const {
+		OpIntersection* const * result = entry(ptT, opp); return result ? *result : nullptr; }
+    OpIntersection* const * entry(const OpPtT& , const OpSegment* opp) const;  // match opp + ptT
 	void makeEdges(OpSegment* );
+	const OpIntersection* nearly(const OpPtT& ptT, OpSegment* oSeg) const;  // near match of pt or t
     std::vector<OpIntersection*> range(const OpSegment* );
     void sort();
 	void windCoincidences(std::vector<OpEdge>& edges  OP_DEBUG_PARAMS(OpVector tangent));
 #if OP_DEBUG
     OpIntersection* debugAlreadyContains(const OpPoint& , const OpSegment* opp) const;
     bool debugContains(const OpPtT& , const OpSegment* opp) const;  // check for duplicates
-	void dump() const;
-	void dumpDetail() const;
+#endif
+#if OP_DEBUG_DUMP
+	DUMP_DECLARATIONS
 #endif
 
 	// all intersections are stored here before edges are rewritten

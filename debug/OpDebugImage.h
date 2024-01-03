@@ -67,6 +67,8 @@ struct OpDebugImage {
 	static void focus(int id, bool add);
 	static void focusEdges();
 	static void init();
+	static void playback(FILE* );
+	static void record(FILE* );
 };
 
 // call these inline or from the immediate window while debugging
@@ -89,25 +91,25 @@ extern void addFocus(const OpPoint* );
 extern void addFocus(const OpPtT* );
 extern void addFocus(const OpRect* );
 extern void addFocus(const OpSegment* );
-extern void center();
-extern void center(int id);
-extern void center(float x, float y);
-extern void center(const OpContour& );
-extern void center(const OpContours& );
-extern void center(const OpEdge& );
-extern void center(const OpIntersection& );
-extern void center(const OpRect& );
-extern void center(const OpPoint& );
-extern void center(const OpPtT& );
-extern void center(const OpSegment& );
-extern void center(const OpContour* );
-extern void center(const OpContours* );
-extern void center(const OpEdge* );
-extern void center(const OpIntersection* );
-extern void center(const OpRect* );
-extern void center(const OpPoint* );
-extern void center(const OpPtT* );
-extern void center(const OpSegment* );
+extern void ctr();
+extern void ctr(int id);
+extern void ctr(float x, float y);
+extern void ctr(const OpContour& );
+extern void ctr(const OpContours& );
+extern void ctr(const OpEdge& );
+extern void ctr(const OpIntersection& );
+extern void ctr(const OpRect& );
+extern void ctr(const OpPoint& );
+extern void ctr(const OpPtT& );
+extern void ctr(const OpSegment& );
+extern void ctr(const OpContour* );
+extern void ctr(const OpContours* );
+extern void ctr(const OpEdge* );
+extern void ctr(const OpIntersection* );
+extern void ctr(const OpRect* );
+extern void ctr(const OpPoint* );
+extern void ctr(const OpPtT* );
+extern void ctr(const OpSegment* );
 extern void clear();
 extern void clearLines();
 extern void color(int id);
@@ -137,9 +139,7 @@ extern void gridStep(float dxy);
 extern void help();
 extern void hideSegmentEdges();  // not in master list; immediately changes edge state
 extern void hideTemporaryEdges();
-extern void playback();
 extern void precision(int );
-extern void record();
 extern void redraw();
 extern void resetFocus();
 extern void showSegmentEdges();  // not in master list; immediately changes edge state
@@ -156,9 +156,10 @@ extern void depth(int level);  // during curve-curve intersection, select edges 
 OP_X(Bounds) \
 OP_X(Centers) \
 OP_X(Coincidences) \
+OP_X(ControlLines) \
 OP_X(Controls) \
 OP_X(Edges) \
-OP_X(Ends) \
+OP_X(EndToEnd) \
 OP_X(Fill) \
 OP_X(Grid) \
 OP_X(Guides) \

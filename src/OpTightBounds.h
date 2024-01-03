@@ -142,9 +142,7 @@ struct OpPointBounds : OpRect {
     ~OpPointBounds() override {}
     OpPointBounds(const OpPointBounds& p) = default;
     OpPointBounds& operator=(const OpPointBounds& p) = default;
-    void dump() const override;
-    void dumpDetail() const override;  // not meaningful, but required to complete debug dump macro
-    void dumpHex() const override;
+	DUMP_DECLARATIONS_OVERRIDE
 #endif
 
 };
@@ -299,24 +297,10 @@ struct OpTightBounds : OpPointBounds {
     }
 
 #if OP_DEBUG_DUMP
-    std::string debugDump() const override {
-        std::string s = OpRect::debugDump();
-        if (!OpMath::IsNaN(xExtrema[0].t) || !OpMath::IsNaN(xExtrema[1].t))
-            s += "\n    xExtrema: " + xExtrema[0].debugDump() + ", " + xExtrema[1].debugDump();
-        if (!OpMath::IsNaN(yExtrema[0].t) || !OpMath::IsNaN(yExtrema[1].t))
-            s += "\n    yExtrema: " + yExtrema[0].debugDump() + ", " + yExtrema[1].debugDump();
-        if (!OpMath::IsNaN(inflections[0].t) || !OpMath::IsNaN(inflections[1].t))
-            s += "\n    inflections: " + inflections[0].debugDump() + ", " + inflections[1].debugDump();
-        return s;
-    }
-
     ~OpTightBounds() override {}
     OpTightBounds(const OpTightBounds& p) = default;
     OpTightBounds& operator=(const OpTightBounds& p) = default;
-    void dump() const override;
-    void dumpDetail() const override;  // not meaningful, but required to complete debug dump macro
-    void dumpHex() const override;
-
+    DUMP_DECLARATIONS_OVERRIDE
 #endif
 
     OpPtT xExtrema[2];

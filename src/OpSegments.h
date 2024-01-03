@@ -18,7 +18,7 @@ struct OpSegments {
     IntersectResult lineCoincidence(OpSegment* seg, OpSegment* opp);
 
 #if OP_DEBUG_DUMP
-#include "OpDebugDeclarations.h"
+    #include "OpDebugDeclarations.h"
 #endif
 #if OP_DEBUG_IMAGE
     void draw() const;

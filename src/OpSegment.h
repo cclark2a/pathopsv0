@@ -45,8 +45,7 @@ struct FoundEdge {
     void check(std::vector<FoundEdge>* edges, OpEdge* test, EdgeMatch , OpPoint match);
     void reset();
 #if OP_DEBUG_DUMP
-	void dump() const;
-	void dumpDetail() const;
+	DUMP_DECLARATIONS
 #endif
 
     OpEdge* edge;
@@ -110,7 +109,7 @@ struct OpSegment {
     SEGMENT_DETAIL
     EDGE_OR_SEGMENT_DETAIL
     #undef OP_X
-#include "OpDebugDeclarations.h"
+    #include "OpDebugDeclarations.h"
 #endif
 #if OP_DEBUG_IMAGE
     bool debugContains(const OpEdge* ) const; // distinguishes owned edges from temporary edges

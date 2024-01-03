@@ -9,6 +9,7 @@
 // All Macros below are defined in OpDebugDump.h
 
 std::string debugDump() const;
+std::string debugDump(DebugLevel, DebugBase ) const;
 void dump() const;
 void dump(int ID) const;
 

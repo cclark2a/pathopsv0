@@ -44,8 +44,9 @@ bool OpOutPath::debugIsEmpty() const {
     return skPath(externalReference)->isEmpty();
 }
 
-void dmp(const OpOutPath& outPath)  {
-    ((SkPath*) outPath.externalReference)->dump();
+std::string OpOutPath::debugDump(DebugLevel , DebugBase ) const {
+    ((SkPath*) externalReference)->dump();
+    return "";
 }
 
 #endif

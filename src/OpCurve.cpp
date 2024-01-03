@@ -80,6 +80,10 @@ float OpCurve::center(Axis axis, float intercept) const {
 }
 
 OpPtT OpCurve::findIntersect(Axis axis, const OpPtT& opPtT) const {
+    if (pts[0] == opPtT.pt)
+        return { opPtT.pt, 0 };
+    if (lastPt() == opPtT.pt)
+        return { opPtT.pt, 1 };
     float intercept = *opPtT.pt.asPtr(axis);
     OpRoots roots;
     switch (type) {
@@ -112,6 +116,26 @@ bool OpCurve::isFinite() const {
         if (!pts[i].isFinite())
             return false;
     return OpType::conic != type || OpMath::IsFinite(weight);
+}
+
+OpRootPts OpCurve::lineIntersect(const LinePts& line, float start, float end) const {
+    OpRootPts result;
+    result.raw = rawIntersect(line);
+    if (RootFail::rawIntersectFailed == result.raw.fail)
+        return result;
+    result.valid = result.raw;
+    result.valid.keepValidTs(start, end);
+    if (!result.valid.count)
+        return result;
+    OpVector lineV = line.pts[1] - line.pts[0];
+    XyChoice xy = fabsf(lineV.dx) >= fabsf(lineV.dy) ? XyChoice::inX : XyChoice::inY;
+    for (unsigned index = 0; index < result.valid.count; ++index) {
+        OpPoint hit = ptAtT(result.valid.roots[index]);
+        if (OpMath::Betweenish(line.pts[0].choice(xy), hit.choice(xy), line.pts[1].choice(xy)))
+            result.add(hit, result.valid.roots[index]);
+
+    }
+    return result;
 }
 
 NormalDirection OpCurve::normalDirection(Axis axis, float t) const {
@@ -147,8 +171,8 @@ OpRoots OpCurve::rayIntersect(const LinePts& line) const {
     if (!rawRoots.count || rawRoots.fail == RootFail::rawIntersectFailed)
         return rawRoots;
     OpRoots realRoots;
-    XyChoice xy = fabsf(line.pts[1].x - line.pts[0].x) >= fabsf(line.pts[1].y - line.pts[0].y) ?
-            XyChoice::inX : XyChoice::inY;
+    OpVector lineV = line.pts[1] - line.pts[0];
+    XyChoice xy = fabsf(lineV.dx) >= fabsf(lineV.dy) ? XyChoice::inX : XyChoice::inY;
     for (unsigned index = 0; index < rawRoots.count; ++index) {
         OpPoint hit = ptAtT(rawRoots.roots[index]);
         // in thread_circles36945 : conic mid touches opposite conic only at end point

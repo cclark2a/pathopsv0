@@ -30,6 +30,9 @@ enum class NormalDirection {
 
 struct LinePts {
     bool isPoint() const;
+#if OP_DEBUG_DUMP
+    DUMP_DECLARATIONS
+#endif
 
     std::array<OpPoint, 2> pts;
 };
@@ -119,6 +122,7 @@ struct OpCurve {
     bool isLinear() const;
     OpPoint lastPt() const {
         return pts[pointCount() - 1]; }
+    OpRootPts lineIntersect(const LinePts& line, float start, float end) const;
     OpVector normal(float t) const;
     NormalDirection normalDirection(Axis axis, float t) const;
     OpPoint ptAtT(float t) const;
@@ -139,12 +143,7 @@ struct OpCurve {
     float tZeroX(float t1, float t2) const;
     OpPair xyAtT(OpPair t, XyChoice xy) const;
 #if OP_DEBUG_DUMP
-    std::string debugDump(DebugLevel , DebugBase ) const;
-    std::string debugDump() const;
-    std::string debugDumpHex() const;
-    void dump() const;
-    void dumpDetail() const;
-    void dumpHex() const;
+    DUMP_DECLARATIONS
 #endif
 #if OP_DEBUG
     OpVector debugTangent(float t) const;

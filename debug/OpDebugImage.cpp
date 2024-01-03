@@ -115,20 +115,22 @@ struct OpDebugEdgeIter {
 			return;
 		if (edgeIterDvLevel < 0)
 			edgeIndex += debugGlobalContours->ccStorage->debugCount();
-		else if (!edgeIterDvLevel) {
+#if OP_DEBUG_VERBOSE
+		else if (edgeIterDvLevel) {
+			int dvLevel = std::max(edgeIterDvLevel, (int) cc->dvDepthIndex.size());
+			int lo = cc->dvDepthIndex[dvLevel - 1];
+			int hi = (int) cc->dvDepthIndex.size() <= dvLevel 
+					? (int) cc->dvAll.size() : cc->dvDepthIndex[dvLevel];
+			edgeIndex += hi - lo;
+		} else {
 			edgeIndex += cc->edgeCurves.size();
 			edgeIndex += cc->edgeLines.size();
 			edgeIndex += cc->oppCurves.size();
 			edgeIndex += cc->oppLines.size();
 			edgeIndex += cc->edgeRuns.size();
 			edgeIndex += cc->oppRuns.size();
-		} else {
-			int dvLevel = std::max(edgeIterDvLevel, (int) cc->dvDepthIndex.size());
-			int lo = cc->dvDepthIndex[dvLevel - 1];
-			int hi = (int) cc->dvDepthIndex.size() <= dvLevel 
-					? (int) cc->dvAll.size() : cc->dvDepthIndex[dvLevel];
-			edgeIndex += hi - lo;
 		}
+#endif
 	}
 
     bool operator!=(OpDebugEdgeIter rhs) { 
@@ -175,21 +177,23 @@ struct OpDebugEdgeIter {
 			};
 			if (edgeIterDvLevel < 0)
 				ccEdge = debugGlobalContours->ccStorage->debugIndex(edgeIndex - index);
-			else if (!edgeIterDvLevel) {
-				checkEdges(cc->edgeCurves);
-				checkEdges(cc->edgeLines);
-				checkEdges(cc->oppCurves);
-				checkEdges(cc->oppLines);
-				checkEdges(cc->edgeRuns);
-				checkEdges(cc->oppRuns);
-			} else {	
+#if OP_DEBUG_VERBOSE
+			else if (edgeIterDvLevel) {	
 				int dvLevel = std::max(edgeIterDvLevel, (int) cc->dvDepthIndex.size());
 				int lo = (int) cc->dvDepthIndex[dvLevel - 1];
 				int hi = (int) cc->dvDepthIndex.size() <= dvLevel 
 						? (int) cc->dvAll.size() : cc->dvDepthIndex[dvLevel];
 				if (index + hi - lo > edgeIndex)
 					ccEdge = cc->dvAll[edgeIndex - index + lo];
+			} else {
+				checkEdges(cc->edgeCurves);
+				checkEdges(cc->edgeLines);
+				checkEdges(cc->oppCurves);
+				checkEdges(cc->oppLines);
+				checkEdges(cc->edgeRuns);
+				checkEdges(cc->oppRuns);
 			}
+#endif
 			if (ccEdge) {
 				isCurveCurve = true;
 				isFiller = false;
@@ -321,8 +325,8 @@ void OpDebugImage::init() {
 	DebugOpSetBounds(opBounds.fLeft, opBounds.fTop, opBounds.fRight, opBounds.fBottom);
 }
 
-void playback() {
-	FILE* file = fopen("OpDebugImageState.txt", "r");
+void  OpDebugImage::playback(FILE* file) {
+//	FILE* file = fopen("OpDebugImageState.txt", "r");
 	if (!file)
 		return;
 	char str[255];
@@ -392,12 +396,14 @@ void playback() {
 					edge->debugColor = color;
 				else
 					return noMatch(str);
-			} else 
+			} else if (0 == strcmp("brief\n", str)) {
+				break;
+			} else
 				return noMatch(str);
 		}
 		redraw();
 	}
-	fclose(file);
+//	fclose(file);
 }
 
 #undef READ_FEATURE
@@ -425,7 +431,9 @@ static SkPath* sk1() {
 }
 
 void OpDebugImage::drawDoubleFocus() {
+#if OP_DEBUG_VERBOSE
 	edgeIterDvLevel = debugVerboseDepth;
+#endif
 	OP_DEBUG_CODE(OpDebugDefeatDelete defeater);
 	std::vector<int> ids;
 	clearScreen();
@@ -504,7 +512,8 @@ void OpDebugImage::drawDoubleFocus() {
 		for (auto segment : segmentIterator)
 			DebugOpDrawSegmentID(segment, ids);
 	}
-	if (drawEdgesOn && (drawIDsOn || drawNormalsOn || drawTangentsOn || drawWindingsOn || drawEndsOn)) {
+	if (drawEdgesOn && (drawIDsOn || drawNormalsOn || drawTangentsOn || drawWindingsOn 
+			|| drawEndToEndOn || drawControlLinesOn)) {
 		for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 			const OpEdge* edge = *edgeIter;
 			if (!edge->debugDraw)
@@ -527,8 +536,10 @@ void OpDebugImage::drawDoubleFocus() {
 				DebugOpDrawEdgeTangent(edge, black);
 			if (drawWindingsOn)
 				DebugOpDrawEdgeWinding(edge, black);
-			if (drawEndsOn)
-				DebugOpDrawEdgeEnds(edge, OpDebugAlphaColor(40, black));
+			if (drawEndToEndOn)
+				DebugOpDrawEdgeEndToEnd(edge, OpDebugAlphaColor(40, black));
+			if (drawControlLinesOn)
+				DebugOpDrawEdgeControlLines(edge, OpDebugAlphaColor(40, black));
 		}
 	}
 	if (drawIntersectionsOn && drawIDsOn) {
@@ -547,18 +558,12 @@ void OpDebugImage::drawDoubleFocus() {
 #endif
 	if (drawGridOn)
 		drawGrid();
+#if OP_DEBUG_VERBOSE
 	edgeIterDvLevel = -1;
+#endif
 }
 
-void record() {
-#if 0 && defined _WIN32
-   char full[_MAX_PATH];
-   if( _fullpath( full, ".\\", _MAX_PATH ) != NULL )
-      OpDebugOut( "Full path is: %s" + std::string(full) + "\n");
-   else
-      OpDebugOut( "Invalid path\n" );
-#endif
-	FILE* recordFile = fopen("opDebugImageState.txt", "w");
+void OpDebugImage::record(FILE* recordFile) {
 	if (!recordFile) {
 		OpDebugOut("failed to open opDebugImageState.txt for writing\n");
 		return;
@@ -577,7 +582,7 @@ void record() {
 		if (black != edge->debugColor)
 			fprintf(recordFile, "colorID: %d color: 0x%08x\n", edge->id, edge->debugColor);
 	}
-	fclose(recordFile);
+//	fclose(recordFile);
 }
 
 #undef RECORD_FEATURE
@@ -632,72 +637,87 @@ void OpDebugImage::drawGrid() {
 	const int xOffset = 2;
 	double left, top, right, bottom;
 	DebugOpBounds(left, top, right, bottom);
-	int32_t leftH = OpDebugFloatToBits((float) left);
-	int32_t topH = OpDebugFloatToBits((float) top);
-	int32_t rightH = OpDebugFloatToBits((float) right);
-	int32_t bottomH = OpDebugFloatToBits((float) bottom);
-	int xGridIntervals = gridIntervals;
-	int xInterval = std::max(1, (rightH - leftH) / xGridIntervals);
-	int yGridIntervals = gridIntervals;
-	int yInterval = std::max(1, (bottomH - topH) / yGridIntervals);
+	auto fixSign = [](int32_t i) {
+		return i < 0 ? -(i & 0x7fffffff) : i;
+	};
+	auto unfixSign = [](int32_t i) {
+		return i < 0 ? -i | 0x80000000 : i;
+	};
+	int32_t leftH = fixSign(OpDebugFloatToBits((float) left));
+	int32_t topH = fixSign(OpDebugFloatToBits((float) top));
+	int32_t rightH = fixSign(OpDebugFloatToBits((float) right));
+	int32_t bottomH = fixSign(OpDebugFloatToBits((float) bottom));
+	int xInterval = std::max(1, (rightH - leftH) / gridIntervals);
+	int yInterval = std::max(1, (bottomH - topH) / gridIntervals);
 	int leftS, topS, rightS, bottomS;
 	DebugOpScreenBounds(leftS, topS, rightS, bottomS);
-	bool hexOverflow = false;
-	for (int x = leftH; x <= rightH; x += xInterval) {
-		if (--xGridIntervals < -gridIntervals) {
-			hexOverflow = true;
-			break;
-		}
-	}
-	for (int y = topH; y <= bottomH; y += yInterval) {
-		if (--yGridIntervals < -gridIntervals) {
-			hexOverflow = true;
-			break;
-		}
-	}
-	// doesn't work if hex intervals are large
-	if (hexOverflow) {
-		for (double fx = left; fx < right; fx += (right - left) / gridIntervals) {
-			float sx = leftS + (fx - left) / (right - left) * (rightS - leftS);
+	auto screenX = [leftS, left, rightS, right](float fx) {
+		return leftS + (fx - left) / (right - left) * (rightS - leftS);
+	};
+	auto drawXLine = [screenX, &offscreen, &paint, &textPaint, topS, bottomS](float fx) {
+			float sx = screenX(fx);
 			offscreen.drawLine(sx, topS, sx, bottomS, paint);
 			if (!drawValuesOn)
-				continue;
-			std::string xValStr = OpDebugToString(fx);
-			offscreen.drawString(SkString(xValStr), sx + xOffset, bitmapWH - xOffset, labelFont, textPaint);
+				return;
+			std::string xValStr = drawHexOn ? OpDebugDumpHex(fx) : OpDebugToString(fx);
+			offscreen.drawString(SkString(xValStr), sx + xOffset, bitmapWH - xOffset - 3, 
+					labelFont, textPaint);
+
+	};
+	auto walkX = [drawXLine, unfixSign, leftH, rightH, xInterval](bool preflight) {
+		for (int x = leftH; x <= rightH; x += xInterval) {
+			float fx = OpDebugBitsToFloat(unfixSign(x));
+			if (preflight) {
+				if (fabsf(fx) < 1)
+					return false;
+			} else
+				drawXLine(fx);
 		}
-		for (double fy = top; fy < bottom; fy += (bottom - top) / gridIntervals) {
-			float sy = topS + (fy - top) / (bottom - top) * (bottomS - topS);
+		return true;
+	};
+	bool xHexWorks = walkX(true);
+	if (xHexWorks)
+		walkX(false);
+	else {  // if fabsf(fx) is less than 1, step by float range / gridIntervals
+		for (float fx = left; fx <= right; fx += (right - left) / (gridIntervals - 1)) {
+			drawXLine(fx);
+		}
+	}
+	auto screenY = [topS, top, bottomS, bottom](float fy) {
+		return topS + (fy - top) / (bottom - top) * (bottomS - topS);
+	};
+	auto drawYLine = [screenY, &offscreen, &paint, &textPaint, leftS, rightS](float fy, bool last) {
+			float sy = screenY(fy);
 			offscreen.drawLine(leftS, sy, rightS, sy, paint);
 			if (!drawValuesOn)
-				continue;
+				return;
+			std::string yValStr = drawHexOn ? OpDebugDumpHex(fy) : OpDebugToString(fy);
 			offscreen.save();
+			if (last)
+				sy -= 14;
 			offscreen.rotate(-90, 15, sy - xOffset);
-			std::string yValStr = OpDebugToString(fy);
 			offscreen.drawString(SkString(yValStr), 15, sy - xOffset, labelFont, textPaint);
 			offscreen.restore();
+	};
+	auto walkY = [drawYLine, unfixSign, topH, bottomH, yInterval](bool preflight) {
+		for (int y = topH; y <= bottomH; y += yInterval) {
+			float fy = OpDebugBitsToFloat(unfixSign(y));
+			if (preflight) {
+				if (fabsf(fy) < 1)
+					return false;
+			} else
+				drawYLine(fy, y > bottomH - yInterval);
 		}
-		return;
-	}
-	for (int x = leftH; x <= rightH; x += xInterval) {
-		float fx = OpDebugBitsToFloat(x);
-		float sx = leftS + (fx - left) / (right - left) * (rightS - leftS);
-		offscreen.drawLine(sx, topS, sx, bottomS, paint);
-		if (!drawValuesOn)
-			continue;
-		std::string xValStr = drawHexOn ? OpDebugDumpHex(fx) : OpDebugToString(fx);
-		offscreen.drawString(SkString(xValStr), sx + xOffset, bitmapWH - xOffset, labelFont, textPaint);
-	}
-	for (int y = topH; y <= bottomH; y += yInterval) {
-		float fy = OpDebugBitsToFloat(y);
-		float sy = topS + (fy - top) / (bottom - top) * (bottomS - topS);
-		offscreen.drawLine(leftS, sy, rightS, sy, paint);
-		if (!drawValuesOn)
-			continue;
-		offscreen.save();
-		offscreen.rotate(-90, 15, sy - xOffset);
-		std::string yValStr = drawHexOn ? OpDebugDumpHex(fy) : OpDebugToString(fy);
-		offscreen.drawString(SkString(yValStr), 15, sy - xOffset, labelFont, textPaint);
-		offscreen.restore();
+		return true;
+	};
+	bool yHexWorks = walkY(true);
+	if (yHexWorks)
+		walkY(false);
+	else {  // if fabsf(fy) is less than 1, step by float range / gridIntervals
+		float fInterval = (bottom - top) / (gridIntervals - 1);
+		for (float fy = top; fy <= bottom; fy += fInterval) {
+			drawYLine(fy, fy > bottom - fInterval);
+		}
 	}
 }
 
@@ -893,83 +913,83 @@ void addFocus(const OpSegment* segment) {
 	addFocus(*segment);
 }
 
-void center() {
-	center(*debugGlobalContours);
+void ctr() {
+	ctr(*debugGlobalContours);
 }
 
-void center(int id) {
+void ctr(int id) {
 	OpDebugImage::center(id, false);
 }
 
-void center(float x, float y) {
-	center(OpPoint(x, y));
+void ctr(float x, float y) {
+	ctr(OpPoint(x, y));
 }
 
-void center(const OpContour& contour) {
-	center(contour.ptBounds);
+void ctr(const OpContour& contour) {
+	ctr(contour.ptBounds);
 }
 
-void center(const OpContours& contours) {
+void ctr(const OpContours& contours) {
 	OpPointBounds bounds;
 	for (auto& contour : contours.contours)
 		bounds.add(contour.ptBounds);
-	center(bounds);
+	ctr(bounds);
 }
 
-void center(const OpEdge& edge) {
-	center(edge.ptBounds);
+void ctr(const OpEdge& edge) {
+	ctr(edge.ptBounds);
 }
 
-void center(const OpIntersection& sect) {
-	center(sect.ptT);
+void ctr(const OpIntersection& sect) {
+	ctr(sect.ptT);
 }
 
-void center(const OpPoint& pt) {
+void ctr(const OpPoint& pt) {
 	OpDebugImage::drawDoubleCenter(pt, false);
 }
 
-void center(const OpPtT& ptT) {
-	center(ptT.pt);
+void ctr(const OpPtT& ptT) {
+	ctr(ptT.pt);
 }
 
-void center(const OpRect& rect) {
-	center(rect.center());
+void ctr(const OpRect& rect) {
+	ctr(rect.center());
 }
 
-void center(const OpSegment& segment) {
-	center(segment.ptBounds);
+void ctr(const OpSegment& segment) {
+	ctr(segment.ptBounds);
 }
 
-void center(const OpContour* contour) {
-	center(*contour);
+void ctr(const OpContour* contour) {
+	ctr(*contour);
 }
 
-void center(const OpContours* contours) {
-	center(*contours);
+void ctr(const OpContours* contours) {
+	ctr(*contours);
 }
 
-void center(const OpEdge* edge) {
-	center(*edge);
+void ctr(const OpEdge* edge) {
+	ctr(*edge);
 }
 
-void center(const OpIntersection* sect) {
-	center(*sect);
+void ctr(const OpIntersection* sect) {
+	ctr(*sect);
 }
 
-void center(const OpPoint* pt) {
-	center(*pt);
+void ctr(const OpPoint* pt) {
+	ctr(*pt);
 }
 
-void center(const OpPtT* ptT) {
-	center(*ptT);
+void ctr(const OpPtT* ptT) {
+	ctr(*ptT);
 }
 
-void center(const OpRect* rect) {
-	center(*rect);
+void ctr(const OpRect* rect) {
+	ctr(*rect);
 }
 
-void center(const OpSegment* segment) {
-	center(*segment);
+void ctr(const OpSegment* segment) {
+	ctr(*segment);
 }
 
 void focus(int id) {

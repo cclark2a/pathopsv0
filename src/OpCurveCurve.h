@@ -64,8 +64,7 @@ struct CcCenter {
 		split = edge->doSplit;
 	}
 #if OP_DEBUG_DUMP
-	void dump() const;
-	void dumpDetail() const;
+	DUMP_DECLARATIONS
 #endif
 
 	OpEdge* edge;
@@ -74,6 +73,37 @@ struct CcCenter {
 	EdgeSplit split;
 	CenterSet centerSet;
 	int depth;
+};
+
+struct CcSect {
+	CcSect(OpEdge& e, OpPtT ePtT  OP_DEBUG_PARAMS(IntersectMaker eMkr)) 
+		: edge(e)
+		, ptT(ePtT)
+		OP_DEBUG_PARAMS(maker(eMkr)) {
+	}
+#if OP_DEBUG_DUMP
+	DUMP_DECLARATIONS
+#endif
+
+	OpEdge& edge;
+	OpPtT ptT;
+#if OP_DEBUG
+	IntersectMaker maker;
+#endif
+};
+
+struct CcSects {
+	CcSects(OpEdge& edge, OpPtT ePtT, OpEdge& opp, OpPtT oPtT
+				OP_DEBUG_PARAMS(IntersectMaker eMkr, IntersectMaker oMkr)) 
+		: e(edge, ePtT  OP_DEBUG_PARAMS(eMkr))
+		, o(opp, oPtT  OP_DEBUG_PARAMS(oMkr)) {
+	}
+#if OP_DEBUG_DUMP
+	DUMP_DECLARATIONS
+#endif
+
+	CcSect e;
+	CcSect o;
 };
 #endif
 
@@ -93,7 +123,10 @@ struct OpCurveCurve {
 	void release();
 	bool split(CurveRef , DoSplit );
 #if CC_EXPERIMENT
-	void splitExperiment(std::vector<OpEdge*>& curves, CurveRef , int depth);
+	void checkSplit(float loT, float hiT, CurveRef , OpPtT& checkPtT) const;
+	void snipAndGo(std::vector<OpEdge*>& curves, const OpSegment* segment, const OpPtT& cutPtT);
+	void splitSect(std::vector<OpEdge*>& curves);  // split and discard edge near intersection
+	void splitHulls(CurveRef , int depth);  // hull finds split point
 #endif
 	bool tooFew(CurveRef );
 
@@ -102,9 +135,6 @@ struct OpCurveCurve {
 			c->debugCurveCurve = nullptr; }
 #endif
 #if OP_DEBUG_DUMP
-//	void debugSaveID();
-//	void debugRestoreID();
-	void dump(bool detail) const;
 #include "OpDebugDeclarations.h"
 #endif
 #if OP_DEBUG_IMAGE
@@ -119,10 +149,12 @@ struct OpCurveCurve {
 	std::vector<OpEdge*> oppLines;
 	std::vector<OpEdge*> edgeRuns;
 	std::vector<OpEdge*> oppRuns;
-	bool sectResult;
 #if CC_EXPERIMENT
-	std::vector<CcCenter> centers;
+	std::vector<CcSects> ccSects;
+	OpPtT snipEdge;
+	OpPtT snipOpp;
 #endif
+	bool sectResult;
 #if OP_DEBUG_VERBOSE
 	std::vector<int> dvDepthIndex;
 	std::vector<OpEdge*> dvAll;

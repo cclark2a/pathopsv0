@@ -146,6 +146,8 @@ struct OpDebugMaker {
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
 extern OpContours* debugGlobalContours;
 extern bool debugHexFloat;
+extern void playback();
+extern void record();
 #endif
 
 std::string OpDebugDumpHex(float);

@@ -3,6 +3,8 @@
 #define PathOps_DEFINED
 
 #include "OpDebug.h"
+#include "OpDebugDump.h"
+#include "OpDebugImage.h"
 #include "OpOperators.h"
 
 #if OP_DEBUG
@@ -31,8 +33,7 @@ struct OpOutPath {
 	int debugNextID(struct OpEdge* );
 #endif
 #if OP_DEBUG_DUMP
-	void dump() const;
-	void dumpDetail() const;
+	DUMP_DECLARATIONS
 #endif
 #if OP_DEBUG_IMAGE
 	void draw() const;

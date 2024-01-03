@@ -6,19 +6,34 @@
 
 #include <vector>
 
+#define DUMP_DECLARATIONS \
+std::string debugDump(DebugLevel , DebugBase ) const; \
+void dump() const; \
+void dumpHex() const; \
+void dumpDetail() const;
+
+#define DUMP_DECLARATIONS_OVERRIDE \
+std::string debugDump(DebugLevel , DebugBase ) const override; \
+void dump() const override; \
+void dumpHex() const override; \
+void dumpDetail() const override;
+
 // removed OP_X(ExtremaT) for now
 // removed OP_X(LoopCheck) for now
 #define VECTOR_STRUCTS \
 OP_X(CcCenter) \
+OP_X(CcSects) \
 OP_X(CoinPair) \
 OP_X(EdgeDistance) \
 OP_X(FoundEdge) \
+OP_X(HullSect) \
 OP_X(OpContour) \
 OP_X(OpEdge) \
 OP_X(OpIntersection) \
 OP_X(OpSegment)
 
 #define OP_STRUCTS \
+OP_X(LinePts) \
 OP_X(LinkUps) \
 OP_X(OpContours) \
 OP_X(OpCurve) \
@@ -31,6 +46,7 @@ OP_X(OpPtT) \
 OP_X(OpPoint) \
 OP_X(OpPointBounds) \
 OP_X(OpRect) \
+OP_X(OpRoots) \
 OP_X(OpSegments) \
 OP_X(OpTightBounds) \
 OP_X(OpVector) \
@@ -50,8 +66,10 @@ OP_X(OpSegment*)
 
 #define OP_X(Thing) \
 	extern void dmp(const std::vector<Thing>* ); \
-	extern void dmpDetail(const std::vector<Thing>* ); \
 	extern void dmp(const std::vector<Thing>& ); \
+	extern void dmpHex(const std::vector<Thing>* ); \
+	extern void dmpHex(const std::vector<Thing>& ); \
+	extern void dmpDetail(const std::vector<Thing>* ); \
 	extern void dmpDetail(const std::vector<Thing>& );
 	VECTOR_STRUCTS
 	VECTOR_PTRS
@@ -60,6 +78,8 @@ OP_X(OpSegment*)
 #define OP_X(Thing) \
 	extern void dmp(const struct Thing* ); \
 	extern void dmp(const struct Thing& ); \
+	extern void dmpHex(const struct Thing& ); \
+	extern void dmpHex(const struct Thing* ); \
 	extern void dmpDetail(const struct Thing* ); \
 	extern void dmpDetail(const struct Thing& );
 	VECTOR_STRUCTS
@@ -151,27 +171,6 @@ SEGMENT_DETAIL
 EDGE_OR_SEGMENT_DETAIL
 #undef OP_X
 
-#define DUMP_HEX \
-OP_X(OpContour) \
-OP_X(OpCurve) \
-OP_X(OpEdge) \
-OP_X(OpIntersection) \
-OP_X(OpPoint) \
-OP_X(OpPointBounds) \
-OP_X(OpPtT) \
-OP_X(OpRect) \
-OP_X(OpRoots) \
-OP_X(OpSegment) \
-OP_X(OpTightBounds) \
-OP_X(OpVector) \
-OP_X(SectRay)
-
-#define OP_X(Thing) \
-	extern void dmpHex(const struct Thing& ); \
-	extern void dmpHex(const struct Thing* );
-DUMP_HEX
-#undef OP_X
-
 #ifdef OP_HAS_FMA
 #define DUMP_BY_DUMPID \
 OP_X(dmp, dump) \
@@ -208,8 +207,8 @@ extern void dmpUnsectable();
 extern void dmpUnsortable();
 
 #if OP_DEBUG_VERBOSE
-extern void dmpDepth(int level);
-extern void dmpDepth();
+extern void dmpDepth(int level);  // curve-curve intermediate edges created at some recursive depth
+extern void dmpDepth();  // curve-curve intermediate edges at all depths 
 #endif
 
 extern std::vector<const OpIntersection*> findCoincidence(int id);
@@ -222,6 +221,12 @@ extern const OpIntersection* findIntersection(int id);
 extern std::vector<const OpIntersection*> findSectUnsectable(int id);
 extern const OpSegment* findSegment(int id);
 
+enum class DebugBase {
+    dec,
+    hex,
+	hexdec,
+};
+
 enum class DebugLevel {
 	brief,
 	normal,
@@ -229,44 +234,41 @@ enum class DebugLevel {
     error      // displays uninitialized and error conditions like nan and infinities
 };
 
-enum class DebugBase {
-    dec,
-    hex
-};
+// for typing in immediate window as parameters to dmpBase
+// commented out here to avoid declaration shadowing, but defined for real at bottom of cpp file
+// const int dec = 0;
+// const int hex = 1;
+// const int hexdec = 2;
 
+// for typing in immediate window as parameters to dmpLevel
+// commented out here to avoid declaration shadowing, but defined for real at bottom of cpp file
+// const int brief = 0;
+// const int normal = 1;
+// const int detailed = 2;
+
+extern void dmpBase(int );  // set to dec, hex, hexdec
 extern std::string debugDumpColor(uint32_t c);
 extern void dmpColor(uint32_t );
 extern void dmpColor(const OpEdge* );
 extern void dmpColor(const OpEdge& );
-extern void dmpFilters();
+extern void dmpFilters();  // returns current filter settings
 extern void dmpHex(float );
+extern void dmpLevel(int  );  // set to brief, normal, detailed
+extern void dmpPlayback(FILE* );
+extern void dmpRecord(FILE * );
 extern void dmpWidth(int );  // max chars before inserting linefeed
 
-enum class EdgeFilter;
+enum class EF;
+typedef EF EdgeFilter;
 extern void addAlways(EdgeFilter);
-extern void clearAlways();
+extern void clearAlways(EdgeFilter);
 extern void addFilter(EdgeFilter);
-extern void clearFilter();
+extern void clearFilter(EdgeFilter);
 
 // !!! working around laptop compiler bug; testing new w/o breaking old...
 extern void dp(const OpEdge* );
 extern void dp(const OpEdge& );
 extern void dp(int id);
-extern void dp0x(const OpEdge* );
-extern void dp0x(const OpEdge& );
-extern void dp0x(int id);
-extern void db(const OpEdge* );
-extern void db(const OpEdge& );
-extern void db(int id);
-extern void db0x(const OpEdge* );
-extern void db0x(const OpEdge& );
-extern void db0x(int id);
-extern void deets(const OpEdge* );
-extern void deets(const OpEdge& );
-extern void deets(int id);
-extern void deets0x(const OpEdge* );
-extern void deets0x(const OpEdge& );
-extern void deets0x(int id);
 
 #endif
 

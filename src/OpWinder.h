@@ -64,7 +64,7 @@ struct OpWinder {
 	void debugValidate() const;
 #endif
 #if OP_DEBUG_DUMP
-	void dumpAxis(Axis ) const;
+	std::string debugDumpAxis(Axis , DebugLevel , DebugBase ) const;
 #include "OpDebugDeclarations.h"
 #endif
 #if OP_DEBUG_IMAGE

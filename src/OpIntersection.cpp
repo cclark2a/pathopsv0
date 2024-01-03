@@ -109,6 +109,18 @@ void OpIntersections::makeEdges(OpSegment* segment) {
     }
 }
 
+const OpIntersection* OpIntersections::nearly(const OpPtT& ptT, OpSegment* oSeg) const {
+	for (unsigned index = 0; index < i.size(); ++index) {
+        OpIntersection* sect = i[index];
+        if (oSeg && (!sect->opp || sect->opp->segment != oSeg))
+            continue;
+		if (ptT.pt.isNearly(sect->ptT.pt) 
+                || (ptT.t - OpEpsilon <= sect->ptT.t && sect->ptT.t <= ptT.t + OpEpsilon))
+			return sect;
+	}
+	return nullptr;
+}
+
 std::vector<OpIntersection*> OpIntersections::range(const OpSegment* opp) {
 	if (resort)
 	    sort();

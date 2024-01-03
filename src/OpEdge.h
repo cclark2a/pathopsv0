@@ -222,7 +222,7 @@ public:
 	}
 #if OP_DEBUG_DUMP
 	std::string debugDump() const;
-	void dump() const;
+	DUMP_DECLARATIONS
 #endif
 
 	int left_impl;	// indirection to make set debugging breakpoints easier 
@@ -267,9 +267,7 @@ struct EdgeDistance {
 	}
 
 #if OP_DEBUG_DUMP
-    std::string debugDump(DebugLevel , DebugBase ) const;
-	void dump() const;
-	void dumpDetail() const;
+	DUMP_DECLARATIONS
 #endif
 
 	OpEdge* edge;
@@ -303,10 +301,7 @@ struct SectRay {
 	EdgeDistance* find(OpEdge* );
 	void sort();
 #if OP_DEBUG_DUMP
-    std::string debugDump(DebugLevel , DebugBase ) const;
-	void dump() const;
-	void dumpDetail() const;
-	void dumpHex() const;
+	DUMP_DECLARATIONS
 #endif
 
 	std::vector<EdgeDistance> distances;
@@ -315,6 +310,20 @@ struct SectRay {
 	float homeCept;  // intersection of normal on home edge
 	float homeT;
 	Axis axis;
+};
+
+struct HullSect {
+	HullSect(OpEdge* e, const OpPtT& ptT, int ptIndex)
+		: edge(e)
+		, sect(ptT)
+		, end(ptIndex) {
+	}
+#if OP_DEBUG_DUMP
+	DUMP_DECLARATIONS
+#endif
+	OpEdge* edge;
+	OpPtT sect;
+	int end;
 };
 
 enum class AllowPals {
@@ -380,6 +389,12 @@ enum class WhichLoop {
 	undetermined,
 };
 
+enum class SplitBias : uint8_t {
+	none,
+	low,
+	high
+};
+
 #if OP_DEBUG
 enum class EdgeMaker {
 	empty,
@@ -388,6 +403,9 @@ enum class EdgeMaker {
 	oppSect,
 	segSect,
 	split1,
+	split2,
+	splitLeft,
+	splitRight,
 	// tests only
 	addTest,
 	opTest,
@@ -413,6 +431,7 @@ private:
 		, rayFail(EdgeFail::none)
 		, windZero(WindZero::noFlip)
 		, doSplit(EdgeSplit::no)
+		, bias(SplitBias::none)
 		, curveSet(false)
 		, curvySet(false)
 		, lineSet(false)
@@ -470,6 +489,8 @@ public:
 	OpEdge(const OpEdge* e, const OpPtT& start, const OpPtT& end  
 			OP_DEBUG_PARAMS(EdgeMaker , int line, std::string file, const OpIntersection* , 
 			const OpIntersection*));
+	OpEdge(const OpEdge* e, const OpPtT& ptT1, const OpPtT& ptT2  
+			OP_DEBUG_PARAMS(EdgeMaker , int line, std::string file));
 
 #if OP_DEBUG_IMAGE
 	OpEdge(const OpEdge&) = default;
@@ -553,7 +574,6 @@ public:
 	OpEdge(OpPtT data[2]);
 	OpEdge(OpHexPtT data[2]);
 	void debugCompare(std::string ) const;
-    std::string debugDump(DebugLevel , DebugBase ) const;
 	std::string debugDumpBrief() const;
 	std::string debugDumpChain(WhichLoop , bool detail) const;
 	void dumpCenter(bool asHex) const;
@@ -562,8 +582,7 @@ public:
 	void dumpLink() const;
 	void dumpLinkDetail() const;
 	void dumpStart() const;
-
-#include "OpDebugDeclarations.h"
+	#include "OpDebugDeclarations.h"
 #endif
 #if OP_DEBUG
 	const OpEdge* debugAdvanceToEnd(EdgeMatch match) const;
@@ -604,6 +623,7 @@ public:
 	std::vector<EdgeDistance> pals;	 // list of unsectable adjacent edges !!! should be pointers?
 	std::vector<OpEdge*> lessRay;  // edges found placed with smaller edge distance cept values
 	std::vector<OpEdge*> moreRay;  // edges found placed with larger edge distance cept values
+	std::vector<HullSect> hulls;  // curve-curve intersections
 	float weight;
 	float curvy;  // rough ratio of midpoint line point line to length of end point line
 	int id;
@@ -612,6 +632,7 @@ public:
 	EdgeFail rayFail;	// how computation (e.g., center) failed (on fail, windings are set to zero)
 	WindZero windZero; // normal means edge normal points to zero side; opposite, normal is non-zero
 	EdgeSplit doSplit; // used by curve/curve intersection to track subdivision
+	SplitBias bias;  // in curve/curve, which end to favor for next intersect guess
 	bool curveSet;
 	bool curvySet;
 	bool lineSet;
@@ -624,6 +645,7 @@ public:
 	bool disabled;	// winding is zero, or apply disqualified edge from appearing in output
 	bool unsortable;
 	bool between;  // between unsectables (also unsortable); !!! begs for an enum class, instead...
+	bool ccOverlaps;  // set if curve/curve edges have bounds that overlap
 #if OP_DEBUG
 	const OpIntersection* debugStart;
 	const OpIntersection* debugEnd;
@@ -657,8 +679,7 @@ struct OpEdgeStorage {
 	size_t debugCount() const;
 	const OpEdge* debugFind(int id) const;
 	const OpEdge* debugIndex(int index) const;
-	void dump() const;
-	void dumpDetail() const;
+	DUMP_DECLARATIONS
 #endif
 
 	OpEdgeStorage* next;

@@ -274,9 +274,18 @@ FoundIntersections OpSegments::findIntersections() {
 #if CC_EXPERIMENT
             static int experiment;
             int localExperiment = ++experiment;  // (copy so it is visible in debugger)
+            if (2 == localExperiment)
+                OpDebugOut("");
             SectFound experimental = ccx.divideExperiment();
             OP_DEBUG_CODE(ccx.debugDone(seg->contour->contours));
+            if (SectFound::fail == experimental)
+                return FoundIntersections::fail;
+            // if point was added, check adjacent to see if it is concident (issue3517)
+            if (SectFound::no == experimental)
+                continue;
 #endif
+#define CC_OLD_SCHOOL 0
+#if CC_OLD_SCHOOL
             OpCurveCurve cc(&seg->edges.back(), &opp->edges.back());
             SectFound result = cc.divideAndConquer();
             OP_DEBUG_CODE(cc.debugDone(seg->contour->contours));
@@ -289,6 +298,7 @@ FoundIntersections OpSegments::findIntersections() {
             // if point was added, check adjacent to see if it is concident (issue3517)
             if (!cc.sectResult)
                 continue;
+#endif
             OpPtT segPtT = seg->sects.i.back()->ptT;
             OpPtT oppPtT = opp->sects.i.back()->ptT;
             seg->sects.sort();
