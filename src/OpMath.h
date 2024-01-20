@@ -437,9 +437,7 @@ struct OpPoint {
         return *asPtr(xyChoice);
     }
 
-    bool isNearly(OpPoint test) const {
-        return nexttowardf(test.x, x) == x && nexttowardf(test.y, y) == y;
-    }
+    bool isNearly(OpPoint test) const;
 
     void pin(const OpPoint , const OpPoint );
     void pin(const OpRect& );
@@ -544,11 +542,6 @@ struct OpPtT {
         : t(OpNaN) {
     }
 
-    OpPtT(SetToNaN)
-        : pt(SetToNaN::dummy)
-        , t(OpNaN) {
-    }
-
     OpPtT(OpPoint ptIn, float tIn)
         : pt(ptIn)
         , t(tIn) {
@@ -560,6 +553,10 @@ struct OpPtT {
 
     friend bool operator!=(OpPtT a, OpPtT b) {
         return a.pt != b.pt || a.t != b.t;
+    }
+
+    bool isNearly(const OpPtT& o) const {
+        return pt.isNearly(o.pt) || (t + OpEpsilon >= o.t && t <= o.t + OpEpsilon);
     }
 
     static void MeetInTheMiddle(OpPtT& a, OpPtT& b){
@@ -599,6 +596,10 @@ struct OpRootPts {
 
     void add(OpPoint pt, float t) {
         ptTs[count++] = { pt, t }; }
+
+#if OP_DEBUG_DUMP
+    DUMP_DECLARATIONS
+#endif
 
     OpRoots raw;  // ray intersect with segment curve (fail may be set)
     OpRoots valid;  // intersections within edge curve t range

@@ -115,6 +115,11 @@ bool OpPoint::isFinite() const {
     // return OpMath::IsFinite(x) && OpMath::IsFinite(y);
 }
 
+bool OpPoint::isNearly(OpPoint test) const {
+    return (nexttowardf(test.x, x) == x || OpMath::Between(x - OpEpsilon, test.x, x + OpEpsilon))
+        && (nexttowardf(test.y, y) == y || OpMath::Between(y - OpEpsilon, test.y, y + OpEpsilon));
+}
+
 void OpPoint::pin(const OpPoint a, const OpPoint b) {
     x = OpMath::Pin(a.x, x, b.x);
     y = OpMath::Pin(a.y, y, b.y);

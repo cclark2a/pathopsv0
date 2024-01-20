@@ -50,6 +50,7 @@ struct OpContours;
 #define OP_ASSERT(expr)
 #define OP_DEBUG_PARAMS(...)
 #define OP_DEBUG_CODE(...)
+#define OP_DEBUG_IMAGE_CODE(...)
 #define OP_DEBUG_VALIDATE_CODE(...)
 #define OP_DEBUG 0
 #define OP_DEBUG_DUMP 0
@@ -83,6 +84,11 @@ struct OpContours;
 #endif
 #define OP_DEBUG_PARAMS(...) , __VA_ARGS__
 #define OP_DEBUG_CODE(...) __VA_ARGS__
+#if OP_DEBUG_IMAGE
+#define OP_DEBUG_IMAGE_CODE(...) __VA_ARGS__
+#else
+#define OP_DEBUG_IMAGE_CODE(...)
+#endif
 #if OP_DEBUG_VALIDATE
 	#define OP_DEBUG_VALIDATE_CODE(...) __VA_ARGS__
 #else

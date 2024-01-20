@@ -312,18 +312,26 @@ struct SectRay {
 	Axis axis;
 };
 
+enum class SectType {
+	none,
+	center,   // break curve at geometric center
+	endHull,  // intersection is close to or equal to curve end point
+	midHull,  // hull intersects, but not near end point
+	snipLo,   // snip at t lower than intersection
+	snipHi    // snip at t higher than intersection
+};
+
 struct HullSect {
-	HullSect(OpEdge* e, const OpPtT& ptT, int ptIndex)
-		: edge(e)
-		, sect(ptT)
-		, end(ptIndex) {
+	HullSect(const OpPtT& ptT, SectType st)
+		: sect(ptT)
+		, type(st) {
 	}
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
 #endif
-	OpEdge* edge;
 	OpPtT sect;
-	int end;
+//	OpPtT oSect;
+	SectType type;
 };
 
 enum class AllowPals {
@@ -399,11 +407,12 @@ enum class SplitBias : uint8_t {
 enum class EdgeMaker {
 	empty,
 	filler,
+	hull,
 	makeEdges,
 	oppSect,
 	segSect,
-	split1,
-	split2,
+	snip,
+	split,
 	splitLeft,
 	splitRight,
 	// tests only
@@ -450,6 +459,8 @@ private:
         segment = nullptr;
         weight = 0;
 		curvy = OpNaN;
+		debugSplitStart = SectType::none;
+		debugSplitEnd = SectType::none;
 		debugStart = nullptr;
 		debugEnd = nullptr;
 		debugMatch = nullptr;
@@ -515,7 +526,7 @@ public:
 	size_t countUnsortable() const;
 	float curviness();
 	OpIntersection* findSect(EdgeMatch );
-	float findT(Axis , float oppXY) const;
+	OpPtT findT(Axis , float oppXY) const;
 	OpPtT flipPtT(EdgeMatch match) const { 
 		return match == whichEnd ? end : start; }
 	void flipWhich() { 
@@ -647,6 +658,8 @@ public:
 	bool between;  // between unsectables (also unsortable); !!! begs for an enum class, instead...
 	bool ccOverlaps;  // set if curve/curve edges have bounds that overlap
 #if OP_DEBUG
+	SectType debugSplitStart;
+	SectType debugSplitEnd;
 	const OpIntersection* debugStart;
 	const OpIntersection* debugEnd;
 	OpEdge* debugMatch;  // left side of nonzero ray from this edge

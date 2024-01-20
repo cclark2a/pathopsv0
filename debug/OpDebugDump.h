@@ -46,6 +46,7 @@ OP_X(OpPtT) \
 OP_X(OpPoint) \
 OP_X(OpPointBounds) \
 OP_X(OpRect) \
+OP_X(OpRootPts) \
 OP_X(OpRoots) \
 OP_X(OpSegments) \
 OP_X(OpTightBounds) \

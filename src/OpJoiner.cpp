@@ -493,7 +493,7 @@ bool OpJoiner::linkRemaining() {
 	for (auto e : linkups.l) {
 		e->setLinkBounds();
 	}
-	OP_DEBUG_CODE(int debugLoopCounter = 0);
+	OP_DEBUG_IMAGE_CODE(int debugLoopCounter = 0);
     while (linkups.l.size()) {
 		// sort to process largest first
 		// !!! could optimize to avoid search, but for now, this is the simplest
@@ -510,7 +510,7 @@ bool OpJoiner::linkRemaining() {
         if (!matchLinks(true))
 			return false;
 		OP_DEBUG_VALIDATE_CODE(debugValidate());
-		OP_DEBUG_CODE(if (++debugLoopCounter < 0) OpDebugOut(""));  // allows seeing loop iteration that failed
+		OP_DEBUG_IMAGE_CODE(if (++debugLoopCounter < 0) OpDebugOut(""));  // allows seeing loop iteration that failed
     }
 	return true;
 }

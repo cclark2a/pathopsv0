@@ -114,6 +114,8 @@ struct OpCurveCurve {
 	OpCurveCurve(OpEdge* edge, OpEdge* opp);
 	SectFound addUnsectable(); // if curve doesn't devolve into line segments
 	SectFound curvesIntersect(CurveRef );
+	std::array<OpPtT, 2> cutRange(const OpPtT& , const OpSegment* , 
+			float loEnd, float hiEnd);
 	SectFound divideAndConquer();
 #if CC_EXPERIMENT
 	SectFound divideExperiment();
@@ -123,8 +125,8 @@ struct OpCurveCurve {
 	void release();
 	bool split(CurveRef , DoSplit );
 #if CC_EXPERIMENT
-	void checkSplit(float loT, float hiT, CurveRef , OpPtT& checkPtT) const;
-	void snipAndGo(std::vector<OpEdge*>& curves, const OpSegment* segment, const OpPtT& cutPtT);
+	void checkSplit(float lo, float hi, CurveRef , OpPtT& checkPtT) const;
+	void snipAndGo(std::vector<OpEdge*>& curves, const OpSegment* , OpContours* , const OpPtT& cut);
 	void splitSect(std::vector<OpEdge*>& curves);  // split and discard edge near intersection
 	void splitHulls(CurveRef , int depth);  // hull finds split point
 #endif

@@ -1129,7 +1129,10 @@ OpPoint testMinMax(OpPoint x, OpPoint y) {
 #include <stdlib.h>
 #endif
 
+void SkConicSubdivide();
+
 void OpTest(bool terminateEarly) {
+//	SkConicSubdivide();
 #if 0
 	OpCubicErrorTest(CubicTest::ptAtT, SpeedTest::on);
 	OpCubicErrorTest(CubicTest::edgeRay, SpeedTest::on);
@@ -1332,6 +1335,24 @@ void SkConicDraw(SkCanvas* canvas) {
 	}
 
 }
+
+#if 0
+void SkConicSubdivide() {
+	OpCurve c;
+	OpPoint ctrls[2] = {{-4, 2}};
+	c.set(OpPoint(-4, 6), ctrls, OpPoint(0, 2), 3, OpType::conic, sqrtf(2) / 2);
+	OpPtT s1 = { {-4, 6}, 0 };
+	OpPtT s2 = { {-1.519868, 2.3}, 0.453012 };
+	OpCurve result = c.subDivide(s1, s2);
+	const SkPoint siQPts[] = { { -4, 6 }, { -4, 2 }, { 0, 2 } };
+	SkDConic dc;
+	dc.set(siQPts, sqrtf(2) / 2);
+	SkDConic skResult = dc.subDivide(0, 0.453012);
+	OpDebugOut(result.debugDump(DebugLevel::normal, DebugBase::dec) + "\n");
+	OpDebugOut(STR((float)skResult.fPts[1].fX) + ", " 
+			+ STR((float)skResult.fPts[1].fY) + "w:" + STR(skResult.fWeight) + "\n");
+}
+#endif
 
 #include "include/core/SkFont.h"
 

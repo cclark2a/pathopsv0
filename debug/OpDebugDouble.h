@@ -20,8 +20,10 @@ struct OpDebugRay;
 struct OpSegment;
 
 enum class DebugSprite {
+    circle,
     diamond,
     square,
+    triangle,
 };
 
 void DebugOpAdd(const OpSegment* );

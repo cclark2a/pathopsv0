@@ -287,12 +287,19 @@ OpIntersection* OpEdge::findSect(EdgeMatch match) {
 	return *found;
 }
 
-float OpEdge::findT(Axis axis, float oppXY) const {
-	float result;
-    OP_DEBUG_CODE(FoundPtT foundPtT =) segment->findPtT(axis, start.t, end.t, oppXY, &result);
-	OP_ASSERT(FoundPtT::single == foundPtT);
-	OP_ASSERT(OpNaN != result);
-	return result;
+OpPtT OpEdge::findT(Axis axis, float oppXY) const {
+	OpPtT found;
+	if (oppXY == start.pt.choice(axis))
+		found = start;
+	else if (oppXY == end.pt.choice(axis))
+		found = end;
+	else {
+		found.pt = OpPoint(SetToNaN::dummy);
+		OP_DEBUG_CODE(FoundPtT foundPtT =) segment->findPtT(axis, start.t, end.t, oppXY, &found.t);
+		OP_ASSERT(FoundPtT::single == foundPtT);
+		OP_ASSERT(OpNaN != found.t);
+	}
+	return found;
 }
 
 void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {

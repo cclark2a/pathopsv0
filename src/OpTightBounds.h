@@ -49,6 +49,11 @@ struct OpPointBounds : OpRect {
         : OpRect(l, t, r, b) {
     }
 
+    OpPointBounds(OpPoint pt1, OpPoint pt2) {
+        set(pt1);
+        add(pt2);
+    }
+
     OpPoint add(OpPoint pt) {
         if (!pt.isFinite())
             return OpPoint(SetToNaN::dummy);

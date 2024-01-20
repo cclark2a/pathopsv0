@@ -5,7 +5,7 @@
 // this puts all switches that decide which tests to run and how to run them in one place
 
 #define OP_DEBUG_FAST_TEST 0  // in a debug build: set to zero to enable debug dump, debug image
-#define TEST_PATH_OP_FIRST "thread_circles13089" /* e.g., "battleOp255" test to debug */
+#define TEST_PATH_OP_FIRST "thread_circles22081"  /* e.g., "battleOp255" test to debug */
 #define TEST_PATH_OP_SKIP_TO_FILE "circle" /* e.g., "battle" tests only (see OpSkiaTests.cpp) */
 #define TEST_FAILS 0  // set to one to run only failures captured in skia tests
 
@@ -22,10 +22,10 @@
 #define OP_DEBUG_VERBOSE (1 && !OP_DEBUG_FAST_TEST)
 
 // see descriptions for exceptions below
-#define TEST_PATH_OP_EXCEPTIONS "cubics7d"
-#define TEST_PATH_OP_FAIL_EXCEPTIONS "grshapearcs1"
-#define TEST_PATH_OP_MAP_TO_FUZZ "fuzzhang_1"
-#define TEST_PATH_SIMPLIFY_EXCEPTIONS "grshapearc"
+#define TEST_PATH_OP_EXCEPTIONS "" // "cubics7d"
+#define TEST_PATH_OP_FAIL_EXCEPTIONS "" // "grshapearcs1"
+#define TEST_PATH_OP_MAP_TO_FUZZ "" // "fuzzhang_1"
+#define TEST_PATH_SIMPLIFY_EXCEPTIONS "" // "grshapearc"
 #define TEST_PATH_SIMPLIFY_FAIL_EXCEPTIONS "" // "grshapearc"
 #define TEST_PATH_SIMPLIFY_FUZZ_EXCEPTIONS ""
 #define TEST_PATH_SIMPLIFY_MAP_TO_FUZZ  ""

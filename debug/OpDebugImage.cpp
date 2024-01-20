@@ -28,6 +28,7 @@ SkBitmap bitmap;
 SkFont labelFont(nullptr, 14, 1, 0);
 
 std::vector<OpDebugRay> lines;
+std::vector<OpPtT> ptTs;
 int gridIntervals = 8;
 
 #define OP_X(Thing) \
@@ -512,8 +513,8 @@ void OpDebugImage::drawDoubleFocus() {
 		for (auto segment : segmentIterator)
 			DebugOpDrawSegmentID(segment, ids);
 	}
-	if (drawEdgesOn && (drawIDsOn || drawNormalsOn || drawTangentsOn || drawWindingsOn 
-			|| drawEndToEndOn || drawControlLinesOn)) {
+	if (drawEdgesOn && (drawIDsOn || drawNormalsOn || drawTangentsOn
+			|| drawWindingsOn || drawEndToEndOn || drawControlLinesOn)) {
 		for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 			const OpEdge* edge = *edgeIter;
 			if (!edge->debugDraw)
@@ -1222,6 +1223,10 @@ void OpDebugImage::drawPoints() {
 			}
 			if (drawCentersOn)
 				DebugOpBuild(edge->center.pt, edge->center.t, DebugSprite::square);
+			if (drawHullsOn) {
+				for (const HullSect& hull : edge->hulls)
+					DebugOpBuild(hull.sect.pt, hull.sect.t, DebugSprite::circle);
+			}
 		}
 	}
 	if (drawIntersectionsOn) {
@@ -1256,6 +1261,8 @@ void OpDebugImage::drawPoints() {
 				DebugOpBuild(ray.axis, ray.normal, dist.cept);
 		}
 	}
+	for (OpPtT ptT : ptTs)
+		DebugOpBuild(ptT.pt, ptT.t, DebugSprite::triangle);
 	if (drawValuesOn) {
 		if (drawTsOn)
 			DebugOpDrawT(drawHexOn);
@@ -1267,6 +1274,10 @@ void OpDebugImage::drawPoints() {
 
 void OpDebugImage::add(Axis axis, float value) {
 	lines.emplace_back(axis, value);
+}
+
+void OpDebugImage::add(const OpPtT& ptT) {
+	ptTs.push_back(ptT);
 }
 
 void OpDebugImage::addArrowHeadToPath(const OpLine& line, SkPath& path) {
@@ -1281,6 +1292,10 @@ void OpDebugImage::addArrowHeadToPath(const OpLine& line, SkPath& path) {
 	matrix.mapPoints(arrowCopy, 2);
 	path.rLineTo(arrowCopy[0].fX, arrowCopy[0].fY);
 	path.rLineTo(arrowCopy[1].fX, arrowCopy[1].fY);
+}
+
+void OpDebugImage::addCircleToPath(OpPoint pt, SkPath& path) {
+	path.addCircle(pt.x, pt.y, 4);
 }
 
 void OpDebugImage::addDiamondToPath(OpPoint pt, SkPath& path) {
@@ -1303,6 +1318,16 @@ void OpDebugImage::addSquareToPath(OpPoint pt, SkPath& path) {
 	square.close();
 	square.offset(pt.x, pt.y);
 	path.addPath(square);
+}
+
+void OpDebugImage::addTriangleToPath(OpPoint pt, SkPath& path) {
+	SkPath triangle;
+	triangle.moveTo( 0,  -4);
+	triangle.lineTo( 4,  4);
+	triangle.lineTo(-4,  4);
+	triangle.close();
+	triangle.offset(pt.x, pt.y);
+	path.addPath(triangle);
 }
 
 OpDebugRay::OpDebugRay(const LinePts& pts_) 
@@ -1333,6 +1358,11 @@ void OpDebugImage::clearIntersections() {
 void OpDebugImage::clearLines() {
 	lines.clear();
 	drawLinesOn = false;
+}
+
+void OpDebugImage::clearPoints() {
+	ptTs.clear();
+	drawPointsOn = false;
 }
 
 #define OP_X(Thing) \
@@ -1776,6 +1806,25 @@ void draw(const LinePts& ray) {
 	OpDebugImage::add(ray);
 	drawLinesOn = true;
 	OpDebugImage::drawDoubleFocus();
+}
+
+void draw(const OpPoint& pt) {
+	OpPtT ptT = { pt, OpNaN };
+	draw(ptT);
+}
+
+void draw(const OpPtT& ptT) {
+	OpDebugImage::add(ptT);
+	drawPointsOn = true;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void draw(const OpPoint* pt) {
+	draw(*pt);
+}
+
+void draw(const OpPtT* ptT) {
+	draw(*ptT);
 }
 
 void draw() {

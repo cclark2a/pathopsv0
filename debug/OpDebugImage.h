@@ -37,13 +37,17 @@ static_assert(bitmapWH / 2 * 2 == bitmapWH);	// must be multiple of 2
 struct OpDebugImage {
 	static void add(Axis axis, float value);
 	static void add(const OpDebugRay& );
+	static void add(const OpPtT& );
 	static void addArrowHeadToPath(const OpLine& , class SkPath& );
+	static void addCircleToPath(OpPoint , class SkPath& );
 	static void addDiamondToPath(OpPoint , class SkPath& );
 	static void addSquareToPath(OpPoint , class SkPath& );
+	static void addTriangleToPath(OpPoint , class SkPath& );
 	static void addToPath(const OpCurve& , class SkPath& );
 	static void center(int id, bool add);
 	static void clearIntersections();
 	static void clearLines();
+	static void clearPoints();
 	static void clearScreen();
 	static bool drawCurve(const OpCurve& , uint32_t color = debugBlack);
 	static void drawDoubleCenter(OpPoint , bool add);
@@ -112,6 +116,7 @@ extern void ctr(const OpPtT* );
 extern void ctr(const OpSegment* );
 extern void clear();
 extern void clearLines();
+extern void clearPoints();
 extern void color(int id);
 extern void color(int id, uint32_t color);
 extern void colorLink(int id, uint32_t color = 0xAbeBeBad);
@@ -121,6 +126,10 @@ extern void draw(std::vector<OpEdge>& );  // to draw edge list built from inters
 extern void draw(std::vector<OpEdge*>& ); // to draw unsortables
 extern void draw(Axis , float );	// horizontal or vertical ray
 extern void draw(const LinePts& );	// arbitrary angled ray
+extern void draw(const OpPoint& );
+extern void draw(const OpPtT& );   // draw point (ignores t)
+extern void draw(const OpPoint* );
+extern void draw(const OpPtT* );
 extern void draw();  // draw all current state
 extern void focus(int id);
 extern void focus(const OpContour& );
@@ -164,6 +173,7 @@ OP_X(Fill) \
 OP_X(Grid) \
 OP_X(Guides) \
 OP_X(Hex) \
+OP_X(Hulls) \
 OP_X(IDs) \
 OP_X(Intersections) \
 OP_X(Left) \

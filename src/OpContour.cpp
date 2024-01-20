@@ -242,6 +242,8 @@ void OpContour::finish() {
 }
 
 int OpContour::nextID() const {
+//    if (93 == contours->uniqueID + 1)
+//        OpDebugOut("");
     return ++contours->uniqueID;
 }
 

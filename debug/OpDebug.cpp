@@ -89,7 +89,7 @@ float OpTicksToSeconds(uint64_t diff, uint64_t frequency) {
 #if !defined(NDEBUG) || OP_RELEASE_TEST
 void OpDebugOut(const std::string& s) {
 #ifdef _WIN32
-    OutputDebugStringA(s.c_str());
+    if (s.size()) OutputDebugStringA(s.c_str());  // !!! printing empty strings slows visual studio!
 #else
     fprintf(stderr, "%s", s.c_str());
 #endif

@@ -1239,10 +1239,14 @@ void DebugOpDrawSprites() {
             colorPaths.emplace_back(point.color);
             colorPathIter = colorPaths.end() - 1;
         }
-        if (DebugSprite::diamond == point.sprite)
+        if (DebugSprite::circle == point.sprite)
+            OpDebugImage::addCircleToPath(pt, colorPathIter->path);
+        else if (DebugSprite::diamond == point.sprite)
             OpDebugImage::addDiamondToPath(pt, colorPathIter->path);
         else if (DebugSprite::square == point.sprite)
             OpDebugImage::addSquareToPath(pt, colorPathIter->path);
+        else if (DebugSprite::triangle == point.sprite)
+            OpDebugImage::addTriangleToPath(pt, colorPathIter->path);
         else
             OpDebugOut("unknown sprite (%d)" + STR_E(point.sprite) + "\n");
             
