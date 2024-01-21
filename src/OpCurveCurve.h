@@ -138,6 +138,7 @@ struct OpCurveCurve {
 #endif
 #if OP_DEBUG_DUMP
 #include "OpDebugDeclarations.h"
+	void dumpClosest(const OpPoint& pt) const;
 #endif
 #if OP_DEBUG_IMAGE
 	void draw() const;

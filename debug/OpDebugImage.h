@@ -83,7 +83,7 @@ extern void addFocus(const OpContour& );
 extern void addFocus(const OpContours& );
 extern void addFocus(const OpEdge& );
 extern void addFocus(const OpIntersection& );
-extern void addFocus(const OpPoint& );
+extern void addFocus(const OpPoint& );  // pass by reference; VS fails by value in immediate window
 extern void addFocus(const OpPtT& );
 extern void addFocus(const OpRect& );
 extern void addFocus(const OpSegment& );

@@ -788,7 +788,7 @@ void OpCurveCurve::splitHulls(CurveRef which, int depth) {
 				OpPtT oPtT = oEdge->findT(oLarger, (oXy1 + oXy2) / 2);
 				if (!oPtT.pt.isFinite())
 					oPtT.pt = oEdge->segment->c.ptAtT(oPtT.t);
-				redraw();
+				dumpClosest(ePtT.pt);
 				OP_ASSERT(ePtT.pt.isNearly(oPtT.pt));
 				snipAndGo(curves, edge.segment, contours, ePtT);
 				snipAndGo(oCurves, oEdge->segment, contours, oPtT);
