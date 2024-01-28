@@ -248,6 +248,7 @@ enum class DebugLevel {
 // const int detailed = 2;
 
 extern void dmpBase(int );  // set to dec, hex, hexdec
+extern void dmpClosest(const OpCurveCurve& , const OpPoint& );
 extern std::string debugDumpColor(uint32_t c);
 extern void dmpColor(uint32_t );
 extern void dmpColor(const OpEdge* );

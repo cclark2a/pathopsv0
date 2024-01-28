@@ -635,7 +635,7 @@ void OpDebugImage::drawGrid() {
 	paint.setColor(0x3f000000);
 	SkPaint textPaint = paint;
 	paint.setStyle(SkPaint::kStroke_Style);
-	const int xOffset = 2;
+	constexpr int xOffset = 2;
 	double left, top, right, bottom;
 	DebugOpBounds(left, top, right, bottom);
 	auto fixSign = [](int32_t i) {
@@ -655,14 +655,14 @@ void OpDebugImage::drawGrid() {
 	auto screenX = [leftS, left, rightS, right](float fx) {
 		return leftS + (fx - left) / (right - left) * (rightS - leftS);
 	};
-	auto drawXLine = [screenX, &offscreen, &paint, &textPaint, topS, bottomS](float fx) {
-			float sx = screenX(fx);
-			offscreen.drawLine(sx, topS, sx, bottomS, paint);
-			if (!drawValuesOn)
-				return;
-			std::string xValStr = drawHexOn ? OpDebugDumpHex(fx) : OpDebugToString(fx);
-			offscreen.drawString(SkString(xValStr), sx + xOffset, bitmapWH - xOffset - 3, 
-					labelFont, textPaint);
+	auto drawXLine = [screenX, &offscreen, &paint, &textPaint, topS, bottomS, xOffset](float fx) {
+		float sx = screenX(fx);
+		offscreen.drawLine(sx, topS, sx, bottomS, paint);
+		if (!drawValuesOn)
+			return;
+		std::string xValStr = drawHexOn ? OpDebugDumpHex(fx) : OpDebugToString(fx);
+		offscreen.drawString(SkString(xValStr), sx + xOffset, bitmapWH - xOffset - 3, 
+				labelFont, textPaint);
 
 	};
 	auto walkX = [drawXLine, unfixSign, leftH, rightH, xInterval](bool preflight) {
@@ -687,18 +687,19 @@ void OpDebugImage::drawGrid() {
 	auto screenY = [topS, top, bottomS, bottom](float fy) {
 		return topS + (fy - top) / (bottom - top) * (bottomS - topS);
 	};
-	auto drawYLine = [screenY, &offscreen, &paint, &textPaint, leftS, rightS](float fy, bool last) {
-			float sy = screenY(fy);
-			offscreen.drawLine(leftS, sy, rightS, sy, paint);
-			if (!drawValuesOn)
-				return;
-			std::string yValStr = drawHexOn ? OpDebugDumpHex(fy) : OpDebugToString(fy);
-			offscreen.save();
-			if (last)
-				sy -= 14;
-			offscreen.rotate(-90, 15, sy - xOffset);
-			offscreen.drawString(SkString(yValStr), 15, sy - xOffset, labelFont, textPaint);
-			offscreen.restore();
+	auto drawYLine = [screenY, &offscreen, &paint, &textPaint, leftS, rightS, xOffset]
+            (float fy, bool last) {
+		float sy = screenY(fy);
+		offscreen.drawLine(leftS, sy, rightS, sy, paint);
+		if (!drawValuesOn)
+			return;
+		std::string yValStr = drawHexOn ? OpDebugDumpHex(fy) : OpDebugToString(fy);
+		offscreen.save();
+		if (last)
+			sy -= 14;
+		offscreen.rotate(-90, 15, sy - xOffset);
+		offscreen.drawString(SkString(yValStr), 15, sy - xOffset, labelFont, textPaint);
+		offscreen.restore();
 	};
 	auto walkY = [drawYLine, unfixSign, topH, bottomH, yInterval](bool preflight) {
 		for (int y = topH; y <= bottomH; y += yInterval) {

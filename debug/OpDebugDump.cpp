@@ -1847,30 +1847,53 @@ void OpEdge::dumpCenter(bool asHex) const {
 
 // find and report closest t value of both curves though binary search
 void OpCurveCurve::dumpClosest(const OpPoint& originalPt) const {
-    auto tMatch = [](const OpEdge* e, XyChoice inXy, OpPoint pt, float& dist) {
-        OpCurve c;
-        c.set(e->start.pt, e->ctrlPts, e->end.pt, e->segment->c.pointCount(), e->segment->c.type, 
-                e->weight);
+    auto tMatch = [](const OpEdge* e, XyChoice inXy, OpPoint pt, float& dist, std::string name) {
+        const OpCurve& c = e->segment->c;
         OpPair endCheck = c.xyAtT( { e->start.t, e->end.t }, inXy);
         float goal = pt.choice(inXy);
         if (!OpMath::Between(endCheck.s, goal, endCheck.l)) {
             dist = OpNaN;
             return OpPtT();
         }
-        float mid = (e->start.t + e->end.t) * .5;
-        float step = (mid - e->start.t) * .5;
-        while (step > OpEpsilon) {
-            OpPair test = { mid - step, mid + step };
-            OpPair x = c.xyAtT(test, inXy);
+        float mid = (e->start.t + e->end.t) / 2;
+        float step = (mid - e->start.t) / 2;
+        OpPair test, x;
+        while (true) {
+            test = { mid - step, mid + step };
+            if (test.s == mid || mid == test.l)
+                break;
+            x = c.xyAtT(test, inXy);
+            if (x.s == x.l)
+                break;
             bool ordered = x.s < x.l;
             if (ordered ? goal < x.s : goal > x.s)
                 mid = test.s;
             else if (ordered ? goal > x.l : goal < x.l)
                 mid = test.l;
-            step = step * .5;
+            step /= 2;
         }
-        OpPtT result = OpPtT(e->segment->c.ptAtT(mid), mid);
+        OpPtT result = OpPtT(c.ptAtT(mid), mid);
         dist = OpMath::IsFinite(result.t) ? (result.pt - pt).length() : OpNaN;
+        std::string s;
+        s += "edge:" + e->debugDump(defaultLevel, defaultBase);
+        s += "\ngoal:" + pt.debugDump(defaultLevel, defaultBase) 
+                + " (" + (XyChoice::inX == inXy ? "inX" : "inY") + ")";
+        s += " mid[" + debugFloat(defaultBase, test.s) + ", " + debugFloat(defaultBase, mid)
+                + ", " + debugFloat(defaultBase, test.l) + "]";
+        s += " step:" + debugFloat(defaultBase, step);
+        s += " xy[" + debugFloat(defaultBase, x.s) + ", " 
+                + debugFloat(defaultBase, result.pt.choice(inXy)) + ", "
+                + debugFloat(defaultBase, x.l) + "]";
+        auto xyDist = [&c, pt](float xy) {
+            OpPoint xyPt = c.ptAtT(xy);
+            float d = OpMath::IsFinite(xy) ? (xyPt - pt).length() : OpNaN;
+            return d;
+        };
+        s += " dist[" + debugFloat(defaultBase, xyDist(test.s)) + ", "
+                + debugFloat(defaultBase, dist) + ", "
+                + debugFloat(defaultBase, xyDist(test.l)) + "]";
+        s += " " + name + " result:" + result.debugDump(defaultLevel, defaultBase);
+        OpDebugFormat(s + "\n");
         return result;
     };
     auto ptMinMax = [](const OpEdge* e, const OpPtT& ePtT, OpPtT& eSm, OpPtT& eLg) {
@@ -1890,19 +1913,29 @@ void OpCurveCurve::dumpClosest(const OpPoint& originalPt) const {
     OpPtT ex, ey, ox, oy;
     float exd, eyd, oxd, oyd;
     int iterations = 0;
+    OpPointBounds eLast;
+    OpPointBounds oLast;
     do {
         ++iterations;
-        ex = tMatch(originalEdge, XyChoice::inX, bestOPtT.pt, exd);
-        ey = tMatch(originalEdge, XyChoice::inY, bestOPtT.pt, eyd);
+        ex = tMatch(originalEdge, XyChoice::inX, bestOPtT.pt, exd, "ex");
+        ey = tMatch(originalEdge, XyChoice::inY, bestOPtT.pt, eyd, "ey");
         bestEPtT = !OpMath::IsFinite(eyd) || exd < eyd ? ex : ey;
-        ox = tMatch(originalOpp, XyChoice::inX, bestEPtT.pt, oxd);
-        oy = tMatch(originalOpp, XyChoice::inY, bestEPtT.pt, oyd);
+        ox = tMatch(originalOpp, XyChoice::inX, bestEPtT.pt, oxd, "ox");
+        oy = tMatch(originalOpp, XyChoice::inY, bestEPtT.pt, oyd, "oy");
         bestOPtT = !OpMath::IsFinite(oyd) || oxd < oyd ? ox : oy;
         OpPtT eSm, eLg, oSm, oLg;
         ptMinMax(originalEdge, bestEPtT, eSm, eLg);
         ptMinMax(originalOpp, bestOPtT, oSm, oLg);
         OpPointBounds eBounds(eSm.pt, eLg.pt);
         OpPointBounds oBounds(oSm.pt, oLg.pt);
+        std::string s = "eBounds:" + eBounds.debugDump(defaultLevel, defaultBase);
+        s += " oBounds:" + oBounds.debugDump(defaultLevel, defaultBase);
+        s += " intersects:" + std::string(eBounds.intersects(oBounds) ? "true" : "false");
+        OpDebugFormat(s);
+        if (eLast == eBounds && oLast == oBounds)
+            break;
+        eLast = eBounds;
+        oLast = oBounds;
         if (eBounds.intersects(oBounds))
             break;
     } while (true);
@@ -1954,6 +1987,10 @@ void OpCurveCurve::dumpClosest(const OpPoint& originalPt) const {
     s += "\noriginalOpp:" + floatString("ox", ox, oxd) + ", " + floatString("oy", oy, oyd);
     s += "\n " + floatString("olx", olx, olxd) + " " + floatString("oly", oly, olyd);
     OpDebugFormat(s);
+}
+
+void dmpClosest(const OpCurveCurve& cc, const OpPoint& p) {
+    cc.dumpClosest(p);
 }
 
 void dmpLink(const OpEdge& edge) {
