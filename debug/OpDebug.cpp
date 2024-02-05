@@ -245,46 +245,6 @@ void OpMath::DebugCompare(float a, float b) {
     OP_ASSERT(pPrecision < OpEpsilon);
 }
 
-OpVector OpCurve::debugTangent(float t) const {
-    switch (type) {
-    case OpType::line: return asLine().tangent();
-    case OpType::quad: return asQuad().debugTangent(t);
-    case OpType::conic: return asConic().debugTangent(t);
-    case OpType::cubic: return asCubic().debugTangent(t);
-    default:
-        OP_ASSERT(0);
-    }
-    return OpVector();
-}
-
-OpVector OpQuad::debugTangent(float t) const {
-    OpVector result = tangent(t);
-    if ((0 == t && pts[0] == pts[1]) || (1 == t && pts[2] == pts[1]))
-        return pts[2] - pts[0];
-    return result;
-}
-
-OpVector OpConic::debugTangent(float t) const {
-    return ((OpQuad*) this)->debugTangent(t);
-}
-
-OpVector OpCubic::debugTangent(float t) const {
-    OpVector result = tangent(t);
-    if (0 == t && pts[0] == pts[1]) {
-        if (pts[1] == pts[2])
-            return pts[3] - pts[0];
-        else
-            return pts[2] - pts[0];
-    }
-    if (1 == t && pts[3] == pts[2]) {
-        if (pts[2] == pts[1])
-            return pts[3] - pts[0];
-        else
-            return pts[3] - pts[1];
-    }
-    return result;
-}
-
 #include "OpContour.h"
 #include "OpEdge.h"
 

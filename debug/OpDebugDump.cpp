@@ -1320,6 +1320,7 @@ ENUM_NAME_STRUCT(SectType);
 static SectTypeName sectTypeNames[] = {
     SECTTYPE_NAME(none),
     SECTTYPE_NAME(center),
+    SECTTYPE_NAME(controlHull),
     SECTTYPE_NAME(endHull),
 	SECTTYPE_NAME(midHull),
 	SECTTYPE_NAME(snipLo),
@@ -1845,6 +1846,17 @@ void OpEdge::dumpCenter(bool asHex) const {
     OpDebugOut(s + "\n");
 }
 
+OpPtT dc_ex, dc_ey, dc_ox, dc_oy;
+extern void draw(const OpPtT& );
+
+void OpCurveCurve::drawClosest(const OpPoint& originalPt) const {
+    dumpClosest(originalPt);
+    ::draw(dc_ex);
+    ::draw(dc_ey);
+    ::draw(dc_ox);
+    ::draw(dc_oy);
+}
+
 // find and report closest t value of both curves though binary search
 void OpCurveCurve::dumpClosest(const OpPoint& originalPt) const {
     auto tMatch = [](const OpEdge* e, XyChoice inXy, OpPoint pt, float& dist, std::string name) {
@@ -1910,19 +1922,18 @@ void OpCurveCurve::dumpClosest(const OpPoint& originalPt) const {
         } while (eLg.pt == ePtT.pt && eLg.t != e->end.t);
     };
     OpPtT bestEPtT, bestOPtT = OpPtT(originalPt, OpNaN);
-    OpPtT ex, ey, ox, oy;
     float exd, eyd, oxd, oyd;
     int iterations = 0;
     OpPointBounds eLast;
     OpPointBounds oLast;
     do {
         ++iterations;
-        ex = tMatch(originalEdge, XyChoice::inX, bestOPtT.pt, exd, "ex");
-        ey = tMatch(originalEdge, XyChoice::inY, bestOPtT.pt, eyd, "ey");
-        bestEPtT = !OpMath::IsFinite(eyd) || exd < eyd ? ex : ey;
-        ox = tMatch(originalOpp, XyChoice::inX, bestEPtT.pt, oxd, "ox");
-        oy = tMatch(originalOpp, XyChoice::inY, bestEPtT.pt, oyd, "oy");
-        bestOPtT = !OpMath::IsFinite(oyd) || oxd < oyd ? ox : oy;
+        dc_ex = tMatch(originalEdge, XyChoice::inX, bestOPtT.pt, exd, "ex");
+        dc_ey = tMatch(originalEdge, XyChoice::inY, bestOPtT.pt, eyd, "ey");
+        bestEPtT = !OpMath::IsFinite(eyd) || exd < eyd ? dc_ex : dc_ey;
+        dc_ox = tMatch(originalOpp, XyChoice::inX, bestEPtT.pt, oxd, "ox");
+        dc_oy = tMatch(originalOpp, XyChoice::inY, bestEPtT.pt, oyd, "oy");
+        bestOPtT = !OpMath::IsFinite(oyd) || oxd < oyd ? dc_ox : dc_oy;
         OpPtT eSm, eLg, oSm, oLg;
         ptMinMax(originalEdge, bestEPtT, eSm, eLg);
         ptMinMax(originalOpp, bestOPtT, oSm, oLg);
@@ -1965,12 +1976,12 @@ void OpCurveCurve::dumpClosest(const OpPoint& originalPt) const {
             closestPtT = distPtT;
         }
     };
-    checkClosest(exd, ex, "ex");
-    checkClosest(eyd, ey, "ey");
+    checkClosest(exd, dc_ex, "ex");
+    checkClosest(eyd, dc_ey, "ey");
     checkClosest(elxd, elx, "elx");
     checkClosest(elyd, ely, "ely");
-    checkClosest(oxd, ox, "ox");
-    checkClosest(oyd, oy, "oy");
+    checkClosest(oxd, dc_ox, "ox");
+    checkClosest(oyd, dc_oy, "oy");
     checkClosest(olxd, olx, "olx");
     checkClosest(olyd, oly, "oly");
     auto floatString = [&closestDistance, &closestLabel]
@@ -1982,9 +1993,9 @@ void OpCurveCurve::dumpClosest(const OpPoint& originalPt) const {
     };
     std::string s = "iterations:" + STR(iterations);
     s += " original:" + originalPt.debugDump(defaultLevel, defaultBase) + " closest:" + closestLabel;
-    s += "\noriginalEdge:" + floatString("ex", ex, exd) + " " + floatString("ey", ey, eyd);
+    s += "\noriginalEdge:" + floatString("ex", dc_ex, exd) + " " + floatString("ey", dc_ey, eyd);
     s += "\n " + floatString("elx", elx, elxd) + " " + floatString("ely", ely, elyd);
-    s += "\noriginalOpp:" + floatString("ox", ox, oxd) + ", " + floatString("oy", oy, oyd);
+    s += "\noriginalOpp:" + floatString("ox", dc_ox, oxd) + ", " + floatString("oy", dc_oy, oyd);
     s += "\n " + floatString("olx", olx, olxd) + " " + floatString("oly", oly, olyd);
     OpDebugFormat(s);
 }
@@ -2213,6 +2224,7 @@ IntersectMakerName intersectMakerNames[] {
 	INTERSECT_MAKER_NAME(edgeIntersectionsOpp),
 	INTERSECT_MAKER_NAME(edgeCCExact),
 	INTERSECT_MAKER_NAME(edgeCCHull),
+	INTERSECT_MAKER_NAME(edgeCCHullPair),
 	INTERSECT_MAKER_NAME(edgeCCNearly),
 	INTERSECT_MAKER_NAME(edgeCurveCurve),
 	INTERSECT_MAKER_NAME(edgeLineCurve),
@@ -2231,6 +2243,7 @@ IntersectMakerName intersectMakerNames[] {
 	INTERSECT_MAKER_NAME(missingCoincidenceOpp),
 	INTERSECT_MAKER_NAME(oppCCExact),
 	INTERSECT_MAKER_NAME(oppCCHull),
+	INTERSECT_MAKER_NAME(oppCCHullPair),
 	INTERSECT_MAKER_NAME(oppCCNearly),
 	INTERSECT_MAKER_NAME(oppCurveCurve),
 	INTERSECT_MAKER_NAME(segEnd),

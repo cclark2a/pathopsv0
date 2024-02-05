@@ -655,7 +655,7 @@ void OpDebugImage::drawGrid() {
 	auto screenX = [leftS, left, rightS, right](float fx) {
 		return leftS + (fx - left) / (right - left) * (rightS - leftS);
 	};
-	auto drawXLine = [screenX, &offscreen, &paint, &textPaint, topS, bottomS, xOffset](float fx) {
+	auto drawXLine = [screenX, &offscreen, &paint, &textPaint, topS, bottomS](float fx) {
 		float sx = screenX(fx);
 		offscreen.drawLine(sx, topS, sx, bottomS, paint);
 		if (!drawValuesOn)
@@ -687,7 +687,7 @@ void OpDebugImage::drawGrid() {
 	auto screenY = [topS, top, bottomS, bottom](float fy) {
 		return topS + (fy - top) / (bottom - top) * (bottomS - topS);
 	};
-	auto drawYLine = [screenY, &offscreen, &paint, &textPaint, leftS, rightS, xOffset]
+	auto drawYLine = [screenY, &offscreen, &paint, &textPaint, leftS, rightS]
             (float fy, bool last) {
 		float sy = screenY(fy);
 		offscreen.drawLine(leftS, sy, rightS, sy, paint);
@@ -1331,8 +1331,8 @@ void OpDebugImage::addTriangleToPath(OpPoint pt, SkPath& path) {
 	path.addPath(triangle);
 }
 
-OpDebugRay::OpDebugRay(const LinePts& pts_) 
-	: pts(pts_) {
+void OpDebugRay::construct(const LinePts& pts_) {
+	pts = pts_;
 	if (pts.pts[0].x == pts.pts[1].x) {
 		axis = Axis::vertical;
 		value = pts.pts[0].x;
@@ -1805,6 +1805,12 @@ void draw(Axis axis, float value) {
 
 void draw(const LinePts& ray) {
 	OpDebugImage::add(ray);
+	drawLinesOn = true;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void draw(const OpLine& line) {
+	OpDebugImage::add(line);
 	drawLinesOn = true;
 	OpDebugImage::drawDoubleFocus();
 }

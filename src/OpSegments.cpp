@@ -272,12 +272,6 @@ FoundIntersections OpSegments::findIntersections() {
             opp->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(oppSect)));
             OpCurveCurve ccx(&seg->edges.back(), &opp->edges.back());
 #if CC_EXPERIMENT
-#if OP_DEBUG_IMAGE
-            static int experiment;
-            int localExperiment = ++experiment;  // (copy so it is visible in debugger)
-            if (8 == localExperiment)
-                OpDebugOut("");
-#endif
             SectFound experimental = ccx.divideExperiment();
             OP_DEBUG_CODE(ccx.debugDone(seg->contour->contours));
             if (SectFound::fail == experimental)

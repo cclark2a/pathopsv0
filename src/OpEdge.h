@@ -315,22 +315,25 @@ struct SectRay {
 enum class SectType {
 	none,
 	center,   // break curve at geometric center
+	controlHull,  // intersection is on hull between end and control, or pair of control points
 	endHull,  // intersection is close to or equal to curve end point
 	midHull,  // hull intersects, but not near end point
 	snipLo,   // snip at t lower than intersection
 	snipHi    // snip at t higher than intersection
 };
 
+// intersections of opposite curve's hull and this edge's segment
 struct HullSect {
-	HullSect(const OpPtT& ptT, SectType st)
-		: sect(ptT)
+	HullSect(const OpPtT& ptT, SectType st, const OpEdge* o = nullptr)
+		: opp(o)
+		, sect(ptT)
 		, type(st) {
 	}
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
 #endif
-	OpPtT sect;
-//	OpPtT oSect;
+	const OpEdge* opp;
+	OpPtT sect;			// point and t of intersection with hull on this edge
 	SectType type;
 };
 

@@ -83,6 +83,8 @@ OpCurve OpQuad::subDivide(OpPtT ptT1, OpPtT ptT2) const {
 }
 
 OpVector OpQuad::tangent(float t) const {
+    if ((0 == t && pts[0] == pts[1]) || (1 == t && pts[2] == pts[1]))
+        return pts[2] - pts[0];
     float a = t - 1;
     float b = 1 - 2 * t;
     float c = t;

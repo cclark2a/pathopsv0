@@ -210,9 +210,12 @@ float OpSegment::findPtT(float start, float end, OpPoint opp) const {
 FoundPtT OpSegment::findPtT(Axis axis, float start, float end, float opp, float* result) const {
     if (OpType::line != c.type) {
         OpRoots roots = c.axisRayHit(axis, opp, start, end);
-         if (1 < roots.count)
+        if (1 < roots.count)
             return FoundPtT::multiple;
-         *result = 0 == roots.count ? OpNaN : roots.roots[0];
+        if (0 == roots.count)
+            ;
+        else
+            *result = roots.roots[0];
     } else {
         *result = (opp - c.pts[0].choice(axis)) / (c.pts[1].choice(axis) - c.pts[0].choice(axis));
         if (start > *result || *result > end)
@@ -227,14 +230,25 @@ FoundPtT OpSegment::findPtT(float start, float end, OpPoint opp, float* result) 
         OpRoots vRoots = c.axisRayHit(Axis::vertical, opp.x, start, end);
         if (1 < hRoots.count || 1 < vRoots.count)
             return FoundPtT::multiple;
-        if (0 == hRoots.count && 0 == vRoots.count)
-            *result = OpNaN;
+        if (0 == hRoots.count && 0 == vRoots.count) {
+            if (0 == start && opp.isNearly(c.pts[0]))
+                *result = 0;
+            else if (1 == end && opp.isNearly(c.lastPt()))
+                *result = 1;
+            else
+                *result = OpNaN;
+        }
         else if (0 == hRoots.count)
             *result = vRoots.roots[0];
         else if (0 == vRoots.count)
             *result = hRoots.roots[0];
-        else
-            *result = (hRoots.roots[0] + vRoots.roots[0]) / 2;
+        else {
+            OpPoint hPt = c.ptAtT(hRoots.roots[0]);
+            OpPoint vPt = c.ptAtT(vRoots.roots[0]);
+            *result = (hPt - opp).lengthSquared() < (vPt - opp).lengthSquared() 
+                    ? hRoots.roots[0] : vRoots.roots[0];
+
+        }
     } else {
         // this won't work for curves with linear control points since t is not necessarily linear
         OpVector lineSize = c.pts[1] - c.pts[0];

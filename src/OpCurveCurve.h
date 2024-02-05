@@ -114,8 +114,6 @@ struct OpCurveCurve {
 	OpCurveCurve(OpEdge* edge, OpEdge* opp);
 	SectFound addUnsectable(); // if curve doesn't devolve into line segments
 	SectFound curvesIntersect(CurveRef );
-	std::array<OpPtT, 2> cutRange(const OpPtT& , const OpSegment* , 
-			float loEnd, float hiEnd);
 	SectFound divideAndConquer();
 #if CC_EXPERIMENT
 	SectFound divideExperiment();
@@ -125,10 +123,14 @@ struct OpCurveCurve {
 	void release();
 	bool split(CurveRef , DoSplit );
 #if CC_EXPERIMENT
-	void checkSplit(float lo, float hi, CurveRef , OpPtT& checkPtT) const;
+	bool checkSplit(float lo, float hi, CurveRef , OpPtT& checkPtT) const;
+	std::array<OpPtT, 2> cutRange(const OpPtT& , const OpSegment* , 
+			float loEnd, float hiEnd);
+	void recordSect(OpEdge& edge, OpPtT edgePtT, OpEdge& opp, OpPtT oppPtT
+				OP_DEBUG_PARAMS(IntersectMaker eMaker, IntersectMaker oMaker));
 	void snipAndGo(std::vector<OpEdge*>& curves, const OpSegment* , OpContours* , const OpPtT& cut);
 	void splitSect(std::vector<OpEdge*>& curves);  // split and discard edge near intersection
-	void splitHulls(CurveRef , int depth);  // hull finds split point
+	bool splitHulls(CurveRef );  // hull finds split point; returns true if snipped
 #endif
 	bool tooFew(CurveRef );
 
@@ -138,6 +140,7 @@ struct OpCurveCurve {
 #endif
 #if OP_DEBUG_DUMP
 #include "OpDebugDeclarations.h"
+	void drawClosest(const OpPoint& originalPt) const;
 	void dumpClosest(const OpPoint& pt) const;
 #endif
 #if OP_DEBUG_IMAGE
@@ -157,7 +160,12 @@ struct OpCurveCurve {
 	OpPtT snipEdge;
 	OpPtT snipOpp;
 #endif
+	int depth;
 	bool sectResult;
+#if OP_DEBUG_DUMP
+	static int debugExperiment;
+	int debugLocal;  // (copy so it is visible in debugger)
+#endif
 #if OP_DEBUG_VERBOSE
 	std::vector<int> dvDepthIndex;
 	std::vector<OpEdge*> dvAll;

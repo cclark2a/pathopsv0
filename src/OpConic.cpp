@@ -139,6 +139,8 @@ float OpConic::tangent(XyChoice offset, float t) const {
 }
 
 OpVector OpConic::tangent(float t) const {
+    if ((0 == t && pts[0] == pts[1]) || (1 == t && pts[2] == pts[1]))
+        return pts[2] - pts[0];
     return { tangent(XyChoice::inX, t), tangent(XyChoice::inY, t) };
 }
 

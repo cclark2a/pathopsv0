@@ -276,6 +276,11 @@ struct OpVector {
         return *(&dx + +xyChoice);
     }
 
+    float& choice(XyChoice xyChoice) {
+        OP_ASSERT(XyChoice::inZ != xyChoice);
+        return *(&dx + +xyChoice);
+    }
+
     bool isFinite() const;
 
     XyChoice larger() const {
@@ -291,6 +296,8 @@ struct OpVector {
     }
 
     OpVector normalize(bool* overflow);
+    OpVector setLength(float len) {
+        float base = length(); return OpVector(dx * len / base, dy * len / base); }
 
 #if OP_DEBUG_DUMP
     OpVector(const char*& );
@@ -418,6 +425,10 @@ struct OpPoint {
         return &x + +axis;
     }
     
+    float* asPtr(Axis axis) {
+        return &x + +axis;
+    }
+    
     const float* asPtr(XyChoice xyChoice) const {
         return &x + +xyChoice;
     }
@@ -429,6 +440,10 @@ struct OpPoint {
     static bool Between(OpPoint start, OpPoint mid, OpPoint end);
 
     float choice(Axis axis) const {
+        return *asPtr(axis);
+    }
+
+    float& choice(Axis axis) {
         return *asPtr(axis);
     }
 
@@ -505,6 +520,8 @@ struct OpRect {
         return r.left <= right && left <= r.right && r.top <= bottom && top <= r.bottom;
     }
 
+    Axis largerAxis() const {
+        return width() >= height() ? Axis::vertical : Axis::horizontal; }
     float ltChoice(Axis axis) const { 
         return *(&left + +axis);  }
     float perimeter() const { 

@@ -79,6 +79,35 @@ float OpCurve::center(Axis axis, float intercept) const {
     return roots.roots[0];
 }
 
+int OpCurve::closest(OpPtT* best, float delta, OpPoint pt) const {
+    int loop = 0;
+    OpPtT test = *best;
+    float bestDistSq = (test.pt - pt).lengthSquared();
+    do {
+        if (++loop >= 256)  // !!! wild guess (likely way too high)
+            break;
+        float lastT = test.t;
+        test.t = std::max(0.f, std::min(1.f, test.t + delta));
+        if (lastT == test.t)
+            return loop;
+        OpPoint lastPt = test.pt;
+        test.pt = ptAtT(test.t);
+        if (lastPt == test.pt) {
+            delta *= 2;
+            continue;
+        }
+        float testDistSq = (test.pt - pt).lengthSquared();
+        if (bestDistSq > testDistSq) {
+            bestDistSq = testDistSq;
+            *best = test;
+            delta *= 2;
+            continue;
+        }
+        delta = -delta / 2;
+    } while (fabsf(delta) >= OpEpsilon);
+    return loop;
+}
+
 OpPtT OpCurve::findIntersect(Axis axis, const OpPtT& opPtT) const {
     if (pts[0] == opPtT.pt)
         return { opPtT.pt, 0 };
@@ -260,8 +289,8 @@ float OpCurve::tAtXY(float t1, float t2, XyChoice xy, float goal) const {
     OpPair endCheck = xyAtT( { t1, t2 }, xy );
     if (!OpMath::Between(endCheck.s, goal, endCheck.l))
         return OpNaN;
-    float mid = (t1 + t2) * .5;
-    float step = (mid - t1) * .5;
+    float mid = (t1 + t2) / 2;
+    float step = (mid - t1) / 2;
     while (step > OpEpsilon) {
         OpPair test = { mid - step, mid + step };
         OpPair x = xyAtT(test, xy);
@@ -270,7 +299,7 @@ float OpCurve::tAtXY(float t1, float t2, XyChoice xy, float goal) const {
             mid = test.s;
         else if (ordered ? goal > x.l : goal < x.l)
             mid = test.l;
-        step = step * .5;
+        step = step / 2;
     }
     return mid;
 }
@@ -279,14 +308,14 @@ float OpCurve::tZeroX(float t1, float t2) const {
     OpPair endCheck = xyAtT( { t1, t2 }, XyChoice::inX);
     if (endCheck.s * endCheck.l > 0)  // if both are non zero and same sign, there's no crossing
         return OpNaN;
-    float mid = (t1 + t2) * .5;
-    float step = (mid - t1) * .5;
+    float mid = (t1 + t2) / 2;
+    float step = (mid - t1) / 2;
     while (step > OpEpsilon) {
         OpPair test = { mid - step, mid + step };
         OpPair x = xyAtT(test, XyChoice::inX);
         if (x.s * x.l > 0)  // both same sign?
             mid = (x.s * endCheck.s > 0) ? test.l : test.s; // same as t1? use step towards t2
-        step = step * .5;
+        step = step / 2;
     }
     return mid;
 }

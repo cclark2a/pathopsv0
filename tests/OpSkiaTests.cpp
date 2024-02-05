@@ -813,6 +813,7 @@ void ReportError(std::string testname, int errors, std::vector<OpDebugWarning>& 
     if (errors)
         s += " had errors=" + STR(errors);
     OpDebugOut(s + "\n");
+    OpDebugOut("");  // for setting a breakpoint
 }
 
 int VerifyOpNoRegion(const SkPath& left, const SkPath& right, SkPathOp op, const SkPath& result) {

@@ -169,7 +169,7 @@ void OpEdge::apply() {
 // one intersection anymore often than edges. 
 bool OpEdge::calcCenterT() {
 	const OpRect& r = ptBounds;
-	Axis axis = r.width() >= r.height() ? Axis::vertical : Axis::horizontal;
+	Axis axis = r.largerAxis();
 	float middle = (r.ltChoice(axis) + r.rbChoice(axis)) / 2;
 #if USE_SEGMENT_CENTER
 	const OpCurve& curve = segment->c;
@@ -289,15 +289,18 @@ OpIntersection* OpEdge::findSect(EdgeMatch match) {
 
 OpPtT OpEdge::findT(Axis axis, float oppXY) const {
 	OpPtT found;
-	if (oppXY == start.pt.choice(axis))
+	float startXY = start.pt.choice(axis);
+	float endXY = end.pt.choice(axis);
+	if (oppXY == startXY)
 		found = start;
-	else if (oppXY == end.pt.choice(axis))
+	else if (oppXY == endXY)
 		found = end;
 	else {
 		found.pt = OpPoint(SetToNaN::dummy);
 		OP_DEBUG_CODE(FoundPtT foundPtT =) segment->findPtT(axis, start.t, end.t, oppXY, &found.t);
 		OP_ASSERT(FoundPtT::single == foundPtT);
-		OP_ASSERT(OpNaN != found.t);
+		if (OpMath::IsNaN(found.t))
+			found = (oppXY < startXY) == (startXY < endXY) ? start : end;
 	}
 	return found;
 }

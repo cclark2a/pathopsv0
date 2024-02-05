@@ -117,6 +117,7 @@ struct OpCurve {
     const OpCubic& asCubic() const;
     OpRoots axisRayHit(Axis offset, float axisIntercept, float start = 0, float end = 1) const;
     float center(Axis offset, float axisIntercept) const;
+    int closest(OpPtT* best, float delta, OpPoint pt) const;
     OpPtT findIntersect(Axis offset, const OpPtT& ) const;
     bool isFinite() const;
     bool isLinear() const;
@@ -128,7 +129,7 @@ struct OpCurve {
     OpPoint ptAtT(float t) const;
     int pointCount() const {
         return static_cast<int>(type) + (type < OpType::conic); }
-    OpRoots rawIntersect(const LinePts& line) const;
+    OpRoots rawIntersect(const LinePts& line) const;  // requires sect to be on curve
     OpRoots rayIntersect(const LinePts& line) const;
     const OpCurve& set(OpPoint start, const OpPoint ctrlPts[2], OpPoint end, unsigned ptCount, 
             OpType opType, float w);
@@ -144,9 +145,6 @@ struct OpCurve {
     OpPair xyAtT(OpPair t, XyChoice xy) const;
 #if OP_DEBUG_DUMP
     DUMP_DECLARATIONS
-#endif
-#if OP_DEBUG
-    OpVector debugTangent(float t) const;
 #endif
 
     OpPoint pts[5];  // extra point carries cubic center for vertical rotation (used by curve sect)
@@ -178,11 +176,13 @@ struct OpLine : OpCurve {
 
     OpRoots axisRawHit(Axis offset, float axisIntercept) const;
 //    OpRoots axisRayHit(Axis offset, float axisIntercept) const;
+    OpRoots axisTanHit(Axis offset, float axisIntercept) const;
     float interp(XyChoice offset, float t) const;
     OpVector normal(float t) const;
     OpPoint ptAtT(float t) const;
     OpRoots rawIntersect(const LinePts& line) const;
     OpVector tangent() const;
+    OpRoots tangentIntersect(const LinePts& line) const;  // treats both lines as rays
     OpPair xyAtT(OpPair t, XyChoice ) const;
 };
 
@@ -212,9 +212,6 @@ struct OpQuad : OpCurve {
     OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
     OpVector tangent(float t) const;
     OpPair xyAtT(OpPair t, XyChoice ) const;
-#if OP_DEBUG
-    OpVector debugTangent(float t) const;
-#endif
 };
 
 struct OpConic : OpCurve {
@@ -242,9 +239,6 @@ struct OpConic : OpCurve {
     OpVector tangent(float t) const;
     float tAtXY(float t1, float t2, XyChoice , float xy) const;
     OpPair xyAtT(OpPair t, XyChoice ) const;
-#if OP_DEBUG
-    OpVector debugTangent(float t) const;
-#endif
 };
 
 struct OpCubicCoefficients {
@@ -280,9 +274,6 @@ struct OpCubic : OpCurve {
     float tangent(XyChoice , double t) const;
     OpVector tangent(float t) const;
     OpPair xyAtT(OpPair t, XyChoice ) const;
-#if OP_DEBUG
-    OpVector debugTangent(float t) const;
-#endif
 };
 
 #if OP_DEBUG_IMAGE  
@@ -293,7 +284,14 @@ struct OpDebugRay {
 		, value(v)
 		, useAxis(true) {
 	}
-	OpDebugRay(const LinePts& );
+	OpDebugRay(const LinePts& pts) {
+        construct(pts);
+    }
+	OpDebugRay(const OpLine& line) {
+        LinePts p { line.pts[0], line.pts[1] };
+        construct(p);
+    }
+    void construct(const LinePts& pts);
 	LinePts pts;
 	Axis axis;
 	float value;

@@ -126,6 +126,7 @@ extern void draw(std::vector<OpEdge>& );  // to draw edge list built from inters
 extern void draw(std::vector<OpEdge*>& ); // to draw unsortables
 extern void draw(Axis , float );	// horizontal or vertical ray
 extern void draw(const LinePts& );	// arbitrary angled ray
+extern void draw(const OpLine& );	// arbitrary angled ray
 extern void draw(const OpPoint& );
 extern void draw(const OpPtT& );   // draw point (ignores t)
 extern void draw(const OpPoint* );

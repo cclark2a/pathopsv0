@@ -192,10 +192,10 @@ OpCurve OpCubic::subDivide(OpPtT ptT1, OpPtT ptT2) const {
     return result;
 }
 
+
+// curve/curve intersection use of tan requires non-zero tangents;
+// therefore this must handle if t == 0 and pt[0] == pt[1] or if t == 1 and pt[2] == pt[3]
 OpVector OpCubic::tangent(float t) const {
-    // !!! this does not handle if t == 0 and pt[0] == pt[1] or if t == 1 and pt[2] == pt[3]
-    // don't think this is needed for pathops, but is used by debugging (image drawing)
-    // for now, put the additional logic there
     // !!! document why this needs to be double (include example test requiring it)
     auto tangent = [this](XyChoice offset, double t) {
         const float* ptr = &pts[0].x + +offset;
@@ -206,6 +206,18 @@ OpVector OpCubic::tangent(float t) const {
         double d = ptr[6];
         return (float) (3 * ((b - a) * one_t * one_t + 2 * (c - b) * t * one_t + (d - c) * t * t));
     };
+    if (0 == t && pts[0] == pts[1]) {
+        if (pts[1] == pts[2])
+            return pts[3] - pts[0];
+        else
+            return pts[2] - pts[0];
+    }
+    if (1 == t && pts[3] == pts[2]) {
+        if (pts[2] == pts[1])
+            return pts[3] - pts[0];
+        else
+            return pts[3] - pts[1];
+    }
     return { tangent(XyChoice::inX, t), tangent(XyChoice::inY, t) };
 }
 
