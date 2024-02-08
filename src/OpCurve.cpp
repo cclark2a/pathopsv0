@@ -160,9 +160,18 @@ OpRootPts OpCurve::lineIntersect(const LinePts& line, float start, float end) co
     XyChoice xy = fabsf(lineV.dx) >= fabsf(lineV.dy) ? XyChoice::inX : XyChoice::inY;
     for (unsigned index = 0; index < result.valid.count; ++index) {
         OpPoint hit = ptAtT(result.valid.roots[index]);
-        if (OpMath::Betweenish(line.pts[0].choice(xy), hit.choice(xy), line.pts[1].choice(xy)))
-            result.add(hit, result.valid.roots[index]);
-
+        // !!! should have an explanation / example of why 'ish' is correct here
+        if (OpMath::Betweenish(line.pts[0].choice(xy), hit.choice(xy), line.pts[1].choice(xy))) {
+            // curve/curve may need more exact results; try pinning valid hit to line bounds
+            if (!lineV.dx || !lineV.dy) {
+                std::pair<float, float> minmaxX = std::minmax(line.pts[0].x, line.pts[1].x);
+                std::pair<float, float> minmaxY = std::minmax(line.pts[0].y, line.pts[1].y);
+                OpPoint pinned(std::min(std::max(minmaxX.first, hit.x), minmaxX.second),
+                               std::min(std::max(minmaxY.first, hit.y), minmaxY.second));
+                result.add(pinned, result.valid.roots[index]);
+            } else
+                result.add(hit, result.valid.roots[index]);
+        }
     }
     return result;
 }

@@ -297,8 +297,7 @@ OpPtT OpEdge::findT(Axis axis, float oppXY) const {
 		found = end;
 	else {
 		found.pt = OpPoint(SetToNaN::dummy);
-		OP_DEBUG_CODE(FoundPtT foundPtT =) segment->findPtT(axis, start.t, end.t, oppXY, &found.t);
-		OP_ASSERT(FoundPtT::single == foundPtT);
+		found.t = segment->findAxisT(axis, start.t, end.t, oppXY);
 		if (OpMath::IsNaN(found.t))
 			found = (oppXY < startXY) == (startXY < endXY) ? start : end;
 	}

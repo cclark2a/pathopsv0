@@ -1080,6 +1080,60 @@ void clearLines() {
 	DebugOpResetFocus();
 }
 
+bool OpDebugImage::bitsAreBlank(int toTheLeft, int toTheTop, bool allowIntersect, float scale, 
+		const SkRect& textBounds, OpVector& offset, SkRect& test) {
+	if (toTheLeft)
+		offset.dx = toTheLeft < 0 ? -textBounds.width() - scale : scale;
+	if (toTheTop)
+		offset.dy = toTheTop < 0 ? -scale : textBounds.height() + scale;
+	test.offset(offset.dx, offset.dy);
+	SkRect skBounds { 0, 0, bitmapWH, bitmapWH };
+	if (allowIntersect ? !skBounds.intersect(test) : !skBounds.contains(test))
+		return false;
+	int left = std::max(0, (int) test.fLeft);
+	int top = std::max(0, (int) test.fTop);
+	int right = std::min(bitmapWH, (int) test.fRight);
+	int bottom = std::min(bitmapWH, (int) test.fBottom);
+	for (int y = top; y < bottom; ++y) {
+		for (int x = left; x < right; ++x) {
+			uint32_t pixel = bitmap.getColor(x, y);
+			if (SkColorGetR(pixel) == SkColorGetG(pixel)
+					&& SkColorGetR(pixel) == SkColorGetB(pixel)
+					&& SkColorGetR(pixel) < 0xf0)
+				return false;
+			if (SkColorGetR(pixel) < 0x3F
+					|| SkColorGetG(pixel) < 0x3F
+					|| SkColorGetB(pixel) < 0x3F)
+				return false;
+		}
+	}
+	return true;
+}
+
+void OpDebugImage::drawGuide(const SkRect& test, OpPoint pt, uint32_t color) {
+	// add line from edge of text box towards original point
+	SkRect box = test;
+	OpPoint closestSide;
+	float closest = OpInfinity;
+	for (int side = 0; side < 4; ++side) {
+		OpPoint tSide = { 
+				side & 1 ? box.centerX() : 0 == side ? box.fLeft : box.fRight,
+				side & 1 ? 1 == side ? box.fTop : box.fBottom : box.centerY()
+		};
+		float distance = (tSide - pt).length();
+		if (closest > distance) {
+			closest = distance;
+			closestSide = tSide;
+		}
+	}
+	SkPaint paint;
+	paint.setAntiAlias(true);
+	paint.setColor(color);
+	paint.setAlpha(63);
+	SkCanvas offscreen(bitmap);
+	offscreen.drawLine(closestSide.x, closestSide.y, pt.x, pt.y, paint);
+}
+
 bool OpDebugImage::drawValue(OpPoint pt, std::string ptStr, uint32_t color) {
 	SkPaint paint;
 	paint.setAntiAlias(true);
@@ -1097,56 +1151,15 @@ bool OpDebugImage::drawValue(OpPoint pt, std::string ptStr, uint32_t color) {
 			for (int toTheLeft : { -1, 0, 1 } ) {
 				for (int toTheTop : { -1, 0, 1 } ) {
 					OpVector offset { 0, 0 };
-					if (toTheLeft)
-						offset.dx = toTheLeft < 0 ? -textBounds.width() - scale : scale;
-					if (toTheTop)
-						offset.dy = toTheTop < 0 ? -scale : textBounds.height() + scale;
 					SkRect test = trimmed;
-					test.offset(offset.dx, offset.dy);
-					SkRect skBounds { 0, 0, bitmapWH, bitmapWH };
-					if (allowIntersect ? !skBounds.intersect(test) : !skBounds.contains(test))
+					if (!bitsAreBlank(toTheLeft, toTheTop, allowIntersect, scale, textBounds, 
+							offset, test))
 						continue;
-					int left = std::max(0, (int) test.fLeft);
-					int top = std::max(0, (int) test.fTop);
-					int right = std::min(bitmapWH, (int) test.fRight);
-					int bottom = std::min(bitmapWH, (int) test.fBottom);
-					for (int y = top; y < bottom; ++y) {
-						for (int x = left; x < right; ++x) {
-							uint32_t pixel = bitmap.getColor(x, y);
-							if (SkColorGetR(pixel) == SkColorGetG(pixel)
-									&& SkColorGetR(pixel) == SkColorGetB(pixel)
-									&& SkColorGetR(pixel) < 0xf0)
-								goto loopEnd;
-							if (SkColorGetR(pixel) < 0x3F
-									|| SkColorGetG(pixel) < 0x3F
-									|| SkColorGetB(pixel) < 0x3F)
-								goto loopEnd;
-						}
-					}
 					offscreen.drawString(SkString(ptStr), pt.x + offset.dx,
 							pt.y + offset.dy, labelFont, paint);
-					if (16 == scale && drawGuidesOn) {
-						// add line from edge of text box towards original point
-						SkRect box = test;
-						OpPoint closestSide;
-						float closest = OpInfinity;
-						for (int side = 0; side < 4; ++side) {
-							OpPoint tSide = { 
-									side & 1 ? box.centerX() : 0 == side ? box.fLeft : box.fRight,
-									side & 1 ? 1 == side ? box.fTop : box.fBottom : box.centerY()
-							};
-							float distance = (tSide - pt).length();
-							if (closest > distance) {
-								closest = distance;
-								closestSide = tSide;
-							}
-						}
-						paint.setAlpha(63);
-						offscreen.drawLine(closestSide.x, closestSide.y, pt.x, pt.y, paint);
-					}
+					if (16 == scale && drawGuidesOn)
+						drawGuide(test, pt, color);
 					return true;
-				loopEnd:
-					;
 				}
 			}
 		}
@@ -1704,20 +1717,35 @@ bool OpDebugImage::drawEdgeTangent(OpVector tan, OpPoint midTPt, int edgeID, uin
 	return true;
 }
 
-bool OpDebugImage::drawEdgeWinding(OpVector norm, OpPoint midTPt, const OpEdge* edge, uint32_t color) {
+bool OpDebugImage::drawEdgeWinding(OpVector norm, OpPoint midTPt, const OpEdge* edge, 
+		uint32_t color) {
 	OpPoint sumSide = midTPt + norm;
 	OpPoint oppSide = midTPt - norm;
 	SkCanvas textLayer(bitmap);
 	SkPaint paint;
 	paint.setAntiAlias(true);
-	paint.setColor(SK_ColorBLACK);
+	paint.setColor(color);
 	OpWinding sum = edge->sum;
 	std::string sumLeft = OpMax == sum.left() ? "?" : STR(sum.left());
+	std::string sumRight = OpMax == sum.right() ? "?" : STR(sum.right());
+	SkRect sumBounds, rightBounds;
+	(void) labelFont.measureText(sumLeft.c_str(), sumLeft.length(), SkTextEncoding::kUTF8,
+			&sumBounds);
+	(void) labelFont.measureText(sumRight.c_str(), sumRight.length(), SkTextEncoding::kUTF8,
+			&rightBounds);
+	sumBounds.fRight += rightBounds.width() + 8;
+
+	const int xOffset = 2;
+	const int yOffset = 1;
+	sumBounds.inset(-xOffset, -yOffset);
+	SkRect trimmed = sumBounds;
+	trimmed.offset(sumSide.x, sumSide.y);
+
+	// start here
 	textLayer.drawString(SkString(sumLeft), sumSide.x, sumSide.y, labelFont, paint);
 	paint.setColor(SK_ColorRED);
-	std::string sumRight = OpMax == sum.right() ? "?" : STR(sum.right());
 	textLayer.drawString(SkString(sumRight), sumSide.x + 20, sumSide.y, labelFont, paint);
-	paint.setColor(SK_ColorBLACK);
+	paint.setColor(color);
 	int windLeft = edge->winding.left();
 	std::string oppLeft = OpMax == sum.left() ? STR(windLeft) : 
 			STR(sum.left() - windLeft);

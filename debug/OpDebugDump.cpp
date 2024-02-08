@@ -1319,9 +1319,9 @@ ENUM_NAME_STRUCT(SectType);
 
 static SectTypeName sectTypeNames[] = {
     SECTTYPE_NAME(none),
+    SECTTYPE_NAME(endHull),
     SECTTYPE_NAME(center),
     SECTTYPE_NAME(controlHull),
-    SECTTYPE_NAME(endHull),
 	SECTTYPE_NAME(midHull),
 	SECTTYPE_NAME(snipLo),
 	SECTTYPE_NAME(snipHi),

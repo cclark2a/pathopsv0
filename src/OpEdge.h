@@ -314,9 +314,9 @@ struct SectRay {
 
 enum class SectType {
 	none,
+	endHull,  // intersection is close to or equal to curve end point
 	center,   // break curve at geometric center
 	controlHull,  // intersection is on hull between end and control, or pair of control points
-	endHull,  // intersection is close to or equal to curve end point
 	midHull,  // hull intersects, but not near end point
 	snipLo,   // snip at t lower than intersection
 	snipHi    // snip at t higher than intersection

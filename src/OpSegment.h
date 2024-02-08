@@ -9,11 +9,6 @@
 
 struct OpContour;
 
-enum class FoundPtT {
-    single,
-    multiple
-};
-
 enum class MatchSect {
     allow,  // any ends of segment can match
     existing    // consecutive segments cannot match
@@ -80,10 +75,9 @@ struct OpSegment {
     int coinID(bool flipped) const;
     void complete(OpContour* );
     OpEdge* findEnabled(const OpPtT& , EdgeMatch ) const;
-    float findPtT(float start, float end, OpPoint opp) const;
-    FoundPtT findPtT(Axis , float start, float end, float oppXY, float* result) const;
-    FoundPtT findPtT(float start, float end, OpPoint opp, float* result) const;
-    FoundPtT findPtT(const OpPtT& start, const OpPtT& end, OpPoint opp, float* result) const;
+    float findAxisT(Axis , float start, float end, float oppXY) const;
+    float findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const;
+    float findValidT(float start, float end, OpPoint opp) const;
     // count and sort extrema; create an edge for each extrema + 1
     void makeEdge(OP_DEBUG_CODE(EdgeMaker maker, int line, std::string file));
     void makeEdges();

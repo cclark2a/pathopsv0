@@ -27,6 +27,7 @@ struct OpPtT;
 struct OpRect;
 struct OpSegment;
 struct OpVector;
+struct SkRect;
 enum class Axis : int8_t;
 
 constexpr int bitmapWH = 1000;
@@ -44,6 +45,8 @@ struct OpDebugImage {
 	static void addSquareToPath(OpPoint , class SkPath& );
 	static void addTriangleToPath(OpPoint , class SkPath& );
 	static void addToPath(const OpCurve& , class SkPath& );
+	static  bool bitsAreBlank(int toTheLeft, int toTheTop, bool allowIntersect, float scale, 
+		const SkRect& textBounds, OpVector& offset, SkRect& test);
 	static void center(int id, bool add);
 	static void clearIntersections();
 	static void clearLines();
@@ -54,6 +57,7 @@ struct OpDebugImage {
 	static void drawDoubleFocus();
 	static void drawDoubleFocus(const OpRect& , bool add);
 	static void drawGrid();
+	static void drawGuide(const SkRect& test, OpPoint pt, uint32_t color);
 	static void drawDoubleFill(const class SkPath& path, uint32_t color = debugBlack, 
 			bool stroke = false);
 	static void drawDoublePath(const class SkPath& path, uint32_t color = debugBlack, 

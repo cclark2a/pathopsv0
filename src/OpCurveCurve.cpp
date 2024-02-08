@@ -138,7 +138,7 @@ bool OpCurveCurve::checkSplit(float loT, float hiT, CurveRef which, OpPtT& check
 		checkPtT.pt = eCurve.ptAtT(checkPtT.t);
 		deltaT *= -2;
 	} while (++attempts < maxAttempts);
-	OP_ASSERT(0);  // decide what to do when assert fires
+//	OP_ASSERT(0);  // decide what to do when assert fires
 	return false;
 }
 #endif
@@ -292,7 +292,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 // 6) binary search on t (expect to be slower)
 SectFound OpCurveCurve::divideExperiment() {
 #if OP_DEBUG_IMAGE
-	bool breakAtDraw = 28 == originalEdge->id && (34 == originalOpp->id);
+	bool breakAtDraw = 30 == originalEdge->id && (31 == originalOpp->id);
 	if (breakAtDraw) {
 		playback();
 		OpDebugOut("");
@@ -364,7 +364,7 @@ SectFound OpCurveCurve::divideExperiment() {
 			if (edgePtT.pt == opp.segment->c.lastPt())
 				oppPtT.t = 1;
 			else {
-				opp.segment->findPtT(0, 1, edgePtT.pt, &oppPtT.t);
+				oppPtT.t = opp.segment->findValidT(0, 1, edgePtT.pt);
 				oppPtT.t = std::max(oppPtT.t, opp.start.t);
 				oppPtT.t = std::min(oppPtT.t, opp.end.t);
 				if (OpMath::IsNaN(oppPtT.t))
@@ -383,14 +383,16 @@ SectFound OpCurveCurve::divideExperiment() {
 			edgePts.pts[0] = edgePts.pts[1];
 			int endHull = index < ptCount ? index : 0;
 			edgePts.pts[1] = eCurve.pts[endHull];
+			if (edgePts.pts[0].isNearly(edgePts.pts[1]))
+				continue;
 			OpRootPts septs = opp.segment->c.lineIntersect(edgePts, opp.start.t, opp.end.t);
 			for (size_t inner = 0; inner < septs.count; ++inner) {
 				// !!! experiment: try pinning result to hull edge bounds
 				OpPtT sectPtT = septs.ptTs[inner];
 				sectPtT.pt.pin(edgePts.pts[0], edgePts.pts[1]);
-				bool nearOStart = sectPtT.isNearly(opp.start);
-				bool nearOEnd = sectPtT.isNearly(opp.end);
-				SectType sectType = nearOStart || nearOEnd ? SectType::endHull : 
+				bool nearEStart = 1 == index && sectPtT.pt.isNearly(edgePts.pts[0]);
+				bool nearEEnd = ptCount == index && sectPtT.pt.isNearly(edgePts.pts[1]);
+				SectType sectType = nearEStart || nearEEnd ? SectType::endHull : 
 						endHull ? SectType::controlHull : SectType::midHull;
 				// set to secttype endhull iff computed point is equal to or nearly an end point
 				opp.hulls.emplace_back(septs.ptTs[inner], sectType, &edge);
@@ -445,7 +447,7 @@ SectFound OpCurveCurve::divideExperiment() {
 #endif
 	for (depth = 1; depth < maxDepth; ++depth) {
 #if OP_DEBUG_IMAGE
-		if (breakAtDraw && 2 == depth /* && 10 == debugLocal */) {
+		if (breakAtDraw /* && 2 == depth && 10 == debugLocal */) {
 			redraw();  // allows setting a breakpoint to debug curve/curve
 			OpDebugOut("debugLocal:" + STR(debugLocal) + "\n");
 			dmpDepth();
@@ -784,10 +786,8 @@ bool OpCurveCurve::splitHulls(CurveRef which) {
 				return;
 			// use unit tan to pass correct axis to find pt t
 			Axis axis = fabsf(unitTan.dx) > fabsf(unitTan.dy) ? Axis::vertical : Axis::horizontal; 
-			float resultT = OpNaN;
-			OP_DEBUG_CODE(FoundPtT found = ) edge.segment->findPtT(axis, edge.start.t, edge.end.t, 
-					testPt.choice(axis), &resultT);
-			OP_ASSERT(FoundPtT::single == found);
+			float resultT = edge.segment->findAxisT(axis, edge.start.t, edge.end.t, 
+					testPt.choice(axis));
 			if (!OpMath::IsNaN(resultT))
 				*result = OpPtT(edge.segment->c.ptAtT(resultT), resultT);
 		};
@@ -826,7 +826,7 @@ bool OpCurveCurve::splitHulls(CurveRef which) {
 		}
 		auto sortHulls = [&hulls]() {
 			std::sort(hulls.begin(), hulls.end(), [] (const HullSect& s1, const HullSect& s2) {
-				return s1.sect.t < s2.sect.t;
+				return s1.sect.t < s2.sect.t || (s1.sect.t == s2.sect.t && s1.type < s2.type);
 			});
 		};
 		if (2 <= hulls.size()) {  // see if hulls are close enough to define an intersection
@@ -857,11 +857,9 @@ bool OpCurveCurve::splitHulls(CurveRef which) {
 				}
 				const OpEdge* oEdge = hulls[index - 1].opp;
 				OP_ASSERT(oEdge);
-				Axis oLarger = oEdge->ptBounds.largerAxis();
 				// call segment findPtT instead of edge version
 				OpPtT oPtT;
-				OP_DEBUG_CODE(FoundPtT err =) oEdge->segment->findPtT(0, 1, hull1Sect.pt, &oPtT.t);
-				OP_ASSERT(FoundPtT::single == err);
+				oPtT.t = oEdge->segment->findValidT(0, 1, hull1Sect.pt);
 				if (OpMath::IsNaN(oPtT.t))
 					continue;
 				oPtT.pt = oEdge->segment->c.ptAtT(oPtT.t);
@@ -880,18 +878,13 @@ bool OpCurveCurve::splitHulls(CurveRef which) {
 					OP_ASSERT(1 == oRoots.count);
 					OpPoint sectPt = eLine.ptAtT(oRoots.roots[0]);
 					Axis eLarger = edge.ptBounds.largerAxis();
-					start here;
-					// for cubics, wrong axis is chosen
 					// computed sectPt is just outside edge, triggering assert
 					// pin sectPt to edge? check to see if it is nearly the same?
 					OpPtT ePtT = edge.findT(eLarger, sectPt.choice(eLarger));
-					OP_DEBUG_CODE(oPtT.t = OpNaN);
-					OP_DEBUG_CODE(err =)
-					 		oEdge->segment->findPtT(oLarger, 0, 1, sectPt.choice(oLarger), &oPtT.t);
-					OP_ASSERT(FoundPtT::single == err);
-					if (OpMath::IsNaN(oPtT.t))
+					float newOPtT = oEdge->segment->findValidT(0, 1, sectPt);
+					if (OpMath::IsNaN(newOPtT))
 						continue;
-					oPtT.pt = sectPt;
+					oPtT = OpPtT(sectPt, newOPtT);
 					hull1Sect = OpPtT(sectPt, ePtT.t);
 				}
 				recordSect(edge, hull1Sect, const_cast<OpEdge&>(*oEdge), oPtT  
@@ -928,8 +921,7 @@ bool OpCurveCurve::splitHulls(CurveRef which) {
 		hulls.emplace_back(edge.end, SectType::endHull);
 		int hullsResized;
 		do {
-			sortHulls();
-			// !!! likely this will cause problems as above randomly sorted hull type
+			sortHulls();  // sorted puts hull type end first so it is preferred over ctrl/mid
 			int writer = 0;
 			for (size_t xing = 1; xing < hulls.size(); ++xing) {
 				if (hulls[writer].sect.t >= hulls[xing].sect.t)

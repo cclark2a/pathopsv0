@@ -199,77 +199,62 @@ OpEdge* OpSegment::findEnabled(const OpPtT& ptT, EdgeMatch match) const {
     return nullptr;
 }
 
-// start/end range is necessary since cubics can have more than one t at a point
-float OpSegment::findPtT(float start, float end, OpPoint opp) const {
-    float result;
-    OP_DEBUG_CODE(FoundPtT found =) findPtT(start, end, opp, &result);
-    OP_ASSERT(FoundPtT::single == found);
-    return result;
-}
-
-FoundPtT OpSegment::findPtT(Axis axis, float start, float end, float opp, float* result) const {
+// used to find unsectable range; assumes range all has about the same slope
+// !!! this may be a bad idea if two near coincident edges turn near 90 degrees
+float OpSegment::findAxisT(Axis axis, float start, float end, float opp) const {
     if (OpType::line != c.type) {
         OpRoots roots = c.axisRayHit(axis, opp, start, end);
-        if (1 < roots.count)
-            return FoundPtT::multiple;
-        if (0 == roots.count)
-            ;
-        else
-            *result = roots.roots[0];
+        if (1 == roots.count)
+            return roots.roots[0];
     } else {
-        *result = (opp - c.pts[0].choice(axis)) / (c.pts[1].choice(axis) - c.pts[0].choice(axis));
-        if (start > *result || *result > end)
-            *result = OpNaN;
+        float pt0xy = c.pts[0].choice(axis);
+        float result = (opp - pt0xy) / (c.pts[1].choice(axis) - pt0xy);
+        if (start <= result && result <= end)
+            return result;
     }
-    return FoundPtT::single;
+    return OpNaN;
 }
 
-FoundPtT OpSegment::findPtT(float start, float end, OpPoint opp, float* result) const {
+// returns t closest to start, end
+float OpSegment::findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const {
+    if (start.pt == opp)
+        return start.t;
+    if (end.pt == opp)
+        return end.t;
+    return findValidT(start.t, end.t, opp);
+}
+
+// returns t iff opp point is between start and end
+// start/end range is necessary since cubics can have more than one t at a point
+float OpSegment::findValidT(float start, float end, OpPoint opp) const {
     if (OpType::line != c.type) {
         OpRoots hRoots = c.axisRayHit(Axis::horizontal, opp.y, start, end);
         OpRoots vRoots = c.axisRayHit(Axis::vertical, opp.x, start, end);
-        if (1 < hRoots.count || 1 < vRoots.count)
-            return FoundPtT::multiple;
         if (0 == hRoots.count && 0 == vRoots.count) {
             if (0 == start && opp.isNearly(c.pts[0]))
-                *result = 0;
-            else if (1 == end && opp.isNearly(c.lastPt()))
-                *result = 1;
-            else
-                *result = OpNaN;
+                return 0;
+            if (1 == end && opp.isNearly(c.lastPt()))
+                return 1;
+            return OpNaN;
         }
-        else if (0 == hRoots.count)
-            *result = vRoots.roots[0];
-        else if (0 == vRoots.count)
-            *result = hRoots.roots[0];
-        else {
-            OpPoint hPt = c.ptAtT(hRoots.roots[0]);
-            OpPoint vPt = c.ptAtT(vRoots.roots[0]);
-            *result = (hPt - opp).lengthSquared() < (vPt - opp).lengthSquared() 
-                    ? hRoots.roots[0] : vRoots.roots[0];
-
+        if (1 != hRoots.count) {
+            OP_ASSERT(1 == vRoots.count);
+            return vRoots.roots[0];
         }
-    } else {
-        // this won't work for curves with linear control points since t is not necessarily linear
-        OpVector lineSize = c.pts[1] - c.pts[0];
-        *result = fabsf(lineSize.dy) > fabsf(lineSize.dx) ?
-            (opp.y - c.pts[0].y) / lineSize.dy : (opp.x - c.pts[0].x) / lineSize.dx;
-        if (start > *result || *result > end)
-            *result = OpNaN;
+        if (1 != vRoots.count)
+            return hRoots.roots[0];
+        OpPoint hPt = c.ptAtT(hRoots.roots[0]);
+        OpPoint vPt = c.ptAtT(vRoots.roots[0]);
+        return (hPt - opp).lengthSquared() < (vPt - opp).lengthSquared() 
+                ? hRoots.roots[0] : vRoots.roots[0];
     }
-    return FoundPtT::single;
-}
-
-FoundPtT OpSegment::findPtT(const OpPtT& start, const OpPtT& end, OpPoint opp, float* result) const {
-    if (start.pt == opp) {
-        *result = start.t;
-        return FoundPtT::single;
-    }
-    if (end.pt == opp) {
-        *result = end.t;
-        return FoundPtT::single;
-    }
-    return findPtT(start.t, end.t, opp, result);
+    // this won't work for curves with linear control points since t is not necessarily linear
+    OpVector lineSize = c.pts[1] - c.pts[0];
+    float result = fabsf(lineSize.dy) > fabsf(lineSize.dx) ?
+        (opp.y - c.pts[0].y) / lineSize.dy : (opp.x - c.pts[0].x) / lineSize.dx;
+    if (start <= result && result <= end)
+        return result;
+    return OpNaN;
 }
 
 void OpSegment::makeEdge(OP_DEBUG_CODE(EdgeMaker maker, int line, std::string file)) {

@@ -553,10 +553,7 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 		}
 		tInRange = true;
 		OpPtT oppPtT { opp.segment->c.ptAtT(septs.get(index)), septs.get(index) };
-		float edgeT;
-		FoundPtT foundPtT = edge.segment->findPtT(0, 1, oppPtT.pt, &edgeT);
-		if (FoundPtT::multiple == foundPtT)
-			return IntersectResult::no;
+		float edgeT = edge.segment->findValidT(0, 1, oppPtT.pt);
 		if (!OpMath::Between(0, edgeT, 1))
 			continue;
 #if OP_DEBUG_RECORD

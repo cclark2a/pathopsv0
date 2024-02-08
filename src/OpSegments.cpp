@@ -70,7 +70,7 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
     for (unsigned index = 0; index < septs.count; ++index) {
         oppPtTs.emplace_back(opp->c.ptAtT(septs.get(index)), septs.get(index));
         OpPtT& oppPtT = oppPtTs.back();
-        float edgeT = seg->findPtT(0, 1, oppPtT.pt);
+        float edgeT = seg->findValidT(0, 1, oppPtT.pt);
         if (OpMath::IsNaN(edgeT))
             continue;
         seg->ptBounds.pin(&oppPtT.pt);
