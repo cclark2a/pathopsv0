@@ -42,6 +42,17 @@ OpRoots OpLine::rawIntersect(const LinePts& line) const {
         return axisRawHit(Axis::vertical, line.pts[0].x);
     if (line.pts[0].y == line.pts[1].y)
         return axisRawHit(Axis::horizontal, line.pts[0].y);
+#if 0  // !!! alternative which may be faster
+	OpVector ds = line.pts[0] - pts[0];
+	OpVector d1 = pts[1] - pts[0];
+	OpVector d2 = line.pts[1] - line.pts[0];
+	float t = ds.cross(d2) / d1.cross(d2);
+	if (0 > t)
+        return RootFail::outsideFirstPt;
+    if (t > 1)
+        return RootFail::outsideLastPt;
+	return OpRoots(t);
+#endif
     OpCurve rotated = toVertical(line);
     return rotated.asLine().axisRawHit(Axis::vertical, 0);
 }

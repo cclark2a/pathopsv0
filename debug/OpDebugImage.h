@@ -45,8 +45,7 @@ struct OpDebugImage {
 	static void addSquareToPath(OpPoint , class SkPath& );
 	static void addTriangleToPath(OpPoint , class SkPath& );
 	static void addToPath(const OpCurve& , class SkPath& );
-	static  bool bitsAreBlank(int toTheLeft, int toTheTop, bool allowIntersect, float scale, 
-		const SkRect& textBounds, OpVector& offset, SkRect& test);
+	static bool bitsAreBlank(bool allowIntersect, SkRect& test);
 	static void center(int id, bool add);
 	static void clearIntersections();
 	static void clearLines();
@@ -66,10 +65,12 @@ struct OpDebugImage {
 			uint32_t color = debugBlack);
 	static bool drawEdgeTangent(OpVector tan, OpPoint midTPt, int edgeID, 
 			uint32_t color = debugBlack);
-	static bool drawEdgeWinding(OpVector norm, OpPoint midTPt, const OpEdge* edge, uint32_t color);
+	static bool drawEdgeWinding(const OpCurve& , const OpEdge* , uint32_t color);
 	static void drawPath(const class SkPath& path, uint32_t color = debugBlack);
 	static void drawPoints();
 	static bool drawValue(OpPoint pt, std::string ptStr, uint32_t color = debugBlack);
+	static bool drawWinding(const OpCurve& , std::string left, std::string right,
+			float normSign, uint32_t color);
 	static void find(int id, OpPointBounds* , OpPoint* );
 	static std::vector<const OpEdge*> find(int id);
 	static void focus(int id, bool add);

@@ -105,7 +105,7 @@ EdgeDistance* SectRay::find(OpEdge* edge) {
 // for now, keep making it smaller until it breaks
 #define WINDING_NORMAL_LIMIT  0.004 // !!! fails (I think) on pentreck13 edge 1045 NxR:00221
 
-FindCept SectRay::findIntercept(OpEdge* test) {
+FindCept SectRay::findIntercept(OpEdge* test  OP_DEBUG_PARAMS(OpEdge* home)) {
 	if (test->ptBounds.ltChoice(axis) > normal)
 		return FindCept::ok;
 	if (test->ptBounds.rbChoice(axis) < normal)
@@ -119,13 +119,7 @@ FindCept SectRay::findIntercept(OpEdge* test) {
 	// !!! EXPERIMENT
 	// try using segment's curve instead of edge curve
 	// edge curve's control points, especially small ones, may magnify error
-#define RAY_USE_SEGMENT 0
-#if RAY_USE_SEGMENT
-	const OpCurve& testCurve = test->segment->c;
-#else
-	const OpCurve& testCurve = test->setCurve();
-#endif
-	OpRoots roots = testCurve.axisRayHit(axis, normal);
+	OpRoots roots = test->curve.axisRayHit(axis, normal);
 	// get the normal at the intersect point and see if it is usable
 	if (1 < roots.count) {
 		test->setUnsortable();  // triggered by joel_14x (very small cubic)
@@ -144,7 +138,7 @@ FindCept SectRay::findIntercept(OpEdge* test) {
 		return FindCept::retry;
 #endif
 	bool overflow;
-	OpVector tangent = testCurve.tangent(root).normalize(&overflow);
+	OpVector tangent = test->curve.tangent(root).normalize(&overflow);
 	if (overflow)
 		return FindCept::retry;
 	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
@@ -152,7 +146,7 @@ FindCept SectRay::findIntercept(OpEdge* test) {
 	float tNxR = tangent.cross(backRay);
 	if (fabs(tNxR) < WINDING_NORMAL_LIMIT)
 		return FindCept::retry;
-	OpPoint pt = testCurve.ptAtT(root);
+	OpPoint pt = test->curve.ptAtT(root);
 	Axis perpendicular = !axis;
 	float testXY = pt.choice(perpendicular);
 	bool reversed = tangent.dot(homeTangent) < 0;
@@ -462,8 +456,10 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 	OpSegment* oSegment = const_cast<OpSegment*>(opp.segment);
 	OP_ASSERT(oSegment != eSegment);
 	OP_ASSERT(edge.isLine_impl);
+ //   bool reversed;
+    MatchEnds common = MatchEnds::none; // eSegment->matchEnds(oSegment, &reversed, nullptr, MatchSect::existing);
 	LinePts edgePts { edge.start.pt, edge.end.pt };
-    OpRoots septs = oSegment->c.rayIntersect(edgePts); 
+    OpRoots septs = oSegment->c.rayIntersect(edgePts, common); 
 	IntersectResult sectAdded = IntersectResult::no;
 	// !!! hacky: consider conics only until we find lines/quads/cubics that fail here as well
 	// check the ends of each edge to see if they intersect the opposite edge (if missed earlier)
@@ -607,7 +603,7 @@ FoundIntercept OpWinder::findRayIntercept(size_t inIndex, OpVector homeTan, floa
 			OpEdge* test = inArray[--index];
 			if (test == home)
 				continue;
-			findCept = ray.findIntercept(test);
+			findCept = ray.findIntercept(test  OP_DEBUG_PARAMS(home));
 			if (FindCept::unsectable == findCept) {
 				EdgeDistance& tDist = ray.distances.back();
 				if (home->isLinear() && test->isLinear())
@@ -638,9 +634,9 @@ FoundIntercept OpWinder::findRayIntercept(size_t inIndex, OpVector homeTan, floa
 #if RAY_USE_SEGMENT
 		const OpCurve& homeCurve = home->segment->c;
 #else
-		const OpCurve& homeCurve = home->setCurve();  // ok to be in loop (lazy)
+//		const OpCurve& homeCurve = home->setCurve();  // ok to be in loop (lazy)
 #endif
-		float homeMidT = homeCurve.center(workingAxis, middle);
+		float homeMidT = home->curve.center(workingAxis, middle);
 		if (OpMath::IsNaN(homeMidT) || mid <= 1.f / 256.f) {  // give it at most eight tries
 			// look for the same edge touching multiple times; the pair are unsectable
 			if (FindCept::unsectable == findCept) {
@@ -662,9 +658,9 @@ FoundIntercept OpWinder::findRayIntercept(size_t inIndex, OpVector homeTan, floa
 			break;	// give up
 		}
 		// if find ray intercept can't find, restart with new center, normal, distance, etc.
-		ray.homeCept = homeCept = homeCurve.ptAtT(homeMidT).choice(perpendicular);
+		ray.homeCept = homeCept = home->curve.ptAtT(homeMidT).choice(perpendicular);
 		OP_ASSERT(!OpMath::IsNaN(homeCept));
-		ray.normal = normal = homeCurve.ptAtT(homeMidT).choice(workingAxis);
+		ray.normal = normal = home->curve.ptAtT(homeMidT).choice(workingAxis);
 		ray.homeT = homeMidT;
 		OP_ASSERT(!OpMath::IsNaN(normal));
 	} while (true);
@@ -879,16 +875,49 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 				SectRay& ray = edge.ray;
 				if (!ray.distances.size())
 					continue;
+		//		start here;
+				// if edge is not unsectable, and
+				//     if an adjacent edge (the next edge in the contour) is unsectable, and
+				//     its pal is also in this edge's distance array:
+				//  mark edge as unsectable
+				if (false && !edge.unsectableID) {
+					auto checkNeighbor = [&edge](const OpPtT& ptT, EdgeMatch match) {
+						OpEdge* neighbor = edge.segment->findEnabled(ptT, match);
+						if (!neighbor->unsectableID)
+							return 0;
+						std::vector<EdgeDistance>& nDists = neighbor->ray.distances;
+						auto palIter = std::find_if(nDists.begin(), nDists.end(), [&neighbor, &edge]
+								(const EdgeDistance& dist) {
+							if (dist.edge == neighbor)
+								return false;
+							if (dist.edge == &edge)
+								return false;
+							if (!dist.edge->unsectableID)
+								return false;
+							std::vector<EdgeDistance>& eDists = edge.ray.distances;
+							return eDists.end() != std::find_if(eDists.begin(), eDists.end(), 
+									[&dist](const EdgeDistance& eDist) {
+								return eDist.edge == dist.edge;
+							});
+						});
+						return palIter == nDists.end() ? 0 : (*palIter).edge->unsectableID;
+
+					};
+					if (edge.end.t < 1)
+						edge.unsectableID = checkNeighbor(edge.end, EdgeMatch::start);
+					if (edge.start.t > 0)
+						edge.unsectableID = checkNeighbor(edge.start, EdgeMatch::end);
+				}
 				bySize.push_back(&edge);
 			}
 		}
 	}
-	// sort by ray order so that edges at the beginning of ray distances are resolved first
-	// that will make it easier to detect bad sum chains and perhaps recompute them
+	// This used to sort by ray order, so that edges at the beginning of ray distances are resolved
+	// first. The intent was to make it easier to detect bad sum chains and perhaps recompute them.
+	// However, it had the downside of resolving short ambiguous edges early, and propogating bad
+	// results to larger more easily resolved edges. example: thread_loops169
 	std::sort(bySize.begin(), bySize.end(), [](const auto& s1, const auto& s2) {
-		return s1->ray.distances.size() < s2->ray.distances.size()
-				|| (s1->ray.distances.size() == s2->ray.distances.size() 
-				&& s1->ptBounds.perimeter() > s2->ptBounds.perimeter()); 
+		return s1->ptBounds.perimeter() > s2->ptBounds.perimeter(); 
 	} );
 	for (auto edge : bySize) {
 		if (edge->sum.isSet())

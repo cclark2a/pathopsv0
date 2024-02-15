@@ -3,10 +3,10 @@
 #include "OpDebugRecord.h"
 #include <cmath>
 
-OpRoots OpCubic::axisRawHit(Axis axis, float axisIntercept) const {
+OpRoots OpCubic::axisRawHit(Axis axis, float axisIntercept, MatchEnds common) const {
     OpCubicCoefficients coeff = coefficients(axis);
     coeff.d -= axisIntercept;
-    return OpMath::CubicRootsReal(coeff.a, coeff.b, coeff.c, coeff.d);
+    return OpMath::CubicRootsReal(coeff.a, coeff.b, coeff.c, coeff.d, common);
 }
 
 OpCubicCoefficients OpCubic::coefficients(Axis axis) const {
@@ -77,7 +77,7 @@ OpPoint OpCubic::ptAtT(float t) const {
     return a * pts[0] + b * pts[1] + c * pts[2] + d * pts[3];
 }
 
-#if 0 // unused
+
 OpPoint OpCubic::doublePtAtT(float t) const {
     if (0 == t)
         return pts[0];
@@ -95,7 +95,6 @@ OpPoint OpCubic::doublePtAtT(float t) const {
         (float)(a * pts[0].y + b * pts[1].y + c * pts[2].y + d * pts[3].y)
     };
 }
-#endif
 
 void OpCubic::pinCtrls(XyChoice offset) {
     OP_DEBUG_CODE(float orig1 = pts[1].choice(offset));
@@ -110,13 +109,13 @@ void OpCubic::pinCtrls(XyChoice offset) {
 #endif
 }
 
-OpRoots OpCubic::rawIntersect(const LinePts& line) const {
+OpRoots OpCubic::rawIntersect(const LinePts& line, MatchEnds common) const {
     if (line.pts[0].x == line.pts[1].x)
-        return axisRawHit(Axis::vertical, line.pts[0].x);
+        return axisRawHit(Axis::vertical, line.pts[0].x, common);
     if (line.pts[0].y == line.pts[1].y)
-        return axisRawHit(Axis::horizontal, line.pts[0].y);
-    OpCurve rotated = toVertical(line);
-    OpRoots result = rotated.asCubic().axisRawHit(Axis::vertical, 0);
+        return axisRawHit(Axis::horizontal, line.pts[0].y, common);
+    OpCurve rotated = toVertical(line);  // !!! experiment: for thread_cubics17153
+    OpRoots result = rotated.asCubic().axisRawHit(Axis::vertical, 0, common);
 #if 0
     // for thread_cubics8753, edges 54 and 55 fail to find intersection; check for error here
     for (size_t index = 0; index < result.count; ++index) {

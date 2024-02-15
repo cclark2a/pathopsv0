@@ -10,6 +10,8 @@ OpJoiner::OpJoiner(OpContours& contours, OpOutPath& p)
 	, linkMatch(EdgeMatch::none)
 	, linkPass(LinkPass::none)
 	, baseUnsectable(nullptr)
+	, edge(nullptr)
+	, lastEdge(nullptr)
 	, disabledBuilt(false)
 	, disabledPalsBuilt(false) {
 	for (auto& contour : contours.contours) {

@@ -30,6 +30,7 @@ OP_X(HullSect) \
 OP_X(OpContour) \
 OP_X(OpEdge) \
 OP_X(OpIntersection) \
+OP_X(OpPtT) \
 OP_X(OpSegment)
 
 #define OP_STRUCTS \
@@ -42,7 +43,6 @@ OP_X(OpEdgeStorage) \
 OP_X(OpIntersections) \
 OP_X(OpJoiner) \
 OP_X(OpOutPath) \
-OP_X(OpPtT) \
 OP_X(OpPoint) \
 OP_X(OpPointBounds) \
 OP_X(OpRect) \

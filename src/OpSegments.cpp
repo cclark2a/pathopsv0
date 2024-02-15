@@ -35,15 +35,24 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
     OP_ASSERT(opp != seg);
     OP_ASSERT(OpType::line == seg->c.type);
     LinePts edgePts { seg->c.pts[0], seg->c.pts[1] };
-    OpRoots septs = opp->c.rayIntersect(edgePts);
+    bool reversed;
+    MatchEnds existing;
+    MatchEnds common = seg->matchEnds(opp, &reversed, &existing, MatchSect::existing);
+    if (reversed) {
+        if (MatchEnds::start == existing)
+            existing = MatchEnds::end;
+        else if (MatchEnds::end == existing)
+            existing = MatchEnds::start;
+    }
+    // if line and curve share end point, pass hint that root finder can call
+    // reduced form that assumes one root is zero or one.
+    OpRoots septs = opp->c.rayIntersect(edgePts, existing);
 	if (septs.fail == RootFail::rawIntersectFailed) {
 		// binary search on opp t-range to find where vert crosses zero
 		OpCurve rotated = opp->c.toVertical(edgePts);
 		septs.roots[0] = rotated.tZeroX(0, 1);
 		septs.count = 1;
 	}
-    bool reversed;
-    MatchEnds common = seg->matchEnds(opp, &reversed, nullptr, MatchSect::existing);
     if (!septs.count && MatchEnds::none == common)
         return;
     if (OpType::line == opp->c.type && MatchEnds::both == common) {

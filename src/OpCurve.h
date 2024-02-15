@@ -118,29 +118,27 @@ struct OpCurve {
     OpRoots axisRayHit(Axis offset, float axisIntercept, float start = 0, float end = 1) const;
     float center(Axis offset, float axisIntercept) const;
     int closest(OpPtT* best, float delta, OpPoint pt) const;
+    OpPoint doublePtAtT(float t) const;
     OpPtT findIntersect(Axis offset, const OpPtT& ) const;
     bool isFinite() const;
     bool isLinear() const;
     OpPoint lastPt() const {
         return pts[pointCount() - 1]; }
-    OpRootPts lineIntersect(const LinePts& line, float start, float end) const;
+    OpRootPts lineIntersect(const LinePts& line) const;
     OpVector normal(float t) const;
     NormalDirection normalDirection(Axis axis, float t) const;
     OpPoint ptAtT(float t) const;
     int pointCount() const {
         return static_cast<int>(type) + (type < OpType::conic); }
-    OpRoots rawIntersect(const LinePts& line) const;  // requires sect to be on curve
-    OpRoots rayIntersect(const LinePts& line) const;
-    const OpCurve& set(OpPoint start, const OpPoint ctrlPts[2], OpPoint end, unsigned ptCount, 
-            OpType opType, float w);
+    OpRoots rawIntersect(const LinePts& line, MatchEnds ) const;  // requires sect to be on curve
+    OpRoots rayIntersect(const LinePts& line, MatchEnds ) const;
+    const OpCurve& set(OpPoint start, OpPoint end, unsigned ptCount, OpType opType, float w);
     OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
     OpVector tangent(float t) const;
     float tAtXY(float t1, float t2, XyChoice , float goal) const;
     // rotates curve in a space where line's (pt[0], pt[1]) moves to ((0, 0), (0, line[1].y - line[0].y))
     // curve scale is not preserved
     OpCurve toVertical(const LinePts& line) const;
-    // !!! thread_cubics8753 fails to find intersection of edges 54, 55; see if vertical is to blame
-    // OpCurve toVerticalDouble(const LinePts& line) const;
     float tZeroX(float t1, float t2) const;
     OpPair xyAtT(OpPair t, XyChoice xy) const;
 #if OP_DEBUG_DUMP
@@ -180,7 +178,7 @@ struct OpLine : OpCurve {
     float interp(XyChoice offset, float t) const;
     OpVector normal(float t) const;
     OpPoint ptAtT(float t) const;
-    OpRoots rawIntersect(const LinePts& line) const;
+    OpRoots rawIntersect(const LinePts& ) const;
     OpVector tangent() const;
     OpRoots tangentIntersect(const LinePts& line) const;  // treats both lines as rays
     OpPair xyAtT(OpPair t, XyChoice ) const;
@@ -208,7 +206,7 @@ struct OpQuad : OpCurve {
     bool monotonic(XyChoice offset) const;
     OpVector normal(float t) const;
     OpPoint ptAtT(float t) const;
-    OpRoots rawIntersect(const LinePts& line) const;
+    OpRoots rawIntersect(const LinePts& ) const;
     OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
     OpVector tangent(float t) const;
     OpPair xyAtT(OpPair t, XyChoice ) const;
@@ -233,7 +231,7 @@ struct OpConic : OpCurve {
     OpVector normal(float t) const;
     OpPoint numerator(float t) const;
     OpPoint ptAtT(float t) const;
-    OpRoots rawIntersect(const LinePts& line) const;
+    OpRoots rawIntersect(const LinePts& ) const;
     OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
     float tangent(XyChoice offset, float t) const;
     OpVector tangent(float t) const;
@@ -257,11 +255,11 @@ struct OpCubic : OpCurve {
         : OpCurve(p, OpType::cubic) {
     }
 
-    OpRoots axisRawHit(Axis offset, float axisIntercept) const;
+    OpRoots axisRawHit(Axis offset, float axisIntercept, MatchEnds ) const;
 //    OpRoots axisRayHit(Axis offset, float axisIntercept) const;
 //    OpRoots axisRayHit(Axis offset, float axisIntercept, OpPtT start, OpPtT end) const;
     OpCubicCoefficients coefficients(Axis offset) const;
-//    OpPoint doublePtAtT(float t) const;  // unused
+    OpPoint doublePtAtT(float t) const;
     OpRoots extrema(XyChoice ) const;
     OpRoots inflections() const;
     OpPoint interp(float t) const;
@@ -269,7 +267,7 @@ struct OpCubic : OpCurve {
     OpVector normal(float t) const;
     void pinCtrls(XyChoice );
     OpPoint ptAtT(float t) const;
-    OpRoots rawIntersect(const LinePts& line) const;
+    OpRoots rawIntersect(const LinePts& , MatchEnds ) const;
     OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
     float tangent(XyChoice , double t) const;
     OpVector tangent(float t) const;

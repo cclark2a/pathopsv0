@@ -43,7 +43,8 @@ OpRoots OpCurve::axisRayHit(Axis axis, float axisIntercept, float start,
         case OpType::line: roots = asLine().axisRawHit(axis, axisIntercept); break;
         case OpType::quad: roots = asQuad().axisRawHit(axis, axisIntercept); break;
         case OpType::conic: roots = asConic().axisRawHit(axis, axisIntercept); break;
-        case OpType::cubic: roots = asCubic().axisRawHit(axis, axisIntercept); break;
+        case OpType::cubic: roots = asCubic().axisRawHit(axis, axisIntercept, 
+                MatchEnds::none); break;
         default:
             OP_ASSERT(0); 
     }
@@ -108,6 +109,19 @@ int OpCurve::closest(OpPtT* best, float delta, OpPoint pt) const {
     return loop;
 }
 
+// !!! promote types to use double as test cases requiring such are found
+OpPoint OpCurve::doublePtAtT(float t) const {
+    switch(type) {
+        case OpType::line: return asLine().ptAtT(t);    
+        case OpType::quad: return asQuad().ptAtT(t);
+        case OpType::conic: return asConic().ptAtT(t);
+        case OpType::cubic: return asCubic().doublePtAtT(t);
+        default:
+            OP_ASSERT(0);
+    }
+    return OpPoint();
+}
+
 OpPtT OpCurve::findIntersect(Axis axis, const OpPtT& opPtT) const {
     if (pts[0] == opPtT.pt)
         return { opPtT.pt, 0 };
@@ -147,19 +161,33 @@ bool OpCurve::isFinite() const {
     return OpType::conic != type || OpMath::IsFinite(weight);
 }
 
-OpRootPts OpCurve::lineIntersect(const LinePts& line, float start, float end) const {
+OpRootPts OpCurve::lineIntersect(const LinePts& line) const {
     OpRootPts result;
-    result.raw = rawIntersect(line);
+    result.raw = rawIntersect(line, MatchEnds::none);
     if (RootFail::rawIntersectFailed == result.raw.fail)
         return result;
     result.valid = result.raw;
-    result.valid.keepValidTs(start, end);
+    result.valid.keepValidTs(0, 1);
     if (!result.valid.count)
         return result;
     OpVector lineV = line.pts[1] - line.pts[0];
     XyChoice xy = fabsf(lineV.dx) >= fabsf(lineV.dy) ? XyChoice::inX : XyChoice::inY;
     for (unsigned index = 0; index < result.valid.count; ++index) {
-        OpPoint hit = ptAtT(result.valid.roots[index]);
+        OpPoint hit = doublePtAtT(result.valid.roots[index]);
+#if 0 && OP_DEBUG_IMAGE
+        static int debugDraw = 0;
+        if (++debugDraw == 26) {
+            std::vector<OpPtT> ptts;
+            for (int di = -8; di < 8; ++di) {
+                float t = result.valid.roots[index] - OpEpsilon * di;
+                if (t > 0 && t < 1) {
+                    ptts.push_back( { doublePtAtT(t), t } );
+                    ::draw(ptts.back());
+                }
+            }
+             OpDebugOut("");
+       }
+#endif
         // !!! should have an explanation / example of why 'ish' is correct here
         if (OpMath::Betweenish(line.pts[0].choice(xy), hit.choice(xy), line.pts[1].choice(xy))) {
             // curve/curve may need more exact results; try pinning valid hit to line bounds
@@ -191,20 +219,20 @@ NormalDirection OpCurve::normalDirection(Axis axis, float t) const {
 	return NormalDirection::underflow;	 // catches, zero, nan
 }
 
-OpRoots OpCurve::rawIntersect(const LinePts& linePt) const {
+OpRoots OpCurve::rawIntersect(const LinePts& linePt, MatchEnds common) const {
     switch (type) {
         case OpType::line: return asLine().rawIntersect(linePt);
         case OpType::quad: return asQuad().rawIntersect(linePt);
         case OpType::conic: return asConic().rawIntersect(linePt);
-        case OpType::cubic: return asCubic().rawIntersect(linePt);
+        case OpType::cubic: return asCubic().rawIntersect(linePt, common);
         default:
             OP_ASSERT(0);
     }
     return OpRoots();
 }
 
-OpRoots OpCurve::rayIntersect(const LinePts& line) const {
-    OpRoots rawRoots = rawIntersect(line);
+OpRoots OpCurve::rayIntersect(const LinePts& line, MatchEnds common) const {
+    OpRoots rawRoots = rawIntersect(line, common);
     rawRoots.keepValidTs();
     if (!rawRoots.count || rawRoots.fail == RootFail::rawIntersectFailed)
         return rawRoots;
@@ -246,24 +274,22 @@ OpPoint OpCurve::ptAtT(float t) const {
     return OpPoint();
 }
 
-const OpCurve& OpCurve::set(OpPoint start, const OpPoint ctrlPts[2], OpPoint end, unsigned ptCount, 
+#if 0
+// control points are set separately
+const OpCurve& OpCurve::set(OpPoint start, OpPoint end, unsigned ptCount, 
             OpType opType, float w) {
 	pts[0] = start;
-	unsigned index = 0;
-	while (++index < ptCount - 1)
-		pts[index] = ctrlPts[index - 1];
-	if (1 == ptCount)
-		--index;
-	pts[index] = end;
-	OP_ASSERT(++index == ptCount);
+	pts[ptCount - 1] = end;
 	weight = w;
 	type = opType;
 	OP_DEBUG_CODE(debugIntersect = OpDebugIntersect::edge);
 	return *this;
 }
+#endif
 
 OpCurve OpCurve::subDivide(OpPtT ptT1, OpPtT ptT2) const {
     OpCurve result;
+    result.type = type;
     switch (type) {
         case OpType::line: 
             result.pts[0] = ptT1.pt; 

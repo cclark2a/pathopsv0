@@ -1025,11 +1025,10 @@ ENUM_NAME(EdgeSplit, edgeSplit)
 	OP_X(priorEdge) \
 	OP_X(nextEdge) \
 	OP_X(lastEdge) \
-	OP_X(ctrlPts) \
 	OP_X(start) \
 	OP_X(center) \
 	OP_X(end) \
-	OP_X(curve_impl) \
+	OP_X(curve) \
 	OP_X(vertical_impl) \
 	OP_X(ptBounds) \
 	OP_X(linkBounds) \
@@ -1040,7 +1039,6 @@ ENUM_NAME(EdgeSplit, edgeSplit)
 	OP_X(lessRay) \
 	OP_X(moreRay) \
     OP_X(hulls) \
-	OP_X(weight) \
 	OP_X(curvy) \
 	OP_X(id) \
 	OP_X(unsectableID) \
@@ -1048,10 +1046,8 @@ ENUM_NAME(EdgeSplit, edgeSplit)
 	OP_X(rayFail) \
 	OP_X(windZero) \
 	OP_X(doSplit) \
-	OP_X(curveSet) \
 	OP_X(curvySet) \
 	OP_X(lineSet) \
-	OP_X(palSet) \
 	OP_X(verticalSet) \
 	OP_X(isLine_impl) \
 	OP_X(active_impl) \
@@ -1064,7 +1060,6 @@ ENUM_NAME(EdgeSplit, edgeSplit)
 
 #define EDGE_VIRTUAL \
     OP_X(contour) \
-    OP_X(controls) \
     OP_X(missing)
 
 #define EDGE_DEBUG \
@@ -1345,19 +1340,13 @@ std::string OpEdge::debugDump(DebugLevel debugLevel, DebugBase debugBase) const 
     auto strLabel = [debugLevel](std::string label) {
         return debugLabel(debugLevel, label);
     };
-    auto strCurve = [debugBase, debugLevel, strLabel](std::string label, const OpCurve& curve) {
-        return strLabel(label) + curve.debugDump(debugLevel, debugBase) + " ";
+    auto strCurve = [debugBase, debugLevel, strLabel](std::string label, const OpCurve& c) {
+        return strLabel(label) + c.debugDump(debugLevel, debugBase) + " ";
     };
     auto strEdge = [dumpIt, strLabel](EdgeFilter match, std::string label, const OpEdge* edge) {
         if (!dumpIt(match))
             return std::string("");
         return strLabel(label) + ":" + (edge ? STR(edge->id) : std::string("-")) + "/";
-    };
-    auto strPt = [dumpAlways, debugBase, strLabel](EdgeFilter match, std::string label,
-                OpPoint pt, std::string suffix) {
-        if (!dumpAlways(match) && !pt.isFinite())
-            return std::string("");
-        return strLabel(label) + pt.debugDump(DebugLevel::error, debugBase) + suffix;
     };
     auto strPtT = [dumpAlways, debugBase, strLabel](EdgeFilter match, std::string label,
                 OpPtT ptT, std::string suffix) {
@@ -1385,17 +1374,21 @@ std::string OpEdge::debugDump(DebugLevel debugLevel, DebugBase debugBase) const 
         if (!dumpAlways(match)) {
             if (WindingType::temp == wind.debugType && !wind.left() && !wind.right())
                 return s;
-            if (WindingType::uninitialized == wind.debugType 
-                    && OpMax == wind.left() && OpMax == wind.right())
+            if (OpMax == wind.left() && OpMax == wind.right())
                 return s;
         }
-        return strLabel(label) + ":" + STR(wind.left()) + "/" + STR(wind.right()) + " ";
+        s += strLabel(label) + ":";
+        s += OpMax == wind.left() ? "--" : STR(wind.left());
+        s += "/";
+        s += OpMax == wind.right() ? "--" : STR(wind.right());
+        s += " ";
+        return s;
     };
     auto strSect = [dumpAlways, strLabel](EdgeFilter match, std::string label, 
             const OpIntersection* sect) {
         if (!dumpAlways(match) && !sect)
             return std::string("");
-        return strLabel(label) + ":" + (sect ? std::string("-") : STR(sect->id)) + " ";
+        return strLabel(label) + ":" + (!sect ? std::string("-") : STR(sect->id)) + " ";
     };
     auto strEnum = [dumpIt, dumpAlways, strLabel](EdgeFilter match, std::string label,
             bool enumHasDefault, std::string enumName) {
@@ -1416,20 +1409,11 @@ std::string OpEdge::debugDump(DebugLevel debugLevel, DebugBase debugBase) const 
         s += ray.debugDump(debugLevel, debugBase) + " ";
     std::string p;
     if (dumpIt(EdgeFilter::start)) p += strPtT(EdgeFilter::start, "start", start, ", ");
-    if (dumpIt(EdgeFilter::controls)) {
-        for (int i = 0; i < segment->c.pointCount() - 2; ++i)
-            p += strPt(EdgeFilter::controls, STR(i + 1) + "ctrl", ctrlPts[i], ", ");
-    }
     if (dumpIt(EdgeFilter::end)) p += strPtT(EdgeFilter::end, "end", end, ", ");
     if (p.size())
         s += "{" + p.substr(0, p.size() - 2) + "} ";
-    if (dumpIt(EdgeFilter::weight) && (dumpAlways(EdgeFilter::weight) 
-            || (OpMath::IsFinite(weight) && weight != 1) 
-            || (segment && OpType::conic == segment->c.type))) 
-        s += strFloat("weight", weight) + " ";
     if (dumpIt(EdgeFilter::center)) s += strPtT(EdgeFilter::center, "center", center, " ");
-    if (curveSet && (dumpEither(EdgeFilter::curve_impl, EdgeFilter::curveSet))) 
-        s += strCurve("curve_impl", curve_impl);
+    if (dumpIt(EdgeFilter::curve)) s += strCurve("curve", curve);
     if (verticalSet && (dumpEither(EdgeFilter::vertical_impl, EdgeFilter::verticalSet))) 
         s += strCurve("vertical_impl", vertical_impl);
     if (dumpIt(EdgeFilter::ptBounds)) s += strBounds(EdgeFilter::ptBounds, "ptBounds", ptBounds);
@@ -1475,10 +1459,8 @@ std::string OpEdge::debugDump(DebugLevel debugLevel, DebugBase debugBase) const 
     #define STR_BOOL(ef) do { if (dumpIt(EdgeFilter::ef) && (dumpAlways(EdgeFilter::ef) || ef)) { \
         s += strLabel(#ef) + " "; \
         if (1 != ((unsigned char) ef)) s += STR((size_t) ef) + " "; }} while(false)
-    STR_BOOL(curveSet);
     STR_BOOL(curvySet);
     STR_BOOL(lineSet);
-	STR_BOOL(palSet);
     STR_BOOL(verticalSet);
     STR_BOOL(isLine_impl);
 	STR_BOOL(active_impl);
@@ -1566,11 +1548,11 @@ std::string OpEdge::debugDumpDetail() const {
     if (ray.distances.size())
         s += ray.debugDump(DebugLevel::brief, DebugBase::dec);
     s += "{" + start.debugDump(DebugLevel::detailed, defaultBase) + ", ";
-    for (int i = 0; i < segment->c.pointCount() - 2; ++i)
-        s += ctrlPts[i].debugDump(DebugLevel::detailed, defaultBase) + ", ";
+    for (int i = 1; i < segment->c.pointCount() - 1; ++i)
+        s += curve.pts[i].debugDump(DebugLevel::detailed, defaultBase) + ", ";
     s += end.debugDump(DebugLevel::detailed, defaultBase) + "} ";
-    if (1 != weight)
-        s += "w:" + STR(weight) + " ";
+    if (1 != curve.weight)
+        s += "w:" + STR(curve.weight) + " ";
     s += "\ncenter:" + center.debugDump(DebugLevel::detailed, defaultBase) + " ";
     s += "\n";
     if (ptBounds.isSet())
@@ -1593,7 +1575,6 @@ std::string OpEdge::debugDumpDetail() const {
     if (unsectableID) s += "unsectable:" + STR(unsectableID) + " ";
     if (EdgeSplit::no != doSplit)
         s += "doSplit:" + edgeSplitName(doSplit) + " ";
-    if (curveSet) s += "curveSet ";
     if (lineSet) s += "lineSet ";
     if (verticalSet) s += "verticalSet ";
     if (isLine_impl) s += "isLine ";
@@ -1659,9 +1640,9 @@ std::string OpEdge::debugDumpHex() const {
     std::string s = "[" + STR(id) + "]";
     s = "  {" + start.debugDump(defaultLevel, DebugBase::hex) + " }, // " 
             + start.debugDump(defaultLevel, DebugBase::dec) + "\n";
-    for (int i = 0; i < segment->c.pointCount() - 2; ++i)
-        s += "  {" + ctrlPts[i].debugDump(defaultLevel, DebugBase::hex) + " }, // " 
-                + ctrlPts[i].debugDump(defaultLevel, DebugBase::dec) + "\n";
+    for (int i = 1; i < segment->c.pointCount() - 1; ++i)
+        s += "  {" + curve.pts[i].debugDump(defaultLevel, DebugBase::hex) + " }, // " 
+                + curve.pts[i].debugDump(defaultLevel, DebugBase::dec) + "\n";
     s += "  {" + end.debugDump(defaultLevel, DebugBase::hex) + " } // " 
             + end.debugDump(defaultLevel, DebugBase::dec) + "\n";
     return s;
@@ -1717,22 +1698,23 @@ std::string OpEdge::debugDump() const {
     }
     s += "[" + STR(id) + "] ";
     s += "{" + start.debugDump(defaultLevel, defaultBase) + ", ";
-    for (int i = 0; i < segment->c.pointCount() - 2; ++i)
-        s += ctrlPts[i].debugDump(defaultLevel, defaultBase) + ", ";
     s += end.debugDump(defaultLevel, defaultBase) + "} ";
-    if (1 != weight)
-        s += "w:" + STR(weight) + " ";
 #if 0   // show bounds in detail view only
     if (ptBounds.isSet())
         s += "    pb:" + ptBounds.debugDump() + " ";
     if (linkBounds.isSet())
         s += "    lb:" + linkBounds.debugDump() + " ";
 #endif
-    s += " wind:" + STR(winding.left()) + "/" + STR(winding.right()) + " ";
-    if (OpMax != sum.left() || OpMax != sum.right()) {
-        s += "l/r:" + (OpMax != sum.left() ? STR(sum.left()) : "--");
-        s += "/" + (OpMax != sum.right() ? STR(sum.right()) : "--") + " ";
-    }
+    auto windStr = [](std::string label, OpWinding w) {
+        if (OpMax == w.left() && OpMax == w.right())
+            return std::string("");
+        std::string result = " " + label;
+        result += (OpMax == w.left() ? "--" : STR(w.left()));
+        result += "/" + (OpMax == w.right() ? "--" : STR(w.right()));
+        return result + " ";
+    };
+    s += windStr("wind:", winding);
+    s += windStr("sum:", sum);
     if (EdgeMatch::none != whichEnd)
         s += "which:" +edgeMatchName(whichEnd) + " ";
     if (EdgeFail::none != rayFail)
@@ -2090,35 +2072,56 @@ std::string OpJoiner::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     if (!path.debugIsEmpty())
         s += path.debugDump(l, b);
-    if (byArea.size()) {
-        s += "-- sorted in x --\n";
-        for (auto e : byArea)
-            if (e->isActive())
-                s += edge->debugDump(l, b);
+    bool firstOut = false;
+    auto dumpEdge = [&s, &firstOut, l, b](const OpEdge* e, std::string header) {
+        if (!e->isActive())
+            return;
+        if (!firstOut) {
+            s += header;
+            firstOut = true;
+        }
+        s += e->debugDump(l, b) + "\n";
+    };
+    firstOut = false;
+    for (auto e : byArea)
+        dumpEdge(e, "-- sorted in x --\n");
+    firstOut = false;
+    for (auto e : unsectByArea)
+        dumpEdge(e, "-- unsectable sorted in x --\n");
+    firstOut = false;
+    for (auto e : disabled)
+        dumpEdge(e, "-- disabled --\n");
+    firstOut = false;
+    for (auto e : disabledPals)
+        dumpEdge(e, "-- disabledPals --\n");
+    firstOut = false;
+    for (auto e : unsortables)
+        dumpEdge(e, "-- unsortables --\n");
+    firstOut = false;
+    for (const FoundEdge& f : found) {
+        if (!firstOut) {
+            s += "-- found --\n";
+            firstOut = true;
+        }
+        s += f.debugDump(l, b) + "\n";
     }
-    if (unsectByArea.size()) {
-        s += "-- unsectable sorted in x --\n";
-        for (auto e : unsectByArea)
-            if (e->isActive())
-                s += e->debugDump(l, b);
-    }
-    if (disabled.size()) {
-        s += "-- disabled --\n";
-        for (auto e : disabled)
-            s += e->debugDump(l, b);
-    }
-    if (unsortables.size()) {
-        s += "-- unsortables --\n";
-        for (auto e : unsortables)
-            if (e->isActive())
-                s += e->debugDump(l, b);
-    }
-    if (linkups.l.size()) {
+    std::string linkupsDumpStr = linkups.debugDump(l, b);
+    if (linkupsDumpStr.size()) {
         s += "-- linkups --\n";
-        s += linkups.debugDump(l, b);
+        s += linkupsDumpStr + "\n";
     }
-    s += "linkMatch:" + edgeMatchName(linkMatch) + " linkPass:" 
-            + linkPassName(linkPass) + " disabledBuilt:" + STR(disabledBuilt);
+    s += "linkMatch:" + edgeMatchName(linkMatch);
+    s += " linkPass:" + linkPassName(linkPass);
+    if (baseUnsectable)
+        s += " baseUnsectable:" + baseUnsectable->debugDump(l, b);
+    if (edge)
+        s += " edge:" + edge->debugDump(l, b);
+    if (lastEdge)
+        s += " lastEdge:" + lastEdge->debugDump(l, b);
+    if (!OpMath::IsNaN(matchPt.x) && !OpMath::IsNaN(matchPt.y))
+        s += " matchPt:" + matchPt.debugDump(l, b);
+    s += " disabledBuilt:" + STR(disabledBuilt);
+    s += " disabledPalsBuilt:" + STR(disabledPalsBuilt);
     return s;
 }
 
@@ -2370,7 +2373,7 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
 
 #if OP_DEBUG_VERBOSE
 void dmpDepth(int level) {
-    OpDebugOut("level:" + STR(level) + "\n");
+    OpDebugOut("depth:" + STR(level + 1) + "\n");
     OpCurveCurve* cc = debugGlobalContours->debugCurveCurve;
     if (!cc)
         return OpDebugOut("!debugGlobalContours->debugCurveCurve\n");

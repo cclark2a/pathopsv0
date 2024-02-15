@@ -297,7 +297,7 @@ struct SectRay {
 	}
 	void addPals(OpEdge* );
 	bool checkOrder(const OpEdge* ) const;
-	FindCept findIntercept(OpEdge* );
+	FindCept findIntercept(OpEdge*  OP_DEBUG_PARAMS(OpEdge* ));
 	EdgeDistance* find(OpEdge* );
 	void sort();
 #if OP_DEBUG_DUMP
@@ -444,12 +444,11 @@ private:
 		, windZero(WindZero::noFlip)
 		, doSplit(EdgeSplit::no)
 		, bias(SplitBias::none)
-		, curveSet(false)
 		, curvySet(false)
 		, lineSet(false)
-		, palSet(false)
 		, verticalSet(false)
 		, isLine_impl(false)
+		, exactLine(false)
 		, active_impl(false)
 		, inLinkups(false)
 		, inOutput(false)
@@ -460,7 +459,6 @@ private:
 #if OP_DEBUG // a few debug values are nonzero. Boo!
         id = 0;
         segment = nullptr;
-        weight = 0;
 		curvy = OpNaN;
 		debugSplitStart = SectType::none;
 		debugSplitEnd = SectType::none;
@@ -490,10 +488,10 @@ public:
 		start = t1;
 		end = t2;
 #if OP_DEBUG
-		debugStart = i1;
-		debugEnd = i2;
 		debugMaker = maker;
 		debugSetMaker = { file, line };
+		debugStart = i1;
+		debugEnd = i2;
 #endif
 		complete();
 	}
@@ -501,9 +499,8 @@ public:
 	OpEdge(const OpEdge* e, const OpPtT& newPtT, NewEdge isLeftRight  
 			OP_DEBUG_PARAMS(EdgeMaker , int line, std::string file));
 	OpEdge(const OpEdge* e, const OpPtT& start, const OpPtT& end  
-			OP_DEBUG_PARAMS(EdgeMaker , int line, std::string file, const OpIntersection* , 
-			const OpIntersection*));
-	OpEdge(const OpEdge* e, const OpPtT& ptT1, const OpPtT& ptT2  
+			OP_DEBUG_PARAMS(EdgeMaker , int line, std::string file));
+	OpEdge(const OpEdge* e, float t1, float t2  
 			OP_DEBUG_PARAMS(EdgeMaker , int line, std::string file));
 
 #if OP_DEBUG_IMAGE
@@ -557,12 +554,12 @@ public:
 		disabled = false; OP_DEBUG_CODE(debugZero = ZeroReason::uninitialized); }
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
 	void setBetween();  // setter exists so debug breakpoints can be set
-	const OpCurve& setCurve();
-	const OpCurve& setCurveCenter();  // adds center point after curve points
+//	const OpCurve& setCurve();  // copies start, end to points 0, last
+	void setCurveCenter();  // adds center point after curve points
 	void setDisabled(OP_DEBUG_CODE(ZeroReason reason));
 	void setDisabledZero(OP_DEBUG_CODE(ZeroReason reason)) {
 		winding.zero(); setDisabled(OP_DEBUG_CODE(reason)); }
-	void setFromPoints(const OpPoint pts[]);
+//	void setFromPoints(const OpPoint pts[]);
 	OpEdge* setLastEdge(OpEdge* old = nullptr);
 	bool setLastLink(EdgeMatch );  // returns true if link order was changed
 	OpPointBounds setLinkBounds();
@@ -619,7 +616,6 @@ public:
 	OpEdge* priorEdge;	// edges that link to form completed contour
 	OpEdge* nextEdge;
 	OpEdge* lastEdge;
-	OpPoint ctrlPts[2];	// quad, conic, cubic  // !!! remove and use points in curve_impl instead
 	// !!! Can start, end be shared with intersection?
 	// what about id/ptr struct (union?) with intersect id and ptr
 	// ptr is set up once intersects is sorted
@@ -627,7 +623,7 @@ public:
 	OpPtT start;
 	OpPtT center;  // curve location used to find winding contribution
 	OpPtT end;
-	OpCurve curve_impl;	 // only access through set curve function
+	OpCurve curve;
 	OpCurve vertical_impl;	// only access through set vertical function
 	OpPointBounds ptBounds;
 	OpPointBounds linkBounds;
@@ -638,7 +634,6 @@ public:
 	std::vector<OpEdge*> lessRay;  // edges found placed with smaller edge distance cept values
 	std::vector<OpEdge*> moreRay;  // edges found placed with larger edge distance cept values
 	std::vector<HullSect> hulls;  // curve-curve intersections
-	float weight;
 	float curvy;  // rough ratio of midpoint line point line to length of end point line
 	int id;
 	int unsectableID;	// used to pair unsectable intersections and find edges between
@@ -647,12 +642,11 @@ public:
 	WindZero windZero; // normal means edge normal points to zero side; opposite, normal is non-zero
 	EdgeSplit doSplit; // used by curve/curve intersection to track subdivision
 	SplitBias bias;  // in curve/curve, which end to favor for next intersect guess
-	bool curveSet;
 	bool curvySet;
 	bool lineSet;
-	bool palSet;  // set before all edges exist; later pass can set pal
 	bool verticalSet;
 	bool isLine_impl;	// ptBounds 0=h/0=w catches horz/vert lines; if true, line is diagonal(?)
+	bool exactLine;   // set if quad/conic/cubic is degenerate; clear if control points are linear
 	bool active_impl;  // used by ray casting to mark edges that may be to the left of casting edge
 	bool inLinkups; // like inOutput, to marks unsectable edges; all edges in linkups l vector
 	bool inOutput;	// likely only used to find inactive unsectables that are not on output path

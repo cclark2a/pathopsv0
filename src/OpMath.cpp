@@ -195,11 +195,21 @@ float OpMath::CubeRoot(float x) {
 #endif
 
 OpRoots OpMath::CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B,
-        OpCubicFloatType C, OpCubicFloatType D) {
+        OpCubicFloatType C, OpCubicFloatType D, MatchEnds common) {
+    bool zeroIsRoot = MatchEnds::start == common || MatchEnds::both == common;
+    bool oneIsRoot = MatchEnds::end == common || MatchEnds::both == common;
     if (0 == A)
-        return QuadRootsReal(B, C, D);
-    if (0 == D) {  // 0 is one root
-        OpRoots roots = QuadRootsReal(A, B, C);
+        return QuadRootsDouble(B, C, D);
+    // in thread_loops542, segment line 4 and segment cubic 2 intersect at one point: (0, 5)
+    // line 4 points: {2.5, 2}, {0, 5}  
+    // cubic 2 points: {0, 5}, {2.130306, 5}, {2.747878, 5}, {2.747878, 3.925804}
+    // the cubics' values are:
+    // A:4.7683715820312500e-07 B:13.614606857299805 C:-19.172750473022461 D:0.0000000000000000
+    // if QuadRootsReal is called, a root with a value of 1 is found, and the op fails
+    // QuadRootsDouble returns that same root as 1.4, and everything is OK
+    // changed all three calls to double versions as a precaution
+    if (zeroIsRoot || 0 == D) {  // 0 is one root
+        OpRoots roots = QuadRootsDouble(A, B, C);
         for (unsigned i = 0; i < roots.count; ++i) {
             if (0 == roots.roots[i])
                 return roots;
@@ -207,8 +217,8 @@ OpRoots OpMath::CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B,
         roots.roots[roots.count++] = 0;
         return roots;
     }
-    if (0 == A + B + C + D) {  // 1 is one root
-        OpRoots roots = QuadRootsReal(A, A + B, -D);
+    if (oneIsRoot || 0 == A + B + C + D) {  // 1 is one root
+        OpRoots roots = QuadRootsDouble(A, A + B, -D);
         for (unsigned i = 0; i < roots.count; ++i) {
             if (1 == roots.roots[i]) {
                 return roots;

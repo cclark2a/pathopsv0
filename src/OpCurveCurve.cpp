@@ -171,8 +171,7 @@ SectFound OpCurveCurve::curvesIntersect(CurveRef curveRef) {
 				return SectFound::fail;  // triggered by fuzz763_4
 			if (!edge.ptBounds.intersects(opp.ptBounds))
 				continue;
-			const OpCurve& oppCurve = opp.setCurve();
-			OpCurve oppRotated = oppCurve.toVertical(edgeLine);
+			OpCurve oppRotated = opp.curve.toVertical(edgeLine);
 			if (!oppRotated.isFinite())
 				OP_DEBUG_FAIL(*originalOpp, SectFound::fail);
 			OpTightBounds oppRotatedBounds(oppRotated);
@@ -208,7 +207,7 @@ SectFound OpCurveCurve::curvesIntersect(CurveRef curveRef) {
 */
 SectFound OpCurveCurve::divideAndConquer() {
 #if OP_DEBUG_IMAGE
-	bool breakAtDraw = 27 == originalEdge->id && 131 == originalOpp->id;
+	bool breakAtDraw = 24 == originalEdge->id && 34 == originalOpp->id;
 	if (breakAtDraw) {
 		hideOperands();
 		hideSegmentEdges();
@@ -269,7 +268,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 #if OP_DEBUG_IMAGE
 		if (breakAtDraw) {
 				draw();
-			if (depth >= 5) {
+			if (depth >= 8) {
 				OpDebugOut("");  // allows setting a breakpoint to debug curve/curve
 			}
 		}
@@ -292,7 +291,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 // 6) binary search on t (expect to be slower)
 SectFound OpCurveCurve::divideExperiment() {
 #if OP_DEBUG_IMAGE
-	bool breakAtDraw = 30 == originalEdge->id && (31 == originalOpp->id);
+	bool breakAtDraw = 11 == originalEdge->segment->id && (5 == originalOpp->segment->id);
 	if (breakAtDraw) {
 		playback();
 		OpDebugOut("");
@@ -305,14 +304,12 @@ SectFound OpCurveCurve::divideExperiment() {
 	// 3)
 	auto rotatedIntersect = [](OpEdge& edge, OpEdge& opp, bool* sectedPtr) {
 		LinePts edgePts { edge.start.pt, edge.end.pt };
-		const OpCurve& edgeCurve = edge.setCurve();
-		OpCurve edgeRotated = edgeCurve.toVertical(edgePts);
+		OpCurve edgeRotated = edge.curve.toVertical(edgePts);
 		if (!edgeRotated.isFinite())
 			return false;
 		OpPointBounds eRotBounds;
 		eRotBounds.set(edgeRotated);
-		const OpCurve& oppCurve = opp.setCurve();
-		OpCurve oppRotated = oppCurve.toVertical(edgePts);
+		OpCurve oppRotated = opp.curve.toVertical(edgePts);
 		if (!oppRotated.isFinite())
 			return false;
 		OpPointBounds oRotBounds;
@@ -375,27 +372,31 @@ SectFound OpCurveCurve::divideExperiment() {
 				OP_DEBUG_PARAMS(IntersectMaker::edgeCurveCurve, IntersectMaker::oppCurveCurve));
 	};
 	auto hullSect = [](OpEdge& edge, OpEdge& opp) {
-		const OpCurve& eCurve = edge.setCurve();
-		int ptCount = eCurve.pointCount();
+		int ptCount = edge.curve.pointCount();
 		LinePts edgePts;
-		edgePts.pts[1] = eCurve.pts[0];
+		edgePts.pts[1] = edge.curve.pts[0];
 		for (int index = 1; index <= ptCount; ++index) {
 			edgePts.pts[0] = edgePts.pts[1];
 			int endHull = index < ptCount ? index : 0;
-			edgePts.pts[1] = eCurve.pts[endHull];
+			edgePts.pts[1] = edge.curve.pts[endHull];
 			if (edgePts.pts[0].isNearly(edgePts.pts[1]))
 				continue;
-			OpRootPts septs = opp.segment->c.lineIntersect(edgePts, opp.start.t, opp.end.t);
+			// since curve/curve intersection works by keeping overlapping edge bounds, it should
+			// use edge, not segment, to find hull intersections
+			OpRootPts septs = opp.curve.lineIntersect(edgePts);
 			for (size_t inner = 0; inner < septs.count; ++inner) {
-				// !!! experiment: try pinning result to hull edge bounds
+				// !!! (disabled) experiment: try pinning result to hull edge bounds
 				OpPtT sectPtT = septs.ptTs[inner];
-				sectPtT.pt.pin(edgePts.pts[0], edgePts.pts[1]);
-				bool nearEStart = 1 == index && sectPtT.pt.isNearly(edgePts.pts[0]);
-				bool nearEEnd = ptCount == index && sectPtT.pt.isNearly(edgePts.pts[1]);
+//				sectPtT.pt.pin(edgePts.pts[0], edgePts.pts[1]);
+				// set to secttype endhull iff computed point is equal to or nearly an end point
+				bool nearEStart = (1 == index || 0 == endHull) 
+						&& sectPtT.pt.isNearly(edgePts.pts[0]);
+				bool nearEEnd = (ptCount - 1 == index || 0 == endHull) 
+						&& sectPtT.pt.isNearly(edgePts.pts[1]);
 				SectType sectType = nearEStart || nearEEnd ? SectType::endHull : 
 						endHull ? SectType::controlHull : SectType::midHull;
-				// set to secttype endhull iff computed point is equal to or nearly an end point
-				opp.hulls.emplace_back(septs.ptTs[inner], sectType, &edge);
+				sectPtT.t = OpMath::Interp(opp.start.t, opp.end.t, sectPtT.t);
+				opp.hulls.emplace_back(sectPtT, sectType, &edge);
 #if 0
 				if (SectType::endHull == sectType) {
 					opp.hulls.back().oSect = nearOStart ? opp.start : opp.end;
@@ -445,9 +446,20 @@ SectFound OpCurveCurve::divideExperiment() {
 		return addUnsectable();
 	};
 #endif
+	// returns true if edge's line intersects opposite edge's curve
+	// don't check against opposite segment's curve, since it may be offset
+	// If edge is linear, but not a true line (e.g., the control points are nearly colinear with
+	//  the end points) check the hulls rather than just the line. 
+	// !!! share with hull code? how to check if one line is inside other line's hulls?
+	auto lineIntersect = [](OpEdge& edge, OpEdge& opp) {
+		LinePts edgePts;
+		edgePts.pts = { edge.start.pt, edge.end.pt };
+		OpRootPts septs = opp.curve.lineIntersect(edgePts);
+		return septs.count;
+	};
 	for (depth = 1; depth < maxDepth; ++depth) {
 #if OP_DEBUG_IMAGE
-		if (breakAtDraw /* && 2 == depth && 10 == debugLocal */) {
+		if (breakAtDraw && 4 <= depth /* && 10 == debugLocal */) {
 			redraw();  // allows setting a breakpoint to debug curve/curve
 			OpDebugOut("debugLocal:" + STR(debugLocal) + "\n");
 			dmpDepth();
@@ -476,6 +488,10 @@ SectFound OpCurveCurve::divideExperiment() {
 				if (!rotatedIntersect(opp, edge, &sected))
 					return SectFound::fail;
 				if (!sected)
+					continue;
+				if (edge.isLinear() && edge.exactLine && !lineIntersect(edge, opp))
+					continue;
+				if (opp.isLinear() && opp.exactLine && !lineIntersect(opp, edge))
 					continue;
 				opp.ccOverlaps = true;
 				edge.ccOverlaps = true;
@@ -723,7 +739,8 @@ bool OpCurveCurve::split(CurveRef curveRef, DoSplit doSplit) {
 		OpContours* contours = originalEdge->contours();
 		for (NewEdge newEdge : { NewEdge::isLeft, NewEdge::isRight } ) {
 			void* block = contours->allocateEdge(contours->ccStorage);
-			OpEdge* split = new(block) OpEdge(&edge, edge.center, newEdge  
+			OpPtT center = { edge.segment->c.ptAtT(edge.center.t), edge.center.t };
+			OpEdge* split = new(block) OpEdge(&edge, center, newEdge  
 					OP_DEBUG_PARAMS(EDGE_MAKER(split)));
 			if (split->isLinear())
 				lines.push_back(split);
@@ -792,22 +809,25 @@ bool OpCurveCurve::splitHulls(CurveRef which) {
 				*result = OpPtT(edge.segment->c.ptAtT(resultT), resultT);
 		};
 		// use the smaller distance to an end of oStart, oEnd, edgeMid
-		auto splitPt = [closest, ptTCloseTo, edge](float oMidT, OpPtT* result) {
+		auto splitPt = [closest, ptTCloseTo, edge](float oMidDist, OpPtT* result) {
 			std::pair<OpPoint, float> oStart = closest(edge.start.pt);
 			std::pair<OpPoint, float> oEnd = closest(edge.end.pt);
 			// choose split point near edge end that is closest to opp end
-			if (oMidT > oStart.second) {
-				oMidT = oStart.second;
-				ptTCloseTo(oStart, edge.start, result);
-			}
-			if (oMidT > oEnd.second) 
+			if (oMidDist <= std::min(oStart.second, oEnd.second))
+				return;
+			if (oStart.second > oEnd.second)
 				ptTCloseTo(oEnd, edge.end, result);
+			else
+				ptTCloseTo(oStart, edge.start, result);
 		};
 		if (!hulls.size()) {
 			// if the distance between the end points is small, choose a split point nearby
 			OpPtT edgeMid = { edgePtr->segment->c.ptAtT(edgeMidT), edgeMidT };
 			std::pair<OpPoint, float> oMid = closest(edgeMid.pt);
-			splitPt(oMid.second, &edgeMid);
+			OpPtT closestPtT = edgeMid;
+			splitPt(oMid.second, &closestPtT);
+			if (closestPtT == edgePtr->start || closestPtT == edgePtr->end)
+				closestPtT = edgeMid;
 			// !!!? while edgeMid is in a deleted bounds, bump edgeMidT
 			//      (this isn't necessarily in the intersection hull)
 			//      wait until this is necessary to make it work
@@ -924,11 +944,10 @@ bool OpCurveCurve::splitHulls(CurveRef which) {
 			sortHulls();  // sorted puts hull type end first so it is preferred over ctrl/mid
 			int writer = 0;
 			for (size_t xing = 1; xing < hulls.size(); ++xing) {
-				if (hulls[writer].sect.t >= hulls[xing].sect.t)
+				if (hulls[writer].sect.t == hulls[xing].sect.t)
 					continue;
 				hulls[++writer] = hulls[xing];
 			}
-			hulls[writer] = hulls.back();
 			hullsResized = writer + 1;
 			for (int index = 0; index + 1 < hullsResized; ++index) {
 				// while hull sect is in a deleted bounds, bump its t and recompute
@@ -950,8 +969,8 @@ bool OpCurveCurve::splitHulls(CurveRef which) {
 		} while (true);
 		for (int index = 0; index + 1 < hullsResized; ++index) {
 				void* block = contours->allocateEdge(contours->ccStorage);
-				OpEdge* split = new(block) OpEdge(&edge, hulls[index].sect, hulls[index + 1].sect  
-						OP_DEBUG_PARAMS(EDGE_MAKER(hull)));
+				OpEdge* split = new(block) OpEdge(&edge, hulls[index].sect.t, 
+						hulls[index + 1].sect.t  OP_DEBUG_PARAMS(EDGE_MAKER(hull)));
 	#if OP_DEBUG
 				split->debugSplitStart = hulls[index].type;
 				split->debugSplitEnd = hulls[index + 1].type;

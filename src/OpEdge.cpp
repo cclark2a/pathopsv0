@@ -26,29 +26,25 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight
 
 // called after winding has been modified by other coincident edges
 OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e  
-		OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file, const OpIntersection* i1,
-		const OpIntersection* i2))
+		OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file))
 	: OpEdge() {
 	segment = edge->segment;
 	start = s;
 	end = e;
 #if OP_DEBUG
-	debugStart = i1;
-	debugEnd = i2;
 	debugMaker = maker;
 	debugSetMaker = { file, line };
 	debugParentID = edge->id;
 #endif	
-	winding = edge->winding;
-	subDivide();	// uses already computed points stored in edge
+	complete();
 }
 
-OpEdge::OpEdge(const OpEdge* edge, const OpPtT& ptT1, const OpPtT& ptT2
+OpEdge::OpEdge(const OpEdge* edge, float t1, float t2
 		OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file))
 	: OpEdge() {
 	segment = edge->segment;
-	start = ptT1;
-	end = ptT2;
+	start = { segment->c.ptAtT(t1), t1 };
+	end = { segment->c.ptAtT(t2), t2 };
 #if OP_DEBUG
 	debugMaker = maker;
 	debugSetMaker = { file, line };
@@ -171,26 +167,16 @@ bool OpEdge::calcCenterT() {
 	const OpRect& r = ptBounds;
 	Axis axis = r.largerAxis();
 	float middle = (r.ltChoice(axis) + r.rbChoice(axis)) / 2;
-#if USE_SEGMENT_CENTER
-	const OpCurve& curve = segment->c;
-#else
-	const OpCurve& curve = setCurve();
-#endif
-	float t = curve.center(axis, middle);
+	const OpCurve& segCurve = segment->c;
+	float t = segCurve.center(axis, middle);
 	if (OpMath::IsNaN(t)) {
 		setDisabled(OP_DEBUG_CODE(ZeroReason::centerNaN));
 		rayFail = EdgeFail::center;
 		return true;
 	}
-#if USE_SEGMENT_CENTER
 	center.t = t;
-#else
-	center.t = OpMath::Interp(start.t, end.t, t);
-#endif
-	center.pt = curve.ptAtT(t);
-//#if !USE_SEGMENT_CENTER
+	center.pt = segCurve.ptAtT(t);
 	center.pt.pin(ptBounds);  // required by pentrek6
-//#endif
 	OP_ASSERT(OpMath::Between(ptBounds.left, center.pt.x, ptBounds.right));
 	OP_ASSERT(OpMath::Between(ptBounds.top, center.pt.y, ptBounds.bottom));
 	return start.t < center.t && center.t < end.t;
@@ -452,7 +438,6 @@ OpEdge* OpEdge::nextOut() {
 }
 
 NormalDirection OpEdge::normalDirection(Axis axis, float t) {
-	const OpCurve& curve = setCurve();
 	return curve.normalDirection(axis, t);
 }
 
@@ -471,37 +456,15 @@ void OpEdge::setBetween() {
 	between = true;
 }
 
-const OpCurve& OpEdge::setCurve() {
-	if (!curveSet) {
-		curveSet = true;
-		curve_impl.set(start.pt, ctrlPts, end.pt, segment->c.pointCount(), segment->c.type, weight);
-	}
-	return curve_impl;
-}
-
-const OpCurve& OpEdge::setCurveCenter() {
-	(void) setCurve();
-	curve_impl.pts[curve_impl.pointCount()] = center.pt;
-	curve_impl.centerPt = true;
-	return curve_impl;
+void OpEdge::setCurveCenter() {
+	curve.pts[curve.pointCount()] = center.pt;
+	curve.centerPt = true;
 }
 
 // should be inlined. Out of line for ease of setting debugging breakpoints
 void OpEdge::setDisabled(OP_DEBUG_CODE(ZeroReason reason)) {
 	disabled = true; 
 	OP_DEBUG_CODE(debugZero = reason); 
-}
-
-void OpEdge::setFromPoints(const OpPoint pts[]) {
-	start.pt = pts[0];
-	unsigned index = 0;
-	unsigned ptCount = segment->c.pointCount();
-	while (++index < ptCount - 1)
-		ctrlPts[index - 1] = pts[index];
-	if (1 == ptCount)
-		--index;
-	end.pt = pts[index];
-	OP_ASSERT(++index == ptCount);
 }
 
 OpEdge* OpEdge::setLastEdge(OpEdge* old) {
@@ -541,7 +504,6 @@ bool OpEdge::isLinear() {
 	if (lineSet)
 		return isLine_impl;
 	lineSet = true;
-	const OpCurve& curve = setCurve();
 	return (isLine_impl = curve.isLinear());
 }
 
@@ -587,8 +549,8 @@ void OpEdge::setPointBounds() {
 	// this check can fail; control points can have some error so they lie just outside bounds
 #if 0 // OP_DEBUG
 	OpPointBounds copy = ptBounds;
-	for (int index = 0; index < segment->c.pointCount() - 2; ++index)
-		ptBounds.add(ctrlPts[index]);
+	for (int index = 1; index < curve_impl.pointCount() - 1; ++index)
+		ptBounds.add(curve_impl.pts[index]);
 	OP_ASSERT(copy == ptBounds);
 #endif
 }
@@ -606,7 +568,6 @@ void OpEdge::setUnsortable() {
 const OpCurve& OpEdge::setVertical() {
 	if (!verticalSet) {
 		verticalSet = true;
-		const OpCurve& curve = setCurveCenter();
 		LinePts edgeLine { start.pt, end.pt };
 		vertical_impl = curve.toVertical(edgeLine);
 	}
@@ -675,15 +636,21 @@ void OpEdge::skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) {
 
 // use already computed points stored in edge
 void OpEdge::subDivide() {
+	auto ctrlPtsEqualEnds = [this]() {
+		for (int index = 1; index < segment->c.pointCount() - 1; ++index) {
+			if (curve.pts[index] != start.pt && curve.pts[index] != end.pt)
+				return false;
+		}
+		return true;
+	};
 	id = segment->nextID();
-	OpCurve pts = segment->c.subDivide(start, end);
-	weight = pts.weight;
-	setFromPoints(pts.pts);
+	curve = segment->c.subDivide(start, end);
 	setPointBounds();
 	if (OpType::line == segment->c.type || (!ptBounds.height() ^ !ptBounds.width())
-			|| !calcCenterT()) {
+			|| !calcCenterT() || ctrlPtsEqualEnds()) {
 		isLine_impl = true;
 		lineSet = true;
+		exactLine = true;
 		center.t = OpMath::Interp(start.t, end.t, .5);
 		center.pt = ptBounds.center();
 	}

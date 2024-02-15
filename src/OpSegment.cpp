@@ -327,14 +327,90 @@ void OpSegment::setDisabled(OP_DEBUG_CODE(ZeroReason reason)) {
 }
 
 // at present, only applies to horizontal and vertical lines
+// !!! experiment: add support for linear diagonals
 void OpSegment::windCoincidences() {
     if (OpType::line != c.type)
         return;
     if (disabled)
         return;
     OpVector tangent = c.asLine().tangent();
-    if (tangent.dx && tangent.dy)
+    if (tangent.dx && tangent.dy) {
+        // iterate through edges; if edge is linear and matches opposite, mark both coincident
+        bool foundCoincidence  = false;
+        for (OpEdge& edge : edges) {
+            if (!edge.isLinear())
+                continue;
+            // iterate through sects that match edge start and end, looking for parallel edges
+            OpIntersection** firstBegin = nullptr;
+            OpIntersection** firstEnd = nullptr;  // one after last start
+            OpIntersection** lastBegin = nullptr;
+            OpIntersection** lastEnd = nullptr;  // one after last end
+            for (OpIntersection** sPtr = &sects.i.front(); sPtr <= &sects.i.back(); ++sPtr) {
+                OpIntersection* sect = *sPtr;
+                if (!firstBegin) {
+                    if (sect->ptT == edge.start)
+                        firstBegin = sPtr;
+                    continue;
+                }
+                if (!firstEnd) {
+                    if (sect->ptT != edge.start)
+                        firstEnd = sPtr;
+                }
+                if (!lastBegin) {
+                    if (sect->ptT == edge.end)
+                        lastBegin = sPtr;
+                    continue;
+                }
+                if (!lastEnd) {
+                    if (sect->ptT != edge.end)
+                        lastEnd = sPtr;
+                    break;
+                }
+            }
+            // look for an end with a matching opposite intersection
+            for (OpIntersection** firstTest = firstBegin; firstTest < firstEnd; ++firstTest) {
+                OpIntersection* firstOSect = (*firstTest)->opp;
+                OpSegment* oSegment = firstOSect->segment;
+                for (OpIntersection** lastTest = lastBegin; lastTest < lastEnd; ++lastTest) {
+                    OpIntersection* lastOSect = (*lastTest)->opp;
+                    if (lastOSect->segment != oSegment)
+                        continue;
+                    // see if the opp corresponds to a linear edge
+                    OpIntersection* oStart = firstOSect;
+                    OpIntersection* oEnd = lastOSect;
+                    bool reversed = oStart->ptT.t > oEnd->ptT.t;
+                    if (reversed)
+                        std::swap(oStart, oEnd);
+                    OpEdge* oppEdge = oSegment->findEnabled(oStart->ptT, EdgeMatch::start);
+                    if (!oppEdge)
+                        break;
+                    if (!oppEdge->isLinear())
+                        break;
+                    // verify that all four intersections are not used to mark coincidence
+                    if (oStart->coincidenceID)
+                        return;
+                    if (oEnd->coincidenceID)
+                        return;
+                    OpIntersection* const* eStart = oSegment->sects.entry(oppEdge->start, this);
+                    if (!eStart || (*eStart)->opp->coincidenceID)
+                        return;
+                    OpIntersection* const* eEnd = oSegment->sects.entry(oppEdge->end, this);
+                    if (!eEnd || (*eEnd)->opp->coincidenceID)
+                        return;
+                    // mark the intersections as coincident
+                    int coinID = oSegment->coinID(reversed);
+                    oStart->coincidenceID = coinID;
+                    oEnd->coincidenceID = coinID;
+                    (*eStart)->opp->coincidenceID = coinID;
+                    (*eEnd)->opp->coincidenceID = coinID;
+                    foundCoincidence = true;
+                }
+            }
+        }
+        if (foundCoincidence)
+            sects.windCoincidences(edges  OP_DEBUG_PARAMS(tangent));
         return;
+    }
     OP_ASSERT(tangent.dx || tangent.dy);
     sects.windCoincidences(edges  OP_DEBUG_PARAMS(tangent));
 }

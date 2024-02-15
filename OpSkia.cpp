@@ -66,14 +66,14 @@ void OpEdge::output(OpOutPath path) {
         if (OpType::line == type) 
             skpath->lineTo(skEndPt); 
         else {
-            SkPoint skCtrlPt0 = toSkPoint(edge->ctrlPts[0]);
+            SkPoint skCtrlPt0 = toSkPoint(edge->curve.pts[1]);
             if (OpType::quad == type) 
                 skpath->quadTo(skCtrlPt0, skEndPt); 
             else if (OpType::conic == type) 
-                skpath->conicTo(skCtrlPt0, skEndPt, edge->weight);
+                skpath->conicTo(skCtrlPt0, skEndPt, edge->curve.weight);
             else {
                 OP_ASSERT(OpType::cubic == type);
-                SkPoint skCtrlPt1 = toSkPoint(edge->ctrlPts[1]);
+                SkPoint skCtrlPt1 = toSkPoint(edge->curve.pts[2]);
                 if (EdgeMatch::end == edge->whichEnd)
                     std::swap(skCtrlPt0, skCtrlPt1);
                 skpath->cubicTo(skCtrlPt0, skCtrlPt1, skEndPt);

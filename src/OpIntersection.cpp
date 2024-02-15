@@ -62,7 +62,6 @@ void OpIntersections::makeEdges(OpSegment* segment) {
  //               }
  //               if (newEdge.ptBounds.intersects(bounds))
                 newEdge.unsectableID = usectID;
-                newEdge.palSet = true;  // defer setting pal until all edges are made
             }
             if (last->betweenID > 0)
                 newEdge.setBetween();
@@ -219,7 +218,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
             }
             OP_ASSERT(edge->start.t == sectPtr->ptT.t);
             OpSegment* oppSegment = sectPtr->opp->segment;
-            OP_ASSERT(tangent.dot(oppSegment->c.asLine().tangent())); 
+            OP_ASSERT(tangent.dot(oppSegment->c.tangent(0))); 
             auto& oppEdges = oppSegment->edges;
             EdgeMatch match = coinID > 0 ? EdgeMatch::start : EdgeMatch::end;
             OpEdge* oppEdge = &oppEdges.front();

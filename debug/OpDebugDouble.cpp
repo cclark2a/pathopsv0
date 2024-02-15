@@ -877,16 +877,14 @@ void DebugOpDrawSegments() {
 }
 
 DebugOpCurve OpEdge::debugSetCurve() const {
-    DebugOpCurve curve;
-    OpCurve c;
-    c.set(start.pt, ctrlPts, end.pt, segment->c.pointCount(), segment->c.type, weight);
+    DebugOpCurve dCurve;
     for (int i = 0; i < 4; ++i)
-        curve.pts[i] = { c.pts[i].x, c.pts[i].y } ;
-    curve.weight = c.weight;
-    curve.type = c.type;
-    curve.id = id;
-    curve.color = debugColor;
-    return curve;
+        dCurve.pts[i] = { curve.pts[i].x, curve.pts[i].y } ;
+    dCurve.weight = curve.weight;
+    dCurve.type = curve.type;
+    dCurve.id = id;
+    dCurve.color = debugColor;
+    return dCurve;
 }
 
 void DebugOpBuild(const OpEdge& edge, std::vector<DebugOpCurve>& debugEs) {
@@ -1302,9 +1300,9 @@ void DebugOpDrawEdgeControlLines(const OpEdge* edge, uint32_t color) {
         if (!index)
             src.pts[0] = { edge->start.pt.x, edge->start.pt.y } ;
         else
-            src.pts[0] = { edge->ctrlPts[index - 1].x, edge->ctrlPts[index - 1].y } ;
+            src.pts[0] = { edge->curve.pts[index].x, edge->curve.pts[index].y } ;
         if (index < ptCount - 2)
-            src.pts[1] = { edge->ctrlPts[index].x, edge->ctrlPts[index].y } ;
+            src.pts[1] = { edge->curve.pts[index].x, edge->curve.pts[index].y } ;
         else
             src.pts[1] = { edge->end.pt.x, edge->end.pt.y } ;
         src.weight = 1;
@@ -1372,14 +1370,7 @@ void DebugOpDrawEdgeWinding(const OpEdge* edge, uint32_t color) {
     for (auto& drawnEdge : drawn) {
         OpCurve curve;
         drawnEdge.mapTo(curve);
-	    bool overflow;
-	    OpVector norm = curve.normal(.58f).normalize(&overflow) * 15;
-	    if (overflow) {
-		    OpDebugOut("overflow on edge " + STR(edge->id) + "\n");
-		    return;
-	    }
-        OpPoint midTPt = curve.ptAtT(.58f);
-        if (OpDebugImage::drawEdgeWinding(norm, midTPt, edge, color))
+        if (OpDebugImage::drawEdgeWinding(curve, edge, color))
             break;
     }
 }

@@ -74,13 +74,6 @@ enum class IntersectMaker {
 
 #endif
 
-enum class MatchEnds {
-    none,
-    start,
-    end,
-    both
-};
-
 struct CoinPair {
     CoinPair(OpIntersection* s, OpIntersection* os, OpEdge* e, OpEdge* o, int ID  
 			OP_DEBUG_PARAMS(OpEdge* l))

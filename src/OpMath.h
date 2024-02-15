@@ -30,6 +30,13 @@ template <typename T, size_t N> char (&ArrayCountHelper(T (&array)[N]))[N];
 
 typedef double OpCubicFloatType;
 
+enum class MatchEnds {
+    none,
+    start,
+    end,
+    both
+};
+
 enum class RootFail {
     none,
     rawIntersectFailed,
@@ -639,11 +646,11 @@ struct OpMath {
 
 //    static float CubeRoot(float);
     static OpRoots CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B, OpCubicFloatType C,
-            OpCubicFloatType D);
+            OpCubicFloatType D, MatchEnds );
 
     static OpRoots CubicRootsValidT(OpCubicFloatType A, OpCubicFloatType B, OpCubicFloatType C,
             OpCubicFloatType D) {
-        return CubicRootsReal(A, B, C, D).keepValidTs();
+        return CubicRootsReal(A, B, C, D, MatchEnds::none).keepValidTs();
     }
 
     // no_sanitize("float-divide-by-zero")
@@ -653,11 +660,11 @@ struct OpMath {
     }
 
     static float Interp(float A, float B, float t) {
-        return A + (B - A) * t;
+        return A * (1 - t) + B * t;
     }
 
     static OpPoint Interp(OpPoint A, OpPoint B, float t) {
-        return A + (B - A) * t;
+        return A * (1 - t) + B * t;
     }
 
     // !!! could optimize with float bits trick

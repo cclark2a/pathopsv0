@@ -94,6 +94,28 @@ void OpDebugOut(const std::string& s) {
     fprintf(stderr, "%s", s.c_str());
 #endif
 }
+
+std::string OpDebugToString(float value) {
+    std::string result;
+    if (debugPrecision < 0)
+        result = std::to_string(value);
+    else {
+        std::string s(16, '\0');
+        auto written = std::snprintf(&s[0], s.size(), "%.*f", debugPrecision, value);
+        s.resize(written);
+        result = s;
+    }
+    // !!! try trimming trailing zeroes to see what that's like
+    size_t pos = result.find('.');
+    if (std::string::npos == pos)
+        return result;
+    while (result.back() == '0')
+        result.pop_back();
+    if (result.back() == '.')
+        result.pop_back();
+    return result;
+}
+
 #endif
 
 #if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE
@@ -211,27 +233,6 @@ void OpDebugSkip(const char*& str, const char* match) {
         --strLen;
     }
     OP_ASSERT(strlen(str));
-}
-
-std::string OpDebugToString(float value) {
-    std::string result;
-    if (debugPrecision < 0)
-        result = std::to_string(value);
-    else {
-        std::string s(16, '\0');
-        auto written = std::snprintf(&s[0], s.size(), "%.*f", debugPrecision, value);
-        s.resize(written);
-        result = s;
-    }
-    // !!! try trimming trailing zeroes to see what that's like
-    size_t pos = result.find('.');
-    if (std::string::npos == pos)
-        return result;
-    while (result.back() == '0')
-        result.pop_back();
-    if (result.back() == '.')
-        result.pop_back();
-    return result;
 }
 
 #endif

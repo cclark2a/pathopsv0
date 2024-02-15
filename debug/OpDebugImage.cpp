@@ -1080,13 +1080,7 @@ void clearLines() {
 	DebugOpResetFocus();
 }
 
-bool OpDebugImage::bitsAreBlank(int toTheLeft, int toTheTop, bool allowIntersect, float scale, 
-		const SkRect& textBounds, OpVector& offset, SkRect& test) {
-	if (toTheLeft)
-		offset.dx = toTheLeft < 0 ? -textBounds.width() - scale : scale;
-	if (toTheTop)
-		offset.dy = toTheTop < 0 ? -scale : textBounds.height() + scale;
-	test.offset(offset.dx, offset.dy);
+bool OpDebugImage::bitsAreBlank(bool allowIntersect, SkRect& test) {
 	SkRect skBounds { 0, 0, bitmapWH, bitmapWH };
 	if (allowIntersect ? !skBounds.intersect(test) : !skBounds.contains(test))
 		return false;
@@ -1147,17 +1141,21 @@ bool OpDebugImage::drawValue(OpPoint pt, std::string ptStr, uint32_t color) {
 	SkRect trimmed = textBounds;
 	trimmed.offset(pt.x, pt.y);
 	for (bool allowIntersect : { false, true } ) {
-		for (float scale : { 4, 16 } ) {
+		for (float scale : { 4, 16, 32, 48, 64 } ) {
 			for (int toTheLeft : { -1, 0, 1 } ) {
 				for (int toTheTop : { -1, 0, 1 } ) {
 					OpVector offset { 0, 0 };
 					SkRect test = trimmed;
-					if (!bitsAreBlank(toTheLeft, toTheTop, allowIntersect, scale, textBounds, 
-							offset, test))
+					if (toTheLeft)
+						offset.dx = toTheLeft < 0 ? -textBounds.width() - scale : scale;
+					if (toTheTop)
+						offset.dy = toTheTop < 0 ? -scale : textBounds.height() + scale;
+					test.offset(offset.dx, offset.dy);
+					if (!bitsAreBlank(allowIntersect, test))
 						continue;
 					offscreen.drawString(SkString(ptStr), pt.x + offset.dx,
 							pt.y + offset.dy, labelFont, paint);
-					if (16 == scale && drawGuidesOn)
+					if (16 <= scale && drawGuidesOn)
 						drawGuide(test, pt, color);
 					return true;
 				}
@@ -1231,9 +1229,9 @@ void OpDebugImage::drawPoints() {
 				DebugOpBuild(edge->start.pt, edge->start.t);
 				DebugOpBuild(edge->end.pt, edge->end.t);
 			}
-			if (drawControlsOn && edge->curveSet) {
-				for (int index = 1; index < edge->curve_impl.pointCount() - 1; ++index)
-					DebugOpBuild(edge->curve_impl.pts[index]);
+			if (drawControlsOn) {
+				for (int index = 1; index < edge->curve.pointCount() - 1; ++index)
+					DebugOpBuild(edge->curve.pts[index]);
 			}
 			if (drawCentersOn)
 				DebugOpBuild(edge->center.pt, edge->center.t, DebugSprite::square);
@@ -1680,7 +1678,8 @@ void OpWinder::debugDraw() {
 void OpCurveCurve::draw() const {
 	if (!edgeCurves.size() && !edgeLines.size())
 		return OpDebugOut("OpCurveCurve missing edgeCurves\n");
-	OpPointBounds focusRect = edgeCurves.front()->ptBounds;
+	OpPointBounds focusRect = edgeCurves.size() ? edgeCurves.front()->ptBounds : 
+			edgeLines.front()->ptBounds;
 	for (auto edgesPtrs : { &edgeCurves, &oppCurves, &edgeLines, &oppLines, &edgeRuns ,&oppRuns }) {
 		for (auto& edge : *edgesPtrs)
 			focusRect.add(edge->ptBounds);
@@ -1717,44 +1716,70 @@ bool OpDebugImage::drawEdgeTangent(OpVector tan, OpPoint midTPt, int edgeID, uin
 	return true;
 }
 
-bool OpDebugImage::drawEdgeWinding(OpVector norm, OpPoint midTPt, const OpEdge* edge, 
-		uint32_t color) {
-	OpPoint sumSide = midTPt + norm;
-	OpPoint oppSide = midTPt - norm;
-	SkCanvas textLayer(bitmap);
-	SkPaint paint;
-	paint.setAntiAlias(true);
-	paint.setColor(color);
+bool OpDebugImage::drawWinding(const OpCurve& curve, std::string left, std::string right,
+		float normSign, uint32_t color) {
+	for (bool allowIntersect : { false, true } ) {
+		for (float normLength : { 4, 15 } ) {
+			for (float normT : { .58f, .38f, .78f, .18f, .98f } ) {
+				bool overflow;
+				OpVector norm = curve.normal(normT).normalize(&overflow) * normLength;
+				if (overflow)
+					continue;
+				OpPoint midTPt = curve.ptAtT(normT);
+				SkRect bounds, rightBounds;
+				std::string lefty = left + "_";
+				labelFont.measureText(lefty.c_str(), lefty.length(), SkTextEncoding::kUTF8, 
+						&bounds);
+				labelFont.measureText(right.c_str(), right.length(), SkTextEncoding::kUTF8, 
+						&rightBounds);
+				float leftWidth = bounds.width();
+				bounds.fRight += rightBounds.width();
+				const int xOffset = 2;
+				const int yOffset = 1;
+				bounds.inset(-xOffset, -yOffset);
+				SkRect trimmed = bounds;
+				OpVector textOffset = norm * normSign;
+				if (textOffset.dx < 0)
+					textOffset.dx -= bounds.width();
+				if (textOffset.dy > 0)
+					textOffset.dy += bounds.height();
+				OpPoint sumSide = midTPt + textOffset;
+				trimmed.offset(sumSide.x, sumSide.y);
+				if (!bitsAreBlank(allowIntersect, trimmed))
+					continue;
+				SkCanvas textLayer(bitmap);
+				SkPaint paint;
+				paint.setAntiAlias(true);
+				paint.setColor(color);
+				textLayer.drawString(SkString(left), sumSide.x, sumSide.y, labelFont, paint);
+				paint.setColor(SK_ColorRED);
+				textLayer.drawString(SkString(right), sumSide.x + leftWidth, sumSide.y,
+						labelFont, paint);
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool OpDebugImage::drawEdgeWinding(const OpCurve& curve, const OpEdge* edge, uint32_t color) {
 	OpWinding sum = edge->sum;
 	std::string sumLeft = OpMax == sum.left() ? "?" : STR(sum.left());
 	std::string sumRight = OpMax == sum.right() ? "?" : STR(sum.right());
-	SkRect sumBounds, rightBounds;
-	(void) labelFont.measureText(sumLeft.c_str(), sumLeft.length(), SkTextEncoding::kUTF8,
-			&sumBounds);
-	(void) labelFont.measureText(sumRight.c_str(), sumRight.length(), SkTextEncoding::kUTF8,
-			&rightBounds);
-	sumBounds.fRight += rightBounds.width() + 8;
-
-	const int xOffset = 2;
-	const int yOffset = 1;
-	sumBounds.inset(-xOffset, -yOffset);
-	SkRect trimmed = sumBounds;
-	trimmed.offset(sumSide.x, sumSide.y);
-
-	// start here
-	textLayer.drawString(SkString(sumLeft), sumSide.x, sumSide.y, labelFont, paint);
-	paint.setColor(SK_ColorRED);
-	textLayer.drawString(SkString(sumRight), sumSide.x + 20, sumSide.y, labelFont, paint);
-	paint.setColor(color);
+	bool success = true;
+	if (!drawWinding(curve, sumLeft, sumRight, 1, color)) {
+		OpDebugOut("normalize overflowed: edge " + STR(edge->id) + "\n");
+		success = false;
+	}
 	int windLeft = edge->winding.left();
-	std::string oppLeft = OpMax == sum.left() ? STR(windLeft) : 
-			STR(sum.left() - windLeft);
-	textLayer.drawString(SkString(oppLeft), oppSide.x, oppSide.y, labelFont, paint);
-	paint.setColor(SK_ColorRED);
+	std::string oppLeft = OpMax == sum.left() ? STR(windLeft) : STR(sum.left() - windLeft);
 	int windRight = edge->winding.right();
 	std::string oppRight = OpMax == sum.left() ? STR(windRight) : STR(sum.right() - windRight);
-	textLayer.drawString(SkString(oppRight), oppSide.x + 20, oppSide.y, labelFont, paint);
-	return true;
+	if (!drawWinding(curve, oppLeft, oppRight, -1, color)) {
+		OpDebugOut("normalize overflowed: edge " + STR(edge->id) + "\n");
+		success = false;
+	}
+	return success;
 }
 
 bool OpDebugImage::drawCurve(const OpCurve& curve, uint32_t color) {

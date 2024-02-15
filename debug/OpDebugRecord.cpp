@@ -11,7 +11,7 @@
 
 struct DebugEdge {
 	DebugEdge(const OpEdge& e) {
-		curve.set(e.start.pt, e.ctrlPts, e.end.pt, e.segment->c.pointCount(), e.segment->c.type, e.weight);
+		curve = e.curve;
 		segmentCurve = e.segment->c;
 		start = e.start.t;
 		end = e.end.t;
