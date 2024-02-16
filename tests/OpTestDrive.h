@@ -6,12 +6,12 @@
 
 #define OP_DEBUG_FAST_TEST 1  // in a debug build: set to zero to enable debug dump, debug image
 #define TEST_PATH_OP_FIRST ""  /* e.g., "battleOp255" test to debug */
-#define TEST_PATH_OP_SKIP_TO_FILE "battle" /* e.g., "battle" tests only (see OpSkiaTests.cpp) */
+#define TEST_PATH_OP_SKIP_TO_FILE "circle" /* e.g., "battle" tests only (see OpSkiaTests.cpp) */
 #define TEST_FAILS 0  // set to one to run only failures captured in skia tests
 
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
-#define OP_TEST_ALLOW_EXTENDED 0  // some Skia tests have extended versions which take longer
+#define OP_TEST_ALLOW_EXTENDED 1  // some Skia tests have extended versions which take longer
                                   // (out of date) max run: 8,430,493: skipped: 5 error: 335
 #define OP_TEST_ENABLE_THREADS 1  // additionally, fast test above must be 1 to use threading
 #define OP_MAX_THREADS 16
@@ -40,19 +40,29 @@
 #define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */
 
 /* test failure descriptions:
+fuzz763_378: no edge found: last, last resort (x2) had errors=36 # this looks fixable
+             gap between edge 2225 and 2227 (why is 2226 disabled?)
+             likely other errors
+extended (circles only):
+thread_circles118258 had errors=28
++ 3
+thread_circles209986 had errors=20
++ 3
+thread_circles209985 had errors=96
++ 7
+thread_circles380001 had errors=97
+thread_circles380003 had errors=21
+thread_circles387058 had errors=2675
++ many
+total run:1778112 skipped:0 errors:196 warnings:0 v0 only:0 skia only:0
 
-.issue1417 had errors=45
-.cubicOp27d had errors=15
-........thread_circles70067 had errors=13
-thread_cubics133 had errors=14
-
+(old)
   last successful run desktop:
 total run:735269 skipped:0 errors:1 warnings:26 v0 only:3 skia only:70
   last successful run laptop:
 total run:735268 skipped:1 errors:2 warnings:41 v0 only:4 skia only:70
 
 issue3517 no edge found: last, last resort
-fuzz763_378: no edge found: last, last resort (x2) had errors=36
 fuzzhang_1: succeeds in skia, fails in v0 (investigate)
 
 !!!  extended tests: (not all fails are listed)
