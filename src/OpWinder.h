@@ -54,7 +54,7 @@ struct OpWinder {
 	static IntersectResult CoincidentCheck(const OpEdge& edge, const OpEdge& opp);
 	FoundIntercept findRayIntercept(size_t inIndex, OpVector tangent, float normal, float homeCept);
 	void markUnsortable();
-	void setEdgeMany(EdgeDistance* );
+	size_t setInIndex(size_t homeIndex, float homeCept, std::vector<OpEdge*>& inArray);
 	ChainFail setSumChain(size_t inIndex);
 	ResolveWinding setWindingByDistance(OpContours* );
 	FoundWindings setWindings(OpContours* );

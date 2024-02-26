@@ -515,7 +515,7 @@ public:
 	CalcFail addSub(Axis axis, float t, OpWinding* );
 	OpEdge* advanceToEnd(EdgeMatch );
 	void apply();
-	bool calcCenterT();
+	void calcCenterT();
 	void clearActiveAndPals(ZeroReason );
 	void clearLastEdge();
 	void clearNextEdge();

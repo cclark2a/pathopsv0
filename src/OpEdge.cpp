@@ -163,7 +163,7 @@ void OpEdge::apply() {
 // new thinking:
 // segments are now broken monotonically when they are built, so they should not return more than
 // one intersection anymore often than edges. 
-bool OpEdge::calcCenterT() {
+void OpEdge::calcCenterT() {
 	const OpRect& r = ptBounds;
 	Axis axis = r.largerAxis();
 	float middle = (r.ltChoice(axis) + r.rbChoice(axis)) / 2;
@@ -172,14 +172,15 @@ bool OpEdge::calcCenterT() {
 	if (OpMath::IsNaN(t)) {
 		setDisabled(OP_DEBUG_CODE(ZeroReason::centerNaN));
 		rayFail = EdgeFail::center;
-		return true;
+		return;
 	}
+	if (start.t >= t || t >= end.t)
+		t = (start.t + end.t) / 2;
 	center.t = t;
 	center.pt = segCurve.ptAtT(t);
 	center.pt.pin(ptBounds);  // required by pentrek6
 	OP_ASSERT(OpMath::Between(ptBounds.left, center.pt.x, ptBounds.right));
 	OP_ASSERT(OpMath::Between(ptBounds.top, center.pt.y, ptBounds.bottom));
-	return start.t < center.t && center.t < end.t;
 }
 
 void OpEdge::clearActiveAndPals(ZeroReason reason) {
@@ -622,7 +623,10 @@ void OpEdge::skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) {
 				continue;
 			duplicates = true;
 			OpRect innerBounds = first->setLinkBounds().add(inner.edge->ptBounds);
-			if (outerBounds.perimeter() <= innerBounds.perimeter())
+			if (innerBounds.perimeter() < outerBounds.perimeter())
+				continue;
+			if (innerBounds.perimeter() == outerBounds.perimeter()
+					&& inner.edge->ptBounds.perimeter() <= outer.edge->ptBounds.perimeter())
 				continue;
 			std::swap(inner, outer);
 			std::swap(innerBounds, outerBounds);
@@ -646,8 +650,9 @@ void OpEdge::subDivide() {
 	id = segment->nextID();
 	curve = segment->c.subDivide(start, end);
 	setPointBounds();
+	calcCenterT();
 	if (OpType::line == segment->c.type || (!ptBounds.height() ^ !ptBounds.width())
-			|| !calcCenterT() || ctrlPtsEqualEnds()) {
+			|| ctrlPtsEqualEnds()) {
 		isLine_impl = true;
 		lineSet = true;
 		exactLine = true;

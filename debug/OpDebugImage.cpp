@@ -180,7 +180,7 @@ struct OpDebugEdgeIter {
 				ccEdge = debugGlobalContours->ccStorage->debugIndex(edgeIndex - index);
 #if OP_DEBUG_VERBOSE
 			else if (edgeIterDvLevel) {	
-				int dvLevel = std::max(edgeIterDvLevel, (int) cc->dvDepthIndex.size());
+				int dvLevel = std::min(edgeIterDvLevel, (int) cc->dvDepthIndex.size());
 				int lo = (int) cc->dvDepthIndex[dvLevel - 1];
 				int hi = (int) cc->dvDepthIndex.size() <= dvLevel 
 						? (int) cc->dvAll.size() : cc->dvDepthIndex[dvLevel];
@@ -1885,6 +1885,10 @@ void draw(const OpPoint* pt) {
 
 void draw(const OpPtT* ptT) {
 	draw(*ptT);
+}
+
+void draw(float x, float y) {
+	draw(OpPoint(x, y));
 }
 
 void draw() {

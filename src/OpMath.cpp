@@ -130,6 +130,11 @@ void OpPoint::pin(const OpRect& r) {
     y = OpMath::Pin(r.top, y, r.bottom);
 }
 
+bool OpPoint::soClose(OpPoint test, float epsilon) const {
+    return OpMath::Between(x - epsilon, test.x, x + epsilon)
+        && OpMath::Between(y - epsilon, test.y, y + epsilon);
+}
+
 bool OpRect::isFinite() const {
     return OpMath::IsFinite(left) && OpMath::IsFinite(top)
         && OpMath::IsFinite(right) && OpMath::IsFinite(bottom);

@@ -561,11 +561,11 @@ std::vector<std::string> cubicFails = {
 std::vector<std::string> skipTestFiles = { TEST_PATH_OP_SKIP_FILES };
 std::vector<std::string> skipRestFiles = { TEST_PATH_OP_SKIP_REST };
 std::string currentTestFile;
-std::string testFirst = TEST_PATH_OP_FIRST;
+std::string testFirst = OP_DEBUG_FAST_TEST ? "" : TEST_PATH_OP_FIRST;
 std::string skipToFile = TEST_PATH_OP_SKIP_TO_FILE;
 bool skiatest::Reporter::allowExtendedTest() { return OP_TEST_ALLOW_EXTENDED 
         | TEST_FAILS
-        | strlen(TEST_PATH_OP_FIRST); }
+        | (OP_DEBUG_FAST_TEST ? 0 : strlen(TEST_PATH_OP_FIRST)); }
 bool testFailsOnly = TEST_FAILS;
 std::atomic_int testIndex; 
 bool showTestName = OP_SHOW_TEST_NAME;
@@ -989,23 +989,23 @@ bool testPathOp(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
     if (ranFirstTest)
         return true;
     std::string s = std::string(testname);
-    if (s == TEST_PATH_OP_FIRST)
+    if (s == testFirst)
         ranFirstTest = true;
     std::vector<std::string> skip = { TEST_PATH_OP_EXCEPTIONS };  // see OpTestDrive.h
-    if (skip.end() != std::find(skip.begin(), skip.end(), s) && s != TEST_PATH_OP_FIRST) {
+    if (skip.end() != std::find(skip.begin(), skip.end(), s) && s != testFirst) {
         ++testsSkipped;
         return true;
     }
     std::vector<std::string> lap = { LAPTOP_PATH_OP_EXCEPTIONS };  // see OpTestDrive.h
-    if (!runningWithFMA() && lap.end() != std::find(lap.begin(), lap.end(), s) && s != TEST_PATH_OP_FIRST) {
+    if (!runningWithFMA() && lap.end() != std::find(lap.begin(), lap.end(), s) && s != testFirst) {
         ++testsSkipped;
         return true;
     }
     std::vector<std::string> fuzz = { TEST_PATH_OP_MAP_TO_FUZZ };  // see OpTestDrive.h
-    if (fuzz.end() != std::find(fuzz.begin(), fuzz.end(), s) && s != TEST_PATH_OP_FIRST)
+    if (fuzz.end() != std::find(fuzz.begin(), fuzz.end(), s) && s != testFirst)
         return (void) testPathOpFuzz(r, a, b, op, testname), true;
     std::vector<std::string> lapz = { LAPTOP_PATH_OP_MAP_TO_FUZZ };  // see OpTestDrive.h
-    if (!runningWithFMA() && lapz.end() != std::find(lapz.begin(), lapz.end(), s) && s != TEST_PATH_OP_FIRST)
+    if (!runningWithFMA() && lapz.end() != std::find(lapz.begin(), lapz.end(), s) && s != testFirst)
         return (void) testPathOpFuzz(r, a, b, op, testname), true;
     return testPathOpBase(r, a, b, op, testname, false, false);
 }
@@ -1024,7 +1024,7 @@ bool testPathOpFail(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
         const SkPathOp op, const char* testName) {
     std::string s = std::string(testName);
     std::vector<std::string> fail = { TEST_PATH_OP_FAIL_EXCEPTIONS };  // see OpTestDrive.h
-    if (fail.end() != std::find(fail.begin(), fail.end(), s) && s != TEST_PATH_OP_FIRST) {
+    if (fail.end() != std::find(fail.begin(), fail.end(), s) && s != testFirst) {
         ++testsSkipped;
         return true;
     }
@@ -1144,17 +1144,17 @@ bool testSimplifyBase(skiatest::Reporter* r, const SkPath& path, const char* nam
 bool testSimplify(skiatest::Reporter* r, const SkPath& path, const char* testname) {
     std::string s = std::string(testname);
     std::vector<std::string> fail = { TEST_PATH_SIMPLIFY_EXCEPTIONS };  // see OpTestDrive.h
-    if (fail.end() != std::find(fail.begin(), fail.end(), s) && s != TEST_PATH_OP_FIRST) {
+    if (fail.end() != std::find(fail.begin(), fail.end(), s) && s != testFirst) {
         ++testsSkipped;
         return true;
     }
     std::vector<std::string> lap = { LAPTOP_SIMPLIFY_EXCEPTIONS };  // see OpTestDrive.h
-    if (!runningWithFMA() && lap.end() != std::find(lap.begin(), lap.end(), s) && s != TEST_PATH_OP_FIRST) {
+    if (!runningWithFMA() && lap.end() != std::find(lap.begin(), lap.end(), s) && s != testFirst) {
         ++testsSkipped;
         return true;
     }
     std::vector<std::string> fuzz = { TEST_PATH_SIMPLIFY_MAP_TO_FUZZ };  // see OpTestDrive.h
-    if (fuzz.end() != std::find(fuzz.begin(), fuzz.end(), s) && s != TEST_PATH_OP_FIRST)
+    if (fuzz.end() != std::find(fuzz.begin(), fuzz.end(), s) && s != testFirst)
         return (void) testSimplifyFuzz(r, path, testname), true;
     return testSimplifyBase(r, path, testname, false, false);
 }
@@ -1162,7 +1162,7 @@ bool testSimplify(skiatest::Reporter* r, const SkPath& path, const char* testnam
 bool testSimplifyFail(skiatest::Reporter* r, const SkPath& path, const char* testname) {
     std::string s = std::string(testname);
     std::vector<std::string> fail = { TEST_PATH_SIMPLIFY_FAIL_EXCEPTIONS };  // see OpTestDrive.h
-    if (fail.end() != std::find(fail.begin(), fail.end(), s) && s != TEST_PATH_OP_FIRST) {
+    if (fail.end() != std::find(fail.begin(), fail.end(), s) && s != testFirst) {
         ++testsSkipped;
         return true;
     }
@@ -1172,7 +1172,7 @@ bool testSimplifyFail(skiatest::Reporter* r, const SkPath& path, const char* tes
 bool testSimplifyFuzz(skiatest::Reporter* r, const SkPath& path, const char* testname) {
     std::string s = std::string(testname);
     std::vector<std::string> fuzz = { TEST_PATH_SIMPLIFY_FUZZ_EXCEPTIONS };  // see OpTestDrive.h
-    if (fuzz.end() != std::find(fuzz.begin(), fuzz.end(), s) && s != TEST_PATH_OP_FIRST) {
+    if (fuzz.end() != std::find(fuzz.begin(), fuzz.end(), s) && s != testFirst) {
         ++testsSkipped;
         return true;
     }

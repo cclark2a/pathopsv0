@@ -25,7 +25,6 @@ OpCurveCurve::OpCurveCurve(OpEdge* edge, OpEdge* opp)
 #endif
 }
 
-
 // trim front and back of ranges
 SectFound OpCurveCurve::addUnsectable() {
 	findEdgesTRanges(CurveRef::edge);
@@ -291,7 +290,8 @@ SectFound OpCurveCurve::divideAndConquer() {
 // 6) binary search on t (expect to be slower)
 SectFound OpCurveCurve::divideExperiment() {
 #if OP_DEBUG_IMAGE
-	bool breakAtDraw = 11 == originalEdge->segment->id && (5 == originalOpp->segment->id);
+	bool breakAtDraw = (10 == originalEdge->segment->id) && (2 == originalOpp->segment->id);
+	bool breakAtDraw2 = (2 == originalEdge->segment->id) && (10 == originalOpp->segment->id);
 	if (breakAtDraw) {
 		playback();
 		OpDebugOut("");
@@ -432,10 +432,14 @@ SectFound OpCurveCurve::divideExperiment() {
 		return found;
 	};
 #endif
-	auto rangeRatio = [](const std::vector<OpEdge*>& curves, const OpEdge* original) {
-		float originalRange = original->end.t - original->start.t;
-		float piecewiseRange = curves.back()->end.t - curves.front()->start.t;
-		return piecewiseRange / originalRange;
+	auto overlapRange = [](const std::vector<OpEdge*>& curves) {
+		OpEdge* const * first = &curves.front();
+		OpEdge* const * last = &curves.back();
+		while (first < last && !(*first)->ccOverlaps)
+			++first;
+		while (first < last && !(*last)->ccOverlaps)
+			--last;
+		return (*last)->end.t - (*first)->start.t;
 	};
 #if 0
 	auto hackOfAddUnsectable = [this]() {
@@ -459,7 +463,7 @@ SectFound OpCurveCurve::divideExperiment() {
 	};
 	for (depth = 1; depth < maxDepth; ++depth) {
 #if OP_DEBUG_IMAGE
-		if (breakAtDraw && 4 <= depth /* && 10 == debugLocal */) {
+		if ((breakAtDraw && 5 <= depth) || (breakAtDraw2 && 6 <= depth)) {
 			redraw();  // allows setting a breakpoint to debug curve/curve
 			OpDebugOut("debugLocal:" + STR(debugLocal) + "\n");
 			dmpDepth();
@@ -533,14 +537,16 @@ SectFound OpCurveCurve::divideExperiment() {
 			}
 		}
 		if (edgeCurves.size() >= maxSplits || oppCurves.size() >= maxSplits) {
-            OpCurveCurve cc(originalEdge, originalOpp);
+            OpCurveCurve cc((OpEdge*) originalEdge, (OpEdge*) originalOpp);
             return cc.divideAndConquer();
 		}
 		{
 			constexpr float wildAssGuess = .8f;  // if curve range hasn't reduced to less than 80%
-			if (3 <= depth && rangeRatio(edgeCurves, originalEdge) > wildAssGuess &&
-					rangeRatio(oppCurves, originalOpp) > wildAssGuess) {
-				OpCurveCurve cc(originalEdge, originalOpp);
+			if (3 <= depth && overlapRange(edgeCurves) > wildAssGuess &&
+					overlapRange(oppCurves) > wildAssGuess) {
+				if (ccSects.size())
+					return addSect();
+				OpCurveCurve cc((OpEdge*) originalEdge, (OpEdge*) originalOpp);
 				return cc.divideAndConquer();
 			}
 		}
@@ -577,7 +583,7 @@ SectFound OpCurveCurve::divideExperiment() {
 		if (!edgeCurves.size() || !oppCurves.size())
 			return addSect();
 	}
-	OpCurveCurve cc(originalEdge, originalOpp);
+	OpCurveCurve cc((OpEdge*) originalEdge, (OpEdge*) originalOpp);
 	return cc.divideAndConquer();
 //	return SectFound::fail;
 }

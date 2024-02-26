@@ -2,18 +2,6 @@
 #ifndef OpCurveCurve_DEFINED
 #define OpCurveCurve_DEFINED
 
-#define CC_EXPERIMENT 1  /* rewrites curve curve intersection to:
-	- reject segments only by bounds intersection (bounds may be rotated)
-	- use line/line intersection only (no line/curve intersection)
-	- accelerate by guessing better centers for curve splitting
-	- split based on curviness, overall bounds
-
-	to be coded/tested
-	- can transferring t from line intersection to curve work well enough?
-	- how is partial/complete coincidence detected
-	- can successive centers suggest future guesses or detect intersection condition?
-*/
-
 #include "OpContour.h"
 #include "OpEdge.h"
 #include "OpIntersection.h"
@@ -146,9 +134,13 @@ struct OpCurveCurve {
 #if OP_DEBUG_IMAGE
 	void draw() const;
 #endif
+#if OP_DEBUG_VERBOSE
+	void dumpDepth(int level);
+	void dumpDepth();
+#endif
 
-	OpEdge* originalEdge;
-	OpEdge* originalOpp;
+	const OpEdge* originalEdge;
+	const OpEdge* originalOpp;
 	std::vector<OpEdge*> edgeCurves;
 	std::vector<OpEdge*> edgeLines;
 	std::vector<OpEdge*> oppCurves;

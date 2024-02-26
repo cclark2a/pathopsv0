@@ -275,7 +275,13 @@ struct OpVector {
     }
 
     float cross(OpVector a) const {
+#if 01
+        float dxy = dx * a.dy;
+        float dyx = dy * a.dx;
+        return dxy - dyx;
+#else
         return dx * a.dy - dy * a.dx;
+#endif
     }
 
     float choice(XyChoice xyChoice) const {
@@ -460,9 +466,10 @@ struct OpPoint {
     }
 
     bool isNearly(OpPoint test) const;
-
     void pin(const OpPoint , const OpPoint );
     void pin(const OpRect& );
+    bool soClose(OpPoint test, float epsilon) const;
+
 
     void zeroTiny() {  // set denormalized inputs to zero
         if (fabsf(x) < OpEpsilon)
@@ -581,6 +588,10 @@ struct OpPtT {
 
     bool isNearly(const OpPtT& o) const {
         return pt.isNearly(o.pt) || (t + OpEpsilon >= o.t && t <= o.t + OpEpsilon);
+    }
+
+    bool soClose(const OpPtT& o, float epsilon) const {
+        return pt.soClose(o.pt, epsilon) || (t + epsilon >= o.t && t <= o.t + epsilon);
     }
 
     static void MeetInTheMiddle(OpPtT& a, OpPtT& b){

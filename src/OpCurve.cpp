@@ -10,13 +10,22 @@ bool OpCurve::isLinear() const {
     OpVector diffs[2];
     diffs[0] = pts[1] - pts[0];
     diffs[1] = (OpType::cubic == type ? pts[3] : pts[2]) - pts[0];
-    bool linear = fabsf(diffs[0].dx * diffs[1].dy - diffs[1].dx * diffs[0].dy) <= OpEpsilon;
+    float cross = diffs[0].cross(diffs[1]);
+    bool linear = fabsf(cross) <= OpEpsilon;
     if (!linear)
         return false;
     if (OpType::cubic != type)
         return true;
     diffs[0] = pts[2] - pts[0];
-    return fabsf(diffs[0].dx * diffs[1].dy - diffs[1].dx * diffs[0].dy) <= OpEpsilon;
+    cross = diffs[0].cross(diffs[1]);
+    linear = fabsf(cross) <= OpEpsilon;
+#if 0  // this may be necessary for large values
+    auto vals = { diffs[0].dx, diffs[0].dy, diffs[1].dx, diffs[1].dy }; 
+    auto [min, max] = std::minmax_element( begin(vals), end(vals) );
+    auto larger = std::max(fabsf(*min), fabsf(*max));
+    linear = fabsf(cross) < std::nextafter(larger, OpInfinity) - larger;
+#endif
+    return linear;
 }
 
 OpLine& OpCurve::asLine() { OP_ASSERT(OpType::line == type); return *static_cast<OpLine*>(this); }

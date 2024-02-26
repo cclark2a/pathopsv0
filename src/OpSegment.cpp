@@ -29,8 +29,7 @@ OpSegment::OpSegment(const OpCurve& pts, OpType type, OpContour* contourPtr
         OP_DEBUG_PARAMS(SectReason startReason, SectReason endReason))
     : c(pts.pts, pts.weight, type)
     , winding(WindingUninitialized::dummy)
-    , disabled(false)
-    , recomputeBounds(false) {
+    , disabled(false)  {
     complete(contourPtr);  // only for id, which could be debug code if id is not needed
     OP_DEBUG_CODE(contour = nullptr);   // can't set up here because it may still move
     OP_DEBUG_CODE(debugStart = startReason);
@@ -42,8 +41,7 @@ OpSegment::OpSegment(const LinePts& pts, OpContour* contourPtr
         OP_DEBUG_PARAMS(SectReason startReason, SectReason endReason))
     : c(&pts.pts.front(), OpType::line)
     , winding(WindingUninitialized::dummy)
-    , disabled(false)
-    , recomputeBounds(false) {
+    , disabled(false)  {
     complete(contourPtr);  // only for id, which could be debug code if id is not needed
     OP_DEBUG_CODE(contour = nullptr);   // can't set up here because it may still move
     OP_DEBUG_CODE(debugStart = startReason);

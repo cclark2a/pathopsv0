@@ -277,6 +277,10 @@ FoundIntersections OpSegments::findIntersections() {
             if ((sharesHorizontal || sharesVertical) && MatchEnds::none != existing)
                 continue;
             // look for curve curve intersections (skip coincidence already found)
+            OP_ASSERT(!seg->edges.size() || (1 == seg->edges.size() && !seg->edges[0].start.t
+                    && 1 == seg->edges[0].end.t));
+            OP_ASSERT(!opp->edges.size() || (1 == opp->edges.size() && !opp->edges[0].start.t
+                    && 1 == opp->edges[0].end.t));
             seg->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(segSect)));
             opp->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(oppSect)));
             OpCurveCurve ccx(&seg->edges.back(), &opp->edges.back());
@@ -285,9 +289,89 @@ FoundIntersections OpSegments::findIntersections() {
             OP_DEBUG_CODE(ccx.debugDone(seg->contour->contours));
             if (SectFound::fail == experimental)
                 return FoundIntersections::fail;
-            // if point was added, check adjacent to see if it is concident (issue3517)
-            if (SectFound::no == experimental)
+            if (SectFound::no == experimental) {
+                // capture the closest point(s) that did not result in an intersection
+                // !!! eventually allow capturing more than 1, if curves hit twice
+                SoClose closest;
+                float best = OpInfinity;
+                auto buildClosest = [&best, &closest](OpSegment* s, std::vector<OpEdge*> edgeCurves, 
+                        OpSegment* o, std::vector<OpEdge*> oppCurves) {
+                    for (OpEdge* edge : edgeCurves) {
+                        for (const OpPtT& ePtT : { edge->start, edge->end } ) {
+                            for (OpEdge* oppC : oppCurves) {
+                                auto checkDistSq = [&best, &closest, &ePtT](const OpPtT& oPtT) {
+                                    float distSq = (ePtT.pt - oPtT.pt).lengthSquared();
+                                    if (best > distSq) {
+                                        best = distSq;
+                                        closest.close = ePtT;
+                                        closest.oppPtT = oPtT;
+                                    }
+                                };
+                                if (oppC->start.t <= OpEpsilon * 2 
+                                        && oppC->start.pt.soClose(ePtT.pt, OpEpsilon * 8))
+                                    checkDistSq(oppC->start);
+                                if (oppC->end.t >= 1 - OpEpsilon * 2
+                                        && oppC->end.pt.soClose(ePtT.pt, OpEpsilon * 8))
+                                    checkDistSq(oppC->end);
+                            }
+                        }
+                    }
+                    if (OpMath::IsFinite(best)) {
+                        auto check = [closest, s, o](OpPoint oPt) {
+                            // require either pt or t to be within some metric of closeness
+                            // since this specifies intersection points, some sloppiness is OK
+                            // as long as the point is (nearly) on each segment
+                            for (SoClose& test : s->debugClose) {
+                                if (!closest.close.soClose(test.close, OpEpsilon * 8))
+                                    continue;
+                                if (o == test.oppSeg)
+                                    continue;
+                                if (!closest.oppPtT.pt.soClose(test.oppPtT.pt, OpEpsilon * 8)) {
+                                    OpPoint oEnd = test.oppPtT.t < .5 
+                                            ? test.oppSeg->c.pts[0] : test.oppSeg->c.lastPt();
+                                    if (oEnd != oPt)
+                                        continue;
+                                }
+                                // post pairs of s/o and s/test.oppSeg to intersections
+                                OpPtT sPtT = OpPtT(oPt, closest.close.t);
+			                    OpIntersection* sect = s->addSegSect(sPtT, o  
+                                        OP_DEBUG_PARAMS(IntersectMaker::segStart, 
+                                        __LINE__, std::string(__FILE__), SectReason::lineCurve));
+                                OpPtT oPtT = OpPtT(oPt, closest.oppPtT.t < .5 ? 0 : 1);
+			                    OpIntersection* oSect = o->addSegSect(oPtT, s
+					                    OP_DEBUG_PARAMS(IntersectMaker::segStart,
+                                        __LINE__, std::string(__FILE__), SectReason::lineCurve));
+			                    if (sect && oSect) 
+                                    sect->pair(oSect);
+                                sect = s->addSegSect(sPtT, test.oppSeg
+                                        OP_DEBUG_PARAMS(IntersectMaker::segStart,
+                                        __LINE__, std::string(__FILE__), SectReason::lineCurve));
+                                OpPtT testPtT = OpPtT(oPt, test.oppPtT.t < .5 ? 0 : 1);
+                                oSect = test.oppSeg->addSegSect(testPtT, s
+					                    OP_DEBUG_PARAMS(IntersectMaker::segStart,
+                                        __LINE__, std::string(__FILE__), SectReason::lineCurve));
+			                    if (sect && oSect)
+                                    sect->pair(oSect);
+                            }
+                        };
+                        // if there is an existing soClose record with a ptT.t value which is
+                        // within some diff of epsilon (at least 2 epsilon) then print it
+                        // and show more data (normal? tangent?) to see if a pair of records find an
+                        // intersection where one segment joins another
+                        check(closest.oppPtT.t < .5 ? o->c.pts[0] : o->c.lastPt());
+                        closest.oppSeg = o;
+                        s->debugClose.push_back(closest);
+                        closest.oppSeg = s;
+                        std::swap(closest.close, closest.oppPtT);
+                        o->debugClose.push_back(closest);
+                    }
+                };
+                buildClosest(seg, ccx.edgeCurves, opp, ccx.oppCurves);
+                buildClosest(opp, ccx.oppCurves, seg, ccx.edgeCurves);
                 continue;
+            }
+            // !!! where does the comment below go?
+            // if point was added, check adjacent to see if it is concident (issue3517)
 #endif
 #define CC_OLD_SCHOOL 0
 #if CC_OLD_SCHOOL

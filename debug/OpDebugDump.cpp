@@ -444,6 +444,14 @@ void dmpSegments() {
     }
 }
 
+void dmpSoClose() {
+    for (const auto& c : debugGlobalContours->contours) {
+        for (const auto& seg : c.segments) {
+            seg.dumpSoClose();
+        }
+    }
+}
+
 void dmpUnsectable() {
     for (const auto& c : debugGlobalContours->contours) {
         for (const auto& seg : c.segments) {
@@ -1046,10 +1054,12 @@ ENUM_NAME(EdgeSplit, edgeSplit)
 	OP_X(rayFail) \
 	OP_X(windZero) \
 	OP_X(doSplit) \
+	OP_X(bias) \
 	OP_X(curvySet) \
 	OP_X(lineSet) \
 	OP_X(verticalSet) \
 	OP_X(isLine_impl) \
+	OP_X(exactLine) \
 	OP_X(active_impl) \
 	OP_X(inLinkups) \
 	OP_X(inOutput) \
@@ -1463,6 +1473,7 @@ std::string OpEdge::debugDump(DebugLevel debugLevel, DebugBase debugBase) const 
     STR_BOOL(lineSet);
     STR_BOOL(verticalSet);
     STR_BOOL(isLine_impl);
+    STR_BOOL(exactLine);
 	STR_BOOL(active_impl);
     STR_BOOL(inLinkups);
     STR_BOOL(inOutput);
@@ -1578,6 +1589,7 @@ std::string OpEdge::debugDumpDetail() const {
     if (lineSet) s += "lineSet ";
     if (verticalSet) s += "verticalSet ";
     if (isLine_impl) s += "isLine ";
+    if (exactLine) s += "exactLine ";
     if (active_impl) s += "active ";
     if (inOutput) s += "inOutput ";
     if (inLinkups) s += "inLinkups ";
@@ -2372,11 +2384,8 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 #if OP_DEBUG_VERBOSE
-void dmpDepth(int level) {
+void OpCurveCurve::dumpDepth(int level) {
     OpDebugOut("depth:" + STR(level + 1) + "\n");
-    OpCurveCurve* cc = debugGlobalContours->debugCurveCurve;
-    if (!cc)
-        return OpDebugOut("!debugGlobalContours->debugCurveCurve\n");
     EdgeFilters& ef = edgeFilters[1];
     EdgeFilters save = ef;
     DebugLevel saveLevel = defaultLevel;
@@ -2402,6 +2411,8 @@ void dmpDepth(int level) {
             continue;
         if (EdgeFilter::isLine_impl == filter.field)
             continue;
+        if (EdgeFilter::exactLine == filter.field)
+            continue;
         if (EdgeFilter::debugMaker == filter.field)
             continue;
         if (EdgeFilter::debugSplitStart == filter.field)
@@ -2410,20 +2421,20 @@ void dmpDepth(int level) {
             continue;
         ef.filter.push_back(filter.field);
     }
-    int dvLevels = cc->dvDepthIndex.size();
+    int dvLevels = dvDepthIndex.size();
     if (dvLevels <= level) {
-        for (const auto e : cc->edgeCurves)
+        for (const auto e : edgeCurves)
             dp(e);
-        for (const auto e : cc->oppCurves)
+        for (const auto e : oppCurves)
             dp(e);
         goto restore;
     }
     {
-        int lo = (int) cc->dvDepthIndex[level];
-        int hi = (int) cc->dvDepthIndex.size() <= level + 1 ? (int) cc->dvAll.size() 
-                : cc->dvDepthIndex[level + 1];
+        int lo = (int) dvDepthIndex[level];
+        int hi = (int) dvDepthIndex.size() <= level + 1 ? (int) dvAll.size() 
+                : dvDepthIndex[level + 1];
         for (int index = lo; index < hi; ++index) {
-            OpEdge* e = cc->dvAll[index];
+            OpEdge* e = dvAll[index];
             dp(e);
         }
     }
@@ -2432,11 +2443,25 @@ restore:
     defaultLevel = saveLevel;
 }
 
-void dmpDepth() {
-    for (int level = 0; level <= (int) debugGlobalContours->debugCurveCurve->dvDepthIndex.size();
+void dmpDepth(int level) {
+    OpCurveCurve* cc = debugGlobalContours->debugCurveCurve;
+    if (!cc)
+        return OpDebugOut("!debugGlobalContours->debugCurveCurve\n");
+    cc->dumpDepth(level);
+}
+
+void OpCurveCurve::dumpDepth() {
+    for (int level = 0; level <= (int) dvDepthIndex.size();
             ++level) {
-        dmpDepth(level);
+        dumpDepth(level);
     }
+}
+
+void dmpDepth() {
+    OpCurveCurve* cc = debugGlobalContours->debugCurveCurve;
+    if (!cc)
+        return OpDebugOut("!debugGlobalContours->debugCurveCurve\n");
+    cc->dumpDepth();
 }
 #endif
 
@@ -2595,8 +2620,6 @@ std::string OpSegment::debugDumpDetail() const {
     if (ZeroReason::uninitialized != debugZero)
         s += "reason:" + zeroReasonName(debugZero) + " ";
 #endif
-    if (recomputeBounds)
-        s += "recomputeBounds ";
     if (sects.resort)
         s += "sects.resort ";
     s += "\n";
@@ -2690,6 +2713,20 @@ void dmpSegmentIntersections(const OpSegment& seg) {
 
 void dmpSegmentSects(const OpSegment& seg) {
     dmpSegmentIntersections(seg);
+}
+
+void dmpSoClose(const OpSegment& seg) {
+#if CC_EXPERIMENT
+    if (seg.debugClose.size() < 2)
+        return;
+    std::string s = "seg:" + seg.debugDump(defaultLevel, defaultBase) + " ";
+    for (const SoClose& sc : seg.debugClose) {
+        s += "close:" + sc.close.debugDump(defaultLevel, defaultBase) + " ";
+        s += "oppPtT:" + sc.oppPtT.debugDump(defaultLevel, defaultBase) + " ";
+        s += "oppSeg:" + sc.oppSeg->debugDump(defaultLevel, defaultBase) + " ";
+    }
+    OpDebugFormat(s);
+#endif
 }
 
 void dmpStart(const OpSegment& seg) {

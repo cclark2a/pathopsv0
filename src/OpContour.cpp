@@ -401,7 +401,7 @@ bool OpContours::pathOps(OpOutPath result) {
     // made edges may include lines that are coincident with other edges. Undetected for now...
     windCoincidences();  // for segment h/v lines, compute their winding considering coincidence
     OpWinder windingEdges(*this, EdgesToSort::byCenter);
-    FoundWindings foundWindings = windingEdges.setWindings(this);  // walk edge list, compute windings
+    FoundWindings foundWindings = windingEdges.setWindings(this);  // walk edges, compute windings
     if (FoundWindings::fail == foundWindings)
         OP_DEBUG_FAIL(*this, false);
     apply();  // suppress edges which don't meet op criteria

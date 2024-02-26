@@ -160,7 +160,8 @@ OP_X(Full) \
 OP_X(FullDetail) \
 OP_X(SegmentEdges) \
 OP_X(SegmentIntersections) \
-OP_X(SegmentSects)
+OP_X(SegmentSects) \
+OP_X(SoClose)
 
 #define OP_X(Thing) \
 extern void dmp##Thing(int ID); \
@@ -204,6 +205,7 @@ extern void dmpJoin();
 extern void dmpSects();
 extern void dmpSegments();
 extern void dmpSegments();
+extern void dmpSoClose();
 extern void dmpUnsectable();
 extern void dmpUnsortable();
 

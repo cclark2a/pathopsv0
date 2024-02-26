@@ -136,6 +136,7 @@ extern void draw(const OpPoint& );
 extern void draw(const OpPtT& );   // draw point (ignores t)
 extern void draw(const OpPoint* );
 extern void draw(const OpPtT* );
+extern void draw(float , float );
 extern void draw();  // draw all current state
 extern void focus(int id);
 extern void focus(const OpContour& );

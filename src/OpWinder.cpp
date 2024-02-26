@@ -122,8 +122,9 @@ FindCept SectRay::findIntercept(OpEdge* test  OP_DEBUG_PARAMS(OpEdge* home)) {
 	OpRoots roots = test->curve.axisRayHit(axis, normal);
 	// get the normal at the intersect point and see if it is usable
 	if (1 < roots.count) {
-		test->setUnsortable();  // triggered by joel_14x (very small cubic)
-		return FindCept::unsortable;
+		return FindCept::retry;  // preferable for thread_cubics157381
+//		test->setUnsortable();  // triggered by joel_14x (very small cubic)
+//		return FindCept::unsortable;
 	}
 	if (1 != roots.count) {
 		OP_ASSERT(0 == roots.count);
@@ -574,7 +575,7 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 	return sectAdded;
 }
 
-FoundIntercept OpWinder::findRayIntercept(size_t inIndex, OpVector homeTan, float normal, 
+FoundIntercept OpWinder::findRayIntercept(size_t homeIndex, OpVector homeTan, float normal, 
 		float homeCept) {
 	SectRay& ray = home->ray;
 	ray.homeTangent = homeTan;
@@ -596,11 +597,11 @@ FoundIntercept OpWinder::findRayIntercept(size_t inIndex, OpVector homeTan, floa
 		size_t touches = touching.size();
 		ray.distances.clear();
 		ray.distances.emplace_back(home, homeCept, ray.homeT, false);
-		int index = inIndex;
+		size_t inIndex = setInIndex(homeIndex, homeCept, inArray);
 		// start at edge with left equal to or left of center
 		FindCept findCept = FindCept::ok;
-		while (index != 0) {
-			OpEdge* test = inArray[--index];
+		while (inIndex != 0) {
+			OpEdge* test = inArray[--inIndex];
 			if (test == home)
 				continue;
 			findCept = ray.findIntercept(test  OP_DEBUG_PARAMS(home));
@@ -675,11 +676,23 @@ void OpWinder::markUnsortable() {
 	home->rayFail = Axis::vertical == workingAxis ? EdgeFail::vertical : EdgeFail::horizontal;
 }
 
+size_t OpWinder::setInIndex(size_t homeIndex, float homeCept, std::vector<OpEdge*>& inArray) {
+	Axis perpendicular = !workingAxis;
+	// advance to furthest that could influence the sum winding of this edge
+	size_t inIndex = homeIndex + 1;
+	for (; inIndex < inArray.size(); ++inIndex) {
+		OpEdge* advance = inArray[inIndex];
+		if (advance->ptBounds.ltChoice(perpendicular) > homeCept)
+			break;
+	}
+	return inIndex;
+}
+
 // if horizontal axis, look at rect top/bottom
-ChainFail OpWinder::setSumChain(size_t inIndex) {
+ChainFail OpWinder::setSumChain(size_t homeIndex) {
 	// see if normal at center point is in direction of ray
 	std::vector<OpEdge*>& inArray = Axis::horizontal == workingAxis ? inX : inY;
-	home = inArray[inIndex];
+	home = inArray[homeIndex];
 	OP_ASSERT(!home->disabled);
 	const OpSegment* edgeSeg = home->segment;
 	OpVector rayLine = Axis::horizontal == workingAxis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
@@ -693,22 +706,15 @@ ChainFail OpWinder::setSumChain(size_t inIndex) {
 		return ChainFail::normalizeUnderflow;  // nonfatal error
 	}
 	// intersect normal with every edge in the direction of ray until we run out 
-	Axis perpendicular = !workingAxis;
 	float normal = home->center.pt.choice(workingAxis);
 	if (normal == home->start.pt.choice(workingAxis)
 			|| normal == home->end.pt.choice(workingAxis)) {
 		markUnsortable();
 		return ChainFail::noNormal;  // nonfatal error
 	}
+	Axis perpendicular = !workingAxis;
 	float homeCept = home->center.pt.choice(perpendicular);
-	// advance to furthest that could influence the sum winding of this edge
-	inIndex += 1;
-	for (; inIndex < inArray.size(); ++inIndex) {
-		OpEdge* advance = inArray[inIndex];
-		if (advance->ptBounds.ltChoice(perpendicular) > homeCept)
-			break;
-	}
-	FoundIntercept foundIntercept = findRayIntercept(inIndex, homeTangent, normal, homeCept);
+	FoundIntercept foundIntercept = findRayIntercept(homeIndex, homeTangent, normal, homeCept);
 	if (FoundIntercept::fail == foundIntercept)
 		return ChainFail::failIntercept;
 	if (FoundIntercept::overflow == foundIntercept)
@@ -875,12 +881,13 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 				SectRay& ray = edge.ray;
 				if (!ray.distances.size())
 					continue;
-		//		start here;
+#if 0
+				//		start here;
 				// if edge is not unsectable, and
 				//     if an adjacent edge (the next edge in the contour) is unsectable, and
 				//     its pal is also in this edge's distance array:
 				//  mark edge as unsectable
-				if (false && !edge.unsectableID) {
+				if (!edge.unsectableID) {
 					auto checkNeighbor = [&edge](const OpPtT& ptT, EdgeMatch match) {
 						OpEdge* neighbor = edge.segment->findEnabled(ptT, match);
 						if (!neighbor->unsectableID)
@@ -908,6 +915,7 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 					if (edge.start.t > 0)
 						edge.unsectableID = checkNeighbor(edge.start, EdgeMatch::end);
 				}
+#endif
 				bySize.push_back(&edge);
 			}
 		}
