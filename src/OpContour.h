@@ -2,14 +2,14 @@
 #ifndef OpContour_DEFINED
 #define OpContour_DEFINED
 
-#include "OpSegment.h"
+#include "OpJoiner.h"
 #include "OpTightBounds.h"
 #include <vector>
 #if OP_DEBUG
 #include <atomic>
 #endif
 
-enum class EdgeMatch : uint8_t;
+enum class EdgeMatch : int8_t;
 struct FoundEdge;
 struct OpCurveCurve;
 struct OpJoiner;
@@ -42,20 +42,16 @@ struct OpContour {
     bool addClose();
     bool addConic(OpPoint pts[3], float weight);
     bool addCubic(OpPoint pts[4]);
-    OpIntersection* addEdgeSect(const OpPtT& t, OpSegment* seg
-            OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
-            const OpEdge* edge, const OpEdge* oEdge));
+    OpIntersection* addEdgeSect(const OpPtT& , OpSegment* seg
+           OP_LINE_FILE_DEF(SectReason , const OpEdge* edge, const OpEdge* oEdge));
     OpEdge* addFiller(OpEdge* edge, OpEdge* lastEdge);
     OpEdge* addFiller(OpIntersection* start, OpIntersection* end);
-    OpIntersection* addCoinSect(const OpPtT& t, OpSegment* seg, int cID, MatchEnds end
-            OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
-            const OpSegment* oSeg));
-    OpIntersection* addSegSect(const OpPtT& t, OpSegment* seg
-            OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
-            const OpSegment* oSeg));
-    OpIntersection* addUnsect(const OpPtT& t, OpSegment* seg, int uID, MatchEnds end
-            OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
-            const OpSegment* oSeg));
+    OpIntersection* addCoinSect(const OpPtT& , OpSegment* seg, int cID, MatchEnds 
+            OP_LINE_FILE_DEF(SectReason , const OpSegment* oSeg));
+    OpIntersection* addSegSect(const OpPtT& , OpSegment* seg
+            OP_LINE_FILE_DEF(SectReason , const OpSegment* oSeg));
+    OpIntersection* addUnsect(const OpPtT& , OpSegment* seg, int uID, MatchEnds 
+            OP_LINE_FILE_DEF(SectReason , const OpSegment* oSeg));
     void addLine(OpPoint pts[2]);
     bool addQuad(OpPoint pts[3]);
 
@@ -121,13 +117,17 @@ struct OpContours {
     OpContours(OpInPath& left, OpInPath& right, OpOperator op);
 
     ~OpContours() {
-        do {
+        release(ccStorage);
+        release(fillerStorage);
+        while (sectStorage) {
             OpSectStorage* next = sectStorage->next;
             delete sectStorage;
             sectStorage = next;
-        } while (sectStorage);
-        release(ccStorage);
-        release(fillerStorage);
+        }
+        if (limbStorage) {
+            limbStorage->reset();
+            delete limbStorage;
+        }
 #if OP_DEBUG
         debugInPathOps = false;
         debugInClearEdges = false;
@@ -137,6 +137,7 @@ struct OpContours {
     OpContour* addMove(OpContour* , OpOperand , const OpPoint pts[1]);
     void* allocateEdge(OpEdgeStorage*& );
     OpIntersection* allocateIntersection();
+    OpLimb* allocateLimb(OpTree& );
 
     void apply() {
         for (auto& contour : contours) {
@@ -168,6 +169,7 @@ struct OpContours {
 
     bool pathOps(OpOutPath result);
     void release(OpEdgeStorage*& );
+    OpLimbStorage& resetLimbs();
     void reuse(OpEdgeStorage* );
 
     int rightFillTypeMask() const {
@@ -234,6 +236,7 @@ struct OpContours {
     OpEdgeStorage* ccStorage;
     OpEdgeStorage* fillerStorage;
     OpSectStorage* sectStorage;
+    OpLimbStorage* limbStorage;
     OpFillType left;
     OpFillType right;
     OpOperator opOperator;

@@ -75,6 +75,9 @@ struct OpContours;
 #define OP_DEBUG_IMAGE 0
 #define OP_DEBUG_FAIL(object, returnValue) return returnValue
 #define OP_DEBUG_SUCCESS(object, returnValue) return returnValue
+#define OP_LINE_FILE_PARAMS(...)
+#define OP_LINE_FILE_CALLER(...)
+#define OP_LINE_FILE_DEF(...)
 #define OP_WARNING(contours, str)
 
 #else
@@ -123,8 +126,11 @@ struct OpContours;
 
 #include <string>
 
-// debug compare, debug dump, and debug image as written only work when testing uses a single thread
+#define OP_LINE_FILE_PARAMS(...) , __LINE__, std::string(__FILE__), __VA_ARGS__
+#define OP_LINE_FILE_CALLER(...) , lineNo, fileName, __VA_ARGS__
+#define OP_LINE_FILE_DEF(...) , int lineNo, std::string fileName, __VA_ARGS__
 
+// debug compare, debug dump, and debug image as written only work when testing uses a single thread
 #if !OP_DEBUG_FAST_TEST
 #define OpDebugBreak(opObject, ID) \
 	do { if ((ID) == (opObject)->id) OP_DEBUG_BREAK(); } while (false)

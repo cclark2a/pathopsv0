@@ -43,8 +43,8 @@ enum EdgeRay {
 	yRay,
 };
 
-enum class EdgeMatch : uint8_t {
-	none,
+enum class EdgeMatch : int8_t {
+	none = -1,
 	start,
 	end,
 	both	// used by flip
@@ -52,9 +52,9 @@ enum class EdgeMatch : uint8_t {
 
 enum class FoundPtT;
 
-inline EdgeMatch Opposite(EdgeMatch match) {
-	OP_ASSERT(EdgeMatch::start == match || EdgeMatch::end == match);
-	return EdgeMatch::start == match ? EdgeMatch::end : EdgeMatch::start;
+inline EdgeMatch operator!(EdgeMatch m) {
+	OP_ASSERT(EdgeMatch::start == m || EdgeMatch::end == m);
+	return static_cast<EdgeMatch>(!static_cast<int>(m));
 }
 
 #if 0  // not needed for now
@@ -239,21 +239,23 @@ public:
 // edge at the same point that is a better match.
 // A pair of edges that are nearly coincident may be mis-sorted so that the zero
 // winding is wrong.
-enum class WindZero : uint8_t {
-	noFlip,
-	normal,
-	opp,
+// The normal zero winding is computed before the edge orientation (e.g., whichEnd) 
+// is known, so it may be reversed if the edge is to be connected backwards.
+enum class WindZero : int8_t {
+	unset = -1,
+	zero,
+	nonZero,
 };
 
 inline void OpDebugCheckSingleZero(WindZero left, WindZero right) {
-	OP_ASSERT(WindZero::noFlip != left || WindZero::noFlip != right);
-	OP_ASSERT((int) left + (int) right != 3);	// not normal and opp at same time
+	OP_ASSERT(WindZero::unset != left || WindZero::unset != right);
+	OP_ASSERT(left == right);	// not normal and opp at same time
 }
 
-inline void WindZeroFlip(WindZero* windZero) {
-    if (WindZero::noFlip == *windZero)
-        return;
-    *windZero = WindZero::normal == *windZero ? WindZero::opp : WindZero::normal;
+inline WindZero operator!(const WindZero& a) {
+    if (WindZero::unset == a)
+        return a;
+    return (WindZero) !static_cast<int>(a);
 }
 
 struct EdgeDistance {
@@ -431,7 +433,7 @@ constexpr float OP_CURVACIOUS_LIMIT = 1.f / 16;  // !!! tune to guess line/line 
 
 struct OpEdge {
 private:
-	OpEdge()	// note : all release values are zero
+	OpEdge()	// note : not all release values are zero (which end, wind zero)
 		: priorEdge(nullptr)
 		, nextEdge(nullptr)
 		, lastEdge(nullptr)
@@ -441,7 +443,7 @@ private:
 		, unsectableID(0)
 		, whichEnd(EdgeMatch::none)
 		, rayFail(EdgeFail::none)
-		, windZero(WindZero::noFlip)
+		, windZero(WindZero::unset)
 		, doSplit(EdgeSplit::no)
 		, bias(SplitBias::none)
 		, curvySet(false)
@@ -455,8 +457,11 @@ private:
 		, disabled(false)
 		, unsortable(false)
 		, between(false)
+		, ccOverlaps(false)
+		, visitedStart(false)
+		, visitedEnd(false)
 	{
-#if OP_DEBUG // a few debug values are nonzero. Boo!
+#if OP_DEBUG // a few debug values are nonzero
         id = 0;
         segment = nullptr;
 		curvy = OpNaN;
@@ -520,6 +525,8 @@ public:
 	void clearLastEdge();
 	void clearNextEdge();
 	void clearPriorEdge();
+	void clearVisited() {
+		visitedStart = visitedEnd = false; }
 	void complete();
 	bool containsLink(const OpEdge* edge) const;
 	OpContours* contours() const;
@@ -547,7 +554,7 @@ public:
 			std::vector<FoundEdge>& , AllowPals , AllowClose );
 	OpEdge* nextOut();
 	NormalDirection normalDirection(Axis axis, float t);
-	void output(OpOutPath path);  // provided by the graphics implmentation
+	void output(OpOutPath path, bool closed);  // provided by the graphics implmentation
 	OpPtT ptT(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? start : end; }
 	void reenable() {
@@ -575,6 +582,8 @@ public:
 	void subDivide();
 	CalcFail subIfDL(Axis axis, float t, OpWinding* );
 	OpType type();
+	bool& visited(EdgeMatch m) {
+		return EdgeMatch::start == m ? visitedStart : visitedEnd; }
 	OpPtT whichPtT(EdgeMatch match = EdgeMatch::start) const { 
 		return match == whichEnd ? start : end; }
 
@@ -600,9 +609,9 @@ public:
 	bool debugIsLoop() const {
 		return debugIsLoop(WhichLoop::prior) || debugIsLoop(WhichLoop::next); }
 	const OpEdge* debugIsLoop(WhichLoop , LeadingLoop = LeadingLoop::will) const;
-	int debugLinkCount() const;
+#endif
+#if OP_DEBUG_VALIDATE
 	void debugValidate() const;  // make sure pointer to edge is valid
-//	bool debugValidLoop() const;  // currently unused
 #endif
 #if OP_DEBUG_IMAGE
 	void addLink();
@@ -654,6 +663,8 @@ public:
 	bool unsortable;
 	bool between;  // between unsectables (also unsortable); !!! begs for an enum class, instead...
 	bool ccOverlaps;  // set if curve/curve edges have bounds that overlap
+	bool visitedStart;  // experimental tree to track adding edges to output
+	bool visitedEnd;  // experimental tree to track adding edges to output
 #if OP_DEBUG
 	SectType debugSplitStart;
 	SectType debugSplitEnd;

@@ -128,27 +128,27 @@ void OpEdge::apply() {
 	case OpOperator::Subtract:
 		keep = bothFlipped ? left != right : WindState::one == left || WindState::zero == right;
 		if (keep)
-			windZero = su.right() || !su.left() ? WindZero::normal : WindZero::opp;
+			windZero = su.right() || !su.left() ? WindZero::zero : WindZero::nonZero;
 		break;
 	case OpOperator::Intersect:
 		keep = bothFlipped ? left == right : WindState::zero != left && WindState::zero != right;
 		if (keep)
-			windZero = !su.left() || !su.right() ? WindZero::normal : WindZero::opp;
+			windZero = !su.left() || !su.right() ? WindZero::zero : WindZero::nonZero;
 		break;
 	case OpOperator::Union:
 		keep = bothFlipped ? left == right : WindState::one != left && WindState::one != right;
 		if (keep)
-			windZero = !su.left() && !su.right() ? WindZero::normal : WindZero::opp;
+			windZero = !su.left() && !su.right() ? WindZero::zero : WindZero::nonZero;
 		break;
 	case OpOperator::ExclusiveOr:
 		keep = !bothFlipped;
 		if (keep)
-			windZero = !su.left() == !su.right() ? WindZero::normal : WindZero::opp;
+			windZero = !su.left() == !su.right() ? WindZero::zero : WindZero::nonZero;
 		break;
 	case OpOperator::ReverseSubtract:
 		keep = bothFlipped ? left != right : WindState::zero == left || WindState::one == right;
 		if (keep)
-			windZero = su.left() || !su.right() ? WindZero::normal : WindZero::opp;
+			windZero = su.left() || !su.right() ? WindZero::zero : WindZero::nonZero;
 		break;
 	default:
 		OP_ASSERT(0);
@@ -291,6 +291,17 @@ OpPtT OpEdge::findT(Axis axis, float oppXY) const {
 	return found;
 }
 
+// this compares against float epsilon instead of zero
+// when comparing against a line, an edge close to zero can fall into denormalized numbers,
+//   causing the calling subdivision to continue for way too long. Using epsilon as a stopgap
+//   avoids this. The alternative would be to change the math to disallow denormalized numbers
+bool OpEdge::isLinear() {
+	if (lineSet)
+		return isLine_impl;
+	lineSet = true;
+	return (isLine_impl = curve.isLinear());
+}
+
 void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 	OpEdge* oppEdge = found.edge;
 	OP_ASSERT(!oppEdge->hasLinkTo(match));
@@ -306,7 +317,7 @@ void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 		oppEdge->setPriorEdge(this);
 	}
 	if (edgePt == oppEdge->start.pt)
-		oppEdge->whichEnd = Opposite(match);
+		oppEdge->whichEnd = !match;
 	else {
 		OP_ASSERT(edgePt == oppEdge->end.pt);
 		oppEdge->whichEnd = match;
@@ -375,28 +386,17 @@ void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsect
 				return false;
 			if (this == unsectable)
 				return false;
-#if 0
-			bool startMatch = (firstPt == unsectable->whichPtT().pt || AllowClose::yes == allowClose)
-					&& !unsectable->priorEdge;
-			bool endMatch = (firstPt == unsectable->whichPtT(EdgeMatch::end).pt
-					|| AllowClose::yes == allowClose) && !unsectable->nextEdge;
-#else
             bool startMatch = firstPt == unsectable->start.pt
                     && (EdgeMatch::start == unsectable->whichEnd ? !unsectable->priorEdge :
                     !unsectable->nextEdge);
             bool endMatch = firstPt == unsectable->end.pt
                     && (EdgeMatch::end == unsectable->whichEnd ? !unsectable->priorEdge :
                     !unsectable->nextEdge);
-#endif
 			if (!startMatch && !endMatch)
 				return false;
 			if (AllowClose::no == allowClose && isDupe(unsectable))
 				return false;
-#if 0
-			if (unsectable->pals.size() && AllowPals::yes == allowPals) {
-#else
 			if (unsectable->pals.size() && AllowPals::no == allowPals) {
-#endif
 			const OpEdge* link = this;
 				OP_ASSERT(!link->nextEdge);
 				OP_ASSERT(!link->debugIsLoop());
@@ -412,12 +412,7 @@ void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsect
 				edges.back().check(nullptr, unsectable, 
 						startMatch ? EdgeMatch::start : EdgeMatch::end, firstPt);
 			} else
-#if 0
-				edges.emplace_back(unsectable, startMatch ? unsectable->whichEnd 
-						: Opposite(unsectable->whichEnd));
-#else
 				edges.emplace_back(unsectable, startMatch ? EdgeMatch::start : EdgeMatch::end);
-#endif
 			return true;
 		};
 		if (checkEnds(unsectable))
@@ -497,17 +492,6 @@ bool OpEdge::setLastLink(EdgeMatch match) {
 	return false;
 }
 
-// this compares against float epsilon instead of zero
-// when comparing against a line, an edge close to zero can fall into denormalized numbers,
-//   causing the calling subdivision to continue for way too long. Using epsilon as a stopgap
-//   avoids this. The alternative would be to change the math to disallow denormalized numbers
-bool OpEdge::isLinear() {
-	if (lineSet)
-		return isLine_impl;
-	lineSet = true;
-	return (isLine_impl = curve.isLinear());
-}
-
 OpPointBounds OpEdge::setLinkBounds() {
 	OP_ASSERT(lastEdge); // fix caller to pass first edge of links
 	if (linkBounds.isSet())
@@ -529,11 +513,11 @@ bool OpEdge::setLinkDirection(EdgeMatch match) {
 	OpEdge* edge = this;
 	while (edge->priorEdge) {
 		std::swap(edge->priorEdge, edge->nextEdge);
-		edge->whichEnd = Opposite(edge->whichEnd);
+		edge->whichEnd = !edge->whichEnd;
 		edge = edge->nextEdge;
 	}
 	std::swap(edge->priorEdge, edge->nextEdge);
-	edge->whichEnd = Opposite(edge->whichEnd);
+	edge->whichEnd = !edge->whichEnd;
 	edge->clearLastEdge();
 	lastEdge = edge;
 	return true;

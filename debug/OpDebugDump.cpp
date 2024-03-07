@@ -284,8 +284,8 @@ static bool enum##OutOfDate = false; \
 \
 std::string enum##Name(Enum element) { \
     static bool enum##Checked = false; \
+    int first = (int) enum##Names[0].element; \
     if (!enum##Checked) { \
-        int first = (int) enum##Names[0].element; \
         for (int index = 0; index < (int) ARRAY_COUNT(enum##Names); ++index) \
            if (!enum##OutOfDate && (int) enum##Names[index].element != index + first) { \
                OpDebugOut("!!! " #Enum " out of date\n"); \
@@ -296,7 +296,7 @@ std::string enum##Name(Enum element) { \
     } \
     if (enum##OutOfDate) \
         return STR_E(element); \
-    return enum##Names[(int) element].name; \
+    return enum##Names[(int) element - first].name; \
 }
 
 std::string stringFormat(std::string s) {
@@ -412,7 +412,7 @@ void dmpIntersections() {
         for (const auto& seg : c.segments) {
             s += "intersect " + seg.debugDump() + "\n";
             for (const auto sect : seg.sects.i) {
-                s += "  " + sect->debugDumpDetail(true) + "\n";
+                s += "  " + sect->debugDump(DebugLevel::detailed, defaultBase) + "\n";
             }
         }
     }
@@ -502,7 +502,7 @@ std::string OpContours::debugDumpHex(std::string label) const {
             if (seg.sects.i.size())
                 s += "OpDebugSectHex " + label + "Sects" + STR(seg.id) + "[] {\n";
             for (const auto intersection : seg.sects.i) {
-                s += "// " + intersection->debugDumpBrief() + "\n";
+                s += "// " + intersection->debugDump(DebugLevel::brief, DebugBase::hex) + "\n";
                 s += intersection->debugDumpHex() + ",\n";
             }
             if (seg.sects.i.size())
@@ -555,7 +555,9 @@ void OpContours::dumpCount(std::string label) const {
 std::string OpContours::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     for (auto& c : contours)
-        s += c.debugDump(l, b);
+        s += c.debugDump(l, b) + "\n";
+    if (s.back() == '\n')
+        s.pop_back();
     return s;
 }
 
@@ -568,22 +570,37 @@ ENUM_NAME_STRUCT(SectReason);
 #define SECT_REASON_NAME(r) { SectReason::r, #r }
 
 SectReasonName sectReasonNames[] {
+    SECT_REASON_NAME(unset),
     SECT_REASON_NAME(coinPtsMatch),
     SECT_REASON_NAME(curveCurveUnsectable),
     SECT_REASON_NAME(degenerateCenter),
     SECT_REASON_NAME(divideAndConquer_oneT),
     SECT_REASON_NAME(divideAndConquer_noEdgeToSplit),
     SECT_REASON_NAME(divideAndConquer_noOppToSplit),
+	SECT_REASON_NAME(edgeCCExact),
+	SECT_REASON_NAME(edgeCCHull),
+	SECT_REASON_NAME(edgeCCHullPair),
+	SECT_REASON_NAME(edgeCCNearly),
+	SECT_REASON_NAME(edgeCurveCurve),
     SECT_REASON_NAME(endPt),
     SECT_REASON_NAME(inflection),
     SECT_REASON_NAME(lineCurve),
     SECT_REASON_NAME(missingCoincidence),
+	SECT_REASON_NAME(oppCCExact),
+	SECT_REASON_NAME(oppCCHull),
+	SECT_REASON_NAME(oppCCHullPair),
+	SECT_REASON_NAME(oppCCNearly),
+	SECT_REASON_NAME(oppCurveCurve),
     SECT_REASON_NAME(resolveCoin_windingChange),
     SECT_REASON_NAME(resolveCoin_oWindingChange),
     SECT_REASON_NAME(sharedEdge),
     SECT_REASON_NAME(sharedEnd),
     SECT_REASON_NAME(sharedStart),
     SECT_REASON_NAME(startPt),
+    SECT_REASON_NAME(unsectableOppEnd),
+    SECT_REASON_NAME(unsectableOppStart),
+    SECT_REASON_NAME(unsectableEnd),
+    SECT_REASON_NAME(unsectableStart),
     SECT_REASON_NAME(xExtrema),
     SECT_REASON_NAME(yExtrema),
     // testing only
@@ -971,9 +988,9 @@ ENUM_NAME_STRUCT(WindZero);
 #define WIND_ZERO_NAME(r) { WindZero::r, #r }
 
 static WindZeroName windZeroNames[] {
-    WIND_ZERO_NAME(noFlip),
-    WIND_ZERO_NAME(normal),
-    WIND_ZERO_NAME(opp),
+    WIND_ZERO_NAME(unset),
+    WIND_ZERO_NAME(zero),
+    WIND_ZERO_NAME(nonZero),
 };
 
 ENUM_NAME(WindZero, windZero)
@@ -1114,6 +1131,7 @@ EDGE_DEBUG
 EDGE_IMAGE
 #undef OP_X
 #endif
+    last
 };
 
 struct EdgeFilterName {
@@ -1140,6 +1158,20 @@ EDGE_DEBUG
 EDGE_IMAGE
 #undef OP_X
 #endif
+};
+
+struct OpSaveEF {
+    OpSaveEF(std::vector<EdgeFilter>& temp) {
+        save = edgeFilters[(int) defaultLevel].filter;
+        for (EF ef = (EF) 0; ef < EF::last; ef = (EF)((int) ef + 1)) {
+            if (temp.end() == std::find(temp.begin(), temp.end(), ef))
+                edgeFilters[(int) defaultLevel].filter.push_back(ef);
+        }
+    }
+    ~OpSaveEF() {
+        edgeFilters[(int) defaultLevel].filter = save;
+    }
+    std::vector<EdgeFilter> save;
 };
 
 void addEdgeFilter(std::vector<EdgeFilter>& efSet, EdgeFilter ef) {
@@ -2094,12 +2126,16 @@ std::string OpJoiner::debugDump(DebugLevel l, DebugBase b) const {
         }
         s += e->debugDump(l, b) + "\n";
     };
+    // set up edge::debugDump to only show joiner relevant fields
+    std::vector<EdgeFilter> showFields = { EF::id, EF::start, EF::end, EF::winding, EF::sum, 
+            EF::many, EF::pals, EF::whichEnd };
+    OpSaveEF saveEF(showFields);
     firstOut = false;
     for (auto e : byArea)
-        dumpEdge(e, "-- sorted in x --\n");
+        dumpEdge(e, "-- byArea --\n");
     firstOut = false;
     for (auto e : unsectByArea)
-        dumpEdge(e, "-- unsectable sorted in x --\n");
+        dumpEdge(e, "-- unsectByArea --\n");
     firstOut = false;
     for (auto e : disabled)
         dumpEdge(e, "-- disabled --\n");
@@ -2124,14 +2160,12 @@ std::string OpJoiner::debugDump(DebugLevel l, DebugBase b) const {
     }
     s += "linkMatch:" + edgeMatchName(linkMatch);
     s += " linkPass:" + linkPassName(linkPass);
-    if (baseUnsectable)
-        s += " baseUnsectable:" + baseUnsectable->debugDump(l, b);
     if (edge)
-        s += " edge:" + edge->debugDump(l, b);
+        s += "\nedge:" + edge->debugDump(l, b);
     if (lastEdge)
-        s += " lastEdge:" + lastEdge->debugDump(l, b);
+        s += "\nlastEdge:" + lastEdge->debugDump(l, b);
     if (!OpMath::IsNaN(matchPt.x) && !OpMath::IsNaN(matchPt.y))
-        s += " matchPt:" + matchPt.debugDump(l, b);
+        s += "\nmatchPt:" + matchPt.debugDump(l, b);
     s += " disabledBuilt:" + STR(disabledBuilt);
     s += " disabledPalsBuilt:" + STR(disabledPalsBuilt);
     return s;
@@ -2212,80 +2246,13 @@ std::string CcCenter::debugDump(DebugLevel l, DebugBase b) const {
     return s;
 }
 
-#if OP_DEBUG
-ENUM_NAME_STRUCT(IntersectMaker);
-#define INTERSECT_MAKER_NAME(r) { IntersectMaker::r, #r }
-
-IntersectMakerName intersectMakerNames[] {
-	INTERSECT_MAKER_NAME(addCoincidentCheck),
-	INTERSECT_MAKER_NAME(addCoincidentCheckOpp),
-	INTERSECT_MAKER_NAME(addMatchingEnd),
-	INTERSECT_MAKER_NAME(addMatchingEndOpp),
-	INTERSECT_MAKER_NAME(addMatchingEndOStart),
-	INTERSECT_MAKER_NAME(addMatchingEndOStartOpp),
-	INTERSECT_MAKER_NAME(addMatchingStart),
-	INTERSECT_MAKER_NAME(addMatchingStartOpp),
-	INTERSECT_MAKER_NAME(addMatchingStartOEnd),
-	INTERSECT_MAKER_NAME(addMatchingStartOEndOpp),
-	INTERSECT_MAKER_NAME(addMix),
-	INTERSECT_MAKER_NAME(addMixOpp),
-	INTERSECT_MAKER_NAME(addPair_aPtT),
-	INTERSECT_MAKER_NAME(addPair_bPtT),
-	INTERSECT_MAKER_NAME(addPair_oppStart),
-	INTERSECT_MAKER_NAME(addPair_oppEnd),
-	INTERSECT_MAKER_NAME(curveCenter),
-	INTERSECT_MAKER_NAME(curveCenterOpp),
-	INTERSECT_MAKER_NAME(edgeIntersections),
-	INTERSECT_MAKER_NAME(edgeIntersectionsOpp),
-	INTERSECT_MAKER_NAME(edgeCCExact),
-	INTERSECT_MAKER_NAME(edgeCCHull),
-	INTERSECT_MAKER_NAME(edgeCCHullPair),
-	INTERSECT_MAKER_NAME(edgeCCNearly),
-	INTERSECT_MAKER_NAME(edgeCurveCurve),
-	INTERSECT_MAKER_NAME(edgeLineCurve),
-	INTERSECT_MAKER_NAME(edgeLineCurveOpp),
-	INTERSECT_MAKER_NAME(edgeT),
-	INTERSECT_MAKER_NAME(edgeTOpp),
-	INTERSECT_MAKER_NAME(oppT),
-	INTERSECT_MAKER_NAME(oppTOpp),
-	INTERSECT_MAKER_NAME(findIntersections_start),
-	INTERSECT_MAKER_NAME(findIntersections_startOppReversed),
-	INTERSECT_MAKER_NAME(findIntersections_startOpp),
-	INTERSECT_MAKER_NAME(findIntersections_end),
-	INTERSECT_MAKER_NAME(findIntersections_endOppReversed),
-	INTERSECT_MAKER_NAME(findIntersections_endOpp),
-	INTERSECT_MAKER_NAME(missingCoincidence),
-	INTERSECT_MAKER_NAME(missingCoincidenceOpp),
-	INTERSECT_MAKER_NAME(oppCCExact),
-	INTERSECT_MAKER_NAME(oppCCHull),
-	INTERSECT_MAKER_NAME(oppCCHullPair),
-	INTERSECT_MAKER_NAME(oppCCNearly),
-	INTERSECT_MAKER_NAME(oppCurveCurve),
-	INTERSECT_MAKER_NAME(segEnd),
-	INTERSECT_MAKER_NAME(segmentLineCurve),
-	INTERSECT_MAKER_NAME(segmentLineCurveOpp),
-	INTERSECT_MAKER_NAME(segStart),
-	INTERSECT_MAKER_NAME(splitAtWinding),
-	INTERSECT_MAKER_NAME(unsectableStart),
-	INTERSECT_MAKER_NAME(unsectableEnd),
-	INTERSECT_MAKER_NAME(unsectableOppStart),
-	INTERSECT_MAKER_NAME(unsectableOppEnd),
-	// testing only
-	INTERSECT_MAKER_NAME(opTestEdgeZero1),
-	INTERSECT_MAKER_NAME(opTestEdgeZero2),
-	INTERSECT_MAKER_NAME(opTestEdgeZero3),
-	INTERSECT_MAKER_NAME(opTestEdgeZero4),
-};
-
-ENUM_NAME(IntersectMaker, intersectMaker)
-#endif
-
 std::string CcSect::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     s += "edge:" + edge.debugDump(l, b);
     s += " ptT:" + ptT.debugDump(l, b);
 #if OP_DEBUG
-	s += " maker:" + intersectMakerName(maker);
+	s += " reason:" + sectReasonName(debugReason);
+    s += " " + debugSetMaker.debugDump();
 #endif
     return s;
 }
@@ -2477,19 +2444,24 @@ MatchEndsName matchEndsNames[] {
 
 ENUM_NAME(MatchEnds, matchEnds)
 
-std::string OpIntersection::debugDump(bool fromDumpFull, bool fromDumpDetail) const {
+std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     std::string segmentID = segment ? segment->debugDumpID() : "--";
     const OpSegment* oppParent = opp ? opp->segment : nullptr;
     std::string oppID = opp ? opp->debugDumpID() : "--";
     std::string oppParentID = oppParent ? oppParent->debugDumpID() : "--";
-    s = "[" + debugDumpID() + "] " + ptT.debugDump(DebugLevel::normal, defaultBase);
+    if (DebugLevel::brief == l) {
+        s += "[" + debugDumpID() + "] ";
+        s += "{" + ptT.debugDump(DebugLevel::brief, b) + ", ";
+        s += "seg:" + segment->debugDumpID() + "\n";
+        return s;
+    }
+    s = "[" + debugDumpID() + "] " + ptT.debugDump(l, b);
 #if OP_DEBUG
     if (debugErased)
         s += " erased";
 #endif
-    if (!fromDumpFull || !segment)
-        s += " segment:" + segmentID;
+    s += " segment:" + segmentID;
     s += " opp/sect:" + oppParentID + "/" + oppID;
     if (coincidenceID  OP_DEBUG_CODE(|| debugCoincidenceID)) {
         s += " coinID:" + STR(coincidenceID)  OP_DEBUG_CODE(+ "/" + STR(debugCoincidenceID));
@@ -2507,55 +2479,25 @@ std::string OpIntersection::debugDump(bool fromDumpFull, bool fromDumpDetail) co
     if (coincidenceProcessed)
         s += " coincidenceProcessed";
 #if OP_DEBUG
-    s += " maker:" + intersectMakerName(debugMaker);
-    if (fromDumpDetail)
-        s += " " + debugSetMaker.debugDump();
     s += " reason:" + sectReasonName(debugReason);
-#endif
-    return s;
-}
-
-std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
-    return debugDump(DebugLevel::brief == l, DebugLevel::detailed == l);
-}
-
-std::string OpIntersection::debugDumpBrief() const {
-    std::string s;
-    s += "[" + debugDumpID() + "] ";
-    s += "{" + ptT.debugDump(DebugLevel::brief, defaultBase) + ", ";
-    s += "seg:" + segment->debugDumpID() + "\n";
-
-    return s;
-}
-
-std::string OpIntersection::debugDumpDetail(bool fromDumpIntersections) const {
-#if OP_DEBUG
+    s += " " + debugSetMaker.debugDump();
     auto edgeOrSegment = [](int debug_id, std::string label) {
         if (::findEdge(debug_id))
             return label + " (edge) " + STR(debug_id) + " ";
         if (::findSegment(debug_id))
             return label + " (segment) " + STR(debug_id) + " ";
-        return STR(debug_id) + " not found ";
+        return "edge/seg:" + STR(debug_id) + " not found ";
     };
-#endif
-    std::string s = debugDump(fromDumpIntersections, true);
-#if OP_DEBUG
-    if (debugID || debugOppID)
-        s += "\n";
     if (debugID)
-        s += edgeOrSegment(debugID, "debugID:");
+        s += " " + edgeOrSegment(debugID, "debugID:");
     if (debugOppID)
-        s += edgeOrSegment(debugOppID, "debugOpp:");
+        s += " " + edgeOrSegment(debugOppID, "debugOpp:");
 #endif
     return s;
 }
 
 std::string OpIntersection::debugDump() const {
-    return debugDump(false, false);
-}
-
-std::string OpIntersection::debugDumpDetail() const {
-    return debugDumpDetail(false);
+    return debugDump(defaultLevel, defaultBase);
 }
 
 std::string OpIntersection::debugDumpHex() const {
@@ -2579,9 +2521,7 @@ OpIntersection::OpIntersection(std::string s) {
     segment = const_cast<OpSegment*>(::findSegment(segmentID));
     OP_ASSERT(segment);
     // don't call complete because we don't want to advance debug id
-    set(ptT, segment  
-            OP_DEBUG_PARAMS(IntersectMaker::opTestEdgeZero1, 
-            __LINE__, __FILE__, SectReason::test, 0, 0));
+    set(ptT, segment  OP_LINE_FILE_PARAMS(SectReason::test, 0, 0));
 }
 
 void OpIntersection::debugCompare(std::string s) const {
@@ -2674,15 +2614,29 @@ std::string OpSegment::debugDumpHex() const {
 
 std::string OpSegment::debugDumpIntersections() const {
     std::string s;
-    for (auto i : sects.i)
-        s += i->debugDump(true, false) + "\n";
+    for (auto i : sects.i) {
+        std::string is = i->debugDump(defaultLevel, defaultBase);
+        std::string match = "segment:";
+        size_t matchStart = is.find(match);
+        if (std::string::npos != matchStart) {
+            size_t digit = matchStart + match.size();
+            while ('0' <= is[digit] && is[digit] <= '9')
+                ++digit;
+            while (' ' == is[digit])
+                ++digit;
+            is.erase(matchStart, digit - matchStart);
+        }
+        s += is + "\n";
+    }
     return s;
 }
 
 std::string OpSegment::debugDumpIntersectionsDetail() const {
     std::string s;
-    for (auto i : sects.i)
-        s += i->debugDumpDetail(true) + "\n";
+    for (auto i : sects.i) {
+        s += i->debugDump(DebugLevel::detailed, defaultBase) + "\n";
+        // if desired, do any additional string editing here (e.g., remove "segment:" )
+    }
     return s;
 }
 
@@ -2757,12 +2711,11 @@ std::string OpWinding::debugDump() const {
     return result;
 }
 
-void DumpLinkups(const std::vector<OpEdge*>& linkups) {
-    for (const auto& linkup : linkups) {
-        if (!linkup) {
-           OpDebugOut("!!! expected non-null linkup\n");
-           return;
-        }
+std::string LinkUps::debugDump(DebugLevel li, DebugBase b) const {
+    std::string s;
+    for (const auto& linkup : l) {
+        if (!linkup)
+           return "!!! expected non-null linkup\n";
         int count = 0;
         auto next = linkup;
         auto looped = linkup->debugIsLoop(WhichLoop::prior, LeadingLoop::in);
@@ -2792,54 +2745,47 @@ void DumpLinkups(const std::vector<OpEdge*>& linkups) {
         OP_ASSERT(!looped || count == priorCount);
         if (looped)
             priorCount = 0;
-        std::string str = "linkup count:" + STR(count + priorCount);
+        if (s.size() && s.back() != '\n')
+            s += "\n";
+        s += "linkup count:" + STR(count + priorCount);
         if (priorCount && !looped)
-            str += " (prior count:" + STR(priorCount) + ")";
+            s += " (prior count:" + STR(priorCount) + ")";
         if (looped)
-            str += " loop";
-        OpDebugOut(str + " bounds:" + linkup->linkBounds.debugDump(defaultLevel, defaultBase) + "\n");
+            s += " loop";
+        s += " bounds:" + linkup->linkBounds.debugDump(li, b) + "\n";
         if (!looped) {
             if (1 == count + priorCount && !linkup->lastEdge)
-                OpDebugOut("p/n/l:-/-/- ");
+                s += "p/n/l:-/-/- ";
             else if (priorCount) {
-                prior->dump();
-                str = "";
-                while (prior != linkup) {
-                    prior = prior->priorEdge;
-                    if (!prior || (looped == prior && firstLoop))
-                        break;
-                    str += STR(prior->id) + " ";
-                }
-                if (str.length())
-                    OpDebugOut(str + "\n");
-                OpDebugOut("  chain:\n");
+                s += " prior:\n" + prior->debugDump(li, b);
+                prior = linkup;
+                while ((prior = prior->priorEdge) && count--)
+                    s += STR(prior->id) + " ";
+                s += "\n next:\n";
             }
         }
         next = linkup->nextEdge;
-        linkup->dump();
-        str = "";
+        s += " " + linkup->debugDump(li, b);
+        bool hasNext = false;
         while (next) {
             if (looped == next)
                 break;
             if (next == linkup->lastEdge) {
                 OP_ASSERT(!next->nextEdge);
-                if (str.length()) {
-                    OpDebugOut(str + "\n");
-                    str = "";
-                }
-                next->dump();
-            } else
-                str += STR(next->id) + " ";
+                s += "\n " + next->debugDump(li, b);
+                hasNext = false;
+            } else {
+                if (!hasNext)
+                    s += "\n      ";
+                s += STR(next->id) + " ";
+                hasNext = true;
+            }
             next = next->nextEdge;
         }
-        if (str.length())
-            OpDebugOut(str + "(loop) \n");
+        if (hasNext)
+            s += "(loop) \n";
     }
-}
-
-std::string LinkUps::debugDump(DebugLevel li, DebugBase b) const {
-    DumpLinkups(l);
-    return "";
+    return s;
 }
 
 ENUM_NAME_STRUCT(ChopUnsortable);
@@ -2877,6 +2823,15 @@ std::string HullSect::debugDump(DebugLevel l, DebugBase b) const {
 //    if (oSect.pt.isFinite()) 
 //        s += " oSect:" + oSect.debugDump(l, b);
     s += " type:" + sectTypeName(type);
+    return s;
+}
+
+std::string SoClose::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s;
+    s += close.debugDump(l, b);
+    s += " " + oppPtT.debugDump(l, b);
+    if (oppSeg)
+        s += " " + oppSeg->debugDump(l, b);
     return s;
 }
 

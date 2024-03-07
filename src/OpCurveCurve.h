@@ -64,10 +64,11 @@ struct CcCenter {
 };
 
 struct CcSect {
-	CcSect(OpEdge& e, OpPtT ePtT  OP_DEBUG_PARAMS(IntersectMaker eMkr)) 
+	CcSect(OpEdge& e, OpPtT ePtT  OP_LINE_FILE_DEF(SectReason sectReason)) 
 		: edge(e)
 		, ptT(ePtT)
-		OP_DEBUG_PARAMS(maker(eMkr)) {
+		OP_DEBUG_PARAMS(debugSetMaker(fileName, lineNo))
+		OP_DEBUG_PARAMS(debugReason(sectReason)) {
 	}
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
@@ -76,15 +77,16 @@ struct CcSect {
 	OpEdge& edge;
 	OpPtT ptT;
 #if OP_DEBUG
-	IntersectMaker maker;
+	OpDebugMaker debugSetMaker;
+	SectReason debugReason;	// reason intersection was found
 #endif
 };
 
 struct CcSects {
 	CcSects(OpEdge& edge, OpPtT ePtT, OpEdge& opp, OpPtT oPtT
-				OP_DEBUG_PARAMS(IntersectMaker eMkr, IntersectMaker oMkr)) 
-		: e(edge, ePtT  OP_DEBUG_PARAMS(eMkr))
-		, o(opp, oPtT  OP_DEBUG_PARAMS(oMkr)) {
+				OP_LINE_FILE_DEF(SectReason eReason, SectReason oReason)) 
+		: e(edge, ePtT  OP_LINE_FILE_CALLER(eReason))
+		, o(opp, oPtT  OP_LINE_FILE_CALLER(oReason)) {
 	}
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
@@ -115,7 +117,7 @@ struct OpCurveCurve {
 	std::array<OpPtT, 2> cutRange(const OpPtT& , const OpSegment* , 
 			float loEnd, float hiEnd);
 	void recordSect(OpEdge& edge, OpPtT edgePtT, OpEdge& opp, OpPtT oppPtT
-				OP_DEBUG_PARAMS(IntersectMaker eMaker, IntersectMaker oMaker));
+				OP_LINE_FILE_DEF(SectReason eReason, SectReason oReason));
 	void snipAndGo(std::vector<OpEdge*>& curves, const OpSegment* , OpContours* , const OpPtT& cut);
 	void splitSect(std::vector<OpEdge*>& curves);  // split and discard edge near intersection
 	bool splitHulls(CurveRef );  // hull finds split point; returns true if snipped

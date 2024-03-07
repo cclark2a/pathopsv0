@@ -31,7 +31,8 @@ OP_X(OpContour) \
 OP_X(OpEdge) \
 OP_X(OpIntersection) \
 OP_X(OpPtT) \
-OP_X(OpSegment)
+OP_X(OpSegment) \
+OP_X(SoClose)
 
 #define OP_STRUCTS \
 OP_X(LinePts) \
@@ -41,6 +42,7 @@ OP_X(OpCurve) \
 OP_X(OpCurveCurve) \
 OP_X(OpEdgeStorage) \
 OP_X(OpIntersections) \
+OP_X(OpInPath) \
 OP_X(OpJoiner) \
 OP_X(OpOutPath) \
 OP_X(OpPoint) \

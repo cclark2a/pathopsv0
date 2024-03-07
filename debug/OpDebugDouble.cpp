@@ -1207,9 +1207,9 @@ void DebugOpDrawInputs() {
     DebugOpDraw(debugInputs);
 }
 
-void DebugOpDraw(const OpOutPath* output) {
+void DebugOpDraw(const OpOutPath* output, uint32_t color) {
     if (output->externalReference)
-        DebugOpBuild(*(SkPath*)output->externalReference, debugOutputs, ClipToBounds::clip, blue);
+        DebugOpBuild(*(SkPath*)output->externalReference, debugOutputs, ClipToBounds::clip, color);
     DebugOpDraw(debugOutputs);
 }
 

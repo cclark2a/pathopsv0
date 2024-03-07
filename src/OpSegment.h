@@ -59,6 +59,10 @@ struct SoClose {
     OpPtT close;
     OpPtT oppPtT;
     OpSegment* oppSeg;
+
+#if OP_DEBUG_DUMP
+	DUMP_DECLARATIONS
+#endif
 };
 #endif
 
@@ -68,17 +72,16 @@ struct OpSegment {
     OpSegment(const LinePts& pts, OpContour*  OP_DEBUG_PARAMS(SectReason , SectReason ));
     bool activeAtT(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& , bool* hadLinkTo) const;
     bool activeNeighbor(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const;
-    OpIntersection* addEdgeSect(const OpPtT&  
-            OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason ,
-            const OpEdge* e, const OpEdge* o));
+    OpIntersection* addEdgeSect(const OpPtT&    
+            OP_LINE_FILE_DEF(SectReason , const OpEdge* e, const OpEdge* o));
     OpIntersection* addSegBase(const OpPtT&  
-            OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason , const OpSegment* o));
+            OP_LINE_FILE_DEF(SectReason , const OpSegment* o));
     OpIntersection* addSegSect(const OpPtT& , const OpSegment* o  
-            OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason));
-    OpIntersection* addCoin(const OpPtT& , int coinID, MatchEnds coinEnd, const OpSegment* o  
-            OP_DEBUG_PARAMS(IntersectMaker , int , std::string , SectReason ));
-    OpIntersection* addUnsectable(const OpPtT& , int usectID, MatchEnds end, const OpSegment* o 
-            OP_DEBUG_PARAMS(IntersectMaker , int , std::string));
+            OP_LINE_FILE_DEF(SectReason ));
+    OpIntersection* addCoin(const OpPtT& , int coinID, MatchEnds , const OpSegment* o  
+            OP_LINE_FILE_DEF(SectReason ));
+    OpIntersection* addUnsectable(const OpPtT& , int usectID, MatchEnds , const OpSegment* o 
+            OP_LINE_FILE_DEF(SectReason ));
     void apply();
     int coinID(bool flipped) const;
     void complete(OpContour* );

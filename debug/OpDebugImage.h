@@ -174,9 +174,9 @@ OP_X(Centers) \
 OP_X(Coincidences) \
 OP_X(ControlLines) \
 OP_X(Controls) \
+OP_X(EdgesOut) \
 OP_X(Edges) \
 OP_X(EndToEnd) \
-OP_X(Fill) \
 OP_X(Grid) \
 OP_X(Guides) \
 OP_X(Hex) \
@@ -186,8 +186,7 @@ OP_X(Intersections) \
 OP_X(Left) \
 OP_X(Lines) \
 OP_X(Normals) \
-OP_X(Operands) \
-OP_X(Outputs) \
+OP_X(PathsOut) \
 OP_X(Points) \
 OP_X(Rays) \
 OP_X(Result) \
@@ -199,13 +198,27 @@ OP_X(Ts) \
 OP_X(Values) \
 OP_X(Windings)
 
+#define ALIAS_LIST \
+OP_X(Fill) \
+OP_X(In) \
+OP_X(Operands)
+
+#define OP_X(Thing) \
+	extern void hide##Thing(); \
+	extern void show##Thing(); \
+	extern void toggle##Thing();
+	MASTER_LIST
+	ALIAS_LIST
+#undef OP_X
+
 #define COLOR_LIST \
 OP_X(Active) \
 OP_X(Between) \
 OP_X(Disabled) \
+OP_X(EdgesOut) \
 OP_X(Linkups) \
 OP_X(Opp) \
-OP_X(Out) \
+OP_X(PathsOut) \
 OP_X(Unsectables) \
 OP_X(Unsortables)
 
@@ -218,13 +231,6 @@ OP_X(Unsortables)
 #undef OP_X
 
 extern uint32_t OP_DEBUG_MULTICOLORED;
-
-#define OP_X(Thing) \
-	extern void hide##Thing(); \
-	extern void show##Thing(); \
-	extern void toggle##Thing();
-	MASTER_LIST
-#undef OP_X
 
 extern void u(float );
 extern void u();

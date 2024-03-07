@@ -65,21 +65,21 @@ SectFound OpCurveCurve::addUnsectable() {
 				std::swap(oppStart, oppEnd); // flip to fix opp t (now opp pts are flipped vs. edge)
 			OpSegment* segment = const_cast<OpSegment*>(edge.segment);
 			int usectID = segment->nextID();
-			OpIntersection* segSect1 = segment->addUnsectable(edgeStart, usectID, 
-					MatchEnds::start, opp.segment  OP_DEBUG_PARAMS(SECT_MAKER(unsectableStart)));
-			OpIntersection* segSect2 = segment->addUnsectable(edgeEnd, usectID,
-					MatchEnds::end, opp.segment  OP_DEBUG_PARAMS(SECT_MAKER(unsectableEnd)));
+			OpIntersection* segSect1 = segment->addUnsectable(edgeStart, usectID, MatchEnds::start, 
+					opp.segment  OP_LINE_FILE_PARAMS(SectReason::unsectableStart));
+			OpIntersection* segSect2 = segment->addUnsectable(edgeEnd, usectID, MatchEnds::end, 
+					opp.segment  OP_LINE_FILE_PARAMS(SectReason::unsectableEnd));
 			OpSegment* oppSegment = const_cast<OpSegment*>(opp.segment);
 			OpIntersection* oppSect1 = oppSegment->addUnsectable(oppStart, 
-					flipped ? -usectID : usectID, flipped ? MatchEnds::end : MatchEnds::start, segment  
-					OP_DEBUG_PARAMS(
-				    flipped ? IntersectMaker::unsectableOppEnd : IntersectMaker::unsectableOppStart,
-					__LINE__, __FILE__));
+					flipped ? -usectID : usectID, 
+					flipped ? MatchEnds::end : MatchEnds::start, segment  
+					OP_LINE_FILE_PARAMS(
+				    flipped ? SectReason::unsectableOppEnd : SectReason::unsectableOppStart));
 			OpIntersection* oppSect2 = oppSegment->addUnsectable(oppEnd, 
-					flipped ? -usectID : usectID, flipped ? MatchEnds::start : MatchEnds::end, segment  
-					OP_DEBUG_PARAMS(
-				    flipped ? IntersectMaker::unsectableOppStart : IntersectMaker::unsectableOppEnd,
-					__LINE__, __FILE__));
+					flipped ? -usectID : usectID, 
+					flipped ? MatchEnds::start : MatchEnds::end, segment  
+					OP_LINE_FILE_PARAMS(
+				    flipped ? SectReason::unsectableOppStart : SectReason::unsectableOppEnd));
 			segSect1->pair(flipped ? oppSect2 : oppSect1);
 			segSect2->pair(flipped ? oppSect1 : oppSect2);
 		}
@@ -324,11 +324,9 @@ SectFound OpCurveCurve::divideExperiment() {
 			OpSegment* eSegment = const_cast<OpSegment*>(s.e.edge.segment);
 			OpSegment* oSegment = const_cast<OpSegment*>(s.o.edge.segment);
 			OpIntersection* sect = eSegment->addEdgeSect(s.e.ptT  
-					OP_DEBUG_PARAMS(s.e.maker, __LINE__, std::string(__FILE__), SectReason::lineCurve, 
-					&s.e.edge, &s.o.edge));
+					OP_LINE_FILE_PARAMS(SectReason::lineCurve, &s.e.edge, &s.o.edge));
 			OpIntersection* oSect = oSegment->addEdgeSect(s.o.ptT  
-					OP_DEBUG_PARAMS(s.o.maker, __LINE__, std::string(__FILE__), SectReason::lineCurve, 
-					&s.e.edge, &s.o.edge));
+					OP_LINE_FILE_PARAMS(SectReason::lineCurve, &s.e.edge, &s.o.edge));
 			sect->pair(oSect);
 		}
 		return SectFound::intersects;
@@ -337,14 +335,14 @@ SectFound OpCurveCurve::divideExperiment() {
 		if (edgePtT.pt != oppPtT.pt)
 			return false;
 		recordSect(edge, edgePtT, opp, oppPtT 
-				OP_DEBUG_PARAMS(IntersectMaker::edgeCCExact, IntersectMaker::oppCCExact));
+				OP_LINE_FILE_PARAMS(SectReason::edgeCCExact, SectReason::oppCCExact));
 		return true;
 	};
 	auto ifNearly = [this](OpEdge& edge, OpPtT edgePtT, OpEdge& opp, OpPtT oppPtT) {
 		if (!edgePtT.pt.isNearly(oppPtT.pt))
 			return false;
 		recordSect(edge, edgePtT, opp, oppPtT  
-				OP_DEBUG_PARAMS(IntersectMaker::edgeCCNearly,  IntersectMaker::oppCCNearly));
+				OP_LINE_FILE_PARAMS(SectReason::edgeCCNearly,  SectReason::oppCCNearly));
 		return true;
 	};
 	auto addIntersection = [this](OpEdge& edge, OpEdge& opp) {
@@ -369,7 +367,7 @@ SectFound OpCurveCurve::divideExperiment() {
 			}
 		}
 		recordSect(edge, edgePtT, opp, oppPtT  
-				OP_DEBUG_PARAMS(IntersectMaker::edgeCurveCurve, IntersectMaker::oppCurveCurve));
+				OP_LINE_FILE_PARAMS(SectReason::edgeCurveCurve, SectReason::oppCurveCurve));
 	};
 	auto hullSect = [](OpEdge& edge, OpEdge& opp) {
 		int ptCount = edge.curve.pointCount();
@@ -422,11 +420,11 @@ SectFound OpCurveCurve::divideExperiment() {
 			const OpPtT& edgePtT = hull.sect;
 			const OpPtT& oppPtT = hull.oSect;
 			if (CurveRef::edge == curveRef)
-				recordSect(edge, edgePtT, opp, oppPtT  OP_DEBUG_PARAMS(
-						IntersectMaker::edgeCCHull, IntersectMaker::oppCCHull));
+				recordSect(edge, edgePtT, opp, oppPtT  OP_LINE_FILE_PARAMS(
+						SectReason::edgeCCHull, SectReason::oppCCHull));
 			else
-				recordSect(opp, oppPtT, edge, edgePtT  OP_DEBUG_PARAMS(
-						IntersectMaker::oppCCHull, IntersectMaker::edgeCCHull));
+				recordSect(opp, oppPtT, edge, edgePtT  OP_LINE_FILE_PARAMS(
+						SectReason::oppCCHull, SectReason::edgeCCHull));
 			found = true;
 		}
 		return found;
@@ -667,7 +665,7 @@ std::array<OpPtT, 2> OpCurveCurve::cutRange(const OpPtT& ptT, const OpSegment* s
 }
 
 void OpCurveCurve::recordSect(OpEdge& edge, OpPtT edgePtT, OpEdge& opp, OpPtT oppPtT
-			OP_DEBUG_PARAMS(IntersectMaker eMaker, IntersectMaker oMaker)) {
+			OP_LINE_FILE_DEF(SectReason eReason, SectReason oReason)) {
 	snipEdge = edgePtT;
 	snipOpp = oppPtT;
 	OpSegment* eSegment = const_cast<OpSegment*>(edge.segment);
@@ -697,7 +695,7 @@ void OpCurveCurve::recordSect(OpEdge& edge, OpPtT edgePtT, OpEdge& opp, OpPtT op
 			return ccSect.e.ptT.isNearly(edgePtT) || ccSect.o.ptT.isNearly(oppPtT);
 			} ))
 		return;
-	ccSects.emplace_back(edge, edgePtT, opp, oppPtT  OP_DEBUG_PARAMS(eMaker, oMaker));
+	ccSects.emplace_back(edge, edgePtT, opp, oppPtT  OP_LINE_FILE_PARAMS(eReason, oReason));
 }
 
 // snip out the curve 16 units to the side of the intersection point, to prevent another closeby
@@ -914,8 +912,8 @@ bool OpCurveCurve::splitHulls(CurveRef which) {
 					hull1Sect = OpPtT(sectPt, ePtT.t);
 				}
 				recordSect(edge, hull1Sect, const_cast<OpEdge&>(*oEdge), oPtT  
-						OP_DEBUG_PARAMS(IntersectMaker::edgeCCHullPair, 
-						IntersectMaker::oppCCHullPair));
+						OP_LINE_FILE_PARAMS(SectReason::edgeCCHullPair, 
+						SectReason::oppCCHullPair));
 				snipAndGo(curves, edge.segment, contours, hull1Sect);
 				snipAndGo(oCurves, oEdge->segment, contours, oPtT);
 				return true;

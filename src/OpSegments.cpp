@@ -106,9 +106,9 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
             goto duplicate;
         {
             OpIntersection* sect = seg->addSegBase(edgePtT  
-                    OP_DEBUG_PARAMS(SECT_MAKER(segmentLineCurve), SectReason::lineCurve, opp));
+                    OP_LINE_FILE_PARAMS(SectReason::lineCurve, opp));
             OpIntersection* oSect = opp->addSegBase(oppPtT  
-                    OP_DEBUG_PARAMS(SECT_MAKER(segmentLineCurveOpp), SectReason::lineCurve, seg));
+                    OP_LINE_FILE_PARAMS(SectReason::lineCurve, seg));
             sect->pair(oSect);
         }
 duplicate: ;
@@ -234,34 +234,28 @@ FoundIntersections OpSegments::findIntersections() {
             OpIntersection* oppSect;
             if ((int) MatchEnds::start & (int) match) {
                 auto sect = seg->addSegSect(OpPtT{ seg->c.pts[0], 0 }, opp
-                        OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_start), 
-                        SectReason::sharedEnd));
+                        OP_LINE_FILE_PARAMS(SectReason::sharedEnd));
                 if (sect) {
                     if (reversed)
                         oppSect = opp->addSegSect(OpPtT{ opp->c.lastPt(), 1 }, seg
-                            OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_startOppReversed),
-                            SectReason::sharedEnd));
+                            OP_LINE_FILE_PARAMS(SectReason::sharedEnd));
                     else
                         oppSect = opp->addSegSect(OpPtT{ opp->c.pts[0], 0 }, seg
-                            OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_startOpp),
-                            SectReason::sharedEnd));
+                            OP_LINE_FILE_PARAMS(SectReason::sharedEnd));
                     OP_ASSERT(oppSect);
                     sect->pair(oppSect);
                 }
             }
             if ((int) MatchEnds::end & (int) match) {
                 auto sect = seg->addSegSect(OpPtT{ seg->c.lastPt(), 1 }, opp
-                        OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_end),
-                        SectReason::sharedEnd));
+                        OP_LINE_FILE_PARAMS(SectReason::sharedEnd));
                 if (sect) {
                     if (reversed)
                         oppSect = opp->addSegSect(OpPtT{ opp->c.pts[0], 0 }, seg
-                            OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_endOppReversed),
-                            SectReason::sharedEnd));
+                            OP_LINE_FILE_PARAMS(SectReason::sharedEnd));
                     else
                         oppSect = opp->addSegSect(OpPtT{ opp->c.lastPt(), 1 }, seg
-                            OP_DEBUG_PARAMS(SECT_MAKER(findIntersections_endOpp),
-                            SectReason::sharedEnd));
+                            OP_LINE_FILE_PARAMS(SectReason::sharedEnd));
                     OP_ASSERT(oppSect);
                     sect->pair(oppSect);
                 }
@@ -335,21 +329,17 @@ FoundIntersections OpSegments::findIntersections() {
                                 // post pairs of s/o and s/test.oppSeg to intersections
                                 OpPtT sPtT = OpPtT(oPt, closest.close.t);
 			                    OpIntersection* sect = s->addSegSect(sPtT, o  
-                                        OP_DEBUG_PARAMS(IntersectMaker::segStart, 
-                                        __LINE__, std::string(__FILE__), SectReason::lineCurve));
+                                        OP_LINE_FILE_PARAMS(SectReason::lineCurve));
                                 OpPtT oPtT = OpPtT(oPt, closest.oppPtT.t < .5 ? 0 : 1);
 			                    OpIntersection* oSect = o->addSegSect(oPtT, s
-					                    OP_DEBUG_PARAMS(IntersectMaker::segStart,
-                                        __LINE__, std::string(__FILE__), SectReason::lineCurve));
+					                    OP_LINE_FILE_PARAMS(SectReason::lineCurve));
 			                    if (sect && oSect) 
                                     sect->pair(oSect);
                                 sect = s->addSegSect(sPtT, test.oppSeg
-                                        OP_DEBUG_PARAMS(IntersectMaker::segStart,
-                                        __LINE__, std::string(__FILE__), SectReason::lineCurve));
-                                OpPtT testPtT = OpPtT(oPt, test.oppPtT.t < .5 ? 0 : 1);
+                                        OP_LINE_FILE_PARAMS(SectReason::lineCurve));
+                                OpPtT testPtT = OpPtT(oPt, test.close.t < .5 ? 0 : 1);
                                 oSect = test.oppSeg->addSegSect(testPtT, s
-					                    OP_DEBUG_PARAMS(IntersectMaker::segStart,
-                                        __LINE__, std::string(__FILE__), SectReason::lineCurve));
+					                    OP_LINE_FILE_PARAMS(SectReason::lineCurve));
 			                    if (sect && oSect)
                                     sect->pair(oSect);
                             }

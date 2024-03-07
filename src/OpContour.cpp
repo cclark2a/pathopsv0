@@ -99,11 +99,10 @@ bool OpContour::addCubic(OpPoint pts[4]) {
     return true;
 }
 
-OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg
-        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
-        const OpEdge* edge, const OpEdge* oEdge)) {
+OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg  
+        OP_LINE_FILE_DEF(SectReason reason, const OpEdge* edge, const OpEdge* oEdge)) {
     OpIntersection* next = contours->allocateIntersection();
-    next->set(t, seg  OP_DEBUG_PARAMS(maker, line, file, reason, edge->id, oEdge->id));
+    next->set(t, seg  OP_LINE_FILE_CALLER(reason, edge->id, oEdge->id));
     return next;
 }
 
@@ -151,29 +150,26 @@ void OpContour::addLine(OpPoint pts[2]) {
 }
 
 OpIntersection* OpContour::addCoinSect(const OpPtT& t, OpSegment* seg, int cID, MatchEnds coinEnd
-        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason,
-        const OpSegment* oSeg)) {
+        OP_LINE_FILE_DEF(SectReason reason, const OpSegment* oSeg)) {
     OpIntersection* next = contours->allocateIntersection();
-    next->set(t, seg  OP_DEBUG_PARAMS(maker, line, file, reason, seg->id, oSeg->id));
+    next->set(t, seg  OP_LINE_FILE_CALLER(reason, seg->id, oSeg->id));
 	next->coincidenceID = cID;  // 0 if no coincidence; negative if coincident pairs are reversed
 	OP_ASSERT(MatchEnds::both != coinEnd);
 	next->coinEnd = coinEnd;
     return next;
 }
 
-OpIntersection* OpContour::addSegSect(const OpPtT& t, OpSegment* seg
-        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason,
-        const OpSegment* oSeg)) {
+OpIntersection* OpContour::addSegSect(const OpPtT& t, OpSegment* seg  
+        OP_LINE_FILE_DEF(SectReason reason, const OpSegment* oSeg)) {
     OpIntersection* next = contours->allocateIntersection();
-    next->set(t, seg  OP_DEBUG_PARAMS(maker, line, file, reason, seg->id, oSeg->id));
+    next->set(t, seg  OP_LINE_FILE_CALLER(reason, seg->id, oSeg->id));
     return next;
 }
 
 OpIntersection* OpContour::addUnsect(const OpPtT& t, OpSegment* seg, int uID, MatchEnds unsectEnd
-        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason,
-        const OpSegment* oSeg)) {
+        OP_LINE_FILE_DEF(SectReason reason, const OpSegment* oSeg)) {
     OpIntersection* next = contours->allocateIntersection();
-    next->set(t, seg  OP_DEBUG_PARAMS(maker, line, file, reason, seg->id, oSeg->id));
+    next->set(t, seg  OP_LINE_FILE_CALLER(reason, seg->id, oSeg->id));
 	next->unsectID = uID;
 	OP_ASSERT(MatchEnds::both != unsectEnd);
 	next->unsectEnd = unsectEnd;
@@ -233,9 +229,9 @@ void OpContour::finish() {
         segment.winding = operand;
         OpPoint firstPoint = segment.c.pts[0];
         OpIntersection* sect = segment.addSegBase({ firstPoint, 0}  
-                OP_DEBUG_PARAMS(SECT_MAKER(segStart), segment.debugStart, last));
+                OP_LINE_FILE_PARAMS(segment.debugStart, last));
         OpIntersection* oSect = last->addSegBase({ firstPoint, 1}  
-                OP_DEBUG_PARAMS(SECT_MAKER(segEnd),  last->debugEnd, &segment));
+                OP_LINE_FILE_PARAMS(last->debugEnd, &segment));
         sect->pair(oSect);
         last = &segment;
     }
@@ -265,12 +261,13 @@ OpContours::OpContours(OpInPath& l, OpInPath& r, OpOperator op)
     , opIn(op)
     , ccStorage(nullptr)
     , fillerStorage(nullptr)
+    , sectStorage(nullptr)
+    , limbStorage(nullptr)
     , left(OpFillType::unset)
     , right(OpFillType::unset)
     , uniqueID(0)
 {
     opOperator = OpInverse[+op][l.isInverted()][r.isInverted()];
-    sectStorage = new OpSectStorage;
 #if OP_DEBUG_VALIDATE
     debugValidateEdgeIndex = 0;
     debugValidateJoinerIndex = 0;
@@ -294,15 +291,6 @@ OpContour* OpContours::addMove(OpContour* last, OpOperand operand , const OpPoin
     return &contours.back();
 }
 
-OpIntersection* OpContours::allocateIntersection() {
-    if (sectStorage->used == ARRAY_COUNT(sectStorage->storage)) {
-        OpSectStorage* next = new OpSectStorage;
-        next->next = sectStorage;
-        sectStorage = next;
-    }
-    return &sectStorage->storage[sectStorage->used++];
-}
-
 void* OpContours::allocateEdge(OpEdgeStorage*& edgeStorage) {
     if (!edgeStorage)
         edgeStorage = new OpEdgeStorage;
@@ -316,6 +304,34 @@ void* OpContours::allocateEdge(OpEdgeStorage*& edgeStorage) {
     void* result = &edgeStorage->storage[edgeStorage->used];
     edgeStorage->used += sizeof(OpEdge);
     return result;
+}
+
+OpIntersection* OpContours::allocateIntersection() {
+    if (!sectStorage)
+        sectStorage = new OpSectStorage;
+    if (sectStorage->used == ARRAY_COUNT(sectStorage->storage)) {
+        OpSectStorage* next = new OpSectStorage;
+        next->next = sectStorage;
+        sectStorage = next;
+    }
+    return &sectStorage->storage[sectStorage->used++];
+}
+
+OpLimb* OpContours::allocateLimb(OpTree& tree) {
+    if (limbStorage->used == ARRAY_COUNT(limbStorage->storage)) {
+        OpLimbStorage* next = new OpLimbStorage;
+        next->nextBlock = limbStorage;
+        limbStorage->prevBlock = next;
+        limbStorage = next;
+    }
+    return limbStorage->allocate(tree);
+}
+
+OpLimbStorage& OpContours::resetLimbs() {
+    if (!limbStorage)
+        limbStorage = new OpLimbStorage;
+    limbStorage->reset();
+    return *limbStorage;
 }
 
 // build list of linked edges
@@ -346,6 +362,9 @@ bool OpContours::assemble(OpOutPath path) {
     ::hideIntersections();
     joiner.debugDraw();
     ::add(joiner.unsortables);
+    ::showPoints();
+    ::showValues();
+    ::showTangents();
     ::redraw();
 #endif
     OP_DEBUG_VALIDATE_CODE(joiner.debugValidate());

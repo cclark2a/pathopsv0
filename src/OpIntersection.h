@@ -7,73 +7,6 @@
 struct OpEdge;
 struct OpSegment;
 
-#if OP_DEBUG
-// !!! this seems absurdly long
-enum class IntersectMaker {
-	addCoincidentCheck,
-	addCoincidentCheckOpp,
-	addMatchingEnd,
-	addMatchingEndOpp,
-	addMatchingEndOStart,
-	addMatchingEndOStartOpp,
-	addMatchingStart,
-	addMatchingStartOpp,
-	addMatchingStartOEnd,
-	addMatchingStartOEndOpp,
-	addMix,
-	addMixOpp,
-	addPair_aPtT,
-	addPair_bPtT,
-	addPair_oppStart,
-	addPair_oppEnd,
-	curveCenter,
-	curveCenterOpp,
-	edgeIntersections,
-	edgeIntersectionsOpp,
-	edgeCCExact,
-	edgeCCHull,
-	edgeCCHullPair,
-	edgeCCNearly,
-	edgeCurveCurve,
-	edgeLineCurve,
-	edgeLineCurveOpp,
-	edgeT,
-	edgeTOpp,
-	oppT,
-	oppTOpp,
-	findIntersections_start,
-	findIntersections_startOppReversed,
-	findIntersections_startOpp,
-	findIntersections_end,
-	findIntersections_endOppReversed,
-	findIntersections_endOpp,
-	missingCoincidence,
-	missingCoincidenceOpp,
-	oppCCExact,
-	oppCCHull,
-	oppCCHullPair,
-	oppCCNearly,
-	oppCurveCurve,
-	segEnd,
-	segmentLineCurve,
-	segmentLineCurveOpp,
-	segStart,
-	splitAtWinding,
-	unsectableStart,
-	unsectableEnd,
-	unsectableOppStart,
-	unsectableOppEnd,
-	// testing only
-	opTestEdgeZero1,
-	opTestEdgeZero2,
-	opTestEdgeZero3,
-	opTestEdgeZero4,
-};
-
-#define SECT_MAKER(maker) IntersectMaker::maker, __LINE__, std::string(__FILE__)
-
-#endif
-
 struct CoinPair {
     CoinPair(OpIntersection* s, OpIntersection* os, OpEdge* e, OpEdge* o, int ID  
 			OP_DEBUG_PARAMS(OpEdge* l))
@@ -128,9 +61,8 @@ struct OpIntersection {
 	debugID = 0;
 	debugOppID = 0;
 	debugCoincidenceID = 0;
-	debugMaker = IntersectMaker::opTestEdgeZero4;
 	debugSetMaker = { "", 0 };
-	debugReason = SectReason::test;	// reason intersection was found
+	debugReason = SectReason::unset;	// reason intersection was found
 	debugErased = false;
 #endif
     }
@@ -142,9 +74,8 @@ struct OpIntersection {
 		o->opp = this;
 	}
 
-	void set(const OpPtT& t, OpSegment* seg
-			OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
-			int ID, int oppID)) {
+	void set(const OpPtT& t, OpSegment* seg  
+			OP_LINE_FILE_DEF(SectReason reason, int ID, int oppID)) {
 		segment = seg;
 		OP_DEBUG_CODE(debugSetID());  // debug for now
 		opp = nullptr; // SectFlavor::none == flavor_ ? nullptr : this;		!!! if we need this, comment why
@@ -160,8 +91,7 @@ struct OpIntersection {
 		debugID = ID;
 		debugOppID = oppID;
 		debugCoincidenceID = 0;
-		debugMaker = maker;
-		debugSetMaker = { file, line };
+		debugSetMaker = { fileName, lineNo };
 		debugReason = reason;
 		debugErased = false;
 #endif
@@ -187,9 +117,6 @@ struct OpIntersection {
 #if OP_DEBUG_DUMP
 	OpIntersection(std::string);
 	void debugCompare(std::string) const;
-	std::string debugDump(bool fromDumpFull, bool fromDumpDetail) const;
-	std::string debugDumpDetail(bool fromDumpIntersections) const;
-	std::string debugDumpBrief() const;
 #include "OpDebugDeclarations.h"
 #endif
 
@@ -207,7 +134,6 @@ struct OpIntersection {
 	int debugID;	// pair of edges or segments that intersected
 	int debugOppID;
 	int debugCoincidenceID;	// this one does not get erased
-	IntersectMaker debugMaker;	// where intersection was made
 	OpDebugMaker debugSetMaker;
 	SectReason debugReason;	// reason intersection was found
 	mutable bool debugErased;

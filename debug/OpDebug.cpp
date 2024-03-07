@@ -300,27 +300,6 @@ void OpEdge::debugValidate() const {
 }
 #endif
 
-int OpEdge::debugLinkCount() const {
-    int count = 1;
-    std::vector<const OpEdge*> visited;
-    visited.push_back(this);
-    auto visit = [&visited, &count](const OpEdge* test) {
-        if (visited.end() != std::find(visited.begin(), visited.end(), test))
-            return;
-        visited.push_back(test);
-        count += 1;
-    };
-    const OpEdge* test = this;
-    while ((test = test->priorEdge)) {
-        visit(test);
-    }
-    test = this;
-    while ((test = test->nextEdge)) {
-        visit(test);
-    }
-    return count;
-}
-
 bool OpEdge::debugSuccess() const {
     return segment->debugSuccess();
 }
@@ -398,11 +377,11 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContours* contours)) {
             }
             // look to see if edge maps a non-zero ray to a prior edge
             WindZero linkZero = linkup->windZero;
-            OP_ASSERT(WindZero::noFlip != linkZero);
+            OP_ASSERT(WindZero::unset != linkZero);
 	        NormalDirection NdotR = linkup->normalDirection(-linkup->ray.axis, linkDist->t);
             if (NormalDirection::downLeft == NdotR)
-                WindZeroFlip(&linkZero);    // get wind zero for edge normal pointing left
-            if (WindZero::opp == linkZero) {
+                linkZero = !linkZero;    // get wind zero for edge normal pointing left
+            if (WindZero::nonZero == linkZero) {
 #if OP_DEBUG
                 if (dTest && !dTest->inLinkups && !dTest->inOutput) {
                     bool foundOne = false;
@@ -427,10 +406,10 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContours* contours)) {
             WindZero distZero = dTest->windZero;
             NdotR = dTest->normalDirection(linkup->ray.axis, dDist->t);
             if (NormalDirection::downLeft == NdotR)
-                WindZeroFlip(&distZero);    // get wind zero for prior normal pointing right
+                distZero = !distZero;    // get wind zero for prior normal pointing right
                 // either neither zero should be opp, or both should be 
             // !!! for now, just track when this happens. Wait until we can't ignore it to fix
-            if ((WindZero::opp == distZero) != (WindZero::opp == linkZero)) {
+            if ((WindZero::nonZero == distZero) != (WindZero::nonZero == linkZero)) {
                 if (!dTest->inOutput) {
                     dTest->debugZeroErr = linkup;
 // if verbose...

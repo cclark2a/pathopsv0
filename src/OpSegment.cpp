@@ -78,7 +78,7 @@ bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
             WindZero zeroSide = test->windZero;
             EdgeMatch which = eWhich == testEnd ? EdgeMatch::start : EdgeMatch::end;
             if (which == match)
-                WindZeroFlip(&zeroSide);
+                zeroSide = !zeroSide;
             return zeroSide;
         };
         auto saveMatch = [edge, &oppEdges, &oSect, checkZero](EdgeMatch testEnd) {
@@ -109,7 +109,7 @@ bool OpSegment::activeNeighbor(const OpEdge* edge, EdgeMatch match,
     if ((EdgeMatch::start == match && edge->start.t == 0)
             || (EdgeMatch::end == match && edge->end.t == 1))
         return false;
-    EdgeMatch neighbor = EdgeMatch::start == match ? Opposite(edge->whichEnd) : edge->whichEnd;
+    EdgeMatch neighbor = EdgeMatch::start == match ? !edge->whichEnd : edge->whichEnd;
     OpPtT ptT = edge->whichPtT(match);
     OpEdge* nextDoor = findEnabled(ptT, neighbor);
     if (!nextDoor) 
@@ -127,39 +127,35 @@ bool OpSegment::activeNeighbor(const OpEdge* edge, EdgeMatch match,
 }
 
 OpIntersection* OpSegment::addEdgeSect(const OpPtT& ptT  
-        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason,
-        const OpEdge* debugEdge, const OpEdge* debugOpp)) {
+        OP_LINE_FILE_DEF(SectReason reason,  const OpEdge* debugEdge, const OpEdge* debugOpp)) {
     OP_ASSERT(!sects.debugContains(ptT, debugOpp->segment));
     return sects.add(contour->addEdgeSect(ptT, this  
-            OP_DEBUG_PARAMS(maker, line, file, reason, debugEdge, debugOpp)));
+            OP_LINE_FILE_CALLER(reason, debugEdge, debugOpp)));
 }
 
 OpIntersection* OpSegment::addSegBase(const OpPtT& ptT  
-        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason, 
-        const OpSegment* oSeg)) {
+        OP_LINE_FILE_DEF(SectReason reason, const OpSegment* oSeg)) {
     OP_ASSERT(!sects.debugContains(ptT, oSeg));
-    return sects.add(contour->addSegSect(ptT, this 
-            OP_DEBUG_PARAMS(maker, line, file, reason, oSeg)));
+    return sects.add(contour->addSegSect(ptT, this  OP_LINE_FILE_CALLER(reason, oSeg)));
 }
 
-OpIntersection* OpSegment::addSegSect(const OpPtT& ptT, const OpSegment* oSeg  
-        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason)) {
+OpIntersection* OpSegment::addSegSect(const OpPtT& ptT, const OpSegment* oSeg    
+        OP_LINE_FILE_DEF(SectReason reason)) {
     if (sects.contains(ptT, oSeg))
         return nullptr;
-    return addSegBase(ptT  OP_DEBUG_PARAMS(maker, line, file, reason, oSeg));
+    return addSegBase(ptT  OP_LINE_FILE_CALLER(reason, oSeg));
 }
 
 OpIntersection* OpSegment::addCoin(const OpPtT& ptT, int coinID, MatchEnds coinEnd, 
-        const OpSegment* oSeg  
-        OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file, SectReason reason)) {
+        const OpSegment* oSeg  OP_LINE_FILE_DEF(SectReason reason)) {
     if (sects.contains(ptT, oSeg))  // triggered by fuzz763_13
         return nullptr;
     return sects.add(contour->addCoinSect(ptT, this, coinID, coinEnd  
-            OP_DEBUG_PARAMS(maker, line, file, reason, oSeg)));
+            OP_LINE_FILE_CALLER(reason, oSeg)));
 }
 
 OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int usectID, MatchEnds end,
-        const OpSegment* oSeg  OP_DEBUG_PARAMS(IntersectMaker maker, int line, std::string file)) {
+        const OpSegment* oSeg    OP_LINE_FILE_DEF(SectReason reason)) {
     OpIntersection* sect = sects.contains(ptT, oSeg);
     if (sect) {
         OP_ASSERT(!sect->unsectID);
@@ -168,7 +164,7 @@ OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int usectID, MatchEnd
         return sect;
     }
     return sects.add(contour->addUnsect(ptT, this, usectID, end  
-            OP_DEBUG_PARAMS(maker, line, file, SectReason::curveCurveUnsectable, oSeg)));
+            OP_LINE_FILE_CALLER(reason, oSeg)));
 }
 
 void OpSegment::apply() {

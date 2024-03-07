@@ -35,12 +35,13 @@ int gridIntervals = 8;
 bool draw##Thing##On = false;
 MASTER_LIST
 #undef OP_X
-bool lastDrawOperandsOn = false;
+bool drawFillOn = false;
 #if OP_DEBUG_VERBOSE
 int debugVerboseDepth = 0;
 #endif
 
 uint32_t OP_DEBUG_MULTICOLORED = 0xAbeBeBad;
+uint32_t pathsOutColor = blue;
 
 static uint32_t OpDebugAlphaColor(uint32_t alpha, uint32_t color) {
 	return (alpha << 24) | (color & 0x00FFFFFF);
@@ -326,6 +327,7 @@ void OpDebugImage::init() {
 	DebugOpSetBounds(opBounds.fLeft, opBounds.fTop, opBounds.fRight, opBounds.fBottom);
 }
 
+// !!! missing pathsOutColor
 void  OpDebugImage::playback(FILE* file) {
 //	FILE* file = fopen("OpDebugImageState.txt", "r");
 	if (!file)
@@ -438,10 +440,6 @@ void OpDebugImage::drawDoubleFocus() {
 	OP_DEBUG_CODE(OpDebugDefeatDelete defeater);
 	std::vector<int> ids;
 	clearScreen();
-	if (drawOperandsOn != lastDrawOperandsOn) {
-		drawLeftOn = drawRightOn = drawOperandsOn;
-		lastDrawOperandsOn = drawOperandsOn;
-	}
 	if (drawFillOn) {
 		SkMatrix matrix;
 		float scale = (float)DebugOpGetZoomScale();
@@ -475,8 +473,8 @@ void OpDebugImage::drawDoubleFocus() {
 	if (drawLeftOn || drawRightOn)
 		DebugOpDrawInputs();
 #if OP_DEBUG
-	if (drawOutputsOn && debugGlobalContours->debugResult)
-		DebugOpDraw(debugGlobalContours->debugResult);
+	if (drawPathsOutOn && debugGlobalContours->debugResult)
+		DebugOpDraw(debugGlobalContours->debugResult, pathsOutColor);
 #endif
 	if (drawLinesOn)
 		DebugOpDraw(lines);
@@ -1395,6 +1393,53 @@ void toggle##Thing() { \
 MASTER_LIST
 #undef OP_X
 
+void hideFill() {
+	drawFillOn = false;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void showFill() {
+	if (!drawLeftOn && !drawRightOn)
+		drawLeftOn = drawRightOn = true;
+	drawFillOn = true;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void toggleFill() {
+	drawFillOn ^= true;
+	if (drawFillOn && !drawLeftOn && !drawRightOn)
+		drawLeftOn = drawRightOn = true;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void hideIn() {
+	hideOperands();
+}
+
+void showIn() {
+	showOperands();
+}
+
+void toggleIn() {
+	toggleOperands();
+}
+
+void hideOperands() {
+	drawLeftOn = drawRightOn = false;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void showOperands() {
+	drawLeftOn = drawRightOn = true;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void toggleOperands() {
+	drawLeftOn ^= true;
+	drawRightOn ^= true;
+	OpDebugImage::drawDoubleFocus();
+}
+
 static void operateOnSegmentEdges(std::function<void (OpEdge*)> fun) {
 	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
@@ -1483,6 +1528,17 @@ void colorDisabled(uint32_t color) {
 	OpDebugImage::drawDoubleFocus();
 }
 
+void colorEdgesOut(uint32_t color) {
+	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
+		if (edge->inOutput) {
+			edge->debugColor = color;
+			edge->debugDraw = true;
+		}
+	}
+	OpDebugImage::drawDoubleFocus();
+}
+
 void colorLinkups(uint32_t color) {
 	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
@@ -1505,15 +1561,8 @@ void colorOpp(uint32_t color) {
 	OpDebugImage::drawDoubleFocus();
 }
 
-void colorOut(uint32_t color) {
-	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
-		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
-		if (edge->inOutput) {
-			edge->debugColor = color;
-			edge->debugDraw = true;
-		}
-	}
-	OpDebugImage::drawDoubleFocus();
+void colorPathsOut(uint32_t color) {
+	pathsOutColor = blue;
 }
 
 void colorUnsectables(uint32_t color) {
@@ -1903,8 +1952,13 @@ bool OpSegment::debugContains(const OpEdge* edge) const {
 	return false;
 }
 
+void OpInPath::draw() const {
+	drawLeftOn = drawRightOn = true;
+	OpDebugImage::drawDoubleFocus();
+}
+
 void OpOutPath::draw() const {
-	drawOutputsOn = true;
+	drawPathsOutOn = true;
 	OpDebugImage::drawDoubleFocus();
 }
 

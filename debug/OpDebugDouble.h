@@ -45,7 +45,7 @@ void DebugOpClearHighlight();
 void DebugOpClearInputs();
 void DebugOpClearPoints();
 void DebugOpClearSegments();
-void DebugOpDraw(const OpOutPath* );
+void DebugOpDraw(const OpOutPath* , uint32_t color);
 void DebugOpDraw(const std::vector<OpDebugRay>& );
 void DebugOpDraw(const std::vector<OpEdge>& );
 void DebugOpDraw(const std::vector<const OpEdge*>& );

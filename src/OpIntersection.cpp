@@ -260,7 +260,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
         }
         OP_ASSERT(edgeBack->end == coinPair.end->ptT);
         OpEdge* oppBack = oppEdge;
-        while (oppBack->ptT(Opposite(match)).t != coinPair.oEnd->ptT.t) {
+        while (oppBack->ptT(!match).t != coinPair.oEnd->ptT.t) {
             OP_ASSERT(coinPair.id > 0 ? oppBack < coinPair.lastEdge : oppBack > coinPair.lastEdge);
             coinPair.id > 0 ? ++oppBack : --oppBack;
             // more code to write; add point if needed to edge list to match

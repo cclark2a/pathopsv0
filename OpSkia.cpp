@@ -44,8 +44,21 @@ bool OpOutPath::debugIsEmpty() const {
     return skPath(externalReference)->isEmpty();
 }
 
-std::string OpOutPath::debugDump(DebugLevel , DebugBase ) const {
-    ((SkPath*) externalReference)->dump();
+std::string OpInPath::debugDump(DebugLevel , DebugBase b) const {
+    SkPath* skPath = (SkPath*) externalReference;
+    if (DebugBase::dec == b)
+        skPath->dump();
+    else
+        skPath->dumpHex();
+    return "";
+}
+
+std::string OpOutPath::debugDump(DebugLevel , DebugBase b) const {
+    SkPath* skPath = (SkPath*) externalReference;
+    if (DebugBase::dec == b)
+        skPath->dump();
+    else
+        skPath->dumpHex();
     return "";
 }
 
@@ -55,10 +68,10 @@ static SkPoint toSkPoint(OpPoint pt) {
     return SkPoint::Make(pt.x, pt.y);
 }
 
-void OpEdge::output(OpOutPath path) {
+void OpEdge::output(OpOutPath path, bool closed) {
     SkPath* skpath = skPath(path.externalReference);
     skpath->moveTo(toSkPoint(whichPtT().pt));
-    const OpEdge* firstEdge = this;
+    const OpEdge* firstEdge = closed ? this : nullptr;
     OpEdge* edge = this;
     do {
         SkPoint skEndPt = toSkPoint(edge->whichPtT(EdgeMatch::end).pt);

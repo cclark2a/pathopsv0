@@ -219,9 +219,9 @@ IntersectResult OpWinder::CoincidentCheck(OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, Op
 		if (segment->sects.contains(ptTAorB, oppSegment))
 			return IntersectResult::yes;
 		OpIntersection* sect = segment->addSegSect(ptTAorB, oppSegment  
-				OP_DEBUG_PARAMS(SECT_MAKER(addCoincidentCheck), SectReason::coinPtsMatch));
+				OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch));
 		OpIntersection* oSect = oppSegment->addSegSect(ptTCorD, segment  
-				OP_DEBUG_PARAMS(SECT_MAKER(addCoincidentCheckOpp), SectReason::coinPtsMatch));
+				OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch));
 		sect->pair(oSect);
 		return IntersectResult::yes;
 	}
@@ -263,11 +263,11 @@ void OpWinder::AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped, OpPtT cPtT
     if (oppSegment->sects.contains(oCoinStart, segment))
         return;
     OpIntersection* sect = segment->contour->addCoinSect(ptTAorB, segment, coinID, match  
-			OP_DEBUG_PARAMS(SECT_MAKER(addMix), SectReason::coinPtsMatch, oppSegment));
+			OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch, oppSegment));
 	segment->sects.add(sect);
 	OpIntersection* oSect = oppSegment->contour->addCoinSect(oCoinStart, oppSegment, coinID, 
 			flipped ? MatchEnds::start : MatchEnds::end 
-			OP_DEBUG_PARAMS(SECT_MAKER(addMixOpp), SectReason::coinPtsMatch, segment));
+			OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch, segment));
 	oppSegment->sects.add(oSect);
 	OP_ASSERT(sect && oSect);
 	sect->pair(oSect);
@@ -344,7 +344,7 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 			sect1->coinEnd = MatchEnds::start;
 		} else {	// or if it doesn't exist and isn't in a coin range, make one
 			sect1 = segment->addCoin(aPtT, coinID, MatchEnds::start, oppSegment
-					OP_DEBUG_PARAMS(SECT_MAKER(addPair_aPtT), SectReason::coinPtsMatch));
+					OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch));
 			addedSect1 = !!sect1;
 		}
 	}
@@ -356,7 +356,7 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 			sect2->coinEnd = MatchEnds::end;
 		} else {
 			sect2 = segment->addCoin(bPtT, coinID, MatchEnds::end, oppSegment
-					OP_DEBUG_PARAMS(SECT_MAKER(addPair_bPtT), SectReason::coinPtsMatch));
+					OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch));
 			addedSect2 = !!sect2;
 		}
 	}
@@ -384,7 +384,7 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 			OP_ASSERT(OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t));
 			oSect1 = oppSegment->addCoin(oCoinStart, coinID, flipped ? MatchEnds::end 
 					: MatchEnds::start, segment
-					OP_DEBUG_PARAMS(SECT_MAKER(addPair_oppStart), SectReason::coinPtsMatch));
+					OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch));
 			if (oSect1) {  // fuzz763_3 set to null
 				sect1->pair(oSect1);
 				addedOSect1 = true;
@@ -401,7 +401,7 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 			OP_ASSERT(OpMath::Between(cPtT.t, oCoinEnd.t, dPtT.t));
 			oSect2 = oppSegment->addCoin(oCoinEnd, coinID, flipped ? MatchEnds::start 
 					: MatchEnds::end, segment
-					OP_DEBUG_PARAMS(SECT_MAKER(addPair_oppEnd), SectReason::coinPtsMatch));
+					OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch));
 			if (oSect2) {  // fuzz763_13 set to null 
 				sect2->pair(oSect2);
 				addedOSect2 = true;
@@ -469,11 +469,9 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 		if (!eSegment->sects.contains(edgePtT, oSegment)
 				&& !oSegment->sects.contains(oppPtT, eSegment)) {
 			OpIntersection* sect = eSegment->addEdgeSect(edgePtT  
-					OP_DEBUG_PARAMS(SECT_MAKER(edgeLineCurve), SectReason::lineCurve, 
-					&edge, &opp));
+					OP_LINE_FILE_PARAMS(SectReason::lineCurve, &edge, &opp));
 			OpIntersection* oSect = oSegment->addEdgeSect(oppPtT  
-					OP_DEBUG_PARAMS(SECT_MAKER(edgeLineCurveOpp), SectReason::lineCurve, 
-					&edge, &opp));
+					OP_LINE_FILE_PARAMS(SectReason::lineCurve, &edge, &opp));
 			sect->pair(oSect);
 			added = IntersectResult::yes;
 		}

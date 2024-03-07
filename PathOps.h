@@ -16,6 +16,12 @@ struct OpInPath {
 		: externalReference(ext) {
 	}
 	bool isInverted() const;
+#if OP_DEBUG_DUMP
+	DUMP_DECLARATIONS
+#endif
+#if OP_DEBUG_IMAGE
+	void draw() const;
+#endif
 
 	const void* externalReference;
 };
