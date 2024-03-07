@@ -6,19 +6,16 @@
 #include "PathOps.h"
 
 void OpLimb::add(OpTree& tree, OpEdge* test, EdgeMatch m, LimbType limbType, OpEdge* otherEnd) {
-	OP_ASSERT(!test->disabled);
-	OP_ASSERT(!test->hasLinkTo(m));
+	OP_ASSERT(!test->disabled || test->pals.size());
+	OP_ASSERT(!test->hasLinkTo(m) || test->pals.size());
 	if (test->whichPtT(m).pt != lastPt)
 		return;
-	if (test->visited(m))
+	if (test->visited)
 		return;
-	test->visited(m) = true;
-	if (tree.edge == test)
-		return;
+	OpDebugBreak(test, 82);
+	test->visited = true;
 	const OpEdge* last = tree.edge->lastEdge;
 	OP_ASSERT(last);
-	if (last == test)
-		return;
 	OP_ASSERT(!test->isPal(last));
 	// Edge direction and winding are tricky (see description at wind zero declaration.)
 	// For first edge (and its last) in storage: if which end is 'end', its wind zero is reversed.
@@ -38,6 +35,11 @@ void OpLimb::add(OpTree& tree, OpEdge* test, EdgeMatch m, LimbType limbType, OpE
 	if (parent)  // if not trunk
 		childBounds.add(bounds);
 	// if this edge added to limb bounds makes perimeter larger than best, skip
+	// !!! are their cases where smallest perimeter is not the best test?
+	// first, multiple edges with the same start and end point may share perimeters
+	// is larger perimeter more desirable if it avoids enclosing another contour?
+	// should this use the ray edges to see if test is closer to test edge?
+	// note that best may not have ray to edge; e.g., outline of 'O' (edge contains inner contour)
 	if (childBounds.perimeter() > tree.bestPerimeter)
 		return;
 	OpContours& contours = *tree.contour.contours;
@@ -97,17 +99,18 @@ OpTree::OpTree(const OpJoiner& join)
 	, walker(0) {
 	for (const std::vector<OpEdge*>& edges : { join.unsectByArea, join.unsortables } ) {
 		for (OpEdge* test : edges) {
-			test->clearVisited();
-			test->clearVisited();
+			test->unlink();
 		}
 	}
 	for (OpEdge* test : join.linkups.l) {
-		test->clearVisited();
-		test->lastEdge->clearVisited();
+		test->visited = false;
+		test->lastEdge->visited = false;
 	}
 	OpLimbStorage& limbStorage = contour.contours->resetLimbs();
 	OpLimb* trunk = limbStorage.allocate(*this);
 	trunk->set(*this, join.edge, nullptr, EdgeMatch::start, LimbType::linked, join.edge);
+	join.edge->visited = true;
+	join.edge->lastEdge->visited = true;
 	do {
 		limbStorage.limb(*this, walker).foreach(join, *this);
 	} while (++walker < totalUsed);
@@ -126,7 +129,7 @@ bool OpTree::join(OpJoiner& join) {
 	const OpLimb* joinTo = bestLimb->parent;
 	do {
 		OP_ASSERT(!joinTo->edge->debugIsLoop());
-		OP_ASSERT(best->whichPtT(bestLimb->match).pt == joinTo->lastEdge->whichPtT(!joinTo->match).pt);
+		OP_ASSERT(best->whichPtT().pt == joinTo->lastEdge->whichPtT(EdgeMatch::end).pt);
 		best->setPriorEdge(joinTo->lastEdge);
 		joinTo->lastEdge->setNextEdge(best);
 		OP_ASSERT(!joinTo->lastEdge->debugIsLoop());
@@ -135,6 +138,8 @@ bool OpTree::join(OpJoiner& join) {
 			OP_ASSERT(join.linkups.l.end() != linkup);
 			join.linkups.l.erase(linkup);
 		}
+		bestLimb = joinTo;
+		best = bestLimb->edge;
 		joinTo = joinTo->parent;
 	} while (joinTo);
 	auto edgeLink = std::find(join.linkups.l.begin(), join.linkups.l.end(), join.edge);
@@ -815,6 +820,7 @@ bool OpJoiner::matchLinks(bool popLast) {
 	matchPt = lastEdge->whichPtT(EdgeMatch::end).pt;
 	OpTree matchTree(*this);
 	OP_ASSERT(matchTree.bestLimb);
+	::dmp(matchTree.bestLimb->edge);
 #if OP_DEBUG_VERBOSE
 	std::string s = "perimeter:" + STR(matchTree.bestPerimeter);
 	s += " edges:";

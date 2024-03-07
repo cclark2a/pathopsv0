@@ -658,6 +658,14 @@ CalcFail OpEdge::subIfDL(Axis axis, float t, OpWinding* sumWinding) {
 	return CalcFail::none;
 }
 
+void OpEdge::unlink() {
+	priorEdge = nullptr;
+	nextEdge = nullptr;
+	lastEdge = nullptr;
+	whichEnd = EdgeMatch::start;
+	visited = false;
+}
+
 #if OP_DEBUG
 bool OpEdge::debugFail() const {
     return segment->debugFail();

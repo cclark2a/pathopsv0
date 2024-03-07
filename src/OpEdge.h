@@ -458,8 +458,7 @@ private:
 		, unsortable(false)
 		, between(false)
 		, ccOverlaps(false)
-		, visitedStart(false)
-		, visitedEnd(false)
+		, visited(false)
 	{
 #if OP_DEBUG // a few debug values are nonzero
         id = 0;
@@ -525,8 +524,6 @@ public:
 	void clearLastEdge();
 	void clearNextEdge();
 	void clearPriorEdge();
-	void clearVisited() {
-		visitedStart = visitedEnd = false; }
 	void complete();
 	bool containsLink(const OpEdge* edge) const;
 	OpContours* contours() const;
@@ -582,8 +579,7 @@ public:
 	void subDivide();
 	CalcFail subIfDL(Axis axis, float t, OpWinding* );
 	OpType type();
-	bool& visited(EdgeMatch m) {
-		return EdgeMatch::start == m ? visitedStart : visitedEnd; }
+	void unlink();  // restore edge to unlinked state (for reusing unsortable or unsectable edges)
 	OpPtT whichPtT(EdgeMatch match = EdgeMatch::start) const { 
 		return match == whichEnd ? start : end; }
 
@@ -663,8 +659,7 @@ public:
 	bool unsortable;
 	bool between;  // between unsectables (also unsortable); !!! begs for an enum class, instead...
 	bool ccOverlaps;  // set if curve/curve edges have bounds that overlap
-	bool visitedStart;  // experimental tree to track adding edges to output
-	bool visitedEnd;  // experimental tree to track adding edges to output
+	bool visited;  // experimental tree to track adding edges to output
 #if OP_DEBUG
 	SectType debugSplitStart;
 	SectType debugSplitEnd;

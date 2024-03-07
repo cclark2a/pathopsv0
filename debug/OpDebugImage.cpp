@@ -1820,10 +1820,11 @@ bool OpDebugImage::drawEdgeWinding(const OpCurve& curve, const OpEdge* edge, uin
 		OpDebugOut("normalize overflowed: edge " + STR(edge->id) + "\n");
 		success = false;
 	}
-	int windLeft = edge->winding.left();
-	std::string oppLeft = OpMax == sum.left() ? STR(windLeft) : STR(sum.left() - windLeft);
-	int windRight = edge->winding.right();
-	std::string oppRight = OpMax == sum.left() ? STR(windRight) : STR(sum.right() - windRight);
+	auto sumString = [](int w, int s) {
+		return OpMax == s ? OpMax == w ? "?" : STR(w) : STR(s - w);
+	};
+	std::string oppLeft = sumString(edge->winding.left(), sum.left());
+	std::string oppRight = sumString(edge->winding.right(), sum.right());
 	if (!drawWinding(curve, oppLeft, oppRight, -1, color)) {
 		OpDebugOut("normalize overflowed: edge " + STR(edge->id) + "\n");
 		success = false;
