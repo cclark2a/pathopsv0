@@ -215,9 +215,9 @@ OP_X(Operands)
 OP_X(Active) \
 OP_X(Between) \
 OP_X(Disabled) \
-OP_X(EdgesOut) \
 OP_X(Linkups) \
 OP_X(Opp) \
+OP_X(Out) \
 OP_X(PathsOut) \
 OP_X(Unsectables) \
 OP_X(Unsortables)

@@ -4,6 +4,7 @@
 
 #if OP_DEBUG
 #include "OpJoiner.h"
+#include "PathOps.h"
 #endif
 
 OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight  
@@ -317,10 +318,10 @@ void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 		oppEdge->setPriorEdge(this);
 	}
 	if (edgePt == oppEdge->start.pt)
-		oppEdge->whichEnd = !match;
+		oppEdge->setWhich(!match);
 	else {
 		OP_ASSERT(edgePt == oppEdge->end.pt);
-		oppEdge->whichEnd = match;
+		oppEdge->setWhich(match);
 	}
 }
 
@@ -387,10 +388,10 @@ void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsect
 			if (this == unsectable)
 				return false;
             bool startMatch = firstPt == unsectable->start.pt
-                    && (EdgeMatch::start == unsectable->whichEnd ? !unsectable->priorEdge :
+                    && (EdgeMatch::start == unsectable->which() ? !unsectable->priorEdge :
                     !unsectable->nextEdge);
             bool endMatch = firstPt == unsectable->end.pt
-                    && (EdgeMatch::end == unsectable->whichEnd ? !unsectable->priorEdge :
+                    && (EdgeMatch::end == unsectable->which() ? !unsectable->priorEdge :
                     !unsectable->nextEdge);
 			if (!startMatch && !endMatch)
 				return false;
@@ -437,6 +438,23 @@ NormalDirection OpEdge::normalDirection(Axis axis, float t) {
 	return curve.normalDirection(axis, t);
 }
 
+void OpEdge::output(OpOutPath& path, bool closed) {
+	bool first = true;
+    const OpEdge* firstEdge = closed ? this : nullptr;
+    OpEdge* edge = this;
+    do {
+		OP_DEBUG_CODE(edge->debugOutPath = path.debugID);
+		if (EdgeMatch::end == edge->which())
+			edge->curve.reverse();
+		OpEdge* next = edge->nextOut();
+		if (!edge->curve.output(path, first, firstEdge == next))
+			break;
+		first = false;
+        edge = next;
+    } while (firstEdge != edge);
+	OP_DEBUG_CODE(path.debugNextID(this));
+}
+
 OpType OpEdge::type() {
 	return isLinear() ? OpType::line : segment->c.type; 
 }
@@ -478,16 +496,16 @@ OpEdge* OpEdge::setLastEdge(OpEdge* old) {
 bool OpEdge::setLastLink(EdgeMatch match) {
 	if (!priorEdge && !nextEdge) {
 		lastEdge = this;
-		whichEnd = match;
+		setWhich(match);
 		return false;
 	} 
 	if (!lastEdge)
 		return setLinkDirection(EdgeMatch::end);
 	if (lastEdge == this) {
-		if (EdgeMatch::end == match && EdgeMatch::start == whichEnd)
-			whichEnd = EdgeMatch::end;
-		else if (EdgeMatch::start == match && EdgeMatch::end == whichEnd)
-			whichEnd = EdgeMatch::start;
+		if (EdgeMatch::end == match && EdgeMatch::start == which())
+			setWhich(EdgeMatch::end);
+		else if (EdgeMatch::start == match && EdgeMatch::end == which())
+			setWhich(EdgeMatch::start);
 	}
 	return false;
 }
@@ -513,11 +531,11 @@ bool OpEdge::setLinkDirection(EdgeMatch match) {
 	OpEdge* edge = this;
 	while (edge->priorEdge) {
 		std::swap(edge->priorEdge, edge->nextEdge);
-		edge->whichEnd = !edge->whichEnd;
+		edge->setWhich(!edge->which());
 		edge = edge->nextEdge;
 	}
 	std::swap(edge->priorEdge, edge->nextEdge);
-	edge->whichEnd = !edge->whichEnd;
+	edge->setWhich(!edge->which());
 	edge->clearLastEdge();
 	lastEdge = edge;
 	return true;
@@ -557,6 +575,10 @@ const OpCurve& OpEdge::setVertical() {
 		vertical_impl = curve.toVertical(edgeLine);
 	}
 	return vertical_impl;
+}
+
+void OpEdge::setWhich(EdgeMatch m) {
+	whichEnd_impl = m;
 }
 
 // Remove duplicate pals that look at each other in found edges.
@@ -662,7 +684,7 @@ void OpEdge::unlink() {
 	priorEdge = nullptr;
 	nextEdge = nullptr;
 	lastEdge = nullptr;
-	whichEnd = EdgeMatch::start;
+	setWhich(EdgeMatch::start);  // !!! should this set to none?
 	visited = false;
 }
 

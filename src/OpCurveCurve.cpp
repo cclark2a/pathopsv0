@@ -290,9 +290,9 @@ SectFound OpCurveCurve::divideAndConquer() {
 // 6) binary search on t (expect to be slower)
 SectFound OpCurveCurve::divideExperiment() {
 #if OP_DEBUG_IMAGE
-	bool breakAtDraw = (10 == originalEdge->segment->id) && (2 == originalOpp->segment->id);
-	bool breakAtDraw2 = (2 == originalEdge->segment->id) && (10 == originalOpp->segment->id);
-	if (breakAtDraw) {
+	bool breakAtDraw = (3 == originalEdge->segment->id) && (7 == originalOpp->segment->id);
+	bool breakAtDraw2 = (7 == originalEdge->segment->id) && (3 == originalOpp->segment->id);
+	if (breakAtDraw || breakAtDraw2 ) {
 		playback();
 		OpDebugOut("");
 	}
@@ -461,7 +461,7 @@ SectFound OpCurveCurve::divideExperiment() {
 	};
 	for (depth = 1; depth < maxDepth; ++depth) {
 #if OP_DEBUG_IMAGE
-		if ((breakAtDraw && 5 <= depth) || (breakAtDraw2 && 6 <= depth)) {
+		if ((breakAtDraw && 4 <= depth) || (breakAtDraw2 && 4 <= depth)) {
 			redraw();  // allows setting a breakpoint to debug curve/curve
 			OpDebugOut("debugLocal:" + STR(debugLocal) + "\n");
 			dmpDepth();

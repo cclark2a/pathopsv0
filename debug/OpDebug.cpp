@@ -530,8 +530,8 @@ void OpWinder::debugValidate() const {
 
 #include "PathOps.h"
 
-int OpOutPath::debugNextID(OpEdge* edge) {
-    return edge->segment->contour->nextID();
+void OpOutPath::debugNextID(OpEdge* edge) {
+    debugID = edge->segment->contour->nextID();
 }
 
 #endif

@@ -13,6 +13,14 @@ enum class LinkPass {
 	unsectInX
 };
 
+/* !!! consider a rewrite where a single link up is
+    struct LinkUp {
+		OpPointBounds bounds;
+		OpEdge* last;
+		OpEdge* edge;
+	};
+	and add any other data in OpEdge which is only relevant to a linked up list of edges (if any)
+*/
 struct LinkUps {
 	void sort();
 #if OP_DEBUG_DUMP
@@ -39,7 +47,7 @@ struct OpJoiner {
     void checkLinkupsUnsortables();
     FoundEdge* chooseSmallest();
     void detachChoppedEtc();
-	bool detachIfLoop(OpEdge* );
+	bool detachIfLoop(OpEdge* , EdgeMatch loopEnd);
 //    bool forceSmallEdge();
 	bool hookup(FoundEdge* smallest);
     bool lastLastResort();
@@ -49,8 +57,9 @@ struct OpJoiner {
 	void matchLeftover(const std::vector<OpEdge*>& leftovers);
 	bool matchLinks(bool popLast);
     void matchPals();
-	void relinkUnambiguous(size_t checked);
+	bool relinkUnambiguous(size_t checked);
 	void sort();
+	void unlink(OpEdge* ); // don't unlink edges that are in linkups
 #if OP_DEBUG
 	void debugMatchRay(OP_DEBUG_CODE(OpContours* contours));
 #endif
@@ -83,9 +92,11 @@ struct OpJoiner {
 };
 
 // !!! experiment: keep track of all edge possibilities to find the best closing path
-enum class LimbType {
+enum class LimbType : uint8_t {
+	linked,
 	unlinked,
-	linked
+	disabled,
+	disabledPals,
 };
 
 struct OpTree;
@@ -97,16 +108,20 @@ struct OpLimb {
 		edge = nullptr;
 		lastEdge = nullptr;
 		parent = nullptr;
+		linkedIndex = 0;
 		match = EdgeMatch::none;
+		type = LimbType::unlinked;
 		looped = false;
+		debugID = 0;
 #endif
 	}
-	void add(OpTree& , OpEdge* , EdgeMatch , LimbType , OpEdge* first = nullptr);
-	void foreach(const OpJoiner& , OpTree& );
+	void add(OpTree& , OpEdge* , EdgeMatch , LimbType , size_t index = 0, OpEdge* first = nullptr);
+	void foreach(OpJoiner& , OpTree& , LimbType );
 	void set(OpTree& , OpEdge* , const OpLimb* parent, EdgeMatch , LimbType , 
-			OpEdge* otherEnd, const OpPointBounds* bounds = nullptr);
+			size_t index, OpEdge* otherEnd, const OpPointBounds* bounds = nullptr);
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
+	std::string debugDumpIDs(bool bracket) const;
 #endif
 
 	OpPointBounds bounds;
@@ -114,23 +129,28 @@ struct OpLimb {
 	OpEdge* lastEdge;
 	const OpLimb* parent;
 	OpPoint lastPt;
+	uint32_t linkedIndex;
 	EdgeMatch match;
 	LimbType type;
 	bool looped;
 
-	// !!! add debug id?
+#if OP_DEBUG
+	std::vector<OpLimb*> debugBranches;
+	int debugID;
+#endif
 };
 
 
 // !!! eventually (if this works) add tree (or limb storage) to joiner
 // prefer the looped limb with the smallest perimeter 
 struct OpTree {
-	OpTree(const OpJoiner& );
+	OpTree(OpJoiner& );
 	bool join(OpJoiner& );
 	OpLimb& limb(int index);
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
 #endif
+	OpLimbStorage* limbStorage;
 	OpLimbStorage* current;
 	const OpContour& contour;
 	const OpEdge* edge;
@@ -140,6 +160,10 @@ struct OpTree {
 	int baseIndex;
 	int totalUsed;
 	int walker;
+
+#if OP_DEBUG
+	std::vector<OpLimb*> debugLimbs;
+#endif
 };
 
 struct OpLimbStorage {
@@ -151,6 +175,9 @@ struct OpLimbStorage {
 	OpLimb* allocate(OpTree& );
 	OpLimb& limb(OpTree& , int index);
 	void reset();
+#if OP_DEBUG
+	const OpLimb* debugFind(int ID) const;
+#endif
 
 	OpLimbStorage* nextBlock;
 	OpLimbStorage* prevBlock;

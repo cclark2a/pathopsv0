@@ -648,12 +648,7 @@ struct OpMath {
         return (a - b) * (c - b) <= 0;
     }
 
-    // allow ourselves exactly one bit of error (required by thread_circles36945)
-    // for (b +/- 1 hex bit: return Betweeen(a, b, c)
-    static bool Betweenish(float a, float b, float c) {
-        return Between(a, std::nextafterf(b, OpInfinity), c) 
-                || Between(a, std::nextafterf(b, -OpInfinity), c);
-    }
+    static bool Betweenish(float a, float b, float c);
 
 //    static float CubeRoot(float);
     static OpRoots CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B, OpCubicFloatType C,

@@ -127,11 +127,13 @@ struct OpCurve {
     OpRootPts lineIntersect(const LinePts& line) const;
     OpVector normal(float t) const;
     NormalDirection normalDirection(Axis axis, float t) const;
+    bool output(OpOutPath& path, bool firstPt, bool lastPt);  // provided by graphics implementation
     OpPoint ptAtT(float t) const;
     int pointCount() const {
         return static_cast<int>(type) + (type < OpType::conic); }
     OpRoots rawIntersect(const LinePts& line, MatchEnds ) const;  // requires sect to be on curve
     OpRoots rayIntersect(const LinePts& line, MatchEnds ) const;
+    void reverse();
     const OpCurve& set(OpPoint start, OpPoint end, unsigned ptCount, OpType opType, float w);
     OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
     OpVector tangent(float t) const;

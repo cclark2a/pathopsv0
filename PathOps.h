@@ -36,7 +36,7 @@ struct OpOutPath {
 	void setInverted(bool wasInverted);
 #if OP_DEBUG
 	bool debugIsEmpty() const;
-	int debugNextID(struct OpEdge* );
+	void debugNextID(struct OpEdge* );
 #endif
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS

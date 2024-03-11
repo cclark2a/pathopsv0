@@ -623,12 +623,13 @@ void initTests(std::string filename) {
     totalWarn += testsWarn;
     totalFailSkiaPass += testsFailSkiaPass;
     totalPassSkiaFail += testsPassSkiaFail;
-    OpDebugOut(currentTestFile + " run:" + STR(testsRun) + " skipped:" + STR(testsSkipped)
-            + " err:" + STR(testsError) + " warn:" + STR(testsWarn)
-            + " v0:" + STR(testsPassSkiaFail) + " sk:" + STR(testsFailSkiaPass)
-            + " total run:" + STR(totalRun) + " skipped:" + STR(totalSkipped)
-            + " err:" + STR(totalError) + " warn:" + STR(totalWarn)
-            + " v0:" + STR(totalPassSkiaFail) + " sk:" + STR(totalFailSkiaPass) + "\n");
+    if (testsRun || testsSkipped || totalRun || totalSkipped)
+        OpDebugOut(currentTestFile + " run:" + STR(testsRun) + " skipped:" + STR(testsSkipped)
+                + " err:" + STR(testsError) + " warn:" + STR(testsWarn)
+                + " v0:" + STR(testsPassSkiaFail) + " sk:" + STR(testsFailSkiaPass)
+                + " total run:" + STR(totalRun) + " skipped:" + STR(totalSkipped)
+                + " err:" + STR(totalError) + " warn:" + STR(totalWarn)
+                + " v0:" + STR(totalPassSkiaFail) + " sk:" + STR(totalFailSkiaPass) + "\n");
     currentTestFile = filename;
     testsRun = 0;
     testsSkipped = 0;
@@ -723,7 +724,8 @@ void runTests() {
 #else
     initTests("skia tests done: " + STR(elapsed) + "s\n");
 #endif
-    OpDebugOut("total run:" + STR(testsRun) + " skipped:" + STR(testsSkipped) 
+    if (testsRun || testsSkipped)
+        OpDebugOut("total run:" + STR(testsRun) + " skipped:" + STR(testsSkipped) 
             + " errors:" + STR(testsError) +  " warnings:" + STR(testsWarn) 
             + " v0 only:" + STR(testsPassSkiaFail) + " skia only:" + STR(testsFailSkiaPass) + "\n");
 }

@@ -82,8 +82,16 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
         float edgeT = seg->findValidT(0, 1, oppPtT.pt);
         if (OpMath::IsNaN(edgeT))
             continue;
-        seg->ptBounds.pin(&oppPtT.pt);
-        opp->ptBounds.pin(&oppPtT.pt);
+        if (OpEpsilon >= edgeT) {
+            edgeT = 0;
+            oppPtT.pt = seg->c.pts[0];
+        } else if (1 - OpEpsilon <= edgeT) {
+            edgeT = 1;
+            oppPtT.pt = seg->c.lastPt();
+        } else {
+            seg->ptBounds.pin(&oppPtT.pt);
+            opp->ptBounds.pin(&oppPtT.pt);
+        }
         edgePtTs.emplace_back(oppPtT.pt, edgeT);
         OpPtT& edgePtT = edgePtTs.back();
         if ((int) MatchEnds::start & (int) existingMatch && (edgePtT.pt == seg->c.pts[0] || 0 == edgeT

@@ -44,6 +44,7 @@ OP_X(OpEdgeStorage) \
 OP_X(OpIntersections) \
 OP_X(OpInPath) \
 OP_X(OpJoiner) \
+OP_X(OpLimb) \
 OP_X(OpOutPath) \
 OP_X(OpPoint) \
 OP_X(OpPointBounds) \
@@ -52,6 +53,7 @@ OP_X(OpRootPts) \
 OP_X(OpRoots) \
 OP_X(OpSegments) \
 OP_X(OpTightBounds) \
+OP_X(OpTree) \
 OP_X(OpVector) \
 OP_X(OpWinder) \
 OP_X(SectRay)
@@ -113,7 +115,6 @@ OP_X(ID) \
 OP_X(Intersections) \
 OP_X(IntersectionsDetail) \
 OP_X(Link) \
-OP_X(LinkDetail) \
 OP_X(Winding)
 
 #define DEBUG_DUMP_ID_DEFINITION(OWNER, ID) \
@@ -145,9 +146,7 @@ OP_X(Start)
 
 #define EDGE_DETAIL \
 OP_X(Center) \
-OP_X(CenterHex) \
-OP_X(Link) \
-OP_X(LinkDetail)
+OP_X(Link)
 
 #define OP_X(Thing) \
 extern void dmp##Thing(int ID); \
@@ -223,6 +222,7 @@ extern std::vector<const OpEdge*> findEdgeOutput(int id);
 extern std::vector<const OpEdge*> findEdgeRayMatch(int id);
 extern std::vector<const OpEdge*> findEdgeUnsectable(int id);
 extern const OpIntersection* findIntersection(int id);
+extern const OpLimb* findLimb(int id);
 extern std::vector<const OpIntersection*> findSectUnsectable(int id);
 extern const OpSegment* findSegment(int id);
 

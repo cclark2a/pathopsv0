@@ -197,6 +197,7 @@ OpRootPts OpCurve::lineIntersect(const LinePts& line) const {
              OpDebugOut("");
        }
 #endif
+        // thread_cubics23476 edges 55 & 52 trigger this need for betweenish
         // !!! should have an explanation / example of why 'ish' is correct here
         if (OpMath::Betweenish(line.pts[0].choice(xy), hit.choice(xy), line.pts[1].choice(xy))) {
             // curve/curve may need more exact results; try pinning valid hit to line bounds
@@ -281,6 +282,12 @@ OpPoint OpCurve::ptAtT(float t) const {
             OP_ASSERT(0);
     }
     return OpPoint();
+}
+
+void OpCurve::reverse() {
+    std::swap(pts[0], pts[pointCount() - 1]);
+    if (OpType::cubic == type)
+        std::swap(pts[1], pts[2]);
 }
 
 #if 0

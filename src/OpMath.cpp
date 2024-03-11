@@ -175,6 +175,19 @@ float OpMath::CubeRoot(float x) {
 }
 #endif
 
+// allow ourselves exactly tiny bit of error (required by thread_circles36945)
+bool OpMath::Betweenish(float a, float b, float c) {
+    if (Between(a, b, c))
+        return true;
+    float nextGreater = std::nextafterf(std::nextafterf(b, OpInfinity), OpInfinity);
+    float greater = std::max(nextGreater, b + OpEpsilon);
+    if (Between(a, greater, c))
+        return true;
+    float nextLesser = std::nextafterf(std::nextafterf(b, -OpInfinity), -OpInfinity);
+    float lesser = std::min(nextLesser, b - OpEpsilon);
+    return Between(a, lesser, c);
+}
+
 #if 0
 // here's an example where the 32 bit float version doesn't work:
 // cubic: {3, 4}, {2.8873, 4.1127}, {2.8, 4.16189}, {2.7381, 4.16189}

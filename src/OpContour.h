@@ -169,7 +169,7 @@ struct OpContours {
 
     bool pathOps(OpOutPath result);
     void release(OpEdgeStorage*& );
-    OpLimbStorage& resetLimbs();
+    OpLimbStorage* resetLimbs();
     void reuse(OpEdgeStorage* );
 
     int rightFillTypeMask() const {

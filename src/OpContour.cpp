@@ -327,11 +327,11 @@ OpLimb* OpContours::allocateLimb(OpTree& tree) {
     return limbStorage->allocate(tree);
 }
 
-OpLimbStorage& OpContours::resetLimbs() {
+OpLimbStorage* OpContours::resetLimbs() {
     if (!limbStorage)
         limbStorage = new OpLimbStorage;
     limbStorage->reset();
-    return *limbStorage;
+    return limbStorage;
 }
 
 // build list of linked edges

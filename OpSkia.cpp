@@ -68,33 +68,31 @@ static SkPoint toSkPoint(OpPoint pt) {
     return SkPoint::Make(pt.x, pt.y);
 }
 
-void OpEdge::output(OpOutPath path, bool closed) {
+// return false to abort output
+bool OpCurve::output(OpOutPath& path, bool firstPt, bool lastPt) {
     SkPath* skpath = skPath(path.externalReference);
-    skpath->moveTo(toSkPoint(whichPtT().pt));
-    const OpEdge* firstEdge = closed ? this : nullptr;
-    OpEdge* edge = this;
-    do {
-        SkPoint skEndPt = toSkPoint(edge->whichPtT(EdgeMatch::end).pt);
-        OpType type = edge->type();
-        if (OpType::line == type) 
-            skpath->lineTo(skEndPt); 
-        else {
-            SkPoint skCtrlPt0 = toSkPoint(edge->curve.pts[1]);
-            if (OpType::quad == type) 
-                skpath->quadTo(skCtrlPt0, skEndPt); 
-            else if (OpType::conic == type) 
-                skpath->conicTo(skCtrlPt0, skEndPt, edge->curve.weight);
-            else {
-                OP_ASSERT(OpType::cubic == type);
-                SkPoint skCtrlPt1 = toSkPoint(edge->curve.pts[2]);
-                if (EdgeMatch::end == edge->whichEnd)
-                    std::swap(skCtrlPt0, skCtrlPt1);
-                skpath->cubicTo(skCtrlPt0, skCtrlPt1, skEndPt);
-            }
-        }
-        edge = edge->nextOut();
-    } while (firstEdge != edge);
-    skpath->close();
+    if (firstPt)
+        skpath->moveTo(toSkPoint(pts[0]));
+    switch (type) {
+    case OpType::line: 
+        skpath->lineTo(toSkPoint(pts[1])); 
+        break;
+    case OpType::quad: 
+        skpath->quadTo(toSkPoint(pts[1]), toSkPoint(pts[2])); 
+        break;
+    case OpType::conic: 
+        skpath->conicTo(toSkPoint(pts[1]), toSkPoint(pts[2]), weight); 
+        break;
+    case OpType::cubic: 
+        skpath->cubicTo(toSkPoint(pts[1]), toSkPoint(pts[2]), toSkPoint(pts[3])); 
+        break;
+    default:
+        OP_ASSERT(0);
+        return false;
+    }
+    if (lastPt)
+        skpath->close();
+    return true;
 }
 
 bool OpContours::build(OpInPath path, OpOperand operand) {

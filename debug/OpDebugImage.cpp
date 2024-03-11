@@ -1528,11 +1528,17 @@ void colorDisabled(uint32_t color) {
 	OpDebugImage::drawDoubleFocus();
 }
 
-void colorEdgesOut(uint32_t color) {
+extern std::vector<std::pair<uint32_t, std::string>> debugColorArray;
+
+void colorOut(uint32_t color) {
 	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
 		if (edge->inOutput) {
-			edge->debugColor = color;
+			if (OP_DEBUG_MULTICOLORED != color)
+				edge->debugColor = color;
+			else {
+				edge->debugColor = debugColorArray[edge->debugOutPath % debugColorArray.size()].first;
+			}
 			edge->debugDraw = true;
 		}
 	}

@@ -441,7 +441,7 @@ private:
 		, sum(WindingUninitialized::dummy)
 		, many(WindingUninitialized::dummy)
 		, unsectableID(0)
-		, whichEnd(EdgeMatch::none)
+		, whichEnd_impl(EdgeMatch::none)
 		, rayFail(EdgeFail::none)
 		, windZero(WindZero::unset)
 		, doSplit(EdgeSplit::no)
@@ -532,9 +532,7 @@ public:
 	OpIntersection* findSect(EdgeMatch );
 	OpPtT findT(Axis , float oppXY) const;
 	OpPtT flipPtT(EdgeMatch match) const { 
-		return match == whichEnd ? end : start; }
-	void flipWhich() { 
-		whichEnd = (EdgeMatch)((int)whichEnd ^ (int)EdgeMatch::both); }
+		return match == which() ? end : start; }
 	bool hasLinkTo(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? priorEdge : nextEdge; }  // !!! was reversed!
 	bool isActive() const { 
@@ -551,7 +549,7 @@ public:
 			std::vector<FoundEdge>& , AllowPals , AllowClose );
 	OpEdge* nextOut();
 	NormalDirection normalDirection(Axis axis, float t);
-	void output(OpOutPath path, bool closed);  // provided by the graphics implmentation
+	void output(OpOutPath& path, bool closed);  // provided by the graphics implmentation
 	OpPtT ptT(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? start : end; }
 	void reenable() {
@@ -575,13 +573,16 @@ public:
 		sum.setSum(w, contours()); }
 	void setUnsortable();
 	const OpCurve& setVertical();
+	void setWhich(EdgeMatch );  // setter exists so debug breakpoints can be set
 	void skipPals(EdgeMatch match, std::vector<FoundEdge>& edges); 
 	void subDivide();
 	CalcFail subIfDL(Axis axis, float t, OpWinding* );
 	OpType type();
 	void unlink();  // restore edge to unlinked state (for reusing unsortable or unsectable edges)
+	EdgeMatch which() const {
+		return whichEnd_impl; }
 	OpPtT whichPtT(EdgeMatch match = EdgeMatch::start) const { 
-		return match == whichEnd ? start : end; }
+		return match == which() ? start : end; }
 
 	bool debugFail() const;
     bool debugSuccess() const;
@@ -591,12 +592,10 @@ public:
 	OpEdge(OpHexPtT data[2]);
 	void debugCompare(std::string ) const;
 	std::string debugDumpBrief() const;
-	std::string debugDumpChain(WhichLoop , bool detail) const;
-	void dumpCenter(bool asHex) const;
-	void dumpChain(bool detail = false) const;
+	std::string debugDumpCenter(DebugLevel , DebugBase ) const;
+	std::string debugDumpLink(WhichLoop , DebugLevel , DebugBase ) const;
 	void dumpEnd() const;
 	void dumpLink() const;
-	void dumpLinkDetail() const;
 	void dumpStart() const;
 	#include "OpDebugDeclarations.h"
 #endif
@@ -642,10 +641,10 @@ public:
 	float curvy;  // rough ratio of midpoint line point line to length of end point line
 	int id;
 	int unsectableID;	// used to pair unsectable intersections and find edges between
-	EdgeMatch whichEnd;	// if 'start', prior link end equals start; if 'end' prior end matches end
-	EdgeFail rayFail;	// how computation (e.g., center) failed (on fail, windings are set to zero)
-	WindZero windZero; // normal means edge normal points to zero side; opposite, normal is non-zero
-	EdgeSplit doSplit; // used by curve/curve intersection to track subdivision
+	EdgeMatch whichEnd_impl;  // if 'start', prior end equals start; if 'end' prior end matches end
+	EdgeFail rayFail;   // how computation (e.g., center) failed (on fail, windings are set to zero)
+	WindZero windZero;  // zero: edge normal points to zero side (the exterior of the loop)
+	EdgeSplit doSplit;  // used by curve/curve intersection to track subdivision
 	SplitBias bias;  // in curve/curve, which end to favor for next intersect guess
 	bool curvySet;
 	bool lineSet;
