@@ -290,8 +290,8 @@ SectFound OpCurveCurve::divideAndConquer() {
 // 6) binary search on t (expect to be slower)
 SectFound OpCurveCurve::divideExperiment() {
 #if OP_DEBUG_IMAGE
-	bool breakAtDraw = (3 == originalEdge->segment->id) && (7 == originalOpp->segment->id);
-	bool breakAtDraw2 = (7 == originalEdge->segment->id) && (3 == originalOpp->segment->id);
+	bool breakAtDraw = (9 == originalEdge->segment->id) && (7 == originalOpp->segment->id);
+	bool breakAtDraw2 = (7 == originalEdge->segment->id) && (9 == originalOpp->segment->id);
 	if (breakAtDraw || breakAtDraw2 ) {
 		playback();
 		OpDebugOut("");

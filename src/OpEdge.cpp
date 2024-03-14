@@ -83,6 +83,7 @@ CalcFail OpEdge::addSub(Axis axis, float t, OpWinding* sumWinding) {
 }
 
 OpEdge* OpEdge::advanceToEnd(EdgeMatch match) {
+	OP_ASSERT(!debugIsLoop(match));
 	OpEdge* result = this;
 	while (OpEdge* edge = (EdgeMatch::start == match ? result->priorEdge : result->nextEdge)) {
 		result = edge;
@@ -691,32 +692,6 @@ void OpEdge::unlink() {
 #if OP_DEBUG
 bool OpEdge::debugFail() const {
     return segment->debugFail();
-}
-#endif
-
-// keep this in sync with op edge : debug dump chain
-// ignore axis changes when detecting sum loops (for now)
-// !!! if the axis change is required to detect for sum loops, document why!
-// !!! either add 'stamp' or rewalk links instead of find
-#if OP_DEBUG_DUMP || OP_DEBUG
-const OpEdge* OpEdge::debugIsLoop(WhichLoop which, LeadingLoop leading) const {
-	if (!(WhichLoop::prior == which ? priorEdge : nextEdge))
-		return nullptr;
-	const OpEdge* chain = this;
-	std::vector<const OpEdge*> seen;
-	for (;;) {
-		seen.push_back(chain);
-		chain = WhichLoop::prior == which ? chain->priorEdge : chain->nextEdge;
-		if (!chain)
-			break;	
-		if (seen.end() == std::find(seen.begin(), seen.end(), chain))
-			continue;
-		if (LeadingLoop::will == leading)
-			return this;
-		OP_ASSERT(LeadingLoop::in == leading);
-		return chain;
-	}
-	return nullptr;
 }
 #endif
 

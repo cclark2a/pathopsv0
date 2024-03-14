@@ -93,10 +93,11 @@ struct OpJoiner {
 
 // !!! experiment: keep track of all edge possibilities to find the best closing path
 enum class LimbType : uint8_t {
-	linked,
-	unlinked,
-	disabled,
-	disabledPals,
+	linked,    // in linkups list with correct winding
+	unlinked,  // in unsectByArea and in unsortables
+	disabled,  // in disabled
+	disabledPals,  // in disabled pals
+	miswound,  // in linkups list, including entries with the wrong winding
 };
 
 struct OpTree;

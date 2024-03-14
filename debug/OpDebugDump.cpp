@@ -1350,6 +1350,27 @@ void dmpRecord(FILE* file) {
     fprintf(file, "defaultLevel: %d\n", (int) defaultLevel);
 }
 
+void dmpT(int ID, float t) {
+    const OpEdge* e = findEdge(ID);
+    if (e)
+        return dmpT(e, t);
+    const OpSegment* s = findSegment(ID);
+    if (s)
+        return dmpT(s, t);
+}
+
+void dmpT(const OpEdge* e, float t) {
+    OpPoint pt = e->curve.ptAtT((t - e->start.t) / (e->end.t - e->start.t));
+    OpDebugOut(e->debugDump() + " t:" + STR(t) + " pt:" 
+            + pt.debugDump(defaultLevel, defaultBase) + "\n");
+}
+
+void dmpT(const OpSegment* s, float t) {
+    OpPoint pt = s->c.ptAtT(t);
+    OpDebugOut(s->debugDump() + " t:" + STR(t) + " pt:" 
+            + pt.debugDump(defaultLevel, defaultBase) + "\n");
+}
+
 ENUM_NAME_STRUCT(SectType);
 #define SECTTYPE_NAME(w) { SectType::w, #w }
 
@@ -1774,13 +1795,13 @@ std::string OpEdge::debugDump() const {
 }
 
 // keep this in sync with op edge : is loop
-std::string OpEdge::debugDumpLink(WhichLoop which, DebugLevel l, DebugBase b) const {
+std::string OpEdge::debugDumpLink(EdgeMatch which, DebugLevel l, DebugBase b) const {
     const OpEdge* looped = debugIsLoop(which, LeadingLoop::in);
     bool firstLoop = false;
     int safetyCount = 0;
     const OpEdge* link = this;
     std::string s;
-    while ((link = WhichLoop::prior == which ? link->priorEdge : link->nextEdge)) {
+    while ((link = EdgeMatch::start == which ? link->priorEdge : link->nextEdge)) {
         s += "\n" + link->debugDump(l, b);
         if (link == looped) {
             if (firstLoop)
@@ -1789,7 +1810,7 @@ std::string OpEdge::debugDumpLink(WhichLoop which, DebugLevel l, DebugBase b) co
         }
         if (++safetyCount > 250) {
             OpDebugOut(std::string("!!! %s likely loops forever: ") + 
-                    (WhichLoop::prior == which ? "prior " : "next "));
+                    (EdgeMatch::start == which ? "prior " : "next "));
             break;
         }
     }
@@ -2022,10 +2043,10 @@ void dmpClosest(const OpCurveCurve& cc, const OpPoint& p) {
 void dmpLink(const OpEdge& edge) {
    std::string s = edge.debugDump(defaultLevel, defaultBase);
    OpDebugOut(s + "\n");
-   s = edge.debugDumpLink(WhichLoop::prior, defaultLevel, defaultBase);
+   s = edge.debugDumpLink(EdgeMatch::start, defaultLevel, defaultBase);
    if (s.size())
        OpDebugOut("prior" + s + "\n");
-   s = edge.debugDumpLink(WhichLoop::next, defaultLevel, defaultBase);
+   s = edge.debugDumpLink(EdgeMatch::end, defaultLevel, defaultBase);
    if (s.size())
        OpDebugOut("next" + s + "\n");
 }
@@ -2166,6 +2187,7 @@ LimbTypeName limbTypeNames[] = {
     LIMBTYPE_NAME(unlinked),
 	LIMBTYPE_NAME(disabled),
 	LIMBTYPE_NAME(disabledPals),
+	LIMBTYPE_NAME(miswound),
 };
 
 ENUM_NAME(LimbType, limbType)
@@ -2786,9 +2808,9 @@ std::string LinkUps::debugDump(DebugLevel li, DebugBase b) const {
            return "!!! expected non-null linkup\n";
         int count = 0;
         auto next = linkup;
-        auto looped = linkup->debugIsLoop(WhichLoop::prior, LeadingLoop::in);
+        auto looped = linkup->debugIsLoop(EdgeMatch::start, LeadingLoop::in);
         if (!looped)
-            looped = linkup->debugIsLoop(WhichLoop::next, LeadingLoop::in);
+            looped = linkup->debugIsLoop(EdgeMatch::end, LeadingLoop::in);
         bool firstLoop = false;
         while (next) {
             if (looped == next) {

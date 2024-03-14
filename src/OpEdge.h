@@ -396,12 +396,6 @@ enum class Unsectable {
 	multiple,
 };
 
-enum class WhichLoop {
-	prior,
-	next,
-	undetermined,
-};
-
 enum class SplitBias : uint8_t {
 	none,
 	low,
@@ -593,7 +587,7 @@ public:
 	void debugCompare(std::string ) const;
 	std::string debugDumpBrief() const;
 	std::string debugDumpCenter(DebugLevel , DebugBase ) const;
-	std::string debugDumpLink(WhichLoop , DebugLevel , DebugBase ) const;
+	std::string debugDumpLink(EdgeMatch , DebugLevel , DebugBase ) const;
 	void dumpEnd() const;
 	void dumpLink() const;
 	void dumpStart() const;
@@ -602,8 +596,8 @@ public:
 #if OP_DEBUG
 	const OpEdge* debugAdvanceToEnd(EdgeMatch match) const;
 	bool debugIsLoop() const {
-		return debugIsLoop(WhichLoop::prior) || debugIsLoop(WhichLoop::next); }
-	const OpEdge* debugIsLoop(WhichLoop , LeadingLoop = LeadingLoop::will) const;
+		return debugIsLoop(EdgeMatch::start) || debugIsLoop(EdgeMatch::end); }
+	const OpEdge* debugIsLoop(EdgeMatch , LeadingLoop = LeadingLoop::will) const;
 #endif
 #if OP_DEBUG_VALIDATE
 	void debugValidate() const;  // make sure pointer to edge is valid

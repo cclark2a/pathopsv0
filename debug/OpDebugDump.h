@@ -262,6 +262,9 @@ extern void dmpHex(float );
 extern void dmpLevel(int  );  // set to brief, normal, detailed
 extern void dmpPlayback(FILE* );
 extern void dmpRecord(FILE * );
+extern void dmpT(int ID, float t);
+extern void dmpT(const OpEdge* s, float t);
+extern void dmpT(const OpSegment* s, float t);
 extern void dmpWidth(int );  // max chars before inserting linefeed
 
 enum class EF;

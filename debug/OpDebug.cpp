@@ -266,6 +266,30 @@ const OpEdge* OpEdge::debugAdvanceToEnd(EdgeMatch match) const {
 	return result;
 }
 
+// keep this in sync with op edge : debug dump chain
+// ignore axis changes when detecting sum loops (for now)
+// !!! if the axis change is required to detect for sum loops, document why!
+// !!! either add 'stamp' or rewalk links instead of find
+const OpEdge* OpEdge::debugIsLoop(EdgeMatch which, LeadingLoop leading) const {
+	if (!(EdgeMatch::start == which ? priorEdge : nextEdge))
+		return nullptr;
+	const OpEdge* chain = this;
+	std::vector<const OpEdge*> seen;
+	for (;;) {
+		seen.push_back(chain);
+		chain = EdgeMatch::start == which ? chain->priorEdge : chain->nextEdge;
+		if (!chain)
+			break;	
+		if (seen.end() == std::find(seen.begin(), seen.end(), chain))
+			continue;
+		if (LeadingLoop::will == leading)
+			return this;
+		OP_ASSERT(LeadingLoop::in == leading);
+		return chain;
+	}
+	return nullptr;
+}
+
 #if OP_DEBUG_VALIDATE
 void OpEdge::debugValidate() const {
     OpContours* contours = this->contours();

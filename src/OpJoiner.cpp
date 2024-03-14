@@ -60,7 +60,7 @@ void OpLimb::set(OpTree& tree, OpEdge* test, const OpLimb* p, EdgeMatch m, LimbT
 	type = l;
 	if (childBounds)
 		bounds = *childBounds;
-	if (LimbType::linked != type) {
+	if (LimbType::linked != type && LimbType::miswound != type) {
 		lastEdge = edge;
 		lastPt = lastEdge->whichPtT(!match).pt;
 	} else if (EdgeMatch::start == match) {
@@ -81,6 +81,14 @@ void OpLimb::set(OpTree& tree, OpEdge* test, const OpLimb* p, EdgeMatch m, LimbT
 void OpLimb::foreach(OpJoiner& join, OpTree& tree, LimbType limbType) {
 	if (looped)  // triggered when walking children of trunk 
 		return;
+	size_t linkupsSize = join.linkups.l.size();
+	if (LimbType::miswound <= limbType) {
+		for (unsigned index = 0; index < linkupsSize; ++index) {
+			OpEdge* test = join.linkups.l[index];
+			add(tree, test, EdgeMatch::start, LimbType::miswound, index);
+			add(tree, test->lastEdge, EdgeMatch::end, LimbType::miswound, index, test);
+		}
+	}
 	if (LimbType::disabledPals <= limbType) {
 		if (!join.disabledPalsBuilt)  {
 			join.buildDisabledPals(*tree.contour.contours);
@@ -113,7 +121,6 @@ void OpLimb::foreach(OpJoiner& join, OpTree& tree, LimbType limbType) {
 			}
 		}
 	}
-	size_t linkupsSize = join.linkups.l.size();
 	for (unsigned index = 0; index < linkupsSize; ++index) {
 		OpEdge* test = join.linkups.l[index];
 		add(tree, test, EdgeMatch::start, LimbType::linked, index);
@@ -145,25 +152,41 @@ OpTree::OpTree(OpJoiner& join)
 	join.edge->lastEdge->visited = true;
 	LimbType limbType = LimbType::linked;
 	do {
-		walker = 0;
-		if (LimbType::unlinked == limbType) {
-			for (const std::vector<OpEdge*>& edges : { join.unsectByArea, join.unsortables } )
-				for (OpEdge* test : edges)
-					join.unlink(test);
-		} else if (LimbType::disabled == limbType) {
-			if (join.disabledBuilt)
-				for (OpEdge* test : join.disabled)
-					join.unlink(test);
-		} else if (LimbType::disabledPals == limbType) {
-			if (join.disabledPalsBuilt)
-				for (OpEdge* test : join.disabledPals)
-					join.unlink(test);
+		switch (limbType) {
+			case LimbType::linked:
+				break;
+			case LimbType::unlinked: 
+				for (const std::vector<OpEdge*>& edges : { join.unsectByArea, join.unsortables } )
+					for (OpEdge* test : edges)
+						join.unlink(test);
+				break;
+			case LimbType::disabled:
+				if (join.disabledBuilt)
+					for (OpEdge* test : join.disabled)
+						join.unlink(test);
+				break;
+			case LimbType::disabledPals:
+				if (join.disabledPalsBuilt)
+					for (OpEdge* test : join.disabledPals)
+						join.unlink(test);
+				break;
+			case LimbType::miswound:
+				for (OpEdge* test : join.linkups.l) {
+					if (test == join.edge)
+						continue;
+					test->visited = false;
+					test->lastEdge->visited = false;
+				}
+				break;
+			default:
+				OP_ASSERT(0);
 		}
+		walker = 0;
 		do {
 			limbStorage->limb(*this, walker).foreach(join, *this, limbType);
 		} while (++walker < totalUsed);
 		limbType = (LimbType) ((int) limbType + 1);
-		if (LimbType::disabledPals < limbType)
+		if (LimbType::miswound < limbType)
 			return;  // error if bestLimb == nullptr
 	} while (!bestLimb);
 }
@@ -177,7 +200,7 @@ OpLimb& OpTree::limb(int index) {
 bool OpTree::join(OpJoiner& join) {
 	std::vector<uint32_t> linkupsErasures;
 	(void) bestLimb->edge->setLastLink(bestLimb->match);  // make suitable for linking to a chain
-	if (LimbType::linked == bestLimb->type)
+	if (LimbType::linked == bestLimb->type || LimbType::miswound == bestLimb->type)
 		linkupsErasures.push_back(bestLimb->linkedIndex);
 	do {
 		OpEdge* best = bestLimb->edge;
@@ -190,7 +213,7 @@ bool OpTree::join(OpJoiner& join) {
 		best->setPriorEdge(last);
 		last->setNextEdge(best);
 		OP_ASSERT(!last->debugIsLoop());
-		if (LimbType::linked == lastLimb->type)
+		if (LimbType::linked == lastLimb->type || LimbType::miswound == bestLimb->type)
 			linkupsErasures.push_back(lastLimb->linkedIndex);
 		bestLimb = lastLimb;
 	} while (bestLimb->parent);
@@ -809,14 +832,14 @@ void OpJoiner::linkUnambiguous() {
 // second pass: check for unambiuous, then allow reversing, pick smallest area, etc.
 bool OpJoiner::linkUp(OpEdge* e) {
 	std::vector<FoundEdge> edges;
-	OP_ASSERT(!e->debugIsLoop(WhichLoop::next, LeadingLoop::will));
+	OP_ASSERT(!e->debugIsLoop(EdgeMatch::end, LeadingLoop::will));
 	const OpSegment* segment = e->segment;
 	bool hadLinkTo = false;
 	bool hasPal = segment->activeAtT(e, linkMatch, edges, &hadLinkTo);
 	hasPal |= segment->activeNeighbor(e, linkMatch, edges);
-    // if oppEdges is one unsortable, and hasLinkTo match was found, don't return any edges (testQuadratic67x)
-    if (edges.size() == 1 && edges[0].edge->unsortable && hadLinkTo)
-        edges.clear(); // fixes testQuadratic67x, breaks loops44i
+    // if oppEdges is count of one and unsortable, don't return any edges (testQuadratic67x)
+    if (edges.size() == 1 && edges[0].edge->unsortable /* && hadLinkTo */)
+        edges.clear(); // hadLinkTo breaks thread_cubics147521
 	// skip pals should choose the pal that minimizes the output path area
 	// if there's not enough info here to do that, the pal choice should be reconsidered
 	//   when match links is called
@@ -883,10 +906,6 @@ bool OpJoiner::matchLinks(bool popLast) {
 	} while ((limb = limb->parent));
 	OpDebugOut(s + "\n");
 #endif
-	if (!matchTree.bestLimb) {  // look for disabled edge to complete loop
-		checkDisabled();
-
-	}
 	if (matchTree.bestLimb)  // !!! always true: here to avoid unused code warning below
 		return matchTree.join(*this);
 	// !!! eventually delete below
@@ -1026,98 +1045,102 @@ void OpJoiner::matchPals() {
 // !!! this is missing a check to see if the matched edge has the correct winding
 // at very least, it should have an assert
 bool OpJoiner::relinkUnambiguous(size_t link) {
-	if (link + 1 >= linkups.l.size())  // must have at least two link ups to hook together
+	if (link >= linkups.l.size())
 		return false;
-	EdgeMatch tMatch;
-	size_t tIndex;
-	auto scanForMatch = [&tMatch, &tIndex, link, this](OpEdge* eEdge, EdgeMatch eMatch) {
-		OpPoint edgePt = eEdge->whichPtT(eMatch).pt;
-		for (const std::vector<OpEdge*>& edges : { unsectByArea, unsortables } ) {
-			auto testUnmatch = [edgePt](OpEdge* test, EdgeMatch match) {
-				return test->whichPtT(match).pt == edgePt;
-			};
-			for (OpEdge* test : edges) {
-				if (testUnmatch(test, EdgeMatch::start))
-					return false;
-				if (testUnmatch(test, EdgeMatch::end))
-					return false;
-			}
-		}
-		tMatch = EdgeMatch::none;
-		auto test = [&tMatch, &tIndex, edgePt, this](size_t start, size_t end) {
-			size_t index = start;
-			while (index < end) { // if there is something to hook up to
-				auto testMatch = [&tMatch, &tIndex, index, edgePt](OpEdge* test, EdgeMatch match) {
-					if (test->whichPtT(match).pt == edgePt) {
-						if (tMatch != EdgeMatch::none)
-							return false;  // there is more than one match; give up on this end
-						tMatch = match;
-						tIndex = index;
-					}
-					return true;
-				};
-				OpEdge* test = linkups.l[index];
-				if (!testMatch(test, EdgeMatch::start))
-					return false;
-				if (!testMatch(test->lastEdge, EdgeMatch::end))
-					return false;
-				++index;
-			}
-			return true;
-		};
-		if (!test(link + 1, linkups.l.size()))
-			return false;
-		if (!test(0, link))
-			return false;
-		return EdgeMatch::none != tMatch;
-	};
-	// single edge end found which matches; link the two
 	std::vector<size_t> linkupsErasures;
-	auto mergeLinks = [&, this](OpEdge* e, EdgeMatch eMatch, size_t linkIndex) {
-		OpEdge* tEdge = linkups.l[tIndex];  // check last edge to see if found is first or last
-		OP_ASSERT(!tEdge->priorEdge);
-		if (EdgeMatch::start == eMatch) {
-			if (EdgeMatch::start == tMatch) {
-				if (!tEdge->nextEdge)
-					tEdge->setWhich(!tEdge->which());
-				else {
-					tEdge = tEdge->lastEdge;
-					tEdge->setLinkDirection(tMatch);  // reverse links
-					linkups.l[tIndex] = tEdge;
+	bool startIsBestMatch = true;
+	size_t tIndex = 0;
+	edge = linkups.l[link];
+	if (link + 1 < linkups.l.size()) { // must have at least two link ups to hook together
+		EdgeMatch tMatch;
+		auto scanForMatch = [&tMatch, &tIndex, link, this](OpEdge* eEdge, EdgeMatch eMatch) {
+			OpPoint edgePt = eEdge->whichPtT(eMatch).pt;
+			for (const std::vector<OpEdge*>& edges : { unsectByArea, unsortables } ) {
+				auto testUnmatch = [edgePt](OpEdge* test, EdgeMatch match) {
+					return test->whichPtT(match).pt == edgePt;
+				};
+				for (OpEdge* test : edges) {
+					if (testUnmatch(test, EdgeMatch::start))
+						return false;
+					if (testUnmatch(test, EdgeMatch::end))
+						return false;
 				}
 			}
-			e->setPriorEdge(tEdge->lastEdge);
-			tEdge->lastEdge->setNextEdge(e);
-			tEdge->lastEdge = e->lastEdge;
-			tEdge->setLinkBounds();
-			e->lastEdge = nullptr;
-		} else {
-			if (EdgeMatch::end == tMatch) {
-				tEdge = tEdge->lastEdge;
-				tEdge->setLinkDirection(tMatch);  // reverse links
+			tMatch = EdgeMatch::none;
+			auto test = [&tMatch, &tIndex, edgePt, this](size_t start, size_t end) {
+				size_t index = start;
+				while (index < end) { // if there is something to hook up to
+					auto testMatch = [&tMatch, &tIndex, index, edgePt](OpEdge* test, EdgeMatch match) {
+						if (test->whichPtT(match).pt == edgePt) {
+							if (tMatch != EdgeMatch::none)
+								return false;  // there is more than one match; give up on this end
+							tMatch = match;
+							tIndex = index;
+						}
+						return true;
+					};
+					OpEdge* test = linkups.l[index];
+					if (!testMatch(test, EdgeMatch::start))
+						return false;
+					if (!testMatch(test->lastEdge, EdgeMatch::end))
+						return false;
+					++index;
+				}
+				return true;
+			};
+			if (!test(link + 1, linkups.l.size()))
+				return false;
+			if (!test(0, link))
+				return false;
+			return EdgeMatch::none != tMatch;
+		};
+		// single edge end found which matches; link the two
+		auto mergeLinks = [&, this](OpEdge* e, EdgeMatch eMatch, size_t linkIndex) {
+			OpEdge* tEdge = linkups.l[tIndex];  // check last edge to see if found is first or last
+			OP_ASSERT(!tEdge->priorEdge);
+			if (EdgeMatch::start == eMatch) {
+				if (EdgeMatch::start == tMatch) {
+					if (!tEdge->nextEdge)
+						tEdge->setWhich(!tEdge->which());
+					else {
+						tEdge = tEdge->lastEdge;
+						tEdge->setLinkDirection(tMatch);  // reverse links
+						linkups.l[tIndex] = tEdge;
+					}
+				}
+				e->setPriorEdge(tEdge->lastEdge);
+				tEdge->lastEdge->setNextEdge(e);
+				tEdge->lastEdge = e->lastEdge;
+				tEdge->setLinkBounds();
+				e->lastEdge = nullptr;
+			} else {
+				if (EdgeMatch::end == tMatch) {
+					tEdge = tEdge->lastEdge;
+					tEdge->setLinkDirection(tMatch);  // reverse links
+				}
+				e = e->advanceToEnd(EdgeMatch::start);
+				tEdge->setPriorEdge(e->lastEdge);
+				e->lastEdge->setNextEdge(tEdge);
+				e->lastEdge = tEdge->lastEdge;
+				e->setLinkBounds();
+				tEdge->lastEdge = nullptr;
 			}
-			e = e->advanceToEnd(EdgeMatch::start);
-			tEdge->setPriorEdge(e->lastEdge);
-			e->lastEdge->setNextEdge(tEdge);
-			e->lastEdge = tEdge->lastEdge;
-			e->setLinkBounds();
-			tEdge->lastEdge = nullptr;
+			linkupsErasures.push_back(linkIndex);
+		};
+		if (scanForMatch(edge, EdgeMatch::start))
+			mergeLinks(edge, EdgeMatch::start, link);
+		else {
+			lastEdge = edge->lastEdge;
+			if (!scanForMatch(lastEdge, EdgeMatch::end))
+				return true;
+			mergeLinks(lastEdge, EdgeMatch::end, tIndex);
+			startIsBestMatch = false;
 		}
-		linkupsErasures.push_back(linkIndex);
-	};
-	edge = linkups.l[link];
-	bool startIsBestMatch = true;
-	if (scanForMatch(edge, EdgeMatch::start))
-		mergeLinks(edge, EdgeMatch::start, link);
-	else {
-		lastEdge = edge->lastEdge;
-		if (!scanForMatch(lastEdge, EdgeMatch::end))
-			return true;
-		mergeLinks(lastEdge, EdgeMatch::end, tIndex);
-		startIsBestMatch = false;
 	}
 	if (detachIfLoop(edge->advanceToEnd(EdgeMatch::start), EdgeMatch::end))
 		linkupsErasures.push_back(startIsBestMatch ? tIndex : link);
+	if (!linkupsErasures.size())
+		return false;
 	std::sort(linkupsErasures.begin(), linkupsErasures.end(), std::greater<int>());
 	for (size_t entry : linkupsErasures)
 		linkups.l.erase(linkups.l.begin() + entry);
@@ -1137,6 +1160,10 @@ void OpJoiner::sort() {
 }
 
 void OpJoiner::unlink(OpEdge* test) {
+	if (test->inOutput) {
+		test->unlink();
+		return;
+	}
 	OpEdge* first = test->advanceToEnd(EdgeMatch::start);
 	if (linkups.l.end() == std::find(linkups.l.begin(), linkups.l.end(), first))
 		test->unlink();

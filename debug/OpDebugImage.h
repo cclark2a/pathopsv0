@@ -72,6 +72,7 @@ struct OpDebugImage {
 	static bool drawWinding(const OpCurve& , std::string left, std::string right,
 			float normSign, uint32_t color);
 	static void find(int id, OpPointBounds* , OpPoint* );
+	static OpPoint find(int id, float t);
 	static std::vector<const OpEdge*> find(int id);
 	static void focus(int id, bool add);
 	static void focusEdges();
@@ -137,7 +138,21 @@ extern void draw(const OpPtT& );   // draw point (ignores t)
 extern void draw(const OpPoint* );
 extern void draw(const OpPtT* );
 extern void draw(float , float );
-extern void draw();  // draw all current state
+extern void drawT(int id, float );
+extern void drawT(int id, const OpPtT& );
+extern void drawT(int id, const OpPtT* );
+extern void drawT(const OpSegment&, float );
+extern void drawT(const OpSegment&, const OpPtT& );
+extern void drawT(const OpSegment&, const OpPtT* );
+extern void drawT(const OpSegment*, float );
+extern void drawT(const OpSegment*, const OpPtT& );
+extern void drawT(const OpSegment*, const OpPtT* );
+extern void drawT(const OpEdge&, float );
+extern void drawT(const OpEdge&, const OpPtT& );
+extern void drawT(const OpEdge&, const OpPtT* );
+extern void drawT(const OpEdge*, float );
+extern void drawT(const OpEdge*, const OpPtT& );
+extern void drawT(const OpEdge*, const OpPtT* );
 extern void focus(int id);
 extern void focus(const OpContour& );
 extern void focus(const OpContours& );
@@ -156,7 +171,7 @@ extern void help();
 extern void hideSegmentEdges();  // not in master list; immediately changes edge state
 extern void hideTemporaryEdges();
 extern void precision(int );
-extern void redraw();
+extern void redraw();  // draw all current state
 extern void resetFocus();
 extern void showSegmentEdges();  // not in master list; immediately changes edge state
 extern void showTemporaryEdges();

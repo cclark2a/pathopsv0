@@ -1634,7 +1634,7 @@ void uncolor(int id) {
 }
 
 void colorLink(OpEdge* edge, uint32_t color) {
-	auto colorChain = [edge, color](WhichLoop which) {
+	auto colorChain = [edge, color](EdgeMatch which) {
 		const OpEdge* looped = edge->debugIsLoop(which, LeadingLoop::in);
 		bool firstLoop = false;
 		int safetyCount = 0;
@@ -1647,18 +1647,18 @@ void colorLink(OpEdge* edge, uint32_t color) {
 					return;
 				firstLoop = true;
 			}
-			chain = WhichLoop::prior == which ? chain->priorEdge : chain->nextEdge;
+			chain = EdgeMatch::start == which ? chain->priorEdge : chain->nextEdge;
 			if (!chain)
 				break;
 			if (++safetyCount > 250) {
 				OpDebugOut(std::string("!!! %s likely loops forever: ") + 
-						(WhichLoop::prior == which ? "prior " : "next "));
+						(EdgeMatch::start == which ? "prior " : "next "));
 				break;
 			}
 		}
 	};
-	colorChain(WhichLoop::prior);
-	colorChain(WhichLoop::next);
+	colorChain(EdgeMatch::start);
+	colorChain(EdgeMatch::end);
 	OpDebugImage::drawDoubleFocus();
 }
 
@@ -1947,10 +1947,6 @@ void draw(float x, float y) {
 	draw(OpPoint(x, y));
 }
 
-void draw() {
-	OpDebugImage::drawDoubleFocus();
-}
-
 bool OpSegment::debugContains(const OpEdge* edge) const {
 	for (auto& e : edges) {
 		if (edge == &e)
@@ -1967,6 +1963,114 @@ void OpInPath::draw() const {
 void OpOutPath::draw() const {
 	drawPathsOutOn = true;
 	OpDebugImage::drawDoubleFocus();
+}
+
+OpPoint OpDebugImage::find(int id, float t) {
+	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
+		if (id != edge->id)
+			continue;
+		edge->debugDraw = true;
+		DRAW_IDS_ON(Edges);
+		return edge->curve.ptAtT(t);
+	}
+	const OpSegment* segment = nullptr;
+	for (auto s : segmentIterator) {
+		if (id == s->id)
+			segment = s;
+	}
+	if (segment) {
+		DRAW_IDS_ON(Segments);
+		return segment->c.ptAtT(t);
+	}
+#if OP_DEBUG
+	const OpIntersection* sect = nullptr;
+	for (auto i : intersectionIterator) {
+		if (id == i->id)
+			sect = i;
+	}
+	if (sect) {
+		DRAW_IDS_ON(Intersections);
+		if (t != sect->ptT.t)
+			OpDebugOut("intersection id " + STR(id) + " does not match t " + STR(t) + "\n");
+		return sect->ptT.pt;
+	}
+#endif
+#if OP_DEBUG
+	auto coins = findCoincidence(id);
+	if (coins.size()) {
+		DRAW_IDS_ON(Coincidences);
+		for (auto coin : coins) {
+			if (t == coin->ptT.t)
+				return coin->ptT.pt;
+		}
+		OpDebugOut("coincidence id " + STR(id) + " does not match t " + STR(t) + "\n");
+		return OpPoint();
+	}
+#endif
+	OpDebugOut("id " + STR(id) + " not found\n");
+	return OpPoint();
+}
+
+// !!! macroize?
+void drawT(int id, float t) {
+	draw(OpDebugImage::find(id, t));
+}
+
+void drawT(int id, const OpPtT& ptT) {
+	drawT(id, ptT.t);
+}
+
+void drawT(int id, const OpPtT* ptT) {
+	drawT(id, *ptT);
+}
+
+void drawT(const OpSegment& segment, float t) {
+	draw(segment.c.ptAtT(t));
+}
+
+void drawT(const OpSegment& segment, const OpPtT& ptT) {
+	drawT(segment, ptT.t);
+}
+
+void drawT(const OpSegment& segment, const OpPtT* ptT) {
+	drawT(segment, *ptT);
+}
+
+void drawT(const OpSegment* segment, float t) {
+	drawT(*segment, t);
+}
+
+void drawT(const OpSegment* segment, const OpPtT& ptT) {
+	drawT(*segment, ptT);
+}
+
+void drawT(const OpSegment* segment, const OpPtT* ptT) {
+	drawT(*segment, ptT);
+}
+
+void drawT(const OpEdge& edge, float t) {
+	draw(edge.curve.ptAtT(t));
+}
+
+void drawT(const OpEdge& edge, const OpPtT& ptT) {
+	drawT(edge, ptT.t);
+}
+
+void drawT(const OpEdge& edge, const OpPtT* ptT) {
+	drawT(edge, *ptT);
+}
+
+void drawT(const OpEdge* edge, float t) {
+	drawT(*edge, t);
+}
+
+void drawT(const OpEdge* edge, const OpPtT& ptT) {
+	drawT(*edge, ptT);
+}
+
+void drawT(const OpEdge* edge, const OpPtT* ptT) {
+	drawT(*edge, ptT);
 }
 
 void help() {
