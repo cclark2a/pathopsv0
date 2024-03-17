@@ -23,7 +23,7 @@ bool OpCurve::isLinear() const {
     auto vals = { diffs[0].dx, diffs[0].dy, diffs[1].dx, diffs[1].dy }; 
     auto [min, max] = std::minmax_element( begin(vals), end(vals) );
     auto larger = std::max(fabsf(*min), fabsf(*max));
-    linear = fabsf(cross) < std::nextafter(larger, OpInfinity) - larger;
+    linear = fabsf(cross) < OpMath::NextLarger(larger) - larger;
 #endif
     return linear;
 }

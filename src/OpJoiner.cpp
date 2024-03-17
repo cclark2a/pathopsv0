@@ -82,50 +82,57 @@ void OpLimb::foreach(OpJoiner& join, OpTree& tree, LimbType limbType) {
 	if (looped)  // triggered when walking children of trunk 
 		return;
 	size_t linkupsSize = join.linkups.l.size();
-	if (LimbType::miswound <= limbType) {
-		for (unsigned index = 0; index < linkupsSize; ++index) {
-			OpEdge* test = join.linkups.l[index];
-			add(tree, test, EdgeMatch::start, LimbType::miswound, index);
-			add(tree, test->lastEdge, EdgeMatch::end, LimbType::miswound, index, test);
-		}
-	}
-	if (LimbType::disabledPals <= limbType) {
-		if (!join.disabledPalsBuilt)  {
-			join.buildDisabledPals(*tree.contour.contours);
-			for (OpEdge* test : join.disabledPals) {
-				test->unlink();
-			}
-		}
-		for (OpEdge* test : join.disabledPals) {
-			add(tree, test, EdgeMatch::start, limbType);
-			add(tree, test, EdgeMatch::end, limbType);
-		}
-	}
-	if (LimbType::disabled <= limbType) {
-		if (!join.disabledBuilt) {
-			join.buildDisabled(*tree.contour.contours);
-			for (OpEdge* test : join.disabled) {
-				test->unlink();
-			}
-		}
-		for (OpEdge* test : join.disabled) {
-			add(tree, test, EdgeMatch::start, limbType);
-			add(tree, test, EdgeMatch::end, limbType);
-		}
-	}
-	if (LimbType::unlinked <= limbType) {
-		for (const std::vector<OpEdge*>& edges : { join.unsectByArea, join.unsortables } ) {
-			for (OpEdge* test : edges) {
-				add(tree, test, EdgeMatch::start, LimbType::unlinked);
-				add(tree, test, EdgeMatch::end, LimbType::unlinked);
-			}
-		}
-	}
+	LimbType linkedLimb = LimbType::miswound <= limbType ? LimbType::miswound : LimbType::linked;
 	for (unsigned index = 0; index < linkupsSize; ++index) {
 		OpEdge* test = join.linkups.l[index];
-		add(tree, test, EdgeMatch::start, LimbType::linked, index);
-		add(tree, test->lastEdge, EdgeMatch::end, LimbType::linked, index, test);
+		add(tree, test, EdgeMatch::start, linkedLimb, index);
+		add(tree, test->lastEdge, EdgeMatch::end, linkedLimb, index, test);
 	}
+	if (LimbType::linked == limbType)
+		return;
+	for (const std::vector<OpEdge*>& edges : { join.unsectByArea, join.unsortables } ) {
+		for (OpEdge* test : edges) {
+			add(tree, test, EdgeMatch::start, LimbType::unlinked);
+			add(tree, test, EdgeMatch::end, LimbType::unlinked);
+		}
+	}
+	if (LimbType::unlinked == limbType)
+		return;
+	if (!join.disabledBuilt) {
+		join.buildDisabled(*tree.contour.contours);
+		for (OpEdge* test : join.disabled) {
+			test->unlink();
+		}
+	}
+	for (OpEdge* test : join.disabled) {
+		add(tree, test, EdgeMatch::start, LimbType::disabled);
+		add(tree, test, EdgeMatch::end, LimbType::disabled);
+	}
+	if (LimbType::disabled == limbType)
+		return;
+	if (!join.disabledPalsBuilt)  {
+		join.buildDisabledPals(*tree.contour.contours);
+		for (OpEdge* test : join.disabledPals) {
+			test->unlink();
+		}
+	}
+	for (OpEdge* test : join.disabledPals) {
+		add(tree, test, EdgeMatch::start, LimbType::disabledPals);
+		add(tree, test, EdgeMatch::end, LimbType::disabledPals);
+	}
+	if (LimbType::disabledPals == limbType)
+		return;
+	if (LimbType::miswound == limbType)
+		return; 
+	// add the smallest gap of: for edge start, and for each end in link ups
+	OpVector toStart = lastPt - tree.firstPt;
+	// !!! eventually, keep track of gaps to all available edges; for now, only look at loop close
+	float lenSq = toStart.lengthSquared();
+	if (tree.bestDistance > lenSq) {
+		tree.bestDistance = lenSq;
+		tree.bestGapLimb = this;
+	}
+	OP_ASSERT(LimbType::disjoint == limbType);
 }
 
 OpTree::OpTree(OpJoiner& join) 
@@ -133,8 +140,10 @@ OpTree::OpTree(OpJoiner& join)
 	, current(nullptr)
 	, contour(*join.edge->segment->contour)
 	, edge(join.edge)
+	, bestGapLimb(nullptr)
 	, bestLimb(nullptr)
 	, firstPt(join.edge->whichPtT().pt)
+	, bestDistance(OpInfinity)
 	, bestPerimeter(OpInfinity)
 	, baseIndex(0) 
 	, totalUsed(0) {
@@ -178,6 +187,8 @@ OpTree::OpTree(OpJoiner& join)
 					test->lastEdge->visited = false;
 				}
 				break;
+			case LimbType::disjoint:
+				break;
 			default:
 				OP_ASSERT(0);
 		}
@@ -186,7 +197,7 @@ OpTree::OpTree(OpJoiner& join)
 			limbStorage->limb(*this, walker).foreach(join, *this, limbType);
 		} while (++walker < totalUsed);
 		limbType = (LimbType) ((int) limbType + 1);
-		if (LimbType::miswound < limbType)
+		if (LimbType::disjoint < limbType)
 			return;  // error if bestLimb == nullptr
 	} while (!bestLimb);
 }
@@ -199,24 +210,34 @@ OpLimb& OpTree::limb(int index) {
 // join best limb to edge start, then parent to best limb, until lastEdge is found
 bool OpTree::join(OpJoiner& join) {
 	std::vector<uint32_t> linkupsErasures;
-	(void) bestLimb->edge->setLastLink(bestLimb->match);  // make suitable for linking to a chain
-	if (LimbType::linked == bestLimb->type || LimbType::miswound == bestLimb->type)
-		linkupsErasures.push_back(bestLimb->linkedIndex);
+	const OpLimb* bestL = bestLimb;
+	OpEdge* best = bestL->edge;
+	if (EdgeMatch::end == bestL->match) {
+		(void) best->setLastLink(!best->which()); // make suitable for linking to a chain
+		best = best->advanceToEnd(EdgeMatch::start);
+	} else
+		(void) best->setLastLink(EdgeMatch::start);
+	if (LimbType::linked == bestL->type || LimbType::miswound == bestL->type)
+		linkupsErasures.push_back(bestL->linkedIndex);
 	do {
-		OpEdge* best = bestLimb->edge;
-		const OpLimb* lastLimb = bestLimb->parent;
+		const OpLimb* lastLimb = bestL->parent;
 		OpEdge* prior = lastLimb->edge;
 		OP_ASSERT(!best->containsLink(prior));
-	    (void) prior->setLastLink(lastLimb->match);  // make suitable for linking to a chain
+		if (EdgeMatch::end == lastLimb->match) {
+			(void) prior->setLastLink(!prior->which());  // make suitable for linking to a chain
+			prior = prior->advanceToEnd(EdgeMatch::start);
+		} else
+			(void) prior->setLastLink(EdgeMatch::start);
 		OpEdge* last = prior->lastEdge;
 		OP_ASSERT(best->whichPtT().pt == last->whichPtT(EdgeMatch::end).pt);
 		best->setPriorEdge(last);
 		last->setNextEdge(best);
 		OP_ASSERT(!last->debugIsLoop());
-		if (LimbType::linked == lastLimb->type || LimbType::miswound == bestLimb->type)
+		if (LimbType::linked == lastLimb->type || LimbType::miswound == lastLimb->type)
 			linkupsErasures.push_back(lastLimb->linkedIndex);
-		bestLimb = lastLimb;
-	} while (bestLimb->parent);
+		bestL = lastLimb;
+		best = bestL->edge;
+	} while (bestL->parent);
 	std::sort(linkupsErasures.begin(), linkupsErasures.end(), std::greater<int>());
 	for (size_t entry : linkupsErasures)
 		join.linkups.l.erase(join.linkups.l.begin() + entry);
@@ -340,7 +361,9 @@ void OpJoiner::buildDisabled(OpContours& contours) {
 	for (auto& contour : contours.contours) {
 		for (auto& segment : contour.segments) {
 			for (auto& e : segment.edges) {
-				if (e.disabled && !e.unsortable && !e.pals.size())
+				if (!e.disabled || e.unsortable || e.pals.size())
+					continue;
+				if (e.centerless || e.windPal)  // only very small disabled are considered
 					disabled.push_back(&e);
 			}
 		}
@@ -380,8 +403,8 @@ void OpJoiner::checkGap() {
      if (!OpMath::IsFinite(bestGap.distSq))  // triggered by battleOp21
         return;
     OpVector nextDoor = {
-			std::nextafterf(fabsf(matchPt.x), OpInfinity) - fabsf(matchPt.x),
-			std::nextafterf(fabsf(matchPt.y), OpInfinity) - fabsf(matchPt.y) };
+			OpMath::NextLarger(fabsf(matchPt.x)) - fabsf(matchPt.x),
+			OpMath::NextLarger(fabsf(matchPt.y)) - fabsf(matchPt.y) };
 	// !!! if we add a factor of 4, it fixes battleOp287 without breaking anything else...
 	if (nextDoor.lengthSquared() * 4 < bestGap.distSq)
         return;
@@ -892,12 +915,11 @@ bool OpJoiner::matchLinks(bool popLast) {
 	OP_ASSERT(EdgeMatch::start == lastEdge->which() || EdgeMatch::end == lastEdge->which());
 	found.clear();
 	matchPt = lastEdge->whichPtT(EdgeMatch::end).pt;
-	OpTree matchTree(*this);
-	OP_ASSERT(matchTree.bestLimb);
-#if OP_DEBUG_VERBOSE
-	std::string s = "perimeter:" + STR(matchTree.bestPerimeter);
+	OpTree tree(*this);
+#if 0 && OP_DEBUG_VERBOSE
+	std::string s = "perimeter:" + STR(tree.bestPerimeter);
 	s += " edges:";
-	const OpLimb* limb = matchTree.bestLimb;
+	const OpLimb* limb = tree.bestLimb;
 	do {
 		s += STR(limb->edge->id);
 		if (limb->edge->lastEdge && limb->edge != limb->edge->lastEdge)
@@ -906,8 +928,26 @@ bool OpJoiner::matchLinks(bool popLast) {
 	} while ((limb = limb->parent));
 	OpDebugOut(s + "\n");
 #endif
-	if (matchTree.bestLimb)  // !!! always true: here to avoid unused code warning below
-		return matchTree.join(*this);
+	if (!tree.bestLimb) {
+		OP_ASSERT(tree.bestGapLimb);
+		OpContour* contour = lastEdge->segment->contour;
+		OpIntersection* startI = edge->findSect(EdgeMatch::start);
+		OpIntersection* gapEnd = tree.bestGapLimb->lastEdge->findSect(!tree.bestGapLimb->match);
+		OpEdge* filler = contour->addFiller(gapEnd, startI);
+		if (filler) {
+			OpLimb* branch = contour->contours->allocateLimb(tree);
+			branch->set(tree, filler, tree.bestGapLimb, EdgeMatch::start, LimbType::disjoint, 0, 
+					nullptr, nullptr);
+		#if OP_DEBUG
+			const_cast<OpLimb*>(tree.bestGapLimb)->debugBranches.push_back(branch);
+			tree.debugLimbs.push_back(branch);
+		#endif
+			tree.bestLimb = branch;
+		}
+	}
+	OP_ASSERT(tree.bestLimb);
+	if (tree.bestLimb)  // !!! always true: here to avoid unused code warning below
+		return tree.join(*this);
 	// !!! eventually delete below
 	bestGap.reset();  // track the smallest gap available, when all else fails (e.g., battleOp21)
 	checkLinkups();

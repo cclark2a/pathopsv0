@@ -32,7 +32,7 @@ void SectRay::addPals(OpEdge* home) {
 	};
 	EdgeDistance* homeDist = find(home);
 	EdgeDistance* test = homeDist;
-	float lowLimit = std::nextafterf(homeCept, -OpInfinity);
+	float lowLimit = OpMath::NextSmaller(homeCept);
     bool priorIsPal = false;
 	while (test > &distances.front() && (--test)->cept >= lowLimit) {
 		OP_ASSERT((test + 1)->cept >= test->cept);
@@ -40,7 +40,7 @@ void SectRay::addPals(OpEdge* home) {
         priorIsPal = true;
 	}
 	test = homeDist;
-	float highLimit = std::nextafterf(homeCept, +OpInfinity);
+	float highLimit = OpMath::NextLarger(homeCept);
     bool nextIsPal = false;
 	while (test < &distances.back() && (++test)->cept <= highLimit) {
 		OP_ASSERT((test - 1)->cept <= test->cept);
@@ -105,7 +105,7 @@ EdgeDistance* SectRay::find(OpEdge* edge) {
 // for now, keep making it smaller until it breaks
 #define WINDING_NORMAL_LIMIT  0.004 // !!! fails (I think) on pentreck13 edge 1045 NxR:00221
 
-FindCept SectRay::findIntercept(OpEdge* test  OP_DEBUG_PARAMS(OpEdge* home)) {
+FindCept SectRay::findIntercept(OpEdge* test) {
 	if (test->ptBounds.ltChoice(axis) > normal)
 		return FindCept::ok;
 	if (test->ptBounds.rbChoice(axis) < normal)
@@ -152,7 +152,7 @@ FindCept SectRay::findIntercept(OpEdge* test  OP_DEBUG_PARAMS(OpEdge* home)) {
 	float testXY = pt.choice(perpendicular);
 	bool reversed = tangent.dot(homeTangent) < 0;
 	distances.emplace_back(test, testXY, root, reversed);
-	return std::nextafterf(testXY, homeCept) == homeCept ? FindCept::unsectable : FindCept::okNew;
+	return OpMath::Equalish(testXY, homeCept) ? FindCept::unsectable : FindCept::okNew;
 }
 
 void SectRay::sort() {
@@ -481,8 +481,7 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 			const OpCurve& curve = opp.segment->c;
 			float xRoot = curve.tAtXY(opp.start.t, opp.end.t, XyChoice::inX, start.pt.x);
 			float yRoot = curve.tAtXY(opp.start.t, opp.end.t, XyChoice::inY, start.pt.y);
-			if (std::nextafter(xRoot, -OpInfinity) <= std::nextafter(yRoot, OpInfinity) 
-					&& std::nextafter(xRoot, +OpInfinity) >= std::nextafter(yRoot, -OpInfinity))
+			if (OpMath::Equalish(xRoot, yRoot))
 				return OpPtT(start.pt, xRoot);
 			OpVector xTan = curve.tangent(xRoot);
 			OpVector yTan = curve.tangent(yRoot);
@@ -490,13 +489,9 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 			float xPos = fabsf(yTan.dy) < fabsf(yTan.dx) * 2 ? curve.ptAtT(yRoot).x : OpNaN;
 			if (OpMath::IsNaN(yPos) && OpMath::IsNaN(xPos))
 				return OpPtT();
-			// next after isn't a very good choice if value is close to zero
-			// but a better choice would be if x/y is between max and min of line segment, maybe?
-			if (std::nextafterf(yPos, -OpInfinity) <= start.pt.y 
-					&& start.pt.y <= std::nextafter(yPos, +OpInfinity))
+			if (OpMath::Equalish(yPos, start.pt.y))
 				return OpPtT(start.pt, xRoot);
-			if (std::nextafterf(xPos, -OpInfinity) <= start.pt.x 
-					&& start.pt.x <= std::nextafter(xPos, +OpInfinity))
+			if (OpMath::Equalish(xPos, start.pt.x))
 				return OpPtT(start.pt, yRoot);
 			return OpPtT();
 		};
@@ -602,7 +597,7 @@ FoundIntercept OpWinder::findRayIntercept(size_t homeIndex, OpVector homeTan, fl
 			OpEdge* test = inArray[--inIndex];
 			if (test == home)
 				continue;
-			findCept = ray.findIntercept(test  OP_DEBUG_PARAMS(home));
+			findCept = ray.findIntercept(test);
 			if (FindCept::unsectable == findCept) {
 				EdgeDistance& tDist = ray.distances.back();
 				if (home->isLinear() && test->isLinear())
@@ -819,8 +814,10 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 	home->many = home->winding;	// back up winding
 	for (const auto& pal : home->pals) {
 		home->winding.move(pal.edge->winding, contours, pal.reversed);
-		if (!home->winding.visible())
+		if (!home->winding.visible()) {
 			home->setDisabled(OP_DEBUG_CODE(ZeroReason::palWinding));
+			home->windPal = true;
+		}
 	}
 	if (CalcFail::fail == home->addIfUR(ray.axis, homeT, &sumWinding))
 		home->setUnsortable();
@@ -840,6 +837,8 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 			if (home->ray.distances.size() && EdgeFail::none == home->rayFail)
 				continue;
 			if (home->disabled)	// may not be visible in vertical pass
+				continue;
+			if (EdgeFail::center == home->rayFail)
 				continue;
 			if (home->between)
 				continue;
@@ -947,6 +946,8 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 		for (auto& segment : contour.segments) {
 			for (auto& edge : segment.edges) {
 				if (edge.disabled)
+					continue;
+				if (EdgeFail::center == edge.rayFail)
 					continue;
 				if (edge.pals.size())
 					std::swap(edge.winding, edge.many);

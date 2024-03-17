@@ -5,7 +5,7 @@
 // this puts all switches that decide which tests to run and how to run them in one place
 
 #define OP_DEBUG_FAST_TEST 0  // in a debug build: set to zero to enable debug dump, debug image
-#define TEST_PATH_OP_FIRST "thread_cubics292081" /* e.g., "thread_cubics28" (ignored by fast test) */
+#define TEST_PATH_OP_FIRST "thread_cubics644916" /* e.g., "thread_cubics644916" (ignored by fast test) */
 #define TEST_PATH_OP_SKIP_TO_FILE "cubic" /* e.g., "battle" tests only (see OpSkiaTests.cpp) */
 #define TEST_FAILS 0  // set to one to run only failures captured in skia tests
 
@@ -45,26 +45,6 @@ fuzz763_378: no edge found: last, last resort (x2) had errors=36 # this looks fi
              likely other errors
 extended (cubics only):
 
-thread_cubics502920 had errors=27
-thread_cubics502924 had errors=27
-thread_cubics502916 had errors=27
-thread_cubics502928 had errors=27
-thread_cubics576817 had errors=15
-thread_cubics576819 had errors=15
-thread_cubics576820 had errors=28
-thread_cubics576823 had errors=15
-thread_cubics576824 had errors=28
-thread_cubics576821 had errors=15
-thread_cubics576825 had errors=15
-thread_cubics576828 had errors=28
-thread_cubics576827 had errors=15
-thread_cubics576829 had errors=15
-thread_cubics576831 had errors=15
-thread_cubics576832 had errors=28
-thread_cubics632484 had errors=44
-thread_cubics632488 had errors=44
-thread_cubics632492 had errors=44
-thread_cubics632496 had errors=44
 thread_cubics653330 had errors=19
 thread_cubics653334 had errors=19
 thread_cubics653335 had errors=25

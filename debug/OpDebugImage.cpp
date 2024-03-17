@@ -633,7 +633,7 @@ void OpDebugImage::drawGrid() {
 	paint.setColor(0x3f000000);
 	SkPaint textPaint = paint;
 	paint.setStyle(SkPaint::kStroke_Style);
-	constexpr int xOffset = 2;
+	int xOffset = 2;
 	double left, top, right, bottom;
 	DebugOpBounds(left, top, right, bottom);
 	auto fixSign = [](int32_t i) {
@@ -653,7 +653,7 @@ void OpDebugImage::drawGrid() {
 	auto screenX = [leftS, left, rightS, right](float fx) {
 		return leftS + (fx - left) / (right - left) * (rightS - leftS);
 	};
-	auto drawXLine = [screenX, &offscreen, &paint, &textPaint, topS, bottomS](float fx) {
+	auto drawXLine = [screenX, &offscreen, &paint, &textPaint, topS, bottomS, xOffset](float fx) {
 		float sx = screenX(fx);
 		offscreen.drawLine(sx, topS, sx, bottomS, paint);
 		if (!drawValuesOn)
@@ -685,7 +685,7 @@ void OpDebugImage::drawGrid() {
 	auto screenY = [topS, top, bottomS, bottom](float fy) {
 		return topS + (fy - top) / (bottom - top) * (bottomS - topS);
 	};
-	auto drawYLine = [screenY, &offscreen, &paint, &textPaint, leftS, rightS]
+	auto drawYLine = [screenY, &offscreen, &paint, &textPaint, leftS, rightS, xOffset]
             (float fy, bool last) {
 		float sy = screenY(fy);
 		offscreen.drawLine(leftS, sy, rightS, sy, paint);

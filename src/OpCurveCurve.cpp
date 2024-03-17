@@ -647,9 +647,9 @@ void OpCurveCurve::release() {
 std::array<OpPtT, 2> OpCurveCurve::cutRange(const OpPtT& ptT, const OpSegment* segment,
 		float loEnd, float hiEnd) {
 	constexpr float tStep = 16;  // !!! just a guess 
-	float cutDt = std::max(OpEpsilon, std::nextafterf(ptT.t, OpInfinity) - ptT.t) * tStep;
-	OpVector cutDxy = { std::max(OpEpsilon, std::nextafterf(ptT.pt.x, OpInfinity) - ptT.pt.x),
-			std::max(OpEpsilon, std::nextafterf(ptT.pt.y, OpInfinity) - ptT.pt.y) };
+	float cutDt = std::max(OpEpsilon, OpMath::NextLarger(ptT.t) - ptT.t) * tStep;
+	OpVector cutDxy = { std::max(OpEpsilon, OpMath::NextLarger(ptT.pt.x) - ptT.pt.x),
+			std::max(OpEpsilon, OpMath::NextLarger(ptT.pt.y) - ptT.pt.y) };
 	float minDistanceSq = cutDxy.lengthSquared() * tStep;
 	std::array<OpPtT, 2> tRange;
 	for (float direction : { -1, 1 }) {

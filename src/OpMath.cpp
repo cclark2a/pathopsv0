@@ -116,8 +116,7 @@ bool OpPoint::isFinite() const {
 }
 
 bool OpPoint::isNearly(OpPoint test) const {
-    return (nexttowardf(test.x, x) == x || OpMath::Between(x - OpEpsilon, test.x, x + OpEpsilon))
-        && (nexttowardf(test.y, y) == y || OpMath::Between(y - OpEpsilon, test.y, y + OpEpsilon));
+    return OpMath::Equalish(x, test.x) && OpMath::Equalish(y, test.y);
 }
 
 void OpPoint::pin(const OpPoint a, const OpPoint b) {
@@ -140,52 +139,27 @@ bool OpRect::isFinite() const {
         && OpMath::IsFinite(right) && OpMath::IsFinite(bottom);
 }
 
-#if 0 // use std::cbrt instead
-/* from: http://metamerist.blogspot.com/2007/09/faster-cube-root-iii.html
-we'll divide the integer representation by 3 for an approximation of cbrt(x), which we
-can then refine using an iterative method such as Newton-Raphson or Halley's. The
-following function returns a cube root approximation with max relative error around 5%
-(in my tests). The exponent bias is subtracted, the integer representation is divided
-by three and then the exponent bias is restored. Caveat: It is assumed x >= 0. If
-negative x is possible, the sign bit needs to be saved and restored.*/
-float cbrta(float x)
-{
-    int& i = (int&)x;
-    i = (i - (127 << 23)) / 3 + (127 << 23);
-    return x;
+// put all calls to next after (and friends) in next larger and next smaller
+// use next after twice to match: for 0 <= x <= 1, adding epsilon moves x two bits
+float OpMath::NextLarger(float a) {
+    float nextGreater = std::nextafterf(std::nextafterf(a, +OpInfinity), +OpInfinity);
+    return std::max(nextGreater, a + OpEpsilon);
 }
 
-static float cbrta_halley(const float a, const float R) {
-    const float a3 = a * a * a;
-    return a * (a3 + R + R) / (a3 + a3 + R);
+float OpMath::NextSmaller(float a) {
+    float nextLesser = std::nextafterf(std::nextafterf(a, -OpInfinity), -OpInfinity);
+    return std::min(nextLesser, a - OpEpsilon);
 }
 
-// cube root approximation using 2 iterations of Halley's method (float)
-static float halley_cbrt3(float d) {
-    float a = cbrta(d);
-    a = cbrta_halley(a, d);
-    return cbrta_halley(a, d);
-}
-
-float OpMath::CubeRoot(float x) {
-    if (0 == x) {
-        return 0;
-    }
-    return fabsf(halley_cbrt3(fabsf(x)));
-}
-#endif
-
-// allow ourselves exactly tiny bit of error (required by thread_circles36945)
+// allow ourselves a tiny bit of error (required by thread_circles36945)
 bool OpMath::Betweenish(float a, float b, float c) {
-    if (Between(a, b, c))
-        return true;
-    float nextGreater = std::nextafterf(std::nextafterf(b, OpInfinity), OpInfinity);
-    float greater = std::max(nextGreater, b + OpEpsilon);
-    if (Between(a, greater, c))
-        return true;
-    float nextLesser = std::nextafterf(std::nextafterf(b, -OpInfinity), -OpInfinity);
-    float lesser = std::min(nextLesser, b - OpEpsilon);
-    return Between(a, lesser, c);
+    if (b < NextSmaller(a < c ? a : c))
+        return false;
+    return b <= NextLarger(a < c ? c : a);
+}
+
+bool OpMath::Equalish(float a, float b) {
+    return NextLarger(a < b ? a : b) >= (a < b ? b : a);
 }
 
 #if 0

@@ -98,6 +98,7 @@ enum class LimbType : uint8_t {
 	disabled,  // in disabled
 	disabledPals,  // in disabled pals
 	miswound,  // in linkups list, including entries with the wrong winding
+	disjoint,  // gap to closest in linkups list, or gap to edge start (loop)
 };
 
 struct OpTree;
@@ -155,8 +156,10 @@ struct OpTree {
 	OpLimbStorage* current;
 	const OpContour& contour;
 	const OpEdge* edge;
+	const OpLimb* bestGapLimb;  // used only by detached pass
 	const OpLimb* bestLimb;   // index into limbStorage
 	OpPoint firstPt;
+	float bestDistance;  // used only by detached pass
 	float bestPerimeter;
 	int baseIndex;
 	int totalUsed;

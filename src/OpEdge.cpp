@@ -111,6 +111,8 @@ OpEdge* OpEdge::advanceToEnd(EdgeMatch match) {
 			1					1					---
 */
 void OpEdge::apply() {
+	if (EdgeFail::center == rayFail)
+		disabled = true;
 	if (disabled || unsortable)
 		return;
 	OpWinding su = sum;
@@ -172,7 +174,12 @@ void OpEdge::calcCenterT() {
 	const OpCurve& segCurve = segment->c;
 	float t = segCurve.center(axis, middle);
 	if (OpMath::IsNaN(t)) {
-		setDisabled(OP_DEBUG_CODE(ZeroReason::centerNaN));
+// while this should be disabled eventually, it must be visible to influence winding calc
+// other edges' rays that hit this should also be disabled and marked ray fail
+//		setDisabled(OP_DEBUG_CODE(ZeroReason::centerNaN));
+		OP_DEBUG_CODE(debugZero = ZeroReason::centerNaN);
+		OP_DEBUG_CODE(center = { OpPoint(SetToNaN::dummy), OpNaN } );
+		centerless = true;  // !!! is this redundant with ray fail?
 		rayFail = EdgeFail::center;
 		return;
 	}
@@ -189,6 +196,8 @@ void OpEdge::clearActiveAndPals(ZeroReason reason) {
 	setActive(false);
     for (auto& pal : pals) {
 		if (ZeroReason::none != reason) {
+			if (!pal.edge->pals.size())
+				continue;  // !!! hack ?
 			pal.edge->setActive(false);
 			pal.edge->setDisabled(OP_DEBUG_CODE(reason));
 		}

@@ -664,9 +664,9 @@ bool skipTest(std::string name) {
     if (showTestName)
         OpDebugOut(name + "\n");
 #if !OP_SHOW_ERRORS_ONLY    
-    else if (testsRun % 500 == 0) {
+    else if (testsRun % (OP_TEST_ALLOW_EXTENDED ? 5000 : 500) == 0) {
         OpDebugOut(".");
-        if (testsRun % 50000 == 0)
+        if (testsRun % (OP_TEST_ALLOW_EXTENDED ? 500000 : 50000) == 0)
             OpDebugOut("\n");
     }
 #endif

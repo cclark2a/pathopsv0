@@ -630,7 +630,12 @@ struct OpRootPts {
     }
 
     void add(OpPoint pt, float t) {
-        ptTs[count++] = { pt, t }; }
+        for (size_t index = 0; index < count; ++index) {
+            if (pt == ptTs[index].pt)
+                return;
+        }
+        ptTs[count++] = { pt, t }; 
+    }
 
 #if OP_DEBUG_DUMP
     DUMP_DECLARATIONS
@@ -659,6 +664,8 @@ struct OpMath {
         return CubicRootsReal(A, B, C, D, MatchEnds::none).keepValidTs();
     }
 
+    static bool Equalish(float a, float b);
+
     // no_sanitize("float-divide-by-zero")
     // !!! incomplete; set up attribute as needed for platforms that require it
     static float FloatDivide(float A, float B) {
@@ -686,6 +693,9 @@ struct OpMath {
     static bool IsNaN(float x) {
         return !(x == x);
     }
+
+    static float NextLarger(float );
+    static float NextSmaller(float );
 
     static float Pin(float a, float b, float c);
 

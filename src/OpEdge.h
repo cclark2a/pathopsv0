@@ -96,6 +96,7 @@ enum class ZeroReason : uint8_t {
 	addIntersection,
 	applyOp,
 	centerNaN,
+	filler,
 	findCoincidences,
 	hvCoincidence1,
 	hvCoincidence2,
@@ -299,7 +300,7 @@ struct SectRay {
 	}
 	void addPals(OpEdge* );
 	bool checkOrder(const OpEdge* ) const;
-	FindCept findIntercept(OpEdge*  OP_DEBUG_PARAMS(OpEdge* ));
+	FindCept findIntercept(OpEdge* );
 	EdgeDistance* find(OpEdge* );
 	void sort();
 #if OP_DEBUG_DUMP
@@ -452,6 +453,8 @@ private:
 		, unsortable(false)
 		, between(false)
 		, ccOverlaps(false)
+		, centerless(false)
+		, windPal(false)
 		, visited(false)
 	{
 #if OP_DEBUG // a few debug values are nonzero
@@ -546,7 +549,7 @@ public:
 	void output(OpOutPath& path, bool closed);  // provided by the graphics implmentation
 	OpPtT ptT(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? start : end; }
-	void reenable() {
+	void reenable() {  // only used for coincidence
 		disabled = false; OP_DEBUG_CODE(debugZero = ZeroReason::uninitialized); }
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
 	void setBetween();  // setter exists so debug breakpoints can be set
@@ -585,7 +588,6 @@ public:
 	OpEdge(OpPtT data[2]);
 	OpEdge(OpHexPtT data[2]);
 	void debugCompare(std::string ) const;
-	std::string debugDumpBrief() const;
 	std::string debugDumpCenter(DebugLevel , DebugBase ) const;
 	std::string debugDumpLink(EdgeMatch , DebugLevel , DebugBase ) const;
 	void dumpEnd() const;
@@ -652,6 +654,8 @@ public:
 	bool unsortable;
 	bool between;  // between unsectables (also unsortable); !!! begs for an enum class, instead...
 	bool ccOverlaps;  // set if curve/curve edges have bounds that overlap
+	bool centerless;  // center could not be computed (likely edge is too small)
+	bool windPal;  // winding could not computed because of pal
 	bool visited;  // experimental tree to track adding edges to output
 #if OP_DEBUG
 	SectType debugSplitStart;
