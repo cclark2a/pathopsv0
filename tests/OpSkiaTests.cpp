@@ -1,7 +1,11 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
+#if OP_TINY_SKIA
+#include "TinySkia.h"
+#else
 #include "include/core/SkBitmap.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkRegion.h"
+#endif
 #include "OpSkiaTests.h"
 #include "OpContour.h"
 #include "OpCurve.h"
@@ -17,6 +21,8 @@ struct testPair {
 };
 
 std::vector<testPair> testPairs = {
+    // !!! start out slow
+#if !OP_TINY_SKIA
     { run_battle_tests, "battle" },
     { run_chalkboard_tests, "chalkboard" },
     { run_fuzz763_tests, "fuzz763" },
@@ -24,7 +30,9 @@ std::vector<testPair> testPairs = {
     { run_issue3651_tests, "issue3651" },
     { run_op_tests, "op" },
     { run_op_circle_tests, "circle" },
+#endif
     { run_op_cubic_tests, "cubic" },
+#if !OP_TINY_SKIA
     { run_op_loop_tests, "loop" },
     { run_op_rect_tests, "rect" },
     { run_simplify_tests, "simplify" },
@@ -35,6 +43,7 @@ std::vector<testPair> testPairs = {
     { run_simplify_rect_tests, "simplifyRect" },
     { run_simplify_triangles_tests, "simplifyTriangles" },
     { run_tiger_tests, "tiger" },
+#endif
     { run_v0_tests, "v0" },
 };
 
@@ -1044,13 +1053,13 @@ void RunTestSet(skiatest::Reporter* r, TestDesc tests[], size_t count,
 
 int VerifySimplify(const SkPath& one, std::string testname, const SkPath& result) {
     SkPath pathOut, scaledPathOut;
-    SkRegion rgnA, openClip, rgnOut;
+    SkRegion rgnA, openClip;
     openClip.setRect({ -16000, -16000, 16000, 16000 });
     rgnA.setPath(one, openClip);
     rgnA.getBoundaryPath(&pathOut);
     SkMatrix scale;
     debug_scale_matrix(one, nullptr, scale);
-    SkRegion scaledRgnA, scaledRgnB, scaledRgnOut;
+    SkRegion scaledRgnA;
     SkPath scaledA;
     scaledA.addPath(one, scale);
     scaledA.setFillType(one.getFillType());

@@ -551,8 +551,8 @@ struct OpRect {
     OpRect& operator=(const OpRect& ) = default;
     virtual std::string debugDump(DebugLevel , DebugBase ) const;
     virtual void dump() const;
+    virtual void dump(DebugLevel, DebugBase ) const;
     virtual void dumpHex() const;
-    virtual void dumpDetail() const;  // not meaningful, but required to complete debug dump macro
 #endif
 
 #if OP_DEBUG_VALIDATE
@@ -673,7 +673,7 @@ struct OpMath {
     }
 
     static float Interp(float A, float B, float t) {
-        return A * (1 - t) + B * t;
+        return fmaf((1 - t), A, B * t);
     }
 
     static OpPoint Interp(OpPoint A, OpPoint B, float t) {
@@ -682,7 +682,7 @@ struct OpMath {
 
     // !!! could optimize with float bits trick
     static bool IsFinite(float x) {
-        return x * 0 == 0;
+        return std::isfinite(x);
     }
 
     static bool IsInt(float x) {
@@ -691,7 +691,7 @@ struct OpMath {
     }
 
     static bool IsNaN(float x) {
-        return !(x == x);
+        return std::isnan(x);
     }
 
     static float NextLarger(float );

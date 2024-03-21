@@ -5,7 +5,7 @@
 // this puts all switches that decide which tests to run and how to run them in one place
 
 #define OP_DEBUG_FAST_TEST 0  // in a debug build: set to zero to enable debug dump, debug image
-#define TEST_PATH_OP_FIRST "thread_cubics644916" /* e.g., "thread_cubics644916" (ignored by fast test) */
+#define TEST_PATH_OP_FIRST "thread_cubics2247347" /* e.g., "thread_cubics2247347" (ignored by fast test) */
 #define TEST_PATH_OP_SKIP_TO_FILE "cubic" /* e.g., "battle" tests only (see OpSkiaTests.cpp) */
 #define TEST_FAILS 0  // set to one to run only failures captured in skia tests
 
@@ -45,58 +45,6 @@ fuzz763_378: no edge found: last, last resort (x2) had errors=36 # this looks fi
              likely other errors
 extended (cubics only):
 
-thread_cubics653330 had errors=19
-thread_cubics653334 had errors=19
-thread_cubics653335 had errors=25
-thread_cubics653338 had errors=19
-thread_cubics653339 had errors=25
-thread_cubics653331 had errors=25
-thread_cubics653343 had errors=25
-thread_cubics653342 had errors=19
-thread_cubics667283 had errors=60
-thread_cubics667286 had errors=60
-thread_cubics667282 had errors=60
-thread_cubics667290 had errors=60
-thread_cubics667287 had errors=26
-thread_cubics667291 had errors=60
-thread_cubics667294 had errors=60
-thread_cubics667295 had errors=41
-thread_cubics708850 had errors=414
-thread_cubics708854 had errors=414
-thread_cubics708862 had errors=414
-thread_cubics708858 had errors=414
-thread_cubics827604 had errors=90
-thread_cubics827612 had errors=90
-thread_cubics827603 had errors=90
-thread_cubics827608 had errors=90
-thread_cubics827607 had errors=90
-thread_cubics827611 had errors=90
-thread_cubics827615 had errors=90
-thread_cubics827616 had errors=90
-thread_cubics892945 had errors=107
-thread_cubics892953 had errors=107
-thread_cubics892949 had errors=107
-thread_cubics892957 had errors=107
-thread_cubics898001 had errors=48
-thread_cubics898003 had errors=90
-thread_cubics898004 had errors=90
-thread_cubics898012 had errors=90
-thread_cubics898011 had errors=90
-thread_cubics898009 had errors=48
-thread_cubics898007 had errors=90
-thread_cubics898005 had errors=48
-thread_cubics898008 had errors=90
-thread_cubics898013 had errors=48
-thread_cubics898015 had errors=90
-thread_cubics898016 had errors=90
-thread_cubics1210338 no edge found: last, last resort
-thread_cubics1210346 no edge found: last, last resort
-thread_cubics1210342 no edge found: last, last resort
-thread_cubics1210350 no edge found: last, last resort
-thread_cubics1225236 no edge found: last, last resort had errors=225
-thread_cubics1225240 no edge found: last, last resort had errors=225
-thread_cubics1225244 no edge found: last, last resort had errors=225
-thread_cubics1225248 no edge found: last, last resort had errors=225
 
 (old)
   last successful run desktop:

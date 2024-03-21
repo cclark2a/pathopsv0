@@ -148,7 +148,7 @@ struct OpIntersections {
     OpIntersection* const * entry(const OpPtT& , const OpSegment* opp) const;  // match opp + ptT
 	void makeEdges(OpSegment* );
 	const OpIntersection* nearly(const OpPtT& ptT, OpSegment* oSeg) const;  // near match of pt or t
-    std::vector<OpIntersection*> range(const OpSegment* );
+    void range(const OpSegment* , std::vector<OpIntersection*>& );
     void sort();
 	void windCoincidences(std::vector<OpEdge>& edges  OP_DEBUG_PARAMS(OpVector tangent));
 #if OP_DEBUG

@@ -120,19 +120,17 @@ const OpIntersection* OpIntersections::nearly(const OpPtT& ptT, OpSegment* oSeg)
 	return nullptr;
 }
 
-std::vector<OpIntersection*> OpIntersections::range(const OpSegment* opp) {
+void OpIntersections::range(const OpSegment* opp, std::vector<OpIntersection*>& result) {
 	if (resort)
 	    sort();
     OP_DEBUG_CODE(float last = -1);
-    std::vector<OpIntersection*> result;
     for (auto sect : i) {
-            if (sect->opp && sect->opp->segment == opp) {
-                OP_ASSERT(last < sect->ptT.t);
-                OP_DEBUG_CODE(last = sect->ptT.t);
-                result.push_back(sect);
-            }
+        if (sect->opp && sect->opp->segment == opp) {
+            OP_ASSERT(last < sect->ptT.t);
+            OP_DEBUG_CODE(last = sect->ptT.t);
+            result.push_back(sect);
         }
-    return result;
+    }
 }
 
 void OpIntersections::sort() {

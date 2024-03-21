@@ -9,8 +9,9 @@ struct OpOutPath;
 
 enum class LinkPass {
 	none,
-	unambiguous,
-	unsectInX
+	normal,
+	unsectable,
+	remaining,
 };
 
 /* !!! consider a rewrite where a single link up is
@@ -51,17 +52,18 @@ struct OpJoiner {
 //    bool forceSmallEdge();
 	bool hookup(FoundEdge* smallest);
     bool lastLastResort();
-	bool linkRemaining();
-	void linkUnambiguous();
+	bool linkRemaining(OP_DEBUG_CODE(const OpContours*));
+	void linkUnambiguous(LinkPass );
 	bool linkUp(OpEdge* );
 	void matchLeftover(const std::vector<OpEdge*>& leftovers);
 	bool matchLinks(bool popLast);
     void matchPals();
 	bool relinkUnambiguous(size_t checked);
+	bool setup();
 	void sort();
 	void unlink(OpEdge* ); // don't unlink edges that are in linkups
 #if OP_DEBUG
-	void debugMatchRay(OP_DEBUG_CODE(OpContours* contours));
+	void debugMatchRay(OP_DEBUG_CODE(const OpContours* contours));
 #endif
 #if OP_DEBUG_VALIDATE
 	void debugValidate() const;

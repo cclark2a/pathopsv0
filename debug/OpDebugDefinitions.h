@@ -8,27 +8,12 @@
 
 // All Macros below are defined in OpDebugDump.h
 
-void OWNER::dump(int ID) const {
-#ifdef OP_HAS_FMA
-	dmp(ID);
-#endif
-#ifdef OP_NO_FMA
-	dmpid(ID);
-#endif
-}
-
 #define OP_X(Thing) \
 	void OWNER::dump(const std::vector<Thing>& things) const { \
 		dmp(things); \
 	} \
 	void OWNER::dump(const std::vector<Thing>* things) const { \
 		dmp(*things); \
-	} \
-	void OWNER::dumpDetail(const std::vector<Thing>& things) const { \
-		dmpDetail(things); \
-	} \
-	void OWNER::dumpDetail(const std::vector<Thing>* things) const { \
-		dmpDetail(things); \
 	}
 	VECTOR_STRUCTS
 #undef OP_X
@@ -65,12 +50,6 @@ void OWNER::dump(int ID) const {
 	} \
 	void OWNER::dump(const std::vector<Thing>* things) const { \
 		dmp(*things); \
-	} \
-	void OWNER::dumpDetail(const std::vector<Thing>& things) const { \
-		dmpDetail(things); \
-	} \
-	void OWNER::dumpDetail(const std::vector<Thing>* things) const { \
-		dmpDetail(*things); \
 	}
 	VECTOR_PTRS
 #undef OP_X
@@ -80,12 +59,6 @@ void OWNER::dump(int ID) const {
 	} \
 	void OWNER::dump(const Thing* thing) const { \
 		dmp(*thing); \
-	} \
-	void OWNER::dumpDetail(const Thing& thing) const { \
-		dmpDetail(thing); \
-	} \
-	void OWNER::dumpDetail(const Thing* thing) const { \
-		dmpDetail(*thing); \
 	}
 	VECTOR_STRUCTS
 #undef OP_X
@@ -95,12 +68,6 @@ void OWNER::dump(int ID) const {
 	} \
 	void OWNER::dump(const struct Thing* thing) const { \
 		dmp(*thing); \
-	} \
-	void OWNER::dumpDetail(const struct Thing& thing) const { \
-		dmpDetail(thing); \
-	} \
-	void OWNER::dumpDetail(const struct Thing* thing) const { \
-		dmpDetail(*thing); \
 	}
 	OP_STRUCTS
 #undef OP_X

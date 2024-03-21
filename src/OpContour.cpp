@@ -280,6 +280,7 @@ OpContours::OpContours(OpInPath& l, OpInPath& r, OpOperator op)
     debugInPathOps = false;
     debugInClearEdges = false;
     debugCheckLastEdge = false;
+    debugFailOnEqualCepts = false;
 #endif
 }
 
@@ -338,40 +339,18 @@ OpLimbStorage* OpContours::resetLimbs() {
 // if they are closed, done
 // if not, match up remainder
 // make sure normals point same way
-// prefer smaller total bounds
+// prefer smaller assembled contours
+// returns true on success
 bool OpContours::assemble(OpOutPath path) {
     OpJoiner joiner(*this, path);  // collect active edges and sort them
-    OP_DEBUG_VALIDATE_CODE(joiner.debugValidate());
-    if (!joiner.byArea.size() && !joiner.unsectByArea.size())
+    if (joiner.setup())
         return true;
-    joiner.sort();  // join up largest edges first
-    for (auto edge : joiner.byArea) {
-        edge->setActive(true);
+    for (LinkPass linkPass : { LinkPass::normal, LinkPass::unsectable } ) {
+        joiner.linkUnambiguous(linkPass);
+        if (joiner.linkRemaining(OP_DEBUG_CODE(this)))
+            return true;
     }
-    for (auto unsectable : joiner.unsectByArea) {
-        unsectable->setActive(true);
-    }
-    // although unsortables are marked active, care must be taken since they may or may not
-    // be part of the output
-    for (auto unsortable : joiner.unsortables) {
-        unsortable->setActive(true);
-    }
-#if 01 && OP_DEBUG_IMAGE
-    ::clear();
-    ::hideSegmentEdges();
-    ::hideIntersections();
-    joiner.debugDraw();
-    ::add(joiner.unsortables);
-    ::showPoints();
-    ::showValues();
-    ::showTangents();
-    ::redraw();
-#endif
-    OP_DEBUG_VALIDATE_CODE(joiner.debugValidate());
-    joiner.linkUnambiguous();
-    OP_DEBUG_CODE(joiner.debugMatchRay(this));
-    bool result = joiner.linkRemaining();
-    return result;  // allows setting a breakpoint after link remaining
+    return false;
 }
 
 bool OpContours::debugFail() const {

@@ -138,6 +138,7 @@ bool OpCurveCurve::checkSplit(float loT, float hiT, CurveRef which, OpPtT& check
 		deltaT *= -2;
 	} while (++attempts < maxAttempts);
 //	OP_ASSERT(0);  // decide what to do when assert fires
+	checkPtT = original;
 	return false;
 }
 #endif
@@ -394,6 +395,7 @@ SectFound OpCurveCurve::divideExperiment() {
 				SectType sectType = nearEStart || nearEEnd ? SectType::endHull : 
 						endHull ? SectType::controlHull : SectType::midHull;
 				sectPtT.t = OpMath::Interp(opp.start.t, opp.end.t, sectPtT.t);
+				OP_ASSERT(opp.start.t <= sectPtT.t && sectPtT.t <= opp.end.t);
 				opp.hulls.emplace_back(sectPtT, sectType, &edge);
 #if 0
 				if (SectType::endHull == sectType) {
@@ -900,16 +902,20 @@ bool OpCurveCurve::splitHulls(CurveRef which) {
 						continue;  // if tangents are parallel and not coincident: no intersection
 					}
 					OP_ASSERT(1 == oRoots.count);
-					OpPoint sectPt = eLine.ptAtT(oRoots.roots[0]);
-					Axis eLarger = edge.ptBounds.largerAxis();
-					// computed sectPt is just outside edge, triggering assert
-					// pin sectPt to edge? check to see if it is nearly the same?
-					OpPtT ePtT = edge.findT(eLarger, sectPt.choice(eLarger));
-					float newOPtT = oEdge->segment->findValidT(0, 1, sectPt);
-					if (OpMath::IsNaN(newOPtT))
-						continue;
-					oPtT = OpPtT(sectPt, newOPtT);
-					hull1Sect = OpPtT(sectPt, ePtT.t);
+					if (0 > oRoots.roots[0] || oRoots.roots[0] > 1) {
+						OpPtT::MeetInTheMiddle(oPtT, hull1Sect);
+					} else {
+						OpPoint sectPt = eLine.ptAtT(oRoots.roots[0]);
+						Axis eLarger = edge.ptBounds.largerAxis();
+						// computed sectPt is just outside edge, triggering assert
+						// pin sectPt to edge? check to see if it is nearly the same?
+						OpPtT ePtT = edge.findT(eLarger, sectPt.choice(eLarger));
+						float newOPtT = oEdge->segment->findValidT(0, 1, sectPt);
+						if (OpMath::IsNaN(newOPtT))
+							continue;
+						oPtT = OpPtT(sectPt, newOPtT);
+						hull1Sect = OpPtT(sectPt, ePtT.t);
+					}
 				}
 				recordSect(edge, hull1Sect, const_cast<OpEdge&>(*oEdge), oPtT  
 						OP_LINE_FILE_PARAMS(SectReason::edgeCCHullPair, 

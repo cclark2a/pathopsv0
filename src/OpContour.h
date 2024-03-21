@@ -217,7 +217,7 @@ struct OpContours {
     bool debugFail() const;
 #if OP_DEBUG
     void addDebugWarning(OpDebugWarning );
-    void debugRemap(int oldRayMatch, int newRayMatch);
+    void debugRemap(int oldRayMatch, int newRayMatch) const;
     bool debugSuccess() const;
 #endif
 #if OP_DEBUG_DUMP
@@ -255,6 +255,7 @@ struct OpContours {
     bool debugInPathOps;
     bool debugInClearEdges;
     bool debugCheckLastEdge;
+    bool debugFailOnEqualCepts;
 #endif
 };
 

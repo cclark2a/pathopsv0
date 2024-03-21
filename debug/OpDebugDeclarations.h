@@ -8,10 +8,9 @@
 
 // All Macros below are defined in OpDebugDump.h
 
-std::string debugDump() const;
 std::string debugDump(DebugLevel, DebugBase ) const;
 void dump() const;
-void dump(int ID) const;
+void dump(DebugLevel, DebugBase ) const;
 
 #define OP_X(Thing) \
 	std::string debugDump##Thing() const;
@@ -35,24 +34,18 @@ void dump(int ID) const;
 #undef OP_X
 #define OP_X(Thing) \
 	void dump(const std::vector<Thing>& ) const; \
-	void dump(const std::vector<Thing>* ) const; \
-	void dumpDetail(const std::vector<Thing>& ) const; \
-	void dumpDetail(const std::vector<Thing>* ) const;
+	void dump(const std::vector<Thing>* ) const;
 	VECTOR_STRUCTS
 	VECTOR_PTRS
 #undef OP_X
 #define OP_X(Thing) \
 	void dump(const Thing& ) const; \
-	void dump(const Thing* ) const; \
-	void dumpDetail(const Thing& ) const; \
-	void dumpDetail(const Thing* ) const;
+	void dump(const Thing* ) const;
 	VECTOR_STRUCTS
 #undef OP_X
 #define OP_X(Thing) \
 	void dump(const struct Thing& ) const; \
-	void dump(const struct Thing* ) const; \
-	void dumpDetail(const struct Thing& ) const; \
-	void dumpDetail(const struct Thing* ) const;
+	void dump(const struct Thing* ) const;
 	OP_STRUCTS
 #undef OP_X
 #define OP_X(Thing) \

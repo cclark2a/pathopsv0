@@ -352,7 +352,7 @@ bool OpEdge::debugValidLoop() const {
 
 #include "OpJoiner.h"
 
-void OpContours::debugRemap(int oldRayMatch, int newRayMatch) {
+void OpContours::debugRemap(int oldRayMatch, int newRayMatch) const {
     for (auto& contour : contours) {
         for (auto& segment : contour.segments) {
             for (auto& edge : segment.edges) {
@@ -365,7 +365,7 @@ void OpContours::debugRemap(int oldRayMatch, int newRayMatch) {
 
 // assign the same ID for all edges linked together
 // also assign that ID to edges whose non-zero crossing rays attach to those edges
-void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContours* contours)) {
+void OpJoiner::debugMatchRay(OP_DEBUG_CODE(const OpContours* contours)) {
     OP_DEBUG_CODE(bool mayFail = OpDebugExpect::unknown == contours->debugExpect);
 	for (auto linkup : linkups.l) {
         OP_ASSERT(!linkup->priorEdge);
@@ -510,7 +510,7 @@ void OpJoiner::debugValidate() const {
     OpContours* contours = anEdge->contours();
     contours->debugValidateJoinerIndex += 1;
     contours->debugCheckLastEdge = false;
-    if (LinkPass::unambiguous == linkPass) {
+    if (LinkPass::remaining != linkPass) {
         for (auto e : byArea) {
             e->debugValidate();
             OP_ASSERT(!e->isActive() || !e->debugIsLoop());
@@ -532,7 +532,7 @@ void OpJoiner::debugValidate() const {
     for (auto e : linkups.l) {
         e->debugValidate();
         OP_ASSERT(!e->priorEdge);
-        OP_ASSERT(e->lastEdge);
+        OP_ASSERT(e->disabled || e->lastEdge);
         OP_ASSERT(!e->debugIsLoop());
     }
 }

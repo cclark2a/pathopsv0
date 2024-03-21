@@ -78,6 +78,7 @@ struct OpContours;
 #define OP_LINE_FILE_PARAMS(...)
 #define OP_LINE_FILE_CALLER(...)
 #define OP_LINE_FILE_DEF(...)
+#define OP_TRACK(vector)
 #define OP_WARNING(contours, str)
 
 #else
@@ -129,6 +130,9 @@ struct OpContours;
 #define OP_LINE_FILE_PARAMS(...) , __LINE__, std::string(__FILE__), __VA_ARGS__
 #define OP_LINE_FILE_CALLER(...) , lineNo, fileName, __VA_ARGS__
 #define OP_LINE_FILE_DEF(...) , int lineNo, std::string fileName, __VA_ARGS__
+
+// keep track of vector size to find reserve  !!! haven't decided whether or not to build this out
+#define OP_TRACK(v)
 
 // debug compare, debug dump, and debug image as written only work when testing uses a single thread
 #if !OP_DEBUG_FAST_TEST

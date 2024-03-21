@@ -111,8 +111,8 @@ bool OpPoint::isFinite() const {
         OP_ASSERT(!(yBits & 1));
     }
 #endif
-    return *this * 0 == OpPoint(0, 0);
-    // return OpMath::IsFinite(x) && OpMath::IsFinite(y);
+    // return *this * 0 == OpPoint(0, 0);  // does not work with MSVC and /fp:fast
+    return OpMath::IsFinite(x) && OpMath::IsFinite(y);
 }
 
 bool OpPoint::isNearly(OpPoint test) const {

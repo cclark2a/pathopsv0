@@ -4,10 +4,16 @@
 
 #include <string>
 
+#if OP_TINY_SKIA
+#include "TinySkia.h"
+#define SkString_DEFINED
+#define SkFloatBits_DEFINED
+#else
 #include "include/pathops/SkPathOps.h"
 #include "include/core/SkString.h"
 #include "src/pathops/SkPathOpsDebug.h"
 #include "src/pathops/SkPathOpsTypes.h"
+#endif
 #include "OpDebug.h"
 #include "PathOps.h"
 

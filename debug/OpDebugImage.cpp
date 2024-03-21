@@ -8,12 +8,16 @@
 
 #include <algorithm>
 #include <functional>
+#if OP_TINY_SKIA
+#include "TinySkia.h"
+#else
 #include "include/core/SkBitmap.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkFont.h"
 #include "include/core/SkImageInfo.h"
 #include "include/core/SkPath.h"
 #include "include/core/SkPaint.h"
+#endif
 #include "OpContour.h"
 #include "OpCurveCurve.h"
 #include "OpEdge.h"
@@ -1817,13 +1821,14 @@ bool OpDebugImage::drawWinding(const OpCurve& curve, std::string left, std::stri
 	return false;
 }
 
+// fails may not have overflowed; they may have not found a place to draw the winding
 bool OpDebugImage::drawEdgeWinding(const OpCurve& curve, const OpEdge* edge, uint32_t color) {
 	OpWinding sum = edge->sum;
 	std::string sumLeft = OpMax == sum.left() ? "?" : STR(sum.left());
 	std::string sumRight = OpMax == sum.right() ? "?" : STR(sum.right());
 	bool success = true;
 	if (!drawWinding(curve, sumLeft, sumRight, 1, color)) {
-		OpDebugOut("normalize overflowed: edge " + STR(edge->id) + "\n");
+//		OpDebugOut("normalize overflowed: edge " + STR(edge->id) + "\n");
 		success = false;
 	}
 	auto sumString = [](int w, int s) {
@@ -1832,7 +1837,7 @@ bool OpDebugImage::drawEdgeWinding(const OpCurve& curve, const OpEdge* edge, uin
 	std::string oppLeft = sumString(edge->winding.left(), sum.left());
 	std::string oppRight = sumString(edge->winding.right(), sum.right());
 	if (!drawWinding(curve, oppLeft, oppRight, -1, color)) {
-		OpDebugOut("normalize overflowed: edge " + STR(edge->id) + "\n");
+//		OpDebugOut("normalize overflowed: edge " + STR(edge->id) + "\n");
 		success = false;
 	}
 	return success;

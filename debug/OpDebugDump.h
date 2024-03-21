@@ -9,14 +9,14 @@
 #define DUMP_DECLARATIONS \
 std::string debugDump(DebugLevel , DebugBase ) const; \
 void dump() const; \
-void dumpHex() const; \
-void dumpDetail() const;
+void dump(DebugLevel, DebugBase ) const; \
+void dumpHex() const;
 
 #define DUMP_DECLARATIONS_OVERRIDE \
 std::string debugDump(DebugLevel , DebugBase ) const override; \
 void dump() const override; \
-void dumpHex() const override; \
-void dumpDetail() const override;
+void dump(DebugLevel, DebugBase ) const override; \
+void dumpHex() const override;
 
 // removed OP_X(ExtremaT) for now
 // removed OP_X(LoopCheck) for now
@@ -73,9 +73,7 @@ OP_X(OpSegment*)
 	extern void dmp(const std::vector<Thing>* ); \
 	extern void dmp(const std::vector<Thing>& ); \
 	extern void dmpHex(const std::vector<Thing>* ); \
-	extern void dmpHex(const std::vector<Thing>& ); \
-	extern void dmpDetail(const std::vector<Thing>* ); \
-	extern void dmpDetail(const std::vector<Thing>& );
+	extern void dmpHex(const std::vector<Thing>& );
 	VECTOR_STRUCTS
 	VECTOR_PTRS
 #undef OP_X
@@ -84,9 +82,7 @@ OP_X(OpSegment*)
 	extern void dmp(const struct Thing* ); \
 	extern void dmp(const struct Thing& ); \
 	extern void dmpHex(const struct Thing& ); \
-	extern void dmpHex(const struct Thing* ); \
-	extern void dmpDetail(const struct Thing* ); \
-	extern void dmpDetail(const struct Thing& );
+	extern void dmpHex(const struct Thing* );
 	VECTOR_STRUCTS
 	OP_STRUCTS
 #undef OP_X
@@ -107,14 +103,12 @@ OP_X(Segments)
 #define DEBUG_DUMP \
 OP_X(Detail) \
 OP_X(Edges) \
-OP_X(EdgesDetail) \
 OP_X(Full) \
-OP_X(FullDetail) \
 OP_X(Hex) \
 OP_X(ID) \
 OP_X(Intersections) \
-OP_X(IntersectionsDetail) \
 OP_X(Link) \
+OP_X(Points) \
 OP_X(Winding)
 
 #define DEBUG_DUMP_ID_DEFINITION(OWNER, ID) \
@@ -123,16 +117,12 @@ OP_X(Winding)
 	}
 
 #define DUMP_POINT \
-OP_X(Match) \
-OP_X(MatchDetail)
+OP_X(Match)
 
 #define DETAIL_POINTS \
 OP_X(Match, Intersection) \
-OP_X(MatchDetail, Intersection) \
 OP_X(Match, Point) \
-OP_X(MatchDetail, Point) \
-OP_X(Match, PtT) \
-OP_X(MatchDetail, PtT) 
+OP_X(Match, PtT)
 
 #define OP_X(Thing, Struct) \
 extern void dmp##Thing(const Op##Struct* ); \
@@ -146,7 +136,8 @@ OP_X(Start)
 
 #define EDGE_DETAIL \
 OP_X(Center) \
-OP_X(Link)
+OP_X(Link) \
+OP_X(Points)
 
 #define OP_X(Thing) \
 extern void dmp##Thing(int ID); \
@@ -158,7 +149,6 @@ EDGE_OR_SEGMENT_DETAIL
 
 #define SEGMENT_DETAIL \
 OP_X(Full) \
-OP_X(FullDetail) \
 OP_X(SegmentEdges) \
 OP_X(SegmentIntersections) \
 OP_X(SegmentSects) \
@@ -177,13 +167,11 @@ EDGE_OR_SEGMENT_DETAIL
 #ifdef OP_HAS_FMA
 #define DUMP_BY_DUMPID \
 OP_X(dmp, dump) \
-OP_X(dmpDetail, dumpDetail) \
 OP_X(dmpHex, dumpHex)
 #endif
 #ifdef OP_NO_FMA
 #define DUMP_BY_DUMPID \
 OP_X(dmpid, dump) \
-OP_X(dmpDetail, dumpDetail) \
 OP_X(dmpHex, dumpHex)
 #endif
 #define OP_X(Global, Method) \
@@ -192,7 +180,6 @@ DUMP_BY_DUMPID
 #undef OP_X
 
 #define DUMP_BY_ID \
-OP_X(Detail) \
 OP_X(Hex)
 
 extern void dmpActive();

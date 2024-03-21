@@ -697,8 +697,12 @@ void DebugOpCurve::subDivide(double a, double b, DebugOpCurve& dest) const {
 }
 
 #include "OpSegment.h"
+#if OP_TINY_SKIA
+#include "TinySkia.h"
+#else
 #include "include/core/SkPathTypes.h"
 #include "include/core/SkPath.h"
+#endif
 
 std::vector<DebugOpCurve> debugLines;
 std::vector<DebugOpCurve> debugSegments;
@@ -1214,7 +1218,7 @@ void DebugOpDraw(const OpOutPath* output, uint32_t color) {
 }
 
 void DebugOpDrawArrowHead() {
-    SkPath path;
+//    SkPath path;
 
 }
 
@@ -1232,7 +1236,7 @@ void DebugOpDrawSprites() {
         OpPoint pt = DebugOpMap(point);
         auto colorPathIter = std::find_if(colorPaths.begin(), colorPaths.end(),
                 [&point](ColorPath& path) { return path.color == point.color; });
-        SkPath path;
+ //       SkPath path;
         if (colorPaths.end() == colorPathIter) {
             colorPaths.emplace_back(point.color);
             colorPathIter = colorPaths.end() - 1;

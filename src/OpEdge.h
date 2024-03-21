@@ -670,7 +670,7 @@ public:
 	OpDebugMaker debugSetSum;
 	int debugOutPath;	// id to color output contours
 	int debugParentID;
-	int debugRayMatch;	// id that denotes edges in common output contour determined from ray
+	mutable int debugRayMatch;	// id: edges in common output contour determined from ray
 	bool debugFiller;  // edge created to span short gaps
 #endif
 #if OP_DEBUG_IMAGE

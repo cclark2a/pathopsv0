@@ -85,6 +85,8 @@ void OpLimb::foreach(OpJoiner& join, OpTree& tree, LimbType limbType) {
 	LimbType linkedLimb = LimbType::miswound <= limbType ? LimbType::miswound : LimbType::linked;
 	for (unsigned index = 0; index < linkupsSize; ++index) {
 		OpEdge* test = join.linkups.l[index];
+		if (test->disabled)
+			continue;
 		add(tree, test, EdgeMatch::start, linkedLimb, index);
 		add(tree, test->lastEdge, EdgeMatch::end, linkedLimb, index, test);
 	}
@@ -92,6 +94,8 @@ void OpLimb::foreach(OpJoiner& join, OpTree& tree, LimbType limbType) {
 		return;
 	for (const std::vector<OpEdge*>& edges : { join.unsectByArea, join.unsortables } ) {
 		for (OpEdge* test : edges) {
+			if (test->inLinkups)
+				continue;
 			add(tree, test, EdgeMatch::start, LimbType::unlinked);
 			add(tree, test, EdgeMatch::end, LimbType::unlinked);
 		}
@@ -238,6 +242,7 @@ bool OpTree::join(OpJoiner& join) {
 		bestL = lastLimb;
 		best = bestL->edge;
 	} while (bestL->parent);
+	OP_TRACK(linkupsErasures);
 	std::sort(linkupsErasures.begin(), linkupsErasures.end(), std::greater<int>());
 	for (size_t entry : linkupsErasures)
 		join.linkups.l.erase(join.linkups.l.begin() + entry);
@@ -305,6 +310,36 @@ OpJoiner::OpJoiner(OpContours& contours, OpOutPath& p)
 #if OP_DEBUG
 	contours.debugJoiner = this;
 #endif
+    OP_DEBUG_VALIDATE_CODE(debugValidate());
+}
+
+bool OpJoiner::setup() {
+    if (!byArea.size() && !unsectByArea.size())
+        return true;
+    sort();  // join up largest edges first
+    for (auto e : byArea) {
+        e->setActive(true);
+    }
+    for (auto unsectable : unsectByArea) {
+        unsectable->setActive(true);
+    }
+    // although unsortables are marked active, care must be taken since they may or may not
+    // be part of the output
+    for (auto unsortable : unsortables) {
+        unsortable->setActive(true);
+    }
+#if 01 && OP_DEBUG_IMAGE
+    ::clear();
+    ::hideSegmentEdges();
+    ::hideIntersections();
+    debugDraw();
+    ::add(unsortables);
+    ::showPoints();
+    ::showValues();
+    ::showTangents();
+    ::redraw();
+#endif
+	return false;
 }
 
 // look for active unsectable edges that match
@@ -343,7 +378,7 @@ void OpJoiner::addToLinkups(OpEdge* e) {
 	OpEdge* next = first;
 	OpEdge* last;
 	do {
-		if (LinkPass::unambiguous == linkPass) {
+		if (LinkPass::remaining != linkPass) {
 			OP_ASSERT(next->isActive());
 			next->clearActiveAndPals(ZeroReason::none);
 		}
@@ -764,8 +799,9 @@ bool OpJoiner::lastLastResort() {
 // the scale of the big things to see if the small remaining things can be ignored
 // first, figure out why the current test fails
 
-bool OpJoiner::linkRemaining() {
-	linkPass = LinkPass::unsectInX;
+bool OpJoiner::linkRemaining(OP_DEBUG_CODE(const OpContours* debugContours)) {
+    OP_DEBUG_CODE(debugMatchRay(debugContours));
+	linkPass = LinkPass::remaining;
 	// match links may add or remove from link ups. Iterate as long as link ups is not empty
 	for (auto e : linkups.l) {
 		e->setLinkBounds();
@@ -800,17 +836,21 @@ bool OpJoiner::linkRemaining() {
 	return true;
 }
 
-void OpJoiner::linkUnambiguous() {
+void OpJoiner::linkUnambiguous(LinkPass lp) {
+    OP_DEBUG_VALIDATE_CODE(debugValidate());
     // match up edges that have only a single possible prior or next link, and add them to new list
-    linkPass = LinkPass::unambiguous;
+    linkPass = lp;
 	OP_DEBUG_VALIDATE_CODE(debugValidate());
-    for (auto& e : byArea) {
+	std::vector<OpEdge*>& edges = LinkPass::normal == lp ? byArea : unsectByArea;
+    for (auto& e : edges) {
 		if (e->disabled)
             continue;   // likely marked as part of a loop below
         if (!e->isActive())  // check if already saved in linkups
             continue;
 		OP_ASSERT(!e->priorEdge);
 		OP_ASSERT(!e->nextEdge);
+		if (LinkPass::unsectable == lp)
+			e->setWhich(EdgeMatch::start);
 		linkMatch = EdgeMatch::start;
 		if (!linkUp(e))
 			continue;
@@ -819,25 +859,6 @@ void OpJoiner::linkUnambiguous() {
 		(void) linkUp(e->setLastEdge(nullptr));
 		OP_DEBUG_VALIDATE_CODE(debugValidate());
     }
-	if (byArea.size())	// !!! this is bogus; but wait until test that requires unsectables
-		return;         // shows up to manage this
-	// !!! copy loop verbatim ; trace to discover how unsectables should be treated differently
-	for (auto& e : unsectByArea) {
-		if (e->disabled)
-            continue;   // likely marked as part of a loop below
-        if (!e->isActive())  // check if already saved in linkups
-            continue;
-		OP_ASSERT(!e->priorEdge);
-		OP_ASSERT(!e->nextEdge);
-		e->setWhich(EdgeMatch::start);
-		linkMatch = EdgeMatch::start;
-		if (!linkUp(e))
-			continue;
-		OP_DEBUG_VALIDATE_CODE(debugValidate());
-		linkMatch = EdgeMatch::end;
-		(void) linkUp(e->setLastEdge(nullptr));
-		OP_DEBUG_VALIDATE_CODE(debugValidate());
-	}
 }
 
 /* relationship between prev/this/next and whichEnd: (start, end)

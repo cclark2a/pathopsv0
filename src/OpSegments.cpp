@@ -296,11 +296,11 @@ FoundIntersections OpSegments::findIntersections() {
                 // !!! eventually allow capturing more than 1, if curves hit twice
                 SoClose closest;
                 float best = OpInfinity;
-                auto buildClosest = [&best, &closest](OpSegment* s, std::vector<OpEdge*> edgeCurves, 
-                        OpSegment* o, std::vector<OpEdge*> oppCurves) {
-                    for (OpEdge* edge : edgeCurves) {
+                auto buildClosest = [&best, &closest](OpSegment* s, const std::vector<OpEdge*>& edgeCurves, 
+                        OpSegment* o, const std::vector<OpEdge*>& oppCurves) {
+                    for (const OpEdge* edge : edgeCurves) {
                         for (const OpPtT& ePtT : { edge->start, edge->end } ) {
-                            for (OpEdge* oppC : oppCurves) {
+                            for (const OpEdge* oppC : oppCurves) {
                                 auto checkDistSq = [&best, &closest, &ePtT](const OpPtT& oPtT) {
                                     float distSq = (ePtT.pt - oPtT.pt).lengthSquared();
                                     if (best > distSq) {

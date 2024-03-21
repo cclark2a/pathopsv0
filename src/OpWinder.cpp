@@ -88,6 +88,10 @@ bool SectRay::checkOrder(const OpEdge* home) const {
 			if (priorDist > &prior->ray.distances.front() && (priorDist - 1)->edge == last)
 				return false;
 		}
+		if (dist->cept == (dist + 1)->cept) {
+			OP_DEBUG_CODE(prior->contours()->debugFailOnEqualCepts = true);
+			return false;
+		}
 	}
 	return true;
 }
@@ -280,7 +284,8 @@ void OpWinder::AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped, OpPtT cPtT
 IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpPtT dPtT,
 	bool flipped, OpSegment* segment, OpSegment* oppSegment) {
 	// set range to contain intersections that match this segment and opposite segment
-	std::vector<OpIntersection*> range = segment->sects.range(oppSegment);
+	std::vector<OpIntersection*> range;
+	segment->sects.range(oppSegment, range);
 	// return existing intersection that matches segment coincident ends
 	auto findSect = [](const std::vector<OpIntersection*>& range, OpPtT ptT) {	// lambda
 		for (auto entry : range) {
@@ -360,7 +365,8 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 			addedSect2 = !!sect2;
 		}
 	}
-	std::vector<OpIntersection*> oRange = oppSegment->sects.range(segment);
+	std::vector<OpIntersection*> oRange;
+	oppSegment->sects.range(segment, oRange);
 	OpIntersection* oSect1 = findSect(oRange, { aPtT.pt, -1 });
 	OpIntersection* oSect2 = findSect(oRange, { bPtT.pt, -1 });
 	// add the opposite that goes with the created segment sect
@@ -465,13 +471,15 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 	// !!! hacky: consider conics only until we find lines/quads/cubics that fail here as well
 	// check the ends of each edge to see if they intersect the opposite edge (if missed earlier)
 	auto addPair = [eSegment, oSegment  OP_DEBUG_PARAMS(opp, edge)](OpPtT oppPtT, OpPtT edgePtT,
-			IntersectResult& added) {
+			IntersectResult& added  OP_LINE_FILE_DEF(int dummy)) {
 		if (!eSegment->sects.contains(edgePtT, oSegment)
 				&& !oSegment->sects.contains(oppPtT, eSegment)) {
+			OP_ASSERT(!OpMath::IsNaN(edgePtT.t));
 			OpIntersection* sect = eSegment->addEdgeSect(edgePtT  
-					OP_LINE_FILE_PARAMS(SectReason::lineCurve, &edge, &opp));
+					OP_LINE_FILE_CALLER(SectReason::lineCurve, &edge, &opp));
+			OP_ASSERT(!OpMath::IsNaN(oppPtT.t));
 			OpIntersection* oSect = oSegment->addEdgeSect(oppPtT  
-					OP_LINE_FILE_PARAMS(SectReason::lineCurve, &edge, &opp));
+					OP_LINE_FILE_CALLER(SectReason::lineCurve, &edge, &opp));
 			sect->pair(oSect);
 			added = IntersectResult::yes;
 		}
@@ -497,10 +505,10 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 		};
 		OpPtT oppStart = checkEnd(edge.start);
 		if (!OpMath::IsNaN(oppStart.t))
-			addPair(oppStart, edge.start, sectAdded);
+			addPair(oppStart, edge.start, sectAdded  OP_LINE_FILE_PARAMS(0));
 		OpPtT oppEnd = checkEnd(edge.end);
 		if (!OpMath::IsNaN(oppEnd.t))
-			addPair(oppEnd, edge.end, sectAdded);
+			addPair(oppEnd, edge.end, sectAdded  OP_LINE_FILE_PARAMS(0));
 		if (IntersectResult::yes == sectAdded)
 			return sectAdded;
 	}
@@ -519,9 +527,9 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 	for (unsigned index = 0; index < septs.count; ++index) {
 		if (opp.start.t > septs.get(index)) {
 			if (opp.start.pt.isNearly(edge.start.pt))
-				addPair(opp.start, OpPtT(opp.start.pt, edge.start.t), sectAdded);
+				addPair(opp.start, OpPtT(opp.start.pt, edge.start.t), sectAdded  OP_LINE_FILE_PARAMS(0));
 			else if (opp.start.pt.isNearly(edge.end.pt))
-				addPair(opp.start, OpPtT(opp.start.pt, edge.end.t), sectAdded);
+				addPair(opp.start, OpPtT(opp.start.pt, edge.end.t), sectAdded  OP_LINE_FILE_PARAMS(0));
 			else {
 		        OpCurve rotated = opp.segment->c.toVertical(edgePts);
 		        septs.roots[0] = rotated.tZeroX(opp.start.t, opp.end.t);
@@ -531,9 +539,9 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 		}
 		if (septs.get(index) > opp.end.t) {
 			if (opp.end.pt.isNearly(edge.start.pt))
-				addPair(opp.end, OpPtT(opp.end.pt, edge.start.t), sectAdded);
+				addPair(opp.end, OpPtT(opp.end.pt, edge.start.t), sectAdded  OP_LINE_FILE_PARAMS(0));
 			else if (opp.end.pt.isNearly(edge.end.pt))
-				addPair(opp.end, OpPtT(opp.end.pt, edge.end.t), sectAdded);
+				addPair(opp.end, OpPtT(opp.end.pt, edge.end.t), sectAdded  OP_LINE_FILE_PARAMS(0));
 			else {
 		        OpCurve rotated = opp.segment->c.toVertical(edgePts);
 		        septs.roots[0] = rotated.tZeroX(opp.start.t, opp.end.t);
@@ -543,6 +551,8 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 		}
 		tInRange = true;
 		OpPtT oppPtT { opp.segment->c.ptAtT(septs.get(index)), septs.get(index) };
+		if (OpMath::IsNaN(oppPtT.t))
+			continue;
 		float edgeT = edge.segment->findValidT(0, 1, oppPtT.pt);
 		if (!OpMath::Between(0, edgeT, 1))
 			continue;
@@ -559,7 +569,7 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 //      eSegment->ptBounds.pin(&oppPtT.pt);	// !!! doubtful this is needed with contains test above
 //		OP_ASSERT(debugPt == oppPtT.pt);	// rarely needed, but still triggered (e.g., joel_15x)
 		OpPtT edgePtT { oppPtT.pt, edgeT };
-		addPair(oppPtT, edgePtT, sectAdded);
+		addPair(oppPtT, edgePtT, sectAdded  OP_LINE_FILE_PARAMS(0));
 	}
 	if (!tInRange && opp.isLine_impl && !secondAttempt) {
 		OpDebugRecordStart(edge, opp);
@@ -585,8 +595,9 @@ FoundIntercept OpWinder::findRayIntercept(size_t homeIndex, OpVector homeTan, fl
 	//   if it failed because closest edge was too close, mark pair as unsectable
 	std::vector<EdgeDistance> touching;
 	do {
-		// !!! restructure this slightly to break out to try a different center when touching is pushed back,
-		// unless it's the last go round; then, find all ray intersections before marking it unsectable/unsortable
+		// !!! restructure this slightly to break out to try a different center when touching is
+		// pushed back, unless it's the last go round; then, find all ray intersections before
+		// marking it unsectable/unsortable
 		size_t touches = touching.size();
 		ray.distances.clear();
 		ray.distances.emplace_back(home, homeCept, ray.homeT, false);
@@ -600,13 +611,13 @@ FoundIntercept OpWinder::findRayIntercept(size_t homeIndex, OpVector homeTan, fl
 			findCept = ray.findIntercept(test);
 			if (FindCept::unsectable == findCept) {
 				EdgeDistance& tDist = ray.distances.back();
-				if (home->isLinear() && test->isLinear())
+				if (home->isLinear() && test->isLinear()) {
 					// !!! if home is long and test is short, may need to see if trying again
 					// with normal outside test gives sectable result. Wait for that test case
 					// to code
 					// !!! not sure how to assert for this
 					home->addPal(tDist);
-				else if (touches == touching.size())
+				} else if (touches == touching.size())
 					touching.push_back(ray.distances.back());
 			} else if (FindCept::retry == findCept)
 				goto tryADifferentCenter;
@@ -866,6 +877,41 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 			}
 		}
 	}
+
+	for (auto& contour : contours->contours) {
+		for (auto& segment : contour.segments) {
+			for (auto& edge : segment.edges) {
+					// copy pals if reciprocal, and points to other pals (thread_cubics2247347)
+				std::vector<EdgeDistance>& pals = edge.pals;
+				std::vector<EdgeDistance*> reciprocals;
+				for (EdgeDistance& pal : pals) {
+					bool foundReciprocal = false;
+					std::vector<EdgeDistance*> locals;
+					for (EdgeDistance& oPal : pal.edge->pals) {
+						if (oPal.edge == &edge) {
+							foundReciprocal = true;
+							continue;
+						}
+						if (pals.end() == std::find_if(pals.begin(), pals.end(), [&oPal]
+								(const EdgeDistance& test) {
+								return test.edge == oPal.edge;
+						})) {
+							if (reciprocals.end() == std::find_if(reciprocals.begin(),
+									reciprocals.end(), [&oPal](const EdgeDistance* test) {
+									return test->edge == oPal.edge; }))
+								locals.push_back(&oPal);
+						}
+					}
+					if (foundReciprocal)
+						reciprocals.insert(reciprocals.end(), locals.begin(), locals.end());
+				}
+				for (EdgeDistance* reciprocal : reciprocals) {
+					pals.push_back(*reciprocal);
+				}
+			}
+		}
+	}
+
 	// sort edges so that largest edges' winding sums are computed first
 	std::vector<OpEdge*> bySize;
 	for (auto& contour : contours->contours) {

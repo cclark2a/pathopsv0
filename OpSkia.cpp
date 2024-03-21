@@ -3,8 +3,12 @@
 #include "OpEdge.h"
 #include "PathOps.h"
 
+#if OP_TINY_SKIA
+#include "TinySkia.h"
+#else
 #include "include/core/SkPathTypes.h"
 #include "include/core/SkPath.h"
+#endif
 
 static SkPath* skPath(const void* extRef) {
     return (SkPath*) extRef;

@@ -42,10 +42,6 @@ DebugLevel defaultLevel = DebugLevel::normal;
 	void dmpHex(const std::vector<Thing>& things) { \
 		for (const auto& thing : things) \
 			dmpHex(thing); \
-	} \
-	void dmpDetail(const std::vector<Thing>& things) { \
-		for (const auto& thing : things) \
-			dmpDetail(thing); \
 	}
 	VECTOR_STRUCTS
 #undef OP_X
@@ -57,10 +53,6 @@ DebugLevel defaultLevel = DebugLevel::normal;
 	void dmpHex(const std::vector<Thing>& things) { \
 		for (const auto& thing : things) \
 			dmpHex(thing); \
-	} \
-	void dmpDetail(const std::vector<Thing>& things) { \
-		for (const auto& thing : things) \
-			dmpDetail(thing); \
 	}
 	VECTOR_PTRS
 #undef OP_X
@@ -70,9 +62,6 @@ DebugLevel defaultLevel = DebugLevel::normal;
     } \
 	void dmpHex(const std::vector<Thing>* things) { \
         dmpHex(*things); \
-    } \
-	void dmpDetail(const std::vector<Thing>* things) { \
-        dmpDetail(*things); \
     }
 	VECTOR_STRUCTS
 	VECTOR_PTRS
@@ -81,11 +70,11 @@ DebugLevel defaultLevel = DebugLevel::normal;
     void Thing::dump() const { \
         dmp(*this); \
     } \
+    void Thing::dump(DebugLevel dl, DebugBase db) const { \
+        OpDebugFormat(this->debugDump(dl, db)); \
+    } \
     void Thing::dumpHex() const { \
         dmpHex(*this); \
-    } \
-    void Thing::dumpDetail() const { \
-        dmpDetail(*this); \
     } \
     void dmp(const Thing* thing) { \
         dmp(*thing); \
@@ -93,17 +82,11 @@ DebugLevel defaultLevel = DebugLevel::normal;
     void dmpHex(const Thing* thing) { \
         dmpHex(*thing); \
     } \
-    void dmpDetail(const Thing* thing) { \
-        dmpDetail(*thing); \
-    } \
     void dmp(const Thing& thing) { \
         OpDebugFormat(thing.debugDump(defaultLevel, defaultBase)); \
     } \
     void dmpHex(const Thing& thing) { \
         OpDebugFormat(thing.debugDump(defaultLevel, DebugBase::hex)); \
-    } \
-    void dmpDetail(const Thing& thing) { \
-        OpDebugFormat(thing.debugDump(DebugLevel::detailed, defaultBase)); \
     }
     VECTOR_STRUCTS
     OP_STRUCTS
@@ -366,9 +349,9 @@ void dmpEdges() {
     std::string s;
     for (const auto& c : debugGlobalContours->contours) {
         for (const auto& seg : c.segments) {
-            s += seg.debugDump() + "\n";
+            s += seg.debugDump(defaultLevel, defaultBase) + "\n";
             for (const auto& edge : seg.edges) {
-                s += edge.debugDump() + "\n";
+                s += edge.debugDump(defaultLevel, defaultBase) + "\n";
             }
         }
     }
@@ -391,7 +374,7 @@ void dmpInOutput() {
         for (const auto& seg : c.segments) {
             for (const auto& edge : seg.edges) {
                 if (edge.inOutput)
-                    edge.dumpDetail();
+                    edge.dump(DebugLevel::detailed, defaultBase);
             }
         }
     }
@@ -402,7 +385,7 @@ void dmpIntersections() {
     std::string s;
     for (const auto& c : debugGlobalContours->contours) {
         for (const auto& seg : c.segments) {
-            s += "intersect " + seg.debugDump() + "\n";
+            s += "intersect " + seg.debugDump(defaultLevel, defaultBase) + "\n";
             for (const auto sect : seg.sects.i) {
                 s += "  " + sect->debugDump(DebugLevel::detailed, defaultBase) + "\n";
             }
@@ -417,7 +400,7 @@ void dmpJoin() {
         for (const auto& seg : c.segments) {
             for (const auto& edge : seg.edges) {
                 if (!edge.isActive() && edge.unsectableID && !edge.inOutput && !edge.inLinkups)
-                    edge.dumpDetail();
+                    edge.dump(DebugLevel::detailed, defaultBase);
             }
         }
     }
@@ -449,7 +432,7 @@ void dmpUnsectable() {
         for (const auto& seg : c.segments) {
             for (const auto& edge : seg.edges) {
                 if (edge.unsectableID)
-                    edge.dumpDetail();
+                    edge.dump(DebugLevel::detailed, defaultBase);
             }
         }
     }
@@ -460,7 +443,7 @@ void dmpUnsortable() {
         for (const auto& seg : c.segments) {
             for (const auto& edge : seg.edges) {
                 if (edge.unsortable)
-                    edge.dumpDetail();
+                    edge.dump(DebugLevel::detailed, defaultBase);
             }
         }
     }
@@ -581,7 +564,8 @@ void dmpMatch(const OpPoint& pt, bool detail) {
         for (const auto& seg : c.segments) {
             if (pt == seg.c.pts[0] || pt == seg.c.lastPt()) {
                 std::string str = "seg: " 
-                        + (detail ? seg.debugDump(DebugLevel::detailed, defaultBase) : seg.debugDump());
+                        + (detail ? seg.debugDump(DebugLevel::detailed, defaultBase) 
+                        : seg.debugDump(defaultLevel, defaultBase));
 #if OP_DEBUG
                 if (pt == seg.c.pts[0] && seg.debugStart != SectReason::startPt)
                     str += "; start is " + sectReasonName(seg.debugStart);
@@ -593,17 +577,17 @@ void dmpMatch(const OpPoint& pt, bool detail) {
             for (const auto sect : seg.sects.i) {
                 if (sect->ptT.pt == pt) {
                     OpDebugOut("sect: ");
-                    detail ? sect->dumpDetail() : sect->dump();
+                    detail ? sect->dump(DebugLevel::detailed, defaultBase) : sect->dump();
                 }
             }
             for (const auto& edge : seg.edges) {
                 if (edge.start.pt == pt) {
                     OpDebugOut("edge start: ");
-                    detail ? edge.dumpDetail() : edge.dump();
+                    detail ? edge.dump(DebugLevel::detailed, defaultBase) : edge.dump();
                 }
                 if (edge.end.pt == pt) {
                     OpDebugOut("edge end: ");
-                    detail ? edge.dumpDetail() : edge.dump();
+                    detail ? edge.dump(DebugLevel::detailed, defaultBase) : edge.dump();
                 }
             }
         }
@@ -616,18 +600,6 @@ void dmpMatch(const OpPoint& pt) {
 
 void dmpMatch(const OpPtT& ptT) {
     dmpMatch(ptT.pt, false);
-}
-
-void dmpMatchDetail(const OpPoint& pt) {
-    dmpMatch(pt, true);
-}
-
-void dmpMatchDetail(const OpPtT& ptT) {
-    dmpMatch(ptT.pt, true);
-}
-
-void dmpMatchDetail(const OpIntersection& i) {
-    dmpMatch(i.ptT.pt, true);
 }
 
 std::vector<const OpIntersection*> findCoincidence(int ID) {
@@ -822,11 +794,6 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 void dmp(std::vector<OpContour>& contours) {
     for (const auto& c : contours)
         c.dump();
-}
-
-void dmpDetail(std::vector<OpContour>& contours) {
-    for (const auto& c : contours)
-        c.dumpDetail();
 }
 
 ENUM_NAME_STRUCT(OpType);
@@ -1331,13 +1298,13 @@ void dmpT(int ID, float t) {
 
 void dmpT(const OpEdge* e, float t) {
     OpPoint pt = e->curve.ptAtT((t - e->start.t) / (e->end.t - e->start.t));
-    OpDebugOut(e->debugDump() + " t:" + STR(t) + " pt:" 
+    OpDebugOut(e->debugDump(defaultLevel, defaultBase) + " t:" + STR(t) + " pt:" 
             + pt.debugDump(defaultLevel, defaultBase) + "\n");
 }
 
 void dmpT(const OpSegment* s, float t) {
     OpPoint pt = s->c.ptAtT(t);
-    OpDebugOut(s->debugDump() + " t:" + STR(t) + " pt:" 
+    OpDebugOut(s->debugDump(defaultLevel, defaultBase) + " t:" + STR(t) + " pt:" 
             + pt.debugDump(defaultLevel, defaultBase) + "\n");
 }
 
@@ -1623,52 +1590,6 @@ void OpEdge::debugCompare(std::string s) const {
     OP_ASSERT(end == test.end);
 }
 
-std::string OpEdge::debugDump() const {
-    std::string s;
-    if (priorEdge || nextEdge || lastEdge) {
-        s += "p/n";
-        if (lastEdge)
-            s +=  "/l";
-        s += ":" + (priorEdge ? STR(priorEdge->id) : "-");
-        s += "/" + (nextEdge ? STR(nextEdge->id) : "-");
-        if (lastEdge)
-            s += "/" + STR(lastEdge->id);
-        s += " ";
-    }
-    s += "[" + STR(id) + "] ";
-    s += "{" + start.debugDump(defaultLevel, defaultBase) + ", ";
-    s += end.debugDump(defaultLevel, defaultBase) + "} ";
-#if 0   // show bounds in detail view only
-    if (ptBounds.isSet())
-        s += "    pb:" + ptBounds.debugDump() + " ";
-    if (linkBounds.isSet())
-        s += "    lb:" + linkBounds.debugDump() + " ";
-#endif
-    auto windStr = [](std::string label, OpWinding w) {
-        if (OpMax == w.left() && OpMax == w.right())
-            return std::string("");
-        std::string result = " " + label;
-        result += (OpMax == w.left() ? "--" : STR(w.left()));
-        result += "/" + (OpMax == w.right() ? "--" : STR(w.right()));
-        return result + " ";
-    };
-    s += windStr("wind:", winding);
-    s += windStr("sum:", sum);
-    if (EdgeMatch::none != which())
-        s += "which:" +edgeMatchName(which()) + " ";
-    if (EdgeFail::none != rayFail)
-        s += "rayFail:" + edgeFailName(rayFail) + " ";
-    if (EdgeSplit::no != doSplit)
-        s += "doSplit:" + edgeSplitName(doSplit) + " ";
-    if (isLine_impl) s += "isLine ";
-    if (disabled) s += OP_DEBUG_CODE(debugFiller ? "filler " : ) "disabled ";
-    if (unsectableID) s += "uID:" + STR(unsectableID) + " ";
-    if (unsortable) s += "unsortable ";
-    if (debugRayMatch) s += "debugRayMatch:" + STR(debugRayMatch) + " ";
-    s += "seg:" + STR(segment->id);
-    return s;
-}
-
 // keep this in sync with op edge : is loop
 std::string OpEdge::debugDumpLink(EdgeMatch which, DebugLevel l, DebugBase b) const {
     const OpEdge* looped = debugIsLoop(which, LeadingLoop::in);
@@ -1710,16 +1631,8 @@ void dmpFull(const OpEdge& edge) {
     edge.segment->dumpFull(); 
 }
 
-void dmpFullDetail(const OpEdge& edge) { 
-    edge.segment->dumpFullDetail(); 
-}
-
 void dmpFull(const OpEdge* edge) { 
     edge->segment->dumpFull(); 
-}
-
-void dmpFullDetail(const OpEdge* edge) { 
-    edge->segment->dumpFullDetail(); 
 }
 
 void dmpCenter(const OpEdge& edge) {
@@ -1754,6 +1667,23 @@ std::string OpEdge::debugDumpCenter(DebugLevel l, DebugBase b) const {
     }
     s += "bestX:" + bestX.debugDump(l, b);
     s += " bestY:" + bestY.debugDump(l, b);
+    return s;
+}
+
+std::string OpEdge::debugDumpPoints() const {
+    std::string s = "[" + STR(id) + "]";
+    s += " start:" + start.debugDump(defaultLevel, defaultBase);
+    s += " end:" + end.debugDump(defaultLevel, defaultBase);
+    s += " curve:" + curve.debugDump(defaultLevel, defaultBase);
+    s += " which:" + edgeMatchName(which());
+    const OpEdge* startE = debugAdvanceToEnd(EdgeMatch::start);
+    if (startE != this)
+        s += " start[" + STR(startE->id) + "] " + startE->whichPtT()
+                .debugDump(defaultLevel, defaultBase);
+    const OpEdge* endE = debugAdvanceToEnd(EdgeMatch::end);
+    if (endE != this)
+        s += " end[" + STR(endE->id) + "] " + endE->whichPtT(!endE->which())
+                .debugDump(defaultLevel, defaultBase);
     return s;
 }
 
@@ -1926,6 +1856,11 @@ void dmpLink(const OpEdge& edge) {
        OpDebugOut("next" + s + "\n");
 }
 
+void dmpPoints(const OpEdge& edge) {
+    std::string s = edge.debugDumpPoints();
+    OpDebugFormat(s);
+}
+
 void OpEdge::dumpLink() const {
     dmpLink(*this);
 }
@@ -2000,8 +1935,9 @@ ENUM_NAME_STRUCT(LinkPass);
 
 LinkPassName linkPassNames[] = {
     LINKPASS_NAME(none),
-	LINKPASS_NAME(unambiguous),
-	LINKPASS_NAME(unsectInX)
+	LINKPASS_NAME(normal),
+	LINKPASS_NAME(unsectable),
+	LINKPASS_NAME(remaining),
 };
 
 ENUM_NAME(LinkPass, linkPass)
@@ -2074,8 +2010,13 @@ std::string OpLimb::debugDumpIDs(bool bracket) const {
         if (edge->lastEdge && edge != edge->lastEdge)
             s += ".." + STR(edge->lastEdge->id);
         else if (edge->priorEdge) {
-            const OpEdge* firstEdge = edge->debugAdvanceToEnd(EdgeMatch::start);
-            s += ".." + STR(firstEdge->id);
+            const OpEdge* firstEdge = edge;
+            if (!edge->debugIsLoop()) {
+                firstEdge = edge->debugAdvanceToEnd(EdgeMatch::start);
+                s += ".." + STR(firstEdge->id);
+            } else {
+                s += " (loop)";
+            }
         }
         if (bracket)
             s += "]";
@@ -2457,10 +2398,6 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
     return s;
 }
 
-std::string OpIntersection::debugDump() const {
-    return debugDump(defaultLevel, defaultBase);
-}
-
 std::string OpIntersection::debugDumpHex() const {
     std::string s;
     s = "/* sect:" + debugDumpID() + " */ OpPtT data[] {\n";
@@ -2508,11 +2445,6 @@ std::string OpIntersections::debugDump(DebugLevel l, DebugBase b) const {
     return s;
 }
 
-std::string OpSegment::debugDump() const {
-    std::string s = debugDump(defaultLevel, defaultBase);
-    return s;
-}
-
 std::string OpSegment::debugDump(DebugLevel l, DebugBase b) const {
     if (DebugLevel::detailed == l) {
         std::string s = debugDump(DebugLevel::normal, b) + "\n";
@@ -2540,33 +2472,17 @@ std::string OpSegment::debugDump(DebugLevel l, DebugBase b) const {
 std::string OpSegment::debugDumpEdges() const {
     std::string s;
     for (auto& e : edges)
-        s += e.debugDump() + "\n";
-    if (s.size())
-        s.pop_back();
-    return s;
-}
-
-std::string OpSegment::debugDumpEdgesDetail() const {
-    std::string s;
-    for (auto& e : edges)
-        s += e.debugDump(DebugLevel::detailed, defaultBase) + "\n";
+        s += e.debugDump(defaultLevel, defaultBase) + "\n";
     if (s.size())
         s.pop_back();
     return s;
 }
 
 std::string OpSegment::debugDumpFull() const {
-    std::string s = debugDump() + "\n";
+    std::string s = debugDump(defaultLevel, defaultBase) + "\n";
     s += debugDumpIntersections();
     s += "edges:\n";
     s += debugDumpEdges();
-    return s;
-}
-
-std::string OpSegment::debugDumpFullDetail() const {
-    std::string s = debugDump(DebugLevel::detailed, defaultBase) + "\n";
-    s += debugDumpIntersectionsDetail();
-    s += debugDumpEdgesDetail();
     return s;
 }
 
@@ -2593,15 +2509,6 @@ std::string OpSegment::debugDumpIntersections() const {
     return s;
 }
 
-std::string OpSegment::debugDumpIntersectionsDetail() const {
-    std::string s;
-    for (auto i : sects.i) {
-        s += i->debugDump(DebugLevel::detailed, defaultBase) + "\n";
-        // if desired, do any additional string editing here (e.g., remove "segment:" )
-    }
-    return s;
-}
-
 void dmpCount(const OpSegment& seg) {
     OpDebugOut("seg:" + seg.debugDumpID() + " edges:" + STR(seg.edges.size())
             + " intersections:" + STR(seg.sects.i.size()) + "\n");
@@ -2613,10 +2520,6 @@ void dmpEnd(const OpSegment& seg) {
 
 void dmpFull(const OpSegment& seg) {
     OpDebugOut(seg.debugDumpFull() + "\n"); 
-}
-
-void dmpFullDetail(const OpSegment& seg) {
-    OpDebugOut(seg.debugDumpFullDetail() + "\n"); 
 }
 
 void dmpSegmentEdges(const OpSegment& seg) {
@@ -2706,7 +2609,10 @@ std::string LinkUps::debugDump(DebugLevel li, DebugBase b) const {
                 firstLoop = true;
             }
         }
-        OP_ASSERT(!looped || count == priorCount);
+        if (looped && count != priorCount)
+            OpDebugOut("!!! linkup " + STR(linkupIndex) + " [" + STR(linkup->id) + "]"
+                    " with unexpected tail: count " + STR(count) 
+                    + "!= priorCount " + STR(priorCount) + "\n");
         if (looped)
             priorCount = 0;
         if (s.size() && s.back() != '\n')
@@ -2915,14 +2821,6 @@ void dmpFull(const OpSegments& segs) {
     std::string s = "";
     for (const auto seg : segs.inX) {
         s += seg->debugDumpFull() + "\n";
-    }
-    OpDebugOut(s);
-}
-
-void dmpFullDetail(const OpSegments& segs) {
-    std::string s = "";
-    for (const auto seg : segs.inX) {
-        s += seg->debugDumpFullDetail() + "\n";
     }
     OpDebugOut(s);
 }
