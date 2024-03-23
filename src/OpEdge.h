@@ -157,7 +157,7 @@ public:
 	{
 	}
 
-	bool operator==(OpWinding w) {
+	bool operator==(OpWinding w) const {
 		return left_impl == w.left_impl && right_impl == w.right_impl;
 	}
 

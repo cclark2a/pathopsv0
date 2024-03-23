@@ -429,6 +429,21 @@ void OpContours::reuse(OpEdgeStorage* edgeStorage) {
     }
 }
 
+void OpContours::sortIntersections() {
+    bool doItAgain;
+    OP_DEBUG_CODE(int safetyValue = 10);  // !!! no idea what this should be
+    do {
+        doItAgain = false;
+        for (auto& contour : contours) {
+            for (auto& segment : contour.segments) {
+                doItAgain |= segment.sects.sort();
+            }
+        }
+        OP_ASSERT(--safetyValue);
+    } while (doItAgain);
+}
+
+
 #if OP_DEBUG
 void OpContour::debugComplete() {
     id = nextID();

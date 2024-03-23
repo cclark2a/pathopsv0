@@ -133,7 +133,7 @@ void OpIntersections::range(const OpSegment* opp, std::vector<OpIntersection*>& 
     }
 }
 
-void OpIntersections::sort() {
+bool OpIntersections::sort() {
     if (!resort) {
 #if OP_DEBUG
         if (i.size()) {
@@ -144,7 +144,7 @@ void OpIntersections::sort() {
             }
         }
 #endif
-        return;
+        return false;
     }
     // intersections may have multiple different t values with the same pt value
     // fix if detected here
@@ -165,32 +165,71 @@ void OpIntersections::sort() {
             return id1 < id2;
         });
     if (!fixTs) {
-        resort = false;
-        return;
-    }
-    // should be rare; do an exhaustive search for duplicates
-    for (unsigned outer = 1; outer < i.size(); ++outer) {
-        OpIntersection* oSect = i[outer - 1];
-        for (unsigned inner = outer; inner < i.size(); ++inner) {
-            OpIntersection* iSect = i[inner];
-            if (oSect->ptT.pt != iSect->ptT.pt)
-                continue;
-            if (oSect->ptT.t == iSect->ptT.t)
-                continue;
-            // At this point (probably because of curve/curve intersection)
-            //  there are two or more intersections with the same point and different
-            //  t values. The choice of which t value to use is entirely arbitrary.
-            // Changing the t value may require resorting.
-            OP_ASSERT(0 != oSect->ptT.t || 1 != iSect->ptT.t);
-            if (0 == oSect->ptT.t)
-                iSect->ptT.t = 0;
-            else if (1 == iSect->ptT.t)
-                oSect->ptT.t = 1;
-            else
-                oSect->ptT.t = iSect->ptT.t;
+        OpPtT last = i[0]->ptT;
+        bool needsSorting = false;
+        for (unsigned index = 1; index < i.size(); ++index) {
+            OpPtT& next = i[index]->ptT;
+            if ((last.pt == next.pt) != (last.t == next.t)) {
+                needsSorting = true;
+                break;
+            }
+            last = next;
+        }
+        if (!needsSorting) {
+            resort = false;
+            return false;
         }
     }
-    sort();
+    // should be rare; do an exhaustive search for duplicates
+    bool localSort = false;
+    bool resortOthers = false;
+    for (unsigned outer = 1; outer < i.size(); ++outer) {
+        OpIntersection* oSect = i[outer - 1];
+        unsigned inner = outer;
+        do {
+            OpIntersection* iSect = i[inner];
+            if (!iSect->ptT.isNearly(oSect->ptT))
+                break;
+        } while (++inner < i.size());
+        if (outer == inner)
+            continue;
+        localSort = true;
+        unsigned limit = inner;
+        // two or more intersections have similar points or t values. Choose one; prefer an end.
+        OpIntersection* preferredCandidate = oSect;
+        OpPtT bestPtT = oSect->ptT;
+        if (!bestPtT.onEnd() && !oSect->opp->ptT.onEnd()) {
+            for (inner = outer; inner < limit; ++inner) {
+                OpIntersection* iSect = i[inner];
+                if (iSect->ptT.onEnd() || iSect->opp->ptT.onEnd() || 
+                        (!preferredCandidate->preferred && iSect->preferred)) {
+                    preferredCandidate = iSect;
+                    bestPtT = iSect->ptT;
+                    break;
+                }
+            }
+        }
+        // change the ptt values of this set of intersections, the pts of the opposite and re-sort.
+        for (unsigned index = outer - 1; index < limit; ++index) {
+            OpIntersection* sect = i[index];
+            sect->ptT = bestPtT;
+            sect->preferred = true;
+            if (sect->opp->ptT.pt == bestPtT.pt)
+                continue;
+            if (sect->opp->ptT.onEnd())  // !!! experiment: can we leave well enough alone?
+                continue;
+            sect->opp->ptT.pt = bestPtT.pt;
+            sect->opp->preferred = true;
+            if (sect->opp->segment->sects.resort)
+                continue;
+            sect->opp->segment->sects.resort = true;
+            resortOthers = true;
+        }
+        outer = limit;
+    }
+    if (localSort)
+        (void) sort();
+    return resortOthers;
 }
 
 void OpIntersections::windCoincidences(std::vector<OpEdge>& edges  
@@ -238,7 +277,10 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
         coinPair.oStart->coincidenceProcessed = true;
         coinPair.oEnd->coincidenceProcessed = true;
         EdgeMatch match = coinPair.id > 0 ? EdgeMatch::start : EdgeMatch::end;
-        OP_ASSERT(coinPair.oppEdge->ptT(match).pt == coinPair.start->ptT.pt);
+        // !!! experiment: thread_loops44793 has 2 segments with nearly identical but not equal pts
+        // either: make the points the same
+        // or: see if we can survive if compares are approximate (try the latter first)
+        OP_ASSERT(coinPair.oppEdge->ptT(match).pt.isNearly(coinPair.start->ptT.pt));
         OP_ASSERT(coinPair.edge->start == coinPair.start->ptT);
         // In rare cases (e.g. issue1435) coincidence points may not match; one seg has extra.
         // Defer thinking about this if the winding is uniform. Assert to fix this in the future.
@@ -253,7 +295,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
                 // search intersection list for entry pointing to opp edge at edge end
                 OP_DEBUG_CODE(auto& oI = oppEdge->segment->sects.i);
                 OP_ASSERT(oI.end() != std::find_if(oI.begin(), oI.end(), 
-                        [&edge](auto sect) { return sect->ptT.pt == edge->end.pt; }));
+                        [&edge](auto sect) { return sect->ptT.pt.isNearly(edge->end.pt); }));
             }
         }
         OP_ASSERT(edgeBack->end == coinPair.end->ptT);
@@ -266,7 +308,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
                 // search opp intersection list for entry pointing to edge at opp edge end
                 OP_DEBUG_CODE(OpEdge* oEdge = coinPair.id > 0 ? oppEdge : oppBack);
                 OP_ASSERT(i.end() != std::find_if(i.begin(), i.end(), 
-                        [&oEdge](auto sect) { return sect->ptT.pt == oEdge->end.pt; }));
+                        [&oEdge](auto sect) { return sect->ptT.pt.isNearly(oEdge->end.pt); }));
             }
         }
         OpContours* contours = edge->contours();
@@ -276,8 +318,8 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
         for (;;) {
             OP_DEBUG_CODE(OpWinding edgeWinding = edge->winding);
             OP_DEBUG_CODE(OpWinding oppWinding = oppEdge->winding);
-            OP_ASSERT(edge->start.pt 
-                    == oppEdge->ptT(coinPair.id > 0 ? EdgeMatch::start : EdgeMatch::end).pt);
+            OP_ASSERT(edge->start.pt.isNearly( 
+                    oppEdge->ptT(coinPair.id > 0 ? EdgeMatch::start : EdgeMatch::end).pt));
             edge->winding.move(oppEdge->winding, contours, coinPair.id < 0);
             OpWinding combinedWinding = edge->winding;
             if (!combinedWinding.visible())
@@ -289,6 +331,8 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
                 OpPoint oppEnd = oppEdge->ptT(coinPair.id > 0 
                         ? EdgeMatch::end : EdgeMatch::start).pt;
                 if (edge->end.pt == oppEnd)
+                    break;
+                if (edge->end.pt.isNearly(oppEnd) && ((edge == edgeBack) == (oppEdge == oppBack)))
                     break;
                 bool oppInEdge = edge->ptBounds.contains(oppEnd);
                 OP_DEBUG_CODE(bool edgeInOpp = oppEdge->ptBounds.contains(edge->end.pt));

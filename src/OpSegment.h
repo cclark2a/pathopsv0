@@ -56,9 +56,14 @@ struct FoundEdge {
 
 #if CC_EXPERIMENT
 struct SoClose {
+	bool operator==(SoClose sc) const {
+		return seg == sc.seg && oppSeg == sc.oppSeg && close == sc.close && oppPtT == sc.oppPtT;
+	}
+
+    OpSegment* seg;
+    OpSegment* oppSeg;
     OpPtT close;
     OpPtT oppPtT;
-    OpSegment* oppSeg;
 
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS

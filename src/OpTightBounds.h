@@ -31,6 +31,7 @@ enum class SectReason {
 	sharedEdge,
 	sharedEnd,
     sharedStart,
+    soClose,
 	startPt,
     unsectableOppEnd,
     unsectableOppStart,

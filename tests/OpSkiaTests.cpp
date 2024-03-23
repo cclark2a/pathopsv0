@@ -10,575 +10,62 @@
 #include "OpContour.h"
 #include "OpCurve.h"
 #if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
+#if OP_BULK_THREADS
+#include <mutex>
+#include <thread>
+#else
 #include "CTPL_old/ctpl_stl.h"
+#endif
 #endif
 #include <atomic>
 #include <vector>
 
-struct testPair {
+struct testInfo {
     void (*func)();
     std::string name;
+    int count;  // approximate number is ok; used for thread partitioning
+    int extended; 
 };
 
-std::vector<testPair> testPairs = {
+std::vector<testInfo> testSuites = {
     // !!! start out slow
 #if !OP_TINY_SKIA
-    { run_battle_tests, "battle" },
-    { run_chalkboard_tests, "chalkboard" },
-    { run_fuzz763_tests, "fuzz763" },
-    { run_inverse_tests, "inverse" },
-    { run_issue3651_tests, "issue3651" },
-    { run_op_tests, "op" },
-    { run_op_circle_tests, "circle" },
+    { run_v0_tests, "v0", 14, 14 },
+    { run_op_tests, "op", 451, 451 },
+    { run_battle_tests, "battle", 381, 381 },
+    { run_chalkboard_tests, "chalkboard", 6231, 594037 },
+    { run_fuzz763_tests, "fuzz763", 30, 30 },
+    { run_inverse_tests, "inverse", 320, 320 },
+    { run_issue3651_tests, "issue3651", 8, 8 },
+    { run_op_circle_tests, "circle", 84672, 1778112 },
 #endif
-    { run_op_cubic_tests, "cubic" },
+    { run_op_cubic_tests, "cubic", 148176, 2247347 },
 #if !OP_TINY_SKIA
-    { run_op_loop_tests, "loop" },
-    { run_op_rect_tests, "rect" },
-    { run_simplify_tests, "simplify" },
-    { run_simplify_degenerate_tests, "simplifyDegenerate" },
-    { run_simplify_fail_tests, "simplifyFail" },
-    { run_simplify_quadralaterals_tests, "simplifyQuadralaterals" },
-    { run_simplify_quads_tests, "simplifyQuads" },
-    { run_simplify_rect_tests, "simplifyRect" },
-    { run_simplify_triangles_tests, "simplifyTriangles" },
-    { run_tiger_tests, "tiger" },
+    { run_op_loop_tests, "loop", 9261, 194481 },
+    { run_op_rect_tests, "rect", 157392, 3194640 },
+    { run_simplify_tests, "simplify", 465, 465 },
+    { run_simplify_degenerate_tests, "simplifyDegenerate", 47872, 2345984 },
+    { run_simplify_fail_tests, "simplifyFail", 7, 7 },
+    { run_simplify_quadralaterals_tests, "simplifyQuadralaterals", 124032, 30046752 },
+    { run_simplify_quads_tests, "simplifyQuads", 124032, 30046752 },
+    { run_simplify_rect_tests, "simplifyRect", 152, 1280660 },
+    { run_simplify_triangles_tests, "simplifyTriangles", 24768, 2130048 },
+    { run_tiger_tests, "tiger", 7005, 700005 },
 #endif
-    { run_v0_tests, "v0" },
-};
-
-// particulars that failed on 11/10/2023
-std::vector<std::string> circleFails = {
-"thread_circles315825",
-"thread_circles315826",
-"thread_circles315827",
-"thread_circles315829",
-"thread_circles315830",
-"thread_circles315831",
-"thread_circles315833",
-"thread_circles315834",
-"thread_circles315835",
-"thread_circles315837",
-"thread_circles315838",
-"thread_circles315839",
-"thread_circles392738",
-"thread_circles392742",
-"thread_circles392746",
-"thread_circles392750",
-"thread_circles392754",
-"thread_circles392758",
-"thread_circles392762",
-"thread_circles392766",
-"thread_circles401474",
-"thread_circles401475",
-"thread_circles401478",
-"thread_circles401479",
-"thread_circles401482",
-"thread_circles401483",
-"thread_circles401486",
-"thread_circles401487",
-"thread_circles401490",
-"thread_circles401491",
-"thread_circles401494",
-"thread_circles401495",
-"thread_circles401498",
-"thread_circles401499",
-"thread_circles401502",
-"thread_circles401503",
-"thread_circles414609",
-"thread_circles414610",
-"thread_circles414611",
-"thread_circles414613",
-"thread_circles414614",
-"thread_circles414615",
-"thread_circles414617",
-"thread_circles414618",
-"thread_circles414619",
-"thread_circles414621",
-"thread_circles414622",
-"thread_circles414623",
-"thread_circles1066753",
-"thread_circles1066754",
-"thread_circles1066755",
-"thread_circles1066757",
-"thread_circles1066758",
-"thread_circles1066759",
-"thread_circles1066761",
-"thread_circles1066762",
-"thread_circles1066763",
-"thread_circles1066765",
-"thread_circles1066766",
-"thread_circles1066767",
-"thread_circles1066769",
-"thread_circles1066770",
-"thread_circles1066771",
-"thread_circles1066773",
-"thread_circles1066774",
-"thread_circles1066775",
-"thread_circles1066777",
-"thread_circles1066778",
-"thread_circles1066779",
-"thread_circles1066781",
-"thread_circles1066782",
-"thread_circles1066783",
-"thread_circles1162849",
-"thread_circles1162850",
-"thread_circles1162851",
-"thread_circles1162853",
-"thread_circles1162854",
-"thread_circles1162855",
-"thread_circles1162857",
-"thread_circles1162858",
-"thread_circles1162859",
-"thread_circles1162861",
-"thread_circles1162862",
-"thread_circles1162863",
-"thread_circles1162865",
-"thread_circles1162866",
-"thread_circles1162867",
-"thread_circles1162869",
-"thread_circles1162870",
-"thread_circles1162871",
-"thread_circles1162873",
-"thread_circles1162874",
-"thread_circles1162875",
-"thread_circles1162877",
-"thread_circles1162878",
-"thread_circles1162879",
-"thread_circles1333682",
-"thread_circles1333686",
-"thread_circles1333690",
-"thread_circles1333694",
-"thread_circles1333698",
-"thread_circles1333702",
-"thread_circles1333706",
-"thread_circles1333710",
-"thread_circles1333714",
-"thread_circles1333718",
-"thread_circles1333722",
-"thread_circles1333726",
-"thread_circles1333730",
-"thread_circles1333734",
-"thread_circles1333738",
-"thread_circles1333742",
-"thread_circles1333746",
-"thread_circles1333750",
-"thread_circles1333754",
-"thread_circles1333758",
-"thread_circles1341937",
-"thread_circles1341938",
-"thread_circles1341939",
-"thread_circles1341941",
-"thread_circles1341942",
-"thread_circles1341943",
-"thread_circles1341945",
-"thread_circles1341946",
-"thread_circles1341947",
-"thread_circles1341949",
-"thread_circles1341950",
-"thread_circles1341951",
-"thread_circles1341953",
-"thread_circles1341954",
-"thread_circles1341955",
-"thread_circles1341957",
-"thread_circles1341958",
-"thread_circles1341959",
-"thread_circles1341961",
-"thread_circles1341962",
-"thread_circles1341963",
-"thread_circles1341965",
-"thread_circles1341966",
-"thread_circles1341967",
-"thread_circles1342305",
-"thread_circles1342306",
-"thread_circles1342307",
-"thread_circles1342309",
-"thread_circles1342310",
-"thread_circles1342311",
-"thread_circles1342313",
-"thread_circles1342314",
-"thread_circles1342315",
-"thread_circles1342317",
-"thread_circles1342318",
-"thread_circles1342319",
-"thread_circles1415857",
-"thread_circles1415858",
-"thread_circles1415859",
-"thread_circles1415861",
-"thread_circles1415862",
-"thread_circles1415863",
-"thread_circles1415865",
-"thread_circles1415866",
-"thread_circles1415867",
-"thread_circles1415869",
-"thread_circles1415870",
-"thread_circles1415871",
-"thread_circles1415873",
-"thread_circles1415874",
-"thread_circles1415875",
-"thread_circles1415877",
-"thread_circles1415878",
-"thread_circles1415879",
-"thread_circles1415881",
-"thread_circles1415882",
-"thread_circles1415883",
-"thread_circles1415885",
-"thread_circles1415886",
-"thread_circles1415887",
-"thread_circles1582178",
-"thread_circles1582179",
-"thread_circles1582181",
-"thread_circles1582182",
-"thread_circles1582183",
-"thread_circles1582186",
-"thread_circles1582187",
-"thread_circles1582189",
-"thread_circles1582190",
-"thread_circles1582191",
-"thread_circles1582194",
-"thread_circles1582195",
-"thread_circles1582197",
-"thread_circles1582198",
-"thread_circles1582199",
-"thread_circles1582202",
-"thread_circles1582203",
-"thread_circles1582205",
-"thread_circles1582206",
-"thread_circles1582207",
-
-};
-
-
-std::vector<std::string> cubicFails = {
-"thread_cubics157377",
-"thread_cubics157378",
-"thread_cubics157379",
-"thread_cubics157381",
-"thread_cubics157382",
-"thread_cubics157383",
-"thread_cubics157385",
-"thread_cubics157386",
-"thread_cubics157387",
-"thread_cubics157389",
-"thread_cubics157390",
-"thread_cubics157391",
-"thread_cubics184163",
-"thread_cubics184167",
-"thread_cubics184171",
-"thread_cubics184175",
-"thread_cubics184226",
-"thread_cubics184230",
-"thread_cubics184234",
-"thread_cubics184238",
-"thread_cubics228708",
-"thread_cubics228712",
-"thread_cubics228716",
-"thread_cubics228720",
-"thread_cubics298449",
-"thread_cubics298450",
-"thread_cubics298451",
-"thread_cubics298453",
-"thread_cubics298454",
-"thread_cubics298455",
-"thread_cubics298457",
-"thread_cubics298458",
-"thread_cubics298459",
-"thread_cubics298461",
-"thread_cubics298462",
-"thread_cubics298463",
-"thread_cubics303843",
-"thread_cubics303847",
-"thread_cubics303851",
-"thread_cubics303855",
-"thread_cubics332066",
-"thread_cubics332070",
-"thread_cubics332074",
-"thread_cubics332078",
-"thread_cubics354770",
-"thread_cubics354774",
-"thread_cubics354778",
-"thread_cubics354782",
-"thread_cubics482612",
-"thread_cubics482616",
-"thread_cubics482620",
-"thread_cubics482624",
-"thread_cubics488945",
-"thread_cubics488946",
-"thread_cubics488947",
-"thread_cubics488949",
-"thread_cubics488950",
-"thread_cubics488951",
-"thread_cubics488953",
-"thread_cubics488954",
-"thread_cubics488955",
-"thread_cubics488957",
-"thread_cubics488958",
-"thread_cubics488959",
-"thread_cubics523907",
-"thread_cubics523911",
-"thread_cubics523915",
-"thread_cubics523919",
-"thread_cubics524018",
-"thread_cubics524022",
-"thread_cubics524026",
-"thread_cubics524030",
-"thread_cubics673155",
-"thread_cubics673159",
-"thread_cubics673163",
-"thread_cubics673167",
-"thread_cubics770307",
-"thread_cubics770311",
-"thread_cubics770315",
-"thread_cubics770319",
-"thread_cubics771987",
-"thread_cubics771991",
-"thread_cubics771995",
-"thread_cubics771999",
-"thread_cubics779937",
-"thread_cubics779939",
-"thread_cubics779941",
-"thread_cubics779943",
-"thread_cubics779945",
-"thread_cubics779947",
-"thread_cubics779949",
-"thread_cubics779951",
-"thread_cubics794049",
-"thread_cubics794050",
-"thread_cubics794053",
-"thread_cubics794054",
-"thread_cubics794057",
-"thread_cubics794058",
-"thread_cubics794061",
-"thread_cubics794062",
-"thread_cubics814996",
-"thread_cubics815000",
-"thread_cubics815004",
-"thread_cubics815008",
-"thread_cubics819698",
-"thread_cubics819702",
-"thread_cubics819706",
-"thread_cubics819710",
-"thread_cubics861650",
-"thread_cubics861654",
-"thread_cubics861658",
-"thread_cubics861662",
-"thread_cubics899937",
-"thread_cubics899938",
-"thread_cubics899939",
-"thread_cubics899941",
-"thread_cubics899942",
-"thread_cubics899943",
-"thread_cubics899945",
-"thread_cubics899946",
-"thread_cubics899947",
-"thread_cubics899949",
-"thread_cubics899950",
-"thread_cubics899951",
-"thread_cubics911345",
-"thread_cubics911346",
-"thread_cubics911347",
-"thread_cubics911349",
-"thread_cubics911350",
-"thread_cubics911351",
-"thread_cubics911353",
-"thread_cubics911354",
-"thread_cubics911355",
-"thread_cubics911357",
-"thread_cubics911358",
-"thread_cubics911359",
-"thread_cubics917969",
-"thread_cubics917970",
-"thread_cubics917971",
-"thread_cubics917973",
-"thread_cubics917974",
-"thread_cubics917975",
-"thread_cubics917977",
-"thread_cubics917978",
-"thread_cubics917979",
-"thread_cubics917981",
-"thread_cubics917982",
-"thread_cubics917983",
-"thread_cubics935793",
-"thread_cubics935794",
-"thread_cubics935795",
-"thread_cubics935797",
-"thread_cubics935798",
-"thread_cubics935799",
-"thread_cubics935801",
-"thread_cubics935802",
-"thread_cubics935803",
-"thread_cubics935805",
-"thread_cubics935806",
-"thread_cubics935807",
-"thread_cubics938817",
-"thread_cubics938818",
-"thread_cubics938819",
-"thread_cubics938821",
-"thread_cubics938822",
-"thread_cubics938823",
-"thread_cubics938825",
-"thread_cubics938826",
-"thread_cubics938827",
-"thread_cubics938829",
-"thread_cubics938830",
-"thread_cubics938831",
-"thread_cubics945217",
-"thread_cubics945218",
-"thread_cubics945221",
-"thread_cubics945222",
-"thread_cubics945225",
-"thread_cubics945226",
-"thread_cubics945229",
-"thread_cubics945230",
-"thread_cubics952305",
-"thread_cubics952306",
-"thread_cubics952309",
-"thread_cubics952310",
-"thread_cubics952313",
-"thread_cubics952314",
-"thread_cubics952317",
-"thread_cubics952318",
-"thread_cubics1068931",
-"thread_cubics1068935",
-"thread_cubics1068939",
-"thread_cubics1068943",
-"thread_cubics1070291",
-"thread_cubics1070295",
-"thread_cubics1070299",
-"thread_cubics1070303",
-"thread_cubics1090529",
-"thread_cubics1090530",
-"thread_cubics1090531",
-"thread_cubics1090533",
-"thread_cubics1090534",
-"thread_cubics1090535",
-"thread_cubics1090537",
-"thread_cubics1090538",
-"thread_cubics1090539",
-"thread_cubics1090541",
-"thread_cubics1090542",
-"thread_cubics1090543",
-"thread_cubics1110611",
-"thread_cubics1110615",
-"thread_cubics1110619",
-"thread_cubics1110623",
-"thread_cubics1110658",
-"thread_cubics1110662",
-"thread_cubics1110666",
-"thread_cubics1110670",
-"thread_cubics1199124",
-"thread_cubics1199132",
-"thread_cubics1210338",
-"thread_cubics1210339",
-"thread_cubics1210342",
-"thread_cubics1210343",
-"thread_cubics1210346",
-"thread_cubics1210347",
-"thread_cubics1210350",
-"thread_cubics1210351",
-"thread_cubics1228852",
-"thread_cubics1228856",
-"thread_cubics1228860",
-"thread_cubics1228864",
-"thread_cubics1231490",
-"thread_cubics1231494",
-"thread_cubics1231498",
-"thread_cubics1231502",
-"thread_cubics1237331",
-"thread_cubics1237335",
-"thread_cubics1237339",
-"thread_cubics1237343",
-"thread_cubics1243395",
-"thread_cubics1243399",
-"thread_cubics1243403",
-"thread_cubics1243407",
-"thread_cubics1258498",
-"thread_cubics1258502",
-"thread_cubics1258506",
-"thread_cubics1258510",
-"thread_cubics1264787",
-"thread_cubics1264791",
-"thread_cubics1264795",
-"thread_cubics1264799",
-"thread_cubics1359208",
-"thread_cubics1359216",
-"thread_cubics1365922",
-"thread_cubics1365923",
-"thread_cubics1365926",
-"thread_cubics1365927",
-"thread_cubics1365930",
-"thread_cubics1365931",
-"thread_cubics1365934",
-"thread_cubics1365935",
-"thread_cubics1413027",
-"thread_cubics1413035",
-"thread_cubics1415057",
-"thread_cubics1415058",
-"thread_cubics1415059",
-"thread_cubics1415061",
-"thread_cubics1415062",
-"thread_cubics1415063",
-"thread_cubics1415065",
-"thread_cubics1415066",
-"thread_cubics1415067",
-"thread_cubics1415069",
-"thread_cubics1415070",
-"thread_cubics1415071",
-"thread_cubics1437601",
-"thread_cubics1437602",
-"thread_cubics1437603",
-"thread_cubics1437605",
-"thread_cubics1437606",
-"thread_cubics1437607",
-"thread_cubics1437609",
-"thread_cubics1437610",
-"thread_cubics1437611",
-"thread_cubics1437613",
-"thread_cubics1437614",
-"thread_cubics1437615",
-"thread_cubics1478465",
-"thread_cubics1478467",
-"thread_cubics1478469",
-"thread_cubics1478471",
-"thread_cubics1478473",
-"thread_cubics1478475",
-"thread_cubics1478477",
-"thread_cubics1478479",
-"thread_cubics1520801",
-"thread_cubics1520803",
-"thread_cubics1520805",
-"thread_cubics1520807",
-"thread_cubics1520809",
-"thread_cubics1520811",
-"thread_cubics1520813",
-"thread_cubics1520815",
-"thread_cubics1526531",
-"thread_cubics1526535",
-"thread_cubics1526539",
-"thread_cubics1526543",
-"thread_cubics1592195",
-"thread_cubics1592199",
-"thread_cubics1592203",
-"thread_cubics1592207",
-"thread_cubics1646850",
-"thread_cubics1646854",
-"thread_cubics1646858",
-"thread_cubics1646862",
 };
 
 // skip tests by filename
 std::vector<std::string> skipTestFiles = { TEST_PATH_OP_SKIP_FILES };
 std::vector<std::string> skipRestFiles = { TEST_PATH_OP_SKIP_REST };
-std::string currentTestFile;
 std::string testFirst = OP_DEBUG_FAST_TEST ? "" : TEST_PATH_OP_FIRST;
 std::string skipToFile = TEST_PATH_OP_SKIP_TO_FILE;
-bool skiatest::Reporter::allowExtendedTest() { return OP_TEST_ALLOW_EXTENDED 
-        | TEST_FAILS
-        | (OP_DEBUG_FAST_TEST ? 0 : strlen(TEST_PATH_OP_FIRST)); }
-bool testFailsOnly = TEST_FAILS;
+bool skiatest::Reporter::allowExtendedTest() { return OP_TEST_ALLOW_EXTENDED; };
+//        | (OP_DEBUG_FAST_TEST ? 0 : strlen(TEST_PATH_OP_FIRST)); }
 std::atomic_int testIndex; 
 bool showTestName = OP_SHOW_TEST_NAME;
 std::atomic_int testsRun;
+std::atomic_int testsDot;
+std::atomic_int testsLine;
 std::atomic_int totalRun;
 std::atomic_int testsSkipped;
 std::atomic_int totalSkipped;
@@ -590,11 +77,19 @@ std::atomic_int testsFailSkiaPass;
 std::atomic_int totalFailSkiaPass;
 std::atomic_int testsPassSkiaFail;
 std::atomic_int totalPassSkiaFail;
+#if OP_BULK_THREADS
+thread_local std::string currentTestFile;
+thread_local int firstSuiteTest = 0;
+thread_local int lastSuiteTest = 0;
+#if OP_DEBUG_FAST_TEST
+std::mutex out_mutex;
+#endif
+#endif
 
 bool PathOpsDebug::gCheckForDuplicateNames = false;
 bool PathOpsDebug::gJson = false;
 
-#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
+#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS && !OP_BULK_THREADS
 ctpl::thread_pool threadpool(OP_MAX_THREADS);
 #endif
 
@@ -641,6 +136,8 @@ void initTests(std::string filename) {
                 + " v0:" + STR(totalPassSkiaFail) + " sk:" + STR(totalFailSkiaPass) + "\n");
     currentTestFile = filename;
     testsRun = 0;
+    testsDot = 0;
+    testsLine = 0;
     testsSkipped = 0;
     testsError = 0;
     testsWarn = 0;
@@ -649,16 +146,9 @@ void initTests(std::string filename) {
     OpDebugOut(currentTestFile + "\n");
 }
 
+
 bool skipTest(std::string name) {
-    if (testFailsOnly) {
-        OP_ASSERT(currentTestFile == "circle" || currentTestFile == "cubic");
-        if (currentTestFile == "circle") {
-            if (testIndex >= (int) circleFails.size() || circleFails[testIndex] != name)
-                return (void) ++testsSkipped, true;
-        } else if (testIndex >= (int) cubicFails.size() || cubicFails[testIndex] != name)
-            return (void) ++testsSkipped, true;
-        ++testIndex;
-    } else if (name != testFirst) {
+    if (name != testFirst) {
         if ("" != testFirst)
             return (void) ++testsSkipped, true;
         if (skipRestFiles.end() != std::find(skipRestFiles.begin(), skipRestFiles.end(),
@@ -670,60 +160,111 @@ bool skipTest(std::string name) {
             return (void) ++testsSkipped, true;
     }
     ++testsRun;
+    ++testsDot;
+    ++testsLine;
     if (showTestName)
         OpDebugOut(name + "\n");
 #if !OP_SHOW_ERRORS_ONLY    
-    else if (testsRun % (OP_TEST_ALLOW_EXTENDED ? 5000 : 500) == 0) {
+    else if (testsDot > (OP_TEST_ALLOW_EXTENDED ? 5000 : 500)) {
+#if OP_DEBUG_FAST_TEST
+        std::lock_guard<std::mutex> guard(out_mutex);
+#endif
         OpDebugOut(".");
-        if (testsRun % (OP_TEST_ALLOW_EXTENDED ? 500000 : 50000) == 0)
+        testsDot -= OP_TEST_ALLOW_EXTENDED ? 5000 : 500;
+        if (testsLine > (OP_TEST_ALLOW_EXTENDED ? 500000 : 50000)) {
             OpDebugOut("\n");
+            testsLine -= OP_TEST_ALLOW_EXTENDED ? 500000 : 50000;
+        }
     }
 #endif
+#if OP_DEBUG_FAST_TEST && OP_BULK_THREADS
+    --firstSuiteTest;
+    --lastSuiteTest;
+    return firstSuiteTest >= 0 || lastSuiteTest < 0;
+#endif
     return false;
+}
+
+void bulkTest(int index) {
+    int totalTests = 0;
+    for (auto testSuite : testSuites) {
+        if (skipToFile.size() && testSuite.name != skipToFile)
+            continue;
+        totalTests += OP_TEST_ALLOW_EXTENDED ? testSuite.extended : testSuite.count;
+    }
+    int firstTest = index * totalTests / OP_MAX_THREADS;
+    int lastTest = (index + 1) * totalTests / OP_MAX_THREADS;
+    int suiteCount = 0;
+    for (auto testSuite : testSuites) {
+        if (skipToFile.size() && testSuite.name != skipToFile)
+            continue;
+        int testCount = OP_TEST_ALLOW_EXTENDED ? testSuite.extended : testSuite.count;
+        firstTest -= testCount;
+        lastTest -= testCount;
+        if (firstTest < 0) {
+            firstSuiteTest = testCount + firstTest;
+            lastSuiteTest = testCount + lastTest;
+            currentTestFile = testSuites[suiteCount].name;
+            (testSuites[suiteCount].func)();
+            if (lastTest <= 0)
+                return;
+            firstTest = 0;
+        }
+        ++suiteCount;
+    }
 }
 
 uint64_t timerFrequency;
 uint64_t timerStart;
 
 void runTests() {
+#if !OP_DEBUG_FAST_TEST || !OP_BULK_THREADS
     auto runTest = [](std::string s) {
-        for (auto pair : testPairs) {
-            if (pair.name == s) {
+        for (auto suite : testSuites) {
+            if (suite.name == s) {
 #if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
 #if !OP_SHOW_ERRORS_ONLY
-                OpDebugOut(pair.name + " started\n");
+                OpDebugOut(suite.name + " started\n");
 #endif
-                currentTestFile = pair.name;
+                currentTestFile = suite.name;
 #else
-                initTests(pair.name);
+                initTests(suite.name);
 #endif
-                (*pair.func)();
+                (*suite.func)();
 #if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS && !OP_SHOW_ERRORS_ONLY
-                OpDebugOut(pair.name + " finished\n");
+                OpDebugOut(suite.name + " finished\n");
+#endif
+#if OP_SHOW_TEST_COUNT
+                OpDebugOut("," + STR(testsSkipped) + "\n");
+                testsSkipped = 0;
 #endif
                 return;
             }
         }
     };
 	OpDebugOut("\n");
+#endif
     timerFrequency = OpInitTimer();
     timerStart = OpReadTimer();
-    if (testFailsOnly) {
-        testIndex = 0;
-        runTest("circle");
-        testIndex = 0;
-        runTest("cubic");
-    } else if (skipToFile.size()) {
+#if OP_DEBUG_FAST_TEST && OP_BULK_THREADS
+    std::vector<std::thread> t;
+    for (int index = 0; index < OP_MAX_THREADS; ++index)
+        t.push_back(std::thread(bulkTest, index));
+    for (int index = 0; index < OP_MAX_THREADS; ++index)
+        t[index].join();
+#else
+    if (skipToFile.size()) {
         runTest(skipToFile);
     } else {
         runTest("v0");  // check for these failures first
         runTest("op");
-        for (auto pair : testPairs) {
+        for (auto pair : testSuites) {
             if (pair.name != "v0" && pair.name != "op")
                 runTest(pair.name);
         }
     }
-#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
+#endif
+#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS && !OP_BULK_THREADS
     threadpool.stop(true);
 #endif
     uint64_t end = OpReadTimer();
@@ -982,7 +523,7 @@ bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
         SkPathOp op, const char* name, bool v0MayFail, bool skiaMayFail) {
     if (skipTest(name))
         return true;
-#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
+#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS && !OP_BULK_THREADS
     std::string testname(name);
     a.updateBoundsCache();
     b.updateBoundsCache();
@@ -1128,7 +669,7 @@ bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& st
     if (skipTest(testname.c_str()))
         return true;
     path.setFillType(useXor ? SkPathFillType::kEvenOdd : SkPathFillType::kWinding);
-#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
+#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS && !OP_BULK_THREADS
     path.updateBoundsCache();
     threadpool.push(threadableSimplifyTest, path, testname, out, false, false);
 #else
@@ -1142,7 +683,7 @@ bool testSimplifyBase(skiatest::Reporter* r, const SkPath& path, const char* nam
     if (skipTest(name))
         return true;
     SkPath out;
-#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
+#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS && !OP_BULK_THREADS
     std::string testname(name);
     path.updateBoundsCache();
     threadpool.push(threadableSimplifyTest, path, testname, out, v0MayFail, skiaMayFail);

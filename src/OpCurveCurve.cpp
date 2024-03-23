@@ -673,7 +673,7 @@ void OpCurveCurve::recordSect(OpEdge& edge, OpPtT edgePtT, OpEdge& opp, OpPtT op
 	OpSegment* eSegment = const_cast<OpSegment*>(edge.segment);
 	OpSegment* oSegment = const_cast<OpSegment*>(opp.segment);
 	// end points matching has already been recorded, so don't do it again
-	if ((0 == edgePtT.t || 1 == edgePtT.t) && (0 == oppPtT.t || 1 == oppPtT.t))
+	if (edgePtT.onEnd() && oppPtT.onEnd())
 		return;
 	if (const OpIntersection* eClose = eSegment->sects.nearly(edgePtT, nullptr); eClose) {
 		if (eClose->segment == oSegment)

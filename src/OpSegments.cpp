@@ -301,12 +301,15 @@ FoundIntersections OpSegments::findIntersections() {
                     for (const OpEdge* edge : edgeCurves) {
                         for (const OpPtT& ePtT : { edge->start, edge->end } ) {
                             for (const OpEdge* oppC : oppCurves) {
-                                auto checkDistSq = [&best, &closest, &ePtT](const OpPtT& oPtT) {
+                                auto checkDistSq = [&best, &closest, ePtT, s, o](const OpPtT& oPtT) {
                                     float distSq = (ePtT.pt - oPtT.pt).lengthSquared();
                                     if (best > distSq) {
                                         best = distSq;
-                                        closest.close = ePtT;
-                                        closest.oppPtT = oPtT;
+                                        closest.seg = s;
+                                        closest.oppSeg = o;
+                                        OpPoint bestPt = oPtT.onEnd() ? oPtT.pt : ePtT.pt;
+                                        closest.close = OpPtT(bestPt, ePtT.t);
+                                        closest.oppPtT = OpPtT(bestPt, oPtT.t);
                                     }
                                 };
                                 if (oppC->start.t <= OpEpsilon * 2 
@@ -319,47 +322,54 @@ FoundIntersections OpSegments::findIntersections() {
                         }
                     }
                     if (OpMath::IsFinite(best)) {
-                        auto check = [closest, s, o](OpPoint oPt) {
+                        auto check = [closest, s, o]() {
                             // require either pt or t to be within some metric of closeness
                             // since this specifies intersection points, some sloppiness is OK
                             // as long as the point is (nearly) on each segment
                             for (SoClose& test : s->debugClose) {
+                                if (closest == test)
+                                    return false;
                                 if (!closest.close.soClose(test.close, OpEpsilon * 8))
                                     continue;
                                 if (o == test.oppSeg)
                                     continue;
-                                if (!closest.oppPtT.pt.soClose(test.oppPtT.pt, OpEpsilon * 8)) {
-                                    OpPoint oEnd = test.oppPtT.t < .5 
-                                            ? test.oppSeg->c.pts[0] : test.oppSeg->c.lastPt();
-                                    if (oEnd != oPt)
-                                        continue;
-                                }
+                                if (!closest.oppPtT.pt.soClose(test.oppPtT.pt, OpEpsilon * 8))
+                                    continue;
                                 // post pairs of s/o and s/test.oppSeg to intersections
-                                OpPtT sPtT = OpPtT(oPt, closest.close.t);
+                                // prefer point values that equal segment end values
+                                OpPoint bestPt;
+                                if (closest.oppPtT.onEnd())
+                                    bestPt = closest.oppPtT.pt;
+                                else if (test.oppPtT.onEnd())
+                                    bestPt = test.oppPtT.pt;
+                                else
+                                    bestPt = test.close.pt;
+                                OpPtT sPtT = OpPtT(bestPt, test.close.t);
 			                    OpIntersection* sect = s->addSegSect(sPtT, o  
-                                        OP_LINE_FILE_PARAMS(SectReason::lineCurve));
-                                OpPtT oPtT = OpPtT(oPt, closest.oppPtT.t < .5 ? 0 : 1);
+                                        OP_LINE_FILE_PARAMS(SectReason::soClose));
+                                OpPtT oPtT = OpPtT(bestPt, closest.oppPtT.t);
 			                    OpIntersection* oSect = o->addSegSect(oPtT, s
-					                    OP_LINE_FILE_PARAMS(SectReason::lineCurve));
+					                    OP_LINE_FILE_PARAMS(SectReason::soClose));
 			                    if (sect && oSect) 
                                     sect->pair(oSect);
                                 sect = s->addSegSect(sPtT, test.oppSeg
-                                        OP_LINE_FILE_PARAMS(SectReason::lineCurve));
-                                OpPtT testPtT = OpPtT(oPt, test.close.t < .5 ? 0 : 1);
+                                        OP_LINE_FILE_PARAMS(SectReason::soClose));
+                                OpPtT testPtT = OpPtT(bestPt, test.oppPtT.t);
                                 oSect = test.oppSeg->addSegSect(testPtT, s
-					                    OP_LINE_FILE_PARAMS(SectReason::lineCurve));
+					                    OP_LINE_FILE_PARAMS(SectReason::soClose));
 			                    if (sect && oSect)
                                     sect->pair(oSect);
                             }
+                            return true;
                         };
                         // if there is an existing soClose record with a ptT.t value which is
                         // within some diff of epsilon (at least 2 epsilon) then print it
                         // and show more data (normal? tangent?) to see if a pair of records find an
                         // intersection where one segment joins another
-                        check(closest.oppPtT.t < .5 ? o->c.pts[0] : o->c.lastPt());
-                        closest.oppSeg = o;
+                        if (!check())
+                            return;
                         s->debugClose.push_back(closest);
-                        closest.oppSeg = s;
+                        std::swap(closest.seg, closest.oppSeg);
                         std::swap(closest.close, closest.oppPtT);
                         o->debugClose.push_back(closest);
                     }

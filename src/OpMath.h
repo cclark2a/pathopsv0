@@ -590,18 +590,16 @@ struct OpPtT {
         return pt.isNearly(o.pt) || (t + OpEpsilon >= o.t && t <= o.t + OpEpsilon);
     }
 
+    bool onEnd() const {
+        return 0 == t || 1 == t;
+    }
+
     bool soClose(const OpPtT& o, float epsilon) const {
         return pt.soClose(o.pt, epsilon) || (t + epsilon >= o.t && t <= o.t + epsilon);
     }
 
     static void MeetInTheMiddle(OpPtT& a, OpPtT& b){
-        OpPoint mid;
-        if (0 == a.t || 1 == a.t)
-            mid = a.pt;
-        else if (0 == b.t || 1 == b.t)
-            mid = b.pt;
-        else
-            mid = (a.pt + b.pt) / 2;
+        OpPoint mid = a.onEnd() ? a.pt : b.onEnd() ? b.pt : (a.pt + b.pt) / 2;
         a.pt = mid;
         b.pt = mid;
     }

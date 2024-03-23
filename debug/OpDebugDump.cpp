@@ -546,6 +546,7 @@ SectReasonName sectReasonNames[] {
     SECT_REASON_NAME(sharedEdge),
     SECT_REASON_NAME(sharedEnd),
     SECT_REASON_NAME(sharedStart),
+    SECT_REASON_NAME(soClose),
     SECT_REASON_NAME(startPt),
     SECT_REASON_NAME(unsectableOppEnd),
     SECT_REASON_NAME(unsectableOppStart),
@@ -2380,6 +2381,8 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
         s += " betweenID:" + STR(betweenID);
     if (coincidenceProcessed)
         s += " coincidenceProcessed";
+    if (preferred)
+        s += " preferred";
 #if OP_DEBUG
     s += " reason:" + sectReasonName(debugReason);
     s += " " + debugSetMaker.debugDump();
@@ -2536,15 +2539,11 @@ void dmpSegmentSects(const OpSegment& seg) {
 
 void dmpSoClose(const OpSegment& seg) {
 #if CC_EXPERIMENT
-    if (seg.debugClose.size() < 2)
-        return;
-    std::string s = "seg:" + seg.debugDump(defaultLevel, defaultBase) + " ";
+    std::string s;
     for (const SoClose& sc : seg.debugClose) {
-        s += "close:" + sc.close.debugDump(defaultLevel, defaultBase) + " ";
-        s += "oppPtT:" + sc.oppPtT.debugDump(defaultLevel, defaultBase) + " ";
-        s += "oppSeg:" + sc.oppSeg->debugDump(defaultLevel, defaultBase) + " ";
+        s += sc.debugDump(defaultLevel, defaultBase) + "\n";
     }
-    OpDebugFormat(s);
+    OpDebugOut(s);
 #endif
 }
 
@@ -2698,10 +2697,10 @@ std::string HullSect::debugDump(DebugLevel l, DebugBase b) const {
 
 std::string SoClose::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    s += close.debugDump(l, b);
-    s += " " + oppPtT.debugDump(l, b);
-    if (oppSeg)
-        s += " " + oppSeg->debugDump(l, b);
+    s += "seg[" + STR(seg->id) + "] ";
+    s += "oppSeg[" + STR(oppSeg->id) + "] ";
+    s += "close:" + close.debugDump(l, b) + " ";
+    s += "oppPtT:" + oppPtT.debugDump(l, b);
     return s;
 }
 

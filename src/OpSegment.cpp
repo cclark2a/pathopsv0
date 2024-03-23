@@ -224,7 +224,7 @@ float OpSegment::findValidT(float start, float end, OpPoint opp) const {
     if (OpType::line != c.type) {
         OpRoots hRoots = c.axisRayHit(Axis::horizontal, opp.y, start, end);
         OpRoots vRoots = c.axisRayHit(Axis::vertical, opp.x, start, end);
-        if (0 == hRoots.count && 0 == vRoots.count) {
+        if (1 != hRoots.count && 1 != vRoots.count) {
             if (0 == start && opp.isNearly(c.pts[0]))
                 return 0;
             if (1 == end && opp.isNearly(c.lastPt()))
@@ -232,7 +232,7 @@ float OpSegment::findValidT(float start, float end, OpPoint opp) const {
             return OpNaN;
         }
         if (1 != hRoots.count) {
-            OP_ASSERT(1 == vRoots.count);
+            OP_ASSERT(1 == vRoots.count);  // !!! triggered by thread_loops46134
             return vRoots.roots[0];
         }
         if (1 != vRoots.count)

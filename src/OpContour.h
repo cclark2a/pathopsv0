@@ -77,12 +77,6 @@ struct OpContour {
         }
     }
 
-    void sortIntersections() {
-        for (auto& segment : segments) {
-            segment.sects.sort();
-        }
-    }
-
     void windCoincidences() {
         for (auto& segment : segments) {
             segment.windCoincidences();
@@ -186,11 +180,7 @@ struct OpContours {
         (OpOperand::left == operand ? left : right) = exor;
     }
 
-    void sortIntersections() {
-        for (auto& contour : contours) {
-            contour.sortIntersections();
-        }
-    }
+    void sortIntersections();
 
     void windCoincidences() {
         for (auto& contour : contours) {
