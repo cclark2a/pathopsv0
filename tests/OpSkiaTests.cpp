@@ -29,18 +29,17 @@ struct testInfo {
 
 std::vector<testInfo> testSuites = {
     // !!! start out slow
-#if !OP_TINY_SKIA
     { run_v0_tests, "v0", 14, 14 },
+#if !OP_TINY_SKIA
     { run_op_tests, "op", 451, 451 },
+#endif
     { run_battle_tests, "battle", 381, 381 },
     { run_chalkboard_tests, "chalkboard", 6231, 594037 },
     { run_fuzz763_tests, "fuzz763", 30, 30 },
     { run_inverse_tests, "inverse", 320, 320 },
     { run_issue3651_tests, "issue3651", 8, 8 },
     { run_op_circle_tests, "circle", 84672, 1778112 },
-#endif
     { run_op_cubic_tests, "cubic", 148176, 2247347 },
-#if !OP_TINY_SKIA
     { run_op_loop_tests, "loop", 9261, 194481 },
     { run_op_rect_tests, "rect", 157392, 3194640 },
     { run_simplify_tests, "simplify", 465, 465 },
@@ -51,7 +50,6 @@ std::vector<testInfo> testSuites = {
     { run_simplify_rect_tests, "simplifyRect", 152, 1280660 },
     { run_simplify_triangles_tests, "simplifyTriangles", 24768, 2130048 },
     { run_tiger_tests, "tiger", 7005, 700005 },
-#endif
 };
 
 // skip tests by filename
@@ -59,8 +57,6 @@ std::vector<std::string> skipTestFiles = { TEST_PATH_OP_SKIP_FILES };
 std::vector<std::string> skipRestFiles = { TEST_PATH_OP_SKIP_REST };
 std::string testFirst = OP_DEBUG_FAST_TEST ? "" : TEST_PATH_OP_FIRST;
 std::string skipToFile = TEST_PATH_OP_SKIP_TO_FILE;
-bool skiatest::Reporter::allowExtendedTest() { return OP_TEST_ALLOW_EXTENDED; };
-//        | (OP_DEBUG_FAST_TEST ? 0 : strlen(TEST_PATH_OP_FIRST)); }
 std::atomic_int testIndex; 
 bool showTestName = OP_SHOW_TEST_NAME;
 std::atomic_int testsRun;
@@ -88,6 +84,14 @@ std::mutex out_mutex;
 
 bool PathOpsDebug::gCheckForDuplicateNames = false;
 bool PathOpsDebug::gJson = false;
+// both false if before first; start false end true if no first; both true if after first
+bool startFirstTest = "" == testFirst;
+bool endFirstTest = false;
+
+// short-circuit extended if only one test is run
+bool skiatest::Reporter::allowExtendedTest() {
+    return "" == testFirst ? OP_TEST_ALLOW_EXTENDED : !endFirstTest;
+}
 
 #if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS && !OP_BULK_THREADS
 ctpl::thread_pool threadpool(OP_MAX_THREADS);
@@ -148,6 +152,8 @@ void initTests(std::string filename) {
 
 
 bool skipTest(std::string name) {
+    if (endFirstTest)
+        return true;
     if (name != testFirst) {
         if ("" != testFirst)
             return (void) ++testsSkipped, true;
@@ -159,42 +165,49 @@ bool skipTest(std::string name) {
                 currentTestFile))
             return (void) ++testsSkipped, true;
     }
-    ++testsRun;
-    ++testsDot;
-    ++testsLine;
-    if (showTestName)
-        OpDebugOut(name + "\n");
-#if !OP_SHOW_ERRORS_ONLY    
-    else if (testsDot > (OP_TEST_ALLOW_EXTENDED ? 5000 : 500)) {
-#if OP_DEBUG_FAST_TEST
-        std::lock_guard<std::mutex> guard(out_mutex);
-#endif
-        OpDebugOut(".");
-        testsDot -= OP_TEST_ALLOW_EXTENDED ? 5000 : 500;
-        if (testsLine > (OP_TEST_ALLOW_EXTENDED ? 500000 : 50000)) {
-            OpDebugOut("\n");
-            testsLine -= OP_TEST_ALLOW_EXTENDED ? 500000 : 50000;
-        }
-    }
-#endif
+    if ("" != testFirst)
+        startFirstTest = true;
 #if OP_DEBUG_FAST_TEST && OP_BULK_THREADS
     --firstSuiteTest;
     --lastSuiteTest;
-    return firstSuiteTest >= 0 || lastSuiteTest < 0;
+    if (firstSuiteTest >= 0 || lastSuiteTest < 0)
+        return true;
 #endif
+    if (showTestName)
+        OpDebugOut(name + "\n");
+    ++testsRun;
+    {
+#if OP_DEBUG_FAST_TEST
+        std::lock_guard<std::mutex> guard(out_mutex);
+#endif
+        ++testsDot;
+        ++testsLine;
+        if (!OP_SHOW_ERRORS_ONLY && !showTestName 
+                && testsDot > (OP_TEST_ALLOW_EXTENDED ? 5000 : 500)) {
+            OpDebugOut(".");
+            testsDot -= OP_TEST_ALLOW_EXTENDED ? 5000 : 500;
+            if (testsLine > (OP_TEST_ALLOW_EXTENDED ? 500000 : 50000)) {
+                OpDebugOut("\n");
+                testsLine -= OP_TEST_ALLOW_EXTENDED ? 500000 : 50000;
+            }
+        }
+    }
     return false;
 }
 
 void bulkTest(int index) {
     int totalTests = 0;
+    int suiteCount = 0;
     for (auto testSuite : testSuites) {
-        if (skipToFile.size() && testSuite.name != skipToFile)
+        if (skipToFile.size() && testSuite.name != skipToFile) {
+            if (!totalTests)
+                ++suiteCount;
             continue;
+        }
         totalTests += OP_TEST_ALLOW_EXTENDED ? testSuite.extended : testSuite.count;
     }
     int firstTest = index * totalTests / OP_MAX_THREADS;
     int lastTest = (index + 1) * totalTests / OP_MAX_THREADS;
-    int suiteCount = 0;
     for (auto testSuite : testSuites) {
         if (skipToFile.size() && testSuite.name != skipToFile)
             continue;
@@ -502,6 +515,8 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
 #elif OP_TEST_REGION
     bool skSuccess = true;
 #endif
+    if (startFirstTest && "" != testFirst)
+        endFirstTest = true;
 #if OP_TEST_V0 && OP_TEST_REGION
     if (!success || !skSuccess || v0MayFail || skiaMayFail)
         return;
@@ -534,15 +549,9 @@ bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
     return true;
 }
 
-bool ranFirstTest = false;
-
 bool testPathOp(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
         SkPathOp op, const char* testname) {
-    if (ranFirstTest)
-        return true;
     std::string s = std::string(testname);
-    if (s == testFirst)
-        ranFirstTest = true;
     std::vector<std::string> skip = { TEST_PATH_OP_EXCEPTIONS };  // see OpTestDrive.h
     if (skip.end() != std::find(skip.begin(), skip.end(), s) && s != testFirst) {
         ++testsSkipped;
@@ -646,6 +655,8 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
         testsFailSkiaPass++;
 #endif
 #endif
+    if (startFirstTest && "" != testFirst)
+        endFirstTest = true;
 #if OP_TEST_V0 && OP_TEST_REGION
     if (!success)
         return;
@@ -666,7 +677,7 @@ bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& st
     if ("" == testname) {
         testname = state.fReporter->testname + STR(++state.fReporter->unnamedCount);
     }
-    if (skipTest(testname.c_str()))
+    if (skipTest(testname))
         return true;
     path.setFillType(useXor ? SkPathFillType::kEvenOdd : SkPathFillType::kWinding);
 #if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS && !OP_BULK_THREADS

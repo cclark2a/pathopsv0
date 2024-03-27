@@ -744,43 +744,38 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 		}
 		return ResolveWinding::resolved;
 	}
-	// walk from the known sum to (and including) the edge (e.g., edge 669 in issue1417)
-	//   if an edge is in another edge's pal list, even if it is not reciprocal: 
-	//   only count the edge with the pal list
-	// might require 2 passes; one to find edge with pals, one to mark those edges not to be counted
-	int rayIndex = -1;  // pal detection needs to start before first valid sum
-	OpEdge* palEdge;
-	std::vector<OpEdge*> pals;
-	while ((palEdge = ray.distances[++rayIndex].edge) != home) {
-		if (!palEdge->pals.size())
-			continue;
-		if (pals.end() != std::find_if(pals.begin(), pals.end(), [&palEdge](OpEdge* palOwner) { 
-				return palEdge->isPal(palOwner) && palOwner->isPal(palEdge); }))
-			continue;
-		pals.push_back(palEdge);
-	}
-	if (pals.size()) {
-		rayIndex = -1;
-		OpEdge* test;
-		while ((test = ray.distances[++rayIndex].edge) != home) {
-			if (pals.end() != std::find(pals.begin(), pals.end(), test))
-				continue;
-			auto testInEdge = std::find_if(pals.begin(), pals.end(), [&test](OpEdge* palOwner) { 
-					return !test->isPal(palOwner) && palOwner->isPal(test); });
-			if (pals.end() != testInEdge) {
-				ray.distances[rayIndex].skipPal = (*testInEdge)->sum.isSet();
-				ray.distances[rayIndex].skipSum = true;
-			}
+	// don't set the sum winding if this has pals or if any prior edge has this as a pal
+	// !!! try backing up only while the previous has pals to see if that is enough
+	auto anyPriorPal = [ray](OpEdge* edge, int sumIndex) {
+		if (edge->pals.size())
+			return true;
+		for (;;) {
+			int next = sumIndex + 1;
+			if (next >= (int) ray.distances.size())
+				break;
+			if (!ray.distances[next].edge->pals.size())
+				break;
+			sumIndex = next;
 		}
-	}
+		do {
+			OpEdge* previous = ray.distances[sumIndex].edge;
+			if (previous->isPal(edge))
+				return true;
+			if (previous == edge)
+				continue;
+			if (!previous->pals.size())
+				break;
+		} while (--sumIndex >= 0);
+		return false;
+	};
 	// starting with found or zero if none, accumulate sum up to winding
 	OpWinding sumWinding(WindingTemp::dummy);
 	int sumIndex = ray.distances.size();
 	while (ray.distances[--sumIndex].edge != home) 
 		OP_ASSERT(sumIndex > 0);
 	float homeT = ray.distances[sumIndex].t;  // used by unsectable, later
-	while (--sumIndex >= 0 && (ray.distances[sumIndex].edge->pals.size() 
-			|| !ray.distances[sumIndex].edge->sum.isSet() || ray.distances[sumIndex].skipSum))
+	while (--sumIndex >= 0 && (anyPriorPal(ray.distances[sumIndex].edge, sumIndex) 
+			|| !ray.distances[sumIndex].edge->sum.isSet()))
 		;
 	if (sumIndex > 0 && !home->pals.size() && EdgeFail::none == home->rayFail && !ray.checkOrder(home))
 		return ResolveWinding::retry;
@@ -806,13 +801,11 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 			prior->setUnsortable();
 			continue;
 		}
-		if (dist.skipPal)  // true if another distance in ray has a pal list with prior in it
-			continue;
-		if (NormalDirection::downLeft == normDir && !prior->pals.size() && !dist.skipSum)
+		if (NormalDirection::downLeft == normDir && !anyPriorPal(prior, sumIndex))
 			OP_EDGE_SET_SUM(prior, sumWinding);
 		if (CalcFail::fail == prior->addSub(ray.axis, dist.t, &sumWinding)) // if d/l sub; if u/r add
 			OP_DEBUG_FAIL(*prior, ResolveWinding::fail);
-		if (NormalDirection::upRight == normDir && !prior->pals.size() && !dist.skipSum)
+		if (NormalDirection::upRight == normDir && !anyPriorPal(prior, sumIndex))
 			OP_EDGE_SET_SUM(prior, sumWinding);
 	} while (home != prior);
 	if (!home->pals.size())
@@ -825,10 +818,10 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 	home->many = home->winding;	// back up winding
 	for (const auto& pal : home->pals) {
 		home->winding.move(pal.edge->winding, contours, pal.reversed);
-		if (!home->winding.visible()) {
-			home->setDisabled(OP_DEBUG_CODE(ZeroReason::palWinding));
-			home->windPal = true;
-		}
+	}
+	if (!home->winding.visible()) {
+		home->setDisabled(OP_DEBUG_CODE(ZeroReason::palWinding));
+		home->windPal = true;
 	}
 	if (CalcFail::fail == home->addIfUR(ray.axis, homeT, &sumWinding))
 		home->setUnsortable();

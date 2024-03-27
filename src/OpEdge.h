@@ -264,9 +264,7 @@ struct EdgeDistance {
 		: edge(e)
 		, cept(c)
 		, t(tIn)
-		, reversed(r)
-		, skipPal(false)
-		, skipSum(false) {
+		, reversed(r) {
 	}
 
 #if OP_DEBUG_DUMP
@@ -277,8 +275,6 @@ struct EdgeDistance {
 	float cept;		// where normal intersects edge (for home edge, equals center)
 	float t;
 	bool reversed;
-	bool skipPal;  // true if another edge has this edge's winding through its pal list
-	bool skipSum;  // true if edge contributes to sum, but sum should not be stored in edge
 };
 
 enum class FindCept {

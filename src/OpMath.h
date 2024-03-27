@@ -586,9 +586,7 @@ struct OpPtT {
         return a.pt != b.pt || a.t != b.t;
     }
 
-    bool isNearly(const OpPtT& o) const {
-        return pt.isNearly(o.pt) || (t + OpEpsilon >= o.t && t <= o.t + OpEpsilon);
-    }
+    bool isNearly(const OpPtT& o) const;
 
     bool onEnd() const {
         return 0 == t || 1 == t;
@@ -667,30 +665,27 @@ struct OpMath {
     // no_sanitize("float-divide-by-zero")
     // !!! incomplete; set up attribute as needed for platforms that require it
     static float FloatDivide(float A, float B) {
-        return A / B;
-    }
+        return A / B; }
 
     static float Interp(float A, float B, float t) {
-        return fmaf((1 - t), A, B * t);
-    }
+        return fmaf((1 - t), A, B * t); }
 
     static OpPoint Interp(OpPoint A, OpPoint B, float t) {
-        return A * (1 - t) + B * t;
-    }
+        return A * (1 - t) + B * t; }
 
     // !!! could optimize with float bits trick
     static bool IsFinite(float x) {
-        return std::isfinite(x);
-    }
+        return std::isfinite(x); }
 
     static bool IsInt(float x) {
         OP_ASSERT(Between(0, x, 1));
-        return (int) x == x;
-    }
+        return (int) x == x; }
 
     static bool IsNaN(float x) {
-        return std::isnan(x);
-    }
+        return std::isnan(x); }
+
+    static bool NearlyEqualT(float a, float b) {
+        return a + OpEpsilon >= b && a <= b + OpEpsilon; }
 
     static float NextLarger(float );
     static float NextSmaller(float );

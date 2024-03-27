@@ -99,6 +99,7 @@ struct OpSegment {
     void makeEdges();
     MatchEnds matchEnds(const OpSegment* opp, bool* reversed, MatchEnds* existing, MatchSect ) const;
     MatchEnds matchExisting(const OpSegment* opp) const;
+    void moveTo(const OpPtT& , OpPoint );  // move segment/sect point to match another endpont
     int nextID() const { 
         return nextID(contour); }
     int nextID(OpContour* ) const;

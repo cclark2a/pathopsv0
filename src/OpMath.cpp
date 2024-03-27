@@ -139,6 +139,10 @@ bool OpRect::isFinite() const {
         && OpMath::IsFinite(right) && OpMath::IsFinite(bottom);
 }
 
+bool OpPtT::isNearly(const OpPtT& o) const {
+    return pt.isNearly(o.pt) || OpMath::NearlyEqualT(t, o.t);
+}
+
 // put all calls to next after (and friends) in next larger and next smaller
 // use next after twice to match: for 0 <= x <= 1, adding epsilon moves x two bits
 float OpMath::NextLarger(float a) {

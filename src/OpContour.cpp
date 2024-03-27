@@ -407,7 +407,7 @@ bool OpContours::pathOps(OpOutPath result) {
         OP_DEBUG_FAIL(*this, false);
     bool inverseFill = OutInverse[+opOperator][leftIn.isInverted()][rightIn.isInverted()];
     result.setInverted(inverseFill);
-#if OP_DEBUG_IMAGE
+#if 0 && OP_DEBUG_IMAGE
     showResult();
 #endif
     OP_DEBUG_SUCCESS(*this, true);
@@ -430,17 +430,16 @@ void OpContours::reuse(OpEdgeStorage* edgeStorage) {
 }
 
 void OpContours::sortIntersections() {
-    bool doItAgain;
-    OP_DEBUG_CODE(int safetyValue = 10);  // !!! no idea what this should be
-    do {
-        doItAgain = false;
-        for (auto& contour : contours) {
-            for (auto& segment : contour.segments) {
-                doItAgain |= segment.sects.sort();
-            }
+    for (auto& contour : contours) {
+        for (auto& segment : contour.segments) {
+            segment.sects.sort();
         }
-        OP_ASSERT(--safetyValue);
-    } while (doItAgain);
+    }
+    for (auto& contour : contours) {
+        for (auto& segment : contour.segments) {
+            segment.sects.mergeNear();
+        }
+    }
 }
 
 

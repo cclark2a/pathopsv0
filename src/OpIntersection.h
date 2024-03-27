@@ -57,7 +57,6 @@ struct OpIntersection {
 	coinEnd = MatchEnds::none;
 	unsectEnd = MatchEnds::none;
 	coincidenceProcessed = false;
-	preferred = false;
 	id = 0;
 	debugID = 0;
 	debugOppID = 0;
@@ -88,7 +87,6 @@ struct OpIntersection {
 		coinEnd = MatchEnds::none;
 		unsectEnd = MatchEnds::none;
 		coincidenceProcessed = false;
-		preferred = false;
 #if OP_DEBUG
 		debugID = ID;
 		debugOppID = oppID;
@@ -131,10 +129,9 @@ struct OpIntersection {
 	MatchEnds coinEnd;  // used to put start before end on sect sort
 	MatchEnds unsectEnd;
 	bool coincidenceProcessed;
-	bool preferred;  // set on one arbitrary nearly equal ptT
 #if OP_DEBUG
 	int id;
-	int debugID;	// pair of edges or segments that intersected
+	int debugID;	// pair of edges or segments that intersected (!!! only useful if edges?)
 	int debugOppID;
 	int debugCoincidenceID;	// this one does not get erased
 	OpDebugMaker debugSetMaker;
@@ -152,7 +149,8 @@ struct OpIntersections {
 	void makeEdges(OpSegment* );
 	const OpIntersection* nearly(const OpPtT& ptT, OpSegment* oSeg) const;  // near match of pt or t
     void range(const OpSegment* , std::vector<OpIntersection*>& );
-    bool sort();  // returns true if other intersections may need resorting
+	void sort();  // 
+    void mergeNear();
 	void windCoincidences(std::vector<OpEdge>& edges  OP_DEBUG_PARAMS(OpVector tangent));
 #if OP_DEBUG
     OpIntersection* debugAlreadyContains(const OpPoint& , const OpSegment* opp) const;

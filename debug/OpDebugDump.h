@@ -104,7 +104,6 @@ OP_X(Segments)
 OP_X(Detail) \
 OP_X(Edges) \
 OP_X(Full) \
-OP_X(Hex) \
 OP_X(ID) \
 OP_X(Intersections) \
 OP_X(Link) \

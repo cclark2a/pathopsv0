@@ -262,8 +262,13 @@ void OpSegment::makeEdges() {
         edges.clear();
         return;
     }
-    if (1 == edges.size() && 2 == sects.i.size())
+    if (1 == edges.size() && 2 == sects.i.size()) {
+        OP_ASSERT(c.pts[0] == edges[0].start.pt);
+        OP_ASSERT(0 == edges[0].start.t);
+        OP_ASSERT(c.lastPt() == edges[0].end.pt);
+        OP_ASSERT(1 == edges[0].end.t);
         return;
+    }
     edges.clear();
     edges.reserve(sects.i.size() - 1);
     sects.makeEdges(this);
@@ -308,6 +313,18 @@ MatchEnds OpSegment::matchExisting(const OpSegment* opp) const {
     if (this + 1 == opp || (&contour->segments.front() == opp && &contour->segments.back() == this))
         result = (MatchEnds) ((int) result | (int) MatchEnds::end);
     return result;
+}
+
+void OpSegment::moveTo(const OpPtT& ptT, OpPoint pt) {
+    OP_ASSERT(ptT.onEnd());
+    OpPoint& endPt = 0 == ptT.t ? c.pts[0] : c.pts[c.pointCount() - 1];
+    OP_ASSERT(endPt.isNearly(pt));
+    endPt = pt;
+    for (OpIntersection* sect : sects.i) {
+        if (sect->ptT.t == ptT.t)
+            sect->ptT.pt = pt;
+    }
+    edges.clear();
 }
 
 int OpSegment::nextID(OpContour* contourPtr) const {

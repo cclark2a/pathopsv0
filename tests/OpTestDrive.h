@@ -4,9 +4,9 @@
 
 // this puts all switches that decide which tests to run and how to run them in one place
 
-#define OP_DEBUG_FAST_TEST 0  // in a debug build: set to zero to enable debug dump, debug image
-#define TEST_PATH_OP_FIRST "testQuadralaterals12978175" /* e.g., "thread_cubics2247347" (ignored by fast test) */
-#define TEST_PATH_OP_SKIP_TO_FILE "simplifyQuadralaterals" /* e.g., "battle" tests only (see OpSkiaTests.cpp) */
+#define OP_DEBUG_FAST_TEST 1  // in a debug build: set to zero to enable debug dump, debug image
+#define TEST_PATH_OP_FIRST "testQuadralaterals7644651" // e.g., "thread_cubics2247347" (ignored by fast test)
+#define TEST_PATH_OP_SKIP_TO_FILE "simplifyQuadralaterals" // e.g., "battle" tests only (see OpSkiaTests.cpp)
 
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
@@ -44,7 +44,13 @@
 fuzz763_378: no edge found: last, last resort (x2) had errors=36 # this looks fixable
              gap between edge 2225 and 2227 (why is 2226 disabled?)
              likely other errors
-extended: (70029536 tests run)
+extended: 10650559 quadralateral tests run
+
+testQuadralaterals22710880 had errors=25
+"testQuadralaterals2582596" assert in OpJoiner.cpp:191 (OpTree LimbType::miswound)
+
+testQuadralaterals19622648 assert in OpJoiner.cpp:236
+
 testQuads1542819 had errors=65
 testQuads1546165 had errors=21
 testQuads1550569 had errors=40

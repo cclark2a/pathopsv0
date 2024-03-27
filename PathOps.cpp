@@ -29,7 +29,7 @@ bool DebugPathOps(OpInPath left, OpInPath right, OpOperator opOperator, OpOutPat
 #endif
 #if OP_DEBUG_IMAGE
     OpDebugImage::init();
-    oo();
+//    oo();
 #endif
     bool success = contourList.pathOps(result);
     warn = contourList.debugWarnings;

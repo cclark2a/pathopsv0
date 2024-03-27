@@ -212,7 +212,7 @@ struct OpContours {
 #endif
 #if OP_DEBUG_DUMP
     void debugCompare(std::string s) const;
-    std::string debugDumpHex(std::string label) const;
+//    std::string debugDumpHex(std::string label) const;
     #include "OpDebugDeclarations.h"
 #endif
 #if OP_DEBUG_IMAGE

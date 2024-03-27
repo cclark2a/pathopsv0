@@ -8,6 +8,15 @@
 #include "TinySkia.h"
 #define SkString_DEFINED
 #define SkFloatBits_DEFINED
+#define SkGeometry_DEFINED
+#define SkParsePath_DEFINED
+#define SkPath_DEFINED
+#define SkPathOps_DEFINED
+#define SkPoint_DEFINED
+#define SkRandom_DEFINED
+#define SkPathOpsCubic_DEFINED
+#define SkPathOpsQuad_DEFINED
+#define SkPathOpsPoint_DEFINED
 #else
 #include "include/pathops/SkPathOps.h"
 #include "include/core/SkString.h"

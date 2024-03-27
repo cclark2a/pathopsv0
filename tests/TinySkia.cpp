@@ -3,6 +3,21 @@
 #include "TinySkia.h"
 #include "OpTightBounds.h"
 
+extern bool startFirstTest;
+extern bool endFirstTest;
+
+bool testingInactive() {
+#if OP_DEBUG_FAST_TEST
+	return false;
+#else
+	return startFirstTest == endFirstTest;
+#endif
+}
+
+int SkRandom::nextRangeU(int, int) { 
+	return 0;  // !!! do nothing for now
+}
+
 bool SkRect::contains(SkRect const & r) { 
 	return fLeft <= r.fLeft && fRight >= r.fRight && fTop <= r.fTop && fBottom >= r.fBottom; 
 }
@@ -16,6 +31,18 @@ void SkRect::join(SkRect const & r) {
 	fTop = std::min(fTop, r.fTop);
 	fRight = std::max(fRight, r.fRight);
 	fBottom = std::max(fBottom, r.fBottom);
+}
+
+SkMatrix SkMatrix::MakeAll(float sx, float rx, float tx, float sy, float ry, float ty, 
+		float p0, float p1, float p2) {
+	SkMatrix m;
+	m.m[0][0] = sx;
+	m.m[0][1] = rx;
+	m.m[0][2] = tx;
+	m.m[1][0] = sy;
+	m.m[1][1] = ry;
+	m.m[1][2] = ty;
+	return m;
 }
 
 void SkMatrix::reset() { 
@@ -188,7 +215,7 @@ SkFont::SkFont(void*, float s, float, float) {
 
 float SkFont::measureText(void const *, uint64_t, SkTextEncoding, SkRect *) const { 
 	return 0; 
-} 
+}
 
 void SkPath::reset() { 
 	path.clear();
@@ -254,40 +281,54 @@ SkPath::Verb SkPath::RawIter::next(SkPoint* pts) {
 }
 
 void SkPath::moveTo(float x, float y) { 
+	if (testingInactive())
+		return;
 	last = OpPoint(x, y);
 	firstIndex = path.size();
 }
 
 void SkPath::lineTo(float x, float y) {
+	if (testingInactive())
+		return;
 	path.emplace_back(last, OpPoint(x, y));
 	last = OpPoint(x, y);
 }
 
 void SkPath::rLineTo(float rx, float ry) {
+	if (testingInactive())
+		return;
 	OpPoint next = last + OpPoint(rx, ry);
 	path.emplace_back(last, next);
 	last = next;
 }
 
 void SkPath::quadTo(float x1, float y1, float x2, float y2) { 
+	if (testingInactive())
+		return;
 	OpPoint q[3] = { last, OpPoint(x1, y1), OpPoint(x2, y2) };
 	path.emplace_back(q, OpType::quad);
 	last = OpPoint(x2, y2);
 }
 
 void SkPath::conicTo(float x1, float y1, float x2, float y2, float w) {
+	if (testingInactive())
+		return;
 	OpPoint q[3] = { last, OpPoint(x1, y1), OpPoint(x2, y2) };
 	path.emplace_back(q, w, OpType::conic);
 	last = OpPoint(x2, y2);
 }
 
 void SkPath::cubicTo(float x1, float y1, float x2, float y2, float x3, float y3) {
+	if (testingInactive())
+		return;
 	OpPoint c[4] = { last, OpPoint(x1, y1), OpPoint(x2, y2), OpPoint(x3, y3) };
 	path.emplace_back(c, OpType::cubic);
 	last = OpPoint(x3, y3);
 }
 
 void SkPath::close() {
+	if (testingInactive())
+		return;
 	if (!path.size())
 		return;
 	OpPoint next = path[firstIndex].pts[0];
@@ -297,7 +338,15 @@ void SkPath::close() {
 	}
 }
 
-void SkPath::addCircle(float x, float y, float r) {  
+void SkPath::arcTo(const SkRect& , float startAngle, float sweepAngle, bool forceMoveTo) {
+	// !!! unimplmented
+	if (testingInactive())
+		return;
+}
+
+void SkPath::addCircle(float x, float y, float r, SkPathDirection /* !!! ignored for now */) {  
+	if (testingInactive())
+		return;
 	moveTo(x, y - r);
 	conicTo(x + r, y - r, x + r, y, std::sqrtf(2) / 2);
 	conicTo(x + r, y + r, x, y + r, std::sqrtf(2) / 2);
@@ -306,14 +355,28 @@ void SkPath::addCircle(float x, float y, float r) {
 }
 
 void SkPath::addPath(SkPath const& p) { 
+	if (testingInactive())
+		return;
 	path.insert(path.end(), p.path.begin(), p.path.end());
 }
 
 void SkPath::addPath(SkPath const& p, const SkMatrix& m) {
+	if (testingInactive())
+		return;
 	SkPath tmp;
 	tmp.addPath(p);
 	tmp.makeTransform(m);
 	addPath(tmp);
+}
+
+void SkPath::addRect(float l, float t, float r, float b, SkPathDirection /* !!! ignored for now */) {
+	if (testingInactive())
+		return;
+	moveTo(l, t);
+	lineTo(r, t);
+	lineTo(r, b);
+	lineTo(l, b);
+	lineTo(l, t);
 }
 
 const SkPath& SkPath::makeTransform(SkMatrix const & m) { 
@@ -322,6 +385,14 @@ const SkPath& SkPath::makeTransform(SkMatrix const & m) {
 			m.mapPoints(c.pts, c.pointCount());
 	}
 	return *this;
+}
+
+// !!! not sure that this is right
+void SkPath::transform(const SkMatrix& matrix, SkPath* dst) {
+	if (dst)
+		dst->makeTransform(matrix);
+	else
+		makeTransform(matrix);
 }
 
 void SkPath::offset(float dx, float dy) {

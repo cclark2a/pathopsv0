@@ -7,6 +7,16 @@
 inline float SkBits2Float(int32_t i) {
 	return OpDebugBitsToFloat(i); }
 
+inline int SkScalarRoundToInt(float f) {
+	return (int) floorf(f + 0.5); }
+
+inline float SkDoubleToScalar(double d) {
+	return (float) d; }
+
+struct SkRandom {
+	int nextRangeU(int, int);
+};
+
 constexpr uint32_t SK_ColorWHITE = 0xFFFFFFFF;
 constexpr uint32_t SK_ColorBLACK = 0xFF000000;
 constexpr uint32_t SK_ColorRED =   0xFFFF0000;
@@ -19,11 +29,7 @@ inline uint8_t SkColorGetB(uint32_t c) { return 0; }
 
 struct SkPoint {
 	static SkPoint Make(float x, float y) { 
-		SkPoint p; 
-		p.fX = x; 
-		p.fY = y; 
-		return p; 
-	}
+		return { x, y }; }
 
     friend bool operator==(SkPoint a, SkPoint b) {
         return a.fX == b.fX && a.fY == b.fY;
@@ -38,6 +44,9 @@ struct SkPoint {
 };
 
 struct SkMatrix {
+	static SkMatrix MakeAll(float scaleX, float skewX,  float transX,
+                            float skewY,  float scaleY, float transY,
+                            float pers0, float pers1, float pers2);
 	void reset();
 	void setScale(float, float);
 	void setRotate(float);
@@ -53,6 +62,9 @@ struct SkMatrix {
 };
 
 struct SkRect {
+	static SkRect MakeWH(float w, float h) {
+		return { 0, 0, w, h }; }
+
 	float centerX() const { 
 		return (fLeft + fRight) / 2; }
 	float centerY() const { 
@@ -81,6 +93,11 @@ enum class SkPathFillType {
 	kInverseEvenOdd,
 };
 
+enum class SkPathDirection {
+	kCW,
+	kCCW,
+};
+
 class SkPath {
 public:
 	enum Verb {
@@ -105,8 +122,11 @@ public:
 		bool nextMove;
 	};
 
+	void addCircle(float , float , float , SkPathDirection dir = SkPathDirection::kCW);
 	void addPath(const SkPath& );
 	void addPath(const SkPath& , const SkMatrix& );
+	void addRect(float, float, float, float, SkPathDirection dir = SkPathDirection::kCW);
+	void arcTo(const SkRect& , float startAngle, float sweepAngle, bool forceMoveTo);
 	bool isInverseFillType() { return SkPathFillType::kInverseWinding == fFillType
 			|| SkPathFillType::kInverseEvenOdd == fFillType; }
 	const SkRect& getBounds() const;
@@ -124,11 +144,11 @@ public:
 	void cubicTo(SkPoint p1,SkPoint p2,SkPoint p3) { return cubicTo(p1.fX, p1.fY, p2.fX, p2.fY, p3.fX, p3.fY); }
 	void cubicTo(float,float,float,float,float,float);
 	void close();
-	void addCircle(float,float,float);
 	void offset(float,float);
 	SkPathFillType getFillType() const { return fFillType; }
 	void setFillType(SkPathFillType f) { fFillType = f; }
 	const SkPath& makeTransform(SkMatrix const &);
+	void transform(const SkMatrix& matrix, SkPath* dst = nullptr);
     void updateBoundsCache() const {
         getBounds(); }
 	void dump() const;
@@ -289,12 +309,22 @@ enum SkPathOp {
 inline bool Op(const SkPath& one, const SkPath& two, SkPathOp op, SkPath* result) { return true; }
 inline bool Simplify(const SkPath& path, SkPath* result) { return true; }
 
+struct SkOpGlobalState {
+	static bool DebugRunFail() { return true; }
+};
+
 struct SkPathOpsDebug {
 	static const char* OpStr(SkPathOp op) { return ""; }
 };
 
 typedef float SkScalar;
+typedef SkPoint SkVector;
 inline float SkIntToScalar(int x) { return (float) x; }
+constexpr float SK_ScalarInfinity = OpInfinity;
+constexpr float SK_ScalarNegativeInfinity = -OpInfinity;
+constexpr float SK_ScalarNaN = OpNaN;
+constexpr float SK_ScalarMin = -OpMax;
+constexpr float SK_ScalarMax = OpMax;
 #define SK_ASSERT(x) OP_ASSERT(x)
 #define SkASSERT(x) OP_ASSERT(x)
 #endif

@@ -385,10 +385,7 @@ void dmpIntersections() {
     std::string s;
     for (const auto& c : debugGlobalContours->contours) {
         for (const auto& seg : c.segments) {
-            s += "intersect " + seg.debugDump(defaultLevel, defaultBase) + "\n";
-            for (const auto sect : seg.sects.i) {
-                s += "  " + sect->debugDump(DebugLevel::detailed, defaultBase) + "\n";
-            }
+            s += seg.debugDumpIntersections() + "\n";
         }
     }
     OpDebugOut(s);
@@ -1543,18 +1540,6 @@ void dp(int id) {
     dp(e);
 }
 
-std::string OpEdge::debugDumpHex() const {
-    std::string s = "[" + STR(id) + "]";
-    s = "  {" + start.debugDump(defaultLevel, DebugBase::hex) + " }, // " 
-            + start.debugDump(defaultLevel, DebugBase::dec) + "\n";
-    for (int i = 1; i < segment->c.pointCount() - 1; ++i)
-        s += "  {" + curve.pts[i].debugDump(defaultLevel, DebugBase::hex) + " }, // " 
-                + curve.pts[i].debugDump(defaultLevel, DebugBase::dec) + "\n";
-    s += "  {" + end.debugDump(defaultLevel, DebugBase::hex) + " } // " 
-            + end.debugDump(defaultLevel, DebugBase::dec) + "\n";
-    return s;
-}
-
 OpEdge::OpEdge(std::string s)
     : OpEdge() {
     const char* str = s.c_str();
@@ -2103,8 +2088,6 @@ std::string EdgeDistance::debugDump(DebugLevel debugLevel, DebugBase debugBase) 
     s += debugValue(debugLevel, debugBase, "cept", cept) + " ";
     s += debugValue(debugLevel, debugBase, "t", t) + " ";
     if (reversed) s += debugLabel(debugLevel, "reversed") + " ";
-    if (skipPal) s += debugLabel(debugLevel, "skipPal") + " ";
-    if (skipSum) s += debugLabel(debugLevel, "skipSum") + " ";
     if (s.size())
         s.pop_back();
     return s;
@@ -2381,32 +2364,21 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
         s += " betweenID:" + STR(betweenID);
     if (coincidenceProcessed)
         s += " coincidenceProcessed";
-    if (preferred)
-        s += " preferred";
 #if OP_DEBUG
     s += " reason:" + sectReasonName(debugReason);
     s += " " + debugSetMaker.debugDump();
     auto edgeOrSegment = [](int debug_id, std::string label) {
         if (::findEdge(debug_id))
-            return label + " (edge) " + STR(debug_id) + " ";
+            return label + " (edge) " + STR(debug_id);
         if (::findSegment(debug_id))
-            return label + " (segment) " + STR(debug_id) + " ";
-        return "edge/seg:" + STR(debug_id) + " not found ";
+            return label + " (segment) " + STR(debug_id);
+        return "edge/seg:" + STR(debug_id) + " not found";
     };
     if (debugID)
         s += " " + edgeOrSegment(debugID, "debugID:");
     if (debugOppID)
-        s += " " + edgeOrSegment(debugOppID, "debugOpp:");
+        s += " " + edgeOrSegment(debugOppID, "debugOppID:");
 #endif
-    return s;
-}
-
-std::string OpIntersection::debugDumpHex() const {
-    std::string s;
-    s = "/* sect:" + debugDumpID() + " */ OpPtT data[] {\n";
-    s += "  " + ptT.debugDump(defaultLevel, DebugBase::hex) 
-            + " // " + ptT.debugDump(defaultLevel, DebugBase::dec) + "\n";
-    s += "}; // seg:" + segment->debugDumpID() + "\n";
     return s;
 }
 
@@ -2489,12 +2461,10 @@ std::string OpSegment::debugDumpFull() const {
     return s;
 }
 
-std::string OpSegment::debugDumpHex() const {
-    return "/* seg:" + debugDumpID() + " */ " + c.debugDump(defaultLevel, DebugBase::hex);
-}
-
 std::string OpSegment::debugDumpIntersections() const {
     std::string s;
+    if (sects.resort)
+        s += "resort ";
     for (auto i : sects.i) {
         std::string is = i->debugDump(defaultLevel, defaultBase);
         std::string match = "segment:";
