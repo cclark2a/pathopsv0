@@ -20,8 +20,6 @@ void SectRay::addPals(OpEdge* home) {
 	auto matchCept = [home](EdgeDistance* test) {
 //		OP_ASSERT(axis == test->edge->ray.axis);  // !!! I don't think this matters ?
 		home->addPal(*test);
-		if (!test->edge->ray.distances.size())
-			return;
 		if (EdgeDistance* homeDist = test->edge->ray.find(home)) {
 			test->edge->addPal(*homeDist);
 //			OP_DEBUG_CODE(EdgeDistance* testDist = test->edge->ray.find(test->edge));
@@ -47,29 +45,42 @@ void SectRay::addPals(OpEdge* home) {
 		matchCept(test);
         nextIsPal = true;
 	}
+	// if axes are different, and if y-axis edge is oriented nw/se (not ne/sw), reverse
+	auto axesReversed = [home](OpEdge* test) {
+		if (test->ray.axis == home->ray.axis)
+			return false;
+		OpEdge* vertical = Axis::vertical == test->ray.axis ? test : home;
+		OpVector dxy = vertical->end.pt - vertical->start.pt;
+		if (!dxy.dy)
+			return false;
+		return dxy.dy > 0 ? dxy.dx > 0 : dxy.dx < 0;
+	};
     // check next ray intersected edge if it hasn't been checked already
     // !!! stops at 1; don't know if we may need more than one
     // !!! thread_circles54530 failed only on laptop 
-    if (homeDist > &distances.front() && !priorIsPal) {
-        OpEdge* priorEdge = (homeDist - 1)->edge;
-        if (priorEdge->ray.distances.size()) {
-            EdgeDistance* priorDist = priorEdge->ray.find(priorEdge);
-            if (priorDist > &priorEdge->ray.distances.front() && (priorDist - 1)->edge == home) {
-                home->addPal(*priorDist);
-                priorEdge->addPal(*homeDist);
-            }
-        }
-    }
-    if (homeDist < &distances.back() && !nextIsPal) {
-        OpEdge* nextEdge = (homeDist + 1)->edge;
-        if (nextEdge->ray.distances.size()) {
-            EdgeDistance* nextDist = nextEdge->ray.find(nextEdge);
-            if (nextDist < &nextEdge->ray.distances.back() && (nextDist + 1)->edge == home) {
-                home->addPal(*nextDist);
-                nextEdge->addPal(*homeDist);
-            }
-        }
-    }
+	auto addIfFlipped = [axesReversed, homeDist, home, this](DistEnd offset) {
+		OP_ASSERT(DistEnd::back == offset || DistEnd::front == offset);
+		if (homeDist == end(offset))
+			return;
+		OpEdge* edge = next(homeDist, offset)->edge;
+		SectRay& ray = edge->ray;
+		EdgeDistance* dist = ray.find(edge);
+		if (!dist)
+			return;
+		if (axesReversed(edge))
+			offset = !offset;		
+		if (dist == ray.end(offset))
+			return;
+		if (ray.next(dist, offset)->edge != home)
+			return;
+		home->addPal(*dist);
+		edge->addPal(*homeDist);
+		return;
+	};
+	if (!priorIsPal)
+		addIfFlipped(DistEnd::front);
+	if (!nextIsPal)
+		addIfFlipped(DistEnd::back);
 }
 
 bool SectRay::checkOrder(const OpEdge* home) const {
@@ -97,7 +108,8 @@ bool SectRay::checkOrder(const OpEdge* home) const {
 }
 
 EdgeDistance* SectRay::find(OpEdge* edge) {
-    OP_ASSERT(distances.size());
+    if (!distances.size())
+		return nullptr;
 	for (auto test = &distances.back(); test >= &distances.front(); --test) {
 		if (test->edge == edge)
 			return test;
@@ -347,6 +359,7 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 			sect1->coincidenceID = coinID;
 			OP_ASSERT(MatchEnds::none == sect1->coinEnd);
 			sect1->coinEnd = MatchEnds::start;
+			segment->sects.resort = true;
 		} else {	// or if it doesn't exist and isn't in a coin range, make one
 			sect1 = segment->addCoin(aPtT, coinID, MatchEnds::start, oppSegment
 					OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch));
@@ -359,6 +372,7 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 			sect2->coincidenceID = coinID;
 			OP_ASSERT(MatchEnds::none == sect2->coinEnd);
 			sect2->coinEnd = MatchEnds::end;
+			segment->sects.resort = true;
 		} else {
 			sect2 = segment->addCoin(bPtT, coinID, MatchEnds::end, oppSegment
 					OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch));
@@ -371,14 +385,12 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 	OpIntersection* oSect2 = findSect(oRange, { bPtT.pt, -1 });
 	// add the opposite that goes with the created segment sect
 	float oStart = 0;
-	float oTRange = 0; 
 	float oXYRange = 0;
 	if (!oSect1 || !oSect2) {
 		if (flipped)
 			std::swap(cPtT, dPtT);
 		oStart = cPtT.pt.choice(xyChoice);
 		float oEnd = dPtT.pt.choice(xyChoice);
-		oTRange = dPtT.t - cPtT.t;
 		oXYRange = oEnd - oStart;
 	}
 	bool setOSect1CoinID = false;
@@ -386,7 +398,7 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 	if (!oSect1) {
 		if (sect1) {  // pentrek7 set to null (maybe)
 			float eStart = aPtT.pt.choice(xyChoice);
-			OpPtT oCoinStart{ aPtT.pt, cPtT.t + (eStart - oStart) / oXYRange * oTRange };
+			OpPtT oCoinStart{ aPtT.pt, OpMath::Interp(cPtT.t, dPtT.t, (eStart - oStart) / oXYRange) };
 			OP_ASSERT(OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t));
 			oSect1 = oppSegment->addCoin(oCoinStart, coinID, flipped ? MatchEnds::end 
 					: MatchEnds::start, segment
@@ -403,7 +415,7 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 	if (!oSect2) {
 		if (sect2) {
 			float eEnd = bPtT.pt.choice(xyChoice);
-			OpPtT oCoinEnd{ bPtT.pt, cPtT.t + (eEnd - oStart) / oXYRange * oTRange };
+			OpPtT oCoinEnd{ bPtT.pt, OpMath::Interp(cPtT.t, dPtT.t, (eEnd - oStart) / oXYRange ) };
 			OP_ASSERT(OpMath::Between(cPtT.t, oCoinEnd.t, dPtT.t));
 			oSect2 = oppSegment->addCoin(oCoinEnd, coinID, flipped ? MatchEnds::start 
 					: MatchEnds::end, segment
@@ -419,6 +431,7 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 			oSect2->coincidenceID = coinID;
 			OP_ASSERT(MatchEnds::none == oSect2->coinEnd);
 			oSect2->coinEnd = flipped ? MatchEnds::start : MatchEnds::end;
+			oppSegment->sects.resort = true;
 			setOSect2CoinID = true;
 		}
 	}
@@ -427,6 +440,7 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 		oSect1->coincidenceID = coinID;
 		OP_ASSERT(MatchEnds::none == oSect1->coinEnd);
 		oSect1->coinEnd = flipped ? MatchEnds::end : MatchEnds::start;	// !!! added without testing
+		oppSegment->sects.resort = true;
 	}
 	if (addToExistingRange) {
 		auto coinOutside = [](std::vector<OpIntersection*>& range, 
@@ -440,11 +454,14 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 						const OpIntersection* s1, const OpIntersection* s2) {
 						return s1->ptT.t < s2->ptT.t; });
 				for (auto sectIter = range.begin() + 1; sectIter < range.end() - 1; ++sectIter)
-					(*sectIter)->coincidenceID = 0;
+					if ((*sectIter)->coincidenceID)
+						(*sectIter)->zeroCoincidenceID();
 			}
 		};
 		coinOutside(range, addedSect1, sect1, addedSect2, sect2);
+		segment->sects.resort |= addedSect1 | addedSect2;
 		coinOutside(oRange, addedOSect1, oSect1, addedOSect2, oSect2);
+		oppSegment->sects.resort |= addedOSect1 | addedOSect2;
 	}
 	if ((setOSect1CoinID || (sect1 && oSect1)) && (setOSect2CoinID || (sect2 && oSect2)))
 		return IntersectResult::yes;
@@ -463,12 +480,9 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 	OpSegment* oSegment = const_cast<OpSegment*>(opp.segment);
 	OP_ASSERT(oSegment != eSegment);
 	OP_ASSERT(edge.isLine_impl);
- //   bool reversed;
-    MatchEnds common = MatchEnds::none; // eSegment->matchEnds(oSegment, &reversed, nullptr, MatchSect::existing);
 	LinePts edgePts { edge.start.pt, edge.end.pt };
-    OpRoots septs = oSegment->c.rayIntersect(edgePts, common); 
+    OpRoots septs = oSegment->c.rayIntersect(edgePts, MatchEnds::none); 
 	IntersectResult sectAdded = IntersectResult::no;
-	// !!! hacky: consider conics only until we find lines/quads/cubics that fail here as well
 	// check the ends of each edge to see if they intersect the opposite edge (if missed earlier)
 	auto addPair = [eSegment, oSegment  OP_DEBUG_PARAMS(opp, edge)](OpPtT oppPtT, OpPtT edgePtT,
 			IntersectResult& added  OP_LINE_FILE_DEF(int dummy)) {
@@ -484,24 +498,12 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 			added = IntersectResult::yes;
 		}
 	};
-	if (!septs.count && OpType::conic == oSegment->c.type) {
+	if (!septs.count) {
 		auto checkEnd = [opp](OpPtT& start) {
-			const OpCurve& curve = opp.segment->c;
-			float xRoot = curve.tAtXY(opp.start.t, opp.end.t, XyChoice::inX, start.pt.x);
-			float yRoot = curve.tAtXY(opp.start.t, opp.end.t, XyChoice::inY, start.pt.y);
-			if (OpMath::Equalish(xRoot, yRoot))
-				return OpPtT(start.pt, xRoot);
-			OpVector xTan = curve.tangent(xRoot);
-			OpVector yTan = curve.tangent(yRoot);
-			float yPos = fabsf(xTan.dx) < fabsf(xTan.dy) * 2 ? curve.ptAtT(xRoot).y : OpNaN;
-			float xPos = fabsf(yTan.dy) < fabsf(yTan.dx) * 2 ? curve.ptAtT(yRoot).x : OpNaN;
-			if (OpMath::IsNaN(yPos) && OpMath::IsNaN(xPos))
+			float t = opp.segment->c.match(opp.start.t, opp.end.t, start.pt);
+			if (OpMath::IsNaN(t))
 				return OpPtT();
-			if (OpMath::Equalish(yPos, start.pt.y))
-				return OpPtT(start.pt, xRoot);
-			if (OpMath::Equalish(xPos, start.pt.x))
-				return OpPtT(start.pt, yRoot);
-			return OpPtT();
+			return OpPtT { start.pt, t };
 		};
 		OpPtT oppStart = checkEnd(edge.start);
 		if (!OpMath::IsNaN(oppStart.t))
@@ -589,7 +591,7 @@ FoundIntercept OpWinder::findRayIntercept(size_t homeIndex, OpVector homeTan, fl
 	float mid = .5;
 	float midEnd = .5;
 	std::vector<OpEdge*>& inArray = Axis::horizontal == workingAxis ? inX : inY;
-	ray.homeT = home->center.t;
+	ray.homeT = OpMath::Interp(home->start.t, home->end.t, home->center.t);
 	// if find intercept fails, retry some number of times
 	// if all retries fail, distinguish between failure cases
 	//   if it failed because closest edge was too close, mark pair as unsectable
@@ -636,12 +638,7 @@ FoundIntercept OpWinder::findRayIntercept(size_t homeIndex, OpVector homeTan, fl
 		midEnd = midEnd < .5 ? 1 - mid : mid;
 		float middle = OpMath::Interp(home->ptBounds.ltChoice(workingAxis), 
 				home->ptBounds.rbChoice(workingAxis), midEnd);
-#if RAY_USE_SEGMENT
-		const OpCurve& homeCurve = home->segment->c;
-#else
-//		const OpCurve& homeCurve = home->setCurve();  // ok to be in loop (lazy)
-#endif
-		float homeMidT = home->curve.center(workingAxis, middle);
+		float homeMidT = home->curve.center(workingAxis, middle);  // note: 0 to 1 on edge curve
 		if (OpMath::IsNaN(homeMidT) || mid <= 1.f / 256.f) {  // give it at most eight tries
 			// look for the same edge touching multiple times; the pair are unsectable
 			if (FindCept::unsectable == findCept) {
@@ -737,7 +734,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 		else {
 			OpWinding prev(WindingTemp::dummy);
 			// look at direction of edge relative to ray and figure winding/oppWinding contribution
-			if (CalcFail::fail == home->addIfUR(ray.axis, ray.distances[0].t, &prev))
+			if (CalcFail::fail == home->addIfUR(ray.axis, ray.distances[0].edgeInsideT, &prev))
 				home->setUnsortable();
 			else
 				OP_EDGE_SET_SUM(home, prev);
@@ -745,7 +742,10 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 		return ResolveWinding::resolved;
 	}
 	// don't set the sum winding if this has pals or if any prior edge has this as a pal
-	// !!! try backing up only while the previous has pals to see if that is enough
+	// back up only while the previous has pals
+	// and: don't set the sum winding if the prior or next edge pt is very close to this pt
+	// !!! any prior pal is called several times with the same edge, below. Optimization:
+	// !!!    cache the answer in distance edge ?
 	auto anyPriorPal = [ray](OpEdge* edge, int sumIndex) {
 		if (edge->pals.size())
 			return true;
@@ -757,14 +757,23 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 				break;
 			sumIndex = next;
 		}
+		size_t last = (size_t) (sumIndex + 1);
+		float lastCept = last < ray.distances.size() ? ray.distances[last].cept : OpNaN;
+		bool lastIsEdge = false;
 		do {
-			OpEdge* previous = ray.distances[sumIndex].edge;
+			const EdgeDistance& dist = ray.distances[sumIndex];
+			OpEdge* previous = dist.edge;
 			if (previous->isPal(edge))
 				return true;
-			if (previous == edge)
-				continue;
-			if (!previous->pals.size())
+			if (lastIsEdge && OpMath::Equalish(lastCept, dist.cept))
+				return true;
+			lastIsEdge = previous == edge;
+			if (lastIsEdge) {
+				if (OpMath::Equalish(lastCept, dist.cept))
+					return true;
+			} else if (!previous->pals.size())
 				break;
+			lastCept = dist.cept;
 		} while (--sumIndex >= 0);
 		return false;
 	};
@@ -773,7 +782,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 	int sumIndex = ray.distances.size();
 	while (ray.distances[--sumIndex].edge != home) 
 		OP_ASSERT(sumIndex > 0);
-	float homeT = ray.distances[sumIndex].t;  // used by unsectable, later
+	float homeT = ray.distances[sumIndex].edgeInsideT;  // used by unsectable, later
 	while (--sumIndex >= 0 && (anyPriorPal(ray.distances[sumIndex].edge, sumIndex) 
 			|| !ray.distances[sumIndex].edge->sum.isSet()))
 		;
@@ -786,7 +795,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 		sumWinding = sumEdge->sum;
 		OP_DEBUG_CODE(sumWinding.debugType = WindingType::temp);
 		// if pointing down/left, subtract winding
-		if (CalcFail::fail == sumEdge->subIfDL(ray.axis, sumDistance.t, &sumWinding))  
+		if (CalcFail::fail == sumEdge->subIfDL(ray.axis, sumDistance.edgeInsideT, &sumWinding))  
 			OP_DEBUG_FAIL(*sumEdge, ResolveWinding::fail);
 	}
 	OpEdge* prior;
@@ -796,20 +805,23 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 		prior = dist.edge;
 		if (home->pals.size() && (home == prior || home->isPal(prior)))
 			break;
-		NormalDirection normDir = prior->normalDirection(ray.axis, dist.t);
+		NormalDirection normDir = prior->normalDirection(ray.axis, dist.edgeInsideT);
 		if (NormalDirection::underflow == normDir || NormalDirection::overflow == normDir) {
 			prior->setUnsortable();
 			continue;
 		}
 		if (NormalDirection::downLeft == normDir && !anyPriorPal(prior, sumIndex))
 			OP_EDGE_SET_SUM(prior, sumWinding);
-		if (CalcFail::fail == prior->addSub(ray.axis, dist.t, &sumWinding)) // if d/l sub; if u/r add
+		if (CalcFail::fail == prior->addSub(ray.axis, dist.edgeInsideT, &sumWinding)) // if d/l sub; if u/r add
 			OP_DEBUG_FAIL(*prior, ResolveWinding::fail);
 		if (NormalDirection::upRight == normDir && !anyPriorPal(prior, sumIndex))
 			OP_EDGE_SET_SUM(prior, sumWinding);
 	} while (home != prior);
-	if (!home->pals.size())
+	if (!home->pals.size()) {
+		if (!home->sum.isSet())
+			OP_EDGE_SET_SUM(home, sumWinding);
 		return ResolveWinding::resolved;
+	}
 	// if home is unsectable, set its sum winding as if all of its pals' windings were a single edge
 	OP_ASSERT(!home->many.isSet());
 	// winding must be replaced by all unsectable windings -- however, other unsectables will want 

@@ -132,7 +132,7 @@ EDGE_OR_SEGMENT_DETAIL
         if (auto edge = findEdge(id)) \
             return dmp##Thing(*edge); \
         if (auto intersection = findIntersection(id)) \
-            return dmpMatch(*intersection); \
+            return dmp##Thing(*intersection); \
     }
 EDGE_OR_SEGMENT_DETAIL
 #undef OP_X
@@ -948,6 +948,7 @@ static ZeroReasonName zeroReasonNames[] {
     REASON_NAME(addIntersection),
     REASON_NAME(applyOp),
     REASON_NAME(centerNaN),
+    REASON_NAME(collapsed),
     REASON_NAME(filler),
     REASON_NAME(findCoincidences), 
     REASON_NAME(hvCoincidence1),
@@ -1003,9 +1004,11 @@ ENUM_NAME(EdgeSplit, edgeSplit)
 	OP_X(windZero) \
 	OP_X(doSplit) \
 	OP_X(bias) \
+	OP_X(closeSet) \
 	OP_X(curvySet) \
 	OP_X(lineSet) \
 	OP_X(verticalSet) \
+	OP_X(isClose_impl) \
 	OP_X(isLine_impl) \
 	OP_X(exactLine) \
 	OP_X(active_impl) \
@@ -1453,9 +1456,11 @@ std::string OpEdge::debugDump(DebugLevel debugLevel, DebugBase debugBase) const 
     #define STR_BOOL(ef) do { if (dumpIt(EdgeFilter::ef) && (dumpAlways(EdgeFilter::ef) || ef)) { \
         s += strLabel(#ef) + " "; \
         if (1 != ((unsigned char) ef)) s += STR((size_t) ef) + " "; }} while(false)
+    STR_BOOL(closeSet);
     STR_BOOL(curvySet);
     STR_BOOL(lineSet);
     STR_BOOL(verticalSet);
+    STR_BOOL(isClose_impl);
     STR_BOOL(isLine_impl);
     STR_BOOL(exactLine);
 	STR_BOOL(active_impl);
@@ -1967,8 +1972,8 @@ std::string OpJoiner::debugDump(DebugLevel l, DebugBase b) const {
     s += " linkPass:" + linkPassName(linkPass);
     if (edge)
         s += "\nedge:" + edge->debugDump(l, b);
-    if (lastEdge)
-        s += "\nlastEdge:" + lastEdge->debugDump(l, b);
+    if (lastLink)
+        s += "\nlastLink:" + lastLink->debugDump(l, b);
     if (!OpMath::IsNaN(matchPt.x) && !OpMath::IsNaN(matchPt.y))
         s += "\nmatchPt:" + matchPt.debugDump(l, b);
     s += " disabledBuilt:" + STR(disabledBuilt);
@@ -1993,6 +1998,10 @@ std::string OpLimb::debugDumpIDs(bool bracket) const {
     std::string s = (bracket ? "[" : "id:") + STR(debugID);
     if (edge) {
         s += (bracket ? " e:" : " edge:") + STR(edge->id);
+        if (EdgeMatch::start == match)
+            s += "s";
+        else if (EdgeMatch::end == match)
+            s += "e";
         if (edge->lastEdge && edge != edge->lastEdge)
             s += ".." + STR(edge->lastEdge->id);
         else if (edge->priorEdge) {
@@ -2014,8 +2023,8 @@ std::string OpLimb::debugDump(DebugLevel l, DebugBase b) const {
     std::string s = debugDumpIDs(false);
     if (bounds.isFinite())
         s += " bounds:" + bounds.debugDump(l, b);
-    if (lastEdge)
-        s += " lastEdge:" + STR(lastEdge->id);
+    if (lastLimb)
+        s += " lastLimb:" + STR(lastLimb->id);
     if (parent)
         s += " parent:" + parent->debugDumpIDs(true);
     if (lastPt.isFinite())
@@ -2086,7 +2095,7 @@ std::string EdgeDistance::debugDump(DebugLevel debugLevel, DebugBase debugBase) 
         return STR(edge->id) + " ";
     std::string s = edge->debugDump(debugLevel, debugBase) + " ";
     s += debugValue(debugLevel, debugBase, "cept", cept) + " ";
-    s += debugValue(debugLevel, debugBase, "t", t) + " ";
+    s += debugValue(debugLevel, debugBase, "edgeInsideT", edgeInsideT) + " ";
     if (reversed) s += debugLabel(debugLevel, "reversed") + " ";
     if (s.size())
         s.pop_back();
@@ -2167,8 +2176,8 @@ std::string CoinPair::debugDump(DebugLevel l, DebugBase b) const {
 std::string SectRay::debugDump(DebugLevel debugLevel, DebugBase debugBase) const {
     std::string s = "ray count:" + STR(distances.size()) + " ";
     s += debugValue(debugLevel, debugBase, "normal", normal) + " ";
-    s += debugValue(debugLevel, debugBase, "cept", homeCept) + " ";
-    s += debugValue(debugLevel, debugBase, "t", homeT) + " ";
+    s += debugValue(debugLevel, debugBase, "homeCept", homeCept) + " ";
+    s += debugValue(debugLevel, debugBase, "homeT", homeT) + " ";
     s += "axis:" + axisName(axis) + " ";
     for (const EdgeDistance& dist : distances)
         s += dist.debugDump(DebugLevel::brief, debugBase) + " ";
@@ -2261,6 +2270,8 @@ void OpCurveCurve::dumpDepth(int level) {
         if (EdgeFilter::curvy == filter.field)
             continue;
         if (EdgeFilter::lineSet == filter.field)
+            continue;
+        if (EdgeFilter::isClose_impl == filter.field)
             continue;
         if (EdgeFilter::isLine_impl == filter.field)
             continue;
@@ -2403,6 +2414,22 @@ void OpIntersection::debugCompare(std::string s) const {
     OP_ASSERT(ptT == test.ptT);
 }
 
+void dmpFull(const OpIntersection* sect) {
+    dmpFull(*sect);
+}
+
+void dmpFull(const OpIntersection& sect) {
+    dmpFull(sect.segment);
+}
+
+void dmpEnd(const OpIntersection& sect) {
+    dmp(sect);
+}
+
+void dmpStart(const OpIntersection& sect) {
+    dmp(sect);
+}
+
 void dmpMatch(const OpIntersection& sect) {
     sect.segment->contour->contours->dumpMatch(sect.ptT.pt);
 }
@@ -2454,7 +2481,11 @@ std::string OpSegment::debugDumpEdges() const {
 }
 
 std::string OpSegment::debugDumpFull() const {
-    std::string s = debugDump(defaultLevel, defaultBase) + "\n";
+    std::string s = debugDump(defaultLevel, defaultBase);
+    if (sects.resort)
+        s += " ";
+    else
+        s += "\n";
     s += debugDumpIntersections();
     s += "edges:\n";
     s += debugDumpEdges();
@@ -2464,7 +2495,7 @@ std::string OpSegment::debugDumpFull() const {
 std::string OpSegment::debugDumpIntersections() const {
     std::string s;
     if (sects.resort)
-        s += "resort ";
+        s += "resort\n";
     for (auto i : sects.i) {
         std::string is = i->debugDump(defaultLevel, defaultBase);
         std::string match = "segment:";

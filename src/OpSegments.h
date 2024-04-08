@@ -11,6 +11,7 @@ enum class IntersectResult;
 
 struct OpSegments {
     OpSegments(OpContours& contours);
+    static void AddEndMatches(OpSegment* seg, OpSegment* opp);
     static void AddLineCurveIntersection(OpSegment* opp, OpSegment* seg);
     void findCoincidences();
 //    void findLineCoincidences();

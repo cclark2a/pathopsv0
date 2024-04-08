@@ -16,6 +16,7 @@ constexpr auto OpInfinity = std::numeric_limits<float>::infinity();
 constexpr auto OpNaN = std::numeric_limits<float>::quiet_NaN();
 constexpr auto OpMax = std::numeric_limits<int>::max();
 constexpr auto OpEpsilon = std::numeric_limits<float>::epsilon();
+constexpr auto OpCloseFactor = 8.f;  // !!! picked out of the air
 
 #include "OpDebug.h"
 
@@ -35,6 +36,27 @@ enum class MatchEnds {
     start,
     end,
     both
+};
+
+inline MatchEnds operator&(MatchEnds a, MatchEnds b) {
+    return (MatchEnds) ((int) a & (int) b);
+}
+
+inline MatchEnds operator|(MatchEnds a, MatchEnds b) {
+    return (MatchEnds) ((int) a | (int) b);
+}
+
+inline MatchEnds operator|=(MatchEnds& a, MatchEnds b) {
+    return a = a | b;
+}
+
+inline bool operator!(MatchEnds a) {
+    return !(int) a;
+}
+
+struct MatchReverse {
+    MatchEnds match;
+    bool reversed;
 };
 
 enum class RootFail {
@@ -96,10 +118,6 @@ struct OpRoots {
         if (contains(root))
             return;
 // !!! add in only called by segment line/curve, not edge line/curve
-// replaceClosest hides intersections when line hits curve in two places
-// suspect this is why thread_loops54 fails; see what else fails if this is removed
-//        if (replaceClosest(root))
-//            return;
         add(root);
     }
 
@@ -125,8 +143,6 @@ struct OpRoots {
     }
 
     void prioritize01();
-
-    bool replaceClosest(float root);
 
     void sort() {
         std::sort(roots.begin(), roots.begin() + count);
@@ -468,7 +484,7 @@ struct OpPoint {
     bool isNearly(OpPoint test) const;
     void pin(const OpPoint , const OpPoint );
     void pin(const OpRect& );
-    bool soClose(OpPoint test, float epsilon) const;
+    bool soClose(OpPoint test) const;
 
 
     void zeroTiny() {  // set denormalized inputs to zero
@@ -592,8 +608,9 @@ struct OpPtT {
         return 0 == t || 1 == t;
     }
 
-    bool soClose(const OpPtT& o, float epsilon) const {
-        return pt.soClose(o.pt, epsilon) || (t + epsilon >= o.t && t <= o.t + epsilon);
+    bool soClose(const OpPtT& o) const {
+        constexpr auto epsilon = OpCloseFactor * OpEpsilon;
+        return pt.soClose(o.pt) || (t + epsilon >= o.t && t <= o.t + epsilon);
     }
 
     static void MeetInTheMiddle(OpPtT& a, OpPtT& b){
@@ -650,6 +667,8 @@ struct OpMath {
     }
 
     static bool Betweenish(float a, float b, float c);
+    static float CloseLarger(float );
+    static float CloseSmaller(float );
 
 //    static float CubeRoot(float);
     static OpRoots CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B, OpCubicFloatType C,

@@ -63,6 +63,8 @@ enum class OpDebugIntersect {
 
 struct OpContours;
 
+#define OP_DEBUG_CONTEXT(...)
+
 #ifdef NDEBUG
 
 #define OP_ASSERT(expr)
@@ -143,6 +145,10 @@ struct OpContours;
 	do { if ((doBreak) && (ID) == (opObject)->id) OP_DEBUG_BREAK(); } while (false)
 
 #if OP_DEBUG_DUMP
+#undef OP_DEBUG_CONTEXT
+#define OP_DEBUG_CONTEXT(context) \
+	debugContext = __func__
+
 #define OpDebugPlayback(opObject, ID) \
 	do { if ((ID) == (opObject)->id) { playback(); OP_DEBUG_BREAK(); } } while (false)
 

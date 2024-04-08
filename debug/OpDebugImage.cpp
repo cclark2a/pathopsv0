@@ -553,10 +553,10 @@ void OpDebugImage::drawDoubleFocus() {
 		for (auto segment : segmentIterator)
 			DebugOpDrawPointID(segment, ids);
 	}
-#if 0 // unimplmented
+#if 01 // unimplmented
 	if (drawSegmentsOn && drawTangentsOn) {
 		for (auto segment : segmentIterator)
-			DebugOpDrawTangent(segment);
+			DebugOpDrawSegmentTangent(segment, black);
 	}
 #endif
 	if (drawGridOn)
@@ -1479,6 +1479,7 @@ static void operateOnTemporaryEdges(std::function<void (OpEdge*)> fun) {
 			continue;
 		fun(edge);
 	}
+	OpDebugImage::drawDoubleFocus();
 }
 
 void hideTemporaryEdges() {
@@ -1761,12 +1762,12 @@ bool OpDebugImage::drawEdgeNormal(OpVector norm, OpPoint midTPt, int edgeID, uin
 	return true;
 }
 
-bool OpDebugImage::drawEdgeTangent(OpVector tan, OpPoint midTPt, int edgeID, uint32_t color) {
+bool OpDebugImage::drawTangent(OpVector tan, OpPoint midTPt, int id, uint32_t color) {
 	OpLine tangent(midTPt, midTPt + tan);
 	SkPath tangentPath;
 	tangentPath.moveTo(tangent.pts[0].x, tangent.pts[0].y);
 	if (!tangent.pts[1].isFinite()) {
-		OpDebugOut("tangent not finite (edge id)" + STR(edgeID) + "\n");
+		OpDebugOut("tangent not finite (id)" + STR(id) + "\n");
 		return false;
 	}
 	tangentPath.lineTo(tangent.pts[1].x, tangent.pts[1].y);

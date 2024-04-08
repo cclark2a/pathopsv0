@@ -161,6 +161,7 @@ OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int usectID, MatchEnd
         OP_ASSERT(!sect->unsectID);
         sect->unsectID = usectID;
         sect->unsectEnd = end;
+        sects.resort = true;
         return sect;
     }
     return sects.add(contour->addUnsect(ptT, this, usectID, end  
@@ -251,59 +252,47 @@ float OpSegment::findValidT(float start, float end, OpPoint opp) const {
     return OpNaN;
 }
 
-void OpSegment::makeEdge(OP_DEBUG_CODE(EdgeMaker maker, int line, std::string file)) {
+void OpSegment::makeEdge(const OpPtT& s, const OpPtT& e  
+        OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file)) {
     if (!edges.size()) 
-        edges.emplace_back(this, OpPtT(c.pts[0], 0), OpPtT(c.lastPt(), 1)
-                OP_DEBUG_PARAMS(maker, line, file, nullptr, nullptr));
+        edges.emplace_back(this, s, e  OP_DEBUG_PARAMS(maker, line, file, nullptr, nullptr));
+}
+
+
+void OpSegment::makeEdge(OP_DEBUG_CODE(EdgeMaker maker, int line, std::string file)) {
+    makeEdge(OpPtT(c.pts[0], 0), OpPtT(c.lastPt(), 1)  OP_DEBUG_PARAMS(maker, line, file));
 }
 
 void OpSegment::makeEdges() {
     if (!winding.left() && !winding.right()) {
-        edges.clear();
-        return;
+       edges.clear();
+       return;
     }
-    if (1 == edges.size() && 2 == sects.i.size()) {
-        OP_ASSERT(c.pts[0] == edges[0].start.pt);
-        OP_ASSERT(0 == edges[0].start.t);
-        OP_ASSERT(c.lastPt() == edges[0].end.pt);
-        OP_ASSERT(1 == edges[0].end.t);
+    if (2 == sects.i.size() && 1 == edges.size() && !edges[0].start.t && 1 == edges[0].end.t)
         return;
-    }
     edges.clear();
     edges.reserve(sects.i.size() - 1);
     sects.makeEdges(this);
 }
 
-MatchEnds OpSegment::matchEnds(const OpSegment* opp, bool* reversed, MatchEnds* existing,
-        MatchSect matchSect) const {
-    MatchEnds result = MatchEnds::none;
-    *reversed = false;
+MatchReverse OpSegment::matchEnds(const OpSegment* opp) const {
+    MatchReverse result { MatchEnds::none, false };
+    OP_ASSERT(c.pts[0] != c.lastPt());
+    OP_ASSERT(opp->c.pts[0] != opp->c.lastPt());
     if (c.pts[0] == opp->c.pts[0])
-        result = MatchEnds::start;
-    else if (c.pts[0] == opp->c.lastPt()) {
-        result = MatchEnds::start;
-        *reversed = true;
-    }
-    bool foundEnd = false;
-    if (c.lastPt() == opp->c.pts[0])
-        *reversed = foundEnd = true;
-    else if (c.lastPt() == opp->c.lastPt())
-        foundEnd = true;
-    if (foundEnd) {
-        result = (MatchEnds) ((int) result | (int) MatchEnds::end);
-        OP_ASSERT(MatchEnds::end == result || MatchEnds::both == result);
-    }
-    if (existing)
-        *existing = result;
-    if (MatchEnds::none == result || MatchEnds::both == result)
-        return result;
-    if (MatchSect::existing != matchSect || !*reversed)
-        return result;
-    if (result != matchExisting(opp))
-        return result;
-    return MatchEnds::none;
+        result = { MatchEnds::start, false };
+    else if (c.pts[0] == opp->c.lastPt())
+        result = { MatchEnds::start, true };
+    if (c.lastPt() == opp->c.lastPt())
+        result = { result.match | MatchEnds::end, false };
+    else if (c.lastPt() == opp->c.pts[0])
+        result = { result.match | MatchEnds::end, true };
+    return result;
 }
 
+/* Since all segments have to be checked against all other segments, it adds complexity
+   to special case consecutive segments (or start/end of contour segments) that share
+   a point. Instead, pick up common end point when the consecutive segments are compared.
 MatchEnds OpSegment::matchExisting(const OpSegment* opp) const {
     MatchEnds result = MatchEnds::none;
     if (contour != opp->contour)  //  || 2 == contour->segments.size() : curve/line e.g. cubicOp97x
@@ -311,9 +300,10 @@ MatchEnds OpSegment::matchExisting(const OpSegment* opp) const {
     if (this - 1 == opp || (&contour->segments.front() == this && &contour->segments.back() == opp))
         result = MatchEnds::start;
     if (this + 1 == opp || (&contour->segments.front() == opp && &contour->segments.back() == this))
-        result = (MatchEnds) ((int) result | (int) MatchEnds::end);
+        result |= MatchEnds::end;
     return result;
 }
+*/
 
 void OpSegment::moveTo(const OpPtT& ptT, OpPoint pt) {
     OP_ASSERT(ptT.onEnd());
@@ -411,9 +401,18 @@ void OpSegment::windCoincidences() {
                     // mark the intersections as coincident
                     int coinID = oSegment->coinID(reversed);
                     oStart->coincidenceID = coinID;
+                    OP_ASSERT(MatchEnds::none == oStart->coinEnd);
+                    oStart->coinEnd = MatchEnds::start;
                     oEnd->coincidenceID = coinID;
+                    OP_ASSERT(MatchEnds::none == oEnd->coinEnd);
+                    oEnd->coinEnd = MatchEnds::end;
                     (*eStart)->opp->coincidenceID = coinID;
+                    OP_ASSERT(MatchEnds::none == (*eStart)->opp->coinEnd);
+                    (*eStart)->opp->coinEnd = reversed ? MatchEnds::end : MatchEnds::start;
                     (*eEnd)->opp->coincidenceID = coinID;
+                    OP_ASSERT(MatchEnds::none == (*eEnd)->opp->coinEnd);
+                    (*eEnd)->opp->coinEnd = reversed ? MatchEnds::start : MatchEnds::end;
+                    sects.resort = true;
                     foundCoincidence = true;
                 }
             }

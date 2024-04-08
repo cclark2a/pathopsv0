@@ -97,6 +97,22 @@ struct CcSects {
 };
 #endif
 
+struct CutRangeT {
+	OpPtT lo;
+	OpPtT hi;
+};
+
+struct BuildClosest {
+	BuildClosest()
+		: best(OpInfinity) {
+	}
+	void build(OpSegment* s, const std::vector<OpEdge*>& edgeCurves, 
+            OpSegment* o, const std::vector<OpEdge*>& oppCurves);
+
+	SoClose closest;
+    float best;
+};
+
 struct OpCurveCurve {
 	static constexpr int maxSplits = 8;   // !!! no idea what this should be 
 	static constexpr int maxDepth = 24;  // !!! no idea what this should be
@@ -109,15 +125,17 @@ struct OpCurveCurve {
 	SectFound divideExperiment();
 #endif
 	void findEdgesTRanges(CurveRef );
+	void ifCloseSave(OpEdge& edge, OpPtT edgePtT, OpEdge& opp, OpPtT oppPtT);
 	void linearIntersect(std::vector<OpEdge*>& lines, std::vector<OpEdge*>& linesOrCurves);
 	void release();
 	bool split(CurveRef , DoSplit );
 #if CC_EXPERIMENT
 	bool checkSplit(float lo, float hi, CurveRef , OpPtT& checkPtT) const;
-	std::array<OpPtT, 2> cutRange(const OpPtT& , const OpSegment* , 
+	static CutRangeT CutRange(const OpPtT& , const OpSegment* , 
 			float loEnd, float hiEnd);
 	void recordSect(OpEdge& edge, OpPtT edgePtT, OpEdge& opp, OpPtT oppPtT
 				OP_LINE_FILE_DEF(SectReason eReason, SectReason oReason));
+	void saveClose(OpEdge& edge, OpPtT edgePtT, OpEdge& opp, OpPtT oppPtT);
 	void snipAndGo(std::vector<OpEdge*>& curves, const OpSegment* , OpContours* , const OpPtT& cut);
 	void splitSect(std::vector<OpEdge*>& curves);  // split and discard edge near intersection
 	bool splitHulls(CurveRef );  // hull finds split point; returns true if snipped
@@ -151,6 +169,7 @@ struct OpCurveCurve {
 	std::vector<OpEdge*> oppRuns;
 #if CC_EXPERIMENT
 	std::vector<CcSects> ccSects;
+	std::vector<CcSects> ccClose;
 	OpPtT snipEdge;
 	OpPtT snipOpp;
 #endif

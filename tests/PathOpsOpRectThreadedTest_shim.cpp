@@ -4,6 +4,9 @@
 #include "tests/PathOpsOpRectThreadedTest.cpp"
 
 void run_op_rect_tests() {
-    test_PathOpsFastThreaded(nullptr);
     test_PathOpsRectsThreaded(nullptr);
+}
+
+void run_op_fast_tests() {
+    test_PathOpsFastThreaded(nullptr);
 }

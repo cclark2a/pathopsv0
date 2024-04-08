@@ -105,7 +105,9 @@ struct OpIntersection {
 		opp->debugCoincidenceID = opp->coincidenceID;
 #endif
 		coincidenceID = 0;
+		coinEnd = MatchEnds::none;
 		opp->coincidenceID = 0;
+		opp->coinEnd = MatchEnds::none;
 	}
 
 #if OP_DEBUG

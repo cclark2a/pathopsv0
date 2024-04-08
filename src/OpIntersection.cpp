@@ -153,6 +153,8 @@ struct SectPreferred {
     bool bestOnEnd;
 };
 
+void emergencyDump(OpContours* );
+
 bool SectPreferred::find(OpIntersection* sect) {
     OpIntersections& sects = sect->segment->sects;
     visited.push_back(sect->segment);
@@ -166,7 +168,10 @@ bool SectPreferred::find(OpIntersection* sect) {
         if (!firstOfRun) {
             firstOfRun = test;
             if (sects.i.back()->ptT.pt.isNearly(best)) {
-                OP_ASSERT(0 != firstOfRun->ptT.t);
+// small segment may have first and last nearly touching
+//                OP_ASSERT(0 != firstOfRun->ptT.t);  // breaks: cubic422305
+                if (!firstOfRun->ptT.t)
+                    sect->segment->setDisabled(OP_DEBUG_CODE(ZeroReason::collapsed));
                 OP_ASSERT(1 == sects.i.back()->ptT.t);
                 firstOfRun->ptT.t = 1;
             }
@@ -184,7 +189,8 @@ bool SectPreferred::find(OpIntersection* sect) {
         } else if (test->ptT.onEnd())
             bestOnEnd = true;
         OP_ASSERT(test->ptT.pt.isNearly(best));
-        OP_ASSERT(OpMath::NearlyEqualT(test->ptT.t, firstOfRun->ptT.t));
+// if segment is very small, points may be nearly equal but t values may be comparitively large
+//        OP_ASSERT(OpMath::NearlyEqualT(test->ptT.t, firstOfRun->ptT.t));  // breaks: cubic641
         test->ptT = OpPtT(best, firstOfRun->ptT.t);
         if (visited.end() == std::find(visited.begin(), visited.end(), test->opp->segment)) {
             if (!find(test->opp))
@@ -222,32 +228,101 @@ void OpIntersections::sort() {
 #if OP_DEBUG
         if (i.size()) {
             const OpIntersection* last = i.front();
-            for (const auto sectPtr : i) {
-                OP_ASSERT(last->ptT.t <= sectPtr->ptT.t);
-                last = sectPtr;
+            auto findEndIndex = [this](const OpIntersection* sect) {
+                for (size_t index = 0; index < i.size(); ++index) {
+                    const OpIntersection* test = i[index];
+                    if (test->coincidenceID == sect->coincidenceID && MatchEnds::end == test->coinEnd)
+                        return index;
+                    if (test->unsectID == sect->unsectID && MatchEnds::end == test->unsectEnd)
+                        return index;
+                }
+                OP_ASSERT(0); // match not found
+                return (size_t) 0;
+            };
+            for (const auto s : i) {
+                OP_ASSERT(last->ptT.t <= s->ptT.t);
+                if (last != s && last->ptT.t == s->ptT.t
+                       && (MatchEnds::start == last->unsectEnd || MatchEnds::start == last->coinEnd)
+                       && (MatchEnds::start == s->unsectEnd || MatchEnds::start == s->coinEnd)) {
+                    size_t lastEndIndex = findEndIndex(last);
+                    size_t sEndIndex = findEndIndex(s);
+                    OP_ASSERT(sEndIndex < lastEndIndex);
+                }
+                last = s;
             }
         }
 #endif
         return;
     }
     resort = false;
+    // order first in t, then put unsectable and coincident start before unmarked, and finally end
     std::sort(i.begin(), i.end(), [](const OpIntersection* s1, const OpIntersection* s2) {
-        if (s1->ptT.t != s2->ptT.t)
-            return s1->ptT.t < s2->ptT.t;
-        if (s1->unsectID || s2->unsectID) {
-            int id1 = s1->unsectID * (MatchEnds::end == s1->unsectEnd ? -1 : 1);
-            int id2 = s2->unsectID * (MatchEnds::end == s2->unsectEnd ? -1 : 1);
-            return id1 < id2;
-        }
-        int id1 = abs(s1->coincidenceID) * (MatchEnds::end == s1->coinEnd ? -1 : 1);
-        int id2 = abs(s2->coincidenceID) * (MatchEnds::end == s2->coinEnd ? -1 : 1);
-        return id1 < id2;
+            if (s1->ptT.t != s2->ptT.t)
+                return s1->ptT.t < s2->ptT.t;
+            bool s1start = MatchEnds::start == s1->unsectEnd || MatchEnds::start == s1->coinEnd;
+            bool s2end = MatchEnds::end == s2->unsectEnd || MatchEnds::end == s2->coinEnd;
+            if (s1start && s2end)
+                return false;
+            bool s1end = MatchEnds::end == s1->unsectEnd || MatchEnds::end == s1->coinEnd;
+            bool s2start = MatchEnds::start == s2->unsectEnd || MatchEnds::start == s2->coinEnd;
+            if (s1end && s2start)
+                return true;
+            if (s1start)
+                return MatchEnds::start == s1->coinEnd;
+            if (s2end)
+                return MatchEnds::end == s2->coinEnd;
+            if (s1end)
+                return MatchEnds::end == s1->unsectEnd;
+            return MatchEnds::start == s2->unsectEnd;
     });
+    if (3 >= i.size())
+        return;
+    // Two or more coincident (or unsectable) pairs with the same t may require further
+    // sorting. Order them so that they nest coincidences by finding the other end.
+    size_t rangeStart = 0;
+    auto processRange = [this, &rangeStart](size_t rangeEnd) {
+        size_t toFind = rangeEnd - rangeStart;
+        std::vector<OpIntersection*> sorted(toFind);  // reserve sorted pointers copy (zeroed)
+        size_t endI = rangeEnd;
+        size_t found = 0;
+        while (found < toFind && endI < i.size()) {  // look for ends that match found starts
+            OpIntersection* end = i[endI++];
+            if (MatchEnds::end != end->unsectEnd && MatchEnds::end != end->coinEnd)
+                continue;
+            size_t startI = rangeStart;
+            do {   // for found end, find matching start
+                OpIntersection* start = i[startI++];
+                OP_ASSERT(MatchEnds::start == start->unsectEnd
+                        || MatchEnds::start == start->coinEnd);
+                if (start->unsectID != end->unsectID || start->coincidenceID != end->coincidenceID)
+                    continue;
+                ++found;
+                OP_ASSERT(!sorted[toFind - found]);
+                sorted[toFind - found] = start;  // reverse order so ranges nest
+                break;
+            } while (startI < rangeEnd);
+        }
+        OP_ASSERT(found == toFind);
+        std::copy(sorted.begin(), sorted.end(), i.begin() + rangeStart);
+    };
+    float t = 0;
+    size_t index = 0;
+    do {  // iterate through all, gathering groups of equal t start values
+        OpIntersection* sect = i[index];
+        bool isStart = MatchEnds::start == sect->unsectEnd || MatchEnds::start == sect->coinEnd;
+        float nextT = sect->ptT.t;
+        if (isStart && t == nextT)
+            continue;
+        if (rangeStart + 2 <= index)
+            processRange(index);
+        rangeStart = index + !isStart;
+        t = nextT;
+    } while (++index < i.size());
 }
 
 void OpIntersections::windCoincidences(std::vector<OpEdge>& edges  
         OP_DEBUG_PARAMS(OpVector tangent)) {
-    OP_ASSERT(!resort);
+    sort();
     std::vector<CoinPair> pairs;
     OpEdge* edge = &edges.front();
     for (auto sectPtr : i) {

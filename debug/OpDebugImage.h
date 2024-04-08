@@ -63,11 +63,11 @@ struct OpDebugImage {
 			float strokeWidth = 0);
 	static bool drawEdgeNormal(OpVector norm, OpPoint midTPt, int edgeID, 
 			uint32_t color = debugBlack);
-	static bool drawEdgeTangent(OpVector tan, OpPoint midTPt, int edgeID, 
-			uint32_t color = debugBlack);
 	static bool drawEdgeWinding(const OpCurve& , const OpEdge* , uint32_t color);
 	static void drawPath(const class SkPath& path, uint32_t color = debugBlack);
 	static void drawPoints();
+	static bool drawTangent(OpVector tan, OpPoint midTPt, int edgeID, 
+			uint32_t color = debugBlack);
 	static bool drawValue(OpPoint pt, std::string ptStr, uint32_t color = debugBlack);
 	static bool drawWinding(const OpCurve& , std::string left, std::string right,
 			float normSign, uint32_t color);

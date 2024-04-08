@@ -221,12 +221,13 @@ void OpContour::finish() {
     if (!segments.size())
         return;
     OP_ASSERT(segments.size() >= 2);
-    OpSegment* last = &segments.back();
-    last->contour = this;
-    last->sects.resort = true; // 1 gets added before 0
+//    OpSegment* last = &segments.back();
+//    last->contour = this;
+//    last->sects.resort = true; // 1 gets added before 0
     for (auto& segment : segments) {
         segment.contour = this;
         segment.winding = operand;
+#if 0  // we'll do this when we compare each segment against every other
         OpPoint firstPoint = segment.c.pts[0];
         OpIntersection* sect = segment.addSegBase({ firstPoint, 0}  
                 OP_LINE_FILE_PARAMS(segment.debugStart, last));
@@ -234,6 +235,7 @@ void OpContour::finish() {
                 OP_LINE_FILE_PARAMS(last->debugEnd, &segment));
         sect->pair(oSect);
         last = &segment;
+#endif
     }
 }
 

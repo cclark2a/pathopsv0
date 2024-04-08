@@ -163,6 +163,12 @@ SEGMENT_DETAIL
 EDGE_OR_SEGMENT_DETAIL
 #undef OP_X
 
+// !!! eventually, macro-itize this:
+extern void dmpFull(const OpIntersection* );
+extern void dmpFull(const OpIntersection& );
+extern void dmpEnd(const OpIntersection& sect);
+extern void dmpStart(const OpIntersection& sect);
+
 #ifdef OP_HAS_FMA
 #define DUMP_BY_DUMPID \
 OP_X(dmp, dump) \
@@ -264,6 +270,11 @@ extern void clearFilter(EdgeFilter);
 extern void dp(const OpEdge* );
 extern void dp(const OpEdge& );
 extern void dp(int id);
+
+// expand this as the need arises
+
+extern std::string debugContext;
+extern void debug();  // set debug bitmap to start and dump state using current context
 
 #endif
 

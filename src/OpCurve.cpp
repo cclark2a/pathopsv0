@@ -1,5 +1,6 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpCurve.h"
+#include "OpTightBounds.h"
 
 bool LinePts::isPoint() const {
     return pts[1] == pts[0];
@@ -214,6 +215,33 @@ OpRootPts OpCurve::lineIntersect(const LinePts& line) const {
     return result;
 }
 
+float OpCurve::match(float start, float end, OpPoint pt) const {
+    if (!nearBounds(pt))
+        return OpNaN;
+    float xRoot = tAtXY(start, end, XyChoice::inX, pt.x);
+	float yRoot = tAtXY(start, end, XyChoice::inY, pt.y);
+	if (OpMath::Equalish(xRoot, yRoot))
+		return xRoot;
+    OpPoint xPt = ptAtT(xRoot);
+	OpPoint yPt = ptAtT(yRoot);
+    float xDistSq = (pt - xPt).lengthSquared();
+    float yDistSq = (pt - yPt).lengthSquared();
+    float closest = xDistSq < yDistSq ? xRoot : yRoot;
+    // !!! can probably optimize this to give up if closest is large -- need to instrument to figure
+    //     out how large large needs to be to give up safely
+    float lesser = std::max(closest - OpEpsilon, 0.f);
+    float greater = std::min(closest + OpEpsilon, 1.f);
+    OpPointBounds bounds { ptAtT(lesser), ptAtT(greater) };
+    if (bounds.nearlyContains(pt))
+        return closest;
+    return OpNaN;
+}
+
+bool OpCurve::nearBounds(OpPoint pt) const {
+    OpPointBounds bounds { pts[0], lastPt() };
+    return bounds.nearlyContains(pt);
+}
+
 NormalDirection OpCurve::normalDirection(Axis axis, float t) const {
 	bool overflow;
 	OpVector ray = Axis::horizontal == (Axis) ((int) axis & 1) ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
@@ -342,7 +370,7 @@ float OpCurve::tAtXY(float t1, float t2, XyChoice xy, float goal) const {
         return OpNaN;
     float mid = (t1 + t2) / 2;
     float step = (mid - t1) / 2;
-    while (step > OpEpsilon) {
+    while (step >= OpEpsilon) {
         OpPair test = { mid - step, mid + step };
         OpPair x = xyAtT(test, xy);
         bool ordered = x.s < x.l;

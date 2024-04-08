@@ -96,6 +96,7 @@ enum class ZeroReason : uint8_t {
 	addIntersection,
 	applyOp,
 	centerNaN,
+	collapsed,
 	filler,
 	findCoincidences,
 	hvCoincidence1,
@@ -260,20 +261,15 @@ inline WindZero operator!(const WindZero& a) {
 }
 
 struct EdgeDistance {
-	EdgeDistance(OpEdge* e, float c, float tIn, bool r)
-		: edge(e)
-		, cept(c)
-		, t(tIn)
-		, reversed(r) {
-	}
+	EdgeDistance(OpEdge* e, float c, float tIn, bool r);
 
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
 #endif
 
 	OpEdge* edge;
-	float cept;		// where normal intersects edge (for home edge, equals center)
-	float t;
+	float cept;  // where normal intersects edge (e.g. for home, axis horz: center.x)
+	float edgeInsideT;  // !!! t value from 0 to 1 within edge range (seems bizarre)
 	bool reversed;
 };
 
@@ -284,6 +280,15 @@ enum class FindCept {
 	unsectable,
 	unsortable
 };
+
+enum class DistEnd {
+	front = -1,
+	back = 1
+};
+
+inline DistEnd operator!(DistEnd de) {
+	return static_cast<DistEnd>(-static_cast<int>(de));
+}
 
 // captures ray info from edge that intersects other edges, horizontally or vertically
 struct SectRay {
@@ -296,8 +301,12 @@ struct SectRay {
 	}
 	void addPals(OpEdge* );
 	bool checkOrder(const OpEdge* ) const;
+	const EdgeDistance* end(DistEnd e) {
+		return DistEnd::front == e ? &distances.front() : &distances.back(); }
 	FindCept findIntercept(OpEdge* );
 	EdgeDistance* find(OpEdge* );
+	EdgeDistance* next(EdgeDistance* dist, DistEnd e) {
+		return dist + (int) e; }
 	void sort();
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
@@ -305,9 +314,9 @@ struct SectRay {
 
 	std::vector<EdgeDistance> distances;
 	OpVector homeTangent;  // used to determine if unsectable edge is reversed
-	float normal;  // ray used to find windings on home edge
-	float homeCept;  // intersection of normal on home edge
-	float homeT;
+	float normal;  // ray used to find windings on home edge (e.g., axis: h, center.y)
+	float homeCept;  // intersection of normal on home edge (e.g., axis: h, center.x)
+	float homeT;  // value from 0 to 1 within edge range (akin to edgeInsideT)
 	Axis axis;
 };
 
@@ -437,9 +446,11 @@ private:
 		, windZero(WindZero::unset)
 		, doSplit(EdgeSplit::no)
 		, bias(SplitBias::none)
+		, closeSet(false)
 		, curvySet(false)
 		, lineSet(false)
 		, verticalSet(false)
+		, isClose_impl(false)
 		, isLine_impl(false)
 		, exactLine(false)
 		, active_impl(false)
@@ -515,8 +526,10 @@ public:
 	void calcCenterT();
 	void clearActiveAndPals(ZeroReason );
 	void clearLastEdge();
+	void clearLinkBounds() { OP_ASSERT(!linkBounds.isSet()); } // !!! see if this is needed
 	void clearNextEdge();
 	void clearPriorEdge();
+	const OpRect& closeBounds();  // returns bounds with slop
 	void complete();
 	bool containsLink(const OpEdge* edge) const;
 	OpContours* contours() const;
@@ -530,6 +543,7 @@ public:
 		return EdgeMatch::start == match ? priorEdge : nextEdge; }  // !!! was reversed!
 	bool isActive() const { 
 		return active_impl; }
+	bool isClose();
 	bool isLinear();
 	bool isPal(const OpEdge* opp) const {
 		return pals.end() != std::find_if(pals.begin(), pals.end(), 
@@ -555,7 +569,7 @@ public:
 	void setDisabledZero(OP_DEBUG_CODE(ZeroReason reason)) {
 		winding.zero(); setDisabled(OP_DEBUG_CODE(reason)); }
 //	void setFromPoints(const OpPoint pts[]);
-	OpEdge* setLastEdge(OpEdge* old = nullptr);
+	OpEdge* setLastEdge();
 	bool setLastLink(EdgeMatch );  // returns true if link order was changed
 	OpPointBounds setLinkBounds();
 	bool setLinkDirection(EdgeMatch );  // reverse links if handed link end instead of link start
@@ -638,9 +652,11 @@ public:
 	WindZero windZero;  // zero: edge normal points to zero side (the exterior of the loop)
 	EdgeSplit doSplit;  // used by curve/curve intersection to track subdivision
 	SplitBias bias;  // in curve/curve, which end to favor for next intersect guess
+	bool closeSet;
 	bool curvySet;
 	bool lineSet;
 	bool verticalSet;
+	bool isClose_impl;  // set if start is close to end
 	bool isLine_impl;	// ptBounds 0=h/0=w catches horz/vert lines; if true, line is diagonal(?)
 	bool exactLine;   // set if quad/conic/cubic is degenerate; clear if control points are linear
 	bool active_impl;  // used by ray casting to mark edges that may be to the left of casting edge

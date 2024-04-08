@@ -28,6 +28,10 @@ enum class NormalDirection {
 	overflow,
 };
 
+inline NormalDirection operator!(NormalDirection a) {
+    return (int) a & 1 ? (NormalDirection) - (int) a : a;
+}
+
 struct LinePts {
     bool isPoint() const;
 #if OP_DEBUG_DUMP
@@ -125,6 +129,9 @@ struct OpCurve {
     OpPoint lastPt() const {
         return pts[pointCount() - 1]; }
     OpRootPts lineIntersect(const LinePts& line) const;
+    // Returns t of point on curve if any; returns NaN if no match. Used by line/curve intersection.
+    float match(float start, float end, OpPoint ) const;
+    bool nearBounds(OpPoint ) const;
     OpVector normal(float t) const;
     NormalDirection normalDirection(Axis axis, float t) const;
     bool output(OpOutPath& path, bool firstPt, bool lastPt);  // provided by graphics implementation

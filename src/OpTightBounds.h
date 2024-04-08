@@ -112,6 +112,11 @@ struct OpPointBounds : OpRect {
         return OpMath::IsFinite(left);
     }
 
+    bool nearlyContains(OpPoint pt) const {
+        OP_ASSERT(pt.isFinite());
+        return OpMath::Betweenish(left, pt.x, right) && OpMath::Betweenish(top, pt.y, bottom);
+    }
+
     void pin(OpPoint* pt) {
         pt->x = OpMath::Pin(left, pt->x, right);
         pt->y = OpMath::Pin(top, pt->y, bottom);

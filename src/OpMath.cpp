@@ -2,23 +2,6 @@
 #include "OpMath.h"
 #include <cmath>
 
-bool OpRoots::replaceClosest(float root) {
-    size_t best = OpMax;
-    float bestDistance = OpInfinity;
-    for (size_t index = 0; index < count; ++index) {
-        float distance = fabsf(root - roots[index]);
-        if (bestDistance < distance)
-            continue;
-        bestDistance = distance;
-        best = index;
-    }
-    if (best >= count || bestDistance >= .5)
-        return false;
-//    assert(bestDistance <= OpEpsilon * 2);    // !!! number may be large (see example dean 2)
-    roots[best] = root;
-    return true;
-}
-
 // if t is nearly end of range, make it end of range
 // motivation for this is test cubics_d, which generates yExtrema very nearly equal to 1.
 // 'interior' is only used for extrema and inflections
@@ -129,9 +112,9 @@ void OpPoint::pin(const OpRect& r) {
     y = OpMath::Pin(r.top, y, r.bottom);
 }
 
-bool OpPoint::soClose(OpPoint test, float epsilon) const {
-    return OpMath::Between(x - epsilon, test.x, x + epsilon)
-        && OpMath::Between(y - epsilon, test.y, y + epsilon);
+bool OpPoint::soClose(OpPoint test) const {
+    return OpMath::Between(OpMath::CloseSmaller(x), test.x, OpMath::CloseLarger(x))
+        && OpMath::Between(OpMath::CloseSmaller(y), test.y, OpMath::CloseLarger(y));
 }
 
 bool OpRect::isFinite() const {
@@ -141,6 +124,16 @@ bool OpRect::isFinite() const {
 
 bool OpPtT::isNearly(const OpPtT& o) const {
     return pt.isNearly(o.pt) || OpMath::NearlyEqualT(t, o.t);
+}
+
+float OpMath::CloseLarger(float a) {
+    float next = NextLarger(a);
+    return fmaf(next - a, OpCloseFactor, a); 
+}
+
+float OpMath::CloseSmaller(float a) {
+    float prev = NextSmaller(a);
+    return fmaf(prev - a, OpCloseFactor, a); 
 }
 
 // put all calls to next after (and friends) in next larger and next smaller

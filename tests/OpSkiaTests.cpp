@@ -1,4 +1,61 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
+
+// switches that decide which tests to run and how to run them
+// these may be moved to command line parameters at some point
+#define TEST_PATH_OP_FIRST "testQuads5643583" // e.g., "thread_cubics2247347" (ignored by fast test)
+#define TEST_PATH_OP_SKIP_TO_V0 1 // if 1 & not fast test, ignore skip to file; run first "v0" test
+#define TEST_PATH_OP_SKIP_TO_FILE "quad" // e.g., "quad" tests only (see testSuites below)
+
+#define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
+#define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
+#define OP_TEST_ALLOW_EXTENDED 1  // some Skia tests have extended versions which take longer
+                                  // (out of date) max run: 8,430,493: skipped: 5 error: 335
+#define OP_TEST_V0 1  // set to zero to time Skia running tests
+#define OP_TEST_SKIA 1  // see if skia's path ops can execute the same test
+#define OP_TEST_REGION 1  // test result of v0 against skia regions
+
+// see descriptions for exceptions below
+#define TEST_PATH_OP_EXCEPTIONS "issue3517" // "cubics7d"
+#define TEST_PATH_OP_FUZZ_EXCEPTIONS "fuzz487a", "fuzz487b" // "fuzz487a"
+#define TEST_PATH_OP_FAIL_EXCEPTIONS "grshapearcs1" // "grshapearcs1"
+#define TEST_PATH_OP_MAP_TO_FUZZ "fuzzhang_1" // "fuzzhang_1"
+#define TEST_PATH_SIMPLIFY_EXCEPTIONS "" // 
+#define TEST_PATH_SIMPLIFY_FAIL_EXCEPTIONS "grshapearc" // "grshapearc"
+#define TEST_PATH_SIMPLIFY_FUZZ_EXCEPTIONS ""
+#define TEST_PATH_SIMPLIFY_MAP_TO_FUZZ  ""
+
+// !!! need to update laptop exceptions with latest
+#define LAPTOP_PATH_OP_EXCEPTIONS ""
+#define LAPTOP_PATH_OP_MAP_TO_FUZZ ""
+#define LAPTOP_SIMPLIFY_EXCEPTIONS "joel_5"
+
+// when these tests are encountered, it and the remaining tests in the file are skipped
+#define TEST_PATH_OP_SKIP_REST ""
+#define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */
+
+/* test failure descriptions:
+extended: 30046752 (all) quadralateral tests run
+
+testQuadralaterals21723521 had errors=20
+
+(old)
+
+fuzz763_378: no edge found: last, last resort (x2) had errors=36 # this looks fixable
+             gap between edge 2225 and 2227 (why is 2226 disabled?)
+             likely other errors
+
+(old)
+  last successful run desktop:
+total run:735269 skipped:0 errors:1 warnings:26 v0 only:3 skia only:70
+  last successful run laptop:
+total run:735268 skipped:1 errors:2 warnings:41 v0 only:4 skia only:70
+
+issue3517 no edge found: last, last resort
+fuzzhang_1: succeeds in skia, fails in v0 (investigate)
+
+*/
+
+
 #if OP_TINY_SKIA
 #include "TinySkia.h"
 #else
@@ -9,13 +66,12 @@
 #include "OpSkiaTests.h"
 #include "OpContour.h"
 #include "OpCurve.h"
-#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
-#if OP_BULK_THREADS
-#include <mutex>
-#include <thread>
+#if OP_DEBUG_FAST_TEST
+  #include <mutex>
+  #include <thread>
+  #define OP_MAX_THREADS std::thread::hardware_concurrency()
 #else
-#include "CTPL_old/ctpl_stl.h"
-#endif
+ #define OP_MAX_THREADS 1
 #endif
 #include <atomic>
 #include <vector>
@@ -27,6 +83,9 @@ struct testInfo {
     int extended; 
 };
 
+// !!! some tests require counters to track the current test
+//      known examples are "cubic" and "simplifyQuadralaterals"
+//      identify all and add thread local globals for this
 std::vector<testInfo> testSuites = {
     // !!! start out slow
     { run_v0_tests, "v0", 14, 14 },
@@ -41,22 +100,26 @@ std::vector<testInfo> testSuites = {
     { run_op_circle_tests, "circle", 84672, 1778112 },
     { run_op_cubic_tests, "cubic", 148176, 2247347 },
     { run_op_loop_tests, "loop", 9261, 194481 },
-    { run_op_rect_tests, "rect", 157392, 3194640 },
+    { run_op_rect_tests, "rect", 148176, 3111696 },
+    { run_op_fast_tests, "fast", 9216, 82944 },
     { run_simplify_tests, "simplify", 465, 465 },
-    { run_simplify_degenerate_tests, "simplifyDegenerate", 47872, 2345984 },
-    { run_simplify_fail_tests, "simplifyFail", 7, 7 },
-    { run_simplify_quadralaterals_tests, "simplifyQuadralaterals", 124032, 30046752 },
-    { run_simplify_quads_tests, "simplifyQuads", 124032, 30046752 },
-    { run_simplify_rect_tests, "simplifyRect", 152, 1280660 },
-    { run_simplify_triangles_tests, "simplifyTriangles", 24768, 2130048 },
+    { run_simplify_degenerate_tests, "degenerate", 47872, 2345984 },
+    { run_simplify_fail_tests, "fail", 7, 7 },
+    { run_simplify_quadralaterals_tests, "quadralateral", 124032, 30046752 },
+    { run_simplify_quads_tests, "quad", 124032, 30046752 },
+    { run_simplify_rect_tests, "rects", 152, 1280660 },
+    { run_simplify_triangles_tests, "triangle", 24768, 2130048 },
     { run_tiger_tests, "tiger", 7005, 700005 },
 };
 
 // skip tests by filename
 std::vector<std::string> skipTestFiles = { TEST_PATH_OP_SKIP_FILES };
 std::vector<std::string> skipRestFiles = { TEST_PATH_OP_SKIP_REST };
-std::string testFirst = OP_DEBUG_FAST_TEST ? "" : TEST_PATH_OP_FIRST;
-std::string skipToFile = TEST_PATH_OP_SKIP_TO_FILE;
+std::string testFirst = OP_DEBUG_FAST_TEST || TEST_PATH_OP_SKIP_TO_V0 
+        ? "" : TEST_PATH_OP_FIRST;
+bool runOneFile = (TEST_PATH_OP_FIRST || TEST_PATH_OP_SKIP_TO_V0) && !OP_DEBUG_FAST_TEST;
+std::string skipToFile = TEST_PATH_OP_SKIP_TO_V0 && !OP_DEBUG_FAST_TEST 
+        ? "v0" : TEST_PATH_OP_SKIP_TO_FILE;
 std::atomic_int testIndex; 
 bool showTestName = OP_SHOW_TEST_NAME;
 std::atomic_int testsRun;
@@ -73,13 +136,18 @@ std::atomic_int testsFailSkiaPass;
 std::atomic_int totalFailSkiaPass;
 std::atomic_int testsPassSkiaFail;
 std::atomic_int totalPassSkiaFail;
-#if OP_BULK_THREADS
-thread_local std::string currentTestFile;
-thread_local int firstSuiteTest = 0;
-thread_local int lastSuiteTest = 0;
+#if OP_DEBUG_FAST_TEST
+#define OP_THREAD_LOCAL thread_local
+#else
+#define OP_THREAD_LOCAL
+#endif
+OP_THREAD_LOCAL std::string currentTestFile;
+OP_THREAD_LOCAL int firstSuiteTest = 0;
+OP_THREAD_LOCAL int lastSuiteTest = 0;
+OP_THREAD_LOCAL int unnamedCount = 0;
+OP_THREAD_LOCAL bool needsName = false;
 #if OP_DEBUG_FAST_TEST
 std::mutex out_mutex;
-#endif
 #endif
 
 bool PathOpsDebug::gCheckForDuplicateNames = false;
@@ -92,10 +160,6 @@ bool endFirstTest = false;
 bool skiatest::Reporter::allowExtendedTest() {
     return "" == testFirst ? OP_TEST_ALLOW_EXTENDED : !endFirstTest;
 }
-
-#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS && !OP_BULK_THREADS
-ctpl::thread_pool threadpool(OP_MAX_THREADS);
-#endif
 
 // If code is built with the right architecture, the numerics use float multiply-add, which is
 // signficantly more accurate that separate multiply and add instructions. Both should work.
@@ -165,9 +229,9 @@ bool skipTest(std::string name) {
                 currentTestFile))
             return (void) ++testsSkipped, true;
     }
-    if ("" != testFirst)
+    if (runOneFile)
         startFirstTest = true;
-#if OP_DEBUG_FAST_TEST && OP_BULK_THREADS
+#if OP_DEBUG_FAST_TEST
     --firstSuiteTest;
     --lastSuiteTest;
     if (firstSuiteTest >= 0 || lastSuiteTest < 0)
@@ -195,15 +259,12 @@ bool skipTest(std::string name) {
     return false;
 }
 
+// if skipToFile is set, run a single test divided among threads
 void bulkTest(int index) {
     int totalTests = 0;
-    int suiteCount = 0;
     for (auto testSuite : testSuites) {
-        if (skipToFile.size() && testSuite.name != skipToFile) {
-            if (!totalTests)
-                ++suiteCount;
+        if (skipToFile.size() && testSuite.name != skipToFile)
             continue;
-        }
         totalTests += OP_TEST_ALLOW_EXTENDED ? testSuite.extended : testSuite.count;
     }
     int firstTest = index * totalTests / OP_MAX_THREADS;
@@ -217,13 +278,14 @@ void bulkTest(int index) {
         if (firstTest < 0) {
             firstSuiteTest = testCount + firstTest;
             lastSuiteTest = testCount + lastTest;
-            currentTestFile = testSuites[suiteCount].name;
-            (testSuites[suiteCount].func)();
+            currentTestFile = testSuite.name;
+            needsName = testSuite.extended != testSuite.count;
+            unnamedCount = 0;
+            (testSuite.func)();
             if (lastTest <= 0)
                 return;
             firstTest = 0;
         }
-        ++suiteCount;
     }
 }
 
@@ -231,41 +293,27 @@ uint64_t timerFrequency;
 uint64_t timerStart;
 
 void runTests() {
-#if !OP_DEBUG_FAST_TEST || !OP_BULK_THREADS
+    timerFrequency = OpInitTimer();
+    timerStart = OpReadTimer();
+#if OP_DEBUG_FAST_TEST
+    std::vector<std::thread> t;
+    for (unsigned index = 0; index < OP_MAX_THREADS; ++index)
+        t.push_back(std::thread(bulkTest, index));
+    for (unsigned index = 0; index < OP_MAX_THREADS; ++index)
+        t[index].join();
+#else
     auto runTest = [](std::string s) {
         for (auto suite : testSuites) {
             if (suite.name == s) {
-#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
-#if !OP_SHOW_ERRORS_ONLY
-                OpDebugOut(suite.name + " started\n");
-#endif
                 currentTestFile = suite.name;
-#else
+                needsName = suite.extended != suite.count;
+                unnamedCount = 0;
                 initTests(suite.name);
-#endif
                 (*suite.func)();
-#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS && !OP_SHOW_ERRORS_ONLY
-                OpDebugOut(suite.name + " finished\n");
-#endif
-#if OP_SHOW_TEST_COUNT
-                OpDebugOut("," + STR(testsSkipped) + "\n");
-                testsSkipped = 0;
-#endif
                 return;
             }
         }
     };
-	OpDebugOut("\n");
-#endif
-    timerFrequency = OpInitTimer();
-    timerStart = OpReadTimer();
-#if OP_DEBUG_FAST_TEST && OP_BULK_THREADS
-    std::vector<std::thread> t;
-    for (int index = 0; index < OP_MAX_THREADS; ++index)
-        t.push_back(std::thread(bulkTest, index));
-    for (int index = 0; index < OP_MAX_THREADS; ++index)
-        t[index].join();
-#else
     if (skipToFile.size()) {
         runTest(skipToFile);
     } else {
@@ -277,12 +325,9 @@ void runTests() {
         }
     }
 #endif
-#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS && !OP_BULK_THREADS
-    threadpool.stop(true);
-#endif
     uint64_t end = OpReadTimer();
     float elapsed = OpTicksToSeconds(end - timerStart, timerFrequency);
-#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS
+#if OP_DEBUG_FAST_TEST
     OpDebugOut("skia tests done: " + STR(elapsed) + "s\n");
 #else
     initTests("skia tests done: " + STR(elapsed) + "s\n");
@@ -515,7 +560,7 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
 #elif OP_TEST_REGION
     bool skSuccess = true;
 #endif
-    if (startFirstTest && "" != testFirst)
+    if (startFirstTest && runOneFile)
         endFirstTest = true;
 #if OP_TEST_V0 && OP_TEST_REGION
     if (!success || !skSuccess || v0MayFail || skiaMayFail)
@@ -538,34 +583,32 @@ bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
         SkPathOp op, const char* name, bool v0MayFail, bool skiaMayFail) {
     if (skipTest(name))
         return true;
-#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS && !OP_BULK_THREADS
-    std::string testname(name);
-    a.updateBoundsCache();
-    b.updateBoundsCache();
-    threadpool.push(threadablePathOpTest, a, b, op, testname, v0MayFail, skiaMayFail);
-#else
     threadablePathOpTest(0, a, b, op, name, v0MayFail, skiaMayFail);
-#endif
     return true;
 }
 
 bool testPathOp(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
         SkPathOp op, const char* testname) {
-    std::string s = std::string(testname);
-    std::vector<std::string> skip = { TEST_PATH_OP_EXCEPTIONS };  // see OpTestDrive.h
+    std::string s;
+    if (needsName) {
+        s = currentTestFile + STR(++unnamedCount);
+        testname = s.c_str();
+    } else
+        s = std::string(testname);
+    std::vector<std::string> skip = { TEST_PATH_OP_EXCEPTIONS };
     if (skip.end() != std::find(skip.begin(), skip.end(), s) && s != testFirst) {
         ++testsSkipped;
         return true;
     }
-    std::vector<std::string> lap = { LAPTOP_PATH_OP_EXCEPTIONS };  // see OpTestDrive.h
+    std::vector<std::string> lap = { LAPTOP_PATH_OP_EXCEPTIONS };
     if (!runningWithFMA() && lap.end() != std::find(lap.begin(), lap.end(), s) && s != testFirst) {
         ++testsSkipped;
         return true;
     }
-    std::vector<std::string> fuzz = { TEST_PATH_OP_MAP_TO_FUZZ };  // see OpTestDrive.h
+    std::vector<std::string> fuzz = { TEST_PATH_OP_MAP_TO_FUZZ };
     if (fuzz.end() != std::find(fuzz.begin(), fuzz.end(), s) && s != testFirst)
         return (void) testPathOpFuzz(r, a, b, op, testname), true;
-    std::vector<std::string> lapz = { LAPTOP_PATH_OP_MAP_TO_FUZZ };  // see OpTestDrive.h
+    std::vector<std::string> lapz = { LAPTOP_PATH_OP_MAP_TO_FUZZ };
     if (!runningWithFMA() && lapz.end() != std::find(lapz.begin(), lapz.end(), s) && s != testFirst)
         return (void) testPathOpFuzz(r, a, b, op, testname), true;
     return testPathOpBase(r, a, b, op, testname, false, false);
@@ -578,13 +621,24 @@ void testPathOpCheck(skiatest::Reporter* r, const SkPath& a, const SkPath& b, Sk
 
 void testPathOpFuzz(skiatest::Reporter* r, const SkPath& a, const SkPath& b, SkPathOp op, 
         const char* testname) {
+    std::string s;
+    if (needsName) {
+        s = currentTestFile + STR(++unnamedCount);
+        testname = s.c_str();
+    } else
+        s = std::string(testname);
+    std::vector<std::string> skip = { TEST_PATH_OP_FUZZ_EXCEPTIONS };
+    if (skip.end() != std::find(skip.begin(), skip.end(), s) && s != testFirst) {
+        ++testsSkipped;
+        return;
+    }
     testPathOpBase(r, a, b, op, testname, true, true);
 }
 
 bool testPathOpFail(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
         const SkPathOp op, const char* testName) {
     std::string s = std::string(testName);
-    std::vector<std::string> fail = { TEST_PATH_OP_FAIL_EXCEPTIONS };  // see OpTestDrive.h
+    std::vector<std::string> fail = { TEST_PATH_OP_FAIL_EXCEPTIONS };
     if (fail.end() != std::find(fail.begin(), fail.end(), s) && s != testFirst) {
         ++testsSkipped;
         return true;
@@ -623,6 +677,17 @@ int VerifySimplify(const SkPath& one, std::string testname, const SkPath& result
     return errors;
 }
 
+// char* so it can be called from immediate window
+void dumpTest(const char* testname, const SkPath& path) {
+    OpDebugOut("\nvoid ");
+    OpDebugOut(testname);
+    OpDebugOut("(skiatest::Reporter* reporter, const char* filename) {\n");
+    OpDebugOut("    SkPath path;\n");
+    path.dump();
+    OpDebugOut("    testSimplify(reporter, path, filename);\n");
+    OpDebugOut("}\n\n");
+}
+
 void threadableSimplifyTest(int id, const SkPath& path, std::string testname, 
             SkPath& out, bool v0MayFail, bool skiaMayFail) {
 #if OP_TEST_V0
@@ -630,6 +695,9 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
     out.reset();
 	OpOutPath opOut(&out);
     std::vector<OpDebugWarning> warnings;
+    const char* tn = testname.c_str();
+    if ("never!" == testname)
+        OpDebugOut(tn);  // prevent optimizer from removing tn
 #if OP_DEBUG || OP_TEST_REGION
     bool success =
 #endif
@@ -655,7 +723,7 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
         testsFailSkiaPass++;
 #endif
 #endif
-    if (startFirstTest && "" != testFirst)
+    if (startFirstTest && runOneFile)
         endFirstTest = true;
 #if OP_TEST_V0 && OP_TEST_REGION
     if (!success)
@@ -663,29 +731,27 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
     int errors = VerifySimplify(path, testname, out);
     const int MAX_ERRORS = 9;
     if (errors > MAX_ERRORS) {
-    #if !defined(NDEBUG) || OP_RELEASE_TEST
+#if !defined(NDEBUG) || OP_RELEASE_TEST
+#if OP_DEBUG_FAST_TEST
+        std::lock_guard<std::mutex> guard(out_mutex);
+#endif
+        dumpTest(testname.c_str(), path);
         ReportError(testname, errors, warnings);
+#endif
         testsError++;
     }
-    #endif
 #endif
 }
 
 bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& state, 
         const char* name) {
     std::string testname(name);
-    if ("" == testname) {
-        testname = state.fReporter->testname + STR(++state.fReporter->unnamedCount);
-    }
+    if ("" == testname)
+        testname = state.fReporter->testname + STR(++unnamedCount);
     if (skipTest(testname))
         return true;
     path.setFillType(useXor ? SkPathFillType::kEvenOdd : SkPathFillType::kWinding);
-#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS && !OP_BULK_THREADS
-    path.updateBoundsCache();
-    threadpool.push(threadableSimplifyTest, path, testname, out, false, false);
-#else
     threadableSimplifyTest(0, path, testname.c_str(), out, false, false);
-#endif
     return true;
 }
 
@@ -694,13 +760,7 @@ bool testSimplifyBase(skiatest::Reporter* r, const SkPath& path, const char* nam
     if (skipTest(name))
         return true;
     SkPath out;
-#if OP_DEBUG_FAST_TEST && OP_TEST_ENABLE_THREADS && !OP_BULK_THREADS
-    std::string testname(name);
-    path.updateBoundsCache();
-    threadpool.push(threadableSimplifyTest, path, testname, out, v0MayFail, skiaMayFail);
-#else
     threadableSimplifyTest(0, path, name, out, v0MayFail, skiaMayFail);
-#endif
     return true;
 }
 
@@ -765,4 +825,10 @@ PathOpsThreadedTestRunner::PathOpsThreadedTestRunner(skiatest::Reporter* r) {
 
 void PathOpsThreadedTestRunner::render() {
     fRunnables.append();
+}
+
+void emergencyDump(OpContours* c) {
+    ((SkPath*) (c->leftIn.externalReference))->dump();
+    ((SkPath*) (c->rightIn.externalReference))->dump();
+    OpDebugOut(STR((int) c->opIn) + "\n");
 }

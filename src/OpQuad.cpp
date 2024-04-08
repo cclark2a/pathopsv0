@@ -5,7 +5,7 @@
 OpRoots OpQuad::axisRawHit(Axis axis, float axisIntercept) const {
     OpQuadCoefficients coeff = coefficients(axis);
     coeff.c -= axisIntercept;
-    return OpMath::QuadRootsReal(coeff.a, coeff.b, coeff.c);
+    return OpMath::QuadRootsDouble(coeff.a, coeff.b, coeff.c);  // required for testQuads3759897
 }
 
 OpQuadCoefficients OpQuad::coefficients(Axis axis) const {
@@ -27,7 +27,7 @@ OpRoots OpQuad::extrema(XyChoice offset) const {
     float denominator = numerator - b + c;
     if (denominator) {
         float result = numerator / denominator;
-        if (OpEpsilon <= result && result < 1)
+        if (OpEpsilon <= result && result < 1)  // !!! curious: only epsilon use in conic/cubic/quad
             return OpRoots(result);
     }
     return OpRoots();

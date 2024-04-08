@@ -402,7 +402,8 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(const OpContours* contours)) {
             // look to see if edge maps a non-zero ray to a prior edge
             WindZero linkZero = linkup->windZero;
             OP_ASSERT(WindZero::unset != linkZero);
-	        NormalDirection NdotR = linkup->normalDirection(-linkup->ray.axis, linkDist->t);
+	        NormalDirection NdotR = linkup->normalDirection(-linkup->ray.axis, 
+                    linkDist->edgeInsideT);
             if (NormalDirection::downLeft == NdotR)
                 linkZero = !linkZero;    // get wind zero for edge normal pointing left
             if (WindZero::nonZero == linkZero) {
@@ -428,7 +429,7 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(const OpContours* contours)) {
             if (!dTest)
                 continue;
             WindZero distZero = dTest->windZero;
-            NdotR = dTest->normalDirection(linkup->ray.axis, dDist->t);
+            NdotR = dTest->normalDirection(linkup->ray.axis, dDist->edgeInsideT);
             if (NormalDirection::downLeft == NdotR)
                 distZero = !distZero;    // get wind zero for prior normal pointing right
                 // either neither zero should be opp, or both should be 
@@ -557,5 +558,37 @@ void OpWinder::debugValidate() const {
 void OpOutPath::debugNextID(OpEdge* edge) {
     debugID = edge->segment->contour->nextID();
 }
+
+#if OP_DEBUG_DUMP
+std::string debugContext;
+
+void debug() {
+    if ("linkRemaining" == debugContext || "linkUnambiguous" == debugContext) {
+#if OP_DEBUG_IMAGE
+        ::hideOperands();
+        ::showEdges();
+        ::showIDs();
+        ::showPoints();
+        ::showValues();
+        ::showWindings();
+        ::showTangents();
+        ::colorOut(orange);
+        ::oo();
+#endif
+        ::dmp(debugGlobalContours->debugJoiner);
+        return;
+    }
+#if OP_DEBUG_IMAGE
+    ::hideOperands();
+    ::showSegments();
+    ::showFill();
+    ::showIDs();
+    ::showPoints();
+    ::showValues();
+    ::oo();
+#endif
+    debugGlobalContours->dump();
+}
+#endif
 
 #endif

@@ -95,16 +95,18 @@ struct OpSegment {
     float findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const;
     float findValidT(float start, float end, OpPoint opp) const;
     // count and sort extrema; create an edge for each extrema + 1
+    void makeEdge(const OpPtT& s, const OpPtT& e
+            OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file));
     void makeEdge(OP_DEBUG_CODE(EdgeMaker maker, int line, std::string file));
     void makeEdges();
-    MatchEnds matchEnds(const OpSegment* opp, bool* reversed, MatchEnds* existing, MatchSect ) const;
-    MatchEnds matchExisting(const OpSegment* opp) const;
+    MatchReverse matchEnds(const OpSegment* opp) const;
+//    MatchEnds matchExisting(const OpSegment* opp) const;
     void moveTo(const OpPtT& , OpPoint );  // move segment/sect point to match another endpont
     int nextID() const { 
         return nextID(contour); }
     int nextID(OpContour* ) const;
-	void reenable() {
-		disabled = false; OP_DEBUG_CODE(debugZero = ZeroReason::uninitialized); }
+//	void reenable() {
+//		disabled = false; OP_DEBUG_CODE(debugZero = ZeroReason::uninitialized); }
 	void setDisabled(OP_DEBUG_CODE(ZeroReason reason));
     void windCoincidences();
 

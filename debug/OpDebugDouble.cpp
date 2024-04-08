@@ -1160,20 +1160,12 @@ void DebugOpClearPoints() {
 
 void DebugOpBuild(OpPoint pt) {
     DebugColorPt dPt { pt.x, pt.y, black };
-    DebugOpRect bounds = ZoomToRect();
-    if (!bounds.ptInRect(dPt))
-        return;
-    if (debugPoints.end() == std::find(debugPoints.begin(), debugPoints.end(), dPt))
-        debugPoints.push_back(dPt);
+    DebugOpBuild(dPt);
 }
 
 void DebugOpBuild(OpPoint pt, float t, bool opp) {
     DebugColorPt dPt { pt.x, pt.y, t, opp ? blue : darkGreen };
-    DebugOpRect bounds = ZoomToRect();
-    if (!bounds.ptInRect(dPt))
-        return;
-    if (debugPoints.end() == std::find(debugPoints.begin(), debugPoints.end(), dPt))
-        debugPoints.push_back(dPt);
+    DebugOpBuild(dPt);
 }
 
 void DebugOpBuild(OpPoint pt, bool opp) {
@@ -1182,11 +1174,7 @@ void DebugOpBuild(OpPoint pt, bool opp) {
 
 void DebugOpBuild(OpPoint pt, float t, DebugSprite sprite) {
     DebugColorPt dPt { pt.x, pt.y, t, darkBlue, sprite };
-    DebugOpRect bounds = ZoomToRect();
-    if (!bounds.ptInRect(dPt))
-        return;
-    if (debugPoints.end() == std::find(debugPoints.begin(), debugPoints.end(), dPt))
-        debugPoints.push_back(dPt);
+    DebugOpBuild(dPt);
 }
 
 void DebugOpClearInputs() {
@@ -1296,19 +1284,13 @@ void DebugOpDrawEdgeID(const OpEdge* edge, uint32_t color) {
 void DebugOpDrawEdgeControlLines(const OpEdge* edge, uint32_t color) {
     if (!edge->segment)
         return;
-    int ptCount = edge->segment->c.pointCount();
+    int ptCount = edge->curve.pointCount();
     if (ptCount <= 2)
         return;
     for (int index = 0; index < ptCount - 1; ++index) {
         DebugOpCurve src;
-        if (!index)
-            src.pts[0] = { edge->start.pt.x, edge->start.pt.y } ;
-        else
-            src.pts[0] = { edge->curve.pts[index].x, edge->curve.pts[index].y } ;
-        if (index < ptCount - 2)
-            src.pts[1] = { edge->curve.pts[index].x, edge->curve.pts[index].y } ;
-        else
-            src.pts[1] = { edge->end.pt.x, edge->end.pt.y } ;
+        src.pts[0] = { edge->curve.pts[index].x, edge->curve.pts[index].y };
+        src.pts[1] = { edge->curve.pts[index + 1].x, edge->curve.pts[index + 1].y };
         src.weight = 1;
         src.type = OpType::line;
         src.id = edge->id;
@@ -1358,12 +1340,34 @@ void DebugOpDrawEdgeTangent(const OpEdge* edge, uint32_t color) {
         drawnEdge.mapTo(curve);
 	    bool overflow;
 	    OpVector tan = curve.tangent(.33f).normalize(&overflow) * 15;
+        if (EdgeMatch::end == edge->which()) {
+            tan = -tan;
+            color = red;
+        }
 	    if (overflow) {
 		    OpDebugOut("overflow on edge " + STR(edge->id) + "\n");
 		    return;
 	    }
         OpPoint midTPt = curve.ptAtT(.33f);
-        if (OpDebugImage::drawEdgeTangent(tan, midTPt, edge->id, color))
+        if (OpDebugImage::drawTangent(tan, midTPt, edge->id, color))
+            break;
+    }
+}
+
+void DebugOpDrawSegmentTangent(const OpSegment* seg, uint32_t color) {
+    std::vector<DebugOpCurve> drawn;
+    DebugOpBuild(*seg, drawn);
+    for (auto& drawnSeg : drawn) {
+        OpCurve curve;
+        drawnSeg.mapTo(curve);
+	    bool overflow;
+	    OpVector tan = curve.tangent(.42f).normalize(&overflow) * 15;
+	    if (overflow) {
+		    OpDebugOut("overflow on seg " + STR(seg->id) + "\n");
+		    return;
+	    }
+        OpPoint midTPt = curve.ptAtT(.42f);
+        if (OpDebugImage::drawTangent(tan, midTPt, seg->id, color))
             break;
     }
 }

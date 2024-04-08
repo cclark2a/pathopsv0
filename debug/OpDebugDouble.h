@@ -59,6 +59,7 @@ void DebugOpDrawEdgeWinding(const OpEdge* , uint32_t color);
 void DebugOpDrawEdges();
 void DebugOpDrawHighlight();
 void DebugOpDrawInputs();
+void DebugOpDrawSegmentTangent(const OpSegment* , uint32_t color);
 void DebugOpDrawSegments();
 void DebugOpDrawSprites();
 void DebugOpDrawIntersectionID(const OpIntersection* , std::vector<int>& ids);

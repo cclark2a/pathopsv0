@@ -38,26 +38,11 @@ struct OpJoiner {
 	void addToLinkups(OpEdge* );
 	void buildDisabled(OpContours& );
 	void buildDisabledPals(OpContours& );
-    void checkDisabled();
-    void checkGap();
-    void checkLinkups();
-    void checkNothingLeft();
-    bool checkSectGap();
-    void checkUnsectableGap();
-    void checkUnsortableAndDisabled();
-    void checkLinkupsUnsortables();
-    FoundEdge* chooseSmallest();
-    void detachChoppedEtc();
 	bool detachIfLoop(OpEdge* , EdgeMatch loopEnd);
-//    bool forceSmallEdge();
-	bool hookup(FoundEdge* smallest);
-    bool lastLastResort();
 	bool linkRemaining(OP_DEBUG_CODE(const OpContours*));
 	void linkUnambiguous(LinkPass );
 	bool linkUp(OpEdge* );
-	void matchLeftover(const std::vector<OpEdge*>& leftovers);
 	bool matchLinks(bool popLast);
-    void matchPals();
 	bool relinkUnambiguous(size_t checked);
 	bool setup();
 	void sort();
@@ -87,7 +72,7 @@ struct OpJoiner {
 	EdgeMatch linkMatch;
 	LinkPass linkPass;
 	OpEdge* edge;  // start of current link list
-	OpEdge* lastEdge;  // end of current link list
+	OpEdge* lastLink;  // end of current link list
 	OpPoint matchPt;
 	bool disabledBuilt;
 	bool disabledPalsBuilt;
@@ -110,7 +95,7 @@ struct OpLimb {
 	OpLimb() {
 #if OP_DEBUG
 		edge = nullptr;
-		lastEdge = nullptr;
+		lastLimb = nullptr;
 		parent = nullptr;
 		linkedIndex = 0;
 		match = EdgeMatch::none;
@@ -130,12 +115,12 @@ struct OpLimb {
 
 	OpPointBounds bounds;
 	OpEdge* edge;
-	OpEdge* lastEdge;
+	OpEdge* lastLimb;
 	const OpLimb* parent;
 	OpPoint lastPt;
 	uint32_t linkedIndex;
-	EdgeMatch match;
-	LimbType type;
+	EdgeMatch match; // end of edge that matches last point in parent limb
+	LimbType type;  // if linked or miswound: if match is end, edge is last in linked list
 	bool looped;
 
 #if OP_DEBUG

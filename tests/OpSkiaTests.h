@@ -37,11 +37,9 @@ class SkBitmap;
 
 namespace skiatest {
     struct Reporter {
-        Reporter() 
-            : unnamedCount(0) {
+        Reporter() {
         }
-        Reporter(const char* name, const char* sub)
-            : unnamedCount(0) {
+        Reporter(const char* name, const char* sub) {
             filename = name;
             subname = sub;
         }
@@ -50,7 +48,6 @@ namespace skiatest {
         bool verbose() { return false; }
         // skia's testSimplifyTrianglesMain appears to be missing the test name
         // construct one out of the name passed to initTests and a running count
-        int unnamedCount;  // not in skia's version
         std::string testname;  // not in skia's version
         std::string filename;  // not in skia's version
         std::string subname;  // not in skia's version
@@ -138,6 +135,7 @@ void run_inverse_tests();
 void run_issue3651_tests();
 void run_op_circle_tests();
 void run_op_cubic_tests();
+void run_op_fast_tests();
 void run_op_loop_tests();
 void run_op_rect_tests();
 void run_op_tests();

@@ -7,6 +7,13 @@
 #include "PathOps.h"
 #endif
 
+EdgeDistance::EdgeDistance(OpEdge* e, float c, float tIn, bool r)
+	: edge(e)
+	, cept(c)
+	, edgeInsideT(tIn)
+	, reversed(r) {
+}
+
 OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight  
 		OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file))
 	: OpEdge() {
@@ -54,8 +61,8 @@ OpEdge::OpEdge(const OpEdge* edge, float t1, float t2
 	complete();
 }
 
-CalcFail OpEdge::addIfUR(Axis axis, float t, OpWinding* sumWinding) {
-	NormalDirection NdotR = normalDirection(axis, t);
+CalcFail OpEdge::addIfUR(Axis axis, float edgeInsideT, OpWinding* sumWinding) {
+	NormalDirection NdotR = normalDirection(axis, edgeInsideT);
 	if (NormalDirection::upRight == NdotR)
 		*sumWinding += winding;
 	else if (NormalDirection::downLeft != NdotR)
@@ -71,8 +78,8 @@ void OpEdge::addPal(EdgeDistance& dist) {
 
 // given an intersecting ray and edge t, add or subtract edge winding to sum winding
 // but don't change edge's sum, since an unsectable edge does not allow that accumulation
-CalcFail OpEdge::addSub(Axis axis, float t, OpWinding* sumWinding) {
-	NormalDirection NdotR = normalDirection(axis, t);
+CalcFail OpEdge::addSub(Axis axis, float edgeInsideT, OpWinding* sumWinding) {
+	NormalDirection NdotR = normalDirection(axis, edgeInsideT);
 	if (NormalDirection::upRight == NdotR)
 		*sumWinding += winding;
 	else if (NormalDirection::downLeft == NdotR)
@@ -206,14 +213,6 @@ void OpEdge::clearActiveAndPals(ZeroReason reason) {
 }
 
 void OpEdge::clearLastEdge() {
-#if 0 && OP_DEBUG
-	// !!! not ready for prime time
-	// this asserts on cases which are not really errors; fixing it causes more harm than good for now
-	OpJoiner* joiner = contours()->debugJoiner;
-	OP_ASSERT(joiner);
-	std::vector<OpEdge*>& l = joiner->linkups.l;
-	OP_ASSERT(l.end() == std::find(l.begin(), l.end(), this));
-#endif
 	lastEdge = nullptr;
 }
 
@@ -444,20 +443,83 @@ OpEdge* OpEdge::nextOut() {
     return nextEdge;
 }
 
-NormalDirection OpEdge::normalDirection(Axis axis, float t) {
-	return curve.normalDirection(axis, t);
+// !!! note that t value is 0 to 1 within edge (not normalized to segment t)
+NormalDirection OpEdge::normalDirection(Axis axis, float edgeInsideT) {
+	return curve.normalDirection(axis, edgeInsideT);
 }
 
+// if there is another path already output, and it is first found in this ray,
+// check to see if the tangent directions are opposite. If they aren't, reverse
+// this edge's links before sending it to the host graphics engine
 void OpEdge::output(OpOutPath& path, bool closed) {
-	bool first = true;
     const OpEdge* firstEdge = closed ? this : nullptr;
     OpEdge* edge = this;
+	bool reverse = false;
+	// returns true if reverse/no reverse criteria found
+	auto test = [&reverse](const EdgeDistance* outer, const EdgeDistance* inner) {
+		if (!outer->edge->inOutput && !outer->edge->inLinkups)
+			return false;
+		// reverse iff normal direction of inner and outer match and outer normal points to nonzero
+		OpEdge* oEdge = outer->edge;
+		Axis axis = oEdge->ray.axis;
+		NormalDirection oNormal = oEdge->normalDirection(axis, outer->edgeInsideT);
+		if ((oEdge->windZero == WindZero::zero) == (NormalDirection::upRight == oNormal))
+			return true;  // don't reverse if outer normal in direction of inner points to zero
+		OpEdge* iEdge = inner->edge;
+		OP_ASSERT(!iEdge->inOutput);
+		if (axis != iEdge->ray.axis)
+			return false;
+		NormalDirection iNormal = iEdge->normalDirection(axis, inner->edgeInsideT);
+		if (EdgeMatch::end == iEdge->which())
+			iNormal = !iNormal;
+		if (NormalDirection::downLeft != iNormal 
+				&& NormalDirection::upRight != iNormal)
+			return false;
+		if (EdgeMatch::end == oEdge->which())
+			oNormal = !oNormal;
+		if (NormalDirection::downLeft != oNormal 
+				&& NormalDirection::upRight != oNormal)
+			return false;
+		reverse = iNormal == oNormal;
+		return true;
+	};
+	do {
+		OP_ASSERT(!edge->inOutput);
+		unsigned index;
+		const EdgeDistance* inner;
+		for (index = 0; index < edge->ray.distances.size(); ++index) {
+			inner = &edge->ray.distances[index];
+			if (inner->edge == edge)
+				break;
+		}
+		OP_ASSERT(index < edge->ray.distances.size());
+		if (index == 0)  // if nothing to its left, don't reverse
+			break;
+		const EdgeDistance* outer = &edge->ray.distances[index - 1];
+		if (test(outer, inner))
+			break;
+		edge = edge->nextEdge;
+    } while (firstEdge != edge);
+	if (reverse) {
+		if (priorEdge) {
+			OP_ASSERT(debugIsLoop());
+			lastEdge = priorEdge;
+			lastEdge->nextEdge = nullptr;
+			priorEdge = nullptr;
+		}
+		edge = lastEdge;
+		edge->setLinkDirection(EdgeMatch::none);
+		firstEdge = nullptr;
+	} else
+		edge = this;
+	bool first = true;
     do {
 		OP_DEBUG_CODE(edge->debugOutPath = path.debugID);
-		if (EdgeMatch::end == edge->which())
-			edge->curve.reverse();
 		OpEdge* next = edge->nextOut();
-		if (!edge->curve.output(path, first, firstEdge == next))
+		OpCurve copy = edge->curve;
+		if (EdgeMatch::end == edge->which())
+			copy.reverse();
+		if (!copy.output(path, first, firstEdge == next))
 			break;
 		first = false;
         edge = next;
@@ -480,6 +542,25 @@ void OpEdge::setBetween() {
 	between = true;
 }
 
+const OpRect& OpEdge::closeBounds() {
+	// close bounds holds point bounds outset by 'close' fudge factor
+	if (linkBounds.isSet())
+		return linkBounds;
+	linkBounds = ptBounds;
+	linkBounds.left = OpMath::CloseSmaller(linkBounds.left);
+	linkBounds.top = OpMath::CloseSmaller(linkBounds.top);
+	linkBounds.right = OpMath::CloseLarger(linkBounds.right);
+	linkBounds.bottom = OpMath::CloseLarger(linkBounds.bottom);
+	return linkBounds;
+}
+
+bool OpEdge::isClose() {
+	if (closeSet)
+		return isClose_impl;
+	closeSet = true;
+	return isClose_impl = start.soClose(end);
+}
+
 void OpEdge::setCurveCenter() {
 	curve.pts[curve.pointCount()] = center.pt;
 	curve.centerPt = true;
@@ -491,9 +572,7 @@ void OpEdge::setDisabled(OP_DEBUG_CODE(ZeroReason reason)) {
 	OP_DEBUG_CODE(debugZero = reason); 
 }
 
-OpEdge* OpEdge::setLastEdge(OpEdge* old) {
-	if (old)
-		old->clearLastEdge();
+OpEdge* OpEdge::setLastEdge() {
 	clearLastEdge();
 	OpEdge* linkStart = advanceToEnd(EdgeMatch::start);
 	OpEdge* linkEnd = advanceToEnd(EdgeMatch::end);
@@ -521,7 +600,7 @@ bool OpEdge::setLastLink(EdgeMatch match) {
 }
 
 OpPointBounds OpEdge::setLinkBounds() {
-	OP_ASSERT(lastEdge); // fix caller to pass first edge of links
+	OP_ASSERT(lastEdge);  // fix caller to pass first edge of links
 	if (linkBounds.isSet())
 		return linkBounds;
 	linkBounds = ptBounds;
@@ -623,7 +702,7 @@ void OpEdge::skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) {
 			sectables.push_back(found);
 	}
 	OpEdge* first = advanceToEnd(EdgeMatch::start);
-	first->setLastEdge(nullptr);
+	first->setLastEdge();
 	for (unsigned oIndex = 1; oIndex < unsectables.size(); ++oIndex) {
 		FoundEdge& outer = unsectables[oIndex - 1];	// note: cannot underflow
 		auto& oPals = outer.edge->pals;
@@ -681,8 +760,8 @@ void OpEdge::subDivide() {
 	}
 }
 
-CalcFail OpEdge::subIfDL(Axis axis, float t, OpWinding* sumWinding) {
-	NormalDirection NdotR = normalDirection(axis, t);
+CalcFail OpEdge::subIfDL(Axis axis, float edgeInsideT, OpWinding* sumWinding) {
+	NormalDirection NdotR = normalDirection(axis, edgeInsideT);
 	if (NormalDirection::downLeft == NdotR)
 		*sumWinding -= winding;
 	else if (NormalDirection::upRight != NdotR)
@@ -690,10 +769,21 @@ CalcFail OpEdge::subIfDL(Axis axis, float t, OpWinding* sumWinding) {
 	return CalcFail::none;
 }
 
+// this is too complicated because
+// edges in linked list have last edge set
+//   and have link bounds set
+// unlinking an edge in a linked list requires re-jiggering last edge, link bounds, and list membership
+// since this doesn't have a OpJoiner, it is in the wrong context to do all this
+// which begs the question, why unlink something in the linked list?
 void OpEdge::unlink() {
+	if (!inOutput) {
+		OpEdge* linkStart = advanceToEnd(EdgeMatch::start);
+		if (linkStart->inLinkups)
+			return;
+	}
 	priorEdge = nullptr;
 	nextEdge = nullptr;
-	lastEdge = nullptr;
+	clearLastEdge();
 	setWhich(EdgeMatch::start);  // !!! should this set to none?
 	visited = false;
 }
