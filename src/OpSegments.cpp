@@ -30,6 +30,7 @@ OpSegments::OpSegments(OpContours& contours) {
     std::sort(inX.begin(), inX.end(), compareXBox);
 }
 
+// may need to adjust values in opp if end is nearly equal to seg
 void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
     auto add = [](OpSegment* seg, OpSegment* opp, OpPoint end, float t, float endT
             OP_LINE_FILE_DEF(int dummy)) {
@@ -41,9 +42,24 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
     };
     auto chk = [add](OpSegment* seg, OpSegment* opp, OpPoint end, float endT
             OP_LINE_FILE_DEF(int dummy)) {
-        float t = seg->c.match(0, 1, end);
-		if (OpMath::IsNaN(t))
-            return;
+        float t = OpNaN;
+        if (seg->c.pts[0].isNearly(end)) {
+            t = 0;
+            if (end != seg->c.pts[0]) {
+                end = seg->c.pts[0];
+                opp->moveTo(t, end);
+            }
+        } else if (seg->c.lastPt().isNearly(end)) {
+            t = 1;
+            if (end != seg->c.lastPt()) {
+                end = seg->c.lastPt();
+                opp->moveTo(t, end);
+            }
+        } else {
+            t = seg->c.match(0, 1, end);
+		    if (OpMath::IsNaN(t))
+                return;
+        }
         add(seg, opp, end, t, endT  OP_LINE_FILE_PARAMS(0));
     };
     MatchReverse mr = seg->matchEnds(opp);
@@ -362,9 +378,11 @@ FoundIntersections OpSegments::findIntersections() {
             OpSegment* opp = const_cast<OpSegment*>(*oppIter);
             if (opp->disabled)
                 continue;
-            if (seg->ptBounds.right < opp->ptBounds.left)
+            // comparisons below need to be 'nearly' since adjusting opp may make sort incorrect
+            // or, exact compare may miss nearly equal seg/opp pairs
+            if (seg->closeBounds.right < opp->closeBounds.left)
                 break;
-            if (!seg->ptBounds.intersects(opp->ptBounds))
+            if (!seg->closeBounds.intersects(opp->closeBounds))
                 continue;
             AddEndMatches(seg, opp);
             // for line-curve intersection we can directly intersect
@@ -463,12 +481,10 @@ FoundIntersections OpSegments::findIntersections() {
             OP_DEBUG_CODE(ccx.debugDone(seg->contour->contours));
             if (SectFound::fail == experimental)
                 return FoundIntersections::fail;
-            if (SectFound::no == experimental) {
+            if (SectFound::no == experimental && !ccx.ccSects.size()) {
                 // capture the closest point(s) that did not result in an intersection
                 // !!! eventually allow capturing more than 1, if curves hit twice
-                BuildClosest bc;
-                bc.build(seg, ccx.edgeCurves, opp, ccx.oppCurves);
-                bc.build(opp, ccx.oppCurves, seg, ccx.edgeCurves);
+                ccx.closest();
                 continue;
             }
             // !!! where does the comment below go?

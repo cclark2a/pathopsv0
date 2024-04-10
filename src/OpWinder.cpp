@@ -119,7 +119,8 @@ EdgeDistance* SectRay::find(OpEdge* edge) {
 
 // at some point, do some math or rigorous testing to figure out how extreme this can be
 // for now, keep making it smaller until it breaks
-#define WINDING_NORMAL_LIMIT  0.004 // !!! fails (I think) on pentreck13 edge 1045 NxR:00221
+// !!! fails (I think) on pentreck13 edge 1045 NxR:00221
+#define WINDING_NORMAL_LIMIT  0.008 // 0.004  fails on testQuads19022897 edge 151 NxR:-0.00746
 
 FindCept SectRay::findIntercept(OpEdge* test) {
 	if (test->ptBounds.ltChoice(axis) > normal)

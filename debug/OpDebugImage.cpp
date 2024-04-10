@@ -1573,7 +1573,7 @@ void colorOpp(uint32_t color) {
 }
 
 void colorPathsOut(uint32_t color) {
-	pathsOutColor = blue;
+	pathsOutColor = color;
 }
 
 void colorUnsectables(uint32_t color) {

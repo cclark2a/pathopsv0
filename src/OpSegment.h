@@ -101,12 +101,13 @@ struct OpSegment {
     void makeEdges();
     MatchReverse matchEnds(const OpSegment* opp) const;
 //    MatchEnds matchExisting(const OpSegment* opp) const;
-    void moveTo(const OpPtT& , OpPoint );  // move segment/sect point to match another endpont
+    void moveTo(float t , OpPoint );  // move segment/sect point to match another endpont
     int nextID() const { 
         return nextID(contour); }
     int nextID(OpContour* ) const;
 //	void reenable() {
 //		disabled = false; OP_DEBUG_CODE(debugZero = ZeroReason::uninitialized); }
+    void setBounds();
 	void setDisabled(OP_DEBUG_CODE(ZeroReason reason));
     void windCoincidences();
 
@@ -131,6 +132,7 @@ struct OpSegment {
     OpContour* contour;
     OpCurve c;
     OpPointBounds ptBounds;
+    OpRect closeBounds;
     OpIntersections sects;
     std::vector<OpEdge> edges;
     OpWinding winding;

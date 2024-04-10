@@ -492,7 +492,7 @@ void OpEdge::output(OpOutPath& path, bool closed) {
 			if (inner->edge == edge)
 				break;
 		}
-		OP_ASSERT(index < edge->ray.distances.size());
+		OP_ASSERT(!index || index < edge->ray.distances.size());
 		if (index == 0)  // if nothing to its left, don't reverse
 			break;
 		const EdgeDistance* outer = &edge->ray.distances[index - 1];
@@ -547,17 +547,17 @@ const OpRect& OpEdge::closeBounds() {
 	if (linkBounds.isSet())
 		return linkBounds;
 	linkBounds = ptBounds;
-	linkBounds.left = OpMath::CloseSmaller(linkBounds.left);
-	linkBounds.top = OpMath::CloseSmaller(linkBounds.top);
-	linkBounds.right = OpMath::CloseLarger(linkBounds.right);
-	linkBounds.bottom = OpMath::CloseLarger(linkBounds.bottom);
-	return linkBounds;
+	return linkBounds.outsetClose();
 }
 
 bool OpEdge::isClose() {
 	if (closeSet)
 		return isClose_impl;
 	closeSet = true;
+	if (0 == start.t || 1 == end.t) {
+		OP_ASSERT(!isClose_impl);
+		return false;
+	}
 	return isClose_impl = start.soClose(end);
 }
 

@@ -141,6 +141,10 @@ struct OpContours;
 #define OpDebugBreak(opObject, ID) \
 	do { if ((ID) == (opObject)->id) OP_DEBUG_BREAK(); } while (false)
 
+#define OpDebugBreak2(o1, o2, i1, i2) \
+	do { if (((i1) == (o1)->id || (i2) == (o1)->id)) && \
+             ((i1) == (o2)->id || (i2) == (o2)->id))) OP_DEBUG_BREAK(); } while (false)
+
 #define OpDebugBreakIf(opObject, ID, doBreak) \
 	do { if ((doBreak) && (ID) == (opObject)->id) OP_DEBUG_BREAK(); } while (false)
 

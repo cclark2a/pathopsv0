@@ -2,9 +2,10 @@
 
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
-#define TEST_PATH_OP_FIRST "testQuads5643583" // e.g., "thread_cubics2247347" (ignored by fast test)
+#define TEST_PATH_OP_FIRST "" // e.g., "thread_cubics2247347" (ignored by fast test)
 #define TEST_PATH_OP_SKIP_TO_V0 1 // if 1 & not fast test, ignore skip to file; run first "v0" test
 #define TEST_PATH_OP_SKIP_TO_FILE "quad" // e.g., "quad" tests only (see testSuites below)
+#define TESTS_TO_SKIP 0 // 7000000  // tests to skip
 
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
@@ -268,6 +269,7 @@ void bulkTest(int index) {
         totalTests += OP_TEST_ALLOW_EXTENDED ? testSuite.extended : testSuite.count;
     }
     int firstTest = index * totalTests / OP_MAX_THREADS;
+    firstTest += TESTS_TO_SKIP / OP_MAX_THREADS;
     int lastTest = (index + 1) * totalTests / OP_MAX_THREADS;
     for (auto testSuite : testSuites) {
         if (skipToFile.size() && testSuite.name != skipToFile)

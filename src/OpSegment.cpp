@@ -179,8 +179,8 @@ int OpSegment::coinID(bool flipped) const {
 }
 
 void OpSegment::complete(OpContour* contourPtr) {
-    ptBounds.set(c);
-// #if OP_DEBUG     // used only by sort; probably unnecessary there
+    setBounds();
+// #if OP_DEBUG     // !!! used only by sort; probably unnecessary?
     id = nextID(contourPtr);  // segment's contour pointer is not set up
 // #endif
 }
@@ -305,20 +305,32 @@ MatchEnds OpSegment::matchExisting(const OpSegment* opp) const {
 }
 */
 
-void OpSegment::moveTo(const OpPtT& ptT, OpPoint pt) {
-    OP_ASSERT(ptT.onEnd());
-    OpPoint& endPt = 0 == ptT.t ? c.pts[0] : c.pts[c.pointCount() - 1];
-    OP_ASSERT(endPt.isNearly(pt));
-    endPt = pt;
+start here;
+// keep control point inside curve bounds
+// further, if old control point is axis aligned with end point, keep relationship after moving
+// !!! detect if segment collapses to point?
+// !!! don't change opposite end point
+void OpSegment::moveTo(float matchT, OpPoint equalPt) {
+    OP_ASSERT(0 == matchT || 1 == matchT);
+    OpPoint& endPt = 0 == matchT ? c.pts[0] : c.pts[c.pointCount() - 1];
+    OP_ASSERT(endPt.isNearly(equalPt));
+    endPt = equalPt;
+    setBounds();
     for (OpIntersection* sect : sects.i) {
-        if (sect->ptT.t == ptT.t)
-            sect->ptT.pt = pt;
+        if (sect->ptT.t == matchT)
+            sect->ptT.pt = equalPt;
     }
     edges.clear();
 }
 
 int OpSegment::nextID(OpContour* contourPtr) const {
     return contourPtr->nextID();
+}
+
+void OpSegment::setBounds() {
+    ptBounds.set(c);
+    closeBounds = ptBounds;
+    closeBounds.outsetClose();
 }
 
 // should be inlined. Out of line for ease of setting debugging breakpoints

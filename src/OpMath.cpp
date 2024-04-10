@@ -122,6 +122,14 @@ bool OpRect::isFinite() const {
         && OpMath::IsFinite(right) && OpMath::IsFinite(bottom);
 }
 
+const OpRect& OpRect::outsetClose() {
+	left = OpMath::CloseSmaller(left);
+	top = OpMath::CloseSmaller(top);
+	right = OpMath::CloseLarger(right);
+	bottom = OpMath::CloseLarger(bottom);
+    return *this;
+}
+
 bool OpPtT::isNearly(const OpPtT& o) const {
     return pt.isNearly(o.pt) || OpMath::NearlyEqualT(t, o.t);
 }

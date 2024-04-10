@@ -554,6 +554,9 @@ struct OpRect {
         return width() >= height() ? Axis::vertical : Axis::horizontal; }
     float ltChoice(Axis axis) const { 
         return *(&left + +axis);  }
+
+    const OpRect& outsetClose();
+
     float perimeter() const { 
         return width() + height(); }
     float rbChoice(Axis axis) const {

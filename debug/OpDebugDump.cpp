@@ -2143,7 +2143,8 @@ std::string CcCenter::debugDump(DebugLevel l, DebugBase b) const {
 
 std::string CcSect::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    s += "edge:" + edge.debugDump(l, b);
+    if (edge)
+        s += "edge:" + edge->debugDump(l, b);
     s += " ptT:" + ptT.debugDump(l, b);
 #if OP_DEBUG
 	s += " reason:" + sectReasonName(debugReason);
@@ -2213,9 +2214,11 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     s += "originalEdge:" + originalEdge->debugDump((DebugLevel) ((int) l - 1), b) + "\n";
     s += "originalOpp:" + originalOpp->debugDump((DebugLevel) ((int) l - 1), b) + "\n";
-    std::string names[] = { "edge curves", "opp curves", "edge lines", "opp lines", "edge runs", "opp runs" };
+    std::string names[] = { "edge curves", "opp curves", "edge lines", "opp lines", "edge runs", 
+            "opp runs" };
     int count = 0;
-	for (auto edgesPtrs : { &edgeCurves, &oppCurves, &edgeLines, &oppLines, &edgeRuns, &oppRuns } ) {
+	for (auto edgesPtrs : { &edgeCurves, &oppCurves, &edgeLines, &oppLines, &edgeRuns, 
+            &oppRuns } ) {
         const auto& edges = *edgesPtrs;
         if (edges.size()) {
             int splitCount = 0;
@@ -2236,12 +2239,29 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
     for (const auto& ccSect : ccSects) {
         s += ccSect.debugDump(l, b) + "\n";
     }
+    if (closeEdge.lo.e.edge)
+        s += " closeEdge.lo:" + closeEdge.lo.debugDump(l, b);
+    if (closeEdge.best.e.edge)
+        s += " closeEdge.best:" + closeEdge.best.debugDump(l, b);
+    if (closeEdge.hi.e.edge)
+        s += " closeEdge.hi:" + closeEdge.hi.debugDump(l, b);
+    if (OpMath::IsFinite(closeEdge.bestDist))
+        s += " closeEdge.bestDist:" + STR(closeEdge.bestDist);
+    if (closeOpp.lo.e.edge)
+        s += " closeOpp.lo:" + closeOpp.lo.debugDump(l, b);
+    if (closeOpp.best.e.edge)
+        s += " closeOpp.best:" + closeOpp.best.debugDump(l, b);
+    if (closeOpp.hi.e.edge)
+        s += " closeOpp.hi:" + closeOpp.hi.debugDump(l, b);
+    if (OpMath::IsFinite(closeOpp.bestDist))
+        s += " closeOpp.bestDist:" + STR(closeOpp.bestDist);
     if (OpMath::IsFinite(snipEdge.t))
-        s += "snipEdge:" + snipEdge.debugDump(l, b);
+        s += " snipEdge:" + snipEdge.debugDump(l, b);
     if (OpMath::IsFinite(snipOpp.t))
-        s += " snipOpp:" + snipOpp.debugDump(l, b) + " ";
+        s += " snipOpp:" + snipOpp.debugDump(l, b);
 #endif
-    if (sectResult) s += "sectResult";
+    if (sectResult) 
+        s += " sectResult";
     return s;
 }
 

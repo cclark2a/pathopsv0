@@ -145,9 +145,8 @@ struct OpIntersection {
 struct OpIntersections {
 	OpIntersections();
 	OpIntersection* add(OpIntersection* );
-    OpIntersection* contains(const OpPtT& ptT, const OpSegment* opp) const {
-		OpIntersection* const * result = entry(ptT, opp); return result ? *result : nullptr; }
-    OpIntersection* const * entry(const OpPtT& , const OpSegment* opp) const;  // match opp + ptT
+    OpIntersection* contains(const OpPtT& ptT, const OpSegment* opp);  // nearby ptT
+    OpIntersection* const * entry(const OpPtT& , const OpSegment* opp) const;  // exact opp + ptT
 	void makeEdges(OpSegment* );
 	const OpIntersection* nearly(const OpPtT& ptT, OpSegment* oSeg) const;  // near match of pt or t
     void range(const OpSegment* , std::vector<OpIntersection*>& );

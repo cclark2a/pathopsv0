@@ -24,12 +24,25 @@ OpIntersection* OpIntersections::add(OpIntersection* sect) {
     return sect;
 }
 
+// this matches opp with nearby ptT
+OpIntersection* OpIntersections::contains(const OpPtT& ptT, const OpSegment* opp) {
+	for (unsigned index = 0; index < i.size(); ++index) {
+        OpIntersection* sect = i[index];
+        if (!sect->opp || sect->opp->segment != opp)
+            continue;
+		if (ptT.isNearly(sect->ptT))
+			return sect;
+	}
+	return nullptr;
+}
+
+// this matches sects exactly, and is for pair lookups
 OpIntersection* const * OpIntersections::entry(const OpPtT& ptT, const OpSegment* opp) const {
 	for (unsigned index = 0; index < i.size(); ++index) {
         OpIntersection* sect = i[index];
         if (!sect->opp || sect->opp->segment != opp)
             continue;
-		if (ptT.pt == sect->ptT.pt || ptT.t == sect->ptT.t)
+		if (ptT.pt == sect->ptT.pt || ptT.t == sect->ptT.t)  // !!! should this be && ?
 			return &i[index];
 	}
 	return nullptr;
@@ -179,7 +192,7 @@ bool SectPreferred::find(OpIntersection* sect) {
         if (test->ptT.pt != best) {
             if (test->ptT.onEnd()) {
                 if (bestOnEnd) {
-                    test->segment->moveTo(test->ptT, best);
+                    test->segment->moveTo(test->ptT.t, best);
                 } else {
                     best = test->ptT.pt;
                     bestOnEnd = test->ptT.onEnd();
