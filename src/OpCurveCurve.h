@@ -95,6 +95,7 @@ struct CcSects {
 		, o(opp, oPtT  OP_LINE_FILE_CALLER(oReason)) {
 	}
 #if OP_DEBUG_DUMP
+	std::string debugDump(DebugLevel l, DebugBase b, int indent) const;
 	DUMP_DECLARATIONS
 #endif
 
@@ -107,12 +108,36 @@ struct CcClose {
 		: bestDist(OpInfinity) {
 	}
 	void save(OpEdge& edge, OpPtT edgePtT, OpEdge& opp, OpPtT oppPtT);
+#if OP_DEBUG_DUMP
+	DUMP_DECLARATIONS
+#endif
 
 	CcSects lo;
 	CcSects best;
 	CcSects hi;
 	float bestDist;
 };
+
+struct FoundPtTs {
+	OpPtT seg;
+	OpPtT opp;
+
+	void setEnd(const OpSegment* opp, const OpCurve& curve, float t);
+
+#if OP_DEBUG_DUMP
+	DUMP_DECLARATIONS
+#endif
+};
+
+struct FoundLimits {
+	FoundPtTs lo;
+	FoundPtTs hi;
+
+#if OP_DEBUG_DUMP
+	DUMP_DECLARATIONS
+#endif
+};
+
 #endif
 
 struct CutRangeT {
@@ -138,12 +163,22 @@ struct OpCurveCurve {
 	void release();
 	bool split(CurveRef , DoSplit );
 #if CC_EXPERIMENT
+	void addUnsectable2(OpSegment* seg, const OpPtT& edgeStart, const OpPtT& edgeEnd,
+		OpSegment* opp, OpPtT oppStart, OpPtT oppEnd);
+	void checkForGaps();
 	bool checkSplit(float lo, float hi, CurveRef , OpPtT& checkPtT) const;
+	static OpPtT Cut(const OpPtT& , const OpSegment* , float direction);
 	static CutRangeT CutRange(const OpPtT& , const OpSegment* , 
 			float loEnd, float hiEnd);
+	void findUnsectable();
+	static void SetHullSects(OpEdge& edge, OpEdge& opp);
 	void recordSect(OpEdge& edge, OpPtT edgePtT, OpEdge& opp, OpPtT oppPtT
-				OP_LINE_FILE_DEF(SectReason eReason, SectReason oReason));
+			OP_LINE_FILE_DEF(SectReason eReason, SectReason oReason));
+	void snipOne(std::vector<OpEdge*>& curves, const OpSegment* , OpContours* ,
+			const OpPtT& lo, const OpPtT& hi);
 	void snipAndGo(std::vector<OpEdge*>& curves, const OpSegment* , OpContours* , const OpPtT& cut);
+	void splitDownTheMiddle(OpContours* contours, OpEdge& edge, const OpPtT& edgeMid, 
+			std::vector<OpEdge*>* splits);
 	void splitSect(std::vector<OpEdge*>& curves);  // split and discard edge near intersection
 	bool splitHulls(CurveRef );  // hull finds split point; returns true if snipped
 #endif
@@ -176,14 +211,14 @@ struct OpCurveCurve {
 	std::vector<OpEdge*> oppRuns;
 #if CC_EXPERIMENT
 	std::vector<CcSects> ccSects;
-	// !!! save too much information while figuring out how / if this should work
 	CcClose closeEdge;
-	CcClose closeOpp;
 	OpPtT snipEdge;
 	OpPtT snipOpp;
 #endif
 	int depth;
 	bool sectResult;
+	bool smallTFound;  // if true, hull sort should prefer large t values
+	bool largeTFound;  // also used to resolve t gaps 
 #if OP_DEBUG_DUMP
 	static int debugExperiment;
 	int debugLocal;  // (copy so it is visible in debugger)

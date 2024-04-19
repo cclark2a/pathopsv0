@@ -155,9 +155,8 @@ FindCept SectRay::findIntercept(OpEdge* test) {
 	if (OpMath::IsNaN(root) || 0 == root || root == 1)
 		return FindCept::retry;
 #endif
-	bool overflow;
-	OpVector tangent = test->curve.tangent(root).normalize(&overflow);
-	if (overflow)
+	OpVector tangent = test->curve.tangent(root).normalize();
+	if (!tangent.isFinite() || tangent == OpVector{ 0, 0 } )
 		return FindCept::retry;
 	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
 	OpVector backRay = -ray;
@@ -557,7 +556,7 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 		if (OpMath::IsNaN(oppPtT.t))
 			continue;
 		float edgeT = edge.segment->findValidT(0, 1, oppPtT.pt);
-		if (!OpMath::Between(0, edgeT, 1))
+		if (!OpMath::Between(0, edgeT, 1))  // !!! shouldn't this just be a nan test?
 			continue;
 #if OP_DEBUG_RECORD
 		OpDebugRecordSuccess(index);
@@ -698,10 +697,9 @@ ChainFail OpWinder::setSumChain(size_t homeIndex) {
 	OP_ASSERT(!home->disabled);
 	const OpSegment* edgeSeg = home->segment;
 	OpVector rayLine = Axis::horizontal == workingAxis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
-	bool overflow;
 	OpVector homeTangent = edgeSeg->c.tangent(home->center.t);
-	float NxR = homeTangent.normalize(&overflow).cross(rayLine);
-	if (overflow)
+	float NxR = homeTangent.normalize().cross(rayLine);
+	if (!OpMath::IsFinite(NxR))
 		OP_DEBUG_FAIL(*home, ChainFail::normalizeOverflow);
 	if (fabs(NxR) < WINDING_NORMAL_LIMIT) {
 		markUnsortable();
@@ -807,7 +805,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 		if (home->pals.size() && (home == prior || home->isPal(prior)))
 			break;
 		NormalDirection normDir = prior->normalDirection(ray.axis, dist.edgeInsideT);
-		if (NormalDirection::underflow == normDir || NormalDirection::overflow == normDir) {
+		if (NormalDirection::underflow == normDir) {
 			prior->setUnsortable();
 			continue;
 		}

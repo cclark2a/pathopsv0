@@ -67,26 +67,44 @@ DebugLevel defaultLevel = DebugLevel::normal;
 	VECTOR_PTRS
 #undef OP_X
 #define OP_X(Thing) \
-    void Thing::dump() const { \
-        dmp(*this); \
-    } \
-    void Thing::dump(DebugLevel dl, DebugBase db) const { \
-        OpDebugFormat(this->debugDump(dl, db)); \
-    } \
-    void Thing::dumpHex() const { \
-        dmpHex(*this); \
+    void dmp(const Thing& thing) { \
+        OpDebugFormat(thing.debugDump(defaultLevel, defaultBase)); \
     } \
     void dmp(const Thing* thing) { \
         dmp(*thing); \
     } \
-    void dmpHex(const Thing* thing) { \
-        dmpHex(*thing); \
+	void dmpBrief(const Thing& thing) { \
+		OpDebugFormat(thing.debugDump(DebugLevel::brief, defaultBase)); \
     } \
-    void dmp(const Thing& thing) { \
-        OpDebugFormat(thing.debugDump(defaultLevel, defaultBase)); \
+    void dmpBrief(const Thing* thing) { \
+        dmpBrief(*thing); \
+    } \
+	void dmpDetailed(const Thing& thing) { \
+		OpDebugFormat(thing.debugDump(DebugLevel::detailed, defaultBase)); \
+    } \
+    void dmpDetailed(const Thing* thing) { \
+        dmpDetailed(*thing); \
     } \
     void dmpHex(const Thing& thing) { \
         OpDebugFormat(thing.debugDump(defaultLevel, DebugBase::hex)); \
+    } \
+    void dmpHex(const Thing* thing) { \
+        dmpHex(*thing); \
+    } \
+    void Thing::dump(DebugLevel dl, DebugBase db) const { \
+        OpDebugFormat(this->debugDump(dl, db)); \
+    } \
+    void Thing::dump() const { \
+        dmp(*this); \
+    } \
+    void Thing::dumpBrief() const { \
+        dmpBrief(*this); \
+    } \
+    void Thing::dumpDetailed() const { \
+        dmpDetailed(*this); \
+    } \
+    void Thing::dumpHex() const { \
+        dmpHex(*this); \
     }
     VECTOR_STRUCTS
     OP_STRUCTS
@@ -100,6 +118,9 @@ DETAIL_POINTS
 #define OP_X(Thing) \
     void dmp##Thing(const struct OpEdge* edge) { \
         dmp##Thing(*edge); \
+    } \
+    void OpEdge::dump##Thing() const { \
+        dmp##Thing(*this); \
     }
 EDGE_DETAIL
 EDGE_OR_SEGMENT_DETAIL
@@ -107,17 +128,6 @@ EDGE_OR_SEGMENT_DETAIL
 #define OP_X(Thing) \
     void dmp##Thing(const struct OpSegment* segment) { \
         dmp##Thing(*segment); \
-    } \
-    void dmp##Thing(const OpContour* c) { \
-        dmp##Thing(*c); \
-    } \
-    void dmp##Thing(const OpContour& c) { \
-        OpDebugOut(c.debugDump(defaultLevel, defaultBase) + "\n"); \
-        for (auto& segment : c.segments) \
-            segment.dump##Thing(); \
-    } \
-    void OpContour::dump##Thing() const { \
-        dmp##Thing(*this); \
     } \
     void OpSegment::dump##Thing() const { \
         dmp##Thing(*this); \
@@ -214,45 +224,19 @@ EDGE_DETAIL
     DUMP_BY_DUMPID
 #undef OP_X
 
-#define OWNER OpContours
-#include "OpDebugDefinitions.h"
-#undef OWNER
-
-#define OWNER OpCurveCurve
-#include "OpDebugDefinitions.h"
-#undef OWNER
-
-#define OWNER OpEdge
-#include "OpDebugDefinitions.h"
-#undef OWNER
-
-#define OWNER OpIntersection
-#undef DUMP_UNIQUE
-#define DUMP_UNIQUE
-#include "OpDebugDefinitions.h"
-#undef OWNER
-
-#define OWNER OpJoiner
-#include "OpDebugDefinitions.h"
-#undef OWNER
-
-#define OWNER OpSegment
-#include "OpDebugDefinitions.h"
-#undef OWNER
-
-#define OWNER OpSegments
-#include "OpDebugDefinitions.h"
-#undef OWNER
-
-#define OWNER OpWinder
-#include "OpDebugDefinitions.h"
-#undef OWNER
-
 #define ENUM_NAME_STRUCT(enum) \
 struct enum##Name { \
     enum element; \
     const char* name; \
 }
+
+#define ENUM_NAME_STRUCT_ABBR(enum) \
+struct enum##Name { \
+    enum element; \
+    const char* name; \
+    const char* abbr; \
+}
+
 
 #define ENUM_NAME(Enum, enum) \
 static bool enum##OutOfDate = false; \
@@ -273,6 +257,28 @@ std::string enum##Name(Enum element) { \
         return STR_E(element); \
     return enum##Names[(int) element - first].name; \
 }
+
+#define ENUM_NAME_ABBR(Enum, enum) \
+static bool enum##OutOfDate = false; \
+\
+std::string enum##Name(Enum element, DebugLevel l) { \
+    static bool enum##Checked = false; \
+    int first = (int) enum##Names[0].element; \
+    if (!enum##Checked) { \
+        for (int index = 0; index < (int) ARRAY_COUNT(enum##Names); ++index) \
+           if (!enum##OutOfDate && (int) enum##Names[index].element != index + first) { \
+               OpDebugOut("!!! " #Enum " out of date\n"); \
+               enum##OutOfDate = true; \
+               break; \
+           } \
+        enum##Checked = true; \
+    } \
+    if (enum##OutOfDate) \
+        return STR_E(element); \
+    return DebugLevel::brief == l ? enum##Names[(int) element - first].abbr \
+        : enum##Names[(int) element - first].name; \
+}
+
 
 std::string stringFormat(std::string s) {
     if (!s.size())
@@ -545,6 +551,7 @@ SectReasonName sectReasonNames[] {
     SECT_REASON_NAME(sharedStart),
     SECT_REASON_NAME(soClose),
     SECT_REASON_NAME(startPt),
+    SECT_REASON_NAME(unsectable),
     SECT_REASON_NAME(unsectableOppEnd),
     SECT_REASON_NAME(unsectableOppStart),
     SECT_REASON_NAME(unsectableEnd),
@@ -819,6 +826,11 @@ std::vector<LabelAbbr> labelAbbrs = {
     {"prior", "p", "p"},
     {"segment", "seg", "s"},
     {"winding", "wind", "w"},
+    {"ccOverlaps", "ovrlaps", "laps"},
+    {"debugSplitStart", "dbgSplitS", "spltS"},
+    {"debugSplitEnd", "dbgSplitE", "spltE"},
+    {"debugMaker", "dbgMkr", "mkr"},
+    {"debugParentID", "dbgParent", "par"},
 };
 
 std::string debugLabel(DebugLevel debugLevel, std::string label) {
@@ -1309,20 +1321,20 @@ void dmpT(const OpSegment* s, float t) {
             + pt.debugDump(defaultLevel, defaultBase) + "\n");
 }
 
-ENUM_NAME_STRUCT(SectType);
-#define SECTTYPE_NAME(w) { SectType::w, #w }
+ENUM_NAME_STRUCT_ABBR(SectType);
+#define SECTTYPE_NAME(w, abbr) { SectType::w, #w, #abbr }
 
 static SectTypeName sectTypeNames[] = {
-    SECTTYPE_NAME(none),
-    SECTTYPE_NAME(endHull),
-    SECTTYPE_NAME(center),
-    SECTTYPE_NAME(controlHull),
-	SECTTYPE_NAME(midHull),
-	SECTTYPE_NAME(snipLo),
-	SECTTYPE_NAME(snipHi),
+    SECTTYPE_NAME(none, none),
+    SECTTYPE_NAME(endHull, end),
+    SECTTYPE_NAME(center, ctr),
+    SECTTYPE_NAME(controlHull, ctrl),
+	SECTTYPE_NAME(midHull, mid),
+	SECTTYPE_NAME(snipLo, snpL),
+	SECTTYPE_NAME(snipHi, snpH),
 };
 
-ENUM_NAME(SectType, sectType)
+ENUM_NAME_ABBR(SectType, sectType)
 
 std::string OpEdge::debugDump(DebugLevel debugLevel, DebugBase debugBase) const {
     auto findFilter = [](const std::vector<EdgeFilter>& set, EdgeFilter match) {
@@ -1397,8 +1409,10 @@ std::string OpEdge::debugDump(DebugLevel debugLevel, DebugBase debugBase) const 
         return strLabel(label) + ":" + enumName + " ";
     };
     std::string s = strID(EdgeFilter::id, "edge", id);
-    if (segment) s += strID(EdgeFilter::segment, "segment", segment->id);
-    if (segment && segment->contour) s += strID(EF::contour, "contour", segment->contour->id);
+    if (dumpIt(EdgeFilter::segment) && segment) 
+        s += strID(EdgeFilter::segment, "segment", segment->id);
+    if (dumpIt(EdgeFilter::contour) && segment && segment->contour)
+        s += strID(EF::contour, "contour", segment->contour->id);
     if (priorEdge || nextEdge || lastEdge || dumpAlways(EF::priorEdge) || dumpAlways(EF::nextEdge)) { 
         s += strEdge(EdgeFilter::priorEdge, "prior", priorEdge);
         s += strEdge(EdgeFilter::nextEdge, "next", nextEdge);
@@ -1438,10 +1452,12 @@ std::string OpEdge::debugDump(DebugLevel debugLevel, DebugBase debugBase) const 
         if (' ' == s.back()) s.pop_back();
         s += "] ";
     }
-    if (dumpIt(EdgeFilter::hulls) && (dumpAlways(EdgeFilter::hulls) || hulls.size())) {
-        s += strLabel("hulls") + "[";
-        for (auto hs : hulls)
-            s += sectTypeName(hs.type) + ":" + hs.sect.debugDump(DebugLevel::error, debugBase) + " ";
+    if (dumpIt(EdgeFilter::hulls) && (dumpAlways(EdgeFilter::hulls) || hulls.h.size())) {
+        s += "hulls[";  // don't abbreviate in brief
+        for (auto hs : hulls.h) {
+            s += sectTypeName(hs.type, debugLevel) + ":";
+            s += hs.sect.debugDump(DebugLevel::error, debugBase) + " ";
+        }
         if (' ' == s.back()) s.pop_back();
         s += "] ";
     }
@@ -1475,9 +1491,9 @@ std::string OpEdge::debugDump(DebugLevel debugLevel, DebugBase debugBase) const 
     STR_BOOL(visited);
 #if OP_DEBUG
     s += strEnum(EF::debugSplitStart, "debugSplitStart", SectType::none == debugSplitStart, 
-            sectTypeName(debugSplitStart));
+            sectTypeName(debugSplitStart, debugLevel));
     s += strEnum(EF::debugSplitEnd, "debugSplitEnd", SectType::none == debugSplitEnd, 
-            sectTypeName(debugSplitEnd));
+            sectTypeName(debugSplitEnd, debugLevel));
     if (dumpIt(EF::debugStart)) s += strSect(EF::debugStart, "debugStart", debugStart);
     if (dumpIt(EF::debugEnd)) s += strSect(EF::debugEnd, "debugEnd", debugEnd);
     if (dumpIt(EdgeFilter::debugMatch) && (dumpAlways(EdgeFilter::debugMatch) || debugMatch))
@@ -1615,20 +1631,28 @@ std::string OpEdge::debugDumpWinding() const {
 }
 
 void dmpEnd(const OpEdge& edge)  {
-    edge.contours()->dumpMatch(edge.end.pt);
+    dmpMatch(edge.end.pt);
 }
 
 void dmpFull(const OpEdge& edge) { 
     edge.segment->dumpFull(); 
 }
 
-void dmpFull(const OpEdge* edge) { 
-    edge->segment->dumpFull(); 
-}
-
 void dmpCenter(const OpEdge& edge) {
     std::string s = edge.debugDumpCenter(defaultLevel, defaultBase);
     OpDebugOut(s + "\n");
+}
+
+void dmpEdges(const OpEdge& edge) {
+    OpDebugFormat(edge.segment->debugDumpEdges());
+}
+
+void dmpIntersections(const OpEdge& edge) {
+    OpDebugFormat(edge.segment->debugDumpIntersections());
+}
+
+void dmpWinding(const OpEdge& edge) {
+    OpDebugFormat(edge.debugDumpWinding());
 }
 
 // don't just dump it, find the best theoretical one through binary search
@@ -1852,12 +1876,8 @@ void dmpPoints(const OpEdge& edge) {
     OpDebugFormat(s);
 }
 
-void OpEdge::dumpLink() const {
-    dmpLink(*this);
-}
-
 void dmpStart(const OpEdge& edge) {
-    edge.contours()->dumpMatch(edge.start.pt);
+    dmpMatch(edge.start.pt);
 }
 
 size_t OpEdgeStorage::debugCount() const {
@@ -2143,20 +2163,57 @@ std::string CcCenter::debugDump(DebugLevel l, DebugBase b) const {
 
 std::string CcSect::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    if (edge)
-        s += "edge:" + edge->debugDump(l, b);
+    if (edge) {
+        std::string edgeStr = edge->debugDump(l, b);
+        while (edgeStr.size() && edgeStr[0] != '[')
+            edgeStr = edgeStr.substr(1);
+        s += edgeStr;
+    }
+    if (DebugLevel::brief != l)
+        s += "\n";
     s += " ptT:" + ptT.debugDump(l, b);
 #if OP_DEBUG
-	s += " reason:" + sectReasonName(debugReason);
-    s += " " + debugSetMaker.debugDump();
+    if (DebugLevel::brief != l) {
+	    s += " debugReason:" + sectReasonName(debugReason);
+        s += " debugSetMaker:" + debugSetMaker.debugDump();
+    }
 #endif
     return s;
 }
 
-std::string CcSects::debugDump(DebugLevel l, DebugBase b) const {
+std::string CcSects::debugDump(DebugLevel l, DebugBase b, int indent) const {
     std::string s;
-    s += "e:" + e.debugDump(l, b);
-    s += "\no:" + o.debugDump(l, b);
+    s.append(5 - indent, ' ');
+    s += "edge" + e.debugDump(l, b) + "\n";
+    s.append(5, ' ');
+    s += " opp" + o.debugDump(l, b);
+    return s;
+}
+
+std::string CcSects::debugDump(DebugLevel l, DebugBase b) const {
+    return debugDump(l, b, 0);
+}
+
+std::string CcClose::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s;
+    s += "lo:" + lo.debugDump(l, b) + "\n";
+    s += "best:" + best.debugDump(l, b) + "\n";
+    s += "hi:" + hi.debugDump(l, b) + "\n";
+    s += "bestDist:" + STR(bestDist);
+    return s;
+}
+
+std::string FoundPtTs::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s;
+    s += "seg:" + seg.debugDump(l, b) + "\n";
+    s += "opp:" + opp.debugDump(l, b);
+    return s;
+}
+
+std::string FoundLimits::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s;
+    s += "lo:" + lo.debugDump(l, b) + "\n";
+    s += "hi:" + hi.debugDump(l, b);
     return s;
 }
 
@@ -2211,9 +2268,14 @@ void OpCurveCurve::debugRestoreID() {
 #endif
 
 std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
+    // set up edge::debugDump to only show curvecurve relevant fields
+    std::vector<EdgeFilter> showFields = { EF::id, EF::segment, EF::start, EF::end, EF::ccOverlaps,
+            EF::hulls, EF::debugSplitStart, EF::debugSplitEnd, EF::debugMaker, EF::debugParentID };
+    OpSaveEF saveEF(showFields);
     std::string s;
-    s += "originalEdge:" + originalEdge->debugDump((DebugLevel) ((int) l - 1), b) + "\n";
-    s += "originalOpp:" + originalOpp->debugDump((DebugLevel) ((int) l - 1), b) + "\n";
+    DebugLevel down1 = (DebugLevel) ((int) l - 1);
+    s += "originalEdge:" + originalEdge->debugDump(down1, b) + "\n";
+    s += "originalOpp:" + originalOpp->debugDump(down1, b) + "\n";
     std::string names[] = { "edge curves", "opp curves", "edge lines", "opp lines", "edge runs", 
             "opp runs" };
     int count = 0;
@@ -2228,103 +2290,67 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
                 s += "\n";
             s += "-- " + names[count];
             if (count < 2)
-                s += "curves split: " + STR(splitCount);
+                s += " split: " + STR(splitCount);
             s += " --";
             for (auto& edge : edges)
-                s += "\n" + edge->debugDump(l, b);
+                s += "\n" + edge->debugDump(down1, b);
         }
         ++count;
     }
 #if CC_EXPERIMENT
+    if (ccSects.size())
+        s += "\n -- ccSects:" + STR(ccSects.size()) + " --\n";
     for (const auto& ccSect : ccSects) {
-        s += ccSect.debugDump(l, b) + "\n";
+        s += ccSect.debugDump(down1, b, 0) + "\n";
     }
+    addFilter(EF::hulls);
+    if (s.back() != '\n')
+        s += "\n";
+    if (closeEdge.lo.e.edge || closeEdge.best.e.edge || closeEdge.hi.e.edge)
+        s += " -- close edge --\n";
     if (closeEdge.lo.e.edge)
-        s += " closeEdge.lo:" + closeEdge.lo.debugDump(l, b);
+        s += "lo:" + closeEdge.lo.debugDump(down1, b, 3) + "\n";
     if (closeEdge.best.e.edge)
-        s += " closeEdge.best:" + closeEdge.best.debugDump(l, b);
+        s += "best:" + closeEdge.best.debugDump(down1, b, 5) + "\n";
     if (closeEdge.hi.e.edge)
-        s += " closeEdge.hi:" + closeEdge.hi.debugDump(l, b);
+        s += "hi:" + closeEdge.hi.debugDump(down1, b, 3) + "\n";
     if (OpMath::IsFinite(closeEdge.bestDist))
-        s += " closeEdge.bestDist:" + STR(closeEdge.bestDist);
-    if (closeOpp.lo.e.edge)
-        s += " closeOpp.lo:" + closeOpp.lo.debugDump(l, b);
-    if (closeOpp.best.e.edge)
-        s += " closeOpp.best:" + closeOpp.best.debugDump(l, b);
-    if (closeOpp.hi.e.edge)
-        s += " closeOpp.hi:" + closeOpp.hi.debugDump(l, b);
-    if (OpMath::IsFinite(closeOpp.bestDist))
-        s += " closeOpp.bestDist:" + STR(closeOpp.bestDist);
+        s += "close bestDist:" + STR(closeEdge.bestDist) + "\n";
     if (OpMath::IsFinite(snipEdge.t))
-        s += " snipEdge:" + snipEdge.debugDump(l, b);
+        s += "snipEdge:" + snipEdge.debugDump(down1, b) + "\n";
     if (OpMath::IsFinite(snipOpp.t))
-        s += " snipOpp:" + snipOpp.debugDump(l, b);
+        s += "snipOpp:" + snipOpp.debugDump(down1, b) + "\n";
 #endif
     if (sectResult) 
         s += " sectResult";
+    if ('\n' == s.back())
+        s.pop_back();
     return s;
 }
 
 #if OP_DEBUG_VERBOSE
 void OpCurveCurve::dumpDepth(int level) {
+    std::vector<EdgeFilter> showFields = { EF::id, EF::segment, EF::start, EF::end, EF::ccOverlaps,
+            EF::hulls, EF::curvy, EF::lineSet, EF::isClose_impl, EF::isLine_impl, EF::exactLine,
+            EF::debugMaker, EF::debugSplitStart, EF::debugSplitEnd, EF::debugParentID, 
+            EF::debugSetMaker };
+    OpSaveEF saveEF(showFields);
     OpDebugOut("depth:" + STR(level + 1) + "\n");
-    EdgeFilters& ef = edgeFilters[1];
-    EdgeFilters save = ef;
-    DebugLevel saveLevel = defaultLevel;
-    defaultLevel = DebugLevel::normal;
-    ef.filter.clear();
-    ef.always.clear();
-    for (auto filter : filterNames) {
-        if (EdgeFilter::id == filter.field)
-            continue;
-        if (EdgeFilter::segment == filter.field)
-            continue;
-        if (EdgeFilter::start == filter.field)
-            continue;
-        if (EdgeFilter::end == filter.field)
-            continue;
-        if (EdgeFilter::ccOverlaps == filter.field)
-            continue;
-        if (EdgeFilter::hulls == filter.field)
-            continue;
-        if (EdgeFilter::curvy == filter.field)
-            continue;
-        if (EdgeFilter::lineSet == filter.field)
-            continue;
-        if (EdgeFilter::isClose_impl == filter.field)
-            continue;
-        if (EdgeFilter::isLine_impl == filter.field)
-            continue;
-        if (EdgeFilter::exactLine == filter.field)
-            continue;
-        if (EdgeFilter::debugMaker == filter.field)
-            continue;
-        if (EdgeFilter::debugSplitStart == filter.field)
-            continue;
-        if (EdgeFilter::debugSplitEnd == filter.field)
-            continue;
-        ef.filter.push_back(filter.field);
-    }
     int dvLevels = dvDepthIndex.size();
     if (dvLevels <= level) {
         for (const auto e : edgeCurves)
             dp(e);
         for (const auto e : oppCurves)
             dp(e);
-        goto restore;
+        return;
     }
-    {
-        int lo = (int) dvDepthIndex[level];
-        int hi = (int) dvDepthIndex.size() <= level + 1 ? (int) dvAll.size() 
-                : dvDepthIndex[level + 1];
-        for (int index = lo; index < hi; ++index) {
-            OpEdge* e = dvAll[index];
-            dp(e);
-        }
+    int lo = (int) dvDepthIndex[level];
+    int hi = (int) dvDepthIndex.size() <= level + 1 ? (int) dvAll.size() 
+            : dvDepthIndex[level + 1];
+    for (int index = lo; index < hi; ++index) {
+        OpEdge* e = dvAll[index];
+        dp(e);
     }
-restore:
-    edgeFilters[1] = save;
-    defaultLevel = saveLevel;
 }
 
 void dmpDepth(int level) {
@@ -2451,7 +2477,15 @@ void dmpStart(const OpIntersection& sect) {
 }
 
 void dmpMatch(const OpIntersection& sect) {
-    sect.segment->contour->contours->dumpMatch(sect.ptT.pt);
+    dmpMatch(sect.ptT.pt);
+}
+
+void dmpEdges(const OpIntersection& sect) {
+    OpDebugFormat(sect.segment->debugDumpEdges());
+}
+
+void dmpIntersections(const OpIntersection& sect) {
+    OpDebugFormat(sect.segment->debugDumpIntersections());
 }
 
 #if OP_DEBUG
@@ -2500,6 +2534,10 @@ std::string OpSegment::debugDumpEdges() const {
     return s;
 }
 
+void dmpEdges(const OpSegment& seg) {
+    OpDebugFormat(seg.debugDumpEdges());
+}
+
 std::string OpSegment::debugDumpFull() const {
     std::string s = debugDump(defaultLevel, defaultBase);
     if (sects.resort)
@@ -2533,13 +2571,17 @@ std::string OpSegment::debugDumpIntersections() const {
     return s;
 }
 
+void dmpIntersections(const OpSegment& seg) {
+    OpDebugFormat(seg.debugDumpIntersections());
+}
+
 void dmpCount(const OpSegment& seg) {
     OpDebugOut("seg:" + seg.debugDumpID() + " edges:" + STR(seg.edges.size())
             + " intersections:" + STR(seg.sects.i.size()) + "\n");
 }
 
 void dmpEnd(const OpSegment& seg) {
-    seg.contour->contours->dumpMatch(seg.c.lastPt());
+    dmpMatch(seg.c.lastPt());
 }
 
 void dmpFull(const OpSegment& seg) {
@@ -2569,7 +2611,7 @@ void dmpSoClose(const OpSegment& seg) {
 }
 
 void dmpStart(const OpSegment& seg) {
-    seg.contour->contours->dumpMatch(seg.c.pts[0]);
+    dmpMatch(seg.c.pts[0]);
 }
 
 DEBUG_DUMP_ID_DEFINITION(OpSegment, id)
@@ -2712,7 +2754,7 @@ std::string HullSect::debugDump(DebugLevel l, DebugBase b) const {
     if (opp)
         s += "opp[" + STR(opp->id) + "] ";
     s += "sect:" + sect.debugDump(l, b);
-    s += " type:" + sectTypeName(type);
+    s += " type:" + sectTypeName(type, l);
     return s;
 }
 

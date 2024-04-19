@@ -210,7 +210,9 @@ float OpSegment::findAxisT(Axis axis, float start, float end, float opp) const {
     return OpNaN;
 }
 
+#if 0  // unused
 // returns t closest to start, end
+// !!! curious: why doesn't this call start.pt.nearly(... ?
 float OpSegment::findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const {
     if (start.pt == opp)
         return start.t;
@@ -218,6 +220,7 @@ float OpSegment::findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) 
         return end.t;
     return findValidT(start.t, end.t, opp);
 }
+#endif
 
 // returns t iff opp point is between start and end
 // start/end range is necessary since cubics can have more than one t at a point
@@ -305,7 +308,6 @@ MatchEnds OpSegment::matchExisting(const OpSegment* opp) const {
 }
 */
 
-start here;
 // keep control point inside curve bounds
 // further, if old control point is axis aligned with end point, keep relationship after moving
 // !!! detect if segment collapses to point?
@@ -314,11 +316,17 @@ void OpSegment::moveTo(float matchT, OpPoint equalPt) {
     OP_ASSERT(0 == matchT || 1 == matchT);
     OpPoint& endPt = 0 == matchT ? c.pts[0] : c.pts[c.pointCount() - 1];
     OP_ASSERT(endPt.isNearly(equalPt));
+    if (c.pts[0] == c.lastPt())
+        disabled = true;
     endPt = equalPt;
+    c.pinCtrl();
     setBounds();
     for (OpIntersection* sect : sects.i) {
-        if (sect->ptT.t == matchT)
+        if (sect->ptT.t == matchT) {
             sect->ptT.pt = equalPt;
+            if (sect->opp->ptT.pt != equalPt)
+                sect->opp->segment->moveTo(sect->opp->ptT.t, equalPt);
+        }
     }
     edges.clear();
 }

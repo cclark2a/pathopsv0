@@ -10,12 +10,16 @@
 std::string debugDump(DebugLevel , DebugBase ) const; \
 void dump() const; \
 void dump(DebugLevel, DebugBase ) const; \
+void dumpBrief() const; \
+void dumpDetailed() const; \
 void dumpHex() const;
 
 #define DUMP_DECLARATIONS_OVERRIDE \
 std::string debugDump(DebugLevel , DebugBase ) const override; \
 void dump() const override; \
 void dump(DebugLevel, DebugBase ) const override; \
+void dumpBrief() const override; \
+void dumpDetailed() const override; \
 void dumpHex() const override;
 
 // removed OP_X(ExtremaT) for now
@@ -35,6 +39,9 @@ OP_X(OpSegment) \
 OP_X(SoClose)
 
 #define OP_STRUCTS \
+OP_X(CcClose) \
+OP_X(FoundPtTs) \
+OP_X(FoundLimits) \
 OP_X(LinePts) \
 OP_X(LinkUps) \
 OP_X(OpContours) \
@@ -81,17 +88,19 @@ OP_X(OpSegment*)
 #define OP_X(Thing) \
 	extern void dmp(const struct Thing* ); \
 	extern void dmp(const struct Thing& ); \
-	extern void dmpHex(const struct Thing& ); \
 	extern void dmpHex(const struct Thing* );
 	VECTOR_STRUCTS
 	OP_STRUCTS
 #undef OP_X
 
+#define OP_X(Thing) \
+	extern void dmpHex(const struct Thing& );
+	VECTOR_STRUCTS
+#undef OP_X
+
 #define DUMP_GROUP \
 OP_X(Active) \
 OP_X(Contours) \
-OP_X(Edges) \
-OP_X(Intersections) \
 OP_X(Sects) \
 OP_X(Segments)
 
@@ -101,14 +110,7 @@ OP_X(Segments)
 #undef OP_X
 
 #define DEBUG_DUMP \
-OP_X(Detail) \
-OP_X(Edges) \
-OP_X(Full) \
 OP_X(ID) \
-OP_X(Intersections) \
-OP_X(Link) \
-OP_X(Points) \
-OP_X(Winding)
 
 #define DEBUG_DUMP_ID_DEFINITION(OWNER, ID) \
 	std::string OWNER::debugDumpID() const { \
@@ -130,24 +132,28 @@ DETAIL_POINTS
 #undef OP_X
 
 #define EDGE_OR_SEGMENT_DETAIL \
+OP_X(Edges) \
 OP_X(End) \
-OP_X(Start)
+OP_X(Full) \
+OP_X(Intersections) \
+OP_X(Start) \
 
 #define EDGE_DETAIL \
 OP_X(Center) \
 OP_X(Link) \
-OP_X(Points)
+OP_X(Points) \
+OP_X(Winding)
 
 #define OP_X(Thing) \
 extern void dmp##Thing(int ID); \
 extern void dmp##Thing(const OpEdge* ); \
 extern void dmp##Thing(const OpEdge& );
+DEBUG_DUMP
 EDGE_DETAIL
 EDGE_OR_SEGMENT_DETAIL
 #undef OP_X
 
 #define SEGMENT_DETAIL \
-OP_X(Full) \
 OP_X(SegmentEdges) \
 OP_X(SegmentIntersections) \
 OP_X(SegmentSects) \
@@ -155,12 +161,17 @@ OP_X(SoClose)
 
 #define OP_X(Thing) \
 extern void dmp##Thing(int ID); \
-extern void dmp##Thing(const OpContour* ); \
-extern void dmp##Thing(const OpContour& ); \
 extern void dmp##Thing(const OpSegment* ); \
 extern void dmp##Thing(const OpSegment& );
+DEBUG_DUMP
 SEGMENT_DETAIL
 EDGE_OR_SEGMENT_DETAIL
+#undef OP_X
+
+#define OP_X(Thing) \
+extern void dmp##Thing(const OpIntersection& );
+EDGE_OR_SEGMENT_DETAIL
+SEGMENT_DETAIL
 #undef OP_X
 
 // !!! eventually, macro-itize this:
@@ -185,6 +196,8 @@ DUMP_BY_DUMPID
 #undef OP_X
 
 #define DUMP_BY_ID \
+OP_X(Brief) \
+OP_X(Detailed) \
 OP_X(Hex)
 
 extern void dmpActive();
@@ -196,7 +209,6 @@ extern void dmpInOutput();
 extern void dmpIntersections();
 extern void dmpJoin();
 extern void dmpSects();
-extern void dmpSegments();
 extern void dmpSegments();
 extern void dmpSoClose();
 extern void dmpUnsectable();

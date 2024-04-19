@@ -71,7 +71,7 @@ struct OpDebugImage {
 	static bool drawValue(OpPoint pt, std::string ptStr, uint32_t color = debugBlack);
 	static bool drawWinding(const OpCurve& , std::string left, std::string right,
 			float normSign, uint32_t color);
-	static void find(int id, OpPointBounds* , OpPoint* );
+	static bool find(int id, OpPointBounds* , OpPoint* );
 	static OpPoint find(int id, float t);
 	static std::vector<const OpEdge*> find(int id);
 	static void focus(int id, bool add);

@@ -33,6 +33,7 @@ enum class SectReason {
     sharedStart,
     soClose,
 	startPt,
+    unsectable,
     unsectableOppEnd,
     unsectableOppStart,
     unsectableEnd,
@@ -117,9 +118,25 @@ struct OpPointBounds : OpRect {
         return OpMath::Betweenish(left, pt.x, right) && OpMath::Betweenish(top, pt.y, bottom);
     }
 
+    // used to check if pair describe gap between edges
+    // tricky: if gaps are axis-aligned lines, look only at one coordinate
+    bool overlaps(const OpPointBounds& r) const {
+#if OP_DEBUG_VALIDATE
+        debugValidate();
+        r.debugValidate();
+#endif
+        bool overlapsInX = r.left < right && left < r.right;
+        bool overlapsInY = r.top < bottom && top < r.bottom;
+        if (top == bottom)
+            return overlapsInX && r.top <= top && top <= r.bottom;
+        if (left == right)
+            return overlapsInY && r.left <= left && left <= r.right;
+        return overlapsInX && overlapsInY;
+    }
+
     void pin(OpPoint* pt) {
-        pt->x = OpMath::Pin(left, pt->x, right);
-        pt->y = OpMath::Pin(top, pt->y, bottom);
+        pt->x = OpMath::PinSorted(left, pt->x, right);
+        pt->y = OpMath::PinSorted(top, pt->y, bottom);
     }
 
     void set(const OpCurve& c) {

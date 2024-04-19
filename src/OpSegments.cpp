@@ -32,51 +32,56 @@ OpSegments::OpSegments(OpContours& contours) {
 
 // may need to adjust values in opp if end is nearly equal to seg
 void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
-    auto add = [](OpSegment* seg, OpSegment* opp, OpPoint end, float t, float endT
-            OP_LINE_FILE_DEF(int dummy)) {
-        OpIntersection* sect = seg->addSegSect(OpPtT { end, t }, opp  
+    auto add = [seg, opp](OpPoint pt, float segT, float oppT   OP_LINE_FILE_DEF(int dummy)) {
+        OpIntersection* sect = seg->addSegSect(OpPtT { pt, segT }, opp  
                 OP_LINE_FILE_CALLER(SectReason::lineCurve));
-        OpIntersection* oSect = opp->addSegSect(OpPtT { end, endT }, seg 
+        OpIntersection* oSect = opp->addSegSect(OpPtT { pt, oppT }, seg 
                 OP_LINE_FILE_CALLER(SectReason::lineCurve));
         sect->pair(oSect);
     };
-    auto chk = [add](OpSegment* seg, OpSegment* opp, OpPoint end, float endT
-            OP_LINE_FILE_DEF(int dummy)) {
-        float t = OpNaN;
-        if (seg->c.pts[0].isNearly(end)) {
-            t = 0;
-            if (end != seg->c.pts[0]) {
-                end = seg->c.pts[0];
-                opp->moveTo(t, end);
+    auto checkEnds = [add, seg, opp](OpPoint pt, float oppT  OP_LINE_FILE_DEF(int dummy)) {
+        float segT = OpNaN;
+        if (seg->c.pts[0].isNearly(pt)) {
+            segT = 0;
+            if (pt != seg->c.pts[0]) {
+                pt = seg->c.pts[0];
+                opp->moveTo(oppT, pt);
             }
-        } else if (seg->c.lastPt().isNearly(end)) {
-            t = 1;
-            if (end != seg->c.lastPt()) {
-                end = seg->c.lastPt();
-                opp->moveTo(t, end);
+        } else if (seg->c.lastPt().isNearly(pt)) {
+            segT = 1;
+            if (pt != seg->c.lastPt()) {
+                pt = seg->c.lastPt();
+                opp->moveTo(oppT, pt);
             }
-        } else {
-            t = seg->c.match(0, 1, end);
-		    if (OpMath::IsNaN(t))
-                return;
         }
-        add(seg, opp, end, t, endT  OP_LINE_FILE_PARAMS(0));
+        if (!OpMath::IsNaN(segT))
+            add(pt, segT, oppT  OP_LINE_FILE_PARAMS(0));
+        return segT;
     };
-    MatchReverse mr = seg->matchEnds(opp);
-    if (!!(MatchEnds::start & mr.match)) {
-        add(seg, opp, seg->c.pts[0], 0, mr.reversed ? 1 : 0  OP_LINE_FILE_PARAMS(0));
-    } else {
-        float oppT = mr.reversed ? 1 : 0;
-        chk(seg, opp, mr.reversed ? opp->c.lastPt() : opp->c.pts[0], oppT  OP_LINE_FILE_PARAMS(0));
-	    chk(opp, seg, seg->c.pts[0], 0  OP_LINE_FILE_PARAMS(0));
-    }
-    if (!!(MatchEnds::end & mr.match)) {
-        add(seg, opp, seg->c.lastPt(), 1, mr.reversed ? 0 : 1  OP_LINE_FILE_PARAMS(0));
-    } else {
-        float oppT = mr.reversed ? 0 : 1;
-	    chk(seg, opp, mr.reversed ? opp->c.pts[0] : opp->c.lastPt(), oppT  OP_LINE_FILE_PARAMS(0));
-		chk(opp, seg, seg->c.lastPt(), 1  OP_LINE_FILE_PARAMS(0));
-    }
+    float segTforOppStart = checkEnds(opp->c.pts[0], 0  OP_LINE_FILE_PARAMS(0));
+    float segTforOppEnd = checkEnds(opp->c.lastPt(), 1  OP_LINE_FILE_PARAMS(0));
+    auto checkOpp = [add, opp](OpPoint segPt, float segT  OP_LINE_FILE_DEF(int dummy)) {
+        float oppT = opp->c.match(0, 1, segPt);
+		if (OpMath::IsNaN(oppT))
+            return;
+        oppT = OpMath::PinNear(oppT);
+        add(segPt, segT, oppT  OP_LINE_FILE_PARAMS(0));
+    };
+    if (0 != segTforOppStart && 0 != segTforOppEnd) 
+        checkOpp(seg->c.pts[0], 0  OP_LINE_FILE_PARAMS(0));  // see if start pt is on opp curve
+    if (1 != segTforOppStart && 1 != segTforOppEnd) 
+		checkOpp(seg->c.lastPt(), 1  OP_LINE_FILE_PARAMS(0));
+    auto checkSeg = [add, seg](OpPoint oppPt, float oppT  OP_LINE_FILE_DEF(int dummy)) {
+        float segT = seg->c.match(0, 1, oppPt);
+		if (OpMath::IsNaN(segT))
+            return;
+        segT = OpMath::PinNear(segT);
+        add(oppPt, segT, oppT  OP_LINE_FILE_PARAMS(0));
+    };
+    if (OpMath::IsNaN(segTforOppStart))
+        checkSeg(opp->c.pts[0], 0  OP_LINE_FILE_PARAMS(0));
+    if (OpMath::IsNaN(segTforOppEnd))
+        checkSeg(opp->c.lastPt(), 1  OP_LINE_FILE_PARAMS(0));
 }
 
 // somewhat different from winder's edge based version, probably for no reason
@@ -119,15 +124,11 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
     if (!!(MatchEnds::end & matchRev.match))
         septs.addEnd(1);
 #endif
-//    MatchEnds existingMatch = seg->matchExisting(opp);
     std::vector<OpPtT> oppPtTs;
     std::vector<OpPtT> edgePtTs;
-//    septs.prioritize01();
     for (unsigned index = 0; index < septs.count; ++index) {
         float oppT = septs.get(index);
-        if (OpEpsilon >= oppT)
-            continue;
-        if (1 - OpEpsilon <= oppT)
+        if (OpMath::NearlyEndT(oppT))
             continue;
         // if computed point is nearly end, ignore
         OpPoint oppPt = opp->c.ptAtT(oppT);
@@ -141,49 +142,30 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
         float edgeT = seg->findValidT(0, 1, oppPtT.pt);
         if (OpMath::IsNaN(edgeT))
             continue;
-        if (OpEpsilon >= edgeT) {
-//            if (!(MatchEnds::start & matchRev.match) || !edgeT)
-                continue;
-//            oppPtT.pt = seg->c.pts[0];
-        } else if (1 - OpEpsilon <= edgeT) {
-//            if (!(MatchEnds::end & matchRev.match) || 1 != edgeT)
-                continue;
-//            oppPtT.pt = seg->c.lastPt();
-        } else {
-            seg->ptBounds.pin(&oppPtT.pt);
-            opp->ptBounds.pin(&oppPtT.pt);
-        }
+        if (OpMath::NearlyEndT(edgeT))
+            continue;
+        seg->ptBounds.pin(&oppPtT.pt);
+        opp->ptBounds.pin(&oppPtT.pt);
         oppPtTs.push_back(oppPtT);
         edgePtTs.emplace_back(oppPtT.pt, edgeT);
         OpPtT& edgePtT = edgePtTs.back();
-#if 0
-        if (!!(MatchEnds::start & existingMatch) && (edgePtT.pt == seg->c.pts[0] || 0 == edgeT
-                || oppPtT.pt == opp->c.lastPt() || 1 == oppPtT.t))
-            continue;
-        if (!!(MatchEnds::end & existingMatch) && (edgePtT.pt == seg->c.lastPt() || 1 == edgeT
-                || oppPtT.pt == opp->c.pts[0] || 0 == oppPtT.t))
-            continue;
-#endif
         for (size_t earlier = 1; earlier < oppPtTs.size(); ++earlier) {
             if (oppPtTs[earlier - 1].t == oppPtT.t)
-                continue; // goto duplicate;
+                continue;
         }
         for (size_t earlier = 1; earlier < edgePtTs.size(); ++earlier) {
             if (edgePtTs[earlier - 1].t == edgePtT.t)
-                continue; // goto duplicate;
+                continue;
         }
         if (seg->sects.contains(edgePtT, opp))
-            continue; // goto duplicate;
+            continue;
         if (opp->sects.contains(oppPtT, seg))
-            continue; // goto duplicate;
-        {
-            OpIntersection* sect = seg->addSegBase(edgePtT  
-                    OP_LINE_FILE_PARAMS(SectReason::lineCurve, opp));
-            OpIntersection* oSect = opp->addSegBase(oppPtT  
-                    OP_LINE_FILE_PARAMS(SectReason::lineCurve, seg));
-            sect->pair(oSect);
-        }
-// duplicate: ;
+            continue;
+        OpIntersection* sect = seg->addSegBase(edgePtT  
+                OP_LINE_FILE_PARAMS(SectReason::lineCurve, opp));
+        OpIntersection* oSect = opp->addSegBase(oppPtT  
+                OP_LINE_FILE_PARAMS(SectReason::lineCurve, seg));
+        sect->pair(oSect);
     }
     return;
 }
@@ -452,14 +434,14 @@ FoundIntersections OpSegments::findIntersections() {
             OpPtT segE {seg->c.lastPt(), 1 };
             OpPtT oppS {opp->c.pts[0], 0 };
             OpPtT oppE {opp->c.lastPt(), 1 };
-            if (!!(mr.match & MatchEnds::start)) {
+            if (mr.match & MatchEnds::start) {
                 segS = OpCurveCurve::CutRange(segS, seg, 0, 1).hi;
                 if (mr.reversed)
                     oppE = OpCurveCurve::CutRange(oppE, opp, 0, 1).lo;
                 else
                     oppS = OpCurveCurve::CutRange(oppS, opp, 0, 1).hi;
             }
-            if (!!(mr.match & MatchEnds::end)) {
+            if (mr.match & MatchEnds::end) {
                 segE = OpCurveCurve::CutRange(segE, seg, 0, 1).lo;
                 if (mr.reversed)
                     oppS = OpCurveCurve::CutRange(oppS, opp, 0, 1).hi;

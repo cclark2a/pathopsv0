@@ -56,16 +56,15 @@ void OpRoots::prioritize01() {
         std::swap(roots[1], roots[count - 1]);  // zero in front, move 1 to second position
 }
 
-OpVector OpVector::normalize(bool* overflow) {
+OpVector OpVector::normalize() {
     float len = length();
-    *overflow = false;
     if (!OpMath::IsFinite(len))
-        *overflow = true;
-    else if (len) {
-        float inverseLength = 1 / len;
-        dx *= inverseLength;
-        dy *= inverseLength;
-    }
+        return { 0, 0 };
+    if (!len)
+        return { OpNaN, OpNaN };
+    float inverseLength = 1 / len;
+    dx *= inverseLength;
+    dy *= inverseLength;
     return *this;
 }
 
@@ -103,18 +102,22 @@ bool OpPoint::isNearly(OpPoint test) const {
 }
 
 void OpPoint::pin(const OpPoint a, const OpPoint b) {
-    x = OpMath::Pin(a.x, x, b.x);
-    y = OpMath::Pin(a.y, y, b.y);
+    x = OpMath::PinUnsorted(a.x, x, b.x);
+    y = OpMath::PinUnsorted(a.y, y, b.y);
 }
 
 void OpPoint::pin(const OpRect& r) {
-    x = OpMath::Pin(r.left, x, r.right);
-    y = OpMath::Pin(r.top, y, r.bottom);
+    x = OpMath::PinSorted(r.left, x, r.right);
+    y = OpMath::PinSorted(r.top, y, r.bottom);
 }
 
 bool OpPoint::soClose(OpPoint test) const {
     return OpMath::Between(OpMath::CloseSmaller(x), test.x, OpMath::CloseLarger(x))
         && OpMath::Between(OpMath::CloseSmaller(y), test.y, OpMath::CloseLarger(y));
+}
+
+OpPoint OpRect::center() const { 
+    return { OpMath::Average(left, right), OpMath::Average(top, bottom) }; 
 }
 
 bool OpRect::isFinite() const {
@@ -273,11 +276,15 @@ OpRoots OpMath::CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B,
 }
 
 // min, max not necessarily sorted (between works regardless)
-float OpMath::Pin(float min, float value, float max) {
+float OpMath::PinUnsorted(float min, float value, float max) {
     if (Between(min, value, max))
         return value;
     if (min > max)
         std::swap(min, max);
-    return std::max(min, std::min(value, max));
+    return PinSorted(min, value, max);
 }
 
+float OpMath::PinSorted(float min, float value, float max) {
+    OP_ASSERT(min <= max);
+    return std::max(min, std::min(value, max));
+}

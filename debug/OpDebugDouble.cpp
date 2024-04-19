@@ -1320,9 +1320,8 @@ void DebugOpDrawEdgeNormal(const OpEdge* edge, uint32_t color) {
     for (auto& drawnEdge : drawn) {
         OpCurve curve;
         drawnEdge.mapTo(curve);
-	    bool overflow;
-	    OpVector norm = curve.normal(.66f).normalize(&overflow) * 15;
-	    if (overflow) {
+	    OpVector norm = curve.normal(.66f).normalize() * 15;
+        if (!norm.isFinite() || norm == OpVector{ 0, 0 }) {
 		    OpDebugOut("overflow on edge " + STR(edge->id) + "\n");
 		    return;
 	    }
@@ -1338,13 +1337,12 @@ void DebugOpDrawEdgeTangent(const OpEdge* edge, uint32_t color) {
     for (auto& drawnEdge : drawn) {
         OpCurve curve;
         drawnEdge.mapTo(curve);
-	    bool overflow;
-	    OpVector tan = curve.tangent(.33f).normalize(&overflow) * 15;
+	    OpVector tan = curve.tangent(.33f).normalize() * 15;
         if (EdgeMatch::end == edge->which()) {
             tan = -tan;
             color = red;
         }
-	    if (overflow) {
+	    if (!tan.isFinite() || tan == OpVector{ 0, 0 }) {
 		    OpDebugOut("overflow on edge " + STR(edge->id) + "\n");
 		    return;
 	    }
@@ -1360,9 +1358,8 @@ void DebugOpDrawSegmentTangent(const OpSegment* seg, uint32_t color) {
     for (auto& drawnSeg : drawn) {
         OpCurve curve;
         drawnSeg.mapTo(curve);
-	    bool overflow;
-	    OpVector tan = curve.tangent(.42f).normalize(&overflow) * 15;
-	    if (overflow) {
+	    OpVector tan = curve.tangent(.42f).normalize() * 15;
+	    if (!tan.isFinite() || tan == OpVector{ 0, 0 }) {
 		    OpDebugOut("overflow on seg " + STR(seg->id) + "\n");
 		    return;
 	    }

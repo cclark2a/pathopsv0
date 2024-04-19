@@ -96,17 +96,9 @@ OpPoint OpCubic::doublePtAtT(float t) const {
     };
 }
 
-void OpCubic::pinCtrls(XyChoice offset) {
-    OP_DEBUG_CODE(float orig1 = pts[1].choice(offset));
-    OP_DEBUG_CODE(float orig2 = pts[2].choice(offset));
-    *pts[1].asPtr(offset) = OpMath::Pin(pts[0].choice(offset), pts[1].choice(offset), pts[3].choice(offset));
-    *pts[2].asPtr(offset) = OpMath::Pin(pts[0].choice(offset), pts[2].choice(offset), pts[3].choice(offset));
-#if OP_DEBUG
-    if (orig1 != pts[1].choice(offset))
-        *debugOriginalCtrls[0].asPtr(offset) = orig1;
-    if (orig2 != pts[2].choice(offset))
-        *debugOriginalCtrls[1].asPtr(offset) = orig2;
-#endif
+void OpCubic::pinCtrls() {
+    pts[1].pin(pts[0], pts[3]);
+    pts[2].pin(pts[0], pts[3]);
 }
 
 OpRoots OpCubic::rawIntersect(const LinePts& line, MatchEnds common) const {
@@ -185,8 +177,7 @@ OpCurve OpCubic::subDivide(OpPtT ptT1, OpPtT ptT2) const {
             return result;
         }
 #endif
-        result.pts[1].pin(result.pts[0], result.pts[3]);
-        result.pts[2].pin(result.pts[0], result.pts[3]);
+        result.asCubic().pinCtrls();
     }
     return result;
 }

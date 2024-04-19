@@ -120,11 +120,11 @@ OpCurve OpConic::subDivide(OpPtT ptT1, OpPtT ptT2) const {
     } else {
         c = ptT2.pt;
     }
-    float midT = (ptT1.t + ptT2.t) / 2;
+    float midT = OpMath::Average(ptT1.t, ptT2.t);
     OpPoint d = numerator(midT);
     float dz = denominator(midT);
-    OpPoint b = 2 * d - (a + c) / 2;
-    float bz = 2 * dz - (az + cz) / 2;
+    OpPoint b = 2 * d - (a + c) / 2;  // !!! add math pt average?
+    float bz = 2 * dz - OpMath::Average(az, cz);  // !!! rewrite with fma?
     // if bz is 0, weight is 0, control point has no effect: any value will do
     float bzNonZero = !bz ? 1 : bz;
     result.pts[1] = b / bzNonZero;

@@ -24,8 +24,7 @@ enum class OpType {
 enum class NormalDirection {
 	downLeft = -1,
 	underflow,
-	upRight,
-	overflow,
+	upRight
 };
 
 inline NormalDirection operator!(NormalDirection a) {
@@ -121,7 +120,7 @@ struct OpCurve {
     const OpCubic& asCubic() const;
     OpRoots axisRayHit(Axis offset, float axisIntercept, float start = 0, float end = 1) const;
     float center(Axis offset, float axisIntercept) const;
-    int closest(OpPtT* best, float delta, OpPoint pt) const;
+//    int closest(OpPtT* best, float delta, OpPoint pt) const;
     OpPoint doublePtAtT(float t) const;
     OpPtT findIntersect(Axis offset, const OpPtT& ) const;
     bool isFinite() const;
@@ -135,7 +134,10 @@ struct OpCurve {
     OpVector normal(float t) const;
     NormalDirection normalDirection(Axis axis, float t) const;
     bool output(OpOutPath& path, bool firstPt, bool lastPt);  // provided by graphics implementation
+    void pinCtrl();
     OpPoint ptAtT(float t) const;
+    OpPtT ptTAtT(float t) const {
+        return { ptAtT(t), t }; }
     int pointCount() const {
         return static_cast<int>(type) + (type < OpType::conic); }
     OpRoots rawIntersect(const LinePts& line, MatchEnds ) const;  // requires sect to be on curve
@@ -145,10 +147,10 @@ struct OpCurve {
     OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
     OpVector tangent(float t) const;
     float tAtXY(float t1, float t2, XyChoice , float goal) const;
-    // rotates curve in a space where line's (pt[0], pt[1]) moves to ((0, 0), (0, line[1].y - line[0].y))
+    // rotates curve so that line's (pt[0], pt[1]) moves to ((0, 0), (0, line[1].y - line[0].y))
     // curve scale is not preserved
     OpCurve toVertical(const LinePts& line) const;
-    float tZeroX(float t1, float t2) const;
+    float tZeroX(float t1, float t2) const;  // binary search on t-range finds vert crossing zero
     OpPair xyAtT(OpPair t, XyChoice xy) const;
 #if OP_DEBUG_DUMP
     DUMP_DECLARATIONS
@@ -214,6 +216,7 @@ struct OpQuad : OpCurve {
     OpRoots extrema(XyChoice offset) const;
     bool monotonic(XyChoice offset) const;
     OpVector normal(float t) const;
+    void pinCtrl();
     OpPoint ptAtT(float t) const;
     OpRoots rawIntersect(const LinePts& ) const;
     OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
@@ -239,6 +242,7 @@ struct OpConic : OpCurve {
     bool monotonic(XyChoice offset) const;
     OpVector normal(float t) const;
     OpPoint numerator(float t) const;
+    void pinCtrl() { asQuad().pinCtrl(); }
     OpPoint ptAtT(float t) const;
     OpRoots rawIntersect(const LinePts& ) const;
     OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
@@ -274,7 +278,7 @@ struct OpCubic : OpCurve {
     OpPoint interp(float t) const;
     bool monotonic(XyChoice ) const;
     OpVector normal(float t) const;
-    void pinCtrls(XyChoice );
+    void pinCtrls();
     OpPoint ptAtT(float t) const;
     OpRoots rawIntersect(const LinePts& , MatchEnds ) const;
     OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;

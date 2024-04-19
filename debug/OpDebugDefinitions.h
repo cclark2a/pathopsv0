@@ -9,84 +9,17 @@
 // All Macros below are defined in OpDebugDump.h
 
 #define OP_X(Thing) \
-	void OWNER::dump(const std::vector<Thing>& things) const { \
-		dmp(things); \
-	} \
-	void OWNER::dump(const std::vector<Thing>* things) const { \
-		dmp(*things); \
-	}
-	VECTOR_STRUCTS
-#undef OP_X
-#define OP_X(Thing) \
+	void dmp##Thing(const OWNER& ); \
+\
+	void dmpBrief(const OWNER& o) { \
+		OpDebugFormat(o.debugDump(DebugLevel::brief, defaultBase)); } \
+	void dmpDetailed(const OWNER& o) { \
+		OpDebugFormat(o.debugDump(DebugLevel::detailed, defaultBase)); } \
+	void dmpHex(const OWNER& o) { \
+		OpDebugFormat(o.debugDump(defaultLevel, DebugBase::hex)); } \
+\
 	void OWNER::dump##Thing() const { \
-		dmp##Thing(); \
-	}
-	DUMP_GROUP
-#undef OP_X
-#define OP_X(Thing) \
-	void OWNER::dump##Thing(int ID) const { \
-		dmp##Thing(ID); \
+		::dmp##Thing(*this); \
 	}
 	DUMP_BY_ID
 #undef OP_X
-#define OP_X(Thing) \
-	void OWNER::dump##Thing(const OpPtT& p) const { \
-		dmp##Thing(p.pt); \
-	} \
-	void OWNER::dump##Thing(const OpPtT* p) const { \
-		dmp##Thing(p->pt); \
-	} \
-	void OWNER::dump##Thing(const OpPoint& p) const { \
-		dmp##Thing(p); \
-	} \
-	void OWNER::dump##Thing(const OpPoint* p) const { \
-		dmp##Thing(*p); \
-	}
-	DUMP_POINT
-#undef OP_X
-#define OP_X(Thing) \
-	void OWNER::dump(const std::vector<Thing>& things) const { \
-		dmp(things); \
-	} \
-	void OWNER::dump(const std::vector<Thing>* things) const { \
-		dmp(*things); \
-	}
-	VECTOR_PTRS
-#undef OP_X
-#define OP_X(Thing) \
-	void OWNER::dump(const Thing& thing) const { \
-		dmp(thing); \
-	} \
-	void OWNER::dump(const Thing* thing) const { \
-		dmp(*thing); \
-	}
-	VECTOR_STRUCTS
-#undef OP_X
-#define OP_X(Thing) \
-	void OWNER::dump(const struct Thing& thing) const { \
-		dmp(thing); \
-	} \
-	void OWNER::dump(const struct Thing* thing) const { \
-		dmp(*thing); \
-	}
-	OP_STRUCTS
-#undef OP_X
-#define OP_X(Thing) \
-	void OWNER::dump##Thing(const struct OpEdge& thing) const { \
-		dmp##Thing(thing); \
-	} \
-	void OWNER::dump##Thing(const struct OpEdge* thing) const { \
-		dmp##Thing(*thing); \
-	}
-	EDGE_DETAIL
-#undef OP_X
-#define OP_X(Thing) \
-	void OWNER::dump##Thing(const struct OpSegment& thing) const { \
-		dmp##Thing(thing); \
-	} \
-	void OWNER::dump##Thing(const struct OpSegment* thing) const { \
-		dmp##Thing(*thing); \
-	}
-	SEGMENT_DETAIL
-#undef OP_X
-

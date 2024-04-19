@@ -1,11 +1,108 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpEdge.h"
 #include "OpContour.h"
+#include "OpCurveCurve.h"
 
 #if OP_DEBUG
 #include "OpJoiner.h"
 #include "PathOps.h"
 #endif
+
+// don't add if points are close
+// prefer end if types are different
+void OpHulls::add(const OpPtT& ptT, SectType sectType, const OpEdge* opp) {			
+	auto found = std::find_if(h.begin(), h.end(), [ptT](const HullSect& hull) {
+		return ptT.soClose(hull.sect);
+	});
+	if (h.end() == found)
+		h.emplace_back(ptT, sectType, opp);
+	else if (SectType::endHull == sectType) {
+		found->sect = ptT;
+		found->type = sectType;
+	}
+}
+
+bool OpHulls::closeEnough(int index, const OpEdge& edge, const OpEdge* oEdge, OpPtT* oPtT,
+		OpPtT* hull1Sect) {
+	if (!hull1Sect->pt.isNearly(oPtT->pt)) {
+		const OpCurve& eCurve = edge.segment->c;
+		OpVector eTangent = eCurve.tangent(hull1Sect->t);
+		const OpCurve& oCurve = oEdge->segment->c;
+		OpVector oTangent = oCurve.tangent(oPtT->t);
+		OpLine eLine(hull1Sect->pt, hull1Sect->pt + eTangent);
+		LinePts oLinePts = {{ oPtT->pt, oPtT->pt + oTangent }};
+		OpRoots oRoots = eLine.tangentIntersect(oLinePts);
+		if (2 == oRoots.count)
+			return false;  // if tangents are parallel and not coincident: no intersection
+		OP_ASSERT(1 == oRoots.count);
+		if (0 > oRoots.roots[0] || oRoots.roots[0] > 1) {
+			OpPtT::MeetInTheMiddle(*oPtT, *hull1Sect);
+		} else {
+			OpPoint sectPt = eLine.ptAtT(oRoots.roots[0]);
+			Axis eLarger = edge.ptBounds.largerAxis();
+			OpPtT ePtT = edge.findT(eLarger, sectPt.choice(eLarger));
+			float newOPtT = oEdge->segment->findValidT(0, 1, sectPt);
+			if (OpMath::IsNaN(newOPtT))
+				return false;
+			*oPtT = OpPtT(sectPt, newOPtT);
+			*hull1Sect = OpPtT(sectPt, ePtT.t);
+		}
+	}
+	return true;
+}
+
+bool OpHulls::sectCandidates(int index, const OpEdge& edge) {
+	const HullSect& hullStart = h[index - 1];
+	const HullSect& hullEnd = h[index];
+	OpPtT hull1Sect = hullStart.sect;
+	const OpPtT& hull2Sect = hullEnd.sect;
+	if (!hull1Sect.isNearly(hull2Sect))
+		return false;
+	if (SectType::controlHull == h[index - 1].type
+			&& SectType::controlHull == h[index].type)
+		return false;
+	if (SectType::endHull == hullStart.type || SectType::endHull == hullEnd.type) {
+		// check to see if hull pt is close to original edge
+		Axis eLarger = edge.ptBounds.largerAxis();
+		float eXy1 = hull1Sect.pt.choice(eLarger);
+		float eXy2 = hull2Sect.pt.choice(eLarger);
+		float eXyAvg = OpMath::Average(eXy1, eXy2);
+		OpPtT ePtT = edge.findT(eLarger, eXyAvg);
+		if (!ePtT.pt.isFinite()) {
+			ePtT.pt.choice(eLarger) = eXyAvg;
+			ePtT.pt.choice(!eLarger) = edge.segment->c.ptAtT(ePtT.t).choice(!eLarger);
+		}
+		if (!hull1Sect.isNearly(ePtT))
+			return false;
+	}
+	return true;
+}
+
+void OpHulls::nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef which) {
+	for (;;) {
+		sort(false);
+		for (size_t index = 0; index + 1 < h.size(); ) {
+			// while hull sect is in a deleted bounds, bump its t and recompute
+			if ((SectType::midHull == h[index].type || SectType::controlHull == h[index].type)
+					&& cc.checkSplit(edge.start.t, h[index + 1].sect.t, which, h[index].sect))
+				goto tryAgain;
+			++index;
+			if ((SectType::midHull == h[index].type || SectType::controlHull == h[index].type)
+					&& cc.checkSplit(h[index - 1].sect.t, edge.end.t, which, h[index].sect))
+				goto tryAgain;
+			OP_ASSERT(h[index - 1].sect.t < h[index].sect.t);
+		}
+		break;
+tryAgain:
+		;
+	}
+}
+
+void OpHulls::sort(bool useSmall) {
+	std::sort(h.begin(), h.end(), [useSmall](const HullSect& s1, const HullSect& s2) {
+		return useSmall ? s1.sect.t > s2.sect.t : s1.sect.t < s2.sect.t;
+	});
+}
 
 EdgeDistance::EdgeDistance(OpEdge* e, float c, float tIn, bool r)
 	: edge(e)
@@ -177,7 +274,7 @@ void OpEdge::apply() {
 void OpEdge::calcCenterT() {
 	const OpRect& r = ptBounds;
 	Axis axis = r.largerAxis();
-	float middle = (r.ltChoice(axis) + r.rbChoice(axis)) / 2;
+	float middle = OpMath::Average(r.ltChoice(axis), r.rbChoice(axis));
 	const OpCurve& segCurve = segment->c;
 	float t = segCurve.center(axis, middle);
 	if (OpMath::IsNaN(t)) {
@@ -191,7 +288,7 @@ void OpEdge::calcCenterT() {
 		return;
 	}
 	if (start.t >= t || t >= end.t)
-		t = (start.t + end.t) / 2;
+		t = OpMath::Average(start.t, end.t);
 	center.t = t;
 	center.pt = segCurve.ptAtT(t);
 	center.pt.pin(ptBounds);  // required by pentrek6

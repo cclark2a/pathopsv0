@@ -1533,6 +1533,2560 @@ path.close();
     testSimplify(reporter, path, filename);
 }
 
+void testQuads26719853(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(3, 1);
+path.quadTo(0, 2, 3, 2);
+path.lineTo(3, 2);
+path.lineTo(3, 1);
+path.close();
+path.moveTo(2, 1);
+path.lineTo(3, 1);
+path.quadTo(0, 2, 1, 3);
+path.lineTo(2, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads26719853 had errors=172
+void testQuads26750861(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(3, 1);
+path.quadTo(0, 2, 3, 2);
+path.lineTo(3, 3);
+path.lineTo(3, 1);
+path.close();
+path.moveTo(2, 1);
+path.lineTo(3, 1);
+path.quadTo(0, 2, 1, 3);
+path.lineTo(2, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads26750861 had errors=172
+void testQuads23540861(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 1);
+path.quadTo(3, 1, 1, 3);
+path.lineTo(3, 3);
+path.lineTo(1, 1);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(1, 1);
+path.quadTo(2, 1, 2, 3);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads23540861 had errors=22
+void testQuads3000789(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 0, 1, 1);
+path.lineTo(3, 1);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(3, 0);
+path.quadTo(0, 1, 0, 3);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads3000789 had errors=66
+void testQuads3002149(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 0, 1, 1);
+path.lineTo(3, 1);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(3, 0);
+path.quadTo(0, 1, 0, 3);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads3002149 had errors=48
+void testQuads3004179(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 0, 1, 1);
+path.lineTo(3, 1);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(3, 0);
+path.lineTo(3, 0);
+path.quadTo(0, 1, 0, 3);
+path.lineTo(3, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads3004179 had errors=89
+void testQuads29481893(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(3, 3);
+path.lineTo(2, 2);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads29481893 had errors=35
+
+void testQuads29481894(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(3, 3);
+path.lineTo(2, 2);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads29481894 had errors=35
+void testQuads29483253(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(3, 3);
+path.lineTo(2, 2);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads29483253 had errors=35
+
+void testQuads29483254(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(3, 3);
+path.lineTo(2, 2);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads29483254 had errors=35
+void testQuads29484373(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(3, 3);
+path.lineTo(2, 2);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads29484373 had errors=35
+
+void testQuads29484374(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(3, 3);
+path.lineTo(2, 2);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads29484374 had errors=35
+void testQuads29485283(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(3, 3);
+path.lineTo(2, 2);
+path.close();
+path.moveTo(3, 0);
+path.lineTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(3, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads29485283 had errors=33
+
+void testQuads29485284(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(3, 3);
+path.lineTo(2, 2);
+path.close();
+path.moveTo(3, 0);
+path.lineTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(3, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads29485284 had errors=32
+void testQuads29486011(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(3, 3);
+path.lineTo(2, 2);
+path.close();
+path.moveTo(0, 1);
+path.lineTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(0, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads29486011 had errors=35
+
+void testQuads29486012(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(3, 3);
+path.lineTo(2, 2);
+path.close();
+path.moveTo(0, 1);
+path.lineTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(0, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads29486012 had errors=35
+void testQuads4970273(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(2, 1, 0, 3);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(2, 1);
+path.quadTo(0, 2, 1, 3);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads4970273 had errors=77
+void testQuads5008733(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(2, 1, 1, 3);
+path.lineTo(3, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 1);
+path.quadTo(1, 1, 3, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5008733 had errors=48
+
+void testQuads5008734(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(2, 1, 1, 3);
+path.lineTo(3, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 1);
+path.quadTo(1, 1, 3, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5008734 had errors=48
+void testQuads10622947(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 0);
+path.quadTo(3, 1, 1, 3);
+path.lineTo(2, 3);
+path.lineTo(1, 0);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(3, 1);
+path.quadTo(1, 2, 2, 3);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads10622947 had errors=80
+void testQuads25814349(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(3, 2);
+path.lineTo(2, 1);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads25814349 had errors=31
+
+void testQuads25814350(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(3, 2);
+path.lineTo(2, 1);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads25814350 had errors=31
+void testQuads25822101(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(0, 3);
+path.lineTo(2, 1);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads25822101 had errors=24
+
+void testQuads25822102(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(0, 3);
+path.lineTo(2, 1);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads25822102 had errors=31
+void testQuads25829853(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 3);
+path.lineTo(2, 1);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads25829853 had errors=24
+
+void testQuads25829854(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 3);
+path.lineTo(2, 1);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads25829854 had errors=31
+void testQuads25837605(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 3);
+path.lineTo(2, 1);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads25837605 had errors=24
+
+void testQuads25837606(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 3);
+path.lineTo(2, 1);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads25837606 had errors=31
+void testQuads25845357(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(3, 3);
+path.lineTo(2, 1);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads25845357 had errors=16
+
+void testQuads25845358(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(3, 3);
+path.lineTo(2, 1);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads25845358 had errors=18
+void testQuads5226111(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 2);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5226111 had errors=19
+
+void testQuads5226112(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 2);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5226112 had errors=31
+void testQuads5227471(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 2);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5227471 had errors=31
+
+void testQuads5227472(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 2);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5227472 had errors=31
+void testQuads5228591(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 2);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5228591 had errors=31
+
+void testQuads5228592(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 2);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5228592 had errors=31
+void testQuads5229501(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 2);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(3, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(3, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5229501 had errors=31
+
+void testQuads5229502(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 2);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(3, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(3, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5229502 had errors=31
+void testQuads5230230(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 2);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(0, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5230230 had errors=28
+void testQuads5230801(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 2);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5230801 had errors=12
+
+void testQuads5230802(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 2);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5230802 had errors=29
+
+void testQuads5231241(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 2);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5231241 had errors=31
+
+void testQuads5231242(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 2);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5231242 had errors=31
+void testQuads5233864(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(3, 2);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5233864 had errors=31
+void testQuads5235224(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(3, 2);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5235224 had errors=31
+void testQuads5236344(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(3, 2);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5236344 had errors=31
+void testQuads5237254(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(3, 2);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(3, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(3, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5237254 had errors=31
+void testQuads5237982(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(3, 2);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(0, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5237982 had errors=28
+void testQuads5238554(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(3, 2);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5238554 had errors=29
+
+void testQuads5238994(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(3, 2);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5238994 had errors=31
+void testQuads5241615(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5241615 had errors=19
+
+void testQuads5241616(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5241616 had errors=31
+void testQuads5242975(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5242975 had errors=31
+
+void testQuads5242976(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5242976 had errors=31
+void testQuads5244095(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5244095 had errors=31
+
+void testQuads5244096(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5244096 had errors=31
+void testQuads5245005(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(3, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(3, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5245005 had errors=31
+
+void testQuads5245006(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(3, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(3, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5245006 had errors=31
+void testQuads5245734(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(0, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5245734 had errors=28
+void testQuads5246305(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5246305 had errors=12
+
+void testQuads5246306(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5246306 had errors=29
+void testQuads5246745(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5246745 had errors=31
+
+void testQuads5246746(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5246746 had errors=31
+void testQuads5249367(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5249367 had errors=19
+
+void testQuads5249368(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5249368 had errors=31
+void testQuads5250727(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5250727 had errors=31
+
+void testQuads5250728(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5250728 had errors=31
+void testQuads5251847(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5251847 had errors=31
+
+void testQuads5251848(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5251848 had errors=31
+void testQuads5252757(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(3, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(3, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5252757 had errors=31
+
+void testQuads5252758(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(3, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(3, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5252758 had errors=31
+void testQuads5253486(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(0, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5253486 had errors=28
+
+void testQuads5254057(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5254057 had errors=12
+
+void testQuads5254058(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5254058 had errors=29
+
+void testQuads5254497(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5254497 had errors=31
+
+void testQuads5254498(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5254498 had errors=31
+void testQuads5257119(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5257119 had errors=19
+
+void testQuads5257120(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5257120 had errors=31
+void testQuads5258479(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5258479 had errors=31
+
+void testQuads5258480(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5258480 had errors=31
+void testQuads5259599(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5259599 had errors=31
+
+void testQuads5259600(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5259600 had errors=31
+void testQuads5260509(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(3, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(3, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5260509 had errors=31
+
+void testQuads5260510(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(3, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(3, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5260510 had errors=31
+void testQuads5261238(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(0, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5261238 had errors=28
+void testQuads5261809(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5261809 had errors=12
+
+void testQuads5261810(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5261810 had errors=29
+
+void testQuads5262249(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5262249 had errors=31
+
+void testQuads5262250(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(2, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5262250 had errors=31
+void testQuads5264871(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(3, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5264871 had errors=19
+
+void testQuads5264872(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(3, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5264872 had errors=31
+void testQuads5266231(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(3, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5266231 had errors=31
+
+void testQuads5266232(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(3, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5266232 had errors=31
+void testQuads5267351(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(3, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5267351 had errors=31
+
+void testQuads5267352(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(3, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5267352 had errors=31
+void testQuads5268261(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(3, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(3, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(3, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5268261 had errors=31
+
+void testQuads5268262(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(3, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(3, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(3, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5268262 had errors=31
+void testQuads5268990(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(3, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(0, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5268990 had errors=28
+void testQuads5269561(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(3, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5269561 had errors=12
+
+void testQuads5269562(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(3, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5269562 had errors=29
+
+void testQuads5270001(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(3, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5270001 had errors=31
+
+void testQuads5270002(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(3, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 1);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads5270002 had errors=31
+void testQuads22094547(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 1, 3);
+path.lineTo(3, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(3, 1);
+path.quadTo(1, 2, 2, 3);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22094547 had errors=93
+void testQuads22095907(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 1, 3);
+path.lineTo(3, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(3, 1);
+path.quadTo(1, 2, 2, 3);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22095907 had errors=97
+void testQuads22097027(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 1, 3);
+path.lineTo(3, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(3, 1);
+path.quadTo(1, 2, 2, 3);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22097027 had errors=97
+void testQuads22098665(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 1, 3);
+path.lineTo(3, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(0, 1);
+path.lineTo(3, 1);
+path.quadTo(1, 2, 2, 3);
+path.lineTo(0, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22098665 had errors=95
+
+void testQuads22099237(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 1, 3);
+path.lineTo(3, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(3, 1);
+path.quadTo(1, 2, 2, 3);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22099237 had errors=92
+void testQuads22099677(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 1, 3);
+path.lineTo(3, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(2, 1);
+path.lineTo(3, 1);
+path.quadTo(1, 2, 2, 3);
+path.lineTo(2, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22099677 had errors=97
+void testQuads22102511(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22102511 had errors=35
+
+void testQuads22102512(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22102512 had errors=35
+void testQuads22103871(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22103871 had errors=32
+
+void testQuads22103872(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22103872 had errors=32
+void testQuads22104991(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22104991 had errors=32
+
+void testQuads22104992(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22104992 had errors=32
+void testQuads22105901(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(3, 0);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(3, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22105901 had errors=32
+
+void testQuads22105902(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(3, 0);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(3, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22105902 had errors=32
+void testQuads22106629(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(0, 1);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(0, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22106629 had errors=29
+
+void testQuads22106630(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(0, 1);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(0, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22106630 had errors=29
+void testQuads22107201(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22107201 had errors=35
+
+void testQuads22107202(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22107202 had errors=35
+void testQuads22107641(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(2, 1);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(2, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22107641 had errors=32
+
+void testQuads22107642(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(2, 1);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(2, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22107642 had errors=32
+
+void testQuads22107971(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(3, 1);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(3, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22107971 had errors=32
+
+void testQuads22107972(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(3, 1);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(3, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22107972 had errors=32
+
+void testQuads22108211(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(0, 2);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(0, 2);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22108211 had errors=29
+
+void testQuads22108212(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(0, 2);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(0, 2);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22108212 had errors=32
+
+void testQuads22108379(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(1, 2);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(1, 2);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22108379 had errors=29
+
+void testQuads22108380(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(1, 2);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(1, 2);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22108380 had errors=32
+
+void testQuads22108491(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(2, 2);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(2, 2);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22108491 had errors=35
+
+void testQuads22108492(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(2, 2);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(2, 2);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22108492 had errors=35
+void testQuads22110264(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(3, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22110264 had errors=32
+void testQuads22111624(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(3, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22111624 had errors=29
+void testQuads22112744(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(3, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22112744 had errors=29
+void testQuads22113654(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(3, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(3, 0);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(3, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22113654 had errors=29
+void testQuads22114382(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(3, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(0, 1);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(0, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22114382 had errors=32
+void testQuads22114954(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(3, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22114954 had errors=32
+void testQuads22115394(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(3, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(2, 1);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(2, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22115394 had errors=29
+
+void testQuads22115724(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(3, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(3, 1);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(3, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22115724 had errors=29
+
+void testQuads22115964(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(3, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(0, 2);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(0, 2);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22115964 had errors=29
+
+void testQuads22116132(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(3, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(1, 2);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(1, 2);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22116132 had errors=29
+
+void testQuads22116244(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(3, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(2, 2);
+path.lineTo(2, 2);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(2, 2);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads22116244 had errors=32
+void testQuads14792779(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(2, 0);
+path.quadTo(3, 1, 1, 2);
+path.lineTo(2, 2);
+path.lineTo(2, 0);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(2, 0);
+path.quadTo(1, 1, 3, 2);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads14792779 had errors=17
+
+void testQuads14792780(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(2, 0);
+path.quadTo(3, 1, 1, 2);
+path.lineTo(2, 2);
+path.lineTo(2, 0);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(2, 0);
+path.quadTo(1, 1, 3, 2);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads14792780 had errors=17
+void testQuads14793899(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(2, 0);
+path.quadTo(3, 1, 1, 2);
+path.lineTo(2, 2);
+path.lineTo(2, 0);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(2, 0);
+path.quadTo(1, 1, 3, 2);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads14793899 had errors=74
+
+void testQuads14793900(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(2, 0);
+path.quadTo(3, 1, 1, 2);
+path.lineTo(2, 2);
+path.lineTo(2, 0);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(2, 0);
+path.quadTo(1, 1, 3, 2);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads14793900 had errors=74
+void testQuads24281657(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 1);
+path.quadTo(3, 2, 0, 3);
+path.lineTo(2, 3);
+path.lineTo(1, 1);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(0, 1);
+path.quadTo(3, 2, 0, 3);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// testQuads24281657 had errors=252
+// skia tests done: 560.873535s
+// total run:30046752 skipped:0 errors:146 warnings:0 v0 only:0 skia only:10
+
 static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
 static void (*firstTest)(skiatest::Reporter* , const char* filename) = nullptr;
 static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
@@ -1540,6 +4094,7 @@ static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 #define TEST(name) { name, #name }
 
 static struct TestDesc tests[] = {
+    TEST(testQuads26719853),
     TEST(testQuads15062721),
     TEST(testQuads11271171),
     TEST(testQuads13600555),

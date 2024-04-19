@@ -52,6 +52,10 @@ OpVector OpQuad::normal(float t) const {
     return { -tan.dy, tan.dx };
 }
 
+void OpQuad::pinCtrl() {
+    pts[1].pin(pts[0], pts[2]);
+}
+
 OpPoint OpQuad::ptAtT(float t) const {
     if (0 == t) {
         return pts[0];
@@ -76,8 +80,7 @@ OpCurve OpQuad::subDivide(OpPtT ptT1, OpPtT ptT2) const {
         result.pts[1] = pts[1];
     else {
         result.pts[1] = 2 * ptAtT((ptT1.t + ptT2.t) / 2) - (result.pts[0] + result.pts[2]) / 2;
-        // control point may be (incorrectly) outside bounds formed by end points; so, pin it
-        result.pts[1].pin(result.pts[0], result.pts[2]);
+        result.asQuad().pinCtrl();  // control point may be outside bounds formed by end points
     }
     return result;
 }

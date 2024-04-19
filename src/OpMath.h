@@ -38,8 +38,8 @@ enum class MatchEnds {
     both
 };
 
-inline MatchEnds operator&(MatchEnds a, MatchEnds b) {
-    return (MatchEnds) ((int) a & (int) b);
+inline bool operator&(MatchEnds a, MatchEnds b) {
+    return (bool) ((int) a & (int) b);
 }
 
 inline MatchEnds operator|(MatchEnds a, MatchEnds b) {
@@ -50,8 +50,9 @@ inline MatchEnds operator|=(MatchEnds& a, MatchEnds b) {
     return a = a | b;
 }
 
-inline bool operator!(MatchEnds a) {
-    return !(int) a;
+inline MatchEnds operator!(MatchEnds a) {
+    OP_ASSERT(MatchEnds::start == a || MatchEnds::end == a);
+    return (MatchEnds) ((int) a ^ (int) MatchEnds::both);
 }
 
 struct MatchReverse {
@@ -223,6 +224,10 @@ struct OpVector {
         dy = y;
     }
 
+    friend bool operator==(OpVector a, OpVector b) {
+        return a.dx == b.dx && a.dy == b.dy;
+    }
+
     OpVector operator-() const {
         return { -dx, -dy };
     }
@@ -324,7 +329,7 @@ struct OpVector {
         return dx * dx + dy * dy;
     }
 
-    OpVector normalize(bool* overflow);
+    OpVector normalize();
     OpVector setLength(float len) {
         float base = length(); return OpVector(dx * len / base, dy * len / base); }
 
@@ -536,8 +541,7 @@ struct OpRect {
         return a.left == b.left && a.top == b.top && a.right == b.right && a.bottom == b.bottom; }
     friend bool operator!=(OpRect a, OpRect b) {
         return a.left != b.left || a.top != b.top || a.right != b.right || a.bottom != b.bottom; }
-    OpPoint center() const { 
-        return { (left + right) / 2, (top + bottom) / 2 }; }
+    OpPoint center() const;
     bool isFinite() const;
     float height() const { 
         return bottom - top; }
@@ -571,6 +575,8 @@ struct OpRect {
     virtual std::string debugDump(DebugLevel , DebugBase ) const;
     virtual void dump() const;
     virtual void dump(DebugLevel, DebugBase ) const;
+    virtual void dumpBrief() const;
+    virtual void dumpDetailed() const;
     virtual void dumpHex() const;
 #endif
 
@@ -616,7 +622,8 @@ struct OpPtT {
         return pt.soClose(o.pt) || (t + epsilon >= o.t && t <= o.t + epsilon);
     }
 
-    static void MeetInTheMiddle(OpPtT& a, OpPtT& b){
+    // !!! add point avg and call it here?
+    static void MeetInTheMiddle(OpPtT& a, OpPtT& b) {
         OpPoint mid = a.onEnd() ? a.pt : b.onEnd() ? b.pt : (a.pt + b.pt) / 2;
         a.pt = mid;
         b.pt = mid;
@@ -664,6 +671,11 @@ struct OpRootPts {
 };
 
 struct OpMath {
+    // implementing this with (a + b) / 2 can fail in edge cases where result is <a or >b
+    static float Average(float a, float b) {
+        return Interp(a, b, .5);
+    }
+
     // returns true if (a <= b <= c) || (a >= b >= c)
     static bool Between(float a, float b, float c) {
         return (a - b) * (c - b) <= 0;
@@ -706,17 +718,23 @@ struct OpMath {
     static bool IsNaN(float x) {
         return std::isnan(x); }
 
+    static bool NearlyEndT(float t) {
+        return 0 >= t - OpEpsilon || 1 <= t + OpEpsilon; }
+
     static bool NearlyEqualT(float a, float b) {
         return a + OpEpsilon >= b && a <= b + OpEpsilon; }
 
     static float NextLarger(float );
     static float NextSmaller(float );
 
-    static float Pin(float a, float b, float c);
+    static float PinUnsorted(float outer1, float inner, float outer2);
+    static float PinSorted(float min, float value, float max);
+
+    static float PinNear(float t) {
+        return 0 >= t - OpEpsilon ? 0 : 1 <= t + OpEpsilon ? 1 : t; }
 
     static float PinT(float t) {
-        return t < 0 ? 0 : t > 1 ? 1 : t;
-    }
+        return 0 > t ? 0 : 1 < t ? 1 : t; }
 
     static OpRoots QuadRootsReal(float A, float B, float C) {
         if (0 == A) {

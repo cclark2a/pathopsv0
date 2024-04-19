@@ -90,6 +90,7 @@ float OpCurve::center(Axis axis, float intercept) const {
     return roots.roots[0];
 }
 
+#if 0 // unused
 int OpCurve::closest(OpPtT* best, float delta, OpPoint pt) const {
     int loop = 0;
     OpPtT test = *best;
@@ -118,6 +119,7 @@ int OpCurve::closest(OpPtT* best, float delta, OpPoint pt) const {
     } while (fabsf(delta) >= OpEpsilon);
     return loop;
 }
+#endif
 
 // !!! promote types to use double as test cases requiring such are found
 OpPoint OpCurve::doublePtAtT(float t) const {
@@ -199,10 +201,11 @@ OpRootPts OpCurve::lineIntersect(const LinePts& line) const {
        }
 #endif
         // thread_cubics23476 edges 55 & 52 trigger this need for betweenish
-        // !!! should have an explanation / example of why 'ish' is correct here
         if (OpMath::Betweenish(line.pts[0].choice(xy), hit.choice(xy), line.pts[1].choice(xy))) {
             // curve/curve may need more exact results; try pinning valid hit to line bounds
             if (!lineV.dx || !lineV.dy) {
+                // !!! don't like using pairs (may be less performant than returning struct)
+                //     but that's what std::minmax returns (which may be very performant!)
                 std::pair<float, float> minmaxX = std::minmax(line.pts[0].x, line.pts[1].x);
                 std::pair<float, float> minmaxY = std::minmax(line.pts[0].y, line.pts[1].y);
                 OpPoint pinned(std::min(std::max(minmaxX.first, hit.x), minmaxX.second),
@@ -243,18 +246,26 @@ bool OpCurve::nearBounds(OpPoint pt) const {
 }
 
 NormalDirection OpCurve::normalDirection(Axis axis, float t) const {
-	bool overflow;
 	OpVector ray = Axis::horizontal == (Axis) ((int) axis & 1) ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
     if (Axis::up <= axis)
         ray = -ray;
-    float NdotR = normal(t).normalize(&overflow).dot(ray);
-	if (overflow)
-		return NormalDirection::overflow;
+    float NdotR = normal(t).normalize().dot(ray);
 	if (NdotR > 0)
 		return NormalDirection::upRight;
 	if (NdotR < 0)
 		return NormalDirection::downLeft;
 	return NormalDirection::underflow;	 // catches, zero, nan
+}
+
+void OpCurve::pinCtrl() {
+    switch (type) {
+        case OpType::line: return;
+        case OpType::quad: return asQuad().pinCtrl();
+        case OpType::conic: return asConic().pinCtrl();
+        case OpType::cubic: return asCubic().pinCtrls();
+        default:
+            OP_ASSERT(0);
+    }
 }
 
 OpRoots OpCurve::rawIntersect(const LinePts& linePt, MatchEnds common) const {
@@ -368,8 +379,8 @@ float OpCurve::tAtXY(float t1, float t2, XyChoice xy, float goal) const {
     OpPair endCheck = xyAtT( { t1, t2 }, xy );
     if (!OpMath::Between(endCheck.s, goal, endCheck.l))
         return OpNaN;
-    float mid = (t1 + t2) / 2;
-    float step = (mid - t1) / 2;
+    float mid = OpMath::Average(t1, t2);
+    float step = OpMath::Average(mid, -t1);
     while (step >= OpEpsilon) {
         OpPair test = { mid - step, mid + step };
         OpPair x = xyAtT(test, xy);
@@ -387,8 +398,8 @@ float OpCurve::tZeroX(float t1, float t2) const {
     OpPair endCheck = xyAtT( { t1, t2 }, XyChoice::inX);
     if (endCheck.s * endCheck.l > 0)  // if both are non zero and same sign, there's no crossing
         return OpNaN;
-    float mid = (t1 + t2) / 2;
-    float step = (mid - t1) / 2;
+    float mid = OpMath::Average(t1, t2);
+    float step = OpMath::Average(mid, -t1);
     while (step > OpEpsilon) {
         OpPair test = { mid - step, mid + step };
         OpPair x = xyAtT(test, XyChoice::inX);

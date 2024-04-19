@@ -119,6 +119,11 @@ struct OpIntersection {
 #if OP_DEBUG_DUMP
 	OpIntersection(std::string);
 	void debugCompare(std::string) const;
+    #define OP_X(Thing) \
+    std::string debugDump##Thing() const; \
+    void dump##Thing() const;
+    DEBUG_DUMP
+    #undef OP_X
 #include "OpDebugDeclarations.h"
 #endif
 

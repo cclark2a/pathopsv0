@@ -92,7 +92,7 @@ struct OpSegment {
     void complete(OpContour* );
     OpEdge* findEnabled(const OpPtT& , EdgeMatch ) const;
     float findAxisT(Axis , float start, float end, float oppXY) const;
-    float findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const;
+//    float findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const;
     float findValidT(float start, float end, OpPoint opp) const;
     // count and sort extrema; create an edge for each extrema + 1
     void makeEdge(const OpPtT& s, const OpPtT& e
@@ -119,7 +119,9 @@ struct OpSegment {
 #if OP_DEBUG_DUMP
     void dumpCount() const;
     #define OP_X(Thing) \
+    std::string debugDump##Thing() const; \
     void dump##Thing() const;
+    DEBUG_DUMP
     SEGMENT_DETAIL
     EDGE_OR_SEGMENT_DETAIL
     #undef OP_X

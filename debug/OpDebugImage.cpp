@@ -768,14 +768,15 @@ void textSize(float s) {
 void OpDebugImage::center(int id, bool add) {
 	OpPointBounds pointBounds;
 	OpPoint point;
-	find(id, &pointBounds, &point);
+	if (!find(id, &pointBounds, &point))
+		return;
 	if (pointBounds.isFinite())
 		return OpDebugImage::drawDoubleCenter(pointBounds.center(), add);
 	if (point.isFinite())
 		return OpDebugImage::drawDoubleCenter(point, add);
 }
 
-void OpDebugImage::find(int id, OpPointBounds* boundsPtr, OpPoint* pointPtr) {
+bool OpDebugImage::find(int id, OpPointBounds* boundsPtr, OpPoint* pointPtr) {
 	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
 		if (id != edge->id)
@@ -783,7 +784,7 @@ void OpDebugImage::find(int id, OpPointBounds* boundsPtr, OpPoint* pointPtr) {
 		edge->debugDraw = true;
 		DRAW_IDS_ON(Edges);
 		*boundsPtr = edge->ptBounds;
-		return;
+		return true;
 	}
 	const OpSegment* segment = nullptr;
 	for (auto s : segmentIterator) {
@@ -793,7 +794,7 @@ void OpDebugImage::find(int id, OpPointBounds* boundsPtr, OpPoint* pointPtr) {
 	if (segment) {
 		DRAW_IDS_ON(Segments);
 		*boundsPtr = segment->ptBounds;
-		return;
+		return true;
 	}
 #if OP_DEBUG
 	const OpIntersection* sect = nullptr;
@@ -805,7 +806,7 @@ void OpDebugImage::find(int id, OpPointBounds* boundsPtr, OpPoint* pointPtr) {
 		DRAW_IDS_ON(Intersections);
 		// don't change zoom
 		*pointPtr = sect->ptT.pt;
-		return;
+		return true;
 	}
 #endif
 #if OP_DEBUG
@@ -815,10 +816,11 @@ void OpDebugImage::find(int id, OpPointBounds* boundsPtr, OpPoint* pointPtr) {
 		// !!! wrong: add rect formed by both intersections with this id
 		for (auto coin : coins)
 			boundsPtr->add(coin->ptT.pt);
-		return;
+		return true;
 	}
 #endif
 	OpDebugOut("id " + STR(id) + " not found\n");
+	return false;
 }
 
 // !!! not sure I need this; but it does raise the question if dump and image need their own finds
@@ -839,7 +841,8 @@ std::vector<const OpEdge*> OpDebugImage::find(int id) {
 void OpDebugImage::focus(int id, bool add) {
 	OpPointBounds pointBounds;
 	OpPoint point;
-	find(id, &pointBounds, &point);
+	if (!find(id, &pointBounds, &point))
+		return;
 	if (pointBounds.isFinite())
 		return OpDebugImage::drawDoubleFocus(pointBounds, add);
 	if (point.isFinite())
@@ -1238,7 +1241,7 @@ void OpDebugImage::drawPoints() {
 			if (drawCentersOn)
 				DebugOpBuild(edge->center.pt, edge->center.t, DebugSprite::square);
 			if (drawHullsOn) {
-				for (const HullSect& hull : edge->hulls)
+				for (const HullSect& hull : edge->hulls.h)
 					DebugOpBuild(hull.sect.pt, hull.sect.t, DebugSprite::circle);
 			}
 		}
@@ -1781,9 +1784,8 @@ bool OpDebugImage::drawWinding(const OpCurve& curve, std::string left, std::stri
 	for (bool allowIntersect : { false, true } ) {
 		for (float normLength : { 4, 15 } ) {
 			for (float normT : { .58f, .38f, .78f, .18f, .98f } ) {
-				bool overflow;
-				OpVector norm = curve.normal(normT).normalize(&overflow) * normLength;
-				if (overflow)
+				OpVector norm = curve.normal(normT).normalize() * normLength;
+				if (!norm.isFinite() || norm == OpVector{ 0, 0 })
 					continue;
 				OpPoint midTPt = curve.ptAtT(normT);
 				SkRect bounds, rightBounds;
@@ -2020,7 +2022,10 @@ OpPoint OpDebugImage::find(int id, float t) {
 
 // !!! macroize?
 void drawT(int id, float t) {
-	draw(OpDebugImage::find(id, t));
+	OpPoint pt = OpDebugImage::find(id, t);
+	if (!pt.isFinite())
+		return;
+	draw(pt);
 }
 
 void drawT(int id, const OpPtT& ptT) {

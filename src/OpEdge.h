@@ -8,9 +8,12 @@
 
 struct FoundEdge;
 struct OpContours;
+struct OpCurveCurve;
 struct OpIntersection;
 struct OpOutPath;
 struct OpSegment;
+
+enum class CurveRef;
 
 enum class OpOperand {
 	left,
@@ -332,7 +335,7 @@ enum class SectType {
 
 // intersections of opposite curve's hull and this edge's segment
 struct HullSect {
-	HullSect(const OpPtT& ptT, SectType st, const OpEdge* o = nullptr)
+	HullSect(const OpPtT& ptT, SectType st, const OpEdge* o)
 		: opp(o)
 		, sect(ptT)
 		, type(st) {
@@ -343,6 +346,17 @@ struct HullSect {
 	const OpEdge* opp;
 	OpPtT sect;			// point and t of intersection with hull on this edge
 	SectType type;
+};
+
+struct OpHulls {
+	void add(const OpPtT& ptT, SectType st, const OpEdge* o = nullptr);
+	void clear() { h.clear(); }
+	bool closeEnough(int index, const OpEdge& edge, const OpEdge* oEdge, OpPtT* oPtT, OpPtT* close);
+	void nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef which);
+	bool sectCandidates(int index, const OpEdge& edge);
+	void sort(bool useSmall);
+
+	std::vector<HullSect> h;
 };
 
 enum class AllowPals {
@@ -600,9 +614,13 @@ public:
 	void debugCompare(std::string ) const;
 	std::string debugDumpCenter(DebugLevel , DebugBase ) const;
 	std::string debugDumpLink(EdgeMatch , DebugLevel , DebugBase ) const;
-	void dumpEnd() const;
-	void dumpLink() const;
-	void dumpStart() const;
+    #define OP_X(Thing) \
+    std::string debugDump##Thing() const; \
+    void dump##Thing() const;
+    DEBUG_DUMP
+    EDGE_DETAIL
+    EDGE_OR_SEGMENT_DETAIL
+    #undef OP_X
 	#include "OpDebugDeclarations.h"
 #endif
 #if OP_DEBUG
@@ -643,7 +661,7 @@ public:
 	std::vector<EdgeDistance> pals;	 // list of unsectable adjacent edges !!! should be pointers?
 	std::vector<OpEdge*> lessRay;  // edges found placed with smaller edge distance cept values
 	std::vector<OpEdge*> moreRay;  // edges found placed with larger edge distance cept values
-	std::vector<HullSect> hulls;  // curve-curve intersections
+	OpHulls hulls;  // curve-curve intersections
 	float curvy;  // rough ratio of midpoint line point line to length of end point line
 	int id;
 	int unsectableID;	// used to pair unsectable intersections and find edges between

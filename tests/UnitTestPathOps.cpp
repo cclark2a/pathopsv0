@@ -599,16 +599,15 @@ void OpConicTest( ) {
 	OpVector normv = ci1.normal(0);
 	OpVector rawtan = { ci1.pts[1].x - ci1.pts[0].x,
 			  ci1.pts[1].y - ci1.pts[0].y };
-	bool ignoreOverflow;
-	OpVector normaledv = normv.normalize(&ignoreOverflow);
-	OpVector normaledr = rawtan.normalize(&ignoreOverflow);
+	OpVector normaledv = normv.normalize();
+	OpVector normaledr = rawtan.normalize();
 	ASSERT(OpMath::Between(-.0001f, normaledv.dx + normaledr.dy, .0001f));
 	ASSERT(OpMath::Between(-.0001f, normaledv.dy - normaledr.dx, .0001f));
 	normv = ci1.normal(1);
 	rawtan = { ci1.pts[2].x - ci1.pts[1].x,
 			   ci1.pts[2].y - ci1.pts[1].y };
-	normaledv = normv.normalize(&ignoreOverflow);
-	normaledr = rawtan.normalize(&ignoreOverflow);
+	normaledv = normv.normalize();
+	normaledr = rawtan.normalize();
 	ASSERT(OpMath::Between(-.0001f, normaledv.dx + normaledr.dy, .0001f));
 	ASSERT(OpMath::Between(-.0001f, normaledv.dy - normaledr.dx, .0001f));
 
@@ -642,15 +641,15 @@ void OpConicTest( ) {
 	OpVector tanv = ci1.tangent(0);
 	rawtan = { ci1.pts[1].x - ci1.pts[0].x,
 			   ci1.pts[1].y - ci1.pts[0].y };
-	OpVector normaledt = tanv.normalize(&ignoreOverflow);
-	normaledr = rawtan.normalize(&ignoreOverflow);
+	OpVector normaledt = tanv.normalize();
+	normaledr = rawtan.normalize();
 	ASSERT(OpMath::Between(-.0001f, normaledt.dx - normaledr.dx, .0001f));
 	ASSERT(OpMath::Between(-.0001f, normaledt.dy - normaledr.dy, .0001f));
 	tanv = ci1.tangent(1);
 	rawtan = { ci1.pts[2].x - ci1.pts[1].x,
 			   ci1.pts[2].y - ci1.pts[1].y };
-	normaledt = tanv.normalize(&ignoreOverflow);
-	normaledr = rawtan.normalize(&ignoreOverflow);
+	normaledt = tanv.normalize();
+	normaledr = rawtan.normalize();
 	ASSERT(OpMath::Between(-.0001f, normaledt.dx - normaledr.dx, .0001f));
 	ASSERT(OpMath::Between(-.0001f, normaledt.dy - normaledr.dy, .0001f));
 
@@ -733,15 +732,14 @@ void OpCubicTest() {
 	// test OpCubic normal
 	OpVector normv = ci.normal(0);
 	OpVector rawtan = { ci.pts[1].x - ci.pts[0].x, ci.pts[1].y - ci.pts[0].y };
-	bool ignoreOverflow;
-	OpVector normaledv = normv.normalize(&ignoreOverflow);
-	OpVector normaledr = rawtan.normalize(&ignoreOverflow);
+	OpVector normaledv = normv.normalize();
+	OpVector normaledr = rawtan.normalize();
 	ASSERT(OpMath::Between(-.0001f, normaledv.dx + normaledr.dy, .0001f));
 	ASSERT(OpMath::Between(-.0001f, normaledv.dy - normaledr.dx, .0001f));
 	normv = ci.normal(1);
 	rawtan = { ci.pts[3].x - ci.pts[2].x, ci.pts[3].y - ci.pts[2].y };
-	normaledv = normv.normalize(&ignoreOverflow);
-	normaledr = rawtan.normalize(&ignoreOverflow);
+	normaledv = normv.normalize();
+	normaledr = rawtan.normalize();
 	ASSERT(OpMath::Between(-.0001f, normaledv.dx + normaledr.dy, .0001f));
 	ASSERT(OpMath::Between(-.0001f, normaledv.dy - normaledr.dx, .0001f));
 
@@ -771,14 +769,14 @@ void OpCubicTest() {
 	// test OpCubic tangent
 	OpVector tanv = ci.tangent(0);
 	rawtan = { ci.pts[1].x - ci.pts[0].x, ci.pts[1].y - ci.pts[0].y };
-	OpVector normaledt = tanv.normalize(&ignoreOverflow);
-	normaledr = rawtan.normalize(&ignoreOverflow);
+	OpVector normaledt = tanv.normalize();
+	normaledr = rawtan.normalize();
 	ASSERT(OpMath::Between(-.0001f, normaledt.dx - normaledr.dx, .0001f));
 	ASSERT(OpMath::Between(-.0001f, normaledt.dy - normaledr.dy, .0001f));
 	tanv = ci.tangent(1);
 	rawtan = { ci.pts[3].x - ci.pts[2].x, ci.pts[3].y - ci.pts[2].y };
-	normaledt = tanv.normalize(&ignoreOverflow);
-	normaledr = rawtan.normalize(&ignoreOverflow);
+	normaledt = tanv.normalize();
+	normaledr = rawtan.normalize();
 	ASSERT(OpMath::Between(-.0001f, normaledt.dx - normaledr.dx, .0001f));
 	ASSERT(OpMath::Between(-.0001f, normaledt.dy - normaledr.dy, .0001f));
 }
