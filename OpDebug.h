@@ -8,24 +8,6 @@
 
 #include "OpTestDrive.h"  // set test specific settings here
 
-#define CC_EXPERIMENT 1  /* rewrites curve curve intersection to:
-	- reject segments only by bounds intersection (bounds may be rotated)
-	- use line/line intersection only (no line/curve intersection)
-	- accelerate by guessing better centers for curve splitting
-	- split based on curviness, overall bounds
-
-	to be coded/tested
-	- can transferring t from line intersection to curve work well enough?
-	- how is partial/complete coincidence detected
-	- can successive centers suggest future guesses or detect intersection condition?
-
-	further concerns (e.g. thread_circles380007)
-	- a curve/curve may be missed if the ends of one pair segments meet at a zero axis, and a 
-	  third segment crosses near that axis. The third segment's edges may move away from each
-	  of the original pair when subdivided. Keep track of the closest points found when subdividing
-	  (store them in the segment) to see if this case can be detected.
-*/
-
 #if !defined(NDEBUG) || OP_RELEASE_TEST
 #include <string>
 

@@ -10,24 +10,30 @@
 
 // don't add if points are close
 // prefer end if types are different
-void OpHulls::add(const OpPtT& ptT, SectType sectType, const OpEdge* opp) {			
+// return true if close enough points are ctrl + mid
+bool OpHulls::add(const OpPtT& ptT, SectType sectType, const OpEdge* opp) {			
 	auto found = std::find_if(h.begin(), h.end(), [ptT](const HullSect& hull) {
 		return ptT.soClose(hull.sect);
 	});
-	if (h.end() == found)
+	if (h.end() == found) {
 		h.emplace_back(ptT, sectType, opp);
-	else if (SectType::endHull == sectType) {
+		return false;
+	}
+	if (SectType::endHull == sectType) {
 		found->sect = ptT;
 		found->type = sectType;
+		return false;
 	}
+	OP_ASSERT(SectType::midHull == sectType || SectType::controlHull == sectType);
+	return SectType::endHull != found->type && found->type != sectType;
 }
 
-bool OpHulls::closeEnough(int index, const OpEdge& edge, const OpEdge* oEdge, OpPtT* oPtT,
+bool OpHulls::closeEnough(int index, const OpEdge& edge, const OpEdge& oEdge, OpPtT* oPtT,
 		OpPtT* hull1Sect) {
 	if (!hull1Sect->pt.isNearly(oPtT->pt)) {
 		const OpCurve& eCurve = edge.segment->c;
 		OpVector eTangent = eCurve.tangent(hull1Sect->t);
-		const OpCurve& oCurve = oEdge->segment->c;
+		const OpCurve& oCurve = oEdge.segment->c;
 		OpVector oTangent = oCurve.tangent(oPtT->t);
 		OpLine eLine(hull1Sect->pt, hull1Sect->pt + eTangent);
 		LinePts oLinePts = {{ oPtT->pt, oPtT->pt + oTangent }};
@@ -41,7 +47,7 @@ bool OpHulls::closeEnough(int index, const OpEdge& edge, const OpEdge* oEdge, Op
 			OpPoint sectPt = eLine.ptAtT(oRoots.roots[0]);
 			Axis eLarger = edge.ptBounds.largerAxis();
 			OpPtT ePtT = edge.findT(eLarger, sectPt.choice(eLarger));
-			float newOPtT = oEdge->segment->findValidT(0, 1, sectPt);
+			float newOPtT = oEdge.segment->findValidT(0, 1, sectPt);
 			if (OpMath::IsNaN(newOPtT))
 				return false;
 			*oPtT = OpPtT(sectPt, newOPtT);
@@ -117,10 +123,12 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight
 	segment = edge->segment;
 	start = NewEdge::isLeft == isLeftRight ? edge->start : newPtT;
 	end = NewEdge::isLeft == isLeftRight ? newPtT : edge->end;
+#if 0
 	if (edge->curvySet && edge->curvy <= OP_CURVACIOUS_LIMIT) {
 		curvySet = true;
 		curvy = edge->curvy * .5;  // !!! bogus, but shouldn't matter
 	}
+#endif
 #if OP_DEBUG
 	debugMaker = maker;
 	debugSetMaker = { file, line };
@@ -360,6 +368,7 @@ bool OpEdge::containsLink(const OpEdge* edge) const {
 	return false;
 }
 
+#if 0
 // Guess if curve is nearly a line by comparing distance between ends and mid t pt to end line.
 // Note that the rotated line is not square, so distances are sloppy as well.
 float OpEdge::curviness() {
@@ -372,6 +381,7 @@ float OpEdge::curviness() {
 	curvy = OpMath::FloatDivide(fabsf(rotatedCenter.x), length);
 	return curvy;
 }
+#endif
 
 OpIntersection* OpEdge::findSect(EdgeMatch match) {
 	OpPoint pt = whichPtT(match).pt;
@@ -651,7 +661,7 @@ bool OpEdge::isClose() {
 	if (closeSet)
 		return isClose_impl;
 	closeSet = true;
-	if (0 == start.t || 1 == end.t) {
+	if (ccStart || ccEnd) {
 		OP_ASSERT(!isClose_impl);
 		return false;
 	}
@@ -754,11 +764,10 @@ void OpEdge::setUnsortable() {
 	unsortable = true;
 }
 
-const OpCurve& OpEdge::setVertical() {
-	if (!verticalSet) {
-		verticalSet = true;
-		LinePts edgeLine { start.pt, end.pt };
-		vertical_impl = curve.toVertical(edgeLine);
+const OpCurve& OpEdge::setVertical(const LinePts& pts) {
+	if (upright_impl.pts[0] != pts.pts[0] || upright_impl.pts[1] != pts.pts[1]) {
+		upright_impl = pts;
+		vertical_impl = curve.toVertical(pts);
 	}
 	return vertical_impl;
 }

@@ -6,61 +6,35 @@
 #include "OpEdge.h"
 #include "OpIntersection.h"
 
+/*
+	- reject segments only by bounds intersection (bounds may be rotated)
+	- use line/line intersection only (no line/curve intersection)
+	- accelerate by guessing better centers for curve splitting
+	- split based on curviness, overall bounds
+
+	to be coded/tested
+	- can transferring t from line intersection to curve work well enough?
+	- how is partial/complete coincidence detected
+	- can successive centers suggest future guesses or detect intersection condition?
+
+	further concerns (e.g. thread_circles380007)
+	- a curve/curve may be missed if the ends of one pair segments meet at a zero axis, and a 
+	  third segment crosses near that axis. The third segment's edges may move away from each
+	  of the original pair when subdivided. Keep track of the closest points found when subdividing
+	  (store them in the segment) to see if this case can be detected.
+*/
+
 enum class SectFound {
 	no,
 	fail,
 	intersects,
 	overflow,
-	split
-};
-
-enum class DoSplit {
-	marked,
-	all
+	split,
 };
 
 enum class CurveRef {
 	edge,
 	opp
-};
-
-#if CC_EXPERIMENT
-enum class CenterSet {
-	splitNo,
-	splitKeep,
-	newEdge,
-	defer,
-	edgeCurvy,
-	oppCurvy,
-	edgeLineLine,
-	oppLineLine,
-};
-
-enum class LineLine {
-	alreadySplit,
-	noIntersection,
-	setCenter,
-};
-
-struct CcCenter {
-	CcCenter(OpEdge* e, CurveRef w, int d, CenterSet cs)
-		: edge(e)
-		, which(w)
-		, centerSet(cs)
-		, depth(d) {
-		center = edge->center;
-		split = edge->doSplit;
-	}
-#if OP_DEBUG_DUMP
-	DUMP_DECLARATIONS
-#endif
-
-	OpEdge* edge;
-	OpPtT center;
-	CurveRef which;
-	EdgeSplit split;
-	CenterSet centerSet;
-	int depth;
 };
 
 struct CcSect {
@@ -118,6 +92,28 @@ struct CcClose {
 	float bestDist;
 };
 
+struct TGap {
+	TGap(const OpPtT& l, const OpPtT& h)
+		: lo(l)
+		, hi(h) {
+	}
+
+	OpPtT lo;
+	OpPtT hi;
+};
+
+struct CcCurves {
+	void clear();
+	std::vector<TGap> findGaps() const;
+	void markToDelete(float tStart, float tEnd);
+	bool overlaps() const;
+	void snipAndGo(const OpSegment* ,  const OpPtT& cut);
+	void snipOne(const OpSegment* ,  const OpPtT& lo, const OpPtT& hi);
+	void snipRange(const OpSegment* , const OpPtT& lo, const OpPtT& hi);
+
+	std::vector<OpEdge*> c;
+};
+
 struct FoundPtTs {
 	OpPtT seg;
 	OpPtT opp;
@@ -140,53 +136,43 @@ struct FoundLimits {
 
 #endif
 
-struct CutRangeT {
-	OpPtT lo;
-	OpPtT hi;
-};
-
 struct OpCurveCurve {
+	static constexpr int ccMaxSplits = 6;   // !!! no idea what this should be 
 	static constexpr int maxSplits = 8;   // !!! no idea what this should be 
 	static constexpr int maxDepth = 24;  // !!! no idea what this should be
 
-	OpCurveCurve(OpEdge* edge, OpEdge* opp);
-	SectFound addUnsectable(); // if curve doesn't devolve into line segments
-	void closest();
-	SectFound curvesIntersect(CurveRef );
-	SectFound divideAndConquer();
-#if CC_EXPERIMENT
-	SectFound divideExperiment();
-#endif
-	void findEdgesTRanges(CurveRef );
-	void ifCloseSave(OpEdge& edge, OpPtT edgePtT, OpEdge& opp, OpPtT oppPtT);
-	void linearIntersect(std::vector<OpEdge*>& lines, std::vector<OpEdge*>& linesOrCurves);
-	void release();
-	bool split(CurveRef , DoSplit );
-#if CC_EXPERIMENT
-	void addUnsectable2(OpSegment* seg, const OpPtT& edgeStart, const OpPtT& edgeEnd,
-		OpSegment* opp, OpPtT oppStart, OpPtT oppEnd);
-	void checkForGaps();
+	OpCurveCurve(OpSegment* seg, OpSegment* opp);
+	void addIntersection(OpEdge& edge, OpEdge& opp);
+	SectFound addSect();
+	void addUnsectable(OpSegment* seg, const OpPtT& edgeStart, const OpPtT& edgeEnd,
+		OpSegment* opp, const OpPtT& oppStart, const OpPtT& oppEnd);
+	bool checkForGaps();
+	bool checkSect();
 	bool checkSplit(float lo, float hi, CurveRef , OpPtT& checkPtT) const;
+	void closest();
 	static OpPtT Cut(const OpPtT& , const OpSegment* , float direction);
 	static CutRangeT CutRange(const OpPtT& , const OpSegment* , 
 			float loEnd, float hiEnd);
-	void findUnsectable();
-	static void SetHullSects(OpEdge& edge, OpEdge& opp);
-	void recordSect(OpEdge& edge, OpPtT edgePtT, OpEdge& opp, OpPtT oppPtT
+	SectFound divideAndConquer();
+	bool endsOverlap() const;
+	SectFound findUnsectable();
+	void ifCloseSave(OpEdge& edge, const OpPtT& edgePtT, OpEdge& opp, const OpPtT& oppPtT);
+	bool ifExactly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& opp, const OpPtT& oppPtT);
+	bool ifNearly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& opp, const OpPtT& oppPtT);
+	static bool LineMissed(OpEdge& edge, OpEdge& opp);
+	FoundPtTs nearbyRun(OpSegment* seg, OpSegment* opp, const OpPtT& basePtT, float endSegT);
+	void recordSect(OpEdge& edge, const OpPtT& edgePtT, OpEdge& opp, const OpPtT& oppPtT
 			OP_LINE_FILE_DEF(SectReason eReason, SectReason oReason));
-	void snipOne(std::vector<OpEdge*>& curves, const OpSegment* , OpContours* ,
-			const OpPtT& lo, const OpPtT& hi);
-	void snipAndGo(std::vector<OpEdge*>& curves, const OpSegment* , OpContours* , const OpPtT& cut);
+	bool rotatedIntersect(OpEdge& edge, OpEdge& opp);
+	bool setHullSects(OpEdge& edge, OpEdge& opp, CurveRef );
+	bool setOverlaps();
 	void splitDownTheMiddle(OpContours* contours, OpEdge& edge, const OpPtT& edgeMid, 
-			std::vector<OpEdge*>* splits);
-	void splitSect(std::vector<OpEdge*>& curves);  // split and discard edge near intersection
+			CcCurves* splits);
 	bool splitHulls(CurveRef );  // hull finds split point; returns true if snipped
-#endif
-	bool tooFew(CurveRef );
-
+	void tryClose();
 #if OP_DEBUG
-	void debugDone(OpContours* c) { 
-			c->debugCurveCurve = nullptr; }
+	~OpCurveCurve() { 
+			originalEdge->contours()->debugCurveCurve = nullptr; }
 #endif
 #if OP_DEBUG_DUMP
 #include "OpDebugDeclarations.h"
@@ -197,31 +183,31 @@ struct OpCurveCurve {
 	void draw() const;
 #endif
 #if OP_DEBUG_VERBOSE
+	void debugSaveState();
 	void dumpDepth(int level);
 	void dumpDepth();
 #endif
 
 	const OpEdge* originalEdge;
 	const OpEdge* originalOpp;
-	std::vector<OpEdge*> edgeCurves;
-	std::vector<OpEdge*> edgeLines;
-	std::vector<OpEdge*> oppCurves;
-	std::vector<OpEdge*> oppLines;
-	std::vector<OpEdge*> edgeRuns;
-	std::vector<OpEdge*> oppRuns;
-#if CC_EXPERIMENT
+	CcCurves edgeCurves;
+	CcCurves oppCurves;
 	std::vector<CcSects> ccSects;
 	CcClose closeEdge;
 	OpPtT snipEdge;
 	OpPtT snipOpp;
-#endif
+	MatchReverse matchRev;
 	int depth;
+	bool rotateFailed;
 	bool sectResult;
 	bool smallTFound;  // if true, hull sort should prefer large t values
 	bool largeTFound;  // also used to resolve t gaps 
+	bool foundGap;
+	bool splitMid;
+	bool tryCloseBy;
 #if OP_DEBUG_DUMP
-	static int debugExperiment;
-	int debugLocal;  // (copy so it is visible in debugger)
+	static int debugCcCall;
+	int debugLocalCcCall;  // (copy so it is visible in debugger)
 #endif
 #if OP_DEBUG_VERBOSE
 	std::vector<int> dvDepthIndex;
@@ -229,4 +215,3 @@ struct OpCurveCurve {
 #endif
 };
 
-#endif

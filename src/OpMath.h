@@ -638,15 +638,6 @@ struct OpPtT {
     float t;
 };
 
-#if OP_DEBUG_DUMP
-struct OpHexPtT : OpPtT {
-    OpHexPtT(OpHexPoint ptIn, int32_t tIn) {
-        pt = OpHexPoint(ptIn);
-        t = OpDebugBitsToFloat(tIn);
-    }
-};
-#endif
-
 struct OpRootPts {
     OpRootPts() 
         : count(0) {

@@ -25,7 +25,6 @@ void dumpHex() const override;
 // removed OP_X(ExtremaT) for now
 // removed OP_X(LoopCheck) for now
 #define VECTOR_STRUCTS \
-OP_X(CcCenter) \
 OP_X(CcSects) \
 OP_X(CoinPair) \
 OP_X(EdgeDistance) \
@@ -35,8 +34,7 @@ OP_X(OpContour) \
 OP_X(OpEdge) \
 OP_X(OpIntersection) \
 OP_X(OpPtT) \
-OP_X(OpSegment) \
-OP_X(SoClose)
+OP_X(OpSegment)
 
 #define OP_STRUCTS \
 OP_X(CcClose) \
@@ -156,8 +154,7 @@ EDGE_OR_SEGMENT_DETAIL
 #define SEGMENT_DETAIL \
 OP_X(SegmentEdges) \
 OP_X(SegmentIntersections) \
-OP_X(SegmentSects) \
-OP_X(SoClose)
+OP_X(SegmentSects)
 
 #define OP_X(Thing) \
 extern void dmp##Thing(int ID); \
@@ -210,7 +207,6 @@ extern void dmpIntersections();
 extern void dmpJoin();
 extern void dmpSects();
 extern void dmpSegments();
-extern void dmpSoClose();
 extern void dmpUnsectable();
 extern void dmpUnsortable();
 

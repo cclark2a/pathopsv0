@@ -129,12 +129,8 @@ struct OpDebugEdgeIter {
 					? (int) cc->dvAll.size() : cc->dvDepthIndex[dvLevel];
 			edgeIndex += hi - lo;
 		} else {
-			edgeIndex += cc->edgeCurves.size();
-			edgeIndex += cc->edgeLines.size();
-			edgeIndex += cc->oppCurves.size();
-			edgeIndex += cc->oppLines.size();
-			edgeIndex += cc->edgeRuns.size();
-			edgeIndex += cc->oppRuns.size();
+			edgeIndex += cc->edgeCurves.c.size();
+			edgeIndex += cc->oppCurves.c.size();
 		}
 #endif
 	}
@@ -192,12 +188,8 @@ struct OpDebugEdgeIter {
 				if (index + hi - lo > edgeIndex)
 					ccEdge = cc->dvAll[edgeIndex - index + lo];
 			} else {
-				checkEdges(cc->edgeCurves);
-				checkEdges(cc->edgeLines);
-				checkEdges(cc->oppCurves);
-				checkEdges(cc->oppLines);
-				checkEdges(cc->edgeRuns);
-				checkEdges(cc->oppRuns);
+				checkEdges(cc->edgeCurves.c);
+				checkEdges(cc->oppCurves.c);
 			}
 #endif
 			if (ccEdge) {
@@ -1739,11 +1731,10 @@ void OpWinder::debugDraw() {
 }
 
 void OpCurveCurve::draw() const {
-	if (!edgeCurves.size() && !edgeLines.size())
+	if (!edgeCurves.c.size())
 		return OpDebugOut("OpCurveCurve missing edgeCurves\n");
-	OpPointBounds focusRect = edgeCurves.size() ? edgeCurves.front()->ptBounds : 
-			edgeLines.front()->ptBounds;
-	for (auto edgesPtrs : { &edgeCurves, &oppCurves, &edgeLines, &oppLines, &edgeRuns ,&oppRuns }) {
+	OpPointBounds focusRect = edgeCurves.c.front()->ptBounds;
+	for (auto edgesPtrs : { &edgeCurves.c, &oppCurves.c }) {
 		for (auto& edge : *edgesPtrs)
 			focusRect.add(edge->ptBounds);
 	}

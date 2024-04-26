@@ -246,8 +246,18 @@ void OpMath::DebugCompare(float a, float b) {
     OP_ASSERT(pPrecision < OpEpsilon);
 }
 
-#include "OpContour.h"
-#include "OpEdge.h"
+#include "OpCurveCurve.h"
+
+#if OP_DEBUG_VERBOSE
+void OpCurveCurve::debugSaveState() {
+	if ((int) dvDepthIndex.size() < depth)
+		dvDepthIndex.push_back((int) dvAll.size());
+	for (auto edge : edgeCurves.c)
+		dvAll.push_back(edge);
+	for (auto opp : oppCurves.c)
+		dvAll.push_back(opp);
+}
+#endif
 
 void OpContours::addDebugWarning(OpDebugWarning warn) {
     debugWarnings.push_back(warn);
@@ -576,6 +586,19 @@ void debug() {
         ::oo();
 #endif
         ::dmp(debugGlobalContours->debugJoiner);
+        return;
+    }
+    if ("divideExperiment" == debugContext || "divideAndConquer" == debugContext) {
+#if OP_DEBUG_IMAGE
+        ::hideOperands();
+        ::hideSegmentEdges();
+        ::showEdges();
+        ::showIDs();
+        ::showPoints();
+        ::showValues();
+        ::resetFocus();
+#endif
+        ::dmp(debugGlobalContours->debugCurveCurve);
         return;
     }
 #if OP_DEBUG_IMAGE

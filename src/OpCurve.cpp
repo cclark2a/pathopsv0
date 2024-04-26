@@ -121,6 +121,43 @@ int OpCurve::closest(OpPtT* best, float delta, OpPoint pt) const {
 }
 #endif
 
+OpPtT OpCurve::cut(const OpPtT& ptT, float direction) const {
+	constexpr float tStep = 16;  // !!! just a guess 
+	constexpr float cutDt = OpEpsilon * tStep;
+	OpVector cutDxy = { OpMath::NextLarger(ptT.pt.x) - ptT.pt.x,
+			OpMath::NextLarger(ptT.pt.y) - ptT.pt.y };
+	float minDistanceSq = cutDxy.lengthSquared() * tStep;
+	OpPtT cut;
+	do {
+		cut.t = OpMath::PinSorted(0, ptT.t + direction * cutDt, 1);
+		cut.pt = ptAtT(cut.t);
+	} while ((cut.pt - ptT.pt).lengthSquared() < minDistanceSq 
+			&& 0 < cut.t && cut.t < 1 && (direction *= tStep));
+	return cut;
+}
+
+CutRangeT OpCurve::cutRange(const OpPtT& ptT, float loEnd, float hiEnd) const {
+	constexpr float tStep = 16;  // !!! just a guess 
+	constexpr float cutDt = OpEpsilon * tStep;
+	OpVector cutDxy = { OpMath::NextLarger(ptT.pt.x) - ptT.pt.x,
+			OpMath::NextLarger(ptT.pt.y) - ptT.pt.y };
+	float minDistanceSq = cutDxy.lengthSquared() * tStep;
+	CutRangeT tRange;
+	for (float direction : { -1, 1 }) {
+		OpPtT cut;
+		float dir = direction;
+		do {
+			cut.t = std::max(loEnd, std::min(hiEnd, ptT.t + dir * cutDt));
+			cut.pt = ptAtT(cut.t);
+		} while ((cut.pt - ptT.pt).lengthSquared() < minDistanceSq 
+				 && loEnd < cut.t && cut.t < hiEnd && (dir *= tStep));
+		(-1 == direction ? tRange.lo : tRange.hi) = cut;
+	}
+	return tRange;
+}
+
+
+
 // !!! promote types to use double as test cases requiring such are found
 OpPoint OpCurve::doublePtAtT(float t) const {
     switch(type) {

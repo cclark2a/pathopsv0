@@ -50,7 +50,7 @@ enum class EdgeMatch : int8_t {
 	none = -1,
 	start,
 	end,
-	both	// used by flip
+//	both	// used by flip
 };
 
 enum class FoundPtT;
@@ -349,9 +349,9 @@ struct HullSect {
 };
 
 struct OpHulls {
-	void add(const OpPtT& ptT, SectType st, const OpEdge* o = nullptr);
+	bool add(const OpPtT& ptT, SectType st, const OpEdge* o = nullptr);
 	void clear() { h.clear(); }
-	bool closeEnough(int index, const OpEdge& edge, const OpEdge* oEdge, OpPtT* oPtT, OpPtT* close);
+	bool closeEnough(int index, const OpEdge& edge, const OpEdge& oEdge, OpPtT* oPtT, OpPtT* close);
 	void nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef which);
 	bool sectCandidates(int index, const OpEdge& edge);
 	void sort(bool useSmall);
@@ -416,12 +416,6 @@ enum class Unsectable {
 	multiple,
 };
 
-enum class SplitBias : uint8_t {
-	none,
-	low,
-	high
-};
-
 #if OP_DEBUG
 enum class EdgeMaker {
 	empty,
@@ -451,6 +445,7 @@ private:
 		: priorEdge(nullptr)
 		, nextEdge(nullptr)
 		, lastEdge(nullptr)
+		, upright_impl( { SetToNaN::dummy, SetToNaN::dummy } )
 		, winding(WindingUninitialized::dummy)
 		, sum(WindingUninitialized::dummy)
 		, many(WindingUninitialized::dummy)
@@ -459,11 +454,10 @@ private:
 		, rayFail(EdgeFail::none)
 		, windZero(WindZero::unset)
 		, doSplit(EdgeSplit::no)
-		, bias(SplitBias::none)
 		, closeSet(false)
-		, curvySet(false)
+//		, curvySet(false)
 		, lineSet(false)
-		, verticalSet(false)
+//		, verticalSet(false)
 		, isClose_impl(false)
 		, isLine_impl(false)
 		, exactLine(false)
@@ -473,7 +467,11 @@ private:
 		, disabled(false)
 		, unsortable(false)
 		, between(false)
+		, ccEnd(false)
+		, ccLarge(false)
 		, ccOverlaps(false)
+		, ccSmall(false)
+		, ccStart(false)
 		, centerless(false)
 		, windPal(false)
 		, visited(false)
@@ -481,7 +479,7 @@ private:
 #if OP_DEBUG // a few debug values are nonzero
         id = 0;
         segment = nullptr;
-		curvy = OpNaN;
+//		curvy = OpNaN;
 		debugSplitStart = SectType::none;
 		debugSplitEnd = SectType::none;
 		debugStart = nullptr;
@@ -537,6 +535,7 @@ public:
 	CalcFail addSub(Axis axis, float t, OpWinding* );
 	OpEdge* advanceToEnd(EdgeMatch );
 	void apply();
+	const OpRect& bounds() { return ptBounds; }
 	void calcCenterT();
 	void clearActiveAndPals(ZeroReason );
 	void clearLastEdge();
@@ -548,7 +547,7 @@ public:
 	bool containsLink(const OpEdge* edge) const;
 	OpContours* contours() const;
 	size_t countUnsortable() const;
-	float curviness();
+//	float curviness();
 	OpIntersection* findSect(EdgeMatch );
 	OpPtT findT(Axis , float oppXY) const;
 	OpPtT flipPtT(EdgeMatch match) const { 
@@ -593,7 +592,7 @@ public:
 	void setSumImpl(OpWinding w) {	// use debug macro instead to record line/file
 		sum.setSum(w, contours()); }
 	void setUnsortable();
-	const OpCurve& setVertical();
+	const OpCurve& setVertical(const LinePts& );
 	void setWhich(EdgeMatch );  // setter exists so debug breakpoints can be set
 	void skipPals(EdgeMatch match, std::vector<FoundEdge>& edges); 
 	void subDivide();
@@ -609,8 +608,6 @@ public:
     bool debugSuccess() const;
 #if OP_DEBUG_DUMP
 	OpEdge(std::string );
-	OpEdge(OpPtT data[2]);
-	OpEdge(OpHexPtT data[2]);
 	void debugCompare(std::string ) const;
 	std::string debugDumpCenter(DebugLevel , DebugBase ) const;
 	std::string debugDumpLink(EdgeMatch , DebugLevel , DebugBase ) const;
@@ -653,6 +650,7 @@ public:
 	OpPtT end;
 	OpCurve curve;
 	OpCurve vertical_impl;	// only access through set vertical function
+	LinePts upright_impl;   //  "
 	OpPointBounds ptBounds;
 	OpPointBounds linkBounds;
 	OpWinding winding;	// contribution: always starts as 1, 0 (or 0, 1)
@@ -662,18 +660,17 @@ public:
 	std::vector<OpEdge*> lessRay;  // edges found placed with smaller edge distance cept values
 	std::vector<OpEdge*> moreRay;  // edges found placed with larger edge distance cept values
 	OpHulls hulls;  // curve-curve intersections
-	float curvy;  // rough ratio of midpoint line point line to length of end point line
+//	float curvy;  // rough ratio of midpoint line point line to length of end point line
 	int id;
 	int unsectableID;	// used to pair unsectable intersections and find edges between
 	EdgeMatch whichEnd_impl;  // if 'start', prior end equals start; if 'end' prior end matches end
 	EdgeFail rayFail;   // how computation (e.g., center) failed (on fail, windings are set to zero)
 	WindZero windZero;  // zero: edge normal points to zero side (the exterior of the loop)
 	EdgeSplit doSplit;  // used by curve/curve intersection to track subdivision
-	SplitBias bias;  // in curve/curve, which end to favor for next intersect guess
 	bool closeSet;
-	bool curvySet;
+//	bool curvySet;
 	bool lineSet;
-	bool verticalSet;
+//	bool verticalSet;
 	bool isClose_impl;  // set if start is close to end
 	bool isLine_impl;	// ptBounds 0=h/0=w catches horz/vert lines; if true, line is diagonal(?)
 	bool exactLine;   // set if quad/conic/cubic is degenerate; clear if control points are linear
@@ -683,7 +680,11 @@ public:
 	bool disabled;	// winding is zero, or apply disqualified edge from appearing in output
 	bool unsortable;
 	bool between;  // between unsectables (also unsortable); !!! begs for an enum class, instead...
+	bool ccEnd;  // set if edge end is closest to already found curve-curve intersection
+	bool ccLarge;  // set if curve/curve has large t match and this edge is last
 	bool ccOverlaps;  // set if curve/curve edges have bounds that overlap
+	bool ccSmall;  // set if curve/curve has small t match and this edge is first
+	bool ccStart;  // set if edge start is closest to already found curve-curve intersection
 	bool centerless;  // center could not be computed (likely edge is too small)
 	bool windPal;  // winding could not computed because of pal
 	bool visited;  // experimental tree to track adding edges to output

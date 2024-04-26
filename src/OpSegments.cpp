@@ -382,39 +382,6 @@ FoundIntersections OpSegments::findIntersections() {
                 AddLineCurveIntersection(seg, opp);
                 continue;
             }
-            // check if segments share endpoints
-            /*
-            MatchReverse mr = seg->matchEnds(opp);
-            OpIntersection* oppSect;
-            if (!!(MatchEnds::start & mr.match)) {
-                auto sect = seg->addSegSect(OpPtT{ seg->c.pts[0], 0 }, opp
-                        OP_LINE_FILE_PARAMS(SectReason::sharedEnd));
-                if (sect) {
-                    if (mr.reversed)
-                        oppSect = opp->addSegSect(OpPtT{ opp->c.lastPt(), 1 }, seg
-                            OP_LINE_FILE_PARAMS(SectReason::sharedEnd));
-                    else
-                        oppSect = opp->addSegSect(OpPtT{ opp->c.pts[0], 0 }, seg
-                            OP_LINE_FILE_PARAMS(SectReason::sharedEnd));
-                    OP_ASSERT(oppSect);
-                    sect->pair(oppSect);
-                }
-            }
-            if (!!(MatchEnds::end & mr.match)) {
-                auto sect = seg->addSegSect(OpPtT{ seg->c.lastPt(), 1 }, opp
-                        OP_LINE_FILE_PARAMS(SectReason::sharedEnd));
-                if (sect) {
-                    if (mr.reversed)
-                        oppSect = opp->addSegSect(OpPtT{ opp->c.pts[0], 0 }, seg
-                            OP_LINE_FILE_PARAMS(SectReason::sharedEnd));
-                    else
-                        oppSect = opp->addSegSect(OpPtT{ opp->c.lastPt(), 1 }, seg
-                            OP_LINE_FILE_PARAMS(SectReason::sharedEnd));
-                    OP_ASSERT(oppSect);
-                    sect->pair(oppSect);
-                }
-            }
-            */
             // if the bounds only share a corner, there's nothing more to do
             bool sharesHorizontal = seg->ptBounds.right == opp->ptBounds.left
                     || seg->ptBounds.left == opp->ptBounds.right;
@@ -427,66 +394,19 @@ FoundIntersections OpSegments::findIntersections() {
                     && MatchEnds::none != seg->matchEnds(opp).match)
                 continue;
             // look for curve curve intersections (skip coincidence already found)
-            seg->edges.clear();
-            opp->edges.clear();
-            MatchReverse mr = seg->matchEnds(opp);
-            OpPtT segS {seg->c.pts[0], 0 };
-            OpPtT segE {seg->c.lastPt(), 1 };
-            OpPtT oppS {opp->c.pts[0], 0 };
-            OpPtT oppE {opp->c.lastPt(), 1 };
-            if (mr.match & MatchEnds::start) {
-                segS = OpCurveCurve::CutRange(segS, seg, 0, 1).hi;
-                if (mr.reversed)
-                    oppE = OpCurveCurve::CutRange(oppE, opp, 0, 1).lo;
-                else
-                    oppS = OpCurveCurve::CutRange(oppS, opp, 0, 1).hi;
-            }
-            if (mr.match & MatchEnds::end) {
-                segE = OpCurveCurve::CutRange(segE, seg, 0, 1).lo;
-                if (mr.reversed)
-                    oppS = OpCurveCurve::CutRange(oppS, opp, 0, 1).hi;
-                else
-                    oppE = OpCurveCurve::CutRange(oppE, opp, 0, 1).lo;
-            }
-            // if ends of segments already touch, exclude from made edge
-            seg->makeEdge(segS, segE  OP_DEBUG_PARAMS(EDGE_MAKER(segSect)));
-            opp->makeEdge(oppS, oppE  OP_DEBUG_PARAMS(EDGE_MAKER(oppSect)));
-            OpCurveCurve ccx(&seg->edges.back(), &opp->edges.back());
-#if CC_EXPERIMENT
-            SectFound experimental = ccx.divideExperiment();
-#if 0
-            seg->edges.clear();
-            seg->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(segSect)));
-            opp->edges.clear();
-            opp->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(segSect)));
-#endif
-            OP_DEBUG_CODE(ccx.debugDone(seg->contour->contours));
-            if (SectFound::fail == experimental)
+            OpCurveCurve cc(seg, opp);
+            SectFound ccResult = cc.divideAndConquer();
+            if (SectFound::fail == ccResult)
                 return FoundIntersections::fail;
-            if (SectFound::no == experimental && !ccx.ccSects.size()) {
+            if (SectFound::no == ccResult && !cc.ccSects.size()) {
                 // capture the closest point(s) that did not result in an intersection
                 // !!! eventually allow capturing more than 1, if curves hit twice
-                ccx.closest();
+                cc.closest();
                 continue;
             }
             // !!! where does the comment below go?
             // if point was added, check adjacent to see if it is concident (issue3517)
-#endif
-#define CC_OLD_SCHOOL 0
-#if CC_OLD_SCHOOL
-            OpCurveCurve cc(&seg->edges.back(), &opp->edges.back());
-            SectFound result = cc.divideAndConquer();
-            OP_DEBUG_CODE(cc.debugDone(seg->contour->contours));
-#if CC_EXPERIMENT
-            if (experimental != result)
-                OpDebugOut(STR(localExperiment) + " we disagree");
-#endif
-            if (SectFound::fail == result)
-                return FoundIntersections::fail;  // triggered by fuzzhang_1
-            // if point was added, check adjacent to see if it is concident (issue3517)
-            if (!cc.sectResult)
-                continue;
-#endif
+
             OpPtT segPtT = seg->sects.i.back()->ptT;
             OpPtT oppPtT = opp->sects.i.back()->ptT;
             seg->sects.sort();

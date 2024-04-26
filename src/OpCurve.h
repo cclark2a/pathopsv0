@@ -66,6 +66,11 @@ struct OpPair {
     float l;  // larger
 };
 
+struct CutRangeT {
+	OpPtT lo;
+	OpPtT hi;
+};
+
 #define USE_SEGMENT_CENTER 1
 
 struct OpCurve {
@@ -103,7 +108,8 @@ struct OpCurve {
 
     OpCurve(const OpPoint p[], float w)
         : weight(w)
-        , type(OpType::conic) {
+        , type(OpType::conic)
+        , centerPt(false) {
         memcpy(pts, p, pointCount() * sizeof(OpPoint));
         OP_DEBUG_CODE(debugIntersect = OpDebugIntersect::segment);
     }
@@ -121,6 +127,8 @@ struct OpCurve {
     OpRoots axisRayHit(Axis offset, float axisIntercept, float start = 0, float end = 1) const;
     float center(Axis offset, float axisIntercept) const;
 //    int closest(OpPtT* best, float delta, OpPoint pt) const;
+    OpPtT cut(const OpPtT& ptT, float direction) const;
+    CutRangeT cutRange(const OpPtT& ptT, float loEnd, float hiEnd) const;
     OpPoint doublePtAtT(float t) const;
     OpPtT findIntersect(Axis offset, const OpPtT& ) const;
     bool isFinite() const;

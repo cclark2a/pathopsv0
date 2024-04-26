@@ -54,23 +54,6 @@ struct FoundEdge {
     bool loops;  // true if edge when connected to existing link forms a loop
 };
 
-#if CC_EXPERIMENT
-struct SoClose {
-	bool operator==(SoClose sc) const {
-		return seg == sc.seg && oppSeg == sc.oppSeg && close == sc.close && oppPtT == sc.oppPtT;
-	}
-
-    OpSegment* seg;
-    OpSegment* oppSeg;
-    OpPtT close;
-    OpPtT oppPtT;
-
-#if OP_DEBUG_DUMP
-	DUMP_DECLARATIONS
-#endif
-};
-#endif
-
 struct OpSegment {
     OpSegment(const OpCurve& pts, OpType type, OpContour*  
             OP_DEBUG_PARAMS(SectReason , SectReason ));
@@ -140,10 +123,6 @@ struct OpSegment {
     OpWinding winding;
     bool disabled; // winding has canceled this edge out
     int id;     // !!! could be debug only; currently used to disambiguate sort, may be unneeded
-#if CC_EXPERIMENT
-    // save closest points and related info found in curve/curve intersections
-    std::vector<SoClose> debugClose;
-#endif
 #if OP_DEBUG
     SectReason debugStart;
     SectReason debugEnd;
