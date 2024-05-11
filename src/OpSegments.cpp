@@ -228,9 +228,9 @@ IntersectResult OpSegments::lineCoincidence(OpSegment* seg, OpSegment* opp) {
         MatchReverse ends = seg->matchEnds(opp);
         if (MatchEnds::both == ends.match) {
             OP_ASSERT(0);  // !!! step through this code to make sure it is correct
-            seg->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(segSect)));
+            seg->makeEdge(OP_LINE_FILE_NPARAMS(EdgeMaker::segSect));
             OpEdge& e = seg->edges.front();
-            opp->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(oppSect)));
+            opp->makeEdge(OP_LINE_FILE_NPARAMS(EdgeMaker::oppSect));
             OpEdge& o = opp->edges.front();
             OpVector sV = seg->c.pts[1] - seg->c.pts[0];
             OpVector oV = opp->c.pts[1] - opp->c.pts[0];
@@ -345,8 +345,8 @@ IntersectResult OpSegments::lineCoincidence(OpSegment* seg, OpSegment* opp) {
     if (!tangent.dot(oTangent))  // if at right angles, skip
         return IntersectResult::no;
     OP_ASSERT(seg->ptBounds.intersects(opp->ptBounds));
-    seg->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(segSect)));
-    opp->makeEdge(OP_DEBUG_CODE(EDGE_MAKER(oppSect)));
+    seg->makeEdge(OP_LINE_FILE_NPARAMS(EdgeMaker::segSect));
+    opp->makeEdge(OP_LINE_FILE_NPARAMS(EdgeMaker::oppSect));
     return OpWinder::CoincidentCheck(seg->edges.front(), opp->edges.front());
 }
 
@@ -398,15 +398,18 @@ FoundIntersections OpSegments::findIntersections() {
             SectFound ccResult = cc.divideAndConquer();
             if (SectFound::fail == ccResult)
                 return FoundIntersections::fail;
-            if (SectFound::no == ccResult && !cc.ccSects.size()) {
+            if (SectFound::add == ccResult)
+                cc.findUnsectable();
+            else if (SectFound::no == ccResult) {
                 // capture the closest point(s) that did not result in an intersection
                 // !!! eventually allow capturing more than 1, if curves hit twice
-                cc.closest();
-                continue;
+                // !!! if required, document test case that needs it
+//                if (!cc.limits.size() && cc.closeBy.size())
+//                    cc.tryClose();
             }
-            // !!! where does the comment below go?
+            if (!cc.addedPoint)
+                continue;
             // if point was added, check adjacent to see if it is concident (issue3517)
-
             OpPtT segPtT = seg->sects.i.back()->ptT;
             OpPtT oppPtT = opp->sects.i.back()->ptT;
             seg->sects.sort();

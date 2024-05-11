@@ -78,13 +78,13 @@ struct OpSegment {
 //    float findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const;
     float findValidT(float start, float end, OpPoint opp) const;
     // count and sort extrema; create an edge for each extrema + 1
-    void makeEdge(const OpPtT& s, const OpPtT& e
-            OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file));
-    void makeEdge(OP_DEBUG_CODE(EdgeMaker maker, int line, std::string file));
+    void makeEdge(const OpPtT& s, const OpPtT& e  OP_LINE_FILE_DEF(EdgeMaker maker));
+    void makeEdge(OP_LINE_FILE_NP_DEF(EdgeMaker maker));
     void makeEdges();
     MatchReverse matchEnds(const OpSegment* opp) const;
 //    MatchEnds matchExisting(const OpSegment* opp) const;
     void moveTo(float t , OpPoint );  // move segment/sect point to match another endpont
+    bool nearby(float t, const OpSegment* opp) const;
     int nextID() const { 
         return nextID(contour); }
     int nextID(OpContour* ) const;

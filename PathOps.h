@@ -19,9 +19,6 @@ struct OpInPath {
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
 #endif
-#if OP_DEBUG_IMAGE
-	void draw() const;
-#endif
 
 	const void* externalReference;
 };
@@ -40,9 +37,6 @@ struct OpOutPath {
 #endif
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
-#endif
-#if OP_DEBUG_IMAGE
-	void draw() const;
 #endif
 
 	void* externalReference;

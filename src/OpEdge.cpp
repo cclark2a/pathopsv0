@@ -118,7 +118,7 @@ EdgeDistance::EdgeDistance(OpEdge* e, float c, float tIn, bool r)
 }
 
 OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight  
-		OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file))
+		OP_LINE_FILE_DEF(EdgeMaker maker))
 	: OpEdge() {
 	segment = edge->segment;
 	start = NewEdge::isLeft == isLeftRight ? edge->start : newPtT;
@@ -131,7 +131,7 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight
 #endif
 #if OP_DEBUG
 	debugMaker = maker;
-	debugSetMaker = { file, line };
+	debugSetMaker = { fileName, lineNo };
 	debugParentID = edge->id;
 #endif	
 	complete();
@@ -139,28 +139,27 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight
 
 // called after winding has been modified by other coincident edges
 OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e  
-		OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file))
+		OP_LINE_FILE_DEF(EdgeMaker maker))
 	: OpEdge() {
 	segment = edge->segment;
 	start = s;
 	end = e;
 #if OP_DEBUG
 	debugMaker = maker;
-	debugSetMaker = { file, line };
+	debugSetMaker = { fileName, lineNo };
 	debugParentID = edge->id;
 #endif	
 	complete();
 }
 
-OpEdge::OpEdge(const OpEdge* edge, float t1, float t2
-		OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file))
+OpEdge::OpEdge(const OpEdge* edge, float t1, float t2  OP_LINE_FILE_DEF(EdgeMaker maker))
 	: OpEdge() {
 	segment = edge->segment;
 	start = { segment->c.ptAtT(t1), t1 };
 	end = { segment->c.ptAtT(t2), t2 };
 #if OP_DEBUG
 	debugMaker = maker;
-	debugSetMaker = { file, line };
+	debugSetMaker = { fileName, lineNo };
 	debugParentID = edge->id;
 #endif	
 	complete();
@@ -555,6 +554,22 @@ NormalDirection OpEdge::normalDirection(Axis axis, float edgeInsideT) {
 	return curve.normalDirection(axis, edgeInsideT);
 }
 
+float OpEdge::oppDist() const {
+	if (OpMath::IsNaN(oppEnd.t))
+		return OpNaN;
+	OpVector oppV = end.pt - oppEnd.pt;
+	float dist = oppV.length();
+	if (OpMath::IsNaN(dist))
+		return OpNaN;
+    OpVector normal = segment->c.normal(end.t);
+	float nDotOpp = normal.dot(oppV);
+	if (nDotOpp < -OpEpsilon)
+		dist = -dist;
+	else if (nDotOpp <= OpEpsilon)
+		dist = 0;
+	return dist;
+}
+
 // if there is another path already output, and it is first found in this ray,
 // check to see if the tangent directions are opposite. If they aren't, reverse
 // this edge's links before sending it to the host graphics engine
@@ -653,8 +668,9 @@ const OpRect& OpEdge::closeBounds() {
 	// close bounds holds point bounds outset by 'close' fudge factor
 	if (linkBounds.isSet())
 		return linkBounds;
-	linkBounds = ptBounds;
-	return linkBounds.outsetClose();
+	OpRect bounds = ptBounds.outsetClose();
+	linkBounds = { bounds.left, bounds.top, bounds.right, bounds.bottom };
+	return linkBounds;
 }
 
 bool OpEdge::isClose() {
@@ -668,6 +684,22 @@ bool OpEdge::isClose() {
 	return isClose_impl = start.soClose(end);
 }
 
+OpPtT OpEdge::ptTCloseTo(OpPtT oPtPair, const OpPtT& ptT) const {
+	OpVector unitTan = segment->c.tangent(ptT.t);
+	OpVector tan = unitTan.setLength(sqrtf(oPtPair.t));
+	if (1 == ptT.t)
+		tan = -tan;
+	OpPoint testPt = ptT.pt + tan;
+	if (!ptBounds.contains(testPt))
+		return center;
+	// use unit tan to pass correct axis to find pt t
+	Axis axis = fabsf(unitTan.dx) > fabsf(unitTan.dy) ? Axis::vertical : Axis::horizontal; 
+	float resultT = segment->findAxisT(axis, start.t, end.t, testPt.choice(axis));
+	if (!OpMath::IsNaN(resultT))
+		return OpPtT(segment->c.ptAtT(resultT), resultT);
+	return center;
+}
+	
 void OpEdge::setCurveCenter() {
 	curve.pts[curve.pointCount()] = center.pt;
 	curve.centerPt = true;
@@ -843,7 +875,7 @@ void OpEdge::skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) {
 void OpEdge::subDivide() {
 	auto ctrlPtsEqualEnds = [this]() {
 		for (int index = 1; index < segment->c.pointCount() - 1; ++index) {
-			if (curve.pts[index] != start.pt && curve.pts[index] != end.pt)
+			if (!curve.pts[index].isNearly(start.pt) && !curve.pts[index].isNearly(end.pt))
 				return false;
 		}
 		return true;
@@ -852,8 +884,8 @@ void OpEdge::subDivide() {
 	curve = segment->c.subDivide(start, end);
 	setPointBounds();
 	calcCenterT();
-	if (OpType::line == segment->c.type || (!ptBounds.height() ^ !ptBounds.width())
-			|| ctrlPtsEqualEnds()) {
+	if (OpType::line == segment->c.type || OpMath::Equalish(ptBounds.left, ptBounds.right) 
+			|| OpMath::Equalish(ptBounds.top, ptBounds.bottom) || ctrlPtsEqualEnds()) {
 		isLine_impl = true;
 		lineSet = true;
 		exactLine = true;

@@ -541,11 +541,15 @@ struct OpRect {
         return a.left == b.left && a.top == b.top && a.right == b.right && a.bottom == b.bottom; }
     friend bool operator!=(OpRect a, OpRect b) {
         return a.left != b.left || a.top != b.top || a.right != b.right || a.bottom != b.bottom; }
+    bool areaOverlaps(const OpRect& r) const {
+        return r.left < right && left < r.right && r.top < bottom && top < r.bottom;
+    }
     OpPoint center() const;
     bool isFinite() const;
     float height() const { 
         return bottom - top; }
-
+    bool hasArea() const {
+        return width() && height(); }
     bool intersects(const OpRect& r) const {
 #if OP_DEBUG_VALIDATE
         debugValidate();
@@ -553,14 +557,11 @@ struct OpRect {
 #endif
         return r.left <= right && left <= r.right && r.top <= bottom && top <= r.bottom;
     }
-
     Axis largerAxis() const {
         return width() >= height() ? Axis::vertical : Axis::horizontal; }
     float ltChoice(Axis axis) const { 
         return *(&left + +axis);  }
-
-    const OpRect& outsetClose();
-
+    OpRect outsetClose() const;
     float perimeter() const { 
         return width() + height(); }
     float rbChoice(Axis axis) const {

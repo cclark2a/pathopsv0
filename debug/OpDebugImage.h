@@ -128,6 +128,7 @@ extern void color(int id, uint32_t color);
 extern void colorLink(int id, uint32_t color = 0xAbeBeBad);
 extern void colorLink(const OpEdge& , uint32_t color = 0xAbeBeBad);
 extern void colorLink(const OpEdge* , uint32_t color = 0xAbeBeBad);
+extern void debugImage();
 extern void draw(std::vector<OpEdge>& );  // to draw edge list built from intersections
 extern void draw(std::vector<OpEdge*>& ); // to draw unsortables
 extern void draw(Axis , float );	// horizontal or vertical ray

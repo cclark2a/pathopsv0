@@ -95,16 +95,41 @@ void OpDebugOut(const std::string& s) {
 #endif
 }
 
-std::string OpDebugToString(float value) {
+#include "OpMath.h"
+
+std::string OpDebugStr(float value) {
+    if (OpMath::IsNaN(value))
+        return "NaN";
+    if (!OpMath::IsFinite(value))
+        return value > 0 ? "Inf" : "-Inf";
+    if (0 == value)
+        return "0";
+    if (fabsf(value) < OpEpsilon)
+        return "~0";
     std::string result;
-    if (debugPrecision < 0)
-        result = std::to_string(value);
-    else {
+    bool small = fabsf(value) <= OpEpsilon * 100;
+    if (small)
+        value = value / OpEpsilon;
+    if (debugPrecision < 0) {
+        if (small) {
+            if (value < 0)
+                result = "-";
+            value = floorf((fabsf(value) * 10 + 5));  // round up to epsilon + one digit of fraction
+            result += std::to_string((int) value / 10) + "." + std::to_string((int) value % 10);
+        } else
+            result = std::to_string(value);
+    } else {
         std::string s(16, '\0');
         auto written = std::snprintf(&s[0], s.size(), "%.*f", debugPrecision, value);
         s.resize(written);
         result = s;
     }
+    if (small)
+#if _WIN32
+        result += "ep";
+#else
+        result += "\u03B5";  // epsilon (fails on Windows Visual Studio, wrong character encoding)
+#endif
     // !!! try trimming trailing zeroes to see what that's like
     size_t pos = result.find('.');
     if (std::string::npos == pos)
@@ -122,6 +147,7 @@ std::string OpDebugToString(float value) {
 
 #include "OpCurve.h"
 
+#if 0
 std::string OpDebugDump(float f) {
     if (OpMath::IsNaN(f))
         return "NaN";
@@ -147,19 +173,25 @@ std::string OpDebugDump(float f) {
         s = "~" + s;
     return s;
 }
+#endif
 
 #if OP_DEBUG_DUMP || OP_DEBUG_IMAGE
+std::string OpDebugIntToHex(int32_t hex) {
+    std::string s = "0x";
+    for (int index = 28; index >= 0; index -= 4) {
+        int nybble = (hex >> index) & 0xF;
+        if (nybble <= 9)
+            s += '0' + nybble;
+        else 
+            s += 'a' + nybble - 10;
+    }
+    return s;
+}
+
 std::string OpDebugDumpHex(float f) {
     if (!debugHexFloat) {
-        std::string s = "0x";
         int32_t hex = OpDebugFloatToBits(f);
-        for (int index = 28; index >= 0; index -= 4) {
-            int nybble = (hex >> index) & 0xF;
-            if (nybble <= 9)
-                s += '0' + nybble;
-            else 
-                s += 'a' + nybble - 10;
-        }
+        std::string s = OpDebugIntToHex(hex);
         return s;
     }
     char buffer[256];
@@ -254,8 +286,8 @@ void OpCurveCurve::debugSaveState() {
 		dvDepthIndex.push_back((int) dvAll.size());
 	for (auto edge : edgeCurves.c)
 		dvAll.push_back(edge);
-	for (auto opp : oppCurves.c)
-		dvAll.push_back(opp);
+	for (auto oppEdge : oppCurves.c)
+		dvAll.push_back(oppEdge);
 }
 #endif
 
@@ -572,9 +604,9 @@ void OpOutPath::debugNextID(OpEdge* edge) {
 #if OP_DEBUG_DUMP
 std::string debugContext;
 
-void debug() {
-    if ("linkRemaining" == debugContext || "linkUnambiguous" == debugContext) {
 #if OP_DEBUG_IMAGE
+void debugImage() {
+    if ("linkRemaining" == debugContext || "linkUnambiguous" == debugContext) {
         ::hideOperands();
         ::showEdges();
         ::showIDs();
@@ -584,34 +616,53 @@ void debug() {
         ::showTangents();
         ::colorOut(orange);
         ::oo();
-#endif
-        ::dmp(debugGlobalContours->debugJoiner);
         return;
     }
-    if ("divideExperiment" == debugContext || "divideAndConquer" == debugContext) {
-#if OP_DEBUG_IMAGE
+    if ("divideAndConquer" == debugContext) {
         ::hideOperands();
         ::hideSegmentEdges();
+        ::hideWindings();
         ::showEdges();
         ::showIDs();
         ::showPoints();
+        ::showTangents();
         ::showValues();
         ::resetFocus();
-#endif
-        ::dmp(debugGlobalContours->debugCurveCurve);
+        ::oo();
         return;
     }
-#if OP_DEBUG_IMAGE
     ::hideOperands();
     ::showSegments();
     ::showFill();
     ::showIDs();
     ::showPoints();
+    ::showTangents();
     ::showValues();
     ::oo();
+}
+#endif
+
+void debug() {
+    if ("linkRemaining" == debugContext || "linkUnambiguous" == debugContext) {
+#if OP_DEBUG_IMAGE
+        debugImage();
+#endif
+        ::dmp(debugGlobalContours->debugJoiner);
+        return;
+    }
+    if ("divideAndConquer" == debugContext) {
+#if OP_DEBUG_IMAGE
+        debugImage();
+#endif
+        ::dmp(debugGlobalContours->debugCurveCurve);
+        return;
+    }
+#if OP_DEBUG_IMAGE
+    debugImage();
 #endif
     debugGlobalContours->dump();
 }
+
 #endif
 
 #endif

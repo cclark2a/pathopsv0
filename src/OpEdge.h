@@ -355,6 +355,9 @@ struct OpHulls {
 	void nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef which);
 	bool sectCandidates(int index, const OpEdge& edge);
 	void sort(bool useSmall);
+#if OP_DEBUG_DUMP
+	DUMP_DECLARATIONS
+#endif
 
 	std::vector<HullSect> h;
 };
@@ -433,15 +436,13 @@ enum class EdgeMaker {
 	opTest,
 };
 
-#define EDGE_MAKER(maker) EdgeMaker::maker, __LINE__, std::string(__FILE__)
-
 #endif
 
 constexpr float OP_CURVACIOUS_LIMIT = 1.f / 16;  // !!! tune to guess line/line split ratio
 
 struct OpEdge {
 private:
-	OpEdge()	// note : not all release values are zero (which end, wind zero)
+	OpEdge()	// note : not all release values are zero (which end, wind zero, opp dist)
 		: priorEdge(nullptr)
 		, nextEdge(nullptr)
 		, lastEdge(nullptr)
@@ -476,7 +477,7 @@ private:
 		, windPal(false)
 		, visited(false)
 	{
-#if OP_DEBUG // a few debug values are nonzero
+#if OP_DEBUG // a few debug values are also nonzero
         id = 0;
         segment = nullptr;
 //		curvy = OpNaN;
@@ -501,27 +502,23 @@ private:
 	}
 public:
 	OpEdge(OpSegment* s, const OpPtT& t1, const OpPtT& t2
-			OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file, const OpIntersection* i1, 
-			const OpIntersection* i2))
+			OP_LINE_FILE_DEF(EdgeMaker maker, const OpIntersection* i1, const OpIntersection* i2))
 		: OpEdge() {
 		segment = s;
 		start = t1;
 		end = t2;
 #if OP_DEBUG
 		debugMaker = maker;
-		debugSetMaker = { file, line };
+		debugSetMaker = { fileName, lineNo };
 		debugStart = i1;
 		debugEnd = i2;
 #endif
 		complete();
 	}
 
-	OpEdge(const OpEdge* e, const OpPtT& newPtT, NewEdge isLeftRight  
-			OP_DEBUG_PARAMS(EdgeMaker , int line, std::string file));
-	OpEdge(const OpEdge* e, const OpPtT& start, const OpPtT& end  
-			OP_DEBUG_PARAMS(EdgeMaker , int line, std::string file));
-	OpEdge(const OpEdge* e, float t1, float t2  
-			OP_DEBUG_PARAMS(EdgeMaker , int line, std::string file));
+	OpEdge(const OpEdge* e, const OpPtT& newPtT, NewEdge isLeftRight  OP_LINE_FILE_DEF(EdgeMaker ));
+	OpEdge(const OpEdge* e, const OpPtT& start, const OpPtT& end  OP_LINE_FILE_DEF(EdgeMaker ));
+	OpEdge(const OpEdge* e, float t1, float t2  OP_LINE_FILE_DEF(EdgeMaker ));
 
 #if OP_DEBUG_IMAGE
 	OpEdge(const OpEdge&) = default;
@@ -569,9 +566,11 @@ public:
 			std::vector<FoundEdge>& , AllowPals , AllowClose );
 	OpEdge* nextOut();
 	NormalDirection normalDirection(Axis axis, float t);
+	float oppDist() const;
 	void output(OpOutPath& path, bool closed);  // provided by the graphics implmentation
 	OpPtT ptT(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? start : end; }
+	OpPtT ptTCloseTo(OpPtT oPtPair, const OpPtT& ptT) const;
 	void reenable() {  // only used for coincidence
 		disabled = false; OP_DEBUG_CODE(debugZero = ZeroReason::uninitialized); }
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
@@ -594,7 +593,8 @@ public:
 	void setUnsortable();
 	const OpCurve& setVertical(const LinePts& );
 	void setWhich(EdgeMatch );  // setter exists so debug breakpoints can be set
-	void skipPals(EdgeMatch match, std::vector<FoundEdge>& edges); 
+	void skipPals(EdgeMatch match, std::vector<FoundEdge>& edges);
+//	OpPtT splitPt(float oMidDist, OpPtT* result) const;
 	void subDivide();
 	CalcFail subIfDL(Axis axis, float t, OpWinding* );
 	OpType type();
@@ -633,7 +633,6 @@ public:
 	void addLink();
 	void color(uint32_t );
 	void drawLink();
-	void draw();
 #endif
 
 	const OpSegment* segment;
@@ -661,6 +660,7 @@ public:
 	std::vector<OpEdge*> moreRay;  // edges found placed with larger edge distance cept values
 	OpHulls hulls;  // curve-curve intersections
 //	float curvy;  // rough ratio of midpoint line point line to length of end point line
+	OpPtT oppEnd;  // pt and t for closest point on opposite curve from end point
 	int id;
 	int unsectableID;	// used to pair unsectable intersections and find edges between
 	EdgeMatch whichEnd_impl;  // if 'start', prior end equals start; if 'end' prior end matches end

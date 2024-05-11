@@ -255,15 +255,16 @@ float OpSegment::findValidT(float start, float end, OpPoint opp) const {
     return OpNaN;
 }
 
-void OpSegment::makeEdge(const OpPtT& s, const OpPtT& e  
-        OP_DEBUG_PARAMS(EdgeMaker maker, int line, std::string file)) {
+
+
+void OpSegment::makeEdge(const OpPtT& s, const OpPtT& e  OP_LINE_FILE_DEF(EdgeMaker maker)) {
     if (!edges.size()) 
-        edges.emplace_back(this, s, e  OP_DEBUG_PARAMS(maker, line, file, nullptr, nullptr));
+        edges.emplace_back(this, s, e  OP_LINE_FILE_PARAMS(maker, nullptr, nullptr));
 }
 
 
-void OpSegment::makeEdge(OP_DEBUG_CODE(EdgeMaker maker, int line, std::string file)) {
-    makeEdge(OpPtT(c.pts[0], 0), OpPtT(c.lastPt(), 1)  OP_DEBUG_PARAMS(maker, line, file));
+void OpSegment::makeEdge(OP_LINE_FILE_NP_DEF(EdgeMaker maker)) {
+    makeEdge(OpPtT(c.pts[0], 0), OpPtT(c.lastPt(), 1)  OP_LINE_FILE_PARAMS(maker));
 }
 
 void OpSegment::makeEdges() {
@@ -330,6 +331,15 @@ void OpSegment::moveTo(float matchT, OpPoint equalPt) {
     }
     edges.clear();
 }
+
+#if 0
+bool OpSegment::nearby(float t, const OpSegment* opp, const OpPtT& base, float step) const {
+	OpPtT testSegPtT { c.ptTAtT(t) };
+	OpPtT testOppPtT { opp->c.ptTAtT(opp->findValidT(0, 1, testSegPtT.pt)) };
+	bool near = testOppPtT.pt.isNearly(testSegPtT.pt);
+    return near;
+}
+#endif
 
 int OpSegment::nextID(OpContour* contourPtr) const {
     return contourPtr->nextID();

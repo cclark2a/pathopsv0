@@ -4340,6 +4340,102 @@ path.close();
     testSimplify(reporter, path, filename);
 }
 
+void testQuads1883783(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(1, 0, 3, 2);
+path.lineTo(2, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 0);
+path.quadTo(1, 0, 0, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads1878567(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(1, 0, 3, 2);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(2, 1);
+path.quadTo(3, 1, 0, 3);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads1881213(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(1, 0, 3, 2);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 1);
+path.lineTo(1, 1);
+path.quadTo(3, 1, 3, 2);
+path.lineTo(0, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads1883817(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(1, 0, 3, 2);
+path.lineTo(2, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 0);
+path.quadTo(2, 0, 3, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads1884129(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(1, 0, 3, 2);
+path.lineTo(2, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(1, 0);
+path.quadTo(1, 1, 3, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads1884846(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(1, 0, 3, 2);
+path.lineTo(2, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(1, 1);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
 // testQuads24281657 had errors=252
 // skia tests done: 560.873535s
 // total run:30046752 skipped:0 errors:146 warnings:0 v0 only:0 skia only:10
@@ -4351,6 +4447,12 @@ static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 #define TEST(name) { name, #name }
 
 static struct TestDesc tests[] = {
+    TEST(testQuads1884846),
+    TEST(testQuads1884129),
+    TEST(testQuads1883817),
+    TEST(testQuads1881213),
+    TEST(testQuads1878567),
+    TEST(testQuads1883783),
     TEST(testQuads5659225),
     TEST(testQuads3761441),
     TEST(testQuads3760505),

@@ -121,18 +121,25 @@ int OpCurve::closest(OpPtT* best, float delta, OpPoint pt) const {
 }
 #endif
 
-OpPtT OpCurve::cut(const OpPtT& ptT, float direction) const {
-	constexpr float tStep = 16;  // !!! just a guess 
+OpPtT OpCurve::cut(const OpPtT& ptT, float loBounds, float hiBounds, float direction) const {
+    OP_ASSERT(1 == fabsf(direction));
+    OP_ASSERT(loBounds <= ptT.t && ptT.t <= hiBounds);
+	constexpr float tStep = 16;  // !!! just a guess
 	constexpr float cutDt = OpEpsilon * tStep;
 	OpVector cutDxy = { OpMath::NextLarger(ptT.pt.x) - ptT.pt.x,
 			OpMath::NextLarger(ptT.pt.y) - ptT.pt.y };
 	float minDistanceSq = cutDxy.lengthSquared() * tStep;
 	OpPtT cut;
 	do {
-		cut.t = OpMath::PinSorted(0, ptT.t + direction * cutDt, 1);
+		cut.t = ptT.t + direction * cutDt;
+        if (loBounds >= ptT.t || ptT.t >= hiBounds)
+            return ptTAtT(OpMath::Average(loBounds, hiBounds));
+        if (OpMath::Equalish(loBounds, cut.t) || OpMath::Equalish(cut.t, hiBounds))
+            continue;
 		cut.pt = ptAtT(cut.t);
-	} while ((cut.pt - ptT.pt).lengthSquared() < minDistanceSq 
-			&& 0 < cut.t && cut.t < 1 && (direction *= tStep));
+        if ((cut.pt - ptT.pt).lengthSquared() >= minDistanceSq)
+            break;
+	} while ((direction *= tStep));
 	return cut;
 }
 

@@ -14,7 +14,7 @@
 #include "OpWinder.h"
 #include "PathOps.h"
 
-int OpCurveCurve::debugCcCall;  // which call to curve-curve was made
+int OpCurveCurve::debugCall;  // which call to curve-curve was made
 
 // !!! things to do:
 // decrement debug level (and indent) when dumping (for example) edges within an edge
@@ -323,6 +323,10 @@ void dmpHex(float f) {
     OpDebugOut(OpDebugDumpHex(f));
 }
 
+void dmpHex(uint32_t u) {
+    OpDebugOut(OpDebugIntToHex(u));
+}
+
 void dmpWidth(int width) {
     lineWidth = width;
 }
@@ -521,25 +525,28 @@ SectReasonName sectReasonNames[] {
     SECT_REASON_NAME(coinPtsMatch),
     SECT_REASON_NAME(curveCurveUnsectable),
     SECT_REASON_NAME(degenerateCenter),
-    SECT_REASON_NAME(divideAndConquer_oneT),
-    SECT_REASON_NAME(divideAndConquer_noEdgeToSplit),
-    SECT_REASON_NAME(divideAndConquer_noOppToSplit),
+    SECT_REASON_NAME(edgeCCDist),
 	SECT_REASON_NAME(edgeCCExact),
 	SECT_REASON_NAME(edgeCCHull),
 	SECT_REASON_NAME(edgeCCHullPair),
 	SECT_REASON_NAME(edgeCCNearly),
-	SECT_REASON_NAME(edgeCtrlMidHull),
+	SECT_REASON_NAME(edgeCtrlMid),
     SECT_REASON_NAME(edgeCurveCurve),
+    SECT_REASON_NAME(edgeLgT),
+    SECT_REASON_NAME(edgeSmT),
     SECT_REASON_NAME(endPt),
     SECT_REASON_NAME(inflection),
     SECT_REASON_NAME(lineCurve),
     SECT_REASON_NAME(missingCoincidence),
+    SECT_REASON_NAME(oppCCDist),
 	SECT_REASON_NAME(oppCCExact),
 	SECT_REASON_NAME(oppCCHull),
 	SECT_REASON_NAME(oppCCHullPair),
 	SECT_REASON_NAME(oppCCNearly),
-    SECT_REASON_NAME(oppCtrlMidHull),
+    SECT_REASON_NAME(oppCtrlMid),
 	SECT_REASON_NAME(oppCurveCurve),
+    SECT_REASON_NAME(oppLgT),
+    SECT_REASON_NAME(oppSmT),
     SECT_REASON_NAME(resolveCoin_windingChange),
     SECT_REASON_NAME(resolveCoin_oWindingChange),
     SECT_REASON_NAME(sharedEdge),
@@ -831,6 +838,7 @@ std::vector<LabelAbbr> labelAbbrs = {
     {"debugSplitEnd", "dbgSplitE", "spltE"},
     {"debugMaker", "dbgMkr", "mkr"},
     {"debugParentID", "dbgParent", "par"},
+    {"oppDist", "oDist", "d"},
 };
 
 std::string debugLabel(DebugLevel debugLevel, std::string label) {
@@ -852,7 +860,7 @@ std::string debugFloat(DebugBase debugBase, float value) {
     if (DebugBase::dec == debugBase || DebugBase::hexdec == debugBase) {
         if (s.size())
             s += " ";
-        s += OpDebugToString(value);
+        s += STR(value);
     }
     return s;
 }
@@ -1009,6 +1017,7 @@ ENUM_NAME(EdgeSplit, edgeSplit)
 	OP_X(lessRay) \
 	OP_X(moreRay) \
     OP_X(hulls) \
+	OP_X(oppEnd) \
 	OP_X(id) \
 	OP_X(unsectableID) \
 	OP_X(whichEnd) \
@@ -1464,6 +1473,16 @@ std::string OpEdge::debugDump(DebugLevel debugLevel, DebugBase debugBase) const 
         if (' ' == s.back()) s.pop_back();
         s += "] ";
     }
+    if (dumpIt(EdgeFilter::oppEnd) && !OpMath::IsNaN(oppEnd.t)) {
+        s += strPtT(EdgeFilter::oppEnd, "oppEnd", oppEnd, " ");
+        float dist = oppDist();
+        if (!OpMath::IsNaN(dist)) {
+            s += debugLabel(debugLevel, "oppDist") + ":";
+            if (dist >= OpEpsilon) // !!! make this an option of debug float or op debug str?
+                s += "+";
+            s += debugFloat(debugBase, dist) + " ";
+        }
+    }
     s += strID(EdgeFilter::unsectableID, "unsectableID", unsectableID);
     s += strEnum(EF::whichEnd, "whichEnd", EdgeMatch::none == which(), edgeMatchName(which()));
     s += strEnum(EF::rayFail, "rayFail", EdgeFail::none == rayFail, edgeFailName(rayFail));
@@ -1772,6 +1791,8 @@ void OpCurveCurve::dumpClosest(const OpPoint& originalPt) const {
     int iterations = 0;
     OpPointBounds eLast;
     OpPointBounds oLast;
+    const OpEdge* originalEdge = &seg->edges[0];
+    const OpEdge* originalOpp = &opp->edges[0];
     do {
         ++iterations;
         dc_ex = tMatch(originalEdge, XyChoice::inX, bestOPtT.pt, exd, "ex");
@@ -2058,7 +2079,7 @@ std::string OpTree::debugDump(DebugLevel l, DebugBase b) const {
     if (firstPt.isFinite())
         s += " firstPt:" + firstPt.debugDump(l, b);
     if (OpMath::IsFinite(bestPerimeter))
-        s += " bestPerimeter:" + OpDebugToString(bestPerimeter);
+        s += " bestPerimeter:" + debugFloat(b, bestPerimeter);
     if (baseIndex)
         s += " baseIndex:" + STR(baseIndex);
     if (totalUsed)
@@ -2123,6 +2144,7 @@ static CurveRefName curveRefNames[] {
 
 ENUM_NAME(CurveRef, curveRef)
 
+#if 0
 std::string CcSect::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     if (edge) {
@@ -2164,19 +2186,32 @@ std::string CcClose::debugDump(DebugLevel l, DebugBase b) const {
     s += "bestDist:" + STR(bestDist);
     return s;
 }
+#endif
 
-std::string FoundPtTs::debugDump(DebugLevel l, DebugBase b) const {
+std::string FoundLimits::debugDump(DebugLevel l, DebugBase b, int indent) const {
     std::string s;
-    s += "seg:" + seg.debugDump(l, b) + "\n";
-    s += "opp:" + opp.debugDump(l, b);
+    if (parentEdge)
+        s += "parentEdge:" + STR(parentEdge->id) + " ";
+    if (parentOpp)
+        s += "parentOpp:" + STR(parentOpp->id) + " ";
+    s += "seg:" + seg.debugDump(l, b);
+    s += " opp:" + opp.debugDump(l, b);
+    if (fromFoundT)
+        s += " fromFoundT";
+#if OP_DEBUG
+    if (parentEdge)
+        s += " edge:" + STR(parentEdge->id);
+    if (parentOpp)
+        s += " opp:" + STR(parentOpp->id);
+    s += " eReason:" + sectReasonName(eReason);
+	s += " oReason:" + sectReasonName(oReason);
+    s += " maker:" + maker.debugDump();
+#endif
     return s;
 }
 
 std::string FoundLimits::debugDump(DebugLevel l, DebugBase b) const {
-    std::string s;
-    s += "lo:" + lo.debugDump(l, b) + "\n";
-    s += "hi:" + hi.debugDump(l, b);
-    return s;
+    return debugDump(l, b, 0);
 }
 
 std::string CoinPair::debugDump(DebugLevel l, DebugBase b) const {
@@ -2206,43 +2241,50 @@ std::string SectRay::debugDump(DebugLevel debugLevel, DebugBase debugBase) const
     return s;
 }
 
-std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
+std::string CcCurves::debugDump(DebugLevel l, DebugBase b) const {
     // set up edge::debugDump to only show curvecurve relevant fields
     std::vector<EdgeFilter> showFields = { EF::id, EF::segment, EF::start, EF::end,
             EF::ccEnd, EF::ccLarge, EF::ccOverlaps, EF::ccSmall, EF::ccStart,
-            EF::hulls, EF::debugSplitStart, EF::debugSplitEnd, EF::debugMaker, EF::debugParentID };
+            EF::hulls, EF::oppEnd,
+            EF::debugSplitStart, EF::debugSplitEnd, EF::debugMaker, EF::debugParentID };
     OpSaveEF saveEF(showFields);
     std::string s;
     DebugLevel down1 = (DebugLevel) ((int) l - 1);
+    for (auto& edge : c)
+        s += edge->debugDump(down1, b) + "\n";
+    return s;
+}
+
+std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s;
+    DebugLevel down1 = (DebugLevel) ((int) l - 1);
+    const OpEdge* originalEdge = &seg->edges[0];
+    const OpEdge* originalOpp = &opp->edges[0];
     s += "originalEdge:" + originalEdge->debugDump(down1, b) + "\n";
     s += "originalOpp:" + originalOpp->debugDump(down1, b) + "\n";
     std::string names[] = { "edge curves", "opp curves" };
+    if (s.size() && '\n' != s.back())
+        s += "\n";
     int count = 0;
 	for (auto edgesPtrs : { &edgeCurves, &oppCurves } ) {
         const auto& edges = *edgesPtrs;
         if (edges.c.size()) {
-            int splitCount = 0;
-            for (auto& edge : edges.c)
-                splitCount += EdgeSplit::yes == edge->doSplit;
-            if (s.size() && '\n' != s.back())
-                s += "\n";
-            s += "-- " + names[count];
-            if (count < 2)
-                s += " split: " + STR(splitCount);
-            s += " --";
-            for (auto& edge : edges.c)
-                s += "\n" + edge->debugDump(down1, b);
+            s += "-- " + names[count] + ":" + STR(edges.c.size()) + " ---\n";
+            s += edges.debugDump(l, b);
         }
         ++count;
     }
-    if (ccSects.size())
-        s += "\n -- ccSects:" + STR(ccSects.size()) + " --\n";
-    for (const auto& ccSect : ccSects) {
-        s += ccSect.debugDump(down1, b, 0) + "\n";
+    if (s.size() && '\n' == s.back())
+        s.pop_back();
+    if (limits.size())
+        s += "\n -- limits:" + STR(limits.size()) + " --\n";
+    for (const auto& limit : limits) {
+        s += limit.debugDump(down1, b) + "\n";
     }
     addFilter(EF::hulls);
     if (s.back() != '\n')
         s += "\n";
+#if 0
     if (closeEdge.lo.e.edge || closeEdge.best.e.edge || closeEdge.hi.e.edge)
         s += " -- close edge --\n";
     if (closeEdge.lo.e.edge)
@@ -2253,11 +2295,16 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
         s += "hi:" + closeEdge.hi.debugDump(down1, b, 3) + "\n";
     if (OpMath::IsFinite(closeEdge.bestDist))
         s += "close bestDist:" + STR(closeEdge.bestDist) + "\n";
+#endif
     if (OpMath::IsFinite(snipEdge.t))
         s += "snipEdge:" + snipEdge.debugDump(down1, b) + "\n";
     if (OpMath::IsFinite(snipOpp.t))
         s += "snipOpp:" + snipOpp.debugDump(down1, b) + "\n";
     s += "depth:" + STR(depth);
+    if (addedPoint) 
+        s += " addedPoint";
+    if (rotateFailed) 
+        s += " rotateFailed";
     if (sectResult) 
         s += " sectResult";
     if (smallTFound) 
@@ -2275,8 +2322,8 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
 void OpCurveCurve::dumpDepth(int level) {
     std::vector<EdgeFilter> showFields = { EF::id, EF::segment, EF::start, EF::end, 
             EF::ccEnd, EF::ccLarge, EF::ccOverlaps, EF::ccSmall, EF::ccStart,
-            EF::hulls, EF::lineSet, EF::isClose_impl, EF::isLine_impl, EF::exactLine,
-            EF::debugMaker, EF::debugSplitStart, EF::debugSplitEnd, EF::debugParentID, 
+            EF::hulls, EF::oppEnd, EF::lineSet, EF::isClose_impl, EF::isLine_impl, EF::exactLine,
+            EF::debugSplitStart, EF::debugSplitEnd, EF::debugParentID, 
             EF::debugSetMaker };
     OpSaveEF saveEF(showFields);
     OpDebugOut("depth:" + STR(level) + "\n");
@@ -2698,6 +2745,13 @@ OpVector::OpVector(const char*& str) {
     OpDebugSkip(str, ", ");
     dy = OpDebugHexToFloat(str);
     OpDebugSkip(str, "}");
+}
+
+std::string OpHulls::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s;
+    for (auto& hull : h)
+        s += hull.debugDump(l, b) + "\n";
+    return s;
 }
 
 std::string OpVector::debugDump(DebugLevel debugLevel, DebugBase debugBase) const {

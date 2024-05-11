@@ -94,9 +94,6 @@ struct OpContour {
     EDGE_OR_SEGMENT_DETAIL
     #undef OP_X
 #endif
-#if OP_DEBUG_IMAGE
-    void draw() const;
-#endif
 
     OpContours* contours;
     std::vector<OpSegment> segments;
@@ -213,9 +210,6 @@ struct OpContours {
 #if OP_DEBUG_DUMP
     void debugCompare(std::string s) const;
     #include "OpDebugDeclarations.h"
-#endif
-#if OP_DEBUG_IMAGE
-    void draw() const;
 #endif
 
     OpInPath& leftIn;

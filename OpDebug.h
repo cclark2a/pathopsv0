@@ -32,8 +32,7 @@ float OpTicksToSeconds(uint64_t ticks, uint64_t frequency);
 inline std::string OpDebugStr(void* x) { return std::to_string((unsigned long long)(void**)x); }
 inline std::string OpDebugStr(int32_t x) { return std::to_string(x); }
 inline std::string OpDebugStr(size_t x) { return std::to_string(x); }
-std::string OpDebugToString(float value);
-inline std::string OpDebugStr(float x) { return OpDebugToString(x); }
+std::string OpDebugStr(float value);
 extern int debugPrecision;		// minus one means unset
 
 #endif
@@ -59,24 +58,30 @@ struct OpContours;
 #define OP_DEBUG_IMAGE 0
 #define OP_DEBUG_FAIL(object, returnValue) return returnValue
 #define OP_DEBUG_SUCCESS(object, returnValue) return returnValue
+#define OP_EXECUTE_AND_ASSERT(expr) (expr)
 #define OP_LINE_FILE_PARAMS(...)
+#define OP_LINE_FILE_NPARAMS(...)
+#define OP_LINE_FILE_STRUCT(...)
 #define OP_LINE_FILE_CALLER(...)
+#define OP_LINE_FILE_NP_CALLER(...)
 #define OP_LINE_FILE_DEF(...)
+#define OP_LINE_FILE_NP_DEF(...)
 #define OP_TRACK(vector)
 #define OP_WARNING(contours, str)
 
 #else
 
+
 #ifdef _WIN32
 #include <intrin.h>
 #define OP_DEBUG_BREAK() __debugbreak()
 #define OP_ASSERT(expr) do { if (!(expr)) __debugbreak(); } while (false)
-
 #else
 #define OP_DEBUG_BREAK() __builtin_trap()
 #define OP_ASSERT(expr) assert(expr)
 #endif
 
+#define OP_EXECUTE_AND_ASSERT(expr) OP_ASSERT(expr)
 #define OP_WARNING(contours, warn) contours->addDebugWarning(OpDebugWarning::warn)
 
 #if OP_DEBUG_FAST_TEST
@@ -112,8 +117,13 @@ struct OpContours;
 #include <string>
 
 #define OP_LINE_FILE_PARAMS(...) , __LINE__, std::string(__FILE__), __VA_ARGS__
+#define OP_LINE_FILE_NPARAMS(...) __LINE__, std::string(__FILE__), __VA_ARGS__
+#define OP_LINE_FILE_STRUCT(...) , { __FILE__, __LINE__ }, __VA_ARGS__
 #define OP_LINE_FILE_CALLER(...) , lineNo, fileName, __VA_ARGS__
+#define OP_LINE_FILE_NP_CALLER(...) lineNo, fileName, __VA_ARGS__
+#define OP_LINE_FILE_SCALLER(...) , { fileName, lineNo }, __VA_ARGS__
 #define OP_LINE_FILE_DEF(...) , int lineNo, std::string fileName, __VA_ARGS__
+#define OP_LINE_FILE_NP_DEF(...) int lineNo, std::string fileName, __VA_ARGS__
 
 // keep track of vector size to find reserve  !!! haven't decided whether or not to build this out
 #define OP_TRACK(v)
@@ -176,6 +186,7 @@ extern void playback();
 extern void record();
 #endif
 
+std::string OpDebugIntToHex(int32_t);
 std::string OpDebugDumpHex(float);
 int32_t OpDebugFloatToBits(float);
 float OpDebugHexToFloat(const char*& str);

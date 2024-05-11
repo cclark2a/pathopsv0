@@ -1128,8 +1128,15 @@ OpPoint testMinMax(OpPoint x, OpPoint y) {
 #endif
 
 void SkConicSubdivide();
+void CCTestKey(uint32_t );
+void CCTest();
 
 void OpTest(bool terminateEarly) {
+#if 0
+	CCTestKey(0x09b54c61);
+	CCTest();
+#endif
+
 //	SkConicSubdivide();
 #if 0
 	OpCubicErrorTest(CubicTest::ptAtT, SpeedTest::on);
@@ -1397,6 +1404,232 @@ void cubics44dDraw(SkCanvas* canvas) {
 		{ OpDebugBitsToFloat(0x4028aea9), OpDebugBitsToFloat(0x4082171f) }  // {2.63566, 4.06532}
 	};  // type:cubic t:  0.112702, 0.207849
 #endif
+}
+
+#include "OpCurveCurve.h"
+
+constexpr int maxOverlaps = 16;
+
+void SetupDebugImage() {
+#if OP_DEBUG_IMAGE
+	OpDebugImage::init();
+	hideOperands();
+	hideSegmentEdges();
+	showEdges();
+	showPoints();
+	showIDs();
+#endif
+}
+
+// Look for edge pairs which are close but do not cross, and which are difficult to divide into
+// nonoverlapping pieces. See if it is possible to know that some edges do not intersect if their
+// end normals increase in distance.
+static bool checkNormals(uint32_t key, int testDepth, OpCurveCurve& cc, const OpCurveCurve& ref) {
+	float priorDist = OpNaN;  // require three consecutive distances
+	float lastDist = OpNaN;
+	for (OpEdge* edge : cc.edgeCurves.c) {
+		if (!edge->ccOverlaps) {
+			priorDist = lastDist = OpNaN;
+			continue;
+		}
+		float dist = edge->oppDist();
+		if (OpMath::IsNaN(dist)) {
+			priorDist = lastDist = OpNaN;
+			continue;
+		}
+		if (dist * lastDist < 0) {
+			OP_ASSERT(ref.limits.size());  // confirm that intersection was found
+			return true;  // don't look further if crossing is detected
+		}
+		if (fabsf(dist) <= OpEpsilon) {
+			OP_ASSERT(ref.limits.size());  // confirm that intersection was found
+			return true;  // don't look further if crossing is detected
+		}
+		if (fabsf(priorDist) < fabsf(lastDist) && fabsf(lastDist) < fabsf(dist)) {
+			// verify that edge does not overlap a found sect
+			for (auto limit : ref.limits) {
+				if (edge->start.t <= limit.seg.t && limit.seg.t <= edge->end.t)
+					OP_ASSERT(0);
+			}
+		}
+		priorDist = lastDist;
+		lastDist = dist;
+	}
+
+#if 0
+		if (!key || dist * lastDist < 0) { // signs differ
+			if (key)
+				SetupDebugImage();
+		#if OP_DEBUG_IMAGE
+			resetFocus();
+		#endif
+			if (key) OpDebugOut("key:" + OpDebugIntToHex(key)
+					+ " testDepth:" + STR(testDepth)
+					+ " depth:" + STR(cc.depth) + "\n");
+			if (5 <= cc.depth)
+				OpDebugOut("");
+			return true;
+		}
+		lastDist = dist;
+#endif
+
+	return false;
+}
+
+static void testCc(uint32_t key, OpSegment* seg, OpSegment* opp) {
+	SetupDebugImage();
+	OpCurveCurve reference(seg, opp);
+	SectFound refResult = reference.divideAndConquer();
+	if (SectFound::fail == refResult) {
+		OP_ASSERT(reference.edgeCurves.c.size() >= 4);  // if less, assert to understand why
+		OP_ASSERT(reference.oppCurves.c.size() >= 4);  // if less, assert to understand why
+		// compute all oppEnd values
+		auto checkDist = [](CcCurves& curves) {
+			// verify that edges in oppEnd values imply opp dists that diverge from zero 
+			float lastDist = curves.c[0]->oppDist();
+			for (size_t index = 1; index < curves.c.size(); ++index) {
+				float dist = curves.c[index]->oppDist();
+				OP_ASSERT(!lastDist || lastDist * dist > 0);
+				OP_ASSERT(!lastDist || fabsf(lastDist) < fabsf(dist));
+				lastDist = dist;
+			}
+		};
+		reference.edgeCurves.endDist(seg, opp);
+		checkDist(reference.edgeCurves);
+		reference.oppCurves.endDist(opp, seg);
+		checkDist(reference.oppCurves);
+	}
+    if (SectFound::add == refResult || reference.limits.size())
+        reference.findUnsectable();
+    OpCurveCurve cc(seg, opp);
+	int testDepth = 0;
+	for (cc.depth = 1; cc.depth < cc.maxDepth; ++cc.depth) {
+		cc.edgeCurves.endDist(cc.seg, cc.opp);
+		cc.oppCurves.endDist(cc.opp, cc.seg);
+		if (!cc.setOverlaps()) {
+			OP_ASSERT(0);   // !!! I want to see this happen...
+			continue;
+		}
+		int edgeOverlaps = cc.edgeCurves.overlaps();
+		int oppOverlaps = cc.oppCurves.overlaps();
+		if (!edgeOverlaps || !oppOverlaps)
+			return;
+		if (2 < edgeOverlaps) {
+			++testDepth;
+			if (checkNormals(key, testDepth, cc, reference))
+				break;
+		}
+		if (edgeOverlaps > maxOverlaps || oppOverlaps > maxOverlaps)
+			return;
+		CcCurves eSplits, oSplits;
+		cc.splitHulls(CurveRef::edge, eSplits);
+		cc.splitHulls(CurveRef::opp, oSplits);
+		cc.edgeCurves.c.swap(eSplits.c);
+		cc.oppCurves.c.swap(oSplits.c);
+	}
+}
+
+void CCTest() {
+	struct IntPt {
+		int x;
+		int y;
+	} p1[3], p2[3];
+	SkPath ska, skb;
+	OpInPath ia(&ska), ib(&skb);
+#define FIRST_A_VALUE 1  // set to zero for full test
+	for (int a = FIRST_A_VALUE; a < 16; ++a) {
+		p1[0] = { a & 0x03, a >> 2 };
+        for (int b = a ; b < 16; ++b) {
+			p1[1] = { b & 0x03, b >> 2 };
+            for (int c = b ; c < 16; ++c) {
+				p1[2] = { c & 0x03, c >> 2 };
+				OpPoint f1[3] = { { (float) p1[0].x, (float) p1[0].y }, 
+								  { (float) p1[1].x, (float) p1[1].y }, 
+							      { (float) p1[2].x, (float) p1[2].y } };
+				for (int e = 0 ; e < 16; ++e) {
+					for (int f = e ; f < 16; ++f) {
+						p2[0] = { f & 0x03, f >> 2 };
+						for (int g = f ; g < 16; ++g) {
+							p2[1] = { g & 0x03, g >> 2 };
+							for (int h = g ; h < 16; ++h) {
+								p2[2] = { h & 0x03, h >> 2 };
+								OpPoint f2[3] = { { (float) p2[0].x, (float) p2[0].y }, 
+												  { (float) p2[1].x, (float) p2[1].y }, 
+												  { (float) p2[2].x, (float) p2[2].y } };
+								if (f1[0] == f1[2] || f2[0] == f2[2])
+									continue;
+							OpContours contours(ia, ib, OpOperator::Intersect);
+						#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
+							debugGlobalContours = &contours;
+						#endif
+							OpContour* head = contours.makeContour(OpOperand::left);
+								if (!head->addQuad(f1))
+									continue;
+								size_t qCount = head->segments.size();
+								if (!head->addQuad(f2))
+									continue;
+								contours.finishAll();
+								for (size_t cq = 0; cq < qCount; ++cq) {
+									if (OpType::quad != head->segments[cq].c.type)
+										continue;
+									for (size_t cr = qCount; cr < head->segments.size(); ++cr) {
+										if (OpType::quad != head->segments[cr].c.type)
+											continue;
+										OP_ASSERT(cq < 4 && cr < 4);
+										uint32_t key = a | (b << 4) | (c << 8)
+												| (f << 12) | (g << 16) | (h << 20) 
+												| (cq << 24) | (cr << 26);
+										testCc(key, &head->segments[cq], &head->segments[cr]);
+									}
+								}
+							}
+						}
+					}
+                }
+            }
+        }
+    }
+}
+
+void CCTestKey(uint32_t key) {
+	struct IntPt {
+		int x;
+		int y;
+	} p1[3], p2[3];
+	SkPath ska, skb;
+	OpInPath ia(&ska), ib(&skb);
+	int a = key & 0xF;
+	p1[0] = { a & 0x03, a >> 2 };
+	int b = (key >> 4) & 0xF;
+	p1[1] = { b & 0x03, b >> 2 };
+	int c = (key >> 8) & 0xF;
+	p1[2] = { c & 0x03, c >> 2 };
+	OpPoint f1[3] = { { (float) p1[0].x, (float) p1[0].y }, 
+						{ (float) p1[1].x, (float) p1[1].y }, 
+						{ (float) p1[2].x, (float) p1[2].y } };
+	int f = (key >> 12) & 0xF;
+	p2[0] = { f & 0x03, f >> 2 };
+	int g = (key >> 16) & 0xF;
+	p2[1] = { g & 0x03, g >> 2 };
+	int h = (key >> 20) & 0xF;
+	p2[2] = { h & 0x03, h >> 2 };
+	OpPoint f2[3] = { { (float) p2[0].x, (float) p2[0].y }, 
+						{ (float) p2[1].x, (float) p2[1].y }, 
+						{ (float) p2[2].x, (float) p2[2].y } };
+	OP_ASSERT(f1[0] != f1[2] && f2[0] != f2[2]);
+	OpContours contours(ia, ib, OpOperator::Intersect);
+#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
+	debugGlobalContours = &contours;
+#endif
+	OpContour* head = contours.makeContour(OpOperand::left);
+	OP_EXECUTE_AND_ASSERT(head->addQuad(f1));
+	OP_EXECUTE_AND_ASSERT(head->addQuad(f2));
+	contours.finishAll();
+	size_t cq = (key >> 24) & 0x3;
+	OP_ASSERT(OpType::quad == head->segments[cq].c.type);
+	size_t cr = (key >> 26) & 0x3;
+	OP_ASSERT(OpType::quad == head->segments[cr].c.type);
+	testCc(0, &head->segments[cq], &head->segments[cr]);
 }
 
 #endif

@@ -509,6 +509,9 @@ bool OpJoiner::detachIfLoop(OpEdge* e, EdgeMatch loopMatch) {
 
 bool OpJoiner::linkRemaining(OP_DEBUG_CODE(const OpContours* debugContours)) {
 	OP_DEBUG_CONTEXT();
+#if OP_DEBUG_IMAGE
+	debugImage();
+#endif
     OP_DEBUG_CODE(debugMatchRay(debugContours));
 	linkPass = LinkPass::remaining;
 	// match links may add or remove from link ups. Iterate as long as link ups is not empty

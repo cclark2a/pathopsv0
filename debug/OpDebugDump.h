@@ -25,10 +25,10 @@ void dumpHex() const override;
 // removed OP_X(ExtremaT) for now
 // removed OP_X(LoopCheck) for now
 #define VECTOR_STRUCTS \
-OP_X(CcSects) \
 OP_X(CoinPair) \
 OP_X(EdgeDistance) \
 OP_X(FoundEdge) \
+OP_X(FoundLimits) \
 OP_X(HullSect) \
 OP_X(OpContour) \
 OP_X(OpEdge) \
@@ -37,15 +37,14 @@ OP_X(OpPtT) \
 OP_X(OpSegment)
 
 #define OP_STRUCTS \
-OP_X(CcClose) \
-OP_X(FoundPtTs) \
-OP_X(FoundLimits) \
+OP_X(CcCurves) \
 OP_X(LinePts) \
 OP_X(LinkUps) \
 OP_X(OpContours) \
 OP_X(OpCurve) \
 OP_X(OpCurveCurve) \
 OP_X(OpEdgeStorage) \
+OP_X(OpHulls) \
 OP_X(OpIntersections) \
 OP_X(OpInPath) \
 OP_X(OpJoiner) \
@@ -259,6 +258,7 @@ extern void dmpColor(const OpEdge* );
 extern void dmpColor(const OpEdge& );
 extern void dmpFilters();  // returns current filter settings
 extern void dmpHex(float );
+extern void dmpHex(uint32_t );
 extern void dmpLevel(int  );  // set to brief, normal, detailed
 extern void dmpPlayback(FILE* );
 extern void dmpRecord(FILE * );

@@ -1250,8 +1250,7 @@ void DebugOpDrawT(bool inHex) {
         if (OpMath::IsNaN(point.t))
             continue;
         OpPoint pt = DebugOpMap(point);
-        std::string ptStr = inHex ? OpDebugDumpHex(point.t) : 
-                OpDebugToString((float) point.t);
+        std::string ptStr = inHex ? OpDebugDumpHex(point.t) : STR((float) point.t);
         (void) OpDebugImage::drawValue(pt, ptStr);
     }
 }
@@ -1260,9 +1259,9 @@ void DebugOpDrawValue(bool inHex) {
     for (auto& point : debugPoints) {
         OpPoint pt = DebugOpMap(point);
         std::string ptStr = "(";
-        ptStr += inHex ? OpDebugDumpHex(point.x) : OpDebugToString((float) point.x);
+        ptStr += inHex ? OpDebugDumpHex(point.x) : STR((float) point.x);
         ptStr += ", ";
-        ptStr += inHex ? OpDebugDumpHex(point.y) : OpDebugToString((float) point.y);
+        ptStr += inHex ? OpDebugDumpHex(point.y) : STR((float) point.y);
         ptStr += ")";
         (void) OpDebugImage::drawValue(pt, ptStr);
     }

@@ -127,7 +127,7 @@ struct OpCurve {
     OpRoots axisRayHit(Axis offset, float axisIntercept, float start = 0, float end = 1) const;
     float center(Axis offset, float axisIntercept) const;
 //    int closest(OpPtT* best, float delta, OpPoint pt) const;
-    OpPtT cut(const OpPtT& ptT, float direction) const;
+    OpPtT cut(const OpPtT& ptT, float loBounds, float hiBounds, float direction) const;
     CutRangeT cutRange(const OpPtT& ptT, float loEnd, float hiEnd) const;
     OpPoint doublePtAtT(float t) const;
     OpPtT findIntersect(Axis offset, const OpPtT& ) const;

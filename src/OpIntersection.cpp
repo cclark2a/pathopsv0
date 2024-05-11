@@ -62,7 +62,7 @@ void OpIntersections::makeEdges(OpSegment* segment) {
         const OpIntersection& sect = *sectPtr;
         if (sect.ptT.t != last->ptT.t) {
             segment->edges.emplace_back(segment, last->ptT, sect.ptT
-                    OP_DEBUG_PARAMS(EDGE_MAKER(makeEdges), last, sectPtr));
+                    OP_LINE_FILE_PARAMS(EdgeMaker::makeEdges, last, sectPtr));
             OpEdge& newEdge = segment->edges.back();
             if (unsectables.size()) {
                 const OpIntersection* unsectable = unsectables.back();

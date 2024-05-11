@@ -118,7 +118,7 @@ std::vector<std::string> skipTestFiles = { TEST_PATH_OP_SKIP_FILES };
 std::vector<std::string> skipRestFiles = { TEST_PATH_OP_SKIP_REST };
 std::string testFirst = OP_DEBUG_FAST_TEST || TEST_PATH_OP_SKIP_TO_V0 
         ? "" : TEST_PATH_OP_FIRST;
-bool runOneFile = (TEST_PATH_OP_FIRST || TEST_PATH_OP_SKIP_TO_V0) && !OP_DEBUG_FAST_TEST;
+bool runOneFile = (strlen(TEST_PATH_OP_FIRST) || TEST_PATH_OP_SKIP_TO_V0) && !OP_DEBUG_FAST_TEST;
 std::string skipToFile = TEST_PATH_OP_SKIP_TO_V0 && !OP_DEBUG_FAST_TEST 
         ? "v0" : TEST_PATH_OP_SKIP_TO_FILE;
 std::atomic_int testIndex; 

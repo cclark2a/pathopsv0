@@ -125,12 +125,10 @@ bool OpRect::isFinite() const {
         && OpMath::IsFinite(right) && OpMath::IsFinite(bottom);
 }
 
-const OpRect& OpRect::outsetClose() {
-	left = OpMath::CloseSmaller(left);
-	top = OpMath::CloseSmaller(top);
-	right = OpMath::CloseLarger(right);
-	bottom = OpMath::CloseLarger(bottom);
-    return *this;
+OpRect OpRect::outsetClose() const {
+    OpRect result = { OpMath::CloseSmaller(left), OpMath::CloseSmaller(top),
+	        OpMath::CloseLarger(right), OpMath::CloseLarger(bottom) };
+    return result;
 }
 
 bool OpPtT::isNearly(const OpPtT& o) const {

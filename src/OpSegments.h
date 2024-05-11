@@ -21,9 +21,6 @@ struct OpSegments {
 #if OP_DEBUG_DUMP
     #include "OpDebugDeclarations.h"
 #endif
-#if OP_DEBUG_IMAGE
-    void draw() const;
-#endif
 
     std::vector<OpSegment*> inX;
 };

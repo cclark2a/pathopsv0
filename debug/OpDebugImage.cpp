@@ -521,8 +521,12 @@ void OpDebugImage::drawDoubleFocus() {
 				uint32_t color = black;
 				if (edge->disabled)
 					color = red;
-				else if (edgeIter.isCurveCurve)
-					color = edgeIter.isOpp ? 0xFFFFA500 : 0xFF008000;  // orange, dark green
+				else if (edgeIter.isCurveCurve) {
+					if (edge->ccOverlaps)
+						color = edgeIter.isOpp ? orange : darkGreen;
+					else
+						color = purple;
+				}
 				DebugOpDrawEdgeID(edge, color);
 			}
 			if (drawNormalsOn)
@@ -654,7 +658,7 @@ void OpDebugImage::drawGrid() {
 		offscreen.drawLine(sx, topS, sx, bottomS, paint);
 		if (!drawValuesOn)
 			return;
-		std::string xValStr = drawHexOn ? OpDebugDumpHex(fx) : OpDebugToString(fx);
+		std::string xValStr = drawHexOn ? OpDebugDumpHex(fx) : STR(fx);
 		offscreen.drawString(SkString(xValStr), sx + xOffset, bitmapWH - xOffset - 3, 
 				labelFont, textPaint);
 
@@ -687,7 +691,7 @@ void OpDebugImage::drawGrid() {
 		offscreen.drawLine(leftS, sy, rightS, sy, paint);
 		if (!drawValuesOn)
 			return;
-		std::string yValStr = drawHexOn ? OpDebugDumpHex(fy) : OpDebugToString(fy);
+		std::string yValStr = drawHexOn ? OpDebugDumpHex(fy) : STR(fy);
 		offscreen.save();
 		if (last)
 			sy -= 14;
@@ -1670,26 +1674,8 @@ void colorLink(int id, uint32_t color) {
 	colorLink((OpEdge*) findEdge(id), color);
 }
 
-void OpContour::draw() const {
-	if (!drawSegmentsOn && !drawEdgesOn)
-		drawEdgesOn = true;
-	OpDebugImage::drawDoubleFocus();
-}
-
-void OpContours::draw() const {
-	if (!drawSegmentsOn && !drawEdgesOn)
-		drawEdgesOn = true;
-	OpDebugImage::drawDoubleFocus();
-}
-
 void OpEdge::color(uint32_t c) {
 	debugColor = c;
-	OpDebugImage::drawDoubleFocus();
-}
-
-void OpEdge::draw() {
-	debugDraw = true;
-	DRAW_IDS_ON(Edges);
 	OpDebugImage::drawDoubleFocus();
 }
 
@@ -1730,6 +1716,7 @@ void OpWinder::debugDraw() {
 	OpDebugImage::focusEdges();
 }
 
+#if 0
 void OpCurveCurve::draw() const {
 	if (!edgeCurves.c.size())
 		return OpDebugOut("OpCurveCurve missing edgeCurves\n");
@@ -1741,6 +1728,7 @@ void OpCurveCurve::draw() const {
 	DRAW_IDS_ON(Edges);
 	OpDebugImage::drawDoubleFocus(focusRect, false);
 }
+#endif
 
 bool OpDebugImage::drawEdgeNormal(OpVector norm, OpPoint midTPt, int edgeID, uint32_t color) {
 	OpLine normal(midTPt, midTPt + norm);
@@ -1954,6 +1942,7 @@ bool OpSegment::debugContains(const OpEdge* edge) const {
 	return false;
 }
 
+#if 0
 void OpInPath::draw() const {
 	drawLeftOn = drawRightOn = true;
 	OpDebugImage::drawDoubleFocus();
@@ -1963,6 +1952,7 @@ void OpOutPath::draw() const {
 	drawPathsOutOn = true;
 	OpDebugImage::drawDoubleFocus();
 }
+#endif
 
 OpPoint OpDebugImage::find(int id, float t) {
 	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
@@ -2084,17 +2074,31 @@ void help() {
 
 void resetFocus() {
 	OpPointBounds focusRect;
-	for (unsigned index = 0; index < 2; ++index) {
-        OpInPath& inPath = index ? debugGlobalContours->rightIn : debugGlobalContours->leftIn;
-		SkRect skrect = ((SkPath*) inPath.externalReference)->getBounds();
-		focusRect.left = std::min(skrect.fLeft, focusRect.left);
-		focusRect.top = std::min(skrect.fTop, focusRect.top);
-		focusRect.right = std::max(skrect.fRight, focusRect.right);
-		focusRect.bottom = std::max(skrect.fBottom, focusRect.bottom);
+	if (!drawSegmentsOn && !drawLeftOn && !drawRightOn && drawEdgesOn) {
+		int saveLevel = edgeIterDvLevel;
+		edgeIterDvLevel = std::max(0, edgeIterDvLevel);
+		for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+			const OpEdge* edge = *edgeIter;
+			if (!edge->debugDraw)
+				continue;
+			focusRect.add(edge->ptBounds);
+		}
+		edgeIterDvLevel = saveLevel;
 	}
-	if (focusRect.isFinite())
+	if (!focusRect.isFinite()) {
+		for (unsigned index = 0; index < 2; ++index) {
+			OpInPath& inPath = index ? debugGlobalContours->rightIn : debugGlobalContours->leftIn;
+			SkRect skrect = ((SkPath*) inPath.externalReference)->getBounds();
+			focusRect.left = std::min(skrect.fLeft, focusRect.left);
+			focusRect.top = std::min(skrect.fTop, focusRect.top);
+			focusRect.right = std::max(skrect.fRight, focusRect.right);
+			focusRect.bottom = std::max(skrect.fBottom, focusRect.bottom);
+		}
+	}
+	if (focusRect.isFinite()) {
 		OpDebugImage::drawDoubleFocus(focusRect, false);
-	else
+		oo();
+	} else
 		OpDebugOut("operand bounds are not finite\n");
 }
 
