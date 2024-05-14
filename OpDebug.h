@@ -142,7 +142,7 @@ struct OpContours;
 
 #if OP_DEBUG_DUMP
 #undef OP_DEBUG_CONTEXT
-#define OP_DEBUG_CONTEXT(context) \
+#define OP_DEBUG_CONTEXT() \
 	debugContext = __func__
 
 #define OpDebugPlayback(opObject, ID) \

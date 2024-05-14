@@ -613,12 +613,13 @@ SectFound OpCurveCurve::divideAndConquer() {
 			oppCurves.snipAndGo(opp, snipOpp);
 		}
 	// !!! not sure what this is trying to do
-		start here;
+//		start here;
 		// bails when there are two intersections to find but only one found
-		if (limitsSize > 0 && smallTFound + largeTFound == 0
+#if 0
+        if (limitsSize > 0 && smallTFound + largeTFound == 0
 				&& edgeCurves.groupCount() <= 1 && oppCurves.groupCount() <= 1)
 			return SectFound::add;
-
+#endif
 	}
 	// !!! comment out only while debugging unit test
 //	OP_ASSERT(0);  // !!! if this occurs likely more code is needed
