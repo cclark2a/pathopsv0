@@ -100,6 +100,7 @@ struct OpSegment {
     void debugValidate() const;
 #endif
 #if OP_DEBUG_DUMP
+    OpSegment();
     void dumpCount() const;
     #define OP_X(Thing) \
     std::string debugDump##Thing() const; \

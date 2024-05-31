@@ -56,6 +56,10 @@ inline MatchEnds operator!(MatchEnds a) {
 }
 
 struct MatchReverse {
+#if OP_DEBUG_DUMP
+    DUMP_DECLARATIONS
+#endif
+
     MatchEnds match;
     bool reversed;
 };
@@ -334,7 +338,6 @@ struct OpVector {
         float base = length(); return OpVector(dx * len / base, dy * len / base); }
 
 #if OP_DEBUG_DUMP
-    OpVector(const char*& );
     DUMP_DECLARATIONS
 #endif
 
@@ -500,7 +503,6 @@ struct OpPoint {
     }
 
 #if OP_DEBUG_DUMP
-    OpPoint(const char*& );
     DUMP_DECLARATIONS
 #endif
 
@@ -579,6 +581,7 @@ struct OpRect {
     virtual void dumpBrief() const;
     virtual void dumpDetailed() const;
     virtual void dumpHex() const;
+    virtual void dumpSet(const char*& );
 #endif
 
 #if OP_DEBUG_VALIDATE
@@ -631,7 +634,6 @@ struct OpPtT {
     }
 
 #if OP_DEBUG_DUMP
-    OpPtT(const char*& );
     DUMP_DECLARATIONS
 #endif
 

@@ -6,13 +6,19 @@
 
 #include <vector>
 
+struct OpContours;
+OpContours* dumpInit(const OpContours*);
+
 #define DUMP_DECLARATIONS \
 std::string debugDump(DebugLevel , DebugBase ) const; \
 void dump() const; \
 void dump(DebugLevel, DebugBase ) const; \
 void dumpBrief() const; \
 void dumpDetailed() const; \
-void dumpHex() const;
+void dumpHex() const; \
+void dumpResolveAll(OpContours* ); \
+void dumpSet(const char*& );
+
 
 #define DUMP_DECLARATIONS_OVERRIDE \
 std::string debugDump(DebugLevel , DebugBase ) const override; \
@@ -20,13 +26,15 @@ void dump() const override; \
 void dump(DebugLevel, DebugBase ) const override; \
 void dumpBrief() const override; \
 void dumpDetailed() const override; \
-void dumpHex() const override;
+void dumpHex() const override; \
+void dumpSet(const char*& ) override;
 
 // removed OP_X(ExtremaT) for now
 // removed OP_X(LoopCheck) for now
 #define VECTOR_STRUCTS \
 OP_X(CoinPair) \
 OP_X(EdgeDistance) \
+OP_X(EdgeRun) \
 OP_X(FoundEdge) \
 OP_X(FoundLimits) \
 OP_X(HullSect) \
@@ -71,6 +79,7 @@ OP_X(SectRay)
 OP_X(OpEdge*) \
 OP_X(const OpEdge*) \
 OP_X(OpIntersection*) \
+OP_X(const OpIntersection*) \
 OP_X(OpSegment*)
 
 #define OP_X(Thing) \
@@ -201,6 +210,7 @@ extern void dmpCoincidences();
 extern void dmpCoins();
 extern void dmpDisabled();
 extern void dmpEdges();
+extern void dmpFile();
 extern void dmpInOutput();
 extern void dmpIntersections();
 extern void dmpJoin();
@@ -208,6 +218,8 @@ extern void dmpSects();
 extern void dmpSegments();
 extern void dmpUnsectable();
 extern void dmpUnsortable();
+extern void fromFile();
+extern void verifyFile();
 
 #if OP_DEBUG_VERBOSE
 extern void dmpDepth(int level);  // curve-curve intermediate edges created at some recursive depth
@@ -235,6 +247,7 @@ enum class DebugLevel {
 	brief,
 	normal,
 	detailed,
+	file,
     error      // displays uninitialized and error conditions like nan and infinities
 };
 

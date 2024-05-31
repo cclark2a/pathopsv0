@@ -117,7 +117,6 @@ struct OpIntersection {
 	void debugValidate() const;
 #endif
 #if OP_DEBUG_DUMP
-	OpIntersection(std::string);
 	void debugCompare(std::string) const;
     #define OP_X(Thing) \
     std::string debugDump##Thing() const; \
@@ -177,6 +176,14 @@ struct OpSectStorage {
 		: next(nullptr)
 		, used(0) {
 	}
+#if OP_DEBUG_DUMP
+	size_t debugCount() const;
+	OpIntersection* debugFind(int id) const;
+	OpIntersection* debugIndex(int index) const;
+	static void DumpSet(const char*& , OpContours* );
+	DUMP_DECLARATIONS
+#endif
+
 	OpSectStorage* next;
 	OpIntersection storage[256];
 	int used;

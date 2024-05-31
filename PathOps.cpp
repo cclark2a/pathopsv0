@@ -2,7 +2,7 @@
 #include "OpContour.h"
 #include "PathOps.h"
 
-bool PathOps(OpInPath left, OpInPath right, OpOperator opOperator, OpOutPath result) {
+bool PathOps(OpInPath& left, OpInPath& right, OpOperator opOperator, OpOutPath& result) {
     OpContours contourList(left, right, opOperator);
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = &contourList;
@@ -16,7 +16,7 @@ bool PathOps(OpInPath left, OpInPath right, OpOperator opOperator, OpOutPath res
 
 #if OP_DEBUG
 // entry point if operation success is already known
-bool DebugPathOps(OpInPath left, OpInPath right, OpOperator opOperator, OpOutPath result,
+bool DebugPathOps(OpInPath& left, OpInPath& right, OpOperator opOperator, OpOutPath& result,
         OpDebugExpect expected, std::string testname, std::vector<OpDebugWarning>& warn) {
     OpContours contourList(left, right, opOperator);
     contourList.debugExpect = expected;

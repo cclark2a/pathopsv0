@@ -3,8 +3,8 @@
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
 #define TEST_PATH_OP_FIRST "" // e.g., "thread_cubics2247347" (ignored by fast test)
-#define TEST_PATH_OP_SKIP_TO_V0 0 // if 1 & not fast test, ignore skip to file; run first "v0" test
-#define TEST_PATH_OP_SKIP_TO_FILE "v0" // e.g., "quad" tests only (see testSuites below)
+#define TEST_PATH_OP_SKIP_TO_V0 1 // if 1 & not fast test, ignore skip to file; run first "v0" test
+#define TEST_PATH_OP_SKIP_TO_FILE "quad" // e.g., "quad" tests only (see testSuites below)
 #define TESTS_TO_SKIP 0 // 7000000  // tests to skip
 
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
@@ -55,6 +55,11 @@ issue3517 no edge found: last, last resort
 fuzzhang_1: succeeds in skia, fails in v0 (investigate)
 
 */
+
+#if !OP_TINY_SKIA
+const void* dummyLeft;
+const void* dummyRight;
+#endif
 
 
 #if OP_TINY_SKIA

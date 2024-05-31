@@ -267,6 +267,7 @@ struct EdgeDistance {
 	EdgeDistance(OpEdge* e, float c, float tIn, bool r);
 
 #if OP_DEBUG_DUMP
+	EdgeDistance() {}
 	DUMP_DECLARATIONS
 #endif
 
@@ -341,6 +342,7 @@ struct HullSect {
 		, type(st) {
 	}
 #if OP_DEBUG_DUMP
+	HullSect() {}
 	DUMP_DECLARATIONS
 #endif
 	const OpEdge* opp;
@@ -441,7 +443,9 @@ enum class EdgeMaker {
 constexpr float OP_CURVACIOUS_LIMIT = 1.f / 16;  // !!! tune to guess line/line split ratio
 
 struct OpEdge {
+#if !OP_DEBUG_DUMP
 private:
+#endif
 	OpEdge()	// note : not all release values are zero (which end, wind zero, opp dist)
 		: priorEdge(nullptr)
 		, nextEdge(nullptr)
@@ -475,14 +479,12 @@ private:
 		, ccStart(false)
 		, centerless(false)
 		, windPal(false)
-		, visited(false)
+		, startSeen(false)
+		, endSeen(false)
 	{
 #if OP_DEBUG // a few debug values are also nonzero
         id = 0;
         segment = nullptr;
-//		curvy = OpNaN;
-		debugSplitStart = SectType::none;
-		debugSplitEnd = SectType::none;
 		debugStart = nullptr;
 		debugEnd = nullptr;
 		debugMatch = nullptr;
@@ -502,7 +504,7 @@ private:
 	}
 public:
 	OpEdge(OpSegment* s, const OpPtT& t1, const OpPtT& t2
-			OP_LINE_FILE_DEF(EdgeMaker maker, const OpIntersection* i1, const OpIntersection* i2))
+			OP_LINE_FILE_DEF(EdgeMaker maker, OpIntersection* i1, OpIntersection* i2))
 		: OpEdge() {
 		segment = s;
 		start = t1;
@@ -566,7 +568,7 @@ public:
 			std::vector<FoundEdge>& , AllowPals , AllowClose );
 	OpEdge* nextOut();
 	NormalDirection normalDirection(Axis axis, float t);
-	float oppDist() const;
+//	float oppDist() const;
 	void output(OpOutPath& path, bool closed);  // provided by the graphics implmentation
 	OpPtT ptT(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? start : end; }
@@ -607,7 +609,6 @@ public:
 	bool debugFail() const;
     bool debugSuccess() const;
 #if OP_DEBUG_DUMP
-	OpEdge(std::string );
 	void debugCompare(std::string ) const;
 	std::string debugDumpCenter(DebugLevel , DebugBase ) const;
 	std::string debugDumpLink(EdgeMatch , DebugLevel , DebugBase ) const;
@@ -635,7 +636,7 @@ public:
 	void drawLink();
 #endif
 
-	const OpSegment* segment;
+	OpSegment* segment;
 	SectRay ray;
 	OpEdge* priorEdge;	// edges that link to form completed contour
 	OpEdge* nextEdge;
@@ -660,7 +661,7 @@ public:
 	std::vector<OpEdge*> moreRay;  // edges found placed with larger edge distance cept values
 	OpHulls hulls;  // curve-curve intersections
 //	float curvy;  // rough ratio of midpoint line point line to length of end point line
-	OpPtT oppEnd;  // pt and t for closest point on opposite curve from end point
+//	OpPtT oppEnd;  // pt and t for closest point on opposite curve from end point
 	int id;
 	int unsectableID;	// used to pair unsectable intersections and find edges between
 	EdgeMatch whichEnd_impl;  // if 'start', prior end equals start; if 'end' prior end matches end
@@ -687,12 +688,11 @@ public:
 	bool ccStart;  // set if edge start is closest to already found curve-curve intersection
 	bool centerless;  // center could not be computed (likely edge is too small)
 	bool windPal;  // winding could not computed because of pal
-	bool visited;  // experimental tree to track adding edges to output
+	bool startSeen;  // experimental tree to track adding edges to output
+	bool endSeen;  // experimental tree to track adding edges to output
 #if OP_DEBUG
-	SectType debugSplitStart;
-	SectType debugSplitEnd;
-	const OpIntersection* debugStart;
-	const OpIntersection* debugEnd;
+	OpIntersection* debugStart;
+	OpIntersection* debugEnd;
 	OpEdge* debugMatch;  // left side of nonzero ray from this edge
 	OpEdge* debugZeroErr;  // debug match ray found edge that does not match -- diagnostic for now
 	EdgeMaker debugMaker;
@@ -712,6 +712,14 @@ public:
 };
 
 // allocating storage separately allows filler edges to be immobile and have reliable pointers
+// !!! fix this to resemble sect storage, which has array of structs instead of array of bytes
+#if OP_DEBUG_DUMP
+enum class DumpStorage {
+	cc,
+	filler,
+};
+#endif
+
 struct OpEdgeStorage {
 	OpEdgeStorage()
 		: next(nullptr)
@@ -721,8 +729,9 @@ struct OpEdgeStorage {
 	bool contains(OpIntersection* start, OpIntersection* end) const;
 #if OP_DEBUG_DUMP
 	size_t debugCount() const;
-	const OpEdge* debugFind(int id) const;
-	const OpEdge* debugIndex(int index) const;
+	OpEdge* debugFind(int id) const;
+	OpEdge* debugIndex(int index) const;
+	static void DumpSet(const char*& str, OpContours* , DumpStorage );
 	DUMP_DECLARATIONS
 #endif
 

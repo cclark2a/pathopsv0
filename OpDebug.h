@@ -173,6 +173,7 @@ struct OpDebugMaker {
 	}
 
 #if OP_DEBUG_DUMP
+	void dumpSet(const char*& );
 	std::string debugDump() const;
 #endif
 	std::string file;
@@ -186,12 +187,20 @@ extern void playback();
 extern void record();
 #endif
 
+int OpDebugCountDelimiters(const char* str, char delimiter, char openBracket, char closeBracket);
+void OpDebugExit(std::string);
+void OpDebugExitOnFail(std::string, bool );
 std::string OpDebugIntToHex(int32_t);
 std::string OpDebugDumpHex(float);
 int32_t OpDebugFloatToBits(float);
 float OpDebugHexToFloat(const char*& str);
 int32_t OpDebugHexToInt(const char*& str);
-void OpDebugSkip(const char*& str, const char* match);
+int OpDebugReadNamedInt(const char*& str, const char* label);
+std::string OpDebugLabel(const char*& str);
+bool OpDebugOptional(const char*& str, const char* match);
+float OpDebugReadNamedFloat(const char*& str, const char* label);
+size_t OpDebugReadSizeT(const char*& str);
+void OpDebugRequired(const char*& str, const char* match);
 extern int debugPrecision;		// minus one means unset
 #endif
 

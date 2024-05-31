@@ -11,10 +11,12 @@ void OpLimb::add(OpTree& tree, OpEdge* test, EdgeMatch m, LimbType limbType, siz
 	OP_ASSERT(!test->hasLinkTo(m) || test->pals.size() || test->unsortable);
 	if (test->whichPtT(m).pt != lastPt)
 		return;
-	if (test->visited)
+	if (edge == test)
 		return;
-	test->visited = true;
-	const OpEdge* last = tree.edge->lastEdge;
+	if (EdgeMatch::start == m ? test->startSeen : test->endSeen)
+		return;
+	(EdgeMatch::start == m ? test->startSeen : test->endSeen) = true;
+	OpEdge* last = tree.edge->lastEdge;
 	OP_ASSERT(last);
 	// OP_ASSERT(!test->isPal(last) || LimbType::linked != limbType);  // breaks pentrek10
 	// Edge direction and winding are tricky (see description at wind zero declaration.)
@@ -43,7 +45,7 @@ void OpLimb::add(OpTree& tree, OpEdge* test, EdgeMatch m, LimbType limbType, siz
 	if (childBounds.perimeter() > tree.bestPerimeter)
 		return;
 	OpContours& contours = *tree.contour.contours;
-	OpLimb* branch = contours.allocateLimb(tree);
+	OpLimb* branch = contours.allocateLimb(&tree);
 	branch->set(tree, test, this, m, limbType, limbIndex, otherEnd, &childBounds);
 #if OP_DEBUG
 	debugBranches.push_back(branch);
@@ -114,12 +116,6 @@ void OpLimb::foreach(OpJoiner& join, OpTree& tree, LimbType limbType) {
 	}
 	if (LimbType::disabled == limbType)
 		return;
-	if (!join.disabledPalsBuilt)  {
-		join.buildDisabledPals(*tree.contour.contours);
-		for (OpEdge* test : join.disabledPals) {
-			test->unlink();
-		}
-	}
 	for (OpEdge* test : join.disabledPals) {
 		add(tree, test, EdgeMatch::start, LimbType::disabledPals);
 		add(tree, test, EdgeMatch::end, LimbType::disabledPals);
@@ -152,58 +148,86 @@ OpTree::OpTree(OpJoiner& join)
 	, baseIndex(0) 
 	, totalUsed(0) {
 	for (OpEdge* test : join.linkups.l) {
-		test->visited = false;
-		test->lastEdge->visited = false;
+		test->startSeen = false;
+		test->lastEdge->endSeen = false;
 	}
-	limbStorage = contour.contours->resetLimbs();
+	limbStorage = contour.contours->resetLimbs(this);
 	OpLimb* trunk = limbStorage->allocate(*this);
 	OP_ASSERT(join.linkups.l.back() == join.edge);
 	trunk->set(*this, join.edge, nullptr, EdgeMatch::start, LimbType::linked, 
 			join.linkups.l.size() - 1, join.edge);
 	OP_DEBUG_CODE(debugLimbs.push_back(trunk));
-	join.edge->visited = true;
-	join.edge->lastEdge->visited = true;
+	join.edge->startSeen = true;
+	join.edge->lastEdge->endSeen = true;
 	LimbType limbType = LimbType::linked;
 	do {
-		switch (limbType) {
-			case LimbType::linked:
-				break;
-			case LimbType::unlinked: 
-				for (const std::vector<OpEdge*>& edges : { join.unsectByArea, join.unsortables } )
-					for (OpEdge* test : edges)
-						join.unlink(test);
-				break;
-			case LimbType::disabled:
-				if (join.disabledBuilt)
-					for (OpEdge* test : join.disabled)
-						join.unlink(test);
-				break;
-			case LimbType::disabledPals:
-				if (join.disabledPalsBuilt)
-					for (OpEdge* test : join.disabledPals)
-						join.unlink(test);
-				break;
-			case LimbType::miswound:
-				for (OpEdge* test : join.linkups.l) {
-					if (test == join.edge)
-						continue;
-					test->visited = false;
-					test->lastEdge->visited = false;
-				}
-				break;
-			case LimbType::disjoint:
-				break;
-			default:
-				OP_ASSERT(0);
+		initialize(join, limbType);
+		if (LimbType::disabledPals == limbType)
+			addDisabled(join);
+		else {
+			walker = 0;
+			do {
+				limbStorage->limb(*this, walker).foreach(join, *this, limbType);
+			} while (++walker < totalUsed);
 		}
-		walker = 0;
-		do {
-			limbStorage->limb(*this, walker).foreach(join, *this, limbType);
-		} while (++walker < totalUsed);
 		limbType = (LimbType) ((int) limbType + 1);
 		if (LimbType::disjoint < limbType)
 			return;  // error if bestLimb == nullptr
 	} while (!bestLimb);
+}
+
+// walk the disabled pals from smallest to largest instead of the limbs
+// add the least disturbing disabled pal to any limb that matches (that also disturbs least)
+// !!! may need to treat regular disabled the same, although pals are more legit ?
+void OpTree::addDisabled(OpJoiner& join) {
+	if (!join.disabledPalsBuilt) 
+		join.buildDisabledPals(*contour.contours);
+	for (OpEdge* test : join.disabledPals) {
+		test->unlink();
+		// check every limb for point match; choose based on limbType, then bounds
+		walker = 0;
+		do {
+			OpLimb& limb = limbStorage->limb(*this, walker);
+			limb.add(*this, test, EdgeMatch::start, LimbType::disabledPals);
+			limb.add(*this, test, EdgeMatch::end, LimbType::disabledPals);
+		} while (++walker < totalUsed);
+	}
+
+
+}
+
+void OpTree::initialize(OpJoiner& join, LimbType limbType) {
+	switch (limbType) {
+		case LimbType::linked:
+			break;
+		case LimbType::unlinked: 
+			for (const std::vector<OpEdge*>& edges : { join.unsectByArea, join.unsortables } )
+				for (OpEdge* test : edges)
+					join.unlink(test);
+			break;
+		case LimbType::disabled:
+			if (join.disabledBuilt)
+				for (OpEdge* test : join.disabled)
+					join.unlink(test);
+			break;
+		case LimbType::disabledPals:
+			if (join.disabledPalsBuilt)
+				for (OpEdge* test : join.disabledPals)
+					join.unlink(test);
+			break;
+		case LimbType::miswound:
+			for (OpEdge* test : join.linkups.l) {
+				if (test == join.edge)
+					continue;
+				test->startSeen = false;
+				test->lastEdge->endSeen = false;
+			}
+			break;
+		case LimbType::disjoint:
+			break;
+		default:
+			OP_ASSERT(0);
+	}
 }
 
 // used to walk tree in breadth order
@@ -406,6 +430,9 @@ void OpJoiner::buildDisabledPals(OpContours& contours) {
 			}
 		}
 	}
+	std::sort(disabledPals.begin(), disabledPals.end(), [](OpEdge* a, OpEdge* b)
+			{ return a->ptBounds.perimeter() < b->ptBounds.perimeter(); }
+	);
 	disabledPalsBuilt = true;
 }
 
@@ -655,7 +682,7 @@ bool OpJoiner::matchLinks(bool popLast) {
 		OpIntersection* gapEnd = tree.bestGapLimb->lastLimb->findSect(!tree.bestGapLimb->match);
 		OpEdge* filler = contour->addFiller(gapEnd, startI);
 		if (filler) {
-			OpLimb* branch = contour->contours->allocateLimb(tree);
+			OpLimb* branch = contour->contours->allocateLimb(&tree);
 			branch->set(tree, filler, tree.bestGapLimb, EdgeMatch::start, LimbType::disjoint, 0, 
 					nullptr, nullptr);
 		#if OP_DEBUG

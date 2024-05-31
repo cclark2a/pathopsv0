@@ -6,6 +6,8 @@
 */
 // (c) 2023, Cary Clark cclark2@gmail.com
 
+#define OP_INTERACTIVE 1
+
 #include "HelloWorld.h"
 
 #include "include/core/SkCanvas.h"
@@ -74,26 +76,9 @@ HelloWorld::~HelloWorld() {
 }
 
 void HelloWorld::updateTitle() {
-    if (!fWindow) {
+    if (!fWindow)
         return;
-    }
-
-    SkString title("Hello World ");
-    if (Window::kRaster_BackendType == fBackendType) {
-        title.append("Raster");
-    } else {
-#if defined(SK_GL)
-        title.append("GL");
-#elif defined(SK_VULKAN)
-        title.append("Vulkan");
-#elif defined(SK_DAWN)
-        title.append("Dawn");
-#else
-        title.append("Unknown GPU backend");
-#endif
-    }
-
-    fWindow->setTitle(title.c_str());
+    fWindow->setTitle("Hello World ");
 }
 
 void HelloWorld::onBackendCreated() {
@@ -127,7 +112,7 @@ static std::string ptToString(const SkPoint& pt) {
 }
 
 static void labelTangents(SkCanvas* canvas, const SkPoint* pts, int count, const char* indexAsString,
-    bool drawLabel) {
+        bool drawLabel) {
     sk_sp<SkTypeface> typeface = SkTypeface::MakeDefault();
     SkFont font(typeface, 14);
     SkPaint paint;
@@ -199,15 +184,9 @@ void figur_coniccircle(SkSurface* surface) {
     }
 }
 
-#if 01
-
-extern void cubics44dDraw(SkCanvas* canvas);
-
-void HelloWorld::onPaint(SkSurface* surface) {
-    auto canvas = surface->getCanvas();
-    canvas->save();
-    canvas->clear(SK_ColorWHITE);
+static void oldPaints(SkCanvas* canvas) {
 #if 0
+    extern void cubics44dDraw(SkCanvas* canvas);
     canvas->scale(100, 100);
     cubics44dDraw(canvas);
     canvas->restore();
@@ -218,7 +197,7 @@ void HelloWorld::onPaint(SkSurface* surface) {
         return;
     }
 #endif
-    OpTest(nullptr != surface); // trickery to avoid compiler warning
+    OpTest(nullptr != canvas); // trickery to avoid compiler warning
 #if 0
     canvas->scale(75, 75);
     OpQuadDraw(canvas);
@@ -231,7 +210,6 @@ void HelloWorld::onPaint(SkSurface* surface) {
     SkConicDraw(canvas);
 #endif
 #elif 1
-
     canvas->scale(2, 2);
     SkPath path, path2;
 #if 0
@@ -255,90 +233,46 @@ void HelloWorld::onPaint(SkSurface* surface) {
     // figur_conicweights(surface);
     figur_coniccircle(surface);
 #endif
-    canvas->restore();
 }
-#else
 
 void HelloWorld::onPaint(SkSurface* surface) {
     auto canvas = surface->getCanvas();
-
-    // Clear background
-    canvas->clear(SK_ColorWHITE);
-
-    SkPaint paint;
-    paint.setColor(SK_ColorRED);
-
-    // Draw a rectangle with red paint
-    SkRect rect = SkRect::MakeXYWH(10, 10, 128, 128);
-    canvas->drawRect(rect, paint);
-
-    // Set up a linear gradient and draw a circle
-    {
-        SkPoint linearPoints[] = { { 0, 0 }, { 300, 300 } };
-        SkColor linearColors[] = { SK_ColorGREEN, SK_ColorBLACK };
-        paint.setShader(SkGradientShader::MakeLinear(linearPoints, linearColors, nullptr, 2,
-                                                     SkTileMode::kMirror));
-        paint.setAntiAlias(true);
-
-        canvas->drawCircle(200, 200, 64, paint);
-
-        // Detach shader
-        paint.setShader(nullptr);
-    }
-
-    // Draw a message with a nice black paint
-    SkFont font;
-    font.setSubpixel(true);
-    font.setSize(20);
-    paint.setColor(SK_ColorBLACK);
-
     canvas->save();
-    static const char message[] = "Hello World ";
-
-    // Translate and rotate
-    canvas->translate(300, 300);
-    fRotationAngle += 0.2f;
-    if (fRotationAngle > 360) {
-        fRotationAngle -= 360;
-    }
-    canvas->rotate(fRotationAngle);
-
-    // Draw the text
-    canvas->drawSimpleText(message, strlen(message), SkTextEncoding::kUTF8, 0, 0, font, paint);
-
+    canvas->clear(SK_ColorWHITE);
+    oldPaints(canvas);
     canvas->restore();
 }
-#endif
 
 void HelloWorld::onIdle() {
     // Just re-paint continuously
-    // fWindow->inval();
+#if OP_INTERACTIVE
+    fWindow->inval();
+#endif
 }
 
 bool HelloWorld::onChar(SkUnichar c, skui::ModifierKey modifiers) {
-    if (' ' == c) {
-        if (Window::kRaster_BackendType == fBackendType) {
-#if defined(SK_GL)
-            fBackendType = Window::kNativeGL_BackendType;
-#elif defined(SK_VULKAN)
-            fBackendType = Window::kVulkan_BackendType;
-#elif defined(SK_DAWN)
-            fBackendType = Window::kDawn_BackendType;
-#else
-            SkDebugf("No GPU backend configured\n");
-            return true;
-#endif
-        } else {
-            fBackendType = Window::kRaster_BackendType;
-        }
-        fWindow->detach();
-        fWindow->attach(fBackendType);
-    }
     return true;
 }
 
-bool HelloWorld::onMouse(int x, int y, skui::InputState state, 
-        skui::ModifierKey modifiers) {
+bool HelloWorld::onKey(skui::Key, skui::InputState, skui::ModifierKey) {
+    return true;
+}
+
+bool HelloWorld::onMouse(int x, int y, skui::InputState state, skui::ModifierKey modifiers) {
+    if (skui::InputState::kUp == state) {
+        
+        return true;
+    }
+    if (skui::InputState::kDown == state)  {
+        
+        return true;
+    }
+    OP_ASSERT(skui::InputState::kMove == state);
+
+    return true;
+}
+
+bool HelloWorld::onMouseWheel(float delta, skui::ModifierKey modifiers) {
 
     return true;
 }

@@ -6,29 +6,6 @@
 #include "OpWinder.h"
 #include <utility>
 
-#if 0
-// !!! just fooling around; fix debug params if serious
-// !!! not sure how to adapt this to store two (or more?) different close points
-//     maybe save the least and greatest t values?
-//     then, could test mid value to see if it is also on the curve or diverges further away...
-// !!! wait until test case shows up
-				// !!! save man in the middle?
-void CcClose::save(OpEdge& edge, OpPtT edgePtT, OpEdge& opp, OpPtT oppPtT) {
-	if (!lo.e.edge || lo.e.edge->start.t > edge.start.t)
-		lo = CcSects(&edge, edgePtT, &opp, oppPtT  
-			OP_LINE_FILE_PARAMS(SectReason::edgeCCHullPair, SectReason::oppCCHullPair));
-	if (!hi.e.edge || hi.e.edge->start.t < edge.end.t)
-		hi = CcSects(&edge, edgePtT, &opp, oppPtT  
-			OP_LINE_FILE_PARAMS(SectReason::edgeCCHullPair, SectReason::oppCCHullPair));
-	float dist = (edgePtT.pt - oppPtT.pt).lengthSquared();
-	if (bestDist > dist) {
-		bestDist = dist;
-		best = CcSects(&edge, edgePtT, &opp, oppPtT  
-				OP_LINE_FILE_PARAMS(SectReason::edgeCCHullPair, SectReason::oppCCHullPair));
-	}
-}
-#endif
-
 void CcCurves::clear() {
 	for (auto edge : c) {
 		edge->hulls.clear();
@@ -76,6 +53,7 @@ OpPtT CcCurves::Dist(const OpSegment* seg, const OpPtT& segPtT, const OpSegment*
 	return bestPtT;
 }
 
+#if 0
 void CcCurves::endDist(const OpSegment* seg, const OpSegment* opp) {
 	for (OpEdge* edge : c) {
 		if (!OpMath::IsNaN(edge->oppEnd.t))
@@ -83,6 +61,86 @@ void CcCurves::endDist(const OpSegment* seg, const OpSegment* opp) {
 		edge->oppEnd = Dist(seg, edge->end, opp);
 	}
 }
+#endif
+
+float EdgeRun::setOppDist(const OpSegment* segment, const OpPtT& edgePtT, OpPoint oppPt) {
+	if (OpMath::IsNaN(edgePtT.t))
+		return OpNaN;
+	OpVector oppV = edgePtT.pt - oppPt;
+	float dist = oppV.length();
+	if (OpMath::IsNaN(dist))
+		return OpNaN;
+    OpVector normal = segment->c.normal(edgePtT.t);
+	float nDotOpp = normal.dot(oppV);
+	if (nDotOpp < -OpEpsilon)
+		dist = -dist;
+	else if (nDotOpp <= OpEpsilon)
+		dist = 0;
+	return dist;
+}
+
+void EdgeRun::set(const OpEdge* edge, const OpSegment* oppSeg, EdgeMatch match) {
+	const OpPtT& edgePtT = EdgeMatch::start == match ? edge->start : edge->end;
+	OP_DEBUG_CODE(debugEdgePtT = edgePtT);
+	edgeT = edgePtT.t;
+	between = 1;
+	OpPtT oppPtT = CcCurves::Dist(edge->segment, edgePtT, oppSeg);
+	OP_DEBUG_CODE(debugOppPtT = oppPtT);
+	if (OpMath::IsFinite(oppPtT.t))
+		oppDist = setOppDist(edge->segment, edgePtT, oppPtT.pt);
+	else
+		oppDist = OpNaN;
+#if OP_DEBUG
+	debugEdge = edge;
+#endif
+}
+
+void CcCurves::addEdgeRun(const OpEdge* edge, const OpSegment* oppSeg) {
+	OP_ASSERT(!debugHasEdgeRun(edge->end.t));
+	EdgeRun run;
+	run.set(edge, oppSeg, EdgeMatch::end);
+	OP_DEBUG_CODE(debugRuns.push_back(run));
+	if (OpMath::IsNaN(run.oppDist))
+		return;
+	EdgeRun* runStart = &runs.front();
+	// !!! could binary search
+	size_t index = 1;
+	for (; index < runs.size(); ++index) {
+		EdgeRun* runEnd = &runs[index];
+		if (runStart->edgeT <= run.edgeT && run.edgeT < runEnd->edgeT
+				&& OpMath::Between(runStart->oppDist, run.oppDist, runEnd->oppDist)) {
+			++runStart->between;
+#if OP_DEBUG  // !!! verify that edge pt between all debug points
+			EdgeRun* smaller = &debugRuns[0];
+			EdgeRun* larger = &debugRuns[0];
+			for (EdgeRun& debugRun : debugRuns) {
+				if ((smaller->edgeT < debugRun.edgeT || smaller->edgeT >= run.edgeT)
+						&& debugRun.edgeT < run.edgeT)
+					smaller = &debugRun;
+				if ((larger->edgeT > debugRun.edgeT || larger->edgeT <= run.edgeT)
+						&& debugRun.edgeT > run.edgeT)
+					larger = &debugRun;
+			}
+			OP_ASSERT(OpMath::Between(smaller->oppDist, run.oppDist, larger->oppDist));
+#endif
+			return;
+		}
+		if (run.edgeT < runStart->edgeT)
+			break;
+		runStart = runEnd;
+	}
+	runs.insert(runs.begin() + --index, run);
+}
+
+#if OP_DEBUG
+bool CcCurves::debugHasEdgeRun(float t) const {
+	for (const EdgeRun& debugRun : debugRuns) {
+		if (t == debugRun.edgeT)
+			return true;
+	}
+	return false;
+}
+#endif
 
 std::vector<TGap> CcCurves::findGaps() const {
 	std::vector<TGap> gaps;
@@ -121,6 +179,17 @@ int CcCurves::groupCount() const {
 	return result;
 }
 
+void CcCurves::initialEdgeRun(const OpEdge* edge, const OpSegment* oppSeg) {
+	for (EdgeMatch match : { EdgeMatch::start, EdgeMatch::end } ) {
+		EdgeRun run;
+		run.set(edge, oppSeg, match);
+		OP_DEBUG_CODE(debugRuns.push_back(run));
+		if (OpMath::IsNaN(run.oppDist))
+			continue;
+		runs.push_back(run);
+	}
+}
+
 void CcCurves::markToDelete(float loT, float hiT) {
 	for (auto edgePtr : c) {
 		if (edgePtr->start.t >= loT && hiT >= edgePtr->end.t)
@@ -146,23 +215,16 @@ float CcCurves::perimeter() const {
 
 // snip out the curve 16 units to the side of the intersection point, to prevent another closeby
 // intersection from also getting recorded. The units maybe t values, or may be x/y distances.
-void CcCurves::snipAndGo(const OpSegment* segment, const OpPtT& ptT) {
+void CcCurves::snipAndGo(const OpSegment* segment, const OpPtT& ptT, const OpSegment* oppSeg) {
 	// snip distance must be large enough to differ in x/y and in t
 	CutRangeT tRange = segment->c.cutRange(ptT, 0, 1);
 	OP_ASSERT(tRange.lo.t < tRange.hi.t);
 	// remove part or all of edges that overlap tRange
-	snipRange(segment, tRange.lo, tRange.hi);
+	snipRange(segment, tRange.lo, tRange.hi, oppSeg);
 }
 
-#if 0
-void CcCurves::snipOne(const OpSegment* segment, const OpPtT& loPtT, const OpPtT& hiPtT) {
-	OpPtT loCutPt = segment->c.cut(loPtT, -1);
-	OpPtT hiCutPt = segment->c.cut(hiPtT, 1);
-	snipRange(segment, loCutPt, hiCutPt);
-}
-#endif
-
-void CcCurves::snipRange(const OpSegment* segment, const OpPtT& lo, const OpPtT& hi) {
+void CcCurves::snipRange(const OpSegment* segment, const OpPtT& lo, const OpPtT& hi, 
+		const OpSegment* oppSeg) {
 	CcCurves snips;
 	OpContours* contours = segment->contour->contours;
 	auto addSnip = [contours](const OpEdge* edge, const OpPtT& start, const OpPtT& end) {
@@ -181,6 +243,7 @@ void CcCurves::snipRange(const OpSegment* segment, const OpPtT& lo, const OpPtT&
 			snipE->ccStart = edge->ccStart;
 			snipE->ccSmall = edge->ccSmall;
 			snipE->ccEnd = true;
+			addEdgeRun(snipE, oppSeg);
 			snips.c.push_back(snipE);
 		}
 		if (edge->end.t > hi.t) {
@@ -188,10 +251,11 @@ void CcCurves::snipRange(const OpSegment* segment, const OpPtT& lo, const OpPtT&
 			snipS->ccStart = true;
 			snipS->ccEnd = edge->ccEnd;
 			snipS->ccLarge = edge->ccLarge;
+			addEdgeRun(snipS, oppSeg);
 			snips.c.push_back(snipS);
 		}
 	}
-	std::swap(snips.c, c);
+	snips.c.swap(c);
 }
 
 // use the smaller distance to an end of oStart, oEnd, edgeMid
@@ -207,18 +271,12 @@ OpPtT CcCurves::splitPt(float oMidDist, const OpEdge& edge) const {
 		return edge.ptTCloseTo(oStart, edge.start);
 }
 
-#if 0
-void FoundLimits::setEnd(const OpSegment* o, const OpCurve& curve, float t) {
-	seg = { t ? curve.lastPt() : curve.pts[0], t };
-	opp = { o->c.ptTAtT(o->findValidT(0, 1, seg.pt)) };
-}
-#endif
-
 OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
 	: contours(s->contour->contours)
 	, seg(s)
 	, opp(o)
 	, depth(0)
+	, uniqueLimits_impl(-1)
 	, addedPoint(false)
 	, rotateFailed(false)
 	, sectResult(false)
@@ -243,31 +301,13 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
 	if (matchRev.reversed)
 		std::swap(oppS, oppE);
 	if (smallTFound) {
-#if 0
-		FoundPtTs small = nearbyRun(segS, 1, oppS);
-		OP_ASSERT(OpMath::IsFinite(small.seg.t) && OpMath::IsFinite(small.opp.t));
-		FoundLimits smT { { segS, oppS }, { segS, oppS }, { small.seg, small.opp }, true 
-			OP_DEBUG_PARAMS(nullptr, nullptr) };  // edges aren't known yet
-		segS = small.seg;
-		oppS = small.opp;
-#else
 		FoundLimits smT { nullptr, nullptr, segS, oppS, true   // no edges
 				OP_LINE_FILE_STRUCT(SectReason::edgeSmT, SectReason::oppSmT ) }; 
-#endif
 		limits.push_back(std::move(smT));
 	}
 	if (largeTFound) {
-#if 0
-		FoundPtTs large = nearbyRun(segE, 0, oppE);
-		OP_ASSERT(OpMath::IsFinite(large.seg.t) && OpMath::IsFinite(large.opp.t));
-		FoundLimits lgT { { large.seg, large.opp }, { segE, oppE }, { segE, oppE }, true
-			OP_DEBUG_PARAMS(nullptr, nullptr) };  // edges aren't known yet
-		segE = large.seg;
-		oppE = large.opp;
-#else
 		FoundLimits lgT { nullptr, nullptr,segE, oppE, true  // no edges
 				OP_LINE_FILE_STRUCT(SectReason::edgeLgT, SectReason::oppLgT ) };
-#endif
 		limits.push_back(std::move(lgT));
 	}
     // if ends of segments already touch, exclude from made edge
@@ -279,13 +319,14 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
 	edge->ccStart = edge->ccSmall = smallTFound;
 	edge->ccEnd = edge->ccLarge = largeTFound;
 	edgeCurves.c.push_back(edge);
+	edgeCurves.initialEdgeRun(edge, opp);
 	OpEdge* oppEdge = &opp->edges.back();
 	oppCurves.c.push_back(oppEdge);
+	oppCurves.initialEdgeRun(oppEdge, seg);
 	if (matchRev.reversed)
 		std::swap(smallTFound, largeTFound);
 	oppEdge->ccStart = oppEdge->ccSmall = smallTFound;
 	oppEdge->ccEnd = oppEdge->ccLarge = largeTFound;
-#if OP_DEBUG
 	if (smallTFound) {
 		limits.front().parentEdge = edge;
 		limits.front().parentOpp = oppEdge;
@@ -294,7 +335,11 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
 		limits.back().parentEdge = edge;
 		limits.back().parentOpp = oppEdge;
 	}
-#endif
+}
+
+void OpCurveCurve::addEdgeRun(const OpEdge* edge, CurveRef curveRef) {
+	CcCurves& curves = CurveRef::edge == curveRef ? edgeCurves : oppCurves;
+	curves.addEdgeRun(edge, CurveRef::edge == curveRef ? opp : seg);
 }
 
 void OpCurveCurve::addIntersection(OpEdge* edge, OpEdge* oppEdge) {
@@ -305,15 +350,21 @@ void OpCurveCurve::addIntersection(OpEdge* edge, OpEdge* oppEdge) {
 }
 
 void OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
-		const OpPtT& oppStart, const OpPtT& oppEnd) {  
+		const OpPtT& oppStart, const OpPtT& oppEnd) {
 	int usectID = seg->nextID();
-	OpIntersection* segSect1 = seg->addUnsectable(edgeStart, usectID, MatchEnds::start, opp
-			OP_LINE_FILE_PARAMS(SectReason::unsectable));
-	OpIntersection* segSect2 = seg->addUnsectable(edgeEnd, usectID, MatchEnds::end, opp
-			OP_LINE_FILE_PARAMS(SectReason::unsectable));
-	MatchEnds oppMatch = MatchEnds::start;
+	OpPtT eStart = edgeStart;
+	OpPtT eEnd = edgeEnd;
 	OpPtT oStart = oppStart;
 	OpPtT oEnd = oppEnd;
+	if (eStart.soClose(oStart))
+		OpPtT::MeetInTheMiddle(eStart, oStart);
+	if (eEnd.soClose(oEnd))
+		OpPtT::MeetInTheMiddle(eEnd, oEnd);
+	OpIntersection* segSect1 = seg->addUnsectable(eStart, usectID, MatchEnds::start, opp
+			OP_LINE_FILE_PARAMS(SectReason::unsectable));
+	OpIntersection* segSect2 = seg->addUnsectable(eEnd, usectID, MatchEnds::end, opp
+			OP_LINE_FILE_PARAMS(SectReason::unsectable));
+	MatchEnds oppMatch = MatchEnds::start;
 	bool flipped = oStart.t > oEnd.t;
 	if (flipped) {
 		std::swap(oStart, oEnd); // flip to fix opp t (now opp pts are flipped vs. edge)
@@ -329,10 +380,33 @@ void OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 	addedPoint = true;
 }
 
+#if 0
 bool OpCurveCurve::checkDist(int edgeOverlaps, int oppOverlaps) {
 	if (edgeCurves.c.size() + oppCurves.c.size() < 6  // !!! 6 is arbitrary
 			&& edgeOverlaps && oppOverlaps)  // always check if we're about to exit anyway
 		return false;
+	// if 3 or more edges' distances have the same sign and increase, return that
+	// there are no additional intersections
+	if (3 <= edgeOverlaps && 3 <= oppOverlaps) {
+		auto distTest = [](const CcCurves& curves) {
+			float prior = 0;  // order: prior, last, diff
+			float last = 0;
+			for (OpEdge* edge : curves.c) {
+				float dist = edge->oppDist();
+				if (dist * last < 0)  // if signs flip, sect is between
+					return false;
+				if (dist && last && prior && !OpMath::Between(dist, last, prior))
+					return false;  // if dists do not monotonically change, sect may be between
+				last = dist;
+				prior = last;
+			}
+			return true;
+		};
+		// start here;
+		// if range distances are monotonic, mark those edges as nonoverlapping
+		if (distTest(edgeCurves) && distTest(oppCurves))
+			return false;
+	}
 	struct SmallestOpp {
 		OpEdge* edge;
 		float dist;
@@ -368,6 +442,7 @@ bool OpCurveCurve::checkDist(int edgeOverlaps, int oppOverlaps) {
 	}
 	return true;
 }
+#endif
 
 // if after breaking runs spacially on both edge and opp into two runs
 //  and one run is connected to already found intersections, remove that run
@@ -499,25 +574,6 @@ bool OpCurveCurve::checkSplit(float loT, float hiT, CurveRef which, OpPtT& check
 	return false;
 }
 
-#if 0
-// !!! to do : look for 2nd best point if curves come close to intersecting twice
-void OpCurveCurve::closest() {
-    if (!OpMath::IsFinite(closeEdge.bestDist))
-		return;
-    // require either pt or t to be within some metric of closeness
-    // since this specifies intersection points, some sloppiness is OK
-    // as long as the point is (nearly) on each segment
-    OpPtT sPtT = closeEdge.best.e.ptT;
-    OpPtT oPtT = OpPtT(sPtT.pt, closeEdge.best.o.ptT.t);
-	if (seg->sects.contains(sPtT, opp) || opp->sects.contains(oPtT, seg))
-		return;
-	OpIntersection* sect = seg->addSegSect(sPtT, opp  OP_LINE_FILE_PARAMS(SectReason::soClose));
-	OpIntersection* oSect = opp->addSegSect(oPtT, seg  OP_LINE_FILE_PARAMS(SectReason::soClose));
-    sect->pair(oSect);
-	addedPoint = true;
-}
-#endif
-
 // Divide only by geometric midpoint. Midpoint is determined by endpoint intersection, or
 // curve bounds if no intersection is found.
 // try several approaches:
@@ -532,7 +588,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 	OP_DEBUG_CONTEXT();
 #if OP_DEBUG_DUMP
 	int oneOr = 2;  // negative to disable
-	int theOther = 7;
+	int theOther = 6;
 	bool breakAtDraw = (oneOr == seg->id && theOther == opp->id)
 			|| (oneOr == opp->id && theOther == seg->id);
 #endif
@@ -543,19 +599,23 @@ SectFound OpCurveCurve::divideAndConquer() {
 	// looks like recursion is getting stuck trimming tiny bits from end instead of dividing in the
 	// middle and/or detecting that it ought to look to see if the run is largely unsectable. It
 	// should be trying in more than one place to find intersections somehow
+
+	// !!! testQuads5721199 segments 2 and 5 share (0, 0) but iterate depth to 24 to see if they
+	// intersect a second time. Not sure what to do...
 	for (depth = 1; depth < maxDepth; ++depth) {
-#if OP_DEBUG
-		edgeCurves.endDist(seg, opp);
-		oppCurves.endDist(opp, seg);
-#endif
+//		edgeCurves.endDist(seg, opp);
+//		oppCurves.endDist(opp, seg);
 #if OP_DEBUG_DUMP
-		constexpr int debugBreakDepth = 4;
+		constexpr int debugBreakDepth = 1;
 		if (breakAtDraw && depth >= debugBreakDepth) {
 			if (debugBreakDepth == depth)
 				::debug();
 			1 == depth ? ::showSegmentEdges() : ::hideSegmentEdges();
 			if (debugBreakDepth < depth) 
 				::dmpDepth(depth);
+			dmpFile();
+			fromFile();
+			verifyFile();
 			OpDebugOut("");
 		}
 #endif
@@ -566,10 +626,8 @@ SectFound OpCurveCurve::divideAndConquer() {
 			splitMid = false;
 		int edgeOverlaps = edgeCurves.overlaps();
 		int oppOverlaps = oppCurves.overlaps();
-#if OP_DEBUG
-		if (checkDist(edgeOverlaps, oppOverlaps))
-			snipEm = true;
-#endif
+	//	if (checkDist(edgeOverlaps, oppOverlaps))
+	//		snipEm = true;
 		if (!edgeOverlaps || !oppOverlaps)
 			return limits.size() ? SectFound::add : SectFound::no;
 		OP_DEBUG_CODE(static constexpr int maxSplits = 8);   // !!! no idea what this should be 
@@ -584,7 +642,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 			snipEm = checkLimits(limitCount);
 		}
 		// if there is more than one crossover, look for unsectable
-		size_t limitsSize = limits.size();
+		size_t limitsSize = uniqueLimits();
 		if (limitsSize > 0) {
 			if (smallTFound || largeTFound) {
 				if (limitsSize > smallTFound + largeTFound)
@@ -606,23 +664,16 @@ SectFound OpCurveCurve::divideAndConquer() {
 			splitHulls(CurveRef::opp, oSplits);
 			edgeCurves.c.swap(eSplits.c);
 			oppCurves.c.swap(oSplits.c);
+			if (!edgeCurves.c.size())
+				return limits.size() ? SectFound::add : SectFound::no;
 			snipEm = checkLimits(limitCount);
 		}
 		if (snipEm) {
-			edgeCurves.snipAndGo(seg, snipEdge);
-			oppCurves.snipAndGo(opp, snipOpp);
+			edgeCurves.snipAndGo(seg, snipEdge, opp);
+			oppCurves.snipAndGo(opp, snipOpp, seg);
 		}
-	// !!! not sure what this is trying to do
-//		start here;
-		// bails when there are two intersections to find but only one found
-#if 0
-        if (limitsSize > 0 && smallTFound + largeTFound == 0
-				&& edgeCurves.groupCount() <= 1 && oppCurves.groupCount() <= 1)
-			return SectFound::add;
-#endif
 	}
-	// !!! comment out only while debugging unit test
-//	OP_ASSERT(0);  // !!! if this occurs likely more code is needed
+	OP_ASSERT(0);  // !!! if this occurs likely more code is needed
 	return SectFound::fail;
 }
 
@@ -708,15 +759,6 @@ void OpCurveCurve::findUnsectable() {
 	addSect();
 }
 
-#if 0
-void OpCurveCurve::ifCloseSave(OpEdge& edge, const OpPtT& edgePtT, OpEdge& oppEdge, const OpPtT& oppPtT) {
-	if (!edgePtT.pt.soClose(oppPtT.pt))
-		return;
-	OP_ASSERT(0); // more code to write
-//	closeEdge.save(edge, edgePtT, oppEdge, oppPtT);
-}
-#endif
-
 bool OpCurveCurve::ifExactly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& oppEdge, const OpPtT& oppPtT) {
 	if (edgePtT.pt != oppPtT.pt)
 		return false;
@@ -763,77 +805,6 @@ bool OpCurveCurve::LineMissed(OpEdge& edge, OpEdge& opp) {
 	return !septs.count;
 }
 
-// nan results show this needs to be reworked to 
-//  a) return some step in t (in seg & opp always) if doing so keeps 0 <= t <= 1
-//  b) pass in opp base ptT so it can be checked / returned
-//  c) maybe this is backwards and should start at epsilon and go up until no point match
-//     that's likely to be more common than coming down as is currently coded
-
-// trim matches back far enough so that is nearly does not trigger on this end
-// returns point furthest from input that near by the opposite curve (extent of unsectable run)
-// returns extent from base towards end seg t
-#if 0
-FoundPtTs OpCurveCurve::nearbyRun(const OpPtT& basePtT, float endSegT, const OpPtT& baseO) {
-	bool searchDown = endSegT < basePtT.t;
-	float loSegT = searchDown ? endSegT : basePtT.t;
-	float hiSegT = searchDown ? basePtT.t : endSegT;
-	float step = searchDown ? -OpEpsilon : OpEpsilon;
-	float testSegT = basePtT.t + step;
-	do {
-		if (!seg->nearby(testSegT, opp))
-			break;
-		step *= 2;
-		testSegT += step;
-	} while (searchDown ? testSegT > loSegT : testSegT < hiSegT);
-	testSegT = std::max(loSegT, std::min(hiSegT, testSegT));
-    testSegT = OpMath::Average(basePtT.t, testSegT);
-	step = fabsf(basePtT.t - testSegT) / 2;
-	while (fabsf(step) > OpEpsilon) {
-		// e.g., if step up, opp pt is nearby seg pt, searching down: reverse step
-		bool near = seg->nearby(testSegT, opp);
-		if (near) {  // check to see if we're hitting another intersection
-			float midT = testSegT - step / 2;
-			if (!seg->nearby(midT, opp))
-				near = false;
-		}
-		if ((int) ((step > 0) ^ near ^ searchDown))
-			step = -step;
-		testSegT += step;
-		step = step / 2;
-	}
-	// advance until points are not near
-	step = searchDown ? -OpEpsilon : OpEpsilon;
-	if (OpMath::NearlyEqualT(basePtT.t, testSegT)) {
-		testSegT = basePtT.t;
-		float testO = baseO.t;
-		float oStep = matchRev.reversed ? -step : step;
-		for (;;) {
-			testSegT += step;
-			testO += oStep;
-			if (0 > step || step > 1 || 0 > oStep || oStep > 1)
-				break;
-			OpPtT testSegPtT = seg->c.ptTAtT(testSegT);
-			OpPtT oppSegPtT = opp->c.ptTAtT(testO);
-			if (!testSegPtT.pt.isNearly(oppSegPtT.pt))
-				return { testSegPtT, oppSegPtT };
-		}
-		return { basePtT, baseO };
-	}
-	do {
-		OpPtT foundSegPtT { seg->c.ptTAtT(testSegT) };
-		OpPtT foundOppPtT { opp->c.ptTAtT(opp->findValidT(0, 1, foundSegPtT.pt)) };
-		if (OpMath::IsNaN(foundOppPtT.t))
-			return { basePtT, baseO };
-		if (!foundSegPtT.pt.isNearly(foundOppPtT.pt) && foundOppPtT.t >= OpEpsilon
-				&& foundOppPtT.t <= 1 - OpEpsilon)
-			return { foundSegPtT, foundOppPtT };
-		testSegT += step;
-	} while (0 <= testSegT && testSegT <= 1);
-	OP_ASSERT(0);
-	return FoundPtTs();  // error (pt t is nan)
-}
-#endif
-
 // defer meet in the middle stuff until all intersections are found
 void OpCurveCurve::recordSect(OpEdge* edge, OpEdge* oEdge, const OpPtT& edgePtT, const OpPtT& oppPtT
 			OP_LINE_FILE_DEF(SectReason eReas, SectReason oReas)) {
@@ -846,6 +817,7 @@ void OpCurveCurve::recordSect(OpEdge* edge, OpEdge* oEdge, const OpPtT& edgePtT,
 	FoundLimits newLimit { edge, oEdge, edgePtT, oppPtT, false  
 			OP_LINE_FILE_SCALLER(eReas, oReas) };
 	limits.push_back(std::move(newLimit));
+	uniqueLimits_impl = -1;
 }
 
 bool OpCurveCurve::rotatedIntersect(OpEdge& edge, OpEdge& oppEdge, bool sharesPoint) {
@@ -860,21 +832,9 @@ bool OpCurveCurve::rotatedIntersect(OpEdge& edge, OpEdge& oppEdge, bool sharesPo
 	oRotBounds.set(oppRotated);
 	if (!eRotBounds.intersects(oRotBounds))
 		return false;
-				// !!! can one have no area (e.g. horz or vert) and the other not?
-	if (sharesPoint && eRotBounds.hasArea() && oRotBounds.hasArea() &&
-			!eRotBounds.areaOverlaps(oRotBounds))
-		return false;
-
-	return true; // !!! experiment
-#if 0
-	// testQuads3760505 needs this
-	OpRect eRotOutset = eRotBounds.outsetClose();
-	OpRect oRotOutset = oRotBounds.outsetClose();
-	bool outsetIntersects = eRotOutset.intersects(oRotOutset);
-	if (outsetIntersects && ((!edge.ccStart && !edge.ccEnd) || (!oppEdge.ccStart && !oppEdge.ccEnd)))
-		closeBy.push_back({ edge, oppEdge });    // !!! this may be over agressive ...
-	return outsetIntersects;
-#endif
+	// !!! can one have no area (e.g. horz or vert) and the other not?
+	return !sharesPoint || !eRotBounds.hasArea() || !oRotBounds.hasArea() 
+			|| eRotBounds.areaOverlaps(oRotBounds);
 }
 
 // finds intersections of opp edge's hull with edge, and stores them in edge's hulls
@@ -990,7 +950,8 @@ bool OpCurveCurve::setOverlaps() {
 	return !rotateFailed;
 }
 
-void OpCurveCurve::splitDownTheMiddle(const OpEdge& edge, const OpPtT& edgeMid, CcCurves& splits) {
+void OpCurveCurve::splitDownTheMiddle(const OpEdge& edge, const OpPtT& edgeMid, CurveRef curveRef,
+			CcCurves& splits) {
 	// !!!? while edgeMid is in a deleted bounds, bump edgeMidT
 	//      (this isn't necessarily in the intersection hull)
 	//      wait until this is necessary to make it work
@@ -999,6 +960,8 @@ void OpCurveCurve::splitDownTheMiddle(const OpEdge& edge, const OpPtT& edgeMid, 
 	OP_ASSERT(!OpMath::Equalish(edgeMid.t, edge.end.t));
 	OP_ASSERT(edge.start.t < edgeMid.t);
 	OP_ASSERT(edgeMid.t < edge.end.t);
+	CcCurves& curves = CurveRef::edge == curveRef ? edgeCurves : oppCurves;
+	const OpSegment* oppSeg = CurveRef::edge == curveRef ? opp : seg;
 	void* blockL = contours->allocateEdge(contours->ccStorage);
 	OpEdge* splitLeft = new(blockL) OpEdge(&edge, edgeMid, NewEdge::isLeft  
 			OP_LINE_FILE_PARAMS(EdgeMaker::splitLeft));
@@ -1006,6 +969,8 @@ void OpCurveCurve::splitDownTheMiddle(const OpEdge& edge, const OpPtT& edgeMid, 
 	splitLeft->ccStart = edge.ccStart;
 	splitLeft->ccSmall = edge.ccSmall;
 	splits.c.push_back(splitLeft);
+	OP_ASSERT(curves.debugHasEdgeRun(splitLeft->start.t));
+	curves.addEdgeRun(splitLeft, oppSeg);
 	void* blockR = contours->allocateEdge(contours->ccStorage);
 	OpEdge* splitRight = new(blockR) OpEdge(&edge, edgeMid, NewEdge::isRight  
 			OP_LINE_FILE_PARAMS(EdgeMaker::splitRight));
@@ -1013,6 +978,8 @@ void OpCurveCurve::splitDownTheMiddle(const OpEdge& edge, const OpPtT& edgeMid, 
 	splitRight->ccEnd = edge.ccEnd;
 	splitRight->ccLarge = edge.ccLarge;
 	splits.c.push_back(splitRight);
+	OP_ASSERT(curves.debugHasEdgeRun(splitRight->start.t));
+	OP_ASSERT(curves.debugHasEdgeRun(splitRight->end.t));
 }
 
 // If edge has hull points that define split but opp does not, opp may be entirely inside edge hull.
@@ -1033,7 +1000,7 @@ void OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 		OpHulls& hulls = edge.hulls;
 		if (!hulls.h.size() || splitMid) {
 			OpPtT edgeMid = { edge.segment->c.ptAtT(edgeMidT), edgeMidT };
-			splitDownTheMiddle(edge, edgeMid, splits);
+			splitDownTheMiddle(edge, edgeMid, which, splits);
 			continue;
 		}
 		if (2 <= hulls.h.size()) {  // see if hulls are close enough to define an intersection
@@ -1089,7 +1056,7 @@ void OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 				OP_ASSERT(!OpMath::Equalish(cutHere.t, edge.end.t));
 			}
 			if (!OpMath::IsNaN(cutHere.t)) {
-				splitDownTheMiddle(edge, cutHere, splits);
+				splitDownTheMiddle(edge, cutHere, which, splits);
 				continue;
 			}
 			OP_ASSERT(0);  // !!! looks broken; fix with test case (or delete if never called)
@@ -1116,10 +1083,6 @@ void OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 			void* block = contours->allocateEdge(contours->ccStorage);
 			OpEdge* split = new(block) OpEdge(&edge, hullLo.sect.t, 
 					hullHi.sect.t  OP_LINE_FILE_PARAMS(EdgeMaker::hull));
-#if OP_DEBUG
-			split->debugSplitStart = hullLo.type;
-			split->debugSplitEnd = hullHi.type;
-#endif
 			split->ccOverlaps = true;
 			split->ccStart = edge.ccStart && edge.start.soClose(split->start);
 			if (split->ccStart)
@@ -1127,61 +1090,43 @@ void OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 			split->ccEnd = edge.ccEnd && edge.start.soClose(split->end);
 			if (split->ccEnd)
 				split->ccLarge = edge.ccLarge;
+			addEdgeRun(split, which);
 			splits.c.push_back(split);
 		}
 		if (splits.c.size() - splitCount < 2) {
 			splits.c.resize(splitCount); // this may leave an edge was never used ... not the end of the world
-			splitDownTheMiddle(edge, edge.center, splits);  // divide edge in two
+			splitDownTheMiddle(edge, edge.center, which, splits);  // divide edge in two
 		}
 	}
 }
 
-#if 0
-void OpCurveCurve::tryClose() {
-	for (CloseBy& close : closeBy)
-		tryCloseBy(close.edge, close.opp);
-#if 0
-	for (auto edge : edgeCurves.c) {
-		if (!edge->ccOverlaps)
-			continue;
-		if (edge->isClose()) {
-			for (auto oppEdge : oppCurves.c) {
-				if (oppEdge->isClose())
-					closeEdge.save(*edge, edge->start, *oppEdge, oppEdge->start);
-			}
+size_t OpCurveCurve::uniqueLimits() {
+	if (limits.size() <= 1)
+		uniqueLimits_impl = (int) limits.size();
+	if (uniqueLimits_impl >= 0)
+		return uniqueLimits_impl;
+	std::sort(limits.begin(), limits.end(), [](FoundLimits& a, FoundLimits& b) {
+		return a.seg.t < b.seg.t;
+	} );
+	size_t result = 1;
+	const FoundLimits* last = &limits[0];
+	float lastDistSq = (last->seg.pt - last->opp.pt).lengthSquared();
+	for (size_t index = 1; index < limits.size(); ++index) {
+		const FoundLimits* limit = &limits[index];
+		bool soClose = last->seg.soClose(limit->seg);
+		soClose |= last->opp.soClose(limit->opp);
+		float distSq = (limit->seg.pt - limit->opp.pt).lengthSquared();
+		if (!soClose) {
+			OpPtT midPtT = seg->c.ptTAtT(OpMath::Average(last->seg.t, limits[index].seg.t));
+			OpPtT midOpp = CcCurves::Dist(seg, midPtT, opp);
+			float midDist = (midPtT.pt - midOpp.pt).lengthSquared();
+			if (midDist > lastDistSq && midDist > distSq)
+				++result;
 		}
-		if (!edge->ccStart) {
-			for (auto oppEdge : oppCurves.c) {
-				if (!oppEdge->ccStart)
-					ifCloseSave(*edge, edge->start, *oppEdge, oppEdge->start);
-				if (!oppEdge->ccEnd)
-					ifCloseSave(*edge, edge->start, *oppEdge, oppEdge->end);
-			}
-		}
-		if (!edge->ccEnd) {
-			for (auto oppEdge : oppCurves.c) {
-				if (!oppEdge->ccStart)
-					ifCloseSave(*edge, edge->end, *oppEdge, oppEdge->start);
-				if (!oppEdge->ccEnd)
-					ifCloseSave(*edge, edge->end, *oppEdge, oppEdge->end);
-			}
-		}
+		last = &limits[index];
+		lastDistSq = distSq;
 	}
-#endif
+	uniqueLimits_impl = result;
+	return result;
 }
 
-void OpCurveCurve::tryCloseBy(OpEdge& edge, OpEdge& oppEdge) {
-	if (!edge.ccStart) {
-		if (!oppEdge.ccStart)
-			ifCloseSave(edge, edge.start, oppEdge, oppEdge.start);
-		if (!oppEdge.ccEnd)
-			ifCloseSave(edge, edge.start, oppEdge, oppEdge.end);
-	}
-	if (!edge.ccEnd) {
-		if (!oppEdge.ccStart)
-			ifCloseSave(edge, edge.end, oppEdge, oppEdge.start);
-		if (!oppEdge.ccEnd)
-			ifCloseSave(edge, edge.end, oppEdge, oppEdge.end);
-	}
-}
-#endif

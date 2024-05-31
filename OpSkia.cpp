@@ -14,14 +14,14 @@ static SkPath* skPath(const void* extRef) {
     return (SkPath*) extRef;
 }
 
-bool PathSimplify(OpInPath path, OpOutPath result) {
+bool PathSimplify(OpInPath& path, OpOutPath& result) {
     SkPath empty;
 	OpInPath emptyPath(&empty);
     return PathOps(path, emptyPath, OpOperator::Union, result);
 }
 
 #if OP_DEBUG
-bool DebugPathSimplify(OpInPath path, OpOutPath result, 
+bool DebugPathSimplify(OpInPath& path, OpOutPath& result, 
 		OpDebugExpect expected, std::string testname, std::vector<OpDebugWarning>& warnings) {
     SkPath empty;
 	OpInPath emptyPath(&empty);
@@ -43,27 +43,139 @@ void OpOutPath::setInverted(bool wasInverted) {
 }
 
 #if OP_DEBUG_DUMP
+#include "OpCurveCurve.h"
+#include "OpJoiner.h"
+#include "include/core/SkStream.h"
+
+std::string OpInPath::debugDump(DebugLevel , DebugBase b) const {
+    SkPath* skPath = (SkPath*) externalReference;
+    SkDynamicMemoryWStream memoryStream;
+    skPath->dump(&memoryStream, DebugBase::hex == b);
+    std::string str;
+    str.resize(memoryStream.bytesWritten());
+    memoryStream.copyTo(str.data());
+    str.pop_back();
+    return str;
+}
+
+void dumpSet(const char*& str, SkPath* path) {
+    path->reset();
+    OpDebugRequired(str, "path.setFillType(SkPathFillType::k");
+    if (OpDebugOptional(str, "Winding"))
+        path->setFillType(SkPathFillType::kWinding);
+    else if (OpDebugOptional(str, "EvenOdd"))
+        path->setFillType(SkPathFillType::kEvenOdd);
+    else if (OpDebugOptional(str, "InverseWinding"))
+        path->setFillType(SkPathFillType::kInverseWinding);
+    else if (OpDebugOptional(str, "InverseEvenOdd"))
+        path->setFillType(SkPathFillType::kInverseEvenOdd);
+    OpDebugRequired(str, ");");
+    while (OpDebugOptional(str, "path.")) {
+        size_t xyCount = 0;
+        SkPathVerb verb = (SkPathVerb) -1;
+        if (OpDebugOptional(str, "moveTo(")) {
+            verb = SkPathVerb::kMove;
+            xyCount = 2;
+        } else if (OpDebugOptional(str, "lineTo(")) {
+            verb = SkPathVerb::kLine;
+            xyCount = 2;
+        } else if (OpDebugOptional(str, "quadTo(")) {
+            verb = SkPathVerb::kQuad;
+            xyCount = 4;
+        } else if (OpDebugOptional(str, "conicTo(")) {
+            verb = SkPathVerb::kConic;
+            xyCount = 5;
+        } else if (OpDebugOptional(str, "cubicTo(")) {
+            verb = SkPathVerb::kCubic;
+            xyCount = 6;
+        } else {
+            OpDebugRequired(str, "close();");
+            verb = SkPathVerb::kClose;
+        }
+        std::vector<float> data;
+        data.resize(xyCount);
+        for (size_t index = 0; index < xyCount; ++index) {
+            OpDebugRequired(str, "SkBits2Float(");
+            data[index] = OpDebugHexToFloat(str);
+        }
+        switch (verb) {
+            case SkPathVerb::kMove: 
+                path->moveTo(data[0], data[1]);
+                break;
+            case SkPathVerb::kLine: 
+                path->lineTo(data[0], data[1]);
+                break;
+            case SkPathVerb::kQuad: 
+                path->quadTo(data[0], data[1], data[2], data[3]);
+                break;
+            case SkPathVerb::kConic: 
+                path->conicTo(data[0], data[1], data[2], data[3], data[4]);
+                break;
+            case SkPathVerb::kCubic: 
+                path->cubicTo(data[0], data[1], data[2], data[3], data[4], data[5]);
+                break;
+            case SkPathVerb::kClose:
+                path->close();
+                break;
+            default:
+                OpDebugExit("missing verb");
+        }
+        if (!xyCount)
+            continue;
+        OpDebugRequired(str, ");  //");
+        const char* runaway = str + 100;
+        while (strncmp("path.", str, 5)) {
+            if (++str > runaway)
+                OpDebugExit("missing path value");
+        }
+    }
+}
+
+void OpInPath::dumpSet(const char*& str) {
+    SkPath* path = (SkPath*) externalReference;
+    ::dumpSet(str, path);
+}
+
+void OpInPath::dumpResolveAll(OpContours* ) {
+}
+
+const void* OpInPath::MakeExternalReference() {
+    return new SkPath();
+}
+
+void OpInPath::ReleaseExternalReference(const void* ref) {
+    return delete (SkPath*) ref;
+}
 
 bool OpOutPath::debugIsEmpty() const {
     return skPath(externalReference)->isEmpty();
 }
 
-std::string OpInPath::debugDump(DebugLevel , DebugBase b) const {
-    SkPath* skPath = (SkPath*) externalReference;
-    if (DebugBase::dec == b)
-        skPath->dump();
-    else
-        skPath->dumpHex();
-    return "";
-}
-
 std::string OpOutPath::debugDump(DebugLevel , DebugBase b) const {
     SkPath* skPath = (SkPath*) externalReference;
-    if (DebugBase::dec == b)
-        skPath->dump();
-    else
-        skPath->dumpHex();
-    return "";
+    SkDynamicMemoryWStream memoryStream;
+    skPath->dump(&memoryStream, DebugBase::hex == b);
+    std::string str;
+    str.resize(memoryStream.bytesWritten());
+    memoryStream.copyTo(str.data());
+    str.pop_back();
+    return str;
+}
+
+void OpOutPath::dumpSet(const char*& str) {
+    SkPath* path = (SkPath*) externalReference;
+    ::dumpSet(str, path);
+}
+
+void OpOutPath::dumpResolveAll(OpContours* ) {
+}
+
+void* OpOutPath::MakeExternalReference() {
+    return new SkPath();
+}
+
+void OpOutPath::ReleaseExternalReference(void* ref) {
+    return delete (SkPath*) ref;
 }
 
 #endif
@@ -99,7 +211,7 @@ bool OpCurve::output(OpOutPath& path, bool firstPt, bool lastPt) {
     return true;
 }
 
-bool OpContours::build(OpInPath path, OpOperand operand) {
+bool OpContours::build(OpInPath& path, OpOperand operand) {
     const SkPath& skpath = *skPath(path.externalReference);
     setFillType(operand, SkPathFillType::kEvenOdd == skpath.getFillType()
             || SkPathFillType::kInverseEvenOdd == skpath.getFillType() 

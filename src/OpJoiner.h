@@ -110,7 +110,7 @@ struct OpLimb {
 			size_t index, OpEdge* otherEnd, const OpPointBounds* bounds = nullptr);
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
-	std::string debugDumpIDs(bool bracket) const;
+	std::string debugDumpIDs(DebugLevel , bool bracket) const;
 #endif
 
 	OpPointBounds bounds;
@@ -134,6 +134,8 @@ struct OpLimb {
 // prefer the looped limb with the smallest perimeter 
 struct OpTree {
 	OpTree(OpJoiner& );
+	void addDisabled(OpJoiner& );
+	void initialize(OpJoiner& join, LimbType limbType);
 	bool join(OpJoiner& );
 	OpLimb& limb(int index);
 #if OP_DEBUG_DUMP
@@ -166,8 +168,12 @@ struct OpLimbStorage {
 	OpLimb* allocate(OpTree& );
 	OpLimb& limb(OpTree& , int index);
 	void reset();
-#if OP_DEBUG
+#if OP_DEBUG_DUMP
+	size_t debugCount() const;
 	const OpLimb* debugFind(int ID) const;
+	OpLimb* debugIndex(int index);
+	static void DumpSet(const char*& , OpContours* );
+	DUMP_DECLARATIONS
 #endif
 
 	OpLimbStorage* nextBlock;

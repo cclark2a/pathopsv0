@@ -4,7 +4,6 @@
 
 #include "OpDebug.h"
 #include "OpDebugDump.h"
-#include "OpDebugImage.h"
 #include "OpOperators.h"
 
 #if OP_DEBUG
@@ -13,10 +12,13 @@
 
 struct OpInPath {
 	OpInPath(const void* ext) 
-		: externalReference(ext) {
+		: externalReference(ext)  {
 	}
 	bool isInverted() const;
 #if OP_DEBUG_DUMP
+	~OpInPath();
+	static const void* MakeExternalReference();
+	static void ReleaseExternalReference(const void* );
 	DUMP_DECLARATIONS
 #endif
 
@@ -28,7 +30,6 @@ struct OpOutPath {
 		: externalReference(ext) { 
 		OP_DEBUG_CODE(debugID = 0);
 	}
-
 	void setEmpty();
 	void setInverted(bool wasInverted);
 #if OP_DEBUG
@@ -36,6 +37,9 @@ struct OpOutPath {
 	void debugNextID(struct OpEdge* );
 #endif
 #if OP_DEBUG_DUMP
+	~OpOutPath();
+	static void* MakeExternalReference();
+	static void ReleaseExternalReference(void* );
 	DUMP_DECLARATIONS
 #endif
 
@@ -45,14 +49,14 @@ struct OpOutPath {
 #endif
 };
 
-bool PathOps(OpInPath left, OpInPath right, OpOperator , OpOutPath result);
-bool PathSimplify(OpInPath path, OpOutPath result);
+bool PathOps(OpInPath& left, OpInPath& right, OpOperator , OpOutPath& result);
+bool PathSimplify(OpInPath& path, OpOutPath& result);
 
 #if OP_DEBUG
 // entry point if operation success is already known
-bool DebugPathOps(OpInPath left, OpInPath right, OpOperator , OpOutPath result,
+bool DebugPathOps(OpInPath& left, OpInPath& right, OpOperator , OpOutPath& result,
         OpDebugExpect expected, std::string testname, std::vector<OpDebugWarning>& );
-bool DebugPathSimplify(OpInPath path, OpOutPath result, 
+bool DebugPathSimplify(OpInPath& path, OpOutPath& result, 
 		OpDebugExpect expected, std::string testname, std::vector<OpDebugWarning>& );
 #endif
 

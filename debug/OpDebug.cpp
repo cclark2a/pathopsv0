@@ -228,6 +228,32 @@ void record() {
 
 #endif
 
+int OpDebugCountDelimiters(const char* str, char delimiter, char openBracket, char closeBracket) {
+    int count = 0;
+    int openCount = 1;
+    do {
+        char ch = *str++;
+        if (openBracket == ch)
+            ++openCount;
+        else if (delimiter == ch)
+            count += 1 == openCount;
+        else if (closeBracket == ch)
+            --openCount;
+    } while (openCount > 0);
+    return count;
+}
+
+void OpDebugExit(std::string message) {
+    OpDebugOut(message);
+    exit(1);
+}
+
+void OpDebugExitOnFail(std::string message, bool condition) {
+    if (condition)
+        return;
+    OpDebugExit(message);
+}
+
 int32_t OpDebugFloatToBits(float f) {
     FloatIntUnion d;
     d.f = f;
@@ -238,33 +264,96 @@ float OpDebugHexToFloat(const char*& str) {
     // !!! add support for hex float %a format
     FloatIntUnion d;
     d.i = OpDebugHexToInt(str);
+    if (')' == str[0])
+        ++str;
+    if (',' == str[0])
+        ++str;
+    if (' ' >= str[0])
+        ++str;
     return d.f;
 }
 
 int32_t OpDebugHexToInt(const char*& str) {
     int32_t result = 0;
-    OpDebugSkip(str, "0x");
+    OpDebugRequired(str, "0x");
     for (int index = 0; index < 8; ++index) {
         char c = *str++;
         int nybble = c - '0';
         if (nybble > 9)
             nybble = c - 'a' + 10;
         result = (result << 4) | nybble;
-}
+    }
+    if (' ' >= str[0])
+        ++str;
     return result;
 }
 
-void OpDebugSkip(const char*& str, const char* match) {
-    size_t matchLen = strlen(match);
-    size_t strLen = strlen(str);
-    while (strLen) {
-        if (!strncmp(match, str, matchLen)) {
-            break;
-        }
-        str += 1;
-        --strLen;
+float OpDebugReadNamedFloat(const char*& str, const char* label) {
+    OpDebugRequired(str, label);
+    float result = OpDebugHexToFloat(str);
+    return result;
+}
+
+int OpDebugReadNamedInt(const char*& str, const char* label) {
+    OpDebugRequired(str, label);
+    char* endPtr;
+    int result = strtol(str, &endPtr, 10);
+    str = endPtr;
+    if (')' == str[0])
+        ++str;
+    if (',' == str[0])
+        ++str;
+    if (' ' >= str[0])
+        ++str;
+    return result;
+}
+
+size_t OpDebugReadSizeT(char const *& str) {
+    if ('[' == str[0])
+        ++str;
+    unsigned long result;
+    if (OpDebugOptional(str, "unset"))
+        result = OpMax;
+    else if (OpDebugOptional(str, "-"))
+        result = 0;
+    else {
+        char* endPtr;
+        result = strtoul(str, &endPtr, 10);
+        str = endPtr;
     }
-    OP_ASSERT(strlen(str));
+    if (']' == str[0] || '/' == str[0])
+        ++str;
+    if (' ' >= str[0])
+        ++str;
+    return (size_t) result;
+}
+
+std::string OpDebugLabel(const char*& str) {
+    if (' ' >= str[0])
+        ++str;
+    std::string result;
+    while (' ' < str[0])
+        result += *str++;
+    if (' ' >= str[0] || ':' == str[0])
+        ++str;
+    return result;
+}
+
+bool OpDebugOptional(const char*& str, const char* match) {
+    size_t matchLen = strlen(match);
+    if (' ' >= str[0])
+        ++str;
+    if (!strncmp(match, str, matchLen)) {
+        str += matchLen;
+        if (' ' >= str[0] || ':' == str[0])
+            ++str;
+        return true;
+    }
+    return false;
+}
+
+void OpDebugRequired(const char*& str, const char* match) {
+    OpDebugExitOnFail(match + std::string(" failed"), OpDebugOptional(str, match));
 }
 
 #endif

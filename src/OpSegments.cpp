@@ -428,6 +428,11 @@ FoundIntersections OpSegments::findIntersections() {
                             (segTest->opp->segment == oppTest->opp->segment || 
                             (segTest->opp->segment == oppTest->segment 
                             && segTest->segment == oppTest->opp->segment))) {
+                        if (MatchEnds::start == segBase->unsectEnd 
+                                && MatchEnds::end == segTest->unsectEnd)
+                            return true;
+                        if (segBase->ptT.isNearly(segTest->ptT))
+                            return true;
                         OpVector v = segBase->ptT.pt - segTest->ptT.pt;
                         if (!testGreater) {
                             std::swap(segBase, segTest);

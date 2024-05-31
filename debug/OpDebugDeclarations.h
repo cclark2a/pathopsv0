@@ -11,6 +11,8 @@
 std::string debugDump(DebugLevel, DebugBase ) const;
 void dump() const;
 void dump(DebugLevel, DebugBase ) const;
+void dumpResolveAll(OpContours* );
+void dumpSet(const char*& );
 
 #define OP_X(Thing) \
 	void dump##Thing() const;

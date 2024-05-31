@@ -554,6 +554,8 @@ NormalDirection OpEdge::normalDirection(Axis axis, float edgeInsideT) {
 	return curve.normalDirection(axis, edgeInsideT);
 }
 
+#if 0
+// !!! cache result?
 float OpEdge::oppDist() const {
 	if (OpMath::IsNaN(oppEnd.t))
 		return OpNaN;
@@ -569,6 +571,7 @@ float OpEdge::oppDist() const {
 		dist = 0;
 	return dist;
 }
+#endif
 
 // if there is another path already output, and it is first found in this ray,
 // check to see if the tangent directions are opposite. If they aren't, reverse
@@ -923,7 +926,8 @@ void OpEdge::unlink() {
 	nextEdge = nullptr;
 	clearLastEdge();
 	setWhich(EdgeMatch::start);  // !!! should this set to none?
-	visited = false;
+	startSeen = false;
+	endSeen = false;
 }
 
 #if OP_DEBUG

@@ -56,10 +56,10 @@ void OpIntersections::makeEdges(OpSegment* segment) {
     // if points are out of order, mark intersections as unsortable, between
     // generated edges should be linear, since control points can't be meaningful
     // !!! recompute points?
-    const OpIntersection* last = i.front();
+    OpIntersection* last = i.front();
     OP_ASSERT(!resort);
     for (auto sectPtr : i) {
-        const OpIntersection& sect = *sectPtr;
+        OpIntersection& sect = *sectPtr;
         if (sect.ptT.t != last->ptT.t) {
             segment->edges.emplace_back(segment, last->ptT, sect.ptT
                     OP_LINE_FILE_PARAMS(EdgeMaker::makeEdges, last, sectPtr));
@@ -268,7 +268,9 @@ void OpIntersections::sort() {
         return;
     }
     resort = false;
-    // order first in t, then put unsectable and coincident start before unmarked, and finally end
+    // order first in t, then put coincident start before unmarked, and finally end
+    // start: put coincident, unmarked, unsectable (if t is equal)
+    // end: put unsectable, unmarked, coincident (if t is equal)
     std::sort(i.begin(), i.end(), [](const OpIntersection* s1, const OpIntersection* s2) {
             if (s1->ptT.t != s2->ptT.t)
                 return s1->ptT.t < s2->ptT.t;

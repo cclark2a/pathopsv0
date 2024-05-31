@@ -87,6 +87,7 @@ struct OpContour {
     void debugComplete();
 #endif
 #if OP_DEBUG_DUMP
+    OpContour() {}
     DUMP_DECLARATIONS
     #define OP_X(Thing) \
     void dump##Thing() const;
@@ -106,29 +107,11 @@ struct OpContour {
 
 struct OpContours {
     OpContours(OpInPath& left, OpInPath& right, OpOperator op);
-
-    ~OpContours() {
-        release(ccStorage);
-        release(fillerStorage);
-        while (sectStorage) {
-            OpSectStorage* next = sectStorage->next;
-            delete sectStorage;
-            sectStorage = next;
-        }
-        if (limbStorage) {
-            limbStorage->reset();
-            delete limbStorage;
-        }
-#if OP_DEBUG
-        debugInPathOps = false;
-        debugInClearEdges = false;
-#endif
-    }
-
+    ~OpContours();
     OpContour* addMove(OpContour* , OpOperand , const OpPoint pts[1]);
     void* allocateEdge(OpEdgeStorage*& );
     OpIntersection* allocateIntersection();
-    OpLimb* allocateLimb(OpTree& );
+    OpLimb* allocateLimb(OpTree* );
 
     void apply() {
         for (auto& contour : contours) {
@@ -136,8 +119,8 @@ struct OpContours {
         }
     }
 
-    bool assemble(OpOutPath );
-    bool build(OpInPath path, OpOperand operand);   // provided by graphics implementation
+    bool assemble(OpOutPath& );
+    bool build(OpInPath& path, OpOperand operand);   // provided by graphics implementation
 
     void finishAll();
 
@@ -158,9 +141,9 @@ struct OpContours {
        OP_DEBUG_CODE(debugInClearEdges = false);
     }
 
-    bool pathOps(OpOutPath result);
+    bool pathOps(OpOutPath& result);
     void release(OpEdgeStorage*& );
-    OpLimbStorage* resetLimbs();
+    OpLimbStorage* resetLimbs(OpTree* tree);
     void reuse(OpEdgeStorage* );
 
     int rightFillTypeMask() const {
@@ -209,6 +192,12 @@ struct OpContours {
 #endif
 #if OP_DEBUG_DUMP
     void debugCompare(std::string s) const;
+    void dumpResolve(OpContour*& contourRef);
+    void dumpResolve(const OpEdge*& );
+    void dumpResolve(OpEdge*& );
+    void dumpResolve(OpIntersection*& );
+    void dumpResolve(const OpLimb*& limbRef);
+    void dumpResolve(OpSegment*& );
     #include "OpDebugDeclarations.h"
 #endif
 
@@ -239,6 +228,12 @@ struct OpContours {
     bool debugInClearEdges;
     bool debugCheckLastEdge;
     bool debugFailOnEqualCepts;
+#endif
+#if OP_DEBUG_DUMP
+    OpInPath* debugLeft;
+    OpInPath* debugRight;
+	OpTree* dumpTree;
+    bool debugDumpInit;   // if true, created by dump init
 #endif
 };
 

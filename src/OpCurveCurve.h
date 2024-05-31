@@ -22,6 +22,13 @@
 	  third segment crosses near that axis. The third segment's edges may move away from each
 	  of the original pair when subdivided. Keep track of the closest points found when subdividing
 	  (store them in the segment) to see if this case can be detected.
+
+	- to limit recursion when edge
+	- for every edge allocated:
+	  compute its opp dist
+	  track if opp dist is between opp dists for edge on either side
+	  create a new run if new edge's opp dist is an inflection point
+	  maintain runs of t values with opp dist extremes
 */
 
 enum class SectFound {
@@ -52,31 +59,58 @@ struct TGap {
 	OpPtT hi;
 };
 
+// distance from edge to opp at this edge t, and number of edges between this and next
+struct EdgeRun {
+	void set(const OpEdge* edge, const OpSegment* oppSeg, EdgeMatch );
+	float setOppDist(const OpSegment* segment, const OpPtT& edgePtT, OpPoint oppPt);
+
+	float edgeT;
+	float oppDist;
+	int between;  // incremented if edge t is between, and oppDist is between
+#if OP_DEBUG_DUMP
+	DUMP_DECLARATIONS
+#endif
+
+#if OP_DEBUG
+	const OpEdge* debugEdge;
+	OpPtT debugEdgePtT;
+	OpPtT debugOppPtT;
+#endif
+};
+
 struct CcCurves {
+	void addEdgeRun(const OpEdge* , const OpSegment* oppSeg);
 	void clear();
 	OpPtT closest(OpPoint pt) const;
 	static OpPtT Dist(const OpSegment* , const OpPtT& segPtT, const OpSegment* opp);
-	void endDist(const OpSegment* seg, const OpSegment* opp);
+//	void endDist(const OpSegment* seg, const OpSegment* opp);
 	std::vector<TGap> findGaps() const;
 	int groupCount() const;
+	void initialEdgeRun(const OpEdge* edge, const OpSegment* oppSeg);
 	void markToDelete(float tStart, float tEnd);
 	int overlaps() const;
 	float perimeter() const;
-	void snipAndGo(const OpSegment* ,  const OpPtT& cut);
+	void snipAndGo(const OpSegment* ,  const OpPtT& cut, const OpSegment* oppSeg);
 	// void snipOne(const OpSegment* ,  const OpPtT& lo, const OpPtT& hi);
-	void snipRange(const OpSegment* , const OpPtT& lo, const OpPtT& hi);
+	void snipRange(const OpSegment* , const OpPtT& lo, const OpPtT& hi, const OpSegment* oppSeg);
 	OpPtT splitPt(float oMidDist, const OpEdge& edge) const;
+#if OP_DEBUG
+	bool debugHasEdgeRun(float t) const;
+#endif
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
 #endif
 
 	std::vector<OpEdge*> c;
+	std::vector<EdgeRun> runs;
+#if OP_DEBUG
+	std::vector<EdgeRun> debugRuns;  // runs that fit inside other runs
+#endif
 };
 
 struct FoundLimits {
 //	void setEnd(const OpSegment* opp, const OpCurve& curve, float t);
 #if OP_DEBUG_DUMP
-	std::string debugDump(DebugLevel l, DebugBase b, int indent) const;
 	DUMP_DECLARATIONS
 #endif
 
@@ -100,6 +134,7 @@ struct OpCurveCurve {
 	OpCurveCurve(OpSegment* seg, OpSegment* opp);
 	void addIntersection(OpEdge* edge, OpEdge* opp);
 	SectFound addSect();
+	void addEdgeRun(const OpEdge* , CurveRef );
 	void addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 			const OpPtT& oppStart, const OpPtT& oppEnd);
 	bool checkDist(int edgeOverlaps, int oppOverlaps);
@@ -122,14 +157,16 @@ struct OpCurveCurve {
 	void setHulls(CurveRef curveRef);
 	void setIntersections();
 	bool setOverlaps();
-	void splitDownTheMiddle(const OpEdge& edge, const OpPtT& edgeMid, CcCurves& splits);
+	void splitDownTheMiddle(const OpEdge& edge, const OpPtT& edgeMid, CurveRef , CcCurves& splits);
 	void splitHulls(CurveRef , CcCurves& splits);  // hull finds split point
+	size_t uniqueLimits();
 #if OP_DEBUG
 	~OpCurveCurve() { 
 		contours->debugCurveCurve = nullptr; }
 #endif
 #if OP_DEBUG_DUMP
 #include "OpDebugDeclarations.h"
+	OpCurveCurve(OpContours* c) { contours = c; }
 	void drawClosest(const OpPoint& originalPt) const;
 	void dumpClosest(const OpPoint& pt) const;
 #endif
@@ -149,6 +186,7 @@ struct OpCurveCurve {
 	OpPtT snipOpp;
 	MatchReverse matchRev;
 	int depth;
+	int uniqueLimits_impl;  // cached count; set negative if invalid (call 
 	bool addedPoint;
 	bool rotateFailed;
 	bool sectResult;

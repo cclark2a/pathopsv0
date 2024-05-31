@@ -1042,7 +1042,7 @@ void OpTestQuadLine() {
 	OpInPath op1(&one);
 	OpInPath op2(&two);
 	OpOutPath opOut(&result);
-	OP_DEBUG_CODE(bool didIt =) PathOps(op1, op2, OpOperator::Intersect, &result);
+	OP_DEBUG_CODE(bool didIt =) PathOps(op1, op2, OpOperator::Intersect, opOut);
 	OP_ASSERT(didIt);
 	result.dump();
 	OpDebugOut("");
@@ -1408,7 +1408,7 @@ void cubics44dDraw(SkCanvas* canvas) {
 
 #include "OpCurveCurve.h"
 
-constexpr int maxOverlaps = 16;
+// constexpr int maxOverlaps = 16;
 
 void SetupDebugImage() {
 #if OP_DEBUG_IMAGE
@@ -1421,6 +1421,7 @@ void SetupDebugImage() {
 #endif
 }
 
+#if 0
 // Look for edge pairs which are close but do not cross, and which are difficult to divide into
 // nonoverlapping pieces. See if it is possible to know that some edges do not intersect if their
 // end normals increase in distance.
@@ -1475,8 +1476,10 @@ static bool checkNormals(uint32_t key, int testDepth, OpCurveCurve& cc, const Op
 
 	return false;
 }
+#endif
 
 static void testCc(uint32_t key, OpSegment* seg, OpSegment* opp) {
+	#if 0
 	SetupDebugImage();
 	OpCurveCurve reference(seg, opp);
 	SectFound refResult = reference.divideAndConquer();
@@ -1527,6 +1530,7 @@ static void testCc(uint32_t key, OpSegment* seg, OpSegment* opp) {
 		cc.edgeCurves.c.swap(eSplits.c);
 		cc.oppCurves.c.swap(oSplits.c);
 	}
+#endif
 }
 
 void CCTest() {

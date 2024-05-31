@@ -1,5 +1,6 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpContour.h"
+#include "OpCurveCurve.h"
 #include "OpJoiner.h"
 #include "OpSegments.h"
 #include "OpWinder.h"
@@ -283,6 +284,37 @@ OpContours::OpContours(OpInPath& l, OpInPath& r, OpOperator op)
     debugInClearEdges = false;
     debugCheckLastEdge = false;
     debugFailOnEqualCepts = false;
+    debugDumpInit = false;
+#endif
+#if OP_DEBUG_DUMP
+    dumpTree = nullptr;
+#endif
+}
+
+OpContours::~OpContours() {
+    release(ccStorage);
+    release(fillerStorage);
+    while (sectStorage) {
+        OpSectStorage* next = sectStorage->next;
+        delete sectStorage;
+        sectStorage = next;
+    }
+    if (limbStorage) {
+        limbStorage->reset();
+        delete limbStorage;
+    }
+#if OP_DEBUG
+    debugInPathOps = false;
+    debugInClearEdges = false;
+#endif
+#if OP_DEBUG_DUMP
+    if (debugDumpInit) {
+        delete debugLeft;
+        delete debugRight;
+        delete debugResult;
+        delete debugCurveCurve;
+        delete debugJoiner;
+    }
 #endif
 }
 
@@ -295,12 +327,14 @@ OpContour* OpContours::addMove(OpContour* last, OpOperand operand , const OpPoin
 }
 
 void* OpContours::allocateEdge(OpEdgeStorage*& edgeStorage) {
-    if (!edgeStorage)
+    if (!edgeStorage) {
         edgeStorage = new OpEdgeStorage;
+    }
     if (edgeStorage->used == sizeof(edgeStorage->storage)) {
         OpEdgeStorage* next = edgeStorage->next;
-        if (!next)
+        if (!next) {
             next = new OpEdgeStorage;
+        }
         next->next = edgeStorage;
         edgeStorage = next;
     }
@@ -320,17 +354,23 @@ OpIntersection* OpContours::allocateIntersection() {
     return &sectStorage->storage[sectStorage->used++];
 }
 
-OpLimb* OpContours::allocateLimb(OpTree& tree) {
+OpLimb* OpContours::allocateLimb(OpTree* tree) {
+#if OP_DEBUG_DUMP
+    dumpTree = tree;
+#endif
     if (limbStorage->used == ARRAY_COUNT(limbStorage->storage)) {
         OpLimbStorage* next = new OpLimbStorage;
         next->nextBlock = limbStorage;
         limbStorage->prevBlock = next;
         limbStorage = next;
     }
-    return limbStorage->allocate(tree);
+    return limbStorage->allocate(*tree);
 }
 
-OpLimbStorage* OpContours::resetLimbs() {
+OpLimbStorage* OpContours::resetLimbs(OpTree* tree) {
+#if OP_DEBUG_DUMP
+    dumpTree = tree;
+#endif
     if (!limbStorage)
         limbStorage = new OpLimbStorage;
     limbStorage->reset();
@@ -343,7 +383,7 @@ OpLimbStorage* OpContours::resetLimbs() {
 // make sure normals point same way
 // prefer smaller assembled contours
 // returns true on success
-bool OpContours::assemble(OpOutPath path) {
+bool OpContours::assemble(OpOutPath& path) {
     OpJoiner joiner(*this, path);  // collect active edges and sort them
     if (joiner.setup())
         return true;
@@ -381,7 +421,7 @@ static const bool OutInverse[+OpOperator::ReverseSubtract + 1][2][2] {
 // This will compare the dumps of contours and contents to detect when something changed.
 // The callouts are removed when not in use as they are not maintained and reduce readability.
 // !!! OP_DEBUG_COUNT was unintentionally deleted at some point. Hopefully it is in git history...
-bool OpContours::pathOps(OpOutPath result) {
+bool OpContours::pathOps(OpOutPath& result) {
     if (!build(leftIn, OpOperand::left))  // builds monotonic segments, and adds 0/1 sects
         OP_DEBUG_FAIL(*this, false);
     if (!build(rightIn, OpOperand::right))
