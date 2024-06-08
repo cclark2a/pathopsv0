@@ -14,9 +14,11 @@ struct OpSegments {
     static void AddEndMatches(OpSegment* seg, OpSegment* opp);
     static void AddLineCurveIntersection(OpSegment* opp, OpSegment* seg);
     void findCoincidences();
+    static void FindCoincidences(OpContours* );  // new interface
 //    void findLineCoincidences();
     FoundIntersections findIntersections();
-    IntersectResult lineCoincidence(OpSegment* seg, OpSegment* opp);
+    static FoundIntersections FindIntersections(OpContours* );  // new interface
+    static IntersectResult LineCoincidence(OpSegment* seg, OpSegment* opp);
 
 #if OP_DEBUG_DUMP
     #include "OpDebugDeclarations.h"

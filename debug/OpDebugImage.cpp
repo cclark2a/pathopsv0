@@ -47,6 +47,10 @@ int debugVerboseDepth = 0;
 uint32_t OP_DEBUG_MULTICOLORED = 0xAbeBeBad;
 uint32_t pathsOutColor = blue;
 
+SkBitmap& bitmapRef() {
+	return bitmap;
+}
+
 static uint32_t OpDebugAlphaColor(uint32_t alpha, uint32_t color) {
 	return (alpha << 24) | (color & 0x00FFFFFF);
 }
@@ -1239,6 +1243,9 @@ void OpDebugImage::drawPoints() {
 			if (drawHullsOn) {
 				for (const HullSect& hull : edge->hulls.h)
 					DebugOpBuild(hull.sect.pt, hull.sect.t, DebugSprite::circle);
+			}
+			if (drawEdgeRunsOn && debugGlobalContours->debugCurveCurve) {
+
 			}
 		}
 	}

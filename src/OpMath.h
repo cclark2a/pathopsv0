@@ -349,6 +349,10 @@ enum class SetToNaN {
     dummy
 };
 
+namespace PathOpsV0Lib {
+struct Point;
+}
+
 struct OpPoint {
     OpPoint() 
 #if OP_DEBUG
@@ -372,6 +376,9 @@ struct OpPoint {
         : x(v.dx)
         , y(v.dy) {
     }
+
+    OpPoint(PathOpsV0Lib::Point);
+    PathOpsV0Lib::Point v0Pt() const;
 
     bool isFinite() const;
 

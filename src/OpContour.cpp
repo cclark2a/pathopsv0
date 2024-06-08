@@ -263,6 +263,7 @@ OpContours::OpContours(OpInPath& l, OpInPath& r, OpOperator op)
     , rightIn(r)
     , opIn(op)
     , ccStorage(nullptr)
+    , curveDataStorage(nullptr)
     , fillerStorage(nullptr)
     , sectStorage(nullptr)
     , limbStorage(nullptr)
@@ -293,6 +294,11 @@ OpContours::OpContours(OpInPath& l, OpInPath& r, OpOperator op)
 
 OpContours::~OpContours() {
     release(ccStorage);
+    while (curveDataStorage) {
+        CurveDataStorage* next = curveDataStorage->next;
+        delete curveDataStorage;
+        curveDataStorage = next;
+    }
     release(fillerStorage);
     while (sectStorage) {
         OpSectStorage* next = sectStorage->next;
@@ -327,20 +333,29 @@ OpContour* OpContours::addMove(OpContour* last, OpOperand operand , const OpPoin
 }
 
 void* OpContours::allocateEdge(OpEdgeStorage*& edgeStorage) {
-    if (!edgeStorage) {
+    if (!edgeStorage)
         edgeStorage = new OpEdgeStorage;
-    }
     if (edgeStorage->used == sizeof(edgeStorage->storage)) {
         OpEdgeStorage* next = edgeStorage->next;
-        if (!next) {
+        if (!next)
             next = new OpEdgeStorage;
-        }
         next->next = edgeStorage;
         edgeStorage = next;
     }
     void* result = &edgeStorage->storage[edgeStorage->used];
     edgeStorage->used += sizeof(OpEdge);
     return result;
+}
+
+PathOpsV0Lib::CurveData* OpContours::allocateCurveData(size_t size) {
+    if (!curveDataStorage)
+        curveDataStorage = new CurveDataStorage;
+    if (curveDataStorage->used + size > sizeof(curveDataStorage->storage)) {
+        CurveDataStorage* next = new CurveDataStorage;
+        next->next = curveDataStorage;
+        curveDataStorage = next;
+    }
+    return curveDataStorage->curveData(size);
 }
 
 OpIntersection* OpContours::allocateIntersection() {
@@ -422,20 +437,28 @@ static const bool OutInverse[+OpOperator::ReverseSubtract + 1][2][2] {
 // The callouts are removed when not in use as they are not maintained and reduce readability.
 // !!! OP_DEBUG_COUNT was unintentionally deleted at some point. Hopefully it is in git history...
 bool OpContours::pathOps(OpOutPath& result) {
-    if (!build(leftIn, OpOperand::left))  // builds monotonic segments, and adds 0/1 sects
-        OP_DEBUG_FAIL(*this, false);
-    if (!build(rightIn, OpOperand::right))
-        OP_DEBUG_FAIL(*this, false);
-    finishAll();
-    setBounds();    // !!! check to see if this is used
-    OpSegments sortedSegments(*this);
-    if (!sortedSegments.inX.size()) {
-        result.setEmpty();
-        OP_DEBUG_SUCCESS(*this, true);
+    if (!newInterface) {
+        if (!build(leftIn, OpOperand::left))  // builds monotonic segments, and adds 0/1 sects
+            OP_DEBUG_FAIL(*this, false);
+        if (!build(rightIn, OpOperand::right))
+            OP_DEBUG_FAIL(*this, false);
+        finishAll();
+        setBounds();    // !!! check to see if this is used
+        OpSegments sortedSegments(*this);
+        if (!sortedSegments.inX.size()) {
+            result.setEmpty();
+            OP_DEBUG_SUCCESS(*this, true);
+        }
+        sortedSegments.findCoincidences();  // check for exact curves and full lines
+        if (FoundIntersections::fail == sortedSegments.findIntersections())
+            return false;  // triggered by fuzzhang_1
+    } else {
+        if (!contours.size())
+            OP_DEBUG_SUCCESS(*this, true);
+        OpSegments::FindCoincidences(this);
+        if (FoundIntersections::fail == OpSegments::FindIntersections(this))
+            return false;  // !!! fix this to record for Error()
     }
-    sortedSegments.findCoincidences();  // check for exact curves and full lines
-    if (FoundIntersections::fail == sortedSegments.findIntersections())
-        return false;  // triggered by fuzzhang_1
     sortIntersections();
     makeEdges();
     // made edges may include lines that are coincident with other edges. Undetected for now...
@@ -492,6 +515,26 @@ void OpContour::debugComplete() {
 
 bool OpContours::debugSuccess() const {
     return OpDebugExpect::unknown == debugExpect || OpDebugExpect::success == debugExpect;
+}
+
+SegmentIterator::SegmentIterator(OpContours* c)
+    : contours(c)
+    , contourIndex(0)
+    , segIndex(-1) {
+}
+
+OpSegment* SegmentIterator::next() {
+    OpSegment* s;
+    do {
+        if (++segIndex >= contours->contours[contourIndex].segments.size()) {
+            segIndex = 0;
+            ++contourIndex;
+        }
+        if (contourIndex >= contours->contours.size())
+           return nullptr;
+        s = &contours->contours[contourIndex].segments[segIndex];
+    } while (s->disabled);
+    return s;
 }
 
 #endif

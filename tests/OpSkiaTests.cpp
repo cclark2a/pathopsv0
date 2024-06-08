@@ -15,6 +15,9 @@
 #define OP_TEST_SKIA 1  // see if skia's path ops can execute the same test
 #define OP_TEST_REGION 1  // test result of v0 against skia regions
 
+#define CURVE_CURVE_1 2  // id of edge 1 to break in divide and conquer
+#define CURVE_CURVE_2 6  // id of edge 2 to break in divide and conquer
+
 // see descriptions for exceptions below
 #define TEST_PATH_OP_EXCEPTIONS "issue3517" // "cubics7d"
 #define TEST_PATH_OP_FUZZ_EXCEPTIONS "fuzz487a", "fuzz487b" // "fuzz487a"

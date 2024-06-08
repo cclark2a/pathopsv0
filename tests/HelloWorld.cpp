@@ -6,45 +6,85 @@
 */
 // (c) 2023, Cary Clark cclark2@gmail.com
 
-#define OP_INTERACTIVE 1
+#define OP_INTERACTIVE 0
+#define OP_TEST_NEW_INTERFACE 1
 
 #include "HelloWorld.h"
-
+#include "include/core/SkBitmap.h"
 #include "include/core/SkCanvas.h"
-#include "include/core/SkColor.h"
-#include "include/core/SkFont.h"
-#include "include/core/SkFontTypes.h"
 #include "include/core/SkGraphics.h"
-#include "include/core/SkPaint.h"
-#include "include/core/SkPoint.h"
-#include "include/core/SkRect.h"
-#include "include/core/SkShader.h"
-#include "include/core/SkString.h"
+#include "include/core/SkPath.h"
 #include "include/core/SkSurface.h"
-#include "include/core/SkTileMode.h"
-#include "include/effects/SkGradientShader.h"
-//#include "tools/sk_app/DisplayParams.h"
-
-
-#include "OpCurve.h"
 #include "PathOps.h"
+#include "OpContour.h"
+#include "OpMath.h"
 
-#include <string>
-
+#if !OP_INTERACTIVE
 void OpTest(bool terminateEarly);
-void OpQuadDraw(SkCanvas* canvas);
-void OpConicDraw(SkCanvas* canvas);
-void OpCubicDraw(SkCanvas* canvas);
-
-#include "src/pathops/SkIntersections.h"
-#include "src/pathops/SkPathOpsLine.h"
-
-void figur_monotonicity(SkSurface* surface);
+#endif
 
 using namespace sk_app;
 
 Application* Application::Create(int argc, char** argv, void* platformData) {
     return new HelloWorld(argc, argv, platformData);
+}
+
+struct PointIndex {
+    int index;
+    int close;
+};
+
+struct PointsVerbs {
+    // !!! add way to visualize edge runs
+    SkPath makePath() {
+        return SkPath::Make(&points.front(), points.size(),
+            &verbs.front(), verbs.size(), &weights.front(), weights.size(), fillType);
+    }
+    
+    void set(OpInPath& inPath) {
+        SkPath* path = (SkPath*) inPath.externalReference;
+        int count = path->countPoints();
+        points.resize(count);
+        path->getPoints(&points.front(), count);
+        count = path->countVerbs();
+        verbs.resize(count);
+        path->getVerbs(&verbs.front(), count);
+        curves = 0;
+        fillType = path->getFillType();
+        SkPath::RawIter iter(*path);
+        SkPath::Verb verb;
+        do {
+            SkPoint pts[4];
+            verb = iter.next(pts);
+            curves += SkPath::kQuad_Verb <= verb && verb <= SkPath::kCubic_Verb;
+            if (SkPath::kConic_Verb == verb)
+                weights.push_back(iter.conicWeight());
+        } while (verb != SkPath::kDone_Verb);
+    }
+
+    std::vector<SkPoint> points;
+    std::vector<uint8_t> verbs;
+    std::vector<SkScalar> weights;
+    int curves;
+    SkPathFillType fillType;
+};
+
+PointsVerbs leftPath;
+PointsVerbs rightPath;
+PointsVerbs* activePtV;
+PointIndex activeIndex;
+int activeFocus;
+int activeLeft;
+int activeRight;
+
+void resetPaths() {
+    leftPath.set(debugGlobalContours->leftIn);
+    rightPath.set(debugGlobalContours->rightIn);
+    activePtV = nullptr;
+    activeIndex = { -1, -1 };
+    activeFocus = -1;
+    activeLeft = 0;
+    activeRight = 0;
 }
 
 HelloWorld::HelloWorld(int argc, char** argv, void* platformData)
@@ -57,17 +97,27 @@ HelloWorld::HelloWorld(int argc, char** argv, void* platformData)
 #else
         : fBackendType(Window::kRaster_BackendType)
 #endif
-//        , fRotationAngle(0)
 {
     SkGraphics::Init();
-
     fWindow = Window::CreateNativeWindow(platformData);
     fWindow->setRequestedDisplayParams(DisplayParams());
-
     // register callbacks
     fWindow->pushLayer(this);
-
     fWindow->attach(fBackendType);
+#if OP_INTERACTIVE
+    fromFile();
+    std::swap(fromFileContours, debugGlobalContours);
+    // preserve original contour data so it can be edited/restored later
+    resetPaths();
+    OpDebugImage::init();
+    resetFocus();
+    showEdges();
+    showIDs();
+#endif
+#if OP_TEST_NEW_INTERFACE
+    extern void testNewInterface();
+    testNewInterface();
+#endif
 }
 
 HelloWorld::~HelloWorld() {
@@ -88,158 +138,23 @@ void HelloWorld::onBackendCreated() {
     fWindow->inval();
 }
 
-void drawPath(SkCanvas* canvas, const SkPath& path) {
-    SkPaint paint;
-    paint.setAntiAlias(true);
-    paint.setStyle(SkPaint::kStroke_Style);
-    canvas->drawPath(path, paint);
-}
-
-static void drawTangents(SkCanvas* canvas, const SkPoint* pts, int count) {
-    SkPath tangents;
-    tangents.moveTo(pts[0]);
-    for (int x = 1; x < count; ++x)
-        tangents.lineTo(pts[x]);
-    SkPaint paint;
-    paint.setAntiAlias(true);
-    paint.setStyle(SkPaint::kStroke_Style);
-    paint.setColor(0xFF7f7f7f);
-    canvas->drawPath(tangents, paint);
-}
-
-static std::string ptToString(const SkPoint& pt) {
-    return "(" + std::to_string((int)pt.fX) + ", " + std::to_string((int)pt.fY) + ")";
-}
-
-static void labelTangents(SkCanvas* canvas, const SkPoint* pts, int count, const char* indexAsString,
-        bool drawLabel) {
-    sk_sp<SkTypeface> typeface = SkTypeface::MakeDefault();
-    SkFont font(typeface, 14);
-    SkPaint paint;
-    paint.setAntiAlias(true);
-    paint.setColor(0xFF000000);
-    for (int x = 0; x < count; ++x) {
-        const SkPoint& pt = pts[x];
-        paint.setStyle(SkPaint::kStroke_Style);
-        canvas->drawCircle(pt, 2, paint);
-        if (1 != x || !drawLabel)
-            continue;
-        paint.setStyle(SkPaint::kFill_Style);
-        std::string ptStr = indexAsString ? indexAsString : ptToString(pt);
-        SkRect bounds;
-        SkScalar width = font.measureText(ptStr.c_str(), ptStr.length(), SkTextEncoding::kUTF8, &bounds);
-        SkPoint labelPt = pt;
-        switch (x) {
-        case 0: labelPt.fX -= width * 5 / 4; labelPt.fY += bounds.height() / 2; break;
-        case 1: labelPt.fX += width / 2; /* labelPt.fY -= bounds.height() / 2; */ break;
-        case 2: labelPt.fX -= width / 2; labelPt.fY += bounds.height(); break;
-        case 3: labelPt.fX -= width * 5 / 4; labelPt.fY += bounds.height() / 2; break;
-        }
-        canvas->drawSimpleText(ptStr.c_str(), ptStr.length(), SkTextEncoding::kUTF8,
-            labelPt.fX, labelPt.fY, font, paint);
-    }
-}
-
-void figur_coniccircle(SkSurface* surface) {
+void HelloWorld::onPaint(SkSurface* surface) {
     auto canvas = surface->getCanvas();
-    SkPaint paint;
-    paint.setAntiAlias(true);
-    paint.setStyle(SkPaint::kStroke_Style);
-    float sAngles[] = { 45, 70, 90, 45, 45, 0 };
-    float angles[] = { 45, 70, 90, 110, 135, 160 };
-    float trans[] = {120, 120, 120, 150, 180, 300 };
-    for (unsigned index = 0; index < ARRAY_COUNT(angles); ++index) {
-        paint.setColor(0xFF7f7f7f);
-        canvas->drawCircle({100, 100}, 50, paint);
-        SkPath path;
-        SkPoint a = { 50 * sinf(sAngles[index] / 180 * 3.1416f),
-                     -50 * cosf(sAngles[index] / 180 * 3.1416f) };
-        SkPoint b = { 50 * sinf((sAngles[index] + angles[index]) / 180 * 3.1416f),
-                     -50 * cosf((sAngles[index] + angles[index]) / 180 * 3.1416f) };
-        SkIntersections i;
-        SkDLine l1, l2;
-        SkPoint l1Pts[] = { { 100 + a.fX - a.fY, 100 + a.fY + a.fX }, { 100 + a.fX, 100 + a.fY } };
-        l1.set(l1Pts);
-        SkPoint l2Pts[] = { { 100 + b.fX + b.fY, 100 + b.fY - b.fX }, { 100 + b.fX, 100 + b.fY } };
-        l2.set(l2Pts);
-        (void) i.intersectRay(l1, l2);
-        path.moveTo(100 + a.fX, 100 + a.fY);
-        path.lineTo(100, 100);
-        path.lineTo(100 + b.fX, 100 + b.fY);
-
-        canvas->drawPath(path, paint);
-        canvas->drawArc({70, 70, 130, 130}, 270 + sAngles[index], angles[index], false, paint);
-        paint.setColor(SK_ColorBLACK);
-        path.reset();
-        SkPoint conicPts[3] = {{ (float) l1Pts[1].fX, (float)l1Pts[1].fY },
-                               { (float) i.pt(0).fX, (float) i.pt(0).fY },
-                               { (float) l2Pts[1].fX, (float)l2Pts[1].fY }};
-        path.moveTo(conicPts[0]);
-        path.conicTo(conicPts[1], conicPts[2], cosf(angles[index] / 180 * 3.1416f / 2));
-        drawPath(canvas, path);
-        drawTangents(canvas, conicPts, 3);
-        labelTangents(canvas, conicPts, 3, "", false);
-
-        canvas->translate(trans[index], 0);
-    }
-}
-
-static void oldPaints(SkCanvas* canvas) {
-#if 0
-    extern void cubics44dDraw(SkCanvas* canvas);
-    canvas->scale(100, 100);
-    cubics44dDraw(canvas);
-    canvas->restore();
-    return;
-#elif OP_DEBUG_IMAGE
+    canvas->save();
+    canvas->clear(SK_ColorWHITE);
+#if OP_DEBUG_IMAGE
     if (GENERATE_COLOR_FILES) {
         OpDebugGenerateColorFiles();
         return;
     }
 #endif
+#if OP_INTERACTIVE
+    SkBitmap& bitmap = bitmapRef();
+    sk_sp<SkImage> image1 = bitmap.asImage();
+    canvas->drawImage(image1, 0, 0);
+#else
     OpTest(nullptr != canvas); // trickery to avoid compiler warning
-#if 0
-    canvas->scale(75, 75);
-    OpQuadDraw(canvas);
-    canvas->translate(5, 0);
-    OpConicDraw(canvas);
-    canvas->translate(5, 0);
-    OpCubicDraw(canvas);
-#if 0
-    canvas->translate(5, 0);
-    SkConicDraw(canvas);
 #endif
-#elif 1
-    canvas->scale(2, 2);
-    SkPath path, path2;
-#if 0
-    SkPoint pts[] = { { 100, 100 }, { 150, 50 }, { 200, 200 }, { 400, 100 } };
-    path.moveTo(pts[0]);
-    path.cubicTo(pts[1], pts[2], pts[3]);
-    path2 = path;
-#else
-    SkRect r1 = { 1, 2, 5, 6 };
-    SkRect r2 = { 3, 4, 7, 8 };
-    path.addRect(r1);
-    path2.addRect(r2);
-#endif
-	OpInPath op1(&path);
-	OpInPath op2(&path2);
-	OpOutPath opOut(&path);
-    PathOps(op1, op2, OpOperator::Intersect, opOut);
-    drawPath(canvas, path);
-#else
-    // figur_monotonicity(surface);
-    // figur_conicweights(surface);
-    figur_coniccircle(surface);
-#endif
-}
-
-void HelloWorld::onPaint(SkSurface* surface) {
-    auto canvas = surface->getCanvas();
-    canvas->save();
-    canvas->clear(SK_ColorWHITE);
-    oldPaints(canvas);
     canvas->restore();
 }
 
@@ -250,7 +165,111 @@ void HelloWorld::onIdle() {
 #endif
 }
 
+
+PointIndex pointIndex(PointsVerbs& ptVerbs, int curve, int focus) {
+    PointIndex result {-1, -1};
+    size_t vIndex = 0;
+    size_t ptIndex = 0;
+    size_t firstInContour = 0;
+    int cIndex = curve;
+    OP_ASSERT(focus > 0 && focus <= 4);
+    while (vIndex < ptVerbs.verbs.size() && cIndex >= 0) {
+        SkPath::Verb v = (SkPath::Verb) ptVerbs.verbs[vIndex++];
+        if (SkPath::kMove_Verb == v || SkPath::kLine_Verb == v) {
+            ++ptIndex;
+            continue;
+        }
+        if (SkPath::kClose_Verb == v || SkPath::kDone_Verb == v) {
+            if (firstInContour == (size_t) result.index && 1 < ptIndex) {
+                size_t closePtIndex = ptIndex - 1;
+                if (ptVerbs.points[firstInContour] == ptVerbs.points[closePtIndex])
+                    result.close = closePtIndex;
+                break;
+            }
+            if (SkPath::kDone_Verb == v)
+                break;
+        }
+        if (SkPath::kClose_Verb == v) {
+            firstInContour = ptIndex;
+            continue;
+        }
+        int ptCount = 0;
+        switch (v) {
+            case SkPath::kQuad_Verb:
+                ptCount = 3;
+            break;
+            case SkPath::kConic_Verb:
+                ptCount = 3;
+            break;
+            case SkPath::kCubic_Verb:
+                ptCount = 4;
+            break;
+            default:
+                OP_ASSERT(0);
+        }
+       if (0 == cIndex) {
+           if (focus > ptCount)
+               return result;
+           int offset = focus - 2;  // first point is 1, so -1 is last point from prior 
+           OP_ASSERT((int) ptIndex >= offset);
+           result.index = ptIndex + offset;
+       }
+       --cIndex;
+       ptIndex += ptCount - 1;
+       OP_ASSERT(ptIndex < ptVerbs.points.size());
+    }
+    return result;
+}
+
+int debugBreakDepth;  // !!! this needs to be moved into global contour
+
+void adjustCCDepth(int delta) {
+    int breakDepth = debugBreakDepth + delta;
+    if (breakDepth < 1)
+        return;
+    debugBreakDepth = breakDepth;
+}
+
 bool HelloWorld::onChar(SkUnichar c, skui::ModifierKey modifiers) {
+    switch (c) {
+    case 'b' : toggleBounds(); break;
+    case 'c' : toggleControls(); break;
+    case 'C' : toggleControlLines(); break;
+    case 'd' : adjustCCDepth(+1); break;
+    case 'D' : adjustCCDepth(-1); break;
+    case 'e' : toggleEdges(); break;
+    case 'E' : toggleEndToEnd(); break;
+    case 'f' : toggleFill(); break;
+    case 'g' : toggleGrid(); break;
+    case 'G' : toggleGuides(); break;
+    case 'h' : toggleHex(); break;
+    case 'H' : toggleHulls(); break;
+    case 'i' : toggleIDs(); break;
+    case 'I' : toggleIntersections(); break;
+    case 'n' : toggleNormals(); break;
+    case 'N' : toggleIn(); break;
+    case 'o' : togglePathsOut(); break;
+    case 'O' : toggleOperands(); break;
+    case 'p' : togglePoints(); break;
+    case 'r' : resetPaths(); break;  // !!! add way to (probably toggle) original path and current edit
+    case 's' : toggleSegments(); break;
+    case 't' : toggleTangents(); break;
+    case 'v' : toggleValues(); break;
+    case 'w' : toggleWindings(); break;
+    case '0' : 
+        activeFocus = 0; 
+        activePtV = nullptr; 
+        activeIndex = { -1, -1 };
+        break;
+    default:
+        if ('1' <= c && c <= '8') {
+            activeFocus = c <= '4' ? c - '0' : c - '4';
+            activePtV = c <= '4' ? &leftPath : &rightPath;
+            int activeCurve = c <= '4' ? activeLeft : activeRight;
+            activeIndex = pointIndex(*activePtV, activeCurve, activeFocus); 
+        }
+        break;
+    }
     return true;
 }
 
@@ -258,21 +277,71 @@ bool HelloWorld::onKey(skui::Key, skui::InputState, skui::ModifierKey) {
     return true;
 }
 
+// change indicated point. If this point is the first in contour, change last also if same
+void setPoint(PointsVerbs& ptVerbs, PointIndex pi, SkPoint pt) {
+    OP_ASSERT(0 <= pi.index && pi.index < (int) ptVerbs.points.size());
+    OP_ASSERT(-1 == pi.close || (0 < pi.close && pi.close < (int) ptVerbs.points.size()));
+    SkPoint oldValue = ptVerbs.points[pi.index];
+    OP_ASSERT(-1 == pi.close || oldValue == ptVerbs.points[pi.close]);
+    ptVerbs.points[pi.index] = pt;
+    if (0 < pi.close)
+        ptVerbs.points[pi.close] = pt;
+}
+
+// associates 1:4 with first curve; 5:8 with second curve
+void movePoint(float x, float y) {
+    switch (activeFocus) {
+        case 1: break;
+        case 2: break;
+        case 3: break;
+        case 4: break;
+        case 5: break;
+        case 6: break;
+        case 7: break;
+        case 8: break;
+    }
+    // !!! start here
+    // edit skia path
+    int ptIndex = activeFocus % 3;
+    OP_ASSERT(ptIndex);  // !!! suppress warning; incomplete
+    // regenerate segments, edges, curve/curve data (esp. edge runs, exiting when some depth is reached)
+}
+
 bool HelloWorld::onMouse(int x, int y, skui::InputState state, skui::ModifierKey modifiers) {
+    static bool mouseDown = false;
+    static int lastX = OpMax, lastY = OpMax;
     if (skui::InputState::kUp == state) {
-        
+        mouseDown = false;
         return true;
     }
     if (skui::InputState::kDown == state)  {
-        
+        mouseDown = true;
         return true;
     }
     OP_ASSERT(skui::InputState::kMove == state);
-
+    if (mouseDown) {
+        if (OpMax != lastX) {
+            int deltaX = x - lastX;
+            int deltaY = y - lastY;
+           if (deltaX > 0)
+               activeFocus <= 0 ? l(.02) : movePoint(-.02, 0);
+           else if (deltaX < 0)
+               activeFocus <= 0 ? r(.02) : movePoint(.02, 0);
+           if (deltaY > 0)
+               activeFocus <= 0 ? u(.02) : movePoint(0, -.02);
+           else if (deltaY < 0)
+               activeFocus <= 0 ? d(.02) : movePoint(.02, .02);
+        }
+        lastX = x;
+        lastY = y;
+    }
     return true;
 }
 
 bool HelloWorld::onMouseWheel(float delta, skui::ModifierKey modifiers) {
-
+    if (delta > 0)
+        i(1);
+    else if (delta < 0)
+        oo(1);
     return true;
 }

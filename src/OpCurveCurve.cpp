@@ -587,10 +587,7 @@ bool OpCurveCurve::checkSplit(float loT, float hiT, CurveRef which, OpPtT& check
 SectFound OpCurveCurve::divideAndConquer() {
 	OP_DEBUG_CONTEXT();
 #if OP_DEBUG_DUMP
-	int oneOr = 2;  // negative to disable
-	int theOther = 6;
-	bool breakAtDraw = (oneOr == seg->id && theOther == opp->id)
-			|| (oneOr == opp->id && theOther == seg->id);
+	bool breakAtDraw = dumpBreak();
 #endif
 	OP_ASSERT(1 == edgeCurves.c.size());
 	OP_ASSERT(1 == oppCurves.c.size());

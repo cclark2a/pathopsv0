@@ -73,46 +73,71 @@ struct CutRangeT {
 
 #define USE_SEGMENT_CENTER 1
 
+namespace PathOpsV0Lib {
+    struct Context;
+    struct Curve;
+    struct CurveData;
+}
+
 struct OpCurve {
     OpCurve() 
-        : weight(1)
+        : curveData(nullptr)
+        , weight(1)
         , type(OpType::no)
-        , centerPt(false) {
+        , centerPt(false)
+        , newInterface(false) {
         OP_DEBUG_CODE(debugIntersect = OpDebugIntersect::segment);
     }
 
     OpCurve(const OpPoint p[], OpType t) 
-        : weight(1)
+        : curveData(nullptr)
+        , weight(1)
         , type(t)
-        , centerPt(false) {
+        , centerPt(false)
+        , newInterface(false) {
         memcpy(pts, p, pointCount() * sizeof(OpPoint));
         OP_DEBUG_CODE(debugIntersect = OpDebugIntersect::segment);
     }
 
     OpCurve(const OpPoint p[], float w, OpType t)
-        : weight(w)
+        : curveData(nullptr)
+        , weight(w)
         , type(t)
-        , centerPt(false) {
+        , centerPt(false)
+        , newInterface(false) {
         memcpy(pts, p, pointCount() * sizeof(OpPoint));
         OP_DEBUG_CODE(debugIntersect = OpDebugIntersect::segment);
     }
 
     OpCurve(OpPoint p0, OpPoint p1)
-        : weight(1)
+        : curveData(nullptr)
+        , weight(1)
         , type(OpType::line)
-        , centerPt(false) {
+        , centerPt(false)
+        , newInterface(false) {
         pts[0] = p0;
         pts[1] = p1;
         OP_DEBUG_CODE(debugIntersect = OpDebugIntersect::segment);
     }
 
     OpCurve(const OpPoint p[], float w)
-        : weight(w)
+        : curveData(nullptr)
+        , weight(w)
         , type(OpType::conic)
-        , centerPt(false) {
+        , centerPt(false)
+        , newInterface(false) {
         memcpy(pts, p, pointCount() * sizeof(OpPoint));
         OP_DEBUG_CODE(debugIntersect = OpDebugIntersect::segment);
     }
+
+    OpCurve(struct PathOpsV0Lib::Context* , struct PathOpsV0Lib::Curve );
+
+#if 0
+    ~OpCurve() {
+        if (newInterface)
+            free(curveData);
+    }
+#endif
 
     OpLine& asLine();
     OpQuad& asQuad();
@@ -163,11 +188,13 @@ struct OpCurve {
 #if OP_DEBUG_DUMP
     DUMP_DECLARATIONS
 #endif
-
+    // create storage in contour; helper function casts it to CurveData
+    PathOpsV0Lib::CurveData* curveData;
     OpPoint pts[5];  // extra point carries cubic center for vertical rotation (used by curve sect)
     float weight;
     OpType type;
     bool centerPt;  // true if center point follows curve
+    bool newInterface;
 #if OP_DEBUG
     OpDebugIntersect debugIntersect;
     OpPoint debugOriginalCtrls[2];   // if cubic ctrl pts are pinned, store originals here
@@ -293,6 +320,23 @@ struct OpCubic : OpCurve {
     float tangent(XyChoice , double t) const;
     OpVector tangent(float t) const;
     OpPair xyAtT(OpPair t, XyChoice ) const;
+};
+
+struct CurveDataStorage {
+	CurveDataStorage()
+		: next(nullptr)
+		, used(0) {
+        OP_DEBUG_CODE(storage[0] = 0);
+	}
+    PathOpsV0Lib::CurveData* curveData(size_t size) {
+        PathOpsV0Lib::CurveData* result = (PathOpsV0Lib::CurveData*) &storage[used];
+        used += size;
+        return result;
+    }
+
+	CurveDataStorage* next;
+	uint8_t storage[sizeof(OpPoint) * 256];
+	int used;
 };
 
 #if OP_DEBUG_IMAGE  

@@ -7,7 +7,8 @@
 #include <vector>
 
 struct OpContours;
-OpContours* dumpInit(const OpContours*);
+OpContours* dumpInit();
+extern OpContours* fromFileContours;
 
 #define DUMP_DECLARATIONS \
 std::string debugDump(DebugLevel , DebugBase ) const; \

@@ -102,3 +102,74 @@ OpPair OpQuad::xyAtT(OpPair t, XyChoice xy) const {
     OpPair c = t * t;
     return a * pts[0].choice(xy) + b * pts[1].choice(xy) + c * pts[2].choice(xy);
 }
+
+
+// new interface idea
+
+#include "PathOps.h"
+
+namespace PathOpsV0Lib {
+
+Point QuadPointAtT(Point start, Point control, Point end, float t) {
+    if (0 == t)
+        return start;
+    if (1 == t)
+        return end;
+    float one_t = 1 - t;
+    float a = one_t * one_t;
+    float b = 2 * one_t * t;
+    float c = t * t;
+    OpPoint result = a * (OpPoint)start + b * (OpPoint)control + c * (OpPoint)end;
+    return result.v0Pt();
+}
+
+Point QuadControlPt(Point start, Point control, Point end, PtT ptT1, PtT ptT2) {
+    Point midPt = QuadPointAtT(start, control, end, (ptT1.t + ptT2.t) / 2);
+    OpPoint avgPt = ((OpPoint)ptT1.pt + (OpPoint)ptT2.pt) / 2;
+    OpPoint result = 2 * (OpPoint)midPt - avgPt;
+    result.pin((OpPoint)ptT1.pt, (OpPoint)ptT2.pt);
+    return *(Point*) &result;
+}
+
+size_t AddQuads(Context* context, Curve curve) {
+    CurveData& q = *curve.data;
+    Point& control = *(Point*) q.optionalAdditionalData;
+    auto [left, right] = std::minmax(q.start.x, q.end.x);
+    bool monotonicInX = left <= control.x && control.x <= right;
+    auto [top, bottom] = std::minmax(q.start.y, q.end.y);
+    bool monotonicInY = top <= control.y && control.y <= bottom;
+    if (monotonicInX && monotonicInY) {
+        Add(context, curve);
+        return 1;
+    }
+    // control point is not inside bounds formed by end points; split quad into parts
+    std::vector<float> tValues { 0, 1 };
+    auto addExtrema = [&tValues](float s, float c, float e) {
+        float numerator = s - c;
+        float denominator = numerator - c + e;
+        if (0 == denominator)
+            return;
+        float extrema = numerator / denominator;
+        if (OpEpsilon <= extrema && extrema < 1)
+            tValues.push_back(extrema);
+    };
+    if (!monotonicInX)
+        addExtrema(q.start.x, control.x, q.end.x);
+    if (!monotonicInY)
+        addExtrema(q.start.y, control.y, q.end.y);
+    std::sort(tValues.begin(), tValues.end());
+    std::vector<PtT> ptTs(tValues.size());
+    ptTs.front() = { q.start, 0 };
+    ptTs.back() = { q.end, 1 };
+    for (unsigned index = 1; index < tValues.size() - 1; ++index) {
+        ptTs[index] = { QuadPointAtT(q.start, control, q.end, tValues[index]), tValues[index] }; 
+    } 
+    for (unsigned index = 0; index < tValues.size() - 2; ++index) {
+        Point curveData[3] { ptTs[index].pt, ptTs[index + 1].pt,
+            QuadControlPt(q.start, control, q.end, ptTs[index], ptTs[index + 1]) };
+        Add(context, { (CurveData*) curveData, curve.type } );
+    }
+    return 1 + tValues.size();
+}
+
+}

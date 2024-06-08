@@ -468,7 +468,7 @@ void fromFile() {
     const char* str = buffer.c_str();
     if (fromFileContours)
         delete fromFileContours;
-    fromFileContours = dumpInit(debugGlobalContours);
+    fromFileContours = dumpInit();
     fromFileContours->dumpSet(str);  // also reads segments, which read segments' edges, etc.
     fromFileContours->dumpResolveAll(fromFileContours);
 }
@@ -496,7 +496,7 @@ OpOutPath::~OpOutPath() {
 }
 
 // everything here is leaked (for now; should only be called once per app execution)
-OpContours* dumpInit(const OpContours* existing) {
+OpContours* dumpInit() {
     OpInPath* opLeft = new OpInPath(OpInPath::MakeExternalReference());
     OpInPath* opRight = new OpInPath(OpInPath::MakeExternalReference());
     OpContours* result = new OpContours(*opLeft, *opRight, OpOperator::Intersect);
@@ -504,10 +504,6 @@ OpContours* dumpInit(const OpContours* existing) {
     result->debugRight = opRight;
 #if OP_DEBUG
     result->debugResult = new OpOutPath(OpOutPath::MakeExternalReference());
-    if (existing->debugCurveCurve)
-        result->debugCurveCurve = new OpCurveCurve(result);
-    if (existing->debugJoiner)
-        result->debugJoiner = new OpJoiner(*result, *result->debugResult);
     result->debugDumpInit = true;
 #endif
     return result;
@@ -837,10 +833,16 @@ void OpContours::dumpSet(const char*& str) {
     debugValidateJoinerIndex = (int) OpDebugReadSizeT(str);
 #endif
 #if OP_DEBUG
-    if (OpDebugOptional(str, "debugCurveCurve"))
+    if (OpDebugOptional(str, "debugCurveCurve")) {
+        if (!debugCurveCurve)
+            debugCurveCurve = new OpCurveCurve(this);
         debugCurveCurve->dumpSet(str);
-    if (OpDebugOptional(str, "debugJoiner"))
+    }
+    if (OpDebugOptional(str, "debugJoiner")) {
+        if (!debugJoiner)
+            debugJoiner = new OpJoiner(*this, *debugResult);
         debugJoiner->dumpSet(str);
+    }
     if (OpDebugOptional(str, "debugResult"))
         debugResult->dumpSet(str);
     if (OpDebugOptional(str, "debugWarnings")) {
@@ -2097,7 +2099,7 @@ void OpEdge::dumpSet(const char*& str) {
     debugMatch = (OpEdge*) strID("debugMatch");
     debugZeroErr = (OpEdge*) strID("debugZeroErr");
     debugMaker = edgeMakerStr(str, "debugMaker", EdgeMaker::empty);
-    debugZero = zeroReasonStr(str, "debugZero", ZeroReason::none);
+    debugZero = zeroReasonStr(str, "debugZero", ZeroReason::uninitialized);
     if (OpDebugOptional(str, "debugSetMaker"))
         debugSetMaker.dumpSet(str);
     if (OpDebugOptional(str, "debugSetSum"))
@@ -3146,6 +3148,11 @@ void CcCurves::dumpResolveAll(OpContours* contours) {
     for (auto& run : debugRuns)
         run.dumpResolveAll(contours);
 #endif
+}
+
+bool OpCurveCurve::dumpBreak() const {
+     return (contours->dumpCurve1 == seg->id && contours->dumpCurve2 == opp->id)
+			|| (contours->dumpCurve1 == opp->id && contours->dumpCurve2 == seg->id);
 }
 
 std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {

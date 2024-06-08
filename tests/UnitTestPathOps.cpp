@@ -2,6 +2,8 @@
 //       1         2         3         4         5         6         7         8         9         0
 //34567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
 #include "OpDebug.h"
+#include "PathOps.h"
+
 #if OP_RELEASE_TEST
 
 // math test
@@ -15,6 +17,8 @@
 
 #define ASSERT(test) assertReport(test, __FUNCTION__, __LINE__, #test)
 #define ASSERT_I(test, outI) assertReport(test, __FUNCTION__, __LINE__, outI, #test)
+
+
 
 void assertReport(bool test, const char* func, int lineNo, const char* errorStr) {
 	if (!test) {
@@ -1177,131 +1181,14 @@ void OpTest(bool terminateEarly) {
 
 #include "include/core/SkCanvas.h"
 
+#if 0
 static void drawPath(SkCanvas* canvas, const SkPath& path) {
 	SkPaint paint;
 	paint.setAntiAlias(true);
 	paint.setStyle(SkPaint::kStroke_Style);
 	canvas->drawPath(path, paint);
 }
-
-void OpQuadDraw(SkCanvas* canvas) {
-	const LinePts vert = {{{ { 2.5, 1 }, { 2.5, 3 } }}};
-	const LinePts horz = {{{ { 4, 2.5 }, { 1, 2.5 } }}};
-	const OpPoint iQPts[] = { { 2, 4 }, { 1, 3 }, { 3, 1 } };
-	const LinePts iLinePts = {{{ { 1, 1 }, { 4, 4 } }}};
-
-	// draw quadratic
-	OpQuad qi1 = { iQPts };
-	OpRoots intercepts[3];
-	intercepts[0] = qi1.rayIntersect(vert, MatchEnds::none);
-	intercepts[1] = qi1.rayIntersect(horz, MatchEnds::none);
-	intercepts[2] = qi1.rayIntersect(iLinePts, MatchEnds::none);
-	SkPath path;
-	path.moveTo(vert.pts[0].x, vert.pts[0].y);
-	path.lineTo(vert.pts[1].x, vert.pts[1].y);
-	path.moveTo(horz.pts[0].x, horz.pts[0].y);
-	path.lineTo(horz.pts[1].x, horz.pts[1].y);
-	path.moveTo(iLinePts.pts[0].x, iLinePts.pts[0].y);
-	path.lineTo(iLinePts.pts[1].x, iLinePts.pts[1].y);
-	path.moveTo(iQPts[0].x, iQPts[0].y);
-	path.quadTo(iQPts[1].x, iQPts[1].y, iQPts[2].x, iQPts[2].y);
-	drawPath(canvas, path);
-	SkPaint paint;
-	paint.setAntiAlias(true);
-	paint.setStyle(SkPaint::kStroke_Style);
-	for (int x = 0; x < 3; ++x) {
-		OpPoint pt = qi1.ptAtT(intercepts[x].roots[0]);
-		canvas->drawCircle(pt.x, pt.y, 0.2f, paint);
-	}
-	for (float fx = 0; fx <= 1; fx += .5) {
-		OpVector norm = qi1.normal(fx);
-		OpVector tan = qi1.tangent(fx);
-		OpPoint pt = qi1.ptAtT(fx);
-		paint.setColor(SK_ColorRED);
-		canvas->drawLine({ pt.x, pt.y }, { pt.x + norm.dx, pt.y + norm.dy }, paint);
-		paint.setColor(SK_ColorBLUE);
-		canvas->drawLine({ pt.x, pt.y }, { pt.x + tan.dx, pt.y + tan.dy }, paint);
-	}
-}
-
-void OpConicDraw(SkCanvas* canvas) {
-	const LinePts vert = {{{ { 2.5, 1 }, { 2.5, 3 } }}};
-	const LinePts horz = {{{ { 4, 2.5 }, { 1, 2.5 } }}};
-	const OpPoint iQPts[] = { { 2, 4 }, { 1, 3 }, { 3, 1 } };
-	const LinePts iLinePts = {{{ { 1, 1 }, { 4, 4 } }}};
-	OpConic ci1 = { &iQPts[0], sqrtf(2) / 2 };
-	OpRoots intercepts[3];
-	intercepts[0] = ci1.axisRayHit(Axis::vertical, 2.5);
-	intercepts[1] = ci1.rayIntersect(horz, MatchEnds::none);
-	intercepts[2] = ci1.rayIntersect(iLinePts, MatchEnds::none);
-	SkPath path;
-	path.moveTo(vert.pts[0].x, vert.pts[0].y);
-	path.lineTo(vert.pts[1].x, vert.pts[1].y);
-	path.moveTo(horz.pts[0].x, horz.pts[0].y);
-	path.lineTo(horz.pts[1].x, horz.pts[1].y);
-	path.moveTo(iLinePts.pts[0].x, iLinePts.pts[0].y);
-	path.lineTo(iLinePts.pts[1].x, iLinePts.pts[1].y);
-	path.moveTo(iQPts[0].x, iQPts[0].y);
-	path.conicTo(iQPts[1].x, iQPts[1].y, iQPts[2].x, iQPts[2].y, ci1.weight);
-	drawPath(canvas, path);
-	SkPaint paint;
-	paint.setAntiAlias(true);
-	paint.setStyle(SkPaint::kStroke_Style);
-	for (int x = 0; x < 3; ++x) {
-		for (unsigned y = 0; y < intercepts[x].count; ++y) {
-			OpPoint pt = ci1.ptAtT(intercepts[x].roots[y]);
-			canvas->drawCircle(pt.x, pt.y, 0.2f, paint);
-		}
-	}
-	for (float fx = 0; fx <= 1; fx += .5) {
-		OpVector norm = ci1.normal(fx);
-		OpVector tan = ci1.tangent(fx);
-		OpPoint pt = ci1.ptAtT(fx);
-		paint.setColor(SK_ColorRED);
-		canvas->drawLine({ pt.x, pt.y }, { pt.x + norm.dx, pt.y + norm.dy }, paint);
-		paint.setColor(SK_ColorBLUE);
-		canvas->drawLine({ pt.x, pt.y }, { pt.x + tan.dx, pt.y + tan.dy }, paint);
-	}
-}
-
-void OpCubicDraw(SkCanvas* canvas) {
-	const OpPoint iCPts[] = { { 2, 4 }, { 1, 3 }, { 1, 2 }, { 3, 1 } };
-	const LinePts iLinePts = {{{ { 1, 1 }, { 4, 4 } }}};
-	const LinePts vert = {{{ { 2.5, 1 }, { 2.5, 3 } }}};
-	const LinePts horz = {{{ { 4, 2.5 }, { 1, 2.5 } }}};
-	OpCubic ci1 = { iCPts };
-	OpRoots intercepts[3];
-	intercepts[0] = ci1.rayIntersect(vert, MatchEnds::none);
-	intercepts[1] = ci1.rayIntersect(horz, MatchEnds::none);
-	intercepts[2] = ci1.rayIntersect(iLinePts, MatchEnds::none);
-	SkPath path;
-	path.moveTo(iCPts[0].x, iCPts[0].y);
-	path.cubicTo(iCPts[1].x, iCPts[1].y, iCPts[2].x, iCPts[2].y,
-		iCPts[3].x, iCPts[3].y);
-	path.moveTo(vert.pts[0].x, vert.pts[0].y);
-	path.lineTo(vert.pts[1].x, vert.pts[1].y);
-	path.moveTo(horz.pts[0].x, horz.pts[0].y);
-	path.lineTo(horz.pts[1].x, horz.pts[1].y);
-	path.moveTo(iLinePts.pts[0].x, iLinePts.pts[0].y);
-	path.lineTo(iLinePts.pts[1].x, iLinePts.pts[1].y);
-	drawPath(canvas, path);
-	SkPaint paint;
-	paint.setAntiAlias(true);
-	paint.setStyle(SkPaint::kStroke_Style);
-	for (int x = 0; x < 3; ++x) {
-		OpPoint pt = ci1.ptAtT(intercepts[x].roots[0]);
-		canvas->drawCircle(pt.x, pt.y, 0.2f, paint);
-	}
-	for (float fx = 0; fx <= 1; fx += .5) {
-		OpVector norm = ci1.normal(fx);
-		OpVector tan = ci1.tangent(fx);
-		OpPoint pt = ci1.ptAtT(fx);
-		paint.setColor(SK_ColorRED);
-		canvas->drawLine({ pt.x, pt.y }, { pt.x + norm.dx, pt.y + norm.dy }, paint);
-		paint.setColor(SK_ColorBLUE);
-		canvas->drawLine({ pt.x, pt.y }, { pt.x + tan.dx, pt.y + tan.dy }, paint);
-	}
-}
+#endif
 
 #include "src/pathops/SkIntersections.h"
 #include "src/pathops/SkPathOpsConic.h"

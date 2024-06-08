@@ -30,6 +30,15 @@ enum class WindState {
 struct OpContours;
 struct OpInPath;
 
+struct SegmentIterator {
+    SegmentIterator(OpContours* );
+    OpSegment* next();
+
+    OpContours* contours;
+    size_t contourIndex;
+    size_t segIndex;
+};
+
 struct OpContour {
     OpContour(OpContours* c, OpOperand op)
         : contours(c)
@@ -105,10 +114,15 @@ struct OpContour {
 #endif
 };
 
+namespace PathOpsV0Lib {
+    struct CurveData;
+}
+
 struct OpContours {
     OpContours(OpInPath& left, OpInPath& right, OpOperator op);
     ~OpContours();
     OpContour* addMove(OpContour* , OpOperand , const OpPoint pts[1]);
+    PathOpsV0Lib::CurveData* allocateCurveData(size_t );
     void* allocateEdge(OpEdgeStorage*& );
     OpIntersection* allocateIntersection();
     OpLimb* allocateLimb(OpTree* );
@@ -206,6 +220,7 @@ struct OpContours {
     OpOperator opIn;
     std::vector<OpContour> contours;
     OpEdgeStorage* ccStorage;
+    CurveDataStorage* curveDataStorage;
     OpEdgeStorage* fillerStorage;
     OpSectStorage* sectStorage;
     OpLimbStorage* limbStorage;
@@ -213,6 +228,11 @@ struct OpContours {
     OpFillType right;
     OpOperator opOperator;
     int uniqueID;  // used for object id, unsectable id, coincidence id
+    bool newInterface;
+
+// new interface ..
+    size_t (*curveLengthFuncPtr)(struct PathOpsV0Lib::Curve );
+
 #if OP_DEBUG_VALIDATE
     int debugValidateEdgeIndex;
     int debugValidateJoinerIndex;
@@ -233,6 +253,8 @@ struct OpContours {
     OpInPath* debugLeft;
     OpInPath* debugRight;
 	OpTree* dumpTree;
+	int dumpCurve1;
+	int dumpCurve2;
     bool debugDumpInit;   // if true, created by dump init
 #endif
 };

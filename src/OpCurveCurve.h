@@ -165,10 +165,11 @@ struct OpCurveCurve {
 		contours->debugCurveCurve = nullptr; }
 #endif
 #if OP_DEBUG_DUMP
-#include "OpDebugDeclarations.h"
 	OpCurveCurve(OpContours* c) { contours = c; }
 	void drawClosest(const OpPoint& originalPt) const;
+	bool dumpBreak() const;
 	void dumpClosest(const OpPoint& pt) const;
+#include "OpDebugDeclarations.h"
 #endif
 #if OP_DEBUG_VERBOSE
 	void debugSaveState();
