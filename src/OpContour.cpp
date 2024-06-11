@@ -7,6 +7,7 @@
 #include "PathOps.h"
 
 bool OpContour::addClose() {
+    OP_ASSERT(!contours->newInterface);
     if (!segments.size())
         return false;
     OpPoint curveStart = segments.front().c.pts[0];
@@ -443,7 +444,7 @@ bool OpContours::pathOps(OpOutPath& result) {
         if (!build(rightIn, OpOperand::right))
             OP_DEBUG_FAIL(*this, false);
         finishAll();
-        setBounds();    // !!! check to see if this is used
+//        setBounds();    // !!! check to see if this is used
         OpSegments sortedSegments(*this);
         if (!sortedSegments.inX.size()) {
             result.setEmpty();
@@ -455,10 +456,12 @@ bool OpContours::pathOps(OpOutPath& result) {
     } else {
         if (!contours.size())
             OP_DEBUG_SUCCESS(*this, true);
+        finishAll();
         OpSegments::FindCoincidences(this);
         if (FoundIntersections::fail == OpSegments::FindIntersections(this))
             return false;  // !!! fix this to record for Error()
     }
+    dump();
     sortIntersections();
     makeEdges();
     // made edges may include lines that are coincident with other edges. Undetected for now...

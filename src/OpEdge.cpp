@@ -703,10 +703,12 @@ OpPtT OpEdge::ptTCloseTo(OpPtT oPtPair, const OpPtT& ptT) const {
 	return center;
 }
 	
+#if 0
 void OpEdge::setCurveCenter() {
 	curve.pts[curve.pointCount()] = center.pt;
 	curve.centerPt = true;
 }
+#endif
 
 // should be inlined. Out of line for ease of setting debugging breakpoints
 void OpEdge::setDisabled(OP_DEBUG_CODE(ZeroReason reason)) {
@@ -874,21 +876,31 @@ void OpEdge::skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) {
 	std::swap(sectables, edges);
 }
 
-// use already computed points stored in edge
-void OpEdge::subDivide() {
-	auto ctrlPtsEqualEnds = [this]() {
-		for (int index = 1; index < segment->c.pointCount() - 1; ++index) {
-			if (!curve.pts[index].isNearly(start.pt) && !curve.pts[index].isNearly(end.pt))
+bool OpEdge::ctrlPtNearlyEnd() {
+	if (curve.newInterface) {  // !!! call is linear instead?
+		std::vector<OpPoint*> ctrls = (*contours()->callBack(curve.type).curveControlsFuncPtr)
+				(curve.curveData);
+		for (OpPoint* ptPtr : ctrls) {
+			if (!ptPtr->isNearly(start.pt) && !ptPtr->isNearly(end.pt))
 				return false;
 		}
 		return true;
-	};
+	}
+	for (int index = 1; index < segment->c.pointCount() - 1; ++index) {
+		if (!curve.pts[index].isNearly(start.pt) && !curve.pts[index].isNearly(end.pt))
+			return false;
+	}
+	return true;
+}
+
+// use already computed points stored in edge
+void OpEdge::subDivide() {
 	id = segment->nextID();
 	curve = segment->c.subDivide(start, end);
 	setPointBounds();
 	calcCenterT();
-	if (OpType::line == segment->c.type || OpMath::Equalish(ptBounds.left, ptBounds.right) 
-			|| OpMath::Equalish(ptBounds.top, ptBounds.bottom) || ctrlPtsEqualEnds()) {
+	if (segment->c.isLine() || OpMath::Equalish(ptBounds.left, ptBounds.right) 
+			|| OpMath::Equalish(ptBounds.top, ptBounds.bottom) || ctrlPtNearlyEnd()) {
 		isLine_impl = true;
 		lineSet = true;
 		exactLine = true;

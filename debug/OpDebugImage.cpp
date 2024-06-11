@@ -290,7 +290,9 @@ struct OpDebugDefeatDelete {
 };
 
 void OpDebugImage::addToPath(const OpCurve& curve, SkPath& path) {
-	path.moveTo(curve.pts[0].x, curve.pts[0].y);
+	path.moveTo(curve.firstPt().x, curve.firstPt().y);
+	if (curve.newInterface)
+		return (*curve.contours->callBack(curve.type).debugAddToPathFuncPtr)(curve.curveData, path);
 	switch (curve.type) {
 		case OpType::no:
 			OP_ASSERT(0);
@@ -854,13 +856,14 @@ void addFocus(int id) {
 }
 
 void addFocus(const OpContour& contour) {
-	addFocus(contour.ptBounds);
+	for (const OpSegment& s : contour.segments)
+		addFocus(s.ptBounds);
 }
 
 void addFocus(const OpContours& contours) {
 	OpPointBounds bounds;
 	for (auto& contour : contours.contours)
-		bounds.add(contour.ptBounds);
+		addFocus(contour);
 	addFocus(bounds);
 }
 
@@ -933,13 +936,17 @@ void ctr(float x, float y) {
 }
 
 void ctr(const OpContour& contour) {
-	ctr(contour.ptBounds);
+	OpPointBounds bounds;
+    for (auto& segment : contour.segments)
+		bounds.add(segment.ptBounds);
+	ctr(bounds);
 }
 
 void ctr(const OpContours& contours) {
 	OpPointBounds bounds;
 	for (auto& contour : contours.contours)
-		bounds.add(contour.ptBounds);
+		for (auto& segment : contour.segments)
+			bounds.add(segment.ptBounds);
 	ctr(bounds);
 }
 
@@ -1004,13 +1011,17 @@ void focus(int id) {
 }
 
 void focus(const OpContour& contour) {
-	focus(contour.ptBounds);
+	OpPointBounds bounds;
+    for (auto& segment : contour.segments)
+		bounds.add(segment.ptBounds);
+	focus(bounds);
 }
 
 void focus(const OpContours& contours) {
 	OpPointBounds bounds;
 	for (auto& contour : contours.contours)
-		bounds.add(contour.ptBounds);
+		for (auto& segment : contour.segments)
+			bounds.add(segment.ptBounds);
 	focus(bounds);
 }
 
@@ -1213,12 +1224,12 @@ void OpDebugImage::drawPoints() {
 		drawPathPt(sk1());
 	if (drawSegmentsOn) {
 		for (auto seg : segmentIterator) {
-			DebugOpBuild(seg->c.pts[0]);
+			DebugOpBuild(seg->c.firstPt());
 			DebugOpBuild(seg->c.lastPt());
 			// !!! probably need switch to say 'draw control points'
 			if (drawControlsOn) {
 				for (int index = 1; index < seg->c.pointCount() - 1; ++index)
-					DebugOpBuild(seg->c.pts[index]);
+					DebugOpBuild(seg->c.hullPt(index));
 			}
 		}
 	}
@@ -1236,7 +1247,7 @@ void OpDebugImage::drawPoints() {
 			}
 			if (drawControlsOn) {
 				for (int index = 1; index < edge->curve.pointCount() - 1; ++index)
-					DebugOpBuild(edge->curve.pts[index]);
+					DebugOpBuild(edge->curve.hullPt(index));
 			}
 			if (drawCentersOn)
 				DebugOpBuild(edge->center.pt, edge->center.t, DebugSprite::square);
@@ -1300,7 +1311,7 @@ void OpDebugImage::add(const OpPtT& ptT) {
 	ptTs.push_back(ptT);
 }
 
-void OpDebugImage::addArrowHeadToPath(const OpLine& line, SkPath& path) {
+void OpDebugImage::addArrowHeadToPath(const LinePts& line, SkPath& path) {
 	const SkPoint arrow[2] { { -10, -6 }, { 6, 6 } };
 	float radians = atan2f(line.pts[1].y - line.pts[0].y, line.pts[1].x - line.pts[0].x);
 	float degrees = (radians * 180) / 3.14159265f;
@@ -1738,7 +1749,7 @@ void OpCurveCurve::draw() const {
 #endif
 
 bool OpDebugImage::drawEdgeNormal(OpVector norm, OpPoint midTPt, int edgeID, uint32_t color) {
-	OpLine normal(midTPt, midTPt + norm);
+	LinePts normal { midTPt, midTPt + norm };
 	SkPath normalPath;
 	normalPath.moveTo(normal.pts[0].x, normal.pts[0].y);
 	if (!normal.pts[1].isFinite()) {
@@ -1752,7 +1763,7 @@ bool OpDebugImage::drawEdgeNormal(OpVector norm, OpPoint midTPt, int edgeID, uin
 }
 
 bool OpDebugImage::drawTangent(OpVector tan, OpPoint midTPt, int id, uint32_t color) {
-	OpLine tangent(midTPt, midTPt + tan);
+	LinePts tangent { midTPt, midTPt + tan };
 	SkPath tangentPath;
 	tangentPath.moveTo(tangent.pts[0].x, tangent.pts[0].y);
 	if (!tangent.pts[1].isFinite()) {
@@ -1834,9 +1845,9 @@ bool OpDebugImage::drawEdgeWinding(const OpCurve& curve, const OpEdge* edge, uin
 
 bool OpDebugImage::drawCurve(const OpCurve& curve, uint32_t color) {
 	SkPath curvePath;
-	OP_ASSERT(OpType::line == curve.type);  // !!! add more types as needed
-	curvePath.moveTo(curve.pts[0].x, curve.pts[0].y);
-	curvePath.lineTo(curve.pts[1].x, curve.pts[1].y);
+	OP_ASSERT(curve.isLine());  // !!! add more types as needed
+	curvePath.moveTo(curve.firstPt().x, curve.firstPt().y);
+	curvePath.lineTo(curve.lastPt().x, curve.lastPt().y);
 	OpDebugImage::drawPath(curvePath, color);
 	return true;
 }

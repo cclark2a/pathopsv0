@@ -562,7 +562,7 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 		OpDebugRecordSuccess(index);
 #endif
 		if (0 == edgeT)
-			oppPtT.pt = eSegment->c.pts[0];
+			oppPtT.pt = eSegment->c.firstPt();
 		else if (1 == edgeT)
 			oppPtT.pt = eSegment->c.lastPt();
         // pin point to both bounds, but only if it is on edge

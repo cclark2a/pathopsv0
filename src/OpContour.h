@@ -80,11 +80,13 @@ struct OpContour {
 
     int nextID() const;
 
+#if 0  // !!! disable until use case appears
     void setBounds() {
         for (auto& segment : segments) {
             ptBounds.add(segment.ptBounds);
         }
     }
+#endif
 
     void windCoincidences() {
         for (auto& segment : segments) {
@@ -107,16 +109,12 @@ struct OpContour {
 
     OpContours* contours;
     std::vector<OpSegment> segments;
-    OpPointBounds ptBounds;
+//    OpPointBounds ptBounds;
     OpOperand operand; // first or second argument to a binary operator
 #if OP_DEBUG
     int id;
 #endif
 };
-
-namespace PathOpsV0Lib {
-    struct CurveData;
-}
 
 struct OpContours {
     OpContours(OpInPath& left, OpInPath& right, OpOperator op);
@@ -135,6 +133,14 @@ struct OpContours {
 
     bool assemble(OpOutPath& );
     bool build(OpInPath& path, OpOperand operand);   // provided by graphics implementation
+
+    PathOpsV0Lib::CallBacks& callBack(PathOpsV0Lib::Curve curve) {
+        return callBacks[(int) curve.type - 1];
+    }
+
+    PathOpsV0Lib::CallBacks& callBack(OpType type) {
+        return callBacks[(int) type - 1];
+    }
 
     void finishAll();
 
@@ -164,11 +170,13 @@ struct OpContours {
         return (int) right;
     }
 
+#if 0  // !!! disable until use case appears
     void setBounds() {
         for (auto& contour : contours) {
             contour.setBounds();
         }
     }
+#endif
 
     void setFillType(OpOperand operand, OpFillType exor) {
         (OpOperand::left == operand ? left : right) = exor;
@@ -231,8 +239,7 @@ struct OpContours {
     bool newInterface;
 
 // new interface ..
-    size_t (*curveLengthFuncPtr)(struct PathOpsV0Lib::Curve );
-
+    std::vector<PathOpsV0Lib::CallBacks> callBacks;
 #if OP_DEBUG_VALIDATE
     int debugValidateEdgeIndex;
     int debugValidateJoinerIndex;

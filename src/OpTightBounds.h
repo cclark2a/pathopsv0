@@ -144,9 +144,7 @@ struct OpPointBounds : OpRect {
         pt->y = OpMath::PinSorted(top, pt->y, bottom);
     }
 
-    void set(const OpCurve& c) {
-        set(c.pts, c.pointCount());
-    }
+    void set(const OpCurve& c);
 
     OpPoint set(OpPoint pt) {
         left = right = pt.x;

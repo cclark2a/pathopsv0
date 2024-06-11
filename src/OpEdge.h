@@ -546,6 +546,7 @@ public:
 	bool containsLink(const OpEdge* edge) const;
 	OpContours* contours() const;
 	size_t countUnsortable() const;
+	bool ctrlPtNearlyEnd();
 //	float curviness();
 	OpIntersection* findSect(EdgeMatch );
 	OpPtT findT(Axis , float oppXY) const;
@@ -578,7 +579,7 @@ public:
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
 	void setBetween();  // setter exists so debug breakpoints can be set
 //	const OpCurve& setCurve();  // copies start, end to points 0, last
-	void setCurveCenter();  // adds center point after curve points
+//	void setCurveCenter();  // adds center point after curve points
 	void setDisabled(OP_DEBUG_CODE(ZeroReason reason));
 	void setDisabledZero(OP_DEBUG_CODE(ZeroReason reason)) {
 		winding.zero(); setDisabled(OP_DEBUG_CODE(reason)); }

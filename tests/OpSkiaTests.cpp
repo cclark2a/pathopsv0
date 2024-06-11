@@ -1,5 +1,9 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 
+// !!! test this ! (OpCurve::rawIntersect commented out code)
+// for thread_circles104483, edges 113 and 117 fail to find intersection; check for error here
+
+
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
 #define TEST_PATH_OP_FIRST "" // e.g., "thread_cubics2247347" (ignored by fast test)

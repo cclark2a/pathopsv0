@@ -935,12 +935,12 @@ ENUM_NAME(SectReason, sectReason)
 void dmpMatch(const OpPoint& pt, bool detail) {
     for (const auto& c : debugGlobalContours->contours) {
         for (const auto& seg : c.segments) {
-            if (pt == seg.c.pts[0] || pt == seg.c.lastPt()) {
+            if (pt == seg.c.firstPt() || pt == seg.c.lastPt()) {
                 std::string str = "seg: " 
                         + (detail ? seg.debugDump(DebugLevel::detailed, defaultBase) 
                         : seg.debugDump(defaultLevel, defaultBase));
 #if OP_DEBUG
-                if (pt == seg.c.pts[0] && seg.debugStart != SectReason::startPt)
+                if (pt == seg.c.firstPt() && seg.debugStart != SectReason::startPt)
                     str += "; start is " + sectReasonName(seg.debugStart);
                 if (pt == seg.c.lastPt() && seg.debugEnd != SectReason::endPt)
                     str += "; end is " + sectReasonName(seg.debugEnd);
@@ -1168,7 +1168,7 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
     std::string s = "contour:";
     OP_DEBUG_CODE(s += STR(id));
     s += " ";
-    s += "bounds:" + ptBounds.debugDump(l, b) + " ";
+ //   s += "bounds:" + ptBounds.debugDump(l, b) + " ";
     s += "operand:" + opOperandName(operand) + "\n";
     s += "segments:" + STR(segments.size()) + "\n";
     if (DebugLevel::brief == l) {
@@ -1189,7 +1189,7 @@ void OpContour::dumpSet(const char*& str) {
     OpDebugRequired(str, "contour");
     OP_DEBUG_CODE(id = OpDebugReadSizeT(str));
     OpDebugRequired(str, "bounds");
-    ptBounds.dumpSet(str);
+//    ptBounds.dumpSet(str);
     operand = opOperandStr(str, "operand", OpOperand::left);
     OpDebugRequired(str, "segments");
     int segmentCount = OpDebugReadSizeT(str);
@@ -1282,14 +1282,11 @@ std::string debugErrorValue(DebugLevel l, DebugBase b, std::string label, float 
 std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
     std::string s = "{ ";
     for (int i = 0; i < pointCount(); ++i) 
-        s += pts[i].debugDump(l, b) + ", ";
+        s += hullPt(i).debugDump(l, b) + ", ";
     s.pop_back(); s.pop_back();
     s += " }";
     if (OpType::conic == type)
         s += debugValue(l, b, "weight", weight) + " ";
-    if (centerPt)
-        s += debugLabel(l, "center") 
-                + pts[pointCount()].debugDump(l, b) + " ";
     s += opTypeName(type);
     return s;
 }
@@ -1299,13 +1296,11 @@ void OpCurve::dumpSet(const char*& str) {
     // number of points isn't known; count commas to balancing close brace
     int pointCnt = OpDebugCountDelimiters(str, ',', '{', '}') + 1;
     for (int index = 0; index < pointCnt; ++index) {
-        pts[index].dumpSet(str);
+        hullPt(index).dumpSet(str);
     }
     OpDebugOptional(str, "}");
     if (OpDebugOptional(str, "weight"))
         weight = OpDebugHexToFloat(str);
-    if (OpDebugOptional(str, "center"))
-        pts[pointCnt].dumpSet(str);
     type = opTypeStr(str, "", OpType::no);
 }
 
@@ -2265,6 +2260,7 @@ void OpCurveCurve::drawClosest(const OpPoint& originalPt) const {
 void OpCurveCurve::dumpClosest(const OpPoint& originalPt) const {
     auto tMatch = [](const OpEdge* e, XyChoice inXy, OpPoint pt, float& dist, std::string name) {
         const OpCurve& c = e->segment->c;
+        // !!! will fail with new interface
         OpPair endCheck = c.xyAtT( { e->start.t, e->end.t }, inXy);
         float goal = pt.choice(inXy);
         if (!OpMath::Between(endCheck.s, goal, endCheck.l)) {
@@ -2278,6 +2274,7 @@ void OpCurveCurve::dumpClosest(const OpPoint& originalPt) const {
             test = { mid - step, mid + step };
             if (test.s == mid || mid == test.l)
                 break;
+        // !!! will fail with new interface
             x = c.xyAtT(test, inXy);
             if (x.s == x.l)
                 break;
@@ -3769,7 +3766,7 @@ void dmpSegmentSects(const OpSegment& seg) {
 }
 
 void dmpStart(const OpSegment& seg) {
-    dmpMatch(seg.c.pts[0]);
+    dmpMatch(seg.c.firstPt());
 }
 
 DEBUG_DUMP_ID_DEFINITION(OpSegment, id)

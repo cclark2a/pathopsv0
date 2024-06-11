@@ -294,9 +294,9 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
 	splitMid = smallTFound || largeTFound;
     seg->edges.clear();
     opp->edges.clear();
-    OpPtT segS {seg->c.pts[0], 0 };
+    OpPtT segS {seg->c.firstPt(), 0 };
     OpPtT segE {seg->c.lastPt(), 1 };
-    OpPtT oppS {opp->c.pts[0], 0 };
+    OpPtT oppS {opp->c.firstPt(), 0 };
     OpPtT oppE {opp->c.lastPt(), 1 };
 	if (matchRev.reversed)
 		std::swap(oppS, oppE);
@@ -839,11 +839,11 @@ bool OpCurveCurve::rotatedIntersect(OpEdge& edge, OpEdge& oppEdge, bool sharesPo
 void OpCurveCurve::setHullSects(OpEdge& edge, OpEdge& oppEdge, CurveRef curveRef) {
 	int ptCount = oppEdge.curve.pointCount();
 	LinePts oppPts;
-	oppPts.pts[1] = oppEdge.curve.pts[0];
+	oppPts.pts[1] = oppEdge.curve.firstPt();
 	for (int index = 1; index <= ptCount; ++index) {
 		oppPts.pts[0] = oppPts.pts[1];
 		int endHull = index < ptCount ? index : 0;
-		oppPts.pts[1] = oppEdge.curve.pts[endHull];
+		oppPts.pts[1] = oppEdge.curve.hullPt(endHull);
 		if (oppPts.pts[0].isNearly(oppPts.pts[1]))
 			continue;
 		// since curve/curve intersection works by keeping overlapping edge bounds, it should

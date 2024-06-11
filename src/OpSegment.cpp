@@ -197,13 +197,13 @@ OpEdge* OpSegment::findEnabled(const OpPtT& ptT, EdgeMatch match) const {
 // used to find unsectable range; assumes range all has about the same slope
 // !!! this may be a bad idea if two near coincident edges turn near 90 degrees
 float OpSegment::findAxisT(Axis axis, float start, float end, float opp) const {
-    if (OpType::line != c.type) {
+    if (!c.isLine()) {
         OpRoots roots = c.axisRayHit(axis, opp, start, end);
         if (1 == roots.count)
             return roots.roots[0];
     } else {
-        float pt0xy = c.pts[0].choice(axis);
-        float result = (opp - pt0xy) / (c.pts[1].choice(axis) - pt0xy);
+        float pt0xy = c.firstPt().choice(axis);
+        float result = (opp - pt0xy) / (c.lastPt().choice(axis) - pt0xy);
         if (start <= result && result <= end)
             return result;
     }
@@ -225,11 +225,12 @@ float OpSegment::findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) 
 // returns t iff opp point is between start and end
 // start/end range is necessary since cubics can have more than one t at a point
 float OpSegment::findValidT(float start, float end, OpPoint opp) const {
-    if (OpType::line != c.type) {
+    OP_ASSERT(!contour->contours->newInterface);  // !!! caller should have the choice to implement
+    if (!c.isLine()) {
         OpRoots hRoots = c.axisRayHit(Axis::horizontal, opp.y, start, end);
         OpRoots vRoots = c.axisRayHit(Axis::vertical, opp.x, start, end);
         if (1 != hRoots.count && 1 != vRoots.count) {
-            if (0 == start && opp.isNearly(c.pts[0]))
+            if (0 == start && opp.isNearly(c.firstPt()))
                 return 0;
             if (1 == end && opp.isNearly(c.lastPt()))
                 return 1;
@@ -247,7 +248,7 @@ float OpSegment::findValidT(float start, float end, OpPoint opp) const {
                 ? hRoots.roots[0] : vRoots.roots[0];
     }
     // this won't work for curves with linear control points since t is not necessarily linear
-    OpVector lineSize = c.pts[1] - c.pts[0];
+    OpVector lineSize = c.lastPt() - c.firstPt();
     float result = fabsf(lineSize.dy) > fabsf(lineSize.dx) ?
         (opp.y - c.pts[0].y) / lineSize.dy : (opp.x - c.pts[0].x) / lineSize.dx;
     if (start <= result && result <= end)
@@ -264,7 +265,7 @@ void OpSegment::makeEdge(const OpPtT& s, const OpPtT& e  OP_LINE_FILE_DEF(EdgeMa
 
 
 void OpSegment::makeEdge(OP_LINE_FILE_NP_DEF(EdgeMaker maker)) {
-    makeEdge(OpPtT(c.pts[0], 0), OpPtT(c.lastPt(), 1)  OP_LINE_FILE_PARAMS(maker));
+    makeEdge(OpPtT(c.firstPt(), 0), OpPtT(c.lastPt(), 1)  OP_LINE_FILE_PARAMS(maker));
 }
 
 void OpSegment::makeEdges() {
@@ -281,15 +282,15 @@ void OpSegment::makeEdges() {
 
 MatchReverse OpSegment::matchEnds(const OpSegment* opp) const {
     MatchReverse result { MatchEnds::none, false };
-    OP_ASSERT(c.pts[0] != c.lastPt());
-    OP_ASSERT(opp->c.pts[0] != opp->c.lastPt());
-    if (c.pts[0] == opp->c.pts[0])
+    OP_ASSERT(c.firstPt() != c.lastPt());
+    OP_ASSERT(opp->c.firstPt() != opp->c.lastPt());
+    if (c.firstPt() == opp->c.firstPt())
         result = { MatchEnds::start, false };
-    else if (c.pts[0] == opp->c.lastPt())
+    else if (c.firstPt() == opp->c.lastPt())
         result = { MatchEnds::start, true };
     if (c.lastPt() == opp->c.lastPt())
         result = { result.match | MatchEnds::end, false };
-    else if (c.lastPt() == opp->c.pts[0])
+    else if (c.lastPt() == opp->c.firstPt())
         result = { result.match | MatchEnds::end, true };
     return result;
 }
@@ -315,11 +316,11 @@ MatchEnds OpSegment::matchExisting(const OpSegment* opp) const {
 // !!! don't change opposite end point
 void OpSegment::moveTo(float matchT, OpPoint equalPt) {
     OP_ASSERT(0 == matchT || 1 == matchT);
-    OpPoint& endPt = 0 == matchT ? c.pts[0] : c.pts[c.pointCount() - 1];
+    OpPoint endPt = 0 == matchT ? c.firstPt() : c.lastPt();
     OP_ASSERT(endPt.isNearly(equalPt));
-    if (c.pts[0] == c.lastPt())
+    if (c.firstPt() == c.lastPt())
         disabled = true;
-    endPt = equalPt;
+    0 == matchT ? c.setFirstPt(equalPt) : c.setLastPt(equalPt);
     c.pinCtrl();
     setBounds();
     for (OpIntersection* sect : sects.i) {
@@ -360,11 +361,11 @@ void OpSegment::setDisabled(OP_DEBUG_CODE(ZeroReason reason)) {
 // at present, only applies to horizontal and vertical lines
 // !!! experiment: add support for linear diagonals
 void OpSegment::windCoincidences() {
-    if (OpType::line != c.type)
+    if (!c.isLine())
         return;
     if (disabled)
         return;
-    OpVector tangent = c.asLine().tangent();
+    OpVector tangent = c.lastPt() - c.firstPt();
     if (tangent.dx && tangent.dy) {
         // iterate through edges; if edge is linear and matches opposite, mark both coincident
         bool foundCoincidence  = false;

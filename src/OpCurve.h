@@ -2,7 +2,7 @@
 #ifndef OpCurve_DEFINED
 #define OpCurve_DEFINED
 
-#include "OpMath.h"
+#include "PathOpsTypes.h"
 
 #define RAW_INTERSECT_LIMIT 0.00005f  // errors this large or larger mean the crossing was not found
 
@@ -12,6 +12,7 @@ struct OpConic;
 struct OpCubic;
 
 // int value is (mostly) point count - 1 (conic is exception)
+  // !!! eventually replace this with user extensible types
 enum class OpType {
     no,
     line,
@@ -71,63 +72,50 @@ struct CutRangeT {
 	OpPtT hi;
 };
 
-#define USE_SEGMENT_CENTER 1
-
-namespace PathOpsV0Lib {
-    struct Context;
-    struct Curve;
-    struct CurveData;
-}
-
 struct OpCurve {
     OpCurve() 
         : curveData(nullptr)
+        , contours(nullptr)
         , weight(1)
         , type(OpType::no)
-        , centerPt(false)
         , newInterface(false) {
-        OP_DEBUG_CODE(debugIntersect = OpDebugIntersect::segment);
     }
 
     OpCurve(const OpPoint p[], OpType t) 
         : curveData(nullptr)
+        , contours(nullptr)
         , weight(1)
         , type(t)
-        , centerPt(false)
         , newInterface(false) {
         memcpy(pts, p, pointCount() * sizeof(OpPoint));
-        OP_DEBUG_CODE(debugIntersect = OpDebugIntersect::segment);
     }
 
     OpCurve(const OpPoint p[], float w, OpType t)
         : curveData(nullptr)
+        , contours(nullptr)
         , weight(w)
         , type(t)
-        , centerPt(false)
         , newInterface(false) {
         memcpy(pts, p, pointCount() * sizeof(OpPoint));
-        OP_DEBUG_CODE(debugIntersect = OpDebugIntersect::segment);
     }
 
     OpCurve(OpPoint p0, OpPoint p1)
         : curveData(nullptr)
+        , contours(nullptr)
         , weight(1)
         , type(OpType::line)
-        , centerPt(false)
         , newInterface(false) {
         pts[0] = p0;
         pts[1] = p1;
-        OP_DEBUG_CODE(debugIntersect = OpDebugIntersect::segment);
     }
 
     OpCurve(const OpPoint p[], float w)
         : curveData(nullptr)
+        , contours(nullptr)
         , weight(w)
         , type(OpType::conic)
-        , centerPt(false)
         , newInterface(false) {
         memcpy(pts, p, pointCount() * sizeof(OpPoint));
-        OP_DEBUG_CODE(debugIntersect = OpDebugIntersect::segment);
     }
 
     OpCurve(struct PathOpsV0Lib::Context* , struct PathOpsV0Lib::Curve );
@@ -150,16 +138,19 @@ struct OpCurve {
     const OpQuad& asConicQuad() const;
     const OpCubic& asCubic() const;
     OpRoots axisRayHit(Axis offset, float axisIntercept, float start = 0, float end = 1) const;
+    OpRoots axisRawHit(Axis offset, float axisIntercept, MatchEnds ) const;
     float center(Axis offset, float axisIntercept) const;
 //    int closest(OpPtT* best, float delta, OpPoint pt) const;
     OpPtT cut(const OpPtT& ptT, float loBounds, float hiBounds, float direction) const;
     CutRangeT cutRange(const OpPtT& ptT, float loEnd, float hiEnd) const;
     OpPoint doublePtAtT(float t) const;
     OpPtT findIntersect(Axis offset, const OpPtT& ) const;
+    OpPoint firstPt() const;
+    OpPoint hullPt(int index) const;
     bool isFinite() const;
+    bool isLine() const; 
     bool isLinear() const;
-    OpPoint lastPt() const {
-        return pts[pointCount() - 1]; }
+    OpPoint lastPt() const;
     OpRootPts lineIntersect(const LinePts& line) const;
     // Returns t of point on curve if any; returns NaN if no match. Used by line/curve intersection.
     float match(float start, float end, OpPoint ) const;
@@ -171,12 +162,13 @@ struct OpCurve {
     OpPoint ptAtT(float t) const;
     OpPtT ptTAtT(float t) const {
         return { ptAtT(t), t }; }
-    int pointCount() const {
-        return static_cast<int>(type) + (type < OpType::conic); }
+    int pointCount() const;
     OpRoots rawIntersect(const LinePts& line, MatchEnds ) const;  // requires sect to be on curve
     OpRoots rayIntersect(const LinePts& line, MatchEnds ) const;
     void reverse();
     const OpCurve& set(OpPoint start, OpPoint end, unsigned ptCount, OpType opType, float w);
+    void setFirstPt(OpPoint );
+    void setLastPt(OpPoint );
     OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
     OpVector tangent(float t) const;
     float tAtXY(float t1, float t2, XyChoice , float goal) const;
@@ -190,15 +182,12 @@ struct OpCurve {
 #endif
     // create storage in contour; helper function casts it to CurveData
     PathOpsV0Lib::CurveData* curveData;
+    OpContours* contours;  // required by new interface for caller function pointer access
     OpPoint pts[5];  // extra point carries cubic center for vertical rotation (used by curve sect)
     float weight;
     OpType type;
-    bool centerPt;  // true if center point follows curve
+//    bool centerPt;  // true if center point follows curve
     bool newInterface;
-#if OP_DEBUG
-    OpDebugIntersect debugIntersect;
-    OpPoint debugOriginalCtrls[2];   // if cubic ctrl pts are pinned, store originals here
-#endif
 };
 
 struct OpLine : OpCurve {

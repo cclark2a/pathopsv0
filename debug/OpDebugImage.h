@@ -40,7 +40,7 @@ struct OpDebugImage {
 	static void add(Axis axis, float value);
 	static void add(const OpDebugRay& );
 	static void add(const OpPtT& );
-	static void addArrowHeadToPath(const OpLine& , class SkPath& );
+	static void addArrowHeadToPath(const LinePts& , class SkPath& );
 	static void addCircleToPath(OpPoint , class SkPath& );
 	static void addDiamondToPath(OpPoint , class SkPath& );
 	static void addSquareToPath(OpPoint , class SkPath& );

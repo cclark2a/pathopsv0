@@ -114,7 +114,7 @@ void OpDebugRecordEnd() {
 		return;
 	}
 	// check to see if line intersects curve bounding hull
-	LinePts edgePts { f.edge.curve.pts[0], f.edge.curve.lastPt() };
+	LinePts edgePts { f.edge.curve.firstPt(), f.edge.curve.lastPt() };
 	OpCurve vertLine = f.edge.curve.toVertical(edgePts);
 	if (!(fabsf(vertLine.lastPt().x) <= recordVert.x)) {
 		recordVert.test = data.size();

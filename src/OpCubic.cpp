@@ -101,7 +101,9 @@ void OpCubic::pinCtrls() {
     pts[2].pin(pts[0], pts[3]);
 }
 
+#if 01
 OpRoots OpCubic::rawIntersect(const LinePts& line, MatchEnds common) const {
+    OP_ASSERT(!newInterface);
     if (line.pts[0].x == line.pts[1].x)
         return axisRawHit(Axis::vertical, line.pts[0].x, common);
     if (line.pts[0].y == line.pts[1].y)
@@ -129,6 +131,7 @@ OpRoots OpCubic::rawIntersect(const LinePts& line, MatchEnds common) const {
 #endif
     return result;
 }
+#endif
 
 OpCurve OpCubic::subDivide(OpPtT ptT1, OpPtT ptT2) const {
     OpCurve result;

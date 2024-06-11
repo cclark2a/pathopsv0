@@ -34,6 +34,7 @@ OpRoots OpQuad::extrema(XyChoice offset) const {
 }
 
 OpRoots OpQuad::rawIntersect(const LinePts& line) const {
+    OP_ASSERT(!newInterface);
     if (line.pts[0].x == line.pts[1].x)
         return axisRawHit(Axis::vertical, line.pts[0].x);
     if (line.pts[0].y == line.pts[1].y)
@@ -48,6 +49,7 @@ bool OpQuad::monotonic(XyChoice offset) const {
 }
 
 OpVector OpQuad::normal(float t) const {
+    OP_ASSERT(!newInterface);
     OpVector tan = tangent(t);
     return { -tan.dy, tan.dx };
 }
@@ -86,6 +88,7 @@ OpCurve OpQuad::subDivide(OpPtT ptT1, OpPtT ptT2) const {
 }
 
 OpVector OpQuad::tangent(float t) const {
+    OP_ASSERT(!newInterface);
     if ((0 == t && pts[0] == pts[1]) || (1 == t && pts[2] == pts[1]))
         return pts[2] - pts[0];
     float a = t - 1;
@@ -110,7 +113,7 @@ OpPair OpQuad::xyAtT(OpPair t, XyChoice xy) const {
 
 namespace PathOpsV0Lib {
 
-Point QuadPointAtT(Point start, Point control, Point end, float t) {
+OpPoint QuadPointAtT(OpPoint start, OpPoint control, OpPoint end, float t) {
     if (0 == t)
         return start;
     if (1 == t)
@@ -119,21 +122,49 @@ Point QuadPointAtT(Point start, Point control, Point end, float t) {
     float a = one_t * one_t;
     float b = 2 * one_t * t;
     float c = t * t;
-    OpPoint result = a * (OpPoint)start + b * (OpPoint)control + c * (OpPoint)end;
-    return result.v0Pt();
+    OpPoint result = a * start + b * control + c * end;
+    return result;
 }
 
-Point QuadControlPt(Point start, Point control, Point end, PtT ptT1, PtT ptT2) {
-    Point midPt = QuadPointAtT(start, control, end, (ptT1.t + ptT2.t) / 2);
-    OpPoint avgPt = ((OpPoint)ptT1.pt + (OpPoint)ptT2.pt) / 2;
-    OpPoint result = 2 * (OpPoint)midPt - avgPt;
-    result.pin((OpPoint)ptT1.pt, (OpPoint)ptT2.pt);
-    return *(Point*) &result;
+OpPair QuadXYAtT(OpPoint start, OpPoint control, OpPoint end, OpPair t, XyChoice xy) {
+    OpPair one_t = 1 - t;
+    OpPair a = one_t * one_t;
+    OpPair b = 2 * one_t * t;
+    OpPair c = t * t;
+    return a * start.choice(xy) + b * control.choice(xy) + c * end.choice(xy);
 }
 
+OpPoint QuadControlPt(OpPoint start, OpPoint control, OpPoint end, OpPtT ptT1, OpPtT ptT2) {
+    OpPoint midPt = QuadPointAtT(start, control, end, (ptT1.t + ptT2.t) / 2);
+    OpPoint avgPt = (ptT1.pt + ptT2.pt) / 2;
+    OpPoint result = 2 * midPt - avgPt;
+    result.pin(ptT1.pt, ptT2.pt);
+    return result;
+}
+
+OpRoots QuadAxisRawHit(OpPoint start, OpPoint control, OpPoint end, Axis axis, float axisIntercept) {
+    float a = end.choice(axis);
+    float b = control.choice(axis);
+    float c = start.choice(axis);
+    a += c - 2 * b;    // A = a - 2*b + c
+    b -= c;            // B = -(b - c)
+    return OpMath::QuadRootsDouble(a, 2 * b, c - axisIntercept);  // double req'd: testQuads3759897
+}
+
+OpVector QuadTangent(OpPoint start, OpPoint control, OpPoint end, float t) {
+    if ((0 == t && start == control) || (1 == t && end == control))
+        return end - start;
+    float a = t - 1;
+    float b = 1 - 2 * t;
+    float c = t;
+    return a * start + b * control + c * end;
+}
+
+// Curves must be subdivided so their endpoints describe the rectangle that contains them
+// returns the number of curves generated from the quadratic Bezier
 size_t AddQuads(Context* context, Curve curve) {
     CurveData& q = *curve.data;
-    Point& control = *(Point*) q.optionalAdditionalData;
+    OpPoint& control = *(OpPoint*) q.optionalAdditionalData;
     auto [left, right] = std::minmax(q.start.x, q.end.x);
     bool monotonicInX = left <= control.x && control.x <= right;
     auto [top, bottom] = std::minmax(q.start.y, q.end.y);
@@ -158,18 +189,19 @@ size_t AddQuads(Context* context, Curve curve) {
     if (!monotonicInY)
         addExtrema(q.start.y, control.y, q.end.y);
     std::sort(tValues.begin(), tValues.end());
-    std::vector<PtT> ptTs(tValues.size());
+    std::vector<OpPtT> ptTs(tValues.size());
     ptTs.front() = { q.start, 0 };
     ptTs.back() = { q.end, 1 };
     for (unsigned index = 1; index < tValues.size() - 1; ++index) {
         ptTs[index] = { QuadPointAtT(q.start, control, q.end, tValues[index]), tValues[index] }; 
     } 
-    for (unsigned index = 0; index < tValues.size() - 2; ++index) {
-        Point curveData[3] { ptTs[index].pt, ptTs[index + 1].pt,
+    size_t curvesAdded = tValues.size() - 2;
+    for (unsigned index = 0; index < curvesAdded; ++index) {
+        OpPoint curveData[3] { ptTs[index].pt, ptTs[index + 1].pt,
             QuadControlPt(q.start, control, q.end, ptTs[index], ptTs[index + 1]) };
         Add(context, { (CurveData*) curveData, curve.type } );
     }
-    return 1 + tValues.size();
+    return curvesAdded;
 }
 
 }

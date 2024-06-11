@@ -54,11 +54,6 @@ struct FoundEdge {
     bool loops;  // true if edge when connected to existing link forms a loop
 };
 
-namespace PathOpsV0Lib {
-    struct Context;
-    struct Curve;
-}
-
 struct OpSegment {
     OpSegment(PathOpsV0Lib::Context* , PathOpsV0Lib::Curve , OpContour* );
     OpSegment(const OpCurve& pts, OpType type, OpContour*  
