@@ -10,6 +10,7 @@
 
 #if !defined(NDEBUG) || OP_RELEASE_TEST
 #include <string>
+#include <vector>
 
 enum class OpDebugExpect {
 	unknown,
@@ -43,6 +44,21 @@ enum class OpDebugIntersect {
 };
 
 struct OpContours;
+
+struct OpDebugData {
+	OpDebugData(bool mayFail) 
+		: debugExpect(mayFail ? OpDebugExpect::fail : OpDebugExpect::success)
+		, debugSuccess(true) {
+	}
+
+	std::vector<OpDebugWarning> debugWarnings;
+	std::string debugTestname;
+	OpDebugExpect debugExpect;
+	int debugCurveCurve1;
+	int debugCurveCurve2;
+	int debugCurveCurveDepth;
+	bool debugSuccess;
+};
 
 #define OP_DEBUG_CONTEXT(...)
 

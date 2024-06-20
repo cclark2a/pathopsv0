@@ -109,10 +109,16 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 		septs.count = 1;
 	}
     if (opp->c.isLine() && MatchEnds::both == matchRev.match) {
+#if OP_TEST_NEW_INTERFACE
+        if (!seg->contour->callBacks.windingMoveFuncPtr(opp->winding, 
+                edgePts.pts[0] != edgePts.pts[1], seg->winding))
+            seg->setDisabled(OP_DEBUG_CODE(ZeroReason::addIntersection));
+#else
         seg->winding.move(opp->winding, seg->contour->contours, edgePts.pts[0] != edgePts.pts[1]);
         if (!seg->winding.visible())
             seg->setDisabled(OP_DEBUG_CODE(ZeroReason::addIntersection));
         opp->winding.zero();
+#endif
         opp->setDisabled(OP_DEBUG_CODE(ZeroReason::addIntersection));
         return;
     }
@@ -173,6 +179,7 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
     return;
 }
 
+#if !OP_TEST_NEW_INTERFACE
 void OpSegments::findCoincidences() {
     // take care of totally coincident segments
     for (auto segIter = inX.begin(); segIter != inX.end(); ++segIter) {
@@ -222,8 +229,9 @@ void OpSegments::findCoincidences() {
         }
     }
 }
+#endif
 
-// new interface
+#if OP_TEST_NEW_INTERFACE
 void OpSegments::FindCoincidences(OpContours* contours) {
     // take care of totally coincident segments
     SegmentIterator segIterator(contours);
@@ -237,19 +245,18 @@ void OpSegments::FindCoincidences(OpContours* contours) {
                 continue;
                 // if control points and weight match, treat as coincident: transfer winding
             OP_ASSERT(seg->c.newInterface);
-            if (!(*seg->contour->contours->callBack(seg->c.type).curvesEqualFuncPtr)
-                    (seg->c.curveData, { opp->c.curveData, opp->c.type } ))
+            if (!seg->contour->contours->callBack(seg->c.type).curvesEqualFuncPtr(
+                    seg->c.curveData, { opp->c.curveData, opp->c.type } ))
                 continue;
-            seg->winding.move(opp->winding, seg->contour->contours, mr.reversed);
-            opp->winding.zero();
-            opp->setDisabled(OP_DEBUG_CODE(ZeroReason::findCoincidences));
-            if (!seg->winding.visible()) {
-                seg->setDisabled(OP_DEBUG_CODE(ZeroReason::findCoincidences));
+            if (!seg->contour->callBacks.windingMoveFuncPtr(opp->winding, 
+                    mr.reversed, seg->winding)) {
+                seg->setDisabled(OP_DEBUG_CODE(ZeroReason::addIntersection));
                 break;
             }
         }
     }
 }
+#endif
 
 // !!! this is comically complicated
 // surely even if all this is needed, it can be more clearly written and use less code ...

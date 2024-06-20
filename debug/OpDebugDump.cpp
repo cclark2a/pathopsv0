@@ -263,12 +263,17 @@ std::string enum##Name(Enum element) { \
 Enum enum##Str(const char*& str, const char* label, Enum enumDefault) { \
     if (!OpDebugOptional(str, label)) \
         return enumDefault; \
-    for (int index = 0; index < (int) ARRAY_COUNT(enum##Names); ++index) \
-        if (!strncmp(str, enum##Names[index].name, strlen(enum##Names[index].name))) { \
+    size_t strLen = 0; \
+    while (isalnum(str[strLen])) \
+        ++strLen; \
+    for (int index = 0; index < (int) ARRAY_COUNT(enum##Names); ++index) { \
+        size_t nameLen = strlen(enum##Names[index].name); \
+        if (strLen == nameLen && !strncmp(str, enum##Names[index].name, nameLen)) { \
             str += strlen(enum##Names[index].name); \
             if (' ' == str[0]) ++str; \
             return enum##Names[index].element; \
         } \
+    } \
     OpDebugExitOnFail("missing enum", false); \
     return (Enum) -1; \
 }
@@ -297,12 +302,17 @@ std::string enum##Name(Enum element, DebugLevel l) { \
 Enum enum##Str(const char*& str, const char* label, Enum enumDefault) { \
     if (!OpDebugOptional(str, label)) \
         return enumDefault; \
-    for (int index = 0; index < (int) ARRAY_COUNT(enum##Names); ++index) \
-        if (!strncmp(str, enum##Names[index].name, strlen(enum##Names[index].name))) { \
+    size_t strLen = 0; \
+    while (isalnum(str[strLen])) \
+        ++strLen; \
+    for (int index = 0; index < (int) ARRAY_COUNT(enum##Names); ++index) { \
+        size_t nameLen = strlen(enum##Names[index].name); \
+        if (strLen == nameLen && !strncmp(str, enum##Names[index].name, nameLen)) { \
             str += strlen(enum##Names[index].name); \
             if (' ' == str[0]) ++str; \
             return enum##Names[index].element; \
         } \
+    } \
     OpDebugExitOnFail("missing enum", false); \
     return (Enum) -1; \
 }
@@ -453,7 +463,7 @@ void dmpFile() {
 
 OpContours* fromFileContours = nullptr;
 
-void fromFile() {
+void fromFile(std::vector<PathOpsV0Lib::CallBacks>* callBacks) {
     std::string buffer;
     if (FILE* file = fopen("dmp.txt", "r")) {
         int seek = fseek(file, 0, SEEK_END);
@@ -469,6 +479,8 @@ void fromFile() {
     if (fromFileContours)
         delete fromFileContours;
     fromFileContours = dumpInit();
+    if (callBacks)
+        fromFileContours->callBacks = *callBacks;
     fromFileContours->dumpSet(str);  // also reads segments, which read segments' edges, etc.
     fromFileContours->dumpResolveAll(fromFileContours);
 }
@@ -488,38 +500,32 @@ void verifyFile() {
 }
 
 OpInPath::~OpInPath() {
-    ReleaseExternalReference(externalReference);
+    if (debugDumpReference)
+        ReleaseExternalReference(externalReference);
 }
 
 OpOutPath::~OpOutPath() {
-    ReleaseExternalReference(externalReference);
+    if (debugDumpReference)
+        ReleaseExternalReference(externalReference);
 }
 
 // everything here is leaked (for now; should only be called once per app execution)
 OpContours* dumpInit() {
-    OpInPath* opLeft = new OpInPath(OpInPath::MakeExternalReference());
-    OpInPath* opRight = new OpInPath(OpInPath::MakeExternalReference());
-    OpContours* result = new OpContours(*opLeft, *opRight, OpOperator::Intersect);
-    result->debugLeft = opLeft;
-    result->debugRight = opRight;
+    OpContours* result = new OpContours();
+    result->debugLeft = nullptr;
+    result->debugRight = nullptr;
 #if OP_DEBUG
     result->debugResult = new OpOutPath(OpOutPath::MakeExternalReference());
+    result->debugResult->debugDumpReference = true;
     result->debugDumpInit = true;
 #endif
     return result;
 }
 
-void OpContours::dumpResolve(OpContour*& contourRef) {
-    int contourID = (int) (size_t) contourRef;
-    if (0 == contourID)
-        return;
+void OpContours::dumpResolve(OpContour*& ) {
     for (auto& c : contours) {
-        if (c.id == contourID) {
-            OP_ASSERT((int) (size_t) contourRef == contourID);
-            contourRef = &c;
-        }
+        OP_ASSERT(c.contours == this);
     }
-    OP_ASSERT((int) (size_t) contourRef != contourID);
 }
 
 void OpContours::dumpResolve(OpEdge*& edgeRef) {
@@ -755,18 +761,20 @@ ENUM_NAME(OpDebugExpect, debugExpect)
 
 std::string OpContours::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    s += "leftIn:" + leftIn.debugDump(l, b) + "\n";
-    s += "rightIn:" + rightIn.debugDump(l, b) + "\n";
+    s += "leftIn:" + leftIn->debugDump(l, b) + "\n";
+    s += "rightIn:" + rightIn->debugDump(l, b) + "\n";
     s += "opIn:" + opOperatorName(opIn) + " ";
+    if (newInterface)
+        s += "newInterface ";  // must be prior to contour initialization
     if (contours.size()) {
         s += "contours:" + STR(contours.size()) + "\n";
         for (auto& c : contours)
             s += c.debugDump(l, b) + "\n";
     }
     if (ccStorage)
-        s += ccStorage->debugDump(l, b) + "\n";
+        s += ccStorage->debugDump("ccStorage", l, b) + "\n";
     if (fillerStorage)
-        s += fillerStorage->debugDump(l, b) + "\n";
+        s += fillerStorage->debugDump("fillerStorage", l, b) + "\n";
     if (sectStorage)
         s += sectStorage->debugDump(l, b) + "\n";
     if (limbStorage)
@@ -805,13 +813,16 @@ std::string OpContours::debugDump(DebugLevel l, DebugBase b) const {
 
 void OpContours::dumpSet(const char*& str) {
     OpDebugRequired(str, "leftIn");
-    leftIn.dumpSet(str);
+    leftIn->dumpSet(str);
     OpDebugRequired(str, "rightIn");
-    rightIn.dumpSet(str);
+    rightIn->dumpSet(str);
     opIn = opOperatorStr(str, "opIn", OpOperator::Intersect);
+    newInterface = OpDebugOptional(str, "newInterface");  // must be prior to contour initialization
     if (OpDebugOptional(str, "contours")) {
         int contourCount = OpDebugReadSizeT(str);
         contours.resize(contourCount);
+        for (int index = 0; index < contourCount; ++index)
+            contours[index].contours = this;
         for (int index = 0; index < contourCount; ++index)
             contours[index].dumpSet(str);
     }
@@ -1188,12 +1199,14 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 void OpContour::dumpSet(const char*& str) {
     OpDebugRequired(str, "contour");
     OP_DEBUG_CODE(id = OpDebugReadSizeT(str));
-    OpDebugRequired(str, "bounds");
+//    OpDebugRequired(str, "bounds");
 //    ptBounds.dumpSet(str);
     operand = opOperandStr(str, "operand", OpOperand::left);
     OpDebugRequired(str, "segments");
     int segmentCount = OpDebugReadSizeT(str);
     segments.resize(segmentCount);
+    for (int index = 0; index < segmentCount; ++index)
+        segments[index].contour = this;
     for (int index = 0; index < segmentCount; ++index)
         segments[index].dumpSet(str);
 }
@@ -1280,28 +1293,25 @@ std::string debugErrorValue(DebugLevel l, DebugBase b, std::string label, float 
 }
 
 std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
-    std::string s = "{ ";
+    std::string s;
+    s += opTypeName(type) + " ";
+    s += "{ ";
     for (int i = 0; i < pointCount(); ++i) 
         s += hullPt(i).debugDump(l, b) + ", ";
     s.pop_back(); s.pop_back();
     s += " }";
     if (OpType::conic == type)
         s += debugValue(l, b, "weight", weight) + " ";
-    s += opTypeName(type);
     return s;
 }
 
 void OpCurve::dumpSet(const char*& str) {
+    type = opTypeStr(str, "", OpType::no);  // type must precede number of points call
     OpDebugRequired(str, "{ ");
-    // number of points isn't known; count commas to balancing close brace
-    int pointCnt = OpDebugCountDelimiters(str, ',', '{', '}') + 1;
-    for (int index = 0; index < pointCnt; ++index) {
-        hullPt(index).dumpSet(str);
-    }
+    dumpSetPts(str);
     OpDebugOptional(str, "}");
     if (OpDebugOptional(str, "weight"))
         weight = OpDebugHexToFloat(str);
-    type = opTypeStr(str, "", OpType::no);
 }
 
 ENUM_NAME_STRUCT(EdgeMatch);
@@ -1776,10 +1786,10 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         return debugLabel(l, label);
     };
     auto strCurve = [b, l, strLabel](std::string label, const OpCurve& c) {
-        return strLabel(label) + c.debugDump(l, b) + " ";
+        return strLabel(label) + ":" + c.debugDump(l, b) + " ";
     };
     auto strPts = [b, l, strLabel](std::string label, const LinePts& p) {
-        return strLabel(label) + p.pts[0].debugDump(l, b) + " "
+        return strLabel(label) + " 0:" + p.pts[0].debugDump(l, b) + " 1:"
                 + p.pts[1].debugDump(l, b) + " ";
     };
     auto strEdge = [dumpIt, strLabel](EdgeFilter match, std::string label, const OpEdge* edge) {
@@ -1882,7 +1892,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     }
     if (dumpIt(EdgeFilter::hulls) && (dumpAlways(EdgeFilter::hulls) || hulls.h.size())) {
         s += "hulls[";  // don't abbreviate in brief
-        for (auto hs : hulls.h)
+        for (auto& hs : hulls.h)
             s += hs.debugDump(l, b) + " ";
         if (' ' == s.back()) s.pop_back();
         s += "] ";
@@ -2010,7 +2020,7 @@ void OpEdge::dumpSet(const char*& str) {
         return 0ULL;
     };
     id = strID("edge");
-    segment = (OpSegment*) strID("segment");  // non-zero must be replaced with pointer later
+    segment = (OpSegment*) strID("segment");
     (void) strID("contour");  // can't do anything with this here
     priorEdge = (OpEdge*) strID("prior");  // non-zero must be replaced with pointer later
     nextEdge = (OpEdge*) strID("next");
@@ -2023,9 +2033,14 @@ void OpEdge::dumpSet(const char*& str) {
     if (OpDebugOptional(str, "center"))
         center.dumpSet(str);
     OpDebugRequired(str, "curve");
+    if (dumpContours->newInterface) {
+        curve.newInterface = true;
+        curve.contours = dumpContours;
+    }
     curve.dumpSet(str);
     if (OpDebugOptional(str, "upright_impl")) {
         upright_impl.dumpSet(str);
+        OpDebugRequired(str, "vertical_impl");
         vertical_impl.dumpSet(str);
     }
     OpDebugRequired(str, "ptBounds");
@@ -2057,10 +2072,11 @@ void OpEdge::dumpSet(const char*& str) {
             moreRay[index] = (OpEdge*) OpDebugReadSizeT(str);
     }
     if (OpDebugOptional(str, "hulls[")) {
-        int hullCount = OpDebugCountDelimiters(str, ':', '[', ']');
+        int hullCount = OpDebugCountDelimiters(str, ':', '[', ']') / 2;  // ':' used twice per hull
         hulls.h.resize(hullCount);
         for (int index = 0; index < hullCount; ++index)
             hulls.h[index].dumpSet(str);
+        OpDebugRequired(str, "]");
     }
     unsectableID = strID("unsectableID");
     whichEnd_impl = edgeMatchStr(str, "whichEnd", EdgeMatch::none);
@@ -2122,6 +2138,8 @@ void OpEdge::dumpResolveAll(OpContours* c) {
         c->dumpResolve(less);
     for (auto& more : moreRay)
         c->dumpResolve(more);
+    for (auto& hull : hulls.h)
+        hull.dumpResolveAll(c);
 #if OP_DEBUG
     c->dumpResolve(debugStart);
     c->dumpResolve(debugEnd);
@@ -2467,12 +2485,12 @@ OpEdge* OpEdgeStorage::debugIndex(int index) const {
     return (OpEdge*) &block->storage[byteIndex];
 }
 
-std::string OpEdgeStorage::debugDump(DebugLevel l, DebugBase b) const {
+std::string OpEdgeStorage::debugDump(std::string label, DebugLevel l, DebugBase b) const {
     std::string s;
     size_t count = debugCount();
     if (!count)
         return s;
-    s = "edgeStorage:" + STR(count) + "\n";
+    s = label + ":" + STR(count) + "\n";
     if (DebugLevel::brief == l) {
         s += "[";
         for (size_t index = 0; index < count; ++index)
@@ -2489,6 +2507,11 @@ std::string OpEdgeStorage::debugDump(DebugLevel l, DebugBase b) const {
     return s;
 }
 
+std::string OpEdgeStorage::debugDump(DebugLevel l, DebugBase b) const {
+    OP_ASSERT(0);  // !!! call the label version above instead
+    return "";
+}
+
 void OpEdgeStorage::DumpSet(const char*& str, OpContours* dumpContours, DumpStorage type) {
     size_t count = OpDebugReadSizeT(str);
     for (size_t index = 0; index < count; ++index) {
@@ -2501,6 +2524,8 @@ void OpEdgeStorage::DumpSet(const char*& str, OpContours* dumpContours, DumpStor
         else {
             OpDebugExit("edge storage missing");
         }
+        (void) new(edge) OpEdge();
+        edge->dumpContours = dumpContours;
         edge->dumpSet(str);
     }
 }
@@ -3075,7 +3100,7 @@ void SectRay::dumpSet(const char*& str) {
 
 std::string CcCurves::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    if (DebugLevel::file == l) {
+    if (DebugLevel::file == l || DebugLevel::detailed == l) {
         if (c.size()) {
             s = "c:" + STR(c.size()) + " [";
             for (auto edge : c)
@@ -3148,8 +3173,9 @@ void CcCurves::dumpResolveAll(OpContours* contours) {
 }
 
 bool OpCurveCurve::dumpBreak() const {
-     return (contours->dumpCurve1 == seg->id && contours->dumpCurve2 == opp->id)
-			|| (contours->dumpCurve1 == opp->id && contours->dumpCurve2 == seg->id);
+     return depth >= contours->debugBreakDepth && (
+         (contours->dumpCurve1 == seg->id && contours->dumpCurve2 == opp->id)
+			|| (contours->dumpCurve1 == opp->id && contours->dumpCurve2 == seg->id));
 }
 
 std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
@@ -3175,9 +3201,9 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
         int count = 0;
 	    for (auto edgesPtrs : { &edgeCurves, &oppCurves } ) {
             const auto& edges = *edgesPtrs;
-            if (edges.c.size()) { 
-                s += "-- " + names[count] + ":" + STR(edges.c.size()) + " ---\n";
-                s += edges.debugDump(l, b);
+            if (edges.c.size()) {
+                s += "-- " + names[count] + ":" + STR(edges.c.size()) + " --\n";
+                s += edges.debugDump(l, b) + "\n";
             }
         }
         ++count;
@@ -3652,7 +3678,12 @@ std::string OpSegment::debugDump(DebugLevel l, DebugBase b) const {
 
 void OpSegment::dumpSet(const char*& str) {
     id = OpDebugReadSizeT(str);
-    contour = (OpContour*) (OpDebugOptional(str, "contour[") ? OpDebugReadSizeT(str) : 0ULL);
+    int contourID = OpDebugOptional(str, "contour[") ? OpDebugReadSizeT(str) : 0;
+    OpDebugExitOnFail("mismatched contour id", contourID == contour->id);
+    if (contour->contours->newInterface) {
+        c.newInterface = true;
+        c.contours = contour->contours;
+    }
     c.dumpSet(str);
     OpDebugRequired(str, "ptBounds");
     ptBounds.dumpSet(str);
@@ -3668,9 +3699,10 @@ void OpSegment::dumpSet(const char*& str) {
     if (OpDebugOptional(str, "edges:")) {
         int edgeCount = OpDebugReadSizeT(str);
         edges.resize(edgeCount);
-        for (int index = 0; index < edgeCount; ++index) {
+        for (int index = 0; index < edgeCount; ++index)
+            edges[index].dumpContours = contour->contours;
+        for (int index = 0; index < edgeCount; ++index)
             edges[index].dumpSet(str);
-        }
     }
     OpDebugRequired(str, "winding");
     winding.dumpSet(str);
@@ -3942,9 +3974,16 @@ std::string HullSect::debugDump(DebugLevel l, DebugBase b) const {
 void HullSect::dumpSet(const char*& str) {
     if (OpDebugOptional(str, "["))
         opp = (OpEdge*) OpDebugReadSizeT(str);
+    else
+        opp = nullptr;
     type = sectTypeStr(str, "", SectType::none);
     OpDebugRequired(str, ":");
     sect.dumpSet(str);
+}
+
+void HullSect::dumpResolveAll(OpContours* c) {
+    if (opp)
+        c->dumpResolve(opp);
 }
 
 std::string OpHulls::debugDump(DebugLevel l, DebugBase b) const {
@@ -4092,7 +4131,7 @@ std::string LinePts::debugDump(DebugLevel l, DebugBase b) const {
 void LinePts::dumpSet(const char*& str) {
     OpDebugRequired(str, "0:");
     pts[0].dumpSet(str);
-    OpDebugRequired(str, ", 1:");
+    OpDebugRequired(str, "1:");
     pts[1].dumpSet(str);
 }
 

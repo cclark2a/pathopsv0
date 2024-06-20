@@ -2,18 +2,17 @@
 #include "PathOps.h"
 #include "OpCurve.h"
 
+// curve types
 OpType lineType = OpType::no;  // unset
 OpType quadType = OpType::no;
 
-int simplifyOperation = -1;  // unset  !!! replace int with type
-
 // exit() is called as a debugging aid. Once complete, exit() should never be called
 
-size_t lineLength() {
+constexpr size_t lineLength() {
     return sizeof(OpPoint) * 2;
 }
 
-size_t quadLength() {
+constexpr size_t quadLength() {
     return sizeof(OpPoint) * 3;
 }
 
@@ -106,7 +105,8 @@ OpVector quadNormal(const PathOpsV0Lib::CurveData* c, float t) {
 
 OpCurve lineSubDivide(PathOpsV0Lib::Context* context, const PathOpsV0Lib::Curve curve, 
         OpPtT ptT1, OpPtT ptT2) {
-    OpCurve result(context, curve);
+    OpContours* contours = (OpContours*) context;
+    OpCurve result(contours, curve.data, curve.type);
     result.curveData->start = ptT1.pt;
     result.curveData->end = ptT2.pt;
     return result;
@@ -114,7 +114,8 @@ OpCurve lineSubDivide(PathOpsV0Lib::Context* context, const PathOpsV0Lib::Curve 
 
 OpCurve quadSubDivide(PathOpsV0Lib::Context* context, const PathOpsV0Lib::Curve curve,
         OpPtT ptT1, OpPtT ptT2) {
-    OpCurve result(context, curve);
+    OpContours* contours = (OpContours*) context;
+    OpCurve result(contours, curve.data, curve.type);
     result.curveData->start = ptT1.pt;
     result.curveData->end = ptT2.pt;
     OpPoint controlPt = *(OpPoint*) curve.data->optionalAdditionalData;
@@ -179,10 +180,135 @@ void debugQuadAddToPath(const PathOpsV0Lib::CurveData* c, SkPath& path) {
 }
 #endif
 
+// contour types    // !!! probably needs its own type
+OpType windingFill = OpType::no;  // unset
+OpType evenOddFill = OpType::no;
+
+// operation types    // !!! probably needs its own type
+OpType simplifyOperation = OpType::no;  // unset
+
+#include "include/pathops/SkPathOps.h"
+
+static const SkPathOp inverseOpMapping[5][2][2] {
+ {{kDifference_SkPathOp, kIntersect_SkPathOp}, {kIntersect_SkPathOp, kReverseDifference_SkPathOp }},
+ {{kIntersect_SkPathOp, kDifference_SkPathOp}, {kReverseDifference_SkPathOp, kIntersect_SkPathOp }},
+ {{kIntersect_SkPathOp, kReverseDifference_SkPathOp}, {kDifference_SkPathOp, kIntersect_SkPathOp }},
+ {{kXOR_SkPathOp, kXOR_SkPathOp }, {kXOR_SkPathOp, kXOR_SkPathOp}},
+ {{kReverseDifference_SkPathOp, kIntersect_SkPathOp}, {kIntersect_SkPathOp, kDifference_SkPathOp }},
+};
+
+/* Given a PathOps operator, and if the operand fills are inverted, return the equivalent operator
+   treating the operands as non-inverted.
+ */
+SkPathOp MapInvertedSkPathOp(SkPathOp op, bool leftOperandIsInverted, bool rightOperandIsInverted) {
+    return inverseOpMapping[(int) op][leftOperandIsInverted][rightOperandIsInverted];
+}
+
+static const bool outInverse[5][2][2] {
+    { { false, false }, { true, false } },  // diff
+    { { false, false }, { false, true } },  // sect
+    { { false, true }, { true, true } },    // union
+    { { false, true }, { true, false } },   // xor
+    { { false, true }, { false, false } },  // rev diff
+};
+
+/* Given a PathOps operator, and if the operand fills are inverted, return true if the output is
+   inverted.
+ */
+bool SkPathOpInvertOutput(SkPathOp op, bool leftOperandIsInverted, bool rightOperandIsInverted) {
+    return outInverse[(int) op][leftOperandIsInverted][rightOperandIsInverted];
+}
+
+// user extensions to interpret the meaning of winding and operators
+
+/* table of winding states that the op types use to keep an edge
+	left op (first path)	right op (second path)		keep if:
+			0					0					---
+			0					flipOff				union, rdiff, xor
+			0					flipOn				union, rdiff, xor
+			0					1					---
+		    flipOff				0					union, diff, xor
+		    flipOff				flipOff				intersect, union
+		    flipOff				flipOn				diff, rdiff
+		    flipOff				1					intersect, rdiff, xor
+		    flipOn				0					union, diff, xor
+		    flipOn				flipOff				diff, rdiff
+		    flipOn				flipOn				intersect, union
+		    flipOn				1					intersect, rdiff, xor
+			1					0					---
+			1					flipOff				intersect, diff, xor
+			1					flipOn				intersect, diff, xor
+			1					1					---
+*/
+
+enum class BinaryOperators {
+    Subtract,
+    Intersect,
+    Union,
+    ExclusiveOr,
+    ReverseSubtract
+};
+
+struct BinaryWinding {
+	int left;
+	int right;
+};
+
+#if 0 // not ready for prime time
+WindKeep ApplyWinding() {
+	OpWinding su = sum;
+	OpWinding wi = winding;
+	OpContours* contours = this->contours();
+	WindState left = contours->windState(wi.left(), su.left(), OpOperand::left);
+	WindState right = contours->windState(wi.right(), su.right(), OpOperand::right);
+	if (left != WindState::flipOff && left != WindState::flipOn
+			&& right != WindState::flipOff && right != WindState::flipOn) {
+		return WindKeep::Discard;
+	}
+	bool bothFlipped = (left == WindState::flipOff || left == WindState::flipOn)
+			&& (right == WindState::flipOff || right == WindState::flipOn);
+	WindKeep keep = WindKeep::Discard;
+	switch (contours->opOperator) {
+	case BinaryOperators::Subtract:
+		if (bothFlipped ? left != right : WindState::one == left || WindState::zero == right)
+			keep = su.right() || !su.left() ? WindKeep::End : WindKeep::Start;
+		break;
+	case BinaryOperators::Intersect:
+		if (bothFlipped ? left == right : WindState::zero != left && WindState::zero != right)
+			keep = !su.left() || !su.right() ? WindKeep::End : WindKeep::Start;
+		break;
+	case BinaryOperators::Union:
+		if (bothFlipped ? left == right : WindState::one != left && WindState::one != right)
+			keep = !su.left() && !su.right() ? WindKeep::End : WindKeep::Start;
+		break;
+	case BinaryOperators::ExclusiveOr:
+		if (!bothFlipped)
+			keep = !su.left() == !su.right() ? WindKeep::End : WindKeep::Start;
+		break;
+	case BinaryOperators::ReverseSubtract:
+		if (bothFlipped ? left != right : WindState::zero == left || WindState::one == right)
+			keep = su.left() || !su.right() ? WindKeep::End : WindKeep::Start;
+		break;
+	default:
+		OP_ASSERT(0);
+	}
+	return keep;
+}
+#endif
+
 void testNewInterface() {
     using namespace PathOpsV0Lib;
 
-    Context* context = Create();
+    Context* context = CreateContext();
+
+#if OP_DEBUG
+    OpDebugData debugData(false);
+    debugData.debugCurveCurve1 = 2;
+    debugData.debugCurveCurve2 = 7;
+    debugData.debugCurveCurveDepth = 6;
+    Debug(context, debugData);
+#endif
+
     lineType = SetCurveCallBacks(context, lineAxisRawHit, noHull, lineIsLine, 
             noLinear, noControls, noSetControls, lineLength, lineNormal, noReverse,
             lineTangent, linesEqual, linePtAtT, /* double not required */ linePtAtT, 
@@ -203,6 +329,11 @@ void testNewInterface() {
 
     // example: given points describing a pair of closed loops with quadratic Beziers, find
     //          their intersection
+    Contour* contour = CreateContour(context);
+    int windingData[] = { 1 };
+    AddWinding addWinding { contour, windingData, sizeof(windingData) };
+    constexpr size_t lineSize = lineLength();
+    constexpr size_t quadSize = quadLength();
 
     // note that the data below omits start points for curves that match the previous end point
                       // start     end      control
@@ -212,20 +343,20 @@ void testNewInterface() {
     };
     // break the quads so that their control points lie inside the bounds
     // formed by the end points (i.e., find the quads' extrema)
-    AddQuads(context, { (CurveData*) &contour1[0], (OpType) quadType } );
-    Add(context, { (CurveData*) &contour1[3], (OpType) lineType } );
-    Add(context, { (CurveData*) &contour1[4], (OpType) lineType } );
+    AddQuads({ context, &contour1[0], quadSize, quadType }, addWinding );
+    Add(     { context, &contour1[3], lineSize, lineType }, addWinding );
+    Add(     { context, &contour1[4], lineSize, lineType }, addWinding );
 
     OpPoint contour2[] { { 0, 0 }, { 1, 1 },            // line: start, end
                                    { 1, 3 }, { 0, 3 },  // quad: end, control
                                    { 1, 3 }, { 0, 0 },  // line: start, end
     };
-    Add(context, { (CurveData*) &contour2[0], (OpType) lineType } );
-    AddQuads(context, { (CurveData*) &contour2[1], (OpType) quadType } );
-    Add(context, { (CurveData*) &contour2[4], (OpType) lineType } );
+    Add(     { context, &contour2[0], lineSize, lineType }, addWinding );
+    AddQuads({ context, &contour2[1], quadSize, quadType }, addWinding );
+    Add(     { context, &contour2[4], lineSize, lineType }, addWinding );
 
     Resolve(context, simplifyOperation);
-    Delete(context);
+    DeleteContext(context);
 
     if (Error(context)) {
         exit(1);
@@ -236,41 +367,44 @@ void testNewInterface() {
 
 namespace PathOpsV0Lib {
 
-Context* Create() {
+Context* CreateContext() {
     OpContours* contours = dumpInit();
     contours->newInterface = true;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = contours;
 #endif
+#if OP_DEBUG_IMAGE
+    OpDebugImage::init();
+    oo();
+#endif
     return (Context*) contours;
 }
 
-void Add(Context* context, Curve curve) {
-    OpContours* contours = (OpContours*) context;
+void Add(AddCurve curve, AddWinding windings) {
+    OpContours* contours = (OpContours*) curve.context;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = contours;
 #endif
     if (!contours->contours.size())
         (void) contours->makeContour(OpOperand::left);
     // !!! use current contour instead
-    OpContour& contour = contours->contours.back();
+    if (!windings.contour)
+        windings.contour = (Contour*) &contours->contours.back();
     // !!! create variant of curve which has pointer to data
-    contour.segments.emplace_back(context, curve, &contour);
+    ((OpContour*)(windings.contour))->segments.emplace_back(curve, windings);
 }
 
-void Contour(Context* context, OpType contourID) {
+ContourID AddContour(Context* context, Winding* winding) {
     // reuse existing contour
     OpContours* contours = (OpContours*) context;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = contours;
 #endif
-    for (OpContour& c : contours->contours)
-        if (c.operand == (OpOperand) contourID)
-            return;  // !!! set current contour
-    contours->makeContour((OpOperand) contourID);
+    OpContour* contour = contours->makeContour((OpOperand) 0);
+    return contour->id;
 }
 
-void Delete(Context* context) {
+void DeleteContext(Context* context) {
     OpContours* contours = (OpContours*) context;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = contours;
@@ -323,31 +457,40 @@ OpType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, CurveHull hullFu
     return (OpType) contours->callBacks.size();
 }
 
-int SetOperationCallBacks(Context* ) {
+OpType SetOperationCallBacks(Context* ) {
     // !!! incomplete
-    return 1;
+    return (OpType) 1;
 }
+
+#if OP_DEBUG
+void Debug(Context* context, OpDebugData& debugData) {
+    OpContours* contours = (OpContours*) context;
+    contours->dumpCurve1 = debugData.debugCurveCurve1;
+    contours->dumpCurve2 = debugData.debugCurveCurve2;
+    contours->debugBreakDepth = debugData.debugCurveCurveDepth;
+}
+#endif
+
 
 } // namespace PathOpsV0Lib
 
 
-OpCurve::OpCurve(struct PathOpsV0Lib::Context* context, struct PathOpsV0Lib::Curve curve) {
-    contours = (OpContours*) context;
-    size_t length = (*contours->callBack(curve).curveLengthFuncPtr)();
+OpCurve::OpCurve(OpContours* c, void* d, size_t length, OpType t) {
+    contours = c;
     curveData = contours->allocateCurveData(length);
-    memcpy(curveData, curve.data, length);
-    type = curve.type;
+    memcpy(curveData, d, length);
+    type = t;
     newInterface = true;
 }
 
 OpRoots OpCurve::axisRawHit(Axis offset, float intercept, MatchEnds matchEnds) const {
     OP_ASSERT(newInterface);
-    return (*contours->callBack(type).axisRawHitFuncPtr)(curveData, offset, intercept, matchEnds);
+    return contours->callBack(type).axisRawHitFuncPtr(curveData, offset, intercept, matchEnds);
 }
 
 bool OpCurve::isLine() const {
     return !newInterface ? OpType::line == type 
-            : (*contours->callBack(type).curveIsLineFuncPtr)(curveData);
+            : contours->callBack(type).curveIsLineFuncPtr(curveData);
 }
 
 OpPoint OpCurve::firstPt() const {
@@ -366,12 +509,11 @@ void OpCurve::setLastPt(OpPoint pt) {
     (newInterface ? curveData->end : pts[pointCount() - 1]) = pt;
 }
 
-OpSegment::OpSegment(struct PathOpsV0Lib::Context* context, struct PathOpsV0Lib::Curve curve,
-        OpContour* contourPtr)    
-    : c(context, curve)
-    , winding(WindingUninitialized::dummy)
+OpSegment::OpSegment(PathOpsV0Lib::AddCurve addCurve, PathOpsV0Lib::AddWinding addWinding)    
+    : c((OpContours*) addCurve.context, addCurve.points, addCurve.size, addCurve.type)
+    , winding((OpContour*) addWinding.contour, (WindingData*) addWinding.windings, addWinding.size)
     , disabled(false)  {
-    complete(contourPtr);  // only for id, which could be debug code if id is not needed
+    complete((OpContour*) addWinding.contour);  // only for id; could be debug code if not needed
     OP_DEBUG_CODE(contour = nullptr);   // can't set up here because it may still move
     OP_DEBUG_CODE(debugStart = SectReason::test);   // temp for new interface
     OP_DEBUG_CODE(debugEnd = SectReason::test);     //  "
@@ -379,8 +521,20 @@ OpSegment::OpSegment(struct PathOpsV0Lib::Context* context, struct PathOpsV0Lib:
 }
 
 void OpPointBounds::set(const OpCurve& c) {
-    if (c.newInterface)
-        return set(c.curveData->start, c.curveData->end);
+    if (c.newInterface) {
+        set(c.curveData->start, c.curveData->end);
+        std::vector<OpPoint*> ctrlPts = 
+                c.contours->callBack(c.type).curveControlsFuncPtr(c.curveData);
+        for (OpPoint* ctrlPt : ctrlPts)
+            add(*ctrlPt);
+        return;
+    }
     set(c.pts, c.pointCount());
 }
 
+OpWinding::OpWinding(OpContour* c, WindingData* d, size_t length)
+: contour(c)
+OP_DEBUG_PARAMS(debugType(WindingType::copy)) {
+    windingData = contour->contours->allocateWinding(length);
+	memcpy(windingData, d, length);
+}

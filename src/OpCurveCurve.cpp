@@ -95,10 +95,10 @@ void EdgeRun::set(const OpEdge* edge, const OpSegment* oppSeg, EdgeMatch match) 
 #endif
 }
 
-void CcCurves::addEdgeRun(const OpEdge* edge, const OpSegment* oppSeg) {
-	OP_ASSERT(!debugHasEdgeRun(edge->end.t));
+void CcCurves::addEdgeRun(const OpEdge* edge, const OpSegment* oppSeg, EdgeMatch match) {
+	OP_ASSERT(!debugHasEdgeRun(EdgeMatch::start == match ? edge->start.t : edge->end.t));
 	EdgeRun run;
-	run.set(edge, oppSeg, EdgeMatch::end);
+	run.set(edge, oppSeg, match);
 	OP_DEBUG_CODE(debugRuns.push_back(run));
 	if (OpMath::IsNaN(run.oppDist))
 		return;
@@ -243,7 +243,7 @@ void CcCurves::snipRange(const OpSegment* segment, const OpPtT& lo, const OpPtT&
 			snipE->ccStart = edge->ccStart;
 			snipE->ccSmall = edge->ccSmall;
 			snipE->ccEnd = true;
-			addEdgeRun(snipE, oppSeg);
+			addEdgeRun(snipE, oppSeg, EdgeMatch::end);
 			snips.c.push_back(snipE);
 		}
 		if (edge->end.t > hi.t) {
@@ -251,7 +251,7 @@ void CcCurves::snipRange(const OpSegment* segment, const OpPtT& lo, const OpPtT&
 			snipS->ccStart = true;
 			snipS->ccEnd = edge->ccEnd;
 			snipS->ccLarge = edge->ccLarge;
-			addEdgeRun(snipS, oppSeg);
+			addEdgeRun(snipS, oppSeg, EdgeMatch::start);
 			snips.c.push_back(snipS);
 		}
 	}
@@ -337,9 +337,9 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
 	}
 }
 
-void OpCurveCurve::addEdgeRun(const OpEdge* edge, CurveRef curveRef) {
+void OpCurveCurve::addEdgeRun(const OpEdge* edge, CurveRef curveRef, EdgeMatch match) {
 	CcCurves& curves = CurveRef::edge == curveRef ? edgeCurves : oppCurves;
-	curves.addEdgeRun(edge, CurveRef::edge == curveRef ? opp : seg);
+	curves.addEdgeRun(edge, CurveRef::edge == curveRef ? opp : seg, match);
 }
 
 void OpCurveCurve::addIntersection(OpEdge* edge, OpEdge* oppEdge) {
@@ -586,9 +586,6 @@ bool OpCurveCurve::checkSplit(float loT, float hiT, CurveRef which, OpPtT& check
 // 6) binary search on t (expect to be slower)
 SectFound OpCurveCurve::divideAndConquer() {
 	OP_DEBUG_CONTEXT();
-#if OP_DEBUG_DUMP
-	bool breakAtDraw = dumpBreak();
-#endif
 	OP_ASSERT(1 == edgeCurves.c.size());
 	OP_ASSERT(1 == oppCurves.c.size());
 //	int splitCount = 0;
@@ -603,15 +600,14 @@ SectFound OpCurveCurve::divideAndConquer() {
 //		edgeCurves.endDist(seg, opp);
 //		oppCurves.endDist(opp, seg);
 #if OP_DEBUG_DUMP
-		constexpr int debugBreakDepth = 1;
-		if (breakAtDraw && depth >= debugBreakDepth) {
-			if (debugBreakDepth == depth)
+		if (dumpBreak()) {
+			if (seg->contour->contours->debugBreakDepth == depth)
 				::debug();
 			1 == depth ? ::showSegmentEdges() : ::hideSegmentEdges();
-			if (debugBreakDepth < depth) 
+			if (seg->contour->contours->debugBreakDepth < depth) 
 				::dmpDepth(depth);
 			dmpFile();
-			fromFile();
+			fromFile(&seg->contour->contours->callBacks);
 			verifyFile();
 			OpDebugOut("");
 		}
@@ -819,9 +815,9 @@ void OpCurveCurve::recordSect(OpEdge* edge, OpEdge* oEdge, const OpPtT& edgePtT,
 
 bool OpCurveCurve::rotatedIntersect(OpEdge& edge, OpEdge& oppEdge, bool sharesPoint) {
 	LinePts edgePts { edge.start.pt, edge.end.pt };
-	OpCurve edgeRotated = edge.setVertical(edgePts);
+	const OpCurve& edgeRotated = edge.setVertical(edgePts);
 	rotateFailed |= !edgeRotated.isFinite();
-	OpCurve oppRotated = oppEdge.setVertical(edgePts);
+	const OpCurve& oppRotated = oppEdge.setVertical(edgePts);
 	rotateFailed |= !oppRotated.isFinite();
 	OpPointBounds eRotBounds;
 	eRotBounds.set(edgeRotated);
@@ -967,7 +963,7 @@ void OpCurveCurve::splitDownTheMiddle(const OpEdge& edge, const OpPtT& edgeMid, 
 	splitLeft->ccSmall = edge.ccSmall;
 	splits.c.push_back(splitLeft);
 	OP_ASSERT(curves.debugHasEdgeRun(splitLeft->start.t));
-	curves.addEdgeRun(splitLeft, oppSeg);
+	curves.addEdgeRun(splitLeft, oppSeg, EdgeMatch::end);
 	void* blockR = contours->allocateEdge(contours->ccStorage);
 	OpEdge* splitRight = new(blockR) OpEdge(&edge, edgeMid, NewEdge::isRight  
 			OP_LINE_FILE_PARAMS(EdgeMaker::splitRight));
@@ -1087,7 +1083,8 @@ void OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 			split->ccEnd = edge.ccEnd && edge.start.soClose(split->end);
 			if (split->ccEnd)
 				split->ccLarge = edge.ccLarge;
-			addEdgeRun(split, which);
+			if (split->end.t < edge.end.t)
+				addEdgeRun(split, which, EdgeMatch::end);
 			splits.c.push_back(split);
 		}
 		if (splits.c.size() - splitCount < 2) {

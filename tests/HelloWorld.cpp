@@ -7,7 +7,6 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 
 #define OP_INTERACTIVE 0
-#define OP_TEST_NEW_INTERFACE 1
 
 #include "HelloWorld.h"
 #include "include/core/SkBitmap.h"
@@ -78,8 +77,8 @@ int activeLeft;
 int activeRight;
 
 void resetPaths() {
-    leftPath.set(debugGlobalContours->leftIn);
-    rightPath.set(debugGlobalContours->rightIn);
+    leftPath.set(*debugGlobalContours->leftIn);
+    rightPath.set(*debugGlobalContours->rightIn);
     activePtV = nullptr;
     activeIndex = { -1, -1 };
     activeFocus = -1;

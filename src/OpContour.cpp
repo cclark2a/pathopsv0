@@ -228,7 +228,12 @@ void OpContour::finish() {
 //    last->sects.resort = true; // 1 gets added before 0
     for (auto& segment : segments) {
         segment.contour = this;
+#if OP_TEST_NEW_INTERFACE
+        segment.winding->contour = this;
+
+#else
         segment.winding = operand;
+#endif
 #if 0  // we'll do this when we compare each segment against every other
         OpPoint firstPoint = segment.c.pts[0];
         OpIntersection* sect = segment.addSegBase({ firstPoint, 0}  
@@ -259,10 +264,10 @@ static const OpOperator OpInverse[+OpOperator::ReverseSubtract + 1][2][2] {
     { { OpOperator::ReverseSubtract, OpOperator::Union }, { OpOperator::Intersect, OpOperator::Subtract } },
 };
 
-OpContours::OpContours(OpInPath& l, OpInPath& r, OpOperator op) 
-    : leftIn(l)
-    , rightIn(r)
-    , opIn(op)
+OpContours::OpContours()
+    : leftIn(nullptr)
+    , rightIn(nullptr)
+    , opIn(OpOperator::Intersect)
     , ccStorage(nullptr)
     , curveDataStorage(nullptr)
     , fillerStorage(nullptr)
@@ -271,8 +276,7 @@ OpContours::OpContours(OpInPath& l, OpInPath& r, OpOperator op)
     , left(OpFillType::unset)
     , right(OpFillType::unset)
     , uniqueID(0)
-{
-    opOperator = OpInverse[+op][l.isInverted()][r.isInverted()];
+    , newInterface(false) {
 #if OP_DEBUG_VALIDATE
     debugValidateEdgeIndex = 0;
     debugValidateJoinerIndex = 0;
@@ -291,6 +295,14 @@ OpContours::OpContours(OpInPath& l, OpInPath& r, OpOperator op)
 #if OP_DEBUG_DUMP
     dumpTree = nullptr;
 #endif
+}
+
+OpContours::OpContours(OpInPath& l, OpInPath& r, OpOperator op) 
+    : OpContours() {
+    leftIn = &l;
+    rightIn = &r;
+    opIn = op;
+    opOperator = OpInverse[+op][l.isInverted()][r.isInverted()];
 }
 
 OpContours::~OpContours() {
@@ -383,6 +395,25 @@ OpLimb* OpContours::allocateLimb(OpTree* tree) {
     return limbStorage->allocate(*tree);
 }
 
+WindingData* OpContours::allocateWinding(size_t size) {
+    if (!windingStorage)
+        windingStorage = new WindingDataStorage;
+    if (windingStorage->used + size > sizeof(windingStorage->windingData)) {
+        WindingDataStorage* next = new WindingDataStorage;
+        next->next = windingStorage;
+        windingStorage = next;
+    }
+    return (WindingData*) &windingStorage->windingData[windingStorage->used];
+}
+
+WindingData* OpContours::copySect(const OpEdge* edge, const OpWinding& winding) {
+    size_t size = edge->segment->contour->callBacks.windingLengthFuncPtr( 
+            { edge->curve.curveData, edge->curve.type });
+    WindingData* copy = allocateWinding(size);
+    memcpy(copy, winding.additionalData, size);
+    return copy;
+}
+
 OpLimbStorage* OpContours::resetLimbs(OpTree* tree) {
 #if OP_DEBUG_DUMP
     dumpTree = tree;
@@ -439,9 +470,9 @@ static const bool OutInverse[+OpOperator::ReverseSubtract + 1][2][2] {
 // !!! OP_DEBUG_COUNT was unintentionally deleted at some point. Hopefully it is in git history...
 bool OpContours::pathOps(OpOutPath& result) {
     if (!newInterface) {
-        if (!build(leftIn, OpOperand::left))  // builds monotonic segments, and adds 0/1 sects
+        if (!build(*leftIn, OpOperand::left))  // builds monotonic segments, and adds 0/1 sects
             OP_DEBUG_FAIL(*this, false);
-        if (!build(rightIn, OpOperand::right))
+        if (!build(*rightIn, OpOperand::right))
             OP_DEBUG_FAIL(*this, false);
         finishAll();
 //        setBounds();    // !!! check to see if this is used
@@ -473,8 +504,10 @@ bool OpContours::pathOps(OpOutPath& result) {
     apply();  // suppress edges which don't meet op criteria
     if (!assemble(result))
         OP_DEBUG_FAIL(*this, false);
-    bool inverseFill = OutInverse[+opOperator][leftIn.isInverted()][rightIn.isInverted()];
-    result.setInverted(inverseFill);
+    if (!newInterface) {
+        bool inverseFill = OutInverse[+opOperator][leftIn->isInverted()][rightIn->isInverted()];
+        result.setInverted(inverseFill);
+    }
 #if 0 && OP_DEBUG_IMAGE
     showResult();
 #endif

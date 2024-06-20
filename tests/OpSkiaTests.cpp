@@ -3,7 +3,6 @@
 // !!! test this ! (OpCurve::rawIntersect commented out code)
 // for thread_circles104483, edges 113 and 117 fail to find intersection; check for error here
 
-
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
 #define TEST_PATH_OP_FIRST "" // e.g., "thread_cubics2247347" (ignored by fast test)
@@ -20,7 +19,8 @@
 #define OP_TEST_REGION 1  // test result of v0 against skia regions
 
 #define CURVE_CURVE_1 2  // id of edge 1 to break in divide and conquer
-#define CURVE_CURVE_2 6  // id of edge 2 to break in divide and conquer
+#define CURVE_CURVE_2 7  // id of edge 2 to break in divide and conquer
+#define CURVE_CURVE_DEPTH 6  // minimum recursion depth for curve curve break
 
 // see descriptions for exceptions below
 #define TEST_PATH_OP_EXCEPTIONS "issue3517" // "cubics7d"
@@ -546,26 +546,22 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
 	OpInPath op1(&a);
 	OpInPath op2(&b);
 	OpOutPath opOut(&result);
-    std::vector<OpDebugWarning> warnings;
-#if OP_DEBUG || OP_TEST_REGION
-    bool success = 
-#endif
-#if OP_DEBUG
-        DebugPathOps(op1, op2, (OpOperator) op, opOut, v0MayFail ? OpDebugExpect::unknown :
-                OpDebugExpect::success, testname, warnings);
-#else
-        PathOps(op1, op2, (OpOperator) op, opOut);
-#endif
-    OP_ASSERT(success || v0MayFail);
+    OpDebugData debugData(v0MayFail);
+    debugData.debugTestname = testname;
+    debugData.debugCurveCurve1 = CURVE_CURVE_1;
+    debugData.debugCurveCurve2 = CURVE_CURVE_2;
+    debugData.debugCurveCurveDepth = CURVE_CURVE_DEPTH;
+    PathOps(op1, op2, (OpOperator) op, opOut  OP_DEBUG_PARAMS(debugData));
+    OP_ASSERT(debugData.debugSuccess || v0MayFail);
 #endif
 #if OP_TEST_SKIA
     SkPath skresult;
     bool skSuccess = Op(a, b, op, &skresult);
     OP_ASSERT(skSuccess || skiaMayFail);
 #if OP_TEST_V0
-    if (success && !skSuccess)
+    if (debugData.debugSuccess && !skSuccess)
         testsPassSkiaFail++;
-    else if (!success && skSuccess)
+    else if (!debugData.debugSuccess && skSuccess)
         testsFailSkiaPass++;
 #else
     if (skiaMayFail && skSuccess)
@@ -577,14 +573,14 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     if (startFirstTest && runOneFile)
         endFirstTest = true;
 #if OP_TEST_V0 && OP_TEST_REGION
-    if (!success || !skSuccess || v0MayFail || skiaMayFail)
+    if (!debugData.debugSuccess || !skSuccess || v0MayFail || skiaMayFail)
         return;
     int errors = VerifyOp(a, b, op, testname, result);
 //  int altErrors = VerifyOpNoRegion(a, b, op, result);
     const int MAX_ERRORS = 9;
-    if (errors > MAX_ERRORS || warnings.size()) {
+    if (errors > MAX_ERRORS || debugData.debugWarnings.size()) {
 #if !defined(NDEBUG) || OP_RELEASE_TEST
-        ReportError(testname, errors, warnings);
+        ReportError(testname, errors, debugData.debugWarnings);
         if (errors > MAX_ERRORS)
             testsError++;
 #endif
@@ -712,25 +708,22 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
     const char* tn = testname.c_str();
     if ("never!" == testname)
         OpDebugOut(tn);  // prevent optimizer from removing tn
-#if OP_DEBUG || OP_TEST_REGION
-    bool success =
-#endif
-#if OP_DEBUG
-        DebugPathSimplify(op1, opOut, v0MayFail ? OpDebugExpect::unknown :
-                OpDebugExpect::success, testname, warnings);
-#else
-        PathSimplify(op1, opOut);
-#endif
-    OP_ASSERT(v0MayFail || success);
+    OpDebugData debugData(v0MayFail);
+    debugData.debugTestname = testname;
+    debugData.debugCurveCurve1 = CURVE_CURVE_1;
+    debugData.debugCurveCurve2 = CURVE_CURVE_2;
+    debugData.debugCurveCurveDepth = CURVE_CURVE_DEPTH;
+    PathSimplify(op1, opOut  OP_DEBUG_PARAMS(debugData));
+    OP_ASSERT(v0MayFail || debugData.debugSuccess);
 #endif
 #if OP_TEST_SKIA
     SkPath skOut;
     bool skSuccess = Simplify(path, &skOut);
     OP_ASSERT(skiaMayFail || skSuccess);
 #if OP_TEST_V0
-    if (success && !skSuccess)
+    if (debugData.debugSuccess && !skSuccess)
         testsPassSkiaFail++;
-    else if (!success && skSuccess)
+    else if (!debugData.debugSuccess && skSuccess)
         testsFailSkiaPass++;
 #else
     if (skiaMayFail && skSuccess)
@@ -740,7 +733,7 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
     if (startFirstTest && runOneFile)
         endFirstTest = true;
 #if OP_TEST_V0 && OP_TEST_REGION
-    if (!success)
+    if (!debugData.debugSuccess)
         return;
     int errors = VerifySimplify(path, testname, out);
     const int MAX_ERRORS = 9;
@@ -842,7 +835,7 @@ void PathOpsThreadedTestRunner::render() {
 }
 
 void emergencyDump(OpContours* c) {
-    ((SkPath*) (c->leftIn.externalReference))->dump();
-    ((SkPath*) (c->rightIn.externalReference))->dump();
+    ((SkPath*) (c->leftIn->externalReference))->dump();
+    ((SkPath*) (c->rightIn->externalReference))->dump();
     OpDebugOut(STR((int) c->opIn) + "\n");
 }

@@ -219,7 +219,12 @@ extern void dmpSects();
 extern void dmpSegments();
 extern void dmpUnsectable();
 extern void dmpUnsortable();
-extern void fromFile();
+
+namespace PathOpsV0Lib {
+struct CallBacks;
+}
+
+extern void fromFile(std::vector<PathOpsV0Lib::CallBacks>* callBacks);
 extern void verifyFile();
 
 #if OP_DEBUG_VERBOSE

@@ -6,6 +6,7 @@
 // this puts all switches that decide which tests to run and how to run them in one place
 // these switches should migrate to make file options
 #define OP_DEBUG_FAST_TEST 0  // in a debug build: set to zero to enable debug dump, debug image
+#define OP_TEST_NEW_INTERFACE 1  // use context-free engine design; test hard-coded for now
 
 #define OP_DEBUG_RECORD 0  // track some statistic or other while running
 #define OP_DEBUG_VERBOSE (1 && !OP_DEBUG_FAST_TEST)

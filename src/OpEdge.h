@@ -81,6 +81,10 @@ enum class WindingEdge {
 	dummy
 };
 
+enum class WindingSegment {  // used only by new interface
+	dummy
+};
+
 enum class WindingUninitialized {
 	dummy
 };
@@ -113,52 +117,64 @@ enum class ZeroReason : uint8_t {
 };
 
 
+#if OP_TEST_NEW_INTERFACE
+// returns if an edge starts a fill, ends a fill, or does neither and should be discarded
+enum class WindKeep {
+    Start,
+    End,
+    Discard
+};
+#endif
+
 enum class WindingType  {
 	uninitialized = -1,
 	temp,
 	winding,
-	sum
+	sum,
+	copy  // used only by new interface
 };
 
+struct WindingData;  // blind data supplied by caller
+
 struct OpWinding {
+#if OP_TEST_NEW_INTERFACE
+	OpWinding(OpContour* c, WindingSum );
+	OpWinding(OpContour* c, WindingSegment );
+
+	OpWinding(WindingUninitialized )
+		: contour(nullptr)
+		, windingData(nullptr)
+		OP_DEBUG_PARAMS(debugType(WindingType::uninitialized)) {
+	}
+
+	OpWinding(OpContour* c, WindingData* d, size_t size);
+
+#else
 private:
 	// used by operator-
 	OpWinding(int l, int r)
 		: left_impl(l)
 		, right_impl(r)
-#if OP_DEBUG
-		, debugType(WindingType::winding)
-#endif
-	{
+		OP_DEBUG_PARAMS(debugType(WindingType::winding)) {
 	}
 
 public:
 	OpWinding(WindingTemp)  // used for winding accumulators before sum is set
 		: left_impl(0)
 		, right_impl(0)
-#if OP_DEBUG
-		, debugType(WindingType::temp)
-#endif
-	{
+		OP_DEBUG_PARAMS(debugType(WindingType::temp)) {
 	}
-
 
 	OpWinding(WindingUninitialized)	 // used by edge and segment winding before they are set
 		: left_impl(OpMax)
-#if OP_DEBUG
-		, right_impl(OpMax)
-		, debugType(WindingType::uninitialized)
-#endif	
-	{
+		OP_DEBUG_PARAMS(right_impl(OpMax))
+		OP_DEBUG_PARAMS(debugType(WindingType::uninitialized)) {
 	}
 
 	OpWinding(OpOperand operand)	// used to set initial segment winding
 		: left_impl(OpOperand::left == operand ? 1 : 0)
 		, right_impl(OpOperand::right == operand ? 1 : 0)
-#if OP_DEBUG
-		, debugType(WindingType::winding)
-#endif	
-	{
+		OP_DEBUG_PARAMS(debugType(WindingType::winding)) {
 	}
 
 	bool operator==(OpWinding w) const {
@@ -169,14 +185,25 @@ public:
 		OP_ASSERT(WindingType::winding == debugType);
 		return { -left_impl, -right_impl };
 	}
+#endif
 
+#if OP_TEST_NEW_INTERFACE
+	void add(const OpWinding* );
+#else
 	OpWinding& operator+=(const OpWinding& w) {
 		OP_ASSERT(WindingType::temp == debugType || WindingType::winding == debugType);
 		left_impl += w.left_impl;
 		right_impl += w.right_impl;
 		return *this;
 	}
+#endif
 
+#if OP_TEST_NEW_INTERFACE
+	bool compare(const OpWinding& );  // returns true if not equal (compares user data only)
+	OpWinding* copy();
+	void subtract(const OpWinding* );
+	void move(const OpWinding* opp, bool backwards);
+#else
 	OpWinding& operator-=(const OpWinding& w) {
 		OP_ASSERT(WindingType::temp == debugType || WindingType::winding == debugType);
 		left_impl -= w.left_impl;
@@ -193,17 +220,23 @@ public:
 	}
 
 	void move(OpWinding opp, const OpContours* , bool backwards);
+#endif
 
+
+#if 0 // !!! unused?
 	int oppSide(OpOperand operand) const {
 		return OpOperand::left == operand ? right_impl : left_impl;
 	}
+#endif
 
+#if !OP_TEST_NEW_INTERFACE
 	int right() const {
 		return right_impl;
 	}
+#endif
 
-	void setSum(OpWinding winding, const OpContours* segment);
 
+#if !OP_TEST_NEW_INTERFACE
 	void setWind(int left, int right) {	// shouldn't be 0, 0 (call zero() for that)
 		OP_ASSERT(WindingType::uninitialized == debugType);
 		OP_ASSERT(left || right);
@@ -214,28 +247,35 @@ public:
 	#endif
 	}
 
-	int sum() const {
-		return left_impl + right_impl;
-	}
+	void setSum(OpWinding winding, const OpContours* segment);
+#endif
 
-	bool visible() const {
-		return left_impl || right_impl;
-	}
-
-	void zero() {
-		left_impl = right_impl = 0;	// only used by coincident lines
-	}
+#if OP_TEST_NEW_INTERFACE
+	void setSum(const OpWinding* winding);
+	int sum() const;
+	bool visible() const;
+	void zero();
+#else
+	int sum() const { return left_impl + right_impl; }
+	bool visible() const { return left_impl || right_impl; }
+	void zero() { left_impl = right_impl = 0;	// only used by coincident lines }
+#endif
 #if OP_DEBUG_DUMP
 	std::string debugDump() const;
 	DUMP_DECLARATIONS
 #endif
 
+#if OP_TEST_NEW_INTERFACE
+	OpContour* contour;
+	WindingData* windingData;
+#else
 	int left_impl;	// indirection to make set debugging breakpoints easier 
 	int right_impl;
-
+#endif
 #if OP_DEBUG
 	WindingType debugType;
 #endif
+
 };
 
 // An edge that can contribute to the answer has a zero winding on one side
@@ -496,6 +536,9 @@ private:
 		debugRayMatch = 0;
 		debugFiller = false;
 #endif
+#if OP_DEBUG_DUMP
+		dumpContours = nullptr;
+#endif
 #if OP_DEBUG_IMAGE
 		debugColor = debugBlack;
 		debugDraw = true;
@@ -582,7 +625,9 @@ public:
 //	void setCurveCenter();  // adds center point after curve points
 	void setDisabled(OP_DEBUG_CODE(ZeroReason reason));
 	void setDisabledZero(OP_DEBUG_CODE(ZeroReason reason)) {
-		winding.zero(); setDisabled(OP_DEBUG_CODE(reason)); }
+		winding.zero();
+		setDisabled(OP_DEBUG_CODE(reason)); 
+	}
 //	void setFromPoints(const OpPoint pts[]);
 	OpEdge* setLastEdge();
 	bool setLastLink(EdgeMatch );  // returns true if link order was changed
@@ -591,8 +636,13 @@ public:
 	void setNextEdge(OpEdge*);  // setter exists so debug breakpoints can be set
 	void setPointBounds();
 	void setPriorEdge(OpEdge* );  // setter exists so debug breakpoints can be set
+#if OP_TEST_NEW_INTERFACE
+	void setSum(const OpWinding*  OP_DEBUG_PARAMS(char* file, int line));
+#else
 	void setSumImpl(OpWinding w) {	// use debug macro instead to record line/file
-		sum.setSum(w, contours()); }
+		sum.setSum(w, contours());
+	}
+#endif
 	void setUnsortable();
 	const OpCurve& setVertical(const LinePts& );
 	void setWhich(EdgeMatch );  // setter exists so debug breakpoints can be set
@@ -705,6 +755,9 @@ public:
 	mutable int debugRayMatch;	// id: edges in common output contour determined from ray
 	bool debugFiller;  // edge created to span short gaps
 #endif
+#if OP_DEBUG_DUMP
+	OpContours* dumpContours;  // temporary edges don't have segment ptrs when unflattened
+#endif
 #if OP_DEBUG_IMAGE
 	uint32_t debugColor;
 	bool debugDraw;
@@ -730,6 +783,7 @@ struct OpEdgeStorage {
 	bool contains(OpIntersection* start, OpIntersection* end) const;
 #if OP_DEBUG_DUMP
 	size_t debugCount() const;
+	std::string debugDump(std::string label, DebugLevel l, DebugBase b) const;
 	OpEdge* debugFind(int id) const;
 	OpEdge* debugIndex(int index) const;
 	static void DumpSet(const char*& str, OpContours* , DumpStorage );
@@ -737,10 +791,32 @@ struct OpEdgeStorage {
 #endif
 
 	OpEdgeStorage* next;
-	uint8_t storage[sizeof(OpEdge) * 256];
+	uint8_t storage[sizeof(OpEdge) * 256];	// !!! change this to array of edges
 	int used;
 };
 
+// new interface
+struct WindingDataStorage {
+	WindingDataStorage()
+		: next(nullptr)
+		, used(0) {
+	}
+#if OP_DEBUG_DUMP
+	size_t debugCount() const;
+	std::string debugDump(std::string label, DebugLevel l, DebugBase b) const;
+	uint8_t* debugIndex(int index) const;
+	static void DumpSet(const char*& str, OpContours* , DumpStorage );
+	DUMP_DECLARATIONS
+#endif
+
+	WindingDataStorage* next;
+	int used;
+	uint8_t windingData[2048];	// !!! size is arbitrary guess -- should measure and do better
+};
+
+#if OP_TEST_NEW_INTERFACE
+#define OP_EDGE_SET_SUM(edge, winding) edge->setSum(winding  OP_DEBUG_PARAMS(__FILE__, __LINE__))
+#else
 #if OP_DEBUG == 0
 #define OP_EDGE_SET_SUM(edge, winding) edge->setSumImpl(winding)
 #else
@@ -750,6 +826,7 @@ struct OpEdgeStorage {
 		edge->setSumImpl(winding); \
 		edge->debugSetSum = { __FILE__, __LINE__ }; \
 	} while (false)
+#endif
 #endif
 
 #endif

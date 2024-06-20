@@ -789,12 +789,19 @@ void OpCubicTest() {
 #include "OpEdge.h"
 #include "PathOps.h"
 
+void TestPathOps(OpInPath& op1, OpInPath& op2, OpOperator operation, OpOutPath& opOut) {
+	OpDebugData debugData(false);
+	OP_DEBUG_CODE(bool didIt =) PathOps(op1, op2, operation, opOut
+			OP_DEBUG_PARAMS(debugData));
+	OP_ASSERT(didIt);
+
+}
+
 bool OpPathOpsTest1(const SkPath& one, const SkPath& two, SkPath* result) {
 	OpInPath op1(&one);
 	OpInPath op2(&two);
 	OpOutPath opOut(result);
-	OP_DEBUG_CODE(bool didIt =) PathOps(op1, op2, OpOperator::Intersect, opOut);
-	OP_ASSERT(didIt);
+	TestPathOps(op1, op2, OpOperator::Intersect, opOut);
 	result->dump();
 	OpDebugOut("success!\n");
 	return true;
@@ -809,8 +816,7 @@ void OpTestXor() {
 	OpInPath op1(&one);
 	OpInPath op2(&two);
 	OpOutPath opOut(&result);
-	OP_DEBUG_CODE(bool didIt =) PathOps(op1, op2, OpOperator::ExclusiveOr, opOut);
-	OP_ASSERT(didIt);
+	TestPathOps(op1, op2, OpOperator::ExclusiveOr, opOut);
 	result.dump();
 	OpDebugOut("");
 }
@@ -1046,8 +1052,7 @@ void OpTestQuadLine() {
 	OpInPath op1(&one);
 	OpInPath op2(&two);
 	OpOutPath opOut(&result);
-	OP_DEBUG_CODE(bool didIt =) PathOps(op1, op2, OpOperator::Intersect, opOut);
-	OP_ASSERT(didIt);
+	TestPathOps(op1, op2, OpOperator::Intersect, opOut);
 	result.dump();
 	OpDebugOut("");
 }
@@ -1064,8 +1069,7 @@ void OpTestQuadQuad() {
 	OpInPath op1(&one);
 	OpInPath op2(&two);
 	OpOutPath opOut(&result);
-	OP_DEBUG_CODE(bool didIt =) PathOps(op1, op2, OpOperator::Intersect, opOut);
-	OP_ASSERT(didIt);
+	TestPathOps(op1, op2, OpOperator::Intersect, opOut);
 	result.dump();
 	OpDebugOut("");
 }
@@ -1082,8 +1086,7 @@ void OpTestQuadCoin() {
 	OpInPath op1(&one);
 	OpInPath op2(&two);
 	OpOutPath opOut(&result);
-	OP_DEBUG_CODE(bool didIt =) PathOps(op1, op2, OpOperator::Intersect, opOut);
-	OP_ASSERT(didIt);
+	TestPathOps(op1, op2, OpOperator::Intersect, opOut);
 	result.dump();
 	OpDebugOut("");
 }
@@ -1100,8 +1103,7 @@ void OpTestQuadCoin2() {
 	OpInPath op1(&one);
 	OpInPath op2(&two);
 	OpOutPath opOut(&result);
-	OP_DEBUG_CODE(bool didIt =) PathOps(op1, op2, OpOperator::Intersect, opOut);
-	OP_ASSERT(didIt);
+	TestPathOps(op1, op2, OpOperator::Intersect, opOut);
 	result.dump();
 	OpDebugOut("");
 }

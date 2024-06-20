@@ -430,8 +430,7 @@ bool OpCurve::isFinite() const {
             return false;
         if (!curveData->end.isFinite())
             return false;
-        std::vector<OpPoint*> otherPts = (*contours->callBack(type).curveControlsFuncPtr)
-                (curveData);
+        std::vector<OpPoint*> otherPts = contours->callBack(type).curveControlsFuncPtr(curveData);
         for (OpPoint* ptPtr : otherPts) {
             if (!ptPtr->isFinite())
                 return false;
@@ -450,20 +449,19 @@ OpCurve OpCurve::toVertical(const LinePts& line) const {
     float adj = line.pts[1].x - line.pts[0].x;
     float opp = line.pts[1].y - line.pts[0].y;
     if (newInterface) {
-        OpCurve newRotated((PathOpsV0Lib::Context*) contours, { curveData, type } );
+        OpCurve newRotated(contours, curveData, type);
         auto rotatePt = [line, adj, opp](OpPoint pt) {
             OpVector v = pt - line.pts[0];
             return OpPoint(v.dy * adj - v.dx * opp, v.dy * opp + v.dx * adj);
         };
         newRotated.curveData->start = rotatePt(curveData->start);
         newRotated.curveData->end = rotatePt(curveData->end);
-        std::vector<OpPoint*> otherPts = (*contours->callBack(type).curveControlsFuncPtr)
-                (curveData);
+        std::vector<OpPoint*> otherPts = contours->callBack(type).curveControlsFuncPtr(curveData);
         std::vector<OpPoint> transformed(otherPts.size());
         size_t index = 0;
         for (OpPoint* ptPtr : otherPts)
             transformed[index++] = rotatePt(*ptPtr);
-        (*contours->callBack(type).setControlsFuncPtr)(newRotated.curveData, transformed);
+        contours->callBack(type).setControlsFuncPtr(newRotated.curveData, transformed);
         return newRotated;
     }
     OpCurve rotated;
@@ -480,14 +478,14 @@ OpCurve OpCurve::toVertical(const LinePts& line) const {
 
 int OpCurve::pointCount() const {
     if (newInterface)
-        return (*contours->callBack(type).ptCountFuncPtr)();
+        return contours->callBack(type).ptCountFuncPtr();
     return static_cast<int>(type) + (type < OpType::conic);
 }
 
 // !!! promote types to use double as test cases requiring such are found
 OpPoint OpCurve::doublePtAtT(float t) const {
     if (newInterface)
-        return (*contours->callBack(type).doublePtAtTFuncPtr)(curveData, t);
+        return contours->callBack(type).doublePtAtTFuncPtr(curveData, t);
     switch(type) {
         case OpType::line: return asLine().ptAtT(t);    
         case OpType::quad: return asQuad().ptAtT(t);
@@ -501,7 +499,7 @@ OpPoint OpCurve::doublePtAtT(float t) const {
 
 OpPoint OpCurve::ptAtT(float t) const {
     if (newInterface)
-        return (*contours->callBack(type).ptAtTFuncPtr)(curveData, t);
+        return contours->callBack(type).ptAtTFuncPtr(curveData, t);
     switch(type) {
         case OpType::line: return asLine().ptAtT(t);    
         case OpType::quad: return asQuad().ptAtT(t);
@@ -515,7 +513,7 @@ OpPoint OpCurve::ptAtT(float t) const {
 
 OpCurve OpCurve::subDivide(OpPtT ptT1, OpPtT ptT2) const {
     if (newInterface)
-        return (*contours->callBack(type).subDivideFuncPtr)(
+        return contours->callBack(type).subDivideFuncPtr(
                 (PathOpsV0Lib::Context*) contours, { curveData, type }, ptT1, ptT2);
     OpCurve result;
     result.type = type;
@@ -540,7 +538,7 @@ OpCurve OpCurve::subDivide(OpPtT ptT1, OpPtT ptT2) const {
 // for accuracy, this should only be called with segment's curve, never edge curve
 OpVector OpCurve::normal(float t) const {
     if (newInterface)
-        return (*contours->callBack(type).curveNormalFuncPtr)(curveData, t);
+        return contours->callBack(type).curveNormalFuncPtr(curveData, t);
     switch (type) {
         case OpType::line: return asLine().normal(t);
         case OpType::quad: return asQuad().normal(t);
@@ -554,7 +552,7 @@ OpVector OpCurve::normal(float t) const {
 
 OpVector OpCurve::tangent(float t) const {
     if (newInterface)
-        return (*contours->callBack(type).curveTangentFuncPtr)(curveData, t);
+        return contours->callBack(type).curveTangentFuncPtr(curveData, t);
     switch (type) {
     case OpType::line: return asLine().tangent();
     case OpType::quad: return asQuad().tangent(t);
@@ -568,7 +566,7 @@ OpVector OpCurve::tangent(float t) const {
 
 OpPair OpCurve::xyAtT(OpPair t, XyChoice xy) const {
     if (newInterface)
-        return (*contours->callBack(type).xyAtTFuncPtr)(curveData, t, xy);
+        return contours->callBack(type).xyAtTFuncPtr(curveData, t, xy);
     switch (type) {
     case OpType::line: return asLine().xyAtT(t, xy);
     case OpType::quad: return asQuad().xyAtT(t, xy);
@@ -581,21 +579,41 @@ OpPair OpCurve::xyAtT(OpPair t, XyChoice xy) const {
 }
 
 OpPoint OpCurve::hullPt(int index) const {
-    OP_ASSERT(0 <= index && index < pointCount());
+    OP_ASSERT(OpType::no == type || 0 <= index && index < pointCount());
     if (newInterface) {
         if (0 == index)
             return curveData->start;
         if (pointCount() - 1 == index)
             return curveData->end;
-        return (*contours->callBack(type).curveHullFuncPtr)(curveData, index);
+        return contours->callBack(type).curveHullFuncPtr(curveData, index);
     }
     return pts[index];
+}
+
+void OpCurve::dumpSetPts(const char*& str) {
+    int pointCnt = OpDebugCountDelimiters(str, ',', '{', '}') + 1;
+    OP_ASSERT(OpType::no == type || pointCount() == pointCnt);
+    if (newInterface) {
+        size_t length = contours->callBack(type).curveLengthFuncPtr();
+        curveData = contours->allocateCurveData(length);
+        curveData->start.dumpSet(str);
+        int ctrlCount = pointCnt - 2;
+        std::vector<OpPoint> ctrlPts(ctrlCount);
+        for (int index = 0; index < ctrlCount; ++index)
+            ctrlPts[index].dumpSet(str);
+        contours->callBack(type).setControlsFuncPtr(curveData, ctrlPts);
+        curveData->end.dumpSet(str);
+        return;
+    }
+    for (int index = 0; index < pointCnt; ++index) {
+        pts[index].dumpSet(str);
+    }
 }
 
 void OpCurve::reverse() {
     if (newInterface) {
         std::swap(curveData->start, curveData->end);
-        (*contours->callBack(type).curveReverseFuncPtr)(curveData);
+        contours->callBack(type).curveReverseFuncPtr(curveData);
         return;
     }
     std::swap(pts[0], pts[pointCount() - 1]);
@@ -606,7 +624,7 @@ void OpCurve::reverse() {
 bool OpCurve::isLinear() const {
     if (newInterface) {
         OP_ASSERT(!isLine());
-        return (*contours->callBack(type).curveIsLinearFuncPtr)(curveData);
+        return contours->callBack(type).curveIsLinearFuncPtr(curveData);
     }
     OP_ASSERT(type >= OpType::quad);
     OpVector diffs[2];

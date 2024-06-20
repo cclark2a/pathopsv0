@@ -721,6 +721,23 @@ OpPoint DebugOpMap(DebugOpPoint dPt) {
 }
 
 void DebugOpCurve::mapTo(OpCurve& c) const {
+    if (debugGlobalContours && debugGlobalContours->newInterface) {
+        int ptCount = debugGlobalContours->callBack(type).ptCountFuncPtr();
+        PathOpsV0Lib::CurveData* curveData = debugGlobalContours->allocateCurveData(
+                debugGlobalContours->callBack(type).curveLengthFuncPtr());
+        c.curveData = curveData;
+        c.curveData->start = DebugOpMap(pts[0]);
+        c.curveData->end = DebugOpMap(pts[ptCount - 1]);
+        std::vector<OpPoint> controls;
+        for (int i = 1; i < ptCount - 1; ++i) {
+            controls.push_back(DebugOpMap(pts[i]));
+        }
+        debugGlobalContours->callBack(type).setControlsFuncPtr(c.curveData, controls);
+        // !!! missing conic weight for now
+        OP_ASSERT(OpType::conic != type);
+        c.weight = (float) weight;
+        return;
+    }
     for (int i = 0; i < 4; ++i) {
         c.pts[i] = DebugOpMap(pts[i]);
     }
@@ -838,8 +855,8 @@ void DebugOpDraw(const std::vector<OpDebugRay>& lines) {
 
 void DebugOpBuild(const OpSegment& seg, std::vector<DebugOpCurve>& debugSegs) {
     DebugOpCurve curve;
-    for (int i = 0; i < 4; ++i)
-        curve.pts[i] = { seg.c.pts[i].x, seg.c.pts[i].y } ;
+    for (int i = 0; i < seg.c.pointCount(); ++i)
+        curve.pts[i] = { seg.c.hullPt(i).x, seg.c.hullPt(i).y } ;
     curve.weight = seg.c.weight;
     curve.type = seg.c.type;
     curve.id = seg.id;
@@ -857,8 +874,8 @@ void DebugOpBuild(const DebugColorPt& dPt) {
 
 void DebugOpBuild(const OpSegment& seg, const OpDebugRay& ray) {
     DebugOpCurve curve;
-    for (int i = 0; i < 4; ++i)
-        curve.pts[i] = { seg.c.pts[i].x, seg.c.pts[i].y } ;
+    for (int i = 0; i < seg.c.pointCount(); ++i)
+        curve.pts[i] = { seg.c.hullPt(i).x, seg.c.hullPt(i).y } ;
     curve.weight = seg.c.weight;
     curve.type = seg.c.type;
     DebugOpRoots roots = curve.rayIntersect(ray);
@@ -882,8 +899,10 @@ void DebugOpDrawSegments() {
 
 DebugOpCurve OpEdge::debugSetCurve() const {
     DebugOpCurve dCurve;
-    for (int i = 0; i < 4; ++i)
-        dCurve.pts[i] = { curve.pts[i].x, curve.pts[i].y } ;
+    for (int i = 0; i < curve.pointCount(); ++i)
+        dCurve.pts[i] = { curve.hullPt(i).x, curve.hullPt(i).y } ;
+    // !!! missing conic weight for now
+    OP_ASSERT(OpType::conic != curve.type || (debugGlobalContours && !debugGlobalContours->newInterface));
     dCurve.weight = curve.weight;
     dCurve.type = curve.type;
     dCurve.id = id;
@@ -1288,8 +1307,8 @@ void DebugOpDrawEdgeControlLines(const OpEdge* edge, uint32_t color) {
         return;
     for (int index = 0; index < ptCount - 1; ++index) {
         DebugOpCurve src;
-        src.pts[0] = { edge->curve.pts[index].x, edge->curve.pts[index].y };
-        src.pts[1] = { edge->curve.pts[index + 1].x, edge->curve.pts[index + 1].y };
+        src.pts[0] = { edge->curve.hullPt(index).x, edge->curve.hullPt(index).y };
+        src.pts[1] = { edge->curve.hullPt(index + 1).x, edge->curve.hullPt(index + 1).y };
         src.weight = 1;
         src.type = OpType::line;
         src.id = edge->id;

@@ -225,7 +225,6 @@ float OpSegment::findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) 
 // returns t iff opp point is between start and end
 // start/end range is necessary since cubics can have more than one t at a point
 float OpSegment::findValidT(float start, float end, OpPoint opp) const {
-    OP_ASSERT(!contour->contours->newInterface);  // !!! caller should have the choice to implement
     if (!c.isLine()) {
         OpRoots hRoots = c.axisRayHit(Axis::horizontal, opp.y, start, end);
         OpRoots vRoots = c.axisRayHit(Axis::vertical, opp.x, start, end);
@@ -250,26 +249,23 @@ float OpSegment::findValidT(float start, float end, OpPoint opp) const {
     // this won't work for curves with linear control points since t is not necessarily linear
     OpVector lineSize = c.lastPt() - c.firstPt();
     float result = fabsf(lineSize.dy) > fabsf(lineSize.dx) ?
-        (opp.y - c.pts[0].y) / lineSize.dy : (opp.x - c.pts[0].x) / lineSize.dx;
+        (opp.y - c.firstPt().y) / lineSize.dy : (opp.x - c.firstPt().x) / lineSize.dx;
     if (start <= result && result <= end)
         return result;
     return OpNaN;
 }
-
-
 
 void OpSegment::makeEdge(const OpPtT& s, const OpPtT& e  OP_LINE_FILE_DEF(EdgeMaker maker)) {
     if (!edges.size()) 
         edges.emplace_back(this, s, e  OP_LINE_FILE_PARAMS(maker, nullptr, nullptr));
 }
 
-
 void OpSegment::makeEdge(OP_LINE_FILE_NP_DEF(EdgeMaker maker)) {
     makeEdge(OpPtT(c.firstPt(), 0), OpPtT(c.lastPt(), 1)  OP_LINE_FILE_PARAMS(maker));
 }
 
 void OpSegment::makeEdges() {
-    if (!winding.left() && !winding.right()) {
+    if (disabled) {
        edges.clear();
        return;
     }

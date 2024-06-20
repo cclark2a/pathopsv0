@@ -14,20 +14,11 @@ static SkPath* skPath(const void* extRef) {
     return (SkPath*) extRef;
 }
 
-bool PathSimplify(OpInPath& path, OpOutPath& result) {
+bool PathSimplify(OpInPath& path, OpOutPath& result  OP_DEBUG_PARAMS(OpDebugData& debugData)) {
     SkPath empty;
 	OpInPath emptyPath(&empty);
-    return PathOps(path, emptyPath, OpOperator::Union, result);
+    return PathOps(path, emptyPath, OpOperator::Union, result  OP_DEBUG_PARAMS(debugData));
 }
-
-#if OP_DEBUG
-bool DebugPathSimplify(OpInPath& path, OpOutPath& result, 
-		OpDebugExpect expected, std::string testname, std::vector<OpDebugWarning>& warnings) {
-    SkPath empty;
-	OpInPath emptyPath(&empty);
-    return DebugPathOps(path, emptyPath, OpOperator::Union, result, expected, testname, warnings);
-}
-#endif
 
 bool OpInPath::isInverted() const {
 	return skPath(externalReference)->isInverseFillType();

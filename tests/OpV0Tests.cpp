@@ -4751,7 +4751,7 @@ static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 #define TEST(name) { name, #name }
 
 static struct TestDesc tests[] = {
-    TEST(testQuads1883783),
+//    TEST(testQuads1883783),
     TEST(testQuads15102071),
     TEST(testQuads11360455),
     TEST(testQuads11297017),

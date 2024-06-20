@@ -55,7 +55,7 @@ struct FoundEdge {
 };
 
 struct OpSegment {
-    OpSegment(PathOpsV0Lib::Context* , PathOpsV0Lib::Curve , OpContour* );
+    OpSegment(PathOpsV0Lib::AddCurve , PathOpsV0Lib::AddWinding );
     OpSegment(const OpCurve& pts, OpType type, OpContour*  
             OP_DEBUG_PARAMS(SectReason , SectReason ));
     OpSegment(const LinePts& pts, OpContour*  OP_DEBUG_PARAMS(SectReason , SectReason ));

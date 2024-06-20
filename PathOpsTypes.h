@@ -6,6 +6,8 @@
 
 enum class OpType;
 struct OpPair;
+enum class WindKeep;
+struct OpWinding;
 
 namespace PathOpsV0Lib {
 
@@ -24,6 +26,15 @@ the intent is to do this through a callback
 
 struct Context;
 
+/* A collection of curves in an operand that share the same fill rules.
+ */
+struct Contour;
+
+/* Typically a set of counts associated with a curve that represents the curve's contribution to
+   each operand. Usually one for the operand the curve belongs to, and zero for other operands.
+ */
+struct Winding;
+
 /* Curve describes a set of continuous points from start to end.
    Curve's points must be contained by a rectangle bounded by start and end.
    Curve's points must monotonically vary from start to end in x and y.
@@ -40,6 +51,25 @@ struct Curve {
 	CurveData* data;
 	OpType type;
 };
+
+/* convenience for adding curve to contour
+ */
+struct AddCurve {
+	Context* context;
+	OpPoint* points;
+	size_t size;
+	OpType type;
+};
+
+/* convenience for adding winding data to contour
+ */
+struct AddWinding {
+	Contour* contour;
+	int* windings;
+	size_t size;
+};
+
+typedef int ContourID;
 
 /* the contour ID and number of curves in the contour
  */
@@ -142,6 +172,31 @@ struct CallBacks {
 #if OP_DEBUG_IMAGE
 	DebugAddToPath debugAddToPathFuncPtr;
 #endif
+};
+
+// initializes winding to its starting value
+typedef void (*WindingInit)(Context* , Contour* , Curve , OpWinding* );
+
+// returns if curve transitions to a filled area and is kept; or if curve is discarded
+typedef WindKeep (*WindingKeep)(const OpWinding* winding, const OpWinding* sum);
+
+// returns length of winding data used by this type of curve
+typedef size_t (*WindingLength)(Curve );
+
+// Combines opp's winding with destination; zero's opp's winding. backwards is true if
+// opp curve and destination curve are reversed.
+// Returns true if, after move, destination's winding is non-zero.
+typedef bool (*WindingMove)(const OpWinding* opp, bool backwards, OpWinding* destination);
+
+// initializes winding sum to its starting value 
+typedef void (*WindingSetSum)(const OpWinding* winding, OpWinding* sum);
+
+struct ContourCallBacks {
+	WindingInit windingInitFuncPtr;
+	WindingKeep windingKeepFuncPtr;
+	WindingLength windingLengthFuncPtr;
+	WindingMove windingMoveFuncPtr;
+	WindingSetSum windingSetSumFuncPtr;
 };
 
 

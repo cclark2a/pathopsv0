@@ -118,7 +118,7 @@ struct OpCurve {
         memcpy(pts, p, pointCount() * sizeof(OpPoint));
     }
 
-    OpCurve(struct PathOpsV0Lib::Context* , struct PathOpsV0Lib::Curve );
+    OpCurve(OpContours* , void* data, size_t size, OpType );
 
 #if 0
     ~OpCurve() {
@@ -178,13 +178,14 @@ struct OpCurve {
     float tZeroX(float t1, float t2) const;  // binary search on t-range finds vert crossing zero
     OpPair xyAtT(OpPair t, XyChoice xy) const;
 #if OP_DEBUG_DUMP
+    void dumpSetPts(const char*& );
     DUMP_DECLARATIONS
 #endif
     // create storage in contour; helper function casts it to CurveData
     PathOpsV0Lib::CurveData* curveData;
     OpContours* contours;  // required by new interface for caller function pointer access
     OpPoint pts[5];  // extra point carries cubic center for vertical rotation (used by curve sect)
-    float weight;
+    float weight;   // !!! new interface doesn't have this (only required for double debugging though)
     OpType type;
 //    bool centerPt;  // true if center point follows curve
     bool newInterface;

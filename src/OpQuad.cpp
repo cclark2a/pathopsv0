@@ -162,15 +162,15 @@ OpVector QuadTangent(OpPoint start, OpPoint control, OpPoint end, float t) {
 
 // Curves must be subdivided so their endpoints describe the rectangle that contains them
 // returns the number of curves generated from the quadratic Bezier
-size_t AddQuads(Context* context, Curve curve) {
-    CurveData& q = *curve.data;
+size_t AddQuads(AddCurve curve, AddWinding windings) {
+    CurveData& q = *(CurveData*) curve.points;
     OpPoint& control = *(OpPoint*) q.optionalAdditionalData;
     auto [left, right] = std::minmax(q.start.x, q.end.x);
     bool monotonicInX = left <= control.x && control.x <= right;
     auto [top, bottom] = std::minmax(q.start.y, q.end.y);
     bool monotonicInY = top <= control.y && control.y <= bottom;
     if (monotonicInX && monotonicInY) {
-        Add(context, curve);
+        Add(curve, windings);
         return 1;
     }
     // control point is not inside bounds formed by end points; split quad into parts
@@ -195,11 +195,11 @@ size_t AddQuads(Context* context, Curve curve) {
     for (unsigned index = 1; index < tValues.size() - 1; ++index) {
         ptTs[index] = { QuadPointAtT(q.start, control, q.end, tValues[index]), tValues[index] }; 
     } 
-    size_t curvesAdded = tValues.size() - 2;
+    size_t curvesAdded = tValues.size() - 1;
     for (unsigned index = 0; index < curvesAdded; ++index) {
         OpPoint curveData[3] { ptTs[index].pt, ptTs[index + 1].pt,
             QuadControlPt(q.start, control, q.end, ptTs[index], ptTs[index + 1]) };
-        Add(context, { (CurveData*) curveData, curve.type } );
+        Add({ context, curveData, curve.size, curve.type }, windings );
     }
     return curvesAdded;
 }

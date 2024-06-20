@@ -394,7 +394,11 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
             OP_ASSERT(edgeBack < &edges.back());
             ++edgeBack;
             // if assert, more code to write; add point to opp edge sect list to match 
+#if OP_TEST_NEW_INTERFACE
+            if (!edge->winding.compare(edgeBack->winding)) {  // example: testRect2
+#else
             if (!(edge->winding == edgeBack->winding)) {  // example: testRect2
+#endif
                 // search intersection list for entry pointing to opp edge at edge end
                 OP_DEBUG_CODE(auto& oI = oppEdge->segment->sects.i);
                 OP_ASSERT(oI.end() != std::find_if(oI.begin(), oI.end(), 
@@ -407,7 +411,11 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
             OP_ASSERT(coinPair.id > 0 ? oppBack < coinPair.lastEdge : oppBack > coinPair.lastEdge);
             coinPair.id > 0 ? ++oppBack : --oppBack;
             // more code to write; add point if needed to edge list to match
+#if OP_TEST_NEW_INTERFACE
+            if (!oppEdge->winding.compare(oppBack->winding)) {
+#else
             if (!(oppEdge->winding == oppBack->winding)) {
+#endif
                 // search opp intersection list for entry pointing to edge at opp edge end
                 OP_DEBUG_CODE(OpEdge* oEdge = coinPair.id > 0 ? oppEdge : oppBack);
                 OP_ASSERT(i.end() != std::find_if(i.begin(), i.end(), 
@@ -419,14 +427,29 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
         int oppBump = coinPair.id < 0 ? -1 : 1;
         // surprisingly difficult to get right ...
         for (;;) {
+#if OP_TEST_NEW_INTERFACE
+#if OP_DEBUG
+            OpWinding edgeWinding { edge->segment->contour, contours->copySect(edge, edge->winding) };
+            OpWinding oppWinding { oppEdge->segment->contour, contours->copySect(oppEdge, oppEdge->winding) };
+#endif
+#else
             OP_DEBUG_CODE(OpWinding edgeWinding = edge->winding);
             OP_DEBUG_CODE(OpWinding oppWinding = oppEdge->winding);
+#endif
             OP_ASSERT(edge->start.pt.isNearly( 
                     oppEdge->ptT(coinPair.id > 0 ? EdgeMatch::start : EdgeMatch::end).pt));
+#if OP_TEST_NEW_INTERFACE
+            bool windingNonZero = edge->segment->contour->callBacks.windingMoveFuncPtr(
+                    &oppEdge->winding, coinPair.id < 0, &edge->winding);
+            WindingData* combinedWinding = contours->copySect(edge, edge->winding);
+            if (!windingNonZero)
+                edge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence1));
+#else
             edge->winding.move(oppEdge->winding, contours, coinPair.id < 0);
             OpWinding combinedWinding = edge->winding;
             if (!combinedWinding.visible())
                 edge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence1));
+#endif
             else if (edge->disabled)
                 edge->reenable();  // un-disable it; was disabled from earlier coincidence
             oppEdge->setDisabledZero(OP_DEBUG_CODE(ZeroReason::hvCoincidence2));
@@ -442,10 +465,23 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
                 OP_ASSERT(oppInEdge != edgeInOpp);
                 if (oppInEdge) {
                     oppEdge += oppBump;
+#if OP_TEST_NEW_INTERFACE
+                    OP_ASSERT(!oppEdge->winding.compare(oppWinding));
+#else
                     OP_ASSERT(oppWinding == oppEdge->winding);
+#endif
                     oppEdge->setDisabledZero(OP_DEBUG_CODE(ZeroReason::hvCoincidence3));
                 } else {
                     ++edge;
+#if OP_TEST_NEW_INTERFACE
+                    OP_ASSERT(!edge->winding.compare(edgeWinding));
+                    if (windingNonZero) {
+                        edge->winding.windingData = combinedWinding;
+                        if (edge->disabled)
+                            edge->reenable();
+                    } else
+                        edge->setDisabledZero(OP_DEBUG_CODE(ZeroReason::hvCoincidence4));
+#else
                     OP_ASSERT(edgeWinding == edge->winding);
                     if (combinedWinding.visible()) {
                         edge->winding = combinedWinding;
@@ -453,6 +489,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
                             edge->reenable();
                     } else
                         edge->setDisabledZero(OP_DEBUG_CODE(ZeroReason::hvCoincidence4));
+#endif
                 }
             }
             if (edge == edgeBack) {

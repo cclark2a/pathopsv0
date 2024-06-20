@@ -292,7 +292,7 @@ struct OpDebugDefeatDelete {
 void OpDebugImage::addToPath(const OpCurve& curve, SkPath& path) {
 	path.moveTo(curve.firstPt().x, curve.firstPt().y);
 	if (curve.newInterface)
-		return (*curve.contours->callBack(curve.type).debugAddToPathFuncPtr)(curve.curveData, path);
+		return curve.contours->callBack(curve.type).debugAddToPathFuncPtr(curve.curveData, path);
 	switch (curve.type) {
 		case OpType::no:
 			OP_ASSERT(0);
@@ -324,8 +324,8 @@ void OpDebugImage::init() {
 	::clear();
 	drawLeftOn = true;
 	drawRightOn = true;
-	SkRect opBounds = skPath(debugGlobalContours->leftIn)->getBounds();
-	opBounds.join(skPath(debugGlobalContours->rightIn)->getBounds());
+	SkRect opBounds = skPath(*debugGlobalContours->leftIn)->getBounds();
+	opBounds.join(skPath(*debugGlobalContours->rightIn)->getBounds());
 	DebugOpSetBounds(opBounds.fLeft, opBounds.fTop, opBounds.fRight, opBounds.fBottom);
 }
 
@@ -428,11 +428,11 @@ void OpDebugImage::drawPath(const SkPath& path, uint32_t color) {
 }
 
 static SkPath* sk0() {
-	return (SkPath*) debugGlobalContours->leftIn.externalReference;
+	return (SkPath*) debugGlobalContours->leftIn->externalReference;
 }
 
 static SkPath* sk1() {
-	return (SkPath*) debugGlobalContours->rightIn.externalReference;
+	return (SkPath*) debugGlobalContours->rightIn->externalReference;
 }
 
 void OpDebugImage::drawDoubleFocus() {
@@ -469,9 +469,9 @@ void OpDebugImage::drawDoubleFocus() {
 	if (drawLeftOn || drawRightOn)
 		DebugOpClearInputs();
 	if (drawLeftOn)
-		DebugOpAdd(debugGlobalContours->leftIn);
+		DebugOpAdd(*debugGlobalContours->leftIn);
 	if (drawRightOn)
-		DebugOpAdd(debugGlobalContours->rightIn);
+		DebugOpAdd(*debugGlobalContours->rightIn);
 	if (drawLeftOn || drawRightOn)
 		DebugOpDrawInputs();
 #if OP_DEBUG
@@ -1011,6 +1011,7 @@ void focus(int id) {
 }
 
 void focus(const OpContour& contour) {
+	drawSegmentsOn = true;
 	OpPointBounds bounds;
     for (auto& segment : contour.segments)
 		bounds.add(segment.ptBounds);
@@ -1034,6 +1035,7 @@ void focus(const OpRect& rect) {
 }
 
 void focus(const OpSegment& segment) {
+	drawSegmentsOn = true;
 	focus(segment.ptBounds);
 }
 
@@ -2105,8 +2107,8 @@ void resetFocus() {
 	}
 	if (!focusRect.isFinite()) {
 		for (unsigned index = 0; index < 2; ++index) {
-			OpInPath& inPath = index ? debugGlobalContours->rightIn : debugGlobalContours->leftIn;
-			SkRect skrect = ((SkPath*) inPath.externalReference)->getBounds();
+			OpInPath* inPath = index ? debugGlobalContours->rightIn : debugGlobalContours->leftIn;
+			SkRect skrect = ((SkPath*) inPath->externalReference)->getBounds();
 			focusRect.left = std::min(skrect.fLeft, focusRect.left);
 			focusRect.top = std::min(skrect.fTop, focusRect.top);
 			focusRect.right = std::max(skrect.fRight, focusRect.right);

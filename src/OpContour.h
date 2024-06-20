@@ -22,8 +22,8 @@ enum class OpFillType {
 
 enum class WindState {
     zero,	    // edge is outside filled area on both sides
-    flipOff,	// edge moves either from in to out
-    flipOn,	    // edge moves either from out to in
+    flipOff,	// edge moves from in to out
+    flipOn,	    // edge moves from out to in
     one		    // edge is inside filled area on both sides
 };
 
@@ -109,6 +109,8 @@ struct OpContour {
 
     OpContours* contours;
     std::vector<OpSegment> segments;
+    PathOpsV0Lib::ContourCallBacks callBacks;
+
 //    OpPointBounds ptBounds;
     OpOperand operand; // first or second argument to a binary operator
 #if OP_DEBUG
@@ -118,12 +120,14 @@ struct OpContour {
 
 struct OpContours {
     OpContours(OpInPath& left, OpInPath& right, OpOperator op);
+    OpContours();
     ~OpContours();
     OpContour* addMove(OpContour* , OpOperand , const OpPoint pts[1]);
     PathOpsV0Lib::CurveData* allocateCurveData(size_t );
     void* allocateEdge(OpEdgeStorage*& );
     OpIntersection* allocateIntersection();
     OpLimb* allocateLimb(OpTree* );
+    WindingData* allocateWinding(size_t );
 
     void apply() {
         for (auto& contour : contours) {
@@ -134,13 +138,11 @@ struct OpContours {
     bool assemble(OpOutPath& );
     bool build(OpInPath& path, OpOperand operand);   // provided by graphics implementation
 
-    PathOpsV0Lib::CallBacks& callBack(PathOpsV0Lib::Curve curve) {
-        return callBacks[(int) curve.type - 1];
-    }
-
     PathOpsV0Lib::CallBacks& callBack(OpType type) {
         return callBacks[(int) type - 1];
     }
+
+    WindingData* copySect(const OpEdge* , const OpWinding& );  // !!! add a separate OpWindingStorage for temporary blocks?
 
     void finishAll();
 
@@ -223,15 +225,17 @@ struct OpContours {
     #include "OpDebugDeclarations.h"
 #endif
 
-    OpInPath& leftIn;
-    OpInPath& rightIn;
+    OpInPath* leftIn;
+    OpInPath* rightIn;
     OpOperator opIn;
     std::vector<OpContour> contours;
+    // !!! should some of these be by value to avoid the initial allocation?
     OpEdgeStorage* ccStorage;
     CurveDataStorage* curveDataStorage;
     OpEdgeStorage* fillerStorage;
     OpSectStorage* sectStorage;
     OpLimbStorage* limbStorage;
+    WindingDataStorage* windingStorage;
     OpFillType left;
     OpFillType right;
     OpOperator opOperator;
@@ -262,6 +266,7 @@ struct OpContours {
 	OpTree* dumpTree;
 	int dumpCurve1;
 	int dumpCurve2;
+    int debugBreakDepth;
     bool debugDumpInit;   // if true, created by dump init
 #endif
 };

@@ -79,7 +79,7 @@ struct EdgeRun {
 };
 
 struct CcCurves {
-	void addEdgeRun(const OpEdge* , const OpSegment* oppSeg);
+	void addEdgeRun(const OpEdge* , const OpSegment* oppSeg, EdgeMatch );
 	void clear();
 	OpPtT closest(OpPoint pt) const;
 	static OpPtT Dist(const OpSegment* , const OpPtT& segPtT, const OpSegment* opp);
@@ -134,7 +134,7 @@ struct OpCurveCurve {
 	OpCurveCurve(OpSegment* seg, OpSegment* opp);
 	void addIntersection(OpEdge* edge, OpEdge* opp);
 	SectFound addSect();
-	void addEdgeRun(const OpEdge* , CurveRef );
+	void addEdgeRun(const OpEdge* , CurveRef , EdgeMatch );
 	void addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 			const OpPtT& oppStart, const OpPtT& oppEnd);
 	bool checkDist(int edgeOverlaps, int oppOverlaps);

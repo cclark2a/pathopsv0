@@ -731,7 +731,11 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 		if (home->pals.size() || home->unsectableID)
 			home->setUnsortable();
 		else {
+#if OP_TEST_NEW_INTERFACE
+			OpWinding prev();
+#else
 			OpWinding prev(WindingTemp::dummy);
+#endif
 			// look at direction of edge relative to ray and figure winding/oppWinding contribution
 			if (CalcFail::fail == home->addIfUR(ray.axis, ray.distances[0].edgeInsideT, &prev))
 				home->setUnsortable();
