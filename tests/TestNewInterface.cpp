@@ -8,6 +8,7 @@ OpType quadType = OpType::no;
 
 // exit() is called as a debugging aid. Once complete, exit() should never be called
 
+#if 0
 constexpr size_t lineLength() {
     return sizeof(OpPoint) * 2;
 }
@@ -15,6 +16,7 @@ constexpr size_t lineLength() {
 constexpr size_t quadLength() {
     return sizeof(OpPoint) * 3;
 }
+#endif
 
 size_t linePtCount() {
     return 2;
@@ -103,19 +105,19 @@ OpVector quadNormal(const PathOpsV0Lib::CurveData* c, float t) {
     return { -tan.dy, tan.dx };
 }
 
-OpCurve lineSubDivide(PathOpsV0Lib::Context* context, const PathOpsV0Lib::Curve curve, 
+OpCurve lineSubDivide(PathOpsV0Lib::Context* context, PathOpsV0Lib::Curve curve, 
         OpPtT ptT1, OpPtT ptT2) {
     OpContours* contours = (OpContours*) context;
-    OpCurve result(contours, curve.data, curve.type);
+    OpCurve result(contours, curve);
     result.curveData->start = ptT1.pt;
     result.curveData->end = ptT2.pt;
     return result;
 }
 
-OpCurve quadSubDivide(PathOpsV0Lib::Context* context, const PathOpsV0Lib::Curve curve,
+OpCurve quadSubDivide(PathOpsV0Lib::Context* context, PathOpsV0Lib::Curve curve,
         OpPtT ptT1, OpPtT ptT2) {
     OpContours* contours = (OpContours*) context;
-    OpCurve result(contours, curve.data, curve.type);
+    OpCurve result(contours, curve);
     result.curveData->start = ptT1.pt;
     result.curveData->end = ptT2.pt;
     OpPoint controlPt = *(OpPoint*) curve.data->optionalAdditionalData;
@@ -310,7 +312,7 @@ void testNewInterface() {
 #endif
 
     lineType = SetCurveCallBacks(context, lineAxisRawHit, noHull, lineIsLine, 
-            noLinear, noControls, noSetControls, lineLength, lineNormal, noReverse,
+            noLinear, noControls, noSetControls, /*lineLength,*/ lineNormal, noReverse,
             lineTangent, linesEqual, linePtAtT, /* double not required */ linePtAtT, 
             linePtCount, lineSubDivide, lineXYAtT
 #if OP_DEBUG_IMAGE
@@ -318,7 +320,7 @@ void testNewInterface() {
 #endif
     );
     quadType = SetCurveCallBacks(context, quadAxisRawHit, quadHull, quadIsLine, 
-            quadIsLinear, quadControl, quadSetControl, quadLength,  quadNormal, noReverse,
+            quadIsLinear, quadControl, quadSetControl, /*quadLength,*/  quadNormal, noReverse,
             quadTangent, quadsEqual, quadPtAtT, /* double not required */ quadPtAtT, 
             quadPtCount, quadSubDivide, quadXYAtT
 #if OP_DEBUG_IMAGE
@@ -332,8 +334,8 @@ void testNewInterface() {
     Contour* contour = CreateContour(context);
     int windingData[] = { 1 };
     AddWinding addWinding { contour, windingData, sizeof(windingData) };
-    constexpr size_t lineSize = lineLength();
-    constexpr size_t quadSize = quadLength();
+    constexpr size_t lineSize = sizeof(OpPoint) * 2;
+    constexpr size_t quadSize = sizeof(OpPoint) * 3;
 
     // note that the data below omits start points for curves that match the previous end point
                       // start     end      control
@@ -385,13 +387,16 @@ void Add(AddCurve curve, AddWinding windings) {
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = contours;
 #endif
-    if (!contours->contours.size())
-        (void) contours->makeContour(OpOperand::left);
-    // !!! use current contour instead
-    if (!windings.contour)
-        windings.contour = (Contour*) &contours->contours.back();
-    // !!! create variant of curve which has pointer to data
-    ((OpContour*)(windings.contour))->segments.emplace_back(curve, windings);
+    OpContour* contour = (OpContour*) windings.contour;
+    // Use winding's contour. If none, use most recent. If none, make one.
+    if (!contour) {
+        OpContourStorage* store = contours->contourStorage;
+        if (!store)
+            contour = contours->allocateContour();
+        else
+            contour = &store->storage[store->used - 1];
+    }
+    contour->segments.emplace_back(curve, windings);
 }
 
 ContourID AddContour(Context* context, Winding* winding) {
@@ -438,7 +443,7 @@ void Resolve(Context* context, int operation) {
 OpType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, CurveHull hullFunc,
         CurveIsLine isLineFunc, CurveIsLinear isLinearFunc, CurveControls controlsFunc,
         SetControls setControlsFunc,
-        CurveLength lengthFunc, CurveNormal normalFunc, CurveReverse reverseFunc, 
+        /*CurveLength lengthFunc, */ CurveNormal normalFunc, CurveReverse reverseFunc, 
         CurveTangent tangentFunc,
         CurvesEqual equalFunc, PtAtT ptAtTFunc, PtAtT doublePtAtTFunc, 
         PtCount ptCountFunc, SubDivide subDivideFunc, XYAtT xyAtTFunc
@@ -448,7 +453,7 @@ OpType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, CurveHull hullFu
 ) {
     OpContours* contours = (OpContours*) context;
     contours->callBacks.push_back( { axisFunc, hullFunc, isLineFunc, isLinearFunc,
-        controlsFunc, setControlsFunc, lengthFunc, normalFunc, reverseFunc, tangentFunc,
+        controlsFunc, setControlsFunc, /*lengthFunc,*/ normalFunc, reverseFunc, tangentFunc,
         equalFunc, ptAtTFunc, doublePtAtTFunc, ptCountFunc, subDivideFunc, xyAtTFunc 
 #if OP_DEBUG_IMAGE
 		, debugAddToPathFunc
@@ -475,11 +480,12 @@ void Debug(Context* context, OpDebugData& debugData) {
 } // namespace PathOpsV0Lib
 
 
-OpCurve::OpCurve(OpContours* c, void* d, size_t length, OpType t) {
+OpCurve::OpCurve(OpContours* c, PathOpsV0Lib::Curve curve) {
     contours = c;
-    curveData = contours->allocateCurveData(length);
-    memcpy(curveData, d, length);
-    type = t;
+    size = curve.size;
+    curveData = contours->allocateCurveData(size);
+    memcpy(curveData, curve.data, size);
+    type = curve.type;
     newInterface = true;
 }
 
@@ -510,8 +516,10 @@ void OpCurve::setLastPt(OpPoint pt) {
 }
 
 OpSegment::OpSegment(PathOpsV0Lib::AddCurve addCurve, PathOpsV0Lib::AddWinding addWinding)    
-    : c((OpContours*) addCurve.context, addCurve.points, addCurve.size, addCurve.type)
-    , winding((OpContour*) addWinding.contour, (WindingData*) addWinding.windings, addWinding.size)
+    : c((OpContours*) addCurve.context, 
+            { (PathOpsV0Lib::CurveData*) addCurve.points, addCurve.size, addCurve.type } )
+    , winding((OpContour*) addWinding.contour, 
+            { (PathOpsV0Lib::WindingData*) addWinding.windings, addWinding.size } )
     , disabled(false)  {
     complete((OpContour*) addWinding.contour);  // only for id; could be debug code if not needed
     OP_DEBUG_CODE(contour = nullptr);   // can't set up here because it may still move
@@ -532,9 +540,31 @@ void OpPointBounds::set(const OpCurve& c) {
     set(c.pts, c.pointCount());
 }
 
-OpWinding::OpWinding(OpContour* c, WindingData* d, size_t length)
+OpWinding::OpWinding(OpContour* c, PathOpsV0Lib::Winding copy)
 : contour(c)
 OP_DEBUG_PARAMS(debugType(WindingType::copy)) {
-    windingData = contour->contours->allocateWinding(length);
-	memcpy(windingData, d, length);
+    w.data = contour->contours->allocateWinding(copy.size);
+	memcpy(w.data, copy.data, copy.size);
+    w.size = copy.size;
+}
+
+// returns true if not equal
+bool OpWinding::compare(PathOpsV0Lib::Winding comp) const {
+    return w.size != comp.size || memcmp(w.data, comp.data, w.size);
+}
+
+PathOpsV0Lib::Winding OpWinding::copyData() {
+    OpContours* contours = contour->contours;
+    PathOpsV0Lib::Winding copy { contours->allocateWinding(w.size), w.size };
+    memcpy(copy.data, w.data, w.size);
+    return copy;
+}
+
+void OpWinding::setWind(OpContour* contour, const OpWinding& fromSegment) {
+	contour = fromSegment.contour;
+	size_t len = fromSegment.w.size;
+	w.data = contour->contours->allocateWinding(len);
+	memcpy(w.data, fromSegment.w.data, len);
+	w.size = len;
+
 }

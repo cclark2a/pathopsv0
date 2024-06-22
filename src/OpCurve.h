@@ -75,6 +75,7 @@ struct CutRangeT {
 struct OpCurve {
     OpCurve() 
         : curveData(nullptr)
+        , size(0)
         , contours(nullptr)
         , weight(1)
         , type(OpType::no)
@@ -83,6 +84,7 @@ struct OpCurve {
 
     OpCurve(const OpPoint p[], OpType t) 
         : curveData(nullptr)
+        , size(0)
         , contours(nullptr)
         , weight(1)
         , type(t)
@@ -92,6 +94,7 @@ struct OpCurve {
 
     OpCurve(const OpPoint p[], float w, OpType t)
         : curveData(nullptr)
+        , size(0)
         , contours(nullptr)
         , weight(w)
         , type(t)
@@ -101,6 +104,7 @@ struct OpCurve {
 
     OpCurve(OpPoint p0, OpPoint p1)
         : curveData(nullptr)
+        , size(0)
         , contours(nullptr)
         , weight(1)
         , type(OpType::line)
@@ -111,6 +115,7 @@ struct OpCurve {
 
     OpCurve(const OpPoint p[], float w)
         : curveData(nullptr)
+        , size(0)
         , contours(nullptr)
         , weight(w)
         , type(OpType::conic)
@@ -118,7 +123,7 @@ struct OpCurve {
         memcpy(pts, p, pointCount() * sizeof(OpPoint));
     }
 
-    OpCurve(OpContours* , void* data, size_t size, OpType );
+    OpCurve(OpContours* , PathOpsV0Lib::Curve );
 
 #if 0
     ~OpCurve() {
@@ -183,6 +188,7 @@ struct OpCurve {
 #endif
     // create storage in contour; helper function casts it to CurveData
     PathOpsV0Lib::CurveData* curveData;
+    size_t size;
     OpContours* contours;  // required by new interface for caller function pointer access
     OpPoint pts[5];  // extra point carries cubic center for vertical rotation (used by curve sect)
     float weight;   // !!! new interface doesn't have this (only required for double debugging though)

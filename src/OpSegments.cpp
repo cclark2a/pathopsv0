@@ -22,8 +22,8 @@ static bool compareXBox(const OpSegment* s1, const OpSegment* s2) {
 
 OpSegments::OpSegments(OpContours& contours) {
     inX.clear();
-    for (auto& contour : contours.contours) {
-        for (auto& segment : contour.segments) {
+    for (auto contour : contours.contours) {
+        for (auto& segment : contour->segments) {
             inX.push_back(&segment);
         }
     }
@@ -110,8 +110,8 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 	}
     if (opp->c.isLine() && MatchEnds::both == matchRev.match) {
 #if OP_TEST_NEW_INTERFACE
-        if (!seg->contour->callBacks.windingMoveFuncPtr(opp->winding, 
-                edgePts.pts[0] != edgePts.pts[1], seg->winding))
+        if (!seg->contour->callBacks.windingMoveFuncPtr(opp->winding.w, 
+                edgePts.pts[0] != edgePts.pts[1], seg->winding.w))
             seg->setDisabled(OP_DEBUG_CODE(ZeroReason::addIntersection));
 #else
         seg->winding.move(opp->winding, seg->contour->contours, edgePts.pts[0] != edgePts.pts[1]);
@@ -246,10 +246,10 @@ void OpSegments::FindCoincidences(OpContours* contours) {
                 // if control points and weight match, treat as coincident: transfer winding
             OP_ASSERT(seg->c.newInterface);
             if (!seg->contour->contours->callBack(seg->c.type).curvesEqualFuncPtr(
-                    seg->c.curveData, { opp->c.curveData, opp->c.type } ))
+                    seg->c.curveData, { opp->c.curveData, opp->c.size, opp->c.type } ))
                 continue;
-            if (!seg->contour->callBacks.windingMoveFuncPtr(opp->winding, 
-                    mr.reversed, seg->winding)) {
+            if (!seg->contour->callBacks.windingMoveFuncPtr(opp->winding.w, 
+                    mr.reversed, seg->winding.w)) {
                 seg->setDisabled(OP_DEBUG_CODE(ZeroReason::addIntersection));
                 break;
             }

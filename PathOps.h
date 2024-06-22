@@ -100,17 +100,13 @@ Contour* CreateContour(Context* );
  */
 int Error(Context* );
 
-/* subsequent calls to Add() associates data and type arrays with this contour ID
- */
-ContourID AddContour(Context* , Winding* );
-
 /* Operate on curves provided by Add() with user defined operation.
    Calls user supplied functions to return computed path one curve at a time.
  */
 void Resolve(Context* , OpType operation);
 
 OpType SetCurveCallBacks(Context* , AxisRawHit, CurveHull, CurveIsLine, CurveIsLinear,
-		CurveControls, SetControls, CurveLength, CurveNormal, 
+		CurveControls, SetControls, /*CurveLength,*/ CurveNormal, 
 		CurveReverse, CurveTangent, CurvesEqual, PtAtT, DoublePtAtT,
 		PtCount, SubDivide, XYAtT
 #if OP_DEBUG_IMAGE

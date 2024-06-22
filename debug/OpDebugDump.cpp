@@ -368,8 +368,8 @@ void dmpWidth(int width) {
 }
 
 void dmpActive() {
-    for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+    for (const auto c : debugGlobalContours->contours) {
+        for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (edge.isActive())
                     edge.dump();
@@ -379,8 +379,8 @@ void dmpActive() {
 }
 
 void dmpCoincidences() {
-    for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+    for (const auto c : debugGlobalContours->contours) {
+        for (const auto& seg : c->segments) {
             for (const auto sect : seg.sects.i) {
                 if (sect->coincidenceID)
                     sect->dump();
@@ -395,8 +395,8 @@ void dmpCoins() {
 
 void dmpEdges() {
     std::string s;
-    for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+    for (const auto c : debugGlobalContours->contours) {
+        for (const auto& seg : c->segments) {
             s += seg.debugDump(defaultLevel, defaultBase) + "\n";
             for (const auto& edge : seg.edges) {
                 s += edge.debugDump(defaultLevel, defaultBase) + "\n";
@@ -412,14 +412,14 @@ std::string debugDumpContours() {
 
 std::string debugDumpEdges() {
     size_t edgeCount = 0;
-    for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+    for (const auto c : debugGlobalContours->contours) {
+        for (const auto& seg : c->segments) {
             edgeCount += seg.edges.size();
         }
     }
     std::string s = "edges:" + STR(edgeCount) + "\n";
-    for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+    for (const auto c : debugGlobalContours->contours) {
+        for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 s += edge.debugDump(DebugLevel::detailed, DebugBase::hex) + "\n";
             }
@@ -431,14 +431,14 @@ std::string debugDumpEdges() {
 
 std::string debugDumpIntersections() {
     size_t sectCount = 0;
-    for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+    for (const auto c : debugGlobalContours->contours) {
+        for (const auto& seg : c->segments) {
             sectCount += seg.sects.i.size();
         }
     }
     std::string s = "sects:" + STR(sectCount) + "\n";
-    for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+    for (const auto c : debugGlobalContours->contours) {
+        for (const auto& seg : c->segments) {
             for (const auto sect : seg.sects.i) {
                 s += sect->debugDump(DebugLevel::detailed, DebugBase::hex) + "\n";
             }
@@ -523,8 +523,8 @@ OpContours* dumpInit() {
 }
 
 void OpContours::dumpResolve(OpContour*& ) {
-    for (auto& c : contours) {
-        OP_ASSERT(c.contours == this);
+    for (auto c : contours) {
+        OP_ASSERT(c->contours == this);
     }
 }
 
@@ -532,8 +532,8 @@ void OpContours::dumpResolve(OpEdge*& edgeRef) {
     int edgeID = (int) (size_t) edgeRef;
     if (0 == edgeID)
         return;
-    for (auto& c : contours) {
-        for (auto& seg : c.segments) {
+    for (auto c : contours) {
+        for (auto& seg : c->segments) {
             for (auto& edge : seg.edges) {
                 if (edge.id == edgeID) {
                     OP_ASSERT((int) (size_t) edgeRef == edgeID);
@@ -584,8 +584,8 @@ void OpContours::dumpResolve(OpSegment*& segRef) {
     int segID = (int) (size_t) segRef;
     if (0 == segID)
         return;
-    for (auto& c : contours) {
-        for (auto& seg : c.segments) {
+    for (auto c : contours) {
+        for (auto& seg : c->segments) {
             if (segID == seg.id) {
                 OP_ASSERT((int) (size_t) segRef == segID);
                 segRef = &seg;
@@ -596,8 +596,8 @@ void OpContours::dumpResolve(OpSegment*& segRef) {
 }
 
 void dmpDisabled() {
-    for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+    for (const auto c : debugGlobalContours->contours) {
+        for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (edge.disabled)
                     edge.dump();
@@ -607,8 +607,8 @@ void dmpDisabled() {
 }
 
 void dmpInOutput() {
-    for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+    for (const auto c : debugGlobalContours->contours) {
+        for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (edge.inOutput)
                     edge.dump(DebugLevel::detailed, defaultBase);
@@ -620,7 +620,7 @@ void dmpInOutput() {
 void dmpIntersections() {
     std::string s;
     for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+        for (const auto& seg : c->segments) {
             s += seg.debugDumpIntersections() + "\n";
         }
     }
@@ -630,7 +630,7 @@ void dmpIntersections() {
 void dmpJoin() {
     dmpActive();
     for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+        for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (!edge.isActive() && edge.unsectableID && !edge.inOutput && !edge.inLinkups)
                     edge.dump(DebugLevel::detailed, defaultBase);
@@ -646,7 +646,7 @@ void dmpSects() {
 
 void dmpSegments() {
     for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+        for (const auto& seg : c->segments) {
             seg.dump();
         }
     }
@@ -654,7 +654,7 @@ void dmpSegments() {
 
 void dmpUnsectable() {
     for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+        for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (edge.unsectableID)
                     edge.dump(DebugLevel::detailed, defaultBase);
@@ -665,7 +665,7 @@ void dmpUnsectable() {
 
 void dmpUnsortable() {
     for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+        for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (edge.unsortable)
                     edge.dump(DebugLevel::detailed, defaultBase);
@@ -766,11 +766,8 @@ std::string OpContours::debugDump(DebugLevel l, DebugBase b) const {
     s += "opIn:" + opOperatorName(opIn) + " ";
     if (newInterface)
         s += "newInterface ";  // must be prior to contour initialization
-    if (contours.size()) {
-        s += "contours:" + STR(contours.size()) + "\n";
-        for (auto& c : contours)
-            s += c.debugDump(l, b) + "\n";
-    }
+    if (contourStorage)
+        s += contourStorage->debugDump(l, b) + "\n";
     if (ccStorage)
         s += ccStorage->debugDump("ccStorage", l, b) + "\n";
     if (fillerStorage)
@@ -818,14 +815,8 @@ void OpContours::dumpSet(const char*& str) {
     rightIn->dumpSet(str);
     opIn = opOperatorStr(str, "opIn", OpOperator::Intersect);
     newInterface = OpDebugOptional(str, "newInterface");  // must be prior to contour initialization
-    if (OpDebugOptional(str, "contours")) {
-        int contourCount = OpDebugReadSizeT(str);
-        contours.resize(contourCount);
-        for (int index = 0; index < contourCount; ++index)
-            contours[index].contours = this;
-        for (int index = 0; index < contourCount; ++index)
-            contours[index].dumpSet(str);
-    }
+    if (OpDebugOptional(str, "contourStorage"))
+        OpContourStorage::DumpSet(str, this);
     if (OpDebugOptional(str, "ccStorage"))
         OpEdgeStorage::DumpSet(str, this, DumpStorage::cc);
     if (OpDebugOptional(str, "fillerStorage"))
@@ -873,8 +864,7 @@ void OpContours::dumpSet(const char*& str) {
 
 void OpContours::dumpResolveAll(OpContours* self) {
     OP_ASSERT(this == self);
-    for (OpContour& contour : contours)
-        contour.dumpResolveAll(self);
+    contourStorage->dumpResolveAll(self);
     ccStorage->dumpResolveAll(self);
     fillerStorage->dumpResolveAll(self);
     sectStorage->dumpResolveAll(self);
@@ -944,8 +934,8 @@ SectReasonName sectReasonNames[] {
 ENUM_NAME(SectReason, sectReason)
 
 void dmpMatch(const OpPoint& pt, bool detail) {
-    for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+    for (const auto c : debugGlobalContours->contours) {
+        for (const auto& seg : c->segments) {
             if (pt == seg.c.firstPt() || pt == seg.c.lastPt()) {
                 std::string str = "seg: " 
                         + (detail ? seg.debugDump(DebugLevel::detailed, defaultBase) 
@@ -988,8 +978,8 @@ void dmpMatch(const OpPtT& ptT) {
 
 std::vector<const OpIntersection*> findCoincidence(int ID) {
     std::vector<const OpIntersection*> result;
-    for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+    for (const auto c : debugGlobalContours->contours) {
+        for (const auto& seg : c->segments) {
             for (const auto intersection : seg.sects.i) {
                 if (ID == abs(intersection->coincidenceID) 
                         OP_DEBUG_CODE(|| ID == abs(intersection->debugCoincidenceID)))
@@ -1002,9 +992,9 @@ std::vector<const OpIntersection*> findCoincidence(int ID) {
 
 const OpContour* findContour(int ID) {
 #if OP_DEBUG
-    for (const auto& c : debugGlobalContours->contours)
-        if (ID == c.id)
-            return &c;
+    for (const auto c : debugGlobalContours->contours)
+        if (ID == c->id)
+            return c;
 #endif
     return nullptr;
 }
@@ -1014,8 +1004,8 @@ const OpEdge* findEdge(int ID) {
         return edge.id == ID || edge.unsectableID == ID ||
                 edge.debugOutPath == ID || edge.debugRayMatch == ID;
     };
-    for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+    for (const auto c : debugGlobalContours->contours) {
+        for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (match(edge))
                     return &edge;
@@ -1034,8 +1024,8 @@ const OpEdge* findEdge(int ID) {
 
 std::vector<const OpEdge*> findEdgeOutput(int ID) {
     std::vector<const OpEdge*> result;
-    for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+    for (const auto c : debugGlobalContours->contours) {
+        for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (ID == edge.debugOutPath)
                     result.push_back(&edge);
@@ -1047,8 +1037,8 @@ std::vector<const OpEdge*> findEdgeOutput(int ID) {
 
 std::vector<const OpEdge*> findEdgeRayMatch(int ID) {
     std::vector<const OpEdge*> result;
-    for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+    for (const auto c : debugGlobalContours->contours) {
+        for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (ID == edge.debugRayMatch)
                     result.push_back(&edge);
@@ -1060,8 +1050,8 @@ std::vector<const OpEdge*> findEdgeRayMatch(int ID) {
 
 std::vector<const OpEdge*> findEdgeUnsectable(int ID) {
     std::vector<const OpEdge*> result;
-    for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+    for (const auto c : debugGlobalContours->contours) {
+        for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (ID == abs(edge.unsectableID))
                     result.push_back(&edge);
@@ -1073,8 +1063,8 @@ std::vector<const OpEdge*> findEdgeUnsectable(int ID) {
 
 const OpIntersection* findIntersection(int ID) {
 #if OP_DEBUG
-    for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+    for (const auto c : debugGlobalContours->contours) {
+        for (const auto& seg : c->segments) {
             for (const auto intersection : seg.sects.i) {
                 if (ID == intersection->id)
                     return intersection;
@@ -1094,8 +1084,8 @@ const OpLimb* findLimb(int ID) {
 
 std::vector<const OpIntersection*> findSectUnsectable(int ID) {
     std::vector<const OpIntersection*> result;
-    for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+    for (const auto c : debugGlobalContours->contours) {
+        for (const auto& seg : c->segments) {
             for (const auto intersection : seg.sects.i) {
                 if (ID == abs(intersection->unsectID))
                     result.push_back(intersection);
@@ -1106,8 +1096,8 @@ std::vector<const OpIntersection*> findSectUnsectable(int ID) {
 }
 
 const OpSegment* findSegment(int ID) {
-    for (const auto& c : debugGlobalContours->contours) {
-        for (const auto& seg : c.segments) {
+    for (const auto c : debugGlobalContours->contours) {
+        for (const auto& seg : c->segments) {
             if (ID == seg.id)
                 return &seg;
         }
@@ -1148,10 +1138,10 @@ static std::string getline(const char*& str) {
     return line;
 }
 
-void OpContours::debugCompare(std::string s) const {
+void OpContours::debugCompare(std::string s) {
     const char* str = s.c_str();
-    for (const auto& c : contours) {
-        for (const auto& seg : c.segments) {
+    for (const auto c : contours) {
+        for (const auto& seg : c->segments) {
             for (const auto intersection : seg.sects.i) {
                 std::string line = getline(str);
                 intersection->debugCompare(line);
@@ -1818,16 +1808,24 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
              OpWinding wind) {
         std::string s;
         if (!dumpAlways(match)) {
+#if OP_TEST_NEW_INTERFACE
+            return s; // !!! incomplete
+#else
             if (WindingType::temp == wind.debugType && !wind.left() && !wind.right())
                 return s;
             if (OpMax == wind.left() && OpMax == wind.right())
                 return s;
+#endif
         }
+#if OP_TEST_NEW_INTERFACE
+        s += wind.contour->callBacks.windingDumpOutFuncPtr(wind.w);
+#else
         s += strLabel(label) + ":";
         s += OpMax == wind.left() ? "--" : STR(wind.left());
         s += "/";
         s += OpMax == wind.right() ? "--" : STR(wind.right());
         s += " ";
+#endif
         return s;
     };
     auto strSect = [dumpAlways, strLabel](EdgeFilter match, std::string label, 
@@ -3817,20 +3815,33 @@ ENUM_NAME(WindingType, windingType)
 
 std::string OpWinding::debugDump() const {
     std::string result;
+#if OP_TEST_NEW_INTERFACE
+    if (!contour)
+        return result;
+    result += "contour:" + STR(contour->id);
+    result += contour->callBacks.windingDumpOutFuncPtr(w);
+#else
 #if OP_DEBUG
     result += "type:" + std::string(windingTypeNames[(int)debugType + 1].name);  // + 1: see above
 #endif
     result += " left: " + (OpMax == left() ? std::string("unset") : STR(left()));
     result += " right: " + (OpMax == right() ? std::string("unset") : STR(right()));
+#endif
     return result;
 }
 
 void OpWinding::dumpSet(const char*& str) {
+#if OP_TEST_NEW_INTERFACE
+    contour = (OpContour*) OpDebugReadSizeT(str);
+    w.data =  0; // !!! start here; need contour, size of allocation
+    OP_ASSERT(0);
+#else
     OP_DEBUG_CODE(debugType = windingTypeStr(str, "type", WindingType::uninitialized));
     OpDebugOptional(str, "left");
     left_impl = OpDebugReadSizeT(str);
     OpDebugOptional(str, "right");
     right_impl = OpDebugReadSizeT(str);
+#endif
 }
 
 std::string LinkUps::debugDump(DebugLevel li, DebugBase b) const {

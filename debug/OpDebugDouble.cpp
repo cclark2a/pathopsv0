@@ -304,7 +304,8 @@ int nextContourID = 0;
 
 struct DebugOpCurve {
     DebugOpCurve()
-        : weight(1)
+        : size(0)
+        , weight(1)
         , type(OpType::no)
         , id(0)
         , pathContour(0)
@@ -322,6 +323,7 @@ struct DebugOpCurve {
     void subDivide(double a, double b, DebugOpCurve& dest) const;
     bool tInRect(double t, const DebugOpRect& bounds) const;
     DebugOpPoint pts[4];
+    size_t size; // size of original curve data, not double points
     double weight;
     OpType type;
     int id;     // edge or segment
@@ -672,6 +674,7 @@ void DebugOpCurve::rectCurves(std::vector<DebugOpCurve>& bounded) const {
             subDivide(first, c, part);
             part.id = id;
             part.pathContour = pathContour;
+            part.size = size;
             part.type = type;
             part.color = color;
         }
@@ -723,9 +726,8 @@ OpPoint DebugOpMap(DebugOpPoint dPt) {
 void DebugOpCurve::mapTo(OpCurve& c) const {
     if (debugGlobalContours && debugGlobalContours->newInterface) {
         int ptCount = debugGlobalContours->callBack(type).ptCountFuncPtr();
-        PathOpsV0Lib::CurveData* curveData = debugGlobalContours->allocateCurveData(
-                debugGlobalContours->callBack(type).curveLengthFuncPtr());
-        c.curveData = curveData;
+        c.curveData = debugGlobalContours->allocateCurveData(size);
+        c.size = size;
         c.curveData->start = DebugOpMap(pts[0]);
         c.curveData->end = DebugOpMap(pts[ptCount - 1]);
         std::vector<OpPoint> controls;
@@ -813,6 +815,7 @@ void DebugOpDraw(const std::vector<OpDebugRay>& lines) {
     DebugOpRect bounds = ZoomToRect();
     for (auto& line : lines) {
         DebugOpCurve curve;
+        curve.size = 2 * sizeof(OpPoint);
         curve.weight = 1;
         curve.type = OpType::line;
         curve.color = red;
@@ -857,6 +860,7 @@ void DebugOpBuild(const OpSegment& seg, std::vector<DebugOpCurve>& debugSegs) {
     DebugOpCurve curve;
     for (int i = 0; i < seg.c.pointCount(); ++i)
         curve.pts[i] = { seg.c.hullPt(i).x, seg.c.hullPt(i).y } ;
+    curve.size = seg.c.size;
     curve.weight = seg.c.weight;
     curve.type = seg.c.type;
     curve.id = seg.id;
@@ -876,6 +880,7 @@ void DebugOpBuild(const OpSegment& seg, const OpDebugRay& ray) {
     DebugOpCurve curve;
     for (int i = 0; i < seg.c.pointCount(); ++i)
         curve.pts[i] = { seg.c.hullPt(i).x, seg.c.hullPt(i).y } ;
+    curve.size = seg.c.size;
     curve.weight = seg.c.weight;
     curve.type = seg.c.type;
     DebugOpRoots roots = curve.rayIntersect(ray);
@@ -903,6 +908,7 @@ DebugOpCurve OpEdge::debugSetCurve() const {
         dCurve.pts[i] = { curve.hullPt(i).x, curve.hullPt(i).y } ;
     // !!! missing conic weight for now
     OP_ASSERT(OpType::conic != curve.type || (debugGlobalContours && !debugGlobalContours->newInterface));
+    dCurve.size = curve.size;
     dCurve.weight = curve.weight;
     dCurve.type = curve.type;
     dCurve.id = id;
@@ -927,6 +933,7 @@ void DebugOpBuild(const OpEdge& edge, const OpDebugRay& ray) {
 
 DebugOpCurve DebugOpBuild(const OpLine& line, uint32_t color) {
     DebugOpCurve curve;
+    curve.size = sizeof(OpPoint) * 2;
     curve.type = OpType::line;
     curve.color = color;
     return curve;
@@ -1015,6 +1022,7 @@ void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs, ClipTo
         case SkPath::kLine_Verb:
             curve.pts[0] = { pts[0].fX, pts[0].fY } ; 
             curve.pts[1] = { pts[1].fX, pts[1].fY } ; 
+            curve.size = 2 * sizeof(OpPoint);
             curve.type = OpType::line;
             curve.color = color;
             if (ClipToBounds::clip == clip)
@@ -1028,6 +1036,7 @@ void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs, ClipTo
             curve.pts[0] = { pts[0].fX, pts[0].fY } ; 
             curve.pts[1] = { pts[1].fX, pts[1].fY } ; 
             curve.pts[2] = { pts[2].fX, pts[2].fY } ; 
+            curve.size = 3 * sizeof(OpPoint);
             curve.type = OpType::quad;
             curve.color = color;
             if (ClipToBounds::clip == clip)
@@ -1041,6 +1050,7 @@ void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs, ClipTo
             curve.pts[0] = { pts[0].fX, pts[0].fY } ; 
             curve.pts[1] = { pts[1].fX, pts[1].fY } ; 
             curve.pts[2] = { pts[2].fX, pts[2].fY } ; 
+            curve.size = 3 * sizeof(OpPoint) + sizeof(float);
             curve.weight = iter.conicWeight();
             curve.type = OpType::conic;
             curve.color = color;
@@ -1056,6 +1066,7 @@ void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs, ClipTo
             curve.pts[1] = { pts[1].fX, pts[1].fY } ; 
             curve.pts[2] = { pts[2].fX, pts[2].fY } ; 
             curve.pts[3] = { pts[3].fX, pts[3].fY } ; 
+            curve.size = 4 * sizeof(OpPoint);
             curve.type = OpType::cubic;
             curve.color = color;
             if (ClipToBounds::clip == clip)
@@ -1107,6 +1118,7 @@ void DebugOpBuild(const SkPath& path, const struct OpDebugRay& ray) {
             if (hasLastPoint && lastPoint != curveStart) {
                 curve.pts[0] = { lastPoint.fX, lastPoint.fY } ; 
                 curve.pts[1] = { curveStart.fX, curveStart.fY } ; 
+                curve.size = 2 * sizeof(OpPoint);
                 curve.type = OpType::line;
                 axisSect(curve);
                 hasLastPoint = false;
@@ -1117,6 +1129,7 @@ void DebugOpBuild(const SkPath& path, const struct OpDebugRay& ray) {
         case SkPath::kLine_Verb:
             curve.pts[0] = { pts[0].fX, pts[0].fY } ; 
             curve.pts[1] = { pts[1].fX, pts[1].fY } ; 
+            curve.size = 2 * sizeof(OpPoint);
             curve.type = OpType::line;
             axisSect(curve);
             lastPoint = pts[1];
@@ -1126,6 +1139,7 @@ void DebugOpBuild(const SkPath& path, const struct OpDebugRay& ray) {
             curve.pts[0] = { pts[0].fX, pts[0].fY } ; 
             curve.pts[1] = { pts[1].fX, pts[1].fY } ; 
             curve.pts[2] = { pts[2].fX, pts[2].fY } ; 
+            curve.size = 3 * sizeof(OpPoint);
             curve.type = OpType::quad;
             axisSect(curve);
             lastPoint = pts[2];
@@ -1136,6 +1150,7 @@ void DebugOpBuild(const SkPath& path, const struct OpDebugRay& ray) {
             curve.pts[1] = { pts[1].fX, pts[1].fY } ; 
             curve.pts[2] = { pts[2].fX, pts[2].fY } ; 
             curve.weight = iter.conicWeight();
+            curve.size = 3 * sizeof(OpPoint) + sizeof(float);
             curve.type = OpType::conic;
             axisSect(curve);
             lastPoint = pts[2];
@@ -1146,6 +1161,7 @@ void DebugOpBuild(const SkPath& path, const struct OpDebugRay& ray) {
             curve.pts[1] = { pts[1].fX, pts[1].fY } ; 
             curve.pts[2] = { pts[2].fX, pts[2].fY } ; 
             curve.pts[3] = { pts[3].fX, pts[3].fY } ; 
+            curve.size = 4 * sizeof(OpPoint);
             curve.type = OpType::cubic;
             axisSect(curve);
             lastPoint = pts[3];
@@ -1160,6 +1176,7 @@ void DebugOpBuild(const SkPath& path, const struct OpDebugRay& ray) {
     if (hasLastPoint && lastPoint != curveStart) {
         curve.pts[0] = { lastPoint.fX, lastPoint.fY } ; 
         curve.pts[1] = { curveStart.fX, curveStart.fY } ; 
+        curve.size = 2 * sizeof(OpPoint);
         curve.type = OpType::line;
         axisSect(curve);
     }
@@ -1324,6 +1341,7 @@ void DebugOpDrawEdgeEndToEnd(const OpEdge* edge, uint32_t color) {
     src.pts[0] = { edge->start.pt.x, edge->start.pt.y } ;
     src.pts[1] = { edge->end.pt.x, edge->end.pt.y } ;
     src.weight = 1;
+    src.size = 2 * sizeof(OpPoint);
     src.type = OpType::line;
     src.id = edge->id;
     src.color = color;

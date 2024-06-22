@@ -199,7 +199,7 @@ size_t AddQuads(AddCurve curve, AddWinding windings) {
     for (unsigned index = 0; index < curvesAdded; ++index) {
         OpPoint curveData[3] { ptTs[index].pt, ptTs[index + 1].pt,
             QuadControlPt(q.start, control, q.end, ptTs[index], ptTs[index + 1]) };
-        Add({ context, curveData, curve.size, curve.type }, windings );
+        Add({ curve.context, curveData, curve.size, curve.type }, windings );
     }
     return curvesAdded;
 }

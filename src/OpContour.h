@@ -11,6 +11,8 @@
 
 enum class EdgeMatch : int8_t;
 struct FoundEdge;
+struct OpContourIterator;
+struct OpContourStorage;
 struct OpCurveCurve;
 struct OpJoiner;
 
@@ -29,15 +31,6 @@ enum class WindState {
 
 struct OpContours;
 struct OpInPath;
-
-struct SegmentIterator {
-    SegmentIterator(OpContours* );
-    OpSegment* next();
-
-    OpContours* contours;
-    size_t contourIndex;
-    size_t segIndex;
-};
 
 struct OpContour {
     OpContour(OpContours* c, OpOperand op)
@@ -118,20 +111,112 @@ struct OpContour {
 #endif
 };
 
+struct OpContourStorage {
+	OpContourStorage()
+		: next(nullptr)
+		, used(0) {
+	}
+#if OP_DEBUG_DUMP
+	size_t debugCount() const;
+	OpContour* debugFind(int id) const;
+	OpContour* debugIndex(int index) const;
+	static void DumpSet(const char*& , OpContours* );
+	DUMP_DECLARATIONS
+#endif
+
+	OpContourStorage* next;
+	OpContour storage[2];
+	int used;
+};
+
+struct OpContourIter {
+    OpContourIter(OpContours* contours);
+    
+    void moveToEnd() {
+        OP_ASSERT(!contourIndex);
+        while (storage->next) {
+            contourIndex += storage->used;
+            storage = storage->next;
+        }
+        contourIndex += storage->used;
+    }
+
+    bool operator!=(OpContourIter rhs) { 
+		return contourIndex != rhs.contourIndex; 
+	}
+
+    OpContour* operator*() {
+        OP_ASSERT(storage && contourIndex < storage->used);
+        return &storage->storage[contourIndex]; 
+	}
+
+    void operator++() { 
+		if (++contourIndex >= storage->used) {
+            contourIndex = 0;
+            storage = storage->next;
+            OP_ASSERT(storage);
+        }
+	}
+
+    OpContourStorage* storage;
+	int contourIndex;
+};
+
+struct OpContourIterator {
+    OpContourIterator(OpContours* c) 
+        : cachedEnd(c)
+        , contours(c) {
+    }
+
+    OpContour* back() {
+        OpContourIter iter = end();
+        iter.contourIndex -= 1;
+        return *iter;
+    }
+
+    OpContourIter begin() {
+        OpContourIter iter(contours);
+        return iter;
+    }
+
+    OpContourIter end() {
+        if (!cachedEnd.contourIndex)
+            cachedEnd.moveToEnd();
+        return cachedEnd; 
+    }
+
+	bool empty() { return !(begin() != end()); }
+
+    OpContourIter cachedEnd;
+    OpContours* contours;
+};
+
+struct SegmentIterator {
+    SegmentIterator(OpContours* );
+    OpSegment* next();
+
+    OpContours* contours;
+    OpContourIterator contourIterator;
+    OpContourIter contourIter;
+    size_t segIndex;
+    OP_DEBUG_CODE(bool debugEnded);
+};
+
 struct OpContours {
     OpContours(OpInPath& left, OpInPath& right, OpOperator op);
     OpContours();
     ~OpContours();
     OpContour* addMove(OpContour* , OpOperand , const OpPoint pts[1]);
+    OpContour* allocateContour();
     PathOpsV0Lib::CurveData* allocateCurveData(size_t );
     void* allocateEdge(OpEdgeStorage*& );
     OpIntersection* allocateIntersection();
     OpLimb* allocateLimb(OpTree* );
-    WindingData* allocateWinding(size_t );
+    PathOpsV0Lib::WindingData* allocateWinding(size_t );
 
     void apply() {
-        for (auto& contour : contours) {
-            contour.apply();
+        for (auto contour : contours) {
+            contour->apply();
         }
     }
 
@@ -142,7 +227,7 @@ struct OpContours {
         return callBacks[(int) type - 1];
     }
 
-    WindingData* copySect(const OpEdge* , const OpWinding& );  // !!! add a separate OpWindingStorage for temporary blocks?
+//    WindingData* copySect(const OpWinding& );  // !!! add a separate OpWindingStorage for temporary blocks?
 
     void finishAll();
 
@@ -151,14 +236,16 @@ struct OpContours {
     }
 
     OpContour* makeContour(OpOperand operand) {
-        contours.emplace_back(this, operand);
-        return &contours.back();
+        OpContour* contour = allocateContour();
+        contour->contours = this;
+        contour->operand = operand;
+        return contour;
     }
 
     void makeEdges() {
        OP_DEBUG_CODE(debugInClearEdges = true);
-       for (auto& contour : contours) {
-            contour.makeEdges();
+       for (auto contour : contours) {
+            contour->makeEdges();
         }
        OP_DEBUG_CODE(debugInClearEdges = false);
     }
@@ -187,8 +274,8 @@ struct OpContours {
     void sortIntersections();
 
     void windCoincidences() {
-        for (auto& contour : contours) {
-            contour.windCoincidences();
+        for (auto contour : contours) {
+            contour->windCoincidences();
         }
     }
 
@@ -211,11 +298,11 @@ struct OpContours {
     bool debugFail() const;
 #if OP_DEBUG
     void addDebugWarning(OpDebugWarning );
-    void debugRemap(int oldRayMatch, int newRayMatch) const;
+    void debugRemap(int oldRayMatch, int newRayMatch);
     bool debugSuccess() const;
 #endif
 #if OP_DEBUG_DUMP
-    void debugCompare(std::string s) const;
+    void debugCompare(std::string s);
     void dumpResolve(OpContour*& contourRef);
     void dumpResolve(const OpEdge*& );
     void dumpResolve(OpEdge*& );
@@ -228,10 +315,16 @@ struct OpContours {
     OpInPath* leftIn;
     OpInPath* rightIn;
     OpOperator opIn;
+#if !OP_TEST_NEW_INTERFACE
+    // this allows contours to move when vector grows. Better to allocate it ourselves so reference
+    // returned to caller doesn't change if a new contour is created.
     std::vector<OpContour> contours;
-    // !!! should some of these be by value to avoid the initial allocation?
+#endif
+    // these are pointers instead of inline values because the storage with empty slots is first
     OpEdgeStorage* ccStorage;
     CurveDataStorage* curveDataStorage;
+    OpContourStorage* contourStorage;
+    OpContourIterator contours;
     OpEdgeStorage* fillerStorage;
     OpSectStorage* sectStorage;
     OpLimbStorage* limbStorage;

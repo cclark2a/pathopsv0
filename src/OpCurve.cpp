@@ -449,7 +449,7 @@ OpCurve OpCurve::toVertical(const LinePts& line) const {
     float adj = line.pts[1].x - line.pts[0].x;
     float opp = line.pts[1].y - line.pts[0].y;
     if (newInterface) {
-        OpCurve newRotated(contours, curveData, type);
+        OpCurve newRotated(contours, { curveData, size, type });
         auto rotatePt = [line, adj, opp](OpPoint pt) {
             OpVector v = pt - line.pts[0];
             return OpPoint(v.dy * adj - v.dx * opp, v.dy * opp + v.dx * adj);
@@ -514,7 +514,7 @@ OpPoint OpCurve::ptAtT(float t) const {
 OpCurve OpCurve::subDivide(OpPtT ptT1, OpPtT ptT2) const {
     if (newInterface)
         return contours->callBack(type).subDivideFuncPtr(
-                (PathOpsV0Lib::Context*) contours, { curveData, type }, ptT1, ptT2);
+                (PathOpsV0Lib::Context*) contours, { curveData, size, type }, ptT1, ptT2);
     OpCurve result;
     result.type = type;
     switch (type) {
@@ -594,8 +594,7 @@ void OpCurve::dumpSetPts(const char*& str) {
     int pointCnt = OpDebugCountDelimiters(str, ',', '{', '}') + 1;
     OP_ASSERT(OpType::no == type || pointCount() == pointCnt);
     if (newInterface) {
-        size_t length = contours->callBack(type).curveLengthFuncPtr();
-        curveData = contours->allocateCurveData(length);
+        curveData = contours->allocateCurveData(size);
         curveData->start.dumpSet(str);
         int ctrlCount = pointCnt - 2;
         std::vector<OpPoint> ctrlPts(ctrlCount);

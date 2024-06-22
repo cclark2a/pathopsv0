@@ -326,8 +326,8 @@ OpJoiner::OpJoiner(OpContours& contours, OpOutPath& p)
 	, lastLink(nullptr)
 	, disabledBuilt(false)
 	, disabledPalsBuilt(false) {
-	for (auto& contour : contours.contours) {
-		for (auto& segment : contour.segments) {
+	for (auto contour : contours.contours) {
+		for (auto& segment : contour->segments) {
 			for (auto& e : segment.edges) {
 				addEdge(&e);
 			}
@@ -407,8 +407,8 @@ void OpJoiner::addToLinkups(OpEdge* e) {
 }
 
 void OpJoiner::buildDisabled(OpContours& contours) {
-	for (auto& contour : contours.contours) {
-		for (auto& segment : contour.segments) {
+	for (auto contour : contours.contours) {
+		for (auto& segment : contour->segments) {
 			for (auto& e : segment.edges) {
 				if (!e.disabled || e.unsortable || e.pals.size())
 					continue;
@@ -422,8 +422,8 @@ void OpJoiner::buildDisabled(OpContours& contours) {
 }
 
 void OpJoiner::buildDisabledPals(OpContours& contours) {
-	for (auto& contour : contours.contours) {
-		for (auto& segment : contour.segments) {
+	for (auto contour : contours.contours) {
+		for (auto& segment : contour->segments) {
 			for (auto& e : segment.edges) {
 				if (e.disabled && !e.unsortable && e.pals.size() && !e.inOutput)
 					disabledPals.push_back(&e);
@@ -534,7 +534,7 @@ bool OpJoiner::detachIfLoop(OpEdge* e, EdgeMatch loopMatch) {
 // the scale of the big things to see if the small remaining things can be ignored
 // first, figure out why the current test fails
 
-bool OpJoiner::linkRemaining(OP_DEBUG_CODE(const OpContours* debugContours)) {
+bool OpJoiner::linkRemaining(OP_DEBUG_CODE(OpContours* debugContours)) {
 	OP_DEBUG_CONTEXT();
 #if OP_DEBUG_IMAGE
 	debugImage();

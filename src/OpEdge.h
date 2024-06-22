@@ -134,7 +134,6 @@ enum class WindingType  {
 	copy  // used only by new interface
 };
 
-struct WindingData;  // blind data supplied by caller
 
 struct OpWinding {
 #if OP_TEST_NEW_INTERFACE
@@ -143,11 +142,12 @@ struct OpWinding {
 
 	OpWinding(WindingUninitialized )
 		: contour(nullptr)
-		, windingData(nullptr)
 		OP_DEBUG_PARAMS(debugType(WindingType::uninitialized)) {
+		w.data = nullptr;
+		w.size = 0;
 	}
 
-	OpWinding(OpContour* c, WindingData* d, size_t size);
+	OpWinding(OpContour* c, PathOpsV0Lib::Winding );
 
 #else
 private:
@@ -188,7 +188,7 @@ public:
 #endif
 
 #if OP_TEST_NEW_INTERFACE
-	void add(const OpWinding* );
+	void add(const OpWinding& );
 #else
 	OpWinding& operator+=(const OpWinding& w) {
 		OP_ASSERT(WindingType::temp == debugType || WindingType::winding == debugType);
@@ -199,10 +199,15 @@ public:
 #endif
 
 #if OP_TEST_NEW_INTERFACE
-	bool compare(const OpWinding& );  // returns true if not equal (compares user data only)
-	OpWinding* copy();
-	void subtract(const OpWinding* );
-	void move(const OpWinding* opp, bool backwards);
+	bool compare(const PathOpsV0Lib::Winding ) const;  // returns true if not equal
+	PathOpsV0Lib::Winding copyData();
+
+	bool isSet() const {
+		return !!contour;
+	}
+
+	void subtract(const OpWinding& );
+	void move(const OpWinding& opp, bool backwards);
 #else
 	OpWinding& operator-=(const OpWinding& w) {
 		OP_ASSERT(WindingType::temp == debugType || WindingType::winding == debugType);
@@ -236,7 +241,9 @@ public:
 #endif
 
 
-#if !OP_TEST_NEW_INTERFACE
+#if OP_TEST_NEW_INTERFACE
+	void setWind(OpContour* , const OpWinding& fromSegment);
+#else
 	void setWind(int left, int right) {	// shouldn't be 0, 0 (call zero() for that)
 		OP_ASSERT(WindingType::uninitialized == debugType);
 		OP_ASSERT(left || right);
@@ -251,7 +258,7 @@ public:
 #endif
 
 #if OP_TEST_NEW_INTERFACE
-	void setSum(const OpWinding* winding);
+//	void setSum(const OpWinding*   OP_DEBUG_PARAMS(char* file, int line));
 	int sum() const;
 	bool visible() const;
 	void zero();
@@ -267,7 +274,7 @@ public:
 
 #if OP_TEST_NEW_INTERFACE
 	OpContour* contour;
-	WindingData* windingData;
+	PathOpsV0Lib::Winding w;
 #else
 	int left_impl;	// indirection to make set debugging breakpoints easier 
 	int right_impl;
@@ -637,7 +644,7 @@ public:
 	void setPointBounds();
 	void setPriorEdge(OpEdge* );  // setter exists so debug breakpoints can be set
 #if OP_TEST_NEW_INTERFACE
-	void setSum(const OpWinding*  OP_DEBUG_PARAMS(char* file, int line));
+	void setSum(const PathOpsV0Lib::Winding&  OP_DEBUG_PARAMS(char* file, int line));
 #else
 	void setSumImpl(OpWinding w) {	// use debug macro instead to record line/file
 		sum.setSum(w, contours());

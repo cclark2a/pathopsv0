@@ -395,7 +395,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
             ++edgeBack;
             // if assert, more code to write; add point to opp edge sect list to match 
 #if OP_TEST_NEW_INTERFACE
-            if (!edge->winding.compare(edgeBack->winding)) {  // example: testRect2
+            if (!edge->winding.compare(edgeBack->winding.w)) {  // example: testRect2
 #else
             if (!(edge->winding == edgeBack->winding)) {  // example: testRect2
 #endif
@@ -412,7 +412,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
             coinPair.id > 0 ? ++oppBack : --oppBack;
             // more code to write; add point if needed to edge list to match
 #if OP_TEST_NEW_INTERFACE
-            if (!oppEdge->winding.compare(oppBack->winding)) {
+            if (!oppEdge->winding.compare(oppBack->winding.w)) {
 #else
             if (!(oppEdge->winding == oppBack->winding)) {
 #endif
@@ -422,16 +422,16 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
                         [&oEdge](auto sect) { return sect->ptT.pt.isNearly(oEdge->end.pt); }));
             }
         }
+#if !OP_TEST_NEW_INTERFACE
         OpContours* contours = edge->contours();
+#endif
         // for each different winding: 
         int oppBump = coinPair.id < 0 ? -1 : 1;
         // surprisingly difficult to get right ...
         for (;;) {
 #if OP_TEST_NEW_INTERFACE
-#if OP_DEBUG
-            OpWinding edgeWinding { edge->segment->contour, contours->copySect(edge, edge->winding) };
-            OpWinding oppWinding { oppEdge->segment->contour, contours->copySect(oppEdge, oppEdge->winding) };
-#endif
+            OP_DEBUG_CODE(PathOpsV0Lib::Winding edgeWinding = edge->winding.copyData());
+            OP_DEBUG_CODE(PathOpsV0Lib::Winding oppWinding = oppEdge->winding.copyData());
 #else
             OP_DEBUG_CODE(OpWinding edgeWinding = edge->winding);
             OP_DEBUG_CODE(OpWinding oppWinding = oppEdge->winding);
@@ -440,8 +440,8 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
                     oppEdge->ptT(coinPair.id > 0 ? EdgeMatch::start : EdgeMatch::end).pt));
 #if OP_TEST_NEW_INTERFACE
             bool windingNonZero = edge->segment->contour->callBacks.windingMoveFuncPtr(
-                    &oppEdge->winding, coinPair.id < 0, &edge->winding);
-            WindingData* combinedWinding = contours->copySect(edge, edge->winding);
+                    oppEdge->winding.w, coinPair.id < 0, edge->winding.w);
+            PathOpsV0Lib::Winding combinedWinding = edge->winding.copyData();
             if (!windingNonZero)
                 edge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence1));
 #else
@@ -476,7 +476,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
 #if OP_TEST_NEW_INTERFACE
                     OP_ASSERT(!edge->winding.compare(edgeWinding));
                     if (windingNonZero) {
-                        edge->winding.windingData = combinedWinding;
+                        edge->winding.w = combinedWinding;
                         if (edge->disabled)
                             edge->reenable();
                     } else

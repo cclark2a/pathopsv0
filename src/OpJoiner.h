@@ -39,7 +39,7 @@ struct OpJoiner {
 	void buildDisabled(OpContours& );
 	void buildDisabledPals(OpContours& );
 	bool detachIfLoop(OpEdge* , EdgeMatch loopEnd);
-	bool linkRemaining(OP_DEBUG_CODE(const OpContours*));
+	bool linkRemaining(OP_DEBUG_CODE(OpContours*));
 	void linkUnambiguous(LinkPass );
 	bool linkUp(OpEdge* );
 	bool matchLinks(bool popLast);
@@ -48,7 +48,7 @@ struct OpJoiner {
 	void sort();
 	void unlink(OpEdge* ); // don't unlink edges that are in linkups
 #if OP_DEBUG
-	void debugMatchRay(OP_DEBUG_CODE(const OpContours* contours));
+	void debugMatchRay(OP_DEBUG_CODE(OpContours* contours));
 #endif
 #if OP_DEBUG_VALIDATE
 	void debugValidate() const;

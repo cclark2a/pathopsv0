@@ -179,8 +179,8 @@ void SectRay::sort() {
 }
 
 OpWinder::OpWinder(OpContours& contours, EdgesToSort edgesToSort) {
-	for (auto& contour : contours.contours) {
-		for (auto& segment : contour.segments) {
+	for (auto contour : contours.contours) {
+		for (auto& segment : contour->segments) {
 			for (auto& edge : segment.edges) {
 				addEdge(&edge, edgesToSort);
 			}
@@ -732,7 +732,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 			home->setUnsortable();
 		else {
 #if OP_TEST_NEW_INTERFACE
-			OpWinding prev();
+			OpWinding prev(home->segment->contour, WindingSum::dummy);
 #else
 			OpWinding prev(WindingTemp::dummy);
 #endif
@@ -740,7 +740,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 			if (CalcFail::fail == home->addIfUR(ray.axis, ray.distances[0].edgeInsideT, &prev))
 				home->setUnsortable();
 			else
-				OP_EDGE_SET_SUM(home, prev);
+				OP_EDGE_SET_SUM(home, prev.w);
 		}
 		return ResolveWinding::resolved;
 	}
@@ -781,7 +781,11 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 		return false;
 	};
 	// starting with found or zero if none, accumulate sum up to winding
+#if OP_TEST_NEW_INTERFACE
+	OpWinding sumWinding(home->segment->contour, WindingSum::dummy);
+#else
 	OpWinding sumWinding(WindingTemp::dummy);
+#endif
 	int sumIndex = ray.distances.size();
 	while (ray.distances[--sumIndex].edge != home) 
 		OP_ASSERT(sumIndex > 0);
@@ -814,15 +818,15 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 			continue;
 		}
 		if (NormalDirection::downLeft == normDir && !anyPriorPal(prior, sumIndex))
-			OP_EDGE_SET_SUM(prior, sumWinding);
+			OP_EDGE_SET_SUM(prior, sumWinding.w);
 		if (CalcFail::fail == prior->addSub(ray.axis, dist.edgeInsideT, &sumWinding)) // if d/l sub; if u/r add
 			OP_DEBUG_FAIL(*prior, ResolveWinding::fail);
 		if (NormalDirection::upRight == normDir && !anyPriorPal(prior, sumIndex))
-			OP_EDGE_SET_SUM(prior, sumWinding);
+			OP_EDGE_SET_SUM(prior, sumWinding.w);
 	} while (home != prior);
 	if (!home->pals.size()) {
 		if (!home->sum.isSet())
-			OP_EDGE_SET_SUM(home, sumWinding);
+			OP_EDGE_SET_SUM(home, sumWinding.w);
 		return ResolveWinding::resolved;
 	}
 	// if home is unsectable, set its sum winding as if all of its pals' windings were a single edge
@@ -832,7 +836,11 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 	//   replace winding with many.
 	home->many = home->winding;	// back up winding
 	for (const auto& pal : home->pals) {
+#if OP_TEST_NEW_INTERFACE
+		home->winding.move(pal.edge->winding, pal.reversed);
+#else
 		home->winding.move(pal.edge->winding, contours, pal.reversed);
+#endif
 	}
 	if (!home->winding.visible()) {
 		home->setDisabled(OP_DEBUG_CODE(ZeroReason::palWinding));
@@ -841,7 +849,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 	if (CalcFail::fail == home->addIfUR(ray.axis, homeT, &sumWinding))
 		home->setUnsortable();
 	else
-		OP_EDGE_SET_SUM(home, sumWinding);
+		OP_EDGE_SET_SUM(home, sumWinding.w);
 	std::swap(home->many, home->winding);  // restore winding, put total of pals in many
 	return ResolveWinding::resolved;	   // (will copy many to winding after all many are found)
 }
@@ -870,8 +878,8 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 				OP_DEBUG_FAIL(*home, FoundWindings::fail);
 		}
 	}
-	for (auto& contour : contours->contours) {
-		for (auto& segment : contour.segments) {
+	for (auto contour : contours->contours) {
+		for (auto& segment : contour->segments) {
 			for (auto& edge : segment.edges) {
 				SectRay& ray = edge.ray;
 				if (edge.disabled)
@@ -886,8 +894,8 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 		}
 	}
 
-	for (auto& contour : contours->contours) {
-		for (auto& segment : contour.segments) {
+	for (auto contour : contours->contours) {
+		for (auto& segment : contour->segments) {
 			for (auto& edge : segment.edges) {
 					// copy pals if reciprocal, and points to other pals (thread_cubics2247347)
 				std::vector<EdgeDistance>& pals = edge.pals;
@@ -922,8 +930,8 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 
 	// sort edges so that largest edges' winding sums are computed first
 	std::vector<OpEdge*> bySize;
-	for (auto& contour : contours->contours) {
-		for (auto& segment : contour.segments) {
+	for (auto contour : contours->contours) {
+		for (auto& segment : contour->segments) {
 			for (auto& edge : segment.edges) {
 				if (edge.disabled)
 					continue;
@@ -996,8 +1004,8 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 		if (ResolveWinding::fail == resolveWinding)
 			OP_DEBUG_FAIL(*home, FoundWindings::fail);
 	}
-	for (auto& contour : contours->contours) {
-		for (auto& segment : contour.segments) {
+	for (auto contour : contours->contours) {
+		for (auto& segment : contour->segments) {
 			for (auto& edge : segment.edges) {
 				if (edge.disabled)
 					continue;

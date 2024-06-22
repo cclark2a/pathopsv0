@@ -67,8 +67,8 @@ struct OpDebugSegmentIter {
 		segmentIndex = 0;
 		if (start)
 			return;
-		for (const auto& c : debugGlobalContours->contours) {
-			segmentIndex += c.segments.size();
+		for (const auto c : debugGlobalContours->contours) {
+			segmentIndex += c->segments.size();
 		}
 	}
 
@@ -78,8 +78,8 @@ struct OpDebugSegmentIter {
 
     const OpSegment* operator*() {
 		size_t index = 0;
-		for (const auto& c : debugGlobalContours->contours) {
-			for (const auto& seg : c.segments) {
+		for (const auto c : debugGlobalContours->contours) {
+			for (const auto& seg : c->segments) {
 				if (index == segmentIndex)
 					return &seg;
 				++index;
@@ -114,8 +114,8 @@ struct OpDebugEdgeIter {
 		edgeIndex = 0;
 		if (start)
 			return;
-		for (const auto& c : debugGlobalContours->contours) {
-			for (const auto& s : c.segments)
+		for (const auto c : debugGlobalContours->contours) {
+			for (const auto& s : c->segments)
 				edgeIndex += s.edges.size();
 		}
 		if (debugGlobalContours->fillerStorage)
@@ -145,13 +145,13 @@ struct OpDebugEdgeIter {
 
     const OpEdge* operator*() {
 		size_t index = 0;
-		for (const auto& c : debugGlobalContours->contours) {
-			for (const auto& s : c.segments) {
+		for (const auto c : debugGlobalContours->contours) {
+			for (const auto& s : c->segments) {
 				for (const auto& edge : s.edges) {
 					if (index == edgeIndex) {
 						isCurveCurve = false;
 						isFiller = false;
-						isOpp = OpOperand::right == c.operand;
+						isOpp = OpOperand::right == c->operand;
 						isLine = edge.isLine_impl;
 						return &edge;
 					}
@@ -233,8 +233,8 @@ struct OpDebugIntersectionIter {
 		localIntersectionIndex = 0;
 		if (start)
 			return;
-		for (const auto& c : debugGlobalContours->contours) {
-			for (const auto& seg : c.segments) {
+		for (const auto c : debugGlobalContours->contours) {
+			for (const auto& seg : c->segments) {
 				localIntersectionIndex += seg.sects.i.size();
 			}
 		}
@@ -246,8 +246,8 @@ struct OpDebugIntersectionIter {
 
     const OpIntersection* operator*() {
 		size_t index = 0;
-		for (const auto& c : debugGlobalContours->contours) {
-			for (const auto& seg : c.segments) {
+		for (const auto c : debugGlobalContours->contours) {
+			for (const auto& seg : c->segments) {
 				for (const auto sect : seg.sects.i) {
 					if (index == localIntersectionIndex)
 						return sect;
@@ -860,9 +860,9 @@ void addFocus(const OpContour& contour) {
 		addFocus(s.ptBounds);
 }
 
-void addFocus(const OpContours& contours) {
+void addFocus(OpContours& contours) {
 	OpPointBounds bounds;
-	for (auto& contour : contours.contours)
+	for (auto contour : contours.contours)
 		addFocus(contour);
 	addFocus(bounds);
 }
@@ -942,10 +942,10 @@ void ctr(const OpContour& contour) {
 	ctr(bounds);
 }
 
-void ctr(const OpContours& contours) {
+void ctr(OpContours& contours) {
 	OpPointBounds bounds;
-	for (auto& contour : contours.contours)
-		for (auto& segment : contour.segments)
+	for (auto contour : contours.contours)
+		for (auto& segment : contour->segments)
 			bounds.add(segment.ptBounds);
 	ctr(bounds);
 }
@@ -1018,10 +1018,10 @@ void focus(const OpContour& contour) {
 	focus(bounds);
 }
 
-void focus(const OpContours& contours) {
+void focus(OpContours& contours) {
 	OpPointBounds bounds;
-	for (auto& contour : contours.contours)
-		for (auto& segment : contour.segments)
+	for (auto contour : contours.contours)
+		for (auto& segment : contour->segments)
 			bounds.add(segment.ptBounds);
 	focus(bounds);
 }
@@ -1825,10 +1825,13 @@ bool OpDebugImage::drawWinding(const OpCurve& curve, std::string left, std::stri
 
 // fails may not have overflowed; they may have not found a place to draw the winding
 bool OpDebugImage::drawEdgeWinding(const OpCurve& curve, const OpEdge* edge, uint32_t color) {
+	bool success = true;
+#if OP_TEST_NEW_INTERFACE
+	OP_ASSERT(0);  // incomplete
+#else
 	OpWinding sum = edge->sum;
 	std::string sumLeft = OpMax == sum.left() ? "?" : STR(sum.left());
 	std::string sumRight = OpMax == sum.right() ? "?" : STR(sum.right());
-	bool success = true;
 	if (!drawWinding(curve, sumLeft, sumRight, 1, color)) {
 //		OpDebugOut("normalize overflowed: edge " + STR(edge->id) + "\n");
 		success = false;
@@ -1842,6 +1845,7 @@ bool OpDebugImage::drawEdgeWinding(const OpCurve& curve, const OpEdge* edge, uin
 //		OpDebugOut("normalize overflowed: edge " + STR(edge->id) + "\n");
 		success = false;
 	}
+#endif
 	return success;
 }
 

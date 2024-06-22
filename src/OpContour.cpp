@@ -229,8 +229,7 @@ void OpContour::finish() {
     for (auto& segment : segments) {
         segment.contour = this;
 #if OP_TEST_NEW_INTERFACE
-        segment.winding->contour = this;
-
+        segment.winding.contour = this;
 #else
         segment.winding = operand;
 #endif
@@ -270,6 +269,8 @@ OpContours::OpContours()
     , opIn(OpOperator::Intersect)
     , ccStorage(nullptr)
     , curveDataStorage(nullptr)
+    , contourStorage(nullptr)
+    , contours(this)
     , fillerStorage(nullptr)
     , sectStorage(nullptr)
     , limbStorage(nullptr)
@@ -342,7 +343,18 @@ OpContour* OpContours::addMove(OpContour* last, OpOperand operand , const OpPoin
     if (last->addClose())
         return makeContour(operand);
     // keep point as its own segment in the future?
-    return &contours.back();
+    return contours.back();
+}
+
+OpContour* OpContours::allocateContour() {
+    if (!contourStorage)
+        contourStorage = new OpContourStorage;
+    if (contourStorage->used == ARRAY_COUNT(contourStorage->storage)) {
+        OpContourStorage* next = new OpContourStorage;
+        next->next = contourStorage;
+        contourStorage = next;
+    }
+    return &contourStorage->storage[contourStorage->used++];
 }
 
 void* OpContours::allocateEdge(OpEdgeStorage*& edgeStorage) {
@@ -395,7 +407,7 @@ OpLimb* OpContours::allocateLimb(OpTree* tree) {
     return limbStorage->allocate(*tree);
 }
 
-WindingData* OpContours::allocateWinding(size_t size) {
+PathOpsV0Lib::WindingData* OpContours::allocateWinding(size_t size) {
     if (!windingStorage)
         windingStorage = new WindingDataStorage;
     if (windingStorage->used + size > sizeof(windingStorage->windingData)) {
@@ -403,15 +415,7 @@ WindingData* OpContours::allocateWinding(size_t size) {
         next->next = windingStorage;
         windingStorage = next;
     }
-    return (WindingData*) &windingStorage->windingData[windingStorage->used];
-}
-
-WindingData* OpContours::copySect(const OpEdge* edge, const OpWinding& winding) {
-    size_t size = edge->segment->contour->callBacks.windingLengthFuncPtr( 
-            { edge->curve.curveData, edge->curve.type });
-    WindingData* copy = allocateWinding(size);
-    memcpy(copy, winding.additionalData, size);
-    return copy;
+    return (PathOpsV0Lib::WindingData*) &windingStorage->windingData[windingStorage->used];
 }
 
 OpLimbStorage* OpContours::resetLimbs(OpTree* tree) {
@@ -451,8 +455,8 @@ bool OpContours::debugFail() const {
 }
 
 void OpContours::finishAll() {
-    for (auto& contour : contours)
-        contour.finish();
+    for (auto contour : contours)
+        contour->finish();
 }
 
 static const bool OutInverse[+OpOperator::ReverseSubtract + 1][2][2] {
@@ -485,7 +489,7 @@ bool OpContours::pathOps(OpOutPath& result) {
         if (FoundIntersections::fail == sortedSegments.findIntersections())
             return false;  // triggered by fuzzhang_1
     } else {
-        if (!contours.size())
+        if (contours.empty())
             OP_DEBUG_SUCCESS(*this, true);
         finishAll();
         OpSegments::FindCoincidences(this);
@@ -531,13 +535,13 @@ void OpContours::reuse(OpEdgeStorage* edgeStorage) {
 }
 
 void OpContours::sortIntersections() {
-    for (auto& contour : contours) {
-        for (auto& segment : contour.segments) {
+    for (auto contour : contours) {
+        for (auto& segment : contour->segments) {
             segment.sects.sort();
         }
     }
-    for (auto& contour : contours) {
-        for (auto& segment : contour.segments) {
+    for (auto contour : contours) {
+        for (auto& segment : contour->segments) {
             segment.sects.mergeNear();
         }
     }
@@ -555,22 +559,32 @@ bool OpContours::debugSuccess() const {
 
 SegmentIterator::SegmentIterator(OpContours* c)
     : contours(c)
-    , contourIndex(0)
-    , segIndex(-1) {
+    , contourIterator(c)
+    , contourIter(c)
+    , segIndex(-1) 
+    OP_DEBUG_PARAMS(debugEnded(false)) {
 }
 
 OpSegment* SegmentIterator::next() {
     OpSegment* s;
+    OP_ASSERT(!debugEnded);
     do {
-        if (++segIndex >= contours->contours[contourIndex].segments.size()) {
+        if (++segIndex >= (*contourIter)->segments.size()) {
             segIndex = 0;
-            ++contourIndex;
+            ++contourIter;
+            if (!(contourIterator.end() != contourIter)) {
+                OP_DEBUG_CODE(debugEnded = true);
+                return nullptr;
+            }
         }
-        if (contourIndex >= contours->contours.size())
-           return nullptr;
-        s = &contours->contours[contourIndex].segments[segIndex];
+        s = &(*contourIter)->segments[segIndex];
     } while (s->disabled);
     return s;
+}
+
+OpContourIter::OpContourIter(OpContours* contours) {
+    storage = contours->contourStorage;
+	contourIndex = 0;
 }
 
 #endif

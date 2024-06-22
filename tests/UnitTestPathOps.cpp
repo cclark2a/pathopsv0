@@ -966,6 +966,7 @@ void OpTest_WindZero() {
 }
 #endif
 
+#if !OP_TEST_NEW_INTERFACE
 // bits 0: left winding  1: right windng  2: left sum  3: right sum
 bool setWinding(OpEdge& edge, int index) {
 	if (0 == (index & 3))
@@ -979,6 +980,7 @@ bool setWinding(OpEdge& edge, int index) {
 		return false;
 	return true;
 }
+#endif
 
 void OpTest_EdgeZero() {
 #if 0	// broken: find need before fixing

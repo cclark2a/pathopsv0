@@ -30,11 +30,6 @@ struct Context;
  */
 struct Contour;
 
-/* Typically a set of counts associated with a curve that represents the curve's contribution to
-   each operand. Usually one for the operand the curve belongs to, and zero for other operands.
- */
-struct Winding;
-
 /* Curve describes a set of continuous points from start to end.
    Curve's points must be contained by a rectangle bounded by start and end.
    Curve's points must monotonically vary from start to end in x and y.
@@ -45,10 +40,9 @@ struct CurveData {
 	char optionalAdditionalData[];
 };
 
-/* SetCurveLength() (see below) describes the length of each curve.
- */
 struct Curve {
 	CurveData* data;
+	size_t size;  // total size in bytes, including additional data, if any
 	OpType type;
 };
 
@@ -57,8 +51,17 @@ struct Curve {
 struct AddCurve {
 	Context* context;
 	OpPoint* points;
-	size_t size;
+	size_t size;	// size of points in bytes
 	OpType type;
+};
+
+/* caller defined data representing how curves in a contour cover area
+ */
+struct WindingData;
+
+struct Winding {
+	WindingData* data;
+	size_t size;
 };
 
 /* convenience for adding winding data to contour
@@ -91,7 +94,7 @@ struct PathData {
 typedef OpRoots (*AxisRawHit)(CurveData* , Axis , float axisIntercept, MatchEnds);
 
 // returns length of data used by this type of curve
-typedef size_t (*CurveLength)();
+//typedef size_t (*CurveLength)();
 
 // returns number of points in curve, including start and end (minimum 2)
 typedef size_t (*PtCount)();
@@ -159,7 +162,7 @@ struct CallBacks {
 	CurveIsLinear curveIsLinearFuncPtr;
 	CurveControls curveControlsFuncPtr;
 	SetControls setControlsFuncPtr;
-	CurveLength curveLengthFuncPtr;
+//	CurveLength curveLengthFuncPtr;
 	CurveNormal curveNormalFuncPtr;
 	CurveReverse curveReverseFuncPtr;
 	CurveTangent curveTangentFuncPtr;
@@ -175,28 +178,37 @@ struct CallBacks {
 };
 
 // initializes winding to its starting value
-typedef void (*WindingInit)(Context* , Contour* , Curve , OpWinding* );
+//typedef void (*WindingInit)(Context* , Contour* , Curve , Winding );
 
 // returns if curve transitions to a filled area and is kept; or if curve is discarded
-typedef WindKeep (*WindingKeep)(const OpWinding* winding, const OpWinding* sum);
+typedef WindKeep (*WindingKeep)(Contour* , Winding winding, Winding sum);
 
 // returns length of winding data used by this type of curve
-typedef size_t (*WindingLength)(Curve );
+// typedef size_t (*WindingLength)(Curve );
 
 // Combines opp's winding with destination; zero's opp's winding. backwards is true if
 // opp curve and destination curve are reversed.
 // Returns true if, after move, destination's winding is non-zero.
-typedef bool (*WindingMove)(const OpWinding* opp, bool backwards, OpWinding* destination);
+typedef bool (*WindingMove)(Winding opp, bool backwards, Winding destination);
 
 // initializes winding sum to its starting value 
-typedef void (*WindingSetSum)(const OpWinding* winding, OpWinding* sum);
+typedef void (*WindingSetSum)(Winding winding, Winding* sum);
+
+#if OP_DEBUG_DUMP
+typedef void (*WindingDumpIn)(const char*& str , Winding );
+typedef std::string (*WindingDumpOut)(Winding );
+#endif
 
 struct ContourCallBacks {
-	WindingInit windingInitFuncPtr;
+//	WindingInit windingInitFuncPtr;
 	WindingKeep windingKeepFuncPtr;
-	WindingLength windingLengthFuncPtr;
+//	WindingLength windingLengthFuncPtr;
 	WindingMove windingMoveFuncPtr;
 	WindingSetSum windingSetSumFuncPtr;
+#if OP_DEBUG_DUMP
+	WindingDumpIn windingDumpInFuncPtr;
+	WindingDumpOut windingDumpOutFuncPtr;
+#endif
 };
 
 
