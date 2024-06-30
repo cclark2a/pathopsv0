@@ -77,8 +77,12 @@ int activeLeft;
 int activeRight;
 
 void resetPaths() {
+#if OP_TEST_NEW_INTERFACE
+    OP_ASSERT(0); // !!! incomplete
+#else
     leftPath.set(*debugGlobalContours->leftIn);
     rightPath.set(*debugGlobalContours->rightIn);
+#endif
     activePtV = nullptr;
     activeIndex = { -1, -1 };
     activeFocus = -1;
@@ -115,7 +119,8 @@ HelloWorld::HelloWorld(int argc, char** argv, void* platformData)
 #endif
 #if OP_TEST_NEW_INTERFACE
     extern void testNewInterface();
-    testNewInterface();
+    if ((0))
+        testNewInterface();
 #endif
 }
 

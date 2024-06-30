@@ -322,6 +322,7 @@ struct DebugOpCurve {
     void rectCurves(std::vector<DebugOpCurve>& bounded) const;
     void subDivide(double a, double b, DebugOpCurve& dest) const;
     bool tInRect(double t, const DebugOpRect& bounds) const;
+
     DebugOpPoint pts[4];
     size_t size; // size of original curve data, not double points
     double weight;
@@ -725,26 +726,56 @@ OpPoint DebugOpMap(DebugOpPoint dPt) {
 
 void DebugOpCurve::mapTo(OpCurve& c) const {
     if (debugGlobalContours && debugGlobalContours->newInterface) {
-        int ptCount = debugGlobalContours->callBack(type).ptCountFuncPtr();
-        c.curveData = debugGlobalContours->allocateCurveData(size);
-        c.size = size;
-        c.curveData->start = DebugOpMap(pts[0]);
-        c.curveData->end = DebugOpMap(pts[ptCount - 1]);
-        std::vector<OpPoint> controls;
-        for (int i = 1; i < ptCount - 1; ++i) {
-            controls.push_back(DebugOpMap(pts[i]));
+        c.c.data = debugGlobalContours->allocateCurveData(size);
+        c.c.size = size;
+        c.c.data->start = DebugOpMap(pts[0]);
+        int endIndex;
+        switch (type) {
+            case OpType::line:
+                endIndex = 2;
+                break;
+            case OpType::quad: {
+                OpPoint ctrl = DebugOpMap(pts[1]);
+                OP_ASSERT(size == offsetof(PathOpsV0Lib::CurveData, optionalAdditionalData) 
+                        + sizeof ctrl);
+                std::memcpy(c.c.data->optionalAdditionalData, &ctrl, sizeof ctrl);
+                endIndex = 3;
+                } break;
+            case OpType::conic: {
+                OpPoint ctrl = DebugOpMap(pts[1]);
+                char* dst = c.c.data->optionalAdditionalData;
+                OP_ASSERT(size == offsetof(PathOpsV0Lib::CurveData, optionalAdditionalData) 
+                        + sizeof ctrl + sizeof weight);
+                std::memcpy(dst, &ctrl, sizeof ctrl);
+                dst += sizeof ctrl;
+                std::memcpy(dst, &weight, sizeof weight);
+                endIndex = 3;
+                } break;
+            case OpType::cubic: {
+                OpPoint ctrls[2] { DebugOpMap(pts[1]), DebugOpMap(pts[2]) };
+                OP_ASSERT(size == offsetof(PathOpsV0Lib::CurveData, optionalAdditionalData) 
+                        + sizeof ctrls);
+                std::memcpy(c.c.data->optionalAdditionalData, ctrls, sizeof ctrls);
+                endIndex = 4;
+                } break;
+            default:
+                OP_ASSERT(0);  // unimplemented
+                return;
         }
-        debugGlobalContours->callBack(type).setControlsFuncPtr(c.curveData, controls);
+        c.c.data->end = DebugOpMap(pts[endIndex]);
         // !!! missing conic weight for now
         OP_ASSERT(OpType::conic != type);
         c.weight = (float) weight;
+        c.c.type = type;
+        c.contours = debugGlobalContours;
+        c.newInterface = true;
         return;
     }
     for (int i = 0; i < 4; ++i) {
         c.pts[i] = DebugOpMap(pts[i]);
     }
     c.weight = (float) weight;
-    c.type = type;
+    c.c.type = type;
 }
 
 enum class UnsectType {
@@ -860,9 +891,9 @@ void DebugOpBuild(const OpSegment& seg, std::vector<DebugOpCurve>& debugSegs) {
     DebugOpCurve curve;
     for (int i = 0; i < seg.c.pointCount(); ++i)
         curve.pts[i] = { seg.c.hullPt(i).x, seg.c.hullPt(i).y } ;
-    curve.size = seg.c.size;
+    curve.size = seg.c.c.size;
     curve.weight = seg.c.weight;
-    curve.type = seg.c.type;
+    curve.type = seg.c.c.type;
     curve.id = seg.id;
     curve.color = black;  // !!! fix once segments carry debug colors
     curve.rectCurves(debugSegs);
@@ -880,9 +911,9 @@ void DebugOpBuild(const OpSegment& seg, const OpDebugRay& ray) {
     DebugOpCurve curve;
     for (int i = 0; i < seg.c.pointCount(); ++i)
         curve.pts[i] = { seg.c.hullPt(i).x, seg.c.hullPt(i).y } ;
-    curve.size = seg.c.size;
+    curve.size = seg.c.c.size;
     curve.weight = seg.c.weight;
-    curve.type = seg.c.type;
+    curve.type = seg.c.c.type;
     DebugOpRoots roots = curve.rayIntersect(ray);
     for (int index = 0; index < roots.count; ++index) {
         DebugColorPt pt { curve.ptAtT(roots.roots[index]), roots.roots[index], black };
@@ -907,10 +938,10 @@ DebugOpCurve OpEdge::debugSetCurve() const {
     for (int i = 0; i < curve.pointCount(); ++i)
         dCurve.pts[i] = { curve.hullPt(i).x, curve.hullPt(i).y } ;
     // !!! missing conic weight for now
-    OP_ASSERT(OpType::conic != curve.type || (debugGlobalContours && !debugGlobalContours->newInterface));
-    dCurve.size = curve.size;
+    OP_ASSERT(OpType::conic != curve.c.type || (debugGlobalContours && !debugGlobalContours->newInterface));
+    dCurve.size = curve.c.size;
     dCurve.weight = curve.weight;
-    dCurve.type = curve.type;
+    dCurve.type = curve.c.type;
     dCurve.id = id;
     dCurve.color = debugColor;
     return dCurve;

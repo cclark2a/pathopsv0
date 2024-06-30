@@ -73,7 +73,7 @@ struct OpSegment {
             OP_LINE_FILE_DEF(SectReason ));
     void apply();
     int coinID(bool flipped) const;
-    void complete(OpContour* );
+    void complete();
     OpEdge* findEnabled(const OpPtT& , EdgeMatch ) const;
     float findAxisT(Axis , float start, float end, float oppXY) const;
 //    float findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const;
@@ -86,9 +86,7 @@ struct OpSegment {
 //    MatchEnds matchExisting(const OpSegment* opp) const;
     void moveTo(float t , OpPoint );  // move segment/sect point to match another endpont
     bool nearby(float t, const OpSegment* opp) const;
-    int nextID() const { 
-        return nextID(contour); }
-    int nextID(OpContour* ) const;
+    int nextID() const;
 //	void reenable() {
 //		disabled = false; OP_DEBUG_CODE(debugZero = ZeroReason::uninitialized); }
     void setBounds();

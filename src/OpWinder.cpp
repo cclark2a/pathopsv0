@@ -732,7 +732,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 			home->setUnsortable();
 		else {
 #if OP_TEST_NEW_INTERFACE
-			OpWinding prev(home->segment->contour, WindingSum::dummy);
+			OpWinding prev(home, WindingSum::dummy);
 #else
 			OpWinding prev(WindingTemp::dummy);
 #endif
@@ -782,7 +782,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 	};
 	// starting with found or zero if none, accumulate sum up to winding
 #if OP_TEST_NEW_INTERFACE
-	OpWinding sumWinding(home->segment->contour, WindingSum::dummy);
+	OpWinding sumWinding(home, WindingSum::dummy);
 #else
 	OpWinding sumWinding(WindingTemp::dummy);
 #endif
@@ -799,7 +799,11 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 		EdgeDistance& sumDistance = ray.distances[sumIndex];
 		OpEdge* sumEdge = sumDistance.edge;
 		OP_ASSERT(!sumEdge->pals.size());
+#if OP_TEST_NEW_INTERFACE
+		sumWinding.w = sumEdge->sum.copyData();
+#else
 		sumWinding = sumEdge->sum;
+#endif
 		OP_DEBUG_CODE(sumWinding.debugType = WindingType::temp);
 		// if pointing down/left, subtract winding
 		if (CalcFail::fail == sumEdge->subIfDL(ray.axis, sumDistance.edgeInsideT, &sumWinding))  

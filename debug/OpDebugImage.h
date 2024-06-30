@@ -166,6 +166,8 @@ extern void focus(const OpContours* );
 extern void focus(const OpEdge* );
 extern void focus(const OpRect* );
 extern void focus(const OpSegment* );
+extern void focusEdges();
+extern void focusSegments();
 extern void gridCenter(int x, int y);
 extern void gridLines(int );
 extern void gridStep(float dxy);

@@ -22,13 +22,6 @@ enum class OpFillType {
     evenOdd = 1
 };
 
-enum class WindState {
-    zero,	    // edge is outside filled area on both sides
-    flipOff,	// edge moves from in to out
-    flipOn,	    // edge moves from out to in
-    one		    // edge is inside filled area on both sides
-};
-
 struct OpContours;
 struct OpInPath;
 
@@ -41,9 +34,11 @@ struct OpContour {
 #endif
     }
 
+#if !OP_TEST_NEW_INTERFACE
     bool addClose();
     bool addConic(OpPoint pts[3], float weight);
     bool addCubic(OpPoint pts[4]);
+#endif
     OpIntersection* addEdgeSect(const OpPtT& , OpSegment* seg
            OP_LINE_FILE_DEF(SectReason , const OpEdge* edge, const OpEdge* oEdge));
     OpEdge* addFiller(OpEdge* edge, OpEdge* lastEdge);
@@ -62,8 +57,6 @@ struct OpContour {
             segment.apply();
         }
     }
-
-    void finish();
 
     void makeEdges() {
         for (auto& segment : segments) {
@@ -130,19 +123,15 @@ struct OpContourStorage {
 };
 
 struct OpContourIter {
-    OpContourIter(OpContours* contours);
-    
-    void moveToEnd() {
-        OP_ASSERT(!contourIndex);
-        while (storage->next) {
-            contourIndex += storage->used;
-            storage = storage->next;
-        }
-        contourIndex += storage->used;
+    OpContourIter()
+        : storage(nullptr)
+        , contourIndex(0) {
     }
 
+    OpContourIter(OpContours* contours);
+    
     bool operator!=(OpContourIter rhs) { 
-		return contourIndex != rhs.contourIndex; 
+		return storage != rhs.storage || contourIndex != rhs.contourIndex; 
 	}
 
     OpContour* operator*() {
@@ -150,13 +139,22 @@ struct OpContourIter {
         return &storage->storage[contourIndex]; 
 	}
 
-    void operator++() { 
+    void operator++() {
+        OP_ASSERT(storage && contourIndex < storage->used); 
 		if (++contourIndex >= storage->used) {
             contourIndex = 0;
             storage = storage->next;
-            OP_ASSERT(storage);
         }
 	}
+
+    void back() {
+        OP_ASSERT(storage);
+        while (OpContourStorage* next = storage->next) {
+            storage = next;
+        }
+        OP_ASSERT(storage->used);
+        contourIndex = storage->used - 1;
+    }
 
     OpContourStorage* storage;
 	int contourIndex;
@@ -164,30 +162,25 @@ struct OpContourIter {
 
 struct OpContourIterator {
     OpContourIterator(OpContours* c) 
-        : cachedEnd(c)
-        , contours(c) {
+        : contours(c) {
     }
 
     OpContour* back() {
-        OpContourIter iter = end();
-        iter.contourIndex -= 1;
+        OpContourIter iter;
+        iter.back();
         return *iter;
     }
 
     OpContourIter begin() {
-        OpContourIter iter(contours);
-        return iter;
+        return OpContourIter(contours);
     }
 
     OpContourIter end() {
-        if (!cachedEnd.contourIndex)
-            cachedEnd.moveToEnd();
-        return cachedEnd; 
+        return OpContourIter(); 
     }
 
 	bool empty() { return !(begin() != end()); }
 
-    OpContourIter cachedEnd;
     OpContours* contours;
 };
 
@@ -229,16 +222,17 @@ struct OpContours {
 
 //    WindingData* copySect(const OpWinding& );  // !!! add a separate OpWindingStorage for temporary blocks?
 
-    void finishAll();
-
+#if !OP_TEST_NEW_INTERFACE
     int leftFillTypeMask() const {
         return (int) left;
     }
+#endif
 
     OpContour* makeContour(OpOperand operand) {
         OpContour* contour = allocateContour();
         contour->contours = this;
         contour->operand = operand;
+        OP_DEBUG_CODE(contour->debugComplete());
         return contour;
     }
 
@@ -255,9 +249,11 @@ struct OpContours {
     OpLimbStorage* resetLimbs(OpTree* tree);
     void reuse(OpEdgeStorage* );
 
+#if !OP_TEST_NEW_INTERFACE
     int rightFillTypeMask() const {
         return (int) right;
     }
+#endif
 
 #if 0  // !!! disable until use case appears
     void setBounds() {
@@ -267,9 +263,11 @@ struct OpContours {
     }
 #endif
 
+#if !OP_TEST_NEW_INTERFACE
     void setFillType(OpOperand operand, OpFillType exor) {
         (OpOperand::left == operand ? left : right) = exor;
     }
+#endif
 
     void sortIntersections();
 
@@ -283,7 +281,7 @@ struct OpContours {
 // if sum is zero and edge winding is non-zero, edge 'flips' winding from zero to non-zero
 // if sum is non-zero and edge winding equals sum, edge 'flips' winding from non-zero to zero
     WindState windState(int wind, int sum, OpOperand operand) {
-#if OP_DEBUG
+#if !OP_TEST_NEW_INTERFACE && OP_DEBUG
         OpFillType fillType = OpOperand::left == operand ? left : right;
         OP_ASSERT(wind == (wind & (int) fillType));
         OP_ASSERT(sum == (sum & (int) fillType));
@@ -312,13 +310,10 @@ struct OpContours {
     #include "OpDebugDeclarations.h"
 #endif
 
+#if !OP_TEST_NEW_INTERFACE
     OpInPath* leftIn;
     OpInPath* rightIn;
     OpOperator opIn;
-#if !OP_TEST_NEW_INTERFACE
-    // this allows contours to move when vector grows. Better to allocate it ourselves so reference
-    // returned to caller doesn't change if a new contour is created.
-    std::vector<OpContour> contours;
 #endif
     // these are pointers instead of inline values because the storage with empty slots is first
     OpEdgeStorage* ccStorage;
@@ -329,14 +324,17 @@ struct OpContours {
     OpSectStorage* sectStorage;
     OpLimbStorage* limbStorage;
     WindingDataStorage* windingStorage;
+#if !OP_TEST_NEW_INTERFACE
     OpFillType left;
     OpFillType right;
     OpOperator opOperator;
+#endif
     int uniqueID;  // used for object id, unsectable id, coincidence id
     bool newInterface;
 
 // new interface ..
     std::vector<PathOpsV0Lib::CallBacks> callBacks;
+    PathOpsV0Lib::PathOutput callerOutput;
 #if OP_DEBUG_VALIDATE
     int debugValidateEdgeIndex;
     int debugValidateJoinerIndex;
@@ -344,7 +342,9 @@ struct OpContours {
 #if OP_DEBUG
     OpCurveCurve* debugCurveCurve;
     OpJoiner* debugJoiner;
+#if !OP_TEST_NEW_INTERFACE
     OpOutPath* debugResult;
+#endif
     std::vector<OpDebugWarning> debugWarnings;
     std::string debugTestname;
     OpDebugExpect debugExpect;
@@ -354,8 +354,10 @@ struct OpContours {
     bool debugFailOnEqualCepts;
 #endif
 #if OP_DEBUG_DUMP
+#if !OP_TEST_NEW_INTERFACE
     OpInPath* debugLeft;
     OpInPath* debugRight;
+#endif
 	OpTree* dumpTree;
 	int dumpCurve1;
 	int dumpCurve2;

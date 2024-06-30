@@ -819,10 +819,8 @@ bool OpCurveCurve::rotatedIntersect(OpEdge& edge, OpEdge& oppEdge, bool sharesPo
 	rotateFailed |= !edgeRotated.isFinite();
 	const OpCurve& oppRotated = oppEdge.setVertical(edgePts);
 	rotateFailed |= !oppRotated.isFinite();
-	OpPointBounds eRotBounds;
-	eRotBounds.set(edgeRotated);
-	OpPointBounds oRotBounds;
-	oRotBounds.set(oppRotated);
+	OpPointBounds eRotBounds = edgeRotated.ptBounds();
+	OpPointBounds oRotBounds = oppRotated.ptBounds();
 	if (!eRotBounds.intersects(oRotBounds))
 		return false;
 	// !!! can one have no area (e.g. horz or vert) and the other not?

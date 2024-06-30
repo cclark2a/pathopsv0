@@ -1262,7 +1262,7 @@ void cubics44dDraw(SkCanvas* canvas) {
 	paint.setAntiAlias(true);
 	paint.setStyle(SkPaint::kStroke_Style);
 	OpCubic cubic((const OpPoint*)pts);
-	OpTightBounds bounds(cubic);
+	OpPointBounds bounds = cubic.ptBounds();
 	SkRect r = { bounds.left, bounds.top, bounds.right, bounds.bottom };
 	paint.setColor(SK_ColorLTGRAY);
 	canvas->drawRect(r, paint);
@@ -1369,8 +1369,8 @@ static bool checkNormals(uint32_t key, int testDepth, OpCurveCurve& cc, const Op
 }
 #endif
 
+#if 0  // !!! out of date
 static void testCc(uint32_t key, OpSegment* seg, OpSegment* opp) {
-	#if 0
 	SetupDebugImage();
 	OpCurveCurve reference(seg, opp);
 	SectFound refResult = reference.divideAndConquer();
@@ -1421,10 +1421,11 @@ static void testCc(uint32_t key, OpSegment* seg, OpSegment* opp) {
 		cc.edgeCurves.c.swap(eSplits.c);
 		cc.oppCurves.c.swap(oSplits.c);
 	}
-#endif
 }
+#endif
 
 void CCTest() {
+#if 0 // !!! out of date
 	struct IntPt {
 		int x;
 		int y;
@@ -1463,7 +1464,6 @@ void CCTest() {
 								size_t qCount = head->segments.size();
 								if (!head->addQuad(f2))
 									continue;
-								contours.finishAll();
 								for (size_t cq = 0; cq < qCount; ++cq) {
 									if (OpType::quad != head->segments[cq].c.type)
 										continue;
@@ -1484,9 +1484,11 @@ void CCTest() {
             }
         }
     }
+#endif
 }
 
 void CCTestKey(uint32_t key) {
+#if 0 // !!! out of date
 	struct IntPt {
 		int x;
 		int y;
@@ -1519,12 +1521,12 @@ void CCTestKey(uint32_t key) {
 	OpContour* head = contours.makeContour(OpOperand::left);
 	OP_EXECUTE_AND_ASSERT(head->addQuad(f1));
 	OP_EXECUTE_AND_ASSERT(head->addQuad(f2));
-	contours.finishAll();
 	size_t cq = (key >> 24) & 0x3;
 	OP_ASSERT(OpType::quad == head->segments[cq].c.type);
 	size_t cr = (key >> 26) & 0x3;
 	OP_ASSERT(OpType::quad == head->segments[cr].c.type);
 	testCc(0, &head->segments[cq], &head->segments[cr]);
+#endif
 }
 
 #endif

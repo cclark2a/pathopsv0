@@ -6,6 +6,8 @@
 #include "OpDebugDump.h"
 #include "OpOperators.h"
 
+enum class OpFill;
+
 #if OP_DEBUG
 #include <vector>
 #endif
@@ -100,21 +102,25 @@ Contour* CreateContour(Context* );
  */
 int Error(Context* );
 
-/* Operate on curves provided by Add() with user defined operation.
-   Calls user supplied functions to return computed path one curve at a time.
+/* Operate on curves provided by Add().
+   Calls curve output callback with path output.
  */
-void Resolve(Context* , OpType operation);
+void Resolve(Context* , PathOutput );
 
-OpType SetCurveCallBacks(Context* , AxisRawHit, CurveHull, CurveIsLine, CurveIsLinear,
-		CurveControls, SetControls, /*CurveLength,*/ CurveNormal, 
+OpType SetCurveCallBacks(Context* , AxisRawHit, ControlNearlyEnd,
+		CurveHull, CurveIsFinite, CurveIsLine, CurveIsLinear,
+		SetBounds, CurveNormal, CurveOutput,
 		CurveReverse, CurveTangent, CurvesEqual, PtAtT, DoublePtAtT,
-		PtCount, SubDivide, XYAtT
-#if OP_DEBUG_IMAGE
-		, DebugAddToPath
-#endif
+		PtCount, Rotate, SubDivide, XYAtT
+		OP_DEBUG_DUMP_PARAMS(DumpSet)
+		OP_DEBUG_IMAGE_PARAMS(DebugAddToPath)
 	);
 
-OpType SetOperationCallBacks(Context* ); // !!! incomplete
+void SetWindingCallBacks(Contour* , WindingAdd, WindingKeep ,
+		WindingSubtract , WindingVisible, WindingZero
+		OP_DEBUG_DUMP_PARAMS(WindingDumpIn, WindingDumpOut)
+		OP_DEBUG_IMAGE_PARAMS(WindingImageOut)
+);
 
 // utilities
 size_t AddQuads(AddCurve , AddWinding );

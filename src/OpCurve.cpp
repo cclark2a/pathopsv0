@@ -8,61 +8,61 @@ bool LinePts::isPoint() const {
 
 OpLine& OpCurve::asLine() {
     OP_ASSERT(!newInterface);
-    OP_ASSERT(OpType::line == type); 
+    OP_ASSERT(OpType::line == c.type); 
     return *static_cast<OpLine*>(this); 
 }
 
 OpQuad& OpCurve::asQuad() { 
     OP_ASSERT(!newInterface);
-    OP_ASSERT(OpType::quad == type);
+    OP_ASSERT(OpType::quad == c.type);
     return *static_cast<OpQuad*>(this);
 }
 
 OpConic& OpCurve::asConic() { 
     OP_ASSERT(!newInterface);
-    OP_ASSERT(OpType::conic == type);
+    OP_ASSERT(OpType::conic == c.type);
     return *static_cast<OpConic*>(this); 
 }
 
 OpQuad& OpCurve::asConicQuad() { 
     OP_ASSERT(!newInterface);
-    OP_ASSERT(OpType::conic == type); 
+    OP_ASSERT(OpType::conic == c.type); 
     return *static_cast<OpQuad*>(this); 
 }
 
 OpCubic& OpCurve::asCubic() { 
     OP_ASSERT(!newInterface);
-    OP_ASSERT(OpType::cubic == type); 
+    OP_ASSERT(OpType::cubic == c.type); 
     return *static_cast<OpCubic*>(this); 
 }
 
 const OpLine& OpCurve::asLine() const { 
     OP_ASSERT(!newInterface);
-    OP_ASSERT(OpType::line == type); 
+    OP_ASSERT(OpType::line == c.type); 
     return *static_cast<const OpLine*>(this);
 }
 
 const OpQuad& OpCurve::asQuad() const { 
     OP_ASSERT(!newInterface);
-    OP_ASSERT(OpType::quad == type); 
+    OP_ASSERT(OpType::quad == c.type); 
     return *static_cast<const OpQuad*>(this);
 }
 
 const OpConic& OpCurve::asConic() const { 
     OP_ASSERT(!newInterface);
-    OP_ASSERT(OpType::conic == type); 
+    OP_ASSERT(OpType::conic == c.type); 
         return *static_cast<const OpConic*>(this); 
 }
 
 const OpQuad& OpCurve::asConicQuad() const { 
     OP_ASSERT(!newInterface);
-    OP_ASSERT(OpType::conic == type); 
+    OP_ASSERT(OpType::conic == c.type); 
         return *static_cast<const OpQuad*>(this); 
 }
 
 const OpCubic& OpCurve::asCubic() const { 
     OP_ASSERT(!newInterface);
-    OP_ASSERT(OpType::cubic == type); 
+    OP_ASSERT(OpType::cubic == c.type); 
         return *static_cast<const OpCubic*>(this); 
 }
 
@@ -71,7 +71,7 @@ OpRoots OpCurve::axisRayHit(Axis axis, float axisIntercept, float start, float e
     if (newInterface)
         roots = axisRawHit(axis, axisIntercept, MatchEnds::none);
     else {
-        switch (type) {
+        switch (c.type) {
             case OpType::line: roots = asLine().axisRawHit(axis, axisIntercept); break;
             case OpType::quad: roots = asQuad().axisRawHit(axis, axisIntercept); break;
             case OpType::conic: roots = asConic().axisRawHit(axis, axisIntercept); break;
@@ -90,7 +90,7 @@ float OpCurve::center(Axis axis, float intercept) const {
     if (newInterface) {
         roots = axisRayHit(axis, intercept);
     } else {
-        switch (type) {
+        switch (c.type) {
         case OpType::line: { 
             auto ptr = pts[0].asPtr(axis); 
             return (intercept - ptr[0]) / (ptr[2] - ptr[0]); 
@@ -195,7 +195,7 @@ OpPtT OpCurve::findIntersect(Axis axis, const OpPtT& opPtT) const {
     if (newInterface) {
         roots = axisRayHit(axis, intercept);
     } else {
-        switch (type) {
+        switch (c.type) {
         case OpType::line:
         case OpType::quad:
         case OpType::conic:
@@ -306,7 +306,7 @@ NormalDirection OpCurve::normalDirection(Axis axis, float t) const {
 }
 
 void OpCurve::pinCtrl() {
-    switch (type) {
+    switch (c.type) {
         case OpType::line: return;
         case OpType::quad: return asQuad().pinCtrl();
         case OpType::conic: return asConic().pinCtrl();
@@ -328,7 +328,7 @@ OpRoots OpCurve::rawIntersect(const LinePts& linePt, MatchEnds common) const {
         OpRoots result = rotated.axisRawHit(Axis::vertical, 0, common);
         return result;
     }
-    switch (type) {
+    switch (c.type) {
         case OpType::line: return asLine().rawIntersect(linePt);
         case OpType::quad: return asQuad().rawIntersect(linePt);
         case OpType::conic: return asConic().rawIntersect(linePt);
@@ -417,7 +417,7 @@ OpCurve OpCurve::toVerticalDouble(const LinePts& line) const {
         rotated.pts[n].y = (float) (vdy * opp + vdx * adj);
     }
     rotated.weight = weight;
-    rotated.type = type;
+    rotated.c.type = c.type;
     return rotated;
 }
 #endif
@@ -426,21 +426,16 @@ OpCurve OpCurve::toVerticalDouble(const LinePts& line) const {
 
 bool OpCurve::isFinite() const {
     if (newInterface) {
-        if (!curveData->start.isFinite())
+        if (!c.data->start.isFinite())
             return false;
-        if (!curveData->end.isFinite())
+        if (!c.data->end.isFinite())
             return false;
-        std::vector<OpPoint*> otherPts = contours->callBack(type).curveControlsFuncPtr(curveData);
-        for (OpPoint* ptPtr : otherPts) {
-            if (!ptPtr->isFinite())
-                return false;
-        }
-        return true;
+        return contours->callBack(c.type).curveIsFiniteFuncPtr(c);
     }
     for (int i = 0; i < pointCount(); ++i)
         if (!pts[i].isFinite())
             return false;
-    return OpType::conic != type || OpMath::IsFinite(weight);
+    return OpType::conic != c.type || OpMath::IsFinite(weight);
 }
 
 // this can fail (if rotated pts are not finite); can happen when input is finite
@@ -448,23 +443,20 @@ bool OpCurve::isFinite() const {
 OpCurve OpCurve::toVertical(const LinePts& line) const {
     float adj = line.pts[1].x - line.pts[0].x;
     float opp = line.pts[1].y - line.pts[0].y;
+    OpCurve rotated;
     if (newInterface) {
-        OpCurve newRotated(contours, { curveData, size, type });
         auto rotatePt = [line, adj, opp](OpPoint pt) {
             OpVector v = pt - line.pts[0];
             return OpPoint(v.dy * adj - v.dx * opp, v.dy * opp + v.dx * adj);
         };
-        newRotated.curveData->start = rotatePt(curveData->start);
-        newRotated.curveData->end = rotatePt(curveData->end);
-        std::vector<OpPoint*> otherPts = contours->callBack(type).curveControlsFuncPtr(curveData);
-        std::vector<OpPoint> transformed(otherPts.size());
-        size_t index = 0;
-        for (OpPoint* ptPtr : otherPts)
-            transformed[index++] = rotatePt(*ptPtr);
-        contours->callBack(type).setControlsFuncPtr(newRotated.curveData, transformed);
-        return newRotated;
+        rotated.c.data->start = rotatePt(c.data->start);
+        rotated.c.data->end = rotatePt(c.data->end);
+        rotated.c.type = c.type;
+        rotated.c.size = c.size;
+        rotated.newInterface = true;
+        contours->callBack(c.type).rotateFuncPtr(c, line, adj, opp, rotated.c);
+        return rotated;
     }
-    OpCurve rotated;
     int count = pointCount();
     for (int n = 0; n < count; ++n) {
         OpVector v = pts[n] - line.pts[0];
@@ -472,21 +464,21 @@ OpCurve OpCurve::toVertical(const LinePts& line) const {
         rotated.pts[n].y = v.dy * opp + v.dx * adj;
     }
     rotated.weight = weight;
-    rotated.type = type;
+    rotated.c.type = c.type;
     return rotated;
 }
 
 int OpCurve::pointCount() const {
     if (newInterface)
-        return contours->callBack(type).ptCountFuncPtr();
-    return static_cast<int>(type) + (type < OpType::conic);
+        return contours->callBack(c.type).ptCountFuncPtr();
+    return static_cast<int>(c.type) + (c.type < OpType::conic);
 }
 
 // !!! promote types to use double as test cases requiring such are found
 OpPoint OpCurve::doublePtAtT(float t) const {
     if (newInterface)
-        return contours->callBack(type).doublePtAtTFuncPtr(curveData, t);
-    switch(type) {
+        return contours->callBack(c.type).doublePtAtTFuncPtr(c, t);
+    switch(c.type) {
         case OpType::line: return asLine().ptAtT(t);    
         case OpType::quad: return asQuad().ptAtT(t);
         case OpType::conic: return asConic().ptAtT(t);
@@ -499,8 +491,8 @@ OpPoint OpCurve::doublePtAtT(float t) const {
 
 OpPoint OpCurve::ptAtT(float t) const {
     if (newInterface)
-        return contours->callBack(type).ptAtTFuncPtr(curveData, t);
-    switch(type) {
+        return contours->callBack(c.type).ptAtTFuncPtr(c, t);
+    switch(c.type) {
         case OpType::line: return asLine().ptAtT(t);    
         case OpType::quad: return asQuad().ptAtT(t);
         case OpType::conic: return asConic().ptAtT(t);
@@ -512,12 +504,15 @@ OpPoint OpCurve::ptAtT(float t) const {
 }
 
 OpCurve OpCurve::subDivide(OpPtT ptT1, OpPtT ptT2) const {
-    if (newInterface)
-        return contours->callBack(type).subDivideFuncPtr(
-                (PathOpsV0Lib::Context*) contours, { curveData, size, type }, ptT1, ptT2);
+    if (newInterface) {
+        PathOpsV0Lib::Curve newCurve { c.data, c.size, c.type };
+        OpCurve newResult(contours, newCurve);
+        contours->callBack(c.type).subDivideFuncPtr(c, ptT1, ptT2, newResult.c);
+        return newResult;
+    }
     OpCurve result;
-    result.type = type;
-    switch (type) {
+    result.c.type = c.type;
+    switch (c.type) {
         case OpType::line: 
             result.pts[0] = ptT1.pt; 
             result.pts[1] = ptT2.pt;
@@ -538,8 +533,8 @@ OpCurve OpCurve::subDivide(OpPtT ptT1, OpPtT ptT2) const {
 // for accuracy, this should only be called with segment's curve, never edge curve
 OpVector OpCurve::normal(float t) const {
     if (newInterface)
-        return contours->callBack(type).curveNormalFuncPtr(curveData, t);
-    switch (type) {
+        return contours->callBack(c.type).curveNormalFuncPtr(c, t);
+    switch (c.type) {
         case OpType::line: return asLine().normal(t);
         case OpType::quad: return asQuad().normal(t);
         case OpType::conic: return asConic().normal(t);
@@ -552,8 +547,8 @@ OpVector OpCurve::normal(float t) const {
 
 OpVector OpCurve::tangent(float t) const {
     if (newInterface)
-        return contours->callBack(type).curveTangentFuncPtr(curveData, t);
-    switch (type) {
+        return contours->callBack(c.type).curveTangentFuncPtr(c, t);
+    switch (c.type) {
     case OpType::line: return asLine().tangent();
     case OpType::quad: return asQuad().tangent(t);
     case OpType::conic: return asConic().tangent(t);
@@ -566,8 +561,8 @@ OpVector OpCurve::tangent(float t) const {
 
 OpPair OpCurve::xyAtT(OpPair t, XyChoice xy) const {
     if (newInterface)
-        return contours->callBack(type).xyAtTFuncPtr(curveData, t, xy);
-    switch (type) {
+        return contours->callBack(c.type).xyAtTFuncPtr(c, t, xy);
+    switch (c.type) {
     case OpType::line: return asLine().xyAtT(t, xy);
     case OpType::quad: return asQuad().xyAtT(t, xy);
     case OpType::conic: return asConic().xyAtT(t, xy);
@@ -579,61 +574,59 @@ OpPair OpCurve::xyAtT(OpPair t, XyChoice xy) const {
 }
 
 OpPoint OpCurve::hullPt(int index) const {
-    OP_ASSERT(OpType::no == type || 0 <= index && index < pointCount());
+    OP_ASSERT(OpType::no == c.type || 0 <= index && index < pointCount());
     if (newInterface) {
         if (0 == index)
-            return curveData->start;
+            return c.data->start;
         if (pointCount() - 1 == index)
-            return curveData->end;
-        return contours->callBack(type).curveHullFuncPtr(curveData, index);
+            return c.data->end;
+        return contours->callBack(c.type).curveHullFuncPtr(c, index);
     }
     return pts[index];
 }
 
+#if OP_DEBUG_DUMP
 void OpCurve::dumpSetPts(const char*& str) {
     int pointCnt = OpDebugCountDelimiters(str, ',', '{', '}') + 1;
-    OP_ASSERT(OpType::no == type || pointCount() == pointCnt);
+    OP_ASSERT(OpType::no == c.type || pointCount() == pointCnt);
     if (newInterface) {
-        curveData = contours->allocateCurveData(size);
-        curveData->start.dumpSet(str);
-        int ctrlCount = pointCnt - 2;
-        std::vector<OpPoint> ctrlPts(ctrlCount);
-        for (int index = 0; index < ctrlCount; ++index)
-            ctrlPts[index].dumpSet(str);
-        contours->callBack(type).setControlsFuncPtr(curveData, ctrlPts);
-        curveData->end.dumpSet(str);
+        c.data = contours->allocateCurveData(c.size);
+        c.data->start.dumpSet(str);
+        contours->callBack(c.type).dumpSetFuncPtr(c, str);
+        c.data->end.dumpSet(str);
         return;
     }
     for (int index = 0; index < pointCnt; ++index) {
         pts[index].dumpSet(str);
     }
 }
+#endif
 
 void OpCurve::reverse() {
     if (newInterface) {
-        std::swap(curveData->start, curveData->end);
-        contours->callBack(type).curveReverseFuncPtr(curveData);
+        std::swap(c.data->start, c.data->end);
+        contours->callBack(c.type).curveReverseFuncPtr(c);
         return;
     }
     std::swap(pts[0], pts[pointCount() - 1]);
-    if (OpType::cubic == type)
+    if (OpType::cubic == c.type)
         std::swap(pts[1], pts[2]);
 }
 
 bool OpCurve::isLinear() const {
     if (newInterface) {
         OP_ASSERT(!isLine());
-        return contours->callBack(type).curveIsLinearFuncPtr(curveData);
+        return contours->callBack(c.type).curveIsLinearFuncPtr(c);
     }
-    OP_ASSERT(type >= OpType::quad);
+    OP_ASSERT(c.type >= OpType::quad);
     OpVector diffs[2];
     diffs[0] = pts[1] - pts[0];
-    diffs[1] = (OpType::cubic == type ? pts[3] : pts[2]) - pts[0];
+    diffs[1] = (OpType::cubic == c.type ? pts[3] : pts[2]) - pts[0];
     float cross = diffs[0].cross(diffs[1]);
     bool linear = fabsf(cross) <= OpEpsilon;
     if (!linear)
         return false;
-    if (OpType::cubic != type)
+    if (OpType::cubic != c.type)
         return true;
     diffs[0] = pts[2] - pts[0];
     cross = diffs[0].cross(diffs[1]);
@@ -646,3 +639,51 @@ bool OpCurve::isLinear() const {
 #endif
     return linear;
 }
+
+// new interface
+
+OpCurve::OpCurve(OpContours* cntrs, PathOpsV0Lib::Curve curve) {
+    contours = cntrs;
+    c.size = curve.size;
+    c.data = contours->allocateCurveData(c.size);
+    std::memcpy(c.data, curve.data, c.size);
+    c.type = curve.type;
+    newInterface = true;
+}
+
+OpRoots OpCurve::axisRawHit(Axis offset, float intercept, MatchEnds matchEnds) const {
+    OP_ASSERT(newInterface);
+    return contours->callBack(c.type).axisRawHitFuncPtr(c, offset, intercept, matchEnds);
+}
+
+bool OpCurve::isLine() const {
+    return !newInterface ? OpType::line == c.type 
+            : contours->callBack(c.type).curveIsLineFuncPtr(c);
+}
+
+OpPoint OpCurve::firstPt() const {
+    return newInterface ? c.data->start : pts[0]; 
+} 
+
+OpPoint OpCurve::lastPt() const {
+    return newInterface ? c.data->end : pts[pointCount() - 1]; 
+} 
+
+void OpCurve::setFirstPt(OpPoint pt) {
+    (newInterface ? c.data->start : pts[0]) = pt;
+}
+
+void OpCurve::setLastPt(OpPoint pt) {
+    (newInterface ? c.data->end : pts[pointCount() - 1]) = pt;
+}
+
+OpPointBounds OpCurve::ptBounds() const {
+    OpPointBounds result;
+    if (newInterface) {
+        contours->callBack(c.type).setBoundsFuncPtr(c, result);
+        result.set(c.data->start, c.data->end);
+    } else
+        result.set(pts, pointCount());
+    return result;
+}
+

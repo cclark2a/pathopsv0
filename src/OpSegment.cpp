@@ -27,11 +27,11 @@ void FoundEdge::reset() {
 
 OpSegment::OpSegment(const OpCurve& pts, OpType type, OpContour* contourPtr
         OP_DEBUG_PARAMS(SectReason startReason, SectReason endReason))
-    : c(pts.pts, pts.weight, type)
+    : contour(contourPtr)
+    , c(pts.pts, pts.weight, type)
     , winding(WindingUninitialized::dummy)
     , disabled(false)  {
-    complete(contourPtr);  // only for id, which could be debug code if id is not needed
-    OP_DEBUG_CODE(contour = nullptr);   // can't set up here because it may still move
+    complete();
     OP_DEBUG_CODE(debugStart = startReason);
     OP_DEBUG_CODE(debugEnd = endReason);
     OP_DEBUG_CODE(debugZero = ZeroReason::uninitialized);
@@ -39,11 +39,11 @@ OpSegment::OpSegment(const OpCurve& pts, OpType type, OpContour* contourPtr
 
 OpSegment::OpSegment(const LinePts& pts, OpContour* contourPtr
         OP_DEBUG_PARAMS(SectReason startReason, SectReason endReason))
-    : c(&pts.pts.front(), OpType::line)
+    : contour(contourPtr)
+    , c(&pts.pts.front(), OpType::line)
     , winding(WindingUninitialized::dummy)
     , disabled(false)  {
-    complete(contourPtr);  // only for id, which could be debug code if id is not needed
-    OP_DEBUG_CODE(contour = nullptr);   // can't set up here because it may still move
+    complete();
     OP_DEBUG_CODE(debugStart = startReason);
     OP_DEBUG_CODE(debugEnd = endReason);
     OP_DEBUG_CODE(debugZero = ZeroReason::uninitialized);
@@ -178,10 +178,10 @@ int OpSegment::coinID(bool flipped) const {
     return flipped ? -coinID : coinID;
 }
 
-void OpSegment::complete(OpContour* contourPtr) {
+void OpSegment::complete() {
     setBounds();
 // #if OP_DEBUG     // !!! used only by sort; probably unnecessary?
-    id = nextID(contourPtr);  // segment's contour pointer is not set up
+    id = nextID();  // segment's contour pointer is not set up
 // #endif
 }
 
@@ -338,12 +338,12 @@ bool OpSegment::nearby(float t, const OpSegment* opp, const OpPtT& base, float s
 }
 #endif
 
-int OpSegment::nextID(OpContour* contourPtr) const {
-    return contourPtr->nextID();
+int OpSegment::nextID() const {
+    return contour->nextID();
 }
 
 void OpSegment::setBounds() {
-    ptBounds.set(c);
+    ptBounds = c.ptBounds();
     closeBounds = ptBounds;
     closeBounds.outsetClose();
 }
@@ -466,4 +466,18 @@ bool OpSegment::debugSuccess() const {
     return true;
 }
 
+// new interface
+
+OpSegment::OpSegment(PathOpsV0Lib::AddCurve addCurve, PathOpsV0Lib::AddWinding addWinding)    
+    : contour((OpContour*) addWinding.contour)
+    , c((OpContours*) addCurve.context, 
+            { (PathOpsV0Lib::CurveData*) addCurve.points, addCurve.size, addCurve.type } )
+    , winding((OpContour*) addWinding.contour, 
+            { (PathOpsV0Lib::WindingData*) addWinding.windings, addWinding.size } )
+    , disabled(false)  {
+    complete();
+    OP_DEBUG_CODE(debugStart = SectReason::test);   // temp for new interface
+    OP_DEBUG_CODE(debugEnd = SectReason::test);     //  "
+    OP_DEBUG_CODE(debugZero = ZeroReason::uninitialized);
+}
 

@@ -6,8 +6,8 @@
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
 #define TEST_PATH_OP_FIRST "" // e.g., "thread_cubics2247347" (ignored by fast test)
-#define TEST_PATH_OP_SKIP_TO_V0 1 // if 1 & not fast test, ignore skip to file; run first "v0" test
-#define TEST_PATH_OP_SKIP_TO_FILE "quad" // e.g., "quad" tests only (see testSuites below)
+#define TEST_PATH_OP_SKIP_TO_V0 0 // if 1 & not fast test, ignore skip to file; run first "v0" test
+#define TEST_PATH_OP_SKIP_TO_FILE "conic" // e.g., "quad" tests only (see testSuites below)
 #define TESTS_TO_SKIP 0 // 7000000  // tests to skip
 
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
@@ -698,12 +698,21 @@ void dumpTest(const char* testname, const SkPath& path) {
     OpDebugOut("}\n\n");
 }
 
+#if OP_TEST_NEW_INTERFACE
+// !!! move these to an appropriate new header
+    void SetSkiaCurveCallBacks(PathOpsV0Lib::Context* );
+    PathOpsV0Lib::Contour* SetSkiaWindingSimplifyCallBacks(PathOpsV0Lib::Context* );
+    void AddSkiaPath(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* , const SkPath& path);
+#endif
+
 void threadableSimplifyTest(int id, const SkPath& path, std::string testname, 
             SkPath& out, bool v0MayFail, bool skiaMayFail) {
 #if OP_TEST_V0
+#if !OP_TEST_NEW_INTERFACE
 	OpInPath op1(&path);
     out.reset();
 	OpOutPath opOut(&out);
+#endif
     std::vector<OpDebugWarning> warnings;
     const char* tn = testname.c_str();
     if ("never!" == testname)
@@ -713,7 +722,21 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
     debugData.debugCurveCurve1 = CURVE_CURVE_1;
     debugData.debugCurveCurve2 = CURVE_CURVE_2;
     debugData.debugCurveCurveDepth = CURVE_CURVE_DEPTH;
+#if OP_TEST_NEW_INTERFACE
+    {
+        using namespace PathOpsV0Lib;
+        Context* context = CreateContext();
+        Debug(context, debugData);
+        SetSkiaCurveCallBacks(context);
+        Contour* contour = SetSkiaWindingSimplifyCallBacks(context);
+        AddSkiaPath(context, contour, path);
+        PathOutput pathOutput = &out;
+        Resolve(context, pathOutput);
+        DeleteContext(context);
+    }
+#else
     PathSimplify(op1, opOut  OP_DEBUG_PARAMS(debugData));
+#endif
     OP_ASSERT(v0MayFail || debugData.debugSuccess);
 #endif
 #if OP_TEST_SKIA
@@ -834,8 +857,10 @@ void PathOpsThreadedTestRunner::render() {
     fRunnables.append();
 }
 
+#if !OP_TEST_NEW_INTERFACE
 void emergencyDump(OpContours* c) {
     ((SkPath*) (c->leftIn->externalReference))->dump();
     ((SkPath*) (c->rightIn->externalReference))->dump();
     OpDebugOut(STR((int) c->opIn) + "\n");
 }
+#endif

@@ -171,12 +171,19 @@ void OpOutPath::ReleaseExternalReference(void* ref) {
 
 #endif
 
+#if !OP_TEST_NEW_INTERFACE
 static SkPoint toSkPoint(OpPoint pt) {
     return SkPoint::Make(pt.x, pt.y);
 }
+#endif
 
 // return false to abort output
 bool OpCurve::output(OpOutPath& path, bool firstPt, bool lastPt) {
+#if OP_TEST_NEW_INTERFACE
+    OP_ASSERT(newInterface);
+    contours->callBack(c.type).curveOutputFuncPtr(c, firstPt, lastPt, 
+            contours->callerOutput);
+#else
     SkPath* skpath = skPath(path.externalReference);
     if (firstPt)
         skpath->moveTo(toSkPoint(pts[0]));
@@ -199,10 +206,12 @@ bool OpCurve::output(OpOutPath& path, bool firstPt, bool lastPt) {
     }
     if (lastPt)
         skpath->close();
+#endif
     return true;
 }
 
 bool OpContours::build(OpInPath& path, OpOperand operand) {
+#if !OP_TEST_NEW_INTERFACE
     const SkPath& skpath = *skPath(path.externalReference);
     setFillType(operand, SkPathFillType::kEvenOdd == skpath.getFillType()
             || SkPathFillType::kInverseEvenOdd == skpath.getFillType() 
@@ -239,5 +248,6 @@ bool OpContours::build(OpInPath& path, OpOperand operand) {
         }
     } while (verb != SkPath::kDone_Verb);
     head->addClose();
+#endif
     return true;
 }

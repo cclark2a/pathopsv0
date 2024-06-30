@@ -241,8 +241,7 @@ void OpEdge::apply() {
 #if OP_TEST_NEW_INTERFACE
 	// !!! incomplete
 	OpContour* contour = segment->contour;
-	WindKeep keep = contour->callBacks.windingKeepFuncPtr((PathOpsV0Lib::Contour*) contour, 
-			winding.w,  sum.w);
+	WindKeep keep = contour->callBacks.windingKeepFuncPtr(winding.w, sum.w);
 	if (WindKeep::Discard == keep)
 		setDisabled(OP_DEBUG_CODE(ZeroReason::applyOp));
 	else
@@ -354,11 +353,7 @@ void OpEdge::clearPriorEdge() {
 void OpEdge::complete() {
 	subDivide();	// uses already computed points stored in edge
 #if OP_TEST_NEW_INTERFACE
-	winding.contour = segment->contour;
-	size_t len = segment->winding.w.size;
-	winding.w.data = winding.contour->contours->allocateWinding(len);
-	memcpy(winding.w.data, segment->winding.w.data, len);
-	winding.w.size = len;
+	winding.setWind(segment->winding);
 #else
 	winding.setWind(segment->winding.left(), segment->winding.right());
 #endif
@@ -684,7 +679,7 @@ void OpEdge::output(OpOutPath& path, bool closed) {
 }
 
 OpType OpEdge::type() {
-	return isLinear() ? OpType::line : segment->c.type; 
+	return isLinear() ? OpType::line : segment->c.c.type; 
 }
 
 // in function to make setting breakpoints easier
@@ -908,15 +903,8 @@ void OpEdge::skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) {
 }
 
 bool OpEdge::ctrlPtNearlyEnd() {
-	if (curve.newInterface) {  // !!! call is linear instead?
-		std::vector<OpPoint*> ctrls = contours()->callBack(curve.type).curveControlsFuncPtr(
-				curve.curveData);
-		for (OpPoint* ptPtr : ctrls) {
-			if (!ptPtr->isNearly(start.pt) && !ptPtr->isNearly(end.pt))
-				return false;
-		}
-		return true;
-	}
+	if (curve.newInterface) // !!! call is linear instead?
+		return contours()->callBack(curve.c.type).controlNearlyEndFuncPtr(curve.c);
 	for (int index = 1; index < segment->c.pointCount() - 1; ++index) {
 		if (!curve.pts[index].isNearly(start.pt) && !curve.pts[index].isNearly(end.pt))
 			return false;
@@ -958,13 +946,13 @@ CalcFail OpEdge::subIfDL(Axis axis, float edgeInsideT, OpWinding* sumWinding) {
 }
 
 #if OP_TEST_NEW_INTERFACE
-void OpEdge::setSum(const PathOpsV0Lib::Winding& w  OP_DEBUG_PARAMS(char* file, int line)) {
+void OpEdge::setSum(const PathOpsV0Lib::Winding& w  OP_LINE_FILE_DEF(int dummy)) {
 	OP_ASSERT(!sum.contour);
 	sum.contour = segment->contour;
 	sum.w.data = contours()->allocateWinding(w.size);
 	memcpy(sum.w.data, w.data, w.size);
 	sum.w.size = w.size;
-	debugSetSum = { file, line };
+	debugSetSum = { fileName, lineNo };
 }
 
 #endif
@@ -1006,32 +994,3 @@ bool OpEdgeStorage::contains(OpIntersection* start, OpIntersection* end) const {
 		return false;
 	return next->contains(start, end);
 }
-
-#if OP_TEST_NEW_INTERFACE
-void OpWinding::move(const OpWinding& opp, bool backwards) {
-	contour->callBacks.windingMoveFuncPtr( opp.w, backwards, w);
-}
-#else
-void OpWinding::move(OpWinding opp, const OpContours* contours, bool backwards) {
-	OP_ASSERT(WindingType::winding == debugType);
-	OP_ASSERT(WindingType::winding == opp.debugType);
-	if (OpFillType::winding == contours->left)
-		left_impl += backwards ? -opp.left() : opp.left();
-	else
-		left_impl ^= opp.left();
-	if (OpFillType::winding == contours->right)
-		right_impl += backwards ? -opp.right() : opp.right();
-	else
-		right_impl ^= opp.right();
-}
-#endif
-
-#if !OP_TEST_NEW_INTERFACE
-void OpWinding::setSum(OpWinding winding, const OpContours* contours) {
-	OP_ASSERT(WindingType::uninitialized == debugType);
-	OP_ASSERT(WindingType::temp == winding.debugType);
-	OP_DEBUG_CODE(debugType = WindingType::sum);
-	left_impl = winding.left() & contours->leftFillTypeMask();
-	right_impl = winding.right() & contours->rightFillTypeMask();
-}
-#endif

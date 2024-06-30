@@ -439,10 +439,9 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
             OP_ASSERT(edge->start.pt.isNearly( 
                     oppEdge->ptT(coinPair.id > 0 ? EdgeMatch::start : EdgeMatch::end).pt));
 #if OP_TEST_NEW_INTERFACE
-            bool windingNonZero = edge->segment->contour->callBacks.windingMoveFuncPtr(
-                    oppEdge->winding.w, coinPair.id < 0, edge->winding.w);
+            edge->winding.move(oppEdge->winding, coinPair.id < 0);
             PathOpsV0Lib::Winding combinedWinding = edge->winding.copyData();
-            if (!windingNonZero)
+            if (edge->winding.contour->callBacks.windingVisibleFuncPtr(combinedWinding))
                 edge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence1));
 #else
             edge->winding.move(oppEdge->winding, contours, coinPair.id < 0);
@@ -475,7 +474,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
                     ++edge;
 #if OP_TEST_NEW_INTERFACE
                     OP_ASSERT(!edge->winding.compare(edgeWinding));
-                    if (windingNonZero) {
+                    if (edge->winding.contour->callBacks.windingVisibleFuncPtr(combinedWinding)) {
                         edge->winding.w = combinedWinding;
                         if (edge->disabled)
                             edge->reenable();

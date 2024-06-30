@@ -135,7 +135,7 @@ OpRoots OpCubic::rawIntersect(const LinePts& line, MatchEnds common) const {
 
 OpCurve OpCubic::subDivide(OpPtT ptT1, OpPtT ptT2) const {
     OpCurve result;
-    result.type = OpType::cubic;
+    result.c.type = OpType::cubic;
     result.pts[0] = ptT1.pt;
     result.pts[3] = ptT2.pt;
     result.weight = 1;

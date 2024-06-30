@@ -65,10 +65,10 @@ OP_X(OpRect) \
 OP_X(OpRootPts) \
 OP_X(OpRoots) \
 OP_X(OpSegments) \
-OP_X(OpTightBounds) \
 OP_X(OpTree) \
 OP_X(OpVector) \
 OP_X(OpWinder) \
+OP_X(OpWinding) \
 OP_X(SectRay)
 
 #define OP_X(Thing) \
@@ -219,6 +219,7 @@ extern void dmpSects();
 extern void dmpSegments();
 extern void dmpUnsectable();
 extern void dmpUnsortable();
+extern void dmpWindings();
 
 namespace PathOpsV0Lib {
 struct CallBacks;

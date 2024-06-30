@@ -176,6 +176,18 @@ std::string OpDebugDump(float f) {
 #endif
 
 #if OP_DEBUG_DUMP || OP_DEBUG_IMAGE
+std::string OpDebugByteToHex(uint8_t hex) {
+    std::string s = "0x";
+    for (int index = 4; index >= 0; index -= 4) {
+        int nybble = (hex >> index) & 0xF;
+        if (nybble <= 9)
+            s += '0' + nybble;
+        else 
+            s += 'a' + nybble - 10;
+    }
+    return s;
+}
+
 std::string OpDebugIntToHex(int32_t hex) {
     std::string s = "0x";
     for (int index = 28; index >= 0; index -= 4) {
@@ -275,6 +287,8 @@ float OpDebugHexToFloat(const char*& str) {
 
 int32_t OpDebugHexToInt(const char*& str) {
     int32_t result = 0;
+    if ('[' == str[0])
+        ++str;
     OpDebugRequired(str, "0x");
     for (int index = 0; index < 8; ++index) {
         char c = *str++;
@@ -284,6 +298,27 @@ int32_t OpDebugHexToInt(const char*& str) {
         result = (result << 4) | nybble;
     }
     if (' ' >= str[0])
+        ++str;
+    if (']' == str[0])
+        ++str;
+    return result;
+}
+
+uint8_t OpDebugByteToInt(const char*& str) {
+    uint8_t result = 0;
+    if ('[' == str[0])
+        ++str;
+    OpDebugRequired(str, "0x");
+    for (int index = 0; index < 2; ++index) {
+        char c = *str++;
+        int nybble = c - '0';
+        if (nybble > 9)
+            nybble = c - 'a' + 10;
+        result = (result << 4) | nybble;
+    }
+    if (' ' >= str[0])
+        ++str;
+    if (']' == str[0])
         ++str;
     return result;
 }
@@ -695,7 +730,8 @@ std::string debugContext;
 
 #if OP_DEBUG_IMAGE
 void debugImage() {
-    if ("linkRemaining" == debugContext || "linkUnambiguous" == debugContext) {
+    if ("linkRemaining" == debugContext || "linkUnambiguous" == debugContext 
+            || "apply" == debugContext) {
         ::hideOperands();
         ::showEdges();
         ::showIDs();

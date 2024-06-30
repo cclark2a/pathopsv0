@@ -3,6 +3,7 @@
 #define OpCurve_DEFINED
 
 #include "PathOpsTypes.h"
+#include "OpTypes.h"
 
 #define RAW_INTERSECT_LIMIT 0.00005f  // errors this large or larger mean the crossing was not found
 
@@ -10,16 +11,6 @@ struct OpLine;
 struct OpQuad;
 struct OpConic;
 struct OpCubic;
-
-// int value is (mostly) point count - 1 (conic is exception)
-  // !!! eventually replace this with user extensible types
-enum class OpType {
-    no,
-    line,
-    quad,
-    conic,
-    cubic
-};
 
 // arranged so down/left is -1, up/right is +1
 enum class NormalDirection {
@@ -32,41 +23,6 @@ inline NormalDirection operator!(NormalDirection a) {
     return (int) a & 1 ? (NormalDirection) - (int) a : a;
 }
 
-struct LinePts {
-    bool isPoint() const;
-#if OP_DEBUG_DUMP
-    DUMP_DECLARATIONS
-#endif
-
-    std::array<OpPoint, 2> pts;
-};
-
-// used to pass pairs of values where SIMD allows computing two at once
-struct OpPair {
-    friend OpPair operator+(OpPair a, OpPair b) {
-        return { a.s + b.s, a.l + b.l };
-    }
-
-    friend OpPair operator-(float a, OpPair b) {
-        return { a - b.s, a - b.l };
-    }
-
-    friend OpPair operator*(OpPair a, OpPair b) {
-        return { a.s * b.s, a.l * b.l };
-    }
-
-    friend OpPair operator*(float a, OpPair b) {
-        return { a * b.s, a * b.l };
-    }
-
-    friend OpPair operator*(OpPair a, float b) {
-        return { a.s * b, a.l * b };
-    }
-
-    float s;  // smaller
-    float l;  // larger
-};
-
 struct CutRangeT {
 	OpPtT lo;
 	OpPtT hi;
@@ -74,51 +30,41 @@ struct CutRangeT {
 
 struct OpCurve {
     OpCurve() 
-        : curveData(nullptr)
-        , size(0)
+        : c{nullptr, 0, OpType::no}
         , contours(nullptr)
         , weight(1)
-        , type(OpType::no)
         , newInterface(false) {
     }
 
     OpCurve(const OpPoint p[], OpType t) 
-        : curveData(nullptr)
-        , size(0)
+        : c{nullptr, 0, t}
         , contours(nullptr)
         , weight(1)
-        , type(t)
         , newInterface(false) {
         memcpy(pts, p, pointCount() * sizeof(OpPoint));
     }
 
     OpCurve(const OpPoint p[], float w, OpType t)
-        : curveData(nullptr)
-        , size(0)
+        : c{nullptr, 0, t}
         , contours(nullptr)
         , weight(w)
-        , type(t)
         , newInterface(false) {
         memcpy(pts, p, pointCount() * sizeof(OpPoint));
     }
 
     OpCurve(OpPoint p0, OpPoint p1)
-        : curveData(nullptr)
-        , size(0)
+        : c{nullptr, 0, OpType::line}
         , contours(nullptr)
         , weight(1)
-        , type(OpType::line)
         , newInterface(false) {
         pts[0] = p0;
         pts[1] = p1;
     }
 
     OpCurve(const OpPoint p[], float w)
-        : curveData(nullptr)
-        , size(0)
+        : c{nullptr, 0, OpType::conic}
         , contours(nullptr)
         , weight(w)
-        , type(OpType::conic)
         , newInterface(false) {
         memcpy(pts, p, pointCount() * sizeof(OpPoint));
     }
@@ -167,6 +113,7 @@ struct OpCurve {
     OpPoint ptAtT(float t) const;
     OpPtT ptTAtT(float t) const {
         return { ptAtT(t), t }; }
+    OpPointBounds ptBounds() const;
     int pointCount() const;
     OpRoots rawIntersect(const LinePts& line, MatchEnds ) const;  // requires sect to be on curve
     OpRoots rayIntersect(const LinePts& line, MatchEnds ) const;
@@ -187,19 +134,17 @@ struct OpCurve {
     DUMP_DECLARATIONS
 #endif
     // create storage in contour; helper function casts it to CurveData
-    PathOpsV0Lib::CurveData* curveData;
-    size_t size;
+    PathOpsV0Lib::Curve c;
     OpContours* contours;  // required by new interface for caller function pointer access
     OpPoint pts[5];  // extra point carries cubic center for vertical rotation (used by curve sect)
     float weight;   // !!! new interface doesn't have this (only required for double debugging though)
-    OpType type;
 //    bool centerPt;  // true if center point follows curve
     bool newInterface;
 };
 
 struct OpLine : OpCurve {
     OpLine() {
-        type = OpType::line;
+        c.type = OpType::line;
     }
 
     OpLine(const OpPoint p[])
@@ -210,8 +155,8 @@ struct OpLine : OpCurve {
         : OpCurve(p0, p1) {
     }
 
-    OpLine(const OpCurve& c)
-        : OpCurve(c.pts[0], c.pts[c.pointCount() - 1]) {
+    OpLine(const OpCurve& curve)
+        : OpCurve(curve.pts[0], curve.pts[curve.pointCount() - 1]) {
     }
 
     OpRoots axisRawHit(Axis offset, float axisIntercept) const;
@@ -226,15 +171,9 @@ struct OpLine : OpCurve {
     OpPair xyAtT(OpPair t, XyChoice ) const;
 };
 
-struct OpQuadCoefficients {
-    float a;
-    float b;
-    float c;
-};
-
 struct OpQuad : OpCurve {
     OpQuad() {
-        type = OpType::quad;
+        c.type = OpType::quad;
     }
 
     OpQuad(const OpPoint p[])
@@ -257,7 +196,7 @@ struct OpQuad : OpCurve {
 
 struct OpConic : OpCurve {
     OpConic() {
-        type = OpType::conic;
+        c.type = OpType::conic;
     }
 
     OpConic(const OpPoint p[], float w)
@@ -283,16 +222,9 @@ struct OpConic : OpCurve {
     OpPair xyAtT(OpPair t, XyChoice ) const;
 };
 
-struct OpCubicCoefficients {
-    OpCubicFloatType a;
-    OpCubicFloatType b;
-    OpCubicFloatType c;
-    OpCubicFloatType d;
-};
-
 struct OpCubic : OpCurve {
     OpCubic() {
-        type = OpType::cubic;
+        c.type = OpType::cubic;
     }
 
     OpCubic(const OpPoint p[])

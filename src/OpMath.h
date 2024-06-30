@@ -29,6 +29,13 @@ constexpr auto OpCloseFactor = 8.f;  // !!! picked out of the air
 template <typename T, size_t N> char (&ArrayCountHelper(T (&array)[N]))[N];
 #define ARRAY_COUNT(array) (sizeof(ArrayCountHelper(array)))
 
+enum class WindState {
+    zero,	    // edge is outside filled area on both sides
+    flipOff,	// edge moves from in to out
+    flipOn,	    // edge moves from out to in
+    one		    // edge is inside filled area on both sides
+};
+
 typedef double OpCubicFloatType;
 
 enum class MatchEnds {
@@ -664,6 +671,32 @@ struct OpRootPts {
     size_t count;  // number of entries in pt-t
 };
 
+// used to pass pairs of values where SIMD allows computing two at once
+struct OpPair {
+    friend OpPair operator+(OpPair a, OpPair b) {
+        return { a.s + b.s, a.l + b.l };
+    }
+
+    friend OpPair operator-(float a, OpPair b) {
+        return { a - b.s, a - b.l };
+    }
+
+    friend OpPair operator*(OpPair a, OpPair b) {
+        return { a.s * b.s, a.l * b.l };
+    }
+
+    friend OpPair operator*(float a, OpPair b) {
+        return { a * b.s, a * b.l };
+    }
+
+    friend OpPair operator*(OpPair a, float b) {
+        return { a.s * b, a.l * b };
+    }
+
+    float s;  // smaller
+    float l;  // larger
+};
+
 struct OpMath {
     // implementing this with (a + b) / 2 can fail in edge cases where result is <a or >b
     static float Average(float a, float b) {
@@ -791,6 +824,28 @@ struct OpMath {
         DebugCompare(a.y, b.y);
     }
 #endif
+};
+
+struct OpQuadCoefficients {
+    float a;
+    float b;
+    float c;
+};
+
+struct OpCubicCoefficients {
+    OpCubicFloatType a;
+    OpCubicFloatType b;
+    OpCubicFloatType c;
+    OpCubicFloatType d;
+};
+
+struct LinePts {
+    bool isPoint() const;
+#if OP_DEBUG_DUMP
+    DUMP_DECLARATIONS
+#endif
+
+    std::array<OpPoint, 2> pts;
 };
 
 #endif

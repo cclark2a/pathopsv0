@@ -144,7 +144,7 @@ struct OpPointBounds : OpRect {
         pt->y = OpMath::PinSorted(top, pt->y, bottom);
     }
 
-    void set(const OpCurve& c);
+    // void set(const OpCurve& c);
 
     OpPoint set(OpPoint pt) {
         left = right = pt.x;
@@ -193,6 +193,7 @@ struct OpPointBounds : OpRect {
 
 };
 
+#if !OP_TEST_NEW_INTERFACE
 struct OpTightBounds : OpPointBounds {
     OpTightBounds() {
 #if OP_DEBUG
@@ -200,9 +201,9 @@ struct OpTightBounds : OpPointBounds {
         debugYExtremaFailed = false;
 #endif
     }
-    OpTightBounds(OpCurve& curve) {
-        set(curve);
-    }
+    //OpTightBounds(OpCurve& curve) {
+    //    set(curve);
+    //}
 
     bool calcBounds(const OpQuad& quad) {
         OpPointBounds::set(quad.pts[0], quad.pts[2]);
@@ -358,5 +359,6 @@ struct OpTightBounds : OpPointBounds {
     bool debugYExtremaFailed;
 #endif
 };
+#endif
 
 #endif

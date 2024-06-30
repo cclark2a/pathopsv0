@@ -292,8 +292,8 @@ struct OpDebugDefeatDelete {
 void OpDebugImage::addToPath(const OpCurve& curve, SkPath& path) {
 	path.moveTo(curve.firstPt().x, curve.firstPt().y);
 	if (curve.newInterface)
-		return curve.contours->callBack(curve.type).debugAddToPathFuncPtr(curve.curveData, path);
-	switch (curve.type) {
+		return curve.contours->callBack(curve.c.type).debugAddToPathFuncPtr(curve.c, path);
+	switch (curve.c.type) {
 		case OpType::no:
 			OP_ASSERT(0);
 			break;
@@ -315,18 +315,28 @@ void OpDebugImage::addToPath(const OpCurve& curve, SkPath& path) {
 	}
 }
 
+#if !OP_TEST_NEW_INTERFACE
 static SkPath* skPath(const OpInPath& opPath) {
 	return (SkPath*) opPath.externalReference;
 }
+#endif
 
 void OpDebugImage::init() {
 	bitmap.allocPixels(SkImageInfo::MakeN32Premul(bitmapWH, bitmapWH));
 	::clear();
+#if !OP_TEST_NEW_INTERFACE
+	if (!debugGlobalContours->leftIn)
+		return;
+#endif
 	drawLeftOn = true;
 	drawRightOn = true;
+#if OP_TEST_NEW_INTERFACE
+	focusSegments();
+#else
 	SkRect opBounds = skPath(*debugGlobalContours->leftIn)->getBounds();
 	opBounds.join(skPath(*debugGlobalContours->rightIn)->getBounds());
 	DebugOpSetBounds(opBounds.fLeft, opBounds.fTop, opBounds.fRight, opBounds.fBottom);
+#endif
 }
 
 // !!! missing pathsOutColor
@@ -427,6 +437,7 @@ void OpDebugImage::drawPath(const SkPath& path, uint32_t color) {
 	offscreen.drawPath(path, paint);
 }
 
+#if !OP_TEST_NEW_INTERFACE
 static SkPath* sk0() {
 	return (SkPath*) debugGlobalContours->leftIn->externalReference;
 }
@@ -434,6 +445,7 @@ static SkPath* sk0() {
 static SkPath* sk1() {
 	return (SkPath*) debugGlobalContours->rightIn->externalReference;
 }
+#endif
 
 void OpDebugImage::drawDoubleFocus() {
 #if OP_DEBUG_VERBOSE
@@ -448,10 +460,12 @@ void OpDebugImage::drawDoubleFocus() {
 		matrix.setScale(scale, scale);
 		matrix.preTranslate(-DebugOpGetCenterX(), -DebugOpGetCenterY());
 		matrix.postTranslate(DebugOpGetOffsetX(), DebugOpGetOffsetY());
+#if !OP_TEST_NEW_INTERFACE
 		if (drawLeftOn) 
 			drawDoubleFill(sk0()->makeTransform(matrix), OpDebugAlphaColor(10, red));
 		if (drawRightOn)
 			drawDoubleFill(sk1()->makeTransform(matrix), OpDebugAlphaColor(10, blue));
+#endif
 	}
     if (drawResultOn) {
 		SkMatrix matrix;
@@ -459,22 +473,26 @@ void OpDebugImage::drawDoubleFocus() {
 		matrix.setScale(scale, scale);
 		matrix.preTranslate(-DebugOpGetCenterX(), -DebugOpGetCenterY());
 		matrix.postTranslate(DebugOpGetOffsetX(), DebugOpGetOffsetY());
+#if !OP_TEST_NEW_INTERFACE
 		drawDoubleFill(sk0()->makeTransform(matrix), OpDebugAlphaColor(20, red));
 		drawDoubleFill(sk1()->makeTransform(matrix), OpDebugAlphaColor(20, blue));
         OpOutPath* result = debugGlobalContours->debugResult;
         if (result)
 		    drawDoubleFill(((SkPath*) result->externalReference)
                 ->makeTransform(matrix), OpDebugAlphaColor(20, green));
+#endif
     }
 	if (drawLeftOn || drawRightOn)
 		DebugOpClearInputs();
+#if !OP_TEST_NEW_INTERFACE
 	if (drawLeftOn)
 		DebugOpAdd(*debugGlobalContours->leftIn);
 	if (drawRightOn)
 		DebugOpAdd(*debugGlobalContours->rightIn);
 	if (drawLeftOn || drawRightOn)
 		DebugOpDrawInputs();
-#if OP_DEBUG
+#endif
+#if !OP_TEST_NEW_INTERFACE && OP_DEBUG
 	if (drawPathsOutOn && debugGlobalContours->debugResult)
 		DebugOpDraw(debugGlobalContours->debugResult, pathsOutColor);
 #endif
@@ -867,6 +885,11 @@ void addFocus(OpContours& contours) {
 	addFocus(bounds);
 }
 
+// !!! remove all const everywhere
+void addFocus(const OpContours& contours) {
+	addFocus(*const_cast<OpContours*>(&contours));
+}
+
 void addFocus(const OpEdge& edge) {
 	addFocus(edge.ptBounds);
 }
@@ -950,6 +973,10 @@ void ctr(OpContours& contours) {
 	ctr(bounds);
 }
 
+void ctr(const OpContours& contours) {
+	ctr(*const_cast<OpContours*>(&contours));
+}
+
 void ctr(const OpEdge& edge) {
 	ctr(edge.ptBounds);
 }
@@ -1024,6 +1051,11 @@ void focus(OpContours& contours) {
 		for (auto& segment : contour->segments)
 			bounds.add(segment.ptBounds);
 	focus(bounds);
+}
+
+// !!! remove all const everywhere
+void focus(const OpContours& contours) {
+	focus(*const_cast<OpContours*>(&contours));
 }
 
 void focus(const OpEdge& edge) {
@@ -1186,6 +1218,7 @@ bool OpDebugImage::drawValue(OpPoint pt, std::string ptStr, uint32_t color) {
 
 void OpDebugImage::drawPoints() {
 	DebugOpClearPoints();
+#if !OP_TEST_NEW_INTERFACE
 	auto drawPathPt = [](const SkPath* path) { // lambda
 		SkPath::RawIter iter(*path);
 		SkPath::Verb verb;
@@ -1224,6 +1257,7 @@ void OpDebugImage::drawPoints() {
 		drawPathPt(sk0());
 	if (drawRightOn)
 		drawPathPt(sk1());
+#endif
 	if (drawSegmentsOn) {
 		for (auto seg : segmentIterator) {
 			DebugOpBuild(seg->c.firstPt());
@@ -1269,10 +1303,12 @@ void OpDebugImage::drawPoints() {
 	}
 	if (drawLinesOn) {
 		for (const auto& line : lines) {
+#if !OP_TEST_NEW_INTERFACE
 			if (drawLeftOn)
 				DebugOpBuild(*sk0(), line);
 			if (drawRightOn)
 				DebugOpBuild(*sk1(), line);
+#endif
 			if (drawSegmentsOn) {
 				for (auto seg : segmentIterator) {
 					DebugOpBuild(*seg, line);
@@ -1826,26 +1862,41 @@ bool OpDebugImage::drawWinding(const OpCurve& curve, std::string left, std::stri
 // fails may not have overflowed; they may have not found a place to draw the winding
 bool OpDebugImage::drawEdgeWinding(const OpCurve& curve, const OpEdge* edge, uint32_t color) {
 	bool success = true;
-#if OP_TEST_NEW_INTERFACE
-	OP_ASSERT(0);  // incomplete
-#else
 	OpWinding sum = edge->sum;
+#if OP_TEST_NEW_INTERFACE
+	std::string sumLeft = sum.contour ? sum.contour->callBacks.windingImageOutFuncPtr(sum.w, 0) : "?";
+	std::string sumRight = sum.contour ? sum.contour->callBacks.windingImageOutFuncPtr(sum.w, 1) : "?";
+#else
 	std::string sumLeft = OpMax == sum.left() ? "?" : STR(sum.left());
 	std::string sumRight = OpMax == sum.right() ? "?" : STR(sum.right());
+#endif
 	if (!drawWinding(curve, sumLeft, sumRight, 1, color)) {
 //		OpDebugOut("normalize overflowed: edge " + STR(edge->id) + "\n");
 		success = false;
 	}
+#if OP_TEST_NEW_INTERFACE
+	auto sumString = [edge](OpWinding wind, OpWinding sum, int index) {
+		if (!sum.contour && !wind.contour)
+			return std::string("?");
+		if (!sum.contour)
+			return wind.contour->callBacks.windingImageOutFuncPtr(wind.w, index);
+		OpWinding diffWind(edge->sum.contour, edge->sum.w);
+		diffWind.w = wind.contour->callBacks.windingSubtractFuncPtr(diffWind.w, wind.w);
+		return wind.contour->callBacks.windingImageOutFuncPtr(diffWind.w, index);
+	};
+	std::string oppLeft = sumString(edge->winding, sum, 0);
+	std::string oppRight = sumString(edge->winding, sum, 1);
+#else
 	auto sumString = [](int w, int s) {
 		return OpMax == s ? OpMax == w ? "?" : STR(w) : STR(s - w);
 	};
 	std::string oppLeft = sumString(edge->winding.left(), sum.left());
 	std::string oppRight = sumString(edge->winding.right(), sum.right());
+#endif
 	if (!drawWinding(curve, oppLeft, oppRight, -1, color)) {
 //		OpDebugOut("normalize overflowed: edge " + STR(edge->id) + "\n");
 		success = false;
 	}
-#endif
 	return success;
 }
 
@@ -2109,6 +2160,7 @@ void resetFocus() {
 		}
 		edgeIterDvLevel = saveLevel;
 	}
+#if !OP_TEST_NEW_INTERFACE
 	if (!focusRect.isFinite()) {
 		for (unsigned index = 0; index < 2; ++index) {
 			OpInPath* inPath = index ? debugGlobalContours->rightIn : debugGlobalContours->leftIn;
@@ -2119,6 +2171,7 @@ void resetFocus() {
 			focusRect.bottom = std::max(skrect.fBottom, focusRect.bottom);
 		}
 	}
+#endif
 	if (focusRect.isFinite()) {
 		OpDebugImage::drawDoubleFocus(focusRect, false);
 		oo();

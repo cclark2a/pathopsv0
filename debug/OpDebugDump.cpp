@@ -512,11 +512,13 @@ OpOutPath::~OpOutPath() {
 // everything here is leaked (for now; should only be called once per app execution)
 OpContours* dumpInit() {
     OpContours* result = new OpContours();
+#if !OP_TEST_NEW_INTERFACE
     result->debugLeft = nullptr;
     result->debugRight = nullptr;
 #if OP_DEBUG
     result->debugResult = new OpOutPath(OpOutPath::MakeExternalReference());
     result->debugResult->debugDumpReference = true;
+#endif
     result->debugDumpInit = true;
 #endif
     return result;
@@ -674,6 +676,19 @@ void dmpUnsortable() {
     }
 }
 
+void dmpWindings() {
+    std::string s;
+    for (const auto& c : debugGlobalContours->contours) {
+        for (const auto& seg : c->segments) {
+            for (const auto& edge : seg.edges) {
+                s += "edge[" + STR(edge.id) + "] ";
+                s += edge.debugDumpWinding() + "\n";
+            }
+        }
+    }
+    OpDebugOut(s);
+}
+
 // write state of edges and intersections to detect where data changes from one run to the next
 // edge:
 // start pt/t
@@ -761,9 +776,13 @@ ENUM_NAME(OpDebugExpect, debugExpect)
 
 std::string OpContours::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    s += "leftIn:" + leftIn->debugDump(l, b) + "\n";
-    s += "rightIn:" + rightIn->debugDump(l, b) + "\n";
+#if !OP_TEST_NEW_INTERFACE
+    if (leftIn)
+        s += "leftIn:" + leftIn->debugDump(l, b) + "\n";
+    if (rightIn)
+        s += "rightIn:" + rightIn->debugDump(l, b) + "\n";
     s += "opIn:" + opOperatorName(opIn) + " ";
+#endif
     if (newInterface)
         s += "newInterface ";  // must be prior to contour initialization
     if (contourStorage)
@@ -776,7 +795,9 @@ std::string OpContours::debugDump(DebugLevel l, DebugBase b) const {
         s += sectStorage->debugDump(l, b) + "\n";
     if (limbStorage)
         s += limbStorage->debugDump(l, b) + "\n";
+#if !OP_TEST_NEW_INTERFACE
     s += "opOperator:" + opOperatorName(opOperator) + " ";
+#endif
     s += "uniqueID:" + STR(uniqueID) + " ";
 #if OP_DEBUG_VALIDATE
     s += "debugValidateEdgeIndex:" + STR(debugValidateEdgeIndex) + " ";
@@ -789,8 +810,10 @@ std::string OpContours::debugDump(DebugLevel l, DebugBase b) const {
         s += "debugCurveCurve:" + debugCurveCurve->debugDump(l, b) + "\n";
     if (debugJoiner)
         s += "debugJoiner:" + debugJoiner->debugDump(l, b) + "\n";
+#if !OP_TEST_NEW_INTERFACE
     if (debugResult)
         s += "debugResult:" + debugResult->debugDump(l, b) + "\n";
+#endif
     if (debugWarnings.size()) {
         s += "debugWarnings:" + STR(debugWarnings.size()) + " [";
         for (auto& warning : debugWarnings)
@@ -809,11 +832,13 @@ std::string OpContours::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 void OpContours::dumpSet(const char*& str) {
-    OpDebugRequired(str, "leftIn");
-    leftIn->dumpSet(str);
-    OpDebugRequired(str, "rightIn");
-    rightIn->dumpSet(str);
+#if !OP_TEST_NEW_INTERFACE
+    if (OpDebugOptional(str, "leftIn"))
+        leftIn->dumpSet(str);
+    if (OpDebugOptional(str, "rightIn"))
+        rightIn->dumpSet(str);
     opIn = opOperatorStr(str, "opIn", OpOperator::Intersect);
+#endif
     newInterface = OpDebugOptional(str, "newInterface");  // must be prior to contour initialization
     if (OpDebugOptional(str, "contourStorage"))
         OpContourStorage::DumpSet(str, this);
@@ -825,7 +850,9 @@ void OpContours::dumpSet(const char*& str) {
         OpSectStorage::DumpSet(str, this);
     if (OpDebugOptional(str, "limbStorage"))
         OpLimbStorage::DumpSet(str, this);
+#if !OP_TEST_NEW_INTERFACE
     opOperator = opOperatorStr(str, "opOperator", OpOperator::Intersect);
+#endif
     OpDebugRequired(str, "uniqueID");
     uniqueID = (int) OpDebugReadSizeT(str);
 #if OP_DEBUG_VALIDATE
@@ -841,12 +868,17 @@ void OpContours::dumpSet(const char*& str) {
         debugCurveCurve->dumpSet(str);
     }
     if (OpDebugOptional(str, "debugJoiner")) {
+#if OP_TEST_NEW_INTERFACE
+        OpOutPath* debugResult = nullptr;
+#endif
         if (!debugJoiner)
             debugJoiner = new OpJoiner(*this, *debugResult);
         debugJoiner->dumpSet(str);
     }
+#if !OP_TEST_NEW_INTERFACE
     if (OpDebugOptional(str, "debugResult"))
         debugResult->dumpSet(str);
+#endif
     if (OpDebugOptional(str, "debugWarnings")) {
         size_t count = OpDebugReadSizeT(str);
         for (size_t index = 0; index < count; ++index)
@@ -874,7 +906,9 @@ void OpContours::dumpResolveAll(OpContours* self) {
         debugCurveCurve->dumpResolveAll(self);
     if (debugJoiner)
         debugJoiner->dumpResolveAll(self);
+#if !OP_TEST_NEW_INTERFACE
     debugResult->dumpResolveAll(self);
+#endif
 #endif
 }
 
@@ -1211,6 +1245,80 @@ void dmp(std::vector<OpContour>& contours) {
         c.dump();
 }
 
+size_t OpContourStorage::debugCount() const {
+    if (!this)
+        return 0;
+    size_t result = used;
+    OpContourStorage* block = next;
+    while (next) {
+        result += block->used;
+        block = block->next;
+    }
+    return result;
+}
+
+OpContour* OpContourStorage::debugFind(int ID) const {
+	for (int index = 0; index < used; index++) {
+		const OpContour& test = storage[index];
+        if (test.id == ID)
+            return const_cast<OpContour*>(&test);
+	}
+    if (!next)
+        return nullptr;
+    return next->debugFind(ID);
+}
+
+OpContour* OpContourStorage::debugIndex(int index) const {
+    if (!this)
+        return nullptr;
+    const OpContourStorage* block = this;
+    while (index > block->used) {
+        index -= block->used;
+        block = block->next;
+        if (!block)
+            return nullptr;
+    }
+    if (block->used <= index)
+        return nullptr;
+    return const_cast<OpContour*>(&block->storage[index]);
+}
+
+std::string OpContourStorage::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s;
+    size_t count = debugCount();
+    if (!count)
+        return s;
+    s += "contourStorage:" + STR(count) + "\n";
+    if (DebugLevel::brief == l) {
+        s += "[";
+        for (size_t index = 0; index < count; ++index)
+            s += STR(debugIndex(index)->id) + " ";
+        s.pop_back();
+        s += "]";
+    } else {
+        for (size_t index = 0; index < count; ++index)
+            s += debugIndex(index)->debugDump(l, b) + "\n";
+        s.pop_back();
+    }
+    return s;
+}
+
+void OpContourStorage::DumpSet(const char*& str, OpContours* dumpContours) {
+    size_t count = OpDebugReadSizeT(str);
+    for (size_t index = 0; index < count; ++index) {
+        OpContour* sect = dumpContours->allocateContour();
+        sect->contours = dumpContours;
+        sect->dumpSet(str);
+    }
+}
+
+void OpContourStorage::dumpResolveAll(OpContours* c) {
+    size_t count = debugCount();
+    for (size_t index = 0; index < count; ++index) {
+        debugIndex(index)->dumpResolveAll(c);
+    }
+}
+
 ENUM_NAME_STRUCT(OpType);
 #define TYPE_NAME(r) { OpType::r, #r }
 
@@ -1284,19 +1392,19 @@ std::string debugErrorValue(DebugLevel l, DebugBase b, std::string label, float 
 
 std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    s += opTypeName(type) + " ";
+    s += opTypeName(c.type) + " ";
     s += "{ ";
     for (int i = 0; i < pointCount(); ++i) 
         s += hullPt(i).debugDump(l, b) + ", ";
     s.pop_back(); s.pop_back();
     s += " }";
-    if (OpType::conic == type)
+    if (OpType::conic == c.type)
         s += debugValue(l, b, "weight", weight) + " ";
     return s;
 }
 
 void OpCurve::dumpSet(const char*& str) {
-    type = opTypeStr(str, "", OpType::no);  // type must precede number of points call
+    c.type = opTypeStr(str, "", OpType::no);  // type must precede number of points call
     OpDebugRequired(str, "{ ");
     dumpSetPts(str);
     OpDebugOptional(str, "}");
@@ -1804,12 +1912,13 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
             return std::string("");
         return strLabel(label) + bounds.debugDump(l, b)+ " ";
     };
-    auto strWinding = [dumpAlways, strLabel](EdgeFilter match, std::string label,
+    auto strWinding = [dumpAlways, l, b, strLabel](EdgeFilter match, std::string label,
              OpWinding wind) {
         std::string s;
         if (!dumpAlways(match)) {
 #if OP_TEST_NEW_INTERFACE
-            return s; // !!! incomplete
+            if (!wind.contour)
+                return s;
 #else
             if (WindingType::temp == wind.debugType && !wind.left() && !wind.right())
                 return s;
@@ -1818,7 +1927,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
 #endif
         }
 #if OP_TEST_NEW_INTERFACE
-        s += wind.contour->callBacks.windingDumpOutFuncPtr(wind.w);
+        s += strLabel(label) + ":" + wind.debugDump(l, b) + " ";
 #else
         s += strLabel(label) + ":";
         s += OpMax == wind.left() ? "--" : STR(wind.left());
@@ -2046,11 +2155,11 @@ void OpEdge::dumpSet(const char*& str) {
     if (OpDebugOptional(str, "linkBounds"))
         linkBounds.dumpSet(str);
     if (OpDebugOptional(str, "winding"))
-        winding.dumpSet(str);
+        winding.dumpSet(str, dumpContours);
     if (OpDebugOptional(str, "sum"))
-        sum.dumpSet(str);
+        sum.dumpSet(str, dumpContours);
     if (OpDebugOptional(str, "many"))
-        many.dumpSet(str);
+        many.dumpSet(str, dumpContours);
     if (OpDebugOptional(str, "pals")) {
         while (OpDebugOptional(str, "e[")) {
             pals.resize(pals.size() + 1);
@@ -2074,7 +2183,6 @@ void OpEdge::dumpSet(const char*& str) {
         hulls.h.resize(hullCount);
         for (int index = 0; index < hullCount; ++index)
             hulls.h[index].dumpSet(str);
-        OpDebugRequired(str, "]");
     }
     unsectableID = strID("unsectableID");
     whichEnd_impl = edgeMatchStr(str, "whichEnd", EdgeMatch::none);
@@ -2183,10 +2291,18 @@ std::string OpEdge::debugDumpLink(EdgeMatch which, DebugLevel l, DebugBase b) co
 
 std::string OpEdge::debugDumpWinding() const {
     std::string s;
-    s += "winding: " + winding.debugDump();
+    if (winding.isSet())
+        s += "winding: " + winding.debugDump(defaultLevel, defaultBase) + " ";
     if (sum.isSet())
-        s += "\nsum: " + sum.debugDump();
+        s += "sum: " + sum.debugDump(defaultLevel, defaultBase) + " ";
+    if (many.isSet())
+        s += "many: " + many.debugDump(defaultLevel, defaultBase);
     return s;
+}
+
+void dmpWinding(const OpEdge& edge) {
+    std::string s = edge.debugDumpWinding();
+    OpDebugOut(s + "\n");
 }
 
 void dmpEnd(const OpEdge& edge)  {
@@ -2208,10 +2324,6 @@ void dmpEdges(const OpEdge& edge) {
 
 void dmpIntersections(const OpEdge& edge) {
     OpDebugFormat(edge.segment->debugDumpIntersections());
-}
-
-void dmpWinding(const OpEdge& edge) {
-    OpDebugFormat(edge.debugDumpWinding());
 }
 
 // don't just dump it, find the best theoretical one through binary search
@@ -3659,7 +3771,7 @@ std::string OpSegment::debugDump(DebugLevel l, DebugBase b) const {
                     s += edge.debugDump(l, b) + "\n";
             }
         }
-        s += "winding:" + winding.debugDump() + " ";
+        s += "winding:" + winding.debugDump(l, b) + " ";
         if (disabled)
             s += "disabled ";
 #if OP_DEBUG
@@ -3703,7 +3815,7 @@ void OpSegment::dumpSet(const char*& str) {
             edges[index].dumpSet(str);
     }
     OpDebugRequired(str, "winding");
-    winding.dumpSet(str);
+    winding.dumpSet(str, contour->contours);
     disabled = OpDebugOptional(str, "disabled");
 #if OP_DEBUG
     debugStart = sectReasonStr(str, "start reason", SectReason::unset);
@@ -3813,28 +3925,59 @@ static WindingTypeName windingTypeNames[] = {
 
 ENUM_NAME(WindingType, windingType)
 
-std::string OpWinding::debugDump() const {
-    std::string result;
+std::string OpWinding::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s;
 #if OP_TEST_NEW_INTERFACE
+    s += "contour:";
+    // !!! incomplete; if debug level is file or detailed, dump raw hex for winding data
     if (!contour)
-        return result;
-    result += "contour:" + STR(contour->id);
-    result += contour->callBacks.windingDumpOutFuncPtr(w);
+        s += "0";
+    else {
+        s += STR(contour->id) + " ";
+        if (DebugLevel::file != l) {
+            s +="w.data:";
+            if (w.data && w.size)
+                s += contour->callBacks.windingDumpOutFuncPtr(w);
+            else
+                s += OpDebugStr(w.data) + " w.size:" + STR(w.size);
+        } else {
+            s += "w.size:" + STR(w.size) + " [";
+            for (size_t index = 0; index < w.size; ++index)
+                s += OpDebugByteToHex(((uint8_t*) w.data)[index]) + " ";
+            if (' ' == s.back())
+                s.pop_back();
+            s += "]";
+        }
+    }
 #else
 #if OP_DEBUG
-    result += "type:" + std::string(windingTypeNames[(int)debugType + 1].name);  // + 1: see above
+    s += "type:" + std::string(windingTypeNames[(int)debugType + 1].name);  // + 1: see above
 #endif
-    result += " left: " + (OpMax == left() ? std::string("unset") : STR(left()));
-    result += " right: " + (OpMax == right() ? std::string("unset") : STR(right()));
+    s += " left: " + (OpMax == left() ? std::string("unset") : STR(left()));
+    s += " right: " + (OpMax == right() ? std::string("unset") : STR(right()));
 #endif
-    return result;
+    return s;
 }
 
-void OpWinding::dumpSet(const char*& str) {
+void OpWinding::dumpSet(const char*& str, OpContours* dumpContours) {
 #if OP_TEST_NEW_INTERFACE
-    contour = (OpContour*) OpDebugReadSizeT(str);
-    w.data =  0; // !!! start here; need contour, size of allocation
-    OP_ASSERT(0);
+    OpDebugRequired(str, "contour");
+    int contourID = OpDebugReadSizeT(str);
+    for (auto c : dumpContours->contours) {
+        if (c->id == contourID) {
+            OP_ASSERT(!contour);
+            contour = c;
+        }
+    }
+    if (!contourID)
+        return;
+    OP_ASSERT(contour);
+    OP_ASSERT(contourID == contour->id);
+    OpDebugRequired(str, "w.size");
+    w.size = OpDebugReadSizeT(str);
+    w.data = contour->contours->allocateWinding(w.size);
+    for (size_t index = 0; index < w.size; ++index)
+        ((uint8_t*) w.data)[index] = OpDebugByteToInt(str);
 #else
     OP_DEBUG_CODE(debugType = windingTypeStr(str, "type", WindingType::uninitialized));
     OpDebugOptional(str, "left");
@@ -3842,6 +3985,10 @@ void OpWinding::dumpSet(const char*& str) {
     OpDebugOptional(str, "right");
     right_impl = OpDebugReadSizeT(str);
 #endif
+}
+
+void OpWinding::dumpSet(const char*& ) {
+    OP_ASSERT(0);  // call version with dump contours instead
 }
 
 std::string LinkUps::debugDump(DebugLevel li, DebugBase b) const {
@@ -4039,23 +4186,6 @@ std::string OpPointBounds::debugDump(DebugLevel l, DebugBase b) const {
 
 void OpPointBounds::dumpSet(const char*& str) {
     OpRect::dumpSet(str);
-}
-
-std::string OpTightBounds::debugDump(DebugLevel l, DebugBase b) const {
-    std::string s = OpRect::debugDump(l, b);
-    if (debugXExtremaFailed)
-        s += " debugXExtremaFailed";
-    if (debugYExtremaFailed)
-        s += " debugYExtremaFailed";
-    return s;
-}
-
-void OpTightBounds::dumpSet(const char*& str) {
-    OpRect::dumpSet(str);
-    if (OpDebugOptional(str, "debugXExtremaFailed"))
-        debugXExtremaFailed = true;
-    if (OpDebugOptional(str, "debugYExtremaFailed"))
-        debugYExtremaFailed = true;
 }
 
 std::string OpPtT::debugDump(DebugLevel l, DebugBase b) const {

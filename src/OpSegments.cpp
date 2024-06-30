@@ -110,15 +110,13 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 	}
     if (opp->c.isLine() && MatchEnds::both == matchRev.match) {
 #if OP_TEST_NEW_INTERFACE
-        if (!seg->contour->callBacks.windingMoveFuncPtr(opp->winding.w, 
-                edgePts.pts[0] != edgePts.pts[1], seg->winding.w))
-            seg->setDisabled(OP_DEBUG_CODE(ZeroReason::addIntersection));
+        seg->winding.move(opp->winding, edgePts.pts[0] != edgePts.pts[1]);
 #else
         seg->winding.move(opp->winding, seg->contour->contours, edgePts.pts[0] != edgePts.pts[1]);
+#endif
         if (!seg->winding.visible())
             seg->setDisabled(OP_DEBUG_CODE(ZeroReason::addIntersection));
         opp->winding.zero();
-#endif
         opp->setDisabled(OP_DEBUG_CODE(ZeroReason::addIntersection));
         return;
     }
@@ -241,16 +239,18 @@ void OpSegments::FindCoincidences(OpContours* contours) {
             if (seg->ptBounds != opp->ptBounds)
                 continue;
             MatchReverse mr = seg->matchEnds(opp);
-            if (MatchEnds::both != mr.match || seg->c.type != opp->c.type)
+            if (MatchEnds::both != mr.match || seg->c.c.type != opp->c.c.type)
                 continue;
                 // if control points and weight match, treat as coincident: transfer winding
             OP_ASSERT(seg->c.newInterface);
-            if (!seg->contour->contours->callBack(seg->c.type).curvesEqualFuncPtr(
-                    seg->c.curveData, { opp->c.curveData, opp->c.size, opp->c.type } ))
+            if (!seg->contour->contours->callBack(seg->c.c.type).curvesEqualFuncPtr(
+                    seg->c.c, opp->c.c ))
                 continue;
-            if (!seg->contour->callBacks.windingMoveFuncPtr(opp->winding.w, 
-                    mr.reversed, seg->winding.w)) {
-                seg->setDisabled(OP_DEBUG_CODE(ZeroReason::addIntersection));
+            seg->winding.move(opp->winding, mr.reversed);
+            opp->winding.zero();
+            opp->setDisabled(OP_DEBUG_CODE(ZeroReason::findCoincidences));
+            if (!seg->winding.visible()) {
+                seg->setDisabled(OP_DEBUG_CODE(ZeroReason::findCoincidences));
                 break;
             }
         }
@@ -326,8 +326,8 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
         return IntersectResult::no;
     // at this point lines are parallel. See if they are also coincident
     OP_ASSERT(seg->c.newInterface == opp->c.newInterface);
-    OpPoint* longer = seg->c.newInterface ? &seg->c.curveData->start : seg->c.pts;
-    OpPoint* shorter = opp->c.newInterface ? &opp->c.curveData->start : seg->c.pts;
+    OpPoint* longer = seg->c.newInterface ? &seg->c.c.data->start : seg->c.pts;
+    OpPoint* shorter = opp->c.newInterface ? &opp->c.c.data->start : seg->c.pts;
     if (!segLonger)
         std::swap(longer, shorter);
     OpVector longS = longer[0] - shorter[0];

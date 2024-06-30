@@ -61,13 +61,15 @@ struct OpDebugData {
 };
 
 #define OP_DEBUG_CONTEXT(...)
+#define OP_DEBUG_DUMP_PARAMS(...)
+#define OP_DEBUG_IMAGE_CODE(...)
+#define OP_DEBUG_IMAGE_PARAMS(...)
 
 #ifdef NDEBUG
 
 #define OP_ASSERT(expr)
 #define OP_DEBUG_PARAMS(...)
 #define OP_DEBUG_CODE(...)
-#define OP_DEBUG_IMAGE_CODE(...)
 #define OP_DEBUG_VALIDATE_CODE(...)
 #define OP_DEBUG 0
 #define OP_DEBUG_DUMP 0
@@ -112,9 +114,10 @@ struct OpDebugData {
 #define OP_DEBUG_PARAMS(...) , __VA_ARGS__
 #define OP_DEBUG_CODE(...) __VA_ARGS__
 #if OP_DEBUG_IMAGE
+#undef OP_DEBUG_IMAGE_CODE
 #define OP_DEBUG_IMAGE_CODE(...) __VA_ARGS__
-#else
-#define OP_DEBUG_IMAGE_CODE(...)
+#undef OP_DEBUG_IMAGE_PARAMS
+#define OP_DEBUG_IMAGE_PARAMS(...) , __VA_ARGS__
 #endif
 #if OP_DEBUG_VALIDATE
 	#define OP_DEBUG_VALIDATE_CODE(...) __VA_ARGS__
@@ -156,7 +159,10 @@ struct OpDebugData {
 #define OpDebugBreakIf(opObject, ID, doBreak) \
 	do { if ((doBreak) && (ID) == (opObject)->id) OP_DEBUG_BREAK(); } while (false)
 
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_DUMP 
+#undef OP_DEBUG_DUMP_PARAMS
+#define OP_DEBUG_DUMP_PARAMS(...) , __VA_ARGS__
+
 #undef OP_DEBUG_CONTEXT
 #define OP_DEBUG_CONTEXT() \
 	debugContext = __func__
@@ -206,10 +212,12 @@ extern void record();
 int OpDebugCountDelimiters(const char* str, char delimiter, char openBracket, char closeBracket);
 void OpDebugExit(std::string);
 void OpDebugExitOnFail(std::string, bool );
+std::string OpDebugByteToHex(uint8_t);
 std::string OpDebugIntToHex(int32_t);
 std::string OpDebugDumpHex(float);
 int32_t OpDebugFloatToBits(float);
 float OpDebugHexToFloat(const char*& str);
+uint8_t OpDebugByteToInt(const char*& str);
 int32_t OpDebugHexToInt(const char*& str);
 int OpDebugReadNamedInt(const char*& str, const char* label);
 std::string OpDebugLabel(const char*& str);

@@ -6,6 +6,7 @@
 #include "OpWinder.h"
 #include "PathOps.h"
 
+#if !OP_TEST_NEW_INTERFACE
 bool OpContour::addClose() {
     OP_ASSERT(!contours->newInterface);
     if (!segments.size())
@@ -100,6 +101,7 @@ bool OpContour::addCubic(OpPoint pts[4]) {
     }
     return true;
 }
+#endif
 
 OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg  
         OP_LINE_FILE_DEF(SectReason reason, const OpEdge* edge, const OpEdge* oEdge)) {
@@ -178,6 +180,7 @@ OpIntersection* OpContour::addUnsect(const OpPtT& t, OpSegment* seg, int uID, Ma
     return next;
 }
 
+#if !OP_TEST_NEW_INTERFACE
 bool OpContour::addQuad(OpPoint pts[3]) {
     OpMath::ZeroTiny(pts, 3);
     if (pts[0] == pts[2])   // !!! should be fill only, not frame
@@ -216,34 +219,7 @@ bool OpContour::addQuad(OpPoint pts[3]) {
     }
     return true;
 }
-
-
-void OpContour::finish() {
-// after all segments in contour have been allocated
-    if (!segments.size())
-        return;
-    OP_ASSERT(segments.size() >= 2);
-//    OpSegment* last = &segments.back();
-//    last->contour = this;
-//    last->sects.resort = true; // 1 gets added before 0
-    for (auto& segment : segments) {
-        segment.contour = this;
-#if OP_TEST_NEW_INTERFACE
-        segment.winding.contour = this;
-#else
-        segment.winding = operand;
 #endif
-#if 0  // we'll do this when we compare each segment against every other
-        OpPoint firstPoint = segment.c.pts[0];
-        OpIntersection* sect = segment.addSegBase({ firstPoint, 0}  
-                OP_LINE_FILE_PARAMS(segment.debugStart, last));
-        OpIntersection* oSect = last->addSegBase({ firstPoint, 1}  
-                OP_LINE_FILE_PARAMS(last->debugEnd, &segment));
-        sect->pair(oSect);
-        last = &segment;
-#endif
-    }
-}
 
 int OpContour::nextID() const {
 //    if (93 == contours->uniqueID + 1)
@@ -253,6 +229,7 @@ int OpContour::nextID() const {
 
 // end of contour; start of contours
 
+#if !OP_TEST_NEW_INTERFACE
 static const OpOperator OpInverse[+OpOperator::ReverseSubtract + 1][2][2] {
     //                inside minuend                                  outside minuend
     //  inside subtrahend     outside subtrahend         inside subtrahend   outside subtrahend
@@ -262,20 +239,28 @@ static const OpOperator OpInverse[+OpOperator::ReverseSubtract + 1][2][2] {
     { { OpOperator::ExclusiveOr, OpOperator::ExclusiveOr }, { OpOperator::ExclusiveOr, OpOperator::ExclusiveOr } },
     { { OpOperator::ReverseSubtract, OpOperator::Union }, { OpOperator::Intersect, OpOperator::Subtract } },
 };
+#endif
 
 OpContours::OpContours()
-    : leftIn(nullptr)
+    : 
+#if !OP_TEST_NEW_INTERFACE
+     leftIn(nullptr)
     , rightIn(nullptr)
     , opIn(OpOperator::Intersect)
-    , ccStorage(nullptr)
+    , 
+#endif
+      ccStorage(nullptr)
     , curveDataStorage(nullptr)
     , contourStorage(nullptr)
     , contours(this)
     , fillerStorage(nullptr)
     , sectStorage(nullptr)
     , limbStorage(nullptr)
+    , windingStorage(nullptr)
+#if !OP_TEST_NEW_INTERFACE
     , left(OpFillType::unset)
     , right(OpFillType::unset)
+#endif
     , uniqueID(0)
     , newInterface(false) {
 #if OP_DEBUG_VALIDATE
@@ -285,7 +270,9 @@ OpContours::OpContours()
 #if OP_DEBUG
     debugCurveCurve = nullptr;
     debugJoiner = nullptr;
+#if !OP_TEST_NEW_INTERFACE
     debugResult = nullptr;
+#endif
     debugExpect = OpDebugExpect::unknown;
     debugInPathOps = false;
     debugInClearEdges = false;
@@ -300,10 +287,12 @@ OpContours::OpContours()
 
 OpContours::OpContours(OpInPath& l, OpInPath& r, OpOperator op) 
     : OpContours() {
+#if !OP_TEST_NEW_INTERFACE
     leftIn = &l;
     rightIn = &r;
     opIn = op;
     opOperator = OpInverse[+op][l.isInverted()][r.isInverted()];
+#endif
 }
 
 OpContours::~OpContours() {
@@ -329,15 +318,18 @@ OpContours::~OpContours() {
 #endif
 #if OP_DEBUG_DUMP
     if (debugDumpInit) {
+#if !OP_TEST_NEW_INTERFACE
         delete debugLeft;
         delete debugRight;
         delete debugResult;
+#endif
         delete debugCurveCurve;
         delete debugJoiner;
     }
 #endif
 }
 
+#if !OP_TEST_NEW_INTERFACE
 OpContour* OpContours::addMove(OpContour* last, OpOperand operand , const OpPoint pts[1]) {
     // !!! if frame paths are supported, don't add close unless fill is set
     if (last->addClose())
@@ -345,6 +337,7 @@ OpContour* OpContours::addMove(OpContour* last, OpOperand operand , const OpPoin
     // keep point as its own segment in the future?
     return contours.back();
 }
+#endif
 
 OpContour* OpContours::allocateContour() {
     if (!contourStorage)
@@ -415,7 +408,10 @@ PathOpsV0Lib::WindingData* OpContours::allocateWinding(size_t size) {
         next->next = windingStorage;
         windingStorage = next;
     }
-    return (PathOpsV0Lib::WindingData*) &windingStorage->windingData[windingStorage->used];
+    PathOpsV0Lib::WindingData* result = 
+            (PathOpsV0Lib::WindingData*) &windingStorage->windingData[windingStorage->used];
+    windingStorage->used += size;
+    return result;
 }
 
 OpLimbStorage* OpContours::resetLimbs(OpTree* tree) {
@@ -454,11 +450,7 @@ bool OpContours::debugFail() const {
 #endif
 }
 
-void OpContours::finishAll() {
-    for (auto contour : contours)
-        contour->finish();
-}
-
+#if !OP_TEST_NEW_INTERFACE
 static const bool OutInverse[+OpOperator::ReverseSubtract + 1][2][2] {
     { { false, false }, { true, false } },  // diff
     { { false, false }, { false, true } },  // sect
@@ -466,6 +458,7 @@ static const bool OutInverse[+OpOperator::ReverseSubtract + 1][2][2] {
     { { false, true }, { true, false } },   // xor
     { { false, true }, { false, false } },  // rev diff
 };
+#endif
 
 // If successive runs of the same input are flaky, check to see if identical ids are generated.
 // To do this, insert OP_DEBUG_COUNT(*this, _some_identifer_); after every callout.  
@@ -473,12 +466,13 @@ static const bool OutInverse[+OpOperator::ReverseSubtract + 1][2][2] {
 // The callouts are removed when not in use as they are not maintained and reduce readability.
 // !!! OP_DEBUG_COUNT was unintentionally deleted at some point. Hopefully it is in git history...
 bool OpContours::pathOps(OpOutPath& result) {
+#if !OP_TEST_NEW_INTERFACE
     if (!newInterface) {
         if (!build(*leftIn, OpOperand::left))  // builds monotonic segments, and adds 0/1 sects
             OP_DEBUG_FAIL(*this, false);
         if (!build(*rightIn, OpOperand::right))
             OP_DEBUG_FAIL(*this, false);
-        finishAll();
+//        finishAll();  // !!! no longer needed
 //        setBounds();    // !!! check to see if this is used
         OpSegments sortedSegments(*this);
         if (!sortedSegments.inX.size()) {
@@ -488,15 +482,15 @@ bool OpContours::pathOps(OpOutPath& result) {
         sortedSegments.findCoincidences();  // check for exact curves and full lines
         if (FoundIntersections::fail == sortedSegments.findIntersections())
             return false;  // triggered by fuzzhang_1
-    } else {
+    } else 
+#endif
+    {
         if (contours.empty())
             OP_DEBUG_SUCCESS(*this, true);
-        finishAll();
         OpSegments::FindCoincidences(this);
         if (FoundIntersections::fail == OpSegments::FindIntersections(this))
             return false;  // !!! fix this to record for Error()
     }
-    dump();
     sortIntersections();
     makeEdges();
     // made edges may include lines that are coincident with other edges. Undetected for now...
@@ -505,13 +499,16 @@ bool OpContours::pathOps(OpOutPath& result) {
     FoundWindings foundWindings = windingEdges.setWindings(this);  // walk edges, compute windings
     if (FoundWindings::fail == foundWindings)
         OP_DEBUG_FAIL(*this, false);
+    OP_DEBUG_CODE(debugContext = "apply");
     apply();  // suppress edges which don't meet op criteria
     if (!assemble(result))
         OP_DEBUG_FAIL(*this, false);
+#if !OP_TEST_NEW_INTERFACE
     if (!newInterface) {
         bool inverseFill = OutInverse[+opOperator][leftIn->isInverted()][rightIn->isInverted()];
         result.setInverted(inverseFill);
     }
+#endif
 #if 0 && OP_DEBUG_IMAGE
     showResult();
 #endif
