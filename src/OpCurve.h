@@ -32,14 +32,14 @@ struct OpCurve {
     OpCurve() 
         : c{nullptr, 0, OpType::no}
         , contours(nullptr)
-        , weight(1)
+        , weightImpl(1)
         , newInterface(false) {
     }
 
     OpCurve(const OpPoint p[], OpType t) 
         : c{nullptr, 0, t}
         , contours(nullptr)
-        , weight(1)
+        , weightImpl(1)
         , newInterface(false) {
         memcpy(pts, p, pointCount() * sizeof(OpPoint));
     }
@@ -47,7 +47,7 @@ struct OpCurve {
     OpCurve(const OpPoint p[], float w, OpType t)
         : c{nullptr, 0, t}
         , contours(nullptr)
-        , weight(w)
+        , weightImpl(w)
         , newInterface(false) {
         memcpy(pts, p, pointCount() * sizeof(OpPoint));
     }
@@ -55,7 +55,7 @@ struct OpCurve {
     OpCurve(OpPoint p0, OpPoint p1)
         : c{nullptr, 0, OpType::line}
         , contours(nullptr)
-        , weight(1)
+        , weightImpl(1)
         , newInterface(false) {
         pts[0] = p0;
         pts[1] = p1;
@@ -64,7 +64,7 @@ struct OpCurve {
     OpCurve(const OpPoint p[], float w)
         : c{nullptr, 0, OpType::conic}
         , contours(nullptr)
-        , weight(w)
+        , weightImpl(w)
         , newInterface(false) {
         memcpy(pts, p, pointCount() * sizeof(OpPoint));
     }
@@ -137,7 +137,7 @@ struct OpCurve {
     PathOpsV0Lib::Curve c;
     OpContours* contours;  // required by new interface for caller function pointer access
     OpPoint pts[5];  // extra point carries cubic center for vertical rotation (used by curve sect)
-    float weight;   // !!! new interface doesn't have this (only required for double debugging though)
+    float weightImpl;   // !!! new interface doesn't have this (only required for double debugging though)
 //    bool centerPt;  // true if center point follows curve
     bool newInterface;
 };

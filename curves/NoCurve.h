@@ -5,7 +5,7 @@
 
 namespace PathOpsV0Lib {
 
-inline void noBounds(Curve , OpPointBounds& ) {
+inline void noBounds(Curve , OpRect& ) {
 }
 
 inline bool noNearly(Curve ) {
@@ -29,7 +29,14 @@ inline void noRotate(Curve , const LinePts& , float , float , Curve ) {
 }
 
 #if OP_DEBUG_DUMP
+inline std::string noDebugDumpExtra(Curve , DebugLevel , DebugBase ) {
+    return "";
+}
+
 inline void noDumpSet(Curve , const char*& ) {
+}
+
+inline void noDumpSetExtra(Curve , const char*& str) {
 }
 #endif
 

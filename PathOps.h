@@ -86,24 +86,23 @@ namespace PathOpsV0Lib {
  */
 void Add(AddCurve , AddWinding );
 
-/* Makes a PathOps context. 
+/* Makes a PathOps context: an instance of the PathOps engine. Optional caller data may be added.
  */
-Context* CreateContext();
+Context* CreateContext(AddContext );
 
 /* Deletes a PathOps context, and frees any memory associated with that context.
  */
 void DeleteContext(Context* );
 
-/* Makes a PathOps contour.
+/* Makes a PathOps contour: a collection of curves. Optional caller data may be added.
  */
-Contour* CreateContour(Context* );
+Contour* CreateContour(Context* , AddContour );
 
 /* returns error code of previous call
  */
 int Error(Context* );
 
-/* Operate on curves provided by Add().
-   Calls curve output callback with path output.
+/* Operate on curves provided by Add(). Calls curve output callback with path output.
  */
 void Resolve(Context* , PathOutput );
 
@@ -112,14 +111,16 @@ OpType SetCurveCallBacks(Context* , AxisRawHit, ControlNearlyEnd,
 		SetBounds, CurveNormal, CurveOutput,
 		CurveReverse, CurveTangent, CurvesEqual, PtAtT, DoublePtAtT,
 		PtCount, Rotate, SubDivide, XYAtT
+		OP_DEBUG_DUMP_PARAMS(DebugDumpExtra)
 		OP_DEBUG_DUMP_PARAMS(DumpSet)
+		OP_DEBUG_DUMP_PARAMS(DumpSetExtra)
 		OP_DEBUG_IMAGE_PARAMS(DebugAddToPath)
 	);
 
 void SetWindingCallBacks(Contour* , WindingAdd, WindingKeep ,
 		WindingSubtract , WindingVisible, WindingZero
-		OP_DEBUG_DUMP_PARAMS(WindingDumpIn, WindingDumpOut)
-		OP_DEBUG_IMAGE_PARAMS(WindingImageOut)
+		OP_DEBUG_DUMP_PARAMS(WindingDumpIn, WindingDumpOut, ContourDumpExtra)
+		OP_DEBUG_IMAGE_PARAMS(WindingImageOut, WindingDebugColor, ContourNativePath, ContourDebugDraw)
 );
 
 // utilities

@@ -16,10 +16,12 @@ struct OpSegment;
 
 enum class CurveRef;
 
+#if !OP_TEST_NEW_INTERFACE
 enum class OpOperand {
 	left,
 	right
 };
+#endif
 
 enum class NewEdge {
 	isLeft,
@@ -590,24 +592,6 @@ struct OpEdgeStorage {
 };
 
 // new interface
-struct WindingDataStorage {
-	WindingDataStorage()
-		: next(nullptr)
-		, used(0) {
-	}
-#if OP_DEBUG_DUMP
-	size_t debugCount() const;
-	std::string debugDump(std::string label, DebugLevel l, DebugBase b) const;
-	uint8_t* debugIndex(int index) const;
-	static void DumpSet(const char*& str, OpContours* , DumpStorage );
-	DUMP_DECLARATIONS
-#endif
-
-	WindingDataStorage* next;
-	int used;
-	uint8_t windingData[2048];	// !!! size is arbitrary guess -- should measure and do better
-};
-
 #if OP_TEST_NEW_INTERFACE
 #define OP_EDGE_SET_SUM(edge, winding) edge->setSum(winding  OP_LINE_FILE_PARAMS(0))
 #else

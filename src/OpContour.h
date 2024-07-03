@@ -25,7 +25,28 @@ enum class OpFillType {
 struct OpContours;
 struct OpInPath;
 
+struct CallerDataStorage {
+	CallerDataStorage()
+		: next(nullptr)
+		, used(0) {
+	}
+
+	static void* Allocate(size_t size, CallerDataStorage** );
+#if OP_DEBUG_DUMP
+	size_t debugCount() const;
+	std::string debugDump(std::string label, DebugLevel l, DebugBase b) const;
+	uint8_t* debugIndex(int index) const;
+	static void DumpSet(const char*& str, OpContours* , DumpStorage );
+	DUMP_DECLARATIONS
+#endif
+
+	CallerDataStorage* next;
+	int used;
+	uint8_t callerData[2048];	// !!! size is arbitrary guess -- should measure and do better
+};
+
 struct OpContour {
+#if !OP_TEST_NEW_INTERFACE
     OpContour(OpContours* c, OpOperand op)
         : contours(c)
         , operand(op) {
@@ -33,7 +54,9 @@ struct OpContour {
         debugComplete();
 #endif
     }
+#endif
 
+    void addCallerData(PathOpsV0Lib::AddContour callerData);
 #if !OP_TEST_NEW_INTERFACE
     bool addClose();
     bool addConic(OpPoint pts[3], float weight);
@@ -84,7 +107,9 @@ struct OpContour {
     void debugComplete();
 #endif
 #if OP_DEBUG_DUMP
+#if !OP_TEST_NEW_INTERFACE
     OpContour() {}
+#endif
     DUMP_DECLARATIONS
     #define OP_X(Thing) \
     void dump##Thing() const;
@@ -98,7 +123,11 @@ struct OpContour {
     PathOpsV0Lib::ContourCallBacks callBacks;
 
 //    OpPointBounds ptBounds;
+#if OP_TEST_NEW_INTERFACE
+    PathOpsV0Lib::AddContour caller;
+#else
     OpOperand operand; // first or second argument to a binary operator
+#endif
 #if OP_DEBUG
     int id;
 #endif
@@ -199,7 +228,10 @@ struct OpContours {
     OpContours(OpInPath& left, OpInPath& right, OpOperator op);
     OpContours();
     ~OpContours();
+    void addCallerData(PathOpsV0Lib::AddContext callerData);
+#if !OP_TEST_NEW_INTERFACE
     OpContour* addMove(OpContour* , OpOperand , const OpPoint pts[1]);
+#endif
     OpContour* allocateContour();
     PathOpsV0Lib::CurveData* allocateCurveData(size_t );
     void* allocateEdge(OpEdgeStorage*& );
@@ -214,9 +246,11 @@ struct OpContours {
     }
 
     bool assemble(OpOutPath& );
+#if !OP_TEST_NEW_INTERFACE
     bool build(OpInPath& path, OpOperand operand);   // provided by graphics implementation
+#endif
 
-    PathOpsV0Lib::CallBacks& callBack(OpType type) {
+    PathOpsV0Lib::CurveCallBacks& callBack(OpType type) {
         return callBacks[(int) type - 1];
     }
 
@@ -228,6 +262,14 @@ struct OpContours {
     }
 #endif
 
+#if OP_TEST_NEW_INTERFACE
+    OpContour* makeContour() {
+        OpContour* contour = allocateContour();
+        contour->contours = this;
+        OP_DEBUG_CODE(contour->debugComplete());
+        return contour;
+    }
+#else
     OpContour* makeContour(OpOperand operand) {
         OpContour* contour = allocateContour();
         contour->contours = this;
@@ -235,6 +277,7 @@ struct OpContours {
         OP_DEBUG_CODE(contour->debugComplete());
         return contour;
     }
+#endif
 
     void makeEdges() {
        OP_DEBUG_CODE(debugInClearEdges = true);
@@ -277,11 +320,12 @@ struct OpContours {
         }
     }
 
+#if !OP_TEST_NEW_INTERFACE
     // sum is accumulated fill clockwise from center tangent
 // if sum is zero and edge winding is non-zero, edge 'flips' winding from zero to non-zero
 // if sum is non-zero and edge winding equals sum, edge 'flips' winding from non-zero to zero
     WindState windState(int wind, int sum, OpOperand operand) {
-#if !OP_TEST_NEW_INTERFACE && OP_DEBUG
+#if OP_DEBUG
         OpFillType fillType = OpOperand::left == operand ? left : right;
         OP_ASSERT(wind == (wind & (int) fillType));
         OP_ASSERT(sum == (sum & (int) fillType));
@@ -292,6 +336,7 @@ struct OpContours {
             return wind == sum ? WindState::flipOff : WindState::one;
         return WindState::flipOn;
     }
+#endif
 
     bool debugFail() const;
 #if OP_DEBUG
@@ -323,7 +368,7 @@ struct OpContours {
     OpEdgeStorage* fillerStorage;
     OpSectStorage* sectStorage;
     OpLimbStorage* limbStorage;
-    WindingDataStorage* windingStorage;
+    CallerDataStorage* callerStorage;
 #if !OP_TEST_NEW_INTERFACE
     OpFillType left;
     OpFillType right;
@@ -333,8 +378,10 @@ struct OpContours {
     bool newInterface;
 
 // new interface ..
-    std::vector<PathOpsV0Lib::CallBacks> callBacks;
+    std::vector<PathOpsV0Lib::CurveCallBacks> callBacks;
+//    PathOpsV0Lib::ContextCallBacks contextCallBacks;
     PathOpsV0Lib::PathOutput callerOutput;
+    PathOpsV0Lib::AddContext caller;
 #if OP_DEBUG_VALIDATE
     int debugValidateEdgeIndex;
     int debugValidateJoinerIndex;

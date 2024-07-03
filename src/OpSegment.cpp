@@ -28,9 +28,12 @@ void FoundEdge::reset() {
 OpSegment::OpSegment(const OpCurve& pts, OpType type, OpContour* contourPtr
         OP_DEBUG_PARAMS(SectReason startReason, SectReason endReason))
     : contour(contourPtr)
-    , c(pts.pts, pts.weight, type)
+    , c(pts.pts, pts.weightImpl, type)
     , winding(WindingUninitialized::dummy)
     , disabled(false)  {
+#if OP_TEST_NEW_INTERFACE
+    OP_ASSERT(0);
+#endif
     complete();
     OP_DEBUG_CODE(debugStart = startReason);
     OP_DEBUG_CODE(debugEnd = endReason);
@@ -470,7 +473,7 @@ bool OpSegment::debugSuccess() const {
 
 OpSegment::OpSegment(PathOpsV0Lib::AddCurve addCurve, PathOpsV0Lib::AddWinding addWinding)    
     : contour((OpContour*) addWinding.contour)
-    , c((OpContours*) addCurve.context, 
+    , c(contour->contours,  
             { (PathOpsV0Lib::CurveData*) addCurve.points, addCurve.size, addCurve.type } )
     , winding((OpContour*) addWinding.contour, 
             { (PathOpsV0Lib::WindingData*) addWinding.windings, addWinding.size } )

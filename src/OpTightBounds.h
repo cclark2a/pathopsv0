@@ -76,25 +76,6 @@ struct OpPointBounds : OpRect {
         add(pt2);
     }
 
-    OpPoint add(OpPoint pt) {
-        if (!pt.isFinite())
-            return OpPoint(SetToNaN::dummy);
-        left = std::min(left, pt.x);
-        top = std::min(top, pt.y);
-        right = std::max(right, pt.x);
-        bottom = std::max(bottom, pt.y);
-        return pt;
-    }
-
-    OpPointBounds& add(const OpPointBounds& bounds) {
-        OP_ASSERT(bounds.isFinite());
-        left = std::min(left, bounds.left);
-        top = std::min(top, bounds.top);
-        right = std::max(right, bounds.right);
-        bottom = std::max(bottom, bounds.bottom);
-        return *this;
-    }
-
     bool contains(OpPoint pt) const {
         OP_ASSERT(pt.isFinite());
         return OpMath::Between(left, pt.x, right) && OpMath::Between(top, pt.y, bottom);

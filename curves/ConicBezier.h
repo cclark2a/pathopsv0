@@ -163,7 +163,7 @@ inline size_t AddConics(AddCurve curve, AddWinding windings) {
             PointWeight control;
         } curveData { { ptTs[index].pt, ptTs[index + 1].pt },
                 ConicControl(start, control, end, ptTs[index], ptTs[index + 1]) };
-        Add({ curve.context, curveData.endPts, curve.size, curve.type }, windings );
+        Add({ curveData.endPts, curve.size, curve.type }, windings );
     }
     return curvesAdded;
 }
@@ -225,11 +225,9 @@ inline void conicRotate(Curve c, const LinePts& line, float adj, float opp, Curv
     rotated.copyTo(result);
 }
 
-inline void conicSetBounds(Curve c, OpPointBounds& bounds) {
+inline void conicSetBounds(Curve c, OpRect& bounds) {
     PointWeight control(c);
-    // !!! incomplete / need OpPointBounds in scope
-    OP_ASSERT(0);
-    // bounds.add(control.pt);
+    bounds.add(control.pt);
 }
 
 inline void conicSubDivide(Curve curve, OpPtT ptT1, OpPtT ptT2, Curve result) {
@@ -255,9 +253,22 @@ inline bool conicIsLinear(Curve c) {
 }
 
 #if OP_DEBUG_DUMP
+inline std::string conicDebugDumpExtra(Curve c, DebugLevel l, DebugBase b) {
+    PointWeight control(c);
+    return debugValue(l, b, " weight", control.weight);
+}
+
 inline void conicDumpSet(Curve c, const char*& str) {
     PointWeight control(c);
     control.pt.dumpSet(str);
+    control.copyTo(c);
+}
+
+inline void conicDumpSetExtra(Curve c, const char*& str) {
+    PointWeight control(c);
+    OpDebugRequired(str, "weight:");
+    control.weight = OpDebugHexToFloat(str);
+    control.copyTo(c);
 }
 #endif
 

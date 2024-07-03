@@ -5,9 +5,9 @@
 
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
-#define TEST_PATH_OP_FIRST "" // e.g., "thread_cubics2247347" (ignored by fast test)
+#define TEST_PATH_OP_FIRST "circle99" // e.g., "thread_cubics2247347" (ignored by fast test)
 #define TEST_PATH_OP_SKIP_TO_V0 0 // if 1 & not fast test, ignore skip to file; run first "v0" test
-#define TEST_PATH_OP_SKIP_TO_FILE "conic" // e.g., "quad" tests only (see testSuites below)
+#define TEST_PATH_OP_SKIP_TO_FILE "circle" // e.g., "quad" tests only (see testSuites below)
 #define TESTS_TO_SKIP 0 // 7000000  // tests to skip
 
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
@@ -186,12 +186,25 @@ bool runningWithFMA() {
     // this is fragile, but as of 10/04/23, detects FMA with these values.
     LinePts line = { OpPoint(OpDebugBitsToFloat(0x4308f83e), OpDebugBitsToFloat(0x4326aaab)),  // {136.97, 166.667}
         OpPoint(OpDebugBitsToFloat(0x42c55d28), OpDebugBitsToFloat(0x430c5806)) };  // {98.68195, 140.344}
+#if OP_TEST_NEW_INTERFACE
+    float adj = line.pts[1].x - line.pts[0].x;
+    float opp = line.pts[1].y - line.pts[0].y;
+    auto rotatePt = [line, adj, opp](OpPoint pt) {
+        OpVector v = pt - line.pts[0];
+        return OpPoint(v.dy * adj - v.dx * opp, v.dy * opp + v.dx * adj);
+    };
+    OpPoint start = rotatePt({ OpDebugBitsToFloat(0x42f16017), OpDebugBitsToFloat(0x431b7908) });
+    OP_ASSERT(start.x == OpDebugBitsToFloat(0x390713e0)     // 0.00012882007
+            || start.x == OpDebugBitsToFloat(0x39000000));  // 0.00012207031
+    runWithFMA = start.x == OpDebugBitsToFloat(0x390713e0);
+#else
     OpCurve c = { { OpDebugBitsToFloat(0x42f16017), OpDebugBitsToFloat(0x431b7908) }, // {120.688, 155.473}
         { OpDebugBitsToFloat(0x42ed5d28), OpDebugBitsToFloat(0x43205806) } }; // {118.682, 160.344}
     OpCurve rotated = c.toVertical(line);
     OP_ASSERT(rotated.pts[0].x == OpDebugBitsToFloat(0x390713e0)     // 0.00012882007
             || rotated.pts[0].x == OpDebugBitsToFloat(0x39000000));  // 0.00012207031
     runWithFMA = rotated.pts[0].x == OpDebugBitsToFloat(0x390713e0);
+#endif
     calculated = true;
     return runWithFMA;
 }
@@ -539,6 +552,10 @@ int VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op, std::string test
     return errors;
 }
 
+#if OP_TEST_NEW_INTERFACE
+#include "skia/SkiaPaths.h"
+#endif
+
 void threadablePathOpTest(int id, const SkPath& a, const SkPath& b, 
         SkPathOp op, std::string testname, bool v0MayFail, bool skiaMayFail) {
 #if OP_TEST_V0
@@ -551,8 +568,28 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     debugData.debugCurveCurve1 = CURVE_CURVE_1;
     debugData.debugCurveCurve2 = CURVE_CURVE_2;
     debugData.debugCurveCurveDepth = CURVE_CURVE_DEPTH;
+#if OP_TEST_NEW_INTERFACE
+    {
+        using namespace PathOpsV0Lib;
+        Context* context = CreateContext({ nullptr, 0 });
+        Debug(context, debugData);
+        SetSkiaCurveCallBacks(context);
+        Contour* left = SetSkiaWindingCallBacks(context, op, SkiaOperand::left  OP_DEBUG_PARAMS(a));
+        int leftData[] = { 1, 0 };
+        PathOpsV0Lib::AddWinding leftWinding { left, leftData, sizeof(leftData) };
+        AddSkiaPath(leftWinding, a);
+        Contour* right = SetSkiaWindingCallBacks(context, op, SkiaOperand::right  OP_DEBUG_PARAMS(b));
+        int rightData[] = { 0, 1 };
+        PathOpsV0Lib::AddWinding rightWinding { right, rightData, sizeof(rightData) };
+        AddSkiaPath(rightWinding, b);
+        PathOutput pathOutput = &result;
+        Resolve(context, pathOutput);
+        DeleteContext(context);
+    }
+#else
     PathOps(op1, op2, (OpOperator) op, opOut  OP_DEBUG_PARAMS(debugData));
     OP_ASSERT(debugData.debugSuccess || v0MayFail);
+#endif
 #endif
 #if OP_TEST_SKIA
     SkPath skresult;
@@ -698,12 +735,6 @@ void dumpTest(const char* testname, const SkPath& path) {
     OpDebugOut("}\n\n");
 }
 
-#if OP_TEST_NEW_INTERFACE
-// !!! move these to an appropriate new header
-    void SetSkiaCurveCallBacks(PathOpsV0Lib::Context* );
-    PathOpsV0Lib::Contour* SetSkiaWindingSimplifyCallBacks(PathOpsV0Lib::Context* );
-    void AddSkiaPath(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* , const SkPath& path);
-#endif
 
 void threadableSimplifyTest(int id, const SkPath& path, std::string testname, 
             SkPath& out, bool v0MayFail, bool skiaMayFail) {
@@ -725,11 +756,13 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
 #if OP_TEST_NEW_INTERFACE
     {
         using namespace PathOpsV0Lib;
-        Context* context = CreateContext();
+        Context* context = CreateContext({ nullptr, 0 });
         Debug(context, debugData);
         SetSkiaCurveCallBacks(context);
-        Contour* contour = SetSkiaWindingSimplifyCallBacks(context);
-        AddSkiaPath(context, contour, path);
+        Contour* simple = SetSkiaWindingSimplifyCallBacks(context  OP_DEBUG_PARAMS(path));
+        int simpleData[] = { 1 };
+        PathOpsV0Lib::AddWinding simpleWinding { simple, simpleData, sizeof(simpleData) };
+        AddSkiaPath(simpleWinding, path);
         PathOutput pathOutput = &out;
         Resolve(context, pathOutput);
         DeleteContext(context);

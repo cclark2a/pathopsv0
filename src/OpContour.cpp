@@ -6,6 +6,32 @@
 #include "OpWinder.h"
 #include "PathOps.h"
 
+void* CallerDataStorage::Allocate(size_t size, CallerDataStorage** callerStoragePtr) {
+    if (!*callerStoragePtr)
+        *callerStoragePtr = new CallerDataStorage;
+    CallerDataStorage* callerStorage = *callerStoragePtr;
+    if (callerStorage->used + size > sizeof(callerStorage->callerData)) {
+        CallerDataStorage* next = new CallerDataStorage;
+        next->next = callerStorage;
+        callerStorage = next;
+    }
+    void* result = &callerStorage->callerData[callerStorage->used];
+    callerStorage->used += size;
+    return result;
+}
+
+void OpContour::addCallerData(PathOpsV0Lib::AddContour data) {
+    caller.data = CallerDataStorage::Allocate(data.size, &contours->callerStorage);
+    std::memcpy(caller.data, data.data, data.size);
+    caller.size = data.size;  // !!! don't know if size is really needed ...
+}
+
+void OpContours::addCallerData(PathOpsV0Lib::AddContext data) {
+    caller.data = CallerDataStorage::Allocate(data.size, &callerStorage);
+    std::memcpy(caller.data, data.data, data.size);
+    caller.size = data.size;  // !!! don't know if size is really needed ...
+}
+
 #if !OP_TEST_NEW_INTERFACE
 bool OpContour::addClose() {
     OP_ASSERT(!contours->newInterface);
@@ -256,7 +282,7 @@ OpContours::OpContours()
     , fillerStorage(nullptr)
     , sectStorage(nullptr)
     , limbStorage(nullptr)
-    , windingStorage(nullptr)
+    , callerStorage(nullptr)
 #if !OP_TEST_NEW_INTERFACE
     , left(OpFillType::unset)
     , right(OpFillType::unset)
@@ -401,17 +427,8 @@ OpLimb* OpContours::allocateLimb(OpTree* tree) {
 }
 
 PathOpsV0Lib::WindingData* OpContours::allocateWinding(size_t size) {
-    if (!windingStorage)
-        windingStorage = new WindingDataStorage;
-    if (windingStorage->used + size > sizeof(windingStorage->windingData)) {
-        WindingDataStorage* next = new WindingDataStorage;
-        next->next = windingStorage;
-        windingStorage = next;
-    }
-    PathOpsV0Lib::WindingData* result = 
-            (PathOpsV0Lib::WindingData*) &windingStorage->windingData[windingStorage->used];
-    windingStorage->used += size;
-    return result;
+    void* result = CallerDataStorage::Allocate(size, &callerStorage);
+    return (PathOpsV0Lib::WindingData*) result;
 }
 
 OpLimbStorage* OpContours::resetLimbs(OpTree* tree) {
@@ -487,6 +504,7 @@ bool OpContours::pathOps(OpOutPath& result) {
     {
         if (contours.empty())
             OP_DEBUG_SUCCESS(*this, true);
+        focusSegments();
         OpSegments::FindCoincidences(this);
         if (FoundIntersections::fail == OpSegments::FindIntersections(this))
             return false;  // !!! fix this to record for Error()
@@ -585,3 +603,4 @@ OpContourIter::OpContourIter(OpContours* contours) {
 }
 
 #endif
+

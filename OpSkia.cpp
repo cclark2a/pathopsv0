@@ -210,8 +210,8 @@ bool OpCurve::output(OpOutPath& path, bool firstPt, bool lastPt) {
     return true;
 }
 
-bool OpContours::build(OpInPath& path, OpOperand operand) {
 #if !OP_TEST_NEW_INTERFACE
+bool OpContours::build(OpInPath& path, OpOperand operand) {
     const SkPath& skpath = *skPath(path.externalReference);
     setFillType(operand, SkPathFillType::kEvenOdd == skpath.getFillType()
             || SkPathFillType::kInverseEvenOdd == skpath.getFillType() 
@@ -248,6 +248,6 @@ bool OpContours::build(OpInPath& path, OpOperand operand) {
         }
     } while (verb != SkPath::kDone_Verb);
     head->addClose();
-#endif
     return true;
 }
+#endif

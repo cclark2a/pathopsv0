@@ -432,10 +432,13 @@ bool OpCurve::isFinite() const {
             return false;
         return contours->callBack(c.type).curveIsFiniteFuncPtr(c);
     }
+#if OP_TEST_NEW_INTERFACE
+    OP_ASSERT(0);
+#endif
     for (int i = 0; i < pointCount(); ++i)
         if (!pts[i].isFinite())
             return false;
-    return OpType::conic != c.type || OpMath::IsFinite(weight);
+    return OpType::conic != c.type || OpMath::IsFinite(weightImpl);
 }
 
 // this can fail (if rotated pts are not finite); can happen when input is finite
@@ -457,13 +460,16 @@ OpCurve OpCurve::toVertical(const LinePts& line) const {
         contours->callBack(c.type).rotateFuncPtr(c, line, adj, opp, rotated.c);
         return rotated;
     }
+#if OP_TEST_NEW_INTERFACE
+    OP_ASSERT(0);
+#endif
     int count = pointCount();
     for (int n = 0; n < count; ++n) {
         OpVector v = pts[n] - line.pts[0];
         rotated.pts[n].x = v.dy * adj - v.dx * opp;
         rotated.pts[n].y = v.dy * opp + v.dx * adj;
     }
-    rotated.weight = weight;
+    rotated.weightImpl = weightImpl;
     rotated.c.type = c.type;
     return rotated;
 }
@@ -510,13 +516,16 @@ OpCurve OpCurve::subDivide(OpPtT ptT1, OpPtT ptT2) const {
         contours->callBack(c.type).subDivideFuncPtr(c, ptT1, ptT2, newResult.c);
         return newResult;
     }
+#if OP_TEST_NEW_INTERFACE
+    OP_ASSERT(0);
+#endif
     OpCurve result;
     result.c.type = c.type;
     switch (c.type) {
         case OpType::line: 
             result.pts[0] = ptT1.pt; 
             result.pts[1] = ptT2.pt;
-            result.weight = 1;
+            result.weightImpl = 1;
             break;
         case OpType::quad: 
             return asQuad().subDivide(ptT1, ptT2);
@@ -594,6 +603,7 @@ void OpCurve::dumpSetPts(const char*& str) {
         c.data->start.dumpSet(str);
         contours->callBack(c.type).dumpSetFuncPtr(c, str);
         c.data->end.dumpSet(str);
+        contours->callBack(c.type).dumpSetExtraFuncPtr(c, str);
         return;
     }
     for (int index = 0; index < pointCnt; ++index) {

@@ -90,7 +90,7 @@ inline size_t AddQuads(AddCurve curve, AddWinding windings) {
     for (unsigned index = 0; index < curvesAdded; ++index) {
         OpPoint curveData[3] { ptTs[index].pt, ptTs[index + 1].pt,
             QuadControlPt(start, control, end, ptTs[index], ptTs[index + 1]) };
-        Add({ curve.context, curveData, curve.size, curve.type }, windings );
+        Add({ curveData, curve.size, curve.type }, windings );
     }
     return curvesAdded;
 }
@@ -159,10 +159,8 @@ inline void quadRotate(Curve c, const LinePts& line, float adj, float opp, Curve
     quadSetControl(result, rotated);
 }
 
-inline void quadSetBounds(Curve c, OpPointBounds& bounds) {
-    // !!! incomplete / need OpPointBounds in scope
-    OP_ASSERT(0);
-    // bounds.add(quadControlPt(c));
+inline void quadSetBounds(Curve c, OpRect& bounds) {
+    bounds.add(quadControlPt(c));
 }
 
 inline void quadSubDivide(Curve c, OpPtT ptT1, OpPtT ptT2, Curve result) {

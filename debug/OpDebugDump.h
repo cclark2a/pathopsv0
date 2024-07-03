@@ -222,10 +222,10 @@ extern void dmpUnsortable();
 extern void dmpWindings();
 
 namespace PathOpsV0Lib {
-struct CallBacks;
+struct CurveCallBacks;
 }
 
-extern void fromFile(std::vector<PathOpsV0Lib::CallBacks>* callBacks);
+extern void fromFile(std::vector<PathOpsV0Lib::CurveCallBacks>* callBacks);
 extern void verifyFile();
 
 #if OP_DEBUG_VERBOSE
@@ -303,6 +303,9 @@ extern void dp(int id);
 
 extern std::string debugContext;
 extern void debug();  // set debug bitmap to start and dump state using current context
+
+// used by new interface
+extern std::string debugValue(DebugLevel l, DebugBase b, std::string label, float value);
 
 #endif
 

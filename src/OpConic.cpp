@@ -9,7 +9,7 @@ OpRoots OpConic::axisRawHit(Axis offset, float axisIntercept) const {
 OpQuadCoefficients OpConic::coefficients(Axis axis, float intercept) const {
     const float* ptr = pts[0].asPtr(axis);
     float a = ptr[4];
-    float b = ptr[2] * weight - intercept * weight + intercept;
+    float b = ptr[2] * weightImpl - intercept * weightImpl + intercept;
     float c = ptr[0];
     a += c - 2 * b;    // A = a - 2*b + c
     b -= c;            // B = -(b - c)
@@ -17,7 +17,7 @@ OpQuadCoefficients OpConic::coefficients(Axis axis, float intercept) const {
 }
 
 float OpConic::denominator(float t) const {
-    float B = 2 * (weight - 1);
+    float B = 2 * (weightImpl - 1);
     float C = 1;
     float A = -B;
     return (A * t + B) * t + C;
@@ -27,8 +27,8 @@ OpQuadCoefficients OpConic::derivative_coefficients(XyChoice offset) const {
     const float* ptr = &pts[0].x + +offset;
     float P20 = ptr[4] - ptr[0];
     float P10 = ptr[2] - ptr[0];
-    float wP10 = weight * P10;
-    float a = weight * P20 - P20;
+    float wP10 = weightImpl * P10;
+    float a = weightImpl * P20 - P20;
     float b = P20 - 2 * wP10;
     float c = wP10;
     return { a, b, c };
@@ -78,7 +78,7 @@ OpVector OpConic::normal(float t) const {
 }
 
 OpPoint OpConic::numerator(float t) const {
-    OpPoint pt1w = pts[1] * weight;
+    OpPoint pt1w = pts[1] * weightImpl;
     OpPoint C = pts[0];
     OpPoint A = pts[2] - 2 * pt1w + C;
     OpPoint B = 2 * (pt1w - C);
@@ -100,7 +100,7 @@ OpCurve OpConic::subDivide(OpPtT ptT1, OpPtT ptT2) const {
     result.pts[2] = ptT2.pt;
     if (0 == ptT1.t && 1 == ptT2.t) {
         result.pts[1] = pts[1];
-        result.weight = weight;
+        result.weightImpl = weightImpl;
         return result;
     }
     OpPoint a;
@@ -128,11 +128,11 @@ OpCurve OpConic::subDivide(OpPtT ptT1, OpPtT ptT2) const {
     float dz = denominator(midT);
     OpPoint b = 2 * d - (a + c) / 2;  // !!! add math pt average?
     float bz = 2 * dz - OpMath::Average(az, cz);  // !!! rewrite with fma?
-    // if bz is 0, weight is 0, control point has no effect: any value will do
+    // if bz is 0, weightImpl is 0, control point has no effect: any value will do
     float bzNonZero = !bz ? 1 : bz;
     result.pts[1] = b / bzNonZero;
     result.pts[1].pin(result.pts[0], result.pts[2]);
-    result.weight = bz / sqrtf(az * cz);
+    result.weightImpl = bz / sqrtf(az * cz);
     return result;
 }
 

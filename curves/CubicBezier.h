@@ -143,7 +143,7 @@ inline size_t AddCubics(AddCurve curve, AddWinding windings) {
         OpPoint curveData[4] { ptTs[index].pt, ptTs[index + 1].pt };
         *(CubicControls*)&curveData[2] = CubicControlPt(start, controls, end, 
                 ptTs[index], ptTs[index + 1]);
-        Add({ curve.context, curveData, curve.size, curve.type }, windings );
+        Add({ curveData, curve.size, curve.type }, windings );
     }
     return curvesAdded;
 }
@@ -210,12 +210,10 @@ inline void cubicRotate(Curve c, const LinePts& line, float adj, float opp, Curv
     controls.copyTo(result);
 }
 
-inline void cubicSetBounds(Curve c, OpPointBounds& bounds) {
+inline void cubicSetBounds(Curve c, OpRect& bounds) {
     CubicControls controls(c);
-    // !!! incomplete / need OpPointBounds in scope
-    OP_ASSERT(0);
-    // bounds.add(controls.pt[0]);
-    // bounds.add(controls.pt[1]);
+    bounds.add(controls.pts[0]);
+    bounds.add(controls.pts[1]);
 }
 
 inline void cubicSubDivide(Curve c, OpPtT ptT1, OpPtT ptT2, Curve result) {

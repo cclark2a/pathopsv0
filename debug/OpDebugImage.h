@@ -35,6 +35,14 @@ constexpr uint32_t debugBlack = 0xFF000000;
 static_assert(bitmapWH / 2 * 2 == bitmapWH);	// must be multiple of 2
 class SkBitmap& bitmapRef();
 
+// used to color different contour groups
+enum class DebugImage {
+	ccOverlaps,
+	curveCurve,
+	segment,
+	nativePath
+};
+
 // it should not be necessary to call these implementation functions directly
 struct OpDebugImage {
 	static void add(Axis axis, float value);
@@ -203,14 +211,12 @@ OP_X(Hex) \
 OP_X(Hulls) \
 OP_X(IDs) \
 OP_X(Intersections) \
-OP_X(Left) \
 OP_X(Lines) \
 OP_X(Normals) \
 OP_X(PathsOut) \
 OP_X(Points) \
 OP_X(Rays) \
 OP_X(Result) \
-OP_X(Right) \
 OP_X(Segments) \
 OP_X(Sums) \
 OP_X(Tangents) \
@@ -223,6 +229,11 @@ OP_X(Fill) \
 OP_X(In) \
 OP_X(Operands)
 
+#define OLD_LIST \
+OP_X(Left) \
+OP_X(Right)
+
+#if OP_TEST_NEW_INTERFACE
 #define OP_X(Thing) \
 	extern void hide##Thing(); \
 	extern void show##Thing(); \
@@ -230,6 +241,16 @@ OP_X(Operands)
 	MASTER_LIST
 	ALIAS_LIST
 #undef OP_X
+#else
+#define OP_X(Thing) \
+	extern void hide##Thing(); \
+	extern void show##Thing(); \
+	extern void toggle##Thing();
+	MASTER_LIST
+	ALIAS_LIST
+	OLD_LIST
+#undef OP_X
+#endif
 
 #define COLOR_LIST \
 OP_X(Active) \

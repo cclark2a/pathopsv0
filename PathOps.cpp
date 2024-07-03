@@ -32,24 +32,13 @@ bool PathOps(OpInPath& left, OpInPath& right, OpOperator opOperator, OpOutPath& 
     return success;
 }
 
-// if needed, this implementation would reduce the curves' order
-bool PathReduce(const OpInPath& path, OpOutPath* result) {
-    OP_ASSERT(0);
-    return false;
-}
-
-// if needed, this implementation remove zero area contours
-bool PathCleanUp(const OpInPath& path, OpOutPath* result) {
-    OP_ASSERT(0);
-    return false;
-}
-
 // new interface
 
 namespace PathOpsV0Lib {
 
-Context* CreateContext() {
+Context* CreateContext(AddContext callerData) {
     OpContours* contours = dumpInit();
+    contours->addCallerData(callerData);
     contours->newInterface = true;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = contours;
@@ -62,20 +51,21 @@ Context* CreateContext() {
 }
 
 void Add(AddCurve curve, AddWinding windings) {
-#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
-    debugGlobalContours = (OpContours*) curve.context;
-#endif
     OpContour* contour = (OpContour*) windings.contour;
+#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
+    debugGlobalContours = contour->contours;
+#endif
     contour->segments.emplace_back(curve, windings);
 }
 
-Contour* CreateContour(Context* context) {
+Contour* CreateContour(Context* context, AddContour callerData) {
     // reuse existing contour
     OpContours* contours = (OpContours*) context;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = contours;
 #endif
-    OpContour* contour = contours->makeContour((OpOperand) 0);
+    OpContour* contour = contours->makeContour();
+    contour->addCallerData(callerData);
     return (Contour*) contour;
 }
 
@@ -118,7 +108,9 @@ OpType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, ControlNearlyEnd
         CurveTangent tangentFunc,
         CurvesEqual equalFunc, PtAtT ptAtTFunc, DoublePtAtT doublePtAtTFunc, 
         PtCount ptCountFunc, Rotate rotateFunc, SubDivide subDivideFunc, XYAtT xyAtTFunc
+        OP_DEBUG_DUMP_PARAMS(DebugDumpExtra debugDumpExtraFunc)
         OP_DEBUG_DUMP_PARAMS(DumpSet dumpSetFunc)
+        OP_DEBUG_DUMP_PARAMS(DumpSetExtra dumpSetExtraFunc)
 		OP_DEBUG_IMAGE_PARAMS(DebugAddToPath debugAddToPathFunc)
 ) {
     OpContours* contours = (OpContours*) context;
@@ -126,7 +118,9 @@ OpType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, ControlNearlyEnd
             isLinearFunc,
             setBoundsFunc, normalFunc, outputFunc, reverseFunc, tangentFunc,
             equalFunc, ptAtTFunc, doublePtAtTFunc, ptCountFunc, rotateFunc, subDivideFunc, xyAtTFunc 
+		    OP_DEBUG_DUMP_PARAMS(debugDumpExtraFunc)
 		    OP_DEBUG_DUMP_PARAMS(dumpSetFunc)
+		    OP_DEBUG_DUMP_PARAMS(dumpSetExtraFunc)
 		    OP_DEBUG_IMAGE_PARAMS(debugAddToPathFunc)
             } );
     return (OpType) contours->callBacks.size();
@@ -134,13 +128,15 @@ OpType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, ControlNearlyEnd
 
 void SetWindingCallBacks(Contour* ctour, WindingAdd addFunc, WindingKeep keepFunc,
         WindingSubtract subtractFunc, WindingVisible visibleFunc, WindingZero zeroFunc
-		OP_DEBUG_DUMP_PARAMS(WindingDumpIn dumpInFunc, WindingDumpOut dumpOutFunc)
-        OP_DEBUG_IMAGE_PARAMS(WindingImageOut dumpImageOutFunc)
+		OP_DEBUG_DUMP_PARAMS(WindingDumpIn dumpInFunc, WindingDumpOut dumpOutFunc, 
+                ContourDumpExtra dumpFunc)
+        OP_DEBUG_IMAGE_PARAMS(WindingImageOut dumpImageOutFunc, WindingDebugColor debugColorFunc,
+                ContourNativePath nativePathFunc, ContourDebugDraw debugDrawFunc)
 ) {
     OpContour* contour = (OpContour*) ctour;
     contour->callBacks = { addFunc, keepFunc, subtractFunc, visibleFunc, zeroFunc 
-            OP_DEBUG_DUMP_PARAMS(dumpInFunc, dumpOutFunc)
-            OP_DEBUG_IMAGE_PARAMS(dumpImageOutFunc)
+            OP_DEBUG_DUMP_PARAMS(dumpInFunc, dumpOutFunc, dumpFunc)
+            OP_DEBUG_IMAGE_PARAMS(dumpImageOutFunc, debugColorFunc, nativePathFunc, debugDrawFunc)
             };
 }
 

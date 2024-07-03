@@ -36,15 +36,6 @@ inline void unaryWindingZeroFunc(Winding toZero) {
     *(int*) toZero.data = 0;
 }
 
-#if OP_DEBUG_IMAGE
-inline std::string unaryWindingImageOutFunc(Winding winding, int index) {
-    if (index > 0)
-        return "-";
-    std::string s = STR(((int*) winding.data)[0]);
-    return s;
-}
-#endif
-
 #if OP_DEBUG_DUMP
 inline void unaryWindingDumpInFunc(const char*& str, Winding winding) {
     OpDebugRequired(str, "{");
@@ -56,6 +47,19 @@ inline void unaryWindingDumpInFunc(const char*& str, Winding winding) {
 inline std::string unaryWindingDumpOutFunc(Winding winding) {
     std::string s = "{" + STR(*(int*) winding.data) + "}";
     return s;
+}
+#endif
+
+#if OP_DEBUG_IMAGE
+inline std::string unaryWindingImageOutFunc(Winding winding, int index) {
+    if (index > 0)
+        return "-";
+    std::string s = STR(((int*) winding.data)[0]);
+    return s;
+}
+
+inline uint32_t unaryDebugColorFunc(AddContour , DebugImage debugImage) {
+    return black;
 }
 #endif
 

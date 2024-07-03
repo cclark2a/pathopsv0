@@ -463,7 +463,7 @@ void dmpFile() {
 
 OpContours* fromFileContours = nullptr;
 
-void fromFile(std::vector<PathOpsV0Lib::CallBacks>* callBacks) {
+void fromFile(std::vector<PathOpsV0Lib::CurveCallBacks>* callBacks) {
     std::string buffer;
     if (FILE* file = fopen("dmp.txt", "r")) {
         int seek = fseek(file, 0, SEEK_END);
@@ -1188,6 +1188,7 @@ void OpContours::debugCompare(std::string s) {
     }
 }
 
+#if !OP_TEST_NEW_INTERFACE
 ENUM_NAME_STRUCT(OpOperand);
 
 #define OPERAND_NAME(r) { OpOperand::r, #r }
@@ -1198,13 +1199,18 @@ OpOperandName opOperandNames[] {
 };
 
 ENUM_NAME(OpOperand, opOperand)
+#endif
 
 std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
     std::string s = "contour:";
     OP_DEBUG_CODE(s += STR(id));
     s += " ";
  //   s += "bounds:" + ptBounds.debugDump(l, b) + " ";
+#if OP_TEST_NEW_INTERFACE
+    s += callBacks.debugDumpFuncPtr(caller, l, b) + " ";
+#else
     s += "operand:" + opOperandName(operand) + "\n";
+#endif
     s += "segments:" + STR(segments.size()) + "\n";
     if (DebugLevel::brief == l) {
         s += "[";
@@ -1225,7 +1231,9 @@ void OpContour::dumpSet(const char*& str) {
     OP_DEBUG_CODE(id = OpDebugReadSizeT(str));
 //    OpDebugRequired(str, "bounds");
 //    ptBounds.dumpSet(str);
+#if !OP_TEST_NEW_INTERFACE
     operand = opOperandStr(str, "operand", OpOperand::left);
+#endif
     OpDebugRequired(str, "segments");
     int segmentCount = OpDebugReadSizeT(str);
     segments.resize(segmentCount);
@@ -1398,8 +1406,12 @@ std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
         s += hullPt(i).debugDump(l, b) + ", ";
     s.pop_back(); s.pop_back();
     s += " }";
+#if OP_TEST_NEW_INTERFACE
+    s += contours->callBack(c.type).debugDumpExtraFuncPtr(c, l, b);
+#else
     if (OpType::conic == c.type)
-        s += debugValue(l, b, "weight", weight) + " ";
+        s += debugValue(l, b, "weight", weightImpl) + " ";
+#endif
     return s;
 }
 
@@ -1408,8 +1420,12 @@ void OpCurve::dumpSet(const char*& str) {
     OpDebugRequired(str, "{ ");
     dumpSetPts(str);
     OpDebugOptional(str, "}");
+#if OP_TEST_NEW_INTERFACE
+    contours->callBack(c.type).dumpSetExtraFuncPtr(c, str);
+#else
     if (OpDebugOptional(str, "weight"))
-        weight = OpDebugHexToFloat(str);
+        weightImpl = OpDebugHexToFloat(str);
+#endif
 }
 
 ENUM_NAME_STRUCT(EdgeMatch);

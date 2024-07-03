@@ -9,7 +9,6 @@ void Add(AddCurve , AddWinding );
 #include "curves/NoCurve.h"
 #include "curves/QuadBezier.h"
 #include "curves/UnaryWinding.h"
-#include "skia/SkiaPaths.h"
 
 #include "PathOps.h"
 
@@ -47,7 +46,7 @@ void quadOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt,
 void testNewInterface() {
     using namespace PathOpsV0Lib;
 
-    Context* context = CreateContext();
+    Context* context = CreateContext({nullptr, 0});
 
 #if OP_DEBUG
     OpDebugData debugData(false);
@@ -61,24 +60,29 @@ void testNewInterface() {
             noLinear, noBounds, lineNormal, lineOutput, noReverse,
             lineTangent, linesEqual, linePtAtT, /* double not required */ linePtAtT, 
             linePtCount, noRotate, lineSubDivide, lineXYAtT
+            OP_DEBUG_DUMP_PARAMS(noDebugDumpExtra)
             OP_DEBUG_DUMP_PARAMS(noDumpSet)
-            OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath)
+            OP_DEBUG_DUMP_PARAMS(noDumpSetExtra)
+            OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
     );
     quadType = SetCurveCallBacks(context, quadAxisRawHit, quadNearly, quadHull, quadIsFinite, quadIsLine, 
             quadIsLinear, quadSetBounds, quadNormal, quadOutput, noReverse,
             quadTangent, quadsEqual, quadPtAtT, /* double not required */ quadPtAtT, 
             quadPtCount, quadRotate, quadSubDivide, quadXYAtT
+            OP_DEBUG_DUMP_PARAMS(noDebugDumpExtra)
             OP_DEBUG_DUMP_PARAMS(quadDumpSet)
-            OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath)
+            OP_DEBUG_DUMP_PARAMS(noDumpSetExtra)
+            OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
     );
 
     // example: given points describing a pair of closed loops with quadratic Beziers, find
     //          their intersection
-    Contour* contour = CreateContour(context);
+    Contour* contour = CreateContour(context, {nullptr, 0});
     SetWindingCallBacks(contour, unaryWindingAddFunc, unaryWindingKeepFunc, 
             unaryWindingSubtractFunc, unaryWindingVisibleFunc, unaryWindingZeroFunc 
-            OP_DEBUG_DUMP_PARAMS(unaryWindingDumpInFunc, unaryWindingDumpOutFunc)
-            OP_DEBUG_IMAGE_PARAMS(unaryWindingImageOutFunc)
+            OP_DEBUG_DUMP_PARAMS(unaryWindingDumpInFunc, unaryWindingDumpOutFunc, noDumpFunc)
+            OP_DEBUG_IMAGE_PARAMS(noWindingImageOutFunc, noDebugColorFunc, noNativePathFunc,
+                    noDebugDrawFunc)
     );
     int windingData[] = { 1 };
     AddWinding addWinding { contour, windingData, sizeof(windingData) };
@@ -93,17 +97,17 @@ void testNewInterface() {
     };
     // break the quads so that their control points lie inside the bounds
     // formed by the end points (i.e., find the quads' extrema)
-    AddQuads({ context, &contour1[0], quadSize, quadType }, addWinding );
-    Add(     { context, &contour1[3], lineSize, lineType }, addWinding );
-    Add(     { context, &contour1[4], lineSize, lineType }, addWinding );
+    AddQuads({ &contour1[0], quadSize, quadType }, addWinding );
+    Add(     { &contour1[3], lineSize, lineType }, addWinding );
+    Add(     { &contour1[4], lineSize, lineType }, addWinding );
 
     OpPoint contour2[] { { 0, 0 }, { 1, 1 },            // line: start, end
                                    { 1, 3 }, { 0, 3 },  // quad: end, control
                                    { 1, 3 }, { 0, 0 },  // line: start, end
     };
-    Add(     { context, &contour2[0], lineSize, lineType }, addWinding );
-    AddQuads({ context, &contour2[1], quadSize, quadType }, addWinding );
-    Add(     { context, &contour2[4], lineSize, lineType }, addWinding );
+    Add(     { &contour2[0], lineSize, lineType }, addWinding );
+    AddQuads({ &contour2[1], quadSize, quadType }, addWinding );
+    Add(     { &contour2[4], lineSize, lineType }, addWinding );
 
     Resolve(context, nullptr);
     DeleteContext(context);

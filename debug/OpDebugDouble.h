@@ -33,8 +33,13 @@ void DebugOpAddBounds(double, double, double, double);
 void DebugOpAddHighlight(const OpEdge* );
 void DebugOpBounds(double& left, double& top, double& right, double& bottom);
 void DebugOpBuild(OpPoint );
+#if OP_TEST_NEW_INTERFACE
+void DebugOpBuild(OpPoint , uint32_t color);
+void DebugOpBuild(OpPoint , float t, uint32_t color);
+#else
 void DebugOpBuild(OpPoint , bool opp);
 void DebugOpBuild(OpPoint , float t, bool opp);
+#endif
 void DebugOpBuild(OpPoint , float t, DebugSprite );
 void DebugOpBuild(Axis axis, float normal, float cept);
 void DebugOpBuild(const OpEdge& , const struct OpDebugRay& );

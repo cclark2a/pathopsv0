@@ -5,9 +5,7 @@
 #include "OpMath.h"
 
 enum class OpType;
-struct OpPair;
 enum class WindKeep;
-struct OpWinding;
 
 namespace PathOpsV0Lib {
 
@@ -24,11 +22,29 @@ the intent is to do this through a callback
 
 */
 
+// An instance of the pathops engine.
 struct Context;
 
-/* A collection of curves in an operand that share the same fill rules.
- */
+// caller defined optional data
+typedef void* ContextData;
+
+// convenience for adding caller defined data to context
+struct AddContext {
+	ContextData data;
+	size_t size;
+};
+
+// A collection of curves in an operand that share the same fill rules.
 struct Contour;
+
+// caller defined optional data
+typedef void* ContourData;
+
+// convenience for adding caller defined data to contour
+struct AddContour {
+	ContourData data;
+	size_t size;
+};
 
 /* Curve describes a set of continuous points from start to end.
    Curve's points must be contained by a rectangle bounded by start and end.
@@ -46,49 +62,29 @@ struct Curve {
 	OpType type;
 };
 
-/* convenience for adding curve to contour
- */
+// convenience for adding curves (e.g., Beziers) to contour
 struct AddCurve {
-	Context* context;
 	OpPoint* points;
 	size_t size;	// size of points in bytes
 	OpType type;
 };
 
-/* caller defined data representing how curves in a contour cover area
- */
-struct WindingData;
+// caller defined data representing how curves in a contour cover area
+typedef void* WindingData;
 
 struct Winding {
-	WindingData* data;
+	WindingData data;
 	size_t size;
 };
 
-/* convenience for adding winding data to contour
- */
+// convenience for adding winding data to contour
 struct AddWinding {
 	Contour* contour;
 	int* windings;
 	size_t size;
 };
 
-typedef int ContourID;
-
-/* the contour ID and number of curves in the contour
- */
-struct ContourData {
-	int contourID;
-	int curves;
-};
-
-/* the number of contours and overall number of curves 
- */
-struct PathData {
-	int contours;
-	int curves;
-};
-
-// path provided by caller
+// output path provided by caller
 typedef void* PathOutput;
 
 // callbacks
@@ -137,13 +133,15 @@ typedef void (*SubDivide)(Curve , OpPtT t1, OpPtT t2, Curve result);
 // returns tangent vector at parameter t, where: t=0 is start, t=1 is end
 typedef OpVector (*CurveTangent)(Curve, float t);
 
-typedef void (*SetBounds)(Curve , OpPointBounds& );
+typedef void (*SetBounds)(Curve , OpRect& );
 
 // returns either x or y pair at parameter t, where: t=0 is start, t=1 is end
 typedef OpPair (*XYAtT)(Curve , OpPair t, XyChoice );
 
 #if OP_DEBUG_DUMP
+typedef std::string (*DebugDumpExtra)(Curve , DebugLevel , DebugBase);
 typedef void (*DumpSet)(Curve , const char*& str);
+typedef void (*DumpSetExtra)(Curve , const char*& str);
 #endif
 
 #if OP_DEBUG_IMAGE
@@ -151,7 +149,7 @@ typedef void (*DumpSet)(Curve , const char*& str);
 typedef void (*DebugAddToPath)(Curve , class SkPath& );
 #endif
 
-struct CallBacks {
+struct CurveCallBacks {
 	AxisRawHit axisRawHitFuncPtr;
 	ControlNearlyEnd controlNearlyEndFuncPtr;
 	CurveHull curveHullFuncPtr;
@@ -171,7 +169,9 @@ struct CallBacks {
 	SubDivide subDivideFuncPtr;
 	XYAtT xyAtTFuncPtr;
 #if OP_DEBUG_DUMP
+	DebugDumpExtra debugDumpExtraFuncPtr;
 	DumpSet dumpSetFuncPtr;
+	DumpSetExtra dumpSetExtraFuncPtr;
 #endif
 #if OP_DEBUG_IMAGE
 	DebugAddToPath debugAddToPathFuncPtr;
@@ -189,9 +189,13 @@ typedef WindKeep (*WindingKeep)(Winding winding, Winding sum);
 #if OP_DEBUG_DUMP
 typedef void (*WindingDumpIn)(const char*& str , Winding );
 typedef std::string (*WindingDumpOut)(Winding );
+typedef std::string (*ContourDumpExtra)(AddContour , DebugLevel , DebugBase );
 #endif
 #if OP_DEBUG_IMAGE
 typedef std::string (*WindingImageOut)(Winding , int index);
+typedef uint32_t (*WindingDebugColor)(AddContour , DebugImage );
+typedef void* (*ContourNativePath)(AddContour);
+typedef bool (*ContourDebugDraw)(AddContour);
 #endif
 
 struct ContourCallBacks {
@@ -203,12 +207,55 @@ struct ContourCallBacks {
 #if OP_DEBUG_DUMP
 	WindingDumpIn windingDumpInFuncPtr;
 	WindingDumpOut windingDumpOutFuncPtr;
+	ContourDumpExtra debugDumpFuncPtr;
 #endif
 #if OP_DEBUG_IMAGE
 	WindingImageOut windingImageOutFuncPtr;
+	WindingDebugColor debugColorFuncPtr;
+	ContourNativePath debugNativePath;
+	ContourDebugDraw debugDrawFuncPtr;
 #endif
 };
 
+#if 0
+#if OP_DEBUG_IMAGE
+typedef void* (*OutputNativePath)(AddContext);
+#endif
+
+struct ContextCallBacks {
+#if OP_DEBUG_IMAGE
+	OutputNativePath debugOutputPath;
+#endif
+};
+#endif
+
+#if OP_DEBUG_DUMP
+inline std::string noDumpFunc(AddContour caller, DebugLevel , DebugBase ) {
+    OP_ASSERT(!caller.size);
+    return "";
+}
+#endif
+
+#if OP_DEBUG_IMAGE
+inline void noAddToSkPathFunc(Curve , SkPath& ) {
+}
+
+inline std::string noWindingImageOutFunc(Winding , int index) {
+	return "";
+}
+
+inline uint32_t noDebugColorFunc(AddContour , DebugImage ) {
+	return 0;
+}
+
+inline void* noNativePathFunc(AddContour) {
+	return nullptr;
+}
+
+inline bool noDebugDrawFunc(AddContour) {
+	return false;
+}
+#endif
 
 } // namespace PathOpsV0Lib
 

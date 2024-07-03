@@ -73,11 +73,14 @@ OpPoint OpQuad::ptAtT(float t) const {
 }
 
 OpCurve OpQuad::subDivide(OpPtT ptT1, OpPtT ptT2) const {
+#if OP_TEST_NEW_INTERFACE
+    OP_ASSERT(0);
+#endif
     OpCurve result;
     result.c.type = OpType::quad;
     result.pts[0] = ptT1.pt;
     result.pts[2] = ptT2.pt;
-    result.weight = 1;
+    result.weightImpl = 1;
     if (0 == ptT1.t && 1 == ptT2.t)  // called by opsegment addquad if there's no extrema
         result.pts[1] = pts[1];
     else {

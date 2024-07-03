@@ -165,16 +165,6 @@ inline void binaryWindingZeroFunc(Winding toZero) {
     copyToWinding(toZero, zero);
 }
 
-#if OP_DEBUG_IMAGE
-inline std::string binaryWindingImageOutFunc(Winding winding, int index) {
-    if (index > 1)
-        return "-";
-    BinaryWinding binaryWinding(winding);
-    std::string s = STR(index ? binaryWinding.right : binaryWinding.left);
-    return s;
-}
-#endif
-
 #if OP_DEBUG_DUMP
 inline void binaryWindingDumpInFunc(const char*& str, Winding winding) {
     BinaryWinding binaryWinding;
@@ -189,6 +179,20 @@ inline std::string binaryWindingDumpOutFunc(Winding winding) {
     BinaryWinding binary(winding);
     std::string s = "{" + STR(binary.left) + ", " + STR(binary.right) + "}";
     return s;
+}
+#endif
+
+#if OP_DEBUG_IMAGE
+inline std::string binaryWindingImageOutFunc(Winding winding, int index) {
+    if (index > 1)
+        return "-";
+    BinaryWinding binaryWinding(winding);
+    std::string s = STR(index ? binaryWinding.right : binaryWinding.left);
+    return s;
+}
+
+inline uint32_t binaryDebugColorFunc(AddContour , DebugImage debugImage) {
+    return black;
 }
 #endif
 

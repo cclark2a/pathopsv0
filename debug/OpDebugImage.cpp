@@ -109,7 +109,9 @@ struct OpDebugEdgeIter {
     OpDebugEdgeIter(bool start)
 		: isCurveCurve(false)
 		, isFiller(false)
+#if !OP_TEST_NEW_INTERFACE
 		, isOpp(false)
+#endif
 		, isLine(false) {
 		edgeIndex = 0;
 		if (start)
@@ -151,7 +153,9 @@ struct OpDebugEdgeIter {
 					if (index == edgeIndex) {
 						isCurveCurve = false;
 						isFiller = false;
+#if !OP_TEST_NEW_INTERFACE
 						isOpp = OpOperand::right == c->operand;
+#endif
 						isLine = edge.isLine_impl;
 						return &edge;
 					}
@@ -164,7 +168,9 @@ struct OpDebugEdgeIter {
 			if (filler) {
 				isCurveCurve = false;
 				isFiller = true;
+#if !OP_TEST_NEW_INTERFACE
 				isOpp = false;
+#endif
 				isLine = true;
 				return filler;
 			}
@@ -199,7 +205,9 @@ struct OpDebugEdgeIter {
 			if (ccEdge) {
 				isCurveCurve = true;
 				isFiller = false;
+#if !OP_TEST_NEW_INTERFACE
 				isOpp = false;
+#endif
 				isLine = false;
 				return ccEdge;
 			}
@@ -215,7 +223,9 @@ struct OpDebugEdgeIter {
 
 	bool isCurveCurve;
 	bool isFiller;
+#if !OP_TEST_NEW_INTERFACE
 	bool isOpp;
+#endif
 	bool isLine;
 	size_t edgeIndex;
 };
@@ -293,6 +303,9 @@ void OpDebugImage::addToPath(const OpCurve& curve, SkPath& path) {
 	path.moveTo(curve.firstPt().x, curve.firstPt().y);
 	if (curve.newInterface)
 		return curve.contours->callBack(curve.c.type).debugAddToPathFuncPtr(curve.c, path);
+#if OP_TEST_NEW_INTERFACE
+	OP_ASSERT(0);
+#endif
 	switch (curve.c.type) {
 		case OpType::no:
 			OP_ASSERT(0);
@@ -304,7 +317,7 @@ void OpDebugImage::addToPath(const OpCurve& curve, SkPath& path) {
 			path.quadTo(curve.pts[1].x, curve.pts[1].y, curve.pts[2].x, curve.pts[2].y);
 			break;
 		case OpType::conic:
-			path.conicTo(curve.pts[1].x, curve.pts[1].y, curve.pts[2].x, curve.pts[2].y, curve.weight);
+			path.conicTo(curve.pts[1].x, curve.pts[1].y, curve.pts[2].x, curve.pts[2].y, curve.weightImpl);
 			break;
 		case OpType::cubic:
 			path.cubicTo(curve.pts[1].x, curve.pts[1].y, curve.pts[2].x, curve.pts[2].y,
@@ -327,9 +340,9 @@ void OpDebugImage::init() {
 #if !OP_TEST_NEW_INTERFACE
 	if (!debugGlobalContours->leftIn)
 		return;
-#endif
 	drawLeftOn = true;
 	drawRightOn = true;
+#endif
 #if OP_TEST_NEW_INTERFACE
 	focusSegments();
 #else
@@ -437,7 +450,9 @@ void OpDebugImage::drawPath(const SkPath& path, uint32_t color) {
 	offscreen.drawPath(path, paint);
 }
 
-#if !OP_TEST_NEW_INTERFACE
+#if OP_TEST_NEW_INTERFACE
+
+#else
 static SkPath* sk0() {
 	return (SkPath*) debugGlobalContours->leftIn->externalReference;
 }
@@ -460,7 +475,15 @@ void OpDebugImage::drawDoubleFocus() {
 		matrix.setScale(scale, scale);
 		matrix.preTranslate(-DebugOpGetCenterX(), -DebugOpGetCenterY());
 		matrix.postTranslate(DebugOpGetOffsetX(), DebugOpGetOffsetY());
-#if !OP_TEST_NEW_INTERFACE
+#if OP_TEST_NEW_INTERFACE
+		for (auto contour : debugGlobalContours->contours) {
+			if (contour->callBacks.debugDrawFuncPtr(contour->caller)) {
+				SkPath* skPath = (SkPath*) contour->callBacks.debugNativePath(contour->caller);
+				drawDoubleFill(skPath->makeTransform(matrix), 
+						contour->callBacks.debugColorFuncPtr(contour->caller, DebugImage::nativePath));
+			}
+		}
+#else
 		if (drawLeftOn) 
 			drawDoubleFill(sk0()->makeTransform(matrix), OpDebugAlphaColor(10, red));
 		if (drawRightOn)
@@ -473,7 +496,14 @@ void OpDebugImage::drawDoubleFocus() {
 		matrix.setScale(scale, scale);
 		matrix.preTranslate(-DebugOpGetCenterX(), -DebugOpGetCenterY());
 		matrix.postTranslate(DebugOpGetOffsetX(), DebugOpGetOffsetY());
-#if !OP_TEST_NEW_INTERFACE
+#if OP_TEST_NEW_INTERFACE
+		for (auto contour : debugGlobalContours->contours) {
+			SkPath* skPath = (SkPath*) contour->callBacks.debugNativePath(contour->caller);
+			drawDoubleFill(skPath->makeTransform(matrix), 
+					contour->callBacks.debugColorFuncPtr(contour->caller, DebugImage::nativePath));
+		}
+
+#else
 		drawDoubleFill(sk0()->makeTransform(matrix), OpDebugAlphaColor(20, red));
 		drawDoubleFill(sk1()->makeTransform(matrix), OpDebugAlphaColor(20, blue));
         OpOutPath* result = debugGlobalContours->debugResult;
@@ -482,9 +512,9 @@ void OpDebugImage::drawDoubleFocus() {
                 ->makeTransform(matrix), OpDebugAlphaColor(20, green));
 #endif
     }
+#if !OP_TEST_NEW_INTERFACE
 	if (drawLeftOn || drawRightOn)
 		DebugOpClearInputs();
-#if !OP_TEST_NEW_INTERFACE
 	if (drawLeftOn)
 		DebugOpAdd(*debugGlobalContours->leftIn);
 	if (drawRightOn)
@@ -547,7 +577,12 @@ void OpDebugImage::drawDoubleFocus() {
 					color = red;
 				else if (edgeIter.isCurveCurve) {
 					if (edge->ccOverlaps)
+#if OP_TEST_NEW_INTERFACE
+						color = edge->winding.contour->callBacks
+								.debugColorFuncPtr(edge->winding.contour->caller, DebugImage::ccOverlaps);
+#else
 						color = edgeIter.isOpp ? orange : darkGreen;
+#endif
 					else
 						color = purple;
 				}
@@ -1120,8 +1155,10 @@ void focusSegments() {
 void clear() {
 	OpDebugImage::clearScreen();
 	OpDebugImage::clearLines();
+#if !OP_TEST_NEW_INTERFACE
 	drawLeftOn = false;
 	drawRightOn = false;
+#endif
 	DebugOpResetFocus();
 }
 
@@ -1218,7 +1255,6 @@ bool OpDebugImage::drawValue(OpPoint pt, std::string ptStr, uint32_t color) {
 
 void OpDebugImage::drawPoints() {
 	DebugOpClearPoints();
-#if !OP_TEST_NEW_INTERFACE
 	auto drawPathPt = [](const SkPath* path) { // lambda
 		SkPath::RawIter iter(*path);
 		SkPath::Verb verb;
@@ -1253,6 +1289,14 @@ void OpDebugImage::drawPoints() {
 			}
 		} while (verb != SkPath::kDone_Verb);
 	};
+#if OP_TEST_NEW_INTERFACE
+	for (auto contour : debugGlobalContours->contours) {
+		if (contour->callBacks.debugDrawFuncPtr(contour->caller)) {
+			SkPath* skPath = (SkPath*) contour->callBacks.debugNativePath(contour->caller);
+			drawPathPt(skPath);
+		}
+	}
+#else
 	if (drawLeftOn)
 		drawPathPt(sk0());
 	if (drawRightOn)
@@ -1275,8 +1319,15 @@ void OpDebugImage::drawPoints() {
 			if (!edge->debugDraw)
 				continue;
 			if (edgeIter.isCurveCurve) {
+#if OP_TEST_NEW_INTERFACE
+				uint32_t color = edge->winding.contour->callBacks
+						.debugColorFuncPtr(edge->winding.contour->caller, DebugImage::curveCurve);
+				DebugOpBuild(edge->start.pt, edge->start.t, color);
+				DebugOpBuild(edge->end.pt, edge->end.t, color);
+#else
 				DebugOpBuild(edge->start.pt, edge->start.t, edgeIter.isOpp);
 				DebugOpBuild(edge->end.pt, edge->end.t, edgeIter.isOpp);
+#endif
 			} else {
 				DebugOpBuild(edge->start.pt, edge->start.t);
 				DebugOpBuild(edge->end.pt, edge->end.t);
@@ -1303,7 +1354,12 @@ void OpDebugImage::drawPoints() {
 	}
 	if (drawLinesOn) {
 		for (const auto& line : lines) {
-#if !OP_TEST_NEW_INTERFACE
+#if OP_TEST_NEW_INTERFACE
+			for (auto contour : debugGlobalContours->contours) {
+				if (contour->callBacks.debugDrawFuncPtr(contour->caller))
+					DebugOpBuild(*(SkPath*)contour->callBacks.debugNativePath(contour->caller), line);
+			}
+#else
 			if (drawLeftOn)
 				DebugOpBuild(*sk0(), line);
 			if (drawRightOn)
@@ -1458,16 +1514,20 @@ void hideFill() {
 }
 
 void showFill() {
+#if !OP_TEST_NEW_INTERFACE
 	if (!drawLeftOn && !drawRightOn)
 		drawLeftOn = drawRightOn = true;
+#endif
 	drawFillOn = true;
 	OpDebugImage::drawDoubleFocus();
 }
 
 void toggleFill() {
 	drawFillOn ^= true;
+#if !OP_TEST_NEW_INTERFACE
 	if (drawFillOn && !drawLeftOn && !drawRightOn)
 		drawLeftOn = drawRightOn = true;
+#endif
 	OpDebugImage::drawDoubleFocus();
 }
 
@@ -1484,18 +1544,24 @@ void toggleIn() {
 }
 
 void hideOperands() {
+#if !OP_TEST_NEW_INTERFACE
 	drawLeftOn = drawRightOn = false;
+#endif
 	OpDebugImage::drawDoubleFocus();
 }
 
 void showOperands() {
+#if !OP_TEST_NEW_INTERFACE
 	drawLeftOn = drawRightOn = true;
+#endif
 	OpDebugImage::drawDoubleFocus();
 }
 
 void toggleOperands() {
+#if !OP_TEST_NEW_INTERFACE
 	drawLeftOn ^= true;
 	drawRightOn ^= true;
+#endif
 	OpDebugImage::drawDoubleFocus();
 }
 
@@ -1619,10 +1685,16 @@ void colorLinkups(uint32_t color) {
 void colorOpp(uint32_t color) {
 	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
+#if OP_TEST_NEW_INTERFACE
+		OpContour* contour = edge->winding.contour;
+		edge->debugColor = contour->callBacks.debugColorFuncPtr(contour->caller, DebugImage::segment);
+		edge->debugDraw = true;
+#else
 		if (OpOperand::right == edge->segment->contour->operand) {
 			edge->debugColor = color;
 			edge->debugDraw = true;
 		}
+#endif
 	}
 	OpDebugImage::drawDoubleFocus();
 }
@@ -2149,7 +2221,11 @@ void help() {
 
 void resetFocus() {
 	OpPointBounds focusRect;
-	if (!drawSegmentsOn && !drawLeftOn && !drawRightOn && drawEdgesOn) {
+	if (!drawSegmentsOn 
+#if !OP_TEST_NEW_INTERFACE
+		&& !drawLeftOn && !drawRightOn 
+#endif
+		&& drawEdgesOn) {
 		int saveLevel = edgeIterDvLevel;
 		edgeIterDvLevel = std::max(0, edgeIterDvLevel);
 		for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
