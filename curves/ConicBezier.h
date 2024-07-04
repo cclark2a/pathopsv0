@@ -253,6 +253,10 @@ inline bool conicIsLinear(Curve c) {
 }
 
 #if OP_DEBUG_DUMP
+inline size_t conicDebugDumpSize() {
+    return offsetof(CurveData, optionalAdditionalData) + sizeof(PointWeight);
+}
+
 inline std::string conicDebugDumpExtra(Curve c, DebugLevel l, DebugBase b) {
     PointWeight control(c);
     return debugValue(l, b, " weight", control.weight);

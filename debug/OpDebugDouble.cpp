@@ -1431,12 +1431,14 @@ void DebugOpDrawEdgeTangent(const OpEdge* edge, uint32_t color) {
     for (auto& drawnEdge : drawn) {
         OpCurve curve;
         drawnEdge.mapTo(curve);
-	    OpVector tan = curve.tangent(.33f).normalize() * 15;
+        if (curve.c.data->start.isNearly(curve.c.data->end))
+            continue;
+        OpVector tan = curve.tangent(.33f).normalize() * 15;
         if (EdgeMatch::end == edge->which()) {
             tan = -tan;
             color = red;
         }
-	    if (!tan.isFinite() || tan == OpVector{ 0, 0 }) {
+        if (!tan.isFinite() || tan == OpVector{ 0, 0 }) {
 		    OpDebugOut("overflow on edge " + STR(edge->id) + "\n");
 		    return;
 	    }
@@ -1452,8 +1454,10 @@ void DebugOpDrawSegmentTangent(const OpSegment* seg, uint32_t color) {
     for (auto& drawnSeg : drawn) {
         OpCurve curve;
         drawnSeg.mapTo(curve);
-	    OpVector tan = curve.tangent(.42f).normalize() * 15;
-	    if (!tan.isFinite() || tan == OpVector{ 0, 0 }) {
+        if (curve.c.data->start.isNearly(curve.c.data->end))
+            continue;
+        OpVector tan = curve.tangent(.42f).normalize() * 15;
+        if (!tan.isFinite() || tan == OpVector{ 0, 0 }) {
 		    OpDebugOut("overflow on seg " + STR(seg->id) + "\n");
 		    return;
 	    }

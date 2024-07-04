@@ -21,8 +21,8 @@ void commonOutput(PathOpsV0Lib::Curve c, OpType type, bool firstPt, bool lastPt,
     if (firstPt)
         OpDebugOut("contour start --\n");
     std::string outStr = lineType == type ? "line: " : "quad: ";
-    auto addPtStr = [&outStr](const OpPoint& pt, const char* delimiter) {
-        outStr += pt.debugDump(DebugLevel::normal, DebugBase::dec) + delimiter;
+    auto addPtStr = [&outStr](const OpPoint& pt, std::string delimiter) {
+        outStr += "{ " + std::to_string(pt.x) + ", " + std::to_string(pt.y) + " }" + delimiter;
     };
     addPtStr(c.data->start, ", ");
     if (quadType == type)
@@ -47,6 +47,7 @@ void testNewInterface() {
     using namespace PathOpsV0Lib;
 
     Context* context = CreateContext({nullptr, 0});
+    SetContextCallBacks(context  OP_DEBUG_IMAGE_PARAMS(noContextColorFunc));
 
 #if OP_DEBUG
     OpDebugData debugData(false);
@@ -56,33 +57,32 @@ void testNewInterface() {
     Debug(context, debugData);
 #endif
 
-    lineType = SetCurveCallBacks(context, lineAxisRawHit, noNearly, noHull, lineIsFinite, lineIsLine, 
-            noLinear, noBounds, lineNormal, lineOutput, noReverse,
+    lineType = SetCurveCallBacks(context, lineAxisRawHit, noNearly, noHull, lineIsFinite, 
+            lineIsLine, noLinear, noBounds, lineNormal, lineOutput, noReverse,
             lineTangent, linesEqual, linePtAtT, /* double not required */ linePtAtT, 
             linePtCount, noRotate, lineSubDivide, lineXYAtT
-            OP_DEBUG_DUMP_PARAMS(noDebugDumpExtra)
-            OP_DEBUG_DUMP_PARAMS(noDumpSet)
-            OP_DEBUG_DUMP_PARAMS(noDumpSetExtra)
+            OP_DEBUG_DUMP_PARAMS(lineDebugDumpSize, noDumpCurveExtra, noDumpCurveSet, 
+                    noDumpCurveSetExtra)
             OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
     );
-    quadType = SetCurveCallBacks(context, quadAxisRawHit, quadNearly, quadHull, quadIsFinite, quadIsLine, 
-            quadIsLinear, quadSetBounds, quadNormal, quadOutput, noReverse,
+    quadType = SetCurveCallBacks(context, quadAxisRawHit, quadNearly, quadHull, quadIsFinite, 
+            quadIsLine, quadIsLinear, quadSetBounds, quadNormal, quadOutput, noReverse,
             quadTangent, quadsEqual, quadPtAtT, /* double not required */ quadPtAtT, 
             quadPtCount, quadRotate, quadSubDivide, quadXYAtT
-            OP_DEBUG_DUMP_PARAMS(noDebugDumpExtra)
-            OP_DEBUG_DUMP_PARAMS(quadDumpSet)
-            OP_DEBUG_DUMP_PARAMS(noDumpSetExtra)
+            OP_DEBUG_DUMP_PARAMS(quadDebugDumpSize, noDumpCurveExtra, quadDumpSet, 
+                    noDumpCurveSetExtra)
             OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
     );
 
     // example: given points describing a pair of closed loops with quadratic Beziers, find
     //          their intersection
-    Contour* contour = CreateContour(context, {nullptr, 0});
+    Contour* contour = CreateContour({context, nullptr, 0});
     SetWindingCallBacks(contour, unaryWindingAddFunc, unaryWindingKeepFunc, 
             unaryWindingSubtractFunc, unaryWindingVisibleFunc, unaryWindingZeroFunc 
             OP_DEBUG_DUMP_PARAMS(unaryWindingDumpInFunc, unaryWindingDumpOutFunc, noDumpFunc)
-            OP_DEBUG_IMAGE_PARAMS(noWindingImageOutFunc, noDebugColorFunc, noNativePathFunc,
-                    noDebugDrawFunc)
+            OP_DEBUG_IMAGE_PARAMS(noWindingImageOutFunc, noContourColorFunc, noContourColorFunc,
+                    noContourColorFunc, noContourColorFunc, noNativePathFunc,
+                    noDebugDrawFunc, noIsOppFunc)
     );
     int windingData[] = { 1 };
     AddWinding addWinding { contour, windingData, sizeof(windingData) };

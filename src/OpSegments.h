@@ -17,7 +17,8 @@ struct OpSegments {
     static void FindCoincidences(OpContours* );  // new interface
 //    void findLineCoincidences();
     FoundIntersections findIntersections();
-    static FoundIntersections FindIntersections(OpContours* );  // new interface
+//    FoundIntersections findIntersectionsX();
+//    static FoundIntersections FindIntersections(OpContours* );  // new interface
     static IntersectResult LineCoincidence(OpSegment* seg, OpSegment* opp);
 
 #if OP_DEBUG_DUMP

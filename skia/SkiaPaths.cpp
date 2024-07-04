@@ -4,11 +4,11 @@
 #include "include/core/SkPath.h"
 
 static const SkPathOp inverseOpMapping[5][2][2] {
- {{kDifference_SkPathOp, kIntersect_SkPathOp}, {kIntersect_SkPathOp, kReverseDifference_SkPathOp }},
- {{kIntersect_SkPathOp, kDifference_SkPathOp}, {kReverseDifference_SkPathOp, kIntersect_SkPathOp }},
- {{kIntersect_SkPathOp, kReverseDifference_SkPathOp}, {kDifference_SkPathOp, kIntersect_SkPathOp }},
- {{kXOR_SkPathOp, kXOR_SkPathOp }, {kXOR_SkPathOp, kXOR_SkPathOp}},
- {{kReverseDifference_SkPathOp, kIntersect_SkPathOp}, {kIntersect_SkPathOp, kDifference_SkPathOp }},
+    {{kDifference_SkPathOp, kIntersect_SkPathOp}, {kUnion_SkPathOp, kReverseDifference_SkPathOp }},
+    {{kIntersect_SkPathOp, kDifference_SkPathOp}, {kReverseDifference_SkPathOp, kUnion_SkPathOp }},
+    {{kUnion_SkPathOp, kReverseDifference_SkPathOp}, {kDifference_SkPathOp, kIntersect_SkPathOp }},
+    {{kXOR_SkPathOp, kXOR_SkPathOp }, {kXOR_SkPathOp, kXOR_SkPathOp}},
+    {{kReverseDifference_SkPathOp, kUnion_SkPathOp}, {kIntersect_SkPathOp, kDifference_SkPathOp }},
 };
 
 /* Given a PathOps operator, and if the operand fills are inverted, return the equivalent operator
@@ -94,40 +94,38 @@ OpType skiaCubicType;
 
 // new interface
 void SetSkiaCurveCallBacks(PathOpsV0Lib::Context* context) {
-    skiaLineType = SetCurveCallBacks(context, lineAxisRawHit, noNearly, noHull, lineIsFinite, lineIsLine, 
-            noLinear, noBounds, lineNormal, skiaLineOutput, noReverse,
+    skiaLineType = SetCurveCallBacks(context, lineAxisRawHit, noNearly, noHull, lineIsFinite, 
+            lineIsLine, noLinear, noBounds, lineNormal, skiaLineOutput, noReverse,
             lineTangent, linesEqual, linePtAtT, /* double not required */ linePtAtT, 
             linePtCount, noRotate, lineSubDivide, lineXYAtT
-            OP_DEBUG_DUMP_PARAMS(noDebugDumpExtra)
-            OP_DEBUG_DUMP_PARAMS(noDumpSet)
-            OP_DEBUG_DUMP_PARAMS(noDumpSetExtra)
+            OP_DEBUG_DUMP_PARAMS(lineDebugDumpSize, noDumpCurveExtra, noDumpCurveSet, 
+                    noDumpCurveSetExtra)
             OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath)
     );
-    skiaQuadType = SetCurveCallBacks(context, quadAxisRawHit, quadNearly, quadHull, quadIsFinite, quadIsLine, 
-            quadIsLinear, quadSetBounds, quadNormal, skiaQuadOutput, noReverse,
+    skiaQuadType = SetCurveCallBacks(context, quadAxisRawHit, quadNearly, quadHull, quadIsFinite, 
+            quadIsLine, quadIsLinear, quadSetBounds, quadNormal, skiaQuadOutput, noReverse,
             quadTangent, quadsEqual, quadPtAtT, /* double not required */ quadPtAtT, 
             quadPtCount, quadRotate, quadSubDivide, quadXYAtT
-            OP_DEBUG_DUMP_PARAMS(noDebugDumpExtra)
-            OP_DEBUG_DUMP_PARAMS(quadDumpSet)
-            OP_DEBUG_DUMP_PARAMS(noDumpSetExtra)
+            OP_DEBUG_DUMP_PARAMS(quadDebugDumpSize, noDumpCurveExtra, quadDumpSet, 
+                    noDumpCurveSetExtra)
             OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath)
     );
-    skiaConicType = SetCurveCallBacks(context, conicAxisRawHit, conicNearly, conicHull, conicIsFinite, conicIsLine, 
+    skiaConicType = SetCurveCallBacks(context, conicAxisRawHit, conicNearly, conicHull, 
+            conicIsFinite, conicIsLine, 
             conicIsLinear, conicSetBounds, conicNormal, skiaConicOutput, noReverse,
             conicTangent, conicsEqual, conicPtAtT, /* double not required */ conicPtAtT, 
             conicPtCount, conicRotate, conicSubDivide, conicXYAtT
-            OP_DEBUG_DUMP_PARAMS(conicDebugDumpExtra)
-            OP_DEBUG_DUMP_PARAMS(conicDumpSet)
-            OP_DEBUG_DUMP_PARAMS(conicDumpSetExtra)
+            OP_DEBUG_DUMP_PARAMS(conicDebugDumpSize, conicDebugDumpExtra, conicDumpSet, 
+                    conicDumpSetExtra)
             OP_DEBUG_IMAGE_PARAMS(debugConicAddToSkPath)
     );
-    skiaCubicType = SetCurveCallBacks(context, cubicAxisRawHit, cubicNearly, cubicHull, cubicIsFinite, cubicIsLine, 
+    skiaCubicType = SetCurveCallBacks(context, cubicAxisRawHit, cubicNearly, cubicHull, 
+            cubicIsFinite, cubicIsLine, 
             cubicIsLinear, cubicSetBounds, cubicNormal, skiaConicOutput, noReverse,
             cubicTangent, cubicsEqual, cubicPtAtT, /* double not required */ cubicPtAtT, 
             cubicPtCount, cubicRotate, cubicSubDivide, cubicXYAtT
-            OP_DEBUG_DUMP_PARAMS(noDebugDumpExtra)
-            OP_DEBUG_DUMP_PARAMS(cubicDumpSet)
-            OP_DEBUG_DUMP_PARAMS(noDumpSetExtra)
+            OP_DEBUG_DUMP_PARAMS(cubicDebugDumpSize, noDumpCurveExtra, cubicDumpSet, 
+                    noDumpCurveSetExtra)
             OP_DEBUG_IMAGE_PARAMS(debugCubicAddToSkPath)
     );
 }
@@ -145,77 +143,75 @@ std::string dumpSkPath(const SkPath* path, DebugBase debugBase) {
     return "skPath:" + str;
 }
 
-std::string unaryDumpFunc(AddContour caller, DebugLevel debugLevel, DebugBase debugBase) {
-    OP_ASSERT(sizeof(SimplifyUserData) == caller.size);
-    SimplifyUserData simplifyUserData;
+std::string unaryDumpFunc(CallerData caller, DebugLevel debugLevel, DebugBase debugBase) {
+    OP_ASSERT(sizeof(SkiaSimplifyContourData) == caller.size);
+    SkiaSimplifyContourData simplifyUserData;
     std::memcpy(&simplifyUserData, caller.data, caller.size);
     std::string s = dumpSkPath(simplifyUserData.pathPtr, debugBase) + "\n";
     return s;
 }
 
-std::string binaryDumpFunc(AddContour caller, DebugLevel debugLevel, DebugBase debugBase) {
-    OP_ASSERT(sizeof(WindingUserData) == caller.size);
-    WindingUserData windingUserData;
-    std::memcpy(&windingUserData, caller.data, caller.size);
-    std::string s = dumpSkPath(windingUserData.pathPtr, debugBase) + "\n";
+std::string binaryDumpFunc(CallerData caller, DebugLevel debugLevel, DebugBase debugBase) {
+    OP_ASSERT(sizeof(SkiaOpContourData) == caller.size);
+    SkiaOpContourData opUserData;
+    std::memcpy(&opUserData, caller.data, caller.size);
+    std::string s = dumpSkPath(opUserData.pathPtr, debugBase) + "\n";
     std::vector<std::string> skPathOpNames { "Difference", "Intersect", "Union",  "XOR",
         "ReverseDifference"  };
-    OP_ASSERT(0 <= windingUserData.op && windingUserData.op <= kReverseDifference_SkPathOp);
-    s += "SkPathOp:" + skPathOpNames[windingUserData.op] + " ";
-    OP_ASSERT(SkiaOperand::left == windingUserData.operand ||
-            SkiaOperand::right == windingUserData.operand);
-    s += "SkiaOperand:" + std::string(SkiaOperand::left == windingUserData.operand ? "left" : "right");
+    OP_ASSERT(0 <= opUserData.op && opUserData.op <= kReverseDifference_SkPathOp);
+    s += "SkPathOp:" + skPathOpNames[opUserData.op] + " ";
+    OP_ASSERT(BinaryOperand::left == opUserData.operand ||
+            BinaryOperand::right == opUserData.operand);
+    s += "BinaryOperand:" + std::string(BinaryOperand::left == opUserData.operand ? "left" : "right");
     return s;
 }
 #endif
 
 #if OP_DEBUG_IMAGE
-void* unaryNativePath(AddContour caller) {
-    OP_ASSERT(sizeof(SimplifyUserData) == caller.size);
-    SimplifyUserData simplifyUserData;
-    std::memcpy(&simplifyUserData, caller.data, caller.size);
-    return (void*) simplifyUserData.pathPtr;
+void* debugNativePath(CallerData caller) {
+    return (void*) (caller.data + offsetof(ContourData, nativePath));
 }
 
-void* binaryNativePath(AddContour caller) {
-    OP_ASSERT(sizeof(WindingUserData) == caller.size);
-    WindingUserData windingUserData;
-    std::memcpy(&windingUserData, caller.data, caller.size);
-    return (void*) windingUserData.pathPtr;
+bool* debugDrawFunc(CallerData caller) {
+    return (bool*) (caller.data + offsetof(ContourData, drawNativePath));
 }
 
-bool unaryDrawFunc(AddContour caller) {
-    OP_ASSERT(sizeof(SimplifyUserData) == caller.size);
-    SimplifyUserData simplifyUserData;
-    std::memcpy(&simplifyUserData, caller.data, caller.size);
-    return simplifyUserData.drawSkPath;
-}
-
-bool binaryDrawFunc(AddContour caller) {
-    OP_ASSERT(sizeof(WindingUserData) == caller.size);
-    WindingUserData windingUserData;
-    std::memcpy(&windingUserData, caller.data, caller.size);
-    return windingUserData.drawSkPath;
+inline uint32_t nativeOutColorFunc() {
+    return OpDebugAlphaColor(20, green);
 }
 #endif
 
-PathOpsV0Lib::Contour* SetSkiaWindingSimplifyCallBacks(PathOpsV0Lib::Context* context
-        OP_DEBUG_PARAMS(const SkPath& path)) {
-    SimplifyUserData simplifyUserData { OP_DEBUG_CODE(&path)  OP_DEBUG_IMAGE_PARAMS(true) };
-    Contour* contour = CreateContour(context, { &simplifyUserData, sizeof(simplifyUserData) } );
-    SetWindingCallBacks(contour, unaryWindingAddFunc, unaryWindingKeepFunc, 
-            unaryWindingSubtractFunc, unaryWindingVisibleFunc, unaryWindingZeroFunc 
+void SetSkiaContextCallBacks(PathOpsV0Lib::Context* context) {
+    SetContextCallBacks(context
+        OP_DEBUG_IMAGE_PARAMS(nativeOutColorFunc)
+    );
+}
+
+PathOpsV0Lib::Contour* SetSkiaSimplifyCallBacks(PathOpsV0Lib::Context* context, 
+        bool isWindingFill  OP_DEBUG_PARAMS(const SkPath& path)) {
+    SkiaSimplifyContourData simplifyUserData { (Operation) 0, (Operand) 0
+            OP_DEBUG_PARAMS(&path)  OP_DEBUG_IMAGE_PARAMS(true) };
+    Contour* contour = CreateContour({context, (ContourData*) &simplifyUserData, 
+            sizeof(SkiaSimplifyContourData) } );
+    WindingAdd addFunc = isWindingFill ? unaryWindingAddFunc : unaryEvenOddFunc;
+    WindingAdd subtractFunc = isWindingFill ? unaryWindingSubtractFunc : unaryEvenOddFunc;
+    SetWindingCallBacks(contour, addFunc, unaryWindingKeepFunc, 
+            subtractFunc, unaryWindingVisibleFunc, unaryWindingZeroFunc 
             OP_DEBUG_DUMP_PARAMS(unaryWindingDumpInFunc, unaryWindingDumpOutFunc, unaryDumpFunc)
-            OP_DEBUG_IMAGE_PARAMS(unaryWindingImageOutFunc, unaryDebugColorFunc, unaryNativePath,
-                    unaryDrawFunc)
+            OP_DEBUG_IMAGE_PARAMS(unaryWindingImageOutFunc, unaryCCOverlapsColorFunc,
+	                unaryCurveCurveColorFunc, unaryNativeFillColorFunc,
+	                unaryNativeInColorFunc, unaryNativePathFunc,
+	                unaryContourDrawFunc, noIsOppFunc)
     );
     return contour;
 }
 
-PathOpsV0Lib::Contour* SetSkiaWindingCallBacks(PathOpsV0Lib::Context* context, SkPathOp op,
-        SkiaOperand operand  OP_DEBUG_PARAMS(const SkPath& path)) {
-    WindingUserData windingUserData { op, operand  OP_DEBUG_PARAMS(&path )  OP_DEBUG_IMAGE_PARAMS(true) };
-    Contour* contour = CreateContour(context, { &windingUserData, sizeof(windingUserData) } );
+PathOpsV0Lib::Contour* SetSkiaOpCallBacks(PathOpsV0Lib::Context* context, SkPathOp op,
+        BinaryOperand operand, bool isWindingFill  OP_DEBUG_PARAMS(const SkPath& path)) {
+    SkiaOpContourData windingUserData { op, operand  OP_DEBUG_PARAMS(&path )  
+            OP_DEBUG_IMAGE_PARAMS(true) };
+    Contour* contour = CreateContour({context, (ContourData*) &windingUserData,
+            sizeof(SkiaOpContourData) } );
     WindingKeep operatorFunc;
     switch(op) {
         case kDifference_SkPathOp: operatorFunc = binaryWindingDifferenceFunc; break;
@@ -225,11 +221,15 @@ PathOpsV0Lib::Contour* SetSkiaWindingCallBacks(PathOpsV0Lib::Context* context, S
         case kReverseDifference_SkPathOp: operatorFunc = binaryWindingReverseDifferenceFunc; break;
         default: OP_ASSERT(0);
     }
-    SetWindingCallBacks(contour, binaryWindingAddFunc, operatorFunc, 
-            binaryWindingSubtractFunc, binaryWindingVisibleFunc, binaryWindingZeroFunc 
+    WindingAdd addFunc = isWindingFill ? binaryWindingAddFunc : binaryEvenOddFunc;
+    WindingAdd subtractFunc = isWindingFill ? binaryWindingSubtractFunc : binaryEvenOddFunc;
+    SetWindingCallBacks(contour, addFunc, operatorFunc, 
+            subtractFunc, binaryWindingVisibleFunc, binaryWindingZeroFunc 
             OP_DEBUG_DUMP_PARAMS(binaryWindingDumpInFunc, binaryWindingDumpOutFunc, binaryDumpFunc)
-            OP_DEBUG_IMAGE_PARAMS(binaryWindingImageOutFunc, binaryDebugColorFunc, binaryNativePath,
-                    binaryDrawFunc)
+            OP_DEBUG_IMAGE_PARAMS(binaryWindingImageOutFunc, binaryCCOverlapsColorFunc,
+	                binaryCurveCurveColorFunc, binaryNativeFillColorFunc,
+	                binaryNativeInColorFunc, binaryNativePathFunc,
+	                binaryContourDrawFunc, binaryIsOppFunc)
     );
     return contour;
 }

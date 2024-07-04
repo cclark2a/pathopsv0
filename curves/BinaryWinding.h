@@ -7,6 +7,11 @@
 
 namespace PathOpsV0Lib {
 
+enum class BinaryOperand : int {
+	left,
+	right
+};
+
 struct BinaryWinding {
     BinaryWinding() 
         : left(0)
@@ -180,6 +185,7 @@ inline std::string binaryWindingDumpOutFunc(Winding winding) {
     std::string s = "{" + STR(binary.left) + ", " + STR(binary.right) + "}";
     return s;
 }
+
 #endif
 
 #if OP_DEBUG_IMAGE
@@ -191,9 +197,42 @@ inline std::string binaryWindingImageOutFunc(Winding winding, int index) {
     return s;
 }
 
-inline uint32_t binaryDebugColorFunc(AddContour , DebugImage debugImage) {
-    return black;
+inline uint32_t binaryCCOverlapsColorFunc(CallerData caller) {
+    BinaryOperand operand = (BinaryOperand) caller.data->operand;
+    return BinaryOperand::left == operand ? orange : darkGreen;    
 }
+
+inline uint32_t binaryCurveCurveColorFunc(CallerData caller) {
+    BinaryOperand operand = (BinaryOperand) caller.data->operand;
+    return BinaryOperand::left == operand ? blue : darkGreen;
+}
+
+inline uint32_t binaryNativeFillColorFunc(CallerData caller) {
+    if (BinaryOperand::left == (BinaryOperand) caller.data->operand)
+        return OpDebugAlphaColor(10, red);
+    else
+        return OpDebugAlphaColor(10, blue);
+}
+
+inline uint32_t binaryNativeInColorFunc(CallerData caller) {
+    if (BinaryOperand::left == (BinaryOperand) caller.data->operand)
+        return OpDebugAlphaColor(20, red);
+    else
+        return OpDebugAlphaColor(20, blue);
+}
+
+inline void* binaryNativePathFunc(CallerData caller) {
+    return caller.data->nativePath;
+}
+
+inline bool* binaryContourDrawFunc(CallerData caller) {
+    return &caller.data->drawNativePath;
+}
+
+inline bool binaryIsOppFunc(CallerData caller) {
+    return BinaryOperand::left != (BinaryOperand) caller.data->operand;
+}
+
 #endif
 
 }

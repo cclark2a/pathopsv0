@@ -446,8 +446,8 @@ bool OpCurve::isFinite() const {
 OpCurve OpCurve::toVertical(const LinePts& line) const {
     float adj = line.pts[1].x - line.pts[0].x;
     float opp = line.pts[1].y - line.pts[0].y;
-    OpCurve rotated;
     if (newInterface) {
+        OpCurve rotated(contours, { nullptr, c.size, c.type } );
         auto rotatePt = [line, adj, opp](OpPoint pt) {
             OpVector v = pt - line.pts[0];
             return OpPoint(v.dy * adj - v.dx * opp, v.dy * opp + v.dx * adj);
@@ -463,6 +463,7 @@ OpCurve OpCurve::toVertical(const LinePts& line) const {
 #if OP_TEST_NEW_INTERFACE
     OP_ASSERT(0);
 #endif
+    OpCurve rotated;
     int count = pointCount();
     for (int n = 0; n < count; ++n) {
         OpVector v = pts[n] - line.pts[0];
@@ -601,9 +602,10 @@ void OpCurve::dumpSetPts(const char*& str) {
     if (newInterface) {
         c.data = contours->allocateCurveData(c.size);
         c.data->start.dumpSet(str);
-        contours->callBack(c.type).dumpSetFuncPtr(c, str);
+        contours->callBack(c.type).debugDumpCurveSetFuncPtr(c, str);
         c.data->end.dumpSet(str);
-        contours->callBack(c.type).dumpSetExtraFuncPtr(c, str);
+        OpDebugRequired(str, "}");
+        contours->callBack(c.type).debugDumpCurveSetExtraFuncPtr(c, str);
         return;
     }
     for (int index = 0; index < pointCnt; ++index) {
@@ -656,7 +658,8 @@ OpCurve::OpCurve(OpContours* cntrs, PathOpsV0Lib::Curve curve) {
     contours = cntrs;
     c.size = curve.size;
     c.data = contours->allocateCurveData(c.size);
-    std::memcpy(c.data, curve.data, c.size);
+    if (curve.data)
+        std::memcpy(c.data, curve.data, c.size);
     c.type = curve.type;
     newInterface = true;
 }

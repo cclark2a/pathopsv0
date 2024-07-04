@@ -5,7 +5,7 @@
 
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
-#define TEST_PATH_OP_FIRST "circle99" // e.g., "thread_cubics2247347" (ignored by fast test)
+#define TEST_PATH_OP_FIRST "circle111133" // e.g., "thread_cubics2247347" (ignored by fast test)
 #define TEST_PATH_OP_SKIP_TO_V0 0 // if 1 & not fast test, ignore skip to file; run first "v0" test
 #define TEST_PATH_OP_SKIP_TO_FILE "circle" // e.g., "quad" tests only (see testSuites below)
 #define TESTS_TO_SKIP 0 // 7000000  // tests to skip
@@ -18,9 +18,9 @@
 #define OP_TEST_SKIA 1  // see if skia's path ops can execute the same test
 #define OP_TEST_REGION 1  // test result of v0 against skia regions
 
-#define CURVE_CURVE_1 2  // id of edge 1 to break in divide and conquer
-#define CURVE_CURVE_2 7  // id of edge 2 to break in divide and conquer
-#define CURVE_CURVE_DEPTH 6  // minimum recursion depth for curve curve break
+#define CURVE_CURVE_1 2  // id of segment 1 to break in divide and conquer
+#define CURVE_CURVE_2 9  // id of segment 2 to break in divide and conquer
+#define CURVE_CURVE_DEPTH 1  // minimum recursion depth for curve curve break
 
 // see descriptions for exceptions below
 #define TEST_PATH_OP_EXCEPTIONS "issue3517" // "cubics7d"
@@ -554,6 +554,7 @@ int VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op, std::string test
 
 #if OP_TEST_NEW_INTERFACE
 #include "skia/SkiaPaths.h"
+#include "curves/BinaryWinding.h"
 #endif
 
 void threadablePathOpTest(int id, const SkPath& a, const SkPath& b, 
@@ -574,16 +575,25 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
         Context* context = CreateContext({ nullptr, 0 });
         Debug(context, debugData);
         SetSkiaCurveCallBacks(context);
-        Contour* left = SetSkiaWindingCallBacks(context, op, SkiaOperand::left  OP_DEBUG_PARAMS(a));
+        SkPathOp mappedOp = MapInvertedSkPathOp(op, a.isInverseFillType(), b.isInverseFillType());
+        auto isWindingFill = [](const SkPath& path) {
+            return SkPathFillType::kWinding == path.getFillType()
+                    || SkPathFillType::kInverseWinding == path.getFillType();
+        }; 
+        Contour* left = SetSkiaOpCallBacks(context, mappedOp, BinaryOperand::left, 
+                isWindingFill(a)  OP_DEBUG_PARAMS(a));
         int leftData[] = { 1, 0 };
         PathOpsV0Lib::AddWinding leftWinding { left, leftData, sizeof(leftData) };
         AddSkiaPath(leftWinding, a);
-        Contour* right = SetSkiaWindingCallBacks(context, op, SkiaOperand::right  OP_DEBUG_PARAMS(b));
+        Contour* right = SetSkiaOpCallBacks(context, mappedOp, BinaryOperand::right,
+                isWindingFill(b)  OP_DEBUG_PARAMS(b));
         int rightData[] = { 0, 1 };
         PathOpsV0Lib::AddWinding rightWinding { right, rightData, sizeof(rightData) };
         AddSkiaPath(rightWinding, b);
         PathOutput pathOutput = &result;
         Resolve(context, pathOutput);
+        if (SkPathOpInvertOutput(op, a.isInverseFillType(), b.isInverseFillType()))
+            result.toggleInverseFillType();
         DeleteContext(context);
     }
 #else
@@ -759,7 +769,12 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
         Context* context = CreateContext({ nullptr, 0 });
         Debug(context, debugData);
         SetSkiaCurveCallBacks(context);
-        Contour* simple = SetSkiaWindingSimplifyCallBacks(context  OP_DEBUG_PARAMS(path));
+        auto isWindingFill = [](const SkPath& path) {
+            return SkPathFillType::kWinding == path.getFillType()
+                    || SkPathFillType::kInverseWinding == path.getFillType();
+        }; 
+        Contour* simple = SetSkiaSimplifyCallBacks(context, isWindingFill(path)
+                OP_DEBUG_PARAMS(path));
         int simpleData[] = { 1 };
         PathOpsV0Lib::AddWinding simpleWinding { simple, simpleData, sizeof(simpleData) };
         AddSkiaPath(simpleWinding, path);

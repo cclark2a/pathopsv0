@@ -35,14 +35,6 @@ constexpr uint32_t debugBlack = 0xFF000000;
 static_assert(bitmapWH / 2 * 2 == bitmapWH);	// must be multiple of 2
 class SkBitmap& bitmapRef();
 
-// used to color different contour groups
-enum class DebugImage {
-	ccOverlaps,
-	curveCurve,
-	segment,
-	nativePath
-};
-
 // it should not be necessary to call these implementation functions directly
 struct OpDebugImage {
 	static void add(Axis axis, float value);
@@ -89,6 +81,10 @@ struct OpDebugImage {
 	static void playback(FILE* );
 	static void record(FILE* );
 };
+
+inline uint32_t OpDebugAlphaColor(uint32_t alpha, uint32_t color) {
+	return (alpha << 24) | (color & 0x00FFFFFF);
+}
 
 // call these inline or from the immediate window while debugging
 extern void add(std::vector<OpEdge>& );  // to draw edge list built from intersections

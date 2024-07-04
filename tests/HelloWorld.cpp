@@ -235,6 +235,7 @@ void adjustCCDepth(int delta) {
 }
 
 bool HelloWorld::onChar(SkUnichar c, skui::ModifierKey modifiers) {
+#if OP_DEBUG_IMAGE
     switch (c) {
     case 'b' : toggleBounds(); break;
     case 'c' : toggleControls(); break;
@@ -274,6 +275,7 @@ bool HelloWorld::onChar(SkUnichar c, skui::ModifierKey modifiers) {
         }
         break;
     }
+#endif
     return true;
 }
 
@@ -312,6 +314,7 @@ void movePoint(float x, float y) {
 }
 
 bool HelloWorld::onMouse(int x, int y, skui::InputState state, skui::ModifierKey modifiers) {
+#if OP_DEBUG_IMAGE
     static bool mouseDown = false;
     static int lastX = OpMax, lastY = OpMax;
     if (skui::InputState::kUp == state) {
@@ -339,13 +342,16 @@ bool HelloWorld::onMouse(int x, int y, skui::InputState state, skui::ModifierKey
         lastX = x;
         lastY = y;
     }
+#endif
     return true;
 }
 
 bool HelloWorld::onMouseWheel(float delta, skui::ModifierKey modifiers) {
+#if OP_DEBUG_IMAGE
     if (delta > 0)
         i(1);
     else if (delta < 0)
         oo(1);
+#endif
     return true;
 }

@@ -6,31 +6,32 @@
 
 class SkPath;
 
-enum class SkiaOperand {
-	left,
-	right
-};
+namespace PathOpsV0Lib {
+enum class BinaryOperand;
+}
 
-struct SimplifyUserData {
+struct SkiaSimplifyContourData {
+	PathOpsV0Lib::Operation unusedOperation;
+	PathOpsV0Lib::Operand unusedOperand;
     OP_DEBUG_CODE(const SkPath* pathPtr);
-	OP_DEBUG_IMAGE_CODE(bool drawSkPath);
+	OP_DEBUG_IMAGE_CODE(bool drawNativePath);
 };
 
-struct WindingUserData {
+struct SkiaOpContourData {
     SkPathOp op;
-    SkiaOperand operand;
+    PathOpsV0Lib::BinaryOperand operand;
     OP_DEBUG_CODE(const SkPath* pathPtr);
-	OP_DEBUG_IMAGE_CODE(bool drawSkPath);
+	OP_DEBUG_IMAGE_CODE(bool drawNativePath);
 };
 
 SkPathOp MapInvertedSkPathOp(SkPathOp op, bool leftOperandIsInverted, bool rightOperandIsInverted);
 bool SkPathOpInvertOutput(SkPathOp op, bool leftOperandIsInverted, bool rightOperandIsInverted);
 
 void SetSkiaCurveCallBacks(PathOpsV0Lib::Context* );
-PathOpsV0Lib::Contour* SetSkiaWindingSimplifyCallBacks(PathOpsV0Lib::Context*  
+PathOpsV0Lib::Contour* SetSkiaSimplifyCallBacks(PathOpsV0Lib::Context* , bool isWindingFill 
 		OP_DEBUG_PARAMS(const SkPath& ));
-PathOpsV0Lib::Contour* SetSkiaWindingCallBacks(PathOpsV0Lib::Context* , SkPathOp op, SkiaOperand 
-		OP_DEBUG_PARAMS(const SkPath& ));
+PathOpsV0Lib::Contour* SetSkiaOpCallBacks(PathOpsV0Lib::Context* , SkPathOp op, PathOpsV0Lib::BinaryOperand ,
+		bool isWindingFill  OP_DEBUG_PARAMS(const SkPath& ));
 void AddSkiaPath(PathOpsV0Lib::AddWinding , const SkPath& path);
 
 #if OP_DEBUG_IMAGE

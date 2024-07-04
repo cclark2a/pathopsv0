@@ -6,7 +6,7 @@
 #include "OpWinder.h"
 #include "PathOps.h"
 
-void* CallerDataStorage::Allocate(size_t size, CallerDataStorage** callerStoragePtr) {
+char* CallerDataStorage::Allocate(size_t size, CallerDataStorage** callerStoragePtr) {
     if (!*callerStoragePtr)
         *callerStoragePtr = new CallerDataStorage;
     CallerDataStorage* callerStorage = *callerStoragePtr;
@@ -15,13 +15,18 @@ void* CallerDataStorage::Allocate(size_t size, CallerDataStorage** callerStorage
         next->next = callerStorage;
         callerStorage = next;
     }
-    void* result = &callerStorage->callerData[callerStorage->used];
+    char* result = &callerStorage->callerData[callerStorage->used];
+    size_t alignSize = alignof(void*);  // !!! allow caller to specify this?
+    size_t alignPart = size % alignSize;
+    if (alignPart)
+        size += alignSize - alignPart;  // round up to next alignment
     callerStorage->used += size;
     return result;
 }
 
 void OpContour::addCallerData(PathOpsV0Lib::AddContour data) {
-    caller.data = CallerDataStorage::Allocate(data.size, &contours->callerStorage);
+    caller.data = (PathOpsV0Lib::ContourData*) CallerDataStorage::Allocate(
+            data.size, &contours->callerStorage);
     std::memcpy(caller.data, data.data, data.size);
     caller.size = data.size;  // !!! don't know if size is really needed ...
 }
@@ -304,7 +309,7 @@ OpContours::OpContours()
     debugInClearEdges = false;
     debugCheckLastEdge = false;
     debugFailOnEqualCepts = false;
-    debugDumpInit = false;
+    OP_DEBUG_DUMP_CODE(debugDumpInit = false);
 #endif
 #if OP_DEBUG_DUMP
     dumpTree = nullptr;
@@ -499,15 +504,23 @@ bool OpContours::pathOps(OpOutPath& result) {
         sortedSegments.findCoincidences();  // check for exact curves and full lines
         if (FoundIntersections::fail == sortedSegments.findIntersections())
             return false;  // triggered by fuzzhang_1
+        if (contours.empty())
+            OP_DEBUG_SUCCESS(*this, true);
     } else 
 #endif
     {
-        if (contours.empty())
-            OP_DEBUG_SUCCESS(*this, true);
-        focusSegments();
         OpSegments::FindCoincidences(this);
-        if (FoundIntersections::fail == OpSegments::FindIntersections(this))
+        OpSegments sortedSegments(*this);
+        if (!sortedSegments.inX.size()) {
+            result.setEmpty();
+            OP_DEBUG_SUCCESS(*this, true);
+        }
+        if (FoundIntersections::fail == sortedSegments.findIntersections())
             return false;  // !!! fix this to record for Error()
+        if (empty()) {
+            result.setEmpty();
+            OP_DEBUG_SUCCESS(*this, true);
+        }
     }
     sortIntersections();
     makeEdges();
@@ -517,7 +530,7 @@ bool OpContours::pathOps(OpOutPath& result) {
     FoundWindings foundWindings = windingEdges.setWindings(this);  // walk edges, compute windings
     if (FoundWindings::fail == foundWindings)
         OP_DEBUG_FAIL(*this, false);
-    OP_DEBUG_CODE(debugContext = "apply");
+    OP_DEBUG_DUMP_CODE(debugContext = "apply");
     apply();  // suppress edges which don't meet op criteria
     if (!assemble(result))
         OP_DEBUG_FAIL(*this, false);
@@ -586,11 +599,13 @@ OpSegment* SegmentIterator::next() {
     do {
         if (++segIndex >= (*contourIter)->segments.size()) {
             segIndex = 0;
-            ++contourIter;
-            if (!(contourIterator.end() != contourIter)) {
-                OP_DEBUG_CODE(debugEnded = true);
-                return nullptr;
-            }
+            do {
+                ++contourIter;
+                if (!(contourIterator.end() != contourIter)) {
+                    OP_DEBUG_CODE(debugEnded = true);
+                    return nullptr;
+                }
+            } while (!(*contourIter)->segments.size());
         }
         s = &(*contourIter)->segments[segIndex];
     } while (s->disabled);

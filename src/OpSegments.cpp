@@ -548,12 +548,17 @@ FoundIntersections OpSegments::findIntersections() {
     return FoundIntersections::yes; // !!! if something can fail, return 'fail' (don't return 'no')
 }
 
+#if 0
 // new interface
-FoundIntersections OpSegments::FindIntersections(OpContours* contours) {
-    SegmentIterator segIterator(contours);
-    while (OpSegment* seg = segIterator.next()) {
-        SegmentIterator oppIterator = segIterator;
-        while (OpSegment* opp = oppIterator.next()) {
+FoundIntersections OpSegments::findIntersectionsX() {
+    for (auto segIter = inX.begin(); segIter != inX.end(); ++segIter) {
+        OpSegment* seg = const_cast<OpSegment*>(*segIter);
+        if (seg->disabled)
+            continue;
+        for (auto oppIter = segIter + 1; oppIter != inX.end(); ++oppIter) {
+            OpSegment* opp = const_cast<OpSegment*>(*oppIter);
+            if (opp->disabled)
+                continue;
             // comparisons below need to be 'nearly' since adjusting opp may make sort incorrect
             // or, exact compare may miss nearly equal seg/opp pairs
             if (seg->closeBounds.right < opp->closeBounds.left)
@@ -699,4 +704,5 @@ FoundIntersections OpSegments::FindIntersections(OpContours* contours) {
     }
     return FoundIntersections::yes; // !!! if something can fail, return 'fail' (don't return 'no')
 }
+#endif
 

@@ -6,6 +6,11 @@
 
 namespace PathOpsV0Lib {
 
+inline Winding unaryEvenOddFunc(Winding winding, Winding toAdd) {
+    *(int*) winding.data ^= *(int*) toAdd.data;
+    return winding;
+}
+
 inline Winding unaryWindingAddFunc(Winding winding, Winding toAdd) {
     *(int*) winding.data += *(int*) toAdd.data;
     return winding;
@@ -58,9 +63,30 @@ inline std::string unaryWindingImageOutFunc(Winding winding, int index) {
     return s;
 }
 
-inline uint32_t unaryDebugColorFunc(AddContour , DebugImage debugImage) {
-    return black;
+inline uint32_t unaryCCOverlapsColorFunc(CallerData ) {
+    return orange;
 }
+
+inline uint32_t unaryCurveCurveColorFunc(CallerData ) {
+    return blue;
+}
+
+inline uint32_t unaryNativeFillColorFunc(CallerData ) {
+    return OpDebugAlphaColor(10, red);
+}
+
+inline uint32_t unaryNativeInColorFunc(CallerData ) {
+    return OpDebugAlphaColor(20, red);
+}
+
+inline void* unaryNativePathFunc(CallerData caller) {
+    return caller.data->nativePath;
+}
+
+inline bool* unaryContourDrawFunc(CallerData caller) {
+    return &caller.data->drawNativePath;
+}
+
 #endif
 
 }

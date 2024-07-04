@@ -37,12 +37,31 @@ struct AddContext {
 // A collection of curves in an operand that share the same fill rules.
 struct Contour;
 
-// caller defined optional data
-typedef void* ContourData;
+// caller defined operator
+enum class Operation : int;
 
-// convenience for adding caller defined data to contour
+// caller defined operand
+enum class Operand : int;
+
+// caller defined contour data
+struct ContourData {
+	Operation operation;
+	Operand operand;
+	OP_DEBUG_CODE(void* nativePath);
+	OP_DEBUG_IMAGE_CODE(bool drawNativePath);
+	char optionalAdditionalData[];
+};
+
+// for transport of contour data to callbacks
+struct CallerData {
+	ContourData* data;
+	size_t size;
+};
+
+// convenience for adding contours
 struct AddContour {
-	ContourData data;
+	Context* context;
+	ContourData* data;
 	size_t size;
 };
 
@@ -88,6 +107,27 @@ struct AddWinding {
 typedef void* PathOutput;
 
 // callbacks
+
+#if 0
+// used to color different contour groups
+enum class DebugImage {
+	ccOverlaps,
+	curveCurve,
+	segment,
+	nativePath,
+	nativeResult
+};
+#endif
+
+#if OP_DEBUG_IMAGE
+typedef uint32_t (*DebugNativeOutColor)();
+#endif
+
+struct ContextCallBacks {
+#if OP_DEBUG_IMAGE
+	DebugNativeOutColor debugNativeOutColorFuncPtr;
+#endif
+};
 
 // intersects the curve and axis at the axis intercept
 typedef OpRoots (*AxisRawHit)(Curve , Axis , float axisIntercept, MatchEnds);
@@ -139,9 +179,10 @@ typedef void (*SetBounds)(Curve , OpRect& );
 typedef OpPair (*XYAtT)(Curve , OpPair t, XyChoice );
 
 #if OP_DEBUG_DUMP
-typedef std::string (*DebugDumpExtra)(Curve , DebugLevel , DebugBase);
-typedef void (*DumpSet)(Curve , const char*& str);
-typedef void (*DumpSetExtra)(Curve , const char*& str);
+typedef size_t (*DebugDumpCurveSize)();
+typedef std::string (*DebugDumpCurveExtra)(Curve , DebugLevel , DebugBase);
+typedef void (*DebugDumpCurveSet)(Curve , const char*& str);
+typedef void (*DebugDumpCurveSetExtra)(Curve , const char*& str);
 #endif
 
 #if OP_DEBUG_IMAGE
@@ -169,9 +210,10 @@ struct CurveCallBacks {
 	SubDivide subDivideFuncPtr;
 	XYAtT xyAtTFuncPtr;
 #if OP_DEBUG_DUMP
-	DebugDumpExtra debugDumpExtraFuncPtr;
-	DumpSet dumpSetFuncPtr;
-	DumpSetExtra dumpSetExtraFuncPtr;
+	DebugDumpCurveSize debugDumpSizeFuncPtr;
+	DebugDumpCurveExtra debugDumpCurveExtraFuncPtr;
+	DebugDumpCurveSet debugDumpCurveSetFuncPtr;
+	DebugDumpCurveSetExtra debugDumpCurveSetExtraFuncPtr;
 #endif
 #if OP_DEBUG_IMAGE
 	DebugAddToPath debugAddToPathFuncPtr;
@@ -187,15 +229,19 @@ typedef void (*WindingZero)(Winding toZero);
 typedef WindKeep (*WindingKeep)(Winding winding, Winding sum);
 
 #if OP_DEBUG_DUMP
-typedef void (*WindingDumpIn)(const char*& str , Winding );
-typedef std::string (*WindingDumpOut)(Winding );
-typedef std::string (*ContourDumpExtra)(AddContour , DebugLevel , DebugBase );
+typedef void (*DebugDumpContourIn)(const char*& str , Winding );
+typedef std::string (*DebugDumpContourOut)(Winding );
+typedef std::string (*DebugDumpContourExtra)(CallerData , DebugLevel , DebugBase );
 #endif
 #if OP_DEBUG_IMAGE
-typedef std::string (*WindingImageOut)(Winding , int index);
-typedef uint32_t (*WindingDebugColor)(AddContour , DebugImage );
-typedef void* (*ContourNativePath)(AddContour);
-typedef bool (*ContourDebugDraw)(AddContour);
+typedef std::string (*DebugImageOut)(Winding , int index);
+typedef uint32_t (*DebugCCOverlapsColor)(CallerData);
+typedef uint32_t (*DebugCurveCurveColor)(CallerData);
+typedef uint32_t (*DebugNativeFillColor)(CallerData);
+typedef uint32_t (*DebugNativeInColor)(CallerData);
+typedef void* (*DebugNativePath)(CallerData);
+typedef bool* (*DebugContourDraw)(CallerData);
+typedef bool (*DebugIsOpp)(CallerData);
 #endif
 
 struct ContourCallBacks {
@@ -205,15 +251,19 @@ struct ContourCallBacks {
 	WindingVisible windingVisibleFuncPtr;
 	WindingZero windingZeroFuncPtr;
 #if OP_DEBUG_DUMP
-	WindingDumpIn windingDumpInFuncPtr;
-	WindingDumpOut windingDumpOutFuncPtr;
-	ContourDumpExtra debugDumpFuncPtr;
+	DebugDumpContourIn debugDumpContourInFuncPtr;
+	DebugDumpContourOut debugDumpContourOutFuncPtr;
+	DebugDumpContourExtra debugDumpContourExtraFuncPtr;
 #endif
 #if OP_DEBUG_IMAGE
-	WindingImageOut windingImageOutFuncPtr;
-	WindingDebugColor debugColorFuncPtr;
-	ContourNativePath debugNativePath;
-	ContourDebugDraw debugDrawFuncPtr;
+	DebugImageOut debugImageOutFuncPtr;
+	DebugCCOverlapsColor debugCCOverlapsColorFuncPtr;
+	DebugCurveCurveColor debugCurveCurveColorFuncPtr;
+	DebugNativeFillColor debugNativeFillColorFuncPtr;
+	DebugNativeInColor debugNativeInColorFuncPtr;
+	DebugNativePath debugNativePathFuncPtr;
+	DebugContourDraw debugContourDrawFuncPtr;
+	DebugIsOpp debugIsOppFuncPtr;
 #endif
 };
 
@@ -230,7 +280,7 @@ struct ContextCallBacks {
 #endif
 
 #if OP_DEBUG_DUMP
-inline std::string noDumpFunc(AddContour caller, DebugLevel , DebugBase ) {
+inline std::string noDumpFunc(CallerData caller, DebugLevel , DebugBase ) {
     OP_ASSERT(!caller.size);
     return "";
 }
@@ -244,15 +294,23 @@ inline std::string noWindingImageOutFunc(Winding , int index) {
 	return "";
 }
 
-inline uint32_t noDebugColorFunc(AddContour , DebugImage ) {
-	return 0;
-}
-
-inline void* noNativePathFunc(AddContour) {
+inline void* noNativePathFunc(CallerData ) {
 	return nullptr;
 }
 
-inline bool noDebugDrawFunc(AddContour) {
+inline bool* noDebugDrawFunc(CallerData ) {
+	return nullptr;
+}
+
+inline uint32_t noContextColorFunc() {
+	return 0;
+}
+
+inline uint32_t noContourColorFunc(CallerData ) {
+	return 0;
+}
+
+inline bool noIsOppFunc(CallerData ) {
 	return false;
 }
 #endif

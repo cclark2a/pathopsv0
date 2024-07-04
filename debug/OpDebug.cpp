@@ -376,7 +376,7 @@ std::string OpDebugLabel(const char*& str) {
 
 bool OpDebugOptional(const char*& str, const char* match) {
     size_t matchLen = strlen(match);
-    if (' ' >= str[0])
+    while(str[0] && ' ' >= str[0])
         ++str;
     if (!strncmp(match, str, matchLen)) {
         str += matchLen;
@@ -740,6 +740,7 @@ void debugImage() {
         ::showWindings();
         ::showTangents();
         ::colorOut(orange);
+        ::resetFocus();
         ::oo();
         return;
     }
@@ -763,6 +764,7 @@ void debugImage() {
     ::showPoints();
     ::showTangents();
     ::showValues();
+    ::resetFocus();
     ::oo();
 }
 #endif

@@ -13,9 +13,9 @@ bool PathOps(OpInPath& left, OpInPath& right, OpOperator opOperator, OpOutPath& 
     contourList.debugInPathOps = true;
     contourList.debugInClearEdges = false;
     contourList.debugTestname = debugData.debugTestname;
-    contourList.dumpCurve1 = debugData.debugCurveCurve1;
-    contourList.dumpCurve2 = debugData.debugCurveCurve2;
-    contourList.debugBreakDepth = debugData.debugCurveCurveDepth;
+    OP_DEBUG_DUMP_CODE(contourList.dumpCurve1 = debugData.debugCurveCurve1);
+    OP_DEBUG_DUMP_CODE(contourList.dumpCurve2 = debugData.debugCurveCurve2);
+    OP_DEBUG_DUMP_CODE(contourList.debugBreakDepth = debugData.debugCurveCurveDepth);
     contourList.newInterface = false;
 #endif
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
@@ -37,7 +37,7 @@ bool PathOps(OpInPath& left, OpInPath& right, OpOperator opOperator, OpOutPath& 
 namespace PathOpsV0Lib {
 
 Context* CreateContext(AddContext callerData) {
-    OpContours* contours = dumpInit();
+    OpContours* contours = new OpContours();
     contours->addCallerData(callerData);
     contours->newInterface = true;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
@@ -58,9 +58,9 @@ void Add(AddCurve curve, AddWinding windings) {
     contour->segments.emplace_back(curve, windings);
 }
 
-Contour* CreateContour(Context* context, AddContour callerData) {
+Contour* CreateContour(AddContour callerData) {
     // reuse existing contour
-    OpContours* contours = (OpContours*) context;
+    OpContours* contours = (OpContours*) callerData.context;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = contours;
 #endif
@@ -81,8 +81,8 @@ void DeleteContext(Context* context) {
 }
 
 int Error(Context* context) {
-    OpContours* contours = (OpContours*) context;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
+    OpContours* contours = (OpContours*) context;
     debugGlobalContours = contours;
 #endif
     // !!! incomplete
@@ -100,6 +100,15 @@ void Resolve(Context* context, PathOutput output) {
     /* bool success = */ contours->pathOps(result);
 }
 
+void SetContextCallBacks(Context* context
+		OP_DEBUG_IMAGE_PARAMS(DebugNativeOutColor debugNativeOutColor)
+) {
+    OpContours* contours = (OpContours*) context;
+    contours->contextCallBacks = {
+		OP_DEBUG_IMAGE_CODE(debugNativeOutColor)
+    };
+}
+
 OpType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, ControlNearlyEnd nearlyFunc,
         CurveHull hullFunc,
         CurveIsFinite isFiniteFunc, CurveIsLine isLineFunc, CurveIsLinear isLinearFunc, 
@@ -108,9 +117,9 @@ OpType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, ControlNearlyEnd
         CurveTangent tangentFunc,
         CurvesEqual equalFunc, PtAtT ptAtTFunc, DoublePtAtT doublePtAtTFunc, 
         PtCount ptCountFunc, Rotate rotateFunc, SubDivide subDivideFunc, XYAtT xyAtTFunc
-        OP_DEBUG_DUMP_PARAMS(DebugDumpExtra debugDumpExtraFunc)
-        OP_DEBUG_DUMP_PARAMS(DumpSet dumpSetFunc)
-        OP_DEBUG_DUMP_PARAMS(DumpSetExtra dumpSetExtraFunc)
+        OP_DEBUG_DUMP_PARAMS(DebugDumpCurveSize debugDumpSizeFunc,
+                DebugDumpCurveExtra debugDumpExtraFunc, DebugDumpCurveSet dumpSetFunc,
+                DebugDumpCurveSetExtra dumpSetExtraFunc)
 		OP_DEBUG_IMAGE_PARAMS(DebugAddToPath debugAddToPathFunc)
 ) {
     OpContours* contours = (OpContours*) context;
@@ -118,9 +127,8 @@ OpType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, ControlNearlyEnd
             isLinearFunc,
             setBoundsFunc, normalFunc, outputFunc, reverseFunc, tangentFunc,
             equalFunc, ptAtTFunc, doublePtAtTFunc, ptCountFunc, rotateFunc, subDivideFunc, xyAtTFunc 
-		    OP_DEBUG_DUMP_PARAMS(debugDumpExtraFunc)
-		    OP_DEBUG_DUMP_PARAMS(dumpSetFunc)
-		    OP_DEBUG_DUMP_PARAMS(dumpSetExtraFunc)
+		    OP_DEBUG_DUMP_PARAMS(debugDumpSizeFunc, debugDumpExtraFunc, dumpSetFunc, 
+                    dumpSetExtraFunc)
 		    OP_DEBUG_IMAGE_PARAMS(debugAddToPathFunc)
             } );
     return (OpType) contours->callBacks.size();
@@ -128,24 +136,34 @@ OpType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, ControlNearlyEnd
 
 void SetWindingCallBacks(Contour* ctour, WindingAdd addFunc, WindingKeep keepFunc,
         WindingSubtract subtractFunc, WindingVisible visibleFunc, WindingZero zeroFunc
-		OP_DEBUG_DUMP_PARAMS(WindingDumpIn dumpInFunc, WindingDumpOut dumpOutFunc, 
-                ContourDumpExtra dumpFunc)
-        OP_DEBUG_IMAGE_PARAMS(WindingImageOut dumpImageOutFunc, WindingDebugColor debugColorFunc,
-                ContourNativePath nativePathFunc, ContourDebugDraw debugDrawFunc)
+		OP_DEBUG_DUMP_PARAMS(DebugDumpContourIn dumpInFunc, DebugDumpContourOut dumpOutFunc, 
+                DebugDumpContourExtra dumpFunc)
+        OP_DEBUG_IMAGE_PARAMS(DebugImageOut dumpImageOutFunc, 
+                DebugCCOverlapsColor debugCCOverlapsColorFunc,
+                DebugCurveCurveColor debugCurveCurveColorFunc,
+                DebugNativeFillColor debugNativeFillColorFunc, 
+                DebugNativeInColor debugNativeInColorFunc,
+                DebugNativePath debugNativePathFunc, 
+                DebugContourDraw debugDrawFunc,
+                DebugIsOpp debugIsOppFunc)
 ) {
     OpContour* contour = (OpContour*) ctour;
     contour->callBacks = { addFunc, keepFunc, subtractFunc, visibleFunc, zeroFunc 
             OP_DEBUG_DUMP_PARAMS(dumpInFunc, dumpOutFunc, dumpFunc)
-            OP_DEBUG_IMAGE_PARAMS(dumpImageOutFunc, debugColorFunc, nativePathFunc, debugDrawFunc)
+            OP_DEBUG_IMAGE_PARAMS(dumpImageOutFunc, debugCCOverlapsColorFunc,
+                    debugCurveCurveColorFunc, 
+                    debugNativeFillColorFunc, debugNativeInColorFunc,
+                    debugNativePathFunc, debugDrawFunc, debugIsOppFunc)
             };
 }
 
 #if OP_DEBUG
 void Debug(Context* context, OpDebugData& debugData) {
     OpContours* contours = (OpContours*) context;
-    contours->dumpCurve1 = debugData.debugCurveCurve1;
-    contours->dumpCurve2 = debugData.debugCurveCurve2;
-    contours->debugBreakDepth = debugData.debugCurveCurveDepth;
+    contours->debugTestname = debugData.debugTestname;
+    OP_DEBUG_DUMP_CODE(contours->dumpCurve1 = debugData.debugCurveCurve1);
+    OP_DEBUG_DUMP_CODE(contours->dumpCurve2 = debugData.debugCurveCurve2);
+    OP_DEBUG_DUMP_CODE(contours->debugBreakDepth = debugData.debugCurveCurveDepth);
 }
 #endif
 

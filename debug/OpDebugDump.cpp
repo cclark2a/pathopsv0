@@ -1207,7 +1207,8 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
     s += " ";
  //   s += "bounds:" + ptBounds.debugDump(l, b) + " ";
 #if OP_TEST_NEW_INTERFACE
-    s += callBacks.debugDumpFuncPtr(caller, l, b) + " ";
+    if (DebugLevel::file != l)
+        s += callBacks.debugDumpContourExtraFuncPtr(caller, l, b) + " ";
 #else
     s += "operand:" + opOperandName(operand) + "\n";
 #endif
@@ -1407,7 +1408,7 @@ std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
     s.pop_back(); s.pop_back();
     s += " }";
 #if OP_TEST_NEW_INTERFACE
-    s += contours->callBack(c.type).debugDumpExtraFuncPtr(c, l, b);
+    s += contours->callBack(c.type).debugDumpCurveExtraFuncPtr(c, l, b);
 #else
     if (OpType::conic == c.type)
         s += debugValue(l, b, "weight", weightImpl) + " ";
@@ -1417,12 +1418,11 @@ std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
 
 void OpCurve::dumpSet(const char*& str) {
     c.type = opTypeStr(str, "", OpType::no);  // type must precede number of points call
+    c.size = contours->callBack(c.type).debugDumpSizeFuncPtr();
     OpDebugRequired(str, "{ ");
     dumpSetPts(str);
     OpDebugOptional(str, "}");
-#if OP_TEST_NEW_INTERFACE
-    contours->callBack(c.type).dumpSetExtraFuncPtr(c, str);
-#else
+#if !OP_TEST_NEW_INTERFACE
     if (OpDebugOptional(str, "weight"))
         weightImpl = OpDebugHexToFloat(str);
 #endif
@@ -2164,6 +2164,10 @@ void OpEdge::dumpSet(const char*& str) {
     if (OpDebugOptional(str, "upright_impl")) {
         upright_impl.dumpSet(str);
         OpDebugRequired(str, "vertical_impl");
+        if (dumpContours->newInterface) {
+            vertical_impl.newInterface = true;
+            vertical_impl.contours = dumpContours;
+        }
         vertical_impl.dumpSet(str);
     }
     OpDebugRequired(str, "ptBounds");
@@ -3791,8 +3795,8 @@ std::string OpSegment::debugDump(DebugLevel l, DebugBase b) const {
         if (disabled)
             s += "disabled ";
 #if OP_DEBUG
-        s += "start reason:" + sectReasonName(debugStart) + " ";
-        s += "end reason:" + sectReasonName(debugEnd) + " ";
+        s += "start_reason:" + sectReasonName(debugStart) + " ";
+        s += "end_reason:" + sectReasonName(debugEnd) + " ";
         if (ZeroReason::uninitialized != debugZero)
             s += "reason:" + zeroReasonName(debugZero) + " ";
 #endif
@@ -3834,8 +3838,8 @@ void OpSegment::dumpSet(const char*& str) {
     winding.dumpSet(str, contour->contours);
     disabled = OpDebugOptional(str, "disabled");
 #if OP_DEBUG
-    debugStart = sectReasonStr(str, "start reason", SectReason::unset);
-    debugEnd = sectReasonStr(str, "end reason", SectReason::unset);
+    debugStart = sectReasonStr(str, "start_reason", SectReason::unset);
+    debugEnd = sectReasonStr(str, "end_reason", SectReason::unset);
     debugZero = zeroReasonStr(str, "reason", ZeroReason::uninitialized);
 #endif
 }
@@ -3953,7 +3957,7 @@ std::string OpWinding::debugDump(DebugLevel l, DebugBase b) const {
         if (DebugLevel::file != l) {
             s +="w.data:";
             if (w.data && w.size)
-                s += contour->callBacks.windingDumpOutFuncPtr(w);
+                s += contour->callBacks.debugDumpContourOutFuncPtr(w);
             else
                 s += OpDebugStr(w.data) + " w.size:" + STR(w.size);
         } else {

@@ -31,18 +31,18 @@ struct CallerDataStorage {
 		, used(0) {
 	}
 
-	static void* Allocate(size_t size, CallerDataStorage** );
+	static char* Allocate(size_t size, CallerDataStorage** );
 #if OP_DEBUG_DUMP
 	size_t debugCount() const;
 	std::string debugDump(std::string label, DebugLevel l, DebugBase b) const;
-	uint8_t* debugIndex(int index) const;
+	char* debugIndex(int index) const;
 	static void DumpSet(const char*& str, OpContours* , DumpStorage );
 	DUMP_DECLARATIONS
 #endif
 
 	CallerDataStorage* next;
 	int used;
-	uint8_t callerData[2048];	// !!! size is arbitrary guess -- should measure and do better
+	char callerData[2048];	// !!! size is arbitrary guess -- should measure and do better
 };
 
 struct OpContour {
@@ -124,7 +124,7 @@ struct OpContour {
 
 //    OpPointBounds ptBounds;
 #if OP_TEST_NEW_INTERFACE
-    PathOpsV0Lib::AddContour caller;
+    PathOpsV0Lib::CallerData caller;
 #else
     OpOperand operand; // first or second argument to a binary operator
 #endif
@@ -200,6 +200,11 @@ struct OpContourIterator {
         return *iter;
     }
 
+    OpContour* front() {
+        OpContourIter iter(contours);
+        return *iter;
+    }
+
     OpContourIter begin() {
         return OpContourIter(contours);
     }
@@ -255,6 +260,14 @@ struct OpContours {
     }
 
 //    WindingData* copySect(const OpWinding& );  // !!! add a separate OpWindingStorage for temporary blocks?
+
+    bool empty() {
+        for (auto contour : contours) {
+            if (contour->segments.size())
+                return false;
+        }
+        return true;
+    }
 
 #if !OP_TEST_NEW_INTERFACE
     int leftFillTypeMask() const {
@@ -379,7 +392,7 @@ struct OpContours {
 
 // new interface ..
     std::vector<PathOpsV0Lib::CurveCallBacks> callBacks;
-//    PathOpsV0Lib::ContextCallBacks contextCallBacks;
+    PathOpsV0Lib::ContextCallBacks contextCallBacks;
     PathOpsV0Lib::PathOutput callerOutput;
     PathOpsV0Lib::AddContext caller;
 #if OP_DEBUG_VALIDATE

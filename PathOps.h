@@ -96,7 +96,7 @@ void DeleteContext(Context* );
 
 /* Makes a PathOps contour: a collection of curves. Optional caller data may be added.
  */
-Contour* CreateContour(Context* , AddContour );
+Contour* CreateContour(AddContour );
 
 /* returns error code of previous call
  */
@@ -106,21 +106,24 @@ int Error(Context* );
  */
 void Resolve(Context* , PathOutput );
 
+void SetContextCallBacks(Context*  OP_DEBUG_IMAGE_PARAMS(DebugNativeOutColor));
+
 OpType SetCurveCallBacks(Context* , AxisRawHit, ControlNearlyEnd,
 		CurveHull, CurveIsFinite, CurveIsLine, CurveIsLinear,
 		SetBounds, CurveNormal, CurveOutput,
 		CurveReverse, CurveTangent, CurvesEqual, PtAtT, DoublePtAtT,
 		PtCount, Rotate, SubDivide, XYAtT
-		OP_DEBUG_DUMP_PARAMS(DebugDumpExtra)
-		OP_DEBUG_DUMP_PARAMS(DumpSet)
-		OP_DEBUG_DUMP_PARAMS(DumpSetExtra)
+		OP_DEBUG_DUMP_PARAMS(DebugDumpCurveSize, DebugDumpCurveExtra, DebugDumpCurveSet, 
+				DebugDumpCurveSetExtra)
 		OP_DEBUG_IMAGE_PARAMS(DebugAddToPath)
 	);
 
 void SetWindingCallBacks(Contour* , WindingAdd, WindingKeep ,
 		WindingSubtract , WindingVisible, WindingZero
-		OP_DEBUG_DUMP_PARAMS(WindingDumpIn, WindingDumpOut, ContourDumpExtra)
-		OP_DEBUG_IMAGE_PARAMS(WindingImageOut, WindingDebugColor, ContourNativePath, ContourDebugDraw)
+		OP_DEBUG_DUMP_PARAMS(DebugDumpContourIn, DebugDumpContourOut, DebugDumpContourExtra)
+		OP_DEBUG_IMAGE_PARAMS(DebugImageOut, DebugCCOverlapsColor, DebugCurveCurveColor,
+				DebugNativeFillColor, DebugNativeInColor,
+				DebugNativePath, DebugContourDraw, DebugIsOpp)
 );
 
 // utilities

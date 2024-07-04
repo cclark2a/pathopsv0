@@ -4,6 +4,8 @@
 
 #include "PathOpsTypes.h"
 
+struct OpContour;
+
 enum class WindingEdge {
 	dummy
 };
