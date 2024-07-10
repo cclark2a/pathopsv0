@@ -5,9 +5,6 @@
 
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
-#define TEST_PATH_OP_FIRST "circle111133" // e.g., "thread_cubics2247347" (ignored by fast test)
-#define TEST_PATH_OP_SKIP_TO_V0 0 // if 1 & not fast test, ignore skip to file; run first "v0" test
-#define TEST_PATH_OP_SKIP_TO_FILE "circle" // e.g., "quad" tests only (see testSuites below)
 #define TESTS_TO_SKIP 0 // 7000000  // tests to skip
 
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
@@ -18,7 +15,7 @@
 #define OP_TEST_SKIA 1  // see if skia's path ops can execute the same test
 #define OP_TEST_REGION 1  // test result of v0 against skia regions
 
-#define CURVE_CURVE_1 2  // id of segment 1 to break in divide and conquer
+#define CURVE_CURVE_1 5  // id of segment 1 to break in divide and conquer
 #define CURVE_CURVE_2 9  // id of segment 2 to break in divide and conquer
 #define CURVE_CURVE_DEPTH 1  // minimum recursion depth for curve curve break
 
@@ -561,9 +558,7 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
         SkPathOp op, std::string testname, bool v0MayFail, bool skiaMayFail) {
 #if OP_TEST_V0
     SkPath result;
-	OpInPath op1(&a);
-	OpInPath op2(&b);
-	OpOutPath opOut(&result);
+    result.setFillType(SkPathFillType::kEvenOdd);  // !!! workaround
     OpDebugData debugData(v0MayFail);
     debugData.debugTestname = testname;
     debugData.debugCurveCurve1 = CURVE_CURVE_1;
@@ -573,6 +568,7 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     {
         using namespace PathOpsV0Lib;
         Context* context = CreateContext({ nullptr, 0 });
+        SetSkiaContextCallBacks(context);
         Debug(context, debugData);
         SetSkiaCurveCallBacks(context);
         SkPathOp mappedOp = MapInvertedSkPathOp(op, a.isInverseFillType(), b.isInverseFillType());
@@ -597,6 +593,9 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
         DeleteContext(context);
     }
 #else
+	OpInPath op1(&a);
+	OpInPath op2(&b);
+	OpOutPath opOut(&result);
     PathOps(op1, op2, (OpOperator) op, opOut  OP_DEBUG_PARAMS(debugData));
     OP_ASSERT(debugData.debugSuccess || v0MayFail);
 #endif
@@ -749,6 +748,7 @@ void dumpTest(const char* testname, const SkPath& path) {
 void threadableSimplifyTest(int id, const SkPath& path, std::string testname, 
             SkPath& out, bool v0MayFail, bool skiaMayFail) {
 #if OP_TEST_V0
+    out.setFillType(SkPathFillType::kEvenOdd); // !!! workaround
 #if !OP_TEST_NEW_INTERFACE
 	OpInPath op1(&path);
     out.reset();
@@ -767,6 +767,7 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
     {
         using namespace PathOpsV0Lib;
         Context* context = CreateContext({ nullptr, 0 });
+        SetSkiaContextCallBacks(context);
         Debug(context, debugData);
         SetSkiaCurveCallBacks(context);
         auto isWindingFill = [](const SkPath& path) {

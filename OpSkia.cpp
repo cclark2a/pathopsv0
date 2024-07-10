@@ -10,6 +10,7 @@
 #include "include/core/SkPath.h"
 #endif
 
+#if !OP_TEST_NEW_INTERFACE
 static SkPath* skPath(const void* extRef) {
     return (SkPath*) extRef;
 }
@@ -129,6 +130,7 @@ void OpInPath::dumpSet(const char*& str) {
 
 void OpInPath::dumpResolveAll(OpContours* ) {
 }
+#endif
 
 const void* OpInPath::MakeExternalReference() {
     return new SkPath();
@@ -169,21 +171,12 @@ void OpOutPath::ReleaseExternalReference(void* ref) {
     return delete (SkPath*) ref;
 }
 
-#endif
-
-#if !OP_TEST_NEW_INTERFACE
 static SkPoint toSkPoint(OpPoint pt) {
     return SkPoint::Make(pt.x, pt.y);
 }
-#endif
 
 // return false to abort output
 bool OpCurve::output(OpOutPath& path, bool firstPt, bool lastPt) {
-#if OP_TEST_NEW_INTERFACE
-    OP_ASSERT(newInterface);
-    contours->callBack(c.type).curveOutputFuncPtr(c, firstPt, lastPt, 
-            contours->callerOutput);
-#else
     SkPath* skpath = skPath(path.externalReference);
     if (firstPt)
         skpath->moveTo(toSkPoint(pts[0]));
@@ -206,11 +199,9 @@ bool OpCurve::output(OpOutPath& path, bool firstPt, bool lastPt) {
     }
     if (lastPt)
         skpath->close();
-#endif
     return true;
 }
 
-#if !OP_TEST_NEW_INTERFACE
 bool OpContours::build(OpInPath& path, OpOperand operand) {
     const SkPath& skpath = *skPath(path.externalReference);
     setFillType(operand, SkPathFillType::kEvenOdd == skpath.getFillType()

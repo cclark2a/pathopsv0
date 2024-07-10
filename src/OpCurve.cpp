@@ -183,7 +183,10 @@ CutRangeT OpCurve::cutRange(const OpPtT& ptT, float loEnd, float hiEnd) const {
 	return tRange;
 }
 
-
+OpPoint OpCurve::end(float t) const {
+    OP_ASSERT(0 == t || 1 == t);
+    return t ? lastPt() : firstPt();
+}
 
 OpPtT OpCurve::findIntersect(Axis axis, const OpPtT& opPtT) const {
     if (firstPt() == opPtT.pt)
@@ -305,17 +308,6 @@ NormalDirection OpCurve::normalDirection(Axis axis, float t) const {
 	return NormalDirection::underflow;	 // catches, zero, nan
 }
 
-void OpCurve::pinCtrl() {
-    switch (c.type) {
-        case OpType::line: return;
-        case OpType::quad: return asQuad().pinCtrl();
-        case OpType::conic: return asConic().pinCtrl();
-        case OpType::cubic: return asCubic().pinCtrls();
-        default:
-            OP_ASSERT(0);
-    }
-}
-
 // all raw intersects are basically the same
 // put any specialization (related to debugging?) in some type specific callout ?
 OpRoots OpCurve::rawIntersect(const LinePts& linePt, MatchEnds common) const {
@@ -424,6 +416,21 @@ OpCurve OpCurve::toVerticalDouble(const LinePts& line) const {
 
 #include "OpContour.h"
 
+void OpCurve::pinCtrl() {
+    if (newInterface) {
+        contours->callBack(c.type).curvePinCtrlFuncPtr(c);
+        return;
+    }
+    switch (c.type) {
+        case OpType::line: return;
+        case OpType::quad: return asQuad().pinCtrl();
+        case OpType::conic: return asConic().pinCtrl();
+        case OpType::cubic: return asCubic().pinCtrls();
+        default:
+            OP_ASSERT(0);
+    }
+}
+
 bool OpCurve::isFinite() const {
     if (newInterface) {
         if (!c.data->start.isFinite())
@@ -454,9 +461,6 @@ OpCurve OpCurve::toVertical(const LinePts& line) const {
         };
         rotated.c.data->start = rotatePt(c.data->start);
         rotated.c.data->end = rotatePt(c.data->end);
-        rotated.c.type = c.type;
-        rotated.c.size = c.size;
-        rotated.newInterface = true;
         contours->callBack(c.type).rotateFuncPtr(c, line, adj, opp, rotated.c);
         return rotated;
     }
@@ -693,10 +697,15 @@ void OpCurve::setLastPt(OpPoint pt) {
 OpPointBounds OpCurve::ptBounds() const {
     OpPointBounds result;
     if (newInterface) {
-        contours->callBack(c.type).setBoundsFuncPtr(c, result);
         result.set(c.data->start, c.data->end);
+        contours->callBack(c.type).setBoundsFuncPtr(c, result);
     } else
         result.set(pts, pointCount());
     return result;
 }
 
+void OpCurve::output(bool firstPt, bool lastPt) {
+    OP_ASSERT(newInterface);
+    contours->callBack(c.type).curveOutputFuncPtr(c, firstPt, lastPt, 
+            contours->callerOutput);
+}

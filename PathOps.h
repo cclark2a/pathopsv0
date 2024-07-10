@@ -106,11 +106,12 @@ int Error(Context* );
  */
 void Resolve(Context* , PathOutput );
 
-void SetContextCallBacks(Context*  OP_DEBUG_IMAGE_PARAMS(DebugNativeOutColor));
+void SetContextCallBacks(Context* ,  EmptyNativePath
+		OP_DEBUG_IMAGE_PARAMS(DebugNativeOutColor));
 
 OpType SetCurveCallBacks(Context* , AxisRawHit, ControlNearlyEnd,
 		CurveHull, CurveIsFinite, CurveIsLine, CurveIsLinear,
-		SetBounds, CurveNormal, CurveOutput,
+		SetBounds, CurveNormal, CurveOutput, CurvePinCtrl,
 		CurveReverse, CurveTangent, CurvesEqual, PtAtT, DoublePtAtT,
 		PtCount, Rotate, SubDivide, XYAtT
 		OP_DEBUG_DUMP_PARAMS(DebugDumpCurveSize, DebugDumpCurveExtra, DebugDumpCurveSet, 

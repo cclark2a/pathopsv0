@@ -4,6 +4,10 @@
 
 bool PathOps(OpInPath& left, OpInPath& right, OpOperator opOperator, OpOutPath& result
         OP_DEBUG_PARAMS(OpDebugData& debugData)) {
+#if OP_TEST_NEW_INTERFACE
+    OP_ASSERT(0);
+    return false;
+#else
     OpContours contourList(left, right, opOperator);
 #if OP_DEBUG
     contourList.debugExpect = debugData.debugExpect;
@@ -30,6 +34,7 @@ bool PathOps(OpInPath& left, OpInPath& right, OpOperator opOperator, OpOutPath& 
     debugData.debugWarnings = contourList.debugWarnings;
 #endif
     return success;
+#endif
 }
 
 // new interface
@@ -51,6 +56,7 @@ Context* CreateContext(AddContext callerData) {
 }
 
 void Add(AddCurve curve, AddWinding windings) {
+    OP_ASSERT(curve.points[0] != curve.points[1]);
     OpContour* contour = (OpContour*) windings.contour;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = contour->contours;
@@ -90,22 +96,22 @@ int Error(Context* context) {
 }
 
 void Resolve(Context* context, PathOutput output) {
-    OpOutPath result(nullptr);  // missing external reference for now is new interface flag
     OpContours* contours = (OpContours*) context;
     contours->callerOutput = output;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = contours;
 #endif
     // !!! change this to record error instead of success
-    /* bool success = */ contours->pathOps(result);
+    /* bool success = */ contours->pathOps();
 }
 
-void SetContextCallBacks(Context* context
+void SetContextCallBacks(Context* context, EmptyNativePath emptyNativePath
 		OP_DEBUG_IMAGE_PARAMS(DebugNativeOutColor debugNativeOutColor)
 ) {
     OpContours* contours = (OpContours*) context;
     contours->contextCallBacks = {
-		OP_DEBUG_IMAGE_CODE(debugNativeOutColor)
+        emptyNativePath
+		OP_DEBUG_IMAGE_PARAMS(debugNativeOutColor)
     };
 }
 
@@ -113,7 +119,7 @@ OpType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, ControlNearlyEnd
         CurveHull hullFunc,
         CurveIsFinite isFiniteFunc, CurveIsLine isLineFunc, CurveIsLinear isLinearFunc, 
         SetBounds setBoundsFunc,
-        CurveNormal normalFunc, CurveOutput outputFunc, CurveReverse reverseFunc, 
+        CurveNormal normalFunc, CurveOutput outputFunc, CurvePinCtrl curvePinFunc, CurveReverse reverseFunc, 
         CurveTangent tangentFunc,
         CurvesEqual equalFunc, PtAtT ptAtTFunc, DoublePtAtT doublePtAtTFunc, 
         PtCount ptCountFunc, Rotate rotateFunc, SubDivide subDivideFunc, XYAtT xyAtTFunc
@@ -125,7 +131,7 @@ OpType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, ControlNearlyEnd
     OpContours* contours = (OpContours*) context;
     contours->callBacks.push_back( { axisFunc, nearlyFunc, hullFunc, isFiniteFunc, isLineFunc, 
             isLinearFunc,
-            setBoundsFunc, normalFunc, outputFunc, reverseFunc, tangentFunc,
+            setBoundsFunc, normalFunc, outputFunc, curvePinFunc, reverseFunc, tangentFunc,
             equalFunc, ptAtTFunc, doublePtAtTFunc, ptCountFunc, rotateFunc, subDivideFunc, xyAtTFunc 
 		    OP_DEBUG_DUMP_PARAMS(debugDumpSizeFunc, debugDumpExtraFunc, dumpSetFunc, 
                     dumpSetExtraFunc)

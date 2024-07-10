@@ -55,10 +55,8 @@ OP_X(OpCurveCurve) \
 OP_X(OpEdgeStorage) \
 OP_X(OpHulls) \
 OP_X(OpIntersections) \
-OP_X(OpInPath) \
 OP_X(OpJoiner) \
 OP_X(OpLimb) \
-OP_X(OpOutPath) \
 OP_X(OpPoint) \
 OP_X(OpPointBounds) \
 OP_X(OpRect) \
@@ -70,6 +68,9 @@ OP_X(OpVector) \
 OP_X(OpWinder) \
 OP_X(OpWinding) \
 OP_X(SectRay)
+
+// OP_X(OpInPath) \
+// OP_X(OpOutPath) \
 
 #define OP_X(Thing) \
 	struct Thing;

@@ -151,7 +151,7 @@ OpTree::OpTree(OpJoiner& join)
 		test->startSeen = false;
 		test->lastEdge->endSeen = false;
 	}
-	limbStorage = contour.contours->resetLimbs(this);
+	limbStorage = contour.contours->resetLimbs(OP_DEBUG_DUMP_CODE(this));
 	OpLimb* trunk = limbStorage->allocate(*this);
 	OP_ASSERT(join.linkups.l.back() == join.edge);
 	trunk->set(*this, join.edge, nullptr, EdgeMatch::start, LimbType::linked, 
@@ -273,7 +273,11 @@ bool OpTree::join(OpJoiner& join) {
 	std::sort(linkupsErasures.begin(), linkupsErasures.end(), std::greater<int>());
 	for (size_t entry : linkupsErasures)
 		join.linkups.l.erase(join.linkups.l.begin() + entry);
+#if OP_TEST_NEW_INTERFACE
+	join.edge->output(false);
+#else
 	join.edge->output(join.path, false);
+#endif
 #if OP_DEBUG
     for (OpLimb* limb : debugLimbs) {
 		limb->debugBranches.clear();
@@ -318,9 +322,15 @@ void OpLimbStorage::reset() {
 	nextBlock = nullptr;
 }
 
+#if OP_TEST_NEW_INTERFACE
+OpJoiner::OpJoiner(OpContours& contours)
+	:
+#else
 OpJoiner::OpJoiner(OpContours& contours, OpOutPath& p)
 	: path(p)
-	, linkMatch(EdgeMatch::none)
+	,
+#endif
+	  linkMatch(EdgeMatch::none)
 	, linkPass(LinkPass::none)
 	, edge(nullptr)
 	, lastLink(nullptr)
@@ -472,7 +482,11 @@ bool OpJoiner::detachIfLoop(OpEdge* e, EdgeMatch loopMatch) {
 			break;
 	}
 	if (e == test) {	// if this forms a loop, there's nothing to detach, return success
+#if OP_TEST_NEW_INTERFACE
+		e->output(true);
+#else
 		e->output(path, true);
+#endif
 		return true;
 	}
 	// walk backwards to start
@@ -486,20 +500,37 @@ bool OpJoiner::detachIfLoop(OpEdge* e, EdgeMatch loopMatch) {
 				; // OP_ASSERT(!detach->priorEdge);  // triggered by fuzz763_1 -- is fix needed?
 		}
 	};
-	auto detachNext = [this, detachEdge](OpEdge* test, OpEdge* oppEdge) {
+#if OP_TEST_NEW_INTERFACE
+	auto detachNext = [detachEdge](OpEdge* test, OpEdge* oppEdge) 
+#else
+	auto detachNext = [this, detachEdge](OpEdge* test, OpEdge* oppEdge) 
+#endif
+	{
 		detachEdge(test, EdgeMatch::end);
 		detachEdge(oppEdge, EdgeMatch::start);
 		test->setNextEdge(oppEdge);
 		oppEdge->setPriorEdge(test);
+#if OP_TEST_NEW_INTERFACE
+		test->output(true);
+#else
 		test->output(path, true);
+#endif
 		return true;
 	};
+#if OP_TEST_NEW_INTERFACE
+	auto detachPrior = [detachEdge](OpEdge* test, OpEdge* oppEdge) {
+#else
 	auto detachPrior = [this, detachEdge](OpEdge* test, OpEdge* oppEdge) {
+#endif
 		detachEdge(test, EdgeMatch::start);
 		detachEdge(oppEdge, EdgeMatch::end);
 		test->setPriorEdge(oppEdge);
 		oppEdge->setNextEdge(test);
+#if OP_TEST_NEW_INTERFACE
+		test->output(true);
+#else
 		test->output(path, true);
+#endif
 		return true;
 	};
 	test = e;
@@ -579,7 +610,7 @@ void OpJoiner::linkUnambiguous(LinkPass lp) {
 	OP_DEBUG_CONTEXT();
     OP_DEBUG_VALIDATE_CODE(debugValidate());
     // match up edges that have only a single possible prior or next link, and add them to new list
-    linkPass = lp;
+	linkPass = lp;
 	OP_DEBUG_VALIDATE_CODE(debugValidate());
 	std::vector<OpEdge*>& edges = LinkPass::normal == lp ? byArea : unsectByArea;
     for (auto& e : edges) {

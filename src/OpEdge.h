@@ -409,7 +409,12 @@ public:
 	OpEdge* nextOut();
 	NormalDirection normalDirection(Axis axis, float t);
 //	float oppDist() const;
-	void output(OpOutPath& path, bool closed);  // provided by the graphics implmentation
+#if OP_TEST_NEW_INTERFACE
+	void output(bool closed);  // provided by the graphics implementation
+	void outputLinkedList(const OpEdge* firstEdge, bool first);
+#else
+	void output(OpOutPath& path, bool closed);  // provided by the graphics implementation
+#endif
 	OpPtT ptT(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? start : end; }
 	OpPtT ptTCloseTo(OpPtT oPtPair, const OpPtT& ptT) const;

@@ -602,6 +602,89 @@ float OpEdge::oppDist() const {
 // if there is another path already output, and it is first found in this ray,
 // check to see if the tangent directions are opposite. If they aren't, reverse
 // this edge's links before sending it to the host graphics engine
+#if OP_TEST_NEW_INTERFACE
+void OpEdge::output(bool closed) {
+    const OpEdge* firstEdge = closed ? this : nullptr;
+    OpEdge* edge = this;
+	bool reverse = false;
+	// returns true if reverse/no reverse criteria found
+	auto test = [&reverse](const EdgeDistance* outer, const EdgeDistance* inner) {
+		if (!outer->edge->inOutput && !outer->edge->inLinkups)
+			return false;
+		// reverse iff normal direction of inner and outer match and outer normal points to nonzero
+		OpEdge* oEdge = outer->edge;
+		Axis axis = oEdge->ray.axis;
+		NormalDirection oNormal = oEdge->normalDirection(axis, outer->edgeInsideT);
+		if ((oEdge->windZero == WindZero::zero) == (NormalDirection::upRight == oNormal))
+			return true;  // don't reverse if outer normal in direction of inner points to zero
+		OpEdge* iEdge = inner->edge;
+		OP_ASSERT(!iEdge->inOutput);
+		if (axis != iEdge->ray.axis)
+			return false;
+		NormalDirection iNormal = iEdge->normalDirection(axis, inner->edgeInsideT);
+		if (EdgeMatch::end == iEdge->which())
+			iNormal = !iNormal;
+		if (NormalDirection::downLeft != iNormal 
+				&& NormalDirection::upRight != iNormal)
+			return false;
+		if (EdgeMatch::end == oEdge->which())
+			oNormal = !oNormal;
+		if (NormalDirection::downLeft != oNormal 
+				&& NormalDirection::upRight != oNormal)
+			return false;
+		reverse = iNormal == oNormal;
+		return true;
+	};
+	do {
+		OP_ASSERT(!edge->inOutput);
+		unsigned index;
+		const EdgeDistance* inner;
+		for (index = 0; index < edge->ray.distances.size(); ++index) {
+			inner = &edge->ray.distances[index];
+			if (inner->edge == edge)
+				break;
+		}
+		OP_ASSERT(!index || index < edge->ray.distances.size());
+		if (index == 0)  // if nothing to its left, don't reverse
+			break;
+		const EdgeDistance* outer = &edge->ray.distances[index - 1];
+		if (test(outer, inner))
+			break;
+		edge = edge->nextEdge;
+    } while (firstEdge != edge);
+	if (reverse) {
+		if (priorEdge) {
+			OP_ASSERT(debugIsLoop());
+			lastEdge = priorEdge;
+			lastEdge->nextEdge = nullptr;
+			priorEdge = nullptr;
+		}
+		edge = lastEdge;
+		edge->setLinkDirection(EdgeMatch::none);
+		firstEdge = nullptr;
+	} else
+		edge = this;
+	edge->outputLinkedList(firstEdge, true);
+}
+
+void OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first)
+{
+//	PathOpsV0Lib::PathOutput nativePath = contours()->callerOutput;
+	OP_DEBUG_CODE(debugOutPath = contours()->debugOutputID);
+	OpEdge* next = nextOut();
+	OpCurve copy = curve;
+	if (EdgeMatch::end == which())
+		copy.reverse();
+	copy.output(first, firstEdge == next);
+	if (firstEdge == next) {
+		OP_DEBUG_CODE(debugOutPath = segment->contour->nextID());
+		return;
+	}
+	OP_ASSERT(next);
+	next->outputLinkedList(firstEdge, false);
+}
+
+#else
 void OpEdge::output(OpOutPath& path, bool closed) {
     const OpEdge* firstEdge = closed ? this : nullptr;
     OpEdge* edge = this;
@@ -677,6 +760,7 @@ void OpEdge::output(OpOutPath& path, bool closed) {
     } while (firstEdge != edge);
 	OP_DEBUG_CODE(path.debugNextID(this));
 }
+#endif
 
 OpType OpEdge::type() {
 	return isLinear() ? OpType::line : segment->c.c.type; 

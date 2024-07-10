@@ -1319,20 +1319,20 @@ void OpDebugImage::drawPoints() {
 			const OpEdge* edge = *edgeIter;
 			if (!edge->debugDraw)
 				continue;
-			if (edgeIter.isCurveCurve) {
 #if OP_TEST_NEW_INTERFACE
-				uint32_t color = edge->winding.contour->callBacks
-						.debugCurveCurveColorFuncPtr(edge->winding.contour->caller);
-				DebugOpBuild(edge->start.pt, edge->start.t, color);
-				DebugOpBuild(edge->end.pt, edge->end.t, color);
+			uint32_t color = edge->winding.contour->callBacks
+					.debugCurveCurveColorFuncPtr(edge->winding.contour->caller);
+			DebugOpBuild(edge->start.pt, edge->start.t, color);
+			DebugOpBuild(edge->end.pt, edge->end.t, color);
 #else
+			if (edgeIter.isCurveCurve) {
 				DebugOpBuild(edge->start.pt, edge->start.t, edgeIter.isOpp);
 				DebugOpBuild(edge->end.pt, edge->end.t, edgeIter.isOpp);
-#endif
 			} else {
 				DebugOpBuild(edge->start.pt, edge->start.t);
 				DebugOpBuild(edge->end.pt, edge->end.t);
 			}
+#endif
 			if (drawControlsOn) {
 				for (int index = 1; index < edge->curve.pointCount() - 1; ++index)
 					DebugOpBuild(edge->curve.hullPt(index));

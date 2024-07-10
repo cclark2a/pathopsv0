@@ -34,7 +34,7 @@ void DebugOpAddHighlight(const OpEdge* );
 void DebugOpBounds(double& left, double& top, double& right, double& bottom);
 void DebugOpBuild(OpPoint );
 #if OP_TEST_NEW_INTERFACE
-void DebugOpBuild(OpPoint , uint32_t color);
+// void DebugOpBuild(OpPoint , uint32_t color);
 void DebugOpBuild(OpPoint , float t, uint32_t color);
 #else
 void DebugOpBuild(OpPoint , bool opp);

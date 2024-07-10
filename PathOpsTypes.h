@@ -119,11 +119,13 @@ enum class DebugImage {
 };
 #endif
 
+typedef void (*EmptyNativePath)(PathOutput );
 #if OP_DEBUG_IMAGE
 typedef uint32_t (*DebugNativeOutColor)();
 #endif
 
 struct ContextCallBacks {
+	EmptyNativePath emptyNativePath;
 #if OP_DEBUG_IMAGE
 	DebugNativeOutColor debugNativeOutColorFuncPtr;
 #endif
@@ -161,6 +163,9 @@ typedef void (*CurveOutput)(Curve, bool firstPt, bool lastPt, PathOutput );
 
 // returns normal vector at parameter t, where: t=0 is start, t=1 is end
 typedef OpVector (*CurveNormal)(Curve, float t);
+
+// map the control points (if any) to lie inside the bounds of the curve (e.g., start and end)
+typedef void (*CurvePinCtrl)(Curve);
 
 // reverses order of control points, if there is more than one
 typedef void (*CurveReverse)(Curve);
@@ -200,6 +205,7 @@ struct CurveCallBacks {
 	SetBounds setBoundsFuncPtr;
 	CurveNormal curveNormalFuncPtr;
 	CurveOutput curveOutputFuncPtr;
+	CurvePinCtrl curvePinCtrlFuncPtr;
 	CurveReverse curveReverseFuncPtr;
 	CurveTangent curveTangentFuncPtr;
 	CurvesEqual curvesEqualFuncPtr;

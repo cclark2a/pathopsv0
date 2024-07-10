@@ -333,6 +333,11 @@ OpContours::~OpContours() {
         delete curveDataStorage;
         curveDataStorage = next;
     }
+    while (contourStorage) {
+        OpContourStorage* next = contourStorage->next;
+        delete contourStorage;
+        contourStorage = next;
+    }
     release(fillerStorage);
     while (sectStorage) {
         OpSectStorage* next = sectStorage->next;
@@ -342,6 +347,11 @@ OpContours::~OpContours() {
     if (limbStorage) {
         limbStorage->reset();
         delete limbStorage;
+    }
+    while (callerStorage) {
+        CallerDataStorage* next = callerStorage->next;
+        delete callerStorage;
+        callerStorage = next;
     }
 #if OP_DEBUG
     debugInPathOps = false;
@@ -358,6 +368,14 @@ OpContours::~OpContours() {
         delete debugJoiner;
     }
 #endif
+}
+
+void OpContours::addAlias(OpPoint pt, OpPoint alias) {
+    for (OpPtAlias& a : aliases) {
+        if (a.pt == pt && a.alias == alias)
+            return;
+    }
+    aliases.push_back({pt, alias});
 }
 
 #if !OP_TEST_NEW_INTERFACE
@@ -419,9 +437,7 @@ OpIntersection* OpContours::allocateIntersection() {
 }
 
 OpLimb* OpContours::allocateLimb(OpTree* tree) {
-#if OP_DEBUG_DUMP
-    dumpTree = tree;
-#endif
+    OP_DEBUG_DUMP_CODE(dumpTree = tree);
     if (limbStorage->used == ARRAY_COUNT(limbStorage->storage)) {
         OpLimbStorage* next = new OpLimbStorage;
         next->nextBlock = limbStorage;
@@ -436,10 +452,23 @@ PathOpsV0Lib::WindingData* OpContours::allocateWinding(size_t size) {
     return (PathOpsV0Lib::WindingData*) result;
 }
 
-OpLimbStorage* OpContours::resetLimbs(OpTree* tree) {
-#if OP_DEBUG_DUMP
-    dumpTree = tree;
-#endif
+void OpContours::disableSmallSegments() {
+    SegmentIterator segIterator(this);
+    while (OpSegment* seg = segIterator.next()) {
+        if (seg->disabled)
+            continue;
+        if (aliases.end() != std::find_if(aliases.begin(), aliases.end(), 
+                [seg](OpPtAlias& a) {
+            return (a.pt == seg->c.c.data->start || a.alias == seg->c.c.data->start)
+                    && (a.pt == seg->c.c.data->end || a.alias == seg->c.c.data->end);
+        })) {
+            seg->setDisabled(ZeroReason::isPoint);
+        }
+    }
+}
+
+OpLimbStorage* OpContours::resetLimbs(OP_DEBUG_DUMP_CODE(OpTree* tree)) {
+    OP_DEBUG_DUMP_CODE(dumpTree = tree);
     if (!limbStorage)
         limbStorage = new OpLimbStorage;
     limbStorage->reset();
@@ -452,8 +481,17 @@ OpLimbStorage* OpContours::resetLimbs(OpTree* tree) {
 // make sure normals point same way
 // prefer smaller assembled contours
 // returns true on success
-bool OpContours::assemble(OpOutPath& path) {
+#if OP_TEST_NEW_INTERFACE
+bool OpContours::assemble() 
+#else
+bool OpContours::assemble(OpOutPath& path) 
+#endif
+{
+#if OP_TEST_NEW_INTERFACE
+    OpJoiner joiner(*this);
+#else
     OpJoiner joiner(*this, path);  // collect active edges and sort them
+#endif
     if (joiner.setup())
         return true;
     for (LinkPass linkPass : { LinkPass::normal, LinkPass::unsectable } ) {
@@ -487,7 +525,12 @@ static const bool OutInverse[+OpOperator::ReverseSubtract + 1][2][2] {
 // This will compare the dumps of contours and contents to detect when something changed.
 // The callouts are removed when not in use as they are not maintained and reduce readability.
 // !!! OP_DEBUG_COUNT was unintentionally deleted at some point. Hopefully it is in git history...
-bool OpContours::pathOps(OpOutPath& result) {
+#if OP_TEST_NEW_INTERFACE
+bool OpContours::pathOps()
+#else
+bool OpContours::pathOps(OpOutPath& result)
+#endif
+{
 #if !OP_TEST_NEW_INTERFACE
     if (!newInterface) {
         if (!build(*leftIn, OpOperand::left))  // builds monotonic segments, and adds 0/1 sects
@@ -512,13 +555,14 @@ bool OpContours::pathOps(OpOutPath& result) {
         OpSegments::FindCoincidences(this);
         OpSegments sortedSegments(*this);
         if (!sortedSegments.inX.size()) {
-            result.setEmpty();
+            contextCallBacks.emptyNativePath(callerOutput);
             OP_DEBUG_SUCCESS(*this, true);
         }
         if (FoundIntersections::fail == sortedSegments.findIntersections())
             return false;  // !!! fix this to record for Error()
+        disableSmallSegments();  // moved points may allow disabling some segments
         if (empty()) {
-            result.setEmpty();
+            contextCallBacks.emptyNativePath(callerOutput);
             OP_DEBUG_SUCCESS(*this, true);
         }
     }
@@ -532,14 +576,23 @@ bool OpContours::pathOps(OpOutPath& result) {
         OP_DEBUG_FAIL(*this, false);
     OP_DEBUG_DUMP_CODE(debugContext = "apply");
     apply();  // suppress edges which don't meet op criteria
+#if OP_TEST_NEW_INTERFACE
+    if (!assemble())
+        OP_DEBUG_FAIL(*this, false);
+#else
     if (!assemble(result))
         OP_DEBUG_FAIL(*this, false);
-#if !OP_TEST_NEW_INTERFACE
     if (!newInterface) {
         bool inverseFill = OutInverse[+opOperator][leftIn->isInverted()][rightIn->isInverted()];
         result.setInverted(inverseFill);
     }
 #endif
+    // !!! missing final step to reverse order of contours as winding rule requires
+    // this should be driven by user choices since the engine itself can't know the winding rule
+    // it does require all output contours to be completed first. Perhaps the link-to-path
+    // step should be removed from assemble or placed at the end of assemble, so the reverse
+    // link loop can be decided once all loops are known
+    // !!! for now, set Skia adapter to create evenodd fills
 #if 0 && OP_DEBUG_IMAGE
     showResult();
 #endif

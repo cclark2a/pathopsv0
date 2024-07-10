@@ -62,19 +62,20 @@ struct TGap {
 // distance from edge to opp at this edge t, and number of edges between this and next
 struct EdgeRun {
 	void set(const OpEdge* edge, const OpSegment* oppSeg, EdgeMatch );
-	float setOppDist(const OpSegment* segment, const OpPtT& edgePtT, OpPoint oppPt);
-
-	float edgeT;
-	float oppDist;
-	int between;  // incremented if edge t is between, and oppDist is between
+	float setOppDist(const OpSegment* segment);
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
 #endif
 
+	const OpEdge* edge;
+	const OpEdge* oppEdge;
+	OpPtT edgePtT;
+	OpPtT oppPtT;
+	float oppDist;
+	bool fromFoundT;
+	bool byZero;
 #if OP_DEBUG
-	const OpEdge* debugEdge;
-	OpPtT debugEdgePtT;
-	OpPtT debugOppPtT;
+	int debugBetween;  // incremented if edge t is between, and oppDist is between
 #endif
 };
 
@@ -137,9 +138,9 @@ struct OpCurveCurve {
 	void addEdgeRun(const OpEdge* , CurveRef , EdgeMatch );
 	void addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 			const OpPtT& oppStart, const OpPtT& oppEnd);
+	bool alreadyInLimits(const OpEdge* edge, const OpEdge* oEdge, float t);
 	bool checkDist(int edgeOverlaps, int oppOverlaps);
 	bool checkForGaps();
-	bool checkLimits(size_t oldCount);
 	bool checkSect();
 	bool checkSplit(float lo, float hi, CurveRef , OpPtT& checkPtT) const;
 	static OpPtT Cut(const OpPtT& , const OpSegment* , float direction);
@@ -153,12 +154,14 @@ struct OpCurveCurve {
 	void recordSect(OpEdge* edge, OpEdge* opp, const OpPtT& edgePtT, const OpPtT& oppPtT
 			OP_LINE_FILE_DEF(SectReason eReason, SectReason oReason));
 	bool rotatedIntersect(OpEdge& edge, OpEdge& opp, bool sharesPoint);
+	SectFound runsToLimits();
 	void setHullSects(OpEdge& edge, OpEdge& opp, CurveRef );
 	void setHulls(CurveRef curveRef);
 	void setIntersections();
 	bool setOverlaps();
-	void splitDownTheMiddle(const OpEdge& edge, const OpPtT& edgeMid, CurveRef , CcCurves& splits);
-	void splitHulls(CurveRef , CcCurves& splits);  // hull finds split point
+	bool setSnipFromLimits(size_t oldCount);
+	bool splitDownTheMiddle(const OpEdge& edge, const OpPtT& edgeMid, CurveRef , CcCurves& splits);
+	bool splitHulls(CurveRef , CcCurves& splits);  // hull finds split point
 	size_t uniqueLimits();
 #if OP_DEBUG
 	~OpCurveCurve() { 

@@ -66,17 +66,17 @@ inline CubicControls CubicControlPt(OpPoint start, CubicControls controls, OpPoi
         OpPoint abcd = OpMath::Interp(abc, bcd, t);
         return abcd;
     };
-    OpPoint a = interp(ptT1.t);
+//    OpPoint a = interp(ptT1.t);
     OpPoint e = interp((ptT1.t * 2 + ptT2.t) / 3);
     OpPoint f = interp((ptT1.t + ptT2.t * 2) / 3);
-    OpPoint d = interp(ptT2.t);
-    OpVector m = e * 27 - a * 8 - d;
-    OpVector n = f * 27 - a - d * 8;
+//    OpPoint d = interp(ptT2.t);
+    OpVector m = e * 27 - ptT1.pt * 8 - ptT2.pt;
+    OpVector n = f * 27 - ptT1.pt - ptT2.pt * 8;
     CubicControls results;
     /* b = */ results.pts[0] = (m * 2 - n) / 18;
     /* c = */ results.pts[1] = (n * 2 - m) / 18;
-    results.pts[0].pin(start, end);
-    results.pts[1].pin(start, end);
+    results.pts[0].pin(ptT1.pt, ptT2.pt);
+    results.pts[1].pin(ptT1.pt, ptT2.pt);
     return results;
 }
 
@@ -143,6 +143,8 @@ inline size_t AddCubics(AddCurve curve, AddWinding windings) {
         OpPoint curveData[4] { ptTs[index].pt, ptTs[index + 1].pt };
         *(CubicControls*)&curveData[2] = CubicControlPt(start, controls, end, 
                 ptTs[index], ptTs[index + 1]);
+        if (curveData[0] == curveData[1])
+            continue;
         Add({ curveData, curve.size, curve.type }, windings );
     }
     return curvesAdded;
@@ -201,6 +203,13 @@ inline OpVector cubicNormal(Curve c, float t) {
     return { -tan.dy, tan.dx };
 }
 
+inline void cubicPinCtrl(Curve c) {
+    CubicControls controls(c);
+    controls.pts[0].pin(c.data->start, c.data->end);
+    controls.pts[1].pin(c.data->start, c.data->end);
+    controls.copyTo(c);
+}
+
 inline void cubicRotate(Curve c, const LinePts& line, float adj, float opp, Curve result) {
     CubicControls controls(c);
     for (int index = 0; index < 2; ++index) {
@@ -241,6 +250,12 @@ inline bool cubicIsLinear(Curve c) {
     diffs[0] = controls.pts[1] - c.data->start;
     cross = diffs[0].cross(diffs[1]);
     return fabsf(cross) <= OpEpsilon;
+}
+
+inline void cubicReverse(Curve c) {
+    CubicControls controls(c);
+    std::swap(controls.pts[0], controls.pts[1]);
+    controls.copyTo(c);
 }
 
 #if OP_DEBUG_DUMP

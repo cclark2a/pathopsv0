@@ -316,11 +316,12 @@ MatchEnds OpSegment::matchExisting(const OpSegment* opp) const {
 void OpSegment::moveTo(float matchT, OpPoint equalPt) {
     OP_ASSERT(0 == matchT || 1 == matchT);
     OpPoint endPt = 0 == matchT ? c.firstPt() : c.lastPt();
-    OP_ASSERT(endPt.isNearly(equalPt));
-    if (c.firstPt() == c.lastPt())
-        disabled = true;
+    OP_ASSERT(endPt.soClose(equalPt));
+    contour->contours->addAlias(endPt, equalPt);
     0 == matchT ? c.setFirstPt(equalPt) : c.setLastPt(equalPt);
     c.pinCtrl();
+    if (c.firstPt() == c.lastPt())
+        disabled = true;
     setBounds();
     for (OpIntersection* sect : sects.i) {
         if (sect->ptT.t == matchT) {
@@ -347,8 +348,7 @@ int OpSegment::nextID() const {
 
 void OpSegment::setBounds() {
     ptBounds = c.ptBounds();
-    closeBounds = ptBounds;
-    closeBounds.outsetClose();
+    closeBounds = ptBounds.outsetClose();
 }
 
 // should be inlined. Out of line for ease of setting debugging breakpoints

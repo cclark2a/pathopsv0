@@ -95,6 +95,7 @@ struct OpCurve {
     OpPtT cut(const OpPtT& ptT, float loBounds, float hiBounds, float direction) const;
     CutRangeT cutRange(const OpPtT& ptT, float loEnd, float hiEnd) const;
     OpPoint doublePtAtT(float t) const;
+    OpPoint end(float t) const;
     OpPtT findIntersect(Axis offset, const OpPtT& ) const;
     OpPoint firstPt() const;
     OpPoint hullPt(int index) const;
@@ -108,7 +109,11 @@ struct OpCurve {
     bool nearBounds(OpPoint ) const;
     OpVector normal(float t) const;
     NormalDirection normalDirection(Axis axis, float t) const;
+#if OP_TEST_NEW_INTERFACE
+    void output(bool firstPt, bool lastPt);  // provided by graphics implementation
+#else
     bool output(OpOutPath& path, bool firstPt, bool lastPt);  // provided by graphics implementation
+#endif
     void pinCtrl();
     OpPoint ptAtT(float t) const;
     OpPtT ptTAtT(float t) const {

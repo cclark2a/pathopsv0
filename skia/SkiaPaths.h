@@ -27,6 +27,7 @@ struct SkiaOpContourData {
 SkPathOp MapInvertedSkPathOp(SkPathOp op, bool leftOperandIsInverted, bool rightOperandIsInverted);
 bool SkPathOpInvertOutput(SkPathOp op, bool leftOperandIsInverted, bool rightOperandIsInverted);
 
+void SetSkiaContextCallBacks(PathOpsV0Lib::Context* context);
 void SetSkiaCurveCallBacks(PathOpsV0Lib::Context* );
 PathOpsV0Lib::Contour* SetSkiaSimplifyCallBacks(PathOpsV0Lib::Context* , bool isWindingFill 
 		OP_DEBUG_PARAMS(const SkPath& ));

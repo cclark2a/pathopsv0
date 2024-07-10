@@ -22,6 +22,9 @@ inline bool noLinear(Curve ) {
     return false;
 }
 
+inline void noPinCtrl(Curve) {
+}
+
 inline void noReverse(Curve ) {
 }
 

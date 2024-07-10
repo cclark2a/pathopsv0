@@ -499,6 +499,7 @@ void verifyFile() {
     fflush(file);
 }
 
+#if !OP_TEST_NEW_INTERFACE
 OpInPath::~OpInPath() {
     if (debugDumpReference)
         ReleaseExternalReference(externalReference);
@@ -508,6 +509,7 @@ OpOutPath::~OpOutPath() {
     if (debugDumpReference)
         ReleaseExternalReference(externalReference);
 }
+#endif
 
 // everything here is leaked (for now; should only be called once per app execution)
 OpContours* dumpInit() {
@@ -868,11 +870,12 @@ void OpContours::dumpSet(const char*& str) {
         debugCurveCurve->dumpSet(str);
     }
     if (OpDebugOptional(str, "debugJoiner")) {
-#if OP_TEST_NEW_INTERFACE
-        OpOutPath* debugResult = nullptr;
-#endif
         if (!debugJoiner)
+#if OP_TEST_NEW_INTERFACE
+            debugJoiner = new OpJoiner(*this);
+#else
             debugJoiner = new OpJoiner(*this, *debugResult);
+#endif
         debugJoiner->dumpSet(str);
     }
 #if !OP_TEST_NEW_INTERFACE
@@ -2020,18 +2023,6 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         if (' ' == s.back()) s.pop_back();
         s += "] ";
     }
-#if 0
-    if (dumpIt(EdgeFilter::oppEnd) && !OpMath::IsNaN(oppEnd.t)) {
-        s += strPtT(EdgeFilter::oppEnd, "oppEnd", oppEnd, " ");
-        float dist = oppDist();
-        if (!OpMath::IsNaN(dist)) {
-            s += debugLabel(l, "oppDist") + ":";
-            if (dist >= OpEpsilon) // !!! make this an option of debug float or op debug str?
-                s += "+";
-            s += debugFloat(b, dist) + " ";
-        }
-    }
-#endif
     s += strID(EdgeFilter::unsectableID, "unsectableID", unsectableID);
     s += strEnum(EF::whichEnd, "whichEnd", EdgeMatch::none == which(), edgeMatchName(which()));
     s += strEnum(EF::rayFail, "rayFail", EdgeFail::none == rayFail, edgeFailName(rayFail));
@@ -2769,8 +2760,10 @@ std::string OpJoiner::debugDump(DebugLevel l, DebugBase b) const {
         dumpEdgeIDs(disabledPals, "disabledPals");
         dumpEdgeIDs(unsortables, "unsortables");
     } else {
+#if !OP_TEST_NEW_INTERFACE
         if (!path.debugIsEmpty())
             s += "path:" + path.debugDump(l, b) + "\n";
+#endif
         auto dumpEdges = [&s, l, b](const std::vector<OpEdge*>& edges, std::string name) {
             size_t activeCount = 0;
             for (auto e : edges)
@@ -2801,7 +2794,8 @@ std::string OpJoiner::debugDump(DebugLevel l, DebugBase b) const {
     }
     for (const FoundEdge& f : found)
         s += f.debugDump(l, b) + "\n";
-    s += "bestGap:" + bestGap.debugDump(l, b) + "\n";
+    if (bestGap.edge)
+        s += "bestGap:" + bestGap.debugDump(l, b) + "\n";
     if (linkups.l.size()) {
         if (DebugLevel::file == l) {
             s += "linkups:" + STR(linkups.l.size()) + " [";
@@ -3058,38 +3052,34 @@ void EdgeDistance::dumpSet(const char*& str) {
 
 std::string EdgeRun::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-#if OP_DEBUG  
-    s += "e["+ STR(debugEdge->id) + "] ";
-#endif
-    s += debugValue(l, b, "edgeT", edgeT) + " ";
+    s += "e[" + STR(edge->id) + "] ";
+    s += "o[" + STR(oppEdge->id) + "] ";
+    s += "edgePtT:" + edgePtT.debugDump(l, b) + " ";
+    s += "oppPtT:" + oppPtT.debugDump(DebugLevel::error, b) + " ";
     s += debugErrorValue(l, b, "oppDist", oppDist) + " ";
-    s += "between:" + STR(between) + " ";
-#if OP_DEBUG
-    s += "debugEdgePtT:" + debugEdgePtT.debugDump(l, b) + " ";
-    s += "debugOppPtT:" + debugOppPtT.debugDump(DebugLevel::error, b);
-#endif
+    OP_DEBUG_CODE(s += "debugBetween:" + STR(debugBetween) + " ");
     return s;
 }
 
 void EdgeRun::dumpSet(const char*& str) {
-#if OP_DEBUG
     OpDebugRequired(str, "e[");
-    debugEdge = (OpEdge*) OpDebugReadSizeT(str);
-#endif
-    edgeT = OpDebugReadNamedFloat(str, "edgeT");
+    edge = (OpEdge*) OpDebugReadSizeT(str);
+    OpDebugRequired(str, "o[");
+    oppEdge = (OpEdge*) OpDebugReadSizeT(str);
+    OpDebugRequired(str, "edgePtT:");
+    edgePtT.dumpSet(str);
+    OpDebugRequired(str, "oppPtT:");
+    oppPtT.dumpSet(str);
     oppDist = OpDebugReadNamedFloat(str, "oppDist");
-    OpDebugRequired(str, "between");
-    between = OpDebugReadSizeT(str);
 #if OP_DEBUG
-    OpDebugRequired(str, "debugEdgePtT");
-    debugEdgePtT.dumpSet(str);
-    OpDebugRequired(str, "debugOppPtT");
-    debugOppPtT.dumpSet(str);
+    OpDebugRequired(str, "debugBetween");
+    debugBetween = OpDebugReadSizeT(str);
 #endif
 }
 
 void EdgeRun::dumpResolveAll(OpContours* c) {
-    c->dumpResolve(debugEdge);
+    c->dumpResolve(edge);
+    c->dumpResolve(oppEdge);
 }
 
 ENUM_NAME_STRUCT(CurveRef);
@@ -3544,7 +3534,7 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
     }
     if (unsectID) {
         s += " unsectID:" + STR(unsectID);
-        s += DebugLevel::file == l ? "unsectEnd:" : " ";
+        s += DebugLevel::file == l ? " unsectEnd:" : " ";
         s += matchEndsName(unsectEnd);
     }
     if (!coincidenceID  OP_DEBUG_CODE(&& !debugCoincidenceID) && !unsectID 
@@ -3590,14 +3580,21 @@ void OpIntersection::dumpSet(const char*& str) {
     const OpSegment* oppParent = (const OpSegment*) OpDebugReadSizeT(str);  // discarded
     OP_ASSERT(oppParent || true);
     opp = (OpIntersection*) OpDebugReadSizeT(str);
-    coincidenceID = OpDebugOptional(str, "coinID") ? OpDebugReadSizeT(str) : 0;
+    auto readCoinID = [](const char*& str) {
+        bool isNegative = OpDebugOptional(str, "-");
+        if (OpDebugOptional(str, "-"))
+            return 0;
+        size_t coinID = OpDebugReadSizeT(str);
+        return isNegative ? -(int) coinID : (int) coinID;
+    };
+    coincidenceID = OpDebugOptional(str, "coinID") ? readCoinID(str) : 0;
 #if OP_DEBUG
-    debugCoincidenceID = OpDebugOptional(str, "/") ? OpDebugReadSizeT(str) : 0;
+    debugCoincidenceID = OpDebugOptional(str, "/") ? readCoinID(str) : 0;
 #endif
     coinEnd = matchEndsStr(str, "coinEnd", MatchEnds::none);
-    unsectID = OpDebugOptional(str, "unsectID") ? OpDebugReadSizeT(str) : 0;
+    unsectID = OpDebugOptional(str, "unsectID") ? readCoinID(str) : 0;
     unsectEnd = matchEndsStr(str, "unsectEnd", MatchEnds::none);
-    betweenID = OpDebugOptional(str, "betweenID") ? OpDebugReadSizeT(str) : 0;
+    betweenID = OpDebugOptional(str, "betweenID") ? readCoinID(str) : 0;
     coincidenceProcessed = OpDebugOptional(str, "coincidenceProcessed");
 #if OP_DEBUG
     debugReason = sectReasonStr(str, "reason", SectReason::unset);

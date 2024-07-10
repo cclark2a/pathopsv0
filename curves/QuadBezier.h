@@ -152,6 +152,12 @@ inline OpVector quadNormal(Curve c, float t) {
     return { -tan.dy, tan.dx };
 }
 
+inline void quadPinCtrl(Curve c) {
+    OpPoint ctrlPt = quadControlPt(c);
+    ctrlPt.pin(c.data->start, c.data->end);
+    quadSetControl(c, ctrlPt);
+}
+
 inline void quadRotate(Curve c, const LinePts& line, float adj, float opp, Curve result) {
     OpPoint ctrlPt = quadControlPt(c);
     OpVector v = ctrlPt - line.pts[0];

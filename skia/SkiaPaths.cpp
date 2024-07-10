@@ -49,23 +49,32 @@ void Add(AddCurve , AddWinding );
 
 using namespace PathOpsV0Lib;
 
-void commonOutput(Curve c, SkPath::Verb type, bool firstPt, bool lastPt, 
-        PathOutput output) {
+void commonOutput(Curve c, SkPath::Verb type, bool firstPt, bool lastPt, PathOutput output) {
     SkPath& skpath = *(SkPath*)(output);
     if (firstPt)
         skpath.moveTo(c.data->start.x, c.data->start.y);
-    if (SkPath::kLine_Verb == type)
-        skpath.lineTo(c.data->end.x, c.data->end.y);
-    else if (SkPath::kQuad_Verb == type) {
-        OpPoint ctrlPt = quadControlPt(c);
-        skpath.quadTo(ctrlPt.x, ctrlPt.y, c.data->end.x, c.data->end.y);
-    } else if (SkPath::kConic_Verb == type) {
-        PathOpsV0Lib::PointWeight ctrl(c);
-        skpath.conicTo(ctrl.pt.x, ctrl.pt.y, c.data->end.x, c.data->end.y, ctrl.weight);
-    } else if (SkPath::kCubic_Verb == type) {
-        CubicControls ctrls(c);
-        skpath.cubicTo(ctrls.pts[0].x, ctrls.pts[0].y, ctrls.pts[1].x, ctrls.pts[1].y,
-                c.data->end.x, c.data->end.y);
+    switch (type) {
+        case SkPath::kLine_Verb:
+            skpath.lineTo(c.data->end.x, c.data->end.y);
+            break;
+        case SkPath::kQuad_Verb: {
+            OpPoint ctrlPt = quadControlPt(c);
+            skpath.quadTo(ctrlPt.x, ctrlPt.y, c.data->end.x, c.data->end.y);
+            break;
+        }
+        case SkPath::kConic_Verb: {
+            PathOpsV0Lib::PointWeight ctrl(c);
+            skpath.conicTo(ctrl.pt.x, ctrl.pt.y, c.data->end.x, c.data->end.y, ctrl.weight);
+            break;
+        }
+        case SkPath::kCubic_Verb: {
+            CubicControls ctrls(c);
+            skpath.cubicTo(ctrls.pts[0].x, ctrls.pts[0].y, ctrls.pts[1].x, ctrls.pts[1].y,
+                    c.data->end.x, c.data->end.y);
+            break;
+        }
+        default:
+            OP_ASSERT(0);
     }
     if (lastPt)
         skpath.close();
@@ -95,7 +104,7 @@ OpType skiaCubicType;
 // new interface
 void SetSkiaCurveCallBacks(PathOpsV0Lib::Context* context) {
     skiaLineType = SetCurveCallBacks(context, lineAxisRawHit, noNearly, noHull, lineIsFinite, 
-            lineIsLine, noLinear, noBounds, lineNormal, skiaLineOutput, noReverse,
+            lineIsLine, noLinear, noBounds, lineNormal, skiaLineOutput, noPinCtrl, noReverse,
             lineTangent, linesEqual, linePtAtT, /* double not required */ linePtAtT, 
             linePtCount, noRotate, lineSubDivide, lineXYAtT
             OP_DEBUG_DUMP_PARAMS(lineDebugDumpSize, noDumpCurveExtra, noDumpCurveSet, 
@@ -103,7 +112,7 @@ void SetSkiaCurveCallBacks(PathOpsV0Lib::Context* context) {
             OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath)
     );
     skiaQuadType = SetCurveCallBacks(context, quadAxisRawHit, quadNearly, quadHull, quadIsFinite, 
-            quadIsLine, quadIsLinear, quadSetBounds, quadNormal, skiaQuadOutput, noReverse,
+            quadIsLine, quadIsLinear, quadSetBounds, quadNormal, skiaQuadOutput, quadPinCtrl, noReverse,
             quadTangent, quadsEqual, quadPtAtT, /* double not required */ quadPtAtT, 
             quadPtCount, quadRotate, quadSubDivide, quadXYAtT
             OP_DEBUG_DUMP_PARAMS(quadDebugDumpSize, noDumpCurveExtra, quadDumpSet, 
@@ -112,7 +121,7 @@ void SetSkiaCurveCallBacks(PathOpsV0Lib::Context* context) {
     );
     skiaConicType = SetCurveCallBacks(context, conicAxisRawHit, conicNearly, conicHull, 
             conicIsFinite, conicIsLine, 
-            conicIsLinear, conicSetBounds, conicNormal, skiaConicOutput, noReverse,
+            conicIsLinear, conicSetBounds, conicNormal, skiaConicOutput, quadPinCtrl, noReverse,
             conicTangent, conicsEqual, conicPtAtT, /* double not required */ conicPtAtT, 
             conicPtCount, conicRotate, conicSubDivide, conicXYAtT
             OP_DEBUG_DUMP_PARAMS(conicDebugDumpSize, conicDebugDumpExtra, conicDumpSet, 
@@ -121,7 +130,7 @@ void SetSkiaCurveCallBacks(PathOpsV0Lib::Context* context) {
     );
     skiaCubicType = SetCurveCallBacks(context, cubicAxisRawHit, cubicNearly, cubicHull, 
             cubicIsFinite, cubicIsLine, 
-            cubicIsLinear, cubicSetBounds, cubicNormal, skiaConicOutput, noReverse,
+            cubicIsLinear, cubicSetBounds, cubicNormal, skiaCubicOutput, cubicPinCtrl, cubicReverse,
             cubicTangent, cubicsEqual, cubicPtAtT, /* double not required */ cubicPtAtT, 
             cubicPtCount, cubicRotate, cubicSubDivide, cubicXYAtT
             OP_DEBUG_DUMP_PARAMS(cubicDebugDumpSize, noDumpCurveExtra, cubicDumpSet, 
@@ -181,8 +190,14 @@ inline uint32_t nativeOutColorFunc() {
 }
 #endif
 
+void emptySkPathFunc(PathOutput output) {
+    SkPath* skOutput = (SkPath*) output;
+    skOutput->reset();
+}
+
 void SetSkiaContextCallBacks(PathOpsV0Lib::Context* context) {
-    SetContextCallBacks(context
+    SetContextCallBacks(context,
+        emptySkPathFunc
         OP_DEBUG_IMAGE_PARAMS(nativeOutColorFunc)
     );
 }
@@ -236,12 +251,14 @@ PathOpsV0Lib::Contour* SetSkiaOpCallBacks(PathOpsV0Lib::Context* context, SkPath
 
 void AddSkiaPath(PathOpsV0Lib::AddWinding winding, const SkPath& path) {
     SkPath::RawIter iter(path);
-    SkPath::Verb verb;
-    do {
+    OpPoint closeLine[2];
+    for (;;) {
         SkPoint pts[4];
-        verb = iter.next(pts);
+        SkPath::Verb verb = iter.next(pts);
         switch (verb) {
         case SkPath::kMove_Verb:
+            closeLine[1] = (OpPoint&) pts[0];
+            pts[1] = pts[0];
             break;
         case SkPath::kLine_Verb:
             Add({ (OpPoint*) pts, sizeof(SkPoint) * 2, skiaLineType }, winding);
@@ -262,11 +279,15 @@ void AddSkiaPath(PathOpsV0Lib::AddWinding winding, const SkPath& path) {
             AddCubics({ (OpPoint*) pts, sizeof(SkPoint) * 4, skiaCubicType }, winding);
             break;
         case SkPath::kClose_Verb:
+            Add({ closeLine, sizeof(closeLine), skiaLineType }, winding);
             break;
         case SkPath::kDone_Verb:
-            break;
+            return;
+        default:
+            OP_ASSERT(0);
         }
-    } while (verb != SkPath::kDone_Verb);
+        closeLine[0] = (OpPoint&) pts[1];
+    }
 }
 
 #if OP_DEBUG_IMAGE

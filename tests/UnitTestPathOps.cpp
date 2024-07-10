@@ -789,6 +789,7 @@ void OpCubicTest() {
 #include "OpEdge.h"
 #include "PathOps.h"
 
+#if 0
 void TestPathOps(OpInPath& op1, OpInPath& op2, OpOperator operation, OpOutPath& opOut) {
 	OpDebugData debugData(false);
 	OP_DEBUG_CODE(bool didIt =) PathOps(op1, op2, operation, opOut
@@ -854,6 +855,7 @@ void OpTestCoincidence() {
 	(void)OpPathOpsTest1(one, two, &result);
 	OP_ASSERT(result.getBounds() == r1);
 }
+#endif
 
 void OpTestOpEdgesConcidenceCheck() {
 #if 0	// broken: find need before fixing
@@ -1041,6 +1043,7 @@ void OpTest_EdgeZero() {
 #endif
 }
 
+#if 0
 void OpTestQuadLine() {
 	SkPath one, two, result;
 	one.moveTo(0, 0);
@@ -1109,6 +1112,7 @@ void OpTestQuadCoin2() {
 	result.dump();
 	OpDebugOut("");
 }
+#endif
 
 #if OP_DEBUG
 void onetest() {
@@ -1167,9 +1171,9 @@ void OpTest(bool terminateEarly) {
 //	OpPoint pt = testMinMax({ (float) rand(), (float)rand() }, { (float)rand(), (float)rand() });
 //	OpDebugOut(std::to_string(pt.x));
 	OP_DEBUG_CODE(onetest());
-	OpTestQuadCoin2();
-	OpTestQuadCoin();
-	OpTestQuadQuad();
+//	OpTestQuadCoin2();
+//	OpTestQuadCoin();
+//	OpTestQuadQuad();
 	OpMathTest();
 	OpCurveTest();
 	OpLineTest();
@@ -1177,10 +1181,10 @@ void OpTest(bool terminateEarly) {
 	OpConicTest();
 	OpCubicTest();
 	OpTestOpEdgesConcidenceCheck();
-	OpTestQuadLine();
-	OpTestCoincidence();
-	OpTestXor();
-	OpTestRect();
+//	OpTestQuadLine();
+//	OpTestCoincidence();
+//	OpTestXor();
+//	OpTestRect();
 }
 
 #include "include/core/SkCanvas.h"

@@ -229,10 +229,16 @@ struct SegmentIterator {
     OP_DEBUG_CODE(bool debugEnded);
 };
 
+struct OpPtAlias {
+    OpPoint pt;
+    OpPoint alias;
+};
+
 struct OpContours {
     OpContours(OpInPath& left, OpInPath& right, OpOperator op);
     OpContours();
     ~OpContours();
+    void addAlias(OpPoint pt, OpPoint alias);
     void addCallerData(PathOpsV0Lib::AddContext callerData);
 #if !OP_TEST_NEW_INTERFACE
     OpContour* addMove(OpContour* , OpOperand , const OpPoint pts[1]);
@@ -250,8 +256,10 @@ struct OpContours {
         }
     }
 
+#if OP_TEST_NEW_INTERFACE
+    bool assemble();
+#else
     bool assemble(OpOutPath& );
-#if !OP_TEST_NEW_INTERFACE
     bool build(OpInPath& path, OpOperand operand);   // provided by graphics implementation
 #endif
 
@@ -260,6 +268,7 @@ struct OpContours {
     }
 
 //    WindingData* copySect(const OpWinding& );  // !!! add a separate OpWindingStorage for temporary blocks?
+    void disableSmallSegments();
 
     bool empty() {
         for (auto contour : contours) {
@@ -300,9 +309,13 @@ struct OpContours {
        OP_DEBUG_CODE(debugInClearEdges = false);
     }
 
+#if OP_TEST_NEW_INTERFACE
+    bool pathOps();
+#else
     bool pathOps(OpOutPath& result);
+#endif
     void release(OpEdgeStorage*& );
-    OpLimbStorage* resetLimbs(OpTree* tree);
+    OpLimbStorage* resetLimbs(OP_DEBUG_DUMP_CODE(OpTree* tree));
     void reuse(OpEdgeStorage* );
 
 #if !OP_TEST_NEW_INTERFACE
@@ -373,6 +386,7 @@ struct OpContours {
     OpInPath* rightIn;
     OpOperator opIn;
 #endif
+    std::vector<OpPtAlias> aliases;
     // these are pointers instead of inline values because the storage with empty slots is first
     OpEdgeStorage* ccStorage;
     CurveDataStorage* curveDataStorage;
@@ -402,7 +416,9 @@ struct OpContours {
 #if OP_DEBUG
     OpCurveCurve* debugCurveCurve;
     OpJoiner* debugJoiner;
-#if !OP_TEST_NEW_INTERFACE
+#if OP_TEST_NEW_INTERFACE
+    int debugOutputID;
+#else
     OpOutPath* debugResult;
 #endif
     std::vector<OpDebugWarning> debugWarnings;

@@ -218,6 +218,14 @@ inline OpVector conicNormal(Curve c, float t) {
     return { -tan.dy, tan.dx };
 }
 
+#if 0  // !!! use quad version instead?
+inline void conicPinCtrl(Curve c) {
+    PointWeight control(c);
+    control.pt.pin(c.data->start, c.data->end);
+    quadSetControl(c, control.pt);
+}
+#endif
+
 inline void conicRotate(Curve c, const LinePts& line, float adj, float opp, Curve result) {
     PointWeight control(c);
     OpVector v = control.pt - line.pts[0];
