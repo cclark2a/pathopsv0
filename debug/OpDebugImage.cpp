@@ -883,12 +883,9 @@ bool OpDebugImage::find(int id, OpPointBounds* boundsPtr, OpPoint* pointPtr) {
 std::vector<const OpEdge*> OpDebugImage::find(int id) {
 	extern const OpEdge* findEdge(int id);
 	extern std::vector<const OpEdge*> findEdgeOutput(int id);
-	extern std::vector<const OpEdge*> findEdgeUnsectable(int id);
 	std::vector<const OpEdge*> result;
 	if (const OpEdge* edge = findEdge(id))
 		result.push_back(edge);
-	if (std::vector<const OpEdge*> uSects = findEdgeUnsectable(id); uSects.size())
-		result.insert(result.end(), uSects.begin(), uSects.end());
 	if (std::vector<const OpEdge*> oEdges = findEdgeOutput(id); oEdges.size())
 		result.insert(result.end(), oEdges.begin(), oEdges.end());
 	return result;
@@ -1701,17 +1698,6 @@ void colorActive(uint32_t color) {
 	OpDebugImage::drawDoubleFocus();
 }
 
-void colorBetween(uint32_t color) {
-	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
-		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
-		if (edge->between) {
-			edge->debugColor = color;
-			edge->debugDraw = true;
-		}
-	}
-	OpDebugImage::drawDoubleFocus();
-}
-
 void colorDisabled(uint32_t color) {
 	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
@@ -1777,7 +1763,7 @@ void colorPathsOut(uint32_t color) {
 void colorUnsectables(uint32_t color) {
 	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
-		if (edge->unsectableID) {
+		if (edge->isUnsectable) {
 			edge->debugColor = color;
 			edge->debugDraw = true;
 		}
@@ -1788,7 +1774,7 @@ void colorUnsectables(uint32_t color) {
 void colorUnsortables(uint32_t color) {
 	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
-		if (edge->unsortable) {
+		if (edge->isUnsortable) {
 			edge->debugColor = color;
 			edge->debugDraw = true;
 		}
@@ -2005,10 +1991,10 @@ bool OpDebugImage::drawWinding(const OpCurve& curve, std::string left, std::stri
 // fails may not have overflowed; they may have not found a place to draw the winding
 bool OpDebugImage::drawEdgeWinding(const OpCurve& curve, const OpEdge* edge, uint32_t color) {
 	bool success = true;
-	OpWinding sum = edge->sum;
+	const OpWinding& sum = edge->sum;
 #if OP_TEST_NEW_INTERFACE
-	std::string sumLeft = sum.contour ? sum.contour->callBacks.debugImageOutFuncPtr(sum.w, 0) : "?";
-	std::string sumRight = sum.contour ? sum.contour->callBacks.debugImageOutFuncPtr(sum.w, 1) : "?";
+	std::string sumLeft = sum.isSet() ? sum.contour->callBacks.debugImageOutFuncPtr(sum.w, 0) : "?";
+	std::string sumRight = sum.isSet() ? sum.contour->callBacks.debugImageOutFuncPtr(sum.w, 1) : "?";
 #else
 	std::string sumLeft = OpMax == sum.left() ? "?" : STR(sum.left());
 	std::string sumRight = OpMax == sum.right() ? "?" : STR(sum.right());
@@ -2018,10 +2004,10 @@ bool OpDebugImage::drawEdgeWinding(const OpCurve& curve, const OpEdge* edge, uin
 		success = false;
 	}
 #if OP_TEST_NEW_INTERFACE
-	auto sumString = [edge](OpWinding wind, OpWinding sum, int index) {
-		if (!sum.contour && !wind.contour)
+	auto sumString = [edge](const OpWinding& wind, const OpWinding& sum, int index) {
+		if (!sum.isSet() && !wind.isSet())
 			return std::string("?");
-		if (!sum.contour)
+		if (!sum.isSet())
 			return wind.contour->callBacks.debugImageOutFuncPtr(wind.w, index);
 		OpWinding diffWind(edge->sum.contour, edge->sum.w);
 		diffWind.w = wind.contour->callBacks.windingSubtractFuncPtr(diffWind.w, wind.w);

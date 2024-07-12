@@ -239,7 +239,6 @@ extern const OpContour* findContour(int id);
 extern const OpEdge* findEdge(int id);
 extern std::vector<const OpEdge*> findEdgeOutput(int id);
 extern std::vector<const OpEdge*> findEdgeRayMatch(int id);
-extern std::vector<const OpEdge*> findEdgeUnsectable(int id);
 extern const OpIntersection* findIntersection(int id);
 extern const OpLimb* findLimb(int id);
 extern std::vector<const OpIntersection*> findSectUnsectable(int id);

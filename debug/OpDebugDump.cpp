@@ -196,12 +196,6 @@ EDGE_DETAIL
                 found = true; \
             } \
         } \
-        if (std::vector<const OpEdge*> uSects = findEdgeUnsectable(ID); uSects.size()) { \
-            for (auto uSect : uSects) { \
-                uSect->Method(); \
-                found = true; \
-            } \
-        } \
         if (const OpIntersection* intersection = findIntersection(ID)) { \
             intersection->Method(); \
             found = true; \
@@ -636,7 +630,7 @@ void dmpJoin() {
     for (const auto& c : debugGlobalContours->contours) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
-                if (!edge.isActive() && edge.unsectableID && !edge.inOutput && !edge.inLinkups)
+                if (!edge.isActive() && edge.isUnsectable && !edge.inOutput && !edge.inLinkups)
                     edge.dump(DebugLevel::detailed, defaultBase);
             }
         }
@@ -660,7 +654,7 @@ void dmpUnsectable() {
     for (const auto& c : debugGlobalContours->contours) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
-                if (edge.unsectableID)
+                if (edge.isUnsectable)
                     edge.dump(DebugLevel::detailed, defaultBase);
             }
         }
@@ -671,7 +665,7 @@ void dmpUnsortable() {
     for (const auto& c : debugGlobalContours->contours) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
-                if (edge.unsortable)
+                if (edge.isUnsortable)
                     edge.dump(DebugLevel::detailed, defaultBase);
             }
         }
@@ -1038,7 +1032,7 @@ const OpContour* findContour(int ID) {
 
 const OpEdge* findEdge(int ID) {
     auto match = [ID](const OpEdge& edge) {
-        return edge.id == ID || edge.unsectableID == ID ||
+        return edge.id == ID ||
                 edge.debugOutPath == ID || edge.debugRayMatch == ID;
     };
     for (const auto c : debugGlobalContours->contours) {
@@ -1078,19 +1072,6 @@ std::vector<const OpEdge*> findEdgeRayMatch(int ID) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (ID == edge.debugRayMatch)
-                    result.push_back(&edge);
-            }
-        }
-    }
-    return result;
-}
-
-std::vector<const OpEdge*> findEdgeUnsectable(int ID) {
-    std::vector<const OpEdge*> result;
-    for (const auto c : debugGlobalContours->contours) {
-        for (const auto& seg : c->segments) {
-            for (const auto& edge : seg.edges) {
-                if (ID == abs(edge.unsectableID))
                     result.push_back(&edge);
             }
         }
@@ -1561,7 +1542,6 @@ ENUM_NAME(EdgeSplit, edgeSplit)
 	OP_X(moreRay) \
     OP_X(hulls) \
 	OP_X(id) \
-	OP_X(unsectableID) \
 	OP_X(whichEnd) \
 	OP_X(rayFail) \
 	OP_X(windZero) \
@@ -1575,8 +1555,8 @@ ENUM_NAME(EdgeSplit, edgeSplit)
 	OP_X(inLinkups) \
 	OP_X(inOutput) \
 	OP_X(disabled) \
-	OP_X(unsortable) \
-	OP_X(between) \
+	OP_X(isUnsectable) \
+	OP_X(isUnsortable) \
 	OP_X(ccEnd) \
 	OP_X(ccLarge) \
 	OP_X(ccOverlaps) \
@@ -1932,7 +1912,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         return strLabel(label) + bounds.debugDump(l, b)+ " ";
     };
     auto strWinding = [dumpAlways, l, b, strLabel](EdgeFilter match, std::string label,
-             OpWinding wind) {
+             const OpWinding& wind) {
         std::string s;
         if (!dumpAlways(match)) {
 #if OP_TEST_NEW_INTERFACE
@@ -2023,7 +2003,6 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         if (' ' == s.back()) s.pop_back();
         s += "] ";
     }
-    s += strID(EdgeFilter::unsectableID, "unsectableID", unsectableID);
     s += strEnum(EF::whichEnd, "whichEnd", EdgeMatch::none == which(), edgeMatchName(which()));
     s += strEnum(EF::rayFail, "rayFail", EdgeFail::none == rayFail, edgeFailName(rayFail));
     s += strEnum(EF::windZero, "windZero", false, windZeroName(windZero));
@@ -2040,8 +2019,8 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     STR_BOOL(inLinkups);
     STR_BOOL(inOutput);
     STR_BOOL(disabled);
-    STR_BOOL(unsortable);
-    STR_BOOL(between);
+    STR_BOOL(isUnsectable);
+    STR_BOOL(isUnsortable);
     STR_BOOL(ccEnd);
     STR_BOOL(ccLarge);
     STR_BOOL(ccOverlaps);
@@ -2195,7 +2174,6 @@ void OpEdge::dumpSet(const char*& str) {
         for (int index = 0; index < hullCount; ++index)
             hulls.h[index].dumpSet(str);
     }
-    unsectableID = strID("unsectableID");
     whichEnd_impl = edgeMatchStr(str, "whichEnd", EdgeMatch::none);
     rayFail = edgeFailStr(str, "rayFail", EdgeFail::none);
     windZero = windZeroStr(str, "windZero", WindZero::unset);
@@ -2210,8 +2188,8 @@ void OpEdge::dumpSet(const char*& str) {
     STR_BOOL(inLinkups);
     STR_BOOL(inOutput);
     STR_BOOL(disabled);
-    STR_BOOL(unsortable);
-    STR_BOOL(between);
+    STR_BOOL(isUnsectable);
+    STR_BOOL(isUnsortable);
     STR_BOOL(ccEnd);
     STR_BOOL(ccLarge);
     STR_BOOL(ccOverlaps);
@@ -2581,7 +2559,7 @@ size_t OpEdgeStorage::debugCount() const {
 OpEdge* OpEdgeStorage::debugFind(int ID) const {
 	for (int index = 0; index < used; index += sizeof(OpEdge)) {
 		OpEdge& test = *(OpEdge*) &storage[index];
-        if (test.id == ID || test.unsectableID == ID ||
+        if (test.id == ID ||
                 test.debugOutPath == ID || test.debugRayMatch == ID)
             return &test;
 	}
@@ -3540,8 +3518,6 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
     if (!coincidenceID  OP_DEBUG_CODE(&& !debugCoincidenceID) && !unsectID 
             && MatchEnds::none != coinEnd)
         s += "!!! (unexpected) " + matchEndsName(coinEnd);
-    if (betweenID)
-        s += " betweenID:" + STR(betweenID);
     if (coincidenceProcessed)
         s += " coincidenceProcessed";
 #if OP_DEBUG
@@ -3594,7 +3570,6 @@ void OpIntersection::dumpSet(const char*& str) {
     coinEnd = matchEndsStr(str, "coinEnd", MatchEnds::none);
     unsectID = OpDebugOptional(str, "unsectID") ? readCoinID(str) : 0;
     unsectEnd = matchEndsStr(str, "unsectEnd", MatchEnds::none);
-    betweenID = OpDebugOptional(str, "betweenID") ? readCoinID(str) : 0;
     coincidenceProcessed = OpDebugOptional(str, "coincidenceProcessed");
 #if OP_DEBUG
     debugReason = sectReasonStr(str, "reason", SectReason::unset);

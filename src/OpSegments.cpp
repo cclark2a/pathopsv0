@@ -33,7 +33,10 @@ OpSegments::OpSegments(OpContours& contours) {
 // may need to adjust values in opp if end is nearly equal to seg
 void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
     auto add = [seg, opp](OpPoint pt, float segT, float oppT   OP_LINE_FILE_DEF(int dummy)) {
-        if (opp->disabled)
+        if (opp->disabled || seg->disabled)
+            return;
+        if (seg->sects.contains(OpPtT { pt, segT }, opp) 
+                || opp->sects.contains(OpPtT { pt, oppT }, seg))
             return;
         OpIntersection* sect = seg->addSegSect(OpPtT { pt, segT }, opp  
                 OP_LINE_FILE_CALLER(SectReason::lineCurve));
@@ -58,7 +61,7 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
         }
         OP_ASSERT(opp->c.c.data->start != opp->c.c.data->end || opp->disabled);
         if (!OpMath::IsNaN(segT))
-            add(oppPt, segT, oppT  OP_LINE_FILE_PARAMS(0));
+            add(oppPt, segT, oppT  OP_LINE_FILE_CALLER(0));
         return segT;
     };
     float startSegT = checkEnds(opp->c.firstPt(), 0  OP_LINE_FILE_PARAMS(0));
@@ -70,7 +73,7 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
         oppT = OpMath::PinNear(oppT);
         if ((0 == oppT || 1 == oppT) && opp->c.end(oppT) != segPt)
             opp->moveTo(oppT, segPt);
-        add(segPt, segT, oppT  OP_LINE_FILE_PARAMS(0));
+        add(segPt, segT, oppT  OP_LINE_FILE_CALLER(0));
         return oppT;
     };
     float startOppT = OpNaN;
@@ -86,7 +89,7 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
         segT = OpMath::PinNear(segT);
         if ((0 == segT || 1 == segT) && seg->c.end(segT) != oppPt)
             seg->moveTo(segT, oppPt);
-        add(oppPt, segT, oppT  OP_LINE_FILE_PARAMS(0));
+        add(oppPt, segT, oppT  OP_LINE_FILE_CALLER(0));
     };
     if (OpMath::IsNaN(startSegT) && 0 != startOppT && 0 != endOppT)
         checkSeg(opp->c.firstPt(), 0  OP_LINE_FILE_PARAMS(0));
@@ -453,8 +456,10 @@ FoundIntersections OpSegments::findIntersections() {
             if (SectFound::fail == ccResult) {
                 // !!! as an experiment, search runs for small opp distances; turn found into limits
                 ccResult = cc.runsToLimits();
-                if (SectFound::fail == ccResult)
+                if (SectFound::fail == ccResult) {
+                    OP_DEBUG_CODE(debugContext = "");
                     return FoundIntersections::fail;
+                }
             }
             if (SectFound::add == ccResult)
                 cc.findUnsectable();
@@ -465,6 +470,7 @@ FoundIntersections OpSegments::findIntersections() {
 //                if (!cc.limits.size() && cc.closeBy.size())
 //                    cc.tryClose();
             }
+            OP_DEBUG_CODE(debugContext = "");
             if (!cc.addedPoint)
                 continue;
             // if point was added, check adjacent to see if it is concident (issue3517)

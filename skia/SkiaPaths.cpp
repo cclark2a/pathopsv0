@@ -222,7 +222,7 @@ PathOpsV0Lib::Contour* SetSkiaSimplifyCallBacks(PathOpsV0Lib::Context* context,
 }
 
 PathOpsV0Lib::Contour* SetSkiaOpCallBacks(PathOpsV0Lib::Context* context, SkPathOp op,
-        BinaryOperand operand, bool isWindingFill  OP_DEBUG_PARAMS(const SkPath& path)) {
+        BinaryOperand operand, BinaryWindType windType  OP_DEBUG_PARAMS(const SkPath& path)) {
     SkiaOpContourData windingUserData { op, operand  OP_DEBUG_PARAMS(&path )  
             OP_DEBUG_IMAGE_PARAMS(true) };
     Contour* contour = CreateContour({context, (ContourData*) &windingUserData,
@@ -236,8 +236,22 @@ PathOpsV0Lib::Contour* SetSkiaOpCallBacks(PathOpsV0Lib::Context* context, SkPath
         case kReverseDifference_SkPathOp: operatorFunc = binaryWindingReverseDifferenceFunc; break;
         default: OP_ASSERT(0);
     }
-    WindingAdd addFunc = isWindingFill ? binaryWindingAddFunc : binaryEvenOddFunc;
-    WindingAdd subtractFunc = isWindingFill ? binaryWindingSubtractFunc : binaryEvenOddFunc;
+    WindingAdd addFunc;
+    switch (windType) {
+        case BinaryWindType::evenOdd: addFunc = binaryEvenOddFunc; break;
+        case BinaryWindType::windLeft: addFunc = binaryWindingAddLeftFunc; break;
+        case BinaryWindType::windRight: addFunc = binaryWindingAddRightFunc; break;
+        case BinaryWindType::windBoth: addFunc = binaryWindingAddFunc; break;
+        default: OP_ASSERT(0);
+    }
+    WindingAdd subtractFunc;
+    switch (windType) {
+        case BinaryWindType::evenOdd: subtractFunc = binaryEvenOddFunc; break;
+        case BinaryWindType::windLeft: subtractFunc = binaryWindingSubtractLeftFunc; break;
+        case BinaryWindType::windRight: subtractFunc = binaryWindingSubtractRightFunc; break;
+        case BinaryWindType::windBoth: subtractFunc = binaryWindingSubtractFunc; break;
+        default: OP_ASSERT(0);
+    }
     SetWindingCallBacks(contour, addFunc, operatorFunc, 
             subtractFunc, binaryWindingVisibleFunc, binaryWindingZeroFunc 
             OP_DEBUG_DUMP_PARAMS(binaryWindingDumpInFunc, binaryWindingDumpOutFunc, binaryDumpFunc)

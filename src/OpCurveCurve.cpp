@@ -380,7 +380,7 @@ void OpCurveCurve::addIntersection(OpEdge* edge, OpEdge* oppEdge) {
 	snipOpp = oppEdge->start;
 }
 
-void OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
+bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 		const OpPtT& oppStart, const OpPtT& oppEnd) {
 	int usectID = seg->nextID();
 	OpPtT eStart = edgeStart;
@@ -391,6 +391,10 @@ void OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 		OpPtT::MeetInTheMiddle(eStart, oStart);
 	if (eEnd.soClose(oEnd))
 		OpPtT::MeetInTheMiddle(eEnd, oEnd);
+	if (eStart.soClose(eEnd))
+		return false;
+	if (oStart.soClose(oEnd))
+		return false;
 	OpIntersection* segSect1 = seg->addUnsectable(eStart, usectID, MatchEnds::start, opp
 			OP_LINE_FILE_PARAMS(SectReason::unsectable));
 	OpIntersection* segSect2 = seg->addUnsectable(eEnd, usectID, MatchEnds::end, opp
@@ -409,6 +413,7 @@ void OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 	segSect1->pair(flipped ? oppSect2 : oppSect1);
 	segSect2->pair(flipped ? oppSect1 : oppSect2);
 	addedPoint = true;
+	return true;
 }
 
 #if 0
@@ -754,8 +759,9 @@ void OpCurveCurve::findUnsectable() {
 	size_t unsectHi = 0;
 	auto addSect = [this, &unsectLo, &unsectHi]() {
 		FoundLimits& limit = limits[unsectLo];
-		if (unsectLo < unsectHi)
-			return addUnsectable(limit.seg, limits[unsectHi].seg, limit.opp, limits[unsectHi].opp);
+		if (unsectLo < unsectHi
+				&& addUnsectable(limit.seg, limits[unsectHi].seg, limit.opp, limits[unsectHi].opp))
+			return;
 		if (limit.fromFoundT)
 			return;
 		OpPtT::MeetInTheMiddle(limit.seg, limit.opp);

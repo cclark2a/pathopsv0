@@ -48,6 +48,10 @@ struct OpWinding {
 
 	OpWinding(OpContour* c, PathOpsV0Lib::Winding );
 
+	OpWinding & operator=(const OpWinding&);
+    OpWinding(const OpWinding&);
+//    OpWinding() = default;
+
 #else
 private:
 	// used by operator-

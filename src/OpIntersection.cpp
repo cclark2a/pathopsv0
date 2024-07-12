@@ -3,16 +3,19 @@
 #include "OpContour.h"
 #include "OpSegment.h"
 
+#if 0
 void OpIntersection::betweenPair(OpIntersection* end) {
     for (OpEdge& edge : segment->edges) {
         if (edge.start.t < ptT.t)
             continue;
         OP_ASSERT(ptT.t <= edge.start.t && edge.start.t < end->ptT.t);
-        edge.setBetween();
+        edge.isUnsortable = true;
+        edge.isUnsectable = true;
         if (end->ptT.t == edge.end.t)
             break;
     }
 }
+#endif
 
 OpIntersections::OpIntersections()
     : resort(false) {
@@ -49,13 +52,11 @@ OpIntersection* const * OpIntersections::entry(const OpPtT& ptT, const OpSegment
 }
 
 // count and sort extrema; create an edge for each extrema + 1
+// 
+// for the unsectable / between code:
+//   if this set of intersections is reversed compared to the opposite, walk opposite backwards 
 void OpIntersections::makeEdges(OpSegment* segment) {
     std::vector<const OpIntersection*> unsectables;
- //   start here (still thinking about it)
-    // detect if segment is monotonic in x and y
-    // if points are out of order, mark intersections as unsortable, between
-    // generated edges should be linear, since control points can't be meaningful
-    // !!! recompute points?
     OpIntersection* last = i.front();
     OP_ASSERT(!resort);
     for (auto sectPtr : i) {
@@ -64,20 +65,8 @@ void OpIntersections::makeEdges(OpSegment* segment) {
             segment->edges.emplace_back(segment, last->ptT, sect.ptT
                     OP_LINE_FILE_PARAMS(EdgeMaker::makeEdges, last, sectPtr));
             OpEdge& newEdge = segment->edges.back();
-            if (unsectables.size()) {
-                const OpIntersection* unsectable = unsectables.back();
-                int usectID = abs(unsectable->unsectID);
-                // check if the bounds of the edge intersects the bounds of the pal's intersections
- //               OpPointBounds bounds;
- //               for (OpIntersection* pal : unsectable->opp->segment->sects.i) {
- //                   if (abs(pal->unsectID) == usectID)
- //                       bounds.add(pal->ptT.pt);
- //               }
- //               if (newEdge.ptBounds.intersects(bounds))
-                newEdge.unsectableID = usectID;
-            }
-            if (last->betweenID > 0)
-                newEdge.setBetween();
+            if (unsectables.size())
+                newEdge.isUnsectable = true;
         }
         if (sect.unsectID) {
             auto found = std::find_if(unsectables.begin(), unsectables.end(), 
@@ -86,40 +75,41 @@ void OpIntersections::makeEdges(OpSegment* segment) {
                 unsectables.push_back(&sect);
             else
                 unsectables.erase(found);
-        } else { // if we are inside a unsectable span, see if the pal has the other end
-            OpIntersection* sectOpp = sect.opp;
-            for (auto unsectable : unsectables) {
-                 if (unsectable->ptT.t == sect.ptT.t)
-                     continue;
-                 bool foundStart = false;
-                 for (OpIntersection* pal : unsectable->opp->segment->sects.i) {
-                    if (pal->unsectID == unsectable->unsectID) {
-                        if (foundStart)
-                            break;
-                        foundStart = true;
-                        continue;
-                    }
-                    if (!foundStart)
-                        continue;
-                    OpIntersection* palOpp = pal->opp;
-                    if (sectOpp->segment != palOpp->segment)
-                        continue;
-                    // found same segment intersections on both unsectables; mark as between
-                    if (palOpp->ptT.t > sectOpp->ptT.t)
-                        std::swap(palOpp, sectOpp);
-                    int uID = abs(unsectable->unsectID);
-                    palOpp->betweenID = uID;
-                    sectOpp->betweenID = -uID;
-                    // mark the edges, if they've been allocated, as betweeners
-                    palOpp->betweenPair(sectOpp);
-                    break;
-                 }
-            }
-        }
+        } 
         if (sect.ptT.t != last->ptT.t)
             last = &sect;
     }
 }
+
+#if 0
+void OpIntersections::markBetween() {
+// if we are inside a unsectable span, see if the pal has the other end
+    OpIntersection* sectOpp = sect.opp;
+    for (auto unsectable : unsectables) {
+        if (unsectable->ptT.t == sect.ptT.t)
+            continue;
+        bool foundStart = false;
+        for (OpIntersection* pal : unsectable->opp->segment->sects.i) {
+        if (pal->unsectID == unsectable->unsectID) {
+            if (foundStart)
+                break;
+            foundStart = true;
+            continue;
+        }
+        if (!foundStart)
+            continue;
+        OpIntersection* palOpp = pal->opp;
+        if (sectOpp->segment != palOpp->segment)
+            continue;
+        // found same segment intersections on both unsectables; mark as between
+        if (palOpp->ptT.t > sectOpp->ptT.t)
+            std::swap(palOpp, sectOpp);
+        // mark the edges, if they've been allocated, as betweeners
+        palOpp->betweenPair(sectOpp);
+        break;
+    }
+}
+#endif
 
 const OpIntersection* OpIntersections::nearly(const OpPtT& ptT, OpSegment* oSeg) const {
 	for (unsigned index = 0; index < i.size(); ++index) {
@@ -144,6 +134,34 @@ void OpIntersections::range(const OpSegment* opp, std::vector<OpIntersection*>& 
             result.push_back(sect);
         }
     }
+}
+
+std::vector<OpIntersection*> OpIntersections::unsectables(const OpEdge* edge) {
+    std::vector<OpIntersection*> result;
+    for (auto sect : i) {
+        if (sect->ptT.t > edge->start.t)
+            break;
+        if (sect->unsectID) {
+            auto found = std::find_if(result.begin(), result.end(), 
+                    [&sect](const OpIntersection* uT) { return uT->unsectID == sect->unsectID; });
+            if (result.end() == found)
+                result.push_back(sect);
+            else
+                result.erase(found);
+        }
+    }
+    return result;
+}
+
+bool OpIntersections::UnsectablesOverlap(std::vector<OpIntersection*> set1,
+        std::vector<OpIntersection*> set2) {
+    for (OpIntersection* i1: set1) {
+        for (OpIntersection* i2 : set2) {
+            if (i1->unsectID == i2->unsectID)
+                return true;
+        }
+    }
+    return false;
 }
 
 struct SectPreferred {
@@ -400,6 +418,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
             if (!(edge->winding == edgeBack->winding)) {  // example: testRect2
 #endif
                 // search intersection list for entry pointing to opp edge at edge end
+                debug();
                 OP_DEBUG_CODE(auto& oI = oppEdge->segment->sects.i);
                 OP_ASSERT(oI.end() != std::find_if(oI.begin(), oI.end(), 
                         [&edge](auto sect) { return sect->ptT.pt.isNearly(edge->end.pt); }));
@@ -441,7 +460,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
 #if OP_TEST_NEW_INTERFACE
             edge->winding.move(oppEdge->winding, coinPair.id < 0);
             PathOpsV0Lib::Winding combinedWinding = edge->winding.copyData();
-            if (edge->winding.contour->callBacks.windingVisibleFuncPtr(combinedWinding))
+            if (!edge->winding.contour->callBacks.windingVisibleFuncPtr(combinedWinding))
                 edge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence1));
 #else
             edge->winding.move(oppEdge->winding, contours, coinPair.id < 0);

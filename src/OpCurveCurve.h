@@ -136,7 +136,7 @@ struct OpCurveCurve {
 	void addIntersection(OpEdge* edge, OpEdge* opp);
 	SectFound addSect();
 	void addEdgeRun(const OpEdge* , CurveRef , EdgeMatch );
-	void addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
+	bool addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 			const OpPtT& oppStart, const OpPtT& oppEnd);
 	bool alreadyInLimits(const OpEdge* edge, const OpEdge* oEdge, float t);
 	bool checkDist(int edgeOverlaps, int oppOverlaps);

@@ -88,7 +88,7 @@ bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
             OpSegment* oSeg = oSect->segment;
             OpEdge* test = oSeg->findEnabled(oSect->ptT, testEnd);  // !!! optimization: walk edges in order
             bool result = false;
-            if (test && test != edge && (edge->unsortable || test->unsortable
+            if (test && test != edge && (edge->isUnsortable || test->isUnsortable
                     || edge->windZero == checkZero(test, edge->which(), testEnd))) {
                 result = test->hasLinkTo(testEnd);
                 if (!result && !test->isPal(edge))
@@ -122,7 +122,7 @@ bool OpSegment::activeNeighbor(const OpEdge* edge, EdgeMatch match,
             return false;
     if (nextDoor->hasLinkTo(match))
         return false;
-    if (edge->unsortable || edge->windZero == nextDoor->windZero || nextDoor->unsortable) {
+    if (edge->isUnsortable || edge->windZero == nextDoor->windZero || nextDoor->isUnsortable) {
         oppEdges.emplace_back(nextDoor, EdgeMatch::none);
         return !!nextDoor->pals.size();
     }
@@ -281,6 +281,8 @@ void OpSegment::makeEdges() {
 
 MatchReverse OpSegment::matchEnds(const OpSegment* opp) const {
     MatchReverse result { MatchEnds::none, false };
+    if (disabled || opp->disabled)
+        return result;
     OP_ASSERT(c.firstPt() != c.lastPt());
     OP_ASSERT(opp->c.firstPt() != opp->c.lastPt());
     if (c.firstPt() == opp->c.firstPt())

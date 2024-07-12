@@ -568,6 +568,7 @@ bool OpContours::pathOps(OpOutPath& result)
     }
     sortIntersections();
     makeEdges();
+
     // made edges may include lines that are coincident with other edges. Undetected for now...
     windCoincidences();  // for segment h/v lines, compute their winding considering coincidence
     OpWinder windingEdges(*this, EdgesToSort::byCenter);

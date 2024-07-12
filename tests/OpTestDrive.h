@@ -6,7 +6,7 @@
 // this puts all switches that decide which tests to run and how to run them in one place
 // these switches should migrate to make file options
 #define OP_DEBUG_FAST_TEST 0  // in a debug build: set to zero to enable debug dump, debug image
-#define TEST_PATH_OP_FIRST "cubic142801"  // e.g., "cubic140721" (ignored by fast test)
+#define TEST_PATH_OP_FIRST "cubic1414305"  // e.g., "cubic140721" (ignored by fast test)
 #define TEST_PATH_OP_SKIP_TO_V0 0 // if 1 & not fast test, ignore skip to file; run first "v0" test
 #define TEST_PATH_OP_SKIP_TO_FILE "cubic" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
 #define OP_TEST_NEW_INTERFACE 1  // use context-free engine design; test hard-coded for now

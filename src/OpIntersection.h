@@ -53,7 +53,6 @@ struct OpIntersection {
 	opp = nullptr;
 	coincidenceID = 0;
 	unsectID = 0;
-	betweenID = 0;
 	coinEnd = MatchEnds::none;
 	unsectEnd = MatchEnds::none;
 	coincidenceProcessed = false;
@@ -67,7 +66,7 @@ struct OpIntersection {
 #endif
     }
 
-	void betweenPair(OpIntersection* );
+	// void betweenPair(OpIntersection* );
 
 	void pair(OpIntersection* o) {
 		opp = o;
@@ -81,7 +80,6 @@ struct OpIntersection {
 		opp = nullptr; // SectFlavor::none == flavor_ ? nullptr : this;		!!! if we need this, comment why
 		OP_ASSERT(OpMath::Between(0, t.t, 1));
 		ptT = t;
-		betweenID = 0;
 		coincidenceID = 0;  // 0 if no coincidence; negative if coincident pairs are reversed
 		unsectID = 0;  // 0 if not unsectable; negative if curves are reversed
 		coinEnd = MatchEnds::none;
@@ -131,7 +129,6 @@ struct OpIntersection {
 	OpPtT ptT;
 	int coincidenceID;
 	int unsectID;	// !!! may be able to be merged with coincident ID; keep separate for now
-	int betweenID;  // is on unsectable with this id, between ends; use to mark edge unsortable
 	MatchEnds coinEnd;  // used to put start before end on sect sort
 	MatchEnds unsectEnd;
 	bool coincidenceProcessed;
@@ -156,6 +153,10 @@ struct OpIntersections {
     void range(const OpSegment* , std::vector<OpIntersection*>& );
 	void sort();  // 
     void mergeNear();
+	// return intersections that delineate unsectable runs that contain this edge
+	std::vector<OpIntersection*> unsectables(const OpEdge* );
+	static bool UnsectablesOverlap(std::vector<OpIntersection*> set1,
+			std::vector<OpIntersection*> set2);
 	void windCoincidences(std::vector<OpEdge>& edges  OP_DEBUG_PARAMS(OpVector tangent));
 #if OP_DEBUG
     OpIntersection* debugAlreadyContains(const OpPoint& , const OpSegment* opp) const;

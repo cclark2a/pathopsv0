@@ -87,7 +87,7 @@ bool SectRay::checkOrder(const OpEdge* home) const {
 	for (const EdgeDistance* dist = &distances.front(); (dist + 1)->edge != home; ++dist) {
 		OpEdge* prior = dist->edge;
 		OpEdge* last = (dist + 1)->edge;
-		if (prior->unsectableID || last->unsectableID || last->isPal(prior))
+		if (prior->isUnsectable || last->isUnsectable || last->isPal(prior))
 			continue;
 		if (last->ray.distances.size() > 1 && last->ray.axis == axis) {
 			EdgeDistance* lastDist = last->ray.find(last);
@@ -127,7 +127,7 @@ FindCept SectRay::findIntercept(OpEdge* test) {
 		return FindCept::ok;
 	if (test->ptBounds.rbChoice(axis) < normal)
 		return FindCept::ok;
-	if (test->unsortable)
+	if (test->isUnsortable)
 		return FindCept::unsortable;
 	if (test->disabled)
 		return FindCept::ok;
@@ -655,7 +655,7 @@ FoundIntercept OpWinder::findRayIntercept(size_t homeIndex, OpVector homeTan, fl
 				touching.erase(std::remove_if(touching.begin(), touching.end(), 
 						[&test](auto dist){ return dist.edge == test; }), touching.end());
 			}
-			if (!home->unsectableID && !home->pals.size())
+			if (!home->isUnsectable && !home->pals.size())
 				markUnsortable();
 			break;	// give up
 		}
@@ -673,7 +673,7 @@ FoundIntercept OpWinder::findRayIntercept(size_t homeIndex, OpVector homeTan, fl
 
 void OpWinder::markUnsortable() {
 	if (Axis::vertical == workingAxis || inY.end() == std::find(inY.begin(), inY.end(), home)) 
-		home->setUnsortable();
+		home->isUnsortable = true;
 	home->rayFail = Axis::vertical == workingAxis ? EdgeFail::vertical : EdgeFail::horizontal;
 }
 
@@ -728,8 +728,8 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 	OP_ASSERT(ray.distances.size());
 	if (1 == ray.distances.size()) {
 		OP_ASSERT(home == ray.distances[0].edge);
-		if (home->pals.size() || home->unsectableID)
-			home->setUnsortable();
+		if (home->pals.size() || home->isUnsectable)  // !!! move this to where unsectable is set?
+			home->isUnsortable = true;
 		else {
 #if OP_TEST_NEW_INTERFACE
 			OpWinding prev(home, WindingSum::dummy);
@@ -738,7 +738,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 #endif
 			// look at direction of edge relative to ray and figure winding/oppWinding contribution
 			if (CalcFail::fail == home->addIfUR(ray.axis, ray.distances[0].edgeInsideT, &prev))
-				home->setUnsortable();
+				home->isUnsortable = true;
 			else
 				OP_EDGE_SET_SUM(home, prev.w);
 		}
@@ -818,7 +818,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 			break;
 		NormalDirection normDir = prior->normalDirection(ray.axis, dist.edgeInsideT);
 		if (NormalDirection::underflow == normDir) {
-			prior->setUnsortable();
+			prior->isUnsortable = true;
 			continue;
 		}
 		if (NormalDirection::downLeft == normDir && !anyPriorPal(prior, sumIndex))
@@ -851,7 +851,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 		home->windPal = true;
 	}
 	if (CalcFail::fail == home->addIfUR(ray.axis, homeT, &sumWinding))
-		home->setUnsortable();
+		home->isUnsortable = true;
 	else
 		OP_EDGE_SET_SUM(home, sumWinding.w);
 	std::swap(home->many, home->winding);  // restore winding, put total of pals in many
@@ -871,11 +871,11 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 				continue;
 			if (EdgeFail::center == home->rayFail)
 				continue;
-			if (home->between)
-				continue;
+	//		if (home->between)	// !!! set sum chain even if ray cannot be used for this edge...?
+	//			continue;
 			if (EdgeFail::horizontal == home->rayFail && Axis::vertical == workingAxis)
 				home->rayFail = EdgeFail::none;
-			else if (home->unsortable)  // may be too small
+			else if (home->isUnsortable)  // may be too small
 				continue;
 			ChainFail chainFail = setSumChain(index);
 			if (ChainFail::normalizeOverflow == chainFail)
@@ -888,9 +888,9 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 				SectRay& ray = edge.ray;
 				if (edge.disabled)
 					continue;
-				if (edge.unsortable)
-					continue;
-				if (edge.unsectableID)
+	//			if (edge.isUnsortable)	// !!! add pals even if ray cannot be used for this edge...?
+	//				continue;
+				if (edge.isUnsectable)
 					edge.markPals();
 				else
 					ray.addPals(&edge);
@@ -939,7 +939,7 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 			for (auto& edge : segment.edges) {
 				if (edge.disabled)
 					continue;
-				if (edge.unsortable)
+				if (edge.isUnsortable)
 					continue;
 				SectRay& ray = edge.ray;
 				if (!ray.distances.size())
@@ -1015,11 +1015,11 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 					continue;
 				if (EdgeFail::center == edge.rayFail)
 					continue;
-				if (edge.pals.size())
+				if (edge.pals.size() && edge.many.isSet())
 					std::swap(edge.winding, edge.many);
 				if (edge.sum.isSet())
 					continue;
-				if (edge.unsortable)
+				if (edge.isUnsortable)
 					continue;
 				if (edge.rayFail == EdgeFail::horizontal)
 					continue;

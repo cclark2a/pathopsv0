@@ -7,7 +7,8 @@
 class SkPath;
 
 namespace PathOpsV0Lib {
-enum class BinaryOperand;
+enum class BinaryOperand : int;
+enum class BinaryWindType : int;
 }
 
 struct SkiaSimplifyContourData {
@@ -31,8 +32,8 @@ void SetSkiaContextCallBacks(PathOpsV0Lib::Context* context);
 void SetSkiaCurveCallBacks(PathOpsV0Lib::Context* );
 PathOpsV0Lib::Contour* SetSkiaSimplifyCallBacks(PathOpsV0Lib::Context* , bool isWindingFill 
 		OP_DEBUG_PARAMS(const SkPath& ));
-PathOpsV0Lib::Contour* SetSkiaOpCallBacks(PathOpsV0Lib::Context* , SkPathOp op, PathOpsV0Lib::BinaryOperand ,
-		bool isWindingFill  OP_DEBUG_PARAMS(const SkPath& ));
+PathOpsV0Lib::Contour* SetSkiaOpCallBacks(PathOpsV0Lib::Context* , SkPathOp op, 
+		PathOpsV0Lib::BinaryOperand , PathOpsV0Lib::BinaryWindType  OP_DEBUG_PARAMS(const SkPath&));
 void AddSkiaPath(PathOpsV0Lib::AddWinding , const SkPath& path);
 
 #if OP_DEBUG_IMAGE

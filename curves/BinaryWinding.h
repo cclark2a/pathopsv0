@@ -12,6 +12,13 @@ enum class BinaryOperand : int {
 	right
 };
 
+enum class BinaryWindType : int {
+    evenOdd,
+    windLeft,
+    windRight,
+    windBoth
+};
+
 struct BinaryWinding {
     BinaryWinding() 
         : left(0)
@@ -45,6 +52,24 @@ inline Winding binaryWindingAddFunc(Winding winding, Winding toAdd) {
     BinaryWinding sum(winding);
     BinaryWinding addend(toAdd);
     sum.left += addend.left;
+    sum.right += addend.right;
+    copyToWinding(winding, sum);
+    return winding;
+}
+
+inline Winding binaryWindingAddLeftFunc(Winding winding, Winding toAdd) {
+    BinaryWinding sum(winding);
+    BinaryWinding addend(toAdd);
+    sum.left += addend.left;
+    sum.right ^= addend.right;
+    copyToWinding(winding, sum);
+    return winding;
+}
+
+inline Winding binaryWindingAddRightFunc(Winding winding, Winding toAdd) {
+    BinaryWinding sum(winding);
+    BinaryWinding addend(toAdd);
+    sum.left ^= addend.left;
     sum.right += addend.right;
     copyToWinding(winding, sum);
     return winding;
@@ -155,6 +180,24 @@ inline Winding binaryWindingSubtractFunc(Winding winding, Winding toSubtract) {
     BinaryWinding difference(winding);
     BinaryWinding subtrahend(toSubtract);
     difference.left -= subtrahend.left;
+    difference.right -= subtrahend.right;
+    copyToWinding(winding, difference);
+    return winding;
+}
+    
+inline Winding binaryWindingSubtractLeftFunc(Winding winding, Winding toSubtract) {
+    BinaryWinding difference(winding);
+    BinaryWinding subtrahend(toSubtract);
+    difference.left -= subtrahend.left;
+    difference.right ^= subtrahend.right;
+    copyToWinding(winding, difference);
+    return winding;
+}
+    
+inline Winding binaryWindingSubtractRightFunc(Winding winding, Winding toSubtract) {
+    BinaryWinding difference(winding);
+    BinaryWinding subtrahend(toSubtract);
+    difference.left ^= subtrahend.left;
     difference.right -= subtrahend.right;
     copyToWinding(winding, difference);
     return winding;

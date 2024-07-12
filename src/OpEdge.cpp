@@ -236,7 +236,7 @@ OpEdge* OpEdge::advanceToEnd(EdgeMatch match) {
 void OpEdge::apply() {
 	if (EdgeFail::center == rayFail)
 		disabled = true;
-	if (disabled || unsortable)
+	if (disabled || isUnsortable)
 		return;
 #if OP_TEST_NEW_INTERFACE
 	// !!! incomplete
@@ -370,7 +370,7 @@ size_t OpEdge::countUnsortable() const {
 	const OpEdge* test = this;
 	size_t count = 0;
 	do {
-		if (test->unsortable)
+		if (test->isUnsortable)
 			count++;
 	} while ((test = test->nextEdge));
 	return count;
@@ -483,23 +483,20 @@ bool OpEdge::linksTo(OpEdge* match) const {
 // Find pals for unsectables created during curve/curve intersection. There should be at most
 // two matching unsectable ids in the distances array. Mark between edges as well.
 void OpEdge::markPals() {
-	EdgeDistance* pal = nullptr;
-	bool foundUnsectable = false;
+	OP_ASSERT(isUnsectable);
+	// edge is between one or more unsectableID ranges in intersections
+	std::vector<OpIntersection*> unsectables = segment->sects.unsectables(this);
+	OP_ASSERT(unsectables.size());
+	std::vector<EdgeDistance*> distPals;
 	for (auto& dist : ray.distances) {
-		if (dist.edge->unsectableID == unsectableID) {
-			if (this != dist.edge)
-				pal = &dist;
-			if (foundUnsectable) {	// found both ends
-				addPal(*pal);
-				return;
-			}
-			foundUnsectable = true;
+		if (!dist.edge->isUnsectable)
 			continue;
-		}
-		if (!foundUnsectable)
+		if (this == dist.edge)
 			continue;
-		if (!dist.edge->unsectableID && !dist.edge->pals.size())
-			dist.edge->between = true;
+		OpSegment* distSeg = dist.edge->segment;
+		std::vector<OpIntersection*> distUnsectables = distSeg->sects.unsectables(dist.edge);
+		if (OpIntersections::UnsectablesOverlap(unsectables, distUnsectables))
+			addPal(dist);
 	}
 	// !!! not sure how to assert an error if information was inconsistent (e.g., unpaired)
 }
@@ -772,11 +769,6 @@ void OpEdge::setActive(bool state) {
 	active_impl = state;
 }
 
-void OpEdge::setBetween() {
-	setUnsortable();
-	between = true;
-}
-
 const OpRect& OpEdge::closeBounds() {
 	// close bounds holds point bounds outset by 'close' fudge factor
 	if (linkBounds.isSet())
@@ -905,10 +897,6 @@ void OpEdge::setPriorEdge(OpEdge* edge) {
 	if (priorEdge)
 		priorEdge->nextEdge = nullptr;
 	priorEdge = edge;
-}
-
-void OpEdge::setUnsortable() {
-	unsortable = true;
 }
 
 const OpCurve& OpEdge::setVertical(const LinePts& pts) {

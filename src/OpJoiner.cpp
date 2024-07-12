@@ -8,7 +8,7 @@
 void OpLimb::add(OpTree& tree, OpEdge* test, EdgeMatch m, LimbType limbType, size_t limbIndex,
 		OpEdge* otherEnd) {
 	OP_ASSERT(!test->disabled || test->pals.size() || LimbType::disabled <= limbType);
-	OP_ASSERT(!test->hasLinkTo(m) || test->pals.size() || test->unsortable);
+	OP_ASSERT(!test->hasLinkTo(m) || test->pals.size() || test->isUnsortable);
 	if (test->whichPtT(m).pt != lastPt)
 		return;
 	if (edge == test)
@@ -23,7 +23,7 @@ void OpLimb::add(OpTree& tree, OpEdge* test, EdgeMatch m, LimbType limbType, siz
 	// For first edge (and its last) in storage: if which end is 'end', its wind zero is reversed.
 	// 'Test' may need to be reversed to connect, and 'm' may be either end. Wind zero in both cases
 	// is computed for the unreversed orientation.
-	if (!last->unsortable && LimbType::linked == limbType && !test->unsortable) {
+	if (!last->isUnsortable && LimbType::linked == limbType && !test->isUnsortable) {
         WindZero zeroSide = test->windZero;
 		// if last which end is end, flip last's wind zero (for comparsion, flip zero side);
 		// if test m is end, flip zero side; if test which is end, flip zero side
@@ -388,7 +388,7 @@ void OpJoiner::addEdge(OpEdge* e) {
 #if OP_DEBUG_IMAGE
 	e->debugJoin = true;
 #endif
-	if (e->unsortable)
+	if (e->isUnsortable)
 		unsortables.push_back(e);
 	else if (e->pals.size())
 		unsectByArea.push_back(e);
@@ -420,7 +420,7 @@ void OpJoiner::buildDisabled(OpContours& contours) {
 	for (auto contour : contours.contours) {
 		for (auto& segment : contour->segments) {
 			for (auto& e : segment.edges) {
-				if (!e.disabled || e.unsortable || e.pals.size())
+				if (!e.disabled || e.isUnsortable || e.pals.size())
 					continue;
 				// for the very small, include disabled edges
 				if (e.centerless || e.windPal || e.start.pt.soClose(e.end.pt))
@@ -435,7 +435,7 @@ void OpJoiner::buildDisabledPals(OpContours& contours) {
 	for (auto contour : contours.contours) {
 		for (auto& segment : contour->segments) {
 			for (auto& e : segment.edges) {
-				if (e.disabled && !e.unsortable && e.pals.size() && !e.inOutput)
+				if (e.disabled && !e.isUnsortable && e.pals.size() && !e.inOutput)
 					disabledPals.push_back(&e);
 			}
 		}
@@ -494,7 +494,7 @@ bool OpJoiner::detachIfLoop(OpEdge* e, EdgeMatch loopMatch) {
 	auto detachEdge = [this](OpEdge* e, EdgeMatch match) {
 		if (OpEdge* detach = EdgeMatch::start == match ? e->priorEdge : e->nextEdge) {
 			EdgeMatch::start == match ? detach->clearNextEdge() : detach->clearPriorEdge();
-			if (!detach->unsortable || detach->priorEdge || detach->nextEdge)
+			if (!detach->isUnsortable || detach->priorEdge || detach->nextEdge)
 				addToLinkups(detach);	// return front edge
 			else
 				; // OP_ASSERT(!detach->priorEdge);  // triggered by fuzz763_1 -- is fix needed?
@@ -653,7 +653,7 @@ bool OpJoiner::linkUp(OpEdge* e) {
 	bool hasPal = segment->activeAtT(e, linkMatch, edges, &hadLinkTo);
 	hasPal |= segment->activeNeighbor(e, linkMatch, edges);
     // if oppEdges is count of one and unsortable, don't return any edges (testQuadratic67x)
-    if (edges.size() == 1 && edges[0].edge->unsortable /* && hadLinkTo */)
+    if (edges.size() == 1 && edges[0].edge->isUnsortable /* && hadLinkTo */)
         edges.clear(); // hadLinkTo breaks thread_cubics147521
 	// skip pals should choose the pal that minimizes the output path area
 	// if there's not enough info here to do that, the pal choice should be reconsidered

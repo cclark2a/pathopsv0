@@ -576,13 +576,18 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
             return SkPathFillType::kWinding == path.getFillType()
                     || SkPathFillType::kInverseWinding == path.getFillType();
         }; 
-        Contour* left = SetSkiaOpCallBacks(context, mappedOp, BinaryOperand::left, 
-                isWindingFill(a)  OP_DEBUG_PARAMS(a));
+        bool aIsWinding = isWindingFill(a);
+        bool bIsWinding = isWindingFill(b);
+        BinaryWindType windType = aIsWinding && bIsWinding ? BinaryWindType::windBoth
+                : aIsWinding ? BinaryWindType::windLeft : bIsWinding ? BinaryWindType::windRight
+                : BinaryWindType::evenOdd;
+        Contour* left = SetSkiaOpCallBacks(context, mappedOp, BinaryOperand::left, windType
+                OP_DEBUG_PARAMS(a));
         int leftData[] = { 1, 0 };
         PathOpsV0Lib::AddWinding leftWinding { left, leftData, sizeof(leftData) };
         AddSkiaPath(leftWinding, a);
-        Contour* right = SetSkiaOpCallBacks(context, mappedOp, BinaryOperand::right,
-                isWindingFill(b)  OP_DEBUG_PARAMS(b));
+        Contour* right = SetSkiaOpCallBacks(context, mappedOp, BinaryOperand::right, windType
+                OP_DEBUG_PARAMS(b));
         int rightData[] = { 0, 1 };
         PathOpsV0Lib::AddWinding rightWinding { right, rightData, sizeof(rightData) };
         AddSkiaPath(rightWinding, b);

@@ -290,7 +290,6 @@ private:
 		, winding(WindingUninitialized::dummy)
 		, sum(WindingUninitialized::dummy)
 		, many(WindingUninitialized::dummy)
-		, unsectableID(0)
 		, whichEnd_impl(EdgeMatch::none)
 		, rayFail(EdgeFail::none)
 		, windZero(WindZero::unset)
@@ -306,8 +305,8 @@ private:
 		, inLinkups(false)
 		, inOutput(false)
 		, disabled(false)
-		, unsortable(false)
-		, between(false)
+		, isUnsectable(false)
+		, isUnsortable(false)
 		, ccEnd(false)
 		, ccLarge(false)
 		, ccOverlaps(false)
@@ -362,10 +361,12 @@ public:
 	OpEdge(const OpEdge* e, float t1, float t2  OP_LINE_FILE_DEF(EdgeMaker ));
 
 #if OP_DEBUG_IMAGE
+#if 0
 	OpEdge(const OpEdge&) = default;
 	OpEdge(OpEdge&&) = default;
 	OpEdge& operator=(const OpEdge&) = default;
 	OpEdge& operator=(OpEdge&&) = default;
+#endif
 	struct DebugOpCurve debugSetCurve() const;
 #endif
 	CalcFail addIfUR(Axis xis, float t, OpWinding* );
@@ -421,7 +422,6 @@ public:
 	void reenable() {  // only used for coincidence
 		disabled = false; OP_DEBUG_CODE(debugZero = ZeroReason::uninitialized); }
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
-	void setBetween();  // setter exists so debug breakpoints can be set
 //	const OpCurve& setCurve();  // copies start, end to points 0, last
 //	void setCurveCenter();  // adds center point after curve points
 	void setDisabled(OP_DEBUG_CODE(ZeroReason reason));
@@ -444,7 +444,6 @@ public:
 		sum.setSum(w, contours());
 	}
 #endif
-	void setUnsortable();
 	const OpCurve& setVertical(const LinePts& );
 	void setWhich(EdgeMatch );  // setter exists so debug breakpoints can be set
 	void skipPals(EdgeMatch match, std::vector<FoundEdge>& edges);
@@ -515,7 +514,6 @@ public:
 //	float curvy;  // rough ratio of midpoint line point line to length of end point line
 //	OpPtT oppEnd;  // pt and t for closest point on opposite curve from end point
 	int id;
-	int unsectableID;	// used to pair unsectable intersections and find edges between
 	EdgeMatch whichEnd_impl;  // if 'start', prior end equals start; if 'end' prior end matches end
 	EdgeFail rayFail;   // how computation (e.g., center) failed (on fail, windings are set to zero)
 	WindZero windZero;  // zero: edge normal points to zero side (the exterior of the loop)
@@ -531,8 +529,8 @@ public:
 	bool inLinkups; // like inOutput, to marks unsectable edges; all edges in linkups l vector
 	bool inOutput;	// likely only used to find inactive unsectables that are not on output path
 	bool disabled;	// winding is zero, or apply disqualified edge from appearing in output
-	bool unsortable;
-	bool between;  // between unsectables (also unsortable); !!! begs for an enum class, instead...
+	bool isUnsectable;	// if set edge is between one or more unsectable ranges (in intersections) 
+	bool isUnsortable;  // unsectable is unsortable; others (e.g., very small) are also unsortable
 	bool ccEnd;  // set if edge end is closest to already found curve-curve intersection
 	bool ccLarge;  // set if curve/curve has large t match and this edge is last
 	bool ccOverlaps;  // set if curve/curve edges have bounds that overlap

@@ -541,7 +541,7 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContours* contours)) {
         do {
             if (!linkup->ray.distances.size())
                 continue;
-            if (linkup->unsortable)
+            if (linkup->isUnsortable)
                 continue;
             if (linkup->disabled)
                 continue;
@@ -783,7 +783,8 @@ void debug() {
 #if OP_DEBUG_IMAGE
         debugImage();
 #endif
-        ::dmp(debugGlobalContours->debugCurveCurve);
+        if (debugGlobalContours->debugCurveCurve)
+            ::dmp(debugGlobalContours->debugCurveCurve);
         return;
     }
 #if OP_DEBUG_IMAGE

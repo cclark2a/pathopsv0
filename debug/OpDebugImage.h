@@ -250,7 +250,6 @@ OP_X(Right)
 
 #define COLOR_LIST \
 OP_X(Active) \
-OP_X(Between) \
 OP_X(Disabled) \
 OP_X(Linkups) \
 OP_X(Opp) \
