@@ -1,7 +1,13 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 // new interface idea
-#include "SkiaPaths.h"
+#if OP_TINY_SKIA
+#include "TinySkia.h"
+#else
+#include "include/core/SkPathTypes.h"
 #include "include/core/SkPath.h"
+#endif
+
+#include "SkiaPaths.h"
 
 static const SkPathOp inverseOpMapping[5][2][2] {
     {{kDifference_SkPathOp, kIntersect_SkPathOp}, {kUnion_SkPathOp, kReverseDifference_SkPathOp }},

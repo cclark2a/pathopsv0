@@ -242,6 +242,7 @@ SkPath::RawIter::RawIter(SkPath const & p)
 	, nextMove(true) {
 }
 
+// !!! bogus: does not use new interface
 SkPath::Verb SkPath::RawIter::next(SkPoint* pts) { 
 	if (nextClose) {
 		nextClose = false;
@@ -263,13 +264,13 @@ SkPath::Verb SkPath::RawIter::next(SkPoint* pts) {
 		pts[i] = SkPoint::Make(c.pts[i].x, c.pts[i].y);
 	w = OpNaN;
 	++index;
-	switch (c.type) {
+	switch (c.c.type) {
 		case OpType::line:
 			return SkPath::kLine_Verb;
 		case OpType::quad:
 			return SkPath::kQuad_Verb;
 		case OpType::conic:
-			w = c.weight;
+		//	w = c.weight;	// !!! not converted to new interface
 			return SkPath::kConic_Verb;
 		case OpType::cubic:
 			return SkPath::kCubic_Verb;
@@ -415,7 +416,7 @@ void SkPath::dumpCommon(bool hex) const {
 			first = c.pts[0];
 		}
 		move = false;
-		switch (c.type) {
+		switch (c.c.type) {
 			case OpType::line:
 				OpDebugOut("lineTo(" + STR(c.pts[1].x) + ", " + STR(c.pts[1].y) + ");\n");
 				break;
@@ -423,9 +424,9 @@ void SkPath::dumpCommon(bool hex) const {
 				OpDebugOut("quadTo(" + STR(c.pts[1].x) + ", " + STR(c.pts[1].y) + ", " 
 					+ STR(c.pts[2].x) + ", " + STR(c.pts[2].y) + ");\n");
 				break;
-			case OpType::conic:
+			case OpType::conic:  // !!! bogus
 				OpDebugOut("conicTo(" + STR(c.pts[1].x) + ", " + STR(c.pts[1].y) + ", " 
-					+ STR(c.pts[2].x) + ", " + STR(c.pts[2].y) + ", " + STR(c.weight) + ");\n");
+					+ STR(c.pts[2].x) + ", " + STR(c.pts[2].y) + ", " /* + STR(c.weight) */ + ");\n");
 				break;
 			case OpType::cubic:
 				OpDebugOut("cubicTo(" + STR(c.pts[1].x) + ", " + STR(c.pts[1].y) + ", " 

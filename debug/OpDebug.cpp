@@ -107,11 +107,11 @@ std::string OpDebugStr(float value) {
     if (fabsf(value) < OpEpsilon)
         return "~0";
     std::string result;
-    bool small = fabsf(value) <= OpEpsilon * 100;
-    if (small)
+    bool _small = fabsf(value) <= OpEpsilon * 100;
+    if (_small)
         value = value / OpEpsilon;
     if (debugPrecision < 0) {
-        if (small) {
+        if (_small) {
             if (value < 0)
                 result = "-";
             value = floorf((fabsf(value) * 10 + 5));  // round up to epsilon + one digit of fraction
@@ -124,7 +124,7 @@ std::string OpDebugStr(float value) {
         s.resize(written);
         result = s;
     }
-    if (small)
+    if (_small)
 #if _WIN32
         result += "ep";
 #else

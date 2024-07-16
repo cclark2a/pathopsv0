@@ -127,7 +127,7 @@ public:
 	void addPath(const SkPath& , const SkMatrix& );
 	void addRect(float, float, float, float, SkPathDirection dir = SkPathDirection::kCW);
 	void arcTo(const SkRect& , float startAngle, float sweepAngle, bool forceMoveTo);
-	bool isInverseFillType() { return SkPathFillType::kInverseWinding == fFillType
+	bool isInverseFillType() const { return SkPathFillType::kInverseWinding == fFillType
 			|| SkPathFillType::kInverseEvenOdd == fFillType; }
 	const SkRect& getBounds() const;
 	void reset();
@@ -148,6 +148,8 @@ public:
 	SkPathFillType getFillType() const { return fFillType; }
 	void setFillType(SkPathFillType f) { fFillType = f; }
 	const SkPath& makeTransform(SkMatrix const &);
+	void toggleInverseFillType() { fFillType = (SkPathFillType) ((int) fFillType ^ 2); }
+
 	void transform(const SkMatrix& matrix, SkPath* dst = nullptr);
     void updateBoundsCache() const {
         getBounds(); }
