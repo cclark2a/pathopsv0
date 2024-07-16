@@ -297,11 +297,9 @@ struct OpDebugDefeatDelete {
 
 void OpDebugImage::addToPath(const OpCurve& curve, SkPath& path) {
 	path.moveTo(curve.firstPt().x, curve.firstPt().y);
-	if (curve.newInterface)
-		return curve.contours->callBack(curve.c.type).debugAddToPathFuncPtr(curve.c, path);
 #if OP_TEST_NEW_INTERFACE
-	OP_ASSERT(0);
-#endif
+	return curve.contours->callBack(curve.c.type).debugAddToPathFuncPtr(curve.c, path);
+#else
 	switch (curve.c.type) {
 		case OpType::no:
 			OP_ASSERT(0);
@@ -322,6 +320,7 @@ void OpDebugImage::addToPath(const OpCurve& curve, SkPath& path) {
 		default:
 			OP_ASSERT(0);
 	}
+#endif
 }
 
 #if !OP_TEST_NEW_INTERFACE
@@ -411,7 +410,7 @@ void  OpDebugImage::playback(FILE* file) {
 			if (strlen(str) > strlen("colorID: ")) {
 				const char* idColorStr = str + strlen("colorID: ");
 				int id = strtol(idColorStr, nullptr, 0);
-				OpEdge* edge = (OpEdge*) findEdge(id);
+				OpEdge* edge = findEdge(id);
 				uint32_t color = 0;
 				const char* colorStr = strstr(idColorStr, "color: ");
 				if (colorStr)
@@ -472,12 +471,15 @@ void OpDebugImage::drawDoubleFocus() {
 		matrix.preTranslate(-DebugOpGetCenterX(), -DebugOpGetCenterY());
 		matrix.postTranslate(DebugOpGetOffsetX(), DebugOpGetOffsetY());
 #if OP_TEST_NEW_INTERFACE
+		bool first = true;
 		for (auto contour : debugGlobalContours->contours) {
-			if (contour->callBacks.debugContourDrawFuncPtr(contour->caller)) {
+			if (contour->callBacks.debugGetDrawFuncPtr(contour->caller)) {
 				SkPath* skPath = (SkPath*) contour->callBacks.debugNativePathFuncPtr(contour->caller);
+				OP_ASSERT(skPath);
 				drawDoubleFill(skPath->makeTransform(matrix), 
-						contour->callBacks.debugNativeFillColorFuncPtr(contour->caller));
+						first ? OpDebugAlphaColor(10, red) : OpDebugAlphaColor(10, blue));
 			}
+			first = false;
 		}
 #else
 		if (drawLeftOn) 
@@ -493,17 +495,17 @@ void OpDebugImage::drawDoubleFocus() {
 		matrix.preTranslate(-DebugOpGetCenterX(), -DebugOpGetCenterY());
 		matrix.postTranslate(DebugOpGetOffsetX(), DebugOpGetOffsetY());
 #if OP_TEST_NEW_INTERFACE
+		bool first = true;
 		for (auto contour : debugGlobalContours->contours) {
 			SkPath* skPath = (SkPath*) contour->callBacks.debugNativePathFuncPtr(contour->caller);
-			if (!skPath)
-				continue;
-			drawDoubleFill(skPath->makeTransform(matrix), 
-					contour->callBacks.debugNativeInColorFuncPtr(contour->caller));
-		}
-		SkPath* skPath = (SkPath*) debugGlobalContours->callerOutput;
-		if (skPath)
+			OP_ASSERT(skPath);
 		    drawDoubleFill(skPath->makeTransform(matrix), 
-					debugGlobalContours->contextCallBacks.debugNativeOutColorFuncPtr());
+					first ? OpDebugAlphaColor(20, red) : OpDebugAlphaColor(20, blue));
+			first = false;
+		}
+		if (debugGlobalContours->callerOutput)
+		    drawDoubleFill(((SkPath*) debugGlobalContours->callerOutput)
+					->makeTransform(matrix), OpDebugAlphaColor(20, green));
 #else
 		drawDoubleFill(sk0()->makeTransform(matrix), OpDebugAlphaColor(20, red));
 		drawDoubleFill(sk1()->makeTransform(matrix), OpDebugAlphaColor(20, blue));
@@ -580,7 +582,8 @@ void OpDebugImage::drawDoubleFocus() {
 					if (edge->ccOverlaps)
 #if OP_TEST_NEW_INTERFACE
 						color = edge->winding.contour->callBacks
-								.debugCCOverlapsColorFuncPtr(edge->winding.contour->caller);
+								.debugIsOppFuncPtr(edge->winding.contour->caller)
+								? orange : darkGreen;
 #else
 						color = edgeIter.isOpp ? orange : darkGreen;
 #endif
@@ -881,10 +884,10 @@ bool OpDebugImage::find(int id, OpPointBounds* boundsPtr, OpPoint* pointPtr) {
 
 // !!! not sure I need this; but it does raise the question if dump and image need their own finds
 std::vector<const OpEdge*> OpDebugImage::find(int id) {
-	extern const OpEdge* findEdge(int id);
+	extern OpEdge* findEdge(int id);
 	extern std::vector<const OpEdge*> findEdgeOutput(int id);
 	std::vector<const OpEdge*> result;
-	if (const OpEdge* edge = findEdge(id))
+	if (OpEdge* edge = findEdge(id))
 		result.push_back(edge);
 	if (std::vector<const OpEdge*> oEdges = findEdgeOutput(id); oEdges.size())
 		result.insert(result.end(), oEdges.begin(), oEdges.end());
@@ -1289,7 +1292,7 @@ void OpDebugImage::drawPoints() {
 	};
 #if OP_TEST_NEW_INTERFACE
 	for (auto contour : debugGlobalContours->contours) {
-		if (contour->callBacks.debugContourDrawFuncPtr(contour->caller)) {
+		if (contour->callBacks.debugGetDrawFuncPtr(contour->caller)) {
 			SkPath* skPath = (SkPath*) contour->callBacks.debugNativePathFuncPtr(contour->caller);
 			drawPathPt(skPath);
 		}
@@ -1317,10 +1320,10 @@ void OpDebugImage::drawPoints() {
 			if (!edge->debugDraw)
 				continue;
 #if OP_TEST_NEW_INTERFACE
-			uint32_t color = edge->winding.contour->callBacks
-					.debugCurveCurveColorFuncPtr(edge->winding.contour->caller);
-			DebugOpBuild(edge->start.pt, edge->start.t, color);
-			DebugOpBuild(edge->end.pt, edge->end.t, color);
+			bool isOpp = edge->winding.contour->callBacks
+					.debugIsOppFuncPtr(edge->winding.contour->caller);
+			DebugOpBuild(edge->start.pt, edge->start.t, isOpp);
+			DebugOpBuild(edge->end.pt, edge->end.t, isOpp);
 #else
 			if (edgeIter.isCurveCurve) {
 				DebugOpBuild(edge->start.pt, edge->start.t, edgeIter.isOpp);
@@ -1354,7 +1357,7 @@ void OpDebugImage::drawPoints() {
 		for (const auto& line : lines) {
 #if OP_TEST_NEW_INTERFACE
 			for (auto contour : debugGlobalContours->contours) {
-				if (contour->callBacks.debugContourDrawFuncPtr(contour->caller))
+				if (contour->callBacks.debugGetDrawFuncPtr(contour->caller))
 					DebugOpBuild(*(SkPath*)contour->callBacks.debugNativePathFuncPtr(contour->caller), line);
 			}
 #else
@@ -1544,49 +1547,39 @@ void toggleIn() {
 #if OP_TEST_NEW_INTERFACE
 void hideLeft() {
 	OpContour* contour = debugGlobalContours->contours.front();
-	bool* debugDraw = contour->callBacks.debugContourDrawFuncPtr(contour->caller);
-	if (debugDraw)
-		*debugDraw = false;
+	contour->callBacks.debugSetDrawFuncPtr(contour->caller, false);
 	OpDebugImage::drawDoubleFocus();
 }
 
 void showLeft() {
 	OpContour* contour = debugGlobalContours->contours.front();
-	bool* debugDraw = contour->callBacks.debugContourDrawFuncPtr(contour->caller);
-	if (debugDraw)
-		*debugDraw = true;
+	contour->callBacks.debugSetDrawFuncPtr(contour->caller, true);
 	OpDebugImage::drawDoubleFocus();
 }
 
 void toggleLeft() {
 	OpContour* contour = debugGlobalContours->contours.front();
-	bool* debugDraw = contour->callBacks.debugContourDrawFuncPtr(contour->caller);
-	if (debugDraw)
-		*debugDraw ^= true;
+	bool debugDraw = contour->callBacks.debugGetDrawFuncPtr(contour->caller);
+	contour->callBacks.debugSetDrawFuncPtr(contour->caller, !debugDraw);
 	OpDebugImage::drawDoubleFocus();
 }
 
 void hideRight() {
 	OpContour* contour = debugGlobalContours->contours.back();
-	bool* debugDraw = contour->callBacks.debugContourDrawFuncPtr(contour->caller);
-	if (debugDraw)
-		*debugDraw = false;
+	contour->callBacks.debugSetDrawFuncPtr(contour->caller, false);
 	OpDebugImage::drawDoubleFocus();
 }
 
 void showRight() {
 	OpContour* contour = debugGlobalContours->contours.back();
-	bool* debugDraw = contour->callBacks.debugContourDrawFuncPtr(contour->caller);
-	if (debugDraw)
-		*debugDraw = true;
+	contour->callBacks.debugSetDrawFuncPtr(contour->caller, true);
 	OpDebugImage::drawDoubleFocus();
 }
 
 void toggleRight() {
 	OpContour* contour = debugGlobalContours->contours.back();
-	bool* debugDraw = contour->callBacks.debugContourDrawFuncPtr(contour->caller);
-	if (debugDraw)
-		*debugDraw ^= true;
+	bool debugDraw = contour->callBacks.debugGetDrawFuncPtr(contour->caller);
+	contour->callBacks.debugSetDrawFuncPtr(contour->caller, !debugDraw);
 	OpDebugImage::drawDoubleFocus();
 }
 #endif
@@ -1594,9 +1587,7 @@ void toggleRight() {
 void hideOperands() {
 #if OP_TEST_NEW_INTERFACE
 	for (auto contour : debugGlobalContours->contours) {
-		bool* debugDraw = contour->callBacks.debugContourDrawFuncPtr(contour->caller);
-		if (debugDraw)
-			*debugDraw = false;
+		contour->callBacks.debugSetDrawFuncPtr(contour->caller, false);
 	}
 #else
 	drawLeftOn = drawRightOn = false;
@@ -1607,9 +1598,7 @@ void hideOperands() {
 void showOperands() {
 #if OP_TEST_NEW_INTERFACE
 	for (auto contour : debugGlobalContours->contours) {
-		bool* debugDraw = contour->callBacks.debugContourDrawFuncPtr(contour->caller);
-		if (debugDraw)
-			*debugDraw = true;
+		contour->callBacks.debugSetDrawFuncPtr(contour->caller, true);
 	}
 #else
 	drawLeftOn = drawRightOn = true;
@@ -1620,9 +1609,8 @@ void showOperands() {
 void toggleOperands() {
 #if OP_TEST_NEW_INTERFACE
 	for (auto contour : debugGlobalContours->contours) {
-		bool* debugDraw = contour->callBacks.debugContourDrawFuncPtr(contour->caller);
-		if (debugDraw)
-			*debugDraw ^= true;
+		bool debugDraw = contour->callBacks.debugGetDrawFuncPtr(contour->caller);
+		contour->callBacks.debugSetDrawFuncPtr(contour->caller, !debugDraw);
 	}
 #else
 	drawLeftOn ^= true;
@@ -1796,7 +1784,7 @@ COLOR_LIST
 #undef OP_X
 
 void color(int id) {
-	OpEdge* edge = (OpEdge*) findEdge(id);
+	OpEdge* edge = findEdge(id);
 	if (!edge)
 		return;
 	edge->debugColor = OP_DEBUG_MULTICOLORED;
@@ -1805,7 +1793,7 @@ void color(int id) {
 }
 
 void color(int id, uint32_t c) {
-	OpEdge* edge = (OpEdge*) findEdge(id);
+	OpEdge* edge = findEdge(id);
 	if (!edge)
 		return;
 	edge->debugColor = c;
@@ -1814,7 +1802,7 @@ void color(int id, uint32_t c) {
 }
 
 void uncolor(int id) {
-	OpEdge* edge = (OpEdge*) findEdge(id);
+	OpEdge* edge = findEdge(id);
 	if (!edge)
 		return;
 	edge->debugColor = black;
@@ -1856,7 +1844,7 @@ void colorLink(OpEdge& edge, uint32_t color) {
 }
 
 void colorLink(int id, uint32_t color) {
-	colorLink((OpEdge*) findEdge(id), color);
+	colorLink(findEdge(id), color);
 }
 
 void OpEdge::color(uint32_t c) {

@@ -106,25 +106,22 @@ int Error(Context* );
  */
 void Resolve(Context* , PathOutput );
 
-void SetContextCallBacks(Context* ,  EmptyNativePath
-		OP_DEBUG_IMAGE_PARAMS(DebugNativeOutColor));
+void SetContextCallBacks(Context* ,  EmptyNativePath);
 
 OpType SetCurveCallBacks(Context* , AxisRawHit, ControlNearlyEnd,
 		CurveHull, CurveIsFinite, CurveIsLine, CurveIsLinear,
 		SetBounds, CurveNormal, CurveOutput, CurvePinCtrl,
 		CurveReverse, CurveTangent, CurvesEqual, PtAtT, DoublePtAtT,
 		PtCount, Rotate, SubDivide, XYAtT
-		OP_DEBUG_DUMP_PARAMS(DebugDumpCurveSize, DebugDumpCurveExtra, DebugDumpCurveSet, 
-				DebugDumpCurveSetExtra)
+		OP_DEBUG_DUMP_PARAMS(DebugDumpCurveExtra)
 		OP_DEBUG_IMAGE_PARAMS(DebugAddToPath)
 	);
 
 void SetWindingCallBacks(Contour* , WindingAdd, WindingKeep ,
 		WindingSubtract , WindingVisible, WindingZero
 		OP_DEBUG_DUMP_PARAMS(DebugDumpContourIn, DebugDumpContourOut, DebugDumpContourExtra)
-		OP_DEBUG_IMAGE_PARAMS(DebugImageOut, DebugCCOverlapsColor, DebugCurveCurveColor,
-				DebugNativeFillColor, DebugNativeInColor,
-				DebugNativePath, DebugContourDraw, DebugIsOpp)
+		OP_DEBUG_IMAGE_PARAMS(DebugImageOut, DebugNativePath, DebugGetDraw, DebugSetDraw, 
+				DebugIsOpp)
 );
 
 // utilities

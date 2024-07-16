@@ -35,7 +35,7 @@ bool OpHulls::closeEnough(int index, const OpEdge& edge, const OpEdge& oEdge, Op
 		OpVector eTangent = eCurve.tangent(hull1Sect->t);
 		const OpCurve& oCurve = oEdge.segment->c;
 		OpVector oTangent = oCurve.tangent(oPtT->t);
-		OpLine eLine(hull1Sect->pt, hull1Sect->pt + eTangent);
+		LinePts eLine { hull1Sect->pt, hull1Sect->pt + eTangent };
 		LinePts oLinePts = {{ oPtT->pt, oPtT->pt + oTangent }};
 		OpRoots oRoots = eLine.tangentIntersect(oLinePts);
 		if (2 == oRoots.count)
@@ -604,8 +604,9 @@ void OpEdge::output(bool closed) {
     const OpEdge* firstEdge = closed ? this : nullptr;
     OpEdge* edge = this;
 	bool reverse = false;
+	bool abort = false;
 	// returns true if reverse/no reverse criteria found
-	auto test = [&reverse](const EdgeDistance* outer, const EdgeDistance* inner) {
+	auto test = [&reverse, &abort](const EdgeDistance* outer, const EdgeDistance* inner) {
 		if (!outer->edge->inOutput && !outer->edge->inLinkups)
 			return false;
 		// reverse iff normal direction of inner and outer match and outer normal points to nonzero
@@ -615,7 +616,12 @@ void OpEdge::output(bool closed) {
 		if ((oEdge->windZero == WindZero::zero) == (NormalDirection::upRight == oNormal))
 			return true;  // don't reverse if outer normal in direction of inner points to zero
 		OpEdge* iEdge = inner->edge;
-		OP_ASSERT(!iEdge->inOutput);
+	//	OP_ASSERT(!iEdge->inOutput);  // triggered by cubic1810520
+		if (iEdge->inOutput) {  // defer dealing with this until we find an easier test case
+			OpDebugOut("!!! edge already output\n");
+			abort = true;
+			return true;
+		}
 		if (axis != iEdge->ray.axis)
 			return false;
 		NormalDirection iNormal = iEdge->normalDirection(axis, inner->edgeInsideT);
@@ -633,7 +639,7 @@ void OpEdge::output(bool closed) {
 		return true;
 	};
 	do {
-		OP_ASSERT(!edge->inOutput);
+	//	OP_ASSERT(!edge->inOutput);	// !!! cubic714074 triggers with very small edge, used twice
 		unsigned index;
 		const EdgeDistance* inner;
 		for (index = 0; index < edge->ray.distances.size(); ++index) {
@@ -649,6 +655,8 @@ void OpEdge::output(bool closed) {
 			break;
 		edge = edge->nextEdge;
     } while (firstEdge != edge);
+	if (abort)
+		return;
 	if (reverse) {
 		if (priorEdge) {
 			OP_ASSERT(debugIsLoop());
@@ -975,13 +983,16 @@ void OpEdge::skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) {
 }
 
 bool OpEdge::ctrlPtNearlyEnd() {
-	if (curve.newInterface) // !!! call is linear instead?
+#if OP_TEST_NEW_INTERFACE
+	// !!! call is linear instead?
 		return contours()->callBack(curve.c.type).controlNearlyEndFuncPtr(curve.c);
+#else
 	for (int index = 1; index < segment->c.pointCount() - 1; ++index) {
 		if (!curve.pts[index].isNearly(start.pt) && !curve.pts[index].isNearly(end.pt))
 			return false;
 	}
 	return true;
+#endif
 }
 
 // use already computed points stored in edge
@@ -1056,8 +1067,8 @@ bool OpEdge::debugFail() const {
 #endif
 
 bool OpEdgeStorage::contains(OpIntersection* start, OpIntersection* end) const {
-	for (int index = 0; index < used; index += sizeof(OpEdge)) {
-		const OpEdge* test = (const OpEdge*) &storage[index];
+	for (size_t index = 0; index < used; index++) {
+		const OpEdge* test = &storage[index];
 		if (test->segment == start->segment && test->start == start->ptT
 				&& test->end == end->ptT)
 			return true;

@@ -36,6 +36,7 @@ enum class SectFound {
 	add,
 	fail,
 	intersects,
+	maxOverlaps,
 	overflow,
 	split,
 };
@@ -198,6 +199,7 @@ struct OpCurveCurve {
 	bool largeTFound;  // also used to resolve t gaps 
 	bool foundGap;
 	bool splitMid;
+	bool splitHullFail;  // set true if mid t is nearly equal to an end 
 #if OP_DEBUG_DUMP
 	static int debugCall;
 	int debugLocalCall;  // (copy so it is visible in debugger)

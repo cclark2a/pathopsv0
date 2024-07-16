@@ -211,6 +211,23 @@ std::string OpDebugDumpHex(float f) {
     return std::string(buffer, bytes);
 }
 
+std::string OpDebugDumpByteArray(const char* bytes, size_t size) {
+    std::string s = "[";
+    size_t lastReturn = 0;
+    for (size_t index = 0; index < size; ++index) {
+        size_t lastSpace = s.size() - 1;
+        s += OpDebugByteToHex((uint8_t) bytes[index]) + " ";
+        if (s.size() - lastReturn > 100) {  // !!! hard-code to line length for now
+            s[lastSpace] = '\n';
+            lastReturn = lastSpace;
+        }
+    }
+    if (' ' >= s.back())
+        s.pop_back();
+    s += "]";
+    return s;
+}
+
 void playback() {
 	FILE* file = fopen("OpDebugImageState.txt", "r");
 	if (!file)
@@ -319,6 +336,18 @@ uint8_t OpDebugByteToInt(const char*& str) {
     if (' ' >= str[0])
         ++str;
     if (']' == str[0])
+        ++str;
+    return result;
+}
+
+std::vector<uint8_t> OpDebugByteArray(const char*& str) {
+    std::vector<uint8_t> result;
+    OpDebugRequired(str, "[");
+    OpDebugOptional(str, "]");
+    while (']' != str[-1]) {
+        result.push_back(OpDebugByteToInt(str));
+    }
+    if (' ' >= str[0])
         ++str;
     return result;
 }

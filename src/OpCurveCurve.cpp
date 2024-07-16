@@ -312,6 +312,7 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
 	, rotateFailed(false)
 	, sectResult(false)
 	, foundGap(false)
+	, splitHullFail(false)
 {
 #if OP_DEBUG_DUMP
 	++debugCall;
@@ -663,7 +664,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 			return limits.size() ? SectFound::add : SectFound::no;
 		OP_DEBUG_CODE(static constexpr int maxSplits = 8);   // !!! no idea what this should be 
 		if (edgeOverlaps >= maxSplits || oppOverlaps >= maxSplits)
-			return SectFound::fail;  // more code required
+			return SectFound::maxOverlaps;  // more code required
 		if (checkSect())
 			snipEm = true;
 		else {
@@ -697,8 +698,11 @@ SectFound OpCurveCurve::divideAndConquer() {
 				return SectFound::fail;
 			edgeCurves.c.swap(eSplits.c);
 			oppCurves.c.swap(oSplits.c);
-			if (!edgeCurves.c.size())
+			if (!edgeCurves.c.size()) {
+				if (splitHullFail)  // split hulls failed to split -- runs crossing axis is sect
+					return SectFound::fail;  // note that this is very conservative and narrow
 				return limits.size() ? SectFound::add : SectFound::no;
+			}
 			snipEm = setSnipFromLimits(limitCount);
 		}
 		if (snipEm) {
@@ -810,6 +814,7 @@ bool OpCurveCurve::ifExactly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& oppEdge
 }
 
 bool OpCurveCurve::ifNearly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& oppEdge, const OpPtT& oppPtT) {
+//	OpDebugBreakIf(&edge, 28, 31 == oppEdge.id);
 	if (!edgePtT.pt.isNearly(oppPtT.pt))
 		return false;
 	if (edge.ccStart && edge.start.isNearly(edgePtT))
@@ -975,6 +980,8 @@ void OpCurveCurve::setHullSects(OpEdge& edge, OpEdge& oppEdge, CurveRef curveRef
 			if (edge.hulls.add(sectPtT, sectType, &oppEdge)) {
 				const OpSegment* oSeg = oppEdge.segment;
 				OpPtT oppPtT { oSeg->c.ptTAtT(oSeg->findValidT(0, 1, sectPtT.pt))};
+				if (!oppPtT.pt.isFinite())
+					return;
 				if (CurveRef::edge == curveRef)
 					recordSect(&edge, &oppEdge, sectPtT, oppPtT  
 							OP_LINE_FILE_PARAMS(SectReason::edgeCtrlMid, SectReason::oppCtrlMid));
@@ -1102,8 +1109,13 @@ bool OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 		if (!edge.ccOverlaps)
 			continue;
 		float edgeMidT = OpMath::Average(edge.start.t, edge.end.t);
-		if (OpMath::Equalish(edge.start.t, edgeMidT) || OpMath::Equalish(edgeMidT, edge.end.t))
+		if (OpMath::Equalish(edge.start.t, edgeMidT) || OpMath::Equalish(edgeMidT, edge.end.t)) {
+			if (CurveRef::edge == which)
+				splitHullFail = true;
 			continue;
+		}
+		if (CurveRef::edge == which)
+			splitHullFail = false;
 		OpHulls& hulls = edge.hulls;
 		if (!hulls.h.size() || splitMid) {
 			OpPtT edgeMid = { edge.segment->c.ptAtT(edgeMidT), edgeMidT };

@@ -16,7 +16,7 @@ constexpr auto OpInfinity = std::numeric_limits<float>::infinity();
 constexpr auto OpNaN = std::numeric_limits<float>::quiet_NaN();
 constexpr auto OpMax = std::numeric_limits<int>::max();
 constexpr auto OpEpsilon = std::numeric_limits<float>::epsilon();
-constexpr auto OpCloseFactor = 8.f;  // !!! picked out of the air
+constexpr auto OpCloseFactor = 10.f;  // !!! picked out of the air 8 too small for cubic716385
 
 #include "OpDebug.h"
 
@@ -871,7 +871,11 @@ struct OpCubicCoefficients {
 };
 
 struct LinePts {
+    OpRoots axisTanHit(Axis axis, float axisIntercept) const;
     bool isPoint() const;
+    OpPoint ptAtT(float t) const;
+    OpRoots tangentIntersect(const LinePts& line) const;
+
 #if OP_DEBUG_DUMP
     DUMP_DECLARATIONS
 #endif

@@ -1,6 +1,7 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpCurve.h"
 
+#if !OP_TEST_NEW_INTERFACE
 OpRoots OpLine::axisRawHit(Axis axis, float axisIntercept) const {
     const float* ptr = pts[0].asPtr(axis);
     if (!OpMath::Between(ptr[0], axisIntercept, ptr[2]))
@@ -38,7 +39,6 @@ OpRoots OpLine::tangentIntersect(const LinePts& line) const {  // treats both li
 }
 
 OpRoots OpLine::rawIntersect(const LinePts& line) const {
-    OP_ASSERT(!newInterface);
     if (line.pts[0].x == line.pts[1].x)
         return axisRawHit(Axis::vertical, line.pts[0].x);
     if (line.pts[0].y == line.pts[1].y)
@@ -59,7 +59,6 @@ OpRoots OpLine::rawIntersect(const LinePts& line) const {
 }
 
 OpVector OpLine::normal(float t) const {
-    OP_ASSERT(!newInterface);
     return { pts[0].y - pts[1].y, pts[1].x - pts[0].x };
 }
 
@@ -72,10 +71,10 @@ OpPoint OpLine::ptAtT(float t) const {
 }
 
 OpVector OpLine::tangent() const {
-    OP_ASSERT(!newInterface);
     return pts[1] - pts[0];
 }
 
 OpPair OpLine::xyAtT(OpPair t, XyChoice xy) const {
     return (1 - t) * pts[0].choice(xy) + t * pts[1].choice(xy);
 }
+#endif

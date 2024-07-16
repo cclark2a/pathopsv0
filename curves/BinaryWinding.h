@@ -12,6 +12,15 @@ enum class BinaryOperand : int {
 	right
 };
 
+// !!! only used for debugging?
+enum class BinaryOperation : int {
+    Difference,
+    Intersect,
+    Union,
+    ExclusiveOr,
+    ReverseDifference
+};
+
 enum class BinaryWindType : int {
     evenOdd,
     windLeft,
@@ -32,6 +41,11 @@ struct BinaryWinding {
 
     int left;
     int right;
+};
+
+struct BinaryOpData {
+    BinaryOperation operation;
+    BinaryOperand operand;
 };
 
 inline void copyToWinding(Winding& w, BinaryWinding b) {
@@ -238,42 +252,6 @@ inline std::string binaryWindingImageOutFunc(Winding winding, int index) {
     BinaryWinding binaryWinding(winding);
     std::string s = STR(index ? binaryWinding.right : binaryWinding.left);
     return s;
-}
-
-inline uint32_t binaryCCOverlapsColorFunc(CallerData caller) {
-    BinaryOperand operand = (BinaryOperand) caller.data->operand;
-    return BinaryOperand::left == operand ? orange : darkGreen;    
-}
-
-inline uint32_t binaryCurveCurveColorFunc(CallerData caller) {
-    BinaryOperand operand = (BinaryOperand) caller.data->operand;
-    return BinaryOperand::left == operand ? blue : darkGreen;
-}
-
-inline uint32_t binaryNativeFillColorFunc(CallerData caller) {
-    if (BinaryOperand::left == (BinaryOperand) caller.data->operand)
-        return OpDebugAlphaColor(10, red);
-    else
-        return OpDebugAlphaColor(10, blue);
-}
-
-inline uint32_t binaryNativeInColorFunc(CallerData caller) {
-    if (BinaryOperand::left == (BinaryOperand) caller.data->operand)
-        return OpDebugAlphaColor(20, red);
-    else
-        return OpDebugAlphaColor(20, blue);
-}
-
-inline void* binaryNativePathFunc(CallerData caller) {
-    return caller.data->nativePath;
-}
-
-inline bool* binaryContourDrawFunc(CallerData caller) {
-    return &caller.data->drawNativePath;
-}
-
-inline bool binaryIsOppFunc(CallerData caller) {
-    return BinaryOperand::left != (BinaryOperand) caller.data->operand;
 }
 
 #endif

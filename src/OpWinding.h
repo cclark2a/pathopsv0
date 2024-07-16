@@ -102,7 +102,7 @@ public:
 #endif
 
 #if OP_TEST_NEW_INTERFACE
-	bool compare(const PathOpsV0Lib::Winding ) const;  // returns true if not equal
+	bool equal(const PathOpsV0Lib::Winding ) const;
 	PathOpsV0Lib::Winding copyData() const;
 
 	bool isSet() const {

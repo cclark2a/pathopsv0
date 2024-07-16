@@ -29,12 +29,12 @@ OpWinding::OpWinding(const OpWinding& from) {
 }
 
 void OpWinding::add(const OpWinding& winding) {
-    w = winding.contour->callBacks.windingAddFuncPtr(w, winding.w);
+    w = contour->callBacks.windingAddFuncPtr(w, winding.w);
 }
 
 // returns true if not equal
-bool OpWinding::compare(PathOpsV0Lib::Winding comp) const {
-    return w.size != comp.size || memcmp(w.data, comp.data, w.size);
+bool OpWinding::equal(PathOpsV0Lib::Winding comp) const {
+    return w.size == comp.size && !memcmp(w.data, comp.data, w.size);
 }
 
 PathOpsV0Lib::Winding OpWinding::copyData() const {
@@ -45,7 +45,7 @@ PathOpsV0Lib::Winding OpWinding::copyData() const {
 }
 
 void OpWinding::subtract(const OpWinding& winding) {
-    w = winding.contour->callBacks.windingSubtractFuncPtr(w, winding.w);
+    w = contour->callBacks.windingSubtractFuncPtr(w, winding.w);
 }
 
 bool OpWinding::visible() const {

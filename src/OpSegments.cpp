@@ -99,8 +99,6 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
 
 // somewhat different from winder's edge based version, probably for no reason
 void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
-//    OP_ASSERT(!seg->contour->contours->newInterface);  // !!! not ready for new interface
-            // need to decide how user represent line curves, and if such representation is special
     OP_ASSERT(opp != seg);
     OP_ASSERT(seg->c.isLine());
     LinePts edgePts { seg->c.firstPt(), seg->c.lastPt() };
@@ -114,7 +112,6 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
     // if line and curve share end point, pass hint that root finder can call
     // reduced form that assumes one root is zero or one.
     OpRoots septs = opp->c.rayIntersect(edgePts, matchRev.match);
-    //!!! need to add way for newInterface to check for intersect fail to fix thread_circles104483
 	if (septs.fail == RootFail::rawIntersectFailed) {
 		// binary search on opp t-range to find where vert crosses zero
 		OpCurve rotated = opp->c.toVertical(edgePts);
@@ -207,7 +204,6 @@ void OpSegments::findCoincidences() {
             if (MatchEnds::both == mr.match && seg->c.type == opp->c.type) {
                 // if control points and weight match, treat as coincident: transfer winding
                 bool coincident = false;
-                OP_ASSERT(!seg->c.newInterface);
                 switch (seg->c.type) {
                     case OpType::no:
                         OP_ASSERT(0);
@@ -255,7 +251,6 @@ void OpSegments::FindCoincidences(OpContours* contours) {
             if (MatchEnds::both != mr.match || seg->c.c.type != opp->c.c.type)
                 continue;
                 // if control points and weight match, treat as coincident: transfer winding
-            OP_ASSERT(seg->c.newInterface);
             if (!seg->contour->contours->callBack(seg->c.c.type).curvesEqualFuncPtr(
                     seg->c.c, opp->c.c ))
                 continue;
@@ -338,9 +333,13 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
     if (downDelta < slopeDelta)
         return IntersectResult::no;
     // at this point lines are parallel. See if they are also coincident
-    OP_ASSERT(seg->c.newInterface == opp->c.newInterface);
-    OpPoint* longer = seg->c.newInterface ? &seg->c.c.data->start : seg->c.pts;
-    OpPoint* shorter = opp->c.newInterface ? &opp->c.c.data->start : seg->c.pts;
+#if OP_TEST_NEW_INTERFACE
+    OpPoint* longer = &seg->c.c.data->start;
+    OpPoint* shorter = &opp->c.c.data->start;
+#else
+    OpPoint* longer = seg->c.pts;
+    OpPoint* shorter = opp->c.pts;
+#endif
     if (!segLonger)
         std::swap(longer, shorter);
     OpVector longS = longer[0] - shorter[0];
@@ -453,24 +452,25 @@ FoundIntersections OpSegments::findIntersections() {
             // look for curve curve intersections (skip coincidence already found)
             OpCurveCurve cc(seg, opp);
             SectFound ccResult = cc.divideAndConquer();
-            if (SectFound::fail == ccResult) {
+#if OP_DEBUG_DUMP
+            OP_ASSERT(!cc.dumpBreak());
+#endif
+            if (SectFound::fail == ccResult || SectFound::maxOverlaps == ccResult) {
                 // !!! as an experiment, search runs for small opp distances; turn found into limits
-                ccResult = cc.runsToLimits();
-                if (SectFound::fail == ccResult) {
-                    OP_DEBUG_CODE(debugContext = "");
-                    return FoundIntersections::fail;
+                SectFound limitsResult = cc.runsToLimits();
+                if (SectFound::add == limitsResult)
+                    ccResult = limitsResult;
+                else if (SectFound::fail == limitsResult) {
+                    if (SectFound::maxOverlaps != ccResult) {
+                        OP_DEBUG_DUMP_CODE(debugContext = "");
+                        return FoundIntersections::fail;
+                    }
+                    ccResult = SectFound::no;
                 }
             }
             if (SectFound::add == ccResult)
                 cc.findUnsectable();
-            else if (SectFound::no == ccResult) {
-                // capture the closest point(s) that did not result in an intersection
-                // !!! eventually allow capturing more than 1, if curves hit twice
-                // !!! if required, document test case that needs it
-//                if (!cc.limits.size() && cc.closeBy.size())
-//                    cc.tryClose();
-            }
-            OP_DEBUG_CODE(debugContext = "");
+            OP_DEBUG_DUMP_CODE(debugContext = "");
             if (!cc.addedPoint)
                 continue;
             // if point was added, check adjacent to see if it is concident (issue3517)

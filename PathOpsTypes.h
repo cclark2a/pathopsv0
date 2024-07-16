@@ -44,24 +44,18 @@ enum class Operation : int;
 enum class Operand : int;
 
 // caller defined contour data
-struct ContourData {
-	Operation operation;
-	Operand operand;
-	OP_DEBUG_CODE(void* nativePath);
-	OP_DEBUG_IMAGE_CODE(bool drawNativePath);
-	char optionalAdditionalData[];
-};
+typedef void* ContourData;
 
 // for transport of contour data to callbacks
 struct CallerData {
-	ContourData* data;
+	ContourData data;
 	size_t size;
 };
 
 // convenience for adding contours
 struct AddContour {
 	Context* context;
-	ContourData* data;
+	ContourData data;
 	size_t size;
 };
 
@@ -119,18 +113,6 @@ enum class DebugImage {
 };
 #endif
 
-typedef void (*EmptyNativePath)(PathOutput );
-#if OP_DEBUG_IMAGE
-typedef uint32_t (*DebugNativeOutColor)();
-#endif
-
-struct ContextCallBacks {
-	EmptyNativePath emptyNativePath;
-#if OP_DEBUG_IMAGE
-	DebugNativeOutColor debugNativeOutColorFuncPtr;
-#endif
-};
-
 // intersects the curve and axis at the axis intercept
 typedef OpRoots (*AxisRawHit)(Curve , Axis , float axisIntercept, MatchEnds);
 
@@ -184,10 +166,8 @@ typedef void (*SetBounds)(Curve , OpRect& );
 typedef OpPair (*XYAtT)(Curve , OpPair t, XyChoice );
 
 #if OP_DEBUG_DUMP
-typedef size_t (*DebugDumpCurveSize)();
+// describes caller data for debugging (does not include points: e.g., a rational Bezier weight)
 typedef std::string (*DebugDumpCurveExtra)(Curve , DebugLevel , DebugBase);
-typedef void (*DebugDumpCurveSet)(Curve , const char*& str);
-typedef void (*DebugDumpCurveSetExtra)(Curve , const char*& str);
 #endif
 
 #if OP_DEBUG_IMAGE
@@ -216,10 +196,7 @@ struct CurveCallBacks {
 	SubDivide subDivideFuncPtr;
 	XYAtT xyAtTFuncPtr;
 #if OP_DEBUG_DUMP
-	DebugDumpCurveSize debugDumpSizeFuncPtr;
 	DebugDumpCurveExtra debugDumpCurveExtraFuncPtr;
-	DebugDumpCurveSet debugDumpCurveSetFuncPtr;
-	DebugDumpCurveSetExtra debugDumpCurveSetExtraFuncPtr;
 #endif
 #if OP_DEBUG_IMAGE
 	DebugAddToPath debugAddToPathFuncPtr;
@@ -246,7 +223,8 @@ typedef uint32_t (*DebugCurveCurveColor)(CallerData);
 typedef uint32_t (*DebugNativeFillColor)(CallerData);
 typedef uint32_t (*DebugNativeInColor)(CallerData);
 typedef void* (*DebugNativePath)(CallerData);
-typedef bool* (*DebugContourDraw)(CallerData);
+typedef bool (*DebugGetDraw)(CallerData);
+typedef void (*DebugSetDraw)(CallerData, bool);
 typedef bool (*DebugIsOpp)(CallerData);
 #endif
 
@@ -263,27 +241,18 @@ struct ContourCallBacks {
 #endif
 #if OP_DEBUG_IMAGE
 	DebugImageOut debugImageOutFuncPtr;
-	DebugCCOverlapsColor debugCCOverlapsColorFuncPtr;
-	DebugCurveCurveColor debugCurveCurveColorFuncPtr;
-	DebugNativeFillColor debugNativeFillColorFuncPtr;
-	DebugNativeInColor debugNativeInColorFuncPtr;
 	DebugNativePath debugNativePathFuncPtr;
-	DebugContourDraw debugContourDrawFuncPtr;
+	DebugGetDraw debugGetDrawFuncPtr;
+	DebugSetDraw debugSetDrawFuncPtr;
 	DebugIsOpp debugIsOppFuncPtr;
 #endif
 };
 
-#if 0
-#if OP_DEBUG_IMAGE
-typedef void* (*OutputNativePath)(AddContext);
-#endif
+typedef void (*EmptyNativePath)(PathOutput );
 
 struct ContextCallBacks {
-#if OP_DEBUG_IMAGE
-	OutputNativePath debugOutputPath;
-#endif
+	EmptyNativePath emptyNativePath;
 };
-#endif
 
 #if OP_DEBUG_DUMP
 inline std::string noDumpFunc(CallerData caller, DebugLevel , DebugBase ) {
@@ -304,16 +273,11 @@ inline void* noNativePathFunc(CallerData ) {
 	return nullptr;
 }
 
-inline bool* noDebugDrawFunc(CallerData ) {
-	return nullptr;
+inline bool noDebugGetDrawFunc(CallerData ) {
+	return false;
 }
 
-inline uint32_t noContextColorFunc() {
-	return 0;
-}
-
-inline uint32_t noContourColorFunc(CallerData ) {
-	return 0;
+inline void noDebugSetDrawFunc(CallerData , bool ) {
 }
 
 inline bool noIsOppFunc(CallerData ) {

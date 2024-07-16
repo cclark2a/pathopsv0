@@ -32,31 +32,27 @@ struct OpCurve {
     OpCurve() 
         : c{nullptr, 0, OpType::no}
         , contours(nullptr)
-        , weightImpl(1)
-        , newInterface(false) {
+        , weightImpl(1) {
     }
 
     OpCurve(const OpPoint p[], OpType t) 
         : c{nullptr, 0, t}
         , contours(nullptr)
-        , weightImpl(1)
-        , newInterface(false) {
+        , weightImpl(1) {
         memcpy(pts, p, pointCount() * sizeof(OpPoint));
     }
 
     OpCurve(const OpPoint p[], float w, OpType t)
         : c{nullptr, 0, t}
         , contours(nullptr)
-        , weightImpl(w)
-        , newInterface(false) {
+        , weightImpl(w) {
         memcpy(pts, p, pointCount() * sizeof(OpPoint));
     }
 
     OpCurve(OpPoint p0, OpPoint p1)
         : c{nullptr, 0, OpType::line}
         , contours(nullptr)
-        , weightImpl(1)
-        , newInterface(false) {
+        , weightImpl(1) {
         pts[0] = p0;
         pts[1] = p1;
     }
@@ -64,19 +60,11 @@ struct OpCurve {
     OpCurve(const OpPoint p[], float w)
         : c{nullptr, 0, OpType::conic}
         , contours(nullptr)
-        , weightImpl(w)
-        , newInterface(false) {
+        , weightImpl(w) {
         memcpy(pts, p, pointCount() * sizeof(OpPoint));
     }
 
     OpCurve(OpContours* , PathOpsV0Lib::Curve );
-
-#if 0
-    ~OpCurve() {
-        if (newInterface)
-            free(curveData);
-    }
-#endif
 
     OpLine& asLine();
     OpQuad& asQuad();
@@ -135,7 +123,9 @@ struct OpCurve {
     float tZeroX(float t1, float t2) const;  // binary search on t-range finds vert crossing zero
     OpPair xyAtT(OpPair t, XyChoice xy) const;
 #if OP_DEBUG_DUMP
+#if !OP_TEST_NEW_INTERFACE
     void dumpSetPts(const char*& );
+#endif
     DUMP_DECLARATIONS
 #endif
     // create storage in contour; helper function casts it to CurveData
@@ -143,8 +133,6 @@ struct OpCurve {
     OpContours* contours;  // required by new interface for caller function pointer access
     OpPoint pts[5];  // extra point carries cubic center for vertical rotation (used by curve sect)
     float weightImpl;   // !!! new interface doesn't have this (only required for double debugging though)
-//    bool centerPt;  // true if center point follows curve
-    bool newInterface;
 };
 
 struct OpLine : OpCurve {
@@ -259,17 +247,23 @@ struct CurveDataStorage {
 	CurveDataStorage()
 		: next(nullptr)
 		, used(0) {
-        OP_DEBUG_CODE(storage[0] = 0);
+        OP_DEBUG_CODE(memset(storage, 0, sizeof(storage)));
 	}
     PathOpsV0Lib::CurveData* curveData(size_t size) {
         PathOpsV0Lib::CurveData* result = (PathOpsV0Lib::CurveData*) &storage[used];
         used += size;
         return result;
     }
+#if OP_DEBUG_DUMP
+    std::string debugDump(DebugLevel l, DebugBase b) const;
+    std::string debugDump(PathOpsV0Lib::CurveData* ) const;
+    PathOpsV0Lib::CurveData* dumpSet(const char*& str);
+	static void DumpSet(const char*& str, CurveDataStorage** previousPtr);
+#endif
 
 	CurveDataStorage* next;
-	uint8_t storage[sizeof(OpPoint) * 256];
-	int used;
+	size_t used;
+	char storage[sizeof(OpPoint) * 256];
 };
 
 #if OP_DEBUG_IMAGE  

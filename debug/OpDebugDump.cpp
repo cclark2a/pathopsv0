@@ -779,12 +779,21 @@ std::string OpContours::debugDump(DebugLevel l, DebugBase b) const {
         s += "rightIn:" + rightIn->debugDump(l, b) + "\n";
     s += "opIn:" + opOperatorName(opIn) + " ";
 #endif
-    if (newInterface)
-        s += "newInterface ";  // must be prior to contour initialization
+    if (aliases.size())
+        OP_ASSERT(0);  // !!! incomplete
+    if (curveDataStorage) {
+        s += "curveDataStorage:\n";
+        s += curveDataStorage->debugDump(l, b) + "\n";
+    }
+    if (callerStorage) {
+        s += "callerStorage:\n";
+        s += callerStorage->debugDump(l, b) + "\n";
+    }
     if (contourStorage)
         s += contourStorage->debugDump(l, b) + "\n";
     if (ccStorage)
         s += ccStorage->debugDump("ccStorage", l, b) + "\n";
+    // skip contour iterator for now
     if (fillerStorage)
         s += fillerStorage->debugDump("fillerStorage", l, b) + "\n";
     if (sectStorage)
@@ -835,11 +844,17 @@ void OpContours::dumpSet(const char*& str) {
         rightIn->dumpSet(str);
     opIn = opOperatorStr(str, "opIn", OpOperator::Intersect);
 #endif
-    newInterface = OpDebugOptional(str, "newInterface");  // must be prior to contour initialization
+    if (OpDebugOptional(str, "aliases"))
+        OP_ASSERT(0);  // !!! incomplete
+    if (OpDebugOptional(str, "curveDataStorage"))
+        CurveDataStorage::DumpSet(str, &curveDataStorage);
+    if (OpDebugOptional(str, "callerStorage"))
+        CallerDataStorage::DumpSet(str, &callerStorage);
     if (OpDebugOptional(str, "contourStorage"))
         OpContourStorage::DumpSet(str, this);
     if (OpDebugOptional(str, "ccStorage"))
         OpEdgeStorage::DumpSet(str, this, DumpStorage::cc);
+    // skip contour iterator for now
     if (OpDebugOptional(str, "fillerStorage"))
         OpEdgeStorage::DumpSet(str, this, DumpStorage::filler);
     if (OpDebugOptional(str, "sectStorage"))
@@ -1030,24 +1045,24 @@ const OpContour* findContour(int ID) {
     return nullptr;
 }
 
-const OpEdge* findEdge(int ID) {
+OpEdge* findEdge(int ID) {
     auto match = [ID](const OpEdge& edge) {
         return edge.id == ID ||
                 edge.debugOutPath == ID || edge.debugRayMatch == ID;
     };
-    for (const auto c : debugGlobalContours->contours) {
-        for (const auto& seg : c->segments) {
-            for (const auto& edge : seg.edges) {
+    for (auto c : debugGlobalContours->contours) {
+        for (auto& seg : c->segments) {
+            for (auto& edge : seg.edges) {
                 if (match(edge))
                     return &edge;
             }
         }
     }
-    if (const OpEdge* filler = debugGlobalContours->fillerStorage
+    if (OpEdge* filler = debugGlobalContours->fillerStorage
             ? debugGlobalContours->fillerStorage->debugFind(ID) : nullptr)
         return filler;
     // if edge intersect is active, search there too
-    if (const OpEdge* ccEdge = debugGlobalContours->ccStorage
+    if (OpEdge* ccEdge = debugGlobalContours->ccStorage
             ? debugGlobalContours->ccStorage->debugFind(ID) : nullptr)
         return ccEdge;
     return nullptr;
@@ -1383,30 +1398,94 @@ std::string debugErrorValue(DebugLevel l, DebugBase b, std::string label, float 
     return debugValue(DebugLevel::file == l ? l : DebugLevel::error, b, label, value);
 }
 
+// returns caller curve data stored in contours as bytes encoded in string
+std::string CurveDataStorage::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s;
+    s += "next:" + STR(next) + " ";  // only zero/nonzero is read
+    s += "used:" + STR(used) + "\n";
+    s += OpDebugDumpByteArray(storage, used);   // 'b' is ignored for now; always return hex
+    if (next)
+        s += "\n" + next->debugDump(l, b);
+    return s;
+}
+
+// returns byte offset of caller curve data stored in contours
+std::string CurveDataStorage::debugDump(PathOpsV0Lib::CurveData* curveData) const {
+    const CurveDataStorage* test = this;
+    char* data = (char*) curveData;
+    size_t result = 0;
+    while (data < test->storage || data >= &test->storage[sizeof(test->storage)]) {
+        result += used;
+        test = test->next;
+        OP_ASSERT(test);
+    }
+    OP_ASSERT(data < test->storage + test->used);
+    ptrdiff_t diff = data - test->storage;
+    result += diff;
+    return STR(result);
+}
+
+// finds pointer to caller data stored in contours; string points to byte offset
+PathOpsV0Lib::CurveData* CurveDataStorage::dumpSet(const char*& str) {
+    size_t offset = OpDebugReadSizeT(str);
+    CurveDataStorage* test = this;
+    while (offset >= test->used) {
+        offset -= test->used;
+        test = test->next;
+        OP_ASSERT(test);
+    }
+    PathOpsV0Lib::CurveData* result = (PathOpsV0Lib::CurveData*) (test->storage + offset);
+    return result;
+}
+
+// sets caller data in contours from string encoded bytes
+void CurveDataStorage::DumpSet(const char*& str, CurveDataStorage** previousPtr) {
+    CurveDataStorage* storage = new CurveDataStorage;
+    *previousPtr = storage;
+    OpDebugRequired(str, "next");
+    storage->next = (CurveDataStorage*) OpDebugReadSizeT(str);  // non-zero means there is more
+    OpDebugRequired(str, "used");
+    storage->used = OpDebugReadSizeT(str);
+    std::vector<uint8_t> bytes = OpDebugByteArray(str);
+    OP_ASSERT(storage->used == bytes.size());
+    std::memcpy(storage->storage, &bytes.front(), storage->used);
+    if (storage->next)
+        DumpSet(str, &storage->next);
+}
+
 std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     s += opTypeName(c.type) + " ";
-    s += "{ ";
-    for (int i = 0; i < pointCount(); ++i) 
-        s += hullPt(i).debugDump(l, b) + ", ";
-    s.pop_back(); s.pop_back();
-    s += " }";
+    if (DebugLevel::file == l) {
+        s += "size:" + STR(c.size) + " ";
+        s += "data:" + contours->curveDataStorage->debugDump(c.data) + " ";
+    } else {
+        s += "{ ";
+        for (int i = 0; i < pointCount(); ++i) 
+            s += hullPt(i).debugDump(l, b) + ", ";
+        s.pop_back(); s.pop_back();
+        s += " }";
 #if OP_TEST_NEW_INTERFACE
-    s += contours->callBack(c.type).debugDumpCurveExtraFuncPtr(c, l, b);
+        s += contours->callBack(c.type).debugDumpCurveExtraFuncPtr(c, l, b);
 #else
-    if (OpType::conic == c.type)
-        s += debugValue(l, b, "weight", weightImpl) + " ";
+        if (OpType::conic == c.type)
+            s += debugValue(l, b, "weight", weightImpl) + " ";
 #endif
+    }
     return s;
 }
 
 void OpCurve::dumpSet(const char*& str) {
-    c.type = opTypeStr(str, "", OpType::no);  // type must precede number of points call
-    c.size = contours->callBack(c.type).debugDumpSizeFuncPtr();
-    OpDebugRequired(str, "{ ");
+    c.type = opTypeStr(str, "", OpType::no);
+#if OP_TEST_NEW_INTERFACE
+    OpDebugRequired(str, "size");
+    c.size = OpDebugReadSizeT(str);
+    OpDebugRequired(str, "data");
+    c.data = contours->curveDataStorage->dumpSet(str);  // do not allocate, just point to
+#else
+    OpDebugRequired(str, "{");
     dumpSetPts(str);
     OpDebugOptional(str, "}");
-#if !OP_TEST_NEW_INTERFACE
     if (OpDebugOptional(str, "weight"))
         weightImpl = OpDebugHexToFloat(str);
 #endif
@@ -2126,18 +2205,12 @@ void OpEdge::dumpSet(const char*& str) {
     if (OpDebugOptional(str, "center"))
         center.dumpSet(str);
     OpDebugRequired(str, "curve");
-    if (dumpContours->newInterface) {
-        curve.newInterface = true;
-        curve.contours = dumpContours;
-    }
+    curve.contours = dumpContours;
     curve.dumpSet(str);
     if (OpDebugOptional(str, "upright_impl")) {
         upright_impl.dumpSet(str);
         OpDebugRequired(str, "vertical_impl");
-        if (dumpContours->newInterface) {
-            vertical_impl.newInterface = true;
-            vertical_impl.contours = dumpContours;
-        }
+        vertical_impl.contours = dumpContours;
         vertical_impl.dumpSet(str);
     }
     OpDebugRequired(str, "ptBounds");
@@ -2544,6 +2617,30 @@ void dmpStart(const OpEdge& edge) {
     dmpMatch(edge.start.pt);
 }
 
+std::string CallerDataStorage::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s;
+    s += "next:" + STR(next) + " ";  // only zero/nonzero is read
+    s += "used:" + STR(used) + "\n";
+    s += OpDebugDumpByteArray(storage, used);   // 'b' is ignored for now; always return hex
+    if (next)
+        s += "\n" + next->debugDump(l, b);
+    return s;
+}
+
+void CallerDataStorage::DumpSet(const char*& str, CallerDataStorage** previousPtr) {
+    CallerDataStorage* storage = new CallerDataStorage;
+    *previousPtr = storage;
+    OpDebugRequired(str, "next");
+    storage->next = (CallerDataStorage*) OpDebugReadSizeT(str);  // non-zero means there is more
+    OpDebugRequired(str, "used");
+    storage->used = OpDebugReadSizeT(str);
+    std::vector<uint8_t> bytes = OpDebugByteArray(str);
+    OP_ASSERT(storage->used == bytes.size());
+    std::memcpy(storage->storage, &bytes.front(), storage->used);
+    if (storage->next)
+        DumpSet(str, &storage->next);
+}
+
 size_t OpEdgeStorage::debugCount() const {
     if (!this)
         return 0;
@@ -2553,12 +2650,12 @@ size_t OpEdgeStorage::debugCount() const {
         result += block->used;
         block = block->next;
     }
-    return result / sizeof(OpEdge);
+    return result;
 }
 
-OpEdge* OpEdgeStorage::debugFind(int ID) const {
-	for (int index = 0; index < used; index += sizeof(OpEdge)) {
-		OpEdge& test = *(OpEdge*) &storage[index];
+OpEdge* OpEdgeStorage::debugFind(int ID) {
+	for (size_t index = 0; index < used; index++) {
+		OpEdge& test = storage[index];
         if (test.id == ID ||
                 test.debugOutPath == ID || test.debugRayMatch == ID)
             return &test;
@@ -2568,23 +2665,22 @@ OpEdge* OpEdgeStorage::debugFind(int ID) const {
     return next->debugFind(ID);
 }
 
-OpEdge* OpEdgeStorage::debugIndex(int index) const {
+OpEdge* OpEdgeStorage::debugIndex(size_t index) {
     if (!this)
         return nullptr;
-    const OpEdgeStorage* block = this;
-    int byteIndex = sizeof(OpEdge) * index;
-    while (byteIndex > block->used) {
-        byteIndex -= block->used;
+    OpEdgeStorage* block = this;
+    while (index > block->used) {
+        index -= block->used;
         block = block->next;
         if (!block)
             return nullptr;
     }
-    if (block->used <= byteIndex)
+    if (block->used <= index)
         return nullptr;
-    return (OpEdge*) &block->storage[byteIndex];
+    return &block->storage[index];
 }
 
-std::string OpEdgeStorage::debugDump(std::string label, DebugLevel l, DebugBase b) const {
+std::string OpEdgeStorage::debugDump(std::string label, DebugLevel l, DebugBase b) {
     std::string s;
     size_t count = debugCount();
     if (!count)
@@ -2617,9 +2713,9 @@ void OpEdgeStorage::DumpSet(const char*& str, OpContours* dumpContours, DumpStor
         OpEdge* edge = nullptr;
         // !!! hackery ahead: note that 'contours->allocateEdge(this)' won't compile
         if (DumpStorage::cc == type)
-            edge = (OpEdge*) dumpContours->allocateEdge(dumpContours->ccStorage);
+            edge = dumpContours->allocateEdge(dumpContours->ccStorage);
         else if (DumpStorage::filler == type)
-            edge = (OpEdge*) dumpContours->allocateEdge(dumpContours->fillerStorage);
+            edge = dumpContours->allocateEdge(dumpContours->fillerStorage);
         else {
             OpDebugExit("edge storage missing");
         }
@@ -3494,7 +3590,7 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
         s += "seg:" + segment->debugDumpID() + "\n";
         return s;
     }
-    s += ptT.debugDump(l, b);
+    s += ptT.debugDump(id ? l : DebugLevel::error, b);   // !!! may be uninitialized?
 #if OP_DEBUG
     if (debugErased)
         s += " erased";
@@ -3671,7 +3767,7 @@ size_t OpSectStorage::debugCount() const {
 }
 
 OpIntersection* OpSectStorage::debugFind(int ID) const {
-	for (int index = 0; index < used; index++) {
+	for (size_t index = 0; index < used; index++) {
 		const OpIntersection& test = storage[index];
         if (test.id == ID)
             return const_cast<OpIntersection*>(&test);
@@ -3681,7 +3777,7 @@ OpIntersection* OpSectStorage::debugFind(int ID) const {
     return next->debugFind(ID);
 }
 
-OpIntersection* OpSectStorage::debugIndex(int index) const {
+OpIntersection* OpSectStorage::debugIndex(size_t index) const {
     if (!this)
         return nullptr;
     const OpSectStorage* block = this;
@@ -3782,10 +3878,7 @@ void OpSegment::dumpSet(const char*& str) {
     id = OpDebugReadSizeT(str);
     int contourID = OpDebugOptional(str, "contour[") ? OpDebugReadSizeT(str) : 0;
     OpDebugExitOnFail("mismatched contour id", contourID == contour->id);
-    if (contour->contours->newInterface) {
-        c.newInterface = true;
-        c.contours = contour->contours;
-    }
+    c.contours = contour->contours;
     c.dumpSet(str);
     OpDebugRequired(str, "ptBounds");
     ptBounds.dumpSet(str);
@@ -3968,6 +4061,7 @@ void OpWinding::dumpSet(const char*& str, OpContours* dumpContours) {
     OpDebugRequired(str, "w.size");
     w.size = OpDebugReadSizeT(str);
     w.data = contour->contours->allocateWinding(w.size);
+    OpDebugRequired(str, "[");
     for (size_t index = 0; index < w.size; ++index)
         ((uint8_t*) w.data)[index] = OpDebugByteToInt(str);
 #else
@@ -4242,7 +4336,7 @@ std::string OpRoots::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 std::string OpDebugMaker::debugDump() const {
-	return file.substr(file.find("Op")) + ":" + STR(line);
+	return ("" == file ? std::string("(no file)") : file.substr(file.find("Op"))) + ":" + STR(line);
 }
 
 void OpDebugMaker::dumpSet(const char*& str) {

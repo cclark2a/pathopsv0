@@ -190,7 +190,7 @@ inline bool quadIsLinear(Curve c) {
     return fabsf(cross) <= OpEpsilon;
 }
 
-#if OP_DEBUG_DUMP
+#if 0 && OP_DEBUG_DUMP
 inline size_t quadDebugDumpSize() {
     return offsetof(CurveData, optionalAdditionalData) + sizeof(OpPoint);
 }

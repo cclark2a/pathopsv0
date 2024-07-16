@@ -366,6 +366,7 @@ void OpCubicErrorTest(CubicTest testType, SpeedTest speedTest) {
 }
 #endif
 
+#if 0 // obsolete
 void OpCurveTest() {
 	const OpPoint pts[] = { { 100, 100 }, { 200, 100 }, { 200, 200 }, {100, 200} };
 	OpCurve curve = { pts, OpType::line };
@@ -784,6 +785,7 @@ void OpCubicTest() {
 	ASSERT(OpMath::Between(-.0001f, normaledt.dx - normaledr.dx, .0001f));
 	ASSERT(OpMath::Between(-.0001f, normaledt.dy - normaledr.dy, .0001f));
 }
+#endif
 
 #include "OpContour.h"
 #include "OpEdge.h"
@@ -1175,11 +1177,11 @@ void OpTest(bool terminateEarly) {
 //	OpTestQuadCoin();
 //	OpTestQuadQuad();
 	OpMathTest();
-	OpCurveTest();
-	OpLineTest();
-	OpQuadTest();
-	OpConicTest();
-	OpCubicTest();
+//	OpCurveTest();
+//	OpLineTest();
+//	OpQuadTest();
+//	OpConicTest();
+//	OpCubicTest();
 	OpTestOpEdgesConcidenceCheck();
 //	OpTestQuadLine();
 //	OpTestCoincidence();

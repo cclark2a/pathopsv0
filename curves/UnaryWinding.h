@@ -62,31 +62,6 @@ inline std::string unaryWindingImageOutFunc(Winding winding, int index) {
     std::string s = STR(((int*) winding.data)[0]);
     return s;
 }
-
-inline uint32_t unaryCCOverlapsColorFunc(CallerData ) {
-    return orange;
-}
-
-inline uint32_t unaryCurveCurveColorFunc(CallerData ) {
-    return blue;
-}
-
-inline uint32_t unaryNativeFillColorFunc(CallerData ) {
-    return OpDebugAlphaColor(10, red);
-}
-
-inline uint32_t unaryNativeInColorFunc(CallerData ) {
-    return OpDebugAlphaColor(20, red);
-}
-
-inline void* unaryNativePathFunc(CallerData caller) {
-    return caller.data->nativePath;
-}
-
-inline bool* unaryContourDrawFunc(CallerData caller) {
-    return &caller.data->drawNativePath;
-}
-
 #endif
 
 }

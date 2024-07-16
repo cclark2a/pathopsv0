@@ -50,8 +50,7 @@ void testNewInterface() {
     using namespace PathOpsV0Lib;
 
     Context* context = CreateContext({nullptr, 0});
-    SetContextCallBacks(context, noEmptyPath  
-            OP_DEBUG_IMAGE_PARAMS(noContextColorFunc));
+    SetContextCallBacks(context, noEmptyPath);
 
 #if OP_DEBUG
     OpDebugData debugData(false);
@@ -65,16 +64,14 @@ void testNewInterface() {
             lineIsLine, noLinear, noBounds, lineNormal, lineOutput, noPinCtrl, noReverse,
             lineTangent, linesEqual, linePtAtT, /* double not required */ linePtAtT, 
             linePtCount, noRotate, lineSubDivide, lineXYAtT
-            OP_DEBUG_DUMP_PARAMS(lineDebugDumpSize, noDumpCurveExtra, noDumpCurveSet, 
-                    noDumpCurveSetExtra)
+            OP_DEBUG_DUMP_PARAMS(noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
     );
     quadType = SetCurveCallBacks(context, quadAxisRawHit, quadNearly, quadHull, quadIsFinite, 
             quadIsLine, quadIsLinear, quadSetBounds, quadNormal, quadOutput, quadPinCtrl, noReverse,
             quadTangent, quadsEqual, quadPtAtT, /* double not required */ quadPtAtT, 
             quadPtCount, quadRotate, quadSubDivide, quadXYAtT
-            OP_DEBUG_DUMP_PARAMS(quadDebugDumpSize, noDumpCurveExtra, quadDumpSet, 
-                    noDumpCurveSetExtra)
+            OP_DEBUG_DUMP_PARAMS(noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
     );
 
@@ -84,9 +81,8 @@ void testNewInterface() {
     SetWindingCallBacks(contour, unaryWindingAddFunc, unaryWindingKeepFunc, 
             unaryWindingSubtractFunc, unaryWindingVisibleFunc, unaryWindingZeroFunc 
             OP_DEBUG_DUMP_PARAMS(unaryWindingDumpInFunc, unaryWindingDumpOutFunc, noDumpFunc)
-            OP_DEBUG_IMAGE_PARAMS(noWindingImageOutFunc, noContourColorFunc, noContourColorFunc,
-                    noContourColorFunc, noContourColorFunc, noNativePathFunc,
-                    noDebugDrawFunc, noIsOppFunc)
+            OP_DEBUG_IMAGE_PARAMS(noWindingImageOutFunc, noNativePathFunc,
+                    noDebugGetDrawFunc, noDebugSetDrawFunc, noIsOppFunc)
     );
     int windingData[] = { 1 };
     AddWinding addWinding { contour, windingData, sizeof(windingData) };

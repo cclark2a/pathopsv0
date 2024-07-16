@@ -102,6 +102,18 @@ inline OpVector CubicTangent(OpPoint start, CubicControls controls, OpPoint end,
         double d = end.choice(offset);
         return (float) (3 * ((b - a) * one_t * one_t + 2 * (c - b) * t * one_t + (d - c) * t * t));
     };
+    if (0 == t && start == controls.pts[0]) {
+        if (controls.pts[0] == controls.pts[1])
+            return end - start;
+        else
+            return controls.pts[1] - start;
+    }
+    if (1 == t && end == controls.pts[1]) {
+        if (controls.pts[0] == controls.pts[1])
+            return end - start;
+        else
+            return end - controls.pts[0];
+    }
     return { tangent(XyChoice::inX, t), tangent(XyChoice::inY, t) };
 }
 
@@ -258,7 +270,7 @@ inline void cubicReverse(Curve c) {
     controls.copyTo(c);
 }
 
-#if OP_DEBUG_DUMP
+#if 0 && OP_DEBUG_DUMP
 inline size_t cubicDebugDumpSize() {
     return offsetof(CurveData, optionalAdditionalData) + sizeof(OpPoint) * 2;
 }

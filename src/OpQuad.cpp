@@ -18,6 +18,7 @@ OpQuadCoefficients OpQuad::coefficients(Axis axis) const {
     return { a, 2 * b, c };
 }
 
+#if !OP_TEST_NEW_INTERFACE
 OpRoots OpQuad::extrema(XyChoice offset) const {
     const float* ptr = &pts[0].x + +offset;
     float a = ptr[0];
@@ -34,7 +35,6 @@ OpRoots OpQuad::extrema(XyChoice offset) const {
 }
 
 OpRoots OpQuad::rawIntersect(const LinePts& line) const {
-    OP_ASSERT(!newInterface);
     if (line.pts[0].x == line.pts[1].x)
         return axisRawHit(Axis::vertical, line.pts[0].x);
     if (line.pts[0].y == line.pts[1].y)
@@ -49,7 +49,6 @@ bool OpQuad::monotonic(XyChoice offset) const {
 }
 
 OpVector OpQuad::normal(float t) const {
-    OP_ASSERT(!newInterface);
     OpVector tan = tangent(t);
     return { -tan.dy, tan.dx };
 }
@@ -73,9 +72,6 @@ OpPoint OpQuad::ptAtT(float t) const {
 }
 
 OpCurve OpQuad::subDivide(OpPtT ptT1, OpPtT ptT2) const {
-#if OP_TEST_NEW_INTERFACE
-    OP_ASSERT(0);
-#endif
     OpCurve result;
     result.c.type = OpType::quad;
     result.pts[0] = ptT1.pt;
@@ -91,7 +87,6 @@ OpCurve OpQuad::subDivide(OpPtT ptT1, OpPtT ptT2) const {
 }
 
 OpVector OpQuad::tangent(float t) const {
-    OP_ASSERT(!newInterface);
     if ((0 == t && pts[0] == pts[1]) || (1 == t && pts[2] == pts[1]))
         return pts[2] - pts[0];
     float a = t - 1;
@@ -108,3 +103,4 @@ OpPair OpQuad::xyAtT(OpPair t, XyChoice xy) const {
     OpPair c = t * t;
     return a * pts[0].choice(xy) + b * pts[1].choice(xy) + c * pts[2].choice(xy);
 }
+#endif

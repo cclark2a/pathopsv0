@@ -413,12 +413,11 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
             ++edgeBack;
             // if assert, more code to write; add point to opp edge sect list to match 
 #if OP_TEST_NEW_INTERFACE
-            if (!edge->winding.compare(edgeBack->winding.w)) {  // example: testRect2
+            if (!edge->winding.equal(edgeBack->winding.w)) {  // example: testRect2
 #else
             if (!(edge->winding == edgeBack->winding)) {  // example: testRect2
 #endif
                 // search intersection list for entry pointing to opp edge at edge end
-                debug();
                 OP_DEBUG_CODE(auto& oI = oppEdge->segment->sects.i);
                 OP_ASSERT(oI.end() != std::find_if(oI.begin(), oI.end(), 
                         [&edge](auto sect) { return sect->ptT.pt.isNearly(edge->end.pt); }));
@@ -431,7 +430,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
             coinPair.id > 0 ? ++oppBack : --oppBack;
             // more code to write; add point if needed to edge list to match
 #if OP_TEST_NEW_INTERFACE
-            if (!oppEdge->winding.compare(oppBack->winding.w)) {
+            if (!oppEdge->winding.equal(oppBack->winding.w)) {
 #else
             if (!(oppEdge->winding == oppBack->winding)) {
 #endif
@@ -484,7 +483,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
                 if (oppInEdge) {
                     oppEdge += oppBump;
 #if OP_TEST_NEW_INTERFACE
-                    OP_ASSERT(!oppEdge->winding.compare(oppWinding));
+                    OP_ASSERT(oppEdge->winding.equal(oppWinding));
 #else
                     OP_ASSERT(oppWinding == oppEdge->winding);
 #endif
@@ -492,7 +491,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
                 } else {
                     ++edge;
 #if OP_TEST_NEW_INTERFACE
-                    OP_ASSERT(!edge->winding.compare(edgeWinding));
+                    OP_ASSERT(edge->winding.equal(edgeWinding));
                     if (edge->winding.contour->callBacks.windingVisibleFuncPtr(combinedWinding)) {
                         edge->winding.w = combinedWinding;
                         if (edge->disabled)

@@ -10,12 +10,12 @@ char* CallerDataStorage::Allocate(size_t size, CallerDataStorage** callerStorage
     if (!*callerStoragePtr)
         *callerStoragePtr = new CallerDataStorage;
     CallerDataStorage* callerStorage = *callerStoragePtr;
-    if (callerStorage->used + size > sizeof(callerStorage->callerData)) {
+    if (callerStorage->used + size > sizeof(callerStorage->storage)) {
         CallerDataStorage* next = new CallerDataStorage;
         next->next = callerStorage;
         callerStorage = next;
     }
-    char* result = &callerStorage->callerData[callerStorage->used];
+    char* result = &callerStorage->storage[callerStorage->used];
     size_t alignSize = alignof(void*);  // !!! allow caller to specify this?
     size_t alignPart = size % alignSize;
     if (alignPart)
@@ -25,8 +25,7 @@ char* CallerDataStorage::Allocate(size_t size, CallerDataStorage** callerStorage
 }
 
 void OpContour::addCallerData(PathOpsV0Lib::AddContour data) {
-    caller.data = (PathOpsV0Lib::ContourData*) CallerDataStorage::Allocate(
-            data.size, &contours->callerStorage);
+    caller.data = CallerDataStorage::Allocate(data.size, &contours->callerStorage);
     std::memcpy(caller.data, data.data, data.size);
     caller.size = data.size;  // !!! don't know if size is really needed ...
 }
@@ -39,7 +38,6 @@ void OpContours::addCallerData(PathOpsV0Lib::AddContext data) {
 
 #if !OP_TEST_NEW_INTERFACE
 bool OpContour::addClose() {
-    OP_ASSERT(!contours->newInterface);
     if (!segments.size())
         return false;
     OpPoint curveStart = segments.front().c.pts[0];
@@ -292,8 +290,8 @@ OpContours::OpContours()
     , left(OpFillType::unset)
     , right(OpFillType::unset)
 #endif
-    , uniqueID(0)
-    , newInterface(false) {
+    , uniqueID(0) 
+    , caller({nullptr, 0}) {
 #if OP_DEBUG_VALIDATE
     debugValidateEdgeIndex = 0;
     debugValidateJoinerIndex = 0;
@@ -399,19 +397,16 @@ OpContour* OpContours::allocateContour() {
     return &contourStorage->storage[contourStorage->used++];
 }
 
-void* OpContours::allocateEdge(OpEdgeStorage*& edgeStorage) {
+OpEdge* OpContours::allocateEdge(OpEdgeStorage*& edgeStorage) {
     if (!edgeStorage)
         edgeStorage = new OpEdgeStorage;
-    if (edgeStorage->used == sizeof(edgeStorage->storage)) {
-        OpEdgeStorage* next = edgeStorage->next;
-        if (!next)
-            next = new OpEdgeStorage;
+    if (edgeStorage->used == ARRAY_COUNT(edgeStorage->storage)) {
+        OpEdgeStorage* next = new OpEdgeStorage;
+        OP_ASSERT(!next->next);
         next->next = edgeStorage;
         edgeStorage = next;
     }
-    void* result = &edgeStorage->storage[edgeStorage->used];
-    edgeStorage->used += sizeof(OpEdge);
-    return result;
+    return &edgeStorage->storage[edgeStorage->used++];
 }
 
 PathOpsV0Lib::CurveData* OpContours::allocateCurveData(size_t size) {
@@ -430,6 +425,7 @@ OpIntersection* OpContours::allocateIntersection() {
         sectStorage = new OpSectStorage;
     if (sectStorage->used == ARRAY_COUNT(sectStorage->storage)) {
         OpSectStorage* next = new OpSectStorage;
+        OP_ASSERT(!next->next);
         next->next = sectStorage;
         sectStorage = next;
     }
@@ -532,24 +528,22 @@ bool OpContours::pathOps(OpOutPath& result)
 #endif
 {
 #if !OP_TEST_NEW_INTERFACE
-    if (!newInterface) {
-        if (!build(*leftIn, OpOperand::left))  // builds monotonic segments, and adds 0/1 sects
-            OP_DEBUG_FAIL(*this, false);
-        if (!build(*rightIn, OpOperand::right))
-            OP_DEBUG_FAIL(*this, false);
-//        finishAll();  // !!! no longer needed
-//        setBounds();    // !!! check to see if this is used
-        OpSegments sortedSegments(*this);
-        if (!sortedSegments.inX.size()) {
-            result.setEmpty();
-            OP_DEBUG_SUCCESS(*this, true);
-        }
-        sortedSegments.findCoincidences();  // check for exact curves and full lines
-        if (FoundIntersections::fail == sortedSegments.findIntersections())
-            return false;  // triggered by fuzzhang_1
-        if (contours.empty())
-            OP_DEBUG_SUCCESS(*this, true);
-    } else 
+    if (!build(*leftIn, OpOperand::left))  // builds monotonic segments, and adds 0/1 sects
+        OP_DEBUG_FAIL(*this, false);
+    if (!build(*rightIn, OpOperand::right))
+        OP_DEBUG_FAIL(*this, false);
+//  finishAll();  // !!! no longer needed
+//  setBounds();    // !!! check to see if this is used
+    OpSegments sortedSegments(*this);
+    if (!sortedSegments.inX.size()) {
+        result.setEmpty();
+        OP_DEBUG_SUCCESS(*this, true);
+    }
+    sortedSegments.findCoincidences();  // check for exact curves and full lines
+    if (FoundIntersections::fail == sortedSegments.findIntersections())
+        return false;  // triggered by fuzzhang_1
+    if (contours.empty())
+        OP_DEBUG_SUCCESS(*this, true);
 #endif
     {
         OpSegments::FindCoincidences(this);
@@ -583,10 +577,8 @@ bool OpContours::pathOps(OpOutPath& result)
 #else
     if (!assemble(result))
         OP_DEBUG_FAIL(*this, false);
-    if (!newInterface) {
-        bool inverseFill = OutInverse[+opOperator][leftIn->isInverted()][rightIn->isInverted()];
-        result.setInverted(inverseFill);
-    }
+    bool inverseFill = OutInverse[+opOperator][leftIn->isInverted()][rightIn->isInverted()];
+    result.setInverted(inverseFill);
 #endif
     // !!! missing final step to reverse order of contours as winding rule requires
     // this should be driven by user choices since the engine itself can't know the winding rule
@@ -632,6 +624,8 @@ void OpContours::sortIntersections() {
 
 #if OP_DEBUG
 void OpContour::debugComplete() {
+    caller.data = nullptr;   // should always get initialized by OpContours::addCallerData
+    caller.size = 0;
     id = nextID();
 }
 

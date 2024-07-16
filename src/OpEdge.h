@@ -279,6 +279,7 @@ enum class EdgeMaker {
 constexpr float OP_CURVACIOUS_LIMIT = 1.f / 16;  // !!! tune to guess line/line split ratio
 
 struct OpEdge {
+		friend struct OpEdgeStorage;
 #if !OP_DEBUG_DUMP
 private:
 #endif
@@ -361,12 +362,6 @@ public:
 	OpEdge(const OpEdge* e, float t1, float t2  OP_LINE_FILE_DEF(EdgeMaker ));
 
 #if OP_DEBUG_IMAGE
-#if 0
-	OpEdge(const OpEdge&) = default;
-	OpEdge(OpEdge&&) = default;
-	OpEdge& operator=(const OpEdge&) = default;
-	OpEdge& operator=(OpEdge&&) = default;
-#endif
 	struct DebugOpCurve debugSetCurve() const;
 #endif
 	CalcFail addIfUR(Axis xis, float t, OpWinding* );
@@ -577,21 +572,20 @@ struct OpEdgeStorage {
 	OpEdgeStorage()
 		: next(nullptr)
 		, used(0) {
-        OP_DEBUG_CODE(storage[0] = 0);
 	}
 	bool contains(OpIntersection* start, OpIntersection* end) const;
 #if OP_DEBUG_DUMP
 	size_t debugCount() const;
-	std::string debugDump(std::string label, DebugLevel l, DebugBase b) const;
-	OpEdge* debugFind(int id) const;
-	OpEdge* debugIndex(int index) const;
+	std::string debugDump(std::string label, DebugLevel l, DebugBase b);
+	OpEdge* debugFind(int id);
+	OpEdge* debugIndex(size_t index);
 	static void DumpSet(const char*& str, OpContours* , DumpStorage );
 	DUMP_DECLARATIONS
 #endif
 
 	OpEdgeStorage* next;
-	uint8_t storage[sizeof(OpEdge) * 256];	// !!! change this to array of edges
-	int used;
+	OpEdge storage[256];
+	size_t used;
 };
 
 // new interface

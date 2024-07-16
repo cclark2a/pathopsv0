@@ -11,24 +11,10 @@ enum class BinaryOperand : int;
 enum class BinaryWindType : int;
 }
 
-struct SkiaSimplifyContourData {
-	PathOpsV0Lib::Operation unusedOperation;
-	PathOpsV0Lib::Operand unusedOperand;
-    OP_DEBUG_CODE(const SkPath* pathPtr);
-	OP_DEBUG_IMAGE_CODE(bool drawNativePath);
-};
-
-struct SkiaOpContourData {
-    SkPathOp op;
-    PathOpsV0Lib::BinaryOperand operand;
-    OP_DEBUG_CODE(const SkPath* pathPtr);
-	OP_DEBUG_IMAGE_CODE(bool drawNativePath);
-};
-
 SkPathOp MapInvertedSkPathOp(SkPathOp op, bool leftOperandIsInverted, bool rightOperandIsInverted);
 bool SkPathOpInvertOutput(SkPathOp op, bool leftOperandIsInverted, bool rightOperandIsInverted);
 
-void SetSkiaContextCallBacks(PathOpsV0Lib::Context* context);
+void SetSkiaContextCallBacks(PathOpsV0Lib::Context* );
 void SetSkiaCurveCallBacks(PathOpsV0Lib::Context* );
 PathOpsV0Lib::Contour* SetSkiaSimplifyCallBacks(PathOpsV0Lib::Context* , bool isWindingFill 
 		OP_DEBUG_PARAMS(const SkPath& ));

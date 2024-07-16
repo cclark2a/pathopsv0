@@ -29,20 +29,18 @@ struct CallerDataStorage {
 	CallerDataStorage()
 		: next(nullptr)
 		, used(0) {
+        OP_DEBUG_CODE(memset(storage, 0, sizeof(storage)));
 	}
 
 	static char* Allocate(size_t size, CallerDataStorage** );
 #if OP_DEBUG_DUMP
-	size_t debugCount() const;
-	std::string debugDump(std::string label, DebugLevel l, DebugBase b) const;
-	char* debugIndex(int index) const;
-	static void DumpSet(const char*& str, OpContours* , DumpStorage );
+	static void DumpSet(const char*& str, CallerDataStorage** previousPtr);
 	DUMP_DECLARATIONS
 #endif
 
 	CallerDataStorage* next;
-	int used;
-	char callerData[2048];	// !!! size is arbitrary guess -- should measure and do better
+	size_t used;
+	char storage[2048];	// !!! size is arbitrary guess -- should measure and do better
 };
 
 struct OpContour {
@@ -124,7 +122,7 @@ struct OpContour {
 
 //    OpPointBounds ptBounds;
 #if OP_TEST_NEW_INTERFACE
-    PathOpsV0Lib::CallerData caller;
+    PathOpsV0Lib::CallerData caller;  // note: must use std::memcpy before reading
 #else
     OpOperand operand; // first or second argument to a binary operator
 #endif
@@ -245,7 +243,7 @@ struct OpContours {
 #endif
     OpContour* allocateContour();
     PathOpsV0Lib::CurveData* allocateCurveData(size_t );
-    void* allocateEdge(OpEdgeStorage*& );
+    OpEdge* allocateEdge(OpEdgeStorage*& );
     OpIntersection* allocateIntersection();
     OpLimb* allocateLimb(OpTree* );
     PathOpsV0Lib::WindingData* allocateWinding(size_t );
@@ -402,13 +400,12 @@ struct OpContours {
     OpOperator opOperator;
 #endif
     int uniqueID;  // used for object id, unsectable id, coincidence id
-    bool newInterface;
 
 // new interface ..
     std::vector<PathOpsV0Lib::CurveCallBacks> callBacks;
     PathOpsV0Lib::ContextCallBacks contextCallBacks;
     PathOpsV0Lib::PathOutput callerOutput;
-    PathOpsV0Lib::AddContext caller;
+    PathOpsV0Lib::AddContext caller;   // note: must use std::memcpy before reading
 #if OP_DEBUG_VALIDATE
     int debugValidateEdgeIndex;
     int debugValidateJoinerIndex;

@@ -286,3 +286,38 @@ float OpMath::PinSorted(float min, float value, float max) {
     OP_ASSERT(min <= max);
     return std::max(min, std::min(value, max));
 }
+
+bool LinePts::isPoint() const {
+    return pts[1] == pts[0];
+}
+
+OpRoots LinePts::axisTanHit(Axis axis, float axisIntercept) const {
+    const float* ptr = pts[0].asPtr(axis);
+    if (fabsf(ptr[2] - ptr[0]) <= OpEpsilon)   // coincident line values are computed later
+        return OpRoots(OpNaN, OpNaN);
+    return OpRoots((axisIntercept - ptr[0]) / (ptr[2] - ptr[0]));
+}
+
+OpPoint LinePts::ptAtT(float t) const {
+    if (0 == t)
+        return pts[0];
+    if (1 == t)
+        return pts[1];
+    return (1 - t) * pts[0] + t * pts[1];
+}
+
+OpRoots LinePts::tangentIntersect(const LinePts& line) const {
+    if (line.pts[0].x == line.pts[1].x)
+        return axisTanHit(Axis::vertical, line.pts[0].x);
+    if (line.pts[0].y == line.pts[1].y)
+        return axisTanHit(Axis::horizontal, line.pts[0].y);
+    float adj = line.pts[1].x - line.pts[0].x;
+    float opp = line.pts[1].y - line.pts[0].y;
+    LinePts rotated;
+    for (int n = 0; n < 2; ++n) {
+        OpVector v = pts[n] - line.pts[0];
+        rotated.pts[n].x = v.dy * adj - v.dx * opp;
+        rotated.pts[n].y = v.dy * opp + v.dx * adj;
+    }
+    return rotated.axisTanHit(Axis::vertical, 0);
+}

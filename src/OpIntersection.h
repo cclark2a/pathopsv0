@@ -180,14 +180,14 @@ struct OpSectStorage {
 #if OP_DEBUG_DUMP
 	size_t debugCount() const;
 	OpIntersection* debugFind(int id) const;
-	OpIntersection* debugIndex(int index) const;
+	OpIntersection* debugIndex(size_t index) const;
 	static void DumpSet(const char*& , OpContours* );
 	DUMP_DECLARATIONS
 #endif
 
 	OpSectStorage* next;
 	OpIntersection storage[256];
-	int used;
+	size_t used;
 };
 
 #endif

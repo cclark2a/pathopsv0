@@ -236,7 +236,7 @@ extern void dmpDepth();  // curve-curve intermediate edges at all depths
 
 extern std::vector<const OpIntersection*> findCoincidence(int id);
 extern const OpContour* findContour(int id);
-extern const OpEdge* findEdge(int id);
+extern OpEdge* findEdge(int id);
 extern std::vector<const OpEdge*> findEdgeOutput(int id);
 extern std::vector<const OpEdge*> findEdgeRayMatch(int id);
 extern const OpIntersection* findIntersection(int id);

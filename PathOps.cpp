@@ -20,7 +20,6 @@ bool PathOps(OpInPath& left, OpInPath& right, OpOperator opOperator, OpOutPath& 
     OP_DEBUG_DUMP_CODE(contourList.dumpCurve1 = debugData.debugCurveCurve1);
     OP_DEBUG_DUMP_CODE(contourList.dumpCurve2 = debugData.debugCurveCurve2);
     OP_DEBUG_DUMP_CODE(contourList.debugBreakDepth = debugData.debugCurveCurveDepth);
-    contourList.newInterface = false;
 #endif
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = &contourList;
@@ -44,7 +43,6 @@ namespace PathOpsV0Lib {
 Context* CreateContext(AddContext callerData) {
     OpContours* contours = new OpContours();
     contours->addCallerData(callerData);
-    contours->newInterface = true;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = contours;
 #endif
@@ -105,36 +103,29 @@ void Resolve(Context* context, PathOutput output) {
     /* bool success = */ contours->pathOps();
 }
 
-void SetContextCallBacks(Context* context, EmptyNativePath emptyNativePath
-		OP_DEBUG_IMAGE_PARAMS(DebugNativeOutColor debugNativeOutColor)
-) {
+void SetContextCallBacks(Context* context, EmptyNativePath emptyNativePath) {
     OpContours* contours = (OpContours*) context;
     contours->contextCallBacks = {
         emptyNativePath
-		OP_DEBUG_IMAGE_PARAMS(debugNativeOutColor)
     };
 }
 
 OpType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, ControlNearlyEnd nearlyFunc,
-        CurveHull hullFunc,
-        CurveIsFinite isFiniteFunc, CurveIsLine isLineFunc, CurveIsLinear isLinearFunc, 
-        SetBounds setBoundsFunc,
-        CurveNormal normalFunc, CurveOutput outputFunc, CurvePinCtrl curvePinFunc, CurveReverse reverseFunc, 
-        CurveTangent tangentFunc,
-        CurvesEqual equalFunc, PtAtT ptAtTFunc, DoublePtAtT doublePtAtTFunc, 
-        PtCount ptCountFunc, Rotate rotateFunc, SubDivide subDivideFunc, XYAtT xyAtTFunc
-        OP_DEBUG_DUMP_PARAMS(DebugDumpCurveSize debugDumpSizeFunc,
-                DebugDumpCurveExtra debugDumpExtraFunc, DebugDumpCurveSet dumpSetFunc,
-                DebugDumpCurveSetExtra dumpSetExtraFunc)
+        CurveHull hullFunc, CurveIsFinite isFiniteFunc, CurveIsLine isLineFunc, 
+        CurveIsLinear isLinearFunc, SetBounds setBoundsFunc, CurveNormal normalFunc, 
+        CurveOutput outputFunc, CurvePinCtrl curvePinFunc, CurveReverse reverseFunc, 
+        CurveTangent tangentFunc, CurvesEqual equalFunc, PtAtT ptAtTFunc, 
+        DoublePtAtT doublePtAtTFunc, PtCount ptCountFunc, Rotate rotateFunc, 
+        SubDivide subDivideFunc, XYAtT xyAtTFunc
+        OP_DEBUG_DUMP_PARAMS(DebugDumpCurveExtra debugDumpExtraFunc)
 		OP_DEBUG_IMAGE_PARAMS(DebugAddToPath debugAddToPathFunc)
 ) {
     OpContours* contours = (OpContours*) context;
     contours->callBacks.push_back( { axisFunc, nearlyFunc, hullFunc, isFiniteFunc, isLineFunc, 
-            isLinearFunc,
-            setBoundsFunc, normalFunc, outputFunc, curvePinFunc, reverseFunc, tangentFunc,
-            equalFunc, ptAtTFunc, doublePtAtTFunc, ptCountFunc, rotateFunc, subDivideFunc, xyAtTFunc 
-		    OP_DEBUG_DUMP_PARAMS(debugDumpSizeFunc, debugDumpExtraFunc, dumpSetFunc, 
-                    dumpSetExtraFunc)
+            isLinearFunc, setBoundsFunc, normalFunc, outputFunc, curvePinFunc, reverseFunc, 
+            tangentFunc, equalFunc, ptAtTFunc, doublePtAtTFunc, ptCountFunc, rotateFunc, 
+            subDivideFunc, xyAtTFunc 
+		    OP_DEBUG_DUMP_PARAMS(debugDumpExtraFunc)
 		    OP_DEBUG_IMAGE_PARAMS(debugAddToPathFunc)
             } );
     return (OpType) contours->callBacks.size();
@@ -145,21 +136,15 @@ void SetWindingCallBacks(Contour* ctour, WindingAdd addFunc, WindingKeep keepFun
 		OP_DEBUG_DUMP_PARAMS(DebugDumpContourIn dumpInFunc, DebugDumpContourOut dumpOutFunc, 
                 DebugDumpContourExtra dumpFunc)
         OP_DEBUG_IMAGE_PARAMS(DebugImageOut dumpImageOutFunc, 
-                DebugCCOverlapsColor debugCCOverlapsColorFunc,
-                DebugCurveCurveColor debugCurveCurveColorFunc,
-                DebugNativeFillColor debugNativeFillColorFunc, 
-                DebugNativeInColor debugNativeInColorFunc,
                 DebugNativePath debugNativePathFunc, 
-                DebugContourDraw debugDrawFunc,
+                DebugGetDraw debugGetDrawFunc, DebugSetDraw debugSetDrawFunc,
                 DebugIsOpp debugIsOppFunc)
 ) {
     OpContour* contour = (OpContour*) ctour;
     contour->callBacks = { addFunc, keepFunc, subtractFunc, visibleFunc, zeroFunc 
             OP_DEBUG_DUMP_PARAMS(dumpInFunc, dumpOutFunc, dumpFunc)
-            OP_DEBUG_IMAGE_PARAMS(dumpImageOutFunc, debugCCOverlapsColorFunc,
-                    debugCurveCurveColorFunc, 
-                    debugNativeFillColorFunc, debugNativeInColorFunc,
-                    debugNativePathFunc, debugDrawFunc, debugIsOppFunc)
+            OP_DEBUG_IMAGE_PARAMS(dumpImageOutFunc,
+                    debugNativePathFunc, debugGetDrawFunc, debugSetDrawFunc, debugIsOppFunc)
             };
 }
 

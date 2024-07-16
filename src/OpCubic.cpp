@@ -3,6 +3,7 @@
 #include "OpDebugRecord.h"
 #include <cmath>
 
+#if !OP_TEST_NEW_INTERFACE
 OpRoots OpCubic::axisRawHit(Axis axis, float axisIntercept, MatchEnds common) const {
     OpCubicCoefficients coeff = coefficients(axis);
     coeff.d -= axisIntercept;
@@ -101,9 +102,7 @@ void OpCubic::pinCtrls() {
     pts[2].pin(pts[0], pts[3]);
 }
 
-#if 01
 OpRoots OpCubic::rawIntersect(const LinePts& line, MatchEnds common) const {
-    OP_ASSERT(!newInterface);
     if (line.pts[0].x == line.pts[1].x)
         return axisRawHit(Axis::vertical, line.pts[0].x, common);
     if (line.pts[0].y == line.pts[1].y)
@@ -131,7 +130,6 @@ OpRoots OpCubic::rawIntersect(const LinePts& line, MatchEnds common) const {
 #endif
     return result;
 }
-#endif
 
 OpCurve OpCubic::subDivide(OpPtT ptT1, OpPtT ptT2) const {
 #if OP_TEST_NEW_INTERFACE
@@ -228,3 +226,4 @@ OpPair OpCubic::xyAtT(OpPair t, XyChoice xy) const {
     OpPair d = t2 * t;
     return a * pts[0].choice(xy) + b * pts[1].choice(xy) + c * pts[2].choice(xy) + d * pts[3].choice(xy);
 }
+#endif

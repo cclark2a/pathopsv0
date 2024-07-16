@@ -44,9 +44,9 @@ OpRoots OpConic::extrema(XyChoice offset) const {
     return roots;
 };
 
-#if 01  // !!! need to test fail case to see if it still fails!
+ // !!! need to test fail case to see if it still fails!
+#if !OP_TEST_NEW_INTERFACE
 OpRoots OpConic::rawIntersect(const LinePts& line) const {
-    OP_ASSERT(!newInterface);
     if (line.pts[0].x == line.pts[1].x)
         return axisRawHit(Axis::vertical, line.pts[0].x);
     if (line.pts[0].y == line.pts[1].y)
@@ -66,7 +66,6 @@ OpRoots OpConic::rawIntersect(const LinePts& line) const {
     }
     return result;
 }
-#endif
 
 bool OpConic::monotonic(XyChoice offset) const {
     return this->asConicQuad().monotonic(offset);
@@ -171,3 +170,4 @@ float OpConic::tAtXY(float t1, float t2, XyChoice xy, float goal) const {
 OpPair OpConic::xyAtT(OpPair t, XyChoice xy) const {
     return { ptAtT(t.s).choice(xy), ptAtT(t.l).choice(xy) };
 }
+#endif

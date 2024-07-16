@@ -725,58 +725,55 @@ OpPoint DebugOpMap(DebugOpPoint dPt) {
 }
 
 void DebugOpCurve::mapTo(OpCurve& c) const {
-    if (debugGlobalContours && debugGlobalContours->newInterface) {
-        c.c.data = debugGlobalContours->allocateCurveData(size);
-        c.c.size = size;
-        c.c.data->start = DebugOpMap(pts[0]);
-        int endIndex;
-        switch (type) {
-            case OpType::line:
-                endIndex = 1;
-                break;
-            case OpType::quad: {
-                OpPoint ctrl = DebugOpMap(pts[1]);
-                OP_ASSERT(size == offsetof(PathOpsV0Lib::CurveData, optionalAdditionalData) 
-                        + sizeof ctrl);
-                std::memcpy(c.c.data->optionalAdditionalData, &ctrl, sizeof ctrl);
-                endIndex = 2;
-                } break;
-            case OpType::conic: {
-                OpPoint ctrl = DebugOpMap(pts[1]);
-                float floatWeight = (float) weight;
-                char* dst = c.c.data->optionalAdditionalData;
-                OP_ASSERT(size == offsetof(PathOpsV0Lib::CurveData, optionalAdditionalData) 
-                        + sizeof ctrl + sizeof floatWeight);
-                std::memcpy(dst, &ctrl, sizeof ctrl);
-                dst += sizeof ctrl;
-                std::memcpy(dst, &floatWeight, sizeof floatWeight);
-                endIndex = 2;
-                } break;
-            case OpType::cubic: {
-                OpPoint ctrls[2] { DebugOpMap(pts[1]), DebugOpMap(pts[2]) };
-                OP_ASSERT(size == offsetof(PathOpsV0Lib::CurveData, optionalAdditionalData) 
-                        + sizeof ctrls);
-                std::memcpy(c.c.data->optionalAdditionalData, ctrls, sizeof ctrls);
-                endIndex = 3;
-                } break;
-            default:
-                OP_ASSERT(0);  // unimplemented
-                return;
-        }
-        c.c.data->end = DebugOpMap(pts[endIndex]);
-        c.c.type = type;
-        c.contours = debugGlobalContours;
-        c.newInterface = true;
-        return;
-    }
 #if OP_TEST_NEW_INTERFACE
-    OP_ASSERT(0);
-#endif
+    c.c.data = debugGlobalContours->allocateCurveData(size);
+    c.c.size = size;
+    c.c.data->start = DebugOpMap(pts[0]);
+    int endIndex;
+    switch (type) {
+        case OpType::line:
+            endIndex = 1;
+            break;
+        case OpType::quad: {
+            OpPoint ctrl = DebugOpMap(pts[1]);
+            OP_ASSERT(size == offsetof(PathOpsV0Lib::CurveData, optionalAdditionalData) 
+                    + sizeof ctrl);
+            std::memcpy(c.c.data->optionalAdditionalData, &ctrl, sizeof ctrl);
+            endIndex = 2;
+            } break;
+        case OpType::conic: {
+            OpPoint ctrl = DebugOpMap(pts[1]);
+            float floatWeight = (float) weight;
+            char* dst = c.c.data->optionalAdditionalData;
+            OP_ASSERT(size == offsetof(PathOpsV0Lib::CurveData, optionalAdditionalData) 
+                    + sizeof ctrl + sizeof floatWeight);
+            std::memcpy(dst, &ctrl, sizeof ctrl);
+            dst += sizeof ctrl;
+            std::memcpy(dst, &floatWeight, sizeof floatWeight);
+            endIndex = 2;
+            } break;
+        case OpType::cubic: {
+            OpPoint ctrls[2] { DebugOpMap(pts[1]), DebugOpMap(pts[2]) };
+            OP_ASSERT(size == offsetof(PathOpsV0Lib::CurveData, optionalAdditionalData) 
+                    + sizeof ctrls);
+            std::memcpy(c.c.data->optionalAdditionalData, ctrls, sizeof ctrls);
+            endIndex = 3;
+            } break;
+        default:
+            OP_ASSERT(0);  // unimplemented
+            return;
+    }
+    c.c.data->end = DebugOpMap(pts[endIndex]);
+    c.c.type = type;
+    c.contours = debugGlobalContours;
+    return;
+#else
     for (int i = 0; i < 4; ++i) {
         c.pts[i] = DebugOpMap(pts[i]);
     }
     c.weightImpl = (float) weight;
     c.c.type = type;
+#endif
 }
 
 enum class UnsectType {
@@ -1246,16 +1243,6 @@ void DebugOpBuild(OpPoint pt) {
     DebugOpBuild(dPt);
 }
 
-#if OP_TEST_NEW_INTERFACE
-void DebugOpBuild(OpPoint pt, float t, uint32_t color) {
-    DebugColorPt dPt { pt.x, pt.y, t, color };
-    DebugOpBuild(dPt);
-}
-
-void DebugOpBuild(OpPoint pt, uint32_t color) {
-    DebugOpBuild(pt, OpNaN, color);
-}
-#else
 void DebugOpBuild(OpPoint pt, float t, bool opp) {
     DebugColorPt dPt { pt.x, pt.y, t, opp ? blue : darkGreen };
     DebugOpBuild(dPt);
@@ -1264,7 +1251,6 @@ void DebugOpBuild(OpPoint pt, float t, bool opp) {
 void DebugOpBuild(OpPoint pt, bool opp) {
     DebugOpBuild(pt, OpNaN, opp);
 }
-#endif
 
 void DebugOpBuild(OpPoint pt, float t, DebugSprite sprite) {
     DebugColorPt dPt { pt.x, pt.y, t, darkBlue, sprite };
