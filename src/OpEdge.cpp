@@ -908,7 +908,8 @@ void OpEdge::setPriorEdge(OpEdge* edge) {
 }
 
 const OpCurve& OpEdge::setVertical(const LinePts& pts) {
-	if (upright_impl.pts[0] != pts.pts[0] || upright_impl.pts[1] != pts.pts[1]) {
+	if (!upright_impl.pts[0].isFinite() ||  // !!! needed by CMake build; don't know why ...
+		upright_impl.pts[0] != pts.pts[0] || upright_impl.pts[1] != pts.pts[1]) {
 		upright_impl = pts;
 		vertical_impl = curve.toVertical(pts);
 	}

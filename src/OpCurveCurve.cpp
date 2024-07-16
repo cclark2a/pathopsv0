@@ -100,7 +100,7 @@ void CcCurves::addEdgeRun(const OpEdge* edge, const OpSegment* oppSeg, EdgeMatch
 	OP_DEBUG_CODE(debugRuns.push_back(run));
 	if (OpMath::IsNaN(run.oppDist))
 		return;
-	EdgeRun* runStart = &runs.front();
+	EdgeRun* runStart = runs.size() ? &runs.front() : nullptr;
 	// !!! could binary search
 	size_t index = 1;
 	for (; index < runs.size(); ++index) {

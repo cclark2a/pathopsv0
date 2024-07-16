@@ -56,6 +56,23 @@ add_executable (pov0 "pov0.cpp" "pov0.h"
     "../../PathOps.cpp"
 )
 
+add_executable (tinytest "tinytest.cpp"
+	"../../debug/OpDebug.cpp"
+	"../../src/OpContour.cpp"
+	"../../src/OpCurve.cpp"
+	"../../src/OpCurveCurve.cpp"
+	"../../src/OpEdge.cpp"
+	"../../src/OpIntersection.cpp"
+	"../../src/OpJoiner.cpp"
+	"../../src/OpMath.cpp"
+	"../../src/OpSegment.cpp"
+	"../../src/OpSegments.cpp"
+    "../../src/OpWinder.cpp"
+    "../../src/OpWinding.cpp"
+	"../../tests/TestNewInterface.cpp"
+    "../../PathOps.cpp"
+)
+
 include_directories(
 	"../../debug"
 	"../../src"
@@ -64,12 +81,15 @@ include_directories(
 	"../../.."
 )
 
-add_compile_definitions(OP_TINY_SKIA=1 NOMINMAX _CRT_SECURE_NO_WARNINGS)
+target_compile_definitions(pov0 PUBLIC OP_TINY_SKIA=1 NOMINMAX _CRT_SECURE_NO_WARNINGS)
+target_compile_definitions(tinytest PUBLIC OP_TINY_SKIA=1 NOMINMAX _CRT_SECURE_NO_WARNINGS OP_TINY_TEST=1)
 
 target_compile_options(pov0 PUBLIC /wd4200 /wd4244 /wd4267 /fp:fast)
+target_compile_options(tinytest PUBLIC /wd4200 /wd4244 /wd4267 /fp:fast)
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET pov0 PROPERTY CXX_STANDARD 17)
+  set_property(TARGET tinytest PROPERTY CXX_STANDARD 17)
 endif()
 
 # TODO: Add tests and install targets if needed.

@@ -1,9 +1,4 @@
-﻿// pov0.cpp : Defines the entry point for the application.
-//
-
-#include "pov0.h"
-
-using namespace std;
+﻿// (c) 2023, Cary Clark cclark2@gmail.com
 
 extern void runTests();
 

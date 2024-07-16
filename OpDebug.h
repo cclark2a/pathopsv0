@@ -6,7 +6,12 @@
 #include <assert.h>
 #endif
 
+#if OP_TINY_TEST
+#define OP_DEBUG_FAST_TEST 1
+#else
 #include "OpTestDrive.h"  // set test specific settings here
+#endif
+#define OP_TEST_NEW_INTERFACE 1  // use context-free engine design; test hard-coded for now
 
 #if !defined(NDEBUG) || OP_RELEASE_TEST
 #include <string>
