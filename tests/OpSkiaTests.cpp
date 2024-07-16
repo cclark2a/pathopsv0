@@ -569,7 +569,7 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
         using namespace PathOpsV0Lib;
         Context* context = CreateContext({ nullptr, 0 });
         SetSkiaContextCallBacks(context);
-        Debug(context, debugData);
+        OP_DEBUG_CODE(Debug(context, debugData));
         SetSkiaCurveCallBacks(context);
         SkPathOp mappedOp = MapInvertedSkPathOp(op, a.isInverseFillType(), b.isInverseFillType());
         auto isWindingFill = [](const SkPath& path) {
@@ -773,7 +773,7 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
         using namespace PathOpsV0Lib;
         Context* context = CreateContext({ nullptr, 0 });
         SetSkiaContextCallBacks(context);
-        Debug(context, debugData);
+        OP_DEBUG_CODE(Debug(context, debugData));
         SetSkiaCurveCallBacks(context);
         auto isWindingFill = [](const SkPath& path) {
             return SkPathFillType::kWinding == path.getFillType()

@@ -180,6 +180,7 @@ struct OpCurveCurve {
 	void dumpDepth(int level);
 	void dumpDepth();
 #endif
+	static constexpr int maxSplits = 8;   // !!! no idea what this should be 
 
 	OpContours* contours;
 	OpSegment* seg;

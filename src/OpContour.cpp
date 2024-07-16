@@ -458,7 +458,7 @@ void OpContours::disableSmallSegments() {
             return (a.pt == seg->c.c.data->start || a.alias == seg->c.c.data->start)
                     && (a.pt == seg->c.c.data->end || a.alias == seg->c.c.data->end);
         })) {
-            seg->setDisabled(ZeroReason::isPoint);
+            seg->setDisabled(OP_DEBUG_CODE(ZeroReason::isPoint));
         }
     }
 }
@@ -632,6 +632,7 @@ void OpContour::debugComplete() {
 bool OpContours::debugSuccess() const {
     return OpDebugExpect::unknown == debugExpect || OpDebugExpect::success == debugExpect;
 }
+#endif
 
 SegmentIterator::SegmentIterator(OpContours* c)
     : contours(c)
@@ -664,6 +665,4 @@ OpContourIter::OpContourIter(OpContours* contours) {
     storage = contours->contourStorage;
 	contourIndex = 0;
 }
-
-#endif
 

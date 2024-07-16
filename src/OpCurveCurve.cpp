@@ -662,7 +662,6 @@ SectFound OpCurveCurve::divideAndConquer() {
 	//		snipEm = true;
 		if (!edgeOverlaps || !oppOverlaps)
 			return limits.size() ? SectFound::add : SectFound::no;
-		OP_DEBUG_CODE(static constexpr int maxSplits = 8);   // !!! no idea what this should be 
 		if (edgeOverlaps >= maxSplits || oppOverlaps >= maxSplits)
 			return SectFound::maxOverlaps;  // more code required
 		if (checkSect())

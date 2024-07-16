@@ -83,6 +83,7 @@ struct OpDebugData {
 #define OP_LINE_FILE_STRUCT(...)
 #define OP_LINE_FILE_CALLER(...)
 #define OP_LINE_FILE_NP_CALLER(...)
+#define OP_LINE_FILE_SCALLER(...)
 #define OP_LINE_FILE_DEF(...)
 #define OP_LINE_FILE_NP_DEF(...)
 #define OP_TRACK(vector)
