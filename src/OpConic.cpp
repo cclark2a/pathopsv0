@@ -1,6 +1,7 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpCurve.h"
 
+#if !OP_TEST_NEW_INTERFACE
 OpRoots OpConic::axisRawHit(Axis offset, float axisIntercept) const {
     OpQuadCoefficients coeff = coefficients(offset, axisIntercept);
     return OpMath::QuadRootsReal(coeff.a, coeff.b, coeff.c - axisIntercept);
@@ -45,7 +46,6 @@ OpRoots OpConic::extrema(XyChoice offset) const {
 };
 
  // !!! need to test fail case to see if it still fails!
-#if !OP_TEST_NEW_INTERFACE
 OpRoots OpConic::rawIntersect(const LinePts& line) const {
     if (line.pts[0].x == line.pts[1].x)
         return axisRawHit(Axis::vertical, line.pts[0].x);

@@ -490,6 +490,7 @@ struct DebugOpCubic : DebugOpCurve {
     }
 };
 
+#if !OP_TEST_NEW_INTERFACE
 void OpCubicPtAtT(const OpCubic& c, float f, OpPoint pt) {
     DebugOpCubic dCubic;
     for (int value = 0; value < 8; ++value)
@@ -505,6 +506,7 @@ DebugOpRoots OpCubicAxisRayHit(const OpCubic& c, Axis offset, float axisIntercep
         *(&dCubic.pts[0].x + value) = *(&c.pts[0].x + value);
     return dCubic.axisRayHit(offset, axisIntercept);
 }
+#endif
 
 #if OP_DEBUG_IMAGE
 const DebugOpQuad& DebugOpCurve::asQuad() const { return *static_cast<const DebugOpQuad*>(this); }

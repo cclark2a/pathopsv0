@@ -1,8 +1,9 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 // new interface idea
 
-#if !OP_TINY_SKIA
 #include "PathOpsTypes.h"
+
+#if !OP_TINY_SKIA
 #include "include/pathops/SkPathOps.h"
 #endif
 

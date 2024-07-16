@@ -2,7 +2,8 @@
 #ifndef TinySkia_DEFINED
 #define TinySkia_DEFINED
 
-#include "OpCurve.h"
+#include "OpMath.h"
+#include "OpTypes.h"
 
 inline float SkBits2Float(int32_t i) {
 	return OpDebugBitsToFloat(i); }
@@ -98,6 +99,15 @@ enum class SkPathDirection {
 	kCCW,
 };
 
+struct TinyCurve {
+	OpPoint lastPt() const;
+	size_t pointCount() const;
+
+	OpPoint pts[4];
+	float weight;
+	OpType type;
+};
+
 class SkPath {
 public:
 	enum Verb {
@@ -157,7 +167,8 @@ public:
 	void dumpHex() const;
 	void dumpCommon(bool) const;
 
-	std::vector<OpCurve> path;
+	std::vector<TinyCurve> path;
+	OpContours* contours;
 	mutable SkRect bounds;
 	OpPoint last;
 	size_t firstIndex;

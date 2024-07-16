@@ -2097,11 +2097,13 @@ void draw(const LinePts& ray) {
 	OpDebugImage::drawDoubleFocus();
 }
 
+#if !OP_TEST_NEW_INTERFACE
 void draw(const OpLine& line) {
 	OpDebugImage::add(line);
 	drawLinesOn = true;
 	OpDebugImage::drawDoubleFocus();
 }
+#endif
 
 void draw(const OpPoint& pt) {
 	OpPtT ptT = { pt, OpNaN };

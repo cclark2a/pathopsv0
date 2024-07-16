@@ -3,6 +3,10 @@
 #include "TinySkia.h"
 #include "OpTightBounds.h"
 
+#if OP_TEST_NEW_INTERFACE
+// #include "PathOps.h"
+#endif
+
 extern bool startFirstTest;
 extern bool endFirstTest;
 
@@ -12,6 +16,20 @@ bool testingInactive() {
 #else
 	return startFirstTest == endFirstTest;
 #endif
+}
+
+OpPoint TinyCurve::lastPt() const {
+	return pts[pointCount() - 1];
+}
+
+size_t TinyCurve::pointCount() const {
+	switch(type) {
+	case OpType::line: return 2;
+	case OpType::quad: return 3;
+	case OpType::conic: return 3;
+	case OpType::cubic: return 4;
+	default: OP_ASSERT(0); return 0;
+	}
 }
 
 int SkRandom::nextRangeU(int, int) { 
@@ -223,7 +241,7 @@ void SkPath::reset() {
 
 const SkRect& SkPath::getBounds() const {
 	OpPointBounds b;
-	for (const OpCurve& c : path)
+	for (const TinyCurve& c : path)
 		for (size_t index = 0; index < c.pointCount(); ++index)
 			b.add(c.pts[index]);
 	bounds = { b.left, b.top, b.right, b.bottom };
@@ -251,7 +269,7 @@ SkPath::Verb SkPath::RawIter::next(SkPoint* pts) {
 	}
 	if (index >= path.path.size())
 		return SkPath::kDone_Verb; 
-	const OpCurve& c = path.path[index];
+	const TinyCurve& c = path.path[index];
 	if (nextMove) {
 		nextMove = false;
 		first = c.pts[0];
@@ -264,13 +282,13 @@ SkPath::Verb SkPath::RawIter::next(SkPoint* pts) {
 		pts[i] = SkPoint::Make(c.pts[i].x, c.pts[i].y);
 	w = OpNaN;
 	++index;
-	switch (c.c.type) {
+	switch (c.type) {
 		case OpType::line:
 			return SkPath::kLine_Verb;
 		case OpType::quad:
 			return SkPath::kQuad_Verb;
 		case OpType::conic:
-		//	w = c.weight;	// !!! not converted to new interface
+			w = c.weight;
 			return SkPath::kConic_Verb;
 		case OpType::cubic:
 			return SkPath::kCubic_Verb;
@@ -291,39 +309,40 @@ void SkPath::moveTo(float x, float y) {
 void SkPath::lineTo(float x, float y) {
 	if (testingInactive())
 		return;
-	path.emplace_back(last, OpPoint(x, y));
+	TinyCurve curve { { last, OpPoint(x, y) }, 1, OpType::line };
+	path.push_back(std::move(curve));
 	last = OpPoint(x, y);
 }
 
 void SkPath::rLineTo(float rx, float ry) {
 	if (testingInactive())
 		return;
-	OpPoint next = last + OpPoint(rx, ry);
-	path.emplace_back(last, next);
-	last = next;
+	TinyCurve curve { { last, last + OpPoint(rx, ry) }, 1, OpType::line };
+	path.push_back(std::move(curve));
+	last = curve.pts[1];
 }
 
 void SkPath::quadTo(float x1, float y1, float x2, float y2) { 
 	if (testingInactive())
 		return;
-	OpPoint q[3] = { last, OpPoint(x1, y1), OpPoint(x2, y2) };
-	path.emplace_back(q, OpType::quad);
+	TinyCurve curve { { last, OpPoint(x1, y1), OpPoint(x2, y2) }, 1, OpType::quad };
+	path.push_back(std::move(curve));
 	last = OpPoint(x2, y2);
 }
 
 void SkPath::conicTo(float x1, float y1, float x2, float y2, float w) {
 	if (testingInactive())
 		return;
-	OpPoint q[3] = { last, OpPoint(x1, y1), OpPoint(x2, y2) };
-	path.emplace_back(q, w, OpType::conic);
+	TinyCurve curve { { last, OpPoint(x1, y1), OpPoint(x2, y2) }, w, OpType::conic };
+	path.push_back(std::move(curve));
 	last = OpPoint(x2, y2);
 }
 
 void SkPath::cubicTo(float x1, float y1, float x2, float y2, float x3, float y3) {
 	if (testingInactive())
 		return;
-	OpPoint c[4] = { last, OpPoint(x1, y1), OpPoint(x2, y2), OpPoint(x3, y3) };
-	path.emplace_back(c, OpType::cubic);
+	TinyCurve curve { { last, OpPoint(x1, y1), OpPoint(x2, y2), OpPoint(x3, y3) }, 1, OpType::cubic };
+	path.push_back(std::move(curve));
 	last = OpPoint(x3, y3);
 }
 
@@ -334,7 +353,7 @@ void SkPath::close() {
 		return;
 	OpPoint next = path[firstIndex].pts[0];
 	if (last != next) {
-		path.emplace_back(last, next);
+		lineTo(next.x, next.y);
 		last = next;
 	}
 }
@@ -381,9 +400,8 @@ void SkPath::addRect(float l, float t, float r, float b, SkPathDirection /* !!! 
 }
 
 const SkPath& SkPath::makeTransform(SkMatrix const & m) { 
-	for (OpCurve& c : path) {
-		for (size_t index = 0; index < c.pointCount(); ++index)
-			m.mapPoints(c.pts, c.pointCount());
+	for (TinyCurve& c : path) {
+		m.mapPoints(c.pts, c.pointCount());
 	}
 	return *this;
 }
@@ -398,7 +416,7 @@ void SkPath::transform(const SkMatrix& matrix, SkPath* dst) {
 
 void SkPath::offset(float dx, float dy) {
 	OpVector dxy(dx, dy);
-	for (OpCurve& c : path) {
+	for (TinyCurve& c : path) {
 		for (size_t index = 0; index < c.pointCount(); ++index)
 			c.pts[index] += dxy;
 	}
@@ -410,13 +428,13 @@ void SkPath::dumpCommon(bool hex) const {
 	};
 	bool move = true;
 	OpPoint first;
-	for (const OpCurve& c : path) {
+	for (const TinyCurve& c : path) {
 		if (move) {
 			OpDebugOut("moveTo(" + STR(c.pts[0].x) + ", " + STR(c.pts[0].y) + ");\n");
 			first = c.pts[0];
 		}
 		move = false;
-		switch (c.c.type) {
+		switch (c.type) {
 			case OpType::line:
 				OpDebugOut("lineTo(" + STR(c.pts[1].x) + ", " + STR(c.pts[1].y) + ");\n");
 				break;
@@ -424,9 +442,9 @@ void SkPath::dumpCommon(bool hex) const {
 				OpDebugOut("quadTo(" + STR(c.pts[1].x) + ", " + STR(c.pts[1].y) + ", " 
 					+ STR(c.pts[2].x) + ", " + STR(c.pts[2].y) + ");\n");
 				break;
-			case OpType::conic:  // !!! bogus
+			case OpType::conic:
 				OpDebugOut("conicTo(" + STR(c.pts[1].x) + ", " + STR(c.pts[1].y) + ", " 
-					+ STR(c.pts[2].x) + ", " + STR(c.pts[2].y) + ", " /* + STR(c.weight) */ + ");\n");
+					+ STR(c.pts[2].x) + ", " + STR(c.pts[2].y) + ", " + STR(c.weight) + ");\n");
 				break;
 			case OpType::cubic:
 				OpDebugOut("cubicTo(" + STR(c.pts[1].x) + ", " + STR(c.pts[1].y) + ", " 

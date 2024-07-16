@@ -32,9 +32,13 @@ struct OpCurve {
     OpCurve() 
         : c{nullptr, 0, OpType::no}
         , contours(nullptr)
-        , weightImpl(1) {
+#if !OP_TEST_NEW_INTERFACE
+        , weightImpl(1) 
+#endif
+    {
     }
 
+#if !OP_TEST_NEW_INTERFACE
     OpCurve(const OpPoint p[], OpType t) 
         : c{nullptr, 0, t}
         , contours(nullptr)
@@ -63,6 +67,7 @@ struct OpCurve {
         , weightImpl(w) {
         memcpy(pts, p, pointCount() * sizeof(OpPoint));
     }
+#endif
 
     OpCurve(OpContours* , PathOpsV0Lib::Curve );
 
@@ -131,10 +136,13 @@ struct OpCurve {
     // create storage in contour; helper function casts it to CurveData
     PathOpsV0Lib::Curve c;
     OpContours* contours;  // required by new interface for caller function pointer access
+#if !OP_TEST_NEW_INTERFACE
     OpPoint pts[5];  // extra point carries cubic center for vertical rotation (used by curve sect)
     float weightImpl;   // !!! new interface doesn't have this (only required for double debugging though)
+#endif
 };
 
+#if !OP_TEST_NEW_INTERFACE
 struct OpLine : OpCurve {
     OpLine() {
         c.type = OpType::line;
@@ -242,6 +250,7 @@ struct OpCubic : OpCurve {
     OpVector tangent(float t) const;
     OpPair xyAtT(OpPair t, XyChoice ) const;
 };
+#endif
 
 struct CurveDataStorage {
 	CurveDataStorage()
@@ -277,10 +286,14 @@ struct OpDebugRay {
 	OpDebugRay(const LinePts& pts) {
         construct(pts);
     }
+
+#if !OP_TEST_NEW_INTERFACE
 	OpDebugRay(const OpLine& line) {
         LinePts p { line.pts[0], line.pts[1] };
         construct(p);
     }
+#endif
+
     void construct(const LinePts& pts);
 	LinePts pts;
 	Axis axis;

@@ -1116,7 +1116,7 @@ void OpTestQuadCoin2() {
 }
 #endif
 
-#if OP_DEBUG
+#if 0
 void onetest() {
 	OpPoint data[] = { 
 		  { OpDebugBitsToFloat(0x42f7639d), OpDebugBitsToFloat(0x4116d2c4) }  // {123.694557, 9.426456}
@@ -1172,7 +1172,7 @@ void OpTest(bool terminateEarly) {
 	OpTest_EdgeZero();
 //	OpPoint pt = testMinMax({ (float) rand(), (float)rand() }, { (float)rand(), (float)rand() });
 //	OpDebugOut(std::to_string(pt.x));
-	OP_DEBUG_CODE(onetest());
+//	OP_DEBUG_CODE(onetest());
 //	OpTestQuadCoin2();
 //	OpTestQuadCoin();
 //	OpTestQuadQuad();
@@ -1254,7 +1254,6 @@ void SkConicSubdivide() {
 	OpDebugOut(STR((float)skResult.fPts[1].fX) + ", " 
 			+ STR((float)skResult.fPts[1].fY) + "w:" + STR(skResult.fWeight) + "\n");
 }
-#endif
 
 #include "include/core/SkFont.h"
 
@@ -1293,15 +1292,14 @@ void cubics44dDraw(SkCanvas* canvas) {
 		snprintf(label, sizeof(label), "(%g, %g)", pts[i].fX, pts[i].fY);
 		canvas->drawString(SkString(label), pts[i].fX + .1, pts[i].fY + .05, labelFont, textPaint);
 	}
-#if 0
 	OpPoint data[] = {
 		{ OpDebugBitsToFloat(0x402f3d1c), OpDebugBitsToFloat(0x40852e3e) }, // {2.7381, 4.16189}
 		{ OpDebugBitsToFloat(0x402be4f9), OpDebugBitsToFloat(0x40852e3e) }, // {2.68585, 4.16189}
 		{ OpDebugBitsToFloat(0x4029b581), OpDebugBitsToFloat(0x40840f04) }, // {2.6517, 4.12683}
 		{ OpDebugBitsToFloat(0x4028aea9), OpDebugBitsToFloat(0x4082171f) }  // {2.63566, 4.06532}
 	};  // type:cubic t:  0.112702, 0.207849
-#endif
 }
+#endif
 
 #include "OpCurveCurve.h"
 

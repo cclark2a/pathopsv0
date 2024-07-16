@@ -25,15 +25,13 @@ void FoundEdge::reset() {
     loops = false;
 }
 
+#if !OP_TEST_NEW_INTERFACE
 OpSegment::OpSegment(const OpCurve& pts, OpType type, OpContour* contourPtr
         OP_DEBUG_PARAMS(SectReason startReason, SectReason endReason))
     : contour(contourPtr)
     , c(pts.pts, pts.weightImpl, type)
     , winding(WindingUninitialized::dummy)
     , disabled(false)  {
-#if OP_TEST_NEW_INTERFACE
-    OP_ASSERT(0);
-#endif
     complete();
     OP_DEBUG_CODE(debugStart = startReason);
     OP_DEBUG_CODE(debugEnd = endReason);
@@ -51,6 +49,7 @@ OpSegment::OpSegment(const LinePts& pts, OpContour* contourPtr
     OP_DEBUG_CODE(debugEnd = endReason);
     OP_DEBUG_CODE(debugZero = ZeroReason::uninitialized);
 }
+#endif
 
 // !!! optimization:  if called from opedge linkup, could abort if >1 active found?
 

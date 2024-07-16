@@ -2,6 +2,7 @@
 #include "OpCurve.h"
 #include "OpTightBounds.h"
 
+#if !OP_TEST_NEW_INTERFACE
 OpRoots OpQuad::axisRawHit(Axis axis, float axisIntercept) const {
     OpQuadCoefficients coeff = coefficients(axis);
     coeff.c -= axisIntercept;
@@ -18,7 +19,6 @@ OpQuadCoefficients OpQuad::coefficients(Axis axis) const {
     return { a, 2 * b, c };
 }
 
-#if !OP_TEST_NEW_INTERFACE
 OpRoots OpQuad::extrema(XyChoice offset) const {
     const float* ptr = &pts[0].x + +offset;
     float a = ptr[0];

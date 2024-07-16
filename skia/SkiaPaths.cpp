@@ -51,6 +51,7 @@ void Add(AddCurve , AddWinding );
 #include "curves/CubicBezier.h"
 #include "curves/BinaryWinding.h"
 #include "curves/UnaryWinding.h"
+
 #include "PathOps.h"
 
 using namespace PathOpsV0Lib;
@@ -152,7 +153,7 @@ void SetSkiaCurveCallBacks(Context* context) {
     );
 }
 
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_DUMP && !OP_TINY_SKIA
 #include "include/core/SkStream.h"
 
 std::string dumpSkPath(const SkPath* path, DebugBase debugBase) {
@@ -188,6 +189,14 @@ std::string binaryDumpFunc(CallerData caller, DebugLevel debugLevel, DebugBase d
     s += "BinaryOperand:" 
             + std::string(BinaryOperand::left == opUserData.data.operand ? "left" : "right");
     return s;
+}
+#elif OP_DEBUG_DUMP && OP_TINY_SKIA
+std::string unaryDumpFunc(CallerData caller, DebugLevel debugLevel, DebugBase debugBase) {
+    return "";
+}
+
+std::string binaryDumpFunc(CallerData caller, DebugLevel debugLevel, DebugBase debugBase) {
+    return "";
 }
 #endif
 

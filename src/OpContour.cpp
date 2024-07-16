@@ -174,6 +174,7 @@ OpEdge* OpContour::addFiller(OpIntersection* start, OpIntersection* end) {
     return filler;
 }
 
+#if !OP_TEST_NEW_INTERFACE
 void OpContour::addLine(OpPoint pts[2]) {
     OpMath::ZeroTiny(pts, 2);
     if (pts[0] == pts[1])   // !!! should be fill only, not frame
@@ -181,6 +182,7 @@ void OpContour::addLine(OpPoint pts[2]) {
     LinePts linePts = {{ pts[0], pts[1] }};
     segments.emplace_back(linePts, this  OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
 }
+#endif
 
 OpIntersection* OpContour::addCoinSect(const OpPtT& t, OpSegment* seg, int cID, MatchEnds coinEnd
         OP_LINE_FILE_DEF(SectReason reason, const OpSegment* oSeg)) {
