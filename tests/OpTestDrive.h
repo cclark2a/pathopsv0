@@ -5,10 +5,10 @@
 
 // this puts all switches that decide which tests to run and how to run them in one place
 // these switches should migrate to make file options
-#define OP_DEBUG_FAST_TEST 0  // in a debug build: set to zero to enable debug dump, debug image
-#define TEST_PATH_OP_FIRST "cubic1810520"  // e.g., "cubic140721" (ignored by fast test)
-#define TEST_PATH_OP_SKIP_TO_V0 0 // if 1 & not fast test, ignore skip to file; run first "v0" test
-#define TEST_PATH_OP_SKIP_TO_FILE "cubic" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
+#define OP_DEBUG_FAST_TEST 1  // in a debug build: set to zero to enable debug dump, debug image
+#define TEST_PATH_OP_FIRST "testQuadralaterals3759853"  // e.g., "cubic140721" (ignored by fast test)
+#define TEST_PATH_OP_SKIP_TO_V0 1 // if 1 & not fast test, ignore skip to file; run first "v0" test
+#define TEST_PATH_OP_SKIP_TO_FILE "quadralateral" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
 
 #define OP_DEBUG_RECORD 0  // track some statistic or other while running 
 #define OP_DEBUG_VERBOSE (1 && !OP_DEBUG_FAST_TEST)

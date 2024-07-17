@@ -94,7 +94,7 @@ bool SectRay::checkOrder(const OpEdge* home) const {
 			if (lastDist < &last->ray.distances.back() && (lastDist + 1)->edge == prior)
 				return false;
 		}
-		if (prior->ray.distances.size() > 1 && last->ray.axis == axis) {
+		if (prior->ray.distances.size() > 1 && prior->ray.axis == axis) {
 			EdgeDistance* priorDist = prior->ray.find(prior);
 			if (priorDist > &prior->ray.distances.front() && (priorDist - 1)->edge == last)
 				return false;
@@ -274,9 +274,17 @@ void OpWinder::AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped, OpPtT cPtT
 	float oTRange = dPtT.t - cPtT.t;
 	OpPtT oCoinStart { ptTAorB.pt, cPtT.t + (eStart - oStart) / (oEnd - oStart) * oTRange };
 	OP_ASSERT(OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t));
-    if (segment->sects.contains(ptTAorB, oppSegment))   // required by fuzz763_3, fuzz763_5
-        return;
-    if (oppSegment->sects.contains(oCoinStart, segment))
+	// !!! if sects already exist and are not marked coincident, just mark them?
+	OpIntersection* segSect = segment->sects.contains(ptTAorB, oppSegment);
+	OpIntersection* oppSect = oppSegment->sects.contains(oCoinStart, segment);
+	if (segSect && oppSect && !segSect->coincidenceID && !oppSect->coincidenceID) {
+		segSect->coincidenceID = coinID;
+		OP_ASSERT(MatchEnds::both != match);
+		segSect->coinEnd = match;
+		oppSect->coincidenceID = coinID;
+		oppSect->coinEnd = flipped ? MatchEnds::start : MatchEnds::end;
+	}
+	if (segSect || oppSect)  // required by fuzz763_3, fuzz763_5
         return;
     OpIntersection* sect = segment->contour->addCoinSect(ptTAorB, segment, coinID, match  
 			OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch, oppSegment));

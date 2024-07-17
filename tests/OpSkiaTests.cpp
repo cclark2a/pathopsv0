@@ -425,6 +425,7 @@ static int debug_paths_draw_the_same(const SkPath& one, const SkPath& two, SkBit
             }
         }
     }
+    OP_ASSERT(errors < 9);
     return errors;
 }
 
@@ -784,6 +785,8 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
         int simpleData[] = { 1 };
         PathOpsV0Lib::AddWinding simpleWinding { simple, simpleData, sizeof(simpleData) };
         AddSkiaPath(simpleWinding, path);
+        out.reset();
+        out.setFillType(SkPathFillType::kEvenOdd);
         PathOutput pathOutput = &out;
         Resolve(context, pathOutput);
         DeleteContext(context);

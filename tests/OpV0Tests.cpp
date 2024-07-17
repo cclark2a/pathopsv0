@@ -4744,6 +4744,151 @@ path.close();
     testSimplify(reporter, path, filename);
 }
 
+void testQuadralaterals24452657(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 1);
+path.lineTo(1, 3);
+path.lineTo(2, 3);
+path.lineTo(3, 3);
+path.lineTo(1, 1);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(1, 2);
+path.lineTo(2, 2);
+path.lineTo(3, 3);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuadralaterals8974869(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 0);
+path.lineTo(0, 1);
+path.lineTo(2, 1);
+path.lineTo(1, 2);
+path.lineTo(1, 0);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(1, 1);
+path.lineTo(3, 1);
+path.lineTo(1, 3);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+// suspect these are all the same error as testQuadralaterals8974869
+void testQuadralaterals8975069(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 0);
+path.lineTo(0, 1);
+path.lineTo(2, 1);
+path.lineTo(1, 2);
+path.lineTo(1, 0);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(3, 1);
+path.lineTo(3, 1);
+path.lineTo(1, 3);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuadralaterals8975099(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 0);
+path.lineTo(0, 1);
+path.lineTo(2, 1);
+path.lineTo(1, 2);
+path.lineTo(1, 0);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(3, 1);
+path.lineTo(1, 2);
+path.lineTo(1, 3);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuadralaterals8975111(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 0);
+path.lineTo(0, 1);
+path.lineTo(2, 1);
+path.lineTo(1, 2);
+path.lineTo(1, 0);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(3, 1);
+path.lineTo(2, 2);
+path.lineTo(1, 3);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuadralaterals8975121(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 0);
+path.lineTo(0, 1);
+path.lineTo(2, 1);
+path.lineTo(1, 2);
+path.lineTo(1, 0);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(3, 1);
+path.lineTo(3, 2);
+path.lineTo(1, 3);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuadralaterals8975129(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 0);
+path.lineTo(0, 1);
+path.lineTo(2, 1);
+path.lineTo(1, 2);
+path.lineTo(1, 0);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(3, 1);
+path.lineTo(0, 3);
+path.lineTo(1, 3);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuadralaterals8975135(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 0);
+path.lineTo(0, 1);
+path.lineTo(2, 1);
+path.lineTo(1, 2);
+path.lineTo(1, 0);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(3, 1);
+path.lineTo(1, 3);
+path.lineTo(1, 3);
+path.lineTo(1, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
 static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
 static void (*firstTest)(skiatest::Reporter* , const char* filename) = nullptr;
 static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
@@ -4751,7 +4896,14 @@ static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 #define TEST(name) { name, #name }
 
 static struct TestDesc tests[] = {
-//    TEST(testQuads1883783),
+    TEST(testQuadralaterals8974869),
+    TEST(testQuadralaterals8975069),
+    TEST(testQuadralaterals8975099),
+    TEST(testQuadralaterals8975111),
+    TEST(testQuadralaterals8975121),
+    TEST(testQuadralaterals8975129),
+    TEST(testQuadralaterals8975135),
+    TEST(testQuadralaterals24452657),
     TEST(testQuads15102071),
     TEST(testQuads11360455),
     TEST(testQuads11297017),

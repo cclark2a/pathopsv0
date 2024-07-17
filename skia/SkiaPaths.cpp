@@ -332,7 +332,8 @@ void AddSkiaPath(AddWinding winding, const SkPath& path) {
             pts[1] = pts[0];
             break;
         case SkPath::kLine_Verb:
-            Add({ (OpPoint*) pts, sizeof(SkPoint) * 2, skiaLineType }, winding);
+            if (pts[0] != pts[1])
+                Add({ (OpPoint*) pts, sizeof(SkPoint) * 2, skiaLineType }, winding);
             break;
         case SkPath::kQuad_Verb:
             std::swap(pts[1], pts[2]);  // rearrange order from 0/1/2 to 0/2/1
@@ -350,7 +351,8 @@ void AddSkiaPath(AddWinding winding, const SkPath& path) {
             AddCubics({ (OpPoint*) pts, sizeof(SkPoint) * 4, skiaCubicType }, winding);
             break;
         case SkPath::kClose_Verb:
-            Add({ closeLine, sizeof(closeLine), skiaLineType }, winding);
+            if (closeLine[0] != closeLine[1])
+                Add({ closeLine, sizeof(closeLine), skiaLineType }, winding);
             break;
         case SkPath::kDone_Verb:
             return;
