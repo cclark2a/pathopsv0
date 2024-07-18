@@ -44,6 +44,8 @@ inline OpRoots QuadAxisRawHit(OpPoint start, OpPoint control, OpPoint end, Axis 
 }
 
 inline OpVector QuadTangent(OpPoint start, OpPoint control, OpPoint end, float t) {
+    if ((0 == t && start == control) || (1 == t && end == control))
+        return end - start;
     float a = t - 1;
     float b = 1 - 2 * t;
     float c = t;
@@ -61,6 +63,8 @@ inline size_t AddQuads(AddCurve curve, AddWinding windings) {
     auto [top, bottom] = std::minmax(start.y, end.y);
     bool monotonicInY = top <= control.y && control.y <= bottom;
     if (monotonicInX && monotonicInY) {
+        if (start == end)
+            return 0;
         Add(curve, windings);
         return 1;
     }

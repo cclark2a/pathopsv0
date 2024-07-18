@@ -4889,6 +4889,70 @@ path.close();
     testSimplify(reporter, path, filename);
 }
 
+void testQuads5659966(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(0, 2, 3, 3);
+path.lineTo(3, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 1);
+path.quadTo(1, 2, 1, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuadAsConic5659966(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.conicTo(0, 2, 3, 3, 1);
+path.lineTo(3, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 1);
+path.conicTo(1, 2, 1, 2, 1);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuadAsCubic5659966(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.cubicTo(0, 1, 1, 2, 3, 3);
+path.lineTo(3, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 1);
+path.cubicTo(1, 2, 1, 2, 1, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads5666137(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(0, 2, 3, 3);
+path.lineTo(3, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 2);
+path.lineTo(1, 2);
+path.quadTo(1, 2, 3, 3);
+path.lineTo(0, 2);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
 static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
 static void (*firstTest)(skiatest::Reporter* , const char* filename) = nullptr;
 static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
@@ -4896,6 +4960,10 @@ static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 #define TEST(name) { name, #name }
 
 static struct TestDesc tests[] = {
+    TEST(testQuads5666137),
+    TEST(testQuadAsCubic5659966),
+    TEST(testQuadAsConic5659966),
+    TEST(testQuads5659966),
     TEST(testQuadralaterals8974869),
     TEST(testQuadralaterals8975069),
     TEST(testQuadralaterals8975099),

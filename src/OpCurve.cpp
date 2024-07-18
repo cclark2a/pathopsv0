@@ -315,6 +315,10 @@ OpRoots OpCurve::rawIntersect(const LinePts& linePt, MatchEnds common) const {
         if (linePt.pts[0].y == linePt.pts[1].y)
             return axisRawHit(Axis::horizontal, linePt.pts[0].y, common);
         OpCurve rotated = toVertical(linePt);
+        // if point bounds of rotated doesn't cross y-axis, this is no intersection
+        OpRect rotatedBounds = rotated.ptBounds();
+        if (rotatedBounds.right < 0 || rotatedBounds.left > 0)
+            return OpRoots();
         OpRoots result = rotated.axisRawHit(Axis::vertical, 0, common);
         return result;
 #else

@@ -252,8 +252,12 @@ IntersectResult OpWinder::CoincidentCheck(OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, Op
 	// pass a mix of seg and opp; construct one t for each
 	else
 		coinID = segment->coinID(flipped);
-	AddMix(xyChoice, ptTAorB, flipped, cPtT, dPtT, segment, oppSegment, coinID, MatchEnds::start);
-	AddMix(xyChoice, ptTCorD, flipped, aPtT, bPtT, oppSegment, segment, coinID, MatchEnds::end);
+	// !!! fix this mess (testQuadralaterals5637313)
+	bool reversedOrder = ptTAorB.t > ptTCorD.t;  // !!! this is a hack
+	AddMix(xyChoice, ptTAorB, flipped, cPtT, dPtT, segment, oppSegment, coinID, 
+			MatchEnds::start, reversedOrder);
+	AddMix(xyChoice, ptTCorD, flipped, aPtT, bPtT, oppSegment, segment, coinID, 
+			MatchEnds::end, reversedOrder);
 	return IntersectResult::yes;
 }
 
@@ -265,7 +269,8 @@ IntersectResult OpWinder::CoincidentCheck(const OpEdge& edge, const OpEdge& opp)
 }
 
 void OpWinder::AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped, OpPtT cPtT, OpPtT dPtT,
-		OpSegment* segment, OpSegment* oppSegment, int coinID, MatchEnds match) {
+		OpSegment* segment, OpSegment* oppSegment, int coinID, MatchEnds match,
+		bool reversedOrder) {
 	float eStart = ptTAorB.pt.choice(xyChoice);
 	if (flipped)
 		std::swap(cPtT, dPtT);
@@ -280,9 +285,11 @@ void OpWinder::AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped, OpPtT cPtT
 	if (segSect && oppSect && !segSect->coincidenceID && !oppSect->coincidenceID) {
 		segSect->coincidenceID = coinID;
 		OP_ASSERT(MatchEnds::both != match);
-		segSect->coinEnd = match;
+		if (reversedOrder)  // !!! hack: work around coin bug (coin needs rewriting)
+			match = !match;
+		segSect->coinEnd = MatchEnds::end == match && flipped ? MatchEnds::start : match;
 		oppSect->coincidenceID = coinID;
-		oppSect->coinEnd = flipped ? MatchEnds::start : MatchEnds::end;
+		oppSect->coinEnd = MatchEnds::start == match && flipped ? MatchEnds::end : match;
 	}
 	if (segSect || oppSect)  // required by fuzz763_3, fuzz763_5
         return;
