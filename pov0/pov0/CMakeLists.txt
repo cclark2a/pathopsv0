@@ -84,8 +84,13 @@ include_directories(
 target_compile_definitions(pov0 PUBLIC OP_TINY_SKIA=1 NOMINMAX _CRT_SECURE_NO_WARNINGS)
 target_compile_definitions(tinytest PUBLIC OP_TINY_SKIA=1 NOMINMAX _CRT_SECURE_NO_WARNINGS OP_TINY_TEST=1)
 
-target_compile_options(pov0 PUBLIC /wd4200 /wd4244 /wd4267 /fp:fast)
-target_compile_options(tinytest PUBLIC /wd4200 /wd4244 /wd4267 /fp:fast)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    target_compile_options(pov0 PUBLIC /wd4200 /wd4244 /wd4267 /fp:fast)
+    target_compile_options(tinytest PUBLIC /wd4200 /wd4244 /wd4267 /fp:fast)
+else()
+    target_compile_options(pov0 PUBLIC -Wall -Wextra -Wpedantic -Wno-unused-parameter)
+    target_compile_options(tinytest PUBLIC -Wall -Wextra -Wpedantic -Wno-unused-parameter)
+endif()
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET pov0 PROPERTY CXX_STANDARD 17)
