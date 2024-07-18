@@ -191,7 +191,7 @@ inline bool quadIsLinear(Curve c) {
     OpPoint controlPt = quadControlPt(c);
     OpVector diffs[] { controlPt - c.data->start, c.data->end - c.data->start };
     float cross = diffs[0].cross(diffs[1]);
-    return fabsf(cross) <= OpEpsilon;
+    return fabsf(cross) <= OpEpsilon * 2;
 }
 
 #if 0 && OP_DEBUG_DUMP

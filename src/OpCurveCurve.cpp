@@ -42,8 +42,8 @@ OpPtT CcCurves::Dist(const OpSegment* seg, const OpPtT& segPtT, const OpSegment*
 	OpRootPts rootPts = opp->c.lineIntersect(normLine);
 	float bestSq = OpInfinity;
 	OpPtT bestPtT;
-	for (size_t index = 0; index < rootPts.valid.count; ++index) {
-		OpPtT oppPtT = opp->c.ptTAtT(rootPts.valid.roots[index]);
+	for (size_t index = 0; index < rootPts.count; ++index) {
+		OpPtT oppPtT = rootPts.ptTs[index];
 		float distSq = (segPtT.pt - oppPtT.pt).lengthSquared();
 		if (bestSq > distSq) {
 			bestSq = distSq;
@@ -839,8 +839,8 @@ bool OpCurveCurve::LineMissed(OpEdge& edge, OpEdge& opp) {
 	LinePts edgePts;
 	edgePts.pts = { edge.start.pt, edge.end.pt };
 	OpRootPts septs = opp.curve.lineIntersect(edgePts);
-	if (1 == septs.count && ((opp.ccStart && 0 == septs.valid.roots[0])
-			|| (opp.ccEnd && 1 == septs.valid.roots[0])))
+	if (1 == septs.count && ((opp.ccStart && 0 == septs.ptTs[0].t)
+			|| (opp.ccEnd && 1 == septs.ptTs[0].t)))
 		return true;
 	return !septs.count;
 }

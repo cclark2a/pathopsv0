@@ -28,7 +28,7 @@ public:
     bool onChar(SkUnichar c, skui::ModifierKey modifiers) override;
     bool onKey(skui::Key, skui::InputState, skui::ModifierKey) override;
     bool onMouse(int x, int y, skui::InputState state, skui::ModifierKey modifiers) override;
-    bool onMouseWheel(float delta, skui::ModifierKey ) override;
+//    bool onMouseWheel(float delta, skui::ModifierKey ) override;
 
 private:
     void updateTitle();

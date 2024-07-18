@@ -1,5 +1,7 @@
 #include "OpSkiaTests.h"
 
+#define TEST(name) { name, #name }
+
 static void issue12556(skiatest::Reporter* reporter, const char* filename) {
 SkPath patha;
       patha.moveTo(SkBits2Float(0x44f61000), SkBits2Float(0x45ce1700));  // 1968.5f, 6594.88f
@@ -4953,13 +4955,42 @@ path.close();
     testSimplify(reporter, path, filename);
 }
 
-static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
-static void (*firstTest)(skiatest::Reporter* , const char* filename) = nullptr;
-static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
+void testQuads9458215(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 0);
+path.quadTo(1, 1, 2, 1);
+path.lineTo(2, 1);
+path.lineTo(1, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(3, 0);
+path.quadTo(1, 1, 2, 1);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
 
-#define TEST(name) { name, #name }
+
+void testQuads24472797(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 1);
+path.quadTo(2, 3, 2, 3);
+path.lineTo(2, 3);
+path.lineTo(1, 1);
+path.close();
+path.moveTo(1, 2);
+path.lineTo(1, 3);
+path.quadTo(1, 3, 3, 3);
+path.lineTo(1, 2);
+path.close();
+    testSimplify(reporter, path, filename);
+}
 
 static struct TestDesc tests[] = {
+    TEST(testQuads24472797),
+    TEST(testQuads9458215),
     TEST(testQuads5666137),
     TEST(testQuadAsCubic5659966),
     TEST(testQuadAsConic5659966),
@@ -5061,6 +5092,9 @@ static struct TestDesc tests[] = {
 
 static const size_t testCount = std::size(tests);
 static bool runReverse = false;
+static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
+static void (*firstTest)(skiatest::Reporter* , const char* filename) = nullptr;
+static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 
 DEF_TEST(OpsV0, reporter) {
     RunTestSet(reporter, tests, testCount, firstTest, skipTest, stopTest, runReverse);

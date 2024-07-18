@@ -346,6 +346,7 @@ bool HelloWorld::onMouse(int x, int y, skui::InputState state, skui::ModifierKey
     return true;
 }
 
+#if 0  // !!! interface changes across different versions of Skia ...
 bool HelloWorld::onMouseWheel(float delta, skui::ModifierKey modifiers) {
 #if OP_DEBUG_IMAGE
     if (delta > 0)
@@ -355,3 +356,4 @@ bool HelloWorld::onMouseWheel(float delta, skui::ModifierKey modifiers) {
 #endif
     return true;
 }
+#endif
