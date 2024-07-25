@@ -60,14 +60,14 @@ void testNewInterface() {
     Debug(context, debugData);
 #endif
 
-    lineType = SetCurveCallBacks(context, lineAxisRawHit, noNearly, noHull, lineIsFinite, 
+    lineType = SetCurveCallBacks(context, lineAxisRawHit, /* noNearly, */ noHull, lineIsFinite, 
             lineIsLine, noLinear, noBounds, lineNormal, lineOutput, noPinCtrl, noReverse,
             lineTangent, linesEqual, linePtAtT, /* double not required */ linePtAtT, 
             linePtCount, noRotate, lineSubDivide, lineXYAtT
             OP_DEBUG_DUMP_PARAMS(noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
     );
-    quadType = SetCurveCallBacks(context, quadAxisRawHit, quadNearly, quadHull, quadIsFinite, 
+    quadType = SetCurveCallBacks(context, quadAxisRawHit, /* quadNearly, */ quadHull, quadIsFinite, 
             quadIsLine, quadIsLinear, quadSetBounds, quadNormal, quadOutput, quadPinCtrl, noReverse,
             quadTangent, quadsEqual, quadPtAtT, /* double not required */ quadPtAtT, 
             quadPtCount, quadRotate, quadSubDivide, quadXYAtT

@@ -549,13 +549,22 @@ bool OpContours::pathOps(OpOutPath& result)
 #endif
     {
         OpSegments::FindCoincidences(this);
+#if OP_DEBUG_VALIDATE
+        debugValidateIntersections();
+#endif
         OpSegments sortedSegments(*this);
+#if OP_DEBUG_VALIDATE
+        debugValidateIntersections();
+#endif
         if (!sortedSegments.inX.size()) {
             contextCallBacks.emptyNativePath(callerOutput);
             OP_DEBUG_SUCCESS(*this, true);
         }
         if (FoundIntersections::fail == sortedSegments.findIntersections())
             return false;  // !!! fix this to record for Error()
+#if OP_DEBUG_VALIDATE
+        debugValidateIntersections();
+#endif
         disableSmallSegments();  // moved points may allow disabling some segments
         if (empty()) {
             contextCallBacks.emptyNativePath(callerOutput);
@@ -633,6 +642,16 @@ void OpContour::debugComplete() {
 
 bool OpContours::debugSuccess() const {
     return OpDebugExpect::unknown == debugExpect || OpDebugExpect::success == debugExpect;
+}
+#endif
+
+#if OP_DEBUG_VALIDATE
+void OpContours::debugValidateIntersections() {
+    for (auto contour : contours) {
+        for (auto& segment : contour->segments) {
+            segment.sects.debugValidate();
+        }
+    }
 }
 #endif
 

@@ -148,20 +148,25 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
         if (OpMath::NearlyEndT(oppT))
             continue;
         // if computed point is nearly end, ignore
-        OpPoint oppPt = opp->c.ptAtT(oppT);
+        OpPoint oppPt = opp->c.ptAtT(oppT);  // !!! redundant if ray intersect is rewritten to return pt
         if (oppPt.isNearly(oppT < .5 ? opp->c.firstPt() : opp->c.lastPt()))
             continue;
         if (oppPt.isNearly(edgePts.pts[0]))
             continue;
         if (oppPt.isNearly(edgePts.pts[1]))
             continue;
-        OpPtT oppPtT { oppPt, oppT };
         float edgeT = seg->findValidT(0, 1, oppPt);
+        oppPt = seg->c.ptAtT(edgeT);  // use line instead of curve to keep points on line
+        OpPtT oppPtT { oppPt, oppT };
         if (OpMath::IsNaN(edgeT))
             continue;
         if (OpMath::NearlyEndT(edgeT))
             continue;
+#if 1  // !!! test if pin is still required
+        OP_ASSERT(seg->ptBounds.contains(oppPtT.pt));
+#else
         seg->ptBounds.pin(&oppPtT.pt);
+#endif
         opp->ptBounds.pin(&oppPtT.pt);
         oppPtTs.push_back(oppPtT);
         edgePtTs.emplace_back(oppPtT.pt, edgeT);
@@ -183,6 +188,48 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
         OpIntersection* oSect = opp->addSegBase(oppPtT  
                 OP_LINE_FILE_PARAMS(SectReason::lineCurve, seg));
         sect->pair(oSect);
+    }
+    // if pair share two intersections, and mid t is close, mark intersections as unsectable
+    OpIntersection* iStart = nullptr;
+    OpIntersection* iEnd = nullptr;
+    size_t index = 0;
+    while (index < seg->sects.i.size()) {
+        OpIntersection* test = seg->sects.i[index];
+        if (test->opp->segment == opp) {
+            if (iStart) {
+                iEnd = test;
+                break;
+            }
+            iStart = test;
+        }
+        ++index;
+    }
+    if (iEnd) {
+        float midT = OpMath::Average(iStart->ptT.t, iEnd->ptT.t);
+        // distance from seg point at midT normal to opp segment
+        OpPtT midPtT = seg->c.ptTAtT(midT);
+        OpPtT oppPtT = CcCurves::Dist(seg, midPtT, opp);
+        float dist = (midPtT.pt - oppPtT.pt).length();
+        auto endFromT = [](OpIntersection* one, OpIntersection* two, MatchEnds match) -> MatchEnds {
+            return (one->ptT.t < two->ptT.t) == (MatchEnds::start == match) 
+                    ? MatchEnds::start : MatchEnds::end;
+        };
+        if (dist < OpEpsilon * 8) { // !!! who knows what this const should be?
+	        int usectID = seg->nextID();
+            seg->addUnsectable(iStart->ptT, usectID, endFromT(iStart, iEnd, MatchEnds::start), opp
+                    OP_LINE_FILE_PARAMS(SectReason::test));
+            seg->addUnsectable(iEnd->ptT, usectID, endFromT(iStart, iEnd, MatchEnds::end), opp
+                    OP_LINE_FILE_PARAMS(SectReason::test));
+            OpIntersection* oStart = iStart->opp;
+            OpIntersection* oEnd = iEnd->opp;
+	        bool flipped = oStart->ptT.t > oEnd->ptT.t;
+            if (flipped)
+                usectID = -usectID;
+            opp->addUnsectable(oStart->ptT, usectID, endFromT(oStart, oEnd, MatchEnds::start), seg
+                    OP_LINE_FILE_PARAMS(SectReason::test));
+            opp->addUnsectable(oEnd->ptT, usectID, endFromT(oStart, oEnd, MatchEnds::end), seg
+                    OP_LINE_FILE_PARAMS(SectReason::test));
+        }
     }
     return;
 }
@@ -446,22 +493,25 @@ FoundIntersections OpSegments::findIntersections() {
             if (sharesHorizontal && sharesVertical)
                 continue;
             // if the bounds share only an edge, and ends match, there's nothing more to do
+#if 0  // !!! fails to detect unsectable pairs
             if ((sharesHorizontal || sharesVertical) 
                     && MatchEnds::none != seg->matchEnds(opp).match)
                 continue;
+#endif
             // look for curve curve intersections (skip coincidence already found)
             OpCurveCurve cc(seg, opp);
             SectFound ccResult = cc.divideAndConquer();
 #if OP_DEBUG_DUMP
             OP_ASSERT(!cc.dumpBreak());
 #endif
-            if (SectFound::fail == ccResult || SectFound::maxOverlaps == ccResult) {
+            if (SectFound::fail == ccResult || SectFound::maxOverlaps == ccResult
+                    || SectFound::noOverlapDeep == ccResult) {
                 // !!! as an experiment, search runs for small opp distances; turn found into limits
                 SectFound limitsResult = cc.runsToLimits();
                 if (SectFound::add == limitsResult)
                     ccResult = limitsResult;
                 else if (SectFound::fail == limitsResult) {
-                    if (SectFound::maxOverlaps != ccResult) {
+                    if (SectFound::maxOverlaps != ccResult && SectFound::noOverlapDeep != ccResult) {
                         OP_DEBUG_DUMP_CODE(debugContext = "");
                         return FoundIntersections::fail;
                     }

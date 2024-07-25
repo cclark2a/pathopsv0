@@ -235,7 +235,7 @@ OpEdge* OpEdge::advanceToEnd(EdgeMatch match) {
 */
 void OpEdge::apply() {
 	if (EdgeFail::center == rayFail)
-		disabled = true;
+		setDisabled(ZeroReason::rayFail);
 	if (disabled || isUnsortable)
 		return;
 #if OP_TEST_NEW_INTERFACE
@@ -408,7 +408,20 @@ float OpEdge::curviness() {
 }
 #endif
 
-OpIntersection* OpEdge::findSect(EdgeMatch match) {
+// note this does not use which end
+OpIntersection* OpEdge::findEndSect(EdgeMatch match, OpSegment* oppSeg) {
+	OpPoint pt = ptT(match).pt;
+	auto& i = segment->sects.i;
+    auto found = std::find_if(i.begin(), i.end(), [pt, oppSeg](auto sect) { 
+			return sect->ptT.pt == pt && sect->opp->segment == oppSeg; });
+	if (found == i.end())
+		return nullptr;
+	return *found;
+}
+
+// note that this is for use after 'which end' is set
+OpIntersection* OpEdge::findWhichSect(EdgeMatch match) {
+	OP_ASSERT(EdgeMatch::none != whichEnd_impl);
 	OpPoint pt = whichPtT(match).pt;
 	auto& i = segment->sects.i;
     auto found = std::find_if(i.begin(), i.end(), [pt](auto sect) { return sect->ptT.pt == pt; });
@@ -442,6 +455,25 @@ bool OpEdge::isLinear() {
 		return isLine_impl;
 	lineSet = true;
 	return (isLine_impl = curve.isLinear());
+}
+
+bool OpEdge::isUnsectablePair(OpEdge* opp) {
+	UnsectableOpp* uOpp = nullptr;
+	auto found = std::find_if(uPairs.begin(), uPairs.end(), [opp](auto u) { return u.edge == opp; });
+	if (uPairs.end() != found)
+		uOpp = &*found;
+	else {
+		uPairs.push_back({ opp, ArePals::unset, ptBounds.overlaps(opp->ptBounds) });
+		uOpp = &uPairs.back();
+	}
+	if (!uOpp->overlaps)
+		return false;
+	if (ArePals::unset == uOpp->arePals)
+		uOpp->arePals = unsectableMatches(opp) ? ArePals::yes : ArePals::no;
+	if (ArePals::no == uOpp->arePals)
+		return false;
+
+	return true;
 }
 
 void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
@@ -617,7 +649,7 @@ void OpEdge::output(bool closed) {
 			return true;  // don't reverse if outer normal in direction of inner points to zero
 		OpEdge* iEdge = inner->edge;
 	//	OP_ASSERT(!iEdge->inOutput);  // triggered by cubic1810520
-		if (iEdge->inOutput) {  // defer dealing with this until we find an easier test case
+		if (iEdge->inOutput && !iEdge->isUnsectable) {  // defer dealing with this until we find an easier test case
 			OpDebugOut("!!! edge already output\n");
 			abort = true;
 			return true;
@@ -907,6 +939,10 @@ void OpEdge::setPriorEdge(OpEdge* edge) {
 	priorEdge = edge;
 }
 
+void OpEdge::setUnsortable() {  // setter exists so debug breakpoints can be set
+	isUnsortable = true;
+}
+
 const OpCurve& OpEdge::setVertical(const LinePts& pts) {
 	if (!upright_impl.pts[0].isFinite() ||  // !!! needed by CMake build; don't know why ...
 		upright_impl.pts[0] != pts.pts[0] || upright_impl.pts[1] != pts.pts[1]) {
@@ -983,6 +1019,7 @@ void OpEdge::skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) {
 	std::swap(sectables, edges);
 }
 
+#if 0
 bool OpEdge::ctrlPtNearlyEnd() {
 #if OP_TEST_NEW_INTERFACE
 	// !!! call is linear instead?
@@ -995,6 +1032,7 @@ bool OpEdge::ctrlPtNearlyEnd() {
 	return true;
 #endif
 }
+#endif
 
 // use already computed points stored in edge
 void OpEdge::subDivide() {
@@ -1003,10 +1041,10 @@ void OpEdge::subDivide() {
 	setPointBounds();
 	calcCenterT();
 	if (segment->c.isLine() || OpMath::Equalish(ptBounds.left, ptBounds.right) 
-			|| OpMath::Equalish(ptBounds.top, ptBounds.bottom) || ctrlPtNearlyEnd()) {
+			|| OpMath::Equalish(ptBounds.top, ptBounds.bottom) /* || ctrlPtNearlyEnd() */) {
 		isLine_impl = true;
 		lineSet = true;
-		exactLine = true;
+//		exactLine = true;
 		center.t = OpMath::Interp(start.t, end.t, .5);
 		center.pt = ptBounds.center();
 	}
@@ -1059,6 +1097,26 @@ void OpEdge::unlink() {
 	setWhich(EdgeMatch::start);  // !!! should this set to none?
 	startSeen = false;
 	endSeen = false;
+}
+
+bool OpEdge::unsectableMatches(OpEdge* opp) const {
+	OP_ASSERT(isUnsectable);
+	OP_ASSERT(opp && opp->isUnsectable);
+	OP_ASSERT(!segment->sects.resort);
+	OP_ASSERT(!opp->segment->sects.resort);
+	std::vector<OpIntersection*> edgeUnsectables = segment->sects.unsectables(this);
+	std::vector<OpIntersection*> oppUnsectables = opp->segment->sects.unsectables(opp);
+	OP_ASSERT(edgeUnsectables.size());
+	OP_ASSERT(oppUnsectables.size());
+	// return true if this edge lies in same unsectable range as opp
+	for (auto edgeSect : edgeUnsectables) {
+		int edgeUnsectID = abs(edgeSect->unsectID);
+		for (auto oppSect : oppUnsectables) {
+			if (edgeUnsectID == abs(oppSect->unsectID))
+				return true;
+		}
+	}
+	return false;
 }
 
 #if OP_DEBUG

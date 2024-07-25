@@ -173,10 +173,12 @@ inline size_t conicPtCount() {
     return 3;
 }
 
+#if 0
 inline bool conicNearly(Curve c) {
     PointWeight control(c);
 	return control.pt.isNearly(c.data->start) || control.pt.isNearly(c.data->end);
 }
+#endif
 
 inline bool conicIsFinite(Curve c) {
     PointWeight control(c);

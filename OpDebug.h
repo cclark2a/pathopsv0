@@ -112,7 +112,7 @@ struct OpDebugData {
 #if OP_DEBUG_FAST_TEST
 	#define OP_DEBUG_DUMP 0
 	#define OP_DEBUG_IMAGE 0
-	#define OP_DEBUG_VALIDATE 0
+	#define OP_DEBUG_VALIDATE 01
 #else
 	#define OP_DEBUG_DUMP 1
 	#define OP_DEBUG_IMAGE 1

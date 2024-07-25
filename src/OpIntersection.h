@@ -162,6 +162,9 @@ struct OpIntersections {
     OpIntersection* debugAlreadyContains(const OpPoint& , const OpSegment* opp) const;
     bool debugContains(const OpPtT& , const OpSegment* opp) const;  // check for duplicates
 #endif
+#if OP_DEBUG_VALIDATE
+	void debugValidate() const;
+#endif
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
 #endif

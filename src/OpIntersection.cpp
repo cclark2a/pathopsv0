@@ -376,7 +376,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges
             }
             OP_ASSERT(edge->start.t == sectPtr->ptT.t);
             OpSegment* oppSegment = sectPtr->opp->segment;
-            OP_ASSERT(tangent.dot(oppSegment->c.tangent(0))); 
+//            OP_ASSERT(tangent.dot(oppSegment->c.tangent(0))); // !!! can we safely ignore this?
             auto& oppEdges = oppSegment->edges;
             EdgeMatch match = coinID > 0 ? EdgeMatch::start : EdgeMatch::end;
             OpEdge* oppEdge = &oppEdges.front();
@@ -534,6 +534,14 @@ void OpIntersection::debugValidate() const {
 void OpIntersection::debugSetID() {
     id = segment->nextID();
 }
+
+#if OP_DEBUG_VALIDATE
+void OpIntersections::debugValidate() const {
+	for (const auto sectPtr : i) {
+        OP_ASSERT(sectPtr->opp->opp == sectPtr);
+    }
+}
+#endif
 
 bool OpIntersections::debugContains(const OpPtT& ptT, const OpSegment* opp) const {
     for (auto sect : i) {

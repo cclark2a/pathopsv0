@@ -36,14 +36,16 @@ OpPtT CcCurves::closest(OpPoint pt) const {
 	return { oBest, oBestDistSq };
 };
 
+// !!! this was lineIntersect which could miss if normal line points away from seg
+//     but it was changed without fixing the root bug, so may make things less stable ...
 OpPtT CcCurves::Dist(const OpSegment* seg, const OpPtT& segPtT, const OpSegment* opp) {
 	OpVector normal = seg->c.normal(segPtT.t);
 	LinePts normLine { segPtT.pt, segPtT.pt + normal };
-	OpRootPts rootPts = opp->c.lineIntersect(normLine);
+	OpRoots roots = opp->c.rayIntersect(normLine, MatchEnds::none);
 	float bestSq = OpInfinity;
 	OpPtT bestPtT;
-	for (size_t index = 0; index < rootPts.count; ++index) {
-		OpPtT oppPtT = rootPts.ptTs[index];
+	for (size_t index = 0; index < roots.count; ++index) {
+		OpPtT oppPtT = opp->c.ptTAtT(roots.roots[index]);
 		float distSq = (segPtT.pt - oppPtT.pt).lengthSquared();
 		if (bestSq > distSq) {
 			bestSq = distSq;
@@ -96,6 +98,8 @@ void EdgeRun::set(const OpEdge* e, const OpSegment* oppSeg, EdgeMatch match) {
 void CcCurves::addEdgeRun(const OpEdge* edge, const OpSegment* oppSeg, EdgeMatch match) {
 	OP_ASSERT(!debugHasEdgeRun(EdgeMatch::start == match ? edge->start.t : edge->end.t));
 	EdgeRun run;
+//	OpDebugBreak(edge, 47);
+//	OpDebugBreak(edge, 66);
 	run.set(edge, oppSeg, match);
 	OP_DEBUG_CODE(debugRuns.push_back(run));
 	if (OpMath::IsNaN(run.oppDist))
@@ -396,9 +400,21 @@ bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 		return false;
 	if (oStart.soClose(oEnd))
 		return false;
-	OpIntersection* segSect1 = seg->addUnsectable(eStart, usectID, MatchEnds::start, opp
+	OpIntersection* segSect1 = seg->sects.contains(eStart, opp);
+	if (segSect1 && segSect1->unsectID)
+		return false;
+	OpIntersection* segSect2 = seg->sects.contains(eEnd, opp);
+	if (segSect2 && segSect2->unsectID)
+		return false;
+	OpIntersection* oppSect1 = opp->sects.contains(oStart, seg);
+	if (oppSect1 && oppSect1->unsectID)
+		return false;
+	OpIntersection* oppSect2 = opp->sects.contains(oEnd, seg);
+	if (oppSect2 && oppSect2->unsectID)
+		return false;
+	segSect1 = seg->addUnsectable(eStart, usectID, MatchEnds::start, opp
 			OP_LINE_FILE_PARAMS(SectReason::unsectable));
-	OpIntersection* segSect2 = seg->addUnsectable(eEnd, usectID, MatchEnds::end, opp
+	segSect2 = seg->addUnsectable(eEnd, usectID, MatchEnds::end, opp
 			OP_LINE_FILE_PARAMS(SectReason::unsectable));
 	MatchEnds oppMatch = MatchEnds::start;
 	bool flipped = oStart.t > oEnd.t;
@@ -407,9 +423,9 @@ bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 		usectID = -usectID;
 		oppMatch = MatchEnds::end;
 	}
-	OpIntersection* oppSect1 = opp->addUnsectable(oStart, usectID, oppMatch, seg
+	oppSect1 = opp->addUnsectable(oStart, usectID, oppMatch, seg
 			OP_LINE_FILE_PARAMS(SectReason::unsectable));
-	OpIntersection* oppSect2 = opp->addUnsectable(oEnd, usectID, !oppMatch, seg
+	oppSect2 = opp->addUnsectable(oEnd, usectID, !oppMatch, seg
 			OP_LINE_FILE_PARAMS(SectReason::unsectable));
 	segSect1->pair(flipped ? oppSect2 : oppSect1);
 	segSect2->pair(flipped ? oppSect1 : oppSect2);
@@ -660,8 +676,11 @@ SectFound OpCurveCurve::divideAndConquer() {
 		int oppOverlaps = oppCurves.overlaps();
 	//	if (checkDist(edgeOverlaps, oppOverlaps))
 	//		snipEm = true;
-		if (!edgeOverlaps || !oppOverlaps)
+		if (!edgeOverlaps || !oppOverlaps) {
+			if (depth > 8) // !!! number arbitrary, depth is 9 for testQuads3993265
+				return SectFound::noOverlapDeep;
 			return limits.size() ? SectFound::add : SectFound::no;
+		}
 		if (edgeOverlaps >= maxSplits || oppOverlaps >= maxSplits)
 			return SectFound::maxOverlaps;  // more code required
 		if (checkSect())
@@ -715,7 +734,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 
 // return true if either small t or large t belong to edge that is still available
 bool OpCurveCurve::endsOverlap() const {
-	if (!edgeCurves.c.size())
+	if (!edgeCurves.c.size() || !oppCurves.c.size())
 		return false;
 	if (largeTFound) {
 		const OpEdge* last = edgeCurves.c.back();
@@ -827,6 +846,7 @@ bool OpCurveCurve::ifNearly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& oppEdge,
 	return true;
 }
 
+#if 0
 // returns true if edge's line missed opposite edge's curve
 // don't check against opposite segment's curve, since it may be offset
 // (Later) If edge is linear, but not a true line (e.g., the control points are nearly colinear with
@@ -834,7 +854,7 @@ bool OpCurveCurve::ifNearly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& oppEdge,
 bool OpCurveCurve::LineMissed(OpEdge& edge, OpEdge& opp) {
 	if (!edge.isLinear())
 		return false;
-	if (!edge.exactLine)
+	if (!edge.exactLine)	// !!! only place exact line is used
 		return false;
 	LinePts edgePts;
 	edgePts.pts = { edge.start.pt, edge.end.pt };
@@ -844,6 +864,7 @@ bool OpCurveCurve::LineMissed(OpEdge& edge, OpEdge& opp) {
 		return true;
 	return !septs.count;
 }
+#endif
 
 bool OpCurveCurve::alreadyInLimits(const OpEdge* edge, const OpEdge* oEdge, float t) {
 	for (FoundLimits& limit : limits) {
@@ -918,7 +939,7 @@ SectFound OpCurveCurve::runsToLimits() {
 			if (OpMax == hidex)
 				hidex = lodex;
 			// mark next two edges to disable sign compare
-			if (hidex < edgeCurves.runs.size() - 2) {
+			if (hidex + 2 < edgeCurves.runs.size()) {
 				edgeCurves.runs[hidex + 1].byZero = true;
 			}
 			lodex = hidex = OpMax;
@@ -1049,10 +1070,12 @@ bool OpCurveCurve::setOverlaps() {
 				continue;
 			if (!rotatedIntersect(oppEdge, edge, sharesPoint))
 				continue;
+#if 0  // checking hulls later will detect when curve, degenerate to line, does not sect opp
 			if (LineMissed(edge, oppEdge) || LineMissed(oppEdge, edge)) {
 //				closeBy.push_back({ edge, oppEdge });
 				continue;
 			}
+#endif
 			oppEdge.ccOverlaps = true;
 			edge.ccOverlaps = true;
 		}

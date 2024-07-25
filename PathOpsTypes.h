@@ -119,7 +119,7 @@ typedef OpRoots (*AxisRawHit)(Curve , Axis , float axisIntercept, MatchEnds);
 // returns number of points in curve, including start and end (minimum 2)
 typedef size_t (*PtCount)();
 
-typedef bool (*ControlNearlyEnd)(Curve );
+// typedef bool (*ControlNearlyEnd)(Curve );
 
 typedef bool (*CurveIsFinite)(Curve );
 
@@ -177,7 +177,7 @@ typedef void (*DebugAddToPath)(Curve , class SkPath& );
 
 struct CurveCallBacks {
 	AxisRawHit axisRawHitFuncPtr;
-	ControlNearlyEnd controlNearlyEndFuncPtr;
+//	ControlNearlyEnd controlNearlyEndFuncPtr;
 	CurveHull curveHullFuncPtr;
 	CurveIsFinite curveIsFiniteFuncPtr;
 	CurveIsLine curveIsLineFuncPtr;

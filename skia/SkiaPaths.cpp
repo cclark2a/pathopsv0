@@ -121,21 +121,21 @@ OpType skiaCubicType;
 
 // new interface
 void SetSkiaCurveCallBacks(Context* context) {
-    skiaLineType = SetCurveCallBacks(context, lineAxisRawHit, noNearly, noHull, lineIsFinite, 
+    skiaLineType = SetCurveCallBacks(context, lineAxisRawHit, /* noNearly, */ noHull, lineIsFinite, 
             lineIsLine, noLinear, noBounds, lineNormal, skiaLineOutput, noPinCtrl, noReverse,
             lineTangent, linesEqual, linePtAtT, /* double not required */ linePtAtT, 
             linePtCount, noRotate, lineSubDivide, lineXYAtT
             OP_DEBUG_DUMP_PARAMS(noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath)
     );
-    skiaQuadType = SetCurveCallBacks(context, quadAxisRawHit, quadNearly, quadHull, quadIsFinite, 
+    skiaQuadType = SetCurveCallBacks(context, quadAxisRawHit, /* quadNearly, */ quadHull, quadIsFinite, 
             quadIsLine, quadIsLinear, quadSetBounds, quadNormal, skiaQuadOutput, quadPinCtrl, 
             noReverse, quadTangent, quadsEqual, quadPtAtT, /* double not required */ quadPtAtT, 
             quadPtCount, quadRotate, quadSubDivide, quadXYAtT
             OP_DEBUG_DUMP_PARAMS(noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath)
     );
-    skiaConicType = SetCurveCallBacks(context, conicAxisRawHit, conicNearly, conicHull, 
+    skiaConicType = SetCurveCallBacks(context, conicAxisRawHit, /* conicNearly, */ conicHull, 
             conicIsFinite, conicIsLine, 
             conicIsLinear, conicSetBounds, conicNormal, skiaConicOutput, quadPinCtrl, noReverse,
             conicTangent, conicsEqual, conicPtAtT, /* double not required */ conicPtAtT, 
@@ -143,7 +143,7 @@ void SetSkiaCurveCallBacks(Context* context) {
             OP_DEBUG_DUMP_PARAMS(conicDebugDumpExtra)
             OP_DEBUG_IMAGE_PARAMS(debugConicAddToSkPath)
     );
-    skiaCubicType = SetCurveCallBacks(context, cubicAxisRawHit, cubicNearly, cubicHull, 
+    skiaCubicType = SetCurveCallBacks(context, cubicAxisRawHit, /* cubicNearly, */ cubicHull, 
             cubicIsFinite, cubicIsLine, 
             cubicIsLinear, cubicSetBounds, cubicNormal, skiaCubicOutput, cubicPinCtrl, cubicReverse,
             cubicTangent, cubicsEqual, cubicPtAtT, /* double not required */ cubicPtAtT, 

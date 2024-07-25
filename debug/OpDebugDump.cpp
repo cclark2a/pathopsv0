@@ -1582,6 +1582,8 @@ static ZeroReasonName zeroReasonNames[] {
     REASON_NAME(noFlip),
     REASON_NAME(none),
     REASON_NAME(palWinding),
+    REASON_NAME(rayFail),
+    REASON_NAME(segmentPoint),
 };
 
 ENUM_NAME(ZeroReason, zeroReason)
@@ -1629,7 +1631,6 @@ ENUM_NAME(EdgeSplit, edgeSplit)
 	OP_X(lineSet) \
 	OP_X(isClose_impl) \
 	OP_X(isLine_impl) \
-	OP_X(exactLine) \
 	OP_X(active_impl) \
 	OP_X(inLinkups) \
 	OP_X(inOutput) \
@@ -2093,7 +2094,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     STR_BOOL(lineSet);
     STR_BOOL(isClose_impl);
     STR_BOOL(isLine_impl);
-    STR_BOOL(exactLine);
+//    STR_BOOL(exactLine);
 	STR_BOOL(active_impl);
     STR_BOOL(inLinkups);
     STR_BOOL(inOutput);
@@ -2256,7 +2257,7 @@ void OpEdge::dumpSet(const char*& str) {
     STR_BOOL(lineSet);
     STR_BOOL(isClose_impl);
     STR_BOOL(isLine_impl);
-    STR_BOOL(exactLine);
+//    STR_BOOL(exactLine);
 	STR_BOOL(active_impl);
     STR_BOOL(inLinkups);
     STR_BOOL(inOutput);
@@ -3527,7 +3528,7 @@ void OpCurveCurve::dumpResolveAll(OpContours* c) {
 void OpCurveCurve::dumpDepth(int level) {
     std::vector<EdgeFilter> showFields = { EF::id, EF::segment, EF::start, EF::end, 
             EF::ccEnd, EF::ccLarge, EF::ccOverlaps, EF::ccSmall, EF::ccStart,
-            EF::hulls, EF::lineSet, EF::isClose_impl, EF::isLine_impl, EF::exactLine,
+            EF::hulls, EF::lineSet, EF::isClose_impl, EF::isLine_impl, /* EF::exactLine, */
             EF::debugSplitStart, EF::debugSplitEnd, EF::debugParentID, 
             EF::debugSetMaker };
     OpSaveEF saveEF(showFields);
@@ -3603,7 +3604,7 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
     s += " opp/sect:" + oppParentID + "/" + oppID;
     if (coincidenceID  OP_DEBUG_CODE(|| debugCoincidenceID)) {
         s += " coinID:" + STR(coincidenceID)  OP_DEBUG_CODE(+ "/" + STR(debugCoincidenceID));
-        s += DebugLevel::file == l ? "coinEnd:" : " " ;
+        s += DebugLevel::file == l ? " coinEnd:" : " " ;
         s += matchEndsName(coinEnd);
     }
     if (unsectID) {
@@ -3657,6 +3658,8 @@ void OpIntersection::dumpSet(const char*& str) {
         if (OpDebugOptional(str, "-"))
             return 0;
         size_t coinID = OpDebugReadSizeT(str);
+        if ('/' == str[-1])
+            --str;
         return isNegative ? -(int) coinID : (int) coinID;
     };
     coincidenceID = OpDebugOptional(str, "coinID") ? readCoinID(str) : 0;

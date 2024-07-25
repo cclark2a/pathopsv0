@@ -37,6 +37,7 @@ enum class SectFound {
 	fail,
 	intersects,
 	maxOverlaps,
+	noOverlapDeep,
 	overflow,
 	split,
 };
@@ -151,7 +152,7 @@ struct OpCurveCurve {
 	void findUnsectable();
 	bool ifExactly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& opp, const OpPtT& oppPtT);
 	bool ifNearly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& opp, const OpPtT& oppPtT);
-	static bool LineMissed(OpEdge& edge, OpEdge& opp);
+//	static bool LineMissed(OpEdge& edge, OpEdge& opp);
 	void recordSect(OpEdge* edge, OpEdge* opp, const OpPtT& edgePtT, const OpPtT& oppPtT
 			OP_LINE_FILE_DEF(SectReason eReason, SectReason oReason));
 	bool rotatedIntersect(OpEdge& edge, OpEdge& opp, bool sharesPoint);

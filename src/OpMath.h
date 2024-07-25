@@ -794,6 +794,13 @@ struct OpMath {
     static float PinT(float t) {
         return 0 > t ? 0 : 1 < t ? 1 : t; }
 
+    // return position between A and B (0 to 1)
+    static float Ratio(float A, float B, float tween) {
+        OP_ASSERT(A <= tween && tween <= B);
+        OP_ASSERT(A < B);
+        return (tween - A) / (B - A);
+    }
+
     static OpRoots QuadRootsReal(float A, float B, float C) {
         if (0 == A) {
             if (0 == B) {

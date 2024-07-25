@@ -108,7 +108,7 @@ void Resolve(Context* , PathOutput );
 
 void SetContextCallBacks(Context* ,  EmptyNativePath);
 
-OpType SetCurveCallBacks(Context* , AxisRawHit, ControlNearlyEnd,
+OpType SetCurveCallBacks(Context* , AxisRawHit, /* ControlNearlyEnd, */
 		CurveHull, CurveIsFinite, CurveIsLine, CurveIsLinear,
 		SetBounds, CurveNormal, CurveOutput, CurvePinCtrl,
 		CurveReverse, CurveTangent, CurvesEqual, PtAtT, DoublePtAtT,

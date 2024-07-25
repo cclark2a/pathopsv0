@@ -87,20 +87,45 @@ bool SectRay::checkOrder(const OpEdge* home) const {
 	for (const EdgeDistance* dist = &distances.front(); (dist + 1)->edge != home; ++dist) {
 		OpEdge* prior = dist->edge;
 		OpEdge* last = (dist + 1)->edge;
+		// pal should be set in time for this : testQuads26519435
 		if (prior->isUnsectable || last->isUnsectable || last->isPal(prior))
 			continue;
+	#if 0
+		auto checkMissingPal = [prior, last]() {
+			if (!prior->findEndSect(EdgeMatch::start, last->segment))
+				return false;
+			if (!prior->findEndSect(EdgeMatch::end, last->segment))
+				return false;
+			float midT = OpMath::Average(prior->start.t, prior->end.t);
+			// distance from seg point at midT normal to opp segment
+			OpPtT midPtT = prior->segment->c.ptTAtT(midT);
+			OpPtT oppPtT = CcCurves::Dist(prior->segment, midPtT, last->segment);
+			float dist = (midPtT.pt - oppPtT.pt).length();
+			OP_ASSERT(dist < OpEpsilon * 8);
+			// !!! incomplete: add check if mid point of prior is close to last
+			return true;
+		};
+#endif
 		if (last->ray.distances.size() > 1 && last->ray.axis == axis) {
 			EdgeDistance* lastDist = last->ray.find(last);
-			if (lastDist < &last->ray.distances.back() && (lastDist + 1)->edge == prior)
+			if (lastDist < &last->ray.distances.back() && (lastDist + 1)->edge == prior) {
+//				if (checkMissingPal())
+//					continue;
 				return false;
+			}
 		}
 		if (prior->ray.distances.size() > 1 && prior->ray.axis == axis) {
 			EdgeDistance* priorDist = prior->ray.find(prior);
-			if (priorDist > &prior->ray.distances.front() && (priorDist - 1)->edge == last)
+			if (priorDist > &prior->ray.distances.front() && (priorDist - 1)->edge == last) {
+//				if (checkMissingPal())
+//					continue;
 				return false;
+			}
 		}
 		if (dist->cept == (dist + 1)->cept) {
 			OP_DEBUG_CODE(prior->contours()->debugFailOnEqualCepts = true);
+//			if (checkMissingPal())
+//				continue;
 			return false;
 		}
 	}
@@ -119,56 +144,57 @@ EdgeDistance* SectRay::find(OpEdge* edge) {
 
 // at some point, do some math or rigorous testing to figure out how extreme this can be
 // for now, keep making it smaller until it breaks
-// !!! fails (I think) on pentreck13 edge 1045 NxR:00221
+// !!! fails (I think) on pentrek13 edge 1045 NxR:00221
 #define WINDING_NORMAL_LIMIT  0.008 // 0.004  fails on testQuads19022897 edge 151 NxR:-0.00746
 
-FindCept SectRay::findIntercept(OpEdge* test) {
+FindCept SectRay::findIntercept(OpEdge* home, OpEdge* test) {
 	if (test->ptBounds.ltChoice(axis) > normal)
 		return FindCept::ok;
 	if (test->ptBounds.rbChoice(axis) < normal)
+		return FindCept::ok;
+	if (test == home)
 		return FindCept::ok;
 	if (test->isUnsortable)
 		return FindCept::unsortable;
 	if (test->disabled)
 		return FindCept::ok;
-	// start here (eventually)
-	// failed to switch over to segment everywhere, may explain why experiment failed
-	// !!! EXPERIMENT
-	// try using segment's curve instead of edge curve
-	// edge curve's control points, especially small ones, may magnify error
-	OpRoots roots = test->curve.axisRayHit(axis, normal);
-	// get the normal at the intersect point and see if it is usable
-	if (1 < roots.count) {
-		return FindCept::retry;  // preferable for thread_cubics157381
-//		test->setUnsortable();  // triggered by joel_14x (very small cubic)
-//		return FindCept::unsortable;
-	}
-	if (1 != roots.count) {
-		OP_ASSERT(0 == roots.count);
+	bool uSectPair = test->isUnsectable && home->isUnsectable && test->isUnsectablePair(home);
+	if (uSectPair && !firstTry)
+		return FindCept::unsectable;
+	// !!! EXPERIMENT  try using segment's curve instead of edge curve
+	//                 edge curve's control points, especially small ones, may magnify error
+	//                 failed to switch over to segment everywhere, may explain why experiment failed
+	OpRoots roots = test->curve.axisRayHit(axis, normal);  // get the normal at the intersect point	
+	float root = OpNaN;
+	float testXY = OpNaN;
+	auto pushUsectDist = [this, test, &testXY, &root, uSectPair]() {
+		if (uSectPair) {
+			distances.emplace_back(test, testXY, root, false);
+			return FindCept::addPal;
+		}
 		return FindCept::retry;
-	}
-	float root = roots.get(0);
-#if RAY_USE_SEGMENT
-	if (OpMath::IsNaN(root) || test->start.t >= root || root >= test->end.t)
-		return FindCept::retry;
-#else
+	};
+	if (1 != roots.count)
+		return pushUsectDist();  // preferable for thread_cubics157381
+	root = roots.get(0);
 	if (OpMath::IsNaN(root) || 0 == root || root == 1)
-		return FindCept::retry;
-#endif
+		return pushUsectDist();
 	OpVector tangent = test->curve.tangent(root).normalize();
 	if (!tangent.isFinite() || tangent == OpVector{ 0, 0 } )
-		return FindCept::retry;
+		return pushUsectDist();
 	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
 	OpVector backRay = -ray;
 	float tNxR = tangent.cross(backRay);
 	if (fabs(tNxR) < WINDING_NORMAL_LIMIT)
-		return FindCept::retry;
+		return pushUsectDist();
 	OpPoint pt = test->curve.ptAtT(root);
 	Axis perpendicular = !axis;
-	float testXY = pt.choice(perpendicular);
+	testXY = pt.choice(perpendicular);
 	bool reversed = tangent.dot(homeTangent) < 0;
 	distances.emplace_back(test, testXY, root, reversed);
-	return OpMath::Equalish(testXY, homeCept) ? FindCept::unsectable : FindCept::okNew;
+	if (!uSectPair && OpMath::Equalish(testXY, homeCept))
+		return FindCept::retry;  // e.g., testQuads1877923 has two small quads which just miss 
+	return uSectPair ? FindCept::addPal : FindCept::ok;
 }
 
 void SectRay::sort() {
@@ -606,41 +632,31 @@ FoundIntercept OpWinder::findRayIntercept(size_t homeIndex, OpVector homeTan, fl
 	float mid = .5;
 	float midEnd = .5;
 	std::vector<OpEdge*>& inArray = Axis::horizontal == workingAxis ? inX : inY;
-	ray.homeT = OpMath::Interp(home->start.t, home->end.t, home->center.t);
+	ray.homeT = OpMath::Ratio(home->start.t, home->end.t, home->center.t);
 	// if find intercept fails, retry some number of times
 	// if all retries fail, distinguish between failure cases
 	//   if it failed because closest edge was too close, mark pair as unsectable
-	std::vector<EdgeDistance> touching;
+	ray.firstTry = true;
 	do {
-		// !!! restructure this slightly to break out to try a different center when touching is
-		// pushed back, unless it's the last go round; then, find all ray intersections before
-		// marking it unsectable/unsortable
-		size_t touches = touching.size();
 		ray.distances.clear();
 		ray.distances.emplace_back(home, homeCept, ray.homeT, false);
 		size_t inIndex = setInIndex(homeIndex, homeCept, inArray);
 		// start at edge with left equal to or left of center
-		FindCept findCept = FindCept::ok;
 		while (inIndex != 0) {
 			OpEdge* test = inArray[--inIndex];
-			if (test == home)
+			FindCept findCept = ray.findIntercept(home, test);
+			if (FindCept::ok == findCept)
 				continue;
-			findCept = ray.findIntercept(test);
-			if (FindCept::unsectable == findCept) {
-				EdgeDistance& tDist = ray.distances.back();
-				if (home->isLinear() && test->isLinear()) {
-					// !!! if home is long and test is short, may need to see if trying again
-					// with normal outside test gives sectable result. Wait for that test case
-					// to code
-					// !!! not sure how to assert for this
-					home->addPal(tDist);
-				} else if (touches == touching.size())
-					touching.push_back(ray.distances.back());
-			} else if (FindCept::retry == findCept)
+			if (FindCept::retry == findCept)
 				goto tryADifferentCenter;
+			if (FindCept::addPal == findCept) {
+				EdgeDistance& tDist = ray.distances.back();
+				home->addPal(tDist);
+				continue;
+			}
+			if (FindCept::unsortable == findCept)
+				goto giveUp;
 		}
-		if (touches != touching.size())
-			goto tryADifferentCenter;
 		if (ray.distances.size() <= 1) 
 			return FoundIntercept::yes;
 		ray.sort();
@@ -655,22 +671,7 @@ FoundIntercept OpWinder::findRayIntercept(size_t homeIndex, OpVector homeTan, fl
 				home->ptBounds.rbChoice(workingAxis), midEnd);
 		float homeMidT = home->curve.center(workingAxis, middle);  // note: 0 to 1 on edge curve
 		if (OpMath::IsNaN(homeMidT) || mid <= 1.f / 256.f) {  // give it at most eight tries
-			// look for the same edge touching multiple times; the pair are unsectable
-			if (FindCept::unsectable == findCept) {
-				markUnsortable();
-				break;	// give up
-			}
-			while (touching.size()) {
-				EdgeDistance& touch = touching[0];
-				OpEdge* test = touch.edge;
-				int count = std::count_if(touching.begin(), touching.end(), 
-						[&test](auto dist){ return dist.edge == test; });
-				if (count > 1)
-					home->addPal(touch);
-				touching.erase(std::remove_if(touching.begin(), touching.end(), 
-						[&test](auto dist){ return dist.edge == test; }), touching.end());
-			}
-			if (!home->isUnsectable && !home->pals.size())
+			if (!home->isUnsectable)
 				markUnsortable();
 			break;	// give up
 		}
@@ -681,6 +682,7 @@ FoundIntercept OpWinder::findRayIntercept(size_t homeIndex, OpVector homeTan, fl
 		ray.homeT = homeMidT;
 		OP_ASSERT(!OpMath::IsNaN(normal));
 	} while (true);
+giveUp:
 	// give up case: sort and go home
 	ray.sort();
 	return FoundIntercept::fail;	// nonfatal error (!!! give it a different name!)
@@ -688,7 +690,7 @@ FoundIntercept OpWinder::findRayIntercept(size_t homeIndex, OpVector homeTan, fl
 
 void OpWinder::markUnsortable() {
 	if (Axis::vertical == workingAxis || inY.end() == std::find(inY.begin(), inY.end(), home)) 
-		home->isUnsortable = true;
+		home->setUnsortable();
 	home->rayFail = Axis::vertical == workingAxis ? EdgeFail::vertical : EdgeFail::horizontal;
 }
 
@@ -744,7 +746,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 	if (1 == ray.distances.size()) {
 		OP_ASSERT(home == ray.distances[0].edge);
 		if (home->pals.size() || home->isUnsectable)  // !!! move this to where unsectable is set?
-			home->isUnsortable = true;
+			home->setUnsortable();
 		else {
 #if OP_TEST_NEW_INTERFACE
 			OpWinding prev(home, WindingSum::dummy);
@@ -753,7 +755,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 #endif
 			// look at direction of edge relative to ray and figure winding/oppWinding contribution
 			if (CalcFail::fail == home->addIfUR(ray.axis, ray.distances[0].edgeInsideT, &prev))
-				home->isUnsortable = true;
+				home->setUnsortable();
 			else
 				OP_EDGE_SET_SUM(home, prev.w);
 		}
@@ -833,7 +835,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 			break;
 		NormalDirection normDir = prior->normalDirection(ray.axis, dist.edgeInsideT);
 		if (NormalDirection::underflow == normDir) {
-			prior->isUnsortable = true;
+			prior->setUnsortable();
 			continue;
 		}
 		if (NormalDirection::downLeft == normDir && !anyPriorPal(prior, sumIndex))
@@ -866,7 +868,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 		home->windPal = true;
 	}
 	if (CalcFail::fail == home->addIfUR(ray.axis, homeT, &sumWinding))
-		home->isUnsortable = true;
+		home->setUnsortable();
 	else
 		OP_EDGE_SET_SUM(home, sumWinding.w);
 	std::swap(home->many, home->winding);  // restore winding, put total of pals in many

@@ -167,11 +167,13 @@ inline size_t cubicPtCount() {
     return 4;
 }
 
+#if 0
 inline bool cubicNearly(Curve c) {
     CubicControls controls(c);
 	return (controls.pts[0].isNearly(c.data->start) || controls.pts[0].isNearly(c.data->end))
             && (controls.pts[1].isNearly(c.data->start) || controls.pts[1].isNearly(c.data->end));
 }
+#endif
 
 inline bool cubicIsFinite(Curve c) {
     CubicControls controls(c);

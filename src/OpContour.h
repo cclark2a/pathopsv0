@@ -368,6 +368,9 @@ struct OpContours {
     void debugRemap(int oldRayMatch, int newRayMatch);
     bool debugSuccess() const;
 #endif
+#if OP_DEBUG_VALIDATE
+    void debugValidateIntersections();
+#endif
 #if OP_DEBUG_DUMP
     void debugCompare(std::string s);
     void dumpResolve(OpContour*& contourRef);

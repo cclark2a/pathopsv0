@@ -271,8 +271,12 @@ void OpSegment::makeEdges() {
        edges.clear();
        return;
     }
+#if 0  // !!! this fails if intersection is unsectable; checking is probably not worth it ?
+       //     need to measure how often edge already is exists to justify more extensive check
+       //     does this need to check for other things? zero winding, coincidence, disabled, ?
     if (2 == sects.i.size() && 1 == edges.size() && !edges[0].start.t && 1 == edges[0].end.t)
         return;
+#endif
     edges.clear();
     edges.reserve(sects.i.size() - 1);
     sects.makeEdges(this);
@@ -322,7 +326,7 @@ void OpSegment::moveTo(float matchT, OpPoint equalPt) {
     0 == matchT ? c.setFirstPt(equalPt) : c.setLastPt(equalPt);
     c.pinCtrl();
     if (c.firstPt() == c.lastPt())
-        disabled = true;
+        setDisabled(ZeroReason::segmentPoint);
     setBounds();
     for (OpIntersection* sect : sects.i) {
         if (sect->ptT.t == matchT) {
@@ -358,17 +362,16 @@ void OpSegment::setDisabled(OP_DEBUG_CODE(ZeroReason reason)) {
     OP_DEBUG_CODE(debugZero = reason); 
 }
 
-// at present, only applies to horizontal and vertical lines
-// !!! experiment: add support for linear diagonals
+// !!! this finds coincidence on lines, but it needs to find unsectables as well ?
 void OpSegment::windCoincidences() {
     if (!c.isLine())
         return;
     if (disabled)
         return;
     OpVector tangent = c.lastPt() - c.firstPt();
-    if (tangent.dx && tangent.dy) {
+//    if (tangent.dx && tangent.dy) { // !!! seems like this should check all, not just diagonals
         // iterate through edges; if edge is linear and matches opposite, mark both coincident
-        bool foundCoincidence  = false;
+//        bool foundCoincidence  = false;
         for (OpEdge& edge : edges) {
             if (!edge.isLinear())
                 continue;
@@ -420,15 +423,15 @@ void OpSegment::windCoincidences() {
                         break;
                     // verify that all four intersections are not used to mark coincidence
                     if (oStart->coincidenceID)
-                        return;
+                        break;  // !!! was return;
                     if (oEnd->coincidenceID)
-                        return;
+                        break;  // !!! was return;
                     OpIntersection* const* eStart = oSegment->sects.entry(oppEdge->start, this);
                     if (!eStart || (*eStart)->opp->coincidenceID)
-                        return;
+                        break;  // !!! was return;
                     OpIntersection* const* eEnd = oSegment->sects.entry(oppEdge->end, this);
                     if (!eEnd || (*eEnd)->opp->coincidenceID)
-                        return;
+                        break;  // !!! was return;
                     // mark the intersections as coincident
                     int coinID = oSegment->coinID(reversed);
                     oStart->coincidenceID = coinID;
@@ -444,13 +447,13 @@ void OpSegment::windCoincidences() {
                     OP_ASSERT(MatchEnds::none == (*eEnd)->opp->coinEnd);
                     (*eEnd)->opp->coinEnd = reversed ? MatchEnds::start : MatchEnds::end;
                     sects.resort = true;
-                    foundCoincidence = true;
+//                    foundCoincidence = true;
                 }
             }
-        }
-        if (foundCoincidence)
-            sects.windCoincidences(edges  OP_DEBUG_PARAMS(tangent));
-        return;
+//        }
+//        if (foundCoincidence)
+//            sects.windCoincidences(edges  OP_DEBUG_PARAMS(tangent));
+//        return;
     }
     OP_ASSERT(tangent.dx || tangent.dy);
     sects.windCoincidences(edges  OP_DEBUG_PARAMS(tangent));

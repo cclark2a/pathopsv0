@@ -8,9 +8,11 @@ namespace PathOpsV0Lib {
 inline void noBounds(Curve , OpRect& ) {
 }
 
+#if 0
 inline bool noNearly(Curve ) {
     return false;
 }
+#endif
 
 inline OpPoint noHull(Curve , int index) {
     OP_ASSERT(0); // should never be called

@@ -97,6 +97,8 @@ enum class ZeroReason : uint8_t {
 	noFlip,
 	none,
 	palWinding,
+	rayFail,
+	segmentPoint,
 };
 
 struct EdgeDistance {
@@ -115,9 +117,9 @@ struct EdgeDistance {
 
 enum class FindCept {
 	ok,
-	okNew,	// intercept was found, and new distance was pushed
+	addPal,
 	retry,
-	unsectable,
+	unsectable,  // pal already added
 	unsortable
 };
 
@@ -137,13 +139,14 @@ struct SectRay {
 		, homeCept(OpNaN)
 		, homeT(OpNaN)
         , axis(Axis::neither)
+		, firstTry(true)
 	{
 	}
 	void addPals(OpEdge* );
 	bool checkOrder(const OpEdge* ) const;
 	const EdgeDistance* end(DistEnd e) {
 		return DistEnd::front == e ? &distances.front() : &distances.back(); }
-	FindCept findIntercept(OpEdge* );
+	FindCept findIntercept(OpEdge* home, OpEdge* test);
 	EdgeDistance* find(OpEdge* );
 	EdgeDistance* next(EdgeDistance* dist, DistEnd e) {
 		return dist + (int) e; }
@@ -158,6 +161,7 @@ struct SectRay {
 	float homeCept;  // intersection of normal on home edge (e.g., axis: h, center.x)
 	float homeT;  // value from 0 to 1 within edge range (akin to edgeInsideT)
 	Axis axis;
+	bool firstTry;  // used to cache unsectable test
 };
 
 enum class SectType {
@@ -276,6 +280,18 @@ enum class EdgeMaker {
 
 #endif
 
+enum class ArePals {
+	unset,
+	no,
+	yes
+};
+
+struct UnsectableOpp {  // !!! move to OpEdge.h
+	OpEdge* edge;
+	ArePals arePals;
+	bool overlaps;
+};
+
 constexpr float OP_CURVACIOUS_LIMIT = 1.f / 16;  // !!! tune to guess line/line split ratio
 
 struct OpEdge {
@@ -301,7 +317,7 @@ private:
 //		, verticalSet(false)
 		, isClose_impl(false)
 		, isLine_impl(false)
-		, exactLine(false)
+//		, exactLine(false)
 		, active_impl(false)
 		, inLinkups(false)
 		, inOutput(false)
@@ -381,9 +397,10 @@ public:
 	bool containsLink(const OpEdge* edge) const;
 	OpContours* contours() const;
 	size_t countUnsortable() const;
-	bool ctrlPtNearlyEnd();
+//	bool ctrlPtNearlyEnd();
 //	float curviness();
-	OpIntersection* findSect(EdgeMatch );
+	OpIntersection* findEndSect(EdgeMatch match, OpSegment* oppSeg);
+	OpIntersection* findWhichSect(EdgeMatch );
 	OpPtT findT(Axis , float oppXY) const;
 	OpPtT flipPtT(EdgeMatch match) const { 
 		return match == which() ? end : start; }
@@ -396,6 +413,7 @@ public:
 	bool isPal(const OpEdge* opp) const {
 		return pals.end() != std::find_if(pals.begin(), pals.end(), 
 				[opp](const auto& test) { return opp == test.edge; }); }
+	bool isUnsectablePair(OpEdge* opp);
 	void linkToEdge(FoundEdge& , EdgeMatch );
 //	void linkNextPrior(OpEdge* first, OpEdge* last);
 	bool linksTo(OpEdge* match) const;
@@ -439,6 +457,7 @@ public:
 		sum.setSum(w, contours());
 	}
 #endif
+	void setUnsortable();  // setter exists so debug breakpoints can be set
 	const OpCurve& setVertical(const LinePts& );
 	void setWhich(EdgeMatch );  // setter exists so debug breakpoints can be set
 	void skipPals(EdgeMatch match, std::vector<FoundEdge>& edges);
@@ -447,6 +466,7 @@ public:
 	CalcFail subIfDL(Axis axis, float t, OpWinding* );
 	OpType type();
 	void unlink();  // restore edge to unlinked state (for reusing unsortable or unsectable edges)
+	bool unsectableMatches(OpEdge* ) const; // true if edges share the same unsectable range
 	EdgeMatch which() const {
 		return whichEnd_impl; }
 	OpPtT whichPtT(EdgeMatch match = EdgeMatch::start) const { 
@@ -505,6 +525,7 @@ public:
 	std::vector<EdgeDistance> pals;	 // list of unsectable adjacent edges !!! should be pointers?
 	std::vector<OpEdge*> lessRay;  // edges found placed with smaller edge distance cept values
 	std::vector<OpEdge*> moreRay;  // edges found placed with larger edge distance cept values
+	std::vector<UnsectableOpp> uPairs; // opposite edges unsectable with this edge
 	OpHulls hulls;  // curve-curve intersections
 //	float curvy;  // rough ratio of midpoint line point line to length of end point line
 //	OpPtT oppEnd;  // pt and t for closest point on opposite curve from end point

@@ -334,6 +334,7 @@ OpRoots OpCurve::rawIntersect(const LinePts& linePt, MatchEnds common) const {
 #endif
 }
 
+// !!! this should return OpPoint as well as t so caller doesn't have to recompute
 OpRoots OpCurve::rayIntersect(const LinePts& line, MatchEnds common) const {
     OpRoots rawRoots = rawIntersect(line, common);
     rawRoots.keepValidTs();

@@ -110,7 +110,7 @@ void SetContextCallBacks(Context* context, EmptyNativePath emptyNativePath) {
     };
 }
 
-OpType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, ControlNearlyEnd nearlyFunc,
+OpType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, /* ControlNearlyEnd nearlyFunc, */
         CurveHull hullFunc, CurveIsFinite isFiniteFunc, CurveIsLine isLineFunc, 
         CurveIsLinear isLinearFunc, SetBounds setBoundsFunc, CurveNormal normalFunc, 
         CurveOutput outputFunc, CurvePinCtrl curvePinFunc, CurveReverse reverseFunc, 
@@ -121,7 +121,7 @@ OpType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, ControlNearlyEnd
 		OP_DEBUG_IMAGE_PARAMS(DebugAddToPath debugAddToPathFunc)
 ) {
     OpContours* contours = (OpContours*) context;
-    contours->callBacks.push_back( { axisFunc, nearlyFunc, hullFunc, isFiniteFunc, isLineFunc, 
+    contours->callBacks.push_back( { axisFunc, /* nearlyFunc, */ hullFunc, isFiniteFunc, isLineFunc, 
             isLinearFunc, setBoundsFunc, normalFunc, outputFunc, curvePinFunc, reverseFunc, 
             tangentFunc, equalFunc, ptAtTFunc, doublePtAtTFunc, ptCountFunc, rotateFunc, 
             subDivideFunc, xyAtTFunc 

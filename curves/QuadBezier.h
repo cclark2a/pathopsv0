@@ -116,10 +116,12 @@ inline size_t quadPtCount() {
     return 3;
 }
 
+#if 0
 inline bool quadNearly(Curve c) {
     OpPoint ctrlPt = quadControlPt(c);
 	return ctrlPt.isNearly(c.data->start) || ctrlPt.isNearly(c.data->end);
 }
+#endif
 
 inline bool quadIsFinite(Curve c) {
     return quadControlPt(c).isFinite();
