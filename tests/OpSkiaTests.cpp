@@ -16,8 +16,8 @@
 #define OP_TEST_REGION 1  // test result of v0 against skia regions
 
 #define CURVE_CURVE_1 2  // id of segment 1 to break in divide and conquer
-#define CURVE_CURVE_2 6  // id of segment 2 to break in divide and conquer
-#define CURVE_CURVE_DEPTH 1  // minimum recursion depth for curve curve break
+#define CURVE_CURVE_2 5  // id of segment 2 to break in divide and conquer
+#define CURVE_CURVE_DEPTH 6  // minimum recursion depth for curve curve break
 
 // see descriptions for exceptions below
 #define TEST_PATH_OP_EXCEPTIONS "issue3517" // "cubics7d"

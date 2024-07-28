@@ -5420,13 +5420,31 @@ path.close();
     testSimplify(reporter, path, filename);
 }
 
+void testQuads3759779(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(0, 1, 3, 1);
+path.lineTo(0, 2);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 0);
+path.quadTo(1, 0, 2, 3);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
 static struct TestDesc tests[] = {
+    TEST(testQuads3759779),
+    TEST(testQuads1877923),
+    TEST(testQuads1878611),
     TEST(testQuads1884197),
     TEST(testQuads1883849),
     TEST(testQuads3756235),
     TEST(testQuads1879035),
     TEST(testQuads1878623),
-    TEST(testQuads1878611),
     TEST(testQuads1878025),
     TEST(testQuads20659201),
     TEST(testQuads1922481),
@@ -5440,7 +5458,6 @@ static struct TestDesc tests[] = {
     TEST(testQuads3775793),
     TEST(testQuads5636775),
     TEST(testQuads5636401),
-    TEST(testQuads1877923),
     TEST(testQuads13161941),
     TEST(testQuads24721371),
     TEST(testQuads26519435),

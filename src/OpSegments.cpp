@@ -504,12 +504,13 @@ FoundIntersections OpSegments::findIntersections() {
 #if OP_DEBUG_DUMP
             OP_ASSERT(!cc.dumpBreak());
 #endif
-            if (SectFound::fail == ccResult || SectFound::maxOverlaps == ccResult
-                    || SectFound::noOverlapDeep == ccResult) {
+            if (true) { // SectFound::fail == ccResult || SectFound::maxOverlaps == ccResult
+                        //        || SectFound::noOverlapDeep == ccResult
                 // !!! as an experiment, search runs for small opp distances; turn found into limits
                 SectFound limitsResult = cc.runsToLimits();
                 if (SectFound::add == limitsResult)
                     ccResult = limitsResult;
+#if 0
                 else if (SectFound::fail == limitsResult) {
                     if (cc.limits.size())
                         ccResult = SectFound::add;
@@ -522,6 +523,7 @@ FoundIntersections OpSegments::findIntersections() {
                         ccResult = SectFound::no;
                     }
                 }
+#endif
             }
             if (SectFound::add == ccResult)
                 cc.findUnsectable();

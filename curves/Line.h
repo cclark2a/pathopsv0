@@ -23,7 +23,7 @@ inline OpRoots lineAxisRawHit(PathOpsV0Lib::Curve c, Axis axis, float axisInterc
         return OpRoots(axisIntercept < ptr[0] ? RootFail::outsideFirstPt : RootFail::outsideLastPt);
     // strict equality fails for denomalized numbers
     // if (ptr[2] == ptr[0]) {
-    if (fabsf(ptr[2] - ptr[0]) <= OpEpsilon)   // coincident line values are computed later
+    if (ptr[2] == ptr[0])   // coincident line values are computed later
         return OpRoots(OpNaN, OpNaN);
     return OpRoots((axisIntercept - ptr[0]) / (ptr[2] - ptr[0]));
 }
