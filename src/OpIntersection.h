@@ -95,6 +95,8 @@ struct OpIntersection {
 #endif
 	}
 
+	void setCoin(int id, MatchEnds end);  // setter to help debugging
+
 	void zeroCoincidenceID() {
 		OP_ASSERT(coincidenceID);
 		OP_ASSERT(opp->coincidenceID);
@@ -128,7 +130,7 @@ struct OpIntersection {
 	OpIntersection* opp;
 	OpPtT ptT;
 	int coincidenceID;
-	int unsectID;	// !!! may be able to be merged with coincident ID; keep separate for now
+	int unsectID;
 	MatchEnds coinEnd;  // used to put start before end on sect sort
 	MatchEnds unsectEnd;
 	bool coincidenceProcessed;

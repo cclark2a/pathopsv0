@@ -13,6 +13,18 @@ void CcCurves::clear() {
 	}
 }
 
+bool CcCurves::checkMid(size_t index) {
+	EdgeRun& eS = runs[index];
+	EdgeRun& eE = runs[index + 1];
+	EdgeRun mid;
+	float midT = OpMath::Average(eS.edgePtT.t, eE.edgePtT.t);
+	const OpSegment* seg = eS.edge->segment;
+	mid.edgePtT = seg->c.ptTAtT(midT);
+	mid.oppPtT = Dist(seg, mid.edgePtT, eS.oppEdge->segment);
+	mid.oppDist = mid.setOppDist(seg);
+	return OpMath::Betweenish(eS.oppDist, mid.oppDist, eE.oppDist);
+}
+
 OpPtT CcCurves::closest(OpPoint pt) const {
 	OpPoint oBest;
 	float oBestDistSq = OpInfinity;
@@ -81,9 +93,9 @@ float EdgeRun::setOppDist(const OpSegment* segment) {
 	return dist;
 }
 
-void EdgeRun::set(const OpEdge* e, const OpSegment* oppSeg, EdgeMatch match) {
+void EdgeRun::set(OpEdge* e, const OpSegment* oppSeg, EdgeMatch match) {
 	edge = e;
-	oppEdge = &oppSeg->edges[0];  // !!! don't know about this...
+	oppEdge = const_cast<OpEdge*>(&oppSeg->edges[0]);  // !!! don't know about this...
 	edgePtT = EdgeMatch::start == match ? edge->start : edge->end;
 	oppPtT = CcCurves::Dist(edge->segment, edgePtT, oppSeg);
 	if (OpMath::IsFinite(oppPtT.t))
@@ -95,11 +107,9 @@ void EdgeRun::set(const OpEdge* e, const OpSegment* oppSeg, EdgeMatch match) {
 	OP_DEBUG_CODE(debugBetween = 1);
 }
 
-void CcCurves::addEdgeRun(const OpEdge* edge, const OpSegment* oppSeg, EdgeMatch match) {
+void CcCurves::addEdgeRun(OpEdge* edge, const OpSegment* oppSeg, EdgeMatch match) {
 	OP_ASSERT(!debugHasEdgeRun(EdgeMatch::start == match ? edge->start.t : edge->end.t));
 	EdgeRun run;
-//	OpDebugBreak(edge, 47);
-//	OpDebugBreak(edge, 66);
 	run.set(edge, oppSeg, match);
 	OP_DEBUG_CODE(debugRuns.push_back(run));
 	if (OpMath::IsNaN(run.oppDist))
@@ -112,25 +122,6 @@ void CcCurves::addEdgeRun(const OpEdge* edge, const OpSegment* oppSeg, EdgeMatch
 		if (runStart->edgePtT.t <= run.edgePtT.t && run.edgePtT.t < runEnd->edgePtT.t
 				&& OpMath::Between(runStart->oppDist, run.oppDist, runEnd->oppDist)) {
 			OP_DEBUG_CODE(++runStart->debugBetween);
-#if 0 && OP_DEBUG  // !!! disabled because distance need not be well behaved when measuring between
-			EdgeRun* smaller = &debugRuns[0];
-			EdgeRun* larger = &debugRuns[0];
-			for (EdgeRun& debugRun : debugRuns) {
-				if (OpMath::IsNaN(debugRun.oppDist))
-					continue;
-				// smaller, larger may initially be NaN. Reverse checks to account for this
-				if (OpMath::IsNaN(smaller->oppDist)
-						|| ((smaller->edgeT < debugRun.edgeT || smaller->edgeT >= run.edgeT)
-						&& debugRun.edgeT < run.edgeT))
-					smaller = &debugRun;
-				if (OpMath::IsNaN(larger->oppDist)
-						|| ((larger->edgeT > debugRun.edgeT || larger->edgeT <= run.edgeT)
-						&& debugRun.edgeT > run.edgeT))
-					larger = &debugRun;
-			}
-			if (OpMath::IsFinite(smaller->oppDist && OpMath::IsFinite(larger->oppDist)))
-				OP_ASSERT(OpMath::Between(smaller->oppDist, run.oppDist, larger->oppDist));
-#endif
 			if (runStart->oppDist * runEnd->oppDist > 0)
 				return;
 		}
@@ -214,7 +205,7 @@ int CcCurves::groupCount() const {
 	return result;
 }
 
-void CcCurves::initialEdgeRun(const OpEdge* edge, const OpSegment* oppSeg) {
+void CcCurves::initialEdgeRun(OpEdge* edge, const OpSegment* oppSeg) {
 	for (EdgeMatch match : { EdgeMatch::start, EdgeMatch::end } ) {
 		EdgeRun run;
 		run.set(edge, oppSeg, match);
@@ -373,7 +364,7 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
 	}
 }
 
-void OpCurveCurve::addEdgeRun(const OpEdge* edge, CurveRef curveRef, EdgeMatch match) {
+void OpCurveCurve::addEdgeRun(OpEdge* edge, CurveRef curveRef, EdgeMatch match) {
 	CcCurves& curves = CurveRef::edge == curveRef ? edgeCurves : oppCurves;
 	curves.addEdgeRun(edge, CurveRef::edge == curveRef ? opp : seg, match);
 }
@@ -852,7 +843,7 @@ bool OpCurveCurve::ifNearly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& oppEdge,
 // (Later) If edge is linear, but not a true line (e.g., the control points are nearly colinear with
 //  the end points) check the hulls rather than just the line. 
 bool OpCurveCurve::LineMissed(OpEdge& edge, OpEdge& opp) {
-	if (!edge.isLinear())
+	if (!edge.isLine())
 		return false;
 	if (!edge.exactLine)	// !!! only place exact line is used
 		return false;
@@ -904,21 +895,21 @@ bool OpCurveCurve::rotatedIntersect(OpEdge& edge, OpEdge& oppEdge, bool sharesPo
 
 // !!! reasons are test while this is experimental
 SectFound OpCurveCurve::runsToLimits() {
-	EdgeRun* lower = nullptr;
-	EdgeRun* lastUpper = nullptr;
-	EdgeRun* upper = nullptr;
-	SectFound found = SectFound::fail;
-	auto addIfNew = [this](EdgeRun* run) {
-		if (!alreadyInLimits(run->edge, run->oppEdge, run->edgePtT.t)) {
-			FoundLimits lowerLimit { run->edge, run->oppEdge, run->edgePtT, run->oppPtT, 
-					run->fromFoundT  OP_LINE_FILE_STRUCT(SectReason::test, SectReason::test) };
+	bool swap = false;
+	auto addIfNew = [this, &swap](EdgeRun* run) {
+		FoundLimits lowerLimit { run->edge, run->oppEdge, run->edgePtT, run->oppPtT, 
+				run->fromFoundT  OP_LINE_FILE_STRUCT(SectReason::test, SectReason::test) };
+		if (swap) {
+			std::swap(lowerLimit.parentEdge, lowerLimit.parentOpp);
+			std::swap(lowerLimit.seg, lowerLimit.opp);
+		}
+		if (!alreadyInLimits(lowerLimit.parentEdge, lowerLimit.parentOpp, lowerLimit.seg.t))
 			limits.push_back(std::move(lowerLimit));
-		}
 	};
+	EdgeRun* lower, * lastUpper, * upper;
 	auto addLimit = [&lower, &lastUpper, &upper, addIfNew]() {
-		if (lower != lastUpper) {
+		if (lower != lastUpper)
 			addIfNew(lower);
-		}
 		if (upper) {
 			addIfNew(upper);
 			lastUpper = upper;
@@ -926,43 +917,52 @@ SectFound OpCurveCurve::runsToLimits() {
 		return SectFound::add;
 	};
 	// first pass: add edges with very small distances
-	size_t lodex = OpMax;
-	size_t hidex = OpMax;
-	auto markByZero = [&lodex, &hidex, &lower, &upper, &found, this, addLimit]() {
-			lower = &edgeCurves.runs[lodex];
-			upper = OpMax == hidex ? nullptr : &edgeCurves.runs[hidex];
+	size_t lodex, hidex;
+	CcCurves* curves = &edgeCurves;
+	SectFound found = SectFound::fail;
+	auto markByZero = [&lodex, &hidex, &lower, &upper, &found, &curves, addLimit]() {
+			lower = &curves->runs[lodex];
+			upper = OpMax == hidex ? nullptr : &curves->runs[hidex];
 			found = addLimit();
+			// only disable prior if the mid point is equal to or smaller than its distance
 			// mark prior two edges to disable sign compare
-			if (lodex > 1) {
-				edgeCurves.runs[lodex - 1].byZero = true;
+			if (lodex > 1 && curves->checkMid(lodex - 1)) {
+				curves->runs[lodex - 1].byZero = true;
 			}
 			if (OpMax == hidex)
 				hidex = lodex;
 			// mark next two edges to disable sign compare
-			if (hidex + 2 < edgeCurves.runs.size()) {
-				edgeCurves.runs[hidex + 1].byZero = true;
-			}
+			if (hidex + 2 < curves->runs.size() && curves->checkMid(hidex))
+				curves->runs[hidex + 1].byZero = true;
 			lodex = hidex = OpMax;
-
 	};
-	for (size_t index = 0; index < edgeCurves.runs.size(); ++index) {
-		EdgeRun& run = edgeCurves.runs[index];
-		if (fabsf(run.oppDist) <= OpEpsilon)
-			(OpMax == lodex ? lodex : hidex) = index;
-		else if (OpMax != lodex)
+	// scan both edge curves and opp curves
+	do {
+		lower = nullptr;
+		lastUpper = nullptr;
+		upper = nullptr;
+		lodex = OpMax;
+		hidex = OpMax;
+		for (size_t index = 0; index < curves->runs.size(); ++index) {
+			EdgeRun& run = curves->runs[index];
+			if (fabsf(run.oppDist) <= OpEpsilon)
+				(OpMax == lodex ? lodex : hidex) = index;
+			else if (OpMax != lodex)
+				markByZero();
+		}
+		if (OpMax != lodex)
 			markByZero();
-	}
-	if (OpMax != lodex)
-		markByZero();
-	// second pass: add edges with distances that switch signs but are not adjacent to very small
-	for (auto& run : edgeCurves.runs) {
-		upper = &run;
-		if (lower && lower->oppDist * run.oppDist < 0 
-				&& fabsf(lower->oppDist) > OpEpsilon && fabsf(run.oppDist) > OpEpsilon
-				&& !lower->byZero && !run.byZero)  // switches sides
-			found = addLimit();
-		lower = upper;
-	}
+		// second pass: add edges with distances that switch signs but are not adjacent to very small
+		for (auto& run : curves->runs) {
+			upper = &run;
+			if (lower && lower->oppDist * run.oppDist < 0 
+					&& fabsf(lower->oppDist) > OpEpsilon && fabsf(run.oppDist) > OpEpsilon
+					&& !lower->byZero && !run.byZero)  // switches sides
+				found = addLimit();
+			lower = upper;
+		}
+		curves = &oppCurves;
+	} while ((swap = !swap));
 	return found;
 }
 
@@ -998,7 +998,7 @@ void OpCurveCurve::setHullSects(OpEdge& edge, OpEdge& oppEdge, CurveRef curveRef
 			OP_ASSERT(edge.start.t <= sectPtT.t && sectPtT.t <= edge.end.t);
 			// if pt is close to existing hull sect, and both are not end, record intersection
 			if (edge.hulls.add(sectPtT, sectType, &oppEdge)) {
-				const OpSegment* oSeg = oppEdge.segment;
+				OpSegment* oSeg = oppEdge.segment;
 				OpPtT oppPtT { oSeg->c.ptTAtT(oSeg->findValidT(0, 1, sectPtT.pt))};
 				if (!oppPtT.pt.isFinite())
 					return;
@@ -1026,7 +1026,7 @@ void OpCurveCurve::setHulls(CurveRef curveRef) {
 			auto& oppEdge = *oppPtr;
 			if (!oppEdge.ccOverlaps)
 				continue;
-			if (!splitMid || edge.isLinear())
+			if (!splitMid || edge.isLine())
 				setHullSects(edge, oppEdge, curveRef);
 		}
 	}

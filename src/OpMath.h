@@ -881,6 +881,7 @@ struct LinePts {
     OpRoots axisTanHit(Axis axis, float axisIntercept) const;
     bool isPoint() const;
     OpPoint ptAtT(float t) const;
+    bool ptOnLine(OpPoint pt) const;
     OpRoots tangentIntersect(const LinePts& line) const;
 
 #if OP_DEBUG_DUMP

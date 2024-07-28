@@ -633,9 +633,10 @@ void OpCurve::reverse() {
 #endif
 }
 
+#if 0
 bool OpCurve::isLinear() const {
 #if OP_TEST_NEW_INTERFACE
-    OP_ASSERT(!isLine());
+    OP_ASSERT(!debugIsLine());
     return contours->callBack(c.type).curveIsLinearFuncPtr(c);
 #else
     OP_ASSERT(c.type >= OpType::quad);
@@ -660,6 +661,7 @@ bool OpCurve::isLinear() const {
     return linear;
 #endif
 }
+#endif
 
 // new interface
 
@@ -678,13 +680,23 @@ OpRoots OpCurve::axisRawHit(Axis offset, float intercept, MatchEnds matchEnds) c
 }
 #endif
 
-bool OpCurve::isLine() const {
+bool OpCurve::isLine() {
 #if OP_TEST_NEW_INTERFACE
-    return contours->callBack(c.type).curveIsLineFuncPtr(c);
+    if (contours->callBack(c.type).curveIsLineFuncPtr(c)) {
+        c.type = contours->contextCallBacks.setLineType(c);
+        return true;
+    }
+    return false;
 #else
     return OpType::line == c.type;
 #endif
 }
+
+#if OP_DEBUG
+bool OpCurve::debugIsLine() const {
+    return c.type == contours->contextCallBacks.setLineType(c);
+}
+#endif
 
 OpPoint OpCurve::firstPt() const {
 #if OP_TEST_NEW_INTERFACE

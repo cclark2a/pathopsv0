@@ -186,11 +186,10 @@ void OpContour::addLine(OpPoint pts[2]) {
 
 OpIntersection* OpContour::addCoinSect(const OpPtT& t, OpSegment* seg, int cID, MatchEnds coinEnd
         OP_LINE_FILE_DEF(SectReason reason, const OpSegment* oSeg)) {
+	OP_ASSERT(MatchEnds::both != coinEnd);
     OpIntersection* next = contours->allocateIntersection();
     next->set(t, seg  OP_LINE_FILE_CALLER(reason, seg->id, oSeg->id));
-	next->coincidenceID = cID;  // 0 if no coincidence; negative if coincident pairs are reversed
-	OP_ASSERT(MatchEnds::both != coinEnd);
-	next->coinEnd = coinEnd;
+	next->setCoin(cID, coinEnd);  // 0 if no coincidence; negative if coincident pairs are reversed
     return next;
 }
 

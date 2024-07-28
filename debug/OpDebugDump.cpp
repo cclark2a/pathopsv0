@@ -973,6 +973,7 @@ SectReasonName sectReasonNames[] {
     SECT_REASON_NAME(unsectableStart),
     SECT_REASON_NAME(xExtrema),
     SECT_REASON_NAME(yExtrema),
+    SECT_REASON_NAME(zeroRun),
     // testing only
     SECT_REASON_NAME(test),
 };
@@ -1630,7 +1631,6 @@ ENUM_NAME(EdgeSplit, edgeSplit)
 	OP_X(closeSet) \
 	OP_X(lineSet) \
 	OP_X(isClose_impl) \
-	OP_X(isLine_impl) \
 	OP_X(active_impl) \
 	OP_X(inLinkups) \
 	OP_X(inOutput) \
@@ -2091,9 +2091,9 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         s += strLabel(#ef) + " "; \
         if (1 != ((unsigned char) ef)) s += STR((size_t) ef) + " "; }} while(false)
     STR_BOOL(closeSet);
-    STR_BOOL(lineSet);
+//    STR_BOOL(lineSet);
     STR_BOOL(isClose_impl);
-    STR_BOOL(isLine_impl);
+//    STR_BOOL(isLine_impl);
 //    STR_BOOL(exactLine);
 	STR_BOOL(active_impl);
     STR_BOOL(inLinkups);
@@ -2254,9 +2254,9 @@ void OpEdge::dumpSet(const char*& str) {
     doSplit = edgeSplitStr(str, "doSplit", EdgeSplit::no);
 #define STR_BOOL(ef) ef = OpDebugOptional(str, #ef)
     STR_BOOL(closeSet);
-    STR_BOOL(lineSet);
+//    STR_BOOL(lineSet);
     STR_BOOL(isClose_impl);
-    STR_BOOL(isLine_impl);
+//    STR_BOOL(isLine_impl);
 //    STR_BOOL(exactLine);
 	STR_BOOL(active_impl);
     STR_BOOL(inLinkups);
@@ -3528,7 +3528,7 @@ void OpCurveCurve::dumpResolveAll(OpContours* c) {
 void OpCurveCurve::dumpDepth(int level) {
     std::vector<EdgeFilter> showFields = { EF::id, EF::segment, EF::start, EF::end, 
             EF::ccEnd, EF::ccLarge, EF::ccOverlaps, EF::ccSmall, EF::ccStart,
-            EF::hulls, EF::lineSet, EF::isClose_impl, EF::isLine_impl, /* EF::exactLine, */
+            EF::hulls, EF::lineSet, EF::isClose_impl, /* EF::isLine_impl, EF::exactLine, */
             EF::debugSplitStart, EF::debugSplitEnd, EF::debugParentID, 
             EF::debugSetMaker };
     OpSaveEF saveEF(showFields);

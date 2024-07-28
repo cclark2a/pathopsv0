@@ -19,10 +19,12 @@ inline OpPoint noHull(Curve , int index) {
     return OpPoint();
 }
 
+#if 0
 inline bool noLinear(Curve ) {
     OP_ASSERT(0); // should never be called
     return false;
 }
+#endif
 
 inline void noPinCtrl(Curve) {
 }

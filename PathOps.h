@@ -106,10 +106,10 @@ int Error(Context* );
  */
 void Resolve(Context* , PathOutput );
 
-void SetContextCallBacks(Context* ,  EmptyNativePath);
+void SetContextCallBacks(Context* ,  EmptyNativePath, SetLineType );
 
 OpType SetCurveCallBacks(Context* , AxisRawHit, /* ControlNearlyEnd, */
-		CurveHull, CurveIsFinite, CurveIsLine, CurveIsLinear,
+		CurveHull, CurveIsFinite, CurveIsLine, /* CurveIsLinear, */
 		SetBounds, CurveNormal, CurveOutput, CurvePinCtrl,
 		CurveReverse, CurveTangent, CurvesEqual, PtAtT, DoublePtAtT,
 		PtCount, Rotate, SubDivide, XYAtT

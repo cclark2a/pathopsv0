@@ -198,7 +198,7 @@ OpEdge* OpSegment::findEnabled(const OpPtT& ptT, EdgeMatch match) const {
 
 // used to find unsectable range; assumes range all has about the same slope
 // !!! this may be a bad idea if two near coincident edges turn near 90 degrees
-float OpSegment::findAxisT(Axis axis, float start, float end, float opp) const {
+float OpSegment::findAxisT(Axis axis, float start, float end, float opp) {
     if (!c.isLine()) {
         OpRoots roots = c.axisRayHit(axis, opp, start, end);
         if (1 == roots.count)
@@ -226,7 +226,7 @@ float OpSegment::findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) 
 
 // returns t iff opp point is between start and end
 // start/end range is necessary since cubics can have more than one t at a point
-float OpSegment::findValidT(float start, float end, OpPoint opp) const {
+float OpSegment::findValidT(float start, float end, OpPoint opp) {
     if (!c.isLine()) {
         OpRoots hRoots = c.axisRayHit(Axis::horizontal, opp.y, start, end);
         OpRoots vRoots = c.axisRayHit(Axis::vertical, opp.x, start, end);
@@ -373,7 +373,7 @@ void OpSegment::windCoincidences() {
         // iterate through edges; if edge is linear and matches opposite, mark both coincident
 //        bool foundCoincidence  = false;
         for (OpEdge& edge : edges) {
-            if (!edge.isLinear())
+            if (!edge.isLine())
                 continue;
             // iterate through sects that match edge start and end, looking for parallel edges
             OpIntersection** firstBegin = nullptr;
@@ -419,7 +419,7 @@ void OpSegment::windCoincidences() {
                     OpEdge* oppEdge = oSegment->findEnabled(oStart->ptT, EdgeMatch::start);
                     if (!oppEdge)
                         break;
-                    if (!oppEdge->isLinear())
+                    if (!oppEdge->isLine())
                         break;
                     // verify that all four intersections are not used to mark coincidence
                     if (oStart->coincidenceID)
@@ -434,18 +434,14 @@ void OpSegment::windCoincidences() {
                         break;  // !!! was return;
                     // mark the intersections as coincident
                     int coinID = oSegment->coinID(reversed);
-                    oStart->coincidenceID = coinID;
                     OP_ASSERT(MatchEnds::none == oStart->coinEnd);
-                    oStart->coinEnd = MatchEnds::start;
-                    oEnd->coincidenceID = coinID;
+                    oStart->setCoin(coinID, MatchEnds::start);
                     OP_ASSERT(MatchEnds::none == oEnd->coinEnd);
-                    oEnd->coinEnd = MatchEnds::end;
-                    (*eStart)->opp->coincidenceID = coinID;
+                    oEnd->setCoin(coinID, MatchEnds::end);
                     OP_ASSERT(MatchEnds::none == (*eStart)->opp->coinEnd);
-                    (*eStart)->opp->coinEnd = reversed ? MatchEnds::end : MatchEnds::start;
-                    (*eEnd)->opp->coincidenceID = coinID;
+                    (*eStart)->opp->setCoin(coinID, reversed ? MatchEnds::end : MatchEnds::start);
                     OP_ASSERT(MatchEnds::none == (*eEnd)->opp->coinEnd);
-                    (*eEnd)->opp->coinEnd = reversed ? MatchEnds::start : MatchEnds::end;
+                    (*eEnd)->opp->setCoin(coinID, reversed ? MatchEnds::start : MatchEnds::end);
                     sects.resort = true;
 //                    foundCoincidence = true;
                 }

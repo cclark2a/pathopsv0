@@ -127,7 +127,7 @@ typedef bool (*CurveIsFinite)(Curve );
 typedef bool (*CurveIsLine)(Curve ); 
 
 // returns true if curve degenerates to line
-typedef bool (*CurveIsLinear)(Curve ); 
+// typedef bool (*CurveIsLinear)(Curve ); 
 
 // returns OpPoint at parameter t, where: t=0 is start, t=1 is end
 typedef OpPoint (*PtAtT)(Curve , float t);
@@ -181,7 +181,7 @@ struct CurveCallBacks {
 	CurveHull curveHullFuncPtr;
 	CurveIsFinite curveIsFiniteFuncPtr;
 	CurveIsLine curveIsLineFuncPtr;
-	CurveIsLinear curveIsLinearFuncPtr;
+//	CurveIsLinear curveIsLinearFuncPtr;
 	SetBounds setBoundsFuncPtr;
 	CurveNormal curveNormalFuncPtr;
 	CurveOutput curveOutputFuncPtr;
@@ -249,9 +249,11 @@ struct ContourCallBacks {
 };
 
 typedef void (*EmptyNativePath)(PathOutput );
+typedef OpType (*SetLineType)(Curve );
 
 struct ContextCallBacks {
 	EmptyNativePath emptyNativePath;
+	SetLineType setLineType;
 };
 
 #if OP_DEBUG_DUMP

@@ -46,11 +46,15 @@ void quadOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt,
 void noEmptyPath(PathOpsV0Lib::PathOutput ) {
 }
 
+OpType quadSetLineType(PathOpsV0Lib::Curve ) {
+    return lineType;
+}
+
 void testNewInterface() {
     using namespace PathOpsV0Lib;
 
     Context* context = CreateContext({nullptr, 0});
-    SetContextCallBacks(context, noEmptyPath);
+    SetContextCallBacks(context, noEmptyPath, quadSetLineType);
 
 #if OP_DEBUG
     OpDebugData debugData(false);
@@ -61,14 +65,14 @@ void testNewInterface() {
 #endif
 
     lineType = SetCurveCallBacks(context, lineAxisRawHit, /* noNearly, */ noHull, lineIsFinite, 
-            lineIsLine, noLinear, noBounds, lineNormal, lineOutput, noPinCtrl, noReverse,
+            lineIsLine, /*noLinear,*/ noBounds, lineNormal, lineOutput, noPinCtrl, noReverse,
             lineTangent, linesEqual, linePtAtT, /* double not required */ linePtAtT, 
             linePtCount, noRotate, lineSubDivide, lineXYAtT
             OP_DEBUG_DUMP_PARAMS(noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
     );
     quadType = SetCurveCallBacks(context, quadAxisRawHit, /* quadNearly, */ quadHull, quadIsFinite, 
-            quadIsLine, quadIsLinear, quadSetBounds, quadNormal, quadOutput, quadPinCtrl, noReverse,
+            quadIsLine, /*quadIsLinear,*/ quadSetBounds, quadNormal, quadOutput, quadPinCtrl, noReverse,
             quadTangent, quadsEqual, quadPtAtT, /* double not required */ quadPtAtT, 
             quadPtCount, quadRotate, quadSubDivide, quadXYAtT
             OP_DEBUG_DUMP_PARAMS(noDumpCurveExtra)

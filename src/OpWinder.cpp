@@ -278,12 +278,10 @@ IntersectResult OpWinder::CoincidentCheck(OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, Op
 	// pass a mix of seg and opp; construct one t for each
 	else
 		coinID = segment->coinID(flipped);
-	// !!! fix this mess (testQuadralaterals5637313)
-	bool reversedOrder = ptTAorB.t > ptTCorD.t;  // !!! this is a hack
 	AddMix(xyChoice, ptTAorB, flipped, cPtT, dPtT, segment, oppSegment, coinID, 
-			MatchEnds::start, reversedOrder);
+			ptTAorB == aPtT ? MatchEnds::start : MatchEnds::end);
 	AddMix(xyChoice, ptTCorD, flipped, aPtT, bPtT, oppSegment, segment, coinID, 
-			MatchEnds::end, reversedOrder);
+			(ptTAorB == aPtT) == flipped ? MatchEnds::start : MatchEnds::end);
 	return IntersectResult::yes;
 }
 
@@ -295,8 +293,7 @@ IntersectResult OpWinder::CoincidentCheck(const OpEdge& edge, const OpEdge& opp)
 }
 
 void OpWinder::AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped, OpPtT cPtT, OpPtT dPtT,
-		OpSegment* segment, OpSegment* oppSegment, int coinID, MatchEnds match,
-		bool reversedOrder) {
+		OpSegment* segment, OpSegment* oppSegment, int coinID, MatchEnds match) {
 	float eStart = ptTAorB.pt.choice(xyChoice);
 	if (flipped)
 		std::swap(cPtT, dPtT);
@@ -309,13 +306,9 @@ void OpWinder::AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped, OpPtT cPtT
 	OpIntersection* segSect = segment->sects.contains(ptTAorB, oppSegment);
 	OpIntersection* oppSect = oppSegment->sects.contains(oCoinStart, segment);
 	if (segSect && oppSect && !segSect->coincidenceID && !oppSect->coincidenceID) {
-		segSect->coincidenceID = coinID;
 		OP_ASSERT(MatchEnds::both != match);
-		if (reversedOrder)  // !!! hack: work around coin bug (coin needs rewriting)
-			match = !match;
-		segSect->coinEnd = MatchEnds::end == match && flipped ? MatchEnds::start : match;
-		oppSect->coincidenceID = coinID;
-		oppSect->coinEnd = MatchEnds::start == match && flipped ? MatchEnds::end : match;
+		segSect->setCoin(coinID, match);
+		oppSect->setCoin(coinID, flipped ? !match : match);
 	}
 	if (segSect || oppSect)  // required by fuzz763_3, fuzz763_5
         return;
@@ -397,9 +390,8 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 	if (!aInCoincidence) {
 		if (sect1) {  // segment already has intersection (segment start); e.g., line doubles back
 			OP_ASSERT(!sect1->coincidenceID);
-			sect1->coincidenceID = coinID;
 			OP_ASSERT(MatchEnds::none == sect1->coinEnd);
-			sect1->coinEnd = MatchEnds::start;
+			sect1->setCoin(coinID, MatchEnds::start);
 			segment->sects.resort = true;
 		} else {	// or if it doesn't exist and isn't in a coin range, make one
 			sect1 = segment->addCoin(aPtT, coinID, MatchEnds::start, oppSegment
@@ -410,9 +402,8 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 	if (!bInCoincidence) {
 		if (sect2) {  // segment already has intersection (segment end); e.g., line doubles back
 			OP_ASSERT(!sect2->coincidenceID);
-			sect2->coincidenceID = coinID;
 			OP_ASSERT(MatchEnds::none == sect2->coinEnd);
-			sect2->coinEnd = MatchEnds::end;
+			sect2->setCoin(coinID, MatchEnds::end);
 			segment->sects.resort = true;
 		} else {
 			sect2 = segment->addCoin(bPtT, coinID, MatchEnds::end, oppSegment
@@ -469,18 +460,16 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 	} else {  // segment already has intersection (start or end); e.g., line doubles back
 		if (!(inCoinRange(oRange, oSect2->ptT.t, nullptr) & 1)) {
 			OP_ASSERT(!oSect2->coincidenceID);
-			oSect2->coincidenceID = coinID;
 			OP_ASSERT(MatchEnds::none == oSect2->coinEnd);
-			oSect2->coinEnd = flipped ? MatchEnds::start : MatchEnds::end;
+			oSect2->setCoin(coinID, flipped ? MatchEnds::start : MatchEnds::end);
 			oppSegment->sects.resort = true;
 			setOSect2CoinID = true;
 		}
 	}
 	if (setOSect1CoinID) {
 		OP_ASSERT(!oSect1->coincidenceID);
-		oSect1->coincidenceID = coinID;
 		OP_ASSERT(MatchEnds::none == oSect1->coinEnd);
-		oSect1->coinEnd = flipped ? MatchEnds::end : MatchEnds::start;	// !!! added without testing
+		oSect1->setCoin(coinID, flipped ? MatchEnds::end : MatchEnds::start); // !!! untested
 		oppSegment->sects.resort = true;
 	}
 	if (addToExistingRange) {
@@ -520,7 +509,7 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 	OpSegment* eSegment = const_cast<OpSegment*>(edge.segment);
 	OpSegment* oSegment = const_cast<OpSegment*>(opp.segment);
 	OP_ASSERT(oSegment != eSegment);
-	OP_ASSERT(edge.isLine_impl);
+	OP_ASSERT(edge.curve.debugIsLine());
 	LinePts edgePts { edge.start.pt, edge.end.pt };
     OpRoots septs = oSegment->c.rayIntersect(edgePts, MatchEnds::none); 
 	IntersectResult sectAdded = IntersectResult::no;
@@ -564,7 +553,7 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 	// Note that coincident check does not receive intercepts as a parameter; in fact, the intercepts
 	// were not calculated (the roots are uninitialized). This is because coincident check will 
 	// compute the actual coincident start and end without the roots introducing error.
-	if (2 == septs.count && opp.isLinear())
+	if (2 == septs.count && opp.isLine())
 		return CoincidentCheck(edge, opp);
 	bool tInRange = false;
 	for (unsigned index = 0; index < septs.count; ++index) {
@@ -614,7 +603,7 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 		OpPtT edgePtT { oppPtT.pt, edgeT };
 		addPair(oppPtT, edgePtT, sectAdded  OP_LINE_FILE_PARAMS(0));
 	}
-	if (!tInRange && opp.isLine_impl && !secondAttempt) {
+	if (!tInRange && opp.isLine() && !secondAttempt) {
 		OpDebugRecordStart(edge, opp);
 		return AddLineCurveIntersection(edge, opp, true);
 	}

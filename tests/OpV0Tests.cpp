@@ -4165,22 +4165,6 @@ path.close();
     testSimplify(reporter, path, filename);
 }
 
-void testQuads1879035(skiatest::Reporter* reporter, const char* filename) {
-    SkPath path;
-path.setFillType(SkPathFillType::kWinding);
-path.moveTo(0, 0);
-path.quadTo(1, 0, 3, 2);
-path.lineTo(1, 3);
-path.lineTo(0, 0);
-path.close();
-path.moveTo(2, 0);
-path.lineTo(2, 0);
-path.quadTo(0, 1, 2, 1);
-path.lineTo(2, 0);
-path.close();
-    testSimplify(reporter, path, filename);
-}
-
 void testQuads1883777(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
 path.setFillType(SkPathFillType::kWinding);
@@ -5292,7 +5276,160 @@ path.close();
     testSimplify(reporter, path, filename);
 }
 
+void testQuads1922481(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(1, 0, 0, 3);
+path.lineTo(2, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 3);
+path.lineTo(2, 3);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(1, 3);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads20659201(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 1);
+path.quadTo(2, 1, 3, 1);
+path.lineTo(0, 2);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 0);
+path.quadTo(0, 1, 2, 1);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads1878025(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(1, 0, 3, 2);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(2, 0);
+path.quadTo(2, 2, 2, 2);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads1878611(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(1, 0, 3, 2);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(2, 1);
+path.quadTo(2, 2, 1, 3);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads1878623(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(1, 0, 3, 2);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(2, 1);
+path.quadTo(3, 2, 2, 3);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads1879035(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(1, 0, 3, 2);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(2, 0);
+path.quadTo(0, 1, 2, 1);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads3756235(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(0, 1, 3, 1);
+path.lineTo(3, 1);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(3, 0);
+path.lineTo(3, 0);
+path.quadTo(3, 2, 0, 3);
+path.lineTo(3, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads1883849(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(1, 0, 3, 2);
+path.lineTo(2, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 0);
+path.quadTo(3, 0, 2, 3);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads1884197(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(1, 0, 3, 2);
+path.lineTo(2, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(1, 0);
+path.quadTo(1, 2, 3, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
 static struct TestDesc tests[] = {
+    TEST(testQuads1884197),
+    TEST(testQuads1883849),
+    TEST(testQuads3756235),
+    TEST(testQuads1879035),
+    TEST(testQuads1878623),
+    TEST(testQuads1878611),
+    TEST(testQuads1878025),
+    TEST(testQuads20659201),
+    TEST(testQuads1922481),
     TEST(testQuads20657653),
     TEST(testQuads7512039),
     TEST(testQuads24430109),
@@ -5360,7 +5497,6 @@ static struct TestDesc tests[] = {
     TEST(testQuads1883855),
     TEST(testQuads1878015),
     TEST(testQuads1883777),
-    TEST(testQuads1879035),
     TEST(testQuads1878463),
     TEST(testQuads1877975),
     TEST(testQuads1877967),

@@ -313,10 +313,10 @@ private:
 		, doSplit(EdgeSplit::no)
 		, closeSet(false)
 //		, curvySet(false)
-		, lineSet(false)
+//		, lineSet(false)
 //		, verticalSet(false)
 		, isClose_impl(false)
-		, isLine_impl(false)
+//		, isLine_impl(false)
 //		, exactLine(false)
 		, active_impl(false)
 		, inLinkups(false)
@@ -409,7 +409,7 @@ public:
 	bool isActive() const { 
 		return active_impl; }
 	bool isClose();
-	bool isLinear();
+	bool isLine();
 	bool isPal(const OpEdge* opp) const {
 		return pals.end() != std::find_if(pals.begin(), pals.end(), 
 				[opp](const auto& test) { return opp == test.edge; }); }
@@ -536,11 +536,11 @@ public:
 	EdgeSplit doSplit;  // used by curve/curve intersection to track subdivision
 	bool closeSet;
 //	bool curvySet;
-	bool lineSet;
+//	bool lineSet;
 //	bool verticalSet;
 	bool isClose_impl;  // set if start is close to end
-	bool isLine_impl;	// ptBounds 0=h/0=w catches horz/vert lines; if true, line is diagonal(?)
-	bool exactLine;   // set if quad/conic/cubic is degenerate; clear if control points are linear
+//	bool isLine_impl;	// ptBounds 0=h/0=w catches horz/vert lines; if true, line is diagonal(?)
+//	bool exactLine;   // set if quad/conic/cubic is degenerate; clear if control points are linear
 	bool active_impl;  // used by ray casting to mark edges that may be to the left of casting edge
 	bool inLinkups; // like inOutput, to marks unsectable edges; all edges in linkups l vector
 	bool inOutput;	// likely only used to find inactive unsectables that are not on output path

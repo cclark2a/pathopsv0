@@ -152,7 +152,7 @@ struct OpDebugEdgeIter {
 #if !OP_TEST_NEW_INTERFACE
 						isOpp = OpOperand::right == c->operand;
 #endif
-						isLine = edge.isLine_impl;
+						isLine = edge.curve.debugIsLine();
 						return &edge;
 					}
 					++index;
@@ -2017,9 +2017,9 @@ bool OpDebugImage::drawEdgeWinding(const OpCurve& curve, const OpEdge* edge, uin
 	return success;
 }
 
-bool OpDebugImage::drawCurve(const OpCurve& curve, uint32_t color) {
+bool OpDebugImage::drawCurve(OpCurve& curve, uint32_t color) {
 	SkPath curvePath;
-	OP_ASSERT(curve.isLine());  // !!! add more types as needed
+	OP_ASSERT(curve.debugIsLine());  // !!! add more types as needed
 	curvePath.moveTo(curve.firstPt().x, curve.firstPt().y);
 	curvePath.lineTo(curve.lastPt().x, curve.lastPt().y);
 	OpDebugImage::drawPath(curvePath, color);

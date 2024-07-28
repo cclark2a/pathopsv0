@@ -100,7 +100,7 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
 // somewhat different from winder's edge based version, probably for no reason
 void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
     OP_ASSERT(opp != seg);
-    OP_ASSERT(seg->c.isLine());
+    OP_ASSERT(seg->c.debugIsLine());
     LinePts edgePts { seg->c.firstPt(), seg->c.lastPt() };
     MatchReverse matchRev = seg->matchEnds(opp);
     if (matchRev.reversed) {
@@ -316,12 +316,12 @@ void OpSegments::FindCoincidences(OpContours* contours) {
 // !!! this is comically complicated
 // surely even if all this is needed, it can be more clearly written and use less code ...
 IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
-    OP_ASSERT(seg->c.isLine());
+    OP_ASSERT(seg->c.debugIsLine());
     OP_ASSERT(!seg->disabled);
     OpVector tangent = seg->c.tangent(0);
     if (!tangent.dx || !tangent.dy) {
         OP_ASSERT(tangent.dx || tangent.dy);
-        OP_ASSERT(opp->c.isLine());
+        OP_ASSERT(opp->c.debugIsLine());
         OP_ASSERT(!opp->disabled);
         OpVector oTangent = opp->c.tangent(0);
         if (oTangent.dx && oTangent.dy)
@@ -339,7 +339,7 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
     // special case pairs that exactly match start and end
     MatchReverse ends = seg->matchEnds(opp);
     if (MatchEnds::both == ends.match) {
-        OP_ASSERT(0);  // !!! step through this code to make sure it is correct
+//        OP_ASSERT(0);  // !!! step through this code to make sure it is correct
         seg->makeEdge(OP_LINE_FILE_NPARAMS(EdgeMaker::segSect));
         OpEdge& e = seg->edges.front();
         opp->makeEdge(OP_LINE_FILE_NPARAMS(EdgeMaker::oppSect));
@@ -511,11 +511,16 @@ FoundIntersections OpSegments::findIntersections() {
                 if (SectFound::add == limitsResult)
                     ccResult = limitsResult;
                 else if (SectFound::fail == limitsResult) {
-                    if (SectFound::maxOverlaps != ccResult && SectFound::noOverlapDeep != ccResult) {
-                        OP_DEBUG_DUMP_CODE(debugContext = "");
-                        return FoundIntersections::fail;
+                    if (cc.limits.size())
+                        ccResult = SectFound::add;
+                    else {
+                        if (SectFound::maxOverlaps != ccResult 
+                                && SectFound::noOverlapDeep != ccResult) {
+                            OP_DEBUG_DUMP_CODE(debugContext = "");
+                            return FoundIntersections::fail;
+                        }
+                        ccResult = SectFound::no;
                     }
-                    ccResult = SectFound::no;
                 }
             }
             if (SectFound::add == ccResult)

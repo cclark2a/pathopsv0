@@ -52,7 +52,7 @@ struct OpDebugImage {
 	static void clearLines();
 	static void clearPoints();
 	static void clearScreen();
-	static bool drawCurve(const OpCurve& , uint32_t color = debugBlack);
+	static bool drawCurve(OpCurve& , uint32_t color = debugBlack);
 	static void drawDoubleCenter(OpPoint , bool add);
 	static void drawDoubleFocus();
 	static void drawDoubleFocus(const OpRect& , bool add);

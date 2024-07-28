@@ -63,14 +63,14 @@ struct TGap {
 
 // distance from edge to opp at this edge t, and number of edges between this and next
 struct EdgeRun {
-	void set(const OpEdge* edge, const OpSegment* oppSeg, EdgeMatch );
+	void set(OpEdge* edge, const OpSegment* oppSeg, EdgeMatch );
 	float setOppDist(const OpSegment* segment);
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
 #endif
 
-	const OpEdge* edge;
-	const OpEdge* oppEdge;
+	OpEdge* edge;
+	OpEdge* oppEdge;
 	OpPtT edgePtT;
 	OpPtT oppPtT;
 	float oppDist;
@@ -82,14 +82,15 @@ struct EdgeRun {
 };
 
 struct CcCurves {
-	void addEdgeRun(const OpEdge* , const OpSegment* oppSeg, EdgeMatch );
+	void addEdgeRun(OpEdge* , const OpSegment* oppSeg, EdgeMatch );
+	bool checkMid(size_t index); // true if mid pt dist between this and next run dist is smaller
 	void clear();
 	OpPtT closest(OpPoint pt) const;
 	static OpPtT Dist(const OpSegment* , const OpPtT& segPtT, const OpSegment* opp);
 //	void endDist(const OpSegment* seg, const OpSegment* opp);
 	std::vector<TGap> findGaps() const;
 	int groupCount() const;
-	void initialEdgeRun(const OpEdge* edge, const OpSegment* oppSeg);
+	void initialEdgeRun(OpEdge* edge, const OpSegment* oppSeg);
 	void markToDelete(float tStart, float tEnd);
 	int overlaps() const;
 	float perimeter() const;
@@ -137,7 +138,7 @@ struct OpCurveCurve {
 	OpCurveCurve(OpSegment* seg, OpSegment* opp);
 	void addIntersection(OpEdge* edge, OpEdge* opp);
 	SectFound addSect();
-	void addEdgeRun(const OpEdge* , CurveRef , EdgeMatch );
+	void addEdgeRun(OpEdge* , CurveRef , EdgeMatch );
 	bool addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 			const OpPtT& oppStart, const OpPtT& oppEnd);
 	bool alreadyInLimits(const OpEdge* edge, const OpEdge* oEdge, float t);

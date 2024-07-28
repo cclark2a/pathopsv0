@@ -46,8 +46,7 @@ struct OpWinder {
 	static IntersectResult AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, 
 			bool secondAttempt = false);
 	static void AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped, OpPtT cPtT, OpPtT dPtT,
-			OpSegment* segment, OpSegment* oppSegment, int coinID, MatchEnds , 
-			bool reversedOrder);
+			OpSegment* segment, OpSegment* oppSegment, int coinID, MatchEnds );
 	static IntersectResult AddPair(XyChoice offset, OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpPtT dPtT,
 			bool flipped, OpSegment* segment, OpSegment* oppSegment);
 	static IntersectResult CoincidentCheck(OpPtT ptTa, OpPtT ptTb, OpPtT ptTc, OpPtT ptTd,

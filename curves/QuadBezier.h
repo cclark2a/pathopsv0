@@ -127,8 +127,10 @@ inline bool quadIsFinite(Curve c) {
     return quadControlPt(c).isFinite();
 }
 
-inline bool quadIsLine(Curve ) {
-    return false;
+inline bool quadIsLine(Curve c) {
+    OpPoint ctrlPt = quadControlPt(c);
+    LinePts linePts = { c.data->start, c.data->end };
+    return linePts.ptOnLine(ctrlPt);
 }
 
 inline OpRoots quadAxisRawHit(Curve c, Axis axis, float axisIntercept, MatchEnds ends) {
@@ -189,12 +191,14 @@ inline OpPoint quadHull(Curve c, int index) {
     return OpPoint();
 }
 
+#if 0
 inline bool quadIsLinear(Curve c) {
     OpPoint controlPt = quadControlPt(c);
     OpVector diffs[] { controlPt - c.data->start, c.data->end - c.data->start };
     float cross = diffs[0].cross(diffs[1]);
     return fabsf(cross) <= OpEpsilon * 2;
 }
+#endif
 
 #if 0 && OP_DEBUG_DUMP
 inline size_t quadDebugDumpSize() {

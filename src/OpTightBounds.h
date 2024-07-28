@@ -45,6 +45,7 @@ enum class SectReason {
     unsectableStart,
 	xExtrema,
 	yExtrema,
+    zeroRun,
 	// testing only
 	test,
 };

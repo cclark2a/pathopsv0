@@ -75,9 +75,9 @@ struct OpSegment {
     int coinID(bool flipped) const;
     void complete();
     OpEdge* findEnabled(const OpPtT& , EdgeMatch ) const;
-    float findAxisT(Axis , float start, float end, float oppXY) const;
+    float findAxisT(Axis , float start, float end, float oppXY);
 //    float findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const;
-    float findValidT(float start, float end, OpPoint opp) const;
+    float findValidT(float start, float end, OpPoint opp);
     // count and sort extrema; create an edge for each extrema + 1
     void makeEdge(const OpPtT& s, const OpPtT& e  OP_LINE_FILE_DEF(EdgeMaker maker));
     void makeEdge(OP_LINE_FILE_NP_DEF(EdgeMaker maker));

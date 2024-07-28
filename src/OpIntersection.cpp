@@ -17,6 +17,12 @@ void OpIntersection::betweenPair(OpIntersection* end) {
 }
 #endif
 
+// setter to help debugging
+void OpIntersection::setCoin(int cid, MatchEnds end) {
+    coincidenceID = cid;
+    coinEnd = end;
+}
+
 OpIntersections::OpIntersections()
     : resort(false) {
 }
@@ -313,7 +319,7 @@ void OpIntersections::sort() {
     // Two or more coincident (or unsectable) pairs with the same t may require further
     // sorting. Order them so that they nest coincidences by finding the other end.
     size_t rangeStart = 0;
-    auto processRange = [this, &rangeStart](size_t rangeEnd) {
+    auto processStart = [this, &rangeStart](size_t rangeEnd) {
         size_t toFind = rangeEnd - rangeStart;
         std::vector<OpIntersection*> sorted(toFind);  // reserve sorted pointers copy (zeroed)
         size_t endI = rangeEnd;
@@ -327,7 +333,8 @@ void OpIntersections::sort() {
                 OpIntersection* start = i[startI++];
                 OP_ASSERT(MatchEnds::start == start->unsectEnd
                         || MatchEnds::start == start->coinEnd);
-                if (start->unsectID != end->unsectID || start->coincidenceID != end->coincidenceID)
+                if ((start->unsectID != end->unsectID || !start->unsectID) 
+                        && (start->coincidenceID != end->coincidenceID || !start->coincidenceID))
                     continue;
                 ++found;
                 OP_ASSERT(!sorted[toFind - found]);
@@ -347,10 +354,53 @@ void OpIntersections::sort() {
         if (isStart && t == nextT)
             continue;
         if (rangeStart + 2 <= index)
-            processRange(index);
+            processStart(index);
         rangeStart = index + !isStart;
         t = nextT;
     } while (++index < i.size());
+    // first pass (above) resorts range of start with same t. second pass (below) resorts end 
+    // !!! maybe two passes can share code? not sure
+    auto processEnd = [this, &rangeStart](size_t rangeEnd) {  // look for starts that match ends
+        size_t toFind = rangeEnd - rangeStart;
+        std::vector<OpIntersection*> sorted(toFind);  // reserve sorted pointers copy (zeroed)
+        size_t startI = 0;
+        size_t found = 0;
+        while (found < toFind && startI < rangeStart) {  // look for starts that match found ends
+            OpIntersection* start = i[startI++];
+            if (MatchEnds::start != start->unsectEnd && MatchEnds::start != start->coinEnd)
+                continue;
+            size_t endI = rangeStart;
+            do {   // for found start, find matching end
+                OpIntersection* end = i[endI++];
+                OP_ASSERT(MatchEnds::end == end->unsectEnd
+                        || MatchEnds::end == end->coinEnd);
+                if ((end->unsectID != start->unsectID || !end->unsectID)
+                        && (end->coincidenceID != start->coincidenceID || !end->coincidenceID))
+                    continue;
+                ++found;
+                OP_ASSERT(!sorted[toFind - found]);
+                sorted[toFind - found] = end;  // reverse order so ranges nest
+                break;
+            } while (endI < rangeEnd);
+        }
+        OP_ASSERT(found == toFind);
+        std::copy(sorted.begin(), sorted.end(), i.begin() + rangeStart);
+    };
+    t = 0;
+    index = 0;
+    do {  // iterate through all, gathering groups of equal t start values
+        OpIntersection* sect = i[index];
+        bool isEnd = MatchEnds::end == sect->unsectEnd || MatchEnds::end == sect->coinEnd;
+        float nextT = sect->ptT.t;
+        if (isEnd && t == nextT)
+            continue;
+        if (rangeStart + 2 <= index)
+            processEnd(index);
+        rangeStart = index + !isEnd;
+        t = nextT;
+    } while (++index < i.size());
+    if (rangeStart + 2 <= index)
+        processEnd(index);
 }
 
 void OpIntersections::windCoincidences(std::vector<OpEdge>& edges  

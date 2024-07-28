@@ -306,6 +306,23 @@ OpPoint LinePts::ptAtT(float t) const {
     return (1 - t) * pts[0] + t * pts[1];
 }
 
+bool LinePts::ptOnLine(OpPoint ctrlPt) const {
+    OpVector sxy = ctrlPt - pts[0];
+    if (sxy.dx < 0 || sxy.dy < 0)
+        return false;
+    OpVector dxy = pts[1] - pts[0];
+    float nearStart = dxy.cross(sxy);
+    if (fabsf(nearStart) > OpEpsilon)
+        return false;
+    OpVector exy = pts[1] - ctrlPt;
+    if (exy.dx < 0 || exy.dy < 0)
+        return false;
+    float nearEnd = dxy.cross(exy);
+    if (fabsf(nearEnd) > OpEpsilon)
+        return false;
+    return true;
+}
+
 OpRoots LinePts::tangentIntersect(const LinePts& line) const {
     if (line.pts[0].x == line.pts[1].x)
         return axisTanHit(Axis::vertical, line.pts[0].x);

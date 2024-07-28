@@ -180,8 +180,10 @@ inline bool cubicIsFinite(Curve c) {
     return controls.pts[0].isFinite() && controls.pts[1].isFinite();
 }
 
-inline bool cubicIsLine(Curve ) {
-    return false;
+inline bool cubicIsLine(Curve c) {
+    CubicControls controls(c);
+    LinePts linePts = { c.data->start, c.data->end };
+    return linePts.ptOnLine(controls.pts[0]) && linePts.ptOnLine(controls.pts[1]);
 }
 
 inline OpRoots cubicAxisRawHit(Curve c, Axis axis, float axisIntercept, MatchEnds ends) {
@@ -254,6 +256,7 @@ inline OpPoint cubicHull(Curve c, int index) {
     return OpPoint();
 }
 
+#if 0
 inline bool cubicIsLinear(Curve c) {
     CubicControls controls(c);
     OpVector diffs[] { controls.pts[0] - c.data->start, c.data->end - c.data->start };
@@ -265,6 +268,7 @@ inline bool cubicIsLinear(Curve c) {
     cross = diffs[0].cross(diffs[1]);
     return fabsf(cross) <= OpEpsilon;
 }
+#endif
 
 inline void cubicReverse(Curve c) {
     CubicControls controls(c);

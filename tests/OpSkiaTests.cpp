@@ -823,7 +823,8 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
 #if OP_DEBUG_FAST_TEST
         std::lock_guard<std::mutex> guard(out_mutex);
 #endif
-        dumpTest(testname.c_str(), path);   // <<<<<<<< paste this into immediate window
+        dumpTest(testname.c_str(), path)
+            ;   // <<<<<<<< paste this into immediate window
         ReportError(testname, errors, warnings);
 #endif
         testsError++;

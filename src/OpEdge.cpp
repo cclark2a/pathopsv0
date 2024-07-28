@@ -446,15 +446,12 @@ OpPtT OpEdge::findT(Axis axis, float oppXY) const {
 	return found;
 }
 
-// this compares against float epsilon instead of zero
+// !!! (out of date comment) this compares against float epsilon instead of zero
 // when comparing against a line, an edge close to zero can fall into denormalized numbers,
 //   causing the calling subdivision to continue for way too long. Using epsilon as a stopgap
 //   avoids this. The alternative would be to change the math to disallow denormalized numbers
-bool OpEdge::isLinear() {
-	if (lineSet)
-		return isLine_impl;
-	lineSet = true;
-	return (isLine_impl = curve.isLinear());
+bool OpEdge::isLine() {
+	return curve.isLine();
 }
 
 bool OpEdge::isUnsectablePair(OpEdge* opp) {
@@ -800,7 +797,7 @@ void OpEdge::output(OpOutPath& path, bool closed) {
 #endif
 
 OpType OpEdge::type() {
-	return isLinear() ? OpType::line : segment->c.c.type; 
+	return /* isLine() ? OpType::line : */ segment->c.c.type; 
 }
 
 // in function to make setting breakpoints easier
@@ -1040,10 +1037,10 @@ void OpEdge::subDivide() {
 	curve = segment->c.subDivide(start, end);
 	setPointBounds();
 	calcCenterT();
-	if (segment->c.isLine() || OpMath::Equalish(ptBounds.left, ptBounds.right) 
-			|| OpMath::Equalish(ptBounds.top, ptBounds.bottom) /* || ctrlPtNearlyEnd() */) {
-		isLine_impl = true;
-		lineSet = true;
+	if (curve.isLine() /* segment->c.isLine() || OpMath::Equalish(ptBounds.left, ptBounds.right) 
+			|| OpMath::Equalish(ptBounds.top, ptBounds.bottom) || ctrlPtNearlyEnd() */) {
+//		isLine_impl = true;
+//		lineSet = true;
 //		exactLine = true;
 		center.t = OpMath::Interp(start.t, end.t, .5);
 		center.pt = ptBounds.center();

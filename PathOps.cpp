@@ -103,16 +103,18 @@ void Resolve(Context* context, PathOutput output) {
     /* bool success = */ contours->pathOps();
 }
 
-void SetContextCallBacks(Context* context, EmptyNativePath emptyNativePath) {
+void SetContextCallBacks(Context* context, EmptyNativePath emptyNativePath, 
+        SetLineType setLineType) {
     OpContours* contours = (OpContours*) context;
     contours->contextCallBacks = {
-        emptyNativePath
+        emptyNativePath,
+        setLineType
     };
 }
 
 OpType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, /* ControlNearlyEnd nearlyFunc, */
         CurveHull hullFunc, CurveIsFinite isFiniteFunc, CurveIsLine isLineFunc, 
-        CurveIsLinear isLinearFunc, SetBounds setBoundsFunc, CurveNormal normalFunc, 
+        /* CurveIsLinear isLinearFunc, */ SetBounds setBoundsFunc, CurveNormal normalFunc, 
         CurveOutput outputFunc, CurvePinCtrl curvePinFunc, CurveReverse reverseFunc, 
         CurveTangent tangentFunc, CurvesEqual equalFunc, PtAtT ptAtTFunc, 
         DoublePtAtT doublePtAtTFunc, PtCount ptCountFunc, Rotate rotateFunc, 
@@ -122,7 +124,7 @@ OpType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, /* ControlNearly
 ) {
     OpContours* contours = (OpContours*) context;
     contours->callBacks.push_back( { axisFunc, /* nearlyFunc, */ hullFunc, isFiniteFunc, isLineFunc, 
-            isLinearFunc, setBoundsFunc, normalFunc, outputFunc, curvePinFunc, reverseFunc, 
+            /* isLinearFunc, */ setBoundsFunc, normalFunc, outputFunc, curvePinFunc, reverseFunc, 
             tangentFunc, equalFunc, ptAtTFunc, doublePtAtTFunc, ptCountFunc, rotateFunc, 
             subDivideFunc, xyAtTFunc 
 		    OP_DEBUG_DUMP_PARAMS(debugDumpExtraFunc)

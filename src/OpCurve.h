@@ -93,8 +93,8 @@ struct OpCurve {
     OpPoint firstPt() const;
     OpPoint hullPt(int index) const;
     bool isFinite() const;
-    bool isLine() const; 
-    bool isLinear() const;
+    bool isLine(); 
+//    bool isLinear() const;
     OpPoint lastPt() const;
     OpRootPts lineIntersect(const LinePts& line) const;
     // Returns t of point on curve if any; returns NaN if no match. Used by line/curve intersection.
@@ -127,6 +127,9 @@ struct OpCurve {
     OpCurve toVertical(const LinePts& line) const;
     float tZeroX(float t1, float t2) const;  // binary search on t-range finds vert crossing zero
     OpPair xyAtT(OpPair t, XyChoice xy) const;
+#if OP_DEBUG
+    bool debugIsLine() const;
+#endif
 #if OP_DEBUG_DUMP
 #if !OP_TEST_NEW_INTERFACE
     void dumpSetPts(const char*& );

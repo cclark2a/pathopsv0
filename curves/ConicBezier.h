@@ -185,8 +185,10 @@ inline bool conicIsFinite(Curve c) {
     return control.pt.isFinite();
 }
 
-inline bool conicIsLine(Curve ) {
-    return false;
+inline bool conicIsLine(Curve c) {
+    PointWeight control(c);
+    LinePts linePts = { c.data->start, c.data->end };
+    return linePts.ptOnLine(control.pt);
 }
 
 inline OpRoots conicAxisRawHit(Curve c, Axis axis, float axisIntercept, MatchEnds ends) {
@@ -255,12 +257,14 @@ inline OpPoint conicHull(Curve c, int index) {
     return OpPoint();
 }
 
+#if 0
 inline bool conicIsLinear(Curve c) {
     PointWeight control(c);
     OpVector diffs[] { control.pt - c.data->start, c.data->end - c.data->start };
     float cross = diffs[0].cross(diffs[1]);
     return fabsf(cross) <= OpEpsilon;
 }
+#endif
 
 #if OP_DEBUG_DUMP
 //inline size_t conicDebugDumpSize() {
