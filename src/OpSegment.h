@@ -85,6 +85,7 @@ struct OpSegment {
     MatchReverse matchEnds(const OpSegment* opp) const;
 //    MatchEnds matchExisting(const OpSegment* opp) const;
     void moveTo(float t , OpPoint );  // move segment/sect point to match another endpont
+    void moveWinding(OpSegment* opp, bool backwards);
     bool nearby(float t, const OpSegment* opp) const;
     int nextID() const;
 //	void reenable() {

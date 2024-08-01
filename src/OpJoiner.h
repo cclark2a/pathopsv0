@@ -85,7 +85,8 @@ struct OpJoiner {
 };
 
 // !!! experiment: keep track of all edge possibilities to find the best closing path
-enum class LimbType : uint8_t {
+// !!! unsectable made coincident missing disabled pals check
+enum class LimbPass : uint8_t {
 	linked,    // in linkups list with correct winding
 	unlinked,  // in unsectByArea and in unsortables
 	disabled,  // in disabled
@@ -105,14 +106,14 @@ struct OpLimb {
 		parent = nullptr;
 		linkedIndex = 0;
 		match = EdgeMatch::none;
-		type = LimbType::unlinked;
+		pass = LimbPass::unlinked;
 		looped = false;
 		debugID = 0;
 #endif
 	}
-	void add(OpTree& , OpEdge* , EdgeMatch , LimbType , size_t index = 0, OpEdge* first = nullptr);
-	void foreach(OpJoiner& , OpTree& , LimbType );
-	void set(OpTree& , OpEdge* , const OpLimb* parent, EdgeMatch , LimbType , 
+	void add(OpTree& , OpEdge* , EdgeMatch , LimbPass , size_t index = 0, OpEdge* first = nullptr);
+	void foreach(OpJoiner& , OpTree& , LimbPass );
+	void set(OpTree& , OpEdge* , const OpLimb* parent, EdgeMatch , LimbPass , 
 			size_t index, OpEdge* otherEnd, const OpPointBounds* bounds = nullptr);
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
@@ -126,7 +127,7 @@ struct OpLimb {
 	OpPoint lastPt;
 	uint32_t linkedIndex;
 	EdgeMatch match; // end of edge that matches last point in parent limb
-	LimbType type;  // if linked or miswound: if match is end, edge is last in linked list
+	LimbPass pass;  // if linked or miswound: if match is end, edge is last in linked list
 	bool looped;
 
 #if OP_DEBUG
@@ -141,7 +142,7 @@ struct OpLimb {
 struct OpTree {
 	OpTree(OpJoiner& );
 	void addDisabled(OpJoiner& );
-	void initialize(OpJoiner& join, LimbType limbType);
+	void initialize(OpJoiner& join, LimbPass );
 	bool join(OpJoiner& );
 	OpLimb& limb(int index);
 #if OP_DEBUG_DUMP

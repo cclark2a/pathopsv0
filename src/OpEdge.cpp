@@ -955,6 +955,11 @@ void OpEdge::setWhich(EdgeMatch m) {
 
 // Remove duplicate pals that look at each other in found edges.
 // Remove pals equal to 'this' and edges this links to.
+// !!! this can choose the wrong edge (e.g. testQuads3914973)
+//     if one of a pair of pals goes to a disabled edge (dead end) while the other
+//     goes to an active edge. Rather than try to expand this logic to include that,
+//     defer until tree/limb is built and add logic, if necessary, there
+#if 0
 void OpEdge::skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) {
 	std::vector<FoundEdge> sectables;
 	std::vector<FoundEdge> unsectables;
@@ -1015,6 +1020,7 @@ void OpEdge::skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) {
 		return;
 	std::swap(sectables, edges);
 }
+#endif
 
 #if 0
 bool OpEdge::ctrlPtNearlyEnd() {

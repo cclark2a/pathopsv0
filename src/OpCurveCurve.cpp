@@ -403,6 +403,11 @@ bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 	OpIntersection* oppSect2 = opp->sects.contains(oEnd, seg);
 	if (oppSect2 && oppSect2->unsectID)
 		return false;
+	// !!! tricky: do I need all cases of contains/add to do this? (testQuads17024521)
+	if (!segSect1 != !oppSect1)
+		eStart.pt = oStart.pt = segSect1 ? segSect1->ptT.pt : oppSect1->ptT.pt;
+	if (!segSect2 != !oppSect2)
+		eEnd.pt = oEnd.pt = segSect2 ? segSect2->ptT.pt : oppSect2->ptT.pt;
 	segSect1 = seg->addUnsectable(eStart, usectID, MatchEnds::start, opp
 			OP_LINE_FILE_PARAMS(SectReason::unsectable));
 	segSect2 = seg->addUnsectable(eEnd, usectID, MatchEnds::end, opp
@@ -719,7 +724,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 			oppCurves.snipAndGo(opp, snipOpp, seg);
 		}
 	}
-	OP_ASSERT(0);  // !!! if this occurs likely more code is needed
+//	OP_ASSERT(0);  // !!! if this occurs likely more code is needed
 	return SectFound::fail;
 }
 
@@ -908,9 +913,9 @@ SectFound OpCurveCurve::runsToLimits() {
 	};
 	EdgeRun* lower, * lastUpper, * upper;
 	auto addLimit = [&lower, &lastUpper, &upper, addIfNew]() {
-		if (lower != lastUpper)
+		if (lower != lastUpper && (!upper || fabsf(lower->oppDist) <= fabsf(upper->oppDist)))
 			addIfNew(lower);
-		if (upper) {
+		if (upper && fabsf(lower->oppDist) > fabsf(upper->oppDist)) {
 			addIfNew(upper);
 			lastUpper = upper;
 		}

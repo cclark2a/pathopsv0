@@ -32,6 +32,8 @@ struct OpCurve {
     OpCurve() 
         : c{nullptr, 0, OpType::no}
         , contours(nullptr)
+        , isLineSet(false)
+        , isLineResult(false)
 #if !OP_TEST_NEW_INTERFACE
         , weightImpl(1) 
 #endif
@@ -139,6 +141,8 @@ struct OpCurve {
     // create storage in contour; helper function casts it to CurveData
     PathOpsV0Lib::Curve c;
     OpContours* contours;  // required by new interface for caller function pointer access
+    bool isLineSet;
+    bool isLineResult;
 #if !OP_TEST_NEW_INTERFACE
     OpPoint pts[5];  // extra point carries cubic center for vertical rotation (used by curve sect)
     float weightImpl;   // !!! new interface doesn't have this (only required for double debugging though)

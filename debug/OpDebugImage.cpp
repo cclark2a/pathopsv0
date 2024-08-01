@@ -488,7 +488,7 @@ void OpDebugImage::drawDoubleFocus() {
 			drawDoubleFill(sk1()->makeTransform(matrix), OpDebugAlphaColor(10, blue));
 #endif
 	}
-    if (drawResultOn) {
+    {
 		SkMatrix matrix;
 		float scale = (float)DebugOpGetZoomScale();
 		matrix.setScale(scale, scale);
@@ -497,13 +497,15 @@ void OpDebugImage::drawDoubleFocus() {
 #if OP_TEST_NEW_INTERFACE
 		bool first = true;
 		for (auto contour : debugGlobalContours->contours) {
+			if (!contour->callBacks.debugGetDrawFuncPtr(contour->caller))
+				continue;
 			SkPath* skPath = (SkPath*) contour->callBacks.debugNativePathFuncPtr(contour->caller);
 			OP_ASSERT(skPath);
 		    drawDoubleFill(skPath->makeTransform(matrix), 
 					first ? OpDebugAlphaColor(20, red) : OpDebugAlphaColor(20, blue));
 			first = false;
 		}
-		if (debugGlobalContours->callerOutput)
+		if (drawResultOn && debugGlobalContours->callerOutput)
 		    drawDoubleFill(((SkPath*) debugGlobalContours->callerOutput)
 					->makeTransform(matrix), OpDebugAlphaColor(20, green));
 #else

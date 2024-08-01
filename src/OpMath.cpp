@@ -307,16 +307,16 @@ OpPoint LinePts::ptAtT(float t) const {
 }
 
 bool LinePts::ptOnLine(OpPoint ctrlPt) const {
-    OpVector sxy = ctrlPt - pts[0];
-    if (sxy.dx < 0 || sxy.dy < 0)
+    if (!OpMath::Between(pts[0].x, ctrlPt.x, pts[1].x))
         return false;
+    if (!OpMath::Between(pts[0].y, ctrlPt.y, pts[1].y))
+        return false;
+    OpVector sxy = ctrlPt - pts[0];
     OpVector dxy = pts[1] - pts[0];
     float nearStart = dxy.cross(sxy);
     if (fabsf(nearStart) > OpEpsilon)
         return false;
     OpVector exy = pts[1] - ctrlPt;
-    if (exy.dx < 0 || exy.dy < 0)
-        return false;
     float nearEnd = dxy.cross(exy);
     if (fabsf(nearEnd) > OpEpsilon)
         return false;

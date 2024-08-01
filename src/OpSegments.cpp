@@ -102,6 +102,7 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
     OP_ASSERT(opp != seg);
     OP_ASSERT(seg->c.debugIsLine());
     LinePts edgePts { seg->c.firstPt(), seg->c.lastPt() };
+    OP_ASSERT(edgePts.pts[0] != edgePts.pts[1]);
     MatchReverse matchRev = seg->matchEnds(opp);
     if (matchRev.reversed) {
         if (MatchEnds::start == matchRev.match)
@@ -119,15 +120,7 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 		septs.count = 1;
 	}
     if (opp->c.isLine() && MatchEnds::both == matchRev.match) {
-#if OP_TEST_NEW_INTERFACE
-        seg->winding.move(opp->winding, edgePts.pts[0] != edgePts.pts[1]);
-#else
-        seg->winding.move(opp->winding, seg->contour->contours, edgePts.pts[0] != edgePts.pts[1]);
-#endif
-        if (!seg->winding.visible())
-            seg->setDisabled(OP_DEBUG_CODE(ZeroReason::addIntersection));
-        opp->winding.zero();
-        opp->setDisabled(OP_DEBUG_CODE(ZeroReason::addIntersection));
+        seg->moveWinding(opp, matchRev.reversed);
         return;
     }
     if (2 == septs.count && opp->c.isLine()) {
@@ -318,6 +311,12 @@ void OpSegments::FindCoincidences(OpContours* contours) {
 IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
     OP_ASSERT(seg->c.debugIsLine());
     OP_ASSERT(!seg->disabled);
+    // special case pairs that exactly match start and end
+    MatchReverse ends = seg->matchEnds(opp);
+    if (MatchEnds::both == ends.match) {
+        seg->moveWinding(opp, ends.reversed);
+        return IntersectResult::yes;
+    }
     OpVector tangent = seg->c.tangent(0);
     if (!tangent.dx || !tangent.dy) {
         OP_ASSERT(tangent.dx || tangent.dy);
@@ -336,21 +335,6 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
     }
     OpVector sV = seg->c.lastPt() - seg->c.firstPt();
     OpVector oV = opp->c.lastPt() - opp->c.firstPt();
-    // special case pairs that exactly match start and end
-    MatchReverse ends = seg->matchEnds(opp);
-    if (MatchEnds::both == ends.match) {
-//        OP_ASSERT(0);  // !!! step through this code to make sure it is correct
-        seg->makeEdge(OP_LINE_FILE_NPARAMS(EdgeMaker::segSect));
-        OpEdge& e = seg->edges.front();
-        opp->makeEdge(OP_LINE_FILE_NPARAMS(EdgeMaker::oppSect));
-        OpEdge& o = opp->edges.front();
-        bool segLonger = fabsf(sV.dx) + fabsf(sV.dy) > fabsf(oV.dx) + fabsf(oV.dy);
-        OpVector skewBase = segLonger ? sV : oV;
-        XyChoice larger = fabsf(skewBase.dx) > fabsf(skewBase.dy) ? XyChoice::inX : XyChoice::inY;
-        OpWinder::AddPair(larger, e.start, e.end, o.start, o.end,
-	            ends.reversed, seg, opp);
-        return IntersectResult::yes;
-    }
     // check for matching slope
     // if slope delta is zero, lines are parallel. Check for near zero by skewing one line and
     // seeing that the skew in both directions yields a greater slope delta
@@ -467,6 +451,9 @@ FoundIntersections OpSegments::findIntersections() {
                 break;
             if (!seg->closeBounds.intersects(opp->closeBounds))
                 continue;
+            // set both to lines if they are linear before using them in t calculations
+            (void) seg->c.isLine();
+            (void) opp->c.isLine();
             AddEndMatches(seg, opp);
             if (opp->disabled)
                 continue;
@@ -474,6 +461,8 @@ FoundIntersections OpSegments::findIntersections() {
             if (seg->c.isLine()) {
                 if (opp->c.isLine()) {
                     IntersectResult lineCoin = LineCoincidence(seg, opp);
+                    if (seg->disabled)
+                        break;
                     if (IntersectResult::fail == lineCoin)
                         return FoundIntersections::fail;
                     if (IntersectResult::yes == lineCoin)
@@ -525,7 +514,7 @@ FoundIntersections OpSegments::findIntersections() {
                 }
 #endif
             }
-            if (SectFound::add == ccResult)
+            if (SectFound::add == ccResult || cc.limits.size())
                 cc.findUnsectable();
             OP_DEBUG_DUMP_CODE(debugContext = "");
             if (!cc.addedPoint)

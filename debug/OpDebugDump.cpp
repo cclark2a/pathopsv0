@@ -2966,18 +2966,18 @@ void OpJoiner::dumpResolveAll(OpContours* c) {
     c->dumpResolve(lastLink);
 }
 
-ENUM_NAME_STRUCT(LimbType);
-#define LIMBTYPE_NAME(r) { LimbType::r, #r }
+ENUM_NAME_STRUCT(LimbPass);
+#define LIMBPASS_NAME(r) { LimbPass::r, #r }
 
-LimbTypeName limbTypeNames[] = {
-	LIMBTYPE_NAME(linked),
-    LIMBTYPE_NAME(unlinked),
-	LIMBTYPE_NAME(disabled),
-	LIMBTYPE_NAME(disabledPals),
-	LIMBTYPE_NAME(miswound),
+LimbPassName limbPassNames[] = {
+	LIMBPASS_NAME(linked),
+    LIMBPASS_NAME(unlinked),
+	LIMBPASS_NAME(disabled),
+	LIMBPASS_NAME(disabledPals),
+	LIMBPASS_NAME(miswound),
 };
 
-ENUM_NAME(LimbType, limbType)
+ENUM_NAME(LimbPass, limbPass)
 
 std::string OpLimb::debugDumpIDs(DebugLevel l, bool bracket) const {
     std::string s = (bracket ? "[" : "id:") + STR(debugID);
@@ -3019,11 +3019,18 @@ std::string OpLimb::debugDump(DebugLevel l, DebugBase b) const {
     s += " linkedIndex:" + STR((int) linkedIndex);
     if (EdgeMatch::none != match)
         s += " match:" + edgeMatchName(match);
-    if (LimbType::linked == type || LimbType::unlinked == type)
-        s += " linkType:" + limbTypeName(type);
+    if (LimbPass::linked == pass || LimbPass::unlinked == pass)
+        s += " limbPass:" + limbPassName(pass);
     if (looped)
         s += " looped";
     // !!! add debugBranches
+    if (debugBranches.size()) {
+        s += " debugBranches[";
+        for (auto limb : debugBranches)
+            s += STR(limb->debugID) + " ";
+        s.pop_back();
+        s += "]";
+    }
     return s;
 }
 
@@ -3049,7 +3056,7 @@ void OpLimb::dumpSet(const char*& str) {
     OpDebugRequired(str, "linkedIndex");
     linkedIndex = OpDebugReadSizeT(str);
     match = edgeMatchStr(str, "match", EdgeMatch::none);
-    type = limbTypeStr(str, "linkType", LimbType::unlinked);
+    pass = limbPassStr(str, "limbPass", LimbPass::unlinked);
     looped = OpDebugOptional(str, "looped");
     // !!! add debugBranches
 }
@@ -3058,10 +3065,14 @@ std::string OpTree::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     if (edge)
         s += " edge:" + STR(edge->id);
+    if (bestGapLimb)
+        s += " bestGapLimb:" + bestGapLimb->debugDumpIDs(l, true);
     if (bestLimb)
         s += " bestLimb:" + bestLimb->debugDumpIDs(l, true);
     if (firstPt.isFinite())
         s += " firstPt:" + firstPt.debugDump(l, b);
+    if (OpMath::IsFinite(bestDistance))
+        s += " bestDistance:" + debugFloat(b, bestDistance);
     if (OpMath::IsFinite(bestPerimeter))
         s += " bestPerimeter:" + debugFloat(b, bestPerimeter);
     if (baseIndex)
@@ -3368,6 +3379,8 @@ void CcCurves::dumpResolveAll(OpContours* contours) {
 }
 
 bool OpCurveCurve::dumpBreak() const {
+    if (!contours->debugBreakDepth)
+        return false;
      return depth >= contours->debugBreakDepth && (
          (contours->dumpCurve1 == seg->id && contours->dumpCurve2 == opp->id)
 			|| (contours->dumpCurve1 == opp->id && contours->dumpCurve2 == seg->id));

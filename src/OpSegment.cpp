@@ -338,6 +338,15 @@ void OpSegment::moveTo(float matchT, OpPoint equalPt) {
     edges.clear();
 }
 
+// two segments are coincident so move opp's winding to this and disabled opp
+void OpSegment::moveWinding(OpSegment* opp, bool backwards) {
+        winding.move(opp->winding, backwards);
+        if (!winding.visible())
+            setDisabled(OP_DEBUG_CODE(ZeroReason::addIntersection));
+        opp->winding.zero();
+        opp->setDisabled(OP_DEBUG_CODE(ZeroReason::addIntersection));
+}
+
 #if 0
 bool OpSegment::nearby(float t, const OpSegment* opp, const OpPtT& base, float step) const {
 	OpPtT testSegPtT { c.ptTAtT(t) };
@@ -356,9 +365,23 @@ void OpSegment::setBounds() {
     closeBounds = ptBounds.outsetClose();
 }
 
-// should be inlined. Out of line for ease of setting debugging breakpoints
 void OpSegment::setDisabled(OP_DEBUG_CODE(ZeroReason reason)) {
 	disabled = true; 
+    // coincident/unsectable intersections may confuse; remove any
+    size_t index = sects.i.size();
+    while (index) {
+        OpIntersection* i = sects.i[--index];
+        if (!i->coincidenceID && !i->unsectID)
+            continue;
+        OpSegment* opp = i->opp->segment;
+        size_t oIndex = opp->sects.i.size();
+        while (oIndex) {
+            OpIntersection* o = opp->sects.i[--oIndex];
+            if (o->opp->segment == this)
+                opp->sects.i.erase(opp->sects.i.begin() + oIndex);
+        }
+        sects.i.erase(sects.i.begin() + index);
+    }
     OP_DEBUG_CODE(debugZero = reason); 
 }
 

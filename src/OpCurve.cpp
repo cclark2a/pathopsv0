@@ -672,6 +672,8 @@ OpCurve::OpCurve(OpContours* cntrs, PathOpsV0Lib::Curve curve) {
     if (curve.data)
         std::memcpy(c.data, curve.data, c.size);
     c.type = curve.type;
+    isLineSet = false;
+    isLineResult = false;
 }
 
 #if OP_TEST_NEW_INTERFACE
@@ -682,9 +684,12 @@ OpRoots OpCurve::axisRawHit(Axis offset, float intercept, MatchEnds matchEnds) c
 
 bool OpCurve::isLine() {
 #if OP_TEST_NEW_INTERFACE
+    if (isLineSet)
+        return isLineResult;
+    isLineSet = true;
     if (contours->callBack(c.type).curveIsLineFuncPtr(c)) {
         c.type = contours->contextCallBacks.setLineType(c);
-        return true;
+        return isLineResult = true;
     }
     return false;
 #else
@@ -694,6 +699,8 @@ bool OpCurve::isLine() {
 
 #if OP_DEBUG
 bool OpCurve::debugIsLine() const {
+    if (isLineSet)
+        return isLineResult;
     return c.type == contours->contextCallBacks.setLineType(c);
 }
 #endif

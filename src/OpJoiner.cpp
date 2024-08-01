@@ -5,9 +5,9 @@
 #include "OpSegment.h"
 #include "PathOps.h"
 
-void OpLimb::add(OpTree& tree, OpEdge* test, EdgeMatch m, LimbType limbType, size_t limbIndex,
+void OpLimb::add(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPass, size_t limbIndex,
 		OpEdge* otherEnd) {
-	OP_ASSERT(!test->disabled || test->pals.size() || LimbType::disabled <= limbType);
+	OP_ASSERT(!test->disabled || test->pals.size() || LimbPass::disabled <= limbPass);
 	OP_ASSERT(!test->hasLinkTo(m) || test->pals.size() || test->isUnsortable);
 	if (test->whichPtT(m).pt != lastPt)
 		return;
@@ -18,12 +18,12 @@ void OpLimb::add(OpTree& tree, OpEdge* test, EdgeMatch m, LimbType limbType, siz
 	(EdgeMatch::start == m ? test->startSeen : test->endSeen) = true;
 	OpEdge* last = tree.edge->lastEdge;
 	OP_ASSERT(last);
-	// OP_ASSERT(!test->isPal(last) || LimbType::linked != limbType);  // breaks pentrek10
+	// OP_ASSERT(!test->isPal(last) || LimbPass::linked != limbPass);  // breaks pentrek10
 	// Edge direction and winding are tricky (see description at wind zero declaration.)
 	// For first edge (and its last) in storage: if which end is 'end', its wind zero is reversed.
 	// 'Test' may need to be reversed to connect, and 'm' may be either end. Wind zero in both cases
 	// is computed for the unreversed orientation.
-	if (!last->isUnsortable && LimbType::linked == limbType && !test->isUnsortable) {
+	if (!last->isUnsortable && LimbPass::linked == limbPass && !test->isUnsortable) {
         WindZero zeroSide = test->windZero;
 		// if last which end is end, flip last's wind zero (for comparsion, flip zero side);
 		// if test m is end, flip zero side; if test which is end, flip zero side
@@ -46,23 +46,23 @@ void OpLimb::add(OpTree& tree, OpEdge* test, EdgeMatch m, LimbType limbType, siz
 		return;
 	OpContours& contours = *tree.contour.contours;
 	OpLimb* branch = contours.allocateLimb(&tree);
-	branch->set(tree, test, this, m, limbType, limbIndex, otherEnd, &childBounds);
+	branch->set(tree, test, this, m, limbPass, limbIndex, otherEnd, &childBounds);
 #if OP_DEBUG
 	debugBranches.push_back(branch);
 	tree.debugLimbs.push_back(branch);
 #endif
 }
 
-void OpLimb::set(OpTree& tree, OpEdge* test, const OpLimb* p, EdgeMatch m, LimbType l, 
+void OpLimb::set(OpTree& tree, OpEdge* test, const OpLimb* p, EdgeMatch m, LimbPass l, 
 		size_t index, OpEdge* otherEnd, const OpPointBounds* childBounds) {
 	edge = test;
 	parent = p;
 	linkedIndex = (uint32_t) index;
 	match = m;
-	type = l;
+	pass = l;
 	if (childBounds)
 		bounds = *childBounds;
-	if (LimbType::linked != type && LimbType::miswound != type) {
+	if (LimbPass::linked != pass && LimbPass::miswound != pass) {
 		lastLimb = edge;
 		lastPt = lastLimb->whichPtT(!match).pt;
 	} else if (EdgeMatch::start == match) {
@@ -80,11 +80,11 @@ void OpLimb::set(OpTree& tree, OpEdge* test, const OpLimb* p, EdgeMatch m, LimbT
 	OP_DEBUG_CODE(debugID = test->segment->nextID());
 }
 
-void OpLimb::foreach(OpJoiner& join, OpTree& tree, LimbType limbType) {
+void OpLimb::foreach(OpJoiner& join, OpTree& tree, LimbPass limbPass) {
 	if (looped)  // triggered when walking children of trunk 
 		return;
 	size_t linkupsSize = join.linkups.l.size();
-	LimbType linkedLimb = LimbType::miswound <= limbType ? LimbType::miswound : LimbType::linked;
+	LimbPass linkedLimb = LimbPass::miswound <= limbPass ? LimbPass::miswound : LimbPass::linked;
 	for (unsigned index = 0; index < linkupsSize; ++index) {
 		OpEdge* test = join.linkups.l[index];
 		if (test->disabled)
@@ -92,17 +92,17 @@ void OpLimb::foreach(OpJoiner& join, OpTree& tree, LimbType limbType) {
 		add(tree, test, EdgeMatch::start, linkedLimb, index);
 		add(tree, test->lastEdge, EdgeMatch::end, linkedLimb, index, test);
 	}
-	if (LimbType::linked == limbType)
+	if (LimbPass::linked == limbPass)
 		return;
 	for (const std::vector<OpEdge*>& edges : { join.unsectByArea, join.unsortables } ) {
 		for (OpEdge* test : edges) {
 			if (test->inLinkups)
 				continue;
-			add(tree, test, EdgeMatch::start, LimbType::unlinked);
-			add(tree, test, EdgeMatch::end, LimbType::unlinked);
+			add(tree, test, EdgeMatch::start, LimbPass::unlinked);
+			add(tree, test, EdgeMatch::end, LimbPass::unlinked);
 		}
 	}
-	if (LimbType::unlinked == limbType)
+	if (LimbPass::unlinked == limbPass)
 		return;
 	if (!join.disabledBuilt) {
 		join.buildDisabled(*tree.contour.contours);
@@ -111,18 +111,18 @@ void OpLimb::foreach(OpJoiner& join, OpTree& tree, LimbType limbType) {
 		}
 	}
 	for (OpEdge* test : join.disabled) {
-		add(tree, test, EdgeMatch::start, LimbType::disabled);
-		add(tree, test, EdgeMatch::end, LimbType::disabled);
+		add(tree, test, EdgeMatch::start, LimbPass::disabled);
+		add(tree, test, EdgeMatch::end, LimbPass::disabled);
 	}
-	if (LimbType::disabled == limbType)
+	if (LimbPass::disabled == limbPass)
 		return;
 	for (OpEdge* test : join.disabledPals) {
-		add(tree, test, EdgeMatch::start, LimbType::disabledPals);
-		add(tree, test, EdgeMatch::end, LimbType::disabledPals);
+		add(tree, test, EdgeMatch::start, LimbPass::disabledPals);
+		add(tree, test, EdgeMatch::end, LimbPass::disabledPals);
 	}
-	if (LimbType::disabledPals == limbType)
+	if (LimbPass::disabledPals == limbPass)
 		return;
-	if (LimbType::miswound == limbType)
+	if (LimbPass::miswound == limbPass)
 		return; 
 	// add the smallest gap of: for edge start, and for each end in link ups
 	OpVector toStart = lastPt - tree.firstPt;
@@ -132,7 +132,7 @@ void OpLimb::foreach(OpJoiner& join, OpTree& tree, LimbType limbType) {
 		tree.bestDistance = lenSq;
 		tree.bestGapLimb = this;
 	}
-	OP_ASSERT(LimbType::disjoint == limbType);
+	OP_ASSERT(LimbPass::disjoint == limbPass);
 }
 
 OpTree::OpTree(OpJoiner& join) 
@@ -154,24 +154,24 @@ OpTree::OpTree(OpJoiner& join)
 	limbStorage = contour.contours->resetLimbs(OP_DEBUG_DUMP_CODE(this));
 	OpLimb* trunk = limbStorage->allocate(*this);
 	OP_ASSERT(join.linkups.l.back() == join.edge);
-	trunk->set(*this, join.edge, nullptr, EdgeMatch::start, LimbType::linked, 
+	trunk->set(*this, join.edge, nullptr, EdgeMatch::start, LimbPass::linked, 
 			join.linkups.l.size() - 1, join.edge);
 	OP_DEBUG_CODE(debugLimbs.push_back(trunk));
 	join.edge->startSeen = true;
 	join.edge->lastEdge->endSeen = true;
-	LimbType limbType = LimbType::linked;
+	LimbPass limbPass = LimbPass::linked;
 	do {
-		initialize(join, limbType);
-		if (LimbType::disabledPals == limbType)
+		initialize(join, limbPass);
+		if (LimbPass::disabledPals == limbPass)
 			addDisabled(join);
 		else {
 			walker = 0;
 			do {
-				limbStorage->limb(*this, walker).foreach(join, *this, limbType);
+				limbStorage->limb(*this, walker).foreach(join, *this, limbPass);
 			} while (++walker < totalUsed);
 		}
-		limbType = (LimbType) ((int) limbType + 1);
-		if (LimbType::disjoint < limbType)
+		limbPass = (LimbPass) ((int) limbPass + 1);
+		if (LimbPass::disjoint < limbPass)
 			return;  // error if bestLimb == nullptr
 	} while (!bestLimb);
 }
@@ -184,38 +184,38 @@ void OpTree::addDisabled(OpJoiner& join) {
 		join.buildDisabledPals(*contour.contours);
 	for (OpEdge* test : join.disabledPals) {
 		test->unlink();
-		// check every limb for point match; choose based on limbType, then bounds
+		// check every limb for point match; choose based on limbPass, then bounds
 		walker = 0;
 		do {
 			OpLimb& limb = limbStorage->limb(*this, walker);
-			limb.add(*this, test, EdgeMatch::start, LimbType::disabledPals);
-			limb.add(*this, test, EdgeMatch::end, LimbType::disabledPals);
+			limb.add(*this, test, EdgeMatch::start, LimbPass::disabledPals);
+			limb.add(*this, test, EdgeMatch::end, LimbPass::disabledPals);
 		} while (++walker < totalUsed);
 	}
 
 
 }
 
-void OpTree::initialize(OpJoiner& join, LimbType limbType) {
-	switch (limbType) {
-		case LimbType::linked:
+void OpTree::initialize(OpJoiner& join, LimbPass limbPass) {
+	switch (limbPass) {
+		case LimbPass::linked:
 			break;
-		case LimbType::unlinked: 
+		case LimbPass::unlinked: 
 			for (const std::vector<OpEdge*>& edges : { join.unsectByArea, join.unsortables } )
 				for (OpEdge* test : edges)
 					join.unlink(test);
 			break;
-		case LimbType::disabled:
+		case LimbPass::disabled:
 			if (join.disabledBuilt)
 				for (OpEdge* test : join.disabled)
 					join.unlink(test);
 			break;
-		case LimbType::disabledPals:
+		case LimbPass::disabledPals:
 			if (join.disabledPalsBuilt)
 				for (OpEdge* test : join.disabledPals)
 					join.unlink(test);
 			break;
-		case LimbType::miswound:
+		case LimbPass::miswound:
 			for (OpEdge* test : join.linkups.l) {
 				if (test == join.edge)
 					continue;
@@ -223,7 +223,7 @@ void OpTree::initialize(OpJoiner& join, LimbType limbType) {
 				test->lastEdge->endSeen = false;
 			}
 			break;
-		case LimbType::disjoint:
+		case LimbPass::disjoint:
 			break;
 		default:
 			OP_ASSERT(0);
@@ -246,7 +246,7 @@ bool OpTree::join(OpJoiner& join) {
 	} else if (best != best->lastEdge) {
 		(void) best->setLastLink(EdgeMatch::start);
 	}
-	if (LimbType::linked == bestL->type || LimbType::miswound == bestL->type)
+	if (LimbPass::linked == bestL->pass || LimbPass::miswound == bestL->pass)
 		linkupsErasures.push_back(bestL->linkedIndex);
 	do {
 		const OpLimb* lastLimb = bestL->parent;
@@ -264,7 +264,7 @@ bool OpTree::join(OpJoiner& join) {
 		prior->lastEdge = best->lastEdge;
 		best->clearLastEdge();
 		OP_ASSERT(!last->debugIsLoop());
-		if (LimbType::linked == lastLimb->type || LimbType::miswound == lastLimb->type)
+		if (LimbPass::linked == lastLimb->pass || LimbPass::miswound == lastLimb->pass)
 			linkupsErasures.push_back(lastLimb->linkedIndex);
 		bestL = lastLimb;
 		best = bestL->edge;
@@ -435,8 +435,12 @@ void OpJoiner::buildDisabledPals(OpContours& contours) {
 	for (auto contour : contours.contours) {
 		for (auto& segment : contour->segments) {
 			for (auto& e : segment.edges) {
-				if (e.disabled && !e.isUnsortable && e.pals.size() && !e.inOutput)
-					disabledPals.push_back(&e);
+				if (e.disabled && !e.inOutput && !e.isUnsortable) {
+					// !!! test may be overbroad; may need to look at sect and include only
+					//     coin + unsect (or add bit in edge to register coin)
+					if (e.pals.size() || e.isUnsectable)
+						disabledPals.push_back(&e);
+				}
 			}
 		}
 	}
@@ -674,10 +678,10 @@ bool OpJoiner::linkUp(OpEdge* e) {
 	// if there's not enough info here to do that, the pal choice should be reconsidered
 	//   when match links is called
 	// !!! maybe the right choice here is the wrong choice later?!
-    if (edges.size() && hasPal)  // if edges[x] has pals and pal is in linkups, remove edges[x]
-		e->skipPals(linkMatch, edges);
+    if ((edges.size() && hasPal)  // if edges[x] has pals and pal is in linkups, remove edges[x]
+	//	e->skipPals(linkMatch, edges);
 	// if edge has pals, and there's a matching unsortable, don't return edge (thread_cubics502920)
-	if (1 != edges.size() || !edges[0].edge->isActive()) {
+		|| 1 != edges.size() || !edges[0].edge->isActive()) {
 		if (EdgeMatch::start == linkMatch)
 			return true;  // 1) found multiple possibilities, try end
 		addToLinkups(e);
@@ -729,7 +733,7 @@ bool OpJoiner::matchLinks(bool popLast) {
 		OpEdge* filler = contour->addFiller(gapEnd, startI);
 		if (filler) {
 			OpLimb* branch = contour->contours->allocateLimb(&tree);
-			branch->set(tree, filler, tree.bestGapLimb, EdgeMatch::start, LimbType::disjoint, 0, 
+			branch->set(tree, filler, tree.bestGapLimb, EdgeMatch::start, LimbPass::disjoint, 0, 
 					nullptr, nullptr);
 		#if OP_DEBUG
 			const_cast<OpLimb*>(tree.bestGapLimb)->debugBranches.push_back(branch);
@@ -749,7 +753,6 @@ bool OpJoiner::relinkUnambiguous(size_t link) {
 	if (link >= linkups.l.size())
 		return false;
 	std::vector<size_t> linkupsErasures;
-	bool startIsBestMatch = true;
 	size_t tIndex = 0;
 	edge = linkups.l[link];
 	if (link + 1 < linkups.l.size()) { // must have at least two link ups to hook together
@@ -835,16 +838,25 @@ bool OpJoiner::relinkUnambiguous(size_t link) {
 			if (!scanForMatch(lastLink, EdgeMatch::end))
 				return true;
 			mergeLinks(lastLink, EdgeMatch::end, tIndex);
-			startIsBestMatch = false;
 		}
 	}
-	if (detachIfLoop(edge->advanceToEnd(EdgeMatch::start), EdgeMatch::end))
-		linkupsErasures.push_back(startIsBestMatch ? tIndex : link);
-	if (!linkupsErasures.size())
+	size_t originalSize = linkups.l.size();
+	bool eraseLoops = detachIfLoop(edge->advanceToEnd(EdgeMatch::start), EdgeMatch::end);
+	if (linkupsErasures.size()) {
+		std::sort(linkupsErasures.begin(), linkupsErasures.end(), std::greater<int>());
+		for (size_t entry : linkupsErasures)
+			linkups.l.erase(linkups.l.begin() + entry);
+	}
+	size_t index = linkups.l.size();
+	if (eraseLoops && index) {
+		do {
+			--index;
+			if (linkups.l[index]->inOutput)
+				linkups.l.erase(linkups.l.begin() + index);
+		} while (index);
+	}
+	if (linkups.l.size() == originalSize)
 		return false;
-	std::sort(linkupsErasures.begin(), linkupsErasures.end(), std::greater<int>());
-	for (size_t entry : linkupsErasures)
-		linkups.l.erase(linkups.l.begin() + entry);
 	return relinkUnambiguous(link);  // after linking, try again
 }
 
