@@ -273,11 +273,7 @@ bool OpTree::join(OpJoiner& join) {
 	std::sort(linkupsErasures.begin(), linkupsErasures.end(), std::greater<int>());
 	for (size_t entry : linkupsErasures)
 		join.linkups.l.erase(join.linkups.l.begin() + entry);
-#if OP_TEST_NEW_INTERFACE
 	join.edge->output(false);
-#else
-	join.edge->output(join.path, false);
-#endif
 #if OP_DEBUG
     for (OpLimb* limb : debugLimbs) {
 		limb->debugBranches.clear();
@@ -322,15 +318,8 @@ void OpLimbStorage::reset() {
 	nextBlock = nullptr;
 }
 
-#if OP_TEST_NEW_INTERFACE
 OpJoiner::OpJoiner(OpContours& contours)
-	:
-#else
-OpJoiner::OpJoiner(OpContours& contours, OpOutPath& p)
-	: path(p)
-	,
-#endif
-	  linkMatch(EdgeMatch::none)
+	: linkMatch(EdgeMatch::none)
 	, linkPass(LinkPass::none)
 	, edge(nullptr)
 	, lastLink(nullptr)
@@ -486,11 +475,7 @@ bool OpJoiner::detachIfLoop(OpEdge* e, EdgeMatch loopMatch) {
 			break;
 	}
 	if (e == test) {	// if this forms a loop, there's nothing to detach, return success
-#if OP_TEST_NEW_INTERFACE
 		e->output(true);
-#else
-		e->output(path, true);
-#endif
 		return true;
 	}
 	// walk backwards to start
@@ -504,37 +489,21 @@ bool OpJoiner::detachIfLoop(OpEdge* e, EdgeMatch loopMatch) {
 				; // OP_ASSERT(!detach->priorEdge);  // triggered by fuzz763_1 -- is fix needed?
 		}
 	};
-#if OP_TEST_NEW_INTERFACE
 	auto detachNext = [detachEdge](OpEdge* test, OpEdge* oppEdge) 
-#else
-	auto detachNext = [this, detachEdge](OpEdge* test, OpEdge* oppEdge) 
-#endif
 	{
 		detachEdge(test, EdgeMatch::end);
 		detachEdge(oppEdge, EdgeMatch::start);
 		test->setNextEdge(oppEdge);
 		oppEdge->setPriorEdge(test);
-#if OP_TEST_NEW_INTERFACE
 		test->output(true);
-#else
-		test->output(path, true);
-#endif
 		return true;
 	};
-#if OP_TEST_NEW_INTERFACE
 	auto detachPrior = [detachEdge](OpEdge* test, OpEdge* oppEdge) {
-#else
-	auto detachPrior = [this, detachEdge](OpEdge* test, OpEdge* oppEdge) {
-#endif
 		detachEdge(test, EdgeMatch::start);
 		detachEdge(oppEdge, EdgeMatch::end);
 		test->setPriorEdge(oppEdge);
 		oppEdge->setNextEdge(test);
-#if OP_TEST_NEW_INTERFACE
 		test->output(true);
-#else
-		test->output(path, true);
-#endif
 		return true;
 	};
 	test = e;

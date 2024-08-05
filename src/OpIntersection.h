@@ -69,6 +69,7 @@ struct OpIntersection {
 	// void betweenPair(OpIntersection* );
 
 	void pair(OpIntersection* o) {
+		OP_ASSERT(ptT.pt == o->ptT.pt || (!!unsectID && !!o->unsectID));
 		opp = o;
 		o->opp = this;
 	}
@@ -96,6 +97,7 @@ struct OpIntersection {
 	}
 
 	void setCoin(int id, MatchEnds end);  // setter to help debugging
+	void setUnsect(int id, MatchEnds end);  // setter to help debugging
 
 	void zeroCoincidenceID() {
 		OP_ASSERT(coincidenceID);
@@ -159,7 +161,7 @@ struct OpIntersections {
 	std::vector<OpIntersection*> unsectables(const OpEdge* );
 	static bool UnsectablesOverlap(std::vector<OpIntersection*> set1,
 			std::vector<OpIntersection*> set2);
-	void windCoincidences(std::vector<OpEdge>& edges  OP_DEBUG_PARAMS(OpVector tangent));
+	void windCoincidences(std::vector<OpEdge>& edges);
 #if OP_DEBUG
     OpIntersection* debugAlreadyContains(const OpPoint& , const OpSegment* opp) const;
     bool debugContains(const OpPtT& , const OpSegment* opp) const;  // check for duplicates

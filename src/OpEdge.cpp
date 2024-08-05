@@ -168,11 +168,7 @@ OpEdge::OpEdge(const OpEdge* edge, float t1, float t2  OP_LINE_FILE_DEF(EdgeMake
 CalcFail OpEdge::addIfUR(Axis axis, float edgeInsideT, OpWinding* sumWinding) {
 	NormalDirection NdotR = normalDirection(axis, edgeInsideT);
 	if (NormalDirection::upRight == NdotR)
-#if OP_TEST_NEW_INTERFACE
 		sumWinding->add(winding);
-#else
-		*sumWinding += winding;
-#endif
 	else if (NormalDirection::downLeft != NdotR)
 		return CalcFail::fail; // e.g., may underflow if edge is too small
 	return CalcFail::none;
@@ -189,17 +185,9 @@ void OpEdge::addPal(EdgeDistance& dist) {
 CalcFail OpEdge::addSub(Axis axis, float edgeInsideT, OpWinding* sumWinding) {
 	NormalDirection NdotR = normalDirection(axis, edgeInsideT);
 	if (NormalDirection::upRight == NdotR)
-#if OP_TEST_NEW_INTERFACE
 		sumWinding->add(winding);
-#else
-		*sumWinding += winding;
-#endif
 	else if (NormalDirection::downLeft == NdotR)
-#if OP_TEST_NEW_INTERFACE
 		sumWinding->subtract(winding);
-#else
-		*sumWinding -= winding;
-#endif
 	else
 		OP_DEBUG_FAIL(*this, CalcFail::fail);
 	return CalcFail::none;
@@ -235,63 +223,15 @@ OpEdge* OpEdge::advanceToEnd(EdgeMatch match) {
 */
 void OpEdge::apply() {
 	if (EdgeFail::center == rayFail)
-		setDisabled(ZeroReason::rayFail);
+		setDisabled(OP_DEBUG_CODE(ZeroReason::rayFail));
 	if (disabled || isUnsortable)
 		return;
-#if OP_TEST_NEW_INTERFACE
-	// !!! incomplete
 	OpContour* contour = segment->contour;
 	WindKeep keep = contour->callBacks.windingKeepFuncPtr(winding.w, sum.w);
 	if (WindKeep::Discard == keep)
 		setDisabled(OP_DEBUG_CODE(ZeroReason::applyOp));
 	else
 		windZero = (WindZero) keep;
-#else
-	OpWinding su = sum;
-	OpWinding wi = winding;
-	OpContours* contours = this->contours();
-	WindState left = contours->windState(wi.left(), su.left(), OpOperand::left);
-	WindState right = contours->windState(wi.right(), su.right(), OpOperand::right);
-	if (left != WindState::flipOff && left != WindState::flipOn
-			&& right != WindState::flipOff && right != WindState::flipOn) {
-		setDisabled(OP_DEBUG_CODE(ZeroReason::noFlip));
-		return;
-	}
-	bool bothFlipped = (left == WindState::flipOff || left == WindState::flipOn)
-			&& (right == WindState::flipOff || right == WindState::flipOn);
-	bool keep = false;
-	switch (contours->opOperator) {
-	case OpOperator::Subtract:
-		keep = bothFlipped ? left != right : WindState::one == left || WindState::zero == right;
-		if (keep)
-			windZero = su.right() || !su.left() ? WindZero::zero : WindZero::nonZero;
-		break;
-	case OpOperator::Intersect:
-		keep = bothFlipped ? left == right : WindState::zero != left && WindState::zero != right;
-		if (keep)
-			windZero = !su.left() || !su.right() ? WindZero::zero : WindZero::nonZero;
-		break;
-	case OpOperator::Union:
-		keep = bothFlipped ? left == right : WindState::one != left && WindState::one != right;
-		if (keep)
-			windZero = !su.left() && !su.right() ? WindZero::zero : WindZero::nonZero;
-		break;
-	case OpOperator::ExclusiveOr:
-		keep = !bothFlipped;
-		if (keep)
-			windZero = !su.left() == !su.right() ? WindZero::zero : WindZero::nonZero;
-		break;
-	case OpOperator::ReverseSubtract:
-		keep = bothFlipped ? left != right : WindState::zero == left || WindState::one == right;
-		if (keep)
-			windZero = su.left() || !su.right() ? WindZero::zero : WindZero::nonZero;
-		break;
-	default:
-		OP_ASSERT(0);
-	}
-	if (!keep)
-		setDisabled(OP_DEBUG_CODE(ZeroReason::applyOp));
-#endif
 }
 
 // old thinking:
@@ -352,11 +292,7 @@ void OpEdge::clearPriorEdge() {
 
 void OpEdge::complete() {
 	subDivide();	// uses already computed points stored in edge
-#if OP_TEST_NEW_INTERFACE
 	winding.setWind(segment->winding);
-#else
-	winding.setWind(segment->winding.left(), segment->winding.right());
-#endif
 }
 
 OpContours* OpEdge::contours() const {
@@ -628,7 +564,6 @@ float OpEdge::oppDist() const {
 // if there is another path already output, and it is first found in this ray,
 // check to see if the tangent directions are opposite. If they aren't, reverse
 // this edge's links before sending it to the host graphics engine
-#if OP_TEST_NEW_INTERFACE
 void OpEdge::output(bool closed) {
     const OpEdge* firstEdge = closed ? this : nullptr;
     OpEdge* edge = this;
@@ -718,84 +653,6 @@ void OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first)
 	next->outputLinkedList(firstEdge, false);
 }
 
-#else
-void OpEdge::output(OpOutPath& path, bool closed) {
-    const OpEdge* firstEdge = closed ? this : nullptr;
-    OpEdge* edge = this;
-	bool reverse = false;
-	// returns true if reverse/no reverse criteria found
-	auto test = [&reverse](const EdgeDistance* outer, const EdgeDistance* inner) {
-		if (!outer->edge->inOutput && !outer->edge->inLinkups)
-			return false;
-		// reverse iff normal direction of inner and outer match and outer normal points to nonzero
-		OpEdge* oEdge = outer->edge;
-		Axis axis = oEdge->ray.axis;
-		NormalDirection oNormal = oEdge->normalDirection(axis, outer->edgeInsideT);
-		if ((oEdge->windZero == WindZero::zero) == (NormalDirection::upRight == oNormal))
-			return true;  // don't reverse if outer normal in direction of inner points to zero
-		OpEdge* iEdge = inner->edge;
-		OP_ASSERT(!iEdge->inOutput);
-		if (axis != iEdge->ray.axis)
-			return false;
-		NormalDirection iNormal = iEdge->normalDirection(axis, inner->edgeInsideT);
-		if (EdgeMatch::end == iEdge->which())
-			iNormal = !iNormal;
-		if (NormalDirection::downLeft != iNormal 
-				&& NormalDirection::upRight != iNormal)
-			return false;
-		if (EdgeMatch::end == oEdge->which())
-			oNormal = !oNormal;
-		if (NormalDirection::downLeft != oNormal 
-				&& NormalDirection::upRight != oNormal)
-			return false;
-		reverse = iNormal == oNormal;
-		return true;
-	};
-	do {
-		OP_ASSERT(!edge->inOutput);
-		unsigned index;
-		const EdgeDistance* inner;
-		for (index = 0; index < edge->ray.distances.size(); ++index) {
-			inner = &edge->ray.distances[index];
-			if (inner->edge == edge)
-				break;
-		}
-		OP_ASSERT(!index || index < edge->ray.distances.size());
-		if (index == 0)  // if nothing to its left, don't reverse
-			break;
-		const EdgeDistance* outer = &edge->ray.distances[index - 1];
-		if (test(outer, inner))
-			break;
-		edge = edge->nextEdge;
-    } while (firstEdge != edge);
-	if (reverse) {
-		if (priorEdge) {
-			OP_ASSERT(debugIsLoop());
-			lastEdge = priorEdge;
-			lastEdge->nextEdge = nullptr;
-			priorEdge = nullptr;
-		}
-		edge = lastEdge;
-		edge->setLinkDirection(EdgeMatch::none);
-		firstEdge = nullptr;
-	} else
-		edge = this;
-	bool first = true;
-    do {
-		OP_DEBUG_CODE(edge->debugOutPath = path.debugID);
-		OpEdge* next = edge->nextOut();
-		OpCurve copy = edge->curve;
-		if (EdgeMatch::end == edge->which())
-			copy.reverse();
-		if (!copy.output(path, first, firstEdge == next))
-			break;
-		first = false;
-        edge = next;
-    } while (firstEdge != edge);
-	OP_DEBUG_CODE(path.debugNextID(this));
-}
-#endif
-
 OpType OpEdge::type() {
 	return /* isLine() ? OpType::line : */ segment->c.c.type; 
 }
@@ -842,13 +699,6 @@ OpPtT OpEdge::ptTCloseTo(OpPtT oPtPair, const OpPtT& ptT) const {
 	return center;
 }
 	
-#if 0
-void OpEdge::setCurveCenter() {
-	curve.pts[curve.pointCount()] = center.pt;
-	curve.centerPt = true;
-}
-#endif
-
 // should be inlined. Out of line for ease of setting debugging breakpoints
 void OpEdge::setDisabled(OP_DEBUG_CODE(ZeroReason reason)) {
 	disabled = true; 
@@ -953,90 +803,6 @@ void OpEdge::setWhich(EdgeMatch m) {
 	whichEnd_impl = m;
 }
 
-// Remove duplicate pals that look at each other in found edges.
-// Remove pals equal to 'this' and edges this links to.
-// !!! this can choose the wrong edge (e.g. testQuads3914973)
-//     if one of a pair of pals goes to a disabled edge (dead end) while the other
-//     goes to an active edge. Rather than try to expand this logic to include that,
-//     defer until tree/limb is built and add logic, if necessary, there
-#if 0
-void OpEdge::skipPals(EdgeMatch match, std::vector<FoundEdge>& edges) {
-	std::vector<FoundEdge> sectables;
-	std::vector<FoundEdge> unsectables;
-	bool duplicates = false;
-	for (const auto& found : edges) {
-		if (found.edge->pals.size()) {
-			bool refsLinkups = false;
-			for (auto pal : found.edge->pals) {
-				if ((refsLinkups = pal.edge->inLinkups))
-					break;
-				OpEdge* test = this;
-				OP_ASSERT(!test->debugIsLoop());
-				do {
-					if ((refsLinkups = (test == pal.edge)))
-						break;
-				} while ((test = test->priorEdge));
-				test = this;
-				while ((test = test->nextEdge)) {
-					if ((refsLinkups = (test == pal.edge)))
-						break;
-				}
-			}
-			if (refsLinkups)
-				duplicates = true;
-			else
-				unsectables.push_back(found);
-		} else
-			sectables.push_back(found);
-	}
-	OpEdge* first = advanceToEnd(EdgeMatch::start);
-	first->setLastEdge();
-	for (unsigned oIndex = 1; oIndex < unsectables.size(); ++oIndex) {
-		FoundEdge& outer = unsectables[oIndex - 1];	// note: cannot underflow
-		auto& oPals = outer.edge->pals;
-		OpRect outerBounds = first->setLinkBounds().add(outer.edge->ptBounds);
-		for (unsigned iIndex = oIndex; iIndex < unsectables.size(); ++iIndex) {
-			FoundEdge& inner = unsectables[iIndex];
-			bool outerTouchesInner = oPals.end() != std::find_if(oPals.begin(), oPals.end(), 
-					[&inner](auto oPal) { return oPal.edge == inner.edge; });
-			auto& iPals = inner.edge->pals;
-			bool innerTouchesOuter = iPals.end() != std::find_if(iPals.begin(), iPals.end(), 
-					[&outer](auto iPal) { return iPal.edge == outer.edge; });
-			if (!outerTouchesInner && !innerTouchesOuter)
-				continue;
-			duplicates = true;
-			OpRect innerBounds = first->setLinkBounds().add(inner.edge->ptBounds);
-			if (innerBounds.perimeter() < outerBounds.perimeter())
-				continue;
-			if (innerBounds.perimeter() == outerBounds.perimeter()
-					&& inner.edge->ptBounds.perimeter() <= outer.edge->ptBounds.perimeter())
-				continue;
-			std::swap(inner, outer);
-			std::swap(innerBounds, outerBounds);
-		}
-		sectables.push_back(outer);
-	}
-	if (!duplicates)
-		return;
-	std::swap(sectables, edges);
-}
-#endif
-
-#if 0
-bool OpEdge::ctrlPtNearlyEnd() {
-#if OP_TEST_NEW_INTERFACE
-	// !!! call is linear instead?
-		return contours()->callBack(curve.c.type).controlNearlyEndFuncPtr(curve.c);
-#else
-	for (int index = 1; index < segment->c.pointCount() - 1; ++index) {
-		if (!curve.pts[index].isNearly(start.pt) && !curve.pts[index].isNearly(end.pt))
-			return false;
-	}
-	return true;
-#endif
-}
-#endif
-
 // use already computed points stored in edge
 void OpEdge::subDivide() {
 	id = segment->nextID();
@@ -1060,17 +826,12 @@ void OpEdge::subDivide() {
 CalcFail OpEdge::subIfDL(Axis axis, float edgeInsideT, OpWinding* sumWinding) {
 	NormalDirection NdotR = normalDirection(axis, edgeInsideT);
 	if (NormalDirection::downLeft == NdotR)
-#if OP_TEST_NEW_INTERFACE
 		sumWinding->subtract(winding);
-#else
-		*sumWinding -= winding;
-#endif
 	else if (NormalDirection::upRight != NdotR)
 		OP_DEBUG_FAIL(*this, CalcFail::fail);
 	return CalcFail::none;
 }
 
-#if OP_TEST_NEW_INTERFACE
 void OpEdge::setSum(const PathOpsV0Lib::Winding& w  OP_LINE_FILE_DEF(int dummy)) {
 	OP_ASSERT(!sum.contour);
 	sum.contour = segment->contour;
@@ -1079,8 +840,6 @@ void OpEdge::setSum(const PathOpsV0Lib::Winding& w  OP_LINE_FILE_DEF(int dummy))
 	sum.w.size = w.size;
 	OP_DEBUG_CODE(debugSetSum = { fileName, lineNo });
 }
-
-#endif
 
 // this is too complicated because
 // edges in linked list have last edge set

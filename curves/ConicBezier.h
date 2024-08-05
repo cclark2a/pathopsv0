@@ -187,7 +187,7 @@ inline bool conicIsFinite(Curve c) {
 
 inline bool conicIsLine(Curve c) {
     PointWeight control(c);
-    LinePts linePts = { c.data->start, c.data->end };
+    LinePts linePts { c.data->start, c.data->end };
     return linePts.ptOnLine(control.pt);
 }
 

@@ -2647,7 +2647,7 @@ size_t OpEdgeStorage::debugCount() const {
         return 0;
     size_t result = used;
     OpEdgeStorage* block = next;
-    while (next) {
+    while (block) {
         result += block->used;
         block = block->next;
     }

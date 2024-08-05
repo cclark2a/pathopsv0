@@ -33,6 +33,7 @@ struct PointIndex {
     int close;
 };
 
+#if 0
 struct PointsVerbs {
     // !!! add way to visualize edge runs
     SkPath makePath() {
@@ -71,6 +72,8 @@ struct PointsVerbs {
 PointsVerbs leftPath;
 PointsVerbs rightPath;
 PointsVerbs* activePtV;
+#endif
+
 PointIndex activeIndex;
 int activeFocus;
 int activeLeft;
@@ -82,8 +85,8 @@ void resetPaths() {
 #else
     leftPath.set(*debugGlobalContours->leftIn);
     rightPath.set(*debugGlobalContours->rightIn);
-#endif
     activePtV = nullptr;
+#endif
     activeIndex = { -1, -1 };
     activeFocus = -1;
     activeLeft = 0;
@@ -169,7 +172,7 @@ void HelloWorld::onIdle() {
 #endif
 }
 
-
+#if 0
 PointIndex pointIndex(PointsVerbs& ptVerbs, int curve, int focus) {
     PointIndex result {-1, -1};
     size_t vIndex = 0;
@@ -224,6 +227,7 @@ PointIndex pointIndex(PointsVerbs& ptVerbs, int curve, int focus) {
     }
     return result;
 }
+#endif
 
 int debugBreakDepth;  // !!! this needs to be moved into global contour
 
@@ -263,15 +267,17 @@ bool HelloWorld::onChar(SkUnichar c, skui::ModifierKey modifiers) {
     case 'w' : toggleWindings(); break;
     case '0' : 
         activeFocus = 0; 
-        activePtV = nullptr; 
+//        activePtV = nullptr; 
         activeIndex = { -1, -1 };
         break;
     default:
         if ('1' <= c && c <= '8') {
             activeFocus = c <= '4' ? c - '0' : c - '4';
+#if 0
             activePtV = c <= '4' ? &leftPath : &rightPath;
             int activeCurve = c <= '4' ? activeLeft : activeRight;
             activeIndex = pointIndex(*activePtV, activeCurve, activeFocus); 
+#endif
         }
         break;
     }
@@ -284,6 +290,7 @@ bool HelloWorld::onKey(skui::Key, skui::InputState, skui::ModifierKey) {
 }
 
 // change indicated point. If this point is the first in contour, change last also if same
+#if 0
 void setPoint(PointsVerbs& ptVerbs, PointIndex pi, SkPoint pt) {
     OP_ASSERT(0 <= pi.index && pi.index < (int) ptVerbs.points.size());
     OP_ASSERT(-1 == pi.close || (0 < pi.close && pi.close < (int) ptVerbs.points.size()));
@@ -293,6 +300,7 @@ void setPoint(PointsVerbs& ptVerbs, PointIndex pi, SkPoint pt) {
     if (0 < pi.close)
         ptVerbs.points[pi.close] = pt;
 }
+#endif
 
 // associates 1:4 with first curve; 5:8 with second curve
 void movePoint(float x, float y) {
@@ -308,7 +316,7 @@ void movePoint(float x, float y) {
     }
     // !!! start here
     // edit skia path
-    int ptIndex = activeFocus % 3;
+    OP_DEBUG_CODE(int ptIndex = activeFocus % 3);
     OP_ASSERT(ptIndex);  // !!! suppress warning; incomplete
     // regenerate segments, edges, curve/curve data (esp. edge runs, exiting when some depth is reached)
 }

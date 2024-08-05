@@ -227,58 +227,6 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
     return;
 }
 
-#if !OP_TEST_NEW_INTERFACE
-void OpSegments::findCoincidences() {
-    // take care of totally coincident segments
-    for (auto segIter = inX.begin(); segIter != inX.end(); ++segIter) {
-        OpSegment* seg = const_cast<OpSegment*>(*segIter);
-        if (seg->disabled)
-            continue;
-        for (auto oppIter = segIter + 1; oppIter != inX.end(); ++oppIter) {
-            OpSegment* opp = const_cast<OpSegment*>(*oppIter);
-            if (opp->disabled)
-                continue;
-            if (seg->ptBounds != opp->ptBounds)
-                continue;
-            MatchReverse mr = seg->matchEnds(opp);
-            if (MatchEnds::both == mr.match && seg->c.type == opp->c.type) {
-                // if control points and weight match, treat as coincident: transfer winding
-                bool coincident = false;
-                switch (seg->c.type) {
-                    case OpType::no:
-                        OP_ASSERT(0);
-                        break;
-                    case OpType::line:
-                        coincident = true;
-                        break;
-                    case OpType::quad:
-                        coincident = seg->c.pts[1] == opp->c.pts[1];    // note: not new interface
-                        break;
-                    case OpType::conic:
-                        coincident = seg->c.pts[1] == opp->c.pts[1]
-                                && seg->c.weight == opp->c.weight;
-                        break;
-                    case OpType::cubic:
-                        coincident = seg->c.pts[1] == opp->c.pts[1 + (int) mr.reversed]
-                                && seg->c.pts[2] == opp->c.pts[2 - (int) mr.reversed];
-                        break;
-                }
-                if (coincident) {
-                    seg->winding.move(opp->winding, seg->contour->contours, mr.reversed);
-                    opp->winding.zero();
-                    opp->setDisabled(OP_DEBUG_CODE(ZeroReason::findCoincidences));
-                    if (!seg->winding.visible()) {
-                        seg->setDisabled(OP_DEBUG_CODE(ZeroReason::findCoincidences));
-                        break;
-                    }
-                }
-            }
-        }
-    }
-}
-#endif
-
-#if OP_TEST_NEW_INTERFACE
 void OpSegments::FindCoincidences(OpContours* contours) {
     // take care of totally coincident segments
     SegmentIterator segIterator(contours);
@@ -304,7 +252,6 @@ void OpSegments::FindCoincidences(OpContours* contours) {
         }
     }
 }
-#endif
 
 // !!! this is comically complicated
 // surely even if all this is needed, it can be more clearly written and use less code ...
@@ -364,13 +311,8 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
     if (downDelta < slopeDelta)
         return IntersectResult::no;
     // at this point lines are parallel. See if they are also coincident
-#if OP_TEST_NEW_INTERFACE
     OpPoint* longer = &seg->c.c.data->start;
     OpPoint* shorter = &opp->c.c.data->start;
-#else
-    OpPoint* longer = seg->c.pts;
-    OpPoint* shorter = opp->c.pts;
-#endif
     if (!segLonger)
         std::swap(longer, shorter);
     OpVector longS = longer[0] - shorter[0];

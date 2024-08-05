@@ -391,29 +391,63 @@ bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 		return false;
 	if (oStart.soClose(oEnd))
 		return false;
+	bool flipped = oStart.t > oEnd.t;
 	OpIntersection* segSect1 = seg->sects.contains(eStart, opp);
-	if (segSect1 && segSect1->unsectID)
-		return false;
+	OpIntersection* oppSect1 = nullptr;
+	if (!segSect1) {
+		oppSect1 = opp->sects.contains(oStart, seg);
+		if (oppSect1)
+			segSect1 = oppSect1->opp;
+	}
+	if (segSect1) {
+		if (segSect1->unsectID)
+			return false;
+		oppSect1 = segSect1->opp;
+		OP_ASSERT(!oppSect1->unsectID);  // expect segSect1 to have uid and return already 
+        segSect1->setUnsect(usectID, MatchEnds::start);
+        seg->sects.resort = true;	// !!! not needed if only sect t needs to be sorted
+		oppSect1->setUnsect(flipped ? -usectID : usectID, 
+				flipped ? MatchEnds::end : MatchEnds::start);
+		oppSect1->segment->sects.resort = true; // !!! ditto
+	} else {
+		segSect1 = seg->addUnsectable(eStart, usectID, MatchEnds::start, opp
+				OP_LINE_FILE_PARAMS(SectReason::unsectable));
+		oppSect1 = opp->addUnsectable(oStart, flipped ? -usectID : usectID, 
+				flipped ? MatchEnds::end : MatchEnds::start, seg  
+				OP_LINE_FILE_PARAMS(SectReason::unsectable));
+		segSect1->pair(oppSect1);
+	}
+
 	OpIntersection* segSect2 = seg->sects.contains(eEnd, opp);
-	if (segSect2 && segSect2->unsectID)
-		return false;
-	OpIntersection* oppSect1 = opp->sects.contains(oStart, seg);
-	if (oppSect1 && oppSect1->unsectID)
-		return false;
-	OpIntersection* oppSect2 = opp->sects.contains(oEnd, seg);
-	if (oppSect2 && oppSect2->unsectID)
-		return false;
+	OpIntersection* oppSect2 = nullptr;
+	if (!segSect2) {
+		oppSect2 = opp->sects.contains(oEnd, seg);
+		if (oppSect2)
+			segSect2 = oppSect2->opp;
+	}
+	if (segSect2) {
+		if (segSect2->unsectID)
+			return false;
+		oppSect2 = segSect2->opp;
+		OP_ASSERT(!oppSect2->unsectID); 
+
+	} else {
+		segSect2 = seg->addUnsectable(eEnd, usectID, MatchEnds::end, opp
+				OP_LINE_FILE_PARAMS(SectReason::unsectable));
+		oppSect2 = opp->addUnsectable(oEnd, flipped ? -usectID : usectID, 
+				flipped ? MatchEnds::start : MatchEnds::end, seg
+				OP_LINE_FILE_PARAMS(SectReason::unsectable));
+		segSect2->pair(oppSect2);
+	}
+#if 0  // !!! check if no longer needed
 	// !!! tricky: do I need all cases of contains/add to do this? (testQuads17024521)
 	if (!segSect1 != !oppSect1)
 		eStart.pt = oStart.pt = segSect1 ? segSect1->ptT.pt : oppSect1->ptT.pt;
 	if (!segSect2 != !oppSect2)
 		eEnd.pt = oEnd.pt = segSect2 ? segSect2->ptT.pt : oppSect2->ptT.pt;
-	segSect1 = seg->addUnsectable(eStart, usectID, MatchEnds::start, opp
-			OP_LINE_FILE_PARAMS(SectReason::unsectable));
-	segSect2 = seg->addUnsectable(eEnd, usectID, MatchEnds::end, opp
-			OP_LINE_FILE_PARAMS(SectReason::unsectable));
+#endif
+#if 0 // !!! I think this double-flips? (no op?)
 	MatchEnds oppMatch = MatchEnds::start;
-	bool flipped = oStart.t > oEnd.t;
 	if (flipped) {
 		std::swap(oStart, oEnd); // flip to fix opp t (now opp pts are flipped vs. edge)
 		usectID = -usectID;
@@ -425,6 +459,7 @@ bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 			OP_LINE_FILE_PARAMS(SectReason::unsectable));
 	segSect1->pair(flipped ? oppSect2 : oppSect1);
 	segSect2->pair(flipped ? oppSect1 : oppSect2);
+#endif
 	addedPoint = true;
 	return true;
 }

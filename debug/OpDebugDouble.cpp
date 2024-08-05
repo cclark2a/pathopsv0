@@ -490,24 +490,6 @@ struct DebugOpCubic : DebugOpCurve {
     }
 };
 
-#if !OP_TEST_NEW_INTERFACE
-void OpCubicPtAtT(const OpCubic& c, float f, OpPoint pt) {
-    DebugOpCubic dCubic;
-    for (int value = 0; value < 8; ++value)
-        *(&dCubic.pts[0].x + value) = *(&c.pts[0].x + value);
-    DebugOpPoint dPt = dCubic.ptAtT(f);
-    pt.x = (float) dPt.x;
-    pt.y = (float) dPt.y;
-}
-
-DebugOpRoots OpCubicAxisRayHit(const OpCubic& c, Axis offset, float axisIntercept) {
-    DebugOpCubic dCubic;
-    for (int value = 0; value < 8; ++value)
-        *(&dCubic.pts[0].x + value) = *(&c.pts[0].x + value);
-    return dCubic.axisRayHit(offset, axisIntercept);
-}
-#endif
-
 #if OP_DEBUG_IMAGE
 const DebugOpQuad& DebugOpCurve::asQuad() const { return *static_cast<const DebugOpQuad*>(this); }
 const DebugOpConic& DebugOpCurve::asConic() const { return *static_cast<const DebugOpConic*>(this); }
@@ -727,7 +709,6 @@ OpPoint DebugOpMap(DebugOpPoint dPt) {
 }
 
 void DebugOpCurve::mapTo(OpCurve& c) const {
-#if OP_TEST_NEW_INTERFACE
     c.c.data = debugGlobalContours->allocateCurveData(size);
     c.c.size = size;
     c.c.data->start = DebugOpMap(pts[0]);
@@ -769,13 +750,6 @@ void DebugOpCurve::mapTo(OpCurve& c) const {
     c.c.type = type;
     c.contours = debugGlobalContours;
     return;
-#else
-    for (int i = 0; i < 4; ++i) {
-        c.pts[i] = DebugOpMap(pts[i]);
-    }
-    c.weightImpl = (float) weight;
-    c.c.type = type;
-#endif
 }
 
 enum class UnsectType {
@@ -888,7 +862,6 @@ void DebugOpDraw(const std::vector<OpDebugRay>& lines) {
 }
 
 static double curveWeight(const OpCurve& curve) {
-#if OP_TEST_NEW_INTERFACE
     // !!! haven't decided how to support this through callbacks
     if (OpType::conic == curve.c.type) {
         char* dst = curve.c.data->optionalAdditionalData;
@@ -898,9 +871,6 @@ static double curveWeight(const OpCurve& curve) {
         return (double) floatWeight;
     }
     return 1.;
-#else
-    return curve.weight;
-#endif
 }
 
 void DebugOpBuild(const OpSegment& seg, std::vector<DebugOpCurve>& debugSegs) {
@@ -1263,6 +1233,7 @@ void DebugOpClearInputs() {
     debugInputs.clear();
 }
 
+#if 0
 void DebugOpAdd(const OpInPath& input) {
     if (input.externalReference)
         DebugOpBuild(*(SkPath*)input.externalReference, debugInputs, ClipToBounds::clip, blue);
@@ -1276,16 +1247,19 @@ void DebugOpFill(const OpInPath& input, uint32_t color) {
             color);
     DebugOpFill(debugFills);
 }
+#endif
 
 void DebugOpDrawInputs() {
     DebugOpDraw(debugInputs);
 }
 
+#if 0
 void DebugOpDraw(const OpOutPath* output, uint32_t color) {
     if (output->externalReference)
         DebugOpBuild(*(SkPath*)output->externalReference, debugOutputs, ClipToBounds::clip, color);
     DebugOpDraw(debugOutputs);
 }
+#endif
 
 void DebugOpDrawArrowHead() {
 //    SkPath path;

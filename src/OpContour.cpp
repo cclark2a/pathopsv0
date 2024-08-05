@@ -36,102 +36,6 @@ void OpContours::addCallerData(PathOpsV0Lib::AddContext data) {
     caller.size = data.size;  // !!! don't know if size is really needed ...
 }
 
-#if !OP_TEST_NEW_INTERFACE
-bool OpContour::addClose() {
-    if (!segments.size())
-        return false;
-    OpPoint curveStart = segments.front().c.pts[0];
-    OpPoint lastPoint = segments.back().c.lastPt();
-    if (lastPoint != curveStart) {
-        LinePts linePts = {{ lastPoint, curveStart }};
-        segments.emplace_back(linePts, this  
-                OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
-    }
-    return true;
-}
-
-bool OpContour::addConic(OpPoint pts[3], float weight) {
-    OpMath::ZeroTiny(pts, 3);
-    if (pts[0] == pts[2])   // !!! should be fill only, not frame
-        return true;
-    OpTightBounds bounds;
-    OpConic conic(pts, weight);
-    if (!bounds.calcBounds(conic))
-        return false;
-    std::vector<ExtremaT> extrema = bounds.findExtrema(pts[0], pts[2]);
-    if (!extrema.size()) {
-        OpCurve whole(pts, weight, OpType::conic);
-        if (whole.isLinear()) {
-            LinePts linePts = {{ whole.pts[0], whole.pts[2] }};
-            if (!linePts.isPoint())
-                segments.emplace_back(linePts, this
-                        OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
-        } else
-            segments.emplace_back(whole, OpType::conic, this  
-                    OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
-        return true;
-    }
-    ExtremaT start = {{ pts[0], 0 }  OP_DEBUG_PARAMS(SectReason::startPt)};
-    for (unsigned index = 0; index <= extrema.size(); ++index) {
-        ExtremaT end = index < extrema.size() ? extrema[index] :
-                ExtremaT({ pts[2], 1 }  OP_DEBUG_PARAMS(SectReason::endPt));
-        OpCurve partPts = conic.subDivide(start.ptT, end.ptT);
-        if (partPts.isLinear()) {
-            LinePts linePts = {{ partPts.pts[0], partPts.pts[2] }};
-            if (!linePts.isPoint())
-                segments.emplace_back(linePts, this
-                        OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
-        } else 
-            segments.emplace_back(partPts, OpType::conic, this
-                    OP_DEBUG_PARAMS(start.reason, end.reason));
-        start = end;
-    }
-    return true;
-}
-
-bool OpContour::addCubic(OpPoint pts[4]) {
-    OpMath::ZeroTiny(pts, 4);
-    // reduction to point if pt 0 equals pt 3 complicated since it requires pts 1, 2 be linear..
-    if (pts[0] == pts[3]) { // !!! detect possible degenerate to code from actual test data
-        if (pts[1] == pts[0] && pts[2] == pts[0])
-            return true;
-    }
-    OpTightBounds bounds;
-    OpCubic cubic(pts);
-    if (!bounds.calcBounds(cubic))
-        return false;
-    std::vector<ExtremaT> extrema = bounds.findExtrema(pts[0], pts[3]);
-
-    if (!extrema.size()) {
-        OpCurve whole(pts, OpType::cubic);
-        if (whole.isLinear()) {
-            LinePts linePts = {{ whole.pts[0], whole.pts[3] }};
-            if (!linePts.isPoint())
-                segments.emplace_back(linePts, this  
-                        OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
-        } else
-            segments.emplace_back(whole, OpType::cubic, this  
-                    OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
-        return true;
-    }
-    ExtremaT start = {{ pts[0], 0 }  OP_DEBUG_PARAMS(SectReason::startPt)};
-    for (unsigned index = 0; index <= extrema.size(); ++index) {
-        ExtremaT end = index < extrema.size() ? extrema[index] :
-                ExtremaT({ pts[3], 1 }  OP_DEBUG_PARAMS(SectReason::endPt));
-        OpCurve partPts = cubic.subDivide(start.ptT, end.ptT);
-        if (partPts.isLinear()) {
-            LinePts linePts = {{ partPts.pts[0], partPts.pts[3] }};
-            if (!linePts.isPoint())
-                segments.emplace_back(linePts, this  OP_DEBUG_PARAMS(start.reason, end.reason));
-        } else
-            segments.emplace_back(partPts, OpType::cubic, this  
-                    OP_DEBUG_PARAMS(start.reason, end.reason));
-        start = end;
-    }
-    return true;
-}
-#endif
-
 OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg  
         OP_LINE_FILE_DEF(SectReason reason, const OpEdge* edge, const OpEdge* oEdge)) {
     OpIntersection* next = contours->allocateIntersection();
@@ -174,16 +78,6 @@ OpEdge* OpContour::addFiller(OpIntersection* start, OpIntersection* end) {
     return filler;
 }
 
-#if !OP_TEST_NEW_INTERFACE
-void OpContour::addLine(OpPoint pts[2]) {
-    OpMath::ZeroTiny(pts, 2);
-    if (pts[0] == pts[1])   // !!! should be fill only, not frame
-        return;
-    LinePts linePts = {{ pts[0], pts[1] }};
-    segments.emplace_back(linePts, this  OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
-}
-#endif
-
 OpIntersection* OpContour::addCoinSect(const OpPtT& t, OpSegment* seg, int cID, MatchEnds coinEnd
         OP_LINE_FILE_DEF(SectReason reason, const OpSegment* oSeg)) {
 	OP_ASSERT(MatchEnds::both != coinEnd);
@@ -204,52 +98,10 @@ OpIntersection* OpContour::addUnsect(const OpPtT& t, OpSegment* seg, int uID, Ma
         OP_LINE_FILE_DEF(SectReason reason, const OpSegment* oSeg)) {
     OpIntersection* next = contours->allocateIntersection();
     next->set(t, seg  OP_LINE_FILE_CALLER(reason, seg->id, oSeg->id));
-	next->unsectID = uID;
 	OP_ASSERT(MatchEnds::both != unsectEnd);
-	next->unsectEnd = unsectEnd;
+	next->setUnsect(uID, unsectEnd);
     return next;
 }
-
-#if !OP_TEST_NEW_INTERFACE
-bool OpContour::addQuad(OpPoint pts[3]) {
-    OpMath::ZeroTiny(pts, 3);
-    if (pts[0] == pts[2])   // !!! should be fill only, not frame
-        return true;
-    OpTightBounds bounds;
-    OpQuad quad(pts);
-    if (!bounds.calcBounds(quad))
-        return false;
-    std::vector<ExtremaT> extrema = bounds.findExtrema(pts[0], pts[2]);
-    if (!extrema.size()) {
-        OpCurve whole(pts, OpType::quad);
-        if (whole.isLinear()) {
-            LinePts linePts = {{ whole.pts[0], whole.pts[2] }};
-            if (!linePts.isPoint())
-                segments.emplace_back(linePts, this  
-                        OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
-        } else
-            segments.emplace_back(whole, OpType::quad, this  
-                    OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
-        return true;
-    }
-    ExtremaT start = {{ pts[0], 0 }  OP_DEBUG_PARAMS(SectReason::startPt)};
-    for (unsigned index = 0; index <= extrema.size(); ++index) {
-        ExtremaT end = index < extrema.size() ? extrema[index] :
-                ExtremaT({ pts[2], 1 }  OP_DEBUG_PARAMS(SectReason::startPt));
-        OpCurve partPts = quad.subDivide(start.ptT, end.ptT);
-        if (partPts.isLinear()) {
-            LinePts linePts = {{ partPts.pts[0], partPts.pts[2] }};
-            if (!linePts.isPoint())
-                segments.emplace_back(linePts, this  
-                        OP_DEBUG_PARAMS(SectReason::startPt, SectReason::endPt));
-        } else 
-            segments.emplace_back(partPts, OpType::quad, this  
-                    OP_DEBUG_PARAMS(start.reason, end.reason));
-        start = end;
-    }
-    return true;
-}
-#endif
 
 int OpContour::nextID() const {
 //    if (93 == contours->uniqueID + 1)
@@ -259,27 +111,9 @@ int OpContour::nextID() const {
 
 // end of contour; start of contours
 
-#if !OP_TEST_NEW_INTERFACE
-static const OpOperator OpInverse[+OpOperator::ReverseSubtract + 1][2][2] {
-    //                inside minuend                                  outside minuend
-    //  inside subtrahend     outside subtrahend         inside subtrahend   outside subtrahend
-    { { OpOperator::Subtract, OpOperator::Intersect }, { OpOperator::Union, OpOperator::ReverseSubtract } },
-    { { OpOperator::Intersect, OpOperator::Subtract }, { OpOperator::ReverseSubtract, OpOperator::Union } },
-    { { OpOperator::Union, OpOperator::ReverseSubtract }, { OpOperator::Subtract, OpOperator::Intersect } },
-    { { OpOperator::ExclusiveOr, OpOperator::ExclusiveOr }, { OpOperator::ExclusiveOr, OpOperator::ExclusiveOr } },
-    { { OpOperator::ReverseSubtract, OpOperator::Union }, { OpOperator::Intersect, OpOperator::Subtract } },
-};
-#endif
-
 OpContours::OpContours()
-    : 
-#if !OP_TEST_NEW_INTERFACE
-     leftIn(nullptr)
-    , rightIn(nullptr)
-    , opIn(OpOperator::Intersect)
-    , 
-#endif
-      ccStorage(nullptr)
+    : caller({nullptr, 0}) 
+    , ccStorage(nullptr)
     , curveDataStorage(nullptr)
     , contourStorage(nullptr)
     , contours(this)
@@ -287,12 +121,7 @@ OpContours::OpContours()
     , sectStorage(nullptr)
     , limbStorage(nullptr)
     , callerStorage(nullptr)
-#if !OP_TEST_NEW_INTERFACE
-    , left(OpFillType::unset)
-    , right(OpFillType::unset)
-#endif
-    , uniqueID(0) 
-    , caller({nullptr, 0}) {
+    , uniqueID(0) {
 #if OP_DEBUG_VALIDATE
     debugValidateEdgeIndex = 0;
     debugValidateJoinerIndex = 0;
@@ -300,9 +129,6 @@ OpContours::OpContours()
 #if OP_DEBUG
     debugCurveCurve = nullptr;
     debugJoiner = nullptr;
-#if !OP_TEST_NEW_INTERFACE
-    debugResult = nullptr;
-#endif
     debugExpect = OpDebugExpect::unknown;
     debugInPathOps = false;
     debugInClearEdges = false;
@@ -312,16 +138,6 @@ OpContours::OpContours()
 #endif
 #if OP_DEBUG_DUMP
     dumpTree = nullptr;
-#endif
-}
-
-OpContours::OpContours(OpInPath& l, OpInPath& r, OpOperator op) 
-    : OpContours() {
-#if !OP_TEST_NEW_INTERFACE
-    leftIn = &l;
-    rightIn = &r;
-    opIn = op;
-    opOperator = OpInverse[+op][l.isInverted()][r.isInverted()];
 #endif
 }
 
@@ -358,11 +174,6 @@ OpContours::~OpContours() {
 #endif
 #if OP_DEBUG_DUMP
     if (debugDumpInit) {
-#if !OP_TEST_NEW_INTERFACE
-        delete debugLeft;
-        delete debugRight;
-        delete debugResult;
-#endif
         delete debugCurveCurve;
         delete debugJoiner;
     }
@@ -376,16 +187,6 @@ void OpContours::addAlias(OpPoint pt, OpPoint alias) {
     }
     aliases.push_back({pt, alias});
 }
-
-#if !OP_TEST_NEW_INTERFACE
-OpContour* OpContours::addMove(OpContour* last, OpOperand operand , const OpPoint pts[1]) {
-    // !!! if frame paths are supported, don't add close unless fill is set
-    if (last->addClose())
-        return makeContour(operand);
-    // keep point as its own segment in the future?
-    return contours.back();
-}
-#endif
 
 OpContour* OpContours::allocateContour() {
     if (!contourStorage)
@@ -478,17 +279,8 @@ OpLimbStorage* OpContours::resetLimbs(OP_DEBUG_DUMP_CODE(OpTree* tree)) {
 // make sure normals point same way
 // prefer smaller assembled contours
 // returns true on success
-#if OP_TEST_NEW_INTERFACE
-bool OpContours::assemble() 
-#else
-bool OpContours::assemble(OpOutPath& path) 
-#endif
-{
-#if OP_TEST_NEW_INTERFACE
+bool OpContours::assemble() {
     OpJoiner joiner(*this);
-#else
-    OpJoiner joiner(*this, path);  // collect active edges and sort them
-#endif
     if (joiner.setup())
         return true;
     for (LinkPass linkPass : { LinkPass::normal, LinkPass::unsectable } ) {
@@ -507,68 +299,33 @@ bool OpContours::debugFail() const {
 #endif
 }
 
-#if !OP_TEST_NEW_INTERFACE
-static const bool OutInverse[+OpOperator::ReverseSubtract + 1][2][2] {
-    { { false, false }, { true, false } },  // diff
-    { { false, false }, { false, true } },  // sect
-    { { false, true }, { true, true } },    // union
-    { { false, true }, { true, false } },   // xor
-    { { false, true }, { false, false } },  // rev diff
-};
-#endif
-
 // If successive runs of the same input are flaky, check to see if identical ids are generated.
 // To do this, insert OP_DEBUG_COUNT(*this, _some_identifer_); after every callout.  
 // This will compare the dumps of contours and contents to detect when something changed.
 // The callouts are removed when not in use as they are not maintained and reduce readability.
 // !!! OP_DEBUG_COUNT was unintentionally deleted at some point. Hopefully it is in git history...
-#if OP_TEST_NEW_INTERFACE
-bool OpContours::pathOps()
-#else
-bool OpContours::pathOps(OpOutPath& result)
+bool OpContours::pathOps() {
+    OpSegments::FindCoincidences(this);
+#if OP_DEBUG_VALIDATE
+    debugValidateIntersections();
 #endif
-{
-#if !OP_TEST_NEW_INTERFACE
-    if (!build(*leftIn, OpOperand::left))  // builds monotonic segments, and adds 0/1 sects
-        OP_DEBUG_FAIL(*this, false);
-    if (!build(*rightIn, OpOperand::right))
-        OP_DEBUG_FAIL(*this, false);
-//  finishAll();  // !!! no longer needed
-//  setBounds();    // !!! check to see if this is used
     OpSegments sortedSegments(*this);
+#if OP_DEBUG_VALIDATE
+    debugValidateIntersections();
+#endif
     if (!sortedSegments.inX.size()) {
-        result.setEmpty();
+        contextCallBacks.emptyNativePath(callerOutput);
         OP_DEBUG_SUCCESS(*this, true);
     }
-    sortedSegments.findCoincidences();  // check for exact curves and full lines
     if (FoundIntersections::fail == sortedSegments.findIntersections())
-        return false;  // triggered by fuzzhang_1
-    if (contours.empty())
+        return false;  // !!! fix this to record for Error()
+#if OP_DEBUG_VALIDATE
+    debugValidateIntersections();
+#endif
+    disableSmallSegments();  // moved points may allow disabling some segments
+    if (empty()) {
+        contextCallBacks.emptyNativePath(callerOutput);
         OP_DEBUG_SUCCESS(*this, true);
-#endif
-    {
-        OpSegments::FindCoincidences(this);
-#if OP_DEBUG_VALIDATE
-        debugValidateIntersections();
-#endif
-        OpSegments sortedSegments(*this);
-#if OP_DEBUG_VALIDATE
-        debugValidateIntersections();
-#endif
-        if (!sortedSegments.inX.size()) {
-            contextCallBacks.emptyNativePath(callerOutput);
-            OP_DEBUG_SUCCESS(*this, true);
-        }
-        if (FoundIntersections::fail == sortedSegments.findIntersections())
-            return false;  // !!! fix this to record for Error()
-#if OP_DEBUG_VALIDATE
-        debugValidateIntersections();
-#endif
-        disableSmallSegments();  // moved points may allow disabling some segments
-        if (empty()) {
-            contextCallBacks.emptyNativePath(callerOutput);
-            OP_DEBUG_SUCCESS(*this, true);
-        }
     }
     sortIntersections();
     makeEdges();
@@ -581,15 +338,8 @@ bool OpContours::pathOps(OpOutPath& result)
         OP_DEBUG_FAIL(*this, false);
     OP_DEBUG_DUMP_CODE(debugContext = "apply");
     apply();  // suppress edges which don't meet op criteria
-#if OP_TEST_NEW_INTERFACE
     if (!assemble())
         OP_DEBUG_FAIL(*this, false);
-#else
-    if (!assemble(result))
-        OP_DEBUG_FAIL(*this, false);
-    bool inverseFill = OutInverse[+opOperator][leftIn->isInverted()][rightIn->isInverted()];
-    result.setInverted(inverseFill);
-#endif
     // !!! missing final step to reverse order of contours as winding rule requires
     // this should be driven by user choices since the engine itself can't know the winding rule
     // it does require all output contours to be completed first. Perhaps the link-to-path
@@ -630,7 +380,6 @@ void OpContours::sortIntersections() {
         }
     }
 }
-
 
 #if OP_DEBUG
 void OpContour::debugComplete() {

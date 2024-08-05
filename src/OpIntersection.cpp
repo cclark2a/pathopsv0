@@ -19,8 +19,15 @@ void OpIntersection::betweenPair(OpIntersection* end) {
 
 // setter to help debugging
 void OpIntersection::setCoin(int cid, MatchEnds end) {
+    OP_ASSERT(60 != cid);
     coincidenceID = cid;
     coinEnd = end;
+}
+
+// setter to help debugging
+void OpIntersection::setUnsect(int uid, MatchEnds end) {
+    unsectID = uid;
+    unsectEnd = end;
 }
 
 OpIntersections::OpIntersections()
@@ -403,8 +410,7 @@ void OpIntersections::sort() {
         processEnd(index);
 }
 
-void OpIntersections::windCoincidences(std::vector<OpEdge>& edges  
-        OP_DEBUG_PARAMS(OpVector tangent)) {
+void OpIntersections::windCoincidences(std::vector<OpEdge>& edges) {
     sort();
     std::vector<CoinPair> pairs;
     OpEdge* edge = &edges.front();
@@ -570,6 +576,8 @@ void OpIntersection::debugSetID() {
 void OpIntersections::debugValidate() const {
 	for (const auto sectPtr : i) {
         OP_ASSERT(sectPtr->opp->opp == sectPtr);
+        OP_ASSERT(sectPtr->ptT.pt == sectPtr->opp->ptT.pt 
+                || (!!sectPtr->unsectID && !!sectPtr->opp->unsectID));
     }
 }
 #endif

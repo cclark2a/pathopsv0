@@ -56,34 +56,9 @@ void OpWinding::zero() {
     contour->callBacks.windingZeroFuncPtr(w);
 }
 
-#if OP_TEST_NEW_INTERFACE
 void OpWinding::move(const OpWinding& opp, bool backwards) {
 	if (backwards)
 		contour->callBacks.windingSubtractFuncPtr(w, opp.w);
 	else
 		contour->callBacks.windingAddFuncPtr(w, opp.w);
 }
-#else
-void OpWinding::move(OpWinding opp, const OpContours* contours, bool backwards) {
-	OP_ASSERT(WindingType::winding == debugType);
-	OP_ASSERT(WindingType::winding == opp.debugType);
-	if (OpFillType::winding == contours->left)
-		left_impl += backwards ? -opp.left() : opp.left();
-	else
-		left_impl ^= opp.left();
-	if (OpFillType::winding == contours->right)
-		right_impl += backwards ? -opp.right() : opp.right();
-	else
-		right_impl ^= opp.right();
-}
-#endif
-
-#if !OP_TEST_NEW_INTERFACE
-void OpWinding::setSum(OpWinding winding, const OpContours* contours) {
-	OP_ASSERT(WindingType::uninitialized == debugType);
-	OP_ASSERT(WindingType::temp == winding.debugType);
-	OP_DEBUG_CODE(debugType = WindingType::sum);
-	left_impl = winding.left() & contours->leftFillTypeMask();
-	right_impl = winding.right() & contours->rightFillTypeMask();
-}
-#endif

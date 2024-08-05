@@ -44,22 +44,7 @@ struct CallerDataStorage {
 };
 
 struct OpContour {
-#if !OP_TEST_NEW_INTERFACE
-    OpContour(OpContours* c, OpOperand op)
-        : contours(c)
-        , operand(op) {
-#if OP_DEBUG
-        debugComplete();
-#endif
-    }
-#endif
-
     void addCallerData(PathOpsV0Lib::AddContour callerData);
-#if !OP_TEST_NEW_INTERFACE
-    bool addClose();
-    bool addConic(OpPoint pts[3], float weight);
-    bool addCubic(OpPoint pts[4]);
-#endif
     OpIntersection* addEdgeSect(const OpPtT& , OpSegment* seg
            OP_LINE_FILE_DEF(SectReason , const OpEdge* edge, const OpEdge* oEdge));
     OpEdge* addFiller(OpEdge* edge, OpEdge* lastEdge);
@@ -97,6 +82,7 @@ struct OpContour {
 
     void windCoincidences() {
         for (auto& segment : segments) {
+            segment.newWindCoincidences();
             segment.windCoincidences();
         }
     }
@@ -105,9 +91,6 @@ struct OpContour {
     void debugComplete();
 #endif
 #if OP_DEBUG_DUMP
-#if !OP_TEST_NEW_INTERFACE
-    OpContour() {}
-#endif
     DUMP_DECLARATIONS
     #define OP_X(Thing) \
     void dump##Thing() const;
@@ -119,16 +102,8 @@ struct OpContour {
     OpContours* contours;
     std::vector<OpSegment> segments;
     PathOpsV0Lib::ContourCallBacks callBacks;
-
-//    OpPointBounds ptBounds;
-#if OP_TEST_NEW_INTERFACE
     PathOpsV0Lib::CallerData caller;  // note: must use std::memcpy before reading
-#else
-    OpOperand operand; // first or second argument to a binary operator
-#endif
-#if OP_DEBUG
-    int id;
-#endif
+    OP_DEBUG_CODE(int id);
 };
 
 struct OpContourStorage {
@@ -233,14 +208,10 @@ struct OpPtAlias {
 };
 
 struct OpContours {
-    OpContours(OpInPath& left, OpInPath& right, OpOperator op);
     OpContours();
     ~OpContours();
     void addAlias(OpPoint pt, OpPoint alias);
     void addCallerData(PathOpsV0Lib::AddContext callerData);
-#if !OP_TEST_NEW_INTERFACE
-    OpContour* addMove(OpContour* , OpOperand , const OpPoint pts[1]);
-#endif
     OpContour* allocateContour();
     PathOpsV0Lib::CurveData* allocateCurveData(size_t );
     OpEdge* allocateEdge(OpEdgeStorage*& );
@@ -254,12 +225,7 @@ struct OpContours {
         }
     }
 
-#if OP_TEST_NEW_INTERFACE
     bool assemble();
-#else
-    bool assemble(OpOutPath& );
-    bool build(OpInPath& path, OpOperand operand);   // provided by graphics implementation
-#endif
 
     PathOpsV0Lib::CurveCallBacks& callBack(OpType type) {
         return callBacks[(int) type - 1];
@@ -276,28 +242,12 @@ struct OpContours {
         return true;
     }
 
-#if !OP_TEST_NEW_INTERFACE
-    int leftFillTypeMask() const {
-        return (int) left;
-    }
-#endif
-
-#if OP_TEST_NEW_INTERFACE
     OpContour* makeContour() {
         OpContour* contour = allocateContour();
         contour->contours = this;
         OP_DEBUG_CODE(contour->debugComplete());
         return contour;
     }
-#else
-    OpContour* makeContour(OpOperand operand) {
-        OpContour* contour = allocateContour();
-        contour->contours = this;
-        contour->operand = operand;
-        OP_DEBUG_CODE(contour->debugComplete());
-        return contour;
-    }
-#endif
 
     void makeEdges() {
        OP_DEBUG_CODE(debugInClearEdges = true);
@@ -307,35 +257,10 @@ struct OpContours {
        OP_DEBUG_CODE(debugInClearEdges = false);
     }
 
-#if OP_TEST_NEW_INTERFACE
     bool pathOps();
-#else
-    bool pathOps(OpOutPath& result);
-#endif
     void release(OpEdgeStorage*& );
     OpLimbStorage* resetLimbs(OP_DEBUG_DUMP_CODE(OpTree* tree));
     void reuse(OpEdgeStorage* );
-
-#if !OP_TEST_NEW_INTERFACE
-    int rightFillTypeMask() const {
-        return (int) right;
-    }
-#endif
-
-#if 0  // !!! disable until use case appears
-    void setBounds() {
-        for (auto& contour : contours) {
-            contour.setBounds();
-        }
-    }
-#endif
-
-#if !OP_TEST_NEW_INTERFACE
-    void setFillType(OpOperand operand, OpFillType exor) {
-        (OpOperand::left == operand ? left : right) = exor;
-    }
-#endif
-
     void sortIntersections();
 
     void windCoincidences() {
@@ -343,24 +268,6 @@ struct OpContours {
             contour->windCoincidences();
         }
     }
-
-#if !OP_TEST_NEW_INTERFACE
-    // sum is accumulated fill clockwise from center tangent
-// if sum is zero and edge winding is non-zero, edge 'flips' winding from zero to non-zero
-// if sum is non-zero and edge winding equals sum, edge 'flips' winding from non-zero to zero
-    WindState windState(int wind, int sum, OpOperand operand) {
-#if OP_DEBUG
-        OpFillType fillType = OpOperand::left == operand ? left : right;
-        OP_ASSERT(wind == (wind & (int) fillType));
-        OP_ASSERT(sum == (sum & (int) fillType));
-#endif
-        if (!wind)
-            return sum ? WindState::one : WindState::zero;
-        if (sum)
-            return wind == sum ? WindState::flipOff : WindState::one;
-        return WindState::flipOn;
-    }
-#endif
 
     bool debugFail() const;
 #if OP_DEBUG
@@ -382,12 +289,11 @@ struct OpContours {
     #include "OpDebugDeclarations.h"
 #endif
 
-#if !OP_TEST_NEW_INTERFACE
-    OpInPath* leftIn;
-    OpInPath* rightIn;
-    OpOperator opIn;
-#endif
     std::vector<OpPtAlias> aliases;
+    std::vector<PathOpsV0Lib::CurveCallBacks> callBacks;
+    PathOpsV0Lib::ContextCallBacks contextCallBacks;
+    PathOpsV0Lib::PathOutput callerOutput;
+    PathOpsV0Lib::AddContext caller;   // note: must use std::memcpy before reading
     // these are pointers instead of inline values because the storage with empty slots is first
     OpEdgeStorage* ccStorage;
     CurveDataStorage* curveDataStorage;
@@ -397,18 +303,7 @@ struct OpContours {
     OpSectStorage* sectStorage;
     OpLimbStorage* limbStorage;
     CallerDataStorage* callerStorage;
-#if !OP_TEST_NEW_INTERFACE
-    OpFillType left;
-    OpFillType right;
-    OpOperator opOperator;
-#endif
     int uniqueID;  // used for object id, unsectable id, coincidence id
-
-// new interface ..
-    std::vector<PathOpsV0Lib::CurveCallBacks> callBacks;
-    PathOpsV0Lib::ContextCallBacks contextCallBacks;
-    PathOpsV0Lib::PathOutput callerOutput;
-    PathOpsV0Lib::AddContext caller;   // note: must use std::memcpy before reading
 #if OP_DEBUG_VALIDATE
     int debugValidateEdgeIndex;
     int debugValidateJoinerIndex;
@@ -416,11 +311,7 @@ struct OpContours {
 #if OP_DEBUG
     OpCurveCurve* debugCurveCurve;
     OpJoiner* debugJoiner;
-#if OP_TEST_NEW_INTERFACE
     int debugOutputID;
-#else
-    OpOutPath* debugResult;
-#endif
     std::vector<OpDebugWarning> debugWarnings;
     std::string debugTestname;
     OpDebugExpect debugExpect;
@@ -430,10 +321,6 @@ struct OpContours {
     bool debugFailOnEqualCepts;
 #endif
 #if OP_DEBUG_DUMP
-#if !OP_TEST_NEW_INTERFACE
-    OpInPath* debugLeft;
-    OpInPath* debugRight;
-#endif
 	OpTree* dumpTree;
 	int dumpCurve1;
 	int dumpCurve2;

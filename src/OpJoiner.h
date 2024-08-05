@@ -32,12 +32,7 @@ struct LinkUps {
 };
 
 struct OpJoiner {
-#if OP_TEST_NEW_INTERFACE
 	OpJoiner(OpContours& contours);
-#else
-	OpJoiner(OpContours& contours, OpOutPath& );
-#endif
-//	bool activeUnsectable(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& oppEdges);
 	void addEdge(OpEdge* );
 	void addToLinkups(OpEdge* );
 	void buildDisabled(OpContours& );
@@ -64,9 +59,6 @@ struct OpJoiner {
 	void debugDraw();
 #endif
 
-#if !OP_TEST_NEW_INTERFACE
-	OpOutPath& path;	// !!! move op joiner into op contours to eliminate reference?
-#endif
 	std::vector<OpEdge*> byArea;
 	std::vector<OpEdge*> unsectByArea;
 	std::vector<OpEdge*> disabled;

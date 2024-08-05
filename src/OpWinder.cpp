@@ -387,30 +387,17 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 	}
 	// assign a new or existing coin id if sect doesn't already have one
 	// this is called in cases as simple as two coincident line segments
-	if (!aInCoincidence) {
-		if (sect1) {  // segment already has intersection (segment start); e.g., line doubles back
-			OP_ASSERT(!sect1->coincidenceID);
-			OP_ASSERT(MatchEnds::none == sect1->coinEnd);
-			sect1->setCoin(coinID, MatchEnds::start);
-			segment->sects.resort = true;
-		} else {	// or if it doesn't exist and isn't in a coin range, make one
-			sect1 = segment->addCoin(aPtT, coinID, MatchEnds::start, oppSegment
-					OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch));
-			addedSect1 = !!sect1;
-		}
-	}
-	if (!bInCoincidence) {
-		if (sect2) {  // segment already has intersection (segment end); e.g., line doubles back
-			OP_ASSERT(!sect2->coincidenceID);
-			OP_ASSERT(MatchEnds::none == sect2->coinEnd);
-			sect2->setCoin(coinID, MatchEnds::end);
-			segment->sects.resort = true;
-		} else {
-			sect2 = segment->addCoin(bPtT, coinID, MatchEnds::end, oppSegment
-					OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch));
-			addedSect2 = !!sect2;
-		}
-	}
+	// preflight both calls to addCoin; if either will fail, give up early
+	// (failure means that points are too close together to form a meaningful coincidence)
+	bool iStartContains = false;
+	bool iEndContains = false;
+	if (!aInCoincidence && !sect1)  // segment already has intersection (segment start); e.g., line doubles back
+		// and if it doesn't exist and isn't in a coin range, make one
+		iStartContains = segment->sects.contains(aPtT, oppSegment);
+	if (!bInCoincidence && !sect2)  // segment already has intersection (segment end); e.g., line doubles back
+		iEndContains = segment->sects.contains(bPtT, oppSegment);
+	if (iStartContains || iEndContains)
+		return IntersectResult::no;
 	std::vector<OpIntersection*> oRange;
 	oppSegment->sects.range(segment, oRange);
 	OpIntersection* oSect1 = findSect(oRange, { aPtT.pt, -1 });
@@ -427,49 +414,79 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 	}
 	bool setOSect1CoinID = false;
 	bool setOSect2CoinID = false;
+	OpPtT oCoinStart;
+	OpPtT oCoinEnd;
+	bool oStartContains = false;
+	bool oEndContains = false;
 	if (!oSect1) {
-		if (sect1) {  // pentrek7 set to null (maybe)
-			float eStart = aPtT.pt.choice(xyChoice);
-			OpPtT oCoinStart{ aPtT.pt, OpMath::Interp(cPtT.t, dPtT.t, (eStart - oStart) / oXYRange) };
-			OP_ASSERT(OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t));
-			oSect1 = oppSegment->addCoin(oCoinStart, coinID, flipped ? MatchEnds::end 
-					: MatchEnds::start, segment
-					OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch));
-			if (oSect1) {  // fuzz763_3 set to null
-				sect1->pair(oSect1);
-				addedOSect1 = true;
-			}
-		}
-	} else {  // segment already has intersection (start or end); e.g., line doubles back
-		if (!(inCoinRange(oRange, oSect1->ptT.t, nullptr) & 1))
-			setOSect1CoinID = true;  // defer so that check of o sect 2 isn't affected
-	}
+		float eStart = aPtT.pt.choice(xyChoice);
+		oCoinStart = { aPtT.pt, OpMath::Interp(cPtT.t, dPtT.t, (eStart - oStart) / oXYRange) };
+		OP_ASSERT(OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t));
+		oStartContains = oppSegment->sects.contains(oCoinStart, segment);
+	} else   // segment already has intersection (start or end); e.g., line doubles back
+			if (!(inCoinRange(oRange, oSect1->ptT.t, nullptr) & 1))
+		setOSect1CoinID = true;  // defer so that check of o sect 2 isn't affected
 	if (!oSect2) {
+		float eEnd = bPtT.pt.choice(xyChoice);
+		oCoinEnd = { bPtT.pt, OpMath::Interp(cPtT.t, dPtT.t, (eEnd - oStart) / oXYRange ) };
+		OP_ASSERT(OpMath::Between(cPtT.t, oCoinEnd.t, dPtT.t));
+		oEndContains = oppSegment->sects.contains(oCoinEnd, segment);
+	} else   // segment already has intersection (start or end); e.g., line doubles back
+			if (!(inCoinRange(oRange, oSect2->ptT.t, nullptr) & 1))
+		setOSect2CoinID = true;
+	// call addCoin only if both sides succeeded
+	if (oStartContains || oEndContains)
+		return IntersectResult::no;
+	if (!aInCoincidence) {
+		if (sect1) {
+			OP_ASSERT(!sect1->coincidenceID);
+			OP_ASSERT(MatchEnds::none == sect1->coinEnd);
+			sect1->setCoin(coinID, MatchEnds::start);
+			segment->sects.resort = true;
+		} else {
+			sect1 = segment->addCoin(aPtT, coinID, MatchEnds::start, oppSegment
+						OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch));
+			OP_ASSERT(sect1);
+			addedSect1 = true;
+		}
+	}
+	if (!bInCoincidence) {
 		if (sect2) {
-			float eEnd = bPtT.pt.choice(xyChoice);
-			OpPtT oCoinEnd{ bPtT.pt, OpMath::Interp(cPtT.t, dPtT.t, (eEnd - oStart) / oXYRange ) };
-			OP_ASSERT(OpMath::Between(cPtT.t, oCoinEnd.t, dPtT.t));
-			oSect2 = oppSegment->addCoin(oCoinEnd, coinID, flipped ? MatchEnds::start 
-					: MatchEnds::end, segment
-					OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch));
-			if (oSect2) {  // fuzz763_13 set to null 
-				sect2->pair(oSect2);
-				addedOSect2 = true;
-			}
+			OP_ASSERT(!sect2->coincidenceID);
+			OP_ASSERT(MatchEnds::none == sect2->coinEnd);
+			sect2->setCoin(coinID, MatchEnds::end);
+			segment->sects.resort = true;
+		} else {
+			sect2 = segment->addCoin(bPtT, coinID, MatchEnds::end, oppSegment
+						OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch));
+			OP_ASSERT(sect2);
+			addedSect2 = true;
 		}
-	} else {  // segment already has intersection (start or end); e.g., line doubles back
-		if (!(inCoinRange(oRange, oSect2->ptT.t, nullptr) & 1)) {
-			OP_ASSERT(!oSect2->coincidenceID);
-			OP_ASSERT(MatchEnds::none == oSect2->coinEnd);
-			oSect2->setCoin(coinID, flipped ? MatchEnds::start : MatchEnds::end);
-			oppSegment->sects.resort = true;
-			setOSect2CoinID = true;
-		}
+	}
+	if (!oSect1 && sect1) {
+		oSect1 = oppSegment->addCoin(oCoinStart, coinID, flipped ? MatchEnds::end 
+				: MatchEnds::start, segment  OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch));
+		OP_ASSERT(oSect1);
+		sect1->pair(oSect1);
+		addedOSect1 = true;
+	}
+	if (!oSect2 && sect2) {
+		oSect2 = oppSegment->addCoin(oCoinEnd, coinID, flipped ? MatchEnds::start 
+				: MatchEnds::end, segment  OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch));
+		OP_ASSERT(oSect2);
+		sect2->pair(oSect2);
+		addedOSect2 = true;
 	}
 	if (setOSect1CoinID) {
 		OP_ASSERT(!oSect1->coincidenceID);
 		OP_ASSERT(MatchEnds::none == oSect1->coinEnd);
 		oSect1->setCoin(coinID, flipped ? MatchEnds::end : MatchEnds::start); // !!! untested
+		oppSegment->sects.resort = true;
+	}
+	if (setOSect2CoinID) {
+		OP_ASSERT(!oSect2->coincidenceID);
+		OP_ASSERT(MatchEnds::none == oSect2->coinEnd);
+		oSect2->setCoin(coinID, flipped ? MatchEnds::start : MatchEnds::end);
 		oppSegment->sects.resort = true;
 	}
 	if (addToExistingRange) {
@@ -737,11 +754,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 		if (home->pals.size() || home->isUnsectable)  // !!! move this to where unsectable is set?
 			home->setUnsortable();
 		else {
-#if OP_TEST_NEW_INTERFACE
 			OpWinding prev(home, WindingSum::dummy);
-#else
-			OpWinding prev(WindingTemp::dummy);
-#endif
 			// look at direction of edge relative to ray and figure winding/oppWinding contribution
 			if (CalcFail::fail == home->addIfUR(ray.axis, ray.distances[0].edgeInsideT, &prev))
 				home->setUnsortable();
@@ -787,11 +800,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 		return false;
 	};
 	// starting with found or zero if none, accumulate sum up to winding
-#if OP_TEST_NEW_INTERFACE
 	OpWinding sumWinding(home, WindingSum::dummy);
-#else
-	OpWinding sumWinding(WindingTemp::dummy);
-#endif
 	int sumIndex = ray.distances.size();
 	while (ray.distances[--sumIndex].edge != home) 
 		OP_ASSERT(sumIndex > 0);
@@ -805,11 +814,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 		EdgeDistance& sumDistance = ray.distances[sumIndex];
 		OpEdge* sumEdge = sumDistance.edge;
 		OP_ASSERT(!sumEdge->pals.size());
-#if OP_TEST_NEW_INTERFACE
 		sumWinding.w = sumEdge->sum.copyData();
-#else
-		sumWinding = sumEdge->sum;
-#endif
 		OP_DEBUG_CODE(sumWinding.debugType = WindingType::temp);
 		// if pointing down/left, subtract winding
 		if (CalcFail::fail == sumEdge->subIfDL(ray.axis, sumDistance.edgeInsideT, &sumWinding))  
@@ -846,11 +851,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 	//   replace winding with many.
 	home->many = home->winding;	// back up winding
 	for (const auto& pal : home->pals) {
-#if OP_TEST_NEW_INTERFACE
 		home->winding.move(pal.edge->winding, pal.reversed);
-#else
-		home->winding.move(pal.edge->winding, contours, pal.reversed);
-#endif
 	}
 	if (!home->winding.visible()) {
 		home->setDisabled(OP_DEBUG_CODE(ZeroReason::palWinding));

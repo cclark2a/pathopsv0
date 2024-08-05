@@ -88,6 +88,7 @@ struct OpSegment {
     void moveWinding(OpSegment* opp, bool backwards);
     bool nearby(float t, const OpSegment* opp) const;
     int nextID() const;
+    void newWindCoincidences();  // !!! will eventually replace wind coincidences
 //	void reenable() {
 //		disabled = false; OP_DEBUG_CODE(debugZero = ZeroReason::uninitialized); }
     void setBounds();

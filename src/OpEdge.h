@@ -397,8 +397,6 @@ public:
 	bool containsLink(const OpEdge* edge) const;
 	OpContours* contours() const;
 	size_t countUnsortable() const;
-//	bool ctrlPtNearlyEnd();
-//	float curviness();
 	OpIntersection* findEndSect(EdgeMatch match, OpSegment* oppSeg);
 	OpIntersection* findWhichSect(EdgeMatch );
 	OpPtT findT(Axis , float oppXY) const;
@@ -415,34 +413,25 @@ public:
 				[opp](const auto& test) { return opp == test.edge; }); }
 	bool isUnsectablePair(OpEdge* opp);
 	void linkToEdge(FoundEdge& , EdgeMatch );
-//	void linkNextPrior(OpEdge* first, OpEdge* last);
 	bool linksTo(OpEdge* match) const;
 	void markPals();
 	void matchUnsectable(EdgeMatch , const std::vector<OpEdge*>& unsectInX, 
 			std::vector<FoundEdge>& , AllowPals , AllowClose );
 	OpEdge* nextOut();
 	NormalDirection normalDirection(Axis axis, float t);
-//	float oppDist() const;
-#if OP_TEST_NEW_INTERFACE
 	void output(bool closed);  // provided by the graphics implementation
 	void outputLinkedList(const OpEdge* firstEdge, bool first);
-#else
-	void output(OpOutPath& path, bool closed);  // provided by the graphics implementation
-#endif
 	OpPtT ptT(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? start : end; }
 	OpPtT ptTCloseTo(OpPtT oPtPair, const OpPtT& ptT) const;
 	void reenable() {  // only used for coincidence
 		disabled = false; OP_DEBUG_CODE(debugZero = ZeroReason::uninitialized); }
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
-//	const OpCurve& setCurve();  // copies start, end to points 0, last
-//	void setCurveCenter();  // adds center point after curve points
 	void setDisabled(OP_DEBUG_CODE(ZeroReason reason));
 	void setDisabledZero(OP_DEBUG_CODE(ZeroReason reason)) {
 		winding.zero();
 		setDisabled(OP_DEBUG_CODE(reason)); 
 	}
-//	void setFromPoints(const OpPoint pts[]);
 	OpEdge* setLastEdge();
 	bool setLastLink(EdgeMatch );  // returns true if link order was changed
 	OpPointBounds setLinkBounds();
@@ -450,18 +439,10 @@ public:
 	void setNextEdge(OpEdge*);  // setter exists so debug breakpoints can be set
 	void setPointBounds();
 	void setPriorEdge(OpEdge* );  // setter exists so debug breakpoints can be set
-#if OP_TEST_NEW_INTERFACE
 	void setSum(const PathOpsV0Lib::Winding&  OP_LINE_FILE_DEF(int dummy));
-#else
-	void setSumImpl(OpWinding w) {	// use debug macro instead to record line/file
-		sum.setSum(w, contours());
-	}
-#endif
 	void setUnsortable();  // setter exists so debug breakpoints can be set
 	const OpCurve& setVertical(const LinePts& );
 	void setWhich(EdgeMatch );  // setter exists so debug breakpoints can be set
-	void skipPals(EdgeMatch match, std::vector<FoundEdge>& edges);
-//	OpPtT splitPt(float oMidDist, OpPtT* result) const;
 	void subDivide();
 	CalcFail subIfDL(Axis axis, float t, OpWinding* );
 	OpType type();
@@ -610,19 +591,6 @@ struct OpEdgeStorage {
 };
 
 // new interface
-#if OP_TEST_NEW_INTERFACE
 #define OP_EDGE_SET_SUM(edge, winding) edge->setSum(winding  OP_LINE_FILE_PARAMS(0))
-#else
-#if OP_DEBUG == 0
-#define OP_EDGE_SET_SUM(edge, winding) edge->setSumImpl(winding)
-#else
-#define OP_EDGE_SET_SUM(edge, winding) \
-	do {	\
-		OP_ASSERT(!edge->sum.isSet());  \
-		edge->setSumImpl(winding); \
-		edge->debugSetSum = { __FILE__, __LINE__ }; \
-	} while (false)
-#endif
-#endif
 
 #endif

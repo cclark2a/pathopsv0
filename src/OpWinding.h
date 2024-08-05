@@ -35,7 +35,6 @@ enum class WindingType  {
 };
 
 struct OpWinding {
-#if OP_TEST_NEW_INTERFACE
 	OpWinding(OpEdge* edge, WindingSum );
 	OpWinding(OpContour* c, WindingSegment );
 
@@ -47,61 +46,10 @@ struct OpWinding {
 	}
 
 	OpWinding(OpContour* c, PathOpsV0Lib::Winding );
-
-	OpWinding & operator=(const OpWinding&);
+	OpWinding& operator=(const OpWinding&);
     OpWinding(const OpWinding&);
-//    OpWinding() = default;
 
-#else
-private:
-	// used by operator-
-	OpWinding(int l, int r)
-		: left_impl(l)
-		, right_impl(r)
-		OP_DEBUG_PARAMS(debugType(WindingType::winding)) {
-	}
-
-public:
-	OpWinding(WindingTemp)  // used for winding accumulators before sum is set
-		: left_impl(0)
-		, right_impl(0)
-		OP_DEBUG_PARAMS(debugType(WindingType::temp)) {
-	}
-
-	OpWinding(WindingUninitialized)	 // used by edge and segment winding before they are set
-		: left_impl(OpMax)
-		OP_DEBUG_PARAMS(right_impl(OpMax))
-		OP_DEBUG_PARAMS(debugType(WindingType::uninitialized)) {
-	}
-
-	OpWinding(OpOperand operand)	// used to set initial segment winding
-		: left_impl(OpOperand::left == operand ? 1 : 0)
-		, right_impl(OpOperand::right == operand ? 1 : 0)
-		OP_DEBUG_PARAMS(debugType(WindingType::winding)) {
-	}
-
-	bool operator==(OpWinding w) const {
-		return left_impl == w.left_impl && right_impl == w.right_impl;
-	}
-
-	OpWinding operator-() const {
-		OP_ASSERT(WindingType::winding == debugType);
-		return { -left_impl, -right_impl };
-	}
-#endif
-
-#if OP_TEST_NEW_INTERFACE
 	void add(const OpWinding& );
-#else
-	OpWinding& operator+=(const OpWinding& w) {
-		OP_ASSERT(WindingType::temp == debugType || WindingType::winding == debugType);
-		left_impl += w.left_impl;
-		right_impl += w.right_impl;
-		return *this;
-	}
-#endif
-
-#if OP_TEST_NEW_INTERFACE
 	bool equal(const PathOpsV0Lib::Winding ) const;
 	PathOpsV0Lib::Winding copyData() const;
 
@@ -111,83 +59,25 @@ public:
 
 	void subtract(const OpWinding& );
 	void move(const OpWinding& opp, bool backwards);
-#else
-	OpWinding& operator-=(const OpWinding& w) {
-		OP_ASSERT(WindingType::temp == debugType || WindingType::winding == debugType);
-		left_impl -= w.left_impl;
-		right_impl -= w.right_impl;
-		return *this;
-	}
 
-	bool isSet() const {
-		return OpMax != left_impl;
-	}
-
-	int left() const {
-		return left_impl;
-	}
-
-	void move(OpWinding opp, const OpContours* , bool backwards);
-#endif
-
-
-#if 0 // !!! unused?
-	int oppSide(OpOperand operand) const {
-		return OpOperand::left == operand ? right_impl : left_impl;
-	}
-#endif
-
-#if !OP_TEST_NEW_INTERFACE
-	int right() const {
-		return right_impl;
-	}
-#endif
-
-
-#if OP_TEST_NEW_INTERFACE
 	void setWind(const OpWinding& fromSegment) {
 		contour = fromSegment.contour;
 		w = fromSegment.copyData();
 		OP_DEBUG_CODE(debugType = WindingType::winding);
 	}
-#else
-	void setWind(int left, int right) {	// shouldn't be 0, 0 (call zero() for that)
-		OP_ASSERT(WindingType::uninitialized == debugType);
-		OP_ASSERT(left || right);
-		left_impl = left;
-		right_impl = right;
-		OP_DEBUG_CODE(debugType = WindingType::winding);
-	}
 
-	void setSum(OpWinding winding, const OpContours* segment);
-#endif
-
-#if OP_TEST_NEW_INTERFACE
-//	void setSum(const OpWinding*   OP_DEBUG_PARAMS(char* file, int line));
 	int sum() const;
 	bool visible() const;
 	void zero();
-#else
-	int sum() const { return left_impl + right_impl; }
-	bool visible() const { return left_impl || right_impl; }
-	void zero() { left_impl = right_impl = 0;	// only used by coincident lines }
-#endif
+
 #if OP_DEBUG_DUMP
 	void dumpSet(const char*& str, OpContours*);
 	DUMP_DECLARATIONS
 #endif
 
-#if OP_TEST_NEW_INTERFACE
 	OpContour* contour;
 	PathOpsV0Lib::Winding w;
-#else
-	int left_impl;	// indirection to make set debugging breakpoints easier 
-	int right_impl;
-#endif
-#if OP_DEBUG
-	WindingType debugType;
-#endif
-
+	OP_DEBUG_CODE(WindingType debugType);
 };
 
 // An edge that can contribute to the answer has a zero winding on one side

@@ -2,42 +2,6 @@
 #include "OpContour.h"
 #include "PathOps.h"
 
-bool PathOps(OpInPath& left, OpInPath& right, OpOperator opOperator, OpOutPath& result
-        OP_DEBUG_PARAMS(OpDebugData& debugData)) {
-#if OP_TEST_NEW_INTERFACE
-    OP_ASSERT(0);
-    return false;
-#else
-    OpContours contourList(left, right, opOperator);
-#if OP_DEBUG
-    contourList.debugExpect = debugData.debugExpect;
-#if !OP_TEST_NEW_INTERFACE
-    contourList.debugResult = &result;
-#endif
-    contourList.debugInPathOps = true;
-    contourList.debugInClearEdges = false;
-    contourList.debugTestname = debugData.debugTestname;
-    OP_DEBUG_DUMP_CODE(contourList.dumpCurve1 = debugData.debugCurveCurve1);
-    OP_DEBUG_DUMP_CODE(contourList.dumpCurve2 = debugData.debugCurveCurve2);
-    OP_DEBUG_DUMP_CODE(contourList.debugBreakDepth = debugData.debugCurveCurveDepth);
-#endif
-#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
-    debugGlobalContours = &contourList;
-#endif
-#if OP_DEBUG_IMAGE
-    OpDebugImage::init();
-//    oo();
-#endif
-    bool success = contourList.pathOps(result);
-#if OP_DEBUG
-    debugData.debugWarnings = contourList.debugWarnings;
-#endif
-    return success;
-#endif
-}
-
-// new interface
-
 namespace PathOpsV0Lib {
 
 Context* CreateContext(AddContext callerData) {
