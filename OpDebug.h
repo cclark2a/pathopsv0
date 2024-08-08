@@ -11,7 +11,6 @@
 #else
 #include "OpTestDrive.h"  // set test specific settings here
 #endif
-#define OP_TEST_NEW_INTERFACE 1  // use context-free engine design; test hard-coded for now
 
 #if !defined(NDEBUG) || OP_RELEASE_TEST
 #include <string>
@@ -80,17 +79,20 @@ struct OpDebugData {
 #define OP_DEBUG 0
 #define OP_DEBUG_DUMP 0
 #define OP_DEBUG_IMAGE 0
+#define OP_DEBUG_MAKER 0
 #define OP_DEBUG_FAIL(object, returnValue) return returnValue
 #define OP_DEBUG_SUCCESS(object, returnValue) return returnValue
 #define OP_EXECUTE_AND_ASSERT(expr) (expr)
 #define OP_LINE_FILE_PARAMS(...)
 #define OP_LINE_FILE_NPARAMS(...)
+#define OP_LINE_FILE_NARGS()
 #define OP_LINE_FILE_STRUCT(...)
 #define OP_LINE_FILE_CALLER(...)
 #define OP_LINE_FILE_NP_CALLER(...)
 #define OP_LINE_FILE_SCALLER(...)
 #define OP_LINE_FILE_DEF(...)
 #define OP_LINE_FILE_NP_DEF(...)
+#define OP_LINE_FILE_NARGS_DEF()
 #define OP_TRACK(vector)
 #define OP_WARNING(contours, str)
 
@@ -112,10 +114,12 @@ struct OpDebugData {
 #if OP_DEBUG_FAST_TEST
 	#define OP_DEBUG_DUMP 0
 	#define OP_DEBUG_IMAGE 0
+	#define OP_DEBUG_MAKER 0
 	#define OP_DEBUG_VALIDATE 01
 #else
 	#define OP_DEBUG_DUMP 1
 	#define OP_DEBUG_IMAGE 1
+	#define OP_DEBUG_MAKER 1
 	#define OP_DEBUG_VALIDATE 1
 #endif
 #define OP_DEBUG_PARAMS(...) , __VA_ARGS__
@@ -142,6 +146,25 @@ struct OpDebugData {
 
 #include <string>
 
+#if OP_DEBUG_MAKER
+struct OpDebugMaker {
+	OpDebugMaker()
+		: line(0) {
+	}
+
+	OpDebugMaker(std::string f, int l)
+		: file(f)
+		, line(l) {
+	}
+
+#if OP_DEBUG_DUMP
+	void dumpSet(const char*& );
+	std::string debugDump() const;
+#endif
+	std::string file;
+	int line;
+};
+
 #define OP_LINE_FILE_PARAMS(...) , __LINE__, std::string(__FILE__), __VA_ARGS__
 #define OP_LINE_FILE_NPARAMS(...) __LINE__, std::string(__FILE__), __VA_ARGS__
 #define OP_LINE_FILE_STRUCT(...) , { __FILE__, __LINE__ }, __VA_ARGS__
@@ -150,6 +173,9 @@ struct OpDebugData {
 #define OP_LINE_FILE_SCALLER(...) , { fileName, lineNo }, __VA_ARGS__
 #define OP_LINE_FILE_DEF(...) , int lineNo, std::string fileName, __VA_ARGS__
 #define OP_LINE_FILE_NP_DEF(...) int lineNo, std::string fileName, __VA_ARGS__
+#define OP_LINE_FILE_SET(debugMaker) debugMaker = { fileName, lineNo }
+#define OP_LINE_FILE_SET_IMMED(debugMaker) debugMaker = { __FILE__, __LINE__ }
+#endif
 
 // keep track of vector size to find reserve  !!! haven't decided whether or not to build this out
 #define OP_TRACK(v)
@@ -192,24 +218,6 @@ struct OpDebugData {
 #else
 #define OP_DEBUG_STR_ID(x) OpDebugStr(x)
 #endif
-
-struct OpDebugMaker {
-	OpDebugMaker()
-		: line(0) {
-	}
-
-	OpDebugMaker(std::string f, int l)
-		: file(f)
-		, line(l) {
-	}
-
-#if OP_DEBUG_DUMP
-	void dumpSet(const char*& );
-	std::string debugDump() const;
-#endif
-	std::string file;
-	int line;
-};
 
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
 extern OpContours* debugGlobalContours;

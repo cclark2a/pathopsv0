@@ -10,7 +10,6 @@
 enum class Axis : int8_t ;
 struct OpEdge;
 class SkPath;
-struct OpCubic;
 struct OpIntersection;
 struct OpInPath;
 struct OpOutPath;
@@ -87,9 +86,5 @@ void DebugOpSetCenter(double x, double y);
 void DebugOpSetZoom(double z);	// zoom number (log2 of zoom factor)
 void DebugOpSetZoomScale(double z);	// zoom factor (pow of zoom number)
 double DebugOpTranslate(double s);
-
-// used by testing
-void OpCubicPtAtT(const OpCubic& , float, OpPoint );
-void OpCubicAxisRayHit(const OpCubic& c, Axis offset, float axisIntercept, std::array<float, 5>& cepts, int& roots);
 
 #endif

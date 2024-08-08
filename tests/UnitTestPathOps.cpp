@@ -970,22 +970,6 @@ void OpTest_WindZero() {
 }
 #endif
 
-#if !OP_TEST_NEW_INTERFACE
-// bits 0: left winding  1: right windng  2: left sum  3: right sum
-bool setWinding(OpEdge& edge, int index) {
-	if (0 == (index & 3))
-		return false;	// don't test cases with no flips
-	edge.winding.left_impl = (index & 1) ? 1 : 0;
-	edge.winding.right_impl = (index & 2) ? 1 : 0;
-	edge.sum.left_impl = (index & 4) ? 1 : 0;
-	edge.sum.right_impl =(index & 8) ? 1 : 0;
-	// return false if there are different zero sides
-	if (3 == (index & 3) && edge.sum.left() != edge.sum.right())
-		return false;
-	return true;
-}
-#endif
-
 void OpTest_EdgeZero() {
 #if 0	// broken: find need before fixing
 	OpPoint data1[][2] = {

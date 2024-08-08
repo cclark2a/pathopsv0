@@ -2,63 +2,7 @@
 #ifndef OpTightBounds_DEFINED
 #define OpTightBounds_DEFINED
 
-#include "OpCurve.h"
-
-enum class SectReason {
-    unset,
-	coinPtsMatch,
-	curveCurveUnsectable,
-	degenerateCenter,
-    edgeCCDist,
-	edgeCCExact,
-	edgeCCHull,
-	edgeCCHullPair,
-	edgeCCNearly,
-    edgeCtrlMid,
-	edgeCurveCurve,
-    edgeLgT,
-    edgeSmT,
-	endPt,
-	inflection,
-	lineCurve,
-	missingCoincidence,
-    oppCCDist,
-	oppCCExact,
-	oppCCHull,
-	oppCCHullPair,
-	oppCCNearly,
-    oppCtrlMid,
-	oppCurveCurve,
-    oppLgT,
-    oppSmT,
-	resolveCoin_windingChange,
-	resolveCoin_oWindingChange,
-	sharedEdge,
-	sharedEnd,
-    sharedStart,
-    soClose,
-	startPt,
-    unsectable,
-    unsectableOppEnd,
-    unsectableOppStart,
-    unsectableEnd,
-    unsectableStart,
-	xExtrema,
-	yExtrema,
-    zeroRun,
-	// testing only
-	test,
-};
-
-struct ExtremaT {
-    ExtremaT(OpPtT pt_T  OP_DEBUG_PARAMS(SectReason r)) 
-        : ptT(pt_T)
-        OP_DEBUG_PARAMS(reason(r)) {
-    }
-
-    OpPtT ptT;
-    OP_DEBUG_CODE(SectReason reason;)
-};
+#include "OpMath.h"
 
 struct OpPointBounds : OpRect {
     OpPointBounds() {
@@ -125,8 +69,6 @@ struct OpPointBounds : OpRect {
         pt->x = OpMath::PinSorted(left, pt->x, right);
         pt->y = OpMath::PinSorted(top, pt->y, bottom);
     }
-
-    // void set(const OpCurve& c);
 
     OpPoint set(OpPoint pt) {
         left = right = pt.x;

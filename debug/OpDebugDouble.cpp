@@ -14,6 +14,7 @@
 #include "OpContour.h"
 #include "OpCurve.h"
 #include "PathOps.h"
+#include "skia/SkiaPaths.h"  // for op types
 
 enum class ClipToBounds {
     noClip,
@@ -945,14 +946,6 @@ void DebugOpBuild(const OpEdge& edge, const OpDebugRay& ray) {
             edge.start.t + (edge.end.t - edge.start.t) * roots.roots[index], black };
         DebugOpBuild(pt);
     }
-}
-
-DebugOpCurve DebugOpBuild(const OpLine& line, uint32_t color) {
-    DebugOpCurve curve;
-    curve.size = sizeof(OpPoint) * 2;
-    curve.type = OpType::line;
-    curve.color = color;
-    return curve;
 }
 
 void DebugOpBuild(Axis axis, float normal, float cept) {

@@ -38,14 +38,14 @@ int Error(Context* );
  */
 void Resolve(Context* , PathOutput );
 
-void SetContextCallBacks(Context* ,  EmptyNativePath, SetLineType );
+void SetContextCallBacks(Context* ,  EmptyNativePath, SetLineType);
 
 OpType SetCurveCallBacks(Context* , AxisRawHit, /* ControlNearlyEnd, */
 		CurveHull, CurveIsFinite, CurveIsLine, /* CurveIsLinear, */
 		SetBounds, CurveNormal, CurveOutput, CurvePinCtrl,
 		CurveReverse, CurveTangent, CurvesEqual, PtAtT, DoublePtAtT,
 		PtCount, Rotate, SubDivide, XYAtT
-		OP_DEBUG_DUMP_PARAMS(DebugDumpCurveExtra)
+		OP_DEBUG_DUMP_PARAMS(DebugDumpCurveName, DebugDumpCurveExtra)
 		OP_DEBUG_IMAGE_PARAMS(DebugAddToPath)
 	);
 

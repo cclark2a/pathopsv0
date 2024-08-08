@@ -58,9 +58,9 @@ inline void lineSubDivide(PathOpsV0Lib::Curve , OpPtT ptT1, OpPtT ptT2, PathOpsV
     result.data->end = ptT2.pt;
 }
 
-#if 0 && OP_DEBUG_DUMP
-inline size_t lineDebugDumpSize() {
-    return offsetof(CurveData, optionalAdditionalData);
+#if OP_DEBUG_DUMP
+inline std::string lineDebugDumpName() { 
+    return "line"; 
 }
 #endif
 

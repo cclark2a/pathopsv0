@@ -276,15 +276,9 @@ inline void cubicReverse(Curve c) {
     controls.copyTo(c);
 }
 
-#if 0 && OP_DEBUG_DUMP
-inline size_t cubicDebugDumpSize() {
-    return offsetof(CurveData, optionalAdditionalData) + sizeof(OpPoint) * 2;
-}
-
-inline void cubicDumpSet(Curve c, const char*& str) {
-    CubicControls controls(c);
-    controls.pts[0].dumpSet(str);
-    controls.pts[1].dumpSet(str);
+#if OP_DEBUG_DUMP
+inline std::string cubicDebugDumpName() { 
+    return "cubic"; 
 }
 #endif
 

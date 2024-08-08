@@ -2,6 +2,7 @@
 #ifndef OpEdge_DEFINED
 #define OpEdge_DEFINED
 
+#include "OpCurve.h"
 #include "OpTightBounds.h"
 #include "OpOperators.h"
 #include "OpWinding.h"
@@ -15,17 +16,11 @@ struct OpOutPath;
 struct OpSegment;
 
 enum class CurveRef;
-
-#if !OP_TEST_NEW_INTERFACE
-enum class OpOperand {
-	left,
-	right
-};
-#endif
+enum class FoundPtT;
 
 enum class NewEdge {
 	isLeft,
-	isRight
+	isRight,
 };
 
 inline NewEdge operator!(const NewEdge& a) {
@@ -33,7 +28,7 @@ inline NewEdge operator!(const NewEdge& a) {
 }
 
 enum RotateVertical {
-	rotateVertical
+	rotateVertical,
 };
 
 enum class IntersectResult {
@@ -41,7 +36,7 @@ enum class IntersectResult {
 	no,
 	yes,
 	coincident,
-	maybe
+	maybe,
 };
 
 enum EdgeRay {
@@ -53,52 +48,18 @@ enum class EdgeMatch : int8_t {
 	none = -1,
 	start,
 	end,
-//	both	// used by flip
 };
-
-enum class FoundPtT;
 
 inline EdgeMatch operator!(EdgeMatch m) {
 	OP_ASSERT(EdgeMatch::start == m || EdgeMatch::end == m);
 	return static_cast<EdgeMatch>(!static_cast<int>(m));
 }
 
-#if 0  // not needed for now
-inline EdgeMatch operator| (const EdgeMatch& a, const EdgeMatch& b) {
-	return (EdgeMatch) (static_cast<int>(a) | static_cast<int>(b));
-}
-
-inline EdgeMatch& operator|= (EdgeMatch& a, const EdgeMatch& b) {
-	return a = a | b;
-}
-#endif
-
 enum class EdgeFail : uint8_t {
 	none,
 	center,
 	horizontal,
-	vertical
-};
-
-enum class ZeroReason : uint8_t {
-	uninitialized,
-	addedPalToOutput,
-	addIntersection,
-	applyOp,
-	centerNaN,
-	collapsed,
-	filler,
-	findCoincidences,
-	hvCoincidence1,
-	hvCoincidence2,
-	hvCoincidence3,
-	hvCoincidence4,
-	isPoint,
-	noFlip,
-	none,
-	palWinding,
-	rayFail,
-	segmentPoint,
+	vertical,
 };
 
 struct EdgeDistance {
@@ -225,13 +186,6 @@ enum class EdgeDirection {
 	upLeft = 1,
 };
 
-#if 0
-enum class EdgeLoop {
-	link,
-	sum,
-};
-#endif
-
 enum class EdgeSplit : uint8_t {
 	no,
 	keep,  // used only by curve experiment
@@ -260,25 +214,6 @@ enum class Unsectable {
 	single,
 	multiple,
 };
-
-#if OP_DEBUG
-enum class EdgeMaker {
-	empty,
-	filler,
-	hull,
-	makeEdges,
-	oppSect,
-	segSect,
-	snip,
-	split,
-	splitLeft,
-	splitRight,
-	// tests only
-	addTest,
-	opTest,
-};
-
-#endif
 
 enum class ArePals {
 	unset,
@@ -312,12 +247,7 @@ private:
 		, windZero(WindZero::unset)
 		, doSplit(EdgeSplit::no)
 		, closeSet(false)
-//		, curvySet(false)
-//		, lineSet(false)
-//		, verticalSet(false)
 		, isClose_impl(false)
-//		, isLine_impl(false)
-//		, exactLine(false)
 		, active_impl(false)
 		, inLinkups(false)
 		, inOutput(false)
@@ -341,8 +271,6 @@ private:
 		debugEnd = nullptr;
 		debugMatch = nullptr;
 		debugZeroErr = nullptr;
-		debugMaker = EdgeMaker::empty;
-		debugZero = ZeroReason::uninitialized;
 		debugOutPath = 0;
 		debugParentID = 0;
 		debugRayMatch = 0;
@@ -359,27 +287,23 @@ private:
 	}
 public:
 	OpEdge(OpSegment* s, const OpPtT& t1, const OpPtT& t2
-			OP_LINE_FILE_DEF(EdgeMaker maker, OpIntersection* i1, OpIntersection* i2))
+			OP_LINE_FILE_DEF(OpIntersection* i1, OpIntersection* i2))
 		: OpEdge() {
 		segment = s;
 		start = t1;
 		end = t2;
 #if OP_DEBUG
-		debugMaker = maker;
-		debugSetMaker = { fileName, lineNo };
+		OP_LINE_FILE_SET(debugSetMaker);
 		debugStart = i1;
 		debugEnd = i2;
 #endif
 		complete();
 	}
 
-	OpEdge(const OpEdge* e, const OpPtT& newPtT, NewEdge isLeftRight  OP_LINE_FILE_DEF(EdgeMaker ));
-	OpEdge(const OpEdge* e, const OpPtT& start, const OpPtT& end  OP_LINE_FILE_DEF(EdgeMaker ));
-	OpEdge(const OpEdge* e, float t1, float t2  OP_LINE_FILE_DEF(EdgeMaker ));
+	OpEdge(const OpEdge* e, const OpPtT& newPtT, NewEdge isLeftRight  OP_LINE_FILE_DEF());
+	OpEdge(const OpEdge* e, const OpPtT& start, const OpPtT& end  OP_LINE_FILE_DEF());
+	OpEdge(const OpEdge* e, float t1, float t2  OP_LINE_FILE_DEF());
 
-#if OP_DEBUG_IMAGE
-	struct DebugOpCurve debugSetCurve() const;
-#endif
 	CalcFail addIfUR(Axis xis, float t, OpWinding* );
 	void addPal(EdgeDistance& );
 	CalcFail addSub(Axis axis, float t, OpWinding* );
@@ -387,7 +311,7 @@ public:
 	void apply();
 	const OpRect& bounds() { return ptBounds; }
 	void calcCenterT();
-	void clearActiveAndPals(ZeroReason );
+	void clearActiveAndPals(OP_LINE_FILE_NP_DEF());
 	void clearLastEdge();
 	void clearLinkBounds() { OP_ASSERT(!linkBounds.isSet()); } // !!! see if this is needed
 	void clearNextEdge();
@@ -425,13 +349,12 @@ public:
 		return EdgeMatch::start == match ? start : end; }
 	OpPtT ptTCloseTo(OpPtT oPtPair, const OpPtT& ptT) const;
 	void reenable() {  // only used for coincidence
-		disabled = false; OP_DEBUG_CODE(debugZero = ZeroReason::uninitialized); }
+		disabled = false; OP_DEBUG_CODE(debugSetDisabled.line = 0; debugSetDisabled.file = ""); }
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
-	void setDisabled(OP_DEBUG_CODE(ZeroReason reason));
-	void setDisabledZero(OP_DEBUG_CODE(ZeroReason reason)) {
+	void setDisabled(OP_LINE_FILE_NP_DEF());
+	void setDisabledZero(OP_LINE_FILE_NP_DEF()) {
 		winding.zero();
-		setDisabled(OP_DEBUG_CODE(reason)); 
-	}
+		setDisabled(OP_LINE_FILE_NP_CALLER()); }
 	OpEdge* setLastEdge();
 	bool setLastLink(EdgeMatch );  // returns true if link order was changed
 	OpPointBounds setLinkBounds();
@@ -467,6 +390,9 @@ public:
     EDGE_OR_SEGMENT_DETAIL
     #undef OP_X
 	#include "OpDebugDeclarations.h"
+#endif
+#if OP_DEBUG_IMAGE
+	struct DebugOpCurve debugSetCurve() const;
 #endif
 #if OP_DEBUG
 	const OpEdge* debugAdvanceToEnd(EdgeMatch match) const;
@@ -508,20 +434,13 @@ public:
 	std::vector<OpEdge*> moreRay;  // edges found placed with larger edge distance cept values
 	std::vector<UnsectableOpp> uPairs; // opposite edges unsectable with this edge
 	OpHulls hulls;  // curve-curve intersections
-//	float curvy;  // rough ratio of midpoint line point line to length of end point line
-//	OpPtT oppEnd;  // pt and t for closest point on opposite curve from end point
 	int id;
 	EdgeMatch whichEnd_impl;  // if 'start', prior end equals start; if 'end' prior end matches end
 	EdgeFail rayFail;   // how computation (e.g., center) failed (on fail, windings are set to zero)
 	WindZero windZero;  // zero: edge normal points to zero side (the exterior of the loop)
 	EdgeSplit doSplit;  // used by curve/curve intersection to track subdivision
 	bool closeSet;
-//	bool curvySet;
-//	bool lineSet;
-//	bool verticalSet;
 	bool isClose_impl;  // set if start is close to end
-//	bool isLine_impl;	// ptBounds 0=h/0=w catches horz/vert lines; if true, line is diagonal(?)
-//	bool exactLine;   // set if quad/conic/cubic is degenerate; clear if control points are linear
 	bool active_impl;  // used by ray casting to mark edges that may be to the left of casting edge
 	bool inLinkups; // like inOutput, to marks unsectable edges; all edges in linkups l vector
 	bool inOutput;	// likely only used to find inactive unsectables that are not on output path
@@ -542,10 +461,6 @@ public:
 	OpIntersection* debugEnd;
 	OpEdge* debugMatch;  // left side of nonzero ray from this edge
 	OpEdge* debugZeroErr;  // debug match ray found edge that does not match -- diagnostic for now
-	EdgeMaker debugMaker;
-	ZeroReason debugZero;	// why edge was disabled
-	OpDebugMaker debugSetMaker;
-	OpDebugMaker debugSetSum;
 	int debugOutPath;	// id to color output contours
 	int debugParentID;
 	mutable int debugRayMatch;	// id: edges in common output contour determined from ray
@@ -558,6 +473,11 @@ public:
 	uint32_t debugColor;
 	bool debugDraw;
 	bool debugJoin;	 // true if included by joiner
+#endif
+#if OP_DEBUG_MAKER
+	OpDebugMaker debugSetDisabled;
+	OpDebugMaker debugSetMaker;
+	OpDebugMaker debugSetSum;
 #endif
 };
 
@@ -590,7 +510,6 @@ struct OpEdgeStorage {
 	size_t used;
 };
 
-// new interface
 #define OP_EDGE_SET_SUM(edge, winding) edge->setSum(winding  OP_LINE_FILE_PARAMS(0))
 
 #endif

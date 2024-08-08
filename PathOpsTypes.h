@@ -4,8 +4,15 @@
 
 #include "OpMath.h"
 
+// user defined types of curves supported. Value zero is reserved.
 enum class OpType;
-enum class WindKeep;
+
+// returns if an edge starts a fill, ends a fill, or does neither and should be discarded
+enum class WindKeep {
+    Discard,	// must be equal to zero
+    End,
+    Start,
+};
 
 namespace PathOpsV0Lib {
 
@@ -166,6 +173,9 @@ typedef void (*SetBounds)(Curve , OpRect& );
 typedef OpPair (*XYAtT)(Curve , OpPair t, XyChoice );
 
 #if OP_DEBUG_DUMP
+// returns string name of curve type
+typedef std::string (*DebugDumpCurveName)();
+
 // describes caller data for debugging (does not include points: e.g., a rational Bezier weight)
 typedef std::string (*DebugDumpCurveExtra)(Curve , DebugLevel , DebugBase);
 #endif
@@ -196,6 +206,7 @@ struct CurveCallBacks {
 	SubDivide subDivideFuncPtr;
 	XYAtT xyAtTFuncPtr;
 #if OP_DEBUG_DUMP
+	DebugDumpCurveName debugDumpCurveNameFuncPtr;
 	DebugDumpCurveExtra debugDumpCurveExtraFuncPtr;
 #endif
 #if OP_DEBUG_IMAGE
@@ -252,8 +263,8 @@ typedef void (*EmptyNativePath)(PathOutput );
 typedef OpType (*SetLineType)(Curve );
 
 struct ContextCallBacks {
-	EmptyNativePath emptyNativePath;
-	SetLineType setLineType;
+	EmptyNativePath emptyNativePathFuncPtr;
+	SetLineType setLineTypeFuncPtr;
 };
 
 #if OP_DEBUG_DUMP

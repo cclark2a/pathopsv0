@@ -267,27 +267,14 @@ inline bool conicIsLinear(Curve c) {
 #endif
 
 #if OP_DEBUG_DUMP
-//inline size_t conicDebugDumpSize() {
-//    return offsetof(CurveData, optionalAdditionalData) + sizeof(PointWeight);
-//}
+inline std::string conicDebugDumpName() { 
+    return "conic"; 
+}
 
 inline std::string conicDebugDumpExtra(Curve c, DebugLevel l, DebugBase b) {
     PointWeight control(c);
     return debugValue(l, b, " weight", control.weight);
 }
-
-//inline void conicDumpSet(Curve c, const char*& str) {
-//    PointWeight control(c);
-//    control.pt.dumpSet(str);
-//    control.copyTo(c);
-//}
-
-//inline void conicDumpSetExtra(Curve c, const char*& str) {
-//    PointWeight control(c);
-//    OpDebugRequired(str, "weight:");
-//    control.weight = OpDebugHexToFloat(str);
-//    control.copyTo(c);
-//}
 #endif
 
 }

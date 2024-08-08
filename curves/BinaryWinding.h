@@ -3,7 +3,6 @@
 // new interface idea
 
 #include "PathOpsTypes.h"
-#include "OpTypes.h"
 
 namespace PathOpsV0Lib {
 

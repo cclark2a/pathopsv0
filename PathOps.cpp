@@ -83,7 +83,8 @@ OpType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, /* ControlNearly
         CurveTangent tangentFunc, CurvesEqual equalFunc, PtAtT ptAtTFunc, 
         DoublePtAtT doublePtAtTFunc, PtCount ptCountFunc, Rotate rotateFunc, 
         SubDivide subDivideFunc, XYAtT xyAtTFunc
-        OP_DEBUG_DUMP_PARAMS(DebugDumpCurveExtra debugDumpExtraFunc)
+        OP_DEBUG_DUMP_PARAMS(DebugDumpCurveName debugDumpNameFunc, 
+        DebugDumpCurveExtra debugDumpExtraFunc)
 		OP_DEBUG_IMAGE_PARAMS(DebugAddToPath debugAddToPathFunc)
 ) {
     OpContours* contours = (OpContours*) context;
@@ -91,7 +92,7 @@ OpType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, /* ControlNearly
             /* isLinearFunc, */ setBoundsFunc, normalFunc, outputFunc, curvePinFunc, reverseFunc, 
             tangentFunc, equalFunc, ptAtTFunc, doublePtAtTFunc, ptCountFunc, rotateFunc, 
             subDivideFunc, xyAtTFunc 
-		    OP_DEBUG_DUMP_PARAMS(debugDumpExtraFunc)
+		    OP_DEBUG_DUMP_PARAMS(debugDumpNameFunc, debugDumpExtraFunc)
 		    OP_DEBUG_IMAGE_PARAMS(debugAddToPathFunc)
             } );
     return (OpType) contours->callBacks.size();

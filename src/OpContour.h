@@ -46,15 +46,15 @@ struct CallerDataStorage {
 struct OpContour {
     void addCallerData(PathOpsV0Lib::AddContour callerData);
     OpIntersection* addEdgeSect(const OpPtT& , OpSegment* seg
-           OP_LINE_FILE_DEF(SectReason , const OpEdge* edge, const OpEdge* oEdge));
+           OP_LINE_FILE_DEF(const OpEdge* edge, const OpEdge* oEdge));
     OpEdge* addFiller(OpEdge* edge, OpEdge* lastEdge);
     OpEdge* addFiller(OpIntersection* start, OpIntersection* end);
     OpIntersection* addCoinSect(const OpPtT& , OpSegment* seg, int cID, MatchEnds 
-            OP_LINE_FILE_DEF(SectReason , const OpSegment* oSeg));
+            OP_LINE_FILE_DEF(const OpSegment* oSeg));
     OpIntersection* addSegSect(const OpPtT& , OpSegment* seg
-            OP_LINE_FILE_DEF(SectReason , const OpSegment* oSeg));
+            OP_LINE_FILE_DEF(const OpSegment* oSeg));
     OpIntersection* addUnsect(const OpPtT& , OpSegment* seg, int uID, MatchEnds 
-            OP_LINE_FILE_DEF(SectReason , const OpSegment* oSeg));
+            OP_LINE_FILE_DEF(const OpSegment* oSeg));
     void addLine(OpPoint pts[2]);
     bool addQuad(OpPoint pts[3]);
 

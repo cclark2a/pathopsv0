@@ -6,10 +6,6 @@
 
 #include <vector>
 
-struct OpContours;
-OpContours* dumpInit();
-extern OpContours* fromFileContours;
-
 #define DUMP_DECLARATIONS \
 std::string debugDump(DebugLevel , DebugBase ) const; \
 void dump() const; \
@@ -226,8 +222,8 @@ namespace PathOpsV0Lib {
 struct CurveCallBacks;
 }
 
-extern void fromFile(std::vector<PathOpsV0Lib::CurveCallBacks>* callBacks);
-extern void verifyFile();
+extern OpContours* fromFile(std::vector<PathOpsV0Lib::CurveCallBacks>* callBacks);
+extern void verifyFile(OpContours* );
 
 #if OP_DEBUG_VERBOSE
 extern void dmpDepth(int level);  // curve-curve intermediate edges created at some recursive depth

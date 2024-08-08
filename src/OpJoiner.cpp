@@ -393,7 +393,7 @@ void OpJoiner::addToLinkups(OpEdge* e) {
 	do {
 		if (LinkPass::remaining != linkPass) {
 			OP_ASSERT(next->isActive());
-			next->clearActiveAndPals(ZeroReason::none);
+			next->setActive(false);
 		}
 		next->clearLastEdge();
 		next->inLinkups = true;

@@ -1,5 +1,6 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpContour.h"
+#include "OpCurve.h"
 #include "OpSegment.h"
 
 void FoundEdge::check(std::vector<FoundEdge>* edges, OpEdge* test, EdgeMatch em, OpPoint match) {
@@ -103,35 +104,35 @@ bool OpSegment::activeNeighbor(const OpEdge* edge, EdgeMatch match,
 }
 
 OpIntersection* OpSegment::addEdgeSect(const OpPtT& ptT  
-        OP_LINE_FILE_DEF(SectReason reason,  const OpEdge* debugEdge, const OpEdge* debugOpp)) {
+        OP_LINE_FILE_DEF(const OpEdge* debugEdge, const OpEdge* debugOpp)) {
     OP_ASSERT(!sects.debugContains(ptT, debugOpp->segment));
     return sects.add(contour->addEdgeSect(ptT, this  
-            OP_LINE_FILE_CALLER(reason, debugEdge, debugOpp)));
+            OP_LINE_FILE_CALLER(debugEdge, debugOpp)));
 }
 
 OpIntersection* OpSegment::addSegBase(const OpPtT& ptT  
-        OP_LINE_FILE_DEF(SectReason reason, const OpSegment* oSeg)) {
+        OP_LINE_FILE_DEF(const OpSegment* oSeg)) {
     OP_ASSERT(!sects.debugContains(ptT, oSeg));
-    return sects.add(contour->addSegSect(ptT, this  OP_LINE_FILE_CALLER(reason, oSeg)));
+    return sects.add(contour->addSegSect(ptT, this  OP_LINE_FILE_CALLER(oSeg)));
 }
 
 OpIntersection* OpSegment::addSegSect(const OpPtT& ptT, const OpSegment* oSeg    
-        OP_LINE_FILE_DEF(SectReason reason)) {
+        OP_LINE_FILE_DEF()) {
     if (sects.contains(ptT, oSeg))
         return nullptr;
-    return addSegBase(ptT  OP_LINE_FILE_CALLER(reason, oSeg));
+    return addSegBase(ptT  OP_LINE_FILE_CALLER(oSeg));
 }
 
 OpIntersection* OpSegment::addCoin(const OpPtT& ptT, int coinID, MatchEnds coinEnd, 
-        const OpSegment* oSeg  OP_LINE_FILE_DEF(SectReason reason)) {
+        const OpSegment* oSeg  OP_LINE_FILE_DEF()) {
     if (sects.contains(ptT, oSeg))  // triggered by fuzz763_13
         return nullptr;
     return sects.add(contour->addCoinSect(ptT, this, coinID, coinEnd  
-            OP_LINE_FILE_CALLER(reason, oSeg)));
+            OP_LINE_FILE_CALLER(oSeg)));
 }
 
 OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int usectID, MatchEnds end,
-        const OpSegment* oSeg    OP_LINE_FILE_DEF(SectReason reason)) {
+        const OpSegment* oSeg    OP_LINE_FILE_DEF()) {
     OpIntersection* sect = sects.contains(ptT, oSeg);
     if (sect) {
         OP_ASSERT(!sect->unsectID);
@@ -140,7 +141,7 @@ OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int usectID, MatchEnd
         return sect;
     }
     return sects.add(contour->addUnsect(ptT, this, usectID, end  
-            OP_LINE_FILE_CALLER(reason, oSeg)));
+            OP_LINE_FILE_CALLER(oSeg)));
 }
 
 void OpSegment::apply() {
@@ -230,13 +231,13 @@ float OpSegment::findValidT(float start, float end, OpPoint opp) {
     return OpNaN;
 }
 
-void OpSegment::makeEdge(const OpPtT& s, const OpPtT& e  OP_LINE_FILE_DEF(EdgeMaker maker)) {
+void OpSegment::makeEdge(const OpPtT& s, const OpPtT& e  OP_LINE_FILE_DEF()) {
     if (!edges.size()) 
-        edges.emplace_back(this, s, e  OP_LINE_FILE_PARAMS(maker, nullptr, nullptr));
+        edges.emplace_back(this, s, e  OP_LINE_FILE_PARAMS(nullptr, nullptr));
 }
 
-void OpSegment::makeEdge(OP_LINE_FILE_NP_DEF(EdgeMaker maker)) {
-    makeEdge(OpPtT(c.firstPt(), 0), OpPtT(c.lastPt(), 1)  OP_LINE_FILE_PARAMS(maker));
+void OpSegment::makeEdge(OP_LINE_FILE_NP_DEF()) {
+    makeEdge(OpPtT(c.firstPt(), 0), OpPtT(c.lastPt(), 1)  OP_LINE_FILE_PARAMS());
 }
 
 void OpSegment::makeEdges() {
@@ -299,7 +300,7 @@ void OpSegment::moveTo(float matchT, OpPoint equalPt) {
     0 == matchT ? c.setFirstPt(equalPt) : c.setLastPt(equalPt);
     c.pinCtrl();
     if (c.firstPt() == c.lastPt())
-        setDisabled(OP_DEBUG_CODE(ZeroReason::segmentPoint));
+        setDisabled(OP_LINE_FILE_NPARAMS());
     setBounds();
     for (OpIntersection* sect : sects.i) {
         if (sect->ptT.t == matchT) {
@@ -315,9 +316,9 @@ void OpSegment::moveTo(float matchT, OpPoint equalPt) {
 void OpSegment::moveWinding(OpSegment* opp, bool backwards) {
         winding.move(opp->winding, backwards);
         if (!winding.visible())
-            setDisabled(OP_DEBUG_CODE(ZeroReason::addIntersection));
+            setDisabled(OP_LINE_FILE_NPARAMS());
         opp->winding.zero();
-        opp->setDisabled(OP_DEBUG_CODE(ZeroReason::addIntersection));
+        opp->setDisabled(OP_LINE_FILE_NPARAMS());
 }
 
 #if 0
@@ -338,7 +339,7 @@ void OpSegment::setBounds() {
     closeBounds = ptBounds.outsetClose();
 }
 
-void OpSegment::setDisabled(OP_DEBUG_CODE(ZeroReason reason)) {
+void OpSegment::setDisabled(OP_LINE_FILE_NP_DEF()) {
 	disabled = true; 
     // coincident/unsectable intersections may confuse; remove any
     size_t index = sects.i.size();
@@ -356,7 +357,7 @@ void OpSegment::setDisabled(OP_DEBUG_CODE(ZeroReason reason)) {
         }
         sects.i.erase(sects.i.begin() + index);
     }
-    OP_DEBUG_CODE(debugZero = reason); 
+    OP_LINE_FILE_SET(debugSetDisabled); 
 }
 
 // !!! this finds coincidence on lines, but it needs to find unsectables as well ?
@@ -475,9 +476,6 @@ OpSegment::OpSegment(PathOpsV0Lib::AddCurve addCurve, PathOpsV0Lib::AddWinding a
             { (PathOpsV0Lib::WindingData*) addWinding.windings, addWinding.size } )
     , disabled(false)  {
     complete();
-    OP_DEBUG_CODE(debugStart = SectReason::test);   // temp for new interface
-    OP_DEBUG_CODE(debugEnd = SectReason::test);     //  "
-    OP_DEBUG_CODE(debugZero = ZeroReason::uninitialized);
 }
 
 // replace calls that generate coin ids with newWindCoincidences()

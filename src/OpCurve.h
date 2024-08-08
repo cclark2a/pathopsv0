@@ -3,14 +3,10 @@
 #define OpCurve_DEFINED
 
 #include "PathOpsTypes.h"
-#include "OpTypes.h"
+
+enum class OpType;
 
 #define RAW_INTERSECT_LIMIT 0.00005f  // errors this large or larger mean the crossing was not found
-
-struct OpLine;
-struct OpQuad;
-struct OpConic;
-struct OpCubic;
 
 // arranged so down/left is -1, up/right is +1
 enum class NormalDirection {
@@ -30,7 +26,7 @@ struct CutRangeT {
 
 struct OpCurve {
     OpCurve() 
-        : c{nullptr, 0, OpType::no}
+        : c{ nullptr, 0, (OpType) 0 }
         , contours(nullptr)
         , isLineSet(false)
         , isLineResult(false) {

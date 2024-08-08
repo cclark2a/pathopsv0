@@ -6,7 +6,7 @@
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
 #define TESTS_TO_SKIP 0 // 14295903  // tests to skip
-#define TEST_PATH_OP_FIRST ""  // e.g., "cubic140721" (ignored by fast test)
+#define TEST_PATH_OP_FIRST "pentrek10"  // e.g., "cubic140721" (ignored by fast test)
 
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
@@ -186,7 +186,6 @@ bool runningWithFMA() {
     // this is fragile, but as of 10/04/23, detects FMA with these values.
     LinePts line = { OpPoint(OpDebugBitsToFloat(0x4308f83e), OpDebugBitsToFloat(0x4326aaab)),  // {136.97, 166.667}
         OpPoint(OpDebugBitsToFloat(0x42c55d28), OpDebugBitsToFloat(0x430c5806)) };  // {98.68195, 140.344}
-#if OP_TEST_NEW_INTERFACE
     float adj = line.pts[1].x - line.pts[0].x;
     float opp = line.pts[1].y - line.pts[0].y;
     auto rotatePt = [line, adj, opp](OpPoint pt) {
@@ -197,14 +196,6 @@ bool runningWithFMA() {
     OP_ASSERT(start.x == OpDebugBitsToFloat(0x390713e0)     // 0.00012882007
             || start.x == OpDebugBitsToFloat(0x39000000));  // 0.00012207031
     runWithFMA = start.x == OpDebugBitsToFloat(0x390713e0);
-#else
-    OpCurve c = { { OpDebugBitsToFloat(0x42f16017), OpDebugBitsToFloat(0x431b7908) }, // {120.688, 155.473}
-        { OpDebugBitsToFloat(0x42ed5d28), OpDebugBitsToFloat(0x43205806) } }; // {118.682, 160.344}
-    OpCurve rotated = c.toVertical(line);
-    OP_ASSERT(rotated.pts[0].x == OpDebugBitsToFloat(0x390713e0)     // 0.00012882007
-            || rotated.pts[0].x == OpDebugBitsToFloat(0x39000000));  // 0.00012207031
-    runWithFMA = rotated.pts[0].x == OpDebugBitsToFloat(0x390713e0);
-#endif
     calculated = true;
     return runWithFMA;
 }
@@ -553,10 +544,8 @@ int VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op, std::string test
     return errors;
 }
 
-#if OP_TEST_NEW_INTERFACE
 #include "skia/SkiaPaths.h"
 #include "curves/BinaryWinding.h"
-#endif
 
 void threadablePathOpTest(int id, const SkPath& a, const SkPath& b, 
         SkPathOp op, std::string testname, bool v0MayFail, bool skiaMayFail) {
@@ -568,7 +557,6 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     debugData.debugCurveCurve1 = CURVE_CURVE_1;
     debugData.debugCurveCurve2 = CURVE_CURVE_2;
     debugData.debugCurveCurveDepth = CURVE_CURVE_DEPTH;
-#if OP_TEST_NEW_INTERFACE
     {
         using namespace PathOpsV0Lib;
         Context* context = CreateContext({ nullptr, 0 });
@@ -601,13 +589,6 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
             result.toggleInverseFillType();
         DeleteContext(context);
     }
-#else
-	OpInPath op1(&a);
-	OpInPath op2(&b);
-	OpOutPath opOut(&result);
-    PathOps(op1, op2, (OpOperator) op, opOut  OP_DEBUG_PARAMS(debugData));
-    OP_ASSERT(debugData.debugSuccess || v0MayFail);
-#endif
 #endif
 #if OP_TEST_SKIA
     SkPath skresult;
@@ -759,11 +740,6 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
             SkPath& out, bool v0MayFail, bool skiaMayFail) {
 #if OP_TEST_V0
     out.setFillType(SkPathFillType::kEvenOdd); // !!! workaround
-#if !OP_TEST_NEW_INTERFACE
-	OpInPath op1(&path);
-    out.reset();
-	OpOutPath opOut(&out);
-#endif
     std::vector<OpDebugWarning> warnings;
     const char* tn = testname.c_str();
     if ("never!" == testname)
@@ -773,7 +749,6 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
     debugData.debugCurveCurve1 = CURVE_CURVE_1;
     debugData.debugCurveCurve2 = CURVE_CURVE_2;
     debugData.debugCurveCurveDepth = CURVE_CURVE_DEPTH;
-#if OP_TEST_NEW_INTERFACE
     {
         using namespace PathOpsV0Lib;
         Context* context = CreateContext({ nullptr, 0 });
@@ -795,9 +770,6 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
         Resolve(context, pathOutput);
         DeleteContext(context);
     }
-#else
-    PathSimplify(op1, opOut  OP_DEBUG_PARAMS(debugData));
-#endif
     OP_ASSERT(v0MayFail || debugData.debugSuccess);
 #endif
 #if OP_TEST_SKIA
@@ -918,11 +890,3 @@ PathOpsThreadedTestRunner::PathOpsThreadedTestRunner(skiatest::Reporter* r) {
 void PathOpsThreadedTestRunner::render() {
     fRunnables.append();
 }
-
-#if !OP_TEST_NEW_INTERFACE
-void emergencyDump(OpContours* c) {
-    ((SkPath*) (c->leftIn->externalReference))->dump();
-    ((SkPath*) (c->rightIn->externalReference))->dump();
-    OpDebugOut(STR((int) c->opIn) + "\n");
-}
-#endif

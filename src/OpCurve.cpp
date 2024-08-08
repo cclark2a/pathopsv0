@@ -320,7 +320,7 @@ OpPair OpCurve::xyAtT(OpPair t, XyChoice xy) const {
 }
 
 OpPoint OpCurve::hullPt(int index) const {
-    OP_ASSERT(OpType::no == c.type || 0 <= index && index < pointCount());
+    OP_ASSERT((OpType) 0 == c.type || 0 <= index && index < pointCount());
     if (0 == index)
         return c.data->start;
     if (pointCount() - 1 == index)
@@ -354,7 +354,7 @@ bool OpCurve::isLine() {
         return isLineResult;
     isLineSet = true;
     if (contours->callBack(c.type).curveIsLineFuncPtr(c)) {
-        c.type = contours->contextCallBacks.setLineType(c);
+        c.type = contours->contextCallBacks.setLineTypeFuncPtr(c);
         return isLineResult = true;
     }
     return false;
@@ -364,7 +364,7 @@ bool OpCurve::isLine() {
 bool OpCurve::debugIsLine() const {
     if (isLineSet)
         return isLineResult;
-    return c.type == contours->contextCallBacks.setLineType(c);
+    return c.type == contours->contextCallBacks.setLineTypeFuncPtr(c);
 }
 #endif
 

@@ -19,7 +19,6 @@ struct OpDebugRay;
 struct OpEdge;
 struct OpInPath;
 struct OpIntersection;
-struct OpLine;
 struct OpOutPath;
 struct OpPoint;
 struct OpPointBounds;
@@ -138,7 +137,6 @@ extern void draw(std::vector<OpEdge>& );  // to draw edge list built from inters
 extern void draw(std::vector<OpEdge*>& ); // to draw unsortables
 extern void draw(Axis , float );	// horizontal or vertical ray
 extern void draw(const LinePts& );	// arbitrary angled ray
-extern void draw(const OpLine& );	// arbitrary angled ray
 extern void draw(const OpPoint& );
 extern void draw(const OpPtT& );   // draw point (ignores t)
 extern void draw(const OpPoint* );
@@ -229,7 +227,6 @@ OP_X(Operands)
 OP_X(Left) \
 OP_X(Right)
 
-#if OP_TEST_NEW_INTERFACE
 #define OP_X(Thing) \
 	extern void hide##Thing(); \
 	extern void show##Thing(); \
@@ -237,16 +234,6 @@ OP_X(Right)
 	MASTER_LIST
 	ALIAS_LIST
 #undef OP_X
-#else
-#define OP_X(Thing) \
-	extern void hide##Thing(); \
-	extern void show##Thing(); \
-	extern void toggle##Thing();
-	MASTER_LIST
-	ALIAS_LIST
-	OLD_LIST
-#undef OP_X
-#endif
 
 #define COLOR_LIST \
 OP_X(Active) \

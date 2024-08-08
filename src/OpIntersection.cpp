@@ -26,6 +26,7 @@ void OpIntersection::setCoin(int cid, MatchEnds end) {
 
 // setter to help debugging
 void OpIntersection::setUnsect(int uid, MatchEnds end) {
+    OP_ASSERT(7653 != uid);
     unsectID = uid;
     unsectEnd = end;
 }
@@ -76,7 +77,7 @@ void OpIntersections::makeEdges(OpSegment* segment) {
         OpIntersection& sect = *sectPtr;
         if (sect.ptT.t != last->ptT.t) {
             segment->edges.emplace_back(segment, last->ptT, sect.ptT
-                    OP_LINE_FILE_PARAMS(EdgeMaker::makeEdges, last, sectPtr));
+                    OP_LINE_FILE_PARAMS(last, sectPtr));
             OpEdge& newEdge = segment->edges.back();
             if (unsectables.size())
                 newEdge.isUnsectable = true;
@@ -215,7 +216,7 @@ bool SectPreferred::find(OpIntersection* sect) {
 // small segment may have first and last nearly touching
 //                OP_ASSERT(0 != firstOfRun->ptT.t);  // breaks: cubic422305
                 if (!firstOfRun->ptT.t)
-                    sect->segment->setDisabled(OP_DEBUG_CODE(ZeroReason::collapsed));
+                    sect->segment->setDisabled(OP_LINE_FILE_NPARAMS());
                 OP_ASSERT(1 == sects.i.back()->ptT.t);
                 firstOfRun->ptT.t = 1;
             }
@@ -515,10 +516,10 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges) {
                 combinedWinding = edge->winding.copyData();
                 edgeVisible = edge->winding.contour->callBacks.windingVisibleFuncPtr(combinedWinding);
                 if (!edgeVisible)
-                    edge->setDisabled(OP_DEBUG_CODE(ZeroReason::hvCoincidence1));
+                    edge->setDisabled(OP_LINE_FILE_NPARAMS());
                 else if (edge->disabled)
                     edge->reenable();  // un-disable it; was disabled from earlier coincidence
-                oppEdge->setDisabledZero(OP_DEBUG_CODE(ZeroReason::hvCoincidence2));
+                oppEdge->setDisabledZero(OP_LINE_FILE_NPARAMS());
             }
             for (;;) {
                 OpPoint oppEnd = oppEdge->ptT(coinPair.id > 0 
@@ -534,7 +535,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges) {
                     oppEdge += oppBump;
                     OP_ASSERT(oppEdge->winding.equal(oppWinding));
                     if (bothEnabled)
-                        oppEdge->setDisabledZero(OP_DEBUG_CODE(ZeroReason::hvCoincidence3));
+                        oppEdge->setDisabledZero(OP_LINE_FILE_NPARAMS());
                 } else {
                     ++edge;
                     OP_ASSERT(edge->winding.equal(edgeWinding));
@@ -543,7 +544,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges) {
                         if (edge->disabled)
                             edge->reenable();
                     } else if (bothEnabled)
-                        edge->setDisabledZero(OP_DEBUG_CODE(ZeroReason::hvCoincidence4));
+                        edge->setDisabledZero(OP_LINE_FILE_NPARAMS());
                 }
             }
             if (edge == edgeBack) {

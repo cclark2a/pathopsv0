@@ -36,6 +36,10 @@ inline void noRotate(Curve , const LinePts& , float , float , Curve ) {
 }
 
 #if OP_DEBUG_DUMP
+inline std::string noDumpName() { 
+    return ""; 
+}
+
 inline std::string noDumpCurveExtra(Curve , DebugLevel , DebugBase ) {
     return "";
 }

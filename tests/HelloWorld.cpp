@@ -80,13 +80,7 @@ int activeLeft;
 int activeRight;
 
 void resetPaths() {
-#if OP_TEST_NEW_INTERFACE
     OP_ASSERT(0); // !!! incomplete
-#else
-    leftPath.set(*debugGlobalContours->leftIn);
-    rightPath.set(*debugGlobalContours->rightIn);
-    activePtV = nullptr;
-#endif
     activeIndex = { -1, -1 };
     activeFocus = -1;
     activeLeft = 0;
@@ -111,20 +105,18 @@ HelloWorld::HelloWorld(int argc, char** argv, void* platformData)
     fWindow->pushLayer(this);
     fWindow->attach(fBackendType);
 #if OP_INTERACTIVE
-    fromFile();
-    std::swap(fromFileContours, debugGlobalContours);
-    // preserve original contour data so it can be edited/restored later
+    OpContours* fileContours = fromFile();
+    std::swap(fileContours, debugGlobalContours);
+    // preserve original contour data so it can be edited/restored later (incomplete)
     resetPaths();
     OpDebugImage::init();
     resetFocus();
     showEdges();
     showIDs();
 #endif
-#if OP_TEST_NEW_INTERFACE
     extern void testNewInterface();
     if ((0))
         testNewInterface();
-#endif
 }
 
 HelloWorld::~HelloWorld() {

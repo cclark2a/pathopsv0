@@ -260,10 +260,8 @@ IntersectResult OpWinder::CoincidentCheck(OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, Op
 	if (AorB == CorD) {
 		if (segment->sects.contains(ptTAorB, oppSegment))
 			return IntersectResult::yes;
-		OpIntersection* sect = segment->addSegSect(ptTAorB, oppSegment  
-				OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch));
-		OpIntersection* oSect = oppSegment->addSegSect(ptTCorD, segment  
-				OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch));
+		OpIntersection* sect = segment->addSegSect(ptTAorB, oppSegment  OP_LINE_FILE_PARAMS());
+		OpIntersection* oSect = oppSegment->addSegSect(ptTCorD, segment  OP_LINE_FILE_PARAMS());
 		sect->pair(oSect);
 		return IntersectResult::yes;
 	}
@@ -313,11 +311,11 @@ void OpWinder::AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped, OpPtT cPtT
 	if (segSect || oppSect)  // required by fuzz763_3, fuzz763_5
         return;
     OpIntersection* sect = segment->contour->addCoinSect(ptTAorB, segment, coinID, match  
-			OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch, oppSegment));
+			OP_LINE_FILE_PARAMS(oppSegment));
 	segment->sects.add(sect);
 	OpIntersection* oSect = oppSegment->contour->addCoinSect(oCoinStart, oppSegment, coinID, 
 			flipped ? MatchEnds::start : MatchEnds::end 
-			OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch, segment));
+			OP_LINE_FILE_PARAMS(segment));
 	oppSegment->sects.add(oSect);
 	OP_ASSERT(sect && oSect);
 	sect->pair(oSect);
@@ -445,7 +443,7 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 			segment->sects.resort = true;
 		} else {
 			sect1 = segment->addCoin(aPtT, coinID, MatchEnds::start, oppSegment
-						OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch));
+						OP_LINE_FILE_PARAMS());
 			OP_ASSERT(sect1);
 			addedSect1 = true;
 		}
@@ -458,21 +456,21 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 			segment->sects.resort = true;
 		} else {
 			sect2 = segment->addCoin(bPtT, coinID, MatchEnds::end, oppSegment
-						OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch));
+						OP_LINE_FILE_PARAMS());
 			OP_ASSERT(sect2);
 			addedSect2 = true;
 		}
 	}
 	if (!oSect1 && sect1) {
 		oSect1 = oppSegment->addCoin(oCoinStart, coinID, flipped ? MatchEnds::end 
-				: MatchEnds::start, segment  OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch));
+				: MatchEnds::start, segment  OP_LINE_FILE_PARAMS());
 		OP_ASSERT(oSect1);
 		sect1->pair(oSect1);
 		addedOSect1 = true;
 	}
 	if (!oSect2 && sect2) {
 		oSect2 = oppSegment->addCoin(oCoinEnd, coinID, flipped ? MatchEnds::start 
-				: MatchEnds::end, segment  OP_LINE_FILE_PARAMS(SectReason::coinPtsMatch));
+				: MatchEnds::end, segment  OP_LINE_FILE_PARAMS());
 		OP_ASSERT(oSect2);
 		sect2->pair(oSect2);
 		addedOSect2 = true;
@@ -537,10 +535,10 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 				&& !oSegment->sects.contains(oppPtT, eSegment)) {
 			OP_ASSERT(!OpMath::IsNaN(edgePtT.t));
 			OpIntersection* sect = eSegment->addEdgeSect(edgePtT  
-					OP_LINE_FILE_CALLER(SectReason::lineCurve, &edge, &opp));
+					OP_LINE_FILE_CALLER(&edge, &opp));
 			OP_ASSERT(!OpMath::IsNaN(oppPtT.t));
 			OpIntersection* oSect = oSegment->addEdgeSect(oppPtT  
-					OP_LINE_FILE_CALLER(SectReason::lineCurve, &edge, &opp));
+					OP_LINE_FILE_CALLER(&edge, &opp));
 			sect->pair(oSect);
 			added = IntersectResult::yes;
 		}
@@ -854,7 +852,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 		home->winding.move(pal.edge->winding, pal.reversed);
 	}
 	if (!home->winding.visible()) {
-		home->setDisabled(OP_DEBUG_CODE(ZeroReason::palWinding));
+		home->setDisabled(OP_LINE_FILE_NPARAMS());
 		home->windPal = true;
 	}
 	if (CalcFail::fail == home->addIfUR(ray.axis, homeT, &sumWinding))

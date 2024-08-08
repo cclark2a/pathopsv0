@@ -750,12 +750,6 @@ void OpWinder::debugValidate() const {
 
 #include "PathOps.h"
 
-#if !OP_TEST_NEW_INTERFACE
-void OpOutPath::debugNextID(OpEdge* edge) {
-    debugID = edge->segment->contour->nextID();
-}
-#endif
-
 #if OP_DEBUG_DUMP
 std::string debugContext;
 

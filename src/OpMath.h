@@ -25,7 +25,6 @@ constexpr auto OpCloseFactor = 10.f;  // !!! picked out of the air 8 too small f
 #include "OpDebugDump.h"
 #include "OpDebugImage.h"
 
-// !!! move to OpTypes.h one day
 template <typename T, size_t N> char (&ArrayCountHelper(T (&array)[N]))[N];
 #define ARRAY_COUNT(array) (sizeof(ArrayCountHelper(array)))
 

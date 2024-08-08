@@ -39,9 +39,9 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
                 || opp->sects.contains(OpPtT { pt, oppT }, seg))
             return;
         OpIntersection* sect = seg->addSegSect(OpPtT { pt, segT }, opp  
-                OP_LINE_FILE_CALLER(SectReason::lineCurve));
+                OP_LINE_FILE_CALLER());
         OpIntersection* oSect = opp->addSegSect(OpPtT { pt, oppT }, seg 
-                OP_LINE_FILE_CALLER(SectReason::lineCurve));
+                OP_LINE_FILE_CALLER());
         sect->pair(oSect);
     };
     auto checkEnds = [add, seg, opp](OpPoint oppPt, float oppT  OP_LINE_FILE_DEF(int dummy)) {
@@ -177,9 +177,9 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
         if (opp->sects.contains(oppPtT, seg))
             continue;
         OpIntersection* sect = seg->addSegBase(edgePtT  
-                OP_LINE_FILE_PARAMS(SectReason::lineCurve, opp));
+                OP_LINE_FILE_PARAMS(opp));
         OpIntersection* oSect = opp->addSegBase(oppPtT  
-                OP_LINE_FILE_PARAMS(SectReason::lineCurve, seg));
+                OP_LINE_FILE_PARAMS(seg));
         sect->pair(oSect);
     }
     // if pair share two intersections, and mid t is close, mark intersections as unsectable
@@ -210,18 +210,18 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
         if (dist < OpEpsilon * 8) { // !!! who knows what this const should be?
 	        int usectID = seg->nextID();
             seg->addUnsectable(iStart->ptT, usectID, endFromT(iStart, iEnd, MatchEnds::start), opp
-                    OP_LINE_FILE_PARAMS(SectReason::test));
+                    OP_LINE_FILE_PARAMS());
             seg->addUnsectable(iEnd->ptT, usectID, endFromT(iStart, iEnd, MatchEnds::end), opp
-                    OP_LINE_FILE_PARAMS(SectReason::test));
+                    OP_LINE_FILE_PARAMS());
             OpIntersection* oStart = iStart->opp;
             OpIntersection* oEnd = iEnd->opp;
 	        bool flipped = oStart->ptT.t > oEnd->ptT.t;
             if (flipped)
                 usectID = -usectID;
             opp->addUnsectable(oStart->ptT, usectID, endFromT(oStart, oEnd, MatchEnds::start), seg
-                    OP_LINE_FILE_PARAMS(SectReason::test));
+                    OP_LINE_FILE_PARAMS());
             opp->addUnsectable(oEnd->ptT, usectID, endFromT(oStart, oEnd, MatchEnds::end), seg
-                    OP_LINE_FILE_PARAMS(SectReason::test));
+                    OP_LINE_FILE_PARAMS());
         }
     }
     return;
@@ -244,9 +244,9 @@ void OpSegments::FindCoincidences(OpContours* contours) {
                 continue;
             seg->winding.move(opp->winding, mr.reversed);
             opp->winding.zero();
-            opp->setDisabled(OP_DEBUG_CODE(ZeroReason::findCoincidences));
+            opp->setDisabled(OP_LINE_FILE_NPARAMS());
             if (!seg->winding.visible()) {
-                seg->setDisabled(OP_DEBUG_CODE(ZeroReason::findCoincidences));
+                seg->setDisabled(OP_LINE_FILE_NPARAMS());
                 break;
             }
         }
@@ -276,8 +276,8 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
         if (!tangent.dot(oTangent))  // if at right angles, skip
             return IntersectResult::no;
         OP_ASSERT(seg->ptBounds.intersects(opp->ptBounds));
-        seg->makeEdge(OP_LINE_FILE_NPARAMS(EdgeMaker::segSect));
-        opp->makeEdge(OP_LINE_FILE_NPARAMS(EdgeMaker::oppSect));
+        seg->makeEdge(OP_LINE_FILE_NPARAMS());
+        opp->makeEdge(OP_LINE_FILE_NPARAMS());
         return OpWinder::CoincidentCheck(seg->edges.front(), opp->edges.front());
     }
     OpVector sV = seg->c.lastPt() - seg->c.firstPt();

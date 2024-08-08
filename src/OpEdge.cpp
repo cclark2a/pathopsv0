@@ -118,7 +118,7 @@ EdgeDistance::EdgeDistance(OpEdge* e, float c, float tIn, bool r)
 }
 
 OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight  
-		OP_LINE_FILE_DEF(EdgeMaker maker))
+		OP_LINE_FILE_DEF())
 	: OpEdge() {
 	segment = edge->segment;
 	start = NewEdge::isLeft == isLeftRight ? edge->start : newPtT;
@@ -129,39 +129,30 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight
 		curvy = edge->curvy * .5;  // !!! bogus, but shouldn't matter
 	}
 #endif
-#if OP_DEBUG
-	debugMaker = maker;
-	debugSetMaker = { fileName, lineNo };
-	debugParentID = edge->id;
-#endif	
+	OP_LINE_FILE_SET(debugSetMaker);
+	OP_DEBUG_CODE(debugParentID = edge->id);
 	complete();
 }
 
 // called after winding has been modified by other coincident edges
 OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e  
-		OP_LINE_FILE_DEF(EdgeMaker maker))
+		OP_LINE_FILE_DEF())
 	: OpEdge() {
 	segment = edge->segment;
 	start = s;
 	end = e;
-#if OP_DEBUG
-	debugMaker = maker;
-	debugSetMaker = { fileName, lineNo };
-	debugParentID = edge->id;
-#endif	
+	OP_LINE_FILE_SET(debugSetMaker);
+	OP_DEBUG_CODE(debugParentID = edge->id);
 	complete();
 }
 
-OpEdge::OpEdge(const OpEdge* edge, float t1, float t2  OP_LINE_FILE_DEF(EdgeMaker maker))
+OpEdge::OpEdge(const OpEdge* edge, float t1, float t2  OP_LINE_FILE_DEF())
 	: OpEdge() {
 	segment = edge->segment;
 	start = { segment->c.ptAtT(t1), t1 };
 	end = { segment->c.ptAtT(t2), t2 };
-#if OP_DEBUG
-	debugMaker = maker;
-	debugSetMaker = { fileName, lineNo };
-	debugParentID = edge->id;
-#endif	
+	OP_LINE_FILE_SET(debugSetMaker);
+	OP_DEBUG_CODE(debugParentID = edge->id);
 	complete();
 }
 
@@ -223,13 +214,13 @@ OpEdge* OpEdge::advanceToEnd(EdgeMatch match) {
 */
 void OpEdge::apply() {
 	if (EdgeFail::center == rayFail)
-		setDisabled(OP_DEBUG_CODE(ZeroReason::rayFail));
+		setDisabled(OP_LINE_FILE_NPARAMS());
 	if (disabled || isUnsortable)
 		return;
 	OpContour* contour = segment->contour;
 	WindKeep keep = contour->callBacks.windingKeepFuncPtr(winding.w, sum.w);
 	if (WindKeep::Discard == keep)
-		setDisabled(OP_DEBUG_CODE(ZeroReason::applyOp));
+		setDisabled(OP_LINE_FILE_NPARAMS());
 	else
 		windZero = (WindZero) keep;
 }
@@ -249,8 +240,8 @@ void OpEdge::calcCenterT() {
 	if (OpMath::IsNaN(t)) {
 // while this should be disabled eventually, it must be visible to influence winding calc
 // other edges' rays that hit this should also be disabled and marked ray fail
-//		setDisabled(OP_DEBUG_CODE(ZeroReason::centerNaN));
-		OP_DEBUG_CODE(debugZero = ZeroReason::centerNaN);
+//		setDisabled(OP_LINE_FILE_NARGS());
+		OP_LINE_FILE_SET_IMMED(debugSetDisabled);
 		OP_DEBUG_CODE(center = { OpPoint(SetToNaN::dummy), OpNaN } );
 		centerless = true;  // !!! is this redundant with ray fail?
 		rayFail = EdgeFail::center;
@@ -265,15 +256,13 @@ void OpEdge::calcCenterT() {
 	OP_ASSERT(OpMath::Between(ptBounds.top, center.pt.y, ptBounds.bottom));
 }
 
-void OpEdge::clearActiveAndPals(ZeroReason reason) {
+void OpEdge::clearActiveAndPals(OP_LINE_FILE_NP_DEF()) {
 	setActive(false);
     for (auto& pal : pals) {
-		if (ZeroReason::none != reason) {
-			if (!pal.edge->pals.size())
-				continue;  // !!! hack ?
-			pal.edge->setActive(false);
-			pal.edge->setDisabled(OP_DEBUG_CODE(reason));
-		}
+		if (!pal.edge->pals.size())
+			continue;  // !!! hack ?
+		pal.edge->setActive(false);
+		pal.edge->setDisabled(OP_LINE_FILE_NP_CALLER());
     }
 	clearLastEdge();
 }
@@ -531,7 +520,7 @@ void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsect
 }
 
 OpEdge* OpEdge::nextOut() {
-	clearActiveAndPals(ZeroReason::addedPalToOutput);
+	clearActiveAndPals(OP_LINE_FILE_NPARAMS());
 	inLinkups = false;
     inOutput = true;
     return nextEdge;
@@ -654,7 +643,7 @@ void OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first)
 }
 
 OpType OpEdge::type() {
-	return /* isLine() ? OpType::line : */ segment->c.c.type; 
+	return segment->c.c.type; 
 }
 
 // in function to make setting breakpoints easier
@@ -700,9 +689,9 @@ OpPtT OpEdge::ptTCloseTo(OpPtT oPtPair, const OpPtT& ptT) const {
 }
 	
 // should be inlined. Out of line for ease of setting debugging breakpoints
-void OpEdge::setDisabled(OP_DEBUG_CODE(ZeroReason reason)) {
+void OpEdge::setDisabled(OP_LINE_FILE_NP_DEF()) {
 	disabled = true; 
-	OP_DEBUG_CODE(debugZero = reason); 
+	OP_LINE_FILE_SET(debugSetDisabled); 
 }
 
 OpEdge* OpEdge::setLastEdge() {
@@ -819,7 +808,7 @@ void OpEdge::subDivide() {
 	}
  	if (start.pt == end.pt) {
 //		OP_ASSERT(0);	// triggered by fuzz763_9
-		setDisabled(OP_DEBUG_CODE(ZeroReason::isPoint));
+		setDisabled(OP_LINE_FILE_NPARAMS());
 	}
 }
 

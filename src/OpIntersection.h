@@ -60,8 +60,6 @@ struct OpIntersection {
 	debugID = 0;
 	debugOppID = 0;
 	debugCoincidenceID = 0;
-	debugSetMaker = { "", 0 };
-	debugReason = SectReason::unset;	// reason intersection was found
 	debugErased = false;
 #endif
     }
@@ -74,8 +72,7 @@ struct OpIntersection {
 		o->opp = this;
 	}
 
-	void set(const OpPtT& t, OpSegment* seg  
-			OP_LINE_FILE_DEF(SectReason reason, int ID, int oppID)) {
+	void set(const OpPtT& t, OpSegment* seg  OP_LINE_FILE_DEF(int ID, int oppID)) {
 		segment = seg;
 		OP_DEBUG_CODE(debugSetID());  // debug for now
 		opp = nullptr; // SectFlavor::none == flavor_ ? nullptr : this;		!!! if we need this, comment why
@@ -91,7 +88,6 @@ struct OpIntersection {
 		debugOppID = oppID;
 		debugCoincidenceID = 0;
 		debugSetMaker = { fileName, lineNo };
-		debugReason = reason;
 		debugErased = false;
 #endif
 	}
@@ -141,9 +137,10 @@ struct OpIntersection {
 	int debugID;	// pair of edges or segments that intersected (!!! only useful if edges?)
 	int debugOppID;
 	int debugCoincidenceID;	// this one does not get erased
-	OpDebugMaker debugSetMaker;
-	SectReason debugReason;	// reason intersection was found
 	mutable bool debugErased;
+#endif
+#if OP_DEBUG_MAKER
+	OpDebugMaker debugSetMaker;
 #endif
 };
 

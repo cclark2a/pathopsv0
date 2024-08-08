@@ -13,8 +13,8 @@ void Add(AddCurve , AddWinding );
 #include "PathOps.h"
 
 // curve types
-OpType lineType = OpType::no;  // unset
-OpType quadType = OpType::no;
+OpType lineType = (OpType) 0;  // unset
+OpType quadType = (OpType) 0;
 
 void commonOutput(PathOpsV0Lib::Curve c, OpType type, bool firstPt, bool lastPt, 
         PathOpsV0Lib::PathOutput output) {
@@ -68,14 +68,14 @@ void testNewInterface() {
             lineIsLine, /*noLinear,*/ noBounds, lineNormal, lineOutput, noPinCtrl, noReverse,
             lineTangent, linesEqual, linePtAtT, /* double not required */ linePtAtT, 
             linePtCount, noRotate, lineSubDivide, lineXYAtT
-            OP_DEBUG_DUMP_PARAMS(noDumpCurveExtra)
+            OP_DEBUG_DUMP_PARAMS(noDumpName, noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
     );
     quadType = SetCurveCallBacks(context, quadAxisRawHit, /* quadNearly, */ quadHull, quadIsFinite, 
             quadIsLine, /*quadIsLinear,*/ quadSetBounds, quadNormal, quadOutput, quadPinCtrl, noReverse,
             quadTangent, quadsEqual, quadPtAtT, /* double not required */ quadPtAtT, 
             quadPtCount, quadRotate, quadSubDivide, quadXYAtT
-            OP_DEBUG_DUMP_PARAMS(noDumpCurveExtra)
+            OP_DEBUG_DUMP_PARAMS(noDumpName, noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
     );
 

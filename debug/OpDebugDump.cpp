@@ -302,7 +302,7 @@ Enum enum##Str(const char*& str, const char* label, Enum enumDefault) { \
     for (int index = 0; index < (int) ARRAY_COUNT(enum##Names); ++index) { \
         size_t nameLen = strlen(enum##Names[index].name); \
         if (strLen == nameLen && !strncmp(str, enum##Names[index].name, nameLen)) { \
-            str += strlen(enum##Names[index].name); \
+            str += nameLen; \
             if (' ' == str[0]) ++str; \
             return enum##Names[index].element; \
         } \
@@ -457,7 +457,7 @@ void dmpFile() {
 
 OpContours* fromFileContours = nullptr;
 
-void fromFile(std::vector<PathOpsV0Lib::CurveCallBacks>* callBacks) {
+OpContours* fromFile(std::vector<PathOpsV0Lib::CurveCallBacks>* callBacks) {
     std::string buffer;
     if (FILE* file = fopen("dmp.txt", "r")) {
         int seek = fseek(file, 0, SEEK_END);
@@ -470,20 +470,20 @@ void fromFile(std::vector<PathOpsV0Lib::CurveCallBacks>* callBacks) {
         fclose(file);
     }
     const char* str = buffer.c_str();
-    if (fromFileContours)
-        delete fromFileContours;
-    fromFileContours = dumpInit();
+    OpContours* fileContours = new OpContours();
     if (callBacks)
-        fromFileContours->callBacks = *callBacks;
-    fromFileContours->dumpSet(str);  // also reads segments, which read segments' edges, etc.
-    fromFileContours->dumpResolveAll(fromFileContours);
+        fileContours->callBacks = *callBacks;
+    fileContours->dumpSet(str);  // also reads segments, which read segments' edges, etc.
+    fileContours->dumpResolveAll(fileContours);
+    return fileContours;
 }
 
-void verifyFile() {
+void verifyFile(OpContours* contours) {
+	OpContours* fileContours = fromFile(&contours->callBacks);
     FILE* file = fopen("dmp2.txt", "w");
     std::string s;
-    OP_ASSERT(fromFileContours);
-    s += fromFileContours->debugDump(DebugLevel::file, DebugBase::hex);
+    OP_ASSERT(fileContours);
+    s += fileContours->debugDump(DebugLevel::file, DebugBase::hex);
     int saveWidth = lineWidth;
     lineWidth = 100;
     s = stringFormat(s);
@@ -491,33 +491,7 @@ void verifyFile() {
     fwrite(&s[0], 1, s.size(), file);
     fclose(file);
     fflush(file);
-}
-
-#if !OP_TEST_NEW_INTERFACE
-OpInPath::~OpInPath() {
-    if (debugDumpReference)
-        ReleaseExternalReference(externalReference);
-}
-
-OpOutPath::~OpOutPath() {
-    if (debugDumpReference)
-        ReleaseExternalReference(externalReference);
-}
-#endif
-
-// everything here is leaked (for now; should only be called once per app execution)
-OpContours* dumpInit() {
-    OpContours* result = new OpContours();
-#if !OP_TEST_NEW_INTERFACE
-    result->debugLeft = nullptr;
-    result->debugRight = nullptr;
-#if OP_DEBUG
-    result->debugResult = new OpOutPath(OpOutPath::MakeExternalReference());
-    result->debugResult->debugDumpReference = true;
-#endif
-    result->debugDumpInit = true;
-#endif
-    return result;
+    delete fileContours;
 }
 
 void OpContours::dumpResolve(OpContour*& ) {
@@ -772,13 +746,6 @@ ENUM_NAME(OpDebugExpect, debugExpect)
 
 std::string OpContours::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-#if !OP_TEST_NEW_INTERFACE
-    if (leftIn)
-        s += "leftIn:" + leftIn->debugDump(l, b) + "\n";
-    if (rightIn)
-        s += "rightIn:" + rightIn->debugDump(l, b) + "\n";
-    s += "opIn:" + opOperatorName(opIn) + " ";
-#endif
     if (aliases.size())
         OP_ASSERT(0);  // !!! incomplete
     if (curveDataStorage) {
@@ -800,9 +767,6 @@ std::string OpContours::debugDump(DebugLevel l, DebugBase b) const {
         s += sectStorage->debugDump(l, b) + "\n";
     if (limbStorage)
         s += limbStorage->debugDump(l, b) + "\n";
-#if !OP_TEST_NEW_INTERFACE
-    s += "opOperator:" + opOperatorName(opOperator) + " ";
-#endif
     s += "uniqueID:" + STR(uniqueID) + " ";
 #if OP_DEBUG_VALIDATE
     s += "debugValidateEdgeIndex:" + STR(debugValidateEdgeIndex) + " ";
@@ -815,10 +779,6 @@ std::string OpContours::debugDump(DebugLevel l, DebugBase b) const {
         s += "debugCurveCurve:" + debugCurveCurve->debugDump(l, b) + "\n";
     if (debugJoiner)
         s += "debugJoiner:" + debugJoiner->debugDump(l, b) + "\n";
-#if !OP_TEST_NEW_INTERFACE
-    if (debugResult)
-        s += "debugResult:" + debugResult->debugDump(l, b) + "\n";
-#endif
     if (debugWarnings.size()) {
         s += "debugWarnings:" + STR(debugWarnings.size()) + " [";
         for (auto& warning : debugWarnings)
@@ -837,13 +797,6 @@ std::string OpContours::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 void OpContours::dumpSet(const char*& str) {
-#if !OP_TEST_NEW_INTERFACE
-    if (OpDebugOptional(str, "leftIn"))
-        leftIn->dumpSet(str);
-    if (OpDebugOptional(str, "rightIn"))
-        rightIn->dumpSet(str);
-    opIn = opOperatorStr(str, "opIn", OpOperator::Intersect);
-#endif
     if (OpDebugOptional(str, "aliases"))
         OP_ASSERT(0);  // !!! incomplete
     if (OpDebugOptional(str, "curveDataStorage"))
@@ -861,9 +814,6 @@ void OpContours::dumpSet(const char*& str) {
         OpSectStorage::DumpSet(str, this);
     if (OpDebugOptional(str, "limbStorage"))
         OpLimbStorage::DumpSet(str, this);
-#if !OP_TEST_NEW_INTERFACE
-    opOperator = opOperatorStr(str, "opOperator", OpOperator::Intersect);
-#endif
     OpDebugRequired(str, "uniqueID");
     uniqueID = (int) OpDebugReadSizeT(str);
 #if OP_DEBUG_VALIDATE
@@ -880,17 +830,9 @@ void OpContours::dumpSet(const char*& str) {
     }
     if (OpDebugOptional(str, "debugJoiner")) {
         if (!debugJoiner)
-#if OP_TEST_NEW_INTERFACE
             debugJoiner = new OpJoiner(*this);
-#else
-            debugJoiner = new OpJoiner(*this, *debugResult);
-#endif
         debugJoiner->dumpSet(str);
     }
-#if !OP_TEST_NEW_INTERFACE
-    if (OpDebugOptional(str, "debugResult"))
-        debugResult->dumpSet(str);
-#endif
     if (OpDebugOptional(str, "debugWarnings")) {
         size_t count = OpDebugReadSizeT(str);
         for (size_t index = 0; index < count; ++index)
@@ -918,67 +860,12 @@ void OpContours::dumpResolveAll(OpContours* self) {
         debugCurveCurve->dumpResolveAll(self);
     if (debugJoiner)
         debugJoiner->dumpResolveAll(self);
-#if !OP_TEST_NEW_INTERFACE
-    debugResult->dumpResolveAll(self);
-#endif
 #endif
 }
 
 void dmpContours() {
     dmp(*debugGlobalContours);
 }
-
-ENUM_NAME_STRUCT(SectReason);
-
-#define SECT_REASON_NAME(r) { SectReason::r, #r }
-
-SectReasonName sectReasonNames[] {
-    SECT_REASON_NAME(unset),
-    SECT_REASON_NAME(coinPtsMatch),
-    SECT_REASON_NAME(curveCurveUnsectable),
-    SECT_REASON_NAME(degenerateCenter),
-    SECT_REASON_NAME(edgeCCDist),
-	SECT_REASON_NAME(edgeCCExact),
-	SECT_REASON_NAME(edgeCCHull),
-	SECT_REASON_NAME(edgeCCHullPair),
-	SECT_REASON_NAME(edgeCCNearly),
-	SECT_REASON_NAME(edgeCtrlMid),
-    SECT_REASON_NAME(edgeCurveCurve),
-    SECT_REASON_NAME(edgeLgT),
-    SECT_REASON_NAME(edgeSmT),
-    SECT_REASON_NAME(endPt),
-    SECT_REASON_NAME(inflection),
-    SECT_REASON_NAME(lineCurve),
-    SECT_REASON_NAME(missingCoincidence),
-    SECT_REASON_NAME(oppCCDist),
-	SECT_REASON_NAME(oppCCExact),
-	SECT_REASON_NAME(oppCCHull),
-	SECT_REASON_NAME(oppCCHullPair),
-	SECT_REASON_NAME(oppCCNearly),
-    SECT_REASON_NAME(oppCtrlMid),
-	SECT_REASON_NAME(oppCurveCurve),
-    SECT_REASON_NAME(oppLgT),
-    SECT_REASON_NAME(oppSmT),
-    SECT_REASON_NAME(resolveCoin_windingChange),
-    SECT_REASON_NAME(resolveCoin_oWindingChange),
-    SECT_REASON_NAME(sharedEdge),
-    SECT_REASON_NAME(sharedEnd),
-    SECT_REASON_NAME(sharedStart),
-    SECT_REASON_NAME(soClose),
-    SECT_REASON_NAME(startPt),
-    SECT_REASON_NAME(unsectable),
-    SECT_REASON_NAME(unsectableOppEnd),
-    SECT_REASON_NAME(unsectableOppStart),
-    SECT_REASON_NAME(unsectableEnd),
-    SECT_REASON_NAME(unsectableStart),
-    SECT_REASON_NAME(xExtrema),
-    SECT_REASON_NAME(yExtrema),
-    SECT_REASON_NAME(zeroRun),
-    // testing only
-    SECT_REASON_NAME(test),
-};
-
-ENUM_NAME(SectReason, sectReason)
 
 void dmpMatch(const OpPoint& pt, bool detail) {
     for (const auto c : debugGlobalContours->contours) {
@@ -987,12 +874,6 @@ void dmpMatch(const OpPoint& pt, bool detail) {
                 std::string str = "seg: " 
                         + (detail ? seg.debugDump(DebugLevel::detailed, defaultBase) 
                         : seg.debugDump(defaultLevel, defaultBase));
-#if OP_DEBUG
-                if (pt == seg.c.firstPt() && seg.debugStart != SectReason::startPt)
-                    str += "; start is " + sectReasonName(seg.debugStart);
-                if (pt == seg.c.lastPt() && seg.debugEnd != SectReason::endPt)
-                    str += "; end is " + sectReasonName(seg.debugEnd);
-#endif
                 OpDebugOut(str + "\n");
             }
             for (const auto sect : seg.sects.i) {
@@ -1188,30 +1069,13 @@ void OpContours::debugCompare(std::string s) {
     }
 }
 
-#if !OP_TEST_NEW_INTERFACE
-ENUM_NAME_STRUCT(OpOperand);
-
-#define OPERAND_NAME(r) { OpOperand::r, #r }
-
-OpOperandName opOperandNames[] {
-    OPERAND_NAME(left),
-    OPERAND_NAME(right),
-};
-
-ENUM_NAME(OpOperand, opOperand)
-#endif
-
 std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
     std::string s = "contour:";
     OP_DEBUG_CODE(s += STR(id));
     s += " ";
  //   s += "bounds:" + ptBounds.debugDump(l, b) + " ";
-#if OP_TEST_NEW_INTERFACE
     if (DebugLevel::file != l)
         s += callBacks.debugDumpContourExtraFuncPtr(caller, l, b) + " ";
-#else
-    s += "operand:" + opOperandName(operand) + "\n";
-#endif
     s += "segments:" + STR(segments.size()) + "\n";
     if (DebugLevel::brief == l) {
         s += "[";
@@ -1230,11 +1094,6 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 void OpContour::dumpSet(const char*& str) {
     OpDebugRequired(str, "contour");
     OP_DEBUG_CODE(id = OpDebugReadSizeT(str));
-//    OpDebugRequired(str, "bounds");
-//    ptBounds.dumpSet(str);
-#if !OP_TEST_NEW_INTERFACE
-    operand = opOperandStr(str, "operand", OpOperand::left);
-#endif
     OpDebugRequired(str, "segments");
     int segmentCount = OpDebugReadSizeT(str);
     segments.resize(segmentCount);
@@ -1328,6 +1187,7 @@ void OpContourStorage::dumpResolveAll(OpContours* c) {
     }
 }
 
+#if 0
 ENUM_NAME_STRUCT(OpType);
 #define TYPE_NAME(r) { OpType::r, #r }
 
@@ -1340,6 +1200,7 @@ static OpTypeName opTypeNames[] {
 };
 
 ENUM_NAME(OpType, opType)
+#endif
 
 struct LabelAbbr {
     const char* detailed;
@@ -1456,7 +1317,7 @@ void CurveDataStorage::DumpSet(const char*& str, CurveDataStorage** previousPtr)
 
 std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    s += opTypeName(c.type) + " ";
+    s += contours->callBack(c.type).debugDumpCurveNameFuncPtr() + " ";
     if (DebugLevel::file == l) {
         s += "size:" + STR(c.size) + " ";
         s += "data:" + contours->curveDataStorage->debugDump(c.data) + " ";
@@ -1466,30 +1327,28 @@ std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
             s += hullPt(i).debugDump(l, b) + ", ";
         s.pop_back(); s.pop_back();
         s += " }";
-#if OP_TEST_NEW_INTERFACE
         s += contours->callBack(c.type).debugDumpCurveExtraFuncPtr(c, l, b);
-#else
-        if (OpType::conic == c.type)
-            s += debugValue(l, b, "weight", weightImpl) + " ";
-#endif
     }
     return s;
 }
 
 void OpCurve::dumpSet(const char*& str) {
-    c.type = opTypeStr(str, "", OpType::no);
-#if OP_TEST_NEW_INTERFACE
+    size_t strLen = 0;
+    while (isalnum(str[strLen]))
+        ++strLen;
+    for (size_t index = 0; index < contours->callBacks.size(); ++index) {
+        std::string name = contours->callBacks[index].debugDumpCurveNameFuncPtr();
+        if (name.size() == strLen && !strncmp(str, name.c_str(), strLen)) {
+            str += strLen;
+            if (' ' == str[0])
+                ++str;
+            c.type = (OpType) index;
+        }
+    }
     OpDebugRequired(str, "size");
     c.size = OpDebugReadSizeT(str);
     OpDebugRequired(str, "data");
     c.data = contours->curveDataStorage->dumpSet(str);  // do not allocate, just point to
-#else
-    OpDebugRequired(str, "{");
-    dumpSetPts(str);
-    OpDebugOptional(str, "}");
-    if (OpDebugOptional(str, "weight"))
-        weightImpl = OpDebugHexToFloat(str);
-#endif
 }
 
 ENUM_NAME_STRUCT(EdgeMatch);
@@ -1516,28 +1375,6 @@ static EdgeFailName edgeFailNames[] {
 
 ENUM_NAME(EdgeFail, edgeFail)
 
-#if OP_DEBUG
-ENUM_NAME_STRUCT(EdgeMaker);
-#define EDGE_MAKER_NAME(r) { EdgeMaker::r, #r }
-
-static EdgeMakerName edgeMakerNames[] {
-    EDGE_MAKER_NAME(empty),
-    EDGE_MAKER_NAME(filler),
-    EDGE_MAKER_NAME(hull),
-    EDGE_MAKER_NAME(makeEdges),
-    EDGE_MAKER_NAME(oppSect),
-    EDGE_MAKER_NAME(segSect),
-    EDGE_MAKER_NAME(snip),
-    EDGE_MAKER_NAME(split),
-    EDGE_MAKER_NAME(splitLeft),
-    EDGE_MAKER_NAME(splitRight),
-    EDGE_MAKER_NAME(addTest),
-    EDGE_MAKER_NAME(opTest),
-};
-
-ENUM_NAME(EdgeMaker, edgeMaker);
-#endif
-
 ENUM_NAME_STRUCT(WindZero);
 #define WIND_ZERO_NAME(r) { WindZero::r, #r }
 
@@ -1561,33 +1398,6 @@ static AxisName axisNames[] {
 };
 
 ENUM_NAME(Axis, axis)
-
-ENUM_NAME_STRUCT(ZeroReason);
-
-#define REASON_NAME(r) { ZeroReason::r, #r }
-
-static ZeroReasonName zeroReasonNames[] {
-    REASON_NAME(uninitialized),
-    REASON_NAME(addedPalToOutput),
-    REASON_NAME(addIntersection),
-    REASON_NAME(applyOp),
-    REASON_NAME(centerNaN),
-    REASON_NAME(collapsed),
-    REASON_NAME(filler),
-    REASON_NAME(findCoincidences), 
-    REASON_NAME(hvCoincidence1),
-    REASON_NAME(hvCoincidence2),
-    REASON_NAME(hvCoincidence3),
-    REASON_NAME(hvCoincidence4),
-    REASON_NAME(isPoint),
-    REASON_NAME(noFlip),
-    REASON_NAME(none),
-    REASON_NAME(palWinding),
-    REASON_NAME(rayFail),
-    REASON_NAME(segmentPoint),
-};
-
-ENUM_NAME(ZeroReason, zeroReason)
 
 ENUM_NAME_STRUCT(EdgeSplit);
 
@@ -1659,7 +1469,7 @@ ENUM_NAME(EdgeSplit, edgeSplit)
 	OP_X(Match) \
 	OP_X(ZeroErr) \
 	OP_X(Maker) \
-	OP_X(Zero) \
+    OP_X(SetDisabled) \
 	OP_X(SetMaker) \
 	OP_X(SetSum) \
 	OP_X(OutPath) \
@@ -1995,25 +1805,10 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
              const OpWinding& wind) {
         std::string s;
         if (!dumpAlways(match)) {
-#if OP_TEST_NEW_INTERFACE
             if (!wind.contour)
                 return s;
-#else
-            if (WindingType::temp == wind.debugType && !wind.left() && !wind.right())
-                return s;
-            if (OpMax == wind.left() && OpMax == wind.right())
-                return s;
-#endif
         }
-#if OP_TEST_NEW_INTERFACE
         s += strLabel(label) + ":" + wind.debugDump(l, b) + " ";
-#else
-        s += strLabel(label) + ":";
-        s += OpMax == wind.left() ? "--" : STR(wind.left());
-        s += "/";
-        s += OpMax == wind.right() ? "--" : STR(wind.right());
-        s += " ";
-#endif
         return s;
     };
     auto strSect = [dumpAlways, strLabel](EdgeFilter match, std::string label, 
@@ -2117,15 +1912,16 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         s += (debugMatch ? STR(debugMatch->id) : std::string("-")) + " ";
     if (dumpIt(EdgeFilter::debugZeroErr) && (dumpAlways(EdgeFilter::debugZeroErr) || debugZeroErr))  
         s += (debugZeroErr ? STR(debugZeroErr->id) : std::string("-")) + " ";
-    s += strEnum(EF::debugMaker, "debugMaker", EdgeMaker::empty == debugMaker,
-            edgeMakerName(debugMaker));
-    s += strEnum(EF::debugZero, "debugZero", ZeroReason::uninitialized == debugZero,
-            zeroReasonName(debugZero));
+    if (dumpIt(EF::debugSetDisabled) && (dumpAlways(EdgeFilter::debugSetDisabled) 
+            || debugSetDisabled.line))
+        s += "debugSetDisabled:" + debugSetDisabled.debugDump() + " ";
+#if OP_DEBUG_MAKER
     if (dumpIt(EF::debugSetMaker)) {
         if (DebugLevel::file == l)
             s += "debugSetMaker:";
         s += debugSetMaker.debugDump() + " ";
     }
+#endif
     if (dumpIt(EF::debugSetSum) && (dumpAlways(EF::debugSetSum) || debugSetSum.line))
         s += "debugSetSum:" + debugSetSum.debugDump() + " ";
     s += strID(EF::debugOutPath, "debugOutPath", debugOutPath);
@@ -2278,12 +2074,16 @@ void OpEdge::dumpSet(const char*& str) {
     debugEnd = (OpIntersection*) strID("debugEnd");
     debugMatch = (OpEdge*) strID("debugMatch");
     debugZeroErr = (OpEdge*) strID("debugZeroErr");
-    debugMaker = edgeMakerStr(str, "debugMaker", EdgeMaker::empty);
-    debugZero = zeroReasonStr(str, "debugZero", ZeroReason::uninitialized);
+#endif
+#if OP_DEBUG_MAKER
+    if (OpDebugOptional(str, "debugSetDisabled"))
+        debugSetDisabled.dumpSet(str);
     if (OpDebugOptional(str, "debugSetMaker"))
         debugSetMaker.dumpSet(str);
     if (OpDebugOptional(str, "debugSetSum"))
         debugSetSum.dumpSet(str);
+#endif
+#if OP_DEBUG
     debugOutPath = strID("debugOutPath");
     debugParentID = strID("debugParentID");
     debugRayMatch = strID("debugRayMatch");
@@ -2835,10 +2635,6 @@ std::string OpJoiner::debugDump(DebugLevel l, DebugBase b) const {
         dumpEdgeIDs(disabledPals, "disabledPals");
         dumpEdgeIDs(unsortables, "unsortables");
     } else {
-#if !OP_TEST_NEW_INTERFACE
-        if (!path.debugIsEmpty())
-            s += "path:" + path.debugDump(l, b) + "\n";
-#endif
         auto dumpEdges = [&s, l, b](const std::vector<OpEdge*>& edges, std::string name) {
             size_t activeCount = 0;
             for (auto e : edges)
@@ -3191,9 +2987,8 @@ std::string CcSect::debugDump(DebugLevel l, DebugBase b) const {
     if (DebugLevel::brief != l)
         s += "\n";
     s += " ptT:" + ptT.debugDump(l, b);
-#if OP_DEBUG
+#if OP_DEBUG_MAKER
     if (DebugLevel::brief != l) {
-	    s += " debugReason:" + sectReasonName(debugReason);
         s += " debugSetMaker:" + debugSetMaker.debugDump();
     }
 #endif
@@ -3233,9 +3028,7 @@ std::string FoundLimits::debugDump(DebugLevel l, DebugBase b) const {
     s += " opp:" + opp.debugDump(l, b);
     if (fromFoundT)
         s += " fromFoundT";
-#if OP_DEBUG
-    s += " eReason:" + sectReasonName(eReason);
-	s += " oReason:" + sectReasonName(oReason);
+#if OP_DEBUG_MAKER
     s += " maker:" + maker.debugDump();
 #endif
     return s;
@@ -3251,9 +3044,7 @@ void FoundLimits::dumpSet(const char*& str) {
     OpDebugRequired(str, "opp");
     opp.dumpSet(str);
     fromFoundT = OpDebugOptional(str, "fromFoundT");
-#if OP_DEBUG
-    eReason = sectReasonStr(str, "eReason", SectReason::unset);
-    oReason = sectReasonStr(str, "oReason", SectReason::unset);
+#if OP_DEBUG_MAKER
     OpDebugRequired(str, "maker");
     maker.dumpSet(str);
 #endif
@@ -3630,9 +3421,10 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
         s += "!!! (unexpected) " + matchEndsName(coinEnd);
     if (coincidenceProcessed)
         s += " coincidenceProcessed";
-#if OP_DEBUG
-    s += " reason:" + sectReasonName(debugReason);
+#if OP_DEBUG_MAKER
     s += " " + debugSetMaker.debugDump();
+#endif
+#if OP_DEBUG
     auto edgeOrSegment = [l](int debug_id, std::string label) {
         std::string result = label + " ";
         if (DebugLevel::file != l) {
@@ -3683,9 +3475,10 @@ void OpIntersection::dumpSet(const char*& str) {
     unsectID = OpDebugOptional(str, "unsectID") ? readCoinID(str) : 0;
     unsectEnd = matchEndsStr(str, "unsectEnd", MatchEnds::none);
     coincidenceProcessed = OpDebugOptional(str, "coincidenceProcessed");
-#if OP_DEBUG
-    debugReason = sectReasonStr(str, "reason", SectReason::unset);
+#if OP_DEBUG_MAKER
     debugSetMaker.dumpSet(str);
+#endif
+#if OP_DEBUG
     debugID = OpDebugOptional(str, "debugID") ? OpDebugReadSizeT(str) : 0;
     debugOppID = OpDebugOptional(str, "debugOppID") ? OpDebugReadSizeT(str) : 0;
 #endif
@@ -3878,11 +3671,9 @@ std::string OpSegment::debugDump(DebugLevel l, DebugBase b) const {
         s += "winding:" + winding.debugDump(l, b) + " ";
         if (disabled)
             s += "disabled ";
-#if OP_DEBUG
-        s += "start_reason:" + sectReasonName(debugStart) + " ";
-        s += "end_reason:" + sectReasonName(debugEnd) + " ";
-        if (ZeroReason::uninitialized != debugZero)
-            s += "reason:" + zeroReasonName(debugZero) + " ";
+#if OP_DEBUG_MAKER
+        if (debugSetDisabled.line)
+            s += "debugSetDisabled:" + debugSetDisabled.debugDump() + " ";
 #endif
         s.pop_back();
         return s;
@@ -3918,11 +3709,6 @@ void OpSegment::dumpSet(const char*& str) {
     OpDebugRequired(str, "winding");
     winding.dumpSet(str, contour->contours);
     disabled = OpDebugOptional(str, "disabled");
-#if OP_DEBUG
-    debugStart = sectReasonStr(str, "start_reason", SectReason::unset);
-    debugEnd = sectReasonStr(str, "end_reason", SectReason::unset);
-    debugZero = zeroReasonStr(str, "reason", ZeroReason::uninitialized);
-#endif
 }
 
 void OpSegment::dumpResolveAll(OpContours* contours) {
@@ -4028,7 +3814,6 @@ ENUM_NAME(WindingType, windingType)
 
 std::string OpWinding::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-#if OP_TEST_NEW_INTERFACE
     s += "contour:";
     // !!! incomplete; if debug level is file or detailed, dump raw hex for winding data
     if (!contour)
@@ -4050,18 +3835,10 @@ std::string OpWinding::debugDump(DebugLevel l, DebugBase b) const {
             s += "]";
         }
     }
-#else
-#if OP_DEBUG
-    s += "type:" + std::string(windingTypeNames[(int)debugType + 1].name);  // + 1: see above
-#endif
-    s += " left: " + (OpMax == left() ? std::string("unset") : STR(left()));
-    s += " right: " + (OpMax == right() ? std::string("unset") : STR(right()));
-#endif
     return s;
 }
 
 void OpWinding::dumpSet(const char*& str, OpContours* dumpContours) {
-#if OP_TEST_NEW_INTERFACE
     OpDebugRequired(str, "contour");
     int contourID = OpDebugReadSizeT(str);
     for (auto c : dumpContours->contours) {
@@ -4080,13 +3857,6 @@ void OpWinding::dumpSet(const char*& str, OpContours* dumpContours) {
     OpDebugRequired(str, "[");
     for (size_t index = 0; index < w.size; ++index)
         ((uint8_t*) w.data)[index] = OpDebugByteToInt(str);
-#else
-    OP_DEBUG_CODE(debugType = windingTypeStr(str, "type", WindingType::uninitialized));
-    OpDebugOptional(str, "left");
-    left_impl = OpDebugReadSizeT(str);
-    OpDebugOptional(str, "right");
-    right_impl = OpDebugReadSizeT(str);
-#endif
 }
 
 void OpWinding::dumpSet(const char*& ) {
@@ -4351,6 +4121,7 @@ std::string OpRoots::debugDump(DebugLevel l, DebugBase b) const {
     return s;
 }
 
+#if OP_DEBUG_MAKER
 std::string OpDebugMaker::debugDump() const {
 	return ("" == file ? std::string("(no file)") : file.substr(file.find("Op"))) + ":" + STR(line);
 }
@@ -4366,6 +4137,7 @@ void OpDebugMaker::dumpSet(const char*& str) {
     str = ++colon;
     line = OpDebugReadSizeT(str);
 }
+#endif
 
 std::string LinePts::debugDump(DebugLevel l, DebugBase b) const {
     return "0:" + pts[0].debugDump(l, b) + ", 1:" + pts[1].debugDump(l, b);

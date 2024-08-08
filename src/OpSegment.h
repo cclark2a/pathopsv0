@@ -57,20 +57,20 @@ struct FoundEdge {
 struct OpSegment {
     OpSegment(PathOpsV0Lib::AddCurve , PathOpsV0Lib::AddWinding );
     OpSegment(const OpCurve& pts, OpType type, OpContour*  
-            OP_DEBUG_PARAMS(SectReason , SectReason ));
-    OpSegment(const LinePts& pts, OpContour*  OP_DEBUG_PARAMS(SectReason , SectReason ));
+            OP_DEBUG_PARAMS());
+    OpSegment(const LinePts& pts, OpContour*  OP_DEBUG_PARAMS());
     bool activeAtT(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& , bool* hadLinkTo) const;
     bool activeNeighbor(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const;
     OpIntersection* addEdgeSect(const OpPtT&    
-            OP_LINE_FILE_DEF(SectReason , const OpEdge* e, const OpEdge* o));
+            OP_LINE_FILE_DEF(const OpEdge* e, const OpEdge* o));
     OpIntersection* addSegBase(const OpPtT&  
-            OP_LINE_FILE_DEF(SectReason , const OpSegment* o));
+            OP_LINE_FILE_DEF(const OpSegment* o));
     OpIntersection* addSegSect(const OpPtT& , const OpSegment* o  
-            OP_LINE_FILE_DEF(SectReason ));
+            OP_LINE_FILE_DEF());
     OpIntersection* addCoin(const OpPtT& , int coinID, MatchEnds , const OpSegment* o  
-            OP_LINE_FILE_DEF(SectReason ));
+            OP_LINE_FILE_DEF());
     OpIntersection* addUnsectable(const OpPtT& , int usectID, MatchEnds , const OpSegment* o 
-            OP_LINE_FILE_DEF(SectReason ));
+            OP_LINE_FILE_DEF());
     void apply();
     int coinID(bool flipped) const;
     void complete();
@@ -79,8 +79,8 @@ struct OpSegment {
 //    float findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const;
     float findValidT(float start, float end, OpPoint opp);
     // count and sort extrema; create an edge for each extrema + 1
-    void makeEdge(const OpPtT& s, const OpPtT& e  OP_LINE_FILE_DEF(EdgeMaker maker));
-    void makeEdge(OP_LINE_FILE_NP_DEF(EdgeMaker maker));
+    void makeEdge(const OpPtT& s, const OpPtT& e  OP_LINE_FILE_DEF());
+    void makeEdge(OP_LINE_FILE_NP_DEF());
     void makeEdges();
     MatchReverse matchEnds(const OpSegment* opp) const;
 //    MatchEnds matchExisting(const OpSegment* opp) const;
@@ -89,10 +89,8 @@ struct OpSegment {
     bool nearby(float t, const OpSegment* opp) const;
     int nextID() const;
     void newWindCoincidences();  // !!! will eventually replace wind coincidences
-//	void reenable() {
-//		disabled = false; OP_DEBUG_CODE(debugZero = ZeroReason::uninitialized); }
     void setBounds();
-	void setDisabled(OP_DEBUG_CODE(ZeroReason reason));
+	void setDisabled(OP_LINE_FILE_NP_DEF());
     void windCoincidences();
 
     bool debugFail() const;
@@ -125,10 +123,8 @@ struct OpSegment {
     OpWinding winding;
     bool disabled; // winding has canceled this edge out
     int id;     // !!! could be debug only; currently used to disambiguate sort, may be unneeded
-#if OP_DEBUG
-    SectReason debugStart;
-    SectReason debugEnd;
-    ZeroReason debugZero;
+#if OP_DEBUG_MAKER
+	OpDebugMaker debugSetDisabled;
 #endif
 };
 

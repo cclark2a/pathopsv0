@@ -129,14 +129,14 @@ void SetSkiaCurveCallBacks(Context* context) {
             lineIsLine, /* noLinear, */ noBounds, lineNormal, skiaLineOutput, noPinCtrl, noReverse,
             lineTangent, linesEqual, linePtAtT, /* double not required */ linePtAtT, 
             linePtCount, noRotate, lineSubDivide, lineXYAtT
-            OP_DEBUG_DUMP_PARAMS(noDumpCurveExtra)
+            OP_DEBUG_DUMP_PARAMS(lineDebugDumpName, noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath)
     );
     skiaQuadType = SetCurveCallBacks(context, quadAxisRawHit, /* quadNearly, */ quadHull, quadIsFinite, 
             quadIsLine, /* quadIsLinear, */ quadSetBounds, quadNormal, skiaQuadOutput, quadPinCtrl, 
             noReverse, quadTangent, quadsEqual, quadPtAtT, /* double not required */ quadPtAtT, 
             quadPtCount, quadRotate, quadSubDivide, quadXYAtT
-            OP_DEBUG_DUMP_PARAMS(noDumpCurveExtra)
+            OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath)
     );
     skiaConicType = SetCurveCallBacks(context, conicAxisRawHit, /* conicNearly, */ conicHull, 
@@ -144,7 +144,7 @@ void SetSkiaCurveCallBacks(Context* context) {
             /* conicIsLinear, */ conicSetBounds, conicNormal, skiaConicOutput, quadPinCtrl, noReverse,
             conicTangent, conicsEqual, conicPtAtT, /* double not required */ conicPtAtT, 
             conicPtCount, conicRotate, conicSubDivide, conicXYAtT
-            OP_DEBUG_DUMP_PARAMS(conicDebugDumpExtra)
+            OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
             OP_DEBUG_IMAGE_PARAMS(debugConicAddToSkPath)
     );
     skiaCubicType = SetCurveCallBacks(context, cubicAxisRawHit, /* cubicNearly, */ cubicHull, 
@@ -152,7 +152,7 @@ void SetSkiaCurveCallBacks(Context* context) {
             /* cubicIsLinear, */ cubicSetBounds, cubicNormal, skiaCubicOutput, cubicPinCtrl, cubicReverse,
             cubicTangent, cubicsEqual, cubicPtAtT, /* double not required */ cubicPtAtT, 
             cubicPtCount, cubicRotate, cubicSubDivide, cubicXYAtT
-            OP_DEBUG_DUMP_PARAMS(noDumpCurveExtra)
+            OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(debugCubicAddToSkPath)
     );
 }

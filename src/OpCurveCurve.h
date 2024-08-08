@@ -3,6 +3,7 @@
 #define OpCurveCurve_DEFINED
 
 #include "OpContour.h"
+#include "OpCurve.h"
 #include "OpEdge.h"
 #include "OpIntersection.h"
 
@@ -123,10 +124,8 @@ struct FoundLimits {
 	OpPtT seg;
 	OpPtT opp;
 	bool fromFoundT;  // if set, don't add segment intersections
-#if OP_DEBUG
+#if OP_DEBUG_MAKER
 	OpDebugMaker maker;
-	SectReason eReason;
-	SectReason oReason;
 #endif
 };
 
@@ -155,7 +154,7 @@ struct OpCurveCurve {
 	bool ifNearly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& opp, const OpPtT& oppPtT);
 //	static bool LineMissed(OpEdge& edge, OpEdge& opp);
 	void recordSect(OpEdge* edge, OpEdge* opp, const OpPtT& edgePtT, const OpPtT& oppPtT
-			OP_LINE_FILE_DEF(SectReason eReason, SectReason oReason));
+			OP_LINE_FILE_DEF());
 	bool rotatedIntersect(OpEdge& edge, OpEdge& opp, bool sharesPoint);
 	SectFound runsToLimits();
 	void setHullSects(OpEdge& edge, OpEdge& opp, CurveRef );

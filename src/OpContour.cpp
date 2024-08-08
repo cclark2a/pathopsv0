@@ -37,9 +37,9 @@ void OpContours::addCallerData(PathOpsV0Lib::AddContext data) {
 }
 
 OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg  
-        OP_LINE_FILE_DEF(SectReason reason, const OpEdge* edge, const OpEdge* oEdge)) {
+        OP_LINE_FILE_DEF(const OpEdge* edge, const OpEdge* oEdge)) {
     OpIntersection* next = contours->allocateIntersection();
-    next->set(t, seg  OP_LINE_FILE_CALLER(reason, edge->id, oEdge->id));
+    next->set(t, seg  OP_LINE_FILE_CALLER(edge->id, oEdge->id));
     return next;
 }
 
@@ -72,32 +72,32 @@ OpEdge* OpContour::addFiller(OpIntersection* start, OpIntersection* end) {
         return nullptr;  // !!! when does this happen? what is the implication? e.g. fuzz433
     void* block = contours->allocateEdge(contours->fillerStorage);
     OpEdge* filler = new(block) OpEdge(start->segment, start->ptT, end->ptT
-            OP_LINE_FILE_PARAMS(EdgeMaker::filler, start, end));
+            OP_LINE_FILE_PARAMS(start, end));
     OP_DEBUG_CODE(filler->debugFiller = true);
-    filler->setDisabled(OP_DEBUG_CODE(ZeroReason::filler));
+    filler->setDisabled(OP_LINE_FILE_NPARAMS());
     return filler;
 }
 
 OpIntersection* OpContour::addCoinSect(const OpPtT& t, OpSegment* seg, int cID, MatchEnds coinEnd
-        OP_LINE_FILE_DEF(SectReason reason, const OpSegment* oSeg)) {
+        OP_LINE_FILE_DEF(const OpSegment* oSeg)) {
 	OP_ASSERT(MatchEnds::both != coinEnd);
     OpIntersection* next = contours->allocateIntersection();
-    next->set(t, seg  OP_LINE_FILE_CALLER(reason, seg->id, oSeg->id));
+    next->set(t, seg  OP_LINE_FILE_CALLER(seg->id, oSeg->id));
 	next->setCoin(cID, coinEnd);  // 0 if no coincidence; negative if coincident pairs are reversed
     return next;
 }
 
 OpIntersection* OpContour::addSegSect(const OpPtT& t, OpSegment* seg  
-        OP_LINE_FILE_DEF(SectReason reason, const OpSegment* oSeg)) {
+        OP_LINE_FILE_DEF(const OpSegment* oSeg)) {
     OpIntersection* next = contours->allocateIntersection();
-    next->set(t, seg  OP_LINE_FILE_CALLER(reason, seg->id, oSeg->id));
+    next->set(t, seg  OP_LINE_FILE_CALLER(seg->id, oSeg->id));
     return next;
 }
 
 OpIntersection* OpContour::addUnsect(const OpPtT& t, OpSegment* seg, int uID, MatchEnds unsectEnd
-        OP_LINE_FILE_DEF(SectReason reason, const OpSegment* oSeg)) {
+        OP_LINE_FILE_DEF(const OpSegment* oSeg)) {
     OpIntersection* next = contours->allocateIntersection();
-    next->set(t, seg  OP_LINE_FILE_CALLER(reason, seg->id, oSeg->id));
+    next->set(t, seg  OP_LINE_FILE_CALLER(seg->id, oSeg->id));
 	OP_ASSERT(MatchEnds::both != unsectEnd);
 	next->setUnsect(uID, unsectEnd);
     return next;
@@ -260,7 +260,7 @@ void OpContours::disableSmallSegments() {
             return (a.pt == seg->c.c.data->start || a.alias == seg->c.c.data->start)
                     && (a.pt == seg->c.c.data->end || a.alias == seg->c.c.data->end);
         })) {
-            seg->setDisabled(OP_DEBUG_CODE(ZeroReason::isPoint));
+            seg->setDisabled(OP_LINE_FILE_NPARAMS());
         }
     }
 }
@@ -314,7 +314,7 @@ bool OpContours::pathOps() {
     debugValidateIntersections();
 #endif
     if (!sortedSegments.inX.size()) {
-        contextCallBacks.emptyNativePath(callerOutput);
+        contextCallBacks.emptyNativePathFuncPtr(callerOutput);
         OP_DEBUG_SUCCESS(*this, true);
     }
     if (FoundIntersections::fail == sortedSegments.findIntersections())
@@ -324,7 +324,7 @@ bool OpContours::pathOps() {
 #endif
     disableSmallSegments();  // moved points may allow disabling some segments
     if (empty()) {
-        contextCallBacks.emptyNativePath(callerOutput);
+        contextCallBacks.emptyNativePathFuncPtr(callerOutput);
         OP_DEBUG_SUCCESS(*this, true);
     }
     sortIntersections();

@@ -200,13 +200,9 @@ inline bool quadIsLinear(Curve c) {
 }
 #endif
 
-#if 0 && OP_DEBUG_DUMP
-inline size_t quadDebugDumpSize() {
-    return offsetof(CurveData, optionalAdditionalData) + sizeof(OpPoint);
-}
-
-inline void quadDumpSet(Curve c, const char*& str) {
-    quadControlPt(c).dumpSet(str);
+#if OP_DEBUG_DUMP
+inline std::string quadDebugDumpName() { 
+    return "quad"; 
 }
 #endif
 
