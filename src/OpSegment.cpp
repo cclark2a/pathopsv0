@@ -305,8 +305,12 @@ void OpSegment::moveTo(float matchT, OpPoint equalPt) {
     for (OpIntersection* sect : sects.i) {
         if (sect->ptT.t == matchT) {
             sect->ptT.pt = equalPt;
-            if (sect->opp->ptT.pt != equalPt)
-                sect->opp->segment->moveTo(sect->opp->ptT.t, equalPt);
+            if (sect->opp->ptT.pt != equalPt) {
+                if (sect->opp->ptT.onEnd())
+                    sect->opp->segment->moveTo(sect->opp->ptT.t, equalPt);
+                else
+                    sect->opp->ptT.pt = equalPt;
+            }
         }
     }
     edges.clear();
@@ -514,7 +518,7 @@ void OpSegment::newWindCoincidences() {
                 break;
             OP_ASSERT(sectIndex < sects.i.size());
         }
-        auto checkCoin = [&edge, &sect](OpEdge* oEdge, EdgeMatch oMatch) {
+        auto checkCoin = [&edge /*, &sect */](OpEdge* oEdge, EdgeMatch oMatch) {
             if (!oEdge->isLine())
                 return;
             if (oEdge->disabled)
@@ -522,17 +526,32 @@ void OpSegment::newWindCoincidences() {
             if (oEdge->isUnsectable)
                 return;
             OpPoint oEnd = EdgeMatch::start == oMatch ? oEdge->end.pt : oEdge->start.pt;
+#if 0  // eventually, handle partial coincident. For now, just detect full coincidence
             if (!edge->ptBounds.contains(oEnd))
                 return;
             LinePts linePts { edge->start.pt, edge->end.pt };
             if (!linePts.ptOnLine(oEnd))
                 return;
+#else
+            if (edge->end.pt != oEnd)
+                return;
+#endif
+#if 0 && OP_DEBUG
             std::string s = "coin? edge:" + STR(edge->id) + " oEdge:" + STR(oEdge->id);
             if (EdgeMatch::end == oMatch)
                 s += " reversed";
             if (sect->coincidenceID)
                 s += " extend";
-            OpDebugOut(s + "\n");
+#endif
+            if (!edge->winding.visible())
+                return;
+            OP_ASSERT(oEdge->winding.visible());
+            edge->winding.move(oEdge->winding, EdgeMatch::end == oMatch);
+            oEdge->setDisabledZero(OP_LINE_FILE_NPARAMS());
+            if (!edge->winding.visible()) {
+                edge->setDisabled(OP_LINE_FILE_NPARAMS());
+            }
+//            OP_DEBUG_CODE(OpDebugOut(s + "\n"));
         };
         next = sect;
         --sectIndex;
@@ -563,9 +582,14 @@ void OpSegment::newWindCoincidences() {
             size_t oppEdgeIndex = 0;
             OpEdge* oppEdge = nullptr;
             do {
-                OP_ASSERT(oppEdgeIndex < oppSeg->edges.size());
+                if (oppEdgeIndex == oppSeg->edges.size()) {  // no opp edge if t value range is zero 
+                    oppEdge = nullptr;
+                    break;
+                }
                 oppEdge = &oppSeg->edges[oppEdgeIndex++];
             } while (oppEdge->start.pt != edge->start.pt && oppEdge->end.pt != edge->start.pt);
+            if (!oppEdge)
+                continue;
             EdgeMatch match = oppEdge->start.pt == edge->start.pt ? EdgeMatch::start : EdgeMatch::end;
             OP_ASSERT(EdgeMatch::start == match || oppEdge->end.pt == edge->start.pt);
             checkCoin(oppEdge, match);

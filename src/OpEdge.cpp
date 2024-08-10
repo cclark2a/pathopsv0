@@ -827,7 +827,9 @@ void OpEdge::setSum(const PathOpsV0Lib::Winding& w  OP_LINE_FILE_DEF(int dummy))
 	sum.w.data = contours()->allocateWinding(w.size);
 	memcpy(sum.w.data, w.data, w.size);
 	sum.w.size = w.size;
-	OP_DEBUG_CODE(debugSetSum = { fileName, lineNo });
+#if OP_DEBUG_MAKER
+	debugSetSum = { fileName, lineNo };
+#endif
 }
 
 // this is too complicated because

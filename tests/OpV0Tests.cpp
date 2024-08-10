@@ -896,8 +896,6 @@ b.close();
     testPathOp(reporter, left, b, kDifference_SkPathOp, filename);
 }
 
-
-
 static void pentrek11(skiatest::Reporter* reporter, const char* filename) {
 SkPath b;
 b.moveTo(0x1.a76d0cp+8, 0x1.902928p+7);
@@ -5677,8 +5675,76 @@ path.close();
     testSimplify(reporter, path, filename);
 }
 
+void testQuads1907119(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(1, 0, 0, 3);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 0);
+path.quadTo(0, 1, 1, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads158277(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(0, 0, 1, 0);
+path.lineTo(2, 1);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(3, 0);
+path.quadTo(0, 1, 0, 2);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads15234011(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(2, 0);
+path.quadTo(0, 2, 1, 3);
+path.lineTo(1, 3);
+path.lineTo(2, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(3, 1);
+path.quadTo(0, 2, 1, 3);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads10049829(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 0);
+path.quadTo(2, 1, 0, 2);
+path.lineTo(2, 2);
+path.lineTo(1, 0);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(3, 0);
+path.quadTo(0, 1, 0, 2);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
 static struct TestDesc tests[] = {
-//    TEST(testQuads26021089),
+    TEST(testQuads10049829),
+    TEST(testQuads15234011),
+    TEST(testQuads158277),
+    TEST(testQuads1907119),
+    TEST(testQuads26021089),
     TEST(testQuads25528043),
     TEST(testQuads2728789),
     TEST(testQuads4140067),

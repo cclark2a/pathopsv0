@@ -1811,12 +1811,6 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         s += strLabel(label) + ":" + wind.debugDump(l, b) + " ";
         return s;
     };
-    auto strSect = [dumpAlways, strLabel](EdgeFilter match, std::string label, 
-            const OpIntersection* sect) {
-        if (!dumpAlways(match) && !sect)
-            return std::string("");
-        return strLabel(label) + ":" + (!sect ? std::string("-") : STR(sect->id)) + " ";
-    };
     auto strEnum = [dumpIt, dumpAlways, strLabel](EdgeFilter match, std::string label,
             bool enumHasDefault, std::string enumName) {
         if (!dumpIt(match) || (!dumpAlways(match) && enumHasDefault))
@@ -1906,8 +1900,6 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     STR_BOOL(startSeen);
     STR_BOOL(endSeen);
 #if OP_DEBUG
-    if (dumpIt(EF::debugStart)) s += strSect(EF::debugStart, "debugStart", debugStart);
-    if (dumpIt(EF::debugEnd)) s += strSect(EF::debugEnd, "debugEnd", debugEnd);
     if (dumpIt(EdgeFilter::debugMatch) && (dumpAlways(EdgeFilter::debugMatch) || debugMatch))
         s += (debugMatch ? STR(debugMatch->id) : std::string("-")) + " ";
     if (dumpIt(EdgeFilter::debugZeroErr) && (dumpAlways(EdgeFilter::debugZeroErr) || debugZeroErr))  
@@ -2070,8 +2062,6 @@ void OpEdge::dumpSet(const char*& str) {
     STR_BOOL(startSeen);
     STR_BOOL(endSeen);
 #if OP_DEBUG
-    debugStart = (OpIntersection*) strID("debugStart");
-    debugEnd = (OpIntersection*) strID("debugEnd");
     debugMatch = (OpEdge*) strID("debugMatch");
     debugZeroErr = (OpEdge*) strID("debugZeroErr");
 #endif
@@ -2110,8 +2100,6 @@ void OpEdge::dumpResolveAll(OpContours* c) {
     for (auto& hull : hulls.h)
         hull.dumpResolveAll(c);
 #if OP_DEBUG
-    c->dumpResolve(debugStart);
-    c->dumpResolve(debugEnd);
     c->dumpResolve(debugMatch);
     c->dumpResolve(debugZeroErr);
 #endif

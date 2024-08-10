@@ -56,6 +56,7 @@ struct OpIntersection {
 	coinEnd = MatchEnds::none;
 	unsectEnd = MatchEnds::none;
 	coincidenceProcessed = false;
+	mergeProcessed = false;
 	id = 0;
 	debugID = 0;
 	debugOppID = 0;
@@ -83,11 +84,14 @@ struct OpIntersection {
 		coinEnd = MatchEnds::none;
 		unsectEnd = MatchEnds::none;
 		coincidenceProcessed = false;
+		mergeProcessed = false;
+#if OP_DEBUG_MAKER
+		debugSetMaker = { fileName, lineNo };
+#endif
 #if OP_DEBUG
 		debugID = ID;
 		debugOppID = oppID;
 		debugCoincidenceID = 0;
-		debugSetMaker = { fileName, lineNo };
 		debugErased = false;
 #endif
 	}
@@ -132,6 +136,7 @@ struct OpIntersection {
 	MatchEnds coinEnd;  // used to put start before end on sect sort
 	MatchEnds unsectEnd;
 	bool coincidenceProcessed;
+	bool mergeProcessed;
 #if OP_DEBUG
 	int id;
 	int debugID;	// pair of edges or segments that intersected (!!! only useful if edges?)

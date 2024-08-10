@@ -85,14 +85,14 @@ struct OpDebugData {
 #define OP_EXECUTE_AND_ASSERT(expr) (expr)
 #define OP_LINE_FILE_PARAMS(...)
 #define OP_LINE_FILE_NPARAMS(...)
-#define OP_LINE_FILE_NARGS()
 #define OP_LINE_FILE_STRUCT(...)
 #define OP_LINE_FILE_CALLER(...)
 #define OP_LINE_FILE_NP_CALLER(...)
 #define OP_LINE_FILE_SCALLER(...)
 #define OP_LINE_FILE_DEF(...)
 #define OP_LINE_FILE_NP_DEF(...)
-#define OP_LINE_FILE_NARGS_DEF()
+#define OP_LINE_FILE_SET(debugMaker)
+#define OP_LINE_FILE_SET_IMMED(debugMaker)
 #define OP_TRACK(vector)
 #define OP_WARNING(contours, str)
 
@@ -175,6 +175,17 @@ struct OpDebugMaker {
 #define OP_LINE_FILE_NP_DEF(...) int lineNo, std::string fileName, __VA_ARGS__
 #define OP_LINE_FILE_SET(debugMaker) debugMaker = { fileName, lineNo }
 #define OP_LINE_FILE_SET_IMMED(debugMaker) debugMaker = { __FILE__, __LINE__ }
+#else
+#define OP_LINE_FILE_PARAMS(...) , __VA_ARGS__
+#define OP_LINE_FILE_NPARAMS(...) __VA_ARGS__
+#define OP_LINE_FILE_STRUCT(...) , __VA_ARGS__
+#define OP_LINE_FILE_CALLER(...) , __VA_ARGS__
+#define OP_LINE_FILE_NP_CALLER(...) __VA_ARGS__
+#define OP_LINE_FILE_SCALLER(...) , __VA_ARGS__
+#define OP_LINE_FILE_DEF(...) , __VA_ARGS__
+#define OP_LINE_FILE_NP_DEF(...) __VA_ARGS__
+#define OP_LINE_FILE_SET(debugMaker)
+#define OP_LINE_FILE_SET_IMMED(debugMaker)
 #endif
 
 // keep track of vector size to find reserve  !!! haven't decided whether or not to build this out

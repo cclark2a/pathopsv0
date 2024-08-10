@@ -82,8 +82,8 @@ struct OpContour {
 
     void windCoincidences() {
         for (auto& segment : segments) {
+            segment.windCoincidences();  // !!! eventually, remove this and only call new version
             segment.newWindCoincidences();
-            segment.windCoincidences();
         }
     }
 

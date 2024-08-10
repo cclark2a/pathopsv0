@@ -19,14 +19,12 @@ void OpIntersection::betweenPair(OpIntersection* end) {
 
 // setter to help debugging
 void OpIntersection::setCoin(int cid, MatchEnds end) {
-    OP_ASSERT(60 != cid);
     coincidenceID = cid;
     coinEnd = end;
 }
 
 // setter to help debugging
 void OpIntersection::setUnsect(int uid, MatchEnds end) {
-    OP_ASSERT(7653 != uid);
     unsectID = uid;
     unsectEnd = end;
 }
@@ -180,66 +178,66 @@ bool OpIntersections::UnsectablesOverlap(std::vector<OpIntersection*> set1,
 
 struct SectPreferred {
     SectPreferred(OpIntersection* sect)
-        : best(sect->ptT.pt)
+        : best(sect)
         , bestOnEnd(sect->ptT.onEnd()) {
         OP_DEBUG_CODE(int safetyValue = 10);  // !!! no idea what this should be
         do {
-            if (find(sect))  // repeat once if better point was found
+            if (find())  // repeat once if better point was found
                 return;
             visited.clear();
             OP_ASSERT(--safetyValue);
         } while (true);
     }
 
-    bool find(OpIntersection* );
+    bool find();  // make consecutive nearly equal sects the same, and follow each opposite
 
-    std::vector<OpSegment*> visited;
-    OpPoint best;
-    bool bestOnEnd;
+    std::vector<OpSegment*> visited; // visit each segment with matching sects once
+    OpIntersection* best;  // an end point, if one exists; otherwise, an arbitrary sect
+    bool bestOnEnd;  // never cleared, only set (once first sect on end is found)
 };
 
 void emergencyDump(OpContours* );
 
-bool SectPreferred::find(OpIntersection* sect) {
-    OpIntersections& sects = sect->segment->sects;
-    visited.push_back(sect->segment);
-    OpIntersection* firstOfRun = nullptr;
+bool SectPreferred::find() {
+    OpSegment* seg = best->segment;
+    OpIntersections& sects = seg->sects;
+    visited.push_back(seg);
+    bool sawBest = false;
     for (OpIntersection* test : sects.i) {
-        if (!test->ptT.pt.isNearly(best)) {
-            if (firstOfRun)
+        if (!test->ptT.isNearly(best->ptT)) {
+            if (sawBest)
                 break;
             continue;
         }
-        if (!firstOfRun) {
-            firstOfRun = test;
-            if (sects.i.back()->ptT.pt.isNearly(best)) {
+        test->mergeProcessed = true;  // skip this when seen by merge near
+        if (test == best) {
+            sawBest = true;
+            if (sects.i.back()->ptT.isNearly(best->ptT)) {
 // small segment may have first and last nearly touching
-//                OP_ASSERT(0 != firstOfRun->ptT.t);  // breaks: cubic422305
-                if (!firstOfRun->ptT.t)
-                    sect->segment->setDisabled(OP_LINE_FILE_NPARAMS());
+                if (0 == best->ptT.t)
+                    seg->setDisabled(OP_LINE_FILE_NPARAMS());
                 OP_ASSERT(1 == sects.i.back()->ptT.t);
-                firstOfRun->ptT.t = 1;
+                best->ptT.t = 1;
             }
-        }
-        if (test->ptT.pt != best) {
+        } else if (test->ptT != best->ptT) {
             if (test->ptT.onEnd()) {
                 if (bestOnEnd) {
-                    test->segment->moveTo(test->ptT.t, best);
+                    seg->moveTo(test->ptT.t, best->ptT.pt);
                 } else {
-                    best = test->ptT.pt;
-                    bestOnEnd = test->ptT.onEnd();
+                    best = test;
+                    bestOnEnd = true;
                     return false; // best changed; start over
                 }
             }
-        } else if (test->ptT.onEnd())
-            bestOnEnd = true;
-        OP_ASSERT(test->ptT.pt.isNearly(best));
-// if segment is very small, points may be nearly equal but t values may be comparitively large
-//        OP_ASSERT(OpMath::NearlyEqualT(test->ptT.t, firstOfRun->ptT.t));  // breaks: cubic641
-        test->ptT = OpPtT(best, firstOfRun->ptT.t);
+            test->ptT = best->ptT;
+            test->opp->ptT.pt = best->ptT.pt;
+        }
         if (visited.end() == std::find(visited.begin(), visited.end(), test->opp->segment)) {
-            if (!find(test->opp))
+            OpIntersection* save = best;
+            best = test->opp;
+            if (!find())
                 return false;
+            best = save;
         }
     }
     return true;
@@ -250,6 +248,8 @@ bool SectPreferred::find(OpIntersection* sect) {
 void OpIntersections::mergeNear() {
     for (unsigned outer = 1; outer < i.size(); ++outer) {
         OpIntersection* oSect = i[outer - 1];
+        if (oSect->mergeProcessed)
+            continue;
         unsigned limit = outer;
         bool nearEqual = false;
         do {
@@ -537,6 +537,8 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges) {
                     if (bothEnabled)
                         oppEdge->setDisabledZero(OP_LINE_FILE_NPARAMS());
                 } else {
+                    if (edge == edgeBack)
+                        break;
                     ++edge;
                     OP_ASSERT(edge->winding.equal(edgeWinding));
                     if (edgeVisible) {
@@ -548,12 +550,15 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges) {
                 }
             }
             if (edge == edgeBack) {
-                OP_ASSERT(oppEdge == oppBack);
+//                OP_ASSERT(oppEdge == oppBack);
                 break;
             }
             ++edge;
             OP_ASSERT(oppEdge != oppBack);
+            OP_ASSERT(&edges.front() <= edge && edge <= &edges.back());
+            OP_DEBUG_CODE(std::vector<OpEdge>& oppEdges = oppEdge->segment->edges);
             oppEdge += oppBump;
+            OP_ASSERT(&oppEdges.front() <= oppEdge && oppEdge <= &oppEdges.back());
         }
     }
 }

@@ -267,8 +267,6 @@ private:
 #if OP_DEBUG // a few debug values are also nonzero
         id = 0;
         segment = nullptr;
-		debugStart = nullptr;
-		debugEnd = nullptr;
 		debugMatch = nullptr;
 		debugZeroErr = nullptr;
 		debugOutPath = 0;
@@ -292,11 +290,7 @@ public:
 		segment = s;
 		start = t1;
 		end = t2;
-#if OP_DEBUG
 		OP_LINE_FILE_SET(debugSetMaker);
-		debugStart = i1;
-		debugEnd = i2;
-#endif
 		complete();
 	}
 
@@ -349,7 +343,12 @@ public:
 		return EdgeMatch::start == match ? start : end; }
 	OpPtT ptTCloseTo(OpPtT oPtPair, const OpPtT& ptT) const;
 	void reenable() {  // only used for coincidence
-		disabled = false; OP_DEBUG_CODE(debugSetDisabled.line = 0; debugSetDisabled.file = ""); }
+		disabled = false;
+#if OP_DEBUG_MAKER
+		debugSetDisabled.line = 0; 
+		debugSetDisabled.file = "";
+#endif
+	}
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
 	void setDisabled(OP_LINE_FILE_NP_DEF());
 	void setDisabledZero(OP_LINE_FILE_NP_DEF()) {
@@ -457,8 +456,6 @@ public:
 	bool startSeen;  // experimental tree to track adding edges to output
 	bool endSeen;  // experimental tree to track adding edges to output
 #if OP_DEBUG
-	OpIntersection* debugStart;
-	OpIntersection* debugEnd;
 	OpEdge* debugMatch;  // left side of nonzero ray from this edge
 	OpEdge* debugZeroErr;  // debug match ray found edge that does not match -- diagnostic for now
 	int debugOutPath;	// id to color output contours
