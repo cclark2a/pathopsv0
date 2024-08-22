@@ -243,6 +243,7 @@ void OpDebugExitOnFail(std::string, bool );
 std::vector<uint8_t> OpDebugByteArray(const char*& str);
 std::string OpDebugByteToHex(uint8_t);
 std::string OpDebugIntToHex(int32_t);
+std::string OpDebugPtrToHex(void*);
 std::string OpDebugDumpHex(float);
 std::string OpDebugDumpByteArray(const char* bytes, size_t size);
 int32_t OpDebugFloatToBits(float);

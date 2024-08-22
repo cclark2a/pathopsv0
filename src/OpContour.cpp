@@ -64,17 +64,14 @@ OpEdge* OpContour::addFiller(OpEdge* edge, OpEdge* lastEdge) {
 		break;
 	}
 	OP_ASSERT(last);
-	return contour->addFiller(last, sect);
+	return contour->addFiller(last->ptT, sect->ptT);
 }
 
-OpEdge* OpContour::addFiller(OpIntersection* start, OpIntersection* end) {
-    if (contours->fillerStorage && contours->fillerStorage->contains(start, end))
-        return nullptr;  // !!! when does this happen? what is the implication? e.g. fuzz433
+OpEdge* OpContour::addFiller(OpPtT& start, OpPtT& end) {
+//    if (contours->fillerStorage && contours->fillerStorage->contains(start, end))
+//        return nullptr;  // !!! when does this happen? what is the implication? e.g. fuzz433
     void* block = contours->allocateEdge(contours->fillerStorage);
-    OpEdge* filler = new(block) OpEdge(start->segment, start->ptT, end->ptT
-            OP_LINE_FILE_PARAMS(start, end));
-    OP_DEBUG_CODE(filler->debugFiller = true);
-    filler->setDisabled(OP_LINE_FILE_NPARAMS());
+    OpEdge* filler = new(block) OpEdge(contours, start, end  OP_LINE_FILE_PARAMS());
     return filler;
 }
 
@@ -106,7 +103,7 @@ OpIntersection* OpContour::addUnsect(const OpPtT& t, OpSegment* seg, int uID, Ma
 int OpContour::nextID() const {
 //    if (93 == contours->uniqueID + 1)
 //        OpDebugOut("");
-    return ++contours->uniqueID;
+    return contours->nextID();
 }
 
 // end of contour; start of contours

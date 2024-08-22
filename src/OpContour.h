@@ -48,7 +48,7 @@ struct OpContour {
     OpIntersection* addEdgeSect(const OpPtT& , OpSegment* seg
            OP_LINE_FILE_DEF(const OpEdge* edge, const OpEdge* oEdge));
     OpEdge* addFiller(OpEdge* edge, OpEdge* lastEdge);
-    OpEdge* addFiller(OpIntersection* start, OpIntersection* end);
+    OpEdge* addFiller(OpPtT& start, OpPtT& end);
     OpIntersection* addCoinSect(const OpPtT& , OpSegment* seg, int cID, MatchEnds 
             OP_LINE_FILE_DEF(const OpSegment* oSeg));
     OpIntersection* addSegSect(const OpPtT& , OpSegment* seg
@@ -227,7 +227,7 @@ struct OpContours {
 
     bool assemble();
 
-    PathOpsV0Lib::CurveCallBacks& callBack(OpType type) {
+    PathOpsV0Lib::CurveCallBacks& callBack(PathOpsV0Lib::CurveType type) {
         return callBacks[(int) type - 1];
     }
 
@@ -255,6 +255,10 @@ struct OpContours {
             contour->makeEdges();
         }
        OP_DEBUG_CODE(debugInClearEdges = false);
+    }
+
+    int nextID() { 
+        return ++uniqueID; 
     }
 
     bool pathOps();

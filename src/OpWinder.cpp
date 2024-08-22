@@ -50,7 +50,7 @@ void SectRay::addPals(OpEdge* home) {
 		if (test->ray.axis == home->ray.axis)
 			return false;
 		OpEdge* vertical = Axis::vertical == test->ray.axis ? test : home;
-		OpVector dxy = vertical->end.pt - vertical->start.pt;
+		OpVector dxy = vertical->endPt() - vertical->startPt();
 		if (!dxy.dy)
 			return false;
 		return dxy.dy > 0 ? dxy.dx > 0 : dxy.dx < 0;
@@ -286,7 +286,7 @@ IntersectResult OpWinder::CoincidentCheck(OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, Op
 // this edge has points A, B; opp edge has points C, D
 // adds 0: no intersection; 1: end point only; 2: partial or full coincidence
 IntersectResult OpWinder::CoincidentCheck(const OpEdge& edge, const OpEdge& opp) {
-	return OpWinder::CoincidentCheck(edge.start, edge.end, opp.start, opp.end,
+	return OpWinder::CoincidentCheck(edge.start(), edge.end(), opp.start(), opp.end(),
 			const_cast<OpSegment*>(edge.segment), const_cast<OpSegment*>(opp.segment));
 }
 
@@ -525,12 +525,12 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 	OpSegment* oSegment = const_cast<OpSegment*>(opp.segment);
 	OP_ASSERT(oSegment != eSegment);
 	OP_ASSERT(edge.curve.debugIsLine());
-	LinePts edgePts { edge.start.pt, edge.end.pt };
+	LinePts edgePts { edge.startPt(), edge.endPt() };
     OpRoots septs = oSegment->c.rayIntersect(edgePts, MatchEnds::none); 
 	IntersectResult sectAdded = IntersectResult::no;
 	// check the ends of each edge to see if they intersect the opposite edge (if missed earlier)
 	auto addPair = [eSegment, oSegment  OP_DEBUG_PARAMS(opp, edge)](OpPtT oppPtT, OpPtT edgePtT,
-			IntersectResult& added  OP_LINE_FILE_DEF(int dummy)) {
+			IntersectResult& added  OP_LINE_FILE_DEF()) {
 		if (!eSegment->sects.contains(edgePtT, oSegment)
 				&& !oSegment->sects.contains(oppPtT, eSegment)) {
 			OP_ASSERT(!OpMath::IsNaN(edgePtT.t));
@@ -544,25 +544,26 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 		}
 	};
 	if (!septs.count) {
-		auto checkEnd = [opp](OpPtT& start) {
-			float t = opp.segment->c.match(opp.start.t, opp.end.t, start.pt);
+		auto checkEnd = [opp](const OpPtT& start) {
+			float t = opp.segment->c.match(opp.startT, opp.endT, start.pt);
 			if (OpMath::IsNaN(t))
 				return OpPtT();
 			return OpPtT { start.pt, t };
 		};
-		OpPtT oppStart = checkEnd(edge.start);
+		OpPtT oppStart = checkEnd(edge.start());
 		if (!OpMath::IsNaN(oppStart.t))
-			addPair(oppStart, edge.start, sectAdded  OP_LINE_FILE_PARAMS(0));
-		OpPtT oppEnd = checkEnd(edge.end);
+			addPair(oppStart, edge.start(), sectAdded  OP_LINE_FILE_PARAMS());
+		OpPtT oppEnd = checkEnd(edge.end());
 		if (!OpMath::IsNaN(oppEnd.t))
-			addPair(oppEnd, edge.end, sectAdded  OP_LINE_FILE_PARAMS(0));
+			addPair(oppEnd, edge.end(), sectAdded  OP_LINE_FILE_PARAMS());
 		if (IntersectResult::yes == sectAdded)
 			return sectAdded;
 	}
+	MatchReverse match = opp.segment->matchEnds(edgePts);
 	if (septs.fail == RootFail::rawIntersectFailed) {
 		// binary search on opp t-range to find where vert crosses zero
-		OpCurve rotated = opp.segment->c.toVertical(edgePts);
-		septs.roots[0] = rotated.tZeroX(opp.start.t, opp.end.t);
+		OpCurve rotated = opp.segment->c.toVertical(edgePts, match.match);
+		septs.roots[0] = rotated.tZeroX(opp.startT, opp.endT);
 		septs.count = 1;
 	}
 	// Note that coincident check does not receive intercepts as a parameter; in fact, the intercepts
@@ -572,27 +573,27 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 		return CoincidentCheck(edge, opp);
 	bool tInRange = false;
 	for (unsigned index = 0; index < septs.count; ++index) {
-		if (opp.start.t > septs.get(index)) {
-			if (opp.start.pt.isNearly(edge.start.pt))
-				addPair(opp.start, OpPtT(opp.start.pt, edge.start.t), sectAdded  OP_LINE_FILE_PARAMS(0));
-			else if (opp.start.pt.isNearly(edge.end.pt))
-				addPair(opp.start, OpPtT(opp.start.pt, edge.end.t), sectAdded  OP_LINE_FILE_PARAMS(0));
+		if (opp.startT > septs.get(index)) {
+			if (opp.startPt().isNearly(edge.startPt()))
+				addPair(opp.start(), OpPtT(opp.startPt(), edge.startT), sectAdded  OP_LINE_FILE_PARAMS());
+			else if (opp.startPt().isNearly(edge.endPt()))
+				addPair(opp.start(), OpPtT(opp.startPt(), edge.endT), sectAdded  OP_LINE_FILE_PARAMS());
 			else {
-		        OpCurve rotated = opp.segment->c.toVertical(edgePts);
-		        septs.roots[0] = rotated.tZeroX(opp.start.t, opp.end.t);
-				if (opp.start.t > septs.get(index))
+		        OpCurve rotated = opp.segment->c.toVertical(edgePts, match.match);
+		        septs.roots[0] = rotated.tZeroX(opp.startT, opp.endT);
+				if (opp.startT > septs.get(index))
                     continue;
             }
 		}
-		if (septs.get(index) > opp.end.t) {
-			if (opp.end.pt.isNearly(edge.start.pt))
-				addPair(opp.end, OpPtT(opp.end.pt, edge.start.t), sectAdded  OP_LINE_FILE_PARAMS(0));
-			else if (opp.end.pt.isNearly(edge.end.pt))
-				addPair(opp.end, OpPtT(opp.end.pt, edge.end.t), sectAdded  OP_LINE_FILE_PARAMS(0));
+		if (septs.get(index) > opp.endT) {
+			if (opp.endPt().isNearly(edge.startPt()))
+				addPair(opp.end(), OpPtT(opp.endPt(), edge.startT), sectAdded  OP_LINE_FILE_PARAMS());
+			else if (opp.endPt().isNearly(edge.endPt()))
+				addPair(opp.end(), OpPtT(opp.endPt(), edge.endT), sectAdded  OP_LINE_FILE_PARAMS());
 			else {
-		        OpCurve rotated = opp.segment->c.toVertical(edgePts);
-		        septs.roots[0] = rotated.tZeroX(opp.start.t, opp.end.t);
-                if (septs.get(index) > opp.end.t)
+		        OpCurve rotated = opp.segment->c.toVertical(edgePts, match.match);
+		        septs.roots[0] = rotated.tZeroX(opp.startT, opp.endT);
+                if (septs.get(index) > opp.endT)
 				    continue;
             }
 		}
@@ -616,7 +617,7 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 //      eSegment->ptBounds.pin(&oppPtT.pt);	// !!! doubtful this is needed with contains test above
 //		OP_ASSERT(debugPt == oppPtT.pt);	// rarely needed, but still triggered (e.g., joel_15x)
 		OpPtT edgePtT { oppPtT.pt, edgeT };
-		addPair(oppPtT, edgePtT, sectAdded  OP_LINE_FILE_PARAMS(0));
+		addPair(oppPtT, edgePtT, sectAdded  OP_LINE_FILE_PARAMS());
 	}
 	if (!tInRange && opp.isLine() && !secondAttempt) {
 		OpDebugRecordStart(edge, opp);
@@ -636,7 +637,7 @@ FoundIntercept OpWinder::findRayIntercept(size_t homeIndex, OpVector homeTan, fl
 	float mid = .5;
 	float midEnd = .5;
 	std::vector<OpEdge*>& inArray = Axis::horizontal == workingAxis ? inX : inY;
-	ray.homeT = OpMath::Ratio(home->start.t, home->end.t, home->center.t);
+	ray.homeT = OpMath::Ratio(home->startT, home->endT, home->center.t);
 	// if find intercept fails, retry some number of times
 	// if all retries fail, distinguish between failure cases
 	//   if it failed because closest edge was too close, mark pair as unsectable
@@ -728,8 +729,8 @@ ChainFail OpWinder::setSumChain(size_t homeIndex) {
 	}
 	// intersect normal with every edge in the direction of ray until we run out 
 	float normal = home->center.pt.choice(workingAxis);
-	if (normal == home->start.pt.choice(workingAxis)
-			|| normal == home->end.pt.choice(workingAxis)) {
+	if (normal == home->startPt().choice(workingAxis)
+			|| normal == home->endPt().choice(workingAxis)) {
 		markUnsortable();
 		return ChainFail::noNormal;  // nonfatal error
 	}

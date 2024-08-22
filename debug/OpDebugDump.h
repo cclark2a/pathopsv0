@@ -208,6 +208,7 @@ extern void dmpCoincidences();
 extern void dmpCoins();
 extern void dmpDisabled();
 extern void dmpEdges();
+extern void dmpEdgePts();
 extern void dmpFile();
 extern void dmpInOutput();
 extern void dmpIntersections();
@@ -275,8 +276,9 @@ extern void dmpColor(const OpEdge& );
 extern void dmpFilters();  // returns current filter settings
 extern void dmpHex(float );
 extern void dmpHex(uint32_t );
-extern void dmpLevel(int  );  // set to brief, normal, detailed
+extern void dmpLevel(int level);  // set to brief, normal, detailed
 extern void dmpPlayback(FILE* );
+extern void dmpPts(int ID);
 extern void dmpRecord(FILE * );
 extern void dmpT(int ID, float t);
 extern void dmpT(const OpEdge* s, float t);

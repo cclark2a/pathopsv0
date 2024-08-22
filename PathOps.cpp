@@ -57,6 +57,11 @@ int Error(Context* context) {
     return 0;
 }
 
+void ResetContour(Contour* c) {
+    OpContour* contour = (OpContour*) c;
+    contour->segments.clear();
+}
+
 void Resolve(Context* context, PathOutput output) {
     OpContours* contours = (OpContours*) context;
     contours->callerOutput = output;
@@ -67,18 +72,20 @@ void Resolve(Context* context, PathOutput output) {
     /* bool success = */ contours->pathOps();
 }
 
-void SetContextCallBacks(Context* context, EmptyNativePath emptyNativePath, 
+void SetContextCallBacks(Context* context, EmptyNativePath emptyNativePath, MakeLine makeLine,
         SetLineType setLineType) {
     OpContours* contours = (OpContours*) context;
     contours->contextCallBacks = {
         emptyNativePath,
+        makeLine,
         setLineType
     };
 }
 
-OpType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, /* ControlNearlyEnd nearlyFunc, */
+CurveType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, /* ControlNearlyEnd nearlyFunc, */
         CurveHull hullFunc, CurveIsFinite isFiniteFunc, CurveIsLine isLineFunc, 
-        /* CurveIsLinear isLinearFunc, */ SetBounds setBoundsFunc, CurveNormal normalFunc, 
+        /* CurveIsLinear isLinearFunc, */ SetBounds setBoundsFunc,
+        CurveNormal normalFunc, 
         CurveOutput outputFunc, CurvePinCtrl curvePinFunc, CurveReverse reverseFunc, 
         CurveTangent tangentFunc, CurvesEqual equalFunc, PtAtT ptAtTFunc, 
         DoublePtAtT doublePtAtTFunc, PtCount ptCountFunc, Rotate rotateFunc, 
@@ -88,14 +95,14 @@ OpType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, /* ControlNearly
 		OP_DEBUG_IMAGE_PARAMS(DebugAddToPath debugAddToPathFunc)
 ) {
     OpContours* contours = (OpContours*) context;
-    contours->callBacks.push_back( { axisFunc, /* nearlyFunc, */ hullFunc, isFiniteFunc, isLineFunc, 
-            /* isLinearFunc, */ setBoundsFunc, normalFunc, outputFunc, curvePinFunc, reverseFunc, 
+    contours->callBacks.push_back( { axisFunc, hullFunc, isFiniteFunc, isLineFunc, 
+            setBoundsFunc, normalFunc, outputFunc, curvePinFunc, reverseFunc, 
             tangentFunc, equalFunc, ptAtTFunc, doublePtAtTFunc, ptCountFunc, rotateFunc, 
             subDivideFunc, xyAtTFunc 
 		    OP_DEBUG_DUMP_PARAMS(debugDumpNameFunc, debugDumpExtraFunc)
 		    OP_DEBUG_IMAGE_PARAMS(debugAddToPathFunc)
             } );
-    return (OpType) contours->callBacks.size();
+    return (CurveType) contours->callBacks.size();
 }
 
 void SetWindingCallBacks(Contour* ctour, WindingAdd addFunc, WindingKeep keepFunc,

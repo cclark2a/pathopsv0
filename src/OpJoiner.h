@@ -84,6 +84,7 @@ enum class LimbPass : uint8_t {
 	disabled,  // in disabled
 	disabledPals,  // in disabled pals
 	miswound,  // in linkups list, including entries with the wrong winding
+	unsectPair, // gap to other edge in unsectable pair
 	disjoint,  // gap to closest in linkups list, or gap to edge start (loop)
 };
 
@@ -94,18 +95,21 @@ struct OpLimb {
 	OpLimb() {
 #if OP_DEBUG
 		edge = nullptr;
-		lastLimb = nullptr;
+		lastLimbEdge = nullptr;
 		parent = nullptr;
 		linkedIndex = 0;
+		gapDistance = 0;
+		closeDistance = 0;
 		match = EdgeMatch::none;
+		lastMatch = EdgeMatch::none;
 		pass = LimbPass::unlinked;
 		looped = false;
-		debugID = 0;
 #endif
+		OP_DEBUG_DUMP_CODE(debugID = 0);
 	}
 	void add(OpTree& , OpEdge* , EdgeMatch , LimbPass , size_t index = 0, OpEdge* first = nullptr);
 	void foreach(OpJoiner& , OpTree& , LimbPass );
-	void set(OpTree& , OpEdge* , const OpLimb* parent, EdgeMatch , LimbPass , 
+	void set(OpTree& , OpEdge* , OpLimb* parent, EdgeMatch , LimbPass , 
 			size_t index, OpEdge* otherEnd, const OpPointBounds* bounds = nullptr);
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
@@ -114,15 +118,18 @@ struct OpLimb {
 
 	OpPointBounds bounds;
 	OpEdge* edge;
-	OpEdge* lastLimb;
+	OpEdge* lastLimbEdge;
 	const OpLimb* parent;
-	OpPoint lastPt;
+	OpPtT lastPtT;
 	uint32_t linkedIndex;
+	float gapDistance;
+	float closeDistance;
 	EdgeMatch match; // end of edge that matches last point in parent limb
+	EdgeMatch lastMatch;
 	LimbPass pass;  // if linked or miswound: if match is end, edge is last in linked list
 	bool looped;
 
-#if OP_DEBUG
+#if OP_DEBUG_DUMP
 	std::vector<OpLimb*> debugBranches;
 	int debugID;
 #endif
@@ -142,9 +149,8 @@ struct OpTree {
 #endif
 	OpLimbStorage* limbStorage;
 	OpLimbStorage* current;
-	const OpContour& contour;
-	const OpEdge* edge;
-	const OpLimb* bestGapLimb;  // used only by detached pass
+	OpContour* contour;
+	OpLimb* bestGapLimb;  // used only by detached pass
 	const OpLimb* bestLimb;   // index into limbStorage
 	OpPoint firstPt;
 	float bestDistance;  // used only by detached pass
@@ -152,10 +158,6 @@ struct OpTree {
 	int baseIndex;
 	int totalUsed;
 	int walker;
-
-#if OP_DEBUG
-	std::vector<OpLimb*> debugLimbs;
-#endif
 };
 
 struct OpLimbStorage {

@@ -90,11 +90,11 @@ void OpHulls::nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef 
 		for (size_t index = 0; index + 1 < h.size(); ) {
 			// while hull sect is in a deleted bounds, bump its t and recompute
 			if ((SectType::midHull == h[index].type || SectType::controlHull == h[index].type)
-					&& cc.checkSplit(edge.start.t, h[index + 1].sect.t, which, h[index].sect))
+					&& cc.checkSplit(edge.startT, h[index + 1].sect.t, which, h[index].sect))
 				goto tryAgain;
 			++index;
 			if ((SectType::midHull == h[index].type || SectType::controlHull == h[index].type)
-					&& cc.checkSplit(h[index - 1].sect.t, edge.end.t, which, h[index].sect))
+					&& cc.checkSplit(h[index - 1].sect.t, edge.endT, which, h[index].sect))
 				goto tryAgain;
 			OP_ASSERT(h[index - 1].sect.t < h[index].sect.t);
 		}
@@ -117,43 +117,99 @@ EdgeDistance::EdgeDistance(OpEdge* e, float c, float tIn, bool r)
 	, reversed(r) {
 }
 
-OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight  
-		OP_LINE_FILE_DEF())
+// called when creating edge for curve curve intersection building
+OpEdge::OpEdge(OpSegment* s  OP_LINE_FILE_DEF())
 	: OpEdge() {
-	segment = edge->segment;
-	start = NewEdge::isLeft == isLeftRight ? edge->start : newPtT;
-	end = NewEdge::isLeft == isLeftRight ? newPtT : edge->end;
-#if 0
-	if (edge->curvySet && edge->curvy <= OP_CURVACIOUS_LIMIT) {
-		curvySet = true;
-		curvy = edge->curvy * .5;  // !!! bogus, but shouldn't matter
-	}
-#endif
 	OP_LINE_FILE_SET(debugSetMaker);
-	OP_DEBUG_CODE(debugParentID = edge->id);
-	complete();
+	OP_DEBUG_CODE(debugParentID = s->id);
+	segment = s;
+	startSect = -1;
+	endSect = -1;
+	startT = 0;
+	endT = 1;
+	complete(s->c.firstPt(), s->c.lastPt());
 }
 
-// called after winding has been modified by other coincident edges
-OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e  
-		OP_LINE_FILE_DEF())
+// called when creating edge from intersection pairs
+OpEdge::OpEdge(OpSegment* s, int sIndex, int eIndex  OP_LINE_FILE_DEF())
 	: OpEdge() {
-	segment = edge->segment;
-	start = s;
-	end = e;
+	OP_LINE_FILE_SET(debugSetMaker);
+	OP_DEBUG_CODE(debugParentID = s->id);
+	segment = s;
+	startSect = sIndex;
+	endSect = eIndex;
+	OpIntersection* sectStart = s->sects.i[sIndex];
+	OpIntersection* sectEnd = s->sects.i[eIndex];
+	startT = sectStart->ptT.t;
+	endT = sectEnd->ptT.t;
+	complete(sectStart->ptT.pt, sectEnd->ptT.pt);
+}
+
+// called when creating filler; edge that closes small gaps
+OpEdge::OpEdge(OpContours* contours, const OpPtT& start, const OpPtT& end  OP_LINE_FILE_DEF())
+	: OpEdge() {
+	OP_LINE_FILE_SET(debugSetMaker);
+	OP_DEBUG_CODE(debugParentID = 0);
+    OP_DEBUG_CODE(debugFiller = true);
+	segment = nullptr;  // assume these can't be used -- edge does not exist in segment
+	startSect = -1;
+	endSect = -1;
+	startT = start.t;
+	endT = end.t;
+	id = contours->nextID();
+	PathOpsV0Lib::CurveData lineData { start.pt, end.pt };
+	PathOpsV0Lib::Curve lineCurve { &lineData, sizeof(lineData), (PathOpsV0Lib::CurveType) 0 };
+	PathOpsV0Lib::Curve userCurve = contours->contextCallBacks.makeLineFuncPtr(lineCurve);
+	curve = OpCurve(contours, userCurve);
+	curve.isLineSet = true;
+	curve.isLineResult = true;
+	setPointBounds();
+	center.t = OpMath::Interp(startT, endT, .5);
+	center.pt = ptBounds.center();
+    setDisabled(OP_LINE_FILE_NPARAMS());
+    setUnsortable();
+}
+
+// called from curve curve when splitting edges
+OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight  OP_LINE_FILE_DEF())
+	: OpEdge() {
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = edge->id);
-	complete();
+	segment = edge->segment;
+	startSect = -1;
+	endSect = -1;
+	if (NewEdge::isLeft == isLeftRight) {
+		startT = edge->startT;
+		endT = newPtT.t;
+		complete(edge->startPt(), newPtT.pt);
+	} else {
+		startT = newPtT.t;
+		endT = edge->endT;
+		complete(newPtT.pt, edge->endPt());
+	}
+}
+
+// called by curve curve's snip range
+OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e  OP_LINE_FILE_DEF())
+	: OpEdge() {
+	OP_LINE_FILE_SET(debugSetMaker);
+	OP_DEBUG_CODE(debugParentID = edge->id);
+	segment = edge->segment;
+	startSect = -1;
+	endSect = -1;
+	startT = s.t;
+	endT = e.t;
+	complete(s.pt, e.pt);
 }
 
 OpEdge::OpEdge(const OpEdge* edge, float t1, float t2  OP_LINE_FILE_DEF())
 	: OpEdge() {
-	segment = edge->segment;
-	start = { segment->c.ptAtT(t1), t1 };
-	end = { segment->c.ptAtT(t2), t2 };
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = edge->id);
-	complete();
+	segment = edge->segment;
+	startT = t1;
+	endT = t2;
+	complete(segment->c.ptAtT(t1), segment->c.ptAtT(t2));
 }
 
 CalcFail OpEdge::addIfUR(Axis axis, float edgeInsideT, OpWinding* sumWinding) {
@@ -247,8 +303,8 @@ void OpEdge::calcCenterT() {
 		rayFail = EdgeFail::center;
 		return;
 	}
-	if (start.t >= t || t >= end.t)
-		t = OpMath::Average(start.t, end.t);
+	if (startT >= t || t >= endT)
+		t = OpMath::Average(startT, endT);
 	center.t = t;
 	center.pt = segCurve.ptAtT(t);
 	center.pt.pin(ptBounds);  // required by pentrek6
@@ -279,8 +335,8 @@ void OpEdge::clearPriorEdge() {
 	setPriorEdge(nullptr);
 }
 
-void OpEdge::complete() {
-	subDivide();	// uses already computed points stored in edge
+void OpEdge::complete(OpPoint startPoint, OpPoint endPoint) {
+	subDivide(startPoint, endPoint);	// uses already computed points stored in edge
 	winding.setWind(segment->winding);
 }
 
@@ -318,55 +374,56 @@ bool OpEdge::containsLink(const OpEdge* edge) const {
 	return false;
 }
 
-#if 0
-// Guess if curve is nearly a line by comparing distance between ends and mid t pt to end line.
-// Note that the rotated line is not square, so distances are sloppy as well.
-float OpEdge::curviness() {
-	if (curvySet)
-		return curvy;
-	curvySet = true;
-	const OpCurve& rotated = setVertical();
-	float length = fabsf(rotated.lastPt().y);
-	OpPoint rotatedCenter = rotated.pts[rotated.pointCount()];
-	curvy = OpMath::FloatDivide(fabsf(rotatedCenter.x), length);
-	return curvy;
-}
-#endif
-
 // note this does not use which end
 OpIntersection* OpEdge::findEndSect(EdgeMatch match, OpSegment* oppSeg) {
-	OpPoint pt = ptT(match).pt;
-	auto& i = segment->sects.i;
-    auto found = std::find_if(i.begin(), i.end(), [pt, oppSeg](auto sect) { 
-			return sect->ptT.pt == pt && sect->opp->segment == oppSeg; });
-	if (found == i.end())
-		return nullptr;
-	return *found;
+	OP_ASSERT(startSect >= 0);
+	OP_ASSERT(endSect > 0);
+	OpIntersection** first = &segment->sects.i.front();
+	float tMatch;
+	if (EdgeMatch::start == match) {
+		first += startSect;
+		tMatch = startT;
+	} else {
+		first += endSect;
+		tMatch = endT;
+	}
+	OP_ASSERT((*first)->ptT.t == tMatch);
+	OpIntersection** last = &segment->sects.i.back();
+	OP_ASSERT(first <= last);
+	do {
+		OP_ASSERT((*first)->ptT.pt 
+				== (EdgeMatch::start == match ? curve.firstPt() : curve.lastPt()));
+		if ((*first)->opp->segment == oppSeg)
+			return *first;
+		++first;
+	} while (first <= last && (*first)->ptT.t == tMatch);
+	return nullptr;
 }
 
 // note that this is for use after 'which end' is set
 OpIntersection* OpEdge::findWhichSect(EdgeMatch match) {
+	OP_ASSERT(startSect >= 0);
+	OP_ASSERT(endSect > 0);
 	OP_ASSERT(EdgeMatch::none != whichEnd_impl);
-	OpPoint pt = whichPtT(match).pt;
-	auto& i = segment->sects.i;
-    auto found = std::find_if(i.begin(), i.end(), [pt](auto sect) { return sect->ptT.pt == pt; });
-	OP_ASSERT(found != i.end());
-	return *found;
+   OpIntersection* result = *(&segment->sects.i.front() + (match == which() ? startSect : endSect));
+	OP_ASSERT(result->ptT.t == (match == which() ? startT : endT));
+	OP_ASSERT(result->ptT.pt == (match == which() ? curve.firstPt() : curve.lastPt()));
+	return result;
 }
 
 OpPtT OpEdge::findT(Axis axis, float oppXY) const {
 	OpPtT found;
-	float startXY = start.pt.choice(axis);
-	float endXY = end.pt.choice(axis);
+	float startXY = startPt().choice(axis);
+	float endXY = endPt().choice(axis);
 	if (oppXY == startXY)
-		found = start;
+		found = start();
 	else if (oppXY == endXY)
-		found = end;
+		found = end();
 	else {
 		found.pt = OpPoint(SetToNaN::dummy);
-		found.t = segment->findAxisT(axis, start.t, end.t, oppXY);
+		found.t = segment->findAxisT(axis, startT, endT, oppXY);
 		if (OpMath::IsNaN(found.t))
-			found = (oppXY < startXY) == (startXY < endXY) ? start : end;
+			found = (oppXY < startXY) == (startXY < endXY) ? start() : end();
 	}
 	return found;
 }
@@ -380,22 +437,7 @@ bool OpEdge::isLine() {
 }
 
 bool OpEdge::isUnsectablePair(OpEdge* opp) {
-	UnsectableOpp* uOpp = nullptr;
-	auto found = std::find_if(uPairs.begin(), uPairs.end(), [opp](auto u) { return u.edge == opp; });
-	if (uPairs.end() != found)
-		uOpp = &*found;
-	else {
-		uPairs.push_back({ opp, ArePals::unset, ptBounds.overlaps(opp->ptBounds) });
-		uOpp = &uPairs.back();
-	}
-	if (!uOpp->overlaps)
-		return false;
-	if (ArePals::unset == uOpp->arePals)
-		uOpp->arePals = unsectableMatches(opp) ? ArePals::yes : ArePals::no;
-	if (ArePals::no == uOpp->arePals)
-		return false;
-
-	return true;
+	return opp == unsectableMatch();
 }
 
 void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
@@ -412,10 +454,10 @@ void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 		setNextEdge(oppEdge);
 		oppEdge->setPriorEdge(this);
 	}
-	if (edgePt == oppEdge->start.pt)
+	if (edgePt == oppEdge->startPt())
 		oppEdge->setWhich(!match);
 	else {
-		OP_ASSERT(edgePt == oppEdge->end.pt);
+		OP_ASSERT(edgePt == oppEdge->endPt());
 		oppEdge->setWhich(match);
 	}
 }
@@ -439,20 +481,22 @@ bool OpEdge::linksTo(OpEdge* match) const {
 void OpEdge::markPals() {
 	OP_ASSERT(isUnsectable);
 	// edge is between one or more unsectableID ranges in intersections
-	std::vector<OpIntersection*> unsectables = segment->sects.unsectables(this);
-	OP_ASSERT(unsectables.size());
-	std::vector<EdgeDistance*> distPals;
+	int usectID = abs(unsectID());
+	OP_ASSERT(usectID);
 	for (auto& dist : ray.distances) {
 		if (!dist.edge->isUnsectable)
 			continue;
 		if (this == dist.edge)
 			continue;
-		OpSegment* distSeg = dist.edge->segment;
-		std::vector<OpIntersection*> distUnsectables = distSeg->sects.unsectables(dist.edge);
-		if (OpIntersections::UnsectablesOverlap(unsectables, distUnsectables))
+		int distUID = dist.edge->unsectID();
+		if (usectID == abs(distUID))
 			addPal(dist);
 	}
 	// !!! not sure how to assert an error if information was inconsistent (e.g., unpaired)
+}
+
+MatchReverse OpEdge::matchEnds(const LinePts& linePts) const {
+	return curve.matchEnds(linePts);
 }
 
 // keep only one unsectable from any set of pals
@@ -479,10 +523,10 @@ void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsect
 				return false;
 			if (this == unsectable)
 				return false;
-            bool startMatch = firstPt == unsectable->start.pt
+            bool startMatch = firstPt == unsectable->startPt()
                     && (EdgeMatch::start == unsectable->which() ? !unsectable->priorEdge :
                     !unsectable->nextEdge);
-            bool endMatch = firstPt == unsectable->end.pt
+            bool endMatch = firstPt == unsectable->endPt()
                     && (EdgeMatch::end == unsectable->which() ? !unsectable->priorEdge :
                     !unsectable->nextEdge);
 			if (!startMatch && !endMatch)
@@ -628,21 +672,21 @@ void OpEdge::output(bool closed) {
 void OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first)
 {
 //	PathOpsV0Lib::PathOutput nativePath = contours()->callerOutput;
-	OP_DEBUG_CODE(debugOutPath = contours()->debugOutputID);
+	OP_DEBUG_CODE(debugOutPath = curve.contours->debugOutputID);
 	OpEdge* next = nextOut();
 	OpCurve copy = curve;
 	if (EdgeMatch::end == which())
 		copy.reverse();
 	copy.output(first, firstEdge == next);
 	if (firstEdge == next) {
-		OP_DEBUG_CODE(debugOutPath = segment->contour->nextID());
+		OP_DEBUG_CODE(debugOutPath = curve.contours->nextID());
 		return;
 	}
 	OP_ASSERT(next);
 	next->outputLinkedList(firstEdge, false);
 }
 
-OpType OpEdge::type() {
+PathOpsV0Lib::CurveType OpEdge::type() {
 	return segment->c.c.type; 
 }
 
@@ -669,7 +713,7 @@ bool OpEdge::isClose() {
 		OP_ASSERT(!isClose_impl);
 		return false;
 	}
-	return isClose_impl = start.soClose(end);
+	return isClose_impl = start().soClose(end());
 }
 
 OpPtT OpEdge::ptTCloseTo(OpPtT oPtPair, const OpPtT& ptT) const {
@@ -682,7 +726,7 @@ OpPtT OpEdge::ptTCloseTo(OpPtT oPtPair, const OpPtT& ptT) const {
 		return center;
 	// use unit tan to pass correct axis to find pt t
 	Axis axis = fabsf(unitTan.dx) > fabsf(unitTan.dy) ? Axis::vertical : Axis::horizontal; 
-	float resultT = segment->findAxisT(axis, start.t, end.t, testPt.choice(axis));
+	float resultT = segment->findAxisT(axis, startT, endT, testPt.choice(axis));
 	if (!OpMath::IsNaN(resultT))
 		return OpPtT(segment->c.ptAtT(resultT), resultT);
 	return center;
@@ -759,7 +803,7 @@ void OpEdge::setNextEdge(OpEdge* edge) {
 }
 
 void OpEdge::setPointBounds() {
-	ptBounds.set(start.pt, end.pt);
+	ptBounds.set(startPt(), endPt());
 	// this check can fail; control points can have some error so they lie just outside bounds
 #if 0 // OP_DEBUG
 	OpPointBounds copy = ptBounds;
@@ -779,11 +823,11 @@ void OpEdge::setUnsortable() {  // setter exists so debug breakpoints can be set
 	isUnsortable = true;
 }
 
-const OpCurve& OpEdge::setVertical(const LinePts& pts) {
+const OpCurve& OpEdge::setVertical(const LinePts& pts, MatchEnds match) {
 	if (!upright_impl.pts[0].isFinite() ||  // !!! needed by CMake build; don't know why ...
 		upright_impl.pts[0] != pts.pts[0] || upright_impl.pts[1] != pts.pts[1]) {
 		upright_impl = pts;
-		vertical_impl = curve.toVertical(pts);
+		vertical_impl = curve.toVertical(pts, match);
 	}
 	return vertical_impl;
 }
@@ -793,20 +837,16 @@ void OpEdge::setWhich(EdgeMatch m) {
 }
 
 // use already computed points stored in edge
-void OpEdge::subDivide() {
+void OpEdge::subDivide(OpPoint startPoint, OpPoint endPoint) {
 	id = segment->nextID();
-	curve = segment->c.subDivide(start, end);
+	curve = segment->c.subDivide(OpPtT(startPoint, startT), OpPtT(endPoint, endT));
 	setPointBounds();
 	calcCenterT();
-	if (curve.isLine() /* segment->c.isLine() || OpMath::Equalish(ptBounds.left, ptBounds.right) 
-			|| OpMath::Equalish(ptBounds.top, ptBounds.bottom) || ctrlPtNearlyEnd() */) {
-//		isLine_impl = true;
-//		lineSet = true;
-//		exactLine = true;
-		center.t = OpMath::Interp(start.t, end.t, .5);
+	if (curve.isLine()) {
+		center.t = OpMath::Interp(startT, endT, .5);
 		center.pt = ptBounds.center();
 	}
- 	if (start.pt == end.pt) {
+ 	if (startPoint == endPoint) {
 //		OP_ASSERT(0);	// triggered by fuzz763_9
 		setDisabled(OP_LINE_FILE_NPARAMS());
 	}
@@ -821,7 +861,7 @@ CalcFail OpEdge::subIfDL(Axis axis, float edgeInsideT, OpWinding* sumWinding) {
 	return CalcFail::none;
 }
 
-void OpEdge::setSum(const PathOpsV0Lib::Winding& w  OP_LINE_FILE_DEF(int dummy)) {
+void OpEdge::setSum(const PathOpsV0Lib::Winding& w  OP_LINE_FILE_DEF()) {
 	OP_ASSERT(!sum.contour);
 	sum.contour = segment->contour;
 	sum.w.data = contours()->allocateWinding(w.size);
@@ -852,24 +892,49 @@ void OpEdge::unlink() {
 	endSeen = false;
 }
 
-bool OpEdge::unsectableMatches(OpEdge* opp) const {
-	OP_ASSERT(isUnsectable);
-	OP_ASSERT(opp && opp->isUnsectable);
+int OpEdge::unsectID() const {
+	OpIntersection* usect = unsectSect();
+	int usectID = usect->unsectID;
+	OP_ASSERT(usectID || !isUnsectable);
+	OP_DEBUG_CODE(int endID = segment->sects.i[endSect]->unsectID);
+	OP_ASSERT(usectID == endID);
+	return usectID;
+}
+
+OpIntersection* OpEdge::unsectSect() const {
 	OP_ASSERT(!segment->sects.resort);
-	OP_ASSERT(!opp->segment->sects.resort);
-	std::vector<OpIntersection*> edgeUnsectables = segment->sects.unsectables(this);
-	std::vector<OpIntersection*> oppUnsectables = opp->segment->sects.unsectables(opp);
-	OP_ASSERT(edgeUnsectables.size());
-	OP_ASSERT(oppUnsectables.size());
-	// return true if this edge lies in same unsectable range as opp
-	for (auto edgeSect : edgeUnsectables) {
-		int edgeUnsectID = abs(edgeSect->unsectID);
-		for (auto oppSect : oppUnsectables) {
-			if (edgeUnsectID == abs(oppSect->unsectID))
+	OP_ASSERT(startSect < (int) segment->sects.i.size());
+	return segment->sects.i[startSect];
+}
+
+OpEdge* OpEdge::unsectableMatch() const {
+	OP_ASSERT(isUnsectable);
+	OpIntersection* usect = unsectSect();
+	int unsectableID = usect->unsectID;
+	OP_ASSERT(unsectableID);
+	std::vector<OpEdge>& oppEdges = usect->opp->segment->edges;
+	auto found = std::find_if(oppEdges.begin(), oppEdges.end(), [unsectableID](const OpEdge& test) {
+		if (!test.isUnsectable)
+			return false;
+		for (int sectIndex : { test.startSect, test.endSect } ) {
+			OpIntersection* oppTest = test.segment->sects.i[sectIndex];
+			OP_ASSERT(oppTest->unsectID);
+			if (oppTest->opp->unsectID == unsectableID)
 				return true;
 		}
-	}
-	return false;
+		return false;
+	} );
+	OP_ASSERT(found != oppEdges.end());
+	return &*found;
+}
+
+bool OpEdge::unsectableSeen(EdgeMatch match) const {
+	OP_ASSERT(isUnsectable);
+	OpEdge* oppPal = unsectableMatch();
+	int usectID = unsectID();
+	int oppUID = oppPal->unsectID();
+	OP_ASSERT(abs(usectID) == abs(oppUID));
+	return (usectID == oppUID) == (EdgeMatch::start == match) ? oppPal->startSeen : oppPal->endSeen;
 }
 
 #if OP_DEBUG
@@ -881,8 +946,8 @@ bool OpEdge::debugFail() const {
 bool OpEdgeStorage::contains(OpIntersection* start, OpIntersection* end) const {
 	for (size_t index = 0; index < used; index++) {
 		const OpEdge* test = &storage[index];
-		if (test->segment == start->segment && test->start == start->ptT
-				&& test->end == end->ptT)
+		if (test->segment == start->segment && test->start() == start->ptT
+				&& test->end() == end->ptT)
 			return true;
 	}
 	if (!next)

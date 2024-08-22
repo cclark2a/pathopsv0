@@ -13,10 +13,12 @@ void Add(AddCurve , AddWinding );
 #include "PathOps.h"
 
 // curve types
-OpType lineType = (OpType) 0;  // unset
-OpType quadType = (OpType) 0;
+PathOpsV0Lib::CurveType lineType = (PathOpsV0Lib::CurveType) 0;  // unset
+PathOpsV0Lib::CurveType quadType = (PathOpsV0Lib::CurveType) 0;
+constexpr size_t lineSize = sizeof(OpPoint) * 2;
+constexpr size_t quadSize = sizeof(OpPoint) * 3;
 
-void commonOutput(PathOpsV0Lib::Curve c, OpType type, bool firstPt, bool lastPt, 
+void commonOutput(PathOpsV0Lib::Curve c, PathOpsV0Lib::CurveType type, bool firstPt, bool lastPt, 
         PathOpsV0Lib::PathOutput output) {
     if (firstPt)
         OpDebugOut("contour start --\n");
@@ -43,10 +45,14 @@ void quadOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt,
     commonOutput(c, quadType, firstPt, lastPt, output);
 }
 
-void noEmptyPath(PathOpsV0Lib::PathOutput ) {
+PathOpsV0Lib::Curve testNewMakeLine(PathOpsV0Lib::Curve c) {
+    c.type = lineType;
+    c.size = lineSize;
+    return c;
 }
 
-OpType quadSetLineType(PathOpsV0Lib::Curve ) {
+
+PathOpsV0Lib::CurveType testNewSetLineType(PathOpsV0Lib::Curve ) {
     return lineType;
 }
 
@@ -54,7 +60,7 @@ void testNewInterface() {
     using namespace PathOpsV0Lib;
 
     Context* context = CreateContext({nullptr, 0});
-    SetContextCallBacks(context, noEmptyPath, quadSetLineType);
+    SetContextCallBacks(context, noEmptyPath, testNewMakeLine, testNewSetLineType);
 
 #if OP_DEBUG
     OpDebugData debugData(false);
@@ -90,8 +96,6 @@ void testNewInterface() {
     );
     int windingData[] = { 1 };
     AddWinding addWinding { contour, windingData, sizeof(windingData) };
-    constexpr size_t lineSize = sizeof(OpPoint) * 2;
-    constexpr size_t quadSize = sizeof(OpPoint) * 3;
 
     // note that the data below omits start points for curves that match the previous end point
                       // start     end      control

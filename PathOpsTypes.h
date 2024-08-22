@@ -4,9 +4,6 @@
 
 #include "OpMath.h"
 
-// user defined types of curves supported. Value zero is reserved.
-enum class OpType;
-
 // returns if an edge starts a fill, ends a fill, or does neither and should be discarded
 enum class WindKeep {
     Discard,	// must be equal to zero
@@ -44,13 +41,16 @@ struct AddContext {
 // A collection of curves in an operand that share the same fill rules.
 struct Contour;
 
-// caller defined operator
+// caller defined operator (e.g., union, intersect, difference, ...)
 enum class Operation : int;
 
-// caller defined operand
+// caller defined operand (e.g., left-of-operator, right-of-operator, ...)
 enum class Operand : int;
 
-// caller defined contour data
+// caller defined curve type (e.g., line, arc, cubic, ...)  Value zero is reserved.
+enum class CurveType : int;
+
+// caller defined contour data; curves that share the same winding and fill rules
 typedef void* ContourData;
 
 // for transport of contour data to callbacks
@@ -79,14 +79,14 @@ struct CurveData {
 struct Curve {
 	CurveData* data;
 	size_t size;  // total size in bytes, including additional data, if any
-	OpType type;
+	CurveType type;
 };
 
 // convenience for adding curves (e.g., Beziers) to contour
 struct AddCurve {
 	OpPoint* points;
 	size_t size;	// size of points in bytes
-	OpType type;
+	CurveType type;
 };
 
 // caller defined data representing how curves in a contour cover area
@@ -148,10 +148,11 @@ typedef bool (*CurvesEqual)(Curve , Curve );
 // returns point constructs curve's hull; the curve is tightly contained by the hull's polygon
 typedef OpPoint (*CurveHull)(Curve, int index);
 
-typedef void (*CurveOutput)(Curve, bool firstPt, bool lastPt, PathOutput );
-
 // returns normal vector at parameter t, where: t=0 is start, t=1 is end
 typedef OpVector (*CurveNormal)(Curve, float t);
+
+// adds curve to output
+typedef void (*CurveOutput)(Curve, bool firstPt, bool lastPt, PathOutput );
 
 // map the control points (if any) to lie inside the bounds of the curve (e.g., start and end)
 typedef void (*CurvePinCtrl)(Curve);
@@ -187,11 +188,9 @@ typedef void (*DebugAddToPath)(Curve , class SkPath& );
 
 struct CurveCallBacks {
 	AxisRawHit axisRawHitFuncPtr;
-//	ControlNearlyEnd controlNearlyEndFuncPtr;
 	CurveHull curveHullFuncPtr;
 	CurveIsFinite curveIsFiniteFuncPtr;
 	CurveIsLine curveIsLineFuncPtr;
-//	CurveIsLinear curveIsLinearFuncPtr;
 	SetBounds setBoundsFuncPtr;
 	CurveNormal curveNormalFuncPtr;
 	CurveOutput curveOutputFuncPtr;
@@ -260,10 +259,15 @@ struct ContourCallBacks {
 };
 
 typedef void (*EmptyNativePath)(PathOutput );
-typedef OpType (*SetLineType)(Curve );
+typedef CurveType (*SetLineType)(Curve );
+
+// returns data size and type as appropriate for line connecting input curve points
+typedef Curve (*MakeLine)(Curve );
+
 
 struct ContextCallBacks {
 	EmptyNativePath emptyNativePathFuncPtr;
+	MakeLine makeLineFuncPtr;
 	SetLineType setLineTypeFuncPtr;
 };
 

@@ -56,9 +56,6 @@ struct FoundEdge {
 
 struct OpSegment {
     OpSegment(PathOpsV0Lib::AddCurve , PathOpsV0Lib::AddWinding );
-    OpSegment(const OpCurve& pts, OpType type, OpContour*  
-            OP_DEBUG_PARAMS());
-    OpSegment(const LinePts& pts, OpContour*  OP_DEBUG_PARAMS());
     bool activeAtT(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& , bool* hadLinkTo) const;
     bool activeNeighbor(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const;
     OpIntersection* addEdgeSect(const OpPtT&    
@@ -79,9 +76,9 @@ struct OpSegment {
 //    float findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const;
     float findValidT(float start, float end, OpPoint opp);
     // count and sort extrema; create an edge for each extrema + 1
-    void makeEdge(const OpPtT& s, const OpPtT& e  OP_LINE_FILE_DEF());
     void makeEdge(OP_LINE_FILE_NP_DEF());
     void makeEdges();
+    MatchReverse matchEnds(const LinePts& opp) const;
     MatchReverse matchEnds(const OpSegment* opp) const;
 //    MatchEnds matchExisting(const OpSegment* opp) const;
     void moveTo(float t , OpPoint );  // move segment/sect point to match another endpont

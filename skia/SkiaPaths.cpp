@@ -114,14 +114,10 @@ void skiaCubicOutput(Curve c, bool firstPt, bool lastPt, PathOutput output) {
     commonOutput(c, SkPath::kCubic_Verb, firstPt, lastPt, output);
 }
 
-OpType skiaLineType;
-OpType skiaQuadType;
-OpType skiaConicType;
-OpType skiaCubicType;
-
-OpType setLineType(PathOpsV0Lib::Curve ) {
-    return skiaLineType;
-}
+PathOpsV0Lib::CurveType skiaLineType;
+PathOpsV0Lib::CurveType skiaQuadType;
+PathOpsV0Lib::CurveType skiaConicType;
+PathOpsV0Lib::CurveType skiaCubicType;
 
 // new interface
 void SetSkiaCurveCallBacks(Context* context) {
@@ -264,8 +260,18 @@ void emptySkPathFunc(PathOutput output) {
     skOutput->reset();
 }
 
+Curve skiaMakeLine(Curve c) {
+    c.type = skiaLineType;
+    c.size = sizeof(SkPoint) * 2;
+    return c;
+}
+
+PathOpsV0Lib::CurveType setSkiaLineType(PathOpsV0Lib::Curve ) {
+    return skiaLineType;
+}
+
 void SetSkiaContextCallBacks(Context* context) {
-    SetContextCallBacks(context, emptySkPathFunc, setLineType);
+    SetContextCallBacks(context, emptySkPathFunc, skiaMakeLine, setSkiaLineType);
 }
 
 Contour* SetSkiaSimplifyCallBacks(Context* context, 

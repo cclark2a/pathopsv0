@@ -18,8 +18,6 @@
 #define ASSERT(test) assertReport(test, __FUNCTION__, __LINE__, #test)
 #define ASSERT_I(test, outI) assertReport(test, __FUNCTION__, __LINE__, outI, #test)
 
-
-
 void assertReport(bool test, const char* func, int lineNo, const char* errorStr) {
 	if (!test) {
 		std::string s = "error in " + std::string(func) + "() line " + std::to_string(lineNo)
@@ -1129,7 +1127,133 @@ void SkConicSubdivide();
 void CCTestKey(uint32_t );
 void CCTest();
 
+#if 01
+#include "curves/Line.h"
+#include "curves/NoCurve.h"
+#include "curves/UnaryWinding.h"
+#include "OpSegments.h"
+
+PathOpsV0Lib::CurveType testLineType = (PathOpsV0Lib::CurveType) 0;  // unset
+
+void testOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathOpsV0Lib::PathOutput output) {
+}
+
+void testNoEmptyPath(PathOpsV0Lib::PathOutput ) {
+}
+
+PathOpsV0Lib::Curve testMakeLine(PathOpsV0Lib::Curve c) {
+    c.type = testLineType;
+    c.size = sizeof(OpPoint) * 2;
+    return c;
+}
+
+PathOpsV0Lib::CurveType getTestLineType(PathOpsV0Lib::Curve ) {
+    return testLineType;
+}
+
+void LineCoincidenceTest() {
+    using namespace PathOpsV0Lib;
+
+    Context* context = CreateContext({nullptr, 0});
+    SetContextCallBacks(context, testNoEmptyPath, testMakeLine, getTestLineType);
+
+    testLineType = SetCurveCallBacks(context, lineAxisRawHit, noHull, lineIsFinite, 
+            lineIsLine, noBounds, lineNormal, testOutput, noPinCtrl, noReverse,
+            lineTangent, linesEqual, linePtAtT, /* double not required */ linePtAtT, 
+            linePtCount, noRotate, lineSubDivide, lineXYAtT
+            OP_DEBUG_DUMP_PARAMS(noDumpName, noDumpCurveExtra)
+            OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
+    );
+
+    Contour* contour = CreateContour({context, nullptr, 0});
+    SetWindingCallBacks(contour, unaryWindingAddFunc, unaryWindingKeepFunc, 
+            unaryWindingSubtractFunc, unaryWindingVisibleFunc, unaryWindingZeroFunc 
+            OP_DEBUG_DUMP_PARAMS(unaryWindingDumpInFunc, unaryWindingDumpOutFunc, noDumpFunc)
+            OP_DEBUG_IMAGE_PARAMS(noWindingImageOutFunc, noNativePathFunc,
+                    noDebugGetDrawFunc, noDebugSetDrawFunc, noIsOppFunc)
+    );
+    int windingData[] = { 1 };
+    AddWinding addWinding { contour, windingData, sizeof(windingData) };
+    constexpr size_t lineSize = sizeof(OpPoint) * 2;
+	auto OpPtHex = [](uint32_t x, uint32_t y) {
+		return OpPoint(OpDebugBitsToFloat(x), OpDebugBitsToFloat(y));
+	};
+	auto OpPtTHex = [OpPtHex](uint32_t x, uint32_t y, uint32_t t) {
+		return OpPtT(OpPtHex(x, y), OpDebugBitsToFloat(t));
+	};
+	struct CoinTest {
+		LinePts seg;
+		LinePts opp;
+		OpPtT sStart;
+		OpPtT sEnd;
+		OpPtT oStart;
+		OpPtT oEnd;
+		bool isCoin;
+	};
+	CoinTest tests[] = {
+		{{ OpPoint(2.28779936, 4.76104975), OpPoint(2.28780055, 4.76105499) },
+		 { OpPoint(2.28780055, 4.76105499), OpPoint(2.28808880, 4.76002407) },
+		   OpPtT(), OpPtT(), OpPtT(), OpPtT(), false },
+
+		{{ OpPoint(1, 1), OpPoint(9, 9) },
+		 { OpPoint(1 + OpEpsilon, 1), OpPoint(9 + OpEpsilon * 9, 9) },
+		   OpPtTHex(0x3f800001, 0x3f800000, 0x32000000), 
+		   OpPtTHex(0x41100000, 0x41100000, 0x3f800000), 
+		   OpPtTHex(0x3f800001, 0x3f800000, 0x00000000), 
+		   OpPtTHex(0x41100000, 0x41100000, 0x3f7ffffe), true },
+
+		{{ OpPoint(2, 4), OpPoint(5, 10) }, { OpPoint(2, 4), OpPoint(4,  8) },
+		 { OpPoint(2, 4), 0     }, { OpPoint(4, 8), 2.f/3 }, 
+		 { OpPoint(2, 4), 0     }, { OpPoint(4, 8), 1     }, true }, 
+
+		{{ OpPoint(2, 4), OpPoint(5, 10) }, { OpPoint(4, 8), OpPoint(2,  4) },
+		 { OpPoint(2, 4), 0     }, { OpPoint(4, 8), 2.f/3 }, 
+		 { OpPoint(2, 4), 1     }, { OpPoint(4, 8), 0     }, true }, 
+
+		{{ OpPoint(2, 4), OpPoint(5, 10) }, { OpPoint(5, 10), OpPoint(3, 6) },
+		 { OpPoint(3, 6), 1.f/3 }, { OpPoint(5, 10), 1    }, 
+	 	 { OpPoint(3, 6), 1     }, { OpPoint(5, 10), 0    }, true }, 
+
+		{{ OpPoint(2, 4), OpPoint(5, 10) }, { OpPoint(3, 6), OpPoint(5, 10) },
+		 { OpPoint(3, 6), 1.f/3 }, { OpPoint(5, 10), 1    }, 
+	 	 { OpPoint(3, 6), 0     }, { OpPoint(5, 10), 1    }, true }, 
+
+		{{ OpPoint(2, 4), OpPoint(5, 10) }, { OpPoint(7, 14), OpPoint(3, 6) },
+		 { OpPoint(3, 6), 1.f/3 }, { OpPoint(5, 10), 1    }, 
+	 	 { OpPoint(3, 6), 1     }, { OpPoint(5, 10),  .5  }, true }, 
+
+		{{ OpPoint(2, 4), OpPoint(5, 10) }, { OpPoint(3, 6), OpPoint(7, 14) },
+		 { OpPoint(3, 6), 1.f/3 }, { OpPoint(5, 10), 1   }, 
+	 	 { OpPoint(3, 6), 0     }, { OpPoint(5, 10),  .5  }, true }, 
+
+		{{ OpPoint(1, 0), OpPoint(0, 1) },
+		 { OpPtHex(0x3f000000, 0x3f400001), OpPtHex(0x3f000000, 0x3f400000) },
+		   OpPtT(), OpPtT(), OpPtT(), OpPtT(), false },
+	};
+	// for lines that should be detected:
+	// start with one line. pick four random t values. assert that the overlapping t ranges match
+	for (size_t index = 0; index < ARRAY_COUNT(tests); index++) {
+		ResetContour(contour);
+		LinePts& line1 = tests[index].seg;
+		LinePts& line2 = tests[index].opp;
+		Add({ &line1.pts[0], lineSize, testLineType }, addWinding );
+		Add({ &line2.pts[0], lineSize, testLineType }, addWinding );
+		OpSegment* test1 = &((OpContour*) contour)->segments[0];
+		OpSegment* test2 = &((OpContour*) contour)->segments[1];
+		IntersectResult result = OpSegments::LineCoincidence(test1, test2);
+		OP_ASSERT((IntersectResult::yes == result) == tests[index].isCoin);
+		if (IntersectResult::yes == result) {
+			OP_ASSERT(test1->sects.i[0]->ptT == tests[index].sStart);
+			OP_ASSERT(test1->sects.i[1]->ptT == tests[index].sEnd);
+			OP_ASSERT(test2->sects.i[0]->ptT == tests[index].oStart);
+			OP_ASSERT(test2->sects.i[1]->ptT == tests[index].oEnd);
+		}
+	}
+}
+#endif
+
 void OpTest(bool terminateEarly) {
+	LineCoincidenceTest();
 #if 0
 	CCTestKey(0x09b54c61);
 	CCTest();

@@ -124,6 +124,7 @@ struct FoundLimits {
 	OpPtT seg;
 	OpPtT opp;
 	bool fromFoundT;  // if set, don't add segment intersections
+	bool oppOutOfOrder;  // if set, opp t is not ordered (skip this limit)  !!! detect error earlier
 #if OP_DEBUG_MAKER
 	OpDebugMaker maker;
 #endif

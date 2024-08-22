@@ -200,6 +200,19 @@ std::string OpDebugIntToHex(int32_t hex) {
     return s;
 }
 
+std::string OpDebugPtrToHex(void* ptr) {
+    uint64_t hex = (uint64_t) ptr;
+    std::string s = "0x";
+    for (int index = 60; index >= 0; index -= 4) {
+        int nybble = (hex >> index) & 0xF;
+        if (nybble <= 9)
+            s += '0' + nybble;
+        else 
+            s += 'a' + nybble - 10;
+    }
+    return s;
+}
+
 std::string OpDebugDumpHex(float f) {
     if (!debugHexFloat) {
         int32_t hex = OpDebugFloatToBits(f);

@@ -79,8 +79,8 @@ struct OpIntersection {
 		opp = nullptr; // SectFlavor::none == flavor_ ? nullptr : this;		!!! if we need this, comment why
 		OP_ASSERT(OpMath::Between(0, t.t, 1));
 		ptT = t;
-		coincidenceID = 0;  // 0 if no coincidence; negative if coincident pairs are reversed
-		unsectID = 0;  // 0 if not unsectable; negative if curves are reversed
+		coincidenceID = 0;  // 0 if no coincidence; both sides negative if curves are reversed
+		unsectID = 0;  // 0 if not unsectable; one side negative if curves are reversed
 		coinEnd = MatchEnds::none;
 		unsectEnd = MatchEnds::none;
 		coincidenceProcessed = false;
@@ -133,8 +133,9 @@ struct OpIntersection {
 	OpPtT ptT;
 	int coincidenceID;
 	int unsectID;
-	MatchEnds coinEnd;  // used to put start before end on sect sort
-	MatchEnds unsectEnd;
+	// !!! why does coin makes both negative but unsect only makes one negative...
+	MatchEnds coinEnd;  // used to put start before end on sect sort (negative if pair flipped)
+	MatchEnds unsectEnd;  // one side is negative if pair are flipped
 	bool coincidenceProcessed;
 	bool mergeProcessed;
 #if OP_DEBUG
@@ -160,7 +161,7 @@ struct OpIntersections {
 	void sort();  // 
     void mergeNear();
 	// return intersections that delineate unsectable runs that contain this edge
-	std::vector<OpIntersection*> unsectables(const OpEdge* );
+//	std::vector<OpIntersection*> unsectables(const OpEdge* );
 	static bool UnsectablesOverlap(std::vector<OpIntersection*> set1,
 			std::vector<OpIntersection*> set2);
 	void windCoincidences(std::vector<OpEdge>& edges);

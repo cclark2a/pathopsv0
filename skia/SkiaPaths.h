@@ -9,7 +9,9 @@
 
 class SkPath;
 
-enum class OpType {
+namespace PathOpsV0Lib {
+
+enum class CurveType : int {
     no,
     line,
     quad,
@@ -17,9 +19,9 @@ enum class OpType {
     cubic
 };
 
-namespace PathOpsV0Lib {
 enum class BinaryOperand : int;
 enum class BinaryWindType : int;
+
 }
 
 SkPathOp MapInvertedSkPathOp(SkPathOp op, bool leftOperandIsInverted, bool rightOperandIsInverted);
@@ -27,8 +29,8 @@ bool SkPathOpInvertOutput(SkPathOp op, bool leftOperandIsInverted, bool rightOpe
 
 void SetSkiaContextCallBacks(PathOpsV0Lib::Context* );
 void SetSkiaCurveCallBacks(PathOpsV0Lib::Context* );
-PathOpsV0Lib::Contour* SetSkiaSimplifyCallBacks(PathOpsV0Lib::Context* , bool isWindingFill 
-		OP_DEBUG_PARAMS(const SkPath& ));
+PathOpsV0Lib::Contour* SetSkiaSimplifyCallBacks(PathOpsV0Lib::Context* , bool isWindingFill
+        OP_DEBUG_PARAMS(const SkPath& ));
 PathOpsV0Lib::Contour* SetSkiaOpCallBacks(PathOpsV0Lib::Context* , SkPathOp op, 
 		PathOpsV0Lib::BinaryOperand , PathOpsV0Lib::BinaryWindType  OP_DEBUG_PARAMS(const SkPath&));
 void AddSkiaPath(PathOpsV0Lib::AddWinding , const SkPath& path);

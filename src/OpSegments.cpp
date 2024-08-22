@@ -32,7 +32,7 @@ OpSegments::OpSegments(OpContours& contours) {
 
 // may need to adjust values in opp if end is nearly equal to seg
 void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
-    auto add = [seg, opp](OpPoint pt, float segT, float oppT   OP_LINE_FILE_DEF(int dummy)) {
+    auto add = [seg, opp](OpPoint pt, float segT, float oppT   OP_LINE_FILE_DEF()) {
         if (opp->disabled || seg->disabled)
             return;
         if (seg->sects.contains(OpPtT { pt, segT }, opp) 
@@ -44,7 +44,7 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
                 OP_LINE_FILE_CALLER());
         sect->pair(oSect);
     };
-    auto checkEnds = [add, seg, opp](OpPoint oppPt, float oppT  OP_LINE_FILE_DEF(int dummy)) {
+    auto checkEnds = [add, seg, opp](OpPoint oppPt, float oppT  OP_LINE_FILE_DEF()) {
         float segT = OpNaN;
         if (seg->c.firstPt().isNearly(oppPt)) {
             segT = 0;
@@ -61,40 +61,40 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
         }
         OP_ASSERT(opp->c.c.data->start != opp->c.c.data->end || opp->disabled);
         if (!OpMath::IsNaN(segT))
-            add(oppPt, segT, oppT  OP_LINE_FILE_CALLER(0));
+            add(oppPt, segT, oppT  OP_LINE_FILE_CALLER());
         return segT;
     };
-    float startSegT = checkEnds(opp->c.firstPt(), 0  OP_LINE_FILE_PARAMS(0));
-    float endSegT = checkEnds(opp->c.lastPt(), 1  OP_LINE_FILE_PARAMS(0));
-    auto checkOpp = [add, opp](OpPoint segPt, float segT  OP_LINE_FILE_DEF(int dummy)) {
+    float startSegT = checkEnds(opp->c.firstPt(), 0  OP_LINE_FILE_PARAMS());
+    float endSegT = checkEnds(opp->c.lastPt(), 1  OP_LINE_FILE_PARAMS());
+    auto checkOpp = [add, opp](OpPoint segPt, float segT  OP_LINE_FILE_DEF()) {
         float oppT = opp->c.match(0, 1, segPt);
 		if (OpMath::IsNaN(oppT))
             return oppT;
         oppT = OpMath::PinNear(oppT);
         if ((0 == oppT || 1 == oppT) && opp->c.end(oppT) != segPt)
             opp->moveTo(oppT, segPt);
-        add(segPt, segT, oppT  OP_LINE_FILE_CALLER(0));
+        add(segPt, segT, oppT  OP_LINE_FILE_CALLER());
         return oppT;
     };
     float startOppT = OpNaN;
     float endOppT = OpNaN;
     if (0 != startSegT && 0 != endSegT) 
-        startOppT = checkOpp(seg->c.firstPt(), 0  OP_LINE_FILE_PARAMS(0));  // see if start pt is on opp curve
+        startOppT = checkOpp(seg->c.firstPt(), 0  OP_LINE_FILE_PARAMS());  // see if start pt is on opp curve
     if (1 != startSegT && 1 != endSegT) 
-		endOppT = checkOpp(seg->c.lastPt(), 1  OP_LINE_FILE_PARAMS(0));
-    auto checkSeg = [add, seg](OpPoint oppPt, float oppT  OP_LINE_FILE_DEF(int dummy)) {
+		endOppT = checkOpp(seg->c.lastPt(), 1  OP_LINE_FILE_PARAMS());
+    auto checkSeg = [add, seg](OpPoint oppPt, float oppT  OP_LINE_FILE_DEF()) {
         float segT = seg->c.match(0, 1, oppPt);
 		if (OpMath::IsNaN(segT))
             return;
         segT = OpMath::PinNear(segT);
         if ((0 == segT || 1 == segT) && seg->c.end(segT) != oppPt)
             seg->moveTo(segT, oppPt);
-        add(oppPt, segT, oppT  OP_LINE_FILE_CALLER(0));
+        add(oppPt, segT, oppT  OP_LINE_FILE_CALLER());
     };
     if (OpMath::IsNaN(startSegT) && 0 != startOppT && 0 != endOppT)
-        checkSeg(opp->c.firstPt(), 0  OP_LINE_FILE_PARAMS(0));
+        checkSeg(opp->c.firstPt(), 0  OP_LINE_FILE_PARAMS());
     if (OpMath::IsNaN(endSegT) && 1 != startOppT && 1 != endOppT)
-        checkSeg(opp->c.lastPt(), 1  OP_LINE_FILE_PARAMS(0));
+        checkSeg(opp->c.lastPt(), 1  OP_LINE_FILE_PARAMS());
 }
 
 // somewhat different from winder's edge based version, probably for no reason
@@ -103,19 +103,13 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
     OP_ASSERT(seg->c.debugIsLine());
     LinePts edgePts { seg->c.firstPt(), seg->c.lastPt() };
     OP_ASSERT(edgePts.pts[0] != edgePts.pts[1]);
-    MatchReverse matchRev = seg->matchEnds(opp);
-    if (matchRev.reversed) {
-        if (MatchEnds::start == matchRev.match)
-            matchRev.match = MatchEnds::end;
-        else if (MatchEnds::end == matchRev.match)
-            matchRev.match = MatchEnds::start;
-    }
+    MatchReverse matchRev = opp->matchEnds(seg);
     // if line and curve share end point, pass hint that root finder can call
     // reduced form that assumes one root is zero or one.
     OpRoots septs = opp->c.rayIntersect(edgePts, matchRev.match);
 	if (septs.fail == RootFail::rawIntersectFailed) {
 		// binary search on opp t-range to find where vert crosses zero
-		OpCurve rotated = opp->c.toVertical(edgePts);
+		OpCurve rotated = opp->c.toVertical(edgePts, matchRev.match);
 		septs.roots[0] = rotated.tZeroX(0, 1);
 		septs.count = 1;
 	}
@@ -253,8 +247,6 @@ void OpSegments::FindCoincidences(OpContours* contours) {
     }
 }
 
-// !!! this is comically complicated
-// surely even if all this is needed, it can be more clearly written and use less code ...
 IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
     OP_ASSERT(seg->c.debugIsLine());
     OP_ASSERT(!seg->disabled);
@@ -280,101 +272,64 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
         opp->makeEdge(OP_LINE_FILE_NPARAMS());
         return OpWinder::CoincidentCheck(seg->edges.front(), opp->edges.front());
     }
-    OpVector sV = seg->c.lastPt() - seg->c.firstPt();
-    OpVector oV = opp->c.lastPt() - opp->c.firstPt();
-    // check for matching slope
-    // if slope delta is zero, lines are parallel. Check for near zero by skewing one line and
-    // seeing that the skew in both directions yields a greater slope delta
-    float slopeDelta = fabsf(sV.dx * oV.dy - sV.dy * oV.dx);
-    float largest = std::max({ fabsf(sV.dx), fabsf(sV.dy), fabsf(oV.dx), fabsf(oV.dy) });
-    float minimum = OpMath::NextLarger(largest) - largest;
-    if (slopeDelta > minimum)
-        return IntersectResult::no;  // most tests will exit here
-    bool segLonger = fabsf(sV.dx) + fabsf(sV.dy) > fabsf(oV.dx) + fabsf(oV.dy);
-    OpVector skewBase = segLonger ? sV : oV;
-    XyChoice larger = fabsf(skewBase.dx) > fabsf(skewBase.dy) ? XyChoice::inX : XyChoice::inY;
-    if (XyChoice::inY == larger)
-        std::swap(skewBase.dx, skewBase.dy);  // always skew larger, placed in x
-    OpVector skewOpp = segLonger ? oV : sV;
-    // !!! change this to loop until upDelta != slopeDelta?
-    OpVector skewUp = { OpMath::NextLarger(skewBase.dx), skewBase.dy };
-    if (XyChoice::inY == larger)
-        std::swap(skewUp.dx, skewUp.dy);
-    float upDelta = fabsf(skewUp.dx * skewOpp.dy - skewUp.dy * skewOpp.dx);
-    if (upDelta < slopeDelta)
+    LinePts oppLine = opp->c.linePts();
+    OpCurve vertSeg = seg->c.toVertical(oppLine, ends.match);
+    if (!vertSeg.isVertical())
         return IntersectResult::no;
-    // !!! change this to loop until downDelta != slopeDelta?
-    OpVector skewDown = { OpMath::NextSmaller(skewBase.dx), skewBase.dy };
-    if (XyChoice::inY == larger)
-        std::swap(skewDown.dx, skewDown.dy);
-    float downDelta = fabsf(skewDown.dx * skewOpp.dy - skewDown.dy * skewOpp.dx);
-    if (downDelta < slopeDelta)
+    LinePts segLine = seg->c.linePts();
+    OpCurve vertOpp = opp->c.toVertical(segLine, ends.flipped());
+    if (!vertOpp.isVertical())
         return IntersectResult::no;
-    // at this point lines are parallel. See if they are also coincident
-    OpPoint* longer = &seg->c.c.data->start;
-    OpPoint* shorter = &opp->c.c.data->start;
-    if (!segLonger)
-        std::swap(longer, shorter);
-    OpVector longS = longer[0] - shorter[0];
-    OpVector longE = longer[1] - shorter[0];
-    if ((!longS.dx && !longS.dy) || (!longE.dx && !longE.dy)) {
-        longS = longer[0] - shorter[1];
-        longE = longer[1] - shorter[1];
-        OP_ASSERT((longS.dx || longS.dy) && (longE.dx || longE.dy));
+    OpPtT oppInSeg[2], segInOpp[2];
+    OpPtT* oppInSegPtr = oppInSeg;
+    OpPtT* segInOppPtr = segInOpp;
+    auto checkBetween = [](OpCurve& vert, OpCurve& base, float test, OpPtT*& inPtr) {
+        if (OpMath::Between(vert.firstPt().y, test, vert.lastPt().y)
+                && vert.firstPt().y != test && test != vert.lastPt().y) {
+            float t = OpMath::XYRatio(vert.firstPt().y, vert.lastPt().y, test);
+            *inPtr++ = OpPtT(OpMath::Interp(base.firstPt(), base.lastPt(), t), t);
+            return true;
+        }
+        return false;
+    };
+    auto checkVert = [checkBetween](OpCurve& vertBase, OpCurve& segCurve, OpCurve& vertO, 
+            OpCurve& oppCurve, OpPtT*& oInSegPtr, OpPtT*& sInOppPtr
+            OP_DEBUG_PARAMS(OpPtT* oInSeg, OpPtT* sInOpp)) {
+        if (checkBetween(vertBase, segCurve, vertO.firstPt().y, oInSegPtr))
+            *sInOppPtr++ = OpPtT(oppCurve.firstPt(), 0);
+        if (checkBetween(vertBase, segCurve, vertO.lastPt().y, oInSegPtr))
+            *sInOppPtr++ = OpPtT(oppCurve.lastPt(), 1);
+    };
+    OpCurve vertSegBase = seg->c.toVertical(segLine, MatchEnds::start);
+    checkVert(vertSegBase, seg->c, vertOpp, opp->c, oppInSegPtr, segInOppPtr
+            OP_DEBUG_PARAMS(oppInSeg, segInOpp));
+    OpCurve vertOppBase = opp->c.toVertical(oppLine, MatchEnds::start);
+    checkVert(vertOppBase, opp->c, vertSeg, seg->c, segInOppPtr, oppInSegPtr
+            OP_DEBUG_PARAMS(segInOpp, oppInSeg));
+    if (MatchEnds::none != ends.match) {
+        OP_ASSERT(oppInSegPtr < &oppInSeg[2]);
+        *oppInSegPtr++ = MatchEnds::start == ends.match 
+                ? OpPtT(seg->c.firstPt(), 0) : OpPtT(seg->c.lastPt(), 1);
+        OP_ASSERT(segInOppPtr < &segInOpp[2]);
+        *segInOppPtr++ = MatchEnds::start == ends.flipped() 
+                ? OpPtT(opp->c.firstPt(), 0) : OpPtT(opp->c.lastPt(), 1);
     }
-    float longSDelta = fabsf(longS.dx * skewOpp.dy - longS.dy * skewOpp.dx);
-    if (upDelta < longSDelta)
+    if (oppInSegPtr - oppInSeg != 2)
         return IntersectResult::no;
-    if (downDelta < longSDelta)
+    if (segInOppPtr - segInOpp != 2)
         return IntersectResult::no;
-    float longEDelta = fabsf(longE.dx * skewOpp.dy - longE.dy * skewOpp.dx);
-    if (upDelta < longEDelta)
-        return IntersectResult::no;
-    if (downDelta < longEDelta)
-        return IntersectResult::no;
-    // at this point, lines are coincident. Find extremes
-    float sStart = longer[0].choice(larger);
-    float sEnd = longer[1].choice(larger);
-    float oStart = shorter[0].choice(larger);
-    float oEnd = shorter[1].choice(larger);
-    ends.reversed = (sEnd - sStart) * (oEnd - oStart) < 0;
-#if 01
-    if (ends.reversed)
-        std::swap(sStart, sEnd);
-    float sStartTonO = (sStart - oStart) / (oEnd - oStart);
-    OpPtT oStartPtT = 0 <= sStartTonO && sStartTonO <= 1 
-            ? OpPtT{ longer[ends.reversed], sStartTonO } : OpPtT{ shorter[0], 0 };
-    float sEndTonO = (sEnd - oStart) / (oEnd - oStart);
-    OpPtT oEndPtT = 0 <= sEndTonO && sEndTonO <= 1 
-            ? OpPtT{ longer[!ends.reversed], sEndTonO } : OpPtT{ shorter[1], 1 };
-    if (oStartPtT.t >= oEndPtT.t)
-        return IntersectResult::no;
-    if (oStartPtT.t > oEndPtT.t)
-        std::swap(oStartPtT, oEndPtT);
-    if (ends.reversed) {
-        std::swap(sStart, sEnd);
-        std::swap(oStart, oEnd);
+    if (oppInSeg[0].t > oppInSeg[1].t) {
+        std::swap(oppInSeg[0], oppInSeg[1]);
+        std::swap(segInOpp[0], segInOpp[1]);
     }
-    float oStartTonS = (oStart - sStart) / (sEnd - sStart);
-    OpPtT sStartPtT = 0 <= oStartTonS && oStartTonS <= 1 
-            ? OpPtT{ shorter[ends.reversed], oStartTonS } : OpPtT{ longer[0], 0 };
-    float oEndTonS = (oEnd - sStart) / (sEnd - sStart);
-    OpPtT sEndPtT = 0 <= oEndTonS && oEndTonS <= 1 
-            ? OpPtT{ shorter[!ends.reversed], oEndTonS } : OpPtT{ longer[1], 1 };
-    if (sStartPtT.t > sEndPtT.t)
-        std::swap(sStartPtT, sEndPtT);
-    if (!segLonger) {
-        std::swap(sStartPtT, oStartPtT);
-        std::swap(sEndPtT, oEndPtT);
-    }
-#else
-    OpPtT sStartPtT = { seg->c.pts[0], 0 };
-    OpPtT sEndPtT = { seg->c.pts[1], 1 };
-    OpPtT oStartPtT = { opp->c.pts[0], 0 };
-    OpPtT oEndPtT = { opp->c.pts[1], 1 };
-#endif
-    return OpWinder::AddPair(larger, sStartPtT, sEndPtT, oStartPtT, oEndPtT,
-	        ends.reversed, seg, opp);
+    OP_ASSERT(oppInSeg[0].pt.isNearly(segInOpp[0].pt));
+    OP_ASSERT(oppInSeg[1].pt.isNearly(segInOpp[1].pt));
+    OpPtT::MeetInTheMiddle(oppInSeg[0], segInOpp[0]);
+    OpPtT::MeetInTheMiddle(oppInSeg[1], segInOpp[1]);
+    OpVector segV = oppInSeg[1].pt - oppInSeg[0].pt;
+    XyChoice larger = fabsf(segV.dx) > fabsf(segV.dy) ? XyChoice::inX : XyChoice::inY;
+    return OpWinder::AddPair(larger, oppInSeg[0], oppInSeg[1], segInOpp[0], segInOpp[1],
+	        segInOpp[0].t > segInOpp[1].t, seg, opp);
 }
 
 // note: ends have already been matched for consecutive segments
@@ -397,7 +352,7 @@ FoundIntersections OpSegments::findIntersections() {
             (void) seg->c.isLine();
             (void) opp->c.isLine();
             AddEndMatches(seg, opp);
-            if (opp->disabled)
+            if (seg->disabled || opp->disabled)
                 continue;
             // for line-curve intersection we can directly intersect
             if (seg->c.isLine()) {

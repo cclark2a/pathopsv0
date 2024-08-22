@@ -83,8 +83,8 @@ bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
 // returns true if emplaced edge has pals
 bool OpSegment::activeNeighbor(const OpEdge* edge, EdgeMatch match, 
         std::vector<FoundEdge>& oppEdges) const {
-    if ((EdgeMatch::start == match && edge->start.t == 0)
-            || (EdgeMatch::end == match && edge->end.t == 1))
+    if ((EdgeMatch::start == match && edge->startT == 0)
+            || (EdgeMatch::end == match && edge->endT == 1))
         return false;
     EdgeMatch neighbor = EdgeMatch::start == match ? !edge->which() : edge->which();
     OpPtT ptT = edge->whichPtT(match);
@@ -231,13 +231,9 @@ float OpSegment::findValidT(float start, float end, OpPoint opp) {
     return OpNaN;
 }
 
-void OpSegment::makeEdge(const OpPtT& s, const OpPtT& e  OP_LINE_FILE_DEF()) {
-    if (!edges.size()) 
-        edges.emplace_back(this, s, e  OP_LINE_FILE_PARAMS(nullptr, nullptr));
-}
-
 void OpSegment::makeEdge(OP_LINE_FILE_NP_DEF()) {
-    makeEdge(OpPtT(c.firstPt(), 0), OpPtT(c.lastPt(), 1)  OP_LINE_FILE_PARAMS());
+    if (!edges.size()) 
+        edges.emplace_back(this  OP_LINE_FILE_PARAMS());
 }
 
 void OpSegment::makeEdges() {
@@ -256,21 +252,17 @@ void OpSegment::makeEdges() {
     sects.makeEdges(this);
 }
 
+MatchReverse OpSegment::matchEnds(const LinePts& linePts) const {
+    if (disabled)
+        return { MatchEnds::none, false };
+    return c.matchEnds(linePts);
+}
+
 MatchReverse OpSegment::matchEnds(const OpSegment* opp) const {
-    MatchReverse result { MatchEnds::none, false };
-    if (disabled || opp->disabled)
-        return result;
-    OP_ASSERT(c.firstPt() != c.lastPt());
-    OP_ASSERT(opp->c.firstPt() != opp->c.lastPt());
-    if (c.firstPt() == opp->c.firstPt())
-        result = { MatchEnds::start, false };
-    else if (c.firstPt() == opp->c.lastPt())
-        result = { MatchEnds::start, true };
-    if (c.lastPt() == opp->c.lastPt())
-        result = { result.match | MatchEnds::end, false };
-    else if (c.lastPt() == opp->c.firstPt())
-        result = { result.match | MatchEnds::end, true };
-    return result;
+    if (opp->disabled)
+        return { MatchEnds::none, false };
+    LinePts oppLine { opp->c.firstPt(), opp->c.lastPt() };
+    return matchEnds(oppLine);
 }
 
 /* Since all segments have to be checked against all other segments, it adds complexity
@@ -384,21 +376,21 @@ void OpSegment::windCoincidences() {
         for (OpIntersection** sPtr = &sects.i.front(); sPtr <= &sects.i.back(); ++sPtr) {
             OpIntersection* sect = *sPtr;
             if (!firstBegin) {
-                if (sect->ptT == edge.start)
+                if (sect->ptT == edge.start())
                     firstBegin = sPtr;
                 continue;
             }
             if (!firstEnd) {
-                if (sect->ptT != edge.start)
+                if (sect->ptT != edge.start())
                     firstEnd = sPtr;
             }
             if (!lastBegin) {
-                if (sect->ptT == edge.end)
+                if (sect->ptT == edge.end())
                     lastBegin = sPtr;
                 continue;
             }
             if (!lastEnd) {
-                if (sect->ptT != edge.end)
+                if (sect->ptT != edge.end())
                     lastEnd = sPtr;
                 break;
             }
@@ -433,10 +425,10 @@ void OpSegment::windCoincidences() {
                     break;  // !!! was return;
                 if (oEnd->coincidenceID)
                     break;  // !!! was return;
-                OpIntersection* const* eStart = oSegment->sects.entry(oppEdge->start, this);
+                OpIntersection* const* eStart = oSegment->sects.entry(oppEdge->start(), this);
                 if (!eStart || (*eStart)->opp->coincidenceID)
                     break;  // !!! was return;
-                OpIntersection* const* eEnd = oSegment->sects.entry(oppEdge->end, this);
+                OpIntersection* const* eEnd = oSegment->sects.entry(oppEdge->end(), this);
                 if (!eEnd || (*eEnd)->opp->coincidenceID)
                     break;  // !!! was return;
                 // mark the intersections as coincident
@@ -513,8 +505,8 @@ void OpSegment::newWindCoincidences() {
             continue;
         for (;;) {  // while sect is for a skipped edge ...
             advanceSect();
-            OP_ASSERT(edge->start.t >= sect->ptT.t);
-            if (edge->start.t == sect->ptT.t) 
+            OP_ASSERT(edge->startT >= sect->ptT.t);
+            if (edge->startT == sect->ptT.t) 
                 break;
             OP_ASSERT(sectIndex < sects.i.size());
         }
@@ -525,7 +517,7 @@ void OpSegment::newWindCoincidences() {
                 return;
             if (oEdge->isUnsectable)
                 return;
-            OpPoint oEnd = EdgeMatch::start == oMatch ? oEdge->end.pt : oEdge->start.pt;
+            OpPoint oEnd = EdgeMatch::start == oMatch ? oEdge->endPt() : oEdge->startPt();
 #if 0  // eventually, handle partial coincident. For now, just detect full coincidence
             if (!edge->ptBounds.contains(oEnd))
                 return;
@@ -533,7 +525,7 @@ void OpSegment::newWindCoincidences() {
             if (!linePts.ptOnLine(oEnd))
                 return;
 #else
-            if (edge->end.pt != oEnd)
+            if (edge->endPt() != oEnd)
                 return;
 #endif
 #if 0 && OP_DEBUG
@@ -587,11 +579,11 @@ void OpSegment::newWindCoincidences() {
                     break;
                 }
                 oppEdge = &oppSeg->edges[oppEdgeIndex++];
-            } while (oppEdge->start.pt != edge->start.pt && oppEdge->end.pt != edge->start.pt);
+            } while (oppEdge->startPt() != edge->startPt() && oppEdge->endPt() != edge->startPt());
             if (!oppEdge)
                 continue;
-            EdgeMatch match = oppEdge->start.pt == edge->start.pt ? EdgeMatch::start : EdgeMatch::end;
-            OP_ASSERT(EdgeMatch::start == match || oppEdge->end.pt == edge->start.pt);
+            EdgeMatch match = oppEdge->startPt() == edge->startPt() ? EdgeMatch::start : EdgeMatch::end;
+            OP_ASSERT(EdgeMatch::start == match || oppEdge->endPt() == edge->startPt());
             checkCoin(oppEdge, match);
             if (EdgeMatch::end == match && oppEdgeIndex < oppSeg->edges.size()) {
                 oppEdge = &oppSeg->edges[oppEdgeIndex];

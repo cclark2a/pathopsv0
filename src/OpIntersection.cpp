@@ -3,20 +3,6 @@
 #include "OpContour.h"
 #include "OpSegment.h"
 
-#if 0
-void OpIntersection::betweenPair(OpIntersection* end) {
-    for (OpEdge& edge : segment->edges) {
-        if (edge.start.t < ptT.t)
-            continue;
-        OP_ASSERT(ptT.t <= edge.start.t && edge.start.t < end->ptT.t);
-        edge.isUnsortable = true;
-        edge.isUnsectable = true;
-        if (end->ptT.t == edge.end.t)
-            break;
-    }
-}
-#endif
-
 // setter to help debugging
 void OpIntersection::setCoin(int cid, MatchEnds end) {
     coincidenceID = cid;
@@ -70,26 +56,30 @@ OpIntersection* const * OpIntersections::entry(const OpPtT& ptT, const OpSegment
 void OpIntersections::makeEdges(OpSegment* segment) {
     std::vector<const OpIntersection*> unsectables;
     OpIntersection* last = i.front();
+    if (last->unsectID)
+        unsectables.push_back(last);
+    int lastIndex = 0;
     OP_ASSERT(!resort);
-    for (auto sectPtr : i) {
-        OpIntersection& sect = *sectPtr;
-        if (sect.ptT.t != last->ptT.t) {
-            segment->edges.emplace_back(segment, last->ptT, sect.ptT
-                    OP_LINE_FILE_PARAMS(last, sectPtr));
+    for (int sectIndex = 1; sectIndex < (int) i.size(); ++sectIndex) {
+        OpIntersection* sectPtr = i[sectIndex];
+        if (sectPtr->ptT.t != last->ptT.t) {
+            segment->edges.emplace_back(segment, lastIndex, sectIndex  OP_LINE_FILE_PARAMS());
             OpEdge& newEdge = segment->edges.back();
             if (unsectables.size())
                 newEdge.isUnsectable = true;
         }
-        if (sect.unsectID) {
+        if (sectPtr->unsectID) {
             auto found = std::find_if(unsectables.begin(), unsectables.end(), 
-                    [&sect](const OpIntersection* uT) { return uT->unsectID == sect.unsectID; });
+                    [&sectPtr](const OpIntersection* uT) { return uT->unsectID == sectPtr->unsectID; });
             if (unsectables.end() == found)
-                unsectables.push_back(&sect);
+                unsectables.push_back(sectPtr);
             else
                 unsectables.erase(found);
         } 
-        if (sect.ptT.t != last->ptT.t)
-            last = &sect;
+        if (sectPtr->ptT.t != last->ptT.t) {
+            last = sectPtr;
+            lastIndex = sectIndex;
+        }
     }
 }
 
@@ -148,10 +138,11 @@ void OpIntersections::range(const OpSegment* opp, std::vector<OpIntersection*>& 
     }
 }
 
+#if 0
 std::vector<OpIntersection*> OpIntersections::unsectables(const OpEdge* edge) {
     std::vector<OpIntersection*> result;
     for (auto sect : i) {
-        if (sect->ptT.t > edge->start.t)
+        if (sect->ptT.t > edge->startT)
             break;
         if (sect->unsectID) {
             auto found = std::find_if(result.begin(), result.end(), 
@@ -164,7 +155,9 @@ std::vector<OpIntersection*> OpIntersections::unsectables(const OpEdge* edge) {
     }
     return result;
 }
+#endif
 
+#if 0
 bool OpIntersections::UnsectablesOverlap(std::vector<OpIntersection*> set1,
         std::vector<OpIntersection*> set2) {
     for (OpIntersection* i1: set1) {
@@ -175,6 +168,7 @@ bool OpIntersections::UnsectablesOverlap(std::vector<OpIntersection*> set1,
     }
     return false;
 }
+#endif
 
 struct SectPreferred {
     SectPreferred(OpIntersection* sect)
@@ -195,8 +189,6 @@ struct SectPreferred {
     OpIntersection* best;  // an end point, if one exists; otherwise, an arbitrary sect
     bool bestOnEnd;  // never cleared, only set (once first sect on end is found)
 };
-
-void emergencyDump(OpContours* );
 
 bool SectPreferred::find() {
     OpSegment* seg = best->segment;
@@ -427,12 +419,12 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges) {
             return coinID == pair.id; 
         });
         if (pairs.end() == pairIter) {  // set up start
-            while (edge->start.t != sectPtr->ptT.t) {
-                OP_ASSERT(edge->start.t < sectPtr->ptT.t);
+            while (edge->startT != sectPtr->ptT.t) {
+                OP_ASSERT(edge->startT < sectPtr->ptT.t);
                 OP_ASSERT(edge < &edges.back());
                 ++edge;
             }
-            OP_ASSERT(edge->start.t == sectPtr->ptT.t);
+            OP_ASSERT(edge->startT == sectPtr->ptT.t);
             OpSegment* oppSegment = sectPtr->opp->segment;
             if (oppSegment->disabled)
                 continue;
@@ -462,13 +454,13 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges) {
         // either: make the points the same
         // or: see if we can survive if compares are approximate (try the latter first)
         OP_ASSERT(coinPair.oppEdge->ptT(match).pt.isNearly(coinPair.start->ptT.pt));
-        OP_ASSERT(coinPair.edge->start == coinPair.start->ptT);
+        OP_ASSERT(coinPair.edge->start() == coinPair.start->ptT);
         // In rare cases (e.g. issue1435) coincidence points may not match; one seg has extra.
         // Defer thinking about this if the winding is uniform. Assert to fix this in the future.
         edge = coinPair.edge;
         OpEdge* oppEdge = coinPair.oppEdge;
         OpEdge* edgeBack = edge;  // find final edge corresponding to final sect
-        while (edgeBack->end.t < coinPair.end->ptT.t) {
+        while (edgeBack->endT < coinPair.end->ptT.t) {
             OP_ASSERT(edgeBack < &edges.back());
             ++edgeBack;
 #if OP_DEBUG
@@ -478,12 +470,12 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges) {
                 // search intersection list for entry pointing to opp edge at edge end
                 auto& oI = oppEdge->segment->sects.i;
                 auto oIFound = std::find_if(oI.begin(), oI.end(), 
-                        [&edge](auto sect) { return sect->ptT.pt.isNearly(edge->end.pt); });
+                        [&edge](auto sect) { return sect->ptT.pt.isNearly(edge->endPt()); });
                 OP_ASSERT(oI.end() != oIFound);
             }
 #endif
         }
-        OP_ASSERT(edgeBack->end == coinPair.end->ptT);
+        OP_ASSERT(edgeBack->end() == coinPair.end->ptT);
         OpEdge* oppBack = oppEdge;
         while (oppBack->ptT(!match).t != coinPair.oEnd->ptT.t) {
             OP_ASSERT(coinPair.id > 0 ? oppBack < coinPair.lastEdge : oppBack > coinPair.lastEdge);
@@ -495,7 +487,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges) {
                 // search opp intersection list for entry pointing to edge at opp edge end
                 OpEdge* oEdge = coinPair.id > 0 ? oppEdge : oppBack;
                 auto iFound = std::find_if(i.begin(), i.end(), 
-                        [&oEdge](auto sect) { return sect->ptT.pt.isNearly(oEdge->end.pt); });
+                        [&oEdge](auto sect) { return sect->ptT.pt.isNearly(oEdge->endPt()); });
                 OP_ASSERT(i.end() != iFound);
             }
 #endif
@@ -506,7 +498,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges) {
         for (;;) {
             OP_DEBUG_CODE(PathOpsV0Lib::Winding edgeWinding = edge->winding.copyData());
             OP_DEBUG_CODE(PathOpsV0Lib::Winding oppWinding = oppEdge->winding.copyData());
-            OP_ASSERT(edge->start.pt.isNearly( 
+            OP_ASSERT(edge->startPt().isNearly( 
                     oppEdge->ptT(coinPair.id > 0 ? EdgeMatch::start : EdgeMatch::end).pt));
             PathOpsV0Lib::Winding combinedWinding;
             bool bothEnabled = !edge->disabled && !oppEdge->disabled;
@@ -524,12 +516,12 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges) {
             for (;;) {
                 OpPoint oppEnd = oppEdge->ptT(coinPair.id > 0 
                         ? EdgeMatch::end : EdgeMatch::start).pt;
-                if (edge->end.pt == oppEnd)
+                if (edge->endPt() == oppEnd)
                     break;
-                if (edge->end.pt.isNearly(oppEnd) && ((edge == edgeBack) == (oppEdge == oppBack)))
+                if (edge->endPt().isNearly(oppEnd) && ((edge == edgeBack) == (oppEdge == oppBack)))
                     break;
                 bool oppInEdge = edge->ptBounds.contains(oppEnd);
-                OP_DEBUG_CODE(bool edgeInOpp = oppEdge->ptBounds.contains(edge->end.pt));
+                OP_DEBUG_CODE(bool edgeInOpp = oppEdge->ptBounds.contains(edge->endPt()));
                 OP_ASSERT(oppInEdge != edgeInOpp);
                 if (oppInEdge) {
                     oppEdge += oppBump;

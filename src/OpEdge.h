@@ -215,17 +215,13 @@ enum class Unsectable {
 	multiple,
 };
 
-enum class ArePals {
-	unset,
-	no,
-	yes
-};
-
-struct UnsectableOpp {  // !!! move to OpEdge.h
+#if 0
+struct UnsectableOpp {
 	OpEdge* edge;
-	ArePals arePals;
+	int unsectableID;
 	bool overlaps;
 };
+#endif
 
 constexpr float OP_CURVACIOUS_LIMIT = 1.f / 16;  // !!! tune to guess line/line split ratio
 
@@ -267,6 +263,10 @@ private:
 #if OP_DEBUG // a few debug values are also nonzero
         id = 0;
         segment = nullptr;
+		startT = OpNaN;
+		endT = OpNaN;
+		startSect = 0;
+		endSect = 0;
 		debugMatch = nullptr;
 		debugZeroErr = nullptr;
 		debugOutPath = 0;
@@ -284,16 +284,9 @@ private:
 #endif
 	}
 public:
-	OpEdge(OpSegment* s, const OpPtT& t1, const OpPtT& t2
-			OP_LINE_FILE_DEF(OpIntersection* i1, OpIntersection* i2))
-		: OpEdge() {
-		segment = s;
-		start = t1;
-		end = t2;
-		OP_LINE_FILE_SET(debugSetMaker);
-		complete();
-	}
-
+	OpEdge(OpSegment*  OP_LINE_FILE_DEF());  // segment make edge; used by curve curve
+	OpEdge(OpSegment* , int sIndex, int eIndex  OP_LINE_FILE_DEF());  // sect make edges
+	OpEdge(OpContours* , const OpPtT& start, const OpPtT& end  OP_LINE_FILE_DEF());  // make filler 
 	OpEdge(const OpEdge* e, const OpPtT& newPtT, NewEdge isLeftRight  OP_LINE_FILE_DEF());
 	OpEdge(const OpEdge* e, const OpPtT& start, const OpPtT& end  OP_LINE_FILE_DEF());
 	OpEdge(const OpEdge* e, float t1, float t2  OP_LINE_FILE_DEF());
@@ -311,15 +304,17 @@ public:
 	void clearNextEdge();
 	void clearPriorEdge();
 	const OpRect& closeBounds();  // returns bounds with slop
-	void complete();
+	void complete(OpPoint start, OpPoint end);
 	bool containsLink(const OpEdge* edge) const;
 	OpContours* contours() const;
 	size_t countUnsortable() const;
+	OpPtT end() const { return OpPtT(endPt(), endT); }
+	OpPoint endPt() const { return curve.lastPt(); }
 	OpIntersection* findEndSect(EdgeMatch match, OpSegment* oppSeg);
 	OpIntersection* findWhichSect(EdgeMatch );
 	OpPtT findT(Axis , float oppXY) const;
 	OpPtT flipPtT(EdgeMatch match) const { 
-		return match == which() ? end : start; }
+		return match == which() ? end() : start(); }
 	bool hasLinkTo(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? priorEdge : nextEdge; }  // !!! was reversed!
 	bool isActive() const { 
@@ -329,9 +324,10 @@ public:
 	bool isPal(const OpEdge* opp) const {
 		return pals.end() != std::find_if(pals.begin(), pals.end(), 
 				[opp](const auto& test) { return opp == test.edge; }); }
-	bool isUnsectablePair(OpEdge* opp);
+	bool isUnsectablePair(OpEdge* opp);  // true if this and opp are unsectable pairs
 	void linkToEdge(FoundEdge& , EdgeMatch );
 	bool linksTo(OpEdge* match) const;
+	MatchReverse matchEnds(const LinePts& ) const;
 	void markPals();
 	void matchUnsectable(EdgeMatch , const std::vector<OpEdge*>& unsectInX, 
 			std::vector<FoundEdge>& , AllowPals , AllowClose );
@@ -340,7 +336,7 @@ public:
 	void output(bool closed);  // provided by the graphics implementation
 	void outputLinkedList(const OpEdge* firstEdge, bool first);
 	OpPtT ptT(EdgeMatch match) const { 
-		return EdgeMatch::start == match ? start : end; }
+		return EdgeMatch::start == match ? start() : end(); }
 	OpPtT ptTCloseTo(OpPtT oPtPair, const OpPtT& ptT) const;
 	void reenable() {  // only used for coincidence
 		disabled = false;
@@ -361,19 +357,24 @@ public:
 	void setNextEdge(OpEdge*);  // setter exists so debug breakpoints can be set
 	void setPointBounds();
 	void setPriorEdge(OpEdge* );  // setter exists so debug breakpoints can be set
-	void setSum(const PathOpsV0Lib::Winding&  OP_LINE_FILE_DEF(int dummy));
+	void setSum(const PathOpsV0Lib::Winding&  OP_LINE_FILE_DEF());  // called by macro SET_SUM
 	void setUnsortable();  // setter exists so debug breakpoints can be set
-	const OpCurve& setVertical(const LinePts& );
+	const OpCurve& setVertical(const LinePts& , MatchEnds);
 	void setWhich(EdgeMatch );  // setter exists so debug breakpoints can be set
-	void subDivide();
+	OpPtT start() const { return OpPtT(startPt(), startT); }
+	OpPoint startPt() const { return curve.firstPt(); }
+	void subDivide(OpPoint start, OpPoint end);
 	CalcFail subIfDL(Axis axis, float t, OpWinding* );
-	OpType type();
+	PathOpsV0Lib::CurveType type();
 	void unlink();  // restore edge to unlinked state (for reusing unsortable or unsectable edges)
-	bool unsectableMatches(OpEdge* ) const; // true if edges share the same unsectable range
+	int unsectID() const;
+	OpIntersection* unsectSect() const;
+	OpEdge* unsectableMatch() const; // edge with the same unsectable range
+	bool unsectableSeen(EdgeMatch ) const;  // true if pal end matches and has been seen by op tree
 	EdgeMatch which() const {
 		return whichEnd_impl; }
 	OpPtT whichPtT(EdgeMatch match = EdgeMatch::start) const { 
-		return match == which() ? start : end; }
+		return match == which() ? start() : end(); }
 
 	bool debugFail() const;
     bool debugSuccess() const;
@@ -413,13 +414,7 @@ public:
 	OpEdge* priorEdge;	// edges that link to form completed contour
 	OpEdge* nextEdge;
 	OpEdge* lastEdge;
-	// !!! Can start, end be shared with intersection?
-	// what about id/ptr struct (union?) with intersect id and ptr
-	// ptr is set up once intersects is sorted
-	// should there be a different edge structure after intersections are known?
-	OpPtT start;
 	OpPtT center;  // curve location used to find winding contribution
-	OpPtT end;
 	OpCurve curve;
 	OpCurve vertical_impl;	// only access through set vertical function
 	LinePts upright_impl;   //  "
@@ -431,8 +426,12 @@ public:
 	std::vector<EdgeDistance> pals;	 // list of unsectable adjacent edges !!! should be pointers?
 	std::vector<OpEdge*> lessRay;  // edges found placed with smaller edge distance cept values
 	std::vector<OpEdge*> moreRay;  // edges found placed with larger edge distance cept values
-	std::vector<UnsectableOpp> uPairs; // opposite edges unsectable with this edge
+//	std::vector<UnsectableOpp> uPairs; // opposite edges unsectable with this edge
 	OpHulls hulls;  // curve-curve intersections
+	float startT;  // used to be ptT; needs sect to find unsectable
+	float endT;
+	int startSect;  // to find unsectable pairs (there may be more than one)
+	int endSect;
 	int id;
 	EdgeMatch whichEnd_impl;  // if 'start', prior end equals start; if 'end' prior end matches end
 	EdgeFail rayFail;   // how computation (e.g., center) failed (on fail, windings are set to zero)
@@ -507,6 +506,6 @@ struct OpEdgeStorage {
 	size_t used;
 };
 
-#define OP_EDGE_SET_SUM(edge, winding) edge->setSum(winding  OP_LINE_FILE_PARAMS(0))
+#define OP_EDGE_SET_SUM(edge, winding) edge->setSum(winding  OP_LINE_FILE_PARAMS())
 
 #endif

@@ -81,7 +81,7 @@ inline CubicControls CubicControlPt(OpPoint start, CubicControls controls, OpPoi
 }
 
 inline OpRoots CubicAxisRawHit(OpPoint start, CubicControls controls, OpPoint end, Axis axis, 
-        float axisIntercept) {
+        float axisIntercept, MatchEnds matchEnds) {
     OpCubicFloatType A = end.choice(axis);   // d
     OpCubicFloatType B = controls.pts[1].choice(axis) * 3;  // 3*c
     OpCubicFloatType C = controls.pts[0].choice(axis) * 3;  // 3*b
@@ -89,7 +89,7 @@ inline OpRoots CubicAxisRawHit(OpPoint start, CubicControls controls, OpPoint en
     A -= D - C + B;     // A =   -a + 3*b - 3*c + d
     B += 3 * D - 2 * C; // B =  3*a - 6*b + 3*c
     C -= 3 * D;         // C = -3*a + 3*b
-    return OpMath::CubicRootsReal(A, B, C, D - axisIntercept, MatchEnds::none);
+    return OpMath::CubicRootsReal(A, B, C, D - axisIntercept, matchEnds);
 }
 
 inline OpVector CubicTangent(OpPoint start, CubicControls controls, OpPoint end, float t) {
@@ -102,14 +102,14 @@ inline OpVector CubicTangent(OpPoint start, CubicControls controls, OpPoint end,
         double d = end.choice(offset);
         return (float) (3 * ((b - a) * one_t * one_t + 2 * (c - b) * t * one_t + (d - c) * t * t));
     };
-    if (0 == t && start == controls.pts[0]) {
-        if (controls.pts[0] == controls.pts[1])
+    if (OpMath::NearlyZeroT(t) && start.isNearly(controls.pts[0])) {
+        if (controls.pts[0].isNearly(controls.pts[1]))
             return end - start;
         else
             return controls.pts[1] - start;
     }
-    if (1 == t && end == controls.pts[1]) {
-        if (controls.pts[0] == controls.pts[1])
+    if (OpMath::NearlyOneT(t) && end.isNearly(controls.pts[1])) {
+        if (controls.pts[0].isNearly(controls.pts[1]))
             return end - start;
         else
             return end - controls.pts[0];
@@ -188,7 +188,7 @@ inline bool cubicIsLine(Curve c) {
 
 inline OpRoots cubicAxisRawHit(Curve c, Axis axis, float axisIntercept, MatchEnds ends) {
     CubicControls controls(c);
-    return CubicAxisRawHit(c.data->start, controls, c.data->end, axis, axisIntercept);
+    return CubicAxisRawHit(c.data->start, controls, c.data->end, axis, axisIntercept, ends);
 }
 
 inline OpPoint cubicPtAtT(Curve c, float t) {

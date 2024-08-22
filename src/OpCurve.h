@@ -4,8 +4,6 @@
 
 #include "PathOpsTypes.h"
 
-enum class OpType;
-
 #define RAW_INTERSECT_LIMIT 0.00005f  // errors this large or larger mean the crossing was not found
 
 // arranged so down/left is -1, up/right is +1
@@ -26,7 +24,7 @@ struct CutRangeT {
 
 struct OpCurve {
     OpCurve() 
-        : c{ nullptr, 0, (OpType) 0 }
+        : c{ nullptr, 0, (PathOpsV0Lib::CurveType) 0 }
         , contours(nullptr)
         , isLineSet(false)
         , isLineResult(false) {
@@ -41,14 +39,20 @@ struct OpCurve {
     OpPoint doublePtAtT(float t) const;
     OpPoint end(float t) const;
     OpPtT findIntersect(Axis offset, const OpPtT& ) const;
-    OpPoint firstPt() const;
+    OpPoint firstPt() const  {
+        return c.data->start; } 
     OpPoint hullPt(int index) const;
     bool isFinite() const;
     bool isLine(); 
-    OpPoint lastPt() const;
+    bool isVertical() const;
+    OpPoint lastPt() const {
+        return c.data->end; }
+    LinePts linePts() const {
+        LinePts result { firstPt(), lastPt() }; return result; }
     OpRootPts lineIntersect(const LinePts& line) const;
     // Returns t of point on curve if any; returns NaN if no match. Used by line/curve intersection.
     float match(float start, float end, OpPoint ) const;
+    MatchReverse matchEnds(const LinePts& ) const;
     bool nearBounds(OpPoint ) const;
     OpVector normal(float t) const;
     NormalDirection normalDirection(Axis axis, float t) const;
@@ -62,15 +66,16 @@ struct OpCurve {
     OpRoots rawIntersect(const LinePts& line, MatchEnds ) const;  // requires sect to be on curve
     OpRoots rayIntersect(const LinePts& line, MatchEnds ) const;
     void reverse();
-    const OpCurve& set(OpPoint start, OpPoint end, unsigned ptCount, OpType opType, float w);
-    void setFirstPt(OpPoint );
-    void setLastPt(OpPoint );
+    void setFirstPt(OpPoint pt) {
+        c.data->start = pt; }
+    void setLastPt(OpPoint pt) {
+        c.data->end = pt; }
     OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
     OpVector tangent(float t) const;
     float tAtXY(float t1, float t2, XyChoice , float goal) const;
     // rotates curve so that line's (pt[0], pt[1]) moves to ((0, 0), (0, line[1].y - line[0].y))
     // curve scale is not preserved
-    OpCurve toVertical(const LinePts& line) const;
+    OpCurve toVertical(const LinePts& line, MatchEnds ) const;
     float tZeroX(float t1, float t2) const;  // binary search on t-range finds vert crossing zero
     OpPair xyAtT(OpPair t, XyChoice xy) const;
 #if OP_DEBUG

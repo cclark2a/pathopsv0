@@ -62,6 +62,8 @@ inline MatchEnds operator!(MatchEnds a) {
 }
 
 struct MatchReverse {
+    MatchEnds flipped() const { 
+        return reversed ? !match : match; }
 #if OP_DEBUG_DUMP
     DUMP_DECLARATIONS
 #endif
@@ -776,10 +778,16 @@ struct OpMath {
         return std::isnan(x); }
 
     static bool NearlyEndT(float t) {
-        return 0 >= t - OpEpsilon || 1 <= t + OpEpsilon; }
+        return NearlyZeroT(t) || NearlyOneT(t); }
 
     static bool NearlyEqualT(float a, float b) {
         return a + OpEpsilon >= b && a <= b + OpEpsilon; }
+
+    static bool NearlyOneT(float t) {
+        return 1 <= t + OpEpsilon; }
+
+    static bool NearlyZeroT(float t) {
+        return 0 >= t - OpEpsilon; }
 
     static float NextLarger(float );
     static float NextSmaller(float );
@@ -846,6 +854,11 @@ struct OpMath {
     // example: finding extrema of cubic (3, 0, -2/3, 1) (see loop9)
     static OpRoots QuadRootsInteriorT(float A, float B, float C) {
         return QuadRootsDouble(A, B, C).keepInteriorTs();
+    }
+
+    static float XYRatio(float A, float B, float tween) {
+        OP_ASSERT(Between(A, tween, B));
+        return (tween - A) / (B - A);
     }
 
     static void ZeroTiny(OpPoint* pts, size_t count) {

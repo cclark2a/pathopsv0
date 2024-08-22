@@ -150,6 +150,21 @@ float OpCurve::match(float start, float end, OpPoint pt) const {
     return OpNaN;
 }
 
+MatchReverse OpCurve::matchEnds(const LinePts& opp) const {
+    MatchReverse result { MatchEnds::none, false };
+    OP_ASSERT(firstPt() != lastPt());
+    OP_ASSERT(opp.pts[0] != opp.pts[1]);
+    if (firstPt() == opp.pts[0])
+        result = { MatchEnds::start, false };
+    else if (firstPt() == opp.pts[1])
+        result = { MatchEnds::start, true };
+    if (lastPt() == opp.pts[1])
+        result = { result.match | MatchEnds::end, false };
+    else if (lastPt() == opp.pts[0])
+        result = { result.match | MatchEnds::end, true };
+    return result;
+}
+
 bool OpCurve::nearBounds(OpPoint pt) const {
     OpPointBounds bounds { firstPt(), lastPt() };
     return bounds.nearlyContains(pt);
@@ -174,7 +189,7 @@ OpRoots OpCurve::rawIntersect(const LinePts& linePt, MatchEnds common) const {
         return axisRawHit(Axis::vertical, linePt.pts[0].x, common);
     if (linePt.pts[0].y == linePt.pts[1].y)
         return axisRawHit(Axis::horizontal, linePt.pts[0].y, common);
-    OpCurve rotated = toVertical(linePt);
+    OpCurve rotated = toVertical(linePt, common);
     // if point bounds of rotated doesn't cross y-axis, this is no intersection
     OpRect rotatedBounds = rotated.ptBounds();
     if (rotatedBounds.right < 0 || rotatedBounds.left > 0)
@@ -272,7 +287,8 @@ bool OpCurve::isFinite() const {
 
 // this can fail (if rotated pts are not finite); can happen when input is finite
 // however, callers include sort predicate, which cannot return failure; so don't return failure here
-OpCurve OpCurve::toVertical(const LinePts& line) const {
+// !!! add match ends from caller so that rotated matching end point can guarantee x == 0
+OpCurve OpCurve::toVertical(const LinePts& line, MatchEnds match) const {
     float adj = line.pts[1].x - line.pts[0].x;
     float opp = line.pts[1].y - line.pts[0].y;
     OpCurve rotated(contours, { nullptr, c.size, c.type } );
@@ -281,7 +297,11 @@ OpCurve OpCurve::toVertical(const LinePts& line) const {
         return OpPoint(v.dy * adj - v.dx * opp, v.dy * opp + v.dx * adj);
     };
     rotated.c.data->start = rotatePt(c.data->start);
+    if (MatchEnds::start & match)
+        rotated.c.data->start.x = 0;
     rotated.c.data->end = rotatePt(c.data->end);
+    if (MatchEnds::end & match)
+        rotated.c.data->end.x = 0;
     contours->callBack(c.type).rotateFuncPtr(c, line, adj, opp, rotated.c);
     return rotated;
 }
@@ -320,7 +340,7 @@ OpPair OpCurve::xyAtT(OpPair t, XyChoice xy) const {
 }
 
 OpPoint OpCurve::hullPt(int index) const {
-    OP_ASSERT((OpType) 0 == c.type || 0 <= index && index < pointCount());
+    OP_ASSERT((PathOpsV0Lib::CurveType) 0 == c.type || 0 <= index && index < pointCount());
     if (0 == index)
         return c.data->start;
     if (pointCount() - 1 == index)
@@ -360,6 +380,18 @@ bool OpCurve::isLine() {
     return false;
 }
 
+// This scales the allowable error from vertical by the magnitude of y.
+// This works if the numbers are all very small (denormalized).
+// !!! Are there platforms that do not support denormalized numbers? Will this work there?
+// !!! If y is large, will this increase the error too much?
+bool OpCurve::isVertical() const {
+    if (firstPt().y == lastPt().y)
+        return false;
+    float epsilon = std::max(fabsf(firstPt().y), fabsf(lastPt().y)) * OpEpsilon;
+    return fabsf(firstPt().x) <= epsilon && fabsf(lastPt().x) <= epsilon; 
+}
+
+
 #if OP_DEBUG
 bool OpCurve::debugIsLine() const {
     if (isLineSet)
@@ -367,22 +399,6 @@ bool OpCurve::debugIsLine() const {
     return c.type == contours->contextCallBacks.setLineTypeFuncPtr(c);
 }
 #endif
-
-OpPoint OpCurve::firstPt() const {
-    return c.data->start; 
-} 
-
-OpPoint OpCurve::lastPt() const {
-    return c.data->end; 
-} 
-
-void OpCurve::setFirstPt(OpPoint pt) {
-    c.data->start = pt;
-}
-
-void OpCurve::setLastPt(OpPoint pt) {
-    c.data->end = pt;
-}
 
 OpPointBounds OpCurve::ptBounds() const {
     OpPointBounds result;
@@ -392,6 +408,5 @@ OpPointBounds OpCurve::ptBounds() const {
 }
 
 void OpCurve::output(bool firstPt, bool lastPt) {
-    contours->callBack(c.type).curveOutputFuncPtr(c, firstPt, lastPt, 
-            contours->callerOutput);
+    contours->callBack(c.type).curveOutputFuncPtr(c, firstPt, lastPt, contours->callerOutput);
 }

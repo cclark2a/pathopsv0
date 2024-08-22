@@ -396,23 +396,6 @@ void OpDebugImage::drawDoubleFocus() {
 	OP_DEBUG_CODE(OpDebugDefeatDelete defeater);
 	std::vector<int> ids;
 	clearScreen();
-	if (drawFillOn) {
-		SkMatrix matrix;
-		float scale = (float)DebugOpGetZoomScale();
-		matrix.setScale(scale, scale);
-		matrix.preTranslate(-DebugOpGetCenterX(), -DebugOpGetCenterY());
-		matrix.postTranslate(DebugOpGetOffsetX(), DebugOpGetOffsetY());
-		bool first = true;
-		for (auto contour : debugGlobalContours->contours) {
-			if (contour->callBacks.debugGetDrawFuncPtr(contour->caller)) {
-				SkPath* skPath = (SkPath*) contour->callBacks.debugNativePathFuncPtr(contour->caller);
-				OP_ASSERT(skPath);
-				drawDoubleFill(skPath->makeTransform(matrix), 
-						first ? OpDebugAlphaColor(10, red) : OpDebugAlphaColor(10, blue));
-			}
-			first = false;
-		}
-	}
     {
 		SkMatrix matrix;
 		float scale = (float)DebugOpGetZoomScale();
@@ -420,18 +403,19 @@ void OpDebugImage::drawDoubleFocus() {
 		matrix.preTranslate(-DebugOpGetCenterX(), -DebugOpGetCenterY());
 		matrix.postTranslate(DebugOpGetOffsetX(), DebugOpGetOffsetY());
 		bool first = true;
+		int alpha = drawFillOn ? 10 : 20;
 		for (auto contour : debugGlobalContours->contours) {
-			if (!contour->callBacks.debugGetDrawFuncPtr(contour->caller))
-				continue;
-			SkPath* skPath = (SkPath*) contour->callBacks.debugNativePathFuncPtr(contour->caller);
-			OP_ASSERT(skPath);
-		    drawDoubleFill(skPath->makeTransform(matrix), 
-					first ? OpDebugAlphaColor(20, red) : OpDebugAlphaColor(20, blue));
+			if (contour->callBacks.debugGetDrawFuncPtr(contour->caller)) {
+				SkPath* skPath = (SkPath*) contour->callBacks.debugNativePathFuncPtr(contour->caller);
+				OP_ASSERT(skPath);
+				drawDoubleFill(skPath->makeTransform(matrix), 
+						first ? OpDebugAlphaColor(alpha, red) : OpDebugAlphaColor(alpha, blue));
+			}
 			first = false;
 		}
 		if (drawResultOn && debugGlobalContours->callerOutput)
 		    drawDoubleFill(((SkPath*) debugGlobalContours->callerOutput)
-					->makeTransform(matrix), OpDebugAlphaColor(20, green));
+					->makeTransform(matrix), OpDebugAlphaColor(alpha, green));
     }
 	if (drawLinesOn)
 		DebugOpDraw(lines);
@@ -1208,10 +1192,10 @@ void OpDebugImage::drawPoints() {
 			const OpEdge* edge = *edgeIter;
 			if (!edge->debugDraw)
 				continue;
-			bool isOpp = edge->winding.contour->callBacks
-					.debugIsOppFuncPtr(edge->winding.contour->caller);
-			DebugOpBuild(edge->start.pt, edge->start.t, isOpp);
-			DebugOpBuild(edge->end.pt, edge->end.t, isOpp);
+			bool isOpp = edge->winding.contour ? edge->winding.contour->callBacks
+					.debugIsOppFuncPtr(edge->winding.contour->caller) : false;
+			DebugOpBuild(edge->startPt(), edge->startT, isOpp);
+			DebugOpBuild(edge->endPt(), edge->endT, isOpp);
 			if (drawControlsOn) {
 				for (int index = 1; index < edge->curve.pointCount() - 1; ++index)
 					DebugOpBuild(edge->curve.hullPt(index));
@@ -1388,11 +1372,13 @@ void hideFill() {
 
 void showFill() {
 	drawFillOn = true;
+	showOperands();
 	OpDebugImage::drawDoubleFocus();
 }
 
 void toggleFill() {
 	drawFillOn ^= true;
+	showOperands();
 	OpDebugImage::drawDoubleFocus();
 }
 

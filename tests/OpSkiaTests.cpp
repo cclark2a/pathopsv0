@@ -6,7 +6,7 @@
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
 #define TESTS_TO_SKIP 0 // 14295903  // tests to skip
-#define TEST_PATH_OP_FIRST ""  // e.g., "cubic140721" (ignored by fast test)
+#define TEST_PATH_OP_FIRST "loop115"  // e.g., "cubic140721" (ignored by fast test)
 
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
@@ -17,7 +17,7 @@
 #define OP_TEST_REGION 1  // test result of v0 against skia regions
 
 #define CURVE_CURVE_1 3  // id of segment 1 to break in divide and conquer
-#define CURVE_CURVE_2 6  // id of segment 2 to break in divide and conquer
+#define CURVE_CURVE_2 8  // id of segment 2 to break in divide and conquer
 #define CURVE_CURVE_DEPTH 0  // minimum recursion depth for curve curve break
 
 // see descriptions for exceptions below
@@ -547,6 +547,31 @@ int VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op, std::string test
 #include "skia/SkiaPaths.h"
 #include "curves/BinaryWinding.h"
 
+// char* so it can be called from immediate window
+void dumpOpTest(const char* testname, const SkPath& pathA, const SkPath& pathB, SkPathOp op) {
+    OpDebugOut("\nvoid ");
+    OpDebugOut(testname);
+    OpDebugOut("(skiatest::Reporter* reporter, const char* filename) {\n");
+    OpDebugOut("    SkPath pathA, path;\n");
+    pathA.dump();
+    OpDebugOut("    pathA = path;\n");
+    OpDebugOut("    path.reset();\n");
+    pathB.dump();
+    std::string opStr;
+    switch(op) {
+        case SkPathOp::kDifference_SkPathOp: opStr = "SkPathOp::kDifference_SkPathOp"; break;
+        case SkPathOp::kIntersect_SkPathOp: opStr = "SkPathOp::kIntersect_SkPathOp"; break;
+        case SkPathOp::kUnion_SkPathOp: opStr = "SkPathOp::kUnion_SkPathOp"; break;
+        case SkPathOp::kXOR_SkPathOp: opStr = "SkPathOp::kXOR_SkPathOp"; break;
+        case SkPathOp::kReverseDifference_SkPathOp: opStr = "SkPathOp::kReverseDifference_SkPathOp"; break;
+        default: OP_ASSERT(0);
+    }
+    OpDebugOut("    testPathOp(reporter, pathA, path, " + opStr + ", filename);\n");
+    OpDebugOut("}\n\n");
+    OpDebugOut("static struct TestDesc tests[] = {\n");
+    OpDebugOut("    TEST(" + std::string(testname) + "),\n");
+}
+
 void threadablePathOpTest(int id, const SkPath& a, const SkPath& b, 
         SkPathOp op, std::string testname, bool v0MayFail, bool skiaMayFail) {
 #if OP_TEST_V0
@@ -616,6 +641,11 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     const int MAX_ERRORS = 9;
     if (errors > MAX_ERRORS || debugData.debugWarnings.size()) {
 #if !defined(NDEBUG) || OP_RELEASE_TEST
+#if OP_DEBUG_FAST_TEST
+        std::lock_guard<std::mutex> guard(out_mutex);
+#endif
+        dumpOpTest(testname.c_str(), a, b, op)
+            ;   // <<<<<<<< paste this into immediate window
         ReportError(testname, errors, debugData.debugWarnings);
         if (errors > MAX_ERRORS)
             testsError++;
@@ -724,7 +754,7 @@ int VerifySimplify(const SkPath& one, std::string testname, const SkPath& result
 }
 
 // char* so it can be called from immediate window
-void dumpTest(const char* testname, const SkPath& path) {
+void dumpSimplifyTest(const char* testname, const SkPath& path) {
     OpDebugOut("\nvoid ");
     OpDebugOut(testname);
     OpDebugOut("(skiatest::Reporter* reporter, const char* filename) {\n");
@@ -798,7 +828,7 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
 #if OP_DEBUG_FAST_TEST
         std::lock_guard<std::mutex> guard(out_mutex);
 #endif
-        dumpTest(testname.c_str(), path)
+        dumpSimplifyTest(testname.c_str(), path)
             ;   // <<<<<<<< paste this into immediate window
         ReportError(testname, errors, warnings);
 #endif

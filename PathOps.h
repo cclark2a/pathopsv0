@@ -3,7 +3,6 @@
 #define PathOps_DEFINED
 
 #include "OpDebug.h"
-#include "OpOperators.h"
 #include "PathOpsTypes.h"
 
 namespace PathOpsV0Lib {
@@ -14,7 +13,7 @@ namespace PathOpsV0Lib {
 */
 
 // functions
-/* Adds one curve. Uses SetCurveLength() to retrieve the length to copy.
+/* Adds one curve to winding's contour.
  */
 void Add(AddCurve , AddWinding );
 
@@ -30,18 +29,22 @@ void DeleteContext(Context* );
  */
 Contour* CreateContour(AddContour );
 
-/* returns error code of previous call
+/* Returns error code of previous call.
  */
 int Error(Context* );
+
+/* Removes curves added to contour. Remaining state remains.
+ */
+void ResetContour(Contour* );
 
 /* Operate on curves provided by Add(). Calls curve output callback with path output.
  */
 void Resolve(Context* , PathOutput );
 
-void SetContextCallBacks(Context* ,  EmptyNativePath, SetLineType);
+void SetContextCallBacks(Context* ,  EmptyNativePath, MakeLine, SetLineType);
 
-OpType SetCurveCallBacks(Context* , AxisRawHit, /* ControlNearlyEnd, */
-		CurveHull, CurveIsFinite, CurveIsLine, /* CurveIsLinear, */
+CurveType SetCurveCallBacks(Context* , AxisRawHit,
+		CurveHull, CurveIsFinite, CurveIsLine,
 		SetBounds, CurveNormal, CurveOutput, CurvePinCtrl,
 		CurveReverse, CurveTangent, CurvesEqual, PtAtT, DoublePtAtT,
 		PtCount, Rotate, SubDivide, XYAtT
