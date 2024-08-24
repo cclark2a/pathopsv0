@@ -97,8 +97,6 @@ void OpLimb::set(OpTree& tree, OpEdge* test, OpLimb* p, EdgeMatch m, LimbPass l,
 		tree.bestGapLimb = this;
 	}
 	OP_DEBUG_DUMP_CODE(debugID = tree.contour->nextID());
-	OP_ASSERT(211 != debugID);
-	OP_ASSERT(212 != debugID);
 	OP_DEBUG_DUMP_CODE(if (p) p->debugBranches.push_back(this));
 }
 

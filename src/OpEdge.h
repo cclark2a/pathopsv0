@@ -368,7 +368,7 @@ public:
 	PathOpsV0Lib::CurveType type();
 	void unlink();  // restore edge to unlinked state (for reusing unsortable or unsectable edges)
 	int unsectID() const;
-	OpIntersection* unsectSect() const;
+	OpIntersection* unsectSect(int sectIndex) const;
 	OpEdge* unsectableMatch() const; // edge with the same unsectable range
 	bool unsectableSeen(EdgeMatch ) const;  // true if pal end matches and has been seen by op tree
 	EdgeMatch which() const {

@@ -90,7 +90,7 @@ struct OpRoots {
         OP_DEBUG_CODE(roots[0] = OpNaN);
     }
 
-    OpRoots(int ) = delete; // disallow old pattern that returned number of roots
+//    OpRoots(int ) = delete; // disallow old pattern that returned number of roots
 
     OpRoots(RootFail f)
         : count(0)

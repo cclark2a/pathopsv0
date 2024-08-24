@@ -331,13 +331,13 @@ bool HelloWorld::onMouse(int x, int y, skui::InputState state, skui::ModifierKey
             int deltaX = x - lastX;
             int deltaY = y - lastY;
            if (deltaX > 0)
-               activeFocus <= 0 ? l(.02) : movePoint(-.02, 0);
+               activeFocus <= 0 ? l(.02f) : movePoint(-.02f, 0);
            else if (deltaX < 0)
-               activeFocus <= 0 ? r(.02) : movePoint(.02, 0);
+               activeFocus <= 0 ? r(.02f) : movePoint(.02f, 0);
            if (deltaY > 0)
-               activeFocus <= 0 ? u(.02) : movePoint(0, -.02);
+               activeFocus <= 0 ? u(.02f) : movePoint(0, -.02f);
            else if (deltaY < 0)
-               activeFocus <= 0 ? d(.02) : movePoint(.02, .02);
+               activeFocus <= 0 ? d(.02f) : movePoint(.02f, .02f);
         }
         lastX = x;
         lastY = y;

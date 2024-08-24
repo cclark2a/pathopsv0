@@ -49,38 +49,74 @@ OpIntersection* const * OpIntersections::entry(const OpPtT& ptT, const OpSegment
 	return nullptr;
 }
 
-// count and sort extrema; create an edge for each extrema + 1
-// 
 // for the unsectable / between code:
 //   if this set of intersections is reversed compared to the opposite, walk opposite backwards 
+
+// prioritize unsectable and use its index if start and if multiple sects have the same t
+start here;
+// !!! still thinking about it
+// !!! what to do for 3 or more unsectables
+// !!! what to do if edge is inside unsectable range but does not start or end there
+// prioritize the innermost unsectable
+// if the edge is inside an unsectable range, but does not start at an unsectable, add a bit?
 void OpIntersections::makeEdges(OpSegment* segment) {
-    std::vector<const OpIntersection*> unsectables;
-    OpIntersection* last = i.front();
-    if (last->unsectID)
-        unsectables.push_back(last);
-    int lastIndex = 0;
     OP_ASSERT(!resort);
-    for (int sectIndex = 1; sectIndex < (int) i.size(); ++sectIndex) {
-        OpIntersection* sectPtr = i[sectIndex];
-        if (sectPtr->ptT.t != last->ptT.t) {
-            segment->edges.emplace_back(segment, lastIndex, sectIndex  OP_LINE_FILE_PARAMS());
+    std::vector<const OpIntersection*> unsectables;
+    auto stackEm = [&unsectables](OpIntersection* sect) {
+        if (!sect->unsectID)
+            return false;
+        if (MatchEnds::start == sect->unsectEnd) {
+            unsectables.push_back(sect);
+            return true;
+        }
+        OP_ASSERT(MatchEnds::end == sect->unsectEnd);
+        auto found = std::find_if(unsectables.begin(), unsectables.end(), 
+                [sect](const OpIntersection* uT) { return uT->unsectID == sect->unsectID; });
+        OP_ASSERT(unsectables.end() != found);
+        unsectables.erase(found);
+        return true;
+    };
+    int firstIndex = 0;
+    int testIndex = 0;
+    OpIntersection* last = i.front();
+    do {
+        for (;;) {  // prime start index of sect for edge-to-be
+            if (stackEm(last)) {
+                OP_ASSERT(MatchEnds::start == last->unsectEnd);
+                firstIndex = testIndex++;
+                break;  // 1st index is 1st unsectable, usect stack has 1st unsectable
+            }
+            OpIntersection* next = i[++testIndex];
+            OP_ASSERT(testIndex < (int) i.size());
+            if (last->ptT.t != next->ptT.t)
+                break;  // 1st index is zero, usect stack is empty
+            last = next;
+        }
+        do {    // find ending index of sect for edge
+            OP_ASSERT(testIndex < (int) i.size());
+            OpIntersection* sectPtr = i[testIndex++];
+            stackEm(sectPtr);
+            // if 1st index points at unsectable sect, find match if there is one (?)
+            if (sectPtr->ptT.t == last->ptT.t) 
+                continue;
+            segment->edges.emplace_back(segment, firstIndex, testIndex  OP_LINE_FILE_PARAMS());
             OpEdge& newEdge = segment->edges.back();
             if (unsectables.size())
                 newEdge.isUnsectable = true;
+            if (sectPtr->unsectID) {
+                auto found = std::find_if(unsectables.begin(), unsectables.end(), 
+                        [&sectPtr](const OpIntersection* uT) { return uT->unsectID == sectPtr->unsectID; });
+                if (unsectables.end() == found)
+                    unsectables.push_back(sectPtr);
+                else
+                    unsectables.erase(found);
+            } 
+            if (sectPtr->ptT.t != last->ptT.t) {
+                last = sectPtr;
+                testIndex = sectIndex;
+            }
         }
-        if (sectPtr->unsectID) {
-            auto found = std::find_if(unsectables.begin(), unsectables.end(), 
-                    [&sectPtr](const OpIntersection* uT) { return uT->unsectID == sectPtr->unsectID; });
-            if (unsectables.end() == found)
-                unsectables.push_back(sectPtr);
-            else
-                unsectables.erase(found);
-        } 
-        if (sectPtr->ptT.t != last->ptT.t) {
-            last = sectPtr;
-            lastIndex = sectIndex;
-        }
-    }
+    } while ();
 }
 
 #if 0

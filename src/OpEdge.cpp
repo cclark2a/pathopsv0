@@ -893,23 +893,32 @@ void OpEdge::unlink() {
 }
 
 int OpEdge::unsectID() const {
-	OpIntersection* usect = unsectSect();
+	OpIntersection* usect = unsectSect(startSect);
 	int usectID = usect->unsectID;
 	OP_ASSERT(usectID || !isUnsectable);
-	OP_DEBUG_CODE(int endID = segment->sects.i[endSect]->unsectID);
+	OP_DEBUG_CODE(int endID = unsectSect(endSect)->unsectID);
 	OP_ASSERT(usectID == endID);
 	return usectID;
 }
 
-OpIntersection* OpEdge::unsectSect() const {
+OpIntersection* OpEdge::unsectSect(int sectIndex) const {
 	OP_ASSERT(!segment->sects.resort);
-	OP_ASSERT(startSect < (int) segment->sects.i.size());
-	return segment->sects.i[startSect];
+	OP_ASSERT(sectIndex < (int) segment->sects.i.size());
+ 	OpIntersection* test = segment->sects.i[sectIndex];
+    while (!test->unsectID) {
+        if (++sectIndex == (int) segment->sects.i.size())
+            break;
+        OpIntersection* next = segment->sects.i[sectIndex];
+        if (next->ptT.t > test->ptT.t)
+            break;
+        test = next;
+    }
+    return test;
 }
 
 OpEdge* OpEdge::unsectableMatch() const {
 	OP_ASSERT(isUnsectable);
-	OpIntersection* usect = unsectSect();
+	OpIntersection* usect = unsectSect(startSect);
 	int unsectableID = usect->unsectID;
 	OP_ASSERT(unsectableID);
 	std::vector<OpEdge>& oppEdges = usect->opp->segment->edges;
@@ -917,7 +926,7 @@ OpEdge* OpEdge::unsectableMatch() const {
 		if (!test.isUnsectable)
 			return false;
 		for (int sectIndex : { test.startSect, test.endSect } ) {
-			OpIntersection* oppTest = test.segment->sects.i[sectIndex];
+			OpIntersection* oppTest = test.unsectSect(sectIndex);
 			OP_ASSERT(oppTest->unsectID);
 			if (oppTest->opp->unsectID == unsectableID)
 				return true;

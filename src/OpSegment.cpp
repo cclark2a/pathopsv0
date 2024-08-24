@@ -156,9 +156,7 @@ int OpSegment::coinID(bool flipped) const {
 
 void OpSegment::complete() {
     setBounds();
-// #if OP_DEBUG     // !!! used only by sort; probably unnecessary?
-    id = nextID();  // segment's contour pointer is not set up
-// #endif
+    id = nextID();
 }
 
 // !!! would it be any better (faster) to split this into findStart / findEnd instead?

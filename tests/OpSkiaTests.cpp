@@ -6,7 +6,7 @@
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
 #define TESTS_TO_SKIP 0 // 14295903  // tests to skip
-#define TEST_PATH_OP_FIRST "loop115"  // e.g., "cubic140721" (ignored by fast test)
+#define TEST_PATH_OP_FIRST "loop8"  // e.g., "cubic140721" (ignored by fast test)
 
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
@@ -574,6 +574,7 @@ void dumpOpTest(const char* testname, const SkPath& pathA, const SkPath& pathB, 
 
 void threadablePathOpTest(int id, const SkPath& a, const SkPath& b, 
         SkPathOp op, std::string testname, bool v0MayFail, bool skiaMayFail) {
+    const char* tn = testname.c_str();
 #if OP_TEST_V0
     SkPath result;
     result.setFillType(SkPathFillType::kEvenOdd);  // !!! workaround
@@ -644,7 +645,7 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
 #if OP_DEBUG_FAST_TEST
         std::lock_guard<std::mutex> guard(out_mutex);
 #endif
-        dumpOpTest(testname.c_str(), a, b, op)
+        dumpOpTest(tn, a, b, op)
             ;   // <<<<<<<< paste this into immediate window
         ReportError(testname, errors, debugData.debugWarnings);
         if (errors > MAX_ERRORS)

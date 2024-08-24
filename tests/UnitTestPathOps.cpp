@@ -1191,8 +1191,8 @@ void LineCoincidenceTest() {
 		bool isCoin;
 	};
 	CoinTest tests[] = {
-		{{ OpPoint(2.28779936, 4.76104975), OpPoint(2.28780055, 4.76105499) },
-		 { OpPoint(2.28780055, 4.76105499), OpPoint(2.28808880, 4.76002407) },
+		{{ OpPoint(2.28779936f, 4.76104975f), OpPoint(2.28780055f, 4.76105499f) },
+		 { OpPoint(2.28780055f, 4.76105499f), OpPoint(2.28808880f, 4.76002407f) },
 		   OpPtT(), OpPtT(), OpPtT(), OpPtT(), false },
 
 		{{ OpPoint(1, 1), OpPoint(9, 9) },
