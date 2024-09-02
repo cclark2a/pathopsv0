@@ -7,8 +7,8 @@
 
 void OpLimb::add(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPass, size_t limbIndex,
 		OpEdge* otherEnd) {
-	OP_ASSERT(!test->disabled || test->isUnsectable || LimbPass::disabled <= limbPass);
-	OP_ASSERT(!test->hasLinkTo(m) || test->isUnsectable || test->isUnsortable);
+	OP_ASSERT(!test->disabled || test->isUnsectable() || LimbPass::disabled <= limbPass);
+	OP_ASSERT(!test->hasLinkTo(m) || test->isUnsectable() || test->isUnsortable);
 	if (test->whichPtT(m).pt != lastPtT.pt && LimbPass::unsectPair != limbPass)
 		return;
 	if (edge == test)
@@ -16,7 +16,7 @@ void OpLimb::add(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPass, siz
 	if (EdgeMatch::start == m ? test->startSeen : test->endSeen)
 		return;
 	(EdgeMatch::start == m ? test->startSeen : test->endSeen) = true;
-	if (test->isUnsectable && test->unsectableSeen(m))
+	if (test->isUnsectable() && test->unsectableSeen(m))
 		return;
 	// compare test wind zero against their parent's last edge wind zero
 	OP_ASSERT(lastLimbEdge);
@@ -49,9 +49,9 @@ void OpLimb::add(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPass, siz
 	OpContours& contours = *tree.contour->contours;
 	OpLimb* branch = contours.allocateLimb(&tree);
 	if (LimbPass::unsectPair == limbPass) {
-		OpIntersection* gapEnd = lastLimbEdge->findWhichSect(lastMatch);
-		OpIntersection* startI = test->findWhichSect(m);
-		OpEdge* filler = tree.contour->addFiller(gapEnd->ptT, startI->ptT);
+		OpPtT gapEnd = lastLimbEdge->whichPtT(lastMatch);
+		OpPtT startI = test->whichPtT(m);
+		OpEdge* filler = tree.contour->addFiller(gapEnd, startI);
 		filler->setWhich(EdgeMatch::start);
 		if (filler) {
 			branch->set(tree, filler, this, EdgeMatch::start, limbPass, limbIndex, nullptr, 
@@ -146,7 +146,11 @@ void OpLimb::foreach(OpJoiner& join, OpTree& tree, LimbPass limbPass) {
 		return; 
 	// iterate through edge pals looking for gap that connects lastPt via sect opp
 	// unsectable edges do not necessarily point to other unsectable through pals or upairs
-	if (lastLimbEdge->isUnsectable) {
+	if (lastLimbEdge->isUnsectable()) {
+		for (EdgePal& edgePal : lastLimbEdge->uPals) {
+			add(tree, edgePal.edge, edgePal.reversed ? !match : match, LimbPass::unsectPair);
+		}
+	#if 0
 		OP_ASSERT(lastLimbEdge->startSect >= 0);
 		OP_ASSERT(lastLimbEdge->endSect > 0);
 		OpIntersection** first = &lastLimbEdge->segment->sects.i.front() + lastLimbEdge->startSect;
@@ -165,7 +169,7 @@ void OpLimb::foreach(OpJoiner& join, OpTree& tree, LimbPass limbPass) {
 			OpSegment* oppSeg = oppSect->segment;
 			OpIntersection** oppFirst = &oppSeg->sects.i.front();
 			for (OpEdge& oppEdge : oppSeg->edges) {
-				if (!oppEdge.isUnsectable)
+				if (!oppEdge.isUnsectable())
 					continue;
 				OpIntersection** oSectFirst = oppFirst + oppEdge.startSect;
 				OpIntersection** oLast = &oppSeg->sects.i.back();
@@ -182,6 +186,7 @@ void OpLimb::foreach(OpJoiner& join, OpTree& tree, LimbPass limbPass) {
 			}
 		} while (first <= last && (*first)->ptT.t == tMatch);
 		OP_ASSERT(foundUnsectableEdge);
+#endif
 	}
 #if 0
 	for (UnsectableOpp& usectPal : lastLimbEdge->uPairs) {
@@ -494,7 +499,7 @@ void OpJoiner::buildDisabledPals(OpContours& contours) {
 				if (e.disabled && !e.inOutput && !e.isUnsortable) {
 					// !!! test may be overbroad; may need to look at sect and include only
 					//     coin + unsect (or add bit in edge to register coin)
-					if (e.pals.size() || e.isUnsectable)
+					if (e.pals.size() || e.isUnsectable())
 						disabledPals.push_back(&e);
 				}
 			}

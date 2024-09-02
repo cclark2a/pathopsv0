@@ -5960,7 +5960,43 @@ path.close();
     testPathOp(reporter, pathA, path, SkPathOp::kIntersect_SkPathOp, filename);
 }
 
+void loop182985(skiatest::Reporter* reporter, const char* filename) {
+    SkPath pathA, path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(4, 6);
+path.cubicTo(2, 3, 6.33333302f, 7, -1, 9.33333302f);
+path.lineTo(4, 6);
+path.close();
+    pathA = path;
+    path.reset();
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(2, 3);
+path.cubicTo(6.33333302f, 7, -1, 9.33333302f, 4, 6);
+path.lineTo(2, 3);
+path.close();
+    testPathOp(reporter, pathA, path, SkPathOp::kIntersect_SkPathOp, filename);
+}
+
+void loop182739(skiatest::Reporter* reporter, const char* filename) {
+    SkPath pathA, path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 3);
+path.cubicTo(3, 6, -1.33333337f, 2, 6, -0.333333254f);
+path.lineTo(1, 3);
+path.close();
+    pathA = path;
+    path.reset();
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(3, 6);
+path.cubicTo(-1.33333337f, 2, 6, -0.333333254f, 1, 3);
+path.lineTo(3, 6);
+path.close();
+    testPathOp(reporter, pathA, path, SkPathOp::kIntersect_SkPathOp, filename);
+}
+
 static struct TestDesc tests[] = {
+    TEST(loop182739),
+    TEST(loop182985),
     TEST(loop12399),
     TEST(loop12157),
     TEST(loop182331),

@@ -69,8 +69,9 @@ struct OpSegment {
     OpIntersection* addUnsectable(const OpPtT& , int usectID, MatchEnds , const OpSegment* o 
             OP_LINE_FILE_DEF());
     void apply();
+    void betweenIntersections();
     int coinID(bool flipped) const;
-    void complete();
+//    void complete();
     OpEdge* findEnabled(const OpPtT& , EdgeMatch ) const;
     float findAxisT(Axis , float start, float end, float oppXY);
 //    float findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const;
@@ -78,6 +79,7 @@ struct OpSegment {
     // count and sort extrema; create an edge for each extrema + 1
     void makeEdge(OP_LINE_FILE_NP_DEF());
     void makeEdges();
+    void makePals();
     MatchReverse matchEnds(const LinePts& opp) const;
     MatchReverse matchEnds(const OpSegment* opp) const;
 //    MatchEnds matchExisting(const OpSegment* opp) const;
@@ -118,8 +120,10 @@ struct OpSegment {
     OpIntersections sects;
     std::vector<OpEdge> edges;
     OpWinding winding;
-    bool disabled; // winding has canceled this edge out
     int id;     // !!! could be debug only; currently used to disambiguate sort, may be unneeded
+    bool disabled; // winding has canceled this edge out
+    bool hasCoin;
+    bool hasUnsectable;
 #if OP_DEBUG_MAKER
 	OpDebugMaker debugSetDisabled;
 #endif

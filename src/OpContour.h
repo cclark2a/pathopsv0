@@ -16,12 +16,6 @@ struct OpContourStorage;
 struct OpCurveCurve;
 struct OpJoiner;
 
-enum class OpFillType {
-    winding = -1,
-    unset = 0,
-    evenOdd = 1
-};
-
 struct OpContours;
 struct OpInPath;
 
@@ -64,9 +58,21 @@ struct OpContour {
         }
     }
 
+    void betweenIntersections() {
+        for (auto& segment : segments) {
+            segment.betweenIntersections();
+        }
+    }
+
     void makeEdges() {
         for (auto& segment : segments) {
             segment.makeEdges();
+        }
+    }
+
+    void makePals() {
+        for (auto& segment : segments) {
+            segment.makePals();
         }
     }
 
@@ -227,6 +233,12 @@ struct OpContours {
 
     bool assemble();
 
+    void betweenIntersections() {
+       for (auto contour : contours) {
+            contour->betweenIntersections();
+        }
+    }
+
     PathOpsV0Lib::CurveCallBacks& callBack(PathOpsV0Lib::CurveType type) {
         return callBacks[(int) type - 1];
     }
@@ -255,6 +267,13 @@ struct OpContours {
             contour->makeEdges();
         }
        OP_DEBUG_CODE(debugInClearEdges = false);
+    }
+
+
+    void makePals() {
+       for (auto contour : contours) {
+            contour->makePals();
+        }
     }
 
     int nextID() { 

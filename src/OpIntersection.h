@@ -66,6 +66,7 @@ struct OpIntersection {
     }
 
 	// void betweenPair(OpIntersection* );
+	OpIntersection* coinOtherEnd();
 
 	void pair(OpIntersection* o) {
 		OP_ASSERT(ptT.pt == o->ptT.pt || (!!unsectID && !!o->unsectID));

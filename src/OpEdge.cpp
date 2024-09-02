@@ -123,23 +123,19 @@ OpEdge::OpEdge(OpSegment* s  OP_LINE_FILE_DEF())
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = s->id);
 	segment = s;
-	startSect = -1;
-	endSect = -1;
+//	startSect = -1;
+//	endSect = -1;
 	startT = 0;
 	endT = 1;
 	complete(s->c.firstPt(), s->c.lastPt());
 }
 
 // called when creating edge from intersection pairs
-OpEdge::OpEdge(OpSegment* s, int sIndex, int eIndex  OP_LINE_FILE_DEF())
+OpEdge::OpEdge(OpIntersection* sectStart, OpIntersection* sectEnd  OP_LINE_FILE_DEF())
 	: OpEdge() {
 	OP_LINE_FILE_SET(debugSetMaker);
-	OP_DEBUG_CODE(debugParentID = s->id);
-	segment = s;
-	startSect = sIndex;
-	endSect = eIndex;
-	OpIntersection* sectStart = s->sects.i[sIndex];
-	OpIntersection* sectEnd = s->sects.i[eIndex];
+	OP_DEBUG_CODE(debugParentID = sectStart->id);
+	segment = sectStart->segment;
 	startT = sectStart->ptT.t;
 	endT = sectEnd->ptT.t;
 	complete(sectStart->ptT.pt, sectEnd->ptT.pt);
@@ -152,8 +148,8 @@ OpEdge::OpEdge(OpContours* contours, const OpPtT& start, const OpPtT& end  OP_LI
 	OP_DEBUG_CODE(debugParentID = 0);
     OP_DEBUG_CODE(debugFiller = true);
 	segment = nullptr;  // assume these can't be used -- edge does not exist in segment
-	startSect = -1;
-	endSect = -1;
+//	startSect = -1;
+//	endSect = -1;
 	startT = start.t;
 	endT = end.t;
 	id = contours->nextID();
@@ -176,8 +172,8 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight  OP_
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = edge->id);
 	segment = edge->segment;
-	startSect = -1;
-	endSect = -1;
+//	startSect = -1;
+//	endSect = -1;
 	if (NewEdge::isLeft == isLeftRight) {
 		startT = edge->startT;
 		endT = newPtT.t;
@@ -195,8 +191,8 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e  OP_LINE_FILE_
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = edge->id);
 	segment = edge->segment;
-	startSect = -1;
-	endSect = -1;
+//	startSect = -1;
+//	endSect = -1;
 	startT = s.t;
 	endT = e.t;
 	complete(s.pt, e.pt);
@@ -374,6 +370,7 @@ bool OpEdge::containsLink(const OpEdge* edge) const {
 	return false;
 }
 
+#if 0
 // note this does not use which end
 OpIntersection* OpEdge::findEndSect(EdgeMatch match, OpSegment* oppSeg) {
 	OP_ASSERT(startSect >= 0);
@@ -410,6 +407,7 @@ OpIntersection* OpEdge::findWhichSect(EdgeMatch match) {
 	OP_ASSERT(result->ptT.pt == (match == which() ? curve.firstPt() : curve.lastPt()));
 	return result;
 }
+#endif
 
 OpPtT OpEdge::findT(Axis axis, float oppXY) const {
 	OpPtT found;
@@ -437,7 +435,8 @@ bool OpEdge::isLine() {
 }
 
 bool OpEdge::isUnsectablePair(OpEdge* opp) {
-	return opp == unsectableMatch();
+	return uPals.end() != std::find_if(uPals.begin(), uPals.end(), [opp](const EdgePal& edgePal) {
+			return edgePal.edge == opp; });
 }
 
 void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
@@ -479,20 +478,14 @@ bool OpEdge::linksTo(OpEdge* match) const {
 // Find pals for unsectables created during curve/curve intersection. There should be at most
 // two matching unsectable ids in the distances array. Mark between edges as well.
 void OpEdge::markPals() {
-	OP_ASSERT(isUnsectable);
+	OP_ASSERT(isUnsectable());
 	// edge is between one or more unsectableID ranges in intersections
-	int usectID = abs(unsectID());
-	OP_ASSERT(usectID);
-	for (auto& dist : ray.distances) {
-		if (!dist.edge->isUnsectable)
-			continue;
-		if (this == dist.edge)
-			continue;
-		int distUID = dist.edge->unsectID();
-		if (usectID == abs(distUID))
-			addPal(dist);
+	for (EdgePal& uPal : uPals) {
+		for (auto& dist : ray.distances) {
+			if (uPal.edge == dist.edge)
+				addPal(dist);
+		}
 	}
-	// !!! not sure how to assert an error if information was inconsistent (e.g., unpaired)
 }
 
 MatchReverse OpEdge::matchEnds(const LinePts& linePts) const {
@@ -614,7 +607,7 @@ void OpEdge::output(bool closed) {
 			return true;  // don't reverse if outer normal in direction of inner points to zero
 		OpEdge* iEdge = inner->edge;
 	//	OP_ASSERT(!iEdge->inOutput);  // triggered by cubic1810520
-		if (iEdge->inOutput && !iEdge->isUnsectable) {  // defer dealing with this until we find an easier test case
+		if (iEdge->inOutput && !iEdge->isUnsectable()) {  // defer dealing with this until we find an easier test case
 			OpDebugOut("!!! edge already output\n");
 			abort = true;
 			return true;
@@ -892,10 +885,11 @@ void OpEdge::unlink() {
 	endSeen = false;
 }
 
+#if 0  // there may be more than one
 int OpEdge::unsectID() const {
 	OpIntersection* usect = unsectSect(startSect);
 	int usectID = usect->unsectID;
-	OP_ASSERT(usectID || !isUnsectable);
+	OP_ASSERT(usectID || !isUnsectable());
 	OP_DEBUG_CODE(int endID = unsectSect(endSect)->unsectID);
 	OP_ASSERT(usectID == endID);
 	return usectID;
@@ -917,13 +911,13 @@ OpIntersection* OpEdge::unsectSect(int sectIndex) const {
 }
 
 OpEdge* OpEdge::unsectableMatch() const {
-	OP_ASSERT(isUnsectable);
+	OP_ASSERT(isUnsectable());
 	OpIntersection* usect = unsectSect(startSect);
 	int unsectableID = usect->unsectID;
 	OP_ASSERT(unsectableID);
 	std::vector<OpEdge>& oppEdges = usect->opp->segment->edges;
 	auto found = std::find_if(oppEdges.begin(), oppEdges.end(), [unsectableID](const OpEdge& test) {
-		if (!test.isUnsectable)
+		if (!test.isUnsectable())
 			return false;
 		for (int sectIndex : { test.startSect, test.endSect } ) {
 			OpIntersection* oppTest = test.unsectSect(sectIndex);
@@ -936,14 +930,23 @@ OpEdge* OpEdge::unsectableMatch() const {
 	OP_ASSERT(found != oppEdges.end());
 	return &*found;
 }
+#endif
 
 bool OpEdge::unsectableSeen(EdgeMatch match) const {
-	OP_ASSERT(isUnsectable);
+#if 0
+	OP_ASSERT(isUnsectable());
 	OpEdge* oppPal = unsectableMatch();
 	int usectID = unsectID();
 	int oppUID = oppPal->unsectID();
 	OP_ASSERT(abs(usectID) == abs(oppUID));
 	return (usectID == oppUID) == (EdgeMatch::start == match) ? oppPal->startSeen : oppPal->endSeen;
+#else
+	for (const EdgePal& uPal : uPals) {
+		if (uPal.reversed == (EdgeMatch::end == match) ? uPal.edge->startSeen : uPal.edge->endSeen)
+			return true;
+	}
+	return false;
+#endif
 }
 
 #if OP_DEBUG

@@ -88,7 +88,7 @@ bool SectRay::checkOrder(const OpEdge* home) const {
 		OpEdge* prior = dist->edge;
 		OpEdge* last = (dist + 1)->edge;
 		// pal should be set in time for this : testQuads26519435
-		if (prior->isUnsectable || last->isUnsectable || last->isPal(prior))
+		if (prior->isUnsectable() || last->isUnsectable() || last->isPal(prior))
 			continue;
 	#if 0
 		auto checkMissingPal = [prior, last]() {
@@ -158,7 +158,7 @@ FindCept SectRay::findIntercept(OpEdge* home, OpEdge* test) {
 		return FindCept::unsortable;
 	if (test->disabled)
 		return FindCept::ok;
-	bool uSectPair = test->isUnsectable && home->isUnsectable && test->isUnsectablePair(home);
+	bool uSectPair = test->isUnsectable() && home->isUnsectable() && test->isUnsectablePair(home);
 	if (uSectPair && !firstTry)
 		return FindCept::unsectable;
 	// !!! EXPERIMENT  try using segment's curve instead of edge curve
@@ -676,7 +676,7 @@ FoundIntercept OpWinder::findRayIntercept(size_t homeIndex, OpVector homeTan, fl
 				home->ptBounds.rbChoice(workingAxis), midEnd);
 		float homeMidT = home->curve.center(workingAxis, middle);  // note: 0 to 1 on edge curve
 		if (OpMath::IsNaN(homeMidT) || mid <= 1.f / 256.f) {  // give it at most eight tries
-			if (!home->isUnsectable)
+			if (!home->isUnsectable())
 				markUnsortable();
 			break;	// give up
 		}
@@ -750,7 +750,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 	OP_ASSERT(ray.distances.size());
 	if (1 == ray.distances.size()) {
 		OP_ASSERT(home == ray.distances[0].edge);
-		if (home->pals.size() || home->isUnsectable)  // !!! move this to where unsectable is set?
+		if (home->pals.size() || home->isUnsectable())  // !!! move this to where unsectable is set?
 			home->setUnsortable();
 		else {
 			OpWinding prev(home, WindingSum::dummy);
@@ -894,9 +894,9 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 				SectRay& ray = edge.ray;
 				if (edge.disabled)
 					continue;
-	//			if (edge.isUnsortable)	// !!! add pals even if ray cannot be used for this edge...?
+	//			if (edge.isUnsortable())	// !!! add pals even if ray cannot be used for this edge...?
 	//				continue;
-				if (edge.isUnsectable)
+				if (edge.isUnsectable())
 					edge.markPals();
 				else
 					ray.addPals(&edge);

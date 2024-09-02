@@ -215,13 +215,11 @@ enum class Unsectable {
 	multiple,
 };
 
-#if 0
-struct UnsectableOpp {
+struct EdgePal {
 	OpEdge* edge;
-	int unsectableID;
-	bool overlaps;
+	bool reversed;
+	OP_DEBUG_CODE(int debugUID);
 };
-#endif
 
 constexpr float OP_CURVACIOUS_LIMIT = 1.f / 16;  // !!! tune to guess line/line split ratio
 
@@ -234,6 +232,7 @@ private:
 		: priorEdge(nullptr)
 		, nextEdge(nullptr)
 		, lastEdge(nullptr)
+		, coinBoss(nullptr)
 		, upright_impl( { SetToNaN::dummy, SetToNaN::dummy } )
 		, winding(WindingUninitialized::dummy)
 		, sum(WindingUninitialized::dummy)
@@ -248,7 +247,7 @@ private:
 		, inLinkups(false)
 		, inOutput(false)
 		, disabled(false)
-		, isUnsectable(false)
+		, isCoinBoss(false)
 		, isUnsortable(false)
 		, ccEnd(false)
 		, ccLarge(false)
@@ -265,8 +264,8 @@ private:
         segment = nullptr;
 		startT = OpNaN;
 		endT = OpNaN;
-		startSect = 0;
-		endSect = 0;
+	//	startSect = 0;
+	//	endSect = 0;
 		debugMatch = nullptr;
 		debugZeroErr = nullptr;
 		debugOutPath = 0;
@@ -285,7 +284,7 @@ private:
 	}
 public:
 	OpEdge(OpSegment*  OP_LINE_FILE_DEF());  // segment make edge; used by curve curve
-	OpEdge(OpSegment* , int sIndex, int eIndex  OP_LINE_FILE_DEF());  // sect make edges
+	OpEdge(OpIntersection* , OpIntersection*  OP_LINE_FILE_DEF());  // sect make edges
 	OpEdge(OpContours* , const OpPtT& start, const OpPtT& end  OP_LINE_FILE_DEF());  // make filler 
 	OpEdge(const OpEdge* e, const OpPtT& newPtT, NewEdge isLeftRight  OP_LINE_FILE_DEF());
 	OpEdge(const OpEdge* e, const OpPtT& start, const OpPtT& end  OP_LINE_FILE_DEF());
@@ -310,8 +309,8 @@ public:
 	size_t countUnsortable() const;
 	OpPtT end() const { return OpPtT(endPt(), endT); }
 	OpPoint endPt() const { return curve.lastPt(); }
-	OpIntersection* findEndSect(EdgeMatch match, OpSegment* oppSeg);
-	OpIntersection* findWhichSect(EdgeMatch );
+//	OpIntersection* findEndSect(EdgeMatch match, OpSegment* oppSeg);
+//	OpIntersection* findWhichSect(EdgeMatch );
 	OpPtT findT(Axis , float oppXY) const;
 	OpPtT flipPtT(EdgeMatch match) const { 
 		return match == which() ? end() : start(); }
@@ -324,6 +323,8 @@ public:
 	bool isPal(const OpEdge* opp) const {
 		return pals.end() != std::find_if(pals.begin(), pals.end(), 
 				[opp](const auto& test) { return opp == test.edge; }); }
+	bool isUnsectable() const { 
+		return uSects.size(); }
 	bool isUnsectablePair(OpEdge* opp);  // true if this and opp are unsectable pairs
 	void linkToEdge(FoundEdge& , EdgeMatch );
 	bool linksTo(OpEdge* match) const;
@@ -367,9 +368,9 @@ public:
 	CalcFail subIfDL(Axis axis, float t, OpWinding* );
 	PathOpsV0Lib::CurveType type();
 	void unlink();  // restore edge to unlinked state (for reusing unsortable or unsectable edges)
-	int unsectID() const;
-	OpIntersection* unsectSect(int sectIndex) const;
-	OpEdge* unsectableMatch() const; // edge with the same unsectable range
+//	int unsectID() const;
+//	OpIntersection* unsectSect(int sectIndex) const;
+//	OpEdge* unsectableMatch() const; // edge with the same unsectable range
 	bool unsectableSeen(EdgeMatch ) const;  // true if pal end matches and has been seen by op tree
 	EdgeMatch which() const {
 		return whichEnd_impl; }
@@ -414,6 +415,7 @@ public:
 	OpEdge* priorEdge;	// edges that link to form completed contour
 	OpEdge* nextEdge;
 	OpEdge* lastEdge;
+	OpEdge* coinBoss;  // edge this winding was transferred to as a result of coincidence
 	OpPtT center;  // curve location used to find winding contribution
 	OpCurve curve;
 	OpCurve vertical_impl;	// only access through set vertical function
@@ -423,6 +425,9 @@ public:
 	OpWinding winding;	// contribution: always starts as 1, 0 (or 0, 1)
 	OpWinding sum;  // total incl. normal side of edge for operands (fill count in normal direction)
 	OpWinding many;  // temporary used by unsectables to contain all pal windings combined
+	std::vector<OpIntersection*> cSects;  // !!! experiment: track coincidences bracketing edge
+	std::vector<OpIntersection*> uSects;  // !!! experiment: track unsectables bracketing edge
+	std::vector<EdgePal> uPals; // pals (below) are ray-close; uPals (here) share sect overlap
 	std::vector<EdgeDistance> pals;	 // list of unsectable adjacent edges !!! should be pointers?
 	std::vector<OpEdge*> lessRay;  // edges found placed with smaller edge distance cept values
 	std::vector<OpEdge*> moreRay;  // edges found placed with larger edge distance cept values
@@ -430,8 +435,8 @@ public:
 	OpHulls hulls;  // curve-curve intersections
 	float startT;  // used to be ptT; needs sect to find unsectable
 	float endT;
-	int startSect;  // to find unsectable pairs (there may be more than one)
-	int endSect;
+//	int startSect;  // to find unsectable pairs (there may be more than one)
+//	int endSect;
 	int id;
 	EdgeMatch whichEnd_impl;  // if 'start', prior end equals start; if 'end' prior end matches end
 	EdgeFail rayFail;   // how computation (e.g., center) failed (on fail, windings are set to zero)
@@ -443,7 +448,8 @@ public:
 	bool inLinkups; // like inOutput, to marks unsectable edges; all edges in linkups l vector
 	bool inOutput;	// likely only used to find inactive unsectables that are not on output path
 	bool disabled;	// winding is zero, or apply disqualified edge from appearing in output
-	bool isUnsectable;	// if set edge is between one or more unsectable ranges (in intersections) 
+	bool isCoinBoss;  // if set, other coincident edges put their windings and unsectables here
+//	bool isUnsectable;	// if set edge is between one or more unsectable ranges (in intersections) 
 	bool isUnsortable;  // unsectable is unsortable; others (e.g., very small) are also unsortable
 	bool ccEnd;  // set if edge end is closest to already found curve-curve intersection
 	bool ccLarge;  // set if curve/curve has large t match and this edge is last

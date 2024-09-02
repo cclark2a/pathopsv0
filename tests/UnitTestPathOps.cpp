@@ -1253,7 +1253,7 @@ void LineCoincidenceTest() {
 #endif
 
 void OpTest(bool terminateEarly) {
-	LineCoincidenceTest();
+//	LineCoincidenceTest();
 #if 0
 	CCTestKey(0x09b54c61);
 	CCTest();

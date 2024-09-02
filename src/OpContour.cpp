@@ -325,7 +325,9 @@ bool OpContours::pathOps() {
         OP_DEBUG_SUCCESS(*this, true);
     }
     sortIntersections();
+    betweenIntersections();  // fill in intersections in coin runs that are missing in other coins
     makeEdges();
+    makePals();  // edges too close to each other to sort or precisely intersect
 
     // made edges may include lines that are coincident with other edges. Undetected for now...
     windCoincidences();  // for segment h/v lines, compute their winding considering coincidence

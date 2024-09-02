@@ -3,17 +3,25 @@
 #include "OpContour.h"
 #include "OpSegment.h"
 
-// setter to help debugging
 void OpIntersection::setCoin(int cid, MatchEnds end) {
     coincidenceID = cid;
     coinEnd = end;
+    segment->hasCoin = true;
 }
 
-// setter to help debugging
 void OpIntersection::setUnsect(int uid, MatchEnds end) {
     unsectID = uid;
     unsectEnd = end;
+    segment->hasUnsectable = true;
 }
+
+OpIntersection* OpIntersection::coinOtherEnd() {
+    auto endSect = std::find_if(segment->sects.i.begin(), segment->sects.i.end(), 
+            [this](const OpIntersection* test) { 
+            return test->coincidenceID == coincidenceID && test->coinEnd == !coinEnd; });
+    OP_ASSERT(segment->sects.i.end() != endSect);
+    return *endSect;
+};
 
 OpIntersections::OpIntersections()
     : resort(false) {
@@ -49,74 +57,52 @@ OpIntersection* const * OpIntersections::entry(const OpPtT& ptT, const OpSegment
 	return nullptr;
 }
 
-// for the unsectable / between code:
-//   if this set of intersections is reversed compared to the opposite, walk opposite backwards 
-
-// prioritize unsectable and use its index if start and if multiple sects have the same t
-start here;
-// !!! still thinking about it
-// !!! what to do for 3 or more unsectables
-// !!! what to do if edge is inside unsectable range but does not start or end there
-// prioritize the innermost unsectable
-// if the edge is inside an unsectable range, but does not start at an unsectable, add a bit?
+// if the edge is inside an unsectable range, record all sects that start that range
 void OpIntersections::makeEdges(OpSegment* segment) {
     OP_ASSERT(!resort);
-    std::vector<const OpIntersection*> unsectables;
-    auto stackEm = [&unsectables](OpIntersection* sect) {
+    std::vector<OpIntersection*> unsectables;
+    auto stackUnsects = [&unsectables](OpIntersection* sect) {
         if (!sect->unsectID)
-            return false;
+            return;
         if (MatchEnds::start == sect->unsectEnd) {
             unsectables.push_back(sect);
-            return true;
+            return;
         }
         OP_ASSERT(MatchEnds::end == sect->unsectEnd);
         auto found = std::find_if(unsectables.begin(), unsectables.end(), 
                 [sect](const OpIntersection* uT) { return uT->unsectID == sect->unsectID; });
         OP_ASSERT(unsectables.end() != found);
         unsectables.erase(found);
-        return true;
     };
-    int firstIndex = 0;
-    int testIndex = 0;
-    OpIntersection* last = i.front();
-    do {
-        for (;;) {  // prime start index of sect for edge-to-be
-            if (stackEm(last)) {
-                OP_ASSERT(MatchEnds::start == last->unsectEnd);
-                firstIndex = testIndex++;
-                break;  // 1st index is 1st unsectable, usect stack has 1st unsectable
-            }
-            OpIntersection* next = i[++testIndex];
-            OP_ASSERT(testIndex < (int) i.size());
-            if (last->ptT.t != next->ptT.t)
-                break;  // 1st index is zero, usect stack is empty
-            last = next;
+    std::vector<OpIntersection*> coincidences;
+    auto stackCoins = [&coincidences](OpIntersection* sect) {
+        if (!sect->coincidenceID)
+            return;
+        if (MatchEnds::start == sect->coinEnd) {
+            coincidences.push_back(sect);
+            return;
         }
-        do {    // find ending index of sect for edge
-            OP_ASSERT(testIndex < (int) i.size());
-            OpIntersection* sectPtr = i[testIndex++];
-            stackEm(sectPtr);
-            // if 1st index points at unsectable sect, find match if there is one (?)
-            if (sectPtr->ptT.t == last->ptT.t) 
-                continue;
-            segment->edges.emplace_back(segment, firstIndex, testIndex  OP_LINE_FILE_PARAMS());
+        OP_ASSERT(MatchEnds::end == sect->coinEnd);
+        auto found = std::find_if(coincidences.begin(), coincidences.end(), [sect]
+                (const OpIntersection* cT) { return cT->coincidenceID == sect->coincidenceID; });
+        OP_ASSERT(coincidences.end() != found);
+        coincidences.erase(found);
+    };
+    OpIntersection* first = i.front();
+    for (OpIntersection* sectPtr : i) {
+        if (first->ptT.t != sectPtr->ptT.t) {
+            segment->edges.emplace_back(first, sectPtr  OP_LINE_FILE_PARAMS());
+            first = sectPtr;
             OpEdge& newEdge = segment->edges.back();
             if (unsectables.size())
-                newEdge.isUnsectable = true;
-            if (sectPtr->unsectID) {
-                auto found = std::find_if(unsectables.begin(), unsectables.end(), 
-                        [&sectPtr](const OpIntersection* uT) { return uT->unsectID == sectPtr->unsectID; });
-                if (unsectables.end() == found)
-                    unsectables.push_back(sectPtr);
-                else
-                    unsectables.erase(found);
-            } 
-            if (sectPtr->ptT.t != last->ptT.t) {
-                last = sectPtr;
-                testIndex = sectIndex;
+                newEdge.uSects = unsectables;
+            if (coincidences.size()) {
+                newEdge.cSects = coincidences;
             }
         }
-    } while ();
+        stackUnsects(sectPtr);
+        stackCoins(sectPtr);
+    }
 }
 
 #if 0

@@ -376,9 +376,23 @@ void OpCurveCurve::addIntersection(OpEdge* edge, OpEdge* oppEdge) {
 	snipOpp = oppEdge->start();
 }
 
+enum class IsOpp {
+	no,
+	yes
+};
+
+enum class IsCoin {
+	no,
+	yes
+};
+
+struct IdEnds {
+	int id;
+	MatchEnds matchEnds;
+};
+
 bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 		const OpPtT& oppStart, const OpPtT& oppEnd) {
-	int usectID = seg->nextID();
 	OpPtT eStart = edgeStart;
 	OpPtT eEnd = edgeEnd;
 	OpPtT oStart = oppStart;
@@ -391,80 +405,67 @@ bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 		return false;
 	if (oStart.soClose(oEnd))
 		return false;
-	bool flipped = oStart.t > oEnd.t;
+	MatchReverse match { MatchEnds::start, oStart.t > oEnd.t };
+	IsCoin isCoin = eStart.pt == (match.reversed ? oEnd.pt : oStart.pt) 
+			&& eEnd.pt == (match.reversed ? oStart.pt : oEnd.pt) ? IsCoin::yes : IsCoin::no;
 	OpIntersection* segSect1 = seg->sects.contains(eStart, opp);
-	OpIntersection* oppSect1 = nullptr;
 	if (!segSect1) {
-		oppSect1 = opp->sects.contains(oStart, seg);
-		if (oppSect1)
+		if (OpIntersection* oppSect1 = opp->sects.contains(oStart, seg))
 			segSect1 = oppSect1->opp;
 	}
-	if (segSect1 && segSect1->unsectID)
+	if (segSect1 && (IsCoin::yes == isCoin ? segSect1->coincidenceID : segSect1->unsectID))
 		return false;
 	OpIntersection* segSect2 = seg->sects.contains(eEnd, opp);
-	OpIntersection* oppSect2 = nullptr;
 	if (!segSect2) {
-		oppSect2 = opp->sects.contains(oEnd, seg);
-		if (oppSect2)
+		if (OpIntersection* oppSect2 = opp->sects.contains(oEnd, seg))
 			segSect2 = oppSect2->opp;
 	}
-	if (segSect2 && segSect2->unsectID)
+	if (segSect2 && (IsCoin::yes == isCoin ? segSect2->coincidenceID : segSect2->unsectID))
 		return false;
+	int usectID = seg->nextID();
+	auto idEnds = [usectID, &match, isCoin](IsOpp isOpp) {
+		IdEnds idEnds {
+			match.reversed && (IsOpp::yes == isOpp || IsCoin::yes == isCoin) ? -usectID : usectID,
+			IsOpp::yes == isOpp && match.reversed ? !match.match : match.match };
+		return idEnds;
+	};
+	auto setSect = [isCoin, idEnds](OpIntersection* sect, IsOpp isOpp) {
+		IdEnds ie = idEnds(isOpp);
+		if (IsCoin::yes == isCoin)
+			sect->setCoin(ie.id, ie.matchEnds);
+		else
+			sect->setUnsect(ie.id, ie.matchEnds);
+	};
+	auto addSect = [isCoin, idEnds](OpSegment* segs, OpSegment* opps, const OpPtT& start, 
+			IsOpp isOpp  OP_LINE_FILE_DEF()) {
+		IdEnds ie = idEnds(isOpp);
+		if (IsCoin::yes == isCoin)
+			return segs->addCoin(start, ie.id, ie.matchEnds, opps  OP_LINE_FILE_PARAMS());
+		return segs->addUnsectable(start, ie.id, ie.matchEnds, opps  OP_LINE_FILE_PARAMS());
+	};
 	if (segSect1) {
-		oppSect1 = segSect1->opp;
-		OP_ASSERT(!oppSect1->unsectID);  // expect segSect1 to have uid and return already 
-        segSect1->setUnsect(usectID, MatchEnds::start);
-        seg->sects.resort = true;	// !!! not needed if only sect t needs to be sorted
-		oppSect1->setUnsect(flipped ? -usectID : usectID, 
-				flipped ? MatchEnds::end : MatchEnds::start);
-		oppSect1->segment->sects.resort = true; // !!! ditto
+        setSect(segSect1, IsOpp::no);
+		setSect(segSect1->opp, IsOpp::yes);
 	} else {
-		segSect1 = seg->addUnsectable(eStart, usectID, MatchEnds::start, opp
+		segSect1 = addSect(seg, opp, IsCoin::yes == isCoin ? eStart : edgeStart, IsOpp::no
 				OP_LINE_FILE_PARAMS());
-		oppSect1 = opp->addUnsectable(oStart, flipped ? -usectID : usectID, 
-				flipped ? MatchEnds::end : MatchEnds::start, seg  
-				OP_LINE_FILE_PARAMS());
+		OpIntersection* oppSect1 = addSect(opp, seg, IsCoin::yes == isCoin ? oStart : oppStart,
+				IsOpp::yes  OP_LINE_FILE_PARAMS());
 		segSect1->pair(oppSect1);
 	}
+	match.match = MatchEnds::end;
 	if (segSect2) {
-		oppSect2 = segSect2->opp;
-		OP_ASSERT(!oppSect2->unsectID);
-        segSect2->setUnsect(usectID, MatchEnds::end);
-        seg->sects.resort = true;	// !!! not needed if only sect t needs to be sorted
-		oppSect2->setUnsect(flipped ? -usectID : usectID, 
-				flipped ? MatchEnds::start : MatchEnds::end);
-		oppSect2->segment->sects.resort = true; // !!! ditto
+        setSect(segSect2, IsOpp::no);
+		setSect(segSect2->opp, IsOpp::yes);
 	} else {
-		segSect2 = seg->addUnsectable(eEnd, usectID, MatchEnds::end, opp
+		segSect2 = addSect(seg, opp, IsCoin::yes == isCoin ? eEnd : edgeEnd, IsOpp::no
 				OP_LINE_FILE_PARAMS());
-		oppSect2 = opp->addUnsectable(oEnd, flipped ? -usectID : usectID, 
-				flipped ? MatchEnds::start : MatchEnds::end, seg
-				OP_LINE_FILE_PARAMS());
+		OpIntersection* oppSect2 = addSect(opp, seg, IsCoin::yes == isCoin ? oEnd : oppEnd,
+				IsOpp::yes  OP_LINE_FILE_PARAMS());
 		segSect2->pair(oppSect2);
 	}
-#if 0  // !!! check if no longer needed
-	// !!! tricky: do I need all cases of contains/add to do this? (testQuads17024521)
-	if (!segSect1 != !oppSect1)
-		estartPt() = ostartPt() = segSect1 ? segSect1->ptT.pt : oppSect1->ptT.pt;
-	if (!segSect2 != !oppSect2)
-		eendPt() = oendPt() = segSect2 ? segSect2->ptT.pt : oppSect2->ptT.pt;
-#endif
-#if 0 // !!! I think this double-flips? (no op?)
-	MatchEnds oppMatch = MatchEnds::start;
-	if (flipped) {
-		std::swap(oStart, oEnd); // flip to fix opp t (now opp pts are flipped vs. edge)
-		usectID = -usectID;
-		oppMatch = MatchEnds::end;
-	}
-	oppSect1 = opp->addUnsectable(oStart, usectID, oppMatch, seg
-			OP_LINE_FILE_PARAMS());
-	oppSect2 = opp->addUnsectable(oEnd, usectID, !oppMatch, seg
-			OP_LINE_FILE_PARAMS());
-	segSect1->pair(flipped ? oppSect2 : oppSect1);
-	segSect2->pair(flipped ? oppSect1 : oppSect2);
-#endif
 	addedPoint = true;
-	return true;
+	return true; 
 }
 
 // if after breaking runs spacially on both edge and opp into two runs

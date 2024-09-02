@@ -26,6 +26,18 @@ void FoundEdge::reset() {
     loops = false;
 }
 
+OpSegment::OpSegment(PathOpsV0Lib::AddCurve addCurve, PathOpsV0Lib::AddWinding addWinding)    
+    : contour((OpContour*) addWinding.contour)
+    , c(contour->contours,  
+            { (PathOpsV0Lib::CurveData*) addCurve.points, addCurve.size, addCurve.type } )
+    , winding(contour, { (PathOpsV0Lib::WindingData*) addWinding.windings, addWinding.size } )
+    , id(contour->nextID())
+    , disabled(false)
+    , hasCoin(false)
+    , hasUnsectable(false) {
+    setBounds();
+}
+
 // !!! optimization:  if called from opedge linkup, could abort if >1 active found?
 
 // Unsectable edges may or may not be able to have their wind zero side computed;
@@ -149,15 +161,88 @@ void OpSegment::apply() {
         edge.apply();
 }
 
+        // walk sects in coincidences;
+        // look at opp sects (reversed if necessary)
+        // if opp sects is missing this point, add it
+void OpSegment::betweenIntersections() {
+    if (!hasCoin)
+        return;
+    // if this segment has coincident runs with three or more edges, make the sects consistent
+    std::vector<OpIntersection*> coincidences;
+    std::vector<OpIntersection*> betweens;  // !!! this needs to be in sects (i.e., in opp segment)
+    // A and B are coincident; C is also coincident with B, but C-A coin may have been missed
+    auto checkOpp = [coincidences, betweens](OpIntersection* sectC) {
+        for (OpIntersection* sectB : coincidences) {
+            OpSegment* segC = sectC->segment;
+            OP_ASSERT(segC != sectB->segment);
+            OpIntersection* sectA = sectB->opp;
+            OpSegment* segA = sectA->segment;
+            OP_ASSERT(segC != segA);
+            // check A for C coincidence
+            OpIntersections& aSects = sectA->segment->sects;
+            if (aSects.i.end() != std::find_if(aSects.i.begin(), aSects.i.end(), 
+                    [segC](const OpIntersection* test) { return test->opp->segment == segC; }))
+                continue;
+            segA->sects.resort = true;
+            segC->sects.resort = true;
+            // Construct new coincidence between A and C. Add the shorter of a end and c end.
+            OpIntersection* cEndSect = sectC->coinOtherEnd();
+            OpIntersection* aEndSect = sectA->coinOtherEnd();
+            // both aEnd and cEnd should link to B, but not to each other
+            OP_ASSERT(aEndSect->opp->segment == sectB->segment);
+            OP_ASSERT(cEndSect->opp->segment == sectB->segment);
+            int acID = segC->nextID();
+            MatchEnds cMatch = sectC->coincidenceID < 0 ? MatchEnds::end : MatchEnds::start;
+            OpIntersection* cS = segC->addCoin(sectC->ptT, acID, cMatch, segA  OP_LINE_FILE_PARAMS());
+            OpPtT aStart { sectC->ptT.pt, segA->c.match(0, 1, sectC->ptT.pt) };
+            MatchEnds aMatch = sectA->coincidenceID < 0 ? MatchEnds::end : MatchEnds::start;
+            OpIntersection* aS = segA->addCoin(aStart, acID, aMatch, segC  OP_LINE_FILE_PARAMS());
+            cS->pair(aS);
+            bool shortA = aEndSect->opp->ptT.t < cEndSect->opp->ptT.t; 
+            OpPtT cEndPtT = shortA ? aEndSect->ptT : cEndSect->ptT;
+            OpPtT aEndPtT = cEndPtT;
+            if (shortA)
+                cEndPtT.t = segC->c.match(0, 1, cEndPtT.pt);
+            else
+                aEndPtT.t = segA->c.match(0, 1, aEndPtT.pt);
+            OpIntersection* cE = segC->addCoin(cEndPtT, acID, !cMatch, segA  OP_LINE_FILE_PARAMS());
+            OpIntersection* aE = segA->addCoin(aEndPtT, acID, !aMatch, segC  OP_LINE_FILE_PARAMS());
+            cE->pair(aE);
+        }
+        // check to see if added point collapses through identical t? or adjacent has idential pt?
+        // !!! probably should put that check in sorting
+    };
+    if (sects.resort)
+        sects.sort();
+    for (OpIntersection* sect : sects.i) {
+        OP_ASSERT(sect->segment == this);
+        if (!sect->coincidenceID)
+                continue;
+        if (MatchEnds::start == sect->coinEnd) {
+            if (coincidences.size())
+                checkOpp(sect);
+            coincidences.push_back(sect);
+            continue;
+        }
+        OP_ASSERT(MatchEnds::end == sect->coinEnd);
+        auto found = std::find_if(coincidences.begin(), coincidences.end(), [sect]
+                (const OpIntersection* cT) { return cT->coincidenceID == sect->coincidenceID; });
+        OP_ASSERT(coincidences.end() != found);
+        coincidences.erase(found);
+    }
+}
+
 int OpSegment::coinID(bool flipped) const {
     int coinID = nextID();
     return flipped ? -coinID : coinID;
 }
 
+#if 0
 void OpSegment::complete() {
     setBounds();
     id = nextID();
 }
+#endif
 
 // !!! would it be any better (faster) to split this into findStart / findEnd instead?
 OpEdge* OpSegment::findEnabled(const OpPtT& ptT, EdgeMatch match) const {
@@ -364,7 +449,8 @@ void OpSegment::windCoincidences() {
     for (OpEdge& edge : edges) {
         if (!edge.isLine())
             continue;
-        if (edge.isUnsectable)
+        // !!! consider removing unsectable if line is also coincident
+        if (edge.isUnsectable())
             continue;
         // iterate through sects that match edge start and end, looking for parallel edges
         OpIntersection** firstBegin = nullptr;
@@ -416,7 +502,7 @@ void OpSegment::windCoincidences() {
                     break;
                 if (!oppEdge->isLine())
                     break;
-                if (oppEdge->isUnsectable)
+                if (oppEdge->isUnsectable())
                     break;
                 // verify that all four intersections are not used to mark coincidence
                 if (oStart->coincidenceID)
@@ -460,18 +546,6 @@ bool OpSegment::debugSuccess() const {
     return true;
 }
 
-// new interface
-
-OpSegment::OpSegment(PathOpsV0Lib::AddCurve addCurve, PathOpsV0Lib::AddWinding addWinding)    
-    : contour((OpContour*) addWinding.contour)
-    , c(contour->contours,  
-            { (PathOpsV0Lib::CurveData*) addCurve.points, addCurve.size, addCurve.type } )
-    , winding((OpContour*) addWinding.contour, 
-            { (PathOpsV0Lib::WindingData*) addWinding.windings, addWinding.size } )
-    , disabled(false)  {
-    complete();
-}
-
 // replace calls that generate coin ids with newWindCoincidences()
 // Currently, a pair of edges intersected by a third edge may produce a coincidence that goes
 // undetected. The code that generates coincidence in general is overly complicated. If  
@@ -513,7 +587,7 @@ void OpSegment::newWindCoincidences() {
                 return;
             if (oEdge->disabled)
                 return;
-            if (oEdge->isUnsectable)
+            if (oEdge->isUnsectable())
                 return;
             OpPoint oEnd = EdgeMatch::start == oMatch ? oEdge->endPt() : oEdge->startPt();
 #if 0  // eventually, handle partial coincident. For now, just detect full coincidence
@@ -588,5 +662,46 @@ void OpSegment::newWindCoincidences() {
                 checkCoin(oppEdge, EdgeMatch::start);
             }
         } while (next && next->ptT.t == sect->ptT.t);
+    }
+}
+
+// create list of unsectable edges that match previous found unsectable intersections.
+void OpSegment::makePals() {
+    if (!hasUnsectable && !hasCoin)
+        return;
+    for (OpEdge& edge : edges) {
+        // if edge is coincident, transfer windings and unsectable sects to boss
+        for (OpIntersection* cSect : edge.cSects) {
+            int cID = abs(cSect->coincidenceID);
+            OP_ASSERT(cID);
+            OpSegment* oSeg = cSect->opp->segment;
+            OP_ASSERT(oSeg != this);
+            for (OpEdge& oEdge : oSeg->edges) {
+                for (OpIntersection* oSect : oEdge.cSects) {
+                    if (abs(oSect->coincidenceID) != cID)
+                        continue;
+
+                }
+            }
+        }
+        for (OpIntersection* uSect : edge.uSects) {
+            int uID = abs(uSect->unsectID);
+            OP_ASSERT(uID);
+            OpSegment* oSeg = uSect->opp->segment;
+            OP_ASSERT(oSeg != this);
+            for (OpEdge& oEdge : oSeg->edges) {
+                for (OpIntersection* oSect : oEdge.uSects) {
+                    if (abs(oSect->unsectID) != uID)
+                        continue;
+                    auto found = std::find_if(edge.uPals.begin(), edge.uPals.end(), 
+                            [&edge](const EdgePal& test) { return &edge != test.edge; });
+                    if (edge.uPals.end() == found) {
+                        EdgePal pal { &oEdge, uSect->unsectID != oSect->unsectID 
+                                OP_DEBUG_PARAMS(uID) };
+                        edge.uPals.push_back(pal);
+                    }
+                }
+            }
+        }
     }
 }

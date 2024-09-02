@@ -1579,7 +1579,7 @@ void colorPathsOut(uint32_t color) {
 void colorUnsectables(uint32_t color) {
 	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
-		if (edge->isUnsectable) {
+		if (edge->isUnsectable()) {
 			edge->debugColor = color;
 			edge->debugDraw = true;
 		}

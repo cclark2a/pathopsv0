@@ -6,7 +6,7 @@
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
 #define TESTS_TO_SKIP 0 // 14295903  // tests to skip
-#define TEST_PATH_OP_FIRST "loop8"  // e.g., "cubic140721" (ignored by fast test)
+#define TEST_PATH_OP_FIRST "loop2"  // e.g., "cubic140721" (ignored by fast test)
 
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
