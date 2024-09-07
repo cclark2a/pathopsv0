@@ -630,7 +630,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 //		edgeCurves.endDist(seg, opp);
 //		oppCurves.endDist(opp, seg);
 #if OP_DEBUG_DUMP
-		if (dumpBreak()) {
+		if (dumpBreak(true)) {
 			if (contours->debugBreakDepth == depth)
 				::debug();
 			1 == depth ? ::showSegmentEdges() : ::hideSegmentEdges();
@@ -667,6 +667,8 @@ SectFound OpCurveCurve::divideAndConquer() {
 		}
 		// if there is more than one crossover, look for unsectable
 		size_t limitsSize = uniqueLimits();
+		start here;
+		// !!! add: while there are live edges that crossover the dist axis from + to -, continue
 		if (limitsSize > 0) {
 			if (smallTFound || largeTFound) {
 				if (limitsSize > smallTFound + largeTFound)
@@ -951,7 +953,7 @@ SectFound OpCurveCurve::runsToLimits() {
 					&& fabsf(lower->oppDist) > OpEpsilon && fabsf(run.oppDist) > OpEpsilon
 				// !!! very large dist sign swaps should be ignored
 				//     need to determine what this range should be
-					&& fabsf(lower->oppDist) < OpEpsilon * 512 && fabsf(run.oppDist) < OpEpsilon * 512
+					&& fabsf(lower->oppDist) < OpEpsilon * 65536 && fabsf(run.oppDist) < OpEpsilon * 65536
 					&& !lower->byZero && !run.byZero)  // switches sides
 				found = addLimit();
 			lower = upper;

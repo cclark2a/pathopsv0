@@ -173,7 +173,7 @@ struct OpCurveCurve {
 #if OP_DEBUG_DUMP
 	OpCurveCurve(OpContours* c) { contours = c; }
 	void drawClosest(const OpPoint& originalPt) const;
-	bool dumpBreak() const;
+	bool dumpBreak(bool atDepth) const;
 	void dumpClosest(const OpPoint& pt) const;
 #include "OpDebugDeclarations.h"
 #endif

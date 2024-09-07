@@ -1841,10 +1841,10 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     s += strPtT(EdgeFilter::center, "center", center, " ");
     if (dumpIt(EdgeFilter::curve)) s += strCurve("curve", curve);
     if (upright_impl.pts[0].isFinite() || upright_impl.pts[1].isFinite()) {
-        if (dumpIt(EdgeFilter::vertical_impl))
-            s += strCurve("vertical_impl", vertical_impl);
         if (dumpIt(EdgeFilter::upright_impl))
             s += strPts("upright_impl", upright_impl);
+        if (dumpIt(EdgeFilter::vertical_impl))
+            s += strCurve("vertical_impl", vertical_impl);
     }
     if (dumpIt(EdgeFilter::ptBounds)) s += strBounds(EdgeFilter::ptBounds, "ptBounds", ptBounds);
     if (dumpIt(EdgeFilter::linkBounds)) s += strBounds(EF::linkBounds, "linkBounds", linkBounds);
@@ -3180,12 +3180,16 @@ void CcCurves::dumpResolveAll(OpContours* contours) {
 #endif
 }
 
-bool OpCurveCurve::dumpBreak() const {
-    if (!contours->debugBreakDepth)
+bool OpCurveCurve::dumpBreak(bool atDepth) const {
+    if (contours->debugBreakDepth < 0)
         return false;
-     return depth >= contours->debugBreakDepth && (
-         (contours->dumpCurve1 == seg->id && contours->dumpCurve2 == opp->id)
-			|| (contours->dumpCurve1 == opp->id && contours->dumpCurve2 == seg->id));
+    if (atDepth && !contours->debugBreakDepth)
+        return false;
+    if (contours->dumpCurve1 != seg->id && contours->dumpCurve2 != seg->id)
+        return false;
+    if (contours->dumpCurve1 != opp->id && contours->dumpCurve2 != opp->id)
+        return false;
+     return !atDepth || depth >= contours->debugBreakDepth;
 }
 
 std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {

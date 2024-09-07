@@ -330,7 +330,7 @@ bool OpContours::pathOps() {
     makePals();  // edges too close to each other to sort or precisely intersect
 
     // made edges may include lines that are coincident with other edges. Undetected for now...
-    windCoincidences();  // for segment h/v lines, compute their winding considering coincidence
+//    windCoincidences();  // for segment h/v lines, compute their winding considering coincidence
     OpWinder windingEdges(*this, EdgesToSort::byCenter);
     FoundWindings foundWindings = windingEdges.setWindings(this);  // walk edges, compute windings
     if (FoundWindings::fail == foundWindings)

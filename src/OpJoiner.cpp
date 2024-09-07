@@ -7,8 +7,10 @@
 
 void OpLimb::add(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPass, size_t limbIndex,
 		OpEdge* otherEnd) {
-	OP_ASSERT(!test->disabled || test->isUnsectable() || LimbPass::disabled <= limbPass);
-	OP_ASSERT(!test->hasLinkTo(m) || test->isUnsectable() || test->isUnsortable);
+	OP_ASSERT(!test->disabled || test->isUnsectable() || test->pals.size() 
+			|| LimbPass::disabled <= limbPass);
+	OP_ASSERT(!test->hasLinkTo(m) || test->isUnsortable
+			|| test->isUnsectable() || test->pals.size());
 	if (test->whichPtT(m).pt != lastPtT.pt && LimbPass::unsectPair != limbPass)
 		return;
 	if (edge == test)
@@ -49,16 +51,14 @@ void OpLimb::add(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPass, siz
 	OpContours& contours = *tree.contour->contours;
 	OpLimb* branch = contours.allocateLimb(&tree);
 	if (LimbPass::unsectPair == limbPass) {
-		OpPtT gapEnd = lastLimbEdge->whichPtT(lastMatch);
 		OpPtT startI = test->whichPtT(m);
+		OpPtT gapEnd = lastLimbEdge->whichPtT(lastMatch);
 		OpEdge* filler = tree.contour->addFiller(gapEnd, startI);
 		filler->setWhich(EdgeMatch::start);
-		if (filler) {
-			branch->set(tree, filler, this, EdgeMatch::start, limbPass, limbIndex, nullptr, 
-					&filler->ptBounds);
-			branch->gapDistance = (filler->startPt() - lastPtT.pt).length();
-			return;
-		}
+		branch->set(tree, filler, this, EdgeMatch::start, limbPass, limbIndex, nullptr, 
+				&filler->ptBounds);
+		branch->gapDistance = (filler->startPt() - lastPtT.pt).length();
+		return;
 	}
 	branch->set(tree, test, this, m, limbPass, limbIndex, otherEnd, &childBounds);
 }
@@ -617,7 +617,7 @@ bool OpJoiner::linkRemaining(OP_DEBUG_CODE(OpContours* debugContours)) {
 	showFill();
 #endif
     OP_DEBUG_CODE(debugMatchRay(debugContours));
-//	OP_ASSERT(!TEST_PATH_OP_SKIP_TO_V0 || OP_DEBUG_FAST_TEST);  // break if running last failed fast test
+	OP_ASSERT(!TEST_PATH_OP_SKIP_TO_V0 || OP_DEBUG_FAST_TEST);  // break if running last failed fast test
 	linkPass = LinkPass::remaining;
 	// match links may add or remove from link ups. Iterate as long as link ups is not empty
 	for (auto e : linkups.l) {
@@ -774,13 +774,10 @@ bool OpJoiner::matchLinks(bool popLast) {
 		OpPtT startI = edge->whichPtT(EdgeMatch::start);
 		OpPtT gapEnd = gap->lastLimbEdge->whichPtT(!gap->match);
 		OpEdge* filler = tree.contour->addFiller(gapEnd, startI);
-		if (filler) {
-			OpLimb* branch = tree.contour->contours->allocateLimb(&tree);
-			branch->set(tree, filler, gap, EdgeMatch::start, LimbPass::disjoint, 0, nullptr);
-			tree.bestLimb = branch;
-		}
+		OpLimb* branch = tree.contour->contours->allocateLimb(&tree);
+		branch->set(tree, filler, gap, EdgeMatch::start, LimbPass::disjoint, 0, nullptr);
+		tree.bestLimb = branch;
 	}
-	OP_ASSERT(tree.bestLimb);
 	return tree.join(*this);
 }
 

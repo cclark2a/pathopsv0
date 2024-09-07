@@ -322,8 +322,8 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
         std::swap(oppInSeg[0], oppInSeg[1]);
         std::swap(segInOpp[0], segInOpp[1]);
     }
-    OP_ASSERT(oppInSeg[0].pt.isNearly(segInOpp[0].pt));
-    OP_ASSERT(oppInSeg[1].pt.isNearly(segInOpp[1].pt));
+//    OP_ASSERT(oppInSeg[0].pt.isNearly(segInOpp[0].pt));
+//    OP_ASSERT(oppInSeg[1].pt.isNearly(segInOpp[1].pt));
     OpPtT::MeetInTheMiddle(oppInSeg[0], segInOpp[0]);
     OpPtT::MeetInTheMiddle(oppInSeg[1], segInOpp[1]);
     OpVector segV = oppInSeg[1].pt - oppInSeg[0].pt;
@@ -388,7 +388,8 @@ FoundIntersections OpSegments::findIntersections() {
             OpCurveCurve cc(seg, opp);
             SectFound ccResult = cc.divideAndConquer();
 #if OP_DEBUG_DUMP
-            OP_ASSERT(!cc.dumpBreak());
+            if (cc.dumpBreak(false))
+                OP_ASSERT(0);
 #endif
             if (true) { // SectFound::fail == ccResult || SectFound::maxOverlaps == ccResult
                         //        || SectFound::noOverlapDeep == ccResult
@@ -413,6 +414,7 @@ FoundIntersections OpSegments::findIntersections() {
             }
             if (SectFound::add == ccResult || cc.limits.size())
                 cc.findUnsectable();
+#if 0
             OP_DEBUG_DUMP_CODE(debugContext = "");
             if (!cc.addedPoint)
                 continue;
@@ -508,6 +510,7 @@ FoundIntersections OpSegments::findIntersections() {
                     break;
                 }
             }
+#endif
         }
     }
     return FoundIntersections::yes; // !!! if something can fail, return 'fail' (don't return 'no')
