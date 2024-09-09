@@ -24,7 +24,7 @@ bool CcCurves::checkMid(size_t index) {
 	mid.oppDist = mid.setOppDist(seg);
 	return OpMath::Betweenish(eS.oppDist, mid.oppDist, eE.oppDist);
 }
-
+3
 OpPtT CcCurves::closest(OpPoint pt) const {
 	OpPoint oBest;
 	float oBestDistSq = OpInfinity;
@@ -667,17 +667,11 @@ SectFound OpCurveCurve::divideAndConquer() {
 		}
 		// if there is more than one crossover, look for unsectable
 		size_t limitsSize = uniqueLimits();
-		start here;
+//		start here;
 		// !!! add: while there are live edges that crossover the dist axis from + to -, continue
-		if (limitsSize > 0) {
-			if (smallTFound || largeTFound) {
-				if (limitsSize > smallTFound + largeTFound)
-					return SectFound::add;
-			} else {
-				if (limitsSize >= 2)
-					return SectFound::add;
-			}
-		}
+		if (limitsSize > 0 && limitsSize > std::max(1, smallTFound + largeTFound)
+                && !reduceDistFlipped())
+			return SectFound::add;
 #if OP_DEBUG && OP_DEBUG_VERBOSE  // save state prior to split and delete
 		debugSaveState();
 #endif
@@ -870,6 +864,14 @@ void OpCurveCurve::recordSect(OpEdge* edge, OpEdge* oEdge, const OpPtT& edgePtT,
 	FoundLimits newLimit { edge, oEdge, edgePtT, oppPtT, false, false  OP_LINE_FILE_SCALLER() };
 	limits.push_back(std::move(newLimit));
 	uniqueLimits_impl = -1;
+}
+
+// remove edges that do not change distance sign in run
+
+bool OpCurveCurve::reduceDistFlipped() {
+    start here; // find t values of sign flipped runs
+    // !!! look at logic in runToLimits, below
+    return false;
 }
 
 bool OpCurveCurve::rotatedIntersect(OpEdge& edge, OpEdge& oppEdge, bool sharesPoint) {
