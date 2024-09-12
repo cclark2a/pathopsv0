@@ -64,6 +64,12 @@ struct OpContour {
         }
     }
 
+    void makeCoins() {
+        for (auto& segment : segments) {
+            segment.makeCoins();
+        }
+    }
+
     void makeEdges() {
         for (auto& segment : segments) {
             segment.makeEdges();
@@ -86,12 +92,14 @@ struct OpContour {
     }
 #endif
 
+#if 0
     void windCoincidences() {
         for (auto& segment : segments) {
             segment.windCoincidences();  // !!! eventually, remove this and only call new version
             segment.newWindCoincidences();
         }
     }
+#endif
 
 #if OP_DEBUG
     void debugComplete();
@@ -254,6 +262,12 @@ struct OpContours {
         return true;
     }
 
+    void makeCoins() {
+       for (auto contour : contours) {
+            contour->makeCoins();
+        }
+    }
+
     OpContour* makeContour() {
         OpContour* contour = allocateContour();
         contour->contours = this;
@@ -286,11 +300,13 @@ struct OpContours {
     void reuse(OpEdgeStorage* );
     void sortIntersections();
 
+#if 0
     void windCoincidences() {
         for (auto contour : contours) {
             contour->windCoincidences();
         }
     }
+#endif
 
     bool debugFail() const;
 #if OP_DEBUG

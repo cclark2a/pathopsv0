@@ -234,8 +234,9 @@ void OpSegment::betweenIntersections() {
     }
 }
 
-int OpSegment::coinID(bool flipped) const {
+int OpSegment::coinID(bool flipped) {
     int coinID = nextID();
+    hasCoin = true;
     return flipped ? -coinID : coinID;
 }
 
@@ -442,6 +443,7 @@ void OpSegment::setDisabled(OP_LINE_FILE_NP_DEF()) {
 }
 
 // !!! this finds coincidence on lines, but it needs to find unsectables as well ?
+#if 0
 void OpSegment::windCoincidences() {
 //    if (!c.isLine())
  //       return;
@@ -533,6 +535,7 @@ void OpSegment::windCoincidences() {
     }
     sects.windCoincidences(edges);
 }
+#endif
 
 bool OpSegment::debugFail() const {
 #if OP_DEBUG
@@ -559,6 +562,7 @@ bool OpSegment::debugSuccess() const {
 // Use the intersection opposite to find possible coincident edges. If the opposite is not a line,
 // ignore. If the opposite end point is not in the edge bounds, ignore. If the opposite end point
 // is not on the edge's line, ignore.
+#if 0
 void OpSegment::newWindCoincidences() {
     if (disabled)
         return;
@@ -666,32 +670,68 @@ void OpSegment::newWindCoincidences() {
         } while (next && next->ptT.t == sect->ptT.t);
     }
 }
+#endif
 
-// create list of unsectable edges that match previous found unsectable intersections.
-void OpSegment::makePals() {
-    if (!hasUnsectable && !hasCoin)
+void OpSegment::makeCoins() {
+    if (!hasCoin)
+        return;
+    if (disabled)
         return;
     for (OpEdge& edge : edges) {
+        if (edge.disabled)
+            continue;
         // if edge is coincident, transfer windings and unsectable sects to boss
         for (OpIntersection* cSect : edge.cSects) {
-            int cID = abs(cSect->coincidenceID);
-            OP_ASSERT(cID);
             OpSegment* oSeg = cSect->opp->segment;
             OP_ASSERT(oSeg != this);
+            if (oSeg->disabled)
+                continue;
+            int cID = abs(cSect->coincidenceID);
+            EdgeMatch match = cSect->coincidenceID < 0 ? EdgeMatch::end : EdgeMatch::start;
+            OP_ASSERT(cID);
             for (OpEdge& oEdge : oSeg->edges) {
+                if (oEdge.disabled)
+                    continue;
+                if (edge.startPt() != oEdge.ptT(match).pt)
+                    continue;
+                OP_ASSERT(edge.endPt() == oEdge.ptT(!match).pt);
                 for (OpIntersection* oSect : oEdge.cSects) {
                     if (abs(oSect->coincidenceID) != cID)
                         continue;
-
+                    OP_ASSERT(edge.winding.visible());
+                    OP_ASSERT(oEdge.winding.visible());
+                    edge.winding.move(oEdge.winding, cSect->coincidenceID < 0);
+                    oEdge.setDisabledZero(OP_LINE_FILE_NPARAMS());
+                    if (!edge.winding.visible()) {
+                        edge.setDisabled(OP_LINE_FILE_NPARAMS());
+                        goto nextEdge;
+                    }
                 }
             }
         }
+nextEdge: ;
+    }
+}
+
+// create list of unsectable edges that match previous found unsectable intersections.
+void OpSegment::makePals() {
+    if (!hasUnsectable)
+        return;
+    if (disabled)
+        return;
+    for (OpEdge& edge : edges) {
+        if (edge.disabled)
+            continue;
         for (OpIntersection* uSect : edge.uSects) {
             int uID = abs(uSect->unsectID);
             OP_ASSERT(uID);
             OpSegment* oSeg = uSect->opp->segment;
             OP_ASSERT(oSeg != this);
+            if (oSeg->disabled)
+                continue;
             for (OpEdge& oEdge : oSeg->edges) {
+                if (oEdge.disabled)
+                    continue;
                 for (OpIntersection* oSect : oEdge.uSects) {
                     if (abs(oSect->unsectID) != uID)
                         continue;

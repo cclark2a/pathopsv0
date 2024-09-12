@@ -6130,7 +6130,75 @@ path.close();
     testPathOp(reporter, pathA, path, SkPathOp::kIntersect_SkPathOp, filename);
 }
 
+void rect1(skiatest::Reporter* reporter, const char* filename) {
+    SkPath pathA, path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.lineTo(1, 0);
+path.lineTo(1, 1);
+path.lineTo(0, 1);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(2, 0);
+path.lineTo(2, 2);
+path.lineTo(0, 2);
+path.lineTo(0, 0);
+path.close();
+    pathA = path;
+    path.reset();
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.lineTo(1, 0);
+path.lineTo(1, 1);
+path.lineTo(0, 1);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(1, 0);
+path.lineTo(1, 1);
+path.lineTo(0, 1);
+path.lineTo(0, 0);
+path.close();
+    testPathOp(reporter, pathA, path, SkPathOp::kDifference_SkPathOp, filename);
+}
+
+void rect194579(skiatest::Reporter* reporter, const char* filename) {
+    SkPath pathA, path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.lineTo(2, 0);
+path.lineTo(2, 2);
+path.lineTo(0, 2);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 1);
+path.lineTo(3, 1);
+path.lineTo(3, 3);
+path.lineTo(1, 3);
+path.lineTo(1, 1);
+path.close();
+    pathA = path;
+    path.reset();
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(2, 2);
+path.lineTo(4, 2);
+path.lineTo(4, 4);
+path.lineTo(2, 4);
+path.lineTo(2, 2);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(3, 0);
+path.lineTo(3, 3);
+path.lineTo(0, 3);
+path.lineTo(0, 0);
+path.close();
+    testPathOp(reporter, pathA, path, SkPathOp::kUnion_SkPathOp, filename);
+}
+
 static struct TestDesc tests[] = {
+    TEST(rect194579),
+    TEST(rect1),
     TEST(loop156483),
     TEST(loop36499),
     TEST(loop156386),

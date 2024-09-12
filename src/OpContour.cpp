@@ -327,6 +327,7 @@ bool OpContours::pathOps() {
     sortIntersections();
     betweenIntersections();  // fill in intersections in coin runs that are missing in other coins
     makeEdges();
+    makeCoins();
     makePals();  // edges too close to each other to sort or precisely intersect
 
     // made edges may include lines that are coincident with other edges. Undetected for now...

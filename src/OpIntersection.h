@@ -165,7 +165,7 @@ struct OpIntersections {
 //	std::vector<OpIntersection*> unsectables(const OpEdge* );
 	static bool UnsectablesOverlap(std::vector<OpIntersection*> set1,
 			std::vector<OpIntersection*> set2);
-	void windCoincidences(std::vector<OpEdge>& edges);
+//	void windCoincidences(std::vector<OpEdge>& edges);
 #if OP_DEBUG
     OpIntersection* debugAlreadyContains(const OpPoint& , const OpSegment* opp) const;
     bool debugContains(const OpPtT& , const OpSegment* opp) const;  // check for duplicates

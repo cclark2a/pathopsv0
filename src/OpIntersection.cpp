@@ -425,6 +425,7 @@ void OpIntersections::sort() {
         processEnd(index);
 }
 
+#if 0
 void OpIntersections::windCoincidences(std::vector<OpEdge>& edges) {
     sort();
     std::vector<CoinPair> pairs;
@@ -576,6 +577,7 @@ void OpIntersections::windCoincidences(std::vector<OpEdge>& edges) {
         }
     }
 }
+#endif
 
 #if OP_DEBUG_VALIDATE
 void OpIntersection::debugValidate() const {

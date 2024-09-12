@@ -70,13 +70,14 @@ struct OpSegment {
             OP_LINE_FILE_DEF());
     void apply();
     void betweenIntersections();
-    int coinID(bool flipped) const;
+    int coinID(bool flipped);
 //    void complete();
     OpEdge* findEnabled(const OpPtT& , EdgeMatch ) const;
     float findAxisT(Axis , float start, float end, float oppXY);
 //    float findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const;
     float findValidT(float start, float end, OpPoint opp);
     // count and sort extrema; create an edge for each extrema + 1
+    void makeCoins();
     void makeEdge(OP_LINE_FILE_NP_DEF());
     void makeEdges();
     void makePals();
@@ -87,10 +88,10 @@ struct OpSegment {
     void moveWinding(OpSegment* opp, bool backwards);
     bool nearby(float t, const OpSegment* opp) const;
     int nextID() const;
-    void newWindCoincidences();  // !!! will eventually replace wind coincidences
+//    void newWindCoincidences();  // !!! will eventually replace wind coincidences
     void setBounds();
 	void setDisabled(OP_LINE_FILE_NP_DEF());
-    void windCoincidences();
+//    void windCoincidences();
 
     bool debugFail() const;
     bool debugSuccess() const;
