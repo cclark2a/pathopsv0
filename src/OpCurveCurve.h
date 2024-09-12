@@ -99,18 +99,12 @@ struct CcCurves {
 	// void snipOne(const OpSegment* ,  const OpPtT& lo, const OpPtT& hi);
 	void snipRange(const OpSegment* , const OpPtT& lo, const OpPtT& hi, const OpSegment* oppSeg);
 	OpPtT splitPt(float oMidDist, const OpEdge& edge) const;
-#if OP_DEBUG
-	bool debugHasEdgeRun(float t) const;
-#endif
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
 #endif
 
 	std::vector<OpEdge*> c;
 	std::vector<EdgeRun> runs;
-#if OP_DEBUG
-	std::vector<EdgeRun> debugRuns;  // runs that fit inside other runs
-#endif
 };
 
 struct FoundLimits {
@@ -156,6 +150,7 @@ struct OpCurveCurve {
 //	static bool LineMissed(OpEdge& edge, OpEdge& opp);
 	void recordSect(OpEdge* edge, OpEdge* opp, const OpPtT& edgePtT, const OpPtT& oppPtT
 			OP_LINE_FILE_DEF());
+	bool reduceDistFlipped();  // replace edges with dist runs that change sign
 	bool rotatedIntersect(OpEdge& edge, OpEdge& opp, bool sharesPoint);
 	SectFound runsToLimits();
 	void setHullSects(OpEdge& edge, OpEdge& opp, CurveRef );
@@ -200,6 +195,7 @@ struct OpCurveCurve {
 	bool sectResult;
 	bool smallTFound;  // if true, hull sort should prefer large t values
 	bool largeTFound;  // also used to resolve t gaps 
+	bool lastDepthReduced;
 	bool foundGap;
 	bool splitMid;
 	bool splitHullFail;  // set true if mid t is nearly equal to an end 

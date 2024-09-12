@@ -148,7 +148,7 @@ void OpLimb::foreach(OpJoiner& join, OpTree& tree, LimbPass limbPass) {
 	// unsectable edges do not necessarily point to other unsectable through pals or upairs
 	if (lastLimbEdge->isUnsectable()) {
 		for (EdgePal& edgePal : lastLimbEdge->uPals) {
-			add(tree, edgePal.edge, edgePal.reversed ? !match : match, LimbPass::unsectPair);
+			add(tree, edgePal.edge, edgePal.reversed ? match : !match, LimbPass::unsectPair);
 		}
 	#if 0
 		OP_ASSERT(lastLimbEdge->startSect >= 0);

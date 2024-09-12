@@ -238,10 +238,12 @@ OP_X(Right)
 #define COLOR_LIST \
 OP_X(Active) \
 OP_X(Disabled) \
+OP_X(Edges) \
 OP_X(Linkups) \
 OP_X(Opp) \
 OP_X(Out) \
 OP_X(PathsOut) \
+OP_X(Segments) \
 OP_X(Unsectables) \
 OP_X(Unsortables)
 

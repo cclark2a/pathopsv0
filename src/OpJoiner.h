@@ -163,7 +163,8 @@ struct OpTree {
 struct OpLimbStorage {
 	OpLimbStorage()
 		: nextBlock(nullptr)
-		, prevBlock(nullptr) {
+		, prevBlock(nullptr)
+		, used(0) {
 		static_assert((ARRAY_COUNT(storage) - 1 & ARRAY_COUNT(storage)) == 0);
 	}
 	OpLimb* allocate(OpTree& );

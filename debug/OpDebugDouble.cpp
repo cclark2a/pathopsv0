@@ -882,7 +882,7 @@ void DebugOpBuild(const OpSegment& seg, std::vector<DebugOpCurve>& debugSegs) {
     curve.size = seg.c.c.size;
     curve.type = seg.c.c.type;
     curve.id = seg.id;
-    curve.color = black;  // !!! fix once segments carry debug colors
+    curve.color = seg.debugColor;
     curve.rectCurves(debugSegs);
 }
 

@@ -36,6 +36,7 @@ OpSegment::OpSegment(PathOpsV0Lib::AddCurve addCurve, PathOpsV0Lib::AddWinding a
     , hasCoin(false)
     , hasUnsectable(false) {
     setBounds();
+    OP_DEBUG_IMAGE_CODE(debugColor = black);
 }
 
 // !!! optimization:  if called from opedge linkup, could abort if >1 active found?
@@ -145,6 +146,8 @@ OpIntersection* OpSegment::addCoin(const OpPtT& ptT, int coinID, MatchEnds coinE
 
 OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int usectID, MatchEnds end,
         const OpSegment* oSeg    OP_LINE_FILE_DEF()) {
+    // !!! replace with assert to disallow contains here
+    // rework caller to do contains in pairs prior to calling add
     OpIntersection* sect = sects.contains(ptT, oSeg);
     if (sect) {
         OP_ASSERT(!sect->unsectID);
@@ -152,8 +155,7 @@ OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int usectID, MatchEnd
         sects.resort = true;
         return sect;
     }
-    return sects.add(contour->addUnsect(ptT, this, usectID, end  
-            OP_LINE_FILE_CALLER(oSeg)));
+    return sects.add(contour->addUnsect(ptT, this, usectID, end  OP_LINE_FILE_CALLER(oSeg)));
 }
 
 void OpSegment::apply() {

@@ -1867,7 +1867,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
             s += " ";
         }
         s.pop_back();
-        s += "]";
+        s += "] ";
     }
     if (dumpIt(EdgeFilter::pals) && (dumpAlways(EdgeFilter::pals) || pals.size())) {
         s += strLabel("pals") + ":";
@@ -3121,13 +3121,6 @@ std::string CcCurves::debugDump(DebugLevel l, DebugBase b) const {
             for (auto& run : runs)
                 s += run.debugDump(l, b) + "\n";
         }
-#if OP_DEBUG
-        if (debugRuns.size()) {
-            s += "debugRuns:" + STR(debugRuns.size()) + "\n";
-            for (auto& run : debugRuns)
-                s += run.debugDump(l, b) + "\n";
-        }
-#endif
         if ('\n' == s.back())
             s.pop_back();
         return s;
@@ -3159,14 +3152,6 @@ void CcCurves::dumpSet(const char*& str) {
         for (size_t index = 0; index < count; ++index)
             runs[index].dumpSet(str);
     }
-#if OP_DEBUG
-    if (OpDebugOptional(str, "debugRuns")) {
-        size_t count = OpDebugReadSizeT(str);
-        debugRuns.resize(count);
-        for (size_t index = 0; index < count; ++index)
-            debugRuns[index].dumpSet(str);
-    }
-#endif
 }
 
 void CcCurves::dumpResolveAll(OpContours* contours) {
@@ -3174,10 +3159,6 @@ void CcCurves::dumpResolveAll(OpContours* contours) {
         contours->dumpResolve(edge);
     for (auto& run : runs)
         run.dumpResolveAll(contours);
-#if OP_DEBUG
-    for (auto& run : debugRuns)
-        run.dumpResolveAll(contours);
-#endif
 }
 
 bool OpCurveCurve::dumpBreak(bool atDepth) const {

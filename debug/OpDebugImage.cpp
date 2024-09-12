@@ -359,9 +359,11 @@ void  OpDebugImage::playback(FILE* file) {
 				const char* colorStr = strstr(idColorStr, "color: ");
 				if (colorStr)
 					color = strtoul(colorStr + strlen("color: "), nullptr, 0);
-				if (edge && color)
-					edge->debugColor = color;
-				else
+				if (edge && color) {
+					// hackery to not color out-edges prematurely
+					if (edge->inOutput || color != orange)
+						edge->debugColor = color;
+				} else if (edge)  // ok if recorded edge does not yet exist
 					return noMatch(str);
 			} else if (0 == strcmp("brief\n", str)) {
 				break;
@@ -1528,6 +1530,23 @@ void colorDisabled(uint32_t color) {
 			edge->debugColor = color;
 			edge->debugDraw = true;
 		}
+	}
+	OpDebugImage::drawDoubleFocus();
+}
+
+void colorEdges(uint32_t color) {
+	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
+		edge->debugColor = color;
+		edge->debugDraw = true;
+	}
+	OpDebugImage::drawDoubleFocus();
+}
+
+void colorSegments(uint32_t color) {
+	for (auto segIter = segmentIterator.begin(); segIter != segmentIterator.end(); ++segIter) {
+		OpSegment* seg = const_cast<OpSegment*>(*segIter);
+		seg->debugColor = color;
 	}
 	OpDebugImage::drawDoubleFocus();
 }

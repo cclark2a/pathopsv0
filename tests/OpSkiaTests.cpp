@@ -18,7 +18,7 @@
 
 #define CURVE_CURVE_1 6  // id of segment 1 to break in divide and conquer
 #define CURVE_CURVE_2 10  // id of segment 2 to break in divide and conquer
-#define CURVE_CURVE_DEPTH 5  // minimum recursion depth for curve curve break (-1 to disable)
+#define CURVE_CURVE_DEPTH -1  // minimum recursion depth for curve curve break (-1 to disable)
 
 // see descriptions for exceptions below
 #define TEST_PATH_OP_EXCEPTIONS "issue3517" // "cubics7d"

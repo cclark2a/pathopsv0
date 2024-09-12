@@ -124,6 +124,9 @@ struct OpSegment {
     bool disabled; // winding has canceled this edge out
     bool hasCoin;
     bool hasUnsectable;
+#if OP_DEBUG_IMAGE
+	uint32_t debugColor;
+#endif
 #if OP_DEBUG_MAKER
 	OpDebugMaker debugSetDisabled;
 #endif
