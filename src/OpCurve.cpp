@@ -96,20 +96,6 @@ OpRootPts OpCurve::lineIntersect(const LinePts& line) const {
     XyChoice xy = fabsf(lineV.dx) >= fabsf(lineV.dy) ? XyChoice::inX : XyChoice::inY;
     for (unsigned index = 0; index < result.valid.count; ++index) {
         OpPoint hit = doublePtAtT(result.valid.roots[index]);
-#if 0 && OP_DEBUG_IMAGE
-        static int debugDraw = 0;
-        if (++debugDraw == 26) {
-            std::vector<OpPtT> ptts;
-            for (int di = -8; di < 8; ++di) {
-                float t = result.valid.roots[index] - OpEpsilon * di;
-                if (t > 0 && t < 1) {
-                    ptts.push_back( { doublePtAtT(t), t } );
-                    ::draw(ptts.back());
-                }
-            }
-             OpDebugOut("");
-       }
-#endif
         // thread_cubics23476 edges 55 & 52 trigger this need for betweenish
         if (OpMath::Betweenish(line.pts[0].choice(xy), hit.choice(xy), line.pts[1].choice(xy))) {
             // curve/curve may need more exact results; try pinning valid hit to line bounds

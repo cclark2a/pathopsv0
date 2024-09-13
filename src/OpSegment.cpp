@@ -240,13 +240,6 @@ int OpSegment::coinID(bool flipped) {
     return flipped ? -coinID : coinID;
 }
 
-#if 0
-void OpSegment::complete() {
-    setBounds();
-    id = nextID();
-}
-#endif
-
 // !!! would it be any better (faster) to split this into findStart / findEnd instead?
 OpEdge* OpSegment::findEnabled(const OpPtT& ptT, EdgeMatch match) const {
     for (auto& edge : edges) {
@@ -271,18 +264,6 @@ float OpSegment::findAxisT(Axis axis, float start, float end, float opp) {
     }
     return OpNaN;
 }
-
-#if 0  // unused
-// returns t closest to start, end
-// !!! curious: why doesn't this call start.pt.nearly(... ?
-float OpSegment::findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const {
-    if (start.pt == opp)
-        return start.t;
-    if (end.pt == opp)
-        return end.t;
-    return findValidT(start.t, end.t, opp);
-}
-#endif
 
 // returns t iff opp point is between start and end
 // start/end range is necessary since cubics can have more than one t at a point
@@ -323,17 +304,9 @@ void OpSegment::makeEdge(OP_LINE_FILE_NP_DEF()) {
 }
 
 void OpSegment::makeEdges() {
-    if (disabled) {
-       edges.clear();
-       return;
-    }
-#if 0  // !!! this fails if intersection is unsectable; checking is probably not worth it ?
-       //     need to measure how often edge already is exists to justify more extensive check
-       //     does this need to check for other things? zero winding, coincidence, disabled, ?
-    if (2 == sects.i.size() && 1 == edges.size() && !edges[0].start.t && 1 == edges[0].end.t)
-        return;
-#endif
     edges.clear();
+    if (disabled)
+       return;
     edges.reserve(sects.i.size() - 1);
     sects.makeEdges(this);
 }
@@ -403,15 +376,6 @@ void OpSegment::moveWinding(OpSegment* opp, bool backwards) {
         opp->setDisabled(OP_LINE_FILE_NPARAMS());
 }
 
-#if 0
-bool OpSegment::nearby(float t, const OpSegment* opp, const OpPtT& base, float step) const {
-	OpPtT testSegPtT { c.ptTAtT(t) };
-	OpPtT testOppPtT { opp->c.ptTAtT(opp->findValidT(0, 1, testSegPtT.pt)) };
-	bool near = testOppPtT.pt.isNearly(testSegPtT.pt);
-    return near;
-}
-#endif
-
 int OpSegment::nextID() const {
     return contour->nextID();
 }
@@ -442,101 +406,6 @@ void OpSegment::setDisabled(OP_LINE_FILE_NP_DEF()) {
     OP_LINE_FILE_SET(debugSetDisabled); 
 }
 
-// !!! this finds coincidence on lines, but it needs to find unsectables as well ?
-#if 0
-void OpSegment::windCoincidences() {
-//    if (!c.isLine())
- //       return;
-    if (disabled)
-        return;
-    // iterate through edges; if edge is linear and matches opposite, mark both coincident
-    for (OpEdge& edge : edges) {
-        if (!edge.isLine())
-            continue;
-        // !!! consider removing unsectable if line is also coincident
-        if (edge.isUnsectable())
-            continue;
-        // iterate through sects that match edge start and end, looking for parallel edges
-        OpIntersection** firstBegin = nullptr;
-        OpIntersection** firstEnd = nullptr;  // one after last start
-        OpIntersection** lastBegin = nullptr;
-        OpIntersection** lastEnd = nullptr;  // one after last end
-        for (OpIntersection** sPtr = &sects.i.front(); sPtr <= &sects.i.back(); ++sPtr) {
-            OpIntersection* sect = *sPtr;
-            if (!firstBegin) {
-                if (sect->ptT == edge.start())
-                    firstBegin = sPtr;
-                continue;
-            }
-            if (!firstEnd) {
-                if (sect->ptT != edge.start())
-                    firstEnd = sPtr;
-            }
-            if (!lastBegin) {
-                if (sect->ptT == edge.end())
-                    lastBegin = sPtr;
-                continue;
-            }
-            if (!lastEnd) {
-                if (sect->ptT != edge.end())
-                    lastEnd = sPtr;
-                break;
-            }
-        }
-        // look for an end with a matching opposite intersection
-        for (OpIntersection** firstTest = firstBegin; firstTest < firstEnd; ++firstTest) {
-            OpIntersection* firstOSect = (*firstTest)->opp;
-            if ((*firstTest)->ptT.pt != firstOSect->ptT.pt) {
-                OP_ASSERT(firstOSect->unsectID);
-                continue;
-            }
-            OpSegment* oSegment = firstOSect->segment;
-            for (OpIntersection** lastTest = lastBegin; lastTest < lastEnd; ++lastTest) {
-                OpIntersection* lastOSect = (*lastTest)->opp;
-                if (lastOSect->segment != oSegment)
-                    continue;
-                // see if the opp corresponds to a linear edge
-                OpIntersection* oStart = firstOSect;
-                OpIntersection* oEnd = lastOSect;
-                bool reversed = oStart->ptT.t > oEnd->ptT.t;
-                if (reversed)
-                    std::swap(oStart, oEnd);
-                OpEdge* oppEdge = oSegment->findEnabled(oStart->ptT, EdgeMatch::start);
-                if (!oppEdge)
-                    break;
-                if (!oppEdge->isLine())
-                    break;
-                if (oppEdge->isUnsectable())
-                    break;
-                // verify that all four intersections are not used to mark coincidence
-                if (oStart->coincidenceID)
-                    break;  // !!! was return;
-                if (oEnd->coincidenceID)
-                    break;  // !!! was return;
-                OpIntersection* const* eStart = oSegment->sects.entry(oppEdge->start(), this);
-                if (!eStart || (*eStart)->opp->coincidenceID)
-                    break;  // !!! was return;
-                OpIntersection* const* eEnd = oSegment->sects.entry(oppEdge->end(), this);
-                if (!eEnd || (*eEnd)->opp->coincidenceID)
-                    break;  // !!! was return;
-                // mark the intersections as coincident
-                int coinID = oSegment->coinID(reversed);
-                OP_ASSERT(MatchEnds::none == oStart->coinEnd);
-                oStart->setCoin(coinID, MatchEnds::start);
-                OP_ASSERT(MatchEnds::none == oEnd->coinEnd);
-                oEnd->setCoin(coinID, MatchEnds::end);
-                OP_ASSERT(MatchEnds::none == (*eStart)->opp->coinEnd);
-                (*eStart)->opp->setCoin(coinID, reversed ? MatchEnds::end : MatchEnds::start);
-                OP_ASSERT(MatchEnds::none == (*eEnd)->opp->coinEnd);
-                (*eEnd)->opp->setCoin(coinID, reversed ? MatchEnds::start : MatchEnds::end);
-                sects.resort = true;
-            }
-        }
-    }
-    sects.windCoincidences(edges);
-}
-#endif
-
 bool OpSegment::debugFail() const {
 #if OP_DEBUG
     return contour->contours->debugFail();
@@ -550,127 +419,6 @@ bool OpSegment::debugSuccess() const {
 #endif
     return true;
 }
-
-// replace calls that generate coin ids with newWindCoincidences()
-// Currently, a pair of edges intersected by a third edge may produce a coincidence that goes
-// undetected. The code that generates coincidence in general is overly complicated. If  
-// newWindCoincidences() is run after all intersections and edges are generated, it should be
-// able to find all coincidences and resolve all windings. To be successful, it may need to 
-// generate additional intersections and edges if runs of coincident edges don't line up.
-
-// Walk the edges and intersections at the same time. If the edge is not a line, continue.
-// Use the intersection opposite to find possible coincident edges. If the opposite is not a line,
-// ignore. If the opposite end point is not in the edge bounds, ignore. If the opposite end point
-// is not on the edge's line, ignore.
-#if 0
-void OpSegment::newWindCoincidences() {
-    if (disabled)
-        return;
-    size_t edgeIndex = 0;  // use index instead of pointer so new edges may be inserted
-    size_t sectIndex = 0;
-    OP_ASSERT(sects.i.size());
-    OpIntersection* next = sects.i[0];
-    OpIntersection* sect;
-    auto advanceSect = [&next, &sect, &sectIndex, this]() {
-        sect = next;
-        next = sectIndex < sects.i.size() ? sects.i[sectIndex++] : nullptr;
-    };
-    while (edgeIndex < edges.size()) {
-        OpEdge* edge = &edges[edgeIndex++];
-        if (!edge->isLine())
-            continue;
-        if (edge->disabled)
-            continue;
-        for (;;) {  // while sect is for a skipped edge ...
-            advanceSect();
-            OP_ASSERT(edge->startT >= sect->ptT.t);
-            if (edge->startT == sect->ptT.t) 
-                break;
-            OP_ASSERT(sectIndex < sects.i.size());
-        }
-        auto checkCoin = [&edge /*, &sect */](OpEdge* oEdge, EdgeMatch oMatch) {
-            if (!oEdge->isLine())
-                return;
-            if (oEdge->disabled)
-                return;
-            if (oEdge->isUnsectable())
-                return;
-            OpPoint oEnd = EdgeMatch::start == oMatch ? oEdge->endPt() : oEdge->startPt();
-#if 0  // eventually, handle partial coincident. For now, just detect full coincidence
-            if (!edge->ptBounds.contains(oEnd))
-                return;
-            LinePts linePts { edge->start.pt, edge->end.pt };
-            if (!linePts.ptOnLine(oEnd))
-                return;
-#else
-            if (edge->endPt() != oEnd)
-                return;
-#endif
-#if 0 && OP_DEBUG
-            std::string s = "coin? edge:" + STR(edge->id) + " oEdge:" + STR(oEdge->id);
-            if (EdgeMatch::end == oMatch)
-                s += " reversed";
-            if (sect->coincidenceID)
-                s += " extend";
-#endif
-            if (!edge->winding.visible())
-                return;
-            OP_ASSERT(oEdge->winding.visible());
-            edge->winding.move(oEdge->winding, EdgeMatch::end == oMatch);
-            oEdge->setDisabledZero(OP_LINE_FILE_NPARAMS());
-            if (!edge->winding.visible()) {
-                edge->setDisabled(OP_LINE_FILE_NPARAMS());
-            }
-//            OP_DEBUG_CODE(OpDebugOut(s + "\n"));
-        };
-        next = sect;
-        --sectIndex;
-        do {   // for each sect with the same t
-            advanceSect();
-            if (MatchEnds::start == sect->coinEnd) {
-                OP_ASSERT(sect->coincidenceID);
-                continue;
-            }
-            if (MatchEnds::start == sect->unsectEnd) {
-                OP_ASSERT(sect->unsectID);
-                continue;
-            }
-            OpIntersection* oppSect = sect->opp;
-            if (sect->ptT.pt != oppSect->ptT.pt) {
-                OP_ASSERT(oppSect->unsectID);
-                OP_ASSERT(MatchEnds::none != sect->unsectEnd);
-                continue;
-            }
-            if (MatchEnds::start == sect->coinEnd)
-                continue;
-            // if coin is at end, check should report coin extension
-            OP_ASSERT(sect->coincidenceID == oppSect->coincidenceID);
-    //        OP_ASSERT(!oppSect->unsectID);  // this is ok; check opp edge for unsectability
-    //        OP_ASSERT(MatchEnds::none == oppSect->unsectEnd);  // ditto
-            OpSegment* oppSeg = oppSect->segment;
-            OP_ASSERT(!oppSeg->disabled);
-            size_t oppEdgeIndex = 0;
-            OpEdge* oppEdge = nullptr;
-            do {
-                if (oppEdgeIndex == oppSeg->edges.size()) {  // no opp edge if t value range is zero 
-                    oppEdge = nullptr;
-                    break;
-                }
-                oppEdge = &oppSeg->edges[oppEdgeIndex++];
-            } while (oppEdge->startPt() != edge->startPt() && oppEdge->endPt() != edge->startPt());
-            if (!oppEdge)
-                continue;
-            EdgeMatch match = oppEdge->startPt() == edge->startPt() ? EdgeMatch::start : EdgeMatch::end;
-            OP_ASSERT(EdgeMatch::start == match || oppEdge->endPt() == edge->startPt());
-            checkCoin(oppEdge, match);
-            if (EdgeMatch::end == match && oppEdgeIndex < oppSeg->edges.size()) {
-                oppEdge = &oppSeg->edges[oppEdgeIndex];
-                checkCoin(oppEdge, EdgeMatch::start);
-            }
-        } while (next && next->ptT.t == sect->ptT.t);
-    }
-}
-#endif
 
 void OpSegment::makeCoins() {
     if (!hasCoin)

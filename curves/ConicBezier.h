@@ -176,13 +176,6 @@ inline size_t conicPtCount() {
     return 3;
 }
 
-#if 0
-inline bool conicNearly(Curve c) {
-    PointWeight control(c);
-	return control.pt.isNearly(c.data->start) || control.pt.isNearly(c.data->end);
-}
-#endif
-
 inline bool conicIsFinite(Curve c) {
     PointWeight control(c);
     return control.pt.isFinite();
@@ -225,14 +218,6 @@ inline OpVector conicNormal(Curve c, float t) {
     return { -tan.dy, tan.dx };
 }
 
-#if 0  // !!! use quad version instead?
-inline void conicPinCtrl(Curve c) {
-    PointWeight control(c);
-    control.pt.pin(c.data->start, c.data->end);
-    quadSetControl(c, control.pt);
-}
-#endif
-
 inline void conicRotate(Curve c, const LinePts& line, float adj, float opp, Curve result) {
     PointWeight control(c);
     OpVector v = control.pt - line.pts[0];
@@ -259,15 +244,6 @@ inline OpPoint conicHull(Curve c, int index) {
     OP_ASSERT(0); // should never be called
     return OpPoint();
 }
-
-#if 0
-inline bool conicIsLinear(Curve c) {
-    PointWeight control(c);
-    OpVector diffs[] { control.pt - c.data->start, c.data->end - c.data->start };
-    float cross = diffs[0].cross(diffs[1]);
-    return fabsf(cross) <= OpEpsilon;
-}
-#endif
 
 #if OP_DEBUG_DUMP
 inline std::string conicDebugDumpName() { 

@@ -2986,49 +2986,6 @@ static CurveRefName curveRefNames[] {
 
 ENUM_NAME(CurveRef, curveRef)
 
-#if 0
-std::string CcSect::debugDump(DebugLevel l, DebugBase b) const {
-    std::string s;
-    if (edge) {
-        std::string edgeStr = edge->debugDump(l, b);
-        while (edgeStr.size() && edgeStr[0] != '[')
-            edgeStr = edgeStr.substr(1);
-        s += edgeStr;
-    }
-    if (DebugLevel::brief != l)
-        s += "\n";
-    s += " ptT:" + ptT.debugDump(l, b);
-#if OP_DEBUG_MAKER
-    if (DebugLevel::brief != l) {
-        s += " debugSetMaker:" + debugSetMaker.debugDump();
-    }
-#endif
-    return s;
-}
-
-std::string CcSects::debugDump(DebugLevel l, DebugBase b, int indent) const {
-    std::string s;
-    s.append(5 - indent, ' ');
-    s += "edge" + e.debugDump(l, b) + "\n";
-    s.append(5, ' ');
-    s += " opp" + o.debugDump(l, b);
-    return s;
-}
-
-std::string CcSects::debugDump(DebugLevel l, DebugBase b) const {
-    return debugDump(l, b, 0);
-}
-
-std::string CcClose::debugDump(DebugLevel l, DebugBase b) const {
-    std::string s;
-    s += "lo:" + lo.debugDump(l, b) + "\n";
-    s += "best:" + best.debugDump(l, b) + "\n";
-    s += "hi:" + hi.debugDump(l, b) + "\n";
-    s += "bestDist:" + STR(bestDist);
-    return s;
-}
-#endif
-
 std::string FoundLimits::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     if (parentEdge)

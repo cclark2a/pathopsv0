@@ -346,9 +346,6 @@ bool OpContours::pathOps() {
     // step should be removed from assemble or placed at the end of assemble, so the reverse
     // link loop can be decided once all loops are known
     // !!! for now, set Skia adapter to create evenodd fills
-#if 0 && OP_DEBUG_IMAGE
-    showResult();
-#endif
     OP_DEBUG_SUCCESS(*this, true);
 }
 

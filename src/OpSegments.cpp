@@ -149,11 +149,7 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
             continue;
         if (OpMath::NearlyEndT(edgeT))
             continue;
-#if 1  // !!! test if pin is still required
-        OP_ASSERT(seg->ptBounds.contains(oppPtT.pt));
-#else
-        seg->ptBounds.pin(&oppPtT.pt);
-#endif
+        seg->ptBounds.pin(&oppPtT.pt);  // required by testLine409
         opp->ptBounds.pin(&oppPtT.pt);
         oppPtTs.push_back(oppPtT);
         edgePtTs.emplace_back(oppPtT.pt, edgeT);

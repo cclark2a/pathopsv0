@@ -370,45 +370,6 @@ bool OpEdge::containsLink(const OpEdge* edge) const {
 	return false;
 }
 
-#if 0
-// note this does not use which end
-OpIntersection* OpEdge::findEndSect(EdgeMatch match, OpSegment* oppSeg) {
-	OP_ASSERT(startSect >= 0);
-	OP_ASSERT(endSect > 0);
-	OpIntersection** first = &segment->sects.i.front();
-	float tMatch;
-	if (EdgeMatch::start == match) {
-		first += startSect;
-		tMatch = startT;
-	} else {
-		first += endSect;
-		tMatch = endT;
-	}
-	OP_ASSERT((*first)->ptT.t == tMatch);
-	OpIntersection** last = &segment->sects.i.back();
-	OP_ASSERT(first <= last);
-	do {
-		OP_ASSERT((*first)->ptT.pt 
-				== (EdgeMatch::start == match ? curve.firstPt() : curve.lastPt()));
-		if ((*first)->opp->segment == oppSeg)
-			return *first;
-		++first;
-	} while (first <= last && (*first)->ptT.t == tMatch);
-	return nullptr;
-}
-
-// note that this is for use after 'which end' is set
-OpIntersection* OpEdge::findWhichSect(EdgeMatch match) {
-	OP_ASSERT(startSect >= 0);
-	OP_ASSERT(endSect > 0);
-	OP_ASSERT(EdgeMatch::none != whichEnd_impl);
-   OpIntersection* result = *(&segment->sects.i.front() + (match == which() ? startSect : endSect));
-	OP_ASSERT(result->ptT.t == (match == which() ? startT : endT));
-	OP_ASSERT(result->ptT.pt == (match == which() ? curve.firstPt() : curve.lastPt()));
-	return result;
-}
-#endif
-
 OpPtT OpEdge::findT(Axis axis, float oppXY) const {
 	OpPtT found;
 	float startXY = startPt().choice(axis);
@@ -567,25 +528,6 @@ OpEdge* OpEdge::nextOut() {
 NormalDirection OpEdge::normalDirection(Axis axis, float edgeInsideT) {
 	return curve.normalDirection(axis, edgeInsideT);
 }
-
-#if 0
-// !!! cache result?
-float OpEdge::oppDist() const {
-	if (OpMath::IsNaN(oppEnd.t))
-		return OpNaN;
-	OpVector oppV = end.pt - oppEnd.pt;
-	float dist = oppV.length();
-	if (OpMath::IsNaN(dist))
-		return OpNaN;
-    OpVector normal = segment->c.normal(end.t);
-	float nDotOpp = normal.dot(oppV);
-	if (nDotOpp < -OpEpsilon)
-		dist = -dist;
-	else if (nDotOpp <= OpEpsilon)
-		dist = 0;
-	return dist;
-}
-#endif
 
 // if there is another path already output, and it is first found in this ray,
 // check to see if the tangent directions are opposite. If they aren't, reverse
@@ -797,13 +739,6 @@ void OpEdge::setNextEdge(OpEdge* edge) {
 
 void OpEdge::setPointBounds() {
 	ptBounds.set(startPt(), endPt());
-	// this check can fail; control points can have some error so they lie just outside bounds
-#if 0 // OP_DEBUG
-	OpPointBounds copy = ptBounds;
-	for (int index = 1; index < curve_impl.pointCount() - 1; ++index)
-		ptBounds.add(curve_impl.pts[index]);
-	OP_ASSERT(copy == ptBounds);
-#endif
 }
 
 void OpEdge::setPriorEdge(OpEdge* edge) {
@@ -885,68 +820,12 @@ void OpEdge::unlink() {
 	endSeen = false;
 }
 
-#if 0  // there may be more than one
-int OpEdge::unsectID() const {
-	OpIntersection* usect = unsectSect(startSect);
-	int usectID = usect->unsectID;
-	OP_ASSERT(usectID || !isUnsectable());
-	OP_DEBUG_CODE(int endID = unsectSect(endSect)->unsectID);
-	OP_ASSERT(usectID == endID);
-	return usectID;
-}
-
-OpIntersection* OpEdge::unsectSect(int sectIndex) const {
-	OP_ASSERT(!segment->sects.resort);
-	OP_ASSERT(sectIndex < (int) segment->sects.i.size());
- 	OpIntersection* test = segment->sects.i[sectIndex];
-    while (!test->unsectID) {
-        if (++sectIndex == (int) segment->sects.i.size())
-            break;
-        OpIntersection* next = segment->sects.i[sectIndex];
-        if (next->ptT.t > test->ptT.t)
-            break;
-        test = next;
-    }
-    return test;
-}
-
-OpEdge* OpEdge::unsectableMatch() const {
-	OP_ASSERT(isUnsectable());
-	OpIntersection* usect = unsectSect(startSect);
-	int unsectableID = usect->unsectID;
-	OP_ASSERT(unsectableID);
-	std::vector<OpEdge>& oppEdges = usect->opp->segment->edges;
-	auto found = std::find_if(oppEdges.begin(), oppEdges.end(), [unsectableID](const OpEdge& test) {
-		if (!test.isUnsectable())
-			return false;
-		for (int sectIndex : { test.startSect, test.endSect } ) {
-			OpIntersection* oppTest = test.unsectSect(sectIndex);
-			OP_ASSERT(oppTest->unsectID);
-			if (oppTest->opp->unsectID == unsectableID)
-				return true;
-		}
-		return false;
-	} );
-	OP_ASSERT(found != oppEdges.end());
-	return &*found;
-}
-#endif
-
 bool OpEdge::unsectableSeen(EdgeMatch match) const {
-#if 0
-	OP_ASSERT(isUnsectable());
-	OpEdge* oppPal = unsectableMatch();
-	int usectID = unsectID();
-	int oppUID = oppPal->unsectID();
-	OP_ASSERT(abs(usectID) == abs(oppUID));
-	return (usectID == oppUID) == (EdgeMatch::start == match) ? oppPal->startSeen : oppPal->endSeen;
-#else
 	for (const EdgePal& uPal : uPals) {
 		if (uPal.reversed == (EdgeMatch::end == match) ? uPal.edge->startSeen : uPal.edge->endSeen)
 			return true;
 	}
 	return false;
-#endif
 }
 
 #if OP_DEBUG

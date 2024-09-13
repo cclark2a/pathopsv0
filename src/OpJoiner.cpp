@@ -150,53 +150,7 @@ void OpLimb::foreach(OpJoiner& join, OpTree& tree, LimbPass limbPass) {
 		for (EdgePal& edgePal : lastLimbEdge->uPals) {
 			add(tree, edgePal.edge, edgePal.reversed ? match : !match, LimbPass::unsectPair);
 		}
-	#if 0
-		OP_ASSERT(lastLimbEdge->startSect >= 0);
-		OP_ASSERT(lastLimbEdge->endSect > 0);
-		OpIntersection** first = &lastLimbEdge->segment->sects.i.front() + lastLimbEdge->startSect;
-		float tMatch = lastLimbEdge->startT;
-		OP_ASSERT((*first)->ptT.t == tMatch);
-		OP_DEBUG_CODE(const OpCurve& dbgC = lastLimbEdge->curve);
-		OpIntersection** last = &lastLimbEdge->segment->sects.i.back();
-		OP_ASSERT(first <= last);
-		OP_DEBUG_CODE(bool foundUnsectableEdge = false);
-		do {
-			OpIntersection* uSect = *first++;
-			if (!uSect->unsectID)
-				continue;
-			OP_ASSERT(uSect->ptT.pt == dbgC.firstPt());
-			OpIntersection* oppSect = uSect->opp;
-			OpSegment* oppSeg = oppSect->segment;
-			OpIntersection** oppFirst = &oppSeg->sects.i.front();
-			for (OpEdge& oppEdge : oppSeg->edges) {
-				if (!oppEdge.isUnsectable())
-					continue;
-				OpIntersection** oSectFirst = oppFirst + oppEdge.startSect;
-				OpIntersection** oLast = &oppSeg->sects.i.back();
-				OP_ASSERT(oSectFirst <= oLast);
-				float oTMatch = (*oSectFirst)->ptT.t;
-				do {
-					OpIntersection* oppUSect = *oSectFirst++;
-					if (fabs(uSect->unsectID) == fabs(oppUSect->unsectID)) {
-						OP_DEBUG_CODE(foundUnsectableEdge = true);
-						add(tree, &oppEdge, oppUSect->unsectID < 0 ? match : !match, LimbPass::unsectPair);
-						break;
-					}
-				} while (oSectFirst <= oLast && (*oSectFirst)->ptT.t == oTMatch);
-			}
-		} while (first <= last && (*first)->ptT.t == tMatch);
-		OP_ASSERT(foundUnsectableEdge);
-#endif
 	}
-#if 0
-	for (UnsectableOpp& usectPal : lastLimbEdge->uPairs) {
-		OpEdge* palEdge = usectPal.edge;
-		EdgeMatch palMatch = usectPal.unsectableID < 0 ? match : !match;
-		if (lastPtT.pt == palEdge->whichPtT(palMatch).pt)
-			continue;
-		add(tree, palEdge, palMatch, LimbPass::unsectPair);
-	}
-#endif
 	if (LimbPass::unsectPair == limbPass)
 		return;
 	OP_ASSERT(LimbPass::disjoint == limbPass);
@@ -427,17 +381,6 @@ bool OpJoiner::setup() {
     for (auto unsortable : unsortables) {
         unsortable->setActive(true);
     }
-#if 0 && OP_DEBUG_IMAGE
-    ::clear();
-    ::hideSegmentEdges();
-    ::hideIntersections();
-    debugDraw();
-    ::add(unsortables);
-    ::showPoints();
-    ::showValues();
-    ::showTangents();
-    ::redraw();
-#endif
 	return false;
 }
 
@@ -585,21 +528,6 @@ bool OpJoiner::detachIfLoop(OpEdge* e, EdgeMatch loopMatch) {
 				bound != edges.end() && bound->pt == testCheck.pt)
 			return EdgeMatch::start == loopMatch ? detachNext(bound->edge, test) : 
 					detachPrior(bound->edge, test);
-#if 0
-		// wait until loop fails to form because wrong pal was chosen before coding this
-		for (auto pal : test->pals) {
-			LoopCheck palCheck(pal, !loopMatch);
-			if (auto bound = std::lower_bound(edges.begin(), edges.end(), palCheck);
-					bound != edges.end() && !(palCheck < edges.front())) {
-				OP_ASSERT(0);
-				// If opp edge does not form a loop but pal does,
-				// probably need to replace opp with pal.
-				// Wait for this to happen for realsies before writing code to handle it.
-				return EdgeMatch::start == loopMatch ? detachNext(bound->edge, test) :
-						detachPrior(bound->edge, test);
-			}
-		}
-#endif
 	}
 	return false;
 }
@@ -755,18 +683,6 @@ bool OpJoiner::matchLinks(bool popLast) {
 	found.clear();
 	matchPt = lastLink->whichPtT(EdgeMatch::end).pt;
 	OpTree tree(*this);
-#if 0 && OP_DEBUG_VERBOSE
-	std::string s = "perimeter:" + STR(tree.bestPerimeter);
-	s += " edges:";
-	const OpLimb* limb = tree.bestLimb;
-	do {
-		s += STR(limb->edge->id);
-		if (limb->edge->lastEdge && limb->edge != limb->edge->lastEdge)
-			s += ".." + STR(limb->edge->lastEdge->id);
-		s += " ";
-	} while ((limb = limb->parent));
-	OpDebugOut(s + "\n");
-#endif
 	// adding gap edge in unsect pair case
 	if (!tree.bestLimb) {
 		OpLimb* gap = tree.bestGapLimb;

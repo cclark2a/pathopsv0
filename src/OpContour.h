@@ -92,15 +92,6 @@ struct OpContour {
     }
 #endif
 
-#if 0
-    void windCoincidences() {
-        for (auto& segment : segments) {
-            segment.windCoincidences();  // !!! eventually, remove this and only call new version
-            segment.newWindCoincidences();
-        }
-    }
-#endif
-
 #if OP_DEBUG
     void debugComplete();
 #endif
@@ -299,14 +290,6 @@ struct OpContours {
     OpLimbStorage* resetLimbs(OP_DEBUG_DUMP_CODE(OpTree* tree));
     void reuse(OpEdgeStorage* );
     void sortIntersections();
-
-#if 0
-    void windCoincidences() {
-        for (auto contour : contours) {
-            contour->windCoincidences();
-        }
-    }
-#endif
 
     bool debugFail() const;
 #if OP_DEBUG

@@ -117,13 +117,6 @@ inline size_t quadPtCount() {
     return 3;
 }
 
-#if 0
-inline bool quadNearly(Curve c) {
-    OpPoint ctrlPt = quadControlPt(c);
-	return ctrlPt.isNearly(c.data->start) || ctrlPt.isNearly(c.data->end);
-}
-#endif
-
 inline bool quadIsFinite(Curve c) {
     return quadControlPt(c).isFinite();
 }
@@ -191,15 +184,6 @@ inline OpPoint quadHull(Curve c, int index) {
     OP_ASSERT(0); // should never be called
     return OpPoint();
 }
-
-#if 0
-inline bool quadIsLinear(Curve c) {
-    OpPoint controlPt = quadControlPt(c);
-    OpVector diffs[] { controlPt - c.data->start, c.data->end - c.data->start };
-    float cross = diffs[0].cross(diffs[1]);
-    return fabsf(cross) <= OpEpsilon * 2;
-}
-#endif
 
 #if OP_DEBUG_DUMP
 inline std::string quadDebugDumpName() { 

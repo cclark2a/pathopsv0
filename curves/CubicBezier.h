@@ -167,14 +167,6 @@ inline size_t cubicPtCount() {
     return 4;
 }
 
-#if 0
-inline bool cubicNearly(Curve c) {
-    CubicControls controls(c);
-	return (controls.pts[0].isNearly(c.data->start) || controls.pts[0].isNearly(c.data->end))
-            && (controls.pts[1].isNearly(c.data->start) || controls.pts[1].isNearly(c.data->end));
-}
-#endif
-
 inline bool cubicIsFinite(Curve c) {
     CubicControls controls(c);
     return controls.pts[0].isFinite() && controls.pts[1].isFinite();
@@ -255,20 +247,6 @@ inline OpPoint cubicHull(Curve c, int index) {
     OP_ASSERT(0); // should never be called
     return OpPoint();
 }
-
-#if 0
-inline bool cubicIsLinear(Curve c) {
-    CubicControls controls(c);
-    OpVector diffs[] { controls.pts[0] - c.data->start, c.data->end - c.data->start };
-    float cross = diffs[0].cross(diffs[1]);
-    bool linear = fabsf(cross) <= OpEpsilon;
-    if (!linear)
-        return false;
-    diffs[0] = controls.pts[1] - c.data->start;
-    cross = diffs[0].cross(diffs[1]);
-    return fabsf(cross) <= OpEpsilon;
-}
-#endif
 
 inline void cubicReverse(Curve c) {
     CubicControls controls(c);

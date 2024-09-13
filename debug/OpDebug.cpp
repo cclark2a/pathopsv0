@@ -147,34 +147,6 @@ std::string OpDebugStr(float value) {
 
 #include "OpCurve.h"
 
-#if 0
-std::string OpDebugDump(float f) {
-    if (OpMath::IsNaN(f))
-        return "NaN";
-    if (!OpMath::IsFinite(f))
-        return f > 0 ? "Inf" : "-Inf";
-    char buffer[20];
-    int pPrecision = 8;
-    float copyF = f;
-    while (copyF >= 10) {
-        if (0 == --pPrecision)
-            break;
-        copyF /= 10;
-    }
-    int size = snprintf(buffer, sizeof(buffer), "%.*g", pPrecision, f);
-    std::string s(buffer, size);
-//    while ('0' == s.back())
-//        s.pop_back();
-//    if ('.' == s.back())
-//        s.pop_back();
-    if ("1" == s && 1 != f)
-        s = "~" + s;
-    else if ("0" == s && 0 != f)
-        s = "~" + s;
-    return s;
-}
-#endif
-
 #if OP_DEBUG_DUMP || OP_DEBUG_IMAGE
 std::string OpDebugByteToHex(uint8_t hex) {
     std::string s = "0x";

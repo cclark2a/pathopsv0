@@ -90,42 +90,20 @@ bool SectRay::checkOrder(const OpEdge* home) const {
 		// pal should be set in time for this : testQuads26519435
 		if (prior->isUnsectable() || last->isUnsectable() || last->isPal(prior))
 			continue;
-	#if 0
-		auto checkMissingPal = [prior, last]() {
-			if (!prior->findEndSect(EdgeMatch::start, last->segment))
-				return false;
-			if (!prior->findEndSect(EdgeMatch::end, last->segment))
-				return false;
-			float midT = OpMath::Average(prior->start.t, prior->end.t);
-			// distance from seg point at midT normal to opp segment
-			OpPtT midPtT = prior->segment->c.ptTAtT(midT);
-			OpPtT oppPtT = CcCurves::Dist(prior->segment, midPtT, last->segment);
-			float dist = (midPtT.pt - oppPtT.pt).length();
-			OP_ASSERT(dist < OpEpsilon * 8);
-			// !!! incomplete: add check if mid point of prior is close to last
-			return true;
-		};
-#endif
 		if (last->ray.distances.size() > 1 && last->ray.axis == axis) {
 			EdgeDistance* lastDist = last->ray.find(last);
 			if (lastDist < &last->ray.distances.back() && (lastDist + 1)->edge == prior) {
-//				if (checkMissingPal())
-//					continue;
 				return false;
 			}
 		}
 		if (prior->ray.distances.size() > 1 && prior->ray.axis == axis) {
 			EdgeDistance* priorDist = prior->ray.find(prior);
 			if (priorDist > &prior->ray.distances.front() && (priorDist - 1)->edge == last) {
-//				if (checkMissingPal())
-//					continue;
 				return false;
 			}
 		}
 		if (dist->cept == (dist + 1)->cept) {
 			OP_DEBUG_CODE(prior->contours()->debugFailOnEqualCepts = true);
-//			if (checkMissingPal())
-//				continue;
 			return false;
 		}
 	}
@@ -950,41 +928,6 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 				SectRay& ray = edge.ray;
 				if (!ray.distances.size())
 					continue;
-#if 0
-				//		start here;
-				// if edge is not unsectable, and
-				//     if an adjacent edge (the next edge in the contour) is unsectable, and
-				//     its pal is also in this edge's distance array:
-				//  mark edge as unsectable
-				if (!edge.unsectableID) {
-					auto checkNeighbor = [&edge](const OpPtT& ptT, EdgeMatch match) {
-						OpEdge* neighbor = edge.segment->findEnabled(ptT, match);
-						if (!neighbor->unsectableID)
-							return 0;
-						std::vector<EdgeDistance>& nDists = neighbor->ray.distances;
-						auto palIter = std::find_if(nDists.begin(), nDists.end(), [&neighbor, &edge]
-								(const EdgeDistance& dist) {
-							if (dist.edge == neighbor)
-								return false;
-							if (dist.edge == &edge)
-								return false;
-							if (!dist.edge->unsectableID)
-								return false;
-							std::vector<EdgeDistance>& eDists = edge.ray.distances;
-							return eDists.end() != std::find_if(eDists.begin(), eDists.end(), 
-									[&dist](const EdgeDistance& eDist) {
-								return eDist.edge == dist.edge;
-							});
-						});
-						return palIter == nDists.end() ? 0 : (*palIter).edge->unsectableID;
-
-					};
-					if (edge.end.t < 1)
-						edge.unsectableID = checkNeighbor(edge.end, EdgeMatch::start);
-					if (edge.start.t > 0)
-						edge.unsectableID = checkNeighbor(edge.start, EdgeMatch::end);
-				}
-#endif
 				bySize.push_back(&edge);
 			}
 		}

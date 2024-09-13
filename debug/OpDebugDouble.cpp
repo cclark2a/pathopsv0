@@ -1226,37 +1226,8 @@ void DebugOpClearInputs() {
     debugInputs.clear();
 }
 
-#if 0
-void DebugOpAdd(const OpInPath& input) {
-    if (input.externalReference)
-        DebugOpBuild(*(SkPath*)input.externalReference, debugInputs, ClipToBounds::clip, blue);
-}
-
-void DebugOpFill(const OpInPath& input, uint32_t color) {
-    if (!input.externalReference)
-        return;
-    debugFills.clear();
-    DebugOpBuild(*(SkPath*)input.externalReference, debugFills, ClipToBounds::noClip,
-            color);
-    DebugOpFill(debugFills);
-}
-#endif
-
 void DebugOpDrawInputs() {
     DebugOpDraw(debugInputs);
-}
-
-#if 0
-void DebugOpDraw(const OpOutPath* output, uint32_t color) {
-    if (output->externalReference)
-        DebugOpBuild(*(SkPath*)output->externalReference, debugOutputs, ClipToBounds::clip, color);
-    DebugOpDraw(debugOutputs);
-}
-#endif
-
-void DebugOpDrawArrowHead() {
-//    SkPath path;
-
 }
 
 struct ColorPath {

@@ -67,16 +67,6 @@ OpPtT CcCurves::Dist(const OpSegment* seg, const OpPtT& segPtT, const OpSegment*
 	return bestPtT;
 }
 
-#if 0
-void CcCurves::endDist(const OpSegment* seg, const OpSegment* opp) {
-	for (OpEdge* edge : c) {
-		if (!OpMath::IsNaN(edge->oppEnd.t))
-			continue;
-		edge->oppEnd = Dist(seg, edge->end, opp);
-	}
-}
-#endif
-
 float EdgeRun::setOppDist(const OpSegment* segment) {
 	if (OpMath::IsNaN(edgePtT.t))
 		return OpNaN;
@@ -644,8 +634,6 @@ SectFound OpCurveCurve::divideAndConquer() {
 			splitMid = false;
 		int edgeOverlaps = edgeCurves.overlaps();
 		int oppOverlaps = oppCurves.overlaps();
-	//	if (checkDist(edgeOverlaps, oppOverlaps))
-	//		snipEm = true;
 		if (!edgeOverlaps || !oppOverlaps) {
 			if (depth > 8) // !!! number arbitrary, depth is 9 for testQuads3993265
 				return SectFound::noOverlapDeep;
@@ -825,26 +813,6 @@ bool OpCurveCurve::ifNearly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& oppEdge,
 	snipOpp = oppPtT;
 	return true;
 }
-
-#if 0
-// returns true if edge's line missed opposite edge's curve
-// don't check against opposite segment's curve, since it may be offset
-// (Later) If edge is linear, but not a true line (e.g., the control points are nearly colinear with
-//  the end points) check the hulls rather than just the line. 
-bool OpCurveCurve::LineMissed(OpEdge& edge, OpEdge& opp) {
-	if (!edge.isLine())
-		return false;
-	if (!edge.exactLine)	// !!! only place exact line is used
-		return false;
-	LinePts edgePts;
-	edgePts.pts = { edge.startPt(), edge.endPt() };
-	OpRootPts septs = opp.curve.lineIntersect(edgePts);
-	if (1 == septs.count && ((opp.ccStart && 0 == septs.ptTs[0].t)
-			|| (opp.ccEnd && 1 == septs.ptTs[0].t)))
-		return true;
-	return !septs.count;
-}
-#endif
 
 bool OpCurveCurve::alreadyInLimits(const OpEdge* edge, const OpEdge* oEdge, float t) {
 	for (FoundLimits& limit : limits) {
@@ -1122,12 +1090,6 @@ bool OpCurveCurve::setOverlaps() {
 				continue;
 			if (!rotatedIntersect(oppEdge, edge, sharesPoint))
 				continue;
-#if 0  // checking hulls later will detect when curve, degenerate to line, does not sect opp
-			if (LineMissed(edge, oppEdge) || LineMissed(oppEdge, edge)) {
-//				closeBy.push_back({ edge, oppEdge });
-				continue;
-			}
-#endif
 			oppEdge.ccOverlaps = true;
 			edge.ccOverlaps = true;
 		}

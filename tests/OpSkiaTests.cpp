@@ -5,6 +5,7 @@
 
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
+#define TEST_PATH_OP_SKIP_TO_FILE "fast" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
 #define TESTS_TO_SKIP 0 // 14295903  // tests to skip
 #define TEST_PATH_OP_FIRST "loop2"  // e.g., "cubic140721" (ignored by fast test)
 

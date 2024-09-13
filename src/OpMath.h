@@ -307,6 +307,7 @@ struct OpVector {
         return dx * a.dx + dy * a.dy;
     }
 
+    // !!! used by winder to check back ray tangent; however, breakpoint not recently triggered ...
     float cross(OpVector a) const {
 #if 01
         float dxy = dx * a.dy;

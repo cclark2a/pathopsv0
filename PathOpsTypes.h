@@ -109,17 +109,6 @@ typedef void* PathOutput;
 
 // callbacks
 
-#if 0
-// used to color different contour groups
-enum class DebugImage {
-	ccOverlaps,
-	curveCurve,
-	segment,
-	nativePath,
-	nativeResult
-};
-#endif
-
 // intersects the curve and axis at the axis intercept
 typedef OpRoots (*AxisRawHit)(Curve , Axis , float axisIntercept, MatchEnds);
 

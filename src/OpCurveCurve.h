@@ -88,7 +88,6 @@ struct CcCurves {
 	void clear();
 	OpPtT closest(OpPoint pt) const;
 	static OpPtT Dist(const OpSegment* , const OpPtT& segPtT, const OpSegment* opp);
-//	void endDist(const OpSegment* seg, const OpSegment* opp);
 	std::vector<TGap> findGaps() const;
 	int groupCount() const;
 	void initialEdgeRun(OpEdge* edge, const OpSegment* oppSeg);
@@ -131,23 +130,18 @@ struct OpCurveCurve {
 
 	OpCurveCurve(OpSegment* seg, OpSegment* opp);
 	void addIntersection(OpEdge* edge, OpEdge* opp);
-	SectFound addSect();
 	void addEdgeRun(OpEdge* , CurveRef , EdgeMatch );
 	bool addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 			const OpPtT& oppStart, const OpPtT& oppEnd);
 	bool alreadyInLimits(const OpEdge* edge, const OpEdge* oEdge, float t);
-	bool checkDist(int edgeOverlaps, int oppOverlaps);
 	bool checkForGaps();
 	bool checkSect();
 	bool checkSplit(float lo, float hi, CurveRef , OpPtT& checkPtT) const;
-	static OpPtT Cut(const OpPtT& , const OpSegment* , float direction);
-	static CutRangeT CutRange(const OpPtT& , const OpSegment* , float loEnd, float hiEnd);
 	SectFound divideAndConquer();
 	bool endsOverlap() const;
 	void findUnsectable();
 	bool ifExactly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& opp, const OpPtT& oppPtT);
 	bool ifNearly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& opp, const OpPtT& oppPtT);
-//	static bool LineMissed(OpEdge& edge, OpEdge& opp);
 	void recordSect(OpEdge* edge, OpEdge* opp, const OpPtT& edgePtT, const OpPtT& oppPtT
 			OP_LINE_FILE_DEF());
 	bool reduceDistFlipped();  // replace edges with dist runs that change sign
