@@ -24,6 +24,9 @@ void Add(AddCurve curve, AddWinding windings) {
     debugGlobalContours = contour->contours;
 #endif
     contour->segments.emplace_back(curve, windings);
+    const OpSegment& seg = contour->segments.back();
+    if (!seg.isFinite())
+        contour->contours->setError(ContextError::segmentBounds  OP_DEBUG_PARAMS(seg.id));
 }
 
 Contour* CreateContour(AddContour callerData) {
@@ -48,13 +51,12 @@ void DeleteContext(Context* context) {
 #endif
 }
 
-int Error(Context* context) {
-#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
+ContextError Error(Context* context) {
     OpContours* contours = (OpContours*) context;
+#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = contours;
 #endif
-    // !!! incomplete
-    return 0;
+    return contours->error;
 }
 
 void ResetContour(Contour* c) {
@@ -64,6 +66,10 @@ void ResetContour(Contour* c) {
 
 void Resolve(Context* context, PathOutput output) {
     OpContours* contours = (OpContours*) context;
+    if (ContextError::none != contours->error) {
+        OP_DEBUG_CODE(contours->debugData.success = false);
+        return;
+    }
     contours->callerOutput = output;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = contours;
@@ -125,10 +131,7 @@ void SetWindingCallBacks(Contour* ctour, WindingAdd addFunc, WindingKeep keepFun
 #if OP_DEBUG
 void Debug(Context* context, OpDebugData& debugData) {
     OpContours* contours = (OpContours*) context;
-    contours->debugTestname = debugData.debugTestname;
-    OP_DEBUG_DUMP_CODE(contours->dumpCurve1 = debugData.debugCurveCurve1);
-    OP_DEBUG_DUMP_CODE(contours->dumpCurve2 = debugData.debugCurveCurve2);
-    OP_DEBUG_DUMP_CODE(contours->debugBreakDepth = debugData.debugCurveCurveDepth);
+    contours->debugData = debugData;
 }
 #endif
 

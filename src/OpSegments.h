@@ -26,6 +26,8 @@ struct OpSegments {
 #endif
 
     std::vector<OpSegment*> inX;
+    OP_DEBUG_CODE(int debugFailSegID);
+    OP_DEBUG_CODE(int debugFailOppID);
 };
 
 #endif

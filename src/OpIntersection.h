@@ -20,9 +20,7 @@ struct CoinPair {
         OP_DEBUG_PARAMS(lastEdge(l)) {
     }
 
-#if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
-#endif
 
 	OpIntersection* start;
     OpIntersection* end;
@@ -173,9 +171,7 @@ struct OpIntersections {
 #if OP_DEBUG_VALIDATE
 	void debugValidate() const;
 #endif
-#if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
-#endif
 
 	// all intersections are stored here before edges are rewritten
     std::vector<OpIntersection*> i;

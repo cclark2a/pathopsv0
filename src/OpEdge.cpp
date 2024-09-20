@@ -270,11 +270,19 @@ void OpEdge::apply() {
 	if (disabled || isUnsortable)
 		return;
 	OpContour* contour = segment->contour;
-	WindKeep keep = contour->callBacks.windingKeepFuncPtr(winding.w, sum.w);
-	if (WindKeep::Discard == keep)
-		setDisabled(OP_LINE_FILE_NPARAMS());
-	else
-		windZero = (WindZero) keep;
+	PathOpsV0Lib::WindKeep keep = contour->callBacks.windingKeepFuncPtr(winding.w, sum.w);
+	switch (keep) {
+		case PathOpsV0Lib::WindKeep::Discard:
+			setDisabled(OP_LINE_FILE_NPARAMS());
+			return;
+		case PathOpsV0Lib::WindKeep::End:
+			windZero = WindZero::zero;
+			return;
+		case PathOpsV0Lib::WindKeep::Start:
+			windZero = WindZero::nonZero;
+			return;
+	}
+	OP_ASSERT(0);
 }
 
 // old thinking:
@@ -637,6 +645,7 @@ const OpRect& OpEdge::closeBounds() {
 		return linkBounds;
 	OpRect bounds = ptBounds.outsetClose();
 	linkBounds = { bounds.left, bounds.top, bounds.right, bounds.bottom };
+	OP_ASSERT(linkBounds.isFinite());
 	return linkBounds;
 }
 
@@ -702,14 +711,17 @@ bool OpEdge::setLastLink(EdgeMatch match) {
 
 OpPointBounds OpEdge::setLinkBounds() {
 	OP_ASSERT(lastEdge);  // fix caller to pass first edge of links
-	if (linkBounds.isSet())
-		return linkBounds;
-	linkBounds = ptBounds;
-	const OpEdge* edge = this;
-	while (edge != lastEdge) {
-		edge = edge->nextEdge;
-		linkBounds.add(edge->ptBounds);
+	if (!linkBounds.isSet()) {
+		OP_ASSERT(ptBounds.isFinite());
+		linkBounds = ptBounds;
+		const OpEdge* edge = this;
+		while (edge != lastEdge) {
+			edge = edge->nextEdge;
+			OP_ASSERT(edge->ptBounds.isFinite());
+			linkBounds.add(edge->ptBounds);
+		}
 	}
+	OP_ASSERT(linkBounds.isFinite());
 	return linkBounds;
 }
 
@@ -816,8 +828,6 @@ void OpEdge::unlink() {
 	nextEdge = nullptr;
 	clearLastEdge();
 	setWhich(EdgeMatch::start);  // !!! should this set to none?
-	startSeen = false;
-	endSeen = false;
 }
 
 bool OpEdge::unsectableSeen(EdgeMatch match) const {
@@ -844,4 +854,15 @@ bool OpEdgeStorage::contains(OpIntersection* start, OpIntersection* end) const {
 	if (!next)
 		return false;
 	return next->contains(start, end);
+}
+
+bool OpEdgeStorage::contains(OpPoint start, OpPoint end) const {
+	for (size_t index = 0; index < used; index++) {
+		const OpEdge* test = &storage[index];
+		if (test->start().pt == start && test->end().pt == end)
+			return true;
+	}
+    if (!next)
+        return false;
+    return next->contains(start, end);
 }

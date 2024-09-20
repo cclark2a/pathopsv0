@@ -81,9 +81,8 @@ struct OpCurve {
 #if OP_DEBUG
     bool debugIsLine() const;
 #endif
-#if OP_DEBUG_DUMP
     DUMP_DECLARATIONS
-#endif
+
     // create storage in contour; helper function casts it to CurveData
     PathOpsV0Lib::Curve c;
     OpContours* contours;  // required by new interface for caller function pointer access

@@ -43,38 +43,6 @@ OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg
     return next;
 }
 
-OpEdge* OpContour::addFiller(OpEdge* edge, OpEdge* lastEdge) {
-	// break this off into its own callable function
-	// as a last, last resort: do this rather than returning false
-	OpContour* contour = edge->segment->contour;
-	OpIntersection* sect = nullptr;
-	// !!! is there an edge method that does this?
-	for (auto test : edge->segment->sects.i) {
-		if (test->ptT != edge->whichPtT())
-			continue;
-		sect = test;
-		break;
-	}
-	OP_ASSERT(sect);
-	OpIntersection* last = nullptr;
-	for (auto test : lastEdge->segment->sects.i) {
-		if (test->ptT != lastEdge->whichPtT(EdgeMatch::end))
-			continue;
-		last = test;
-		break;
-	}
-	OP_ASSERT(last);
-	return contour->addFiller(last->ptT, sect->ptT);
-}
-
-OpEdge* OpContour::addFiller(OpPtT& start, OpPtT& end) {
-//    if (contours->fillerStorage && contours->fillerStorage->contains(start, end))
-//        return nullptr;  // !!! when does this happen? what is the implication? e.g. fuzz433
-    void* block = contours->allocateEdge(contours->fillerStorage);
-    OpEdge* filler = new(block) OpEdge(contours, start, end  OP_LINE_FILE_PARAMS());
-    return filler;
-}
-
 OpIntersection* OpContour::addCoinSect(const OpPtT& t, OpSegment* seg, int cID, MatchEnds coinEnd
         OP_LINE_FILE_DEF(const OpSegment* oSeg)) {
 	OP_ASSERT(MatchEnds::both != coinEnd);
@@ -117,8 +85,11 @@ OpContours::OpContours()
     , fillerStorage(nullptr)
     , sectStorage(nullptr)
     , limbStorage(nullptr)
+    , limbCurrent(nullptr)
     , callerStorage(nullptr)
-    , uniqueID(0) {
+    , error(PathOpsV0Lib::ContextError::none)
+    , uniqueID(0) 
+    OP_DEBUG_PARAMS(debugData(false)) {
 #if OP_DEBUG_VALIDATE
     debugValidateEdgeIndex = 0;
     debugValidateJoinerIndex = 0;
@@ -126,6 +97,9 @@ OpContours::OpContours()
 #if OP_DEBUG
     debugCurveCurve = nullptr;
     debugJoiner = nullptr;
+    debugOutputID = 0;
+    debugErrorID = 0;
+    debugOppErrorID = 0;
     debugExpect = OpDebugExpect::unknown;
     debugInPathOps = false;
     debugInClearEdges = false;
@@ -185,6 +159,39 @@ void OpContours::addAlias(OpPoint pt, OpPoint alias) {
     aliases.push_back({pt, alias});
 }
 
+#if 0
+OpEdge* OpContours::addFiller(OpEdge* edge, OpEdge* lastEdge) {
+	// break this off into its own callable function
+	// as a last, last resort: do this rather than returning false
+	OpIntersection* sect = nullptr;
+	// !!! is there an edge method that does this?
+	for (auto test : edge->segment->sects.i) {
+		if (test->ptT != edge->whichPtT())
+			continue;
+		sect = test;
+		break;
+	}
+	OP_ASSERT(sect);
+	OpIntersection* last = nullptr;
+	for (auto test : lastEdge->segment->sects.i) {
+		if (test->ptT != lastEdge->whichPtT(EdgeMatch::end))
+			continue;
+		last = test;
+		break;
+	}
+	OP_ASSERT(last);
+	return addFiller(last->ptT, sect->ptT);
+}
+#endif
+
+OpEdge* OpContours::addFiller(const OpPtT& start, const OpPtT& end) {
+//    if (contours->fillerStorage && contours->fillerStorage->contains(start, end))
+//        return nullptr;  // !!! when does this happen? what is the implication? e.g. fuzz433
+    void* block = allocateEdge(fillerStorage);
+    OpEdge* filler = new(block) OpEdge(this, start, end  OP_LINE_FILE_PARAMS());
+    return filler;
+}
+
 OpContour* OpContours::allocateContour() {
     if (!contourStorage)
         contourStorage = new OpContourStorage;
@@ -231,15 +238,15 @@ OpIntersection* OpContours::allocateIntersection() {
     return &sectStorage->storage[sectStorage->used++];
 }
 
-OpLimb* OpContours::allocateLimb(OpTree* tree) {
-    OP_DEBUG_DUMP_CODE(dumpTree = tree);
+OpLimb* OpContours::allocateLimb() {
     if (limbStorage->used == ARRAY_COUNT(limbStorage->storage)) {
         OpLimbStorage* next = new OpLimbStorage;
         next->nextBlock = limbStorage;
+        next->baseIndex = limbStorage->baseIndex + ARRAY_COUNT(limbStorage->storage);
         limbStorage->prevBlock = next;
         limbStorage = next;
     }
-    return limbStorage->allocate(*tree);
+    return limbStorage->allocate();
 }
 
 PathOpsV0Lib::WindingData* OpContours::allocateWinding(size_t size) {
@@ -247,12 +254,18 @@ PathOpsV0Lib::WindingData* OpContours::allocateWinding(size_t size) {
     return (PathOpsV0Lib::WindingData*) result;
 }
 
+bool OpContours::containsFiller(OpPoint start, OpPoint end) const {
+    if (!fillerStorage)
+        return false;
+    return fillerStorage->contains(start, end);
+}
+
 void OpContours::disableSmallSegments() {
     SegmentIterator segIterator(this);
     while (OpSegment* seg = segIterator.next()) {
         if (seg->disabled)
             continue;
-        if (aliases.end() != std::find_if(aliases.begin(), aliases.end(), 
+        if (seg->willDisable || aliases.end() != std::find_if(aliases.begin(), aliases.end(), 
                 [seg](OpPtAlias& a) {
             return (a.pt == seg->c.c.data->start || a.alias == seg->c.c.data->start)
                     && (a.pt == seg->c.c.data->end || a.alias == seg->c.c.data->end);
@@ -262,12 +275,23 @@ void OpContours::disableSmallSegments() {
     }
 }
 
-OpLimbStorage* OpContours::resetLimbs(OP_DEBUG_DUMP_CODE(OpTree* tree)) {
-    OP_DEBUG_DUMP_CODE(dumpTree = tree);
+OpLimb& OpContours::nthLimb(int index) {
+	int blockBase = index & ~(ARRAY_COUNT(limbStorage->storage) - 1);
+	if (!limbCurrent || limbCurrent->baseIndex != blockBase) {
+		limbCurrent = limbStorage;
+		while (limbCurrent->baseIndex != blockBase) {
+            OP_ASSERT(limbCurrent->nextBlock);
+			limbCurrent = limbCurrent->nextBlock;
+		}
+	}
+	index &= ~blockBase;
+	return limbCurrent->storage[index];
+}
+
+void OpContours::resetLimbs() {
     if (!limbStorage)
         limbStorage = new OpLimbStorage;
     limbStorage->reset();
-    return limbStorage;
 }
 
 // build list of linked edges
@@ -315,7 +339,8 @@ bool OpContours::pathOps() {
         OP_DEBUG_SUCCESS(*this, true);
     }
     if (FoundIntersections::fail == sortedSegments.findIntersections())
-        return false;  // !!! fix this to record for Error()
+        return setError(PathOpsV0Lib::ContextError::intersection  
+                OP_DEBUG_PARAMS(sortedSegments.debugFailSegID));
 #if OP_DEBUG_VALIDATE
     debugValidateIntersections();
 #endif
@@ -363,6 +388,15 @@ void OpContours::reuse(OpEdgeStorage* edgeStorage) {
         next->used = 0;
         next = next->next;
     }
+}
+
+bool OpContours::setError(PathOpsV0Lib::ContextError e  OP_DEBUG_PARAMS(int eID, int oID)) {
+    if (PathOpsV0Lib::ContextError::none != error)
+        return false;
+    error = e;
+    OP_DEBUG_CODE(debugErrorID = eID);
+    OP_DEBUG_CODE(debugOppErrorID = oID);
+    return false;
 }
 
 void OpContours::sortIntersections() {

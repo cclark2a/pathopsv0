@@ -397,7 +397,8 @@ IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpP
 	if (!oSect1) {
 		float eStart = aPtT.pt.choice(xyChoice);
 		oCoinStart = { aPtT.pt, OpMath::Interp(cPtT.t, dPtT.t, (eStart - oStart) / oXYRange) };
-		OP_ASSERT(OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t));
+		if (!OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t))
+			return IntersectResult::fail;  // triggered by fuzz763_2b
 		oStartContains = oppSegment->sects.contains(oCoinStart, segment);
 	} else   // segment already has intersection (start or end); e.g., line doubles back
 			if (!(inCoinRange(oRange, oSect1->ptT.t, nullptr) & 1))

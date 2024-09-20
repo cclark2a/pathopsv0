@@ -31,7 +31,7 @@ Contour* CreateContour(AddContour );
 
 /* Returns error code of previous call.
  */
-int Error(Context* );
+ContextError Error(Context* );
 
 /* Removes curves added to contour. Remaining state remains.
  */

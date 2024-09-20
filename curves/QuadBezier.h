@@ -93,6 +93,8 @@ inline size_t AddQuads(AddCurve curve, AddWinding windings) {
     } 
     size_t curvesAdded = tValues.size() - 1;
     for (unsigned index = 0; index < curvesAdded; ++index) {
+        if (ptTs[index].pt == ptTs[index + 1].pt)
+            continue;
         OpPoint curveData[3] { ptTs[index].pt, ptTs[index + 1].pt,
             QuadControlPt(start, control, end, ptTs[index], ptTs[index + 1]) };
         Add({ curveData, curve.size, curve.type }, windings );
@@ -102,13 +104,13 @@ inline size_t AddQuads(AddCurve curve, AddWinding windings) {
 
 inline OpPoint quadControlPt(Curve c) {
     OpPoint result;
-    OP_ASSERT(sizeof(OpPoint) == c.size - offsetof(CurveData, optionalAdditionalData));
+    OP_ASSERT(sizeof(OpPoint) <= c.size - offsetof(CurveData, optionalAdditionalData));
     std::memcpy(&result, c.data->optionalAdditionalData, sizeof(OpPoint));
     return result;
 }
 
 inline void quadSetControl(Curve c, OpPoint pt) {
-    OP_ASSERT(sizeof(OpPoint) == c.size - offsetof(CurveData, optionalAdditionalData));
+    OP_ASSERT(sizeof(OpPoint) <= c.size - offsetof(CurveData, optionalAdditionalData));
     std::memcpy(c.data->optionalAdditionalData, &pt, sizeof(OpPoint));
 }
 

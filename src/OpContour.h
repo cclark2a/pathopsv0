@@ -41,8 +41,6 @@ struct OpContour {
     void addCallerData(PathOpsV0Lib::AddContour callerData);
     OpIntersection* addEdgeSect(const OpPtT& , OpSegment* seg
            OP_LINE_FILE_DEF(const OpEdge* edge, const OpEdge* oEdge));
-    OpEdge* addFiller(OpEdge* edge, OpEdge* lastEdge);
-    OpEdge* addFiller(OpPtT& start, OpPtT& end);
     OpIntersection* addCoinSect(const OpPtT& , OpSegment* seg, int cID, MatchEnds 
             OP_LINE_FILE_DEF(const OpSegment* oSeg));
     OpIntersection* addSegSect(const OpPtT& , OpSegment* seg
@@ -116,6 +114,7 @@ struct OpContourStorage {
 		: next(nullptr)
 		, used(0) {
 	}
+
 #if OP_DEBUG_DUMP
 	size_t debugCount() const;
 	OpContour* debugFind(int id) const;
@@ -217,11 +216,13 @@ struct OpContours {
     ~OpContours();
     void addAlias(OpPoint pt, OpPoint alias);
     void addCallerData(PathOpsV0Lib::AddContext callerData);
+//    OpEdge* addFiller(OpEdge* edge, OpEdge* lastEdge);
+    OpEdge* addFiller(const OpPtT& start, const OpPtT& end);
     OpContour* allocateContour();
     PathOpsV0Lib::CurveData* allocateCurveData(size_t );
     OpEdge* allocateEdge(OpEdgeStorage*& );
     OpIntersection* allocateIntersection();
-    OpLimb* allocateLimb(OpTree* );
+    OpLimb* allocateLimb();
     PathOpsV0Lib::WindingData* allocateWinding(size_t );
 
     void apply() {
@@ -242,6 +243,7 @@ struct OpContours {
         return callBacks[(int) type - 1];
     }
 
+    bool containsFiller(OpPoint start, OpPoint end) const;
 //    WindingData* copySect(const OpWinding& );  // !!! add a separate OpWindingStorage for temporary blocks?
     void disableSmallSegments();
 
@@ -285,10 +287,13 @@ struct OpContours {
         return ++uniqueID; 
     }
 
+    OpLimb& nthLimb(int index);
+
     bool pathOps();
     void release(OpEdgeStorage*& );
-    OpLimbStorage* resetLimbs(OP_DEBUG_DUMP_CODE(OpTree* tree));
+    void resetLimbs();
     void reuse(OpEdgeStorage* );
+    bool setError(PathOpsV0Lib::ContextError  OP_DEBUG_PARAMS(int id, int id2 = 0));
     void sortIntersections();
 
     bool debugFail() const;
@@ -302,6 +307,7 @@ struct OpContours {
 #endif
 #if OP_DEBUG_DUMP
     void debugCompare(std::string s);
+    OpLimb& debugNthLimb(int) const;
     void dumpResolve(OpContour*& contourRef);
     void dumpResolve(const OpEdge*& );
     void dumpResolve(OpEdge*& );
@@ -324,18 +330,22 @@ struct OpContours {
     OpEdgeStorage* fillerStorage;
     OpSectStorage* sectStorage;
     OpLimbStorage* limbStorage;
+    OpLimbStorage* limbCurrent;
     CallerDataStorage* callerStorage;
+    PathOpsV0Lib::ContextError error;
     int uniqueID;  // used for object id, unsectable id, coincidence id
 #if OP_DEBUG_VALIDATE
     int debugValidateEdgeIndex;
     int debugValidateJoinerIndex;
 #endif
 #if OP_DEBUG
+    OpDebugData debugData;
     OpCurveCurve* debugCurveCurve;
     OpJoiner* debugJoiner;
     int debugOutputID;
+    int debugErrorID;
+    int debugOppErrorID;
     std::vector<OpDebugWarning> debugWarnings;
-    std::string debugTestname;
     OpDebugExpect debugExpect;
     bool debugInPathOps;
     bool debugInClearEdges;
@@ -344,9 +354,6 @@ struct OpContours {
 #endif
 #if OP_DEBUG_DUMP
 	OpTree* dumpTree;
-	int dumpCurve1;
-	int dumpCurve2;
-    int debugBreakDepth;
     bool debugDumpInit;   // if true, created by dump init
 #endif
 };

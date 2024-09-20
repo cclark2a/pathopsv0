@@ -64,9 +64,7 @@ inline MatchEnds operator!(MatchEnds a) {
 struct MatchReverse {
     MatchEnds flipped() const { 
         return reversed ? !match : match; }
-#if OP_DEBUG_DUMP
     DUMP_DECLARATIONS
-#endif
 
     MatchEnds match;
     bool reversed;
@@ -161,9 +159,7 @@ struct OpRoots {
         std::sort(roots.begin(), roots.begin() + count);
     }
 
-#if OP_DEBUG_DUMP
     DUMP_DECLARATIONS
-#endif
 
     std::array<float, 5> roots;
     size_t count;
@@ -346,9 +342,7 @@ struct OpVector {
     OpVector setLength(float len) {
         float base = length(); return OpVector(dx * len / base, dy * len / base); }
 
-#if OP_DEBUG_DUMP
     DUMP_DECLARATIONS
-#endif
 
     float dx;
     float dy;
@@ -511,9 +505,7 @@ struct OpPoint {
             y = 0;
     }
 
-#if OP_DEBUG_DUMP
     DUMP_DECLARATIONS
-#endif
 
     float x;
     float y;
@@ -673,9 +665,7 @@ struct OpPtT {
         b.pt = mid;
     }
 
-#if OP_DEBUG_DUMP
     DUMP_DECLARATIONS
-#endif
 
     OpPoint pt;
     float t;
@@ -694,9 +684,7 @@ struct OpRootPts {
         ptTs[count++] = { pt, t }; 
     }
 
-#if OP_DEBUG_DUMP
     DUMP_DECLARATIONS
-#endif
 
     OpRoots raw;  // ray intersect with segment curve (fail may be set)
     OpRoots valid;  // intersections within edge curve t range
@@ -896,10 +884,7 @@ struct LinePts {
     OpPoint ptAtT(float t) const;
     bool ptOnLine(OpPoint pt) const;
     OpRoots tangentIntersect(const LinePts& line) const;
-
-#if OP_DEBUG_DUMP
     DUMP_DECLARATIONS
-#endif
 
     std::array<OpPoint, 2> pts;
 };

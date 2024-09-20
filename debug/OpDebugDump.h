@@ -32,6 +32,7 @@ void dumpSet(const char*& ) override;
 OP_X(CoinPair) \
 OP_X(EdgeDistance) \
 OP_X(EdgeRun) \
+OP_X(EdgePal) \
 OP_X(FoundEdge) \
 OP_X(FoundLimits) \
 OP_X(HullSect) \

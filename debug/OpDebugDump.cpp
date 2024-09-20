@@ -746,8 +746,14 @@ ENUM_NAME(OpDebugExpect, debugExpect)
 
 std::string OpContours::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    if (aliases.size())
-        OP_ASSERT(0);  // !!! incomplete
+    if (aliases.size()) {
+        s += "aliases[";
+        for (OpPtAlias alias : aliases) {
+            s += alias.pt.debugDump(l, b) + ":" + alias.alias.debugDump(l, b) + " ";
+        }
+        s.pop_back();
+        s += "]\n";
+    }
     if (curveDataStorage) {
         s += "curveDataStorage:\n";
         s += curveDataStorage->debugDump(l, b) + "\n";
@@ -785,9 +791,9 @@ std::string OpContours::debugDump(DebugLevel l, DebugBase b) const {
             s += debugWarningName(warning) + " ";
         s += "] ";
     }
-    if (debugTestname.size())
-        s += "debugTestname:" + debugTestname + " ";
-    s += "debugExpect:" + debugExpectName(debugExpect) + " ";
+    if (debugData.testname.size())
+        s += "debugTestname:" + debugData.testname + " ";
+    s += "debugExpect:" + debugExpectName(debugData.expect) + " ";
     s += debugInPathOps ? "debugInPathOps " : "";
     s += debugInClearEdges ? "debugInClearEdges " : "";
     s += debugCheckLastEdge ? "debugCheckLastEdge " : "";
@@ -839,7 +845,7 @@ void OpContours::dumpSet(const char*& str) {
             debugWarnings[index] = debugWarningStr(str, "", OpDebugWarning::lastResort);
     }
     if (OpDebugOptional(str, "debugTestname"))
-        debugTestname = OpDebugLabel(str);
+        debugData.testname = OpDebugLabel(str);
     debugExpect = debugExpectStr(str, "debugExpect", OpDebugExpect::fail);
     debugInPathOps = OpDebugOptional(str, "debugInPathOps");
     debugInClearEdges = OpDebugOptional(str, "debugInClearEdges");
@@ -1067,6 +1073,14 @@ void OpContours::debugCompare(std::string s) {
             }
         }
     }
+}
+
+OpLimb& OpContours::debugNthLimb(int index) const {
+    OpLimbStorage* saveCurrent = limbCurrent;
+    OpContours* writeable = (OpContours*)(this);
+    OpLimb& result = writeable->nthLimb(index);
+    writeable->limbCurrent = saveCurrent;
+    return result;
 }
 
 std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
@@ -1412,6 +1426,7 @@ ENUM_NAME(EdgeSplit, edgeSplit)
 	OP_X(winding) \
 	OP_X(sum) \
 	OP_X(many) \
+	OP_X(cPals) \
 	OP_X(uSects) \
 	OP_X(uPals) \
 	OP_X(pals) \
@@ -1762,6 +1777,15 @@ static SectTypeName sectTypeNames[] = {
 
 ENUM_NAME_ABBR(SectType, sectType)
 
+std::string EdgePal::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s;
+    s += STR(edge->id);
+    if (reversed) 
+        s += "r";
+    s += " uid:" + STR(debugUID);
+    return s;
+}
+
 std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     auto findFilter = [](const std::vector<EdgeFilter>& set, EdgeFilter match) {
         return set.end() != std::find(set.begin(), set.end(), match);
@@ -1851,6 +1875,14 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     if (dumpIt(EdgeFilter::winding)) s += strWinding(EdgeFilter::winding, "winding", winding);
     if (dumpIt(EdgeFilter::sum)) s += strWinding(EdgeFilter::sum, "sum", sum);
     if (dumpIt(EdgeFilter::many)) s += strWinding(EdgeFilter::many, "many", many);
+    if (dumpIt(EdgeFilter::cPals) && (dumpAlways(EdgeFilter::cPals) || cPals.size())) {
+        s += strLabel("cPals") + "[";
+        for (auto& cPal : cPals) {
+            s += "{opp:" + STR(cPal.opp->id) + " coinID:" + STR(cPal.coinID) + "} ";
+        }
+        s.pop_back();
+        s += "] ";
+    }
     if (dumpIt(EdgeFilter::uSects) && (dumpAlways(EdgeFilter::uSects) || uSects.size())) {
         s += strLabel("uSects") + "[";
         for (auto& uSect : uSects)
@@ -1860,11 +1892,8 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     }
     if (dumpIt(EdgeFilter::uPals) && (dumpAlways(EdgeFilter::uPals) || uPals.size())) {
         s += strLabel("uPals") + "[";
-        for (auto& pal : pals) {
-            s += STR(pal.edge->id);
-            if (pal.reversed) 
-                s += "r";
-            s += " ";
+        for (auto& pal : uPals) {
+            s += pal.debugDump(l, b) + " ";
         }
         s.pop_back();
         s += "] ";
@@ -2014,6 +2043,9 @@ void OpEdge::dumpSet(const char*& str) {
         sum.dumpSet(str, dumpContours);
     if (OpDebugOptional(str, "many"))
         many.dumpSet(str, dumpContours);
+    // !!! add cSects
+    // !!! add uSects
+    // !!! add uPals
     if (OpDebugOptional(str, "pals")) {
         while (OpDebugOptional(str, "e[")) {
             pals.resize(pals.size() + 1);
@@ -2132,8 +2164,8 @@ std::string OpEdge::debugDumpLink(EdgeMatch which, DebugLevel l, DebugBase b) co
                 return s + " loop";
             firstLoop = true;
         }
-        if (++safetyCount > 250) {
-            OpDebugOut(std::string("!!! %s likely loops forever: ") + 
+        if (++safetyCount > 700) {
+            OpDebugOut(std::string("!!! likely loops forever: ") + 
                     (EdgeMatch::start == which ? "prior " : "next "));
             break;
         }
@@ -2537,7 +2569,7 @@ size_t OpLimbStorage::debugCount() const {
 
 const OpLimb* OpLimbStorage::debugFind(int ID) const {
 	for (int index = 0; index < used; index++) {
-        if (storage[index].debugID == ID)
+        if (storage[index].id == ID)
             return &storage[index];
     }
     if (nextBlock)
@@ -2570,7 +2602,7 @@ std::string OpLimbStorage::debugDump(DebugLevel l, DebugBase b) const {
 #if OP_DEBUG
         s += "[";
         for (size_t index = 0; index < count; ++index)
-            s += STR(debugFind(index)->debugID) + " ";
+            s += STR(debugFind(index)->id) + " ";
         s.pop_back();
         s += "]";
 #endif
@@ -2585,7 +2617,7 @@ std::string OpLimbStorage::debugDump(DebugLevel l, DebugBase b) const {
 void OpLimbStorage::DumpSet(const char*& str, OpContours* dumpContours) {
     size_t count = OpDebugReadSizeT(str);
     for (size_t index = 0; index < count; ++index) {
-        OpLimb* limb = dumpContours->allocateLimb(dumpContours->dumpTree);
+        OpLimb* limb = dumpContours->allocateLimb();
         limb->dumpSet(str);
     }
 }
@@ -2757,6 +2789,7 @@ ENUM_NAME_STRUCT(LimbPass);
 #define LIMBPASS_NAME(r) { LimbPass::r, #r }
 
 LimbPassName limbPassNames[] = {
+	LIMBPASS_NAME(none),
 	LIMBPASS_NAME(linked),
     LIMBPASS_NAME(unlinked),
 	LIMBPASS_NAME(disabled),
@@ -2769,7 +2802,7 @@ LimbPassName limbPassNames[] = {
 ENUM_NAME(LimbPass, limbPass)
 
 std::string OpLimb::debugDumpIDs(DebugLevel l, bool bracket) const {
-    std::string s = (bracket ? "[" : "id:") + STR(debugID);
+    std::string s = (bracket ? "[" : "id:") + STR(id);
     if (edge) {
         s += (bracket ? " e:" : " edge:") + STR(edge->id);
         if (DebugLevel::file == l)
@@ -2809,24 +2842,32 @@ std::string OpLimb::debugDump(DebugLevel l, DebugBase b) const {
         s += " parent:" + parent->debugDumpIDs(l, true);
     if (lastPtT.pt.isFinite())
         s += " lastPtT:" + lastPtT.debugDump(l, b);
-    s += " linkedIndex:" + STR((int) linkedIndex);
-    s += " gapDistance:" + STR(gapDistance);
-    s += " closeDistance:" + STR(closeDistance);
+    if (OpMax != linkedIndex)
+        s += " linkedIndex:" + STR((int) linkedIndex);
+    if (!OpMath::IsNaN(gapDistance))
+        s += " gapDistance:" + STR(gapDistance);
+    if (!OpMath::IsNaN(closeDistance))
+        s += " closeDistance:" + STR(closeDistance);
     if (EdgeMatch::none != match)
         s += " match:" + edgeMatchName(match);
     if (EdgeMatch::none != lastMatch)
         s += " lastMatch:" + edgeMatchName(lastMatch);
-    if (LimbPass::linked == pass || LimbPass::unlinked == pass)
-        s += " pass:" + limbPassName(pass);
-    if (looped)
+    if (LimbPass::none != treePass)
+        s += " treePass:" + limbPassName(treePass);
+    if (deadEnd != (bool) -1)
+        s += " deadEnd";
+    if (looped != (bool) -1)
         s += " looped";
+    if (resetPass != (bool) -1)
+        s += " resetPass";
     if (debugBranches.size()) {
         s += " debugBranches:" + STR(debugBranches.size()) + " [";
         for (auto limb : debugBranches)
-            s += STR(limb->debugID) + " ";
+            s += STR(limb->id) + " ";
         s.pop_back();
         s += "]";
     }
+
     return s;
 }
 
@@ -2840,7 +2881,7 @@ void OpLimb::dumpResolveAll(OpContours* c) {
 
 void OpLimb::dumpSet(const char*& str) {
     OpDebugRequired(str, "id");
-    debugID = OpDebugReadSizeT(str);
+    id = OpDebugReadSizeT(str);
     edge = (OpEdge*) (OpDebugOptional(str, "edge") ? OpDebugReadSizeT(str) : 0);
     if (OpDebugOptional(str, "bounds"))
         bounds.dumpSet(str);
@@ -2848,14 +2889,14 @@ void OpLimb::dumpSet(const char*& str) {
     parent = (const OpLimb*) (OpDebugOptional(str, "parent") ? OpDebugReadSizeT(str) : 0);
     if (OpDebugOptional(str, "lastPtT"))
         lastPtT.dumpSet(str);
-    OpDebugRequired(str, "linkedIndex");
-    linkedIndex = OpDebugReadSizeT(str);
+    linkedIndex = OpDebugOptional(str, "linkedIndex") ? OpDebugReadSizeT(str) : OpMax;
     gapDistance = OpDebugReadNamedFloat(str, "gapDistance");
     closeDistance = OpDebugReadNamedFloat(str, "closeDistance");
     match = edgeMatchStr(str, "match", EdgeMatch::none);
     lastMatch = edgeMatchStr(str, "lastMatch", EdgeMatch::none);
-    pass = limbPassStr(str, "pass", LimbPass::unlinked);
+    treePass = limbPassStr(str, "treePass", LimbPass::unlinked);
     looped = OpDebugOptional(str, "looped");
+    resetPass = OpDebugOptional(str, "resetPass");
     if (OpDebugOptional(str, "debugBranches")) {
         size_t count = OpDebugReadSizeT(str);
         for (size_t index = 0; index < count; ++index)
@@ -2863,42 +2904,50 @@ void OpLimb::dumpSet(const char*& str) {
     }
 }
 
+
+
 std::string OpTree::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    if (limbStorage)
-        s += " limbStorage:" + OpDebugPtrToHex(limbStorage) + " used:" + STR(limbStorage->used);
-    if (current)
-        s += " current:" + OpDebugPtrToHex(current) + " used:" + STR(current->used);
-    if (contour)
-        s += " contour:" + STR(contour->id);
+//    if (limbStorage)
+//        s += " limbStorage:" + OpDebugPtrToHex(limbStorage) + " used:" + STR(limbStorage->used);
+//    if (current)
+//        s += " current:" + OpDebugPtrToHex(current) + " used:" + STR(current->used);
+//    if (contours)
+//        s += " contours:" + STR(contours->id);
     if (bestGapLimb)
         s += " bestGapLimb:" + bestGapLimb->debugDumpIDs(l, true);
     if (bestLimb)
         s += " bestLimb:" + bestLimb->debugDumpIDs(l, true);
     if (firstPt.isFinite())
         s += " firstPt:" + firstPt.debugDump(l, b);
+    if (LimbPass::none != limbPass)
+        s += " limbPass:" + limbPassName(limbPass);
     if (OpMath::IsFinite(bestDistance))
         s += " bestDistance:" + debugFloat(b, bestDistance);
     if (OpMath::IsFinite(bestPerimeter))
         s += " bestPerimeter:" + debugFloat(b, bestPerimeter);
-    if (baseIndex)
-        s += " baseIndex:" + STR(baseIndex);
+//    if (baseIndex)
+//        s += " baseIndex:" + STR(baseIndex);
     if (totalUsed)
         s += " totalUsed:" + STR(totalUsed);
-    if (walker)
-        s += " walker:" + STR(walker);
-    int index = 0;
-    while (OpLimb* limb = limbStorage->debugIndex(index++)) {
-        s += "\n" + limb->debugDumpIDs(l, true);
-        s += " parent:" + (limb->parent ? limb->parent->debugDumpIDs(l, true) : "-");
-        if (!limb->debugBranches.size())
-            continue;
-        s += " children:";
-        for (OpLimb* child : limb->debugBranches)
-            s += child->debugDumpIDs(l, true) + " ";
-        s.pop_back();  // remove last space
-    }
     s.erase(s.begin());
+    if (DebugLevel::file == l)
+        return s;
+    OpLimbStorage* saveCurrent = contours->limbCurrent;
+    for (int index = 0; index < totalUsed; ++index) {
+        OpLimb& limb = contours->debugNthLimb(index);
+        s += "\n" + limb.debugDumpIDs(l, true);
+        s += " parent:" + (limb.parent ? limb.parent->debugDumpIDs(l, true) : "-");
+        if (limb.debugBranches.size()) {
+            s += " children:";
+            for (OpLimb* child : limb.debugBranches) {
+                s += child->debugDumpIDs(l, true) + " ";
+            }
+            s.pop_back();
+        }
+        s += " treePass:" + limbPassName(limb.treePass);
+    }
+    contours->limbCurrent = saveCurrent;
     return s;
 }
 
@@ -3119,15 +3168,15 @@ void CcCurves::dumpResolveAll(OpContours* contours) {
 }
 
 bool OpCurveCurve::dumpBreak(bool atDepth) const {
-    if (contours->debugBreakDepth < 0)
+    if (contours->debugData.curveCurveDepth < 0)
         return false;
-    if (atDepth && !contours->debugBreakDepth)
+    if (atDepth && !contours->debugData.curveCurveDepth)
         return false;
-    if (contours->dumpCurve1 != seg->id && contours->dumpCurve2 != seg->id)
+    if (contours->debugData.curveCurve1 != seg->id && contours->debugData.curveCurve2 != seg->id)
         return false;
-    if (contours->dumpCurve1 != opp->id && contours->dumpCurve2 != opp->id)
+    if (contours->debugData.curveCurve1 != opp->id && contours->debugData.curveCurve2 != opp->id)
         return false;
-     return !atDepth || depth >= contours->debugBreakDepth;
+     return !atDepth || depth >= contours->debugData.curveCurveDepth;
 }
 
 std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {

@@ -112,9 +112,7 @@ struct SectRay {
 	EdgeDistance* next(EdgeDistance* dist, DistEnd e) {
 		return dist + (int) e; }
 	void sort();
-#if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
-#endif
 
 	std::vector<EdgeDistance> distances;
 	OpVector homeTangent;  // used to determine if unsectable edge is reversed
@@ -158,9 +156,7 @@ struct OpHulls {
 	void nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef which);
 	bool sectCandidates(int index, const OpEdge& edge);
 	void sort(bool useSmall);
-#if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
-#endif
 
 	std::vector<HullSect> h;
 };
@@ -216,9 +212,20 @@ enum class Unsectable {
 };
 
 struct EdgePal {
+	DUMP_DECLARATIONS
+
 	OpEdge* edge;
 	bool reversed;
-	OP_DEBUG_CODE(int debugUID);
+	OP_DEBUG_CODE(int debugUID);  // unsect id from sect in edge's segment
+};
+
+struct CoinPal {
+	friend bool operator==(CoinPal a, CoinPal b) {
+		return a.coinID == b.coinID;
+	}
+
+	OpSegment* opp;
+	int coinID;
 };
 
 constexpr float OP_CURVACIOUS_LIMIT = 1.f / 16;  // !!! tune to guess line/line split ratio
@@ -425,8 +432,8 @@ public:
 	OpWinding winding;	// contribution: always starts as 1, 0 (or 0, 1)
 	OpWinding sum;  // total incl. normal side of edge for operands (fill count in normal direction)
 	OpWinding many;  // temporary used by unsectables to contain all pal windings combined
-	std::vector<OpIntersection*> cSects;  // !!! experiment: track coincidences bracketing edge
-	std::vector<OpIntersection*> uSects;  // !!! experiment: track unsectables bracketing edge
+	std::vector<CoinPal> cPals;  // track coincidences bracketing edge by ID
+	std::vector<OpIntersection*> uSects;  // track unsectables bracketing edge by intersection
 	std::vector<EdgePal> uPals; // pals (below) are ray-close; uPals (here) share sect overlap
 	std::vector<EdgeDistance> pals;	 // list of unsectable adjacent edges !!! should be pointers?
 	std::vector<OpEdge*> lessRay;  // edges found placed with smaller edge distance cept values
@@ -498,6 +505,7 @@ struct OpEdgeStorage {
 		, used(0) {
 	}
 	bool contains(OpIntersection* start, OpIntersection* end) const;
+    bool contains(OpPoint start, OpPoint end) const;
 #if OP_DEBUG_DUMP
 	size_t debugCount() const;
 	std::string debugDump(std::string label, DebugLevel l, DebugBase b);

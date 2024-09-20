@@ -39,9 +39,7 @@ struct FoundEdge {
 
     void check(std::vector<FoundEdge>* edges, OpEdge* test, EdgeMatch , OpPoint match);
     void reset();
-#if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
-#endif
 
     OpEdge* edge;
     float perimeter;
@@ -77,6 +75,10 @@ struct OpSegment {
 //    float findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const;
     float findValidT(float start, float end, OpPoint opp);
     // count and sort extrema; create an edge for each extrema + 1
+    bool isFinite() const {
+        return closeBounds.isFinite(); } 
+    bool isSimple() const {
+        return 1 == edges.size() && 2 == sects.i.size(); }
     void makeCoins();
     void makeEdge(OP_LINE_FILE_NP_DEF());
     void makeEdges();
@@ -123,6 +125,7 @@ struct OpSegment {
     OpWinding winding;
     int id;     // !!! could be debug only; currently used to disambiguate sort, may be unneeded
     bool disabled; // winding has canceled this edge out
+    bool willDisable;  // moveTo aligned ends; will be disabled by disable small segments
     bool hasCoin;
     bool hasUnsectable;
 #if OP_DEBUG_IMAGE

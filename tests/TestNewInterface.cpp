@@ -64,9 +64,9 @@ void testNewInterface() {
 
 #if OP_DEBUG
     OpDebugData debugData(false);
-    debugData.debugCurveCurve1 = 2;
-    debugData.debugCurveCurve2 = 7;
-    debugData.debugCurveCurveDepth = 6;
+    debugData.curveCurve1 = 2;
+    debugData.curveCurve2 = 7;
+    debugData.curveCurveDepth = 6;
     Debug(context, debugData);
 #endif
 
@@ -120,7 +120,7 @@ void testNewInterface() {
     Resolve(context, nullptr);
     DeleteContext(context);
 
-    if (Error(context)) {
+    if (ContextError::none != Error(context)) {
         exit(1);
     }
 }

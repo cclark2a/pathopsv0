@@ -332,12 +332,14 @@ Contour* SetSkiaOpCallBacks(Context* context, SkPathOp op,
 
 void AddSkiaPath(AddWinding winding, const SkPath& path) {
     SkPath::RawIter iter(path);
-    OpPoint closeLine[2];
+    OpPoint closeLine[2] = {{0, 0}, {0, 0}};  // initialize so first move doesn't add close line
     for (;;) {
         SkPoint pts[4];
         SkPath::Verb verb = iter.next(pts);
         switch (verb) {
         case SkPath::kMove_Verb:
+            if (closeLine[0] != closeLine[1])
+                Add({ closeLine, sizeof(closeLine), skiaLineType }, winding);
             closeLine[1] = (OpPoint&) pts[0];
             pts[1] = pts[0];
             break;
@@ -361,11 +363,13 @@ void AddSkiaPath(AddWinding winding, const SkPath& path) {
             AddCubics({ (OpPoint*) pts, sizeof(SkPoint) * 4, skiaCubicType }, winding);
             break;
         case SkPath::kClose_Verb:
+        case SkPath::kDone_Verb:
             if (closeLine[0] != closeLine[1])
                 Add({ closeLine, sizeof(closeLine), skiaLineType }, winding);
-            break;
-        case SkPath::kDone_Verb:
-            return;
+            if (SkPath::kDone_Verb == verb)
+                return;
+            closeLine[0] = closeLine[1];
+            continue;
         default:
             OP_ASSERT(0);
         }

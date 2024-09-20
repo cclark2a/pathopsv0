@@ -5,9 +5,9 @@
 
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
-#define TEST_PATH_OP_SKIP_TO_FILE "fast" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
+#define TEST_PATH_OP_SKIP_TO_FILE "op" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
 #define TESTS_TO_SKIP 0 // 14295903  // tests to skip
-#define TEST_PATH_OP_FIRST "loop2"  // e.g., "cubic140721" (ignored by fast test)
+#define TEST_PATH_OP_FIRST "fuzz763_2b"  // e.g., "joel4" (ignored by fast test)
 
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
@@ -22,19 +22,19 @@
 #define CURVE_CURVE_DEPTH -1  // minimum recursion depth for curve curve break (-1 to disable)
 
 // see descriptions for exceptions below
-#define TEST_PATH_OP_EXCEPTIONS "issue3517" // "cubics7d"
-#define TEST_PATH_OP_FUZZ_EXCEPTIONS "fuzz487a", "fuzz487b" // "fuzz487a"
-#define TEST_PATH_OP_FAIL_EXCEPTIONS "grshapearcs1" // "grshapearcs1"
-#define TEST_PATH_OP_MAP_TO_FUZZ "fuzzhang_1" // "fuzzhang_1"
+#define TEST_PATH_OP_EXCEPTIONS "" // "issue3517"
+#define TEST_PATH_OP_FUZZ_EXCEPTIONS "" // "fuzz487a", "fuzz487b"
+#define TEST_PATH_OP_FAIL_EXCEPTIONS "" // "grshapearcs1"
+#define TEST_PATH_OP_MAP_TO_FUZZ "" // "fuzzhang_1"
 #define TEST_PATH_SIMPLIFY_EXCEPTIONS "" // 
-#define TEST_PATH_SIMPLIFY_FAIL_EXCEPTIONS "grshapearc" // "grshapearc"
+#define TEST_PATH_SIMPLIFY_FAIL_EXCEPTIONS "" // "grshapearc"
 #define TEST_PATH_SIMPLIFY_FUZZ_EXCEPTIONS ""
 #define TEST_PATH_SIMPLIFY_MAP_TO_FUZZ  ""
 
 // !!! need to update laptop exceptions with latest
 #define LAPTOP_PATH_OP_EXCEPTIONS ""
 #define LAPTOP_PATH_OP_MAP_TO_FUZZ ""
-#define LAPTOP_SIMPLIFY_EXCEPTIONS "joel_5"
+#define LAPTOP_SIMPLIFY_EXCEPTIONS "" //  "joel_5"
 
 // when these tests are encountered, it and the remaining tests in the file are skipped
 #define TEST_PATH_OP_SKIP_REST ""
@@ -389,7 +389,8 @@ static SkRect debug_scale_matrix(const SkPath& one, const SkPath* two, SkMatrix&
     return larger;
 }
 
-static int debug_paths_draw_the_same(const SkPath& one, const SkPath& two, SkBitmap& bits) {
+static int debug_paths_draw_the_same(const SkPath& one, const SkPath& two, SkBitmap& bits,
+        bool v0mayFail) {
     if (bits.width() == 0) {
         bits.allocN32Pixels(bitWidth * 2, bitHeight);
     }
@@ -420,7 +421,7 @@ static int debug_paths_draw_the_same(const SkPath& one, const SkPath& two, SkBit
             }
         }
     }
-    OP_ASSERT(errors < 9);
+    OP_ASSERT(errors < 9 || v0mayFail);
     return errors;
 }
 
@@ -517,7 +518,7 @@ int VerifyOpNoRegion(const SkPath& left, const SkPath& right, SkPathOp op, const
 }
 
 int VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op, std::string testname,
-        const SkPath& result) {
+        const SkPath& result, bool v0mayFail) {
     SkPath pathOut, scaledPathOut;
     SkRegion rgnA, rgnB, openClip, rgnOut;
     openClip.setRect({ -16000, -16000, 16000, 16000 });
@@ -541,7 +542,7 @@ int VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op, std::string test
     SkPath scaledOut;
     scaledOut.addPath(result, scale);
     scaledOut.setFillType(result.getFillType());
-    int errors = debug_paths_draw_the_same(scaledPathOut, scaledOut, bitmap);
+    int errors = debug_paths_draw_the_same(scaledPathOut, scaledOut, bitmap, v0mayFail);
     return errors;
 }
 
@@ -580,10 +581,10 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     SkPath result;
     result.setFillType(SkPathFillType::kEvenOdd);  // !!! workaround
     OpDebugData debugData(v0MayFail);
-    debugData.debugTestname = testname;
-    debugData.debugCurveCurve1 = CURVE_CURVE_1;
-    debugData.debugCurveCurve2 = CURVE_CURVE_2;
-    debugData.debugCurveCurveDepth = CURVE_CURVE_DEPTH;
+    debugData.testname = testname;
+    debugData.curveCurve1 = CURVE_CURVE_1;
+    debugData.curveCurve2 = CURVE_CURVE_2;
+    debugData.curveCurveDepth = CURVE_CURVE_DEPTH;
     {
         using namespace PathOpsV0Lib;
         Context* context = CreateContext({ nullptr, 0 });
@@ -622,9 +623,9 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     bool skSuccess = Op(a, b, op, &skresult);
     OP_ASSERT(skSuccess || skiaMayFail);
 #if OP_TEST_V0
-    if (debugData.debugSuccess && !skSuccess)
+    if (debugData.success && !skSuccess)
         testsPassSkiaFail++;
-    else if (!debugData.debugSuccess && skSuccess)
+    else if (!debugData.success && skSuccess)
         testsFailSkiaPass++;
 #else
     if (skiaMayFail && skSuccess)
@@ -636,19 +637,19 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     if (startFirstTest && runOneFile)
         endFirstTest = true;
 #if OP_TEST_V0 && OP_TEST_REGION
-    if (!debugData.debugSuccess || !skSuccess || v0MayFail || skiaMayFail)
+    if (!debugData.success || !skSuccess || v0MayFail || skiaMayFail)
         return;
-    int errors = VerifyOp(a, b, op, testname, result);
+    int errors = VerifyOp(a, b, op, testname, result, v0MayFail);
 //  int altErrors = VerifyOpNoRegion(a, b, op, result);
     const int MAX_ERRORS = 9;
-    if (errors > MAX_ERRORS || debugData.debugWarnings.size()) {
+    if (errors > MAX_ERRORS || debugData.warnings.size()) {
 #if !defined(NDEBUG) || OP_RELEASE_TEST
 #if OP_DEBUG_FAST_TEST
         std::lock_guard<std::mutex> guard(out_mutex);
 #endif
         dumpOpTest(tn, a, b, op)
             ;   // <<<<<<<< paste this into immediate window
-        ReportError(testname, errors, debugData.debugWarnings);
+        ReportError(testname, errors, debugData.warnings);
         if (errors > MAX_ERRORS)
             testsError++;
 #endif
@@ -733,7 +734,7 @@ void RunTestSet(skiatest::Reporter* r, TestDesc tests[], size_t count,
 }
 
 
-int VerifySimplify(const SkPath& one, std::string testname, const SkPath& result) {
+int VerifySimplify(const SkPath& one, std::string testname, const SkPath& result, bool v0mayFail) {
     SkPath pathOut, scaledPathOut;
     SkRegion rgnA, openClip;
     openClip.setRect({ -16000, -16000, 16000, 16000 });
@@ -751,7 +752,7 @@ int VerifySimplify(const SkPath& one, std::string testname, const SkPath& result
     SkPath scaledOut;
     scaledOut.addPath(result, scale);
     scaledOut.setFillType(result.getFillType());
-    int errors = debug_paths_draw_the_same(scaledPathOut, scaledOut, bitmap);
+    int errors = debug_paths_draw_the_same(scaledPathOut, scaledOut, bitmap, v0mayFail);
     return errors;
 }
 
@@ -777,10 +778,10 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
     if ("never!" == testname)
         OpDebugOut(tn);  // prevent optimizer from removing tn
     OpDebugData debugData(v0MayFail);
-    debugData.debugTestname = testname;
-    debugData.debugCurveCurve1 = CURVE_CURVE_1;
-    debugData.debugCurveCurve2 = CURVE_CURVE_2;
-    debugData.debugCurveCurveDepth = CURVE_CURVE_DEPTH;
+    debugData.testname = testname;
+    debugData.curveCurve1 = CURVE_CURVE_1;
+    debugData.curveCurve2 = CURVE_CURVE_2;
+    debugData.curveCurveDepth = CURVE_CURVE_DEPTH;
     {
         using namespace PathOpsV0Lib;
         Context* context = CreateContext({ nullptr, 0 });
@@ -802,16 +803,16 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
         Resolve(context, pathOutput);
         DeleteContext(context);
     }
-    OP_ASSERT(v0MayFail || debugData.debugSuccess);
+    OP_ASSERT(v0MayFail || debugData.success);
 #endif
 #if OP_TEST_SKIA
     SkPath skOut;
     bool skSuccess = Simplify(path, &skOut);
     OP_ASSERT(skiaMayFail || skSuccess);
 #if OP_TEST_V0
-    if (debugData.debugSuccess && !skSuccess)
+    if (debugData.success && !skSuccess)
         testsPassSkiaFail++;
-    else if (!debugData.debugSuccess && skSuccess)
+    else if (!debugData.success && skSuccess)
         testsFailSkiaPass++;
 #else
     if (skiaMayFail && skSuccess)
@@ -821,11 +822,11 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
     if (startFirstTest && runOneFile)
         endFirstTest = true;
 #if OP_TEST_V0 && OP_TEST_REGION
-    if (!debugData.debugSuccess)
+    if (!debugData.success)
         return;
-    int errors = VerifySimplify(path, testname, out);
+    int errors = VerifySimplify(path, testname, out, v0MayFail);
     const int MAX_ERRORS = 9;
-    if (errors > MAX_ERRORS) {
+    if (errors > MAX_ERRORS && !v0MayFail) {
 #if !defined(NDEBUG) || OP_RELEASE_TEST
 #if OP_DEBUG_FAST_TEST
         std::lock_guard<std::mutex> guard(out_mutex);

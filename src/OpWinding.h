@@ -89,7 +89,7 @@ struct OpWinding {
 // The normal zero winding is computed before the edge orientation (e.g., whichEnd) 
 // is known, so it may be reversed if the edge is to be connected backwards.
 enum class WindZero : int8_t {
-	unset = -1,
+	unset,
 	zero,
 	nonZero,
 };
@@ -100,9 +100,12 @@ inline void OpDebugCheckSingleZero(WindZero left, WindZero right) {
 }
 
 inline WindZero operator!(const WindZero& a) {
-    if (WindZero::unset == a)
-        return a;
-    return (WindZero) !static_cast<int>(a);
+    switch (a) {
+		case WindZero::unset: return WindZero::unset;
+		case WindZero::zero: return WindZero::nonZero;
+		case WindZero::nonZero: return WindZero::zero;
+	}
+	OP_ASSERT(0);
 }
 
 #endif

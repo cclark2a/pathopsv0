@@ -24,9 +24,7 @@ enum class LinkPass {
 */
 struct LinkUps {
 	void sort();
-#if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
-#endif
 
 	std::vector<OpEdge*> l;
 };
@@ -39,6 +37,7 @@ struct OpJoiner {
 	void buildDisabledPals(OpContours& );
 	bool detachIfLoop(OpEdge* , EdgeMatch loopEnd);
 	bool linkRemaining(OP_DEBUG_CODE(OpContours*));
+	bool linkSimple(OpEdge* );
 	void linkUnambiguous(LinkPass );
 	bool linkUp(OpEdge* );
 	bool matchLinks(bool popLast);
@@ -74,11 +73,14 @@ struct OpJoiner {
 	OpPoint matchPt;
 	bool disabledBuilt;
 	bool disabledPalsBuilt;
+
+	OP_DEBUG_CODE(int debugRecursiveDepth);
 };
 
 // !!! experiment: keep track of all edge possibilities to find the best closing path
 // !!! unsectable made coincident missing disabled pals check
 enum class LimbPass : uint8_t {
+	none,
 	linked,    // in linkups list with correct winding
 	unlinked,  // in unsectByArea and in unsortables
 	disabled,  // in disabled
@@ -87,6 +89,10 @@ enum class LimbPass : uint8_t {
 	unsectPair, // gap to other edge in unsectable pair
 	disjoint,  // gap to closest in linkups list, or gap to edge start (loop)
 };
+
+inline LimbPass operator++(LimbPass& limbPass) {
+	return limbPass = (LimbPass) ((int) limbPass + 1);
+}
 
 struct OpTree;
 struct OpLimbStorage;
@@ -97,20 +103,23 @@ struct OpLimb {
 		edge = nullptr;
 		lastLimbEdge = nullptr;
 		parent = nullptr;
-		linkedIndex = 0;
-		gapDistance = 0;
-		closeDistance = 0;
+		linkedIndex = OpMax;
+		gapDistance = OpNaN;
+		closeDistance = OpNaN;
 		match = EdgeMatch::none;
 		lastMatch = EdgeMatch::none;
-		pass = LimbPass::unlinked;
-		looped = false;
+		treePass = LimbPass::none;
+		deadEnd = (bool) -1;
+		looped = (bool) -1;
+		resetPass = (bool) -1;
 #endif
-		OP_DEBUG_DUMP_CODE(debugID = 0);
+		OP_DEBUG_DUMP_CODE(id = 0);
 	}
-	void add(OpTree& , OpEdge* , EdgeMatch , LimbPass , size_t index = 0, OpEdge* first = nullptr);
-	void foreach(OpJoiner& , OpTree& , LimbPass );
+	void addEach(OpJoiner& , OpTree& );
 	void set(OpTree& , OpEdge* , OpLimb* parent, EdgeMatch , LimbPass , 
 			size_t index, OpEdge* otherEnd, const OpPointBounds* bounds = nullptr);
+	void tryAdd(OpTree& , OpEdge* , EdgeMatch , LimbPass , size_t index = 0, 
+			OpEdge* first = nullptr);
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
 	std::string debugDumpIDs(DebugLevel , bool bracket) const;
@@ -126,12 +135,14 @@ struct OpLimb {
 	float closeDistance;
 	EdgeMatch match; // end of edge that matches last point in parent limb
 	EdgeMatch lastMatch;
-	LimbPass pass;  // if linked or miswound: if match is end, edge is last in linked list
+	LimbPass treePass;  // if linked or miswound: if match is end, edge is last in linked list
+	bool deadEnd;
 	bool looped;
+	bool resetPass;  // when new parent is found, restart limb pass
 
 #if OP_DEBUG_DUMP
 	std::vector<OpLimb*> debugBranches;
-	int debugID;
+	int id;
 #endif
 };
 
@@ -141,34 +152,37 @@ struct OpLimb {
 struct OpTree {
 	OpTree(OpJoiner& );
 	void addDisabled(OpJoiner& );
-	void initialize(OpJoiner& join, LimbPass );
+	OpEdge* addFiller(const OpPtT& , const OpPtT& );
+	bool contains(OpLimb* , OpEdge* ) const;
+	bool containsFiller(OpLimb* , OpPoint , OpPoint ) const; 
+	void initialize(OpJoiner& join);
 	bool join(OpJoiner& );
-	OpLimb& limb(int index);
-#if OP_DEBUG_DUMP
+	OpLimb& nthLimb(int index);
+	OpLimb* makeLimb();
 	DUMP_DECLARATIONS
-#endif
-	OpLimbStorage* limbStorage;
-	OpLimbStorage* current;
-	OpContour* contour;
+
+//	OpLimbStorage* limbStorage;
+//	OpLimbStorage* current;
+	OpContours* contours;
 	OpLimb* bestGapLimb;  // used only by detached pass
 	const OpLimb* bestLimb;   // index into limbStorage
 	OpPoint firstPt;
+	LimbPass limbPass;
 	float bestDistance;  // used only by detached pass
 	float bestPerimeter;
-	int baseIndex;
+//	int baseIndex;
 	int totalUsed;
-	int walker;
 };
 
 struct OpLimbStorage {
 	OpLimbStorage()
 		: nextBlock(nullptr)
 		, prevBlock(nullptr)
+		, baseIndex(0)
 		, used(0) {
 		static_assert((ARRAY_COUNT(storage) - 1 & ARRAY_COUNT(storage)) == 0);
 	}
-	OpLimb* allocate(OpTree& );
-	OpLimb& limb(OpTree& , int index);
+	OpLimb* allocate();
 	void reset();
 #if OP_DEBUG_DUMP
 	size_t debugCount() const;
@@ -181,6 +195,7 @@ struct OpLimbStorage {
 	OpLimbStorage* nextBlock;
 	OpLimbStorage* prevBlock;
 	OpLimb storage[256];
+	int baseIndex;
 	int used;
 };
 

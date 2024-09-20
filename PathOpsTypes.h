@@ -4,13 +4,6 @@
 
 #include "OpMath.h"
 
-// returns if an edge starts a fill, ends a fill, or does neither and should be discarded
-enum class WindKeep {
-    Discard,	// must be equal to zero
-    End,
-    Start,
-};
-
 namespace PathOpsV0Lib {
 
 /* think about:
@@ -31,6 +24,12 @@ struct Context;
 
 // caller defined optional data
 typedef void* ContextData;
+
+enum class ContextError {
+    none,
+	intersection,
+    segmentBounds
+};
 
 // convenience for adding caller defined data to context
 struct AddContext {
@@ -91,6 +90,13 @@ struct AddCurve {
 
 // caller defined data representing how curves in a contour cover area
 typedef void* WindingData;
+
+// returns if an edge starts a fill, ends a fill, or does neither and should be discarded
+enum class WindKeep {
+    Discard,	// must be equal to zero
+    End,
+    Start,
+};
 
 struct Winding {
 	WindingData data;

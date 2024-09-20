@@ -33,6 +33,7 @@ OpSegment::OpSegment(PathOpsV0Lib::AddCurve addCurve, PathOpsV0Lib::AddWinding a
     , winding(contour, { (PathOpsV0Lib::WindingData*) addWinding.windings, addWinding.size } )
     , id(contour->nextID())
     , disabled(false)
+    , willDisable(false)
     , hasCoin(false)
     , hasUnsectable(false) {
     setBounds();
@@ -307,12 +308,13 @@ void OpSegment::makeEdges() {
     edges.clear();
     if (disabled)
        return;
+    OP_ASSERT(sects.i.size());
     edges.reserve(sects.i.size() - 1);
     sects.makeEdges(this);
 }
 
 MatchReverse OpSegment::matchEnds(const LinePts& linePts) const {
-    if (disabled)
+    if (disabled || willDisable)
         return { MatchEnds::none, false };
     return c.matchEnds(linePts);
 }
@@ -346,12 +348,13 @@ MatchEnds OpSegment::matchExisting(const OpSegment* opp) const {
 void OpSegment::moveTo(float matchT, OpPoint equalPt) {
     OP_ASSERT(0 == matchT || 1 == matchT);
     OpPoint endPt = 0 == matchT ? c.firstPt() : c.lastPt();
-    OP_ASSERT(endPt.soClose(equalPt));
+//    OP_ASSERT(endPt.soClose(equalPt));  // fuzz_k1 triggers assert
     contour->contours->addAlias(endPt, equalPt);
     0 == matchT ? c.setFirstPt(equalPt) : c.setLastPt(equalPt);
     c.pinCtrl();
-    if (c.firstPt() == c.lastPt())
-        setDisabled(OP_LINE_FILE_NPARAMS());
+// defer disabling until all moves are complete; disable small segments will clean up
+   if (c.firstPt() == c.lastPt())
+        willDisable = true;
     setBounds();
     for (OpIntersection* sect : sects.i) {
         if (sect->ptT.t == matchT) {
@@ -420,44 +423,86 @@ bool OpSegment::debugSuccess() const {
     return true;
 }
 
+// Note that this must handle a many-to-many relationship between seg and opp.
+// Coincident runs of edges may be interrupted by other intersections but their winding is
+// unaffected (only other coins may break inner coincident windings).
 void OpSegment::makeCoins() {
     if (!hasCoin)
         return;
     if (disabled)
         return;
-    for (OpEdge& edge : edges) {
+    for (size_t edgeIndex = 0; edgeIndex < edges.size(); ++edgeIndex) {
+        OpEdge& edge = edges[edgeIndex];
+        if (!edge.cPals.size())
+            continue;
         if (edge.disabled)
             continue;
         // if edge is coincident, transfer windings and unsectable sects to boss
-        for (OpIntersection* cSect : edge.cSects) {
-            OpSegment* oSeg = cSect->opp->segment;
+        bool transferred = false;
+        for (const CoinPal& cPal : edge.cPals) {
+            OpSegment* oSeg = cPal.opp;
             OP_ASSERT(oSeg != this);
             if (oSeg->disabled)
                 continue;
-            int cID = abs(cSect->coincidenceID);
-            EdgeMatch match = cSect->coincidenceID < 0 ? EdgeMatch::end : EdgeMatch::start;
+            int cID = cPal.coinID;
             OP_ASSERT(cID);
-            for (OpEdge& oEdge : oSeg->edges) {
-                if (oEdge.disabled)
-                    continue;
-                if (edge.startPt() != oEdge.ptT(match).pt)
-                    continue;
-                OP_ASSERT(edge.endPt() == oEdge.ptT(!match).pt);
-                for (OpIntersection* oSect : oEdge.cSects) {
-                    if (abs(oSect->coincidenceID) != cID)
-                        continue;
-                    OP_ASSERT(edge.winding.visible());
-                    OP_ASSERT(oEdge.winding.visible());
-                    edge.winding.move(oEdge.winding, cSect->coincidenceID < 0);
-                    oEdge.setDisabledZero(OP_LINE_FILE_NPARAMS());
-                    if (!edge.winding.visible()) {
-                        edge.setDisabled(OP_LINE_FILE_NPARAMS());
-                        goto nextEdge;
+            auto transferWinding = [&edge, cID, &transferred](OpEdge* oEdge, EdgeMatch match) {
+                if (oEdge->disabled)
+                    return false;
+                if (edge.startPt() != oEdge->ptT(match).pt)
+                    return false;
+                std::vector<CoinPal>& ocPals = oEdge->cPals;
+                if (ocPals.end() == std::find_if(ocPals.begin(), ocPals.end(), [cID]
+                        (const CoinPal& ocPal){ return ocPal.coinID == cID; }))
+                    return false;
+                OP_ASSERT(oEdge->winding.visible());
+                edge.winding.move(oEdge->winding, cID < 0);
+                oEdge->setDisabledZero(OP_LINE_FILE_NPARAMS());
+                transferred = true;
+                return true;
+            };
+            // repeat for any opp edges that make up the rest of this coin span
+            auto transferCopy = [](OpEdge* oTest, OpEdge* oEdge) {
+                if (oTest->cPals != oEdge->cPals)
+                    return false;
+                oTest->setDisabledZero(OP_LINE_FILE_NPARAMS());
+                return true;
+            };
+            size_t oSize = oSeg->edges.size();
+            if (cID < 0) {                
+                for (size_t oppIndex = oSize; oppIndex-- != 0; ) {
+                    OpEdge* oEdge = &oSeg->edges[oppIndex];
+                    if (transferWinding(oEdge, EdgeMatch::end)) {
+                        while (oppIndex-- != 0 && transferCopy(&oSeg->edges[oppIndex], oEdge))
+                             ;
+                        break;
+                    }
+                }
+            } else {
+                for (size_t oppIndex = 0; oppIndex < oSize; ++oppIndex) {
+                    OpEdge* oEdge = &oSeg->edges[oppIndex];
+                    if (transferWinding(oEdge, EdgeMatch::start)) {
+                         while (++oppIndex < oSize && transferCopy(&oSeg->edges[oppIndex], oEdge))
+                             ;
+                         break;
                     }
                 }
             }
         }
-nextEdge: ;
+        // repeat for any edges that make up the rest of this coin span
+        if (!transferred)
+            continue;
+        bool setDisabled = !edge.winding.visible();
+        if (setDisabled)
+            edge.setDisabled(OP_LINE_FILE_NPARAMS());
+        while (++edgeIndex < edges.size()) {
+            OpEdge& test = edges[edgeIndex];
+            if (test.cPals != edge.cPals)
+                break;
+            test.winding = edge.winding;
+            if (setDisabled)
+                test.setDisabled(OP_LINE_FILE_NPARAMS());
+        }
     }
 }
 

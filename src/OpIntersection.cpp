@@ -74,17 +74,18 @@ void OpIntersections::makeEdges(OpSegment* segment) {
         OP_ASSERT(unsectables.end() != found);
         unsectables.erase(found);
     };
-    std::vector<OpIntersection*> coincidences;
+    std::vector<CoinPal> coincidences;
     auto stackCoins = [&coincidences](OpIntersection* sect) {
-        if (!sect->coincidenceID)
+        int coinID = sect->coincidenceID;
+        if (!coinID)
             return;
         if (MatchEnds::start == sect->coinEnd) {
-            coincidences.push_back(sect);
+            coincidences.push_back({ sect->opp->segment, coinID });
             return;
         }
         OP_ASSERT(MatchEnds::end == sect->coinEnd);
-        auto found = std::find_if(coincidences.begin(), coincidences.end(), [sect]
-                (const OpIntersection* cT) { return cT->coincidenceID == sect->coincidenceID; });
+        auto found = std::find_if(coincidences.begin(), coincidences.end(), [coinID]
+                (const CoinPal& cPal) { return cPal.coinID == coinID; });
         OP_ASSERT(coincidences.end() != found);
         coincidences.erase(found);
     };
@@ -97,7 +98,7 @@ void OpIntersections::makeEdges(OpSegment* segment) {
             if (unsectables.size())
                 newEdge.uSects = unsectables;
             if (coincidences.size()) {
-                newEdge.cSects = coincidences;
+                newEdge.cPals = coincidences;
             }
         }
         stackUnsects(sectPtr);
@@ -166,8 +167,10 @@ bool SectPreferred::find() {
             sawBest = true;
             if (sects.i.back()->ptT.isNearly(best->ptT)) {
 // small segment may have first and last nearly touching
-                if (0 == best->ptT.t)
+                if (0 == best->ptT.t) {
                     seg->setDisabled(OP_LINE_FILE_NPARAMS());
+                    return false;
+                }
                 OP_ASSERT(1 == sects.i.back()->ptT.t);
                 best->ptT.t = 1;
             }

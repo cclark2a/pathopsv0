@@ -28,6 +28,9 @@ OpSegments::OpSegments(OpContours& contours) {
         }
     }
     std::sort(inX.begin(), inX.end(), compareXBox);
+    OP_DEBUG_CODE(debugFailSegID = 0);
+    OP_DEBUG_CODE(debugFailOppID = 0);
+
 }
 
 // may need to adjust values in opp if end is nearly equal to seg
@@ -59,7 +62,7 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
                 opp->moveTo(oppT, oppPt);
             }
         }
-        OP_ASSERT(opp->c.c.data->start != opp->c.c.data->end || opp->disabled);
+        OP_ASSERT(opp->c.c.data->start != opp->c.c.data->end || opp->disabled || opp->willDisable);
         if (!OpMath::IsNaN(segT))
             add(oppPt, segT, oppT  OP_LINE_FILE_CALLER());
         return segT;
@@ -73,6 +76,7 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
         oppT = OpMath::PinNear(oppT);
         if ((0 == oppT || 1 == oppT) && opp->c.end(oppT) != segPt)
             opp->moveTo(oppT, segPt);
+        /// !!! may add coincidence between seg and opp which goes undetected (skphealth_com76s)
         add(segPt, segT, oppT  OP_LINE_FILE_CALLER());
         return oppT;
     };
@@ -122,12 +126,6 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
                 { opp->c.firstPt(), 0}, { opp->c.lastPt(), 1 }, seg, opp );
         return;
     }
-#if 0
-    if (!!(MatchEnds::start & matchRev.match))
-        septs.addEnd(0);
-    if (!!(MatchEnds::end & matchRev.match))
-        septs.addEnd(1);
-#endif
     std::vector<OpPtT> oppPtTs;
     std::vector<OpPtT> edgePtTs;
     for (unsigned index = 0; index < septs.count; ++index) {
@@ -263,7 +261,8 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
         OP_ASSERT(oTangent.dx || oTangent.dy);
         if (!tangent.dot(oTangent))  // if at right angles, skip
             return IntersectResult::no;
-        OP_ASSERT(seg->ptBounds.intersects(opp->ptBounds));
+        if (!seg->ptBounds.intersects(opp->ptBounds))  // close bounds intersect, ptBounds do not
+            return IntersectResult::no;
         seg->makeEdge(OP_LINE_FILE_NPARAMS());
         opp->makeEdge(OP_LINE_FILE_NPARAMS());
         return OpWinder::CoincidentCheck(seg->edges.front(), opp->edges.front());
@@ -303,10 +302,12 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
     checkVert(vertOppBase, opp->c, vertSeg, seg->c, segInOppPtr, oppInSegPtr
             OP_DEBUG_PARAMS(segInOpp, oppInSeg));
     if (MatchEnds::none != ends.match) {
-        OP_ASSERT(oppInSegPtr < &oppInSeg[2]);
+        if (oppInSegPtr >= &oppInSeg[2])
+            return IntersectResult::no;  // triggered by fuzz763_2b
         *oppInSegPtr++ = MatchEnds::start == ends.match 
                 ? OpPtT(seg->c.firstPt(), 0) : OpPtT(seg->c.lastPt(), 1);
-        OP_ASSERT(segInOppPtr < &segInOpp[2]);
+        if (segInOppPtr >= &segInOpp[2])
+            return IntersectResult::no;
         *segInOppPtr++ = MatchEnds::start == ends.flipped() 
                 ? OpPtT(opp->c.firstPt(), 0) : OpPtT(opp->c.lastPt(), 1);
     }
@@ -348,7 +349,7 @@ FoundIntersections OpSegments::findIntersections() {
             (void) seg->c.isLine();
             (void) opp->c.isLine();
             AddEndMatches(seg, opp);
-            if (seg->disabled || opp->disabled)
+            if (seg->willDisable || opp->willDisable)
                 continue;
             // for line-curve intersection we can directly intersect
             if (seg->c.isLine()) {
@@ -356,8 +357,11 @@ FoundIntersections OpSegments::findIntersections() {
                     IntersectResult lineCoin = LineCoincidence(seg, opp);
                     if (seg->disabled)
                         break;
-                    if (IntersectResult::fail == lineCoin)
+                    if (IntersectResult::fail == lineCoin) {
+                        OP_DEBUG_CODE(debugFailSegID = seg->id);
+                        OP_DEBUG_CODE(debugFailOppID = opp->id);
                         return FoundIntersections::fail;
+                    }
                     if (IntersectResult::yes == lineCoin)
                         continue;
                 }
@@ -374,12 +378,6 @@ FoundIntersections OpSegments::findIntersections() {
                     || seg->ptBounds.top == opp->ptBounds.bottom;
             if (sharesHorizontal && sharesVertical)
                 continue;
-            // if the bounds share only an edge, and ends match, there's nothing more to do
-#if 0  // !!! fails to detect unsectable pairs
-            if ((sharesHorizontal || sharesVertical) 
-                    && MatchEnds::none != seg->matchEnds(opp).match)
-                continue;
-#endif
             // look for curve curve intersections (skip coincidence already found)
             OpCurveCurve cc(seg, opp);
             SectFound ccResult = cc.divideAndConquer();
@@ -393,121 +391,12 @@ FoundIntersections OpSegments::findIntersections() {
                 SectFound limitsResult = cc.runsToLimits();
                 if (SectFound::add == limitsResult)
                     ccResult = limitsResult;
-#if 0
-                else if (SectFound::fail == limitsResult) {
-                    if (cc.limits.size())
-                        ccResult = SectFound::add;
-                    else {
-                        if (SectFound::maxOverlaps != ccResult 
-                                && SectFound::noOverlapDeep != ccResult) {
-                            OP_DEBUG_DUMP_CODE(debugContext = "");
-                            return FoundIntersections::fail;
-                        }
-                        ccResult = SectFound::no;
-                    }
-                }
-#endif
             }
             if (SectFound::add == ccResult || cc.limits.size())
                 cc.findUnsectable();
-#if 0
-            OP_DEBUG_DUMP_CODE(debugContext = "");
-            if (!cc.addedPoint)
-                continue;
-            // if point was added, check adjacent to see if it is concident (issue3517)
-            OpPtT segPtT = seg->sects.i.back()->ptT;
-            OpPtT oppPtT = opp->sects.i.back()->ptT;
-            seg->sects.sort();
-            opp->sects.sort();
-            // add pair, below, rarely adds additional entries to the intersection vectors
-            // pre-expand the vectors so that the additions won't invalidate the loop pointers
-            seg->sects.i.reserve(seg->sects.i.size() + 8);  // 4 is maximum
-            opp->sects.i.reserve(opp->sects.i.size() + 8);
-            OpIntersection* const* sSectPtr = seg->sects.entry(segPtT, opp);
-            OpIntersection* const* oSectPtr = opp->sects.entry(oppPtT, seg);
-            if (sSectPtr && oSectPtr) {
-                auto testCoin = [](OpIntersection* segBase, OpIntersection* segTest, 
-                        OpIntersection* oppBase, OpIntersection* oppTest, 
-                        bool testGreater, bool flipped) {
-                    if (segTest->ptT.pt == oppTest->ptT.pt && 
-                            (segTest->opp->segment == oppTest->opp->segment || 
-                            (segTest->opp->segment == oppTest->segment 
-                            && segTest->segment == oppTest->opp->segment))) {
-                        if (MatchEnds::start == segBase->unsectEnd 
-                                && MatchEnds::end == segTest->unsectEnd)
-                            return true;
-                        if (segBase->ptT.isNearly(segTest->ptT))
-                            return true;
-                        OpVector v = segBase->ptT.pt - segTest->ptT.pt;
-                        if (!testGreater) {
-                            std::swap(segBase, segTest);
-                            std::swap(oppBase, oppTest);
-                        }
-                        OP_ASSERT(segBase->ptT.t < segTest->ptT.t);
-                        OP_ASSERT(flipped ? oppBase->ptT.t > oppTest->ptT.t :
-                                oppBase->ptT.t < oppTest->ptT.t);
-                        if (IntersectResult::fail == OpWinder::AddPair(v.larger(), segBase->ptT, 
-                                segTest->ptT, oppBase->ptT, oppTest->ptT, flipped, segTest->segment,
-                                oppTest->segment))
-                            return false;
-                    }
-                    return true;
-                };
-                auto testOpp = [sSectPtr, oSectPtr, testCoin](OpIntersection* segTest, bool next) {
-                    OpSegment* opp = (*oSectPtr)->segment;
-                    OpIntersection* const* oTestPtr = oSectPtr;
-                    while (oTestPtr > &opp->sects.i.front()) {
-                        OpIntersection* oppPrior = *--oTestPtr;
-                        OpVector diff = (*oSectPtr)->ptT.pt - oppPrior->ptT.pt;
-                        if ((!diff.dx && !diff.dy) || oppPrior->ptT.t == (*oSectPtr)->ptT.t)
-                            continue;
-                        if (diff.dx && diff.dy)
-                            break;
-                        if (!testCoin(*sSectPtr, segTest, *oSectPtr, oppPrior, next, next))
-                            return false;
-                        break;
-                    }
-                    oTestPtr = oSectPtr;
-                    while (oTestPtr < &opp->sects.i.back()) {
-                        OpIntersection* oppNext = *++oTestPtr;
-                        OpVector diff = (*oSectPtr)->ptT.pt - oppNext->ptT.pt;
-                        if ((!diff.dx && !diff.dy) || oppNext->ptT.t == (*oSectPtr)->ptT.t)
-                            continue;
-                        if (diff.dx && diff.dy)
-                            break;
-                        if (!testCoin(*sSectPtr, segTest, *oSectPtr, oppNext, next, !next))
-                            return false;
-                        break;
-                    }
-                    return true;
-                };
-                OpIntersection* const* sTestPtr = sSectPtr;
-                while (sTestPtr > &seg->sects.i.front()) {
-                    OpIntersection* segPrior = *--sTestPtr;
-                    OpVector diff = (*sSectPtr)->ptT.pt - segPrior->ptT.pt;
-                    if ((!diff.dx && !diff.dy) || segPrior->ptT.t == (*sSectPtr)->ptT.t)
-                        continue;
-                    if (diff.dx && diff.dy)
-                        break;
-                    if (!testOpp(segPrior, false))
-                        return FoundIntersections::fail;
-                    break;
-                }
-                sTestPtr = sSectPtr;
-                while (sTestPtr < &seg->sects.i.back()) {
-                    OpIntersection* segNext = *++sTestPtr;
-                    OpVector diff = (*sSectPtr)->ptT.pt - segNext->ptT.pt;
-                    if ((!diff.dx && !diff.dy) || segNext->ptT.t == (*sSectPtr)->ptT.t)
-                        continue;
-                    if (diff.dx && diff.dy)
-                        break;
-                    if (!testOpp(segNext, true))
-                        return FoundIntersections::fail;
-                    break;
-                }
-            }
-#endif
         }
+        if (!seg->sects.i.size())
+            seg->disabled = true;
     }
     return FoundIntersections::yes; // !!! if something can fail, return 'fail' (don't return 'no')
 }

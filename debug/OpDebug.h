@@ -51,17 +51,17 @@ struct OpContours;
 
 struct OpDebugData {
 	OpDebugData(bool mayFail) 
-		: debugExpect(mayFail ? OpDebugExpect::fail : OpDebugExpect::success)
-		, debugSuccess(true) {
+		: expect(mayFail ? OpDebugExpect::fail : OpDebugExpect::success)
+		, success(true) {
 	}
 
-	std::vector<OpDebugWarning> debugWarnings;
-	std::string debugTestname;
-	OpDebugExpect debugExpect;
-	int debugCurveCurve1;
-	int debugCurveCurve2;
-	int debugCurveCurveDepth;
-	bool debugSuccess;
+	std::vector<OpDebugWarning> warnings;
+	std::string testname;
+	OpDebugExpect expect;
+	int curveCurve1;
+	int curveCurve2;
+	int curveCurveDepth;
+	bool success;
 };
 
 #define OP_DEBUG_CONTEXT(...)
@@ -97,7 +97,6 @@ struct OpDebugData {
 #define OP_WARNING(contours, str)
 
 #else
-
 
 #ifdef _WIN32
 #include <intrin.h>
@@ -274,6 +273,8 @@ enum class DebugLevel;
 enum class DebugBase;
 
 void OpDebugFormat(std::string );
+#else
+#define DUMP_DECLARATIONS
 #endif
 
 #endif

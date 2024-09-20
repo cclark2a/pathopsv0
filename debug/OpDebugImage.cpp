@@ -1674,8 +1674,8 @@ void colorLink(OpEdge* edge, uint32_t color) {
 			chain = EdgeMatch::start == which ? chain->priorEdge : chain->nextEdge;
 			if (!chain)
 				break;
-			if (++safetyCount > 250) {
-				OpDebugOut(std::string("!!! %s likely loops forever: ") + 
+			if (++safetyCount > 700) {
+				OpDebugOut(std::string("!!! likely loops forever: ") + 
 						(EdgeMatch::start == which ? "prior " : "next "));
 				break;
 			}

@@ -66,9 +66,7 @@ struct TGap {
 struct EdgeRun {
 	void set(OpEdge* edge, const OpSegment* oppSeg, EdgeMatch );
 	float setOppDist(const OpSegment* segment);
-#if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
-#endif
 
 	OpEdge* edge;
 	OpEdge* oppEdge;
@@ -98,9 +96,7 @@ struct CcCurves {
 	// void snipOne(const OpSegment* ,  const OpPtT& lo, const OpPtT& hi);
 	void snipRange(const OpSegment* , const OpPtT& lo, const OpPtT& hi, const OpSegment* oppSeg);
 	OpPtT splitPt(float oMidDist, const OpEdge& edge) const;
-#if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
-#endif
 
 	std::vector<OpEdge*> c;
 	std::vector<EdgeRun> runs;
@@ -108,9 +104,7 @@ struct CcCurves {
 
 struct FoundLimits {
 //	void setEnd(const OpSegment* opp, const OpCurve& curve, float t);
-#if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
-#endif
 
 	const OpEdge* parentEdge;
 	const OpEdge* parentOpp;  // may be null

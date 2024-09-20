@@ -84,7 +84,8 @@ inline PointWeight ConicControl(OpPoint start, PointWeight control, OpPoint end,
     if (!b.weight)
         b.weight = 1;
     PointWeight result(b.pt / bzNonZero, b.weight / sqrtf(a.weight * c.weight));
-    result.pt.pin(ptT1.pt, ptT2.pt);
+    if (ptT1.pt.isFinite() && ptT2.pt.isFinite())
+        result.pt.pin(ptT1.pt, ptT2.pt);
     return result;
 }
 

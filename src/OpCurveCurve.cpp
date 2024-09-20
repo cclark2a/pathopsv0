@@ -617,10 +617,10 @@ SectFound OpCurveCurve::divideAndConquer() {
 //		oppCurves.endDist(opp, seg);
 #if OP_DEBUG_DUMP
 		if (dumpBreak(true)) {
-			if (contours->debugBreakDepth == depth)
+			if (contours->debugData.curveCurveDepth == depth)
 				::debug();
 			1 == depth ? ::showSegmentEdges() : ::hideSegmentEdges();
-			if (contours->debugBreakDepth < depth) 
+			if (contours->debugData.curveCurveDepth < depth) 
 				::dmpDepth(depth);
 			dmpFile();
 			verifyFile(contours);
@@ -1106,6 +1106,8 @@ bool OpCurveCurve::splitDownTheMiddle(const OpEdge& edge, const OpPtT& edgeMid, 
 	if (OpMath::Equalish(edge.startT, edgeMid.t))
 		return false;
 	if (OpMath::Equalish(edgeMid.t, edge.endT))
+		return false;
+	if (edge.centerless)
 		return false;
 	OP_ASSERT(edge.startT < edgeMid.t);
 	OP_ASSERT(edgeMid.t < edge.endT);
