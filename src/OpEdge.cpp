@@ -110,11 +110,20 @@ void OpHulls::sort(bool useSmall) {
 	});
 }
 
-EdgeDistance::EdgeDistance(OpEdge* e, float c, float tIn, bool r)
+EdgePal::EdgePal(OpEdge* e, float c, float tIn, bool r)
 	: edge(e)
 	, cept(c)
 	, edgeInsideT(tIn)
 	, reversed(r) {
+	debugUID = 0;
+}
+
+EdgePal::EdgePal(OpEdge* e, bool r  OP_DEBUG_PARAMS(int uID))
+	: edge(e)
+	, cept(OpNaN)
+	, edgeInsideT(OpNaN)
+	, reversed(r) {
+	OP_DEBUG_CODE(debugUID = uID);
 }
 
 // called when creating edge for curve curve intersection building
@@ -147,6 +156,7 @@ OpEdge::OpEdge(OpContours* contours, const OpPtT& start, const OpPtT& end  OP_LI
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = 0);
     OP_DEBUG_CODE(debugFiller = true);
+	OP_DEBUG_IMAGE_CODE(if (!debugCustom) debugColor = mediumPurple);
 	segment = nullptr;  // assume these can't be used -- edge does not exist in segment
 //	startSect = -1;
 //	endSect = -1;
@@ -217,7 +227,7 @@ CalcFail OpEdge::addIfUR(Axis axis, float edgeInsideT, OpWinding* sumWinding) {
 	return CalcFail::none;
 }
 
-void OpEdge::addPal(EdgeDistance& dist) {
+void OpEdge::addPal(const EdgePal& dist) {
 	if (pals.end() == std::find_if(pals.begin(), pals.end(), 
 			[dist](auto pal) { return dist.edge == pal.edge; }))
 		pals.push_back(dist);
@@ -404,7 +414,7 @@ bool OpEdge::isLine() {
 }
 
 bool OpEdge::isUnsectablePair(OpEdge* opp) {
-	return uPals.end() != std::find_if(uPals.begin(), uPals.end(), [opp](const EdgePal& edgePal) {
+	return pals.end() != std::find_if(pals.begin(), pals.end(), [opp](const EdgePal& edgePal) {
 			return edgePal.edge == opp; });
 }
 
@@ -449,9 +459,9 @@ bool OpEdge::linksTo(OpEdge* match) const {
 void OpEdge::markPals() {
 	OP_ASSERT(isUnsectable());
 	// edge is between one or more unsectableID ranges in intersections
-	for (EdgePal& uPal : uPals) {
+	for (EdgePal& pal : pals) {
 		for (auto& dist : ray.distances) {
-			if (uPal.edge == dist.edge)
+			if (pal.edge == dist.edge)
 				addPal(dist);
 		}
 	}
@@ -529,6 +539,7 @@ OpEdge* OpEdge::nextOut() {
 	clearActiveAndPals(OP_LINE_FILE_NPARAMS());
 	inLinkups = false;
     inOutput = true;
+	OP_DEBUG_IMAGE_CODE(if (!debugCustom) debugColor = orange);
     return nextEdge;
 }
 
@@ -546,7 +557,7 @@ void OpEdge::output(bool closed) {
 	bool reverse = false;
 	bool abort = false;
 	// returns true if reverse/no reverse criteria found
-	auto test = [&reverse, &abort](const EdgeDistance* outer, const EdgeDistance* inner) {
+	auto test = [&reverse, &abort](const EdgePal* outer, const EdgePal* inner) {
 		if (!outer->edge->inOutput && !outer->edge->inLinkups)
 			return false;
 		// reverse iff normal direction of inner and outer match and outer normal points to nonzero
@@ -581,7 +592,7 @@ void OpEdge::output(bool closed) {
 	do {
 	//	OP_ASSERT(!edge->inOutput);	// !!! cubic714074 triggers with very small edge, used twice
 		unsigned index;
-		const EdgeDistance* inner;
+		const EdgePal* inner;
 		for (index = 0; index < edge->ray.distances.size(); ++index) {
 			inner = &edge->ray.distances[index];
 			if (inner->edge == edge)
@@ -590,7 +601,7 @@ void OpEdge::output(bool closed) {
 		OP_ASSERT(!index || index < edge->ray.distances.size());
 		if (index == 0)  // if nothing to its left, don't reverse
 			break;
-		const EdgeDistance* outer = &edge->ray.distances[index - 1];
+		const EdgePal* outer = &edge->ray.distances[index - 1];
 		if (test(outer, inner))
 			break;
 		edge = edge->nextEdge;
@@ -680,6 +691,7 @@ OpPtT OpEdge::ptTCloseTo(OpPtT oPtPair, const OpPtT& ptT) const {
 void OpEdge::setDisabled(OP_LINE_FILE_NP_DEF()) {
 	disabled = true; 
 	OP_LINE_FILE_SET(debugSetDisabled); 
+	OP_DEBUG_IMAGE_CODE(if (!debugCustom) debugColor = red);
 }
 
 OpEdge* OpEdge::setLastEdge() {
@@ -831,8 +843,8 @@ void OpEdge::unlink() {
 }
 
 bool OpEdge::unsectableSeen(EdgeMatch match) const {
-	for (const EdgePal& uPal : uPals) {
-		if (uPal.reversed == (EdgeMatch::end == match) ? uPal.edge->startSeen : uPal.edge->endSeen)
+	for (const EdgePal& pal : pals) {
+		if (pal.reversed == (EdgeMatch::end == match) ? pal.edge->startSeen : pal.edge->endSeen)
 			return true;
 	}
 	return false;

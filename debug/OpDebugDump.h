@@ -30,7 +30,6 @@ void dumpSet(const char*& ) override;
 // removed OP_X(LoopCheck) for now
 #define VECTOR_STRUCTS \
 OP_X(CoinPair) \
-OP_X(EdgeDistance) \
 OP_X(EdgeRun) \
 OP_X(EdgePal) \
 OP_X(FoundEdge) \

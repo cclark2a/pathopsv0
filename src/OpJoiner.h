@@ -83,11 +83,12 @@ enum class LimbPass : uint8_t {
 	none,
 	linked,    // in linkups list with correct winding
 	unlinked,  // in unsectByArea and in unsortables
+	unsectPair, // gap to other edge in unsectable pair
 	disabled,  // in disabled
 	disabledPals,  // in disabled pals
 	miswound,  // in linkups list, including entries with the wrong winding
-	unsectPair, // gap to other edge in unsectable pair
 	disjoint,  // gap to closest in linkups list, or gap to edge start (loop)
+	unlinkedPal,  // unlinked variant that permits siblings to connect to seen edges' pals
 };
 
 inline LimbPass operator++(LimbPass& limbPass) {
@@ -118,7 +119,7 @@ struct OpLimb {
 	void addEach(OpJoiner& , OpTree& );
 	void set(OpTree& , OpEdge* , OpLimb* parent, EdgeMatch , LimbPass , 
 			size_t index, OpEdge* otherEnd, const OpPointBounds* bounds = nullptr);
-	void tryAdd(OpTree& , OpEdge* , EdgeMatch , LimbPass , size_t index = 0, 
+	OpLimb* tryAdd(OpTree& , OpEdge* , EdgeMatch , LimbPass , size_t index = 0, 
 			OpEdge* first = nullptr);
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS

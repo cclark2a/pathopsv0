@@ -130,8 +130,8 @@ struct OpIntersection {
 	OpSegment* segment;
 	OpIntersection* opp;
 	OpPtT ptT;
-	int coincidenceID;
-	int unsectID;
+	int coincidenceID;  // if non-zero, intersection marks range where edges completely overlap
+	int unsectID;  // if non-zero, intersection marks range where edges are too close to call
 	// !!! why does coin makes both negative but unsect only makes one negative...
 	MatchEnds coinEnd;  // used to put start before end on sect sort (negative if pair flipped)
 	MatchEnds unsectEnd;  // one side is negative if pair are flipped

@@ -62,11 +62,12 @@ enum class EdgeFail : uint8_t {
 	vertical,
 };
 
-struct EdgeDistance {
-	EdgeDistance(OpEdge* e, float c, float tIn, bool r);
+struct EdgePal {
+	EdgePal(OpEdge* e, float c, float tIn, bool r);  // called when winder can't resolve order
+	EdgePal(OpEdge* e, bool r  OP_DEBUG_PARAMS(int uID)); // called when edge maker is between unsectables
 
 #if OP_DEBUG_DUMP
-	EdgeDistance() {}
+	EdgePal() {}
 	DUMP_DECLARATIONS
 #endif
 
@@ -74,6 +75,7 @@ struct EdgeDistance {
 	float cept;  // where normal intersects edge (e.g. for home, axis horz: center.x)
 	float edgeInsideT;  // !!! t value from 0 to 1 within edge range (seems bizarre)
 	bool reversed;
+	OP_DEBUG_CODE(int debugUID);  // unsect id from sect in edge's segment
 };
 
 enum class FindCept {
@@ -105,16 +107,17 @@ struct SectRay {
 	}
 	void addPals(OpEdge* );
 	bool checkOrder(const OpEdge* ) const;
-	const EdgeDistance* end(DistEnd e) {
+	const EdgePal* end(DistEnd e) const {
 		return DistEnd::front == e ? &distances.front() : &distances.back(); }
 	FindCept findIntercept(OpEdge* home, OpEdge* test);
-	EdgeDistance* find(OpEdge* );
-	EdgeDistance* next(EdgeDistance* dist, DistEnd e) {
+	const EdgePal* find(const OpEdge* ) const;  // returns edge in distances
+	const EdgePal* next(const EdgePal* dist, DistEnd e) const {
 		return dist + (int) e; }
+	bool sectsAllPals(const OpEdge* ) const;  // returns if edge + all of its pals are in distances
 	void sort();
 	DUMP_DECLARATIONS
 
-	std::vector<EdgeDistance> distances;
+	std::vector<EdgePal> distances;
 	OpVector homeTangent;  // used to determine if unsectable edge is reversed
 	float normal;  // ray used to find windings on home edge (e.g., axis: h, center.y)
 	float homeCept;  // intersection of normal on home edge (e.g., axis: h, center.x)
@@ -211,14 +214,6 @@ enum class Unsectable {
 	multiple,
 };
 
-struct EdgePal {
-	DUMP_DECLARATIONS
-
-	OpEdge* edge;
-	bool reversed;
-	OP_DEBUG_CODE(int debugUID);  // unsect id from sect in edge's segment
-};
-
 struct CoinPal {
 	friend bool operator==(CoinPal a, CoinPal b) {
 		return a.coinID == b.coinID;
@@ -239,7 +234,6 @@ private:
 		: priorEdge(nullptr)
 		, nextEdge(nullptr)
 		, lastEdge(nullptr)
-		, coinBoss(nullptr)
 		, upright_impl( { SetToNaN::dummy, SetToNaN::dummy } )
 		, winding(WindingUninitialized::dummy)
 		, sum(WindingUninitialized::dummy)
@@ -254,7 +248,6 @@ private:
 		, inLinkups(false)
 		, inOutput(false)
 		, disabled(false)
-		, isCoinBoss(false)
 		, isUnsortable(false)
 		, ccEnd(false)
 		, ccLarge(false)
@@ -287,6 +280,7 @@ private:
 		debugColor = debugBlack;
 		debugDraw = true;
 		debugJoin = false;
+		debugCustom = false;
 #endif
 	}
 public:
@@ -298,7 +292,7 @@ public:
 	OpEdge(const OpEdge* e, float t1, float t2  OP_LINE_FILE_DEF());
 
 	CalcFail addIfUR(Axis xis, float t, OpWinding* );
-	void addPal(EdgeDistance& );
+	void addPal(const EdgePal& );
 	CalcFail addSub(Axis axis, float t, OpWinding* );
 	OpEdge* advanceToEnd(EdgeMatch );
 	void apply();
@@ -331,7 +325,7 @@ public:
 		return pals.end() != std::find_if(pals.begin(), pals.end(), 
 				[opp](const auto& test) { return opp == test.edge; }); }
 	bool isUnsectable() const { 
-		return uSects.size(); }
+		return pals.size(); }
 	bool isUnsectablePair(OpEdge* opp);  // true if this and opp are unsectable pairs
 	void linkToEdge(FoundEdge& , EdgeMatch );
 	bool linksTo(OpEdge* match) const;
@@ -382,8 +376,8 @@ public:
 	EdgeMatch which() const {
 		return whichEnd_impl; }
 	OpPtT whichPtT(EdgeMatch match = EdgeMatch::start) const { 
-		return match == which() ? start() : end(); }
-
+		return match == (EdgeMatch::none == whichEnd_impl ? EdgeMatch::start : whichEnd_impl)
+				? start() : end(); }
 	bool debugFail() const;
     bool debugSuccess() const;
 #if OP_DEBUG_DUMP
@@ -422,7 +416,6 @@ public:
 	OpEdge* priorEdge;	// edges that link to form completed contour
 	OpEdge* nextEdge;
 	OpEdge* lastEdge;
-	OpEdge* coinBoss;  // edge this winding was transferred to as a result of coincidence
 	OpPtT center;  // curve location used to find winding contribution
 	OpCurve curve;
 	OpCurve vertical_impl;	// only access through set vertical function
@@ -432,12 +425,11 @@ public:
 	OpWinding winding;	// contribution: always starts as 1, 0 (or 0, 1)
 	OpWinding sum;  // total incl. normal side of edge for operands (fill count in normal direction)
 	OpWinding many;  // temporary used by unsectables to contain all pal windings combined
-	std::vector<CoinPal> cPals;  // track coincidences bracketing edge by ID
-	std::vector<OpIntersection*> uSects;  // track unsectables bracketing edge by intersection
-	std::vector<EdgePal> uPals; // pals (below) are ray-close; uPals (here) share sect overlap
-	std::vector<EdgeDistance> pals;	 // list of unsectable adjacent edges !!! should be pointers?
-	std::vector<OpEdge*> lessRay;  // edges found placed with smaller edge distance cept values
-	std::vector<OpEdge*> moreRay;  // edges found placed with larger edge distance cept values
+	std::vector<CoinPal> coinPals;  // track coincidences bracketing edge by ID
+	std::vector<OpIntersection*> unSects;  // unsectable intersections bracketing edge
+	std::vector<EdgePal> pals;	 // edge + pals share sect overlap; or ray can't order edge and pals
+//	std::vector<OpEdge*> lessRay;  // edges found placed with smaller edge distance cept values
+//	std::vector<OpEdge*> moreRay;  // edges found placed with larger edge distance cept values
 //	std::vector<UnsectableOpp> uPairs; // opposite edges unsectable with this edge
 	OpHulls hulls;  // curve-curve intersections
 	float startT;  // used to be ptT; needs sect to find unsectable
@@ -455,7 +447,6 @@ public:
 	bool inLinkups; // like inOutput, to marks unsectable edges; all edges in linkups l vector
 	bool inOutput;	// likely only used to find inactive unsectables that are not on output path
 	bool disabled;	// winding is zero, or apply disqualified edge from appearing in output
-	bool isCoinBoss;  // if set, other coincident edges put their windings and unsectables here
 //	bool isUnsectable;	// if set edge is between one or more unsectable ranges (in intersections) 
 	bool isUnsortable;  // unsectable is unsortable; others (e.g., very small) are also unsortable
 	bool ccEnd;  // set if edge end is closest to already found curve-curve intersection
@@ -482,6 +473,7 @@ public:
 	uint32_t debugColor;
 	bool debugDraw;
 	bool debugJoin;	 // true if included by joiner
+	bool debugCustom;  // true if color set by immediate mode debugging
 #endif
 #if OP_DEBUG_MAKER
 	OpDebugMaker debugSetDisabled;

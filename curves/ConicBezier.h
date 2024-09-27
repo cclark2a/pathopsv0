@@ -167,7 +167,8 @@ inline size_t AddConics(AddCurve curve, AddWinding windings) {
             PointWeight control;
         } curveData { { ptTs[index].pt, ptTs[index + 1].pt },
                 ConicControl(start, control, end, ptTs[index], ptTs[index + 1]) };
-        Add({ curveData.endPts, curve.size, curve.type }, windings );
+        if (curveData.endPts[0] != curveData.endPts[1])
+            Add({ curveData.endPts, curve.size, curve.type }, windings );
     }
     return curvesAdded;
 }

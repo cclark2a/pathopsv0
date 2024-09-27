@@ -360,8 +360,7 @@ void  OpDebugImage::playback(FILE* file) {
 				if (colorStr)
 					color = strtoul(colorStr + strlen("color: "), nullptr, 0);
 				if (edge && color) {
-					// hackery to not color out-edges prematurely
-					if (edge->inOutput || color != orange)
+					if (edge->debugCustom)
 						edge->debugColor = color;
 				} else if (edge)  // ok if recorded edge does not yet exist
 					return noMatch(str);
@@ -465,10 +464,8 @@ void OpDebugImage::drawDoubleFocus() {
 			ids.push_back(edge->id);
 
 			if (drawIDsOn) {
-				uint32_t color = black;
-				if (edge->disabled)
-					color = red;
-				else if (edgeIter.isCurveCurve) {
+				uint32_t color = edge->debugColor;
+				if (edgeIter.isCurveCurve) {  // !!! update this to new edge color scheme
 					if (edge->ccOverlaps)
 						color = edge->winding.contour->callBacks
 								.debugIsOppFuncPtr(edge->winding.contour->caller)
@@ -1518,6 +1515,7 @@ void colorActive(uint32_t color) {
 		if (edge->active_impl) {
 			edge->debugColor = color;
 			edge->debugDraw = true;
+			edge->debugCustom = true;
 		}
 	}
 	OpDebugImage::drawDoubleFocus();
@@ -1529,6 +1527,7 @@ void colorDisabled(uint32_t color) {
 		if (edge->disabled) {
 			edge->debugColor = color;
 			edge->debugDraw = true;
+			edge->debugCustom = true;
 		}
 	}
 	OpDebugImage::drawDoubleFocus();
@@ -1539,6 +1538,7 @@ void colorEdges(uint32_t color) {
 		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
 		edge->debugColor = color;
 		edge->debugDraw = true;
+		edge->debugCustom = true;
 	}
 	OpDebugImage::drawDoubleFocus();
 }
@@ -1562,6 +1562,7 @@ void colorOut(uint32_t color) {
 			else {
 				edge->debugColor = debugColorArray[edge->debugOutPath % debugColorArray.size()].first;
 			}
+			edge->debugCustom = true;
 			edge->debugDraw = true;
 		}
 	}
@@ -1574,6 +1575,7 @@ void colorLinkups(uint32_t color) {
 		if (edge->inLinkups) {
 			edge->debugColor = color;
 			edge->debugDraw = true;
+			edge->debugCustom = true;
 		}
 	}
 	OpDebugImage::drawDoubleFocus();
@@ -1586,6 +1588,7 @@ void colorOpp(uint32_t color) {
 		if (contour->callBacks.debugIsOppFuncPtr(contour->caller)) {
 			edge->debugColor = color;
 			edge->debugDraw = true;
+			edge->debugCustom = true;
 		}
 	}
 	OpDebugImage::drawDoubleFocus();
@@ -1601,6 +1604,7 @@ void colorUnsectables(uint32_t color) {
 		if (edge->isUnsectable()) {
 			edge->debugColor = color;
 			edge->debugDraw = true;
+			edge->debugCustom = true;
 		}
 	}
 	OpDebugImage::drawDoubleFocus();
@@ -1612,6 +1616,7 @@ void colorUnsortables(uint32_t color) {
 		if (edge->isUnsortable) {
 			edge->debugColor = color;
 			edge->debugDraw = true;
+			edge->debugCustom = true;
 		}
 	}
 	OpDebugImage::drawDoubleFocus();
@@ -1636,6 +1641,7 @@ void color(int id) {
 		return;
 	edge->debugColor = OP_DEBUG_MULTICOLORED;
 	edge->debugDraw = true;
+	edge->debugCustom = true;
 	OpDebugImage::drawDoubleFocus();
 }
 
@@ -1645,6 +1651,7 @@ void color(int id, uint32_t c) {
 		return;
 	edge->debugColor = c;
 	edge->debugDraw = true;
+	edge->debugCustom = true;
 	OpDebugImage::drawDoubleFocus();
 }
 
@@ -1652,8 +1659,9 @@ void uncolor(int id) {
 	OpEdge* edge = findEdge(id);
 	if (!edge)
 		return;
-	edge->debugColor = black;
+	edge->debugColor = black;  // note color of disabled, filler, out, etc. is lost
 	edge->debugDraw = true;
+	edge->debugCustom = false;
 	OpDebugImage::drawDoubleFocus();
 }
 
@@ -1666,6 +1674,7 @@ void colorLink(OpEdge* edge, uint32_t color) {
 		for (;;) {
 			chain->debugColor = color;
 			chain->debugDraw = true;
+			chain->debugCustom = true;
 			if (chain == looped) {
 				if (firstLoop)
 					return;
@@ -1696,6 +1705,7 @@ void colorLink(int id, uint32_t color) {
 
 void OpEdge::color(uint32_t c) {
 	debugColor = c;
+	debugCustom = true;
 	OpDebugImage::drawDoubleFocus();
 }
 

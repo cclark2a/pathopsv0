@@ -96,9 +96,9 @@ void OpIntersections::makeEdges(OpSegment* segment) {
             first = sectPtr;
             OpEdge& newEdge = segment->edges.back();
             if (unsectables.size())
-                newEdge.uSects = unsectables;
+                newEdge.unSects = unsectables;
             if (coincidences.size()) {
-                newEdge.cPals = coincidences;
+                newEdge.coinPals = coincidences;
             }
         }
         stackUnsects(sectPtr);

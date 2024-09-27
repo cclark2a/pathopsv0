@@ -72,14 +72,25 @@ bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
                 zeroSide = !zeroSide;
             return zeroSide;
         };
-        auto saveMatch = [edge, &oppEdges, &oSect, checkZero](EdgeMatch testEnd) {
+        auto isSortable = [](const OpEdge* e, const OpEdge* o) {
+            if (e->isUnsortable)
+                return false;
+            if (!e->pals.size())
+                return true;
+            if (e->isPal(o))
+                return true;
+            if (!o->ray.find(e))
+                return true;
+            return o->ray.sectsAllPals(e);
+        };
+        auto saveMatch = [edge, &oppEdges, &oSect, checkZero, isSortable](EdgeMatch testEnd) {
             OpSegment* oSeg = oSect->segment;
             OpEdge* test = oSeg->findEnabled(oSect->ptT, testEnd);  // !!! optimization: walk edges in order
             bool result = false;
-            if (test && test != edge && (edge->isUnsortable || test->isUnsortable
+            if (test && test != edge && (!isSortable(edge, test) || !isSortable(test, edge)
                     || edge->windZero == checkZero(test, edge->which(), testEnd))) {
                 result = test->hasLinkTo(testEnd);
-                if (!result && !test->isPal(edge))
+                if (!result)
                     oppEdges.emplace_back(test, EdgeMatch::none);
             }
             return result;
@@ -433,13 +444,13 @@ void OpSegment::makeCoins() {
         return;
     for (size_t edgeIndex = 0; edgeIndex < edges.size(); ++edgeIndex) {
         OpEdge& edge = edges[edgeIndex];
-        if (!edge.cPals.size())
+        if (!edge.coinPals.size())
             continue;
         if (edge.disabled)
             continue;
         // if edge is coincident, transfer windings and unsectable sects to boss
         bool transferred = false;
-        for (const CoinPal& cPal : edge.cPals) {
+        for (const CoinPal& cPal : edge.coinPals) {
             OpSegment* oSeg = cPal.opp;
             OP_ASSERT(oSeg != this);
             if (oSeg->disabled)
@@ -451,7 +462,7 @@ void OpSegment::makeCoins() {
                     return false;
                 if (edge.startPt() != oEdge->ptT(match).pt)
                     return false;
-                std::vector<CoinPal>& ocPals = oEdge->cPals;
+                std::vector<CoinPal>& ocPals = oEdge->coinPals;
                 if (ocPals.end() == std::find_if(ocPals.begin(), ocPals.end(), [cID]
                         (const CoinPal& ocPal){ return ocPal.coinID == cID; }))
                     return false;
@@ -463,7 +474,7 @@ void OpSegment::makeCoins() {
             };
             // repeat for any opp edges that make up the rest of this coin span
             auto transferCopy = [](OpEdge* oTest, OpEdge* oEdge) {
-                if (oTest->cPals != oEdge->cPals)
+                if (oTest->coinPals != oEdge->coinPals)
                     return false;
                 oTest->setDisabledZero(OP_LINE_FILE_NPARAMS());
                 return true;
@@ -497,7 +508,7 @@ void OpSegment::makeCoins() {
             edge.setDisabled(OP_LINE_FILE_NPARAMS());
         while (++edgeIndex < edges.size()) {
             OpEdge& test = edges[edgeIndex];
-            if (test.cPals != edge.cPals)
+            if (test.coinPals != edge.coinPals)
                 break;
             test.winding = edge.winding;
             if (setDisabled)
@@ -515,7 +526,7 @@ void OpSegment::makePals() {
     for (OpEdge& edge : edges) {
         if (edge.disabled)
             continue;
-        for (OpIntersection* uSect : edge.uSects) {
+        for (OpIntersection* uSect : edge.unSects) {
             int uID = abs(uSect->unsectID);
             OP_ASSERT(uID);
             OpSegment* oSeg = uSect->opp->segment;
@@ -525,15 +536,15 @@ void OpSegment::makePals() {
             for (OpEdge& oEdge : oSeg->edges) {
                 if (oEdge.disabled)
                     continue;
-                for (OpIntersection* oSect : oEdge.uSects) {
+                for (OpIntersection* oSect : oEdge.unSects) {
                     if (abs(oSect->unsectID) != uID)
                         continue;
-                    auto found = std::find_if(edge.uPals.begin(), edge.uPals.end(), 
+                    auto found = std::find_if(edge.pals.begin(), edge.pals.end(), 
                             [&edge](const EdgePal& test) { return &edge != test.edge; });
-                    if (edge.uPals.end() == found) {
+                    if (edge.pals.end() == found) {
                         EdgePal pal { &oEdge, uSect->unsectID != oSect->unsectID 
                                 OP_DEBUG_PARAMS(uID) };
-                        edge.uPals.push_back(pal);
+                        edge.pals.push_back(pal);
                     }
                 }
             }

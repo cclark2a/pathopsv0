@@ -559,10 +559,10 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContours* contours)) {
                 continue;
             if (linkup->disabled)
                 continue;
-            const EdgeDistance* linkDist = nullptr;
+            const EdgePal* linkDist = nullptr;
             OpEdge* dTest = nullptr;
-            OP_DEBUG_CODE(const EdgeDistance* dDist = nullptr);
-            for (const EdgeDistance* dist = &linkup->ray.distances.back(); 
+            OP_DEBUG_CODE(const EdgePal* dDist = nullptr);
+            for (const EdgePal* dist = &linkup->ray.distances.back(); 
                     dist >= &linkup->ray.distances.front(); --dist) {
                 OpEdge* test = dist->edge;
                 if (test == linkup) {
@@ -695,6 +695,7 @@ void OpJoiner::debugValidate() const {
         for (auto e : byArea) {
             e->debugValidate();
             OP_ASSERT(!e->isActive() || !e->debugIsLoop());
+            OP_ASSERT(!e->disabled);
         }
     }
     for (auto e : unsectByArea) {
@@ -749,7 +750,6 @@ void debugImage() {
         ::showValues();
         ::showWindings();
         ::showTangents();
-        ::colorOut(orange);
         ::resetFocus();
         ::oo();
         return;

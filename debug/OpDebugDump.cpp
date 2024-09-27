@@ -1426,12 +1426,9 @@ ENUM_NAME(EdgeSplit, edgeSplit)
 	OP_X(winding) \
 	OP_X(sum) \
 	OP_X(many) \
-	OP_X(cPals) \
-	OP_X(uSects) \
-	OP_X(uPals) \
+	OP_X(coinPals) \
+	OP_X(unSects) \
 	OP_X(pals) \
-	OP_X(lessRay) \
-	OP_X(moreRay) \
     OP_X(hulls) \
 	OP_X(startT) \
 	OP_X(endT) \
@@ -1473,7 +1470,8 @@ ENUM_NAME(EdgeSplit, edgeSplit)
 #define EDGE_IMAGE \
 	OP_X(Color) \
 	OP_X(Draw) \
-	OP_X(Join)
+	OP_X(Join) \
+	OP_X(Custom)
 
 #define EDGE_MAKER \
     OP_X(SetDisabled) \
@@ -1779,11 +1777,31 @@ ENUM_NAME_ABBR(SectType, sectType)
 
 std::string EdgePal::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    s += STR(edge->id);
+    s += "edge:" + STR(edge->id) + " ";
+    if (!OpMath::IsNaN(cept))
+        s += debugValue(l, b, "cept", cept) + " ";
+    if (!OpMath::IsNaN(edgeInsideT))
+        s += debugValue(l, b, "edgeInsideT", edgeInsideT) + " ";
     if (reversed) 
-        s += "r";
-    s += " uid:" + STR(debugUID);
+        s += "r ";
+    if (debugUID)
+        s += "debugUID:" + STR(debugUID) + " ";
+    if (s.size())
+        s.pop_back();
     return s;
+}
+
+void EdgePal::dumpSet(const char*& str) {
+    OpDebugRequired(str, "edge");
+    edge = (OpEdge*) OpDebugReadSizeT(str);
+    if (OpDebugOptional(str, "cept"))
+        cept = OpDebugHexToFloat(str);
+    if (OpDebugOptional(str, "edgeInsideT"))
+        edgeInsideT = OpDebugHexToFloat(str);
+    if (OpDebugOptional(str, "r"))
+        reversed = true;
+    if (OpDebugOptional(str, "debugUID"))
+        debugUID = OpDebugReadSizeT(str);
 }
 
 std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
@@ -1875,35 +1893,30 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     if (dumpIt(EdgeFilter::winding)) s += strWinding(EdgeFilter::winding, "winding", winding);
     if (dumpIt(EdgeFilter::sum)) s += strWinding(EdgeFilter::sum, "sum", sum);
     if (dumpIt(EdgeFilter::many)) s += strWinding(EdgeFilter::many, "many", many);
-    if (dumpIt(EdgeFilter::cPals) && (dumpAlways(EdgeFilter::cPals) || cPals.size())) {
-        s += strLabel("cPals") + "[";
-        for (auto& cPal : cPals) {
+    if (dumpIt(EdgeFilter::coinPals) && (dumpAlways(EdgeFilter::coinPals) || coinPals.size())) {
+        s += strLabel("coinPals") + "[";
+        for (auto& cPal : coinPals) {
             s += "{opp:" + STR(cPal.opp->id) + " coinID:" + STR(cPal.coinID) + "} ";
         }
         s.pop_back();
         s += "] ";
     }
-    if (dumpIt(EdgeFilter::uSects) && (dumpAlways(EdgeFilter::uSects) || uSects.size())) {
-        s += strLabel("uSects") + "[";
-        for (auto& uSect : uSects)
+    if (dumpIt(EdgeFilter::unSects) && (dumpAlways(EdgeFilter::unSects) || unSects.size())) {
+        s += strLabel("unSects") + "[";
+        for (auto& uSect : unSects)
             s += STR(uSect->id) + " ";
         s.pop_back();
         s += "] ";
     }
-    if (dumpIt(EdgeFilter::uPals) && (dumpAlways(EdgeFilter::uPals) || uPals.size())) {
-        s += strLabel("uPals") + "[";
-        for (auto& pal : uPals) {
-            s += pal.debugDump(l, b) + " ";
+    if (dumpIt(EdgeFilter::pals) && (dumpAlways(EdgeFilter::pals) || pals.size())) {
+        s += strLabel("pals") + "[";
+        for (auto& pal : pals) {
+            s += pal.debugDump(DebugLevel::brief, b) + " ";
         }
         s.pop_back();
         s += "] ";
     }
-    if (dumpIt(EdgeFilter::pals) && (dumpAlways(EdgeFilter::pals) || pals.size())) {
-        s += strLabel("pals") + ":";
-        for (auto& pal : pals)
-            s += pal.debugDump(DebugLevel::brief, b) + " ";
-        if (!pals.size()) s += " ";
-    }
+#if 0
     if (dumpIt(EdgeFilter::lessRay) && (dumpAlways(EdgeFilter::lessRay) || lessRay.size())) {
         s += strLabel("lessRay") + "[";
         for (auto less : lessRay)
@@ -1918,6 +1931,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         if (' ' == s.back()) s.pop_back();
         s += "] ";
     }
+#endif
     if (dumpIt(EdgeFilter::hulls) && (dumpAlways(EdgeFilter::hulls) || hulls.h.size())) {
         s += "hulls[";  // don't abbreviate in brief
         for (auto& hs : hulls.h)
@@ -1980,6 +1994,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         s += debugDumpColor(debugColor) + " ";
     STR_BOOL(debugDraw);
     STR_BOOL(debugJoin);
+    STR_BOOL(debugCustom);
 #endif
 #undef STR_BOOL
     return s;
@@ -2052,6 +2067,7 @@ void OpEdge::dumpSet(const char*& str) {
             pals.back().dumpSet(str);
         }
     }
+#if 0
     if (OpDebugOptional(str, "lessRay[")) {
         int edgeCount = OpDebugCountDelimiters(str, ' ', '[', ']');
         lessRay.resize(edgeCount);
@@ -2064,6 +2080,7 @@ void OpEdge::dumpSet(const char*& str) {
         for (int index = 0; index < edgeCount; ++index)
             moreRay[index] = (OpEdge*) OpDebugReadSizeT(str);
     }
+#endif
     if (OpDebugOptional(str, "hulls[")) {
         int hullCount = OpDebugCountDelimiters(str, ':', '[', ']') / 2;  // ':' used twice per hull
         hulls.h.resize(hullCount);
@@ -2118,6 +2135,7 @@ void OpEdge::dumpSet(const char*& str) {
     // !!! skip debug color for now
     STR_BOOL(debugDraw);
     STR_BOOL(debugJoin);
+    STR_BOOL(debugCustom);
 #endif
 #undef STR_BOOL
     // !!! skip missing if present
@@ -2128,10 +2146,10 @@ void OpEdge::dumpResolveAll(OpContours* c) {
     c->dumpResolve(priorEdge);
     c->dumpResolve(nextEdge);
     c->dumpResolve(lastEdge);
-    for (auto& less : lessRay)
-        c->dumpResolve(less);
-    for (auto& more : moreRay)
-        c->dumpResolve(more);
+//    for (auto& less : lessRay)
+//        c->dumpResolve(less);
+//    for (auto& more : moreRay)
+//        c->dumpResolve(more);
     for (auto& hull : hulls.h)
         hull.dumpResolveAll(c);
 #if OP_DEBUG
@@ -2792,11 +2810,12 @@ LimbPassName limbPassNames[] = {
 	LIMBPASS_NAME(none),
 	LIMBPASS_NAME(linked),
     LIMBPASS_NAME(unlinked),
+    LIMBPASS_NAME(unsectPair),
 	LIMBPASS_NAME(disabled),
 	LIMBPASS_NAME(disabledPals),
 	LIMBPASS_NAME(miswound),
-    LIMBPASS_NAME(unsectPair),
 	LIMBPASS_NAME(disjoint),
+    LIMBPASS_NAME(unlinkedPal),
 };
 
 ENUM_NAME(LimbPass, limbPass)
@@ -2972,26 +2991,6 @@ std::string OpWinder::debugDump(DebugLevel l, DebugBase b) const {
     return s;
 }
 
-std::string EdgeDistance::debugDump(DebugLevel l, DebugBase b) const {
-    std::string s = "e["+ STR(edge->id) + "] ";
-    s += debugValue(l, b, "cept", cept) + " ";
-    s += debugValue(l, b, "edgeInsideT", edgeInsideT) + " ";
-    if (reversed) s += debugLabel(l, "reversed") + " ";
-    if (s.size())
-        s.pop_back();
-    return s;
-}
-
-void EdgeDistance::dumpSet(const char*& str) {
-    OpDebugRequired(str, "e[");
-    edge = (OpEdge*) OpDebugReadSizeT(str);
-    OpDebugRequired(str, "]");
-    cept = OpDebugReadNamedFloat(str, "cept");
-    edgeInsideT = OpDebugReadNamedFloat(str, "edgeInsideT");
-    if (OpDebugOptional(str, "reversed"))
-        reversed = true;
-}
-
 std::string EdgeRun::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     s += "e[" + STR(edge->id) + "] ";
@@ -3092,7 +3091,7 @@ std::string SectRay::debugDump(DebugLevel l, DebugBase b) const {
     s += debugValue(l, b, "homeCept", homeCept) + " ";
     s += debugValue(l, b, "homeT", homeT) + " ";
     s += "axis:" + axisName(axis) + " ";
-    for (const EdgeDistance& dist : distances)
+    for (const EdgePal& dist : distances)
         s += dist.debugDump(DebugLevel::brief, b) + " ";
     if (s.size())
         s.pop_back();
