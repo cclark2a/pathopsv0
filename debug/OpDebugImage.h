@@ -105,6 +105,9 @@ extern void addFocus(const OpPoint* );
 extern void addFocus(const OpPtT* );
 extern void addFocus(const OpRect* );
 extern void addFocus(const OpSegment* );
+extern void addFocusLink(int id);
+extern void addFocusLink(const OpEdge& );
+extern void addFocusLink(const OpEdge* );
 extern void ctr();
 extern void ctr(int id);
 extern void ctr(float x, float y);
@@ -169,6 +172,9 @@ extern void focus(const OpEdge* );
 extern void focus(const OpRect* );
 extern void focus(const OpSegment* );
 extern void focusEdges();
+extern void focusLink(int id);
+extern void focusLink(const OpEdge& );
+extern void focusLink(const OpEdge* );
 extern void focusSegments();
 extern void gridCenter(int x, int y);
 extern void gridLines(int );
@@ -176,11 +182,13 @@ extern void gridStep(float dxy);
 extern void help();
 extern void hideSegmentEdges();  // not in master list; immediately changes edge state
 extern void hideTemporaryEdges();
-extern void precision(int );
+extern void precision(int );  // number of fractional decimals; -1 is unset
 extern void redraw();  // draw all current state
 extern void resetFocus();
+extern void showEpsilon(bool );  // show values smaller than 100 * OpEpsilon as eps
 extern void showSegmentEdges();  // not in master list; immediately changes edge state
 extern void showTemporaryEdges();
+extern void smallFloats(bool );  // set to false to show sub-epsilon values as ~0
 extern void textSize(float );
 extern void toggleSegmentEdges();  // not in master list; immediately changes edge state
 extern void toggleTemporaryEdges();

@@ -54,8 +54,8 @@ struct FoundEdge {
 
 struct OpSegment {
     OpSegment(PathOpsV0Lib::AddCurve , PathOpsV0Lib::AddWinding );
-    bool activeAtT(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& , bool* hadLinkTo) const;
-    bool activeNeighbor(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const;
+    bool activeAtT(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const; // true if pal
+    bool activeNeighbor(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const; // true if pal
     OpIntersection* addEdgeSect(const OpPtT&    
             OP_LINE_FILE_DEF(const OpEdge* e, const OpEdge* o));
     OpIntersection* addSegBase(const OpPtT&  
@@ -66,6 +66,7 @@ struct OpSegment {
             OP_LINE_FILE_DEF());
     OpIntersection* addUnsectable(const OpPtT& , int usectID, MatchEnds , const OpSegment* o 
             OP_LINE_FILE_DEF());
+    OpPoint aliasOriginal(MatchEnds ) const;
     void apply();
     void betweenIntersections();
     int coinID(bool flipped);
@@ -77,8 +78,8 @@ struct OpSegment {
     // count and sort extrema; create an edge for each extrema + 1
     bool isFinite() const {
         return closeBounds.isFinite(); } 
-    bool isSimple() const {
-        return 1 == edges.size() && 2 == sects.i.size(); }
+//    bool isSimple() const {
+//        return 1 == edges.size() && 2 == sects.i.size(); }
     void makeCoins();
     void makeEdge(OP_LINE_FILE_NP_DEF());
     void makeEdges();
@@ -86,13 +87,15 @@ struct OpSegment {
     MatchReverse matchEnds(const LinePts& opp) const;
     MatchReverse matchEnds(const OpSegment* opp) const;
 //    MatchEnds matchExisting(const OpSegment* opp) const;
-    void moveTo(float t , OpPoint );  // move segment/sect point to match another endpont
+    OpPoint moveTo(float t , OpPoint );  // move segment/sect point to match another endpont
     void moveWinding(OpSegment* opp, bool backwards);
     bool nearby(float t, const OpSegment* opp) const;
     int nextID() const;
 //    void newWindCoincidences();  // !!! will eventually replace wind coincidences
     void setBounds();
 	void setDisabled(OP_LINE_FILE_NP_DEF());
+    bool simpleEnd(const OpEdge* ) const;  // true if edge end connects to only one segment
+    bool simpleStart(const OpEdge* ) const;  // true if edge start connects to only one segment
 //    void windCoincidences();
 
     bool debugFail() const;
@@ -128,6 +131,8 @@ struct OpSegment {
     bool willDisable;  // moveTo aligned ends; will be disabled by disable small segments
     bool hasCoin;
     bool hasUnsectable;
+    bool startMoved;
+    bool endMoved;
 #if OP_DEBUG_IMAGE
 	uint32_t debugColor;
 #endif

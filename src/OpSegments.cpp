@@ -49,17 +49,21 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
     };
     auto checkEnds = [add, seg, opp](OpPoint oppPt, float oppT  OP_LINE_FILE_DEF()) {
         float segT = OpNaN;
-        if (seg->c.firstPt().isNearly(oppPt)) {
+        if (seg->c.firstPt().isNearly(oppPt) || 
+                (seg->startMoved && seg->aliasOriginal(MatchEnds::start).isNearly(oppPt))) {
             segT = 0;
             if (oppPt != seg->c.firstPt()) {
                 oppPt = seg->c.firstPt();
-                opp->moveTo(oppT, oppPt);
+                OpPoint segPt = opp->moveTo(oppT, oppPt);
+                OP_ASSERT(!segPt.isFinite());  // !!! if triggered, more code to write
             }
-        } else if (seg->c.lastPt().isNearly(oppPt)) {
+        } else if (seg->c.lastPt().isNearly(oppPt) ||
+                (seg->endMoved && seg->aliasOriginal(MatchEnds::end).isNearly(oppPt))) {
             segT = 1;
             if (oppPt != seg->c.lastPt()) {
                 oppPt = seg->c.lastPt();
-                opp->moveTo(oppT, oppPt);
+                OpPoint segPt = opp->moveTo(oppT, oppPt);
+                OP_ASSERT(!segPt.isFinite());  // !!! if triggered, more code to write
             }
         }
         OP_ASSERT(opp->c.c.data->start != opp->c.c.data->end || opp->disabled || opp->willDisable);
@@ -69,13 +73,18 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
     };
     float startSegT = checkEnds(opp->c.firstPt(), 0  OP_LINE_FILE_PARAMS());
     float endSegT = checkEnds(opp->c.lastPt(), 1  OP_LINE_FILE_PARAMS());
-    auto checkOpp = [add, opp](OpPoint segPt, float segT  OP_LINE_FILE_DEF()) {
+    auto checkOpp = [add, seg, opp](OpPoint segPt, float segT  OP_LINE_FILE_DEF()) {
         float oppT = opp->c.match(0, 1, segPt);
 		if (OpMath::IsNaN(oppT))
             return oppT;
         oppT = OpMath::PinNear(oppT);
-        if ((0 == oppT || 1 == oppT) && opp->c.end(oppT) != segPt)
-            opp->moveTo(oppT, segPt);
+        if ((0 == oppT || 1 == oppT) && opp->c.end(oppT) != segPt) {
+            OpPoint oppPt = opp->moveTo(oppT, segPt);
+            if (oppPt.isFinite()) {
+                segPt = oppPt;
+                seg->moveTo(segT, segPt);
+            }
+        }
         /// !!! may add coincidence between seg and opp which goes undetected (skphealth_com76s)
         add(segPt, segT, oppT  OP_LINE_FILE_CALLER());
         return oppT;
@@ -86,13 +95,18 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
         startOppT = checkOpp(seg->c.firstPt(), 0  OP_LINE_FILE_PARAMS());  // see if start pt is on opp curve
     if (1 != startSegT && 1 != endSegT) 
 		endOppT = checkOpp(seg->c.lastPt(), 1  OP_LINE_FILE_PARAMS());
-    auto checkSeg = [add, seg](OpPoint oppPt, float oppT  OP_LINE_FILE_DEF()) {
+    auto checkSeg = [add, seg, opp](OpPoint oppPt, float oppT  OP_LINE_FILE_DEF()) {
         float segT = seg->c.match(0, 1, oppPt);
 		if (OpMath::IsNaN(segT))
             return;
         segT = OpMath::PinNear(segT);
-        if ((0 == segT || 1 == segT) && seg->c.end(segT) != oppPt)
-            seg->moveTo(segT, oppPt);
+        if ((0 == segT || 1 == segT) && seg->c.end(segT) != oppPt) {
+            OpPoint segPt = seg->moveTo(segT, oppPt);
+            if (segPt.isFinite()) {
+                oppPt = segPt;
+                opp->moveTo(oppT, oppPt);
+            }
+        }
         add(oppPt, segT, oppT  OP_LINE_FILE_CALLER());
     };
     if (OpMath::IsNaN(startSegT) && 0 != startOppT && 0 != endOppT)
@@ -325,6 +339,8 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
     OpPtT::MeetInTheMiddle(oppInSeg[1], segInOpp[1]);
     OpVector segV = oppInSeg[1].pt - oppInSeg[0].pt;
     XyChoice larger = fabsf(segV.dx) > fabsf(segV.dy) ? XyChoice::inX : XyChoice::inY;
+    if (oppInSeg[0].pt == oppInSeg[1].pt || segInOpp[0].pt == segInOpp[1].pt)
+        return IntersectResult::no;
     return OpWinder::AddPair(larger, oppInSeg[0], oppInSeg[1], segInOpp[0], segInOpp[1],
 	        segInOpp[0].t > segInOpp[1].t, seg, opp);
 }

@@ -4,6 +4,7 @@
 
 #include "OpTightBounds.h"
 
+struct OpPtAliases;
 struct OpEdge;
 struct OpSegment;
 
@@ -157,8 +158,10 @@ struct OpIntersections {
 	void makeEdges(OpSegment* );
 	const OpIntersection* nearly(const OpPtT& ptT, OpSegment* oSeg) const;  // near match of pt or t
     void range(const OpSegment* , std::vector<OpIntersection*>& );
+	bool simpleEnd() const;  // true if array has only one entry with t equal to one
+	bool simpleStart() const;  // true if array has only one entry with t equal to zero
 	void sort();  // 
-    void mergeNear();
+    void mergeNear(OpPtAliases& );
 	// return intersections that delineate unsectable runs that contain this edge
 //	std::vector<OpIntersection*> unsectables(const OpEdge* );
 	static bool UnsectablesOverlap(std::vector<OpIntersection*> set1,

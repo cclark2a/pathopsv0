@@ -75,6 +75,50 @@ int OpContour::nextID() const {
 }
 
 // end of contour; start of contours
+bool OpPtAliases::add(OpPoint original, OpPoint alias) {
+    OP_ASSERT(original != alias);
+    for (OpPtAlias& test : a) {
+        if (original == test.alias)
+            return false;
+        if (test.original == original && test.alias == alias)
+            return true;
+    }
+    a.push_back({original, alias});
+    return true;
+}
+
+bool OpPtAliases::contains(OpPoint aliased) const {
+    for (const OpPtAlias& test : a) {
+        if (test.alias == aliased)
+            return true;
+    }
+    return false;
+}
+
+OpPoint OpPtAliases::existing(OpPoint match) const {
+    for (const OpPtAlias& test : a) {
+        if (test.original == match)
+            return test.alias;
+    }
+    return match;
+}
+
+OpPoint OpPtAliases::find(OpPoint aliased) const {
+    for (const OpPtAlias& test : a) {
+        if (test.alias == aliased)
+            return test.original;
+    }
+    return OpPoint();
+}
+
+bool OpPtAliases::isSmall(OpPoint pt1, OpPoint pt2) const {
+    for (const OpPtAlias& test : a) {
+        if ((test.original == pt1 || test.alias == pt1) 
+                && (test.original == pt2 || test.alias == pt2))
+            return true;
+    }
+    return false;
+}
 
 OpContours::OpContours()
     : caller({nullptr, 0}) 
@@ -149,14 +193,6 @@ OpContours::~OpContours() {
         delete debugJoiner;
     }
 #endif
-}
-
-void OpContours::addAlias(OpPoint pt, OpPoint alias) {
-    for (OpPtAlias& a : aliases) {
-        if (a.pt == pt && a.alias == alias)
-            return;
-    }
-    aliases.push_back({pt, alias});
 }
 
 #if 0
@@ -265,13 +301,8 @@ void OpContours::disableSmallSegments() {
     while (OpSegment* seg = segIterator.next()) {
         if (seg->disabled)
             continue;
-        if (seg->willDisable || aliases.end() != std::find_if(aliases.begin(), aliases.end(), 
-                [seg](OpPtAlias& a) {
-            return (a.pt == seg->c.c.data->start || a.alias == seg->c.c.data->start)
-                    && (a.pt == seg->c.c.data->end || a.alias == seg->c.c.data->end);
-        })) {
+        if (seg->willDisable || aliases.isSmall(seg->c.c.data->start, seg->c.c.data->end))
             seg->setDisabled(OP_LINE_FILE_NPARAMS());
-        }
     }
 }
 
@@ -407,7 +438,7 @@ void OpContours::sortIntersections() {
     }
     for (auto contour : contours) {
         for (auto& segment : contour->segments) {
-            segment.sects.mergeNear();
+            segment.sects.mergeNear(aliases);
         }
     }
 }

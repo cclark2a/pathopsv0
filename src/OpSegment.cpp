@@ -35,7 +35,9 @@ OpSegment::OpSegment(PathOpsV0Lib::AddCurve addCurve, PathOpsV0Lib::AddWinding a
     , disabled(false)
     , willDisable(false)
     , hasCoin(false)
-    , hasUnsectable(false) {
+    , hasUnsectable(false)
+    , startMoved(false)
+    , endMoved(false) {
     setBounds();
     OP_DEBUG_IMAGE_CODE(debugColor = black);
 }
@@ -47,14 +49,14 @@ OpSegment::OpSegment(PathOpsV0Lib::AddCurve addCurve, PathOpsV0Lib::AddWinding a
 // returns true if emplaced edge has pals
 
 // activeNeighbor is called separately because this iterates through opposite intersections only
-bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<FoundEdge>& oppEdges,
-        bool* hadLinkTo) const {
+// returns true if any found edge is a pal
+bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<FoundEdge>& oppEdges
+        ) const {
     unsigned edgesSize = oppEdges.size();
     OP_ASSERT(!edge->disabled);
     // each prospective match normal must agree with edge, indicating direction of area outside fill
     // if number of matching sects doesn't agree with opposite, collect next indirection as well
     OpPtT ptT = edge->whichPtT(match);
-    *hadLinkTo = false;
     for (auto sectPtr : sects.i) {
         OpIntersection& sect = *sectPtr;
         if (sect.ptT.t < ptT.t)
@@ -73,9 +75,9 @@ bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
             return zeroSide;
         };
         auto isSortable = [](const OpEdge* e, const OpEdge* o) {
-            if (e->isUnsortable)
+            if (Unsortable::none != e->isUnsortable)
                 return false;
-            if (!e->pals.size())
+            if (!e->isUnsectable())
                 return true;
             if (e->isPal(o))
                 return true;
@@ -86,20 +88,19 @@ bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
         auto saveMatch = [edge, &oppEdges, &oSect, checkZero, isSortable](EdgeMatch testEnd) {
             OpSegment* oSeg = oSect->segment;
             OpEdge* test = oSeg->findEnabled(oSect->ptT, testEnd);  // !!! optimization: walk edges in order
-            bool result = false;
-            if (test && test != edge && (!isSortable(edge, test) || !isSortable(test, edge)
-                    || edge->windZero == checkZero(test, edge->which(), testEnd))) {
-                result = test->hasLinkTo(testEnd);
-                if (!result)
-                    oppEdges.emplace_back(test, EdgeMatch::none);
-            }
-            return result;
+            if (!test || test == edge)
+                return;
+            if (isSortable(edge, test) && isSortable(test, edge)
+                    && edge->windZero != checkZero(test, edge->which(), testEnd))
+                return;
+            if (!test->hasLinkTo(testEnd))
+                oppEdges.emplace_back(test, EdgeMatch::none);
         };
-        *hadLinkTo |= saveMatch(EdgeMatch::start);
-        *hadLinkTo |= saveMatch(EdgeMatch::end);
+        saveMatch(EdgeMatch::start);
+        saveMatch(EdgeMatch::end);
     }
     for (unsigned index = edgesSize; index < oppEdges.size(); ++index) {
-        if (oppEdges[index].edge->pals.size())
+        if (oppEdges[index].edge->isUnsectable())
             return true;
     }
     return false;
@@ -121,9 +122,10 @@ bool OpSegment::activeNeighbor(const OpEdge* edge, EdgeMatch match,
             return false;
     if (nextDoor->hasLinkTo(match))
         return false;
-    if (edge->isUnsortable || edge->windZero == nextDoor->windZero || nextDoor->isUnsortable) {
+    if (Unsortable::none != edge->isUnsortable || edge->windZero == nextDoor->windZero 
+            || Unsortable::none != nextDoor->isUnsortable) {
         oppEdges.emplace_back(nextDoor, EdgeMatch::none);
-        return !!nextDoor->pals.size();
+        return nextDoor->isUnsectable();
     }
     return false;
 }
@@ -168,6 +170,14 @@ OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int usectID, MatchEnd
         return sect;
     }
     return sects.add(contour->addUnsect(ptT, this, usectID, end  OP_LINE_FILE_CALLER(oSeg)));
+}
+
+OpPoint OpSegment::aliasOriginal(MatchEnds end) const {
+    OP_ASSERT((MatchEnds::start == end && startMoved) || (MatchEnds::end == end && endMoved));
+    OpPoint aliased = MatchEnds::start == end ? c.firstPt() : c.lastPt();
+    OpPoint original = contour->contours->findAlias(aliased);
+    OP_ASSERT(original.isFinite());
+    return original;
 }
 
 void OpSegment::apply() {
@@ -356,29 +366,63 @@ MatchEnds OpSegment::matchExisting(const OpSegment* opp) const {
 // further, if old control point is axis aligned with end point, keep relationship after moving
 // !!! detect if segment collapses to point?
 // !!! don't change opposite end point
-void OpSegment::moveTo(float matchT, OpPoint equalPt) {
+OpPoint OpSegment::moveTo(float matchT, OpPoint oppEqualPt) {
     OP_ASSERT(0 == matchT || 1 == matchT);
     OpPoint endPt = 0 == matchT ? c.firstPt() : c.lastPt();
+    if (0 == matchT ? startMoved : endMoved)
+        return endPt;
 //    OP_ASSERT(endPt.soClose(equalPt));  // fuzz_k1 triggers assert
-    contour->contours->addAlias(endPt, equalPt);
-    0 == matchT ? c.setFirstPt(equalPt) : c.setLastPt(equalPt);
+    OpPoint equalPt = contour->contours->existingAlias(oppEqualPt);
+    if (endPt == equalPt)
+        return equalPt;  // caller must move opp instead
+    bool useSectOpp = false;
+    for (OpIntersection* sect : sects.i) {
+        if (sect->ptT.t != matchT)
+            continue;
+        OpIntersection* sectOpp = sect->opp;
+        if (sectOpp->ptT.pt == equalPt)
+            continue;
+        OpSegment* segOpp = sectOpp->segment;
+        float sectOppT = sectOpp->ptT.t;
+        if ((sectOppT != 0 || !segOpp->startMoved || segOpp->c.firstPt() != sectOpp->ptT.pt) 
+                && (sectOppT != 1 || !segOpp->endMoved || segOpp->c.lastPt() != sectOpp->ptT.pt))
+            continue;
+        equalPt = sectOpp->ptT.pt;
+        if (endPt == equalPt)
+            return equalPt;  // caller must move opp instead
+        OP_ASSERT(!useSectOpp);
+        useSectOpp = true;
+    }
+    if (!contour->contours->addAlias(endPt, equalPt))
+        return OpPoint(SetToNaN::dummy);
+    if (0 == matchT) {
+         c.setFirstPt(equalPt);
+         startMoved = true;
+    } else {
+         c.setLastPt(equalPt);
+         endMoved = true;
+    }
     c.pinCtrl();
 // defer disabling until all moves are complete; disable small segments will clean up
    if (c.firstPt() == c.lastPt())
         willDisable = true;
     setBounds();
     for (OpIntersection* sect : sects.i) {
+        OpDebugBreak(sect, 581);
+        OpDebugBreak(sect, 582);
         if (sect->ptT.t == matchT) {
             sect->ptT.pt = equalPt;
             if (sect->opp->ptT.pt != equalPt) {
-                if (sect->opp->ptT.onEnd())
-                    sect->opp->segment->moveTo(sect->opp->ptT.t, equalPt);
-                else
+                if (sect->opp->ptT.onEnd()) {
+                    OpPoint altPt = sect->opp->segment->moveTo(sect->opp->ptT.t, equalPt);
+                    OP_ASSERT(!altPt.isFinite());
+                } else
                     sect->opp->ptT.pt = equalPt;
             }
         }
     }
     edges.clear();
+    return useSectOpp ? equalPt : OpPoint(SetToNaN::dummy);
 }
 
 // two segments are coincident so move opp's winding to this and disabled opp
@@ -418,6 +462,19 @@ void OpSegment::setDisabled(OP_LINE_FILE_NP_DEF()) {
         sects.i.erase(sects.i.begin() + index);
     }
     OP_LINE_FILE_SET(debugSetDisabled); 
+}
+
+bool OpSegment::simpleEnd(const OpEdge* edge) const {
+    if (!sects.simpleEnd())
+        return false;
+    return edge == &edges.back();
+
+}
+
+bool OpSegment::simpleStart(const OpEdge* edge) const {
+    if (!sects.simpleStart())
+        return false;
+    return edge == &edges.front();
 }
 
 bool OpSegment::debugFail() const {

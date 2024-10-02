@@ -639,7 +639,7 @@ void dmpUnsortable() {
     for (const auto& c : debugGlobalContours->contours) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
-                if (edge.isUnsortable)
+                if (Unsortable::none != edge.isUnsortable)
                     edge.dump(DebugLevel::detailed, defaultBase);
             }
         }
@@ -744,22 +744,26 @@ OpDebugExpectName debugExpectNames[] {
 ENUM_NAME(OpDebugExpect, debugExpect)
 #endif
 
+std::string OpPtAliases::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s;
+    s += "aliases[\n";
+    for (OpPtAlias alias : a) {
+        s += alias.original.debugDump(l, b) + ":" + alias.alias.debugDump(l, b) + "\n";
+    }
+    s += "]";
+    return s;
+}
+
 std::string OpContours::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    if (aliases.size()) {
-        s += "aliases[";
-        for (OpPtAlias alias : aliases) {
-            s += alias.pt.debugDump(l, b) + ":" + alias.alias.debugDump(l, b) + " ";
-        }
-        s.pop_back();
-        s += "]\n";
-    }
+    if (aliases.a.size())
+        s += aliases.debugDump(l, b) + "\n";
     if (curveDataStorage) {
-        s += "curveDataStorage:\n";
+        s += "curveDataStorage:";
         s += curveDataStorage->debugDump(l, b) + "\n";
     }
     if (callerStorage) {
-        s += "callerStorage:\n";
+        s += "callerStorage:";
         s += callerStorage->debugDump(l, b) + "\n";
     }
     if (contourStorage)
@@ -1263,10 +1267,17 @@ std::string debugErrorValue(DebugLevel l, DebugBase b, std::string label, float 
 std::string CurveDataStorage::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     s += "next:" + STR(next) + " ";  // only zero/nonzero is read
-    s += "used:" + STR(used) + "\n";
-    s += OpDebugDumpByteArray(storage, used);   // 'b' is ignored for now; always return hex
+    s += "used:" + STR(used) + " ";
+    if (DebugLevel::detailed == l) {
+        s += "\n";
+        s += OpDebugDumpByteArray(storage, used);   // 'b' is ignored for now; always return hex
+        if (next)
+            s += "\n";
+    }
     if (next)
-        s += "\n" + next->debugDump(l, b);
+        s += " " + next->debugDump(l, b);
+    if (' ' == s.back())
+        s.pop_back();
     return s;
 }
 
@@ -1439,13 +1450,13 @@ ENUM_NAME(EdgeSplit, edgeSplit)
 	OP_X(rayFail) \
 	OP_X(windZero) \
 	OP_X(doSplit) \
+	OP_X(isUnsortable) \
 	OP_X(closeSet) \
 	OP_X(isClose_impl) \
 	OP_X(active_impl) \
 	OP_X(inLinkups) \
 	OP_X(inOutput) \
 	OP_X(disabled) \
-	OP_X(isUnsortable) \
 	OP_X(ccEnd) \
 	OP_X(ccLarge) \
 	OP_X(ccOverlaps) \
@@ -1612,6 +1623,14 @@ void dmpPts(int ID) {
     ::dmp(ID);
 }
 
+void dmpPts(const OpEdge* e) {
+    dmpPts(e->id);
+}
+
+void dmpPts(const OpEdge& e) {
+    dmpPts(&e);
+}
+
 void dmpPlayback(FILE* file) {
 	if (!file)
 		return;
@@ -1774,6 +1793,25 @@ static SectTypeName sectTypeNames[] = {
 };
 
 ENUM_NAME_ABBR(SectType, sectType)
+
+ENUM_NAME_STRUCT(Unsortable);
+#define UNSORTABLE_NAME(w) { Unsortable::w, #w }
+
+static UnsortableName unsortableNames[] = {
+    UNSORTABLE_NAME(none),
+    UNSORTABLE_NAME(addCalcFail),
+    UNSORTABLE_NAME(addCalcFail2),
+    UNSORTABLE_NAME(filler),
+	UNSORTABLE_NAME(homeUnsectable),
+	UNSORTABLE_NAME(noMidT),
+	UNSORTABLE_NAME(noNormal),
+	UNSORTABLE_NAME(rayTooShallow),
+	UNSORTABLE_NAME(tooManyTries),
+	UNSORTABLE_NAME(underflow),
+};
+
+ENUM_NAME(Unsortable, unsortable)
+
 
 std::string EdgePal::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
@@ -1945,6 +1983,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     s += strEnum(EF::rayFail, "rayFail", EdgeFail::none == rayFail, edgeFailName(rayFail));
     s += strEnum(EF::windZero, "windZero", false, windZeroName(windZero));
     s += strEnum(EF::doSplit, "doSplit", EdgeSplit::no == doSplit, edgeSplitName(doSplit));
+    s += strEnum(EF::isUnsortable, "isUnsortable", Unsortable::none == isUnsortable, unsortableName(isUnsortable));
 #define STR_BOOL(ef) do { if (dumpIt(EdgeFilter::ef) && (dumpAlways(EdgeFilter::ef) || ef)) { \
         s += strLabel(#ef) + " "; \
         if (1 != ((unsigned char) ef)) s += STR((size_t) ef) + " "; }} while(false)
@@ -1957,7 +1996,6 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     STR_BOOL(inLinkups);
     STR_BOOL(inOutput);
     STR_BOOL(disabled);
-    STR_BOOL(isUnsortable);
     STR_BOOL(ccEnd);
     STR_BOOL(ccLarge);
     STR_BOOL(ccOverlaps);
@@ -1987,7 +2025,6 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     s += strID(EF::debugOutPath, "debugOutPath", debugOutPath);
     s += strID(EF::debugParentID, "debugParentID", debugParentID);
     s += strID(EF::debugRayMatch, "debugRayMatch", debugRayMatch);
-    STR_BOOL(debugFiller);
 #endif
 #if OP_DEBUG_IMAGE
     if (dumpIt(EF::debugColor) && (dumpAlways(EF::debugColor) || debugBlack != debugColor))
@@ -2093,6 +2130,7 @@ void OpEdge::dumpSet(const char*& str) {
     rayFail = edgeFailStr(str, "rayFail", EdgeFail::none);
     windZero = windZeroStr(str, "windZero", WindZero::unset);
     doSplit = edgeSplitStr(str, "doSplit", EdgeSplit::no);
+    isUnsortable = unsortableStr(str, "unsortable", Unsortable::none);
 #define STR_BOOL(ef) ef = OpDebugOptional(str, #ef)
     STR_BOOL(closeSet);
 //    STR_BOOL(lineSet);
@@ -2103,7 +2141,6 @@ void OpEdge::dumpSet(const char*& str) {
     STR_BOOL(inLinkups);
     STR_BOOL(inOutput);
     STR_BOOL(disabled);
-    STR_BOOL(isUnsortable);
     STR_BOOL(ccEnd);
     STR_BOOL(ccLarge);
     STR_BOOL(ccOverlaps);
@@ -2129,7 +2166,6 @@ void OpEdge::dumpSet(const char*& str) {
     debugOutPath = strID("debugOutPath");
     debugParentID = strID("debugParentID");
     debugRayMatch = strID("debugRayMatch");
-    STR_BOOL(debugFiller);
 #endif
 #if OP_DEBUG_IMAGE
     // !!! skip debug color for now
@@ -2462,10 +2498,17 @@ void dmpStart(const OpEdge& edge) {
 std::string CallerDataStorage::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     s += "next:" + STR(next) + " ";  // only zero/nonzero is read
-    s += "used:" + STR(used) + "\n";
-    s += OpDebugDumpByteArray(storage, used);   // 'b' is ignored for now; always return hex
+    s += "used:" + STR(used) + " ";
+    if (DebugLevel::detailed == l) {
+        s += "\n";
+        s += OpDebugDumpByteArray(storage, used);   // 'b' is ignored for now; always return hex
+        if (next)
+            s += "\n";
+    }
     if (next)
-        s += "\n" + next->debugDump(l, b);
+        s += " " + next->debugDump(l, b);
+    if (' ' == s.back())
+        s.pop_back();
     return s;
 }
 
@@ -3640,7 +3683,7 @@ OpSegment::OpSegment()
 }
 
 std::string OpSegment::debugDump(DebugLevel l, DebugBase b) const {
-    if (DebugLevel::file == l || DebugLevel::detailed == l) {
+    if (DebugLevel::brief != l) {
         std::string s = "[" + STR(id) + "] ";
         if (contour)
             s += "contour[" + STR(contour->id) + "] ";
@@ -3652,17 +3695,18 @@ std::string OpSegment::debugDump(DebugLevel l, DebugBase b) const {
             for (auto sect : sects.i)
                 s += STR(sect->id) + " ";
             s.pop_back();
-            s += "] ";
+            s += "]\n";
         }
         if (edges.size()) {
-            s += "edges:" + STR(edges.size()) + "\n";
-            if (DebugLevel::brief == l) {
+            s += "edges:" + STR(edges.size());
+            if (DebugLevel::normal == l) {
                 s += " [";
                 for (auto& edge : edges)
                     s += STR(edge.id) + " ";
                 s.pop_back();
                 s += "]\n";
             } else {
+                s += "\n";
                 for (auto& edge : edges)
                     s += edge.debugDump(l, b) + "\n";
             }
@@ -3670,6 +3714,20 @@ std::string OpSegment::debugDump(DebugLevel l, DebugBase b) const {
         s += "winding:" + winding.debugDump(l, b) + " ";
         if (disabled)
             s += "disabled ";
+        if (willDisable)
+            s += "willDisable ";
+        if (hasCoin)
+            s += "hasCoin ";
+        if (hasUnsectable)
+            s += "hasUnsectable ";
+        if (startMoved)
+            s += "startMoved ";
+        if (endMoved)
+            s += "endMoved ";
+#if OP_DEBUG_IMAGE
+        if (debugColor != black)
+            s += debugDumpColor(debugColor) + " ";
+#endif
 #if OP_DEBUG_MAKER
         if (debugSetDisabled.line)
             s += "debugSetDisabled:" + debugSetDisabled.debugDump() + " ";

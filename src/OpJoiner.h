@@ -36,8 +36,10 @@ struct OpJoiner {
 	void buildDisabled(OpContours& );
 	void buildDisabledPals(OpContours& );
 	bool detachIfLoop(OpEdge* , EdgeMatch loopEnd);
+	static bool LinkEnd(OpEdge *);
 	bool linkRemaining(OP_DEBUG_CODE(OpContours*));
-	bool linkSimple(OpEdge* );
+//	bool linkSimple(OpEdge* );
+	static OpEdge* LinkStart(OpEdge *);
 	void linkUnambiguous(LinkPass );
 	bool linkUp(OpEdge* );
 	bool matchLinks(bool popLast);
@@ -160,6 +162,7 @@ struct OpTree {
 	bool join(OpJoiner& );
 	OpLimb& nthLimb(int index);
 	OpLimb* makeLimb();
+	bool preferSibling(OpLimb*, OpEdge* );
 	DUMP_DECLARATIONS
 
 //	OpLimbStorage* limbStorage;

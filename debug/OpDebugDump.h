@@ -55,6 +55,7 @@ OP_X(OpJoiner) \
 OP_X(OpLimb) \
 OP_X(OpPoint) \
 OP_X(OpPointBounds) \
+OP_X(OpPtAliases) \
 OP_X(OpRect) \
 OP_X(OpRootPts) \
 OP_X(OpRoots) \
@@ -279,6 +280,8 @@ extern void dmpHex(uint32_t );
 extern void dmpLevel(int level);  // set to brief, normal, detailed
 extern void dmpPlayback(FILE* );
 extern void dmpPts(int ID);
+extern void dmpPts(const OpEdge* );
+extern void dmpPts(const OpEdge& );
 extern void dmpRecord(FILE * );
 extern void dmpT(int ID, float t);
 extern void dmpT(const OpEdge* s, float t);

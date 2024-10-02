@@ -7,7 +7,7 @@
 // these may be moved to command line parameters at some point
 #define TEST_PATH_OP_SKIP_TO_FILE "op" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
 #define TESTS_TO_SKIP 0 // 14295903  // tests to skip
-#define TEST_PATH_OP_FIRST "skpcarrot_is24"  // e.g., "joel4" (ignored by fast test)
+#define TEST_FIRST ""  // e.g., "joel4" (ignored by fast test, overridden by TEST_DRIVE_FIRST)
 
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
@@ -129,9 +129,10 @@ std::vector<testInfo> testSuites = {
 // skip tests by filename
 std::vector<std::string> skipTestFiles = { TEST_PATH_OP_SKIP_FILES };
 std::vector<std::string> skipRestFiles = { TEST_PATH_OP_SKIP_REST };
+std::string requestedFirst = strlen(TEST_DRIVE_FIRST) ? TEST_DRIVE_FIRST : TEST_FIRST;
 std::string testFirst = OP_DEBUG_FAST_TEST || TEST_PATH_OP_SKIP_TO_V0 
-        ? "" : TEST_PATH_OP_FIRST;
-bool runOneFile = (strlen(TEST_PATH_OP_FIRST) || TEST_PATH_OP_SKIP_TO_V0) && !OP_DEBUG_FAST_TEST;
+        ? "" : requestedFirst;
+bool runOneFile = (!requestedFirst.empty() || TEST_PATH_OP_SKIP_TO_V0) && !OP_DEBUG_FAST_TEST;
 std::string skipToFile = TEST_PATH_OP_SKIP_TO_V0 && !OP_DEBUG_FAST_TEST 
         ? "v0" : TEST_PATH_OP_SKIP_TO_FILE;
 std::atomic_int testIndex; 

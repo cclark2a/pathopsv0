@@ -301,7 +301,7 @@ void  OpDebugImage::playback(FILE* file) {
 	double debugCenter[2];
 	float textSize;
 	int intervals;
-	int pPrecision;
+	int pPrecision, pSmall, pEpsilon;
 	// required
 	if (fscanf(file, "debugZoom: %lg\n", &debugZoom) != 1) {
 		OpDebugOut("reading debugZoom failed\n");
@@ -334,6 +334,18 @@ void  OpDebugImage::playback(FILE* file) {
 		return;
 	}
 	debugPrecision = pPrecision;
+	if (fscanf(file, "debugSmall: %d\n", &pSmall) != 1) {
+		OpDebugOut("reading debugSmall failed\n");
+		fclose(file);
+		return;
+	}
+	debugSmall = pSmall;
+	if (fscanf(file, "debugEpsilon: %d\n", &pEpsilon) != 1) {
+		OpDebugOut("reading debugEpsilon failed\n");
+		fclose(file);
+		return;
+	}
+	debugEpsilon = pEpsilon;
 	// optional
 	auto noMatch = [file](const char* str) {
 		OpDebugOut("no match: " + std::string(str)); 
@@ -517,6 +529,8 @@ void OpDebugImage::record(FILE* recordFile) {
 	fprintf(recordFile, "textSize: %g\n", labelFont.getSize());
 	fprintf(recordFile, "gridIntervals: %d\n", gridIntervals);
 	fprintf(recordFile, "debugPrecision: %d\n", debugPrecision);
+	fprintf(recordFile, "debugSmall: %d\n", debugSmall);
+	fprintf(recordFile, "debugEpsilon: %d\n", debugEpsilon);
 #define OP_X(Thing) \
 	if (draw##Thing##On) \
 		fprintf(recordFile, "%s\n", #Thing);
@@ -695,6 +709,16 @@ void gridStep(float dxy) {
 
 void precision(int p) {
 	debugPrecision = p;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void smallFloats(bool sm) {
+	debugSmall = sm;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void showEpsilon(bool sh) {
+	debugEpsilon = sh;
 	OpDebugImage::drawDoubleFocus();
 }
 
@@ -1021,6 +1045,59 @@ void OpDebugImage::focusEdges() {
 	}
 	DRAW_IDS_ON(Edges);
 	OpDebugImage::drawDoubleFocus(focusRect, false);
+}
+
+void focusLinkInner(const OpEdge& edge, bool add) {
+	add ? addFocus(edge) : focus(edge);
+    const OpEdge* looped = edge.debugIsLoop(EdgeMatch::start, LeadingLoop::in);
+    bool firstLoop = false;
+    int safetyCount = 0;
+	for (EdgeMatch which : { EdgeMatch::start, EdgeMatch::end } ) {
+		const OpEdge* link = &edge;
+		while ((link = EdgeMatch::start == which ? link->priorEdge : link->nextEdge)) {
+			addFocus(link);
+			if (link == looped) {
+				if (firstLoop)
+					return;
+				firstLoop = true;
+			}
+			if (++safetyCount > 700) {
+				OpDebugOut(std::string("!!! likely loops forever: ") + 
+						(EdgeMatch::start == which ? "prior " : "next "));
+				break;
+			}
+		}
+	}
+}
+
+void focusLink(const OpEdge* edge) {
+	focusLinkInner(*edge, false);
+}
+
+void focusLink(int id) {
+	OpEdge* edge = findEdge(id);
+	if (!edge) {
+		OpDebugOut("not an edge id\n");
+		return;
+	}
+	focusLink(edge);
+}
+
+void addFocusLink(const OpEdge& edge) {
+	focusLinkInner(edge, true);
+}
+
+void addFocusLink(const OpEdge* edge) {
+	addFocusLink(*edge);
+}
+
+void addFocusLink(int id) {
+	OpEdge* edge = findEdge(id);
+	if (!edge) {
+		OpDebugOut("not an edge id\n");
+		return;
+	}
+	addFocusLink(edge);
 }
 
 void focusSegments() {
@@ -1613,7 +1690,7 @@ void colorUnsectables(uint32_t color) {
 void colorUnsortables(uint32_t color) {
 	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
-		if (edge->isUnsortable) {
+		if (Unsortable::none != edge->isUnsortable) {
 			edge->debugColor = color;
 			edge->debugDraw = true;
 			edge->debugCustom = true;

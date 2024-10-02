@@ -155,7 +155,6 @@ OpEdge::OpEdge(OpContours* contours, const OpPtT& start, const OpPtT& end  OP_LI
 	: OpEdge() {
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = 0);
-    OP_DEBUG_CODE(debugFiller = true);
 	OP_DEBUG_IMAGE_CODE(if (!debugCustom) debugColor = mediumPurple);
 	segment = nullptr;  // assume these can't be used -- edge does not exist in segment
 //	startSect = -1;
@@ -173,7 +172,7 @@ OpEdge::OpEdge(OpContours* contours, const OpPtT& start, const OpPtT& end  OP_LI
 	center.t = OpMath::Interp(startT, endT, .5);
 	center.pt = ptBounds.center();
     setDisabled(OP_LINE_FILE_NPARAMS());
-    setUnsortable();
+    setUnsortable(Unsortable::filler);
 }
 
 // called from curve curve when splitting edges
@@ -277,7 +276,7 @@ OpEdge* OpEdge::advanceToEnd(EdgeMatch match) {
 void OpEdge::apply() {
 	if (EdgeFail::center == rayFail)
 		setDisabled(OP_LINE_FILE_NPARAMS());
-	if (disabled || isUnsortable)
+	if (disabled || Unsortable::none != isUnsortable)
 		return;
 	OpContour* contour = segment->contour;
 	PathOpsV0Lib::WindKeep keep = contour->callBacks.windingKeepFuncPtr(winding.w, sum.w);
@@ -329,7 +328,7 @@ void OpEdge::calcCenterT() {
 void OpEdge::clearActiveAndPals(OP_LINE_FILE_NP_DEF()) {
 	setActive(false);
     for (auto& pal : pals) {
-		if (!pal.edge->pals.size())
+		if (!pal.edge->isUnsectable())
 			continue;  // !!! hack ?
 		pal.edge->setActive(false);
 		pal.edge->setDisabled(OP_LINE_FILE_NP_CALLER());
@@ -365,7 +364,7 @@ size_t OpEdge::countUnsortable() const {
 	const OpEdge* test = this;
 	size_t count = 0;
 	do {
-		if (test->isUnsortable)
+		if (Unsortable::none != test->isUnsortable)
 			count++;
 	} while ((test = test->nextEdge));
 	return count;
@@ -505,8 +504,8 @@ void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsect
 				return false;
 			if (AllowClose::no == allowClose && isDupe(unsectable))
 				return false;
-			if (unsectable->pals.size() && AllowPals::no == allowPals) {
-			const OpEdge* link = this;
+			if (unsectable->isUnsectable() && AllowPals::no == allowPals) {
+				const OpEdge* link = this;
 				OP_ASSERT(!link->nextEdge);
 				OP_ASSERT(!link->debugIsLoop());
 				do {
@@ -650,6 +649,7 @@ void OpEdge::setActive(bool state) {
 	active_impl = state;
 }
 
+#if 0
 const OpRect& OpEdge::closeBounds() {
 	// close bounds holds point bounds outset by 'close' fudge factor
 	if (linkBounds.isSet())
@@ -659,6 +659,7 @@ const OpRect& OpEdge::closeBounds() {
 	OP_ASSERT(linkBounds.isFinite());
 	return linkBounds;
 }
+#endif
 
 bool OpEdge::isClose() {
 	if (closeSet)
@@ -771,8 +772,8 @@ void OpEdge::setPriorEdge(OpEdge* edge) {
 	priorEdge = edge;
 }
 
-void OpEdge::setUnsortable() {  // setter exists so debug breakpoints can be set
-	isUnsortable = true;
+void OpEdge::setUnsortable(Unsortable unsortable) {  // setter exists so breakpoints can be set
+	isUnsortable = unsortable;
 }
 
 const OpCurve& OpEdge::setVertical(const LinePts& pts, MatchEnds match) {

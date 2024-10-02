@@ -38,7 +38,9 @@ inline std::string OpDebugStr(void* x) { return std::to_string((unsigned long lo
 inline std::string OpDebugStr(int32_t x) { return std::to_string(x); }
 inline std::string OpDebugStr(size_t x) { return std::to_string(x); }
 std::string OpDebugStr(float value);
-extern int debugPrecision;		// minus one means unset
+extern int debugPrecision;	// minus one means unset
+extern bool debugSmall;		// set to false to show sub-epsilon values as ~0
+extern bool debugEpsilon;	// set to true to show values smaller than 100 * OpEpsilon as eps
 
 #endif
 

@@ -214,6 +214,19 @@ enum class Unsectable {
 	multiple,
 };
 
+enum class Unsortable {
+	none,
+	addCalcFail,
+	addCalcFail2,
+	filler,
+	homeUnsectable,
+	noMidT,
+	noNormal,
+	rayTooShallow,
+	tooManyTries,
+	underflow
+};
+
 struct CoinPal {
 	friend bool operator==(CoinPal a, CoinPal b) {
 		return a.coinID == b.coinID;
@@ -242,13 +255,13 @@ private:
 		, rayFail(EdgeFail::none)
 		, windZero(WindZero::unset)
 		, doSplit(EdgeSplit::no)
+		, isUnsortable(Unsortable::none)
 		, closeSet(false)
 		, isClose_impl(false)
 		, active_impl(false)
 		, inLinkups(false)
 		, inOutput(false)
 		, disabled(false)
-		, isUnsortable(false)
 		, ccEnd(false)
 		, ccLarge(false)
 		, ccOverlaps(false)
@@ -271,7 +284,6 @@ private:
 		debugOutPath = 0;
 		debugParentID = 0;
 		debugRayMatch = 0;
-		debugFiller = false;
 #endif
 #if OP_DEBUG_DUMP
 		dumpContours = nullptr;
@@ -281,6 +293,9 @@ private:
 		debugDraw = true;
 		debugJoin = false;
 		debugCustom = false;
+#endif
+#if OP_DEBUG_VALIDATE
+		debugScheduledForErasure = false;
 #endif
 	}
 public:
@@ -303,7 +318,7 @@ public:
 	void clearLinkBounds() { OP_ASSERT(!linkBounds.isSet()); } // !!! see if this is needed
 	void clearNextEdge();
 	void clearPriorEdge();
-	const OpRect& closeBounds();  // returns bounds with slop
+//	const OpRect& closeBounds();  // returns bounds with slop
 	void complete(OpPoint start, OpPoint end);
 	bool containsLink(const OpEdge* edge) const;
 	OpContours* contours() const;
@@ -360,7 +375,7 @@ public:
 	void setPointBounds();
 	void setPriorEdge(OpEdge* );  // setter exists so debug breakpoints can be set
 	void setSum(const PathOpsV0Lib::Winding&  OP_LINE_FILE_DEF());  // called by macro SET_SUM
-	void setUnsortable();  // setter exists so debug breakpoints can be set
+	void setUnsortable(Unsortable );  // setter exists so debug breakpoints can be set
 	const OpCurve& setVertical(const LinePts& , MatchEnds);
 	void setWhich(EdgeMatch );  // setter exists so debug breakpoints can be set
 	OpPtT start() const { return OpPtT(startPt(), startT); }
@@ -441,6 +456,7 @@ public:
 	EdgeFail rayFail;   // how computation (e.g., center) failed (on fail, windings are set to zero)
 	WindZero windZero;  // zero: edge normal points to zero side (the exterior of the loop)
 	EdgeSplit doSplit;  // used by curve/curve intersection to track subdivision
+	Unsortable isUnsortable;  // unsectable is unsortable; others (e.g., very small) are also unsortable
 	bool closeSet;
 	bool isClose_impl;  // set if start is close to end
 	bool active_impl;  // used by ray casting to mark edges that may be to the left of casting edge
@@ -448,7 +464,6 @@ public:
 	bool inOutput;	// likely only used to find inactive unsectables that are not on output path
 	bool disabled;	// winding is zero, or apply disqualified edge from appearing in output
 //	bool isUnsectable;	// if set edge is between one or more unsectable ranges (in intersections) 
-	bool isUnsortable;  // unsectable is unsortable; others (e.g., very small) are also unsortable
 	bool ccEnd;  // set if edge end is closest to already found curve-curve intersection
 	bool ccLarge;  // set if curve/curve has large t match and this edge is last
 	bool ccOverlaps;  // set if curve/curve edges have bounds that overlap
@@ -464,7 +479,6 @@ public:
 	int debugOutPath;	// id to color output contours
 	int debugParentID;
 	mutable int debugRayMatch;	// id: edges in common output contour determined from ray
-	bool debugFiller;  // edge created to span short gaps
 #endif
 #if OP_DEBUG_DUMP
 	OpContours* dumpContours;  // temporary edges don't have segment ptrs when unflattened
@@ -479,6 +493,9 @@ public:
 	OpDebugMaker debugSetDisabled;
 	OpDebugMaker debugSetMaker;
 	OpDebugMaker debugSetSum;
+#endif
+#if OP_DEBUG_VALIDATE
+	bool debugScheduledForErasure;
 #endif
 };
 

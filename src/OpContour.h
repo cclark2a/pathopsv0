@@ -207,14 +207,30 @@ struct SegmentIterator {
 };
 
 struct OpPtAlias {
-    OpPoint pt;
+    OpPoint original;
     OpPoint alias;
+};
+
+struct OpPtAliases {
+    bool add(OpPoint pt, OpPoint alias);
+    bool contains(OpPoint ) const;
+    OpPoint existing(OpPoint ) const;
+    OpPoint find(OpPoint ) const;
+    bool isSmall(OpPoint pt1, OpPoint pt2) const;
+
+	DUMP_DECLARATIONS
+
+    std::vector<OpPtAlias> a;
 };
 
 struct OpContours {
     OpContours();
     ~OpContours();
-    void addAlias(OpPoint pt, OpPoint alias);
+
+    bool addAlias(OpPoint pt, OpPoint alias) {
+        return aliases.add(pt, alias);
+    }
+
     void addCallerData(PathOpsV0Lib::AddContext callerData);
 //    OpEdge* addFiller(OpEdge* edge, OpEdge* lastEdge);
     OpEdge* addFiller(const OpPtT& start, const OpPtT& end);
@@ -253,6 +269,14 @@ struct OpContours {
                 return false;
         }
         return true;
+    }
+
+    OpPoint existingAlias(OpPoint pt) const {
+        return aliases.existing(pt);
+    }
+
+    OpPoint findAlias(OpPoint pt) const {
+        return aliases.find(pt);
     }
 
     void makeCoins() {
@@ -317,7 +341,7 @@ struct OpContours {
     #include "OpDebugDeclarations.h"
 #endif
 
-    std::vector<OpPtAlias> aliases;
+    OpPtAliases aliases;
     std::vector<PathOpsV0Lib::CurveCallBacks> callBacks;
     PathOpsV0Lib::ContextCallBacks contextCallBacks;
     PathOpsV0Lib::PathOutput callerOutput;

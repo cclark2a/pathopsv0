@@ -200,7 +200,7 @@ bool SectPreferred::find() {
 
     // intersections may have multiple different t values with the same pt value
     // should be rare; do an exhaustive search for duplicates
-void OpIntersections::mergeNear() {
+void OpIntersections::mergeNear(OpPtAliases& aliases) {
     for (unsigned outer = 1; outer < i.size(); ++outer) {
         OpIntersection* oSect = i[outer - 1];
         if (oSect->mergeProcessed)
@@ -211,7 +211,11 @@ void OpIntersections::mergeNear() {
             OpIntersection* iSect = i[limit];
             if (!iSect->ptT.isNearly(oSect->ptT))
                 break;
-            nearEqual |= iSect->ptT != oSect->ptT;
+            if (iSect->ptT == oSect->ptT)
+                continue;
+            nearEqual = true;
+            if (aliases.contains(iSect->ptT.pt))
+                oSect = iSect;
         } while (++limit < i.size());
         if (outer == limit)
             continue;
@@ -219,8 +223,24 @@ void OpIntersections::mergeNear() {
             outer = limit;
             continue;
         }
+//        start here;
+        // preferred needs to choose from contours aliases if a match exists there
         SectPreferred preferred(oSect);
     }
+}
+
+bool OpIntersections::simpleEnd() const {
+    OP_ASSERT(!resort);
+    OP_ASSERT(i.size() > 1);
+    OP_ASSERT(i.back()->ptT.t == 1);
+    return i[i.size() - 2]->ptT.t != 1;
+}
+
+bool OpIntersections::simpleStart() const {
+    OP_ASSERT(!resort);
+    OP_ASSERT(i.size() > 1);
+    OP_ASSERT(i.front()->ptT.t == 0);
+    return i[1]->ptT.t != 0;
 }
 
 void OpIntersections::sort() {

@@ -9,7 +9,9 @@
 #endif
 
 std::atomic_int testsWarn;
-int debugPrecision = -1;		// minus one means unset
+int debugPrecision = 8; // -1;		// minus one means unset
+bool debugSmall = true;  // set to false to show sub-epsilon values as ~0
+bool debugEpsilon = false;  // set to true to show values smaller than 100 * OpEpsilon as eps 
 
 #if 0
 // code pattern to find one of several id values
@@ -104,12 +106,15 @@ std::string OpDebugStr(float value) {
         return value > 0 ? "Inf" : "-Inf";
     if (0 == value)
         return "0";
-    if (fabsf(value) < OpEpsilon)
+    if (!debugSmall && fabsf(value) < OpEpsilon)
         return "~0";
     std::string result;
-    bool _small = fabsf(value) <= OpEpsilon * 100;
-    if (_small)
-        value = value / OpEpsilon;
+    bool _small = false;
+    if (debugEpsilon) {
+        _small = fabsf(value) <= OpEpsilon * 100;
+        if (_small)
+            value = value / OpEpsilon;
+    }
     if (debugPrecision < 0) {
         if (_small) {
             if (value < 0)
@@ -120,7 +125,7 @@ std::string OpDebugStr(float value) {
             result = std::to_string(value);
     } else {
         std::string s(16, '\0');
-        auto written = std::snprintf(&s[0], s.size(), "%.*f", debugPrecision, value);
+        auto written = std::snprintf(&s[0], s.size(), "%.*g", debugPrecision, value);
         s.resize(written);
         result = s;
     }
@@ -130,7 +135,7 @@ std::string OpDebugStr(float value) {
 #else
         result += "\u03B5";  // epsilon (fails on Windows Visual Studio, wrong character encoding)
 #endif
-    // !!! try trimming trailing zeroes to see what that's like
+#if 1    // trim trailing zeroes (useful if precision is -1)
     size_t pos = result.find('.');
     if (std::string::npos == pos)
         return result;
@@ -138,6 +143,7 @@ std::string OpDebugStr(float value) {
         result.pop_back();
     if (result.back() == '.')
         result.pop_back();
+#endif
     return result;
 }
 
@@ -555,7 +561,7 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContours* contours)) {
         do {
             if (!linkup->ray.distances.size())
                 continue;
-            if (linkup->isUnsortable)
+            if (Unsortable::none != linkup->isUnsortable)
                 continue;
             if (linkup->disabled)
                 continue;
@@ -712,6 +718,8 @@ void OpJoiner::debugValidate() const {
     }
     contours->debugCheckLastEdge = true;
     for (auto e : linkups.l) {
+        if (e->debugScheduledForErasure)
+            continue;
         e->debugValidate();
         OP_ASSERT(!e->priorEdge);
         OP_ASSERT(e->disabled || e->lastEdge);
