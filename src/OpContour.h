@@ -62,6 +62,12 @@ struct OpContour {
         }
     }
 
+    void findMissingEnds() {
+        for (auto& segment : segments) {
+            segment.findMissingEnds();
+        }
+    }
+
     void makeCoins() {
         for (auto& segment : segments) {
             segment.makeCoins();
@@ -217,6 +223,7 @@ struct OpPtAliases {
     OpPoint existing(OpPoint ) const;
     OpPoint find(OpPoint ) const;
     bool isSmall(OpPoint pt1, OpPoint pt2) const;
+    void remap(OpPoint oldAlias, OpPoint newAlias);
 
 	DUMP_DECLARATIONS
 
@@ -279,6 +286,12 @@ struct OpContours {
         return aliases.find(pt);
     }
 
+    void findMissingEnds() {
+       for (auto contour : contours) {
+            contour->findMissingEnds();
+        }
+    }
+
     void makeCoins() {
        for (auto contour : contours) {
             contour->makeCoins();
@@ -315,6 +328,7 @@ struct OpContours {
 
     bool pathOps();
     void release(OpEdgeStorage*& );
+    void remapPts(OpPoint oldAlias, OpPoint newAlias);
     void resetLimbs();
     void reuse(OpEdgeStorage* );
     bool setError(PathOpsV0Lib::ContextError  OP_DEBUG_PARAMS(int id, int id2 = 0));

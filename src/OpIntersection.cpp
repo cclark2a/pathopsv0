@@ -244,6 +244,8 @@ bool OpIntersections::simpleStart() const {
 }
 
 void OpIntersections::sort() {
+    if (i.size())
+        OpDebugBreak(i.front()->segment, 35);
     if (!resort) {
 #if OP_DEBUG
         if (i.size()) {

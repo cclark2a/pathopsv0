@@ -52,10 +52,18 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
         if (seg->c.firstPt().isNearly(oppPt) || 
                 (seg->startMoved && seg->aliasOriginal(MatchEnds::start).isNearly(oppPt))) {
             segT = 0;
-            if (oppPt != seg->c.firstPt()) {
-                oppPt = seg->c.firstPt();
-                OpPoint segPt = opp->moveTo(oppT, oppPt);
-                OP_ASSERT(!segPt.isFinite());  // !!! if triggered, more code to write
+            OpPoint firstPt = seg->c.firstPt();
+            if (oppPt != firstPt) {
+                bool oppMovable = oppT ? !opp->endMoved : !opp->startMoved;
+                if (oppMovable) {
+                    oppPt = firstPt;
+                    OpPoint segPt = opp->moveTo(oppT, oppPt);
+                    OP_ASSERT(!segPt.isFinite());  // !!! if triggered, more code to write
+                } else if (!seg->startMoved) {
+                    OpPoint segPt = seg->moveTo(0, oppPt);
+                    OP_ASSERT(!segPt.isFinite());
+                } else
+                    seg->contour->contours->remapPts(firstPt, oppPt);
             }
         } else if (seg->c.lastPt().isNearly(oppPt) ||
                 (seg->endMoved && seg->aliasOriginal(MatchEnds::end).isNearly(oppPt))) {
@@ -78,11 +86,20 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
 		if (OpMath::IsNaN(oppT))
             return oppT;
         oppT = OpMath::PinNear(oppT);
-        if ((0 == oppT || 1 == oppT) && opp->c.end(oppT) != segPt) {
-            OpPoint oppPt = opp->moveTo(oppT, segPt);
-            if (oppPt.isFinite()) {
-                segPt = oppPt;
-                seg->moveTo(segT, segPt);
+        if (0 == oppT || 1 == oppT) {
+            OpPoint oppEnd = opp->c.end(oppT);
+            if (oppEnd != segPt) {
+                OpPtAliases& aliases = seg->contour->contours->aliases;
+                if (aliases.contains(oppEnd) && aliases.contains(segPt))
+                    seg->contour->contours->remapPts(oppEnd, segPt);
+                else {
+                    // if both segPt and opp->c.end(oppT) are aliases, remap one to the other
+                    OpPoint oppPt = opp->moveTo(oppT, segPt);
+                    if (oppPt.isFinite()) {
+                        segPt = oppPt;
+                        seg->moveTo(segT, segPt);
+                    }
+                }
             }
         }
         /// !!! may add coincidence between seg and opp which goes undetected (skphealth_com76s)
@@ -91,6 +108,7 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
     };
     float startOppT = OpNaN;
     float endOppT = OpNaN;
+    OpDebugBreak2(seg, opp, 14, 26);
     if (0 != startSegT && 0 != endSegT) 
         startOppT = checkOpp(seg->c.firstPt(), 0  OP_LINE_FILE_PARAMS());  // see if start pt is on opp curve
     if (1 != startSegT && 1 != endSegT) 
@@ -100,11 +118,19 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
 		if (OpMath::IsNaN(segT))
             return;
         segT = OpMath::PinNear(segT);
-        if ((0 == segT || 1 == segT) && seg->c.end(segT) != oppPt) {
-            OpPoint segPt = seg->moveTo(segT, oppPt);
-            if (segPt.isFinite()) {
-                oppPt = segPt;
-                opp->moveTo(oppT, oppPt);
+        if (0 == segT || 1 == segT) {
+            OpPoint segEnd = seg->c.end(segT);
+            if (segEnd != oppPt) {
+                OpPtAliases& aliases = seg->contour->contours->aliases;
+                if (aliases.contains(segEnd) && aliases.contains(oppPt))
+                    seg->contour->contours->remapPts(segEnd, oppPt);
+                else {
+                    OpPoint segPt = seg->moveTo(segT, oppPt);
+                    if (segPt.isFinite()) {
+                        oppPt = segPt;
+                        opp->moveTo(oppT, oppPt);
+                    }
+                }
             }
         }
         add(oppPt, segT, oppT  OP_LINE_FILE_CALLER());

@@ -73,6 +73,7 @@ struct OpSegment {
 //    void complete();
     OpEdge* findEnabled(const OpPtT& , EdgeMatch ) const;
     float findAxisT(Axis , float start, float end, float oppXY);
+    void findMissingEnds();
 //    float findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const;
     float findValidT(float start, float end, OpPoint opp);
     // count and sort extrema; create an edge for each extrema + 1
@@ -92,6 +93,7 @@ struct OpSegment {
     bool nearby(float t, const OpSegment* opp) const;
     int nextID() const;
 //    void newWindCoincidences();  // !!! will eventually replace wind coincidences
+    void remapPts(OpPoint oldAlias, OpPoint newAlias);
     void setBounds();
 	void setDisabled(OP_LINE_FILE_NP_DEF());
     bool simpleEnd(const OpEdge* ) const;  // true if edge end connects to only one segment

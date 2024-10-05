@@ -372,6 +372,10 @@ void dmpActive() {
     }
 }
 
+void dmpAliases() {
+    debugGlobalContours->aliases.dump();
+}
+
 void dmpCoincidences() {
     for (const auto c : debugGlobalContours->contours) {
         for (const auto& seg : c->segments) {
@@ -1617,10 +1621,19 @@ void dmpEdgePts() {
 }
 
 void dmpPts(int ID) {
-    std::vector<EdgeFilter> showFields = { EF::id, EF::startT, EF::endT, EF::curve, EF::winding,
-            EF::sum, EF::whichEnd_impl };
-    OpSaveEF saveEF(showFields);
-    ::dmp(ID);
+    if (findEdge(ID)) {
+        std::vector<EdgeFilter> showFields = { EF::id, EF::startT, EF::endT, EF::curve, EF::winding,
+                EF::sum, EF::whichEnd_impl };
+        OpSaveEF saveEF(showFields);
+        ::dmp(ID);
+        return;
+    }
+    const OpSegment* seg = findSegment(ID);
+    if (seg) {
+        std::string s = seg->debugDump(DebugLevel::brief, defaultBase);
+        OpDebugFormat(s + "\n");
+        return;
+    }
 }
 
 void dmpPts(const OpEdge* e) {
@@ -1628,6 +1641,14 @@ void dmpPts(const OpEdge* e) {
 }
 
 void dmpPts(const OpEdge& e) {
+    dmpPts(&e);
+}
+
+void dmpPts(const OpSegment* e) {
+    dmpPts(e->id);
+}
+
+void dmpPts(const OpSegment& e) {
     dmpPts(&e);
 }
 

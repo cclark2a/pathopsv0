@@ -287,6 +287,66 @@ float OpSegment::findAxisT(Axis axis, float start, float end, float opp) {
     return OpNaN;
 }
 
+// rarely, moving points prevents finding matching ends. If there is no end, do an exhaustive search
+void OpSegment::findMissingEnds() {
+    if (disabled)
+        return;
+    OP_ASSERT(!sects.resort);
+    OpContours* contours = contour->contours;
+    if (!sects.i.size() || 0 != sects.i.front()->ptT.t) {
+        OpPoint alias = contours->aliases.existing(c.firstPt());
+        OP_ASSERT(alias != c.firstPt());
+        for (OpContour* cont : contours->contours) {
+            for (OpSegment& opp : cont->segments) {
+                if (opp.disabled)
+                    continue;
+                if (opp.c.firstPt() == alias) {
+                    OpIntersection* sect = addSegSect(OpPtT(alias, 0), &opp  OP_LINE_FILE_PARAMS());
+                    OpIntersection* oSect = opp.addSegSect(OpPtT(alias, 0), this  OP_LINE_FILE_PARAMS());
+		            sect->pair(oSect);
+                    sects.sort();
+                    opp.sects.sort();
+
+                } 
+                if (opp.c.lastPt() == alias) {
+                    OpIntersection* sect = addSegSect(OpPtT(alias, 0), &opp  OP_LINE_FILE_PARAMS());
+                    OpIntersection* oSect = opp.addSegSect(OpPtT(alias, 1), this  OP_LINE_FILE_PARAMS());
+		            sect->pair(oSect);
+                    sects.sort();
+                    opp.sects.sort();
+                }
+            }
+        }
+    }
+    if (!sects.i.size() || 1 != sects.i.back()->ptT.t) {
+        OpPoint alias = contours->aliases.existing(c.lastPt());
+        OP_ASSERT(alias != c.lastPt());
+        for (OpContour* cont : contours->contours) {
+            for (OpSegment& opp : cont->segments) {
+                if (opp.disabled)
+                    continue;
+                if (opp.c.firstPt() == alias) {
+                    OpIntersection* sect = addSegSect(OpPtT(alias, 1), &opp  OP_LINE_FILE_PARAMS());
+                    OpIntersection* oSect = opp.addSegSect(OpPtT(alias, 0), this  OP_LINE_FILE_PARAMS());
+		            sect->pair(oSect);
+                    sects.sort();
+                    opp.sects.sort();
+
+                } 
+                if (opp.c.lastPt() == alias) {
+                    OpIntersection* sect = addSegSect(OpPtT(alias, 1), &opp  OP_LINE_FILE_PARAMS());
+                    OpIntersection* oSect = opp.addSegSect(OpPtT(alias, 1), this  OP_LINE_FILE_PARAMS());
+		            sect->pair(oSect);
+                    sects.sort();
+                    opp.sects.sort();
+                }
+            }
+        }
+    }
+    if (startMoved || endMoved)
+        setBounds();
+}
+
 // returns t iff opp point is between start and end
 // start/end range is necessary since cubics can have more than one t at a point
 float OpSegment::findValidT(float start, float end, OpPoint opp) {
@@ -372,7 +432,8 @@ OpPoint OpSegment::moveTo(float matchT, OpPoint oppEqualPt) {
     if (0 == matchT ? startMoved : endMoved)
         return endPt;
 //    OP_ASSERT(endPt.soClose(equalPt));  // fuzz_k1 triggers assert
-    OpPoint equalPt = contour->contours->existingAlias(oppEqualPt);
+    OpPtAliases& aliases = contour->contours->aliases;
+    OpPoint equalPt = aliases.existing(oppEqualPt);
     if (endPt == equalPt)
         return equalPt;  // caller must move opp instead
     bool useSectOpp = false;
@@ -393,7 +454,11 @@ OpPoint OpSegment::moveTo(float matchT, OpPoint oppEqualPt) {
         OP_ASSERT(!useSectOpp);
         useSectOpp = true;
     }
-    if (!contour->contours->addAlias(endPt, equalPt))
+    // if end point and equal point are both aliases (rare), do a global remap of all points so 
+    // that the two are combined into a single alias
+    if (aliases.contains(endPt))
+        contour->contours->remapPts(endPt, equalPt);
+    if (!aliases.add(endPt, equalPt))
         return OpPoint(SetToNaN::dummy);
     if (0 == matchT) {
          c.setFirstPt(equalPt);
@@ -406,16 +471,18 @@ OpPoint OpSegment::moveTo(float matchT, OpPoint oppEqualPt) {
 // defer disabling until all moves are complete; disable small segments will clean up
    if (c.firstPt() == c.lastPt())
         willDisable = true;
-    setBounds();
+//    setBounds();  // defer fixing in middle of finding intersections, which uses sorted bounds
     for (OpIntersection* sect : sects.i) {
-        OpDebugBreak(sect, 581);
-        OpDebugBreak(sect, 582);
         if (sect->ptT.t == matchT) {
             sect->ptT.pt = equalPt;
             if (sect->opp->ptT.pt != equalPt) {
                 if (sect->opp->ptT.onEnd()) {
-                    OpPoint altPt = sect->opp->segment->moveTo(sect->opp->ptT.t, equalPt);
-                    OP_ASSERT(!altPt.isFinite());
+                    OpSegment* oppSeg = sect->opp->segment;
+                    float oppT = sect->opp->ptT.t;
+                    if (oppT ? !oppSeg->endMoved : !oppSeg->startMoved) {
+                        OpPoint altPt = oppSeg->moveTo(oppT, equalPt);
+                        OP_ASSERT(!altPt.isFinite());
+                    }
                 } else
                     sect->opp->ptT.pt = equalPt;
             }
@@ -436,6 +503,26 @@ void OpSegment::moveWinding(OpSegment* opp, bool backwards) {
 
 int OpSegment::nextID() const {
     return contour->nextID();
+}
+
+void OpSegment::remapPts(OpPoint oldAlias, OpPoint newAlias) {
+    if (c.firstPt() == oldAlias) {
+        c.setFirstPt(newAlias);
+        startMoved = true;
+    }
+    if (c.lastPt() == oldAlias) {
+        c.setLastPt(newAlias);
+        endMoved = true;
+    }
+    c.pinCtrl();
+    if (c.firstPt() == c.lastPt())
+        willDisable = true;
+    setBounds();
+    for (OpIntersection* sect : sects.i) {
+        if (sect->ptT.pt == oldAlias)
+            sect->ptT.pt = newAlias;
+    }
+    edges.clear();
 }
 
 void OpSegment::setBounds() {

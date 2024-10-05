@@ -649,18 +649,6 @@ void OpEdge::setActive(bool state) {
 	active_impl = state;
 }
 
-#if 0
-const OpRect& OpEdge::closeBounds() {
-	// close bounds holds point bounds outset by 'close' fudge factor
-	if (linkBounds.isSet())
-		return linkBounds;
-	OpRect bounds = ptBounds.outsetClose();
-	linkBounds = { bounds.left, bounds.top, bounds.right, bounds.bottom };
-	OP_ASSERT(linkBounds.isFinite());
-	return linkBounds;
-}
-#endif
-
 bool OpEdge::isClose() {
 	if (closeSet)
 		return isClose_impl;

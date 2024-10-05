@@ -1116,18 +1116,22 @@ bool OpCurveCurve::splitDownTheMiddle(const OpEdge& edge, const OpPtT& edgeMid, 
 	void* blockL = contours->allocateEdge(contours->ccStorage);
 	OpEdge* splitLeft = new(blockL) OpEdge(&edge, edgeMid, NewEdge::isLeft  
 			OP_LINE_FILE_PARAMS());
-	splitLeft->ccOverlaps = true;
-	splitLeft->ccStart = edge.ccStart;
-	splitLeft->ccSmall = edge.ccSmall;
-	splits.c.push_back(splitLeft);
-	curves.addEdgeRun(splitLeft, oppSeg, EdgeMatch::end);
+	if (!splitLeft->disabled) {
+		splitLeft->ccOverlaps = true;
+		splitLeft->ccStart = edge.ccStart;
+		splitLeft->ccSmall = edge.ccSmall;
+		splits.c.push_back(splitLeft);
+		curves.addEdgeRun(splitLeft, oppSeg, EdgeMatch::end);
+	}
 	void* blockR = contours->allocateEdge(contours->ccStorage);
 	OpEdge* splitRight = new(blockR) OpEdge(&edge, edgeMid, NewEdge::isRight  
 			OP_LINE_FILE_PARAMS());
-	splitRight->ccOverlaps = true;
-	splitRight->ccEnd = edge.ccEnd;
-	splitRight->ccLarge = edge.ccLarge;
-	splits.c.push_back(splitRight);
+	if (!splitRight->disabled) {
+		splitRight->ccOverlaps = true;
+		splitRight->ccEnd = edge.ccEnd;
+		splitRight->ccLarge = edge.ccLarge;
+		splits.c.push_back(splitRight);
+	}
 	return true;
 }
 

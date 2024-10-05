@@ -318,7 +318,6 @@ public:
 	void clearLinkBounds() { OP_ASSERT(!linkBounds.isSet()); } // !!! see if this is needed
 	void clearNextEdge();
 	void clearPriorEdge();
-//	const OpRect& closeBounds();  // returns bounds with slop
 	void complete(OpPoint start, OpPoint end);
 	bool containsLink(const OpEdge* edge) const;
 	OpContours* contours() const;

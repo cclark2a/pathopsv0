@@ -120,6 +120,14 @@ bool OpPtAliases::isSmall(OpPoint pt1, OpPoint pt2) const {
     return false;
 }
 
+void OpPtAliases::remap(OpPoint oldAlias, OpPoint newAlias) {
+    for (OpPtAlias& test : a) {
+        if (test.alias == oldAlias)
+            test.alias = newAlias;
+    }
+    add(oldAlias, newAlias);
+}
+
 OpContours::OpContours()
     : caller({nullptr, 0}) 
     , ccStorage(nullptr)
@@ -381,6 +389,7 @@ bool OpContours::pathOps() {
         OP_DEBUG_SUCCESS(*this, true);
     }
     sortIntersections();
+    findMissingEnds();  // moved pts may require looking in aliases for an end match
     betweenIntersections();  // fill in intersections in coin runs that are missing in other coins
     makeEdges();
     makeCoins();
@@ -411,6 +420,15 @@ void OpContours::release(OpEdgeStorage*& edgeStorage) {
         delete edgeStorage;
         edgeStorage = next;
     }
+}
+
+void OpContours::remapPts(OpPoint oldAlias, OpPoint newAlias) {
+    for (auto contour : contours) {
+        for (auto& segment : contour->segments) {
+            segment.remapPts(oldAlias, newAlias);
+        }
+    }
+    aliases.remap(oldAlias, newAlias);
 }
 
 void OpContours::reuse(OpEdgeStorage* edgeStorage) {

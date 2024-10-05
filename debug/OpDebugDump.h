@@ -205,6 +205,7 @@ OP_X(Detailed) \
 OP_X(Hex)
 
 extern void dmpActive();
+extern void dmpAliases();
 extern void dmpCoincidences();
 extern void dmpCoins();
 extern void dmpDisabled();
@@ -282,6 +283,8 @@ extern void dmpPlayback(FILE* );
 extern void dmpPts(int ID);
 extern void dmpPts(const OpEdge* );
 extern void dmpPts(const OpEdge& );
+extern void dmpPts(const OpSegment* );
+extern void dmpPts(const OpSegment& );
 extern void dmpRecord(FILE * );
 extern void dmpT(int ID, float t);
 extern void dmpT(const OpEdge* s, float t);
