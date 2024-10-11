@@ -39,7 +39,7 @@ OpIntersection* OpIntersections::contains(const OpPtT& ptT, const OpSegment* opp
         OpIntersection* sect = i[index];
         if (!sect->opp || sect->opp->segment != opp)
             continue;
-		if (ptT.isNearly(sect->ptT))
+		if (ptT.isNearly(sect->ptT, opp->threshold()))
 			return sect;
 	}
 	return nullptr;
@@ -111,7 +111,7 @@ const OpIntersection* OpIntersections::nearly(const OpPtT& ptT, OpSegment* oSeg)
         OpIntersection* sect = i[index];
         if (oSeg && (!sect->opp || sect->opp->segment != oSeg))
             continue;
-		if (ptT.pt.isNearly(sect->ptT.pt) 
+		if (ptT.pt.isNearly(sect->ptT.pt, oSeg->threshold()) 
                 || (ptT.t - OpEpsilon <= sect->ptT.t && sect->ptT.t <= ptT.t + OpEpsilon))
 			return sect;
 	}
@@ -157,7 +157,7 @@ bool SectPreferred::find() {
     visited.push_back(seg);
     bool sawBest = false;
     for (OpIntersection* test : sects.i) {
-        if (!test->ptT.isNearly(best->ptT)) {
+        if (!test->ptT.isNearly(best->ptT, seg->threshold())) {
             if (sawBest)
                 break;
             continue;
@@ -165,7 +165,7 @@ bool SectPreferred::find() {
         test->mergeProcessed = true;  // skip this when seen by merge near
         if (test == best) {
             sawBest = true;
-            if (sects.i.back()->ptT.isNearly(best->ptT)) {
+            if (sects.i.back()->ptT.isNearly(best->ptT, seg->threshold())) {
 // small segment may have first and last nearly touching
                 if (0 == best->ptT.t) {
                     seg->setDisabled(OP_LINE_FILE_NPARAMS());
@@ -177,7 +177,7 @@ bool SectPreferred::find() {
         } else if (test->ptT != best->ptT) {
             if (test->ptT.onEnd()) {
                 if (bestOnEnd) {
-                    seg->moveTo(test->ptT.t, best->ptT.pt);
+                    seg->movePt(test->ptT, best->ptT.pt);  // !!! trace through -- may need rewrite
                 } else {
                     best = test;
                     bestOnEnd = true;
@@ -209,7 +209,7 @@ void OpIntersections::mergeNear(OpPtAliases& aliases) {
         bool nearEqual = false;
         do {
             OpIntersection* iSect = i[limit];
-            if (!iSect->ptT.isNearly(oSect->ptT))
+            if (!iSect->ptT.isNearly(oSect->ptT, iSect->segment->threshold()))
                 break;
             if (iSect->ptT == oSect->ptT)
                 continue;
@@ -244,8 +244,6 @@ bool OpIntersections::simpleStart() const {
 }
 
 void OpIntersections::sort() {
-    if (i.size())
-        OpDebugBreak(i.front()->segment, 35);
     if (!resort) {
 #if OP_DEBUG
         if (i.size()) {
@@ -423,12 +421,9 @@ bool OpIntersections::debugContains(const OpPtT& ptT, const OpSegment* opp) cons
 }
 
 OpIntersection* OpIntersections::debugAlreadyContains(const OpPoint& pt, const OpSegment* oppSegment) const {
-	for (auto sectPtr : i) {
-		const OpIntersection& sect = *sectPtr;
-        if (!sect.opp)
-            continue;
-		if (oppSegment == sect.opp->segment && (pt == sect.ptT.pt || pt == sect.ptT.pt))
-			return sectPtr;
+	for (auto sect : i) {
+		if (oppSegment == sect->opp->segment && pt == sect->ptT.pt)
+			return sect;
 	}
 	return nullptr;
 }

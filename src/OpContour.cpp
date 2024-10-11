@@ -76,18 +76,22 @@ int OpContour::nextID() const {
 
 // end of contour; start of contours
 bool OpPtAliases::add(OpPoint original, OpPoint alias) {
+    OP_ASSERT(original.isFinite());
+    OP_ASSERT(alias.isFinite());
     OP_ASSERT(original != alias);
     for (OpPtAlias& test : a) {
         if (original == test.alias)
             return false;
         if (test.original == original && test.alias == alias)
             return true;
+        OP_ASSERT(test.original != alias);
     }
     a.push_back({original, alias});
     return true;
 }
 
 bool OpPtAliases::contains(OpPoint aliased) const {
+    OP_ASSERT(aliased.isFinite());
     for (const OpPtAlias& test : a) {
         if (test.alias == aliased)
             return true;
@@ -96,6 +100,7 @@ bool OpPtAliases::contains(OpPoint aliased) const {
 }
 
 OpPoint OpPtAliases::existing(OpPoint match) const {
+    OP_ASSERT(match.isFinite());
     for (const OpPtAlias& test : a) {
         if (test.original == match)
             return test.alias;
@@ -104,6 +109,7 @@ OpPoint OpPtAliases::existing(OpPoint match) const {
 }
 
 OpPoint OpPtAliases::find(OpPoint aliased) const {
+    OP_ASSERT(aliased.isFinite());
     for (const OpPtAlias& test : a) {
         if (test.alias == aliased)
             return test.original;
@@ -112,6 +118,8 @@ OpPoint OpPtAliases::find(OpPoint aliased) const {
 }
 
 bool OpPtAliases::isSmall(OpPoint pt1, OpPoint pt2) const {
+    OP_ASSERT(pt1.isFinite());
+    OP_ASSERT(pt2.isFinite());
     for (const OpPtAlias& test : a) {
         if ((test.original == pt1 || test.alias == pt1) 
                 && (test.original == pt2 || test.alias == pt2))
@@ -121,12 +129,28 @@ bool OpPtAliases::isSmall(OpPoint pt1, OpPoint pt2) const {
 }
 
 void OpPtAliases::remap(OpPoint oldAlias, OpPoint newAlias) {
+    OP_ASSERT(oldAlias.isFinite());
+    OP_ASSERT(newAlias.isFinite());
     for (OpPtAlias& test : a) {
         if (test.alias == oldAlias)
             test.alias = newAlias;
     }
     add(oldAlias, newAlias);
 }
+
+SegPt OpPtAliases::setIfClose(OpPoint match) {
+    OP_ASSERT(match.isFinite());
+    for (const OpPtAlias& alias : a) {
+        if (alias.original.isNearly(match, threshold) || alias.alias.isNearly(match, threshold)) {
+            if (match != alias.alias)
+                add(match, alias.alias);
+            return { alias.alias, PtType::alias };
+        }
+    }
+    return { match, PtType::noMatch };
+}
+
+
 
 OpContours::OpContours()
     : caller({nullptr, 0}) 
@@ -203,6 +227,14 @@ OpContours::~OpContours() {
 #endif
 }
 
+bool OpContours::addAlias(OpPoint pt, OpPoint alias) {
+       if (!aliases.add(pt, alias)) {
+           remapPts(pt, alias);
+           return false;
+       }
+       return true;
+}
+
 #if 0
 OpEdge* OpContours::addFiller(OpEdge* edge, OpEdge* lastEdge) {
 	// break this off into its own callable function
@@ -234,6 +266,10 @@ OpEdge* OpContours::addFiller(const OpPtT& start, const OpPtT& end) {
     void* block = allocateEdge(fillerStorage);
     OpEdge* filler = new(block) OpEdge(this, start, end  OP_LINE_FILE_PARAMS());
     return filler;
+}
+
+void OpContours::addToBounds(const OpCurve& curve) {
+    maxBounds.add(curve.ptBounds());
 }
 
 OpContour* OpContours::allocateContour() {
@@ -298,6 +334,24 @@ PathOpsV0Lib::WindingData* OpContours::allocateWinding(size_t size) {
     return (PathOpsV0Lib::WindingData*) result;
 }
 
+// build list of linked edges
+// if they are closed, done
+// if not, match up remainder
+// make sure normals point same way
+// prefer smaller assembled contours
+// returns true on success
+bool OpContours::assemble() {
+    OpJoiner joiner(*this);
+    if (joiner.setup())
+        return true;
+    for (LinkPass linkPass : { LinkPass::normal, LinkPass::unsectable } ) {
+        joiner.linkUnambiguous(linkPass);
+        if (joiner.linkRemaining(OP_DEBUG_CODE(this)))
+            return true;
+    }
+    return false;
+}
+
 bool OpContours::containsFiller(OpPoint start, OpPoint end) const {
     if (!fillerStorage)
         return false;
@@ -333,38 +387,14 @@ void OpContours::resetLimbs() {
     limbStorage->reset();
 }
 
-// build list of linked edges
-// if they are closed, done
-// if not, match up remainder
-// make sure normals point same way
-// prefer smaller assembled contours
-// returns true on success
-bool OpContours::assemble() {
-    OpJoiner joiner(*this);
-    if (joiner.setup())
-        return true;
-    for (LinkPass linkPass : { LinkPass::normal, LinkPass::unsectable } ) {
-        joiner.linkUnambiguous(linkPass);
-        if (joiner.linkRemaining(OP_DEBUG_CODE(this)))
-            return true;
-    }
-    return false;
-}
-
-bool OpContours::debugFail() const {
-#if OP_DEBUG
-    return OpDebugExpect::unknown == debugExpect || OpDebugExpect::fail == debugExpect;
-#else
-    return false;
-#endif
-}
-
 // If successive runs of the same input are flaky, check to see if identical ids are generated.
 // To do this, insert OP_DEBUG_COUNT(*this, _some_identifer_); after every callout.  
 // This will compare the dumps of contours and contents to detect when something changed.
 // The callouts are removed when not in use as they are not maintained and reduce readability.
 // !!! OP_DEBUG_COUNT was unintentionally deleted at some point. Hopefully it is in git history...
 bool OpContours::pathOps() {
+    setThreshold();
+    normalize();  // collect extremes, map all from 0 to 1, map <= epsilon to zero
     OpSegments::FindCoincidences(this);
 #if OP_DEBUG_VALIDATE
     debugValidateIntersections();
@@ -422,13 +452,14 @@ void OpContours::release(OpEdgeStorage*& edgeStorage) {
     }
 }
 
-void OpContours::remapPts(OpPoint oldAlias, OpPoint newAlias) {
+OpPoint OpContours::remapPts(OpPoint oldAlias, OpPoint newAlias) {
     for (auto contour : contours) {
         for (auto& segment : contour->segments) {
-            segment.remapPts(oldAlias, newAlias);
+            segment.remap(oldAlias, newAlias);
         }
     }
     aliases.remap(oldAlias, newAlias);
+    return newAlias;
 }
 
 void OpContours::reuse(OpEdgeStorage* edgeStorage) {
@@ -448,6 +479,14 @@ bool OpContours::setError(PathOpsV0Lib::ContextError e  OP_DEBUG_PARAMS(int eID,
     return false;
 }
 
+void OpContours::setThreshold() {
+    auto threshold = [](float left, float right) {
+        return std::max(1.f, std::max(fabsf(left), fabsf(right))) * OpEpsilon;
+    };
+    aliases.threshold = { threshold(maxBounds.left, maxBounds.right),
+            threshold(maxBounds.top, maxBounds.bottom) };
+}
+
 void OpContours::sortIntersections() {
     for (auto contour : contours) {
         for (auto& segment : contour->segments) {
@@ -459,6 +498,14 @@ void OpContours::sortIntersections() {
             segment.sects.mergeNear(aliases);
         }
     }
+}
+
+bool OpContours::debugFail() const {
+#if OP_DEBUG
+    return OpDebugExpect::unknown == debugExpect || OpDebugExpect::fail == debugExpect;
+#else
+    return false;
+#endif
 }
 
 #if OP_DEBUG

@@ -139,6 +139,9 @@ std::string OpDebugStr(float value) {
     size_t pos = result.find('.');
     if (std::string::npos == pos)
         return result;
+    pos = result.find('e');
+    if (std::string::npos != pos)
+        return result;
     while (result.back() == '0')
         result.pop_back();
     if (result.back() == '.')

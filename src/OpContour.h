@@ -88,6 +88,13 @@ struct OpContour {
 
     int nextID() const;
 
+    void normalize() {
+    for (auto& segment : segments) {
+            segment.normalize();
+        }
+    }
+
+
 #if 0  // !!! disable until use case appears
     void setBounds() {
         for (auto& segment : segments) {
@@ -224,23 +231,23 @@ struct OpPtAliases {
     OpPoint find(OpPoint ) const;
     bool isSmall(OpPoint pt1, OpPoint pt2) const;
     void remap(OpPoint oldAlias, OpPoint newAlias);
+    SegPt setIfClose(OpPoint match);
 
 	DUMP_DECLARATIONS
 
     std::vector<OpPtAlias> a;
+    OpPoint threshold;
 };
 
 struct OpContours {
     OpContours();
     ~OpContours();
 
-    bool addAlias(OpPoint pt, OpPoint alias) {
-        return aliases.add(pt, alias);
-    }
-
+    bool addAlias(OpPoint pt, OpPoint alias);
     void addCallerData(PathOpsV0Lib::AddContext callerData);
 //    OpEdge* addFiller(OpEdge* edge, OpEdge* lastEdge);
     OpEdge* addFiller(const OpPtT& start, const OpPtT& end);
+    void addToBounds(const OpCurve& );
     OpContour* allocateContour();
     PathOpsV0Lib::CurveData* allocateCurveData(size_t );
     OpEdge* allocateEdge(OpEdgeStorage*& );
@@ -324,14 +331,26 @@ struct OpContours {
         return ++uniqueID; 
     }
 
+    void normalize() {
+        for (auto contour : contours) {
+            contour->normalize();
+        }
+    }
+
     OpLimb& nthLimb(int index);
 
     bool pathOps();
     void release(OpEdgeStorage*& );
-    void remapPts(OpPoint oldAlias, OpPoint newAlias);
+    OpPoint remapPts(OpPoint oldAlias, OpPoint newAlias);
     void resetLimbs();
     void reuse(OpEdgeStorage* );
+
+    SegPt setAliasIfClose(OpPoint pt) {
+        return aliases.setIfClose(pt);
+    }
+
     bool setError(PathOpsV0Lib::ContextError  OP_DEBUG_PARAMS(int id, int id2 = 0));
+    void setThreshold();
     void sortIntersections();
 
     bool debugFail() const;
@@ -370,6 +389,7 @@ struct OpContours {
     OpLimbStorage* limbStorage;
     OpLimbStorage* limbCurrent;
     CallerDataStorage* callerStorage;
+    OpPointBounds maxBounds;
     PathOpsV0Lib::ContextError error;
     int uniqueID;  // used for object id, unsectable id, coincidence id
 #if OP_DEBUG_VALIDATE

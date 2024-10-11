@@ -43,6 +43,7 @@ OP_X(OpSegment)
 
 #define OP_STRUCTS \
 OP_X(CcCurves) \
+OP_X(CoinEnd) \
 OP_X(LinePts) \
 OP_X(LinkUps) \
 OP_X(OpContours) \
@@ -64,7 +65,8 @@ OP_X(OpTree) \
 OP_X(OpVector) \
 OP_X(OpWinder) \
 OP_X(OpWinding) \
-OP_X(SectRay)
+OP_X(SectRay) \
+OP_X(SegPt)
 
 // OP_X(OpInPath) \
 // OP_X(OpOutPath) \
@@ -271,6 +273,7 @@ enum class DebugLevel {
 
 extern void dmpBase(int );  // set to dec, hex, hexdec
 extern void dmpClosest(const OpCurveCurve& , const OpPoint& );
+extern void dmp(std::array<CoinEnd, 4>& );
 extern std::string debugDumpColor(uint32_t c);
 extern void dmpColor(uint32_t );
 extern void dmpColor(const OpEdge* );

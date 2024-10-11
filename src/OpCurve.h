@@ -56,6 +56,7 @@ struct OpCurve {
     bool nearBounds(OpPoint ) const;
     OpVector normal(float t) const;
     NormalDirection normalDirection(Axis axis, float t) const;
+    bool normalize();
     void output(bool firstPt, bool lastPt);
     void pinCtrl();
     OpPoint ptAtT(float t) const;

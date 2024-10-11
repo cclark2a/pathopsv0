@@ -492,7 +492,8 @@ struct OpPoint {
         return *asPtr(xyChoice);
     }
 
-    bool isNearly(OpPoint test) const;
+    // bool isNearly(OpPoint test) const;  // !!! phase this out in favor of threshold version
+    bool isNearly(OpPoint test, OpPoint threshold) const;
     void pin(const OpPoint , const OpPoint );
     void pin(const OpRect& );
     bool soClose(OpPoint test) const;
@@ -631,7 +632,12 @@ struct OpRect {
 
 struct OpPtT {
     OpPtT()
-        : t(OpNaN) {
+        : t(OpDebugNaN) {
+    }
+
+    OpPtT(SetToNaN) 
+        : pt(SetToNaN::dummy)
+        , t(OpNaN) {
     }
 
     OpPtT(OpPoint ptIn, float tIn)
@@ -647,7 +653,7 @@ struct OpPtT {
         return a.pt != b.pt || a.t != b.t;
     }
 
-    bool isNearly(const OpPtT& o) const;
+    bool isNearly(const OpPtT& o, OpPoint threshold) const;
 
     bool onEnd() const {
         return 0 == t || 1 == t;
@@ -742,7 +748,10 @@ struct OpMath {
         return CubicRootsReal(A, B, C, D, MatchEnds::none).keepValidTs();
     }
 
-    static bool Equalish(float a, float b);
+    static bool Equal(float a, float b, float threshold);
+
+    static bool EqualT(float a, float b) {
+        return Equal(a, b, OpEpsilon); }
 
     // no_sanitize("float-divide-by-zero")
     // !!! incomplete; set up attribute as needed for platforms that require it
@@ -769,8 +778,8 @@ struct OpMath {
     static bool NearlyEndT(float t) {
         return NearlyZeroT(t) || NearlyOneT(t); }
 
-    static bool NearlyEqualT(float a, float b) {
-        return a + OpEpsilon >= b && a <= b + OpEpsilon; }
+//    static bool NearlyEqualT(float a, float b) {
+//        return a + OpEpsilon >= b && a <= b + OpEpsilon; }
 
     static bool NearlyOneT(float t) {
         return 1 <= t + OpEpsilon; }
@@ -792,8 +801,7 @@ struct OpMath {
 
     // return position between A and B (0 to 1)
     static float Ratio(float A, float B, float tween) {
-        OP_ASSERT(A <= tween && tween <= B);
-        OP_ASSERT(A < B);
+        OP_ASSERT(Between(A, tween, B));
         return (tween - A) / (B - A);
     }
 
@@ -844,6 +852,8 @@ struct OpMath {
     static OpRoots QuadRootsInteriorT(float A, float B, float C) {
         return QuadRootsDouble(A, B, C).keepInteriorTs();
     }
+
+    static OpPoint Threshold(OpPoint pt1, OpPoint pt2);
 
     static float XYRatio(float A, float B, float tween) {
         OP_ASSERT(Between(A, tween, B));

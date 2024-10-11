@@ -117,8 +117,9 @@ inline float ConicTangent(OpPoint start, PointWeight control, OpPoint end, XyCho
 }
 
 inline OpVector ConicTangent(OpPoint start, PointWeight control, OpPoint end, float t) {
-    if ((OpMath::NearlyZeroT(t) && start.isNearly(control.pt))
-            || (OpMath::NearlyOneT(t) && end.isNearly(control.pt)))
+    OpPoint threshold = OpMath::Threshold(start, end);
+    if ((OpMath::NearlyZeroT(t) && start.isNearly(control.pt, threshold))
+            || (OpMath::NearlyOneT(t) && end.isNearly(control.pt, threshold)))
         return end - start;
     return { ConicTangent(start, control, end, XyChoice::inX, t), 
             ConicTangent(start, control, end, XyChoice::inY, t) };

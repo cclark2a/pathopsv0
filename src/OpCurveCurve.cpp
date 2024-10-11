@@ -241,7 +241,8 @@ void CcCurves::snipRange(const OpSegment* segment, const OpPtT& lo, const OpPtT&
 			snips.c.push_back(edge);
 			continue;
 		}
-		if (edge->startT < lo.t && !edge->start().isNearly(lo)) {
+		OpPoint threshold = contours->aliases.threshold;
+		if (edge->startT < lo.t && !edge->start().isNearly(lo, threshold)) {
 			OpEdge* snipE = addSnip(edge, edge->start(), lo);
 			snipE->ccStart = edge->ccStart;
 			snipE->ccSmall = edge->ccSmall;
@@ -249,7 +250,7 @@ void CcCurves::snipRange(const OpSegment* segment, const OpPtT& lo, const OpPtT&
 			addEdgeRun(snipE, oppSeg, EdgeMatch::end);
 			snips.c.push_back(snipE);
 		}
-		if (edge->endT > hi.t && !hi.isNearly(edge->end())) {
+		if (edge->endT > hi.t && !hi.isNearly(edge->end(), threshold)) {
 			OpEdge* snipS = addSnip(edge, hi, edge->end());
 			snipS->ccStart = true;
 			snipS->ccEnd = edge->ccEnd;
@@ -511,7 +512,8 @@ bool OpCurveCurve::checkSect() {
 			continue;
 		OpPtT edgeStart = edge.start();
 		OpPtT edgeEnd = edge.end();
-		bool edgeDone = edgeStart.isNearly(edgeEnd);
+		OpPoint threshold = contours->aliases.threshold;
+		bool edgeDone = edgeStart.isNearly(edgeEnd, threshold);
 		for (auto oppPtr : oppCurves.c) {
 			auto& oppEdge = *oppPtr;
 			if (!oppEdge.ccOverlaps)
@@ -519,7 +521,7 @@ bool OpCurveCurve::checkSect() {
 			OpPtT oppStart = oppEdge.start();
 			OpPtT oppEnd = oppEdge.end();
 			// check end condition
-			if (edgeDone && (oppStart.isNearly(oppEnd))) {
+			if (edgeDone && (oppStart.isNearly(oppEnd, threshold))) {
 				addIntersection(edgePtr, oppPtr);
 				return true;
 			} 
@@ -802,11 +804,12 @@ bool OpCurveCurve::ifExactly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& oppEdge
 
 bool OpCurveCurve::ifNearly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& oppEdge, const OpPtT& oppPtT) {
 //	OpDebugBreakIf(&edge, 28, 31 == oppEdge.id);
-	if (!edgePtT.pt.isNearly(oppPtT.pt))
+	OpPoint threshold = contours->aliases.threshold;
+	if (!edgePtT.pt.isNearly(oppPtT.pt, threshold))
 		return false;
-	if (edge.ccStart && edge.start().isNearly(edgePtT))
+	if (edge.ccStart && edge.start().isNearly(edgePtT, threshold))
 		return false;
-	if (edge.ccEnd && edge.end().isNearly(edgePtT))
+	if (edge.ccEnd && edge.end().isNearly(edgePtT, threshold))
 		return false;
 	recordSect(&edge, &oppEdge, edgePtT, oppPtT  OP_LINE_FILE_PARAMS());
 	snipEdge = edgePtT;
@@ -818,7 +821,7 @@ bool OpCurveCurve::alreadyInLimits(const OpEdge* edge, const OpEdge* oEdge, floa
 	for (FoundLimits& limit : limits) {
 		if (limit.parentEdge == edge && limit.parentOpp == oEdge)
 			return true;  // reverse case already recorded
-		if (OpMath::Equalish(limit.seg.t, t))
+		if (OpMath::EqualT(limit.seg.t, t))
 			return true;  // already recorded
 	}
 	return false;
@@ -994,11 +997,12 @@ void OpCurveCurve::setHullSects(OpEdge& edge, OpEdge& oppEdge, CurveRef curveRef
 	int ptCount = oppEdge.curve.pointCount();
 	LinePts oppPts;
 	oppPts.pts[1] = oppEdge.curve.firstPt();
+	OpPoint threshold = contours->aliases.threshold;
 	for (int index = 1; index <= ptCount; ++index) {
 		oppPts.pts[0] = oppPts.pts[1];
 		int endHull = index < ptCount ? index : 0;
 		oppPts.pts[1] = oppEdge.curve.hullPt(endHull);
-		if (oppPts.pts[0].isNearly(oppPts.pts[1]))
+		if (oppPts.pts[0].isNearly(oppPts.pts[1], threshold))
 			continue;
 		// since curve/curve intersection works by keeping overlapping edge bounds, it should
 		// use edge, not segment, to find hull intersections
@@ -1007,11 +1011,12 @@ void OpCurveCurve::setHullSects(OpEdge& edge, OpEdge& oppEdge, CurveRef curveRef
 			OpPtT sectPtT = septs.ptTs[inner];
 			// set to secttype endhull iff computed point is equal to or nearly an end point
 			SectType sectType;
-			if ((1 == index || 0 == endHull) && sectPtT.pt.isNearly(oppPts.pts[0])) {
+			if ((1 == index || 0 == endHull) 
+					&& sectPtT.pt.isNearly(oppPts.pts[0], threshold)) {
 				sectType = SectType::endHull;
 				sectPtT.pt = oppPts.pts[0];
 			} else if ((ptCount - 1 == index || 0 == endHull) 
-					&& sectPtT.pt.isNearly(oppPts.pts[1])) {
+					&& sectPtT.pt.isNearly(oppPts.pts[1], threshold)) {
 				sectType = SectType::endHull;
 				sectPtT.pt = oppPts.pts[1];
 			} else
@@ -1103,9 +1108,9 @@ bool OpCurveCurve::splitDownTheMiddle(const OpEdge& edge, const OpPtT& edgeMid, 
 	//      (this isn't necessarily in the intersection hull)
 	//      wait until this is necessary to make it work
 	// checkSplit(edge.startT, edge.endT, which, edgeMid);
-	if (OpMath::Equalish(edge.startT, edgeMid.t))
+	if (OpMath::EqualT(edge.startT, edgeMid.t))
 		return false;
-	if (OpMath::Equalish(edgeMid.t, edge.endT))
+	if (OpMath::EqualT(edgeMid.t, edge.endT))
 		return false;
 	if (edge.centerless)
 		return false;
@@ -1147,7 +1152,9 @@ bool OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 		auto& edge = *edgePtr;
 		if (!edge.ccOverlaps)
 			continue;
-		if (edge.start().isNearly(edge.center) || edge.center.isNearly(edge.end())) {
+		OpPoint threshold = contours->aliases.threshold;
+		if (edge.start().isNearly(edge.center, threshold) 
+				|| edge.center.isNearly(edge.end(), threshold)) {
 			if (CurveRef::edge == which)
 				splitHullFail = true;
 			continue;
@@ -1198,15 +1205,15 @@ bool OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 		if (!midCount) {
 			OpPtT cutHere;
 			for (const HullSect hull : hulls.h) {
-				if (OpMath::Equalish(hull.sect.t, edge.startT)) 
+				if (OpMath::EqualT(hull.sect.t, edge.startT)) 
 					cutHere = edge.segment->c.cut(hull.sect, edge.startT, edge.endT, 1);
-				else if (OpMath::Equalish(hull.sect.t, edge.endT)) 
+				else if (OpMath::EqualT(hull.sect.t, edge.endT)) 
 					cutHere = edge.segment->c.cut(hull.sect, edge.startT, edge.endT, -1);
 				else
 					continue;
 				OP_ASSERT(edge.startT < cutHere.t && cutHere.t < edge.endT);
-				OP_ASSERT(!OpMath::Equalish(edge.startT, cutHere.t));
-				OP_ASSERT(!OpMath::Equalish(cutHere.t, edge.endT));
+				OP_ASSERT(!OpMath::EqualT(edge.startT, cutHere.t));
+				OP_ASSERT(!OpMath::EqualT(cutHere.t, edge.endT));
 			}
 			if (!OpMath::IsNaN(cutHere.t)) {
 				if (!splitDownTheMiddle(edge, cutHere, which, splits))
@@ -1232,7 +1239,7 @@ bool OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 				continue;
 			if (edge.ccEnd && edge.end().soClose(hullLo.sect))
 				continue;
-			if (OpMath::Equalish(hullLo.sect.t, hullHi.sect.t))
+			if (OpMath::EqualT(hullLo.sect.t, hullHi.sect.t))
 				continue;
 			void* block = contours->allocateEdge(contours->ccStorage);
 			OpEdge* split = new(block) OpEdge(&edge, hullLo.sect.t, 

@@ -1338,7 +1338,7 @@ std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
     } else {
         s += "{ ";
         for (int i = 0; i < pointCount(); ++i) 
-            s += hullPt(i).debugDump(l, b) + ", ";
+            s += hullPt(i).debugDump(DebugLevel::error, b) + ", ";
         s.pop_back(); s.pop_back();
         s += " }";
         s += contours->callBack(c.type).debugDumpCurveExtraFuncPtr(c, l, b);
@@ -3034,6 +3034,18 @@ std::string OpTree::debugDump(DebugLevel l, DebugBase b) const {
     return s;
 }
 
+std::string CoinEnd::debugDump(DebugLevel l, DebugBase b) const { 
+    std::string s;
+    s += "seg:" + STR(seg->id) + " opp:" + STR(opp->id) + " ptT:" + ptT.debugDump(l, b);
+    s += " oppT:" + OpDebugStr(oppT);
+    return s;
+}
+
+void dmp(std::array<CoinEnd, 4>& coinEndArray) {
+    for (auto& cea : coinEndArray)
+        OpDebugOut(cea.debugDump(defaultLevel, defaultBase) + "\n");
+}
+
 std::string OpWinder::debugDumpAxis(Axis a, DebugLevel l, DebugBase b) const {
     std::string s = "";
     for (const auto edge : Axis::vertical == a ? inY : inX) {
@@ -3173,6 +3185,25 @@ void SectRay::dumpSet(const char*& str) {
     distances.resize(readDistances);
     for (size_t index = 0; index < readDistances; ++index)
         distances[index].dumpSet(str);
+}
+
+ENUM_NAME_STRUCT(PtType);
+#define PTTYPE_NAME(w) { PtType::w, #w }
+
+static PtTypeName ptTypeNames[] = {
+    PTTYPE_NAME(noMatch),
+	PTTYPE_NAME(alias),
+	PTTYPE_NAME(end),
+	PTTYPE_NAME(same)
+};
+
+ENUM_NAME(PtType, ptType)
+
+std::string SegPt::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s;
+    s += "pt:" + pt.debugDump(l, b) + " ";
+    s += "ptType:" + ptTypeName(ptType);
+    return s;
 }
 
 std::string CcCurves::debugDump(DebugLevel l, DebugBase b) const {

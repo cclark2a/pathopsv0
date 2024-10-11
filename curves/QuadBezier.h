@@ -44,8 +44,9 @@ inline OpRoots QuadAxisRawHit(OpPoint start, OpPoint control, OpPoint end, Axis 
 }
 
 inline OpVector QuadTangent(OpPoint start, OpPoint control, OpPoint end, float t) {
-    if ((OpMath::NearlyZeroT(t) && start.isNearly(control))
-            || (OpMath::NearlyOneT(t) && end.isNearly(control)))
+    OpPoint threshold = OpMath::Threshold(start, end);
+    if ((OpMath::NearlyZeroT(t) && start.isNearly(control, threshold))
+            || (OpMath::NearlyOneT(t) && end.isNearly(control, threshold)))
         return end - start;
     float a = t - 1;
     float b = 1 - 2 * t;

@@ -36,7 +36,7 @@ OpSegments::OpSegments(OpContours& contours) {
 // may need to adjust values in opp if end is nearly equal to seg
 void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
     auto add = [seg, opp](OpPoint pt, float segT, float oppT   OP_LINE_FILE_DEF()) {
-        if (opp->disabled || seg->disabled)
+        if (opp->willDisable || seg->willDisable)
             return;
         if (seg->sects.contains(OpPtT { pt, segT }, opp) 
                 || opp->sects.contains(OpPtT { pt, oppT }, seg))
@@ -48,36 +48,20 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
         sect->pair(oSect);
     };
     auto checkEnds = [add, seg, opp](OpPoint oppPt, float oppT  OP_LINE_FILE_DEF()) {
-        float segT = OpNaN;
-        if (seg->c.firstPt().isNearly(oppPt) || 
-                (seg->startMoved && seg->aliasOriginal(MatchEnds::start).isNearly(oppPt))) {
-            segT = 0;
-            OpPoint firstPt = seg->c.firstPt();
-            if (oppPt != firstPt) {
-                bool oppMovable = oppT ? !opp->endMoved : !opp->startMoved;
-                if (oppMovable) {
-                    oppPt = firstPt;
-                    OpPoint segPt = opp->moveTo(oppT, oppPt);
-                    OP_ASSERT(!segPt.isFinite());  // !!! if triggered, more code to write
-                } else if (!seg->startMoved) {
-                    OpPoint segPt = seg->moveTo(0, oppPt);
-                    OP_ASSERT(!segPt.isFinite());
-                } else
-                    seg->contour->contours->remapPts(firstPt, oppPt);
-            }
-        } else if (seg->c.lastPt().isNearly(oppPt) ||
-                (seg->endMoved && seg->aliasOriginal(MatchEnds::end).isNearly(oppPt))) {
-            segT = 1;
-            if (oppPt != seg->c.lastPt()) {
-                oppPt = seg->c.lastPt();
-                OpPoint segPt = opp->moveTo(oppT, oppPt);
-                OP_ASSERT(!segPt.isFinite());  // !!! if triggered, more code to write
-            }
+        OpPtT segPtT;
+        if (seg->c.firstPt().isNearly(oppPt, seg->threshold()) || (seg->startMoved 
+                && seg->aliasOriginal(MatchEnds::start).isNearly(oppPt, seg->threshold())))
+            segPtT = { seg->c.firstPt(), 0 };
+        else if (seg->c.lastPt().isNearly(oppPt, seg->threshold()) || (seg->endMoved 
+                && seg->aliasOriginal(MatchEnds::end).isNearly(oppPt, seg->threshold())))
+            segPtT = { seg->c.lastPt(), 1 };
+        if (!OpMath::IsNaN(segPtT.t)) {
+//            if (oppPt != segPtT.pt)
+                oppPt = seg->mergePoints(segPtT, opp, { oppPt, oppT });
+            add(oppPt, segPtT.t, oppT  OP_LINE_FILE_CALLER());
         }
-        OP_ASSERT(opp->c.c.data->start != opp->c.c.data->end || opp->disabled || opp->willDisable);
-        if (!OpMath::IsNaN(segT))
-            add(oppPt, segT, oppT  OP_LINE_FILE_CALLER());
-        return segT;
+        OP_ASSERT(opp->c.c.data->start != opp->c.c.data->end || opp->willDisable);
+        return segPtT.t;
     };
     float startSegT = checkEnds(opp->c.firstPt(), 0  OP_LINE_FILE_PARAMS());
     float endSegT = checkEnds(opp->c.lastPt(), 1  OP_LINE_FILE_PARAMS());
@@ -88,19 +72,8 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
         oppT = OpMath::PinNear(oppT);
         if (0 == oppT || 1 == oppT) {
             OpPoint oppEnd = opp->c.end(oppT);
-            if (oppEnd != segPt) {
-                OpPtAliases& aliases = seg->contour->contours->aliases;
-                if (aliases.contains(oppEnd) && aliases.contains(segPt))
-                    seg->contour->contours->remapPts(oppEnd, segPt);
-                else {
-                    // if both segPt and opp->c.end(oppT) are aliases, remap one to the other
-                    OpPoint oppPt = opp->moveTo(oppT, segPt);
-                    if (oppPt.isFinite()) {
-                        segPt = oppPt;
-                        seg->moveTo(segT, segPt);
-                    }
-                }
-            }
+//            if (oppEnd != segPt)
+                segPt = seg->mergePoints({ segPt, segT }, opp, { oppEnd, oppT });
         }
         /// !!! may add coincidence between seg and opp which goes undetected (skphealth_com76s)
         add(segPt, segT, oppT  OP_LINE_FILE_CALLER());
@@ -108,7 +81,6 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
     };
     float startOppT = OpNaN;
     float endOppT = OpNaN;
-    OpDebugBreak2(seg, opp, 14, 26);
     if (0 != startSegT && 0 != endSegT) 
         startOppT = checkOpp(seg->c.firstPt(), 0  OP_LINE_FILE_PARAMS());  // see if start pt is on opp curve
     if (1 != startSegT && 1 != endSegT) 
@@ -120,18 +92,8 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
         segT = OpMath::PinNear(segT);
         if (0 == segT || 1 == segT) {
             OpPoint segEnd = seg->c.end(segT);
-            if (segEnd != oppPt) {
-                OpPtAliases& aliases = seg->contour->contours->aliases;
-                if (aliases.contains(segEnd) && aliases.contains(oppPt))
-                    seg->contour->contours->remapPts(segEnd, oppPt);
-                else {
-                    OpPoint segPt = seg->moveTo(segT, oppPt);
-                    if (segPt.isFinite()) {
-                        oppPt = segPt;
-                        opp->moveTo(oppT, oppPt);
-                    }
-                }
-            }
+            if (segEnd != oppPt)
+                oppPt = opp->mergePoints({ oppPt, oppT }, seg, { segEnd, segT });
         }
         add(oppPt, segT, oppT  OP_LINE_FILE_CALLER());
     };
@@ -162,8 +124,12 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
         return;
     }
     if (2 == septs.count && opp->c.isLine()) {
+#if OP_NEW_COINCIDENCE
+        OpWinder::CoincidentCheck(seg, opp);
+#else
         OpWinder::CoincidentCheck({ edgePts.pts[0], 0 }, { edgePts.pts[1], 1 },
                 { opp->c.firstPt(), 0}, { opp->c.lastPt(), 1 }, seg, opp );
+#endif
         return;
     }
     std::vector<OpPtT> oppPtTs;
@@ -174,11 +140,11 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
             continue;
         // if computed point is nearly end, ignore
         OpPoint oppPt = opp->c.ptAtT(oppT);  // !!! redundant if ray intersect is rewritten to return pt
-        if (oppPt.isNearly(oppT < .5 ? opp->c.firstPt() : opp->c.lastPt()))
+        if (oppPt.isNearly(oppT < .5 ? opp->c.firstPt() : opp->c.lastPt(), seg->threshold()))
             continue;
-        if (oppPt.isNearly(edgePts.pts[0]))
+        if (oppPt.isNearly(edgePts.pts[0], seg->threshold()))
             continue;
-        if (oppPt.isNearly(edgePts.pts[1]))
+        if (oppPt.isNearly(edgePts.pts[1], seg->threshold()))
             continue;
         float edgeT = seg->findValidT(0, 1, oppPt);
         oppPt = seg->c.ptAtT(edgeT);  // use line instead of curve to keep points on line
@@ -303,18 +269,36 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
             return IntersectResult::no;
         if (!seg->ptBounds.intersects(opp->ptBounds))  // close bounds intersect, ptBounds do not
             return IntersectResult::no;
+#if OP_NEW_COINCIDENCE
+        return OpWinder::CoincidentCheck(seg, opp);
+#else
         seg->makeEdge(OP_LINE_FILE_NPARAMS());
         opp->makeEdge(OP_LINE_FILE_NPARAMS());
         return OpWinder::CoincidentCheck(seg->edges.front(), opp->edges.front());
+#endif
     }
     LinePts oppLine = opp->c.linePts();
     OpCurve vertSeg = seg->c.toVertical(oppLine, ends.match);
+    if (!vertSeg.isFinite()) {
+        seg->contour->contours->setError(PathOpsV0Lib::ContextError::toVertical, seg->id);
+        return IntersectResult::fail;
+    }
     if (!vertSeg.isVertical())
         return IntersectResult::no;
     LinePts segLine = seg->c.linePts();
     OpCurve vertOpp = opp->c.toVertical(segLine, ends.flipped());
+    if (!vertOpp.isFinite()) {
+        seg->contour->contours->setError(PathOpsV0Lib::ContextError::toVertical, opp->id);
+        return IntersectResult::fail;
+    }
     if (!vertOpp.isVertical())
         return IntersectResult::no;
+#if OP_NEW_COINCIDENCE
+    LinePts edgePts;
+    if (fabsf(vertSeg.firstPt().x - vertOpp.firstPt().x) > OpEpsilon)
+        return IntersectResult::no;
+    return OpWinder::CoincidentCheck(seg, opp);
+#else
     OpPtT oppInSeg[2], segInOpp[2];
     OpPtT* oppInSegPtr = oppInSeg;
     OpPtT* segInOppPtr = segInOpp;
@@ -369,6 +353,7 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
         return IntersectResult::no;
     return OpWinder::AddPair(larger, oppInSeg[0], oppInSeg[1], segInOpp[0], segInOpp[1],
 	        segInOpp[0].t > segInOpp[1].t, seg, opp);
+#endif
 }
 
 // note: ends have already been matched for consecutive segments
@@ -404,7 +389,7 @@ FoundIntersections OpSegments::findIntersections() {
                         OP_DEBUG_CODE(debugFailOppID = opp->id);
                         return FoundIntersections::fail;
                     }
-                    if (IntersectResult::yes == lineCoin)
+                    if (IntersectResult::coincident == lineCoin)
                         continue;
                 }
                 AddLineCurveIntersection(opp, seg);

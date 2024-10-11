@@ -1,5 +1,6 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpCurve.h"
+#include "OpContour.h"
 #include "OpTightBounds.h"
 
 OpRoots OpCurve::axisRayHit(Axis axis, float axisIntercept, float start, float end) const {
@@ -28,7 +29,7 @@ OpPtT OpCurve::cut(const OpPtT& ptT, float loBounds, float hiBounds, float direc
 		cut.t = ptT.t + direction * cutDt;
         if (loBounds >= ptT.t || ptT.t >= hiBounds)
             return ptTAtT(OpMath::Average(loBounds, hiBounds));
-        if (OpMath::Equalish(loBounds, cut.t) || OpMath::Equalish(cut.t, hiBounds))
+        if (OpMath::EqualT(loBounds, cut.t) || OpMath::EqualT(cut.t, hiBounds))
             continue;
 		cut.pt = ptAtT(cut.t);
         if ((cut.pt - ptT.pt).lengthSquared() >= minDistanceSq)
@@ -119,7 +120,7 @@ float OpCurve::match(float start, float end, OpPoint pt) const {
         return OpNaN;
     float xRoot = tAtXY(start, end, XyChoice::inX, pt.x);
 	float yRoot = tAtXY(start, end, XyChoice::inY, pt.y);
-	if (OpMath::Equalish(xRoot, yRoot))
+	if (OpMath::EqualT(xRoot, yRoot))
 		return xRoot;
     OpPoint xPt = ptAtT(xRoot);
 	OpPoint yPt = ptAtT(yRoot);
@@ -166,6 +167,38 @@ NormalDirection OpCurve::normalDirection(Axis axis, float t) const {
 	if (NdotR < 0)
 		return NormalDirection::downLeft;
 	return NormalDirection::underflow;	 // catches, zero, nan
+}
+
+bool OpCurve::normalize() {
+    auto zeroSmall = [](float* value, float threshold) {
+        if (*value && fabsf(*value) <= threshold) {
+            *value = 0;
+            return true;
+        }
+        return false;
+    };
+    bool recomputeBounds = false;
+    OpPoint threshold = contours->aliases.threshold;
+    recomputeBounds |= zeroSmall(&c.data->start.x, threshold.x);
+    recomputeBounds |= zeroSmall(&c.data->start.y, threshold.y);
+    recomputeBounds |= zeroSmall(&c.data->end.x, threshold.x);
+    recomputeBounds |= zeroSmall(&c.data->end.y, threshold.y);
+    OpPoint smaller = c.data->start;
+    OpPoint larger = c.data->end;
+    if (smaller != larger && smaller.isNearly(larger, threshold)) {
+        float startLenSq = OpVector(smaller).lengthSquared();
+        float endLenSq = OpVector(larger).lengthSquared();
+        if (startLenSq > endLenSq)
+            std::swap(smaller, larger);
+        if (contours->addAlias(larger, smaller))
+            (startLenSq > endLenSq ? c.data->start : c.data->end) = smaller;
+        else
+            contours->remapPts(larger, smaller);
+        recomputeBounds = true;
+    }
+    if (recomputeBounds)
+        pinCtrl();
+    return recomputeBounds;
 }
 
 // all raw intersects are basically the same

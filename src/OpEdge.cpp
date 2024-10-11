@@ -30,7 +30,7 @@ bool OpHulls::add(const OpPtT& ptT, SectType sectType, const OpEdge* opp) {
 
 bool OpHulls::closeEnough(int index, const OpEdge& edge, const OpEdge& oEdge, OpPtT* oPtT,
 		OpPtT* hull1Sect) {
-	if (!hull1Sect->pt.isNearly(oPtT->pt)) {
+	if (!hull1Sect->pt.isNearly(oPtT->pt, edge.segment->threshold())) {
 		const OpCurve& eCurve = edge.segment->c;
 		OpVector eTangent = eCurve.tangent(hull1Sect->t);
 		const OpCurve& oCurve = oEdge.segment->c;
@@ -62,7 +62,7 @@ bool OpHulls::sectCandidates(int index, const OpEdge& edge) {
 	const HullSect& hullEnd = h[index];
 	OpPtT hull1Sect = hullStart.sect;
 	const OpPtT& hull2Sect = hullEnd.sect;
-	if (!hull1Sect.isNearly(hull2Sect))
+	if (!hull1Sect.isNearly(hull2Sect, edge.segment->threshold()))
 		return false;
 	if (SectType::controlHull == h[index - 1].type
 			&& SectType::controlHull == h[index].type)
@@ -78,7 +78,7 @@ bool OpHulls::sectCandidates(int index, const OpEdge& edge) {
 			ePtT.pt.choice(eLarger) = eXyAvg;
 			ePtT.pt.choice(!eLarger) = edge.segment->c.ptAtT(ePtT.t).choice(!eLarger);
 		}
-		if (!hull1Sect.isNearly(ePtT))
+		if (!hull1Sect.isNearly(ePtT, edge.segment->threshold()))
 			return false;
 	}
 	return true;

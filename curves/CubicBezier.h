@@ -102,14 +102,15 @@ inline OpVector CubicTangent(OpPoint start, CubicControls controls, OpPoint end,
         double d = end.choice(offset);
         return (float) (3 * ((b - a) * one_t * one_t + 2 * (c - b) * t * one_t + (d - c) * t * t));
     };
-    if (OpMath::NearlyZeroT(t) && start.isNearly(controls.pts[0])) {
-        if (controls.pts[0].isNearly(controls.pts[1]))
+    OpPoint threshold = OpMath::Threshold(start, end);
+    if (OpMath::NearlyZeroT(t) && start.isNearly(controls.pts[0], threshold)) {
+        if (controls.pts[0].isNearly(controls.pts[1], threshold))
             return end - start;
         else
             return controls.pts[1] - start;
     }
-    if (OpMath::NearlyOneT(t) && end.isNearly(controls.pts[1])) {
-        if (controls.pts[0].isNearly(controls.pts[1]))
+    if (OpMath::NearlyOneT(t) && end.isNearly(controls.pts[1], threshold)) {
+        if (controls.pts[0].isNearly(controls.pts[1], threshold))
             return end - start;
         else
             return end - controls.pts[0];

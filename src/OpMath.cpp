@@ -97,8 +97,8 @@ bool OpPoint::isFinite() const {
     return OpMath::IsFinite(x) && OpMath::IsFinite(y);
 }
 
-bool OpPoint::isNearly(OpPoint test) const {
-    return OpMath::Equalish(x, test.x) && OpMath::Equalish(y, test.y);
+bool OpPoint::isNearly(OpPoint test, OpPoint threshold) const {
+    return OpMath::Equal(x, test.x, threshold.x) && OpMath::Equal(y, test.y, threshold.y);
 }
 
 void OpPoint::pin(const OpPoint a, const OpPoint b) {
@@ -131,8 +131,8 @@ OpRect OpRect::outsetClose() const {
     return result;
 }
 
-bool OpPtT::isNearly(const OpPtT& o) const {
-    return pt.isNearly(o.pt) || OpMath::NearlyEqualT(t, o.t);
+bool OpPtT::isNearly(const OpPtT& o, OpPoint threshold) const {
+    return pt.isNearly(o.pt, threshold) || OpMath::EqualT(t, o.t);
 }
 
 float OpMath::CloseLarger(float a) {
@@ -164,8 +164,8 @@ bool OpMath::Betweenish(float a, float b, float c) {
     return b <= NextLarger(a < c ? c : a);
 }
 
-bool OpMath::Equalish(float a, float b) {
-    return NextLarger(a < b ? a : b) >= (a < b ? b : a);
+bool OpMath::Equal(float a, float b, float threshold) {
+    return (a < b ? a : b) + threshold >= (a < b ? b : a);
 }
 
 #if 0
@@ -286,6 +286,14 @@ float OpMath::PinSorted(float min, float value, float max) {
     OP_ASSERT(min <= max);
     return std::max(min, std::min(value, max));
 }
+
+OpPoint OpMath::Threshold(OpPoint pt1, OpPoint pt2) {
+    auto threshold = [](float left, float right) {
+        return std::max(1.f, std::max(fabsf(left), fabsf(right))) * OpEpsilon;
+    };
+    return OpPoint(threshold(pt1.x, pt2.x), threshold(pt1.y, pt2.y));
+}
+
 
 bool LinePts::isPoint() const {
     return pts[1] == pts[0];

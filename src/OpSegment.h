@@ -52,10 +52,25 @@ struct FoundEdge {
     bool loops;  // true if edge when connected to existing link forms a loop
 };
 
+enum class PtType {
+    noMatch,
+    alias, // changed, and alias already exists
+    end,
+    same  // may be alias, but unchanged
+};
+
+struct SegPt {
+	DUMP_DECLARATIONS
+
+    OpPoint pt;
+    PtType ptType;
+};
+
 struct OpSegment {
     OpSegment(PathOpsV0Lib::AddCurve , PathOpsV0Lib::AddWinding );
     bool activeAtT(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const; // true if pal
     bool activeNeighbor(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const; // true if pal
+    void addAlias(OpPoint original, OpPoint alias);
     OpIntersection* addEdgeSect(const OpPtT&    
             OP_LINE_FILE_DEF(const OpEdge* e, const OpEdge* o));
     OpIntersection* addSegBase(const OpPtT&  
@@ -69,6 +84,7 @@ struct OpSegment {
     OpPoint aliasOriginal(MatchEnds ) const;
     void apply();
     void betweenIntersections();
+    SegPt checkAliases(OpPtT ) const;
     int coinID(bool flipped);
 //    void complete();
     OpEdge* findEnabled(const OpPtT& , EdgeMatch ) const;
@@ -88,16 +104,21 @@ struct OpSegment {
     MatchReverse matchEnds(const LinePts& opp) const;
     MatchReverse matchEnds(const OpSegment* opp) const;
 //    MatchEnds matchExisting(const OpSegment* opp) const;
-    OpPoint moveTo(float t , OpPoint );  // move segment/sect point to match another endpont
+    OpPoint mergePoints(OpPtT segPtT, OpSegment* opp, OpPtT oppPtT);
+    OpPoint movePt(OpPtT match, OpPoint dest);  // move segment/sect point to match another endpont
     void moveWinding(OpSegment* opp, bool backwards);
     bool nearby(float t, const OpSegment* opp) const;
     int nextID() const;
 //    void newWindCoincidences();  // !!! will eventually replace wind coincidences
-    void remapPts(OpPoint oldAlias, OpPoint newAlias);
+    void normalize();
+    OpPtT ptAtT(const OpPtT& ) const;
+    void remap(OpPoint oldAlias, OpPoint newAlias);  // local remap
+    OpPoint remapPts(OpPoint oldAlias, OpPoint newAlias);  // call through
     void setBounds();
 	void setDisabled(OP_LINE_FILE_NP_DEF());
     bool simpleEnd(const OpEdge* ) const;  // true if edge end connects to only one segment
     bool simpleStart(const OpEdge* ) const;  // true if edge start connects to only one segment
+    OpPoint threshold() const;
 //    void windCoincidences();
 
     bool debugFail() const;

@@ -27,8 +27,10 @@ typedef void* ContextData;
 
 enum class ContextError {
     none,
+	curve,
 	intersection,
-    segmentBounds
+    segmentBounds,
+	toVertical
 };
 
 // convenience for adding caller defined data to context
