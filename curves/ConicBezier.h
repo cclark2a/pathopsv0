@@ -137,6 +137,8 @@ inline size_t AddConics(AddCurve curve, AddWinding windings) {
     auto [top, bottom] = std::minmax(start.y, end.y);
     bool monotonicInY = top <= control.pt.y && control.pt.y <= bottom;
     if (monotonicInX && monotonicInY) {
+        if (start == end)
+            return 0;
         Add(curve, windings);
         return 1;
     }

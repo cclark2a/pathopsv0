@@ -53,7 +53,9 @@ OpPtT CcCurves::closest(OpPoint pt) const {
 //     but it was changed without fixing the root bug, so may make things less stable ...
 OpPtT CcCurves::Dist(const OpSegment* seg, const OpPtT& segPtT, const OpSegment* opp) {
 	OpVector normal = seg->c.normal(segPtT.t);
-	LinePts normLine { segPtT.pt - normal, segPtT.pt + normal };
+    if (!normal.isFinite())
+        return OpPtT(SetToNaN::dummy);
+    LinePts normLine { segPtT.pt - normal, segPtT.pt + normal };
 	OpRoots roots = opp->c.rayIntersect(normLine, MatchEnds::none);
 	float bestSq = OpInfinity;
 	OpPtT bestPtT;

@@ -175,20 +175,25 @@ bool OpCurve::normalize() {
         return false;
     };
     bool recomputeBounds = false;
-    OpVector threshold = contours->aliases.threshold;
+    OpPtAliases& aliases = contours->aliases;
+    OpVector threshold = aliases.threshold;
     recomputeBounds |= zeroSmall(&c.data->start.x, threshold.dx);
     recomputeBounds |= zeroSmall(&c.data->start.y, threshold.dy);
     recomputeBounds |= zeroSmall(&c.data->end.x, threshold.dx);
     recomputeBounds |= zeroSmall(&c.data->end.y, threshold.dy);
-    OpPoint smaller = c.data->start;
-    OpPoint larger = c.data->end;
+    OpPoint smaller = aliases.existing(c.data->start);
+    recomputeBounds |= smaller != c.data->start;
+    OpPoint larger = aliases.existing(c.data->end);
+    recomputeBounds |= larger != c.data->end;
     if (smaller != larger && smaller.isNearly(larger, threshold)) {
-        float startLenSq = OpVector(smaller).lengthSquared();
-        float endLenSq = OpVector(larger).lengthSquared();
-        if (startLenSq > endLenSq)
-            std::swap(smaller, larger);
+        float smallerLen = OpVector(smaller).lengthSquared();
+        float largerLen = OpVector(larger).lengthSquared();
+        bool swap = (smallerLen > largerLen && !aliases.contains(larger)) 
+                || aliases.contains(smaller);
+        if (swap)
+            std::swap(larger, smaller);
         if (contours->addAlias(larger, smaller))
-            (startLenSq > endLenSq ? c.data->start : c.data->end) = smaller;
+            (swap ? c.data->end : c.data->start) = smaller;
         else
             contours->remapPts(larger, smaller);
         recomputeBounds = true;

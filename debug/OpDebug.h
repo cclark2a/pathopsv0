@@ -8,6 +8,7 @@
 
 #if OP_TINY_TEST
 #define OP_DEBUG_FAST_TEST 1
+#define OP_RELEASE_TEST 1
 #else
 #include "OpTestDrive.h"  // set test specific settings here
 #endif
