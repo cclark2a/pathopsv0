@@ -24,12 +24,12 @@ OpIntersection* OpIntersection::coinOtherEnd() {
 };
 
 OpIntersections::OpIntersections()
-    : resort(false) {
+    : unsorted(false) {
 }
 
 OpIntersection* OpIntersections::add(OpIntersection* sect) {
     i.push_back(sect);
-    resort = true;
+    unsorted = true;
     return sect;
 }
 
@@ -59,7 +59,7 @@ OpIntersection* const * OpIntersections::entry(const OpPtT& ptT, const OpSegment
 
 // if the edge is inside an unsectable range, record all sects that start that range
 void OpIntersections::makeEdges(OpSegment* segment) {
-    OP_ASSERT(!resort);
+    OP_ASSERT(!unsorted);
     std::vector<OpIntersection*> unsectables;
     auto stackUnsects = [&unsectables](OpIntersection* sect) {
         if (!sect->unsectID)
@@ -119,7 +119,7 @@ const OpIntersection* OpIntersections::nearly(const OpPtT& ptT, OpSegment* oSeg)
 }
 
 void OpIntersections::range(const OpSegment* opp, std::vector<OpIntersection*>& result) {
-	if (resort)
+	if (unsorted)
 	    sort();
     OP_DEBUG_CODE(float last = -1);
     for (auto sect : i) {
@@ -230,21 +230,21 @@ void OpIntersections::mergeNear(OpPtAliases& aliases) {
 }
 
 bool OpIntersections::simpleEnd() const {
-    OP_ASSERT(!resort);
+    OP_ASSERT(!unsorted);
     OP_ASSERT(i.size() > 1);
     OP_ASSERT(i.back()->ptT.t == 1);
     return i[i.size() - 2]->ptT.t != 1;
 }
 
 bool OpIntersections::simpleStart() const {
-    OP_ASSERT(!resort);
+    OP_ASSERT(!unsorted);
     OP_ASSERT(i.size() > 1);
     OP_ASSERT(i.front()->ptT.t == 0);
     return i[1]->ptT.t != 0;
 }
 
 void OpIntersections::sort() {
-    if (!resort) {
+    if (!unsorted) {
 #if OP_DEBUG
         if (i.size()) {
             const OpIntersection* last = i.front();
@@ -274,13 +274,16 @@ void OpIntersections::sort() {
 #endif
         return;
     }
-    resort = false;
+    unsorted = false;
     // order first in t, then put coincident start before unmarked, and finally end
     // start: put coincident, unmarked, unsectable (if t is equal)
     // end: put unsectable, unmarked, coincident (if t is equal)
+    // sort unmarked by segment id
     std::sort(i.begin(), i.end(), [](const OpIntersection* s1, const OpIntersection* s2) {
-            if (s1->ptT.t != s2->ptT.t)
-                return s1->ptT.t < s2->ptT.t;
+        if (s1->ptT.t != s2->ptT.t)
+            return s1->ptT.t < s2->ptT.t;
+        if (MatchEnds::none != s1->unsectEnd || MatchEnds::none != s1->coinEnd
+                || MatchEnds::none != s2->unsectEnd || MatchEnds::none != s2->coinEnd) {
             bool s1start = MatchEnds::start == s1->unsectEnd || MatchEnds::start == s1->coinEnd;
             bool s2end = MatchEnds::end == s2->unsectEnd || MatchEnds::end == s2->coinEnd;
             if (s1start && s2end)
@@ -295,7 +298,10 @@ void OpIntersections::sort() {
                 return MatchEnds::end == s2->coinEnd;
             if (s1end)
                 return MatchEnds::end == s1->unsectEnd;
-            return MatchEnds::start == s2->unsectEnd;
+            if (s2start)
+                return MatchEnds::start == s2->unsectEnd;
+        }
+        return s1->opp->segment->id < s2->opp->segment->id;  // compare seg ptr if id is debug only?
     });
     if (3 >= i.size())
         return;

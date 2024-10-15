@@ -314,6 +314,14 @@ extern void debug();  // set debug bitmap to start and dump state using current 
 // used by new interface
 extern std::string debugValue(DebugLevel l, DebugBase b, std::string label, float value);
 
+struct OpSaveDump {
+    OpSaveDump(DebugLevel l, DebugBase b);
+    ~OpSaveDump();
+
+    DebugLevel saveL;
+    DebugBase saveB;
+};
+
 #endif
 
 #endif

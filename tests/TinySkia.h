@@ -3,7 +3,6 @@
 #define TinySkia_DEFINED
 
 #include "OpMath.h"
-#include "OpTypes.h"
 
 inline float SkBits2Float(int32_t i) {
 	return OpDebugBitsToFloat(i); }

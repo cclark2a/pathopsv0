@@ -22,7 +22,8 @@ bool CcCurves::checkMid(size_t index) {
 	mid.edgePtT = seg->c.ptTAtT(midT);
 	mid.oppPtT = Dist(seg, mid.edgePtT, eS.oppEdge->segment);
 	mid.oppDist = mid.setOppDist(seg);
-	return OpMath::Betweenish(eS.oppDist, mid.oppDist, eE.oppDist);
+	return OpMath::InUnsorted(eS.oppDist, mid.oppDist, eE.oppDist, 
+            seg->contour->contours->aliases.threshold.length());
 }
 
 OpPtT CcCurves::closest(OpPoint pt) const {
@@ -803,7 +804,6 @@ bool OpCurveCurve::ifExactly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& oppEdge
 }
 
 bool OpCurveCurve::ifNearly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& oppEdge, const OpPtT& oppPtT) {
-//	OpDebugBreakIf(&edge, 28, 31 == oppEdge.id);
 	OpPoint threshold = contours->aliases.threshold;
 	if (!edgePtT.pt.isNearly(oppPtT.pt, threshold))
 		return false;

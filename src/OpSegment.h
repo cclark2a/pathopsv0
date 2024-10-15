@@ -53,10 +53,10 @@ struct FoundEdge {
 };
 
 enum class PtType {
-    noMatch,
-    alias, // changed, and alias already exists
-    end,
-    same  // may be alias, but unchanged
+    noMatch,   // pt not close to alias or original
+    original,  // pt maps to alias (if not equal to existing original, pt->alias added)
+    isAlias,   // pt is existing alias
+    mapSegment // move end and/or sect of segment 
 };
 
 struct SegPt {
@@ -81,12 +81,13 @@ struct OpSegment {
             OP_LINE_FILE_DEF());
     OpIntersection* addUnsectable(const OpPtT& , int usectID, MatchEnds , const OpSegment* o 
             OP_LINE_FILE_DEF());
-    OpPoint aliasOriginal(MatchEnds ) const;
+//    OpPoint aliasOriginal(MatchEnds ) const;
     void apply();
     void betweenIntersections();
-    SegPt checkAliases(OpPtT ) const;
+    SegPt checkAliases(OpPtT );
     int coinID(bool flipped);
 //    void complete();
+    void disableSmall();
     OpEdge* findEnabled(const OpPtT& , EdgeMatch ) const;
     float findAxisT(Axis , float start, float end, float oppXY);
     void findMissingEnds();
@@ -97,6 +98,7 @@ struct OpSegment {
         return closeBounds.isFinite(); } 
 //    bool isSimple() const {
 //        return 1 == edges.size() && 2 == sects.i.size(); }
+    bool isSmall();
     void makeCoins();
     void makeEdge(OP_LINE_FILE_NP_DEF());
     void makeEdges();
@@ -119,6 +121,7 @@ struct OpSegment {
     bool simpleEnd(const OpEdge* ) const;  // true if edge end connects to only one segment
     bool simpleStart(const OpEdge* ) const;  // true if edge start connects to only one segment
     OpPoint threshold() const;
+    void transferCoins();
 //    void windCoincidences();
 
     bool debugFail() const;

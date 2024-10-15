@@ -75,25 +75,31 @@ int OpContour::nextID() const {
 }
 
 // end of contour; start of contours
+
 bool OpPtAliases::add(OpPoint original, OpPoint alias) {
     OP_ASSERT(original.isFinite());
     OP_ASSERT(alias.isFinite());
     OP_ASSERT(original != alias);
-    for (OpPtAlias& test : a) {
+    for (OpPtAlias& test : maps) {
         if (original == test.alias)
             return false;
         if (test.original == original && test.alias == alias)
             return true;
         OP_ASSERT(test.original != alias);
     }
-    a.push_back({original, alias});
+    maps.push_back({original, alias});
+    for (OpPoint pt : aliases) {
+        if (pt == alias)
+            return true;
+    }
+    aliases.push_back(alias);
     return true;
 }
 
 bool OpPtAliases::contains(OpPoint aliased) const {
     OP_ASSERT(aliased.isFinite());
-    for (const OpPtAlias& test : a) {
-        if (test.alias == aliased)
+    for (OpPoint pt : aliases) {
+        if (pt == aliased)
             return true;
     }
     return false;
@@ -101,56 +107,99 @@ bool OpPtAliases::contains(OpPoint aliased) const {
 
 OpPoint OpPtAliases::existing(OpPoint match) const {
     OP_ASSERT(match.isFinite());
-    for (const OpPtAlias& test : a) {
+    for (const OpPtAlias& test : maps) {
         if (test.original == match)
             return test.alias;
     }
     return match;
 }
 
+#if 0  // there can be more than one. don't know when this behavior is desired
 OpPoint OpPtAliases::find(OpPoint aliased) const {
     OP_ASSERT(aliased.isFinite());
-    for (const OpPtAlias& test : a) {
+    for (const OpPtAlias& test : maps) {
         if (test.alias == aliased)
             return test.original;
     }
     return OpPoint();
 }
+#endif
 
-bool OpPtAliases::isSmall(OpPoint pt1, OpPoint pt2) const {
+bool OpPtAliases::isSmall(OpPoint pt1, OpPoint pt2) {
     OP_ASSERT(pt1.isFinite());
     OP_ASSERT(pt2.isFinite());
-    for (const OpPtAlias& test : a) {
-        if ((test.original == pt1 || test.alias == pt1) 
-                && (test.original == pt2 || test.alias == pt2))
-            return true;
+    if (pt1.isNearly(pt2, threshold)) {
+        if (contains(pt1))
+            add(pt2, pt1);
+        else
+            add(pt1, pt2);
+        return true;
     }
-    return false;
+    auto match = [this](OpPoint pt) -> SegPt {
+        if (!maps.size())
+            return { pt, PtType::noMatch };
+        if (contains(pt))
+            return { pt, PtType::isAlias };
+        for (OpPtAlias& test : maps) {
+            if (test.original == pt)
+                return { test.alias, PtType::original };
+        }
+        for (OpPoint alias : aliases) {
+            if (pt.isNearly(alias, threshold)) {
+                add(pt, alias);
+                return { alias, PtType::original };
+            }
+        }
+        for (OpPtAlias& test : maps) {
+            if (pt.isNearly(test.original, threshold)) {
+                add(pt, test.alias);
+                return { test.alias, PtType::original };
+            }
+        }
+        return { pt, PtType::noMatch };
+    };
+    SegPt match1 = match(pt1);
+    SegPt match2 = match(pt2);
+    OP_ASSERT(match1.pt != match2.pt 
+        || ((PtType::noMatch == match1.ptType) == (PtType::noMatch == match2.ptType)));
+    return PtType::noMatch != match1.ptType && PtType::noMatch != match2.ptType 
+            && match1.pt == match2.pt;
 }
 
 void OpPtAliases::remap(OpPoint oldAlias, OpPoint newAlias) {
     OP_ASSERT(oldAlias.isFinite());
     OP_ASSERT(newAlias.isFinite());
-    for (OpPtAlias& test : a) {
+    for (OpPtAlias& test : maps) {
         if (test.alias == oldAlias)
             test.alias = newAlias;
+    }
+    for (size_t index = 0; index < aliases.size(); ++index) {
+        if (aliases[index] == oldAlias) {
+            aliases.erase(aliases.begin() + index);
+            break;
+        }
     }
     add(oldAlias, newAlias);
 }
 
-SegPt OpPtAliases::setIfClose(OpPoint match) {
+SegPt OpPtAliases::addIfClose(OpPoint match) {
     OP_ASSERT(match.isFinite());
-    for (const OpPtAlias& alias : a) {
-        if (alias.original.isNearly(match, threshold) || alias.alias.isNearly(match, threshold)) {
-            if (match != alias.alias)
-                add(match, alias.alias);
-            return { alias.alias, PtType::alias };
+    for (OpPoint alias : aliases) {
+        if (match == alias)
+            return { alias, PtType::isAlias };
+        if (match.isNearly(alias, threshold)) {
+            add(match, alias);
+            return { alias, PtType::original };
+        }
+    }
+    for (const OpPtAlias& alias : maps) {
+        if (alias.original.isNearly(match, threshold)) {
+            add(match, alias.alias);
+            return { alias.alias, PtType::original };
         }
     }
     return { match, PtType::noMatch };
 }
-
-
 
 OpContours::OpContours()
     : caller({nullptr, 0}) 
@@ -361,10 +410,7 @@ bool OpContours::containsFiller(OpPoint start, OpPoint end) const {
 void OpContours::disableSmallSegments() {
     SegmentIterator segIterator(this);
     while (OpSegment* seg = segIterator.next()) {
-        if (seg->disabled)
-            continue;
-        if (seg->willDisable || aliases.isSmall(seg->c.c.data->start, seg->c.c.data->end))
-            seg->setDisabled(OP_LINE_FILE_NPARAMS());
+        seg->disableSmall();
     }
 }
 
@@ -423,6 +469,7 @@ bool OpContours::pathOps() {
     betweenIntersections();  // fill in intersections in coin runs that are missing in other coins
     makeEdges();
     makeCoins();
+    transferCoins();
     makePals();  // edges too close to each other to sort or precisely intersect
 
     // made edges may include lines that are coincident with other edges. Undetected for now...
@@ -481,7 +528,7 @@ bool OpContours::setError(PathOpsV0Lib::ContextError e  OP_DEBUG_PARAMS(int eID,
 
 void OpContours::setThreshold() {
     auto threshold = [](float left, float right) {
-        return std::max(1.f, std::max(fabsf(left), fabsf(right))) * OpEpsilon;
+        return std::max(1.f, right - left) * OpEpsilon;
     };
     aliases.threshold = { threshold(maxBounds.left, maxBounds.right),
             threshold(maxBounds.top, maxBounds.bottom) };

@@ -505,6 +505,8 @@ void OpJoiner::addEdge(OpEdge* e) {
 		return;
 	}
 	OpSegment* seg = e->segment;
+    OP_ASSERT(!seg->disabled);
+    OP_ASSERT(e->isSimple());
 	if (seg->simpleEnd(e) && !LinkEnd(e))  // returns false if loop was formed
 		return;
 	if (seg->simpleStart(e))
@@ -685,8 +687,10 @@ bool OpJoiner::linkRemaining(OP_DEBUG_CODE(OpContours* debugContours)) {
 #endif
     OP_DEBUG_CODE(debugMatchRay(debugContours));
 	  // break if running last failed fast test
-	OP_ASSERT(OP_DEBUG_FAST_TEST || (!TEST_PATH_OP_SKIP_TO_V0 
-			&& (!OP_DEBUG_BREAK_IN_LINK_REMAINING || DEFEAT_LOCAL_BREAK)));
+    #ifdef TEST_PATH_OP_SKIP_TO_V0
+	    OP_ASSERT(OP_DEBUG_FAST_TEST || (!TEST_PATH_OP_SKIP_TO_V0 
+			    && (!OP_DEBUG_BREAK_IN_LINK_REMAINING || DEFEAT_LOCAL_BREAK)));
+    #endif
 	linkPass = LinkPass::remaining;
 	// match links may add or remove from link ups. Iterate as long as link ups is not empty
 	for (auto e : linkups.l) {
@@ -744,10 +748,13 @@ OpEdge* OpJoiner::LinkStart(OpEdge* first) {
 	OpEdge* edge = first;
 	do {
 		OpSegment* seg = edge->segment;
-		OP_ASSERT(!seg->sects.resort);
+		OP_ASSERT(!seg->sects.unsorted);
 		OpIntersection* prevSect = seg->sects.i.front();
 		OpSegment* opp = prevSect->opp->segment;
+        OP_ASSERT(!opp->disabled);
 		OpEdge* prevEdge = &opp->edges.back();
+        if (!prevEdge->isSimple())
+            break;
 		if (!opp->simpleEnd(prevEdge) || prevSect->opp != opp->sects.i.back())
 			break;
 		if (prevEdge->nextEdge) {
@@ -770,6 +777,9 @@ OpEdge* OpJoiner::LinkStart(OpEdge* first) {
 			return nullptr;
 		}
 		edge = prevEdge;
+        OP_ASSERT(!edge->disabled);
+        if (!edge->isSimple())
+            break;
 	} while (edge->segment->simpleStart(edge));
 	return edge;
 }
@@ -778,10 +788,13 @@ bool OpJoiner::LinkEnd(OpEdge* first) {
 	OpEdge* edge = first;
 	do {
 		OpSegment* seg = edge->segment;
-		OP_ASSERT(!seg->sects.resort);
+		OP_ASSERT(!seg->sects.unsorted);
 		OpIntersection* nextSect = seg->sects.i.back();
 		OpSegment* opp = nextSect->opp->segment;
+        OP_ASSERT(!opp->disabled);
 		OpEdge* nextEdge = &opp->edges.front();
+        if (!nextEdge->isSimple())
+            break;
 		if (!opp->simpleStart(nextEdge) || nextSect->opp != opp->sects.i.front())
 			break;
 		if (nextEdge->priorEdge) {
@@ -804,6 +817,9 @@ bool OpJoiner::LinkEnd(OpEdge* first) {
 			return false;
 		}
 		edge = nextEdge;
+        OP_ASSERT(!edge->segment->disabled);
+        if (!edge->isSimple())
+            break;
 	} while (edge->segment->simpleEnd(edge));
 	return true;
 }

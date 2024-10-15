@@ -178,7 +178,7 @@ struct OpIntersections {
 
 	// all intersections are stored here before edges are rewritten
     std::vector<OpIntersection*> i;
-    bool resort;
+    bool unsorted;
 };
 
 // allocating storage separately allows intersections to be immobile and have reliable pointers

@@ -97,8 +97,8 @@ bool OpPoint::isFinite() const {
     return OpMath::IsFinite(x) && OpMath::IsFinite(y);
 }
 
-bool OpPoint::isNearly(OpPoint test, OpPoint threshold) const {
-    return OpMath::Equal(x, test.x, threshold.x) && OpMath::Equal(y, test.y, threshold.y);
+bool OpPoint::isNearly(OpPoint test, OpVector threshold) const {
+    return OpMath::Equal(x, test.x, threshold.dx) && OpMath::Equal(y, test.y, threshold.dy);
 }
 
 void OpPoint::pin(const OpPoint a, const OpPoint b) {
@@ -157,12 +157,14 @@ float OpMath::NextSmaller(float a) {
     return std::min(nextLesser, a - OpEpsilon);
 }
 
+#if 0
 // allow ourselves a tiny bit of error (required by thread_circles36945)
 bool OpMath::Betweenish(float a, float b, float c) {
     if (b < NextSmaller(a < c ? a : c))
         return false;
     return b <= NextLarger(a < c ? c : a);
 }
+#endif
 
 bool OpMath::Equal(float a, float b, float threshold) {
     return (a < b ? a : b) + threshold >= (a < b ? b : a);
@@ -273,10 +275,8 @@ OpRoots OpMath::CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B,
     return roots;
 }
 
-// min, max not necessarily sorted (between works regardless)
+// min, max not necessarily sorted
 float OpMath::PinUnsorted(float min, float value, float max) {
-    if (Between(min, value, max))
-        return value;
     if (min > max)
         std::swap(min, max);
     return PinSorted(min, value, max);

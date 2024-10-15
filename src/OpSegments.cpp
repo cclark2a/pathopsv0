@@ -35,6 +35,7 @@ OpSegments::OpSegments(OpContours& contours) {
 
 // may need to adjust values in opp if end is nearly equal to seg
 void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
+    OP_DEBUG_CONTEXT();
     auto add = [seg, opp](OpPoint pt, float segT, float oppT   OP_LINE_FILE_DEF()) {
         if (opp->willDisable || seg->willDisable)
             return;
@@ -49,15 +50,15 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
     };
     auto checkEnds = [add, seg, opp](OpPoint oppPt, float oppT  OP_LINE_FILE_DEF()) {
         OpPtT segPtT;
+        OpPtAliases& aliases = seg->contour->contours->aliases;
         if (seg->c.firstPt().isNearly(oppPt, seg->threshold()) || (seg->startMoved 
-                && seg->aliasOriginal(MatchEnds::start).isNearly(oppPt, seg->threshold())))
+                && aliases.isSmall(seg->c.firstPt(), oppPt)))
             segPtT = { seg->c.firstPt(), 0 };
         else if (seg->c.lastPt().isNearly(oppPt, seg->threshold()) || (seg->endMoved 
-                && seg->aliasOriginal(MatchEnds::end).isNearly(oppPt, seg->threshold())))
+                && aliases.isSmall(seg->c.lastPt(), oppPt)))
             segPtT = { seg->c.lastPt(), 1 };
         if (!OpMath::IsNaN(segPtT.t)) {
-//            if (oppPt != segPtT.pt)
-                oppPt = seg->mergePoints(segPtT, opp, { oppPt, oppT });
+            oppPt = seg->mergePoints(segPtT, opp, { oppPt, oppT });
             add(oppPt, segPtT.t, oppT  OP_LINE_FILE_CALLER());
         }
         OP_ASSERT(opp->c.c.data->start != opp->c.c.data->end || opp->willDisable);
@@ -72,8 +73,7 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
         oppT = OpMath::PinNear(oppT);
         if (0 == oppT || 1 == oppT) {
             OpPoint oppEnd = opp->c.end(oppT);
-//            if (oppEnd != segPt)
-                segPt = seg->mergePoints({ segPt, segT }, opp, { oppEnd, oppT });
+            segPt = seg->mergePoints({ segPt, segT }, opp, { oppEnd, oppT });
         }
         /// !!! may add coincidence between seg and opp which goes undetected (skphealth_com76s)
         add(segPt, segT, oppT  OP_LINE_FILE_CALLER());
@@ -105,6 +105,7 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
 
 // somewhat different from winder's edge based version, probably for no reason
 void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
+    OP_DEBUG_CONTEXT();
     OP_ASSERT(opp != seg);
     OP_ASSERT(seg->c.debugIsLine());
     LinePts edgePts { seg->c.firstPt(), seg->c.lastPt() };
@@ -134,6 +135,8 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
     }
     std::vector<OpPtT> oppPtTs;
     std::vector<OpPtT> edgePtTs;
+    size_t segSects = seg->sects.i.size();
+    size_t oppSects = opp->sects.i.size();
     for (unsigned index = 0; index < septs.count; ++index) {
         float oppT = septs.get(index);
         if (OpMath::NearlyEndT(oppT))
@@ -170,6 +173,8 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
             continue;
         if (opp->sects.contains(oppPtT, seg))
             continue;
+            // don't add sects here if coincident or unsectable will be added below --
+            // i guess record this and defer until after coin/unsect has been checked
         OpIntersection* sect = seg->addSegBase(edgePtT  
                 OP_LINE_FILE_PARAMS(opp));
         OpIntersection* oSect = opp->addSegBase(oppPtT  
@@ -201,7 +206,29 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
             return (one->ptT.t < two->ptT.t) == (MatchEnds::start == match) 
                     ? MatchEnds::start : MatchEnds::end;
         };
-        if (dist < OpEpsilon * 8) { // !!! who knows what this const should be?
+        if (dist < OpEpsilon) {
+            auto removeBetweeners = [](OpSegment* seg, size_t segSects, 
+                    OpIntersection* start, OpIntersection* end) {
+                if (start->ptT.t > end->ptT.t)
+                    std::swap(start, end);
+                size_t index = seg->sects.i.size();
+                const OpSegment* opp = start->opp->segment;
+                OP_ASSERT(opp == end->opp->segment);
+                while (index > segSects) {
+                    OpIntersection* test = seg->sects.i[--index];
+                    if (test->opp->segment == opp 
+                            && start->ptT.t < test->ptT.t && test->ptT.t < end->ptT.t)
+                        seg->sects.i.erase(seg->sects.i.begin() + index);
+                }
+            };
+            removeBetweeners(seg, segSects, iStart, iEnd);
+            removeBetweeners(opp, oppSects, iStart->opp, iEnd->opp);
+            std::array<CoinEnd, 4> ends {{{ seg, opp, iStart->ptT, OpVector() }, 
+                { seg, opp, iEnd->ptT, OpVector() },
+                { opp, seg, iStart->opp->ptT, OpVector() }, 
+                { opp, seg, iEnd->opp->ptT, OpVector() }}};
+            OpWinder::CoincidentCheck(ends, nullptr, nullptr);
+        } else if (dist < OpEpsilon * 8) { // !!! who knows what this const should be?
 	        int usectID = seg->nextID();
             seg->addUnsectable(iStart->ptT, usectID, endFromT(iStart, iEnd, MatchEnds::start), opp
                     OP_LINE_FILE_PARAMS());
@@ -358,6 +385,7 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
 
 // note: ends have already been matched for consecutive segments
 FoundIntersections OpSegments::findIntersections() {
+    OP_DEBUG_CONTEXT();
     for (auto segIter = inX.begin(); segIter != inX.end(); ++segIter) {
         OpSegment* seg = const_cast<OpSegment*>(*segIter);
         if (seg->disabled)
@@ -378,6 +406,14 @@ FoundIntersections OpSegments::findIntersections() {
             AddEndMatches(seg, opp);
             if (seg->willDisable || opp->willDisable)
                 continue;
+            if (seg->isSmall()) {
+                seg->willDisable = true;
+                continue;
+            }
+            if (opp->isSmall()) {
+                opp->willDisable = true;
+                continue;
+            }
             // for line-curve intersection we can directly intersect
             if (seg->c.isLine()) {
                 if (opp->c.isLine()) {

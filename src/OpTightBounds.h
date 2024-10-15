@@ -44,9 +44,11 @@ struct OpPointBounds : OpRect {
         return OpMath::IsFinite(left);
     }
 
-    bool nearlyContains(OpPoint pt) const {
+    // !!! convert this to use threshold instead
+    bool nearlyContains(OpPoint pt, OpVector threshold) const {
         OP_ASSERT(pt.isFinite());
-        return OpMath::Betweenish(left, pt.x, right) && OpMath::Betweenish(top, pt.y, bottom);
+        return OpMath::InSorted(left, pt.x, right, threshold.dx)
+                && OpMath::InSorted(top, pt.y, bottom, threshold.dy);
     }
 
     // used to check if pair describe gap between edges

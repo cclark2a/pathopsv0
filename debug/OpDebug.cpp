@@ -745,13 +745,11 @@ void OpWinder::debugValidate() const {
 }
 #endif
 
-#include "PathOps.h"
-
 #if OP_DEBUG_DUMP
 std::string debugContext;
 
-#if OP_DEBUG_IMAGE
 void debugImage() {
+#if OP_DEBUG_IMAGE
     if ("linkRemaining" == debugContext || "linkUnambiguous" == debugContext 
             || "apply" == debugContext) {
         ::hideOperands();
@@ -778,6 +776,17 @@ void debugImage() {
         ::oo();
         return;
     }
+    if ("findIntersections" == debugContext || "AddLineCurveIntersection" == debugContext
+            || "AddEndMatches" == debugContext) {
+        ::hideOperands();
+        ::showSegments();
+        ::showIDs();
+        ::showPoints();
+        ::showValues();
+        ::resetFocus();
+        ::oo();
+        return;
+    }
     ::hideOperands();
     ::showSegments();
     ::showFill();
@@ -787,28 +796,26 @@ void debugImage() {
     ::showValues();
     ::resetFocus();
     ::oo();
-}
 #endif
+}
 
 void debug() {
+    debugImage();
     if ("linkRemaining" == debugContext || "linkUnambiguous" == debugContext) {
-#if OP_DEBUG_IMAGE
-        debugImage();
-#endif
         ::dmp(debugGlobalContours->debugJoiner);
         return;
     }
     if ("divideAndConquer" == debugContext) {
-#if OP_DEBUG_IMAGE
-        debugImage();
-#endif
         if (debugGlobalContours->debugCurveCurve)
             ::dmp(debugGlobalContours->debugCurveCurve);
         return;
     }
-#if OP_DEBUG_IMAGE
-    debugImage();
-#endif
+    if ("findIntersections" == debugContext || "AddLineCurveIntersection" == debugContext
+            || "AddEndMatches" == debugContext) {
+        OpSaveDump save(DebugLevel::brief, DebugBase::dec);
+        ::dmpSegments();
+        return;
+    }
     debugGlobalContours->dump();
 }
 

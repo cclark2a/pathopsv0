@@ -338,6 +338,8 @@ public:
 	bool isPal(const OpEdge* opp) const {
 		return pals.end() != std::find_if(pals.begin(), pals.end(), 
 				[opp](const auto& test) { return opp == test.edge; }); }
+    bool isSimple() const {
+        return !disabled && !isUnsectable() && Unsortable::none == isUnsortable; }
 	bool isUnsectable() const { 
 		return pals.size(); }
 	bool isUnsectablePair(OpEdge* opp);  // true if this and opp are unsectable pairs

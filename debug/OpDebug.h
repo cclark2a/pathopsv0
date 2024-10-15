@@ -12,6 +12,8 @@
 #include "OpTestDrive.h"  // set test specific settings here
 #endif
 
+#define OP_NEW_COINCIDENCE 1
+
 #if !defined(NDEBUG) || OP_RELEASE_TEST
 #include <string>
 #include <vector>
@@ -77,6 +79,7 @@ struct OpDebugData {
 #define OP_ASSERT(expr)
 #define OP_DEBUG_PARAMS(...)
 #define OP_DEBUG_CODE(...)
+#define OP_RELEASE_CODE(...) __VA_ARGS__
 #define OP_DEBUG_VALIDATE_CODE(...)
 #define OP_DEBUG 0
 #define OP_DEBUG_DUMP 0
@@ -125,6 +128,7 @@ struct OpDebugData {
 #endif
 #define OP_DEBUG_PARAMS(...) , __VA_ARGS__
 #define OP_DEBUG_CODE(...) __VA_ARGS__
+#define OP_RELEASE_CODE(...)
 #if OP_DEBUG_IMAGE
 #undef OP_DEBUG_IMAGE_CODE
 #define OP_DEBUG_IMAGE_CODE(...) __VA_ARGS__
@@ -194,15 +198,19 @@ struct OpDebugMaker {
 
 // debug compare, debug dump, and debug image as written only work when testing uses a single thread
 #if !OP_DEBUG_FAST_TEST
-#define OpDebugBreak(opObject, ID) \
+// conditionalize the following to fast test so they don't end up in committed code by accident
+#define OpBreak(opObject, ID) \
 	do { if ((ID) == (opObject)->id) OP_DEBUG_BREAK(); } while (false)
 
-#define OpDebugBreak2(o1, o2, i1, i2) \
+#define OpBreak2(o1, o2, i1, i2) \
 	do { if (((i1) == (o1)->id || (i2) == (o1)->id) && \
              ((i1) == (o2)->id || (i2) == (o2)->id)) OP_DEBUG_BREAK(); } while (false)
 
-#define OpDebugBreakIf(opObject, ID, doBreak) \
+#define OpBreakIf(opObject, ID, doBreak) \
 	do { if ((doBreak) && (ID) == (opObject)->id) OP_DEBUG_BREAK(); } while (false)
+
+#define OpAssert(doBreak) \
+    do { if (doBreak) OP_DEBUG_BREAK(); } while (false)
 
 #if OP_DEBUG_DUMP 
 #undef OP_DEBUG_DUMP_CODE

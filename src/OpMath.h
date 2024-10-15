@@ -183,6 +183,11 @@ inline int operator+(XyChoice a) {
     return static_cast<int>(a);
 }
 
+inline XyChoice operator!(XyChoice a) {
+    OP_ASSERT(XyChoice::inX == a || XyChoice::inY == a);
+    return static_cast<XyChoice>(!static_cast<int>(a));
+}
+
 // for other enums, neither would be valued at zero for struct initialization
 // here, axis is used as a component index for (x, y), so '-1' is used for neither
 enum class Axis : int8_t {
@@ -314,6 +319,10 @@ struct OpVector {
 #endif
     }
 
+    float choice(Axis axis) const {
+        return *(&dx + +axis);
+    }
+
     float choice(XyChoice xyChoice) const {
         OP_ASSERT(XyChoice::inZ != xyChoice);
         return *(&dx + +xyChoice);
@@ -341,6 +350,10 @@ struct OpVector {
     OpVector normalize();
     OpVector setLength(float len) {
         float base = length(); return OpVector(dx * len / base, dy * len / base); }
+
+    OpVector tComplement() const {
+        return { 1 - dx, 1 - dy };
+    }
 
     DUMP_DECLARATIONS
 
@@ -493,7 +506,7 @@ struct OpPoint {
     }
 
     // bool isNearly(OpPoint test) const;  // !!! phase this out in favor of threshold version
-    bool isNearly(OpPoint test, OpPoint threshold) const;
+    bool isNearly(OpPoint test, OpVector threshold) const;
     void pin(const OpPoint , const OpPoint );
     void pin(const OpRect& );
     bool soClose(OpPoint test) const;
@@ -731,11 +744,15 @@ struct OpMath {
     }
 
     // returns true if (a <= b <= c) || (a >= b >= c)
+    // fails if b^2 rounds to zero and a, c are zero
     static bool Between(float a, float b, float c) {
+        OP_DEBUG_CODE(bool classicResult = (a <= b && b <= c) || (a >= b && b >= c));
+        OP_DEBUG_CODE(bool cleverResult = (a - b) * (c - b) <= 0);
+        OP_ASSERT(classicResult == cleverResult);
         return (a - b) * (c - b) <= 0;
     }
 
-    static bool Betweenish(float a, float b, float c);
+//    static bool Betweenish(float a, float b, float c);
     static float CloseLarger(float );
     static float CloseSmaller(float );
 
@@ -764,6 +781,9 @@ struct OpMath {
     static OpPoint Interp(OpPoint A, OpPoint B, float t) {
         return A * (1 - t) + B * t; }
 
+    static OpPoint Interp(float A, float B, OpVector t) {
+        return A * t.tComplement() + B * t; }
+
     // !!! could optimize with float bits trick
     static bool IsFinite(float x) {
         return std::isfinite(x); }
@@ -774,6 +794,13 @@ struct OpMath {
 
     static bool IsNaN(float x) {
         return std::isnan(x); }
+
+    static bool InSorted(float a, float test, float b, float threshold) {
+        OP_ASSERT(a <= b);
+        return a - threshold <= test && test <= b + threshold; }
+
+    static bool InUnsorted(float a, float test, float b, float threshold) {
+        return a < b ? InSorted(a, test, b, threshold) : InSorted(b, test, a, threshold); }
 
     static bool NearlyEndT(float t) {
         return NearlyZeroT(t) || NearlyOneT(t); }
@@ -799,7 +826,12 @@ struct OpMath {
     static float PinT(float t) {
         return 0 > t ? 0 : 1 < t ? 1 : t; }
 
-    // return position between A and B (0 to 1)
+    // return pair of t-value positions between A and B (0 to 1)
+    static OpVector Ratio(OpPoint A, OpPoint B, OpPoint tween) {
+        return (tween - A) / (B - A);
+    }
+
+    // return t-value position between A and B (0 to 1)
     static float Ratio(float A, float B, float tween) {
         OP_ASSERT(Between(A, tween, B));
         return (tween - A) / (B - A);

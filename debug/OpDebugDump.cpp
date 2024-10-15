@@ -751,16 +751,20 @@ ENUM_NAME(OpDebugExpect, debugExpect)
 std::string OpPtAliases::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     s += "aliases[\n";
-    for (OpPtAlias alias : a) {
-        s += alias.original.debugDump(l, b) + ":" + alias.alias.debugDump(l, b) + "\n";
+    for (OpPoint pt : aliases) {
+        s += pt.debugDump(l, b) + "\n";
     }
-    s += "]";
+    s += "] maps[\n";
+    for (OpPtAlias map : maps) {
+        s += map.original.debugDump(l, b) + ":" + map.alias.debugDump(l, b) + "\n";
+    }
+    s += "] threshold:" + threshold.debugDump(l, b);
     return s;
 }
 
 std::string OpContours::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    if (aliases.a.size())
+    if (aliases.maps.size())
         s += aliases.debugDump(l, b) + "\n";
     if (curveDataStorage) {
         s += "curveDataStorage:";
@@ -2058,6 +2062,17 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     return s;
 }
 
+OpSaveDump::OpSaveDump(DebugLevel l, DebugBase b) {
+    saveL = defaultLevel;
+    saveB = defaultBase;
+    defaultLevel = l;
+    defaultBase = b;
+}
+OpSaveDump::~OpSaveDump() {
+    defaultLevel = saveL;
+    defaultBase = saveB;
+}
+
 void dmpBase(int v) {
     defaultBase = (DebugBase) v;
 }
@@ -3037,7 +3052,7 @@ std::string OpTree::debugDump(DebugLevel l, DebugBase b) const {
 std::string CoinEnd::debugDump(DebugLevel l, DebugBase b) const { 
     std::string s;
     s += "seg:" + STR(seg->id) + " opp:" + STR(opp->id) + " ptT:" + ptT.debugDump(l, b);
-    s += " oppT:" + OpDebugStr(oppT);
+    s += " oppT:" + oppT.debugDump(l, b);
     return s;
 }
 
@@ -3192,9 +3207,9 @@ ENUM_NAME_STRUCT(PtType);
 
 static PtTypeName ptTypeNames[] = {
     PTTYPE_NAME(noMatch),
-	PTTYPE_NAME(alias),
-	PTTYPE_NAME(end),
-	PTTYPE_NAME(same)
+	PTTYPE_NAME(original),
+	PTTYPE_NAME(isAlias),
+	PTTYPE_NAME(mapSegment)
 };
 
 ENUM_NAME(PtType, ptType)
@@ -3625,8 +3640,8 @@ DEBUG_DUMP_ID_DEFINITION(OpIntersection, id)
 
 std::string OpIntersections::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    if (resort)
-        s += "resort ";
+    if (unsorted)
+        s += "unsorted ";
     if (!i.size())
         return s;
     s += "intersections:" + STR(i.size()) + "\n";
@@ -3645,7 +3660,7 @@ std::string OpIntersections::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 void OpIntersections::dumpSet(const char*& str) {
-    resort = OpDebugOptional(str, "resort");
+    unsorted = OpDebugOptional(str, "unsorted");
     if (!OpDebugOptional(str, "intersections"))
         return;
     int sectCount = OpDebugReadSizeT(str);
@@ -3847,7 +3862,7 @@ void dmpEdges(const OpSegment& seg) {
 
 std::string OpSegment::debugDumpFull() const {
     std::string s = debugDump(defaultLevel, defaultBase);
-    if (sects.resort)
+    if (sects.unsorted)
         s += " ";
     else
         s += "\n";
@@ -3859,8 +3874,8 @@ std::string OpSegment::debugDumpFull() const {
 
 std::string OpSegment::debugDumpIntersections() const {
     std::string s;
-    if (sects.resort)
-        s += "resort\n";
+    if (sects.unsorted)
+        s += "unsorted\n";
     for (auto i : sects.i) {
         std::string is = i->debugDump(defaultLevel, defaultBase);
         std::string match = "segment:";

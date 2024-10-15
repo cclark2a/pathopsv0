@@ -89,11 +89,10 @@ struct OpContour {
     int nextID() const;
 
     void normalize() {
-    for (auto& segment : segments) {
+        for (auto& segment : segments) {
             segment.normalize();
         }
     }
-
 
 #if 0  // !!! disable until use case appears
     void setBounds() {
@@ -102,6 +101,12 @@ struct OpContour {
         }
     }
 #endif
+
+    void transferCoins() {
+        for (auto& segment : segments) {
+            segment.transferCoins();
+        }
+    }
 
 #if OP_DEBUG
     void debugComplete();
@@ -226,17 +231,18 @@ struct OpPtAlias {
 
 struct OpPtAliases {
     bool add(OpPoint pt, OpPoint alias);
+    SegPt addIfClose(OpPoint );
     bool contains(OpPoint ) const;
     OpPoint existing(OpPoint ) const;
     OpPoint find(OpPoint ) const;
-    bool isSmall(OpPoint pt1, OpPoint pt2) const;
+    bool isSmall(OpPoint pt1, OpPoint pt2);
     void remap(OpPoint oldAlias, OpPoint newAlias);
-    SegPt setIfClose(OpPoint match);
 
 	DUMP_DECLARATIONS
 
-    std::vector<OpPtAlias> a;
-    OpPoint threshold;
+    std::vector<OpPoint> aliases;
+    std::vector<OpPtAlias> maps;
+    OpVector threshold;
 };
 
 struct OpContours {
@@ -345,13 +351,15 @@ struct OpContours {
     void resetLimbs();
     void reuse(OpEdgeStorage* );
 
-    SegPt setAliasIfClose(OpPoint pt) {
-        return aliases.setIfClose(pt);
-    }
-
     bool setError(PathOpsV0Lib::ContextError  OP_DEBUG_PARAMS(int id, int id2 = 0));
     void setThreshold();
     void sortIntersections();
+
+    void transferCoins() {
+       for (auto contour : contours) {
+            contour->transferCoins();
+        }
+    }
 
     bool debugFail() const;
 #if OP_DEBUG

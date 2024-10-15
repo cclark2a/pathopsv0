@@ -2,6 +2,7 @@
 #include "OpContour.h"
 #include "OpCurve.h"
 #include "OpSegment.h"
+#include "OpWinder.h"
 
 void FoundEdge::check(std::vector<FoundEdge>* edges, OpEdge* test, EdgeMatch em, OpPoint match) {
     if (edges && edges->size())
@@ -176,18 +177,10 @@ OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int usectID, MatchEnd
     if (sect) {
         OP_ASSERT(!sect->unsectID);
         sect->setUnsect(usectID, end);
-        sects.resort = true;
+        sects.unsorted = true;
         return sect;
     }
     return sects.add(contour->addUnsect(ptT, this, usectID, end  OP_LINE_FILE_CALLER(oSeg)));
-}
-
-OpPoint OpSegment::aliasOriginal(MatchEnds end) const {
-    OP_ASSERT((MatchEnds::start == end && startMoved) || (MatchEnds::end == end && endMoved));
-    OpPoint aliased = MatchEnds::start == end ? c.firstPt() : c.lastPt();
-    OpPoint original = contour->contours->findAlias(aliased);
-    OP_ASSERT(original.isFinite());
-    return original;
 }
 
 void OpSegment::apply() {
@@ -217,8 +210,8 @@ void OpSegment::betweenIntersections() {
             if (aSects.i.end() != std::find_if(aSects.i.begin(), aSects.i.end(), 
                     [segC](const OpIntersection* test) { return test->opp->segment == segC; }))
                 continue;
-            segA->sects.resort = true;
-            segC->sects.resort = true;
+            segA->sects.unsorted = true;
+            segC->sects.unsorted = true;
             // Construct new coincidence between A and C. Add the shorter of a end and c end.
             OpIntersection* cEndSect = sectC->coinOtherEnd();
             OpIntersection* aEndSect = sectA->coinOtherEnd();
@@ -246,7 +239,7 @@ void OpSegment::betweenIntersections() {
         // check to see if added point collapses through identical t? or adjacent has idential pt?
         // !!! probably should put that check in sorting
     };
-    if (sects.resort)
+    if (sects.unsorted)
         sects.sort();
     for (OpIntersection* sect : sects.i) {
         OP_ASSERT(sect->segment == this);
@@ -268,22 +261,32 @@ void OpSegment::betweenIntersections() {
 
 // returns point that matches input; returned point may be nearby; may already be aliased
 // segment is unchanged, but equal and nearby point are added to aliases
-SegPt OpSegment::checkAliases(OpPtT match) const {
+SegPt OpSegment::checkAliases(OpPtT match) {
     OP_ASSERT(0 == match.t || 1 == match.t);
     OpPoint endPt = 0 == match.t ? c.firstPt() : c.lastPt();
     SegPt result;
     if (0 == match.t ? startMoved : endMoved) {
-        if (match.pt != endPt)
-            contour->contours->addAlias(match.pt, endPt);
-        result = { endPt, match.pt == endPt ? PtType::same : PtType::alias };
-    } else
-        result = contour->contours->setAliasIfClose(match.pt);
+        if (match.pt == endPt)
+            result = { endPt, PtType::isAlias };
+        else {
+            addAlias(match.pt, endPt);
+            result = { endPt, PtType::original };
+        }
+    } else {
+        result = contour->contours->aliases.addIfClose(match.pt);
+        if (endPt != result.pt) {
+            addAlias(endPt, result.pt);
+            result.ptType = PtType::mapSegment;
+        }
+    }
     // collect all intersections that match; add all matches to aliases
     for (OpIntersection* sect : sects.i) {
         if (sect->ptT.t != match.t)
             continue;
-        if (sect->ptT.pt != result.pt)
-            contour->contours->addAlias(sect->ptT.pt, result.pt);
+        if (sect->ptT.pt != result.pt) {
+            addAlias(sect->ptT.pt, result.pt);
+            result.ptType = PtType::mapSegment;
+        }
     }
     return result;
 }
@@ -292,6 +295,13 @@ int OpSegment::coinID(bool flipped) {
     int coinID = nextID();
     hasCoin = true;
     return flipped ? -coinID : coinID;
+}
+
+void OpSegment::disableSmall() {
+    if (disabled)
+        return;
+    if (willDisable || isSmall())
+        setDisabled(OP_LINE_FILE_NPARAMS());
 }
 
 // !!! would it be any better (faster) to split this into findStart / findEnd instead?
@@ -323,7 +333,7 @@ float OpSegment::findAxisT(Axis axis, float start, float end, float opp) {
 void OpSegment::findMissingEnds() {
     if (disabled)
         return;
-    OP_ASSERT(!sects.resort);
+    OP_ASSERT(!sects.unsorted);
     OpContours* contours = contour->contours;
     if (!sects.i.size() || 0 != sects.i.front()->ptT.t) {
         OpPoint alias = contours->aliases.existing(c.firstPt());
@@ -412,6 +422,88 @@ float OpSegment::findValidT(float start, float end, OpPoint opp) {
     return OpNaN;
 }
 
+bool OpSegment::isSmall() {
+    return contour->contours->aliases.isSmall(c.c.data->start, c.c.data->end);
+}
+
+void OpSegment::makeCoins() {
+    if (disabled)
+        return;
+    OP_ASSERT(!sects.unsorted);
+    auto nextSect = [this](unsigned* index, float t, bool alwaysAdvance) {
+        do {
+            if (alwaysAdvance) {
+                alwaysAdvance = false;
+                continue;
+            }
+            OpIntersection* result = sects.i[*index];
+            if (result->ptT.t < t)
+                continue;
+            if (MatchEnds::none == result->coinEnd)
+                return result;
+        } while (++*index < sects.i.size());
+        return (OpIntersection*) nullptr;
+    };
+    unsigned startIndex = 0;
+    for (OpEdge& edge : edges) {
+        if (edge.disabled || edge.isUnsectable() || !edge.isLine())
+            continue;
+        OpIntersection* startSect = nextSect(&startIndex, edge.startT, false);
+        if (!startSect)
+            break;
+        if (startSect->ptT.t > edge.startT)
+            continue;
+        unsigned firstEnd = startIndex;
+        OpIntersection* endSect = nextSect(&firstEnd, edge.endT, false);
+        if (!endSect)
+            break;
+        if (endSect->ptT.t > edge.endT)
+            continue;
+        OP_ASSERT(startSect->ptT.t == edge.startT);
+        OP_ASSERT(endSect->ptT.t == edge.endT);
+        if (MatchEnds::none != startSect->unsectEnd && MatchEnds::none != endSect->unsectEnd)
+            continue;
+        unsigned endIndex = firstEnd;
+        do {
+            int oppSegID = endSect->opp->segment->id;
+            while (startSect->opp->segment->id < oppSegID) {
+                startSect = nextSect(&startIndex, edge.startT, true);
+                if (!startSect)
+                    return;
+                if (startSect->ptT.t > edge.startT)
+                    goto nextEdge;
+            }
+            oppSegID = startSect->opp->segment->id;
+            while (endSect->opp->segment->id < oppSegID) {
+                endSect = nextSect(&endIndex, edge.endT, true);
+                if (!endSect)
+                    return;
+                if (endSect->ptT.t > edge.endT)
+                    goto nextEdge;
+            }
+            OpIntersection* oppStart = startSect->opp;
+            OpIntersection* oppEnd = endSect->opp;
+            OpSegment* oppSegment = oppStart->segment;
+            if (oppSegment != oppEnd->segment)
+                continue;
+            bool reversed = oppStart->ptT.t > oppEnd->ptT.t;
+            for (OpEdge& oppEdge : oppSegment->edges) {
+                if (!oppEdge.isLine())
+                    continue;
+                if (reversed ? edge.start().pt == oppEdge.end().pt 
+                        : edge.start().pt == oppEdge.start().pt) {
+
+                    OpWinder::CoincidentCheck(edge, oppEdge);
+                    break;
+                }
+            }
+            endSect = nextSect(&endIndex, edge.endT, true);
+        } while (endSect && edge.endT == endSect->ptT.t);
+nextEdge:
+        startIndex = firstEnd;
+    }
+}
+
 void OpSegment::makeEdge(OP_LINE_FILE_NP_DEF()) {
     if (!edges.size()) 
         edges.emplace_back(this  OP_LINE_FILE_PARAMS());
@@ -424,6 +516,41 @@ void OpSegment::makeEdges() {
     OP_ASSERT(sects.i.size());
     edges.reserve(sects.i.size() - 1);
     sects.makeEdges(this);
+}
+
+// create list of unsectable edges that match previous found unsectable intersections.
+void OpSegment::makePals() {
+    if (!hasUnsectable)
+        return;
+    if (disabled)
+        return;
+    for (OpEdge& edge : edges) {
+        if (edge.disabled)
+            continue;
+        for (OpIntersection* uSect : edge.unSects) {
+            int uID = abs(uSect->unsectID);
+            OP_ASSERT(uID);
+            OpSegment* oSeg = uSect->opp->segment;
+            OP_ASSERT(oSeg != this);
+            if (oSeg->disabled)
+                continue;
+            for (OpEdge& oEdge : oSeg->edges) {
+                if (oEdge.disabled)
+                    continue;
+                for (OpIntersection* oSect : oEdge.unSects) {
+                    if (abs(oSect->unsectID) != uID)
+                        continue;
+                    auto found = std::find_if(edge.pals.begin(), edge.pals.end(), 
+                            [&edge](const EdgePal& test) { return &edge != test.edge; });
+                    if (edge.pals.end() == found) {
+                        EdgePal pal { &oEdge, uSect->unsectID != oSect->unsectID 
+                                OP_DEBUG_PARAMS(uID) };
+                        edge.pals.push_back(pal);
+                    }
+                }
+            }
+        }
+    }
 }
 
 MatchReverse OpSegment::matchEnds(const LinePts& linePts) const {
@@ -456,22 +583,22 @@ MatchEnds OpSegment::matchExisting(const OpSegment* opp) const {
 
 OpPoint OpSegment::mergePoints(OpPtT segPtT, OpSegment* opp, OpPtT oppPtT) {
     SegPt segPt = checkAliases(segPtT);
-    SegPt oppPt = segPtT.pt != oppPtT.pt ? opp->checkAliases(oppPtT) : segPt;
-    if (PtType::noMatch == segPt.ptType && PtType::noMatch == oppPt.ptType
-            && segPt.pt == oppPt.pt)
-        return segPt.pt;
-    if (PtType::alias == segPt.ptType && PtType::alias == oppPt.ptType) {
-        if (segPt.pt == oppPt.pt) {
-            movePt(segPtT, segPt.pt);
-            return opp->movePt(oppPtT, segPt.pt);
-        }
+    SegPt oppPt = opp->checkAliases(oppPtT);
+    if (segPt.pt != oppPt.pt && PtType::noMatch != segPt.ptType && PtType::noMatch != oppPt.ptType)
         return remapPts(oppPt.pt, segPt.pt);
-    }
-    if (PtType::alias == oppPt.ptType)
-        return movePt(segPtT, oppPt.pt);
-    if (PtType::alias != segPt.ptType && segPt.pt != oppPt.pt)
+    if (PtType::noMatch == segPt.ptType && PtType::noMatch == oppPt.ptType) {
+        if (oppPt.pt == segPt.pt)
+            return segPt.pt;
         addAlias(oppPt.pt, segPt.pt);
-    return opp->movePt(oppPtT, segPt.pt);
+        segPt.ptType = PtType::isAlias;
+        oppPt.ptType = PtType::original;
+    }
+    OpPoint destPt = PtType::noMatch == segPt.ptType ? oppPt.pt : segPt.pt;
+    if (segPtT.pt != segPt.pt || PtType::mapSegment == segPt.ptType)
+        movePt(segPtT, destPt);
+    if (oppPtT.pt != segPt.pt || PtType::mapSegment == oppPt.ptType)
+        opp->movePt(oppPtT, destPt);
+    return segPt.pt;
 }
 
 // keep control point inside curve bounds
@@ -602,24 +729,10 @@ OpPoint OpSegment::threshold() const {
     return contour->contours->aliases.threshold; 
 }
 
-bool OpSegment::debugFail() const {
-#if OP_DEBUG
-    return contour->contours->debugFail();
-#endif
-    return false;
-}
-
-bool OpSegment::debugSuccess() const {
-#if OP_DEBUG
-    return contour->contours->debugSuccess();
-#endif
-    return true;
-}
-
 // Note that this must handle a many-to-many relationship between seg and opp.
 // Coincident runs of edges may be interrupted by other intersections but their winding is
 // unaffected (only other coins may break inner coincident windings).
-void OpSegment::makeCoins() {
+void OpSegment::transferCoins() {
     if (!hasCoin)
         return;
     if (disabled)
@@ -699,37 +812,16 @@ void OpSegment::makeCoins() {
     }
 }
 
-// create list of unsectable edges that match previous found unsectable intersections.
-void OpSegment::makePals() {
-    if (!hasUnsectable)
-        return;
-    if (disabled)
-        return;
-    for (OpEdge& edge : edges) {
-        if (edge.disabled)
-            continue;
-        for (OpIntersection* uSect : edge.unSects) {
-            int uID = abs(uSect->unsectID);
-            OP_ASSERT(uID);
-            OpSegment* oSeg = uSect->opp->segment;
-            OP_ASSERT(oSeg != this);
-            if (oSeg->disabled)
-                continue;
-            for (OpEdge& oEdge : oSeg->edges) {
-                if (oEdge.disabled)
-                    continue;
-                for (OpIntersection* oSect : oEdge.unSects) {
-                    if (abs(oSect->unsectID) != uID)
-                        continue;
-                    auto found = std::find_if(edge.pals.begin(), edge.pals.end(), 
-                            [&edge](const EdgePal& test) { return &edge != test.edge; });
-                    if (edge.pals.end() == found) {
-                        EdgePal pal { &oEdge, uSect->unsectID != oSect->unsectID 
-                                OP_DEBUG_PARAMS(uID) };
-                        edge.pals.push_back(pal);
-                    }
-                }
-            }
-        }
-    }
+bool OpSegment::debugFail() const {
+#if OP_DEBUG
+    return contour->contours->debugFail();
+#endif
+    return false;
+}
+
+bool OpSegment::debugSuccess() const {
+#if OP_DEBUG
+    return contour->contours->debugSuccess();
+#endif
+    return true;
 }

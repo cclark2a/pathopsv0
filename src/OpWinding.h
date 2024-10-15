@@ -106,6 +106,7 @@ inline WindZero operator!(const WindZero& a) {
 		case WindZero::nonZero: return WindZero::zero;
 	}
 	OP_ASSERT(0);
+    return WindZero::unset;
 }
 
 #endif
