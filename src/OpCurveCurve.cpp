@@ -385,13 +385,14 @@ bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 	OpPtT eEnd = edgeEnd;
 	OpPtT oStart = oppStart;
 	OpPtT oEnd = oppEnd;
-	if (eStart.soClose(oStart))
+    // !!! get rid if soClose ? or pass a larger factor to isNearly ?
+	if (eStart.soClose(oStart) || eStart.isNearly(oStart, seg->threshold()))
 		OpPtT::MeetInTheMiddle(eStart, oStart);
-	if (eEnd.soClose(oEnd))
+	if (eEnd.soClose(oEnd) || eEnd.isNearly(oEnd, seg->threshold()))
 		OpPtT::MeetInTheMiddle(eEnd, oEnd);
-	if (eStart.soClose(eEnd))
+	if (eStart.soClose(eEnd) || eStart.isNearly(eEnd, seg->threshold()))
 		return false;
-	if (oStart.soClose(oEnd))
+	if (oStart.soClose(oEnd) || oStart.isNearly(oEnd, seg->threshold()))
 		return false;
 	MatchReverse match { MatchEnds::start, oStart.t > oEnd.t };
 	IsCoin isCoin = eStart.pt == (match.reversed ? oEnd.pt : oStart.pt) 

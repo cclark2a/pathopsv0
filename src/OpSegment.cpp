@@ -429,7 +429,7 @@ bool OpSegment::isSmall() {
 void OpSegment::makeCoins() {
     if (disabled)
         return;
-    OP_ASSERT(!sects.unsorted);
+    sects.sort();  // make coins may add sects; so another segment may have added to this one
     auto nextSect = [this](unsigned* index, float t, bool alwaysAdvance) {
         do {
             if (alwaysAdvance) {
