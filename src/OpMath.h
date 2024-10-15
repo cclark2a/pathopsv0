@@ -645,7 +645,8 @@ struct OpRect {
 
 struct OpPtT {
     OpPtT()
-        : t(OpDebugNaN) {
+        OP_DEBUG_CODE(: t(OpDebugNaN))
+    {
     }
 
     OpPtT(SetToNaN) 

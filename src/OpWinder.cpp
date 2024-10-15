@@ -310,7 +310,7 @@ void CoinEnd::addSect(int coinID, OpSegment* baseSeg, MatchReverse m, XyChoice x
 }
 
 void CoinEnd::aliasPtT(XyChoice xyChoice) {
-	OP_DEBUG_CODE(OpPtAliases& aliases = seg->contour->contours->aliases);
+	OpPtAliases& aliases = seg->contour->contours->aliases;
 	OpPtT segPtT = seg->ptAtT(ptT);
 	if (OpPoint possibleAlias = aliases.existing(segPtT.pt); possibleAlias != segPtT.pt)
 		segPtT.pt = seg->contour->contours->remapPts(segPtT.pt, possibleAlias);

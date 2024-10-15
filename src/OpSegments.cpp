@@ -307,7 +307,8 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
     LinePts oppLine = opp->c.linePts();
     OpCurve vertSeg = seg->c.toVertical(oppLine, ends.match);
     if (!vertSeg.isFinite()) {
-        seg->contour->contours->setError(PathOpsV0Lib::ContextError::toVertical, seg->id);
+        seg->contour->contours->setError(PathOpsV0Lib::ContextError::toVertical  
+                OP_DEBUG_PARAMS(seg->id));
         return IntersectResult::fail;
     }
     if (!vertSeg.isVertical())
@@ -315,7 +316,8 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
     LinePts segLine = seg->c.linePts();
     OpCurve vertOpp = opp->c.toVertical(segLine, ends.flipped());
     if (!vertOpp.isFinite()) {
-        seg->contour->contours->setError(PathOpsV0Lib::ContextError::toVertical, opp->id);
+        seg->contour->contours->setError(PathOpsV0Lib::ContextError::toVertical  
+                OP_DEBUG_PARAMS(opp->id));
         return IntersectResult::fail;
     }
     if (!vertOpp.isVertical())

@@ -115,7 +115,7 @@ EdgePal::EdgePal(OpEdge* e, float c, float tIn, bool r)
 	, cept(c)
 	, edgeInsideT(tIn)
 	, reversed(r) {
-	debugUID = 0;
+	OP_DEBUG_CODE(debugUID = 0);
 }
 
 EdgePal::EdgePal(OpEdge* e, bool r  OP_DEBUG_PARAMS(int uID))
