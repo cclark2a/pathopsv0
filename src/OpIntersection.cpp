@@ -7,12 +7,14 @@ void OpIntersection::setCoin(int cid, MatchEnds end) {
     coincidenceID = cid;
     coinEnd = end;
     segment->hasCoin = true;
+    segment->sects.unsorted = true;
 }
 
 void OpIntersection::setUnsect(int uid, MatchEnds end) {
     unsectID = uid;
     unsectEnd = end;
     segment->hasUnsectable = true;
+    segment->sects.unsorted = true;
 }
 
 OpIntersection* OpIntersection::coinOtherEnd() {

@@ -1357,7 +1357,7 @@ void DebugOpDrawEdgeTangent(const OpEdge* edge, uint32_t color) {
     for (auto& drawnEdge : drawn) {
         OpCurve curve;
         drawnEdge.mapTo(curve);
-        if (curve.c.data->start.isNearly(curve.c.data->end, debugGlobalContours->aliases.threshold))
+        if (curve.c.data->start.isNearly(curve.c.data->end, debugGlobalContours->threshold()))
             continue;
         OpVector tan = curve.tangent(.33f).normalize() * 15;
         if (EdgeMatch::end == edge->which()) {
@@ -1380,7 +1380,7 @@ void DebugOpDrawSegmentTangent(const OpSegment* seg, uint32_t color) {
     for (auto& drawnSeg : drawn) {
         OpCurve curve;
         drawnSeg.mapTo(curve);
-        if (curve.c.data->start.isNearly(curve.c.data->end, debugGlobalContours->aliases.threshold))
+        if (curve.c.data->start.isNearly(curve.c.data->end, debugGlobalContours->threshold()))
             continue;
         OpVector tan = curve.tangent(.42f).normalize() * 15;
         if (!tan.isFinite() || tan == OpVector{ 0, 0 }) {

@@ -30,7 +30,8 @@ void SectRay::addPals(OpEdge* home) {
 	};
 	const EdgePal* homeDist = find(home);
 	const EdgePal* test = homeDist;
-	float lowLimit = OpMath::NextSmaller(homeCept);
+    float threshold = home->contours()->threshold().choice(axis);
+	float lowLimit = homeCept - threshold;
     bool priorIsPal = false;
 	while (test > &distances.front() && (--test)->cept >= lowLimit) {
 		OP_ASSERT((test + 1)->cept >= test->cept);
@@ -38,7 +39,7 @@ void SectRay::addPals(OpEdge* home) {
         priorIsPal = true;
 	}
 	test = homeDist;
-	float highLimit = OpMath::NextLarger(homeCept);
+	float highLimit = homeCept + threshold;
     bool nextIsPal = false;
 	while (test < &distances.back() && (++test)->cept <= highLimit) {
 		OP_ASSERT((test - 1)->cept <= test->cept);
@@ -171,7 +172,7 @@ FindCept SectRay::findIntercept(OpEdge* home, OpEdge* test) {
 	bool reversed = tangent.dot(homeTangent) < 0;
 	distances.emplace_back(test, testXY, root, reversed);
 	if (!uSectPair && OpMath::Equal(testXY, homeCept, 
-			home->contours()->aliases.threshold.choice(perpendicular)))
+			home->contours()->threshold().choice(perpendicular)))
 		return FindCept::retry;  // e.g., testQuads1877923 has two small quads which just miss 
 	return uSectPair ? FindCept::addPal : FindCept::ok;
 }
@@ -728,7 +729,7 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 	if (2 == septs.count && opp.isLine())
 		return CoincidentCheck(edge, opp);
 	bool tInRange = false;
-	OpPoint threshold = edge.contours()->aliases.threshold;
+	OpPoint threshold = edge.contours()->threshold();
 	for (unsigned index = 0; index < septs.count; ++index) {
 		if (opp.startT > septs.get(index)) {
 			if (opp.startPt().isNearly(edge.startPt(), threshold))
@@ -939,7 +940,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 		size_t last = (size_t) (sumIndex + 1);
 		float lastCept = last < ray.distances.size() ? ray.distances[last].cept : OpNaN;
 		bool lastIsEdge = false;
-		float threshold = edge->contours()->aliases.threshold.choice(!ray.axis);  // use perpendicular
+		float threshold = edge->contours()->threshold().choice(!ray.axis);  // use perpendicular
 		do {
 			const EdgePal& dist = ray.distances[sumIndex];
 			OpEdge* previous = dist.edge;

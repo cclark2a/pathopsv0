@@ -11,9 +11,9 @@
 // don't add if points are close
 // prefer end if types are different
 // return true if close enough points are ctrl + mid
-bool OpHulls::add(const OpPtT& ptT, SectType sectType, const OpEdge* opp) {			
-	auto found = std::find_if(h.begin(), h.end(), [ptT](const HullSect& hull) {
-		return ptT.soClose(hull.sect);
+bool OpHulls::add(const OpPtT& ptT, OpVector threshold, SectType sectType, const OpEdge* opp) {			
+	auto found = std::find_if(h.begin(), h.end(), [ptT, threshold](const HullSect& hull) {
+		return ptT.isNearly(hull.sect, threshold);
 	});
 	if (h.end() == found) {
 		h.emplace_back(ptT, sectType, opp);
@@ -657,7 +657,7 @@ bool OpEdge::isClose() {
 		OP_ASSERT(!isClose_impl);
 		return false;
 	}
-	return isClose_impl = start().soClose(end());
+	return isClose_impl = start().isNearly(end(), contours()->threshold());
 }
 
 OpPtT OpEdge::ptTCloseTo(OpPtT oPtPair, const OpPtT& ptT) const {

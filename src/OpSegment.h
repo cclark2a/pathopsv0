@@ -116,11 +116,11 @@ struct OpSegment {
     OpPtT ptAtT(const OpPtT& ) const;
     void remap(OpPoint oldAlias, OpPoint newAlias);  // local remap
     OpPoint remapPts(OpPoint oldAlias, OpPoint newAlias);  // call through
-    void setBounds();
+    void resetBounds();
 	void setDisabled(OP_LINE_FILE_NP_DEF());
     bool simpleEnd(const OpEdge* ) const;  // true if edge end connects to only one segment
     bool simpleStart(const OpEdge* ) const;  // true if edge start connects to only one segment
-    OpPoint threshold() const;
+    OpVector threshold() const;
     void transferCoins();
 //    void windCoincidences();
 

@@ -153,7 +153,7 @@ struct HullSect {
 };
 
 struct OpHulls {
-	bool add(const OpPtT& ptT, SectType st, const OpEdge* o = nullptr);
+	bool add(const OpPtT& ptT, OpVector threshold, SectType st, const OpEdge* o = nullptr);
 	void clear() { h.clear(); }
 	bool closeEnough(int index, const OpEdge& edge, const OpEdge& oEdge, OpPtT* oPtT, OpPtT* close);
 	void nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef which);

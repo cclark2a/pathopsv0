@@ -44,7 +44,8 @@ OpSegment::OpSegment(PathOpsV0Lib::AddCurve addCurve, PathOpsV0Lib::AddWinding a
         disabled = true;
     } else {
         contour->contours->addToBounds(c);
-        setBounds();
+        ptBounds = c.ptBounds();
+        closeBounds = ptBounds;  // no threshold until all segment bounds are set
     }
     OP_DEBUG_IMAGE_CODE(debugColor = black);
 }
@@ -386,7 +387,7 @@ void OpSegment::findMissingEnds() {
         }
     }
     if (startMoved || endMoved)
-        setBounds();
+        resetBounds();
 }
 
 // returns t iff opp point is between start and end
@@ -645,8 +646,8 @@ int OpSegment::nextID() const {
 }
 
 void OpSegment::normalize() {
-    if (c.normalize()) 
-        setBounds();
+    c.normalize(); 
+    resetBounds();
 }
 
 // !!! seems arbitrary; it doesn't prioritize matching pt or t; just first found
@@ -682,13 +683,13 @@ OpPoint OpSegment::remapPts(OpPoint oldAlias, OpPoint newAlias) {
     return contour->contours->remapPts(oldAlias, newAlias);
 }
 
-void OpSegment::setBounds() {
+void OpSegment::resetBounds() {
     ptBounds = c.ptBounds();
     if (ptBounds.isEmpty()) {
         disabled = true;
         closeBounds = ptBounds;
     } else
-        closeBounds = ptBounds.outsetClose();
+        closeBounds = ptBounds.outset(threshold());
 }
 
 void OpSegment::setDisabled(OP_LINE_FILE_NP_DEF()) {
@@ -725,8 +726,8 @@ bool OpSegment::simpleStart(const OpEdge* edge) const {
     return edge == &edges.front();
 }
 
-OpPoint OpSegment::threshold() const {
-    return contour->contours->aliases.threshold; 
+OpVector OpSegment::threshold() const {
+    return contour->contours->threshold(); 
 }
 
 // Note that this must handle a many-to-many relationship between seg and opp.

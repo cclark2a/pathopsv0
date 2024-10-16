@@ -111,10 +111,12 @@ void OpPoint::pin(const OpRect& r) {
     y = OpMath::PinSorted(r.top, y, r.bottom);
 }
 
+#if 0
 bool OpPoint::soClose(OpPoint test) const {
     return OpMath::Between(OpMath::CloseSmaller(x), test.x, OpMath::CloseLarger(x))
         && OpMath::Between(OpMath::CloseSmaller(y), test.y, OpMath::CloseLarger(y));
 }
+#endif
 
 OpPoint OpRect::center() const { 
     return { OpMath::Average(left, right), OpMath::Average(top, bottom) }; 
@@ -125,16 +127,11 @@ bool OpRect::isFinite() const {
         && OpMath::IsFinite(right) && OpMath::IsFinite(bottom);
 }
 
-OpRect OpRect::outsetClose() const {
-    OpRect result = { OpMath::CloseSmaller(left), OpMath::CloseSmaller(top),
-	        OpMath::CloseLarger(right), OpMath::CloseLarger(bottom) };
-    return result;
-}
-
 bool OpPtT::isNearly(const OpPtT& o, OpPoint threshold) const {
     return pt.isNearly(o.pt, threshold) || OpMath::EqualT(t, o.t);
 }
 
+#if 0
 float OpMath::CloseLarger(float a) {
     float next = NextLarger(a);
     return fmaf(next - a, OpCloseFactor, a); 
@@ -157,7 +154,6 @@ float OpMath::NextSmaller(float a) {
     return std::min(nextLesser, a - OpEpsilon);
 }
 
-#if 0
 // allow ourselves a tiny bit of error (required by thread_circles36945)
 bool OpMath::Betweenish(float a, float b, float c) {
     if (b < NextSmaller(a < c ? a : c))

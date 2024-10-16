@@ -355,6 +355,10 @@ struct OpContours {
     void setThreshold();
     void sortIntersections();
 
+    OpVector threshold() const {
+        return aliases.threshold;
+    }
+
     void transferCoins() {
        for (auto contour : contours) {
             contour->transferCoins();

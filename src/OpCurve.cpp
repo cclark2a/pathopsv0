@@ -21,9 +21,10 @@ OpPtT OpCurve::cut(const OpPtT& ptT, float loBounds, float hiBounds, float direc
     OP_ASSERT(loBounds <= ptT.t && ptT.t <= hiBounds);
 	constexpr float tStep = 16;  // !!! just a guess
 	constexpr float cutDt = OpEpsilon * tStep;
-	OpVector cutDxy = { OpMath::NextLarger(ptT.pt.x) - ptT.pt.x,
-			OpMath::NextLarger(ptT.pt.y) - ptT.pt.y };
-	float minDistanceSq = cutDxy.lengthSquared() * tStep;
+    OpVector threshold = contours->threshold();
+//	OpVector cutDxy = { OpMath::NextLarger(ptT.pt.x) - ptT.pt.x,
+//			OpMath::NextLarger(ptT.pt.y) - ptT.pt.y };
+	float minDistanceSq = threshold.lengthSquared() * tStep;
 	OpPtT cut;
 	do {
 		cut.t = ptT.t + direction * cutDt;
@@ -41,9 +42,10 @@ OpPtT OpCurve::cut(const OpPtT& ptT, float loBounds, float hiBounds, float direc
 CutRangeT OpCurve::cutRange(const OpPtT& ptT, float loEnd, float hiEnd) const {
 	constexpr float tStep = 16;  // !!! just a guess 
 	constexpr float cutDt = OpEpsilon * tStep;
-	OpVector cutDxy = { OpMath::NextLarger(ptT.pt.x) - ptT.pt.x,
-			OpMath::NextLarger(ptT.pt.y) - ptT.pt.y };
-	float minDistanceSq = cutDxy.lengthSquared() * tStep;
+    OpVector threshold = contours->threshold();
+//	OpVector cutDxy = { OpMath::NextLarger(ptT.pt.x) - ptT.pt.x,
+//			OpMath::NextLarger(ptT.pt.y) - ptT.pt.y };
+	float minDistanceSq = threshold.lengthSquared() * tStep;
 	CutRangeT tRange;
 	for (float direction : { -1, 1 }) {
 		OpPtT cut;
@@ -99,7 +101,7 @@ OpRootPts OpCurve::lineIntersect(const LinePts& line) const {
         OpPoint hit = doublePtAtT(result.valid.roots[index]);
         // thread_cubics23476 edges 55 & 52 trigger this need for betweenish
         if (OpMath::InUnsorted(line.pts[0].choice(xy), hit.choice(xy), line.pts[1].choice(xy),
-                contours->aliases.threshold.choice(xy))) {
+                contours->threshold().choice(xy))) {
             // curve/curve may need more exact results; try pinning valid hit to line bounds
             if (!lineV.dx || !lineV.dy) {
                 // !!! don't like using pairs (may be less performant than returning struct)
@@ -128,10 +130,10 @@ float OpCurve::match(float start, float end, OpPoint pt) const {
     float xDistSq = (pt - xPt).lengthSquared();
     float yDistSq = (pt - yPt).lengthSquared();
     if (!(xDistSq > yDistSq)) {  // reverse test in case y dist is nan
-        if (pt.isNearly(xPt, contours->aliases.threshold))
+        if (pt.isNearly(xPt, contours->threshold()))
             return xRoot;
     }
-    return pt.isNearly(yPt, contours->aliases.threshold) ? yRoot : OpNaN;
+    return pt.isNearly(yPt, contours->threshold()) ? yRoot : OpNaN;
 }
 
 MatchReverse OpCurve::matchEnds(const LinePts& opp) const {
@@ -151,7 +153,7 @@ MatchReverse OpCurve::matchEnds(const LinePts& opp) const {
 
 bool OpCurve::nearBounds(OpPoint pt) const {
     OpPointBounds bounds { firstPt(), lastPt() };
-    return bounds.nearlyContains(pt, contours->aliases.threshold);
+    return bounds.nearlyContains(pt, contours->threshold());
 }
 
 NormalDirection OpCurve::normalDirection(Axis axis, float t) const {
@@ -233,7 +235,7 @@ OpRoots OpCurve::rayIntersect(const LinePts& line, MatchEnds common) const {
         // in thread_circles36945 : conic mid touches opposite conic only at end point
         // without this fix, in one direction, intersection misses by 2 epsilon, in the other 1 eps
         if (OpMath::InUnsorted(line.pts[0].choice(xy), hit.choice(xy), line.pts[1].choice(xy),
-                contours->aliases.threshold.choice(xy)))
+                contours->threshold().choice(xy)))
             realRoots.add(rawRoots.roots[index]);
     }
     return realRoots;

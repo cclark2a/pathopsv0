@@ -509,7 +509,7 @@ struct OpPoint {
     bool isNearly(OpPoint test, OpVector threshold) const;
     void pin(const OpPoint , const OpPoint );
     void pin(const OpRect& );
-    bool soClose(OpPoint test) const;
+    // bool soClose(OpPoint test) const;
 
 
     void zeroTiny() {  // set denormalized inputs to zero
@@ -604,9 +604,10 @@ struct OpRect {
         return width() >= height() ? Axis::vertical : Axis::horizontal; }
 
     float ltChoice(Axis axis) const { 
-        return *(&left + +axis);  }
+        return *(&left + +axis); }
 
-    OpRect outsetClose() const;
+    OpRect outset(OpVector out) const {
+        return { left - out.dx, top - out.dy, right + out.dx, bottom + out.dy }; }
 
     float perimeter() const { 
         return width() + height(); }
@@ -673,10 +674,12 @@ struct OpPtT {
         return 0 == t || 1 == t;
     }
 
+    #if 0
     bool soClose(const OpPtT& o) const {
         constexpr auto epsilon = OpCloseFactor * OpEpsilon;
         return pt.soClose(o.pt) || (t + epsilon >= o.t && t <= o.t + epsilon);
     }
+    #endif
 
     // !!! add point avg and call it here?
     static void MeetInTheMiddle(OpPtT& a, OpPtT& b) {
@@ -754,8 +757,8 @@ struct OpMath {
     }
 
 //    static bool Betweenish(float a, float b, float c);
-    static float CloseLarger(float );
-    static float CloseSmaller(float );
+//    static float CloseLarger(float );
+//    static float CloseSmaller(float );
 
 //    static float CubeRoot(float);
     static OpRoots CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B, OpCubicFloatType C,
@@ -815,8 +818,8 @@ struct OpMath {
     static bool NearlyZeroT(float t) {
         return 0 >= t - OpEpsilon; }
 
-    static float NextLarger(float );
-    static float NextSmaller(float );
+//    static float NextLarger(float );
+//    static float NextSmaller(float );
 
     static float PinUnsorted(float outer1, float inner, float outer2);
     static float PinSorted(float min, float value, float max);

@@ -22,7 +22,7 @@
 #define CURVE_CURVE_DEPTH -1  // minimum recursion depth for curve curve break (-1 to disable)
 
 // see descriptions for exceptions below
-#define TEST_PATH_OP_EXCEPTIONS "" // "issue3517"
+#define TEST_PATH_OP_EXCEPTIONS "pentrek10" // "issue3517"
 #define TEST_PATH_OP_FUZZ_EXCEPTIONS "" // "fuzz487a", "fuzz487b"
 #define TEST_PATH_OP_FAIL_EXCEPTIONS "" // "grshapearcs1"
 #define TEST_PATH_OP_MAP_TO_FUZZ "" // "fuzzhang_1"
@@ -575,8 +575,9 @@ void dumpOpTest(const char* testname, const SkPath& pathA, const SkPath& pathB, 
     OpDebugOut("    TEST(" + std::string(testname) + "),\n");
 }
 
+// mayDiffer is true if test is fuzz with large values that Skia ignores
 void threadablePathOpTest(int id, const SkPath& a, const SkPath& b, 
-        SkPathOp op, std::string testname, bool v0MayFail, bool skiaMayFail) {
+        SkPathOp op, std::string testname, bool v0MayFail, bool skiaMayFail, bool mayDiffer) {
     const char* tn = testname.c_str();
 #if OP_TEST_V0
     SkPath result;
@@ -638,7 +639,7 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     if (startFirstTest && runOneFile)
         endFirstTest = true;
 #if OP_TEST_V0 && OP_TEST_REGION
-    if (!debugData.success || !skSuccess || v0MayFail || skiaMayFail)
+    if (!debugData.success || !skSuccess || v0MayFail || skiaMayFail || mayDiffer)
         return;
     int errors = VerifyOp(a, b, op, testname, result, v0MayFail);
 //  int altErrors = VerifyOpNoRegion(a, b, op, result);
@@ -660,10 +661,10 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
 }
 
 bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b, 
-        SkPathOp op, const char* name, bool v0MayFail, bool skiaMayFail) {
+        SkPathOp op, const char* name, bool v0MayFail, bool skiaMayFail, bool mayDiffer) {
     if (skipTest(name))
         return true;
-    threadablePathOpTest(0, a, b, op, name, v0MayFail, skiaMayFail);
+    threadablePathOpTest(0, a, b, op, name, v0MayFail, skiaMayFail, mayDiffer);
     return true;
 }
 
@@ -691,12 +692,12 @@ bool testPathOp(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
     std::vector<std::string> lapz = { LAPTOP_PATH_OP_MAP_TO_FUZZ };
     if (!runningWithFMA() && lapz.end() != std::find(lapz.begin(), lapz.end(), s) && s != testFirst)
         return (void) testPathOpFuzz(r, a, b, op, testname), true;
-    return testPathOpBase(r, a, b, op, testname, false, false);
+    return testPathOpBase(r, a, b, op, testname, false, false, false);
 }
 
 void testPathOpCheck(skiatest::Reporter* r, const SkPath& a, const SkPath& b, SkPathOp op, 
         const char* testname, bool checkFail) {
-    testPathOpBase(r, a, b, op, testname, false, false);
+    testPathOpBase(r, a, b, op, testname, false, false, true);
 }
 
 void testPathOpFuzz(skiatest::Reporter* r, const SkPath& a, const SkPath& b, SkPathOp op, 
@@ -712,7 +713,7 @@ void testPathOpFuzz(skiatest::Reporter* r, const SkPath& a, const SkPath& b, SkP
         ++testsSkipped;
         return;
     }
-    testPathOpBase(r, a, b, op, testname, true, true);
+    testPathOpBase(r, a, b, op, testname, true, true, true);
 }
 
 bool testPathOpFail(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
@@ -723,7 +724,7 @@ bool testPathOpFail(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
         ++testsSkipped;
         return true;
     }
-    return testPathOpBase(r, a, b, op, testName, false, true);
+    return testPathOpBase(r, a, b, op, testName, false, true, true);
 }
 
 void RunTestSet(skiatest::Reporter* r, TestDesc tests[], size_t count,

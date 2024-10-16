@@ -558,13 +558,14 @@ void OpJoiner::addToLinkups(OpEdge* e) {
 }
 
 void OpJoiner::buildDisabled(OpContours& contours) {
+    OpVector threshold = contours.threshold();
 	for (auto contour : contours.contours) {
 		for (auto& segment : contour->segments) {
 			for (auto& e : segment.edges) {
 				if (!e.disabled || Unsortable::none != e.isUnsortable || e.isUnsectable())
 					continue;
 				// for the very small, include disabled edges
-				if (e.centerless || e.windPal || e.startPt().soClose(e.endPt()))
+				if (e.centerless || e.windPal || e.startPt().isNearly(e.endPt(), threshold))
 					disabled.push_back(&e);
 			}
 		}
