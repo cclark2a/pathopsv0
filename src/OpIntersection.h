@@ -9,28 +9,28 @@ struct OpEdge;
 struct OpSegment;
 
 struct CoinPair {
-    CoinPair(OpIntersection* s, OpIntersection* os, OpEdge* e, OpEdge* o, int ID  
+	CoinPair(OpIntersection* s, OpIntersection* os, OpEdge* e, OpEdge* o, int ID  
 			OP_DEBUG_PARAMS(OpEdge* l))
-        : start(s)
-        , end(nullptr)
-        , oStart(os)
-        , oEnd(nullptr)
-        , edge(e)
-        , oppEdge(o)
-        , id(ID)
-        OP_DEBUG_PARAMS(lastEdge(l)) {
-    }
+		: start(s)
+		, end(nullptr)
+		, oStart(os)
+		, oEnd(nullptr)
+		, edge(e)
+		, oppEdge(o)
+		, id(ID)
+		OP_DEBUG_PARAMS(lastEdge(l)) {
+	}
 
 	DUMP_DECLARATIONS
 
 	OpIntersection* start;
-    OpIntersection* end;
-    OpIntersection* oStart;
-    OpIntersection* oEnd;
-    OpEdge* edge;
-    OpEdge* oppEdge;
-    int id;
-    OP_DEBUG_CODE(OpEdge* lastEdge);
+	OpIntersection* end;
+	OpIntersection* oStart;
+	OpIntersection* oEnd;
+	OpEdge* edge;
+	OpEdge* oppEdge;
+	int id;
+	OP_DEBUG_CODE(OpEdge* lastEdge);
 };
 
 // Places where a pair of segments cross are recorded as intersections.
@@ -62,7 +62,7 @@ struct OpIntersection {
 	debugCoincidenceID = 0;
 	debugErased = false;
 #endif
-    }
+	}
 
 	// void betweenPair(OpIntersection* );
 	OpIntersection* coinOtherEnd();
@@ -120,11 +120,11 @@ struct OpIntersection {
 #endif
 #if OP_DEBUG_DUMP
 	void debugCompare(std::string) const;
-    #define OP_X(Thing) \
-    std::string debugDump##Thing() const; \
-    void dump##Thing() const;
-    DEBUG_DUMP
-    #undef OP_X
+	#define OP_X(Thing) \
+	std::string debugDump##Thing() const; \
+	void dump##Thing() const;
+	DEBUG_DUMP
+	#undef OP_X
 #include "OpDebugDeclarations.h"
 #endif
 
@@ -153,23 +153,23 @@ struct OpIntersection {
 struct OpIntersections {
 	OpIntersections();
 	OpIntersection* add(OpIntersection* );
-    OpIntersection* contains(const OpPtT& ptT, const OpSegment* opp);  // nearby ptT
-    OpIntersection* const * entry(const OpPtT& , const OpSegment* opp) const;  // exact opp + ptT
+	OpIntersection* contains(const OpPtT& ptT, const OpSegment* opp);  // nearby ptT
+	OpIntersection* const * entry(const OpPtT& , const OpSegment* opp) const;  // exact opp + ptT
 	void makeEdges(OpSegment* );
 	const OpIntersection* nearly(const OpPtT& ptT, OpSegment* oSeg) const;  // near match of pt or t
-    void range(const OpSegment* , std::vector<OpIntersection*>& );
+	void range(const OpSegment* , std::vector<OpIntersection*>& );
 	bool simpleEnd() const;  // true if array has only one entry with t equal to one
 	bool simpleStart() const;  // true if array has only one entry with t equal to zero
 	void sort();  // 
-    void mergeNear(OpPtAliases& );
+	void mergeNear(OpPtAliases& );
 	// return intersections that delineate unsectable runs that contain this edge
 //	std::vector<OpIntersection*> unsectables(const OpEdge* );
 	static bool UnsectablesOverlap(std::vector<OpIntersection*> set1,
 			std::vector<OpIntersection*> set2);
 //	void windCoincidences(std::vector<OpEdge>& edges);
 #if OP_DEBUG
-    OpIntersection* debugAlreadyContains(const OpPoint& , const OpSegment* opp) const;
-    bool debugContains(const OpPtT& , const OpSegment* opp) const;  // check for duplicates
+	OpIntersection* debugAlreadyContains(const OpPoint& , const OpSegment* opp) const;
+	bool debugContains(const OpPtT& , const OpSegment* opp) const;  // check for duplicates
 #endif
 #if OP_DEBUG_VALIDATE
 	void debugValidate() const;
@@ -177,8 +177,8 @@ struct OpIntersections {
 	DUMP_DECLARATIONS
 
 	// all intersections are stored here before edges are rewritten
-    std::vector<OpIntersection*> i;
-    bool unsorted;
+	std::vector<OpIntersection*> i;
+	bool unsorted;
 };
 
 // allocating storage separately allows intersections to be immobile and have reliable pointers

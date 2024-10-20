@@ -47,7 +47,7 @@ struct OpWinding {
 
 	OpWinding(OpContour* c, PathOpsV0Lib::Winding );
 	OpWinding& operator=(const OpWinding&);
-    OpWinding(const OpWinding&);
+	OpWinding(const OpWinding&);
 
 	void add(const OpWinding& );
 	bool equal(const PathOpsV0Lib::Winding ) const;
@@ -100,13 +100,13 @@ inline void OpDebugCheckSingleZero(WindZero left, WindZero right) {
 }
 
 inline WindZero operator!(const WindZero& a) {
-    switch (a) {
+	switch (a) {
 		case WindZero::unset: return WindZero::unset;
 		case WindZero::zero: return WindZero::nonZero;
 		case WindZero::nonZero: return WindZero::zero;
 	}
 	OP_ASSERT(0);
-    return WindZero::unset;
+	return WindZero::unset;
 }
 
 #endif

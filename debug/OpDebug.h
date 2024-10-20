@@ -211,7 +211,7 @@ struct OpDebugMaker {
 	do { if ((doBreak) && (ID) == (opObject)->id) OP_DEBUG_BREAK(); } while (false)
 
 #define OpAssert(doBreak) \
-    do { if (doBreak) OP_DEBUG_BREAK(); } while (false)
+    do { if (!(doBreak)) OP_DEBUG_BREAK(); } while (false)
 
 #if OP_DEBUG_DUMP 
 #undef OP_DEBUG_DUMP_CODE
@@ -254,7 +254,17 @@ std::vector<uint8_t> OpDebugByteArray(const char*& str);
 std::string OpDebugByteToHex(uint8_t);
 std::string OpDebugIntToHex(int32_t);
 std::string OpDebugPtrToHex(void*);
+
+#endif
+
+
+#if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE || OP_TINY_SKIA
 std::string OpDebugDumpHex(float);
+#endif
+
+
+#if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE
+
 std::string OpDebugDumpByteArray(const char* bytes, size_t size);
 int32_t OpDebugFloatToBits(float);
 float OpDebugHexToFloat(const char*& str);

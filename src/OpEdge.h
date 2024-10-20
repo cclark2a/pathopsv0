@@ -101,7 +101,7 @@ struct SectRay {
 		: normal(OpNaN)
 		, homeCept(OpNaN)
 		, homeT(OpNaN)
-        , axis(Axis::neither)
+		, axis(Axis::neither)
 		, firstTry(true)
 	{
 	}
@@ -193,7 +193,7 @@ enum class EdgeSplit : uint8_t {
 };
 
 inline EdgeSplit& operator|=(EdgeSplit& a, EdgeSplit b) {
-    return a = (EdgeSplit)((int) a | (int) b);
+	return a = (EdgeSplit)((int) a | (int) b);
 }
 
 enum class LeadingLoop {
@@ -273,8 +273,8 @@ private:
 		, endSeen(false)
 	{
 #if OP_DEBUG // a few debug values are also nonzero
-        id = 0;
-        segment = nullptr;
+		id = 0;
+		segment = nullptr;
 		startT = OpNaN;
 		endT = OpNaN;
 	//	startSect = 0;
@@ -338,8 +338,8 @@ public:
 	bool isPal(const OpEdge* opp) const {
 		return pals.end() != std::find_if(pals.begin(), pals.end(), 
 				[opp](const auto& test) { return opp == test.edge; }); }
-    bool isSimple() const {
-        return !disabled && !isUnsectable() && Unsortable::none == isUnsortable; }
+	bool isSimple() const {
+		return !disabled && !isUnsectable() && Unsortable::none == isUnsortable; }
 	bool isUnsectable() const { 
 		return pals.size(); }
 	bool isUnsectablePair(OpEdge* opp);  // true if this and opp are unsectable pairs
@@ -395,18 +395,18 @@ public:
 		return match == (EdgeMatch::none == whichEnd_impl ? EdgeMatch::start : whichEnd_impl)
 				? start() : end(); }
 	bool debugFail() const;
-    bool debugSuccess() const;
+	bool debugSuccess() const;
 #if OP_DEBUG_DUMP
 	void debugCompare(std::string ) const;
 	std::string debugDumpCenter(DebugLevel , DebugBase ) const;
 	std::string debugDumpLink(EdgeMatch , DebugLevel , DebugBase ) const;
-    #define OP_X(Thing) \
-    std::string debugDump##Thing() const; \
-    void dump##Thing() const;
-    DEBUG_DUMP
-    EDGE_DETAIL
-    EDGE_OR_SEGMENT_DETAIL
-    #undef OP_X
+	#define OP_X(Thing) \
+	std::string debugDump##Thing() const; \
+	void dump##Thing() const;
+	DEBUG_DUMP
+	EDGE_DETAIL
+	EDGE_OR_SEGMENT_DETAIL
+	#undef OP_X
 	#include "OpDebugDeclarations.h"
 #endif
 #if OP_DEBUG_IMAGE
@@ -515,7 +515,7 @@ struct OpEdgeStorage {
 		, used(0) {
 	}
 	bool contains(OpIntersection* start, OpIntersection* end) const;
-    bool contains(OpPoint start, OpPoint end) const;
+	bool contains(OpPoint start, OpPoint end) const;
 #if OP_DEBUG_DUMP
 	size_t debugCount() const;
 	std::string debugDump(std::string label, DebugLevel l, DebugBase b);

@@ -3,18 +3,18 @@
 #include "OpWinding.h"
 
 OpWinding::OpWinding(OpContour* c, PathOpsV0Lib::Winding copy)
-    : contour(c)
-    OP_DEBUG_PARAMS(debugType(WindingType::copy)) {
-    w.data = contour->contours->allocateWinding(copy.size);
+	: contour(c)
+	OP_DEBUG_PARAMS(debugType(WindingType::copy)) {
+	w.data = contour->contours->allocateWinding(copy.size);
 	std::memcpy(w.data, copy.data, copy.size);
-    w.size = copy.size;
+	w.size = copy.size;
 }
 
 OpWinding::OpWinding(OpEdge* edge, WindingSum )
-    : contour(edge->segment->contour)
-    OP_DEBUG_PARAMS(debugType(WindingType::sum)) {
-    w = edge->winding.copyData();
-    zero();
+	: contour(edge->segment->contour)
+	OP_DEBUG_PARAMS(debugType(WindingType::sum)) {
+	w = edge->winding.copyData();
+	zero();
 }
 
 OpWinding& OpWinding::operator=(const OpWinding& from) {
@@ -29,31 +29,31 @@ OpWinding::OpWinding(const OpWinding& from) {
 }
 
 void OpWinding::add(const OpWinding& winding) {
-    w = contour->callBacks.windingAddFuncPtr(w, winding.w);
+	w = contour->callBacks.windingAddFuncPtr(w, winding.w);
 }
 
 // returns true if not equal
 bool OpWinding::equal(PathOpsV0Lib::Winding comp) const {
-    return w.size == comp.size && !memcmp(w.data, comp.data, w.size);
+	return w.size == comp.size && !memcmp(w.data, comp.data, w.size);
 }
 
 PathOpsV0Lib::Winding OpWinding::copyData() const {
-    OpContours* contours = contour->contours;
-    PathOpsV0Lib::Winding copy { contours->allocateWinding(w.size), w.size };
-    std::memcpy(copy.data, w.data, w.size);
-    return copy;
+	OpContours* contours = contour->contours;
+	PathOpsV0Lib::Winding copy { contours->allocateWinding(w.size), w.size };
+	std::memcpy(copy.data, w.data, w.size);
+	return copy;
 }
 
 void OpWinding::subtract(const OpWinding& winding) {
-    w = contour->callBacks.windingSubtractFuncPtr(w, winding.w);
+	w = contour->callBacks.windingSubtractFuncPtr(w, winding.w);
 }
 
 bool OpWinding::visible() const {
-    return contour->callBacks.windingVisibleFuncPtr(w);
+	return contour->callBacks.windingVisibleFuncPtr(w);
 }
 
 void OpWinding::zero() {
-    contour->callBacks.windingZeroFuncPtr(w);
+	contour->callBacks.windingZeroFuncPtr(w);
 }
 
 void OpWinding::move(const OpWinding& opp, bool backwards) {

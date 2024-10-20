@@ -30,21 +30,21 @@ void SectRay::addPals(OpEdge* home) {
 	};
 	const EdgePal* homeDist = find(home);
 	const EdgePal* test = homeDist;
-    float threshold = home->contours()->threshold().choice(axis);
+	float threshold = home->contours()->threshold().choice(axis);
 	float lowLimit = homeCept - threshold;
-    bool priorIsPal = false;
+	bool priorIsPal = false;
 	while (test > &distances.front() && (--test)->cept >= lowLimit) {
 		OP_ASSERT((test + 1)->cept >= test->cept);
 		matchCept(test);
-        priorIsPal = true;
+		priorIsPal = true;
 	}
 	test = homeDist;
 	float highLimit = homeCept + threshold;
-    bool nextIsPal = false;
+	bool nextIsPal = false;
 	while (test < &distances.back() && (++test)->cept <= highLimit) {
 		OP_ASSERT((test - 1)->cept <= test->cept);
 		matchCept(test);
-        nextIsPal = true;
+		nextIsPal = true;
 	}
 	// if axes are different, and if y-axis edge is oriented nw/se (not ne/sw), reverse
 	auto axesReversed = [home](OpEdge* test) {
@@ -56,9 +56,9 @@ void SectRay::addPals(OpEdge* home) {
 			return false;
 		return dxy.dy > 0 ? dxy.dx > 0 : dxy.dx < 0;
 	};
-    // check next ray intersected edge if it hasn't been checked already
-    // !!! stops at 1; don't know if we may need more than one
-    // !!! thread_circles54530 failed only on laptop 
+	// check next ray intersected edge if it hasn't been checked already
+	// !!! stops at 1; don't know if we may need more than one
+	// !!! thread_circles54530 failed only on laptop 
 	auto addIfFlipped = [axesReversed, homeDist, home, this](DistEnd offset) {
 		OP_ASSERT(DistEnd::back == offset || DistEnd::front == offset);
 		if (homeDist == end(offset))
@@ -112,7 +112,7 @@ bool SectRay::checkOrder(const OpEdge* home) const {
 }
 
 const EdgePal* SectRay::find(const OpEdge* edge) const {
-    if (!distances.size())
+	if (!distances.size())
 		return nullptr;
 	for (auto test = &distances.back(); test >= &distances.front(); --test) {
 		if (test->edge == edge)
@@ -290,12 +290,13 @@ IntersectResult OpWinder::CoincidentCheck(const OpEdge& edge, const OpEdge& opp)
 #endif
 
 #if OP_NEW_COINCIDENCE
+#if 0
 void CoinEnd::addSect(int coinID, OpSegment* baseSeg, MatchReverse m, XyChoice xyChoice
-        OP_LINE_FILE_DEF()) {
+		OP_LINE_FILE_DEF()) {
 	OpIntersection* segSect = seg->sects.contains(ptT, opp);
 	OpIntersection* oppSect = opp->sects.contains({ ptT.pt, oppT.choice(xyChoice) }, seg);
-    MatchEnds segMatch = m.match;
-    MatchEnds oppMatch = m.flipped();
+	MatchEnds segMatch = m.match;
+	MatchEnds oppMatch = m.flipped();
 	if (seg != baseSeg)
 		std::swap(segMatch, oppMatch);
 	if (segSect && oppSect && !segSect->coincidenceID && !oppSect->coincidenceID) {
@@ -305,7 +306,7 @@ void CoinEnd::addSect(int coinID, OpSegment* baseSeg, MatchReverse m, XyChoice x
 		OP_ASSERT(!segSect && !oppSect);
 		segSect = seg->addCoin(ptT, coinID, segMatch, opp  OP_LINE_FILE_CALLER());
 		oppSect = opp->addCoin({ ptT.pt, oppT.choice(xyChoice) }, coinID, oppMatch, seg  
-                OP_LINE_FILE_CALLER());
+				OP_LINE_FILE_CALLER());
 	}
 	segSect->pair(oppSect);
 }
@@ -315,7 +316,8 @@ void CoinEnd::aliasPtT(XyChoice xyChoice) {
 	OpPtT segPtT = seg->ptAtT(ptT);
 	if (OpPoint possibleAlias = aliases.existing(segPtT.pt); possibleAlias != segPtT.pt)
 		segPtT.pt = seg->contour->contours->remapPts(segPtT.pt, possibleAlias);
-	OpPoint oppPt = opp->ptAtT({ ptT.pt, oppT.choice(xyChoice) }).pt;
+	float choiceOppT = oppT.choice(xyChoice);
+	OpPoint oppPt = opp->ptAtT({ ptT.pt, choiceOppT }).pt;
 	if (!oppPt.isFinite())
 		oppPt = ptT.pt;
 	if (OpPoint possibleAlias = aliases.existing(oppPt); possibleAlias != oppPt)
@@ -324,6 +326,112 @@ void CoinEnd::aliasPtT(XyChoice xyChoice) {
 		seg->contour->contours->remapPts(oppPt, segPtT.pt);
 	ptT = segPtT;
 }
+#endif
+
+struct SectPtT {
+	SectPtT(OpSegment* seg, const OpSegment* opp, OpPtT cePtT, XyChoice xyChoice)
+		: ptT(cePtT)
+		, sect(seg->sects.contains(cePtT, opp))
+	{
+		if (sect)
+			ptT = sect->ptT;
+		OpContours* contours = seg->contour->contours;
+		OpPtAliases& aliases = contours->aliases;
+		original = ptT.pt;
+		if (OpPoint possibleAlias = aliases.existing(ptT.pt); possibleAlias != ptT.pt)
+			ptT.pt = possibleAlias;
+	}
+
+	OpPtT ptT;
+	OpIntersection* sect;
+	OpPoint original;
+};
+
+struct SectPair {
+	SectPair(CoinEnd& ce, OpSegment* base, XyChoice xy) 
+		: seg(ce.seg, ce.opp, ce.ptT, xy)
+		, opp(ce.opp, ce.seg, { ce.ptT.pt, ce.oppT.choice(xy) }, xy) 
+		, ceSeg(ce.seg)
+		, ceOpp(ce.opp)
+		, xyChoice(xy)
+		, isBaseSegment(base == ce.seg)
+	{
+		if (seg.ptT.pt != opp.ptT.pt) {
+			if (seg.ptT.pt != seg.original)
+				if (opp.ptT.pt != opp.original)
+					opp.ptT.pt = ce.seg->contour->contours->remapPts(opp.ptT.pt, seg.ptT.pt);
+				else
+					opp.ptT.pt = seg.ptT.pt;
+			else
+				seg.ptT.pt = opp.ptT.pt;
+		}
+	}
+
+	void addSect(MatchEnds match, int coinID, bool oppReversed  OP_LINE_FILE_DEF()) {
+		MatchReverse segMatch { match, oppReversed };
+		MatchEnds oppMatch = segMatch.flipped();
+		if (!isBaseSegment)
+			std::swap(segMatch.match, oppMatch);
+
+		if (seg.sect && opp.sect && !seg.sect->coincidenceID && !opp.sect->coincidenceID) {
+			seg.sect->setCoin(coinID, segMatch.match);
+			opp.sect->setCoin(coinID, oppMatch);
+		} else {
+			OP_ASSERT(!seg.sect && !opp.sect);
+			seg.sect = ceSeg->addCoin(seg.ptT, coinID, segMatch.match, ceOpp  OP_LINE_FILE_CALLER());
+			opp.sect = ceOpp->addCoin(opp.ptT, coinID, oppMatch, ceSeg  OP_LINE_FILE_CALLER());
+		}
+		seg.sect->pair(opp.sect);
+	}
+
+	SectPtT seg;
+	SectPtT opp;
+	OpSegment* ceSeg;
+	OpSegment* ceOpp;
+	XyChoice xyChoice;
+	bool isBaseSegment;
+};
+
+struct CoinSects {
+	CoinSects(CoinEnd& coinStart, CoinEnd& coinEnd, OpSegment* b, XyChoice xyChoice) 
+		: start(coinStart, b, xyChoice)
+		, end(coinEnd, b, xyChoice)
+	{
+		if (coinStart.seg != coinEnd.seg) {
+			std::swap(end.seg, end.opp);
+			std::swap(end.ceSeg, end.ceOpp);
+			end.isBaseSegment = !end.isBaseSegment;
+		}
+		OpContours* contours = coinStart.seg->contour->contours;
+		OpVector threshold = contours->threshold();
+		auto checkClose = [contours, threshold](OpSegment* seg, SectPtT& s, SectPtT& e) {
+			bool near = s.ptT.isNearly(e.ptT, threshold);
+			OpPoint sPt = s.ptT.pt;
+			OpPoint ePt = e.ptT.pt;
+			if (near && sPt != ePt) {
+				if (sPt != s.original) {
+					if (ePt != e.original)
+						contours->remapPts(ePt, sPt);
+					else
+						seg->movePt(e.ptT, sPt);
+				} else if (ePt != e.original)
+					seg->movePt(s.ptT, ePt);
+			}
+			return near;
+		};
+		ptsAreClose = checkClose(coinStart.seg, start.seg, end.seg);
+		ptsAreClose |= checkClose(coinStart.opp, start.opp, end.opp);
+	}
+
+	void addSect(int coinID, bool oppReversed  OP_LINE_FILE_DEF()) {
+		start.addSect(MatchEnds::start, coinID, oppReversed  OP_LINE_FILE_CALLER());
+		end.addSect(MatchEnds::end, coinID, oppReversed  OP_LINE_FILE_CALLER());
+	}
+
+	SectPair start;
+	SectPair end;
+	bool ptsAreClose;
+};
 
 bool CoinEnd::onBothEnds(XyChoice xyChoice) const {
 	return OpMath::NearlyEndT(ptT.t) && OpMath::NearlyEndT(oppT.choice(xyChoice));
@@ -331,11 +439,11 @@ bool CoinEnd::onBothEnds(XyChoice xyChoice) const {
 
 IntersectResult OpWinder::CoincidentCheck(OpSegment* seg, OpSegment* opp) {
 	std::array<CoinEnd, 4> ends {{{ seg, opp, { seg->c.firstPt(), 0 }, OpVector() }, 
-            { seg, opp, { seg->c.lastPt(), 1 }, OpVector() },
+			{ seg, opp, { seg->c.lastPt(), 1 }, OpVector() },
 			{ opp, seg, { opp->c.firstPt(), 0 }, OpVector() },
-            { opp, seg, { opp->c.lastPt(), 1 }, OpVector() }}};
+			{ opp, seg, { opp->c.lastPt(), 1 }, OpVector() }}};
 	bool oppReversed;
-    XyChoice xyChoice;
+	XyChoice xyChoice;
 	IntersectResult result = CoincidentCheck(ends, &oppReversed, &xyChoice);
 	if (IntersectResult::coincident == result &&
 			ends[1].onBothEnds(xyChoice) && ends[2].onBothEnds(xyChoice))
@@ -349,14 +457,14 @@ IntersectResult OpWinder::CoincidentCheck(const OpEdge& edge, const OpEdge& oppE
 	OpSegment* seg = edge.segment;
 	OpSegment* opp = oppEdge.segment;
 	std::array<CoinEnd, 4> ends {{{ seg, opp, edge.start(), OpVector() }, 
-            { seg, opp, edge.end(), OpVector() },
+			{ seg, opp, edge.end(), OpVector() },
 			{ opp, seg, oppEdge.start(), OpVector() }, 
-            { opp, seg, oppEdge.end(), OpVector() }}};
+			{ opp, seg, oppEdge.end(), OpVector() }}};
 	return CoincidentCheck(ends, nullptr, nullptr);
 }
 
 IntersectResult OpWinder::CoincidentCheck(std::array<CoinEnd, 4>& ends, bool* oppReversedPtr,
-        XyChoice* xyChoicePtr) {
+		XyChoice* xyChoicePtr) {
 	const auto [minX, maxX] = std::minmax_element(ends.begin(), ends.end(), 
 			[](const CoinEnd& a, const CoinEnd& b) { return a.ptT.pt.x < b.ptT.pt.x; });
 	const auto [minY, maxY] = std::minmax_element(ends.begin(), ends.end(), 
@@ -394,53 +502,61 @@ IntersectResult OpWinder::CoincidentCheck(std::array<CoinEnd, 4>& ends, bool* op
 	}
 	bool oppReversed = inputReversed(baseOpp);  // if opp order is reversed, make a note of that
 	bool overlap = ends[0].seg == ends[3].seg;
-    auto ratioInOpp = [&ends](int mid) {
-        CoinEnd* oppStart = &ends[mid - 1];
-        CoinEnd* oppEnd = &ends[mid + 1];
-        if (oppStart->seg != oppEnd->seg)
-            (1 == mid ? oppEnd : oppStart) = &ends[mid ^ 2];
-        OP_ASSERT(oppEnd->seg == oppStart->seg);
-        OP_ASSERT(oppEnd->seg != ends[mid].seg);
-        float oppStartT = oppStart->ptT.t;
-        float oppEndT = oppEnd->ptT.t;
-        ends[mid].oppT = OpMath::Interp(oppStartT, oppEndT, ends[mid].oppT);
-    };
-    // check !xyChoice to see if unratio'd t values map to points with similar ratios
-    // to confirm that the midpoint is on the opposite seg's line
-    auto calcOppT = [&ends, xyChoice, ratioInOpp](int start, int end, int midIndex) {
-        CoinEnd& mid = ends[midIndex];
-        mid.oppT = OpMath::Ratio(ends[start].ptT.pt, ends[end].ptT.pt, mid.ptT.pt);
-        float minorT = mid.oppT.choice(!xyChoice);
-        if (OpMath::IsNaN(minorT))  // line is horizontal or vertical
-            return true;
-        if (0 > minorT || minorT > 1)
-            return false;
-        ratioInOpp(midIndex);
-        float majorT = mid.oppT.choice(xyChoice);
-        OpPoint oppPt = mid.opp->c.ptAtT(majorT);
-        return oppPt.isNearly(mid.ptT.pt, mid.opp->threshold());
-    };
+	auto ratioInOpp = [&ends](int mid) {
+		CoinEnd* oppStart = &ends[mid - 1];
+		CoinEnd* oppEnd = &ends[mid + 1];
+		if (oppStart->seg != oppEnd->seg)
+			(1 == mid ? oppEnd : oppStart) = &ends[mid ^ 2];
+		OP_ASSERT(oppEnd->seg == oppStart->seg);
+		OP_ASSERT(oppEnd->seg != ends[mid].seg);
+		float oppStartT = oppStart->ptT.t;
+		float oppEndT = oppEnd->ptT.t;
+		ends[mid].oppT = OpMath::Interp(oppStartT, oppEndT, ends[mid].oppT);
+	};
+	// check !xyChoice to see if unratio'd t values map to points with similar ratios
+	// to confirm that the midpoint is on the opposite seg's line
+	auto calcOppT = [&ends, xyChoice, ratioInOpp, baseOpp, oppReversed]
+			(int start, int end, int midIndex) {
+		CoinEnd& mid = ends[midIndex];
+		if (mid.opp == baseOpp && oppReversed)
+			std::swap(start, end);
+		mid.oppT = OpMath::Ratio(ends[start].ptT.pt, ends[end].ptT.pt, mid.ptT.pt);
+		float minorT = mid.oppT.choice(!xyChoice);
+		if (OpMath::IsNaN(minorT))  // line is horizontal or vertical
+			return true;
+		if (0 > minorT || minorT > 1)
+			return false;
+		ratioInOpp(midIndex);
+		float majorT = mid.oppT.choice(xyChoice);
+		OpPoint oppPt = mid.opp->c.ptAtT(majorT);
+		return oppPt.isNearly(mid.ptT.pt, mid.opp->threshold());
+	};
 	if (ends[0].ptT.pt == ends[1].ptT.pt) {  // common start
 		OP_ASSERT(ends[0].seg != ends[1].seg);
 		ends[1].oppT = { ends[0].ptT.t, ends[0].ptT.t };
 	} else if (!calcOppT(0, overlap ? 3 : 2, 1))
-        return IntersectResult::no;
+		return IntersectResult::no;
 	if (ends[2].ptT.pt == ends[3].ptT.pt) { // common end; start/end match
 		OP_ASSERT(ends[2].seg != ends[3].seg);
 		ends[2].oppT = { ends[3].ptT.t, ends[3].ptT.t };
 	} else if (!calcOppT(overlap ? 0 : 1, 3, 2))
-        return IntersectResult::no;
-	ends[1].aliasPtT(xyChoice);
-	ends[2].aliasPtT(xyChoice);
+		return IntersectResult::no;
+	CoinSects coinSects(ends[1], ends[2], baseSeg, xyChoice);
+	if (coinSects.ptsAreClose)
+		return IntersectResult::yes;
 	int coinID = ends[0].seg->coinID(oppReversed);
+	coinSects.addSect(coinID, oppReversed  OP_LINE_FILE_PARAMS());
+
+#if 0
 	ends[1].addSect(coinID, baseSeg, { MatchEnds::start, oppReversed }, xyChoice
-            OP_LINE_FILE_PARAMS());
+			OP_LINE_FILE_PARAMS());
 	ends[2].addSect(coinID, baseSeg, { MatchEnds::end, oppReversed }, xyChoice
-            OP_LINE_FILE_PARAMS());
+			OP_LINE_FILE_PARAMS());
+#endif
 	if (oppReversedPtr)
 		*oppReversedPtr = oppReversed;
-    if (xyChoicePtr)
-       *xyChoicePtr = xyChoice;
+	if (xyChoicePtr)
+	   *xyChoicePtr = xyChoice;
 	return IntersectResult::coincident;
 }
 #endif
@@ -465,8 +581,8 @@ void OpWinder::AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped, OpPtT cPtT
 		oppSect->setCoin(coinID, flipped ? !match : match);
 	}
 	if (segSect || oppSect)  // required by fuzz763_3, fuzz763_5
-        return;
-    OpIntersection* sect = segment->contour->addCoinSect(ptTAorB, segment, coinID, match  
+		return;
+	OpIntersection* sect = segment->contour->addCoinSect(ptTAorB, segment, coinID, match  
 			OP_LINE_FILE_PARAMS(oppSegment));
 	segment->sects.add(sect);
 	OpIntersection* oSect = oppSegment->contour->addCoinSect(oCoinStart, oppSegment, coinID, 
@@ -683,7 +799,7 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 	OP_ASSERT(oSegment != eSegment);
 	OP_ASSERT(edge.curve.debugIsLine());
 	LinePts edgePts { edge.startPt(), edge.endPt() };
-    OpRoots septs = oSegment->c.rayIntersect(edgePts, MatchEnds::none); 
+	OpRoots septs = oSegment->c.rayIntersect(edgePts, MatchEnds::none); 
 	IntersectResult sectAdded = IntersectResult::no;
 	// check the ends of each edge to see if they intersect the opposite edge (if missed earlier)
 	auto addPair = [eSegment, oSegment  OP_DEBUG_PARAMS(opp, edge)](OpPtT oppPtT, OpPtT edgePtT,
@@ -737,11 +853,11 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 			else if (opp.startPt().isNearly(edge.endPt(), threshold))
 				addPair(opp.start(), OpPtT(opp.startPt(), edge.endT), sectAdded  OP_LINE_FILE_PARAMS());
 			else {
-		        OpCurve rotated = opp.segment->c.toVertical(edgePts, match.match);
-		        septs.roots[0] = rotated.tZeroX(opp.startT, opp.endT);
+				OpCurve rotated = opp.segment->c.toVertical(edgePts, match.match);
+				septs.roots[0] = rotated.tZeroX(opp.startT, opp.endT);
 				if (opp.startT > septs.get(index))
-                    continue;
-            }
+					continue;
+			}
 		}
 		if (septs.get(index) > opp.endT) {
 			if (opp.endPt().isNearly(edge.startPt(), threshold))
@@ -749,11 +865,11 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 			else if (opp.endPt().isNearly(edge.endPt(), threshold))
 				addPair(opp.end(), OpPtT(opp.endPt(), edge.endT), sectAdded  OP_LINE_FILE_PARAMS());
 			else {
-		        OpCurve rotated = opp.segment->c.toVertical(edgePts, match.match);
-		        septs.roots[0] = rotated.tZeroX(opp.startT, opp.endT);
-                if (septs.get(index) > opp.endT)
-				    continue;
-            }
+				OpCurve rotated = opp.segment->c.toVertical(edgePts, match.match);
+				septs.roots[0] = rotated.tZeroX(opp.startT, opp.endT);
+				if (septs.get(index) > opp.endT)
+					continue;
+			}
 		}
 		tInRange = true;
 		OpPtT oppPtT { opp.segment->c.ptAtT(septs.get(index)), septs.get(index) };
@@ -769,9 +885,9 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 			oppPtT.pt = eSegment->c.firstPt();
 		else if (1 == edgeT)
 			oppPtT.pt = eSegment->c.lastPt();
-        // pin point to both bounds, but only if it is on edge
+		// pin point to both bounds, but only if it is on edge
 //		OP_DEBUG_CODE(OpPoint debugPt = oppPtT.pt);
-        oSegment->ptBounds.pin(&oppPtT.pt);
+		oSegment->ptBounds.pin(&oppPtT.pt);
 //      eSegment->ptBounds.pin(&oppPtT.pt);	// !!! doubtful this is needed with contains test above
 //		OP_ASSERT(debugPt == oppPtT.pt);	// rarely needed, but still triggered (e.g., joel_15x)
 		OpPtT edgePtT { oppPtT.pt, edgeT };

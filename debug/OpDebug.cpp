@@ -27,8 +27,10 @@ constexpr auto to_array(T&&... t)->std::array < V, sizeof...(T) > {
 
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
 OpContours* debugGlobalContours;
-bool debugHexFloat = false;
+#endif
 
+#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP || OP_TINY_SKIA
+bool debugHexFloat = false;
 #endif
 
 union FloatIntUnion {
@@ -168,7 +170,10 @@ std::string OpDebugByteToHex(uint8_t hex) {
     }
     return s;
 }
+#endif
 
+
+#if OP_DEBUG_DUMP || OP_DEBUG_IMAGE || OP_TINY_SKIA
 std::string OpDebugIntToHex(int32_t hex) {
     std::string s = "0x";
     for (int index = 28; index >= 0; index -= 4) {
@@ -180,7 +185,10 @@ std::string OpDebugIntToHex(int32_t hex) {
     }
     return s;
 }
+#endif
 
+
+#if OP_DEBUG_DUMP || OP_DEBUG_IMAGE
 std::string OpDebugPtrToHex(void* ptr) {
     uint64_t hex = (uint64_t) ptr;
     std::string s = "0x";
@@ -193,7 +201,9 @@ std::string OpDebugPtrToHex(void* ptr) {
     }
     return s;
 }
+#endif
 
+#if OP_DEBUG_DUMP || OP_DEBUG_IMAGE || OP_TINY_SKIA
 std::string OpDebugDumpHex(float f) {
     if (!debugHexFloat) {
         int32_t hex = OpDebugFloatToBits(f);
@@ -204,7 +214,9 @@ std::string OpDebugDumpHex(float f) {
     int bytes = snprintf(buffer, sizeof(buffer), "%af", f);
     return std::string(buffer, bytes);
 }
+#endif
 
+#if OP_DEBUG_DUMP || OP_DEBUG_IMAGE
 std::string OpDebugDumpByteArray(const char* bytes, size_t size) {
     std::string s = "[";
     size_t lastReturn = 0;
@@ -418,11 +430,22 @@ void OpDebugRequired(const char*& str, const char* match) {
 
 #if OP_DEBUG
 
+bool OpPoint::debugIsUninitialized() const {
+	return OpMath::IsDebugNaN(x) && OpMath::IsDebugNaN(y);
+}
+
 void OpMath::DebugCompare(float a, float b) {
     float diff = fabsf(a - b);
     float max = std::max(fabsf(a), fabsf(b));
     float pPrecision = diff / max;
     OP_ASSERT(pPrecision < OpEpsilon);
+}
+
+bool OpMath::IsDebugNaN(float f) {
+	if (!OpMath::IsNaN(f))
+		return false;
+	int32_t fBits = OpDebugFloatToBits(f);
+	return fBits & 1;
 }
 
 #include "OpCurveCurve.h"

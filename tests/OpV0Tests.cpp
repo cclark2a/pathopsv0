@@ -6196,8 +6196,25 @@ path.close();
     testPathOp(reporter, pathA, path, SkPathOp::kUnion_SkPathOp, filename);
 }
 
+void testQuads11273882(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(1, 0);
+path.quadTo(2, 2, 1, 3);
+path.lineTo(1, 3);
+path.lineTo(1, 0);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(1, 1);
+path.quadTo(3, 1, 0, 3);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
 static struct TestDesc tests[] = {
-    TEST(rect194579),
+    TEST(testQuads11273882),
+	TEST(rect194579),
     TEST(rect1),
     TEST(loop156483),
     TEST(loop36499),

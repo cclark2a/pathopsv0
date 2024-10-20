@@ -45,14 +45,14 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 	// is computed for the unreversed orientation.
 	if (WindZero::unset != lastLimbEdge->windZero && WindZero::unset != test->windZero
 			&& (LimbPass::linked == limbPass || LimbPass::miswound == limbPass)) {
-        WindZero zeroSide = test->windZero;
+		WindZero zeroSide = test->windZero;
 		// if last which end is end, flip last's wind zero (for comparsion, flip zero side);
 		// if pass is linked: if test m is end, flip zero side; if test which is end, flip zero side
 		// if pass is miswound, flip the logic
-        if (((lastLimbEdge->which() == match) != (test->which() == m)) 
+		if (((lastLimbEdge->which() == match) != (test->which() == m)) 
 				== (LimbPass::linked == limbPass))
-            zeroSide = !zeroSide;
-        if (lastLimbEdge->windZero != zeroSide)
+			zeroSide = !zeroSide;
+		if (lastLimbEdge->windZero != zeroSide)
 			return nullptr;
 	}
 	OpPointBounds childBounds = test->lastEdge ? test->linkBounds : 
@@ -429,7 +429,7 @@ OpLimb* OpLimbStorage::allocate() {
 	OP_ASSERT(used < (int) ARRAY_COUNT(storage));
 	OpLimb& result = storage[used++];
 	OP_DEBUG_CODE(result = OpLimb());
-    return &result;
+	return &result;
 }
 
 void OpLimbStorage::reset() {
@@ -443,9 +443,9 @@ void OpLimbStorage::reset() {
 #endif
 	while (nextBlock) {
 		OP_DEBUG_DUMP_CODE(clearDebugBranches(nextBlock));
-        OpLimbStorage* save = nextBlock->nextBlock;
-        delete nextBlock;
-        nextBlock = save;
+		OpLimbStorage* save = nextBlock->nextBlock;
+		delete nextBlock;
+		nextBlock = save;
 	}
 	OP_DEBUG_DUMP_CODE(clearDebugBranches(this));
 	nextBlock = nullptr;
@@ -469,25 +469,25 @@ OpJoiner::OpJoiner(OpContours& contours)
 	}
 	sort();
 	OP_DEBUG_CODE(contours.debugJoiner = this);
-    OP_DEBUG_VALIDATE_CODE(debugValidate());
+	OP_DEBUG_VALIDATE_CODE(debugValidate());
 }
 
 bool OpJoiner::setup() {
-    if (!byArea.size() && !unsectByArea.size() && !linkups.l.size())
-        return true;
-    sort();  // join up largest edges first
-    for (auto e : byArea) {
-        e->setActive(true);
+	if (!byArea.size() && !unsectByArea.size() && !linkups.l.size())
+		return true;
+	sort();  // join up largest edges first
+	for (auto e : byArea) {
+		e->setActive(true);
 		e->clearLinkBounds();  // !!! this may be unnecessary (asserts if necessary)
-    }
-    for (auto unsectable : unsectByArea) {
-        unsectable->setActive(true);
-    }
-    // although unsortables are marked active, care must be taken since they may or may not
-    // be part of the output
-    for (auto unsortable : unsortables) {
-        unsortable->setActive(true);
-    }
+	}
+	for (auto unsectable : unsectByArea) {
+		unsectable->setActive(true);
+	}
+	// although unsortables are marked active, care must be taken since they may or may not
+	// be part of the output
+	for (auto unsortable : unsortables) {
+		unsortable->setActive(true);
+	}
 	return false;
 }
 
@@ -505,8 +505,8 @@ void OpJoiner::addEdge(OpEdge* e) {
 		return;
 	}
 	OpSegment* seg = e->segment;
-    OP_ASSERT(!seg->disabled);
-    OP_ASSERT(e->isSimple());
+	OP_ASSERT(!seg->disabled);
+	OP_ASSERT(e->isSimple());
 	if (seg->simpleEnd(e) && !LinkEnd(e))  // returns false if loop was formed
 		return;
 	if (seg->simpleStart(e))
@@ -538,7 +538,7 @@ void OpJoiner::addEdge(OpEdge* e) {
 
 void OpJoiner::addToLinkups(OpEdge* e) {
 	OP_ASSERT(!e->debugIsLoop());
-    OpEdge* first = e->advanceToEnd(EdgeMatch::start);
+	OpEdge* first = e->advanceToEnd(EdgeMatch::start);
 	OpEdge* next = first;
 	OpEdge* last;
 	do {
@@ -554,11 +554,11 @@ void OpJoiner::addToLinkups(OpEdge* e) {
 	first->lastEdge = last;
 	first->setLinkBounds();
 	OP_ASSERT(first->linkBounds.isFinite());
-    linkups.l.push_back(first);
+	linkups.l.push_back(first);
 }
 
 void OpJoiner::buildDisabled(OpContours& contours) {
-    OpVector threshold = contours.threshold();
+	OpVector threshold = contours.threshold();
 	for (auto contour : contours.contours) {
 		for (auto& segment : contour->segments) {
 			for (auto& e : segment.edges) {
@@ -686,19 +686,19 @@ bool OpJoiner::linkRemaining(OP_DEBUG_CODE(OpContours* debugContours)) {
 	debugImage();
 	showFill();
 #endif
-    OP_DEBUG_CODE(debugMatchRay(debugContours));
+	OP_DEBUG_CODE(debugMatchRay(debugContours));
 	  // break if running last failed fast test
-    #ifdef TEST_PATH_OP_SKIP_TO_V0
-	    OP_ASSERT(OP_DEBUG_FAST_TEST || (!TEST_PATH_OP_SKIP_TO_V0 
-			    && (!OP_DEBUG_BREAK_IN_LINK_REMAINING || DEFEAT_LOCAL_BREAK)));
-    #endif
+	#ifdef TEST_PATH_OP_SKIP_TO_V0
+		OP_ASSERT(OP_DEBUG_FAST_TEST || (!TEST_PATH_OP_SKIP_TO_V0 
+				&& (!OP_DEBUG_BREAK_IN_LINK_REMAINING || DEFEAT_LOCAL_BREAK)));
+	#endif
 	linkPass = LinkPass::remaining;
 	// match links may add or remove from link ups. Iterate as long as link ups is not empty
 	for (auto e : linkups.l) {
 		e->setLinkBounds();
 	}
 	OP_DEBUG_IMAGE_CODE(int debugLoopCounter = 0);
-    while (linkups.l.size()) {
+	while (linkups.l.size()) {
 		// sort to process largest first
 		// !!! could optimize to avoid search, but for now, this is the simplest
 		linkups.sort();
@@ -711,7 +711,7 @@ bool OpJoiner::linkRemaining(OP_DEBUG_CODE(OpContours* debugContours)) {
 				return true;
 		}
 		OP_DEBUG_VALIDATE_CODE(debugValidate());
-        if (!matchLinks(true))
+		if (!matchLinks(true))
 			return false;
 		// Match links may have output and/or disabled edge in linkups which has prior or next
 		// that has not been output. Check for this and adjust linkups as needed.
@@ -741,7 +741,7 @@ bool OpJoiner::linkRemaining(OP_DEBUG_CODE(OpContours* debugContours)) {
 	#endif
 		OP_DEBUG_VALIDATE_CODE(debugValidate());
 		OP_DEBUG_IMAGE_CODE(if (++debugLoopCounter < 0) OpDebugOut(""));  // allows seeing loop iteration that failed
-    }
+	}
 	return true;
 }
 
@@ -752,10 +752,10 @@ OpEdge* OpJoiner::LinkStart(OpEdge* first) {
 		OP_ASSERT(!seg->sects.unsorted);
 		OpIntersection* prevSect = seg->sects.i.front();
 		OpSegment* opp = prevSect->opp->segment;
-        OP_ASSERT(!opp->disabled);
+		OP_ASSERT(!opp->disabled);
 		OpEdge* prevEdge = &opp->edges.back();
-        if (!prevEdge->isSimple())
-            break;
+		if (!prevEdge->isSimple())
+			break;
 		if (!opp->simpleEnd(prevEdge) || prevSect->opp != opp->sects.i.back())
 			break;
 		if (prevEdge->nextEdge) {
@@ -778,9 +778,9 @@ OpEdge* OpJoiner::LinkStart(OpEdge* first) {
 			return nullptr;
 		}
 		edge = prevEdge;
-        OP_ASSERT(!edge->disabled);
-        if (!edge->isSimple())
-            break;
+		OP_ASSERT(!edge->disabled);
+		if (!edge->isSimple())
+			break;
 	} while (edge->segment->simpleStart(edge));
 	return edge;
 }
@@ -792,10 +792,10 @@ bool OpJoiner::LinkEnd(OpEdge* first) {
 		OP_ASSERT(!seg->sects.unsorted);
 		OpIntersection* nextSect = seg->sects.i.back();
 		OpSegment* opp = nextSect->opp->segment;
-        OP_ASSERT(!opp->disabled);
+		OP_ASSERT(!opp->disabled);
 		OpEdge* nextEdge = &opp->edges.front();
-        if (!nextEdge->isSimple())
-            break;
+		if (!nextEdge->isSimple())
+			break;
 		if (!opp->simpleStart(nextEdge) || nextSect->opp != opp->sects.i.front())
 			break;
 		if (nextEdge->priorEdge) {
@@ -818,9 +818,9 @@ bool OpJoiner::LinkEnd(OpEdge* first) {
 			return false;
 		}
 		edge = nextEdge;
-        OP_ASSERT(!edge->segment->disabled);
-        if (!edge->isSimple())
-            break;
+		OP_ASSERT(!edge->segment->disabled);
+		if (!edge->isSimple())
+			break;
 	} while (edge->segment->simpleEnd(edge));
 	return true;
 }
@@ -838,16 +838,16 @@ bool OpJoiner::linkSimple(OpEdge* first) {
 
 void OpJoiner::linkUnambiguous(LinkPass lp) {
 	OP_DEBUG_CONTEXT();
-    OP_DEBUG_VALIDATE_CODE(debugValidate());
-    // match up edges that have only a single possible prior or next link, and add them to new list
+	OP_DEBUG_VALIDATE_CODE(debugValidate());
+	// match up edges that have only a single possible prior or next link, and add them to new list
 	linkPass = lp;
 	OP_DEBUG_VALIDATE_CODE(debugValidate());
 	std::vector<OpEdge*>& edges = LinkPass::normal == lp ? byArea : unsectByArea;
-    for (auto& e : edges) {
+	for (auto& e : edges) {
 		if (e->disabled)
-            continue;   // likely marked as part of a loop below
-        if (!e->isActive())  // check if already saved in linkups
-            continue;
+			continue;   // likely marked as part of a loop below
+		if (!e->isActive())  // check if already saved in linkups
+			continue;
 		OP_ASSERT(!e->priorEdge);
 		OP_ASSERT(!e->nextEdge);
 		if (LinkPass::unsectable == lp)
@@ -861,7 +861,7 @@ void OpJoiner::linkUnambiguous(LinkPass lp) {
 		OP_DEBUG_CODE(debugRecursiveDepth = 0);
 		(void) linkUp(e->setLastEdge());
 		OP_DEBUG_VALIDATE_CODE(debugValidate());
-    }
+	}
 }
 
 /* relationship between prev/this/next and whichEnd: (start, end)

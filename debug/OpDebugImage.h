@@ -145,6 +145,7 @@ extern void draw(const OpPtT& );   // draw point (ignores t)
 extern void draw(const OpPoint* );
 extern void draw(const OpPtT* );
 extern void draw(float , float );
+extern void drawHex(uint32_t , uint32_t );
 extern void drawT(int id, float );
 extern void drawT(int id, const OpPtT& );
 extern void drawT(int id, const OpPtT* );

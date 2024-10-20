@@ -171,8 +171,8 @@ OpEdge::OpEdge(OpContours* contours, const OpPtT& start, const OpPtT& end  OP_LI
 	setPointBounds();
 	center.t = OpMath::Interp(startT, endT, .5);
 	center.pt = ptBounds.center();
-    setDisabled(OP_LINE_FILE_NPARAMS());
-    setUnsortable(Unsortable::filler);
+	setDisabled(OP_LINE_FILE_NPARAMS());
+	setUnsortable(Unsortable::filler);
 }
 
 // called from curve curve when splitting edges
@@ -260,14 +260,14 @@ OpEdge* OpEdge::advanceToEnd(EdgeMatch match) {
 			0					flipOff				union, rdiff, xor
 			0					flipOn				union, rdiff, xor
 			0					1					---
-		    flipOff				0					union, diff, xor
-		    flipOff				flipOff				intersect, union
-		    flipOff				flipOn				diff, rdiff
-		    flipOff				1					intersect, rdiff, xor
-		    flipOn				0					union, diff, xor
-		    flipOn				flipOff				diff, rdiff
-		    flipOn				flipOn				intersect, union
-		    flipOn				1					intersect, rdiff, xor
+			flipOff				0					union, diff, xor
+			flipOff				flipOff				intersect, union
+			flipOff				flipOn				diff, rdiff
+			flipOff				1					intersect, rdiff, xor
+			flipOn				0					union, diff, xor
+			flipOn				flipOff				diff, rdiff
+			flipOn				flipOn				intersect, union
+			flipOn				1					intersect, rdiff, xor
 			1					0					---
 			1					flipOff				intersect, diff, xor
 			1					flipOn				intersect, diff, xor
@@ -327,12 +327,12 @@ void OpEdge::calcCenterT() {
 
 void OpEdge::clearActiveAndPals(OP_LINE_FILE_NP_DEF()) {
 	setActive(false);
-    for (auto& pal : pals) {
+	for (auto& pal : pals) {
 		if (!pal.edge->isUnsectable())
 			continue;  // !!! hack ?
 		pal.edge->setActive(false);
 		pal.edge->setDisabled(OP_LINE_FILE_NP_CALLER());
-    }
+	}
 	clearLastEdge();
 }
 
@@ -494,12 +494,12 @@ void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsect
 				return false;
 			if (this == unsectable)
 				return false;
-            bool startMatch = firstPt == unsectable->startPt()
-                    && (EdgeMatch::start == unsectable->which() ? !unsectable->priorEdge :
-                    !unsectable->nextEdge);
-            bool endMatch = firstPt == unsectable->endPt()
-                    && (EdgeMatch::end == unsectable->which() ? !unsectable->priorEdge :
-                    !unsectable->nextEdge);
+			bool startMatch = firstPt == unsectable->startPt()
+					&& (EdgeMatch::start == unsectable->which() ? !unsectable->priorEdge :
+					!unsectable->nextEdge);
+			bool endMatch = firstPt == unsectable->endPt()
+					&& (EdgeMatch::end == unsectable->which() ? !unsectable->priorEdge :
+					!unsectable->nextEdge);
 			if (!startMatch && !endMatch)
 				return false;
 			if (AllowClose::no == allowClose && isDupe(unsectable))
@@ -537,9 +537,9 @@ void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsect
 OpEdge* OpEdge::nextOut() {
 	clearActiveAndPals(OP_LINE_FILE_NPARAMS());
 	inLinkups = false;
-    inOutput = true;
+	inOutput = true;
 	OP_DEBUG_IMAGE_CODE(if (!debugCustom) debugColor = orange);
-    return nextEdge;
+	return nextEdge;
 }
 
 // !!! note that t value is 0 to 1 within edge (not normalized to segment t)
@@ -551,8 +551,8 @@ NormalDirection OpEdge::normalDirection(Axis axis, float edgeInsideT) {
 // check to see if the tangent directions are opposite. If they aren't, reverse
 // this edge's links before sending it to the host graphics engine
 void OpEdge::output(bool closed) {
-    const OpEdge* firstEdge = closed ? this : nullptr;
-    OpEdge* edge = this;
+	const OpEdge* firstEdge = closed ? this : nullptr;
+	OpEdge* edge = this;
 	bool reverse = false;
 	bool abort = false;
 	// returns true if reverse/no reverse criteria found
@@ -604,7 +604,7 @@ void OpEdge::output(bool closed) {
 		if (test(outer, inner))
 			break;
 		edge = edge->nextEdge;
-    } while (firstEdge != edge);
+	} while (firstEdge != edge);
 	if (abort)
 		return;
 	if (reverse) {
@@ -841,7 +841,7 @@ bool OpEdge::unsectableSeen(EdgeMatch match) const {
 
 #if OP_DEBUG
 bool OpEdge::debugFail() const {
-    return segment->debugFail();
+	return segment->debugFail();
 }
 #endif
 
@@ -863,7 +863,7 @@ bool OpEdgeStorage::contains(OpPoint start, OpPoint end) const {
 		if (test->start().pt == start && test->end().pt == end)
 			return true;
 	}
-    if (!next)
-        return false;
-    return next->contains(start, end);
+	if (!next)
+		return false;
+	return next->contains(start, end);
 }

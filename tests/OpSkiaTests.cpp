@@ -5,7 +5,7 @@
 
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
-#define TEST_PATH_OP_SKIP_TO_FILE "op" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
+#define TEST_PATH_OP_SKIP_TO_FILE "quad" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
 #define TESTS_TO_SKIP 0 // 14295903  // tests to skip
 #define TEST_FIRST ""  // e.g., "joel4" (ignored by fast test, overridden by TEST_DRIVE_FIRST)
 
@@ -18,11 +18,11 @@
 #define OP_TEST_REGION 1  // test result of v0 against skia regions
 
 #define CURVE_CURVE_1 6  // id of segment 1 to break in divide and conquer
-#define CURVE_CURVE_2 10  // id of segment 2 to break in divide and conquer
-#define CURVE_CURVE_DEPTH -1  // minimum recursion depth for curve curve break (-1 to disable)
+#define CURVE_CURVE_2 2  // id of segment 2 to break in divide and conquer
+#define CURVE_CURVE_DEPTH 3  // minimum recursion depth for curve curve break (-1 to disable)
 
 // see descriptions for exceptions below
-#define TEST_PATH_OP_EXCEPTIONS "pentrek10" // "issue3517"
+#define TEST_PATH_OP_EXCEPTIONS "" // "pentrek10"
 #define TEST_PATH_OP_FUZZ_EXCEPTIONS "" // "fuzz487a", "fuzz487b"
 #define TEST_PATH_OP_FAIL_EXCEPTIONS "" // "grshapearcs1"
 #define TEST_PATH_OP_MAP_TO_FUZZ "" // "fuzzhang_1"

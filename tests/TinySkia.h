@@ -98,13 +98,20 @@ enum class SkPathDirection {
 	kCCW,
 };
 
+enum class TinyType {
+	line,
+	quad,
+	conic,
+	cubic,
+};
+
 struct TinyCurve {
 	OpPoint lastPt() const;
 	size_t pointCount() const;
 
 	OpPoint pts[4];
 	float weight;
-	OpType type;
+	TinyType type;
 };
 
 class SkPath {
@@ -309,7 +316,7 @@ struct SkCanvas {
 	std::vector<SkMatrix> m;
 };
 
-enum SkPathOp {
+enum SkPathOp : unsigned int {
     kDifference_SkPathOp,         //!< subtract the op path from the first path
     kIntersect_SkPathOp,          //!< intersect the two paths
     kUnion_SkPathOp,              //!< union (inclusive-or) the two paths
@@ -335,8 +342,8 @@ inline float SkIntToScalar(int x) { return (float) x; }
 constexpr float SK_ScalarInfinity = OpInfinity;
 constexpr float SK_ScalarNegativeInfinity = -OpInfinity;
 constexpr float SK_ScalarNaN = OpNaN;
-constexpr float SK_ScalarMin = -OpMax;
-constexpr float SK_ScalarMax = OpMax;
+constexpr float SK_ScalarMin = (float) -OpMax;
+constexpr float SK_ScalarMax = (float) OpMax;
 #define SK_ASSERT(x) OP_ASSERT(x)
 #define SkASSERT(x) OP_ASSERT(x)
 #endif

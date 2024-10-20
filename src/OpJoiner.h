@@ -15,7 +15,7 @@ enum class LinkPass {
 };
 
 /* !!! consider a rewrite where a single link up is
-    struct LinkUp {
+	struct LinkUp {
 		OpPointBounds bounds;
 		OpEdge* last;
 		OpEdge* edge;
@@ -64,9 +64,9 @@ struct OpJoiner {
 	std::vector<OpEdge*> unsectByArea;
 	std::vector<OpEdge*> disabled;
 	std::vector<OpEdge*> disabledPals;
-    std::vector<OpEdge*> unsortables;
+	std::vector<OpEdge*> unsortables;
 	std::vector<FoundEdge> found;  //edges, real or constructed, with an end equal to matchPt 
-    FoundEdge bestGap;
+	FoundEdge bestGap;
 	LinkUps linkups;  // vector wrapper (allows data specific debugging / dumping)
 	EdgeMatch linkMatch;
 	LinkPass linkPass;

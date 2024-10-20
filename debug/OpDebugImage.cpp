@@ -2041,6 +2041,10 @@ void draw(float x, float y) {
 	draw(OpPoint(x, y));
 }
 
+void drawHex(uint32_t x, uint32_t y) {
+	draw(OpDebugBitsToFloat(x), OpDebugBitsToFloat(y));
+}
+
 bool OpSegment::debugContains(const OpEdge* edge) const {
 	for (auto& e : edges) {
 		if (edge == &e)

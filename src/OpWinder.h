@@ -41,10 +41,11 @@ enum class FoundWindings {
 
 #if OP_NEW_COINCIDENCE
 struct CoinEnd {
-	void addSect(int coinID, OpSegment* baseSeg, MatchReverse m, XyChoice  OP_LINE_FILE_DEF());
-	void aliasPtT(XyChoice );
+//	void addSect(int coinID, OpSegment* baseSeg, MatchReverse m, XyChoice  OP_LINE_FILE_DEF());
+//	void aliasPtT(XyChoice );
 	bool onBothEnds(XyChoice ) const;
-    DUMP_DECLARATIONS
+//	bool ptsAreClose(CoinEnd& , XyChoice );
+	DUMP_DECLARATIONS
 
 	OpSegment* seg;
 	OpSegment* opp;
@@ -69,7 +70,7 @@ struct OpWinder {
 #else
 	static IntersectResult CoincidentCheck(OpSegment* seg, OpSegment* opp);
 	static IntersectResult CoincidentCheck(std::array<CoinEnd, 4>& ends, bool* oppReversed,
-            XyChoice* );
+			XyChoice* );
 #endif
 	static IntersectResult CoincidentCheck(const OpEdge& edge, const OpEdge& opp);
 	FoundIntercept findRayIntercept(size_t inIndex, OpVector tangent, float normal, float homeCept);

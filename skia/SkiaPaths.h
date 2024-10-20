@@ -5,6 +5,8 @@
 
 #if !OP_TINY_SKIA
 #include "include/pathops/SkPathOps.h"
+#else
+enum SkPathOp : unsigned int;
 #endif
 
 class SkPath;

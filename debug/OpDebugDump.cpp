@@ -1276,7 +1276,7 @@ std::string CurveDataStorage::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     s += "next:" + STR(next) + " ";  // only zero/nonzero is read
     s += "used:" + STR(used) + " ";
-    if (DebugLevel::detailed == l) {
+    if (DebugLevel::detailed == l || DebugLevel::file == l) {
         s += "\n";
         s += OpDebugDumpByteArray(storage, used);   // 'b' is ignored for now; always return hex
         if (next)
@@ -2535,7 +2535,7 @@ std::string CallerDataStorage::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     s += "next:" + STR(next) + " ";  // only zero/nonzero is read
     s += "used:" + STR(used) + " ";
-    if (DebugLevel::detailed == l) {
+    if (DebugLevel::detailed == l || DebugLevel::file == l) {
         s += "\n";
         s += OpDebugDumpByteArray(storage, used);   // 'b' is ignored for now; always return hex
         if (next)
@@ -3052,7 +3052,7 @@ std::string OpTree::debugDump(DebugLevel l, DebugBase b) const {
 std::string CoinEnd::debugDump(DebugLevel l, DebugBase b) const { 
     std::string s;
     s += "seg:" + STR(seg->id) + " opp:" + STR(opp->id) + " ptT:" + ptT.debugDump(l, b);
-    s += " oppT:" + oppT.debugDump(l, b);
+    s += " oppT:" + oppT.debugDump(DebugLevel::error, b);
     return s;
 }
 
@@ -3833,6 +3833,14 @@ void OpSegment::dumpSet(const char*& str) {
     OpDebugRequired(str, "winding");
     winding.dumpSet(str, contour->contours);
     disabled = OpDebugOptional(str, "disabled");
+    willDisable = OpDebugOptional(str, "willDisable");
+    hasCoin = OpDebugOptional(str, "hasCoin");
+    startMoved = OpDebugOptional(str, "startMoved");
+    endMoved = OpDebugOptional(str, "endMoved");
+#if OP_DEBUG_IMAGE
+	if (OpDebugOptional(str, "debugColor"))
+		debugColor = OpDebugReadSizeT(str);
+#endif
 #if OP_DEBUG_MAKER
     if (OpDebugOptional(str, "debugSetDisabled"))
         debugSetDisabled.dumpSet(str);

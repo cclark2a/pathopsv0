@@ -49,7 +49,7 @@ enum class CurveRef {
 };
 
 inline CurveRef operator!(CurveRef a) {
-    return static_cast<CurveRef>(!static_cast<int>(a));
+	return static_cast<CurveRef>(!static_cast<int>(a));
 }
 
 struct TGap {
@@ -62,9 +62,11 @@ struct TGap {
 	OpPtT hi;
 };
 
+struct CcCurves;
+
 // distance from edge to opp at this edge t, and number of edges between this and next
 struct EdgeRun {
-	void set(OpEdge* edge, const OpSegment* oppSeg, EdgeMatch );
+	void set(CcCurves* , CcCurves* oppCurves, OpEdge* , const OpSegment* opp, EdgeMatch );
 	float setOppDist(const OpSegment* segment);
 	DUMP_DECLARATIONS
 
@@ -75,6 +77,7 @@ struct EdgeRun {
 	float oppDist;
 	bool fromFoundT;
 	bool byZero;
+	bool inDeleted;
 #if OP_DEBUG
 	int debugBetween;  // incremented if edge t is between, and oppDist is between
 #endif
@@ -85,6 +88,7 @@ struct CcCurves {
 	bool checkMid(size_t index); // true if mid pt dist between this and next run dist is smaller
 	void clear();
 	OpPtT closest(OpPoint pt) const;
+	bool containsT(float t);
 	static OpPtT Dist(const OpSegment* , const OpPtT& segPtT, const OpSegment* opp);
 	std::vector<TGap> findGaps() const;
 	int groupCount() const;
@@ -100,6 +104,7 @@ struct CcCurves {
 
 	std::vector<OpEdge*> c;
 	std::vector<EdgeRun> runs;
+	CcCurves* oppCurves;
 };
 
 struct FoundLimits {
@@ -128,6 +133,7 @@ struct OpCurveCurve {
 	bool addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 			const OpPtT& oppStart, const OpPtT& oppEnd);
 	bool alreadyInLimits(const OpEdge* edge, const OpEdge* oEdge, float t);
+	bool betweenLimits(const OpEdge* edge, const OpEdge* oEdge, float lo, float hi);
 	bool checkForGaps();
 	bool checkSect();
 	bool checkSplit(float lo, float hi, CurveRef , OpPtT& checkPtT) const;
