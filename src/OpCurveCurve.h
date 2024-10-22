@@ -32,6 +32,8 @@
 	  maintain runs of t values with opp dist extremes
 */
 
+struct CcCurves;
+
 enum class SectFound {
 	no,
 	add,
