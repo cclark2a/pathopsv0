@@ -2,8 +2,6 @@
 #ifndef OpWinding_DEFINED
 #define OpWinding_DEFINED
 
-#include "PathOpsTypes.h"
-
 struct OpContour;
 
 enum class WindingEdge {

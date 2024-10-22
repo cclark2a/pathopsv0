@@ -402,7 +402,7 @@ struct SectPair {
 
 bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 		const OpPtT& oppStart, const OpPtT& oppEnd) {
-//	OpBreak2(seg, opp, 2, 6);
+//	OpBreak2(seg, opp, 3, 6);
 	OpVector threshold = contours->threshold();
 	if (edgeStart.isNearly(edgeEnd, threshold))
 		return false;

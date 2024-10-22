@@ -1,16 +1,10 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
-#include "PathOpsTypes.h"
-
-namespace PathOpsV0Lib {    // !!! move to new PathOps.h
-void Add(AddCurve , AddWinding );
-}
+// #include "PathOps.h"
 
 #include "curves/Line.h"
 #include "curves/NoCurve.h"
 #include "curves/QuadBezier.h"
 #include "curves/UnaryWinding.h"
-
-#include "PathOps.h"
 
 // curve types
 PathOpsV0Lib::CurveType lineType = (PathOpsV0Lib::CurveType) 0;  // unset

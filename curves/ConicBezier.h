@@ -1,7 +1,7 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 // new interface idea
 
-#include "PathOpsTypes.h"
+#include "PathOps.h"
 
 namespace PathOpsV0Lib {
 
