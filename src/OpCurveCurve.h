@@ -52,21 +52,10 @@ inline CurveRef operator!(CurveRef a) {
 	return static_cast<CurveRef>(!static_cast<int>(a));
 }
 
-struct TGap {
-	TGap(const OpPtT& l, const OpPtT& h)
-		: lo(l)
-		, hi(h) {
-	}
-
-	OpPtT lo;
-	OpPtT hi;
-};
-
-struct CcCurves;
-
 // distance from edge to opp at this edge t, and number of edges between this and next
 struct EdgeRun {
-	void set(CcCurves* , CcCurves* oppCurves, OpEdge* , const OpSegment* opp, EdgeMatch );
+	void set(OpEdge* , const OpSegment* opp, EdgeMatch );
+	bool inDeleted(CcCurves* , CcCurves* oppCurves) const;
 	float setOppDist(const OpSegment* segment);
 	DUMP_DECLARATIONS
 
@@ -77,7 +66,6 @@ struct EdgeRun {
 	float oppDist;
 	bool fromFoundT;
 	bool byZero;
-	bool inDeleted;
 #if OP_DEBUG
 	int debugBetween;  // incremented if edge t is between, and oppDist is between
 #endif
@@ -88,22 +76,23 @@ struct CcCurves {
 	bool checkMid(size_t index); // true if mid pt dist between this and next run dist is smaller
 	void clear();
 	OpPtT closest(OpPoint pt) const;
-	bool containsT(float t);
+	bool deletedT(float t) const;
 	static OpPtT Dist(const OpSegment* , const OpPtT& segPtT, const OpSegment* opp);
-	std::vector<TGap> findGaps() const;
+	std::vector<CutRangeT> findGaps() const;
 	int groupCount() const;
 	void initialEdgeRun(OpEdge* edge, const OpSegment* oppSeg);
 	void markToDelete(float tStart, float tEnd);
 	int overlaps() const;
 	float perimeter() const;
-	void snipAndGo(const OpSegment* ,  const OpPtT& cut, const OpSegment* oppSeg);
-	// void snipOne(const OpSegment* ,  const OpPtT& lo, const OpPtT& hi);
+	void snipAndGo(const OpSegment* , const OpPtT& cut, OpPoint oppPt, const OpSegment* oppSeg);
+	// void snipOne(const OpSegment* , const OpPtT& lo, const OpPtT& hi);
 	void snipRange(const OpSegment* , const OpPtT& lo, const OpPtT& hi, const OpSegment* oppSeg);
 	OpPtT splitPt(float oMidDist, const OpEdge& edge) const;
 	DUMP_DECLARATIONS
 
 	std::vector<OpEdge*> c;
 	std::vector<EdgeRun> runs;
+	std::vector<CutRangeT> deleted;
 	CcCurves* oppCurves;
 };
 

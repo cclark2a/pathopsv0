@@ -558,7 +558,8 @@ void OpJoiner::addToLinkups(OpEdge* e) {
 }
 
 void OpJoiner::buildDisabled(OpContours& contours) {
-	OpVector threshold = contours.threshold();
+	// example that needs small factor: testQuads18787007
+	OpVector threshold = contours.threshold() * OpMath::smallJoinerFactor;
 	for (auto contour : contours.contours) {
 		for (auto& segment : contour->segments) {
 			for (auto& e : segment.edges) {

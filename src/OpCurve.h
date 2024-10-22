@@ -35,7 +35,7 @@ struct OpCurve {
 	OpRoots axisRawHit(Axis offset, float axisIntercept, MatchEnds ) const;
 	float center(Axis offset, float axisIntercept) const;
 	OpPtT cut(const OpPtT& ptT, float loBounds, float hiBounds, float direction) const;
-	CutRangeT cutRange(const OpPtT& ptT, float loEnd, float hiEnd) const;
+	CutRangeT cutRange(const OpPtT& ptT, OpPoint oppPt, float loEnd, float hiEnd) const;
 	OpPoint doublePtAtT(float t) const;
 	OpPoint end(float t) const;
 	OpPtT findIntersect(Axis offset, const OpPtT& ) const;

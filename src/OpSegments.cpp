@@ -106,7 +106,6 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
 // somewhat different from winder's edge based version, probably for no reason
 void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 	OP_DEBUG_CONTEXT();
-//    OpBreak2(opp, seg, 2, 5);
 	OP_ASSERT(opp != seg);
 	OP_ASSERT(seg->c.debugIsLine());
 	LinePts edgePts { seg->c.firstPt(), seg->c.lastPt() };

@@ -905,6 +905,12 @@ struct OpMath {
 			pts[index].zeroTiny();
 	}
 
+// threshold needs a factor to account for error introduced by various operations
+// the factor should be supplied by the caller since only the caller knows the complexity of curves
+// !!! for now, hardcode numbers that allow Skia tests to work
+	static constexpr float smallJoinerFactor = 2.f;	// used by joiner to detect small disabled edges
+	static constexpr float smallCurveFactor = 2.f;	// used by curve to nearby points
+
 #if OP_DEBUG
 	static bool IsDebugNaN(float x);
 

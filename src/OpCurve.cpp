@@ -39,12 +39,11 @@ OpPtT OpCurve::cut(const OpPtT& ptT, float loBounds, float hiBounds, float direc
 	return cut;
 }
 
-CutRangeT OpCurve::cutRange(const OpPtT& ptT, float loEnd, float hiEnd) const {
-	constexpr float tStep = 16;  // !!! just a guess 
+// cut range minimum should be double the distance between ptT pt and opp pt
+CutRangeT OpCurve::cutRange(const OpPtT& ptT, OpPoint oppPt, float loEnd, float hiEnd) const {
+	constexpr float tStep = 16;  // !!! just a guess (move to user space?)
 	constexpr float cutDt = OpEpsilon * tStep;
 	OpVector threshold = contours->threshold();
-//	OpVector cutDxy = { OpMath::NextLarger(ptT.pt.x) - ptT.pt.x,
-//			OpMath::NextLarger(ptT.pt.y) - ptT.pt.y };
 	float minDistanceSq = threshold.lengthSquared() * tStep;
 	CutRangeT tRange;
 	for (float direction : { -1, 1 }) {
@@ -53,7 +52,8 @@ CutRangeT OpCurve::cutRange(const OpPtT& ptT, float loEnd, float hiEnd) const {
 		do {
 			cut.t = std::max(loEnd, std::min(hiEnd, ptT.t + dir * cutDt));
 			cut.pt = ptAtT(cut.t);
-		} while ((cut.pt - ptT.pt).lengthSquared() < minDistanceSq 
+		} while (((cut.pt - ptT.pt).lengthSquared() < minDistanceSq 
+				 || (cut.pt - oppPt).lengthSquared() < minDistanceSq)
 				 && loEnd < cut.t && cut.t < hiEnd && (dir *= tStep));
 		(-1 == direction ? tRange.lo : tRange.hi) = cut;
 	}
@@ -129,11 +129,13 @@ float OpCurve::match(float start, float end, OpPoint pt) const {
 	OpPoint yPt = ptAtT(yRoot);
 	float xDistSq = (pt - xPt).lengthSquared();
 	float yDistSq = (pt - yPt).lengthSquared();
+	// example: testQuads9421393 needs small curve factor for segs (3, 7 to detect intersection)
+	OpVector slop = contours->threshold() * OpMath::smallCurveFactor;  
 	if (!(xDistSq > yDistSq)) {  // reverse test in case y dist is nan
-		if (pt.isNearly(xPt, contours->threshold()))
+		if (pt.isNearly(xPt, slop))
 			return xRoot;
 	}
-	return pt.isNearly(yPt, contours->threshold()) ? yRoot : OpNaN;
+	return pt.isNearly(yPt, slop) ? yRoot : OpNaN;
 }
 
 MatchReverse OpCurve::matchEnds(const LinePts& opp) const {
