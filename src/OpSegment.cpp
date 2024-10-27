@@ -128,7 +128,7 @@ bool OpSegment::activeNeighbor(const OpEdge* edge, EdgeMatch match,
 	for (auto& alreadyFound : oppEdges)
 		if (alreadyFound.edge == nextDoor)
 			return false;
-	if (nextDoor->hasLinkTo(match))
+	if (nextDoor->hasLinkTo(neighbor))
 		return false;
 	if (Unsortable::none != edge->isUnsortable || edge->windZero == nextDoor->windZero 
 			|| Unsortable::none != nextDoor->isUnsortable) {
@@ -164,8 +164,9 @@ OpIntersection* OpSegment::addSegSect(const OpPtT& ptT, const OpSegment* oSeg
 
 OpIntersection* OpSegment::addCoin(const OpPtT& ptT, int coinID, MatchEnds coinEnd, 
 		const OpSegment* oSeg  OP_LINE_FILE_DEF()) {
-	if (sects.contains(ptT, oSeg))  // triggered by fuzz763_13
-		return nullptr;
+		// !!! commented out still may be necessary, but contains may need to be coinContains?
+//	if (sects.contains(ptT, oSeg))  // triggered by fuzz763_13
+//		return nullptr;
 	return sects.add(contour->addCoinSect(ptT, this, coinID, coinEnd  
 			OP_LINE_FILE_CALLER(oSeg)));
 }
@@ -189,6 +190,31 @@ void OpSegment::apply() {
 		edge.apply();
 }
 
+struct Misses {
+	Misses(const OpPtT& aPtT, const OpPtT& cPtT, OpSegment* a, OpSegment* c, 
+			OpIntersection* aInC, OpIntersection* cInA, int aCid, int cCid)
+		: aStart(aPtT)
+		, cStart(cPtT)
+		, segA(a)
+		, segC(c)
+		, aSSect(aInC)
+		, cSSect(cInA)
+		, aCoinID(aCid)
+		, cCoinID(cCid)
+		, used(false) {
+	}
+
+	OpPtT aStart;
+	OpPtT cStart;
+	OpSegment* segA;
+	OpSegment* segC;
+	OpIntersection* aSSect;
+	OpIntersection* cSSect;
+	int aCoinID;
+	int cCoinID;
+	bool used;
+};
+
 		// walk sects in coincidences;
 		// look at opp sects (reversed if necessary)
 		// if opp sects is missing this point, add it
@@ -196,68 +222,126 @@ void OpSegment::betweenIntersections() {
 	if (!hasCoin)
 		return;
 	// if this segment has coincident runs with three or more edges, make the sects consistent
-	std::vector<OpIntersection*> coincidences;
-	std::vector<OpIntersection*> betweens;  // !!! this needs to be in sects (i.e., in opp segment)
+	std::vector<Misses> misses;
 	// A and B are coincident; C is also coincident with B, but C-A coin may have been missed
-	auto checkOpp = [coincidences, betweens](OpIntersection* sectC) {
-		for (OpIntersection* sectB : coincidences) {
-			OpSegment* segC = sectC->segment;
-			OP_ASSERT(segC != sectB->segment);
-			OpIntersection* sectA = sectB->opp;
-			OpSegment* segA = sectA->segment;
-			OP_ASSERT(segC != segA);
-			// check A for C coincidence
-			OpIntersections& aSects = sectA->segment->sects;
-			if (aSects.i.end() != std::find_if(aSects.i.begin(), aSects.i.end(), 
-					[segC](const OpIntersection* test) { return test->opp->segment == segC; }))
-				continue;
-			segA->sects.unsorted = true;
-			segC->sects.unsorted = true;
-			// Construct new coincidence between A and C. Add the shorter of a end and c end.
-			OpIntersection* cEndSect = sectC->coinOtherEnd();
-			OpIntersection* aEndSect = sectA->coinOtherEnd();
-			// both aEnd and cEnd should link to B, but not to each other
-			OP_ASSERT(aEndSect->opp->segment == sectB->segment);
-			OP_ASSERT(cEndSect->opp->segment == sectB->segment);
-			int acID = segC->nextID();
-			MatchEnds cMatch = sectC->coincidenceID < 0 ? MatchEnds::end : MatchEnds::start;
-			OpIntersection* cS = segC->addCoin(sectC->ptT, acID, cMatch, segA  OP_LINE_FILE_PARAMS());
-			OpPtT aStart { sectC->ptT.pt, segA->c.match(0, 1, sectC->ptT.pt) };
-			MatchEnds aMatch = sectA->coincidenceID < 0 ? MatchEnds::end : MatchEnds::start;
-			OpIntersection* aS = segA->addCoin(aStart, acID, aMatch, segC  OP_LINE_FILE_PARAMS());
-			cS->pair(aS);
-			bool shortA = aEndSect->opp->ptT.t < cEndSect->opp->ptT.t; 
-			OpPtT cEndPtT = shortA ? aEndSect->ptT : cEndSect->ptT;
-			OpPtT aEndPtT = cEndPtT;
-			if (shortA)
-				cEndPtT.t = segC->c.match(0, 1, cEndPtT.pt);
+	// find or create the missing intersections
+	auto checkStart = [&misses](OpIntersection* sectB, OpIntersection* sectC) {
+		OP_DEBUG_CODE(OpSegment* segB = sectB->segment);
+		OpSegment* segC = sectC->segment;
+		OP_ASSERT(segB != segC);
+		OpIntersection* sectA = sectB->opp;
+		OpSegment* segA = sectA->segment;
+		OP_ASSERT(segA != segB);
+		OP_ASSERT(segA != segC);
+		// check A for C
+		OpPoint ptC = sectC->ptT.pt;
+		OpPtT ptTa;
+		OpIntersection* cInA = segA->sects.coinContains(ptC, segC, &ptTa);
+		if (cInA && cInA->coincidenceID)
+			return;
+		if (OpMath::IsNaN(ptTa.t))
+			ptTa = OpPtT(ptC, segA->c.match(0, 1, ptC));
+		if (OpMath::IsNaN(ptTa.t))
+			return;
+		OpPoint ptA = ptTa.pt;
+		OpPtT ptTc;
+		OpIntersection* aInC = segC->sects.coinContains(ptA, segA, &ptTc);
+		if (aInC && aInC->coincidenceID)
+			return;
+		if (OpMath::IsNaN(ptTc.t))
+			ptTc = OpPtT(ptA, segC->c.match(0, 1, ptA));
+		if (OpMath::IsNaN(ptTc.t))
+			return;
+		misses.emplace_back(ptTa, ptTc, segA, segC, cInA, aInC, sectA->coincidenceID
+				, sectC->coincidenceID);
+	};
+	auto checkEnd = [](Misses& miss, OpIntersection* bEnd, OpVector thresh) {
+		OpSegment* segA = miss.segA;
+		OpSegment* segC = miss.segC;
+		OP_DEBUG_CODE(OpIntersection* oppSect = bEnd->opp);
+		OP_ASSERT(oppSect->segment == segA || oppSect->segment == segC);
+		OpPoint oppPt = bEnd->ptT.pt;
+		OpPtT ptTc;
+		OpIntersection* aInC = segC->sects.coinContains(oppPt, segA, &ptTc);
+		if (aInC && aInC->coincidenceID)
+			return;
+		if (OpMath::IsNaN(ptTc.t))
+			ptTc = OpPtT(oppPt, segC->c.match(0, 1, oppPt));
+		if (OpMath::IsNaN(ptTc.t))
+			return;
+		OpPoint ptC = ptTc.pt;
+		OpPtT ptTa;
+		OpIntersection* cInA = segA->sects.coinContains(ptC, segC, &ptTa);
+		if (cInA && cInA->coincidenceID)
+			return;
+		if (OpMath::IsNaN(ptTa.t))
+			ptTa = OpPtT(ptC, segA->c.match(0, 1, ptC));
+		if (OpMath::IsNaN(ptTa.t))
+			return;
+		// once both start and end of the missing intersections are found, set their coin and ends
+		if (miss.aStart.isNearly(ptTa, thresh))
+			return;
+		if (miss.cStart.isNearly(ptTc, thresh))
+			return;
+//		if (miss.aStart.t > ptTa.t)
+//			std::swap(miss.aStart, ptTa);
+		bool flipped = miss.cStart.t > ptTc.t;
+		int coinID = miss.segC->coinID(flipped);
+		auto setSect = [coinID](OpIntersection*& cInA, const OpPtT& aPtT,
+				OpSegment* segA, MatchEnds match, OpSegment* segC  OP_LINE_FILE_DEF()) {
+			if (cInA)
+				cInA->setCoin(coinID, match);
 			else
-				aEndPtT.t = segA->c.match(0, 1, aEndPtT.pt);
-			OpIntersection* cE = segC->addCoin(cEndPtT, acID, !cMatch, segA  OP_LINE_FILE_PARAMS());
-			OpIntersection* aE = segA->addCoin(aEndPtT, acID, !aMatch, segC  OP_LINE_FILE_PARAMS());
-			cE->pair(aE);
-		}
-		// check to see if added point collapses through identical t? or adjacent has idential pt?
-		// !!! probably should put that check in sorting
+				cInA = segA->addCoin(aPtT, coinID, match, segC  OP_LINE_FILE_PARAMS());
+		};
+		setSect(miss.aSSect, miss.aStart, segA, MatchEnds::start, segC  OP_LINE_FILE_PARAMS());
+		setSect(miss.cSSect, miss.cStart, segC, MatchEnds::start, segA  OP_LINE_FILE_PARAMS());
+		setSect(aInC, ptTa, segA, MatchEnds::end, segC  OP_LINE_FILE_PARAMS());
+		setSect(cInA, ptTc, segC, MatchEnds::end, segA  OP_LINE_FILE_PARAMS());
+		if (miss.aSSect->segment != aInC->segment)
+			std::swap(aInC, cInA);
+		if (miss.aStart.t > aInC->ptT.t)
+			std::swap(miss.aSSect->coinEnd, aInC->coinEnd);
+		if (flipped)
+			std::swap(miss.cSSect->coinEnd, cInA->coinEnd);
+		miss.aSSect->pair(miss.cSSect);
+		cInA->pair(aInC);
+		OP_DEBUG_VALIDATE_CODE(miss.aSSect->debugCoinValidate());
+		OP_DEBUG_VALIDATE_CODE(miss.cSSect->debugCoinValidate());
+		OP_DEBUG_VALIDATE_CODE(cInA->debugCoinValidate());
+		OP_DEBUG_VALIDATE_CODE(aInC->debugCoinValidate());
+		miss.used = true;
 	};
 	if (sects.unsorted)
 		sects.sort();
+	OpVector thresh = threshold();
+	std::vector<OpIntersection*> coinSects;
 	for (OpIntersection* sect : sects.i) {
 		OP_ASSERT(sect->segment == this);
 		if (!sect->coincidenceID)
 				continue;
 		if (MatchEnds::start == sect->coinEnd) {
-			if (coincidences.size())
-				checkOpp(sect);
-			coincidences.push_back(sect);
+			for (OpIntersection* coinSect : coinSects) {
+				checkStart(coinSect, sect->opp);  // candidates' t is <= sect opp t
+			}
+			coinSects.push_back(sect);
 			continue;
 		}
 		OP_ASSERT(MatchEnds::end == sect->coinEnd);
-		auto found = std::find_if(coincidences.begin(), coincidences.end(), [sect]
-				(const OpIntersection* cT) { return cT->coincidenceID == sect->coincidenceID; });
-		OP_ASSERT(coincidences.end() != found);
-		coincidences.erase(found);
+		auto csIter = std::find_if(coinSects.begin(), coinSects.end(), [sect](OpIntersection* test) {
+			return test->coincidenceID == sect->coincidenceID;
+		});
+		OP_ASSERT(coinSects.end() != csIter);
+		coinSects.erase(csIter);
+		for (Misses& miss : misses) {
+			if (miss.used)
+				continue;
+			if (miss.aCoinID != sect->coincidenceID && miss.cCoinID != sect->coincidenceID)
+				continue;
+			checkEnd(miss, sect, thresh);  // use lesser of candidates' t, since it is <= sect opp T
+		}
 	}
+
 }
 
 // returns point that matches input; returned point may be nearby; may already be aliased

@@ -306,7 +306,8 @@ struct OpContours {
 	}
 
 	void makeCoins() {
-	   for (auto contour : contours) {
+		OP_DEBUG_CONTEXT();
+	    for (auto contour : contours) {
 			contour->makeCoins();
 		}
 	}

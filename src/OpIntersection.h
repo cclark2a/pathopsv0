@@ -68,6 +68,8 @@ struct OpIntersection {
 	OpIntersection* coinOtherEnd();
 
 	void pair(OpIntersection* o) {
+		OP_ASSERT(abs(unsectID) == abs(o->unsectID)); 
+		OP_ASSERT(coincidenceID == o->coincidenceID); 
 		OP_ASSERT(ptT.pt == o->ptT.pt || (!!unsectID && !!o->unsectID));
 		opp = o;
 		o->opp = this;
@@ -117,6 +119,7 @@ struct OpIntersection {
 #endif
 #if OP_DEBUG_VALIDATE
 	void debugValidate() const;
+	void debugCoinValidate() const;
 #endif
 #if OP_DEBUG_DUMP
 	void debugCompare(std::string) const;
@@ -153,6 +156,7 @@ struct OpIntersection {
 struct OpIntersections {
 	OpIntersections();
 	OpIntersection* add(OpIntersection* );
+	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp, OpPtT* nearby);
 	OpIntersection* contains(const OpPtT& ptT, const OpSegment* opp);  // nearby ptT
 	OpIntersection* const * entry(const OpPtT& , const OpSegment* opp) const;  // exact opp + ptT
 	void makeEdges(OpSegment* );

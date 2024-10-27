@@ -228,105 +228,6 @@ void OpWinder::addEdge(OpEdge* edge, EdgesToSort edgesToSort) {
 		inY.push_back(edge);
 }
 
-#if !OP_NEW_COINCIDENCE
-IntersectResult OpWinder::CoincidentCheck(OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpPtT dPtT,
-		OpSegment* segment, OpSegment* oppSegment) {
-	OpVector abDiff = aPtT.pt - bPtT.pt;
-	XyChoice xyChoice = fabsf(abDiff.dx) < fabsf(abDiff.dy) ? XyChoice::inY : XyChoice::inX;
-	float A = aPtT.pt.choice(xyChoice);
-	float B = bPtT.pt.choice(xyChoice);
-	OP_ASSERT(A != B);
-	float C = cPtT.pt.choice(xyChoice);
-	float D = dPtT.pt.choice(xyChoice);
-	OP_ASSERT(C != D);
-	bool flipped = A < B != C < D;
-	bool AinCD = OpMath::Between(C, A, D);
-	bool BinCD = OpMath::Between(C, B, D);
-	if (AinCD && BinCD)
-		return AddPair(xyChoice, aPtT, bPtT, cPtT, dPtT, flipped, segment, oppSegment);
-	bool CinAB = OpMath::Between(A, C, B);
-	bool DinAB = OpMath::Between(A, D, B);
-	if (CinAB && DinAB)
-		return AddPair(xyChoice, cPtT, dPtT, aPtT, bPtT, flipped, oppSegment, segment);
-	if (!AinCD && !BinCD)
-		return IntersectResult::no;
-	OP_ASSERT(CinAB || DinAB);
-	float AorB = AinCD ? A : B;
-	OpPtT ptTAorB = AinCD ? aPtT : bPtT;
-	float CorD = CinAB ? C : D;
-	OpPtT ptTCorD = CinAB ? cPtT : dPtT;
-	if (AorB == CorD) {
-		if (segment->sects.contains(ptTAorB, oppSegment))
-			return IntersectResult::yes;
-		OpIntersection* sect = segment->addSegSect(ptTAorB, oppSegment  OP_LINE_FILE_PARAMS());
-		OpIntersection* oSect = oppSegment->addSegSect(ptTCorD, segment  OP_LINE_FILE_PARAMS());
-		sect->pair(oSect);
-		return IntersectResult::yes;
-	}
-	// check if an existing coincidence range is extended
-	int coinID;
-	if (OpIntersection* segSect = segment->sects.contains(ptTAorB, oppSegment);
-			segSect && segSect->coincidenceID)
-		coinID = segSect->coincidenceID;
-	else if (OpIntersection* oppSect = oppSegment->sects.contains(ptTCorD, segment); 
-			oppSect && oppSect->coincidenceID)
-		coinID = oppSect->coincidenceID;
-	// pass a mix of seg and opp; construct one t for each
-	else
-		coinID = segment->coinID(flipped);
-	AddMix(xyChoice, ptTAorB, flipped, cPtT, dPtT, segment, oppSegment, coinID, 
-			ptTAorB == aPtT ? MatchEnds::start : MatchEnds::end);
-	AddMix(xyChoice, ptTCorD, flipped, aPtT, bPtT, oppSegment, segment, coinID, 
-			(ptTAorB == aPtT) == flipped ? MatchEnds::start : MatchEnds::end);
-	return IntersectResult::yes;
-}
-
-// this edge has points A, B; opp edge has points C, D
-// adds 0: no intersection; 1: end point only; 2: partial or full coincidence
-IntersectResult OpWinder::CoincidentCheck(const OpEdge& edge, const OpEdge& opp) {
-	return OpWinder::CoincidentCheck(edge.start(), edge.end(), opp.start(), opp.end(),
-			const_cast<OpSegment*>(edge.segment), const_cast<OpSegment*>(opp.segment));
-}
-#endif
-
-#if OP_NEW_COINCIDENCE
-#if 0
-void CoinEnd::addSect(int coinID, OpSegment* baseSeg, MatchReverse m, XyChoice xyChoice
-		OP_LINE_FILE_DEF()) {
-	OpIntersection* segSect = seg->sects.contains(ptT, opp);
-	OpIntersection* oppSect = opp->sects.contains({ ptT.pt, oppT.choice(xyChoice) }, seg);
-	MatchEnds segMatch = m.match;
-	MatchEnds oppMatch = m.flipped();
-	if (seg != baseSeg)
-		std::swap(segMatch, oppMatch);
-	if (segSect && oppSect && !segSect->coincidenceID && !oppSect->coincidenceID) {
-		segSect->setCoin(coinID, segMatch);
-		oppSect->setCoin(coinID, oppMatch);
-	} else {
-		OP_ASSERT(!segSect && !oppSect);
-		segSect = seg->addCoin(ptT, coinID, segMatch, opp  OP_LINE_FILE_CALLER());
-		oppSect = opp->addCoin({ ptT.pt, oppT.choice(xyChoice) }, coinID, oppMatch, seg  
-				OP_LINE_FILE_CALLER());
-	}
-	segSect->pair(oppSect);
-}
-
-void CoinEnd::aliasPtT(XyChoice xyChoice) {
-	OpPtAliases& aliases = seg->contour->contours->aliases;
-	OpPtT segPtT = seg->ptAtT(ptT);
-	if (OpPoint possibleAlias = aliases.existing(segPtT.pt); possibleAlias != segPtT.pt)
-		segPtT.pt = seg->contour->contours->remapPts(segPtT.pt, possibleAlias);
-	float choiceOppT = oppT.choice(xyChoice);
-	OpPoint oppPt = opp->ptAtT({ ptT.pt, choiceOppT }).pt;
-	if (!oppPt.isFinite())
-		oppPt = ptT.pt;
-	if (OpPoint possibleAlias = aliases.existing(oppPt); possibleAlias != oppPt)
-		oppPt = seg->contour->contours->remapPts(oppPt, possibleAlias);
-	if (segPtT.pt != oppPt)
-		seg->contour->contours->remapPts(oppPt, segPtT.pt);
-	ptT = segPtT;
-}
-#endif
 
 struct SectPtT {
 	SectPtT(OpSegment* seg, const OpSegment* opp, OpPtT cePtT, XyChoice xyChoice)
@@ -372,7 +273,6 @@ struct SectPair {
 		MatchEnds oppMatch = segMatch.flipped();
 		if (!isBaseSegment)
 			std::swap(segMatch.match, oppMatch);
-
 		if (seg.sect && opp.sect && !seg.sect->coincidenceID && !opp.sect->coincidenceID) {
 			seg.sect->setCoin(coinID, segMatch.match);
 			opp.sect->setCoin(coinID, oppMatch);
@@ -426,6 +326,18 @@ struct CoinSects {
 	void addSect(int coinID, bool oppReversed  OP_LINE_FILE_DEF()) {
 		start.addSect(MatchEnds::start, coinID, oppReversed  OP_LINE_FILE_CALLER());
 		end.addSect(MatchEnds::end, coinID, oppReversed  OP_LINE_FILE_CALLER());
+		OP_DEBUG_VALIDATE_CODE(start.seg.sect->debugCoinValidate());
+		OP_DEBUG_VALIDATE_CODE(start.opp.sect->debugCoinValidate());
+		OP_DEBUG_VALIDATE_CODE(end.seg.sect->debugCoinValidate());
+		OP_DEBUG_VALIDATE_CODE(end.opp.sect->debugCoinValidate());
+	}
+
+	bool areUnsectable() const {
+		auto unsectMatch = [](const OpIntersection* s, const OpIntersection* e) {
+			return s && e && s->unsectID && s->unsectID == e->unsectID;
+		};
+		return unsectMatch(start.seg.sect, end.seg.sect)
+				|| unsectMatch(start.opp.sect, end.opp.sect);
 	}
 
 	SectPair start;
@@ -542,251 +454,18 @@ IntersectResult OpWinder::CoincidentCheck(std::array<CoinEnd, 4>& ends, bool* op
 	} else if (!calcOppT(overlap ? 0 : 1, 3, 2))
 		return IntersectResult::no;
 	CoinSects coinSects(ends[1], ends[2], baseSeg, xyChoice);
+	if (coinSects.areUnsectable())
+		return IntersectResult::no;
 	if (coinSects.ptsAreClose)
 		return IntersectResult::yes;
 	int coinID = ends[0].seg->coinID(oppReversed);
 	coinSects.addSect(coinID, oppReversed  OP_LINE_FILE_PARAMS());
-
-#if 0
-	ends[1].addSect(coinID, baseSeg, { MatchEnds::start, oppReversed }, xyChoice
-			OP_LINE_FILE_PARAMS());
-	ends[2].addSect(coinID, baseSeg, { MatchEnds::end, oppReversed }, xyChoice
-			OP_LINE_FILE_PARAMS());
-#endif
 	if (oppReversedPtr)
 		*oppReversedPtr = oppReversed;
 	if (xyChoicePtr)
 	   *xyChoicePtr = xyChoice;
 	return IntersectResult::coincident;
 }
-#endif
-
-#if !OP_NEW_COINCIDENCE
-void OpWinder::AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped, OpPtT cPtT, OpPtT dPtT,
-		OpSegment* segment, OpSegment* oppSegment, int coinID, MatchEnds match) {
-	float eStart = ptTAorB.pt.choice(xyChoice);
-	if (flipped)
-		std::swap(cPtT, dPtT);
-	float oStart = cPtT.pt.choice(xyChoice);
-	float oEnd = dPtT.pt.choice(xyChoice);
-	float oTRange = dPtT.t - cPtT.t;
-	OpPtT oCoinStart { ptTAorB.pt, cPtT.t + (eStart - oStart) / (oEnd - oStart) * oTRange };
-	OP_ASSERT(OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t));
-	// !!! if sects already exist and are not marked coincident, just mark them?
-	OpIntersection* segSect = segment->sects.contains(ptTAorB, oppSegment);
-	OpIntersection* oppSect = oppSegment->sects.contains(oCoinStart, segment);
-	if (segSect && oppSect && !segSect->coincidenceID && !oppSect->coincidenceID) {
-		OP_ASSERT(MatchEnds::both != match);
-		segSect->setCoin(coinID, match);
-		oppSect->setCoin(coinID, flipped ? !match : match);
-	}
-	if (segSect || oppSect)  // required by fuzz763_3, fuzz763_5
-		return;
-	OpIntersection* sect = segment->contour->addCoinSect(ptTAorB, segment, coinID, match  
-			OP_LINE_FILE_PARAMS(oppSegment));
-	segment->sects.add(sect);
-	OpIntersection* oSect = oppSegment->contour->addCoinSect(oCoinStart, oppSegment, coinID, 
-			flipped ? MatchEnds::start : MatchEnds::end 
-			OP_LINE_FILE_PARAMS(segment));
-	oppSegment->sects.add(oSect);
-	OP_ASSERT(sect && oSect);
-	sect->pair(oSect);
-}
-
-// If we got here because a pair of edges are coincident, that coincidence may have already been
-// recorded when the pair of segments were checked, or the intersections may have been computed.
-// !!! if this code is attempting to grow existing coin runs (maybe it is?) then it needs to 
-//     remove the former ends so the result has a single start and end for each sect list run
-IntersectResult OpWinder::AddPair(XyChoice xyChoice, OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpPtT dPtT,
-	bool flipped, OpSegment* segment, OpSegment* oppSegment) {
-	// set range to contain intersections that match this segment and opposite segment
-	std::vector<OpIntersection*> range;
-	segment->sects.range(oppSegment, range);
-	// return existing intersection that matches segment coincident ends
-	auto findSect = [](const std::vector<OpIntersection*>& range, OpPtT ptT) {	// lambda
-		for (auto entry : range) {
-			if (entry->ptT.t == ptT.t || entry->ptT.pt == ptT.pt)
-				return entry;
-		}
-		return (OpIntersection*) nullptr;
-	};
-	// returns index into existing coincidence pairs. Even is outside pair, odd is inside pair.
-	// !!! note the return allows us to know if pair of calls to in coin range encompasses one or
-	//     more pairs, but we don't take advantage of that yet
-	auto inCoinRange = [](const std::vector<OpIntersection*>& range, float t, int* coinID) {
-		OpIntersection* coinStart = nullptr;
-		int index = 0;
-		for (auto entry : range) {
-			if (!entry->coincidenceID)
-				continue;
-			if (!coinStart) {
-				coinStart = entry;
-				++index;
-				continue;
-			}
-			OP_ASSERT(entry->coincidenceID == coinStart->coincidenceID);
-			if (coinStart->ptT.t <= t && t <= entry->ptT.t) {
-				if (coinID) {
-					OP_ASSERT(!*coinID || *coinID == coinStart->coincidenceID);	 // !!! assert means two coin runs; is that possible?
-					*coinID = coinStart->coincidenceID;
-				}
-				break;
-			}
-			coinStart = nullptr;
-			++index;
-		}
-		return (bool) (index & 1);
-	};
-	// find the intersection, or make one, if it is not within an existing coincident run
-	OpIntersection* sect1 = findSect(range, aPtT);
-	OpIntersection* sect2 = findSect(range, bPtT);
-	// remember if this t value is in a coincident range, and if so, which one
-	int coinID = 0;
-	bool aInCoincidence = inCoinRange(range, aPtT.t, &coinID);
-	bool bInCoincidence = inCoinRange(range, bPtT.t, &coinID);
-	bool addToExistingRange = false;
-	bool addedSect1 = false;
-	bool addedSect2 = false;
-	bool addedOSect1 = false;
-	bool addedOSect2 = false;
-	if (!coinID)
-		coinID = segment->coinID(flipped);
-	else {
-		OP_ASSERT(flipped ? coinID < 0 : coinID > 0);	// should never assert
-		addToExistingRange = true;
-	}
-	// assign a new or existing coin id if sect doesn't already have one
-	// this is called in cases as simple as two coincident line segments
-	// preflight both calls to addCoin; if either will fail, give up early
-	// (failure means that points are too close together to form a meaningful coincidence)
-	bool iStartContains = false;
-	bool iEndContains = false;
-	if (!aInCoincidence && !sect1)  // segment already has intersection (segment start); e.g., line doubles back
-		// and if it doesn't exist and isn't in a coin range, make one
-		iStartContains = segment->sects.contains(aPtT, oppSegment);
-	if (!bInCoincidence && !sect2)  // segment already has intersection (segment end); e.g., line doubles back
-		iEndContains = segment->sects.contains(bPtT, oppSegment);
-	if (iStartContains || iEndContains)
-		return IntersectResult::no;
-	std::vector<OpIntersection*> oRange;
-	oppSegment->sects.range(segment, oRange);
-	OpIntersection* oSect1 = findSect(oRange, { aPtT.pt, -1 });
-	OpIntersection* oSect2 = findSect(oRange, { bPtT.pt, -1 });
-	// add the opposite that goes with the created segment sect
-	float oStart = 0;
-	float oXYRange = 0;
-	if (!oSect1 || !oSect2) {
-		if (flipped)
-			std::swap(cPtT, dPtT);
-		oStart = cPtT.pt.choice(xyChoice);
-		float oEnd = dPtT.pt.choice(xyChoice);
-		oXYRange = oEnd - oStart;
-	}
-	bool setOSect1CoinID = false;
-	bool setOSect2CoinID = false;
-	OpPtT oCoinStart;
-	OpPtT oCoinEnd;
-	bool oStartContains = false;
-	bool oEndContains = false;
-	if (!oSect1) {
-		float eStart = aPtT.pt.choice(xyChoice);
-		oCoinStart = { aPtT.pt, OpMath::Interp(cPtT.t, dPtT.t, (eStart - oStart) / oXYRange) };
-		if (!OpMath::Between(cPtT.t, oCoinStart.t, dPtT.t))
-			return IntersectResult::fail;  // triggered by fuzz763_2b
-		oStartContains = oppSegment->sects.contains(oCoinStart, segment);
-	} else   // segment already has intersection (start or end); e.g., line doubles back
-			if (!(inCoinRange(oRange, oSect1->ptT.t, nullptr) & 1))
-		setOSect1CoinID = true;  // defer so that check of o sect 2 isn't affected
-	if (!oSect2) {
-		float eEnd = bPtT.pt.choice(xyChoice);
-		oCoinEnd = { bPtT.pt, OpMath::Interp(cPtT.t, dPtT.t, (eEnd - oStart) / oXYRange ) };
-		OP_ASSERT(OpMath::Between(cPtT.t, oCoinEnd.t, dPtT.t));
-		oEndContains = oppSegment->sects.contains(oCoinEnd, segment);
-	} else   // segment already has intersection (start or end); e.g., line doubles back
-			if (!(inCoinRange(oRange, oSect2->ptT.t, nullptr) & 1))
-		setOSect2CoinID = true;
-	// call addCoin only if both sides succeeded
-	if (oStartContains || oEndContains)
-		return IntersectResult::no;
-	if (!aInCoincidence) {
-		if (sect1) {
-			OP_ASSERT(!sect1->coincidenceID);
-			OP_ASSERT(MatchEnds::none == sect1->coinEnd);
-			sect1->setCoin(coinID, MatchEnds::start);
-			segment->sects.unsorted = true;
-		} else {
-			sect1 = segment->addCoin(aPtT, coinID, MatchEnds::start, oppSegment
-						OP_LINE_FILE_PARAMS());
-			OP_ASSERT(sect1);
-			addedSect1 = true;
-		}
-	}
-	if (!bInCoincidence) {
-		if (sect2) {
-			OP_ASSERT(!sect2->coincidenceID);
-			OP_ASSERT(MatchEnds::none == sect2->coinEnd);
-			sect2->setCoin(coinID, MatchEnds::end);
-			segment->sects.unsorted = true;
-		} else {
-			sect2 = segment->addCoin(bPtT, coinID, MatchEnds::end, oppSegment
-						OP_LINE_FILE_PARAMS());
-			OP_ASSERT(sect2);
-			addedSect2 = true;
-		}
-	}
-	if (!oSect1 && sect1) {
-		oSect1 = oppSegment->addCoin(oCoinStart, coinID, flipped ? MatchEnds::end 
-				: MatchEnds::start, segment  OP_LINE_FILE_PARAMS());
-		OP_ASSERT(oSect1);
-		sect1->pair(oSect1);
-		addedOSect1 = true;
-	}
-	if (!oSect2 && sect2) {
-		oSect2 = oppSegment->addCoin(oCoinEnd, coinID, flipped ? MatchEnds::start 
-				: MatchEnds::end, segment  OP_LINE_FILE_PARAMS());
-		OP_ASSERT(oSect2);
-		sect2->pair(oSect2);
-		addedOSect2 = true;
-	}
-	if (setOSect1CoinID) {
-		OP_ASSERT(!oSect1->coincidenceID);
-		OP_ASSERT(MatchEnds::none == oSect1->coinEnd);
-		oSect1->setCoin(coinID, flipped ? MatchEnds::end : MatchEnds::start); // !!! untested
-		oppSegment->sects.unsorted = true;
-	}
-	if (setOSect2CoinID) {
-		OP_ASSERT(!oSect2->coincidenceID);
-		OP_ASSERT(MatchEnds::none == oSect2->coinEnd);
-		oSect2->setCoin(coinID, flipped ? MatchEnds::start : MatchEnds::end);
-		oppSegment->sects.unsorted = true;
-	}
-	if (addToExistingRange) {
-		auto coinOutside = [](std::vector<OpIntersection*>& range, 
-				bool addedSect1, OpIntersection* sect1, bool addedSect2, OpIntersection* sect2) {
-			if (addedSect1 || addedSect2) {
-				if (addedSect1)
-					range.push_back(sect1);
-				if (addedSect2)
-					range.push_back(sect2);
-				std::sort(range.begin(), range.end(), [](
-						const OpIntersection* s1, const OpIntersection* s2) {
-						return s1->ptT.t < s2->ptT.t; });
-				for (auto sectIter = range.begin() + 1; sectIter < range.end() - 1; ++sectIter)
-					if ((*sectIter)->coincidenceID)
-						(*sectIter)->zeroCoincidenceID();
-			}
-		};
-		coinOutside(range, addedSect1, sect1, addedSect2, sect2);
-		segment->sects.unsorted |= addedSect1 | addedSect2;
-		coinOutside(oRange, addedOSect1, oSect1, addedOSect2, oSect2);
-		oppSegment->sects.unsorted |= addedOSect1 | addedOSect2;
-	}
-	if ((setOSect1CoinID || (sect1 && oSect1)) && (setOSect2CoinID || (sect2 && oSect2)))
-		return IntersectResult::yes;
-	else
-		return IntersectResult::fail;
-}
-#endif
 
 // upscale t to call segment line curve intersection
 // !!! I'm bothered that segment / segment calls a different form of this

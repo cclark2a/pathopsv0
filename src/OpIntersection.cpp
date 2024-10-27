@@ -47,6 +47,26 @@ OpIntersection* OpIntersections::contains(const OpPtT& ptT, const OpSegment* opp
 	return nullptr;
 }
 
+OpIntersection* OpIntersections::coinContains(OpPoint pt, const OpSegment* opp, OpPtT* nearby) {
+	OpIntersection* match = nullptr;
+	OpVector thresh = opp->threshold();
+	for (unsigned index = 0; index < i.size(); ++index) {
+		OpIntersection* sect = i[index];
+		bool sectNearby = sect->ptT.pt.isNearly(pt, thresh);
+		if (sectNearby)
+			*nearby = sect->ptT;
+		if (!sect->opp || sect->opp->segment != opp)
+			continue;
+		if (sect->coincidenceID)
+			return sect;
+		if (sectNearby)
+			match = sect;
+	}
+	if (match)
+		*nearby = match->ptT;
+	return match;
+}
+
 // this matches sects exactly, and is for pair lookups
 OpIntersection* const * OpIntersections::entry(const OpPtT& ptT, const OpSegment* opp) const {
 	for (unsigned index = 0; index < i.size(); ++index) {
@@ -393,46 +413,3 @@ void OpIntersections::sort() {
 	if (rangeStart + 2 <= index)
 		processEnd(index);
 }
-
-#if OP_DEBUG_VALIDATE
-void OpIntersection::debugValidate() const {
-	OP_ASSERT(OpMath::Between(0, ptT.t, 1));
-	OpPoint pt = segment->c.ptAtT(ptT.t);
-	OpMath::DebugCompare(pt, ptT.pt);
-	OpPoint oPt = opp->segment->c.ptAtT(opp->ptT.t);
-	OpMath::DebugCompare(pt, oPt);
-}
-#endif
-
-#if OP_DEBUG
-void OpIntersection::debugSetID() {
-	id = segment->nextID();
-}
-
-#if OP_DEBUG_VALIDATE
-void OpIntersections::debugValidate() const {
-	for (const auto sectPtr : i) {
-		OP_ASSERT(sectPtr->opp->opp == sectPtr);
-		OP_ASSERT(sectPtr->ptT.pt == sectPtr->opp->ptT.pt 
-				|| (!!sectPtr->unsectID && !!sectPtr->opp->unsectID));
-	}
-}
-#endif
-
-bool OpIntersections::debugContains(const OpPtT& ptT, const OpSegment* opp) const {
-	for (auto sect : i) {
-		if ((sect->ptT.pt == ptT.pt || sect->ptT.t == ptT.t) 
-				&& sect->opp && sect->opp->segment == opp)
-			return true;
-	}
-	return false;
-}
-
-OpIntersection* OpIntersections::debugAlreadyContains(const OpPoint& pt, const OpSegment* oppSegment) const {
-	for (auto sect : i) {
-		if (oppSegment == sect->opp->segment && pt == sect->ptT.pt)
-			return sect;
-	}
-	return nullptr;
-}
-#endif

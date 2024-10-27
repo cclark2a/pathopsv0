@@ -404,10 +404,6 @@ bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 		const OpPtT& oppStart, const OpPtT& oppEnd) {
 //	OpBreak2(seg, opp, 3, 6);
 	OpVector threshold = contours->threshold();
-	if (edgeStart.isNearly(edgeEnd, threshold))
-		return false;
-	if (oppStart.isNearly(oppEnd, threshold))
-		return false;
 	OpPtT eStart = edgeStart;
 	OpPtT eEnd = edgeEnd;
 	OpPtT oStart = oppStart;
@@ -423,11 +419,10 @@ bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 	MatchReverse match { MatchEnds::start, oStart.t > oEnd.t };
 	IsCoin isCoin = eStart.pt == (match.reversed ? oEnd.pt : oStart.pt) 
 			&& eEnd.pt == (match.reversed ? oStart.pt : oEnd.pt) ? IsCoin::yes : IsCoin::no;
-	auto setSectPair = [isCoin, this](const OpPtT& edgePt, const OpPtT& oppPt, 
-			const OpPtT& ePt, const OpPtT& oPt) {
+	auto setSectPair = [isCoin, this](const OpPtT& ePt, const OpPtT& oPt) {
 		SectPair result;
-		result.s = seg->sects.contains(IsCoin::yes == isCoin ? ePt : edgePt, opp);
-		result.o = opp->sects.contains(IsCoin::yes == isCoin ? oPt : oppPt, seg);
+		result.s = seg->sects.contains(ePt, opp);
+		result.o = opp->sects.contains(oPt, seg);
 		if (!result.s != !result.o) {
 			if (result.o)
 				result.s = result.o->opp;
@@ -438,10 +433,10 @@ bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 				&& (IsCoin::yes == isCoin ? result.s->coincidenceID : result.s->unsectID);
 		return result;
 	};
-	SectPair sect1 = setSectPair(edgeStart, oppStart, eStart, oStart);
+	SectPair sect1 = setSectPair(eStart, oStart);
 	if (sect1.alreadySet)
 		return false;
-	SectPair sect2 = setSectPair(edgeEnd, oppEnd, eEnd, oEnd);
+	SectPair sect2 = setSectPair(eEnd, oEnd);
 	if (sect2.alreadySet)
 		return false;
 	int usectID = seg->nextID();
@@ -465,22 +460,20 @@ bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 			return segs->addCoin(start, ie.id, ie.matchEnds, opps  OP_LINE_FILE_PARAMS());
 		return segs->addUnsectable(start, ie.id, ie.matchEnds, opps  OP_LINE_FILE_PARAMS());
 	};
-	auto addPair = [isCoin, this, addSect, setSect](SectPair sPair,
-			const OpPtT& edgePt, const OpPtT& oppPt, const OpPtT& ePt, const OpPtT& oPt) {
+	auto addPair = [this, addSect, setSect](SectPair sPair,
+			const OpPtT& ePt, const OpPtT& oPt) {
 		if (sPair.s) {
 			setSect(sPair.s, IsOpp::no);
 			setSect(sPair.o, IsOpp::yes);
 		} else {
-			sPair.s = addSect(seg, opp, IsCoin::yes == isCoin ? ePt : edgePt, IsOpp::no
-					OP_LINE_FILE_PARAMS());
-			sPair.o = addSect(opp, seg, IsCoin::yes == isCoin ? oPt : oppPt,
-					IsOpp::yes  OP_LINE_FILE_PARAMS());
+			sPair.s = addSect(seg, opp, ePt, IsOpp::no  OP_LINE_FILE_PARAMS());
+			sPair.o = addSect(opp, seg, oPt, IsOpp::yes  OP_LINE_FILE_PARAMS());
 			sPair.s->pair(sPair.o);
 		}
 	};
-	addPair(sect1, edgeStart, oppStart, eStart, oStart);
+	addPair(sect1, eStart, oStart);
 	match.match = MatchEnds::end;
-	addPair(sect2, edgeEnd, oppEnd, eEnd, oEnd);
+	addPair(sect2, eEnd, oEnd);
 	addedPoint = true;
 	return true; 
 }
@@ -690,7 +683,8 @@ SectFound OpCurveCurve::divideAndConquer() {
 			if (!reduceDistFlipped())
 				return SectFound::add;
 			lastDepthReduced = true;
-			continue;
+			if (!snipEm)
+				continue;
 		}
 #if OP_DEBUG && OP_DEBUG_VERBOSE  // save state prior to split and delete
 		debugSaveState();
@@ -953,6 +947,8 @@ bool OpCurveCurve::reduceDistFlipped() {
 		curves = &oppCurves;
 	} while ((swap = !swap));
 	if (edgeSplits.c.size()) {
+		edgeSplits.deleted = edgeCurves.deleted;
+		oppSplits.deleted = oppCurves.deleted;
 		edgeCurves = edgeSplits;
 		oppCurves = oppSplits;
 		edgeCurves.oppCurves = &oppCurves;

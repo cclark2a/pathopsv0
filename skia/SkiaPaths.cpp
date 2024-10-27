@@ -153,24 +153,26 @@ void SetSkiaCurveCallBacks(Context* context) {
     );
 }
 
-#if OP_DEBUG_DUMP && !OP_TINY_SKIA
+#if !OP_TINY_SKIA
 #include "include/core/SkStream.h"
 
-std::string dumpSkPath(const SkPath* path, DebugBase debugBase) {
+std::string dumpSkPath(const SkPath* path, bool inHex) {
     SkDynamicMemoryWStream memoryStream;
-    path->dump(&memoryStream, DebugBase::hex == debugBase);
+    path->dump(&memoryStream, inHex);
     std::string str;
     str.resize(memoryStream.bytesWritten());
     memoryStream.copyTo(str.data());
     str.pop_back();
-    return "skPath:" + str;
+    return str;
 }
+#endif
 
+#if OP_DEBUG_DUMP && !OP_TINY_SKIA
 std::string unaryDumpFunc(CallerData caller, DebugLevel debugLevel, DebugBase debugBase) {
     OP_ASSERT(sizeof(SkiaSimplifyContourData) == caller.size);
     SkiaSimplifyContourData simplifyUserData;
     std::memcpy(&simplifyUserData, caller.data, caller.size);
-    std::string s = dumpSkPath(simplifyUserData.pathPtr, debugBase) + "\n";
+    std::string s = dumpSkPath(simplifyUserData.pathPtr, DebugBase::hex == debugBase) + "\n";
     return s;
 }
 
@@ -178,7 +180,7 @@ std::string binaryDumpFunc(CallerData caller, DebugLevel debugLevel, DebugBase d
     OP_ASSERT(sizeof(SkiaOpContourData) == caller.size);
     SkiaOpContourData opUserData;
     std::memcpy(&opUserData, caller.data, caller.size);
-    std::string s = dumpSkPath(opUserData.pathPtr, debugBase) + "\n";
+    std::string s = dumpSkPath(opUserData.pathPtr, DebugBase::hex == debugBase) + "\n";
     std::vector<std::string> skPathOpNames { "Difference", "Intersect", "Union",  "XOR",
         "ReverseDifference"  };
     OP_ASSERT(BinaryOperation::Difference <= opUserData.data.operation 

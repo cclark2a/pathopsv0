@@ -17,8 +17,8 @@
 #define OP_TEST_SKIA 1  // see if skia's path ops can execute the same test
 #define OP_TEST_REGION 1  // test result of v0 against skia regions
 
-#define CURVE_CURVE_1 7  // id of segment 1 to break in divide and conquer
-#define CURVE_CURVE_2 2  // id of segment 2 to break in divide and conquer
+#define CURVE_CURVE_1 6  // id of segment 1 to break in divide and conquer
+#define CURVE_CURVE_2 3  // id of segment 2 to break in divide and conquer
 #define CURVE_CURVE_DEPTH -1  // minimum recursion depth for curve curve break (-1 to disable)
 
 // see descriptions for exceptions below
@@ -758,22 +758,112 @@ int VerifySimplify(const SkPath& one, std::string testname, const SkPath& result
     return errors;
 }
 
+std::string debugSimplifyTest(const char* testname, const SkPath& path) {
+	std::string s;
+    s += "void " + STR(testname) + "(skiatest::Reporter* reporter, const char* filename) {\n";
+    s += "    SkPath path;\n";
+#if !OP_TINY_SKIA  // !!! missing dump path equivalent in tiny skia implementation
+	s += dumpSkPath(&path, false) + "\n";
+#endif
+	s += "    testSimplify(reporter, path, filename);\n";
+    s += "}\n\n";
+    s += "static struct TestDesc tests[] = {\n";
+    s += "    TEST(" + std::string(testname) + "),";
+	return s;
+}
+
 // char* so it can be called from immediate window
 void dumpSimplifyTest(const char* testname, const SkPath& path) {
-    OpDebugOut("\nvoid ");
-    OpDebugOut(testname);
-    OpDebugOut("(skiatest::Reporter* reporter, const char* filename) {\n");
-    OpDebugOut("    SkPath path;\n");
-    path.dump();
-    OpDebugOut("    testSimplify(reporter, path, filename);\n");
-    OpDebugOut("}\n\n");
-    OpDebugOut("static struct TestDesc tests[] = {\n");
-    OpDebugOut("    TEST(" + std::string(testname) + "),\n");
+	std::string s = "\n";
+	s += debugSimplifyTest(testname, path) + "\n";
+    OpDebugOut(s);
+}
+
+struct AutoClose {
+    AutoClose(FILE* f)
+		: file(f) {}
+    ~AutoClose() {
+		fclose(file); }
+
+    FILE* file;
+};
+
+struct AutoFree {
+	AutoFree(void* b)
+		: buffer((char*) b) {}
+	~AutoFree() {
+		free(buffer); }
+
+	char* buffer;
+};
+
+static void edit(std::string filename, std::string match, std::string replace) {
+	std::string directory = "../../../example/";  //e.g., D:\gerrit\skia\out\Debug\obj
+	std::string readName = directory + filename;
+	AutoClose readf(fopen(readName.c_str(), "rb"));
+	if (!readf.file)
+		return OpDebugOut("could not read " + readName + "\n");
+	if (fseek(readf.file, 0 , SEEK_END))
+		return OpDebugOut("fseek to end failed:" + filename + "\n");
+	long fileSize = ftell(readf.file);
+	long allocSize = fileSize + replace.size();
+	if (fseek(readf.file, 0 , SEEK_SET))
+		return OpDebugOut("fseek to start failed:" + filename + "\n");
+ 	AutoFree read(malloc(allocSize));
+	if (!read.buffer)
+		return OpDebugOut("malloc failed:" + readName + "; size:" + STR(allocSize) + "\n");
+	size_t bytesRead = fread(read.buffer, 1, fileSize, readf.file);
+	if (bytesRead < (size_t) fileSize)
+		return OpDebugOut("read failed:" + readName + "; read:" + STR(bytesRead) 
+				+ " expected:" + STR(fileSize) + "\n");
+	fclose(readf.file);
+	std::string writeName = directory + "temp";
+	AutoClose write(fopen(writeName.c_str(), "wb"));
+	if (!write.file)
+		return OpDebugOut("could not open " + writeName + "\n");
+	char* matchPos = strstr(read.buffer, match.c_str());
+	if (!matchPos)
+		return OpDebugOut("no match in:" + filename + " for:" + match + "\n");
+	ptrdiff_t startSize = matchPos - read.buffer;
+	size_t bytesWritten = fwrite(read.buffer, 1, startSize, write.file);
+	if (bytesWritten != (size_t) startSize)
+		return OpDebugOut("write start failed:" + filename + "; written:" + STR(bytesWritten)
+				+ " expected:" + STR(startSize) + "\n:");
+	bytesWritten = fwrite(replace.c_str(), 1, replace.size(), write.file);
+	if (bytesWritten != replace.size())
+		return OpDebugOut("write replace failed:" + filename + "; written:" + STR(bytesWritten)
+				+ " expected:" + STR(replace.size()) + "\n:");
+	size_t endPos = startSize + match.size();
+	bytesWritten = fwrite(read.buffer + endPos, 1, fileSize - endPos, write.file);
+	if (bytesWritten < fileSize - endPos)
+		return OpDebugOut("write failed:" + writeName + "; written:" + STR(bytesWritten) 
+				+ " expected:" + STR(fileSize - endPos) + "\n");
+	fclose(write.file);
+	remove(readName.c_str());
+	rename(writeName.c_str(), readName.c_str());
+}
+
+void v0(const char* testname, const SkPath& path) {
+#if 01 && defined _WIN32
+   char full[_MAX_PATH];
+   if( _fullpath( full, ".\\", _MAX_PATH ) != NULL )
+      OpDebugOut( "Full path is: " + std::string(full) + "\n");
+   else
+      OpDebugOut( "Invalid path\n" );
+#endif
+	edit("tests/OpTestDrive.h", "#define OP_DEBUG_FAST_TEST 1", "#define OP_DEBUG_FAST_TEST 0");
+	std::string addedTest = debugSimplifyTest(testname, path);
+	edit("tests/OpV0Tests.cpp", "static struct TestDesc tests[] = {", addedTest);
+}
+
+void run() {
+	edit("tests/OpTestDrive.h", "#define OP_DEBUG_FAST_TEST 0", "#define OP_DEBUG_FAST_TEST 1");
 }
 
 void threadableSimplifyTest(int id, const SkPath& path, std::string testname, 
             SkPath& out, bool v0MayFail, bool skiaMayFail) {
 #if OP_TEST_V0
+	const SkPath& p = path;
     out.setFillType(SkPathFillType::kEvenOdd); // !!! workaround
     std::vector<OpDebugWarning> warnings;
     const char* tn = testname.c_str();
@@ -833,7 +923,9 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
 #if OP_DEBUG_FAST_TEST
         std::lock_guard<std::mutex> guard(out_mutex);
 #endif
-        dumpSimplifyTest(testname.c_str(), path)
+		
+		v0(tn, p);
+        dumpSimplifyTest(tn, p)
             ;   // <<<<<<<< paste this into immediate window
         ReportError(testname, errors, warnings);
 #endif

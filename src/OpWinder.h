@@ -39,7 +39,6 @@ enum class FoundWindings {
 	yes
 };
 
-#if OP_NEW_COINCIDENCE
 struct CoinEnd {
 //	void addSect(int coinID, OpSegment* baseSeg, MatchReverse m, XyChoice  OP_LINE_FILE_DEF());
 //	void aliasPtT(XyChoice );
@@ -52,7 +51,6 @@ struct CoinEnd {
 	OpPtT ptT;
 	OpVector oppT;
 };
-#endif
 
 struct OpWinder {
 	OpWinder(OpContours& contours, EdgesToSort edgesToSort);
@@ -60,18 +58,9 @@ struct OpWinder {
 	void addEdge(OpEdge* , EdgesToSort );
 	static IntersectResult AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, 
 			bool secondAttempt = false);
-#if !OP_NEW_COINCIDENCE
-	static void AddMix(XyChoice xyChoice, OpPtT ptTAorB, bool flipped, OpPtT cPtT, OpPtT dPtT,
-			OpSegment* segment, OpSegment* oppSegment, int coinID, MatchEnds );
-	static IntersectResult AddPair(XyChoice offset, OpPtT aPtT, OpPtT bPtT, OpPtT cPtT, OpPtT dPtT,
-			bool flipped, OpSegment* segment, OpSegment* oppSegment);
-	static IntersectResult CoincidentCheck(OpPtT ptTa, OpPtT ptTb, OpPtT ptTc, OpPtT ptTd,
-			OpSegment* segment, OpSegment* oppSegment);
-#else
 	static IntersectResult CoincidentCheck(OpSegment* seg, OpSegment* opp);
 	static IntersectResult CoincidentCheck(std::array<CoinEnd, 4>& ends, bool* oppReversed,
 			XyChoice* );
-#endif
 	static IntersectResult CoincidentCheck(const OpEdge& edge, const OpEdge& opp);
 	FoundIntercept findRayIntercept(size_t inIndex, OpVector tangent, float normal, float homeCept);
 	void markUnsortable(Unsortable );

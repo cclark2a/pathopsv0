@@ -57,7 +57,7 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 	}
 	OpPointBounds childBounds = test->lastEdge ? test->linkBounds : 
 			otherEnd ? otherEnd->linkBounds : test->ptBounds;
-	if (parent)  // if not trunk
+	if (parent && LimbPass::disjoint != treePass)  // if not trunk
 		childBounds.add(bounds);
 	// if this edge added to limb bounds makes perimeter larger than best, skip
 	// !!! are their cases where smallest perimeter is not the best test?
@@ -271,8 +271,21 @@ void OpTree::addDisabled(OpJoiner& join) {
 				limb.resetPass = false;
 				return;
 			}
-			limb.tryAdd(*this, test, EdgeMatch::start, LimbPass::disabledPals);
-			limb.tryAdd(*this, test, EdgeMatch::end, LimbPass::disabledPals);
+			auto addPal = [this, &limb, &test](EdgeMatch match) {
+				for (OpIntersection* unSect : test->unSects) {
+					OpIntersection* unOpp = unSect->opp;
+					if (unOpp->ptT.pt == unSect->ptT.pt)
+						continue;
+					OpEdge* filler = addFiller(unSect->ptT, unOpp->ptT);
+					filler->setWhich(EdgeMatch::start);
+					OpLimb* branch = makeLimb();
+					branch->set(*this, filler, &limb, match, LimbPass::disjoint, 0, nullptr);
+				}
+			};
+			if (limb.tryAdd(*this, test, EdgeMatch::start, LimbPass::disabledPals))
+				addPal(EdgeMatch::start);
+			if (limb.tryAdd(*this, test, EdgeMatch::end, LimbPass::disabledPals))
+				addPal(EdgeMatch::end);
 		} while (++index < totalUsed);
 	}
 }

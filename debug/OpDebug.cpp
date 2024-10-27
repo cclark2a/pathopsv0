@@ -260,7 +260,6 @@ void record() {
     dmpRecord(recordFile);
 	fclose(recordFile);
 }
-
 #endif
 
 int OpDebugCountDelimiters(const char* str, char delimiter, char openBracket, char closeBracket) {
@@ -562,6 +561,114 @@ bool OpEdge::debugValidLoop() const {
 }
 #endif
 
+#include "OpIntersection.h"
+
+#if OP_DEBUG_VALIDATE
+void OpIntersection::debugValidate() const {
+	OP_ASSERT(OpMath::Between(0, ptT.t, 1));
+	OpPoint pt = segment->c.ptAtT(ptT.t);
+	OpMath::DebugCompare(pt, ptT.pt);
+	OpPoint oPt = opp->segment->c.ptAtT(opp->ptT.t);
+	OpMath::DebugCompare(pt, oPt);
+}
+
+void OpIntersection::debugCoinValidate() const {
+	const OpIntersection* coins[4] = { nullptr, nullptr, nullptr, nullptr };
+	int match[4] = { -1, -1, -1, -1 };
+	int used = 0;
+	int segCnt = 0;
+	int oppCnt = 0;
+	int segStart = 0;
+	int segEnd = 0;
+	int oppStart = 0;
+	int oppEnd = 0;
+	OP_ASSERT(coincidenceID);
+	for (auto seg : { segment, opp->segment } ) {
+		for (auto sect : seg->sects.i) {
+			if (sect->coincidenceID != coincidenceID)
+				continue;
+			OP_ASSERT(used < 4);
+			coins[used] = sect;
+			if (sect->segment == segment) {
+				++segCnt;
+				segStart += MatchEnds::start == sect->coinEnd;
+				segEnd += MatchEnds::end == sect->coinEnd;
+			}
+			if (sect->segment == opp->segment) {
+				++oppCnt;
+				oppStart += MatchEnds::start == sect->coinEnd;
+				oppEnd += MatchEnds::end == sect->coinEnd;
+			}
+			for (int inner = 0; inner < used; ++inner) {
+				if (coins[inner]->ptT.pt == coins[used]->ptT.pt) {
+					match[inner] = used;
+					match[used] = inner;
+				}
+			}
+			++used;
+		}
+	}
+	OP_ASSERT(4 == used);
+	OP_ASSERT(2 == segCnt);
+	OP_ASSERT(2 == oppCnt);
+	OP_ASSERT(1 == segStart);
+	OP_ASSERT(1 == segEnd);
+	OP_ASSERT(1 == oppStart);
+	OP_ASSERT(1 == oppEnd);
+	for (int index = 0; index < 4; ++index)
+		OP_ASSERT(0 <= match[index] && match[index] < 4);
+	for (int index = 0; index < 4; ++index)
+		OP_ASSERT(index == match[match[index]]);
+	OP_ASSERT(coins[0]->ptT.t != coins[1]->ptT.t);
+	if (coins[0]->ptT.t < coins[1]->ptT.t) {
+		OP_ASSERT(MatchEnds::start == coins[0]->coinEnd);
+		OP_ASSERT(MatchEnds::end == coins[1]->coinEnd);
+	} else {
+		OP_ASSERT(MatchEnds::end == coins[0]->coinEnd);
+		OP_ASSERT(MatchEnds::start == coins[1]->coinEnd);
+	}
+	OP_ASSERT(coins[2]->ptT.t != coins[3]->ptT.t);
+	if (coins[2]->ptT.t < coins[3]->ptT.t) {
+		OP_ASSERT(MatchEnds::start == coins[2]->coinEnd);
+		OP_ASSERT(MatchEnds::end == coins[3]->coinEnd);
+	} else {
+		OP_ASSERT(MatchEnds::end == coins[2]->coinEnd);
+		OP_ASSERT(MatchEnds::start == coins[3]->coinEnd);
+	}
+}
+#endif
+
+void OpIntersection::debugSetID() {
+	id = segment->nextID();
+}
+
+#if OP_DEBUG_VALIDATE
+void OpIntersections::debugValidate() const {
+	for (const auto sectPtr : i) {
+		OP_ASSERT(sectPtr->opp->opp == sectPtr);
+		OP_ASSERT(sectPtr->ptT.pt == sectPtr->opp->ptT.pt 
+				|| (!!sectPtr->unsectID && !!sectPtr->opp->unsectID));
+	}
+}
+#endif
+
+bool OpIntersections::debugContains(const OpPtT& ptT, const OpSegment* opp) const {
+	for (auto sect : i) {
+		if ((sect->ptT.pt == ptT.pt || sect->ptT.t == ptT.t) 
+				&& sect->opp && sect->opp->segment == opp)
+			return true;
+	}
+	return false;
+}
+
+OpIntersection* OpIntersections::debugAlreadyContains(const OpPoint& pt, const OpSegment* oppSegment) const {
+	for (auto sect : i) {
+		if (oppSegment == sect->opp->segment && pt == sect->ptT.pt)
+			return sect;
+	}
+	return nullptr;
+}
+
 #include "OpJoiner.h"
 
 void OpContours::debugRemap(int oldRayMatch, int newRayMatch) {
@@ -774,7 +881,7 @@ std::string debugContext;
 void debugImage() {
 #if OP_DEBUG_IMAGE
     if ("linkRemaining" == debugContext || "linkUnambiguous" == debugContext 
-            || "apply" == debugContext) {
+            || "apply" == debugContext || "makeCoins" == debugContext) {
         ::hideOperands();
         ::showEdges();
         ::showIDs();

@@ -37,6 +37,10 @@ PathOpsV0Lib::Contour* SetSkiaOpCallBacks(PathOpsV0Lib::Context* , SkPathOp op,
 		PathOpsV0Lib::BinaryOperand , PathOpsV0Lib::BinaryWindType  OP_DEBUG_PARAMS(const SkPath&));
 void AddSkiaPath(PathOpsV0Lib::AddWinding , const SkPath& path);
 
+#if !OP_TINY_SKIA
+std::string dumpSkPath(const SkPath* path, bool inHex);
+#endif
+
 #if OP_DEBUG_IMAGE
 void debugLineAddToSkPath(PathOpsV0Lib::Curve , SkPath& );
 void debugQuadAddToSkPath(PathOpsV0Lib::Curve , SkPath& );

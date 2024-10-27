@@ -125,12 +125,7 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 		return;
 	}
 	if (2 == septs.count && opp->c.isLine()) {
-#if OP_NEW_COINCIDENCE
 		OpWinder::CoincidentCheck(seg, opp);
-#else
-		OpWinder::CoincidentCheck({ edgePts.pts[0], 0 }, { edgePts.pts[1], 1 },
-				{ opp->c.firstPt(), 0}, { opp->c.lastPt(), 1 }, seg, opp );
-#endif
 		return;
 	}
 	std::vector<OpPtT> oppPtTs;
@@ -175,10 +170,8 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 			continue;
 			// don't add sects here if coincident or unsectable will be added below --
 			// i guess record this and defer until after coin/unsect has been checked
-		OpIntersection* sect = seg->addSegBase(edgePtT  
-				OP_LINE_FILE_PARAMS(opp));
-		OpIntersection* oSect = opp->addSegBase(oppPtT  
-				OP_LINE_FILE_PARAMS(seg));
+		OpIntersection* sect = seg->addSegBase(edgePtT  OP_LINE_FILE_PARAMS(opp));
+		OpIntersection* oSect = opp->addSegBase(oppPtT  OP_LINE_FILE_PARAMS(seg));
 		sect->pair(oSect);
 	}
 	// if pair share two intersections, and mid t is close, mark intersections as unsectable
@@ -296,13 +289,7 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
 			return IntersectResult::no;
 		if (!seg->ptBounds.intersects(opp->ptBounds))  // close bounds intersect, ptBounds do not
 			return IntersectResult::no;
-#if OP_NEW_COINCIDENCE
 		return OpWinder::CoincidentCheck(seg, opp);
-#else
-		seg->makeEdge(OP_LINE_FILE_NPARAMS());
-		opp->makeEdge(OP_LINE_FILE_NPARAMS());
-		return OpWinder::CoincidentCheck(seg->edges.front(), opp->edges.front());
-#endif
 	}
 	LinePts oppLine = opp->c.linePts();
 	OpCurve vertSeg = seg->c.toVertical(oppLine, ends.match);
@@ -322,67 +309,10 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
 	}
 	if (!vertOpp.isVertical())
 		return IntersectResult::no;
-#if OP_NEW_COINCIDENCE
 	LinePts edgePts;
 	if (fabsf(vertSeg.firstPt().x - vertOpp.firstPt().x) > OpEpsilon)
 		return IntersectResult::no;
 	return OpWinder::CoincidentCheck(seg, opp);
-#else
-	OpPtT oppInSeg[2], segInOpp[2];
-	OpPtT* oppInSegPtr = oppInSeg;
-	OpPtT* segInOppPtr = segInOpp;
-	auto checkBetween = [](OpCurve& vert, OpCurve& base, float test, OpPtT*& inPtr) {
-		if (OpMath::Between(vert.firstPt().y, test, vert.lastPt().y)
-				&& vert.firstPt().y != test && test != vert.lastPt().y) {
-			float t = OpMath::XYRatio(vert.firstPt().y, vert.lastPt().y, test);
-			*inPtr++ = OpPtT(OpMath::Interp(base.firstPt(), base.lastPt(), t), t);
-			return true;
-		}
-		return false;
-	};
-	auto checkVert = [checkBetween](OpCurve& vertBase, OpCurve& segCurve, OpCurve& vertO, 
-			OpCurve& oppCurve, OpPtT*& oInSegPtr, OpPtT*& sInOppPtr
-			OP_DEBUG_PARAMS(OpPtT* oInSeg, OpPtT* sInOpp)) {
-		if (checkBetween(vertBase, segCurve, vertO.firstPt().y, oInSegPtr))
-			*sInOppPtr++ = OpPtT(oppCurve.firstPt(), 0);
-		if (checkBetween(vertBase, segCurve, vertO.lastPt().y, oInSegPtr))
-			*sInOppPtr++ = OpPtT(oppCurve.lastPt(), 1);
-	};
-	OpCurve vertSegBase = seg->c.toVertical(segLine, MatchEnds::start);
-	checkVert(vertSegBase, seg->c, vertOpp, opp->c, oppInSegPtr, segInOppPtr
-			OP_DEBUG_PARAMS(oppInSeg, segInOpp));
-	OpCurve vertOppBase = opp->c.toVertical(oppLine, MatchEnds::start);
-	checkVert(vertOppBase, opp->c, vertSeg, seg->c, segInOppPtr, oppInSegPtr
-			OP_DEBUG_PARAMS(segInOpp, oppInSeg));
-	if (MatchEnds::none != ends.match) {
-		if (oppInSegPtr >= &oppInSeg[2])
-			return IntersectResult::no;  // triggered by fuzz763_2b
-		*oppInSegPtr++ = MatchEnds::start == ends.match 
-				? OpPtT(seg->c.firstPt(), 0) : OpPtT(seg->c.lastPt(), 1);
-		if (segInOppPtr >= &segInOpp[2])
-			return IntersectResult::no;
-		*segInOppPtr++ = MatchEnds::start == ends.flipped() 
-				? OpPtT(opp->c.firstPt(), 0) : OpPtT(opp->c.lastPt(), 1);
-	}
-	if (oppInSegPtr - oppInSeg != 2)
-		return IntersectResult::no;
-	if (segInOppPtr - segInOpp != 2)
-		return IntersectResult::no;
-	if (oppInSeg[0].t > oppInSeg[1].t) {
-		std::swap(oppInSeg[0], oppInSeg[1]);
-		std::swap(segInOpp[0], segInOpp[1]);
-	}
-//    OP_ASSERT(oppInSeg[0].pt.isNearly(segInOpp[0].pt));
-//    OP_ASSERT(oppInSeg[1].pt.isNearly(segInOpp[1].pt));
-	OpPtT::MeetInTheMiddle(oppInSeg[0], segInOpp[0]);
-	OpPtT::MeetInTheMiddle(oppInSeg[1], segInOpp[1]);
-	OpVector segV = oppInSeg[1].pt - oppInSeg[0].pt;
-	XyChoice larger = fabsf(segV.dx) > fabsf(segV.dy) ? XyChoice::inX : XyChoice::inY;
-	if (oppInSeg[0].pt == oppInSeg[1].pt || segInOpp[0].pt == segInOpp[1].pt)
-		return IntersectResult::no;
-	return OpWinder::AddPair(larger, oppInSeg[0], oppInSeg[1], segInOpp[0], segInOpp[1],
-			segInOpp[0].t > segInOpp[1].t, seg, opp);
-#endif
 }
 
 // note: ends have already been matched for consecutive segments
@@ -459,6 +389,7 @@ FoundIntersections OpSegments::findIntersections() {
 			}
 			if (SectFound::add == ccResult || cc.limits.size())
 				cc.findUnsectable();
+			OP_DEBUG_CONTEXT();
 		}
 		if (!seg->sects.i.size())
 			seg->disabled = true;
