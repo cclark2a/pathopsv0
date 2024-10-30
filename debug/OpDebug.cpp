@@ -827,8 +827,12 @@ bool OpJoiner::DebugShowImage() {
 	::showFill();
 #endif
 	  // break if running last failed fast test
-	return TEST_PATH_OP_SKIP_TO_V0 && (OP_DEBUG_FAST_TEST || (!TEST_PATH_OP_SKIP_TO_V0 
-			&& (!OP_DEBUG_BREAK_IN_LINK_REMAINING || DEFEAT_LOCAL_BREAK)));
+#if TEST_PATH_OP_SKIP_TO_V0
+	return  OP_DEBUG_FAST_TEST || (!TEST_PATH_OP_SKIP_TO_V0 
+			&& (!OP_DEBUG_BREAK_IN_LINK_REMAINING || DEFEAT_LOCAL_BREAK));
+#else
+	return false;
+#endif
 }
 
 #if OP_DEBUG_VALIDATE

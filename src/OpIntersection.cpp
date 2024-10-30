@@ -119,7 +119,6 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 			segment->edges.emplace_back(first, sectPtr  OP_LINE_FILE_PARAMS());
 			first = sectPtr;
 			OpEdge& newEdge = segment->edges.back();
-			OpBreak(&newEdge, 33);
 			if (unsectables.size())
 				newEdge.unSects = unsectables;
 			if (coincidences.size()) {
