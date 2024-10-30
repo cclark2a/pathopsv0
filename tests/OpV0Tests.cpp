@@ -6468,7 +6468,177 @@ path.close();
     testSimplify(reporter, path, filename);
 }
 
+void testQuads18888539(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(3, 0);
+path.quadTo(1, 2, 2, 2);
+path.lineTo(1, 3);
+path.lineTo(3, 0);
+path.close();
+path.moveTo(3, 0);
+path.lineTo(2, 1);
+path.quadTo(3, 2, 1, 3);
+path.lineTo(3, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads1935304(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 0);
+path.quadTo(1, 0, 1, 3);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(0, 1);
+path.lineTo(0, 1);
+path.quadTo(1, 1, 1, 2);
+path.lineTo(0, 1);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads11287091(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 0);
+path.quadTo(2, 2, 1, 3);
+path.lineTo(3, 3);
+path.lineTo(1, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(0, 0);
+path.quadTo(2, 1, 2, 3);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads20806986(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(0, 1);
+path.quadTo(2, 1, 1, 2);
+path.lineTo(0, 3);
+path.lineTo(0, 1);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(2, 0);
+path.quadTo(2, 1, 0, 2);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads23202347(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 1);
+path.quadTo(2, 1, 2, 3);
+path.lineTo(3, 3);
+path.lineTo(1, 1);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(2, 0);
+path.quadTo(1, 1, 3, 3);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads1878817(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.quadTo(1, 0, 3, 2);
+path.lineTo(1, 3);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(1, 2);
+path.quadTo(1, 2, 1, 3);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads27120788(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(3, 1);
+path.quadTo(2, 2, 3, 2);
+path.lineTo(2, 3);
+path.lineTo(3, 1);
+path.close();
+path.moveTo(3, 0);
+path.lineTo(3, 0);
+path.quadTo(2, 3, 3, 3);
+path.lineTo(3, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads16923022(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(3, 0);
+path.quadTo(0, 1, 3, 1);
+path.lineTo(3, 2);
+path.lineTo(3, 0);
+path.close();
+path.moveTo(0, 0);
+path.lineTo(1, 0);
+path.quadTo(2, 1, 3, 1);
+path.lineTo(0, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads25150937(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(2, 1);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(3, 3);
+path.lineTo(2, 1);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(0, 1);
+path.quadTo(2, 1, 3, 3);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads28836916(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kEvenOdd);
+path.moveTo(1, 2);
+path.quadTo(3, 2, 0, 3);
+path.lineTo(0, 3);
+path.lineTo(1, 2);
+path.close();
+path.moveTo(0, 2);
+path.lineTo(2, 2);
+path.quadTo(2, 2, 1, 3);
+path.lineTo(0, 2);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
 static struct TestDesc tests[] = {
+    TEST(testQuads28836916),
+    TEST(testQuads25150937),
+    TEST(testQuads16923022),
+    TEST(testQuads27120788),
+    TEST(testQuads1878817),
+    TEST(testQuads23202347),
+    TEST(testQuads20806986),
+    TEST(testQuads11287091),
+    TEST(testQuads1935304),
+    TEST(testQuads18888539),
     TEST(testQuads18888519),
     TEST(testQuads18830713),
     TEST(testQuads11268141),

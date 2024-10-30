@@ -377,7 +377,7 @@ struct OpContours {
 #endif
 #if OP_DEBUG_DUMP
 	void debugCompare(std::string s);
-	OpLimb& debugNthLimb(int) const;
+	const OpLimb& debugNthLimb(int) const;
 	void dumpResolve(OpContour*& contourRef);
 	void dumpResolve(const OpEdge*& );
 	void dumpResolve(OpEdge*& );
@@ -385,6 +385,10 @@ struct OpContours {
 	void dumpResolve(const OpLimb*& limbRef);
 	void dumpResolve(OpSegment*& );
 	#include "OpDebugDeclarations.h"
+#endif
+#if OP_DEBUG_IMAGE
+	void debugLimbClear();
+	int debugLimbIndex(const OpEdge* ) const;
 #endif
 
 	OpPtAliases aliases;
@@ -413,6 +417,7 @@ struct OpContours {
 	OpDebugData debugData;
 	OpCurveCurve* debugCurveCurve;
 	OpJoiner* debugJoiner;
+	OpTree* debugTree;
 	int debugOutputID;
 	int debugErrorID;
 	int debugOppErrorID;
@@ -424,7 +429,6 @@ struct OpContours {
 	bool debugFailOnEqualCepts;
 #endif
 #if OP_DEBUG_DUMP
-	OpTree* dumpTree;
 	bool debugDumpInit;   // if true, created by dump init
 #endif
 };

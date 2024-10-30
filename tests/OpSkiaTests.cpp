@@ -391,7 +391,7 @@ static SkRect debug_scale_matrix(const SkPath& one, const SkPath* two, SkMatrix&
 }
 
 static int debug_paths_draw_the_same(const SkPath& one, const SkPath& two, SkBitmap& bits,
-        bool v0mayFail) {
+        bool v0mayFail, bool assertOnError) {
     if (bits.width() == 0) {
         bits.allocN32Pixels(bitWidth * 2, bitHeight);
     }
@@ -422,7 +422,7 @@ static int debug_paths_draw_the_same(const SkPath& one, const SkPath& two, SkBit
             }
         }
     }
-    OP_ASSERT(errors < 9 || v0mayFail);
+    OP_ASSERT(!assertOnError || errors < 9 || v0mayFail);
     return errors;
 }
 
@@ -543,7 +543,7 @@ int VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op, std::string test
     SkPath scaledOut;
     scaledOut.addPath(result, scale);
     scaledOut.setFillType(result.getFillType());
-    int errors = debug_paths_draw_the_same(scaledPathOut, scaledOut, bitmap, v0mayFail);
+    int errors = debug_paths_draw_the_same(scaledPathOut, scaledOut, bitmap, v0mayFail, true);
     return errors;
 }
 
@@ -754,7 +754,7 @@ int VerifySimplify(const SkPath& one, std::string testname, const SkPath& result
     SkPath scaledOut;
     scaledOut.addPath(result, scale);
     scaledOut.setFillType(result.getFillType());
-    int errors = debug_paths_draw_the_same(scaledPathOut, scaledOut, bitmap, v0mayFail);
+    int errors = debug_paths_draw_the_same(scaledPathOut, scaledOut, bitmap, v0mayFail, false);
     return errors;
 }
 

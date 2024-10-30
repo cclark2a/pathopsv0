@@ -158,7 +158,7 @@ struct OpIntersections {
 	OpIntersection* add(OpIntersection* );
 	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp, OpPtT* nearby);
 	OpIntersection* contains(const OpPtT& ptT, const OpSegment* opp);  // nearby ptT
-	OpIntersection* const * entry(const OpPtT& , const OpSegment* opp) const;  // exact opp + ptT
+//	OpIntersection* const * entry(const OpPtT& , const OpSegment* opp) const;  // exact opp + ptT
 	void makeEdges(OpSegment* );
 	const OpIntersection* nearly(const OpPtT& ptT, OpSegment* oSeg) const;  // near match of pt or t
 	void range(const OpSegment* , std::vector<OpIntersection*>& );
@@ -167,7 +167,7 @@ struct OpIntersections {
 	void sort();  // 
 	void mergeNear(OpPtAliases& );
 	// return intersections that delineate unsectable runs that contain this edge
-//	std::vector<OpIntersection*> unsectables(const OpEdge* );
+	std::vector<OpIntersection*> unsectables(OpPoint );
 	static bool UnsectablesOverlap(std::vector<OpIntersection*> set1,
 			std::vector<OpIntersection*> set2);
 //	void windCoincidences(std::vector<OpEdge>& edges);

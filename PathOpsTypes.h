@@ -20,7 +20,9 @@ the intent is to do this through a callback
 */
 
 // An instance of the pathops engine.
-struct Context;
+struct Context {
+	int dummy;
+};
 
 // caller defined optional data
 typedef void* ContextData;

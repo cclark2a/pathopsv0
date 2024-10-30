@@ -227,6 +227,12 @@ enum class Unsortable {
 	underflow
 };
 
+enum class Transfer {
+	none,
+	to,
+	from
+};
+
 struct CoinPal {
 	friend bool operator==(CoinPal a, CoinPal b) {
 		return a.coinID == b.coinID;
@@ -234,6 +240,7 @@ struct CoinPal {
 
 	OpSegment* opp;
 	int coinID;
+	Transfer transfer;
 };
 
 constexpr float OP_CURVACIOUS_LIMIT = 1.f / 16;  // !!! tune to guess line/line split ratio
@@ -292,6 +299,7 @@ private:
 		debugColor = debugBlack;
 		debugDraw = true;
 		debugJoin = false;
+		debugLimb = false;
 		debugCustom = false;
 #endif
 #if OP_DEBUG_VALIDATE
@@ -388,7 +396,7 @@ public:
 //	int unsectID() const;
 //	OpIntersection* unsectSect(int sectIndex) const;
 //	OpEdge* unsectableMatch() const; // edge with the same unsectable range
-	bool unsectableSeen(EdgeMatch ) const;  // true if pal end matches and has been seen by op tree
+//	bool unsectableSeen(EdgeMatch ) const;  // true if pal end matches and has been seen by op tree
 	EdgeMatch which() const {
 		return whichEnd_impl; }
 	OpPtT whichPtT(EdgeMatch match = EdgeMatch::start) const { 
@@ -488,6 +496,7 @@ public:
 	uint32_t debugColor;
 	bool debugDraw;
 	bool debugJoin;	 // true if included by joiner
+	bool debugLimb;  // true if a part of tree
 	bool debugCustom;  // true if color set by immediate mode debugging
 #endif
 #if OP_DEBUG_MAKER

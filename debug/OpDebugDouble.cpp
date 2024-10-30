@@ -1288,14 +1288,20 @@ void DebugOpDrawValue(bool inHex) {
 }
 
 // these edges are splits created when intersecting a pair of curves
-void DebugOpDrawEdgeID(const OpEdge* edge, uint32_t color) {
+void DebugOpDrawEdgeID(const OpEdge* edge, uint32_t color, bool drawLimbs) {
     std::vector<DebugOpCurve> drawn;
     DebugOpBuild(*edge, drawn);
     for (auto& drawnEdge : drawn) {
         OpCurve curve;
         drawnEdge.mapTo(curve);
         OpPoint midTPt = curve.ptAtT(.5);
-        if (OpDebugImage::drawValue(midTPt, STR(edge->id), color))
+		std::string idStr = STR(edge->id);
+		if (drawLimbs && edge->debugLimb) {
+			int index = edge->contours()->debugLimbIndex(edge);
+			if (index >= 0)
+				idStr = STR(index) + ":" + idStr;
+		}
+        if (OpDebugImage::drawValue(midTPt, idStr, color))
             break;
     }
 }

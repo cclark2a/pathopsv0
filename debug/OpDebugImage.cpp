@@ -40,6 +40,7 @@ bool draw##Thing##On = false;
 MASTER_LIST
 #undef OP_X
 bool drawFillOn = false;
+bool drawLimbsOn = false;
 #if OP_DEBUG_VERBOSE
 int debugVerboseDepth = 0;
 #endif
@@ -485,7 +486,7 @@ void OpDebugImage::drawDoubleFocus() {
 					else
 						color = purple;
 				}
-				DebugOpDrawEdgeID(edge, color);
+				DebugOpDrawEdgeID(edge, color, drawLimbsOn);
 			}
 			if (drawNormalsOn)
 				DebugOpDrawEdgeNormal(edge, black);
@@ -743,52 +744,59 @@ void OpDebugImage::center(int id, bool add) {
 }
 
 bool OpDebugImage::find(int id, OpPointBounds* boundsPtr, OpPoint* pointPtr) {
-	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
-		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
-		if (id != edge->id)
-			continue;
-		edge->debugDraw = true;
-		DRAW_IDS_ON(Edges);
-		*boundsPtr = edge->ptBounds;
-		return true;
-	}
-	const OpSegment* segment = nullptr;
-	for (auto s : segmentIterator) {
-		if (id == s->id)
-			segment = s;
-	}
-	if (segment) {
-		DRAW_IDS_ON(Segments);
-		*boundsPtr = segment->ptBounds;
-		return true;
-	}
-#if OP_DEBUG
-	const OpIntersection* sect = nullptr;
-	for (auto i : intersectionIterator) {
-		if (id == i->id)
-			sect = i;
-	}
-	if (sect) {
-		DRAW_IDS_ON(Intersections);
-		// don't change zoom
-		*pointPtr = sect->ptT.pt;
-		return true;
-	}
-#endif
-#if OP_DEBUG
-	auto coins = findCoincidence(id);
-	if (coins.size()) {
+	if (std::vector<const OpIntersection*> coins = findCoincidence(id); coins.size()) {
 		DRAW_IDS_ON(Coincidences);
 		// !!! wrong: add rect formed by both intersections with this id
 		for (auto coin : coins)
 			boundsPtr->add(coin->ptT.pt);
 		return true;
 	}
-#endif
+	if (OpEdge* edge = const_cast<OpEdge*>(findEdge(id))) {
+		edge->debugDraw = true;
+		DRAW_IDS_ON(Edges);
+		*boundsPtr = edge->ptBounds;
+		return true;
+	}
+	if (std::vector<const OpEdge*> outputs = findEdgeOutput(id); outputs.size()) {
+		DRAW_IDS_ON(Edges);
+		for (auto output : outputs)
+			boundsPtr->add(output->ptBounds);
+		return true;
+	}
+	if (std::vector<const OpEdge*> matches = findEdgeRayMatch(id); matches.size()) {
+		DRAW_IDS_ON(Edges);
+		for (auto match : matches)
+			boundsPtr->add(match->ptBounds);
+		return true;
+	}
+	if (const OpIntersection* intersection = findIntersection(id)) {
+		DRAW_IDS_ON(Intersections);
+		// don't change zoom
+		*pointPtr = intersection->ptT.pt;
+		return true;
+	}
+	if (const OpLimb* limb = findLimb(id)) {
+		limb->edge->debugDraw = true;
+		DRAW_IDS_ON(Edges);
+		*boundsPtr = limb->edge->ptBounds;
+		return true;
+	}
+	if (std::vector<const OpIntersection*> uSects = findSectUnsectable(id); uSects.size()) {
+		// !!! wrong: add rect formed by both intersections with this id
+		for (auto uSect : uSects)
+			boundsPtr->add(uSect->ptT.pt);
+		return true;
+	}
+	if (const OpSegment* segment = findSegment(id)) {
+		DRAW_IDS_ON(Segments);
+		*boundsPtr = segment->ptBounds;
+		return true;
+	}
 	OpDebugOut("id " + STR(id) + " not found\n");
 	return false;
 }
 
+#if 0
 // !!! not sure I need this; but it does raise the question if dump and image need their own finds
 std::vector<const OpEdge*> OpDebugImage::find(int id) {
 	extern OpEdge* findEdge(int id);
@@ -800,6 +808,7 @@ std::vector<const OpEdge*> OpDebugImage::find(int id) {
 		result.insert(result.end(), oEdges.begin(), oEdges.end());
 	return result;
 }
+#endif
 
 void OpDebugImage::focus(int id, bool add) {
 	OpPointBounds pointBounds;
@@ -1303,12 +1312,13 @@ void OpDebugImage::drawPoints() {
 					DebugOpBuild(*seg, line);
 				}
 			}
-			if (drawEdgesOn)
+			if (drawEdgesOn) {
 				for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 					if (!(*edgeIter)->debugDraw)
 						continue;
 					DebugOpBuild(**edgeIter, line);
 				}
+			}
 		}
 	}
 	if (drawRaysOn && drawEdgesOn) {
@@ -1508,6 +1518,66 @@ void toggleRight() {
 	OpDebugImage::drawDoubleFocus();
 }
 
+static void operateOnLimbEdges(std::function<void (OpEdge*)> fun) {
+	const OpTree* tree = debugGlobalContours->debugTree;
+	if (!tree)
+		return;
+    for (int index = 0; index < tree->totalUsed; ++index) {
+        const OpLimb& limb = debugGlobalContours->debugNthLimb(index);
+		OpEdge* edge = limb.edge;
+		fun(edge);
+		std::vector<OpEdge*> visited;
+		if (edge->priorEdge && !edge->debugIsLoop())
+			edge = const_cast<OpEdge*>(edge->debugAdvanceToEnd(EdgeMatch::start));
+        if (edge->lastEdge && edge != edge->lastEdge) {
+			OpEdge* next = edge;
+			while ((next = next->nextEdge)) {
+				if (visited.end() != std::find(visited.begin(), visited.end(), next))
+					break;
+				fun(next);
+				visited.push_back(next);
+			}
+        }
+	}
+	OpDebugImage::drawDoubleFocus();
+}
+
+void hideLimbs() {
+	operateOnLimbEdges([](OpEdge* edge) {
+		edge->debugDraw = false;
+	});
+	drawLimbsOn = false;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void showLimbs() {
+	operateOnLimbEdges([](OpEdge* edge) {
+		edge->debugDraw = true;
+	});
+	drawLimbsOn = true;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void toggleLimbs() {
+	operateOnLimbEdges([](OpEdge* edge) {
+		edge->debugDraw ^= true;
+	});
+	drawLimbsOn ^= true;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void hideTree() {
+	hideLimbs();
+}
+
+void showTree() {
+	showLimbs();
+}
+
+void toggleTree() {
+	toggleLimbs();
+}
+
 void hideOperands() {
 	for (auto contour : debugGlobalContours->contours) {
 		contour->callBacks.debugSetDrawFuncPtr(contour->caller, false);
@@ -1618,6 +1688,19 @@ void colorEdges(uint32_t color) {
 		edge->debugCustom = true;
 	}
 	OpDebugImage::drawDoubleFocus();
+}
+
+void colorLimbs(uint32_t color) {
+	const OpTree* tree = debugGlobalContours->debugTree;
+	if (!tree)
+		return;
+	for (int index = 0; index < tree->totalUsed; ++index) {
+		const OpLimb& limb = debugGlobalContours->nthLimb(index);
+		OpEdge* edge = limb.edge;
+		edge->debugColor = color;
+		edge->debugDraw = true;
+		edge->debugCustom = true;
+	}
 }
 
 void colorSegments(uint32_t color) {
@@ -1780,6 +1863,34 @@ void colorLink(int id, uint32_t color) {
 	colorLink(findEdge(id), color);
 }
 
+void OpContours::debugLimbClear() {
+	for (auto contour : contours) {
+		for (auto& segment : contour->segments) {
+			for (OpEdge& edge : segment.edges) {
+				edge.debugLimb = false;
+			}
+		}
+	}
+}
+
+int OpContours::debugLimbIndex(const OpEdge* edge) const {
+	if (!debugTree)
+		return -1;
+	for (int index = 0; index < debugTree->totalUsed; ++index) {
+		const OpLimb& limb = debugNthLimb(index);
+		const OpEdge* test = limb.edge;
+		if (test->debugIsLoop())  // !!! conservative: may allow this later
+			return -1;
+		if (!test->lastEdge)
+			return -1;
+		do {
+			if (test == edge)
+				return index;
+		} while ((test = test->nextEdge));
+	}
+	return -1;
+}
+
 void OpEdge::color(uint32_t c) {
 	debugColor = c;
 	debugCustom = true;
@@ -1813,6 +1924,16 @@ void OpJoiner::debugDraw() {
 	for (auto e : unsectByArea)
 		e->debugDraw = true;
 	OpDebugImage::focusEdges();
+}
+
+void OpTree::debugLimbEdges(OpEdge* edge) {
+	OP_ASSERT(!edge->debugIsLoop());
+	if (edge->priorEdge)
+		edge = const_cast<OpEdge*>(edge->debugAdvanceToEnd(EdgeMatch::start));
+	OP_ASSERT(edge->lastEdge || !edge->nextEdge);
+	do {
+		edge->debugLimb = true;
+	} while ((edge = edge->nextEdge));
 }
 
 void OpWinder::debugDraw() {

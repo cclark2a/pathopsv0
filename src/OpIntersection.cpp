@@ -67,6 +67,7 @@ OpIntersection* OpIntersections::coinContains(OpPoint pt, const OpSegment* opp, 
 	return match;
 }
 
+#if 0
 // this matches sects exactly, and is for pair lookups
 OpIntersection* const * OpIntersections::entry(const OpPtT& ptT, const OpSegment* opp) const {
 	for (unsigned index = 0; index < i.size(); ++index) {
@@ -78,6 +79,7 @@ OpIntersection* const * OpIntersections::entry(const OpPtT& ptT, const OpSegment
 	}
 	return nullptr;
 }
+#endif
 
 // if the edge is inside an unsectable range, record all sects that start that range
 void OpIntersections::makeEdges(OpSegment* segment) {
@@ -102,7 +104,7 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 		if (!coinID)
 			return;
 		if (MatchEnds::start == sect->coinEnd) {
-			coincidences.push_back({ sect->opp->segment, coinID });
+			coincidences.push_back({ sect->opp->segment, coinID, Transfer::none });
 			return;
 		}
 		OP_ASSERT(MatchEnds::end == sect->coinEnd);
@@ -117,6 +119,7 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 			segment->edges.emplace_back(first, sectPtr  OP_LINE_FILE_PARAMS());
 			first = sectPtr;
 			OpEdge& newEdge = segment->edges.back();
+			OpBreak(&newEdge, 33);
 			if (unsectables.size())
 				newEdge.unSects = unsectables;
 			if (coincidences.size()) {
@@ -144,13 +147,25 @@ void OpIntersections::range(const OpSegment* opp, std::vector<OpIntersection*>& 
 	if (unsorted)
 		sort();
 	OP_DEBUG_CODE(float last = -1);
-	for (auto sect : i) {
+	for (OpIntersection* sect : i) {
 		if (sect->opp && sect->opp->segment == opp) {
 			OP_ASSERT(last < sect->ptT.t);
 			OP_DEBUG_CODE(last = sect->ptT.t);
 			result.push_back(sect);
 		}
 	}
+}
+
+std::vector<OpIntersection*> OpIntersections::unsectables(OpPoint pt) {
+	std::vector<OpIntersection*> result;
+	for (OpIntersection* sect : i) {
+		if (sect->ptT.pt != pt)
+			continue;
+		if (!sect->unsectID)
+			continue;
+		result.push_back(sect);
+	}
+	return result;
 }
 
 struct SectPreferred {

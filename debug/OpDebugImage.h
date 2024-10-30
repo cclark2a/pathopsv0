@@ -73,7 +73,7 @@ struct OpDebugImage {
 			float normSign, uint32_t color);
 	static bool find(int id, OpPointBounds* , OpPoint* );
 	static OpPoint find(int id, float t);
-	static std::vector<const OpEdge*> find(int id);
+//	static std::vector<const OpEdge*> find(int id);
 	static void focus(int id, bool add);
 	static void focusEdges();
 	static void init();
@@ -181,18 +181,12 @@ extern void gridCenter(int x, int y);
 extern void gridLines(int );
 extern void gridStep(float dxy);
 extern void help();
-extern void hideSegmentEdges();  // not in master list; immediately changes edge state
-extern void hideTemporaryEdges();
 extern void precision(int );  // number of fractional decimals; -1 is unset
 extern void redraw();  // draw all current state
 extern void resetFocus();
 extern void showEpsilon(bool );  // show values smaller than 100 * OpEpsilon as eps
-extern void showSegmentEdges();  // not in master list; immediately changes edge state
-extern void showTemporaryEdges();
 extern void smallFloats(bool );  // set to false to show sub-epsilon values as ~0
 extern void textSize(float );
-extern void toggleSegmentEdges();  // not in master list; immediately changes edge state
-extern void toggleTemporaryEdges();
 
 #if OP_DEBUG_VERBOSE
 extern void depth(int level);  // during curve-curve intersection, select edges at given level 
@@ -230,7 +224,11 @@ OP_X(Windings)
 #define ALIAS_LIST \
 OP_X(Fill) \
 OP_X(In) \
-OP_X(Operands)
+OP_X(Operands) \
+OP_X(Limbs) \
+OP_X(SegmentEdges) \
+OP_X(TemporaryEdges) \
+OP_X(Tree)
 
 #define OLD_LIST \
 OP_X(Left) \
@@ -248,6 +246,7 @@ OP_X(Right)
 OP_X(Active) \
 OP_X(Disabled) \
 OP_X(Edges) \
+OP_X(Limbs) \
 OP_X(Linkups) \
 OP_X(Opp) \
 OP_X(Out) \

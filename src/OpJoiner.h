@@ -49,6 +49,7 @@ struct OpJoiner {
 	void unlink(OpEdge* ); // don't unlink edges that are in linkups
 #if OP_DEBUG
 	void debugMatchRay(OP_DEBUG_CODE(OpContours* contours));
+	static bool DebugShowImage();
 #endif
 #if OP_DEBUG_VALIDATE
 	void debugValidate() const;
@@ -154,16 +155,20 @@ struct OpLimb {
 // prefer the looped limb with the smallest perimeter 
 struct OpTree {
 	OpTree(OpJoiner& );
+	OP_DEBUG_CODE(~OpTree());
 	void addDisabled(OpJoiner& );
 	OpEdge* addFiller(const OpPtT& , const OpPtT& );
+	void addUnsectableLoop(OpJoiner& , OpLimb* );
 	bool contains(OpLimb* , OpEdge* ) const;
-	bool containsFiller(OpLimb* , OpPoint , OpPoint ) const; 
+	bool containsFiller(OpLimb* , OpPoint , OpPoint ) const;
 	void initialize(OpJoiner& join);
 	bool join(OpJoiner& );
 	OpLimb& nthLimb(int index);
 	OpLimb* makeLimb();
 	bool preferSibling(OpLimb*, OpEdge* );
+	OpLimb* unsectableLoop() const;
 	DUMP_DECLARATIONS
+	OP_DEBUG_IMAGE_CODE(void debugLimbEdges(OpEdge*));
 
 //	OpLimbStorage* limbStorage;
 //	OpLimbStorage* current;

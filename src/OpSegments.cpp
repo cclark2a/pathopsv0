@@ -256,13 +256,8 @@ void OpSegments::FindCoincidences(OpContours* contours) {
 			if (!seg->contour->contours->callBack(seg->c.c.type).curvesEqualFuncPtr(
 					seg->c.c, opp->c.c ))
 				continue;
-			seg->winding.move(opp->winding, mr.reversed);
-			opp->winding.zero();
-			opp->setDisabled(OP_LINE_FILE_NPARAMS());
-			if (!seg->winding.visible()) {
-				seg->setDisabled(OP_LINE_FILE_NPARAMS());
+			if (!seg->moveWinding(opp, mr.reversed))
 				break;
-			}
 		}
 	}
 }

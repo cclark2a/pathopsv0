@@ -222,6 +222,7 @@ OpContours::OpContours()
 #if OP_DEBUG
 	debugCurveCurve = nullptr;
 	debugJoiner = nullptr;
+	debugTree = nullptr;
 	debugOutputID = 0;
 	debugErrorID = 0;
 	debugOppErrorID = 0;
@@ -231,9 +232,6 @@ OpContours::OpContours()
 	debugCheckLastEdge = false;
 	debugFailOnEqualCepts = false;
 	OP_DEBUG_DUMP_CODE(debugDumpInit = false);
-#endif
-#if OP_DEBUG_DUMP
-	dumpTree = nullptr;
 #endif
 }
 
@@ -530,7 +528,7 @@ bool OpContours::setError(PathOpsV0Lib::ContextError e  OP_DEBUG_PARAMS(int eID,
 
 void OpContours::setThreshold() {
 	auto threshold = [](float left, float right) {
-		return std::max(1.f, right - left) * OpEpsilon;
+		return std::max({1.f, fabs(left), fabs(right), right - left}) * OpEpsilon;
 	};
 	aliases.threshold = { threshold(maxBounds.left, maxBounds.right),
 			threshold(maxBounds.top, maxBounds.bottom) };

@@ -831,6 +831,7 @@ void OpEdge::unlink() {
 	setWhich(EdgeMatch::start);  // !!! should this set to none?
 }
 
+#if 0
 bool OpEdge::unsectableSeen(EdgeMatch match) const {
 	for (const EdgePal& pal : pals) {
 		if (pal.reversed == (EdgeMatch::end == match) ? pal.edge->startSeen : pal.edge->endSeen)
@@ -838,6 +839,7 @@ bool OpEdge::unsectableSeen(EdgeMatch match) const {
 	}
 	return false;
 }
+#endif
 
 #if OP_DEBUG
 bool OpEdge::debugFail() const {

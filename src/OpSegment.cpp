@@ -717,12 +717,14 @@ OpPoint OpSegment::movePt(OpPtT match, OpPoint destination) {
 }
 
 // two segments are coincident so move opp's winding to this and disabled opp
-void OpSegment::moveWinding(OpSegment* opp, bool backwards) {
-		winding.move(opp->winding, backwards);
-		if (!winding.visible())
-			setDisabled(OP_LINE_FILE_NPARAMS());
-		opp->winding.zero();
-		opp->setDisabled(OP_LINE_FILE_NPARAMS());
+bool OpSegment::moveWinding(OpSegment* opp, bool backwards) {
+	winding.move(opp->winding, backwards);
+	opp->winding.zero();
+	opp->setDisabled(OP_LINE_FILE_NPARAMS());
+	if (winding.visible())
+		return true;
+	setDisabled(OP_LINE_FILE_NPARAMS());
+	return false;
 }
 
 int OpSegment::nextID() const {
@@ -830,31 +832,38 @@ void OpSegment::transferCoins() {
 			continue;
 		// if edge is coincident, transfer windings and unsectable sects to boss
 		bool transferred = false;
-		for (const CoinPal& cPal : edge.coinPals) {
+		for (CoinPal& cPal : edge.coinPals) {
 			OpSegment* oSeg = cPal.opp;
 			OP_ASSERT(oSeg != this);
 			if (oSeg->disabled)
 				continue;
 			int cID = cPal.coinID;
 			OP_ASSERT(cID);
-			auto transferWinding = [&edge, cID, &transferred](OpEdge* oEdge, EdgeMatch match) {
+			auto transferWinding = [&edge, &cPal, &transferred](OpEdge* oEdge, EdgeMatch match) {
 				if (oEdge->disabled)
 					return false;
 				if (edge.startPt() != oEdge->ptT(match).pt)
 					return false;
+				int cID = cPal.coinID;
 				std::vector<CoinPal>& ocPals = oEdge->coinPals;
-				if (ocPals.end() == std::find_if(ocPals.begin(), ocPals.end(), [cID]
-						(const CoinPal& ocPal){ return ocPal.coinID == cID; }))
+				auto ocPal = std::find_if(ocPals.begin(), ocPals.end(), [cID]
+						(const CoinPal& ocPal){ return ocPal.coinID == cID; });
+				if (ocPals.end() == ocPal)
 					return false;
 				OP_ASSERT(oEdge->winding.visible());
 				edge.winding.move(oEdge->winding, cID < 0);
+				cPal.transfer = Transfer::to;
 				oEdge->setDisabledZero(OP_LINE_FILE_NPARAMS());
+				ocPal->transfer = Transfer::from;
 				transferred = true;
 				return true;
 			};
 			// repeat for any opp edges that make up the rest of this coin span
 			auto transferCopy = [](OpEdge* oTest, OpEdge* oEdge) {
-				if (oTest->coinPals != oEdge->coinPals)
+				if (oTest->coinPals != oEdge->coinPals)		// !!! still needed with new between?
+					return false;
+				if (Transfer::to == oTest->coinPals[0].transfer 
+						&& Transfer::from == oEdge->coinPals[0].transfer)
 					return false;
 				oTest->setDisabledZero(OP_LINE_FILE_NPARAMS());
 				return true;

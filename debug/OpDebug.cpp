@@ -819,6 +819,18 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContours* contours)) {
     }
 }
 
+bool OpJoiner::DebugShowImage() {
+#define SHOW_DEBUG_IMAGE 1   // defeat image debugging for very large tests like joel_4
+#define DEFEAT_LOCAL_BREAK 0
+#if SHOW_DEBUG_IMAGE && OP_DEBUG_IMAGE
+	::debugImage();
+	::showFill();
+#endif
+	  // break if running last failed fast test
+	return TEST_PATH_OP_SKIP_TO_V0 && (OP_DEBUG_FAST_TEST || (!TEST_PATH_OP_SKIP_TO_V0 
+			&& (!OP_DEBUG_BREAK_IN_LINK_REMAINING || DEFEAT_LOCAL_BREAK)));
+}
+
 #if OP_DEBUG_VALIDATE
 // !!! also debug prev/next edges (links)
 void OpJoiner::debugValidate() const {
@@ -863,6 +875,10 @@ void OpJoiner::debugValidate() const {
 void OpSegment::debugValidate() const {
     for (auto i : sects.i)
         i->debugValidate();
+}
+
+OpTree::~OpTree() {
+	contours->debugTree = nullptr;
 }
 
 #include "OpWinder.h"

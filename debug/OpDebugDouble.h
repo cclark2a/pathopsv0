@@ -51,7 +51,7 @@ void DebugOpDraw(const std::vector<const OpEdge*>& );
 void DebugOpDraw(const std::vector<const SkPath*>& );
 void DebugOpDrawEdgeControlLines(const OpEdge* , uint32_t color);
 void DebugOpDrawEdgeEndToEnd(const OpEdge* , uint32_t color);
-void DebugOpDrawEdgeID(const OpEdge* , uint32_t color);
+void DebugOpDrawEdgeID(const OpEdge* , uint32_t color, bool drawLimbs);
 void DebugOpDrawEdgeNormal(const OpEdge* , uint32_t color);
 void DebugOpDrawEdgeTangent(const OpEdge* , uint32_t color);
 void DebugOpDrawEdgeWinding(const OpEdge* , uint32_t color);

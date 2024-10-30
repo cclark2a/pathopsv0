@@ -863,6 +863,7 @@ void OpContours::dumpSet(const char*& str) {
     debugInClearEdges = OpDebugOptional(str, "debugInClearEdges");
     debugCheckLastEdge = OpDebugOptional(str, "debugCheckLastEdge");
     debugFailOnEqualCepts = OpDebugOptional(str, "debugFailOnEqualCepts");
+	debugDumpInit = true;
 #endif
 }
 
@@ -1087,10 +1088,10 @@ void OpContours::debugCompare(std::string s) {
     }
 }
 
-OpLimb& OpContours::debugNthLimb(int index) const {
+const OpLimb& OpContours::debugNthLimb(int index) const {
     OpLimbStorage* saveCurrent = limbCurrent;
-    OpContours* writeable = (OpContours*)(this);
-    OpLimb& result = writeable->nthLimb(index);
+    OpContours* writeable = const_cast<OpContours*>(this);
+    const OpLimb& result = writeable->nthLimb(index);
     writeable->limbCurrent = saveCurrent;
     return result;
 }
@@ -2922,8 +2923,7 @@ std::string OpLimb::debugDumpIDs(DebugLevel l, bool bracket) const {
         }
         if (gapDistance)
             s += " gapD:" + STR(gapDistance);
-        if (closeDistance)
-            s += " closeD:" + STR(closeDistance);
+        s += " closeD:" + STR(closeDistance);
         if (bracket)
             s += "]";
     }
@@ -3002,8 +3002,6 @@ void OpLimb::dumpSet(const char*& str) {
     }
 }
 
-
-
 std::string OpTree::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
 //    if (limbStorage)
@@ -3033,7 +3031,7 @@ std::string OpTree::debugDump(DebugLevel l, DebugBase b) const {
         return s;
     OpLimbStorage* saveCurrent = contours->limbCurrent;
     for (int index = 0; index < totalUsed; ++index) {
-        OpLimb& limb = contours->debugNthLimb(index);
+        const OpLimb& limb = contours->debugNthLimb(index);
         s += "\n" + limb.debugDumpIDs(l, true);
         s += " parent:" + (limb.parent ? limb.parent->debugDumpIDs(l, true) : "-");
         if (limb.debugBranches.size()) {
