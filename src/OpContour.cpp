@@ -131,7 +131,7 @@ bool OpPtAliases::isSmall(OpPoint pt1, OpPoint pt2) {
 	if (pt1.isNearly(pt2, threshold)) {
 		if (contains(pt1))
 			add(pt2, pt1);
-		else
+		else if (contains(pt2) || existing(pt1) != existing(pt2))
 			add(pt1, pt2);
 		return true;
 	}
@@ -540,9 +540,15 @@ void OpContours::sortIntersections() {
 			segment.sects.sort();
 		}
 	}
+	OpDebugOut("");  // !!! to allow setting a breakpoint here
 	for (auto contour : contours) {
 		for (auto& segment : contour->segments) {
 			segment.sects.mergeNear(aliases);
+		}
+	}
+	for (auto contour : contours) {
+		for (auto& segment : contour->segments) {
+			segment.sects.sort();
 		}
 	}
 }

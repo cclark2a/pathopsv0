@@ -161,6 +161,7 @@ struct OpTree {
 	void addUnsectableLoop(OpJoiner& , OpLimb* );
 	bool contains(OpLimb* , OpEdge* ) const;
 	bool containsFiller(OpLimb* , OpPoint , OpPoint ) const;
+	bool containsParent(OpLimb* , OpEdge* , EdgeMatch ) const;
 	void initialize(OpJoiner& join);
 	bool join(OpJoiner& );
 	OpLimb& nthLimb(int index);

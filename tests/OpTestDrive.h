@@ -6,7 +6,7 @@
 // this puts all switches that decide which tests to run and how to run them in one place
 // these switches should migrate to make file options
 #define OP_DEBUG_FAST_TEST 0  // in a debug build: set to zero to enable debug dump, debug image
-#define TEST_PATH_OP_SKIP_TO_V0 1 // if 1 & not fast test, ignore skip to file; run first "v0" test
+#define TEST_PATH_OP_SKIP_TO_V0 0 // if 1 & not fast test, ignore skip to file; run first "v0" test
 #define TEST_DRIVE_FIRST ""  // e.g., "circlesOp3" (ignored by fast test)
 
 #define OP_DEBUG_RECORD 0  // track some statistic or other while running 

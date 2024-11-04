@@ -46,18 +46,19 @@ struct CoinPair {
 // intersection to point at each other at time of creation.
 
 struct OpIntersection {
-	OpIntersection() {
+	OpIntersection()
+		: opp(nullptr)
+		, coincidenceID(0)
+		, unsectID(0)
+		, coinEnd(MatchEnds::none)
+		, unsectEnd(MatchEnds::none)
+		, mergeProcessed(false)
+		, moved(false)
+		, collapsed(false) {
 #if OP_DEBUG
 	segment = nullptr;
-	opp = nullptr;
-	coincidenceID = 0;
-	unsectID = 0;
-	coinEnd = MatchEnds::none;
-	unsectEnd = MatchEnds::none;
-	coincidenceProcessed = false;
-	mergeProcessed = false;
 	id = 0;
-	debugID = 0;
+	debugSrcID = 0;
 	debugOppID = 0;
 	debugCoincidenceID = 0;
 	debugErased = false;
@@ -75,26 +76,17 @@ struct OpIntersection {
 		o->opp = this;
 	}
 
-	void set(const OpPtT& t, OpSegment* seg  OP_LINE_FILE_DEF(int ID, int oppID)) {
+	void set(const OpPtT& t, OpSegment* seg  OP_LINE_FILE_DEF(int srcID, int oppID)) {
 		segment = seg;
 		OP_DEBUG_CODE(debugSetID());  // debug for now
-		opp = nullptr; // SectFlavor::none == flavor_ ? nullptr : this;		!!! if we need this, comment why
 		OP_ASSERT(OpMath::Between(0, t.t, 1));
 		ptT = t;
-		coincidenceID = 0;  // 0 if no coincidence; both sides negative if curves are reversed
-		unsectID = 0;  // 0 if not unsectable; one side negative if curves are reversed
-		coinEnd = MatchEnds::none;
-		unsectEnd = MatchEnds::none;
-		coincidenceProcessed = false;
-		mergeProcessed = false;
 #if OP_DEBUG_MAKER
 		debugSetMaker = { fileName, lineNo };
 #endif
 #if OP_DEBUG
-		debugID = ID;
+		debugSrcID = srcID;
 		debugOppID = oppID;
-		debugCoincidenceID = 0;
-		debugErased = false;
 #endif
 	}
 
@@ -112,6 +104,15 @@ struct OpIntersection {
 		coinEnd = MatchEnds::none;
 		opp->coincidenceID = 0;
 		opp->coinEnd = MatchEnds::none;
+	}
+
+	void zeroUnsectID() {
+		OP_ASSERT(unsectID);
+		OP_ASSERT(opp->unsectID);
+		unsectID = 0;
+		unsectEnd = MatchEnds::none;
+		opp->unsectID = 0;
+		opp->unsectEnd = MatchEnds::none;
 	}
 
 #if OP_DEBUG
@@ -139,11 +140,12 @@ struct OpIntersection {
 	// !!! why does coin makes both negative but unsect only makes one negative...
 	MatchEnds coinEnd;  // used to put start before end on sect sort (negative if pair flipped)
 	MatchEnds unsectEnd;  // one side is negative if pair are flipped
-	bool coincidenceProcessed;
 	bool mergeProcessed;
+	bool moved;
+	bool collapsed;  // set if coincidence or unsect pair collapsed to a point
 #if OP_DEBUG
 	int id;
-	int debugID;	// pair of edges or segments that intersected (!!! only useful if edges?)
+	int debugSrcID;	// pair of edges or segments that intersected (!!! only useful if edges?)
 	int debugOppID;
 	int debugCoincidenceID;	// this one does not get erased
 	mutable bool debugErased;
@@ -156,9 +158,11 @@ struct OpIntersection {
 struct OpIntersections {
 	OpIntersections();
 	OpIntersection* add(OpIntersection* );
+	bool checkCollapse(OpIntersection* );
 	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp, OpPtT* nearby);
 	OpIntersection* contains(const OpPtT& ptT, const OpSegment* opp);  // nearby ptT
 //	OpIntersection* const * entry(const OpPtT& , const OpSegment* opp) const;  // exact opp + ptT
+	void eraseCollapsed();
 	void makeEdges(OpSegment* );
 	const OpIntersection* nearly(const OpPtT& ptT, OpSegment* oSeg) const;  // near match of pt or t
 	void range(const OpSegment* , std::vector<OpIntersection*>& );
@@ -166,7 +170,8 @@ struct OpIntersections {
 	bool simpleStart() const;  // true if array has only one entry with t equal to zero
 	void sort();  // 
 	void mergeNear(OpPtAliases& );
-	// return intersections that delineate unsectable runs that contain this edge
+	void moveSects(OpPtT match, OpPoint destination);
+// return intersections that delineate unsectable runs that contain this edge
 	std::vector<OpIntersection*> unsectables(OpPoint );
 	static bool UnsectablesOverlap(std::vector<OpIntersection*> set1,
 			std::vector<OpIntersection*> set2);

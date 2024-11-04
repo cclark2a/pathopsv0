@@ -449,6 +449,24 @@ bool OpMath::IsDebugNaN(float f) {
 
 #include "OpCurveCurve.h"
 
+// !!! debugging failure in thread_cubics8753
+#if 0
+OpCurve OpCurve::toVerticalDouble(const LinePts& line) const {
+	OpCurve rotated;
+	double adj = (double) line.pts[1].x - line.pts[0].x;
+	double opp = (double) line.pts[1].y - line.pts[0].y;
+	for (int n = 0; n < pointCount(); ++n) {
+		double vdx = (double) pts[n].x - line.pts[0].x;
+		double vdy = (double) pts[n].y - line.pts[0].y;
+		rotated.pts[n].x = (float) (vdy * adj - vdx * opp);
+		rotated.pts[n].y = (float) (vdy * opp + vdx * adj);
+	}
+	rotated.weight = weight;
+	rotated.c.type = c.type;
+	return rotated;
+}
+#endif
+
 #if OP_DEBUG_VERBOSE
 void OpCurveCurve::debugSaveState() {
 	if ((int) dvDepthIndex.size() < depth)
@@ -820,7 +838,7 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContours* contours)) {
 }
 
 bool OpJoiner::DebugShowImage() {
-#define SHOW_DEBUG_IMAGE 1   // defeat image debugging for very large tests like joel_4
+#define SHOW_DEBUG_IMAGE 0   // defeat image debugging for very large tests like joel_4
 #define DEFEAT_LOCAL_BREAK 0
 #if SHOW_DEBUG_IMAGE && OP_DEBUG_IMAGE
 	::debugImage();
@@ -831,7 +849,7 @@ bool OpJoiner::DebugShowImage() {
 	return  OP_DEBUG_FAST_TEST || (!TEST_PATH_OP_SKIP_TO_V0 
 			&& (!OP_DEBUG_BREAK_IN_LINK_REMAINING || DEFEAT_LOCAL_BREAK));
 #else
-	return false;
+	return true;
 #endif
 }
 
@@ -901,7 +919,8 @@ std::string debugContext;
 void debugImage() {
 #if OP_DEBUG_IMAGE
     if ("linkRemaining" == debugContext || "linkUnambiguous" == debugContext 
-            || "apply" == debugContext || "makeCoins" == debugContext) {
+            || "apply" == debugContext || "makeCoins" == debugContext
+			|| "transferCoins" == debugContext) {
         ::hideOperands();
         ::showEdges();
         ::showIDs();
@@ -961,7 +980,7 @@ void debug() {
         return;
     }
     if ("findIntersections" == debugContext || "AddLineCurveIntersection" == debugContext
-            || "AddEndMatches" == debugContext) {
+            || "AddEndMatches" == debugContext || "transferCoins" == debugContext) {
         OpSaveDump save(DebugLevel::brief, DebugBase::dec);
         ::dmpSegments();
         return;

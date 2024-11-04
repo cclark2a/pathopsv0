@@ -3526,8 +3526,12 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
     if (!coincidenceID  OP_DEBUG_CODE(&& !debugCoincidenceID) && !unsectID 
             && MatchEnds::none != coinEnd)
         s += "!!! (unexpected) " + matchEndsName(coinEnd);
-    if (coincidenceProcessed)
-        s += " coincidenceProcessed";
+    if (mergeProcessed)
+        s += " mergeProcessed";
+    if (moved)
+        s += " moved";
+    if (collapsed)
+        s += " collapsed";
 #if OP_DEBUG_MAKER
     s += " " + debugSetMaker.debugDump();
 #endif
@@ -3545,8 +3549,8 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
         result += STR(debug_id);
         return result;
     };
-    if (debugID)
-        s += " " + edgeOrSegment(debugID, "debugID:");
+    if (debugSrcID)
+        s += " " + edgeOrSegment(debugSrcID, "debugSrcID:");
     if (debugOppID)
         s += " " + edgeOrSegment(debugOppID, "debugOppID:");
 #endif
@@ -3581,12 +3585,14 @@ void OpIntersection::dumpSet(const char*& str) {
     coinEnd = matchEndsStr(str, "coinEnd", MatchEnds::none);
     unsectID = OpDebugOptional(str, "unsectID") ? readCoinID(str) : 0;
     unsectEnd = matchEndsStr(str, "unsectEnd", MatchEnds::none);
-    coincidenceProcessed = OpDebugOptional(str, "coincidenceProcessed");
+    mergeProcessed = OpDebugOptional(str, "mergeProcessed");
+    moved = OpDebugOptional(str, "moved");
+    collapsed = OpDebugOptional(str, "collapsed");
 #if OP_DEBUG_MAKER
     debugSetMaker.dumpSet(str);
 #endif
 #if OP_DEBUG
-    debugID = OpDebugOptional(str, "debugID") ? OpDebugReadSizeT(str) : 0;
+    debugSrcID = OpDebugOptional(str, "debugSrcID") ? OpDebugReadSizeT(str) : 0;
     debugOppID = OpDebugOptional(str, "debugOppID") ? OpDebugReadSizeT(str) : 0;
 #endif
 }

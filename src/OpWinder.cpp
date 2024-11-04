@@ -108,6 +108,21 @@ bool SectRay::checkOrder(const OpEdge* home) const {
 			return false;
 		}
 	}
+	// check to see if closest to home is too close
+	const EdgePal* homeD = nullptr;
+	const EdgePal* dist = &distances.back();
+	do {
+		if (home == dist->edge)
+			homeD = dist;
+	} while (--dist >= &distances.front() && !homeD);
+	OP_ASSERT(homeD);
+	float hCept = homeD->cept;
+	float threshold = home->contours()->threshold().choice(axis);
+	if (dist >= &distances.front() && OpMath::Equal(dist->cept, hCept, threshold))
+		return false;
+	dist = homeD + 1;
+	if (dist <= &distances.back() && OpMath::Equal(dist->cept, hCept, threshold))
+		return false;
 	return true;
 }
 
@@ -762,7 +777,8 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 	while (--sumIndex >= 0 && (anyPriorPal(ray.distances[sumIndex].edge, sumIndex) 
 			|| !ray.distances[sumIndex].edge->sum.isSet()))
 		;
-	if (sumIndex > 0 && !home->isUnsectable() && EdgeFail::none == home->rayFail && !ray.checkOrder(home))
+	if (sumIndex > 0 && !home->isUnsectable() && EdgeFail::none == home->rayFail 
+			&& !ray.checkOrder(home))
 		return ResolveWinding::retry;
 	if (sumIndex >= 0) {
 		EdgePal& sumDistance = ray.distances[sumIndex];

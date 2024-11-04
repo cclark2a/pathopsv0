@@ -5,7 +5,7 @@
 
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
-#define TEST_PATH_OP_SKIP_TO_FILE "quad" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
+#define TEST_PATH_OP_SKIP_TO_FILE "loop" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
 #define TESTS_TO_SKIP 0 // 14295903  // tests to skip
 #define TEST_FIRST ""  // e.g., "joel4" (ignored by fast test, overridden by TEST_DRIVE_FIRST)
 
@@ -41,11 +41,11 @@
 #define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */
 
 /* test failure descriptions:
-extended: 25213840 / 30046752 quad tests run 8/01/24
-
-extended: 30046752 (all) quadralateral tests run
-
-testQuadralaterals21723521 had errors=20
+extended: 30046752 (all) quad tests run 10/31/24
+extended: 30046752 (all) quadralateral tests run 10/31/24
+extended: 1280660 (all) rects tests run 11/1/24
+extended: 2130048 (all) triangle tests run 11/1/24
+extended: 3111696 (all) rect tests run 11/1/24
 
 (old)
 
@@ -922,9 +922,8 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
 #if !defined(NDEBUG) || OP_RELEASE_TEST
 #if OP_DEBUG_FAST_TEST
         std::lock_guard<std::mutex> guard(out_mutex);
-#endif
-		
 		v0(tn, p);
+#endif
         dumpSimplifyTest(tn, p)
             ;   // <<<<<<<< paste this into immediate window
         ReportError(testname, errors, warnings);

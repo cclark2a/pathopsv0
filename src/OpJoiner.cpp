@@ -208,6 +208,8 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 		fillerBranch->gapDistance = (startI.pt - lastPtT.pt).length();
 		return fillerBranch;
 	}
+	if (tree.containsParent(this, test, m))
+		return nullptr;
 	OpLimb* branch = tree.makeLimb();
 	branch->set(tree, test, this, m, limbPass, limbIndex, otherEnd, &childBounds);
 	return branch;
@@ -320,6 +322,25 @@ bool OpTree::contains(OpLimb* parent, OpEdge* edge) const {
 			if (testLimb->edge == parent->edge)
 				return false;
 			if (testLimb->parent->edge != parent->edge)
+				continue;
+			if (testLimb->edge == edge)
+				return true;
+		} while (index > 0);
+		limbs = limbs->prevBlock;
+	}
+	return false;
+}
+
+bool OpTree::containsParent(OpLimb* parent, OpEdge* edge, EdgeMatch m) const {
+	OpLimbStorage* limbs = contours->limbCurrent;
+	while (limbs) {
+		int index = limbs->used;
+		OP_ASSERT(index > 0);
+		do {
+			OpLimb* testLimb = &limbs->storage[--index];
+			if (testLimb->parent != parent)
+				continue;
+			if (testLimb->match != m)
 				continue;
 			if (testLimb->edge == edge)
 				return true;
@@ -604,14 +625,16 @@ void OpJoiner::addToLinkups(OpEdge* e) {
 
 void OpJoiner::buildDisabled(OpContours& contours) {
 	// example that needs small factor: testQuads18787007
-	OpVector threshold = contours.threshold() * OpMath::smallJoinerFactor;
+//	OpVector threshold = contours.threshold() * OpMath::smallJoinerFactor;
 	for (auto contour : contours.contours) {
 		for (auto& segment : contour->segments) {
 			for (auto& e : segment.edges) {
 				if (!e.disabled || Unsortable::none != e.isUnsortable || e.isUnsectable())
 					continue;
 				// for the very small, include disabled edges
-				if (e.centerless || e.windPal || e.startPt().isNearly(e.endPt(), threshold))
+				if (e.centerless || e.windPal 
+						|| e.coinPals.size())  // entire segment is not coincident; partial is
+				//		|| e.startPt().isNearly(e.endPt(), threshold))
 					disabled.push_back(&e);
 			}
 		}

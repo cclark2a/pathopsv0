@@ -227,11 +227,13 @@ enum class Unsortable {
 	underflow
 };
 
+#if 0
 enum class Transfer {
 	none,
 	to,
 	from
 };
+#endif
 
 struct CoinPal {
 	friend bool operator==(CoinPal a, CoinPal b) {
@@ -240,7 +242,7 @@ struct CoinPal {
 
 	OpSegment* opp;
 	int coinID;
-	Transfer transfer;
+//	Transfer transfer;
 };
 
 constexpr float OP_CURVACIOUS_LIMIT = 1.f / 16;  // !!! tune to guess line/line split ratio

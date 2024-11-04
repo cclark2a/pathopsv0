@@ -215,6 +215,10 @@ OpRoots OpCurve::rawIntersect(const LinePts& linePt, MatchEnds common) const {
 	if (linePt.pts[0].y == linePt.pts[1].y)
 		return axisRawHit(Axis::horizontal, linePt.pts[0].y, common);
 	OpCurve rotated = toVertical(linePt, common);
+	if (!rotated.isFinite()) {
+		contours->setError(PathOpsV0Lib::ContextError::toVertical  OP_DEBUG_PARAMS(0));
+		return OpRoots();
+	}
 	// if point bounds of rotated doesn't cross y-axis, this is no intersection
 	OpRect rotatedBounds = rotated.ptBounds();
 	if (rotatedBounds.right < 0 || rotatedBounds.left > 0)
@@ -277,24 +281,6 @@ float OpCurve::tZeroX(float t1, float t2) const {
 	}
 	return mid;
 }
-
-// !!! debugging failure in thread_cubics8753
-#if 0
-OpCurve OpCurve::toVerticalDouble(const LinePts& line) const {
-	OpCurve rotated;
-	double adj = (double) line.pts[1].x - line.pts[0].x;
-	double opp = (double) line.pts[1].y - line.pts[0].y;
-	for (int n = 0; n < pointCount(); ++n) {
-		double vdx = (double) pts[n].x - line.pts[0].x;
-		double vdy = (double) pts[n].y - line.pts[0].y;
-		rotated.pts[n].x = (float) (vdy * adj - vdx * opp);
-		rotated.pts[n].y = (float) (vdy * opp + vdx * adj);
-	}
-	rotated.weight = weight;
-	rotated.c.type = c.type;
-	return rotated;
-}
-#endif
 
 #include "OpContour.h"
 

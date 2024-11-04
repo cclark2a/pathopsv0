@@ -82,6 +82,7 @@ struct OpSegment {
 	OpIntersection* addUnsectable(const OpPtT& , int usectID, MatchEnds , const OpSegment* o 
 			OP_LINE_FILE_DEF());
 //    OpPoint aliasOriginal(MatchEnds ) const;
+	OpPtT alignToEnd(OpPoint oppPt) const;
 	void apply();
 	void betweenIntersections();
 	SegPt checkAliases(OpPtT );
@@ -103,6 +104,7 @@ struct OpSegment {
 	void makeEdge(OP_LINE_FILE_NP_DEF());
 	void makeEdges();
 	void makePals();
+	OpPtT matchEnd(OpPoint opp) const;
 	MatchReverse matchEnds(const LinePts& opp) const;
 	MatchReverse matchEnds(const OpSegment* opp) const;
 //    MatchEnds matchExisting(const OpSegment* opp) const;

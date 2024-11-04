@@ -6628,7 +6628,88 @@ path.close();
     testSimplify(reporter, path, filename);
 }
 
+void testQuads13043349(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(2, 0);
+path.quadTo(3, 0, 0, 3);
+path.lineTo(1, 3);
+path.lineTo(2, 0);
+path.close();
+path.moveTo(3, 0);
+path.lineTo(1, 1);
+path.quadTo(2, 1, 0, 3);
+path.lineTo(3, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads14879131(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(2, 0);
+path.quadTo(3, 1, 2, 2);
+path.lineTo(3, 3);
+path.lineTo(2, 0);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(2, 0);
+path.quadTo(3, 0, 2, 3);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testLine498627(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.lineTo(30, 0);
+path.lineTo(30, 60);
+path.lineTo(0, 60);
+path.lineTo(0, 0);
+path.close();
+path.moveTo(10, 10);
+path.lineTo(30, 10);
+path.lineTo(30, 40);
+path.lineTo(10, 40);
+path.lineTo(10, 10);
+path.close();
+path.moveTo(20, 0);
+path.lineTo(30, 0);
+path.lineTo(30, 40);
+path.lineTo(20, 40);
+path.lineTo(20, 0);
+path.close();
+path.moveTo(24, 32);
+path.lineTo(24, 36);
+path.lineTo(33, 36);
+path.lineTo(33, 32);
+path.lineTo(24, 32);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads8694477(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 0);
+path.quadTo(3, 0, 0, 3);
+path.lineTo(0, 3);
+path.lineTo(1, 0);
+path.close();
+path.moveTo(3, 0);
+path.lineTo(1, 1);
+path.quadTo(2, 1, 0, 3);
+path.lineTo(3, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
 static struct TestDesc tests[] = {
+    TEST(testLine498627),
+    TEST(testQuads14879131),
+    TEST(testQuads13043349),
     TEST(testQuads28836916),
     TEST(testQuads25150937),
     TEST(testQuads16923022),

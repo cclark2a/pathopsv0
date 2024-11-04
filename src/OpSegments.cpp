@@ -36,7 +36,8 @@ OpSegments::OpSegments(OpContours& contours) {
 // may need to adjust values in opp if end is nearly equal to seg
 void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
 	OP_DEBUG_CONTEXT();
-	auto add = [seg, opp](OpPoint pt, float segT, float oppT   OP_LINE_FILE_DEF()) {
+	auto add = [](OpSegment* seg, OpSegment* opp, OpPoint pt, float segT, float oppT   
+			OP_LINE_FILE_DEF()) {
 		if (opp->willDisable || seg->willDisable)
 			return;
 		if (seg->sects.contains(OpPtT { pt, segT }, opp) 
@@ -49,17 +50,10 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
 		sect->pair(oSect);
 	};
 	auto checkEnds = [add, seg, opp](OpPoint oppPt, float oppT  OP_LINE_FILE_DEF()) {
-		OpPtT segPtT;
-		OpPtAliases& aliases = seg->contour->contours->aliases;
-		if (seg->c.firstPt().isNearly(oppPt, seg->threshold()) || (seg->startMoved 
-				&& aliases.isSmall(seg->c.firstPt(), oppPt)))
-			segPtT = { seg->c.firstPt(), 0 };
-		else if (seg->c.lastPt().isNearly(oppPt, seg->threshold()) || (seg->endMoved 
-				&& aliases.isSmall(seg->c.lastPt(), oppPt)))
-			segPtT = { seg->c.lastPt(), 1 };
-		if (!OpMath::IsNaN(segPtT.t)) {
+		OpPtT segPtT = seg->alignToEnd(oppPt);
+		if (!OpMath::IsNaN(segPtT.t) && (0 == oppT || 1 == oppT)) {
 			oppPt = seg->mergePoints(segPtT, opp, { oppPt, oppT });
-			add(oppPt, segPtT.t, oppT  OP_LINE_FILE_CALLER());
+			add(seg, opp, oppPt, segPtT.t, oppT  OP_LINE_FILE_CALLER());
 		}
 		OP_ASSERT(opp->c.c.data->start != opp->c.c.data->end || opp->willDisable);
 		return segPtT.t;
@@ -67,17 +61,13 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
 	float startSegT = checkEnds(opp->c.firstPt(), 0  OP_LINE_FILE_PARAMS());
 	float endSegT = checkEnds(opp->c.lastPt(), 1  OP_LINE_FILE_PARAMS());
 	auto checkOpp = [add, seg, opp](OpPoint segPt, float segT  OP_LINE_FILE_DEF()) {
-		float oppT = opp->c.match(0, 1, segPt);
-		if (OpMath::IsNaN(oppT))
-			return oppT;
-		oppT = OpMath::PinNear(oppT);
-		if (0 == oppT || 1 == oppT) {
-			OpPoint oppEnd = opp->c.end(oppT);
-			segPt = seg->mergePoints({ segPt, segT }, opp, { oppEnd, oppT });
+		OpPtT oppPtT = opp->matchEnd(segPt);
+		if (!OpMath::IsNaN(oppPtT.t)) {
+			if (0 == oppPtT.t || 1 == oppPtT.t)
+				segPt = seg->mergePoints({ segPt, segT }, opp, oppPtT);
+			add(seg, opp, segPt, segT, oppPtT.t  OP_LINE_FILE_CALLER());
 		}
-		/// !!! may add coincidence between seg and opp which goes undetected (skphealth_com76s)
-		add(segPt, segT, oppT  OP_LINE_FILE_CALLER());
-		return oppT;
+		return oppPtT.t;
 	};
 	float startOppT = OpNaN;
 	float endOppT = OpNaN;
@@ -86,16 +76,12 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
 	if (1 != startSegT && 1 != endSegT) 
 		endOppT = checkOpp(seg->c.lastPt(), 1  OP_LINE_FILE_PARAMS());
 	auto checkSeg = [add, seg, opp](OpPoint oppPt, float oppT  OP_LINE_FILE_DEF()) {
-		float segT = seg->c.match(0, 1, oppPt);
-		if (OpMath::IsNaN(segT))
-			return;
-		segT = OpMath::PinNear(segT);
-		if (0 == segT || 1 == segT) {
-			OpPoint segEnd = seg->c.end(segT);
-			if (segEnd != oppPt)
-				oppPt = opp->mergePoints({ oppPt, oppT }, seg, { segEnd, segT });
+		OpPtT segPtT = seg->matchEnd(oppPt);
+		if (!OpMath::IsNaN(segPtT.t)) {
+			if (0 == segPtT.t || 1 == segPtT.t)
+				oppPt = opp->mergePoints({ oppPt, oppT }, seg, segPtT);
+			add(opp, seg, oppPt, oppT, segPtT.t  OP_LINE_FILE_CALLER());
 		}
-		add(oppPt, segT, oppT  OP_LINE_FILE_CALLER());
 	};
 	if (OpMath::IsNaN(startSegT) && 0 != startOppT && 0 != endOppT)
 		checkSeg(opp->c.firstPt(), 0  OP_LINE_FILE_PARAMS());
