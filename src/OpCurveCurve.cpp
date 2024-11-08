@@ -301,6 +301,7 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
 	, opp(o)
 	, depth(0)
 	, uniqueLimits_impl(-1)
+	, unsplitables(0)
 	, addedPoint(false)
 	, rotateFailed(false)
 	, sectResult(false)
@@ -394,7 +395,7 @@ struct IdEnds {
 	MatchEnds matchEnds;
 };
 
-struct SectPair {
+struct SectDuo {
 	OpIntersection* s;
 	OpIntersection* o;
 	bool alreadySet;
@@ -402,7 +403,6 @@ struct SectPair {
 
 bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 		const OpPtT& oppStart, const OpPtT& oppEnd) {
-//	OpBreak2(seg, opp, 3, 6);
 	OpVector threshold = contours->threshold();
 	OpPtT eStart = edgeStart;
 	OpPtT eEnd = edgeEnd;
@@ -420,7 +420,7 @@ bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 	IsCoin isCoin = eStart.pt == (match.reversed ? oEnd.pt : oStart.pt) 
 			&& eEnd.pt == (match.reversed ? oStart.pt : oEnd.pt) ? IsCoin::yes : IsCoin::no;
 	auto setSectPair = [isCoin, this](const OpPtT& ePt, const OpPtT& oPt) {
-		SectPair result;
+		SectDuo result;
 		result.s = seg->sects.contains(ePt, opp);
 		result.o = opp->sects.contains(oPt, seg);
 		if (!result.s != !result.o) {
@@ -433,11 +433,15 @@ bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 				&& (IsCoin::yes == isCoin ? result.s->coincidenceID : result.s->unsectID);
 		return result;
 	};
-	SectPair sect1 = setSectPair(eStart, oStart);
+	SectDuo sect1 = setSectPair(eStart, oStart);
 	if (sect1.alreadySet)
 		return false;
-	SectPair sect2 = setSectPair(eEnd, oEnd);
+	SectDuo sect2 = setSectPair(eEnd, oEnd);
 	if (sect2.alreadySet)
+		return false;
+	if (sect1.s && sect1.s == sect2.s)
+		return false;
+	if (sect1.o && sect1.o == sect2.o)
 		return false;
 	int usectID = seg->nextID();
 	auto idEnds = [usectID, &match, isCoin](IsOpp isOpp) {
@@ -460,8 +464,7 @@ bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 			return segs->addCoin(start, ie.id, ie.matchEnds, opps  OP_LINE_FILE_PARAMS());
 		return segs->addUnsectable(start, ie.id, ie.matchEnds, opps  OP_LINE_FILE_PARAMS());
 	};
-	auto addPair = [this, addSect, setSect](SectPair sPair,
-			const OpPtT& ePt, const OpPtT& oPt) {
+	auto addPair = [this, addSect, setSect](SectDuo sPair, const OpPtT& ePt, const OpPtT& oPt) {
 		if (sPair.s) {
 			setSect(sPair.s, IsOpp::no);
 			setSect(sPair.o, IsOpp::yes);
@@ -615,6 +618,40 @@ bool OpCurveCurve::checkSplit(float loT, float hiT, CurveRef which, OpPtT& check
 	return false;
 }
 
+void OpCurveCurve::checkUnsplitables() {
+	for (OpEdge* eCurve : edgeCurves.c) {
+		if (!eCurve->isUnsplitable)
+			continue;
+		for (OpEdge* oCurve : oppCurves.c) {
+			if (!oCurve->isUnsplitable)
+				continue;
+			bool hullsIntersect = false;
+			OpPtT ePt = eCurve->center;
+			for (HullSect& hull : eCurve->hulls.h) {
+				if (hull.opp == oCurve) {
+					ePt = hull.sect;
+					hullsIntersect = true;
+					break;
+				}
+			}
+			OpPtT oPt = oCurve->center;
+			for (HullSect& hull : oCurve->hulls.h) {
+				if (hull.opp == eCurve) {
+					oPt = hull.sect;
+					hullsIntersect = true;
+					break;
+				}
+			}
+			if (hullsIntersect) {
+				recordSect(eCurve, oCurve, ePt, oPt  OP_LINE_FILE_PARAMS());
+				eCurve->ccOverlaps = false;
+				oCurve->ccOverlaps = false;
+				return;
+			}
+		}
+	}
+}
+
 // Divide only by geometric midpoint. Midpoint is determined by endpoint intersection, or
 // curve bounds if no intersection is found.
 // try several approaches:
@@ -640,18 +677,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 	for (depth = 1; depth < maxDepth; ++depth) {
 //		edgeCurves.endDist(seg, opp);
 //		oppCurves.endDist(opp, seg);
-#if OP_DEBUG_DUMP
-		if (dumpBreak(true)) {
-			if (contours->debugData.curveCurveDepth == depth)
-				::debug();
-			1 == depth ? ::showSegmentEdges() : ::hideSegmentEdges();
-			if (contours->debugData.curveCurveDepth < depth) 
-				::dmpDepth(depth);
-			dmpFile();
-			verifyFile(contours);
-			OP_ASSERT(0);
-		}
-#endif
+		OP_ASSERT(debugShowImage(true));
 		bool snipEm = false;
 		if (!setOverlaps())
 			return SectFound::fail;
@@ -694,6 +720,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 		if (!snipEm) {
 			CcCurves eSplits, oSplits;
 			size_t limitCount = limits.size();
+			unsplitables = 0;
 			if (!splitHulls(CurveRef::edge, eSplits))
 				return SectFound::fail;
 			if (!splitHulls(CurveRef::opp, oSplits))
@@ -705,6 +732,10 @@ SectFound OpCurveCurve::divideAndConquer() {
 					return SectFound::fail;  // note that this is very conservative and narrow
 				return limits.size() ? SectFound::add : SectFound::no;
 			}
+			// !!! if edge curves has unsplittable and opp curves has unsplittable, 
+			// add limit and remove both
+			if (1 < unsplitables)
+				checkUnsplitables();
 			snipEm = setSnipFromLimits(limitCount);
 		}
 		if (snipEm) {
@@ -1220,6 +1251,9 @@ bool OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 			continue;
 		if (edge.start().isNearly(edge.center, threshold) 
 				|| edge.center.isNearly(edge.end(), threshold)) {
+			edge.isUnsplitable = true;
+			++unsplitables;
+			splits.c.push_back(edgePtr);  // caller will split with snip and go
 			if (CurveRef::edge == which)
 				splitHullFail = true;
 			continue;
@@ -1265,7 +1299,7 @@ bool OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 		}
 		int midCount = 0;
 		for (const HullSect hull : hulls.h) {
-			if (edge.startT < hull.sect.t && hull.sect.t < edge.endT)
+			if (edge.startT <= hull.sect.t && hull.sect.t <= edge.endT)
 				++midCount;
 		}
 		if (!midCount) {
@@ -1294,6 +1328,7 @@ bool OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 					&& edge.endT != centerPtT.t)
 				hulls.add(centerPtT, threshold, SectType::center);
 		}
+		OP_DEBUG_VALIDATE_CODE(hulls.debugValidate());
 		hulls.add(edge.start(), threshold, SectType::endHull);
 		hulls.add(edge.end(), threshold, SectType::endHull);
 		hulls.nudgeDeleted(edge, *this, which);

@@ -6706,7 +6706,86 @@ path.close();
     testSimplify(reporter, path, filename);
 }
 
+void testQuadralaterals17879711(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(3, 0);
+path.lineTo(2, 1);
+path.lineTo(3, 1);
+path.lineTo(1, 3);
+path.lineTo(3, 0);
+path.close();
+path.moveTo(2, 0);
+path.lineTo(1, 1);
+path.lineTo(3, 1);
+path.lineTo(3, 3);
+path.lineTo(2, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void cubic1554993(skiatest::Reporter* reporter, const char* filename) {
+    SkPath pathA, path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 6);
+path.cubicTo(2, 3, 3, 1, 6, 5);
+path.lineTo(1, 6);
+path.close();
+    pathA = path;
+    path.reset();
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 3);
+path.cubicTo(5, 6, 6, 1, 3, 2);
+path.lineTo(1, 3);
+path.close();
+    testPathOp(reporter, pathA, path, SkPathOp::kDifference_SkPathOp, filename);
+}
+
+void skiaIssue377820800(skiatest::Reporter* reporter, const char* filename) {
+	SkPath circle;
+	circle.moveTo(-11851.900391, 77530.906250);
+	circle.cubicTo(31516.501953, 77530.914062, 66502.085938, 42545.402344, 66502.101562, -823.000000);
+	circle.cubicTo(66502.117188, -44191.429688, 31516.527344, -79177.015625, -11851.900391, -79177.000000);
+	circle.cubicTo(-55220.300781, -79176.976562, -90205.812500, -44191.402344, -90205.796875, -823.000000);
+	circle.cubicTo(-90205.789062, 42545.371094, -55220.269531, 77530.890625, -11851.900391, 77530.906250);
+	circle.close();
+	SkPath star;
+	star.moveTo(87938.179688, -44056.578125);
+	star.cubicTo(73280.273438, -24346.650391, 58617.972656, -4630.807129, 43960.074219, 15079.121094);
+	star.cubicTo(58175.753906, 35110.351562, 72395.695312, 55147.593750, 86611.375000, 75178.828125);
+	star.cubicTo(63336.671875, 67329.015625, 40054.984375, 59476.839844, 16780.275391, 51627.023438);
+	star.cubicTo(2122.341797, 71336.890625, -12539.992188, 91052.664062, -27197.923828, 110762.523438);
+	star.cubicTo(-26924.619141, 86201.179688, -26651.230469, 61632.464844, -26377.925781, 37071.121094);
+	star.cubicTo(-49652.699219, 29221.304688, -72934.453125, 21369.134766, -96209.226562, 13519.321289);
+	star.cubicTo(-72765.539062, 6189.421387, -49314.816406, -1142.678467, -25871.125000, -8472.578125);
+	star.cubicTo(-25597.787109, -33033.957031, -25324.363281, -57602.703125, -25051.025391, -82164.070312);
+	star.cubicTo(-10835.345703, -62132.882812, 3384.598389, -42095.671875, 17600.277344, -22064.480469);
+	star.cubicTo(41043.898438, -29394.447266, 64494.554688, -36726.613281, 87938.179688, -44056.578125);
+	star.close();
+	testPathOp(reporter, circle, star, kDifference_SkPathOp, filename);
+}
+
+void testQuads23839519(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 1);
+path.quadTo(0, 2, 3, 3);
+path.lineTo(3, 3);
+path.lineTo(1, 1);
+path.close();
+path.moveTo(1, 0);
+path.lineTo(3, 0);
+path.quadTo(0, 1, 1, 2);
+path.lineTo(1, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
 static struct TestDesc tests[] = {
+    TEST(testQuads23839519),
+    TEST(skiaIssue377820800),
+    TEST(cubic1554993),
+    TEST(testQuadralaterals17879711),
     TEST(testLine498627),
     TEST(testQuads14879131),
     TEST(testQuads13043349),

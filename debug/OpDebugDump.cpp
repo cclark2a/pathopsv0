@@ -1226,6 +1226,7 @@ std::vector<LabelAbbr> labelAbbrs = {
     {"prior", "p", "p"},
     {"segment", "seg", "s"},
     {"winding", "wind", "w"},
+    {"isUnsplitable", "ccIsUS", "cUS"},
     {"ccEnd", "ccE", "cE"},
     {"ccLarge", "ccLg", "lg"},
     {"ccOverlaps", "ovrlaps", "laps"},
@@ -1466,6 +1467,7 @@ ENUM_NAME(EdgeSplit, edgeSplit)
 	OP_X(inLinkups) \
 	OP_X(inOutput) \
 	OP_X(disabled) \
+	OP_X(isUnsplitable) \
 	OP_X(ccEnd) \
 	OP_X(ccLarge) \
 	OP_X(ccOverlaps) \
@@ -2022,6 +2024,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     STR_BOOL(inLinkups);
     STR_BOOL(inOutput);
     STR_BOOL(disabled);
+    STR_BOOL(isUnsplitable);
     STR_BOOL(ccEnd);
     STR_BOOL(ccLarge);
     STR_BOOL(ccOverlaps);
@@ -2178,6 +2181,7 @@ void OpEdge::dumpSet(const char*& str) {
     STR_BOOL(inLinkups);
     STR_BOOL(inOutput);
     STR_BOOL(disabled);
+    STR_BOOL(isUnsplitable);
     STR_BOOL(ccEnd);
     STR_BOOL(ccLarge);
     STR_BOOL(ccOverlaps);
@@ -3240,6 +3244,7 @@ std::string CcCurves::debugDump(DebugLevel l, DebugBase b) const {
     }
     // set up edge::debugDump to only show curvecurve relevant fields
     std::vector<EdgeFilter> showFields = { EF::id, EF::segment, EF::startT, EF::endT,
+			EF::isUnsplitable,
             EF::ccEnd, EF::ccLarge, EF::ccOverlaps, EF::ccSmall, EF::ccStart,
             EF::hulls, 
             EF::debugSetMaker, EF::debugParentID };
@@ -3272,18 +3277,6 @@ void CcCurves::dumpResolveAll(OpContours* contours) {
         contours->dumpResolve(edge);
     for (auto& run : runs)
         run.dumpResolveAll(contours);
-}
-
-bool OpCurveCurve::dumpBreak(bool atDepth) const {
-    if (contours->debugData.curveCurveDepth < 0)
-        return false;
-    if (atDepth && !contours->debugData.curveCurveDepth)
-        return false;
-    if (contours->debugData.curveCurve1 != seg->id && contours->debugData.curveCurve2 != seg->id)
-        return false;
-    if (contours->debugData.curveCurve1 != opp->id && contours->debugData.curveCurve2 != opp->id)
-        return false;
-     return !atDepth || depth >= contours->debugData.curveCurveDepth;
 }
 
 std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
@@ -3354,7 +3347,7 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
     if (DebugLevel::file == l) {
         if (dvDepthIndex.size()) {
             s += "dvDepthIndex[" + STR(dvDepthIndex.size()) + "\n";
-            for (int iDepth : dvDepthIndex)
+            for (size_t iDepth : dvDepthIndex)
                 s += STR(iDepth) + " ";
             s.pop_back();
             s += "] ";
@@ -3440,22 +3433,22 @@ void OpCurveCurve::dumpResolveAll(OpContours* c) {
 #if OP_DEBUG_VERBOSE
 void OpCurveCurve::dumpDepth(int level) {
     std::vector<EdgeFilter> showFields = { EF::id, EF::segment, EF::startT, EF::endT, 
+			EF::isUnsplitable,
             EF::ccEnd, EF::ccLarge, EF::ccOverlaps, EF::ccSmall, EF::ccStart,
             EF::hulls, EF::isClose_impl, EF::debugParentID, EF::debugSetMaker };
     OpSaveEF saveEF(showFields);
     OpDebugOut("depth:" + STR(level) + "\n");
-    int dvLevels = dvDepthIndex.size();
-    if (dvLevels <= level) {
+    size_t dvLevels = dvDepthIndex.size();
+    if ((int) dvLevels <= level) {
         for (const auto e : edgeCurves.c)
             dp(e);
         for (const auto e : oppCurves.c)
             dp(e);
         return;
     }
-    int lo = (int) dvDepthIndex[level];
-    int hi = (int) dvDepthIndex.size() <= level + 1 ? (int) dvAll.size() 
-            : dvDepthIndex[level + 1];
-    for (int index = lo; index < hi; ++index) {
+    size_t lo = dvDepthIndex[level];
+    size_t hi = (int) dvDepthIndex.size() <= level + 1 ? dvAll.size() : dvDepthIndex[level + 1];
+    for (size_t index = lo; index < hi; ++index) {
         OpEdge* e = dvAll[index];
         dp(e);
     }
@@ -3469,8 +3462,7 @@ void dmpDepth(int level) {
 }
 
 void OpCurveCurve::dumpDepth() {
-    for (int level = 0; level <= (int) dvDepthIndex.size();
-            ++level) {
+    for (size_t level = 0; level <= dvDepthIndex.size(); ++level) {
         dumpDepth(level);
     }
 }

@@ -32,7 +32,8 @@ enum class ContextError {
 	curve,
 	intersection,
     segmentBounds,
-	toVertical
+	toVertical,
+	tree
 };
 
 // convenience for adding caller defined data to context

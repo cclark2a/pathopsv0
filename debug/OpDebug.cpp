@@ -470,13 +470,45 @@ OpCurve OpCurve::toVerticalDouble(const LinePts& line) const {
 #if OP_DEBUG_VERBOSE
 void OpCurveCurve::debugSaveState() {
 	if ((int) dvDepthIndex.size() < depth)
-		dvDepthIndex.push_back((int) dvAll.size());
+		dvDepthIndex.push_back(dvAll.size());
 	for (auto edge : edgeCurves.c)
 		dvAll.push_back(edge);
 	for (auto oppEdge : oppCurves.c)
 		dvAll.push_back(oppEdge);
 }
 #endif
+
+// return false for caller to assert
+bool OpCurveCurve::debugShowImage(bool atDepth) {
+	if (OpDebugSkipBreak())
+		return true;
+    if (contours->debugData.curveCurveDepth < 0)
+        return true;
+    if (atDepth && !contours->debugData.curveCurveDepth)
+        return true;
+    if (contours->debugData.curveCurve1 != seg->id && contours->debugData.curveCurve2 != seg->id)
+        return true;
+    if (contours->debugData.curveCurve1 != opp->id && contours->debugData.curveCurve2 != opp->id)
+        return true;
+    if (atDepth && depth < contours->debugData.curveCurveDepth)
+		return true;
+#if OP_DEBUG_DUMP
+	if (!atDepth || contours->debugData.curveCurveDepth == depth)
+		::debug();
+#endif
+	OP_DEBUG_IMAGE_CODE(1 == depth ? ::showSegmentEdges() : ::hideSegmentEdges());
+#if OP_DEBUG_DUMP
+#if OP_DEBUG_VALIDATE
+	if (contours->debugData.curveCurveDepth < depth) {
+		::dmpDepth(depth);
+		::drawDepth(depth);
+	}
+#endif
+	dmpFile();
+	verifyFile(contours);
+#endif
+	return false;
+}
 
 void OpContours::addDebugWarning(OpDebugWarning warn) {
     debugWarnings.push_back(warn);
@@ -575,6 +607,22 @@ bool OpEdge::debugValidLoop() const {
 			return false;
 		}
 		last = last->nextEdge;
+	}
+}
+#endif
+
+#if OP_DEBUG_VALIDATE
+void OpHulls::debugValidate() const {
+	if (h.size() < 2)
+		return;
+	OP_ASSERT(h[0].opp);
+	OpVector threshold = h[0].opp->segment->threshold();
+	for (size_t outer = 0; outer < h.size() - 1; ++outer) {
+			const HullSect& o = h[outer];
+		for (size_t inner = outer + 1; inner < h.size(); ++inner) {
+			const HullSect& i = h[inner];
+			OP_ASSERT(!o.sect.pt.isNearly(i.sect.pt, threshold));
+		}
 	}
 }
 #endif
@@ -837,20 +885,27 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContours* contours)) {
     }
 }
 
-bool OpJoiner::DebugShowImage() {
-#define SHOW_DEBUG_IMAGE 0   // defeat image debugging for very large tests like joel_4
-#define DEFEAT_LOCAL_BREAK 0
-#if SHOW_DEBUG_IMAGE && OP_DEBUG_IMAGE
-	::debugImage();
-	::showFill();
-#endif
-	  // break if running last failed fast test
-#if TEST_PATH_OP_SKIP_TO_V0
-	return  OP_DEBUG_FAST_TEST || (!TEST_PATH_OP_SKIP_TO_V0 
-			&& (!OP_DEBUG_BREAK_IN_LINK_REMAINING || DEFEAT_LOCAL_BREAK));
-#else
+OP_DEBUG_CODE(extern std::string requestedFirst);
+
+// break (return false) if running last failed fast test
+bool OpDebugSkipBreak() {
+#if OP_DEBUG_FAST_TEST
 	return true;
+#else
+	return !(TEST_PATH_OP_SKIP_TO_V0  OP_DEBUG_CODE(|| requestedFirst.size()));
 #endif
+}
+
+// return false to auto-break
+bool OpJoiner::DebugShowImage() {
+	if (!OpDebugSkipBreak()) {
+#if OP_DEBUG_IMAGE
+		::debugImage();
+		::showFill();
+#endif
+		return false;
+	}
+	return true;
 }
 
 #if OP_DEBUG_VALIDATE

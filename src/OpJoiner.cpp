@@ -132,7 +132,6 @@ void OpLimb::set(OpTree& tree, OpEdge* test, OpLimb* p, EdgeMatch m, LimbPass l,
 
 OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPass, size_t limbIndex,
 		OpEdge* otherEnd) {
-//	OpBreakIf(this, 89, LimbPass::unlinkedPal == tree.limbPass && LimbPass::disabledPals == limbPass);
 	OP_ASSERT(!test->disabled || test->isUnsectable() || Unsortable::none != test->isUnsortable 
 			|| LimbPass::disabled <= limbPass);
 	OP_ASSERT(!test->hasLinkTo(m) || Unsortable::none != test->isUnsortable || test->disabled 
@@ -211,6 +210,8 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 	if (tree.containsParent(this, test, m))
 		return nullptr;
 	OpLimb* branch = tree.makeLimb();
+	// !!! if some upper number of limbs are made, return fail instead of running forever
+	//      let caller supply limit?
 	branch->set(tree, test, this, m, limbPass, limbIndex, otherEnd, &childBounds);
 	return branch;
 }
@@ -253,6 +254,11 @@ OpTree::OpTree(OpJoiner& join)
 			int index = 0;
 			do {
 				nthLimb(index).addEach(join, *this);
+				if (totalUsed > 100) {
+					contours->setError(PathOpsV0Lib::ContextError::tree  
+							OP_DEBUG_PARAMS(join.edge->id));
+					return;
+				}
 			} while (++index < totalUsed);
 		}
 		if (LimbPass::unlinkedPal < ++limbPass)
@@ -986,6 +992,8 @@ bool OpJoiner::matchLinks(bool popLast) {
 	found.clear();
 	matchPt = lastLink->whichPtT(EdgeMatch::end).pt;
 	OpTree tree(*this);
+	if (PathOpsV0Lib::ContextError::none != edge->contours()->error)
+		return false;
 	// adding gap edge in unsect pair case
 	if (!tree.bestLimb) {
 		OpLimb* gap = tree.bestGapLimb;

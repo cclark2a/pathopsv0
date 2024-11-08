@@ -5,10 +5,12 @@
 
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
-#define TEST_PATH_OP_SKIP_TO_FILE "loop" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
+#define TEST_PATH_OP_SKIP_TO_FILE "" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
 #define TESTS_TO_SKIP 0 // 14295903  // tests to skip
-#define TEST_FIRST ""  // e.g., "joel4" (ignored by fast test, overridden by TEST_DRIVE_FIRST)
-
+#define TEST_FIRST "fuzz763_378"  // e.g., "joel4" (ignored by fast test, overridden by TEST_DRIVE_FIRST)
+// fuzz763_378 asserts in OpIntersections::sort() debug check line 397 but continuing, succeeds
+// testQuads23839519 had 27 errors
+// grshapearc hangs in OpTree contructor? (makes over 10K limbs)
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
 #define OP_TEST_ALLOW_EXTENDED 1  // some Skia tests have extended versions which take longer
@@ -17,9 +19,9 @@
 #define OP_TEST_SKIA 1  // see if skia's path ops can execute the same test
 #define OP_TEST_REGION 1  // test result of v0 against skia regions
 
-#define CURVE_CURVE_1 6  // id of segment 1 to break in divide and conquer
-#define CURVE_CURVE_2 3  // id of segment 2 to break in divide and conquer
-#define CURVE_CURVE_DEPTH -1  // minimum recursion depth for curve curve break (-1 to disable)
+#define CURVE_CURVE_1 7  // id of segment 1 to break in divide and conquer
+#define CURVE_CURVE_2 2  // id of segment 2 to break in divide and conquer
+#define CURVE_CURVE_DEPTH 0  // minimum recursion depth for curve curve break (-1 to disable)
 
 // see descriptions for exceptions below
 #define TEST_PATH_OP_EXCEPTIONS "" // "pentrek10"
@@ -46,7 +48,8 @@ extended: 30046752 (all) quadralateral tests run 10/31/24
 extended: 1280660 (all) rects tests run 11/1/24
 extended: 2130048 (all) triangle tests run 11/1/24
 extended: 3111696 (all) rect tests run 11/1/24
-
+extended: 73289779 of 74560480 run 11/8/24 exceptions: grshapearc, testQuads23839519
+          12 tests v0 pass, skia fail
 (old)
 
 fuzz763_378: no edge found: last, last resort (x2) had errors=36 # this looks fixable

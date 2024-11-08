@@ -520,6 +520,9 @@ void OpContours::reuse(OpEdgeStorage* edgeStorage) {
 bool OpContours::setError(PathOpsV0Lib::ContextError e  OP_DEBUG_PARAMS(int eID, int oID)) {
 	if (PathOpsV0Lib::ContextError::none != error)
 		return false;
+#if OP_DEBUG
+	OpDebugOut("fatal error in " + debugData.testname + "\n");
+#endif
 	error = e;
 	OP_DEBUG_CODE(debugErrorID = eID);
 	OP_DEBUG_CODE(debugOppErrorID = oID);

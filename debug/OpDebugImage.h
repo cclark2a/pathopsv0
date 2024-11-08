@@ -189,7 +189,7 @@ extern void smallFloats(bool );  // set to false to show sub-epsilon values as ~
 extern void textSize(float );
 
 #if OP_DEBUG_VERBOSE
-extern void depth(int level);  // during curve-curve intersection, select edges at given level 
+extern void drawDepth(int level);  // during curve-curve intersection, select edges at given level 
 #endif
 
 #define MASTER_LIST \
@@ -198,7 +198,6 @@ OP_X(Centers) \
 OP_X(Coincidences) \
 OP_X(ControlLines) \
 OP_X(Controls) \
-OP_X(EdgeRuns) \
 OP_X(EdgesOut) \
 OP_X(Edges) \
 OP_X(EndToEnd) \
@@ -222,6 +221,7 @@ OP_X(Values) \
 OP_X(Windings)
 
 #define ALIAS_LIST \
+OP_X(EdgeRuns) \
 OP_X(Fill) \
 OP_X(In) \
 OP_X(Operands) \

@@ -11,21 +11,25 @@
 // don't add if points are close
 // prefer end if types are different
 // return true if close enough points are ctrl + mid
-bool OpHulls::add(const OpPtT& ptT, OpVector threshold, SectType sectType, const OpEdge* opp) {			
-	auto found = std::find_if(h.begin(), h.end(), [ptT, threshold](const HullSect& hull) {
-		return ptT.isNearly(hull.sect, threshold);
-	});
-	if (h.end() == found) {
+bool OpHulls::add(const OpPtT& ptT, OpVector threshold, SectType sectType, const OpEdge* opp) {	
+	bool foundNear = false;
+	bool nearEnd = false;
+	for (size_t index = h.size(); index-- != 0; ) {
+		const HullSect& hSect = h[index];
+		bool near = ptT.isNearly(hSect.sect, threshold);
+		if (!near)
+			continue;
+		foundNear = true;
+		if (SectType::endHull == sectType)
+			h.erase(h.begin() + index);
+		else
+			nearEnd |= SectType::endHull != hSect.type && sectType != hSect.type;
+	}
+	if (!foundNear || SectType::endHull == sectType) {
 		h.emplace_back(ptT, sectType, opp);
 		return false;
 	}
-	if (SectType::endHull == sectType) {
-		found->sect = ptT;
-		found->type = sectType;
-		return false;
-	}
-	OP_ASSERT(SectType::midHull == sectType || SectType::controlHull == sectType);
-	return SectType::endHull != found->type && found->type != sectType;
+	return nearEnd;
 }
 
 bool OpHulls::closeEnough(int index, const OpEdge& edge, const OpEdge& oEdge, OpPtT* oPtT,
@@ -783,10 +787,12 @@ void OpEdge::subDivide(OpPoint startPoint, OpPoint endPoint) {
 	curve = segment->c.subDivide(OpPtT(startPoint, startT), OpPtT(endPoint, endT));
 	setPointBounds();
 	calcCenterT();
+#if 0  // if curve is near-linear cubic, t value for edge is wrong
 	if (curve.isLine()) {
 		center.t = OpMath::Interp(startT, endT, .5);
 		center.pt = ptBounds.center();
 	}
+#endif
  	if (startPoint == endPoint) {
 //		OP_ASSERT(0);	// triggered by fuzz763_9
 		setDisabled(OP_LINE_FILE_NPARAMS());

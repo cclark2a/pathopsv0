@@ -357,10 +357,7 @@ FoundIntersections OpSegments::findIntersections() {
 			// look for curve curve intersections (skip coincidence already found)
 			OpCurveCurve cc(seg, opp);
 			SectFound ccResult = cc.divideAndConquer();
-#if OP_DEBUG_DUMP
-			if (cc.dumpBreak(false))
-				OP_ASSERT(0);
-#endif
+			OP_ASSERT(cc.debugShowImage());
 			if (true) { // SectFound::fail == ccResult || SectFound::maxOverlaps == ccResult
 						//        || SectFound::noOverlapDeep == ccResult
 				// !!! as an experiment, search runs for small opp distances; turn found into limits

@@ -128,6 +128,7 @@ struct OpCurveCurve {
 	bool checkForGaps();
 	bool checkSect();
 	bool checkSplit(float lo, float hi, CurveRef , OpPtT& checkPtT) const;
+	void checkUnsplitables();
 	SectFound divideAndConquer();
 	bool endsOverlap() const;
 	void findUnsectable();
@@ -149,11 +150,11 @@ struct OpCurveCurve {
 #if OP_DEBUG
 	~OpCurveCurve() { 
 		contours->debugCurveCurve = nullptr; }
+	bool debugShowImage(bool atDepth = false);
 #endif
 #if OP_DEBUG_DUMP
 	OpCurveCurve(OpContours* c) { contours = c; }
 	void drawClosest(const OpPoint& originalPt) const;
-	bool dumpBreak(bool atDepth) const;
 	void dumpClosest(const OpPoint& pt) const;
 #include "OpDebugDeclarations.h"
 #endif
@@ -175,6 +176,7 @@ struct OpCurveCurve {
 	MatchReverse matchRev;
 	int depth;
 	int uniqueLimits_impl;  // cached count; set negative if invalid (call 
+	int unsplitables;
 	bool addedPoint;
 	bool rotateFailed;
 	bool sectResult;
@@ -189,7 +191,7 @@ struct OpCurveCurve {
 	int debugLocalCall;  // (copy so it is visible in debugger)
 #endif
 #if OP_DEBUG_VERBOSE
-	std::vector<int> dvDepthIndex;
+	std::vector<size_t> dvDepthIndex;
 	std::vector<OpEdge*> dvAll;
 #endif
 };

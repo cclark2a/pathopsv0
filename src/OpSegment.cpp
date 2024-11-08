@@ -435,6 +435,8 @@ float OpSegment::findAxisT(Axis axis, float start, float end, float opp) {
 
 // rarely, moving points prevents finding matching ends. If there is no end, do an exhaustive search
 void OpSegment::findMissingEnds() {
+	if (willDisable && !disabled)
+		setDisabled(OP_LINE_FILE_NPARAMS());
 	if (disabled)
 		return;
 	OP_ASSERT(!sects.unsorted);
@@ -867,7 +869,7 @@ void OpSegment::transferCoins() {
 				if (edge.startPt() != oEdge.ptT(match).pt)
 					continue;
 				if (oEdge.disabled)
-					break;
+					continue;
 #if OP_DEBUG
 				std::vector<CoinPal>& ocPals = oEdge.coinPals;
 				auto ocPal = std::find_if(ocPals.begin(), ocPals.end(), [cID]

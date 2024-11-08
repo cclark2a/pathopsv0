@@ -160,6 +160,7 @@ struct OpHulls {
 	bool sectCandidates(int index, const OpEdge& edge);
 	void sort(bool useSmall);
 	DUMP_DECLARATIONS
+	OP_DEBUG_VALIDATE_CODE(void debugValidate() const);
 
 	std::vector<HullSect> h;
 };
@@ -271,6 +272,7 @@ private:
 		, inLinkups(false)
 		, inOutput(false)
 		, disabled(false)
+		, isUnsplitable(false)
 		, ccEnd(false)
 		, ccLarge(false)
 		, ccOverlaps(false)
@@ -475,6 +477,7 @@ public:
 	bool inOutput;	// likely only used to find inactive unsectables that are not on output path
 	bool disabled;	// winding is zero, or apply disqualified edge from appearing in output
 //	bool isUnsectable;	// if set edge is between one or more unsectable ranges (in intersections) 
+	bool isUnsplitable;  // too small to split in two during curve-curve intersection
 	bool ccEnd;  // set if edge end is closest to already found curve-curve intersection
 	bool ccLarge;  // set if curve/curve has large t match and this edge is last
 	bool ccOverlaps;  // set if curve/curve edges have bounds that overlap

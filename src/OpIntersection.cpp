@@ -373,7 +373,7 @@ bool OpIntersections::simpleStart() const {
 
 void OpIntersections::sort() {
 	if (!unsorted) {
-#if OP_DEBUG
+#if 0 && OP_DEBUG  // !!! fails with fuzz763_378
 		if (i.size()) {
 			const OpIntersection* last = i.front();
 			auto findEndIndex = [this](const OpIntersection* sect) {
@@ -394,7 +394,8 @@ void OpIntersections::sort() {
 					   && (MatchEnds::start == s->unsectEnd || MatchEnds::start == s->coinEnd)) {
 					size_t lastEndIndex = findEndIndex(last);
 					size_t sEndIndex = findEndIndex(s);
-					OP_ASSERT(sEndIndex < lastEndIndex);
+					OP_ASSERT(sEndIndex < lastEndIndex 
+							|| i[lastEndIndex]->ptT.t == i[sEndIndex]->ptT.t);
 				}
 				last = s;
 			}

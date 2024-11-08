@@ -39,11 +39,9 @@ int gridIntervals = 8;
 bool draw##Thing##On = false;
 MASTER_LIST
 #undef OP_X
+bool drawEdgeRunsOn = false;
 bool drawFillOn = false;
 bool drawLimbsOn = false;
-#if OP_DEBUG_VERBOSE
-int debugVerboseDepth = 0;
-#endif
 
 uint32_t OP_DEBUG_MULTICOLORED = 0xAbeBeBad;
 uint32_t pathsOutColor = blue;
@@ -100,7 +98,6 @@ struct OpDebugSegmentIterator {
 };
 
 OpDebugSegmentIterator segmentIterator;
-int edgeIterDvLevel = -1;
 
 struct OpDebugEdgeIter {
     OpDebugEdgeIter(bool start)
@@ -116,23 +113,8 @@ struct OpDebugEdgeIter {
 		}
 		if (debugGlobalContours->fillerStorage)
 			edgeIndex += debugGlobalContours->fillerStorage->debugCount();
-		OpCurveCurve* cc = debugGlobalContours->debugCurveCurve;
-		if (!cc)
-			return;
-		if (edgeIterDvLevel < 0)
+		if (debugGlobalContours->ccStorage)
 			edgeIndex += debugGlobalContours->ccStorage->debugCount();
-#if OP_DEBUG_VERBOSE
-		else if (edgeIterDvLevel) {
-			int dvLevel = std::max(edgeIterDvLevel, (int) cc->dvDepthIndex.size());
-			int lo = cc->dvDepthIndex[dvLevel - 1];
-			int hi = (int) cc->dvDepthIndex.size() <= dvLevel 
-					? (int) cc->dvAll.size() : cc->dvDepthIndex[dvLevel];
-			edgeIndex += hi - lo;
-		} else {
-			edgeIndex += cc->edgeCurves.c.size();
-			edgeIndex += cc->oppCurves.c.size();
-		}
-#endif
 	}
 
     bool operator!=(OpDebugEdgeIter rhs) { 
@@ -164,38 +146,15 @@ struct OpDebugEdgeIter {
 			}
 			index += debugGlobalContours->fillerStorage->debugCount();
 		}
-		OpCurveCurve* cc = debugGlobalContours->debugCurveCurve;
-		if (cc) {
-			const OpEdge* ccEdge = nullptr;
-			auto checkEdges = [&ccEdge, this, &index](std::vector<OpEdge*> edges) {
-				if (ccEdge)
-					return;
-				if (edgeIndex - index < edges.size())
-					ccEdge = edges[edgeIndex - index];
-				else
-					index += edges.size();
-			};
-			if (edgeIterDvLevel < 0)
-				ccEdge = debugGlobalContours->ccStorage->debugIndex(edgeIndex - index);
-#if OP_DEBUG_VERBOSE
-			else if (edgeIterDvLevel) {	
-				int dvLevel = std::min(edgeIterDvLevel, (int) cc->dvDepthIndex.size());
-				int lo = (int) cc->dvDepthIndex[dvLevel - 1];
-				int hi = (int) cc->dvDepthIndex.size() <= dvLevel 
-						? (int) cc->dvAll.size() : cc->dvDepthIndex[dvLevel];
-				if (index + hi - lo > edgeIndex)
-					ccEdge = cc->dvAll[edgeIndex - index + lo];
-			} else {
-				checkEdges(cc->edgeCurves.c);
-				checkEdges(cc->oppCurves.c);
-			}
-#endif
+		if (debugGlobalContours->ccStorage) {
+			const OpEdge* ccEdge = debugGlobalContours->ccStorage->debugIndex(edgeIndex - index);
 			if (ccEdge) {
 				isCurveCurve = true;
 				isFiller = false;
 				isLine = false;
 				return ccEdge;
 			}
+			index += debugGlobalContours->ccStorage->debugCount();
 		}
 		OpDebugOut("iterator out of bounds! edgeIndex: " + STR(edgeIndex) + 
 				"; max index: " + STR(index) + "\n");
@@ -404,9 +363,6 @@ void OpDebugImage::drawPath(const SkPath& path, uint32_t color) {
 }
 
 void OpDebugImage::drawDoubleFocus() {
-#if OP_DEBUG_VERBOSE
-	edgeIterDvLevel = debugVerboseDepth;
-#endif
 	OP_DEBUG_CODE(OpDebugDefeatDelete defeater);
 	std::vector<int> ids;
 	clearScreen();
@@ -516,9 +472,6 @@ void OpDebugImage::drawDoubleFocus() {
 #endif
 	if (drawGridOn)
 		drawGrid();
-#if OP_DEBUG_VERBOSE
-	edgeIterDvLevel = -1;
-#endif
 }
 
 void OpDebugImage::record(FILE* recordFile) {
@@ -1656,6 +1609,37 @@ void toggleTemporaryEdges() {
 	});
 }
 
+static void operateOnEdgeRuns(std::function<void (OpEdge*)> fun) {
+	const OpCurveCurve* cc = debugGlobalContours->debugCurveCurve;
+	if (!cc)
+		return;
+	for (const CcCurves& curves : { cc->edgeCurves, cc->oppCurves } ) {
+		for (const EdgeRun run : curves.runs) {
+			OpEdge* edge = const_cast<OpEdge*>(run.edge);
+			fun(edge);
+		}
+	}
+	OpDebugImage::drawDoubleFocus();
+}
+
+void hideEdgeRuns() {
+	operateOnEdgeRuns([](OpEdge* edge) {
+		edge->debugDraw = false;
+	});
+}
+
+void showEdgeRuns() {
+	operateOnEdgeRuns([](OpEdge* edge) {
+		edge->debugDraw = true;
+	});
+}
+
+void toggleEdgeRuns() {
+	operateOnEdgeRuns([](OpEdge* edge) {
+		edge->debugDraw ^= true;
+	});
+}
+
 void colorActive(uint32_t color) {
 	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
@@ -2109,10 +2093,35 @@ void add(std::vector<OpEdge>& e) {
 }
 
 #if OP_DEBUG_VERBOSE
-void depth(int level) {
-    if (!debugGlobalContours->debugCurveCurve)
-        return;
-    debugVerboseDepth = level;
+void drawDepth(int level) {
+	OpEdgeStorage* ccStorage = debugGlobalContours->ccStorage;
+	if (!ccStorage)
+		return;
+	size_t count = ccStorage->debugCount();
+	for (size_t index = 0; index < count; ++index) {
+		OpEdge* edge = ccStorage->debugIndex(index);
+		edge->debugDraw = false;
+	}
+	OpCurveCurve* cc = debugGlobalContours->debugCurveCurve;
+    if (!cc)
+		return;
+	if (level > 0) {
+		size_t dvLevel = std::min((size_t) level, cc->dvDepthIndex.size() + 1);
+		size_t lo = cc->dvDepthIndex[dvLevel - 1];
+		size_t hi = cc->dvDepthIndex.size() <= dvLevel ? cc->dvAll.size() : cc->dvDepthIndex[dvLevel];
+		if (lo >= hi)
+			return;
+		while (lo < hi) {
+			cc->dvAll[lo]->debugDraw = true;
+			++lo;
+		}
+	} else {
+		for (const CcCurves& ccCurves : { cc->edgeCurves, cc->oppCurves } ) {
+			for (OpEdge* edge : ccCurves.c) {
+				edge->debugDraw = true;
+			}
+		}
+	}
 	OpDebugImage::drawDoubleFocus();
 }
 #endif
@@ -2294,17 +2303,13 @@ void help() {
 
 void resetFocus() {
 	OpPointBounds focusRect;
-	if (!drawSegmentsOn 
-		&& drawEdgesOn) {
-		int saveLevel = edgeIterDvLevel;
-		edgeIterDvLevel = std::max(0, edgeIterDvLevel);
+	if (!drawSegmentsOn && drawEdgesOn) {
 		for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 			const OpEdge* edge = *edgeIter;
 			if (!edge->debugDraw)
 				continue;
 			focusRect.add(edge->ptBounds);
 		}
-		edgeIterDvLevel = saveLevel;
 	}
 	if (!focusRect.isFinite()) {
 		for (auto contour : debugGlobalContours->contours) {
