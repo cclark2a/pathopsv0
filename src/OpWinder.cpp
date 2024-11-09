@@ -103,10 +103,14 @@ bool SectRay::checkOrder(const OpEdge* home) const {
 				return false;
 			}
 		}
+		// !!! document why this fail case is here
+		// if a pair are very close or identical but far from home, that should be OK
+	#if 0  // if enabled, suspected to break testQuads23839519
 		if (dist->cept == (dist + 1)->cept) {
 			OP_DEBUG_CODE(prior->contours()->debugFailOnEqualCepts = true);
 			return false;
 		}
+	#endif
 	}
 	// check to see if closest to home is too close
 	const EdgePal* homeD = nullptr;

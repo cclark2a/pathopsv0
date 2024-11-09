@@ -7,9 +7,8 @@
 // these may be moved to command line parameters at some point
 #define TEST_PATH_OP_SKIP_TO_FILE "" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
 #define TESTS_TO_SKIP 0 // 14295903  // tests to skip
-#define TEST_FIRST "fuzz763_378"  // e.g., "joel4" (ignored by fast test, overridden by TEST_DRIVE_FIRST)
+#define TEST_FIRST ""  // e.g., "joel4" (ignored by fast test, overridden by TEST_DRIVE_FIRST)
 // fuzz763_378 asserts in OpIntersections::sort() debug check line 397 but continuing, succeeds
-// testQuads23839519 had 27 errors
 // grshapearc hangs in OpTree contructor? (makes over 10K limbs)
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
@@ -21,7 +20,7 @@
 
 #define CURVE_CURVE_1 7  // id of segment 1 to break in divide and conquer
 #define CURVE_CURVE_2 2  // id of segment 2 to break in divide and conquer
-#define CURVE_CURVE_DEPTH 0  // minimum recursion depth for curve curve break (-1 to disable)
+#define CURVE_CURVE_DEPTH -1  // minimum recursion depth for curve curve break (-1 to disable)
 
 // see descriptions for exceptions below
 #define TEST_PATH_OP_EXCEPTIONS "" // "pentrek10"
@@ -43,28 +42,7 @@
 #define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */
 
 /* test failure descriptions:
-extended: 30046752 (all) quad tests run 10/31/24
-extended: 30046752 (all) quadralateral tests run 10/31/24
-extended: 1280660 (all) rects tests run 11/1/24
-extended: 2130048 (all) triangle tests run 11/1/24
-extended: 3111696 (all) rect tests run 11/1/24
-extended: 73289779 of 74560480 run 11/8/24 exceptions: grshapearc, testQuads23839519
-          12 tests v0 pass, skia fail
-(old)
-
-fuzz763_378: no edge found: last, last resort (x2) had errors=36 # this looks fixable
-             gap between edge 2225 and 2227 (why is 2226 disabled?)
-             likely other errors
-
-(old)
-  last successful run desktop:
-total run:735269 skipped:0 errors:1 warnings:26 v0 only:3 skia only:70
-  last successful run laptop:
-total run:735268 skipped:1 errors:2 warnings:41 v0 only:4 skia only:70
-
-issue3517 no edge found: last, last resort
-fuzzhang_1: succeeds in skia, fails in v0 (investigate)
-
+extended: all tests run 11/9/24 exceptions: grshapearc (total run:74600014 v0 only:13)
 */
 
 #if !OP_TINY_SKIA
@@ -129,6 +107,75 @@ std::vector<testInfo> testSuites = {
     { run_tiger_tests, "tiger", 7005, 700005 },
 };
 
+std::vector<std::string> fails = {
+    "fuzz767834",
+    "fuzz754434_1",
+    "fuzz754434_2",
+    "fuzz754434_3",
+    "fuzz754434_4",
+    "fuzzhang_3",
+    "fuzzhang_2",
+    "fuzzhang_1",
+    "fuzz763_57",
+    "fuzz763_56",
+    "fuzz763_55",
+    "fuzz763_54",
+    "fuzz763_53",
+    "fuzz763_51",
+    "fuzz763_50",
+    "fuzz763_49",
+    "fuzz763_48",
+    "fuzz763_45",
+    "fuzz763_43",
+    "fuzz763_42",
+    "fuzz763_41",
+    "fuzz763_40",
+    "fuzz763_39",
+    "fuzz763_38",
+    "fuzz763_37",
+    "fuzz763_35",
+    "fuzz763_34",
+    "fuzz763_33",
+    "fuzz763_32",
+    "fuzz763_31",
+    "fuzz763_30",
+    "fuzz763_29",
+    "fuzz763_28",
+    "fuzz763_26",
+    "fuzz763_25",
+    "fuzz763_24",
+    "fuzz763_23",
+    "fuzz763_22",
+    "fuzz763_21",
+    "fuzz763_20",
+    "fuzz763_19",
+    "fuzz763_18",
+    "fuzz763_17",
+    "fuzz763_16",
+    "fuzz763_14",
+    "fuzz763_13",
+    "fuzz763_12",
+    "fuzz763_11",
+    "fuzz763_10",
+    "kfuzz2",
+    "fuzz763_7",
+    "fuzz763_6",
+    "fuzz763_3a",
+    "fuzz763_1b",
+    "fuzz763_9",
+    "fuzz714",
+    "fuzz487a",
+    "fuzz487b",
+    "op_1",
+    "op_2",
+    "op_3",
+    "fuzz_k1",
+    "fuzz_x3",
+    "fuzz763_2s",
+    "fuzz763_1",
+    "grshapearc"
+};
+
 // skip tests by filename
 std::vector<std::string> skipTestFiles = { TEST_PATH_OP_SKIP_FILES };
 std::vector<std::string> skipRestFiles = { TEST_PATH_OP_SKIP_REST };
@@ -146,7 +193,7 @@ std::atomic_int testsLine;
 std::atomic_int totalRun;
 std::atomic_int testsSkipped;
 std::atomic_int totalSkipped;
-std::atomic_int testsError;
+std::atomic_int silentError;
 std::atomic_int totalError;
 extern std::atomic_int testsWarn;
 std::atomic_int totalWarn;
@@ -213,13 +260,12 @@ void initializeTests(skiatest::Reporter* r, const char* name) {
 void initTests(std::string filename) {
     totalRun += testsRun;
     totalSkipped += testsSkipped;
-    totalError += testsError;
     totalWarn += testsWarn;
     totalFailSkiaPass += testsFailSkiaPass;
     totalPassSkiaFail += testsPassSkiaFail;
     if (testsRun || testsSkipped || totalRun || totalSkipped)
         OpDebugOut(currentTestFile + " run:" + STR(testsRun) + " skipped:" + STR(testsSkipped)
-                + " err:" + STR(testsError) + " warn:" + STR(testsWarn)
+                + " warn:" + STR(testsWarn)
                 + " v0:" + STR(testsPassSkiaFail) + " sk:" + STR(testsFailSkiaPass)
                 + " total run:" + STR(totalRun) + " skipped:" + STR(totalSkipped)
                 + " err:" + STR(totalError) + " warn:" + STR(totalWarn)
@@ -229,7 +275,6 @@ void initTests(std::string filename) {
     testsDot = 0;
     testsLine = 0;
     testsSkipped = 0;
-    testsError = 0;
     testsWarn = 0;
     testsFailSkiaPass = 0;
     testsPassSkiaFail = 0;
@@ -266,6 +311,8 @@ bool skipTest(std::string name) {
 #if OP_DEBUG_FAST_TEST
         std::lock_guard<std::mutex> guard(out_mutex);
 #endif
+		if (!OP_SHOW_ERRORS_ONLY && !showTestName && testsRun && testsRun % 1000000 == 0)
+			OpDebugOut(STR(testsRun / 1000000) + "M");
         ++testsDot;
         ++testsLine;
         if (!OP_SHOW_ERRORS_ONLY && !showTestName 
@@ -357,7 +404,7 @@ void runTests() {
 #endif
     if (testsRun || testsSkipped)
         OpDebugOut("total run:" + STR(testsRun) + " skipped:" + STR(testsSkipped) 
-            + " errors:" + STR(testsError) +  " warnings:" + STR(testsWarn) 
+            + " errors:" + STR(totalError) +  " warnings:" + STR(testsWarn) 
             + " v0 only:" + STR(testsPassSkiaFail) + " skia only:" + STR(testsFailSkiaPass) + "\n");
 }
 
@@ -578,6 +625,26 @@ void dumpOpTest(const char* testname, const SkPath& pathA, const SkPath& pathB, 
     OpDebugOut("    TEST(" + std::string(testname) + "),\n");
 }
 
+void trackError(PathOpsV0Lib::ContextError contextError) {
+	if (PathOpsV0Lib::ContextError::none != contextError)
+		++totalError;
+	switch (contextError) {
+		case PathOpsV0Lib::ContextError::none:
+			break;
+		case PathOpsV0Lib::ContextError::finite:  // input was not finite
+			++silentError; 
+			break;
+		case PathOpsV0Lib::ContextError::toVertical:  // skewing curve exceeds float range
+			++silentError; 
+			break;
+		case PathOpsV0Lib::ContextError::tree:
+
+			break;
+		default:
+			OP_ASSERT(0);
+	}
+}
+
 // mayDiffer is true if test is fuzz with large values that Skia ignores
 void threadablePathOpTest(int id, const SkPath& a, const SkPath& b, 
         SkPathOp op, std::string testname, bool v0MayFail, bool skiaMayFail, bool mayDiffer) {
@@ -620,6 +687,8 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
         Resolve(context, pathOutput);
         if (SkPathOpInvertOutput(op, a.isInverseFillType(), b.isInverseFillType()))
             result.toggleInverseFillType();
+		ContextError contextError = Error(context);
+		trackError(contextError);
         DeleteContext(context);
     }
 #endif
@@ -656,7 +725,7 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
             ;   // <<<<<<<< paste this into immediate window
         ReportError(testname, errors, debugData.warnings);
         if (errors > MAX_ERRORS)
-            testsError++;
+            totalError++;
 #endif
     }
 
@@ -896,6 +965,8 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
         out.setFillType(SkPathFillType::kEvenOdd);
         PathOutput pathOutput = &out;
         Resolve(context, pathOutput);
+		ContextError contextError = Error(context);
+		trackError(contextError);
         DeleteContext(context);
     }
     OP_ASSERT(v0MayFail || debugData.success);
@@ -931,7 +1002,7 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
             ;   // <<<<<<<< paste this into immediate window
         ReportError(testname, errors, warnings);
 #endif
-        testsError++;
+        totalError++;
     }
 #endif
 }

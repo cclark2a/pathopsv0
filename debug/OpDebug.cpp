@@ -899,7 +899,7 @@ bool OpDebugSkipBreak() {
 // return false to auto-break
 bool OpJoiner::DebugShowImage() {
 	if (!OpDebugSkipBreak()) {
-#if OP_DEBUG_IMAGE
+#if OP_DEBUG_IMAGE && 0  // locally defeat if test is very large (e.g., grshapearc)
 		::debugImage();
 		::showFill();
 #endif

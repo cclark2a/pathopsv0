@@ -40,7 +40,7 @@ OpSegment::OpSegment(PathOpsV0Lib::AddCurve addCurve, PathOpsV0Lib::AddWinding a
 	, startMoved(false)
 	, endMoved(false) {
 	if (!c.isFinite()) {
-		contour->contours->setError(PathOpsV0Lib::ContextError::curve  OP_DEBUG_PARAMS(id));
+		contour->contours->setError(PathOpsV0Lib::ContextError::finite  OP_DEBUG_PARAMS(id));
 		disabled = true;
 	} else {
 		contour->contours->addToBounds(c);

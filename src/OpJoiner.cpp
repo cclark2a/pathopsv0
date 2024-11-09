@@ -254,7 +254,7 @@ OpTree::OpTree(OpJoiner& join)
 			int index = 0;
 			do {
 				nthLimb(index).addEach(join, *this);
-				if (totalUsed > 100) {
+				if (totalUsed > 500) {
 					contours->setError(PathOpsV0Lib::ContextError::tree  
 							OP_DEBUG_PARAMS(join.edge->id));
 					return;

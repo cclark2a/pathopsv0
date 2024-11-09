@@ -395,6 +395,8 @@ bool OpContours::assemble() {
 		joiner.linkUnambiguous(linkPass);
 		if (joiner.linkRemaining(OP_DEBUG_CODE(this)))
 			return true;
+		if (PathOpsV0Lib::ContextError::none != error)
+			return false;
 	}
 	return false;
 }
@@ -521,6 +523,8 @@ bool OpContours::setError(PathOpsV0Lib::ContextError e  OP_DEBUG_PARAMS(int eID,
 	if (PathOpsV0Lib::ContextError::none != error)
 		return false;
 #if OP_DEBUG
+	if (PathOpsV0Lib::ContextError::finite != error 
+		&& PathOpsV0Lib::ContextError::toVertical != error)
 	OpDebugOut("fatal error in " + debugData.testname + "\n");
 #endif
 	error = e;

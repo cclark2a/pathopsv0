@@ -29,7 +29,7 @@ typedef void* ContextData;
 
 enum class ContextError {
     none,
-	curve,
+	finite,
 	intersection,
     segmentBounds,
 	toVertical,
