@@ -25,6 +25,23 @@ inline void noReverse(Curve ) {
 inline void noRotate(Curve , const LinePts& , float , float , Curve ) {
 }
 
+// !!! put these in a different header?
+inline int maxDepth(Curve , Curve ) {
+	return 64;
+}
+
+inline int maxSplits(Curve , Curve ) {
+	return 8;
+}
+
+inline float maxSignSwap(Curve , Curve ) {
+	return 131072.f;
+}
+
+inline int maxLimbs() {
+	return 500;
+}
+
 #if OP_DEBUG_DUMP
 inline std::string noDumpName() { 
     return ""; 

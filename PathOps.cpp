@@ -79,23 +79,27 @@ void Resolve(Context* context, PathOutput output) {
 }
 
 void SetContextCallBacks(Context* context, EmptyNativePath emptyNativePath, MakeLine makeLine,
-        SetLineType setLineType) {
+        SetLineType setLineType, MaxSignSwap signSwap, 
+		MaxCurveCurve depth, MaxCurveCurve splits, MaxLimbs limbs) {
     OpContours* contours = (OpContours*) context;
     contours->contextCallBacks = {
         emptyNativePath,
         makeLine,
-        setLineType
+        setLineType,
+		signSwap,
+		depth,
+		splits,
+		limbs
     };
 }
 
-CurveType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, /* ControlNearlyEnd nearlyFunc, */
+CurveType SetCurveCallBacks(Context* context, AxisRawHit axisFunc,
         CurveHull hullFunc, CurveIsFinite isFiniteFunc, CurveIsLine isLineFunc, 
-        /* CurveIsLinear isLinearFunc, */ SetBounds setBoundsFunc,
-        CurveNormal normalFunc, 
-        CurveOutput outputFunc, CurvePinCtrl curvePinFunc, CurveReverse reverseFunc, 
-        CurveTangent tangentFunc, CurvesEqual equalFunc, PtAtT ptAtTFunc, 
-        DoublePtAtT doublePtAtTFunc, PtCount ptCountFunc, Rotate rotateFunc, 
-        SubDivide subDivideFunc, XYAtT xyAtTFunc
+        SetBounds setBoundsFunc, CurveNormal normalFunc, 
+        CurveOutput outputFunc, CurvePinCtrl curvePinFunc, 
+		CurveReverse reverseFunc, CurveTangent tangentFunc, CurvesEqual equalFunc, PtAtT ptAtTFunc, 
+        PtCount ptCountFunc, Rotate rotateFunc, SubDivide subDivideFunc, XYAtT xyAtTFunc,
+		CurveConst cutFunc, CurveConst normalLimitFunc, CurveConst interceptLimitFunc
         OP_DEBUG_DUMP_PARAMS(DebugDumpCurveName debugDumpNameFunc, 
         DebugDumpCurveExtra debugDumpExtraFunc)
 		OP_DEBUG_IMAGE_PARAMS(DebugAddToPath debugAddToPathFunc)
@@ -103,8 +107,9 @@ CurveType SetCurveCallBacks(Context* context, AxisRawHit axisFunc, /* ControlNea
     OpContours* contours = (OpContours*) context;
     contours->callBacks.push_back( { axisFunc, hullFunc, isFiniteFunc, isLineFunc, 
             setBoundsFunc, normalFunc, outputFunc, curvePinFunc, reverseFunc, 
-            tangentFunc, equalFunc, ptAtTFunc, doublePtAtTFunc, ptCountFunc, rotateFunc, 
-            subDivideFunc, xyAtTFunc 
+            tangentFunc, equalFunc, ptAtTFunc, ptCountFunc, rotateFunc, 
+            subDivideFunc, xyAtTFunc,
+			cutFunc, normalLimitFunc, interceptLimitFunc
 		    OP_DEBUG_DUMP_PARAMS(debugDumpNameFunc, debugDumpExtraFunc)
 		    OP_DEBUG_IMAGE_PARAMS(debugAddToPathFunc)
             } );

@@ -122,37 +122,6 @@ bool OpPtT::isNearly(const OpPtT& o, OpPoint threshold) const {
 	return pt.isNearly(o.pt, threshold) || OpMath::EqualT(t, o.t);
 }
 
-#if 0
-float OpMath::CloseLarger(float a) {
-	float next = NextLarger(a);
-	return fmaf(next - a, OpCloseFactor, a); 
-}
-
-float OpMath::CloseSmaller(float a) {
-	float prev = NextSmaller(a);
-	return fmaf(prev - a, OpCloseFactor, a); 
-}
-
-// put all calls to next after (and friends) in next larger and next smaller
-// use next after twice to match: for 0 <= x <= 1, adding epsilon moves x two bits
-float OpMath::NextLarger(float a) {
-	float nextGreater = std::nextafterf(std::nextafterf(a, +OpInfinity), +OpInfinity);
-	return std::max(nextGreater, a + OpEpsilon);
-}
-
-float OpMath::NextSmaller(float a) {
-	float nextLesser = std::nextafterf(std::nextafterf(a, -OpInfinity), -OpInfinity);
-	return std::min(nextLesser, a - OpEpsilon);
-}
-
-// allow ourselves a tiny bit of error (required by thread_circles36945)
-bool OpMath::Betweenish(float a, float b, float c) {
-	if (b < NextSmaller(a < c ? a : c))
-		return false;
-	return b <= NextLarger(a < c ? c : a);
-}
-#endif
-
 bool OpMath::Equal(float a, float b, float threshold) {
 	return (a < b ? a : b) + threshold >= (a < b ? b : a);
 }

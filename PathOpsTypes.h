@@ -139,9 +139,6 @@ typedef bool (*CurveIsLine)(Curve );
 // returns OpPoint at parameter t, where: t=0 is start, t=1 is end
 typedef OpPoint (*PtAtT)(Curve , float t);
 
-// returns high precision OpPoint at parameter t, where: t=0 is start, t=1 is end
-typedef OpPoint (*DoublePtAtT)(Curve , float t);
-
 // returns true if additional data is equal (e.g., lines are always equal) 
 typedef bool (*CurvesEqual)(Curve , Curve );
 
@@ -173,6 +170,8 @@ typedef void (*SetBounds)(Curve , OpRect& );
 // returns either x or y pair at parameter t, where: t=0 is start, t=1 is end
 typedef OpPair (*XYAtT)(Curve , OpPair t, XyChoice );
 
+typedef float (*CurveConst)();
+
 #if OP_DEBUG_DUMP
 // returns string name of curve type
 typedef std::string (*DebugDumpCurveName)();
@@ -199,11 +198,13 @@ struct CurveCallBacks {
 	CurveTangent curveTangentFuncPtr;
 	CurvesEqual curvesEqualFuncPtr;
 	PtAtT  ptAtTFuncPtr;
-	DoublePtAtT  doublePtAtTFuncPtr;
 	PtCount ptCountFuncPtr;
 	Rotate rotateFuncPtr;
 	SubDivide subDivideFuncPtr;
 	XYAtT xyAtTFuncPtr;
+	CurveConst cutFuncPtr;
+	CurveConst normalLimitFuncPtr;
+	CurveConst interceptFuncPtr;
 #if OP_DEBUG_DUMP
 	DebugDumpCurveName debugDumpCurveNameFuncPtr;
 	DebugDumpCurveExtra debugDumpCurveExtraFuncPtr;
@@ -264,11 +265,18 @@ typedef CurveType (*SetLineType)(Curve );
 // returns data size and type as appropriate for line connecting input curve points
 typedef Curve (*MakeLine)(Curve );
 
+typedef float (*MaxSignSwap)(Curve , Curve );
+typedef int (*MaxCurveCurve)(Curve , Curve );
+typedef int (*MaxLimbs)();
 
 struct ContextCallBacks {
 	EmptyNativePath emptyNativePathFuncPtr;
 	MakeLine makeLineFuncPtr;
 	SetLineType setLineTypeFuncPtr;
+	MaxSignSwap maxSignSwapFuncPtr;
+	MaxCurveCurve maxDepthFuncPtr;
+	MaxCurveCurve maxSplitsFuncPtr;
+	MaxLimbs maxLimbsFuncPtr;
 };
 
 #if OP_DEBUG_DUMP

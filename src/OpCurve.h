@@ -4,8 +4,6 @@
 
 #include "PathOpsTypes.h"
 
-#define RAW_INTERSECT_LIMIT 0.00005f  // errors this large or larger mean the crossing was not found
-
 // arranged so down/left is -1, up/right is +1
 enum class NormalDirection {
 	downLeft = -1,
@@ -36,7 +34,6 @@ struct OpCurve {
 	float center(Axis offset, float axisIntercept) const;
 	OpPtT cut(const OpPtT& ptT, float loBounds, float hiBounds, float direction) const;
 	CutRangeT cutRange(const OpPtT& ptT, OpPoint oppPt, float loEnd, float hiEnd) const;
-	OpPoint doublePtAtT(float t) const;
 	OpPoint end(float t) const;
 	OpPtT findIntersect(Axis offset, const OpPtT& ) const;
 	OpPoint firstPt() const  {

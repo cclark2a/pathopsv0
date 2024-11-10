@@ -246,8 +246,6 @@ struct CoinPal {
 //	Transfer transfer;
 };
 
-constexpr float OP_CURVACIOUS_LIMIT = 1.f / 16;  // !!! tune to guess line/line split ratio
-
 struct OpEdge {
 		friend struct OpEdgeStorage;
 #if !OP_DEBUG_DUMP

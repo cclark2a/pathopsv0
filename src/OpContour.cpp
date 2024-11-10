@@ -282,34 +282,7 @@ bool OpContours::addAlias(OpPoint pt, OpPoint alias) {
 	   return true;
 }
 
-#if 0
-OpEdge* OpContours::addFiller(OpEdge* edge, OpEdge* lastEdge) {
-	// break this off into its own callable function
-	// as a last, last resort: do this rather than returning false
-	OpIntersection* sect = nullptr;
-	// !!! is there an edge method that does this?
-	for (auto test : edge->segment->sects.i) {
-		if (test->ptT != edge->whichPtT())
-			continue;
-		sect = test;
-		break;
-	}
-	OP_ASSERT(sect);
-	OpIntersection* last = nullptr;
-	for (auto test : lastEdge->segment->sects.i) {
-		if (test->ptT != lastEdge->whichPtT(EdgeMatch::end))
-			continue;
-		last = test;
-		break;
-	}
-	OP_ASSERT(last);
-	return addFiller(last->ptT, sect->ptT);
-}
-#endif
-
 OpEdge* OpContours::addFiller(const OpPtT& start, const OpPtT& end) {
-//    if (contours->fillerStorage && contours->fillerStorage->contains(start, end))
-//        return nullptr;  // !!! when does this happen? what is the implication? e.g. fuzz433
 	void* block = allocateEdge(fillerStorage);
 	OpEdge* filler = new(block) OpEdge(this, start, end  OP_LINE_FILE_PARAMS());
 	return filler;
@@ -523,9 +496,9 @@ bool OpContours::setError(PathOpsV0Lib::ContextError e  OP_DEBUG_PARAMS(int eID,
 	if (PathOpsV0Lib::ContextError::none != error)
 		return false;
 #if OP_DEBUG
-	if (PathOpsV0Lib::ContextError::finite != error 
-		&& PathOpsV0Lib::ContextError::toVertical != error)
-	OpDebugOut("fatal error in " + debugData.testname + "\n");
+	if (PathOpsV0Lib::ContextError::finite != e 
+			&& PathOpsV0Lib::ContextError::toVertical != e)
+		OpDebugOut("fatal error in " + debugData.testname + "\n");
 #endif
 	error = e;
 	OP_DEBUG_CODE(debugErrorID = eID);
@@ -547,7 +520,6 @@ void OpContours::sortIntersections() {
 			segment.sects.sort();
 		}
 	}
-	OpDebugOut("");  // !!! to allow setting a breakpoint here
 	for (auto contour : contours) {
 		for (auto& segment : contour->segments) {
 			segment.sects.mergeNear(aliases);

@@ -19,11 +19,9 @@ float OpCurve::center(Axis axis, float intercept) const {
 OpPtT OpCurve::cut(const OpPtT& ptT, float loBounds, float hiBounds, float direction) const {
 	OP_ASSERT(1 == fabsf(direction));
 	OP_ASSERT(loBounds <= ptT.t && ptT.t <= hiBounds);
-	constexpr float tStep = 16;  // !!! just a guess
-	constexpr float cutDt = OpEpsilon * tStep;
+	float tStep = contours->callBack(c.type).cutFuncPtr(); 
+	float cutDt = OpEpsilon * tStep;
 	OpVector threshold = contours->threshold();
-//	OpVector cutDxy = { OpMath::NextLarger(ptT.pt.x) - ptT.pt.x,
-//			OpMath::NextLarger(ptT.pt.y) - ptT.pt.y };
 	float minDistanceSq = threshold.lengthSquared() * tStep;
 	OpPtT cut;
 	do {
@@ -41,8 +39,8 @@ OpPtT OpCurve::cut(const OpPtT& ptT, float loBounds, float hiBounds, float direc
 
 // cut range minimum should be double the distance between ptT pt and opp pt
 CutRangeT OpCurve::cutRange(const OpPtT& ptT, OpPoint oppPt, float loEnd, float hiEnd) const {
-	constexpr float tStep = 16;  // !!! just a guess (move to user space?)
-	constexpr float cutDt = OpEpsilon * tStep;
+	float tStep = contours->callBack(c.type).cutFuncPtr();
+	float cutDt = OpEpsilon * tStep;
 	OpVector threshold = contours->threshold();
 	float minDistanceSq = threshold.lengthSquared() * tStep;
 	CutRangeT tRange;
@@ -98,7 +96,7 @@ OpRootPts OpCurve::lineIntersect(const LinePts& line) const {
 	OpVector lineV = line.pts[1] - line.pts[0];
 	XyChoice xy = fabsf(lineV.dx) >= fabsf(lineV.dy) ? XyChoice::inX : XyChoice::inY;
 	for (unsigned index = 0; index < result.valid.count; ++index) {
-		OpPoint hit = doublePtAtT(result.valid.roots[index]);
+		OpPoint hit = ptAtT(result.valid.roots[index]);
 		// thread_cubics23476 edges 55 & 52 trigger this need for betweenish
 		if (OpMath::InUnsorted(line.pts[0].choice(xy), hit.choice(xy), line.pts[1].choice(xy),
 				contours->threshold().choice(xy))) {
@@ -130,7 +128,8 @@ float OpCurve::match(float start, float end, OpPoint pt) const {
 	float xDistSq = (pt - xPt).lengthSquared();
 	float yDistSq = (pt - yPt).lengthSquared();
 	// example: testQuads9421393 needs small curve factor for segs (3, 7 to detect intersection)
-	OpVector slop = contours->threshold() * OpMath::smallCurveFactor;  
+	OpVector slop = contours->threshold();  
+//			* contours->callBack(c.type).matchSlopFuncPtr();
 	if (!(xDistSq > yDistSq)) {  // reverse test in case y dist is nan
 		if (pt.isNearly(xPt, slop))
 			return xRoot;
@@ -320,11 +319,6 @@ OpCurve OpCurve::toVertical(const LinePts& line, MatchEnds match) const {
 
 int OpCurve::pointCount() const {
 	return contours->callBack(c.type).ptCountFuncPtr();
-}
-
-// !!! promote types to use double as test cases requiring such are found
-OpPoint OpCurve::doublePtAtT(float t) const {
-	return contours->callBack(c.type).doublePtAtTFuncPtr(c, t);
 }
 
 OpPoint OpCurve::ptAtT(float t) const {

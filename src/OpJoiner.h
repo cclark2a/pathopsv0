@@ -180,6 +180,7 @@ struct OpTree {
 	LimbPass limbPass;
 	float bestDistance;  // used only by detached pass
 	float bestPerimeter;
+	int maxLimbs;
 //	int baseIndex;
 	int totalUsed;
 };

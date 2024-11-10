@@ -85,6 +85,7 @@ struct OpWinder {
 	std::vector<OpEdge*> inY;
 	OpEdge* home;
 	Axis workingAxis;
+	float interceptLimit;
 };
 
 #endif

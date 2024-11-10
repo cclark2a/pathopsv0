@@ -1155,12 +1155,14 @@ void LineCoincidenceTest() {
     using namespace PathOpsV0Lib;
 
     Context* context = CreateContext({nullptr, 0});
-    SetContextCallBacks(context, testNoEmptyPath, testMakeLine, getTestLineType);
+    SetContextCallBacks(context, testNoEmptyPath, testMakeLine, getTestLineType, maxSignSwap,
+			maxDepth, maxSplits, maxLimbs);
 
     testLineType = SetCurveCallBacks(context, lineAxisRawHit, noHull, lineIsFinite, 
             lineIsLine, noBounds, lineNormal, testOutput, noPinCtrl, noReverse,
-            lineTangent, linesEqual, linePtAtT, /* double not required */ linePtAtT, 
-            linePtCount, noRotate, lineSubDivide, lineXYAtT
+            lineTangent, linesEqual, linePtAtT,
+            linePtCount, noRotate, lineSubDivide, lineXYAtT,
+			lineCut, lineNormalLimit, lineInterceptLimit
             OP_DEBUG_DUMP_PARAMS(noDumpName, noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
     );

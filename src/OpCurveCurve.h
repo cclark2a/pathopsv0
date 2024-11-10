@@ -116,7 +116,6 @@ struct FoundLimits {
 #endif
 
 struct OpCurveCurve {
-	static constexpr int maxDepth = 64;  // !!! no idea what this should be
 
 	OpCurveCurve(OpSegment* seg, OpSegment* opp);
 	void addIntersection(OpEdge* edge, OpEdge* opp);
@@ -163,8 +162,6 @@ struct OpCurveCurve {
 	void dumpDepth(int level);
 	void dumpDepth();
 #endif
-	static constexpr int maxSplits = 8;   // !!! no idea what this should be 
-
 	OpContours* contours;
 	OpSegment* seg;
 	OpSegment* opp;
@@ -174,9 +171,12 @@ struct OpCurveCurve {
 	OpPtT snipEdge;
 	OpPtT snipOpp;
 	MatchReverse matchRev;
+	float maxSignSwap;
 	int depth;
 	int uniqueLimits_impl;  // cached count; set negative if invalid (call 
 	int unsplitables;
+	int maxSplits;
+	int maxDepth;
 	bool addedPoint;
 	bool rotateFailed;
 	bool sectResult;

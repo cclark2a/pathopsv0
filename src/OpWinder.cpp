@@ -18,7 +18,6 @@ void SectRay::addPals(OpEdge* home) {
 	if (!distances.size())
 		return;
 	auto matchCept = [home](const EdgePal* test) {
-//		OP_ASSERT(axis == test->edge->ray.axis);  // !!! I don't think this matters ?
 		home->addPal(*test);
 		if (const EdgePal* homeDist = test->edge->ray.find(home)) {
 			test->edge->addPal(*homeDist);
@@ -103,14 +102,6 @@ bool SectRay::checkOrder(const OpEdge* home) const {
 				return false;
 			}
 		}
-		// !!! document why this fail case is here
-		// if a pair are very close or identical but far from home, that should be OK
-	#if 0  // if enabled, suspected to break testQuads23839519
-		if (dist->cept == (dist + 1)->cept) {
-			OP_DEBUG_CODE(prior->contours()->debugFailOnEqualCepts = true);
-			return false;
-		}
-	#endif
 	}
 	// check to see if closest to home is too close
 	const EdgePal* homeD = nullptr;
@@ -139,11 +130,6 @@ const EdgePal* SectRay::find(const OpEdge* edge) const {
 	}
 	return nullptr;
 }
-
-// at some point, do some math or rigorous testing to figure out how extreme this can be
-// for now, keep making it smaller until it breaks
-// !!! fails (I think) on pentrek13 edge 1045 NxR:00221
-#define WINDING_NORMAL_LIMIT  0.008 // 0.004  fails on testQuads19022897 edge 151 NxR:-0.00746
 
 FindCept SectRay::findIntercept(OpEdge* home, OpEdge* test) {
 	if (test->ptBounds.ltChoice(axis) > normal)
@@ -183,7 +169,7 @@ FindCept SectRay::findIntercept(OpEdge* home, OpEdge* test) {
 	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
 	OpVector backRay = -ray;
 	float tNxR = tangent.cross(backRay);
-	if (fabs(tNxR) < WINDING_NORMAL_LIMIT)
+	if (fabs(tNxR) < home->contours()->callBack(home->segment->c.c.type).normalLimitFuncPtr())
 		return pushUsectDist();
 	OpPoint pt = test->curve.ptAtT(root);
 	Axis perpendicular = !axis;
@@ -647,7 +633,7 @@ FoundIntercept OpWinder::findRayIntercept(size_t homeIndex, OpVector homeTan, fl
 		float middle = OpMath::Interp(home->ptBounds.ltChoice(workingAxis), 
 				home->ptBounds.rbChoice(workingAxis), midEnd);
 		float homeMidT = home->curve.center(workingAxis, middle);  // note: 0 to 1 on edge curve
-		bool tooMany = mid <= 1.f / 256.f;
+		bool tooMany = mid <= interceptLimit;
 		if (OpMath::IsNaN(homeMidT) || tooMany) {  // give it at most eight tries
 			if (!home->isUnsectable())
 				markUnsortable(tooMany ? Unsortable::tooManyTries : Unsortable::noMidT);
@@ -696,7 +682,7 @@ ChainFail OpWinder::setSumChain(size_t homeIndex) {
 	float NxR = homeTangent.normalize().cross(rayLine);
 	if (!OpMath::IsFinite(NxR))
 		OP_DEBUG_FAIL(*home, ChainFail::normalizeOverflow);
-	if (fabs(NxR) < WINDING_NORMAL_LIMIT) {
+	if (fabs(NxR) < home->contours()->callBack(home->segment->c.c.type).normalLimitFuncPtr()) {
 		markUnsortable(Unsortable::rayTooShallow);
 		return ChainFail::normalizeUnderflow;  // nonfatal error
 	}
@@ -709,6 +695,7 @@ ChainFail OpWinder::setSumChain(size_t homeIndex) {
 	}
 	Axis perpendicular = !workingAxis;
 	float homeCept = home->center.pt.choice(perpendicular);
+	interceptLimit = home->contours()->callBack(home->segment->c.c.type).interceptFuncPtr();
 	FoundIntercept foundIntercept = findRayIntercept(homeIndex, homeTangent, normal, homeCept);
 	if (FoundIntercept::fail == foundIntercept)
 		return ChainFail::failIntercept;

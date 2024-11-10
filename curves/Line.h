@@ -58,6 +58,18 @@ inline void lineSubDivide(PathOpsV0Lib::Curve , OpPtT ptT1, OpPtT ptT2, PathOpsV
     result.data->end = ptT2.pt;
 }
 
+inline float lineCut() {
+	return 16.f;
+}
+
+inline float lineNormalLimit() {
+	return 0.008; // 0.004  fails on testQuads19022897 edge 151 NxR:-0.00746
+}
+
+inline float lineInterceptLimit() {
+	return 1.f / 256.f;
+}
+
 #if OP_DEBUG_DUMP
 inline std::string lineDebugDumpName() { 
     return "line"; 

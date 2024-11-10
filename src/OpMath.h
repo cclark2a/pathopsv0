@@ -16,7 +16,6 @@ constexpr auto OpInfinity = std::numeric_limits<float>::infinity();
 constexpr auto OpNaN = std::numeric_limits<float>::quiet_NaN();
 constexpr auto OpMax = std::numeric_limits<int>::max();
 constexpr auto OpEpsilon = std::numeric_limits<float>::epsilon();
-constexpr auto OpCloseFactor = 10.f;  // !!! picked out of the air 8 too small for cubic716385
 
 #include "OpDebug.h"
 
@@ -678,13 +677,6 @@ struct OpPtT {
 		return 0 == t || 1 == t;
 	}
 
-	#if 0
-	bool soClose(const OpPtT& o) const {
-		constexpr auto epsilon = OpCloseFactor * OpEpsilon;
-		return pt.soClose(o.pt) || (t + epsilon >= o.t && t <= o.t + epsilon);
-	}
-	#endif
-
 	// !!! add point avg and call it here?
 	static void MeetInTheMiddle(OpPtT& a, OpPtT& b) {
 		OpPoint mid = a.onEnd() ? a.pt : b.onEnd() ? b.pt : (a.pt + b.pt) / 2;
@@ -760,10 +752,6 @@ struct OpMath {
 		return (a - b) * (c - b) <= 0;
 	}
 
-//    static bool Betweenish(float a, float b, float c);
-//    static float CloseLarger(float );
-//    static float CloseSmaller(float );
-
 //    static float CubeRoot(float);
 	static OpRoots CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B, OpCubicFloatType C,
 			OpCubicFloatType D, MatchEnds );
@@ -813,17 +801,11 @@ struct OpMath {
 	static bool NearlyEndT(float t) {
 		return NearlyZeroT(t) || NearlyOneT(t); }
 
-//    static bool NearlyEqualT(float a, float b) {
-//        return a + OpEpsilon >= b && a <= b + OpEpsilon; }
-
 	static bool NearlyOneT(float t) {
 		return 1 <= t + OpEpsilon; }
 
 	static bool NearlyZeroT(float t) {
 		return 0 >= t - OpEpsilon; }
-
-//    static float NextLarger(float );
-//    static float NextSmaller(float );
 
 	static float PinUnsorted(float outer1, float inner, float outer2);
 	static float PinSorted(float min, float value, float max);
@@ -904,12 +886,6 @@ struct OpMath {
 		for (size_t index = 0; index < count; ++index)
 			pts[index].zeroTiny();
 	}
-
-// threshold needs a factor to account for error introduced by various operations
-// the factor should be supplied by the caller since only the caller knows the complexity of curves
-// !!! for now, hardcode numbers that allow Skia tests to work
-//	static constexpr float smallJoinerFactor = 4.f;	// used by joiner to detect small disabled edges
-	static constexpr float smallCurveFactor = 2.f;	// used by curve to nearby points
 
 #if OP_DEBUG
 	static bool IsDebugNaN(float x);

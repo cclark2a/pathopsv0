@@ -41,13 +41,15 @@ void ResetContour(Contour* );
  */
 void Resolve(Context* , PathOutput );
 
-void SetContextCallBacks(Context* ,  EmptyNativePath, MakeLine, SetLineType);
+void SetContextCallBacks(Context* ,  EmptyNativePath, MakeLine , SetLineType , MaxSignSwap ,
+		MaxCurveCurve maxDepth, MaxCurveCurve maxSplits, MaxLimbs );
 
 CurveType SetCurveCallBacks(Context* , AxisRawHit,
 		CurveHull, CurveIsFinite, CurveIsLine,
 		SetBounds, CurveNormal, CurveOutput, CurvePinCtrl,
-		CurveReverse, CurveTangent, CurvesEqual, PtAtT, DoublePtAtT,
-		PtCount, Rotate, SubDivide, XYAtT
+		CurveReverse, CurveTangent, CurvesEqual, PtAtT,
+		PtCount, Rotate, SubDivide, XYAtT, CurveConst cut, CurveConst normalLimit,
+		CurveConst interceptLimit
 		OP_DEBUG_DUMP_PARAMS(DebugDumpCurveName, DebugDumpCurveExtra)
 		OP_DEBUG_IMAGE_PARAMS(DebugAddToPath)
 	);

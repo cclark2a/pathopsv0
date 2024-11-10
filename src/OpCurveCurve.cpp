@@ -315,6 +315,10 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
 	contours->debugCurveCurve = this;
 #endif
 	contours->reuse(contours->ccStorage);
+	maxSignSwap = contours->contextCallBacks.maxSignSwapFuncPtr(s->c.c, o->c.c);
+	maxSplits = contours->contextCallBacks.maxSplitsFuncPtr(s->c.c, o->c.c);
+	maxDepth = contours->contextCallBacks.maxDepthFuncPtr(s->c.c, o->c.c);
+
 	matchRev = seg->matchEnds(opp);
 	smallTFound = MatchEnds::start & matchRev.match;
 	largeTFound = MatchEnds::end & matchRev.match;
@@ -1075,7 +1079,8 @@ SectFound OpCurveCurve::runsToLimits() {
 					&& fabsf(lower->oppDist) > OpEpsilon && fabsf(run.oppDist) > OpEpsilon
 				// !!! very large dist sign swaps should be ignored
 				//     need to determine what this range should be
-					&& fabsf(lower->oppDist) < OpEpsilon * 131072 && fabsf(run.oppDist) < OpEpsilon * 131072
+					&& fabsf(lower->oppDist) < OpEpsilon * maxSignSwap 
+					&& fabsf(run.oppDist) < OpEpsilon * maxSignSwap
 					&& !lower->byZero && !run.byZero)  // switches sides
 				addLimit();
 			lower = upper;

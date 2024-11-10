@@ -45,7 +45,6 @@ PathOpsV0Lib::Curve testNewMakeLine(PathOpsV0Lib::Curve c) {
     return c;
 }
 
-
 PathOpsV0Lib::CurveType testNewSetLineType(PathOpsV0Lib::Curve ) {
     return lineType;
 }
@@ -54,7 +53,8 @@ void testNewInterface() {
     using namespace PathOpsV0Lib;
 
     Context* context = CreateContext({nullptr, 0});
-    SetContextCallBacks(context, noEmptyPath, testNewMakeLine, testNewSetLineType);
+    SetContextCallBacks(context, noEmptyPath, testNewMakeLine, testNewSetLineType, maxSignSwap,
+			maxDepth, maxSplits, maxLimbs);
 
 #if OP_DEBUG
     OpDebugData debugData(false);
@@ -64,17 +64,21 @@ void testNewInterface() {
     Debug(context, debugData);
 #endif
 
-    lineType = SetCurveCallBacks(context, lineAxisRawHit, /* noNearly, */ noHull, lineIsFinite, 
-            lineIsLine, /*noLinear,*/ noBounds, lineNormal, lineOutput, noPinCtrl, noReverse,
-            lineTangent, linesEqual, linePtAtT, /* double not required */ linePtAtT, 
-            linePtCount, noRotate, lineSubDivide, lineXYAtT
+    lineType = SetCurveCallBacks(context, lineAxisRawHit, 
+			noHull, lineIsFinite, lineIsLine, 
+			noBounds, lineNormal, lineOutput, noPinCtrl, 
+			noReverse, lineTangent, linesEqual, linePtAtT, 
+            linePtCount, noRotate, lineSubDivide, lineXYAtT,
+			lineCut, lineNormalLimit, lineInterceptLimit
             OP_DEBUG_DUMP_PARAMS(noDumpName, noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
     );
-    quadType = SetCurveCallBacks(context, quadAxisRawHit, /* quadNearly, */ quadHull, quadIsFinite, 
-            quadIsLine, /*quadIsLinear,*/ quadSetBounds, quadNormal, quadOutput, quadPinCtrl, noReverse,
-            quadTangent, quadsEqual, quadPtAtT, /* double not required */ quadPtAtT, 
-            quadPtCount, quadRotate, quadSubDivide, quadXYAtT
+    quadType = SetCurveCallBacks(context, quadAxisRawHit,
+			quadHull, quadIsFinite, quadIsLine, 
+			quadSetBounds, quadNormal, quadOutput, quadPinCtrl, 
+			noReverse, quadTangent, quadsEqual, quadPtAtT,
+            quadPtCount, quadRotate, quadSubDivide, quadXYAtT,
+			lineCut, lineNormalLimit, lineInterceptLimit
             OP_DEBUG_DUMP_PARAMS(noDumpName, noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
     );

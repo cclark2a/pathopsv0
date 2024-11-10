@@ -121,33 +121,37 @@ PathOpsV0Lib::CurveType skiaCubicType;
 
 // new interface
 void SetSkiaCurveCallBacks(Context* context) {
-    skiaLineType = SetCurveCallBacks(context, lineAxisRawHit, /* noNearly, */ noHull, lineIsFinite, 
-            lineIsLine, /* noLinear, */ noBounds, lineNormal, skiaLineOutput, noPinCtrl, noReverse,
-            lineTangent, linesEqual, linePtAtT, /* double not required */ linePtAtT, 
-            linePtCount, noRotate, lineSubDivide, lineXYAtT
+    skiaLineType = SetCurveCallBacks(context, lineAxisRawHit, noHull, lineIsFinite, 
+            lineIsLine, noBounds, lineNormal, skiaLineOutput, noPinCtrl, noReverse,
+            lineTangent, linesEqual, linePtAtT, 
+            linePtCount, noRotate, lineSubDivide, lineXYAtT,
+			lineCut, lineNormalLimit, lineInterceptLimit
             OP_DEBUG_DUMP_PARAMS(lineDebugDumpName, noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath)
     );
-    skiaQuadType = SetCurveCallBacks(context, quadAxisRawHit, /* quadNearly, */ quadHull, quadIsFinite, 
-            quadIsLine, /* quadIsLinear, */ quadSetBounds, quadNormal, skiaQuadOutput, quadPinCtrl, 
-            noReverse, quadTangent, quadsEqual, quadPtAtT, /* double not required */ quadPtAtT, 
-            quadPtCount, quadRotate, quadSubDivide, quadXYAtT
+    skiaQuadType = SetCurveCallBacks(context, quadAxisRawHit, quadHull, quadIsFinite, 
+            quadIsLine, quadSetBounds, quadNormal, skiaQuadOutput, quadPinCtrl, 
+            noReverse, quadTangent, quadsEqual, quadPtAtT, 
+            quadPtCount, quadRotate, quadSubDivide, quadXYAtT,
+			lineCut, lineNormalLimit, lineInterceptLimit
             OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath)
     );
-    skiaConicType = SetCurveCallBacks(context, conicAxisRawHit, /* conicNearly, */ conicHull, 
+    skiaConicType = SetCurveCallBacks(context, conicAxisRawHit, conicHull, 
             conicIsFinite, conicIsLine, 
-            /* conicIsLinear, */ conicSetBounds, conicNormal, skiaConicOutput, quadPinCtrl, noReverse,
-            conicTangent, conicsEqual, conicPtAtT, /* double not required */ conicPtAtT, 
-            conicPtCount, conicRotate, conicSubDivide, conicXYAtT
+            conicSetBounds, conicNormal, skiaConicOutput, quadPinCtrl, noReverse,
+            conicTangent, conicsEqual, conicPtAtT, 
+            conicPtCount, conicRotate, conicSubDivide, conicXYAtT,
+			lineCut, lineNormalLimit, lineInterceptLimit
             OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
             OP_DEBUG_IMAGE_PARAMS(debugConicAddToSkPath)
     );
-    skiaCubicType = SetCurveCallBacks(context, cubicAxisRawHit, /* cubicNearly, */ cubicHull, 
+    skiaCubicType = SetCurveCallBacks(context, cubicAxisRawHit, cubicHull, 
             cubicIsFinite, cubicIsLine, 
-            /* cubicIsLinear, */ cubicSetBounds, cubicNormal, skiaCubicOutput, cubicPinCtrl, cubicReverse,
-            cubicTangent, cubicsEqual, cubicPtAtT, /* double not required */ cubicPtAtT, 
-            cubicPtCount, cubicRotate, cubicSubDivide, cubicXYAtT
+            cubicSetBounds, cubicNormal, skiaCubicOutput, cubicPinCtrl, cubicReverse,
+            cubicTangent, cubicsEqual, cubicPtAtT, 
+            cubicPtCount, cubicRotate, cubicSubDivide, cubicXYAtT,
+			lineCut, lineNormalLimit, lineInterceptLimit
             OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(debugCubicAddToSkPath)
     );
@@ -273,7 +277,8 @@ PathOpsV0Lib::CurveType setSkiaLineType(PathOpsV0Lib::Curve ) {
 }
 
 void SetSkiaContextCallBacks(Context* context) {
-    SetContextCallBacks(context, emptySkPathFunc, skiaMakeLine, setSkiaLineType);
+    SetContextCallBacks(context, emptySkPathFunc, skiaMakeLine, setSkiaLineType, maxSignSwap,
+			maxDepth, maxSplits, maxLimbs);
 }
 
 Contour* SetSkiaSimplifyCallBacks(Context* context, 
