@@ -186,7 +186,7 @@ OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int usectID, MatchEnd
 }
 
 OpPtT OpSegment::alignToEnd(OpPoint oppPt) const {
-	OpPtT segPtT;
+	OpPtT segPtT(SetToNaN::dummy);
 	OpPtAliases& aliases = contour->contours->aliases;
 	if (c.firstPt().isNearly(oppPt, threshold()) 
 			|| (startMoved && aliases.isSmall(c.firstPt(), oppPt)))
@@ -247,7 +247,7 @@ void OpSegment::betweenIntersections() {
 		OP_ASSERT(segA != segC);
 		// check A for C
 		OpPoint ptC = sectC->ptT.pt;
-		OpPtT ptTa;
+		OpPtT ptTa(SetToNaN::dummy);
 		OpIntersection* cInA = segA->sects.coinContains(ptC, segC, &ptTa);
 		if (cInA && cInA->coincidenceID)
 			return;
@@ -282,7 +282,7 @@ void OpSegment::betweenIntersections() {
 		if (OpMath::IsNaN(ptTc.t))
 			return;
 		OpPoint ptC = ptTc.pt;
-		OpPtT ptTa;
+		OpPtT ptTa(SetToNaN::dummy);
 		OpIntersection* cInA = segA->sects.coinContains(ptC, segC, &ptTa);
 		if (cInA && cInA->coincidenceID)
 			return;

@@ -58,7 +58,7 @@ OpPtT CcCurves::Dist(const OpSegment* seg, const OpPtT& segPtT, const OpSegment*
 	LinePts normLine { segPtT.pt - normal, segPtT.pt + normal };
 	OpRoots roots = opp->c.rayIntersect(normLine, MatchEnds::none);
 	float bestSq = OpInfinity;
-	OpPtT bestPtT;
+	OpPtT bestPtT(SetToNaN::dummy);
 	for (size_t index = 0; index < roots.count; ++index) {
 		OpPtT oppPtT = opp->c.ptTAtT(roots.roots[index]);
 		float distSq = (segPtT.pt - oppPtT.pt).lengthSquared();

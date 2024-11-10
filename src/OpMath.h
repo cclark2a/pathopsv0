@@ -782,13 +782,16 @@ struct OpMath {
 
 	// !!! could optimize with float bits trick
 	static bool IsFinite(float x) {
+		OP_ASSERT(!OpMath::IsDebugNaN(x));
 		return std::isfinite(x); }
 
 	static bool IsInt(float x) {
+		OP_ASSERT(!OpMath::IsDebugNaN(x));
 		OP_ASSERT(Between(0, x, 1));
 		return (int) x == x; }
 
 	static bool IsNaN(float x) {
+		OP_ASSERT(!OpMath::IsDebugNaN(x));
 		return std::isnan(x); }
 
 	static bool InSorted(float a, float test, float b, float threshold) {

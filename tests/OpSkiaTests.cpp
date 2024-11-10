@@ -5,14 +5,14 @@
 
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
-#define TEST_PATH_OP_SKIP_TO_FILE "" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
+#define TEST_PATH_OP_SKIP_TO_FILE "v0" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
 #define TESTS_TO_SKIP 0 // 14295903  // tests to skip
 #define TEST_FIRST ""  // e.g., "joel4" (ignored by fast test, overridden by TEST_DRIVE_FIRST)
 // fuzz763_378 asserts in OpIntersections::sort() debug check line 397 but continuing, succeeds
 // grshapearc hangs in OpTree contructor? (makes over 10K limbs)
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
-#define OP_TEST_ALLOW_EXTENDED 0  // some Skia tests have extended versions which take longer
+#define OP_TEST_ALLOW_EXTENDED 1  // some Skia tests have extended versions which take longer
 #define OP_TEST_V0 1  // set to zero to time Skia running tests
 #define OP_TEST_SKIA 1  // see if skia's path ops can execute the same test
 #define OP_TEST_REGION 1  // test result of v0 against skia regions
@@ -993,7 +993,7 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
     const int MAX_ERRORS = 9;
     if (errors > MAX_ERRORS && !v0MayFail) {
 #if !defined(NDEBUG) || OP_RELEASE_TEST
-#if OP_DEBUG_FAST_TEST
+#if 0 && OP_DEBUG_FAST_TEST
         std::lock_guard<std::mutex> guard(out_mutex);
 		v0(tn, p);
 #endif

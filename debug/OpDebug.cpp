@@ -441,7 +441,7 @@ void OpMath::DebugCompare(float a, float b) {
 }
 
 bool OpMath::IsDebugNaN(float f) {
-	if (!OpMath::IsNaN(f))
+	if (!std::isnan(f))
 		return false;
 	int32_t fBits = OpDebugFloatToBits(f);
 	return fBits & 1;
