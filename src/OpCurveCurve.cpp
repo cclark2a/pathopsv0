@@ -282,19 +282,6 @@ void CcCurves::snipRange(const OpSegment* segment, const OpPtT& lo, const OpPtT&
 	snips.c.swap(c);
 }
 
-// use the smaller distance to an end of oStart, oEnd, edgeMid
-OpPtT CcCurves::splitPt(float oMidDist, const OpEdge& edge) const {
-	OpPtT oStart = closest(edge.startPt());
-	OpPtT oEnd = closest(edge.endPt());
-	// choose split point near edge end that is closest to opp end
-	if (oMidDist <= std::min(oStart.t, oEnd.t))
-		return edge.center;
-	if (oStart.t > oEnd.t)
-		return edge.ptTCloseTo(oEnd, edge.end());
-	else
-		return edge.ptTCloseTo(oStart, edge.start());
-}
-
 OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
 	: contours(s->contour->contours)
 	, seg(s)
@@ -1326,12 +1313,6 @@ bool OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 				continue;
 			}
 			OP_ASSERT(0);  // !!! looks broken; fix with test case (or delete if never called)
-			OpPtT centerPtT = edge.center;
-			OpPtT oCtr = curves.closest(centerPtT.pt);
-			centerPtT = curves.splitPt(oCtr.t, edge);
-			if (OpMath::IsFinite(centerPtT.t) && edge.startT != centerPtT.t
-					&& edge.endT != centerPtT.t)
-				hulls.add(centerPtT, threshold, SectType::center);
 		}
 		OP_DEBUG_VALIDATE_CODE(hulls.debugValidate());
 		hulls.add(edge.start(), threshold, SectType::endHull);

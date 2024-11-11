@@ -159,7 +159,7 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 		return nullptr;
 	if (LimbPass::unsectPair != limbPass && tree.contains(this, test))
 		return nullptr;
-	if (EdgeMatch::start == m ? test->startSeen : test->endSeen)  // !!! may be redundant w/ contains
+	if (EdgeMatch::start == m ? test->startSeen : test->endSeen)
 		return nullptr;
 	// compare test wind zero against their parent's last edge wind zero
 	// OP_ASSERT(!test->isPal(last) || LimbPass::linked != limbPass);  // breaks pentrek10
@@ -551,7 +551,6 @@ bool OpJoiner::setup() {
 	sort();  // join up largest edges first
 	for (auto e : byArea) {
 		e->setActive(true);
-		e->clearLinkBounds();  // !!! this may be unnecessary (asserts if necessary)
 	}
 	for (auto unsectable : unsectByArea) {
 		unsectable->setActive(true);
@@ -639,9 +638,8 @@ void OpJoiner::buildDisabled(OpContours& contours) {
 				if (!e.disabled || Unsortable::none != e.isUnsortable || e.isUnsectable())
 					continue;
 				// for the very small, include disabled edges
-				if (e.centerless || e.windPal 
-						|| e.coinPals.size())  // entire segment is not coincident; partial is
-				//		|| e.startPt().isNearly(e.endPt(), threshold))
+				// !!! this also tested on windPal, but non-extended tests don't need it
+				if (e.centerless || e.coinPals.size()) // entire segment is not coincident; partial is
 					disabled.push_back(&e);
 			}
 		}

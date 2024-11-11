@@ -57,7 +57,7 @@ inline EdgeMatch operator!(EdgeMatch m) {
 
 enum class EdgeFail : uint8_t {
 	none,
-	center,
+//	center,
 	horizontal,
 	vertical,
 };
@@ -129,7 +129,6 @@ struct SectRay {
 enum class SectType {
 	none,
 	endHull,  // intersection is close to or equal to curve end point
-	center,   // break curve at geometric center
 	controlHull,  // intersection is on hull between end and control, or pair of control points
 	midHull,  // hull intersects, but not near end point
 	snipLo,   // snip at t lower than intersection
@@ -165,16 +164,6 @@ struct OpHulls {
 	std::vector<HullSect> h;
 };
 
-enum class AllowPals {
-	no,
-	yes
-};
-
-enum class AllowClose {
-	no,
-	yes
-};
-
 enum class CalcFail {
 	none,
 	fail,
@@ -184,22 +173,6 @@ enum class CalcFail {
 enum class EdgeDirection {
 	downRight = -1,
 	upLeft = 1,
-};
-
-enum class EdgeSplit : uint8_t {
-	no,
-	keep,  // used only by curve experiment
-	defer,  // used only by curve experiment : set split like partner
-	yes = 3, // allows |= keep to set no->keep, keep->keep, yes->yes
-};
-
-inline EdgeSplit& operator|=(EdgeSplit& a, EdgeSplit b) {
-	return a = (EdgeSplit)((int) a | (int) b);
-}
-
-enum class LeadingLoop {
-	in,
-	will,
 };
 
 enum class ResolveWinding {
@@ -228,11 +201,10 @@ enum class Unsortable {
 	underflow
 };
 
-#if 0
-enum class Transfer {
-	none,
-	to,
-	from
+#if OP_DEBUG
+enum class LeadingLoop {
+	in,
+	will,
 };
 #endif
 
@@ -243,7 +215,6 @@ struct CoinPal {
 
 	OpSegment* opp;
 	int coinID;
-//	Transfer transfer;
 };
 
 struct OpEdge {
@@ -262,10 +233,7 @@ private:
 		, whichEnd_impl(EdgeMatch::none)
 		, rayFail(EdgeFail::none)
 		, windZero(WindZero::unset)
-		, doSplit(EdgeSplit::no)
 		, isUnsortable(Unsortable::none)
-		, closeSet(false)
-		, isClose_impl(false)
 		, active_impl(false)
 		, inLinkups(false)
 		, inOutput(false)
@@ -277,7 +245,7 @@ private:
 		, ccSmall(false)
 		, ccStart(false)
 		, centerless(false)
-		, windPal(false)
+//		, windPal(false)
 		, startSeen(false)
 		, endSeen(false)
 	{
@@ -286,8 +254,6 @@ private:
 		segment = nullptr;
 		startT = OpNaN;
 		endT = OpNaN;
-	//	startSect = 0;
-	//	endSect = 0;
 		debugMatch = nullptr;
 		debugZeroErr = nullptr;
 		debugOutPath = 0;
@@ -325,26 +291,22 @@ public:
 	void calcCenterT();
 	void clearActiveAndPals(OP_LINE_FILE_NP_DEF());
 	void clearLastEdge();
-	void clearLinkBounds() { OP_ASSERT(!linkBounds.isSet()); } // !!! see if this is needed
 	void clearNextEdge();
 	void clearPriorEdge();
 	void complete(OpPoint start, OpPoint end);
 	bool containsLink(const OpEdge* edge) const;
 	OpContours* contours() const;
-	size_t countUnsortable() const;
 	OpPtT end() const { return OpPtT(endPt(), endT); }
 	OpPoint endPt() const { return curve.lastPt(); }
-//	OpIntersection* findEndSect(EdgeMatch match, OpSegment* oppSeg);
-//	OpIntersection* findWhichSect(EdgeMatch );
 	OpPtT findT(Axis , float oppXY) const;
 	OpPtT flipPtT(EdgeMatch match) const { 
 		return match == which() ? end() : start(); }
 	bool hasLinkTo(EdgeMatch match) const { 
-		return EdgeMatch::start == match ? priorEdge : nextEdge; }  // !!! was reversed!
+		return EdgeMatch::start == match ? priorEdge : nextEdge; }
 	bool isActive() const { 
 		return active_impl; }
-	bool isClose();
-	bool isLine();
+	bool isLine() {
+		return curve.isLine(); }
 	bool isPal(const OpEdge* opp) const {
 		return pals.end() != std::find_if(pals.begin(), pals.end(), 
 				[opp](const auto& test) { return opp == test.edge; }); }
@@ -352,27 +314,17 @@ public:
 		return !disabled && !isUnsectable() && Unsortable::none == isUnsortable; }
 	bool isUnsectable() const { 
 		return pals.size(); }
-	bool isUnsectablePair(OpEdge* opp);  // true if this and opp are unsectable pairs
 	void linkToEdge(FoundEdge& , EdgeMatch );
-	bool linksTo(OpEdge* match) const;
-	MatchReverse matchEnds(const LinePts& ) const;
+	MatchReverse matchEnds(const LinePts& linePts) const {
+		return curve.matchEnds(linePts); }
 	void markPals();
-	void matchUnsectable(EdgeMatch , const std::vector<OpEdge*>& unsectInX, 
-			std::vector<FoundEdge>& , AllowPals , AllowClose );
 	OpEdge* nextOut();
-	NormalDirection normalDirection(Axis axis, float t);
+	NormalDirection normalDirection(Axis axis, float edgeInsideT) {  // t value is not segment t
+		return curve.normalDirection(axis, edgeInsideT); }
 	void output(bool closed);  // provided by the graphics implementation
 	void outputLinkedList(const OpEdge* firstEdge, bool first);
 	OpPtT ptT(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? start() : end(); }
-	OpPtT ptTCloseTo(OpPtT oPtPair, const OpPtT& ptT) const;
-	void reenable() {  // only used for coincidence
-		disabled = false;
-#if OP_DEBUG_MAKER
-		debugSetDisabled.line = 0; 
-		debugSetDisabled.file = "";
-#endif
-	}
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
 	void setDisabled(OP_LINE_FILE_NP_DEF());
 	void setDisabledZero(OP_LINE_FILE_NP_DEF()) {
@@ -393,12 +345,7 @@ public:
 	OpPoint startPt() const { return curve.firstPt(); }
 	void subDivide(OpPoint start, OpPoint end);
 	CalcFail subIfDL(Axis axis, float t, OpWinding* );
-	PathOpsV0Lib::CurveType type();
 	void unlink();  // restore edge to unlinked state (for reusing unsortable or unsectable edges)
-//	int unsectID() const;
-//	OpIntersection* unsectSect(int sectIndex) const;
-//	OpEdge* unsectableMatch() const; // edge with the same unsectable range
-//	bool unsectableSeen(EdgeMatch ) const;  // true if pal end matches and has been seen by op tree
 	EdgeMatch which() const {
 		return whichEnd_impl; }
 	OpPtT whichPtT(EdgeMatch match = EdgeMatch::start) const { 
@@ -454,27 +401,18 @@ public:
 	std::vector<CoinPal> coinPals;  // track coincidences bracketing edge by ID
 	std::vector<OpIntersection*> unSects;  // unsectable intersections bracketing edge
 	std::vector<EdgePal> pals;	 // edge + pals share sect overlap; or ray can't order edge and pals
-//	std::vector<OpEdge*> lessRay;  // edges found placed with smaller edge distance cept values
-//	std::vector<OpEdge*> moreRay;  // edges found placed with larger edge distance cept values
-//	std::vector<UnsectableOpp> uPairs; // opposite edges unsectable with this edge
 	OpHulls hulls;  // curve-curve intersections
 	float startT;  // used to be ptT; needs sect to find unsectable
 	float endT;
-//	int startSect;  // to find unsectable pairs (there may be more than one)
-//	int endSect;
 	int id;
 	EdgeMatch whichEnd_impl;  // if 'start', prior end equals start; if 'end' prior end matches end
 	EdgeFail rayFail;   // how computation (e.g., center) failed (on fail, windings are set to zero)
 	WindZero windZero;  // zero: edge normal points to zero side (the exterior of the loop)
-	EdgeSplit doSplit;  // used by curve/curve intersection to track subdivision
 	Unsortable isUnsortable;  // unsectable is unsortable; others (e.g., very small) are also unsortable
-	bool closeSet;
-	bool isClose_impl;  // set if start is close to end
 	bool active_impl;  // used by ray casting to mark edges that may be to the left of casting edge
-	bool inLinkups; // like inOutput, to marks unsectable edges; all edges in linkups l vector
-	bool inOutput;	// likely only used to find inactive unsectables that are not on output path
+	bool inLinkups; // set for edges in linkups l vector
+	bool inOutput;	// set when edge is added to output path
 	bool disabled;	// winding is zero, or apply disqualified edge from appearing in output
-//	bool isUnsectable;	// if set edge is between one or more unsectable ranges (in intersections) 
 	bool isUnsplitable;  // too small to split in two during curve-curve intersection
 	bool ccEnd;  // set if edge end is closest to already found curve-curve intersection
 	bool ccLarge;  // set if curve/curve has large t match and this edge is last
@@ -482,9 +420,9 @@ public:
 	bool ccSmall;  // set if curve/curve has small t match and this edge is first
 	bool ccStart;  // set if edge start is closest to already found curve-curve intersection
 	bool centerless;  // center could not be computed (likely edge is too small)
-	bool windPal;  // winding could not computed because of pal
-	bool startSeen;  // experimental tree to track adding edges to output
-	bool endSeen;  // experimental tree to track adding edges to output
+//	bool windPal;  // winding could not computed because of pal (doesn't appear needed)
+	bool startSeen;  // tracks start of edge in joiner linked list to add to tree only once
+	bool endSeen;  // tracks end of edge in joiner linked list to add to tree only once
 #if OP_DEBUG
 	OpEdge* debugMatch;  // left side of nonzero ray from this edge
 	OpEdge* debugZeroErr;  // debug match ray found edge that does not match -- diagnostic for now

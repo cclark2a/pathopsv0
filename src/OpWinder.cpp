@@ -142,7 +142,7 @@ FindCept SectRay::findIntercept(OpEdge* home, OpEdge* test) {
 		return FindCept::unsortable;
 	if (test->disabled)
 		return FindCept::ok;
-	bool uSectPair = test->isUnsectable() && home->isUnsectable() && test->isUnsectablePair(home);
+	bool uSectPair = test->isUnsectable() && home->isUnsectable() && test->isPal(home);
 	if (uSectPair && !firstTry)
 		return FindCept::unsectable;
 	// !!! EXPERIMENT  try using segment's curve instead of edge curve
@@ -816,7 +816,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 	}
 	if (!home->winding.visible()) {
 		home->setDisabled(OP_LINE_FILE_NPARAMS());
-		home->windPal = true;
+//		home->windPal = true;	// !!! doesn't appear to be necessary
 	}
 	if (CalcFail::fail == home->addIfUR(ray.axis, homeT, &sumWinding))
 		home->setUnsortable(Unsortable::addCalcFail2);
@@ -837,7 +837,7 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 				continue;
 			if (home->disabled)	// may not be visible in vertical pass
 				continue;
-			if (EdgeFail::center == home->rayFail)
+			if (home->centerless)
 				continue;
 	//		if (home->between)	// !!! set sum chain even if ray cannot be used for this edge...?
 	//			continue;
@@ -946,7 +946,7 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 			for (auto& edge : segment.edges) {
 				if (edge.disabled)
 					continue;
-				if (EdgeFail::center == edge.rayFail)
+				if (edge.centerless)
 					continue;
 				if (edge.isUnsectable() && edge.many.isSet())
 					std::swap(edge.winding, edge.many);

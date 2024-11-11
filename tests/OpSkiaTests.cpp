@@ -12,7 +12,7 @@
 // grshapearc hangs in OpTree contructor? (makes over 10K limbs)
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
-#define OP_TEST_ALLOW_EXTENDED 1  // some Skia tests have extended versions which take longer
+#define OP_TEST_ALLOW_EXTENDED 0  // some Skia tests have extended versions which take longer
 #define OP_TEST_V0 1  // set to zero to time Skia running tests
 #define OP_TEST_SKIA 1  // see if skia's path ops can execute the same test
 #define OP_TEST_REGION 1  // test result of v0 against skia regions

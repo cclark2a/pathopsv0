@@ -89,7 +89,6 @@ struct CcCurves {
 	void snipAndGo(const OpSegment* , const OpPtT& cut, OpPoint oppPt, const OpSegment* oppSeg);
 	// void snipOne(const OpSegment* , const OpPtT& lo, const OpPtT& hi);
 	void snipRange(const OpSegment* , const OpPtT& lo, const OpPtT& hi, const OpSegment* oppSeg);
-	OpPtT splitPt(float oMidDist, const OpEdge& edge) const;
 	DUMP_DECLARATIONS
 
 	std::vector<OpEdge*> c;
@@ -116,7 +115,6 @@ struct FoundLimits {
 #endif
 
 struct OpCurveCurve {
-
 	OpCurveCurve(OpSegment* seg, OpSegment* opp);
 	void addIntersection(OpEdge* edge, OpEdge* opp);
 	void addEdgeRun(OpEdge* , CurveRef , EdgeMatch );

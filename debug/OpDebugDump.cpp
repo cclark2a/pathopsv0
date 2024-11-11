@@ -1388,7 +1388,7 @@ ENUM_NAME_STRUCT(EdgeFail);
 
 static EdgeFailName edgeFailNames[] {
     FAIL_NAME(none),
-    FAIL_NAME(center),
+//    FAIL_NAME(center),
     FAIL_NAME(horizontal),
     FAIL_NAME(vertical),
 };
@@ -1418,19 +1418,6 @@ static AxisName axisNames[] {
 };
 
 ENUM_NAME(Axis, axis)
-
-ENUM_NAME_STRUCT(EdgeSplit);
-
-#define SPLIT_NAME(s) { EdgeSplit::s, #s }
-
-static EdgeSplitName edgeSplitNames[] {
-    SPLIT_NAME(no),
-    SPLIT_NAME(keep),
-    SPLIT_NAME(defer),
-    SPLIT_NAME(yes)
-};
-
-ENUM_NAME(EdgeSplit, edgeSplit)
 
 #define EDGE_FILTER \
 	OP_X(segment) \
@@ -1462,7 +1449,6 @@ ENUM_NAME(EdgeSplit, edgeSplit)
 	OP_X(doSplit) \
 	OP_X(isUnsortable) \
 	OP_X(closeSet) \
-	OP_X(isClose_impl) \
 	OP_X(active_impl) \
 	OP_X(inLinkups) \
 	OP_X(inOutput) \
@@ -1474,7 +1460,6 @@ ENUM_NAME(EdgeSplit, edgeSplit)
 	OP_X(ccSmall) \
 	OP_X(ccStart) \
 	OP_X(centerless) \
-	OP_X(windPal) \
 	OP_X(startSeen) \
 	OP_X(endSeen)
 
@@ -1813,7 +1798,6 @@ ENUM_NAME_STRUCT_ABBR(SectType);
 static SectTypeName sectTypeNames[] = {
     SECTTYPE_NAME(none, none),
     SECTTYPE_NAME(endHull, end),
-    SECTTYPE_NAME(center, ctr),
     SECTTYPE_NAME(controlHull, ctrl),
 	SECTTYPE_NAME(midHull, mid),
 	SECTTYPE_NAME(snipLo, snpL),
@@ -2010,16 +1994,10 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     s += strEnum(EF::whichEnd_impl, "whichEnd", EdgeMatch::none == which(), edgeMatchName(which()));
     s += strEnum(EF::rayFail, "rayFail", EdgeFail::none == rayFail, edgeFailName(rayFail));
     s += strEnum(EF::windZero, "windZero", false, windZeroName(windZero));
-    s += strEnum(EF::doSplit, "doSplit", EdgeSplit::no == doSplit, edgeSplitName(doSplit));
     s += strEnum(EF::isUnsortable, "isUnsortable", Unsortable::none == isUnsortable, unsortableName(isUnsortable));
 #define STR_BOOL(ef) do { if (dumpIt(EdgeFilter::ef) && (dumpAlways(EdgeFilter::ef) || ef)) { \
         s += strLabel(#ef) + " "; \
         if (1 != ((unsigned char) ef)) s += STR((size_t) ef) + " "; }} while(false)
-    STR_BOOL(closeSet);
-//    STR_BOOL(lineSet);
-    STR_BOOL(isClose_impl);
-//    STR_BOOL(isLine_impl);
-//    STR_BOOL(exactLine);
 	STR_BOOL(active_impl);
     STR_BOOL(inLinkups);
     STR_BOOL(inOutput);
@@ -2031,7 +2009,6 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     STR_BOOL(ccSmall);
     STR_BOOL(ccStart);
     STR_BOOL(centerless);
-    STR_BOOL(windPal);
     STR_BOOL(startSeen);
     STR_BOOL(endSeen);
 #if OP_DEBUG
@@ -2169,14 +2146,8 @@ void OpEdge::dumpSet(const char*& str) {
     whichEnd_impl = edgeMatchStr(str, "whichEnd", EdgeMatch::none);
     rayFail = edgeFailStr(str, "rayFail", EdgeFail::none);
     windZero = windZeroStr(str, "windZero", WindZero::unset);
-    doSplit = edgeSplitStr(str, "doSplit", EdgeSplit::no);
     isUnsortable = unsortableStr(str, "unsortable", Unsortable::none);
 #define STR_BOOL(ef) ef = OpDebugOptional(str, #ef)
-    STR_BOOL(closeSet);
-//    STR_BOOL(lineSet);
-    STR_BOOL(isClose_impl);
-//    STR_BOOL(isLine_impl);
-//    STR_BOOL(exactLine);
 	STR_BOOL(active_impl);
     STR_BOOL(inLinkups);
     STR_BOOL(inOutput);
@@ -2188,7 +2159,6 @@ void OpEdge::dumpSet(const char*& str) {
     STR_BOOL(ccSmall);
     STR_BOOL(ccStart);
     STR_BOOL(centerless);
-    STR_BOOL(windPal);
     STR_BOOL(startSeen);
     STR_BOOL(endSeen);
 #if OP_DEBUG
@@ -3435,7 +3405,7 @@ void OpCurveCurve::dumpDepth(int level) {
     std::vector<EdgeFilter> showFields = { EF::id, EF::segment, EF::startT, EF::endT, 
 			EF::isUnsplitable,
             EF::ccEnd, EF::ccLarge, EF::ccOverlaps, EF::ccSmall, EF::ccStart,
-            EF::hulls, EF::isClose_impl, EF::debugParentID, EF::debugSetMaker };
+            EF::hulls, EF::debugParentID, EF::debugSetMaker };
     OpSaveEF saveEF(showFields);
     OpDebugOut("depth:" + STR(level) + "\n");
     size_t dvLevels = dvDepthIndex.size();

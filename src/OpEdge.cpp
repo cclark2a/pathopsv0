@@ -278,7 +278,7 @@ OpEdge* OpEdge::advanceToEnd(EdgeMatch match) {
 			1					1					---
 */
 void OpEdge::apply() {
-	if (EdgeFail::center == rayFail)
+	if (centerless)
 		setDisabled(OP_LINE_FILE_NPARAMS());
 	if (disabled || Unsortable::none != isUnsortable)
 		return;
@@ -316,8 +316,7 @@ void OpEdge::calcCenterT() {
 //		setDisabled(OP_LINE_FILE_NARGS());
 		OP_LINE_FILE_SET_IMMED(debugSetDisabled);
 		OP_DEBUG_CODE(center = { OpPoint(SetToNaN::dummy), OpNaN } );
-		centerless = true;  // !!! is this redundant with ray fail?
-		rayFail = EdgeFail::center;
+		centerless = true;
 		return;
 	}
 	if (startT >= t || t >= endT)
@@ -361,19 +360,6 @@ OpContours* OpEdge::contours() const {
 	return segment->contour->contours;
 }
 
-size_t OpEdge::countUnsortable() const {
-	OP_ASSERT(!priorEdge);
-	OP_ASSERT(lastEdge);
-	OP_ASSERT(!debugIsLoop());
-	const OpEdge* test = this;
-	size_t count = 0;
-	do {
-		if (Unsortable::none != test->isUnsortable)
-			count++;
-	} while ((test = test->nextEdge));
-	return count;
-}
-
 // !!! either: implement 'stamp' that puts a unique # on the edge to track if it has been visited;
 // or, re-walk the chain from this (where the find is now) to see if chain has been seen
 bool OpEdge::containsLink(const OpEdge* edge) const {
@@ -408,19 +394,6 @@ OpPtT OpEdge::findT(Axis axis, float oppXY) const {
 	return found;
 }
 
-// !!! (out of date comment) this compares against float epsilon instead of zero
-// when comparing against a line, an edge close to zero can fall into denormalized numbers,
-//   causing the calling subdivision to continue for way too long. Using epsilon as a stopgap
-//   avoids this. The alternative would be to change the math to disallow denormalized numbers
-bool OpEdge::isLine() {
-	return curve.isLine();
-}
-
-bool OpEdge::isUnsectablePair(OpEdge* opp) {
-	return pals.end() != std::find_if(pals.begin(), pals.end(), [opp](const EdgePal& edgePal) {
-			return edgePal.edge == opp; });
-}
-
 void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 	OpEdge* oppEdge = found.edge;
 	OP_ASSERT(!oppEdge->hasLinkTo(match));
@@ -443,20 +416,6 @@ void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 	}
 }
 
-bool OpEdge::linksTo(OpEdge* match) const {
-	if (this == match)
-		return true;
-	OP_ASSERT(!priorEdge);
-	OP_ASSERT(lastEdge);
-	OP_ASSERT(!debugIsLoop());
-	const OpEdge* test = this;
-	while ((test = test->nextEdge)) {
-		if (test == match)
-			return true;
-	}
-	return false;
-}
-
 // Find pals for unsectables created during curve/curve intersection. There should be at most
 // two matching unsectable ids in the distances array. Mark between edges as well.
 void OpEdge::markPals() {
@@ -470,85 +429,12 @@ void OpEdge::markPals() {
 	}
 }
 
-MatchReverse OpEdge::matchEnds(const LinePts& linePts) const {
-	return curve.matchEnds(linePts);
-}
-
-// keep only one unsectable from any set of pals
-void OpEdge::matchUnsectable(EdgeMatch match, const std::vector<OpEdge*>& unsectInX,
-		std::vector<FoundEdge>& edges, AllowPals allowPals, AllowClose allowClose) {
-	const OpPoint firstPt = whichPtT(match).pt;
-	for (int index = 0; index < (int) unsectInX.size(); ++index) {
-		OpEdge* unsectable = unsectInX[index];
-		if (this == unsectable)
-			continue;
-		auto isDupe = [&edges](OpEdge* test) {
-			for (const auto& found : edges) {
-				if (found.edge == test)
-					return true;
-				for (auto& pal : found.edge->pals)
-					if (pal.edge == test)
-						return true;
-			}
-			return false;
-		};
-		auto checkEnds = [this, &edges, firstPt, isDupe, allowPals, allowClose]
-				(OpEdge* unsectable) {
-			if (unsectable->inOutput || unsectable->inLinkups || unsectable->disabled)
-				return false;
-			if (this == unsectable)
-				return false;
-			bool startMatch = firstPt == unsectable->startPt()
-					&& (EdgeMatch::start == unsectable->which() ? !unsectable->priorEdge :
-					!unsectable->nextEdge);
-			bool endMatch = firstPt == unsectable->endPt()
-					&& (EdgeMatch::end == unsectable->which() ? !unsectable->priorEdge :
-					!unsectable->nextEdge);
-			if (!startMatch && !endMatch)
-				return false;
-			if (AllowClose::no == allowClose && isDupe(unsectable))
-				return false;
-			if (unsectable->isUnsectable() && AllowPals::no == allowPals) {
-				const OpEdge* link = this;
-				OP_ASSERT(!link->nextEdge);
-				OP_ASSERT(!link->debugIsLoop());
-				do {
-					if (unsectable->isPal(link))
-						return false;
-					link = link->priorEdge;
-				} while (link);
-			}
-			OP_ASSERT(!unsectable->debugIsLoop());
-			if (AllowClose::yes == allowClose) {
-				OP_ASSERT(1 == edges.size());
-				edges.back().check(nullptr, unsectable, 
-						startMatch ? EdgeMatch::start : EdgeMatch::end, firstPt);
-			} else
-				edges.emplace_back(unsectable, startMatch ? EdgeMatch::start : EdgeMatch::end);
-			return true;
-		};
-		if (checkEnds(unsectable))
-			continue;
-		if (AllowPals::no == allowPals)
-			continue;
-		for (auto& pal : unsectable->pals) {
-			if (checkEnds(pal.edge))
-				break;
-		}
-	}
-}
-
 OpEdge* OpEdge::nextOut() {
 	clearActiveAndPals(OP_LINE_FILE_NPARAMS());
 	inLinkups = false;
 	inOutput = true;
 	OP_DEBUG_IMAGE_CODE(if (!debugCustom) debugColor = orange);
 	return nextEdge;
-}
-
-// !!! note that t value is 0 to 1 within edge (not normalized to segment t)
-NormalDirection OpEdge::normalDirection(Axis axis, float edgeInsideT) {
-	return curve.normalDirection(axis, edgeInsideT);
 }
 
 // if there is another path already output, and it is first found in this ray,
@@ -628,7 +514,6 @@ void OpEdge::output(bool closed) {
 
 void OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first)
 {
-//	PathOpsV0Lib::PathOutput nativePath = contours()->callerOutput;
 	OP_DEBUG_CODE(debugOutPath = curve.contours->debugOutputID);
 	OpEdge* next = nextOut();
 	OpCurve copy = curve;
@@ -643,27 +528,13 @@ void OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first)
 	next->outputLinkedList(firstEdge, false);
 }
 
-PathOpsV0Lib::CurveType OpEdge::type() {
-	return segment->c.c.type; 
-}
-
 // in function to make setting breakpoints easier
 // !!! if this is not inlined in release, do something more cleverer
 void OpEdge::setActive(bool state) {
 	active_impl = state;
 }
 
-bool OpEdge::isClose() {
-	if (closeSet)
-		return isClose_impl;
-	closeSet = true;
-	if (ccStart || ccEnd) {
-		OP_ASSERT(!isClose_impl);
-		return false;
-	}
-	return isClose_impl = start().isNearly(end(), contours()->threshold());
-}
-
+#if 0
 OpPtT OpEdge::ptTCloseTo(OpPtT oPtPair, const OpPtT& ptT) const {
 	OpVector unitTan = segment->c.tangent(ptT.t);
 	OpVector tan = unitTan.setLength(sqrtf(oPtPair.t));
@@ -679,6 +550,7 @@ OpPtT OpEdge::ptTCloseTo(OpPtT oPtPair, const OpPtT& ptT) const {
 		return OpPtT(segment->c.ptAtT(resultT), resultT);
 	return center;
 }
+#endif
 	
 // should be inlined. Out of line for ease of setting debugging breakpoints
 void OpEdge::setDisabled(OP_LINE_FILE_NP_DEF()) {
@@ -831,6 +703,10 @@ void OpEdge::unlink() {
 		if (linkStart->inLinkups)
 			return;
 	}
+#if 0 && OP_DEBUG // triggered by testQuads11267619, so it is necessary 11/11/24
+	if (priorEdge || nextEdge || lastEdge || EdgeMatch::start != whichEnd_impl)
+		OP_ASSERT(0);
+#endif
 	priorEdge = nullptr;
 	nextEdge = nullptr;
 	clearLastEdge();
