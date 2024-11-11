@@ -273,7 +273,7 @@ void OpSegment::betweenIntersections() {
 		OP_DEBUG_CODE(OpIntersection* oppSect = bEnd->opp);
 		OP_ASSERT(oppSect->segment == segA || oppSect->segment == segC);
 		OpPoint oppPt = bEnd->ptT.pt;
-		OpPtT ptTc;
+		OpPtT ptTc(SetToNaN::dummy);
 		OpIntersection* aInC = segC->sects.coinContains(oppPt, segA, &ptTc);
 		if (aInC && aInC->coincidenceID)
 			return;

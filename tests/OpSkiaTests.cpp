@@ -5,7 +5,7 @@
 
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
-#define TEST_PATH_OP_SKIP_TO_FILE "v0" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
+#define TEST_PATH_OP_SKIP_TO_FILE "" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
 #define TESTS_TO_SKIP 0 // 14295903  // tests to skip
 #define TEST_FIRST ""  // e.g., "joel4" (ignored by fast test, overridden by TEST_DRIVE_FIRST)
 // fuzz763_378 asserts in OpIntersections::sort() debug check line 397 but continuing, succeeds
