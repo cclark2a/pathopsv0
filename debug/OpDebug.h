@@ -39,9 +39,7 @@ float OpTicksToSeconds(uint64_t ticks, uint64_t frequency);
 #define STR_E(x) OpDebugStr((int) (x))  // use with enums
 inline std::string OpDebugStr(void* x) { return std::to_string((unsigned long long)(void**)x); }
 inline std::string OpDebugStr(int32_t x) { return std::to_string(x); }
-inline std::string OpDebugStr(long x) { return std::to_string(x); }
 inline std::string OpDebugStr(size_t x) { return std::to_string(x); }
-inline std::string OpDebugStr(ptrdiff_t x) { return std::to_string(x); }
 inline std::string OpDebugStr(const char* x) { return std::string(x); }
 std::string OpDebugStr(float value);
 extern int debugPrecision;	// minus one means unset

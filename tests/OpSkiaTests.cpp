@@ -882,11 +882,11 @@ static void edit(std::string filename, std::string match, std::string replace) {
 		return OpDebugOut("fseek to start failed:" + filename + "\n");
  	AutoFree read(malloc(allocSize));
 	if (!read.buffer)
-		return OpDebugOut("malloc failed:" + readName + "; size:" + STR(allocSize) + "\n");
+		return OpDebugOut("malloc failed:" + readName + "; size:" + STR((size_t) allocSize) + "\n");
 	size_t bytesRead = fread(read.buffer, 1, fileSize, readf.file);
 	if (bytesRead < (size_t) fileSize)
 		return OpDebugOut("read failed:" + readName + "; read:" + STR(bytesRead) 
-				+ " expected:" + STR(fileSize) + "\n");
+				+ " expected:" + STR((size_t) fileSize) + "\n");
 	fclose(readf.file);
 	std::string writeName = directory + "temp";
 	AutoClose write(fopen(writeName.c_str(), "wb"));
@@ -899,7 +899,7 @@ static void edit(std::string filename, std::string match, std::string replace) {
 	size_t bytesWritten = fwrite(read.buffer, 1, startSize, write.file);
 	if (bytesWritten != (size_t) startSize)
 		return OpDebugOut("write start failed:" + filename + "; written:" + STR(bytesWritten)
-				+ " expected:" + STR(startSize) + "\n:");
+				+ " expected:" + STR((size_t) startSize) + "\n:");
 	bytesWritten = fwrite(replace.c_str(), 1, replace.size(), write.file);
 	if (bytesWritten != replace.size())
 		return OpDebugOut("write replace failed:" + filename + "; written:" + STR(bytesWritten)
@@ -908,7 +908,7 @@ static void edit(std::string filename, std::string match, std::string replace) {
 	bytesWritten = fwrite(read.buffer + endPos, 1, fileSize - endPos, write.file);
 	if (bytesWritten < fileSize - endPos)
 		return OpDebugOut("write failed:" + writeName + "; written:" + STR(bytesWritten) 
-				+ " expected:" + STR(fileSize - endPos) + "\n");
+				+ " expected:" + STR((int) (fileSize - endPos)) + "\n");
 	fclose(write.file);
 	remove(readName.c_str());
 	rename(writeName.c_str(), readName.c_str());
