@@ -7,17 +7,6 @@
 // #include "PathOps.h"
 #endif
 
-extern bool startFirstTest;
-extern bool endFirstTest;
-
-bool testingInactive() {
-#if OP_DEBUG_FAST_TEST
-	return false;
-#else
-	return startFirstTest == endFirstTest;
-#endif
-}
-
 OpPoint TinyCurve::lastPt() const {
 	return pts[pointCount() - 1];
 }
@@ -300,56 +289,43 @@ SkPath::Verb SkPath::RawIter::next(SkPoint* pts) {
 }
 
 void SkPath::moveTo(float x, float y) { 
-	if (testingInactive())
-		return;
+	close();
 	last = OpPoint(x, y);
 	firstIndex = path.size();
 }
 
 void SkPath::lineTo(float x, float y) {
-	if (testingInactive())
-		return;
 	TinyCurve curve { { last, OpPoint(x, y) }, 1, TinyType::line };
 	path.push_back(std::move(curve));
 	last = OpPoint(x, y);
 }
 
 void SkPath::rLineTo(float rx, float ry) {
-	if (testingInactive())
-		return;
 	TinyCurve curve { { last, last + OpPoint(rx, ry) }, 1, TinyType::line };
 	path.push_back(std::move(curve));
 	last = curve.pts[1];
 }
 
 void SkPath::quadTo(float x1, float y1, float x2, float y2) { 
-	if (testingInactive())
-		return;
 	TinyCurve curve { { last, OpPoint(x1, y1), OpPoint(x2, y2) }, 1, TinyType::quad };
 	path.push_back(std::move(curve));
 	last = OpPoint(x2, y2);
 }
 
 void SkPath::conicTo(float x1, float y1, float x2, float y2, float w) {
-	if (testingInactive())
-		return;
 	TinyCurve curve { { last, OpPoint(x1, y1), OpPoint(x2, y2) }, w, TinyType::conic };
 	path.push_back(std::move(curve));
 	last = OpPoint(x2, y2);
 }
 
 void SkPath::cubicTo(float x1, float y1, float x2, float y2, float x3, float y3) {
-	if (testingInactive())
-		return;
 	TinyCurve curve { { last, OpPoint(x1, y1), OpPoint(x2, y2), OpPoint(x3, y3) }, 1, TinyType::cubic };
 	path.push_back(std::move(curve));
 	last = OpPoint(x3, y3);
 }
 
 void SkPath::close() {
-	if (testingInactive())
-		return;
-	if (!path.size())
+	if (firstIndex >= path.size())
 		return;
 	OpPoint next = path[firstIndex].pts[0];
 	if (last != next) {
@@ -360,13 +336,10 @@ void SkPath::close() {
 
 void SkPath::arcTo(const SkRect& , float startAngle, float sweepAngle, bool forceMoveTo) {
 	// !!! unimplmented
-	if (testingInactive())
-		return;
+	OP_ASSERT(0);
 }
 
 void SkPath::addCircle(float x, float y, float r, SkPathDirection /* !!! ignored for now */) {  
-	if (testingInactive())
-		return;
 	moveTo(x, y - r);
 	conicTo(x + r, y - r, x + r, y, std::sqrtf(2) / 2);
 	conicTo(x + r, y + r, x, y + r, std::sqrtf(2) / 2);
@@ -375,14 +348,10 @@ void SkPath::addCircle(float x, float y, float r, SkPathDirection /* !!! ignored
 }
 
 void SkPath::addPath(SkPath const& p) { 
-	if (testingInactive())
-		return;
 	path.insert(path.end(), p.path.begin(), p.path.end());
 }
 
 void SkPath::addPath(SkPath const& p, const SkMatrix& m) {
-	if (testingInactive())
-		return;
 	SkPath tmp;
 	tmp.addPath(p);
 	tmp.makeTransform(m);
@@ -390,14 +359,50 @@ void SkPath::addPath(SkPath const& p, const SkMatrix& m) {
 }
 
 void SkPath::addRect(float l, float t, float r, float b, SkPathDirection /* !!! ignored for now */) {
-	if (testingInactive())
-		return;
 	moveTo(l, t);
 	lineTo(r, t);
 	lineTo(r, b);
 	lineTo(l, b);
 	lineTo(l, t);
 }
+
+void SkPath::addRoundRect(const SkRect& rect, float rx, float ry,
+		SkPathDirection ) {
+	addRect(rect);  // !!! incomplete
+}
+
+// !!! this isn't right because it doesn't keep track of contours
+int SkPath::countPoints() const {
+	int count = 1;
+	for (const TinyCurve& curve : path)
+		count += curve.pointCount() - 1;
+	return count;
+}
+
+// !!! this isn't right because it doesn't keep track of contours
+SkPoint SkPath::getPoint(int index) {
+	for (TinyCurve& curve : path) {
+		int base = index;
+		index -= curve.pointCount() - 1;
+		if (index > 0)
+			continue;
+		return { curve.pts[base].x, curve.pts[base].y };
+	}
+	return { 0, 0 };
+}
+
+// !!! this isn't right because it doesn't keep track of contours
+void SkPath::setPt(int index, float x, float y) {
+	for (TinyCurve& curve : path) {
+		int base = index;
+		index -= curve.pointCount() - 1;
+		if (index > 0)
+			continue;
+		curve.pts[base] = { x, y };
+		return;
+	}
+}
+
 
 const SkPath& SkPath::makeTransform(SkMatrix const & m) { 
 	for (TinyCurve& c : path) {

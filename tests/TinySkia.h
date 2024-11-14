@@ -3,6 +3,9 @@
 #define TinySkia_DEFINED
 
 #include "OpMath.h"
+#include "SkiaEnumSkPathOp.h"
+
+#define SkDEBUGCODE(x) x
 
 inline float SkBits2Float(int32_t i) {
 	return OpDebugBitsToFloat(i); }
@@ -77,6 +80,8 @@ struct SkRect {
 	void join(struct SkRect const &);
 	void offset(float dx, float dy) {
 		fLeft += dx; fTop += dy; fRight += dx; fBottom += dy; }
+	void setLTRB(int32_t left, int32_t top, int32_t right, int32_t bottom) {
+        fLeft = left; fTop = top; fRight = right; fBottom = bottom; }
 	float width() const { 
 		return fRight - fLeft; }
 
@@ -142,10 +147,16 @@ public:
 	void addPath(const SkPath& );
 	void addPath(const SkPath& , const SkMatrix& );
 	void addRect(float, float, float, float, SkPathDirection dir = SkPathDirection::kCW);
+	void addRect(const SkRect& rect, SkPathDirection dir = SkPathDirection::kCW) {
+		addRect(rect.fLeft, rect.fTop, rect.fRight, rect.fBottom, dir); }
+	void addRoundRect(const SkRect& rect, float rx, float ry,
+			SkPathDirection dir = SkPathDirection::kCW);
 	void arcTo(const SkRect& , float startAngle, float sweepAngle, bool forceMoveTo);
+	int countPoints() const;
 	bool isInverseFillType() const { return SkPathFillType::kInverseWinding == fFillType
 			|| SkPathFillType::kInverseEvenOdd == fFillType; }
 	const SkRect& getBounds() const;
+	SkPoint getPoint(int index);
 	void reset();
 	bool isEmpty() const;
 	void moveTo(SkPoint p) { return moveTo(p.fX, p.fY); }
@@ -163,6 +174,7 @@ public:
 	void offset(float,float);
 	SkPathFillType getFillType() const { return fFillType; }
 	void setFillType(SkPathFillType f) { fFillType = f; }
+	void setPt(int index, float x, float y);
 	const SkPath& makeTransform(SkMatrix const &);
 	void toggleInverseFillType() { fFillType = (SkPathFillType) ((int) fFillType ^ 2); }
 
@@ -316,17 +328,9 @@ struct SkCanvas {
 	std::vector<SkMatrix> m;
 };
 
-enum SkPathOp : unsigned int {
-    kDifference_SkPathOp,         //!< subtract the op path from the first path
-    kIntersect_SkPathOp,          //!< intersect the two paths
-    kUnion_SkPathOp,              //!< union (inclusive-or) the two paths
-    kXOR_SkPathOp,                //!< exclusive-or the two paths
-    kReverseDifference_SkPathOp,  //!< subtract the first path from the op path
-};
-
 // !!! don't think I'll implement these!
-inline bool Op(const SkPath& one, const SkPath& two, SkPathOp op, SkPath* result) { return true; }
-inline bool Simplify(const SkPath& path, SkPath* result) { return true; }
+//inline bool Op(const SkPath& one, const SkPath& two, SkPathOp op, SkPath* result) { return true; }
+//inline bool Simplify(const SkPath& path, SkPath* result) { return true; }
 
 struct SkOpGlobalState {
 	static bool DebugRunFail() { return true; }
@@ -335,6 +339,14 @@ struct SkOpGlobalState {
 struct SkPathOpsDebug {
 	static const char* OpStr(SkPathOp op) { return ""; }
 };
+
+struct SkParsePath {
+	static void FromSVGString(const char*, SkPath* ) {}  // incomplete
+};
+
+inline void SkChopCubicAt(const SkPoint* pts, SkPoint* cubicPair, float loopT) {
+	// incomplete
+}
 
 typedef float SkScalar;
 typedef SkPoint SkVector;

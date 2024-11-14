@@ -63,7 +63,7 @@ inline float lineCut() {
 }
 
 inline float lineNormalLimit() {
-	return 0.008; // 0.004  fails on testQuads19022897 edge 151 NxR:-0.00746
+	return 0.008f; // 0.004  fails on testQuads19022897 edge 151 NxR:-0.00746
 }
 
 inline float lineInterceptLimit() {

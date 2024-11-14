@@ -1,10 +1,12 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
-#include "OpSkiaTests.h"
-
+#include "SkiaTestShim.h"
 #include "tests/PathOpsSimplifyFailTest.cpp"
 
-void run_simplify_fail_tests() {
-    test_PathOpsSimplifyFailOne(nullptr);
-    test_PathOpsSimplifyDontFailOne(nullptr);
-    test_PathOpsSimplifyFail(nullptr);
+void run_simplify_fail_tests(skiatest::Reporter* reporter) {
+	reporter->subname = "failOne";
+    test_PathOpsSimplifyFailOne(reporter);
+	reporter->subname = "dontFailOne";
+    test_PathOpsSimplifyDontFailOne(reporter);
+	reporter->subname = "fail";
+    test_PathOpsSimplifyFail(reporter);
 }

@@ -422,13 +422,17 @@ void OpIntersections::sort() {
 			if (s1end && s2start)
 				return true;
 			if (s1start)
-				return MatchEnds::start == s1->coinEnd;
+				return MatchEnds::start == s1->coinEnd 
+						&& (!s2start || s2->coincidenceID < s1->coincidenceID);
 			if (s2end)
-				return MatchEnds::end == s2->coinEnd;
+				return MatchEnds::end == s2->coinEnd
+						&& (!s1end || s1->coincidenceID < s2->coincidenceID);
 			if (s1end)
-				return MatchEnds::end == s1->unsectEnd;
+				return MatchEnds::end == s1->unsectEnd
+						&& (!s2end || s1->unsectID < s2->unsectID);
 			if (s2start)
-				return MatchEnds::start == s2->unsectEnd;
+				return MatchEnds::start == s2->unsectEnd
+						&& (!s1start || s2->unsectID < s1->unsectID);
 		}
 		return s1->opp->segment->id < s2->opp->segment->id;  // compare seg ptr if id is debug only?
 	});

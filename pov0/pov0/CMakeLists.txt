@@ -36,7 +36,7 @@ add_executable (pov0 "pov0.cpp" "pov0.h"
     "../../tests/PathOpsOpCubicThreadedTest_shim.cpp"
      "../../tests/PathOpsOpLoopThreadedTest_shim.cpp"
      "../../tests/PathOpsOpRectThreadedTest_shim.cpp"
-    # "../../tests/PathOpsOpTest_shim.cpp"
+     "../../tests/PathOpsOpTest_shim.cpp"
      "../../tests/PathOpsSimplifyDegenerateThreadedTest_shim.cpp"
      "../../tests/PathOpsSimplifyFailTest_shim.cpp"
      "../../tests/PathOpsSimplifyQuadThreadedTest_shim.cpp"
@@ -80,8 +80,8 @@ target_compile_definitions(pov0 PUBLIC OP_TINY_SKIA=1 NOMINMAX _CRT_SECURE_NO_WA
 target_compile_definitions(tinytest PUBLIC OP_TINY_SKIA=1 NOMINMAX _CRT_SECURE_NO_WARNINGS OP_TINY_TEST=1)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    target_compile_options(pov0 PUBLIC /wd4200 /wd4244 /wd4267 /fp:fast)
-    target_compile_options(tinytest PUBLIC /wd4200 /wd4244 /wd4267 /fp:fast)
+    target_compile_options(pov0 PUBLIC /wd4200 /wd4244 /wd4267)
+    target_compile_options(tinytest PUBLIC /wd4200 /wd4244 /wd4267)
 else()
     target_compile_options(pov0 PUBLIC -Wall -Wextra -Wpedantic -Wno-unused-parameter)
     target_compile_options(tinytest PUBLIC -Wall -Wextra -Wpedantic -Wno-unused-parameter)

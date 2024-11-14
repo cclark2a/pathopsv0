@@ -10,10 +10,15 @@
 #include <random>
 #include "OpMath.h"
 #include "OpContour.h"
-#include "OpSkiaTests.h"
 #include "src/pathops/SkPathOpsConic.h"
 #include "src/pathops/SkPathOpsCubic.h"
 #include "src/pathops/SkPathOpsQuad.h"
+#include "include/core/SkBitmap.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkPath.h"
+#include "include/core/SkRegion.h"
+#include "include/pathops/SkPathOps.h"
+#include "SkiaTestCommon.h"
 
 #define ASSERT(test) assertReport(test, __FUNCTION__, __LINE__, #test)
 #define ASSERT_I(test, outI) assertReport(test, __FUNCTION__, __LINE__, outI, #test)

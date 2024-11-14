@@ -5,7 +5,7 @@
 
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
-#define TEST_PATH_OP_SKIP_TO_FILE "" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
+#define TEST_PATH_OP_SKIP_TO_FILE "fail" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
 #define TESTS_TO_SKIP 0 // 14295903  // tests to skip
 #define TEST_FIRST ""  // e.g., "joel4" (ignored by fast test, overridden by TEST_DRIVE_FIRST)
 // fuzz763_378 asserts in OpIntersections::sort() debug check line 397 but continuing, succeeds
@@ -44,20 +44,17 @@
 extended: all tests run 11/9/24 exceptions: grshapearc (total run:74600014 v0 only:13)
 */
 
-#if !OP_TINY_SKIA
-const void* dummyLeft;
-const void* dummyRight;
-#endif
-
-
 #if OP_TINY_SKIA
 #include "TinySkia.h"
 #else
 #include "include/core/SkBitmap.h"
 #include "include/core/SkCanvas.h"
+#include "include/core/SkPath.h"
 #include "include/core/SkRegion.h"
+#include "include/pathops/SkPathOps.h"
+#define SkiaEnumSkPathOp_DEFINED
 #endif
-#include "OpSkiaTests.h"
+#include "SkiaTestCommon.h"
 #include "OpContour.h"
 #include "OpCurve.h"
 #if OP_DEBUG_FAST_TEST
@@ -71,7 +68,7 @@ const void* dummyRight;
 #include <vector>
 
 struct testInfo {
-    void (*func)();
+    void (*func)(skiatest::Reporter* );
     std::string name;
     int count;  // approximate number is ok; used for thread partitioning
     int extended; 
@@ -83,7 +80,7 @@ struct testInfo {
 std::vector<testInfo> testSuites = {
     // !!! start out slow
     { run_v0_tests, "v0", 14, 14 },
-#if !OP_TINY_SKIA
+#if 1 // !OP_TINY_SKIA
     { run_op_tests, "op", 451, 451 },
 #endif
     { run_battle_tests, "battle", 381, 381 },
@@ -104,75 +101,6 @@ std::vector<testInfo> testSuites = {
     { run_simplify_rect_tests, "rects", 152, 1280660 },
     { run_simplify_triangles_tests, "triangle", 24768, 2130048 },
     { run_tiger_tests, "tiger", 7005, 700005 },
-};
-
-std::vector<std::string> fails = {
-    "fuzz767834",
-    "fuzz754434_1",
-    "fuzz754434_2",
-    "fuzz754434_3",
-    "fuzz754434_4",
-    "fuzzhang_3",
-    "fuzzhang_2",
-    "fuzzhang_1",
-    "fuzz763_57",
-    "fuzz763_56",
-    "fuzz763_55",
-    "fuzz763_54",
-    "fuzz763_53",
-    "fuzz763_51",
-    "fuzz763_50",
-    "fuzz763_49",
-    "fuzz763_48",
-    "fuzz763_45",
-    "fuzz763_43",
-    "fuzz763_42",
-    "fuzz763_41",
-    "fuzz763_40",
-    "fuzz763_39",
-    "fuzz763_38",
-    "fuzz763_37",
-    "fuzz763_35",
-    "fuzz763_34",
-    "fuzz763_33",
-    "fuzz763_32",
-    "fuzz763_31",
-    "fuzz763_30",
-    "fuzz763_29",
-    "fuzz763_28",
-    "fuzz763_26",
-    "fuzz763_25",
-    "fuzz763_24",
-    "fuzz763_23",
-    "fuzz763_22",
-    "fuzz763_21",
-    "fuzz763_20",
-    "fuzz763_19",
-    "fuzz763_18",
-    "fuzz763_17",
-    "fuzz763_16",
-    "fuzz763_14",
-    "fuzz763_13",
-    "fuzz763_12",
-    "fuzz763_11",
-    "fuzz763_10",
-    "kfuzz2",
-    "fuzz763_7",
-    "fuzz763_6",
-    "fuzz763_3a",
-    "fuzz763_1b",
-    "fuzz763_9",
-    "fuzz714",
-    "fuzz487a",
-    "fuzz487b",
-    "op_1",
-    "op_2",
-    "op_3",
-    "fuzz_k1",
-    "fuzz_x3",
-    "fuzz763_2s",
-    "fuzz763_1",
-    "grshapearc"
 };
 
 // skip tests by filename
@@ -329,6 +257,7 @@ bool skipTest(std::string name) {
 
 // if skipToFile is set, run a single test divided among threads
 void bulkTest(int index) {
+	skiatest::Reporter reporter;
     int totalTests = 0;
     for (auto testSuite : testSuites) {
         if (skipToFile.size() && testSuite.name != skipToFile)
@@ -350,7 +279,8 @@ void bulkTest(int index) {
             currentTestFile = testSuite.name;
             needsName = testSuite.extended != testSuite.count;
             unnamedCount = 0;
-            (testSuite.func)();
+			reporter.filename = testSuite.name;
+            (testSuite.func)(&reporter);
             if (lastTest <= 0)
                 return;
             firstTest = 0;
@@ -361,7 +291,15 @@ void bulkTest(int index) {
 uint64_t timerFrequency;
 uint64_t timerStart;
 
+#if OP_TINY_SKIA && !OP_DEBUG_FAST_TEST
+bool debugUseAlt;
+#endif
+
 void runTests() {
+#if OP_TINY_SKIA && !OP_DEBUG_FAST_TEST
+	debugUseAlt = false;
+#endif
+
     timerFrequency = OpInitTimer();
     timerStart = OpReadTimer();
 #if OP_DEBUG_FAST_TEST
@@ -371,14 +309,16 @@ void runTests() {
     for (unsigned index = 0; index < OP_MAX_THREADS; ++index)
         t[index].join();
 #else
-    auto runTest = [](std::string s) {
+	skiatest::Reporter reporter;
+    auto runTest = [&reporter](std::string s) {
         for (auto suite : testSuites) {
             if (suite.name == s) {
                 currentTestFile = suite.name;
                 needsName = suite.extended != suite.count;
                 unnamedCount = 0;
                 initTests(suite.name);
-                (*suite.func)();
+				reporter.filename = suite.name;
+                (*suite.func)(&reporter);
                 return;
             }
         }
@@ -644,9 +584,74 @@ void trackError(PathOpsV0Lib::ContextError contextError) {
 	}
 }
 
+#if OP_TINY_SKIA
+extern void alt_cubicOp130a();
+extern void alt_loop1asQuad();
+#endif
+
+bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
+		OpDebugData* debugDataPtr) {
+    using namespace PathOpsV0Lib;
+    Context* context = CreateContext({ nullptr, 0 });
+    SetSkiaContextCallBacks(context);
+    OP_DEBUG_CODE(if (debugDataPtr) Debug(context, *debugDataPtr));
+    SetSkiaCurveCallBacks(context);
+    SkPathOp mappedOp = MapInvertedSkPathOp(op, a.isInverseFillType(), b.isInverseFillType());
+    auto isWindingFill = [](const SkPath& path) {
+        return SkPathFillType::kWinding == path.getFillType()
+                || SkPathFillType::kInverseWinding == path.getFillType();
+    }; 
+    bool aIsWinding = isWindingFill(a);
+    bool bIsWinding = isWindingFill(b);
+    BinaryWindType windType = aIsWinding && bIsWinding ? BinaryWindType::windBoth
+            : aIsWinding ? BinaryWindType::windLeft : bIsWinding ? BinaryWindType::windRight
+            : BinaryWindType::evenOdd;
+    Contour* left = SetSkiaOpCallBacks(context, mappedOp, BinaryOperand::left, windType
+            OP_DEBUG_PARAMS(a));
+    int leftData[] = { 1, 0 };
+    PathOpsV0Lib::AddWinding leftWinding { left, leftData, sizeof(leftData) };
+    AddSkiaPath(leftWinding, a);
+    Contour* right = SetSkiaOpCallBacks(context, mappedOp, BinaryOperand::right, windType
+            OP_DEBUG_PARAMS(b));
+    int rightData[] = { 0, 1 };
+    PathOpsV0Lib::AddWinding rightWinding { right, rightData, sizeof(rightData) };
+    AddSkiaPath(rightWinding, b);
+    PathOutput pathOutput = result;
+    Resolve(context, pathOutput);
+    if (SkPathOpInvertOutput(op, a.isInverseFillType(), b.isInverseFillType()))
+        result->toggleInverseFillType();
+    ContextError contextError = Error(context);
+	trackError(contextError);
+    DeleteContext(context);
+	return ContextError::none == contextError;
+}
+
 // mayDiffer is true if test is fuzz with large values that Skia ignores
 void threadablePathOpTest(int id, const SkPath& a, const SkPath& b, 
         SkPathOp op, std::string testname, bool v0MayFail, bool skiaMayFail, bool mayDiffer) {
+#if OP_TINY_SKIA
+	auto alt = [&testname](std::string name, void (*func)()) {
+		if (name == testname) {
+#if !OP_DEBUG_FAST_TEST			
+			OP_ASSERT(debugUseAlt);
+			OP_DEBUG_CODE(debugUseAlt = false);
+#endif
+			(*func)();
+			return true;
+		}
+		std::string altname = "alt_" + name;
+		if (altname == testname)
+			testname = name;
+		return false;
+	};
+	if (alt("cubicOp130a", alt_cubicOp130a))
+		return;
+	if (alt("loop1asQuad", alt_loop1asQuad))
+		return;
+#if !OP_DEBUG_FAST_TEST			
+	OP_ASSERT(!debugUseAlt);
+#endif
+#endif
     const char* tn = testname.c_str();
 #if OP_TEST_V0
     SkPath result;
@@ -656,45 +661,16 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     debugData.curveCurve1 = CURVE_CURVE_1;
     debugData.curveCurve2 = CURVE_CURVE_2;
     debugData.curveCurveDepth = CURVE_CURVE_DEPTH;
-    {
-        using namespace PathOpsV0Lib;
-        Context* context = CreateContext({ nullptr, 0 });
-        SetSkiaContextCallBacks(context);
-        OP_DEBUG_CODE(Debug(context, debugData));
-        SetSkiaCurveCallBacks(context);
-        SkPathOp mappedOp = MapInvertedSkPathOp(op, a.isInverseFillType(), b.isInverseFillType());
-        auto isWindingFill = [](const SkPath& path) {
-            return SkPathFillType::kWinding == path.getFillType()
-                    || SkPathFillType::kInverseWinding == path.getFillType();
-        }; 
-        bool aIsWinding = isWindingFill(a);
-        bool bIsWinding = isWindingFill(b);
-        BinaryWindType windType = aIsWinding && bIsWinding ? BinaryWindType::windBoth
-                : aIsWinding ? BinaryWindType::windLeft : bIsWinding ? BinaryWindType::windRight
-                : BinaryWindType::evenOdd;
-        Contour* left = SetSkiaOpCallBacks(context, mappedOp, BinaryOperand::left, windType
-                OP_DEBUG_PARAMS(a));
-        int leftData[] = { 1, 0 };
-        PathOpsV0Lib::AddWinding leftWinding { left, leftData, sizeof(leftData) };
-        AddSkiaPath(leftWinding, a);
-        Contour* right = SetSkiaOpCallBacks(context, mappedOp, BinaryOperand::right, windType
-                OP_DEBUG_PARAMS(b));
-        int rightData[] = { 0, 1 };
-        PathOpsV0Lib::AddWinding rightWinding { right, rightData, sizeof(rightData) };
-        AddSkiaPath(rightWinding, b);
-        PathOutput pathOutput = &result;
-        Resolve(context, pathOutput);
-        if (SkPathOpInvertOutput(op, a.isInverseFillType(), b.isInverseFillType()))
-            result.toggleInverseFillType();
-		ContextError contextError = Error(context);
-		trackError(contextError);
-        DeleteContext(context);
-    }
+	(void) OpV0(a, b, op, &result, &debugData);
 #endif
 #if OP_TEST_SKIA
     SkPath skresult;
+#if OP_TINY_SKIA
+	bool skSuccess = skiaMayFail;
+#else
     bool skSuccess = Op(a, b, op, &skresult);
     OP_ASSERT(skSuccess || skiaMayFail);
+#endif
 #if OP_TEST_V0
     if (debugData.success && !skSuccess)
         testsPassSkiaFail++;
@@ -733,8 +709,12 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
 
 bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b, 
         SkPathOp op, const char* name, bool v0MayFail, bool skiaMayFail, bool mayDiffer) {
-    if (skipTest(name))
+    if (skipTest(name)) {
+#if OP_TINY_SKIA && !OP_DEBUG_FAST_TEST
+		debugUseAlt = false;
+#endif
         return true;
+	}
     threadablePathOpTest(0, a, b, op, name, v0MayFail, skiaMayFail, mayDiffer);
     return true;
 }
@@ -931,6 +911,31 @@ void run() {
 	edit("tests/OpTestDrive.h", "#define OP_DEBUG_FAST_TEST 0", "#define OP_DEBUG_FAST_TEST 1");
 }
 
+bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
+    using namespace PathOpsV0Lib;
+    Context* context = CreateContext({ nullptr, 0 });
+    SetSkiaContextCallBacks(context);
+    OP_DEBUG_CODE(if (optional) Debug(context, *optional));
+    SetSkiaCurveCallBacks(context);
+    auto isWindingFill = [](const SkPath& path) {
+        return SkPathFillType::kWinding == path.getFillType()
+                || SkPathFillType::kInverseWinding == path.getFillType();
+    }; 
+    Contour* simple = SetSkiaSimplifyCallBacks(context, isWindingFill(path)
+            OP_DEBUG_PARAMS(path));
+    int simpleData[] = { 1 };
+    PathOpsV0Lib::AddWinding simpleWinding { simple, simpleData, sizeof(simpleData) };
+    AddSkiaPath(simpleWinding, path);
+    out->reset();
+    out->setFillType(SkPathFillType::kEvenOdd);
+    PathOutput pathOutput = out;
+    Resolve(context, pathOutput);
+	ContextError contextError = Error(context);
+	trackError(contextError);
+    DeleteContext(context);
+	return ContextError::none == contextError;
+}
+
 void threadableSimplifyTest(int id, const SkPath& path, std::string testname, 
             SkPath& out, bool v0MayFail, bool skiaMayFail) {
 #if OP_TEST_V0
@@ -945,35 +950,17 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
     debugData.curveCurve1 = CURVE_CURVE_1;
     debugData.curveCurve2 = CURVE_CURVE_2;
     debugData.curveCurveDepth = CURVE_CURVE_DEPTH;
-    {
-        using namespace PathOpsV0Lib;
-        Context* context = CreateContext({ nullptr, 0 });
-        SetSkiaContextCallBacks(context);
-        OP_DEBUG_CODE(Debug(context, debugData));
-        SetSkiaCurveCallBacks(context);
-        auto isWindingFill = [](const SkPath& path) {
-            return SkPathFillType::kWinding == path.getFillType()
-                    || SkPathFillType::kInverseWinding == path.getFillType();
-        }; 
-        Contour* simple = SetSkiaSimplifyCallBacks(context, isWindingFill(path)
-                OP_DEBUG_PARAMS(path));
-        int simpleData[] = { 1 };
-        PathOpsV0Lib::AddWinding simpleWinding { simple, simpleData, sizeof(simpleData) };
-        AddSkiaPath(simpleWinding, path);
-        out.reset();
-        out.setFillType(SkPathFillType::kEvenOdd);
-        PathOutput pathOutput = &out;
-        Resolve(context, pathOutput);
-		ContextError contextError = Error(context);
-		trackError(contextError);
-        DeleteContext(context);
-    }
+	(void) SimplifyV0(path, &out, &debugData);
     OP_ASSERT(v0MayFail || debugData.success);
 #endif
 #if OP_TEST_SKIA
     SkPath skOut;
+#if OP_TINY_SKIA
+	bool skSuccess = skiaMayFail;
+#else
     bool skSuccess = Simplify(path, &skOut);
     OP_ASSERT(skiaMayFail || skSuccess);
+#endif
 #if OP_TEST_V0
     if (debugData.success && !skSuccess)
         testsPassSkiaFail++;
@@ -1011,8 +998,12 @@ bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& st
     std::string testname(name);
     if ("" == testname)
         testname = state.fReporter->testname + STR(++unnamedCount);
-    if (skipTest(testname))
+    if (skipTest(testname)) {
+#if OP_TINY_SKIA && !OP_DEBUG_FAST_TEST
+		debugUseAlt = false;
+#endif
         return true;
+	}
     path.setFillType(useXor ? SkPathFillType::kEvenOdd : SkPathFillType::kWinding);
     threadableSimplifyTest(0, path, testname.c_str(), out, false, false);
     return true;
@@ -1020,8 +1011,12 @@ bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& st
 
 bool testSimplifyBase(skiatest::Reporter* r, const SkPath& path, const char* name, 
         bool v0MayFail, bool skiaMayFail) {
-    if (skipTest(name))
+    if (skipTest(name)) {
+#if OP_TINY_SKIA && !OP_DEBUG_FAST_TEST
+		debugUseAlt = false;
+#endif
         return true;
+	}
     SkPath out;
     threadableSimplifyTest(0, path, name, out, v0MayFail, skiaMayFail);
     return true;

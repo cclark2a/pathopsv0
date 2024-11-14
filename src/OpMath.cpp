@@ -233,6 +233,8 @@ OpRoots OpMath::CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B,
 
 // min, max not necessarily sorted
 float OpMath::PinUnsorted(float min, float value, float max) {
+	if (OpMath::IsNaN(min) || OpMath::IsNaN(max))
+		return value;
 	if (min > max)
 		std::swap(min, max);
 	return PinSorted(min, value, max);

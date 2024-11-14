@@ -792,7 +792,12 @@ struct OpMath {
 
 	static bool IsNaN(float x) {
 		OP_ASSERT(!OpMath::IsDebugNaN(x));
-		return std::isnan(x); }
+		#if 0
+		return x == x;
+		#else
+		return std::isnan(x);
+		#endif
+		}
 
 	static bool InSorted(float a, float test, float b, float threshold) {
 		OP_ASSERT(a <= b);

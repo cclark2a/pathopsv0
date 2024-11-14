@@ -989,7 +989,7 @@ bool OpCurveCurve::rotatedIntersect(OpEdge& edge, OpEdge& oppEdge, bool sharesPo
 	rotateFailed |= !oppRotated.isFinite();
 	OpPointBounds eRotBounds = edgeRotated.ptBounds();
 	OpPointBounds oRotBounds = oppRotated.ptBounds();
-	if (!eRotBounds.intersects(oRotBounds))
+	if (rotateFailed || !eRotBounds.intersects(oRotBounds))
 		return false;
 	// !!! can one have no area (e.g. horz or vert) and the other not?
 	return !sharesPoint || !eRotBounds.hasArea() || !oRotBounds.hasArea() 

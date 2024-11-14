@@ -1,8 +1,7 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
-#include "OpSkiaTests.h"
-
+#include "SkiaTestShim.h"
 #include "tests/PathOpsOpCubicThreadedTest.cpp"
 
-void run_op_cubic_tests() {
-    test_PathOpsOpCubicsThreaded(nullptr);
+void run_op_cubic_tests(skiatest::Reporter* reporter) {
+    test_PathOpsOpCubicsThreaded(reporter);
 }

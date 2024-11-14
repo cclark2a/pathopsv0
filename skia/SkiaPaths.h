@@ -2,12 +2,7 @@
 // new interface idea
 
 #include "PathOps.h"
-
-#if !OP_TINY_SKIA
-#include "include/pathops/SkPathOps.h"
-#else
-enum SkPathOp : unsigned int;
-#endif
+#include "SkiaEnumSkPathOp.h"
 
 class SkPath;
 

@@ -1,9 +1,7 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
-#include "OpSkiaTests.h"
-
+#include "SkiaTestShim.h"
 #include "tests/PathOpsSimplifyRectThreadedTest.cpp"
 
-void run_simplify_rect_tests() {
-    skiatest::Reporter r;
-    test_PathOpsSimplifyRectsThreaded(&r);
+void run_simplify_rect_tests(skiatest::Reporter* reporter) {
+    test_PathOpsSimplifyRectsThreaded(reporter);
 }

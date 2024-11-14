@@ -398,12 +398,12 @@ int OpSegment::coinID(bool flipped) {
 void OpSegment::disableSmall() {
 	if (disabled)
 		return;
-	if (willDisable || isSmall() || !sects.i.size())
-		setDisabled(OP_LINE_FILE_NPARAMS());
-	OpPoint pt = sects.i[0]->ptT.pt;
-	for (size_t index = 1; index < sects.i.size(); ++index) {
-		if (pt != sects.i[index]->ptT.pt)
-			return;
+	if (!willDisable && !isSmall() && sects.i.size()) {
+		OpPoint pt = sects.i[0]->ptT.pt;
+		for (size_t index = 1; index < sects.i.size(); ++index) {
+			if (pt != sects.i[index]->ptT.pt)
+				return;
+		}
 	}
 	setDisabled(OP_LINE_FILE_NPARAMS());
 }
