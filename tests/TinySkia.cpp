@@ -21,10 +21,6 @@ size_t TinyCurve::pointCount() const {
 	}
 }
 
-int SkRandom::nextRangeU(int, int) { 
-	return 0;  // !!! do nothing for now
-}
-
 bool SkRect::contains(SkRect const & r) { 
 	return fLeft <= r.fLeft && fRight >= r.fRight && fTop <= r.fTop && fBottom >= r.fBottom; 
 }
@@ -232,7 +228,8 @@ const SkRect& SkPath::getBounds() const {
 	OpPointBounds b;
 	for (const TinyCurve& c : path)
 		for (size_t index = 0; index < c.pointCount(); ++index)
-			b.add(c.pts[index]);
+			if (!c.pts[index].debugIsUninitialized())
+				b.add(c.pts[index]);
 	bounds = { b.left, b.top, b.right, b.bottom };
 	return bounds;
 }
@@ -244,7 +241,7 @@ bool SkPath::isEmpty() const {
 bool SkPath::isFinite() const {
 	for (const TinyCurve& c : path)
 		for (size_t index = 0; index < c.pointCount(); ++index)
-			if (!c.pts[index].isFinite())
+			if (OP_DEBUG_CODE(c.pts[index].debugIsUninitialized() ||) !c.pts[index].isFinite())
 				return false;
 	return true;
 }
@@ -343,8 +340,11 @@ void SkPath::close() {
 }
 
 void SkPath::arcTo(const SkRect& , float startAngle, float sweepAngle, bool forceMoveTo) {
-	// !!! unimplmented
-	OP_ASSERT(0);
+	// intentionally unimplmented
+	#if !OP_DEBUG_FAST_TEST
+		OP_DEBUG_CODE(extern bool debugUseAlt);
+		OP_DEBUG_CODE(debugUseAlt = true);
+	#endif
 }
 
 void SkPath::addCircle(float x, float y, float r, SkPathDirection /* !!! ignored for now */) {  

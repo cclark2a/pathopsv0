@@ -16,8 +16,44 @@ inline int SkScalarRoundToInt(float f) {
 inline float SkDoubleToScalar(double d) {
 	return (float) d; }
 
+// random must be exactly the same as Skia for the same test values to be generated
 struct SkRandom {
-	int nextRangeU(int, int);
+    SkRandom() { init(0); }
+
+    uint32_t nextU() {
+        fK = kKMul * (fK & 0xffff) + (fK >> 16);
+        fJ = kJMul * (fJ & 0xffff) + (fJ >> 16);
+        return (((fK << 16) | (fK >> 16)) + fJ);
+    }
+
+	int nextRangeU(uint32_t min, uint32_t max) { 
+        uint32_t range = max - min + 1;
+        if (0 == range)
+            return nextU();
+        else
+            return min + nextU() % range;
+	}
+
+    void init(uint32_t seed) {
+        fK = NextLCG(seed);
+        if (0 == fK)
+            fK = NextLCG(fK);
+        fJ = NextLCG(fK);
+        if (0 == fJ)
+            fJ = NextLCG(fJ);
+    }
+
+    static uint32_t NextLCG(uint32_t seed) { return kMul*seed + kAdd; }
+
+	enum {
+        kMul = 1664525,
+        kAdd = 1013904223,
+        kKMul = 30345,
+        kJMul = 18000,
+    };
+
+    uint32_t fK;
+    uint32_t fJ;
 };
 
 constexpr uint32_t SK_ColorWHITE = 0xFFFFFFFF;

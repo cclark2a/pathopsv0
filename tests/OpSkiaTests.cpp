@@ -280,6 +280,7 @@ void bulkTest(int index) {
             needsName = testSuite.extended != testSuite.count;
             unnamedCount = 0;
 			reporter.filename = testSuite.name;
+			reporter.testname = "";
             (testSuite.func)(&reporter);
             if (lastTest <= 0)
                 return;
@@ -587,6 +588,7 @@ void trackError(PathOpsV0Lib::ContextError contextError) {
 #if OP_TINY_SKIA
 extern void alt_cubicOp130a();
 extern void alt_loop1asQuad();
+extern void alt_testArc();
 #endif
 extern void alt_loops58iAsQuads();
 extern void alt_loops59iasQuads();
@@ -959,6 +961,24 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
 
 void threadableSimplifyTest(int id, const SkPath& path, std::string testname, 
             SkPath& out, bool v0MayFail, bool skiaMayFail) {
+#if OP_TINY_SKIA
+	auto alt = [&testname](std::string name, void (*func)()) {
+		if (name == testname) {
+#if !OP_DEBUG_FAST_TEST			
+			OP_ASSERT(debugUseAlt);
+			OP_DEBUG_CODE(debugUseAlt = false);
+#endif
+			(*func)();
+			return true;
+		}
+		std::string altname = "alt_" + name;
+		if (altname == testname)
+			testname = name;
+		return false;
+	};
+	if (alt("testArc", alt_testArc))
+		return;
+#endif
 #if OP_TEST_V0
 	const SkPath& p = path;
     out.setFillType(SkPathFillType::kEvenOdd); // !!! workaround
