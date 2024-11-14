@@ -241,6 +241,14 @@ bool SkPath::isEmpty() const {
 	return !path.size(); 
 }
 
+bool SkPath::isFinite() const {
+	for (const TinyCurve& c : path)
+		for (size_t index = 0; index < c.pointCount(); ++index)
+			if (!c.pts[index].isFinite())
+				return false;
+	return true;
+}
+
 SkPath::RawIter::RawIter(SkPath const & p)
 	: path(p)
 	, index(0)

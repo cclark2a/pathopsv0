@@ -414,5 +414,6 @@ OpPointBounds OpCurve::ptBounds() const {
 }
 
 void OpCurve::output(bool firstPt, bool lastPt) {
+	contours->initOutOnce();
 	contours->callBack(c.type).curveOutputFuncPtr(c, firstPt, lastPt, contours->callerOutput);
 }

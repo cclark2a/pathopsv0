@@ -37,10 +37,10 @@
 #include "SkiaTestCommon.h"  // visible to consumed tests and test handler
 
 // map calls to Op and Simplify within tests to v0
-inline bool Op(const SkPath& one, const SkPath& two, SkPathOp op, SkPath* result) { 
-	return OpV0(one, two, op, result); }
+#define Op(a, b, op, result) OpV0(a, b, op, result, nullptr)
+#define Simplify(a, result) SimplifyV0(a, result, nullptr)
 
-inline bool Simplify(const SkPath& path, SkPath* result) { 
-	return SimplifyV0(path, result); }
+extern bool OpV0(const SkPath& one, const SkPath& two, SkPathOp op, SkPath* result, OpDebugData* optional); 
+extern bool SimplifyV0(const SkPath& path, SkPath* result, OpDebugData* optional);
 
 #endif

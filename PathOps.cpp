@@ -59,6 +59,11 @@ ContextError Error(Context* context) {
     return contours->error;
 }
 
+void SetError(Context* context, ContextError error) {
+    OpContours* contours = (OpContours*) context;
+	contours->error = error;
+}
+
 void ResetContour(Contour* c) {
     OpContour* contour = (OpContour*) c;
     contour->segments.clear();
@@ -92,6 +97,7 @@ void SetContextCallBacks(Context* context, EmptyNativePath emptyNativePath, Make
 		limbs
     };
 }
+
 
 CurveType SetCurveCallBacks(Context* context, AxisRawHit axisFunc,
         CurveHull hullFunc, CurveIsFinite isFiniteFunc, CurveIsLine isLineFunc, 

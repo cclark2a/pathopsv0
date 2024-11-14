@@ -44,6 +44,8 @@ void Resolve(Context* , PathOutput );
 void SetContextCallBacks(Context* ,  EmptyNativePath, MakeLine , SetLineType , MaxSignSwap ,
 		MaxCurveCurve maxDepth, MaxCurveCurve maxSplits, MaxLimbs );
 
+void SetError(Context *, ContextError );
+
 CurveType SetCurveCallBacks(Context* , AxisRawHit,
 		CurveHull, CurveIsFinite, CurveIsLine,
 		SetBounds, CurveNormal, CurveOutput, CurvePinCtrl,

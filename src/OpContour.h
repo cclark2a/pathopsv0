@@ -305,6 +305,8 @@ struct OpContours {
 		}
 	}
 
+	void initOutOnce();
+
 	void makeCoins() {
 		OP_DEBUG_CONTEXT();
 	    for (auto contour : contours) {
@@ -409,6 +411,7 @@ struct OpContours {
 	OpPointBounds maxBounds;
 	PathOpsV0Lib::ContextError error;
 	int uniqueID;  // used for object id, unsectable id, coincidence id
+	bool outputOne;
 #if OP_DEBUG_VALIDATE
 	int debugValidateEdgeIndex;
 	int debugValidateJoinerIndex;

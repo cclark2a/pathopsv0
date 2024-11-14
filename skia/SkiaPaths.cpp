@@ -69,8 +69,10 @@ struct SkiaOpContourData {
 
 void commonOutput(Curve c, SkPath::Verb type, bool firstPt, bool lastPt, PathOutput output) {
     SkPath& skpath = *(SkPath*)(output);
-    if (firstPt)
+    if (firstPt) {
+		skpath.setFillType(SkPathFillType::kEvenOdd);
         skpath.moveTo(c.data->start.x, c.data->start.y);
+	}
     switch (type) {
         case SkPath::kLine_Verb:
             skpath.lineTo(c.data->end.x, c.data->end.y);
@@ -264,6 +266,7 @@ inline bool  debugOpSetIsOppFunc(CallerData data) {
 void emptySkPathFunc(PathOutput output) {
     SkPath* skOutput = (SkPath*) output;
     skOutput->reset();
+	skOutput->setFillType(SkPathFillType::kEvenOdd);
 }
 
 Curve skiaMakeLine(Curve c) {
@@ -337,7 +340,11 @@ Contour* SetSkiaOpCallBacks(Context* context, SkPathOp op,
     return contour;
 }
 
-void AddSkiaPath(AddWinding winding, const SkPath& path) {
+void AddSkiaPath(Context* context, AddWinding winding, const SkPath& path) {
+	if (!path.isFinite()) {  // raw iter treats non-finite path as empty
+		SetError(context, ContextError::finite);
+		return;
+	}
     SkPath::RawIter iter(path);
     OpPoint closeLine[2] = {{0, 0}, {0, 0}};  // initialize so first move doesn't add close line
     for (;;) {

@@ -79,6 +79,10 @@ int activeFocus;
 int activeLeft;
 int activeRight;
 
+	namespace skiatest {
+	struct Reporter;
+	}
+
 void resetPaths() {
     OP_ASSERT(0); // !!! incomplete
     activeIndex = { -1, -1 };
@@ -117,6 +121,8 @@ HelloWorld::HelloWorld(int argc, char** argv, void* platformData)
     extern void testNewInterface();
     if ((0))
         testNewInterface();
+//    extern void cubicOp114asQuad(skiatest::Reporter* reporter, const char* filename);
+ //   cubicOp114asQuad(nullptr, "");
 }
 
 HelloWorld::~HelloWorld() {

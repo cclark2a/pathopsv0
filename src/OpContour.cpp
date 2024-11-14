@@ -214,6 +214,7 @@ OpContours::OpContours()
 	, callerStorage(nullptr)
 	, error(PathOpsV0Lib::ContextError::none)
 	, uniqueID(0) 
+	, outputOne(false)
 	OP_DEBUG_PARAMS(debugData(false)) {
 #if OP_DEBUG_VALIDATE
 	debugValidateEdgeIndex = 0;
@@ -362,8 +363,10 @@ PathOpsV0Lib::WindingData* OpContours::allocateWinding(size_t size) {
 // returns true on success
 bool OpContours::assemble() {
 	OpJoiner joiner(*this);
-	if (joiner.setup())
+	if (joiner.setup()) {
+		initOutOnce();
 		return true;
+	}
 	for (LinkPass linkPass : { LinkPass::normal, LinkPass::unsectable } ) {
 		joiner.linkUnambiguous(linkPass);
 		if (joiner.linkRemaining(OP_DEBUG_CODE(this)))
@@ -385,6 +388,13 @@ void OpContours::disableSmallSegments() {
 	while (OpSegment* seg = segIterator.next()) {
 		seg->disableSmall();
 	}
+}
+
+void OpContours::initOutOnce() {
+	if (outputOne)
+		return;
+	contextCallBacks.emptyNativePathFuncPtr(callerOutput);
+	outputOne = true;
 }
 
 OpLimb& OpContours::nthLimb(int index) {

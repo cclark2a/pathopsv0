@@ -159,6 +159,7 @@ public:
 	SkPoint getPoint(int index);
 	void reset();
 	bool isEmpty() const;
+	bool isFinite() const;
 	void moveTo(SkPoint p) { return moveTo(p.fX, p.fY); }
 	void moveTo(float,float);
 	void lineTo(SkPoint p) { return lineTo(p.fX, p.fY); }

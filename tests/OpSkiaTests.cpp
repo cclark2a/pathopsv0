@@ -5,7 +5,7 @@
 
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
-#define TEST_PATH_OP_SKIP_TO_FILE "fail" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
+#define TEST_PATH_OP_SKIP_TO_FILE "" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
 #define TESTS_TO_SKIP 0 // 14295903  // tests to skip
 #define TEST_FIRST ""  // e.g., "joel4" (ignored by fast test, overridden by TEST_DRIVE_FIRST)
 // fuzz763_378 asserts in OpIntersections::sort() debug check line 397 but continuing, succeeds
@@ -291,12 +291,12 @@ void bulkTest(int index) {
 uint64_t timerFrequency;
 uint64_t timerStart;
 
-#if OP_TINY_SKIA && !OP_DEBUG_FAST_TEST
+#if !OP_DEBUG_FAST_TEST
 bool debugUseAlt;
 #endif
 
 void runTests() {
-#if OP_TINY_SKIA && !OP_DEBUG_FAST_TEST
+#if !OP_DEBUG_FAST_TEST
 	debugUseAlt = false;
 #endif
 
@@ -588,6 +588,11 @@ void trackError(PathOpsV0Lib::ContextError contextError) {
 extern void alt_cubicOp130a();
 extern void alt_loop1asQuad();
 #endif
+extern void alt_loops58iAsQuads();
+extern void alt_loops59iasQuads();
+extern void alt_loops33iAsQuads();
+extern void alt_loops40iAsQuads();
+extern void alt_cubicOp114asQuad();
 
 bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
 		OpDebugData* debugDataPtr) {
@@ -610,12 +615,12 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
             OP_DEBUG_PARAMS(a));
     int leftData[] = { 1, 0 };
     PathOpsV0Lib::AddWinding leftWinding { left, leftData, sizeof(leftData) };
-    AddSkiaPath(leftWinding, a);
+    AddSkiaPath(context, leftWinding, a);
     Contour* right = SetSkiaOpCallBacks(context, mappedOp, BinaryOperand::right, windType
             OP_DEBUG_PARAMS(b));
     int rightData[] = { 0, 1 };
     PathOpsV0Lib::AddWinding rightWinding { right, rightData, sizeof(rightData) };
-    AddSkiaPath(rightWinding, b);
+    AddSkiaPath(context, rightWinding, b);
     PathOutput pathOutput = result;
     Resolve(context, pathOutput);
     if (SkPathOpInvertOutput(op, a.isInverseFillType(), b.isInverseFillType()))
@@ -629,7 +634,6 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
 // mayDiffer is true if test is fuzz with large values that Skia ignores
 void threadablePathOpTest(int id, const SkPath& a, const SkPath& b, 
         SkPathOp op, std::string testname, bool v0MayFail, bool skiaMayFail, bool mayDiffer) {
-#if OP_TINY_SKIA
 	auto alt = [&testname](std::string name, void (*func)()) {
 		if (name == testname) {
 #if !OP_DEBUG_FAST_TEST			
@@ -644,13 +648,24 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
 			testname = name;
 		return false;
 	};
+#if OP_TINY_SKIA
 	if (alt("cubicOp130a", alt_cubicOp130a))
 		return;
 	if (alt("loop1asQuad", alt_loop1asQuad))
 		return;
+#endif
+	if (alt("loops58iAsQuads", alt_loops58iAsQuads))
+		return;
+	if (alt("loops59iasQuads", alt_loops59iasQuads))
+		return;
+	if (alt("loops33iAsQuads", alt_loops33iAsQuads))
+		return;
+	if (alt("loops40iAsQuads", alt_loops40iAsQuads))
+		return;
+	if (alt("cubicOp114asQuad", alt_cubicOp114asQuad))
+		return;
 #if !OP_DEBUG_FAST_TEST			
 	OP_ASSERT(!debugUseAlt);
-#endif
 #endif
     const char* tn = testname.c_str();
 #if OP_TEST_V0
@@ -668,6 +683,7 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
 #if OP_TINY_SKIA
 	bool skSuccess = skiaMayFail;
 #else
+	extern bool SK_API Op(const SkPath& one, const SkPath& two, SkPathOp op, SkPath* result);
     bool skSuccess = Op(a, b, op, &skresult);
     OP_ASSERT(skSuccess || skiaMayFail);
 #endif
@@ -710,7 +726,7 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
 bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b, 
         SkPathOp op, const char* name, bool v0MayFail, bool skiaMayFail, bool mayDiffer) {
     if (skipTest(name)) {
-#if OP_TINY_SKIA && !OP_DEBUG_FAST_TEST
+#if !OP_DEBUG_FAST_TEST
 		debugUseAlt = false;
 #endif
         return true;
@@ -782,8 +798,10 @@ void RunTestSet(skiatest::Reporter* r, TestDesc tests[], size_t count,
         void (*firstTest)(skiatest::Reporter* , const char* testName),
         void (*skipTest)(skiatest::Reporter* , const char* testName),
         void (*stopTest)(skiatest::Reporter* , const char* testName), bool reverse) {
-    for (size_t i = 0; i < count; ++i)
+    for (size_t i = 0; i < count; ++i) {
+		r->testname = tests[i].str;
         (*tests[i].fun)(r, tests[i].str);
+	}
 }
 
 
@@ -925,13 +943,16 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
             OP_DEBUG_PARAMS(path));
     int simpleData[] = { 1 };
     PathOpsV0Lib::AddWinding simpleWinding { simple, simpleData, sizeof(simpleData) };
-    AddSkiaPath(simpleWinding, path);
-    out->reset();
-    out->setFillType(SkPathFillType::kEvenOdd);
-    PathOutput pathOutput = out;
-    Resolve(context, pathOutput);
+    AddSkiaPath(context, simpleWinding, path);
+//    out->reset();
 	ContextError contextError = Error(context);
-	trackError(contextError);
+	if (ContextError::none == contextError) {
+//		out->setFillType(SkPathFillType::kEvenOdd);
+		PathOutput pathOutput = out;
+		Resolve(context, pathOutput);
+		contextError = Error(context);
+		trackError(contextError);
+	}
     DeleteContext(context);
 	return ContextError::none == contextError;
 }
@@ -1084,3 +1105,206 @@ PathOpsThreadedTestRunner::PathOpsThreadedTestRunner(skiatest::Reporter* r) {
 void PathOpsThreadedTestRunner::render() {
     fRunnables.append();
 }
+
+#if 0
+// only used to extract test data so tests can run without Skia internal access
+#include "src/core/SkPathPriv.h"
+#include "src/core/SkTSort.h"
+#include "src/pathops/SkPathOpsBounds.h"
+#include "src/pathops/SkPathOpsConic.h"
+#include "src/pathops/SkPathOpsCubic.h"
+#include "src/pathops/SkPathOpsLine.h"
+#include "src/pathops/SkPathOpsQuad.h"
+#include "src/pathops/SkPathOpsTSect.h"
+#include "src/pathops/SkReduceOrder.h"
+#include "tests/PathOpsTestCommon.h"
+
+#include <utility>
+
+static double calc_t_div(const SkDCubic& cubic, double precision, double start) {
+    const double adjust = sqrt(3.) / 36;
+    SkDCubic sub;
+    const SkDCubic* cPtr;
+    if (start == 0) {
+        cPtr = &cubic;
+    } else {
+        // OPTIMIZE: special-case half-split ?
+        sub = cubic.subDivide(start, 1);
+        cPtr = &sub;
+    }
+    const SkDCubic& c = *cPtr;
+    double dx = c[3].fX - 3 * (c[2].fX - c[1].fX) - c[0].fX;
+    double dy = c[3].fY - 3 * (c[2].fY - c[1].fY) - c[0].fY;
+    double dist = sqrt(dx * dx + dy * dy);
+    double tDiv3 = precision / (adjust * dist);
+    double t = SkDCubeRoot(tDiv3);
+    if (start > 0) {
+        t = start + (1 - start) * t;
+    }
+    return t;
+}
+
+static bool add_simple_ts(const SkDCubic& cubic, double precision, SkTArray<double, true>* ts) {
+    double tDiv = calc_t_div(cubic, precision, 0);
+    if (tDiv >= 1) {
+        return true;
+    }
+    if (tDiv >= 0.5) {
+        ts->push_back(0.5);
+        return true;
+    }
+    return false;
+}
+
+static void addTs(const SkDCubic& cubic, double precision, double start, double end,
+        SkTArray<double, true>* ts) {
+    double tDiv = calc_t_div(cubic, precision, 0);
+    double parts = ceil(1.0 / tDiv);
+    for (double index = 0; index < parts; ++index) {
+        double newT = start + (index / parts) * (end - start);
+        if (newT > 0 && newT < 1) {
+            ts->push_back(newT);
+        }
+    }
+}
+
+static void toQuadraticTs(const SkDCubic* cubic, double precision, SkTArray<double, true>* ts) {
+    SkReduceOrder reducer;
+    int order = reducer.reduce(*cubic, SkReduceOrder::kAllow_Quadratics);
+    if (order < 3) {
+        return;
+    }
+    double inflectT[5];
+    int inflections = cubic->findInflections(inflectT);
+    SkASSERT(inflections <= 2);
+    if (!cubic->endsAreExtremaInXOrY()) {
+        inflections += cubic->findMaxCurvature(&inflectT[inflections]);
+        SkASSERT(inflections <= 5);
+    }
+    SkTQSort<double>(inflectT, inflectT + inflections);
+    // OPTIMIZATION: is this filtering common enough that it needs to be pulled out into its
+    // own subroutine?
+    while (inflections && approximately_less_than_zero(inflectT[0])) {
+        memmove(inflectT, &inflectT[1], sizeof(inflectT[0]) * --inflections);
+    }
+    int start = 0;
+    int next = 1;
+    while (next < inflections) {
+        if (!approximately_equal(inflectT[start], inflectT[next])) {
+            ++start;
+        ++next;
+            continue;
+        }
+        memmove(&inflectT[start], &inflectT[next], sizeof(inflectT[0]) * (--inflections - start));
+    }
+
+    while (inflections && approximately_greater_than_one(inflectT[inflections - 1])) {
+        --inflections;
+    }
+    SkDCubicPair pair;
+    if (inflections == 1) {
+        pair = cubic->chopAt(inflectT[0]);
+        int orderP1 = reducer.reduce(pair.first(), SkReduceOrder::kNo_Quadratics);
+        if (orderP1 < 2) {
+            --inflections;
+        } else {
+            int orderP2 = reducer.reduce(pair.second(), SkReduceOrder::kNo_Quadratics);
+            if (orderP2 < 2) {
+                --inflections;
+            }
+        }
+    }
+    if (inflections == 0 && add_simple_ts(*cubic, precision, ts)) {
+        return;
+    }
+    if (inflections == 1) {
+        pair = cubic->chopAt(inflectT[0]);
+        addTs(pair.first(), precision, 0, inflectT[0], ts);
+        addTs(pair.second(), precision, inflectT[0], 1, ts);
+        return;
+    }
+    if (inflections > 1) {
+        SkDCubic part = cubic->subDivide(0, inflectT[0]);
+        addTs(part, precision, 0, inflectT[0], ts);
+        int last = inflections - 1;
+        for (int idx = 0; idx < last; ++idx) {
+            part = cubic->subDivide(inflectT[idx], inflectT[idx + 1]);
+            addTs(part, precision, inflectT[idx], inflectT[idx + 1], ts);
+        }
+        part = cubic->subDivide(inflectT[last], 1);
+        addTs(part, precision, inflectT[last], 1, ts);
+        return;
+    }
+    addTs(*cubic, precision, 0, 1, ts);
+}
+
+void CubicToQuads(const SkDCubic& cubic, double precision, SkTArray<SkDQuad, true>& quads) {
+    SkTArray<double, true> ts;
+    toQuadraticTs(&cubic, precision, &ts);
+    if (ts.count() <= 0) {
+        SkDQuad quad = cubic.toQuad();
+        quads.push_back(quad);
+        return;
+    }
+    double tStart = 0;
+    for (int i1 = 0; i1 <= ts.count(); ++i1) {
+        const double tEnd = i1 < ts.count() ? ts[i1] : 1;
+        SkDRect bounds;
+        bounds.setBounds(cubic);
+        SkDCubic part = cubic.subDivide(tStart, tEnd);
+        SkDQuad quad = part.toQuad();
+        if (quad[1].fX < bounds.fLeft) {
+            quad[1].fX = bounds.fLeft;
+        } else if (quad[1].fX > bounds.fRight) {
+            quad[1].fX = bounds.fRight;
+        }
+        if (quad[1].fY < bounds.fTop) {
+            quad[1].fY = bounds.fTop;
+        } else if (quad[1].fY > bounds.fBottom) {
+            quad[1].fY = bounds.fBottom;
+        }
+        quads.push_back(quad);
+        tStart = tEnd;
+    }
+}
+
+void CubicPathToQuads(skiatest::Reporter* reporter, const SkPath& cubicPath, SkPath* quadPath) {
+    quadPath->reset();
+    SkDCubic cubic;
+    SkTArray<SkDQuad, true> quads;
+    for (auto [verb, pts, w] : SkPathPriv::Iterate(cubicPath)) {
+        switch (verb) {
+            case SkPathVerb::kMove:
+                quadPath->moveTo(pts[0].fX, pts[0].fY);
+                continue;
+            case SkPathVerb::kLine:
+                quadPath->lineTo(pts[1].fX, pts[1].fY);
+                break;
+            case SkPathVerb::kQuad:
+                quadPath->quadTo(pts[1].fX, pts[1].fY, pts[2].fX, pts[2].fY);
+                break;
+            case SkPathVerb::kCubic:
+                quads.reset();
+                cubic.set(pts);
+                CubicToQuads(cubic, cubic.calcPrecision(), quads);
+                for (int index = 0; index < quads.count(); ++index) {
+                    SkPoint qPts[2] = {
+                        quads[index][1].asSkPoint(),
+                        quads[index][2].asSkPoint()
+                    };
+                    quadPath->quadTo(qPts[0].fX, qPts[0].fY, qPts[1].fX, qPts[1].fY);
+                }
+                break;
+            case SkPathVerb::kClose:
+                 quadPath->close();
+                break;
+            default:
+                SkDEBUGFAIL("bad verb");
+                return;
+        }
+    }
+	OpDebugOut("start " + reporter->testname + "\n");
+	quadPath->dumpHex();
+	OpDebugOut("end " + reporter->testname + "\n");
+}
+#endif
