@@ -58,13 +58,13 @@ using namespace PathOpsV0Lib;
 
 struct SkiaSimplifyContourData {
     OP_DEBUG_CODE(const SkPath* pathPtr);
-	OP_DEBUG_IMAGE_CODE(bool drawNativePath);
+	OP_DEBUG_IMAGE_CODE(bool drawNativePath;)  // ; inside required by clang
 };
 
 struct SkiaOpContourData {
     BinaryOpData data;
     OP_DEBUG_CODE(const SkPath* pathPtr);
-	OP_DEBUG_IMAGE_CODE(bool drawNativePath);
+	OP_DEBUG_IMAGE_CODE(bool drawNativePath;)  // ; inside required by clang
 };
 
 void commonOutput(Curve c, SkPath::Verb type, bool firstPt, bool lastPt, PathOutput output) {

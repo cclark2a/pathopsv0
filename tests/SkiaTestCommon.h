@@ -134,6 +134,7 @@ void run_v0_tests(skiatest::Reporter* );
 void runTests();
 
 inline void REPORTER_ASSERT(skiatest::Reporter* reporter, bool test) {
+#if OP_DEBUG
 	if ("fail" == reporter->filename) {
 #if OP_TINY_SKIA
 		if ("dontFailOne" == reporter->subname || "failOne" == reporter->subname
@@ -148,6 +149,7 @@ inline void REPORTER_ASSERT(skiatest::Reporter* reporter, bool test) {
 #endif
 	}
     OP_ASSERT(test);
+#endif
 }
 
 inline void markTestFlakyForPathKit() {
