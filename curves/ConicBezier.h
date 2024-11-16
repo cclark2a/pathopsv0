@@ -10,8 +10,8 @@ struct PointWeight {
     }
 
     PointWeight(Curve c) {
-        OP_ASSERT(sizeof(PointWeight) == c.size - offsetof(CurveData, optionalAdditionalData));
-        const char* data = c.data->optionalAdditionalData;
+        OP_ASSERT(sizeof(PointWeight) == c.size - CurveUserDataOffset());
+        const char* data = (const char*) CurveUserData(c.data);
         std::memcpy(&pt, data, sizeof pt);
         data += sizeof pt;
         std::memcpy(&weight, data, sizeof weight);
@@ -23,8 +23,8 @@ struct PointWeight {
     }
 
     void copyTo(Curve c) {
-        OP_ASSERT(sizeof(PointWeight) == c.size - offsetof(CurveData, optionalAdditionalData));
-        char* data = c.data->optionalAdditionalData;
+        OP_ASSERT(sizeof(PointWeight) == c.size - CurveUserDataOffset());
+        char* data = (char*) CurveUserData(c.data);
         std::memcpy(data, &pt, sizeof pt);
         data += sizeof pt;
         std::memcpy(data, &weight, sizeof weight);

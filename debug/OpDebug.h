@@ -4,6 +4,8 @@
 
 #ifndef _WIN32
 #include <assert.h>
+#include <cstdint>
+#include <cstring>
 #endif
 
 #if OP_TINY_TEST
@@ -80,6 +82,7 @@ struct OpDebugData {
 
 #define OP_ASSERT(expr)
 #define OP_DEBUG_PARAMS(...)
+#define OP_LINE_FILE_PARGS()
 #define OP_DEBUG_CODE(...)
 #define OP_RELEASE_CODE(...) __VA_ARGS__
 #define OP_DEBUG_VALIDATE_CODE(...)
@@ -91,13 +94,19 @@ struct OpDebugData {
 #define OP_DEBUG_SUCCESS(object, returnValue) return returnValue
 #define OP_EXECUTE_AND_ASSERT(expr) (expr)
 #define OP_LINE_FILE_PARAMS(...)
+#define OP_LINE_FILE_PARGS()
 #define OP_LINE_FILE_NPARAMS(...)
+#define OP_LINE_FILE_NPARGS()
 #define OP_LINE_FILE_STRUCT(...)
 #define OP_LINE_FILE_CALLER(...)
+#define OP_LINE_FILE_CARGS()
 #define OP_LINE_FILE_NP_CALLER(...)
+#define OP_LINE_FILE_NP_CARGS()
 #define OP_LINE_FILE_SCALLER(...)
 #define OP_LINE_FILE_DEF(...)
+#define OP_LINE_FILE_ARGS()
 #define OP_LINE_FILE_NP_DEF(...)
+#define OP_LINE_FILE_NP_ARGS()
 #define OP_LINE_FILE_SET(debugMaker)
 #define OP_LINE_FILE_SET_IMMED(debugMaker)
 #define OP_TRACK(vector)
@@ -173,24 +182,36 @@ struct OpDebugMaker {
 };
 
 #define OP_LINE_FILE_PARAMS(...) , __LINE__, std::string(__FILE__), __VA_ARGS__
+#define OP_LINE_FILE_PARGS() , __LINE__, std::string(__FILE__)
 #define OP_LINE_FILE_NPARAMS(...) __LINE__, std::string(__FILE__), __VA_ARGS__
+#define OP_LINE_FILE_NPARGS() __LINE__, std::string(__FILE__)
 #define OP_LINE_FILE_STRUCT(...) , { __FILE__, __LINE__ }, __VA_ARGS__
 #define OP_LINE_FILE_CALLER(...) , lineNo, fileName, __VA_ARGS__
+#define OP_LINE_FILE_CARGS() , lineNo, fileName
 #define OP_LINE_FILE_NP_CALLER(...) lineNo, fileName, __VA_ARGS__
+#define OP_LINE_FILE_NP_CARGS() lineNo, fileName
 #define OP_LINE_FILE_SCALLER(...) , { fileName, lineNo }, __VA_ARGS__
 #define OP_LINE_FILE_DEF(...) , int lineNo, std::string fileName, __VA_ARGS__
+#define OP_LINE_FILE_ARGS() , int lineNo, std::string fileName
 #define OP_LINE_FILE_NP_DEF(...) int lineNo, std::string fileName, __VA_ARGS__
+#define OP_LINE_FILE_NP_ARGS() int lineNo, std::string fileName
 #define OP_LINE_FILE_SET(debugMaker) debugMaker = { fileName, lineNo }
 #define OP_LINE_FILE_SET_IMMED(debugMaker) debugMaker = { __FILE__, __LINE__ }
 #else
 #define OP_LINE_FILE_PARAMS(...) , __VA_ARGS__
+#define OP_LINE_FILE_PARGS()
 #define OP_LINE_FILE_NPARAMS(...) __VA_ARGS__
+#define OP_LINE_FILE_NPARGS()
 #define OP_LINE_FILE_STRUCT(...) , __VA_ARGS__
 #define OP_LINE_FILE_CALLER(...) , __VA_ARGS__
+#define OP_LINE_FILE_CARGS()
 #define OP_LINE_FILE_NP_CALLER(...) __VA_ARGS__
+#define OP_LINE_FILE_NP_CARGS()
 #define OP_LINE_FILE_SCALLER(...) , __VA_ARGS__
 #define OP_LINE_FILE_DEF(...) , __VA_ARGS__
+#define OP_LINE_FILE_ARGS()
 #define OP_LINE_FILE_NP_DEF(...) __VA_ARGS__
+#define OP_LINE_FILE_NP_ARGS()
 #define OP_LINE_FILE_SET(debugMaker)
 #define OP_LINE_FILE_SET_IMMED(debugMaker)
 #endif

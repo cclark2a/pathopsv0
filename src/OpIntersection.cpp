@@ -116,7 +116,7 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 	OpIntersection* first = i.front();
 	for (OpIntersection* sectPtr : i) {
 		if (first->ptT.t != sectPtr->ptT.t) {
-			segment->edges.emplace_back(first, sectPtr  OP_LINE_FILE_PARAMS());
+			segment->edges.emplace_back(first, sectPtr  OP_LINE_FILE_PARGS());
 			first = sectPtr;
 			OpEdge& newEdge = segment->edges.back();
 			if (unsectables.size())
@@ -206,7 +206,7 @@ bool SectPreferred::find() {
 			if (sects.i.back()->ptT.isNearly(best->ptT, seg->threshold())) {
 // small segment may have first and last nearly touching
 				if (0 == best->ptT.t) {
-					seg->setDisabled(OP_LINE_FILE_NPARAMS());
+					seg->setDisabled(OP_LINE_FILE_NPARGS());
 					return false;
 				}
 				OP_ASSERT(1 == sects.i.back()->ptT.t);

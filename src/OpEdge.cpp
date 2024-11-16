@@ -131,7 +131,7 @@ EdgePal::EdgePal(OpEdge* e, bool r  OP_DEBUG_PARAMS(int uID))
 }
 
 // called when creating edge for curve curve intersection building
-OpEdge::OpEdge(OpSegment* s  OP_LINE_FILE_DEF())
+OpEdge::OpEdge(OpSegment* s  OP_LINE_FILE_ARGS())
 	: OpEdge() {
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = s->id);
@@ -144,7 +144,7 @@ OpEdge::OpEdge(OpSegment* s  OP_LINE_FILE_DEF())
 }
 
 // called when creating edge from intersection pairs
-OpEdge::OpEdge(OpIntersection* sectStart, OpIntersection* sectEnd  OP_LINE_FILE_DEF())
+OpEdge::OpEdge(OpIntersection* sectStart, OpIntersection* sectEnd  OP_LINE_FILE_ARGS())
 	: OpEdge() {
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = sectStart->id);
@@ -155,7 +155,7 @@ OpEdge::OpEdge(OpIntersection* sectStart, OpIntersection* sectEnd  OP_LINE_FILE_
 }
 
 // called when creating filler; edge that closes small gaps
-OpEdge::OpEdge(OpContours* contours, const OpPtT& start, const OpPtT& end  OP_LINE_FILE_DEF())
+OpEdge::OpEdge(OpContours* contours, const OpPtT& start, const OpPtT& end  OP_LINE_FILE_ARGS())
 	: OpEdge() {
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = 0);
@@ -175,12 +175,12 @@ OpEdge::OpEdge(OpContours* contours, const OpPtT& start, const OpPtT& end  OP_LI
 	setPointBounds();
 	center.t = OpMath::Interp(startT, endT, .5);
 	center.pt = ptBounds.center();
-	setDisabled(OP_LINE_FILE_NPARAMS());
+	setDisabled(OP_LINE_FILE_NPARGS());
 	setUnsortable(Unsortable::filler);
 }
 
 // called from curve curve when splitting edges
-OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight  OP_LINE_FILE_DEF())
+OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight  OP_LINE_FILE_ARGS())
 	: OpEdge() {
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = edge->id);
@@ -199,7 +199,7 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight  OP_
 }
 
 // called by curve curve's snip range
-OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e  OP_LINE_FILE_DEF())
+OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e  OP_LINE_FILE_ARGS())
 	: OpEdge() {
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = edge->id);
@@ -211,7 +211,7 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e  OP_LINE_FILE_
 	complete(s.pt, e.pt);
 }
 
-OpEdge::OpEdge(const OpEdge* edge, float t1, float t2  OP_LINE_FILE_DEF())
+OpEdge::OpEdge(const OpEdge* edge, float t1, float t2  OP_LINE_FILE_ARGS())
 	: OpEdge() {
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = edge->id);
@@ -279,14 +279,14 @@ OpEdge* OpEdge::advanceToEnd(EdgeMatch match) {
 */
 void OpEdge::apply() {
 	if (centerless)
-		setDisabled(OP_LINE_FILE_NPARAMS());
+		setDisabled(OP_LINE_FILE_NPARGS());
 	if (disabled || Unsortable::none != isUnsortable)
 		return;
 	OpContour* contour = segment->contour;
 	PathOpsV0Lib::WindKeep keep = contour->callBacks.windingKeepFuncPtr(winding.w, sum.w);
 	switch (keep) {
 		case PathOpsV0Lib::WindKeep::Discard:
-			setDisabled(OP_LINE_FILE_NPARAMS());
+			setDisabled(OP_LINE_FILE_NPARGS());
 			return;
 		case PathOpsV0Lib::WindKeep::End:
 			windZero = WindZero::zero;
@@ -328,13 +328,13 @@ void OpEdge::calcCenterT() {
 	OP_ASSERT(OpMath::Between(ptBounds.top, center.pt.y, ptBounds.bottom));
 }
 
-void OpEdge::clearActiveAndPals(OP_LINE_FILE_NP_DEF()) {
+void OpEdge::clearActiveAndPals(OP_LINE_FILE_NP_ARGS()) {
 	setActive(false);
 	for (auto& pal : pals) {
 		if (!pal.edge->isUnsectable())
 			continue;  // !!! hack ?
 		pal.edge->setActive(false);
-		pal.edge->setDisabled(OP_LINE_FILE_NP_CALLER());
+		pal.edge->setDisabled(OP_LINE_FILE_NP_CARGS());
 	}
 	clearLastEdge();
 }
@@ -430,7 +430,7 @@ void OpEdge::markPals() {
 }
 
 OpEdge* OpEdge::nextOut() {
-	clearActiveAndPals(OP_LINE_FILE_NPARAMS());
+	clearActiveAndPals(OP_LINE_FILE_NPARGS());
 	inLinkups = false;
 	inOutput = true;
 	OP_DEBUG_IMAGE_CODE(if (!debugCustom) debugColor = orange);
@@ -553,7 +553,7 @@ OpPtT OpEdge::ptTCloseTo(OpPtT oPtPair, const OpPtT& ptT) const {
 #endif
 	
 // should be inlined. Out of line for ease of setting debugging breakpoints
-void OpEdge::setDisabled(OP_LINE_FILE_NP_DEF()) {
+void OpEdge::setDisabled(OP_LINE_FILE_NP_ARGS()) {
 	disabled = true; 
 	OP_LINE_FILE_SET(debugSetDisabled); 
 	OP_DEBUG_IMAGE_CODE(if (!debugCustom) debugColor = red);
@@ -667,7 +667,7 @@ void OpEdge::subDivide(OpPoint startPoint, OpPoint endPoint) {
 #endif
  	if (startPoint == endPoint) {
 //		OP_ASSERT(0);	// triggered by fuzz763_9
-		setDisabled(OP_LINE_FILE_NPARAMS());
+		setDisabled(OP_LINE_FILE_NPARGS());
 	}
 }
 
@@ -680,7 +680,7 @@ CalcFail OpEdge::subIfDL(Axis axis, float edgeInsideT, OpWinding* sumWinding) {
 	return CalcFail::none;
 }
 
-void OpEdge::setSum(const PathOpsV0Lib::Winding& w  OP_LINE_FILE_DEF()) {
+void OpEdge::setSum(const PathOpsV0Lib::Winding& w  OP_LINE_FILE_ARGS()) {
 	OP_ASSERT(!sum.contour);
 	sum.contour = segment->contour;
 	sum.w.data = contours()->allocateWinding(w.size);

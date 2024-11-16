@@ -77,8 +77,18 @@ struct AddContour {
 struct CurveData {
 	OpPoint start;
 	OpPoint end;
-	char optionalAdditionalData[];
+//	char optionalAdditionalData[];	// user data follows
 };
+
+// offset of user data (if any); immediately follows required curve points
+inline size_t CurveUserDataOffset() {
+	return sizeof(CurveData);
+}
+
+// location of user data
+inline void* CurveUserData(CurveData* curve) {
+	return (void*) ((char*) curve + CurveUserDataOffset());
+}
 
 struct Curve {
 	CurveData* data;

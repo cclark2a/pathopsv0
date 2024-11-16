@@ -37,56 +37,56 @@ OpSegments::OpSegments(OpContours& contours) {
 void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
 	OP_DEBUG_CONTEXT();
 	auto add = [](OpSegment* seg, OpSegment* opp, OpPoint pt, float segT, float oppT   
-			OP_LINE_FILE_DEF()) {
+			OP_LINE_FILE_ARGS()) {
 		if (opp->willDisable || seg->willDisable)
 			return;
 		if (seg->sects.contains(OpPtT { pt, segT }, opp) 
 				|| opp->sects.contains(OpPtT { pt, oppT }, seg))
 			return;
 		OpIntersection* sect = seg->addSegSect(OpPtT { pt, segT }, opp  
-				OP_LINE_FILE_CALLER());
+				OP_LINE_FILE_CARGS());
 		OpIntersection* oSect = opp->addSegSect(OpPtT { pt, oppT }, seg 
-				OP_LINE_FILE_CALLER());
+				OP_LINE_FILE_CARGS());
 		sect->pair(oSect);
 	};
-	auto checkEnds = [add, seg, opp](OpPoint oppPt, float oppT  OP_LINE_FILE_DEF()) {
+	auto checkEnds = [add, seg, opp](OpPoint oppPt, float oppT  OP_LINE_FILE_ARGS()) {
 		OpPtT segPtT = seg->alignToEnd(oppPt);
 		if (!OpMath::IsNaN(segPtT.t) && (0 == oppT || 1 == oppT)) {
 			oppPt = seg->mergePoints(segPtT, opp, { oppPt, oppT });
-			add(seg, opp, oppPt, segPtT.t, oppT  OP_LINE_FILE_CALLER());
+			add(seg, opp, oppPt, segPtT.t, oppT  OP_LINE_FILE_CARGS());
 		}
 		OP_ASSERT(opp->c.c.data->start != opp->c.c.data->end || opp->willDisable);
 		return segPtT.t;
 	};
-	float startSegT = checkEnds(opp->c.firstPt(), 0  OP_LINE_FILE_PARAMS());
-	float endSegT = checkEnds(opp->c.lastPt(), 1  OP_LINE_FILE_PARAMS());
-	auto checkOpp = [add, seg, opp](OpPoint segPt, float segT  OP_LINE_FILE_DEF()) {
+	float startSegT = checkEnds(opp->c.firstPt(), 0  OP_LINE_FILE_PARGS());
+	float endSegT = checkEnds(opp->c.lastPt(), 1  OP_LINE_FILE_PARGS());
+	auto checkOpp = [add, seg, opp](OpPoint segPt, float segT  OP_LINE_FILE_ARGS()) {
 		OpPtT oppPtT = opp->matchEnd(segPt);
 		if (!OpMath::IsNaN(oppPtT.t)) {
 			if (0 == oppPtT.t || 1 == oppPtT.t)
 				segPt = seg->mergePoints({ segPt, segT }, opp, oppPtT);
-			add(seg, opp, segPt, segT, oppPtT.t  OP_LINE_FILE_CALLER());
+			add(seg, opp, segPt, segT, oppPtT.t  OP_LINE_FILE_CARGS());
 		}
 		return oppPtT.t;
 	};
 	float startOppT = OpNaN;
 	float endOppT = OpNaN;
 	if (0 != startSegT && 0 != endSegT) 
-		startOppT = checkOpp(seg->c.firstPt(), 0  OP_LINE_FILE_PARAMS());  // see if start pt is on opp curve
+		startOppT = checkOpp(seg->c.firstPt(), 0  OP_LINE_FILE_PARGS());  // see if start pt is on opp curve
 	if (1 != startSegT && 1 != endSegT) 
-		endOppT = checkOpp(seg->c.lastPt(), 1  OP_LINE_FILE_PARAMS());
-	auto checkSeg = [add, seg, opp](OpPoint oppPt, float oppT  OP_LINE_FILE_DEF()) {
+		endOppT = checkOpp(seg->c.lastPt(), 1  OP_LINE_FILE_PARGS());
+	auto checkSeg = [add, seg, opp](OpPoint oppPt, float oppT  OP_LINE_FILE_ARGS()) {
 		OpPtT segPtT = seg->matchEnd(oppPt);
 		if (!OpMath::IsNaN(segPtT.t)) {
 			if (0 == segPtT.t || 1 == segPtT.t)
 				oppPt = opp->mergePoints({ oppPt, oppT }, seg, segPtT);
-			add(opp, seg, oppPt, oppT, segPtT.t  OP_LINE_FILE_CALLER());
+			add(opp, seg, oppPt, oppT, segPtT.t  OP_LINE_FILE_CARGS());
 		}
 	};
 	if (OpMath::IsNaN(startSegT) && 0 != startOppT && 0 != endOppT)
-		checkSeg(opp->c.firstPt(), 0  OP_LINE_FILE_PARAMS());
+		checkSeg(opp->c.firstPt(), 0  OP_LINE_FILE_PARGS());
 	if (OpMath::IsNaN(endSegT) && 1 != startOppT && 1 != endOppT)
-		checkSeg(opp->c.lastPt(), 1  OP_LINE_FILE_PARAMS());
+		checkSeg(opp->c.lastPt(), 1  OP_LINE_FILE_PARGS());
 }
 
 // somewhat different from winder's edge based version, probably for no reason
@@ -210,18 +210,18 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 		} else if (dist < seg->threshold().length() * 8) { // !!! who knows what this const should be?
 			int usectID = seg->nextID();
 			seg->addUnsectable(iStart->ptT, usectID, endFromT(iStart, iEnd, MatchEnds::start), opp
-					OP_LINE_FILE_PARAMS());
+					OP_LINE_FILE_PARGS());
 			seg->addUnsectable(iEnd->ptT, usectID, endFromT(iStart, iEnd, MatchEnds::end), opp
-					OP_LINE_FILE_PARAMS());
+					OP_LINE_FILE_PARGS());
 			OpIntersection* oStart = iStart->opp;
 			OpIntersection* oEnd = iEnd->opp;
 			bool flipped = oStart->ptT.t > oEnd->ptT.t;
 			if (flipped)
 				usectID = -usectID;
 			opp->addUnsectable(oStart->ptT, usectID, endFromT(oStart, oEnd, MatchEnds::start), seg
-					OP_LINE_FILE_PARAMS());
+					OP_LINE_FILE_PARGS());
 			opp->addUnsectable(oEnd->ptT, usectID, endFromT(oStart, oEnd, MatchEnds::end), seg
-					OP_LINE_FILE_PARAMS());
+					OP_LINE_FILE_PARGS());
 		}
 	}
 	return;

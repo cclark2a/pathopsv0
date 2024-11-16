@@ -169,7 +169,7 @@ struct OpTree {
 	bool preferSibling(OpLimb*, OpEdge* );
 	OpLimb* unsectableLoop() const;
 	DUMP_DECLARATIONS
-	OP_DEBUG_IMAGE_CODE(void debugLimbEdges(OpEdge*));
+	OP_DEBUG_IMAGE_CODE(void debugLimbEdges(OpEdge*);)  // ; outside errors
 
 //	OpLimbStorage* limbStorage;
 //	OpLimbStorage* current;

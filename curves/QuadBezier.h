@@ -105,14 +105,14 @@ inline size_t AddQuads(AddCurve curve, AddWinding windings) {
 
 inline OpPoint quadControlPt(Curve c) {
     OpPoint result;
-    OP_ASSERT(sizeof(OpPoint) <= c.size - offsetof(CurveData, optionalAdditionalData));
-    std::memcpy(&result, c.data->optionalAdditionalData, sizeof(OpPoint));
+    OP_ASSERT(sizeof(OpPoint) <= c.size - CurveUserDataOffset());
+    std::memcpy(&result, CurveUserData(c.data), sizeof(OpPoint));
     return result;
 }
 
 inline void quadSetControl(Curve c, OpPoint pt) {
-    OP_ASSERT(sizeof(OpPoint) <= c.size - offsetof(CurveData, optionalAdditionalData));
-    std::memcpy(c.data->optionalAdditionalData, &pt, sizeof(OpPoint));
+    OP_ASSERT(sizeof(OpPoint) <= c.size - CurveUserDataOffset());
+    std::memcpy(CurveUserData(c.data), &pt, sizeof(OpPoint));
 }
 
 // callback functions

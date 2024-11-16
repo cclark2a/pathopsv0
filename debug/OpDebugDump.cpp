@@ -14,6 +14,15 @@
 #include "OpWinder.h"
 #include "PathOps.h"
 
+// some compilers warn about 'this' being checked for null
+// this debugging code needs to do that anyway
+#ifdef _WIN32
+#define OP_I_KNOW_WHAT_IM_DOING 1
+#else
+#define OP_I_KNOW_WHAT_IM_DOING 0
+#endif
+
+
 int OpCurveCurve::debugCall;  // which call to curve-curve was made
 
 // !!! things to do:
@@ -1141,8 +1150,10 @@ void dmp(std::vector<OpContour>& contours) {
 }
 
 size_t OpContourStorage::debugCount() const {
+#if OP_I_KNOW_WHAT_IM_DOING
     if (!this)
         return 0;
+#endif
     size_t result = used;
     OpContourStorage* block = next;
     while (next) {
@@ -1164,8 +1175,10 @@ OpContour* OpContourStorage::debugFind(int ID) const {
 }
 
 OpContour* OpContourStorage::debugIndex(int index) const {
+#if OP_I_KNOW_WHAT_IM_DOING
     if (!this)
         return nullptr;
+#endif
     const OpContourStorage* block = this;
     while (index > block->used) {
         index -= block->used;
@@ -2082,7 +2095,7 @@ void OpEdge::dumpSet(const char*& str) {
     auto strID = [&str](const char* label) {
         if (OpDebugOptional(str, label))
             return OpDebugReadSizeT(str);
-        return 0ULL;
+        return (size_t) 0;
     };
     id = strID("edge");
     segment = (OpSegment*) strID("segment");
@@ -2538,8 +2551,10 @@ void CallerDataStorage::DumpSet(const char*& str, CallerDataStorage** previousPt
 }
 
 size_t OpEdgeStorage::debugCount() const {
+#if OP_I_KNOW_WHAT_IM_DOING
     if (!this)
         return 0;
+#endif
     size_t result = used;
     OpEdgeStorage* block = next;
     while (block) {
@@ -2562,8 +2577,10 @@ OpEdge* OpEdgeStorage::debugFind(int ID) {
 }
 
 OpEdge* OpEdgeStorage::debugIndex(size_t index) {
+#if OP_I_KNOW_WHAT_IM_DOING
     if (!this)
         return nullptr;
+#endif
     OpEdgeStorage* block = this;
     while (index > block->used) {
         index -= block->used;
@@ -2628,8 +2645,10 @@ void OpEdgeStorage::dumpResolveAll(OpContours* c) {
 }
 
 size_t OpLimbStorage::debugCount() const {
+#if OP_I_KNOW_WHAT_IM_DOING
     if (!this)
         return 0;
+#endif
     size_t result = used;
     OpLimbStorage* block = nextBlock;
     while (nextBlock) {
@@ -2650,8 +2669,10 @@ const OpLimb* OpLimbStorage::debugFind(int ID) const {
 }
 
 OpLimb* OpLimbStorage::debugIndex(int index) {
+#if OP_I_KNOW_WHAT_IM_DOING
     if (!this)
         return nullptr;
+#endif
     OpLimbStorage* block = this;
     while (index > block->used) {
         index -= block->used;
@@ -3639,8 +3660,10 @@ void OpIntersections::dumpSet(const char*& str) {
 }
 
 size_t OpSectStorage::debugCount() const {
+#if OP_I_KNOW_WHAT_IM_DOING
     if (!this)
         return 0;
+#endif
     size_t result = used;
     OpSectStorage* block = next;
     while (next) {
@@ -3662,8 +3685,10 @@ OpIntersection* OpSectStorage::debugFind(int ID) const {
 }
 
 OpIntersection* OpSectStorage::debugIndex(size_t index) const {
+#if OP_I_KNOW_WHAT_IM_DOING
     if (!this)
         return nullptr;
+#endif
     const OpSectStorage* block = this;
     while (index > block->used) {
         index -= block->used;
@@ -4231,7 +4256,7 @@ std::string OpDebugMaker::debugDump() const {
 void OpDebugMaker::dumpSet(const char*& str) {
     const char* colon = str;
     while (':' != *colon) {
-        OP_ASSERT('\0' != colon);
+        OP_ASSERT('\0' != *colon);
         OP_ASSERT(colon - str < 100);
         ++colon;
     }

@@ -273,7 +273,7 @@ struct SectPair {
 		}
 	}
 
-	void addSect(MatchEnds match, int coinID, bool oppReversed  OP_LINE_FILE_DEF()) {
+	void addSect(MatchEnds match, int coinID, bool oppReversed  OP_LINE_FILE_ARGS()) {
 		MatchReverse segMatch { match, oppReversed };
 		MatchEnds oppMatch = segMatch.flipped();
 		if (!isBaseSegment)
@@ -283,8 +283,8 @@ struct SectPair {
 			opp.sect->setCoin(coinID, oppMatch);
 		} else {
 			OP_ASSERT(!seg.sect && !opp.sect);
-			seg.sect = ceSeg->addCoin(seg.ptT, coinID, segMatch.match, ceOpp  OP_LINE_FILE_CALLER());
-			opp.sect = ceOpp->addCoin(opp.ptT, coinID, oppMatch, ceSeg  OP_LINE_FILE_CALLER());
+			seg.sect = ceSeg->addCoin(seg.ptT, coinID, segMatch.match, ceOpp  OP_LINE_FILE_CARGS());
+			opp.sect = ceOpp->addCoin(opp.ptT, coinID, oppMatch, ceSeg  OP_LINE_FILE_CARGS());
 		}
 		seg.sect->pair(opp.sect);
 	}
@@ -328,9 +328,9 @@ struct CoinSects {
 		ptsAreClose |= checkClose(coinStart.opp, start.opp, end.opp);
 	}
 
-	void addSect(int coinID, bool oppReversed  OP_LINE_FILE_DEF()) {
-		start.addSect(MatchEnds::start, coinID, oppReversed  OP_LINE_FILE_CALLER());
-		end.addSect(MatchEnds::end, coinID, oppReversed  OP_LINE_FILE_CALLER());
+	void addSect(int coinID, bool oppReversed  OP_LINE_FILE_ARGS()) {
+		start.addSect(MatchEnds::start, coinID, oppReversed  OP_LINE_FILE_CARGS());
+		end.addSect(MatchEnds::end, coinID, oppReversed  OP_LINE_FILE_CARGS());
 		OP_DEBUG_VALIDATE_CODE(start.seg.sect->debugCoinValidate());
 		OP_DEBUG_VALIDATE_CODE(start.opp.sect->debugCoinValidate());
 		OP_DEBUG_VALIDATE_CODE(end.seg.sect->debugCoinValidate());
@@ -464,7 +464,7 @@ IntersectResult OpWinder::CoincidentCheck(std::array<CoinEnd, 4>& ends, bool* op
 	if (coinSects.ptsAreClose)
 		return IntersectResult::yes;
 	int coinID = ends[0].seg->coinID(oppReversed);
-	coinSects.addSect(coinID, oppReversed  OP_LINE_FILE_PARAMS());
+	coinSects.addSect(coinID, oppReversed  OP_LINE_FILE_PARGS());
 	if (oppReversedPtr)
 		*oppReversedPtr = oppReversed;
 	if (xyChoicePtr)
@@ -487,7 +487,7 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 	IntersectResult sectAdded = IntersectResult::no;
 	// check the ends of each edge to see if they intersect the opposite edge (if missed earlier)
 	auto addPair = [eSegment, oSegment  OP_DEBUG_PARAMS(opp, edge)](OpPtT oppPtT, OpPtT edgePtT,
-			IntersectResult& added  OP_LINE_FILE_DEF()) {
+			IntersectResult& added  OP_LINE_FILE_ARGS()) {
 		if (!eSegment->sects.contains(edgePtT, oSegment)
 				&& !oSegment->sects.contains(oppPtT, eSegment)) {
 			OP_ASSERT(!OpMath::IsNaN(edgePtT.t));
@@ -509,10 +509,10 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 		};
 		OpPtT oppStart = checkEnd(edge.start());
 		if (!OpMath::IsNaN(oppStart.t))
-			addPair(oppStart, edge.start(), sectAdded  OP_LINE_FILE_PARAMS());
+			addPair(oppStart, edge.start(), sectAdded  OP_LINE_FILE_PARGS());
 		OpPtT oppEnd = checkEnd(edge.end());
 		if (!OpMath::IsNaN(oppEnd.t))
-			addPair(oppEnd, edge.end(), sectAdded  OP_LINE_FILE_PARAMS());
+			addPair(oppEnd, edge.end(), sectAdded  OP_LINE_FILE_PARGS());
 		if (IntersectResult::yes == sectAdded)
 			return sectAdded;
 	}
@@ -533,9 +533,9 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 	for (unsigned index = 0; index < septs.count; ++index) {
 		if (opp.startT > septs.get(index)) {
 			if (opp.startPt().isNearly(edge.startPt(), threshold))
-				addPair(opp.start(), OpPtT(opp.startPt(), edge.startT), sectAdded  OP_LINE_FILE_PARAMS());
+				addPair(opp.start(), OpPtT(opp.startPt(), edge.startT), sectAdded  OP_LINE_FILE_PARGS());
 			else if (opp.startPt().isNearly(edge.endPt(), threshold))
-				addPair(opp.start(), OpPtT(opp.startPt(), edge.endT), sectAdded  OP_LINE_FILE_PARAMS());
+				addPair(opp.start(), OpPtT(opp.startPt(), edge.endT), sectAdded  OP_LINE_FILE_PARGS());
 			else {
 				OpCurve rotated = opp.segment->c.toVertical(edgePts, match.match);
 				septs.roots[0] = rotated.tZeroX(opp.startT, opp.endT);
@@ -545,9 +545,9 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 		}
 		if (septs.get(index) > opp.endT) {
 			if (opp.endPt().isNearly(edge.startPt(), threshold))
-				addPair(opp.end(), OpPtT(opp.endPt(), edge.startT), sectAdded  OP_LINE_FILE_PARAMS());
+				addPair(opp.end(), OpPtT(opp.endPt(), edge.startT), sectAdded  OP_LINE_FILE_PARGS());
 			else if (opp.endPt().isNearly(edge.endPt(), threshold))
-				addPair(opp.end(), OpPtT(opp.endPt(), edge.endT), sectAdded  OP_LINE_FILE_PARAMS());
+				addPair(opp.end(), OpPtT(opp.endPt(), edge.endT), sectAdded  OP_LINE_FILE_PARGS());
 			else {
 				OpCurve rotated = opp.segment->c.toVertical(edgePts, match.match);
 				septs.roots[0] = rotated.tZeroX(opp.startT, opp.endT);
@@ -575,7 +575,7 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 //      eSegment->ptBounds.pin(&oppPtT.pt);	// !!! doubtful this is needed with contains test above
 //		OP_ASSERT(debugPt == oppPtT.pt);	// rarely needed, but still triggered (e.g., joel_15x)
 		OpPtT edgePtT { oppPtT.pt, edgeT };
-		addPair(oppPtT, edgePtT, sectAdded  OP_LINE_FILE_PARAMS());
+		addPair(oppPtT, edgePtT, sectAdded  OP_LINE_FILE_PARGS());
 	}
 	if (!tInRange && opp.isLine() && !secondAttempt) {
 		OpDebugRecordStart(edge, opp);
@@ -815,7 +815,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 		home->winding.move(pal.edge->winding, pal.reversed);
 	}
 	if (!home->winding.visible()) {
-		home->setDisabled(OP_LINE_FILE_NPARAMS());
+		home->setDisabled(OP_LINE_FILE_NPARGS());
 //		home->windPal = true;	// !!! doesn't appear to be necessary
 	}
 	if (CalcFail::fail == home->addIfUR(ray.axis, homeT, &sumWinding))

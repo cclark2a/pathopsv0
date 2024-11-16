@@ -156,14 +156,14 @@ OpIntersection* OpSegment::addSegBase(const OpPtT& ptT
 }
 
 OpIntersection* OpSegment::addSegSect(const OpPtT& ptT, const OpSegment* oSeg    
-		OP_LINE_FILE_DEF()) {
+		OP_LINE_FILE_ARGS()) {
 	if (sects.contains(ptT, oSeg))
 		return nullptr;
 	return addSegBase(ptT  OP_LINE_FILE_CALLER(oSeg));
 }
 
 OpIntersection* OpSegment::addCoin(const OpPtT& ptT, int coinID, MatchEnds coinEnd, 
-		const OpSegment* oSeg  OP_LINE_FILE_DEF()) {
+		const OpSegment* oSeg  OP_LINE_FILE_ARGS()) {
 		// !!! commented out still may be necessary, but contains may need to be coinContains?
 //	if (sects.contains(ptT, oSeg))  // triggered by fuzz763_13
 //		return nullptr;
@@ -172,7 +172,7 @@ OpIntersection* OpSegment::addCoin(const OpPtT& ptT, int coinID, MatchEnds coinE
 }
 
 OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int usectID, MatchEnds end,
-		const OpSegment* oSeg    OP_LINE_FILE_DEF()) {
+		const OpSegment* oSeg    OP_LINE_FILE_ARGS()) {
 	// !!! replace with assert to disallow contains here
 	// rework caller to do contains in pairs prior to calling add
 	OpIntersection* sect = sects.contains(ptT, oSeg);
@@ -301,16 +301,16 @@ void OpSegment::betweenIntersections() {
 		bool cFlipped = miss.cStart.t > ptTc.t;
 		int coinID = miss.segC->coinID(cFlipped != aFlipped);
 		auto setSect = [coinID](OpIntersection*& cInA, const OpPtT& aPtT,
-				OpSegment* segA, MatchEnds match, OpSegment* segC  OP_LINE_FILE_DEF()) {
+				OpSegment* segA, MatchEnds match, OpSegment* segC  OP_LINE_FILE_ARGS()) {
 			if (cInA)
 				cInA->setCoin(coinID, match);
 			else
-				cInA = segA->addCoin(aPtT, coinID, match, segC  OP_LINE_FILE_PARAMS());
+				cInA = segA->addCoin(aPtT, coinID, match, segC  OP_LINE_FILE_PARGS());
 		};
-		setSect(miss.aSSect, miss.aStart, segA, MatchEnds::start, segC  OP_LINE_FILE_PARAMS());
-		setSect(miss.cSSect, miss.cStart, segC, MatchEnds::start, segA  OP_LINE_FILE_PARAMS());
-		setSect(aInC, ptTa, segA, MatchEnds::end, segC  OP_LINE_FILE_PARAMS());
-		setSect(cInA, ptTc, segC, MatchEnds::end, segA  OP_LINE_FILE_PARAMS());
+		setSect(miss.aSSect, miss.aStart, segA, MatchEnds::start, segC  OP_LINE_FILE_PARGS());
+		setSect(miss.cSSect, miss.cStart, segC, MatchEnds::start, segA  OP_LINE_FILE_PARGS());
+		setSect(aInC, ptTa, segA, MatchEnds::end, segC  OP_LINE_FILE_PARGS());
+		setSect(cInA, ptTc, segC, MatchEnds::end, segA  OP_LINE_FILE_PARGS());
 		if (miss.aSSect->segment != aInC->segment)
 			std::swap(aInC, cInA);
 		if (aFlipped)
@@ -405,7 +405,7 @@ void OpSegment::disableSmall() {
 				return;
 		}
 	}
-	setDisabled(OP_LINE_FILE_NPARAMS());
+	setDisabled(OP_LINE_FILE_NPARGS());
 }
 
 // !!! would it be any better (faster) to split this into findStart / findEnd instead?
@@ -436,7 +436,7 @@ float OpSegment::findAxisT(Axis axis, float start, float end, float opp) {
 // rarely, moving points prevents finding matching ends. If there is no end, do an exhaustive search
 void OpSegment::findMissingEnds() {
 	if (willDisable && !disabled)
-		setDisabled(OP_LINE_FILE_NPARAMS());
+		setDisabled(OP_LINE_FILE_NPARGS());
 	if (disabled)
 		return;
 	OP_ASSERT(!sects.unsorted);
@@ -449,16 +449,16 @@ void OpSegment::findMissingEnds() {
 				if (opp.disabled)
 					continue;
 				if (opp.c.firstPt() == alias) {
-					OpIntersection* sect = addSegSect(OpPtT(alias, 0), &opp  OP_LINE_FILE_PARAMS());
-					OpIntersection* oSect = opp.addSegSect(OpPtT(alias, 0), this  OP_LINE_FILE_PARAMS());
+					OpIntersection* sect = addSegSect(OpPtT(alias, 0), &opp  OP_LINE_FILE_PARGS());
+					OpIntersection* oSect = opp.addSegSect(OpPtT(alias, 0), this  OP_LINE_FILE_PARGS());
 					sect->pair(oSect);
 					sects.sort();
 					opp.sects.sort();
 
 				} 
 				if (opp.c.lastPt() == alias) {
-					OpIntersection* sect = addSegSect(OpPtT(alias, 0), &opp  OP_LINE_FILE_PARAMS());
-					OpIntersection* oSect = opp.addSegSect(OpPtT(alias, 1), this  OP_LINE_FILE_PARAMS());
+					OpIntersection* sect = addSegSect(OpPtT(alias, 0), &opp  OP_LINE_FILE_PARGS());
+					OpIntersection* oSect = opp.addSegSect(OpPtT(alias, 1), this  OP_LINE_FILE_PARGS());
 					sect->pair(oSect);
 					sects.sort();
 					opp.sects.sort();
@@ -474,16 +474,16 @@ void OpSegment::findMissingEnds() {
 				if (opp.disabled)
 					continue;
 				if (opp.c.firstPt() == alias) {
-					OpIntersection* sect = addSegSect(OpPtT(alias, 1), &opp  OP_LINE_FILE_PARAMS());
-					OpIntersection* oSect = opp.addSegSect(OpPtT(alias, 0), this  OP_LINE_FILE_PARAMS());
+					OpIntersection* sect = addSegSect(OpPtT(alias, 1), &opp  OP_LINE_FILE_PARGS());
+					OpIntersection* oSect = opp.addSegSect(OpPtT(alias, 0), this  OP_LINE_FILE_PARGS());
 					sect->pair(oSect);
 					sects.sort();
 					opp.sects.sort();
 
 				} 
 				if (opp.c.lastPt() == alias) {
-					OpIntersection* sect = addSegSect(OpPtT(alias, 1), &opp  OP_LINE_FILE_PARAMS());
-					OpIntersection* oSect = opp.addSegSect(OpPtT(alias, 1), this  OP_LINE_FILE_PARAMS());
+					OpIntersection* sect = addSegSect(OpPtT(alias, 1), &opp  OP_LINE_FILE_PARGS());
+					OpIntersection* oSect = opp.addSegSect(OpPtT(alias, 1), this  OP_LINE_FILE_PARGS());
 					sect->pair(oSect);
 					sects.sort();
 					opp.sects.sort();
@@ -610,9 +610,9 @@ nextEdge:
 	}
 }
 
-void OpSegment::makeEdge(OP_LINE_FILE_NP_DEF()) {
+void OpSegment::makeEdge(OP_LINE_FILE_NP_ARGS()) {
 	if (!edges.size()) 
-		edges.emplace_back(this  OP_LINE_FILE_PARAMS());
+		edges.emplace_back(this  OP_LINE_FILE_PARGS());
 }
 
 void OpSegment::makeEdges() {
@@ -745,10 +745,10 @@ OpPoint OpSegment::movePt(OpPtT match, OpPoint destination) {
 bool OpSegment::moveWinding(OpSegment* opp, bool backwards) {
 	winding.move(opp->winding, backwards);
 	opp->winding.zero();
-	opp->setDisabled(OP_LINE_FILE_NPARAMS());
+	opp->setDisabled(OP_LINE_FILE_NPARGS());
 	if (winding.visible())
 		return true;
-	setDisabled(OP_LINE_FILE_NPARAMS());
+	setDisabled(OP_LINE_FILE_NPARGS());
 	return false;
 }
 
@@ -803,7 +803,7 @@ void OpSegment::resetBounds() {
 		closeBounds = ptBounds.outset(threshold());
 }
 
-void OpSegment::setDisabled(OP_LINE_FILE_NP_DEF()) {
+void OpSegment::setDisabled(OP_LINE_FILE_NP_ARGS()) {
 	disabled = true; 
 	// coincident/unsectable intersections may confuse; remove any
 	size_t index = sects.i.size();
@@ -878,7 +878,7 @@ void OpSegment::transferCoins() {
 #endif
 //				OP_ASSERT(oEdge.winding.visible());
 				edge.winding.move(oEdge.winding, cID < 0);
-				oEdge.setDisabledZero(OP_LINE_FILE_NPARAMS());
+				oEdge.setDisabledZero(OP_LINE_FILE_NPARGS());
 				break;
 			}
 		}

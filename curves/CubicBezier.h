@@ -10,8 +10,8 @@ struct CubicControls {
     }
 
     CubicControls(Curve c) {
-        OP_ASSERT(sizeof(CubicControls) == c.size - offsetof(CurveData, optionalAdditionalData));
-        std::memcpy(pts, c.data->optionalAdditionalData, sizeof(CubicControls));
+        OP_ASSERT(sizeof(CubicControls) == c.size - CurveUserDataOffset());
+        std::memcpy(pts, CurveUserData(c.data), sizeof(CubicControls));
     }
 
     CubicControls(OpPoint pt1, OpPoint pt2) {
@@ -20,8 +20,8 @@ struct CubicControls {
     }
 
     void copyTo(Curve c) {
-        OP_ASSERT(sizeof(CubicControls) == c.size - offsetof(CurveData, optionalAdditionalData));
-        std::memcpy(c.data->optionalAdditionalData, this, sizeof(CubicControls));
+        OP_ASSERT(sizeof(CubicControls) == c.size - CurveUserDataOffset());
+        std::memcpy(CurveUserData(c.data), this, sizeof(CubicControls));
     }
 
     OpPoint pts[2];

@@ -40,7 +40,7 @@ enum class FoundWindings {
 };
 
 struct CoinEnd {
-//	void addSect(int coinID, OpSegment* baseSeg, MatchReverse m, XyChoice  OP_LINE_FILE_DEF());
+//	void addSect(int coinID, OpSegment* baseSeg, MatchReverse m, XyChoice  OP_LINE_FILE_ARGS());
 //	void aliasPtT(XyChoice );
 	bool onBothEnds(XyChoice ) const;
 //	bool ptsAreClose(CoinEnd& , XyChoice );

@@ -275,12 +275,12 @@ private:
 #endif
 	}
 public:
-	OpEdge(OpSegment*  OP_LINE_FILE_DEF());  // segment make edge; used by curve curve
-	OpEdge(OpIntersection* , OpIntersection*  OP_LINE_FILE_DEF());  // sect make edges
-	OpEdge(OpContours* , const OpPtT& start, const OpPtT& end  OP_LINE_FILE_DEF());  // make filler 
-	OpEdge(const OpEdge* e, const OpPtT& newPtT, NewEdge isLeftRight  OP_LINE_FILE_DEF());
-	OpEdge(const OpEdge* e, const OpPtT& start, const OpPtT& end  OP_LINE_FILE_DEF());
-	OpEdge(const OpEdge* e, float t1, float t2  OP_LINE_FILE_DEF());
+	OpEdge(OpSegment*  OP_LINE_FILE_ARGS());  // segment make edge; used by curve curve
+	OpEdge(OpIntersection* , OpIntersection*  OP_LINE_FILE_ARGS());  // sect make edges
+	OpEdge(OpContours* , const OpPtT& start, const OpPtT& end  OP_LINE_FILE_ARGS());  // make filler 
+	OpEdge(const OpEdge* e, const OpPtT& newPtT, NewEdge isLeftRight  OP_LINE_FILE_ARGS());
+	OpEdge(const OpEdge* e, const OpPtT& start, const OpPtT& end  OP_LINE_FILE_ARGS());
+	OpEdge(const OpEdge* e, float t1, float t2  OP_LINE_FILE_ARGS());
 
 	CalcFail addIfUR(Axis xis, float t, OpWinding* );
 	void addPal(const EdgePal& );
@@ -289,7 +289,7 @@ public:
 	void apply();
 	const OpRect& bounds() { return ptBounds; }
 	void calcCenterT();
-	void clearActiveAndPals(OP_LINE_FILE_NP_DEF());
+	void clearActiveAndPals(OP_LINE_FILE_NP_ARGS());
 	void clearLastEdge();
 	void clearNextEdge();
 	void clearPriorEdge();
@@ -326,10 +326,10 @@ public:
 	OpPtT ptT(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? start() : end(); }
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
-	void setDisabled(OP_LINE_FILE_NP_DEF());
-	void setDisabledZero(OP_LINE_FILE_NP_DEF()) {
+	void setDisabled(OP_LINE_FILE_NP_ARGS());
+	void setDisabledZero(OP_LINE_FILE_NP_ARGS()) {
 		winding.zero();
-		setDisabled(OP_LINE_FILE_NP_CALLER()); }
+		setDisabled(OP_LINE_FILE_NP_CARGS()); }
 	OpEdge* setLastEdge();
 	bool setLastLink(EdgeMatch );  // returns true if link order was changed
 	OpPointBounds setLinkBounds();
@@ -337,7 +337,7 @@ public:
 	void setNextEdge(OpEdge*);  // setter exists so debug breakpoints can be set
 	void setPointBounds();
 	void setPriorEdge(OpEdge* );  // setter exists so debug breakpoints can be set
-	void setSum(const PathOpsV0Lib::Winding&  OP_LINE_FILE_DEF());  // called by macro SET_SUM
+	void setSum(const PathOpsV0Lib::Winding&  OP_LINE_FILE_ARGS());  // called by macro SET_SUM
 	void setUnsortable(Unsortable );  // setter exists so debug breakpoints can be set
 	const OpCurve& setVertical(const LinePts& , MatchEnds);
 	void setWhich(EdgeMatch );  // setter exists so debug breakpoints can be set
@@ -480,6 +480,6 @@ struct OpEdgeStorage {
 	size_t used;
 };
 
-#define OP_EDGE_SET_SUM(edge, winding) edge->setSum(winding  OP_LINE_FILE_PARAMS())
+#define OP_EDGE_SET_SUM(edge, winding) edge->setSum(winding  OP_LINE_FILE_PARGS())
 
 #endif

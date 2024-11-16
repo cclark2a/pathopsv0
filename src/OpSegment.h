@@ -76,11 +76,11 @@ struct OpSegment {
 	OpIntersection* addSegBase(const OpPtT&  
 			OP_LINE_FILE_DEF(const OpSegment* o));
 	OpIntersection* addSegSect(const OpPtT& , const OpSegment* o  
-			OP_LINE_FILE_DEF());
+			OP_LINE_FILE_ARGS());
 	OpIntersection* addCoin(const OpPtT& , int coinID, MatchEnds , const OpSegment* o  
-			OP_LINE_FILE_DEF());
+			OP_LINE_FILE_ARGS());
 	OpIntersection* addUnsectable(const OpPtT& , int usectID, MatchEnds , const OpSegment* o 
-			OP_LINE_FILE_DEF());
+			OP_LINE_FILE_ARGS());
 //    OpPoint aliasOriginal(MatchEnds ) const;
 	OpPtT alignToEnd(OpPoint oppPt) const;
 	void apply();
@@ -101,7 +101,7 @@ struct OpSegment {
 //        return 1 == edges.size() && 2 == sects.i.size(); }
 	bool isSmall();
 	void makeCoins();
-	void makeEdge(OP_LINE_FILE_NP_DEF());
+	void makeEdge(OP_LINE_FILE_NP_ARGS());
 	void makeEdges();
 	void makePals();
 	OpPtT matchEnd(OpPoint opp) const;
@@ -119,7 +119,7 @@ struct OpSegment {
 	void remap(OpPoint oldAlias, OpPoint newAlias);  // local remap
 	OpPoint remapPts(OpPoint oldAlias, OpPoint newAlias);  // call through
 	void resetBounds();
-	void setDisabled(OP_LINE_FILE_NP_DEF());
+	void setDisabled(OP_LINE_FILE_NP_ARGS());
 	bool simpleEnd(const OpEdge* ) const;  // true if edge end connects to only one segment
 	bool simpleStart(const OpEdge* ) const;  // true if edge start connects to only one segment
 	OpVector threshold() const;

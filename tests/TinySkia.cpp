@@ -1,7 +1,18 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include <cstdarg>
+#include <cmath>
 #include "TinySkia.h"
 #include "OpTightBounds.h"
+
+#if _WIN32
+	#define COS_F(x) std::cosf(x)
+	#define SIN_F(x) std::sinf(x)
+	#define SQRT_F(x) std::sqrtf(x)
+#else
+	#define COS_F(x) cosf(x)
+	#define SIN_F(x) sinf(x)
+	#define SQRT_F(x) sqrtf(x)
+#endif
 
 #if OP_TEST_NEW_INTERFACE
 // #include "PathOps.h"
@@ -68,8 +79,8 @@ void SkMatrix::setScale(float sx, float sy) {
 
 void SkMatrix::setRotate(float deg) {
 	float rad = deg * (OpPI / 180);
-	float cos = std::cosf(rad);
-	float sin = std::sinf(rad);
+	float cos = COS_F(rad);
+	float sin = SIN_F(rad);
 	m[0][0] = cos;
 	m[0][1] = -sin;
 	m[0][2] = 0;
@@ -80,8 +91,8 @@ void SkMatrix::setRotate(float deg) {
 
 void SkMatrix::setRotate(float deg, float px, float py) {
 	float rad = deg * (OpPI / 180);
-	float cos = std::cosf(rad);
-	float sin = std::sinf(rad);
+	float cos = COS_F(rad);
+	float sin = SIN_F(rad);
 	m[0][0] = cos;
 	m[0][1] = -sin;
 	m[0][2] = sin * py + (1 - cos) * px;
@@ -349,10 +360,10 @@ void SkPath::arcTo(const SkRect& , float startAngle, float sweepAngle, bool forc
 
 void SkPath::addCircle(float x, float y, float r, SkPathDirection /* !!! ignored for now */) {  
 	moveTo(x, y - r);
-	conicTo(x + r, y - r, x + r, y, std::sqrtf(2) / 2);
-	conicTo(x + r, y + r, x, y + r, std::sqrtf(2) / 2);
-	conicTo(x - r, y + r, x - r, y, std::sqrtf(2) / 2);
-	conicTo(x - r, y - r, x, y - r, std::sqrtf(2) / 2);
+	conicTo(x + r, y - r, x + r, y, SQRT_F(2) / 2);
+	conicTo(x + r, y + r, x, y + r, SQRT_F(2) / 2);
+	conicTo(x - r, y + r, x - r, y, SQRT_F(2) / 2);
+	conicTo(x - r, y - r, x, y - r, SQRT_F(2) / 2);
 }
 
 void SkPath::addPath(SkPath const& p) { 
@@ -436,9 +447,6 @@ void SkPath::offset(float dx, float dy) {
 }
 
 void SkPath::dumpCommon(bool hex) const {
-	auto ptstr = [hex](float f) {
-		return hex ? OpDebugDumpHex(f) : STR(f);
-	};
 	bool move = true;
 	OpPoint first;
 	for (const TinyCurve& c : path) {

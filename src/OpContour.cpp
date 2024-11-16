@@ -285,7 +285,7 @@ bool OpContours::addAlias(OpPoint pt, OpPoint alias) {
 
 OpEdge* OpContours::addFiller(const OpPtT& start, const OpPtT& end) {
 	void* block = allocateEdge(fillerStorage);
-	OpEdge* filler = new(block) OpEdge(this, start, end  OP_LINE_FILE_PARAMS());
+	OpEdge* filler = new(block) OpEdge(this, start, end  OP_LINE_FILE_PARGS());
 	return filler;
 }
 

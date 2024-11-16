@@ -14,6 +14,7 @@
 #include "OpContour.h"
 #include "OpCurve.h"
 #include "PathOps.h"
+#include "PathOpsTypes.h"
 #include "skia/SkiaPaths.h"  // for curve types
 
 enum class ClipToBounds {
@@ -720,17 +721,16 @@ void DebugOpCurve::mapTo(OpCurve& c) const {
             break;
         case PathOpsV0Lib::CurveType::quad: {
             OpPoint ctrl = DebugOpMap(pts[1]);
-            OP_ASSERT(size == offsetof(PathOpsV0Lib::CurveData, optionalAdditionalData) 
-                    + sizeof ctrl);
-            std::memcpy(c.c.data->optionalAdditionalData, &ctrl, sizeof ctrl);
+            OP_ASSERT(size == PathOpsV0Lib::CurveUserDataOffset() + sizeof ctrl);
+            std::memcpy(CurveUserData(c.c.data), &ctrl, sizeof ctrl);
             endIndex = 2;
             } break;
         case PathOpsV0Lib::CurveType::conic: {
             OpPoint ctrl = DebugOpMap(pts[1]);
             float floatWeight = (float) weight;
-            char* dst = c.c.data->optionalAdditionalData;
-            OP_ASSERT(size == offsetof(PathOpsV0Lib::CurveData, optionalAdditionalData) 
-                    + sizeof ctrl + sizeof floatWeight);
+            char* dst = (char*) CurveUserData(c.c.data);
+            OP_ASSERT(size == PathOpsV0Lib::CurveUserDataOffset() + sizeof ctrl 
+					+ sizeof floatWeight);
             std::memcpy(dst, &ctrl, sizeof ctrl);
             dst += sizeof ctrl;
             std::memcpy(dst, &floatWeight, sizeof floatWeight);
@@ -738,9 +738,8 @@ void DebugOpCurve::mapTo(OpCurve& c) const {
             } break;
         case PathOpsV0Lib::CurveType::cubic: {
             OpPoint ctrls[2] { DebugOpMap(pts[1]), DebugOpMap(pts[2]) };
-            OP_ASSERT(size == offsetof(PathOpsV0Lib::CurveData, optionalAdditionalData) 
-                    + sizeof ctrls);
-            std::memcpy(c.c.data->optionalAdditionalData, ctrls, sizeof ctrls);
+            OP_ASSERT(size == PathOpsV0Lib::CurveUserDataOffset() + sizeof ctrls);
+            std::memcpy(CurveUserData(c.c.data), ctrls, sizeof ctrls);
             endIndex = 3;
             } break;
         default:
@@ -865,7 +864,7 @@ void DebugOpDraw(const std::vector<OpDebugRay>& lines) {
 static double curveWeight(const OpCurve& curve) {
     // !!! haven't decided how to support this through callbacks
     if (PathOpsV0Lib::CurveType::conic == curve.c.type) {
-        char* dst = curve.c.data->optionalAdditionalData;
+        char* dst = (char*) CurveUserData(curve.c.data);
         dst += sizeof(OpPoint);
         float floatWeight;
         std::memcpy(&floatWeight, dst, sizeof floatWeight);

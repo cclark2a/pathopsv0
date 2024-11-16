@@ -132,7 +132,7 @@ struct OpCurveCurve {
 	bool ifExactly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& opp, const OpPtT& oppPtT);
 	bool ifNearly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& opp, const OpPtT& oppPtT);
 	void recordSect(OpEdge* edge, OpEdge* opp, const OpPtT& edgePtT, const OpPtT& oppPtT
-			OP_LINE_FILE_DEF());
+			OP_LINE_FILE_ARGS());
 	bool reduceDistFlipped();  // replace edges with dist runs that change sign
 	bool rotatedIntersect(OpEdge& edge, OpEdge& opp, bool sharesPoint);
 	SectFound runsToLimits();

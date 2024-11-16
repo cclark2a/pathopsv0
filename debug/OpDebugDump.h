@@ -68,9 +68,6 @@ OP_X(OpWinding) \
 OP_X(SectRay) \
 OP_X(SegPt)
 
-// OP_X(OpInPath) \
-// OP_X(OpOutPath) \
-
 #define OP_X(Thing) \
 	struct Thing;
 	VECTOR_STRUCTS
