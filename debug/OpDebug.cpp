@@ -885,17 +885,6 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContours* contours)) {
     }
 }
 
-OP_DEBUG_CODE(extern std::string requestedFirst);
-
-// break (return false) if running last failed fast test
-bool OpDebugSkipBreak() {
-#if OP_DEBUG_FAST_TEST
-	return true;
-#else
-	return !(TEST_PATH_OP_SKIP_TO_V0  OP_DEBUG_CODE(|| requestedFirst.size()));
-#endif
-}
-
 // return false to auto-break
 bool OpJoiner::DebugShowImage() {
 	if (!OpDebugSkipBreak()) {

@@ -4,6 +4,7 @@
 #include "TinySkia.h"
 #include "OpTightBounds.h"
 
+
 #if _WIN32
 	#define COS_F(x) std::cosf(x)
 	#define SIN_F(x) std::sinf(x)

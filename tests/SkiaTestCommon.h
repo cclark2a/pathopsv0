@@ -148,6 +148,11 @@ inline void REPORTER_ASSERT(skiatest::Reporter* reporter, bool test) {
 		}
 #endif
 	}
+	if (!test) {
+		OpDebugOut("REPORTER_ASSERT:" + reporter->testname + "; subname:" 
+				+ reporter->subname + "; index:" 
+				+ STR(reporter->testIndex) + "\n");
+	}
     OP_ASSERT(test);
 #endif
 }

@@ -483,10 +483,10 @@ bool OpCurveCurve::checkForGaps() {
 		return false;
 	OP_ASSERT(edgeCurves.c.size() && oppCurves.c.size());
 	std::vector<CutRangeT> edgeGaps = edgeCurves.findGaps();
-	if (edgeGaps.size() < smallTFound + largeTFound)  // require 2 gaps if sm && lg
+	if (edgeGaps.size() < (size_t) (smallTFound + largeTFound))  // require 2 gaps if sm && lg
 		return false;
 	std::vector<CutRangeT> oppGaps = oppCurves.findGaps();
-	if (oppGaps.size() < smallTFound + largeTFound)
+	if (oppGaps.size() < (size_t) (smallTFound + largeTFound))
 		return false;
 	if (smallTFound) {
 		OpPointBounds eGapBounds { edgeGaps[0].lo.pt, edgeGaps[0].hi.pt };

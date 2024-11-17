@@ -2,8 +2,8 @@
 #ifndef OpSkiaTests_DEFINED
 #define OpSkiaTests_DEFINED
 
-#include "SkiaTestCommon.h"
-
-class SkBitmap;
+#define TEST_PATH_OP_SKIP_TO_V0 0
+#define TEST_FIRST ""
+#define TEST_PATH_OP_SKIP_TO_FILE ""
 
 #endif

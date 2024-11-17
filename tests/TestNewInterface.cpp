@@ -12,6 +12,12 @@ PathOpsV0Lib::CurveType quadType = (PathOpsV0Lib::CurveType) 0;
 constexpr size_t lineSize = sizeof(OpPoint) * 2;
 constexpr size_t quadSize = sizeof(OpPoint) * 3;
 
+#if OP_DEBUG && OP_TINY_TEST
+bool OpDebugSkipBreak() {
+	return true;
+}
+#endif
+
 void commonOutput(PathOpsV0Lib::Curve c, PathOpsV0Lib::CurveType type, bool firstPt, bool lastPt, 
         PathOpsV0Lib::PathOutput output) {
     if (firstPt)

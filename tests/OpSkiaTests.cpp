@@ -5,11 +5,7 @@
 
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
-#define TEST_PATH_OP_SKIP_TO_FILE "" // e.g., "quad" tests only (see testSuites in OpSkiaTests)
 #define TESTS_TO_SKIP 0 // 14295903  // tests to skip
-#define TEST_FIRST ""  // e.g., "joel4" (ignored by fast test, overridden by TEST_DRIVE_FIRST)
-// fuzz763_378 asserts in OpIntersections::sort() debug check line 397 but continuing, succeeds
-// grshapearc hangs in OpTree contructor? (makes over 10K limbs)
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
 #define OP_TEST_ALLOW_EXTENDED 0  // some Skia tests have extended versions which take longer
@@ -42,6 +38,8 @@
 
 /* test failure descriptions:
 extended: all tests run 11/9/24 exceptions: grshapearc (total run:74600014 v0 only:13)
+ fuzz763_378 asserts in OpIntersections::sort() debug check line 397 but continuing, succeeds
+ grshapearc hangs in OpTree contructor? (makes over 10K limbs)
 */
 
 #if OP_TINY_SKIA
@@ -57,6 +55,7 @@ extended: all tests run 11/9/24 exceptions: grshapearc (total run:74600014 v0 on
 #include "SkiaTestCommon.h"
 #include "OpContour.h"
 #include "OpCurve.h"
+#include "OpSkiaTests.h"
 #if OP_DEBUG_FAST_TEST
   #include <mutex>
   #include <thread>
@@ -106,12 +105,10 @@ std::vector<testInfo> testSuites = {
 // skip tests by filename
 std::vector<std::string> skipTestFiles = { TEST_PATH_OP_SKIP_FILES };
 std::vector<std::string> skipRestFiles = { TEST_PATH_OP_SKIP_REST };
-std::string requestedFirst = strlen(TEST_DRIVE_FIRST) ? TEST_DRIVE_FIRST : TEST_FIRST;
-std::string testFirst = OP_DEBUG_FAST_TEST || TEST_PATH_OP_SKIP_TO_V0 
-        ? "" : requestedFirst;
+std::string requestedFirst = TEST_FIRST;
+std::string testFirst = OP_DEBUG_FAST_TEST || TEST_PATH_OP_SKIP_TO_V0 ? "" : TEST_FIRST;
 bool runOneFile = (!requestedFirst.empty() || TEST_PATH_OP_SKIP_TO_V0) && !OP_DEBUG_FAST_TEST;
-std::string skipToFile = TEST_PATH_OP_SKIP_TO_V0 && !OP_DEBUG_FAST_TEST 
-        ? "v0" : TEST_PATH_OP_SKIP_TO_FILE;
+std::string skipToFile = TEST_PATH_OP_SKIP_TO_FILE;
 std::atomic_int testIndex; 
 bool showTestName = OP_SHOW_TEST_NAME;
 std::atomic_int testsRun;
@@ -147,6 +144,17 @@ bool PathOpsDebug::gJson = false;
 // both false if before first; start false end true if no first; both true if after first
 bool startFirstTest = "" == testFirst;
 bool endFirstTest = false;
+
+// break (return false) if running last failed fast test
+#if OP_DEBUG
+bool OpDebugSkipBreak() {
+#if OP_DEBUG_FAST_TEST
+	return true;
+#else
+	return !(TEST_PATH_OP_SKIP_TO_V0  OP_DEBUG_CODE(|| requestedFirst.size()));
+#endif
+}
+#endif
 
 // short-circuit extended if only one test is run
 bool skiatest::Reporter::allowExtendedTest() {

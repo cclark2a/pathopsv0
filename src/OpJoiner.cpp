@@ -713,8 +713,6 @@ bool OpJoiner::detachIfLoop(OpEdge* e, EdgeMatch loopMatch) {
 			EdgeMatch::start == match ? detach->clearNextEdge() : detach->clearPriorEdge();
 			if (Unsortable::none == detach->isUnsortable || detach->priorEdge || detach->nextEdge)
 				addToLinkups(detach);	// return front edge
-			else
-				; // OP_ASSERT(!detach->priorEdge);  // triggered by fuzz763_1 -- is fix needed?
 		}
 	};
 	auto detachNext = [detachEdge](OpEdge* test, OpEdge* oppEdge) 

@@ -183,16 +183,11 @@ extern void dmpFull(const OpIntersection& );
 extern void dmpEnd(const OpIntersection& sect);
 extern void dmpStart(const OpIntersection& sect);
 
-#ifdef OP_HAS_FMA
 #define DUMP_BY_DUMPID \
 OP_X(dmp, dump) \
-OP_X(dmpHex, dumpHex)
-#endif
-#ifdef OP_NO_FMA
-#define DUMP_BY_DUMPID \
 OP_X(dmpid, dump) \
 OP_X(dmpHex, dumpHex)
-#endif
+
 #define OP_X(Global, Method) \
 	extern void Global(int id);
 DUMP_BY_DUMPID

@@ -8,13 +8,10 @@
 #include <cstring>
 #endif
 
-#if OP_TINY_TEST
-#define OP_DEBUG_FAST_TEST 1
-#define OP_RELEASE_TEST 1
-#else
 #include "OpTestDrive.h"  // set test specific settings here
-#endif
 
+#define OP_DEBUG_VERBOSE (1 && !OP_DEBUG_FAST_TEST)
+#define OP_RELEASE_TEST 1	// !!! set to zero to remove tests from release build (untested)
 #define OP_NEW_COINCIDENCE 1
 
 #if !defined(NDEBUG) || OP_RELEASE_TEST

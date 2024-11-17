@@ -191,7 +191,7 @@ struct OpLimbStorage {
 		, prevBlock(nullptr)
 		, baseIndex(0)
 		, used(0) {
-		static_assert((ARRAY_COUNT(storage) - 1 & ARRAY_COUNT(storage)) == 0);
+		static_assert(((ARRAY_COUNT(storage) - 1) & ARRAY_COUNT(storage)) == 0);
 	}
 	OpLimb* allocate();
 	void reset();

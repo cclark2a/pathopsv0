@@ -346,7 +346,7 @@ OpPair OpCurve::xyAtT(OpPair t, XyChoice xy) const {
 }
 
 OpPoint OpCurve::hullPt(int index) const {
-	OP_ASSERT((PathOpsV0Lib::CurveType) 0 == c.type || 0 <= index && index < pointCount());
+	OP_ASSERT((PathOpsV0Lib::CurveType) 0 == c.type || (0 <= index && index < pointCount()));
 	if (0 == index)
 		return c.data->start;
 	if (pointCount() - 1 == index)
