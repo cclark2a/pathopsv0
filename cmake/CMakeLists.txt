@@ -90,8 +90,17 @@ include_directories(
 	"../.."
 )
 
+if (DEFINED COVERAGE)
 include(CodeCoverage.cmake)
 append_coverage_compiler_flags()
+endif()
+
+if (DEFINED TSAN)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
+set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fsanitize=thread")
+endif()
+
+set(ignoreMe "${TSAN}")
 
 target_compile_definitions(skiatest PUBLIC OP_TINY_SKIA=1 NOMINMAX _CRT_SECURE_NO_WARNINGS)
 target_compile_definitions(tinytest PUBLIC OP_TINY_SKIA=1 NOMINMAX _CRT_SECURE_NO_WARNINGS OP_TINY_TEST=1)

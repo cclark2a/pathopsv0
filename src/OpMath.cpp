@@ -159,7 +159,7 @@ OpRoots OpMath::CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B,
 	bool zeroIsRoot = MatchEnds::start == common || MatchEnds::both == common;
 	bool oneIsRoot = MatchEnds::end == common || MatchEnds::both == common;
 	if (0 == A)
-		return QuadRootsDouble(B, C, D);
+		return QuadRootsDouble((float) B, (float) C, (float) D);
 	// in thread_loops542, segment line 4 and segment cubic 2 intersect at one point: (0, 5)
 	// line 4 points: {2.5, 2}, {0, 5}  
 	// cubic 2 points: {0, 5}, {2.130306, 5}, {2.747878, 5}, {2.747878, 3.925804}
@@ -169,7 +169,7 @@ OpRoots OpMath::CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B,
 	// QuadRootsDouble returns that same root as 1.4, and everything is OK
 	// changed all three calls to double versions as a precaution
 	if (zeroIsRoot || 0 == D) {  // 0 is one root
-		OpRoots roots = QuadRootsDouble(A, B, C);
+		OpRoots roots = QuadRootsDouble((float) A, (float) B, (float) C);
 		for (unsigned i = 0; i < roots.count; ++i) {
 			if (0 == roots.roots[i])
 				return roots;
@@ -178,7 +178,7 @@ OpRoots OpMath::CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B,
 		return roots;
 	}
 	if (oneIsRoot || 0 == A + B + C + D) {  // 1 is one root
-		OpRoots roots = QuadRootsDouble(A, A + B, -D);
+		OpRoots roots = QuadRootsDouble((float) A, (float) (A + B), (float) -D);
 		for (unsigned i = 0; i < roots.count; ++i) {
 			if (1 == roots.roots[i]) {
 				return roots;
@@ -206,13 +206,13 @@ OpRoots OpMath::CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B,
 		OpCubicFloatType theta = ACOS(std::max(std::min(ONE, R / SQRT(Q3)), -ONE));
 		OpCubicFloatType neg2RootQ = -2 * SQRT(Q);
 		r = neg2RootQ * COS(theta / 3) - adiv3;
-		*rootPtr++ = r;
+		*rootPtr++ = (float) r;
 		r = neg2RootQ * COS((theta + 2 * PI) / 3) - adiv3;
 		if (roots.roots[0] != r)
-			*rootPtr++ = r;
+			*rootPtr++ = (float) r;
 		r = neg2RootQ * COS((theta - 2 * PI) / 3) - adiv3;
 		if (roots.roots[0] != r && (rootPtr - &roots.roots[0] == 1 || roots.roots[1] != r))
-			*rootPtr++ = r;
+			*rootPtr++ = (float) r;
 	} else {  // we have 1 real root
 		OpCubicFloatType sqrtR2MinusQ3 = SQRT(R2MinusQ3);
 		// !!! need to rename this 'A' something else; since parameter is also 'A'
@@ -223,11 +223,11 @@ OpRoots OpMath::CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B,
 		if (A != 0)
 			A += Q / A;
 		r = A - adiv3;
-		*rootPtr++ = r;
+		*rootPtr++ = (float) r;
 		if (R2 == Q3) {
 			r = -A / 2 - adiv3;
 			if (roots.roots[0] != r) {
-				*rootPtr++ = r;
+				*rootPtr++ = (float) r;
 			}
 		}
 	}

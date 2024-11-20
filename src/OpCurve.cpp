@@ -46,7 +46,7 @@ CutRangeT OpCurve::cutRange(const OpPtT& ptT, OpPoint oppPt, float loEnd, float 
 	OpVector threshold = contours->threshold();
 	float minDistanceSq = threshold.lengthSquared() * tStep;
 	CutRangeT tRange;
-	for (float direction : { -1, 1 }) {
+	for (float direction : { -1.f, 1.f }) {
 		OpPtT cut;
 		float dir = direction;
 		do {
@@ -324,7 +324,7 @@ OpCurve OpCurve::toVertical(const LinePts& line, MatchEnds match) const {
 }
 
 int OpCurve::pointCount() const {
-	return contours->callBack(c.type).ptCountFuncPtr();
+	return (int) contours->callBack(c.type).ptCountFuncPtr();
 }
 
 OpPoint OpCurve::ptAtT(float t) const {

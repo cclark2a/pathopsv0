@@ -62,7 +62,7 @@ OpSegment::OpSegment(PathOpsV0Lib::AddCurve addCurve, PathOpsV0Lib::AddWinding a
 // returns true if any found edge is a pal
 bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<FoundEdge>& oppEdges
 		) const {
-	unsigned edgesSize = oppEdges.size();
+	unsigned edgesSize = (unsigned) oppEdges.size();
 	OP_ASSERT(!edge->disabled);
 	// each prospective match normal must agree with edge, indicating direction of area outside fill
 	// if number of matching sects doesn't agree with opposite, collect next indirection as well

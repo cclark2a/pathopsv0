@@ -306,7 +306,7 @@ Contour* SetSkiaOpCallBacks(Context* context, SkPathOp op,
             OP_DEBUG_PARAMS(&path )  OP_DEBUG_IMAGE_PARAMS(true) };
     Contour* contour = CreateContour({context, (ContourData*) &windingUserData,
             sizeof(SkiaOpContourData) } );
-    WindingKeep operatorFunc;
+    WindingKeep operatorFunc = noWindKeepFunc;
     switch(op) {
         case kDifference_SkPathOp: operatorFunc = binaryWindingDifferenceFunc; break;
         case kIntersect_SkPathOp: operatorFunc = binaryWindingIntersectFunc; break;
@@ -315,7 +315,7 @@ Contour* SetSkiaOpCallBacks(Context* context, SkPathOp op,
         case kReverseDifference_SkPathOp: operatorFunc = binaryWindingReverseDifferenceFunc; break;
         default: OP_ASSERT(0);
     }
-    WindingAdd addFunc;
+    WindingAdd addFunc = noWindingOpFunc;
     switch (windType) {
         case BinaryWindType::evenOdd: addFunc = binaryEvenOddFunc; break;
         case BinaryWindType::windLeft: addFunc = binaryWindingAddLeftFunc; break;
@@ -323,7 +323,7 @@ Contour* SetSkiaOpCallBacks(Context* context, SkPathOp op,
         case BinaryWindType::windBoth: addFunc = binaryWindingAddFunc; break;
         default: OP_ASSERT(0);
     }
-    WindingAdd subtractFunc;
+    WindingAdd subtractFunc = noWindingOpFunc;
     switch (windType) {
         case BinaryWindType::evenOdd: subtractFunc = binaryEvenOddFunc; break;
         case BinaryWindType::windLeft: subtractFunc = binaryWindingSubtractLeftFunc; break;

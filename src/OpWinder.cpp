@@ -765,7 +765,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 	};
 	// starting with found or zero if none, accumulate sum up to winding
 	OpWinding sumWinding(home, WindingSum::dummy);
-	int sumIndex = ray.distances.size();
+	int sumIndex = (int) ray.distances.size();
 	while (ray.distances[--sumIndex].edge != home) 
 		OP_ASSERT(sumIndex > 0);
 	float homeT = ray.distances[sumIndex].edgeInsideT;  // used by unsectable, later

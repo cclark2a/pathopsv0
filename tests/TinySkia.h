@@ -6,12 +6,13 @@
 #include "SkiaEnumSkPathOp.h"
 
 #define SkDEBUGCODE(x) x
+#define SK_INIT_TO_AVOID_WARNING    = 0
 
 inline float SkBits2Float(int32_t i) {
 	return OpDebugBitsToFloat(i); }
 
 inline int SkScalarRoundToInt(float f) {
-	return (int) floorf(f + 0.5); }
+	return (int) floorf(f + 0.5f); }
 
 inline float SkDoubleToScalar(double d) {
 	return (float) d; }
@@ -117,6 +118,8 @@ struct SkRect {
 	void offset(float dx, float dy) {
 		fLeft += dx; fTop += dy; fRight += dx; fBottom += dy; }
 	void setLTRB(int32_t left, int32_t top, int32_t right, int32_t bottom) {
+        fLeft = (float) left; fTop = (float) top; fRight = (float) right; fBottom = (float) bottom; }
+	void setLTRB(float left, float top, float right, float bottom) {
         fLeft = left; fTop = top; fRight = right; fBottom = bottom; }
 	float width() const { 
 		return fRight - fLeft; }

@@ -20,6 +20,7 @@
 #define SkPathOpsQuad_DEFINED
 #define SkPathOpsPoint_DEFINED
 
+
 #else
 #include "include/core/SkString.h"
 #include "src/pathops/SkPathOpsDebug.h"

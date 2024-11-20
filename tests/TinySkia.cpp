@@ -395,7 +395,7 @@ void SkPath::addRoundRect(const SkRect& rect, float rx, float ry,
 int SkPath::countPoints() const {
 	int count = 1;
 	for (const TinyCurve& curve : path)
-		count += curve.pointCount() - 1;
+		count += (int) curve.pointCount() - 1;
 	return count;
 }
 
@@ -403,7 +403,7 @@ int SkPath::countPoints() const {
 SkPoint SkPath::getPoint(int index) {
 	for (TinyCurve& curve : path) {
 		int base = index;
-		index -= curve.pointCount() - 1;
+		index -= (int) curve.pointCount() - 1;
 		if (index > 0)
 			continue;
 		return { curve.pts[base].x, curve.pts[base].y };
@@ -415,7 +415,7 @@ SkPoint SkPath::getPoint(int index) {
 void SkPath::setPt(int index, float x, float y) {
 	for (TinyCurve& curve : path) {
 		int base = index;
-		index -= curve.pointCount() - 1;
+		index -= (int) curve.pointCount() - 1;
 		if (index > 0)
 			continue;
 		curve.pts[base] = { x, y };
@@ -426,7 +426,7 @@ void SkPath::setPt(int index, float x, float y) {
 
 const SkPath& SkPath::makeTransform(SkMatrix const & m) { 
 	for (TinyCurve& c : path) {
-		m.mapPoints(c.pts, c.pointCount());
+		m.mapPoints(c.pts, (int) c.pointCount());
 	}
 	return *this;
 }

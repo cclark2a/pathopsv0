@@ -42,6 +42,15 @@ inline int maxLimbs() {
 	return 500;
 }
 
+inline WindKeep noWindKeepFunc(Winding , Winding ) {
+    return WindKeep::Discard;
+}
+
+inline Winding noWindingOpFunc(Winding , Winding ) {
+	Winding dummyWinding { nullptr, 0 };
+	return dummyWinding;
+}
+
 #if OP_DEBUG_DUMP
 inline std::string noDumpName() { 
     return ""; 
@@ -56,6 +65,7 @@ inline void noDumpCurveSet(Curve , const char*& ) {
 
 inline void noDumpCurveSetExtra(Curve , const char*& str) {
 }
+
 #endif
 
 }

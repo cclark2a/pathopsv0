@@ -884,7 +884,7 @@ static void edit(std::string filename, std::string match, std::string replace) {
 	if (fseek(readf.file, 0 , SEEK_END))
 		return OpDebugOut("fseek to end failed:" + filename + "\n");
 	long fileSize = ftell(readf.file);
-	long allocSize = fileSize + replace.size();
+	long allocSize = (long) (fileSize + replace.size());
 	if (fseek(readf.file, 0 , SEEK_SET))
 		return OpDebugOut("fseek to start failed:" + filename + "\n");
  	AutoFree read(malloc(allocSize));

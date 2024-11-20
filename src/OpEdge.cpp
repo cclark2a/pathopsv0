@@ -487,7 +487,7 @@ void OpEdge::output(bool closed) {
 	do {
 	//	OP_ASSERT(!edge->inOutput);	// !!! cubic714074 triggers with very small edge, used twice
 		unsigned index;
-		const EdgePal* inner;
+		const EdgePal* inner = nullptr;
 		for (index = 0; index < edge->ray.distances.size(); ++index) {
 			inner = &edge->ray.distances[index];
 			if (inner->edge == edge)

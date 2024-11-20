@@ -1118,7 +1118,7 @@ bool OpJoiner::relinkUnambiguous(size_t link) {
 	size_t originalSize = linkups.l.size();
 	bool eraseLoops = detachIfLoop(edge->advanceToEnd(EdgeMatch::start), EdgeMatch::end);
 	if (linkupsErasures.size()) {
-		std::sort(linkupsErasures.begin(), linkupsErasures.end(), std::greater<int>());
+		std::sort(linkupsErasures.begin(), linkupsErasures.end(), std::greater<size_t>());
 		for (size_t entry : linkupsErasures)
 			linkups.l.erase(linkups.l.begin() + entry);
 	}

@@ -1270,7 +1270,7 @@ bool OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 			hulls.sort(smallTFound);
 	//		size_t limitCount = limits.size();
 			for (size_t index = 1; index < hulls.h.size(); ++index) {
-				if (!hulls.sectCandidates(index, edge))
+				if (!hulls.sectCandidates((int) index, edge))
 					continue;
 				OpDebugOut("!!! splitHulls fail:"  OP_DEBUG_CODE(+ contours->debugData.testname)
 					+ std::string("\n"));
@@ -1398,7 +1398,7 @@ size_t OpCurveCurve::uniqueLimits() {
 		last = &limits[index];
 		lastDistSq = distSq;
 	}
-	uniqueLimits_impl = result;
+	uniqueLimits_impl = (int) result;
 	return result;
 }
 

@@ -178,7 +178,7 @@ struct DebugOpRoots {
         notUnique:
             ;
         }
-        count = foundRoots;
+        count = (int) foundRoots;
         return *this;
     }
 
@@ -281,7 +281,7 @@ struct DebugOpMath {
                     return DebugOpRoots();
                 return DebugOpRoots(0);
             }
-            return DebugOpRoots(-C / B);
+            return DebugOpRoots((float) (-C / B));
         }
         const double p = B / (2 * A);
         const double q = C / A;
@@ -290,7 +290,7 @@ struct DebugOpMath {
         if (p2 < q)
             return DebugOpRoots();
         double sqrtl = sqrt(p2 - q);
-        return DebugOpRoots(sqrtl - p, -sqrtl - p);
+        return DebugOpRoots((float) (sqrtl - p), (float) (-sqrtl - p));
     }
 
     static DebugOpRoots QuadRootsValidT(double A, double B, double C) {
