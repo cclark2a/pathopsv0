@@ -41,6 +41,7 @@ OpRoots OpRoots::keepValidTs(float start, float end) {
 	return *this;
 }
 
+#if 0
 // move zero and one to the front so they get processed first
 void OpRoots::prioritize01() {
 	if (count <= 1)
@@ -55,6 +56,7 @@ void OpRoots::prioritize01() {
 	if (count > 2)
 		std::swap(roots[1], roots[count - 1]);  // zero in front, move 1 to second position
 }
+#endif
 
 OpVector OpVector::normalize() {
 	float len = length();
@@ -72,6 +74,7 @@ bool OpVector::isFinite() const {
 	return OpMath::IsFinite(dx) && OpMath::IsFinite(dy);
 }
 
+#if 0
 // Use the axis with the greatest change to decide if mid is between start and end.
 // While this doesn't work in general, the callers are dealing with coincident curves
 // which may be close, but not on top of each other. When they are axis-aligned, the
@@ -81,6 +84,7 @@ bool OpPoint::Between(OpPoint start, OpPoint mid, OpPoint end) {
 	XyChoice xy = scope.larger();
 	return OpMath::Between(start.choice(xy), mid.choice(xy), end.choice(xy));
 }
+#endif
 
 bool OpPoint::isFinite() const {
 	OP_ASSERT(!debugIsUninitialized());
@@ -252,6 +256,7 @@ OpPoint OpMath::Threshold(OpPoint pt1, OpPoint pt2) {
 	return OpPoint(threshold(pt1.x, pt2.x), threshold(pt1.y, pt2.y));
 }
 
+#if 0
 bool LinePts::isPoint() const {
 	return pts[1] == pts[0];
 }
@@ -270,6 +275,7 @@ OpPoint LinePts::ptAtT(float t) const {
 		return pts[1];
 	return (1 - t) * pts[0] + t * pts[1];
 }
+#endif
 
 bool LinePts::ptOnLine(OpPoint ctrlPt) const {
 	if (!OpMath::Between(pts[0].x, ctrlPt.x, pts[1].x))
@@ -288,6 +294,7 @@ bool LinePts::ptOnLine(OpPoint ctrlPt) const {
 	return true;
 }
 
+#if 0
 OpRoots LinePts::tangentIntersect(const LinePts& line) const {
 	if (line.pts[0].x == line.pts[1].x)
 		return axisTanHit(Axis::vertical, line.pts[0].x);
@@ -303,3 +310,4 @@ OpRoots LinePts::tangentIntersect(const LinePts& line) const {
 	}
 	return rotated.axisTanHit(Axis::vertical, 0);
 }
+#endif

@@ -16,6 +16,7 @@ float OpCurve::center(Axis axis, float intercept) const {
 	return roots.roots[0];
 }
 
+#if 0
 OpPtT OpCurve::cut(const OpPtT& ptT, float loBounds, float hiBounds, float direction) const {
 	OP_ASSERT(1 == fabsf(direction));
 	OP_ASSERT(loBounds <= ptT.t && ptT.t <= hiBounds);
@@ -36,6 +37,7 @@ OpPtT OpCurve::cut(const OpPtT& ptT, float loBounds, float hiBounds, float direc
 	} while ((direction *= tStep));
 	return cut;
 }
+#endif
 
 // cut range minimum should be double the distance between ptT pt and opp pt
 CutRangeT OpCurve::cutRange(const OpPtT& ptT, OpPoint oppPt, float loEnd, float hiEnd) const {
@@ -58,6 +60,7 @@ CutRangeT OpCurve::cutRange(const OpPtT& ptT, OpPoint oppPt, float loEnd, float 
 	return tRange;
 }
 
+#if 0
 OpPoint OpCurve::end(float t) const {
 	OP_ASSERT(0 == t || 1 == t);
 	return t ? lastPt() : firstPt();
@@ -83,6 +86,7 @@ OpPtT OpCurve::findIntersect(Axis axis, const OpPtT& opPtT) const {
 	}
 	return result;
 }
+#endif
 
 OpRootPts OpCurve::lineIntersect(const LinePts& line) const {
 	OpRootPts result;
@@ -265,6 +269,7 @@ float OpCurve::tAtXY(float t1, float t2, XyChoice xy, float goal) const {
 	return mid;
 }
 
+#if 0
 float OpCurve::tZeroX(float t1, float t2) const {
 	OpPair endCheck = xyAtT( { t1, t2 }, XyChoice::inX);
 	if (endCheck.s * endCheck.l > 0)  // if both are non zero and same sign, there's no crossing
@@ -280,6 +285,7 @@ float OpCurve::tZeroX(float t1, float t2) const {
 	}
 	return mid;
 }
+#endif
 
 #include "OpContour.h"
 

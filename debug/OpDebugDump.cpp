@@ -2446,7 +2446,11 @@ void OpCurveCurve::dumpClosest(const OpPoint& originalPt) const {
             break;
     } while (true);
     auto axisPtT = [originalPt](const OpEdge* e, Axis axis) {
+#if 0 //!!! move findT to debug so it can be called here
         OpPtT result = e->findT(axis, originalPt.choice(axis));
+#else
+		OpPtT result;
+#endif
         if (!result.pt.isFinite())
             result.pt = e->segment->c.ptAtT(result.t);
         return result;

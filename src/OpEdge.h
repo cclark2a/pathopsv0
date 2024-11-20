@@ -154,7 +154,7 @@ struct HullSect {
 struct OpHulls {
 	bool add(const OpPtT& ptT, OpVector threshold, SectType st, const OpEdge* o = nullptr);
 	void clear() { h.clear(); }
-	bool closeEnough(int index, const OpEdge& edge, const OpEdge& oEdge, OpPtT* oPtT, OpPtT* close);
+//	bool closeEnough(int index, const OpEdge& edge, const OpEdge& oEdge, OpPtT* oPtT, OpPtT* close);
 	void nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef which);
 	bool sectCandidates(int index, const OpEdge& edge);
 	void sort(bool useSmall);
@@ -298,7 +298,7 @@ public:
 	OpContours* contours() const;
 	OpPtT end() const { return OpPtT(endPt(), endT); }
 	OpPoint endPt() const { return curve.lastPt(); }
-	OpPtT findT(Axis , float oppXY) const;
+//	OpPtT findT(Axis , float oppXY) const;
 	OpPtT flipPtT(EdgeMatch match) const { 
 		return match == which() ? end() : start(); }
 	bool hasLinkTo(EdgeMatch match) const { 

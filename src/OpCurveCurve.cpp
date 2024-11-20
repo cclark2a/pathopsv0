@@ -26,6 +26,7 @@ bool CcCurves::checkMid(size_t index) {
 	return OpMath::InUnsorted(eS.oppDist, mid.oppDist, eE.oppDist, seg->threshold().length());
 }
 
+#if 0
 OpPtT CcCurves::closest(OpPoint pt) const {
 	OpPoint oBest;
 	float oBestDistSq = OpInfinity;
@@ -48,6 +49,7 @@ OpPtT CcCurves::closest(OpPoint pt) const {
 	}
 	return { oBest, oBestDistSq };
 };
+#endif
 
 // !!! this was lineIntersect which could miss if normal line points away from seg
 //     but it was changed without fixing the root bug, so may make things less stable ...
@@ -181,6 +183,7 @@ std::vector<CutRangeT> CcCurves::findGaps() const {
 	return gaps;
 }
 
+#if 0
 int CcCurves::groupCount() const {
 	if (!c.size())
 		return 0;
@@ -197,6 +200,7 @@ int CcCurves::groupCount() const {
 	}
 	return result;
 }
+#endif
 
 void CcCurves::initialEdgeRun(OpEdge* edge, const OpSegment* oppSeg) {
 	for (EdgeMatch match : { EdgeMatch::start, EdgeMatch::end } ) {
@@ -222,6 +226,7 @@ int CcCurves::overlaps() const {
 	return count;
 }
 
+#if 0
 float CcCurves::perimeter() const {
 	if (!c.size())
 		return 0;
@@ -230,6 +235,7 @@ float CcCurves::perimeter() const {
 		r.add(c[index]->ptBounds);
 	return r.perimeter();
 }
+#endif
 
 // snip out the curve 16 units to the side of the intersection point, to prevent another closeby
 // intersection from also getting recorded. The units maybe t values, or may be x/y distances.
@@ -1143,6 +1149,7 @@ void OpCurveCurve::setHulls(CurveRef curveRef) {
 	}
 }
 
+#if 0
 // !!! need to debug test case to get unsectable range right
 void OpCurveCurve::setIntersections() {
 	if (!limits.size())
@@ -1158,6 +1165,7 @@ void OpCurveCurve::setIntersections() {
 		addedPoint = true;
 	}
 }
+#endif
 
 bool OpCurveCurve::setOverlaps() {
 	edgeCurves.clear();
@@ -1260,10 +1268,13 @@ bool OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 		}
 		if (2 <= hulls.h.size()) {  // see if hulls are close enough to define an intersection
 			hulls.sort(smallTFound);
-			size_t limitCount = limits.size();
+	//		size_t limitCount = limits.size();
 			for (size_t index = 1; index < hulls.h.size(); ++index) {
 				if (!hulls.sectCandidates(index, edge))
 					continue;
+				OpDebugOut("!!! splitHulls fail:"  OP_DEBUG_CODE(+ contours->debugData.testname)
+					+ std::string("\n"));
+			#if 0
 				OP_ASSERT(hulls.h[index - 1].opp);
 				OpEdge& oEdge = const_cast<OpEdge&>(*hulls.h[index - 1].opp);
 				OpPtT oPtT;
@@ -1282,13 +1293,17 @@ bool OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 					recordSect(edgePtr, &oEdge, hull1Sect, oPtT  OP_LINE_FILE_PARGS());
 	//			curves.snipAndGo(edge.segment, hull1Sect);
 	//			oCurves.snipAndGo(oEdge.segment, oPtT);
+			#endif
 			}
+	#if 0
 			if (limitCount < limits.size()) {
 				OP_ASSERT(!edgePtr->disabled);
 				splits.c.push_back(edgePtr);  // caller will split with snip and go
 				continue;
 			}
+	#endif
 		}
+	#if 0
 		int midCount = 0;
 		for (const HullSect hull : hulls.h) {
 			if (edge.startT <= hull.sect.t && hull.sect.t <= edge.endT)
@@ -1297,11 +1312,13 @@ bool OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 		if (!midCount) {
 			OpPtT cutHere;
 			for (const HullSect hull : hulls.h) {
+		#if 0
 				if (OpMath::EqualT(hull.sect.t, edge.startT)) 
 					cutHere = edge.segment->c.cut(hull.sect, edge.startT, edge.endT, 1);
 				else if (OpMath::EqualT(hull.sect.t, edge.endT)) 
 					cutHere = edge.segment->c.cut(hull.sect, edge.startT, edge.endT, -1);
 				else
+		#endif
 					continue;
 				OP_ASSERT(edge.startT < cutHere.t && cutHere.t < edge.endT);
 				OP_ASSERT(!OpMath::EqualT(edge.startT, cutHere.t));
@@ -1314,6 +1331,7 @@ bool OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 			}
 			OP_ASSERT(0);  // !!! looks broken; fix with test case (or delete if never called)
 		}
+	#endif
 		OP_DEBUG_VALIDATE_CODE(hulls.debugValidate());
 		hulls.add(edge.start(), threshold, SectType::endHull);
 		hulls.add(edge.end(), threshold, SectType::endHull);

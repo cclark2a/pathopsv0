@@ -17,6 +17,7 @@ void OpIntersection::setUnsect(int uid, MatchEnds end) {
 	segment->sects.unsorted = true;
 }
 
+#if 0
 OpIntersection* OpIntersection::coinOtherEnd() {
 	auto endSect = std::find_if(segment->sects.i.begin(), segment->sects.i.end(), 
 			[this](const OpIntersection* test) { 
@@ -24,6 +25,7 @@ OpIntersection* OpIntersection::coinOtherEnd() {
 	OP_ASSERT(segment->sects.i.end() != endSect);
 	return *endSect;
 };
+#endif
 
 OpIntersections::OpIntersections()
 	: unsorted(false) {
@@ -130,6 +132,7 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 	}
 }
 
+#if 0
 const OpIntersection* OpIntersections::nearly(const OpPtT& ptT, OpSegment* oSeg) const {
 	for (unsigned index = 0; index < i.size(); ++index) {
 		OpIntersection* sect = i[index];
@@ -154,6 +157,7 @@ void OpIntersections::range(const OpSegment* opp, std::vector<OpIntersection*>& 
 		}
 	}
 }
+#endif
 
 std::vector<OpIntersection*> OpIntersections::unsectables(OpPoint pt) {
 	std::vector<OpIntersection*> result;
@@ -205,14 +209,17 @@ bool SectPreferred::find() {
 			sawBest = true;
 			if (sects.i.back()->ptT.isNearly(best->ptT, seg->threshold())) {
 // small segment may have first and last nearly touching
+#if 0
 				if (0 == best->ptT.t) {
 					seg->setDisabled(OP_LINE_FILE_NPARGS());
 					return false;
 				}
+#endif
 				OP_ASSERT(1 == sects.i.back()->ptT.t);
 				best->ptT.t = 1;
 			}
 		} else if (test->ptT != best->ptT) {
+	#if 0
 			if (test->ptT.onEnd()) {
 				if (bestOnEnd) {
 					seg->movePt(test->ptT, best->ptT.pt);  // !!! trace through -- may need rewrite
@@ -222,6 +229,7 @@ bool SectPreferred::find() {
 				}
 				return false; // best changed; start over
 			}
+	#endif
 			if (test->ptT.pt != best->ptT.pt)
 				sects.moveSects(test->ptT, best->ptT.pt);
 		}
@@ -229,7 +237,7 @@ bool SectPreferred::find() {
 			OpIntersection* save = best;
 			best = test->opp;
 			if (!find())
-				return false;
+				return false;	// code coverage says: never executed
 			best = save;
 		}
 	}
@@ -250,8 +258,10 @@ bool OpIntersections::checkCollapse(OpIntersection* sect) {
 		if (test->ptT == sect->ptT) {
 			if (cID)
 				sect->zeroCoincidenceID();
+#if 0
 			if (uID)
 				sect->zeroUnsectID();
+#endif
 			result = test->collapsed = test->opp->collapsed = true;
 		} else {
 			OP_ASSERT(test->ptT.pt != sect->ptT.pt);

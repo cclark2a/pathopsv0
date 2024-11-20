@@ -206,30 +206,32 @@ void SectRay::sort() {
 	});
 }
 
-OpWinder::OpWinder(OpContours& contours, EdgesToSort edgesToSort) {
+OpWinder::OpWinder(OpContours& contours) {
 	for (auto contour : contours.contours) {
 		for (auto& segment : contour->segments) {
 			for (auto& edge : segment.edges) {
-				addEdge(&edge, edgesToSort);
+				addEdge(&edge);
 			}
 		}
 	}
-	sort(edgesToSort);
+	sort();
 	workingAxis = Axis::neither;
 }
 
+#if 0
 OpWinder::OpWinder(OpEdge* sEdge, OpEdge* oEdge) {
 	addEdge(sEdge, EdgesToSort::byCenter);
 	addEdge(oEdge, EdgesToSort::byCenter);
 	workingAxis = Axis::neither;
 }
+#endif
 
-void OpWinder::addEdge(OpEdge* edge, EdgesToSort edgesToSort) {
+void OpWinder::addEdge(OpEdge* edge) {
 	if (edge->disabled)
 		return;
-	if (EdgesToSort::byBox == edgesToSort || edge->ptBounds.height())
+	if (edge->ptBounds.height())
 		inX.push_back(edge);
-	if (EdgesToSort::byCenter == edgesToSort && edge->ptBounds.width())
+	if (edge->ptBounds.width())
 		inY.push_back(edge);
 }
 
@@ -472,6 +474,7 @@ IntersectResult OpWinder::CoincidentCheck(std::array<CoinEnd, 4>& ends, bool* op
 	return IntersectResult::coincident;
 }
 
+#if 0
 // upscale t to call segment line curve intersection
 // !!! I'm bothered that segment / segment calls a different form of this
 // Return if an intersection was added so that op curve curve can record this
@@ -583,6 +586,7 @@ IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bo
 	}
 	return sectAdded;
 }
+#endif
 
 FoundIntercept OpWinder::findRayIntercept(size_t homeIndex, OpVector homeTan, float normal, 
 		float homeCept) {
@@ -963,6 +967,7 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 	return FoundWindings::yes;
 }
 
+#if 0
 static bool compareXBox(const OpEdge* s1, const OpEdge* s2) {
 	const OpRect& r1 = s1->ptBounds;
 	const OpRect& r2 = s2->ptBounds;
@@ -976,6 +981,7 @@ static bool compareXBox(const OpEdge* s1, const OpEdge* s2) {
 		return false;
 	return s1->id < s2->id;
 }
+#endif
 
 // starting at left (-x), increasing
 static bool compareXCenter(const OpEdge* s1, const OpEdge* s2) {
@@ -987,12 +993,14 @@ static bool compareYCenter(const OpEdge* s1, const OpEdge* s2) {
 	return s1->ptBounds.top < s2->ptBounds.top;
 }
 
-void OpWinder::sort(EdgesToSort sortBy) {
-	if (EdgesToSort::byBox == sortBy) {
+void OpWinder::sort() {
+#if 0
+if (EdgesToSort::byBox == sortBy) {
 		std::sort(inX.begin(), inX.end(), compareXBox);
 		return;
-	}
-	OP_ASSERT(EdgesToSort::byCenter == sortBy);
+}
+#endif
+// OP_ASSERT(EdgesToSort::byCenter == sortBy);
 	std::sort(inX.begin(), inX.end(), compareXCenter);
 	std::sort(inY.begin(), inY.end(), compareYCenter);
 }

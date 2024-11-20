@@ -32,6 +32,7 @@ bool OpHulls::add(const OpPtT& ptT, OpVector threshold, SectType sectType, const
 	return nearEnd;
 }
 
+#if 0
 bool OpHulls::closeEnough(int index, const OpEdge& edge, const OpEdge& oEdge, OpPtT* oPtT,
 		OpPtT* hull1Sect) {
 	if (!hull1Sect->pt.isNearly(oPtT->pt, edge.segment->threshold())) {
@@ -60,6 +61,7 @@ bool OpHulls::closeEnough(int index, const OpEdge& edge, const OpEdge& oEdge, Op
 	}
 	return true;
 }
+#endif
 
 bool OpHulls::sectCandidates(int index, const OpEdge& edge) {
 	const HullSect& hullStart = h[index - 1];
@@ -68,6 +70,7 @@ bool OpHulls::sectCandidates(int index, const OpEdge& edge) {
 	const OpPtT& hull2Sect = hullEnd.sect;
 	if (!hull1Sect.isNearly(hull2Sect, edge.segment->threshold()))
 		return false;
+#if 0
 	if (SectType::controlHull == h[index - 1].type
 			&& SectType::controlHull == h[index].type)
 		return false;
@@ -85,7 +88,8 @@ bool OpHulls::sectCandidates(int index, const OpEdge& edge) {
 		if (!hull1Sect.isNearly(ePtT, edge.segment->threshold()))
 			return false;
 	}
-	return true;
+#endif
+	return true;	// code coverage says this is never reached...
 }
 
 void OpHulls::nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef which) {
@@ -377,6 +381,7 @@ bool OpEdge::containsLink(const OpEdge* edge) const {
 	return false;
 }
 
+#if 0
 OpPtT OpEdge::findT(Axis axis, float oppXY) const {
 	OpPtT found;
 	float startXY = startPt().choice(axis);
@@ -393,6 +398,7 @@ OpPtT OpEdge::findT(Axis axis, float oppXY) const {
 	}
 	return found;
 }
+#endif
 
 void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 	OpEdge* oppEdge = found.edge;
@@ -723,12 +729,7 @@ bool OpEdge::unsectableSeen(EdgeMatch match) const {
 }
 #endif
 
-#if OP_DEBUG
-bool OpEdge::debugFail() const {
-	return segment->debugFail();
-}
-#endif
-
+#if 0
 bool OpEdgeStorage::contains(OpIntersection* start, OpIntersection* end) const {
 	for (size_t index = 0; index < used; index++) {
 		const OpEdge* test = &storage[index];
@@ -740,6 +741,7 @@ bool OpEdgeStorage::contains(OpIntersection* start, OpIntersection* end) const {
 		return false;
 	return next->contains(start, end);
 }
+#endif
 
 bool OpEdgeStorage::contains(OpPoint start, OpPoint end) const {
 	for (size_t index = 0; index < used; index++) {

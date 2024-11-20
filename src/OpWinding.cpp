@@ -32,10 +32,12 @@ void OpWinding::add(const OpWinding& winding) {
 	w = contour->callBacks.windingAddFuncPtr(w, winding.w);
 }
 
+#if 0
 // returns true if not equal
 bool OpWinding::equal(PathOpsV0Lib::Winding comp) const {
 	return w.size == comp.size && !memcmp(w.data, comp.data, w.size);
 }
+#endif
 
 PathOpsV0Lib::Winding OpWinding::copyData() const {
 	OpContours* contours = contour->contours;

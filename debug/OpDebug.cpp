@@ -94,9 +94,8 @@ float OpTicksToSeconds(uint64_t diff, uint64_t frequency) {
 void OpDebugOut(const std::string& s) {
 #ifdef _WIN32
     if (s.size()) OutputDebugStringA(s.c_str());  // !!! printing empty strings slows visual studio!
-#else
-    fprintf(stderr, "%s", s.c_str());
 #endif
+    fprintf(stderr, "%s", s.c_str());
 }
 
 #include "OpMath.h"
@@ -440,6 +439,12 @@ void OpMath::DebugCompare(float a, float b) {
     OP_ASSERT(pPrecision < OpEpsilon);
 }
 
+void OpMath::DebugCompare(OpPoint a, OpPoint b) {
+	DebugCompare(a.x, b.x);
+	DebugCompare(a.y, b.y);
+}
+
+
 bool OpMath::IsDebugNaN(float f) {
 	if (!std::isnan(f))
 		return false;
@@ -584,6 +589,10 @@ void OpEdge::debugValidate() const {
     OP_ASSERT(0);
 }
 #endif
+
+bool OpEdge::debugFail() const {
+	return segment->debugFail();
+}
 
 bool OpEdge::debugSuccess() const {
     return segment->debugSuccess();
@@ -941,6 +950,15 @@ void OpJoiner::debugValidate() const {
 void OpSegment::debugValidate() const {
     for (auto i : sects.i)
         i->debugValidate();
+}
+
+
+bool OpSegment::debugFail() const {
+	return contour->contours->debugFail();
+}
+
+bool OpSegment::debugSuccess() const {
+	return contour->contours->debugSuccess();
 }
 
 OpTree::~OpTree() {

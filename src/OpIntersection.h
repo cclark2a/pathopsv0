@@ -66,7 +66,7 @@ struct OpIntersection {
 	}
 
 	// void betweenPair(OpIntersection* );
-	OpIntersection* coinOtherEnd();
+	// OpIntersection* coinOtherEnd();
 
 	void pair(OpIntersection* o) {
 		OP_ASSERT(abs(unsectID) == abs(o->unsectID)); 
@@ -106,6 +106,7 @@ struct OpIntersection {
 		opp->coinEnd = MatchEnds::none;
 	}
 
+#if 0
 	void zeroUnsectID() {
 		OP_ASSERT(unsectID);
 		OP_ASSERT(opp->unsectID);
@@ -114,6 +115,7 @@ struct OpIntersection {
 		opp->unsectID = 0;
 		opp->unsectEnd = MatchEnds::none;
 	}
+#endif
 
 #if OP_DEBUG
 	void debugSetID();
@@ -164,8 +166,8 @@ struct OpIntersections {
 //	OpIntersection* const * entry(const OpPtT& , const OpSegment* opp) const;  // exact opp + ptT
 	void eraseCollapsed();
 	void makeEdges(OpSegment* );
-	const OpIntersection* nearly(const OpPtT& ptT, OpSegment* oSeg) const;  // near match of pt or t
-	void range(const OpSegment* , std::vector<OpIntersection*>& );
+//	const OpIntersection* nearly(const OpPtT& ptT, OpSegment* oSeg) const;  // near match of pt or t
+//	void range(const OpSegment* , std::vector<OpIntersection*>& );
 	bool simpleEnd() const;  // true if array has only one entry with t equal to one
 	bool simpleStart() const;  // true if array has only one entry with t equal to zero
 	void sort();  // 

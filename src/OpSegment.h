@@ -37,7 +37,7 @@ struct FoundEdge {
 		, loops(false) {
 	}
 
-	void check(std::vector<FoundEdge>* edges, OpEdge* test, EdgeMatch , OpPoint match);
+//	void check(std::vector<FoundEdge>* edges, OpEdge* test, EdgeMatch , OpPoint match);
 	void reset();
 	DUMP_DECLARATIONS
 
@@ -71,8 +71,8 @@ struct OpSegment {
 	bool activeAtT(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const; // true if pal
 	bool activeNeighbor(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const; // true if pal
 	void addAlias(OpPoint original, OpPoint alias);
-	OpIntersection* addEdgeSect(const OpPtT&    
-			OP_LINE_FILE_DEF(const OpEdge* e, const OpEdge* o));
+//	OpIntersection* addEdgeSect(const OpPtT&    
+//			OP_LINE_FILE_DEF(const OpEdge* e, const OpEdge* o));
 	OpIntersection* addSegBase(const OpPtT&  
 			OP_LINE_FILE_DEF(const OpSegment* o));
 	OpIntersection* addSegSect(const OpPtT& , const OpSegment* o  
@@ -90,7 +90,7 @@ struct OpSegment {
 //    void complete();
 	void disableSmall();
 	OpEdge* findEnabled(const OpPtT& , EdgeMatch ) const;
-	float findAxisT(Axis , float start, float end, float oppXY);
+//	float findAxisT(Axis , float start, float end, float oppXY);
 	void findMissingEnds();
 //    float findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const;
 	float findValidT(float start, float end, OpPoint opp);
@@ -117,7 +117,7 @@ struct OpSegment {
 	void normalize();
 	OpPtT ptAtT(const OpPtT& ) const;
 	void remap(OpPoint oldAlias, OpPoint newAlias);  // local remap
-	OpPoint remapPts(OpPoint oldAlias, OpPoint newAlias);  // call through
+//	OpPoint remapPts(OpPoint oldAlias, OpPoint newAlias);  // call through
 	void resetBounds();
 	void setDisabled(OP_LINE_FILE_NP_ARGS());
 	bool simpleEnd(const OpEdge* ) const;  // true if edge end connects to only one segment
@@ -126,8 +126,10 @@ struct OpSegment {
 	void transferCoins();
 //    void windCoincidences();
 
+#if OP_DEBUG
 	bool debugFail() const;
 	bool debugSuccess() const;
+#endif
 #if OP_DEBUG_VALIDATE
 	void debugValidate() const;
 #endif

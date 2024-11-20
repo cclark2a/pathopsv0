@@ -32,10 +32,10 @@ struct OpCurve {
 	OpRoots axisRayHit(Axis offset, float axisIntercept, float start = 0, float end = 1) const;
 	OpRoots axisRawHit(Axis offset, float axisIntercept, MatchEnds ) const;
 	float center(Axis offset, float axisIntercept) const;
-	OpPtT cut(const OpPtT& ptT, float loBounds, float hiBounds, float direction) const;
+//	OpPtT cut(const OpPtT& ptT, float loBounds, float hiBounds, float direction) const;
 	CutRangeT cutRange(const OpPtT& ptT, OpPoint oppPt, float loEnd, float hiEnd) const;
-	OpPoint end(float t) const;
-	OpPtT findIntersect(Axis offset, const OpPtT& ) const;
+//	OpPoint end(float t) const;
+//	OpPtT findIntersect(Axis offset, const OpPtT& ) const;
 	OpPoint firstPt() const  {
 		return c.data->start; } 
 	OpPoint hullPt(int index) const;
@@ -74,7 +74,7 @@ struct OpCurve {
 	// rotates curve so that line's (pt[0], pt[1]) moves to ((0, 0), (0, line[1].y - line[0].y))
 	// curve scale is not preserved
 	OpCurve toVertical(const LinePts& line, MatchEnds ) const;
-	float tZeroX(float t1, float t2) const;  // binary search on t-range finds vert crossing zero
+//	float tZeroX(float t1, float t2) const;  // binary search on t-range finds vert crossing zero
 	OpPair xyAtT(OpPair t, XyChoice xy) const;
 #if OP_DEBUG
 	bool debugIsLine() const;

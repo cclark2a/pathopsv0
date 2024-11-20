@@ -2,9 +2,19 @@
 project(pov0 VERSION 0.1)
 
 set(FAST_TEST 1)
-set(TEST_V0 0)
+
+set(SKIP_TO_V0 0)
 set(TEST_FIRST "")
-set(TEST_FILE "")
+set(SKIP_TO_FILE "")
+set(TEST_EXTENDED 0)
+
+if (NOT DEFINED ONLY_V0)
+	set(TEST_SKIA 1)
+	set(TEST_REGION 1)
+else()
+	set(TEST_SKIA 0)
+	set(TEST_REGION 0)
+endif()
 
 configure_file(../tests/OpTestDrive.h.in ../tests/OpTestDrive.h)
 configure_file(../tests/OpSkiaTests.h.in ../tests/OpSkiaTests.h)
@@ -80,6 +90,9 @@ include_directories(
 	"../.."
 )
 
+include(CodeCoverage.cmake)
+append_coverage_compiler_flags()
+
 target_compile_definitions(skiatest PUBLIC OP_TINY_SKIA=1 NOMINMAX _CRT_SECURE_NO_WARNINGS)
 target_compile_definitions(tinytest PUBLIC OP_TINY_SKIA=1 NOMINMAX _CRT_SECURE_NO_WARNINGS OP_TINY_TEST=1)
 
@@ -87,7 +100,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options(skiatest PUBLIC /wd4200 /wd4244 /wd4267)
     target_compile_options(tinytest PUBLIC /wd4200 /wd4244 /wd4267)
 else()
-    target_compile_options(skiatest PUBLIC -Wall -Wextra -Wpedantic -Wno-unused-parameter)
+    target_compile_options(skiatest PUBLIC -Wall -Wextra -Wpedantic -Wno-unused-parameter -fprofile-update=atomic)
     target_compile_options(tinytest PUBLIC -Wall -Wextra -Wpedantic -Wno-unused-parameter)
 endif()
 
@@ -97,3 +110,11 @@ if (CMAKE_VERSION VERSION_GREATER 3.12)
 endif()
 
 # TODO: Add tests and install targets if needed.
+
+# (remove all built files, remove lines to build tinytest?)
+# cmake -DCMAKE_BUILD_TYPE=Debug ../cmake
+# make
+# ./skiatest
+# lcov -c -d  . -o skiatest.info
+# genhtml --ignore-errors inconsistent skiatest.info --output-directory skiatestout
+# file:///D:/gerrit/skia/example/cmake/skiatestout/example/

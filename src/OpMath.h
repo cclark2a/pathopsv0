@@ -152,7 +152,7 @@ struct OpRoots {
 		return &roots[count - 1];
 	}
 
-	void prioritize01();
+	// void prioritize01();
 
 	void sort() {
 		std::sort(roots.begin(), roots.begin() + count);
@@ -487,7 +487,7 @@ struct OpPoint {
 		return &x + +xyChoice;
 	}
 
-	static bool Between(OpPoint start, OpPoint mid, OpPoint end);
+	// static bool Between(OpPoint start, OpPoint mid, OpPoint end);
 
 	float choice(Axis axis) const {
 		return *asPtr(axis);
@@ -897,13 +897,8 @@ struct OpMath {
 
 #if OP_DEBUG
 	static bool IsDebugNaN(float x);
-
 	static void DebugCompare(float a, float b);
-
-	static void DebugCompare(OpPoint a, OpPoint b) {
-		DebugCompare(a.x, b.x);
-		DebugCompare(a.y, b.y);
-	}
+	static void DebugCompare(OpPoint a, OpPoint b);
 #endif
 };
 
@@ -921,11 +916,11 @@ struct OpCubicCoefficients {
 };
 
 struct LinePts {
-	OpRoots axisTanHit(Axis axis, float axisIntercept) const;
-	bool isPoint() const;
-	OpPoint ptAtT(float t) const;
+//	OpRoots axisTanHit(Axis axis, float axisIntercept) const;
+//	bool isPoint() const;
+//	OpPoint ptAtT(float t) const;
 	bool ptOnLine(OpPoint pt) const;
-	OpRoots tangentIntersect(const LinePts& line) const;
+//	OpRoots tangentIntersect(const LinePts& line) const;
 	DUMP_DECLARATIONS
 
 	std::array<OpPoint, 2> pts;

@@ -100,6 +100,7 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 	// if line and curve share end point, pass hint that root finder can call
 	// reduced form that assumes one root is zero or one.
 	OpRoots septs = opp->c.rayIntersect(edgePts, matchRev.match);
+#if 0  // code coverage did not detect any of these cases
 	if (septs.fail == RootFail::rawIntersectFailed) {
 		// binary search on opp t-range to find where vert crosses zero
 		OpCurve rotated = opp->c.toVertical(edgePts, matchRev.match);
@@ -114,6 +115,11 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 		OpWinder::CoincidentCheck(seg, opp);
 		return;
 	}
+#else
+	OP_ASSERT(septs.fail != RootFail::rawIntersectFailed);
+	OP_ASSERT(!opp->c.isLine() || MatchEnds::both != matchRev.match);
+	OP_ASSERT(2 != septs.count || !opp->c.isLine());
+#endif
 	std::vector<OpPtT> oppPtTs;
 	std::vector<OpPtT> edgePtTs;
 	size_t segSects = seg->sects.i.size();

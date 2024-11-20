@@ -8,10 +8,7 @@
 #define TESTS_TO_SKIP 0 // 14295903  // tests to skip
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
-#define OP_TEST_ALLOW_EXTENDED 0  // some Skia tests have extended versions which take longer
 #define OP_TEST_V0 1  // set to zero to time Skia running tests
-#define OP_TEST_SKIA 1  // see if skia's path ops can execute the same test
-#define OP_TEST_REGION 1  // test result of v0 against skia regions
 
 #define CURVE_CURVE_1 7  // id of segment 1 to break in divide and conquer
 #define CURVE_CURVE_2 2  // id of segment 2 to break in divide and conquer
@@ -106,9 +103,9 @@ std::vector<testInfo> testSuites = {
 std::vector<std::string> skipTestFiles = { TEST_PATH_OP_SKIP_FILES };
 std::vector<std::string> skipRestFiles = { TEST_PATH_OP_SKIP_REST };
 std::string requestedFirst = TEST_FIRST;
-std::string testFirst = OP_DEBUG_FAST_TEST || TEST_PATH_OP_SKIP_TO_V0 ? "" : TEST_FIRST;
-bool runOneFile = (!requestedFirst.empty() || TEST_PATH_OP_SKIP_TO_V0) && !OP_DEBUG_FAST_TEST;
-std::string skipToFile = TEST_PATH_OP_SKIP_TO_FILE;
+std::string testFirst = OP_DEBUG_FAST_TEST || SKIP_TO_V0 ? "" : TEST_FIRST;
+bool runOneFile = (!requestedFirst.empty() || SKIP_TO_V0) && !OP_DEBUG_FAST_TEST;
+std::string skipToFile = SKIP_TO_FILE;
 std::atomic_int testIndex; 
 bool showTestName = OP_SHOW_TEST_NAME;
 std::atomic_int testsRun;
@@ -151,14 +148,14 @@ bool OpDebugSkipBreak() {
 #if OP_DEBUG_FAST_TEST
 	return true;
 #else
-	return !(TEST_PATH_OP_SKIP_TO_V0  OP_DEBUG_CODE(|| requestedFirst.size()));
+	return !(SKIP_TO_V0  OP_DEBUG_CODE(|| requestedFirst.size()));
 #endif
 }
 #endif
 
 // short-circuit extended if only one test is run
 bool skiatest::Reporter::allowExtendedTest() {
-    return "" == testFirst ? OP_TEST_ALLOW_EXTENDED : !endFirstTest;
+    return "" == testFirst ? TEST_EXTENDED : !endFirstTest;
 }
 
 // If code is built with the right architecture, the numerics use float multiply-add, which is
@@ -251,12 +248,12 @@ bool skipTest(std::string name) {
         ++testsDot;
         ++testsLine;
         if (!OP_SHOW_ERRORS_ONLY && !showTestName 
-                && testsDot > (OP_TEST_ALLOW_EXTENDED ? 5000 : 500)) {
+                && testsDot > (TEST_EXTENDED ? 5000 : 500)) {
             OpDebugOut(".");
-            testsDot -= OP_TEST_ALLOW_EXTENDED ? 5000 : 500;
-            if (testsLine > (OP_TEST_ALLOW_EXTENDED ? 500000 : 50000)) {
+            testsDot -= TEST_EXTENDED ? 5000 : 500;
+            if (testsLine > (TEST_EXTENDED ? 500000 : 50000)) {
                 OpDebugOut("\n");
-                testsLine -= OP_TEST_ALLOW_EXTENDED ? 500000 : 50000;
+                testsLine -= TEST_EXTENDED ? 500000 : 50000;
             }
         }
     }
@@ -270,7 +267,7 @@ void bulkTest(int index) {
     for (auto testSuite : testSuites) {
         if (skipToFile.size() && testSuite.name != skipToFile)
             continue;
-        totalTests += OP_TEST_ALLOW_EXTENDED ? testSuite.extended : testSuite.count;
+        totalTests += TEST_EXTENDED ? testSuite.extended : testSuite.count;
     }
     int firstTest = index * totalTests / OP_MAX_THREADS;
     firstTest += TESTS_TO_SKIP / OP_MAX_THREADS;
@@ -278,7 +275,7 @@ void bulkTest(int index) {
     for (auto testSuite : testSuites) {
         if (skipToFile.size() && testSuite.name != skipToFile)
             continue;
-        int testCount = OP_TEST_ALLOW_EXTENDED ? testSuite.extended : testSuite.count;
+        int testCount = TEST_EXTENDED ? testSuite.extended : testSuite.count;
         firstTest -= testCount;
         lastTest -= testCount;
         if (firstTest < 0) {
@@ -688,7 +685,7 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     debugData.curveCurveDepth = CURVE_CURVE_DEPTH;
 	(void) OpV0(a, b, op, &result, &debugData);
 #endif
-#if OP_TEST_SKIA
+#if TEST_SKIA
     SkPath skresult;
 #if OP_TINY_SKIA
 	bool skSuccess = skiaMayFail;
@@ -706,12 +703,12 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     if (skiaMayFail && skSuccess)
         testsFailSkiaPass++;
 #endif
-#elif OP_TEST_REGION
+#elif TEST_REGION
     bool skSuccess = true;
 #endif
     if (startFirstTest && runOneFile)
         endFirstTest = true;
-#if OP_TEST_V0 && OP_TEST_REGION
+#if OP_TEST_V0 && TEST_REGION
     if (!debugData.success || !skSuccess || v0MayFail || skiaMayFail || mayDiffer)
         return;
     int errors = VerifyOp(a, b, op, testname, result, v0MayFail);
@@ -729,7 +726,9 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
             totalError++;
 #endif
     }
-
+#else
+	if (std::string(tn) == "never!")  // prevent tn from being optimized out
+		OpDebugOut("");
 #endif
 }
 
@@ -988,7 +987,9 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
 		return;
 #endif
 #if OP_TEST_V0
+#if TEST_REGION
 	const SkPath& p = path;
+#endif
     out.setFillType(SkPathFillType::kEvenOdd); // !!! workaround
     std::vector<OpDebugWarning> warnings;
     const char* tn = testname.c_str();
@@ -1002,7 +1003,7 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
 	(void) SimplifyV0(path, &out, &debugData);
     OP_ASSERT(v0MayFail || debugData.success);
 #endif
-#if OP_TEST_SKIA
+#if TEST_SKIA
     SkPath skOut;
 #if OP_TINY_SKIA
 	bool skSuccess = skiaMayFail;
@@ -1022,7 +1023,7 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
 #endif
     if (startFirstTest && runOneFile)
         endFirstTest = true;
-#if OP_TEST_V0 && OP_TEST_REGION
+#if OP_TEST_V0 && TEST_REGION
     if (!debugData.success)
         return;
     int errors = VerifySimplify(path, testname, out, v0MayFail);

@@ -2,8 +2,11 @@
 #ifndef OpSkiaTests_DEFINED
 #define OpSkiaTests_DEFINED
 
-#define TEST_PATH_OP_SKIP_TO_V0 0
-#define TEST_FIRST ""
-#define TEST_PATH_OP_SKIP_TO_FILE ""
+#define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
+#define SKIP_TO_FILE "" // e.g., loop to test only loops
+#define TEST_FIRST "loop48977"  // e.g., loop48977 to test only one
+#define TEST_EXTENDED 1
+#define TEST_SKIA 1
+#define TEST_REGION 1
 
 #endif

@@ -17,10 +17,12 @@ enum class ChainFail {
 	normalizeUnderflow
 };
 
+#if 0
 enum class EdgesToSort {
 	byBox,		// when walking to intersect, use box only
 	byCenter 	// when walking to determine winding, use box and center ray
 };
+#endif
 
 enum class FoundIntersections {
 	fail,
@@ -53,11 +55,11 @@ struct CoinEnd {
 };
 
 struct OpWinder {
-	OpWinder(OpContours& contours, EdgesToSort edgesToSort);
-	OpWinder(OpEdge* sEdge, OpEdge* oEdge);
-	void addEdge(OpEdge* , EdgesToSort );
-	static IntersectResult AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, 
-			bool secondAttempt = false);
+	OpWinder(OpContours& contours);
+//	OpWinder(OpEdge* sEdge, OpEdge* oEdge);
+	void addEdge(OpEdge* );
+//	static IntersectResult AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, 
+//			bool secondAttempt = false);
 	static IntersectResult CoincidentCheck(OpSegment* seg, OpSegment* opp);
 	static IntersectResult CoincidentCheck(std::array<CoinEnd, 4>& ends, bool* oppReversed,
 			XyChoice* );
@@ -68,7 +70,7 @@ struct OpWinder {
 	ChainFail setSumChain(size_t inIndex);
 	ResolveWinding setWindingByDistance(OpContours* );
 	FoundWindings setWindings(OpContours* );
-	void sort(EdgesToSort);
+	void sort();
 
 #if OP_DEBUG_VALIDATE
 	void debugValidate() const;

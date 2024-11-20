@@ -36,12 +36,14 @@ void OpContours::addCallerData(PathOpsV0Lib::AddContext data) {
 	caller.size = data.size;  // !!! don't know if size is really needed ...
 }
 
+#if 0
 OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg  
 		OP_LINE_FILE_DEF(const OpEdge* edge, const OpEdge* oEdge)) {
 	OpIntersection* next = contours->allocateIntersection();
 	next->set(t, seg  OP_LINE_FILE_CALLER(edge->id, oEdge->id));
 	return next;
 }
+#endif
 
 OpIntersection* OpContour::addCoinSect(const OpPtT& t, OpSegment* seg, int cID, MatchEnds coinEnd
 		OP_LINE_FILE_DEF(const OpSegment* oSeg)) {
@@ -150,12 +152,14 @@ bool OpPtAliases::isSmall(OpPoint pt1, OpPoint pt2) {
 				return { alias, PtType::original };
 			}
 		}
+#if 0
 		for (OpPtAlias& test : maps) {
 			if (pt.isNearly(test.original, threshold)) {
 				add(pt, test.alias);
 				return { test.alias, PtType::original };
 			}
 		}
+#endif
 		return { pt, PtType::noMatch };
 	};
 	SegPt match1 = match(pt1);
@@ -444,7 +448,7 @@ bool OpContours::pathOps() {
 #endif
 	disableSmallSegments();  // moved points may allow disabling some segments
 	if (empty()) {
-		contextCallBacks.emptyNativePathFuncPtr(callerOutput);
+		contextCallBacks.emptyNativePathFuncPtr(callerOutput);  // no existing tests exercises
 		OP_DEBUG_SUCCESS(*this, true);
 	}
 	sortIntersections();
@@ -459,10 +463,10 @@ bool OpContours::pathOps() {
 
 	// made edges may include lines that are coincident with other edges. Undetected for now...
 //    windCoincidences();  // for segment h/v lines, compute their winding considering coincidence
-	OpWinder windingEdges(*this, EdgesToSort::byCenter);
+	OpWinder windingEdges(*this);
 	FoundWindings foundWindings = windingEdges.setWindings(this);  // walk edges, compute windings
 	if (FoundWindings::fail == foundWindings)
-		OP_DEBUG_FAIL(*this, false);
+		OP_DEBUG_FAIL(*this, false);  // no existing tests exercises
 	OP_DEBUG_DUMP_CODE(debugContext = "apply");
 	apply();  // suppress edges which don't meet op criteria
 	if (!assemble())

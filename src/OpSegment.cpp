@@ -4,6 +4,7 @@
 #include "OpSegment.h"
 #include "OpWinder.h"
 
+#if 0
 void FoundEdge::check(std::vector<FoundEdge>* edges, OpEdge* test, EdgeMatch em, OpPoint match) {
 	if (edges && edges->size())
 		return;
@@ -14,6 +15,7 @@ void FoundEdge::check(std::vector<FoundEdge>* edges, OpEdge* test, EdgeMatch em,
 		whichEnd = em;
 	}
 }
+#endif
 
 void FoundEdge::reset() {
 	edge = nullptr;
@@ -142,12 +144,14 @@ void OpSegment::addAlias(OpPoint original, OpPoint alias) {
 	contour->contours->addAlias(original, alias);
 }
 
+#if 0
 OpIntersection* OpSegment::addEdgeSect(const OpPtT& ptT  
 		OP_LINE_FILE_DEF(const OpEdge* debugEdge, const OpEdge* debugOpp)) {
 	OP_ASSERT(!sects.debugContains(ptT, debugOpp->segment));
 	return sects.add(contour->addEdgeSect(ptT, this  
 			OP_LINE_FILE_CALLER(debugEdge, debugOpp)));
 }
+#endif
 
 OpIntersection* OpSegment::addSegBase(const OpPtT& ptT  
 		OP_LINE_FILE_DEF(const OpSegment* oSeg)) {
@@ -417,6 +421,7 @@ OpEdge* OpSegment::findEnabled(const OpPtT& ptT, EdgeMatch match) const {
 	return nullptr;
 }
 
+#if 0
 // used to find unsectable range; assumes range all has about the same slope
 // !!! this may be a bad idea if two near coincident edges turn near 90 degrees
 float OpSegment::findAxisT(Axis axis, float start, float end, float opp) {
@@ -432,6 +437,7 @@ float OpSegment::findAxisT(Axis axis, float start, float end, float opp) {
 	}
 	return OpNaN;
 }
+#endif
 
 // rarely, moving points prevents finding matching ends. If there is no end, do an exhaustive search
 void OpSegment::findMissingEnds() {
@@ -440,6 +446,7 @@ void OpSegment::findMissingEnds() {
 	if (disabled)
 		return;
 	OP_ASSERT(!sects.unsorted);
+#if 0
 	OpContours* contours = contour->contours;
 	if (!sects.i.size() || 0 != sects.i.front()->ptT.t) {
 		OpPoint alias = contours->aliases.existing(c.firstPt());
@@ -491,6 +498,7 @@ void OpSegment::findMissingEnds() {
 			}
 		}
 	}
+#endif
 	if (startMoved || endMoved)
 		resetBounds();
 }
@@ -501,6 +509,7 @@ float OpSegment::findValidT(float start, float end, OpPoint opp) {
 	if (!c.isLine()) {
 		OpRoots hRoots = c.axisRayHit(Axis::horizontal, opp.y, start, end);
 		OpRoots vRoots = c.axisRayHit(Axis::vertical, opp.x, start, end);
+	#if 01 // code coverage says this is unused, but it is required for loop48977
 		if (1 != hRoots.count && 1 != vRoots.count) {
 			if (0 == start && opp.isNearly(c.firstPt(), threshold()))
 				return 0;
@@ -512,6 +521,7 @@ float OpSegment::findValidT(float start, float end, OpPoint opp) {
 			OP_ASSERT(1 == vRoots.count);  // !!! triggered by thread_loops46134
 			return vRoots.roots[0];
 		}
+	#endif
 		if (1 != vRoots.count)
 			return hRoots.roots[0];
 		OpPoint hPt = c.ptAtT(hRoots.roots[0]);
@@ -699,8 +709,10 @@ MatchEnds OpSegment::matchExisting(const OpSegment* opp) const {
 OpPoint OpSegment::mergePoints(OpPtT segPtT, OpSegment* opp, OpPtT oppPtT) {
 	SegPt segPt = checkAliases(segPtT);
 	SegPt oppPt = opp->checkAliases(oppPtT);
+#if 0
 	if (segPt.pt != oppPt.pt && PtType::noMatch != segPt.ptType && PtType::noMatch != oppPt.ptType)
 		return remapPts(oppPt.pt, segPt.pt);
+#endif
 	if (PtType::noMatch == segPt.ptType && PtType::noMatch == oppPt.ptType) {
 		if (oppPt.pt == segPt.pt)
 			return segPt.pt;
@@ -761,6 +773,7 @@ void OpSegment::normalize() {
 	resetBounds();
 }
 
+#if 0
 // !!! seems arbitrary; it doesn't prioritize matching pt or t; just first found
 OpPtT OpSegment::ptAtT(const OpPtT& match) const {
 	OP_ASSERT(!disabled);
@@ -774,6 +787,7 @@ OpPtT OpSegment::ptAtT(const OpPtT& match) const {
 	}
 	return OpPtT(SetToNaN::dummy);
 }
+#endif
 
 void OpSegment::remap(OpPoint oldAlias, OpPoint newAlias) {
 	if (oldAlias == c.firstPt()) {
@@ -790,9 +804,11 @@ void OpSegment::remap(OpPoint oldAlias, OpPoint newAlias) {
 	}
 }
 
+#if 0
 OpPoint OpSegment::remapPts(OpPoint oldAlias, OpPoint newAlias) {
 	return contour->contours->remapPts(oldAlias, newAlias);
 }
+#endif
 
 void OpSegment::resetBounds() {
 	ptBounds = c.ptBounds();
@@ -883,18 +899,4 @@ void OpSegment::transferCoins() {
 			}
 		}
 	}
-}
-
-bool OpSegment::debugFail() const {
-#if OP_DEBUG
-	return contour->contours->debugFail();
-#endif
-	return false;
-}
-
-bool OpSegment::debugSuccess() const {
-#if OP_DEBUG
-	return contour->contours->debugSuccess();
-#endif
-	return true;
 }
