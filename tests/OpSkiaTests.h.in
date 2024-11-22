@@ -8,5 +8,6 @@
 #define TEST_EXTENDED @TEST_EXTENDED@
 #define TEST_SKIA @TEST_SKIA@
 #define TEST_REGION @TEST_REGION@
+#define TEST_BREAK @TEST_BREAK@  // set to 1 to break when running single tests single threaded
 
 #endif

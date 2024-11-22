@@ -307,7 +307,7 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
 	debugLocalCall = debugCall;  // copied so value is visible in debugger
 	contours->debugCurveCurve = this;
 #endif
-	contours->reuse(contours->ccStorage);
+//	contours->reuse(contours->ccStorage);
 	maxSignSwap = contours->contextCallBacks.maxSignSwapFuncPtr(s->c.c, o->c.c);
 	maxSplits = contours->contextCallBacks.maxSplitsFuncPtr(s->c.c, o->c.c);
 	maxDepth = contours->contextCallBacks.maxDepthFuncPtr(s->c.c, o->c.c);
@@ -624,7 +624,7 @@ void OpCurveCurve::checkUnsplitables() {
 				continue;
 			bool hullsIntersect = false;
 			OpPtT ePt = eCurve->center;
-			for (HullSect& hull : eCurve->hulls.h) {
+			for (const HullSect& hull : eCurve->hulls.h) {
 				if (hull.opp == oCurve) {
 					ePt = hull.sect;
 					hullsIntersect = true;
@@ -632,7 +632,7 @@ void OpCurveCurve::checkUnsplitables() {
 				}
 			}
 			OpPtT oPt = oCurve->center;
-			for (HullSect& hull : oCurve->hulls.h) {
+			for (const HullSect& hull : oCurve->hulls.h) {
 				if (hull.opp == eCurve) {
 					oPt = hull.sect;
 					hullsIntersect = true;

@@ -145,11 +145,7 @@ bool endFirstTest = false;
 // break (return false) if running last failed fast test
 #if OP_DEBUG
 bool OpDebugSkipBreak() {
-#if OP_DEBUG_FAST_TEST
-	return true;
-#else
-	return !(SKIP_TO_V0  OP_DEBUG_CODE(|| requestedFirst.size()));
-#endif
+	return OP_DEBUG_FAST_TEST || !TEST_BREAK || (!SKIP_TO_V0 && !requestedFirst.size());
 }
 #endif
 
@@ -894,7 +890,6 @@ static void edit(std::string filename, std::string match, std::string replace) {
 	if (bytesRead < (size_t) fileSize)
 		return OpDebugOut("read failed:" + readName + "; read:" + STR(bytesRead) 
 				+ " expected:" + STR((size_t) fileSize) + "\n");
-	fclose(readf.file);
 	std::string writeName = directory + "temp";
 	AutoClose write(fopen(writeName.c_str(), "wb"));
 	if (!write.file)
@@ -916,7 +911,6 @@ static void edit(std::string filename, std::string match, std::string replace) {
 	if (bytesWritten < fileSize - endPos)
 		return OpDebugOut("write failed:" + writeName + "; written:" + STR(bytesWritten) 
 				+ " expected:" + STR((int) (fileSize - endPos)) + "\n");
-	fclose(write.file);
 	remove(readName.c_str());
 	rename(writeName.c_str(), readName.c_str());
 }

@@ -156,7 +156,7 @@ struct OpHulls {
 	void clear() { h.clear(); }
 //	bool closeEnough(int index, const OpEdge& edge, const OpEdge& oEdge, OpPtT* oPtT, OpPtT* close);
 	void nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef which);
-	bool sectCandidates(int index, const OpEdge& edge);
+	bool sectCandidates(int index, const OpEdge& edge) const;
 	void sort(bool useSmall);
 	DUMP_DECLARATIONS
 	OP_DEBUG_VALIDATE_CODE(void debugValidate() const);
@@ -298,7 +298,6 @@ public:
 	OpContours* contours() const;
 	OpPtT end() const { return OpPtT(endPt(), endT); }
 	OpPoint endPt() const { return curve.lastPt(); }
-//	OpPtT findT(Axis , float oppXY) const;
 	OpPtT flipPtT(EdgeMatch match) const { 
 		return match == which() ? end() : start(); }
 	bool hasLinkTo(EdgeMatch match) const { 
@@ -357,9 +356,10 @@ public:
 	void debugCompare(std::string ) const;
 	std::string debugDumpCenter(DebugLevel , DebugBase ) const;
 	std::string debugDumpLink(EdgeMatch , DebugLevel , DebugBase ) const;
+	OpPtT debugFindT(Axis , float oppXY) const;
 	#define OP_X(Thing) \
-	std::string debugDump##Thing() const; \
-	void dump##Thing() const;
+			std::string debugDump##Thing() const; \
+			void dump##Thing() const;
 	DEBUG_DUMP
 	EDGE_DETAIL
 	EDGE_OR_SEGMENT_DETAIL
@@ -466,6 +466,7 @@ struct OpEdgeStorage {
 	}
 	bool contains(OpIntersection* start, OpIntersection* end) const;
 	bool contains(OpPoint start, OpPoint end) const;
+	void reuse();
 #if OP_DEBUG_DUMP
 	size_t debugCount() const;
 	std::string debugDump(std::string label, DebugLevel l, DebugBase b);

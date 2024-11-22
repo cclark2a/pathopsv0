@@ -63,10 +63,10 @@ bool OpHulls::closeEnough(int index, const OpEdge& edge, const OpEdge& oEdge, Op
 }
 #endif
 
-bool OpHulls::sectCandidates(int index, const OpEdge& edge) {
+bool OpHulls::sectCandidates(int index, const OpEdge& edge) const {
 	const HullSect& hullStart = h[index - 1];
 	const HullSect& hullEnd = h[index];
-	OpPtT hull1Sect = hullStart.sect;
+	const OpPtT& hull1Sect = hullStart.sect;
 	const OpPtT& hull2Sect = hullEnd.sect;
 	if (!hull1Sect.isNearly(hull2Sect, edge.segment->threshold()))
 		return false;
@@ -380,25 +380,6 @@ bool OpEdge::containsLink(const OpEdge* edge) const {
 	}
 	return false;
 }
-
-#if 0
-OpPtT OpEdge::findT(Axis axis, float oppXY) const {
-	OpPtT found;
-	float startXY = startPt().choice(axis);
-	float endXY = endPt().choice(axis);
-	if (oppXY == startXY)
-		found = start();
-	else if (oppXY == endXY)
-		found = end();
-	else {
-		found.pt = OpPoint(SetToNaN::dummy);
-		found.t = segment->findAxisT(axis, startT, endT, oppXY);
-		if (OpMath::IsNaN(found.t))
-			found = (oppXY < startXY) == (startXY < endXY) ? start() : end();
-	}
-	return found;
-}
-#endif
 
 void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 	OpEdge* oppEdge = found.edge;
@@ -752,4 +733,11 @@ bool OpEdgeStorage::contains(OpPoint start, OpPoint end) const {
 	if (!next)
 		return false;
 	return next->contains(start, end);
+}
+
+void OpEdgeStorage::reuse() {
+	for (size_t index = 0; index < used; ++index)
+		storage[index].~OpEdge();
+	used = 0;
+	next = nullptr;
 }

@@ -6,10 +6,9 @@
 #include "OpWinder.h"
 #include "PathOps.h"
 
-char* CallerDataStorage::Allocate(size_t size, CallerDataStorage** callerStoragePtr) {
-	if (!*callerStoragePtr)
-		*callerStoragePtr = new CallerDataStorage;
-	CallerDataStorage* callerStorage = *callerStoragePtr;
+char* OpContours::allocateCallerData(size_t size) {
+	if (!callerStorage)
+		callerStorage = new CallerDataStorage;
 	if (callerStorage->used + size > sizeof(callerStorage->storage)) {
 		CallerDataStorage* next = new CallerDataStorage;
 		next->next = callerStorage;
@@ -25,13 +24,13 @@ char* CallerDataStorage::Allocate(size_t size, CallerDataStorage** callerStorage
 }
 
 void OpContour::addCallerData(PathOpsV0Lib::AddContour data) {
-	caller.data = CallerDataStorage::Allocate(data.size, &contours->callerStorage);
+	caller.data = contours->allocateCallerData(data.size);
 	std::memcpy(caller.data, data.data, data.size);
 	caller.size = data.size;  // !!! don't know if size is really needed ...
 }
 
 void OpContours::addCallerData(PathOpsV0Lib::AddContext data) {
-	caller.data = CallerDataStorage::Allocate(data.size, &callerStorage);
+	caller.data = allocateCallerData(data.size);
 	std::memcpy(caller.data, data.data, data.size);
 	caller.size = data.size;  // !!! don't know if size is really needed ...
 }
@@ -313,7 +312,6 @@ OpEdge* OpContours::allocateEdge(OpEdgeStorage*& edgeStorage) {
 		edgeStorage = new OpEdgeStorage;
 	if (edgeStorage->used == ARRAY_COUNT(edgeStorage->storage)) {
 		OpEdgeStorage* next = new OpEdgeStorage;
-		OP_ASSERT(!next->next);
 		next->next = edgeStorage;
 		edgeStorage = next;
 	}
@@ -355,7 +353,7 @@ OpLimb* OpContours::allocateLimb() {
 }
 
 PathOpsV0Lib::WindingData* OpContours::allocateWinding(size_t size) {
-	void* result = CallerDataStorage::Allocate(size, &callerStorage);
+	void* result = allocateCallerData(size);
 	return (PathOpsV0Lib::WindingData*) result;
 }
 
@@ -498,13 +496,20 @@ OpPoint OpContours::remapPts(OpPoint oldAlias, OpPoint newAlias) {
 	return newAlias;
 }
 
+// seems too complicated to reuse multiple edge storage blocks, so delete all but first
+#if 0
 void OpContours::reuse(OpEdgeStorage* edgeStorage) {
-	OpEdgeStorage* next = edgeStorage;
+	if (!edgeStorage)
+		return;
+	OpEdgeStorage* next = edgeStorage->next;
 	while (next) {
-		next->used = 0;
-		next = next->next;
+		OpEdgeStorage* following = next->next;
+		delete next;
+		next = following;
 	}
+	edgeStorage->reuse();
 }
+#endif
 
 bool OpContours::setError(PathOpsV0Lib::ContextError e  OP_DEBUG_PARAMS(int eID, int oID)) {
 	if (PathOpsV0Lib::ContextError::none != error)

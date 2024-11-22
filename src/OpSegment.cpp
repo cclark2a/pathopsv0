@@ -421,24 +421,6 @@ OpEdge* OpSegment::findEnabled(const OpPtT& ptT, EdgeMatch match) const {
 	return nullptr;
 }
 
-#if 0
-// used to find unsectable range; assumes range all has about the same slope
-// !!! this may be a bad idea if two near coincident edges turn near 90 degrees
-float OpSegment::findAxisT(Axis axis, float start, float end, float opp) {
-	if (!c.isLine()) {
-		OpRoots roots = c.axisRayHit(axis, opp, start, end);
-		if (1 == roots.count)
-			return roots.roots[0];
-	} else {
-		float pt0xy = c.firstPt().choice(axis);
-		float result = (opp - pt0xy) / (c.lastPt().choice(axis) - pt0xy);
-		if (start <= result && result <= end)
-			return result;
-	}
-	return OpNaN;
-}
-#endif
-
 // rarely, moving points prevents finding matching ends. If there is no end, do an exhaustive search
 void OpSegment::findMissingEnds() {
 	if (willDisable && !disabled)

@@ -123,7 +123,7 @@ struct OpDebugData {
 #define OP_EXECUTE_AND_ASSERT(expr) OP_ASSERT(expr)
 #define OP_WARNING(contours, warn) contours->addDebugWarning(OpDebugWarning::warn)
 
-#if OP_DEBUG_FAST_TEST
+#if OP_DEBUG_FAST_TEST || (defined OP_TINY_TEST && OP_TINY_TEST)
 	#define OP_DEBUG_DUMP 0
 	#define OP_DEBUG_IMAGE 0
 	#define OP_DEBUG_MAKER 0

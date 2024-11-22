@@ -177,7 +177,7 @@ void SkMatrix::setConcat(const SkMatrix& a, const SkMatrix& b) {
 
 void SkBitmap::allocPixels(struct SkImageInfo const & i) {
 	info = i;
-	delete pixels;
+	delete[] pixels;
 	pixels = new uint32_t[i.width * i.height];
 }
 
@@ -240,7 +240,7 @@ const SkRect& SkPath::getBounds() const {
 	OpPointBounds b;
 	for (const TinyCurve& c : path)
 		for (size_t index = 0; index < c.pointCount(); ++index)
-			if (!c.pts[index].debugIsUninitialized())
+			OP_DEBUG_CODE(if (!c.pts[index].debugIsUninitialized()))
 				b.add(c.pts[index]);
 	bounds = { b.left, b.top, b.right, b.bottom };
 	return bounds;
@@ -490,21 +490,28 @@ void SkPath::dumpHex() const {
 }
 
 void SkString::appendf(const char format[], ...) {
-    va_list args;
+    va_list args, args_copy;
     va_start(args, format);
-    int count = std::vsnprintf(nullptr, 0, format, args);
-	++count; // !!! don't know why I need to do this / reserving space for trailing '\0'?
-	string.resize(string.size() + count, 'x');
-	std::vsnprintf(&string.front() + string.size(), count, format, args);
+	va_copy(args_copy, args);
+    int count = vsnprintf(nullptr, 0, format, args);
+	if (count > 0) {
+		string.resize(string.size() + count);
+		vsnprintf(string.data() + string.size(), count + 1, format, args_copy);
+	}
+    va_end(args_copy);
     va_end(args);
 }
 
 void SkString::printf(const char format[], ...) {
-    va_list args;
+    va_list args, args_copy;
     va_start(args, format);
-    int count = std::vsnprintf(nullptr, 0, format, args);
-	++count; // !!! don't know why I need to do this / reserving space for trailing '\0'?
-	string.resize(count, 'x');
-	std::vsnprintf(&string.front(), count, format, args);
+	va_copy(args_copy, args);
+    int count = vsnprintf(nullptr, 0, format, args);
+	OP_ASSERT(count >= 0);
+	if (count > 0) {
+		string.resize(count);
+		vsnprintf(string.data(), count + 1, format, args_copy);
+	}
+    va_end(args_copy);
     va_end(args);
 }

@@ -465,7 +465,6 @@ void dmpFile() {
     lineWidth = saveWidth;
     fwrite(&s[0], 1, s.size(), file);
     fclose(file);
-    fflush(file);
 }
 
 OpContours* fromFileContours = nullptr;
@@ -503,7 +502,6 @@ void verifyFile(OpContours* contours) {
     lineWidth = saveWidth;
     fwrite(&s[0], 1, s.size(), file);
     fclose(file);
-    fflush(file);
     delete fileContours;
 }
 
@@ -2337,6 +2335,25 @@ std::string OpEdge::debugDumpPoints() const {
     return s;
 }
 
+OpPtT OpEdge::debugFindT(Axis axis, float oppXY) const {
+	OpPtT found;
+	float startXY = startPt().choice(axis);
+	float endXY = endPt().choice(axis);
+	if (oppXY == startXY)
+		found = start();
+	else if (oppXY == endXY)
+		found = end();
+	else {
+		found.pt = OpPoint(SetToNaN::dummy);
+		found.t = segment->debugFindAxisT(axis, startT, endT, oppXY);
+		if (OpMath::IsNaN(found.t))
+			found = (oppXY < startXY) == (startXY < endXY) ? start() : end();
+	}
+	return found;
+}
+
+
+
 OpPtT dc_ex, dc_ey, dc_ox, dc_oy;
 extern void draw(const OpPtT& );
 
@@ -2446,11 +2463,7 @@ void OpCurveCurve::dumpClosest(const OpPoint& originalPt) const {
             break;
     } while (true);
     auto axisPtT = [originalPt](const OpEdge* e, Axis axis) {
-#if 0 //!!! move findT to debug so it can be called here
-        OpPtT result = e->findT(axis, originalPt.choice(axis));
-#else
-		OpPtT result;
-#endif
+        OpPtT result = e->debugFindT(axis, originalPt.choice(axis));
         if (!result.pt.isFinite())
             result.pt = e->segment->c.ptAtT(result.t);
         return result;
@@ -3857,6 +3870,22 @@ std::string OpSegment::debugDumpEdges() const {
     if (s.size())
         s.pop_back();
     return s;
+}
+
+// used to find unsectable range; assumes range all has about the same slope
+// !!! this may be a bad idea if two near coincident edges turn near 90 degrees
+float OpSegment::debugFindAxisT(Axis axis, float start, float end, float opp) {
+	if (!c.isLine()) {
+		OpRoots roots = c.axisRayHit(axis, opp, start, end);
+		if (1 == roots.count)
+			return roots.roots[0];
+	} else {
+		float pt0xy = c.firstPt().choice(axis);
+		float result = (opp - pt0xy) / (c.lastPt().choice(axis) - pt0xy);
+		if (start <= result && result <= end)
+			return result;
+	}
+	return OpNaN;
 }
 
 void dmpEdges(const OpSegment& seg) {

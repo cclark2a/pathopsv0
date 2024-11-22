@@ -2,11 +2,7 @@
 #ifndef OpDebugRecord_DEFINED
 #define OpDebugRecord_DEFINED
 
-#if OP_TINY_TEST
-#define OP_DEBUG_FAST_TEST 1
-#else
 #include "OpTestDrive.h"
-#endif
 
 #if !OP_DEBUG_RECORD
 

@@ -5,7 +5,11 @@
 #include "OpMath.h"
 #include "SkiaEnumSkPathOp.h"
 
+#if OP_DEBUG
 #define SkDEBUGCODE(x) x
+#else
+#define SkDEBUGCODE(x)
+#endif
 #define SK_INIT_TO_AVOID_WARNING    = 0
 
 inline float SkBits2Float(int32_t i) {
@@ -254,7 +258,7 @@ public:
 	}
 
 	~SkBitmap() {
-		delete pixels;
+		delete[] pixels;
 	}
 
 	void allocPixels(SkImageInfo const &);

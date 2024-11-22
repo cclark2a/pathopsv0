@@ -26,7 +26,7 @@ struct CallerDataStorage {
 		OP_DEBUG_CODE(memset(storage, 0, sizeof(storage)));
 	}
 
-	static char* Allocate(size_t size, CallerDataStorage** );
+//	static char* Allocate(size_t size, CallerDataStorage** );
 #if OP_DEBUG_DUMP
 	static void DumpSet(const char*& str, CallerDataStorage** previousPtr);
 	DUMP_DECLARATIONS
@@ -254,6 +254,7 @@ struct OpContours {
 //    OpEdge* addFiller(OpEdge* edge, OpEdge* lastEdge);
 	OpEdge* addFiller(const OpPtT& start, const OpPtT& end);
 	void addToBounds(const OpCurve& );
+	char* allocateCallerData(size_t );
 	OpContour* allocateContour();
 	PathOpsV0Lib::CurveData* allocateCurveData(size_t );
 	OpEdge* allocateEdge(OpEdgeStorage*& );
@@ -352,7 +353,7 @@ struct OpContours {
 	void release(OpEdgeStorage*& );
 	OpPoint remapPts(OpPoint oldAlias, OpPoint newAlias);
 	void resetLimbs();
-	void reuse(OpEdgeStorage* );
+//	void reuse(OpEdgeStorage* );
 
 	bool setError(PathOpsV0Lib::ContextError  OP_DEBUG_PARAMS(int id, int id2 = 0));
 	void setThreshold();

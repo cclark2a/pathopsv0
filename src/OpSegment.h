@@ -90,7 +90,6 @@ struct OpSegment {
 //    void complete();
 	void disableSmall();
 	OpEdge* findEnabled(const OpPtT& , EdgeMatch ) const;
-//	float findAxisT(Axis , float start, float end, float oppXY);
 	void findMissingEnds();
 //    float findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const;
 	float findValidT(float start, float end, OpPoint opp);
@@ -136,6 +135,7 @@ struct OpSegment {
 #if OP_DEBUG_DUMP
 	OpSegment();
 	void dumpCount() const;
+	float debugFindAxisT(Axis , float start, float end, float oppXY);
 	#define OP_X(Thing) \
 	std::string debugDump##Thing() const; \
 	void dump##Thing() const;

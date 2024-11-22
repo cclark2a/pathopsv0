@@ -8,5 +8,6 @@
 #define TEST_EXTENDED 0
 #define TEST_SKIA 1
 #define TEST_REGION 1
+#define TEST_BREAK 0
 
 #endif
