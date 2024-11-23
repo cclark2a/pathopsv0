@@ -122,11 +122,11 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options(skiatest PUBLIC)
     target_compile_options(tinytest PUBLIC)
 elseif (CMAKE_BUILD_TYPE MATCHES "Debug")
-    target_compile_options(skiatest PUBLIC -Wall -Wpendantic -Wno-unused-parameter -fprofile-update=atomic)
-    target_compile_options(tinytest PUBLIC -Wall -Wpendantic -Wno-unused-parameter )
+    target_compile_options(skiatest PUBLIC -g -Wall -Wpendantic -Wno-unused-parameter -fprofile-update=atomic)
+    target_compile_options(tinytest PUBLIC -g -Wall -Wpendantic -Wno-unused-parameter )
 elseif (CMAKE_BUILD_TYPE MATCHES "Release")
-    target_compile_options(skiatest PUBLIC -Wall -Wno-unused-parameter -Wno-extra -fprofile-update=atomic)
-    target_compile_options(tinytest PUBLIC -Wall -Wno-unused-parameter -Wno-extra)
+    target_compile_options(skiatest PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra -fprofile-update=atomic)
+    target_compile_options(tinytest PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra)
 endif()
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
@@ -134,12 +134,12 @@ if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET tinytest PROPERTY CXX_STANDARD 17)
 endif()
 
-# TODO: Add tests and install targets if needed.
-
-# (remove all built files, remove lines to build tinytest?)
+# (remove all built files?)
 # cmake -DCMAKE_BUILD_TYPE=Debug ../cmake
 # make
 # ./skiatest
 # lcov -c -d  . -o skiatest.info
 # genhtml --ignore-errors inconsistent skiatest.info --output-directory skiatestout
 # file:///D:/gerrit/skia/example/cmake/skiatestout/example/
+
+# cmake -S . -B release/ -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang

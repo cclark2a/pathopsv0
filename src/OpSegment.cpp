@@ -612,7 +612,7 @@ void OpSegment::makeEdges() {
 	if (disabled)
 	   return;
 	OP_ASSERT(sects.i.size());
-	edges.reserve(sects.i.size() - 1);
+	edges.reserve(sects.i.size());
 	sects.makeEdges(this);
 }
 

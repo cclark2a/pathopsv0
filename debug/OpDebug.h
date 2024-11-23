@@ -2,11 +2,9 @@
 #ifndef OpDebug_DEFINED
 #define OpDebug_DEFINED
 
-#ifndef _WIN32
 #include <assert.h>
 #include <cstdint>
 #include <cstring>
-#endif
 
 #include "OpTestDrive.h"  // set test specific settings here
 
