@@ -2,6 +2,6 @@
 #ifndef OpTestDrive_DEFINED
 #define OpTestDrive_DEFINED
 
-#define OP_DEBUG_FAST_TEST 0
+#define OP_DEBUG_FAST_TEST 1
 
 #endif

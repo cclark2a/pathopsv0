@@ -374,12 +374,20 @@ void AddSkiaPath(Context* context, AddWinding winding, const SkPath& path) {
             AddConics({ (OpPoint*) pts, sizeof(SkPoint) * 3 + sizeof(float), 
                     (CurveType) SkiaCurveType::skiaConicType }, winding);
             break;
-        case SkPath::kCubic_Verb:
+        case SkPath::kCubic_Verb: {
+		#if 0
+			// This fails in GCC 13.2 release. It works in MSVS Visual C++ 2022 debug/release,
+			// clang debug/release, GCC 13.2 debug. Replacing std::swap with temp=a, a=b, b=temp
+			// also fails. Changing the indices also fails.
             std::swap(pts[1], pts[2]);  // rearrange order from 0/1/2/3 to 0/3/1/2
             std::swap(pts[1], pts[3]);
+		#else
+			SkPoint temp[4] { pts[0], pts[3], pts[1], pts[2] };  //  put start, end, up front
+			std::memcpy(pts, temp, sizeof(temp));
+		#endif
             AddCubics({ (OpPoint*) pts, sizeof(SkPoint) * 4, 
 					(CurveType) SkiaCurveType::skiaCubicType }, winding);
-            break;
+            } break;
         case SkPath::kClose_Verb:
         case SkPath::kDone_Verb:
             if (closeLine[0] != closeLine[1])
