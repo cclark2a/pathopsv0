@@ -6,10 +6,7 @@
 #include <array>
 #include <cmath>
 #include <limits>
-
-#ifndef _WIN32
 #include <math.h>
-#endif
 
 constexpr auto OpPI = 3.14159265f;
 constexpr auto OpInfinity = std::numeric_limits<float>::infinity();

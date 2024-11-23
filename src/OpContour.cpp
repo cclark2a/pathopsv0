@@ -527,7 +527,7 @@ bool OpContours::setError(PathOpsV0Lib::ContextError e  OP_DEBUG_PARAMS(int eID,
 
 void OpContours::setThreshold() {
 	auto threshold = [](float left, float right) {
-		return std::max({1.f, fabs(left), fabs(right), right - left}) * OpEpsilon;
+		return std::max({1.f, fabsf(left), fabsf(right), right - left}) * OpEpsilon;
 	};
 	aliases.threshold = { threshold(maxBounds.left, maxBounds.right),
 			threshold(maxBounds.top, maxBounds.bottom) };

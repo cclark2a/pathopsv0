@@ -16,7 +16,7 @@
 
 // some compilers warn about 'this' being checked for null
 // this debugging code needs to do that anyway
-#ifdef _WIN32
+#ifdef _MSC_VER
 #define OP_I_KNOW_WHAT_IM_DOING 1
 #else
 #define OP_I_KNOW_WHAT_IM_DOING 0
@@ -41,7 +41,7 @@ int lineWidth = 200;
 DebugBase defaultBase = DebugBase::dec;
 DebugLevel defaultLevel = DebugLevel::normal;
 
-#ifdef _WIN32
+#if defined _MSC_VER
 #pragma optimize( "", off )
 #endif
 

@@ -2,7 +2,7 @@
 #include "OpDebug.h"
 #if OP_RELEASE_TEST
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #pragma optimize( "", off )
 #endif
 
