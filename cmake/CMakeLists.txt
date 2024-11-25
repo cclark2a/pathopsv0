@@ -19,16 +19,8 @@ endif()
 configure_file(../tests/OpTestDrive.h.in ../tests/OpTestDrive.h)
 configure_file(../tests/OpSkiaTests.h.in ../tests/OpSkiaTests.h)
 
-# Add source to this project's executable.
-add_executable (skiatest "skiatest.cpp" 
+set(COMMON_SOURCES
 	"../debug/OpDebug.cpp"
-	"../debug/OpDebugColor.cpp"
-	"../debug/OpDebugCompare.cpp"
-	"../debug/OpDebugDouble.cpp"
-	"../debug/OpDebugDump.cpp"
-	"../debug/OpDebugGenerator.cpp"
-	"../debug/OpDebugImage.cpp"
-	"../debug/OpDebugRecord.cpp"
 	"../src/OpContour.cpp"
 	"../src/OpCurve.cpp"
 	"../src/OpCurveCurve.cpp"
@@ -40,6 +32,18 @@ add_executable (skiatest "skiatest.cpp"
 	"../src/OpSegments.cpp"
     "../src/OpWinder.cpp"
     "../src/OpWinding.cpp"
+    "../PathOps.cpp"
+)
+
+# Add source to this project's executable.
+add_executable (skiatest "skiatest.cpp" 
+	"../debug/OpDebugColor.cpp"
+	"../debug/OpDebugCompare.cpp"
+	"../debug/OpDebugDouble.cpp"
+	"../debug/OpDebugDump.cpp"
+	"../debug/OpDebugGenerator.cpp"
+	"../debug/OpDebugImage.cpp"
+	"../debug/OpDebugRecord.cpp"
 	"../skia/SkiaPaths.cpp"
     "../tests/OpSkiaTests.cpp"
     "../tests/OpV0Tests.cpp"
@@ -62,25 +66,18 @@ add_executable (skiatest "skiatest.cpp"
     "../tests/PathOpsSimplifyTrianglesThreadedTest_shim.cpp"
     "../tests/PathOpsTigerTest_shim.cpp"
     "../tests/TinySkia.cpp"
-    "../PathOps.cpp"
 )
+target_sources(skiatest PUBLIC ${COMMON_SOURCES})
 
 add_executable (tinytest "tinytest.cpp"
-	"../debug/OpDebug.cpp"
-	"../src/OpContour.cpp"
-	"../src/OpCurve.cpp"
-	"../src/OpCurveCurve.cpp"
-	"../src/OpEdge.cpp"
-	"../src/OpIntersection.cpp"
-	"../src/OpJoiner.cpp"
-	"../src/OpMath.cpp"
-	"../src/OpSegment.cpp"
-	"../src/OpSegments.cpp"
-    "../src/OpWinder.cpp"
-    "../src/OpWinding.cpp"
 	"../tests/TestNewInterface.cpp"
-    "../PathOps.cpp"
 )
+target_sources(tinytest PUBLIC ${COMMON_SOURCES})
+
+add_executable (frametest "frametest.cpp"
+	"../tests/FrameTest.cpp"
+)
+target_sources(frametest PUBLIC ${COMMON_SOURCES})
 
 include_directories(
 	"../debug"
@@ -117,29 +114,37 @@ set(ignoreMe "${TSAN}${ASAN}${MSAN}${LSAN}${COVERAGE}")
 
 target_compile_definitions(skiatest PUBLIC OP_TINY_SKIA=1 NOMINMAX _CRT_SECURE_NO_WARNINGS)
 target_compile_definitions(tinytest PUBLIC OP_TINY_SKIA=1 NOMINMAX _CRT_SECURE_NO_WARNINGS OP_TINY_TEST=1)
+target_compile_definitions(frametest PUBLIC OP_TINY_SKIA=1 NOMINMAX _CRT_SECURE_NO_WARNINGS OP_TINY_TEST=1)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options(skiatest PUBLIC)
     target_compile_options(tinytest PUBLIC)
+    target_compile_options(frametest PUBLIC)
 elseif (CMAKE_BUILD_TYPE MATCHES "Debug")
-    target_compile_options(skiatest PUBLIC -g -Wall -Wpendantic -Wno-unused-parameter -fprofile-update=atomic)
-    target_compile_options(tinytest PUBLIC -g -Wall -Wpendantic -Wno-unused-parameter )
+    target_compile_options(skiatest PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -fprofile-update=atomic)
+    target_compile_options(tinytest PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter )
+    target_compile_options(frametest PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter )
 elseif (CMAKE_BUILD_TYPE MATCHES "Release")
     target_compile_options(skiatest PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra -fprofile-update=atomic)
     target_compile_options(tinytest PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra)
+    target_compile_options(frametest PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra)
 endif()
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET skiatest PROPERTY CXX_STANDARD 17)
   set_property(TARGET tinytest PROPERTY CXX_STANDARD 17)
+  set_property(TARGET frametest PROPERTY CXX_STANDARD 17)
 endif()
 
-# (remove all built files?)
-# cmake -DCMAKE_BUILD_TYPE=Debug ../cmake
-# make
-# ./skiatest
+# (remove all built files)
+# cmake -S . -B destDir/ -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
+# cmake --build destDir/
+# destDir/skiatest
 # lcov -c -d  . -o skiatest.info
 # genhtml --ignore-errors inconsistent skiatest.info --output-directory skiatestout
 # file:///D:/gerrit/skia/example/cmake/skiatestout/example/
 
 # cmake -S . -B release/ -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
+
+# to add new files to Visual Studio builds:
+# add build C++ line, and add build link reference; to Debug/obj/HelloWorld.ninja and Release/obj/HelloWorld.ninja

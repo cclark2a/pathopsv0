@@ -377,6 +377,8 @@ struct OpContours {
 #endif
 #if OP_DEBUG_VALIDATE
 	void debugValidateIntersections();
+#else
+	void debugValidateIntersections() {}
 #endif
 #if OP_DEBUG_DUMP
 	void debugCompare(std::string s);
@@ -399,6 +401,7 @@ struct OpContours {
 	PathOpsV0Lib::ContextCallBacks contextCallBacks;
 	PathOpsV0Lib::PathOutput callerOutput;
 	PathOpsV0Lib::AddContext caller;   // note: must use std::memcpy before reading
+	PathOpsV0Lib::ErrorHandler errorHandler;
 	// these are pointers instead of inline values because the storage with empty slots is first
 	OpEdgeStorage* ccStorage;
 	CurveDataStorage* curveDataStorage;

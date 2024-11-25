@@ -33,10 +33,20 @@ struct BinaryWinding {
         , right(0) {
     }
 
+    BinaryWinding(int initialL, int initialR)
+		: left(initialL)
+		, right(initialR) {
+	}
+
     BinaryWinding(Winding w) {
         OP_ASSERT(w.size == sizeof(BinaryWinding));
         std::memcpy(this, w.data, sizeof(BinaryWinding));
     }
+
+	void copyTo(Winding& w) const {
+		OP_ASSERT(w.size == sizeof(BinaryWinding));
+		std::memcpy(w.data, this, sizeof(BinaryWinding));
+	}
 
     int left;
     int right;
@@ -47,17 +57,12 @@ struct BinaryOpData {
     BinaryOperand operand;
 };
 
-inline void copyToWinding(Winding& w, BinaryWinding b) {
-    OP_ASSERT(w.size == sizeof(BinaryWinding));
-    std::memcpy(w.data, &b, sizeof(BinaryWinding));
-}
-
 inline Winding binaryEvenOddFunc(Winding winding, Winding toAdd) {
     BinaryWinding sum(winding);
     BinaryWinding addend(toAdd);
     sum.left ^= addend.left;
     sum.right ^= addend.right;
-    copyToWinding(winding, sum);
+    sum.copyTo(winding);
     return winding;
 }
 
@@ -66,7 +71,7 @@ inline Winding binaryWindingAddFunc(Winding winding, Winding toAdd) {
     BinaryWinding addend(toAdd);
     sum.left += addend.left;
     sum.right += addend.right;
-    copyToWinding(winding, sum);
+    sum.copyTo(winding);
     return winding;
 }
 
@@ -75,7 +80,7 @@ inline Winding binaryWindingAddLeftFunc(Winding winding, Winding toAdd) {
     BinaryWinding addend(toAdd);
     sum.left += addend.left;
     sum.right ^= addend.right;
-    copyToWinding(winding, sum);
+    sum.copyTo(winding);
     return winding;
 }
 
@@ -84,7 +89,7 @@ inline Winding binaryWindingAddRightFunc(Winding winding, Winding toAdd) {
     BinaryWinding addend(toAdd);
     sum.left ^= addend.left;
     sum.right += addend.right;
-    copyToWinding(winding, sum);
+    sum.copyTo(winding);
     return winding;
 }
 
@@ -194,7 +199,7 @@ inline Winding binaryWindingSubtractFunc(Winding winding, Winding toSubtract) {
     BinaryWinding subtrahend(toSubtract);
     difference.left -= subtrahend.left;
     difference.right -= subtrahend.right;
-    copyToWinding(winding, difference);
+    difference.copyTo(winding);
     return winding;
 }
     
@@ -203,7 +208,7 @@ inline Winding binaryWindingSubtractLeftFunc(Winding winding, Winding toSubtract
     BinaryWinding subtrahend(toSubtract);
     difference.left -= subtrahend.left;
     difference.right ^= subtrahend.right;
-    copyToWinding(winding, difference);
+    difference.copyTo(winding);
     return winding;
 }
     
@@ -212,7 +217,7 @@ inline Winding binaryWindingSubtractRightFunc(Winding winding, Winding toSubtrac
     BinaryWinding subtrahend(toSubtract);
     difference.left ^= subtrahend.left;
     difference.right -= subtrahend.right;
-    copyToWinding(winding, difference);
+    difference.copyTo(winding);
     return winding;
 }
     
@@ -223,7 +228,7 @@ inline bool binaryWindingVisibleFunc(Winding winding) {
 
 inline void binaryWindingZeroFunc(Winding toZero) {
     BinaryWinding zero;
-    copyToWinding(toZero, zero);
+    zero.copyTo(toZero);
 }
 
 #if OP_DEBUG_DUMP
@@ -233,7 +238,7 @@ inline void binaryWindingDumpInFunc(const char*& str, Winding winding) {
     binaryWinding.left = OpDebugReadSizeT(str);
     binaryWinding.right = OpDebugReadSizeT(str);
     OpDebugRequired(str, "}");
-    copyToWinding(winding, binaryWinding);
+    binaryWinding.copyTo(winding);
 }
 
 inline std::string binaryWindingDumpOutFunc(Winding winding) {

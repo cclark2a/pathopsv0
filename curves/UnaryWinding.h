@@ -6,28 +6,33 @@
 namespace PathOpsV0Lib {
 
 struct UnaryWinding {
+	
     UnaryWinding()
         : left(0) {
-    }
+	}
+
+    UnaryWinding(int initial)
+		: left(initial) {
+	}
 
     UnaryWinding(Winding w) {
         OP_ASSERT(w.size == sizeof(UnaryWinding));
         std::memcpy(this, w.data, sizeof(UnaryWinding));
     }
 
+	void copyTo(Winding& w) const {
+		OP_ASSERT(w.size == sizeof(UnaryWinding));
+		std::memcpy(w.data, this, sizeof(UnaryWinding));
+	}
+
     int left;
 };
-
-inline void copyToWinding(Winding& w, UnaryWinding u) {
-    OP_ASSERT(w.size == sizeof(UnaryWinding));
-    std::memcpy(w.data, &u, sizeof(UnaryWinding));
-}
 
 inline Winding unaryEvenOddFunc(Winding winding, Winding toAdd) {
     UnaryWinding sum(winding);
     UnaryWinding addend(toAdd);
     sum.left ^= addend.left;
-    copyToWinding(winding, sum);
+    sum.copyTo(winding);
     return winding;
 }
 
@@ -35,7 +40,7 @@ inline Winding unaryWindingAddFunc(Winding winding, Winding toAdd) {
     UnaryWinding sum(winding);
     UnaryWinding addend(toAdd);
     sum.left += addend.left;
-    copyToWinding(winding, sum);
+    sum.copyTo(winding);
     return winding;
 }
 
@@ -55,7 +60,7 @@ inline Winding unaryWindingSubtractFunc(Winding winding, Winding toSubtract) {
     UnaryWinding difference(winding);
     UnaryWinding subtrahend(toSubtract);
     difference.left -= subtrahend.left;
-    copyToWinding(winding, difference);
+    difference.copyTo(winding);
     return winding;
 }
     
@@ -66,7 +71,7 @@ inline bool unaryWindingVisibleFunc(Winding winding) {
 
 inline void unaryWindingZeroFunc(Winding toZero) {
     UnaryWinding zero;
-    copyToWinding(toZero, zero);
+    zero.copyTo(toZero);
 }
 
 #if OP_DEBUG_DUMP
@@ -75,7 +80,7 @@ inline void unaryWindingDumpInFunc(const char*& str, Winding winding) {
     OpDebugRequired(str, "{");
     unaryWinding.left = OpDebugReadSizeT(str);
     OpDebugRequired(str, "}");
-    copyToWinding(winding, unaryWinding);
+    unaryWinding.copyTo(winding);
 }
 
 inline std::string unaryWindingDumpOutFunc(Winding winding) {

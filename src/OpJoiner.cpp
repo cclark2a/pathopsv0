@@ -407,8 +407,7 @@ bool OpTree::join(OpJoiner& join) {
 	}
 	if (LimbPass::linked == bestL->treePass || LimbPass::miswound == bestL->treePass)
 		linkupsErasures.push_back(bestL->linkedIndex);
-	do {
-		const OpLimb* lastLimb = bestL->parent;
+	while (const OpLimb* lastLimb = bestL->parent) {
 		OpEdge* prior = lastLimb->edge;
 		OP_ASSERT(!best->containsLink(prior));
 		if (EdgeMatch::end == lastLimb->match) {
@@ -428,7 +427,7 @@ bool OpTree::join(OpJoiner& join) {
 			linkupsErasures.push_back(lastLimb->linkedIndex);
 		bestL = lastLimb;
 		best = bestL->edge;
-	} while (bestL->parent);
+	}
 	OP_TRACK(linkupsErasures);
 	std::sort(linkupsErasures.begin(), linkupsErasures.end(), std::greater<int>());
 	for (size_t entry : linkupsErasures)
@@ -1007,12 +1006,19 @@ bool OpJoiner::matchLinks(bool popLast) {
 	if (!tree.bestLimb) {
 		OpLimb* gap = tree.bestGapLimb;
 		OP_ASSERT(gap);
-		OpPtT startI = edge->whichPtT(EdgeMatch::start);
-		OpPtT gapEnd = gap->lastLimbEdge->whichPtT(!gap->match);
-		OpEdge* filler = tree.addFiller(gapEnd, startI);
-		OpLimb* branch = tree.makeLimb();
-		branch->set(tree, filler, gap, EdgeMatch::start, LimbPass::disjoint, 0, nullptr);
-		tree.bestLimb = branch;
+		if (!tree.contours->errorHandler.errorDispatchFuncPtr
+				|| tree.contours->errorHandler.errorDispatchFuncPtr(
+				PathOpsV0Lib::ContextError::missing, (PathOpsV0Lib::Context*) tree.contours, 
+				nullptr, nullptr)) {
+			OpPtT startI = edge->whichPtT(EdgeMatch::start);
+			OpPtT gapEnd = gap->lastLimbEdge->whichPtT(!gap->match);
+			OpEdge* filler = tree.addFiller(gapEnd, startI);
+			OpLimb* branch = tree.makeLimb();
+			branch->set(tree, filler, gap, EdgeMatch::start, LimbPass::disjoint, 0, nullptr);
+			tree.bestLimb = branch;
+		} else {
+			tree.bestLimb = gap;
+		}
 	}
 	return tree.join(*this);
 }

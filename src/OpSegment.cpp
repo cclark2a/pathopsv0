@@ -428,59 +428,25 @@ void OpSegment::findMissingEnds() {
 	if (disabled)
 		return;
 	OP_ASSERT(!sects.unsorted);
-#if 0
 	OpContours* contours = contour->contours;
-	if (!sects.i.size() || 0 != sects.i.front()->ptT.t) {
-		OpPoint alias = contours->aliases.existing(c.firstPt());
-		OP_ASSERT(alias != c.firstPt());
-		for (OpContour* cont : contours->contours) {
-			for (OpSegment& opp : cont->segments) {
-				if (opp.disabled)
-					continue;
-				if (opp.c.firstPt() == alias) {
-					OpIntersection* sect = addSegSect(OpPtT(alias, 0), &opp  OP_LINE_FILE_PARGS());
-					OpIntersection* oSect = opp.addSegSect(OpPtT(alias, 0), this  OP_LINE_FILE_PARGS());
-					sect->pair(oSect);
-					sects.sort();
-					opp.sects.sort();
-
-				} 
-				if (opp.c.lastPt() == alias) {
-					OpIntersection* sect = addSegSect(OpPtT(alias, 0), &opp  OP_LINE_FILE_PARGS());
-					OpIntersection* oSect = opp.addSegSect(OpPtT(alias, 1), this  OP_LINE_FILE_PARGS());
-					sect->pair(oSect);
-					sects.sort();
-					opp.sects.sort();
-				}
+	if (contours->errorHandler.errorDispatchFuncPtr) {
+		bool missingStart = !sects.i.size() || 0 != sects.i.front()->ptT.t;
+		bool missingEnd = !sects.i.size() || 1 != sects.i.back()->ptT.t;
+		if ((missingStart || missingEnd) && !contours->errorHandler.errorDispatchFuncPtr(
+				PathOpsV0Lib::ContextError::end, (PathOpsV0Lib::Context*) contours, 
+				(PathOpsV0Lib::Contour*) contour, &c.c)) {
+			if (missingStart) {
+				OpIntersection* sect = contour->addSegSect({c.firstPt(), 0}, this  
+						OP_LINE_FILE_PARAMS(this));
+				sect->pair(sect);
+				sects.i.insert(sects.i.begin(), sect);
+			}
+			if (missingEnd) {
+				OpIntersection* sect = addSegBase({c.lastPt(), 1}  OP_LINE_FILE_PARAMS(this));
+				sect->pair(sect);
 			}
 		}
 	}
-	if (!sects.i.size() || 1 != sects.i.back()->ptT.t) {
-		OpPoint alias = contours->aliases.existing(c.lastPt());
-		OP_ASSERT(alias != c.lastPt());
-		for (OpContour* cont : contours->contours) {
-			for (OpSegment& opp : cont->segments) {
-				if (opp.disabled)
-					continue;
-				if (opp.c.firstPt() == alias) {
-					OpIntersection* sect = addSegSect(OpPtT(alias, 1), &opp  OP_LINE_FILE_PARGS());
-					OpIntersection* oSect = opp.addSegSect(OpPtT(alias, 0), this  OP_LINE_FILE_PARGS());
-					sect->pair(oSect);
-					sects.sort();
-					opp.sects.sort();
-
-				} 
-				if (opp.c.lastPt() == alias) {
-					OpIntersection* sect = addSegSect(OpPtT(alias, 1), &opp  OP_LINE_FILE_PARGS());
-					OpIntersection* oSect = opp.addSegSect(OpPtT(alias, 1), this  OP_LINE_FILE_PARGS());
-					sect->pair(oSect);
-					sects.sort();
-					opp.sects.sort();
-				}
-			}
-		}
-	}
-#endif
 	if (startMoved || endMoved)
 		resetBounds();
 }

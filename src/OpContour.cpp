@@ -206,6 +206,7 @@ SegPt OpPtAliases::addIfClose(OpPoint match) {
 
 OpContours::OpContours()
 	: caller({nullptr, 0}) 
+	, errorHandler({nullptr})
 	, ccStorage(nullptr)
 	, curveDataStorage(nullptr)
 	, contourStorage(nullptr)
@@ -427,13 +428,9 @@ bool OpContours::pathOps() {
 	setThreshold();
 	normalize();  // collect extremes, map all from 0 to 1, map <= epsilon to zero
 	OpSegments::FindCoincidences(this);
-#if OP_DEBUG_VALIDATE
 	debugValidateIntersections();
-#endif
 	OpSegments sortedSegments(*this);
-#if OP_DEBUG_VALIDATE
 	debugValidateIntersections();
-#endif
 	if (!sortedSegments.inX.size()) {
 		contextCallBacks.emptyNativePathFuncPtr(callerOutput);
 		OP_DEBUG_SUCCESS(*this, true);
@@ -441,9 +438,7 @@ bool OpContours::pathOps() {
 	if (FoundIntersections::fail == sortedSegments.findIntersections())
 		return setError(PathOpsV0Lib::ContextError::intersection  
 				OP_DEBUG_PARAMS(sortedSegments.debugFailSegID));
-#if OP_DEBUG_VALIDATE
 	debugValidateIntersections();
-#endif
 	disableSmallSegments();  // moved points may allow disabling some segments
 	if (empty()) {
 		contextCallBacks.emptyNativePathFuncPtr(callerOutput);  // no existing tests exercises

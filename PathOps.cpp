@@ -64,6 +64,11 @@ void SetError(Context* context, ContextError error) {
 	contours->error = error;
 }
 
+void SetErrorHandler(Context* context, ErrorDispatch errorDispatch) {
+    OpContours* contours = (OpContours*) context;
+	contours->errorHandler.errorDispatchFuncPtr = errorDispatch;
+}
+
 void ResetContour(Contour* c) {
     OpContour* contour = (OpContour*) c;
     contour->segments.clear();

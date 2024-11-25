@@ -119,8 +119,11 @@ HelloWorld::HelloWorld(int argc, char** argv, void* platformData)
     showIDs();
 #endif
     extern void testNewInterface();
+    extern void testFrame();
     if ((0))
         testNewInterface();
+    if ((1))
+        testFrame();
 //    extern void cubicOp114asQuad(skiatest::Reporter* reporter, const char* filename);
  //   cubicOp114asQuad(nullptr, "");
 }

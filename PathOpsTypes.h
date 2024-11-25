@@ -29,11 +29,13 @@ typedef void* ContextData;
 
 enum class ContextError {
     none,
-	finite,
-	intersection,
-    segmentBounds,
-	toVertical,
-	tree
+	end,  // segment end does not connect to another segment
+	finite,  // curve points are not finite
+	intersection, 
+	missing,  // results do not form closed loops
+    segmentBounds, 
+	toVertical, // rotating / skewing curve (to intersect) exceeds floating point range
+	tree	// decision tree to join found edges is too complex
 };
 
 // convenience for adding caller defined data to context
@@ -109,8 +111,8 @@ typedef void* WindingData;
 // returns if an edge starts a fill, ends a fill, or does neither and should be discarded
 enum class WindKeep {
     Discard,	// must be equal to zero
-    End,
-    Start,
+    End,		// edge ends a filled area
+    Start,		// edge begins a filled area
 };
 
 struct Winding {
@@ -121,7 +123,7 @@ struct Winding {
 // convenience for adding winding data to contour
 struct AddWinding {
 	Contour* contour;
-	int* windings;
+	void* windings;
 	size_t size;
 };
 
@@ -287,6 +289,13 @@ struct ContextCallBacks {
 	MaxCurveCurve maxDepthFuncPtr;
 	MaxCurveCurve maxSplitsFuncPtr;
 	MaxLimbs maxLimbsFuncPtr;
+};
+
+// return true if resolve should be aborted
+typedef bool (*ErrorDispatch)(ContextError , Context* , Contour* , Curve* );
+
+struct ErrorHandler {
+	ErrorDispatch errorDispatchFuncPtr;
 };
 
 #if OP_DEBUG_DUMP
