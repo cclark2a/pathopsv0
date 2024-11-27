@@ -2,13 +2,11 @@
 #include "OpDebug.h"
 
 #if OP_DEBUG || OP_RELEASE_TEST
-#include <atomic>
 #include <string>
 #ifdef _WIN32
 #include <windows.h>
 #endif
 
-std::atomic_int testsWarn;
 int debugPrecision = 8; // -1;		// minus one means unset
 bool debugSmall = true;  // set to false to show sub-epsilon values as ~0
 bool debugEpsilon = false;  // set to true to show values smaller than 100 * OpEpsilon as eps 
@@ -454,6 +452,11 @@ bool OpMath::IsDebugNaN(float f) {
 
 #include "OpCurveCurve.h"
 
+
+void OpCurve::debugScale(double scale, double offsetX, double offsetY) {
+	contours->callBack(c.type).debugScaleFuncPtr(c, scale, offsetX, offsetY);
+}
+
 // !!! debugging failure in thread_cubics8753
 #if 0
 OpCurve OpCurve::toVerticalDouble(const LinePts& line) const {
@@ -513,11 +516,6 @@ bool OpCurveCurve::debugShowImage(bool atDepth) {
 	verifyFile(contours);
 #endif
 	return false;
-}
-
-void OpContours::addDebugWarning(OpDebugWarning warn) {
-    debugWarnings.push_back(warn);
-    testsWarn++;
 }
 
 const OpEdge* OpEdge::debugAdvanceToEnd(EdgeMatch match) const {

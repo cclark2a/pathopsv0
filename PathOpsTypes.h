@@ -184,6 +184,10 @@ typedef OpPair (*XYAtT)(Curve , OpPair t, XyChoice );
 
 typedef float (*CurveConst)();
 
+#if OP_DEBUG
+typedef void (*DebugScale)(Curve , double scale, double offsetX, double offsetY);
+#endif
+
 #if OP_DEBUG_DUMP
 // returns string name of curve type
 typedef std::string (*DebugDumpCurveName)();
@@ -217,6 +221,9 @@ struct CurveCallBacks {
 	CurveConst cutFuncPtr;
 	CurveConst normalLimitFuncPtr;
 	CurveConst interceptFuncPtr;
+#if OP_DEBUG
+	DebugScale debugScaleFuncPtr;
+#endif
 #if OP_DEBUG_DUMP
 	DebugDumpCurveName debugDumpCurveNameFuncPtr;
 	DebugDumpCurveExtra debugDumpCurveExtraFuncPtr;
@@ -234,6 +241,9 @@ typedef void (*WindingZero)(Winding toZero);
 // returns if curve transitions to a filled area and is kept; or if curve is discarded
 typedef WindKeep (*WindingKeep)(Winding winding, Winding sum);
 
+#if OP_DEBUG
+typedef uint8_t (*DebugBitOper)(CallerData , uint8_t , uint8_t);
+#endif
 #if OP_DEBUG_DUMP
 typedef void (*DebugDumpContourIn)(const char*& str , Winding );
 typedef std::string (*DebugDumpContourOut)(Winding );
@@ -257,6 +267,9 @@ struct ContourCallBacks {
 	WindingSubtract windingSubtractFuncPtr;
 	WindingVisible windingVisibleFuncPtr;
 	WindingZero windingZeroFuncPtr;
+#if OP_DEBUG
+	DebugBitOper debugBitOperFuncPtr;
+#endif
 #if OP_DEBUG_DUMP
 	DebugDumpContourIn debugDumpContourInFuncPtr;
 	DebugDumpContourOut debugDumpContourOutFuncPtr;

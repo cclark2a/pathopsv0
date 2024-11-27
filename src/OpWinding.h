@@ -8,10 +8,6 @@ enum class WindingEdge {
 	dummy
 };
 
-enum class WindingSegment {  // used only by new interface
-	dummy
-};
-
 enum class WindingUninitialized {
 	dummy
 };
@@ -34,7 +30,6 @@ enum class WindingType  {
 
 struct OpWinding {
 	OpWinding(OpEdge* edge, WindingSum );
-	OpWinding(OpContour* c, WindingSegment );
 
 	OpWinding(WindingUninitialized )
 		: contour(nullptr)

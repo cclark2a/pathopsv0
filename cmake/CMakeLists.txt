@@ -1,4 +1,6 @@
-﻿cmake_minimum_required(VERSION 3.15)
+﻿# (c) 2024, Cary Clark cclark2@gmail.com
+
+cmake_minimum_required(VERSION 3.15)
 project(pov0 VERSION 0.1)
 
 set(FAST_TEST 1)
@@ -43,6 +45,7 @@ add_executable (skiatest "skiatest.cpp"
 	"../debug/OpDebugDump.cpp"
 	"../debug/OpDebugGenerator.cpp"
 	"../debug/OpDebugImage.cpp"
+	"../debug/OpDebugRaster.cpp"
 	"../debug/OpDebugRecord.cpp"
 	"../skia/SkiaPaths.cpp"
     "../tests/OpSkiaTests.cpp"
@@ -130,11 +133,7 @@ elseif (CMAKE_BUILD_TYPE MATCHES "Release")
     target_compile_options(frametest PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra)
 endif()
 
-if (CMAKE_VERSION VERSION_GREATER 3.12)
-  set_property(TARGET skiatest PROPERTY CXX_STANDARD 17)
-  set_property(TARGET tinytest PROPERTY CXX_STANDARD 17)
-  set_property(TARGET frametest PROPERTY CXX_STANDARD 17)
-endif()
+set_property(GLOBAL PROPERTY CXX_STANDARD 17)
 
 # (remove all built files)
 # cmake -S . -B destDir/ -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang

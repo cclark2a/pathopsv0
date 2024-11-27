@@ -50,8 +50,9 @@ extended: all tests run 11/9/24 exceptions: grshapearc (total run:74600014 v0 on
 #define SkiaEnumSkPathOp_DEFINED
 #endif
 #include "SkiaTestCommon.h"
-#include "OpContour.h"
-#include "OpCurve.h"
+#include "OpContour.h"  // !!! remove this ?
+#include "OpCurve.h"  // !!! remove this ?
+#include "OpDebugRaster.h"
 #include "OpSkiaTests.h"
 #if OP_DEBUG_FAST_TEST
   #include <mutex>
@@ -116,8 +117,6 @@ std::atomic_int testsSkipped;
 std::atomic_int totalSkipped;
 std::atomic_int silentError;
 std::atomic_int totalError;
-extern std::atomic_int testsWarn;
-std::atomic_int totalWarn;
 std::atomic_int testsFailSkiaPass;
 std::atomic_int totalFailSkiaPass;
 std::atomic_int testsPassSkiaFail;
@@ -188,22 +187,19 @@ void initializeTests(skiatest::Reporter* r, const char* name) {
 void initTests(std::string filename) {
     totalRun += testsRun;
     totalSkipped += testsSkipped;
-    totalWarn += testsWarn;
     totalFailSkiaPass += testsFailSkiaPass;
     totalPassSkiaFail += testsPassSkiaFail;
     if (testsRun || testsSkipped || totalRun || totalSkipped)
         OpDebugOut(currentTestFile + " run:" + STR(testsRun) + " skipped:" + STR(testsSkipped)
-                + " warn:" + STR(testsWarn)
                 + " v0:" + STR(testsPassSkiaFail) + " sk:" + STR(testsFailSkiaPass)
                 + " total run:" + STR(totalRun) + " skipped:" + STR(totalSkipped)
-                + " err:" + STR(totalError) + " warn:" + STR(totalWarn)
+                + " err:" + STR(totalError)
                 + " v0:" + STR(totalPassSkiaFail) + " sk:" + STR(totalFailSkiaPass) + "\n");
     currentTestFile = filename;
     testsRun = 0;
     testsDot = 0;
     testsLine = 0;
     testsSkipped = 0;
-    testsWarn = 0;
     testsFailSkiaPass = 0;
     testsPassSkiaFail = 0;
     OpDebugOut(currentTestFile + "\n");
@@ -345,7 +341,7 @@ void runTests() {
 #endif
     if (testsRun || testsSkipped)
         OpDebugOut("total run:" + STR(testsRun) + " skipped:" + STR(testsSkipped) 
-            + " errors:" + STR(totalError) +  " warnings:" + STR(testsWarn) 
+            + " errors:" + STR(totalError)
             + " v0 only:" + STR(testsPassSkiaFail) + " skia only:" + STR(testsFailSkiaPass) + "\n");
 }
 
@@ -417,22 +413,8 @@ static int debug_paths_draw_the_same(const SkPath& one, const SkPath& two, SkBit
     return errors;
 }
 
-std::vector<std::string> warningStrings = { "no edge found: last, last resort" };
-
-void ReportError(std::string testname, int errors, std::vector<OpDebugWarning>& warnings) {
+void ReportError(std::string testname, int errors) {
     std::string s = testname;
-    // !!! when there's more than one warning, put this in a loop or lambda or something
-    int count = 0;
-    OpDebugWarning test = OpDebugWarning::lastResort;
-    for (OpDebugWarning w : warnings) {
-        if (test == w)
-            ++count;
-    }
-    if (count) {
-        s += " " + warningStrings[(int) test];
-        if (count > 1)
-            s += " (x" + STR(count) + ")";
-    }
     if (errors)
         s += " had errors=" + STR(errors);
     OpDebugOut(s + "\n");
@@ -624,12 +606,30 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
     int rightData[] = { 0, 1 };
     PathOpsV0Lib::AddWinding rightWinding { right, rightData, sizeof(rightData) };
     AddSkiaPath(context, rightWinding, b);
+#if TEST_RASTER
+	OpDebugRaster leftRaster(context, left);
+	OpDebugRaster rightRaster(context, right);
+	OpDebugRaster combinedRaster(context, leftRaster, rightRaster);
+#endif
     PathOutput pathOutput = result;
     Resolve(context, pathOutput);
     if (SkPathOpInvertOutput(op, a.isInverseFillType(), b.isInverseFillType()))
         result->toggleInverseFillType();
     ContextError contextError = Error(context);
 	trackError(contextError);
+#if TEST_RASTER
+	int rasterErrors = combinedRaster.compare(context);
+	if (ContextError::none == contextError) {
+		if (rasterErrors >= 9) {
+	#if OP_DEBUG_FAST_TEST
+			std::lock_guard<std::mutex> guard(out_mutex);
+	#endif
+			std::string testname = ((OpContours*) context)->debugData.testname;
+			OpDebugOut(testname + " raster errors:" + STR(rasterErrors) + "\n");
+		}
+//		OP_ASSERT(rasterErrors < 9);
+	}
+#endif
     DeleteContext(context);
 	return ContextError::none == contextError;
 }
@@ -679,6 +679,9 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     debugData.curveCurve1 = CURVE_CURVE_1;
     debugData.curveCurve2 = CURVE_CURVE_2;
     debugData.curveCurveDepth = CURVE_CURVE_DEPTH;
+#if TEST_RASTER
+	debugData.rasterEnabled = true;
+#endif
 	(void) OpV0(a, b, op, &result, &debugData);
 #endif
 #if TEST_SKIA
@@ -710,14 +713,14 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     int errors = VerifyOp(a, b, op, testname, result, v0MayFail);
 //  int altErrors = VerifyOpNoRegion(a, b, op, result);
     const int MAX_ERRORS = 9;
-    if (errors > MAX_ERRORS || debugData.warnings.size()) {
+    if (errors > MAX_ERRORS) {
 #if !defined(NDEBUG) || OP_RELEASE_TEST
 #if OP_DEBUG_FAST_TEST
         std::lock_guard<std::mutex> guard(out_mutex);
 #endif
         dumpOpTest(tn, a, b, op)
             ;   // <<<<<<<< paste this into immediate window
-        ReportError(testname, errors, debugData.warnings);
+        ReportError(testname, errors);
         if (errors > MAX_ERRORS)
             totalError++;
 #endif
@@ -985,7 +988,6 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
 	const SkPath& p = path;
 #endif
     out.setFillType(SkPathFillType::kEvenOdd); // !!! workaround
-    std::vector<OpDebugWarning> warnings;
     const char* tn = testname.c_str();
     if ("never!" == testname)
         OpDebugOut(tn);  // prevent optimizer from removing tn
@@ -1030,7 +1032,7 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
 #endif
         dumpSimplifyTest(tn, p)
             ;   // <<<<<<<< paste this into immediate window
-        ReportError(testname, errors, warnings);
+        ReportError(testname, errors);
 #endif
         totalError++;
     }

@@ -78,6 +78,7 @@ struct OpCurve {
 	OpPair xyAtT(OpPair t, XyChoice xy) const;
 #if OP_DEBUG
 	bool debugIsLine() const;
+	void debugScale(double scale, double offsetX, double offsetY);
 #endif
 	DUMP_DECLARATIONS
 

@@ -152,6 +152,7 @@ void testFrame() {
 			noReverse, lineTangent, linesEqual, linePtAtT, 
             linePtCount, noRotate, lineSubDivide, lineXYAtT,
 			lineCut, lineNormalLimit, lineInterceptLimit
+			OP_DEBUG_PARAMS(noDebugScale)
             OP_DEBUG_DUMP_PARAMS(noDumpName, noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
     );
@@ -160,6 +161,7 @@ void testFrame() {
     Contour* frameContour = CreateContour({context, &frameContourData, sizeof(frameContourData)});
     SetWindingCallBacks(frameContour, frameAddFunc, frameKeepFunc, 
             frameSubtractFunc, frameVisibleFunc, frameZeroFunc 
+    		OP_DEBUG_PARAMS(noDebugBitOper)
             OP_DEBUG_DUMP_PARAMS(frameDumpInFunc, frameDumpOutFunc, noDumpFunc)
             OP_DEBUG_IMAGE_PARAMS(noWindingImageOutFunc, noNativePathFunc,
                     noDebugGetDrawFunc, noDebugSetDrawFunc, noIsOppFunc)
@@ -171,7 +173,8 @@ void testFrame() {
     Contour* fillContour = CreateContour({context, &fillContourData, sizeof(fillContourData)});
     SetWindingCallBacks(fillContour, frameAddFunc, frameKeepFunc, 
             frameSubtractFunc, frameVisibleFunc, frameZeroFunc 
-            OP_DEBUG_DUMP_PARAMS(frameDumpInFunc, frameDumpOutFunc, noDumpFunc)
+    		OP_DEBUG_PARAMS(noDebugBitOper)
+	        OP_DEBUG_DUMP_PARAMS(frameDumpInFunc, frameDumpOutFunc, noDumpFunc)
             OP_DEBUG_IMAGE_PARAMS(noWindingImageOutFunc, noNativePathFunc,
                     noDebugGetDrawFunc, noDebugSetDrawFunc, noIsOppFunc)
 	);

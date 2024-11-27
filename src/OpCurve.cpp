@@ -2,6 +2,9 @@
 #include "OpCurve.h"
 #include "OpContour.h"
 #include "OpTightBounds.h"
+#if OP_DEBUG
+#include "OpDebugRaster.h"
+#endif
 
 OpRoots OpCurve::axisRayHit(Axis axis, float axisIntercept, float start, float end) const {
 	OpRoots roots = axisRawHit(axis, axisIntercept, MatchEnds::none);
@@ -422,4 +425,8 @@ OpPointBounds OpCurve::ptBounds() const {
 void OpCurve::output(bool firstPt, bool lastPt) {
 	contours->initOutOnce();
 	contours->callBack(c.type).curveOutputFuncPtr(c, firstPt, lastPt, contours->callerOutput);
+#if OP_DEBUG && TEST_RASTER
+	if (contours->debugData.rasterEnabled)
+		contours->debugRaster.addCurve(contours, c);
+#endif
 }

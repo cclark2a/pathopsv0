@@ -4,9 +4,8 @@
 
 #include "OpJoiner.h"
 #include "OpTightBounds.h"
-#include <vector>
-#if OP_DEBUG
-#include <atomic>
+#if OP_DEBUG && TEST_RASTER
+#include "OpDebugRaster.h"
 #endif
 
 enum class EdgeMatch : int8_t;
@@ -190,7 +189,7 @@ struct OpContourIterator {
 	}
 
 	OpContour* back() {
-		OpContourIter iter;
+		OpContourIter iter(contours);
 		iter.back();
 		return *iter;
 	}
@@ -371,7 +370,6 @@ struct OpContours {
 
 	bool debugFail() const;
 #if OP_DEBUG
-	void addDebugWarning(OpDebugWarning );
 	void debugRemap(int oldRayMatch, int newRayMatch);
 	bool debugSuccess() const;
 #endif
@@ -422,13 +420,15 @@ struct OpContours {
 #endif
 #if OP_DEBUG
 	OpDebugData debugData;
+#if TEST_RASTER
+	OpDebugRaster debugRaster;
+#endif
 	OpCurveCurve* debugCurveCurve;
 	OpJoiner* debugJoiner;
 	OpTree* debugTree;
 	int debugOutputID;
 	int debugErrorID;
 	int debugOppErrorID;
-	std::vector<OpDebugWarning> debugWarnings;
 	OpDebugExpect debugExpect;
 	bool debugInPathOps;
 	bool debugInClearEdges;

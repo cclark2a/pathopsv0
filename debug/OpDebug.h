@@ -22,10 +22,6 @@ enum class OpDebugExpect {
 	success,
 };
 
-enum class OpDebugWarning {
-	lastResort
-};
-
 float OpDebugBitsToFloat(int32_t);
 void OpDebugOut(const std::string& );
 uint64_t OpInitTimer();
@@ -55,16 +51,17 @@ struct OpContours;
 struct OpDebugData {
 	OpDebugData(bool mayFail) 
 		: expect(mayFail ? OpDebugExpect::fail : OpDebugExpect::success)
-		, success(true) {
+		, success(true)
+		, rasterEnabled(false) {
 	}
 
-	std::vector<OpDebugWarning> warnings;
 	std::string testname;
 	OpDebugExpect expect;
 	int curveCurve1;
 	int curveCurve2;
 	int curveCurveDepth;
 	bool success;
+	bool rasterEnabled;
 };
 
 #define OP_DEBUG_CONTEXT(...)
@@ -105,7 +102,6 @@ struct OpDebugData {
 #define OP_LINE_FILE_SET(debugMaker)
 #define OP_LINE_FILE_SET_IMMED(debugMaker)
 #define OP_TRACK(vector)
-#define OP_WARNING(contours, str)
 
 #else
 
@@ -119,7 +115,6 @@ struct OpDebugData {
 #endif
 
 #define OP_EXECUTE_AND_ASSERT(expr) OP_ASSERT(expr)
-#define OP_WARNING(contours, warn) contours->addDebugWarning(OpDebugWarning::warn)
 
 #if OP_DEBUG_FAST_TEST || (defined OP_TINY_TEST && OP_TINY_TEST)
 	#define OP_DEBUG_DUMP 0

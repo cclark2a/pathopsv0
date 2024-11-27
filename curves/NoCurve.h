@@ -51,6 +51,16 @@ inline Winding noWindingOpFunc(Winding , Winding ) {
 	return dummyWinding;
 }
 
+#if OP_DEBUG
+inline uint8_t noDebugBitOper(CallerData , uint8_t , uint8_t ) {
+	return 0;
+}
+
+inline void noDebugScale(Curve , double , double , double ) {
+}
+#endif
+
+
 #if OP_DEBUG_DUMP
 inline std::string noDumpName() { 
     return ""; 
@@ -65,7 +75,6 @@ inline void noDumpCurveSet(Curve , const char*& ) {
 
 inline void noDumpCurveSetExtra(Curve , const char*& str) {
 }
-
 #endif
 
 }

@@ -398,6 +398,10 @@ void OpContours::initOutOnce() {
 		return;
 	contextCallBacks.emptyNativePathFuncPtr(callerOutput);
 	outputOne = true;
+#if OP_DEBUG && TEST_RASTER
+	if (debugData.rasterEnabled)
+		debugRaster.init(this);
+#endif
 }
 
 OpLimb& OpContours::nthLimb(int index) {

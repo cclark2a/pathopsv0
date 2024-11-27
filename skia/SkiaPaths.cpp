@@ -116,6 +116,42 @@ void skiaCubicOutput(Curve c, bool firstPt, bool lastPt, PathOutput output) {
     commonOutput(c, SkPath::kCubic_Verb, firstPt, lastPt, output);
 }
 
+#if OP_DEBUG
+void debugCommonScale(Curve curve, int extra, double scale, double offsetX, double offsetY) {
+	auto scaler = [scale, offsetX, offsetY](OpPoint& pt) {
+		pt = pt * scale + OpPoint(offsetX, offsetY);
+	};
+	scaler(curve.data->start);
+	scaler(curve.data->end);
+	if (1 == extra) {
+        OpPoint ctrlPt = quadControlPt(curve);
+		scaler(ctrlPt);
+		quadSetControl(curve, ctrlPt);
+	} else if (2 == extra) {
+        CubicControls ctrls(curve);
+		scaler(ctrls.pts[0]);
+		scaler(ctrls.pts[1]);
+		ctrls.copyTo(curve);
+	}
+}
+
+void debugLineScale(Curve curve, double scale, double offsetX, double offsetY) {
+	debugCommonScale(curve, 0, scale, offsetX, offsetY);
+}
+
+void debugQuadScale(Curve curve, double scale, double offsetX, double offsetY) {
+	debugCommonScale(curve, 1, scale, offsetX, offsetY);
+}
+
+void debugConicScale(Curve curve, double scale, double offsetX, double offsetY) {
+	debugCommonScale(curve, 1, scale, offsetX, offsetY);
+}
+
+void debugCubicScale(Curve curve, double scale, double offsetX, double offsetY) {
+	debugCommonScale(curve, 2, scale, offsetX, offsetY);
+}
+#endif
+
 enum class SkiaCurveType : int {
 	skiaLineType = 1,
 	skiaQuadType,
@@ -129,6 +165,7 @@ void SetSkiaCurveCallBacks(Context* context) {
 			lineIsFinite, lineIsLine, noBounds, lineNormal, skiaLineOutput, noPinCtrl, 
 			noReverse, lineTangent, linesEqual, linePtAtT, linePtCount, noRotate, 
 			lineSubDivide, lineXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
+			OP_DEBUG_PARAMS(debugLineScale)
             OP_DEBUG_DUMP_PARAMS(lineDebugDumpName, noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath)
     );
@@ -137,6 +174,7 @@ void SetSkiaCurveCallBacks(Context* context) {
 			quadIsFinite, quadIsLine, quadSetBounds, quadNormal, skiaQuadOutput, quadPinCtrl, 
             noReverse, quadTangent, quadsEqual, quadPtAtT, quadPtCount, quadRotate, 
 			quadSubDivide, quadXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
+			OP_DEBUG_PARAMS(debugQuadScale)
             OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath)
     );
@@ -145,6 +183,7 @@ void SetSkiaCurveCallBacks(Context* context) {
             conicIsFinite, conicIsLine, conicSetBounds, conicNormal, skiaConicOutput, quadPinCtrl, 
 			noReverse, conicTangent, conicsEqual, conicPtAtT, conicPtCount, conicRotate, 
 			conicSubDivide, conicXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
+			OP_DEBUG_PARAMS(debugConicScale)
             OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
             OP_DEBUG_IMAGE_PARAMS(debugConicAddToSkPath)
     );
@@ -153,6 +192,7 @@ void SetSkiaCurveCallBacks(Context* context) {
             cubicIsFinite, cubicIsLine, cubicSetBounds, cubicNormal, skiaCubicOutput, cubicPinCtrl, 
 			cubicReverse, cubicTangent, cubicsEqual, cubicPtAtT, cubicPtCount, cubicRotate, 
 			cubicSubDivide, cubicXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
+			OP_DEBUG_PARAMS(debugCubicScale)
             OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(debugCubicAddToSkPath)
     );
@@ -279,6 +319,31 @@ PathOpsV0Lib::CurveType setSkiaLineType(PathOpsV0Lib::Curve ) {
     return (CurveType) SkiaCurveType::skiaLineType;
 }
 
+#if OP_DEBUG
+// 0x00 (black) is 'on' ; 0xFF (white) is 'off' -- this reverses the intuitive operators
+uint8_t skiaDebugBitOper(CallerData data, uint8_t src, uint8_t opp) {
+    SkiaOpContourData opContourData;
+    OP_ASSERT(sizeof(opContourData) == data.size);
+    std::memcpy(&opContourData, data.data, data.size);
+//	uint8_t constexpr black = 0x00;	// aide memoire
+	uint8_t constexpr white = 0xFF;
+	switch (opContourData.data.operation) {
+		case BinaryOperation::Difference:
+			return src ? white : ~opp;
+		case BinaryOperation::Intersect:
+			return src | opp;
+		case BinaryOperation::Union:
+			return src & opp;
+		case BinaryOperation::ExclusiveOr:
+			return ~(src ^ opp);
+		case BinaryOperation::ReverseDifference:
+			return opp ? white : ~src;
+	}
+	OP_ASSERT(0);
+	return 0;
+}
+#endif
+
 void SetSkiaContextCallBacks(Context* context) {
     SetContextCallBacks(context, emptySkPathFunc, skiaMakeLine, setSkiaLineType, maxSignSwap,
 			maxDepth, maxSplits, maxLimbs);
@@ -293,6 +358,7 @@ Contour* SetSkiaSimplifyCallBacks(Context* context,
     WindingAdd subtractFunc = isWindingFill ? unaryWindingSubtractFunc : unaryEvenOddFunc;
     SetWindingCallBacks(contour, addFunc, unaryWindingKeepFunc, 
             subtractFunc, unaryWindingVisibleFunc, unaryWindingZeroFunc 
+			OP_DEBUG_PARAMS(skiaDebugBitOper)
             OP_DEBUG_DUMP_PARAMS(unaryWindingDumpInFunc, unaryWindingDumpOutFunc, unaryDumpFunc)
             OP_DEBUG_IMAGE_PARAMS(unaryWindingImageOutFunc, debugSimplifyPathFunc,
 	                debugSimplifyGetDrawFunc, debugSimplifySetDrawFunc, noIsOppFunc)
@@ -307,7 +373,7 @@ Contour* SetSkiaOpCallBacks(Context* context, SkPathOp op,
     Contour* contour = CreateContour({context, (ContourData*) &windingUserData,
             sizeof(SkiaOpContourData) } );
     WindingKeep operatorFunc = noWindKeepFunc;
-    switch(op) {
+    switch (op) {
         case kDifference_SkPathOp: operatorFunc = binaryWindingDifferenceFunc; break;
         case kIntersect_SkPathOp: operatorFunc = binaryWindingIntersectFunc; break;
         case kUnion_SkPathOp: operatorFunc = binaryWindingUnionFunc; break;
@@ -333,7 +399,8 @@ Contour* SetSkiaOpCallBacks(Context* context, SkPathOp op,
     }
     SetWindingCallBacks(contour, addFunc, operatorFunc, 
             subtractFunc, binaryWindingVisibleFunc, binaryWindingZeroFunc 
-            OP_DEBUG_DUMP_PARAMS(binaryWindingDumpInFunc, binaryWindingDumpOutFunc, binaryDumpFunc)
+			OP_DEBUG_PARAMS(skiaDebugBitOper)
+			OP_DEBUG_DUMP_PARAMS(binaryWindingDumpInFunc, binaryWindingDumpOutFunc, binaryDumpFunc)
             OP_DEBUG_IMAGE_PARAMS(binaryWindingImageOutFunc, debugOpPathFunc,
 	                debugOpGetDrawFunc, debugOpSetDrawFunc, debugOpSetIsOppFunc)
     );

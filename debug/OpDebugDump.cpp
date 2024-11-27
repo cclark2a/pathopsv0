@@ -738,13 +738,6 @@ OpOperatorName opOperatorNames[] {
 ENUM_NAME(OpOperator, opOperator)
 
 #if OP_DEBUG
-ENUM_NAME_STRUCT(OpDebugWarning);
-#define OP_WARNING_NAME(r) { OpDebugWarning::r, #r }
-OpDebugWarningName debugWarningNames[] {
-    OP_WARNING_NAME(lastResort)
-};
-ENUM_NAME(OpDebugWarning, debugWarning)
-
 ENUM_NAME_STRUCT(OpDebugExpect);
 #define OP_EXPECT_NAME(r) { OpDebugExpect::r, #r }
 OpDebugExpectName debugExpectNames[] {
@@ -804,12 +797,6 @@ std::string OpContours::debugDump(DebugLevel l, DebugBase b) const {
         s += "debugCurveCurve:" + debugCurveCurve->debugDump(l, b) + "\n";
     if (debugJoiner)
         s += "debugJoiner:" + debugJoiner->debugDump(l, b) + "\n";
-    if (debugWarnings.size()) {
-        s += "debugWarnings:" + STR(debugWarnings.size()) + " [";
-        for (auto& warning : debugWarnings)
-            s += debugWarningName(warning) + " ";
-        s += "] ";
-    }
     if (debugData.testname.size())
         s += "debugTestname:" + debugData.testname + " ";
     s += "debugExpect:" + debugExpectName(debugData.expect) + " ";
@@ -857,11 +844,6 @@ void OpContours::dumpSet(const char*& str) {
         if (!debugJoiner)
             debugJoiner = new OpJoiner(*this);
         debugJoiner->dumpSet(str);
-    }
-    if (OpDebugOptional(str, "debugWarnings")) {
-        size_t count = OpDebugReadSizeT(str);
-        for (size_t index = 0; index < count; ++index)
-            debugWarnings[index] = debugWarningStr(str, "", OpDebugWarning::lastResort);
     }
     if (OpDebugOptional(str, "debugTestname"))
         debugData.testname = OpDebugLabel(str);

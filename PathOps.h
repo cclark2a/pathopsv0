@@ -42,7 +42,7 @@ void ResetContour(Contour* );
 void Resolve(Context* , PathOutput );
 
 void SetContextCallBacks(Context* ,  EmptyNativePath, MakeLine , SetLineType , MaxSignSwap ,
-		MaxCurveCurve maxDepth, MaxCurveCurve maxSplits, MaxLimbs );
+		MaxCurveCurve , MaxCurveCurve , MaxLimbs);
 
 void SetError(Context* , ContextError );
 void SetErrorHandler(Context* , ErrorDispatch );
@@ -53,12 +53,13 @@ CurveType SetCurveCallBacks(Context* , AxisRawHit,
 		CurveReverse, CurveTangent, CurvesEqual, PtAtT,
 		PtCount, Rotate, SubDivide, XYAtT, CurveConst cut, CurveConst normalLimit,
 		CurveConst interceptLimit
+		OP_DEBUG_PARAMS(DebugScale)
 		OP_DEBUG_DUMP_PARAMS(DebugDumpCurveName, DebugDumpCurveExtra)
 		OP_DEBUG_IMAGE_PARAMS(DebugAddToPath)
 	);
 
 void SetWindingCallBacks(Contour* , WindingAdd, WindingKeep ,
-		WindingSubtract , WindingVisible, WindingZero
+		WindingSubtract , WindingVisible, WindingZero  OP_DEBUG_PARAMS(DebugBitOper)
 		OP_DEBUG_DUMP_PARAMS(DebugDumpContourIn, DebugDumpContourOut, DebugDumpContourExtra)
 		OP_DEBUG_IMAGE_PARAMS(DebugImageOut, DebugNativePath, DebugGetDraw, DebugSetDraw, 
 				DebugIsOpp)

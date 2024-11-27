@@ -111,6 +111,7 @@ CurveType SetCurveCallBacks(Context* context, AxisRawHit axisFunc,
 		CurveReverse reverseFunc, CurveTangent tangentFunc, CurvesEqual equalFunc, PtAtT ptAtTFunc, 
         PtCount ptCountFunc, Rotate rotateFunc, SubDivide subDivideFunc, XYAtT xyAtTFunc,
 		CurveConst cutFunc, CurveConst normalLimitFunc, CurveConst interceptLimitFunc
+		OP_DEBUG_PARAMS(DebugScale debugScaleFunc)
         OP_DEBUG_DUMP_PARAMS(DebugDumpCurveName debugDumpNameFunc, 
         DebugDumpCurveExtra debugDumpExtraFunc)
 		OP_DEBUG_IMAGE_PARAMS(DebugAddToPath debugAddToPathFunc)
@@ -121,6 +122,7 @@ CurveType SetCurveCallBacks(Context* context, AxisRawHit axisFunc,
             tangentFunc, equalFunc, ptAtTFunc, ptCountFunc, rotateFunc, 
             subDivideFunc, xyAtTFunc,
 			cutFunc, normalLimitFunc, interceptLimitFunc
+			OP_DEBUG_PARAMS(debugScaleFunc)
 		    OP_DEBUG_DUMP_PARAMS(debugDumpNameFunc, debugDumpExtraFunc)
 		    OP_DEBUG_IMAGE_PARAMS(debugAddToPathFunc)
             } );
@@ -129,6 +131,7 @@ CurveType SetCurveCallBacks(Context* context, AxisRawHit axisFunc,
 
 void SetWindingCallBacks(Contour* ctour, WindingAdd addFunc, WindingKeep keepFunc,
         WindingSubtract subtractFunc, WindingVisible visibleFunc, WindingZero zeroFunc
+		OP_DEBUG_PARAMS(DebugBitOper bitOper)
 		OP_DEBUG_DUMP_PARAMS(DebugDumpContourIn dumpInFunc, DebugDumpContourOut dumpOutFunc, 
                 DebugDumpContourExtra dumpFunc)
         OP_DEBUG_IMAGE_PARAMS(DebugImageOut dumpImageOutFunc, 
@@ -138,6 +141,7 @@ void SetWindingCallBacks(Contour* ctour, WindingAdd addFunc, WindingKeep keepFun
 ) {
     OpContour* contour = (OpContour*) ctour;
     contour->callBacks = { addFunc, keepFunc, subtractFunc, visibleFunc, zeroFunc 
+			OP_DEBUG_PARAMS(bitOper)
             OP_DEBUG_DUMP_PARAMS(dumpInFunc, dumpOutFunc, dumpFunc)
             OP_DEBUG_IMAGE_PARAMS(dumpImageOutFunc,
                     debugNativePathFunc, debugGetDrawFunc, debugSetDrawFunc, debugIsOppFunc)

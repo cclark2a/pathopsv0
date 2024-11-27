@@ -5,7 +5,6 @@
 #include "OpEdge.h"
 #include "OpIntersection.h"
 #include "OpTightBounds.h"
-#include <vector>
 
 struct OpContour;
 

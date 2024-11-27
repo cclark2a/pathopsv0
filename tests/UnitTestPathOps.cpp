@@ -1168,6 +1168,7 @@ void LineCoincidenceTest() {
             lineTangent, linesEqual, linePtAtT,
             linePtCount, noRotate, lineSubDivide, lineXYAtT,
 			lineCut, lineNormalLimit, lineInterceptLimit
+			OP_DEBUG_PARAMS(noDebugScale)
             OP_DEBUG_DUMP_PARAMS(noDumpName, noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
     );
@@ -1175,6 +1176,7 @@ void LineCoincidenceTest() {
     Contour* contour = CreateContour({context, nullptr, 0});
     SetWindingCallBacks(contour, unaryWindingAddFunc, unaryWindingKeepFunc, 
             unaryWindingSubtractFunc, unaryWindingVisibleFunc, unaryWindingZeroFunc 
+			OP_DEBUG_PARAMS(noDebugBitOper)
             OP_DEBUG_DUMP_PARAMS(unaryWindingDumpInFunc, unaryWindingDumpOutFunc, noDumpFunc)
             OP_DEBUG_IMAGE_PARAMS(noWindingImageOutFunc, noNativePathFunc,
                     noDebugGetDrawFunc, noDebugSetDrawFunc, noIsOppFunc)
