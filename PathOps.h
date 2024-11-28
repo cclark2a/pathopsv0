@@ -13,28 +13,25 @@ namespace PathOpsV0Lib {
 */
 
 // functions
-/* Adds one curve to winding's contour.
- */
+// Adds one curve to winding's contour.
 void Add(AddCurve , AddWinding );
 
-/* Makes a PathOps context: an instance of the PathOps engine. Optional caller data may be added.
- */
+// Makes a PathOps context: an instance of the PathOps engine. Optional caller data may be added.
 Context* CreateContext(AddContext );
 
-/* Deletes a PathOps context, and frees any memory associated with that context.
- */
+// Deletes a PathOps context, and frees any memory associated with that context.
 void DeleteContext(Context* );
 
-/* Makes a PathOps contour: a collection of curves. Optional caller data may be added.
- */
+// Makes a PathOps contour: a collection of curves. Optional caller data may be added.
 Contour* CreateContour(AddContour );
 
-/* Returns error code of previous call.
- */
+// Returns error code of previous call.
 ContextError Error(Context* );
 
-/* Removes curves added to contour. Remaining state remains.
- */
+// Adjusts curves to place all numerical data in the same range 
+void Normalize(Context* );
+
+// Removes curves added to contour. Remaining state remains.
 void ResetContour(Contour* );
 
 /* Operate on curves provided by Add(). Calls curve output callback with path output.

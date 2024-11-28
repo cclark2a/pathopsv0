@@ -16,26 +16,30 @@ namespace PathOpsV0Lib {
 	struct CallerData;
 }
 
-OpDebugRaster::OpDebugRaster(PathOpsV0Lib::Context* context, PathOpsV0Lib::Contour* contour) {
+void OpDebugRaster::set(PathOpsV0Lib::Context* context, PathOpsV0Lib::Contour* cntour,
+		RasterType t) {
 	if (!((OpContours*) context)->debugData.rasterEnabled)
 		return;
-	init((OpContours*) context); 
-	rasterize(contour); 
+	init((OpContours*) context, t); 
+	rasterize(cntour); 
 }
 
-OpDebugRaster::OpDebugRaster(PathOpsV0Lib::Context* context, const OpDebugRaster& left,
+void OpDebugRaster::setCombined(PathOpsV0Lib::Context* context, const OpDebugRaster& left,
 		const OpDebugRaster& right) {
 	if (!((OpContours*) context)->debugData.rasterEnabled)
 		return;
-	init((OpContours*) context);
+	init((OpContours*) context, RasterType::combined);
 	memcpy(bits, left.bits, sizeof(bits));
 	contour = left.contour;
 	combine(right);
 }
 
-static int toCenter(float x) {
-	float frac = x - (int64_t) x;
-	return (int64_t) (x + (frac > .5f)) + .5f;
+static float toCenter(float x) {
+	return (int64_t) (x + .5f) + .5f;
+}
+
+static float toLimit(float x) {
+	return (int64_t) (x - .5f) + .5f;
 }
 
 void OpDebugRaster::addCurve(OpContours* contours, PathOpsV0Lib::Curve original) {
@@ -43,16 +47,18 @@ void OpDebugRaster::addCurve(OpContours* contours, PathOpsV0Lib::Curve original)
 	OpCurve curve(contours, original);
 	curve.debugScale(scale, offsetX, offsetY);
 	OpPoint xy = curve.firstPt();
-	OpPoint limit = curve.lastPt();
-	if (xy.y > limit.y)
-		std::swap(xy, limit);
+	OpPoint xyEnd = curve.lastPt();
+	if (xy.y > xyEnd.y)
+		std::swap(xy, xyEnd);
 	float y = toCenter(xy.y);
-	y = std::max(0.f, y);
-	float limitY = std::min((float) bitHeight, limit.y);
-	while (y < limitY) {
+	float yEnd = toLimit(xyEnd.y);
+	y = std::max(0.5f, y);
+	yEnd = std::min((bitHeight - 1) + 0.5f, yEnd);
+	while (y <= yEnd) {
 		float t = curve.tAtXY(0, 1, XyChoice::inY, y);
 		float x = curve.ptAtT(t).x;
-		if (x + .5f <= (float) bitWidth) {
+		if (x <= (float) (bitWidth - 1) + 0.5f) {
+			OpDebugOut("y:" + STR(y) + " x:" + STR(x) + "\n");
 			float centerX = toCenter(x);
 			int bitX = std::max(0, (int) centerX);
 			int bitY = (int) y;
@@ -63,7 +69,7 @@ void OpDebugRaster::addCurve(OpContours* contours, PathOpsV0Lib::Curve original)
 			else
 				doXor(bitX, bitY);
 		}
-		y += 1;
+		y += 1.f;
 	}
 	OP_DEBUG_CODE(++pass);
 }
@@ -94,7 +100,7 @@ int OpDebugRaster::compare(PathOpsV0Lib::Context* context) {
     OpContours* contours = (OpContours*) context;
 	if (!contours->debugData.rasterEnabled)
 		return 0;
-	OpDebugRaster& output = contours->debugRaster;
+	OpDebugRaster& output = contours->opRaster;
 
 	uint8_t* src = bits;
 	uint8_t* out = output.bits;
@@ -115,7 +121,7 @@ void OpDebugRaster::doXor(int x, int y) {
 	}
 }
 
-void OpDebugRaster::init(OpContours* contours) {
+void OpDebugRaster::init(OpContours* contours, RasterType t) {
 	float scaleX = bitWidth / contours->maxBounds.width();
 	float scaleY = bitHeight / contours->maxBounds.height();
 	memset(bits, 0xFF, sizeof(bits));
@@ -124,6 +130,7 @@ void OpDebugRaster::init(OpContours* contours) {
 	scale = std::min(scaleX, scaleY);
 	offsetX = -contours->maxBounds.left * scale;
 	offsetY = -contours->maxBounds.top * scale;
+	type = t;
 	// for image watch
 	width = bitWidth;
 	height = bitHeight;

@@ -606,12 +606,18 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
     int rightData[] = { 0, 1 };
     PathOpsV0Lib::AddWinding rightWinding { right, rightData, sizeof(rightData) };
     AddSkiaPath(context, rightWinding, b);
-#if TEST_RASTER
-	OpDebugRaster leftRaster(context, left);
-	OpDebugRaster rightRaster(context, right);
-	OpDebugRaster combinedRaster(context, leftRaster, rightRaster);
-#endif
     PathOutput pathOutput = result;
+	Normalize(context);
+#if TEST_RASTER
+	OpDebugData& debugData = ((OpContours*) context)->debugData;
+	OpDebugRaster leftRaster, rightRaster, combinedRaster;
+	leftRaster.set(context, left, RasterType::left);
+	debugData.leftRaster = &leftRaster;
+	rightRaster.set(context, right, RasterType::right);
+	debugData.rightRaster = &rightRaster;
+	combinedRaster.setCombined(context, leftRaster, rightRaster);
+	debugData.combinedRaster = &combinedRaster;
+#endif
     Resolve(context, pathOutput);
     if (SkPathOpInvertOutput(op, a.isInverseFillType(), b.isInverseFillType()))
         result->toggleInverseFillType();
@@ -955,6 +961,7 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
 	if (ContextError::none == contextError) {
 //		out->setFillType(SkPathFillType::kEvenOdd);
 		PathOutput pathOutput = out;
+		Normalize(context);
 		Resolve(context, pathOutput);
 		contextError = Error(context);
 		trackError(contextError);

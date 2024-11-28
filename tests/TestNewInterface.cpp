@@ -117,6 +117,7 @@ void testNewInterface() {
     AddQuads({ &contour2[1], quadSize, quadType }, addWinding );
     Add(     { &contour2[4], lineSize, lineType }, addWinding );
 
+	Normalize(context);
     Resolve(context, nullptr);
 	ContextError error = Error(context);
     DeleteContext(context);

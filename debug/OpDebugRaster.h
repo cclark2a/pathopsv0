@@ -16,18 +16,26 @@ namespace PathOpsV0Lib {
 struct OpContours;
 struct OpContour;
 
+enum class RasterType {
+	unset,
+	left,
+	right,
+	combined,
+	op
+};
+
 struct OpDebugRaster {
-	OpDebugRaster(PathOpsV0Lib::Context* context, PathOpsV0Lib::Contour* contour);
-	OpDebugRaster(PathOpsV0Lib::Context* context, const OpDebugRaster& , const OpDebugRaster& );
+	OpDebugRaster() : type(RasterType::unset) {}
 	int compare(PathOpsV0Lib::Context* );
 	void rasterize(PathOpsV0Lib::Contour* contour);
+	void set(PathOpsV0Lib::Context* context, PathOpsV0Lib::Contour* contour, RasterType );
+	void setCombined(PathOpsV0Lib::Context* context, const OpDebugRaster& , const OpDebugRaster& );
 
 	// internal
-	OpDebugRaster() {}
 	void addCurve(OpContours* , PathOpsV0Lib::Curve );
 	void addWinding(int x, int y);
 	void doXor(int x, int y);
-	void init(OpContours* );
+	void init(OpContours* , RasterType );
 	void combine(const OpDebugRaster& operand);
 
 	static constexpr int bitWidth = 64;
@@ -40,11 +48,12 @@ struct OpDebugRaster {
 	double scale;  // apply scale first
 	double offsetX;  // then apply offset
 	double offsetY;
-	int width;  // for image watch
+	char* data; // for image watch
+	int width; 
 	int height;
 	int stride;
+	RasterType type;
 	bool curveDown;
-	char* data;
 	OP_DEBUG_CODE(int pass = 0);
 };
 

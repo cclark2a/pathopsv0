@@ -34,6 +34,7 @@ SkFont labelFont(nullptr, 14, 1, 0);
 std::vector<OpDebugRay> lines;
 std::vector<OpPtT> ptTs;
 int gridIntervals = 8;
+int rasterIntervals = 64;
 
 #define OP_X(Thing) \
 bool draw##Thing##On = false;
@@ -472,6 +473,8 @@ void OpDebugImage::drawDoubleFocus() {
 #endif
 	if (drawGridOn)
 		drawGrid();
+	if (drawRasterOn)
+		drawRaster();
 }
 
 void OpDebugImage::record(FILE* recordFile) {
@@ -1132,6 +1135,45 @@ void OpDebugImage::drawGuide(const SkRect& test, OpPoint pt, uint32_t color) {
 	paint.setAlpha(63);
 	SkCanvas offscreen(bitmap);
 	offscreen.drawLine(closestSide.x, closestSide.y, pt.x, pt.y, paint);
+}
+
+void OpDebugImage::drawRaster() {
+	OpPointBounds bounds = debugGlobalContours->maxBounds;
+	OpPoint mapLT = DebugOpPtToPt(OpPoint(bounds.left, bounds.top));
+	OpPoint mapBR = DebugOpPtToPt(OpPoint(bounds.right, bounds.bottom));
+	SkPath path;
+	float x = mapLT.x;
+	float y = mapLT.y;
+	for (int index = 0; index <= rasterIntervals; ++index) {
+		path.moveTo(x, mapLT.y);
+		path.lineTo(x, mapBR.y);
+		x += (mapBR.x - mapLT.x) / rasterIntervals;
+		path.moveTo(mapLT.x, y);
+		path.lineTo(mapBR.x, y);
+		y += (mapBR.y - mapLT.y) / rasterIntervals;
+	}
+	OpDebugImage::drawPath(path, 0x3f000000);
+#if TEST_RASTER
+	auto draw = [](OpDebugRaster* raster) {
+		if (!raster)
+			return;
+		if (RasterType::unset == raster->type)
+			return;
+		SkPath path;
+		uint8_t* bitsPtr = raster->bits;
+		for (int y = 0; y < raster->bitHeight; ++y) {
+			for (int x = 0; x < raster->bitWidth; ++x) {
+				if (*bitsPtr)
+					continue;
+	//			path.addRect(
+			}
+		}
+	};
+	draw(debugGlobalContours->debugData.leftRaster);
+	draw(debugGlobalContours->debugData.rightRaster);
+	draw(debugGlobalContours->debugData.combinedRaster);
+	draw(&debugGlobalContours->opRaster);
+#endif
 }
 
 bool OpDebugImage::drawValue(OpPoint pt, std::string ptStr, uint32_t color) {

@@ -325,11 +325,11 @@ uint8_t skiaDebugBitOper(CallerData data, uint8_t src, uint8_t opp) {
     SkiaOpContourData opContourData;
     OP_ASSERT(sizeof(opContourData) == data.size);
     std::memcpy(&opContourData, data.data, data.size);
-//	uint8_t constexpr black = 0x00;	// aide memoire
-	uint8_t constexpr white = 0xFF;
+//	uint8_t constexpr blackBit = 0x00;	// aide memoire
+	uint8_t constexpr whiteBit = 0xFF;
 	switch (opContourData.data.operation) {
 		case BinaryOperation::Difference:
-			return src ? white : ~opp;
+			return src ? whiteBit : ~opp;
 		case BinaryOperation::Intersect:
 			return src | opp;
 		case BinaryOperation::Union:
@@ -337,7 +337,7 @@ uint8_t skiaDebugBitOper(CallerData data, uint8_t src, uint8_t opp) {
 		case BinaryOperation::ExclusiveOr:
 			return ~(src ^ opp);
 		case BinaryOperation::ReverseDifference:
-			return opp ? white : ~src;
+			return opp ? whiteBit : ~src;
 	}
 	OP_ASSERT(0);
 	return 0;

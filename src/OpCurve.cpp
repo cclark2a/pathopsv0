@@ -427,6 +427,6 @@ void OpCurve::output(bool firstPt, bool lastPt) {
 	contours->callBack(c.type).curveOutputFuncPtr(c, firstPt, lastPt, contours->callerOutput);
 #if OP_DEBUG && TEST_RASTER
 	if (contours->debugData.rasterEnabled)
-		contours->debugRaster.addCurve(contours, c);
+		contours->opRaster.addCurve(contours, c);
 #endif
 }

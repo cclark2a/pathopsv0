@@ -69,6 +69,15 @@ void SetErrorHandler(Context* context, ErrorDispatch errorDispatch) {
 	contours->errorHandler.errorDispatchFuncPtr = errorDispatch;
 }
 
+void Normalize(Context* context) {
+    OpContours* contours = (OpContours*) context;
+    if (ContextError::none != contours->error) {
+        OP_DEBUG_CODE(contours->debugData.success = false);
+        return;
+    }
+	contours->opsInit();
+}
+
 void ResetContour(Contour* c) {
     OpContour* contour = (OpContour*) c;
     contour->segments.clear();

@@ -66,6 +66,7 @@ struct OpDebugImage {
 	static bool drawEdgeWinding(const OpCurve& , const OpEdge* , uint32_t color);
 	static void drawPath(const class SkPath& path, uint32_t color = debugBlack);
 	static void drawPoints();
+	static void drawRaster();
 	static bool drawTangent(OpVector tan, OpPoint midTPt, int edgeID, 
 			uint32_t color = debugBlack);
 	static bool drawValue(OpPoint pt, std::string ptStr, uint32_t color = debugBlack);
@@ -211,6 +212,7 @@ OP_X(Lines) \
 OP_X(Normals) \
 OP_X(PathsOut) \
 OP_X(Points) \
+OP_X(Raster) \
 OP_X(Rays) \
 OP_X(Result) \
 OP_X(Segments) \

@@ -122,7 +122,7 @@ HelloWorld::HelloWorld(int argc, char** argv, void* platformData)
     extern void testFrame();
     if ((0))
         testNewInterface();
-    if ((1))
+    if ((0))
         testFrame();
 //    extern void cubicOp114asQuad(skiatest::Reporter* reporter, const char* filename);
  //   cubicOp114asQuad(nullptr, "");

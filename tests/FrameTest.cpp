@@ -189,6 +189,7 @@ void testFrame() {
 		Add({ &hourglass[index], frameLineSize, frameLine }, fillAddWinding );
 
 	SetErrorHandler(context, allowDisjointLines);
+	Normalize(context);
     Resolve(context, nullptr);
 	ContextError error = Error(context);
     DeleteContext(context);

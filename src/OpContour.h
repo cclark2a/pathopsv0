@@ -347,7 +347,7 @@ struct OpContours {
 	}
 
 	OpLimb& nthLimb(int index);
-
+	void opsInit();
 	bool pathOps();
 	void release(OpEdgeStorage*& );
 	OpPoint remapPts(OpPoint oldAlias, OpPoint newAlias);
@@ -418,11 +418,11 @@ struct OpContours {
 	int debugValidateEdgeIndex;
 	int debugValidateJoinerIndex;
 #endif
+#if TEST_RASTER
+	OpDebugRaster opRaster;
+#endif
 #if OP_DEBUG
 	OpDebugData debugData;
-#if TEST_RASTER
-	OpDebugRaster debugRaster;
-#endif
 	OpCurveCurve* debugCurveCurve;
 	OpJoiner* debugJoiner;
 	OpTree* debugTree;

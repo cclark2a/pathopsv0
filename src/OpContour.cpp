@@ -398,10 +398,6 @@ void OpContours::initOutOnce() {
 		return;
 	contextCallBacks.emptyNativePathFuncPtr(callerOutput);
 	outputOne = true;
-#if OP_DEBUG && TEST_RASTER
-	if (debugData.rasterEnabled)
-		debugRaster.init(this);
-#endif
 }
 
 OpLimb& OpContours::nthLimb(int index) {
@@ -428,9 +424,16 @@ void OpContours::resetLimbs() {
 // This will compare the dumps of contours and contents to detect when something changed.
 // The callouts are removed when not in use as they are not maintained and reduce readability.
 // !!! OP_DEBUG_COUNT was unintentionally deleted at some point. Hopefully it is in git history...
-bool OpContours::pathOps() {
+void OpContours::opsInit() {
 	setThreshold();
 	normalize();  // collect extremes, map all from 0 to 1, map <= epsilon to zero
+#if TEST_RASTER
+	if (debugData.rasterEnabled)
+		opRaster.init(this, RasterType::op);
+#endif
+}
+
+bool OpContours::pathOps() {
 	OpSegments::FindCoincidences(this);
 	debugValidateIntersections();
 	OpSegments sortedSegments(*this);
