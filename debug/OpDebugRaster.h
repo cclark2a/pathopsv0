@@ -24,6 +24,13 @@ enum class RasterType {
 	op
 };
 
+struct RasterWind {
+    size_t windData;  // index into debug raster windings
+    float x;
+};
+
+typedef std::vector<RasterWind> RasterRow;
+
 struct OpDebugRaster {
 	OpDebugRaster() : type(RasterType::unset) {}
 	int compare(PathOpsV0Lib::Context* );
@@ -34,6 +41,7 @@ struct OpDebugRaster {
 	// internal
 	void addCurve(OpContours* , PathOpsV0Lib::Curve );
 	void addWinding(int x, int y);
+	void addWinding2(float x, int y);
 	void doXor(int x, int y);
 	void init(OpContours* , RasterType );
 	void combine(const OpDebugRaster& operand);
@@ -41,7 +49,8 @@ struct OpDebugRaster {
 	static constexpr int bitWidth = 64;
 	static constexpr int bitHeight = 64;
 	std::vector<char> windings; // 1 winding data per pixel (caller sets winding size)
-	uint8_t bits[bitWidth * bitHeight];  // 1 byte per pixel, black/white only
+	RasterRow rasterRows[bitHeight];
+    uint8_t bits[bitWidth * bitHeight];  // 1 byte per pixel, black/white only
 	bool windInitialized[bitWidth * bitHeight];
 	OpContour* contour;  // for winding
 	PathOpsV0Lib::Winding* winding;

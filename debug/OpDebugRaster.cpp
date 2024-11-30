@@ -7,7 +7,7 @@
 #include "OpTestDrive.h"
 #include "OpDebugRaster.h"
 
-#if TEST_RASTER
+#if 1 || TEST_RASTER
 
 #include "OpContour.h"
 #include "OpSegment.h"
@@ -82,6 +82,19 @@ void OpDebugRaster::addWinding(int x, int y) {
 	else
 		contour->callBacks.windingSubtractFuncPtr(result, *winding);
 	windInitialized[index] = true;
+}
+
+void OpDebugRaster::addWinding2(float x, int y) {
+    size_t oldSize = windings.size();
+    windings.resize(oldSize + winding->size);
+    char* windData = &windings.front() + oldSize;
+	PathOpsV0Lib::Winding result { windData, winding->size };
+	if (curveDown)
+		contour->callBacks.windingAddFuncPtr(result, *winding);
+	else
+		contour->callBacks.windingSubtractFuncPtr(result, *winding);
+    RasterRow& row = rasterRows[y];
+    row.push_back({ oldSize, x });
 }
 
 void OpDebugRaster::combine(const OpDebugRaster& operand) {

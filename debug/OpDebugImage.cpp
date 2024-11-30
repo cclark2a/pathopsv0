@@ -1139,40 +1139,60 @@ void OpDebugImage::drawGuide(const SkRect& test, OpPoint pt, uint32_t color) {
 
 void OpDebugImage::drawRaster() {
 	OpPointBounds bounds = debugGlobalContours->maxBounds;
+    if (bounds.width() > bounds.height())
+        bounds.bottom = bounds.top + bounds.width();
+    else
+        bounds.right = bounds.left + bounds.height();
 	OpPoint mapLT = DebugOpPtToPt(OpPoint(bounds.left, bounds.top));
 	OpPoint mapBR = DebugOpPtToPt(OpPoint(bounds.right, bounds.bottom));
 	SkPath path;
 	float x = mapLT.x;
 	float y = mapLT.y;
+    float xStep = (mapBR.x - mapLT.x) / rasterIntervals;
+    float yStep = (mapBR.y - mapLT.y) / rasterIntervals;
 	for (int index = 0; index <= rasterIntervals; ++index) {
 		path.moveTo(x, mapLT.y);
 		path.lineTo(x, mapBR.y);
-		x += (mapBR.x - mapLT.x) / rasterIntervals;
+		x += xStep;
 		path.moveTo(mapLT.x, y);
 		path.lineTo(mapBR.x, y);
-		y += (mapBR.y - mapLT.y) / rasterIntervals;
+		y += yStep;
 	}
 	OpDebugImage::drawPath(path, 0x3f000000);
 #if TEST_RASTER
-	auto draw = [](OpDebugRaster* raster) {
+    float rW = xStep / 2;
+    float rH = yStep / 2;
+	auto draw = [rW, rH, mapLT, xStep, yStep](OpDebugRaster* raster) {
 		if (!raster)
-			return;
+			return SkPath();
 		if (RasterType::unset == raster->type)
-			return;
+			return SkPath();
 		SkPath path;
 		uint8_t* bitsPtr = raster->bits;
+        float rT = mapLT.y;
+        if (RasterType::combined == raster->type || RasterType::op == raster->type)
+            rT += rH;
 		for (int y = 0; y < raster->bitHeight; ++y) {
+            float rL = mapLT.x;
+            if (RasterType::right == raster->type || RasterType::op == raster->type)
+                rL += rW;
 			for (int x = 0; x < raster->bitWidth; ++x) {
-				if (*bitsPtr)
-					continue;
-	//			path.addRect(
+				if (!*bitsPtr++)
+    				path.addRect(rL, rT, rL + rW, rT + rH);
+                rL += xStep;
 			}
+            rT += yStep;
 		}
+        return path;
 	};
-	draw(debugGlobalContours->debugData.leftRaster);
-	draw(debugGlobalContours->debugData.rightRaster);
-	draw(debugGlobalContours->debugData.combinedRaster);
-	draw(&debugGlobalContours->opRaster);
+	SkPath lPath = draw(debugGlobalContours->debugData.leftRaster);
+    OpDebugImage::drawDoubleFill(lPath, 0x7fff0000);
+	SkPath rPath = draw(debugGlobalContours->debugData.rightRaster);
+    OpDebugImage::drawDoubleFill(rPath, 0x7f00ff00);
+	SkPath cPath = draw(debugGlobalContours->debugData.combinedRaster);
+    OpDebugImage::drawDoubleFill(cPath, 0x7f0000ff);
+	SkPath oPath = draw(&debugGlobalContours->opRaster);
+    OpDebugImage::drawDoubleFill(oPath, 0x7fff00ff);
 #endif
 }
 
