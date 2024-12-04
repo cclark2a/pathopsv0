@@ -333,6 +333,8 @@ void Path::commonOutput(Curve c, Types type, bool firstPt, bool lastPt, PathOutp
 		default:
 			OP_ASSERT(0);
 	}
+	if (lastPt)
+		closePath();
 }
 
 void Path::reset() {	

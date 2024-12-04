@@ -1264,7 +1264,7 @@ void LineCoincidenceTest() {
 #include "emscripten/Path2D.h"
 
 void TestPath2D() {
-	bool debugIt = true;
+	bool debugIt = false;
 	TwoD::Path path;
 	path.moveTo(1, 2);
 	path.lineTo(3, 4);
@@ -1289,8 +1289,13 @@ void TestPath2D() {
 	OP_ASSERT(commands == c2);
 	OP_ASSERT(svg == s2);
 	TwoD::Path result = TwoD::PathOps::Op(path, path2, TwoD::Ops::intersect);
-	std::string svgR = result.toSVG();
-	if (debugIt) OpDebugOut(svgR + "\n");
+	if (debugIt) OpDebugOut("result:" + result.toSVG() + "\n");
+	path.fromSVG("M1 0 Q2 0 2 1 Q2 2 1 2 Q0 2 0 1 Q0 0 1 0");
+	if (debugIt) OpDebugOut("path:" + path.toSVG() + "\n");
+	path2.fromSVG("L2 2 L0 2 Z");
+	if (debugIt) OpDebugOut("path2:" + path2.toSVG() + "\n");
+	result = TwoD::PathOps::Op(path, path2, TwoD::Ops::intersect);
+	if (debugIt) OpDebugOut("result:" + result.toSVG() + "\n");
 }
 
 void OpTest(bool terminateEarly) {
