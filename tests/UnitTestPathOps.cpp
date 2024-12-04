@@ -1261,7 +1261,40 @@ void LineCoincidenceTest() {
 }
 #endif
 
+#include "emscripten/Path2D.h"
+
+void TestPath2D() {
+	bool debugIt = true;
+	TwoD::Path path;
+	path.moveTo(1, 2);
+	path.lineTo(3, 4);
+	path.quadraticCurveTo(5, 6, 7, 8);
+	path.lineTo(9, 10);
+	path.closePath();
+	path.lineTo(11, 12);
+	path.closePath();
+	path.quadraticCurveTo(13, 14, 15, 16);
+	path.quadraticCurveTo(17, 18, 19, 20);
+	std::string commands = path.toCommands();
+	if (debugIt) OpDebugOut(commands + "\n");
+	std::string svg = path.toSVG();
+	if (debugIt) OpDebugOut(svg + "\n");
+	TwoD::Path path2, path3;
+	path2.fromCommands(commands);
+	path3.fromSVG(svg);
+	std::string c2 = path2.toCommands();
+	std::string s2 = path3.toSVG();
+	if (debugIt) OpDebugOut(c2 + "\n");
+	if (debugIt) OpDebugOut(s2 + "\n");
+	OP_ASSERT(commands == c2);
+	OP_ASSERT(svg == s2);
+	TwoD::Path result = TwoD::PathOps::Op(path, path2, TwoD::Ops::intersect);
+	std::string svgR = result.toSVG();
+	if (debugIt) OpDebugOut(svgR + "\n");
+}
+
 void OpTest(bool terminateEarly) {
+	TestPath2D();
 //	LineCoincidenceTest();
 #if 0
 	CCTestKey(0x09b54c61);

@@ -54,7 +54,7 @@ struct OpCurve {
 	OpVector normal(float t) const;
 	NormalDirection normalDirection(Axis axis, float t) const;
 	bool normalize();
-	void output(bool firstPt, bool lastPt);
+	void output(bool firstPt, bool lastPt  OP_DEBUG_PARAMS(int parentID));
 	void pinCtrl();
 	OpPoint ptAtT(float t) const;
 	OpPtT ptTAtT(float t) const {

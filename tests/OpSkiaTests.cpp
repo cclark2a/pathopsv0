@@ -345,8 +345,10 @@ void runTests() {
             + " v0 only:" + STR(testsPassSkiaFail) + " skia only:" + STR(testsFailSkiaPass) + "\n");
 }
 
+#if !TEST_RASTER
 const int bitWidth = 64;
 const int bitHeight = 64;
+#endif
 
 static SkRect debug_scale_matrix(const SkPath& one, const SkPath* two, SkMatrix& scale) {
     SkRect larger = one.getBounds();
@@ -609,14 +611,17 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
     PathOutput pathOutput = result;
 	Normalize(context);
 #if TEST_RASTER
-	OpDebugData& debugData = ((OpContours*) context)->debugData;
-	OpDebugRaster leftRaster, rightRaster, combinedRaster;
-	leftRaster.set(context, left, RasterType::left);
-	debugData.leftRaster = &leftRaster;
-	rightRaster.set(context, right, RasterType::right);
-	debugData.rightRaster = &rightRaster;
-	combinedRaster.setCombined(context, leftRaster, rightRaster);
-	debugData.combinedRaster = &combinedRaster;
+	OpContours* contours = (OpContours*) context;
+	OpDebugData& debugData = contours->debugData;
+	if (debugData.rasterEnabled) {
+		contours->sampleOutputs.init(contours);
+		contours->sampleOperands.init(contours);
+		for (auto contour : contours->contours) {
+			contours->sampleOperands.sample(contour);
+			contour->rasterOperand.rasterize(contours->sampleOperands, contour);
+		}
+		contours->rasterCombined.rasterize(contours->sampleOperands, nullptr);
+	}
 #endif
     Resolve(context, pathOutput);
     if (SkPathOpInvertOutput(op, a.isInverseFillType(), b.isInverseFillType()))
@@ -624,7 +629,8 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
     ContextError contextError = Error(context);
 	trackError(contextError);
 #if TEST_RASTER
-	int rasterErrors = combinedRaster.compare(context);
+	contours->rasterOutput.rasterize(contours->sampleOutputs, nullptr);
+	int rasterErrors = contours->sampleOperands.compare(contours->sampleOutputs);
 	if (ContextError::none == contextError) {
 		if (rasterErrors >= 9) {
 	#if OP_DEBUG_FAST_TEST

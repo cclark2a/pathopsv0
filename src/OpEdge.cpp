@@ -506,7 +506,7 @@ void OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first)
 	OpCurve copy = curve;
 	if (EdgeMatch::end == which())
 		copy.reverse();
-	copy.output(first, firstEdge == next);
+	copy.output(first, firstEdge == next  OP_DEBUG_PARAMS(id));
 	if (firstEdge == next) {
 		OP_DEBUG_CODE(debugOutPath = curve.contours->nextID());
 		return;

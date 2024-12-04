@@ -54,22 +54,12 @@ struct OpDebugRaster;
 struct OpDebugData {
 	OpDebugData(bool mayFail) 
 		: expect(mayFail ? OpDebugExpect::fail : OpDebugExpect::success)
-#if TEST_RASTER
-		, leftRaster(nullptr)
-		, rightRaster(nullptr)
-		, combinedRaster(nullptr)
-#endif
 		, success(true)
 		, rasterEnabled(false) {
 	}
 
 	std::string testname;
 	OpDebugExpect expect;
-#if TEST_RASTER
-	OpDebugRaster* leftRaster;
-	OpDebugRaster* rightRaster;
-	OpDebugRaster* combinedRaster;
-#endif
 
 	int curveCurve1;
 	int curveCurve2;

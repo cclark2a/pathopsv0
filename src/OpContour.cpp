@@ -429,7 +429,7 @@ void OpContours::opsInit() {
 	normalize();  // collect extremes, map all from 0 to 1, map <= epsilon to zero
 #if TEST_RASTER
 	if (debugData.rasterEnabled)
-		opRaster.init(this, RasterType::op);
+		rasterOutput.init();
 #endif
 }
 

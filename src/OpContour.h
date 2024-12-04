@@ -123,6 +123,9 @@ struct OpContour {
 	std::vector<OpSegment> segments;
 	PathOpsV0Lib::ContourCallBacks callBacks;
 	PathOpsV0Lib::CallerData caller;  // note: must use std::memcpy before reading
+#if TEST_RASTER
+	OpDebugRaster rasterOperand;
+#endif
 	OP_DEBUG_CODE(int id);
 };
 
@@ -419,7 +422,10 @@ struct OpContours {
 	int debugValidateJoinerIndex;
 #endif
 #if TEST_RASTER
-	OpDebugRaster opRaster;
+	OpDebugSamples sampleOperands;
+	OpDebugSamples sampleOutputs;  // curve output + combined operands
+	OpDebugRaster rasterOutput;
+	OpDebugRaster rasterCombined;
 #endif
 #if OP_DEBUG
 	OpDebugData debugData;

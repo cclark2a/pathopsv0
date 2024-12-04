@@ -422,11 +422,13 @@ OpPointBounds OpCurve::ptBounds() const {
 	return result;
 }
 
-void OpCurve::output(bool firstPt, bool lastPt) {
+void OpCurve::output(bool firstPt, bool lastPt  OP_DEBUG_PARAMS(int parentID)) {
 	contours->initOutOnce();
 	contours->callBack(c.type).curveOutputFuncPtr(c, firstPt, lastPt, contours->callerOutput);
 #if OP_DEBUG && TEST_RASTER
-	if (contours->debugData.rasterEnabled)
-		contours->opRaster.addCurve(contours, c);
+	if (contours->debugData.rasterEnabled) {
+		contours->sampleOutputs.addCurveXatY(c  OP_DEBUG_PARAMS(parentID));
+		contours->sampleOutputs.addCurveYatX(c  OP_DEBUG_PARAMS(parentID));
+	}
 #endif
 }

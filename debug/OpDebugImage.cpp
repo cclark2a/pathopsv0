@@ -59,7 +59,7 @@ SkBitmap& bitmapRef() {
 
 
 struct OpDebugSegmentIter {
-    OpDebugSegmentIter(bool start) {
+	OpDebugSegmentIter(bool start) {
 		segmentIndex = 0;
 		if (start)
 			return;
@@ -68,11 +68,11 @@ struct OpDebugSegmentIter {
 		}
 	}
 
-    bool operator!=(OpDebugSegmentIter rhs) { 
+	bool operator!=(OpDebugSegmentIter rhs) { 
 		return segmentIndex != rhs.segmentIndex; 
 	}
 
-    const OpSegment* operator*() {
+	const OpSegment* operator*() {
 		size_t index = 0;
 		for (const auto c : debugGlobalContours->contours) {
 			for (const auto& seg : c->segments) {
@@ -85,7 +85,7 @@ struct OpDebugSegmentIter {
 		return nullptr; 
 	}
 
-    void operator++() { 
+	void operator++() { 
 		++segmentIndex;
 	}
 
@@ -93,15 +93,15 @@ struct OpDebugSegmentIter {
 };
 
 struct OpDebugSegmentIterator {
-    OpDebugSegmentIter begin() { return OpDebugSegmentIter(true); }
-    OpDebugSegmentIter end() { return OpDebugSegmentIter(false); }
+	OpDebugSegmentIter begin() { return OpDebugSegmentIter(true); }
+	OpDebugSegmentIter end() { return OpDebugSegmentIter(false); }
 	bool empty() { return !(begin() != end()); }
 };
 
 OpDebugSegmentIterator segmentIterator;
 
 struct OpDebugEdgeIter {
-    OpDebugEdgeIter(bool start)
+	OpDebugEdgeIter(bool start)
 		: isCurveCurve(false)
 		, isFiller(false)
 		, isLine(false) {
@@ -118,11 +118,11 @@ struct OpDebugEdgeIter {
 			edgeIndex += debugGlobalContours->ccStorage->debugCount();
 	}
 
-    bool operator!=(OpDebugEdgeIter rhs) { 
+	bool operator!=(OpDebugEdgeIter rhs) { 
 		return edgeIndex != rhs.edgeIndex; 
 	}
 
-    const OpEdge* operator*() {
+	const OpEdge* operator*() {
 		size_t index = 0;
 		for (const auto c : debugGlobalContours->contours) {
 			for (const auto& s : c->segments) {
@@ -162,7 +162,7 @@ struct OpDebugEdgeIter {
 		return nullptr; 
 	}
 
-    void operator++() { 
+	void operator++() { 
 		++edgeIndex;
 	}
 
@@ -173,15 +173,15 @@ struct OpDebugEdgeIter {
 };
 
 struct OpDebugEdgeIterator {
-    OpDebugEdgeIter begin() { return OpDebugEdgeIter(true); }
-    OpDebugEdgeIter end() { return OpDebugEdgeIter(false); }
+	OpDebugEdgeIter begin() { return OpDebugEdgeIter(true); }
+	OpDebugEdgeIter end() { return OpDebugEdgeIter(false); }
 	bool empty() { return !(begin() != end()); }
 };
 
 OpDebugEdgeIterator edgeIterator;
 
 struct OpDebugIntersectionIter {
-    OpDebugIntersectionIter(bool start) {
+	OpDebugIntersectionIter(bool start) {
 		localIntersectionIndex = 0;
 		if (start)
 			return;
@@ -192,11 +192,11 @@ struct OpDebugIntersectionIter {
 		}
 	}
 
-    bool operator!=(OpDebugIntersectionIter rhs) { 
+	bool operator!=(OpDebugIntersectionIter rhs) { 
 		return localIntersectionIndex != rhs.localIntersectionIndex; 
 	}
 
-    const OpIntersection* operator*() {
+	const OpIntersection* operator*() {
 		size_t index = 0;
 		for (const auto c : debugGlobalContours->contours) {
 			for (const auto& seg : c->segments) {
@@ -211,7 +211,7 @@ struct OpDebugIntersectionIter {
 		return nullptr; 
 	}
 
-    void operator++() { 
+	void operator++() { 
 		++localIntersectionIndex;
 	}
 
@@ -219,8 +219,8 @@ struct OpDebugIntersectionIter {
 };
 
 struct OpDebugIntersectionIterator {
-    OpDebugIntersectionIter begin() { return OpDebugIntersectionIter(true); }
-    OpDebugIntersectionIter end() { return OpDebugIntersectionIter(false); }
+	OpDebugIntersectionIter begin() { return OpDebugIntersectionIter(true); }
+	OpDebugIntersectionIter end() { return OpDebugIntersectionIter(false); }
 	bool empty() { return !(begin() != end()); }
 };
 
@@ -253,7 +253,7 @@ void OpDebugImage::init() {
 }
 
 // !!! missing pathsOutColor
-void  OpDebugImage::playback(FILE* file) {
+void OpDebugImage::playback(FILE* file) {
 //	FILE* file = fopen("OpDebugImageState.txt", "r");
 	if (!file)
 		return;
@@ -335,7 +335,7 @@ void  OpDebugImage::playback(FILE* file) {
 				if (edge && color) {
 					if (edge->debugCustom)
 						edge->debugColor = color;
-				} else if (edge)  // ok if recorded edge does not yet exist
+				} else if (edge)	// ok if recorded edge does not yet exist
 					return noMatch(str);
 			} else if (0 == strcmp("brief\n", str)) {
 				break;
@@ -367,7 +367,7 @@ void OpDebugImage::drawDoubleFocus() {
 	OP_DEBUG_CODE(OpDebugDefeatDelete defeater);
 	std::vector<int> ids;
 	clearScreen();
-    {
+	{
 		SkMatrix matrix;
 		float scale = (float)DebugOpGetZoomScale();
 		matrix.setScale(scale, scale);
@@ -385,9 +385,9 @@ void OpDebugImage::drawDoubleFocus() {
 			first = false;
 		}
 		if (drawResultOn && debugGlobalContours->callerOutput)
-		    drawDoubleFill(((SkPath*) debugGlobalContours->callerOutput)
+			drawDoubleFill(((SkPath*) debugGlobalContours->callerOutput)
 					->makeTransform(matrix), OpDebugAlphaColor(alpha, green));
-    }
+	}
 	if (drawLinesOn)
 		DebugOpDraw(lines);
 	if (drawRaysOn) {
@@ -435,7 +435,7 @@ void OpDebugImage::drawDoubleFocus() {
 
 			if (drawIDsOn) {
 				uint32_t color = edge->debugColor;
-				if (edgeIter.isCurveCurve) {  // !!! update this to new edge color scheme
+				if (edgeIter.isCurveCurve) {	// !!! update this to new edge color scheme
 					if (edge->ccOverlaps)
 						color = edge->winding.contour->callBacks
 								.debugIsOppFuncPtr(edge->winding.contour->caller)
@@ -594,7 +594,7 @@ void OpDebugImage::drawGrid() {
 	bool xHexWorks = walkX(true);
 	if (xHexWorks)
 		walkX(false);
-	else {  // if fabsf(fx) is less than 1, step by float range / gridIntervals
+	else {	// if fabsf(fx) is less than 1, step by float range / gridIntervals
 		for (float fx = left; fx <= right; fx += (right - left) / (gridIntervals - 1)) {
 			drawXLine(fx);
 		}
@@ -603,7 +603,7 @@ void OpDebugImage::drawGrid() {
 		return topS + (fy - top) / (bottom - top) * (bottomS - topS);
 	};
 	auto drawYLine = [screenY, &offscreen, &paint, &textPaint, leftS, rightS, xOffset]
-            (float fy, bool last) {
+			(float fy, bool last) {
 		float sy = screenY(fy);
 		offscreen.drawLine(leftS, sy, rightS, sy, paint);
 		if (!drawValuesOn)
@@ -630,7 +630,7 @@ void OpDebugImage::drawGrid() {
 	bool yHexWorks = walkY(true);
 	if (yHexWorks)
 		walkY(false);
-	else {  // if fabsf(fy) is less than 1, step by float range / gridIntervals
+	else {	// if fabsf(fy) is less than 1, step by float range / gridIntervals
 		float fInterval = (bottom - top) / (gridIntervals - 1);
 		for (float fy = top; fy <= bottom; fy += fInterval) {
 			drawYLine(fy, fy > bottom - fInterval);
@@ -868,7 +868,7 @@ void ctr(float x, float y) {
 
 void ctr(const OpContour& contour) {
 	OpPointBounds bounds;
-    for (auto& segment : contour.segments)
+	for (auto& segment : contour.segments)
 		bounds.add(segment.ptBounds);
 	ctr(bounds);
 }
@@ -948,7 +948,7 @@ void focus(int id) {
 void focus(const OpContour& contour) {
 	drawSegmentsOn = true;
 	OpPointBounds bounds;
-    for (auto& segment : contour.segments)
+	for (auto& segment : contour.segments)
 		bounds.add(segment.ptBounds);
 	focus(bounds);
 }
@@ -1014,9 +1014,9 @@ void OpDebugImage::focusEdges() {
 
 void focusLinkInner(const OpEdge& edge, bool add) {
 	add ? addFocus(edge) : focus(edge);
-    const OpEdge* looped = edge.debugIsLoop(EdgeMatch::start, LeadingLoop::in);
-    bool firstLoop = false;
-    int safetyCount = 0;
+	const OpEdge* looped = edge.debugIsLoop(EdgeMatch::start, LeadingLoop::in);
+	bool firstLoop = false;
+	int safetyCount = 0;
 	for (EdgeMatch which : { EdgeMatch::start, EdgeMatch::end } ) {
 		const OpEdge* link = &edge;
 		while ((link = EdgeMatch::start == which ? link->priorEdge : link->nextEdge)) {
@@ -1139,17 +1139,17 @@ void OpDebugImage::drawGuide(const SkRect& test, OpPoint pt, uint32_t color) {
 
 void OpDebugImage::drawRaster() {
 	OpPointBounds bounds = debugGlobalContours->maxBounds;
-    if (bounds.width() > bounds.height())
-        bounds.bottom = bounds.top + bounds.width();
-    else
-        bounds.right = bounds.left + bounds.height();
+	if (bounds.width() > bounds.height())
+		bounds.bottom = bounds.top + bounds.width();
+	else
+		bounds.right = bounds.left + bounds.height();
 	OpPoint mapLT = DebugOpPtToPt(OpPoint(bounds.left, bounds.top));
 	OpPoint mapBR = DebugOpPtToPt(OpPoint(bounds.right, bounds.bottom));
 	SkPath path;
 	float x = mapLT.x;
 	float y = mapLT.y;
-    float xStep = (mapBR.x - mapLT.x) / rasterIntervals;
-    float yStep = (mapBR.y - mapLT.y) / rasterIntervals;
+	float xStep = (mapBR.x - mapLT.x) / rasterIntervals;
+	float yStep = (mapBR.y - mapLT.y) / rasterIntervals;
 	for (int index = 0; index <= rasterIntervals; ++index) {
 		path.moveTo(x, mapLT.y);
 		path.lineTo(x, mapBR.y);
@@ -1159,9 +1159,9 @@ void OpDebugImage::drawRaster() {
 		y += yStep;
 	}
 	OpDebugImage::drawPath(path, 0x3f000000);
-#if TEST_RASTER
-    float rW = xStep / 2;
-    float rH = yStep / 2;
+#if 0 && TEST_RASTER
+	float rW = xStep / 2;
+	float rH = yStep / 2;
 	auto draw = [rW, rH, mapLT, xStep, yStep](OpDebugRaster* raster) {
 		if (!raster)
 			return SkPath();
@@ -1169,30 +1169,30 @@ void OpDebugImage::drawRaster() {
 			return SkPath();
 		SkPath path;
 		uint8_t* bitsPtr = raster->bits;
-        float rT = mapLT.y;
-        if (RasterType::combined == raster->type || RasterType::op == raster->type)
-            rT += rH;
+		float rT = mapLT.y;
+		if (RasterType::combined == raster->type || RasterType::op == raster->type)
+			rT += rH;
 		for (int y = 0; y < raster->bitHeight; ++y) {
-            float rL = mapLT.x;
-            if (RasterType::right == raster->type || RasterType::op == raster->type)
-                rL += rW;
+			float rL = mapLT.x;
+			if (RasterType::right == raster->type || RasterType::op == raster->type)
+				rL += rW;
 			for (int x = 0; x < raster->bitWidth; ++x) {
 				if (!*bitsPtr++)
-    				path.addRect(rL, rT, rL + rW, rT + rH);
-                rL += xStep;
+					path.addRect(rL, rT, rL + rW, rT + rH);
+				rL += xStep;
 			}
-            rT += yStep;
+			rT += yStep;
 		}
-        return path;
+		return path;
 	};
 	SkPath lPath = draw(debugGlobalContours->debugData.leftRaster);
-    OpDebugImage::drawDoubleFill(lPath, 0x7fff0000);
+	OpDebugImage::drawDoubleFill(lPath, 0x7fff0000);
 	SkPath rPath = draw(debugGlobalContours->debugData.rightRaster);
-    OpDebugImage::drawDoubleFill(rPath, 0x7f00ff00);
+	OpDebugImage::drawDoubleFill(rPath, 0x7f00ff00);
 	SkPath cPath = draw(debugGlobalContours->debugData.combinedRaster);
-    OpDebugImage::drawDoubleFill(cPath, 0x7f0000ff);
+	OpDebugImage::drawDoubleFill(cPath, 0x7f0000ff);
 	SkPath oPath = draw(&debugGlobalContours->opRaster);
-    OpDebugImage::drawDoubleFill(oPath, 0x7fff00ff);
+	OpDebugImage::drawDoubleFill(oPath, 0x7fff00ff);
 #endif
 }
 
@@ -1537,14 +1537,14 @@ static void operateOnLimbEdges(std::function<void (OpEdge*)> fun) {
 	const OpTree* tree = debugGlobalContours->debugTree;
 	if (!tree)
 		return;
-    for (int index = 0; index < tree->totalUsed; ++index) {
-        const OpLimb& limb = debugGlobalContours->debugNthLimb(index);
+	for (int index = 0; index < tree->totalUsed; ++index) {
+		const OpLimb& limb = debugGlobalContours->debugNthLimb(index);
 		OpEdge* edge = limb.edge;
 		fun(edge);
 		std::vector<OpEdge*> visited;
 		if (edge->priorEdge && !edge->debugIsLoop())
 			edge = const_cast<OpEdge*>(edge->debugAdvanceToEnd(EdgeMatch::start));
-        if (edge->lastEdge && edge != edge->lastEdge) {
+		if (edge->lastEdge && edge != edge->lastEdge) {
 			OpEdge* next = edge;
 			while ((next = next->nextEdge)) {
 				if (visited.end() != std::find(visited.begin(), visited.end(), next))
@@ -1552,7 +1552,7 @@ static void operateOnLimbEdges(std::function<void (OpEdge*)> fun) {
 				fun(next);
 				visited.push_back(next);
 			}
-        }
+		}
 	}
 	OpDebugImage::drawDoubleFocus();
 }
@@ -1865,7 +1865,7 @@ void uncolor(int id) {
 	OpEdge* edge = findEdge(id);
 	if (!edge)
 		return;
-	edge->debugColor = black;  // note color of disabled, filler, out, etc. is lost
+	edge->debugColor = black;	// note color of disabled, filler, out, etc. is lost
 	edge->debugDraw = true;
 	edge->debugCustom = false;
 	OpDebugImage::drawDoubleFocus();
@@ -1925,7 +1925,7 @@ int OpContours::debugLimbIndex(const OpEdge* edge) const {
 	for (int index = 0; index < debugTree->totalUsed; ++index) {
 		const OpLimb& limb = debugNthLimb(index);
 		const OpEdge* test = limb.edge;
-		if (test->debugIsLoop())  // !!! conservative: may allow this later
+		if (test->debugIsLoop())	// !!! conservative: may allow this later
 			return -1;
 		if (!test->lastEdge)
 			return -1;
@@ -2107,7 +2107,7 @@ bool OpDebugImage::drawEdgeWinding(const OpCurve& curve, const OpEdge* edge, uin
 
 bool OpDebugImage::drawCurve(OpCurve& curve, uint32_t color) {
 	SkPath curvePath;
-	OP_ASSERT(curve.debugIsLine());  // !!! add more types as needed
+	OP_ASSERT(curve.debugIsLine());	// !!! add more types as needed
 	curvePath.moveTo(curve.firstPt().x, curve.firstPt().y);
 	curvePath.lineTo(curve.lastPt().x, curve.lastPt().y);
 	OpDebugImage::drawPath(curvePath, color);
@@ -2165,7 +2165,7 @@ void drawDepth(int level) {
 		edge->debugDraw = false;
 	}
 	OpCurveCurve* cc = debugGlobalContours->debugCurveCurve;
-    if (!cc)
+	if (!cc)
 		return;
 	if (level > 0) {
 		size_t dvLevel = std::min((size_t) level, cc->dvDepthIndex.size() + 1);

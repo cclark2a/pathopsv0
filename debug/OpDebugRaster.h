@@ -6,64 +6,58 @@
 
 #include "OpDebug.h"
 
+static constexpr int bitWidth = 64;
+static constexpr int bitHeight = 64;
+
 namespace PathOpsV0Lib {
-	struct Context;
-	struct Contour;
 	struct Curve;
 	struct Winding;
 }
 
 struct OpContours;
 struct OpContour;
+struct OpWinding;
 
-enum class RasterType {
-	unset,
-	left,
-	right,
-	combined,
-	op
-};
-
-struct RasterWind {
-    size_t windData;  // index into debug raster windings
+struct RasterSample {
+    OpWinding* winding;  // index into debug raster windings
     float x;
+	float y;
+	int intY;
+	int parentID;  // edge or segment
+	bool curveDown;  // or curve right if vertical
+	bool vertical;  // true if sample is vertical
 };
 
-typedef std::vector<RasterWind> RasterRow;
+// creates an array of intersections of contour curves and horizontal scanlines
+// this permites region-like operations to validate pathops
+// one for operands; and one more for comparing combined with output (both stored in contours)
+struct OpDebugSamples {
+	void addCurveXatY(PathOpsV0Lib::Curve , int id, OpWinding* w = nullptr, bool curveDown = false);
+	void addCurveYatX(PathOpsV0Lib::Curve , int id, OpWinding* w = nullptr, bool curveRight = false);
+	float compare(OpDebugSamples& );  // return error as sum of partial-x differences
+	void init(OpContours* );	// call after data is normalized
+	void sample(OpContour* libContour);
+	void sort();
 
-struct OpDebugRaster {
-	OpDebugRaster() : type(RasterType::unset) {}
-	int compare(PathOpsV0Lib::Context* );
-	void rasterize(PathOpsV0Lib::Contour* contour);
-	void set(PathOpsV0Lib::Context* context, PathOpsV0Lib::Contour* contour, RasterType );
-	void setCombined(PathOpsV0Lib::Context* context, const OpDebugRaster& , const OpDebugRaster& );
-
-	// internal
-	void addCurve(OpContours* , PathOpsV0Lib::Curve );
-	void addWinding(int x, int y);
-	void addWinding2(float x, int y);
-	void doXor(int x, int y);
-	void init(OpContours* , RasterType );
-	void combine(const OpDebugRaster& operand);
-
-	static constexpr int bitWidth = 64;
-	static constexpr int bitHeight = 64;
-	std::vector<char> windings; // 1 winding data per pixel (caller sets winding size)
-	RasterRow rasterRows[bitHeight];
-    uint8_t bits[bitWidth * bitHeight];  // 1 byte per pixel, black/white only
-	bool windInitialized[bitWidth * bitHeight];
-	OpContour* contour;  // for winding
-	PathOpsV0Lib::Winding* winding;
+	std::vector<RasterSample> samples;  // 1 per curve crossing scanline
+	OpContours* contours;
 	double scale;  // apply scale first
 	double offsetX;  // then apply offset
 	double offsetY;
+};
+
+// turns chosen group of debug samples into pixel array that can be visualized
+// one per contour; and two in contours for combined and output
+struct OpDebugRaster {
+	void rasterize(const OpDebugSamples& , OpContour* contour);  // sets bits to sample coverage
+	void fillScanline(float x, float endX, int y);
+	void init();
+
+    uint8_t bits[bitWidth * bitHeight];  // 1 byte per pixel, black/white only
 	char* data; // for image watch
 	int width; 
 	int height;
 	int stride;
-	RasterType type;
-	bool curveDown;
-	OP_DEBUG_CODE(int pass = 0);
 };
 
 #endif
