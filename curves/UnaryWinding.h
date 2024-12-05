@@ -1,5 +1,6 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
-// new interface idea
+#ifndef UnaryWinding_DEFINED
+#define UnaryWinding_DEFINED
 
 #include "PathOps.h"
 
@@ -101,3 +102,5 @@ inline std::string unaryWindingImageOutFunc(Winding winding, int index) {
 #endif
 
 }
+
+#endif

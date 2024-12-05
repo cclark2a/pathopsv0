@@ -3,11 +3,20 @@
 #include "Path2D.h"
 #include "curves/Line.h"
 #include "curves/NoCurve.h"
+#if CONIC_SUPPORT
+#include "curves/ConicBezier.h"
+#endif
+#include "curves/CubicBezier.h"
 #include "curves/QuadBezier.h"
 
 using namespace PathOpsV0Lib;
 
 namespace TwoD {
+
+void Path::addPath(Path& path) {
+	points.insert(points.end(), path.points.begin(), path.points.end());
+	types.insert(types.end(), path.types.begin(), path.types.end());
+}
 
 void Path::moveTo(float x, float y) {
 	points.push_back(x);
@@ -24,24 +33,62 @@ void Path::lineTo(float x, float y) {
 }
 
 void Path::quadraticCurveTo(float cx, float cy, float x, float y) {
-	points.push_back(cx);
-	points.push_back(cy);
-	points.push_back(x);
-	points.push_back(y);
+	points.insert(points.end(), { cx, cy, x, y });
 	types.push_back(Types::quad);
+}
+
+void Path::bezierCurveTo(float c1x, float c1y, float c2x, float c2y, float x, float y) {
+	points.insert(points.end(), { c1x, c1y, c2x, c2y, x, y });
+	types.push_back(Types::cubic);
 }
 
 void Path::closePath() {
 	types.push_back(Types::close);
 }
 
-char* Path::skipSpace(char* ch, const char* chEnd) {
+#if CONIC_SUPPORT
+void Path::rotate(float rotation) {
+	if (0 == rotation)
+		return;
+	// incomplete
+	OP_ASSERT(0);
+}
+
+void Path::ellipse(float x, float y, float rx, float ry, float rotation, 
+			float startAngle, float endAngle, bool ccw) {
+	Path circle;
+	circle.types = { Types::move, Types::conic, Types::conic, Types::conic, Types::conic };
+	float sqrt2over2 = sqrtf(2) / 2;
+	circle.points = { x + rx, y, x + rx, y + ry, x,      y + ry, sqrt2over2,
+							   	 x - rx, y + ry, x - rx, y,      sqrt2over2,
+								 x - rx, y - ry, x,      y - ry, sqrt2over2,
+								 x + rx, y - ry, x + rx, y,      sqrt2over2 };
+	float sweep = fabsf(startAngle - endAngle);
+	if (sweep < OpPI * 2) {
+		Path clip;
+		clip.types = 
+	}
+	circle.rotate(rotation);
+	types.push_back(Types::lastPt);  // add line from last point to circle start
+	addPath(circle);
+}
+#endif
+
+void Path::rect(float x, float y, float width, float height) {
+	moveTo(x, y);
+	lineTo(x + width, y);
+	lineTo(x + width, y + height);
+	lineTo(x, y + height);
+	closePath();
+}
+
+static char* skipSpace(char* ch, const char* chEnd) {
 	while (ch < chEnd && ' ' >= *ch)
 		ch++;
 	return ch;
 }
 
-float Path::nextFloat(char** chPtr, const char* chEnd) {
+static float nextFloat(char** chPtr, const char* chEnd) {
 	char* ch = *chPtr;
 	if (ch >= chEnd)
 		return 0.f;
@@ -53,7 +100,15 @@ float Path::nextFloat(char** chPtr, const char* chEnd) {
 	return (float) std::atof(temp.c_str());
 }
 
-Path* Path::fromCommands(std::string s) {
+static float nextFloatComma(char** chPtr, const char* chEnd) {
+	float result = nextFloat(chPtr, chEnd);
+	if (*chPtr < chEnd && ',' == **chPtr)
+		(*chPtr)++;
+	*chPtr = skipSpace(*chPtr, chEnd);
+	return result;
+}
+
+Path* Path::fromCommon(std::string s, Format format) {
 	reset();
 	size_t strLen = s.size();
 	if (!strLen)
@@ -61,69 +116,66 @@ Path* Path::fromCommands(std::string s) {
 	char* ch = &s.front();
 	const char* chEnd = ch + strLen;
 	ch = skipSpace(ch, chEnd);
-	if ('[' != *ch++)
+	if (Format::command == format && '[' != *ch++)
 		return this;
-	auto skipCommaSpace = [&ch, chEnd]() {
+	auto skipCommaSpace = [&ch, chEnd, format](char delimiter) {
+		if (ch >= chEnd)
+			return;
+		if (Format::command == format) {
+			if (delimiter != *ch)
+				return;
+			++ch;
+		}
 		ch = skipSpace(ch, chEnd);
 		if (ch >= chEnd)
 			return;
 		if (',' == *ch)
 			++ch;
 		ch = skipSpace(ch, chEnd);
-	};
-	auto skipQuoteCommaSpace = [&ch, chEnd, skipCommaSpace]() {  // comma, space optional
-		if (ch >= chEnd || '"' != *ch)
-			return;
-		++ch;
-		skipCommaSpace();
-	};
-	auto skipBracketCommaSpace = [&ch, chEnd, skipCommaSpace]() {  // comma, space optional
-		if (ch >= chEnd || ']' != *ch)
-			return;
-		++ch;
-		skipCommaSpace();
-	};
-	auto nextFloatComma = [&ch, chEnd]() {
-		float result = nextFloat(&ch, chEnd);
-		if (ch >= chEnd)
-			return result;
-		if (',' == *ch)
-			++ch;
-		ch = skipSpace(ch, chEnd);
-		return result;
 	};
 	while (ch < chEnd) {
-		if ('[' != *ch++)
+		if (Format::command == format && '[' != *ch++)
 			return this;
-		if ('"' != *ch++)
+		if (Format::command == format && '"' != *ch++)
 			return this;
 		switch (*ch++) {
 			case 'M': {
-				skipQuoteCommaSpace();
-				float x = nextFloatComma();
-				float y = nextFloatComma();
-				skipBracketCommaSpace();
+				skipCommaSpace('"');
+				float x = nextFloatComma(&ch, chEnd);
+				float y = nextFloatComma(&ch, chEnd);
+				skipCommaSpace(']');
 				moveTo(x, y);
 				} break;
 			case 'L': {
-				skipQuoteCommaSpace();
-				float x = nextFloatComma();
-				float y = nextFloatComma();
-				skipBracketCommaSpace();
+				skipCommaSpace('"');
+				float x = nextFloatComma(&ch, chEnd);
+				float y = nextFloatComma(&ch, chEnd);
+				skipCommaSpace(']');
 				lineTo(x, y);
 				} break;
 			case 'Q': {
-				skipQuoteCommaSpace();
-				float cx = nextFloatComma();
-				float cy = nextFloatComma();
-				float x = nextFloatComma();
-				float y = nextFloatComma();
-				skipBracketCommaSpace();
+				skipCommaSpace('"');
+				float cx = nextFloatComma(&ch, chEnd);
+				float cy = nextFloatComma(&ch, chEnd);
+				float x = nextFloatComma(&ch, chEnd);
+				float y = nextFloatComma(&ch, chEnd);
+				skipCommaSpace(']');
 				quadraticCurveTo(cx, cy, x, y);
 				} break;
+			case 'C': {
+				skipCommaSpace('"');
+				float c1x = nextFloatComma(&ch, chEnd);
+				float c1y = nextFloatComma(&ch, chEnd);
+				float c2x = nextFloatComma(&ch, chEnd);
+				float c2y = nextFloatComma(&ch, chEnd);
+				float x = nextFloatComma(&ch, chEnd);
+				float y = nextFloatComma(&ch, chEnd);
+				skipCommaSpace(']');
+				bezierCurveTo(c1x, c1y, c2x, c2y, x, y);
+				} break;
 			case 'Z':
-				skipQuoteCommaSpace();
-				skipBracketCommaSpace();
+				skipCommaSpace('"');
+				skipCommaSpace(']');
 				closePath();
 				break;
 			default:
@@ -134,64 +186,59 @@ Path* Path::fromCommands(std::string s) {
 	return this;
 }
 
-Path* Path::fromSVG(std::string s) {
-	reset();
-	size_t strLen = s.size();
-	if (!strLen)
-		return this;
-	char* ch = &s.front();
-	const char* chEnd = ch + strLen;
-	while (ch < chEnd) {
-		switch (*ch++) {
-			case 'M': {
-				float x = nextFloat(&ch, chEnd);
-				float y = nextFloat(&ch, chEnd);
-				moveTo(x, y);
-				} break;
-			case 'L': {
-				float x = nextFloat(&ch, chEnd);
-				float y = nextFloat(&ch, chEnd);
-				lineTo(x, y);
-				} break;
-			case 'Q': {
-				float cx = nextFloat(&ch, chEnd);
-				float cy = nextFloat(&ch, chEnd);
-				float x = nextFloat(&ch, chEnd);
-				float y = nextFloat(&ch, chEnd);
-				quadraticCurveTo(cx, cy, x, y);
-				} break;
-			case 'Z':
-				ch = skipSpace(ch, chEnd);
-				closePath();
-				break;
-			default:
-				OP_ASSERT(0);
-				return this;
-		}
-	}
-	return this;
-}
-
-std::string Path::toCommands() {
-	std::string result = "[";
+std::string Path::toCommon(Format format) {
+	std::string result;
+	if (Format::command == format)
+		result += '[';
 	float* ordinal = &points.front();
+	auto closeBracket = [format](bool final=true) {
+		std::string s;
+		if (Format::command == format) {
+			if (final)
+				s += ']';
+			s += ',';
+		}
+		s += ' '; 
+		return s;
+	};
+	auto ord = [&ordinal, closeBracket](int index, bool final=false) {
+		std::string s;
+		s = std::to_string(ordinal[index]);
+		s.erase(s.find_last_not_of('0') + 1, std::string::npos); 
+		s.erase(s.find_last_not_of('.') + 1, std::string::npos);
+		s += closeBracket(final);
+		return s;
+	};
+	auto command = [format](char cmd) {
+		std::string s;
+		if (Format::command == format)
+			s = "[\"";
+		s += cmd;
+		if (Format::command == format)
+			s += '"';
+		s += ' '; 
+		return s;
+	};
 	for (Types type : types) {
 		switch (type) {
 			case Types::move:
-				result += "[\"M\", " + std::to_string(ordinal[0]) + ", " + std::to_string(ordinal[1]) + "], ";
+				result += command('M') + ord(0) + ord(1, true);
 				ordinal += 2;
 				break;
 			case Types::line:
-				result += "[\"L\", " + std::to_string(ordinal[0]) + ", " + std::to_string(ordinal[1]) + "], ";
+				result += command('L') + ord(0) + ord(1, true);
 				ordinal += 2;
 				break;
 			case Types::quad:
-				result += "[\"Q\", " + std::to_string(ordinal[0]) + ", " + std::to_string(ordinal[1]) +  ", ";
-				result +=              std::to_string(ordinal[2]) + ", " + std::to_string(ordinal[3]) + "], ";
+				result += command('Q') + ord(0) + ord(1) + ord(2) + ord(3, true);
+				ordinal += 4;
+				break;
+			case Types::cubic:
+				result += command('C') + ord(0) + ord(1) + ord(2) + ord(3) + ord(4) + ord(5, true);
 				ordinal += 4;
 				break;
 			case Types::close:
-				result += "[\"Z\"], ";
+				result += command('Z') + closeBracket();
 				break;
 			default:
 				OP_ASSERT(0);
@@ -201,62 +248,41 @@ std::string Path::toCommands() {
 		result.pop_back();
 	if (',' == result.back())
 		result.pop_back();
-	return result + "]";
-}
-
-std::string Path::toSVG() {
-	std::string result;
-	float* ordinal = &points.front();
-	for (Types type : types) {
-		switch (type) {
-			case Types::move:
-				result += "M" + std::to_string(ordinal[0]) + " " + std::to_string(ordinal[1]) + " ";
-				ordinal += 2;
-				break;
-			case Types::line:
-				result += "L" + std::to_string(ordinal[0]) + " " + std::to_string(ordinal[1]) + " ";
-				ordinal += 2;
-				break;
-			case Types::quad:
-				result += "Q" + std::to_string(ordinal[0]) + " " + std::to_string(ordinal[1]) + " ";
-				result +=       std::to_string(ordinal[2]) + " " + std::to_string(ordinal[3]) + " ";
-				ordinal += 4;
-				break;
-			case Types::close:
-				result += "Z ";
-				break;
-			default:
-				OP_ASSERT(0);
-		}
-	}
-	if (' ' == result.back())
-		result.pop_back();
+	if (Format::command == format)
+		result += "]";
 	return result;
 }
 
 void Path::addPath(Context* context, AddWinding winding) {
 	if (!points.size())
 		return;
-	float* ordinal = &points.front();
+	float* ord = &points.front();
 	float closeLine[4] {0, 0, 0, 0};
 	for (Types type : types) {
 		switch (type) {
 			case Types::move:
-				closeLine[2] = ordinal[0];
-				closeLine[3] = ordinal[1];
+				closeLine[2] = ord[0];
+				closeLine[3] = ord[1];
 				break;
 			case Types::line:
-				Add({ (OpPoint*) ordinal, sizeof closeLine, (CurveType) Types::line }, winding);
-				closeLine[0] = ordinal[2];
-				closeLine[1] = ordinal[3];
-				ordinal += 2;
+				Add({ (OpPoint*) ord, sizeof closeLine, (CurveType) Types::line }, winding);
+				closeLine[0] = ord[2];
+				closeLine[1] = ord[3];
+				ord += 2;
 				break;
 			case Types::quad: {
-				float q[6] { ordinal[0], ordinal[1], ordinal[4], ordinal[5], ordinal[2], ordinal[3] };
+				float q[6] { ord[0], ord[1], ord[4], ord[5], ord[2], ord[3] };
 				AddQuads({ (OpPoint*) q, sizeof q, (CurveType) Types::quad }, winding);
-				closeLine[0] = ordinal[2];
-				closeLine[1] = ordinal[3];
-				ordinal += 4;
+				closeLine[0] = ord[4];
+				closeLine[1] = ord[5];
+				ord += 4;
+				} break;
+			case Types::cubic: {
+				float c[8] { ord[0], ord[1], ord[6], ord[7], ord[2], ord[3], ord[4], ord[5] };
+				AddQuads({ (OpPoint*) c, sizeof c, (CurveType) Types::cubic }, winding);
+				closeLine[0] = ord[6];
+				closeLine[1] = ord[7];
+				ord += 6;
 				} break;
 			case Types::close:
 				Add({ (OpPoint*) closeLine, sizeof closeLine, (CurveType) Types::line }, winding);
@@ -269,30 +295,7 @@ void Path::addPath(Context* context, AddWinding winding) {
 	}
 }
 
-#if OP_DEBUG_DUMP
-std::string binaryDumpFunc(CallerData caller, DebugLevel debugLevel, DebugBase debugBase) {
-    return "";
-}
-#endif
-
-#if OP_DEBUG_IMAGE
-void* debugOpPathFunc(CallerData data) {
-	return nullptr;
-}
-
-bool debugOpGetDrawFunc(CallerData data) {
-	return false;
-}
-
-void debugOpSetDrawFunc(CallerData data, bool draw) {
-}
-
-bool debugOpSetIsOppFunc(CallerData data) {
-	return false;
-}
-#endif
-
-Contour* Path::GetContour(Context* context, BinaryOperand operand, BinaryWindType windType, Ops ops) {
+static Contour* GetBinary(Context* context, BinaryOperand operand, BinaryWindType windType, Ops ops) {
 	// set winding callbacks
 	BinaryOpData windingUserData { (BinaryOperation) ops, operand };
 	Contour* contour = CreateContour({context, (ContourData*) &windingUserData,
@@ -300,19 +303,32 @@ Contour* Path::GetContour(Context* context, BinaryOperand operand, BinaryWindTyp
 	WindingKeep operatorFunc = noWindKeepFunc;
 	switch (ops) {
 		case Ops::diff: operatorFunc = binaryWindingDifferenceFunc; break;
-		case Ops::intersect: operatorFunc = binaryWindingIntersectFunc; break;
+		case Ops::sect: operatorFunc = binaryWindingIntersectFunc; break;
 		case Ops::_union: operatorFunc = binaryWindingUnionFunc; break;
-		case Ops::exor: operatorFunc = binaryWindingExclusiveOrFunc; break;
+		case Ops::revDiff: operatorFunc = binaryWindingReverseDifferenceFunc; break;
+		case Ops::_xor: operatorFunc = binaryWindingExclusiveOrFunc; break;
 		default: OP_ASSERT(0);
 	}
 	SetWindingCallBacks(contour, binaryWindingAddFunc, operatorFunc, 
 			binaryWindingSubtractFunc, binaryWindingVisibleFunc, binaryWindingZeroFunc 
 			OP_DEBUG_PARAMS(nullptr)
-			OP_DEBUG_DUMP_PARAMS(binaryWindingDumpInFunc, binaryWindingDumpOutFunc, binaryDumpFunc)
-			OP_DEBUG_IMAGE_PARAMS(binaryWindingImageOutFunc, debugOpPathFunc,
-					debugOpGetDrawFunc, debugOpSetDrawFunc, debugOpSetIsOppFunc)
+			OP_DEBUG_DUMP_PARAMS(binaryWindingDumpInFunc, binaryWindingDumpOutFunc, nullptr)
+			OP_DEBUG_IMAGE_PARAMS(binaryWindingImageOutFunc, nullptr,
+					nullptr, nullptr, nullptr)
 	);
 	return contour;
+}
+
+static Contour* GetUnary(Context* context) {
+    Contour* contour = CreateContour({context, nullptr, 0});
+    SetWindingCallBacks(contour, unaryWindingAddFunc, unaryWindingKeepFunc, 
+            unaryWindingSubtractFunc, unaryWindingVisibleFunc, unaryWindingZeroFunc 
+			OP_DEBUG_PARAMS(nullptr)
+            OP_DEBUG_DUMP_PARAMS(unaryWindingDumpInFunc, unaryWindingDumpOutFunc, nullptr)
+            OP_DEBUG_IMAGE_PARAMS(unaryWindingImageOutFunc, nullptr,
+	                nullptr, nullptr, nullptr)
+    );
+    return contour;
 }
 
 void Path::commonOutput(Curve c, Types type, bool firstPt, bool lastPt, PathOutput output) {
@@ -326,9 +342,12 @@ void Path::commonOutput(Curve c, Types type, bool firstPt, bool lastPt, PathOutp
 			float* ctrls = (float*) ((char*)(c.data) + sizeof(CurveData));
 			quadraticCurveTo(ctrls[0], ctrls[1], c.data->end.x, c.data->end.y);
 			} break;
+		case Types::cubic: {
+			float* ctrls = (float*) ((char*)(c.data) + sizeof(CurveData));
+			bezierCurveTo(ctrls[0], ctrls[1], ctrls[2], ctrls[3], c.data->end.x, c.data->end.y);
+			} break;
 		case Types::move:
-		case Types::conic:
-		case Types::cubic:
+//		case Types::conic:
 		case Types::close:
 		default:
 			OP_ASSERT(0);
@@ -356,6 +375,18 @@ static void QuadOutput(Curve c, bool firstPt, bool lastPt, PathOutput pathOutput
 	output->commonOutput(c, Types::quad, firstPt, lastPt, output);
 }
 
+#if CONIC_SUPPORT
+static void ConicOutput(Curve c, bool firstPt, bool lastPt, PathOutput pathOutput) {
+	Path* output = (Path*) pathOutput;
+	output->commonOutput(c, Types::conic, firstPt, lastPt, output);
+}
+#endif
+
+static void CubicOutput(Curve c, bool firstPt, bool lastPt, PathOutput pathOutput) {
+	Path* output = (Path*) pathOutput;
+	output->commonOutput(c, Types::cubic, firstPt, lastPt, output);
+}
+
 static Curve MakeLine(Curve c) {
 	c.type = (CurveType) Types::line;
 	c.size = sizeof(float) * 4;
@@ -366,14 +397,6 @@ static PathOpsV0Lib::CurveType LineType(Curve ) {
 	return (CurveType) Types::line;
 }
 
-#if OP_DEBUG
-void debugLineScale(Curve curve, double scale, double offsetX, double offsetY) {
-}
-
-void debugQuadScale(Curve curve, double scale, double offsetX, double offsetY) {
-}
-#endif
-
 static void SetupContext(Context* context) {
 	// set context callbacks
 	SetContextCallBacks(context, EmptyFunc, MakeLine, LineType, maxSignSwap,
@@ -383,7 +406,7 @@ static void SetupContext(Context* context) {
 			lineIsFinite, lineIsLine, noBounds, lineNormal, LineOutput, noPinCtrl, 
 			noReverse, lineTangent, linesEqual, linePtAtT, linePtCount, noRotate, 
 			lineSubDivide, lineXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
-			OP_DEBUG_PARAMS(debugLineScale)
+			OP_DEBUG_PARAMS(nullptr)
 			OP_DEBUG_DUMP_PARAMS(lineDebugDumpName, noDumpCurveExtra)
 			OP_DEBUG_IMAGE_PARAMS(nullptr)
 	);
@@ -392,32 +415,61 @@ static void SetupContext(Context* context) {
 			quadIsFinite, quadIsLine, quadSetBounds, quadNormal, QuadOutput, quadPinCtrl, 
 			noReverse, quadTangent, quadsEqual, quadPtAtT, quadPtCount, quadRotate, 
 			quadSubDivide, quadXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
-			OP_DEBUG_PARAMS(debugQuadScale)
+			OP_DEBUG_PARAMS(nullptr)
 			OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, noDumpCurveExtra)
 			OP_DEBUG_IMAGE_PARAMS(nullptr)
 	);
 	OP_ASSERT((int) quadType == (int) Types::quad);
+#if CONIC_SUPPORT
+    OP_DEBUG_CODE(CurveType conicType =) SetCurveCallBacks(context, conicAxisRawHit, conicHull, 
+            conicIsFinite, conicIsLine, conicSetBounds, conicNormal, ConicOutput, quadPinCtrl, 
+			noReverse, conicTangent, conicsEqual, conicPtAtT, conicPtCount, conicRotate, 
+			conicSubDivide, conicXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
+			OP_DEBUG_PARAMS(nullptr)
+            OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
+            OP_DEBUG_IMAGE_PARAMS(nullptr)
+    );
+	OP_ASSERT((int) conicType == (int) Types::conic);
+#endif
+    OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallBacks(context, cubicAxisRawHit, cubicHull, 
+            cubicIsFinite, cubicIsLine, cubicSetBounds, cubicNormal, CubicOutput, cubicPinCtrl, 
+			cubicReverse, cubicTangent, cubicsEqual, cubicPtAtT, cubicPtCount, cubicRotate, 
+			cubicSubDivide, cubicXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
+			OP_DEBUG_PARAMS(nullptr)
+            OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, noDumpCurveExtra)
+            OP_DEBUG_IMAGE_PARAMS(nullptr)
+    );
+	OP_ASSERT((int) cubicType == (int) Types::cubic);
 }
 
-Path PathOps::Op(Path& path1, Path& path2, Ops oper) {
+void Path::opCommon(Path& path, Ops oper) {
 	Context* context = CreateContext({ nullptr, 0 });
 	SetupContext(context);
-	Contour* left = Path::GetContour(context, BinaryOperand::left, BinaryWindType::windLeft, oper);
+	Contour* left = GetBinary(context, BinaryOperand::left, BinaryWindType::windLeft, oper);
 	int leftData[] = { 1, 0 };
 	AddWinding leftWinding { left, leftData, sizeof(leftData) };
-	path1.addPath(context, leftWinding);
-	Contour* right = Path::GetContour(context, BinaryOperand::left, BinaryWindType::windRight, oper);
+	addPath(context, leftWinding);
+	Contour* right = GetBinary(context, BinaryOperand::left, BinaryWindType::windRight, oper);
 	int rightData[] = { 0, 1 };
 	AddWinding rightWinding { right, rightData, sizeof(rightData) };
-	path2.addPath(context, rightWinding);
+	path.addPath(context, rightWinding);
 	Path result;
 	Normalize(context);
 	Resolve(context, &result);
-	return result;
+	*this = result;
 }
 
-Path PathOps::Intersect(Path& path1, Path& path2) {
-	return Op(path1, path2, Ops::intersect);
+void Path::simplify() {
+	Context* context = CreateContext({ nullptr, 0 });
+	SetupContext(context);
+	Contour* simple = GetUnary(context);
+    int simpleData[] = { 1 };
+    AddWinding simpleWinding { simple, simpleData, sizeof(simpleData) };
+    addPath(context, simpleWinding);
+	Path result;
+	Normalize(context);
+	Resolve(context, &result);
+	*this = result;
 }
 
 }
