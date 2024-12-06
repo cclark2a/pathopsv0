@@ -82,6 +82,12 @@ add_executable (frametest "frametest.cpp"
 )
 target_sources(frametest PUBLIC ${COMMON_SOURCES})
 
+add_executable (path2Dtest "path2Dtest.cpp"
+	"../emscripten/Path2D.cpp"
+	"../tests/Path2Dtest.cpp"
+)
+target_sources(path2Dtest PUBLIC ${COMMON_SOURCES})
+
 include_directories(
 	"../debug"
 	"../src"
@@ -118,19 +124,23 @@ set(ignoreMe "${TSAN}${ASAN}${MSAN}${LSAN}${COVERAGE}")
 target_compile_definitions(skiatest PUBLIC OP_TINY_SKIA=1 NOMINMAX _CRT_SECURE_NO_WARNINGS)
 target_compile_definitions(tinytest PUBLIC OP_TINY_SKIA=1 NOMINMAX _CRT_SECURE_NO_WARNINGS OP_TINY_TEST=1)
 target_compile_definitions(frametest PUBLIC OP_TINY_SKIA=1 NOMINMAX _CRT_SECURE_NO_WARNINGS OP_TINY_TEST=1)
+target_compile_definitions(path2Dtest PUBLIC OP_TINY_SKIA=1 NOMINMAX _CRT_SECURE_NO_WARNINGS OP_TINY_TEST=1)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options(skiatest PUBLIC)
     target_compile_options(tinytest PUBLIC)
     target_compile_options(frametest PUBLIC)
+    target_compile_options(path2Dtest PUBLIC)
 elseif (CMAKE_BUILD_TYPE MATCHES "Debug")
     target_compile_options(skiatest PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -fprofile-update=atomic)
     target_compile_options(tinytest PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter )
     target_compile_options(frametest PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter )
+    target_compile_options(path2Dtest PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter )
 elseif (CMAKE_BUILD_TYPE MATCHES "Release")
     target_compile_options(skiatest PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra -fprofile-update=atomic)
     target_compile_options(tinytest PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra)
     target_compile_options(frametest PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra)
+    target_compile_options(path2Dtest PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra)
 endif()
 
 set_property(GLOBAL PROPERTY CXX_STANDARD 17)
