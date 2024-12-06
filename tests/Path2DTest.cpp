@@ -63,7 +63,14 @@ void TestPath2D(bool debugIt) {
 //	path2.fromCommands("[['m', 0, 0, 1, 1, 2, 2, 3, 3]]");
 	c2 = path.toCommands();
 	if (debugIt) outputCommandsArray(c2);
-
+	path.fromSVG("M 1 1 Q 2 2 3 3 T 5 5 7 7 Z");
+	if (debugIt) OpDebugOut("path w/T:" + path.toSVG() + "\n");
+	path.fromSVG("M 1 1 C 2 2 3 3 6 6 S 12 12 15 15 Z");
+	if (debugIt) OpDebugOut("path w/S:" + path.toSVG() + "\n");
+	path.fromSVG("M 1 1 h 1 v 1 h -1 v -1 z");
+	if (debugIt) OpDebugOut("path box:" + path.toSVG() + "\n");
+	path.fromSVG("M 1 1 H 2 V 2 H 1 V 1 z");
+	if (debugIt) OpDebugOut("path box:" + path.toSVG() + "\n");
 }
 
 #if OP_DEBUG && OP_TINY_TEST

@@ -72,7 +72,6 @@ struct Path {
 	void addPath(PathOpsV0Lib::Context* context, PathOpsV0Lib::AddWinding winding);
 	void commonOutput(PathOpsV0Lib::Curve c, Types type, bool firstPt, bool lastPt, 
 			PathOpsV0Lib::PathOutput output);
-	float lastOrdinal();
 	OpPoint lastPt();
 	void reset();
 #if CONIC_SUPPORT  // a utility like this may be needed for ellipse

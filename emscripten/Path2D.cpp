@@ -90,13 +90,6 @@ void Path::moveTo(float x, float y) {
 	offsets.clear();
 }
 
-float Path::lastOrdinal() {
-	float last = 0;
-	if (points.size())
-		last = points.back();
-	return last;
-}
-
 OpPoint Path::lastPt() {
 	OpPoint last { 0, 0 };
 	if (points.size())
@@ -199,9 +192,9 @@ static float nextFloat(char** chPtr, const char* chEnd) {
 		return OpNaN;
 	ch = skipSpace(ch, chEnd);
 	float result = OpNaN;
-	std::from_chars_result chResult = std::from_chars(*chPtr, chEnd, result);
-	*chPtr = const_cast<char*>(chResult.ptr);
-	*chPtr = skipSpace(*chPtr, chEnd);
+	std::from_chars_result chResult = std::from_chars(ch, chEnd, result);
+	ch = const_cast<char*>(chResult.ptr);
+	*chPtr = skipSpace(ch, chEnd);
 	if (OpMath::IsNaN(result))
 		*chPtr = const_cast<char*>(chEnd);
 	return result;
@@ -256,16 +249,14 @@ void Path::fromSVG(std::string s) {
 				case 'H': {
 					skipCommaSpace();
 					float x = nextFloatComma(&ch, chEnd);
-					float y = lastOrdinal();
 					skipCommaSpace();
-					relative ? rLineTo(x, y) : lineTo(x, y);
+					relative ? rLineTo(x, 0) : lineTo(x, lastPt().y);
 					} break;
 				case 'V': {
 					skipCommaSpace();
-					float x = lastOrdinal();
 					float y = nextFloatComma(&ch, chEnd);
 					skipCommaSpace();
-					relative ? rLineTo(x, y) : lineTo(x, y);
+					relative ? rLineTo(0, y) : lineTo(lastPt().x, y);
 					} break;
 				case 'Q': {
 					skipCommaSpace();
@@ -277,15 +268,20 @@ void Path::fromSVG(std::string s) {
 					relative ? rQuadraticCurveTo(cx, cy, x, y) : quadraticCurveTo(cx, cy, x, y);
 					} break;
 				case 'T': {
-					OpPoint lc = lastPt();
+					OpPoint lp = lastPt();
+					OpPoint lc = lp;
 					if (Types::quad == types.back())
 						lc = { *(&points.back() - 3), *(&points.back() - 2) };
 					float x = nextFloatComma(&ch, chEnd);
 					float y = nextFloatComma(&ch, chEnd);
-					lc.x = x * 2 - lc.x;
-					lc.y = y * 2 - lc.y;
+					if (relative) {
+						x += lp.x;
+						y += lp.y;
+					}
+					lc.x = lp.x * 2 - lc.x;
+					lc.y = lp.x * 2 - lc.y;
 					skipCommaSpace();
-					relative ? rQuadraticCurveTo(lc.x, lc.y, x, y) : quadraticCurveTo(lc.x, lc.y, x, y);
+					quadraticCurveTo(lc.x, lc.y, x, y);
 					} break;
 				case 'C': {
 					skipCommaSpace();
@@ -300,18 +296,24 @@ void Path::fromSVG(std::string s) {
 							: bezierCurveTo(c1x, c1y, c2x, c2y, x, y);
 					} break;
 				case 'S': {
-					OpPoint lc = lastPt();
+					OpPoint lp = lastPt();
+					OpPoint lc = lp;
 					if (Types::cubic == types.back())
 						lc = { *(&points.back() - 3), *(&points.back() - 2) };
 					float c2x = nextFloatComma(&ch, chEnd);
 					float c2y = nextFloatComma(&ch, chEnd);
 					float x = nextFloatComma(&ch, chEnd);
 					float y = nextFloatComma(&ch, chEnd);
-					lc.x = x * 2 - lc.x;
-					lc.y = y * 2 - lc.y;
+					if (relative) {
+						c2x += lp.x;
+						c2x += lp.y;
+						x += lp.x;
+						y += lp.y;
+					}
+					lc.x = lp.x * 2 - lc.x;
+					lc.y = lp.y * 2 - lc.y;
 					skipCommaSpace();
-					relative ? rBezierCurveTo(lc.x, lc.y, c2x, c2y, x, y) 
-							: bezierCurveTo(lc.x, lc.y, c2x, c2y, x, y);
+					bezierCurveTo(lc.x, lc.y, c2x, c2y, x, y);
 					} break;
 				case 'Z':
 					skipCommaSpace();
