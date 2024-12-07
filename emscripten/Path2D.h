@@ -6,7 +6,7 @@
 #include "curves/UnaryWinding.h"
 #include "PathOps.h"
 
-#define CONIC_SUPPORT 0
+#define ARC_SUPPORT 0
 
 namespace TwoD {
 
@@ -14,12 +14,8 @@ enum class Types {
     move,
     line,
     quad,
-#if CONIC_SUPPORT    
-	conic,
-#endif
     cubic,
-	close,
-	lastPt,  // denotes that line is added from current point to next point
+	close
 };
 
 enum class Ops {
@@ -31,15 +27,22 @@ enum class Ops {
 };
 
 struct Curve {
-	std::string command;
+	Types type;
 	std::vector<float> data;
 };
 
 struct Path {
 	void addPath(Path& path);  // !!! need to add transform
+	void eraseRange(int start, int end);
+	void insertPath(int index, Path& path);
+	void clear() { curves.clear(); }
 	Path clone() { Path result; result = *this; return result; }
-	int curveCount() { return (int) types.size(); }
+	int curveCount() { return (int) curves.size(); }
 	Curve getCurve(int index, bool includeFirstPt);
+	void setCurve(int index, Curve& );
+	int pointCount();
+	OpPoint getPoint(int index);
+	void setPoint(int index, OpPoint );
 	void moveTo(float x, float y);
 	void rMoveTo(float dx, float dy);
 	void lineTo(float x, float y);
@@ -50,7 +53,7 @@ struct Path {
 	void rBezierCurveTo(float dc1x, float dc1y, float dc2x, float dc2y, float dx, float dy);
 	void closePath();
 	void rect(float x, float y, float width, float height);
-#if CONIC_SUPPORT // these require a v0 arc library in curves; or arc to conic to arc conversion code
+#if ARC_SUPPORT // these require a v0 arc library in curves; or arc to conic to arc conversion code
 	void arcTo(float x1, float y1, float x2, float y2, float radius);
 	void arc(float x, float y, float radius, float startAngle, float endAngle, bool ccw);
 	void ellipse(float x, float y, float radiusX, float radiusY, float rotation, 
@@ -65,22 +68,20 @@ struct Path {
 	void simplify();
 	void fromCommands(std::vector<Curve>& curves);
 	void fromSVG(std::string s);
-	std::vector<Curve> toCommands();
+	std::vector<Curve>& toCommands();
 	std::string toSVG();
 	// internal
 	void opCommon(Path& path, Ops oper);
-	void addPath(PathOpsV0Lib::Context* context, PathOpsV0Lib::AddWinding winding);
+	void addPath(PathOpsV0Lib::Context* context, PathOpsV0Lib::AddWinding winding, bool closeLoops);
 	void commonOutput(PathOpsV0Lib::Curve c, Types type, bool firstPt, bool lastPt, 
 			PathOpsV0Lib::PathOutput output);
-	OpPoint lastPt();
-	void reset();
-#if CONIC_SUPPORT  // a utility like this may be needed for ellipse
+	OpPoint lastPt(int index = OpMax);
+#if ARC_SUPPORT  // a utility like this may be needed for ellipse
 	void rotate(float angle);
 #endif
 
-	std::vector<float> points;  // and conic weights? 
-	std::vector<Types> types;
-	std::vector<int> offsets;  // cache of offset into points for get data
+	static constexpr std::array<int, 5> sizes { 2, 2, 4, 6, 0 };
+	std::vector<Curve> curves;
 };
 
 }

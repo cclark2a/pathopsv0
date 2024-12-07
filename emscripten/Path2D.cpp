@@ -3,9 +3,6 @@
 #include "Path2D.h"
 #include "curves/Line.h"
 #include "curves/NoCurve.h"
-#if CONIC_SUPPORT
-#include "curves/ConicBezier.h"
-#endif
 #include "curves/CubicBezier.h"
 #include "curves/QuadBezier.h"
 #include <charconv>
@@ -13,87 +10,113 @@
 namespace TwoD {
 
 void Path::addPath(Path& path) {
-	points.insert(points.end(), path.points.begin(), path.points.end());
-	types.insert(types.end(), path.types.begin(), path.types.end());
+	insertPath(curveCount(), path);
 }
+
+void Path::insertPath(int index, Path& path) {
+	index = std::min(std::max(0, index), curveCount());
+	curves.insert(curves.begin() + index, path.curves.begin(), path.curves.end());
+}
+
+void Path::eraseRange(int start, int end) {
+	start = std::min(std::max(0, start), curveCount());
+	end = std::min(std::max(0, end), curveCount());
+	if (start > end)
+		return;
+	curves.erase(curves.begin() + start, curves.begin() + end);
+}
+
+#if 0
+static std::string typeToCommand(Types type) { 
+	return std::string(1, "MLQCZ"[(int) type]); 
+}
+#endif
 
 Curve Path::getCurve(int index, bool includeFirstPt) {
-	OP_ASSERT(!CONIC_SUPPORT);
-	if ((size_t) index >= types.size())
+	if ((size_t) index >= curves.size())
 		return Curve();
-	OP_ASSERT(types[index] <= Types::close);
-	Curve result;
-	Types type = types[index];
-	result.command = std::string(1, "MLQCZ"[(int) type]);
-	if (Types::close == type)
-		return result;
-	constexpr std::array<int, 5> sizes { 2, 2, 4, 6, 0 };
-	if (!offsets.size()) {
-		int offset = 0;
-		for (Types t : types) {
-			offsets.push_back(offset);
-			offset += sizes[(int) t];
-		}
-	}
-	float* f = &points[offsets[index]];
-	if (Types::move == type) {
-		result.data = { f[0], f[1] };
-		return result;
-	}
-	int count = sizes[(int) type];
+	Curve result = curves[index];
 	if (includeFirstPt) {
-		f -= 2;
-		count += 2;
+		OpPoint last = lastPt(index - 1);
+		result.data.insert(result.data.begin(), { last.x, last.y } );
+	}		
+	return result;
+}
+
+#if 0
+static Types commandToType(char cmd) { 
+	const char* s = "MLQCZ"; 
+	int i = strchr(s, cmd) - s;
+	i = std::min(std::max((int)Types::move, i), (int)Types::close);
+	return static_cast<Types>(i); 
+}
+#endif
+
+void Path::setCurve(int index, Curve& curve) {
+	if ((size_t) index >= curves.size()) {
+		curves.push_back(curve);
+		return;
 	}
-	result.data.resize(count);
-	std::memcpy(&result.data.front(), f, count * sizeof(float));
-	return result;
+	curves[index] = curve;
 }
 
-std::vector<Curve> Path::toCommands() {
-	std::vector<Curve> result;
-	for (int index = 0; index < curveCount(); ++index)
-		result.push_back(getCurve(index, false));
-	return result;
+int Path::pointCount() {
+	int result = 0;
+	for (Curve& curve : curves)
+		result += curve.data.size();
+	return result / 2;
 }
 
-void Path::fromCommands(std::vector<Curve>& curves) {
-	reset();
+OpPoint Path::getPoint(int index) {
+	index *= 2;  // 2 floats per point
 	for (Curve& curve : curves) {
-		float* f = &curve.data.front();
-		switch (curve.command[0]) {
-			case 'M':
-				moveTo(f[0], f[1]);
-			break;
-			case 'L':
-				lineTo(f[0], f[1]);
-			break;
-			case 'Q':
-				quadraticCurveTo(f[0], f[1], f[2], f[3]);
-			break;
-			case 'C':
-				bezierCurveTo(f[0], f[1], f[2], f[3], f[4], f[5]);
-			break;
-			case 'Z':
-				closePath();
-			break;
-			default:
-				OP_ASSERT(0);
-		}
+		int dataSize = (int) curve.data.size();
+		OP_ASSERT(!(dataSize & 1));
+		if (index < dataSize)
+			return *(OpPoint*) &curve.data[index];
+		index -= dataSize;
+	}
+	return { 0, 0 };
+}
+
+void Path::setPoint(int index, OpPoint pt) {
+	index *= 2;  // 2 floats per point
+	for (Curve& curve : curves) {
+		int dataSize = (int) curve.data.size();
+		OP_ASSERT(!(dataSize & 1));
+		if (index < dataSize)
+			*(OpPoint*) &curve.data[index] = pt;
+		index -= dataSize;
+	}
+}
+
+std::vector<Curve>& Path::toCommands() {
+	return curves;
+}
+
+void Path::fromCommands(std::vector<Curve>& curveData) {
+	clear();
+	for (Curve& curve : curveData) {
+		curves.push_back(curve);
 	}
 }
 
 void Path::moveTo(float x, float y) {
-	points.push_back(x);
-	points.push_back(y);
-	types.push_back(Types::move);
-	offsets.clear();
+	curves.push_back({ Types::move, { x, y }} );
 }
 
-OpPoint Path::lastPt() {
+OpPoint Path::lastPt(int index) {
+	index = std::min(std::max(0, index), curveCount() - 1);
 	OpPoint last { 0, 0 };
-	if (points.size())
-		last = { *(&points.back() - 1), points.back() };
+	if (index < 0)
+		return last;
+	Curve* lastCurve = &curves.front() + index;
+	do {
+		if (Types::close != lastCurve->type) {
+			last = { *(&lastCurve->data.back() - 1), lastCurve->data.back() } ;
+			break;
+		}
+	} while (lastCurve-- != &curves.front());
 	return last;
 }
 
@@ -103,12 +126,7 @@ void Path::rMoveTo(float dx, float dy) {
 }
 
 void Path::lineTo(float x, float y) {
-	if (!points.size())
-		moveTo(0, 0);
-	points.push_back(x);
-	points.push_back(y);
-	types.push_back(Types::line);
-	offsets.clear();
+	curves.push_back({ Types::line, { x, y }} );
 }
 
 void Path::rLineTo(float dx, float dy) {
@@ -117,9 +135,7 @@ void Path::rLineTo(float dx, float dy) {
 }
 
 void Path::quadraticCurveTo(float cx, float cy, float x, float y) {
-	points.insert(points.end(), { cx, cy, x, y });
-	types.push_back(Types::quad);
-	offsets.clear();
+	curves.push_back( { Types::quad, { cx, cy, x, y }} );
 }
 
 void Path::rQuadraticCurveTo(float dcx, float dcy, float dx, float dy) {
@@ -128,9 +144,7 @@ void Path::rQuadraticCurveTo(float dcx, float dcy, float dx, float dy) {
 }
 
 void Path::bezierCurveTo(float c1x, float c1y, float c2x, float c2y, float x, float y) {
-	points.insert(points.end(), { c1x, c1y, c2x, c2y, x, y });
-	types.push_back(Types::cubic);
-	offsets.clear();
+	curves.push_back( { Types::cubic, { c1x, c1y, c2x, c2y, x, y }} );
 }
 
 void Path::rBezierCurveTo(float rc1x, float rc1y, float rc2x, float rc2y, float rx, float ry) {
@@ -139,10 +153,11 @@ void Path::rBezierCurveTo(float rc1x, float rc1y, float rc2x, float rc2y, float 
 }
 
 void Path::closePath() {
-	types.push_back(Types::close);
+	curves.push_back( { Types::close, {}} );
 }
 
-#if CONIC_SUPPORT
+#if ARC_SUPPORT
+!!! needs complete rewrite
 void Path::rotate(float rotation) {
 	if (0 == rotation)
 		return;
@@ -209,7 +224,7 @@ static float nextFloatComma(char** chPtr, const char* chEnd) {
 }
 
 void Path::fromSVG(std::string s) {
-	reset();
+	clear();
 	size_t strLen = s.size();
 	if (!strLen)
 		return;
@@ -270,8 +285,10 @@ void Path::fromSVG(std::string s) {
 				case 'T': {
 					OpPoint lp = lastPt();
 					OpPoint lc = lp;
-					if (Types::quad == types.back())
-						lc = { *(&points.back() - 3), *(&points.back() - 2) };
+					if (Types::quad == curves.back().type) {
+						float* data = &curves.back().data.back();
+						lc = { *(data - 3), *(data - 2) };
+					}
 					float x = nextFloatComma(&ch, chEnd);
 					float y = nextFloatComma(&ch, chEnd);
 					if (relative) {
@@ -298,8 +315,10 @@ void Path::fromSVG(std::string s) {
 				case 'S': {
 					OpPoint lp = lastPt();
 					OpPoint lc = lp;
-					if (Types::cubic == types.back())
-						lc = { *(&points.back() - 3), *(&points.back() - 2) };
+					if (Types::cubic == curves.back().type) {
+						float* data = &curves.back().data.back();
+						lc = { *(data - 3), *(data - 2) };
+					}
 					float c2x = nextFloatComma(&ch, chEnd);
 					float c2y = nextFloatComma(&ch, chEnd);
 					float x = nextFloatComma(&ch, chEnd);
@@ -329,7 +348,7 @@ void Path::fromSVG(std::string s) {
 
 std::string Path::toSVG() {
 	std::string result;
-	float* ordinal = &points.front();
+	float* ordinal = nullptr;
 	auto ord = [&ordinal](int index) {
 		std::string s;
 		s = std::to_string(ordinal[index]);
@@ -344,8 +363,9 @@ std::string Path::toSVG() {
 		s += " "; 
 		return s;
 	};
-	for (Types type : types) {
-		switch (type) {
+	for (Curve& curve : curves) {
+		ordinal = &curve.data.front();
+		switch (curve.type) {
 			case Types::move:
 				result += command('M') + ord(0) + ord(1);
 				ordinal += 2;
@@ -374,49 +394,52 @@ std::string Path::toSVG() {
 	return result;
 }
 
-void Path::addPath(PathOpsV0Lib::Context* context, PathOpsV0Lib::AddWinding winding) {
-	if (!points.size())
+using namespace PathOpsV0Lib;
+
+// insert moveTo and close as needed here
+void Path::addPath(Context* context, AddWinding winding, bool closeLoops) {
+	if (!curves.size())
 		return;
-	float* ord = &points.front();
-	float closeLine[4] {0, 0, 0, 0};
-	for (Types type : types) {
-		switch (type) {
+	OpPoint closeLine[2] {{0, 0}, {0, 0}};  // last point, first point
+	for (Curve& curve : curves) {
+		OpPoint* pts = curve.data.size() ? (OpPoint*) &curve.data.front() : nullptr;
+		switch (curve.type) {
 			case Types::move:
-				closeLine[2] = ord[0];
-				closeLine[3] = ord[1];
+				if (closeLoops && closeLine[0] != closeLine[1])
+					Add({ closeLine, sizeof(closeLine), (CurveType) Types::line }, winding);
+				closeLine[0] = closeLine[1] = *pts++;
 				break;
 			case Types::line:
-				Add({ (OpPoint*) ord, sizeof closeLine, (PathOpsV0Lib::CurveType) Types::line }, winding);
-				closeLine[0] = ord[2];
-				closeLine[1] = ord[3];
-				ord += 2;
+				if (closeLine[0] != pts[0]) {
+					OpPoint closer[2] { closeLine[0], pts[0] };
+					Add({ closer, sizeof closer, (CurveType) Types::line }, winding);
+				}
+				closeLine[0] = *pts++;
 				break;
 			case Types::quad: {
-				float q[6] { ord[0], ord[1], ord[4], ord[5], ord[2], ord[3] };
-				AddQuads({ (OpPoint*) q, sizeof q, (PathOpsV0Lib::CurveType) Types::quad }, winding);
-				closeLine[0] = ord[4];
-				closeLine[1] = ord[5];
-				ord += 4;
+				OpPoint q[3] { closeLine[0], pts[1], pts[0] };
+				AddQuads({ q, sizeof q, (CurveType) Types::quad }, winding);
+				closeLine[0] = q[1];
+				pts += 2;
 				} break;
 			case Types::cubic: {
-				float c[8] { ord[0], ord[1], ord[6], ord[7], ord[2], ord[3], ord[4], ord[5] };
-				AddQuads({ (OpPoint*) c, sizeof c, (PathOpsV0Lib::CurveType) Types::cubic }, winding);
-				closeLine[0] = ord[6];
-				closeLine[1] = ord[7];
-				ord += 6;
+				OpPoint c[4] { closeLine[0], pts[2], pts[0], pts[1] };
+				AddCubics({ c, sizeof c, (CurveType) Types::cubic }, winding);
+				closeLine[0] = c[1];
+				pts += 3;
 				} break;
 			case Types::close:
-				Add({ (OpPoint*) closeLine, sizeof closeLine, (PathOpsV0Lib::CurveType) Types::line }, winding);
-				closeLine[0] = closeLine[2];
-				closeLine[1] = closeLine[3];
+				if (closeLoops && closeLine[0] != closeLine[1])
+					Add({ closeLine, sizeof closeLine, (CurveType) Types::line }, winding);
+				closeLine[0] = closeLine[1];
 				continue;
 			default:
 				OP_ASSERT(0);
 		}
 	}
+	if (closeLoops && closeLine[0] != closeLine[1])
+		Add({ closeLine, sizeof closeLine, (CurveType) Types::line }, winding);
 }
-
-using namespace PathOpsV0Lib;
 
 static Contour* GetBinary(Context* context, BinaryOperand operand, BinaryWindType windType, Ops ops) {
 	// set winding callbacks
@@ -470,7 +493,6 @@ void Path::commonOutput(PathOpsV0Lib::Curve c, Types type, bool firstPt, bool la
 			bezierCurveTo(ctrls[0], ctrls[1], ctrls[2], ctrls[3], c.data->end.x, c.data->end.y);
 			} break;
 		case Types::move:
-//		case Types::conic:
 		case Types::close:
 		default:
 			OP_ASSERT(0);
@@ -479,13 +501,8 @@ void Path::commonOutput(PathOpsV0Lib::Curve c, Types type, bool firstPt, bool la
 		closePath();
 }
 
-void Path::reset() {	
-	points.clear();
-	types.clear();
-}
-
 static void EmptyFunc(PathOutput pathOutput) {
-	((Path*) pathOutput)->reset();
+	((Path*) pathOutput)->clear();
 }
 
 static void LineOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathOutput pathOutput) {
@@ -498,7 +515,7 @@ static void QuadOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathOut
 	output->commonOutput(c, Types::quad, firstPt, lastPt, output);
 }
 
-#if CONIC_SUPPORT
+#if ARC_SUPPORT
 static void ConicOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathOutput pathOutput) {
 	Path* output = (Path*) pathOutput;
 	output->commonOutput(c, Types::conic, firstPt, lastPt, output);
@@ -543,7 +560,7 @@ static void SetupContext(Context* context) {
 			OP_DEBUG_IMAGE_PARAMS(nullptr)
 	);
 	OP_ASSERT((int) quadType == (int) Types::quad);
-#if CONIC_SUPPORT
+#if ARC_SUPPORT
     OP_DEBUG_CODE(CurveType conicType =) SetCurveCallBacks(context, conicAxisRawHit, conicHull, 
             conicIsFinite, conicIsLine, conicSetBounds, conicNormal, ConicOutput, quadPinCtrl, 
 			noReverse, conicTangent, conicsEqual, conicPtAtT, conicPtCount, conicRotate, 
@@ -571,11 +588,11 @@ void Path::opCommon(Path& path, Ops oper) {
 	Contour* left = GetBinary(context, BinaryOperand::left, BinaryWindType::windLeft, oper);
 	int leftData[] = { 1, 0 };
 	AddWinding leftWinding { left, leftData, sizeof(leftData) };
-	addPath(context, leftWinding);
+	addPath(context, leftWinding, true);
 	Contour* right = GetBinary(context, BinaryOperand::left, BinaryWindType::windRight, oper);
 	int rightData[] = { 0, 1 };
 	AddWinding rightWinding { right, rightData, sizeof(rightData) };
-	path.addPath(context, rightWinding);
+	path.addPath(context, rightWinding, true);
 	Path result;
 	Normalize(context);
 	Resolve(context, &result);
@@ -588,7 +605,7 @@ void Path::simplify() {
 	Contour* simple = GetUnary(context);
     int simpleData[] = { 1 };
     AddWinding simpleWinding { simple, simpleData, sizeof(simpleData) };
-    addPath(context, simpleWinding);
+    addPath(context, simpleWinding, true);
 	Path result;
 	Normalize(context);
 	Resolve(context, &result);
