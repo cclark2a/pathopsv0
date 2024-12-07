@@ -5,7 +5,11 @@
 #include "curves/NoCurve.h"
 #include "curves/CubicBezier.h"
 #include "curves/QuadBezier.h"
+#if 0 // emscripten as of 12/7/2024 does not support std::from_chars
 #include <charconv>
+#else
+#include <cstdlib>
+#endif
 
 namespace TwoD {
 
@@ -207,8 +211,17 @@ static float nextFloat(char** chPtr, const char* chEnd) {
 		return OpNaN;
 	ch = skipSpace(ch, chEnd);
 	float result = OpNaN;
+#if 0 
 	std::from_chars_result chResult = std::from_chars(ch, chEnd, result);
 	ch = const_cast<char*>(chResult.ptr);
+#else
+	char* endPtr;
+	result = (float) strtod(ch, &endPtr);
+	if (ch == endPtr)
+		result = OpNaN;
+	else
+		ch = endPtr;
+#endif
 	*chPtr = skipSpace(ch, chEnd);
 	if (OpMath::IsNaN(result))
 		*chPtr = const_cast<char*>(chEnd);
