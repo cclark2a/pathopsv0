@@ -410,7 +410,7 @@ std::string Path::toSVG() {
 using namespace PathOpsV0Lib;
 
 // insert moveTo and close as needed here
-void Path::addPath(Context* context, AddWinding winding, bool closeLoops) {
+void Path::opAddPath(Context* context, AddWinding winding, bool closeLoops) {
 	if (!curves.size())
 		return;
 	OpPoint closeLine[2] {{0, 0}, {0, 0}};  // last point, first point
@@ -601,11 +601,11 @@ void Path::opCommon(Path& path, Ops oper) {
 	Contour* left = GetBinary(context, BinaryOperand::left, BinaryWindType::windLeft, oper);
 	int leftData[] = { 1, 0 };
 	AddWinding leftWinding { left, leftData, sizeof(leftData) };
-	addPath(context, leftWinding, true);
+	opAddPath(context, leftWinding, true);
 	Contour* right = GetBinary(context, BinaryOperand::left, BinaryWindType::windRight, oper);
 	int rightData[] = { 0, 1 };
 	AddWinding rightWinding { right, rightData, sizeof(rightData) };
-	path.addPath(context, rightWinding, true);
+	path.opAddPath(context, rightWinding, true);
 	Path result;
 	Normalize(context);
 	Resolve(context, &result);
@@ -618,7 +618,7 @@ void Path::simplify() {
 	Contour* simple = GetUnary(context);
     int simpleData[] = { 1 };
     AddWinding simpleWinding { simple, simpleData, sizeof(simpleData) };
-    addPath(context, simpleWinding, true);
+    opAddPath(context, simpleWinding, true);
 	Path result;
 	Normalize(context);
 	Resolve(context, &result);

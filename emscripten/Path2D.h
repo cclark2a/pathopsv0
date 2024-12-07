@@ -72,7 +72,7 @@ struct Path {
 	std::string toSVG();
 	// internal
 	void opCommon(Path& path, Ops oper);
-	void addPath(PathOpsV0Lib::Context* context, PathOpsV0Lib::AddWinding winding, bool closeLoops);
+	void opAddPath(PathOpsV0Lib::Context* context, PathOpsV0Lib::AddWinding winding, bool closeLoops);
 	void commonOutput(PathOpsV0Lib::Curve c, Types type, bool firstPt, bool lastPt, 
 			PathOpsV0Lib::PathOutput output);
 	OpPoint lastPt(int index = OpMax);
