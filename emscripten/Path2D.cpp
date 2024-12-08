@@ -30,12 +30,6 @@ void Path::eraseRange(int start, int end) {
 	curves.erase(curves.begin() + start, curves.begin() + end);
 }
 
-#if 0
-static std::string typeToCommand(Types type) { 
-	return std::string(1, "MLQCZ"[(int) type]); 
-}
-#endif
-
 Curve Path::getCurve(int index, bool includeFirstPt) {
 	if ((size_t) index >= curves.size())
 		return Curve();
@@ -47,15 +41,6 @@ Curve Path::getCurve(int index, bool includeFirstPt) {
 	return result;
 }
 
-#if 0
-static Types commandToType(char cmd) { 
-	const char* s = "MLQCZ"; 
-	int i = strchr(s, cmd) - s;
-	i = std::min(std::max((int)Types::move, i), (int)Types::close);
-	return static_cast<Types>(i); 
-}
-#endif
-
 void Path::setCurve(int index, Curve& curve) {
 	if ((size_t) index >= curves.size()) {
 		curves.push_back(curve);
@@ -64,38 +49,12 @@ void Path::setCurve(int index, Curve& curve) {
 	curves[index] = curve;
 }
 
-int Path::pointCount() {
-	int result = 0;
-	for (Curve& curve : curves)
-		result += curve.data.size();
-	return result / 2;
-}
-
-OpPoint Path::getPoint(int index) {
-	index *= 2;  // 2 floats per point
+std::vector<Curve> Path::toCommands() {
+	std::vector<Curve> result;
 	for (Curve& curve : curves) {
-		int dataSize = (int) curve.data.size();
-		OP_ASSERT(!(dataSize & 1));
-		if (index < dataSize)
-			return *(OpPoint*) &curve.data[index];
-		index -= dataSize;
+		result.push_back(curve);
 	}
-	return { 0, 0 };
-}
-
-void Path::setPoint(int index, OpPoint pt) {
-	index *= 2;  // 2 floats per point
-	for (Curve& curve : curves) {
-		int dataSize = (int) curve.data.size();
-		OP_ASSERT(!(dataSize & 1));
-		if (index < dataSize)
-			*(OpPoint*) &curve.data[index] = pt;
-		index -= dataSize;
-	}
-}
-
-std::vector<Curve>& Path::toCommands() {
-	return curves;
+	return result;
 }
 
 void Path::fromCommands(std::vector<Curve>& curveData) {
@@ -160,6 +119,28 @@ void Path::closePath() {
 	curves.push_back( { Types::close, {}} );
 }
 
+void Path::rect(float x, float y, float width, float height) {
+	moveTo(x, y);
+	lineTo(x + width, y);
+	lineTo(x + width, y + height);
+	lineTo(x, y + height);
+	closePath();
+}
+
+void Path::transform(float scaleX, float skewY, float skewX, float scaleY, float dx, float dy) {
+	OpVector scale { scaleX, scaleY };
+	OpVector skew { skewX, skewY };
+	OpVector move { dx, dy };
+	for (Curve& curve : curves) {
+		for (size_t index = 0; index < curve.data.size(); index += 2) {
+			OpPoint& xy = *(OpPoint*) &curve.data[index];
+			OpPoint yx = xy;
+			std::swap(yx.x, yx.y);
+			xy = xy * scale + yx * skew + move;
+		}
+	}
+}
+
 #if ARC_SUPPORT
 !!! needs complete rewrite
 void Path::rotate(float rotation) {
@@ -190,14 +171,6 @@ void Path::ellipse(float x, float y, float rx, float ry, float rotation,
 	addPath(circle);
 }
 #endif
-
-void Path::rect(float x, float y, float width, float height) {
-	moveTo(x, y);
-	lineTo(x + width, y);
-	lineTo(x + width, y + height);
-	lineTo(x, y + height);
-	closePath();
-}
 
 static char* skipSpace(char* ch, const char* chEnd) {
 	while (ch < chEnd && ' ' >= *ch)
@@ -550,10 +523,8 @@ static PathOpsV0Lib::CurveType LineType(PathOpsV0Lib::Curve ) {
 	return (CurveType) Types::line;
 }
 
-static void SetupContext(Context* context) {
+static void SetupCurves(Context* context) {
 	// set context callbacks
-	SetContextCallBacks(context, EmptyFunc, MakeLine, LineType, maxSignSwap,
-			maxDepth, maxSplits, maxLimbs);	
 	// set curve callbacks
 	OP_DEBUG_CODE(CurveType lineType =) SetCurveCallBacks(context, lineAxisRawHit, noHull, 
 			lineIsFinite, lineIsLine, noBounds, lineNormal, LineOutput, noPinCtrl, 
@@ -573,17 +544,6 @@ static void SetupContext(Context* context) {
 			OP_DEBUG_IMAGE_PARAMS(nullptr)
 	);
 	OP_ASSERT((int) quadType == (int) Types::quad);
-#if ARC_SUPPORT
-    OP_DEBUG_CODE(CurveType conicType =) SetCurveCallBacks(context, conicAxisRawHit, conicHull, 
-            conicIsFinite, conicIsLine, conicSetBounds, conicNormal, ConicOutput, quadPinCtrl, 
-			noReverse, conicTangent, conicsEqual, conicPtAtT, conicPtCount, conicRotate, 
-			conicSubDivide, conicXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
-			OP_DEBUG_PARAMS(nullptr)
-            OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
-            OP_DEBUG_IMAGE_PARAMS(nullptr)
-    );
-	OP_ASSERT((int) conicType == (int) Types::conic);
-#endif
     OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallBacks(context, cubicAxisRawHit, cubicHull, 
             cubicIsFinite, cubicIsLine, cubicSetBounds, cubicNormal, CubicOutput, cubicPinCtrl, 
 			cubicReverse, cubicTangent, cubicsEqual, cubicPtAtT, cubicPtCount, cubicRotate, 
@@ -595,9 +555,11 @@ static void SetupContext(Context* context) {
 	OP_ASSERT((int) cubicType == (int) Types::cubic);
 }
 
-void Path::opCommon(Path& path, Ops oper) {
+void FillPath::opCommon(FillPath& path, Ops oper) {
 	Context* context = CreateContext({ nullptr, 0 });
-	SetupContext(context);
+	SetContextCallBacks(context, EmptyFunc, MakeLine, LineType, maxSignSwap,
+			maxDepth, maxSplits, maxLimbs);	
+	SetupCurves(context);
 	Contour* left = GetBinary(context, BinaryOperand::left, BinaryWindType::windLeft, oper);
 	int leftData[] = { 1, 0 };
 	AddWinding leftWinding { left, leftData, sizeof(leftData) };
@@ -606,20 +568,137 @@ void Path::opCommon(Path& path, Ops oper) {
 	int rightData[] = { 0, 1 };
 	AddWinding rightWinding { right, rightData, sizeof(rightData) };
 	path.opAddPath(context, rightWinding, true);
-	Path result;
+	FillPath result;
 	Normalize(context);
 	Resolve(context, &result);
 	*this = result;
 }
 
-void Path::simplify() {
+void FillPath::simplify() {
 	Context* context = CreateContext({ nullptr, 0 });
-	SetupContext(context);
+	SetContextCallBacks(context, EmptyFunc, MakeLine, LineType, maxSignSwap,
+			maxDepth, maxSplits, maxLimbs);	
+	SetupCurves(context);
 	Contour* simple = GetUnary(context);
     int simpleData[] = { 1 };
     AddWinding simpleWinding { simple, simpleData, sizeof(simpleData) };
     opAddPath(context, simpleWinding, true);
-	Path result;
+	FillPath result;
+	Normalize(context);
+	Resolve(context, &result);
+	*this = result;
+}
+
+enum class FrameFill {
+	frame,
+	fill
+};
+
+struct FrameWinding {
+    FrameWinding(FrameFill frameFill) 
+		: isFrame(frameFill) {
+	}
+
+    FrameWinding(FrameFill frameFill, int windValue) 
+		: left(windValue)
+		, isFrame(frameFill) {
+	}
+
+    FrameWinding(Winding w) {
+        OP_ASSERT(w.size == sizeof(FrameWinding));
+        std::memcpy(this, w.data, sizeof(FrameWinding));
+	}
+
+	void copyTo(Winding& w) const {
+		OP_ASSERT(w.size == sizeof(FrameWinding));
+		std::memcpy(w.data, this, sizeof(FrameWinding));
+	}
+
+    int left = 1;
+	FrameFill isFrame;
+};
+
+// winding is always frame; toAdd comes from another edge, and may be frame or fill
+static Winding frameAddFunc(Winding winding, Winding toAdd) {
+	FrameWinding sum(winding);
+	if (FrameFill::fill == sum.isFrame) {
+		FrameWinding addend(toAdd);
+		if (FrameFill::fill == addend.isFrame) {
+			sum.left += addend.left;
+			sum.copyTo(winding);
+		}
+	}
+    return winding;
+}
+
+// both winding and sumWinding come from the same edge
+static WindKeep frameKeepFunc(Winding winding, Winding sumWinding) {
+	FrameWinding wind(winding);
+	if (FrameFill::fill == wind.isFrame)
+		return WindKeep::Discard;
+	FrameWinding sum(sumWinding);
+	return sum.left ? WindKeep::Start : WindKeep::Discard;
+}
+
+// winding is always frame; toAdd comes from another edge, and may be frame or fill
+static Winding frameSubtractFunc(Winding winding, Winding toSubtract) {
+	FrameWinding difference(winding);
+	if (FrameFill::fill == difference.isFrame) {	
+		FrameWinding subtrahend(toSubtract);
+		if (FrameFill::fill == subtrahend.isFrame) {	
+			difference.left -= subtrahend.left;
+			difference.copyTo(winding);
+		}
+	}
+    return winding;
+}
+
+bool frameVisibleFunc(Winding winding) {
+    FrameWinding test(winding);
+    return !!test.left;
+}
+
+void frameZeroFunc(Winding toZero) {
+    FrameWinding zero(FrameFill::fill, 0);
+    zero.copyTo(toZero);
+}
+
+static bool allowDisjointLines(ContextError err, Context* , Contour* , PathOpsV0Lib::Curve* ) {
+	return ContextError::end != err && ContextError::missing != err;
+}
+
+void FramePath::opCommon(FillPath& path, Ops oper) {
+	Context* context = CreateContext({ nullptr, 0 });
+    SetContextCallBacks(context, noEmptyPath, MakeLine, LineType, maxSignSwap,
+			maxDepth, maxSplits, maxLimbs);
+	SetupCurves(context);
+	FrameFill frameContourData = FrameFill::frame;
+    Contour* frameContour = CreateContour({context, &frameContourData, sizeof(frameContourData)});
+    SetWindingCallBacks(frameContour, frameAddFunc, frameKeepFunc, 
+            frameSubtractFunc, frameVisibleFunc, frameZeroFunc 
+    		OP_DEBUG_PARAMS(noDebugBitOper)
+            OP_DEBUG_DUMP_PARAMS(nullptr, nullptr, noDumpFunc)
+            OP_DEBUG_IMAGE_PARAMS(noWindingImageOutFunc, noNativePathFunc,
+                    noDebugGetDrawFunc, noDebugSetDrawFunc, noIsOppFunc)
+	);
+    FrameWinding frameData(FrameFill::frame, 1);
+    AddWinding frameAddWinding { frameContour, &frameData, sizeof(frameData) };
+
+	FrameFill fillContourData = FrameFill::fill;
+    Contour* fillContour = CreateContour({context, &fillContourData, sizeof(fillContourData)});
+    SetWindingCallBacks(fillContour, frameAddFunc, frameKeepFunc, 
+            frameSubtractFunc, frameVisibleFunc, frameZeroFunc 
+    		OP_DEBUG_PARAMS(noDebugBitOper)
+	        OP_DEBUG_DUMP_PARAMS(nullptr, nullptr, noDumpFunc)
+            OP_DEBUG_IMAGE_PARAMS(noWindingImageOutFunc, noNativePathFunc,
+                    noDebugGetDrawFunc, noDebugSetDrawFunc, noIsOppFunc)
+	);
+    FrameWinding fillData(FrameFill::fill, 1);
+    AddWinding fillAddWinding { fillContour, &fillData, sizeof(fillData) };
+	opAddPath(context, frameAddWinding, true);
+	path.opAddPath(context, fillAddWinding, true);
+	FramePath result;
+	SetErrorHandler(context, allowDisjointLines);
 	Normalize(context);
 	Resolve(context, &result);
 	*this = result;

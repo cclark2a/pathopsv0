@@ -36,13 +36,9 @@ struct Path {
 	void eraseRange(int start, int end);
 	void insertPath(int index, Path& path);
 	void clear() { curves.clear(); }
-	Path clone() { Path result; result = *this; return result; }
 	int curveCount() { return (int) curves.size(); }
 	Curve getCurve(int index, bool includeFirstPt);
 	void setCurve(int index, Curve& );
-	int pointCount();
-	OpPoint getPoint(int index);
-	void setPoint(int index, OpPoint );
 	void moveTo(float x, float y);
 	void rMoveTo(float dx, float dy);
 	void lineTo(float x, float y);
@@ -53,6 +49,7 @@ struct Path {
 	void rBezierCurveTo(float dc1x, float dc1y, float dc2x, float dc2y, float dx, float dy);
 	void closePath();
 	void rect(float x, float y, float width, float height);
+	void transform(float a, float b, float c, float d, float e, float f);
 #if ARC_SUPPORT // these require a v0 arc library in curves; or arc to conic to arc conversion code
 	void arcTo(float x1, float y1, float x2, float y2, float radius);
 	void arc(float x, float y, float radius, float startAngle, float endAngle, bool ccw);
@@ -60,18 +57,11 @@ struct Path {
 			float startAngle, float endAngle, bool ccw);
 	void roundRect(float x, float y, float width, float height, float radii);
 #endif
-	void difference(Path& path) { opCommon(path, Ops::diff); }
-	void intersect(Path& path) { opCommon(path, Ops::sect); }
-	void reverseDifference(Path& path) { opCommon(path, Ops::revDiff); }
-	void _union(Path& path) { opCommon(path, Ops::_union); }
-	void _xor(Path& path) { opCommon(path, Ops::_xor); }
-	void simplify();
 	void fromCommands(std::vector<Curve>& curves);
 	void fromSVG(std::string s);
-	std::vector<Curve>& toCommands();
+	std::vector<Curve> toCommands();
 	std::string toSVG();
 	// internal
-	void opCommon(Path& path, Ops oper);
 	void opAddPath(PathOpsV0Lib::Context* context, PathOpsV0Lib::AddWinding winding, bool closeLoops);
 	void commonOutput(PathOpsV0Lib::Curve c, Types type, bool firstPt, bool lastPt, 
 			PathOpsV0Lib::PathOutput output);
@@ -82,6 +72,26 @@ struct Path {
 
 	static constexpr std::array<int, 5> sizes { 2, 2, 4, 6, 0 };
 	std::vector<Curve> curves;
+};
+
+struct FillPath : Path {
+	FillPath clone() { FillPath result; result = *this; return result; }
+	void difference(FillPath& path) { opCommon(path, Ops::diff); }
+	void intersect(FillPath& path) { opCommon(path, Ops::sect); }
+	void reverseDifference(FillPath& path) { opCommon(path, Ops::revDiff); }
+	void _union(FillPath& path) { opCommon(path, Ops::_union); }
+	void _xor(FillPath& path) { opCommon(path, Ops::_xor); }
+	void simplify();
+	// internal
+	void opCommon(FillPath& path, Ops oper);
+};
+
+struct FramePath : Path {
+	Path clone() { FramePath result; result = *this; return result; }
+	void difference(FillPath& path) { opCommon(path, Ops::diff); }
+	void intersect(FillPath& path) { opCommon(path, Ops::sect); }
+	// internal
+	void opCommon(FillPath& path, Ops oper);
 };
 
 }

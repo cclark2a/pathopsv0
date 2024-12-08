@@ -425,6 +425,11 @@ struct OpPoint {
 		y *= s;
 	}
 
+	void operator*=(OpVector v) {
+		x *= v.dx;
+		y *= v.dy;
+	}
+
 	void operator/=(float s) {
 		x /= s;
 		y /= s;
@@ -451,6 +456,12 @@ struct OpPoint {
 	OpPoint operator*(float s) {
 		OpPoint result = *this;
 		result *= s;
+		return result;
+	}
+
+	OpPoint operator*(OpVector v) {
+		OpPoint result = *this;
+		result *= v;
 		return result;
 	}
 

@@ -30,7 +30,7 @@ static std::string commandsArray(std::vector<TwoD::Curve>& commands) {
 
 void TestPath2D(bool debugIt) {
 	debugIt |= overrideDebugIt;
-	TwoD::Path path;
+	TwoD::FillPath path;
 	path.moveTo(1, 2);
 	path.lineTo(3, 4);
 	path.quadraticCurveTo(5, 6, 7, 8);
@@ -45,7 +45,7 @@ void TestPath2D(bool debugIt) {
 	if (debugIt) OpDebugOut(cmdsStr + "\n");
 	std::string svg = path.toSVG();
 	if (debugIt) OpDebugOut(svg + "\n");
-	TwoD::Path path2, path3;
+	TwoD::FillPath path2, path3;
 	path2.fromCommands(commands);
 	path3.fromSVG(svg);
 	std::vector<TwoD::Curve> c2 = path2.toCommands();
@@ -99,7 +99,6 @@ void TestPath2D(bool debugIt) {
 	svg = path.toSVG();
 	std::string s3 = path3.toSVG();
 	OP_ASSERT(svg == s3);
-	OP_ASSERT(3 == path.pointCount());
 	path.eraseRange(0, 1);
 	svg = path.toSVG();
 	s2 = path2.toSVG();
@@ -109,16 +108,6 @@ void TestPath2D(bool debugIt) {
 	svg = path.toSVG();
 	s3 = path3.toSVG();
 	OP_ASSERT(svg == s3);
-	OP_ASSERT(1 == path.pointCount());
-	path.addPath(path2);
-	OP_ASSERT(3 == path.pointCount());
-	path.setPoint(1, { -1, -2 });
-	OpPoint pt = path.getPoint(1);
-	OP_ASSERT(-1 == pt.x);
-	OP_ASSERT(-2 == pt.y);
-	quadCurve = path.getCurve(1, true);
-	float expected[6] = { 3, 4, -1, -2, 7, 8 };
-	OP_ASSERT(!std::memcmp(&quadCurve.data.front(), expected, sizeof expected));
 }
 
 #if OP_DEBUG && OP_TINY_TEST
