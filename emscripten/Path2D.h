@@ -62,10 +62,8 @@ struct Path {
 	std::vector<Curve> toCommands();
 	std::string toSVG();
 	// internal
-	void opAddPath(PathOpsV0Lib::Context* context, PathOpsV0Lib::AddWinding winding, bool closeLoops);
-	void commonOutput(PathOpsV0Lib::Curve c, Types type, bool firstPt, bool lastPt, 
-			PathOpsV0Lib::PathOutput output);
 	OpPoint lastPt(int index = OpMax);
+	void opAddPath(PathOpsV0Lib::Context* context, PathOpsV0Lib::AddWinding winding, bool closeLoops);
 #if ARC_SUPPORT  // a utility like this may be needed for ellipse
 	void rotate(float angle);
 #endif
@@ -75,9 +73,9 @@ struct Path {
 };
 
 struct FillPath : Path {
-	void addPath(Path& path) { Path::addPath(path); }
+	void addPath(FillPath& path) { Path::addPath(path); }
 	void eraseRange(int start, int end) { Path::eraseRange(start, end); }
-	void insertPath(int index, Path& path) { Path::insertPath(index, path); }
+	void insertPath(int index, FillPath& path) { Path::insertPath(index, path); }
 	void clear() { curves.clear(); }
 	int curveCount() { return (int) curves.size(); }
 	Curve getCurve(int index, bool includeFirstPt) { return Path::getCurve(index, includeFirstPt); }
@@ -94,7 +92,7 @@ struct FillPath : Path {
 	void bezierCurveTo(float c1x, float c1y, float c2x, float c2y, float x, float y) {
 			Path::bezierCurveTo(c1x, c1y, c2x, c2y, x, y); }
 	void rBezierCurveTo(float dc1x, float dc1y, float dc2x, float dc2y, float dx, float dy) {
-			Path::bezierCurveTo(dc1x, dc1y, dc2x, dc2y, dx, dy); }
+			Path::rBezierCurveTo(dc1x, dc1y, dc2x, dc2y, dx, dy); }
 	void closePath() { Path::closePath(); }
 	void rect(float x, float y, float width, float height) {
 			Path::rect(x, y, width, height); }
@@ -115,9 +113,9 @@ struct FillPath : Path {
 };
 
 struct FramePath : Path {
-	void addPath(Path& path) { Path::addPath(path); }
+	void addPath(FramePath& path) { Path::addPath(path); }
 	void eraseRange(int start, int end) { Path::eraseRange(start, end); }
-	void insertPath(int index, Path& path) { Path::insertPath(index, path); }
+	void insertPath(int index, FramePath& path) { Path::insertPath(index, path); }
 	void clear() { curves.clear(); }
 	int curveCount() { return (int) curves.size(); }
 	Curve getCurve(int index, bool includeFirstPt) { return Path::getCurve(index, includeFirstPt); }

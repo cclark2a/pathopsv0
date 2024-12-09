@@ -235,8 +235,8 @@ inline void binaryWindingZeroFunc(Winding toZero) {
 inline void binaryWindingDumpInFunc(const char*& str, Winding winding) {
     BinaryWinding binaryWinding;
     OpDebugRequired(str, "{");
-    binaryWinding.left = OpDebugReadSizeT(str);
-    binaryWinding.right = OpDebugReadSizeT(str);
+    binaryWinding.left = (int) OpDebugReadSizeT(str);
+    binaryWinding.right = (int) OpDebugReadSizeT(str);
     OpDebugRequired(str, "}");
     binaryWinding.copyTo(winding);
 }

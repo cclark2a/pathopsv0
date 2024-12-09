@@ -119,7 +119,8 @@ void skiaCubicOutput(Curve c, bool firstPt, bool lastPt, PathOutput output) {
 #if OP_DEBUG
 void debugCommonScale(Curve curve, int extra, double scale, double offsetX, double offsetY) {
 	auto scaler = [scale, offsetX, offsetY](OpPoint& pt) {
-		pt = pt * scale + OpPoint(offsetX, offsetY);
+		pt.x = (float) (pt.x * scale + offsetX);
+		pt.y = (float) (pt.y * scale + offsetY);
 	};
 	scaler(curve.data->start);
 	scaler(curve.data->end);

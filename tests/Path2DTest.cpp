@@ -55,6 +55,7 @@ void TestPath2D(bool debugIt) {
 	OP_ASSERT(cmdsStr == cmds2Str);
 	if (debugIt) OpDebugOut(s2 + "\n");
 	OP_ASSERT(svg == s2);
+
 	path.intersect(path2);
 	if (debugIt) OpDebugOut("path:" + path.toSVG() + "\n");
 	path.fromSVG("M1 0 Q2 0 2 1 Q2 2 1 2 Q0 2 0 1 Q0 0 1 0");
@@ -73,6 +74,7 @@ void TestPath2D(bool debugIt) {
 	cmds2Str = commandsArray(c2);
 	if (debugIt) OpDebugOut(cmds2Str + "\n");
 	OP_ASSERT(cmdsStr == cmds2Str);
+
 	path.fromSVG("M 1 1 Q 2 2 3 3 T 5 5 7 7 Z");
 	if (debugIt) OpDebugOut("path w/T:" + path.toSVG() + "\n");
 	path.fromSVG("M 1 1 C 2 2 3 3 6 6 S 12 12 15 15 Z");
@@ -84,10 +86,12 @@ void TestPath2D(bool debugIt) {
 	svg = path.toSVG();
 	s2 = path2.toSVG();
 	OP_ASSERT(svg == s2);
+
 	// editor tests
 	path.clear();
 	path.lineTo(3, 4);
 	OP_ASSERT(1 == path.curveCount());
+
 	TwoD::Curve lineCurve = path.getCurve(0, false);
 	path2.clear();
 	path2.quadraticCurveTo(5, 6, 7, 8);
@@ -95,19 +99,55 @@ void TestPath2D(bool debugIt) {
 	path3.insertPath(0, path);
 	path.addPath(path2);
 	OP_ASSERT(2 == path.curveCount());
+
 	TwoD::Curve quadCurve = path.getCurve(1, true);
 	svg = path.toSVG();
 	std::string s3 = path3.toSVG();
 	OP_ASSERT(svg == s3);
+
 	path.eraseRange(0, 1);
 	svg = path.toSVG();
 	s2 = path2.toSVG();
 	OP_ASSERT(svg == s2);
+
 	path3.eraseRange(1, 2);
 	path.setCurve(0, lineCurve);
 	svg = path.toSVG();
 	s3 = path3.toSVG();
 	OP_ASSERT(svg == s3);
+
+	path.clear();
+	path.moveTo(10, 10);
+	path.rLineTo(-10, 0);
+	path.rMoveTo(0, 10);
+	path.rBezierCurveTo(20, 21, 30, 31, 40, 41);
+	svg = path.toSVG();
+	path2.fromSVG("M 10 10 L 0 10 M 0 20 C 20 41 30 51 40 61");
+	s2 = path2.toSVG();
+	OP_ASSERT(svg == s2);
+
+	path.clear();
+	path.rect(10, 20, 30, 40);
+	path.transform(2, 3, 4, 5, 6, 7);
+	svg = path.toSVG();
+	OP_ASSERT(svg == "M 106 137 L 166 227 L 326 427 L 266 337 L 106 137 Z");
+
+	// op tests
+	path.clear();
+	path.rect(0, 0, 4, 4);
+	path2.clear();
+	path2.rect(2, 2, 6, 6);
+	path.intersect(path2);
+	svg = path.toSVG();
+	OP_ASSERT(svg == "M 2 4 L 2 2 L 4 2 L 4 4 L 2 4 Z");
+
+	path.clear();
+	path.rect(0, 0, 4, 4);
+	path.rect(2, 0, 4, 4);
+	svg = path.toSVG();
+	path.simplify();
+	svg = path.toSVG();
+	OP_ASSERT(svg == "M 0 0 L 6 0 L 6 4 L 0 4 L 0 0 Z");
 }
 
 #if OP_DEBUG && OP_TINY_TEST

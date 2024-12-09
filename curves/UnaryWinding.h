@@ -79,7 +79,7 @@ inline void unaryWindingZeroFunc(Winding toZero) {
 inline void unaryWindingDumpInFunc(const char*& str, Winding winding) {
     UnaryWinding unaryWinding;
     OpDebugRequired(str, "{");
-    unaryWinding.left = OpDebugReadSizeT(str);
+    unaryWinding.left = (int) OpDebugReadSizeT(str);
     OpDebugRequired(str, "}");
     unaryWinding.copyTo(winding);
 }

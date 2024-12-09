@@ -124,6 +124,7 @@ void Path::rect(float x, float y, float width, float height) {
 	lineTo(x + width, y);
 	lineTo(x + width, y + height);
 	lineTo(x, y + height);
+	lineTo(x, y);
 	closePath();
 }
 
@@ -334,10 +335,10 @@ void Path::fromSVG(std::string s) {
 
 std::string Path::toSVG() {
 	std::string result;
-	float* ordinal = nullptr;
-	auto ord = [&ordinal](int index) {
+	std::vector<float>* dataPtr = nullptr;
+	auto ord = [&dataPtr](int index) {
 		std::string s;
-		s = std::to_string(ordinal[index]);
+		s = std::to_string((*dataPtr)[index]);
 		s.erase(s.find_last_not_of('0') + 1, std::string::npos); 
 		s.erase(s.find_last_not_of('.') + 1, std::string::npos);
 		s += " ";
@@ -350,23 +351,19 @@ std::string Path::toSVG() {
 		return s;
 	};
 	for (Curve& curve : curves) {
-		ordinal = &curve.data.front();
+		dataPtr = &curve.data;
 		switch (curve.type) {
 			case Types::move:
 				result += command('M') + ord(0) + ord(1);
-				ordinal += 2;
 				break;
 			case Types::line:
 				result += command('L') + ord(0) + ord(1);
-				ordinal += 2;
 				break;
 			case Types::quad:
 				result += command('Q') + ord(0) + ord(1) + ord(2) + ord(3);
-				ordinal += 4;
 				break;
 			case Types::cubic:
 				result += command('C') + ord(0) + ord(1) + ord(2) + ord(3) + ord(4) + ord(5);
-				ordinal += 6;
 				break;
 			case Types::close:
 				result += command('Z');
@@ -375,7 +372,7 @@ std::string Path::toSVG() {
 				OP_ASSERT(0);
 		}
 	}
-	if (' ' == result.back())
+	if (result.size() && ' ' == result.back())
 		result.pop_back();
 	return result;
 }
@@ -463,20 +460,33 @@ static Contour* GetUnary(Context* context) {
     return contour;
 }
 
-void Path::commonOutput(PathOpsV0Lib::Curve c, Types type, bool firstPt, bool lastPt, PathOutput output) {
-	if (firstPt)
-		moveTo(c.data->start.x, c.data->start.y);
+struct OutPath {
+	void commonOutput(PathOpsV0Lib::Curve c, Types type, bool firstPt, bool lastPt);
+	bool extendCommon(OpPoint prior, OpPoint* last, OpPoint pt);
+	bool extendLast(OpPoint pt);
+	bool wrapAround(OpPoint pt);
+
+	Path result;
+	size_t startIndex;  // to handle wrap around, save moveTo position
+};
+
+void OutPath::commonOutput(PathOpsV0Lib::Curve c, Types type, bool firstPt, bool lastPt) {
+	if (firstPt) {
+		startIndex = result.curves.size();
+		result.moveTo(c.data->start.x, c.data->start.y);
+	}
 	switch (type) {
 		case Types::line:
-			lineTo(c.data->end.x, c.data->end.y);
+			if ((!lastPt || firstPt || !wrapAround(c.data->end)) && !extendLast(c.data->end))
+				result.lineTo(c.data->end.x, c.data->end.y);
 			break;
 		case Types::quad: {
 			float* ctrls = (float*) ((char*)(c.data) + sizeof(CurveData));
-			quadraticCurveTo(ctrls[0], ctrls[1], c.data->end.x, c.data->end.y);
+			result.quadraticCurveTo(ctrls[0], ctrls[1], c.data->end.x, c.data->end.y);
 			} break;
 		case Types::cubic: {
 			float* ctrls = (float*) ((char*)(c.data) + sizeof(CurveData));
-			bezierCurveTo(ctrls[0], ctrls[1], ctrls[2], ctrls[3], c.data->end.x, c.data->end.y);
+			result.bezierCurveTo(ctrls[0], ctrls[1], ctrls[2], ctrls[3], c.data->end.x, c.data->end.y);
 			} break;
 		case Types::move:
 		case Types::close:
@@ -484,7 +494,69 @@ void Path::commonOutput(PathOpsV0Lib::Curve c, Types type, bool firstPt, bool la
 			OP_ASSERT(0);
 	}
 	if (lastPt)
-		closePath();
+		result.closePath();
+}
+
+bool OutPath::extendCommon(OpPoint prior, OpPoint* last, OpPoint pt) {
+	if (prior.x == last->x && last->x == pt.x
+			&& OpMath::Between(prior.y, last->y, pt.y)) {
+		last->y = pt.y;
+		return true;
+	}
+	if (prior.y == last->y && last->y == pt.y
+			&& OpMath::Between(prior.x, last->x, pt.x)) {
+		last->x = pt.x;
+		return true;
+	}
+	float leftCross = (prior.x - last->x) * (last->y - pt.y);
+	float rightCross = (prior.y - last->y) * (last->x - pt.x);
+	if (leftCross && rightCross && leftCross == rightCross
+			&& OpMath::Between(prior.y, last->y, pt.y)
+			&& OpMath::Between(prior.x, last->x, pt.x)) {
+		*last = pt;
+		return true;
+	}
+	return false;
+}
+
+bool OutPath::extendLast(OpPoint pt) {
+	if (result.curves.size() < 2)
+		return false;
+	Curve& lastC = result.curves.back();
+	if (Types::line != lastC.type)
+		return false;
+	OpPoint* last = ((OpPoint*) &lastC.data.front());
+	Curve& priorC = *(&result.curves.back() - 1);
+	if (Types::close == priorC.type)
+		return false;
+	OpPoint prior = *((OpPoint*) (&priorC.data.back() - 1));
+	return extendCommon(prior, last, pt);
+}
+
+bool OutPath::wrapAround(OpPoint pt) {
+	if (result.curves.size() < 3)
+		return false;
+	Curve* firstMove = &result.curves.front() + startIndex;
+	OP_ASSERT(Types::move == firstMove->type);
+	OpPoint* firstPt = (OpPoint*)&firstMove->data.front();
+	if (pt != *firstPt)
+		return false;
+	Curve* line = firstMove + 1;
+	if (Types::line != line->type)
+		return false;
+	Curve* back = &result.curves.back();
+	OpPoint last = *(OpPoint*)(&back->data.back() - 1);
+	OpPoint linePt = *(OpPoint*)&line->data.front();
+	if (!extendCommon(linePt, firstPt, last))
+		return false;
+	// it's possible that one more extension can be done
+	Curve* prior = back - 1;
+	if (Types::line == back->type && prior > line + 1) {  // at least one out-of-line curve
+		OpPoint priorPt = *(OpPoint*)(&prior->data.back() - 1);
+		if (extendCommon(linePt, firstPt, priorPt))
+			result.curves.pop_back();
+	}
+	return true;
 }
 
 static void EmptyFunc(PathOutput pathOutput) {
@@ -492,25 +564,25 @@ static void EmptyFunc(PathOutput pathOutput) {
 }
 
 static void LineOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathOutput pathOutput) {
-	Path* output = (Path*) pathOutput;
-	output->commonOutput(c, Types::line, firstPt, lastPt, output);
+	OutPath* output = (OutPath*) pathOutput;
+	output->commonOutput(c, Types::line, firstPt, lastPt);
 }
 
 static void QuadOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathOutput pathOutput) {
-	Path* output = (Path*) pathOutput;
-	output->commonOutput(c, Types::quad, firstPt, lastPt, output);
+	OutPath* output = (OutPath*) pathOutput;
+	output->commonOutput(c, Types::quad, firstPt, lastPt);
 }
 
 #if ARC_SUPPORT
 static void ConicOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathOutput pathOutput) {
 	Path* output = (Path*) pathOutput;
-	output->commonOutput(c, Types::conic, firstPt, lastPt, output);
+	output->commonOutput(c, Types::conic, firstPt, lastPt);
 }
 #endif
 
 static void CubicOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathOutput pathOutput) {
-	Path* output = (Path*) pathOutput;
-	output->commonOutput(c, Types::cubic, firstPt, lastPt, output);
+	OutPath* output = (OutPath*) pathOutput;
+	output->commonOutput(c, Types::cubic, firstPt, lastPt);
 }
 
 static PathOpsV0Lib::Curve MakeLine(PathOpsV0Lib::Curve c) {
@@ -568,10 +640,10 @@ void FillPath::opCommon(FillPath& path, Ops oper) {
 	int rightData[] = { 0, 1 };
 	AddWinding rightWinding { right, rightData, sizeof(rightData) };
 	path.opAddPath(context, rightWinding, true);
-	FillPath result;
+	OutPath outPath;
 	Normalize(context);
-	Resolve(context, &result);
-	*this = result;
+	Resolve(context, &outPath);
+	curves = outPath.result.curves;
 }
 
 void FillPath::simplify() {
@@ -583,10 +655,10 @@ void FillPath::simplify() {
     int simpleData[] = { 1 };
     AddWinding simpleWinding { simple, simpleData, sizeof(simpleData) };
     opAddPath(context, simpleWinding, true);
-	FillPath result;
+	OutPath outPath;
 	Normalize(context);
-	Resolve(context, &result);
-	*this = result;
+	Resolve(context, &outPath);
+	curves = outPath.result.curves;
 }
 
 enum class FrameFill {
@@ -697,11 +769,11 @@ void FramePath::opCommon(FillPath& path, Ops oper) {
     AddWinding fillAddWinding { fillContour, &fillData, sizeof(fillData) };
 	opAddPath(context, frameAddWinding, true);
 	path.opAddPath(context, fillAddWinding, true);
-	FramePath result;
+	OutPath outPath;
 	SetErrorHandler(context, allowDisjointLines);
 	Normalize(context);
-	Resolve(context, &result);
-	*this = result;
+	Resolve(context, &outPath);
+	curves = outPath.result.curves;
 }
 
 }
