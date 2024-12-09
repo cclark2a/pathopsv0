@@ -56,14 +56,16 @@ void TestPath2D(bool debugIt) {
 	if (debugIt) OpDebugOut(s2 + "\n");
 	OP_ASSERT(svg == s2);
 
-	path.intersect(path2);
+	PathOpsV0Lib::ContextError error = path.intersect(path2);
 	if (debugIt) OpDebugOut("path:" + path.toSVG() + "\n");
+	if (debugIt) OpDebugOut("error:" + std::to_string((int) error) + "\n");
 	path.fromSVG("M1 0 Q2 0 2 1 Q2 2 1 2 Q0 2 0 1 Q0 0 1 0");
 	if (debugIt) OpDebugOut("path:" + path.toSVG() + "\n");
 	path2.fromSVG("L2 2 L0 2 Z");
 	if (debugIt) OpDebugOut("path2:" + path2.toSVG() + "\n");
-	path.intersect(path2);
+	error = path.intersect(path2);
 	if (debugIt) OpDebugOut("path:" + path.toSVG() + "\n");
+	if (debugIt) OpDebugOut("error:" + std::to_string((int) error) + "\n");
 	path.fromSVG("m0 0 1 1 2 2 3 3");
 	if (debugIt) OpDebugOut("path:" + path.toSVG() + "\n");
 	commands = path.toCommands();
@@ -132,7 +134,7 @@ void TestPath2D(bool debugIt) {
 	svg = path.toSVG();
 	OP_ASSERT(svg == "M 106 137 L 166 227 L 326 427 L 266 337 L 106 137 Z");
 
-	// op tests
+	// fill tests
 	path.clear();
 	path.rect(0, 0, 4, 4);
 	path2.clear();
@@ -148,6 +150,24 @@ void TestPath2D(bool debugIt) {
 	path.simplify();
 	svg = path.toSVG();
 	OP_ASSERT(svg == "M 0 0 L 6 0 L 6 4 L 0 4 L 0 0 Z");
+
+	// frame tests
+	TwoD::FramePath frame;
+	frame.moveTo(10, 10);
+	frame.rLineTo(10, 10);
+	frame.rMoveTo(10, 10);
+	frame.rQuadraticCurveTo(10, 0, 20, 20);
+	path.clear();
+	path.rect(15, 15, 30, 30);
+	TwoD::FramePath result = frame.clone();
+	result.intersect(path);
+	svg = result.toSVG();
+	OP_ASSERT(svg == "M 30 30 Q 37.5 30 45 41.25 Z M 15 15 L 20 20 Z");
+
+	result = frame.clone();
+	result.difference(path);
+	svg = result.toSVG();
+	OP_ASSERT(svg == "M 45 41.25 Q 47.5 45 50 50 Z M 10 10 L 15 15 Z");
 }
 
 #if OP_DEBUG && OP_TINY_TEST

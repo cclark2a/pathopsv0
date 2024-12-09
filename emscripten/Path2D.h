@@ -63,7 +63,8 @@ struct Path {
 	std::string toSVG();
 	// internal
 	OpPoint lastPt(int index = OpMax);
-	void opAddPath(PathOpsV0Lib::Context* context, PathOpsV0Lib::AddWinding winding, bool closeLoops);
+	PathOpsV0Lib::ContextError handleError(PathOpsV0Lib::Context* );
+	void opAddPath(PathOpsV0Lib::Context* , PathOpsV0Lib::AddWinding , bool closeLoops);
 #if ARC_SUPPORT  // a utility like this may be needed for ellipse
 	void rotate(float angle);
 #endif
@@ -102,14 +103,14 @@ struct FillPath : Path {
 	void fromSVG(std::string s) { Path::fromSVG(s); }
 	std::vector<Curve> toCommands() { return Path::toCommands(); }
 	std::string toSVG() { return Path::toSVG(); }
-	void difference(FillPath& path) { opCommon(path, Ops::diff); }
-	void intersect(FillPath& path) { opCommon(path, Ops::sect); }
-	void reverseDifference(FillPath& path) { opCommon(path, Ops::revDiff); }
-	void _union(FillPath& path) { opCommon(path, Ops::_union); }
-	void _xor(FillPath& path) { opCommon(path, Ops::_xor); }
-	void simplify();
+	PathOpsV0Lib::ContextError difference(FillPath& path) { return opCommon(path, Ops::diff); }
+	PathOpsV0Lib::ContextError intersect(FillPath& path) { return opCommon(path, Ops::sect); }
+	PathOpsV0Lib::ContextError reverseDifference(FillPath& path) { return opCommon(path, Ops::revDiff); }
+	PathOpsV0Lib::ContextError _union(FillPath& path) { return opCommon(path, Ops::_union); }
+	PathOpsV0Lib::ContextError _xor(FillPath& path) { return opCommon(path, Ops::_xor); }
+	PathOpsV0Lib::ContextError simplify();
 	// internal
-	void opCommon(FillPath& path, Ops oper);
+	PathOpsV0Lib::ContextError opCommon(FillPath& path, Ops oper);
 };
 
 struct FramePath : Path {
@@ -120,7 +121,7 @@ struct FramePath : Path {
 	int curveCount() { return (int) curves.size(); }
 	Curve getCurve(int index, bool includeFirstPt) { return Path::getCurve(index, includeFirstPt); }
 	void setCurve(int index, Curve& curve) { Path::setCurve(index, curve); }
-	Path clone() { FramePath result; result = *this; return result; }
+	FramePath clone() { FramePath result; result = *this; return result; }
 	void moveTo(float x, float y) { Path::moveTo(x, y); }
 	void rMoveTo(float dx, float dy) { Path::rMoveTo(dx, dy); }
 	void lineTo(float x, float y) { Path::lineTo(x, y); }
@@ -142,10 +143,10 @@ struct FramePath : Path {
 	void fromSVG(std::string s) { Path::fromSVG(s); }
 	std::vector<Curve> toCommands() { return Path::toCommands(); }
 	std::string toSVG() { return Path::toSVG(); }
-	void difference(FillPath& path) { opCommon(path, Ops::diff); }
-	void intersect(FillPath& path) { opCommon(path, Ops::sect); }
+	PathOpsV0Lib::ContextError difference(FillPath& path) { return opCommon(path, Ops::diff); }
+	PathOpsV0Lib::ContextError intersect(FillPath& path) { return opCommon(path, Ops::sect); }
 	// internal
-	void opCommon(FillPath& path, Ops oper);
+	PathOpsV0Lib::ContextError opCommon(FillPath& path, Ops oper);
 };
 
 }

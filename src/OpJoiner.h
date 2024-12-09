@@ -196,7 +196,7 @@ struct OpLimbStorage {
 	OpLimb* allocate();
 	void reset();
 #if OP_DEBUG_DUMP
-	size_t debugCount() const;
+	int debugCount() const;
 	const OpLimb* debugFind(int ID) const;
 	OpLimb* debugIndex(int index);
 	static void DumpSet(const char*& , OpContours* );

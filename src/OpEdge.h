@@ -468,17 +468,17 @@ struct OpEdgeStorage {
 	bool contains(OpPoint start, OpPoint end) const;
 	void reuse();
 #if OP_DEBUG_DUMP
-	size_t debugCount() const;
+	int debugCount() const;
 	std::string debugDump(std::string label, DebugLevel l, DebugBase b);
 	OpEdge* debugFind(int id);
-	OpEdge* debugIndex(size_t index);
+	OpEdge* debugIndex(int index);
 	static void DumpSet(const char*& str, OpContours* , DumpStorage );
 	DUMP_DECLARATIONS
 #endif
 
 	OpEdgeStorage* next;
 	OpEdge storage[256];
-	size_t used;
+	int used;
 };
 
 #define OP_EDGE_SET_SUM(edge, winding) edge->setSum(winding  OP_LINE_FILE_PARGS())

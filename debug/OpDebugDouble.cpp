@@ -501,7 +501,8 @@ DebugOpRoots DebugOpCurve::axisRayHit(Axis axis, double axisIntercept) const {
     switch (type) {
     case PathOpsV0Lib::CurveType::line: {
         double denominator = pts[1].choice(axis) - pts[0].choice(axis);
-        DebugOpRoots roots(0 == denominator ? OpNaN : (axisIntercept - pts[0].choice(axis)) / denominator);
+        DebugOpRoots roots(0 == denominator ? OpNaN 
+				: (float) ((axisIntercept - pts[0].choice(axis)) / denominator));
         return roots.keepValidTs();
     }
     case PathOpsV0Lib::CurveType::quad: return asQuad().axisRayHit(axis, axisIntercept);
@@ -767,7 +768,7 @@ enum class DrawEdgeType {
 #include "OpDebugColor.h"
 
 void DebugOpDrawEdges(std::vector<DebugOpCurve>& curves, DrawEdgeType edgeType) {
-    float strokeWidth = DrawEdgeType::normal == edgeType ? 0 : 5;
+    float strokeWidth = DrawEdgeType::normal == edgeType ? 0.f : 5.f;
     SkPath path;
     uint32_t last = black;
     for (auto& curve : curves) {
@@ -841,16 +842,16 @@ void DebugOpDraw(const std::vector<OpDebugRay>& lines) {
         }
         int outIndex = 0;
         DebugOpPoint len { line.pts.pts[1].x - line.pts.pts[0].x, line.pts.pts[1].y - line.pts.pts[0].y };
-        float leftY = line.pts.pts[0].y + len.y * (bounds.left - line.pts.pts[0].x) / len.x;
+        float leftY = (float) (line.pts.pts[0].y + len.y * (bounds.left - line.pts.pts[0].x) / len.x);
         if (bounds.top <= leftY && leftY < bounds.bottom)
             curve.pts[outIndex++] = { bounds.left, leftY };
-        float topX = line.pts.pts[0].x + len.x * (bounds.top - line.pts.pts[0].y) / len.y;
+        float topX = (float) (line.pts.pts[0].x + len.x * (bounds.top - line.pts.pts[0].y) / len.y);
         if (bounds.left <= topX && topX < bounds.right)
             curve.pts[outIndex++] = { bounds.top, topX };
-        float rightY = line.pts.pts[0].y + len.y * (bounds.right - line.pts.pts[0].x) / len.x;
+        float rightY = (float) (line.pts.pts[0].y + len.y * (bounds.right - line.pts.pts[0].x) / len.x);
         if (bounds.top < rightY && rightY <= bounds.bottom)
             curve.pts[outIndex++] = { bounds.right, rightY };
-        float bottomX = line.pts.pts[0].x + len.x * (bounds.bottom - line.pts.pts[0].y) / len.y;
+        float bottomX = (float) (line.pts.pts[0].x + len.x * (bounds.bottom - line.pts.pts[0].y) / len.y);
         if (bounds.left < bottomX && bottomX <= bounds.right)
             curve.pts[outIndex++] = { bounds.bottom, bottomX };
         if (2 == outIndex)
@@ -1266,10 +1267,10 @@ void DebugOpDrawSprites() {
 
 void DebugOpDrawT(bool inHex) {
     for (auto& point : debugPoints) {
-        if (OpMath::IsNaN(point.t))
+        if (OpMath::IsNaN((float) point.t))
             continue;
         OpPoint pt = DebugOpMap(point);
-        std::string ptStr = inHex ? OpDebugDumpHex(point.t) : STR((float) point.t);
+        std::string ptStr = inHex ? OpDebugDumpHex((float) point.t) : STR((float) point.t);
         (void) OpDebugImage::drawValue(pt, ptStr);
     }
 }
@@ -1278,9 +1279,9 @@ void DebugOpDrawValue(bool inHex) {
     for (auto& point : debugPoints) {
         OpPoint pt = DebugOpMap(point);
         std::string ptStr = "(";
-        ptStr += inHex ? OpDebugDumpHex(point.x) : STR((float) point.x);
+        ptStr += inHex ? OpDebugDumpHex((float) point.x) : STR((float) point.x);
         ptStr += ", ";
-        ptStr += inHex ? OpDebugDumpHex(point.y) : STR((float) point.y);
+        ptStr += inHex ? OpDebugDumpHex((float) point.y) : STR((float) point.y);
         ptStr += ")";
         (void) OpDebugImage::drawValue(pt, ptStr);
     }
@@ -1439,7 +1440,7 @@ void DebugOpDrawPointID(const OpSegment* segment, std::vector<int>& ids) {
 }
 
 void DebugOpAddBounds(double left, double top, double right, double bottom) {
-    if (!OpMath::IsNaN(setBounds.left)) {
+    if (!OpMath::IsNaN((float) setBounds.left)) {
         left = std::min(left, setBounds.left);
         top = std::min(top, setBounds.top);
         right = std::max(right, setBounds.right);

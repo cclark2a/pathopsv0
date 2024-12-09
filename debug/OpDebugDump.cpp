@@ -546,7 +546,7 @@ void OpContours::dumpResolve(const OpEdge*& edgeRef) {
 }
 
 void OpContours::dumpResolve(const OpLimb*& limbRef) {
-    size_t limbID = (size_t) limbRef;
+    int limbID = (int) (size_t) limbRef;
     if (0 == limbID)
         return;
     const OpLimb* limb = limbStorage->debugFind(limbID);
@@ -555,7 +555,7 @@ void OpContours::dumpResolve(const OpLimb*& limbRef) {
 }
 
 void OpContours::dumpResolve(OpIntersection*& sectRef) {
-    size_t sectID = (size_t) sectRef;
+    int sectID = (int) (size_t) sectRef;
     if (0 == sectID)
         return;
     OpIntersection* sect = sectStorage->debugFind(sectID);
@@ -1109,9 +1109,9 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 
 void OpContour::dumpSet(const char*& str) {
     OpDebugRequired(str, "contour");
-    OP_DEBUG_CODE(id = OpDebugReadSizeT(str));
+    OP_DEBUG_CODE(id = (int) OpDebugReadSizeT(str));
     OpDebugRequired(str, "segments");
-    int segmentCount = OpDebugReadSizeT(str);
+    int segmentCount = (int) OpDebugReadSizeT(str);
     segments.resize(segmentCount);
     for (int index = 0; index < segmentCount; ++index)
         segments[index].contour = this;
@@ -1129,12 +1129,12 @@ void dmp(std::vector<OpContour>& contours) {
         c.dump();
 }
 
-size_t OpContourStorage::debugCount() const {
+int OpContourStorage::debugCount() const {
 #if OP_I_KNOW_WHAT_IM_DOING
     if (!this)
         return 0;
 #endif
-    size_t result = used;
+    int result = used;
     OpContourStorage* block = next;
     while (next) {
         result += block->used;
@@ -1173,18 +1173,18 @@ OpContour* OpContourStorage::debugIndex(int index) const {
 
 std::string OpContourStorage::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    size_t count = debugCount();
+    int count = debugCount();
     if (!count)
         return s;
     s += "contourStorage:" + STR(count) + "\n";
     if (DebugLevel::brief == l) {
         s += "[";
-        for (size_t index = 0; index < count; ++index)
+        for (int index = 0; index < count; ++index)
             s += STR(debugIndex(index)->id) + " ";
         s.pop_back();
         s += "]";
     } else {
-        for (size_t index = 0; index < count; ++index)
+        for (int index = 0; index < count; ++index)
             s += debugIndex(index)->debugDump(l, b) + "\n";
         s.pop_back();
     }
@@ -1201,8 +1201,8 @@ void OpContourStorage::DumpSet(const char*& str, OpContours* dumpContours) {
 }
 
 void OpContourStorage::dumpResolveAll(OpContours* c) {
-    size_t count = debugCount();
-    for (size_t index = 0; index < count; ++index) {
+    int count = debugCount();
+    for (int index = 0; index < count; ++index) {
         debugIndex(index)->dumpResolveAll(c);
     }
 }
@@ -1844,7 +1844,7 @@ void EdgePal::dumpSet(const char*& str) {
     if (OpDebugOptional(str, "r"))
         reversed = true;
     if (OpDebugOptional(str, "debugUID"))
-        debugUID = OpDebugReadSizeT(str);
+        debugUID = (int) OpDebugReadSizeT(str);
 }
 
 std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
@@ -2077,7 +2077,7 @@ void OpEdge::dumpSet(const char*& str) {
             return OpDebugReadSizeT(str);
         return (size_t) 0;
     };
-    id = strID("edge");
+    id = (int) strID("edge");
     segment = (OpSegment*) strID("segment");
     (void) strID("contour");  // can't do anything with this here
     ray.dumpSet(str);
@@ -2167,9 +2167,9 @@ void OpEdge::dumpSet(const char*& str) {
         debugSetSum.dumpSet(str);
 #endif
 #if OP_DEBUG
-    debugOutPath = strID("debugOutPath");
-    debugParentID = strID("debugParentID");
-    debugRayMatch = strID("debugRayMatch");
+    debugOutPath = (int) strID("debugOutPath");
+    debugParentID = (int) strID("debugParentID");
+    debugRayMatch = (int) strID("debugRayMatch");
 #endif
 #if OP_DEBUG_IMAGE
     // !!! skip debug color for now
@@ -2549,12 +2549,12 @@ void CallerDataStorage::DumpSet(const char*& str, CallerDataStorage** previousPt
         DumpSet(str, &storage->next);
 }
 
-size_t OpEdgeStorage::debugCount() const {
+int OpEdgeStorage::debugCount() const {
 #if OP_I_KNOW_WHAT_IM_DOING
     if (!this)
         return 0;
 #endif
-    size_t result = used;
+    int result = used;
     OpEdgeStorage* block = next;
     while (block) {
         result += block->used;
@@ -2564,7 +2564,7 @@ size_t OpEdgeStorage::debugCount() const {
 }
 
 OpEdge* OpEdgeStorage::debugFind(int ID) {
-	for (size_t index = 0; index < used; index++) {
+	for (int index = 0; index < used; index++) {
 		OpEdge& test = storage[index];
         if (test.id == ID ||
                 test.debugOutPath == ID || test.debugRayMatch == ID)
@@ -2575,7 +2575,7 @@ OpEdge* OpEdgeStorage::debugFind(int ID) {
     return next->debugFind(ID);
 }
 
-OpEdge* OpEdgeStorage::debugIndex(size_t index) {
+OpEdge* OpEdgeStorage::debugIndex(int index) {
 #if OP_I_KNOW_WHAT_IM_DOING
     if (!this)
         return nullptr;
@@ -2600,12 +2600,12 @@ std::string OpEdgeStorage::debugDump(std::string label, DebugLevel l, DebugBase 
     s = label + ":" + STR(count) + "\n";
     if (DebugLevel::brief == l) {
         s += "[";
-        for (size_t index = 0; index < count; ++index)
+        for (int index = 0; index < count; ++index)
             s += STR(debugIndex(index)->id) + " ";
         s.pop_back();
         s += "]";
     } else {
-	    for (size_t index = 0; index < count; index++) {
+	    for (int index = 0; index < count; index++) {
 		    const OpEdge* test = debugIndex(index);
             s += test->debugDump(l, b) + "\n";
 	    }
@@ -2638,17 +2638,17 @@ void OpEdgeStorage::DumpSet(const char*& str, OpContours* dumpContours, DumpStor
 }
 
 void OpEdgeStorage::dumpResolveAll(OpContours* c) {
-    size_t count = debugCount();
-    for (size_t index = 0; index < count; ++index)
+    int count = debugCount();
+    for (int index = 0; index < count; ++index)
         debugIndex(index)->dumpResolveAll(c);
 }
 
-size_t OpLimbStorage::debugCount() const {
+int OpLimbStorage::debugCount() const {
 #if OP_I_KNOW_WHAT_IM_DOING
     if (!this)
         return 0;
 #endif
-    size_t result = used;
+    int result = used;
     OpLimbStorage* block = nextBlock;
     while (nextBlock) {
         result += block->used;
@@ -2686,20 +2686,20 @@ OpLimb* OpLimbStorage::debugIndex(int index) {
 
 std::string OpLimbStorage::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    size_t count = debugCount();
+    int count = (int) debugCount();
     if (!count)
         return s;
     s += "limbStorage:" + STR(count) + "\n";
     if (DebugLevel::brief == l) {
 #if OP_DEBUG
         s += "[";
-        for (size_t index = 0; index < count; ++index)
+        for (int index = 0; index < count; ++index)
             s += STR(debugFind(index)->id) + " ";
         s.pop_back();
         s += "]";
 #endif
     } else {
-        for (size_t index = 0; index < count; ++index)
+        for (int index = 0; index < count; ++index)
             s += debugFind(index)->debugDump(l, b) + "\n";
         s.pop_back();
     }
@@ -2715,8 +2715,8 @@ void OpLimbStorage::DumpSet(const char*& str, OpContours* dumpContours) {
 }
 
 void OpLimbStorage::dumpResolveAll(OpContours* c) {
-    size_t count = debugCount();
-    for (size_t index = 0; index < count; ++index)
+    int count = (int) debugCount();
+    for (int index = 0; index < count; ++index)
         debugIndex(index)->dumpResolveAll(c);
 }
 
@@ -2973,7 +2973,7 @@ void OpLimb::dumpResolveAll(OpContours* c) {
 
 void OpLimb::dumpSet(const char*& str) {
     OpDebugRequired(str, "id");
-    id = OpDebugReadSizeT(str);
+    id = (int) OpDebugReadSizeT(str);
     edge = (OpEdge*) (OpDebugOptional(str, "edge") ? OpDebugReadSizeT(str) : 0);
     if (OpDebugOptional(str, "bounds"))
         bounds.dumpSet(str);
@@ -2981,7 +2981,7 @@ void OpLimb::dumpSet(const char*& str) {
     parent = (const OpLimb*) (OpDebugOptional(str, "parent") ? OpDebugReadSizeT(str) : 0);
     if (OpDebugOptional(str, "lastPtT"))
         lastPtT.dumpSet(str);
-    linkedIndex = OpDebugOptional(str, "linkedIndex") ? OpDebugReadSizeT(str) : OpMax;
+    linkedIndex = (uint32_t) (OpDebugOptional(str, "linkedIndex") ? OpDebugReadSizeT(str) : OpMax);
     gapDistance = OpDebugReadNamedFloat(str, "gapDistance");
     closeDistance = OpDebugReadNamedFloat(str, "closeDistance");
     match = edgeMatchStr(str, "match", EdgeMatch::none);
@@ -3097,7 +3097,7 @@ void EdgeRun::dumpSet(const char*& str) {
     oppDist = OpDebugReadNamedFloat(str, "oppDist");
 #if OP_DEBUG
     OpDebugRequired(str, "debugBetween");
-    debugBetween = OpDebugReadSizeT(str);
+    debugBetween = (int) OpDebugReadSizeT(str);
 #endif
 }
 
@@ -3378,7 +3378,7 @@ void OpCurveCurve::dumpSet(const char*& str) {
     OpDebugRequired(str, "matchRev");
     matchRev.dumpSet(str);
     OpDebugRequired(str, "depth");
-    depth = OpDebugReadSizeT(str);
+    depth = (int) OpDebugReadSizeT(str);
     uniqueLimits_impl = OpDebugReadNamedInt(str, "uniqueLimits");
     addedPoint = OpDebugOptional(str, "addedPoint");
     rotateFailed = OpDebugOptional(str, "rotateFailed");
@@ -3389,7 +3389,7 @@ void OpCurveCurve::dumpSet(const char*& str) {
     splitMid = OpDebugOptional(str, "splitMid");
 #if OP_DEBUG_DUMP
     OpDebugRequired(str, "debugLocalCall");
-    debugLocalCall = OpDebugReadSizeT(str);
+    debugLocalCall = (int) OpDebugReadSizeT(str);
 #endif
 #if OP_DEBUG_VERBOSE
     if (OpDebugOptional(str, "dvDepthIndex")) {
@@ -3452,7 +3452,7 @@ void dmpDepth(int level) {
 }
 
 void OpCurveCurve::dumpDepth() {
-    for (size_t level = 0; level <= dvDepthIndex.size(); ++level) {
+    for (int level = 0; level <= (int) dvDepthIndex.size(); ++level) {
         dumpDepth(level);
     }
 }
@@ -3540,7 +3540,7 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 void OpIntersection::dumpSet(const char*& str) {
-    id = OpDebugReadSizeT(str);
+    id = (int) OpDebugReadSizeT(str);
     ptT.dumpSet(str);
 #if OP_DEBUG
     debugErased = OpDebugOptional(str, "erased");
@@ -3574,8 +3574,8 @@ void OpIntersection::dumpSet(const char*& str) {
     debugSetMaker.dumpSet(str);
 #endif
 #if OP_DEBUG
-    debugSrcID = OpDebugOptional(str, "debugSrcID") ? OpDebugReadSizeT(str) : 0;
-    debugOppID = OpDebugOptional(str, "debugOppID") ? OpDebugReadSizeT(str) : 0;
+    debugSrcID = OpDebugOptional(str, "debugSrcID") ? (int) OpDebugReadSizeT(str) : 0;
+    debugOppID = OpDebugOptional(str, "debugOppID") ? (int) OpDebugReadSizeT(str) : 0;
 #endif
 }
 
@@ -3649,7 +3649,7 @@ void OpIntersections::dumpSet(const char*& str) {
     unsorted = OpDebugOptional(str, "unsorted");
     if (!OpDebugOptional(str, "intersections"))
         return;
-    int sectCount = OpDebugReadSizeT(str);
+    int sectCount = (int) OpDebugReadSizeT(str);
     i.resize(sectCount);
     OpDebugRequired(str, "[");
     for (int index = 0; index < sectCount; index++) {
@@ -3658,12 +3658,12 @@ void OpIntersections::dumpSet(const char*& str) {
     OpDebugRequired(str, "]");
 }
 
-size_t OpSectStorage::debugCount() const {
+int OpSectStorage::debugCount() const {
 #if OP_I_KNOW_WHAT_IM_DOING
     if (!this)
         return 0;
 #endif
-    size_t result = used;
+    int result = used;
     OpSectStorage* block = next;
     while (next) {
         result += block->used;
@@ -3683,7 +3683,7 @@ OpIntersection* OpSectStorage::debugFind(int ID) const {
     return next->debugFind(ID);
 }
 
-OpIntersection* OpSectStorage::debugIndex(size_t index) const {
+OpIntersection* OpSectStorage::debugIndex(int index) const {
 #if OP_I_KNOW_WHAT_IM_DOING
     if (!this)
         return nullptr;
@@ -3702,18 +3702,18 @@ OpIntersection* OpSectStorage::debugIndex(size_t index) const {
 
 std::string OpSectStorage::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    size_t count = debugCount();
+    int count = debugCount();
     if (!count)
         return s;
     s += "sectStorage:" + STR(count) + "\n";
     if (DebugLevel::brief == l) {
         s += "[";
-        for (size_t index = 0; index < count; ++index)
+        for (int index = 0; index < count; ++index)
             s += STR(debugIndex(index)->id) + " ";
         s.pop_back();
         s += "]";
     } else {
-        for (size_t index = 0; index < count; ++index)
+        for (int index = 0; index < count; ++index)
             s += debugIndex(index)->debugDump(l, b) + "\n";
         s.pop_back();
     }
@@ -3730,7 +3730,7 @@ void OpSectStorage::DumpSet(const char*& str, OpContours* dumpContours) {
 
 void OpSectStorage::dumpResolveAll(OpContours* c) {
     size_t count = debugCount();
-    for (size_t index = 0; index < count; ++index) {
+    for (int index = 0; index < count; ++index) {
         debugIndex(index)->dumpResolveAll(c);
     }
 }
@@ -3796,8 +3796,8 @@ std::string OpSegment::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 void OpSegment::dumpSet(const char*& str) {
-    id = OpDebugReadSizeT(str);
-    int contourID = OpDebugOptional(str, "contour[") ? OpDebugReadSizeT(str) : 0;
+    id = (int) OpDebugReadSizeT(str);
+    int contourID = OpDebugOptional(str, "contour[") ? (int) OpDebugReadSizeT(str) : 0;
     OpDebugExitOnFail("mismatched contour id", contourID == contour->id);
     c.contours = contour->contours;
     c.dumpSet(str);
@@ -3806,14 +3806,14 @@ void OpSegment::dumpSet(const char*& str) {
     OpDebugRequired(str, "closeBounds");
     closeBounds.dumpSet(str);
     if (OpDebugOptional(str, "sects:")) {
-        int sectCount = OpDebugReadSizeT(str);
+        int sectCount = (int) OpDebugReadSizeT(str);
         sects.i.resize(sectCount);
         for (int index = 0; index < sectCount; ++index) {
             sects.i[index] = (OpIntersection*) OpDebugReadSizeT(str);
         }
     }
     if (OpDebugOptional(str, "edges:")) {
-        int edgeCount = OpDebugReadSizeT(str);
+        int edgeCount = (int) OpDebugReadSizeT(str);
         edges.resize(edgeCount);
         for (int index = 0; index < edgeCount; ++index)
             edges[index].dumpContours = contour->contours;
@@ -3829,7 +3829,7 @@ void OpSegment::dumpSet(const char*& str) {
     endMoved = OpDebugOptional(str, "endMoved");
 #if OP_DEBUG_IMAGE
 	if (OpDebugOptional(str, "debugColor"))
-		debugColor = OpDebugReadSizeT(str);
+		debugColor = (int) OpDebugReadSizeT(str);
 #endif
 #if OP_DEBUG_MAKER
     if (OpDebugOptional(str, "debugSetDisabled"))
@@ -3982,7 +3982,7 @@ std::string OpWinding::debugDump(DebugLevel l, DebugBase b) const {
 
 void OpWinding::dumpSet(const char*& str, OpContours* dumpContours) {
     OpDebugRequired(str, "contour");
-    int contourID = OpDebugReadSizeT(str);
+    int contourID = (int) OpDebugReadSizeT(str);
     for (auto c : dumpContours->contours) {
         if (c->id == contourID) {
             OP_ASSERT(!contour);
@@ -4123,7 +4123,7 @@ std::string FoundEdge::debugDump(DebugLevel l, DebugBase b) const {
 void FoundEdge::dumpSet(const char*& str) {
     edge = (OpEdge*) OpDebugReadSizeT(str);
     distSq = OpDebugOptional(str, "distSq") ? OpDebugHexToFloat(str) : 0;
-    index = OpDebugOptional(str, "index") ? OpDebugReadSizeT(str) : 0;
+    index = OpDebugOptional(str, "index") ? (int) OpDebugReadSizeT(str) : 0;
     whichEnd = edgeMatchStr(str, "whichEnd", EdgeMatch::none);
     connects = OpDebugOptional(str, "connects");
     loops = OpDebugOptional(str, "loops");
@@ -4277,7 +4277,7 @@ void OpDebugMaker::dumpSet(const char*& str) {
     }
     file = std::string(str, colon - str);
     str = ++colon;
-    line = OpDebugReadSizeT(str);
+    line = (int) OpDebugReadSizeT(str);
 }
 #endif
 

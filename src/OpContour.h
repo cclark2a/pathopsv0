@@ -142,7 +142,7 @@ struct OpContourStorage {
 	}
 
 #if OP_DEBUG_DUMP
-	size_t debugCount() const;
+	int debugCount() const;
 	OpContour* debugFind(int id) const;
 	OpContour* debugIndex(int index) const;
 	static void DumpSet(const char*& , OpContours* );

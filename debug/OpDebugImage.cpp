@@ -110,7 +110,7 @@ struct OpDebugEdgeIter {
 			return;
 		for (const auto c : debugGlobalContours->contours) {
 			for (const auto& s : c->segments)
-				edgeIndex += s.edges.size();
+				edgeIndex += (int) s.edges.size();
 		}
 		if (debugGlobalContours->fillerStorage)
 			edgeIndex += debugGlobalContours->fillerStorage->debugCount();
@@ -123,7 +123,7 @@ struct OpDebugEdgeIter {
 	}
 
 	const OpEdge* operator*() {
-		size_t index = 0;
+		int index = 0;
 		for (const auto c : debugGlobalContours->contours) {
 			for (const auto& s : c->segments) {
 				for (const auto& edge : s.edges) {
@@ -169,7 +169,7 @@ struct OpDebugEdgeIter {
 	bool isCurveCurve;
 	bool isFiller;
 	bool isLine;
-	size_t edgeIndex;
+	int edgeIndex;
 };
 
 struct OpDebugEdgeIterator {
@@ -371,8 +371,8 @@ void OpDebugImage::drawDoubleFocus() {
 		SkMatrix matrix;
 		float scale = (float)DebugOpGetZoomScale();
 		matrix.setScale(scale, scale);
-		matrix.preTranslate(-DebugOpGetCenterX(), -DebugOpGetCenterY());
-		matrix.postTranslate(DebugOpGetOffsetX(), DebugOpGetOffsetY());
+		matrix.preTranslate((float) -DebugOpGetCenterX(), (float) -DebugOpGetCenterY());
+		matrix.postTranslate((float) DebugOpGetOffsetX(), (float) DebugOpGetOffsetY());
 		bool first = true;
 		int alpha = drawFillOn ? 10 : 20;
 		for (auto contour : debugGlobalContours->contours) {
@@ -571,12 +571,12 @@ void OpDebugImage::drawGrid() {
 		return leftS + (fx - left) / (right - left) * (rightS - leftS);
 	};
 	auto drawXLine = [screenX, &offscreen, &paint, &textPaint, topS, bottomS, xOffset](float fx) {
-		float sx = screenX(fx);
-		offscreen.drawLine(sx, topS, sx, bottomS, paint);
+		float sx = (float) screenX(fx);
+		offscreen.drawLine(sx, (float) topS, sx, (float) bottomS, paint);
 		if (!drawValuesOn)
 			return;
 		std::string xValStr = drawHexOn ? OpDebugDumpHex(fx) : STR(fx);
-		offscreen.drawString(SkString(xValStr), sx + xOffset, bitmapWH - xOffset - 3, 
+		offscreen.drawString(SkString(xValStr), (float) (sx + xOffset), (float) (bitmapWH - xOffset - 3), 
 				labelFont, textPaint);
 
 	};
@@ -595,7 +595,8 @@ void OpDebugImage::drawGrid() {
 	if (xHexWorks)
 		walkX(false);
 	else {	// if fabsf(fx) is less than 1, step by float range / gridIntervals
-		for (float fx = left; fx <= right; fx += (right - left) / (gridIntervals - 1)) {
+		for (float fx = (float) left; fx <= (float) right; 
+				fx += (float) ((right - left) / (gridIntervals - 1))) {
 			drawXLine(fx);
 		}
 	}
@@ -604,8 +605,8 @@ void OpDebugImage::drawGrid() {
 	};
 	auto drawYLine = [screenY, &offscreen, &paint, &textPaint, leftS, rightS, xOffset]
 			(float fy, bool last) {
-		float sy = screenY(fy);
-		offscreen.drawLine(leftS, sy, rightS, sy, paint);
+		float sy = (float) screenY(fy);
+		offscreen.drawLine((float) leftS, sy, (float) rightS, sy, paint);
 		if (!drawValuesOn)
 			return;
 		std::string yValStr = drawHexOn ? OpDebugDumpHex(fy) : STR(fy);
@@ -631,8 +632,8 @@ void OpDebugImage::drawGrid() {
 	if (yHexWorks)
 		walkY(false);
 	else {	// if fabsf(fy) is less than 1, step by float range / gridIntervals
-		float fInterval = (bottom - top) / (gridIntervals - 1);
-		for (float fy = top; fy <= bottom; fy += fInterval) {
+		float fInterval = (float) ((bottom - top) / (gridIntervals - 1));
+		for (float fy = (float) top; fy <= (float) bottom; fy += fInterval) {
 			drawYLine(fy, fy > bottom - fInterval);
 		}
 	}
@@ -644,8 +645,8 @@ void gridCenter(int x, int y) {
 		return OpDebugOut("parameters must be in grid interval range: 0 to " + STR(gridIntervals) + "\n");
 	double left, top, right, bottom;
 	DebugOpBounds(left, top, right, bottom);
-	OpPoint center(left + (right - left) * (gridIntervals - x) / gridIntervals,
-			top + (bottom - top) * (gridIntervals - y) / gridIntervals);
+	OpPoint center((float) (left + (right - left) * (gridIntervals - x) / gridIntervals),
+			(float) (top + (bottom - top) * (gridIntervals - y) / gridIntervals));
 	OpDebugImage::drawDoubleCenter(center, false);
 }
 
@@ -1209,7 +1210,7 @@ bool OpDebugImage::drawValue(OpPoint pt, std::string ptStr, uint32_t color) {
 	SkRect trimmed = textBounds;
 	trimmed.offset(pt.x, pt.y);
 	for (bool allowIntersect : { false, true } ) {
-		for (float scale : { 4, 16, 32, 48, 64 } ) {
+		for (float scale : { 4.f, 16.f, 32.f, 48.f, 64.f } ) {
 			for (int toTheLeft : { -1, 0, 1 } ) {
 				for (int toTheTop : { -1, 0, 1 } ) {
 					OpVector offset { 0, 0 };
@@ -2035,7 +2036,7 @@ bool OpDebugImage::drawTangent(OpVector tan, OpPoint midTPt, int id, uint32_t co
 bool OpDebugImage::drawWinding(const OpCurve& curve, std::string left, std::string right,
 		float normSign, uint32_t color) {
 	for (bool allowIntersect : { false, true } ) {
-		for (float normLength : { 4, 15 } ) {
+		for (float normLength : { 4.f, 15.f } ) {
 			for (float normT : { .58f, .38f, .78f, .18f, .98f } ) {
 				OpVector norm = curve.normal(normT).normalize() * normLength;
 				if (!norm.isFinite() || norm == OpVector{ 0, 0 })
@@ -2159,8 +2160,8 @@ void drawDepth(int level) {
 	OpEdgeStorage* ccStorage = debugGlobalContours->ccStorage;
 	if (!ccStorage)
 		return;
-	size_t count = ccStorage->debugCount();
-	for (size_t index = 0; index < count; ++index) {
+	int count = ccStorage->debugCount();
+	for (int index = 0; index < count; ++index) {
 		OpEdge* edge = ccStorage->debugIndex(index);
 		edge->debugDraw = false;
 	}
