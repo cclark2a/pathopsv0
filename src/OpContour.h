@@ -49,6 +49,12 @@ struct OpContour {
 	void addLine(OpPoint pts[2]);
 	bool addQuad(OpPoint pts[3]);
 
+	void addDisjointIntersections() {
+		for (auto& segment : segments) {
+			segment.addDisjointIntersections();
+		}
+	}
+
 	void apply() {
 		for (auto& segment : segments) {
 			segment.apply();
@@ -263,6 +269,12 @@ struct OpContours {
 	OpIntersection* allocateIntersection();
 	OpLimb* allocateLimb();
 	PathOpsV0Lib::WindingData* allocateWinding(size_t );
+
+	void addDisjointIntersections() {
+		for (auto contour : contours) {
+			contour->addDisjointIntersections();
+		}
+	}
 
 	void apply() {
 		for (auto contour : contours) {

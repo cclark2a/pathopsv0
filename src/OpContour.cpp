@@ -446,6 +446,10 @@ bool OpContours::pathOps() {
 		return setError(PathOpsV0Lib::ContextError::intersection  
 				OP_DEBUG_PARAMS(sortedSegments.debugFailSegID));
 	debugValidateIntersections();
+	if (errorHandler.errorDispatchFuncPtr && !errorHandler.errorDispatchFuncPtr(
+			PathOpsV0Lib::ContextError::missing, (PathOpsV0Lib::Context*) this, nullptr, nullptr)) {
+		addDisjointIntersections();
+	}
 	disableSmallSegments();  // moved points may allow disabling some segments
 	if (empty()) {
 		contextCallBacks.emptyNativePathFuncPtr(callerOutput);  // no existing tests exercises

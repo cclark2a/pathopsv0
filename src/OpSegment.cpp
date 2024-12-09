@@ -144,6 +144,18 @@ void OpSegment::addAlias(OpPoint original, OpPoint alias) {
 	contour->contours->addAlias(original, alias);
 }
 
+void OpSegment::addDisjointIntersections() {
+	sects.sort();
+	if (!sects.i.size() || 0 != sects.i.front()->ptT.t) {
+		OpIntersection* sect = addSegBase({ c.firstPt(), 0 }  OP_LINE_FILE_PARAMS(this));
+		sect->pair(sect);
+	}
+	if (!sects.i.size() || 1 != sects.i.back()->ptT.t) {
+		OpIntersection* sect = addSegBase({ c.lastPt(), 1 }  OP_LINE_FILE_PARAMS(this));
+		sect->pair(sect);
+	}
+}
+
 #if 0
 OpIntersection* OpSegment::addEdgeSect(const OpPtT& ptT  
 		OP_LINE_FILE_DEF(const OpEdge* debugEdge, const OpEdge* debugOpp)) {

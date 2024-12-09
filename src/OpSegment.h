@@ -70,6 +70,7 @@ struct OpSegment {
 	bool activeAtT(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const; // true if pal
 	bool activeNeighbor(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const; // true if pal
 	void addAlias(OpPoint original, OpPoint alias);
+	void addDisjointIntersections();
 //	OpIntersection* addEdgeSect(const OpPtT&    
 //			OP_LINE_FILE_DEF(const OpEdge* e, const OpEdge* o));
 	OpIntersection* addSegBase(const OpPtT&  

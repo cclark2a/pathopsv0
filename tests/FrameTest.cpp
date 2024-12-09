@@ -1,6 +1,7 @@
 // (c) 2024, Cary Clark cclark2@gmail.com
 
 #include "curves/Line.h"
+#include "curves/QuadBezier.h"
 #include "curves/NoCurve.h"
 
 using namespace PathOpsV0Lib;
@@ -72,13 +73,17 @@ Winding frameSubtractFunc(Winding winding, Winding toSubtract) {
 // curve types
 CurveType frameLine = (CurveType) 0;  // unset
 constexpr size_t frameLineSize = sizeof(OpPoint) * 2;
+CurveType frameQuad = (CurveType) 0;  // unset
+constexpr size_t frameQuadSize = sizeof(OpPoint) * 3;
 
 void frameOutput(Curve c, bool firstPt, bool lastPt, PathOutput output) {
-    std::string outStr = "line: ";
+    std::string outStr = frameLine == c.type ? "line: " : "quad: ";
     auto addPtStr = [&outStr](const OpPoint& pt, std::string delimiter) {
         outStr += "{ " + std::to_string(pt.x) + ", " + std::to_string(pt.y) + " }" + delimiter;
     };
     addPtStr(c.data->start, ", ");
+	if (frameQuad == c.type)
+        addPtStr(quadControlPt(c), ", ");
     addPtStr(c.data->end, "\n");
     OpDebugOut(outStr);
 }
@@ -156,6 +161,14 @@ void testFrame() {
             OP_DEBUG_DUMP_PARAMS(noDumpName, noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
     );
+    frameQuad = SetCurveCallBacks(context, quadAxisRawHit, quadHull, 
+			quadIsFinite, quadIsLine, quadSetBounds, quadNormal, frameOutput, quadPinCtrl, 
+            noReverse, quadTangent, quadsEqual, quadPtAtT, quadPtCount, quadRotate, 
+			quadSubDivide, quadXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
+			OP_DEBUG_PARAMS(noDebugScale)
+            OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, noDumpCurveExtra)
+            OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
+    );
 
 	FrameFill frameContourData = FrameFill::frame;
     Contour* frameContour = CreateContour({context, &frameContourData, sizeof(frameContourData)});
@@ -182,11 +195,21 @@ void testFrame() {
     AddWinding fillAddWinding { fillContour, &fillData, sizeof(fillData) };
 
 	// example: return line parts in hourglass fill
+#if 0
     OpPoint line[] { { 2, 0 }, { 0, 2 } };
     Add({ line, frameLineSize, frameLine }, frameAddWinding );
     OpPoint hourglass[] { { 0.5, 1 }, { 2.5, 1 }, { 1.5, 0 }, { 1.5, 2 }, { 0.5, 1 } };
 	for (int index = 0; index < 4; ++index)
 		Add({ &hourglass[index], frameLineSize, frameLine }, fillAddWinding );
+#else
+	OpPoint line[] { { 10, 10 }, { 20, 20 } };
+	OpPoint quad[] { { 30, 30 }, { 50, 50 }, { 40, 30 } };
+    Add({ line, frameLineSize, frameLine }, frameAddWinding );
+    Add({ quad, frameQuadSize, frameQuad }, frameAddWinding );
+    OpPoint rect[] { { 15, 15 }, { 45, 15 }, { 45, 45 }, { 15, 45 }, { 15, 15 } };
+	for (int index = 0; index < 4; ++index)
+		Add({ &rect[index], frameLineSize, frameLine }, fillAddWinding );
+#endif
 
 	SetErrorHandler(context, allowDisjointLines);
 	Normalize(context);

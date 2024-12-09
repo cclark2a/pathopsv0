@@ -1262,8 +1262,10 @@ void LineCoincidenceTest() {
 #endif
 
 extern void TestPath2D(bool debugIt);
+extern void testFrame();
 
 void OpTest(bool terminateEarly) {
+//	testFrame();
 	TestPath2D(false);
 //	LineCoincidenceTest();
 #if 0
