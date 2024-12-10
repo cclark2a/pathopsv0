@@ -627,7 +627,7 @@ static void SetupCurves(Context* context) {
 	OP_ASSERT((int) cubicType == (int) Types::cubic);
 }
 
-void FillPath::opCommon(FillPath& path, Ops oper) {
+ContextError FillPath::opCommon(FillPath& path, Ops oper) {
 	Context* context = CreateContext({ nullptr, 0 });
 	SetContextCallBacks(context, EmptyFunc, MakeLine, LineType, maxSignSwap,
 			maxDepth, maxSplits, maxLimbs);	
@@ -640,13 +640,10 @@ void FillPath::opCommon(FillPath& path, Ops oper) {
 	int rightData[] = { 0, 1 };
 	AddWinding rightWinding { right, rightData, sizeof(rightData) };
 	path.opAddPath(context, rightWinding, true);
-	OutPath outPath;
-	Normalize(context);
-	Resolve(context, &outPath);
-	curves = outPath.result.curves;
+	return handleError(context);
 }
 
-void FillPath::simplify() {
+ContextError FillPath::simplify() {
 	Context* context = CreateContext({ nullptr, 0 });
 	SetContextCallBacks(context, EmptyFunc, MakeLine, LineType, maxSignSwap,
 			maxDepth, maxSplits, maxLimbs);	
@@ -655,10 +652,7 @@ void FillPath::simplify() {
     int simpleData[] = { 1 };
     AddWinding simpleWinding { simple, simpleData, sizeof(simpleData) };
     opAddPath(context, simpleWinding, true);
-	OutPath outPath;
-	Normalize(context);
-	Resolve(context, &outPath);
-	curves = outPath.result.curves;
+	return handleError(context);
 }
 
 enum class FrameFill {
@@ -686,6 +680,14 @@ struct FrameWinding {
 		std::memcpy(w.data, this, sizeof(FrameWinding));
 	}
 
+#if OP_DEBUG_DUMP
+	static std::string DumpOutFunc(Winding winding) {
+		FrameWinding fw(winding);
+		std::string s = "{" + STR(fw.left) + "}";
+		return s;
+	}
+#endif
+
     int left = 1;
 	FrameFill isFrame;
 };
@@ -710,6 +712,14 @@ static WindKeep frameKeepFunc(Winding winding, Winding sumWinding) {
 		return WindKeep::Discard;
 	FrameWinding sum(sumWinding);
 	return sum.left ? WindKeep::Start : WindKeep::Discard;
+}
+
+static WindKeep frameDiscardFunc(Winding winding, Winding sumWinding) {
+	FrameWinding wind(winding);
+	if (FrameFill::fill == wind.isFrame)
+		return WindKeep::Discard;
+	FrameWinding sum(sumWinding);
+	return !sum.left ? WindKeep::Start : WindKeep::Discard;
 }
 
 // winding is always frame; toAdd comes from another edge, and may be frame or fill
@@ -739,17 +749,28 @@ static bool allowDisjointLines(ContextError err, Context* , Contour* , PathOpsV0
 	return ContextError::end != err && ContextError::missing != err;
 }
 
-void FramePath::opCommon(FillPath& path, Ops oper) {
+ContextError Path::handleError(Context* context) {
+	OutPath outPath;
+	Normalize(context);
+	Resolve(context, &outPath);
+	ContextError error = Error(context);
+	if (ContextError::none == error)
+		curves = outPath.result.curves;
+	return error;
+}
+
+ContextError FramePath::opCommon(FillPath& path, Ops oper) {
 	Context* context = CreateContext({ nullptr, 0 });
     SetContextCallBacks(context, noEmptyPath, MakeLine, LineType, maxSignSwap,
 			maxDepth, maxSplits, maxLimbs);
 	SetupCurves(context);
 	FrameFill frameContourData = FrameFill::frame;
     Contour* frameContour = CreateContour({context, &frameContourData, sizeof(frameContourData)});
-    SetWindingCallBacks(frameContour, frameAddFunc, frameKeepFunc, 
+	WindingKeep operatorFunc = Ops::sect == oper ? frameKeepFunc : frameDiscardFunc;
+    SetWindingCallBacks(frameContour, frameAddFunc, operatorFunc, 
             frameSubtractFunc, frameVisibleFunc, frameZeroFunc 
     		OP_DEBUG_PARAMS(noDebugBitOper)
-            OP_DEBUG_DUMP_PARAMS(nullptr, nullptr, noDumpFunc)
+            OP_DEBUG_DUMP_PARAMS(nullptr, FrameWinding::DumpOutFunc, nullptr)
             OP_DEBUG_IMAGE_PARAMS(noWindingImageOutFunc, noNativePathFunc,
                     noDebugGetDrawFunc, noDebugSetDrawFunc, noIsOppFunc)
 	);
@@ -758,22 +779,19 @@ void FramePath::opCommon(FillPath& path, Ops oper) {
 
 	FrameFill fillContourData = FrameFill::fill;
     Contour* fillContour = CreateContour({context, &fillContourData, sizeof(fillContourData)});
-    SetWindingCallBacks(fillContour, frameAddFunc, frameKeepFunc, 
+    SetWindingCallBacks(fillContour, frameAddFunc, operatorFunc, 
             frameSubtractFunc, frameVisibleFunc, frameZeroFunc 
     		OP_DEBUG_PARAMS(noDebugBitOper)
-	        OP_DEBUG_DUMP_PARAMS(nullptr, nullptr, noDumpFunc)
+	        OP_DEBUG_DUMP_PARAMS(nullptr, FrameWinding::DumpOutFunc, nullptr)
             OP_DEBUG_IMAGE_PARAMS(noWindingImageOutFunc, noNativePathFunc,
                     noDebugGetDrawFunc, noDebugSetDrawFunc, noIsOppFunc)
 	);
     FrameWinding fillData(FrameFill::fill, 1);
     AddWinding fillAddWinding { fillContour, &fillData, sizeof(fillData) };
-	opAddPath(context, frameAddWinding, true);
+	opAddPath(context, frameAddWinding, false);
 	path.opAddPath(context, fillAddWinding, true);
-	OutPath outPath;
 	SetErrorHandler(context, allowDisjointLines);
-	Normalize(context);
-	Resolve(context, &outPath);
-	curves = outPath.result.curves;
+	return handleError(context);
 }
 
 }

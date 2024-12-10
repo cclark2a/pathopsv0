@@ -199,16 +199,16 @@ struct OpSectStorage {
 		, used(0) {
 	}
 #if OP_DEBUG_DUMP
-	size_t debugCount() const;
+	int debugCount() const;
 	OpIntersection* debugFind(int id) const;
-	OpIntersection* debugIndex(size_t index) const;
+	OpIntersection* debugIndex(int index) const;
 	static void DumpSet(const char*& , OpContours* );
 	DUMP_DECLARATIONS
 #endif
 
 	OpSectStorage* next;
 	OpIntersection storage[256];
-	size_t used;
+	int used;
 };
 
 #endif
