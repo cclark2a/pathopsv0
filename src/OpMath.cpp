@@ -7,37 +7,34 @@
 // 'interior' is only used for extrema and inflections
 OpRoots OpRoots::keepInteriorTs(float start, float end) {
 	(void) keepValidTs(start, end);
-	int interiorRoots = 0;
-	for (unsigned index = 0; index < count; ++index) {
-		float tValue = roots[index];
+	OpRoots interior;
+	for (float tValue : roots) {
 		if (start >= tValue - OpEpsilon || tValue + OpEpsilon >= end)
 			continue;
-		roots[interiorRoots++] = tValue;
+		interior.roots.push_back(tValue);
 	}
-	count = interiorRoots;
+	std::swap(interior.roots, roots);
 	return *this;
 }
 
 OpRoots OpRoots::keepValidTs(float start, float end) {
-	size_t foundRoots = 0;
-	for (unsigned index = 0; index < count; ++index) {
-		float tValue = roots[index];
+	OpRoots validTs;
+	for (float tValue : roots) {
 		if (OpMath::IsNaN(tValue) || start > tValue || tValue > end)
 			continue;
 		if (tValue < start + OpEpsilon)
 			tValue = start;
 		else if (tValue > end - OpEpsilon)
 			tValue = end;
-		for (size_t idx2 = 0; idx2 < foundRoots; ++idx2) {
-			if (roots[idx2] == tValue) {
+		for (float alreadyFound : validTs.roots) {
+			if (alreadyFound == tValue)
 				goto notUnique;
-			}
 		}
-		roots[foundRoots++] = tValue;
+		validTs.roots.push_back(tValue);
 	notUnique:
 		;
 	}
-	count = foundRoots;
+	std::swap(validTs.roots, roots);
 	return *this;
 }
 
@@ -170,21 +167,12 @@ OpRoots OpMath::CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B,
 	// changed all three calls to double versions as a precaution
 	if (zeroIsRoot || 0 == D) {  // 0 is one root
 		OpRoots roots = QuadRootsDouble((float) A, (float) B, (float) C);
-		for (unsigned i = 0; i < roots.count; ++i) {
-			if (0 == roots.roots[i])
-				return roots;
-		}
-		roots.roots[roots.count++] = 0;
+		roots.addEnd(0);
 		return roots;
 	}
 	if (oneIsRoot || 0 == A + B + C + D) {  // 1 is one root
 		OpRoots roots = QuadRootsDouble((float) A, (float) (A + B), (float) -D);
-		for (unsigned i = 0; i < roots.count; ++i) {
-			if (1 == roots.roots[i]) {
-				return roots;
-			}
-		}
-		roots.roots[roots.count++] = 1;
+		roots.addEnd(1);
 		return roots;
 	}
 	OpCubicFloatType invA = 1 / A;
@@ -200,19 +188,16 @@ OpRoots OpMath::CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B,
 	OpCubicFloatType adiv3 = a / 3;
 	OpCubicFloatType r;
 	OpRoots roots;
-	float* rootPtr = &roots.roots[0];
 	if (R2MinusQ3 < 0) {   // we have 3 real roots
 		// the divide/root can, due to finite precisions, be slightly outside of -1...1
 		OpCubicFloatType theta = ACOS(std::max(std::min(ONE, R / SQRT(Q3)), -ONE));
 		OpCubicFloatType neg2RootQ = -2 * SQRT(Q);
 		r = neg2RootQ * COS(theta / 3) - adiv3;
-		*rootPtr++ = (float) r;
+		roots.add((float) r);
 		r = neg2RootQ * COS((theta + 2 * PI) / 3) - adiv3;
-		if (roots.roots[0] != r)
-			*rootPtr++ = (float) r;
+		roots.addEnd((float) r);
 		r = neg2RootQ * COS((theta - 2 * PI) / 3) - adiv3;
-		if (roots.roots[0] != r && (rootPtr - &roots.roots[0] == 1 || roots.roots[1] != r))
-			*rootPtr++ = (float) r;
+		roots.addEnd((float) r);
 	} else {  // we have 1 real root
 		OpCubicFloatType sqrtR2MinusQ3 = SQRT(R2MinusQ3);
 		// !!! need to rename this 'A' something else; since parameter is also 'A'
@@ -223,15 +208,12 @@ OpRoots OpMath::CubicRootsReal(OpCubicFloatType A, OpCubicFloatType B,
 		if (A != 0)
 			A += Q / A;
 		r = A - adiv3;
-		*rootPtr++ = (float) r;
+		roots.add((float) r);
 		if (R2 == Q3) {
 			r = -A / 2 - adiv3;
-			if (roots.roots[0] != r) {
-				*rootPtr++ = (float) r;
-			}
+			roots.addEnd((float) r);
 		}
 	}
-	roots.count = static_cast<int>(rootPtr - &roots.roots[0]);
 	return roots;
 }
 

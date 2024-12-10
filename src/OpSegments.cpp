@@ -118,14 +118,13 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 #else
 	OP_ASSERT(septs.fail != RootFail::rawIntersectFailed);
 	OP_ASSERT(!opp->c.isLine() || MatchEnds::both != matchRev.match);
-	OP_ASSERT(2 != septs.count || !opp->c.isLine());
+	OP_ASSERT(2 != septs.count() || !opp->c.isLine());
 #endif
 	std::vector<OpPtT> oppPtTs;
 	std::vector<OpPtT> edgePtTs;
 	size_t segSects = seg->sects.i.size();
 	size_t oppSects = opp->sects.i.size();
-	for (unsigned index = 0; index < septs.count; ++index) {
-		float oppT = septs.get(index);
+	for (float oppT : septs.roots) {
 		if (OpMath::NearlyEndT(oppT))
 			continue;
 		// if computed point is nearly end, ignore

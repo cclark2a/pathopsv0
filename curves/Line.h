@@ -17,12 +17,10 @@ inline bool lineIsLine(PathOpsV0Lib::Curve ) {
     return true;
 }
 
-inline OpRoots lineAxisRawHit(PathOpsV0Lib::Curve c, Axis axis, float axisIntercept, MatchEnds ends) {
+inline OpRoots lineAxisT(PathOpsV0Lib::Curve c, Axis axis, float axisIntercept, MatchEnds ) {
     const float* ptr = c.data->start.asPtr(axis);
     if (!OpMath::Between(ptr[0], axisIntercept, ptr[2]))
         return OpRoots(axisIntercept < ptr[0] ? RootFail::outsideFirstPt : RootFail::outsideLastPt);
-    // strict equality fails for denomalized numbers
-    // if (ptr[2] == ptr[0]) {
     if (ptr[2] == ptr[0])   // coincident line values are computed later
         return OpRoots(OpNaN, OpNaN);
     return OpRoots((axisIntercept - ptr[0]) / (ptr[2] - ptr[0]));

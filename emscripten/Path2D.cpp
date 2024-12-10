@@ -598,7 +598,7 @@ static PathOpsV0Lib::CurveType LineType(PathOpsV0Lib::Curve ) {
 static void SetupCurves(Context* context) {
 	// set context callbacks
 	// set curve callbacks
-	OP_DEBUG_CODE(CurveType lineType =) SetCurveCallBacks(context, lineAxisRawHit, noHull, 
+	OP_DEBUG_CODE(CurveType lineType =) SetCurveCallBacks(context, lineAxisT, noHull, 
 			lineIsFinite, lineIsLine, noBounds, lineNormal, LineOutput, noPinCtrl, 
 			noReverse, lineTangent, linesEqual, linePtAtT, linePtCount, noRotate, 
 			lineSubDivide, lineXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
@@ -607,7 +607,7 @@ static void SetupCurves(Context* context) {
 			OP_DEBUG_IMAGE_PARAMS(nullptr)
 	);
 	OP_ASSERT((int) lineType == (int) Types::line);
-	OP_DEBUG_CODE(CurveType quadType =) SetCurveCallBacks(context, quadAxisRawHit, quadHull, 
+	OP_DEBUG_CODE(CurveType quadType =) SetCurveCallBacks(context, quadAxisT, quadHull, 
 			quadIsFinite, quadIsLine, quadSetBounds, quadNormal, QuadOutput, quadPinCtrl, 
 			noReverse, quadTangent, quadsEqual, quadPtAtT, quadPtCount, quadRotate, 
 			quadSubDivide, quadXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
@@ -616,7 +616,7 @@ static void SetupCurves(Context* context) {
 			OP_DEBUG_IMAGE_PARAMS(nullptr)
 	);
 	OP_ASSERT((int) quadType == (int) Types::quad);
-    OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallBacks(context, cubicAxisRawHit, cubicHull, 
+    OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallBacks(context, cubicAxisT, cubicHull, 
             cubicIsFinite, cubicIsLine, cubicSetBounds, cubicNormal, CubicOutput, cubicPinCtrl, 
 			cubicReverse, cubicTangent, cubicsEqual, cubicPtAtT, cubicPtCount, cubicRotate, 
 			cubicSubDivide, cubicXYAtT, lineCut, lineNormalLimit, lineInterceptLimit

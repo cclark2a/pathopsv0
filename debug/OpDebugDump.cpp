@@ -3859,7 +3859,7 @@ std::string OpSegment::debugDumpEdges() const {
 float OpSegment::debugFindAxisT(Axis axis, float start, float end, float opp) {
 	if (!c.isLine()) {
 		OpRoots roots = c.axisRayHit(axis, opp, start, end);
-		if (1 == roots.count)
+		if (1 == roots.count())
 			return roots.roots[0];
 	} else {
 		float pt0xy = c.firstPt().choice(axis);
@@ -4255,8 +4255,8 @@ void MatchReverse::dumpSet(const char*& str) {
 }
 
 std::string OpRoots::debugDump(DebugLevel l, DebugBase b) const {
-    std::string s = "count:" + STR(count) + " ";
-    for (size_t index = 0; index < count; ++index)
+    std::string s = "count:" + STR(count()) + " ";
+    for (int index = 0; index < count(); ++index)
         s += debugFloat(b, roots[index]) + ", ";
     s.pop_back();
     if (',' == s.back()) s.pop_back();

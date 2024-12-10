@@ -34,15 +34,6 @@ inline OpPoint QuadControlPt(OpPoint start, OpPoint control, OpPoint end, OpPtT 
     return result;
 }
 
-inline OpRoots QuadAxisRawHit(OpPoint start, OpPoint control, OpPoint end, Axis axis, float axisIntercept) {
-    float a = end.choice(axis);
-    float b = control.choice(axis);
-    float c = start.choice(axis);
-    a += c - 2 * b;    // A = a - 2*b + c
-    b -= c;            // B = -(b - c)
-    return OpMath::QuadRootsDouble(a, 2 * b, c - axisIntercept);  // double req'd: testQuads3759897
-}
-
 inline OpVector QuadTangent(OpPoint start, OpPoint control, OpPoint end, float t) {
     OpPoint threshold = OpMath::Threshold(start, end);
     if ((OpMath::NearlyZeroT(t) && start.isNearly(control, threshold))
@@ -130,8 +121,13 @@ inline bool quadIsLine(Curve c) {
     return linePts.ptOnLine(ctrlPt);
 }
 
-inline OpRoots quadAxisRawHit(Curve c, Axis axis, float axisIntercept, MatchEnds ends) {
-    return QuadAxisRawHit(c.data->start, quadControlPt(c), c.data->end, axis, axisIntercept);
+inline OpRoots quadAxisT(Curve curve, Axis axis, float axisIntercept, MatchEnds ) {
+    float a = curve.data->end.choice(axis);
+    float b = quadControlPt(curve).choice(axis);
+    float c = curve.data->start.choice(axis);
+    a += c - 2 * b;    // A = a - 2*b + c
+    b -= c;            // B = -(b - c)
+    return OpMath::QuadRootsDouble(a, 2 * b, c - axisIntercept);  // double req'd: testQuads3759897
 }
 
 inline OpPoint quadPtAtT(Curve c, float t) {

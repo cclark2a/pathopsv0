@@ -113,7 +113,7 @@ void SetContextCallBacks(Context* context, EmptyNativePath emptyNativePath, Make
 }
 
 
-CurveType SetCurveCallBacks(Context* context, AxisRawHit axisFunc,
+CurveType SetCurveCallBacks(Context* context, AxisT axisFunc,
         CurveHull hullFunc, CurveIsFinite isFiniteFunc, CurveIsLine isLineFunc, 
         SetBounds setBoundsFunc, CurveNormal normalFunc, 
         CurveOutput outputFunc, CurvePinCtrl curvePinFunc, 

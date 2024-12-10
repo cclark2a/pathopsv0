@@ -162,7 +162,7 @@ enum class SkiaCurveType : int {
 
 // new interface
 void SetSkiaCurveCallBacks(Context* context) {
-    OP_DEBUG_CODE(CurveType lineType =) SetCurveCallBacks(context, lineAxisRawHit, noHull, 
+    OP_DEBUG_CODE(CurveType lineType =) SetCurveCallBacks(context, lineAxisT, noHull, 
 			lineIsFinite, lineIsLine, noBounds, lineNormal, skiaLineOutput, noPinCtrl, 
 			noReverse, lineTangent, linesEqual, linePtAtT, linePtCount, noRotate, 
 			lineSubDivide, lineXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
@@ -171,7 +171,7 @@ void SetSkiaCurveCallBacks(Context* context) {
             OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath)
     );
 	OP_ASSERT((int) lineType == (int) SkiaCurveType::skiaLineType);
-    OP_DEBUG_CODE(CurveType quadType =) SetCurveCallBacks(context, quadAxisRawHit, quadHull, 
+    OP_DEBUG_CODE(CurveType quadType =) SetCurveCallBacks(context, quadAxisT, quadHull, 
 			quadIsFinite, quadIsLine, quadSetBounds, quadNormal, skiaQuadOutput, quadPinCtrl, 
             noReverse, quadTangent, quadsEqual, quadPtAtT, quadPtCount, quadRotate, 
 			quadSubDivide, quadXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
@@ -180,7 +180,7 @@ void SetSkiaCurveCallBacks(Context* context) {
             OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath)
     );
 	OP_ASSERT((int) quadType == (int) SkiaCurveType::skiaQuadType);
-    OP_DEBUG_CODE(CurveType conicType =) SetCurveCallBacks(context, conicAxisRawHit, conicHull, 
+    OP_DEBUG_CODE(CurveType conicType =) SetCurveCallBacks(context, conicAxisT, conicHull, 
             conicIsFinite, conicIsLine, conicSetBounds, conicNormal, skiaConicOutput, quadPinCtrl, 
 			noReverse, conicTangent, conicsEqual, conicPtAtT, conicPtCount, conicRotate, 
 			conicSubDivide, conicXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
@@ -189,7 +189,7 @@ void SetSkiaCurveCallBacks(Context* context) {
             OP_DEBUG_IMAGE_PARAMS(debugConicAddToSkPath)
     );
 	OP_ASSERT((int) conicType == (int) SkiaCurveType::skiaConicType);
-    OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallBacks(context, cubicAxisRawHit, cubicHull, 
+    OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallBacks(context, cubicAxisT, cubicHull, 
             cubicIsFinite, cubicIsLine, cubicSetBounds, cubicNormal, skiaCubicOutput, cubicPinCtrl, 
 			cubicReverse, cubicTangent, cubicsEqual, cubicPtAtT, cubicPtCount, cubicRotate, 
 			cubicSubDivide, cubicXYAtT, lineCut, lineNormalLimit, lineInterceptLimit

@@ -14,7 +14,7 @@ OpRoots OpCurve::axisRayHit(Axis axis, float axisIntercept, float start, float e
 
 float OpCurve::center(Axis axis, float intercept) const {
 	OpRoots roots = axisRayHit(axis, intercept);
-	if (1 != roots.count)
+	if (1 != roots.count())
 		return OpNaN;   // numerics failed
 	return roots.roots[0];
 }
@@ -98,11 +98,11 @@ OpRootPts OpCurve::lineIntersect(const LinePts& line) const {
 		return result;
 	result.valid = result.raw;
 	result.valid.keepValidTs(0, 1);
-	if (!result.valid.count)
+	if (!result.valid.count())
 		return result;
 	OpVector lineV = line.pts[1] - line.pts[0];
 	XyChoice xy = fabsf(lineV.dx) >= fabsf(lineV.dy) ? XyChoice::inX : XyChoice::inY;
-	for (unsigned index = 0; index < result.valid.count; ++index) {
+	for (int index = 0; index < result.valid.count(); ++index) {
 		OpPoint hit = ptAtT(result.valid.roots[index]);
 		// thread_cubics23476 edges 55 & 52 trigger this need for betweenish
 		if (OpMath::InUnsorted(line.pts[0].choice(xy), hit.choice(xy), line.pts[1].choice(xy),
@@ -237,18 +237,18 @@ OpRoots OpCurve::rawIntersect(const LinePts& linePt, MatchEnds common) const {
 OpRoots OpCurve::rayIntersect(const LinePts& line, MatchEnds common) const {
 	OpRoots rawRoots = rawIntersect(line, common);
 	rawRoots.keepValidTs();
-	if (!rawRoots.count || rawRoots.fail == RootFail::rawIntersectFailed)
+	if (!rawRoots.count() || rawRoots.fail == RootFail::rawIntersectFailed)
 		return rawRoots;
 	OpRoots realRoots;
 	OpVector lineV = line.pts[1] - line.pts[0];
 	XyChoice xy = fabsf(lineV.dx) >= fabsf(lineV.dy) ? XyChoice::inX : XyChoice::inY;
-	for (unsigned index = 0; index < rawRoots.count; ++index) {
-		OpPoint hit = ptAtT(rawRoots.roots[index]);
+	for (float rawRoot : rawRoots.roots) {
+		OpPoint hit = ptAtT(rawRoot);
 		// in thread_circles36945 : conic mid touches opposite conic only at end point
 		// without this fix, in one direction, intersection misses by 2 epsilon, in the other 1 eps
 		if (OpMath::InUnsorted(line.pts[0].choice(xy), hit.choice(xy), line.pts[1].choice(xy),
 				contours->threshold().choice(xy)))
-			realRoots.add(rawRoots.roots[index]);
+			realRoots.add(rawRoot);
 	}
 	return realRoots;
 }
@@ -381,7 +381,7 @@ OpCurve::OpCurve(OpContours* cntrs, PathOpsV0Lib::Curve curve) {
 }
 
 OpRoots OpCurve::axisRawHit(Axis offset, float intercept, MatchEnds matchEnds) const {
-	return contours->callBack(c.type).axisRawHitFuncPtr(c, offset, intercept, matchEnds);
+	return contours->callBack(c.type).axisTFuncPtr(c, offset, intercept, matchEnds);
 }
 
 bool OpCurve::isLine() {

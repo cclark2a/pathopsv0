@@ -50,17 +50,17 @@ void OpMathTest() {
 	OpRoots allBad2 ( -OpInfinity, OpNaN );
 	OpRoots someOfEach1 ( 0, .1f, 1 + OpEpsilon );
 	OpRoots someOfEach2 ( .5f, OpInfinity );
-	int good = allGood1.keepValidTs().count;
+	int good = allGood1.keepValidTs().count();
 	ASSERT_I(3 == good, good);
-	good = allGood2.keepValidTs().count;
+	good = allGood2.keepValidTs().count();
 	ASSERT_I(3 == good, good);
-	int bad = allBad1.keepValidTs().count;
+	int bad = allBad1.keepValidTs().count();
 	ASSERT_I(0 == bad, bad);
-	bad = allBad2.keepValidTs().count;
+	bad = allBad2.keepValidTs().count();
 	ASSERT_I(0 == bad, bad);
-	int mix = someOfEach1.keepValidTs().count;
+	int mix = someOfEach1.keepValidTs().count();
 	ASSERT_I(2 == mix, mix);
-	mix = someOfEach2.keepValidTs().count;
+	mix = someOfEach2.keepValidTs().count();
 	ASSERT_I(1 == mix, mix);
 
 	// test Between
@@ -79,8 +79,8 @@ void OpMathTest() {
 		double tValsD[2];
 		int sk_result = SkDCubic::RootsReal(p[0], p[1], p[2], p[3], tValsD);
 		OpRoots tVals = OpMath::CubicRootsReal(p[0], p[1], p[2], p[3], MatchEnds::none);
-		ASSERT(sk_result == (int) tVals.count);
-		for (unsigned r = 0; r < tVals.count; ++r) {
+		ASSERT(sk_result == (int) tVals.count());
+		for (int r = 0; r < tVals.count(); ++r) {
 			ASSERT(tVals.roots[r] == tValsD[r]);
 		}
 	}
@@ -90,8 +90,8 @@ void OpMathTest() {
 		double tValsD[2];
 		int sk_result = SkDCubic::RootsValidT(p[0], p[1], p[2], p[3], tValsD);
 		OpRoots roots = OpMath::CubicRootsValidT(p[0], p[1], p[2], p[3]);
-		ASSERT(sk_result == (int) roots.count);
-		for (unsigned r = 0; r < roots.count; ++r) {
+		ASSERT(sk_result == (int) roots.count());
+		for (int r = 0; r < roots.count(); ++r) {
 			ASSERT(roots.roots[r] == tValsD[r]);
 		}
 	}
@@ -114,8 +114,8 @@ void OpMathTest() {
 		double tValsD[2];
 		int sk_result = SkDQuad::RootsReal(p[0], p[1], p[2], tValsD);
 		OpRoots roots = OpMath::QuadRootsReal(p[0], p[1], p[2]);
-		ASSERT(sk_result == (int) roots.count);
-		for (unsigned r = 0; r < roots.count; ++r) {
+		ASSERT(sk_result == (int) roots.count());
+		for (int r = 0; r < roots.count(); ++r) {
 			ASSERT(roots.roots[r] == tValsD[r]);
 		}
 	}
@@ -125,8 +125,8 @@ void OpMathTest() {
 		double tValsD[2];
 		int sk_result = SkDQuad::RootsValidT(p[0], p[1], p[2], tValsD);
 		OpRoots roots = OpMath::QuadRootsValidT(p[0], p[1], p[2]);
-		ASSERT(sk_result == (int) roots.count);
-		for (unsigned r = 0; r < roots.count; ++r) {
+		ASSERT(sk_result == (int) roots.count());
+		for (int r = 0; r < roots.count(); ++r) {
 			ASSERT(roots.roots[r] == tValsD[r]);
 		}
 	}
@@ -1163,7 +1163,7 @@ void LineCoincidenceTest() {
     SetContextCallBacks(context, testNoEmptyPath, testMakeLine, getTestLineType, maxSignSwap,
 			maxDepth, maxSplits, maxLimbs);
 
-    testLineType = SetCurveCallBacks(context, lineAxisRawHit, noHull, lineIsFinite, 
+    testLineType = SetCurveCallBacks(context, lineAxisT, noHull, lineIsFinite, 
             lineIsLine, noBounds, lineNormal, testOutput, noPinCtrl, noReverse,
             lineTangent, linesEqual, linePtAtT,
             linePtCount, noRotate, lineSubDivide, lineXYAtT,

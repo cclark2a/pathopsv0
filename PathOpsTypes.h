@@ -133,7 +133,7 @@ typedef void* PathOutput;
 // callbacks
 
 // intersects the curve and axis at the axis intercept
-typedef OpRoots (*AxisRawHit)(Curve , Axis , float axisIntercept, MatchEnds);
+typedef OpRoots (*AxisT)(Curve , Axis , float axisIntercept, MatchEnds);
 
 // returns number of points in curve, including start and end (minimum 2)
 typedef size_t (*PtCount)();
@@ -202,7 +202,7 @@ typedef void (*DebugAddToPath)(Curve , class SkPath& );
 #endif
 
 struct CurveCallBacks {
-	AxisRawHit axisRawHitFuncPtr;
+	AxisT axisTFuncPtr;
 	CurveHull curveHullFuncPtr;
 	CurveIsFinite curveIsFiniteFuncPtr;
 	CurveIsLine curveIsLineFuncPtr;

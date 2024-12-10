@@ -44,7 +44,7 @@ void SetContextCallBacks(Context* ,  EmptyNativePath, MakeLine , SetLineType , M
 void SetError(Context* , ContextError );
 void SetErrorHandler(Context* , ErrorDispatch );
 
-CurveType SetCurveCallBacks(Context* , AxisRawHit,
+CurveType SetCurveCallBacks(Context* , AxisT,
 		CurveHull, CurveIsFinite, CurveIsLine,
 		SetBounds, CurveNormal, CurveOutput, CurvePinCtrl,
 		CurveReverse, CurveTangent, CurvesEqual, PtAtT,

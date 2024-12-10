@@ -158,7 +158,7 @@ FindCept SectRay::findIntercept(OpEdge* home, OpEdge* test) {
 		}
 		return FindCept::retry;
 	};
-	if (1 != roots.count)
+	if (1 != roots.count())
 		return pushUsectDist();  // preferable for thread_cubics157381
 	root = roots.get(0);
 	if (OpMath::IsNaN(root) || 0 == root || root == 1)

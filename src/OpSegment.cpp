@@ -470,19 +470,19 @@ float OpSegment::findValidT(float start, float end, OpPoint opp) {
 		OpRoots hRoots = c.axisRayHit(Axis::horizontal, opp.y, start, end);
 		OpRoots vRoots = c.axisRayHit(Axis::vertical, opp.x, start, end);
 	#if 01 // code coverage says this is unused, but it is required for loop48977
-		if (1 != hRoots.count && 1 != vRoots.count) {
+		if (1 != hRoots.count() && 1 != vRoots.count()) {
 			if (0 == start && opp.isNearly(c.firstPt(), threshold()))
 				return 0;
 			if (1 == end && opp.isNearly(c.lastPt(), threshold()))
 				return 1;
 			return OpNaN;
 		}
-		if (1 != hRoots.count) {
-			OP_ASSERT(1 == vRoots.count);  // !!! triggered by thread_loops46134
+		if (1 != hRoots.count()) {
+			OP_ASSERT(1 == vRoots.count());  // !!! triggered by thread_loops46134
 			return vRoots.roots[0];
 		}
 	#endif
-		if (1 != vRoots.count)
+		if (1 != vRoots.count())
 			return hRoots.roots[0];
 		OpPoint hPt = c.ptAtT(hRoots.roots[0]);
 		OpPoint vPt = c.ptAtT(vRoots.roots[0]);

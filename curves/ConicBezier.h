@@ -89,16 +89,6 @@ inline PointWeight ConicControl(OpPoint start, PointWeight control, OpPoint end,
     return result;
 }
 
-inline OpRoots ConicAxisRawHit(OpPoint start, PointWeight control, OpPoint end, Axis axis, 
-        float intercept) {
-    float a = end.choice(axis);
-    float b = control.pt.choice(axis) * control.weight - intercept * control.weight + intercept;
-    float c = start.choice(axis);
-    a += c - 2 * b;    // A = a - 2*b + c
-    b -= c;            // B = -(b - c)
-    return OpMath::QuadRootsDouble(a, 2 * b, c - intercept);  // ? double req'd: testConics3759897
-}
-
 inline OpQuadCoefficients DerivativeCoefficients(
         OpPoint start, PointWeight control, OpPoint end, XyChoice offset) {
     float P20 = end.choice(offset) - start.choice(offset);
@@ -147,8 +137,8 @@ inline size_t AddConics(AddCurve curve, AddWinding windings) {
     auto addExtrema = [start, control, end, &tValues](XyChoice offset) {
         OpQuadCoefficients dc = DerivativeCoefficients(start, control, end, offset);
         OpRoots roots = OpMath::QuadRootsInteriorT(dc.a, dc.b, dc.c);
-        OP_ASSERT(0 == roots.count || 1 == roots.count);   // !!! I wanna see the extreme case...
-        if (0 == roots.count)
+        OP_ASSERT(0 == roots.count() || 1 == roots.count());   // !!! I wanna see the extreme case...
+        if (0 == roots.count())
             return;
         tValues.push_back(roots.roots[0]);
     };
@@ -192,9 +182,14 @@ inline bool conicIsLine(Curve c) {
     return linePts.ptOnLine(control.pt);
 }
 
-inline OpRoots conicAxisRawHit(Curve c, Axis axis, float axisIntercept, MatchEnds ends) {
-    PointWeight control(c);
-    return ConicAxisRawHit(c.data->start, control, c.data->end, axis, axisIntercept);
+inline OpRoots conicAxisT(Curve curve, Axis axis, float intercept, MatchEnds ) {
+    PointWeight control(curve);
+    float a = curve.data->end.choice(axis);
+    float b = control.pt.choice(axis) * control.weight - intercept * control.weight + intercept;
+    float c = curve.data->start.choice(axis);
+    a += c - 2 * b;    // A = a - 2*b + c
+    b -= c;            // B = -(b - c)
+    return OpMath::QuadRootsDouble(a, 2 * b, c - intercept);  // ? double req'd: testConics3759897
 }
 
 inline OpPoint conicPtAtT(Curve c, float t) {

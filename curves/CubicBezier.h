@@ -79,18 +79,6 @@ inline CubicControls CubicControlPt(OpPoint start, CubicControls controls, OpPoi
     return results;
 }
 
-inline OpRoots CubicAxisRawHit(OpPoint start, CubicControls controls, OpPoint end, Axis axis, 
-        float axisIntercept, MatchEnds matchEnds) {
-    OpCubicFloatType A = end.choice(axis);   // d
-    OpCubicFloatType B = controls.pts[1].choice(axis) * 3;  // 3*c
-    OpCubicFloatType C = controls.pts[0].choice(axis) * 3;  // 3*b
-    OpCubicFloatType D = start.choice(axis);   // a
-    A -= D - C + B;     // A =   -a + 3*b - 3*c + d
-    B += 3 * D - 2 * C; // B =  3*a - 6*b + 3*c
-    C -= 3 * D;         // C = -3*a + 3*b
-    return OpMath::CubicRootsReal(A, B, C, D - axisIntercept, matchEnds);
-}
-
 inline OpVector CubicTangent(OpPoint start, CubicControls controls, OpPoint end, float t) {
     // !!! document why this needs to be double (include example test requiring it)
     auto tangent = [start, controls, end](XyChoice offset, double t) {
@@ -130,7 +118,7 @@ inline size_t AddCubics(AddCurve curve, AddWinding windings) {
         float B = 2 * (a - b - b + c);
         float C = b - a;
         OpRoots roots = OpMath::QuadRootsInteriorT(A, B, C);  // don't keep roots ~0, ~1
-        for (unsigned index = 0; index < roots.count; ++index)
+        for (int index = 0; index < roots.count(); ++index)
             tValues.push_back(roots.roots[index]);
     };
     addExtrema(start.x, controls.pts[0].x, controls.pts[1].x, end.x);
@@ -141,7 +129,7 @@ inline size_t AddCubics(AddCurve curve, AddWinding windings) {
     OpPoint C = end + 3 * (controls.pts[0] - controls.pts[1]) - start;
     OpRoots roots = OpMath::QuadRootsInteriorT(B.x * C.y - B.y * C.x, A.x * C.y - A.y * C.x,
             A.x * B.y - A.y * B.x);  // don't keep roots ~0, ~1
-    for (unsigned index = 0; index < roots.count; ++index)
+    for (int index = 0; index < roots.count(); ++index)
         tValues.push_back(roots.roots[index]);
     std::sort(tValues.begin(), tValues.end());
     std::vector<OpPtT> ptTs(tValues.size());
@@ -178,9 +166,16 @@ inline bool cubicIsLine(Curve c) {
     return linePts.ptOnLine(controls.pts[0]) && linePts.ptOnLine(controls.pts[1]);
 }
 
-inline OpRoots cubicAxisRawHit(Curve c, Axis axis, float axisIntercept, MatchEnds ends) {
+inline OpRoots cubicAxisT(Curve c, Axis axis, float axisIntercept, MatchEnds ends) {
     CubicControls controls(c);
-    return CubicAxisRawHit(c.data->start, controls, c.data->end, axis, axisIntercept, ends);
+    OpCubicFloatType A = c.data->end.choice(axis);   // d
+    OpCubicFloatType B = controls.pts[1].choice(axis) * 3;  // 3*c
+    OpCubicFloatType C = controls.pts[0].choice(axis) * 3;  // 3*b
+    OpCubicFloatType D = c.data->start.choice(axis);   // a
+    A -= D - C + B;     // A =   -a + 3*b - 3*c + d
+    B += 3 * D - 2 * C; // B =  3*a - 6*b + 3*c
+    C -= 3 * D;         // C = -3*a + 3*b
+    return OpMath::CubicRootsReal(A, B, C, D - axisIntercept, ends);
 }
 
 inline OpPoint cubicPtAtT(Curve c, float t) {

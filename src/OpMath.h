@@ -79,46 +79,39 @@ enum class RootFail {
 // then add two more in case error in root finding misses roots at zero and one
 struct OpRoots {
 	OpRoots() 
-		: count(0)
-		, fail(RootFail::none) {
-		OP_DEBUG_CODE(roots[0] = OpNaN);
+		: fail(RootFail::none) {
+		roots.reserve(5);
 	}
 
-//    OpRoots(int ) = delete; // disallow old pattern that returned number of roots
-
 	OpRoots(RootFail f)
-		: count(0)
-		, fail(f) {
-		OP_DEBUG_CODE(roots[0] = OpNaN);
+		: fail(f) {
 	}
 
 	OpRoots(float one)
-		: count(1)
-		, fail(RootFail::none) {
-		roots[0] = one;
+		: fail(RootFail::none) {
+		roots.reserve(5);
+		roots.push_back(one);
 	}
 
 	OpRoots(float one, float two)
 		: fail(RootFail::none) {
-		count = 1 + (int) (one != two);
-		roots[0] = one;
-		roots[1] = two;
+		roots.reserve(5);
+		if (one == two)
+			roots.push_back(one);
+		else
+			roots.insert(roots.end(), { one, two } );
 	}
 
 	// testing only
 #if OP_RELEASE_TEST
 	OpRoots(float one, float two, float three)
 		: fail(RootFail::none) {
-		count = 3;
-		roots[0] = one;
-		roots[1] = two;
-		roots[2] = three;
+		roots.insert(roots.end(), { one, two, three } );
 	}
 #endif
 
 	void add(float root) {
-		OP_ASSERT(count < roots.size());
-		roots[count++] = root;
+		roots.push_back(root);
 	}
 
 	void addEnd(float root) {
@@ -129,15 +122,19 @@ struct OpRoots {
 	}
 
 	bool contains(float check) const {
-		for (size_t index = 0; index < count; ++index) {
-			if (check == roots[index])
+		for (float f : roots) {
+			if (check == f)
 				return true;
 		}
 		return false;
 	}
 
+	int count() const {
+		return (int) roots.size();
+	}
+
 	float get(unsigned index) {
-		OP_ASSERT(index < count);
+		OP_ASSERT(index < roots.size());
 		return roots[index];
 	}
 
@@ -145,20 +142,19 @@ struct OpRoots {
 	OpRoots keepInteriorTs(float start = 0, float end = 1);
 
 	float* last() {
-		OP_ASSERT(count > 0);
-		return &roots[count - 1];
+		OP_ASSERT(roots.size());
+		return &roots.back();
 	}
 
 	// void prioritize01();
 
 	void sort() {
-		std::sort(roots.begin(), roots.begin() + count);
+		std::sort(roots.begin(), roots.end());
 	}
 
 	DUMP_DECLARATIONS
 
-	std::array<float, 5> roots;
-	size_t count;
+	std::vector<float> roots;
 	RootFail fail;
 };
 
