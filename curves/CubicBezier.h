@@ -151,8 +151,8 @@ inline size_t AddCubics(AddCurve curve, AddWinding windings) {
 }
 
 // callback functions
-inline size_t cubicPtCount() {
-    return 4;
+inline int cubicHullPtCount() {
+    return 2;
 }
 
 inline bool cubicIsFinite(Curve c) {
@@ -201,10 +201,12 @@ inline OpVector cubicTangent(Curve c, float t) {
     return CubicTangent(c.data->start, controls, c.data->end, t);
 }
 
+#if 0
 inline OpVector cubicNormal(Curve c, float t) {
     OpVector tan = cubicTangent(c, t);
     return { -tan.dy, tan.dx };
 }
+#endif
 
 inline void cubicPinCtrl(Curve c) {
     CubicControls controls(c);
@@ -213,11 +215,15 @@ inline void cubicPinCtrl(Curve c) {
     controls.copyTo(c);
 }
 
-inline void cubicRotate(Curve c, const LinePts& line, float adj, float opp, Curve result) {
+inline void cubicRotate(Curve c, OpPoint origin, OpVector scale, Curve result) {
     CubicControls controls(c);
     for (int index = 0; index < 2; ++index) {
-        OpVector v = controls.pts[index] - line.pts[0];
-        controls.pts[index] = { v.dy * adj - v.dx * opp, v.dy * opp + v.dx * adj };
+        OpVector v = controls.pts[index] - origin;
+	#if 1
+        controls.pts[index] = { scale.cross(v), scale.dot(v) };
+	#else
+        controls.pts[index] = { v.dy * s.dx - v.dx * s.dy, v.dy * s.dy + v.dx * s.dx };
+	#endif
     }
     controls.copyTo(result);
 }

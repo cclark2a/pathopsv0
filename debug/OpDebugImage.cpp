@@ -116,6 +116,7 @@ struct OpDebugEdgeIter {
 			edgeIndex += debugGlobalContours->fillerStorage->debugCount();
 		if (debugGlobalContours->ccStorage)
 			edgeIndex += debugGlobalContours->ccStorage->debugCount();
+		OP_ASSERT(edgeIndex >= 418);
 	}
 
 	bool operator!=(OpDebugEdgeIter rhs) { 

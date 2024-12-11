@@ -520,7 +520,9 @@ void OpLimbStorage::reset() {
 		nextBlock = save;
 	}
 	OP_DEBUG_DUMP_CODE(clearDebugBranches(this));
+	baseIndex = 0;
 	nextBlock = nullptr;
+	prevBlock = nullptr;
 	used = 0;
 }
 

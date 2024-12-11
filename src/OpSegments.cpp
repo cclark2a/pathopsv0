@@ -241,11 +241,12 @@ void OpSegments::FindCoincidences(OpContours* contours) {
 			if (seg->ptBounds != opp->ptBounds)
 				continue;
 			MatchReverse mr = seg->matchEnds(opp);
-			if (MatchEnds::both != mr.match || seg->c.c.type != opp->c.c.type)
+			PathOpsV0Lib::Curve& curve = seg->c.c;
+			if (MatchEnds::both != mr.match || curve.type != opp->c.c.type)
 				continue;
-				// if control points and weight match, treat as coincident: transfer winding
-			if (!seg->contour->contours->callBack(seg->c.c.type).curvesEqualFuncPtr(
-					seg->c.c, opp->c.c ))
+			// if control points and weight match, treat as coincident: transfer winding
+			PathOpsV0Lib::CurvesEqual funcPtr = contours->callBack(curve.type).curvesEqualFuncPtr;
+			if (funcPtr && !(*funcPtr)(curve, opp->c.c))
 				continue;
 			if (!seg->moveWinding(opp, mr.reversed))
 				break;

@@ -293,7 +293,9 @@ float OpCurve::tZeroX(float t1, float t2) const {
 #include "OpContour.h"
 
 void OpCurve::pinCtrl() {
-	contours->callBack(c.type).curvePinCtrlFuncPtr(c);
+	PathOpsV0Lib::CurvePinCtrl funcPtr = contours->callBack(c.type).curvePinCtrlFuncPtr;
+	if (funcPtr)
+		(*funcPtr)(c);
 	return;
 }
 
@@ -302,19 +304,20 @@ bool OpCurve::isFinite() const {
 		return false;
 	if (!c.data->end.isFinite())
 		return false;
-	return contours->callBack(c.type).curveIsFiniteFuncPtr(c);
+	PathOpsV0Lib::CurveIsFinite funcPtr = contours->callBack(c.type).curveIsFiniteFuncPtr;
+	return funcPtr ? (*funcPtr)(c) : true;
 }
 
 // this can fail (if rotated pts are not finite); can happen when input is finite
 // however, callers include sort predicate, which cannot return failure; so don't return failure here
 // !!! add match ends from caller so that rotated matching end point can guarantee x == 0
 OpCurve OpCurve::toVertical(const LinePts& line, MatchEnds match) const {
-	float adj = line.pts[1].x - line.pts[0].x;
-	float opp = line.pts[1].y - line.pts[0].y;
+	OpVector scale = line.pts[1] - line.pts[0];
+//	float opp = line.pts[1].y - line.pts[0].y;
 	OpCurve rotated(contours, { nullptr, c.size, c.type } );
-	auto rotatePt = [line, adj, opp](OpPoint pt) {
+	auto rotatePt = [line, scale](OpPoint pt) {
 		OpVector v = pt - line.pts[0];
-		return OpPoint(v.dy * adj - v.dx * opp, v.dy * opp + v.dx * adj);
+		return OpPoint(scale.cross(v), scale.dot(v));
 	};
 	rotated.c.data->start = rotatePt(c.data->start);
 	if (MatchEnds::start & match)
@@ -322,12 +325,15 @@ OpCurve OpCurve::toVertical(const LinePts& line, MatchEnds match) const {
 	rotated.c.data->end = rotatePt(c.data->end);
 	if (MatchEnds::end & match)
 		rotated.c.data->end.x = 0;
-	contours->callBack(c.type).rotateFuncPtr(c, line, adj, opp, rotated.c);
+	PathOpsV0Lib::Rotate funcPtr = contours->callBack(c.type).rotateFuncPtr;
+	if (funcPtr)
+		(*funcPtr)(c, line.pts[0], scale, rotated.c);
 	return rotated;
 }
 
 int OpCurve::pointCount() const {
-	return (int) contours->callBack(c.type).ptCountFuncPtr();
+	PathOpsV0Lib::HullPtCount funcPtr = contours->callBack(c.type).ptCountFuncPtr;
+	return 2 + (funcPtr ? (*funcPtr)() : 0);
 }
 
 OpPoint OpCurve::ptAtT(float t) const {
@@ -343,7 +349,9 @@ OpCurve OpCurve::subDivide(OpPtT ptT1, OpPtT ptT2) const {
 
 // for accuracy, this should only be called with segment's curve, never edge curve
 OpVector OpCurve::normal(float t) const {
-	return contours->callBack(c.type).curveNormalFuncPtr(c, t);
+	OpVector tan = tangent(t);
+	return { -tan.dy, tan.dx };
+//	return contours->callBack(c.type).curveNormalFuncPtr(c, t);
 }
 
 OpVector OpCurve::tangent(float t) const {
@@ -360,12 +368,15 @@ OpPoint OpCurve::hullPt(int index) const {
 		return c.data->start;
 	if (pointCount() - 1 == index)
 		return c.data->end;
+	OP_ASSERT(contours->callBack(c.type).curveHullFuncPtr);
 	return contours->callBack(c.type).curveHullFuncPtr(c, index);
 }
 
 void OpCurve::reverse() {
 	std::swap(c.data->start, c.data->end);
-	contours->callBack(c.type).curveReverseFuncPtr(c);
+	PathOpsV0Lib::CurveReverse funcPtr = contours->callBack(c.type).curveReverseFuncPtr;
+	if (funcPtr)
+		(*funcPtr)(c);
 	return;
 }
 
@@ -376,8 +387,14 @@ OpCurve::OpCurve(OpContours* cntrs, PathOpsV0Lib::Curve curve) {
 	if (curve.data)
 		std::memcpy(c.data, curve.data, c.size);
 	c.type = curve.type;
-	isLineSet = false;
-	isLineResult = false;
+	PathOpsV0Lib::CurveIsLine funcPtr = contours->callBack(c.type).curveIsLineFuncPtr;
+	if (!funcPtr) {
+		isLineSet = true;
+		isLineResult = true;
+	} else {
+		isLineSet = false;
+		isLineResult = false;
+	}
 }
 
 OpRoots OpCurve::axisRawHit(Axis offset, float intercept, MatchEnds matchEnds) const {
@@ -388,7 +405,9 @@ bool OpCurve::isLine() {
 	if (isLineSet)
 		return isLineResult;
 	isLineSet = true;
-	if (contours->callBack(c.type).curveIsLineFuncPtr(c)) {
+	PathOpsV0Lib::CurveIsLine funcPtr = contours->callBack(c.type).curveIsLineFuncPtr;
+	OP_ASSERT(funcPtr);  // !!! can non-line omit this?
+	if (!funcPtr || (*funcPtr)(c)) {
 		c.type = contours->contextCallBacks.setLineTypeFuncPtr(c);
 		return isLineResult = true;
 	}

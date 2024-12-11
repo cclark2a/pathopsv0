@@ -44,11 +44,14 @@ void SetContextCallBacks(Context* ,  EmptyNativePath, MakeLine , SetLineType , M
 void SetError(Context* , ContextError );
 void SetErrorHandler(Context* , ErrorDispatch );
 
+// !!! reorganize this so that required parameters are first, quad nullptr params second,
+//     line nullptr params last; then add nullptr as default parameter values
+// !!! make all debug parameters optional throughout code
 CurveType SetCurveCallBacks(Context* , AxisT,
 		CurveHull, CurveIsFinite, CurveIsLine,
-		SetBounds, CurveNormal, CurveOutput, CurvePinCtrl,
+		SetBounds, CurveOutput, CurvePinCtrl,
 		CurveReverse, CurveTangent, CurvesEqual, PtAtT,
-		PtCount, Rotate, SubDivide, XYAtT, CurveConst cut, CurveConst normalLimit,
+		HullPtCount, Rotate, SubDivide, XYAtT, CurveConst cut, CurveConst normalLimit,
 		CurveConst interceptLimit
 		OP_DEBUG_PARAMS(DebugScale)
 		OP_DEBUG_DUMP_PARAMS(DebugDumpCurveName, DebugDumpCurveExtra)

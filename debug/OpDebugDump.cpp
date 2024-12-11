@@ -14,15 +14,6 @@
 #include "OpWinder.h"
 #include "PathOps.h"
 
-// some compilers warn about 'this' being checked for null
-// this debugging code needs to do that anyway
-#ifdef _MSC_VER
-#define OP_I_KNOW_WHAT_IM_DOING 1
-#else
-#define OP_I_KNOW_WHAT_IM_DOING 0
-#endif
-
-
 int OpCurveCurve::debugCall;  // which call to curve-curve was made
 
 // !!! things to do:
@@ -1130,10 +1121,6 @@ void dmp(std::vector<OpContour>& contours) {
 }
 
 int OpContourStorage::debugCount() const {
-#if OP_I_KNOW_WHAT_IM_DOING
-    if (!this)
-        return 0;
-#endif
     int result = used;
     OpContourStorage* block = next;
     while (next) {
@@ -1155,10 +1142,6 @@ OpContour* OpContourStorage::debugFind(int ID) const {
 }
 
 OpContour* OpContourStorage::debugIndex(int index) const {
-#if OP_I_KNOW_WHAT_IM_DOING
-    if (!this)
-        return nullptr;
-#endif
     const OpContourStorage* block = this;
     while (index > block->used) {
         index -= block->used;
@@ -2550,10 +2533,6 @@ void CallerDataStorage::DumpSet(const char*& str, CallerDataStorage** previousPt
 }
 
 int OpEdgeStorage::debugCount() const {
-#if OP_I_KNOW_WHAT_IM_DOING
-    if (!this)
-        return 0;
-#endif
     int result = used;
     OpEdgeStorage* block = next;
     while (block) {
@@ -2576,12 +2555,8 @@ OpEdge* OpEdgeStorage::debugFind(int ID) {
 }
 
 OpEdge* OpEdgeStorage::debugIndex(int index) {
-#if OP_I_KNOW_WHAT_IM_DOING
-    if (!this)
-        return nullptr;
-#endif
     OpEdgeStorage* block = this;
-    while (index > block->used) {
+    while (index >= block->used) {
         index -= block->used;
         block = block->next;
         if (!block)
@@ -2594,7 +2569,7 @@ OpEdge* OpEdgeStorage::debugIndex(int index) {
 
 std::string OpEdgeStorage::debugDump(std::string label, DebugLevel l, DebugBase b) {
     std::string s;
-    size_t count = debugCount();
+    int count = debugCount();
     if (!count)
         return s;
     s = label + ":" + STR(count) + "\n";
@@ -2644,10 +2619,6 @@ void OpEdgeStorage::dumpResolveAll(OpContours* c) {
 }
 
 int OpLimbStorage::debugCount() const {
-#if OP_I_KNOW_WHAT_IM_DOING
-    if (!this)
-        return 0;
-#endif
     int result = used;
     OpLimbStorage* block = nextBlock;
     while (nextBlock) {
@@ -2668,10 +2639,6 @@ const OpLimb* OpLimbStorage::debugFind(int ID) const {
 }
 
 OpLimb* OpLimbStorage::debugIndex(int index) {
-#if OP_I_KNOW_WHAT_IM_DOING
-    if (!this)
-        return nullptr;
-#endif
     OpLimbStorage* block = this;
     while (index > block->used) {
         index -= block->used;
@@ -2811,7 +2778,7 @@ std::string OpJoiner::debugDump(DebugLevel l, DebugBase b) const {
         else
             s += lastLink->debugDump(l, b) + "\n";
     }
-    if (!OpMath::IsNaN(matchPt.x) && !OpMath::IsNaN(matchPt.y))
+    if (!OpMath::IsDebugNaN(matchPt.x) && !OpMath::IsDebugNaN(matchPt.y))
         s += "matchPt:" + matchPt.debugDump(l, b) + " ";
     if (disabledBuilt)
         s += "disabledBuilt ";
@@ -3659,10 +3626,6 @@ void OpIntersections::dumpSet(const char*& str) {
 }
 
 int OpSectStorage::debugCount() const {
-#if OP_I_KNOW_WHAT_IM_DOING
-    if (!this)
-        return 0;
-#endif
     int result = used;
     OpSectStorage* block = next;
     while (next) {
@@ -3673,7 +3636,7 @@ int OpSectStorage::debugCount() const {
 }
 
 OpIntersection* OpSectStorage::debugFind(int ID) const {
-	for (size_t index = 0; index < used; index++) {
+	for (int index = 0; index < used; index++) {
 		const OpIntersection& test = storage[index];
         if (test.id == ID)
             return const_cast<OpIntersection*>(&test);
@@ -3684,10 +3647,6 @@ OpIntersection* OpSectStorage::debugFind(int ID) const {
 }
 
 OpIntersection* OpSectStorage::debugIndex(int index) const {
-#if OP_I_KNOW_WHAT_IM_DOING
-    if (!this)
-        return nullptr;
-#endif
     const OpSectStorage* block = this;
     while (index > block->used) {
         index -= block->used;
@@ -3729,7 +3688,7 @@ void OpSectStorage::DumpSet(const char*& str, OpContours* dumpContours) {
 }
 
 void OpSectStorage::dumpResolveAll(OpContours* c) {
-    size_t count = debugCount();
+    int count = debugCount();
     for (int index = 0; index < count; ++index) {
         debugIndex(index)->dumpResolveAll(c);
     }

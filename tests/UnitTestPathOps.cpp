@@ -1163,10 +1163,10 @@ void LineCoincidenceTest() {
     SetContextCallBacks(context, testNoEmptyPath, testMakeLine, getTestLineType, maxSignSwap,
 			maxDepth, maxSplits, maxLimbs);
 
-    testLineType = SetCurveCallBacks(context, lineAxisT, noHull, lineIsFinite, 
-            lineIsLine, noBounds, lineNormal, testOutput, noPinCtrl, noReverse,
-            lineTangent, linesEqual, linePtAtT,
-            linePtCount, noRotate, lineSubDivide, lineXYAtT,
+    testLineType = SetCurveCallBacks(context, lineAxisT, nullptr, nullptr, 
+            nullptr, noBounds, testOutput, nullptr, nullptr,
+            lineTangent, nullptr, linePtAtT,
+            nullptr, nullptr, lineSubDivide, lineXYAtT,
 			lineCut, lineNormalLimit, lineInterceptLimit
 			OP_DEBUG_PARAMS(noDebugScale)
             OP_DEBUG_DUMP_PARAMS(noDumpName, noDumpCurveExtra)
@@ -1266,7 +1266,7 @@ extern void testFrame();
 
 void OpTest(bool terminateEarly) {
 //	testFrame();
-	TestPath2D(false);
+//	TestPath2D(false);
 //	LineCoincidenceTest();
 #if 0
 	CCTestKey(0x09b54c61);

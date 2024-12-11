@@ -115,10 +115,9 @@ void SetContextCallBacks(Context* context, EmptyNativePath emptyNativePath, Make
 
 CurveType SetCurveCallBacks(Context* context, AxisT axisFunc,
         CurveHull hullFunc, CurveIsFinite isFiniteFunc, CurveIsLine isLineFunc, 
-        SetBounds setBoundsFunc, CurveNormal normalFunc, 
-        CurveOutput outputFunc, CurvePinCtrl curvePinFunc, 
+        SetBounds setBoundsFunc, CurveOutput outputFunc, CurvePinCtrl curvePinFunc, 
 		CurveReverse reverseFunc, CurveTangent tangentFunc, CurvesEqual equalFunc, PtAtT ptAtTFunc, 
-        PtCount ptCountFunc, Rotate rotateFunc, SubDivide subDivideFunc, XYAtT xyAtTFunc,
+        HullPtCount ptCountFunc, Rotate rotateFunc, SubDivide subDivideFunc, XYAtT xyAtTFunc,
 		CurveConst cutFunc, CurveConst normalLimitFunc, CurveConst interceptLimitFunc
 		OP_DEBUG_PARAMS(DebugScale debugScaleFunc)
         OP_DEBUG_DUMP_PARAMS(DebugDumpCurveName debugDumpNameFunc, 
@@ -127,7 +126,7 @@ CurveType SetCurveCallBacks(Context* context, AxisT axisFunc,
 ) {
     OpContours* contours = (OpContours*) context;
     contours->callBacks.push_back( { axisFunc, hullFunc, isFiniteFunc, isLineFunc, 
-            setBoundsFunc, normalFunc, outputFunc, curvePinFunc, reverseFunc, 
+            setBoundsFunc, outputFunc, curvePinFunc, reverseFunc, 
             tangentFunc, equalFunc, ptAtTFunc, ptCountFunc, rotateFunc, 
             subDivideFunc, xyAtTFunc,
 			cutFunc, normalLimitFunc, interceptLimitFunc

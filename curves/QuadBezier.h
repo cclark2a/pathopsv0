@@ -107,8 +107,8 @@ inline void quadSetControl(Curve c, OpPoint pt) {
 }
 
 // callback functions
-inline size_t quadPtCount() {
-    return 3;
+inline int quadHullPtCount() {
+    return 1;
 }
 
 inline bool quadIsFinite(Curve c) {
@@ -148,10 +148,12 @@ inline OpVector quadTangent(Curve c, float t) {
     return QuadTangent(c.data->start, quadControlPt(c), c.data->end, t);
 }
 
+#if 0
 inline OpVector quadNormal(Curve c, float t) {
     OpVector tan = quadTangent(c, t);
     return { -tan.dy, tan.dx };
 }
+#endif
 
 inline void quadPinCtrl(Curve c) {
     OpPoint ctrlPt = quadControlPt(c);
@@ -159,10 +161,14 @@ inline void quadPinCtrl(Curve c) {
     quadSetControl(c, ctrlPt);
 }
 
-inline void quadRotate(Curve c, const LinePts& line, float adj, float opp, Curve result) {
+inline void quadRotate(Curve c, OpPoint origin, OpVector s, Curve result) {
     OpPoint ctrlPt = quadControlPt(c);
-    OpVector v = ctrlPt - line.pts[0];
-    OpPoint rotated(v.dy * adj - v.dx * opp, v.dy * opp + v.dx * adj);
+    OpVector v = ctrlPt - origin;
+#if 1  // disabling this triggers an error in testQuads26021089
+	OpPoint rotated(s.cross(v), s.dot(v));
+#else
+    OpPoint rotated(v.dy * s.dx - v.dx * s.dy, v.dy * s.dy + v.dx * s.dx);
+#endif
     quadSetControl(result, rotated);
 }
 

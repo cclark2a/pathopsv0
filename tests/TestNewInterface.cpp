@@ -64,10 +64,10 @@ void testNewInterface() {
 #endif
 
     lineType = SetCurveCallBacks(context, lineAxisT, 
-			noHull, lineIsFinite, lineIsLine, 
-			noBounds, lineNormal, lineOutput, noPinCtrl, 
-			noReverse, lineTangent, linesEqual, linePtAtT, 
-            linePtCount, noRotate, lineSubDivide, lineXYAtT,
+			nullptr, nullptr, nullptr, 
+			noBounds, lineOutput, nullptr, 
+			nullptr, lineTangent, nullptr, linePtAtT, 
+            nullptr, nullptr, lineSubDivide, lineXYAtT,
 			lineCut, lineNormalLimit, lineInterceptLimit
 			OP_DEBUG_PARAMS(noDebugScale)
             OP_DEBUG_DUMP_PARAMS(noDumpName, noDumpCurveExtra)
@@ -75,9 +75,9 @@ void testNewInterface() {
     );
     quadType = SetCurveCallBacks(context, quadAxisT,
 			quadHull, quadIsFinite, quadIsLine, 
-			quadSetBounds, quadNormal, quadOutput, quadPinCtrl, 
-			noReverse, quadTangent, quadsEqual, quadPtAtT,
-            quadPtCount, quadRotate, quadSubDivide, quadXYAtT,
+			quadSetBounds, quadOutput, quadPinCtrl, 
+			nullptr, quadTangent, quadsEqual, quadPtAtT,
+            quadHullPtCount, quadRotate, quadSubDivide, quadXYAtT,
 			lineCut, lineNormalLimit, lineInterceptLimit
 			OP_DEBUG_PARAMS(noDebugScale)
             OP_DEBUG_DUMP_PARAMS(noDumpName, noDumpCurveExtra)

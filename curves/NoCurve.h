@@ -11,20 +11,6 @@ inline void noBounds(Curve , OpRect& ) {
 inline void noEmptyPath(PathOutput ) {
 }
 
-inline OpPoint noHull(Curve , int index) {
-    OP_ASSERT(0); // should never be called
-    return OpPoint();
-}
-
-inline void noPinCtrl(Curve) {
-}
-
-inline void noReverse(Curve ) {
-}
-
-inline void noRotate(Curve , const LinePts& , float , float , Curve ) {
-}
-
 // !!! put these in a different header?
 inline int maxDepth(Curve , Curve ) {
 	return 64;
@@ -39,7 +25,7 @@ inline float maxSignSwap(Curve , Curve ) {
 }
 
 inline int maxLimbs() {
-	return 500;
+	return 1100;
 }
 
 inline WindKeep noWindKeepFunc(Winding , Winding ) {

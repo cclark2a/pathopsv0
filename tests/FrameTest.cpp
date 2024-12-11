@@ -152,18 +152,18 @@ void testFrame() {
 #endif
 
     frameLine = SetCurveCallBacks(context, lineAxisT, 
-			noHull, lineIsFinite, lineIsLine, 
-			noBounds, lineNormal, frameOutput, noPinCtrl, 
-			noReverse, lineTangent, linesEqual, linePtAtT, 
-            linePtCount, noRotate, lineSubDivide, lineXYAtT,
+			nullptr, nullptr, nullptr, 
+			noBounds, frameOutput, nullptr, 
+			nullptr, lineTangent, nullptr, linePtAtT, 
+            nullptr, nullptr, lineSubDivide, lineXYAtT,
 			lineCut, lineNormalLimit, lineInterceptLimit
 			OP_DEBUG_PARAMS(noDebugScale)
             OP_DEBUG_DUMP_PARAMS(noDumpName, noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
     );
     frameQuad = SetCurveCallBacks(context, quadAxisT, quadHull, 
-			quadIsFinite, quadIsLine, quadSetBounds, quadNormal, frameOutput, quadPinCtrl, 
-            noReverse, quadTangent, quadsEqual, quadPtAtT, quadPtCount, quadRotate, 
+			quadIsFinite, quadIsLine, quadSetBounds, frameOutput, quadPinCtrl, 
+            nullptr, quadTangent, quadsEqual, quadPtAtT, quadHullPtCount, quadRotate, 
 			quadSubDivide, quadXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
 			OP_DEBUG_PARAMS(noDebugScale)
             OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, noDumpCurveExtra)

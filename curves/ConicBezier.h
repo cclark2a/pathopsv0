@@ -167,10 +167,6 @@ inline size_t AddConics(AddCurve curve, AddWinding windings) {
 }
 
 // callback functions
-inline size_t conicPtCount() {
-    return 3;
-}
-
 inline bool conicIsFinite(Curve c) {
     PointWeight control(c);
     return control.pt.isFinite();
@@ -213,15 +209,21 @@ inline OpVector conicTangent(Curve c, float t) {
     return ConicTangent(c.data->start, control, c.data->end, t);
 }
 
+#if 0
 inline OpVector conicNormal(Curve c, float t) {
     OpVector tan = conicTangent(c, t);
     return { -tan.dy, tan.dx };
 }
+#endif
 
-inline void conicRotate(Curve c, const LinePts& line, float adj, float opp, Curve result) {
+inline void conicRotate(Curve c, OpPoint origin, OpVector scale, Curve result) {
     PointWeight control(c);
-    OpVector v = control.pt - line.pts[0];
-    PointWeight rotated({ v.dy * adj - v.dx * opp, v.dy * opp + v.dx * adj }, control.weight);
+    OpVector v = control.pt - origin;
+#if 1
+    PointWeight rotated({ scale.cross(v), scale.dot(v) }, control.weight);
+#else
+    PointWeight rotated({ v.dy * s.dx - v.dx * s.dy, v.dy * s.dy + v.dx * s.dx }, control.weight);
+#endif
     rotated.copyTo(result);
 }
 

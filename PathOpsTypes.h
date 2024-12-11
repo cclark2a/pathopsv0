@@ -135,8 +135,8 @@ typedef void* PathOutput;
 // intersects the curve and axis at the axis intercept
 typedef OpRoots (*AxisT)(Curve , Axis , float axisIntercept, MatchEnds);
 
-// returns number of points in curve, including start and end (minimum 2)
-typedef size_t (*PtCount)();
+// returns number of points in curve user data that contribute to hull
+typedef int (*HullPtCount)();
 
 // typedef bool (*ControlNearlyEnd)(Curve );
 
@@ -158,7 +158,8 @@ typedef bool (*CurvesEqual)(Curve , Curve );
 typedef OpPoint (*CurveHull)(Curve, int index);
 
 // returns normal vector at parameter t, where: t=0 is start, t=1 is end
-typedef OpVector (*CurveNormal)(Curve, float t);
+// since normal is always rotated tangent, remove it so that user cannot define it otherwise
+// typedef OpVector (*CurveNormal)(Curve, float t);
 
 // adds curve to output
 typedef void (*CurveOutput)(Curve, bool firstPt, bool lastPt, PathOutput );
@@ -169,7 +170,7 @@ typedef void (*CurvePinCtrl)(Curve);
 // reverses order of control points, if there is more than one
 typedef void (*CurveReverse)(Curve);
 
-typedef void (*Rotate)(Curve , const LinePts& , float adj, float opp, Curve result);
+typedef void (*Rotate)(Curve , OpPoint origin, OpVector scale, Curve result);
 
 // computes part of Curve from parameter t1 to t2, both from zero to one
 typedef void (*SubDivide)(Curve , OpPtT t1, OpPtT t2, Curve result);
@@ -207,14 +208,13 @@ struct CurveCallBacks {
 	CurveIsFinite curveIsFiniteFuncPtr;
 	CurveIsLine curveIsLineFuncPtr;
 	SetBounds setBoundsFuncPtr;
-	CurveNormal curveNormalFuncPtr;
 	CurveOutput curveOutputFuncPtr;
 	CurvePinCtrl curvePinCtrlFuncPtr;
 	CurveReverse curveReverseFuncPtr;
 	CurveTangent curveTangentFuncPtr;
 	CurvesEqual curvesEqualFuncPtr;
 	PtAtT  ptAtTFuncPtr;
-	PtCount ptCountFuncPtr;
+	HullPtCount ptCountFuncPtr;
 	Rotate rotateFuncPtr;
 	SubDivide subDivideFuncPtr;
 	XYAtT xyAtTFuncPtr;

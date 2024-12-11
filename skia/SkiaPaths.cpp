@@ -162,9 +162,9 @@ enum class SkiaCurveType : int {
 
 // new interface
 void SetSkiaCurveCallBacks(Context* context) {
-    OP_DEBUG_CODE(CurveType lineType =) SetCurveCallBacks(context, lineAxisT, noHull, 
-			lineIsFinite, lineIsLine, noBounds, lineNormal, skiaLineOutput, noPinCtrl, 
-			noReverse, lineTangent, linesEqual, linePtAtT, linePtCount, noRotate, 
+    OP_DEBUG_CODE(CurveType lineType =) SetCurveCallBacks(context, lineAxisT, nullptr, 
+			nullptr, nullptr, noBounds, skiaLineOutput, nullptr, 
+			nullptr, lineTangent, nullptr, linePtAtT, nullptr, nullptr, 
 			lineSubDivide, lineXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
 			OP_DEBUG_PARAMS(debugLineScale)
             OP_DEBUG_DUMP_PARAMS(lineDebugDumpName, noDumpCurveExtra)
@@ -172,8 +172,8 @@ void SetSkiaCurveCallBacks(Context* context) {
     );
 	OP_ASSERT((int) lineType == (int) SkiaCurveType::skiaLineType);
     OP_DEBUG_CODE(CurveType quadType =) SetCurveCallBacks(context, quadAxisT, quadHull, 
-			quadIsFinite, quadIsLine, quadSetBounds, quadNormal, skiaQuadOutput, quadPinCtrl, 
-            noReverse, quadTangent, quadsEqual, quadPtAtT, quadPtCount, quadRotate, 
+			quadIsFinite, quadIsLine, quadSetBounds, skiaQuadOutput, quadPinCtrl, 
+            nullptr, quadTangent, quadsEqual, quadPtAtT, quadHullPtCount, quadRotate, 
 			quadSubDivide, quadXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
 			OP_DEBUG_PARAMS(debugQuadScale)
             OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, noDumpCurveExtra)
@@ -181,8 +181,8 @@ void SetSkiaCurveCallBacks(Context* context) {
     );
 	OP_ASSERT((int) quadType == (int) SkiaCurveType::skiaQuadType);
     OP_DEBUG_CODE(CurveType conicType =) SetCurveCallBacks(context, conicAxisT, conicHull, 
-            conicIsFinite, conicIsLine, conicSetBounds, conicNormal, skiaConicOutput, quadPinCtrl, 
-			noReverse, conicTangent, conicsEqual, conicPtAtT, conicPtCount, conicRotate, 
+            conicIsFinite, conicIsLine, conicSetBounds, skiaConicOutput, quadPinCtrl, 
+			nullptr, conicTangent, conicsEqual, conicPtAtT, quadHullPtCount, conicRotate, 
 			conicSubDivide, conicXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
 			OP_DEBUG_PARAMS(debugConicScale)
             OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
@@ -190,8 +190,8 @@ void SetSkiaCurveCallBacks(Context* context) {
     );
 	OP_ASSERT((int) conicType == (int) SkiaCurveType::skiaConicType);
     OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallBacks(context, cubicAxisT, cubicHull, 
-            cubicIsFinite, cubicIsLine, cubicSetBounds, cubicNormal, skiaCubicOutput, cubicPinCtrl, 
-			cubicReverse, cubicTangent, cubicsEqual, cubicPtAtT, cubicPtCount, cubicRotate, 
+            cubicIsFinite, cubicIsLine, cubicSetBounds, skiaCubicOutput, cubicPinCtrl, 
+			cubicReverse, cubicTangent, cubicsEqual, cubicPtAtT, cubicHullPtCount, cubicRotate, 
 			cubicSubDivide, cubicXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
 			OP_DEBUG_PARAMS(debugCubicScale)
             OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, noDumpCurveExtra)

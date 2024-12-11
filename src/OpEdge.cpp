@@ -725,7 +725,7 @@ bool OpEdgeStorage::contains(OpIntersection* start, OpIntersection* end) const {
 #endif
 
 bool OpEdgeStorage::contains(OpPoint start, OpPoint end) const {
-	for (size_t index = 0; index < used; index++) {
+	for (int index = 0; index < used; index++) {
 		const OpEdge* test = &storage[index];
 		if (test->start().pt == start && test->end().pt == end)
 			return true;
@@ -736,7 +736,7 @@ bool OpEdgeStorage::contains(OpPoint start, OpPoint end) const {
 }
 
 void OpEdgeStorage::reuse() {
-	for (size_t index = 0; index < used; ++index)
+	for (int index = 0; index < used; ++index)
 		storage[index].~OpEdge();
 	used = 0;
 	next = nullptr;
