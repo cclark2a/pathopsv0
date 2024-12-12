@@ -4,7 +4,7 @@
 
 #include "OpJoiner.h"
 #include "OpTightBounds.h"
-#if OP_DEBUG && TEST_RASTER
+#if TEST_RASTER
 #include "OpDebugRaster.h"
 #endif
 
@@ -385,6 +385,9 @@ struct OpContours {
 
 	bool debugFail() const;
 #if OP_DEBUG
+	PathOpsV0Lib::DebugCurveCallBacks& debugCallBack(PathOpsV0Lib::CurveType type) {
+		return debugCallBacks[(int) type - 1];
+	}
 	void debugRemap(int oldRayMatch, int newRayMatch);
 	bool debugSuccess() const;
 #endif
@@ -438,8 +441,10 @@ struct OpContours {
 	OpDebugSamples sampleOutputs;  // curve output + combined operands
 	OpDebugRaster rasterOutput;
 	OpDebugRaster rasterCombined;
+	bool rasterEnabled;
 #endif
 #if OP_DEBUG
+	std::vector<PathOpsV0Lib::DebugCurveCallBacks> debugCallBacks;
 	OpDebugData debugData;
 	OpCurveCurve* debugCurveCurve;
 	OpJoiner* debugJoiner;

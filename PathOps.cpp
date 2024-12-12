@@ -119,10 +119,6 @@ CurveType SetCurveCallBacks(Context* context, AxisT axisFunc,
 		CurveReverse reverseFunc, CurveTangent tangentFunc, CurvesEqual equalFunc, PtAtT ptAtTFunc, 
         HullPtCount ptCountFunc, Rotate rotateFunc, SubDivide subDivideFunc, XYAtT xyAtTFunc,
 		CurveConst cutFunc, CurveConst normalLimitFunc, CurveConst interceptLimitFunc
-		OP_DEBUG_PARAMS(DebugScale debugScaleFunc)
-        OP_DEBUG_DUMP_PARAMS(DebugDumpCurveName debugDumpNameFunc, 
-        DebugDumpCurveExtra debugDumpExtraFunc)
-		OP_DEBUG_IMAGE_PARAMS(DebugAddToPath debugAddToPathFunc)
 ) {
     OpContours* contours = (OpContours*) context;
     contours->callBacks.push_back( { axisFunc, hullFunc, isFiniteFunc, isLineFunc, 
@@ -130,9 +126,6 @@ CurveType SetCurveCallBacks(Context* context, AxisT axisFunc,
             tangentFunc, equalFunc, ptAtTFunc, ptCountFunc, rotateFunc, 
             subDivideFunc, xyAtTFunc,
 			cutFunc, normalLimitFunc, interceptLimitFunc
-			OP_DEBUG_PARAMS(debugScaleFunc)
-		    OP_DEBUG_DUMP_PARAMS(debugDumpNameFunc, debugDumpExtraFunc)
-		    OP_DEBUG_IMAGE_PARAMS(debugAddToPathFunc)
             } );
     return (CurveType) contours->callBacks.size();
 }

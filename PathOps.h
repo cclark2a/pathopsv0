@@ -51,12 +51,8 @@ CurveType SetCurveCallBacks(Context* , AxisT,
 		CurveHull, CurveIsFinite, CurveIsLine,
 		SetBounds, CurveOutput, CurvePinCtrl,
 		CurveReverse, CurveTangent, CurvesEqual, PtAtT,
-		HullPtCount, Rotate, SubDivide, XYAtT, CurveConst cut, CurveConst normalLimit,
-		CurveConst interceptLimit
-		OP_DEBUG_PARAMS(DebugScale)
-		OP_DEBUG_DUMP_PARAMS(DebugDumpCurveName, DebugDumpCurveExtra)
-		OP_DEBUG_IMAGE_PARAMS(DebugAddToPath)
-	);
+		HullPtCount, Rotate, SubDivide, XYAtT, 
+		CurveConst cut, CurveConst normalLimit, CurveConst interceptLimit);
 
 void SetWindingCallBacks(Contour* , WindingAdd, WindingKeep ,
 		WindingSubtract , WindingVisible, WindingZero  OP_DEBUG_PARAMS(DebugBitOper)
@@ -67,6 +63,9 @@ void SetWindingCallBacks(Contour* , WindingAdd, WindingKeep ,
 
 #if OP_DEBUG
 void Debug(Context* , OpDebugData& );
+void SetDebugCurveCallBacks(Context* , CurveType , DebugScale 
+		OP_DEBUG_DUMP_PARAMS(DebugDumpCurveName, DebugDumpCurveExtra)
+		OP_DEBUG_IMAGE_PARAMS(DebugAddToPath) );
 #endif
 
 } // namespace PathOpsV0Lib

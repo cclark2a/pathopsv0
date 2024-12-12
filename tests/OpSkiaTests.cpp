@@ -585,6 +585,9 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
 		OpDebugData* debugDataPtr) {
     using namespace PathOpsV0Lib;
     Context* context = CreateContext({ nullptr, 0 });
+#if TEST_RASTER
+	((OpContours*) context)->rasterEnabled = true;
+#endif
     SetSkiaContextCallBacks(context);
     OP_DEBUG_CODE(if (debugDataPtr) Debug(context, *debugDataPtr));
     SetSkiaCurveCallBacks(context);
@@ -612,8 +615,7 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
 	Normalize(context);
 #if TEST_RASTER
 	OpContours* contours = (OpContours*) context;
-	OpDebugData& debugData = contours->debugData;
-	if (debugData.rasterEnabled) {
+	if (contours->rasterEnabled) {
 		contours->sampleOutputs.init(contours);
 		contours->sampleOperands.init(contours);
 		for (auto contour : contours->contours) {
@@ -636,8 +638,12 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
 	#if OP_DEBUG_FAST_TEST
 			std::lock_guard<std::mutex> guard(out_mutex);
 	#endif
+	#if OP_DEBUG
 			std::string testname = ((OpContours*) context)->debugData.testname;
 			OpDebugOut(testname + " raster errors:" + STR(rasterErrors) + "\n");
+	#else
+			OpDebugOut("raster errors:" + STR(rasterErrors) + "\n");
+	#endif
 		}
 //		OP_ASSERT(rasterErrors < 9);
 	}
@@ -691,9 +697,6 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     debugData.curveCurve1 = CURVE_CURVE_1;
     debugData.curveCurve2 = CURVE_CURVE_2;
     debugData.curveCurveDepth = CURVE_CURVE_DEPTH;
-#if TEST_RASTER
-	debugData.rasterEnabled = true;
-#endif
 	(void) OpV0(a, b, op, &result, &debugData);
 #endif
 #if TEST_SKIA

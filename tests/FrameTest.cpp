@@ -153,21 +153,15 @@ void testFrame() {
 
     frameLine = SetCurveCallBacks(context, lineAxisT, 
 			nullptr, nullptr, nullptr, 
-			noBounds, frameOutput, nullptr, 
+			nullptr, frameOutput, nullptr, 
 			nullptr, lineTangent, nullptr, linePtAtT, 
-            nullptr, nullptr, lineSubDivide, lineXYAtT,
+            nullptr, nullptr, nullptr, lineXYAtT,
 			lineCut, lineNormalLimit, lineInterceptLimit
-			OP_DEBUG_PARAMS(noDebugScale)
-            OP_DEBUG_DUMP_PARAMS(noDumpName, noDumpCurveExtra)
-            OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
     );
     frameQuad = SetCurveCallBacks(context, quadAxisT, quadHull, 
 			quadIsFinite, quadIsLine, quadSetBounds, frameOutput, quadPinCtrl, 
             nullptr, quadTangent, quadsEqual, quadPtAtT, quadHullPtCount, quadRotate, 
 			quadSubDivide, quadXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
-			OP_DEBUG_PARAMS(noDebugScale)
-            OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, noDumpCurveExtra)
-            OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
     );
 
 	FrameFill frameContourData = FrameFill::frame;

@@ -160,43 +160,40 @@ enum class SkiaCurveType : int {
 	skiaCubicType
 };
 
-// new interface
+// start here;
+// rearrange to allow nullptr as default
 void SetSkiaCurveCallBacks(Context* context) {
     OP_DEBUG_CODE(CurveType lineType =) SetCurveCallBacks(context, lineAxisT, nullptr, 
-			nullptr, nullptr, noBounds, skiaLineOutput, nullptr, 
+			nullptr, nullptr, nullptr, skiaLineOutput, nullptr, 
 			nullptr, lineTangent, nullptr, linePtAtT, nullptr, nullptr, 
-			lineSubDivide, lineXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
-			OP_DEBUG_PARAMS(debugLineScale)
+			nullptr, lineXYAtT, lineCut, lineNormalLimit, lineInterceptLimit);
+	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, lineType, debugLineScale
             OP_DEBUG_DUMP_PARAMS(lineDebugDumpName, noDumpCurveExtra)
-            OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath)
-    );
+            OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath)));
 	OP_ASSERT((int) lineType == (int) SkiaCurveType::skiaLineType);
     OP_DEBUG_CODE(CurveType quadType =) SetCurveCallBacks(context, quadAxisT, quadHull, 
 			quadIsFinite, quadIsLine, quadSetBounds, skiaQuadOutput, quadPinCtrl, 
             nullptr, quadTangent, quadsEqual, quadPtAtT, quadHullPtCount, quadRotate, 
-			quadSubDivide, quadXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
-			OP_DEBUG_PARAMS(debugQuadScale)
+			quadSubDivide, quadXYAtT, lineCut, lineNormalLimit, lineInterceptLimit);
+	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, quadType, debugQuadScale
             OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, noDumpCurveExtra)
-            OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath)
-    );
+            OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath)));
 	OP_ASSERT((int) quadType == (int) SkiaCurveType::skiaQuadType);
     OP_DEBUG_CODE(CurveType conicType =) SetCurveCallBacks(context, conicAxisT, conicHull, 
             conicIsFinite, conicIsLine, conicSetBounds, skiaConicOutput, quadPinCtrl, 
 			nullptr, conicTangent, conicsEqual, conicPtAtT, quadHullPtCount, conicRotate, 
-			conicSubDivide, conicXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
-			OP_DEBUG_PARAMS(debugConicScale)
+			conicSubDivide, conicXYAtT, lineCut, lineNormalLimit, lineInterceptLimit);
+	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, conicType, debugConicScale
             OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
-            OP_DEBUG_IMAGE_PARAMS(debugConicAddToSkPath)
-    );
+            OP_DEBUG_IMAGE_PARAMS(debugConicAddToSkPath)));
 	OP_ASSERT((int) conicType == (int) SkiaCurveType::skiaConicType);
     OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallBacks(context, cubicAxisT, cubicHull, 
             cubicIsFinite, cubicIsLine, cubicSetBounds, skiaCubicOutput, cubicPinCtrl, 
 			cubicReverse, cubicTangent, cubicsEqual, cubicPtAtT, cubicHullPtCount, cubicRotate, 
-			cubicSubDivide, cubicXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
-			OP_DEBUG_PARAMS(debugCubicScale)
+			cubicSubDivide, cubicXYAtT, lineCut, lineNormalLimit, lineInterceptLimit);
+	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, cubicType, debugCubicScale
             OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, noDumpCurveExtra)
-            OP_DEBUG_IMAGE_PARAMS(debugCubicAddToSkPath)
-    );
+            OP_DEBUG_IMAGE_PARAMS(debugCubicAddToSkPath)));
 	OP_ASSERT((int) cubicType == (int) SkiaCurveType::skiaCubicType);
 }
 

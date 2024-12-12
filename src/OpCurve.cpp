@@ -23,7 +23,7 @@ float OpCurve::center(Axis axis, float intercept) const {
 OpPtT OpCurve::cut(const OpPtT& ptT, float loBounds, float hiBounds, float direction) const {
 	OP_ASSERT(1 == fabsf(direction));
 	OP_ASSERT(loBounds <= ptT.t && ptT.t <= hiBounds);
-	float tStep = contours->callBack(c.type).cutFuncPtr(); 
+	float tStep = contours->callBack(c.type).cutFuncPtr(c); 
 	float cutDt = OpEpsilon * tStep;
 	OpVector threshold = contours->threshold();
 	float minDistanceSq = threshold.lengthSquared() * tStep;
@@ -44,7 +44,7 @@ OpPtT OpCurve::cut(const OpPtT& ptT, float loBounds, float hiBounds, float direc
 
 // cut range minimum should be double the distance between ptT pt and opp pt
 CutRangeT OpCurve::cutRange(const OpPtT& ptT, OpPoint oppPt, float loEnd, float hiEnd) const {
-	float tStep = contours->callBack(c.type).cutFuncPtr();
+	float tStep = contours->callBack(c.type).cutFuncPtr(c);
 	float cutDt = OpEpsilon * tStep;
 	OpVector threshold = contours->threshold();
 	float minDistanceSq = threshold.lengthSquared() * tStep;
@@ -343,7 +343,11 @@ OpPoint OpCurve::ptAtT(float t) const {
 OpCurve OpCurve::subDivide(OpPtT ptT1, OpPtT ptT2) const {
 	PathOpsV0Lib::Curve newCurve { c.data, c.size, c.type };
 	OpCurve newResult(contours, newCurve);
-	contours->callBack(c.type).subDivideFuncPtr(c, ptT1, ptT2, newResult.c);
+    newResult.c.data->start = ptT1.pt;
+    newResult.c.data->end = ptT2.pt;
+	PathOpsV0Lib::SubDivide funcPtr = contours->callBack(c.type).subDivideFuncPtr;
+	if (funcPtr)
+		(*funcPtr)(c, ptT1.t, ptT2.t, newResult.c);
 	return newResult;
 }
 
@@ -437,7 +441,9 @@ bool OpCurve::debugIsLine() const {
 OpPointBounds OpCurve::ptBounds() const {
 	OpPointBounds result;
 	result.set(c.data->start, c.data->end);
-	contours->callBack(c.type).setBoundsFuncPtr(c, result);
+	PathOpsV0Lib::SetBounds funcPtr = contours->callBack(c.type).setBoundsFuncPtr;
+	if (funcPtr)
+		(*funcPtr)(c, result);
 	return result;
 }
 
@@ -445,7 +451,7 @@ void OpCurve::output(bool firstPt, bool lastPt  OP_DEBUG_PARAMS(int parentID)) {
 	contours->initOutOnce();
 	contours->callBack(c.type).curveOutputFuncPtr(c, firstPt, lastPt, contours->callerOutput);
 #if OP_DEBUG && TEST_RASTER
-	if (contours->debugData.rasterEnabled) {
+	if (contours->rasterEnabled) {
 		contours->sampleOutputs.addCurveXatY(c  OP_DEBUG_PARAMS(parentID));
 		contours->sampleOutputs.addCurveYatX(c  OP_DEBUG_PARAMS(parentID));
 	}

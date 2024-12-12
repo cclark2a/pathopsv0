@@ -22,6 +22,13 @@ static float toLimit(float x) {
 	return (int64_t) (x - .5f) + .5f;
 }
 
+
+void OpCurve::debugScale(double scale, double offsetX, double offsetY) {
+#if OP_DEBUG
+	contours->debugCallBack(c.type).scaleFuncPtr(c, scale, offsetX, offsetY);
+#endif
+}
+
 void OpDebugSamples::addCurveXatY(Curve original, int parentID, OpWinding* winding, bool curveDown) {
 	OP_DEBUG_CODE(OpCurve orig(contours, original));
 	OpCurve curve(contours, original);
@@ -76,7 +83,7 @@ void OpDebugSamples::addCurveYatX(Curve original, int parentID, OpWinding* windi
 }
 
 float OpDebugSamples::compare(OpDebugSamples& outputs) {
-	if (!contours->debugData.rasterEnabled)
+	if (!contours->rasterEnabled)
 		return 0;
 	if (samples.size())
 		return 0;
@@ -147,7 +154,7 @@ float OpDebugSamples::compare(OpDebugSamples& outputs) {
 
 void OpDebugSamples::init(OpContours* contrs) {
 	contours = contrs;
-	if (!contours->debugData.rasterEnabled)
+	if (!contours->rasterEnabled)
 		return;
 	float scaleX = bitWidth / contours->maxBounds.width();
 	float scaleY = bitHeight / contours->maxBounds.height();
@@ -215,7 +222,7 @@ void dmpSample(const OpDebugSamples* samples, int match) {
 
 void OpDebugRaster::rasterize(const OpDebugSamples& samples, OpContour* cntr) {
 	init();
-	if (!samples.contours->debugData.rasterEnabled)
+	if (!samples.contours->rasterEnabled)
 		return;
 	OpWinding sum(WindingUninitialized::dummy);
 	int intY = -1;

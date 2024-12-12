@@ -176,9 +176,9 @@ inline void quadSetBounds(Curve c, OpRect& bounds) {
     bounds.add(quadControlPt(c));
 }
 
-inline void quadSubDivide(Curve c, OpPtT ptT1, OpPtT ptT2, Curve result) {
-    result.data->start = ptT1.pt;
-    result.data->end = ptT2.pt;
+inline void quadSubDivide(Curve c, float t1, float t2, Curve result) {
+	OpPtT ptT1 { result.data->start, t1 };
+	OpPtT ptT2 { result.data->end, t2 };
     OpPoint subControl = QuadControlPt(c.data->start, quadControlPt(c), c.data->end, ptT1, ptT2);
     quadSetControl(result, subControl);
 }

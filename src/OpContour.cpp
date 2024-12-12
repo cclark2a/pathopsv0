@@ -238,6 +238,9 @@ OpContours::OpContours()
 	debugFailOnEqualCepts = false;
 	OP_DEBUG_DUMP_CODE(debugDumpInit = false);
 #endif
+#if TEST_RASTER
+	rasterEnabled = false;
+#endif
 }
 
 OpContours::~OpContours() {
@@ -428,7 +431,7 @@ void OpContours::opsInit() {
 	setThreshold();
 	normalize();  // collect extremes, map all from 0 to 1, map <= epsilon to zero
 #if TEST_RASTER
-	if (debugData.rasterEnabled)
+	if (rasterEnabled)
 		rasterOutput.init();
 #endif
 }

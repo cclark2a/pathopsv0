@@ -173,7 +173,7 @@ typedef void (*CurveReverse)(Curve);
 typedef void (*Rotate)(Curve , OpPoint origin, OpVector scale, Curve result);
 
 // computes part of Curve from parameter t1 to t2, both from zero to one
-typedef void (*SubDivide)(Curve , OpPtT t1, OpPtT t2, Curve result);
+typedef void (*SubDivide)(Curve , float t1, float t2, Curve result);
 
 // returns tangent vector at parameter t, where: t=0 is start, t=1 is end
 typedef OpVector (*CurveTangent)(Curve, float t);
@@ -183,7 +183,7 @@ typedef void (*SetBounds)(Curve , OpRect& );
 // returns either x or y pair at parameter t, where: t=0 is start, t=1 is end
 typedef OpPair (*XYAtT)(Curve , OpPair t, XyChoice );
 
-typedef float (*CurveConst)();
+typedef float (*CurveConst)(Curve );
 
 #if OP_DEBUG
 typedef void (*DebugScale)(Curve , double scale, double offsetX, double offsetY);
@@ -221,17 +221,16 @@ struct CurveCallBacks {
 	CurveConst cutFuncPtr;
 	CurveConst normalLimitFuncPtr;
 	CurveConst interceptFuncPtr;
-#if OP_DEBUG
-	DebugScale debugScaleFuncPtr;
-#endif
-#if OP_DEBUG_DUMP
-	DebugDumpCurveName debugDumpCurveNameFuncPtr;
-	DebugDumpCurveExtra debugDumpCurveExtraFuncPtr;
-#endif
-#if OP_DEBUG_IMAGE
-	DebugAddToPath debugAddToPathFuncPtr;
-#endif
 };
+
+#if OP_DEBUG
+struct DebugCurveCallBacks {
+	DebugScale scaleFuncPtr;
+	OP_DEBUG_DUMP_CODE(DebugDumpCurveName curveNameFuncPtr;)
+	OP_DEBUG_DUMP_CODE(DebugDumpCurveExtra curveExtraFuncPtr;)
+	OP_DEBUG_IMAGE_CODE(DebugAddToPath addToPathFuncPtr;)
+};
+#endif
 
 typedef Winding (*WindingAdd)(Winding winding, Winding toAdd);
 typedef Winding (*WindingSubtract)(Winding winding, Winding toSubtract);

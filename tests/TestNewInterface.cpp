@@ -65,13 +65,10 @@ void testNewInterface() {
 
     lineType = SetCurveCallBacks(context, lineAxisT, 
 			nullptr, nullptr, nullptr, 
-			noBounds, lineOutput, nullptr, 
+			nullptr, lineOutput, nullptr, 
 			nullptr, lineTangent, nullptr, linePtAtT, 
-            nullptr, nullptr, lineSubDivide, lineXYAtT,
+            nullptr, nullptr, nullptr, lineXYAtT,
 			lineCut, lineNormalLimit, lineInterceptLimit
-			OP_DEBUG_PARAMS(noDebugScale)
-            OP_DEBUG_DUMP_PARAMS(noDumpName, noDumpCurveExtra)
-            OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
     );
     quadType = SetCurveCallBacks(context, quadAxisT,
 			quadHull, quadIsFinite, quadIsLine, 
@@ -79,9 +76,6 @@ void testNewInterface() {
 			nullptr, quadTangent, quadsEqual, quadPtAtT,
             quadHullPtCount, quadRotate, quadSubDivide, quadXYAtT,
 			lineCut, lineNormalLimit, lineInterceptLimit
-			OP_DEBUG_PARAMS(noDebugScale)
-            OP_DEBUG_DUMP_PARAMS(noDumpName, noDumpCurveExtra)
-            OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
     );
 
     // example: given points describing a pair of closed loops with quadratic Beziers, find

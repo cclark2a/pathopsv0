@@ -54,8 +54,7 @@ struct OpDebugRaster;
 struct OpDebugData {
 	OpDebugData(bool mayFail) 
 		: expect(mayFail ? OpDebugExpect::fail : OpDebugExpect::success)
-		, success(true)
-		, rasterEnabled(false) {
+		, success(true) {
 	}
 
 	std::string testname;
@@ -65,7 +64,6 @@ struct OpDebugData {
 	int curveCurve2;
 	int curveCurveDepth;
 	bool success;
-	bool rasterEnabled;
 };
 
 #define OP_DEBUG_CONTEXT(...)

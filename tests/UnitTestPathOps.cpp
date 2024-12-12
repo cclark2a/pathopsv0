@@ -1164,13 +1164,10 @@ void LineCoincidenceTest() {
 			maxDepth, maxSplits, maxLimbs);
 
     testLineType = SetCurveCallBacks(context, lineAxisT, nullptr, nullptr, 
-            nullptr, noBounds, testOutput, nullptr, nullptr,
+            nullptr, nullptr, testOutput, nullptr, nullptr,
             lineTangent, nullptr, linePtAtT,
-            nullptr, nullptr, lineSubDivide, lineXYAtT,
+            nullptr, nullptr, nullptr, lineXYAtT,
 			lineCut, lineNormalLimit, lineInterceptLimit
-			OP_DEBUG_PARAMS(noDebugScale)
-            OP_DEBUG_DUMP_PARAMS(noDumpName, noDumpCurveExtra)
-            OP_DEBUG_IMAGE_PARAMS(noAddToSkPathFunc)
     );
 
     Contour* contour = CreateContour({context, nullptr, 0});

@@ -232,9 +232,9 @@ inline void conicSetBounds(Curve c, OpRect& bounds) {
     bounds.add(control.pt);
 }
 
-inline void conicSubDivide(Curve curve, OpPtT ptT1, OpPtT ptT2, Curve result) {
-    result.data->start = ptT1.pt;
-    result.data->end = ptT2.pt;
+inline void conicSubDivide(Curve curve, float t1, float t2, Curve result) {
+	OpPtT ptT1 { result.data->start, t1 };
+	OpPtT ptT2 { result.data->end, t2 };
     PointWeight control(curve);
     PointWeight subPtW = ConicControl(curve.data->start, control, curve.data->end, ptT1, ptT2);
     subPtW.copyTo(result);

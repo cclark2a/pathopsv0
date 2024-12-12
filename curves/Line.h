@@ -27,20 +27,15 @@ inline OpVector lineTangent(PathOpsV0Lib::Curve c, float ) {
     return c.data->end - c.data->start;
 }
 
-inline void lineSubDivide(PathOpsV0Lib::Curve , OpPtT ptT1, OpPtT ptT2, PathOpsV0Lib::Curve result) {
-    result.data->start = ptT1.pt;
-    result.data->end = ptT2.pt;
-}
-
-inline float lineCut() {
+inline float lineCut(PathOpsV0Lib::Curve ) {
 	return 16.f;
 }
 
-inline float lineNormalLimit() {
+inline float lineNormalLimit(PathOpsV0Lib::Curve ) {
 	return 0.008f; // 0.004  fails on testQuads19022897 edge 151 NxR:-0.00746
 }
 
-inline float lineInterceptLimit() {
+inline float lineInterceptLimit(PathOpsV0Lib::Curve ) {
 	return 1.f / 256.f;
 }
 

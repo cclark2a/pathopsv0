@@ -5,9 +5,6 @@
 
 namespace PathOpsV0Lib {
 
-inline void noBounds(Curve , OpRect& ) {
-}
-
 inline void noEmptyPath(PathOutput ) {
 }
 

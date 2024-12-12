@@ -599,30 +599,21 @@ static void SetupCurves(Context* context) {
 	// set context callbacks
 	// set curve callbacks
 	OP_DEBUG_CODE(CurveType lineType =) SetCurveCallBacks(context, lineAxisT, nullptr, 
-			nullptr, nullptr, noBounds, LineOutput, nullptr, 
+			nullptr, nullptr, nullptr, LineOutput, nullptr, 
 			nullptr, lineTangent, nullptr, linePtAtT, nullptr, nullptr, 
-			lineSubDivide, lineXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
-			OP_DEBUG_PARAMS(nullptr)
-			OP_DEBUG_DUMP_PARAMS(lineDebugDumpName, noDumpCurveExtra)
-			OP_DEBUG_IMAGE_PARAMS(nullptr)
+			nullptr, lineXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
 	);
 	OP_ASSERT((int) lineType == (int) Types::line);
 	OP_DEBUG_CODE(CurveType quadType =) SetCurveCallBacks(context, quadAxisT, quadHull, 
 			quadIsFinite, quadIsLine, quadSetBounds, QuadOutput, quadPinCtrl, 
 			nullptr, quadTangent, quadsEqual, quadPtAtT, quadHullPtCount, quadRotate, 
 			quadSubDivide, quadXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
-			OP_DEBUG_PARAMS(nullptr)
-			OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, noDumpCurveExtra)
-			OP_DEBUG_IMAGE_PARAMS(nullptr)
 	);
 	OP_ASSERT((int) quadType == (int) Types::quad);
     OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallBacks(context, cubicAxisT, cubicHull, 
             cubicIsFinite, cubicIsLine, cubicSetBounds, CubicOutput, cubicPinCtrl, 
 			cubicReverse, cubicTangent, cubicsEqual, cubicPtAtT, cubicHullPtCount, cubicRotate, 
 			cubicSubDivide, cubicXYAtT, lineCut, lineNormalLimit, lineInterceptLimit
-			OP_DEBUG_PARAMS(nullptr)
-            OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, noDumpCurveExtra)
-            OP_DEBUG_IMAGE_PARAMS(nullptr)
     );
 	OP_ASSERT((int) cubicType == (int) Types::cubic);
 }

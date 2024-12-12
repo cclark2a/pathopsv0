@@ -234,9 +234,9 @@ inline void cubicSetBounds(Curve c, OpRect& bounds) {
     bounds.add(controls.pts[1]);
 }
 
-inline void cubicSubDivide(Curve c, OpPtT ptT1, OpPtT ptT2, Curve result) {
-    result.data->start = ptT1.pt;
-    result.data->end = ptT2.pt;
+inline void cubicSubDivide(Curve c, float t1, float t2, Curve result) {
+	OpPtT ptT1 { result.data->start, t1 };
+	OpPtT ptT2 { result.data->end, t2 };
     CubicControls controls(c);
     CubicControls subControl = CubicControlPt(c.data->start, controls, c.data->end, ptT1, ptT2);
     subControl.copyTo(result);

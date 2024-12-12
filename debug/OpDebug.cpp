@@ -453,10 +453,6 @@ bool OpMath::IsDebugNaN(float f) {
 #include "OpCurveCurve.h"
 
 
-void OpCurve::debugScale(double scale, double offsetX, double offsetY) {
-	contours->callBack(c.type).debugScaleFuncPtr(c, scale, offsetX, offsetY);
-}
-
 // !!! debugging failure in thread_cubics8753
 #if 0
 OpCurve OpCurve::toVerticalDouble(const LinePts& line) const {
@@ -1049,5 +1045,20 @@ void debug() {
 }
 
 #endif
+
+#include "PathOps.h"
+
+namespace PathOpsV0Lib {
+
+void SetDebugCurveCallBacks(Context* context, CurveType , DebugScale scaleFunc
+		OP_DEBUG_DUMP_PARAMS(DebugDumpCurveName dumpNameFunc, DebugDumpCurveExtra dumpExtraFunc)
+		OP_DEBUG_IMAGE_PARAMS(DebugAddToPath addToPathFunc) ) {
+    OpContours* contours = (OpContours*) context;
+	contours->debugCallBacks.push_back( { scaleFunc
+			OP_DEBUG_DUMP_PARAMS(dumpNameFunc, dumpExtraFunc)
+			OP_DEBUG_IMAGE_PARAMS(addToPathFunc) } );
+}
+
+}
 
 #endif
