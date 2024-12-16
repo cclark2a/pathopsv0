@@ -104,7 +104,7 @@ void OpHulls::nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef 
 			if ((SectType::midHull == h[index].type || SectType::controlHull == h[index].type)
 					&& cc.checkSplit(h[index - 1].sect.t, edge.endT, which, h[index].sect))
 				goto tryAgain;
-			OP_ASSERT(h[index - 1].sect.t < h[index].sect.t);
+			OP_ASSERT(h[index - 1].sect.t <= h[index].sect.t);
 		}
 		break;
 tryAgain:

@@ -161,7 +161,9 @@ struct OpIntersections {
 	OpIntersections();
 	OpIntersection* add(OpIntersection* );
 	bool checkCollapse(OpIntersection* );
+	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp);
 	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp, OpPtT* nearby);
+	void coinRange(OpEdge& , OpSegment* opp, bool reversed);
 	OpIntersection* contains(const OpPtT& ptT, const OpSegment* opp);  // nearby ptT
 //	OpIntersection* const * entry(const OpPtT& , const OpSegment* opp) const;  // exact opp + ptT
 	void eraseCollapsed();

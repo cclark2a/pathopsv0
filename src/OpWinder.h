@@ -56,14 +56,10 @@ struct CoinEnd {
 
 struct OpWinder {
 	OpWinder(OpContours& contours);
-//	OpWinder(OpEdge* sEdge, OpEdge* oEdge);
 	void addEdge(OpEdge* );
-//	static IntersectResult AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, 
-//			bool secondAttempt = false);
 	static IntersectResult CoincidentCheck(OpSegment* seg, OpSegment* opp);
 	static IntersectResult CoincidentCheck(std::array<CoinEnd, 4>& ends, bool* oppReversed,
 			XyChoice* );
-	static IntersectResult CoincidentCheck(const OpEdge& edge, const OpEdge& opp);
 	FoundIntercept findRayIntercept(size_t inIndex, OpVector tangent, float normal, float homeCept);
 	void markUnsortable(Unsortable );
 	size_t setInIndex(size_t homeIndex, float homeCept, std::vector<OpEdge*>& inArray);

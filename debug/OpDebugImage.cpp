@@ -35,6 +35,7 @@ std::vector<OpDebugRay> lines;
 std::vector<OpPtT> ptTs;
 int gridIntervals = 8;
 int rasterIntervals = 64;
+int limbsShown = 0;  // <= 0 is show all
 
 #define OP_X(Thing) \
 bool draw##Thing##On = false;
@@ -116,7 +117,6 @@ struct OpDebugEdgeIter {
 			edgeIndex += debugGlobalContours->fillerStorage->debugCount();
 		if (debugGlobalContours->ccStorage)
 			edgeIndex += debugGlobalContours->ccStorage->debugCount();
-		OP_ASSERT(edgeIndex >= 418);
 	}
 
 	bool operator!=(OpDebugEdgeIter rhs) { 
@@ -244,7 +244,7 @@ struct OpDebugDefeatDelete {
 
 void OpDebugImage::addToPath(const OpCurve& curve, SkPath& path) {
 	path.moveTo(curve.firstPt().x, curve.firstPt().y);
-	return curve.contours->callBack(curve.c.type).debugAddToPathFuncPtr(curve.c, path);
+	return curve.contours->debugCallBack(curve.c.type).addToPathFuncPtr(curve.c, path);
 }
 
 void OpDebugImage::init() {
@@ -451,7 +451,7 @@ void OpDebugImage::drawDoubleFocus() {
 			if (drawTangentsOn)
 				DebugOpDrawEdgeTangent(edge, black);
 			if (drawWindingsOn)
-				DebugOpDrawEdgeWinding(edge, black);
+				DebugOpDrawEdgeWinding(edge, edge->disabled ? red : black);
 			if (drawEndToEndOn)
 				DebugOpDrawEdgeEndToEnd(edge, OpDebugAlphaColor(40, black));
 			if (drawControlLinesOn)
@@ -1539,7 +1539,8 @@ static void operateOnLimbEdges(std::function<void (OpEdge*)> fun) {
 	const OpTree* tree = debugGlobalContours->debugTree;
 	if (!tree)
 		return;
-	for (int index = 0; index < tree->totalUsed; ++index) {
+	int limit = limbsShown > 0 ? limbsShown : tree->totalUsed;
+	for (int index = 0; index < limit; ++index) {
 		const OpLimb& limb = debugGlobalContours->debugNthLimb(index);
 		OpEdge* edge = limb.edge;
 		fun(edge);
@@ -1580,6 +1581,11 @@ void toggleLimbs() {
 		edge->debugDraw ^= true;
 	});
 	drawLimbsOn ^= true;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void limbs(int limit) {
+	limbsShown = limit;
 	OpDebugImage::drawDoubleFocus();
 }
 
@@ -1669,6 +1675,34 @@ void showTemporaryEdges() {
 
 void toggleTemporaryEdges() {
 	operateOnTemporaryEdges([](OpEdge* edge) {
+		edge->debugDraw ^= true;
+	});
+}
+
+static void operateOnJoin(std::function<void (OpEdge*)> fun) {
+	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+		OpEdge* edge = const_cast<OpEdge*>(*edgeIter);
+		if (!edge->debugJoin)
+			continue;
+		fun(edge);
+	}
+	OpDebugImage::drawDoubleFocus();
+}
+
+void hideJoin() {
+	operateOnJoin([](OpEdge* edge) {
+		edge->debugDraw = false;
+	});
+}
+
+void showJoin() {
+	operateOnJoin([](OpEdge* edge) {
+		edge->debugDraw = true;
+	});
+}
+
+void toggleJoin() {
+	operateOnJoin([](OpEdge* edge) {
 		edge->debugDraw ^= true;
 	});
 }
@@ -1927,10 +1961,12 @@ int OpContours::debugLimbIndex(const OpEdge* edge) const {
 	for (int index = 0; index < debugTree->totalUsed; ++index) {
 		const OpLimb& limb = debugNthLimb(index);
 		const OpEdge* test = limb.edge;
+		if (test == edge)
+			return index;
 		if (test->debugIsLoop())	// !!! conservative: may allow this later
-			return -1;
+			continue;
 		if (!test->lastEdge)
-			return -1;
+			continue;
 		do {
 			if (test == edge)
 				return index;

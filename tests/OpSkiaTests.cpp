@@ -14,29 +14,25 @@
 #define CURVE_CURVE_2 2  // id of segment 2 to break in divide and conquer
 #define CURVE_CURVE_DEPTH -1  // minimum recursion depth for curve curve break (-1 to disable)
 
-// see descriptions for exceptions below
-#define TEST_PATH_OP_EXCEPTIONS "" // "pentrek10"
-#define TEST_PATH_OP_FUZZ_EXCEPTIONS "" // "fuzz487a", "fuzz487b"
-#define TEST_PATH_OP_FAIL_EXCEPTIONS "" // "grshapearcs1"
-#define TEST_PATH_OP_MAP_TO_FUZZ "" // "fuzzhang_1"
-#define TEST_PATH_SIMPLIFY_EXCEPTIONS "" // 
-#define TEST_PATH_SIMPLIFY_FAIL_EXCEPTIONS "" // "grshapearc"
-#define TEST_PATH_SIMPLIFY_FUZZ_EXCEPTIONS ""
-#define TEST_PATH_SIMPLIFY_MAP_TO_FUZZ  ""
-
-// !!! need to update laptop exceptions with latest
-#define LAPTOP_PATH_OP_EXCEPTIONS ""
-#define LAPTOP_PATH_OP_MAP_TO_FUZZ ""
-#define LAPTOP_SIMPLIFY_EXCEPTIONS "" //  "joel_5"
-
 // when these tests are encountered, it and the remaining tests in the file are skipped
 #define TEST_PATH_OP_SKIP_REST ""
 #define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */
+
+#if OP_DEBUG_FAST_TEST && TEST_ANALYZE
+#error "turn off fast test"
+#endif
 
 /* test failure descriptions:
 extended: all tests run 11/9/24 exceptions: grshapearc (total run:74600014 v0 only:13)
  fuzz763_378 asserts in OpIntersections::sort() debug check line 397 but continuing, succeeds
  grshapearc hangs in OpTree contructor? (makes over 10K limbs)
+ grshapearc exposed numerous coincident bugs which may be fixed
+ TEST_ANALYZE of grshapearc: debugData.limitContours = 165;
+ grshapearc next bug is that edge 7831 (first edge in segment 115) crosses segments 83 and 61. Sects in
+   115 find coincidence with both 83 and 61 but outside of the range of 7831.
+   7831 is detected as inside 7736 (correct) and is sorted outside 7674 (coin pal of 7737) (correct)
+   but uses earlier retained inside winding (incorrect). Can the descrepency be detected so that 
+   edges involved can be marked as unsectable or unsortable?
 */
 
 #if OP_TINY_SKIA
@@ -77,9 +73,7 @@ struct testInfo {
 std::vector<testInfo> testSuites = {
     // !!! start out slow
     { run_v0_tests, "v0", 14, 14 },
-#if 1 // !OP_TINY_SKIA
     { run_op_tests, "op", 451, 451 },
-#endif
     { run_battle_tests, "battle", 381, 381 },
     { run_chalkboard_tests, "chalkboard", 6231, 594037 },
     { run_fuzz763_tests, "fuzz763", 30, 30 },
@@ -760,28 +754,10 @@ bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
 
 bool testPathOp(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
         SkPathOp op, const char* testname) {
-    std::string s;
     if (needsName) {
-        s = currentTestFile + STR(++unnamedCount);
+        std::string s = currentTestFile + STR(++unnamedCount);
         testname = s.c_str();
-    } else
-        s = std::string(testname);
-    std::vector<std::string> skip = { TEST_PATH_OP_EXCEPTIONS };
-    if (skip.end() != std::find(skip.begin(), skip.end(), s) && s != testFirst) {
-        ++testsSkipped;
-        return true;
     }
-    std::vector<std::string> lap = { LAPTOP_PATH_OP_EXCEPTIONS };
-    if (!runningWithFMA() && lap.end() != std::find(lap.begin(), lap.end(), s) && s != testFirst) {
-        ++testsSkipped;
-        return true;
-    }
-    std::vector<std::string> fuzz = { TEST_PATH_OP_MAP_TO_FUZZ };
-    if (fuzz.end() != std::find(fuzz.begin(), fuzz.end(), s) && s != testFirst)
-        return (void) testPathOpFuzz(r, a, b, op, testname), true;
-    std::vector<std::string> lapz = { LAPTOP_PATH_OP_MAP_TO_FUZZ };
-    if (!runningWithFMA() && lapz.end() != std::find(lapz.begin(), lapz.end(), s) && s != testFirst)
-        return (void) testPathOpFuzz(r, a, b, op, testname), true;
     return testPathOpBase(r, a, b, op, testname, false, false, false);
 }
 
@@ -792,28 +768,15 @@ void testPathOpCheck(skiatest::Reporter* r, const SkPath& a, const SkPath& b, Sk
 
 void testPathOpFuzz(skiatest::Reporter* r, const SkPath& a, const SkPath& b, SkPathOp op, 
         const char* testname) {
-    std::string s;
     if (needsName) {
-        s = currentTestFile + STR(++unnamedCount);
+        std::string s = currentTestFile + STR(++unnamedCount);
         testname = s.c_str();
-    } else
-        s = std::string(testname);
-    std::vector<std::string> skip = { TEST_PATH_OP_FUZZ_EXCEPTIONS };
-    if (skip.end() != std::find(skip.begin(), skip.end(), s) && s != testFirst) {
-        ++testsSkipped;
-        return;
     }
     testPathOpBase(r, a, b, op, testname, true, true, true);
 }
 
 bool testPathOpFail(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
         const SkPathOp op, const char* testName) {
-    std::string s = std::string(testName);
-    std::vector<std::string> fail = { TEST_PATH_OP_FAIL_EXCEPTIONS };
-    if (fail.end() != std::find(fail.begin(), fail.end(), s) && s != testFirst) {
-        ++testsSkipped;
-        return true;
-    }
     return testPathOpBase(r, a, b, op, testName, false, true, true);
 }
 
@@ -953,8 +916,8 @@ void run() {
 bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
     using namespace PathOpsV0Lib;
     Context* context = CreateContext({ nullptr, 0 });
-    SetSkiaContextCallBacks(context);
     OP_DEBUG_CODE(if (optional) Debug(context, *optional));
+    SetSkiaContextCallBacks(context);
     SetSkiaCurveCallBacks(context);
     auto isWindingFill = [](const SkPath& path) {
         return SkPathFillType::kWinding == path.getFillType()
@@ -964,17 +927,27 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
             OP_DEBUG_PARAMS(path));
     int simpleData[] = { 1 };
     PathOpsV0Lib::AddWinding simpleWinding { simple, simpleData, sizeof(simpleData) };
+#if TEST_ANALYZE && OP_DEBUG
+	// make failing tests smaller
+	// add contours until it fails
+    AddDebugSkiaPath(context, simpleWinding, path);
+#else
     AddSkiaPath(context, simpleWinding, path);
-//    out->reset();
+#endif
 	ContextError contextError = Error(context);
 	if (ContextError::none == contextError) {
-//		out->setFillType(SkPathFillType::kEvenOdd);
 		PathOutput pathOutput = out;
 		Normalize(context);
 		Resolve(context, pathOutput);
 		contextError = Error(context);
 		trackError(contextError);
 	}
+#if TEST_ANALYZE && OP_DEBUG
+	if (optional) {
+		OP_DEBUG_CODE(*optional = ((OpContours*) context)->debugData);
+		OP_ASSERT(!optional->limitReached);
+	}
+#endif
     DeleteContext(context);
 	return ContextError::none == contextError;
 }
@@ -1012,7 +985,22 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
     debugData.curveCurve1 = CURVE_CURVE_1;
     debugData.curveCurve2 = CURVE_CURVE_2;
     debugData.curveCurveDepth = CURVE_CURVE_DEPTH;
+#if TEST_ANALYZE
+	debugData.limitContours = 165;
+	debugData.limitReached = false;
+	int testDots = 0;
+	do {
+		(void) SimplifyV0(path, &out, &debugData);
+		OpDebugOut(".");
+		if (++testDots == 100) {
+			testDots = 0;
+			OpDebugOut("\n");
+		}
+		++debugData.limitContours;
+	} while (!debugData.limitReached);
+#else
 	(void) SimplifyV0(path, &out, &debugData);
+#endif
     OP_ASSERT(v0MayFail || debugData.success);
 #endif
 #if TEST_SKIA
@@ -1085,40 +1073,14 @@ bool testSimplifyBase(skiatest::Reporter* r, const SkPath& path, const char* nam
 }
 
 bool testSimplify(skiatest::Reporter* r, const SkPath& path, const char* testname) {
-    std::string s = std::string(testname);
-    std::vector<std::string> fail = { TEST_PATH_SIMPLIFY_EXCEPTIONS };  // see OpTestDrive.h
-    if (fail.end() != std::find(fail.begin(), fail.end(), s) && s != testFirst) {
-        ++testsSkipped;
-        return true;
-    }
-    std::vector<std::string> lap = { LAPTOP_SIMPLIFY_EXCEPTIONS };  // see OpTestDrive.h
-    if (!runningWithFMA() && lap.end() != std::find(lap.begin(), lap.end(), s) && s != testFirst) {
-        ++testsSkipped;
-        return true;
-    }
-    std::vector<std::string> fuzz = { TEST_PATH_SIMPLIFY_MAP_TO_FUZZ };  // see OpTestDrive.h
-    if (fuzz.end() != std::find(fuzz.begin(), fuzz.end(), s) && s != testFirst)
-        return (void) testSimplifyFuzz(r, path, testname), true;
     return testSimplifyBase(r, path, testname, false, false);
 }
 
 bool testSimplifyFail(skiatest::Reporter* r, const SkPath& path, const char* testname) {
-    std::string s = std::string(testname);
-    std::vector<std::string> fail = { TEST_PATH_SIMPLIFY_FAIL_EXCEPTIONS };  // see OpTestDrive.h
-    if (fail.end() != std::find(fail.begin(), fail.end(), s) && s != testFirst) {
-        ++testsSkipped;
-        return true;
-    }
     return testSimplifyBase(r, path, testname, true, true);
 }
 
 bool testSimplifyFuzz(skiatest::Reporter* r, const SkPath& path, const char* testname) {
-    std::string s = std::string(testname);
-    std::vector<std::string> fuzz = { TEST_PATH_SIMPLIFY_FUZZ_EXCEPTIONS };  // see OpTestDrive.h
-    if (fuzz.end() != std::find(fuzz.begin(), fuzz.end(), s) && s != testFirst) {
-        ++testsSkipped;
-        return true;
-    }
     return testSimplifyBase(r, path, testname, true, true);
 }
 

@@ -21,8 +21,8 @@ inline float maxSignSwap(Curve , Curve ) {
 	return 131072.f;
 }
 
-inline int maxLimbs() {
-	return 1100;
+inline int maxLimbs(Context* ) {
+	return 500;
 }
 
 inline WindKeep noWindKeepFunc(Winding , Winding ) {

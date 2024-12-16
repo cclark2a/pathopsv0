@@ -342,7 +342,16 @@ uint8_t skiaDebugBitOper(CallerData data, uint8_t src, uint8_t opp) {
 }
 #endif
 
+#if OP_DEBUG
+#include "OpSkiaTests.h"
+#endif
+
 void SetSkiaContextCallBacks(Context* context) {
+#if OP_DEBUG && TEST_ANALYZE
+	extern bool DebugAnalyze(Context* );
+	if (DebugAnalyze(context))  // definition below
+		return;
+#endif
     SetContextCallBacks(context, emptySkPathFunc, skiaMakeLine, setSkiaLineType, maxSignSwap,
 			maxDepth, maxSplits, maxLimbs);
 }
@@ -491,4 +500,102 @@ void debugCubicAddToSkPath(Curve c, SkPath& path) {
             c.data->end.x, c.data->end.y);
 }
 
+#endif
+
+#if OP_DEBUG
+#if TEST_ANALYZE
+#include "OpContour.h"
+
+inline int minMaxLimbs(Context* ) {
+	return 120;
+}
+
+bool DebugAnalyze(Context* context) {
+	OpContours* contours = (OpContours*) context;
+	OpDebugData& debugData = contours->debugData;
+	if (debugData.limitContours <= 0)
+		return false;
+    SetContextCallBacks(context, emptySkPathFunc, skiaMakeLine, setSkiaLineType, maxSignSwap,
+			maxDepth, maxSplits, minMaxLimbs);
+	return true;
+}
+
+void AddDebugSkiaPath(Context* context, AddWinding winding, const SkPath& path) {
+	OpContours* contours = (OpContours*) context;
+	OpDebugData& debugData = contours->debugData;
+	OpPointBounds snag { 20, 0, 40, 10 };  // only snag contours that start in this bounds
+	bool snagOn = false;
+	int contourCount = 0;
+	if (!path.isFinite()) {  // raw iter treats non-finite path as empty
+		SetError(context, ContextError::finite);
+		return;
+	}
+    SkPath::RawIter iter(path);
+    OpPoint closeLine[2] = {{0, 0}, {0, 0}};  // initialize so first move doesn't add close line
+    for (;;) {
+        SkPoint pts[4];
+        SkPath::Verb verb = iter.next(pts);
+        switch (verb) {
+        case SkPath::kMove_Verb:
+            if (closeLine[0] != closeLine[1]) {
+                if (snagOn) Add({ closeLine, sizeof(closeLine), 
+						(CurveType) SkiaCurveType::skiaLineType }, winding);
+				if (++contourCount >= debugData.limitContours)
+					return;
+			}			
+            closeLine[1] = { pts[0].fX, pts[0].fY };
+			snagOn = snag.contains(closeLine[1]);
+            pts[1] = pts[0];
+            break;
+        case SkPath::kLine_Verb:
+            if (pts[0] != pts[1])
+                if (snagOn) Add({ (OpPoint*) pts, sizeof(SkPoint) * 2, 
+						(CurveType) SkiaCurveType::skiaLineType }, winding);
+            break;
+        case SkPath::kQuad_Verb:
+            std::swap(pts[1], pts[2]);  // rearrange order from 0/1/2 to 0/2/1
+            if (snagOn) AddQuads({ (OpPoint*) pts, sizeof(SkPoint) * 3, 
+					(CurveType) SkiaCurveType::skiaQuadType }, winding);
+            break;
+        case SkPath::kConic_Verb:
+            std::swap(pts[1], pts[2]);  // rearrange order from 0/1/2 to 0/2/1
+            pts[3].fX = iter.conicWeight(); // !!! hacky
+            if (snagOn) AddConics({ (OpPoint*) pts, sizeof(SkPoint) * 3 + sizeof(float), 
+                    (CurveType) SkiaCurveType::skiaConicType }, winding);
+            break;
+        case SkPath::kCubic_Verb: {
+		#if 0
+			// This fails in GCC 13.2 release. It works in MSVS Visual C++ 2022 debug/release,
+			// clang debug/release, GCC 13.2 debug. Replacing std::swap with temp=a, a=b, b=temp
+			// also fails. Changing the indices also fails.
+            std::swap(pts[1], pts[2]);  // rearrange order from 0/1/2/3 to 0/3/1/2
+            std::swap(pts[1], pts[3]);
+		#else
+			SkPoint temp[4] { pts[0], pts[3], pts[1], pts[2] };  //  put start, end, up front
+			std::memcpy(pts, temp, sizeof(temp));
+		#endif
+            if (snagOn) AddCubics({ (OpPoint*) pts, sizeof(SkPoint) * 4, 
+					(CurveType) SkiaCurveType::skiaCubicType }, winding);
+            } break;
+        case SkPath::kClose_Verb:
+        case SkPath::kDone_Verb:
+            if (closeLine[0] != closeLine[1])
+                if (snagOn) Add({ closeLine, sizeof(closeLine), 
+						(CurveType) SkiaCurveType::skiaLineType }, winding);
+			if (++contourCount >= debugData.limitContours)
+				return;
+            if (SkPath::kDone_Verb == verb) {
+				debugData.limitReached = true;
+                return;
+			}
+            closeLine[0] = closeLine[1];
+            continue;
+        default:
+            OP_ASSERT(0);
+        }
+        closeLine[0] = { pts[1].fX, pts[1].fY };
+    }
+}
+
+#endif
 #endif

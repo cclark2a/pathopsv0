@@ -182,6 +182,7 @@ extern void gridCenter(int x, int y);
 extern void gridLines(int );
 extern void gridStep(float dxy);
 extern void help();
+extern void limbs(int );
 extern void precision(int );  // number of fractional decimals; -1 is unset
 extern void redraw();  // draw all current state
 extern void resetFocus();
@@ -226,6 +227,7 @@ OP_X(Windings)
 OP_X(EdgeRuns) \
 OP_X(Fill) \
 OP_X(In) \
+OP_X(Join) \
 OP_X(Operands) \
 OP_X(Limbs) \
 OP_X(SegmentEdges) \

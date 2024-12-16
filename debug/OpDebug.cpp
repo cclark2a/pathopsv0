@@ -979,6 +979,7 @@ void debugImage() {
 			|| "transferCoins" == debugContext) {
         ::hideOperands();
         ::showEdges();
+		::hideTemporaryEdges();
         ::showIDs();
         ::showPoints();
         ::showValues();

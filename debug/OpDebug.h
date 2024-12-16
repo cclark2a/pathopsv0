@@ -54,6 +54,8 @@ struct OpDebugRaster;
 struct OpDebugData {
 	OpDebugData(bool mayFail) 
 		: expect(mayFail ? OpDebugExpect::fail : OpDebugExpect::success)
+		, limitContours(0)
+		, limitReached(false)
 		, success(true) {
 	}
 
@@ -63,6 +65,8 @@ struct OpDebugData {
 	int curveCurve1;
 	int curveCurve2;
 	int curveCurveDepth;
+	int limitContours;
+	bool limitReached;
 	bool success;
 };
 

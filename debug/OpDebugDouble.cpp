@@ -1297,7 +1297,7 @@ void DebugOpDrawEdgeID(const OpEdge* edge, uint32_t color, bool drawLimbs) {
         OpPoint midTPt = curve.ptAtT(.5);
 		std::string idStr = STR(edge->id);
 		if (drawLimbs && edge->debugLimb) {
-			int index = edge->contours()->debugLimbIndex(edge);
+			int index = debugGlobalContours->debugLimbIndex(edge);
 			if (index >= 0)
 				idStr = STR(index) + ":" + idStr;
 		}

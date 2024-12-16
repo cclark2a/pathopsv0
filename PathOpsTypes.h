@@ -291,7 +291,7 @@ typedef Curve (*MakeLine)(Curve );
 
 typedef float (*MaxSignSwap)(Curve , Curve );
 typedef int (*MaxCurveCurve)(Curve , Curve );
-typedef int (*MaxLimbs)();
+typedef int (*MaxLimbs)(Context* );
 
 struct ContextCallBacks {
 	EmptyNativePath emptyNativePathFuncPtr;

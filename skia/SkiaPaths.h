@@ -32,6 +32,10 @@ PathOpsV0Lib::Contour* SetSkiaOpCallBacks(PathOpsV0Lib::Context* , SkPathOp op,
 		PathOpsV0Lib::BinaryOperand , PathOpsV0Lib::BinaryWindType  OP_DEBUG_PARAMS(const SkPath&));
 void AddSkiaPath(PathOpsV0Lib::Context* , PathOpsV0Lib::AddWinding , const SkPath& path);
 
+#if TEST_ANALYZE
+// used to break down tests that are too large to debug directly
+void AddDebugSkiaPath(PathOpsV0Lib::Context* , PathOpsV0Lib::AddWinding , const SkPath& path);
+#endif
 #if !OP_TINY_SKIA
 std::string dumpSkPath(const SkPath* path, bool inHex);
 #endif

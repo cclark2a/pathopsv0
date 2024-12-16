@@ -50,8 +50,11 @@ OpIntersection* OpIntersections::contains(const OpPtT& ptT, const OpSegment* opp
 }
 
 OpIntersection* OpIntersections::coinContains(OpPoint pt, const OpSegment* opp, OpPtT* nearby) {
-	OpIntersection* match = nullptr;
+	OpIntersection* match = coinContains(pt, opp);
+	if (match)
+		return match;
 	OpVector thresh = opp->threshold();
+	// return exact match first
 	for (unsigned index = 0; index < i.size(); ++index) {
 		OpIntersection* sect = i[index];
 		bool sectNearby = sect->ptT.pt.isNearly(pt, thresh);
@@ -67,6 +70,17 @@ OpIntersection* OpIntersections::coinContains(OpPoint pt, const OpSegment* opp, 
 	if (match)
 		*nearby = match->ptT;
 	return match;
+}
+
+OpIntersection* OpIntersections::coinContains(OpPoint pt, const OpSegment* opp) {
+	for (unsigned index = 0; index < i.size(); ++index) {
+		OpIntersection* sect = i[index];
+		if (!sect->coincidenceID || !sect->opp || sect->opp->segment != opp)
+			continue;
+		if (sect->ptT.pt == pt)
+			return sect;
+	}
+	return nullptr;
 }
 
 #if 0
@@ -132,32 +146,73 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 	}
 }
 
-#if 0
-const OpIntersection* OpIntersections::nearly(const OpPtT& ptT, OpSegment* oSeg) const {
-	for (unsigned index = 0; index < i.size(); ++index) {
-		OpIntersection* sect = i[index];
-		if (oSeg && (!sect->opp || sect->opp->segment != oSeg))
-			continue;
-		if (ptT.pt.isNearly(sect->ptT.pt, oSeg->threshold()) 
-				|| (ptT.t - OpEpsilon <= sect->ptT.t && sect->ptT.t <= ptT.t + OpEpsilon))
-			return sect;
-	}
-	return nullptr;
-}
-
-void OpIntersections::range(const OpSegment* opp, std::vector<OpIntersection*>& result) {
-	if (unsorted)
-		sort();
-	OP_DEBUG_CODE(float last = -1);
+// edge is coincident with an edge in opp, but hasn't been marked as such
+// check existing for coincidence with same opp, so coincidence ranges may grow
+// !!! optimization: if below lengthens coin run, it could combine/lengthen edges also
+void OpIntersections::coinRange(OpEdge& edge, OpSegment* opp, bool reversed) {
+	int coinID = 0;
+	OpIntersection* edgeStart = nullptr;
+	OpIntersection* edgeEnd = nullptr;
+	OpIntersection* coinStart = nullptr;
+	OpIntersection* coinEnd = nullptr;
+	auto setCoin = [&coinID, reversed](OpIntersection* sect, MatchEnds matchEnd) {
+		sect->setCoin(coinID, matchEnd);
+		MatchReverse matchReverse { matchEnd, reversed };
+		sect->opp->setCoin(coinID, matchReverse.flipped());
+		return sect;
+	};
 	for (OpIntersection* sect : i) {
-		if (sect->opp && sect->opp->segment == opp) {
-			OP_ASSERT(last < sect->ptT.t);
-			OP_DEBUG_CODE(last = sect->ptT.t);
-			result.push_back(sect);
+		if (sect->opp->segment != opp)
+			continue;
+		float t = sect->ptT.t;
+		if (MatchEnds::start == sect->coinEnd) {
+			OP_ASSERT(!coinStart);
+			coinStart = sect;
+			coinEnd = nullptr;
+			coinID = sect->coincidenceID;
+			if (edgeStart) {
+				OP_ASSERT(edgeStart->coincidenceID);
+				edgeStart->coincidenceID = edgeStart->opp->coincidenceID = coinID;
+				OP_ASSERT(t > edge.startT);
+				coinStart->zeroCoincidenceID();
+			}
+		}
+		if (MatchEnds::end == sect->coinEnd) {
+			OP_ASSERT(coinStart);
+			coinStart = nullptr;
+			coinEnd = sect;
+			if (edgeStart && !edgeEnd)
+				coinEnd->zeroCoincidenceID();
+			if (edgeEnd)
+				return;
+		}
+		if (t == edge.startT) {
+			if (coinStart) 
+				edgeStart = sect;
+			else if (coinEnd) {
+				edgeStart = sect;
+				coinEnd->zeroCoincidenceID();
+			} else {
+				coinID = opp->nextID();
+				edgeStart = setCoin(sect, MatchEnds::start);
+			}
+		} else if (t == edge.endT) {
+			OP_ASSERT(coinStart || edgeStart);
+			if (coinStart) 
+				edgeEnd = sect;
+			else {
+				edgeEnd = setCoin(sect, MatchEnds::end);
+				return;
+			}
+		}
+		if (coinEnd) {
+			coinEnd = nullptr;
+			if (!edgeStart)
+				coinID = 0;
 		}
 	}
+	OP_ASSERT(!coinStart);
 }
-#endif
 
 std::vector<OpIntersection*> OpIntersections::unsectables(OpPoint pt) {
 	std::vector<OpIntersection*> result;

@@ -371,18 +371,6 @@ IntersectResult OpWinder::CoincidentCheck(OpSegment* seg, OpSegment* opp) {
 	return result;
 }
 
-// works by sorting four edge points and keeping inside two as extent of coincidence (if any)
-IntersectResult OpWinder::CoincidentCheck(const OpEdge& edge, const OpEdge& oppEdge) {
-	// sort the edges from lowest to highest in x or y, whichever range is greater
-	OpSegment* seg = edge.segment;
-	OpSegment* opp = oppEdge.segment;
-	std::array<CoinEnd, 4> ends {{{ seg, opp, edge.start(), OpVector() }, 
-			{ seg, opp, edge.end(), OpVector() },
-			{ opp, seg, oppEdge.start(), OpVector() }, 
-			{ opp, seg, oppEdge.end(), OpVector() }}};
-	return CoincidentCheck(ends, nullptr, nullptr);
-}
-
 IntersectResult OpWinder::CoincidentCheck(std::array<CoinEnd, 4>& ends, bool* oppReversedPtr,
 		XyChoice* xyChoicePtr) {
 	const auto [minX, maxX] = std::minmax_element(ends.begin(), ends.end(), 
@@ -474,120 +462,6 @@ IntersectResult OpWinder::CoincidentCheck(std::array<CoinEnd, 4>& ends, bool* op
 	   *xyChoicePtr = xyChoice;
 	return IntersectResult::coincident;
 }
-
-#if 0
-// upscale t to call segment line curve intersection
-// !!! I'm bothered that segment / segment calls a different form of this
-// Return if an intersection was added so that op curve curve can record this
-// then, change op curve curve checks for undetected coincidence between pair of curves if this
-// intersection pair forms such (issue3517)
-IntersectResult OpWinder::AddLineCurveIntersection(OpEdge& opp, OpEdge& edge, bool secondAttempt) {
-	OpSegment* eSegment = const_cast<OpSegment*>(edge.segment);
-	OpSegment* oSegment = const_cast<OpSegment*>(opp.segment);
-	OP_ASSERT(oSegment != eSegment);
-	OP_ASSERT(edge.curve.debugIsLine());
-	LinePts edgePts { edge.startPt(), edge.endPt() };
-	OpRoots septs = oSegment->c.rayIntersect(edgePts, MatchEnds::none); 
-	IntersectResult sectAdded = IntersectResult::no;
-	// check the ends of each edge to see if they intersect the opposite edge (if missed earlier)
-	auto addPair = [eSegment, oSegment  OP_DEBUG_PARAMS(opp, edge)](OpPtT oppPtT, OpPtT edgePtT,
-			IntersectResult& added  OP_LINE_FILE_ARGS()) {
-		if (!eSegment->sects.contains(edgePtT, oSegment)
-				&& !oSegment->sects.contains(oppPtT, eSegment)) {
-			OP_ASSERT(!OpMath::IsNaN(edgePtT.t));
-			OpIntersection* sect = eSegment->addEdgeSect(edgePtT  
-					OP_LINE_FILE_CALLER(&edge, &opp));
-			OP_ASSERT(!OpMath::IsNaN(oppPtT.t));
-			OpIntersection* oSect = oSegment->addEdgeSect(oppPtT  
-					OP_LINE_FILE_CALLER(&edge, &opp));
-			sect->pair(oSect);
-			added = IntersectResult::yes;
-		}
-	};
-	if (!septs.count) {
-		auto checkEnd = [opp](const OpPtT& start) {
-			float t = opp.segment->c.match(opp.startT, opp.endT, start.pt);
-			if (OpMath::IsNaN(t))
-				return OpPtT();
-			return OpPtT { start.pt, t };
-		};
-		OpPtT oppStart = checkEnd(edge.start());
-		if (!OpMath::IsNaN(oppStart.t))
-			addPair(oppStart, edge.start(), sectAdded  OP_LINE_FILE_PARGS());
-		OpPtT oppEnd = checkEnd(edge.end());
-		if (!OpMath::IsNaN(oppEnd.t))
-			addPair(oppEnd, edge.end(), sectAdded  OP_LINE_FILE_PARGS());
-		if (IntersectResult::yes == sectAdded)
-			return sectAdded;
-	}
-	MatchReverse match = opp.segment->matchEnds(edgePts);
-	if (septs.fail == RootFail::rawIntersectFailed) {
-		// binary search on opp t-range to find where vert crosses zero
-		OpCurve rotated = opp.segment->c.toVertical(edgePts, match.match);
-		septs.roots[0] = rotated.tZeroX(opp.startT, opp.endT);
-		septs.count = 1;
-	}
-	// Note that coincident check does not receive intercepts as a parameter; in fact, the intercepts
-	// were not calculated (the roots are uninitialized). This is because coincident check will 
-	// compute the actual coincident start and end without the roots introducing error.
-	if (2 == septs.count && opp.isLine())
-		return CoincidentCheck(edge, opp);
-	bool tInRange = false;
-	OpPoint threshold = edge.contours()->threshold();
-	for (unsigned index = 0; index < septs.count; ++index) {
-		if (opp.startT > septs.get(index)) {
-			if (opp.startPt().isNearly(edge.startPt(), threshold))
-				addPair(opp.start(), OpPtT(opp.startPt(), edge.startT), sectAdded  OP_LINE_FILE_PARGS());
-			else if (opp.startPt().isNearly(edge.endPt(), threshold))
-				addPair(opp.start(), OpPtT(opp.startPt(), edge.endT), sectAdded  OP_LINE_FILE_PARGS());
-			else {
-				OpCurve rotated = opp.segment->c.toVertical(edgePts, match.match);
-				septs.roots[0] = rotated.tZeroX(opp.startT, opp.endT);
-				if (opp.startT > septs.get(index))
-					continue;
-			}
-		}
-		if (septs.get(index) > opp.endT) {
-			if (opp.endPt().isNearly(edge.startPt(), threshold))
-				addPair(opp.end(), OpPtT(opp.endPt(), edge.startT), sectAdded  OP_LINE_FILE_PARGS());
-			else if (opp.endPt().isNearly(edge.endPt(), threshold))
-				addPair(opp.end(), OpPtT(opp.endPt(), edge.endT), sectAdded  OP_LINE_FILE_PARGS());
-			else {
-				OpCurve rotated = opp.segment->c.toVertical(edgePts, match.match);
-				septs.roots[0] = rotated.tZeroX(opp.startT, opp.endT);
-				if (septs.get(index) > opp.endT)
-					continue;
-			}
-		}
-		tInRange = true;
-		OpPtT oppPtT { opp.segment->c.ptAtT(septs.get(index)), septs.get(index) };
-		if (OpMath::IsNaN(oppPtT.t))
-			continue;
-		float edgeT = edge.segment->findValidT(0, 1, oppPtT.pt);
-		if (!OpMath::Between(0, edgeT, 1))  // !!! shouldn't this just be a nan test?
-			continue;
-#if OP_DEBUG_RECORD
-		OpDebugRecordSuccess(index);
-#endif
-		if (0 == edgeT)
-			oppPtT.pt = eSegment->c.firstPt();
-		else if (1 == edgeT)
-			oppPtT.pt = eSegment->c.lastPt();
-		// pin point to both bounds, but only if it is on edge
-//		OP_DEBUG_CODE(OpPoint debugPt = oppPtT.pt);
-		oSegment->ptBounds.pin(&oppPtT.pt);
-//      eSegment->ptBounds.pin(&oppPtT.pt);	// !!! doubtful this is needed with contains test above
-//		OP_ASSERT(debugPt == oppPtT.pt);	// rarely needed, but still triggered (e.g., joel_15x)
-		OpPtT edgePtT { oppPtT.pt, edgeT };
-		addPair(oppPtT, edgePtT, sectAdded  OP_LINE_FILE_PARGS());
-	}
-	if (!tInRange && opp.isLine() && !secondAttempt) {
-		OpDebugRecordStart(edge, opp);
-		return AddLineCurveIntersection(edge, opp, true);
-	}
-	return sectAdded;
-}
-#endif
 
 FoundIntercept OpWinder::findRayIntercept(size_t homeIndex, OpVector homeTan, float normal, 
 		float homeCept) {

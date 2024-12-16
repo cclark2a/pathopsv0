@@ -1313,7 +1313,7 @@ void CurveDataStorage::DumpSet(const char*& str, CurveDataStorage** previousPtr)
 
 std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    s += contours->callBack(c.type).debugDumpCurveNameFuncPtr() + " ";
+    s += contours->debugCallBack(c.type).curveNameFuncPtr() + " ";
     if (DebugLevel::file == l) {
         s += "size:" + STR(c.size) + " ";
         s += "data:" + contours->curveDataStorage->debugDump(c.data) + " ";
@@ -1323,7 +1323,7 @@ std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
             s += hullPt(i).debugDump(DebugLevel::error, b) + ", ";
         s.pop_back(); s.pop_back();
         s += " }";
-        s += contours->callBack(c.type).debugDumpCurveExtraFuncPtr(c, l, b);
+        s += contours->debugCallBack(c.type).curveExtraFuncPtr(c, l, b);
     }
     return s;
 }
@@ -1333,7 +1333,7 @@ void OpCurve::dumpSet(const char*& str) {
     while (isalnum(str[strLen]))
         ++strLen;
     for (size_t index = 0; index < contours->callBacks.size(); ++index) {
-        std::string name = contours->callBacks[index].debugDumpCurveNameFuncPtr();
+        std::string name = contours->debugCallBacks[index].curveNameFuncPtr();
         if (name.size() == strLen && !strncmp(str, name.c_str(), strLen)) {
             str += strLen;
             if (' ' == str[0])
@@ -1454,12 +1454,16 @@ ENUM_NAME(Axis, axis)
 	OP_X(Color) \
 	OP_X(Draw) \
 	OP_X(Join) \
+	OP_X(Limb) \
 	OP_X(Custom)
 
 #define EDGE_MAKER \
     OP_X(SetDisabled) \
 	OP_X(SetMaker) \
 	OP_X(SetSum)
+
+#define EDGE_VALIDATE \
+    OP_X(ScheduledForErasure)
 
 enum class EF {
 #define OP_X(Field) \
@@ -1486,6 +1490,12 @@ enum class EF {
     #define OP_X(Field) \
         debug##Field,
         EDGE_MAKER
+    #undef OP_X
+#endif
+#if OP_DEBUG_VALIDATE
+    #define OP_X(Field) \
+        debug##Field,
+        EDGE_VALIDATE
     #undef OP_X
 #endif
     last
@@ -1804,14 +1814,18 @@ ENUM_NAME(Unsortable, unsortable)
 std::string EdgePal::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     s += "edge:" + STR(edge->id) + " ";
+	if (DebugLevel::detailed == l && edge->segment)
+		s += "seg:" + STR(edge->segment->id) + " ";
     if (!OpMath::IsNaN(cept))
         s += debugValue(l, b, "cept", cept) + " ";
     if (!OpMath::IsNaN(edgeInsideT))
         s += debugValue(l, b, "edgeInsideT", edgeInsideT) + " ";
     if (reversed) 
-        s += "r ";
+        s += DebugLevel::detailed == l ? "reversed " : "r ";
     if (debugUID)
-        s += "debugUID:" + STR(debugUID) + " ";
+		s += "debugUID:" + STR(debugUID) + " ";
+	if (DebugLevel::detailed == l)
+		s += edge->debugDumpWinding() + " ";
     if (s.size())
         s.pop_back();
     return s;
@@ -1899,7 +1913,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     if (dumpIt(EdgeFilter::contour) && segment && segment->contour)
         s += strID(EF::contour, "contour", segment->contour->id);
     if (ray.distances.size() && dumpIt(EdgeFilter::ray)) 
-        s += ray.debugDump(l, b) + " ";
+        s += ray.debugDump(DebugLevel::brief, b) + " ";
     if (priorEdge || nextEdge || lastEdge || dumpAlways(EF::priorEdge) || dumpAlways(EF::nextEdge)) { 
         s += strEdge(EdgeFilter::priorEdge, "prior", priorEdge);
         s += strEdge(EdgeFilter::nextEdge, "next", nextEdge);
@@ -2013,7 +2027,11 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         s += debugDumpColor(debugColor) + " ";
     STR_BOOL(debugDraw);
     STR_BOOL(debugJoin);
+    STR_BOOL(debugLimb);
     STR_BOOL(debugCustom);
+#endif
+#if OP_DEBUG_VALIDATE
+    STR_BOOL(debugScheduledForErasure);
 #endif
 #undef STR_BOOL
     return s;
@@ -3140,9 +3158,11 @@ std::string SectRay::debugDump(DebugLevel l, DebugBase b) const {
     s += debugValue(l, b, "normal", normal) + " ";
     s += debugValue(l, b, "homeCept", homeCept) + " ";
     s += debugValue(l, b, "homeT", homeT) + " ";
-    s += "axis:" + axisName(axis) + " ";
-    for (const EdgePal& dist : distances)
-        s += dist.debugDump(DebugLevel::brief, b) + " ";
+    s += "axis:" + axisName(axis) + (DebugLevel::detailed == l ? "\n" : " ");
+    for (const EdgePal& dist : distances) {
+        s += dist.debugDump(DebugLevel::detailed == l ? l : DebugLevel::brief, b);
+		s += DebugLevel::detailed == l ? "\n" : " ";
+	}
     if (s.size())
         s.pop_back();
     return s;
@@ -3448,7 +3468,7 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
     std::string s = "[" + debugDumpID() + "] ";
     if (DebugLevel::brief == l) {
         s += "{" + ptT.debugDump(l, b) + ", ";
-        s += "seg:" + segment->debugDumpID() + "\n";
+        s += "seg:" + segment->debugDumpID();
         return s;
     }
     s += ptT.debugDump(id ? l : DebugLevel::error, b);   // !!! may be uninitialized?

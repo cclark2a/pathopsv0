@@ -506,7 +506,7 @@ void OpSegment::makeCoins() {
 	if (disabled)
 		return;
 	sects.sort();  // make coins may add sects; so another segment may have added to this one
-	auto nextSect = [this](unsigned* index, float t, bool alwaysAdvance) {
+	auto nextSect = [this](unsigned* index, float t, MatchEnds match, bool alwaysAdvance) {
 		do {
 			if (alwaysAdvance) {
 				alwaysAdvance = false;
@@ -515,68 +515,66 @@ void OpSegment::makeCoins() {
 			OpIntersection* result = sects.i[*index];
 			if (result->ptT.t < t)
 				continue;
-			if (MatchEnds::none == result->coinEnd)
-				return result;
+			if (result->ptT.t > t)
+				break; 
+			if (result->coinEnd == match)
+				continue;
+			return result;
 		} while (++*index < sects.i.size());
 		return (OpIntersection*) nullptr;
 	};
 	unsigned startIndex = 0;
 	for (OpEdge& edge : edges) {
-		if (edge.disabled /* || edge.isUnsectable() */ || !edge.isLine())
+		if (edge.disabled || !edge.isLine())
 			continue;
-		OpIntersection* startSect = nextSect(&startIndex, edge.startT, false);
+		OpIntersection* startSect = nextSect(&startIndex, edge.startT, MatchEnds::start, false);
 		if (!startSect)
-			break;
-		if (startSect->ptT.t > edge.startT)
-			continue;
-		unsigned firstEnd = startIndex;
-		OpIntersection* endSect = nextSect(&firstEnd, edge.endT, false);
-		if (!endSect)
-			break;
-		if (endSect->ptT.t > edge.endT)
 			continue;
 		OP_ASSERT(startSect->ptT.t == edge.startT);
-		OP_ASSERT(endSect->ptT.t == edge.endT);
-//		if (MatchEnds::none != startSect->unsectEnd && MatchEnds::none != endSect->unsectEnd)
-//			continue;
-		unsigned endIndex = firstEnd;
+		unsigned firstEnd = startIndex;
+		OpIntersection* firstEndSect = nextSect(&firstEnd, edge.endT, MatchEnds::end, false);
+		if (!firstEndSect)
+			continue;
+		OP_ASSERT(firstEndSect->ptT.t == edge.endT);
+		// the segment may have multiple coincident lines with different opposites, all
+		// starting at the same t
 		do {
-			int oppSegID = endSect->opp->segment->id;
-			while (startSect->opp->segment->id < oppSegID) {
-				startSect = nextSect(&startIndex, edge.startT, true);
-				if (!startSect)
-					return;
-				if (startSect->ptT.t > edge.startT)
-					goto nextEdge;
-			}
-			oppSegID = startSect->opp->segment->id;
-			while (endSect->opp->segment->id < oppSegID) {
-				endSect = nextSect(&endIndex, edge.endT, true);
-				if (!endSect)
-					return;
-				if (endSect->ptT.t > edge.endT)
-					goto nextEdge;
-			}
 			OpIntersection* oppStart = startSect->opp;
+			OpSegment* oppSeg = oppStart->segment;
+			int oppStartID = oppSeg->id;
+			// ideally, the sects should be sorted by id so that the start and end could
+			// be walked lock-step. In practice, the sorting required for coins and unsectables
+			// make this difficult. For now, just walk all sects with matching ts
+			unsigned endIndex = firstEnd;
+			OpIntersection* endSect = firstEndSect;
+			while (oppStartID != endSect->opp->segment->id) {
+				endSect = nextSect(&endIndex, edge.endT, MatchEnds::end, true);
+				if (!endSect)
+					goto nextSect;
+			}
+		{ // for goto
 			OpIntersection* oppEnd = endSect->opp;
-			OpSegment* oppSegment = oppStart->segment;
-			if (oppSegment != oppEnd->segment)
+			OP_ASSERT(oppSeg == oppEnd->segment);
+			std::vector<CoinPal>& pals = edge.coinPals;
+			if (pals.end() != std::find_if(pals.begin(), pals.end(), [oppSeg](CoinPal& pal) {
+					return pal.opp == oppSeg; }))
 				continue;
 			bool reversed = oppStart->ptT.t > oppEnd->ptT.t;
-			for (OpEdge& oppEdge : oppSegment->edges) {
+			OpPoint first = edge.curve.firstPt();
+			OpPoint last = edge.curve.lastPt();
+			for (OpEdge& oppEdge : oppSeg->edges) {
 				if (!oppEdge.isLine())
 					continue;
-				if (reversed ? edge.start().pt == oppEdge.end().pt 
-						: edge.start().pt == oppEdge.start().pt) {
-
-					OpWinder::CoincidentCheck(edge, oppEdge);
+				if (reversed ? first == oppEdge.curve.lastPt() && last == oppEdge.curve.firstPt()
+						: first == oppEdge.curve.firstPt() && last == oppEdge.curve.lastPt()) {
+					sects.coinRange(edge, oppEdge.segment, reversed);
 					break;
 				}
 			}
-			endSect = nextSect(&endIndex, edge.endT, true);
-		} while (endSect && edge.endT == endSect->ptT.t);
-nextEdge:
-		startIndex = firstEnd;
+		} // for goto
+	nextSect:
+			;
+		} while ((startSect = nextSect(&startIndex, edge.startT, MatchEnds::start, true)));
 	}
 }
 

@@ -225,7 +225,7 @@ OpTree::OpTree(OpJoiner& join)
 	, bestDistance(OpInfinity)
 	, bestPerimeter(OpInfinity)
 	, totalUsed(0) {
-	maxLimbs = contours->contextCallBacks.maxLimbsFuncPtr();
+	maxLimbs = contours->contextCallBacks.maxLimbsFuncPtr((PathOpsV0Lib::Context*) contours);
 	OP_DEBUG_CODE(contours->debugTree = this);
 	OP_ASSERT(join.edge->inLinkups);
 	OP_DEBUG_IMAGE_CODE(contours->debugLimbClear());
@@ -256,6 +256,14 @@ OpTree::OpTree(OpJoiner& join)
 			do {
 				nthLimb(index).addEach(join, *this);
 				if (totalUsed > maxLimbs) {
+			#if 0 // for TEST_ANALYZE of grshapearcs 
+					playback();
+					hideSegmentEdges();
+					hideTemporaryEdges();
+					hideJoin();
+					showLimbs();
+					resetFocus();
+			#endif
 					contours->setError(PathOpsV0Lib::ContextError::tree  
 							OP_DEBUG_PARAMS(join.edge->id));
 					return;
@@ -305,6 +313,7 @@ void OpTree::addDisabled(OpJoiner& join) {
 
 // convenience for setting breakpoints
 OpEdge* OpTree::addFiller(const OpPtT& ptT1, const OpPtT& ptT2) {
+// OpDebugOut("filler length:" + STR((ptT1.pt - ptT2.pt).length()) + "limitContours:" + STR(contours->debugData.limitContours) + "\n");
 	OP_ASSERT(OpJoiner::DebugShowImage());
 	return contours->addFiller(ptT1, ptT2);
 }

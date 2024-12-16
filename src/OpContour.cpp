@@ -524,6 +524,7 @@ bool OpContours::setError(PathOpsV0Lib::ContextError e  OP_DEBUG_PARAMS(int eID,
 	if (PathOpsV0Lib::ContextError::none != error)
 		return false;
 #if OP_DEBUG
+	OP_ASSERT(debugData.limitContours <= 0);  // break when debugging limited number of contours
 	if (PathOpsV0Lib::ContextError::finite != e 
 			&& PathOpsV0Lib::ContextError::toVertical != e)
 		OpDebugOut("fatal error in " + debugData.testname + "\n");
