@@ -298,6 +298,8 @@ extern void dp(const OpEdge* );
 extern void dp(const OpEdge& );
 extern void dp(int id);
 
+#define df(x) dmpFull(x)
+
 // expand this as the need arises
 
 extern std::string debugContext;

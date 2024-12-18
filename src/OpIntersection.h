@@ -54,7 +54,8 @@ struct OpIntersection {
 		, unsectEnd(MatchEnds::none)
 		, mergeProcessed(false)
 		, moved(false)
-		, collapsed(false) {
+		, collapsed(false) 
+		, ccSect(false) {
 #if OP_DEBUG
 	segment = nullptr;
 	id = 0;
@@ -106,7 +107,6 @@ struct OpIntersection {
 		opp->coinEnd = MatchEnds::none;
 	}
 
-#if 0
 	void zeroUnsectID() {
 		OP_ASSERT(unsectID);
 		OP_ASSERT(opp->unsectID);
@@ -115,7 +115,6 @@ struct OpIntersection {
 		opp->unsectID = 0;
 		opp->unsectEnd = MatchEnds::none;
 	}
-#endif
 
 #if OP_DEBUG
 	void debugSetID();
@@ -145,6 +144,7 @@ struct OpIntersection {
 	bool mergeProcessed;
 	bool moved;
 	bool collapsed;  // set if coincidence or unsect pair collapsed to a point
+	bool ccSect;
 #if OP_DEBUG
 	int id;
 	int debugSrcID;	// pair of edges or segments that intersected (!!! only useful if edges?)
@@ -157,10 +157,14 @@ struct OpIntersection {
 #endif
 };
 
+enum class MoveSects {
+	zeroCoins,
+	zeroAll
+};
+
 struct OpIntersections {
-	OpIntersections();
 	OpIntersection* add(OpIntersection* );
-	bool checkCollapse(OpIntersection* );
+	bool checkCollapse(OpIntersection* , MoveSects );
 	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp);
 	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp, OpPtT* nearby);
 	void coinRange(OpEdge& , OpSegment* opp, bool reversed);
@@ -174,7 +178,7 @@ struct OpIntersections {
 	bool simpleStart() const;  // true if array has only one entry with t equal to zero
 	void sort();  // 
 	void mergeNear(OpPtAliases& );
-	void moveSects(OpPtT match, OpPoint destination);
+	void moveSects(OpPtT match, OpPoint destination, MoveSects );
 // return intersections that delineate unsectable runs that contain this edge
 	std::vector<OpIntersection*> unsectables(OpPoint );
 	static bool UnsectablesOverlap(std::vector<OpIntersection*> set1,
@@ -191,7 +195,8 @@ struct OpIntersections {
 
 	// all intersections are stored here before edges are rewritten
 	std::vector<OpIntersection*> i;
-	bool unsorted;
+	bool unsorted = false;
+	bool hasCCSects = false;
 };
 
 // allocating storage separately allows intersections to be immobile and have reliable pointers

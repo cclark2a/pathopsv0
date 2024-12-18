@@ -457,9 +457,14 @@ bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 	auto addSect = [isCoin, idEnds](OpSegment* segs, OpSegment* opps, const OpPtT& start, 
 			IsOpp isOpp  OP_LINE_FILE_ARGS()) {
 		IdEnds ie = idEnds(isOpp);
+		OpIntersection* result;
 		if (IsCoin::yes == isCoin)
-			return segs->addCoin(start, ie.id, ie.matchEnds, opps  OP_LINE_FILE_PARGS());
-		return segs->addUnsectable(start, ie.id, ie.matchEnds, opps  OP_LINE_FILE_PARGS());
+			result = segs->addCoin(start, ie.id, ie.matchEnds, opps  OP_LINE_FILE_PARGS());
+		else
+			result = segs->addUnsectable(start, ie.id, ie.matchEnds, opps  OP_LINE_FILE_PARGS());
+		result->ccSect = true;
+		segs->sects.hasCCSects = true;
+		return result;
 	};
 	auto addPair = [this, addSect, setSect](SectDuo sPair, const OpPtT& ePt, const OpPtT& oPt) {
 		if (sPair.s) {

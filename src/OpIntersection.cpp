@@ -27,10 +27,6 @@ OpIntersection* OpIntersection::coinOtherEnd() {
 };
 #endif
 
-OpIntersections::OpIntersections()
-	: unsorted(false) {
-}
-
 OpIntersection* OpIntersections::add(OpIntersection* sect) {
 	i.push_back(sect);
 	unsorted = true;
@@ -286,7 +282,7 @@ bool SectPreferred::find() {
 			}
 	#endif
 			if (test->ptT.pt != best->ptT.pt)
-				sects.moveSects(test->ptT, best->ptT.pt);
+				sects.moveSects(test->ptT, best->ptT.pt, MoveSects::zeroCoins);
 		}
 		if (visited.end() == std::find(visited.begin(), visited.end(), test->opp->segment)) {
 			OpIntersection* save = best;
@@ -299,7 +295,7 @@ bool SectPreferred::find() {
 	return true;
 }
 
-bool OpIntersections::checkCollapse(OpIntersection* sect) {
+bool OpIntersections::checkCollapse(OpIntersection* sect, MoveSects zero) {
 	bool result = false;
 	int cID = sect->coincidenceID;
 	int uID = sect->unsectID;
@@ -313,10 +309,8 @@ bool OpIntersections::checkCollapse(OpIntersection* sect) {
 		if (test->ptT == sect->ptT) {
 			if (cID)
 				sect->zeroCoincidenceID();
-#if 0
-			if (uID)
+			if (MoveSects::zeroAll == zero && uID)
 				sect->zeroUnsectID();
-#endif
 			result = test->collapsed = test->opp->collapsed = true;
 		} else {
 			OP_ASSERT(test->ptT.pt != sect->ptT.pt);
@@ -373,7 +367,7 @@ void OpIntersections::mergeNear(OpPtAliases& aliases) {
 	}
 }
 
-void OpIntersections::moveSects(OpPtT match, OpPoint destination) {
+void OpIntersections::moveSects(OpPtT match, OpPoint destination, MoveSects zero) {
 	OP_ASSERT(match.pt != destination);
 	std::vector<OpIntersection*> moved;
 	std::vector<OpIntersection*> collaspes;
@@ -393,7 +387,7 @@ void OpIntersections::moveSects(OpPtT match, OpPoint destination) {
 			continue;
 		if (sPtT.pt != destination) {
 			OpIntersection* opp = sect->opp;
-			bool oppMatches = sPtT.pt == opp->ptT.pt;
+			bool oppMatches = sPtT.pt == opp->ptT.pt || MoveSects::zeroAll == zero;
 			sPtT.pt = destination;
 			if (oppMatches && !opp->moved)
 				moved.push_back(sect);
@@ -411,12 +405,12 @@ void OpIntersections::moveSects(OpPtT match, OpPoint destination) {
 		if (opp->ptT.onEnd())
 			opp->segment->movePt(opp->ptT, destination);
 		else
-			opp->segment->sects.moveSects(opp->ptT, destination);
+			opp->segment->sects.moveSects(opp->ptT, destination, zero);
 	}
 	bool collapsed = false;
 	for (OpIntersection* sect : moved) {
 		if (sect->coincidenceID || sect->unsectID)
-			collapsed |= checkCollapse(sect);
+			collapsed |= checkCollapse(sect, zero);
 	}
 	if (collapsed)
 		eraseCollapsed();

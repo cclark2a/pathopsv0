@@ -498,6 +498,42 @@ float OpSegment::findValidT(float start, float end, OpPoint opp) {
 	return OpNaN;
 }
 
+void OpSegment::fixCCSects() {
+	if (!sects.hasCCSects)
+		return;
+	sects.sort();
+	if (startMoved || endMoved) {
+		resetBounds();
+		for (OpIntersection* test : sects.i) {
+			if (ptBounds.contains(test->ptT.pt))
+				continue;
+			sects.moveSects(test->ptT, test->ptT.t < .5 ? c.firstPt() : c.lastPt(), 
+					MoveSects::zeroAll);
+		}
+	}
+	OpVector segTan = c.lastPt() - c.firstPt();
+	OP_ASSERT(sects.i.size() > 2);
+	OpIntersection* prior = sects.i[0];
+	OpIntersection* last = sects.i[1];
+	for (size_t index = 2; index < sects.i.size(); ++index) {
+		OpIntersection* sect = sects.i[index];
+		if (last->ccSect) {
+			OpVector priorV = last->ptT.pt - prior->ptT.pt;
+			bool priorOK = segTan.dx * priorV.dx >= 0 && segTan.dy * priorV.dy >= 0;
+			OpVector nextV = sect->ptT.pt - last->ptT.pt;
+			bool nextOK = segTan.dx * nextV.dx >= 0 && segTan.dy * nextV.dy >= 0;
+			if (priorOK && nextOK)
+				continue;
+			float priorDistSq = priorV.lengthSquared();
+			float nextDistSq = nextV.lengthSquared();
+			sects.moveSects(last->ptT, priorDistSq < nextDistSq ? prior->ptT.pt : sect->ptT.pt,
+					MoveSects::zeroAll);
+		}
+		prior = last;
+		last = sect;
+	}
+}
+
 bool OpSegment::isSmall() {
 	return contour->contours->aliases.isSmall(c.c.data->start, c.c.data->end);
 }
@@ -706,7 +742,7 @@ OpPoint OpSegment::movePt(OpPtT match, OpPoint destination) {
 		willDisable = true;
 //    setBounds();  // defer fixing in middle of finding intersections, which uses sorted bounds
 	if (match.pt != destination)
-		sects.moveSects(match, destination);
+		sects.moveSects(match, destination, MoveSects::zeroCoins);
 	edges.clear();
 	return destination;
 }

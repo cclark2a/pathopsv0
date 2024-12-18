@@ -459,6 +459,8 @@ bool OpContours::pathOps() {
 		OP_DEBUG_SUCCESS(*this, true);
 	}
 	sortIntersections();
+	fixCCSects();  // curve-curve intersections may have enough error to put sect list out of order
+	sortIntersections();
 	findMissingEnds();  // moved pts may require looking in aliases for an end match
 	betweenIntersections();  // fill in intersections in coin runs that are missing in other coins
 	sortIntersections();

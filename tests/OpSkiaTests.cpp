@@ -24,7 +24,11 @@
 
 /* test failure descriptions:
 extended: all tests run 11/9/24 exceptions: grshapearc (total run:74600014 v0 only:13)
- fuzz763_378 asserts in OpIntersections::sort() debug check line 397 but continuing, succeeds
+
+ fuzz763_378 asserts in OpIntersections::sort() debug check line 397 but continuing, succeed
+
+ release_13  increasing limb limit allows it to complete without error
+
  grshapearc hangs in OpTree contructor? (makes over 10K limbs)
  grshapearc exposed numerous coincident bugs which may be fixed
  TEST_ANALYZE of grshapearc: debugData.limitContours = 165;
@@ -33,6 +37,11 @@ extended: all tests run 11/9/24 exceptions: grshapearc (total run:74600014 v0 on
    7831 is detected as inside 7736 (correct) and is sorted outside 7674 (coin pal of 7737) (correct)
    but uses earlier retained inside winding (incorrect). Can the descrepency be detected so that 
    edges involved can be marked as unsectable or unsortable?
+   
+tests run:73859160 12/17/2024
+ thread_cubics1585153 in "cubic" breaks intersection sort (segment 7) two end coins (opp seg:3)
+   sects:[0] id=224 unsect:-276s [2] id:282 coin:330e(!)  [3] id:147 unsect:-177s [4] id:179 unsect:-177e
+         [5] id=278 coin:362s unsect:-276e [9] id:280 coin:330e [10] id:225 coin:362e
 */
 
 #if OP_TINY_SKIA
@@ -754,8 +763,9 @@ bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
 
 bool testPathOp(skiatest::Reporter* r, const SkPath& a, const SkPath& b,
         SkPathOp op, const char* testname) {
+	std::string s(testname);
     if (needsName) {
-        std::string s = currentTestFile + STR(++unnamedCount);
+        s = currentTestFile + STR(++unnamedCount);
         testname = s.c_str();
     }
     return testPathOpBase(r, a, b, op, testname, false, false, false);
@@ -768,8 +778,9 @@ void testPathOpCheck(skiatest::Reporter* r, const SkPath& a, const SkPath& b, Sk
 
 void testPathOpFuzz(skiatest::Reporter* r, const SkPath& a, const SkPath& b, SkPathOp op, 
         const char* testname) {
+	std::string s(testname);
     if (needsName) {
-        std::string s = currentTestFile + STR(++unnamedCount);
+        s = currentTestFile + STR(++unnamedCount);
         testname = s.c_str();
     }
     testPathOpBase(r, a, b, op, testname, true, true, true);

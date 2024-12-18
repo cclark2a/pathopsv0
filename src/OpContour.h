@@ -73,6 +73,12 @@ struct OpContour {
 		}
 	}
 
+	void fixCCSects() {
+		for (auto& segment : segments) {
+			segment.fixCCSects();
+		}
+	}
+
 	void makeCoins() {
 		for (auto& segment : segments) {
 			segment.makeCoins();
@@ -314,6 +320,11 @@ struct OpContours {
 		return aliases.find(pt);
 	}
 
+	void fixCCSects() {
+	   for (auto contour : contours) {
+			contour->fixCCSects();
+		}
+	}
 	void findMissingEnds() {
 	   for (auto contour : contours) {
 			contour->findMissingEnds();
