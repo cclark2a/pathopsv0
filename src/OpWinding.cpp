@@ -29,7 +29,7 @@ OpWinding::OpWinding(const OpWinding& from) {
 }
 
 void OpWinding::add(const OpWinding& winding) {
-	w = contour->callBacks.windingAddFuncPtr(w, winding.w);
+	contour->callBacks.windingAddFuncPtr(w, winding.w);
 }
 
 #if 0
@@ -47,7 +47,7 @@ PathOpsV0Lib::Winding OpWinding::copyData() const {
 }
 
 void OpWinding::subtract(const OpWinding& winding) {
-	w = contour->callBacks.windingSubtractFuncPtr(w, winding.w);
+	contour->callBacks.windingSubtractFuncPtr(w, winding.w);
 }
 
 bool OpWinding::visible() const {

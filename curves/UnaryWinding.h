@@ -29,20 +29,18 @@ struct UnaryWinding {
     int left;
 };
 
-inline Winding unaryEvenOddFunc(Winding winding, Winding toAdd) {
+inline void unaryEvenOddFunc(Winding winding, Winding toAdd) {
     UnaryWinding sum(winding);
     UnaryWinding addend(toAdd);
     sum.left ^= addend.left;
     sum.copyTo(winding);
-    return winding;
 }
 
-inline Winding unaryWindingAddFunc(Winding winding, Winding toAdd) {
+inline void unaryWindingAddFunc(Winding winding, Winding toAdd) {
     UnaryWinding sum(winding);
     UnaryWinding addend(toAdd);
     sum.left += addend.left;
     sum.copyTo(winding);
-    return winding;
 }
 
 // normal (clockwise from vector direction) points to sum
@@ -57,12 +55,11 @@ inline WindKeep unaryWindingKeepFunc(Winding winding, Winding sumWinding) {
     return sum.left ? WindKeep::Start : WindKeep::End;
 }
 
-inline Winding unaryWindingSubtractFunc(Winding winding, Winding toSubtract) {
+inline void unaryWindingSubtractFunc(Winding winding, Winding toSubtract) {
     UnaryWinding difference(winding);
     UnaryWinding subtrahend(toSubtract);
     difference.left -= subtrahend.left;
     difference.copyTo(winding);
-    return winding;
 }
     
 inline bool unaryWindingVisibleFunc(Winding winding) {

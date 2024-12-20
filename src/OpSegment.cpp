@@ -33,7 +33,7 @@ OpSegment::OpSegment(PathOpsV0Lib::AddCurve addCurve, PathOpsV0Lib::AddWinding a
 	: contour((OpContour*) addWinding.contour)
 	, c(contour->contours,  
 			{ (PathOpsV0Lib::CurveData*) addCurve.points, addCurve.size, addCurve.type } )
-	, winding(contour, { (PathOpsV0Lib::WindingData*) addWinding.windings, addWinding.size } )
+	, winding(contour, { addWinding.winding.data, addWinding.winding.size } )
 	, id(contour->nextID())
 	, disabled(false)
 	, willDisable(false)
@@ -445,8 +445,7 @@ void OpSegment::findMissingEnds() {
 		bool missingStart = !sects.i.size() || 0 != sects.i.front()->ptT.t;
 		bool missingEnd = !sects.i.size() || 1 != sects.i.back()->ptT.t;
 		if ((missingStart || missingEnd) && !contours->errorHandler.errorDispatchFuncPtr(
-				PathOpsV0Lib::ContextError::end, (PathOpsV0Lib::Context*) contours, 
-				(PathOpsV0Lib::Contour*) contour, &c.c)) {
+				PathOpsV0Lib::ContextError::end, (PathOpsV0Lib::Context*) contours, &c.c)) {
 			if (missingStart) {
 				OpIntersection* sect = contour->addSegSect({c.firstPt(), 0}, this  
 						OP_LINE_FILE_PARAMS(this));

@@ -1,5 +1,4 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
-// new interface idea
 
 #include "PathOps.h"
 #include "SkiaEnumSkPathOp.h"

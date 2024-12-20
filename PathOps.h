@@ -2,72 +2,56 @@
 #ifndef PathOps_DEFINED
 #define PathOps_DEFINED
 
-#include "OpDebug.h"
 #include "PathOpsTypes.h"
 
 namespace PathOpsV0Lib {
 
-/* usage:
-
-
-*/
-
-// functions
-// Adds one curve to winding's contour.
+// adds one curve to winding's contour
 void Add(AddCurve , AddWinding );
 
-// Makes a PathOps context: an instance of the PathOps engine. Optional caller data may be added.
-Context* CreateContext(AddContext );
+// makes a PathOps context: an instance of the PathOps engine
+Context* CreateContext();
 
-// Deletes a PathOps context, and frees any memory associated with that context.
+// deletes a PathOps context, and frees any memory associated with that context
 void DeleteContext(Context* );
 
-// Makes a PathOps contour: a collection of curves. Optional caller data may be added.
-Contour* CreateContour(AddContour );
+// makes a PathOps contour: a collection of curves
+Contour* CreateContour(Context* );
 
-// Returns error code of previous call.
+// returns error code of previous call
 ContextError Error(Context* );
 
-// Adjusts curves to place all numerical data in the same range 
+// adjusts curves to place all numerical data in the same range
 void Normalize(Context* );
 
-// Removes curves added to contour. Remaining state remains.
+// removes curves added to contour; callbacks are unaffected
 void ResetContour(Contour* );
 
-/* Operate on curves provided by Add(). Calls curve output callback with path output.
- */
+// operate on added curves; calls curve output callback with path output
 void Resolve(Context* , PathOutput );
 
-void SetContextCallBacks(Context* ,  EmptyNativePath, MakeLine , SetLineType , MaxSignSwap ,
+// global callbacks
+void SetContextCallBacks(Context* ,  EmptyNativePath , MakeLine , SetLineType , MaxSignSwap ,
 		MaxCurveCurve , MaxCurveCurve , MaxLimbs);
 
+// sets the context into an error state
 void SetError(Context* , ContextError );
+
+// error callback; allows overriding error behavior
 void SetErrorHandler(Context* , ErrorDispatch );
 
-// !!! reorganize this so that required parameters are first, quad nullptr params second,
-//     line nullptr params last; then add nullptr as default parameter values
-// !!! make all debug parameters optional throughout code
-CurveType SetCurveCallBacks(Context* , AxisT,
-		CurveHull, CurveIsFinite, CurveIsLine,
-		SetBounds, CurveOutput, CurvePinCtrl,
-		CurveReverse, CurveTangent, CurvesEqual, PtAtT,
-		HullPtCount, Rotate, SubDivide, XYAtT, 
-		CurveConst cut, CurveConst normalLimit, CurveConst interceptLimit);
+// curve callbacks; describes geometry between endpoints
+CurveType SetCurveCallBacks(Context* , CurveOutput, AxisT = nullptr,
+		CurveHull = nullptr, CurveIsFinite = nullptr, CurveIsLine = nullptr,
+		SetBounds = nullptr, CurvePinCtrl = nullptr, CurveTangent = nullptr, 
+		CurvesEqual = nullptr, PtAtT = nullptr, HullPtCount = nullptr, Rotate = nullptr, 
+		SubDivide = nullptr, XYAtT = nullptr, CurveReverse = nullptr, CurveConst cut = nullptr, 
+		CurveConst normalLimit = nullptr, CurveConst interceptLimit = nullptr);
 
-void SetWindingCallBacks(Contour* , WindingAdd, WindingKeep ,
-		WindingSubtract , WindingVisible, WindingZero  OP_DEBUG_PARAMS(DebugBitOper)
-		OP_DEBUG_DUMP_PARAMS(DebugDumpContourIn, DebugDumpContourOut, DebugDumpContourExtra)
-		OP_DEBUG_IMAGE_PARAMS(DebugImageOut, DebugNativePath, DebugGetDraw, DebugSetDraw, 
-				DebugIsOpp)
-);
+// winding callbacks; specifies which curves are kept and discarded
+void SetWindingCallBacks(Contour* , WindingAdd , WindingKeep ,
+		WindingVisible , WindingZero , WindingSubtract = nullptr); 
 
-#if OP_DEBUG
-void Debug(Context* , OpDebugData& );
-void SetDebugCurveCallBacks(Context* , CurveType , DebugScale 
-		OP_DEBUG_DUMP_PARAMS(DebugDumpCurveName, DebugDumpCurveExtra)
-		OP_DEBUG_IMAGE_PARAMS(DebugAddToPath) );
-#endif
-
-} // namespace PathOpsV0Lib
+}
 
 #endif

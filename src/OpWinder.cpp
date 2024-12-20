@@ -169,8 +169,7 @@ FindCept SectRay::findIntercept(OpEdge* home, OpEdge* test) {
 	OpVector ray = Axis::horizontal == axis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
 	OpVector backRay = -ray;
 	float tNxR = tangent.cross(backRay);
-	if (fabs(tNxR) < home->contours()->callBack(home->segment->c.c.type)
-			.normalLimitFuncPtr(home->segment->c.c))
+	if (fabs(tNxR) < home->segment->c.normalLimit())
 		return pushUsectDist();
 	OpPoint pt = test->curve.ptAtT(root);
 	Axis perpendicular = !axis;
@@ -561,8 +560,7 @@ ChainFail OpWinder::setSumChain(size_t homeIndex) {
 	float NxR = homeTangent.normalize().cross(rayLine);
 	if (!OpMath::IsFinite(NxR))
 		OP_DEBUG_FAIL(*home, ChainFail::normalizeOverflow);
-	if (fabs(NxR) < home->contours()->callBack(home->segment->c.c.type)
-			.normalLimitFuncPtr(home->segment->c.c)) {
+	if (fabs(NxR) < home->segment->c.normalLimit()) {
 		markUnsortable(Unsortable::rayTooShallow);
 		return ChainFail::normalizeUnderflow;  // nonfatal error
 	}
@@ -575,8 +573,7 @@ ChainFail OpWinder::setSumChain(size_t homeIndex) {
 	}
 	Axis perpendicular = !workingAxis;
 	float homeCept = home->center.pt.choice(perpendicular);
-	interceptLimit = home->contours()->callBack(home->segment->c.c.type)
-			.interceptFuncPtr(home->segment->c.c);
+	interceptLimit = home->segment->c.interceptLimit();
 	FoundIntercept foundIntercept = findRayIntercept(homeIndex, homeTangent, normal, homeCept);
 	if (FoundIntercept::fail == foundIntercept)
 		return ChainFail::failIntercept;

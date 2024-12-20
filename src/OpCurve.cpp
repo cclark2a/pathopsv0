@@ -19,32 +19,10 @@ float OpCurve::center(Axis axis, float intercept) const {
 	return roots.roots[0];
 }
 
-#if 0
-OpPtT OpCurve::cut(const OpPtT& ptT, float loBounds, float hiBounds, float direction) const {
-	OP_ASSERT(1 == fabsf(direction));
-	OP_ASSERT(loBounds <= ptT.t && ptT.t <= hiBounds);
-	float tStep = contours->callBack(c.type).cutFuncPtr(c); 
-	float cutDt = OpEpsilon * tStep;
-	OpVector threshold = contours->threshold();
-	float minDistanceSq = threshold.lengthSquared() * tStep;
-	OpPtT cut;
-	do {
-		cut.t = ptT.t + direction * cutDt;
-		if (loBounds >= ptT.t || ptT.t >= hiBounds)
-			return ptTAtT(OpMath::Average(loBounds, hiBounds));
-		if (OpMath::EqualT(loBounds, cut.t) || OpMath::EqualT(cut.t, hiBounds))
-			continue;
-		cut.pt = ptAtT(cut.t);
-		if ((cut.pt - ptT.pt).lengthSquared() >= minDistanceSq)
-			break;
-	} while ((direction *= tStep));
-	return cut;
-}
-#endif
-
 // cut range minimum should be double the distance between ptT pt and opp pt
 CutRangeT OpCurve::cutRange(const OpPtT& ptT, OpPoint oppPt, float loEnd, float hiEnd) const {
-	float tStep = contours->callBack(c.type).cutFuncPtr(c);
+	PathOpsV0Lib::CurveConst cutFun = contours->callBack(c.type).cutFuncPtr;
+	float tStep = cutFun ? (*cutFun)(c) : 16.f;
 	float cutDt = OpEpsilon * tStep;
 	OpVector threshold = contours->threshold();
 	float minDistanceSq = threshold.lengthSquared() * tStep;
@@ -63,33 +41,12 @@ CutRangeT OpCurve::cutRange(const OpPtT& ptT, OpPoint oppPt, float loEnd, float 
 	return tRange;
 }
 
-#if 0
-OpPoint OpCurve::end(float t) const {
-	OP_ASSERT(0 == t || 1 == t);
-	return t ? lastPt() : firstPt();
+float OpCurve::interceptLimit() const {
+	PathOpsV0Lib::CurveConst limFuncPtr = contours->callBack(c.type).interceptFuncPtr;
+	if (!limFuncPtr)
+		return 1.f / 256.f;
+	return (*limFuncPtr)(c);
 }
-
-OpPtT OpCurve::findIntersect(Axis axis, const OpPtT& opPtT) const {
-	if (firstPt() == opPtT.pt)
-		return { opPtT.pt, 0 };
-	if (lastPt() == opPtT.pt)
-		return { opPtT.pt, 1 };
-	float intercept = *opPtT.pt.asPtr(axis);
-	OpRoots roots = axisRayHit(axis, intercept);
-	OP_ASSERT(roots.count);
-	OpPtT result;
-	float best = OpInfinity;
-	for (unsigned index = 0; index < roots.count; ++index) {
-		OpPoint pt = ptAtT(roots.roots[index]);
-		float distance = fabsf(*(&pt.y - +axis) - *(&opPtT.pt.y - +axis));
-		if (best > distance) {
-			result = { pt, roots.roots[index] };
-			best = distance;
-		}
-	}
-	return result;
-}
-#endif
 
 OpRootPts OpCurve::lineIntersect(const LinePts& line) const {
 	OpRootPts result;
@@ -174,6 +131,13 @@ NormalDirection OpCurve::normalDirection(Axis axis, float t) const {
 	if (NdotR < 0)
 		return NormalDirection::downLeft;
 	return NormalDirection::underflow;	 // catches, zero, nan
+}
+
+float OpCurve::normalLimit() const {
+	PathOpsV0Lib::CurveConst limFuncPtr = contours->callBack(c.type).normalLimitFuncPtr;
+	if (!limFuncPtr)
+		return 0.008f; // 0.004  fails on testQuads19022897 edge 151 NxR:-0.00746
+	return (*limFuncPtr)(c);
 }
 
 bool OpCurve::normalize() {
@@ -337,7 +301,14 @@ int OpCurve::pointCount() const {
 }
 
 OpPoint OpCurve::ptAtT(float t) const {
-	return contours->callBack(c.type).ptAtTFuncPtr(c, t);
+	if (0 == t)
+		return c.data->start;
+	if (1 == t)
+		return c.data->end;
+	PathOpsV0Lib::PtAtT funcPtr = contours->callBack(c.type).ptAtTFuncPtr;
+	if (!funcPtr)
+		return (1 - t) * c.data->start + t * c.data->end;
+	return (*funcPtr)(c, t);
 }
 
 OpCurve OpCurve::subDivide(OpPtT ptT1, OpPtT ptT2) const {
@@ -355,15 +326,20 @@ OpCurve OpCurve::subDivide(OpPtT ptT1, OpPtT ptT2) const {
 OpVector OpCurve::normal(float t) const {
 	OpVector tan = tangent(t);
 	return { -tan.dy, tan.dx };
-//	return contours->callBack(c.type).curveNormalFuncPtr(c, t);
 }
 
 OpVector OpCurve::tangent(float t) const {
-	return contours->callBack(c.type).curveTangentFuncPtr(c, t);
+	PathOpsV0Lib::CurveTangent funcPtr = contours->callBack(c.type).curveTangentFuncPtr;
+	if (!funcPtr)
+		return c.data->end - c.data->start;
+	return (*funcPtr)(c, t);
 }
 
 OpPair OpCurve::xyAtT(OpPair t, XyChoice xy) const {
-	return contours->callBack(c.type).xyAtTFuncPtr(c, t, xy);
+	PathOpsV0Lib::XYAtT funcPtr = contours->callBack(c.type).xyAtTFuncPtr;
+	if (!funcPtr)
+		return (1 - t) * c.data->start.choice(xy) + t * c.data->end.choice(xy);
+	return (*funcPtr)(c, t, xy);
 }
 
 OpPoint OpCurve::hullPt(int index) const {
@@ -381,7 +357,6 @@ void OpCurve::reverse() {
 	PathOpsV0Lib::CurveReverse funcPtr = contours->callBack(c.type).curveReverseFuncPtr;
 	if (funcPtr)
 		(*funcPtr)(c);
-	return;
 }
 
 OpCurve::OpCurve(OpContours* cntrs, PathOpsV0Lib::Curve curve) {
@@ -401,8 +376,13 @@ OpCurve::OpCurve(OpContours* cntrs, PathOpsV0Lib::Curve curve) {
 	}
 }
 
-OpRoots OpCurve::axisRawHit(Axis offset, float intercept, MatchEnds matchEnds) const {
-	return contours->callBack(c.type).axisTFuncPtr(c, offset, intercept, matchEnds);
+OpRoots OpCurve::axisRawHit(Axis axis, float intercept, MatchEnds matchEnds) const {
+	PathOpsV0Lib::AxisT func = contours->callBack(c.type).axisTFuncPtr;
+	if (!func) {
+		const float* ptr = c.data->start.asPtr(axis);
+		return OpRoots((intercept - ptr[0]) / (ptr[2] - ptr[0]));
+	}
+	return (*func)(c, axis, intercept, matchEnds);
 }
 
 bool OpCurve::isLine() {

@@ -37,7 +37,6 @@ struct CallerDataStorage {
 };
 
 struct OpContour {
-	void addCallerData(PathOpsV0Lib::AddContour callerData);
 	OpIntersection* addEdgeSect(const OpPtT& , OpSegment* seg
 		   OP_LINE_FILE_DEF(const OpEdge* edge, const OpEdge* oEdge));
 	OpIntersection* addCoinSect(const OpPtT& , OpSegment* seg, int cID, MatchEnds 
@@ -119,9 +118,8 @@ struct OpContour {
 		}
 	}
 
-#if OP_DEBUG
-	void debugComplete();
-#endif
+	OP_DEBUG_CODE(void addDebugCallerData(PathOpsV0Lib::DebugCallerData callerData));
+
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
 	#define OP_X(Thing) \
@@ -134,7 +132,8 @@ struct OpContour {
 	OpContours* contours;
 	std::vector<OpSegment> segments;
 	PathOpsV0Lib::ContourCallBacks callBacks;
-	PathOpsV0Lib::CallerData caller;  // note: must use std::memcpy before reading
+	OP_DEBUG_CODE(PathOpsV0Lib::DebugContourCallBacks debugCallBacks);
+	OP_DEBUG_CODE(PathOpsV0Lib::DebugCallerData debugCaller);  // note: must use std::memcpy before reading
 #if TEST_RASTER
 	OpDebugRaster rasterOperand;
 #endif
@@ -264,7 +263,6 @@ struct OpContours {
 	~OpContours();
 
 	bool addAlias(OpPoint pt, OpPoint alias);
-	void addCallerData(PathOpsV0Lib::AddContext callerData);
 //    OpEdge* addFiller(OpEdge* edge, OpEdge* lastEdge);
 	OpEdge* addFiller(const OpPtT& start, const OpPtT& end);
 	void addToBounds(const OpCurve& );
@@ -343,7 +341,7 @@ struct OpContours {
 	OpContour* makeContour() {
 		OpContour* contour = allocateContour();
 		contour->contours = this;
-		OP_DEBUG_CODE(contour->debugComplete());
+		OP_DEBUG_CODE(contour->id = nextID());
 		return contour;
 	}
 
@@ -427,7 +425,6 @@ struct OpContours {
 	std::vector<PathOpsV0Lib::CurveCallBacks> callBacks;
 	PathOpsV0Lib::ContextCallBacks contextCallBacks;
 	PathOpsV0Lib::PathOutput callerOutput;
-	PathOpsV0Lib::AddContext caller;   // note: must use std::memcpy before reading
 	PathOpsV0Lib::ErrorHandler errorHandler;
 	// these are pointers instead of inline values because the storage with empty slots is first
 	OpEdgeStorage* ccStorage;
@@ -456,6 +453,7 @@ struct OpContours {
 #endif
 #if OP_DEBUG
 	std::vector<PathOpsV0Lib::DebugCurveCallBacks> debugCallBacks;
+//	PathOpsV0Lib::DebugContextCallBacks debugContextCallBacks;
 	OpDebugData debugData;
 	OpCurveCurve* debugCurveCurve;
 	OpJoiner* debugJoiner;

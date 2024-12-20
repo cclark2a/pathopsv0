@@ -1020,7 +1020,7 @@ bool OpJoiner::matchLinks(bool popLast) {
 		if (!tree.contours->errorHandler.errorDispatchFuncPtr
 				|| tree.contours->errorHandler.errorDispatchFuncPtr(
 				PathOpsV0Lib::ContextError::missing, (PathOpsV0Lib::Context*) tree.contours, 
-				nullptr, nullptr)) {
+				nullptr)) {
 			OpPtT startI = edge->whichPtT(EdgeMatch::start);
 			OpPtT gapEnd = gap->lastLimbEdge->whichPtT(!gap->match);
 			OpEdge* filler = tree.addFiller(gapEnd, startI);

@@ -23,16 +23,10 @@ char* OpContours::allocateCallerData(size_t size) {
 	return result;
 }
 
-void OpContour::addCallerData(PathOpsV0Lib::AddContour data) {
-	caller.data = contours->allocateCallerData(data.size);
-	std::memcpy(caller.data, data.data, data.size);
-	caller.size = data.size;  // !!! don't know if size is really needed ...
-}
-
-void OpContours::addCallerData(PathOpsV0Lib::AddContext data) {
-	caller.data = allocateCallerData(data.size);
-	std::memcpy(caller.data, data.data, data.size);
-	caller.size = data.size;  // !!! don't know if size is really needed ...
+void OpContour::addDebugCallerData(PathOpsV0Lib::DebugCallerData data) {
+	debugCaller.data = contours->allocateCallerData(data.size);
+	std::memcpy(debugCaller.data, data.data, data.size);
+	debugCaller.size = data.size;  // !!! don't know if size is really needed ...
 }
 
 #if 0
@@ -205,8 +199,7 @@ SegPt OpPtAliases::addIfClose(OpPoint match) {
 }
 
 OpContours::OpContours()
-	: caller({nullptr, 0}) 
-	, errorHandler({nullptr})
+	: errorHandler({nullptr})
 	, ccStorage(nullptr)
 	, curveDataStorage(nullptr)
 	, contourStorage(nullptr)
@@ -450,7 +443,7 @@ bool OpContours::pathOps() {
 				OP_DEBUG_PARAMS(sortedSegments.debugFailSegID));
 	debugValidateIntersections();
 	if (errorHandler.errorDispatchFuncPtr && !errorHandler.errorDispatchFuncPtr(
-			PathOpsV0Lib::ContextError::missing, (PathOpsV0Lib::Context*) this, nullptr, nullptr)) {
+			PathOpsV0Lib::ContextError::missing, (PathOpsV0Lib::Context*) this, nullptr)) {
 		addDisjointIntersections();
 	}
 	disableSmallSegments();  // moved points may allow disabling some segments
@@ -572,12 +565,6 @@ bool OpContours::debugFail() const {
 }
 
 #if OP_DEBUG
-void OpContour::debugComplete() {
-	caller.data = nullptr;   // should always get initialized by OpContours::addCallerData
-	caller.size = 0;
-	id = nextID();
-}
-
 bool OpContours::debugSuccess() const {
 	return OpDebugExpect::unknown == debugExpect || OpDebugExpect::success == debugExpect;
 }

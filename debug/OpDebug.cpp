@@ -1047,7 +1047,7 @@ void debug() {
 
 #endif
 
-#include "PathOps.h"
+#include "DebugOps.h"
 
 namespace PathOpsV0Lib {
 
@@ -1058,6 +1058,28 @@ void SetDebugCurveCallBacks(Context* context, CurveType , DebugScale scaleFunc
 	contours->debugCallBacks.push_back( { scaleFunc
 			OP_DEBUG_DUMP_PARAMS(dumpNameFunc, dumpExtraFunc)
 			OP_DEBUG_IMAGE_PARAMS(addToPathFunc) } );
+}
+
+void SetDebugWindingCallBacks(Contour* ctour, DebugCallerData callerData, DebugBitOper bitOper
+		OP_DEBUG_DUMP_PARAMS(DebugDumpContourIn dumpInFunc, DebugDumpContourOut dumpOutFunc, 
+                DebugDumpContourExtra dumpFunc)
+        OP_DEBUG_IMAGE_PARAMS(DebugImageOut dumpImageOutFunc, 
+                DebugNativePath debugNativePathFunc, 
+                DebugGetDraw debugGetDrawFunc, DebugSetDraw debugSetDrawFunc,
+                DebugIsOpp debugIsOppFunc)
+) {
+    OpContour* contour = (OpContour*) ctour;
+	contour->debugCaller = callerData;
+    contour->debugCallBacks = { bitOper
+            OP_DEBUG_DUMP_PARAMS(dumpInFunc, dumpOutFunc, dumpFunc)
+            OP_DEBUG_IMAGE_PARAMS(dumpImageOutFunc,
+                    debugNativePathFunc, debugGetDrawFunc, debugSetDrawFunc, debugIsOppFunc)
+            };
+}
+
+void Debug(Context* context, OpDebugData& debugData) {
+    OpContours* contours = (OpContours*) context;
+    contours->debugData = debugData;
 }
 
 }

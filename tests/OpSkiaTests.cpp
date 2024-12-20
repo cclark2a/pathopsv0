@@ -527,6 +527,9 @@ int VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op, std::string test
 
 #include "skia/SkiaPaths.h"
 #include "curves/BinaryWinding.h"
+#if OP_DEBUG
+#include "DebugOps.h"
+#endif
 
 // char* so it can be called from immediate window
 void dumpOpTest(const char* testname, const SkPath& pathA, const SkPath& pathB, SkPathOp op) {
@@ -587,7 +590,7 @@ extern void alt_cubicOp114asQuad();
 bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
 		OpDebugData* debugDataPtr) {
     using namespace PathOpsV0Lib;
-    Context* context = CreateContext({ nullptr, 0 });
+    Context* context = CreateContext();
 #if TEST_RASTER
 	((OpContours*) context)->rasterEnabled = true;
 #endif
@@ -607,12 +610,12 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
     Contour* left = SetSkiaOpCallBacks(context, mappedOp, BinaryOperand::left, windType
             OP_DEBUG_PARAMS(a));
     int leftData[] = { 1, 0 };
-    PathOpsV0Lib::AddWinding leftWinding { left, leftData, sizeof(leftData) };
+    PathOpsV0Lib::AddWinding leftWinding { left, { leftData, sizeof(leftData) }};
     AddSkiaPath(context, leftWinding, a);
     Contour* right = SetSkiaOpCallBacks(context, mappedOp, BinaryOperand::right, windType
             OP_DEBUG_PARAMS(b));
     int rightData[] = { 0, 1 };
-    PathOpsV0Lib::AddWinding rightWinding { right, rightData, sizeof(rightData) };
+    PathOpsV0Lib::AddWinding rightWinding { right, { rightData, sizeof(rightData) }};
     AddSkiaPath(context, rightWinding, b);
     PathOutput pathOutput = result;
 	Normalize(context);
@@ -926,7 +929,7 @@ void run() {
 
 bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
     using namespace PathOpsV0Lib;
-    Context* context = CreateContext({ nullptr, 0 });
+    Context* context = CreateContext();
     OP_DEBUG_CODE(if (optional) Debug(context, *optional));
     SetSkiaContextCallBacks(context);
     SetSkiaCurveCallBacks(context);
@@ -937,7 +940,7 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
     Contour* simple = SetSkiaSimplifyCallBacks(context, isWindingFill(path)
             OP_DEBUG_PARAMS(path));
     int simpleData[] = { 1 };
-    PathOpsV0Lib::AddWinding simpleWinding { simple, simpleData, sizeof(simpleData) };
+    PathOpsV0Lib::AddWinding simpleWinding { simple, { simpleData, sizeof(simpleData) }};
 #if TEST_ANALYZE && OP_DEBUG
 	// make failing tests smaller
 	// add contours until it fails

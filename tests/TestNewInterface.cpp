@@ -51,8 +51,8 @@ PathOpsV0Lib::CurveType testNewSetLineType(PathOpsV0Lib::Curve ) {
 void testNewInterface() {
     using namespace PathOpsV0Lib;
 
-    Context* context = CreateContext({nullptr, 0});
-    SetContextCallBacks(context, noEmptyPath, testNewMakeLine, testNewSetLineType, maxSignSwap,
+    Context* context = CreateContext();
+    SetContextCallBacks(context, nullptr, testNewMakeLine, testNewSetLineType, maxSignSwap,
 			maxDepth, maxSplits, maxLimbs);
 
 #if OP_DEBUG
@@ -63,33 +63,27 @@ void testNewInterface() {
     Debug(context, debugData);
 #endif
 
-    lineType = SetCurveCallBacks(context, lineAxisT, 
-			nullptr, nullptr, nullptr, 
-			nullptr, lineOutput, nullptr, 
-			nullptr, lineTangent, nullptr, linePtAtT, 
-            nullptr, nullptr, nullptr, lineXYAtT,
-			lineCut, lineNormalLimit, lineInterceptLimit
-    );
-    quadType = SetCurveCallBacks(context, quadAxisT,
+    lineType = SetCurveCallBacks(context, lineOutput);
+    quadType = SetCurveCallBacks(context, quadOutput, quadAxisT,
 			quadHull, quadIsFinite, quadIsLine, 
-			quadSetBounds, quadOutput, quadPinCtrl, 
-			nullptr, quadTangent, quadsEqual, quadPtAtT,
-            quadHullPtCount, quadRotate, quadSubDivide, quadXYAtT,
-			lineCut, lineNormalLimit, lineInterceptLimit
-    );
+			quadSetBounds, quadPinCtrl, 
+			quadTangent, quadsEqual, quadPtAtT,
+            quadHullPtCount, quadRotate, quadSubDivide, quadXYAtT);
 
     // example: given points describing a pair of closed loops with quadratic Beziers, find
     //          their intersection
-    Contour* contour = CreateContour({context, nullptr, 0});
-    SetWindingCallBacks(contour, unaryWindingAddFunc, unaryWindingKeepFunc, 
-            unaryWindingSubtractFunc, unaryWindingVisibleFunc, unaryWindingZeroFunc 
-			OP_DEBUG_PARAMS(noDebugBitOper)
+    Contour* contour = CreateContour(context);
+    SetWindingCallBacks(contour, unaryWindingAddFunc, unaryWindingKeepFunc, unaryWindingVisibleFunc,
+			unaryWindingZeroFunc, unaryWindingSubtractFunc);
+#if OP_DEBUG
+	SetDebugWindingCallBacks(contour, { nullptr, 0 }, noDebugBitOper
             OP_DEBUG_DUMP_PARAMS(unaryWindingDumpInFunc, unaryWindingDumpOutFunc, noDumpFunc)
             OP_DEBUG_IMAGE_PARAMS(noWindingImageOutFunc, noNativePathFunc,
-                    noDebugGetDrawFunc, noDebugSetDrawFunc, noIsOppFunc)
+            noDebugGetDrawFunc, noDebugSetDrawFunc, noIsOppFunc)
     );
+#endif
     UnaryWinding windingData(1);
-    AddWinding addWinding { contour, &windingData, sizeof(windingData) };
+    AddWinding addWinding { contour,  { &windingData, sizeof(windingData) }};
 
     // note that the data below omits start points for curves that match the previous end point
                       //  start      end      control

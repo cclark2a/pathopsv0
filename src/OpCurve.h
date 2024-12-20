@@ -3,6 +3,9 @@
 #define OpCurve_DEFINED
 
 #include "PathOpsTypes.h"
+#if OP_DEBUG
+#include "DebugOpsTypes.h"
+#endif
 
 // arranged so down/left is -1, up/right is +1
 enum class NormalDirection {
@@ -39,6 +42,7 @@ struct OpCurve {
 	OpPoint firstPt() const  {
 		return c.data->start; } 
 	OpPoint hullPt(int index) const;
+	float interceptLimit() const;
 	bool isFinite() const;
 	bool isLine(); 
 	bool isVertical() const;
@@ -53,6 +57,7 @@ struct OpCurve {
 	bool nearBounds(OpPoint ) const;
 	OpVector normal(float t) const;
 	NormalDirection normalDirection(Axis axis, float t) const;
+	float normalLimit() const;
 	bool normalize();
 	void output(bool firstPt, bool lastPt  OP_DEBUG_PARAMS(int parentID));
 	void pinCtrl();

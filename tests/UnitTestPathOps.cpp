@@ -1159,27 +1159,23 @@ PathOpsV0Lib::CurveType getTestLineType(PathOpsV0Lib::Curve ) {
 void LineCoincidenceTest() {
     using namespace PathOpsV0Lib;
 
-    Context* context = CreateContext({nullptr, 0});
+    Context* context = CreateContext();
     SetContextCallBacks(context, testNoEmptyPath, testMakeLine, getTestLineType, maxSignSwap,
 			maxDepth, maxSplits, maxLimbs);
 
-    testLineType = SetCurveCallBacks(context, lineAxisT, nullptr, nullptr, 
-            nullptr, nullptr, testOutput, nullptr, nullptr,
-            lineTangent, nullptr, linePtAtT,
-            nullptr, nullptr, nullptr, lineXYAtT,
-			lineCut, lineNormalLimit, lineInterceptLimit
-    );
-
-    Contour* contour = CreateContour({context, nullptr, 0});
-    SetWindingCallBacks(contour, unaryWindingAddFunc, unaryWindingKeepFunc, 
-            unaryWindingSubtractFunc, unaryWindingVisibleFunc, unaryWindingZeroFunc 
-			OP_DEBUG_PARAMS(noDebugBitOper)
+    testLineType = SetCurveCallBacks(context, testOutput);
+    Contour* contour = CreateContour(context);
+    SetWindingCallBacks(contour, unaryWindingAddFunc, unaryWindingKeepFunc, unaryWindingVisibleFunc,
+			unaryWindingZeroFunc, unaryWindingSubtractFunc);
+#if OP_DEBUG
+	SetDebugWindingCallBacks(contour, { nullptr, 0 }, noDebugBitOper
             OP_DEBUG_DUMP_PARAMS(unaryWindingDumpInFunc, unaryWindingDumpOutFunc, noDumpFunc)
             OP_DEBUG_IMAGE_PARAMS(noWindingImageOutFunc, noNativePathFunc,
                     noDebugGetDrawFunc, noDebugSetDrawFunc, noIsOppFunc)
     );
+#endif
     int windingData[] = { 1 };
-    AddWinding addWinding { contour, windingData, sizeof(windingData) };
+    AddWinding addWinding { contour, { windingData, sizeof(windingData) }};
     constexpr size_t lineSize = sizeof(OpPoint) * 2;
 	auto OpPtHex = [](uint32_t x, uint32_t y) {
 		return OpPoint(OpDebugBitsToFloat(x), OpDebugBitsToFloat(y));

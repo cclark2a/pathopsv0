@@ -1,12 +1,11 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
-// new interface idea
 
 #include "PathOps.h"
+#if OP_DEBUG
+#include "DebugOps.h"
+#endif
 
 namespace PathOpsV0Lib {
-
-inline void noEmptyPath(PathOutput ) {
-}
 
 // !!! put these in a different header?
 inline int maxDepth(Curve , Curve ) {
@@ -25,17 +24,8 @@ inline int maxLimbs(Context* ) {
 	return 500;
 }
 
-inline WindKeep noWindKeepFunc(Winding , Winding ) {
-    return WindKeep::Discard;
-}
-
-inline Winding noWindingOpFunc(Winding , Winding ) {
-	Winding dummyWinding { nullptr, 0 };
-	return dummyWinding;
-}
-
 #if OP_DEBUG
-inline uint8_t noDebugBitOper(CallerData , uint8_t , uint8_t ) {
+inline uint8_t noDebugBitOper(DebugCallerData , uint8_t , uint8_t ) {
 	return 0;
 }
 

@@ -1,6 +1,4 @@
-// (c) 2023, Cary Clark cclark2@gmail.com
-
-// new interface idea
+// (c) 2024, Cary Clark cclark2@gmail.com
 
 #include "PathOps.h"
 
@@ -57,40 +55,36 @@ struct BinaryOpData {
     BinaryOperand operand;
 };
 
-inline Winding binaryEvenOddFunc(Winding winding, Winding toAdd) {
+inline void binaryEvenOddFunc(Winding winding, Winding toAdd) {
     BinaryWinding sum(winding);
     BinaryWinding addend(toAdd);
     sum.left ^= addend.left;
     sum.right ^= addend.right;
     sum.copyTo(winding);
-    return winding;
 }
 
-inline Winding binaryWindingAddFunc(Winding winding, Winding toAdd) {
+inline void binaryWindingAddFunc(Winding winding, Winding toAdd) {
     BinaryWinding sum(winding);
     BinaryWinding addend(toAdd);
     sum.left += addend.left;
     sum.right += addend.right;
     sum.copyTo(winding);
-    return winding;
 }
 
-inline Winding binaryWindingAddLeftFunc(Winding winding, Winding toAdd) {
+inline void binaryWindingAddLeftFunc(Winding winding, Winding toAdd) {
     BinaryWinding sum(winding);
     BinaryWinding addend(toAdd);
     sum.left += addend.left;
     sum.right ^= addend.right;
     sum.copyTo(winding);
-    return winding;
 }
 
-inline Winding binaryWindingAddRightFunc(Winding winding, Winding toAdd) {
+inline void binaryWindingAddRightFunc(Winding winding, Winding toAdd) {
     BinaryWinding sum(winding);
     BinaryWinding addend(toAdd);
     sum.left ^= addend.left;
     sum.right += addend.right;
     sum.copyTo(winding);
-    return winding;
 }
 
 // normal (clockwise from vector direction) points to sum
@@ -194,31 +188,28 @@ inline WindKeep binaryWindingUnionFunc(Winding winding, Winding sumWinding) {
     return KeepData(winding, sumWinding, &KeepData::Union).keep;
 }
 
-inline Winding binaryWindingSubtractFunc(Winding winding, Winding toSubtract) {
+inline void binaryWindingSubtractFunc(Winding winding, Winding toSubtract) {
     BinaryWinding difference(winding);
     BinaryWinding subtrahend(toSubtract);
     difference.left -= subtrahend.left;
     difference.right -= subtrahend.right;
     difference.copyTo(winding);
-    return winding;
 }
     
-inline Winding binaryWindingSubtractLeftFunc(Winding winding, Winding toSubtract) {
+inline void binaryWindingSubtractLeftFunc(Winding winding, Winding toSubtract) {
     BinaryWinding difference(winding);
     BinaryWinding subtrahend(toSubtract);
     difference.left -= subtrahend.left;
     difference.right ^= subtrahend.right;
     difference.copyTo(winding);
-    return winding;
 }
     
-inline Winding binaryWindingSubtractRightFunc(Winding winding, Winding toSubtract) {
+inline void binaryWindingSubtractRightFunc(Winding winding, Winding toSubtract) {
     BinaryWinding difference(winding);
     BinaryWinding subtrahend(toSubtract);
     difference.left ^= subtrahend.left;
     difference.right -= subtrahend.right;
     difference.copyTo(winding);
-    return winding;
 }
     
 inline bool binaryWindingVisibleFunc(Winding winding) {

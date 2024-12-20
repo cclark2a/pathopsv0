@@ -1082,7 +1082,7 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
     s += " ";
  //   s += "bounds:" + ptBounds.debugDump(l, b) + " ";
     if (DebugLevel::file != l)
-        s += callBacks.debugDumpContourExtraFuncPtr(caller, l, b) + " ";
+        s += debugCallBacks.debugDumpContourExtraFuncPtr(debugCaller, l, b) + " ";
     s += "segments:" + STR(segments.size()) + "\n";
     if (DebugLevel::brief == l) {
         s += "[";
@@ -3944,7 +3944,7 @@ std::string OpWinding::debugDump(DebugLevel l, DebugBase b) const {
         if (DebugLevel::file != l) {
             s +="w.data:";
             if (w.data && w.size)
-                s += contour->callBacks.debugDumpContourOutFuncPtr(w);
+                s += contour->debugCallBacks.debugDumpContourOutFuncPtr(w);
             else
                 s += OpDebugStr(w.data) + " w.size:" + STR(w.size);
         } else {

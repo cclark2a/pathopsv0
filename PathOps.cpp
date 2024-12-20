@@ -4,9 +4,8 @@
 
 namespace PathOpsV0Lib {
 
-Context* CreateContext(AddContext callerData) {
+Context* CreateContext() {
     OpContours* contours = new OpContours();
-    contours->addCallerData(callerData);
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = contours;
 #endif
@@ -24,19 +23,16 @@ void Add(AddCurve curve, AddWinding windings) {
     debugGlobalContours = contour->contours;
 #endif
     contour->segments.emplace_back(curve, windings);
-    const OpSegment& seg = contour->segments.back();
-    if (!seg.isFinite())
-        contour->contours->setError(ContextError::segmentBounds  OP_DEBUG_PARAMS(seg.id));
 }
 
-Contour* CreateContour(AddContour callerData) {
+Contour* CreateContour(Context* context) {
     // reuse existing contour
-    OpContours* contours = (OpContours*) callerData.context;
+    OpContours* contours = (OpContours*) context;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = contours;
 #endif
     OpContour* contour = contours->makeContour();
-    contour->addCallerData(callerData);
+//    contour->addCallerData(callerData);
     return (Contour*) contour;
 }
 
@@ -112,48 +108,28 @@ void SetContextCallBacks(Context* context, EmptyNativePath emptyNativePath, Make
     };
 }
 
-
-CurveType SetCurveCallBacks(Context* context, AxisT axisFunc,
+CurveType SetCurveCallBacks(Context* context, CurveOutput outputFunc, AxisT axisFunc,
         CurveHull hullFunc, CurveIsFinite isFiniteFunc, CurveIsLine isLineFunc, 
-        SetBounds setBoundsFunc, CurveOutput outputFunc, CurvePinCtrl curvePinFunc, 
-		CurveReverse reverseFunc, CurveTangent tangentFunc, CurvesEqual equalFunc, PtAtT ptAtTFunc, 
-        HullPtCount ptCountFunc, Rotate rotateFunc, SubDivide subDivideFunc, XYAtT xyAtTFunc,
+        SetBounds setBoundsFunc, CurvePinCtrl curvePinFunc, 
+		CurveTangent tangentFunc, CurvesEqual equalFunc, PtAtT ptAtTFunc, HullPtCount ptCountFunc, 
+		Rotate rotateFunc, SubDivide subDivideFunc, XYAtT xyAtTFunc, CurveReverse reverseFunc, 
 		CurveConst cutFunc, CurveConst normalLimitFunc, CurveConst interceptLimitFunc
 ) {
     OpContours* contours = (OpContours*) context;
-    contours->callBacks.push_back( { axisFunc, hullFunc, isFiniteFunc, isLineFunc, 
-            setBoundsFunc, outputFunc, curvePinFunc, reverseFunc, 
-            tangentFunc, equalFunc, ptAtTFunc, ptCountFunc, rotateFunc, 
-            subDivideFunc, xyAtTFunc,
-			cutFunc, normalLimitFunc, interceptLimitFunc
+    contours->callBacks.push_back( { outputFunc, axisFunc, hullFunc, isFiniteFunc, isLineFunc, 
+            setBoundsFunc, curvePinFunc, tangentFunc, equalFunc, ptAtTFunc, ptCountFunc, rotateFunc, 
+            subDivideFunc, xyAtTFunc, reverseFunc, cutFunc, normalLimitFunc, interceptLimitFunc
             } );
     return (CurveType) contours->callBacks.size();
 }
 
-void SetWindingCallBacks(Contour* ctour, WindingAdd addFunc, WindingKeep keepFunc,
-        WindingSubtract subtractFunc, WindingVisible visibleFunc, WindingZero zeroFunc
-		OP_DEBUG_PARAMS(DebugBitOper bitOper)
-		OP_DEBUG_DUMP_PARAMS(DebugDumpContourIn dumpInFunc, DebugDumpContourOut dumpOutFunc, 
-                DebugDumpContourExtra dumpFunc)
-        OP_DEBUG_IMAGE_PARAMS(DebugImageOut dumpImageOutFunc, 
-                DebugNativePath debugNativePathFunc, 
-                DebugGetDraw debugGetDrawFunc, DebugSetDraw debugSetDrawFunc,
-                DebugIsOpp debugIsOppFunc)
+void SetWindingCallBacks(Contour* ctour, WindingAdd addFunc, WindingKeep keepFunc, 
+		WindingVisible visibleFunc, WindingZero zeroFunc, WindingSubtract subtractFunc
 ) {
     OpContour* contour = (OpContour*) ctour;
-    contour->callBacks = { addFunc, keepFunc, subtractFunc, visibleFunc, zeroFunc 
-			OP_DEBUG_PARAMS(bitOper)
-            OP_DEBUG_DUMP_PARAMS(dumpInFunc, dumpOutFunc, dumpFunc)
-            OP_DEBUG_IMAGE_PARAMS(dumpImageOutFunc,
-                    debugNativePathFunc, debugGetDrawFunc, debugSetDrawFunc, debugIsOppFunc)
-            };
+	if (!subtractFunc)
+		subtractFunc = addFunc;
+    contour->callBacks = { addFunc, keepFunc, visibleFunc, zeroFunc, subtractFunc };
 }
-
-#if OP_DEBUG
-void Debug(Context* context, OpDebugData& debugData) {
-    OpContours* contours = (OpContours*) context;
-    contours->debugData = debugData;
-}
-#endif
 
 } // namespace PathOpsV0Lib
