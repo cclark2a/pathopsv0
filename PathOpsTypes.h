@@ -11,11 +11,8 @@ the data could be int or double (or long double etc.) instead of float
 allow this?
 */
 
-// An instance of the pathops engine.
+// an instance of the pathops engine
 struct Context;
-
-// caller defined optional data
-typedef void* ContextData;
 
 enum class ContextError {
     none,  // no error found
@@ -27,16 +24,10 @@ enum class ContextError {
 	tree	// decision tree to join found edges is too complex
 };
 
-// A collection of curves in an operand that share the same fill rules.
+// collection of curves that share the same fill rules
 struct Contour;
 
-// caller defined operator (e.g., union, intersect, difference, ...)
-enum class Operation : int;
-
-// caller defined operand (e.g., left-of-operator, right-of-operator, ...)
-enum class Operand : int;
-
-// caller defined curve type (e.g., line, arc, cubic, ...)  Value zero is reserved.
+// caller defined curve type (e.g., line, arc, cubic, ...); value zero is reserved
 enum class CurveType : int;
 
 /* Curve describes a set of continuous points from start to end.
@@ -61,14 +52,14 @@ inline void* CurveUserData(CurveData* curve) {
 
 struct Curve {
 	CurveData* data;
-	size_t size;  // total size in bytes, including additional data, if any
+	size_t size;  // total size pointed to by data (in bytes), including additional data, if any
 	CurveType type;
 };
 
 // convenience for adding curves (e.g., Beziers) to contour
 struct AddCurve {
 	OpPoint* points;
-	size_t size;	// size of points in bytes
+	size_t size;	// size of data pointed to by points (in bytes)
 	CurveType type;
 };
 
@@ -96,7 +87,7 @@ enum class WindKeep {
 // output path provided by caller
 typedef void* PathOutput;
 
-// callbacks
+// curve callbacks
 
 // intersects the curve and axis at the axis intercept
 typedef OpRoots (*AxisT)(Curve , Axis , float axisIntercept, MatchEnds);
@@ -123,10 +114,6 @@ typedef bool (*CurvesEqual)(Curve , Curve );
 // returns point constructs curve's hull; the curve is tightly contained by the hull's polygon
 typedef OpPoint (*CurveHull)(Curve, int index);
 
-// returns normal vector at parameter t, where: t=0 is start, t=1 is end
-// since normal is always rotated tangent, remove it so that user cannot define it otherwise
-// typedef OpVector (*CurveNormal)(Curve, float t);
-
 // adds curve to output
 typedef void (*CurveOutput)(Curve, bool firstPt, bool lastPt, PathOutput );
 
@@ -136,6 +123,7 @@ typedef void (*CurvePinCtrl)(Curve);
 // reverses order of control points, if there is more than one
 typedef void (*CurveReverse)(Curve);
 
+// rotates curve user data about origin (not normalized)
 typedef void (*Rotate)(Curve , OpPoint origin, OpVector scale, Curve result);
 
 // computes part of Curve from parameter t1 to t2, both from zero to one
@@ -144,11 +132,13 @@ typedef void (*SubDivide)(Curve , float t1, float t2, Curve result);
 // returns tangent vector at parameter t, where: t=0 is start, t=1 is end
 typedef OpVector (*CurveTangent)(Curve, float t);
 
+// adds curve user data to bounds
 typedef void (*SetBounds)(Curve , OpRect& );
 
 // returns either x or y pair at parameter t, where: t=0 is start, t=1 is end
 typedef OpPair (*XYAtT)(Curve , OpPair t, XyChoice );
 
+// overrides engine maximum for a curve type
 typedef float (*CurveConst)(Curve );
 
 struct CurveCallBacks {
@@ -172,9 +162,18 @@ struct CurveCallBacks {
 	CurveConst interceptFuncPtr;
 };
 
+// contour callbacks
+
+// adds winding
 typedef void (*WindingAdd)(Winding winding, Winding toAdd);
+
+// subtracts winding
 typedef void (*WindingSubtract)(Winding winding, Winding toSubtract);
+
+// returns true if winding affects operation
 typedef bool (*WindingVisible)(Winding winding);
+
+// marks winding as having no effect
 typedef void (*WindingZero)(Winding toZero);
 
 // returns if curve transitions to a filled area and is kept; or if curve is discarded
@@ -188,7 +187,12 @@ struct ContourCallBacks {
 	WindingSubtract windingSubtractFuncPtr;
 };
 
+// context callbacks
+
+// initializes caller's path as empty
 typedef void (*EmptyNativePath)(PathOutput );
+
+// 
 typedef CurveType (*SetLineType)(Curve );
 
 // returns data size and type as appropriate for line connecting input curve points
