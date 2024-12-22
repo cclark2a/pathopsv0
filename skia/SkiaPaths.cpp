@@ -157,31 +157,31 @@ enum class SkiaCurveType : int {
 // start here;
 // rearrange to allow nullptr as default
 void SetSkiaCurveCallBacks(Context* context) {
-    OP_DEBUG_CODE(CurveType lineType =) SetCurveCallBacks(context, skiaLineOutput);
+    OP_DEBUG_CODE(CurveType lineType =) SetCurveCallBacks(context, { skiaLineOutput });
 	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, lineType, debugLineScale
             OP_DEBUG_DUMP_PARAMS(lineDebugDumpName, noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath)));
 	OP_ASSERT((int) lineType == (int) SkiaCurveType::skiaLineType);
-    OP_DEBUG_CODE(CurveType quadType =) SetCurveCallBacks(context, skiaQuadOutput, quadAxisT,
+    OP_DEBUG_CODE(CurveType quadType =) SetCurveCallBacks(context, { skiaQuadOutput, quadAxisT,
 			quadHull, quadIsFinite, quadIsLine, quadSetBounds, quadPinCtrl, 
             quadTangent, quadsEqual, quadPtAtT, quadHullPtCount, quadRotate, 
-			quadSubDivide, quadXYAtT);
+			quadSubDivide, quadXYAtT });
 	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, quadType, debugQuadScale
             OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath)));
 	OP_ASSERT((int) quadType == (int) SkiaCurveType::skiaQuadType);
-    OP_DEBUG_CODE(CurveType conicType =) SetCurveCallBacks(context, skiaConicOutput, conicAxisT,
+    OP_DEBUG_CODE(CurveType conicType =) SetCurveCallBacks(context, { skiaConicOutput, conicAxisT,
 			conicHull, conicIsFinite, conicIsLine, conicSetBounds, quadPinCtrl, 
 			conicTangent, conicsEqual, conicPtAtT, quadHullPtCount, conicRotate, 
-			conicSubDivide, conicXYAtT);
+			conicSubDivide, conicXYAtT });
 	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, conicType, debugConicScale
             OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
             OP_DEBUG_IMAGE_PARAMS(debugConicAddToSkPath)));
 	OP_ASSERT((int) conicType == (int) SkiaCurveType::skiaConicType);
-    OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallBacks(context, skiaCubicOutput, cubicAxisT,
+    OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallBacks(context, { skiaCubicOutput, cubicAxisT,
 			cubicHull, cubicIsFinite, cubicIsLine, cubicSetBounds, cubicPinCtrl, 
 			cubicTangent, cubicsEqual, cubicPtAtT, cubicHullPtCount, cubicRotate, 
-			cubicSubDivide, cubicXYAtT, cubicReverse);
+			cubicSubDivide, cubicXYAtT, cubicReverse });
 	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, cubicType, debugCubicScale
             OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(debugCubicAddToSkPath)));
@@ -298,12 +298,6 @@ void emptySkPathFunc(PathOutput output) {
 	skOutput->setFillType(SkPathFillType::kEvenOdd);
 }
 
-Curve skiaMakeLine(Curve c) {
-    c.type = (CurveType) SkiaCurveType::skiaLineType;
-    c.size = sizeof(SkPoint) * 2;
-    return c;
-}
-
 PathOpsV0Lib::CurveType setSkiaLineType(PathOpsV0Lib::Curve ) {
     return (CurveType) SkiaCurveType::skiaLineType;
 }
@@ -343,17 +337,16 @@ void SetSkiaContextCallBacks(Context* context) {
 	if (DebugAnalyze(context))  // definition below
 		return;
 #endif
-    SetContextCallBacks(context, emptySkPathFunc, skiaMakeLine, setSkiaLineType, maxSignSwap,
-			maxDepth, maxSplits, maxLimbs);
+    SetContextCallBacks(context, { setSkiaLineType, emptySkPathFunc });
 }
 
-Contour* SetSkiaSimplifyCallBacks(Context* context, 
+Contour* SetSkiaSimplifyCallBacks(Context* context, Winding winding,
         bool isWindingFill  OP_DEBUG_PARAMS(const SkPath& path)) {
-    Contour* contour = CreateContour(context);
+    Contour* contour = CreateContour(context, winding);
     WindingAdd addFunc = isWindingFill ? unaryWindingAddFunc : unaryEvenOddFunc;
     WindingAdd subtractFunc = isWindingFill ? unaryWindingSubtractFunc : unaryEvenOddFunc;
-    SetWindingCallBacks(contour, addFunc, unaryWindingKeepFunc, unaryWindingVisibleFunc, 
-			unaryWindingZeroFunc, subtractFunc);
+    SetWindingCallBacks(contour, { addFunc, unaryWindingKeepFunc, unaryWindingVisibleFunc, 
+			unaryWindingZeroFunc, subtractFunc });
 
 #if OP_DEBUG
     SkiaSimplifyContourData simplifyUserData { OP_DEBUG_CODE(&path)  OP_DEBUG_IMAGE_PARAMS(true) };
@@ -367,9 +360,9 @@ Contour* SetSkiaSimplifyCallBacks(Context* context,
     return contour;
 }
 
-Contour* SetSkiaOpCallBacks(Context* context, SkPathOp op,
+Contour* SetSkiaOpCallBacks(Context* context, Winding winding, SkPathOp op,
         BinaryOperand operand, BinaryWindType windType  OP_DEBUG_PARAMS(const SkPath& path)) {
-    Contour* contour = CreateContour(context);
+    Contour* contour = CreateContour(context, winding);
     WindingKeep operatorFunc = nullptr;
     switch (op) {
         case kDifference_SkPathOp: operatorFunc = binaryWindingDifferenceFunc; break;
@@ -395,8 +388,8 @@ Contour* SetSkiaOpCallBacks(Context* context, SkPathOp op,
         case BinaryWindType::windBoth: subtractFunc = binaryWindingSubtractFunc; break;
         default: OP_ASSERT(0);
     }
-    SetWindingCallBacks(contour, addFunc, operatorFunc, binaryWindingVisibleFunc, 
-			binaryWindingZeroFunc, subtractFunc);
+    SetWindingCallBacks(contour, { addFunc, operatorFunc, binaryWindingVisibleFunc, 
+			binaryWindingZeroFunc, subtractFunc });
 #if OP_DEBUG
     SkiaOpContourData windingUserData { { (BinaryOperation) op, operand }
             OP_DEBUG_PARAMS(&path )  OP_DEBUG_IMAGE_PARAMS(true) };
@@ -409,7 +402,7 @@ Contour* SetSkiaOpCallBacks(Context* context, SkPathOp op,
     return contour;
 }
 
-void AddSkiaPath(Context* context, AddWinding winding, const SkPath& path) {
+void AddSkiaPath(Context* context, Contour* contour, const SkPath& path) {
 	if (!path.isFinite()) {  // raw iter treats non-finite path as empty
 		SetError(context, ContextError::finite);
 		return;
@@ -422,26 +415,26 @@ void AddSkiaPath(Context* context, AddWinding winding, const SkPath& path) {
         switch (verb) {
         case SkPath::kMove_Verb:
             if (closeLine[0] != closeLine[1])
-                Add({ closeLine, sizeof(closeLine), 
-						(CurveType) SkiaCurveType::skiaLineType }, winding);
+                Add(contour, { closeLine, sizeof(closeLine), 
+						(CurveType) SkiaCurveType::skiaLineType } );
             closeLine[1] = { pts[0].fX, pts[0].fY };
             pts[1] = pts[0];
             break;
         case SkPath::kLine_Verb:
             if (pts[0] != pts[1])
-                Add({ (OpPoint*) pts, sizeof(SkPoint) * 2, 
-						(CurveType) SkiaCurveType::skiaLineType }, winding);
+                Add(contour, { (OpPoint*) pts, sizeof(SkPoint) * 2, 
+						(CurveType) SkiaCurveType::skiaLineType } );
             break;
         case SkPath::kQuad_Verb:
             std::swap(pts[1], pts[2]);  // rearrange order from 0/1/2 to 0/2/1
-            AddQuads({ (OpPoint*) pts, sizeof(SkPoint) * 3, 
-					(CurveType) SkiaCurveType::skiaQuadType }, winding);
+            AddQuads(contour, { (OpPoint*) pts, sizeof(SkPoint) * 3, 
+					(CurveType) SkiaCurveType::skiaQuadType } );
             break;
         case SkPath::kConic_Verb:
             std::swap(pts[1], pts[2]);  // rearrange order from 0/1/2 to 0/2/1
             pts[3].fX = iter.conicWeight(); // !!! hacky
-            AddConics({ (OpPoint*) pts, sizeof(SkPoint) * 3 + sizeof(float), 
-                    (CurveType) SkiaCurveType::skiaConicType }, winding);
+            AddConics(contour, { (OpPoint*) pts, sizeof(SkPoint) * 3 + sizeof(float), 
+                    (CurveType) SkiaCurveType::skiaConicType } );
             break;
         case SkPath::kCubic_Verb: {
 		#if 0
@@ -454,14 +447,14 @@ void AddSkiaPath(Context* context, AddWinding winding, const SkPath& path) {
 			SkPoint temp[4] { pts[0], pts[3], pts[1], pts[2] };  //  put start, end, up front
 			std::memcpy(pts, temp, sizeof(temp));
 		#endif
-            AddCubics({ (OpPoint*) pts, sizeof(SkPoint) * 4, 
-					(CurveType) SkiaCurveType::skiaCubicType }, winding);
+            AddCubics(contour, { (OpPoint*) pts, sizeof(SkPoint) * 4, 
+					(CurveType) SkiaCurveType::skiaCubicType } );
             } break;
         case SkPath::kClose_Verb:
         case SkPath::kDone_Verb:
             if (closeLine[0] != closeLine[1])
-                Add({ closeLine, sizeof(closeLine), 
-						(CurveType) SkiaCurveType::skiaLineType }, winding);
+                Add(contour, { closeLine, sizeof(closeLine), 
+						(CurveType) SkiaCurveType::skiaLineType } );
             if (SkPath::kDone_Verb == verb)
                 return;
             closeLine[0] = closeLine[1];

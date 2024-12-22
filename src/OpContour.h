@@ -118,7 +118,7 @@ struct OpContour {
 		}
 	}
 
-	OP_DEBUG_CODE(void addDebugCallerData(PathOpsV0Lib::DebugCallerData callerData));
+	OP_DEBUG_CODE(void addDebugCallerData(PathOpsV0Lib::DebugCallerData callerData);)
 
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
@@ -131,7 +131,8 @@ struct OpContour {
 
 	OpContours* contours;
 	std::vector<OpSegment> segments;
-	PathOpsV0Lib::ContourCallBacks callBacks;
+	PathOpsV0Lib::Winding winding;
+	PathOpsV0Lib::WindingCallBacks callBacks;
 	OP_DEBUG_CODE(PathOpsV0Lib::DebugContourCallBacks debugCallBacks);
 	OP_DEBUG_CODE(PathOpsV0Lib::DebugCallerData debugCaller);  // note: must use std::memcpy before reading
 #if TEST_RASTER

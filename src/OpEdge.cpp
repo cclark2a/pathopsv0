@@ -172,8 +172,8 @@ OpEdge::OpEdge(OpContours* contours, const OpPtT& start, const OpPtT& end  OP_LI
 	id = contours->nextID();
 	PathOpsV0Lib::CurveData lineData { start.pt, end.pt };
 	PathOpsV0Lib::Curve lineCurve { &lineData, sizeof(lineData), (PathOpsV0Lib::CurveType) 0 };
-	PathOpsV0Lib::Curve userCurve = contours->contextCallBacks.makeLineFuncPtr(lineCurve);
-	curve = OpCurve(contours, userCurve);
+	lineCurve.type = contours->contextCallBacks.setLineTypeFuncPtr(lineCurve);
+	curve = OpCurve(contours, lineCurve);
 	curve.isLineSet = true;
 	curve.isLineResult = true;
 	setPointBounds();

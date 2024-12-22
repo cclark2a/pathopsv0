@@ -1143,15 +1143,6 @@ PathOpsV0Lib::CurveType testLineType = (PathOpsV0Lib::CurveType) 0;  // unset
 void testOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathOpsV0Lib::PathOutput output) {
 }
 
-void testNoEmptyPath(PathOpsV0Lib::PathOutput ) {
-}
-
-PathOpsV0Lib::Curve testMakeLine(PathOpsV0Lib::Curve c) {
-    c.type = testLineType;
-    c.size = sizeof(OpPoint) * 2;
-    return c;
-}
-
 PathOpsV0Lib::CurveType getTestLineType(PathOpsV0Lib::Curve ) {
     return testLineType;
 }
@@ -1160,13 +1151,14 @@ void LineCoincidenceTest() {
     using namespace PathOpsV0Lib;
 
     Context* context = CreateContext();
-    SetContextCallBacks(context, testNoEmptyPath, testMakeLine, getTestLineType, maxSignSwap,
-			maxDepth, maxSplits, maxLimbs);
+    SetContextCallBacks(context,  { getTestLineType });
 
-    testLineType = SetCurveCallBacks(context, testOutput);
-    Contour* contour = CreateContour(context);
-    SetWindingCallBacks(contour, unaryWindingAddFunc, unaryWindingKeepFunc, unaryWindingVisibleFunc,
-			unaryWindingZeroFunc, unaryWindingSubtractFunc);
+    testLineType = SetCurveCallBacks(context, { testOutput });
+    int windingData[] = { 1 };
+    Winding addWinding { windingData, sizeof(windingData) };
+    Contour* contour = CreateContour(context, addWinding);
+    SetWindingCallBacks(contour, { unaryWindingAddFunc, unaryWindingKeepFunc, unaryWindingVisibleFunc,
+			unaryWindingZeroFunc, unaryWindingSubtractFunc });
 #if OP_DEBUG
 	SetDebugWindingCallBacks(contour, { nullptr, 0 }, noDebugBitOper
             OP_DEBUG_DUMP_PARAMS(unaryWindingDumpInFunc, unaryWindingDumpOutFunc, noDumpFunc)
@@ -1174,8 +1166,6 @@ void LineCoincidenceTest() {
                     noDebugGetDrawFunc, noDebugSetDrawFunc, noIsOppFunc)
     );
 #endif
-    int windingData[] = { 1 };
-    AddWinding addWinding { contour, { windingData, sizeof(windingData) }};
     constexpr size_t lineSize = sizeof(OpPoint) * 2;
 	auto OpPtHex = [](uint32_t x, uint32_t y) {
 		return OpPoint(OpDebugBitsToFloat(x), OpDebugBitsToFloat(y));
@@ -1238,8 +1228,8 @@ void LineCoincidenceTest() {
 		ResetContour(contour);
 		LinePts& line1 = tests[index].seg;
 		LinePts& line2 = tests[index].opp;
-		Add({ &line1.pts[0], lineSize, testLineType }, addWinding );
-		Add({ &line2.pts[0], lineSize, testLineType }, addWinding );
+		Add(contour, { &line1.pts[0], lineSize, testLineType } );
+		Add(contour, { &line2.pts[0], lineSize, testLineType } );
 		OpSegment* test1 = &((OpContour*) contour)->segments[0];
 		OpSegment* test2 = &((OpContour*) contour)->segments[1];
 		IntersectResult result = OpSegments::LineCoincidence(test1, test2);
@@ -1258,7 +1248,7 @@ extern void TestPath2D(bool debugIt);
 extern void testFrame();
 
 void OpTest(bool terminateEarly) {
-//	testFrame();
+	testFrame();
 //	TestPath2D(false);
 //	LineCoincidenceTest();
 #if 0

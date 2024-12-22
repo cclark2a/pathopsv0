@@ -64,7 +64,7 @@ struct Path {
 	// internal
 	OpPoint lastPt(int index = OpMax);
 	PathOpsV0Lib::ContextError handleError(PathOpsV0Lib::Context* );
-	void opAddPath(PathOpsV0Lib::Context* , PathOpsV0Lib::AddWinding , bool closeLoops);
+	void opAddPath(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* , bool closeLoops);
 #if ARC_SUPPORT  // a utility like this may be needed for ellipse
 	void rotate(float angle);
 #endif

@@ -107,7 +107,7 @@ inline OpVector CubicTangent(OpPoint start, CubicControls controls, OpPoint end,
 
 // Curves must be subdivided so their endpoints describe the rectangle that contains them
 // returns the number of curves generated from the cubic Bezier
-inline size_t AddCubics(AddCurve curve, AddWinding windings) {
+inline size_t AddCubics(Contour* contour, AddCurve curve) {
     OpPoint start = curve.points[0];
     OpPoint end = curve.points[1];
     CubicControls controls { curve.points[2], curve.points[3] };
@@ -145,7 +145,7 @@ inline size_t AddCubics(AddCurve curve, AddWinding windings) {
                 ptTs[index], ptTs[index + 1]);
         if (curveData[0] == curveData[1])
             continue;
-        Add({ curveData, curve.size, curve.type }, windings );
+        Add(contour, { curveData, curve.size, curve.type } );
     }
     return curvesAdded;
 }

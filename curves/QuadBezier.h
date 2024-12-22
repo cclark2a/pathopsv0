@@ -49,7 +49,7 @@ inline OpVector QuadTangent(OpPoint start, OpPoint control, OpPoint end, float t
 
 // Curves must be subdivided so their endpoints describe the rectangle that contains them
 // returns the number of curves generated from the quadratic Bezier
-inline size_t AddQuads(AddCurve curve, AddWinding windings) {
+inline size_t AddQuads(Contour* contour, AddCurve curve) {
     OpPoint start = curve.points[0];
     OpPoint end = curve.points[1];
     OpPoint control = curve.points[2];
@@ -60,7 +60,7 @@ inline size_t AddQuads(AddCurve curve, AddWinding windings) {
     if (monotonicInX && monotonicInY) {
         if (start == end)
             return 0;
-        Add(curve, windings);
+        Add(contour, curve);
         return 1;
     }
     // control point is not inside bounds formed by end points; split quad into parts
@@ -91,7 +91,7 @@ inline size_t AddQuads(AddCurve curve, AddWinding windings) {
             continue;
         OpPoint curveData[3] { ptTs[index].pt, ptTs[index + 1].pt,
             QuadControlPt(start, control, end, ptTs[index], ptTs[index + 1]) };
-        Add({ curveData, curve.size, curve.type }, windings );
+        Add(contour, { curveData, curve.size, curve.type } );
     }
     return curvesAdded;
 }

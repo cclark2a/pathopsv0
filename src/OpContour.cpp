@@ -23,11 +23,13 @@ char* OpContours::allocateCallerData(size_t size) {
 	return result;
 }
 
+#if OP_DEBUG
 void OpContour::addDebugCallerData(PathOpsV0Lib::DebugCallerData data) {
 	debugCaller.data = contours->allocateCallerData(data.size);
 	std::memcpy(debugCaller.data, data.data, data.size);
 	debugCaller.size = data.size;  // !!! don't know if size is really needed ...
 }
+#endif
 
 #if 0
 OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg  
@@ -392,7 +394,9 @@ void OpContours::disableSmallSegments() {
 void OpContours::initOutOnce() {
 	if (outputOne)
 		return;
-	contextCallBacks.emptyNativePathFuncPtr(callerOutput);
+	PathOpsV0Lib::EmptyCallerPath emptyPath = contextCallBacks.emptyCallerPathFuncPtr;
+	if (emptyPath)
+		(*emptyPath)(callerOutput);
 	outputOne = true;
 }
 
@@ -435,7 +439,7 @@ bool OpContours::pathOps() {
 	OpSegments sortedSegments(*this);
 	debugValidateIntersections();
 	if (!sortedSegments.inX.size()) {
-		contextCallBacks.emptyNativePathFuncPtr(callerOutput);
+		contextCallBacks.emptyCallerPathFuncPtr(callerOutput);
 		OP_DEBUG_SUCCESS(*this, true);
 	}
 	if (FoundIntersections::fail == sortedSegments.findIntersections())
@@ -448,7 +452,7 @@ bool OpContours::pathOps() {
 	}
 	disableSmallSegments();  // moved points may allow disabling some segments
 	if (empty()) {
-		contextCallBacks.emptyNativePathFuncPtr(callerOutput);  // no existing tests exercises
+		contextCallBacks.emptyCallerPathFuncPtr(callerOutput);  // no existing tests exercises
 		OP_DEBUG_SUCCESS(*this, true);
 	}
 	sortIntersections();

@@ -71,12 +71,6 @@ struct Winding {
 	size_t size;
 };
 
-// convenience for adding winding data to contour
-struct AddWinding {
-	Contour* contour;
-	Winding winding;
-};
-
 // returns if an edge starts a fill, ends a fill, or does neither and should be discarded
 enum class WindKeep {
     Discard,	// must be equal to zero
@@ -143,23 +137,23 @@ typedef float (*CurveConst)(Curve );
 
 struct CurveCallBacks {
 	CurveOutput curveOutputFuncPtr;
-	AxisT axisTFuncPtr;
-	CurveHull curveHullFuncPtr;
-	CurveIsFinite curveIsFiniteFuncPtr;
-	CurveIsLine curveIsLineFuncPtr;
-	SetBounds setBoundsFuncPtr;
-	CurvePinCtrl curvePinCtrlFuncPtr;
-	CurveTangent curveTangentFuncPtr;
-	CurvesEqual curvesEqualFuncPtr;
-	PtAtT  ptAtTFuncPtr;
-	HullPtCount ptCountFuncPtr;
-	Rotate rotateFuncPtr;
-	SubDivide subDivideFuncPtr;
-	XYAtT xyAtTFuncPtr;
-	CurveReverse curveReverseFuncPtr;
-	CurveConst cutFuncPtr;
-	CurveConst normalLimitFuncPtr;
-	CurveConst interceptFuncPtr;
+	AxisT axisTFuncPtr = nullptr;
+	CurveHull curveHullFuncPtr = nullptr;
+	CurveIsFinite curveIsFiniteFuncPtr = nullptr;
+	CurveIsLine curveIsLineFuncPtr = nullptr;
+	SetBounds setBoundsFuncPtr = nullptr;
+	CurvePinCtrl curvePinCtrlFuncPtr = nullptr;
+	CurveTangent curveTangentFuncPtr = nullptr;
+	CurvesEqual curvesEqualFuncPtr = nullptr;
+	PtAtT  ptAtTFuncPtr = nullptr;
+	HullPtCount ptCountFuncPtr = nullptr;
+	Rotate rotateFuncPtr = nullptr;
+	SubDivide subDivideFuncPtr = nullptr;
+	XYAtT xyAtTFuncPtr = nullptr;
+	CurveReverse curveReverseFuncPtr = nullptr;
+	CurveConst cutFuncPtr = nullptr;
+	CurveConst normalLimitFuncPtr = nullptr;
+	CurveConst interceptFuncPtr = nullptr;
 };
 
 // contour callbacks
@@ -179,37 +173,33 @@ typedef void (*WindingZero)(Winding toZero);
 // returns if curve transitions to a filled area and is kept; or if curve is discarded
 typedef WindKeep (*WindingKeep)(Winding winding, Winding sum);
 
-struct ContourCallBacks {
+struct WindingCallBacks {
 	WindingAdd windingAddFuncPtr;
 	WindingKeep windingKeepFuncPtr;
 	WindingVisible windingVisibleFuncPtr;
 	WindingZero windingZeroFuncPtr;
-	WindingSubtract windingSubtractFuncPtr;
+	WindingSubtract windingSubtractFuncPtr = nullptr;
 };
 
 // context callbacks
 
 // initializes caller's path as empty
-typedef void (*EmptyNativePath)(PathOutput );
+typedef void (*EmptyCallerPath)(PathOutput );
 
 // 
 typedef CurveType (*SetLineType)(Curve );
-
-// returns data size and type as appropriate for line connecting input curve points
-typedef Curve (*MakeLine)(Curve );
 
 typedef float (*MaxSignSwap)(Curve , Curve );
 typedef int (*MaxCurveCurve)(Curve , Curve );
 typedef int (*MaxLimbs)(Context* );
 
 struct ContextCallBacks {
-	EmptyNativePath emptyNativePathFuncPtr;
-	MakeLine makeLineFuncPtr;
 	SetLineType setLineTypeFuncPtr;
-	MaxSignSwap maxSignSwapFuncPtr;
-	MaxCurveCurve maxDepthFuncPtr;
-	MaxCurveCurve maxSplitsFuncPtr;
-	MaxLimbs maxLimbsFuncPtr;
+	EmptyCallerPath emptyCallerPathFuncPtr = nullptr;
+	MaxSignSwap maxSignSwapFuncPtr = nullptr;
+	MaxCurveCurve maxDepthFuncPtr = nullptr;
+	MaxCurveCurve maxSplitsFuncPtr = nullptr;
+	MaxLimbs maxLimbsFuncPtr = nullptr;
 };
 
 // return true if resolve should be aborted

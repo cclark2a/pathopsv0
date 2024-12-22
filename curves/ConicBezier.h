@@ -116,7 +116,7 @@ inline OpVector ConicTangent(OpPoint start, PointWeight control, OpPoint end, fl
 
 // Curves must be subdivided so their endpoints describe the rectangle that contains them
 // returns the number of curves generated from the Conicratic Bezier
-inline size_t AddConics(AddCurve curve, AddWinding windings) {
+inline size_t AddConics(Contour* contour, AddCurve curve) {
     OpPoint start = curve.points[0];
     OpPoint end = curve.points[1];
     float weight = curve.points[3].x;  // !!! a bit of a hack
@@ -128,7 +128,7 @@ inline size_t AddConics(AddCurve curve, AddWinding windings) {
     if (monotonicInX && monotonicInY) {
         if (start == end)
             return 0;
-        Add(curve, windings);
+        Add(contour, curve);
         return 1;
     }
     // control point is not inside bounds formed by end points; split Conic into parts
@@ -160,7 +160,7 @@ inline size_t AddConics(AddCurve curve, AddWinding windings) {
         } curveData { { ptTs[index].pt, ptTs[index + 1].pt },
                 ConicControl(start, control, end, ptTs[index], ptTs[index + 1]) };
         if (curveData.endPts[0] != curveData.endPts[1])
-            Add({ curveData.endPts, curve.size, curve.type }, windings );
+            Add(contour, { curveData.endPts, curve.size, curve.type } );
     }
     return curvesAdded;
 }

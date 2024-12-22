@@ -607,16 +607,16 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
     BinaryWindType windType = aIsWinding && bIsWinding ? BinaryWindType::windBoth
             : aIsWinding ? BinaryWindType::windLeft : bIsWinding ? BinaryWindType::windRight
             : BinaryWindType::evenOdd;
-    Contour* left = SetSkiaOpCallBacks(context, mappedOp, BinaryOperand::left, windType
-            OP_DEBUG_PARAMS(a));
     int leftData[] = { 1, 0 };
-    PathOpsV0Lib::AddWinding leftWinding { left, { leftData, sizeof(leftData) }};
-    AddSkiaPath(context, leftWinding, a);
-    Contour* right = SetSkiaOpCallBacks(context, mappedOp, BinaryOperand::right, windType
-            OP_DEBUG_PARAMS(b));
+    PathOpsV0Lib::Winding leftWinding { leftData, sizeof(leftData) };
+    Contour* left = SetSkiaOpCallBacks(context, leftWinding, mappedOp, BinaryOperand::left, windType
+            OP_DEBUG_PARAMS(a));
+    AddSkiaPath(context, left, a);
     int rightData[] = { 0, 1 };
-    PathOpsV0Lib::AddWinding rightWinding { right, { rightData, sizeof(rightData) }};
-    AddSkiaPath(context, rightWinding, b);
+    PathOpsV0Lib::Winding rightWinding { rightData, sizeof(rightData) };
+    Contour* right = SetSkiaOpCallBacks(context, rightWinding, mappedOp, BinaryOperand::right, windType
+            OP_DEBUG_PARAMS(b));
+    AddSkiaPath(context, right, b);
     PathOutput pathOutput = result;
 	Normalize(context);
 #if TEST_RASTER
@@ -937,16 +937,16 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
         return SkPathFillType::kWinding == path.getFillType()
                 || SkPathFillType::kInverseWinding == path.getFillType();
     }; 
-    Contour* simple = SetSkiaSimplifyCallBacks(context, isWindingFill(path)
-            OP_DEBUG_PARAMS(path));
     int simpleData[] = { 1 };
-    PathOpsV0Lib::AddWinding simpleWinding { simple, { simpleData, sizeof(simpleData) }};
+    PathOpsV0Lib::Winding simpleWinding { simpleData, sizeof(simpleData) };
+    Contour* simple = SetSkiaSimplifyCallBacks(context, simpleWinding, isWindingFill(path)
+            OP_DEBUG_PARAMS(path));
 #if TEST_ANALYZE && OP_DEBUG
 	// make failing tests smaller
 	// add contours until it fails
     AddDebugSkiaPath(context, simpleWinding, path);
 #else
-    AddSkiaPath(context, simpleWinding, path);
+    AddSkiaPath(context, simple, path);
 #endif
 	ContextError contextError = Error(context);
 	if (ContextError::none == contextError) {

@@ -29,11 +29,11 @@ void FoundEdge::reset() {
 	loops = false;
 }
 
-OpSegment::OpSegment(PathOpsV0Lib::AddCurve addCurve, PathOpsV0Lib::AddWinding addWinding)    
-	: contour((OpContour*) addWinding.contour)
+OpSegment::OpSegment(PathOpsV0Lib::Contour* libContour, PathOpsV0Lib::AddCurve addCurve)    
+	: contour((OpContour*) libContour)
 	, c(contour->contours,  
 			{ (PathOpsV0Lib::CurveData*) addCurve.points, addCurve.size, addCurve.type } )
-	, winding(contour, { addWinding.winding.data, addWinding.winding.size } )
+	, winding(contour, { contour->winding.data, contour->winding.size } )
 	, id(contour->nextID())
 	, disabled(false)
 	, willDisable(false)

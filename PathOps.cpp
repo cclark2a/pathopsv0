@@ -16,22 +16,23 @@ Context* CreateContext() {
     return (Context*) contours;
 }
 
-void Add(AddCurve curve, AddWinding windings) {
+void Add(Contour* libContour, AddCurve curve) {
     OP_ASSERT(curve.points[0] != curve.points[1]);
-    OpContour* contour = (OpContour*) windings.contour;
+    OpContour* contour = (OpContour*) libContour;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = contour->contours;
 #endif
-    contour->segments.emplace_back(curve, windings);
+    contour->segments.emplace_back(libContour, curve);
 }
 
-Contour* CreateContour(Context* context) {
+Contour* CreateContour(Context* context, Winding winding) {
     // reuse existing contour
     OpContours* contours = (OpContours*) context;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = contours;
 #endif
     OpContour* contour = contours->makeContour();
+	contour->winding = winding;
 //    contour->addCallerData(callerData);
     return (Contour*) contour;
 }
@@ -93,43 +94,22 @@ void Resolve(Context* context, PathOutput output) {
     /* bool success = */ contours->pathOps();
 }
 
-void SetContextCallBacks(Context* context, EmptyNativePath emptyNativePath, MakeLine makeLine,
-        SetLineType setLineType, MaxSignSwap signSwap, 
-		MaxCurveCurve depth, MaxCurveCurve splits, MaxLimbs limbs) {
+void SetContextCallBacks(Context* context, ContextCallBacks contextCallBacks) {
     OpContours* contours = (OpContours*) context;
-    contours->contextCallBacks = {
-        emptyNativePath,
-        makeLine,
-        setLineType,
-		signSwap,
-		depth,
-		splits,
-		limbs
-    };
+    contours->contextCallBacks = contextCallBacks;
 }
 
-CurveType SetCurveCallBacks(Context* context, CurveOutput outputFunc, AxisT axisFunc,
-        CurveHull hullFunc, CurveIsFinite isFiniteFunc, CurveIsLine isLineFunc, 
-        SetBounds setBoundsFunc, CurvePinCtrl curvePinFunc, 
-		CurveTangent tangentFunc, CurvesEqual equalFunc, PtAtT ptAtTFunc, HullPtCount ptCountFunc, 
-		Rotate rotateFunc, SubDivide subDivideFunc, XYAtT xyAtTFunc, CurveReverse reverseFunc, 
-		CurveConst cutFunc, CurveConst normalLimitFunc, CurveConst interceptLimitFunc
-) {
+CurveType SetCurveCallBacks(Context* context, CurveCallBacks curveCallBacks) {
     OpContours* contours = (OpContours*) context;
-    contours->callBacks.push_back( { outputFunc, axisFunc, hullFunc, isFiniteFunc, isLineFunc, 
-            setBoundsFunc, curvePinFunc, tangentFunc, equalFunc, ptAtTFunc, ptCountFunc, rotateFunc, 
-            subDivideFunc, xyAtTFunc, reverseFunc, cutFunc, normalLimitFunc, interceptLimitFunc
-            } );
+    contours->callBacks.push_back(curveCallBacks);
     return (CurveType) contours->callBacks.size();
 }
 
-void SetWindingCallBacks(Contour* ctour, WindingAdd addFunc, WindingKeep keepFunc, 
-		WindingVisible visibleFunc, WindingZero zeroFunc, WindingSubtract subtractFunc
-) {
+void SetWindingCallBacks(Contour* ctour, WindingCallBacks windingCallBacks) {
     OpContour* contour = (OpContour*) ctour;
-	if (!subtractFunc)
-		subtractFunc = addFunc;
-    contour->callBacks = { addFunc, keepFunc, visibleFunc, zeroFunc, subtractFunc };
+	if (!windingCallBacks.windingSubtractFuncPtr)
+		windingCallBacks.windingSubtractFuncPtr = windingCallBacks.windingAddFuncPtr;
+    contour->callBacks = windingCallBacks;
 }
 
 } // namespace PathOpsV0Lib

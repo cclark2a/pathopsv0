@@ -225,7 +225,8 @@ OpTree::OpTree(OpJoiner& join)
 	, bestDistance(OpInfinity)
 	, bestPerimeter(OpInfinity)
 	, totalUsed(0) {
-	maxLimbs = contours->contextCallBacks.maxLimbsFuncPtr((PathOpsV0Lib::Context*) contours);
+	maxLimbs = contours->contextCallBacks.maxLimbsFuncPtr ?
+			contours->contextCallBacks.maxLimbsFuncPtr((PathOpsV0Lib::Context*) contours) : 500;
 	OP_DEBUG_CODE(contours->debugTree = this);
 	OP_ASSERT(join.edge->inLinkups);
 	OP_DEBUG_IMAGE_CODE(contours->debugLimbClear());

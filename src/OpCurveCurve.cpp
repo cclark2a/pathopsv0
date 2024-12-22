@@ -308,9 +308,10 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
 	contours->debugCurveCurve = this;
 #endif
 //	contours->reuse(contours->ccStorage);
-	maxSignSwap = contours->contextCallBacks.maxSignSwapFuncPtr(s->c.c, o->c.c);
-	maxSplits = contours->contextCallBacks.maxSplitsFuncPtr(s->c.c, o->c.c);
-	maxDepth = contours->contextCallBacks.maxDepthFuncPtr(s->c.c, o->c.c);
+	PathOpsV0Lib::ContextCallBacks& cb = contours->contextCallBacks;
+	maxSignSwap = cb.maxSignSwapFuncPtr ? cb.maxSignSwapFuncPtr(s->c.c, o->c.c) : 131072.f;
+	maxSplits = cb.maxSplitsFuncPtr ? cb.maxSplitsFuncPtr(s->c.c, o->c.c) : 8;
+	maxDepth = cb.maxDepthFuncPtr ? cb.maxDepthFuncPtr(s->c.c, o->c.c) : 64;
 
 	matchRev = seg->matchEnds(opp);
 	smallTFound = MatchEnds::start & matchRev.match;

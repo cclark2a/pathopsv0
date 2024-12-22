@@ -123,12 +123,6 @@ inline std::string frameImageOutFunc(Winding winding, int index) {
 }
 #endif
 
-Curve frameMakeLine(Curve c) {
-    c.type = frameLine;
-    c.size = frameLineSize;
-    return c;
-}
-
 CurveType frameSetLineType(Curve ) {
     return frameLine;
 }
@@ -141,22 +135,23 @@ void testFrame() {
     using namespace PathOpsV0Lib;
 
     Context* context = CreateContext();
-    SetContextCallBacks(context, nullptr, frameMakeLine, frameSetLineType, maxSignSwap,
-			maxDepth, maxSplits, maxLimbs);
+    SetContextCallBacks(context, { frameSetLineType });
 
 #if OP_DEBUG
     OpDebugData debugData(false);
     Debug(context, debugData);
 #endif
 
-    frameLine = SetCurveCallBacks(context, frameOutput);
-    frameQuad = SetCurveCallBacks(context, frameOutput, quadAxisT, quadHull, 
+    frameLine = SetCurveCallBacks(context, { frameOutput });
+    frameQuad = SetCurveCallBacks(context, { frameOutput, quadAxisT, quadHull, 
 			quadIsFinite, quadIsLine, quadSetBounds,  quadPinCtrl, 
             quadTangent, quadsEqual, quadPtAtT, quadHullPtCount, quadRotate, 
-			quadSubDivide, quadXYAtT);
-    Contour* frameContour = CreateContour(context);
-    SetWindingCallBacks(frameContour, frameAddFunc, frameKeepFunc, frameVisibleFunc, 
-			frameZeroFunc, frameSubtractFunc);
+			quadSubDivide, quadXYAtT });
+    FrameWinding frameData(FrameFill::frame, 1);
+    Winding frameWinding { &frameData, sizeof(frameData) };
+    Contour* frameContour = CreateContour(context, frameWinding);
+    SetWindingCallBacks(frameContour, { frameAddFunc, frameKeepFunc, frameVisibleFunc, 
+			frameZeroFunc, frameSubtractFunc });
 #if OP_DEBUG
 	FrameFill frameContourData = FrameFill::frame;
 	SetDebugWindingCallBacks(frameContour, { &frameContourData, sizeof(frameContourData) },
@@ -166,12 +161,12 @@ void testFrame() {
             noDebugGetDrawFunc, noDebugSetDrawFunc, noIsOppFunc)
 	);
 #endif
-    FrameWinding frameData(FrameFill::frame, 1);
-    AddWinding frameAddWinding { frameContour, { &frameData, sizeof(frameData) }};
 
-    Contour* fillContour = CreateContour(context);
-    SetWindingCallBacks(fillContour, frameAddFunc, frameKeepFunc, frameVisibleFunc, 
-			frameZeroFunc, frameSubtractFunc);
+    FrameWinding fillData(FrameFill::fill, 1);
+    Winding fillWinding { &fillData, sizeof(fillData) };
+    Contour* fillContour = CreateContour(context, fillWinding);
+    SetWindingCallBacks(fillContour, { frameAddFunc, frameKeepFunc, frameVisibleFunc, 
+			frameZeroFunc, frameSubtractFunc });
 #if OP_DEBUG
 	FrameFill fillContourData = FrameFill::fill;
 	SetDebugWindingCallBacks(frameContour, { &fillContourData, sizeof(fillContourData) },
@@ -181,8 +176,6 @@ void testFrame() {
             noDebugGetDrawFunc, noDebugSetDrawFunc, noIsOppFunc)
 	);
 #endif
-    FrameWinding fillData(FrameFill::fill, 1);
-    AddWinding fillAddWinding { fillContour, { &fillData, sizeof(fillData) }};
 
 	// example: return line parts in hourglass fill
 #if 0
@@ -194,11 +187,11 @@ void testFrame() {
 #else
 	OpPoint line[] { { 10, 10 }, { 20, 20 } };
 	OpPoint quad[] { { 30, 30 }, { 50, 50 }, { 40, 30 } };
-    Add({ line, frameLineSize, frameLine }, frameAddWinding );
-    Add({ quad, frameQuadSize, frameQuad }, frameAddWinding );
+    Add(frameContour, { line, frameLineSize, frameLine } );
+    Add(frameContour, { quad, frameQuadSize, frameQuad } );
     OpPoint rect[] { { 15, 15 }, { 45, 15 }, { 45, 45 }, { 15, 45 }, { 15, 15 } };
 	for (int index = 0; index < 4; ++index)
-		Add({ &rect[index], frameLineSize, frameLine }, fillAddWinding );
+		Add(fillContour, { &rect[index], frameLineSize, frameLine } );
 #endif
 
 	SetErrorHandler(context, allowDisjointLines);

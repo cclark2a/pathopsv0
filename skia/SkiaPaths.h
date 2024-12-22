@@ -25,11 +25,11 @@ bool SkPathOpInvertOutput(SkPathOp op, bool leftOperandIsInverted, bool rightOpe
 
 void SetSkiaContextCallBacks(PathOpsV0Lib::Context* );
 void SetSkiaCurveCallBacks(PathOpsV0Lib::Context* );
-PathOpsV0Lib::Contour* SetSkiaSimplifyCallBacks(PathOpsV0Lib::Context* , bool isWindingFill
-        OP_DEBUG_PARAMS(const SkPath& ));
-PathOpsV0Lib::Contour* SetSkiaOpCallBacks(PathOpsV0Lib::Context* , SkPathOp op, 
+PathOpsV0Lib::Contour* SetSkiaSimplifyCallBacks(PathOpsV0Lib::Context* , PathOpsV0Lib::Winding , 
+		bool isWindingFill  OP_DEBUG_PARAMS(const SkPath& ));
+PathOpsV0Lib::Contour* SetSkiaOpCallBacks(PathOpsV0Lib::Context* , PathOpsV0Lib::Winding , SkPathOp op, 
 		PathOpsV0Lib::BinaryOperand , PathOpsV0Lib::BinaryWindType  OP_DEBUG_PARAMS(const SkPath&));
-void AddSkiaPath(PathOpsV0Lib::Context* , PathOpsV0Lib::AddWinding , const SkPath& path);
+void AddSkiaPath(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* , const SkPath& path);
 
 #if TEST_ANALYZE
 // used to break down tests that are too large to debug directly

@@ -6,9 +6,6 @@
 
 namespace PathOpsV0Lib {
 
-// adds one curve to winding's contour
-void Add(AddCurve , AddWinding );
-
 // makes a PathOps context: an instance of the PathOps engine
 Context* CreateContext();
 
@@ -16,7 +13,11 @@ Context* CreateContext();
 void DeleteContext(Context* );
 
 // makes a PathOps contour: a collection of curves
-Contour* CreateContour(Context* );
+Contour* CreateContour(Context* , Winding );
+
+// adds one curve to winding's contour
+void Add(Contour* , AddCurve);
+void Add(Contour* , Curve);
 
 // returns error code of previous call
 ContextError Error(Context* );
@@ -31,8 +32,7 @@ void ResetContour(Contour* );
 void Resolve(Context* , PathOutput );
 
 // global callbacks
-void SetContextCallBacks(Context* ,  EmptyNativePath , MakeLine , SetLineType , MaxSignSwap ,
-		MaxCurveCurve , MaxCurveCurve , MaxLimbs);
+void SetContextCallBacks(Context* , ContextCallBacks );
 
 // sets the context into an error state
 void SetError(Context* , ContextError );
@@ -41,16 +41,10 @@ void SetError(Context* , ContextError );
 void SetErrorHandler(Context* , ErrorDispatch );
 
 // curve callbacks; describes geometry between endpoints
-CurveType SetCurveCallBacks(Context* , CurveOutput, AxisT = nullptr,
-		CurveHull = nullptr, CurveIsFinite = nullptr, CurveIsLine = nullptr,
-		SetBounds = nullptr, CurvePinCtrl = nullptr, CurveTangent = nullptr, 
-		CurvesEqual = nullptr, PtAtT = nullptr, HullPtCount = nullptr, Rotate = nullptr, 
-		SubDivide = nullptr, XYAtT = nullptr, CurveReverse = nullptr, CurveConst cut = nullptr, 
-		CurveConst normalLimit = nullptr, CurveConst interceptLimit = nullptr);
+CurveType SetCurveCallBacks(Context* , CurveCallBacks );
 
 // winding callbacks; specifies which curves are kept and discarded
-void SetWindingCallBacks(Contour* , WindingAdd , WindingKeep ,
-		WindingVisible , WindingZero , WindingSubtract = nullptr); 
+void SetWindingCallBacks(Contour* , WindingCallBacks ); 
 
 }
 
