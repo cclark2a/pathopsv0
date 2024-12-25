@@ -257,13 +257,10 @@ OpTree::OpTree(OpJoiner& join)
 			do {
 				nthLimb(index).addEach(join, *this);
 				if (totalUsed > maxLimbs) {
-			#if 0 // for TEST_ANALYZE of grshapearcs 
+			#if 0 // TEST_ANALYZE // for grshapearcs 
 					playback();
-					hideSegmentEdges();
-					hideTemporaryEdges();
-					hideJoin();
-					showLimbs();
-					resetFocus();
+//					showLimbs();
+					hideDisabled();
 			#endif
 					contours->setError(PathOpsV0Lib::ContextError::tree  
 							OP_DEBUG_PARAMS(join.edge->id));

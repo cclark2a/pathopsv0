@@ -944,7 +944,7 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
 #if TEST_ANALYZE && OP_DEBUG
 	// make failing tests smaller
 	// add contours until it fails
-    AddDebugSkiaPath(context, simpleWinding, path);
+    AddDebugSkiaPath(context, simple, path);
 #else
     AddSkiaPath(context, simple, path);
 #endif

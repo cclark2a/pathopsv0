@@ -201,8 +201,8 @@ OP_X(Coincidences) \
 OP_X(ControlLines) \
 OP_X(Controls) \
 OP_X(EdgesOut) \
-OP_X(Edges) \
 OP_X(EndToEnd) \
+OP_X(Fill) \
 OP_X(Grid) \
 OP_X(Guides) \
 OP_X(Hex) \
@@ -223,18 +223,29 @@ OP_X(Ts) \
 OP_X(Values) \
 OP_X(Windings)
 
-#define ALIAS_LIST \
-OP_X(EdgeRuns) \
-OP_X(Fill) \
-OP_X(In) \
+#define EDGE_BOOL_LIST \
+OP_X(Edges) \
+OP_X(Disabled) \
 OP_X(Join) \
-OP_X(Operands) \
-OP_X(Limbs) \
+OP_X(Linkups) \
 OP_X(SegmentEdges) \
 OP_X(TemporaryEdges) \
+
+#define EDGE_BOOL_LIST2 \
+OP_X(Edges, false) \
+OP_X(Disabled, !edge->disabled) \
+OP_X(Join, !edge->debugJoin) \
+OP_X(Linkups, !edge->inLinkups) \
+OP_X(SegmentEdges, edge->debugJoin || edgeIter.isFiller || edgeIter.isCurveCurve) \
+OP_X(TemporaryEdges, !edgeIter.isFiller && !edgeIter.isCurveCurve) \
+
+#define ALIAS_LIST \
+OP_X(EdgeRuns) \
+OP_X(Operands) \
+OP_X(Limbs) \
 OP_X(Tree)
 
-#define OLD_LIST \
+#define CALLOUT_LIST \
 OP_X(Left) \
 OP_X(Right)
 
@@ -243,7 +254,9 @@ OP_X(Right)
 	extern void show##Thing(); \
 	extern void toggle##Thing();
 	MASTER_LIST
+	EDGE_BOOL_LIST
 	ALIAS_LIST
+	CALLOUT_LIST
 #undef OP_X
 
 #define COLOR_LIST \
@@ -258,6 +271,14 @@ OP_X(PathsOut) \
 OP_X(Segments) \
 OP_X(Unsectables) \
 OP_X(Unsortables)
+
+#define COLOR_LIST2 \
+OP_X(Active, edge->active_impl) \
+OP_X(Disabled, edge->disabled) \
+OP_X(Edges, true) \
+OP_X(Linkups, edge->inLinkups) \
+OP_X(Unsectables, edge->isUnsectable()) \
+OP_X(Unsortables, Unsortable::none != edge->isUnsortable)
 
 #define OP_X(Thing) \
 	extern void color##Thing(); \

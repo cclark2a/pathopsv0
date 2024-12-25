@@ -33,7 +33,7 @@ void AddSkiaPath(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* , const SkPath&
 
 #if TEST_ANALYZE
 // used to break down tests that are too large to debug directly
-void AddDebugSkiaPath(PathOpsV0Lib::Context* , PathOpsV0Lib::AddWinding , const SkPath& path);
+void AddDebugSkiaPath(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* , const SkPath& path);
 #endif
 #if !OP_TINY_SKIA
 std::string dumpSkPath(const SkPath* path, bool inHex);

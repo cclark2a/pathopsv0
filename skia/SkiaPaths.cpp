@@ -503,12 +503,12 @@ bool DebugAnalyze(Context* context) {
 	OpDebugData& debugData = contours->debugData;
 	if (debugData.limitContours <= 0)
 		return false;
-    SetContextCallBacks(context, emptySkPathFunc, skiaMakeLine, setSkiaLineType, maxSignSwap,
-			maxDepth, maxSplits, minMaxLimbs);
+    SetContextCallBacks(context, { setSkiaLineType, emptySkPathFunc, nullptr,
+			nullptr, nullptr, minMaxLimbs });
 	return true;
 }
 
-void AddDebugSkiaPath(Context* context, AddWinding winding, const SkPath& path) {
+void AddDebugSkiaPath(Context* context, Contour* contour, const SkPath& path) {
 	OpContours* contours = (OpContours*) context;
 	OpDebugData& debugData = contours->debugData;
 	OpPointBounds snag { 20, 0, 40, 10 };  // only snag contours that start in this bounds
@@ -526,8 +526,8 @@ void AddDebugSkiaPath(Context* context, AddWinding winding, const SkPath& path) 
         switch (verb) {
         case SkPath::kMove_Verb:
             if (closeLine[0] != closeLine[1]) {
-                if (snagOn) Add({ closeLine, sizeof(closeLine), 
-						(CurveType) SkiaCurveType::skiaLineType }, winding);
+                if (snagOn) Add(contour, { closeLine, sizeof(closeLine), 
+						(CurveType) SkiaCurveType::skiaLineType } );
 				if (++contourCount >= debugData.limitContours)
 					return;
 			}			
@@ -537,19 +537,19 @@ void AddDebugSkiaPath(Context* context, AddWinding winding, const SkPath& path) 
             break;
         case SkPath::kLine_Verb:
             if (pts[0] != pts[1])
-                if (snagOn) Add({ (OpPoint*) pts, sizeof(SkPoint) * 2, 
-						(CurveType) SkiaCurveType::skiaLineType }, winding);
+                if (snagOn) Add(contour, { (OpPoint*) pts, sizeof(SkPoint) * 2, 
+						(CurveType) SkiaCurveType::skiaLineType } );
             break;
         case SkPath::kQuad_Verb:
             std::swap(pts[1], pts[2]);  // rearrange order from 0/1/2 to 0/2/1
-            if (snagOn) AddQuads({ (OpPoint*) pts, sizeof(SkPoint) * 3, 
-					(CurveType) SkiaCurveType::skiaQuadType }, winding);
+            if (snagOn) AddQuads(contour, { (OpPoint*) pts, sizeof(SkPoint) * 3, 
+					(CurveType) SkiaCurveType::skiaQuadType } );
             break;
         case SkPath::kConic_Verb:
             std::swap(pts[1], pts[2]);  // rearrange order from 0/1/2 to 0/2/1
             pts[3].fX = iter.conicWeight(); // !!! hacky
-            if (snagOn) AddConics({ (OpPoint*) pts, sizeof(SkPoint) * 3 + sizeof(float), 
-                    (CurveType) SkiaCurveType::skiaConicType }, winding);
+            if (snagOn) AddConics(contour, { (OpPoint*) pts, sizeof(SkPoint) * 3 + sizeof(float), 
+                    (CurveType) SkiaCurveType::skiaConicType } );
             break;
         case SkPath::kCubic_Verb: {
 		#if 0
@@ -562,14 +562,14 @@ void AddDebugSkiaPath(Context* context, AddWinding winding, const SkPath& path) 
 			SkPoint temp[4] { pts[0], pts[3], pts[1], pts[2] };  //  put start, end, up front
 			std::memcpy(pts, temp, sizeof(temp));
 		#endif
-            if (snagOn) AddCubics({ (OpPoint*) pts, sizeof(SkPoint) * 4, 
-					(CurveType) SkiaCurveType::skiaCubicType }, winding);
+            if (snagOn) AddCubics(contour, { (OpPoint*) pts, sizeof(SkPoint) * 4, 
+					(CurveType) SkiaCurveType::skiaCubicType } );
             } break;
         case SkPath::kClose_Verb:
         case SkPath::kDone_Verb:
             if (closeLine[0] != closeLine[1])
-                if (snagOn) Add({ closeLine, sizeof(closeLine), 
-						(CurveType) SkiaCurveType::skiaLineType }, winding);
+                if (snagOn) Add(contour, { closeLine, sizeof(closeLine), 
+						(CurveType) SkiaCurveType::skiaLineType } );
 			if (++contourCount >= debugData.limitContours)
 				return;
             if (SkPath::kDone_Verb == verb) {

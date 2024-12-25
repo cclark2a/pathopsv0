@@ -1069,7 +1069,7 @@ void SetDebugWindingCallBacks(Contour* ctour, DebugCallerData callerData, DebugB
                 DebugIsOpp debugIsOppFunc)
 ) {
     OpContour* contour = (OpContour*) ctour;
-	contour->debugCaller = callerData;
+	contour->addDebugCallerData(callerData);
     contour->debugCallBacks = { bitOper
             OP_DEBUG_DUMP_PARAMS(dumpInFunc, dumpOutFunc, dumpFunc)
             OP_DEBUG_IMAGE_PARAMS(dumpImageOutFunc,

@@ -265,10 +265,10 @@ private:
 #endif
 #if OP_DEBUG_IMAGE
 		debugColor = debugBlack;
+		debugCustom = 0;
 		debugDraw = true;
 		debugJoin = false;
 		debugLimb = false;
-		debugCustom = false;
 #endif
 #if OP_DEBUG_VALIDATE
 		debugScheduledForErasure = false;
@@ -435,10 +435,10 @@ public:
 #endif
 #if OP_DEBUG_IMAGE
 	uint32_t debugColor;
+	uint32_t debugCustom;  // non-zero if color set by immediate mode debugging
 	bool debugDraw;
 	bool debugJoin;	 // true if included by joiner
 	bool debugLimb;  // true if a part of tree
-	bool debugCustom;  // true if color set by immediate mode debugging
 #endif
 #if OP_DEBUG_MAKER
 	OpDebugMaker debugSetDisabled;

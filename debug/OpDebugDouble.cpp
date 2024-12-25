@@ -1430,7 +1430,7 @@ void DebugOpDrawSegmentID(const OpSegment* segment, std::vector<int>& ids) {
             OpCurve curve;
             drawnSeg.mapTo(curve);
             OpPoint midTPt = curve.ptAtT(.5);
-            if (OpDebugImage::drawValue(midTPt, STR(segment->id), segment->disabled ? red : black))
+            if (OpDebugImage::drawValue(midTPt, STR(segment->id), segment->debugColor))
                 break;
         }
 }

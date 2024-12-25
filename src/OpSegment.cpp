@@ -646,16 +646,16 @@ void OpSegment::makePals() {
 			for (OpEdge& oEdge : oSeg->edges) {
 				if (oEdge.disabled)
 					continue;
+				if (!edge.bounds().intersects(oEdge.bounds()))
+					continue;
 				for (OpIntersection* oSect : oEdge.unSects) {
 					if (abs(oSect->unsectID) != uID)
 						continue;
-					auto found = std::find_if(edge.pals.begin(), edge.pals.end(), 
-							[&edge](const EdgePal& test) { return &edge != test.edge; });
-					if (edge.pals.end() == found) {
-						EdgePal pal { &oEdge, uSect->unsectID != oSect->unsectID 
-							    OP_DEBUG_PARAMS(uID) };
-						edge.pals.push_back(pal);
-					}
+					OP_ASSERT(edge.pals.end() == std::find_if(edge.pals.begin(), edge.pals.end(),
+							[&oEdge](const EdgePal& test) { return &oEdge == test.edge; }));
+					EdgePal pal {&oEdge, uSect->unsectID != oSect->unsectID  OP_DEBUG_PARAMS(uID)};
+					edge.pals.push_back(pal);
+					continue;
 				}
 			}
 		}
