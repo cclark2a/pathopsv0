@@ -30,6 +30,9 @@ struct Contour;
 // caller defined curve type (e.g., line, arc, cubic, ...); value zero is reserved
 enum class CurveType : int;
 
+// caller-defined optional data for each curve
+struct CurveUserData;
+
 /* Curve describes a set of continuous points from start to end.
    Curve's points must be contained by a rectangle bounded by start and end.
    Curve's points must monotonically vary from start to end in x and y.
@@ -37,7 +40,7 @@ enum class CurveType : int;
 struct CurveData {
 	OpPoint start;
 	OpPoint end;
-//	char optionalAdditionalData[];	// user data follows
+//	CurveUserData optional;	// user data follows endpoints
 };
 
 // offset of user data (if any); immediately follows required curve points

@@ -736,6 +736,7 @@ ContextError Path::handleError(Context* context) {
 	ContextError error = Error(context);
 	if (ContextError::none == error)
 		curves = outPath.result.curves;
+	DeleteContext(context);
 	return error;
 }
 

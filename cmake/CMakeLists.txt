@@ -157,3 +157,9 @@ set_property(GLOBAL PROPERTY CXX_STANDARD 17)
 
 # to add new files to Visual Studio builds:
 # add build C++ line, and add build link reference; to Debug/obj/HelloWorld.ninja and Release/obj/HelloWorld.ninja
+
+# to run html
+# npm install -g http-server
+# ~/emsdk/node/20.18.0_64bit/bin/http-server ./pathopsv0-wasm -p 8080
+# http://127.0.0.1:8080
+#  click examples > es > basic.html
