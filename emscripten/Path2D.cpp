@@ -50,18 +50,11 @@ void Path::setCurve(int index, Curve& curve) {
 }
 
 std::vector<Curve> Path::toCommands() {
-	std::vector<Curve> result;
-	for (Curve& curve : curves) {
-		result.push_back(curve);
-	}
-	return result;
+	return curves;
 }
 
 void Path::fromCommands(std::vector<Curve>& curveData) {
-	clear();
-	for (Curve& curve : curveData) {
-		curves.push_back(curve);
-	}
+	curves = curveData;
 }
 
 void Path::moveTo(float x, float y) {
