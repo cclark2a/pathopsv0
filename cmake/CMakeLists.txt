@@ -3,6 +3,10 @@
 cmake_minimum_required(VERSION 3.15)
 project(pov0 VERSION 0.1)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 set(FAST_TEST 1)
 
 set(SKIP_TO_V0 0)
@@ -142,8 +146,6 @@ elseif (CMAKE_BUILD_TYPE MATCHES "Release")
     target_compile_options(frametest PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra)
     target_compile_options(path2Dtest PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra)
 endif()
-
-set_property(GLOBAL PROPERTY CXX_STANDARD 17)
 
 # (remove all built files)
 # cmake -S . -B destDir/ -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
