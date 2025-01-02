@@ -29,17 +29,20 @@ static std::string commandsArray(std::vector<TwoD::Curve>& commands) {
 }
 
 static void anotherFrameTest(bool debugIt) {
-	const char* frameSVG = "M 16 151 L 269 67";
-	TwoD::FramePath framePath;
-	framePath.fromSVG(frameSVG);
 	const char* fillSVG = "M 10 15 L 70 15 L 105 115 L 140 15 L 200 15 L 140 185 L 70 185 L 10 15"
 		" M 295 10 Q 390 10 390 100 Q 390 190 295 190 Q 200 190 200 100 Q 200 10 295 10"
 		" M 295 55 Q 265 55 265 100 Q 265 145 295 145 Q 325 145 325 100 Q 325 55 295 55 Z";
 	TwoD::FillPath fillPath;
 	fillPath.fromSVG(fillSVG);
-	framePath.intersect(fillPath);
-	std::string svg = framePath.toSVG();
-	if (debugIt) OpDebugOut(svg + "\n");
+	const char* frameSVG = "M 16 151 L 269 67";
+	const char* conicFrameSVG = "M 50 150 K 288 143 0.8425 350 50";
+	TwoD::FramePath framePath;
+	for (int test = 0; test < 2; ++test) {
+		framePath.fromSVG(test ? frameSVG : conicFrameSVG);
+		framePath.intersect(fillPath);
+		std::string svg = framePath.toSVG();
+		if (debugIt) OpDebugOut(svg + "\n");
+	}
 }
 
 void TestPath2D(bool debugIt) {

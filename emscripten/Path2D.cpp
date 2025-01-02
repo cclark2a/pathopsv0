@@ -440,7 +440,7 @@ void Path::opAddPath(Context* context, Contour* contour, bool closeLoops) {
 				closeLine[0] = q[1];
 				} break;
 			case Types::conic: {
-				OpPoint k[4] { closeLine[0], pts[1], pts[0], { pts[2].x, 0 } };
+				OpPoint k[4] { closeLine[0], { pts[1].y, pts[2].x }, pts[0], { pts[1].x, 0 } };
 				AddConics(contour, { k, sizeof(k) - sizeof(float), (CurveType) Types::conic } );
 				closeLine[0] = k[1];
 				} break;
