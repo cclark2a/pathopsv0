@@ -1313,7 +1313,10 @@ void CurveDataStorage::DumpSet(const char*& str, CurveDataStorage** previousPtr)
 
 std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    s += contours->debugCallBack(c.type).curveNameFuncPtr() + " ";
+	if ((size_t) c.type > contours->debugCallBacks.size())
+		s += "(missing curve name) ";
+    else
+		s += contours->debugCallBack(c.type).curveNameFuncPtr() + " ";
     if (DebugLevel::file == l) {
         s += "size:" + STR(c.size) + " ";
         s += "data:" + contours->curveDataStorage->debugDump(c.data) + " ";
@@ -1323,7 +1326,8 @@ std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
             s += hullPt(i).debugDump(DebugLevel::error, b) + ", ";
         s.pop_back(); s.pop_back();
         s += " }";
-        s += contours->debugCallBack(c.type).curveExtraFuncPtr(c, l, b);
+		if ((size_t) c.type <= contours->debugCallBacks.size())
+			s += contours->debugCallBack(c.type).curveExtraFuncPtr(c, l, b);
     }
     return s;
 }
@@ -3943,7 +3947,7 @@ std::string OpWinding::debugDump(DebugLevel l, DebugBase b) const {
         s += STR(contour->id) + " ";
         if (DebugLevel::file != l) {
             s +="w.data:";
-            if (w.data && w.size)
+            if (w.data && w.size && contour->debugCallBacks.debugDumpContourOutFuncPtr)
                 s += contour->debugCallBacks.debugDumpContourOutFuncPtr(w);
             else
                 s += OpDebugStr(w.data) + " w.size:" + STR(w.size);

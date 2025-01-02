@@ -246,9 +246,9 @@ void OpTest(bool terminateEarly) {
         return;
     }
 #endif
-#if TEST_SMALL_EXAMPLES || OP_DEBUG_FAST_TEST
+#if TEST_SMALL_EXAMPLES
+ 	TestPath2D(true);
   	testFrame();
- 	TestPath2D(false);
     testNewInterface();
 #endif
 	runTests();

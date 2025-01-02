@@ -303,6 +303,15 @@ extern void i();
 extern void oo(float );
 extern void oo();
 
+namespace PathOpsV0Lib {
+	struct Curve;
+}
+
+extern void debugLineAddToSkPath(PathOpsV0Lib::Curve c, class SkPath& path);
+extern void debugQuadAddToSkPath(PathOpsV0Lib::Curve c, class SkPath& path);
+extern void debugConicAddToSkPath(PathOpsV0Lib::Curve c, class SkPath& path);
+extern void debugCubicAddToSkPath(PathOpsV0Lib::Curve c, class SkPath& path);
+
 #endif
 
 #endif

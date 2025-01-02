@@ -319,4 +319,14 @@ void OpDebugFormat(std::string );
 #define DUMP_DECLARATIONS
 #endif
 
+namespace PathOpsV0Lib {
+	struct Curve;
+}
+
+void debugLineScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY);
+void debugQuadScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY);
+void debugConicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY);
+void debugCubicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY);
+
+
 #endif

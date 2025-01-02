@@ -62,7 +62,7 @@ void frameSubtractFunc(Winding winding, Winding toSubtract) {
 	if (FrameFill::frame == difference.isFrame)
 		return;
 	FrameWinding subtrahend(toSubtract);
-	if (FrameFill::fill == subtrahend.isFrame)
+	if (FrameFill::frame == subtrahend.isFrame)
 		return;
 	difference.left -= subtrahend.left;
 	difference.copyTo(winding);

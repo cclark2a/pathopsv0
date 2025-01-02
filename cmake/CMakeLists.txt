@@ -165,3 +165,10 @@ endif()
 # ~/emsdk/node/20.18.0_64bit/bin/http-server ./pathopsv0-wasm -p 8080
 # http://127.0.0.1:8080
 #  click examples > es > basic.html
+
+# git checkout -b my-feature
+# git commit
+# git push
+# https://github.com/ErikSom/Pathopsv0-WASM
+
+# https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork

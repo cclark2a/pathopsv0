@@ -25,6 +25,11 @@ char* OpContours::allocateCallerData(size_t size) {
 
 #if OP_DEBUG
 void OpContour::addDebugCallerData(PathOpsV0Lib::DebugCallerData data) {
+	if (!data.size) {
+		debugCaller.data = nullptr;
+		debugCaller.size = 0;
+		return;
+	}
 	debugCaller.data = contours->allocateCallerData(data.size);
 	std::memcpy(debugCaller.data, data.data, data.size);
 	debugCaller.size = data.size;  // !!! don't know if size is really needed ...

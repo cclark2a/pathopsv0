@@ -466,30 +466,6 @@ void AddSkiaPath(Context* context, Contour* contour, const SkPath& path) {
     }
 }
 
-#if OP_DEBUG_IMAGE
-
-void debugLineAddToSkPath(Curve c, SkPath& path) {
-	path.lineTo(c.data->end.x, c.data->end.y);
-}
-
-void debugQuadAddToSkPath(Curve c, SkPath& path) {
-    OpPoint controlPt = *(OpPoint*) CurveUserData(c.data);
-	path.quadTo(controlPt.x, controlPt.y, c.data->end.x, c.data->end.y);
-}
-
-void debugConicAddToSkPath(Curve c, SkPath& path) {
-    PointWeight control = *(PointWeight*) CurveUserData(c.data);
-	path.conicTo(control.pt.x, control.pt.y, c.data->end.x, c.data->end.y, control.weight);
-}
-
-void debugCubicAddToSkPath(Curve c, SkPath& path) {
-    OpPoint* controls = (OpPoint*) CurveUserData(c.data);
-	path.cubicTo(controls[0].x, controls[0].y, controls[1].x, controls[1].y, 
-            c.data->end.x, c.data->end.y);
-}
-
-#endif
-
 #if OP_DEBUG
 #if TEST_ANALYZE
 #include "OpContour.h"
