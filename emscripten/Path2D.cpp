@@ -3,6 +3,7 @@
 #include "Path2D.h"
 #include "curves/Line.h"
 #include "curves/NoCurve.h"
+#include "curves/ConicBezier.h"
 #include "curves/CubicBezier.h"
 #include "curves/QuadBezier.h"
 #if 0 // emscripten as of 12/7/2024 does not support std::from_chars
@@ -106,6 +107,15 @@ void Path::bezierCurveTo(float c1x, float c1y, float c2x, float c2y, float x, fl
 void Path::rBezierCurveTo(float rc1x, float rc1y, float rc2x, float rc2y, float rx, float ry) {
 	OpPoint last = lastPt();
 	bezierCurveTo(last.x + rc1x, last.y + rc1y, last.x + rc2x, last.y + rc2y, last.x + rx, last.y + ry);
+}
+
+void Path::conicTo(float cx, float cy, float cw, float x, float y) {
+	curves.push_back( { Types::conic, { cx, cy, cw, x, y }} );
+}
+
+void Path::rConicTo(float dcx, float dcy, float cw, float dx, float dy) {
+	OpPoint last = lastPt();
+	conicTo(last.x + dcx, last.y + dcy, cw, last.x + dx, last.y + dy);
 }
 
 void Path::closePath() {
@@ -314,6 +324,35 @@ void Path::fromSVG(std::string s) {
 					skipCommaSpace();
 					bezierCurveTo(lc.x, lc.y, c2x, c2y, x, y);
 					} break;
+				case 'K': {
+					skipCommaSpace();
+					float cx = nextFloatComma(&ch, chEnd);
+					float cy = nextFloatComma(&ch, chEnd);
+					float cw = nextFloatComma(&ch, chEnd);
+					float x = nextFloatComma(&ch, chEnd);
+					float y = nextFloatComma(&ch, chEnd);
+					skipCommaSpace();
+					relative ? rConicTo(cx, cy, cw, x, y) : conicTo(cx, cy, cw, x, y);
+					} break;
+				case 'U': {
+					OpPoint lp = lastPt();
+					OpPoint lc = lp;
+					if (Types::conic == curves.back().type) {
+						float* data = &curves.back().data.back();
+						lc = { *(data - 4), *(data - 3) };
+					}
+					float cw = nextFloatComma(&ch, chEnd);
+					float x = nextFloatComma(&ch, chEnd);
+					float y = nextFloatComma(&ch, chEnd);
+					if (relative) {
+						x += lp.x;
+						y += lp.y;
+					}
+					lc.x = lp.x * 2 - lc.x;
+					lc.y = lp.x * 2 - lc.y;
+					skipCommaSpace();
+					conicTo(lc.x, lc.y, cw, x, y);
+					} break;
 				case 'Z':
 					skipCommaSpace();
 					closePath();
@@ -355,6 +394,9 @@ std::string Path::toSVG() {
 			case Types::quad:
 				result += command('Q') + ord(0) + ord(1) + ord(2) + ord(3);
 				break;
+			case Types::conic:
+				result += command('K') + ord(0) + ord(1) + ord(2) + ord(3) + ord(4);
+				break;
 			case Types::cubic:
 				result += command('C') + ord(0) + ord(1) + ord(2) + ord(3) + ord(4) + ord(5);
 				break;
@@ -383,32 +425,35 @@ void Path::opAddPath(Context* context, Contour* contour, bool closeLoops) {
 			case Types::move:
 				if (closeLoops && closeLine[0] != closeLine[1])
 					Add(contour, { closeLine, sizeof(closeLine), (CurveType) Types::line } );
-				closeLine[0] = closeLine[1] = *pts++;
+				closeLine[0] = closeLine[1] = *pts;
 				break;
 			case Types::line:
 				if (closeLine[0] != pts[0]) {
 					OpPoint closer[2] { closeLine[0], pts[0] };
 					Add(contour, { closer, sizeof closer, (CurveType) Types::line } );
 				}
-				closeLine[0] = *pts++;
+				closeLine[0] = *pts;
 				break;
 			case Types::quad: {
 				OpPoint q[3] { closeLine[0], pts[1], pts[0] };
 				AddQuads(contour, { q, sizeof q, (CurveType) Types::quad } );
 				closeLine[0] = q[1];
-				pts += 2;
+				} break;
+			case Types::conic: {
+				OpPoint k[4] { closeLine[0], pts[1], pts[0], { pts[2].x, 0 } };
+				AddConics(contour, { k, sizeof(k) - sizeof(float), (CurveType) Types::conic } );
+				closeLine[0] = k[1];
 				} break;
 			case Types::cubic: {
 				OpPoint c[4] { closeLine[0], pts[2], pts[0], pts[1] };
 				AddCubics(contour, { c, sizeof c, (CurveType) Types::cubic } );
 				closeLine[0] = c[1];
-				pts += 3;
 				} break;
 			case Types::close:
 				if (closeLoops && closeLine[0] != closeLine[1])
 					Add(contour, { closeLine, sizeof closeLine, (CurveType) Types::line } );
 				closeLine[0] = closeLine[1];
-				continue;
+				break;
 			default:
 				OP_ASSERT(0);
 		}
@@ -479,6 +524,10 @@ void OutPath::commonOutput(PathOpsV0Lib::Curve c, Types type, bool firstPt, bool
 		case Types::quad: {
 			float* ctrls = (float*) ((char*)(c.data) + sizeof(CurveData));
 			result.quadraticCurveTo(ctrls[0], ctrls[1], c.data->end.x, c.data->end.y);
+			} break;
+		case Types::conic: {
+			float* ctrls = (float*) ((char*)(c.data) + sizeof(CurveData));
+			result.conicTo(ctrls[0], ctrls[1], ctrls[2], c.data->end.x, c.data->end.y);
 			} break;
 		case Types::cubic: {
 			float* ctrls = (float*) ((char*)(c.data) + sizeof(CurveData));
@@ -569,12 +618,10 @@ static void QuadOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathOut
 	output->commonOutput(c, Types::quad, firstPt, lastPt);
 }
 
-#if ARC_SUPPORT
 static void ConicOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathOutput pathOutput) {
-	Path* output = (Path*) pathOutput;
+	OutPath* output = (OutPath*) pathOutput;
 	output->commonOutput(c, Types::conic, firstPt, lastPt);
 }
-#endif
 
 static void CubicOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathOutput pathOutput) {
 	OutPath* output = (OutPath*) pathOutput;
@@ -599,7 +646,15 @@ static void SetupCurves(Context* context) {
             OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, noDumpCurveExtra)
             OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath)));
 	OP_ASSERT((int) quadType == (int) Types::quad);
-    OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallBacks(context, { CubicOutput, cubicAxisT, 
+        OP_DEBUG_CODE(CurveType conicType =) SetCurveCallBacks(context, { ConicOutput, conicAxisT,
+			conicHull, conicIsFinite, conicIsLine, conicSetBounds, quadPinCtrl, 
+			conicTangent, conicsEqual, conicPtAtT, quadHullPtCount, conicRotate, 
+			conicSubDivide, conicXYAtT });
+	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, conicType, debugConicScale
+            OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
+            OP_DEBUG_IMAGE_PARAMS(debugConicAddToSkPath)));
+	OP_ASSERT((int) conicType == (int) Types::conic);
+	OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallBacks(context, { CubicOutput, cubicAxisT, 
 			cubicHull, cubicIsFinite, cubicIsLine, cubicSetBounds, cubicPinCtrl, 
 			cubicTangent, cubicsEqual, cubicPtAtT, cubicHullPtCount, cubicRotate, 
 			cubicSubDivide, cubicXYAtT, cubicReverse });

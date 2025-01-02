@@ -14,8 +14,9 @@ enum class Types {
     move,
     line,
     quad,
+	conic,
     cubic,
-	close
+	close,
 };
 
 enum class Ops {
@@ -47,6 +48,8 @@ struct Path {
 	void rQuadraticCurveTo(float dcx, float dcy, float dx, float dy);
 	void bezierCurveTo(float c1x, float c1y, float c2x, float c2y, float x, float y);
 	void rBezierCurveTo(float dc1x, float dc1y, float dc2x, float dc2y, float dx, float dy);
+	void conicTo(float cx, float cy, float cw, float x, float y);
+	void rConicTo(float dcx, float dcy, float cw, float x, float y);
 	void closePath();
 	void rect(float x, float y, float width, float height);
 	void transform(float a, float b, float c, float d, float e, float f);
@@ -94,6 +97,10 @@ struct FillPath : Path {
 			Path::bezierCurveTo(c1x, c1y, c2x, c2y, x, y); }
 	void rBezierCurveTo(float dc1x, float dc1y, float dc2x, float dc2y, float dx, float dy) {
 			Path::rBezierCurveTo(dc1x, dc1y, dc2x, dc2y, dx, dy); }
+	void conicTo(float cx, float cy, float cw, float x, float y) {
+			Path::conicTo(cx, cy, cw, x, y); }
+	void rConicTo(float dcx, float dcy, float cw, float x, float y) {
+			Path::rConicTo(dcx, dcy, cw, x, y); }
 	void closePath() { Path::closePath(); }
 	void rect(float x, float y, float width, float height) {
 			Path::rect(x, y, width, height); }
@@ -134,6 +141,10 @@ struct FramePath : Path {
 			Path::bezierCurveTo(c1x, c1y, c2x, c2y, x, y); }
 	void rBezierCurveTo(float dc1x, float dc1y, float dc2x, float dc2y, float dx, float dy) {
 			Path::bezierCurveTo(dc1x, dc1y, dc2x, dc2y, dx, dy); }
+	void conicTo(float cx, float cy, float cw, float x, float y) {
+			Path::conicTo(cx, cy, cw, x, y); }
+	void rConicTo(float dcx, float dcy, float cw, float x, float y) {
+			Path::rConicTo(dcx, dcy, cw, x, y); }
 	void closePath() { Path::closePath(); }
 	void rect(float x, float y, float width, float height) {
 			Path::rect(x, y, width, height); }

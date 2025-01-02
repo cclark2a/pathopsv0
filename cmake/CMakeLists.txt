@@ -160,6 +160,8 @@ endif()
 # to add new files to Visual Studio builds:
 # add build C++ line, and add build link reference; to Debug/obj/HelloWorld.ninja and Release/obj/HelloWorld.ninja
 
+# pathopsv0-wasm/compile-wasm.sh
+
 # to run html
 # npm install -g http-server
 # ~/emsdk/node/20.18.0_64bit/bin/http-server ./pathopsv0-wasm -p 8080
