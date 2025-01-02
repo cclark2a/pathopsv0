@@ -1048,6 +1048,43 @@ void debug() {
 #endif
 
 #include "DebugOps.h"
+#include "curves/QuadBezier.h"
+#include "curves/CubicBezier.h"
+
+void debugCommonScale(PathOpsV0Lib::Curve curve, int extra, double scale, double offsetX, double offsetY) {
+	auto scaler = [scale, offsetX, offsetY](OpPoint& pt) {
+		pt.x = (float) (pt.x * scale + offsetX);
+		pt.y = (float) (pt.y * scale + offsetY);
+	};
+	scaler(curve.data->start);
+	scaler(curve.data->end);
+	if (1 == extra) {
+        OpPoint ctrlPt = quadControlPt(curve);
+		scaler(ctrlPt);
+		quadSetControl(curve, ctrlPt);
+	} else if (2 == extra) {
+        PathOpsV0Lib::CubicControls ctrls(curve);
+		scaler(ctrls.pts[0]);
+		scaler(ctrls.pts[1]);
+		ctrls.copyTo(curve);
+	}
+}
+
+void debugLineScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY) {
+	debugCommonScale(curve, 0, scale, offsetX, offsetY);
+}
+
+void debugQuadScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY) {
+	debugCommonScale(curve, 1, scale, offsetX, offsetY);
+}
+
+void debugConicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY) {
+	debugCommonScale(curve, 1, scale, offsetX, offsetY);
+}
+
+void debugCubicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY) {
+	debugCommonScale(curve, 2, scale, offsetX, offsetY);
+}
 
 namespace PathOpsV0Lib {
 

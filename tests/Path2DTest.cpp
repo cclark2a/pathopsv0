@@ -45,7 +45,28 @@ static void anotherFrameTest(bool debugIt) {
 	}
 }
 
+static void svgFrameTest(const char* frameSVG, const char* fillSVG, const char* sectSVG) {
+	TwoD::FillPath fillPath;
+	fillPath.fromSVG(fillSVG);
+	TwoD::FramePath framePath;
+	framePath.fromSVG(frameSVG);
+	framePath.intersect(fillPath);
+	std::string svg = framePath.toSVG();
+	OpDebugOut(svg + "\n");
+	OpDebugOut(std::string(sectSVG) + "\n");
+}
+
+static void test1() {
+    const char* frame = "M 50 150 K 150 50 0.7 350 50";
+	const char* fill = "M 10 15 L 70 15 L 105 115 L 140 15 L 200 15 L 140 185 L 70 185 L 10 15"
+		" M 295 10 Q 390 10 390 100 Q 390 190 295 190 Q 200 190 200 100 Q 200 10 295 10"
+		" M 295 55 Q 265 55 265 100 Q 265 145 295 145 Q 325 145 325 100 Q 325 55 295 55 Z";
+     const char* sect = "M 202.704346 72.192276 K 279.966217 50.000011 0.941712 350 50 Z M 106.711433 110.110191 K 138.196274 93.353333 0.983252 176.977936 80.22921 Z M 55.730625 144.570099 K 74.67997 127.510925 0.985179 103.830925 111.659767 Z";
+     svgFrameTest(frame, fill, sect);
+}
+
 void TestPath2D(bool debugIt) {
+	test1();
 	debugIt |= overrideDebugIt;
 	anotherFrameTest(debugIt);
 	TwoD::FillPath path;

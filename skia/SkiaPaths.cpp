@@ -110,43 +110,6 @@ void skiaCubicOutput(Curve c, bool firstPt, bool lastPt, PathOutput output) {
     commonOutput(c, SkPath::kCubic_Verb, firstPt, lastPt, output);
 }
 
-#if OP_DEBUG
-void debugCommonScale(Curve curve, int extra, double scale, double offsetX, double offsetY) {
-	auto scaler = [scale, offsetX, offsetY](OpPoint& pt) {
-		pt.x = (float) (pt.x * scale + offsetX);
-		pt.y = (float) (pt.y * scale + offsetY);
-	};
-	scaler(curve.data->start);
-	scaler(curve.data->end);
-	if (1 == extra) {
-        OpPoint ctrlPt = quadControlPt(curve);
-		scaler(ctrlPt);
-		quadSetControl(curve, ctrlPt);
-	} else if (2 == extra) {
-        CubicControls ctrls(curve);
-		scaler(ctrls.pts[0]);
-		scaler(ctrls.pts[1]);
-		ctrls.copyTo(curve);
-	}
-}
-
-void debugLineScale(Curve curve, double scale, double offsetX, double offsetY) {
-	debugCommonScale(curve, 0, scale, offsetX, offsetY);
-}
-
-void debugQuadScale(Curve curve, double scale, double offsetX, double offsetY) {
-	debugCommonScale(curve, 1, scale, offsetX, offsetY);
-}
-
-void debugConicScale(Curve curve, double scale, double offsetX, double offsetY) {
-	debugCommonScale(curve, 1, scale, offsetX, offsetY);
-}
-
-void debugCubicScale(Curve curve, double scale, double offsetX, double offsetY) {
-	debugCommonScale(curve, 2, scale, offsetX, offsetY);
-}
-#endif
-
 enum class SkiaCurveType : int {
 	skiaLineType = 1,
 	skiaQuadType,
