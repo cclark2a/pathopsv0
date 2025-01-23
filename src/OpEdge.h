@@ -236,6 +236,9 @@ private:
 		, isUnsortable(Unsortable::none)
 		, active_impl(false)
 		, inLinkups(false)
+#if WINDER_CONTOUR_EXPERIMENT
+		, linkHead(false)
+#endif
 		, inOutput(false)
 		, disabled(false)
 		, isUnsplitable(false)
@@ -295,7 +298,11 @@ public:
 	void clearPriorEdge();
 	void complete(OpPoint start, OpPoint end);
 	bool containsLink(const OpEdge* edge) const;
+#if 0
 	OpContours* contours() const;
+#else
+	OpContours* context() const;
+#endif
 	OpPtT end() const { return OpPtT(endPt(), endT); }
 	OpPoint endPt() const { return curve.lastPt(); }
 	OpPtT flipPtT(EdgeMatch match) const { 
@@ -330,6 +337,9 @@ public:
 		winding.zero();
 		setDisabled(OP_LINE_FILE_NP_CARGS()); }
 	OpEdge* setLastEdge();
+#if WINDER_CONTOUR_EXPERIMENT
+	void setLastEdge(OpEdge* first, OpEdge* last);
+#endif
 	bool setLastLink(EdgeMatch );  // returns true if link order was changed
 	OpPointBounds setLinkBounds();
 	bool setLinkDirection(EdgeMatch );  // reverse links if handed link end instead of link start
@@ -411,6 +421,9 @@ public:
 	Unsortable isUnsortable;  // unsectable is unsortable; others (e.g., very small) are also unsortable
 	bool active_impl;  // used by ray casting to mark edges that may be to the left of casting edge
 	bool inLinkups; // set for edges in linkups l vector
+#if WINDER_CONTOUR_EXPERIMENT
+	bool linkHead;  // used to remove edge from contour linkups when edge is output 
+#endif
 	bool inOutput;	// set when edge is added to output path
 	bool disabled;	// winding is zero, or apply disqualified edge from appearing in output
 	bool isUnsplitable;  // too small to split in two during curve-curve intersection

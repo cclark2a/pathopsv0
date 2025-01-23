@@ -486,30 +486,30 @@ void OpCurveCurve::debugSaveState() {
 bool OpCurveCurve::debugShowImage(bool atDepth) {
 	if (OpDebugSkipBreak())
 		return true;
-    if (contours->debugData.curveCurveDepth < 0)
+    if (context->debugData.curveCurveDepth < 0)
         return true;
-    if (atDepth && !contours->debugData.curveCurveDepth)
+    if (atDepth && !context->debugData.curveCurveDepth)
         return true;
-    if (contours->debugData.curveCurve1 != seg->id && contours->debugData.curveCurve2 != seg->id)
+    if (context->debugData.curveCurve1 != seg->id && context->debugData.curveCurve2 != seg->id)
         return true;
-    if (contours->debugData.curveCurve1 != opp->id && contours->debugData.curveCurve2 != opp->id)
+    if (context->debugData.curveCurve1 != opp->id && context->debugData.curveCurve2 != opp->id)
         return true;
-    if (atDepth && depth < contours->debugData.curveCurveDepth)
+    if (atDepth && depth < context->debugData.curveCurveDepth)
 		return true;
 #if OP_DEBUG_DUMP
-	if (!atDepth || contours->debugData.curveCurveDepth == depth)
+	if (!atDepth || context->debugData.curveCurveDepth == depth)
 		::debug();
 #endif
 	OP_DEBUG_IMAGE_CODE(1 == depth ? ::showSegmentEdges() : ::hideSegmentEdges());
 #if OP_DEBUG_DUMP
 #if OP_DEBUG_VALIDATE
-	if (contours->debugData.curveCurveDepth < depth) {
+	if (context->debugData.curveCurveDepth < depth) {
 		::dmpDepth(depth);
 		::drawDepth(depth);
 	}
 #endif
 	dmpFile();
-	verifyFile(contours);
+	verifyFile(context);
 #endif
 	return false;
 }
@@ -552,7 +552,7 @@ const OpEdge* OpEdge::debugIsLoop(EdgeMatch which, LeadingLoop leading) const {
 
 #if OP_DEBUG_VALIDATE
 void OpEdge::debugValidate() const {
-    OpContours* contours = this->contours();
+    OpContours* contours = this->context();
     contours->debugValidateEdgeIndex += 1;
     bool loopy = debugIsLoop();
     if (loopy) {
@@ -753,8 +753,17 @@ void OpContours::debugRemap(int oldRayMatch, int newRayMatch) {
 
 // assign the same ID for all edges linked together
 // also assign that ID to edges whose non-zero crossing rays attach to those edges
-void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContours* contours)) {
-    OP_DEBUG_CODE(bool mayFail = OpDebugExpect::unknown == contours->debugExpect);
+
+#if WINDER_CONTOUR_EXPERIMENT
+void OpContour::debugMatchRay()
+#else
+void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContours* contours))
+#endif
+{
+#if WINDER_CONTOUR_EXPERIMENT
+	OpContours* contours = context;
+#endif
+	OP_DEBUG_CODE(bool mayFail = OpDebugExpect::unknown == contours->debugExpect);
 	for (auto linkup : linkups.l) {
         OP_ASSERT(!linkup->priorEdge);
         OP_ASSERT(linkup->lastEdge);
@@ -902,16 +911,33 @@ bool OpJoiner::DebugShowImage() {
 
 #if OP_DEBUG_VALIDATE
 // !!! also debug prev/next edges (links)
+#if WINDER_CONTOUR_EXPERIMENT
 void OpJoiner::debugValidate() const {
+	for (auto contour : context->contours) {
+		contour->debugValidate(this);
+	}
+}
+
+void OpContour::debugValidate(const OpJoiner* joiner) const 
+#else
+void OpJoiner::debugValidate() const 
+#endif
+{
     OpEdge* anEdge = byArea.size() ? byArea[0] : unsectByArea.size() ? unsectByArea[0] : 
             disabled.size() ? disabled[0] : unsortables.size() ? unsortables[0] :
             linkups.l.size() ? linkups.l[0] : nullptr;
     if (!anEdge)
         return;
-    OpContours* contours = anEdge->contours();
+    OpContours* contours = anEdge->context();
     contours->debugValidateJoinerIndex += 1;
     contours->debugCheckLastEdge = false;
-    if (LinkPass::remaining != linkPass) {
+#if WINDER_CONTOUR_EXPERIMENT
+    if (LinkPass::remaining != joiner->linkPass) 
+#else
+	if (LinkPass::remaining != linkPass) 
+#endif
+	
+	{
         for (auto e : byArea) {
             e->debugValidate();
             OP_ASSERT(!e->isActive() || !e->debugIsLoop());
@@ -935,6 +961,8 @@ void OpJoiner::debugValidate() const {
         if (e->debugScheduledForErasure)
             continue;
         e->debugValidate();
+		if (e->priorEdge)
+			dmpJoin();
         OP_ASSERT(!e->priorEdge);
         OP_ASSERT(e->disabled || e->lastEdge);
         OP_ASSERT(!e->debugIsLoop());
@@ -948,20 +976,24 @@ void OpSegment::debugValidate() const {
 
 
 bool OpSegment::debugFail() const {
-	return contour->contours->debugFail();
+	return contour->context->debugFail();
 }
 
 bool OpSegment::debugSuccess() const {
-	return contour->contours->debugSuccess();
+	return contour->context->debugSuccess();
 }
 
 OpTree::~OpTree() {
-	contours->debugTree = nullptr;
+	context->debugTree = nullptr;
 }
 
 #include "OpWinder.h"
 
 void OpWinder::debugValidate() const {
+#if WINDER_CONTOUR_EXPERIMENT
+	std::vector<OpEdge*>& inX = *inXPtr;
+	std::vector<OpEdge*>& inY = *inYPtr;
+#endif
     for (auto& edge : inX)
         edge->debugValidate();
     for (auto& edge : inY)

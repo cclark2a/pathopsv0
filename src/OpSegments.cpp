@@ -20,17 +20,21 @@ static bool compareXBox(const OpSegment* s1, const OpSegment* s2) {
 	return s1->id < s2->id;
 }
 
-OpSegments::OpSegments(OpContours& contours) {
-	inX.clear();
-	for (auto contour : contours.contours) {
-		for (auto& segment : contour->segments) {
-			inX.push_back(&segment);
-		}
-	}
-	std::sort(inX.begin(), inX.end(), compareXBox);
+OpSegments::OpSegments(OpContours& c) 
+	: context(c)
+	, found(FoundIntersections::yes) {
 	OP_DEBUG_CODE(debugFailSegID = 0);
 	OP_DEBUG_CODE(debugFailOppID = 0);
+}
 
+// !!! maybe caller should be able to choose between sort in X / sort in Y / don't sort?
+void OpSegments::initInX() {
+	for (auto contour : context.contours) {
+		for (auto& segment : contour->segments) {
+			contour->sorted.push_back(&segment);
+		}
+		std::sort(contour->sorted.begin(), contour->sorted.end(), compareXBox);
+	}
 }
 
 // may need to adjust values in opp if end is nearly equal to seg
@@ -232,26 +236,43 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 	return;
 }
 
-void OpSegments::FindCoincidences(OpContours* contours) {
-	// take care of totally coincident segments
-	SegmentIterator segIterator(contours);
-	while (OpSegment* seg = segIterator.next()) {
-		SegmentIterator oppIterator = segIterator;
-		while (OpSegment* opp = oppIterator.next()) {
-			if (seg->ptBounds != opp->ptBounds)
+void OpSegments::findCoincidences() {
+	for (OpContour* oContour: context.contours) {
+		for (OpContour* iContour : oContour->sects) {
+			if (oContour->id > iContour->id)
 				continue;
-			MatchReverse mr = seg->matchEnds(opp);
-			PathOpsV0Lib::Curve& curve = seg->c.c;
-			if (MatchEnds::both != mr.match || curve.type != opp->c.c.type)
+			findCoincidence(oContour, iContour);
+		}
+	}
+}
+
+void OpSegments::findCoincidence(OpContour* contour, OpContour* oContour) {
+	bool same = contour == oContour;
+	for (size_t iDex = 0; iDex < contour->segments.size(); ++iDex) {
+		OpSegment* seg = &contour->segments[iDex];
+		if (seg->disabled)
+			continue;
+		for (size_t oDex = same ? iDex + 1 : 0; oDex < oContour->segments.size(); ++oDex) {
+			OpSegment* opp = &oContour->segments[oDex];
+			if (opp->disabled)
 				continue;
-			// if control points and weight match, treat as coincident: transfer winding
-			PathOpsV0Lib::CurvesEqual funcPtr = contours->callBack(curve.type).curvesEqualFuncPtr;
-			if (funcPtr && !(*funcPtr)(curve, opp->c.c))
-				continue;
-			if (!seg->moveWinding(opp, mr.reversed))
+			if (seg->ptBounds == opp->ptBounds && !findCoincidence(seg, opp))
 				break;
 		}
 	}
+}
+
+// take care of totally coincident segments
+bool OpSegments::findCoincidence(OpSegment* seg, OpSegment* opp) {
+	MatchReverse mr = seg->matchEnds(opp);
+	PathOpsV0Lib::Curve& curve = seg->c.c;
+	if (MatchEnds::both != mr.match || curve.type != opp->c.c.type)
+		return true;
+	// if control points and weight match, treat as coincident: transfer winding
+	PathOpsV0Lib::CurvesEqual funcPtr = context.callBack(curve.type).curvesEqualFuncPtr;
+	if (funcPtr && !(*funcPtr)(curve, opp->c.c))
+		return true;
+	return seg->moveWinding(opp, mr.reversed);
 }
 
 IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
@@ -281,7 +302,7 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
 	LinePts oppLine = opp->c.linePts();
 	OpCurve vertSeg = seg->c.toVertical(oppLine, ends.match);
 	if (!vertSeg.isFinite()) {
-		seg->contour->contours->setError(PathOpsV0Lib::ContextError::toVertical  
+		seg->contour->context->setError(PathOpsV0Lib::ContextError::toVertical  
 				OP_DEBUG_PARAMS(seg->id));
 		return IntersectResult::fail;
 	}
@@ -290,7 +311,7 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
 	LinePts segLine = seg->c.linePts();
 	OpCurve vertOpp = opp->c.toVertical(segLine, ends.flipped());
 	if (!vertOpp.isFinite()) {
-		seg->contour->contours->setError(PathOpsV0Lib::ContextError::toVertical  
+		seg->contour->context->setError(PathOpsV0Lib::ContextError::toVertical  
 				OP_DEBUG_PARAMS(opp->id));
 		return IntersectResult::fail;
 	}
@@ -305,78 +326,94 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
 // note: ends have already been matched for consecutive segments
 FoundIntersections OpSegments::findIntersections() {
 	OP_DEBUG_CONTEXT();
-	for (auto segIter = inX.begin(); segIter != inX.end(); ++segIter) {
-		OpSegment* seg = const_cast<OpSegment*>(*segIter);
+	for (OpContour* oContour: context.contours) {
+		for (OpContour* iContour : oContour->sects) {
+			if (iContour->id > oContour->id)
+				break;
+			findIntersection(oContour, iContour);
+		}
+	}
+	return found;
+}
+
+void OpSegments::findIntersection(OpContour* contour, OpContour* oContour) {
+	bool same = contour == oContour;
+	for (size_t iDex = 0; iDex < contour->sorted.size(); ++iDex) {
+		OpSegment* seg = contour->sorted[iDex];
 		if (seg->disabled)
 			continue;
-		for (auto oppIter = segIter + 1; oppIter != inX.end(); ++oppIter) {
-			OpSegment* opp = const_cast<OpSegment*>(*oppIter);
+		for (size_t oDex = same ? iDex + 1 : 0; oDex < oContour->sorted.size(); ++oDex) {
+			OpSegment* opp = oContour->sorted[oDex];
 			if (opp->disabled)
 				continue;
-			// comparisons below need to be 'nearly' since adjusting opp may make sort incorrect
-			// or, exact compare may miss nearly equal seg/opp pairs
 			if (seg->closeBounds.right < opp->closeBounds.left)
 				break;
 			if (!seg->closeBounds.intersects(opp->closeBounds))
 				continue;
-			// set both to lines if they are linear before using them in t calculations
-			(void) seg->c.isLine();
-			(void) opp->c.isLine();
-			AddEndMatches(seg, opp);
-			if (seg->willDisable || opp->willDisable)
-				continue;
-			if (seg->isSmall()) {
-				seg->willDisable = true;
-				continue;
-			}
-			if (opp->isSmall()) {
-				opp->willDisable = true;
-				continue;
-			}
-			// for line-curve intersection we can directly intersect
-			if (seg->c.isLine()) {
-				if (opp->c.isLine()) {
-					IntersectResult lineCoin = LineCoincidence(seg, opp);
-					if (seg->disabled)
-						break;
-					if (IntersectResult::fail == lineCoin) {
-						OP_DEBUG_CODE(debugFailSegID = seg->id);
-						OP_DEBUG_CODE(debugFailOppID = opp->id);
-						return FoundIntersections::fail;
-					}
-					if (IntersectResult::coincident == lineCoin)
-						continue;
-				}
-				AddLineCurveIntersection(opp, seg);
-				continue;
-			} else if (opp->c.isLine()) {
-				AddLineCurveIntersection(seg, opp);
-				continue;
-			}
-			// if the bounds only share a corner, there's nothing more to do
-			bool sharesHorizontal = seg->ptBounds.right == opp->ptBounds.left
-					|| seg->ptBounds.left == opp->ptBounds.right;
-			bool sharesVertical = seg->ptBounds.bottom == opp->ptBounds.top
-					|| seg->ptBounds.top == opp->ptBounds.bottom;
-			if (sharesHorizontal && sharesVertical)
-				continue;
-			// look for curve curve intersections (skip coincidence already found)
-			OpCurveCurve cc(seg, opp);
-			SectFound ccResult = cc.divideAndConquer();
-			OP_ASSERT(cc.debugShowImage());
-			if (true) { // SectFound::fail == ccResult || SectFound::maxOverlaps == ccResult
-						//        || SectFound::noOverlapDeep == ccResult
-				// !!! as an experiment, search runs for small opp distances; turn found into limits
-				SectFound limitsResult = cc.runsToLimits();
-				if (SectFound::add == limitsResult)
-					ccResult = limitsResult;
-			}
-			if (SectFound::add == ccResult || cc.limits.size())
-				cc.findUnsectable();
-			OP_DEBUG_CONTEXT();
+			if (!findIntersection(seg, opp))
+				break;
 		}
-		if (!seg->sects.i.size())
-			seg->disabled = true;
 	}
-	return FoundIntersections::yes; // !!! if something can fail, return 'fail' (don't return 'no')
+}
+
+bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
+	// comparisons below need to be 'nearly' since adjusting opp may make sort incorrect
+	// or, exact compare may miss nearly equal seg/opp pairs
+	// set both to lines if they are linear before using them in t calculations
+	(void) seg->c.isLine();
+	(void) opp->c.isLine();
+	AddEndMatches(seg, opp);
+	if (seg->willDisable || opp->willDisable)
+		return true;
+	if (seg->isSmall()) {
+		seg->willDisable = true;
+		return true;
+	}
+	if (opp->isSmall()) {
+		opp->willDisable = true;
+		return true;
+	}
+	// for line-curve intersection we can directly intersect
+	if (seg->c.isLine()) {
+		if (opp->c.isLine()) {
+			IntersectResult lineCoin = LineCoincidence(seg, opp);
+			if (seg->disabled)
+				return false;
+			if (IntersectResult::fail == lineCoin) {
+				OP_DEBUG_CODE(debugFailSegID = seg->id);
+				OP_DEBUG_CODE(debugFailOppID = opp->id);
+				found = FoundIntersections::fail;
+				return false;
+			}
+			if (IntersectResult::coincident == lineCoin)
+				return true;
+		}
+		AddLineCurveIntersection(opp, seg);
+		return true;
+	} else if (opp->c.isLine()) {
+		AddLineCurveIntersection(seg, opp);
+		return true;
+	}
+	// if the bounds only share a corner, there's nothing more to do
+	bool sharesHorizontal = seg->ptBounds.right == opp->ptBounds.left
+			|| seg->ptBounds.left == opp->ptBounds.right;
+	bool sharesVertical = seg->ptBounds.bottom == opp->ptBounds.top
+			|| seg->ptBounds.top == opp->ptBounds.bottom;
+	if (sharesHorizontal && sharesVertical)
+		return true;
+	// look for curve curve intersections (skip coincidence already found)
+	OpCurveCurve cc(seg, opp);
+	SectFound ccResult = cc.divideAndConquer();
+	OP_ASSERT(cc.debugShowImage());
+	if (true) { // SectFound::fail == ccResult || SectFound::maxOverlaps == ccResult
+				//        || SectFound::noOverlapDeep == ccResult
+		// !!! as an experiment, search runs for small opp distances; turn found into limits
+		SectFound limitsResult = cc.runsToLimits();
+		if (SectFound::add == limitsResult)
+			ccResult = limitsResult;
+	}
+	if (SectFound::add == ccResult || cc.limits.size())
+		cc.findUnsectable();
+	OP_DEBUG_CONTEXT();
+	return true;
 }

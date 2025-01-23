@@ -5,7 +5,7 @@
 OpWinding::OpWinding(OpContour* c, PathOpsV0Lib::Winding copy)
 	: contour(c)
 	OP_DEBUG_PARAMS(debugType(WindingType::copy)) {
-	w.data = contour->contours->allocateWinding(copy.size);
+	w.data = contour->context->allocateWinding(copy.size);
 	std::memcpy(w.data, copy.data, copy.size);
 	w.size = copy.size;
 }
@@ -40,7 +40,7 @@ bool OpWinding::equal(PathOpsV0Lib::Winding comp) const {
 #endif
 
 PathOpsV0Lib::Winding OpWinding::copyData() const {
-	OpContours* contours = contour->contours;
+	OpContours* contours = contour->context;
 	PathOpsV0Lib::Winding copy { contours->allocateWinding(w.size), w.size };
 	std::memcpy(copy.data, w.data, w.size);
 	return copy;

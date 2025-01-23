@@ -4,28 +4,28 @@
 
 #include "OpMath.h"
 
+struct OpContour;
 struct OpContours;
 struct OpSegment;
 enum class FoundIntersections;
 enum class IntersectResult;
 
 struct OpSegments {
-	OpSegments(OpContours& contours);
+	OpSegments(OpContours& );
 	static void AddEndMatches(OpSegment* seg, OpSegment* opp);
 	static void AddLineCurveIntersection(OpSegment* opp, OpSegment* seg);
+	void findCoincidence(OpContour* seg, OpContour* opp);
+	bool findCoincidence(OpSegment* seg, OpSegment* opp);
 	void findCoincidences();
-	static void FindCoincidences(OpContours* );  // new interface
-//    void findLineCoincidences();
 	FoundIntersections findIntersections();
-//    FoundIntersections findIntersectionsX();
-//    static FoundIntersections FindIntersections(OpContours* );  // new interface
+	void findIntersection(OpContour* seg, OpContour* opp);
+	bool findIntersection(OpSegment* seg, OpSegment* opp);
+	void initInX();
 	static IntersectResult LineCoincidence(OpSegment* seg, OpSegment* opp);
 
-#if OP_DEBUG_DUMP
-	#include "OpDebugDeclarations.h"
-#endif
-
-	std::vector<OpSegment*> inX;
+//	std::vector<OpSegment*> inX;
+	OpContours& context;
+	FoundIntersections found;
 	OP_DEBUG_CODE(int debugFailSegID);
 	OP_DEBUG_CODE(int debugFailOppID);
 };

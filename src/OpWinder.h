@@ -79,8 +79,13 @@ struct OpWinder {
 	void debugDraw();
 #endif
 
+#if WINDER_CONTOUR_EXPERIMENT
+	std::vector<OpEdge*>* inXPtr;
+	std::vector<OpEdge*>* inYPtr;
+#else
 	std::vector<OpEdge*> inX;
 	std::vector<OpEdge*> inY;
+#endif
 	OpEdge* home;
 	Axis workingAxis;
 	float interceptLimit;

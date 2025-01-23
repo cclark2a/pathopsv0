@@ -4,6 +4,9 @@
 
 #include "OpSegment.h"
 
+#if WINDER_CONTOUR_EXPERIMENT
+struct OpContour;
+#endif
 struct OpContours;
 struct OpOutPath;
 
@@ -31,24 +34,35 @@ struct LinkUps {
 
 struct OpJoiner {
 	OpJoiner(OpContours& contours);
+#if !WINDER_CONTOUR_EXPERIMENT
 	void addEdge(OpEdge* );
 	void addToLinkups(OpEdge* );
 	void buildDisabled(OpContours& );
 	void buildDisabledPals(OpContours& );
 	bool detachIfLoop(OpEdge* , EdgeMatch loopEnd);
+	bool linkUp(OpEdge* );
+	bool relinkUnambiguous(size_t checked);
+#endif
 	static bool LinkEnd(OpEdge *);
+#if WINDER_CONTOUR_EXPERIMENT
+	bool linkRemaining(OpContour* );
+	void linkUnambiguous(OpContour* , LinkPass );
+#else
 	bool linkRemaining(OP_DEBUG_CODE(OpContours*));
+	void linkUnambiguous(LinkPass );
+#endif
 //	bool linkSimple(OpEdge* );
 	static OpEdge* LinkStart(OpEdge *);
-	void linkUnambiguous(LinkPass );
-	bool linkUp(OpEdge* );
 	bool matchLinks(bool popLast);
-	bool relinkUnambiguous(size_t checked);
 	bool setup();
 	void sort();
+#if !WINDER_CONTOUR_EXPERIMENT
 	void unlink(OpEdge* ); // don't unlink edges that are in linkups
+#endif
 #if OP_DEBUG
-	void debugMatchRay(OP_DEBUG_CODE(OpContours* contours));
+#if !WINDER_CONTOUR_EXPERIMENT
+	void debugMatchRay(OpContours* contours);
+#endif
 	static bool DebugShowImage();
 #endif
 #if OP_DEBUG_VALIDATE
@@ -61,22 +75,29 @@ struct OpJoiner {
 	void debugDraw();
 #endif
 
+#if !WINDER_CONTOUR_EXPERIMENT
 	std::vector<OpEdge*> byArea;
 	std::vector<OpEdge*> unsectByArea;
 	std::vector<OpEdge*> disabled;
 	std::vector<OpEdge*> disabledPals;
 	std::vector<OpEdge*> unsortables;
-	std::vector<FoundEdge> found;  //edges, real or constructed, with an end equal to matchPt 
+//	std::vector<FoundEdge> found;  //edges, real or constructed, with an end equal to matchPt 
+#endif
 	FoundEdge bestGap;
+#if WINDER_CONTOUR_EXPERIMENT
+	OpContours* context;
+#else
 	LinkUps linkups;  // vector wrapper (allows data specific debugging / dumping)
+#endif
 	EdgeMatch linkMatch;
 	LinkPass linkPass;
 	OpEdge* edge;  // start of current link list
 	OpEdge* lastLink;  // end of current link list
 	OpPoint matchPt;
+#if !WINDER_CONTOUR_EXPERIMENT
 	bool disabledBuilt;
 	bool disabledPalsBuilt;
-
+#endif
 	OP_DEBUG_CODE(int debugRecursiveDepth);
 };
 
@@ -107,6 +128,9 @@ struct OpLimb {
 		edge = nullptr;
 		lastLimbEdge = nullptr;
 		parent = nullptr;
+#if WINDER_CONTOUR_EXPERIMENT
+		linkedContour = nullptr;
+#endif
 		linkedIndex = OpMax;
 		gapDistance = OpNaN;
 		closeDistance = OpNaN;
@@ -119,11 +143,21 @@ struct OpLimb {
 #endif
 		OP_DEBUG_DUMP_CODE(id = 0);
 	}
+#if WINDER_CONTOUR_EXPERIMENT
+	void addEach(OpContour& , OpTree& );
+#else
 	void addEach(OpJoiner& , OpTree& );
+#endif
 	void set(OpTree& , OpEdge* , OpLimb* parent, EdgeMatch , LimbPass , 
+#if WINDER_CONTOUR_EXPERIMENT
+			OpContour* ,
+#endif
 			size_t index, OpEdge* otherEnd, const OpPointBounds* bounds = nullptr);
-	OpLimb* tryAdd(OpTree& , OpEdge* , EdgeMatch , LimbPass , size_t index = 0, 
-			OpEdge* first = nullptr);
+	OpLimb* tryAdd(OpTree& , OpEdge* , EdgeMatch , LimbPass , 
+#if WINDER_CONTOUR_EXPERIMENT
+			OpContour* limbContour = nullptr,
+#endif
+			size_t index = 0, OpEdge* first = nullptr);
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
 	std::string debugDumpIDs(DebugLevel , bool bracket) const;
@@ -133,6 +167,9 @@ struct OpLimb {
 	OpEdge* edge;
 	OpEdge* lastLimbEdge;
 	const OpLimb* parent;
+#if WINDER_CONTOUR_EXPERIMENT
+	OpContour* linkedContour;
+#endif
 	OpPtT lastPtT;
 	uint32_t linkedIndex;
 	float gapDistance;
@@ -156,13 +193,21 @@ struct OpLimb {
 struct OpTree {
 	OpTree(OpJoiner& );
 	OP_DEBUG_CODE(~OpTree());
+#if WINDER_CONTOUR_EXPERIMENT
+	void addDisabled(OpContour& );
+#else
 	void addDisabled(OpJoiner& );
+#endif
 	OpEdge* addFiller(const OpPtT& , const OpPtT& );
 	void addUnsectableLoop(OpJoiner& , OpLimb* );
 	bool contains(OpLimb* , OpEdge* ) const;
 	bool containsFiller(OpLimb* , OpPoint , OpPoint ) const;
 	bool containsParent(OpLimb* , OpEdge* , EdgeMatch ) const;
+#if WINDER_CONTOUR_EXPERIMENT
+	void initialize(OpContour& join);
+#else
 	void initialize(OpJoiner& join);
+#endif
 	bool join(OpJoiner& );
 	OpLimb& nthLimb(int index);
 	OpLimb* makeLimb();
@@ -173,7 +218,7 @@ struct OpTree {
 
 //	OpLimbStorage* limbStorage;
 //	OpLimbStorage* current;
-	OpContours* contours;
+	OpContours* context;
 	OpLimb* bestGapLimb;  // used only by detached pass
 	const OpLimb* bestLimb;   // index into limbStorage
 	OpPoint firstPt;

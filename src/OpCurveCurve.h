@@ -146,11 +146,11 @@ struct OpCurveCurve {
 	size_t uniqueLimits();
 #if OP_DEBUG
 	~OpCurveCurve() { 
-		contours->debugCurveCurve = nullptr; }
+		context->debugCurveCurve = nullptr; }
 	bool debugShowImage(bool atDepth = false);
 #endif
 #if OP_DEBUG_DUMP
-	OpCurveCurve(OpContours* c) { contours = c; }
+	OpCurveCurve(OpContours* c) { context = c; }
 	void drawClosest(const OpPoint& originalPt) const;
 	void dumpClosest(const OpPoint& pt) const;
 #include "OpDebugDeclarations.h"
@@ -160,7 +160,7 @@ struct OpCurveCurve {
 	void dumpDepth(int level);
 	void dumpDepth();
 #endif
-	OpContours* contours;
+	OpContours* context;
 	OpSegment* seg;
 	OpSegment* opp;
 	CcCurves edgeCurves;

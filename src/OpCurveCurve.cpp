@@ -252,9 +252,9 @@ void CcCurves::snipAndGo(const OpSegment* segment, const OpPtT& ptT, OpPoint opp
 void CcCurves::snipRange(const OpSegment* segment, const OpPtT& lo, const OpPtT& hi, 
 		const OpSegment* oppSeg) {
 	CcCurves snips;
-	OpContours* contours = segment->contour->contours;
-	auto addSnip = [contours](const OpEdge* edge, const OpPtT& start, const OpPtT& end) {
-		void* block = contours->allocateEdge(contours->ccStorage);
+	OpContours* context = segment->contour->context;
+	auto addSnip = [context](const OpEdge* edge, const OpPtT& start, const OpPtT& end) {
+		void* block = context->allocateEdge(context->ccStorage);
 		OpEdge* newE = new(block) OpEdge(edge, start, end  OP_LINE_FILE_PARGS());
 		newE->ccOverlaps = true;
 		return newE;
@@ -265,7 +265,7 @@ void CcCurves::snipRange(const OpSegment* segment, const OpPtT& lo, const OpPtT&
 			snips.c.push_back(edge);
 			continue;
 		}
-		OpVector threshold = contours->threshold();
+		OpVector threshold = context->threshold();
 		if (edge->startT < lo.t && !edge->start().isNearly(lo, threshold)) {
 			OpEdge* snipE = addSnip(edge, edge->start(), lo);
 			snipE->ccStart = edge->ccStart;
@@ -289,7 +289,7 @@ void CcCurves::snipRange(const OpSegment* segment, const OpPtT& lo, const OpPtT&
 }
 
 OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
-	: contours(s->contour->contours)
+	: context(s->contour->context)
 	, seg(s)
 	, opp(o)
 	, depth(0)
@@ -305,10 +305,10 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
 #if OP_DEBUG_DUMP
 	++debugCall;
 	debugLocalCall = debugCall;  // copied so value is visible in debugger
-	contours->debugCurveCurve = this;
+	context->debugCurveCurve = this;
 #endif
 //	contours->reuse(contours->ccStorage);
-	PathOpsV0Lib::ContextCallBacks& cb = contours->contextCallBacks;
+	PathOpsV0Lib::ContextCallBacks& cb = context->contextCallBacks;
 	maxSignSwap = cb.maxSignSwapFuncPtr ? cb.maxSignSwapFuncPtr(s->c.c, o->c.c) : 131072.f;
 	maxSplits = cb.maxSplitsFuncPtr ? cb.maxSplitsFuncPtr(s->c.c, o->c.c) : 8;
 	maxDepth = cb.maxDepthFuncPtr ? cb.maxDepthFuncPtr(s->c.c, o->c.c) : 64;
@@ -401,7 +401,7 @@ struct SectDuo {
 
 bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 		const OpPtT& oppStart, const OpPtT& oppEnd) {
-	OpVector threshold = contours->threshold();
+	OpVector threshold = context->threshold();
 	OpPtT eStart = edgeStart;
 	OpPtT eEnd = edgeEnd;
 	OpPtT oStart = oppStart;
@@ -541,7 +541,7 @@ bool OpCurveCurve::checkSect() {
 			continue;
 		OpPtT edgeStart = edge.start();
 		OpPtT edgeEnd = edge.end();
-		OpVector threshold = contours->threshold();
+		OpVector threshold = context->threshold();
 		bool edgeDone = edgeStart.isNearly(edgeEnd, threshold);
 		for (auto oppPtr : oppCurves.c) {
 			auto& oppEdge = *oppPtr;
@@ -861,7 +861,7 @@ bool OpCurveCurve::ifExactly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& oppEdge
 }
 
 bool OpCurveCurve::ifNearly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& oppEdge, const OpPtT& oppPtT) {
-	OpVector threshold = contours->threshold();
+	OpVector threshold = context->threshold();
 	if (!edgePtT.pt.isNearly(oppPtT.pt, threshold))
 		return false;
 	if (edge.ccStart && edge.start().isNearly(edgePtT, threshold))
@@ -936,7 +936,7 @@ bool OpCurveCurve::reduceDistFlipped() {
 		size_t lodex = OpMax;
 		size_t hidex = OpMax;
 		auto keepRun = [&lower, &upper, this](CcCurves& splits) {
-			void* block = contours->allocateEdge(contours->ccStorage);
+			void* block = context->allocateEdge(context->ccStorage);
 			OpEdge* split = new(block) OpEdge(lower->edge, lower->edgePtT.t, 
 					upper->edgePtT.t  OP_LINE_FILE_PARGS());
 			split->ccOverlaps = true;
@@ -1095,7 +1095,7 @@ void OpCurveCurve::setHullSects(OpEdge& edge, OpEdge& oppEdge, CurveRef curveRef
 	int ptCount = oppEdge.curve.pointCount();
 	LinePts oppPts;
 	oppPts.pts[1] = oppEdge.curve.firstPt();
-	OpVector threshold = contours->threshold();
+	OpVector threshold = context->threshold();
 	for (int index = 1; index <= ptCount; ++index) {
 		oppPts.pts[0] = oppPts.pts[1];
 		int endHull = index < ptCount ? index : 0;
@@ -1122,7 +1122,7 @@ void OpCurveCurve::setHullSects(OpEdge& edge, OpEdge& oppEdge, CurveRef curveRef
 			sectPtT.t = OpMath::Interp(edge.startT, edge.endT, sectPtT.t);
 			OP_ASSERT(edge.startT <= sectPtT.t && sectPtT.t <= edge.endT);
 			// if pt is close to existing hull sect, and both are not end, record intersection
-			if (edge.hulls.add(sectPtT, contours->threshold(), sectType, &oppEdge)) {
+			if (edge.hulls.add(sectPtT, context->threshold(), sectType, &oppEdge)) {
 				OpSegment* oSeg = oppEdge.segment;
 				OpPtT oppPtT { oSeg->c.ptTAtT(oSeg->findValidT(0, 1, sectPtT.pt))};
 				if (!oppPtT.pt.isFinite())
@@ -1218,7 +1218,7 @@ bool OpCurveCurve::splitDownTheMiddle(const OpEdge& edge, const OpPtT& edgeMid, 
 	OP_ASSERT(edgeMid.t < edge.endT);
 	CcCurves& curves = CurveRef::edge == curveRef ? edgeCurves : oppCurves;
 	const OpSegment* oppSeg = CurveRef::edge == curveRef ? opp : seg;
-	void* blockL = contours->allocateEdge(contours->ccStorage);
+	void* blockL = context->allocateEdge(context->ccStorage);
 	OpEdge* splitLeft = new(blockL) OpEdge(&edge, edgeMid, NewEdge::isLeft  
 			OP_LINE_FILE_PARGS());
 	if (!splitLeft->disabled) {
@@ -1229,7 +1229,7 @@ bool OpCurveCurve::splitDownTheMiddle(const OpEdge& edge, const OpPtT& edgeMid, 
 		splits.c.push_back(splitLeft);
 		curves.addEdgeRun(splitLeft, oppSeg, EdgeMatch::end);
 	}
-	void* blockR = contours->allocateEdge(contours->ccStorage);
+	void* blockR = context->allocateEdge(context->ccStorage);
 	OpEdge* splitRight = new(blockR) OpEdge(&edge, edgeMid, NewEdge::isRight  
 			OP_LINE_FILE_PARGS());
 	if (!splitRight->disabled) {
@@ -1249,7 +1249,7 @@ bool OpCurveCurve::splitDownTheMiddle(const OpEdge& edge, const OpPtT& edgeMid, 
 // if end hull index == -1, discard both sides of sect (cutout via exact or nearby sect)
 // if end hull >= 0, look for sect through curve
 bool OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
-	OpVector threshold = contours->threshold();
+	OpVector threshold = context->threshold();
 	const CcCurves& curves = CurveRef::edge == which ? edgeCurves : oppCurves;
 	for (auto edgePtr : curves.c) {
 		auto& edge = *edgePtr;
@@ -1278,7 +1278,7 @@ bool OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 			for (size_t index = 1; index < hulls.h.size(); ++index) {
 				if (!hulls.sectCandidates((int) index, edge))
 					continue;
-				OpDebugOut("!!! splitHulls fail:"  OP_DEBUG_CODE(+ contours->debugData.testname)
+				OpDebugOut("!!! splitHulls fail:"  OP_DEBUG_CODE(+ context->debugData.testname)
 					+ std::string("\n"));
 			#if 0
 				OP_ASSERT(hulls.h[index - 1].opp);
@@ -1352,7 +1352,7 @@ bool OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 				continue;
 			if (OpMath::EqualT(hullLo.sect.t, hullHi.sect.t))
 				continue;
-			void* block = contours->allocateEdge(contours->ccStorage);
+			void* block = context->allocateEdge(context->ccStorage);
 			OpEdge* split = new(block) OpEdge(&edge, hullLo.sect.t, 
 					hullHi.sect.t  OP_LINE_FILE_PARGS());
 			if (split->disabled)
@@ -1388,7 +1388,7 @@ size_t OpCurveCurve::uniqueLimits() {
 	size_t result = 1;
 	const FoundLimits* last = &limits[0];
 	float lastDistSq = (last->seg.pt - last->opp.pt).lengthSquared();
-	OpVector threshold = contours->threshold();
+	OpVector threshold = context->threshold();
 	for (size_t index = 1; index < limits.size(); ++index) {
 		const FoundLimits* limit = &limits[index];
 		bool soClose = last->seg.isNearly(limit->seg, threshold);

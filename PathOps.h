@@ -15,6 +15,11 @@ void DeleteContext(Context* );
 // makes a PathOps contour: a collection of curves
 Contour* CreateContour(Context* , Winding );
 
+#if WINDER_CONTOUR_EXPERIMENT
+// duplicate Contour (to allow grouping closeby curves together)
+Contour* Clone(Contour* );
+#endif
+
 // adds one curve to winding's contour
 void Add(Contour* , AddCurve);
 void Add(Contour* , Curve);

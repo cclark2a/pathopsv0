@@ -344,6 +344,11 @@ void OpEdge::clearActiveAndPals(OP_LINE_FILE_NP_ARGS()) {
 }
 
 void OpEdge::clearLastEdge() {
+#if WINDER_CONTOUR_EXPERIMENT
+	if (!lastEdge)
+		return;
+	lastEdge->segment->contour->removeLast(this);
+#endif
 	lastEdge = nullptr;
 }
 
@@ -360,9 +365,15 @@ void OpEdge::complete(OpPoint startPoint, OpPoint endPoint) {
 	winding.setWind(segment->winding);
 }
 
+#if 0
 OpContours* OpEdge::contours() const {
 	return segment->contour->contours;
 }
+#else
+OpContours* OpEdge::context() const {
+	return segment->contour->context; 
+}
+#endif
 
 // !!! either: implement 'stamp' that puts a unique # on the edge to track if it has been visited;
 // or, re-walk the chain from this (where the find is now) to see if chain has been seen
@@ -418,6 +429,12 @@ void OpEdge::markPals() {
 
 OpEdge* OpEdge::nextOut() {
 	clearActiveAndPals(OP_LINE_FILE_NPARGS());
+#if WINDER_CONTOUR_EXPERIMENT
+	if (linkHead) {
+		segment->contour->removeLink(this);
+		linkHead = false;
+	}
+#endif
 	inLinkups = false;
 	inOutput = true;
 	OP_DEBUG_IMAGE_CODE(if (!debugCustom) debugColor = orange);
@@ -487,7 +504,11 @@ void OpEdge::output(bool closed) {
 	if (reverse) {
 		if (priorEdge) {
 			OP_ASSERT(debugIsLoop());
+#if WINDER_CONTOUR_EXPERIMENT
+			setLastEdge(this, priorEdge);
+#else
 			lastEdge = priorEdge;
+#endif
 			lastEdge->nextEdge = nullptr;
 			priorEdge = nullptr;
 		}
@@ -547,17 +568,46 @@ void OpEdge::setDisabled(OP_LINE_FILE_NP_ARGS()) {
 }
 
 OpEdge* OpEdge::setLastEdge() {
+#if !WINDER_CONTOUR_EXPERIMENT
 	clearLastEdge();
+#endif
 	OpEdge* linkStart = advanceToEnd(EdgeMatch::start);
 	OpEdge* linkEnd = advanceToEnd(EdgeMatch::end);
+#if WINDER_CONTOUR_EXPERIMENT
+	if (linkStart->lastEdge != linkEnd)
+		linkStart->setLastEdge(linkStart, linkEnd);
+#else
 	linkStart->lastEdge = linkEnd;
+#endif
 	return linkEnd;
 }
+
+#if WINDER_CONTOUR_EXPERIMENT
+void OpEdge::setLastEdge(OpEdge* first, OpEdge* last) {
+	OpContour* oldContour = lastEdge ? lastEdge->segment->contour : nullptr;
+	OP_ASSERT(!first->lastEdge || first->lastEdge == last);
+	OP_ASSERT(first == last || !last->lastEdge);
+//	OP_ASSERT(!last->nextEdge);
+	OpContour* newContour = last->segment->contour;
+	if (first->lastEdge && first != this)
+		newContour->removeLast(first);
+	bool updateLast = !oldContour || oldContour != newContour;
+	if (updateLast && oldContour)
+		oldContour->removeLast(this);
+	lastEdge = last;
+	if (updateLast)
+		newContour->addLast(this);
+	setLinkBounds();
+}
+#endif
 
 // this sets up the edge linked list to be suitable for joining another linked list
 // the edits are nondestructive 
 bool OpEdge::setLastLink(EdgeMatch match) {
 	if (!priorEdge && !nextEdge) {
+#if WINDER_CONTOUR_EXPERIMENT
+//		clearLastEdge();	// !!! don't know if this is needed or not
+#endif
 		lastEdge = this;
 		setWhich(match);
 		return false;
@@ -604,6 +654,9 @@ bool OpEdge::setLinkDirection(EdgeMatch match) {
 	edge->setWhich(!edge->which());
 	edge->clearLastEdge();
 	lastEdge = edge;
+#if WINDER_CONTOUR_EXPERIMENT
+	edge->segment->contour->addLast(this);
+#endif
 	return true;
 }
 
@@ -670,7 +723,7 @@ CalcFail OpEdge::subIfDL(Axis axis, float edgeInsideT, OpWinding* sumWinding) {
 void OpEdge::setSum(const PathOpsV0Lib::Winding& w  OP_LINE_FILE_ARGS()) {
 	OP_ASSERT(!sum.contour);
 	sum.contour = segment->contour;
-	sum.w.data = contours()->allocateWinding(w.size);
+	sum.w.data = context()->allocateWinding(w.size);
 	memcpy(sum.w.data, w.data, w.size);
 	sum.w.size = w.size;
 #if OP_DEBUG_MAKER

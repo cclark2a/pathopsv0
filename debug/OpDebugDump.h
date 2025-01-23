@@ -60,7 +60,6 @@ OP_X(OpPtAliases) \
 OP_X(OpRect) \
 OP_X(OpRootPts) \
 OP_X(OpRoots) \
-OP_X(OpSegments) \
 OP_X(OpTree) \
 OP_X(OpVector) \
 OP_X(OpWinder) \

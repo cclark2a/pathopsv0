@@ -498,7 +498,7 @@ void verifyFile(OpContours* contours) {
 
 void OpContours::dumpResolve(OpContour*& ) {
     for (auto c : contours) {
-        OP_ASSERT(c->contours == this);
+        OP_ASSERT(c->context == this);
     }
 }
 
@@ -602,6 +602,7 @@ void dmpIntersections() {
 }
 
 void dmpJoin() {
+#if 0
     dmpActive();
     for (const auto& c : debugGlobalContours->contours) {
         for (const auto& seg : c->segments) {
@@ -612,6 +613,15 @@ void dmpJoin() {
         }
     }
     dmpUnsortable();
+#else
+	if (debugGlobalContours->debugJoiner)
+		dmp(debugGlobalContours->debugJoiner);
+	std::string s;
+    for (const auto& c : debugGlobalContours->contours) {
+		s += c->debugDumpJoin(defaultLevel, defaultBase);
+	}
+    OpDebugOut(s);
+#endif
 }
 
 void dmpSects() {
@@ -832,8 +842,10 @@ void OpContours::dumpSet(const char*& str) {
         debugCurveCurve->dumpSet(str);
     }
     if (OpDebugOptional(str, "debugJoiner")) {
+#if !WINDER_CONTOUR_EXPERIMENT  // !!! make this work eventually
         if (!debugJoiner)
             debugJoiner = new OpJoiner(*this);
+#endif
         debugJoiner->dumpSet(str);
     }
     if (OpDebugOptional(str, "debugTestname"))
@@ -1123,7 +1135,7 @@ void dmp(std::vector<OpContour>& contours) {
 int OpContourStorage::debugCount() const {
     int result = used;
     OpContourStorage* block = next;
-    while (next) {
+    while (block) {
         result += block->used;
         block = block->next;
     }
@@ -1143,7 +1155,7 @@ OpContour* OpContourStorage::debugFind(int ID) const {
 
 OpContour* OpContourStorage::debugIndex(int index) const {
     const OpContourStorage* block = this;
-    while (index > block->used) {
+    while (index >= block->used) {
         index -= block->used;
         block = block->next;
         if (!block)
@@ -1178,7 +1190,7 @@ void OpContourStorage::DumpSet(const char*& str, OpContours* dumpContours) {
     size_t count = OpDebugReadSizeT(str);
     for (size_t index = 0; index < count; ++index) {
         OpContour* sect = dumpContours->allocateContour();
-        sect->contours = dumpContours;
+        sect->context = dumpContours;
         sect->dumpSet(str);
     }
 }
@@ -2721,8 +2733,67 @@ LinkPassName linkPassNames[] = {
 
 ENUM_NAME(LinkPass, linkPass)
 
+#if WINDER_CONTOUR_EXPERIMENT
+std::string OpContour::debugDumpJoin(DebugLevel l, DebugBase b) const {
+    std::string s;
+	s += "contour:" + STR(id) + " " ;
+	s += "sects: " + STR(sects.size()) + " [";
+	for (OpContour* sect : sects) {
+        s += STR(sect->id) + " ";
+	}
+	if (' ' == s.back())
+		s.pop_back();
+    s += "]";
+	s += DebugLevel::detailed == l ? "\n" : " ";
+	s += " winderOwner: " + STR(winderOwner->id) + "\n";
+    auto dumpEdgeIDs = [&s, l](const std::vector<OpEdge*>& edges, std::string name) {
+        if (!edges.size())
+            return;
+		if (DebugLevel::detailed != l)
+			s.back() = ' ';
+        s += name + ":" + STR(edges.size()) + " [";
+        for (auto e : edges)
+            s += STR(e->id) + " ";
+        s.pop_back();
+        s += "]\n";
+    };
+    dumpEdgeIDs(byArea, "byArea");
+    dumpEdgeIDs(unsectByArea, "unsectByArea");
+	if (!disabledBuilt && DebugLevel::detailed == l)
+		s += "disabled (not built)\n";
+    else
+		dumpEdgeIDs(disabled, "disabled");
+	if (!disabledPalsBuilt && DebugLevel::detailed == l)
+		s += "disabledPals (not built)\n";
+	else
+		dumpEdgeIDs(disabledPals, "disabledPals");
+    dumpEdgeIDs(unsortables, "unsortables");
+    if (linkups.l.size()) {
+		if (DebugLevel::normal == l)
+			s += linkups.debugDump(DebugLevel::brief, b);
+		else
+			s += "linkups: " + linkups.debugDump(l, b);
+	}
+    if (endLinks.l.size()) {
+        if (DebugLevel::file == l || DebugLevel::normal == l) {
+            s += "endLinks:" + STR(endLinks.l.size()) + " [";
+            for (OpEdge* linkup : endLinks.l)
+                s += STR(linkup->id) + ".." + STR(linkup->lastEdge->id) + " ";
+            s.pop_back();
+            s += "]\n";
+        } else {
+            s += "";
+            s += "-- endLinks:" + STR(endLinks.l.size()) + "\n";
+            s += endLinks.debugDump(l, b) + "\n";
+        }
+    }
+	return s;
+}
+#endif
+
 std::string OpJoiner::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
+#if !WINDER_CONTOUR_EXPERIMENT
     if (DebugLevel::file == l) {
         auto dumpEdgeIDs = [&s](const std::vector<OpEdge*>& edges, std::string name) {
             if (!edges.size())
@@ -2762,15 +2833,19 @@ std::string OpJoiner::debugDump(DebugLevel l, DebugBase b) const {
         dumpEdges(disabledPals, "disabledPals");
         dumpEdges(unsortables, "unsortables");
     }
-    if (found.size()) {
-        if (DebugLevel::file != l)
-            s += "-- ";
-        s += "found:" + STR(found.size()) + "\n";
-    }
-    for (const FoundEdge& f : found)
-        s += f.debugDump(l, b) + "\n";
+#endif
     if (bestGap.edge)
         s += "bestGap:" + bestGap.debugDump(l, b) + "\n";
+#if WINDER_CONTOUR_EXPERIMENT
+    s += "linkMatch:" + edgeMatchName(linkMatch) + " ";
+    s += "linkPass:" + linkPassName(linkPass) + " ";
+    if (edge)
+		s += "edge:" + STR(edge->id) + " ";
+    if (lastLink)
+        s += "lastLink:" + STR(lastLink->id) + " ";
+    if (!OpMath::IsDebugNaN(matchPt.x) && !OpMath::IsDebugNaN(matchPt.y))
+        s += "matchPt:" + matchPt.debugDump(l, b) + " ";
+#else
     if (linkups.l.size()) {
         if (DebugLevel::file == l) {
             s += "linkups:" + STR(linkups.l.size()) + " [";
@@ -2787,11 +2862,10 @@ std::string OpJoiner::debugDump(DebugLevel l, DebugBase b) const {
     s += "linkMatch:" + edgeMatchName(linkMatch) + " ";
     s += "linkPass:" + linkPassName(linkPass) + " ";
     if (edge) {
-        s += "edge:";
         if (DebugLevel::file == l)
-            s += STR(edge->id) + " ";
+            s += "edge:" + STR(edge->id) + " ";
         else
-            s += "edge:" + edge->debugDump(l, b) + "\n";
+            s += edge->debugDump(l, b) + "\n";
     }
     if (lastLink) {
         s += "lastLink:";
@@ -2806,11 +2880,13 @@ std::string OpJoiner::debugDump(DebugLevel l, DebugBase b) const {
         s += "disabledBuilt ";
     if (disabledPalsBuilt)
         s += "disabledPalsBuilt ";
+#endif
     s.pop_back();
     return s;
 }
 
 void OpJoiner::dumpSet(const char*& str) {
+#if !WINDER_CONTOUR_EXPERIMENT
     auto setEdgeIDs = [&str](std::vector<OpEdge*>& edges, const char* name) {
         if (!OpDebugOptional(str, name)) 
             return;
@@ -2824,11 +2900,13 @@ void OpJoiner::dumpSet(const char*& str) {
     setEdgeIDs(disabled, "disabled");
     setEdgeIDs(disabledPals, "disabledPals");
     setEdgeIDs(unsortables, "unsortables");
-    if (OpDebugOptional(str, "found")) {
+#if 0
+	if (OpDebugOptional(str, "found")) {
         size_t count = OpDebugReadSizeT(str);
         for (size_t index = 0; index < count; ++index)
             found[index].dumpSet(str);
     }
+#endif
     OpDebugRequired(str, "bestGap");
     bestGap.dumpSet(str);
     if (OpDebugOptional(str, "linkups")) {
@@ -2847,9 +2925,11 @@ void OpJoiner::dumpSet(const char*& str) {
         matchPt.dumpSet(str);
     disabledBuilt = OpDebugOptional(str, "disabledBuilt");
     disabledPalsBuilt = OpDebugOptional(str, "disabledPalsBuilt");
+#endif
 }
 
 void OpJoiner::dumpResolveAll(OpContours* c) {
+#if !WINDER_CONTOUR_EXPERIMENT
     auto resolveEdgeIDs = [c](std::vector<OpEdge*>& edges) {
         for (OpEdge*& e : edges)
             c->dumpResolve(e);
@@ -2864,6 +2944,7 @@ void OpJoiner::dumpResolveAll(OpContours* c) {
         c->dumpResolve(e);
     c->dumpResolve(edge);
     c->dumpResolve(lastLink);
+#endif
 }
 
 ENUM_NAME_STRUCT(LimbPass);
@@ -3012,9 +3093,9 @@ std::string OpTree::debugDump(DebugLevel l, DebugBase b) const {
     s.erase(s.begin());
     if (DebugLevel::file == l)
         return s;
-    OpLimbStorage* saveCurrent = contours->limbCurrent;
+    OpLimbStorage* saveCurrent = context->limbCurrent;
     for (int index = 0; index < totalUsed; ++index) {
-        const OpLimb& limb = contours->debugNthLimb(index);
+        const OpLimb& limb = context->debugNthLimb(index);
         s += "\n" + limb.debugDumpIDs(l, true);
         s += " parent:" + (limb.parent ? limb.parent->debugDumpIDs(l, true) : "-");
         if (limb.debugBranches.size()) {
@@ -3026,7 +3107,7 @@ std::string OpTree::debugDump(DebugLevel l, DebugBase b) const {
         }
         s += " treePass:" + limbPassName(limb.treePass);
     }
-    contours->limbCurrent = saveCurrent;
+    context->limbCurrent = saveCurrent;
     return s;
 }
 
@@ -3044,6 +3125,10 @@ void dmp(std::array<CoinEnd, 4>& coinEndArray) {
 
 std::string OpWinder::debugDumpAxis(Axis a, DebugLevel l, DebugBase b) const {
     std::string s = "";
+#if WINDER_CONTOUR_EXPERIMENT
+	std::vector<OpEdge*>& inX = *inXPtr;
+	std::vector<OpEdge*>& inY = *inYPtr;
+#endif
     for (const auto edge : Axis::vertical == a ? inY : inX) {
         s += edge->debugDump(l, b) + "\n";
     }
@@ -3052,6 +3137,10 @@ std::string OpWinder::debugDumpAxis(Axis a, DebugLevel l, DebugBase b) const {
 
 std::string OpWinder::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
+#if WINDER_CONTOUR_EXPERIMENT
+	std::vector<OpEdge*>& inX = *inXPtr;
+	std::vector<OpEdge*>& inY = *inYPtr;
+#endif
     if (inX.size()) {
         s += "-- sorted in x --\n";
         s += debugDumpAxis(Axis::horizontal, l, b);
@@ -3782,7 +3871,7 @@ void OpSegment::dumpSet(const char*& str) {
     id = (int) OpDebugReadSizeT(str);
     int contourID = OpDebugOptional(str, "contour[") ? (int) OpDebugReadSizeT(str) : 0;
     OpDebugExitOnFail("mismatched contour id", contourID == contour->id);
-    c.contours = contour->contours;
+    c.contours = contour->context;
     c.dumpSet(str);
     OpDebugRequired(str, "ptBounds");
     ptBounds.dumpSet(str);
@@ -3799,12 +3888,12 @@ void OpSegment::dumpSet(const char*& str) {
         int edgeCount = (int) OpDebugReadSizeT(str);
         edges.resize(edgeCount);
         for (int index = 0; index < edgeCount; ++index)
-            edges[index].dumpContours = contour->contours;
+            edges[index].dumpContours = contour->context;
         for (int index = 0; index < edgeCount; ++index)
             edges[index].dumpSet(str);
     }
     OpDebugRequired(str, "winding");
-    winding.dumpSet(str, contour->contours);
+    winding.dumpSet(str, contour->context);
     disabled = OpDebugOptional(str, "disabled");
     willDisable = OpDebugOptional(str, "willDisable");
     hasCoin = OpDebugOptional(str, "hasCoin");
@@ -3978,7 +4067,7 @@ void OpWinding::dumpSet(const char*& str, OpContours* dumpContours) {
     OP_ASSERT(contourID == contour->id);
     OpDebugRequired(str, "w.size");
     w.size = OpDebugReadSizeT(str);
-    w.data = contour->contours->allocateWinding(w.size);
+    w.data = contour->context->allocateWinding(w.size);
     OpDebugRequired(str, "[");
     for (size_t index = 0; index < w.size; ++index)
         ((uint8_t*) w.data)[index] = OpDebugByteToInt(str);
@@ -4034,38 +4123,55 @@ std::string LinkUps::debugDump(DebugLevel li, DebugBase b) const {
             s += " (prior count:" + STR(priorCount) + ")";
         if (looped)
             s += " loop";
-        s += " bounds:" + linkup->linkBounds.debugDump(li, b) + "\n";
+        s += " bounds:" + linkup->linkBounds.debugDump(li, b);
+		s += DebugLevel::brief == li ? " " : "\n";
         if (!looped) {
             if (1 == count + priorCount && !linkup->lastEdge)
                 s += "p/n/l:-/-/- ";
             else if (priorCount) {
-                s += " prior:\n" + prior->debugDump(li, b);
+				if (DebugLevel::brief == li)
+					s += " prior:" + STR(prior->id) + " ";
+				else
+					s += " prior:\n" + prior->debugDump(li, b);
                 prior = linkup;
                 while ((prior = prior->priorEdge) && count--)
                     s += STR(prior->id) + " ";
-                s += "\n next:\n";
+                s += "\n next:";
+				if (DebugLevel::brief != li)
+					s += "\n";
             }
         }
         next = linkup->nextEdge;
-        s += " " + linkup->debugDump(li, b);
+		if (DebugLevel::brief == li)
+			s += " [" + STR(linkup->id) + " ";
+		else
+			s += " " + linkup->debugDump(li, b);
         bool hasNext = false;
         while (next) {
             if (looped == next)
                 break;
             if (next == linkup->lastEdge) {
-                OP_ASSERT(!next->nextEdge);
-                s += "\n " + next->debugDump(li, b);
+                OP_ASSERT(!next->nextEdge || looped);
+				if (DebugLevel::brief == li)
+					s += STR(next->id) + " ";
+				else
+					s += "\n " + next->debugDump(li, b);
                 hasNext = false;
             } else {
-                if (!hasNext)
+                if (!hasNext && DebugLevel::brief != li)
                     s += "\n      ";
                 s += STR(next->id) + " ";
                 hasNext = true;
             }
             next = next->nextEdge;
         }
+		if (DebugLevel::brief == li) {
+			s.pop_back();
+			s += "] ";
+		}
         if (hasNext)
-            s += "(loop) \n";
+            s += "(loop)";
+        s += "\n";
     }
     return s;
 }
@@ -4275,6 +4381,7 @@ void LinePts::dumpSet(const char*& str) {
     pts[1].dumpSet(str);
 }
 
+#if 0
 std::string OpSegments::debugDump(DebugLevel l, DebugBase b) const {
     std::string s = "";
     for (const auto seg : inX) {
@@ -4306,6 +4413,7 @@ void dmpFull(const OpSegments& segs) {
     }
     OpDebugOut(s);
 }
+#endif
 
 std::string debugDumpColor(uint32_t c) {
     auto result = std::find_if(debugColorArray.begin(), debugColorArray.end(), [c](auto color) {

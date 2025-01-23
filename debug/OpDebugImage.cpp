@@ -364,6 +364,7 @@ void OpDebugImage::playback(FILE* file) {
 	#define OP_X(Thing) \
 		if (draw##Thing##On) \
 			show##Thing();
+		EDGE_BOOL_LIST
 		ALIAS_LIST
 		CALLOUT_LIST
 	#undef OP_X
@@ -1913,6 +1914,7 @@ void OpEdge::drawLink() {
 	addLink();
 }
 
+#if !WINDER_CONTOUR_EXPERIMENT
 void OpJoiner::debugDraw() {
 	for (auto e : byArea)
 		e->debugDraw = true;
@@ -1920,6 +1922,7 @@ void OpJoiner::debugDraw() {
 		e->debugDraw = true;
 	OpDebugImage::focusEdges();
 }
+#endif
 
 void OpTree::debugLimbEdges(OpEdge* edge) {
 	OP_ASSERT(!edge->debugIsLoop());
@@ -1932,10 +1935,18 @@ void OpTree::debugLimbEdges(OpEdge* edge) {
 }
 
 void OpWinder::debugDraw() {
+#if WINDER_CONTOUR_EXPERIMENT
+	for (auto e : *inXPtr)
+		e->debugDraw = true;
+	for (auto e : *inYPtr)
+		e->debugDraw = true;
+
+#else
 	for (auto e : inX)
 		e->debugDraw = true;
 	for (auto e : inY)
 		e->debugDraw = true;
+#endif
 	OpDebugImage::focusEdges();
 }
 

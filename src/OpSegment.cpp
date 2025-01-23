@@ -31,7 +31,7 @@ void FoundEdge::reset() {
 
 OpSegment::OpSegment(PathOpsV0Lib::Contour* libContour, PathOpsV0Lib::AddCurve addCurve)    
 	: contour((OpContour*) libContour)
-	, c(contour->contours,  
+	, c(contour->context,  
 			{ (PathOpsV0Lib::CurveData*) addCurve.points, addCurve.size, addCurve.type } )
 	, winding(contour, { contour->winding.data, contour->winding.size } )
 	, id(contour->nextID())
@@ -42,11 +42,12 @@ OpSegment::OpSegment(PathOpsV0Lib::Contour* libContour, PathOpsV0Lib::AddCurve a
 	, startMoved(false)
 	, endMoved(false) {
 	if (!c.isFinite()) {
-		contour->contours->setError(PathOpsV0Lib::ContextError::finite  OP_DEBUG_PARAMS(id));
+		contour->context->setError(PathOpsV0Lib::ContextError::finite  OP_DEBUG_PARAMS(id));
 		disabled = true;
 	} else {
-		contour->contours->addToBounds(c);
 		ptBounds = c.ptBounds();
+		contour->bounds.add(ptBounds);
+		contour->context->maxBounds.add(ptBounds);  // !!! optimization: use contour bounds instead
 		closeBounds = ptBounds;  // no threshold until all segment bounds are set
 	}
 	OP_DEBUG_IMAGE_CODE(debugColor = black);
@@ -141,7 +142,7 @@ bool OpSegment::activeNeighbor(const OpEdge* edge, EdgeMatch match,
 }
 
 void OpSegment::addAlias(OpPoint original, OpPoint alias) {
-	contour->contours->addAlias(original, alias);
+	contour->context->addAlias(original, alias);
 }
 
 void OpSegment::addDisjointIntersections() {
@@ -203,7 +204,7 @@ OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int usectID, MatchEnd
 
 OpPtT OpSegment::alignToEnd(OpPoint oppPt) const {
 	OpPtT segPtT(SetToNaN::dummy);
-	OpPtAliases& aliases = contour->contours->aliases;
+	OpPtAliases& aliases = contour->context->aliases;
 	if (c.firstPt().isNearly(oppPt, threshold()) 
 			|| (startMoved && aliases.isSmall(c.firstPt(), oppPt)))
 		segPtT = { c.firstPt(), 0 };
@@ -387,7 +388,7 @@ SegPt OpSegment::checkAliases(OpPtT match) {
 			result = { endPt, PtType::original };
 		}
 	} else {
-		result = contour->contours->aliases.addIfClose(match.pt);
+		result = contour->context->aliases.addIfClose(match.pt);
 		if (endPt != result.pt) {
 			addAlias(endPt, result.pt);
 			result.ptType = PtType::mapSegment;
@@ -440,12 +441,12 @@ void OpSegment::findMissingEnds() {
 	if (disabled)
 		return;
 	OP_ASSERT(!sects.unsorted);
-	OpContours* contours = contour->contours;
-	if (contours->errorHandler.errorDispatchFuncPtr) {
+	OpContours* context = contour->context;
+	if (context->errorHandler.errorDispatchFuncPtr) {
 		bool missingStart = !sects.i.size() || 0 != sects.i.front()->ptT.t;
 		bool missingEnd = !sects.i.size() || 1 != sects.i.back()->ptT.t;
-		if ((missingStart || missingEnd) && !contours->errorHandler.errorDispatchFuncPtr(
-				PathOpsV0Lib::ContextError::end, (PathOpsV0Lib::Context*) contours, &c.c)) {
+		if ((missingStart || missingEnd) && !context->errorHandler.errorDispatchFuncPtr(
+				PathOpsV0Lib::ContextError::end, (PathOpsV0Lib::Context*) context, &c.c)) {
 			if (missingStart) {
 				OpIntersection* sect = contour->addSegSect({c.firstPt(), 0}, this  
 						OP_LINE_FILE_PARAMS(this));
@@ -534,7 +535,7 @@ void OpSegment::fixCCSects() {
 }
 
 bool OpSegment::isSmall() {
-	return contour->contours->aliases.isSmall(c.c.data->start, c.c.data->end);
+	return contour->context->aliases.isSmall(c.c.data->start, c.c.data->end);
 }
 
 void OpSegment::makeCoins() {
@@ -847,7 +848,7 @@ bool OpSegment::simpleStart(const OpEdge* edge) const {
 }
 
 OpVector OpSegment::threshold() const {
-	return contour->contours->threshold(); 
+	return contour->context->threshold(); 
 }
 
 // Note that this must handle a many-to-many relationship between seg and opp.

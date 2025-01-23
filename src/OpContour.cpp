@@ -30,10 +30,103 @@ void OpContour::addDebugCallerData(PathOpsV0Lib::DebugCallerData data) {
 		debugCaller.size = 0;
 		return;
 	}
-	debugCaller.data = contours->allocateCallerData(data.size);
+	debugCaller.data = context->allocateCallerData(data.size);
 	std::memcpy(debugCaller.data, data.data, data.size);
 	debugCaller.size = data.size;  // !!! don't know if size is really needed ...
 }
+#endif
+
+#if WINDER_CONTOUR_EXPERIMENT
+void OpContour::addEdges(OpContour* contour) {
+	for (auto& segment : contour->segments) {
+		for (auto& edge : segment.edges) {
+			if (edge.disabled)
+				continue;
+			if (edge.ptBounds.height())
+				inX.push_back(&edge);
+			if (edge.ptBounds.width())
+				inY.push_back(&edge);
+		}
+	}
+}
+
+std::vector<OpEdge*>& OpContour::windingEdges(Axis axis) {
+	if (winderOwner != this) {
+		OP_ASSERT(inX.empty() && inY.empty());
+		return winderOwner->windingEdges(axis);
+	}
+	return Axis::horizontal == axis ? inX : inY;
+}
+
+void OpContour::addLast(OpEdge* edge) {
+	OP_ASSERT(edge->lastEdge);
+	OP_ASSERT(edge->lastEdge->segment->contour == this);
+	OP_ASSERT(!edge->priorEdge);
+#if OP_DEBUG
+	for (OpEdge* test : endLinks.l) {
+		OP_ASSERT(test->lastEdge);
+		OP_ASSERT(test->lastEdge->segment->contour == this);
+		OP_ASSERT(test != edge);
+		OP_ASSERT(!test->priorEdge);
+		OP_ASSERT(test->lastEdge);
+	}
+#endif
+	endLinks.l.push_back(edge);
+}
+
+void OpContour::removeLast(OpEdge* edge) {
+	for (size_t index = 0; index < endLinks.l.size(); ++index) {
+		OpEdge* test = endLinks.l[index];
+		if (edge == test) {
+			endLinks.l.erase(endLinks.l.begin() + index);
+			edge->lastEdge = nullptr;
+			return;
+		}
+	}
+	OP_ASSERT(0);
+}
+
+void OpContour::removeLink(OpEdge* edge) {
+	for (size_t index = 0; index < linkups.l.size(); ++index) {
+		OpEdge* test = linkups.l[index];
+		if (edge == test) {
+			linkups.l.erase(linkups.l.begin() + index);
+			return;
+		}
+	}
+	OP_ASSERT(0);
+}
+
+void OpContour::pushLinkup(OpEdge* edge) {
+	OP_ASSERT(edge->segment->contour == this);
+	OP_ASSERT(!edge->priorEdge);
+#if OP_DEBUG
+	for (OpEdge* test : linkups.l) {
+		OP_ASSERT(test->segment->contour == this);
+		OP_ASSERT(test != edge);
+		OP_ASSERT(!test->priorEdge);
+		OP_ASSERT(test->lastEdge);
+	}
+#endif
+	OP_ASSERT(!edge->debugScheduledForErasure); 
+	linkups.l.push_back(edge);
+	edge->inLinkups = true;
+	edge->linkHead = true;
+}
+
+void OpContour::setLinkEdge(OpEdge* link, size_t index) {
+	OpContour* newContour = link->segment->contour;
+	OP_ASSERT(!link->debugScheduledForErasure); 
+	if (this != newContour)
+		newContour->linkups.l.push_back(link);	//!!! call pushLinkup instead?
+	else {
+		linkups.l[index]->linkHead = false;
+		linkups.l[index] = link;
+	}
+	link->inLinkups = true;
+	link->linkHead = true;
+}
+
 #endif
 
 #if 0
@@ -48,7 +141,7 @@ OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg
 OpIntersection* OpContour::addCoinSect(const OpPtT& t, OpSegment* seg, int cID, MatchEnds coinEnd
 		OP_LINE_FILE_DEF(const OpSegment* oSeg)) {
 	OP_ASSERT(MatchEnds::both != coinEnd);
-	OpIntersection* next = contours->allocateIntersection();
+	OpIntersection* next = context->allocateIntersection();
 	next->set(t, seg  OP_LINE_FILE_CALLER(seg->id, oSeg->id));
 	next->setCoin(cID, coinEnd);  // 0 if no coincidence; negative if coincident pairs are reversed
 	return next;
@@ -56,14 +149,14 @@ OpIntersection* OpContour::addCoinSect(const OpPtT& t, OpSegment* seg, int cID, 
 
 OpIntersection* OpContour::addSegSect(const OpPtT& t, OpSegment* seg  
 		OP_LINE_FILE_DEF(const OpSegment* oSeg)) {
-	OpIntersection* next = contours->allocateIntersection();
+	OpIntersection* next = context->allocateIntersection();
 	next->set(t, seg  OP_LINE_FILE_CALLER(seg->id, oSeg->id));
 	return next;
 }
 
 OpIntersection* OpContour::addUnsect(const OpPtT& t, OpSegment* seg, int uID, MatchEnds unsectEnd
 		OP_LINE_FILE_DEF(const OpSegment* oSeg)) {
-	OpIntersection* next = contours->allocateIntersection();
+	OpIntersection* next = context->allocateIntersection();
 	next->set(t, seg  OP_LINE_FILE_CALLER(seg->id, oSeg->id));
 	OP_ASSERT(MatchEnds::both != unsectEnd);
 	next->setUnsect(uID, unsectEnd);
@@ -73,7 +166,7 @@ OpIntersection* OpContour::addUnsect(const OpPtT& t, OpSegment* seg, int uID, Ma
 int OpContour::nextID() const {
 //    if (93 == contours->uniqueID + 1)
 //        OpDebugOut("");
-	return contours->nextID();
+	return context->nextID();
 }
 
 // end of contour; start of contours
@@ -210,7 +303,6 @@ OpContours::OpContours()
 	, ccStorage(nullptr)
 	, curveDataStorage(nullptr)
 	, contourStorage(nullptr)
-	, contours(this)
 	, fillerStorage(nullptr)
 	, sectStorage(nullptr)
 	, limbStorage(nullptr)
@@ -296,10 +388,6 @@ OpEdge* OpContours::addFiller(const OpPtT& start, const OpPtT& end) {
 	return filler;
 }
 
-void OpContours::addToBounds(const OpCurve& curve) {
-	maxBounds.add(curve.ptBounds());
-}
-
 OpContour* OpContours::allocateContour() {
 	if (!contourStorage)
 		contourStorage = new OpContourStorage;
@@ -369,6 +457,29 @@ PathOpsV0Lib::WindingData* OpContours::allocateWinding(size_t size) {
 // returns true on success
 bool OpContours::assemble() {
 	OpJoiner joiner(*this);
+#if WINDER_CONTOUR_EXPERIMENT
+	bool linkableFound = false;
+	for (auto contour : contours) {
+		linkableFound |= !contour->joinSetup();  // !!! reverse return (now: true == no linkable edges)
+	}
+	if (!linkableFound) {
+		initOutOnce();
+		return true;
+	}
+	for (LinkPass linkPass : { LinkPass::normal, LinkPass::unsectable } ) {
+		for (auto contour : contours) {
+			joiner.linkUnambiguous(contour, linkPass);
+		}
+		bool remaining = false;
+		for (auto contour : contours) {
+			remaining |= !joiner.linkRemaining(contour);
+			if (PathOpsV0Lib::ContextError::none != error)
+				return false;
+		}
+		if (!remaining)
+			return true;
+	}
+#else
 	if (joiner.setup()) {
 		initOutOnce();
 		return true;
@@ -380,6 +491,7 @@ bool OpContours::assemble() {
 		if (PathOpsV0Lib::ContextError::none != error)
 			return false;
 	}
+#endif
 	return false;
 }
 
@@ -424,13 +536,44 @@ void OpContours::resetLimbs() {
 	limbStorage->reset();
 }
 
-// If successive runs of the same input are flaky, check to see if identical ids are generated.
-// To do this, insert OP_DEBUG_COUNT(*this, _some_identifer_); after every callout.  
-// This will compare the dumps of contours and contents to detect when something changed.
-// The callouts are removed when not in use as they are not maintained and reduce readability.
-// !!! OP_DEBUG_COUNT was unintentionally deleted at some point. Hopefully it is in git history...
 void OpContours::opsInit() {
 	setThreshold();
+	OpContourIterator iterator(this);
+	for (OpContourIter iter = iterator.begin(); iter != iterator.end(); ++iter) {
+		OpContour* contour = *iter;
+		if (contour->isEmpty())
+			continue;
+		contours.push_back(contour);
+	}
+	for (size_t outer = 0; outer < contours.size(); ++outer) {
+		OpContour* oContour = contours[outer];
+		for (size_t inner = outer; inner < contours.size(); ++inner) {
+			OpContour* iContour = contours[inner];
+			if (oContour->bounds.intersects(iContour->bounds)) {
+				oContour->sects.push_back(iContour);
+				if (oContour != iContour)
+					iContour->sects.push_back(oContour);
+			}
+		}
+	}
+	for (OpContour* contour : contours) {
+		sort(contour->sects.begin(), contour->sects.end(), [](OpContour* a, OpContour* b) {
+			return a->id < b->id;
+		});
+	}
+#if WINDER_CONTOUR_EXPERIMENT
+	for (size_t index = 0; index < contours.size(); ++index) {
+		OpContour* contour = contours[index];
+		contour->winderOwner = contour;
+		for (size_t previous = 0; previous < index; ++previous) {
+			OpContour* prev = contours[previous];
+			if (prev->sects == contour->sects) {
+				contour->winderOwner = prev;
+				break;
+			}
+		}
+	}
+#endif
 	normalize();  // collect extremes, map all from 0 to 1, map <= epsilon to zero
 #if TEST_RASTER
 	if (rasterEnabled)
@@ -438,12 +581,19 @@ void OpContours::opsInit() {
 #endif
 }
 
+// If successive runs of the same input are flaky, check to see if identical ids are generated.
+// To do this, insert OP_DEBUG_COUNT(*this, _some_identifer_); after every callout.  
+// This will compare the dumps of contours and contents to detect when something changed.
+// The callouts are removed when not in use as they are not maintained and reduce readability.
+// !!! OP_DEBUG_COUNT was unintentionally deleted at some point. Hopefully it is in git history...
 bool OpContours::pathOps() {
-	OpSegments::FindCoincidences(this);
+	OpSegments segments(*this);
+	segments.findCoincidences();
 	debugValidateIntersections();
 	OpSegments sortedSegments(*this);
+	sortedSegments.initInX();
 	debugValidateIntersections();
-	if (!sortedSegments.inX.size()) {
+	if (empty()) {
 		contextCallBacks.emptyCallerPathFuncPtr(callerOutput);
 		OP_DEBUG_SUCCESS(*this, true);
 	}

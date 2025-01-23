@@ -29,7 +29,7 @@ void SectRay::addPals(OpEdge* home) {
 	};
 	const EdgePal* homeDist = find(home);
 	const EdgePal* test = homeDist;
-	float threshold = home->contours()->threshold().choice(axis);
+	float threshold = home->context()->threshold().choice(axis);
 	float lowLimit = homeCept - threshold;
 	bool priorIsPal = false;
 	while (test > &distances.front() && (--test)->cept >= lowLimit) {
@@ -112,7 +112,7 @@ bool SectRay::checkOrder(const OpEdge* home) const {
 	} while (--dist >= &distances.front() && !homeD);
 	OP_ASSERT(homeD);
 	float hCept = homeD->cept;
-	float threshold = home->contours()->threshold().choice(axis);
+	float threshold = home->context()->threshold().choice(axis);
 	if (dist >= &distances.front() && OpMath::Equal(dist->cept, hCept, threshold))
 		return false;
 	dist = homeD + 1;
@@ -177,7 +177,7 @@ FindCept SectRay::findIntercept(OpEdge* home, OpEdge* test) {
 	bool reversed = tangent.dot(homeTangent) < 0;
 	distances.emplace_back(test, testXY, root, reversed);
 	if (!uSectPair && OpMath::Equal(testXY, homeCept, 
-			home->contours()->threshold().choice(perpendicular)))
+			home->context()->threshold().choice(perpendicular)))
 		return FindCept::retry;  // e.g., testQuads1877923 has two small quads which just miss 
 	return uSectPair ? FindCept::addPal : FindCept::ok;
 }
@@ -206,6 +206,29 @@ void SectRay::sort() {
 	});
 }
 
+#if WINDER_CONTOUR_EXPERIMENT
+// add all edges in contour, and any other contours which the caller says overlap
+OpWinder::OpWinder(OpContours& contours) {
+	for (OpContour* oContour : contours.contours) {
+		OP_ASSERT(!oContour->isEmpty());
+		if (oContour->winderOwner != oContour)
+			continue;
+		for (OpContour* iContour : oContour->sects) {
+			OP_ASSERT(!iContour->isEmpty());
+			oContour->addEdges(iContour);
+		}
+	}
+	for (OpContour* contour : contours.contours) {
+		std::sort(contour->inX.begin(), contour->inX.end(), [](const OpEdge* s1, const OpEdge* s2) {
+			return s1->ptBounds.left < s2->ptBounds.left;
+		});
+		std::sort(contour->inY.begin(), contour->inY.end(), [](const OpEdge* s1, const OpEdge* s2) {
+			return s1->ptBounds.top < s2->ptBounds.top;
+		});
+	}
+	OpDebugOut("");
+}
+#else
 OpWinder::OpWinder(OpContours& contours) {
 	for (auto contour : contours.contours) {
 		for (auto& segment : contour->segments) {
@@ -218,14 +241,6 @@ OpWinder::OpWinder(OpContours& contours) {
 	workingAxis = Axis::neither;
 }
 
-#if 0
-OpWinder::OpWinder(OpEdge* sEdge, OpEdge* oEdge) {
-	addEdge(sEdge, EdgesToSort::byCenter);
-	addEdge(oEdge, EdgesToSort::byCenter);
-	workingAxis = Axis::neither;
-}
-#endif
-
 void OpWinder::addEdge(OpEdge* edge) {
 	if (edge->disabled)
 		return;
@@ -234,7 +249,7 @@ void OpWinder::addEdge(OpEdge* edge) {
 	if (edge->ptBounds.width())
 		inY.push_back(edge);
 }
-
+#endif
 
 struct SectPtT {
 	SectPtT(OpSegment* seg, const OpSegment* opp, OpPtT cePtT, XyChoice xyChoice)
@@ -243,7 +258,7 @@ struct SectPtT {
 	{
 		if (sect)
 			ptT = sect->ptT;
-		OpContours* contours = seg->contour->contours;
+		OpContours* contours = seg->contour->context;
 		OpPtAliases& aliases = contours->aliases;
 		original = ptT.pt;
 		if (OpPoint possibleAlias = aliases.existing(ptT.pt); possibleAlias != ptT.pt)
@@ -267,7 +282,7 @@ struct SectPair {
 		if (seg.ptT.pt != opp.ptT.pt) {
 			if (seg.ptT.pt != seg.original)
 				if (opp.ptT.pt != opp.original)
-					opp.ptT.pt = ce.seg->contour->contours->remapPts(opp.ptT.pt, seg.ptT.pt);
+					opp.ptT.pt = ce.seg->contour->context->remapPts(opp.ptT.pt, seg.ptT.pt);
 				else
 					opp.ptT.pt = seg.ptT.pt;
 			else
@@ -309,16 +324,16 @@ struct CoinSects {
 			std::swap(end.ceSeg, end.ceOpp);
 			end.isBaseSegment = !end.isBaseSegment;
 		}
-		OpContours* contours = coinStart.seg->contour->contours;
-		OpVector threshold = contours->threshold();
-		auto checkClose = [contours, threshold](OpSegment* seg, SectPtT& s, SectPtT& e) {
+		OpContours* context = coinStart.seg->contour->context;
+		OpVector threshold = context->threshold();
+		auto checkClose = [context, threshold](OpSegment* seg, SectPtT& s, SectPtT& e) {
 			bool near = s.ptT.isNearly(e.ptT, threshold);
 			OpPoint sPt = s.ptT.pt;
 			OpPoint ePt = e.ptT.pt;
 			if (near && sPt != ePt) {
 				if (sPt != s.original) {
 					if (ePt != e.original)
-						contours->remapPts(ePt, sPt);
+						context->remapPts(ePt, sPt);
 					else
 						seg->movePt(e.ptT, sPt);
 				} else if (ePt != e.original)
@@ -472,7 +487,11 @@ FoundIntercept OpWinder::findRayIntercept(size_t homeIndex, OpVector homeTan, fl
 	Axis perpendicular = !workingAxis;
 	float mid = .5;
 	float midEnd = .5;
+#if WINDER_CONTOUR_EXPERIMENT
+	std::vector<OpEdge*>& inArray = home->segment->contour->windingEdges(workingAxis);
+#else
 	std::vector<OpEdge*>& inArray = Axis::horizontal == workingAxis ? inX : inY;
+#endif
 	ray.homeT = OpMath::Ratio(home->startT, home->endT, home->center.t);
 	// if find intercept fails, retry some number of times
 	// if all retries fail, distinguish between failure cases
@@ -531,6 +550,9 @@ giveUp:
 }
 
 void OpWinder::markUnsortable(Unsortable unsortable) {
+#if WINDER_CONTOUR_EXPERIMENT
+	std::vector<OpEdge*>& inY = *inYPtr;
+#endif
 	if (Axis::vertical == workingAxis || inY.end() == std::find(inY.begin(), inY.end(), home)) 
 		home->setUnsortable(unsortable);
 	home->rayFail = Axis::vertical == workingAxis ? EdgeFail::vertical : EdgeFail::horizontal;
@@ -551,6 +573,11 @@ size_t OpWinder::setInIndex(size_t homeIndex, float homeCept, std::vector<OpEdge
 // if horizontal axis, look at rect top/bottom
 ChainFail OpWinder::setSumChain(size_t homeIndex) {
 	// see if normal at center point is in direction of ray
+#if WINDER_CONTOUR_EXPERIMENT
+	std::vector<OpEdge*>& inX = *inXPtr;
+	std::vector<OpEdge*>& inY = *inYPtr;
+#endif
+// !!! is inArray the same as 'edges' local to setWindings() ?
 	std::vector<OpEdge*>& inArray = Axis::horizontal == workingAxis ? inX : inY;
 	home = inArray[homeIndex];
 	OP_ASSERT(!home->disabled);
@@ -619,7 +646,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 		size_t last = (size_t) (sumIndex + 1);
 		float lastCept = last < ray.distances.size() ? ray.distances[last].cept : OpNaN;
 		bool lastIsEdge = false;
-		float threshold = edge->contours()->threshold().choice(!ray.axis);  // use perpendicular
+		float threshold = edge->context()->threshold().choice(!ray.axis);  // use perpendicular
 		do {
 			const EdgePal& dist = ray.distances[sumIndex];
 			OpEdge* previous = dist.edge;
@@ -704,13 +731,29 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 	return ResolveWinding::resolved;	   // (will copy many to winding after all many are found)
 }
 
+// think about how to write this so it sets the windings for each contour
+// probably it should walk the edges in the contour, after setting the inX/inY to the 
+// cache of sect edges held by the contour (or the 
+
 FoundWindings OpWinder::setWindings(OpContours* contours) {
 	// test sum chain for correctness; recompute if prior or next are inconsistent
 	for (Axis a : { Axis::horizontal, Axis::vertical }) {
 		workingAxis = a;
+#if WINDER_CONTOUR_EXPERIMENT
+		for (OpContour* contour: contours->contours) {
+			OpContour* owner = contour->winderOwner;
+			inXPtr = &owner->inX;
+			inYPtr = &owner->inY;
+			std::vector<OpEdge*>& edges = Axis::horizontal == workingAxis ? *inXPtr : *inYPtr;
+#else
 		std::vector<OpEdge*>& edges = Axis::horizontal == workingAxis ? inX : inY;
+#endif
 		for (size_t index = 0; index < edges.size(); ++index) {
 			home = edges[index];
+#if WINDER_CONTOUR_EXPERIMENT
+			if (home->segment->contour != contour)
+				continue;
+#endif
 			if (home->ray.distances.size() && EdgeFail::none == home->rayFail)
 				continue;
 			if (home->disabled)	// may not be visible in vertical pass
@@ -727,6 +770,9 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 			if (ChainFail::normalizeOverflow == chainFail)
 				OP_DEBUG_FAIL(*home, FoundWindings::fail);
 		}
+#if WINDER_CONTOUR_EXPERIMENT
+	}
+#endif
 	}
 	for (auto contour : contours->contours) {
 		for (auto& segment : contour->segments) {
@@ -808,6 +854,13 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 		ResolveWinding resolveWinding = setWindingByDistance(contours);
 		if (ResolveWinding::retry == resolveWinding) {
 			workingAxis = home->ray.axis;
+#if WINDER_CONTOUR_EXPERIMENT
+			OpContour* contour = edge->segment->contour;
+			std::vector<OpEdge*>& inX = contour->inX;
+			inXPtr = &inX;
+			std::vector<OpEdge*>& inY = contour->inY;
+			inYPtr = &inY;
+#endif
 			std::vector<OpEdge*>& edges = Axis::horizontal == workingAxis ? inX : inY;
 			auto found = std::find(edges.begin(), edges.end(), home);
 			OP_ASSERT(edges.end() != found);
@@ -857,6 +910,7 @@ static bool compareXBox(const OpEdge* s1, const OpEdge* s2) {
 }
 #endif
 
+#if !WINDER_CONTOUR_EXPERIMENT
 // starting at left (-x), increasing
 static bool compareXCenter(const OpEdge* s1, const OpEdge* s2) {
 	return s1->ptBounds.left < s2->ptBounds.left;
@@ -878,3 +932,4 @@ if (EdgesToSort::byBox == sortBy) {
 	std::sort(inX.begin(), inX.end(), compareXCenter);
 	std::sort(inY.begin(), inY.end(), compareYCenter);
 }
+#endif

@@ -382,6 +382,9 @@ void AddSkiaPath(Context* context, Contour* contour, const SkPath& path) {
 						(CurveType) SkiaCurveType::skiaLineType } );
             closeLine[1] = { pts[0].fX, pts[0].fY };
             pts[1] = pts[0];
+	#if WINDER_CONTOUR_EXPERIMENT
+			contour = Clone(contour);
+	#endif
             break;
         case SkPath::kLine_Verb:
             if (pts[0] != pts[1])

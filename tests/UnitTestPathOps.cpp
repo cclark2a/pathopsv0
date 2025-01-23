@@ -231,6 +231,279 @@ bool opWheel(float delta) {
 
 #endif
 
+#define VALIDATE_HTML 0
+
+#if VALIDATE_HTML
+#include "OpMath.h"
+
+enum class State {
+	none,
+	start,
+	in,
+	angle,
+	property,
+	equal,
+	out,
+
+	sQuote,
+	dQuote,
+
+	_class,
+	href,
+	id,
+	src,
+	type,
+
+	a,
+	br,
+	code,
+	p,
+	pre,
+	script,
+	table,
+	td,
+	tr,
+
+};
+
+struct Name {
+	const char* n;
+	State state;
+} names[] = { 
+	{"a", State::a}, 
+	{"br", State::br}, 
+	{"code", State::code}, 
+	{"p", State::p},
+	{"pre", State::pre},
+	{"script", State::script},
+	{"table", State::table},
+	{"td", State::td},
+	{"tr", State::tr},
+};
+
+struct Property {
+	const char* n;
+	State state;
+} properties[] = {
+	{"class", State::_class},
+	{"href", State::href}, 
+	{"id", State::id}, 
+	{"src", State::src},
+	{"type", State::type},
+};
+
+struct Tag {
+	Name* name;
+	const char* s;
+	int len;
+};
+
+struct StateStr {
+	const char* s;
+	std::string str;
+};
+
+static void setBackState(std::vector<Tag>& tags) {
+	OP_ASSERT(tags.size());
+	Tag& back = tags.back();
+	OP_ASSERT(nullptr == back.name);
+	OP_ASSERT('<' == back.s[0]);
+	std::string tagName(&back.s[1], back.len - 1);
+	for (size_t index = 0; index < ARRAY_COUNT(names); ++index) {
+		Name* name = &names[index];
+		if (std::string(name->n) == tagName) {
+			if (State::br == name->state)
+				tags.pop_back();
+			else
+				back.name = name;
+			return;
+		}
+	}
+	OP_ASSERT(0);
+};
+
+void validateHTML() {
+    std::string buffer;
+	const char* name = "D:/ErikSom/Pathopsv0-WASM/pathopsv0-wasm/examples/es/readme.html";
+	FILE* html = fopen(name, "rb");
+    int seek = fseek(html, 0, SEEK_END);
+    OP_ASSERT(!seek);
+    long size = ftell(html);
+    fclose(html);
+    html = fopen(name, "rb");
+    buffer.resize(size);
+    fread(&buffer[0], 1, size, html);
+    fclose(html);
+	std::vector<Tag> tags;
+	std::vector<StateStr> ids;
+	std::vector<StateStr> hrefs;
+	State tag = State::none;
+	Property* prop = nullptr;
+	const char* propStr = nullptr;
+	const char* valStr = nullptr;
+	const char* outStr = nullptr;
+	const char* bodyStr = "<body>";
+	const char* s = strstr(&buffer.front(), bodyStr);
+	OP_ASSERT(s);
+	s += strlen(bodyStr);
+	const char* e = &buffer.back() + 1;
+	auto setBackProp = [&propStr, &s, &prop]() {
+		OP_ASSERT(propStr);
+		std::string propName(propStr, s - propStr - 1);
+		for (Property property : properties) {
+			if (std::string(property.n) == propName) {
+				prop = &property;
+				return;
+			}
+		}
+		OP_ASSERT(0);
+	};
+	auto verifyPropValue = [&prop, &valStr, &s, &hrefs, &ids]() {
+		std::string val(valStr, s - valStr - 1);
+		OP_ASSERT(prop);
+		switch (prop->state) {
+			case State::_class:
+				OP_ASSERT(std::string("c1") == val || std::string("c3") == val);
+			break;
+			case State::href:
+				OP_ASSERT('#' == val[0]);
+				hrefs.push_back({valStr, std::string(&valStr[1], val.size() - 1) });
+			break; 
+			case State::id:
+				ids.push_back({valStr, std::string(valStr, val.size()) });
+			break; 
+			case State::src:
+				// don't check for now
+			break;
+			case State::type:
+				OP_ASSERT(std::string("module") == val);
+			break;
+			default:
+				OP_ASSERT(0);
+		}
+	};
+	auto verifyBackState = [&tags, &outStr, &s]() {
+		OP_ASSERT(tags.size());
+		Tag& back = tags.back();
+		std::string out(outStr, s - outStr - 1);
+		OP_ASSERT(out == std::string(back.name->n));
+		tags.pop_back();
+	};
+	while (s < e) {
+		char c = *s++;
+		switch (tag) {
+			case State::start:
+				if ('/' == c) {
+					outStr = s;
+					tag = State::out;
+					break;
+				}
+				tag = State::in;
+				tags.push_back({nullptr, s - 2, 2});
+			break;
+			case State::in:
+				if ('>' == c) {
+					setBackState(tags);
+					tag = State::none;
+					break;
+				}
+				OP_ASSERT('<' != c);
+				if (' ' == c) {
+					setBackState(tags);
+					tag = State::angle;
+					break;
+				}
+				OP_ASSERT(isalpha(c));
+				tags.back().len += 1;
+			break;
+			case State::angle:
+				OP_ASSERT('<' != c);
+				if (' ' == c)
+					break;
+				if (!propStr && isalpha(c)) {
+					propStr = s - 1;
+					tag = State::property;
+					break;
+				}
+				OP_ASSERT('>' == c);
+				tag = State::none;
+			break;
+			case State::property:
+				if (isalpha(c))
+					break;
+				OP_ASSERT('=' == c);
+				tag = State::equal;
+				setBackProp();
+				propStr = nullptr;
+			break;
+			case State::equal:
+				if ('\'' == c)
+					tag = State::sQuote;
+				else if ('"' == c)
+					tag = State::dQuote;
+				else
+					OP_ASSERT(0);
+				valStr = s;
+			break;
+			case State::sQuote:
+				if ('\'' == c) {
+					verifyPropValue();
+					tag = State::angle;
+				}
+				OP_ASSERT(' ' <= c);
+			break;
+			case State::dQuote:
+				if ('"' == c) {
+					verifyPropValue();
+					tag = State::angle;
+				}
+				OP_ASSERT(' ' <= c);
+			break;
+			case State::out:
+				if ('>' == c) {
+					if (std::string(outStr, s - outStr - 1) == "body") {
+						s = e;
+						break;
+					}
+					verifyBackState();
+					tag = State::none;
+					break;
+				}
+				OP_ASSERT(isalpha(c));
+
+			break;
+			case State::none:
+				if ('<' == c)
+					tag = State::start;
+			break;
+			default:
+				OP_ASSERT(0);
+		}
+	}
+	std::sort(ids.begin(), ids.end(), [](const StateStr& a, const StateStr& b) {
+		return a.str < b.str;
+	});
+	std::sort(hrefs.begin(), hrefs.end(), [](const StateStr& a, const StateStr& b) {
+		return a.str < b.str;
+	});
+	// verify that each ID is used only once
+	// verify that every href has an ID
+	size_t idIndex = 0;
+	size_t hrefIndex = 0;
+	while (idIndex < ids.size() && hrefIndex < hrefs.size()) {
+		while (idIndex < ids.size() && ids[idIndex].str < hrefs[hrefIndex].str)
+			++idIndex;
+		OP_ASSERT(idIndex < ids.size() && ids[idIndex].str == hrefs[hrefIndex].str);
+		OP_ASSERT(idIndex + 1 >= ids.size() || ids[idIndex].str < ids[idIndex + 1].str);
+		++idIndex;
+		while (hrefIndex + 1 < hrefs.size() 
+				&& hrefs[hrefIndex].str == hrefs[hrefIndex + 1].str)
+			++hrefIndex;
+		++hrefIndex;
+	}
+	OP_ASSERT(0);
+}
+#endif
 
 #define TEST_SMALL_EXAMPLES 0
 
@@ -240,7 +513,10 @@ extern void testNewInterface();
 extern void runTests();
 
 void OpTest(bool terminateEarly) {
-#if OP_DEBUG_IMAGE
+#if VALIDATE_HTML
+	validateHTML();
+#endif
+#if 0 && OP_DEBUG_IMAGE
     if (GENERATE_COLOR_FILES) {
         OpDebugGenerateColorFiles();
         return;

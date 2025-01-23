@@ -20,7 +20,7 @@ void Add(Contour* libContour, AddCurve curve) {
     OP_ASSERT(curve.points[0] != curve.points[1]);
     OpContour* contour = (OpContour*) libContour;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
-    debugGlobalContours = contour->contours;
+    debugGlobalContours = contour->context;
 #endif
     contour->segments.emplace_back(libContour, curve);
 }
@@ -36,6 +36,22 @@ Contour* CreateContour(Context* context, Winding winding) {
 //    contour->addCallerData(callerData);
     return (Contour*) contour;
 }
+
+#if WINDER_CONTOUR_EXPERIMENT
+Contour* Clone(Contour* contour) {
+	OpContour* original = (OpContour*) contour;
+	if (original->isEmpty())
+		return (Contour*) original;
+    OpContour* clone = original->context->makeContour();
+	clone->winding = original->winding;
+	clone->callBacks = original->callBacks;
+#if OP_DEBUG
+	clone->debugCallBacks = original->debugCallBacks;
+	clone->debugCaller = original->debugCaller;
+#endif
+    return (Contour*) clone;
+}
+#endif
 
 void DeleteContext(Context* context) {
     OpContours* contours = (OpContours*) context;
