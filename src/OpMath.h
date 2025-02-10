@@ -233,6 +233,10 @@ struct OpVector {
 		return a.dx == b.dx && a.dy == b.dy;
 	}
 
+	friend bool operator<(OpVector a, OpVector b) {
+		return a.dx < b.dx && a.dy < b.dy;
+	}
+
 	OpVector operator-() const {
 		return { -dx, -dy };
 	}
@@ -294,6 +298,10 @@ struct OpVector {
 		OpVector result = *this;
 		result /= v;
 		return result;
+	}
+
+	bool axisAligned() const {
+		return 0 == dx || 0 == dy;	// !!! return dx * dy == 0 ?
 	}
 
 	float dot(OpVector a) const {
@@ -624,6 +632,9 @@ struct OpRect {
 
 	float width() const { 
 		return right - left; }
+
+	OpVector widthHeight() const {
+		return *(OpPoint*) &right - *(OpPoint*) &left; }
 
 #if OP_DEBUG_DUMP
 	virtual ~OpRect() {}

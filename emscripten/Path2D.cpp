@@ -2,7 +2,6 @@
 
 #include "Path2D.h"
 #include "curves/Line.h"
-#include "curves/NoCurve.h"
 #include "curves/ConicBezier.h"
 #include "curves/CubicBezier.h"
 #include "curves/QuadBezier.h"
@@ -462,45 +461,6 @@ void Path::opAddPath(Context* context, Contour* contour, bool closeLoops) {
 		Add(contour, { closeLine, sizeof closeLine, (CurveType) Types::line } );
 }
 
-static Contour* GetBinary(Context* context, Winding winding, 
-		BinaryOperand operand, BinaryWindType windType, Ops ops) {
-	// set winding callbacks
-	Contour* contour = CreateContour(context, winding);
-	WindingKeep operatorFunc = nullptr;
-	switch (ops) {
-		case Ops::diff: operatorFunc = binaryWindingDifferenceFunc; break;
-		case Ops::sect: operatorFunc = binaryWindingIntersectFunc; break;
-		case Ops::_union: operatorFunc = binaryWindingUnionFunc; break;
-		case Ops::revDiff: operatorFunc = binaryWindingReverseDifferenceFunc; break;
-		case Ops::_xor: operatorFunc = binaryWindingExclusiveOrFunc; break;
-		default: OP_ASSERT(0);
-	}
-	SetWindingCallBacks(contour, { binaryWindingAddFunc, operatorFunc, binaryWindingVisibleFunc, 
-			binaryWindingZeroFunc, binaryWindingSubtractFunc });
-#if OP_DEBUG
-	SetDebugWindingCallBacks(contour, { nullptr, 0 }, nullptr
-			OP_DEBUG_DUMP_PARAMS(binaryWindingDumpInFunc, binaryWindingDumpOutFunc, nullptr)
-			OP_DEBUG_IMAGE_PARAMS(binaryWindingImageOutFunc, nullptr,
-					nullptr, nullptr, nullptr)
-	);
-#endif
-	return contour;
-}
-
-static Contour* GetUnary(Context* context, Winding winding) {
-    Contour* contour = CreateContour(context, winding);
-    SetWindingCallBacks(contour, { unaryWindingAddFunc, unaryWindingKeepFunc, unaryWindingVisibleFunc,
-			unaryWindingZeroFunc, unaryWindingSubtractFunc });
-#if OP_DEBUG
-	SetDebugWindingCallBacks(contour, { nullptr, 0 }, nullptr
-            OP_DEBUG_DUMP_PARAMS(unaryWindingDumpInFunc, unaryWindingDumpOutFunc, nullptr)
-            OP_DEBUG_IMAGE_PARAMS(unaryWindingImageOutFunc, nullptr,
-	        nullptr, nullptr, nullptr)
-    );
-#endif
-    return contour;
-}
-
 struct OutPath {
 	void commonOutput(PathOpsV0Lib::Curve c, Types type, bool firstPt, bool lastPt);
 	bool extendCommon(OpPoint prior, OpPoint* last, OpPoint pt);
@@ -634,49 +594,63 @@ static PathOpsV0Lib::CurveType LineType(PathOpsV0Lib::Curve ) {
 
 static void SetupCurves(Context* context) {
 	OP_DEBUG_CODE(CurveType lineType =) SetCurveCallBacks(context, { LineOutput });
-	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, lineType, debugLineScale
-            OP_DEBUG_DUMP_PARAMS(lineDebugDumpName, noDumpCurveExtra)
-            OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath)));
+	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, lineType, { debugLineScale
+            OP_DEBUG_DUMP_PARAMS(lineDebugDumpName, nullptr)
+            OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath) }));
 	OP_ASSERT((int) lineType == (int) Types::line);
 	OP_DEBUG_CODE(CurveType quadType =) SetCurveCallBacks(context, { QuadOutput, quadAxisT, 
 			quadHull, quadIsFinite, quadIsLine, quadSetBounds, quadPinCtrl, 
 			quadTangent, quadsEqual, quadPtAtT, quadHullPtCount, quadRotate, 
 			quadSubDivide, quadXYAtT });
-	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, quadType, debugQuadScale
-            OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, noDumpCurveExtra)
-            OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath)));
+	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, quadType, { debugQuadScale
+            OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, nullptr)
+            OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath) }));
 	OP_ASSERT((int) quadType == (int) Types::quad);
         OP_DEBUG_CODE(CurveType conicType =) SetCurveCallBacks(context, { ConicOutput, conicAxisT,
 			conicHull, conicIsFinite, conicIsLine, conicSetBounds, quadPinCtrl, 
 			conicTangent, conicsEqual, conicPtAtT, quadHullPtCount, conicRotate, 
 			conicSubDivide, conicXYAtT });
-	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, conicType, debugConicScale
+	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, conicType, { debugConicScale
             OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
-            OP_DEBUG_IMAGE_PARAMS(debugConicAddToSkPath)));
+            OP_DEBUG_IMAGE_PARAMS(debugConicAddToSkPath) }));
 	OP_ASSERT((int) conicType == (int) Types::conic);
 	OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallBacks(context, { CubicOutput, cubicAxisT, 
 			cubicHull, cubicIsFinite, cubicIsLine, cubicSetBounds, cubicPinCtrl, 
 			cubicTangent, cubicsEqual, cubicPtAtT, cubicHullPtCount, cubicRotate, 
 			cubicSubDivide, cubicXYAtT, cubicReverse });
-	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, cubicType, debugCubicScale
-            OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, noDumpCurveExtra)
-            OP_DEBUG_IMAGE_PARAMS(debugCubicAddToSkPath)));
+	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, cubicType, { debugCubicScale
+            OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, nullptr)
+            OP_DEBUG_IMAGE_PARAMS(debugCubicAddToSkPath) }));
 	OP_ASSERT((int) cubicType == (int) Types::cubic);
 }
 
 ContextError FillPath::opCommon(FillPath& path, Ops oper) {
 	Context* context = CreateContext();
 	SetContextCallBacks(context, { LineType, EmptyFunc });	
+	WindingKeep operatorFunc = nullptr;
+	switch (oper) {
+		case Ops::diff: operatorFunc = binaryWindingDifferenceFunc; break;
+		case Ops::sect: operatorFunc = binaryWindingIntersectFunc; break;
+		case Ops::_union: operatorFunc = binaryWindingUnionFunc; break;
+		case Ops::revDiff: operatorFunc = binaryWindingReverseDifferenceFunc; break;
+		case Ops::_xor: operatorFunc = binaryWindingExclusiveOrFunc; break;
+		default: OP_ASSERT(0);
+	}
+	SetWindingCallBacks(context, { binaryWindingAddFunc, operatorFunc, binaryWindingVisibleFunc, 
+			binaryWindingZeroFunc, binaryWindingSubtractFunc });
+#if OP_DEBUG
+	SetDebugContextCallBacks(context, { nullptr
+			OP_DEBUG_IMAGE_PARAMS(nullptr, binaryWindingDumpOutFunc)
+			OP_DEBUG_IMAGE_PARAMS(binaryWindingImageOutFunc) } );
+#endif
 	SetupCurves(context);
 	int leftData[] = { 1, 0 };
 	Winding leftWinding { leftData, sizeof(leftData) };
-	Contour* left = GetBinary(context, leftWinding, 
-			BinaryOperand::left, BinaryWindType::windLeft, oper);
+	Contour* left = CreateContour(context, leftWinding);
 	opAddPath(context, left, true);
 	int rightData[] = { 0, 1 };
 	Winding rightWinding { rightData, sizeof(rightData) };
-	Contour* right = GetBinary(context, rightWinding,
-			BinaryOperand::left, BinaryWindType::windRight, oper);
+	Contour* right = CreateContour(context, rightWinding);
 	path.opAddPath(context, right, true);
 	return handleError(context);
 }
@@ -684,10 +658,17 @@ ContextError FillPath::opCommon(FillPath& path, Ops oper) {
 ContextError FillPath::simplify() {
 	Context* context = CreateContext();
 	SetContextCallBacks(context, { LineType, EmptyFunc });	
+    SetWindingCallBacks(context, { unaryWindingAddFunc, unaryWindingKeepFunc, 
+			unaryWindingVisibleFunc, unaryWindingZeroFunc, unaryWindingSubtractFunc });
+#if OP_DEBUG
+	SetDebugContextCallBacks(context, { nullptr
+			OP_DEBUG_IMAGE_PARAMS(nullptr, unaryWindingDumpOutFunc)
+			OP_DEBUG_IMAGE_PARAMS(unaryWindingImageOutFunc) } );
+#endif
 	SetupCurves(context);
     int simpleData[] = { 1 };
     Winding simpleWinding { simpleData, sizeof(simpleData) };
-	Contour* simple = GetUnary(context, simpleWinding);
+	Contour* simple = CreateContour(context, simpleWinding);
     opAddPath(context, simple, true);
 	return handleError(context);
 }
@@ -809,34 +790,22 @@ std::string frameWindingImageOutFunc(Winding winding, int index) {
 ContextError FramePath::opCommon(FillPath& path, Ops oper) {
 	Context* context = CreateContext();
     SetContextCallBacks(context, { LineType });
+	WindingKeep operatorFunc = Ops::sect == oper ? frameKeepFunc : frameDiscardFunc;
+    SetWindingCallBacks(context, { frameAddFunc, operatorFunc, frameVisibleFunc, frameZeroFunc, 
+            frameSubtractFunc });
+#if OP_DEBUG
+	SetDebugContextCallBacks(context, { nullptr
+            OP_DEBUG_IMAGE_PARAMS(nullptr, FrameWinding::DumpOutFunc)
+            OP_DEBUG_IMAGE_PARAMS(frameWindingImageOutFunc) });
+#endif
 	SetupCurves(context);
     FrameWinding frameData(FrameFill::frame, 1);
     Winding frameWinding { &frameData, sizeof(frameData) };
     Contour* frameContour = CreateContour(context, frameWinding);
-	WindingKeep operatorFunc = Ops::sect == oper ? frameKeepFunc : frameDiscardFunc;
-    SetWindingCallBacks(frameContour, { frameAddFunc, operatorFunc, frameVisibleFunc, frameZeroFunc, 
-            frameSubtractFunc });
-#if OP_DEBUG
-	SetDebugWindingCallBacks(frameContour, { nullptr, 0 }, noDebugBitOper
-            OP_DEBUG_DUMP_PARAMS(nullptr, FrameWinding::DumpOutFunc, nullptr)
-            OP_DEBUG_IMAGE_PARAMS(frameWindingImageOutFunc, noNativePathFunc,
-            noDebugGetDrawFunc, noDebugSetDrawFunc, noIsOppFunc)
-	);
-#endif
-
+	opAddPath(context, frameContour, false);
     FrameWinding fillData(FrameFill::fill, 1);
     Winding fillWinding { &fillData, sizeof(fillData) };
     Contour* fillContour = CreateContour(context, fillWinding);
-    SetWindingCallBacks(fillContour, { frameAddFunc, operatorFunc, frameVisibleFunc, frameZeroFunc, 
-            frameSubtractFunc });
-#if OP_DEBUG
-	SetDebugWindingCallBacks(fillContour, { nullptr , 0 }, noDebugBitOper
-	        OP_DEBUG_DUMP_PARAMS(nullptr, FrameWinding::DumpOutFunc, nullptr)
-            OP_DEBUG_IMAGE_PARAMS(frameWindingImageOutFunc, noNativePathFunc,
-            noDebugGetDrawFunc, noDebugSetDrawFunc, noIsOppFunc)
-	);
-#endif
-	opAddPath(context, frameContour, false);
 	path.opAddPath(context, fillContour, true);
 	SetErrorHandler(context, allowDisjointLines);
 	return handleError(context);

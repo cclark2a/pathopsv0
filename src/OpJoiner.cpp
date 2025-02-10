@@ -5,6 +5,8 @@
 #include "OpSegment.h"
 #include "PathOps.h"
 
+int debugHits = 0;
+
 #if WINDER_CONTOUR_EXPERIMENT
 void OpLimb::addEach(OpContour& join, OpTree& tree)
 #else
@@ -48,16 +50,38 @@ void OpLimb::addEach(OpJoiner& join, OpTree& tree)
 #endif
 	if (LimbPass::linked == pass)
 		return;
+#if OP_DEBUG_DUMP && !TEST_DEFEAT_BREAK
+	if (6926 == id && 42 == join.id) {
+		++debugHits;
+		OpDebugOut("debugHits: " + STR(debugHits) + "\n");
+		if (debugHits == 8) {
+#if OP_DEBUG_IMAGE
+			playback();
+			hideTemporaryEdges();
+			colorActive(transparent);
+			colorDisabled(transparent);
+			colorUnsectables(transparent);
+			colorUnsortables(transparent);
+			colorLinkups(green);
+			OpAssert(0);
+#endif
+		}
+	}
+#endif
 	for (const std::vector<OpEdge*>& edges : { join.unsectByArea, join.unsortables } ) {
 		for (OpEdge* test : edges) {
+//			OpAssert(debugHits < 8 || 6866 != test->id);
 			if (test->inLinkups)
 				continue;
-			if (test->isUnsectable() && tree.preferSibling(this, test))
+			bool preferSibling = test->isUnsectable() && tree.preferSibling(this, test);
+			if (preferSibling) //  && LimbPass::unsectPair > tree.limbPass)
 				continue;
+		//	tree.deferUnsectable = preferSibling;
 			tryAdd(tree, test, EdgeMatch::start, LimbPass::unlinked); 
 			tryAdd(tree, test, EdgeMatch::end, LimbPass::unlinked);
 		}
 	}
+	tree.deferUnsectable = false;
 	if (LimbPass::unlinked == pass)
 		return;
 	if (!join.disabledBuilt)
@@ -128,6 +152,7 @@ void OpLimb::set(OpTree& tree, OpEdge* test, OpLimb* p, EdgeMatch m, LimbPass l,
 	resetPass = true;
 	looped = false;
 	deadEnd = false;
+	deferredUnsectable = tree.deferUnsectable;
 	if (LimbPass::linked != treePass && LimbPass::miswound != treePass) {
 		lastLimbEdge = edge;
 		lastPtT = lastLimbEdge->whichPtT(!match);
@@ -239,19 +264,32 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 			return nullptr;
 		if (tree.containsFiller(this, lastPtT.pt, startI.pt))
 			return nullptr;
-		OpEdge* filler = tree.addFiller(lastPtT, startI);
-		filler->setWhich(EdgeMatch::start);
-		OpLimb* fillerBranch = tree.makeLimb();
-		fillerBranch->set(tree, filler, this, EdgeMatch::start, tree.limbPass, 
-#if WINDER_CONTOUR_EXPERIMENT
-				limbContour,
-#endif
-				limbIndex, nullptr, &filler->ptBounds);
-		fillerBranch->gapDistance = (startI.pt - lastPtT.pt).length();
-		return fillerBranch;
+		if (tree.bestGapLimb) { 
+			float gap = (lastPtT.pt - startI.pt).length();
+			if (tree.bestDistance < gap)
+				return nullptr;
+		}
+		// if tree contains deferred unsectable with ends equal to filler, use that instead
+		if (!tree.deferUnsectable) {
+	#if WINDER_CONTOUR_EXPERIMENT
+			OpEdge* filler = tree.addFiller(lastLimbEdge->segment, lastPtT, startI);
+	#else
+			OpEdge* filler = tree.addFiller(lastPtT, startI);
+	#endif
+			filler->setWhich(EdgeMatch::start);
+			OpLimb* fillerBranch = tree.makeLimb();
+			fillerBranch->set(tree, filler, this, EdgeMatch::start, tree.limbPass, 
+	#if WINDER_CONTOUR_EXPERIMENT
+					limbContour,
+	#endif
+					limbIndex, nullptr, &filler->ptBounds);
+			fillerBranch->gapDistance = (startI.pt - lastPtT.pt).length();
+			return fillerBranch;
+		}
 	}
 	if (tree.containsParent(this, test, m))
 		return nullptr;
+	// if defer unsectable is set, save branch and use it instead of creating filler
 	OpLimb* branch = tree.makeLimb();
 	// !!! if some upper number of limbs are made, return fail instead of running forever
 	//      let caller supply limit?
@@ -260,7 +298,6 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 			limbContour,
 #endif
 			limbIndex, otherEnd, &childBounds);
-	OpBreak(branch->edge, 94);
 	return branch;
 }
 
@@ -272,7 +309,9 @@ OpTree::OpTree(OpJoiner& join)
 	, limbPass(LimbPass::linked)
 	, bestDistance(OpInfinity)
 	, bestPerimeter(OpInfinity)
-	, totalUsed(0) {
+	, totalUsed(0)
+	, deferUnsectable(false) {
+	id = context->nextID();
 	maxLimbs = context->contextCallBacks.maxLimbsFuncPtr ?
 			context->contextCallBacks.maxLimbsFuncPtr((PathOpsV0Lib::Context*) context) : 500;
 	OP_DEBUG_CODE(context->debugTree = this);
@@ -280,14 +319,10 @@ OpTree::OpTree(OpJoiner& join)
 	OP_DEBUG_IMAGE_CODE(context->debugLimbClear());
 	OP_DEBUG_IMAGE_CODE(debugLimbEdges(join.edge));
 #if WINDER_CONTOUR_EXPERIMENT
+// Mark edges' 'seen' as unset in this tree. Later, mark additional contours as they are linked
 	OpContour* edgeContour = join.edge->segment->contour;
 	for (auto contour : edgeContour->sects) {
-		for (OpEdge* test : contour->linkups.l) {
-			test->startSeen = false;
-		}
-		for (OpEdge* test : contour->endLinks.l) {
-			test->lastEdge->endSeen = false;
-		}
+		contour->setSeen(id);
 	}
 #else
 	for (OpEdge* test : join.linkups.l) {
@@ -338,7 +373,11 @@ OpTree::OpTree(OpJoiner& join)
 				OpEdge* endEdge = limb.edge;
 				if (endEdge->lastEdge)
 					endEdge = endEdge->lastEdge;
+				else if (endEdge->priorEdge)
+					endEdge = endEdge->advanceToEnd(EdgeMatch::start);
 				for (auto contour : endEdge->segment->contour->sects) {
+					if (contour->treeID != id)
+						contour->setSeen(id);
 					limb.addEach(*contour, *this);
 				}
 #else
@@ -388,7 +427,11 @@ void OpTree::addDisabled(OpJoiner& join)
 					OpIntersection* unOpp = unSect->opp;
 					if (unOpp->ptT.pt == unSect->ptT.pt)
 						continue;
+#if WINDER_CONTOUR_EXPERIMENT
+					OpEdge* filler = addFiller(unSect->segment, unSect->ptT, unOpp->ptT);
+#else
 					OpEdge* filler = addFiller(unSect->ptT, unOpp->ptT);
+#endif
 					filler->setWhich(EdgeMatch::start);
 					OpLimb* branch = makeLimb();
 					branch->set(*this, filler, &limb, match, LimbPass::disjoint, 
@@ -407,16 +450,34 @@ void OpTree::addDisabled(OpJoiner& join)
 }
 
 // convenience for setting breakpoints
-OpEdge* OpTree::addFiller(const OpPtT& ptT1, const OpPtT& ptT2) {
-// OpDebugOut("filler length:" + STR((ptT1.pt - ptT2.pt).length()) + "limitContours:" + STR(contours->debugData.limitContours) + "\n");
+#if WINDER_CONTOUR_EXPERIMENT
+OpEdge* OpTree::addFiller(OpSegment* seg, const OpPtT& ptT1, const OpPtT& ptT2) 
+#else
+OpEdge* OpTree::addFiller(const OpPtT& ptT1, const OpPtT& ptT2) 
+#endif
+{
+    float fillerLength = (ptT1.pt - ptT2.pt).length();
+	float thresholdLength = context->aliases.threshold.length();
+	PathOpsV0Lib::MaxGap gapFuncPtr = context->contextCallBacks.maxGapFuncPtr;
+	float gapFactor = gapFuncPtr ? (*gapFuncPtr)((PathOpsV0Lib::Context*) context) : 15.f;
+	if (fillerLength > thresholdLength * gapFactor)
+		context->setError(PathOpsV0Lib::ContextError::gap  OP_DEBUG_PARAMS(id));
 	OP_ASSERT(OpJoiner::DebugShowImage());
-	return context->addFiller(ptT1, ptT2);
+	OpEdge* result = context->addFiller(ptT1, ptT2);
+#if WINDER_CONTOUR_EXPERIMENT
+	result->segment = seg;
+#endif
+	return result;
 }
 
 void OpTree::addUnsectableLoop(OpJoiner& joiner, OpLimb* end) {
 	OpEdge* joinEdge = joiner.edge;
 	OpPtT startI = joinEdge->whichPtT(EdgeMatch::start);
+#if WINDER_CONTOUR_EXPERIMENT
+	OpEdge* filler = addFiller(end->edge->segment, end->lastPtT, startI);
+#else
 	OpEdge* filler = addFiller(end->lastPtT, startI);
+#endif
 	OpLimb* limb = makeLimb();
 	limb->set(*this, filler, end, EdgeMatch::start, LimbPass::disjoint, 
 #if WINDER_CONTOUR_EXPERIMENT
@@ -470,6 +531,28 @@ bool OpTree::containsParent(OpLimb* parent, OpEdge* edge, EdgeMatch m) const {
 // to contour to minimize this search
 bool OpTree::containsFiller(OpLimb* parent, OpPoint pt1, OpPoint pt2) const {
 	return context->containsFiller(pt1, pt2);
+}
+
+bool OpTree::containsDeferred(OpPoint pt1, OpPoint pt2) const {
+	OpLimbStorage* limbs = context->limbCurrent;
+	while (limbs) {
+		int index = limbs->used;
+		OP_ASSERT(index > 0);
+		do {
+			OpLimb* testLimb = &limbs->storage[--index];
+			if (!testLimb->deferredUnsectable)
+				continue;
+			OpEdge* testEdge = testLimb->edge;
+			if (testEdge->curve.firstPt() != pt1 && testEdge->curve.firstPt() != pt2) 
+				continue;
+			if (testEdge->curve.lastPt() != pt1 && testEdge->curve.lastPt() != pt2) 
+				continue;
+			testLimb->deferredUnsectable = false;
+			return true;
+		} while (index > 0);
+		limbs = limbs->prevBlock;
+	}
+	return false;
 }
 
 #if WINDER_CONTOUR_EXPERIMENT
@@ -526,11 +609,13 @@ bool OpTree::join(OpJoiner& join) {
 	}
 	if (LimbPass::linked == bestL->treePass || LimbPass::miswound == bestL->treePass) {
 #if WINDER_CONTOUR_EXPERIMENT
-		OpEdge* eraseLink = bestL->linkedContour->linkups.l[bestL->linkedIndex];
-#if OP_DEBUG_VALIDATE
-		eraseLink->debugScheduledForErasure = true;
-#endif
-		linkupsErasures.push_back(eraseLink);
+		if (EdgeMatch::start == bestL->match) {
+			OpEdge* eraseLink = bestL->linkedContour->linkups.l[bestL->linkedIndex];
+	#if OP_DEBUG_VALIDATE
+			eraseLink->debugScheduledForErasure = true;
+	#endif
+			linkupsErasures.push_back(eraseLink);
+		}
 #else
 		linkupsErasures.push_back(bestL->linkedIndex);
 #endif
@@ -548,7 +633,7 @@ bool OpTree::join(OpJoiner& join) {
 		best->setPriorEdge(last);
 		last->setNextEdge(best);
 #if WINDER_CONTOUR_EXPERIMENT
-		prior->setLastEdge(best, best->lastEdge);
+		prior->setLastEdge(best, best->lastEdge, InOutput::yes);
 #else
 		prior->lastEdge = best->lastEdge;
 		prior->setLinkBounds();
@@ -557,13 +642,18 @@ bool OpTree::join(OpJoiner& join) {
 		OP_ASSERT(!last->debugIsLoop());
 		if (LimbPass::linked == lastLimb->treePass || LimbPass::miswound == lastLimb->treePass) {
 #if WINDER_CONTOUR_EXPERIMENT
-			OpEdge* eraseLink = lastLimb->linkedContour->linkups.l[lastLimb->linkedIndex];
+			if (EdgeMatch::start == lastLimb->match) {
+				OpEdge* eraseLink = lastLimb->linkedContour->linkups.l[lastLimb->linkedIndex];
+				if (linkupsErasures.end() == std::find(linkupsErasures.begin(), 
+						linkupsErasures.end(), eraseLink)) {
 #if OP_DEBUG_VALIDATE
-			eraseLink->debugScheduledForErasure = true;
+					eraseLink->debugScheduledForErasure = true;
 #endif
-			linkupsErasures.push_back(eraseLink);
+					linkupsErasures.push_back(eraseLink);
+				}
+			}
 #else
-			linkupsErasures.push_back(lastLimb->linkedIndex);
+				linkupsErasures.push_back(lastLimb->linkedIndex);
 #endif
 		}
 		bestL = lastLimb;
@@ -698,7 +788,7 @@ void OpLimbStorage::reset() {
 	used = 0;
 }
 
-OpJoiner::OpJoiner(OpContours& contours)
+OpJoiner::OpJoiner(OpContext& contours)
 	: 
 #if WINDER_CONTOUR_EXPERIMENT
 	context(&contours),
@@ -806,7 +896,8 @@ void OpJoiner::addEdge(OpEdge* e)
 		e->outputLinkedList(e, true);
 	} else {
 #if WINDER_CONTOUR_EXPERIMENT
-		e->segment->contour->pushLinkup(e);
+//		e->segment->contour->pushLinkup(e);
+		addToLinkups(joiner, e);
 		e->setLinkBounds();
 #else
 		addToLinkups(e);
@@ -834,13 +925,13 @@ void OpJoiner::addToLinkups(OpEdge* e)
 			OP_ASSERT(next->isActive());
 			next->setActive(false);
 		}
-		next->clearLastEdge();
+		next->clearLastEdge(InOutput::no);
 		next->inLinkups = true;
 		last = next;
 		next = next->nextEdge;
 	} while (next);
 #if WINDER_CONTOUR_EXPERIMENT
-	first->setLastEdge(first, last);
+	first->setLastEdge(first, last, InOutput::no);
 #else
 	first->lastEdge = last;
 #endif
@@ -848,14 +939,16 @@ void OpJoiner::addToLinkups(OpEdge* e)
 #if OP_DEBUG_VALIDATE
 	OP_ASSERT(!first->debugScheduledForErasure);
 #endif
+#if WINDER_CONTOUR_EXPERIMENT
 	first->segment->contour->linkups.l.push_back(first);	// !!! call pushlinkup?
 	first->linkHead = true;
+#endif
 }
 
 #if WINDER_CONTOUR_EXPERIMENT
 void OpContour::buildDisabled() 
 #else
-void OpJoiner::buildDisabled(OpContours& contours) 
+void OpJoiner::buildDisabled(OpContext& contours) 
 #endif
 {
 	// example that needs small factor: testQuads18787007
@@ -885,7 +978,7 @@ void OpJoiner::buildDisabled(OpContours& contours)
 #if WINDER_CONTOUR_EXPERIMENT
 void OpContour::buildDisabledPals() 
 #else
-void OpJoiner::buildDisabledPals(OpContours& contours) 
+void OpJoiner::buildDisabledPals(OpContext& contours) 
 #endif
 {
 #if WINDER_CONTOUR_EXPERIMENT
@@ -1022,16 +1115,16 @@ bool OpJoiner::detachIfLoop(OpEdge* e, EdgeMatch loopMatch)
 #if WINDER_CONTOUR_EXPERIMENT
 bool OpJoiner::linkRemaining(OpContour* contour) 
 #else
-bool OpJoiner::linkRemaining(OP_DEBUG_CODE(OpContours* debugContours)) 
+bool OpJoiner::linkRemaining(OP_DEBUG_CODE(OpContext* debugContours)) 
 #endif
 {
 	OP_DEBUG_CONTEXT();
 #if WINDER_CONTOUR_EXPERIMENT
-	OP_DEBUG_CODE(contour->debugMatchRay());
 	LinkUps& linkups = contour->linkups;
 #else
 	OP_DEBUG_CODE(debugMatchRay(debugContours));
 #endif
+	dmp(26);
 	OP_ASSERT(DebugShowImage());
 	linkPass = LinkPass::remaining;
 	// match links may add or remove from link ups. Iterate as long as link ups is not empty
@@ -1054,7 +1147,6 @@ bool OpJoiner::linkRemaining(OP_DEBUG_CODE(OpContours* debugContours))
 			for (OpContour* sectContour : contour->sects) {
 				size_t linkupsIndex = 0;
 				for (;;) {
-					OpBreak(edge, 110);
 					relink = sectContour->relinkUnambiguous(this, linkupsIndex);
 					if (RelinkJoins::unmatched != relink)
 						break;
@@ -1300,7 +1392,11 @@ bool OpJoiner::matchLinks(bool popLast) {
 				nullptr)) {
 			OpPtT startI = edge->whichPtT(EdgeMatch::start);
 			OpPtT gapEnd = gap->lastLimbEdge->whichPtT(!gap->match);
+#if WINDER_CONTOUR_EXPERIMENT
+			OpEdge* filler = tree.addFiller(gap->lastLimbEdge->segment, gapEnd, startI);
+#else
 			OpEdge* filler = tree.addFiller(gapEnd, startI);
+#endif
 			OpLimb* branch = tree.makeLimb();
 			branch->set(tree, filler, gap, EdgeMatch::start, LimbPass::disjoint, 
 #if WINDER_CONTOUR_EXPERIMENT
@@ -1386,7 +1482,6 @@ bool OpJoiner::relinkUnambiguous(size_t link)
 						return false;
 					if (!testMatch(test->lastEdge, EdgeMatch::end))
 						return false;
-					++index;
 				}
 			}
 	#else
@@ -1448,11 +1543,13 @@ bool OpJoiner::relinkUnambiguous(size_t link)
 						tEdge->setWhich(!tEdge->which());
 					else {
 						tEdge = tEdge->lastEdge;
-						tEdge->setLinkDirection(tMatch);  // reverse links
-						tEdge->setLinkBounds();
 	#if WINDER_CONTOUR_EXPERIMENT
+						tEdge->setLinkDirection(tMatch, &linkupsErasures, InOutput::no);  // reverse links
+						tEdge->setLinkBounds();
 						tContour->setLinkEdge(tEdge, tIndex);
 	#else
+						tEdge->setLinkDirection(tMatch);  // reverse links
+						tEdge->setLinkBounds();
 						linkups.l[tIndex] = tEdge;
 	#endif
 					}
@@ -1460,7 +1557,7 @@ bool OpJoiner::relinkUnambiguous(size_t link)
 				e->setPriorEdge(tEdge->lastEdge);
 				tEdge->lastEdge->setNextEdge(e);
 	#if WINDER_CONTOUR_EXPERIMENT
-				tEdge->setLastEdge(e, e->lastEdge);
+				tEdge->setLastEdge(e, e->lastEdge, InOutput::no);
 	#else
 				tEdge->lastEdge = e->lastEdge;
 				tEdge->setLinkBounds();
@@ -1469,14 +1566,17 @@ bool OpJoiner::relinkUnambiguous(size_t link)
 			} else {
 				if (EdgeMatch::end == tMatch) {
 					tEdge = tEdge->lastEdge;
-					playback();
+	#if WINDER_CONTOUR_EXPERIMENT
+					tEdge->setLinkDirection(tMatch, &linkupsErasures, InOutput::no);  // reverse links
+	#else
 					tEdge->setLinkDirection(tMatch);  // reverse links
+	#endif
 				}
 				e = e->advanceToEnd(EdgeMatch::start);
 				tEdge->setPriorEdge(e->lastEdge);
 				e->lastEdge->setNextEdge(tEdge);
 	#if WINDER_CONTOUR_EXPERIMENT
-				e->setLastEdge(tEdge, tEdge->lastEdge);
+				e->setLastEdge(tEdge, tEdge->lastEdge, InOutput::no);
 	#else
 				e->lastEdge = tEdge->lastEdge;
 				e->setLinkBounds();

@@ -13,7 +13,7 @@ void OpDebugGenerateColorFiles();
 struct LinePts;
 struct LinkUps;
 struct OpContour;
-struct OpContours;
+struct OpContext;
 struct OpCurve;
 struct OpDebugRay;
 struct OpEdge;
@@ -82,16 +82,12 @@ struct OpDebugImage {
 	static void record(FILE* );
 };
 
-inline uint32_t OpDebugAlphaColor(uint32_t alpha, uint32_t color) {
-	return (alpha << 24) | (color & 0x00FFFFFF);
-}
-
 // call these inline or from the immediate window while debugging
 extern void add(std::vector<OpEdge>& );  // to draw edge list built from intersections
 extern void add(std::vector<OpEdge*>& ); // to draw unsortables
 extern void addFocus(int id);
 extern void addFocus(const OpContour& );
-extern void addFocus(const OpContours& );
+extern void addFocus(const OpContext& );
 extern void addFocus(const OpEdge& );
 extern void addFocus(const OpIntersection& );
 extern void addFocus(const OpPoint& );  // pass by reference; VS fails by value in immediate window
@@ -99,7 +95,7 @@ extern void addFocus(const OpPtT& );
 extern void addFocus(const OpRect& );
 extern void addFocus(const OpSegment& );
 extern void addFocus(const OpContour* );
-extern void addFocus(const OpContours* );
+extern void addFocus(const OpContext* );
 extern void addFocus(const OpEdge* );
 extern void addFocus(const OpIntersection* );
 extern void addFocus(const OpPoint* );
@@ -113,7 +109,7 @@ extern void ctr();
 extern void ctr(int id);
 extern void ctr(float x, float y);
 extern void ctr(const OpContour& );
-extern void ctr(const OpContours& );
+extern void ctr(const OpContext& );
 extern void ctr(const OpEdge& );
 extern void ctr(const OpIntersection& );
 extern void ctr(const OpRect& );
@@ -121,7 +117,7 @@ extern void ctr(const OpPoint& );
 extern void ctr(const OpPtT& );
 extern void ctr(const OpSegment& );
 extern void ctr(const OpContour* );
-extern void ctr(const OpContours* );
+extern void ctr(const OpContext* );
 extern void ctr(const OpEdge* );
 extern void ctr(const OpIntersection* );
 extern void ctr(const OpRect* );
@@ -131,11 +127,6 @@ extern void ctr(const OpSegment* );
 extern void clear();
 extern void clearLines();
 extern void clearPoints();
-extern void color(int id);
-extern void color(int id, uint32_t color);
-extern void colorLink(int id, uint32_t color = 0xAbeBeBad);
-extern void colorLink(const OpEdge& , uint32_t color = 0xAbeBeBad);
-extern void colorLink(const OpEdge* , uint32_t color = 0xAbeBeBad);
 extern void debugImage();
 extern void draw(std::vector<OpEdge>& );  // to draw edge list built from intersections
 extern void draw(std::vector<OpEdge*>& ); // to draw unsortables
@@ -164,12 +155,12 @@ extern void drawT(const OpEdge*, const OpPtT& );
 extern void drawT(const OpEdge*, const OpPtT* );
 extern void focus(int id);
 extern void focus(const OpContour& );
-extern void focus(const OpContours& );
+extern void focus(const OpContext& );
 extern void focus(const OpEdge& );
 extern void focus(const OpRect& );
 extern void focus(const OpSegment& );
 extern void focus(const OpContour* );
-extern void focus(const OpContours* );
+extern void focus(const OpContext* );
 extern void focus(const OpEdge* );
 extern void focus(const OpRect* );
 extern void focus(const OpSegment* );
@@ -288,7 +279,20 @@ OP_X(Unsortables, Unsortable::none != edge->isUnsortable)
 	COLOR_LIST
 #undef OP_X
 
-extern uint32_t OP_DEBUG_MULTICOLORED;
+#define multiColor 0xAbeBeBad
+#define multicolor 0xAbeBeBad
+#define transparent 0x00FFFFFF
+
+extern void color(int id, uint32_t color);
+extern void color(int id, uint8_t alpha, uint32_t color);
+extern void colorLink(int id, uint32_t color);
+extern void colorLink(const OpEdge& , uint32_t color);
+extern void colorLink(const OpEdge* , uint32_t color);
+
+// affects edge list in: contour, link (edge), segment (and intersection? show shared edges?) 
+extern void show(int id);
+extern void hide(int id);
+extern void toggle(int id);
 
 extern void u(float );
 extern void u();

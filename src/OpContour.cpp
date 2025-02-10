@@ -6,7 +6,7 @@
 #include "OpWinder.h"
 #include "PathOps.h"
 
-char* OpContours::allocateCallerData(size_t size) {
+char* OpContext::allocateCallerData(size_t size) {
 	if (!callerStorage)
 		callerStorage = new CallerDataStorage;
 	if (callerStorage->used + size > sizeof(callerStorage->storage)) {
@@ -24,7 +24,7 @@ char* OpContours::allocateCallerData(size_t size) {
 }
 
 #if OP_DEBUG
-void OpContour::addDebugCallerData(PathOpsV0Lib::DebugCallerData data) {
+void OpContour::addDebugContourData(PathOpsV0Lib::DebugContourData data) {
 	if (!data.size) {
 		debugCaller.data = nullptr;
 		debugCaller.size = 0;
@@ -37,15 +37,52 @@ void OpContour::addDebugCallerData(PathOpsV0Lib::DebugCallerData data) {
 #endif
 
 #if WINDER_CONTOUR_EXPERIMENT
-void OpContour::addEdges(OpContour* contour) {
+// If edge is disabled, but its winding was transferred to another edge (potentially in another 
+// contour) remember that to check to see if coin edge should also be added. (fuzz763_1823)
+bool OpContour::addEdges(OpContour* contour) {
+	bool addCoin = false;
 	for (auto& segment : contour->segments) {
 		for (auto& edge : segment.edges) {
-			if (edge.disabled)
+			if (edge.disabled) {
+				if (!addCoin) {
+					for (CoinPal& coinPal : edge.coinPals) {
+						addCoin |= sects.end() == std::find(sects.begin(), sects.end(), 
+								coinPal.opp->contour);
+					}
+				}
 				continue;
+			}
 			if (edge.ptBounds.height())
 				inX.push_back(&edge);
 			if (edge.ptBounds.width())
 				inY.push_back(&edge);
+		}
+	}
+	return addCoin;
+}
+
+// If an edge is disabled, but its winding was transferred to another edge (potentially in another 
+// contour) add the coincident edge to the list. (fuzz763_1823)
+// !!! this avoids adding the same edge more than once, at the expense of scanning all edges
+//     if this is a performance concern, defer duplicate check until after sort
+void OpContour::addCoinEdges(OpContour* contour) {
+	for (auto& segment : contour->segments) {
+		for (auto& edge : segment.edges) {
+			if (!edge.disabled)
+				continue;
+			for (CoinPal& coinPal : edge.coinPals) {
+				OpSegment* coinSeg = coinPal.opp;
+				if (sects.end() != std::find(sects.begin(), sects.end(), coinSeg->contour))
+					continue;
+				for (auto& cEdge : coinSeg->edges) {
+					if (cEdge.ptBounds.height() 
+							&& inX.end() == std::find(inX.begin(), inX.end(), &cEdge))
+						inX.push_back(&cEdge);
+					if (cEdge.ptBounds.width() 
+							&& inY.end() == std::find(inY.begin(), inY.end(), &cEdge))
+						inY.push_back(&cEdge);
+				}
+			}
 		}
 	}
 }
@@ -64,7 +101,6 @@ void OpContour::addLast(OpEdge* edge) {
 	OP_ASSERT(!edge->priorEdge);
 #if OP_DEBUG
 	for (OpEdge* test : endLinks.l) {
-		OP_ASSERT(test->lastEdge);
 		OP_ASSERT(test->lastEdge->segment->contour == this);
 		OP_ASSERT(test != edge);
 		OP_ASSERT(!test->priorEdge);
@@ -74,7 +110,7 @@ void OpContour::addLast(OpEdge* edge) {
 	endLinks.l.push_back(edge);
 }
 
-void OpContour::removeLast(OpEdge* edge) {
+void OpContour::removeLast(OpEdge* edge, InOutput inOut) {
 	for (size_t index = 0; index < endLinks.l.size(); ++index) {
 		OpEdge* test = endLinks.l[index];
 		if (edge == test) {
@@ -83,6 +119,8 @@ void OpContour::removeLast(OpEdge* edge) {
 			return;
 		}
 	}
+	if (edge->inOutput || InOutput::yes == inOut)
+		return;
 	OP_ASSERT(0);
 }
 
@@ -168,6 +206,19 @@ int OpContour::nextID() const {
 //        OpDebugOut("");
 	return context->nextID();
 }
+
+
+#if WINDER_CONTOUR_EXPERIMENT
+void OpContour::setSeen(int tree_id) {
+	treeID = tree_id;
+	for (OpEdge* test : linkups.l) {
+		test->startSeen = false;
+	}
+	for (OpEdge* test : endLinks.l) {
+		test->lastEdge->endSeen = false;
+	}
+}
+#endif
 
 // end of contour; start of contours
 
@@ -298,7 +349,7 @@ SegPt OpPtAliases::addIfClose(OpPoint match) {
 	return { match, PtType::noMatch };
 }
 
-OpContours::OpContours()
+OpContext::OpContext()
 	: errorHandler({nullptr})
 	, ccStorage(nullptr)
 	, curveDataStorage(nullptr)
@@ -309,6 +360,7 @@ OpContours::OpContours()
 	, limbCurrent(nullptr)
 	, callerStorage(nullptr)
 	, error(PathOpsV0Lib::ContextError::none)
+	, fatalError(false)
 	, uniqueID(0) 
 	, outputOne(false)
 	OP_DEBUG_PARAMS(debugData(false)) {
@@ -335,7 +387,7 @@ OpContours::OpContours()
 #endif
 }
 
-OpContours::~OpContours() {
+OpContext::~OpContext() {
 	release(ccStorage);
 	while (curveDataStorage) {
 		CurveDataStorage* next = curveDataStorage->next;
@@ -374,7 +426,7 @@ OpContours::~OpContours() {
 #endif
 }
 
-bool OpContours::addAlias(OpPoint pt, OpPoint alias) {
+bool OpContext::addAlias(OpPoint pt, OpPoint alias) {
 	   if (!aliases.add(pt, alias)) {
 		   remapPts(pt, alias);
 		   return false;
@@ -382,13 +434,13 @@ bool OpContours::addAlias(OpPoint pt, OpPoint alias) {
 	   return true;
 }
 
-OpEdge* OpContours::addFiller(const OpPtT& start, const OpPtT& end) {
+OpEdge* OpContext::addFiller(const OpPtT& start, const OpPtT& end) {
 	void* block = allocateEdge(fillerStorage);
 	OpEdge* filler = new(block) OpEdge(this, start, end  OP_LINE_FILE_PARGS());
 	return filler;
 }
 
-OpContour* OpContours::allocateContour() {
+OpContour* OpContext::allocateContour() {
 	if (!contourStorage)
 		contourStorage = new OpContourStorage;
 	if (contourStorage->used == ARRAY_COUNT(contourStorage->storage)) {
@@ -399,7 +451,7 @@ OpContour* OpContours::allocateContour() {
 	return &contourStorage->storage[contourStorage->used++];
 }
 
-OpEdge* OpContours::allocateEdge(OpEdgeStorage*& edgeStorage) {
+OpEdge* OpContext::allocateEdge(OpEdgeStorage*& edgeStorage) {
 	if (!edgeStorage)
 		edgeStorage = new OpEdgeStorage;
 	if (edgeStorage->used == ARRAY_COUNT(edgeStorage->storage)) {
@@ -410,7 +462,7 @@ OpEdge* OpContours::allocateEdge(OpEdgeStorage*& edgeStorage) {
 	return &edgeStorage->storage[edgeStorage->used++];
 }
 
-PathOpsV0Lib::CurveData* OpContours::allocateCurveData(size_t size) {
+PathOpsV0Lib::CurveData* OpContext::allocateCurveData(size_t size) {
 	if (!curveDataStorage)
 		curveDataStorage = new CurveDataStorage;
 	if (curveDataStorage->used + size > sizeof(curveDataStorage->storage)) {
@@ -421,7 +473,7 @@ PathOpsV0Lib::CurveData* OpContours::allocateCurveData(size_t size) {
 	return curveDataStorage->curveData(size);
 }
 
-OpIntersection* OpContours::allocateIntersection() {
+OpIntersection* OpContext::allocateIntersection() {
 	if (!sectStorage)
 		sectStorage = new OpSectStorage;
 	if (sectStorage->used == ARRAY_COUNT(sectStorage->storage)) {
@@ -433,7 +485,7 @@ OpIntersection* OpContours::allocateIntersection() {
 	return &sectStorage->storage[sectStorage->used++];
 }
 
-OpLimb* OpContours::allocateLimb() {
+OpLimb* OpContext::allocateLimb() {
 	if (limbStorage->used == ARRAY_COUNT(limbStorage->storage)) {
 		OpLimbStorage* next = new OpLimbStorage;
 		next->nextBlock = limbStorage;
@@ -444,7 +496,7 @@ OpLimb* OpContours::allocateLimb() {
 	return limbStorage->allocate();
 }
 
-PathOpsV0Lib::WindingData* OpContours::allocateWinding(size_t size) {
+PathOpsV0Lib::WindingData* OpContext::allocateWinding(size_t size) {
 	void* result = allocateCallerData(size);
 	return (PathOpsV0Lib::WindingData*) result;
 }
@@ -455,7 +507,7 @@ PathOpsV0Lib::WindingData* OpContours::allocateWinding(size_t size) {
 // make sure normals point same way
 // prefer smaller assembled contours
 // returns true on success
-bool OpContours::assemble() {
+bool OpContext::assemble() {
 	OpJoiner joiner(*this);
 #if WINDER_CONTOUR_EXPERIMENT
 	bool linkableFound = false;
@@ -466,14 +518,26 @@ bool OpContours::assemble() {
 		initOutOnce();
 		return true;
 	}
+	std::vector<OpContour*> sorted;
+	for (auto contour : contours) {
+		sorted.push_back(contour);
+	}
+	std::sort(sorted.begin(), sorted.end(), [](OpContour* a, OpContour* b) {
+			return a->bounds.left < b->bounds.left; });
 	for (LinkPass linkPass : { LinkPass::normal, LinkPass::unsectable } ) {
 		for (auto contour : contours) {
 			joiner.linkUnambiguous(contour, linkPass);
 		}
 		bool remaining = false;
+#if OP_DEBUG
 		for (auto contour : contours) {
+			contour->debugMatchRay();
+		}
+#endif
+		// sort contours so that first edge is on the outside
+		for (auto contour : sorted) {
 			remaining |= !joiner.linkRemaining(contour);
-			if (PathOpsV0Lib::ContextError::none != error)
+			if (fatalError)
 				return false;
 		}
 		if (!remaining)
@@ -488,27 +552,27 @@ bool OpContours::assemble() {
 		joiner.linkUnambiguous(linkPass);
 		if (joiner.linkRemaining(OP_DEBUG_CODE(this)))
 			return true;
-		if (PathOpsV0Lib::ContextError::none != error)
+		if (fatalError)
 			return false;
 	}
 #endif
 	return false;
 }
 
-bool OpContours::containsFiller(OpPoint start, OpPoint end) const {
+bool OpContext::containsFiller(OpPoint start, OpPoint end) const {
 	if (!fillerStorage)
 		return false;
 	return fillerStorage->contains(start, end);
 }
 
-void OpContours::disableSmallSegments() {
+void OpContext::disableSmallSegments() {
 	SegmentIterator segIterator(this);
 	while (OpSegment* seg = segIterator.next()) {
 		seg->disableSmall();
 	}
 }
 
-void OpContours::initOutOnce() {
+void OpContext::initOutOnce() {
 	if (outputOne)
 		return;
 	PathOpsV0Lib::EmptyCallerPath emptyPath = contextCallBacks.emptyCallerPathFuncPtr;
@@ -517,7 +581,7 @@ void OpContours::initOutOnce() {
 	outputOne = true;
 }
 
-OpLimb& OpContours::nthLimb(int index) {
+OpLimb& OpContext::nthLimb(int index) {
 	int blockBase = index & ~(ARRAY_COUNT(limbStorage->storage) - 1);
 	if (!limbCurrent || limbCurrent->baseIndex != blockBase) {
 		limbCurrent = limbStorage;
@@ -530,13 +594,13 @@ OpLimb& OpContours::nthLimb(int index) {
 	return limbCurrent->storage[index];
 }
 
-void OpContours::resetLimbs() {
+void OpContext::resetLimbs() {
 	if (!limbStorage)
 		limbStorage = new OpLimbStorage;
 	limbStorage->reset();
 }
 
-void OpContours::opsInit() {
+void OpContext::opsInit() {
 	setThreshold();
 	OpContourIterator iterator(this);
 	for (OpContourIter iter = iterator.begin(); iter != iterator.end(); ++iter) {
@@ -586,7 +650,7 @@ void OpContours::opsInit() {
 // This will compare the dumps of contours and contents to detect when something changed.
 // The callouts are removed when not in use as they are not maintained and reduce readability.
 // !!! OP_DEBUG_COUNT was unintentionally deleted at some point. Hopefully it is in git history...
-bool OpContours::pathOps() {
+bool OpContext::pathOps() {
 	OpSegments segments(*this);
 	segments.findCoincidences();
 	debugValidateIntersections();
@@ -641,7 +705,7 @@ bool OpContours::pathOps() {
 	OP_DEBUG_SUCCESS(*this, true);
 }
 
-void OpContours::release(OpEdgeStorage*& edgeStorage) {
+void OpContext::release(OpEdgeStorage*& edgeStorage) {
 	while (edgeStorage) {
 		OpEdgeStorage* next = edgeStorage->next;
 		delete edgeStorage;
@@ -649,7 +713,7 @@ void OpContours::release(OpEdgeStorage*& edgeStorage) {
 	}
 }
 
-OpPoint OpContours::remapPts(OpPoint oldAlias, OpPoint newAlias) {
+OpPoint OpContext::remapPts(OpPoint oldAlias, OpPoint newAlias) {
 	for (auto contour : contours) {
 		for (auto& segment : contour->segments) {
 			segment.remap(oldAlias, newAlias);
@@ -661,7 +725,7 @@ OpPoint OpContours::remapPts(OpPoint oldAlias, OpPoint newAlias) {
 
 // seems too complicated to reuse multiple edge storage blocks, so delete all but first
 #if 0
-void OpContours::reuse(OpEdgeStorage* edgeStorage) {
+void OpContext::reuse(OpEdgeStorage* edgeStorage) {
 	if (!edgeStorage)
 		return;
 	OpEdgeStorage* next = edgeStorage->next;
@@ -674,22 +738,26 @@ void OpContours::reuse(OpEdgeStorage* edgeStorage) {
 }
 #endif
 
-bool OpContours::setError(PathOpsV0Lib::ContextError e  OP_DEBUG_PARAMS(int eID, int oID)) {
-	if (PathOpsV0Lib::ContextError::none != error)
+bool OpContext::setError(PathOpsV0Lib::ContextError e  OP_DEBUG_PARAMS(int eID, int oID)) {
+	if (fatalError)
 		return false;
 #if OP_DEBUG
 	OP_ASSERT(debugData.limitContours <= 0);  // break when debugging limited number of contours
 	if (PathOpsV0Lib::ContextError::finite != e 
-			&& PathOpsV0Lib::ContextError::toVertical != e)
+			&& PathOpsV0Lib::ContextError::toVertical != e
+			&& PathOpsV0Lib::ContextError::gap != e)
 		OpDebugOut("fatal error in " + debugData.testname + "\n");
 #endif
+	fatalError = PathOpsV0Lib::ContextError::gap != e;
+	if (!fatalError && PathOpsV0Lib::ContextError::none != error)
+		return false;
 	error = e;
 	OP_DEBUG_CODE(debugErrorID = eID);
 	OP_DEBUG_CODE(debugOppErrorID = oID);
 	return false;
 }
 
-void OpContours::setThreshold() {
+void OpContext::setThreshold() {
 	auto threshold = [](float left, float right) {
 		return std::max({1.f, fabsf(left), fabsf(right), right - left}) * OpEpsilon;
 	};
@@ -697,7 +765,7 @@ void OpContours::setThreshold() {
 			threshold(maxBounds.top, maxBounds.bottom) };
 }
 
-void OpContours::sortIntersections() {
+void OpContext::sortIntersections() {
 	for (auto contour : contours) {
 		for (auto& segment : contour->segments) {
 			segment.sects.sort();
@@ -715,7 +783,7 @@ void OpContours::sortIntersections() {
 	}
 }
 
-bool OpContours::debugFail() const {
+bool OpContext::debugFail() const {
 #if OP_DEBUG
 	return OpDebugExpect::unknown == debugExpect || OpDebugExpect::fail == debugExpect;
 #else
@@ -724,13 +792,13 @@ bool OpContours::debugFail() const {
 }
 
 #if OP_DEBUG
-bool OpContours::debugSuccess() const {
+bool OpContext::debugSuccess() const {
 	return OpDebugExpect::unknown == debugExpect || OpDebugExpect::success == debugExpect;
 }
 #endif
 
 #if OP_DEBUG_VALIDATE
-void OpContours::debugValidateIntersections() {
+void OpContext::debugValidateIntersections() {
 	for (auto contour : contours) {
 		for (auto& segment : contour->segments) {
 			segment.sects.debugValidate();
@@ -739,7 +807,7 @@ void OpContours::debugValidateIntersections() {
 }
 #endif
 
-SegmentIterator::SegmentIterator(OpContours* c)
+SegmentIterator::SegmentIterator(OpContext* c)
 	: contours(c)
 	, contourIterator(c)
 	, contourIter(c)
@@ -766,7 +834,7 @@ OpSegment* SegmentIterator::next() {
 	return s;
 }
 
-OpContourIter::OpContourIter(OpContours* contours) {
+OpContourIter::OpContourIter(OpContext* contours) {
 	storage = contours->contourStorage;
 	contourIndex = 0;
 }

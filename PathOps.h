@@ -12,7 +12,7 @@ Context* CreateContext();
 // deletes a PathOps context, and frees any memory associated with that context
 void DeleteContext(Context* );
 
-// makes a PathOps contour: a collection of curves
+// makes a PathOps contour: a collection of curves that share a winding
 Contour* CreateContour(Context* , Winding );
 
 #if WINDER_CONTOUR_EXPERIMENT
@@ -20,7 +20,7 @@ Contour* CreateContour(Context* , Winding );
 Contour* Clone(Contour* );
 #endif
 
-// adds one curve to winding's contour
+// adds a curve to the contour
 void Add(Contour* , AddCurve);
 void Add(Contour* , Curve);
 
@@ -49,7 +49,7 @@ void SetErrorHandler(Context* , ErrorDispatch );
 CurveType SetCurveCallBacks(Context* , CurveCallBacks );
 
 // winding callbacks; specifies which curves are kept and discarded
-void SetWindingCallBacks(Contour* , WindingCallBacks ); 
+void SetWindingCallBacks(Context* , WindingCallBacks ); 
 
 }
 

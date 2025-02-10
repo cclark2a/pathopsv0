@@ -152,7 +152,7 @@ float OpDebugSamples::compare(OpDebugSamples& outputs) {
 	return error;
 }
 
-void OpDebugSamples::init(OpContours* contrs) {
+void OpDebugSamples::init(OpContext* contrs) {
 	contours = contrs;
 	if (!contours->rasterEnabled)
 		return;

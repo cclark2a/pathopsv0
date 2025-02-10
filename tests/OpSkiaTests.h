@@ -3,11 +3,10 @@
 #define OpSkiaTests_DEFINED
 
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
-#define SKIP_TO_FILE "rect" // e.g., "simplify"  one file
-#define TEST_FIRST "rect5512"  // e.g., "grshapearc"  if file, one test
-#define TEST_EXTENDED 0
+#define SKIP_TO_FILE "fuzz763" // e.g., "simplify"  one file
+#define TEST_FIRST "fuzz763_1823"  // e.g., "testQuads23839519" if file, one test
+#define TEST_EXTENDED 1
 #define TEST_SKIA 1
 #define TEST_REGION 1
-#define TEST_BREAK 0
 #define TEST_ANALYZE 0
 #endif

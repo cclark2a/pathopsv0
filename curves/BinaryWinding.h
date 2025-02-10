@@ -223,21 +223,11 @@ inline void binaryWindingZeroFunc(Winding toZero) {
 }
 
 #if OP_DEBUG_DUMP
-inline void binaryWindingDumpInFunc(const char*& str, Winding winding) {
-    BinaryWinding binaryWinding;
-    OpDebugRequired(str, "{");
-    binaryWinding.left = (int) OpDebugReadSizeT(str);
-    binaryWinding.right = (int) OpDebugReadSizeT(str);
-    OpDebugRequired(str, "}");
-    binaryWinding.copyTo(winding);
-}
-
 inline std::string binaryWindingDumpOutFunc(Winding winding) {
     BinaryWinding binary(winding);
     std::string s = "{" + STR(binary.left) + ", " + STR(binary.right) + "}";
     return s;
 }
-
 #endif
 
 #if OP_DEBUG_IMAGE
@@ -248,7 +238,6 @@ inline std::string binaryWindingImageOutFunc(Winding winding, int index) {
     std::string s = STR(index ? binaryWinding.right : binaryWinding.left);
     return s;
 }
-
 #endif
 
 }

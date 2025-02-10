@@ -31,7 +31,7 @@ struct OpCurve {
 		, isLineResult(false) {
 	}
 
-	OpCurve(OpContours* , PathOpsV0Lib::Curve );
+	OpCurve(OpContext* , PathOpsV0Lib::Curve );
 	OpRoots axisRayHit(Axis offset, float axisIntercept, float start = 0, float end = 1) const;
 	OpRoots axisRawHit(Axis offset, float axisIntercept, MatchEnds ) const;
 	float center(Axis offset, float axisIntercept) const;
@@ -91,7 +91,7 @@ struct OpCurve {
 
 	// create storage in contour; helper function casts it to CurveData
 	PathOpsV0Lib::Curve c;
-	OpContours* contours;  // required by new interface for caller function pointer access
+	OpContext* contours;  // required by new interface for caller function pointer access
 	bool isLineSet;
 	bool isLineResult;
 };

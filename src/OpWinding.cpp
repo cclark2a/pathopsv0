@@ -2,65 +2,75 @@
 #include "OpContour.h"
 #include "OpWinding.h"
 
-OpWinding::OpWinding(OpContour* c, PathOpsV0Lib::Winding copy)
-	: contour(c)
-	OP_DEBUG_PARAMS(debugType(WindingType::copy)) {
-	w.data = contour->context->allocateWinding(copy.size);
-	std::memcpy(w.data, copy.data, copy.size);
-	w.size = copy.size;
+OpWinding::OpWinding(WindingUninitialized )
+	: OP_DEBUG_CODE(w({ nullptr, 0 }), )
+	type(WindingType::uninitialized) 
+	OP_DEBUG_PARAMS(debugType(DebugWindingType::uninitialized)) {
+}
+
+OpWinding::OpWinding(OpContext* context, PathOpsV0Lib::Winding copy)
+	: w({ copy.data, copy.size })
+	, type(WindingType::copy) {
+	w = copyData(context);
+	OP_DEBUG_CODE(debugType = DebugWindingType::winding);
 }
 
 OpWinding::OpWinding(OpEdge* edge, WindingSum )
-	: contour(edge->segment->contour)
-	OP_DEBUG_PARAMS(debugType(WindingType::sum)) {
-	w = edge->winding.copyData();
-	zero();
+	: w({ edge->winding.w.data, edge->winding.w.size })
+	, type(WindingType::caller) {  // always copy
+	OP_ASSERT(WindingType::uninitialized != edge->winding.type);
+	zero(edge->segment->contour->context);
+	OP_DEBUG_CODE(debugType = DebugWindingType::sum);
 }
 
-OpWinding& OpWinding::operator=(const OpWinding& from) {
-	contour = from.contour;
-	w = from.copyData();
-	return *this;
+OpWinding::OpWinding(OpContext* context, const OpWinding& from) {
+	w = from.copyData(context);
+	type = WindingType::copy;
+	OP_DEBUG_CODE(debugType = from.debugType);
 }
 
-OpWinding::OpWinding(const OpWinding& from) {
-	contour = from.contour;
-	w = from.copyData();
+void OpWinding::add(OpContext* context, const OpWinding& winding) {
+	copyOnDemand(context);
+	context->windingCallBacks.windingAddFuncPtr(w, winding.w);
 }
 
-void OpWinding::add(const OpWinding& winding) {
-	contour->callBacks.windingAddFuncPtr(w, winding.w);
-}
-
-#if 0
-// returns true if not equal
-bool OpWinding::equal(PathOpsV0Lib::Winding comp) const {
-	return w.size == comp.size && !memcmp(w.data, comp.data, w.size);
-}
-#endif
-
-PathOpsV0Lib::Winding OpWinding::copyData() const {
-	OpContours* contours = contour->context;
-	PathOpsV0Lib::Winding copy { contours->allocateWinding(w.size), w.size };
+PathOpsV0Lib::Winding OpWinding::copyData(OpContext* context) const {
+	PathOpsV0Lib::Winding copy { context->allocateWinding(w.size), w.size };
 	std::memcpy(copy.data, w.data, w.size);
 	return copy;
 }
 
-void OpWinding::subtract(const OpWinding& winding) {
-	contour->callBacks.windingSubtractFuncPtr(w, winding.w);
+void OpWinding::copyOnDemand(OpContext* context) {
+	OP_ASSERT(WindingType::uninitialized != type);
+	if (WindingType::copy == type)
+		return;
+	w = copyData(context);
+	type = WindingType::copy;
 }
 
-bool OpWinding::visible() const {
-	return contour->callBacks.windingVisibleFuncPtr(w);
+void OpWinding::setWind(const OpWinding& fromSegment) {
+	w = fromSegment.w;
+	OP_ASSERT(WindingType::uninitialized == type);
+	type = WindingType::caller;  // copy before modify
 }
 
-void OpWinding::zero() {
-	contour->callBacks.windingZeroFuncPtr(w);
+void OpWinding::subtract(OpContext* context, const OpWinding& winding) {
+	copyOnDemand(context);
+	context->windingCallBacks.windingSubtractFuncPtr(w, winding.w);
 }
 
-void OpWinding::move(const OpWinding& opp, bool backwards) {
+bool OpWinding::visible(OpContext* context) const {
+	return context->windingCallBacks.windingVisibleFuncPtr(w);
+}
+
+void OpWinding::zero(OpContext* context) {
+	copyOnDemand(context);
+	context->windingCallBacks.windingZeroFuncPtr(w);
+}
+
+void OpWinding::move(OpContext* context, const OpWinding& opp, bool backwards) {
 	if (backwards)
-		contour->callBacks.windingSubtractFuncPtr(w, opp.w);
+		add(context, opp);
 	else
-		contour->callBacks.windingAddFuncPtr(w, opp.w);
+		subtract(context, opp);
 }

@@ -29,8 +29,9 @@ void SetSkiaContextCallBacks(PathOpsV0Lib::Context* );
 void SetSkiaCurveCallBacks(PathOpsV0Lib::Context* );
 PathOpsV0Lib::Contour* SetSkiaSimplifyCallBacks(PathOpsV0Lib::Context* , PathOpsV0Lib::Winding , 
 		bool isWindingFill  OP_DEBUG_PARAMS(const SkPath& ));
-PathOpsV0Lib::Contour* SetSkiaOpCallBacks(PathOpsV0Lib::Context* , PathOpsV0Lib::Winding , SkPathOp op, 
-		PathOpsV0Lib::BinaryOperand , PathOpsV0Lib::BinaryWindType  OP_DEBUG_PARAMS(const SkPath&));
+void SetSkiaOpContextCallBacks(PathOpsV0Lib::Context* , SkPathOp , PathOpsV0Lib::BinaryWindType );
+PathOpsV0Lib::Contour* SetSkiaOpContourCallBacks(PathOpsV0Lib::Context* , PathOpsV0Lib::Winding , 
+		PathOpsV0Lib::BinaryOperand  OP_DEBUG_PARAMS(const SkPath&));
 void AddSkiaPath(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* , const SkPath& path);
 
 #if TEST_ANALYZE

@@ -2,7 +2,6 @@
 
 #include "curves/Line.h"
 #include "curves/QuadBezier.h"
-#include "curves/NoCurve.h"
 
 using namespace PathOpsV0Lib;
 
@@ -97,15 +96,6 @@ void frameZeroFunc(Winding toZero) {
 }
 
 #if OP_DEBUG_DUMP
-inline void frameDumpInFunc(const char*& str, Winding winding) {
-    FrameWinding frameWinding(winding);
-    OpDebugRequired(str, "{");
-    frameWinding.left = OpDebugReadSizeT(str);
-	frameWinding.isFrame = (FrameFill) OpDebugReadSizeT(str);
-    OpDebugRequired(str, "}");
-    frameWinding.copyTo(winding);
-}
-
 inline std::string frameDumpOutFunc(Winding winding) {
     FrameWinding frameWinding(winding);
     std::string s = "{" + STR(frameWinding.left) + ", " + STR((int) frameWinding.isFrame) + "}";
@@ -136,10 +126,13 @@ void testFrame() {
 
     Context* context = CreateContext();
     SetContextCallBacks(context, { frameSetLineType });
+    SetWindingCallBacks(context, { frameAddFunc, frameKeepFunc, frameVisibleFunc, 
+			frameZeroFunc, frameSubtractFunc });
 
 #if OP_DEBUG
     OpDebugData debugData(false);
     Debug(context, debugData);
+	SetDebugContextCallBacks(context, { nullptr  OP_DEBUG_DUMP_PARAMS(nullptr, frameDumpOutFunc) });
 #endif
 
     frameLine = SetCurveCallBacks(context, { frameOutput });
@@ -150,31 +143,17 @@ void testFrame() {
     FrameWinding frameData(FrameFill::frame, 1);
     Winding frameWinding { &frameData, sizeof(frameData) };
     Contour* frameContour = CreateContour(context, frameWinding);
-    SetWindingCallBacks(frameContour, { frameAddFunc, frameKeepFunc, frameVisibleFunc, 
-			frameZeroFunc, frameSubtractFunc });
 #if OP_DEBUG
 	FrameFill frameContourData = FrameFill::frame;
-	SetDebugWindingCallBacks(frameContour, { &frameContourData, sizeof(frameContourData) },
-			noDebugBitOper
-            OP_DEBUG_DUMP_PARAMS(frameDumpInFunc, frameDumpOutFunc, noDumpFunc)
-            OP_DEBUG_IMAGE_PARAMS(noWindingImageOutFunc, noNativePathFunc,
-            noDebugGetDrawFunc, noDebugSetDrawFunc, noIsOppFunc)
-	);
+	SetDebugContourData(frameContour, { &frameContourData, sizeof(frameContourData) } );
 #endif
 
     FrameWinding fillData(FrameFill::fill, 1);
     Winding fillWinding { &fillData, sizeof(fillData) };
     Contour* fillContour = CreateContour(context, fillWinding);
-    SetWindingCallBacks(fillContour, { frameAddFunc, frameKeepFunc, frameVisibleFunc, 
-			frameZeroFunc, frameSubtractFunc });
 #if OP_DEBUG
 	FrameFill fillContourData = FrameFill::fill;
-	SetDebugWindingCallBacks(frameContour, { &fillContourData, sizeof(fillContourData) },
-			noDebugBitOper
-	        OP_DEBUG_DUMP_PARAMS(frameDumpInFunc, frameDumpOutFunc, noDumpFunc)
-            OP_DEBUG_IMAGE_PARAMS(noWindingImageOutFunc, noNativePathFunc,
-            noDebugGetDrawFunc, noDebugSetDrawFunc, noIsOppFunc)
-	);
+	SetDebugContourData(fillContour, { &fillContourData, sizeof(fillContourData) } );
 #endif
 
 	// example: return line parts in hourglass fill

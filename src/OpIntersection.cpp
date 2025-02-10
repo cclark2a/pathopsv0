@@ -283,6 +283,8 @@ bool SectPreferred::find() {
 	#endif
 			if (test->ptT.pt != best->ptT.pt)
 				sects.moveSects(test->ptT, best->ptT.pt, MoveSects::zeroCoins);
+			else
+				test->ptT.t = best->ptT.t;
 		}
 		if (visited.end() == std::find(visited.begin(), visited.end(), test->opp->segment)) {
 			OpIntersection* save = best;

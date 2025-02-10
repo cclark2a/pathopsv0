@@ -10,7 +10,7 @@
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
 #define OP_TEST_V0 1  // set to zero to time Skia running tests
 
-#define CURVE_CURVE_1 7  // id of segment 1 to break in divide and conquer
+#define CURVE_CURVE_1 8  // id of segment 1 to break in divide and conquer
 #define CURVE_CURVE_2 2  // id of segment 2 to break in divide and conquer
 #define CURVE_CURVE_DEPTH -1  // minimum recursion depth for curve curve break (-1 to disable)
 
@@ -147,7 +147,7 @@ bool endFirstTest = false;
 // break (return false) if running last failed fast test
 #if OP_DEBUG
 bool OpDebugSkipBreak() {
-	return OP_DEBUG_FAST_TEST || !TEST_BREAK || (!SKIP_TO_V0 && !requestedFirst.size());
+	return OP_DEBUG_FAST_TEST || (!SKIP_TO_V0 && !requestedFirst.size());
 }
 #endif
 
@@ -592,7 +592,7 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
     using namespace PathOpsV0Lib;
     Context* context = CreateContext();
 #if TEST_RASTER
-	((OpContours*) context)->rasterEnabled = true;
+	((OpContext*) context)->rasterEnabled = true;
 #endif
     SetSkiaContextCallBacks(context);
     OP_DEBUG_CODE(if (debugDataPtr) Debug(context, *debugDataPtr));
@@ -607,20 +607,22 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
     BinaryWindType windType = aIsWinding && bIsWinding ? BinaryWindType::windBoth
             : aIsWinding ? BinaryWindType::windLeft : bIsWinding ? BinaryWindType::windRight
             : BinaryWindType::evenOdd;
+	SetSkiaOpContextCallBacks(context, mappedOp, windType);
+
     int leftData[] = { 1, 0 };
     PathOpsV0Lib::Winding leftWinding { leftData, sizeof(leftData) };
-    Contour* left = SetSkiaOpCallBacks(context, leftWinding, mappedOp, BinaryOperand::left, windType
+    Contour* left = SetSkiaOpContourCallBacks(context, leftWinding, BinaryOperand::left
             OP_DEBUG_PARAMS(a));
     AddSkiaPath(context, left, a);
     int rightData[] = { 0, 1 };
     PathOpsV0Lib::Winding rightWinding { rightData, sizeof(rightData) };
-    Contour* right = SetSkiaOpCallBacks(context, rightWinding, mappedOp, BinaryOperand::right, windType
+    Contour* right = SetSkiaOpContourCallBacks(context, rightWinding, BinaryOperand::right
             OP_DEBUG_PARAMS(b));
     AddSkiaPath(context, right, b);
     PathOutput pathOutput = result;
 	Normalize(context);
 #if TEST_RASTER
-	OpContours* contours = (OpContours*) context;
+	OpContext* contours = (OpContext*) context;
 	if (contours->rasterEnabled) {
 		contours->sampleOutputs.init(contours);
 		contours->sampleOperands.init(contours);
@@ -645,7 +647,7 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
 			std::lock_guard<std::mutex> guard(out_mutex);
 	#endif
 	#if OP_DEBUG
-			std::string testname = ((OpContours*) context)->debugData.testname;
+			std::string testname = ((OpContext*) context)->debugData.testname;
 			OpDebugOut(testname + " raster errors:" + STR(rasterErrors) + "\n");
 	#else
 			OpDebugOut("raster errors:" + STR(rasterErrors) + "\n");
@@ -958,7 +960,7 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
 	}
 #if TEST_ANALYZE && OP_DEBUG
 	if (optional) {
-		OP_DEBUG_CODE(*optional = ((OpContours*) context)->debugData);
+		OP_DEBUG_CODE(*optional = ((OpContext*) context)->debugData);
 		OP_ASSERT(!optional->limitReached);
 	}
 #endif

@@ -9,7 +9,7 @@
 #include <vector>
 
 struct FoundEdge;
-struct OpContours;
+struct OpContext;
 struct OpCurveCurve;
 struct OpIntersection;
 struct OpOutPath;
@@ -201,6 +201,13 @@ enum class Unsortable {
 	underflow
 };
 
+#if WINDER_CONTOUR_EXPERIMENT
+enum class InOutput {
+	no,
+	yes
+};
+#endif
+
 #if OP_DEBUG
 enum class LeadingLoop {
 	in,
@@ -222,7 +229,7 @@ struct OpEdge {
 #if !OP_DEBUG_DUMP
 private:
 #endif
-	OpEdge()	// note : not all release values are zero (which end, wind zero, opp dist)
+	OpEdge()	// note : not all release values are zero (which end)
 		: priorEdge(nullptr)
 		, nextEdge(nullptr)
 		, lastEdge(nullptr)
@@ -279,8 +286,9 @@ private:
 	}
 public:
 	OpEdge(OpSegment*  OP_LINE_FILE_ARGS());  // segment make edge; used by curve curve
+	OpEdge(OpSegment* , const OpPtT& start, const OpPtT& end  OP_LINE_FILE_ARGS());  // cc init clip
 	OpEdge(OpIntersection* , OpIntersection*  OP_LINE_FILE_ARGS());  // sect make edges
-	OpEdge(OpContours* , const OpPtT& start, const OpPtT& end  OP_LINE_FILE_ARGS());  // make filler 
+	OpEdge(OpContext* , const OpPtT& start, const OpPtT& end  OP_LINE_FILE_ARGS());  // make filler 
 	OpEdge(const OpEdge* e, const OpPtT& newPtT, NewEdge isLeftRight  OP_LINE_FILE_ARGS());
 	OpEdge(const OpEdge* e, const OpPtT& start, const OpPtT& end  OP_LINE_FILE_ARGS());
 	OpEdge(const OpEdge* e, float t1, float t2  OP_LINE_FILE_ARGS());
@@ -293,15 +301,19 @@ public:
 	const OpRect& bounds() { return ptBounds; }
 	void calcCenterT();
 	void clearActiveAndPals(OP_LINE_FILE_NP_ARGS());
+#if WINDER_CONTOUR_EXPERIMENT
+	void clearLastEdge(InOutput );
+#else
 	void clearLastEdge();
+#endif
 	void clearNextEdge();
 	void clearPriorEdge();
 	void complete(OpPoint start, OpPoint end);
 	bool containsLink(const OpEdge* edge) const;
 #if 0
-	OpContours* contours() const;
+	OpContext* contours() const;
 #else
-	OpContours* context() const;
+	OpContext* context() const;
 #endif
 	OpPtT end() const { return OpPtT(endPt(), endT); }
 	OpPoint endPt() const { return curve.lastPt(); }
@@ -333,20 +345,22 @@ public:
 		return EdgeMatch::start == match ? start() : end(); }
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
 	void setDisabled(OP_LINE_FILE_NP_ARGS());
-	void setDisabledZero(OP_LINE_FILE_NP_ARGS()) {
-		winding.zero();
-		setDisabled(OP_LINE_FILE_NP_CARGS()); }
+	void setDisabledZero(OP_LINE_FILE_NP_ARGS());
 	OpEdge* setLastEdge();
 #if WINDER_CONTOUR_EXPERIMENT
-	void setLastEdge(OpEdge* first, OpEdge* last);
+	void setLastEdge(OpEdge* first, OpEdge* last, InOutput );
 #endif
 	bool setLastLink(EdgeMatch );  // returns true if link order was changed
 	OpPointBounds setLinkBounds();
+#if WINDER_CONTOUR_EXPERIMENT
+	bool setLinkDirection(EdgeMatch , std::vector<OpEdge*>* linkupsErasures, InOutput );
+#else
 	bool setLinkDirection(EdgeMatch );  // reverse links if handed link end instead of link start
+#endif
 	void setNextEdge(OpEdge*);  // setter exists so debug breakpoints can be set
 	void setPointBounds();
 	void setPriorEdge(OpEdge* );  // setter exists so debug breakpoints can be set
-	void setSum(const PathOpsV0Lib::Winding&  OP_LINE_FILE_ARGS());  // called by macro SET_SUM
+	void setSum(const OpWinding&  OP_LINE_FILE_ARGS());  // called by macro SET_SUM
 	void setUnsortable(Unsortable );  // setter exists so debug breakpoints can be set
 	const OpCurve& setVertical(const LinePts& , MatchEnds);
 	void setWhich(EdgeMatch );  // setter exists so debug breakpoints can be set
@@ -444,7 +458,7 @@ public:
 	mutable int debugRayMatch;	// id: edges in common output contour determined from ray
 #endif
 #if OP_DEBUG_DUMP
-	OpContours* dumpContours;  // temporary edges don't have segment ptrs when unflattened
+	OpContext* dumpContours;  // temporary edges don't have segment ptrs when unflattened
 #endif
 #if OP_DEBUG_IMAGE
 	uint32_t debugColor;
@@ -485,7 +499,7 @@ struct OpEdgeStorage {
 	std::string debugDump(std::string label, DebugLevel l, DebugBase b);
 	OpEdge* debugFind(int id);
 	OpEdge* debugIndex(int index);
-	static void DumpSet(const char*& str, OpContours* , DumpStorage );
+	static void DumpSet(const char*& str, OpContext* , DumpStorage );
 	DUMP_DECLARATIONS
 #endif
 

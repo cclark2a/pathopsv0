@@ -73,14 +73,6 @@ inline void unaryWindingZeroFunc(Winding toZero) {
 }
 
 #if OP_DEBUG_DUMP
-inline void unaryWindingDumpInFunc(const char*& str, Winding winding) {
-    UnaryWinding unaryWinding;
-    OpDebugRequired(str, "{");
-    unaryWinding.left = (int) OpDebugReadSizeT(str);
-    OpDebugRequired(str, "}");
-    unaryWinding.copyTo(winding);
-}
-
 inline std::string unaryWindingDumpOutFunc(Winding winding) {
     UnaryWinding unary(winding);
     std::string s = "{" + STR(unary.left) + "}";

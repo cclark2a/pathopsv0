@@ -15,7 +15,7 @@ struct OpContourStorage;
 struct OpCurveCurve;
 struct OpJoiner;
 
-struct OpContours;
+struct OpContext;
 struct OpInPath;
 
 struct CallerDataStorage {
@@ -65,7 +65,8 @@ struct OpContour {
 	}
 
 #if WINDER_CONTOUR_EXPERIMENT
-	void addEdges(OpContour* );
+	void addCoinEdges(OpContour* );
+	bool addEdges(OpContour* );
 	void addJoinEdge(OpJoiner* , OpEdge* );
 	void addLast(OpEdge* );
 	void addToLinkups(OpJoiner* , OpEdge* );
@@ -77,7 +78,7 @@ struct OpContour {
 	bool linkUp(OpJoiner* , OpEdge* );
 	void pushLinkup(OpEdge* );
 	RelinkJoins relinkUnambiguous(OpJoiner* , size_t checked);
-	void removeLast(OpEdge* );
+	void removeLast(OpEdge* , InOutput );
 	void removeLink(OpEdge* );
 	void setLinkEdge(OpEdge* link, size_t index);
 	void unlink(OpEdge* );
@@ -143,13 +144,15 @@ struct OpContour {
 		}
 	}
 
+	void setSeen(int tree_id);
+
 	void transferCoins() {
 		for (auto& segment : segments) {
 			segment.transferCoins();
 		}
 	}
 
-	OP_DEBUG_CODE(void addDebugCallerData(PathOpsV0Lib::DebugCallerData callerData);)
+	OP_DEBUG_CODE(void addDebugContourData(PathOpsV0Lib::DebugContourData );)
 
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
@@ -163,12 +166,12 @@ struct OpContour {
 #endif
 #endif
 
-	OpContours* context;
+	OpContext* context;
 	std::vector<OpSegment> segments;
 	std::vector<OpSegment*> sorted;
 	std::vector<OpContour*> sects;
 #if WINDER_CONTOUR_EXPERIMENT
-	OpContour* winderOwner;
+	OpContour* winderOwner;  // the master that has intersects the same set of contours as this
 	// !!! experiment; move winder data to contour for many-contours optimization
 	//  populate only with edges in contour, and edges in overlapping contours
 	std::vector<OpEdge*> inX;  // only good if winderOwner points to self
@@ -181,16 +184,16 @@ struct OpContour {
 	std::vector<OpEdge*> unsortables;
 	LinkUps linkups;
 	LinkUps endLinks;
-	bool disabledBuilt;
-	bool disabledPalsBuilt;
+	int treeID = 0;  // tracks if contour has been initialized in this tree's context (for edge 'seen')
+	bool disabledBuilt = false;
+	bool disabledPalsBuilt = false;
 #endif
 	PathOpsV0Lib::Winding winding;
-	PathOpsV0Lib::WindingCallBacks callBacks;
 	OpPointBounds bounds;
 	int id;
 
 	OP_DEBUG_CODE(PathOpsV0Lib::DebugContourCallBacks debugCallBacks);
-	OP_DEBUG_CODE(PathOpsV0Lib::DebugCallerData debugCaller);  // note: must use std::memcpy before reading
+	OP_DEBUG_CODE(PathOpsV0Lib::DebugContourData debugCaller);  // note: must use std::memcpy before reading
 #if TEST_RASTER
 	OpDebugRaster rasterOperand;
 #endif
@@ -206,7 +209,7 @@ struct OpContourStorage {
 	int debugCount() const;
 	OpContour* debugFind(int id) const;
 	OpContour* debugIndex(int index) const;
-	static void DumpSet(const char*& , OpContours* );
+	static void DumpSet(const char*& , OpContext* );
 	DUMP_DECLARATIONS
 #endif
 
@@ -221,7 +224,7 @@ struct OpContourIter {
 		, contourIndex(0) {
 	}
 
-	OpContourIter(OpContours* contours);
+	OpContourIter(OpContext* contours);
 	
 	bool operator!=(OpContourIter rhs) { 
 		return storage != rhs.storage || contourIndex != rhs.contourIndex; 
@@ -254,7 +257,7 @@ struct OpContourIter {
 };
 
 struct OpContourIterator {
-	OpContourIterator(OpContours* c) 
+	OpContourIterator(OpContext* c) 
 		: contours(c) {
 	}
 
@@ -279,14 +282,14 @@ struct OpContourIterator {
 
 	bool empty() { return !(begin() != end()); }
 
-	OpContours* contours;
+	OpContext* contours;
 };
 
 struct SegmentIterator {
-	SegmentIterator(OpContours* );
+	SegmentIterator(OpContext* );
 	OpSegment* next();
 
-	OpContours* contours;
+	OpContext* contours;
 	OpContourIterator contourIterator;
 	OpContourIter contourIter;
 	size_t segIndex;
@@ -314,9 +317,9 @@ struct OpPtAliases {
 	OpVector threshold;
 };
 
-struct OpContours {
-	OpContours();
-	~OpContours();
+struct OpContext {
+	OpContext();
+	~OpContext();
 
 	bool addAlias(OpPoint pt, OpPoint alias);
 //    OpEdge* addFiller(OpEdge* edge, OpEdge* lastEdge);
@@ -432,8 +435,6 @@ struct OpContours {
 	void release(OpEdgeStorage*& );
 	OpPoint remapPts(OpPoint oldAlias, OpPoint newAlias);
 	void resetLimbs();
-//	void reuse(OpEdgeStorage* );
-
 	bool setError(PathOpsV0Lib::ContextError  OP_DEBUG_PARAMS(int id, int id2 = 0));
 	void setThreshold();
 	void sortIntersections();
@@ -450,9 +451,12 @@ struct OpContours {
 
 	bool debugFail() const;
 #if OP_DEBUG
+	void addDebugContextData(PathOpsV0Lib::DebugContextData );
+
 	PathOpsV0Lib::DebugCurveCallBacks& debugCallBack(PathOpsV0Lib::CurveType type) {
 		return debugCallBacks[(int) type - 1];
 	}
+
 	void debugRemap(int oldRayMatch, int newRayMatch);
 	bool debugSuccess() const;
 #endif
@@ -480,6 +484,7 @@ struct OpContours {
 	OpPtAliases aliases;  // !!! consider moving to context for non-overlapping context case
 	std::vector<PathOpsV0Lib::CurveCallBacks> callBacks;
 	PathOpsV0Lib::ContextCallBacks contextCallBacks;
+	PathOpsV0Lib::WindingCallBacks windingCallBacks;
 	PathOpsV0Lib::PathOutput callerOutput;
 	PathOpsV0Lib::ErrorHandler errorHandler;
 	// these are pointers instead of inline values because the storage with empty slots is first
@@ -494,9 +499,11 @@ struct OpContours {
 	CallerDataStorage* callerStorage;
 	OpPointBounds maxBounds;
 	PathOpsV0Lib::ContextError error;
+	bool fatalError;
 	int uniqueID;  // used for object id, unsectable id, coincidence id
 	bool outputOne;
 	bool linkErased;  // used to tell relinkUnambiguous to continue or not
+
 #if OP_DEBUG_VALIDATE
 	int debugValidateEdgeIndex;
 	int debugValidateJoinerIndex;
@@ -510,7 +517,7 @@ struct OpContours {
 #endif
 #if OP_DEBUG
 	std::vector<PathOpsV0Lib::DebugCurveCallBacks> debugCallBacks;
-//	PathOpsV0Lib::DebugContextCallBacks debugContextCallBacks;
+	PathOpsV0Lib::DebugContextCallBacks debugContextCallBacks;
 	OpDebugData debugData;
 	OpCurveCurve* debugCurveCurve;
 	OpJoiner* debugJoiner;

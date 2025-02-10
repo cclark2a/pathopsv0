@@ -5,13 +5,13 @@
 #include "OpMath.h"
 
 struct OpContour;
-struct OpContours;
+struct OpContext;
 struct OpSegment;
 enum class FoundIntersections;
 enum class IntersectResult;
 
 struct OpSegments {
-	OpSegments(OpContours& );
+	OpSegments(OpContext& );
 	static void AddEndMatches(OpSegment* seg, OpSegment* opp);
 	static void AddLineCurveIntersection(OpSegment* opp, OpSegment* seg);
 	void findCoincidence(OpContour* seg, OpContour* opp);
@@ -24,7 +24,7 @@ struct OpSegments {
 	static IntersectResult LineCoincidence(OpSegment* seg, OpSegment* opp);
 
 //	std::vector<OpSegment*> inX;
-	OpContours& context;
+	OpContext& context;
 	FoundIntersections found;
 	OP_DEBUG_CODE(int debugFailSegID);
 	OP_DEBUG_CODE(int debugFailOppID);

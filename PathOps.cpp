@@ -5,7 +5,7 @@
 namespace PathOpsV0Lib {
 
 Context* CreateContext() {
-    OpContours* contours = new OpContours();
+    OpContext* contours = new OpContext();
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = contours;
 #endif
@@ -27,13 +27,12 @@ void Add(Contour* libContour, AddCurve curve) {
 
 Contour* CreateContour(Context* context, Winding winding) {
     // reuse existing contour
-    OpContours* contours = (OpContours*) context;
+    OpContext* contours = (OpContext*) context;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = contours;
 #endif
     OpContour* contour = contours->makeContour();
 	contour->winding = winding;
-//    contour->addCallerData(callerData);
     return (Contour*) contour;
 }
 
@@ -44,7 +43,6 @@ Contour* Clone(Contour* contour) {
 		return (Contour*) original;
     OpContour* clone = original->context->makeContour();
 	clone->winding = original->winding;
-	clone->callBacks = original->callBacks;
 #if OP_DEBUG
 	clone->debugCallBacks = original->debugCallBacks;
 	clone->debugCaller = original->debugCaller;
@@ -54,7 +52,7 @@ Contour* Clone(Contour* contour) {
 #endif
 
 void DeleteContext(Context* context) {
-    OpContours* contours = (OpContours*) context;
+    OpContext* contours = (OpContext*) context;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = contours;
 #endif
@@ -65,7 +63,7 @@ void DeleteContext(Context* context) {
 }
 
 ContextError Error(Context* context) {
-    OpContours* contours = (OpContours*) context;
+    OpContext* contours = (OpContext*) context;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContours = contours;
 #endif
@@ -73,17 +71,17 @@ ContextError Error(Context* context) {
 }
 
 void SetError(Context* context, ContextError error) {
-    OpContours* contours = (OpContours*) context;
+    OpContext* contours = (OpContext*) context;
 	contours->error = error;
 }
 
 void SetErrorHandler(Context* context, ErrorDispatch errorDispatch) {
-    OpContours* contours = (OpContours*) context;
+    OpContext* contours = (OpContext*) context;
 	contours->errorHandler.errorDispatchFuncPtr = errorDispatch;
 }
 
 void Normalize(Context* context) {
-    OpContours* contours = (OpContours*) context;
+    OpContext* contours = (OpContext*) context;
     if (ContextError::none != contours->error) {
         OP_DEBUG_CODE(contours->debugData.success = false);
         return;
@@ -97,7 +95,7 @@ void ResetContour(Contour* c) {
 }
 
 void Resolve(Context* context, PathOutput output) {
-    OpContours* contours = (OpContours*) context;
+    OpContext* contours = (OpContext*) context;
     if (ContextError::none != contours->error) {
         OP_DEBUG_CODE(contours->debugData.success = false);
         return;
@@ -111,21 +109,21 @@ void Resolve(Context* context, PathOutput output) {
 }
 
 void SetContextCallBacks(Context* context, ContextCallBacks contextCallBacks) {
-    OpContours* contours = (OpContours*) context;
+    OpContext* contours = (OpContext*) context;
     contours->contextCallBacks = contextCallBacks;
 }
 
 CurveType SetCurveCallBacks(Context* context, CurveCallBacks curveCallBacks) {
-    OpContours* contours = (OpContours*) context;
+    OpContext* contours = (OpContext*) context;
     contours->callBacks.push_back(curveCallBacks);
     return (CurveType) contours->callBacks.size();
 }
 
-void SetWindingCallBacks(Contour* ctour, WindingCallBacks windingCallBacks) {
-    OpContour* contour = (OpContour*) ctour;
+void SetWindingCallBacks(Context* ctext, WindingCallBacks windingCallBacks) {
+    OpContext* context = (OpContext*) ctext;
 	if (!windingCallBacks.windingSubtractFuncPtr)
 		windingCallBacks.windingSubtractFuncPtr = windingCallBacks.windingAddFuncPtr;
-    contour->callBacks = windingCallBacks;
+    context->windingCallBacks = windingCallBacks;
 }
 
 } // namespace PathOpsV0Lib

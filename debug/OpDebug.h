@@ -46,7 +46,7 @@ enum class OpDebugIntersect {
 	edge
 };
 
-struct OpContours;
+struct OpContext;
 #if TEST_RASTER
 struct OpDebugRaster;
 #endif
@@ -231,6 +231,8 @@ struct OpDebugMaker {
 #define OpAssert(doBreak) \
     do { if (!(doBreak)) OP_DEBUG_BREAK(); } while (false)
 
+#define OpNop() \
+	OpDebugOut("")
 
 #if OP_DEBUG_DUMP 
 #undef OP_DEBUG_DUMP_CODE
@@ -242,10 +244,10 @@ struct OpDebugMaker {
 #define OP_DEBUG_CONTEXT() \
 	debugContext = __func__
 
-#define OpDebugPlayback(opObject, ID) \
+#define OpPlayback(opObject, ID) \
 	do { if ((ID) == (opObject)->id) { playback(); OP_DEBUG_BREAK(); } } while (false)
 
-#define OpDebugPlaybackIf(opObject, ID, doBreak) \
+#define OpPlaybackIf(opObject, ID, doBreak) \
 	do { if ((doBreak) && (ID) == (opObject)->id) { playback(); OP_DEBUG_BREAK(); } } while (false)
 #endif
 #endif
@@ -260,7 +262,7 @@ struct OpDebugMaker {
 #endif
 
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
-extern OpContours* debugGlobalContours;
+extern OpContext* debugGlobalContours;
 extern bool debugHexFloat;
 extern void playback();
 extern void record();

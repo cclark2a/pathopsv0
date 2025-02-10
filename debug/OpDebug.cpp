@@ -24,7 +24,7 @@ constexpr auto to_array(T&&... t)->std::array < V, sizeof...(T) > {
 #endif
 
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
-OpContours* debugGlobalContours;
+OpContext* debugGlobalContours;
 #endif
 
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP || OP_TINY_SKIA
@@ -508,8 +508,10 @@ bool OpCurveCurve::debugShowImage(bool atDepth) {
 		::drawDepth(depth);
 	}
 #endif
+#if 0  // !!! broken; fix next time it is needed
 	dmpFile();
 	verifyFile(context);
+#endif
 #endif
 	return false;
 }
@@ -552,7 +554,7 @@ const OpEdge* OpEdge::debugIsLoop(EdgeMatch which, LeadingLoop leading) const {
 
 #if OP_DEBUG_VALIDATE
 void OpEdge::debugValidate() const {
-    OpContours* contours = this->context();
+    OpContext* contours = this->context();
     contours->debugValidateEdgeIndex += 1;
     bool loopy = debugIsLoop();
     if (loopy) {
@@ -740,7 +742,7 @@ OpIntersection* OpIntersections::debugAlreadyContains(const OpPoint& pt, const O
 
 #include "OpJoiner.h"
 
-void OpContours::debugRemap(int oldRayMatch, int newRayMatch) {
+void OpContext::debugRemap(int oldRayMatch, int newRayMatch) {
     for (auto contour : contours) {
         for (auto& segment : contour->segments) {
             for (auto& edge : segment.edges) {
@@ -757,11 +759,11 @@ void OpContours::debugRemap(int oldRayMatch, int newRayMatch) {
 #if WINDER_CONTOUR_EXPERIMENT
 void OpContour::debugMatchRay()
 #else
-void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContours* contours))
+void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContext* contours))
 #endif
 {
 #if WINDER_CONTOUR_EXPERIMENT
-	OpContours* contours = context;
+	OpContext* contours = context;
 #endif
 	OP_DEBUG_CODE(bool mayFail = OpDebugExpect::unknown == contours->debugExpect);
 	for (auto linkup : linkups.l) {
@@ -899,13 +901,15 @@ void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContours* contours))
 
 // return false to auto-break
 bool OpJoiner::DebugShowImage() {
+#if !TEST_DEFEAT_BREAK
 	if (!OpDebugSkipBreak()) {
-#if OP_DEBUG_IMAGE && 0  // locally defeat if test is very large (e.g., grshapearc)
+#if OP_DEBUG_IMAGE && !TEST_ANALYZE  // defeat if test is very large (e.g., grshapearc)
 		::debugImage();
 		::showFill();
 #endif
 		return false;
 	}
+#endif
 	return true;
 }
 
@@ -928,7 +932,7 @@ void OpJoiner::debugValidate() const
             linkups.l.size() ? linkups.l[0] : nullptr;
     if (!anEdge)
         return;
-    OpContours* contours = anEdge->context();
+    OpContext* contours = anEdge->context();
     contours->debugValidateJoinerIndex += 1;
     contours->debugCheckLastEdge = false;
 #if WINDER_CONTOUR_EXPERIMENT
@@ -961,9 +965,11 @@ void OpJoiner::debugValidate() const
         if (e->debugScheduledForErasure)
             continue;
         e->debugValidate();
+#if WINDER_CONTOUR_EXPERIMENT && OP_DEBUG_DUMP
 		if (e->priorEdge)
 			dmpJoin();
-        OP_ASSERT(!e->priorEdge);
+#endif
+		OP_ASSERT(!e->priorEdge);
         OP_ASSERT(e->disabled || e->lastEdge);
         OP_ASSERT(!e->debugIsLoop());
     }
@@ -1120,34 +1126,54 @@ void debugCubicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, do
 
 namespace PathOpsV0Lib {
 
+#if WINDER_CONTOUR_EXPERIMENT
+DebugContourData GetDebugContourData(Contour* ctour) {
+    OpContour* contour = (OpContour*) ctour;
+	return contour->debugCaller;
+}
+
+void SetDebugContourData(Contour* ctour, DebugContourData cd) {
+    OpContour* contour = (OpContour*) ctour;
+	OP_ASSERT(cd.size == contour->debugCaller.size);
+	std::memcpy(contour->debugCaller.data, cd.data, contour->debugCaller.size);
+}
+#endif
+
 void SetDebugCurveCallBacks(Context* context, CurveType , DebugScale scaleFunc
 		OP_DEBUG_DUMP_PARAMS(DebugDumpCurveName dumpNameFunc, DebugDumpCurveExtra dumpExtraFunc)
 		OP_DEBUG_IMAGE_PARAMS(DebugAddToPath addToPathFunc) ) {
-    OpContours* contours = (OpContours*) context;
+    OpContext* contours = (OpContext*) context;
 	contours->debugCallBacks.push_back( { scaleFunc
 			OP_DEBUG_DUMP_PARAMS(dumpNameFunc, dumpExtraFunc)
 			OP_DEBUG_IMAGE_PARAMS(addToPathFunc) } );
 }
 
-void SetDebugWindingCallBacks(Contour* ctour, DebugCallerData callerData, DebugBitOper bitOper
-		OP_DEBUG_DUMP_PARAMS(DebugDumpContourIn dumpInFunc, DebugDumpContourOut dumpOutFunc, 
-                DebugDumpContourExtra dumpFunc)
-        OP_DEBUG_IMAGE_PARAMS(DebugImageOut dumpImageOutFunc, 
-                DebugNativePath debugNativePathFunc, 
+void SetDebugContourCallBacks(Contour* ctour, DebugContourData contourData
+		OP_DEBUG_DUMP_PARAMS(DebugDumpContourExtra dumpFunc)
+        OP_DEBUG_IMAGE_PARAMS(DebugNativePath debugNativePathFunc, 
                 DebugGetDraw debugGetDrawFunc, DebugSetDraw debugSetDrawFunc,
-                DebugIsOpp debugIsOppFunc)
+                DebugOperand debugIsOppFunc)
 ) {
     OpContour* contour = (OpContour*) ctour;
-	contour->addDebugCallerData(callerData);
-    contour->debugCallBacks = { bitOper
-            OP_DEBUG_DUMP_PARAMS(dumpInFunc, dumpOutFunc, dumpFunc)
-            OP_DEBUG_IMAGE_PARAMS(dumpImageOutFunc,
-                    debugNativePathFunc, debugGetDrawFunc, debugSetDrawFunc, debugIsOppFunc)
-            };
+	contour->addDebugContourData(contourData);
+    contour->debugCallBacks = {  OP_DEBUG_DUMP_CODE(dumpFunc)
+            OP_DEBUG_IMAGE_PARAMS(debugNativePathFunc, debugGetDrawFunc, debugSetDrawFunc, 
+			debugIsOppFunc) };
+}
+
+void SetDebugContextCallbacks(Context* ctext, DebugContextData contextData, DebugBitOper bitOper
+		OP_DEBUG_DUMP_PARAMS(DebugDumpContextExtra dumpFunc, DebugDumpWindingOut dumpWinding)
+        OP_DEBUG_IMAGE_PARAMS(DebugImageWindingOut windingOut)
+) {
+    OpContext* context = (OpContext*) ctext;
+	context->addDebugContextData(contextData);
+	context->debugContextCallBacks = { bitOper 
+			OP_DEBUG_DUMP_PARAMS(dumpFunc, dumpWinding)
+			OP_DEBUG_IMAGE_PARAMS(windingOut) };
 }
 
 void Debug(Context* context, OpDebugData& debugData) {
-    OpContours* contours = (OpContours*) context;
+    OpContext* contours = (OpContext*) context;
     contours->debugData = debugData;
 }
 

@@ -21,56 +21,47 @@ enum class WindingTemp {	// used to accumulate winding sum before it is applied
 };
 
 enum class WindingType  {
-	uninitialized = -1,
-	temp,
-	winding,
-	sum,
+	uninitialized,
+	caller,
 	copy  // used only by new interface
 };
 
+#if OP_DEBUG
+// !!! this has mostly fallen into disrepair; either fix it or delete it
+enum class DebugWindingType {
+	uninitialized,
+	temp,
+	winding,
+	sum,
+};
+#endif
+
 struct OpWinding {
+	OpWinding(WindingUninitialized );
 	OpWinding(OpEdge* edge, WindingSum );
-
-	OpWinding(WindingUninitialized )
-		: contour(nullptr)
-		OP_DEBUG_PARAMS(debugType(WindingType::uninitialized)) {
-		w.data = nullptr;
-		w.size = 0;
-	}
-
-	OpWinding(OpContour* c, PathOpsV0Lib::Winding );
-	OpWinding& operator=(const OpWinding&);
-	OpWinding(const OpWinding&);
-
-	void add(const OpWinding& );
+	OpWinding(OpContext* c, PathOpsV0Lib::Winding );
+	OpWinding(OpContext* context, const OpWinding& );
+	void add(OpContext* , const OpWinding& );
+	PathOpsV0Lib::Winding copyData(OpContext* ) const;
+	void copyOnDemand(OpContext* );
 	bool equal(const PathOpsV0Lib::Winding ) const;
-	PathOpsV0Lib::Winding copyData() const;
-
-	bool isSet() const {
-		return !!contour;
-	}
-
-	void subtract(const OpWinding& );
-	void move(const OpWinding& opp, bool backwards);
-
-	void setWind(const OpWinding& fromSegment) {
-		contour = fromSegment.contour;
-		w = fromSegment.copyData();
-		OP_DEBUG_CODE(debugType = WindingType::winding);
-	}
-
+	bool isSet() const { return WindingType::uninitialized != type; }
+	void subtract(OpContext* , const OpWinding& );
+	void move(OpContext* , const OpWinding& opp, bool backwards);
+	void setWind(const OpWinding& fromSegment);
 	int sum() const;
-	bool visible() const;
-	void zero();
+	bool visible(OpContext* ) const;
+	void zero(OpContext* );
 
 #if OP_DEBUG_DUMP
-	void dumpSet(const char*& str, OpContours*);
 	DUMP_DECLARATIONS
 #endif
 
-	OpContour* contour;
 	PathOpsV0Lib::Winding w;
-	OP_DEBUG_CODE(WindingType debugType);
+	WindingType type;
+#if OP_DEBUG
+	DebugWindingType debugType = DebugWindingType::uninitialized;
+#endif
 };
 
 // An edge that can contribute to the answer has a zero winding on one side

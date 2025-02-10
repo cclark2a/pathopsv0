@@ -45,8 +45,11 @@ ALIAS_LIST
 CALLOUT_LIST
 #undef OP_X
 
-uint32_t OP_DEBUG_MULTICOLORED = 0xAbeBeBad;
 uint32_t pathsOutColor = blue;
+
+inline uint32_t OpDebugAlphaColor(uint32_t alpha, uint32_t color) {
+	return (alpha << 24) | (color & 0x00FFFFFF);
+}
 
 SkBitmap& bitmapRef() {
 	return bitmap;
@@ -246,9 +249,10 @@ void OpDebugImage::addToPath(const OpCurve& curve, SkPath& path) {
 	path.moveTo(curve.firstPt().x, curve.firstPt().y);
 	if ((size_t) curve.c.type > curve.contours->debugCallBacks.size())
 		return;
-	if (!curve.contours->debugCallBack(curve.c.type).addToPathFuncPtr)
+	PathOpsV0Lib::DebugAddToPath debugAddToPath = curve.contours->debugCallBack(curve.c.type).addToPathFuncPtr;
+	if (!debugAddToPath)
 		return;
-	curve.contours->debugCallBack(curve.c.type).addToPathFuncPtr(curve.c, path);
+	(*debugAddToPath)(curve.c, path);
 }
 
 void OpDebugImage::init() {
@@ -270,8 +274,12 @@ void OpDebugImage::playback(FILE* file) {
 	}
 	std::sort(ordered.begin(), ordered.end(), [](const OpEdge* e1, const OpEdge* e2) {
 			return e1->id < e2->id; });
-	OpEdge* edge = ordered.front();
-	const OpEdge* last = ordered.back();
+	OpEdge* edge = nullptr;
+	const OpEdge* last = nullptr;
+	if (ordered.size()) {
+		edge = ordered.front();
+		last = ordered.back();
+	}
 	char str[255];
 	double debugZoom;
 	double debugCenter[2];
@@ -402,11 +410,12 @@ void OpDebugImage::drawDoubleFocus() {
 		bool first = true;
 		int alpha = drawFillOn ? 10 : 20;
 		for (auto contour : debugGlobalContours->contours) {
-			if (!contour->debugCallBacks.debugGetDrawFuncPtr)
-				continue;
-			if (contour->debugCallBacks.debugGetDrawFuncPtr(contour->debugCaller)) {
-				SkPath* skPath = (SkPath*) contour->debugCallBacks.debugNativePathFuncPtr(contour->debugCaller);
-				OP_ASSERT(skPath);
+			PathOpsV0Lib::DebugGetDraw debugGetDraw = contour->debugCallBacks.debugGetDrawFuncPtr;
+			if (debugGetDraw && (*debugGetDraw)(contour->debugCaller)) {
+				PathOpsV0Lib::DebugNativePath debugNativePath = contour->debugCallBacks.debugNativePathFuncPtr;
+				if (!debugNativePath)
+					continue;
+				SkPath* skPath = (SkPath*) (*debugNativePath)(contour->debugCaller);
 				drawDoubleFill(skPath->makeTransform(matrix), 
 						first ? OpDebugAlphaColor(alpha, red) : OpDebugAlphaColor(alpha, blue));
 			}
@@ -428,11 +437,11 @@ void OpDebugImage::drawDoubleFocus() {
 		else if (Unsortable::none != edge->isUnsortable)
 			edge->debugColor = purple;
 		else if (edgeIter.isCurveCurve) {
-			if (edge->ccOverlaps)
-				edge->debugColor = edge->winding.contour->debugCallBacks
-						.debugIsOppFuncPtr(edge->winding.contour->debugCaller)
+			if (edge->ccOverlaps) {
+				PathOpsV0Lib::DebugOperand dbgOp = edge->segment->contour->debugCallBacks.debugOperandFuncPtr;
+				edge->debugColor = dbgOp && (*dbgOp)(edge->segment->contour->debugCaller, 1)
 						? orange : darkGreen;
-			else
+			} else
 				edge->debugColor = purple;
 		} else
 			edge->debugColor = black;
@@ -834,7 +843,7 @@ void addFocus(const OpContour& contour) {
 		addFocus(s.ptBounds);
 }
 
-void addFocus(OpContours& contours) {
+void addFocus(OpContext& contours) {
 	OpPointBounds bounds;
 	for (auto contour : contours.contours)
 		addFocus(contour);
@@ -842,8 +851,8 @@ void addFocus(OpContours& contours) {
 }
 
 // !!! remove all const everywhere
-void addFocus(const OpContours& contours) {
-	addFocus(*const_cast<OpContours*>(&contours));
+void addFocus(const OpContext& contours) {
+	addFocus(*const_cast<OpContext*>(&contours));
 }
 
 void addFocus(const OpEdge& edge) {
@@ -874,7 +883,7 @@ void addFocus(const OpContour* contour) {
 	addFocus(*contour);
 }
 
-void addFocus(const OpContours* contours) {
+void addFocus(const OpContext* contours) {
 	addFocus(*contours);
 }
 
@@ -921,7 +930,7 @@ void ctr(const OpContour& contour) {
 	ctr(bounds);
 }
 
-void ctr(OpContours& contours) {
+void ctr(OpContext& contours) {
 	OpPointBounds bounds;
 	for (auto contour : contours.contours)
 		for (auto& segment : contour->segments)
@@ -929,8 +938,8 @@ void ctr(OpContours& contours) {
 	ctr(bounds);
 }
 
-void ctr(const OpContours& contours) {
-	ctr(*const_cast<OpContours*>(&contours));
+void ctr(const OpContext& contours) {
+	ctr(*const_cast<OpContext*>(&contours));
 }
 
 void ctr(const OpEdge& edge) {
@@ -961,7 +970,7 @@ void ctr(const OpContour* contour) {
 	ctr(*contour);
 }
 
-void ctr(const OpContours* contours) {
+void ctr(const OpContext* contours) {
 	ctr(*contours);
 }
 
@@ -1001,7 +1010,7 @@ void focus(const OpContour& contour) {
 	focus(bounds);
 }
 
-void focus(OpContours& contours) {
+void focus(OpContext& contours) {
 	OpPointBounds bounds;
 	for (auto contour : contours.contours)
 		for (auto& segment : contour->segments)
@@ -1010,8 +1019,8 @@ void focus(OpContours& contours) {
 }
 
 // !!! remove all const everywhere
-void focus(const OpContours& contours) {
-	focus(*const_cast<OpContours*>(&contours));
+void focus(const OpContext& contours) {
+	focus(*const_cast<OpContext*>(&contours));
 }
 
 void focus(const OpEdge& edge) {
@@ -1031,7 +1040,7 @@ void focus(const OpContour* contour) {
 	focus(*contour);
 }
 
-void focus(const OpContours* contours) {
+void focus(const OpContext* contours) {
 	focus(*contours);
 }
 
@@ -1319,8 +1328,12 @@ void OpDebugImage::drawPoints() {
 		} while (verb != SkPath::kDone_Verb);
 	};
 	for (auto contour : debugGlobalContours->contours) {
-		if (contour->debugCallBacks.debugGetDrawFuncPtr(contour->debugCaller)) {
-			SkPath* skPath = (SkPath*) contour->debugCallBacks.debugNativePathFuncPtr(contour->debugCaller);
+		PathOpsV0Lib::DebugGetDraw debugGetDraw = contour->debugCallBacks.debugGetDrawFuncPtr;
+		if (debugGetDraw && (*debugGetDraw)(contour->debugCaller)) {
+			PathOpsV0Lib::DebugNativePath debugNativePath = contour->debugCallBacks.debugNativePathFuncPtr;
+			if (!debugNativePath)
+				continue;
+			SkPath* skPath = (SkPath*) (*debugNativePath)(contour->debugCaller);
 			drawPathPt(skPath);
 		}
 	}
@@ -1338,8 +1351,9 @@ void OpDebugImage::drawPoints() {
 	for (auto edge : edgeIterator) {
 		if (!edge->debugDraw)
 			continue;
-		bool isOpp = edge->winding.contour ? edge->winding.contour->debugCallBacks
-				.debugIsOppFuncPtr(edge->winding.contour->debugCaller) : false;
+		OpContour* contour = edge->segment->contour;
+		PathOpsV0Lib::DebugOperand debugIsOpp = contour->debugCallBacks.debugOperandFuncPtr;
+		bool isOpp = debugIsOpp && (*debugIsOpp)(contour->debugCaller, 1);
 		DebugOpBuild(edge->startPt(), edge->startT, isOpp);
 		DebugOpBuild(edge->endPt(), edge->endT, isOpp);
 		if (drawControlsOn) {
@@ -1364,8 +1378,13 @@ void OpDebugImage::drawPoints() {
 	if (drawLinesOn) {
 		for (const auto& line : lines) {
 			for (auto contour : debugGlobalContours->contours) {
-				if (contour->debugCallBacks.debugGetDrawFuncPtr(contour->debugCaller))
-					DebugOpBuild(*(SkPath*)contour->debugCallBacks.debugNativePathFuncPtr(contour->debugCaller), line);
+				PathOpsV0Lib::DebugGetDraw debugGetDraw = contour->debugCallBacks.debugGetDrawFuncPtr;
+				if (debugGetDraw && (*debugGetDraw)(contour->debugCaller)) {
+					PathOpsV0Lib::DebugNativePath debugNativePath = contour->debugCallBacks.debugNativePathFuncPtr;
+					if (!debugNativePath)
+						continue;
+					DebugOpBuild(*(SkPath*)debugNativePath(contour->debugCaller), line);
+				}
 			}
 			if (drawSegmentsOn) {
 				for (auto seg : segmentIterator) {
@@ -1544,48 +1563,39 @@ void toggle##Thing() { \
 EDGE_BOOL_LIST2
 #undef OP_X
 
+static void doOperand(int operand, bool leftState) {
+	for (OpContour* contour : debugGlobalContours->contours) {
+		PathOpsV0Lib::DebugOperand debugOperand = contour->debugCallBacks.debugOperandFuncPtr;
+		PathOpsV0Lib::DebugSetDraw debugSetDraw = contour->debugCallBacks.debugSetDrawFuncPtr;
+		if (!debugOperand || !(*debugOperand)(contour->debugCaller, operand) || !debugSetDraw)
+			continue;
+		(*debugSetDraw)(contour->debugCaller, leftState);
+		OpDebugImage::drawDoubleFocus();
+	}
+}
+
 void hideLeft() {
-	OpContour* contour = debugGlobalContours->contours.front();
-	contour->debugCallBacks.debugSetDrawFuncPtr(contour->debugCaller, false);
-	OpDebugImage::drawDoubleFocus();
-	drawLeftOn = false;
+	doOperand(0, (drawLeftOn = false));
 }
 
 void showLeft() {
-	OpContour* contour = debugGlobalContours->contours.front();
-	contour->debugCallBacks.debugSetDrawFuncPtr(contour->debugCaller, true);
-	OpDebugImage::drawDoubleFocus();
-	drawLeftOn = true;
+	doOperand(0, (drawLeftOn = true));
 }
 
 void toggleLeft() {
-	OpContour* contour = debugGlobalContours->contours.front();
-	bool debugDraw = contour->debugCallBacks.debugGetDrawFuncPtr(contour->debugCaller);
-	contour->debugCallBacks.debugSetDrawFuncPtr(contour->debugCaller, !debugDraw);
-	OpDebugImage::drawDoubleFocus();
-	drawLeftOn ^= true;
+	doOperand(0, (drawLeftOn ^= true));
 }
 
 void hideRight() {
-	OpContour* contour = debugGlobalContours->contours.back();
-	contour->debugCallBacks.debugSetDrawFuncPtr(contour->debugCaller, false);
-	OpDebugImage::drawDoubleFocus();
-	drawRightOn = false;
+	doOperand(1, (drawLeftOn = false));
 }
 
 void showRight() {
-	OpContour* contour = debugGlobalContours->contours.back();
-	contour->debugCallBacks.debugSetDrawFuncPtr(contour->debugCaller, true);
-	OpDebugImage::drawDoubleFocus();
-	drawRightOn = true;
+	doOperand(1, (drawLeftOn = true));
 }
 
 void toggleRight() {
-	OpContour* contour = debugGlobalContours->contours.back();
-	bool debugDraw = contour->debugCallBacks.debugGetDrawFuncPtr(contour->debugCaller);
-	contour->debugCallBacks.debugSetDrawFuncPtr(contour->debugCaller, !debugDraw);
-	OpDebugImage::drawDoubleFocus();
-	drawRightOn ^= true;
+	doOperand(1, (drawLeftOn ^= true));
 }
 
 static void operateOnLimbEdges(std::function<void (OpEdge*)> fun) {
@@ -1664,7 +1674,10 @@ void toggleTree() {
 
 void hideOperands() {
 	for (auto contour : debugGlobalContours->contours) {
-		contour->debugCallBacks.debugSetDrawFuncPtr(contour->debugCaller, false);
+		PathOpsV0Lib::DebugSetDraw debugSetDraw = contour->debugCallBacks.debugSetDrawFuncPtr;
+		if (!debugSetDraw)
+			continue;
+		(*debugSetDraw)(contour->debugCaller, false);
 	}
 	OpDebugImage::drawDoubleFocus();
 	drawOperandsOn = false;
@@ -1672,7 +1685,10 @@ void hideOperands() {
 
 void showOperands() {
 	for (auto contour : debugGlobalContours->contours) {
-		contour->debugCallBacks.debugSetDrawFuncPtr(contour->debugCaller, true);
+		PathOpsV0Lib::DebugSetDraw debugSetDraw = contour->debugCallBacks.debugSetDrawFuncPtr;
+		if (!debugSetDraw)
+			continue;
+		(*debugSetDraw)(contour->debugCaller, true);
 	}
 	OpDebugImage::drawDoubleFocus();
 	drawOperandsOn = true;
@@ -1680,8 +1696,11 @@ void showOperands() {
 
 void toggleOperands() {
 	for (auto contour : debugGlobalContours->contours) {
-		bool debugDraw = contour->debugCallBacks.debugGetDrawFuncPtr(contour->debugCaller);
-		contour->debugCallBacks.debugSetDrawFuncPtr(contour->debugCaller, !debugDraw);
+		PathOpsV0Lib::DebugSetDraw debugSetDraw = contour->debugCallBacks.debugSetDrawFuncPtr;
+		PathOpsV0Lib::DebugGetDraw debugGetDraw = contour->debugCallBacks.debugGetDrawFuncPtr;
+		if (!debugSetDraw || !debugGetDraw)
+			continue;
+		(*debugSetDraw)(contour->debugCaller, !(*debugGetDraw)(contour->debugCaller));
 	}
 	OpDebugImage::drawDoubleFocus();
 	drawOperandsOn ^= true;
@@ -1693,7 +1712,7 @@ static void operateOnEdgeRuns(std::function<void (OpEdge*)> fun) {
 		return;
 	for (const CcCurves& curves : { cc->edgeCurves, cc->oppCurves } ) {
 		for (const EdgeRun run : curves.runs) {
-			OpEdge* edge = const_cast<OpEdge*>(run.edge);
+			OpEdge* edge = const_cast<OpEdge*>(run.runEdge);
 			fun(edge);
 		}
 	}
@@ -1716,6 +1735,35 @@ void toggleEdgeRuns() {
 	operateOnEdgeRuns([](OpEdge* edge) {
 		edge->debugDraw ^= true;
 	});
+}
+
+static void operateOnID(std::function<void (OpEdge*)> fun, int id) {
+	if (OpContour* contour = (OpContour*) findContour(id)) {
+		for (OpSegment& segment : contour->segments) {
+			for (OpEdge& edge : segment.edges) {
+				fun(&edge);
+			}
+		}
+	}
+	OpDebugImage::drawDoubleFocus();
+}
+
+void show(int id) {
+	operateOnID([](OpEdge* edge) {
+		edge->debugDraw = true;
+	}, id);
+}
+
+void hide(int id) {
+	operateOnID([](OpEdge* edge) {
+		edge->debugDraw = false;
+	}, id);
+}
+
+void toggle(int id) {
+	operateOnID([](OpEdge* edge) {
+		edge->debugDraw ^= true;
+	}, id);
 }
 
 #define OP_X(Thing, edgeCheck) \
@@ -1741,6 +1789,7 @@ void colorLimbs(uint32_t color) {
 		edge->debugCustom = color;
 		edge->debugDraw = true;
 	}
+	OpDebugImage::drawDoubleFocus();
 }
 
 void colorSegments(uint32_t color) {
@@ -1756,7 +1805,7 @@ void colorOut(uint32_t color) {
 	for (auto edge : edgeIterator) {
 		if (!edge->inOutput)
 			continue;
-		if (OP_DEBUG_MULTICOLORED != color)
+		if (multiColor != color)
 			edge->debugCustom = color;
 		else
 			edge->debugCustom = debugColorArray[edge->debugOutPath % debugColorArray.size()].first;
@@ -1767,8 +1816,9 @@ void colorOut(uint32_t color) {
 
 void colorOpp(uint32_t color) {
 	for (auto edge : edgeIterator) {
-		OpContour* contour = edge->winding.contour;
-		if (contour->debugCallBacks.debugIsOppFuncPtr(contour->debugCaller)) {
+		OpContour* contour = edge->segment->contour;
+		PathOpsV0Lib::DebugOperand debugOperand = contour->debugCallBacks.debugOperandFuncPtr;
+		if (debugOperand && (*debugOperand)(contour->debugCaller, 1)) {
 			edge->debugCustom = color;
 			edge->debugDraw = true;
 		}
@@ -1778,14 +1828,15 @@ void colorOpp(uint32_t color) {
 
 void colorPathsOut(uint32_t color) {
 	pathsOutColor = color;
+	OpDebugImage::drawDoubleFocus();
 }
 
 #define OP_X(Thing) \
 void color##Thing() { \
-	color##Thing(OP_DEBUG_MULTICOLORED); \
+	color##Thing(multiColor); \
 } \
 void color##Thing(uint8_t alpha, uint32_t color) { \
-	color##Thing((alpha << 24) | (color & 0x00FFFFFF)); \
+	color##Thing(OpDebugAlphaColor(alpha, color)); \
 } \
 void uncolor##Thing() { \
 	color##Thing(0); \
@@ -1794,12 +1845,7 @@ COLOR_LIST
 #undef OP_X
 
 void color(int id) {
-	OpEdge* edge = findEdge(id);
-	if (edge) {
-		edge->debugCustom = OP_DEBUG_MULTICOLORED;
-		edge->debugDraw = true;
-	}
-	OpDebugImage::drawDoubleFocus();
+	color(id, multiColor);
 }
 
 void color(int id, uint32_t c) {
@@ -1807,17 +1853,23 @@ void color(int id, uint32_t c) {
 	if (edge) {
 		edge->debugCustom = c;
 		edge->debugDraw = true;
+	} else if (OpContour* contour = (OpContour*) findContour(id)) {
+		for (OpSegment& segment : contour->segments) {
+			for (OpEdge& e : segment.edges) {
+				e.debugCustom = c;
+				e.debugDraw = true;
+			}
+		}
 	}
 	OpDebugImage::drawDoubleFocus();
 }
 
+void color(int id, uint8_t a, uint32_t c) {
+	color(id, OpDebugAlphaColor(a, c));
+}
+
 void uncolor(int id) {
-	OpEdge* edge = findEdge(id);
-	if (edge) {
-		edge->debugCustom = 0;
-		edge->debugDraw = true;
-	}
-	OpDebugImage::drawDoubleFocus();
+	color(id, 0);
 }
 
 void colorLink(OpEdge* edge, uint32_t color) {
@@ -1857,7 +1909,7 @@ void colorLink(int id, uint32_t color) {
 	colorLink(findEdge(id), color);
 }
 
-void OpContours::debugLimbClear() {
+void OpContext::debugLimbClear() {
 	for (auto contour : contours) {
 		for (auto& segment : contour->segments) {
 			for (OpEdge& edge : segment.edges) {
@@ -1867,7 +1919,7 @@ void OpContours::debugLimbClear() {
 	}
 }
 
-int OpContours::debugLimbIndex(const OpEdge* edge) const {
+int OpContext::debugLimbIndex(const OpEdge* edge) const {
 	if (!debugTree)
 		return -1;
 	for (int index = 0; index < debugTree->totalUsed; ++index) {
@@ -2041,20 +2093,23 @@ bool OpDebugImage::drawWinding(const OpCurve& curve, std::string left, std::stri
 bool OpDebugImage::drawEdgeWinding(const OpCurve& curve, const OpEdge* edge, uint32_t color) {
 	bool success = true;
 	const OpWinding& sum = edge->sum;
-	std::string sumLeft = sum.isSet() ? sum.contour->debugCallBacks.debugImageOutFuncPtr(sum.w, 0) : "?";
-	std::string sumRight = sum.isSet() ? sum.contour->debugCallBacks.debugImageOutFuncPtr(sum.w, 1) : "?";
+	OpContour* contour = edge->segment->contour;
+	auto debugImageOut = contour->context->debugContextCallBacks.debugImageWindingOutFuncPtr;
+	std::string sumLeft = debugImageOut && sum.isSet() ? (*debugImageOut)(sum.w, 0) : "?";
+	std::string sumRight = debugImageOut && sum.isSet() ? (*debugImageOut)(sum.w, 1) : "?";
 	if (!drawWinding(curve, sumLeft, sumRight, 1, color)) {
 //		OpDebugOut("normalize overflowed: edge " + STR(edge->id) + "\n");
 		success = false;
 	}
-	auto sumString = [edge](const OpWinding& wind, const OpWinding& sum, int index) {
+	auto sumString = [edge, debugImageOut](const OpWinding& wind, const OpWinding& sum, int index) {
 		if (!sum.isSet() && !wind.isSet())
 			return std::string("?");
-		if (!sum.isSet())
-			return wind.contour->debugCallBacks.debugImageOutFuncPtr(wind.w, index);
-		OpWinding diffWind(edge->sum.contour, edge->sum.w);
-		wind.contour->callBacks.windingSubtractFuncPtr(diffWind.w, wind.w);
-		return wind.contour->debugCallBacks.debugImageOutFuncPtr(diffWind.w, index);
+		OpContour* contour = edge->segment->contour;
+		if (debugImageOut && !sum.isSet())
+			return (*debugImageOut)(wind.w, index);
+		OpWinding diffWind(contour->context, edge->sum.w);
+		contour->context->windingCallBacks.windingSubtractFuncPtr(diffWind.w, wind.w);
+		return debugImageOut ? (*debugImageOut)(diffWind.w, index) : "";
 	};
 	std::string oppLeft = sumString(edge->winding, sum, 0);
 	std::string oppRight = sumString(edge->winding, sum, 1);
@@ -2333,7 +2388,10 @@ void resetFocus() {
 	}
 	if (!focusRect.isFinite()) {
 		for (auto contour : debugGlobalContours->contours) {
-			SkPath* path = (SkPath*) contour->debugCallBacks.debugNativePathFuncPtr(contour->debugCaller);
+			PathOpsV0Lib::DebugNativePath debugNativePath = contour->debugCallBacks.debugNativePathFuncPtr;
+			if (!debugNativePath)
+				continue;
+			SkPath* path = (SkPath*) (*debugNativePath)(contour->debugCaller);
 			SkRect skrect = path->getBounds();
 			focusRect.left = std::min(skrect.fLeft, focusRect.left);
 			focusRect.top = std::min(skrect.fTop, focusRect.top);

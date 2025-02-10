@@ -33,7 +33,7 @@ OpSegment::OpSegment(PathOpsV0Lib::Contour* libContour, PathOpsV0Lib::AddCurve a
 	: contour((OpContour*) libContour)
 	, c(contour->context,  
 			{ (PathOpsV0Lib::CurveData*) addCurve.points, addCurve.size, addCurve.type } )
-	, winding(contour, { contour->winding.data, contour->winding.size } )
+	, winding(contour->context, { contour->winding.data, contour->winding.size } )
 	, id(contour->nextID())
 	, disabled(false)
 	, willDisable(false)
@@ -104,7 +104,7 @@ bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
 			if (isSortable(edge, test) && isSortable(test, edge)
 					&& edge->windZero != checkZero(test, edge->which(), testEnd))
 				return;
-			if (!test->hasLinkTo(testEnd))
+			if (!test->hasLinkTo(EdgeMatch::start == test->which() ? testEnd : !testEnd))
 				oppEdges.emplace_back(test, EdgeMatch::none);
 		};
 		saveMatch(EdgeMatch::start);
@@ -441,7 +441,7 @@ void OpSegment::findMissingEnds() {
 	if (disabled)
 		return;
 	OP_ASSERT(!sects.unsorted);
-	OpContours* context = contour->context;
+	OpContext* context = contour->context;
 	if (context->errorHandler.errorDispatchFuncPtr) {
 		bool missingStart = !sects.i.size() || 0 != sects.i.front()->ptT.t;
 		bool missingEnd = !sects.i.size() || 1 != sects.i.back()->ptT.t;
@@ -749,10 +749,10 @@ OpPoint OpSegment::movePt(OpPtT match, OpPoint destination) {
 
 // two segments are coincident so move opp's winding to this and disabled opp
 bool OpSegment::moveWinding(OpSegment* opp, bool backwards) {
-	winding.move(opp->winding, backwards);
-	opp->winding.zero();
+	winding.move(contour->context, opp->winding, backwards);
+	opp->winding.zero(contour->context);
 	opp->setDisabled(OP_LINE_FILE_NPARGS());
-	if (winding.visible())
+	if (winding.visible(contour->context))
 		return true;
 	setDisabled(OP_LINE_FILE_NPARGS());
 	return false;
@@ -887,7 +887,7 @@ void OpSegment::transferCoins() {
 				OP_ASSERT(ocPals.end() != ocPal);
 #endif
 //				OP_ASSERT(oEdge.winding.visible());
-				edge.winding.move(oEdge.winding, cID < 0);
+				edge.winding.move(contour->context, oEdge.winding, cID < 0);
 				oEdge.setDisabledZero(OP_LINE_FILE_NPARGS());
 				break;
 			}

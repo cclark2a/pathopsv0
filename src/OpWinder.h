@@ -5,7 +5,7 @@
 #include "OpEdge.h"
 
 enum class MatchEnds;  // for coin intersections
-struct OpContours;
+struct OpContext;
 struct OpEdge;
 
 enum class ChainFail {
@@ -55,7 +55,7 @@ struct CoinEnd {
 };
 
 struct OpWinder {
-	OpWinder(OpContours& contours);
+	OpWinder(OpContext& contours);
 	void addEdge(OpEdge* );
 	static IntersectResult CoincidentCheck(OpSegment* seg, OpSegment* opp);
 	static IntersectResult CoincidentCheck(std::array<CoinEnd, 4>& ends, bool* oppReversed,
@@ -64,8 +64,8 @@ struct OpWinder {
 	void markUnsortable(Unsortable );
 	size_t setInIndex(size_t homeIndex, float homeCept, std::vector<OpEdge*>& inArray);
 	ChainFail setSumChain(size_t inIndex);
-	ResolveWinding setWindingByDistance(OpContours* );
-	FoundWindings setWindings(OpContours* );
+	ResolveWinding setWindingByDistance(OpContext* );
+	FoundWindings setWindings(OpContext* );
 	void sort();
 
 #if OP_DEBUG_VALIDATE

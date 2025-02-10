@@ -56,13 +56,13 @@ inline CurveRef operator!(CurveRef a) {
 
 // distance from edge to opp at this edge t, and number of edges between this and next
 struct EdgeRun {
-	void set(OpEdge* , const OpSegment* opp, EdgeMatch );
+	void set(OpEdge* edge, OpEdge* opp, EdgeMatch );
 	bool inDeleted(CcCurves* , CcCurves* oppCurves) const;
 	float setOppDist(const OpSegment* segment);
 	DUMP_DECLARATIONS
 
-	OpEdge* edge;
-	OpEdge* oppEdge;
+	OpEdge* runEdge;
+	OpEdge* runOpp;
 	OpPtT edgePtT;
 	OpPtT oppPtT;
 	float oppDist;
@@ -74,7 +74,7 @@ struct EdgeRun {
 };
 
 struct CcCurves {
-	void addEdgeRun(OpEdge* , const OpSegment* oppSeg, EdgeMatch );
+	void addEdgeRun(OpEdge* edge, OpEdge* opp, EdgeMatch );
 	bool checkMid(size_t index); // true if mid pt dist between this and next run dist is smaller
 	void clear();
 	OpPtT closest(OpPoint pt) const;
@@ -82,13 +82,13 @@ struct CcCurves {
 	static OpPtT Dist(const OpSegment* , const OpPtT& segPtT, const OpSegment* opp);
 	std::vector<CutRangeT> findGaps() const;
 	int groupCount() const;
-	void initialEdgeRun(OpEdge* edge, const OpSegment* oppSeg);
+	void initialEdgeRun(OpEdge* edge, OpEdge* opp);
 	void markToDelete(float tStart, float tEnd);
 	int overlaps() const;
 	float perimeter() const;
-	void snipAndGo(const OpSegment* , const OpPtT& cut, OpPoint oppPt, const OpSegment* oppSeg);
+	void snipAndGo(const OpSegment* , const OpPtT& cut, OpPoint oppPt, OpEdge* opp);
 	// void snipOne(const OpSegment* , const OpPtT& lo, const OpPtT& hi);
-	void snipRange(const OpSegment* , const OpPtT& lo, const OpPtT& hi, const OpSegment* oppSeg);
+	void snipRange(const OpSegment* , const OpPtT& lo, const OpPtT& hi, OpEdge* opp);
 	DUMP_DECLARATIONS
 
 	std::vector<OpEdge*> c;
@@ -122,6 +122,7 @@ struct OpCurveCurve {
 			const OpPtT& oppStart, const OpPtT& oppEnd);
 	bool alreadyInLimits(const OpEdge* edge, const OpEdge* oEdge, float t);
 	bool betweenLimits(const OpEdge* edge, const OpEdge* oEdge, float lo, float hi);
+	OpEdge* boundedEdge(OpSegment* , OpPointBounds& , MatchEnds  OP_LINE_FILE_ARGS());
 	bool checkForGaps();
 	bool checkSect();
 	bool checkSplit(float lo, float hi, CurveRef , OpPtT& checkPtT) const;
@@ -150,7 +151,7 @@ struct OpCurveCurve {
 	bool debugShowImage(bool atDepth = false);
 #endif
 #if OP_DEBUG_DUMP
-	OpCurveCurve(OpContours* c) { context = c; }
+	OpCurveCurve(OpContext* c) { context = c; }
 	void drawClosest(const OpPoint& originalPt) const;
 	void dumpClosest(const OpPoint& pt) const;
 #include "OpDebugDeclarations.h"
@@ -160,9 +161,11 @@ struct OpCurveCurve {
 	void dumpDepth(int level);
 	void dumpDepth();
 #endif
-	OpContours* context;
+	OpContext* context;
 	OpSegment* seg;
 	OpSegment* opp;
+	OpEdge* parentEdge;
+	OpEdge* parentOpp;
 	CcCurves edgeCurves;
 	CcCurves oppCurves;
 	std::vector<FoundLimits> limits;
@@ -176,6 +179,7 @@ struct OpCurveCurve {
 	int maxSplits;
 	int maxDepth;
 	bool addedPoint;
+	bool overlap;
 	bool rotateFailed;
 	bool sectResult;
 	bool smallTFound;  // if true, hull sort should prefer large t values

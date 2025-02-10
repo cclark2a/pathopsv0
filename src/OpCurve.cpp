@@ -359,7 +359,7 @@ void OpCurve::reverse() {
 		(*funcPtr)(c);
 }
 
-OpCurve::OpCurve(OpContours* cntrs, PathOpsV0Lib::Curve curve) {
+OpCurve::OpCurve(OpContext* cntrs, PathOpsV0Lib::Curve curve) {
 	contours = cntrs;
 	c.size = curve.size;
 	c.data = contours->allocateCurveData(c.size);

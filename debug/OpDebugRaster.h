@@ -14,7 +14,7 @@ namespace PathOpsV0Lib {
 	struct Winding;
 }
 
-struct OpContours;
+struct OpContext;
 struct OpContour;
 struct OpWinding;
 
@@ -35,12 +35,12 @@ struct OpDebugSamples {
 	void addCurveXatY(PathOpsV0Lib::Curve , int id, OpWinding* w = nullptr, bool curveDown = false);
 	void addCurveYatX(PathOpsV0Lib::Curve , int id, OpWinding* w = nullptr, bool curveRight = false);
 	float compare(OpDebugSamples& );  // return error as sum of partial-x differences
-	void init(OpContours* );	// call after data is normalized
+	void init(OpContext* );	// call after data is normalized
 	void sample(OpContour* libContour);
 	void sort();
 
 	std::vector<RasterSample> samples;  // 1 per curve crossing scanline
-	OpContours* contours;
+	OpContext* contours;
 	double scale;  // apply scale first
 	double offsetX;  // then apply offset
 	double offsetY;

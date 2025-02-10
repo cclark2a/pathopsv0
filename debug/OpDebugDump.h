@@ -13,7 +13,7 @@ void dump(DebugLevel, DebugBase ) const; \
 void dumpBrief() const; \
 void dumpDetailed() const; \
 void dumpHex() const; \
-void dumpResolveAll(OpContours* ); \
+void dumpResolveAll(OpContext* ); \
 void dumpSet(const char*& );
 
 
@@ -46,7 +46,7 @@ OP_X(CcCurves) \
 OP_X(CoinEnd) \
 OP_X(LinePts) \
 OP_X(LinkUps) \
-OP_X(OpContours) \
+OP_X(OpContext) \
 OP_X(OpCurve) \
 OP_X(OpCurveCurve) \
 OP_X(OpEdgeStorage) \
@@ -134,6 +134,9 @@ extern void dmp##Thing(const Op##Struct& );
 DETAIL_POINTS
 #undef OP_X
 
+extern void dmpMatchEnd(int id);
+extern void dmpMatchStart(int id);
+
 #define EDGE_OR_SEGMENT_DETAIL \
 OP_X(Edges) \
 OP_X(End) \
@@ -218,8 +221,8 @@ namespace PathOpsV0Lib {
 struct CurveCallBacks;
 }
 
-extern OpContours* fromFile(std::vector<PathOpsV0Lib::CurveCallBacks>* callBacks);
-extern void verifyFile(OpContours* );
+extern OpContext* fromFile(std::vector<PathOpsV0Lib::CurveCallBacks>* callBacks);
+extern void verifyFile(OpContext* );
 
 #if OP_DEBUG_VERBOSE
 extern void dmpDepth(int level);  // curve-curve intermediate edges created at some recursive depth

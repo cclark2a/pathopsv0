@@ -29,80 +29,71 @@ struct DebugCurveCallBacks {
 	OP_DEBUG_IMAGE_CODE(DebugAddToPath addToPathFuncPtr;)
 };
 
-// caller defined contour data; curves that share the same winding and fill rules
-typedef void* DebugContourData;
+// caller defined context data (e.g., the path operation)
+typedef void* DebugContext;
 
-// for transport of contour data to callbacks
-struct DebugCallerData {
-	DebugContourData data;
+// for transport of context data to callbacks
+struct DebugContextData {
+	DebugContext data;
 	size_t size;
 };
 
-typedef uint8_t (*DebugBitOper)(DebugCallerData , uint8_t , uint8_t);
+// caller defined contour data (e.g., a pointer to the native path)
+typedef void* DebugContour;
 
+// for transport of contour data to callbacks
+struct DebugContourData {
+	DebugContour data;
+	size_t size;
+};
+
+typedef uint8_t (*DebugBitOper)(DebugContourData , uint8_t , uint8_t);
 #if OP_DEBUG_DUMP
-typedef void (*DebugDumpContourIn)(const char*& str , Winding );
-typedef std::string (*DebugDumpContourOut)(Winding );
-typedef std::string (*DebugDumpContourExtra)(DebugCallerData , DebugLevel , DebugBase );
+typedef std::string (*DebugDumpWindingOut)(Winding );
+typedef std::string (*DebugDumpContextExtra)(DebugContextData , DebugLevel , DebugBase );
 #endif
 #if OP_DEBUG_IMAGE
-typedef std::string (*DebugImageOut)(Winding , int index);
-typedef uint32_t (*DebugCCOverlapsColor)(DebugCallerData);
-typedef uint32_t (*DebugCurveCurveColor)(DebugCallerData);
-typedef uint32_t (*DebugNativeFillColor)(DebugCallerData);
-typedef uint32_t (*DebugNativeInColor)(DebugCallerData);
-typedef void* (*DebugNativePath)(DebugCallerData);
-typedef bool (*DebugGetDraw)(DebugCallerData);
-typedef void (*DebugSetDraw)(DebugCallerData, bool);
-typedef bool (*DebugIsOpp)(DebugCallerData);
+typedef std::string (*DebugImageWindingOut)(Winding , int index);
 #endif
 
-struct DebugContourCallBacks {
-	DebugBitOper debugBitOperFuncPtr;
-
+struct DebugContextCallBacks {
+	DebugBitOper debugBitOperFuncPtr = nullptr;
 #if OP_DEBUG_DUMP
-	DebugDumpContourIn debugDumpContourInFuncPtr;
-	DebugDumpContourOut debugDumpContourOutFuncPtr;
-	DebugDumpContourExtra debugDumpContourExtraFuncPtr;
+    DebugDumpContextExtra debugDumpContextExtraFuncPtr = nullptr;
+	DebugDumpWindingOut debugDumpWindingOutFuncPtr = nullptr;
 #endif
 #if OP_DEBUG_IMAGE
-	DebugImageOut debugImageOutFuncPtr;
-	DebugNativePath debugNativePathFuncPtr;
-	DebugGetDraw debugGetDrawFuncPtr;
-	DebugSetDraw debugSetDrawFuncPtr;
-	DebugIsOpp debugIsOppFuncPtr;
+	DebugImageWindingOut debugImageWindingOutFuncPtr = nullptr;
 #endif
 };
 
 #if OP_DEBUG_DUMP
-inline std::string noDumpFunc(DebugCallerData caller, DebugLevel , DebugBase ) {
-    OP_ASSERT(!caller.size);
-    return "";
-}
+typedef std::string (*DebugDumpContourExtra)(DebugContourData , DebugLevel , DebugBase );
 #endif
-
 #if OP_DEBUG_IMAGE
-inline void noAddToSkPathFunc(Curve , SkPath& ) {
-}
+typedef void* (*DebugNativePath)(DebugContourData );
+typedef bool (*DebugGetDraw)(DebugContourData );
+typedef void (*DebugSetDraw)(DebugContourData , bool);
+typedef bool (*DebugOperand)(DebugContourData , int );
+#endif
 
-inline std::string noWindingImageOutFunc(Winding , int index) {
-	return "";
-}
+struct DebugContourCallBacks {
+#if OP_DEBUG_DUMP
+    DebugDumpContourExtra debugDumpContourExtraFuncPtr = nullptr;
+#endif
+#if OP_DEBUG_IMAGE
+	DebugNativePath debugNativePathFuncPtr = nullptr;
+	DebugGetDraw debugGetDrawFuncPtr = nullptr;
+	DebugSetDraw debugSetDrawFuncPtr = nullptr;
+	DebugOperand debugOperandFuncPtr = nullptr;
+#endif
+};
 
-inline void* noNativePathFunc(DebugCallerData ) {
-	return nullptr;
-}
-
-inline bool noDebugGetDrawFunc(DebugCallerData ) {
-	return false;
-}
-
-inline void noDebugSetDrawFunc(DebugCallerData , bool ) {
-}
-
-inline bool noIsOppFunc(DebugCallerData ) {
-	return false;
-}
+#if 0  // not (yet) implemented
+typedef uint32_t (*DebugCCOverlapsColor)(DebugContextData );  
+typedef uint32_t (*DebugCurveCurveColor)(DebugContextData );
+typedef uint32_t (*DebugNativeFillColor)(DebugContextData );
+typedef uint32_t (*DebugNativeInColor)(DebugContextData );
 #endif
 
 #endif
@@ -110,4 +101,3 @@ inline bool noIsOppFunc(DebugCallerData ) {
 }
 
 #endif
-

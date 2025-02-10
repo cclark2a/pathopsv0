@@ -208,14 +208,22 @@ void SectRay::sort() {
 
 #if WINDER_CONTOUR_EXPERIMENT
 // add all edges in contour, and any other contours which the caller says overlap
-OpWinder::OpWinder(OpContours& contours) {
+OpWinder::OpWinder(OpContext& contours) {
 	for (OpContour* oContour : contours.contours) {
 		OP_ASSERT(!oContour->isEmpty());
 		if (oContour->winderOwner != oContour)
 			continue;
+		bool addCoin = false;
 		for (OpContour* iContour : oContour->sects) {
 			OP_ASSERT(!iContour->isEmpty());
-			oContour->addEdges(iContour);
+			addCoin |= oContour->addEdges(iContour);
+		}
+		if (!addCoin)
+			continue;
+// If an edge is disabled, but its winding was transferred to another edge (potentially in another 
+// contour) add the coincident edge to the list. (fuzz763_1823)
+		for (OpContour* iContour : oContour->sects) {
+			oContour->addCoinEdges(iContour);
 		}
 	}
 	for (OpContour* contour : contours.contours) {
@@ -229,7 +237,7 @@ OpWinder::OpWinder(OpContours& contours) {
 	OpDebugOut("");
 }
 #else
-OpWinder::OpWinder(OpContours& contours) {
+OpWinder::OpWinder(OpContext& contours) {
 	for (auto contour : contours.contours) {
 		for (auto& segment : contour->segments) {
 			for (auto& edge : segment.edges) {
@@ -258,7 +266,7 @@ struct SectPtT {
 	{
 		if (sect)
 			ptT = sect->ptT;
-		OpContours* contours = seg->contour->context;
+		OpContext* contours = seg->contour->context;
 		OpPtAliases& aliases = contours->aliases;
 		original = ptT.pt;
 		if (OpPoint possibleAlias = aliases.existing(ptT.pt); possibleAlias != ptT.pt)
@@ -324,7 +332,7 @@ struct CoinSects {
 			std::swap(end.ceSeg, end.ceOpp);
 			end.isBaseSegment = !end.isBaseSegment;
 		}
-		OpContours* context = coinStart.seg->contour->context;
+		OpContext* context = coinStart.seg->contour->context;
 		OpVector threshold = context->threshold();
 		auto checkClose = [context, threshold](OpSegment* seg, SectPtT& s, SectPtT& e) {
 			bool near = s.ptT.isNearly(e.ptT, threshold);
@@ -609,9 +617,10 @@ ChainFail OpWinder::setSumChain(size_t homeIndex) {
 	return ChainFail::none;
 }
 
-ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
+ResolveWinding OpWinder::setWindingByDistance(OpContext* contours) {
 	// find edge; then walk backwards to first known sum 
 	SectRay& ray = home->ray;
+	OpBreak(home, 355);
 	OP_ASSERT(ray.distances.size());
 	if (1 == ray.distances.size()) {
 		OP_ASSERT(home == ray.distances[0].edge);
@@ -623,7 +632,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 			if (CalcFail::fail == home->addIfUR(ray.axis, ray.distances[0].edgeInsideT, &prev))
 				home->setUnsortable(Unsortable::addCalcFail);
 			else
-				OP_EDGE_SET_SUM(home, prev.w);
+				OP_EDGE_SET_SUM(home, prev);
 		}
 		return ResolveWinding::resolved;
 	}
@@ -680,8 +689,8 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 		EdgePal& sumDistance = ray.distances[sumIndex];
 		OpEdge* sumEdge = sumDistance.edge;
 		OP_ASSERT(!sumEdge->isUnsectable());
-		sumWinding.w = sumEdge->sum.copyData();
-		OP_DEBUG_CODE(sumWinding.debugType = WindingType::temp);
+		sumWinding.w = sumEdge->sum.copyData(contours);
+		OP_DEBUG_CODE(sumWinding.debugType = DebugWindingType::temp);
 		// if pointing down/left, subtract winding
 		if (CalcFail::fail == sumEdge->subIfDL(ray.axis, sumDistance.edgeInsideT, &sumWinding))  
 			OP_DEBUG_FAIL(*sumEdge, ResolveWinding::fail);
@@ -699,15 +708,15 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 			continue;
 		}
 		if (NormalDirection::downLeft == normDir && !anyPriorPal(prior, sumIndex))
-			OP_EDGE_SET_SUM(prior, sumWinding.w);
+			OP_EDGE_SET_SUM(prior, sumWinding);
 		if (CalcFail::fail == prior->addSub(ray.axis, dist.edgeInsideT, &sumWinding)) // if d/l sub; if u/r add
 			OP_DEBUG_FAIL(*prior, ResolveWinding::fail);
 		if (NormalDirection::upRight == normDir && !anyPriorPal(prior, sumIndex))
-			OP_EDGE_SET_SUM(prior, sumWinding.w);
+			OP_EDGE_SET_SUM(prior, sumWinding);
 	} while (home != prior);
 	if (!home->isUnsectable()) {
 		if (!home->sum.isSet())
-			OP_EDGE_SET_SUM(home, sumWinding.w);
+			OP_EDGE_SET_SUM(home, sumWinding);
 		return ResolveWinding::resolved;
 	}
 	// if home is unsectable, set its sum winding as if all of its pals' windings were a single edge
@@ -715,18 +724,18 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 	// winding must be replaced by all unsectable windings -- however, other unsectables will want 
 	//   to see the original winding. This is why 'many' is used. After all sums are computed
 	//   replace winding with many.
-	home->many = home->winding;	// back up winding
+	std::swap(home->many, home->winding);	// back up winding
 	for (const auto& pal : home->pals) {
-		home->winding.move(pal.edge->winding, pal.reversed);
+		home->winding.move(contours, pal.edge->winding, pal.reversed);
 	}
-	if (!home->winding.visible()) {
+	if (!home->winding.visible(contours)) {
 		home->setDisabled(OP_LINE_FILE_NPARGS());
 //		home->windPal = true;	// !!! doesn't appear to be necessary
 	}
 	if (CalcFail::fail == home->addIfUR(ray.axis, homeT, &sumWinding))
 		home->setUnsortable(Unsortable::addCalcFail2);
 	else
-		OP_EDGE_SET_SUM(home, sumWinding.w);
+		OP_EDGE_SET_SUM(home, sumWinding);
 	std::swap(home->many, home->winding);  // restore winding, put total of pals in many
 	return ResolveWinding::resolved;	   // (will copy many to winding after all many are found)
 }
@@ -735,7 +744,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContours* contours) {
 // probably it should walk the edges in the contour, after setting the inX/inY to the 
 // cache of sect edges held by the contour (or the 
 
-FoundWindings OpWinder::setWindings(OpContours* contours) {
+FoundWindings OpWinder::setWindings(OpContext* contours) {
 	// test sum chain for correctness; recompute if prior or next are inconsistent
 	for (Axis a : { Axis::horizontal, Axis::vertical }) {
 		workingAxis = a;
@@ -790,6 +799,7 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 		}
 	}
 
+	// if a pair of pals share an edge, this puts each in the other's pal list
 	for (auto contour : contours->contours) {
 		for (auto& segment : contour->segments) {
 			for (auto& edge : segment.edges) {
@@ -804,14 +814,18 @@ FoundWindings OpWinder::setWindings(OpContours* contours) {
 							foundReciprocal = true;
 							continue;
 						}
+							// if pals overlap bounds, they are not reciprocal (fuzz763_378)
+						if (!edge.ptBounds.overlaps(oPal.edge->ptBounds))
+							continue;
 						if (pals.end() == std::find_if(pals.begin(), pals.end(), [&oPal]
 								(const EdgePal& test) {
 								return test.edge == oPal.edge;
 						})) {
 							if (reciprocals.end() == std::find_if(reciprocals.begin(),
 									reciprocals.end(), [&oPal](const EdgePal* test) {
-									return test->edge == oPal.edge; }))
+									return test->edge == oPal.edge; })) {
 								locals.push_back(&oPal);
+							}
 						}
 					}
 					if (foundReciprocal)

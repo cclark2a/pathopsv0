@@ -7,7 +7,7 @@
 #if WINDER_CONTOUR_EXPERIMENT
 struct OpContour;
 #endif
-struct OpContours;
+struct OpContext;
 struct OpOutPath;
 
 enum class LinkPass {
@@ -33,12 +33,12 @@ struct LinkUps {
 };
 
 struct OpJoiner {
-	OpJoiner(OpContours& contours);
+	OpJoiner(OpContext& contours);
 #if !WINDER_CONTOUR_EXPERIMENT
 	void addEdge(OpEdge* );
 	void addToLinkups(OpEdge* );
-	void buildDisabled(OpContours& );
-	void buildDisabledPals(OpContours& );
+	void buildDisabled(OpContext& );
+	void buildDisabledPals(OpContext& );
 	bool detachIfLoop(OpEdge* , EdgeMatch loopEnd);
 	bool linkUp(OpEdge* );
 	bool relinkUnambiguous(size_t checked);
@@ -48,7 +48,7 @@ struct OpJoiner {
 	bool linkRemaining(OpContour* );
 	void linkUnambiguous(OpContour* , LinkPass );
 #else
-	bool linkRemaining(OP_DEBUG_CODE(OpContours*));
+	bool linkRemaining(OP_DEBUG_CODE(OpContext*));
 	void linkUnambiguous(LinkPass );
 #endif
 //	bool linkSimple(OpEdge* );
@@ -61,7 +61,7 @@ struct OpJoiner {
 #endif
 #if OP_DEBUG
 #if !WINDER_CONTOUR_EXPERIMENT
-	void debugMatchRay(OpContours* contours);
+	void debugMatchRay(OpContext* contours);
 #endif
 	static bool DebugShowImage();
 #endif
@@ -85,7 +85,7 @@ struct OpJoiner {
 #endif
 	FoundEdge bestGap;
 #if WINDER_CONTOUR_EXPERIMENT
-	OpContours* context;
+	OpContext* context;
 #else
 	LinkUps linkups;  // vector wrapper (allows data specific debugging / dumping)
 #endif
@@ -140,6 +140,7 @@ struct OpLimb {
 		deadEnd = (bool) -1;
 		looped = (bool) -1;
 		resetPass = (bool) -1;
+		deferredUnsectable = (bool) -1;
 #endif
 		OP_DEBUG_DUMP_CODE(id = 0);
 	}
@@ -180,6 +181,7 @@ struct OpLimb {
 	bool deadEnd;
 	bool looped;
 	bool resetPass;  // when new parent is found, restart limb pass
+	bool deferredUnsectable;
 
 #if OP_DEBUG_DUMP
 	std::vector<OpLimb*> debugBranches;
@@ -195,13 +197,15 @@ struct OpTree {
 	OP_DEBUG_CODE(~OpTree());
 #if WINDER_CONTOUR_EXPERIMENT
 	void addDisabled(OpContour& );
+	OpEdge* addFiller(OpSegment* , const OpPtT& , const OpPtT& );
 #else
 	void addDisabled(OpJoiner& );
-#endif
 	OpEdge* addFiller(const OpPtT& , const OpPtT& );
+#endif
 	void addUnsectableLoop(OpJoiner& , OpLimb* );
 	bool contains(OpLimb* , OpEdge* ) const;
 	bool containsFiller(OpLimb* , OpPoint , OpPoint ) const;
+	bool containsDeferred(OpPoint , OpPoint ) const;
 	bool containsParent(OpLimb* , OpEdge* , EdgeMatch ) const;
 #if WINDER_CONTOUR_EXPERIMENT
 	void initialize(OpContour& join);
@@ -218,7 +222,7 @@ struct OpTree {
 
 //	OpLimbStorage* limbStorage;
 //	OpLimbStorage* current;
-	OpContours* context;
+	OpContext* context;
 	OpLimb* bestGapLimb;  // used only by detached pass
 	const OpLimb* bestLimb;   // index into limbStorage
 	OpPoint firstPt;
@@ -228,6 +232,8 @@ struct OpTree {
 	int maxLimbs;
 //	int baseIndex;
 	int totalUsed;
+	int id;
+	bool deferUnsectable;
 };
 
 struct OpLimbStorage {
@@ -244,7 +250,7 @@ struct OpLimbStorage {
 	int debugCount() const;
 	const OpLimb* debugFind(int ID) const;
 	OpLimb* debugIndex(int index);
-	static void DumpSet(const char*& , OpContours* );
+	static void DumpSet(const char*& , OpContext* );
 	DUMP_DECLARATIONS
 #endif
 

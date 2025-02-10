@@ -1,7 +1,6 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 
 #include "curves/Line.h"
-#include "curves/NoCurve.h"
 #include "curves/QuadBezier.h"
 #include "curves/UnaryWinding.h"
 
@@ -47,6 +46,8 @@ void testNewInterface() {
 
     Context* context = CreateContext();
     SetContextCallBacks(context, { testNewSetLineType });
+    SetWindingCallBacks(context, { unaryWindingAddFunc, unaryWindingKeepFunc, unaryWindingVisibleFunc,
+			unaryWindingZeroFunc, unaryWindingSubtractFunc });
 
 #if OP_DEBUG
     OpDebugData debugData(false);
@@ -54,6 +55,9 @@ void testNewInterface() {
     debugData.curveCurve2 = 7;
     debugData.curveCurveDepth = 6;
     Debug(context, debugData);
+	SetDebugContextCallBacks(context, { nullptr
+            OP_DEBUG_DUMP_PARAMS(nullptr, unaryWindingDumpOutFunc) }
+    );
 #endif
 
     lineType = SetCurveCallBacks(context, { lineOutput });
@@ -68,14 +72,8 @@ void testNewInterface() {
     UnaryWinding windingData(1);
     Winding winding { &windingData, sizeof(windingData) };
     Contour* contour = CreateContour(context, winding);
-    SetWindingCallBacks(contour, { unaryWindingAddFunc, unaryWindingKeepFunc, unaryWindingVisibleFunc,
-			unaryWindingZeroFunc, unaryWindingSubtractFunc });
 #if OP_DEBUG
-	SetDebugWindingCallBacks(contour, { nullptr, 0 }, noDebugBitOper
-            OP_DEBUG_DUMP_PARAMS(unaryWindingDumpInFunc, unaryWindingDumpOutFunc, noDumpFunc)
-            OP_DEBUG_IMAGE_PARAMS(noWindingImageOutFunc, noNativePathFunc,
-            noDebugGetDrawFunc, noDebugSetDrawFunc, noIsOppFunc)
-    );
+	SetDebugContourData(contour, { nullptr, 0 } );
 #endif
 
     // note that the data below omits start points for curves that match the previous end point

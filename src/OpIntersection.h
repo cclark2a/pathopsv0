@@ -209,7 +209,7 @@ struct OpSectStorage {
 	int debugCount() const;
 	OpIntersection* debugFind(int id) const;
 	OpIntersection* debugIndex(int index) const;
-	static void DumpSet(const char*& , OpContours* );
+	static void DumpSet(const char*& , OpContext* );
 	DUMP_DECLARATIONS
 #endif
 

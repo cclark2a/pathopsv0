@@ -20,7 +20,7 @@ static bool compareXBox(const OpSegment* s1, const OpSegment* s2) {
 	return s1->id < s2->id;
 }
 
-OpSegments::OpSegments(OpContours& c) 
+OpSegments::OpSegments(OpContext& c) 
 	: context(c)
 	, found(FoundIntersections::yes) {
 	OP_DEBUG_CODE(debugFailSegID = 0);
@@ -348,6 +348,7 @@ void OpSegments::findIntersection(OpContour* contour, OpContour* oContour) {
 				continue;
 			if (seg->closeBounds.right < opp->closeBounds.left)
 				break;
+			// loop134071: seg 8 collapses. With pt bounds instead of 'close', seg 7 + 9 don't touch
 			if (!seg->closeBounds.intersects(opp->closeBounds))
 				continue;
 			if (!findIntersection(seg, opp))
@@ -403,6 +404,8 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 		return true;
 	// look for curve curve intersections (skip coincidence already found)
 	OpCurveCurve cc(seg, opp);
+	if (!cc.overlap)
+		return true;
 	SectFound ccResult = cc.divideAndConquer();
 	OP_ASSERT(cc.debugShowImage());
 	if (true) { // SectFound::fail == ccResult || SectFound::maxOverlaps == ccResult
