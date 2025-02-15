@@ -306,8 +306,8 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
 	debugLocalCall = debugCall;  // copied so value is visible in debugger
 	context->debugCurveCurve = this;
 #endif
-//	contours->reuse(contours->ccStorage);
-	PathOpsV0Lib::ContextCallBacks& cb = context->contextCallBacks;
+//	contours->reuse(contours->ccStorage);  // !!! consider adding starting block of edges to context
+	PathOpsV0Lib::ContextCallbacks& cb = context->contextCallbacks;
 	maxSignSwap = cb.maxSignSwapFuncPtr ? cb.maxSignSwapFuncPtr(s->c.c, o->c.c) : 131072.f;
 	maxSplits = cb.maxSplitsFuncPtr ? cb.maxSplitsFuncPtr(s->c.c, o->c.c) : 8;
 	maxDepth = cb.maxDepthFuncPtr ? cb.maxDepthFuncPtr(s->c.c, o->c.c) : 64;

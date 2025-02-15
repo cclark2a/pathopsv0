@@ -31,7 +31,7 @@ OpWinding::OpWinding(OpContext* context, const OpWinding& from) {
 
 void OpWinding::add(OpContext* context, const OpWinding& winding) {
 	copyOnDemand(context);
-	context->windingCallBacks.windingAddFuncPtr(w, winding.w);
+	context->windingCallbacks.windingAddFuncPtr(w, winding.w);
 }
 
 PathOpsV0Lib::Winding OpWinding::copyData(OpContext* context) const {
@@ -56,21 +56,21 @@ void OpWinding::setWind(const OpWinding& fromSegment) {
 
 void OpWinding::subtract(OpContext* context, const OpWinding& winding) {
 	copyOnDemand(context);
-	context->windingCallBacks.windingSubtractFuncPtr(w, winding.w);
+	context->windingCallbacks.windingSubtractFuncPtr(w, winding.w);
 }
 
 bool OpWinding::visible(OpContext* context) const {
-	return context->windingCallBacks.windingVisibleFuncPtr(w);
+	return context->windingCallbacks.windingVisibleFuncPtr(w);
 }
 
 void OpWinding::zero(OpContext* context) {
 	copyOnDemand(context);
-	context->windingCallBacks.windingZeroFuncPtr(w);
+	context->windingCallbacks.windingZeroFuncPtr(w);
 }
 
 void OpWinding::move(OpContext* context, const OpWinding& opp, bool backwards) {
 	if (backwards)
-		add(context, opp);
-	else
 		subtract(context, opp);
+	else
+		add(context, opp);
 }

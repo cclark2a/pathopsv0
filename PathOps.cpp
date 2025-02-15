@@ -44,7 +44,7 @@ Contour* Clone(Contour* contour) {
     OpContour* clone = original->context->makeContour();
 	clone->winding = original->winding;
 #if OP_DEBUG
-	clone->debugCallBacks = original->debugCallBacks;
+	clone->debugCallbacks = original->debugCallbacks;
 	clone->debugCaller = original->debugCaller;
 #endif
     return (Contour*) clone;
@@ -108,22 +108,22 @@ void Resolve(Context* context, PathOutput output) {
     /* bool success = */ contours->pathOps();
 }
 
-void SetContextCallBacks(Context* context, ContextCallBacks contextCallBacks) {
+void SetContextCallbacks(Context* context, ContextCallbacks contextCallbacks) {
     OpContext* contours = (OpContext*) context;
-    contours->contextCallBacks = contextCallBacks;
+    contours->contextCallbacks = contextCallbacks;
 }
 
-CurveType SetCurveCallBacks(Context* context, CurveCallBacks curveCallBacks) {
+CurveType SetCurveCallbacks(Context* context, CurveCallbacks curveCallbacks) {
     OpContext* contours = (OpContext*) context;
-    contours->callBacks.push_back(curveCallBacks);
-    return (CurveType) contours->callBacks.size();
+    contours->callbacks.push_back(curveCallbacks);
+    return (CurveType) contours->callbacks.size();
 }
 
-void SetWindingCallBacks(Context* ctext, WindingCallBacks windingCallBacks) {
+void SetWindingCallbacks(Context* ctext, WindingCallbacks windingCallbacks) {
     OpContext* context = (OpContext*) ctext;
-	if (!windingCallBacks.windingSubtractFuncPtr)
-		windingCallBacks.windingSubtractFuncPtr = windingCallBacks.windingAddFuncPtr;
-    context->windingCallBacks = windingCallBacks;
+	if (!windingCallbacks.windingSubtractFuncPtr)
+		windingCallbacks.windingSubtractFuncPtr = windingCallbacks.windingAddFuncPtr;
+    context->windingCallbacks = windingCallbacks;
 }
 
 } // namespace PathOpsV0Lib

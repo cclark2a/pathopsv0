@@ -183,7 +183,7 @@ OpEdge::OpEdge(OpContext* contours, const OpPtT& start, const OpPtT& end  OP_LIN
 	id = contours->nextID();
 	PathOpsV0Lib::CurveData lineData { start.pt, end.pt };
 	PathOpsV0Lib::Curve lineCurve { &lineData, sizeof(lineData), (PathOpsV0Lib::CurveType) 0 };
-	lineCurve.type = contours->contextCallBacks.setLineTypeFuncPtr(lineCurve);
+	lineCurve.type = contours->contextCallbacks.setLineTypeFuncPtr(lineCurve);
 	curve = OpCurve(contours, lineCurve);
 	curve.isLineSet = true;
 	curve.isLineResult = true;
@@ -236,7 +236,7 @@ OpEdge::OpEdge(const OpEdge* edge, float t1, float t2  OP_LINE_FILE_ARGS())
 	complete(segment->c.ptAtT(t1), segment->c.ptAtT(t2));
 }
 
-CalcFail OpEdge::addIfUR(Axis axis, float edgeInsideT, OpWinding* sumWinding) {
+CalcFail OpEdge::addIfUR(Axis axis, float edgeInsideT, OpWinding* sumWinding) const {
 	NormalDirection NdotR = normalDirection(axis, edgeInsideT);
 	if (NormalDirection::upRight == NdotR)
 		sumWinding->add(context(), winding);
@@ -253,7 +253,7 @@ void OpEdge::addPal(const EdgePal& dist) {
 
 // given an intersecting ray and edge t, add or subtract edge winding to sum winding
 // but don't change edge's sum, since an unsectable edge does not allow that accumulation
-CalcFail OpEdge::addSub(Axis axis, float edgeInsideT, OpWinding* sumWinding) {
+CalcFail OpEdge::addSub(Axis axis, float edgeInsideT, OpWinding* sumWinding) const {
 	NormalDirection NdotR = normalDirection(axis, edgeInsideT);
 	if (NormalDirection::upRight == NdotR)
 		sumWinding->add(context(), winding);
@@ -297,7 +297,7 @@ void OpEdge::apply() {
 		setDisabled(OP_LINE_FILE_NPARGS());
 	if (disabled || Unsortable::none != isUnsortable)
 		return;
-	PathOpsV0Lib::WindKeep keep = context()->windingCallBacks.windingKeepFuncPtr(winding.w, sum.w);
+	PathOpsV0Lib::WindKeep keep = context()->windingCallbacks.windingKeepFuncPtr(winding.w, sum.w);
 	switch (keep) {
 		case PathOpsV0Lib::WindKeep::Discard:
 			setDisabled(OP_LINE_FILE_NPARGS());
@@ -754,7 +754,7 @@ void OpEdge::subDivide(OpPoint startPoint, OpPoint endPoint) {
 	}
 }
 
-CalcFail OpEdge::subIfDL(Axis axis, float edgeInsideT, OpWinding* sumWinding) {
+CalcFail OpEdge::subIfDL(Axis axis, float edgeInsideT, OpWinding* sumWinding) const {
 	NormalDirection NdotR = normalDirection(axis, edgeInsideT);
 	if (NormalDirection::downLeft == NdotR)
 		sumWinding->subtract(context(), winding);
@@ -764,7 +764,6 @@ CalcFail OpEdge::subIfDL(Axis axis, float edgeInsideT, OpWinding* sumWinding) {
 }
 
 void OpEdge::setSum(const OpWinding& w  OP_LINE_FILE_ARGS()) {
-	OpBreak(this, 355);
 	OP_ASSERT(WindingType::uninitialized == sum.type);
 	sum.w = w.copyData(context());
 	sum.type = WindingType::copy;

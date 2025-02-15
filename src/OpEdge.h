@@ -293,9 +293,9 @@ public:
 	OpEdge(const OpEdge* e, const OpPtT& start, const OpPtT& end  OP_LINE_FILE_ARGS());
 	OpEdge(const OpEdge* e, float t1, float t2  OP_LINE_FILE_ARGS());
 
-	CalcFail addIfUR(Axis xis, float t, OpWinding* );
+	CalcFail addIfUR(Axis xis, float t, OpWinding* ) const;
 	void addPal(const EdgePal& );
-	CalcFail addSub(Axis axis, float t, OpWinding* );
+	CalcFail addSub(Axis axis, float t, OpWinding* ) const;
 	OpEdge* advanceToEnd(EdgeMatch );
 	void apply();
 	const OpRect& bounds() { return ptBounds; }
@@ -337,7 +337,7 @@ public:
 		return curve.matchEnds(linePts); }
 	void markPals();
 	OpEdge* nextOut();
-	NormalDirection normalDirection(Axis axis, float edgeInsideT) {  // t value is not segment t
+	NormalDirection normalDirection(Axis axis, float edgeInsideT) const {  // t value is not segment t
 		return curve.normalDirection(axis, edgeInsideT); }
 	void output(bool closed);  // provided by the graphics implementation
 	void outputLinkedList(const OpEdge* firstEdge, bool first);
@@ -367,7 +367,7 @@ public:
 	OpPtT start() const { return OpPtT(startPt(), startT); }
 	OpPoint startPt() const { return curve.firstPt(); }
 	void subDivide(OpPoint start, OpPoint end);
-	CalcFail subIfDL(Axis axis, float t, OpWinding* );
+	CalcFail subIfDL(Axis axis, float t, OpWinding* ) const;
 	void unlink();  // restore edge to unlinked state (for reusing unsortable or unsectable edges)
 	EdgeMatch which() const {
 		return whichEnd_impl; }
@@ -507,7 +507,5 @@ struct OpEdgeStorage {
 	OpEdge storage[256];
 	int used;
 };
-
-#define OP_EDGE_SET_SUM(edge, winding) edge->setSum(winding  OP_LINE_FILE_PARGS())
 
 #endif

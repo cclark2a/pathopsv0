@@ -45,8 +45,8 @@ void testNewInterface() {
     using namespace PathOpsV0Lib;
 
     Context* context = CreateContext();
-    SetContextCallBacks(context, { testNewSetLineType });
-    SetWindingCallBacks(context, { unaryWindingAddFunc, unaryWindingKeepFunc, unaryWindingVisibleFunc,
+    SetContextCallbacks(context, { testNewSetLineType });
+    SetWindingCallbacks(context, { unaryWindingAddFunc, unaryWindingKeepFunc, unaryWindingVisibleFunc,
 			unaryWindingZeroFunc, unaryWindingSubtractFunc });
 
 #if OP_DEBUG
@@ -55,13 +55,13 @@ void testNewInterface() {
     debugData.curveCurve2 = 7;
     debugData.curveCurveDepth = 6;
     Debug(context, debugData);
-	SetDebugContextCallBacks(context, { nullptr
+	SetDebugContextCallbacks(context, { nullptr
             OP_DEBUG_DUMP_PARAMS(nullptr, unaryWindingDumpOutFunc) }
     );
 #endif
 
-    lineType = SetCurveCallBacks(context, { lineOutput });
-    quadType = SetCurveCallBacks(context, { quadOutput, quadAxisT,
+    lineType = SetCurveCallbacks(context, { lineOutput });
+    quadType = SetCurveCallbacks(context, { quadOutput, quadAxisT,
 			quadHull, quadIsFinite, quadIsLine, 
 			quadSetBounds, quadPinCtrl, 
 			quadTangent, quadsEqual, quadPtAtT,

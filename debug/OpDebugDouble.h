@@ -8,6 +8,7 @@
 //#endif
 
 enum class Axis : int8_t ;
+struct OpContour;
 struct OpEdge;
 class SkPath;
 struct OpIntersection;
@@ -49,6 +50,7 @@ void DebugOpDraw(const std::vector<OpDebugRay>& );
 void DebugOpDraw(const std::vector<OpEdge>& );
 void DebugOpDraw(const std::vector<const OpEdge*>& );
 void DebugOpDraw(const std::vector<const SkPath*>& );
+void DebugOpDrawContourID(const OpContour* contour, std::vector<int>& ids);
 void DebugOpDrawEdgeControlLines(const OpEdge* , uint32_t color);
 void DebugOpDrawEdgeEndToEnd(const OpEdge* , uint32_t color);
 void DebugOpDrawEdgeID(const OpEdge* , uint32_t color, bool drawLimbs);

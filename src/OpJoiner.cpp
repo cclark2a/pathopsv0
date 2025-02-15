@@ -312,8 +312,8 @@ OpTree::OpTree(OpJoiner& join)
 	, totalUsed(0)
 	, deferUnsectable(false) {
 	id = context->nextID();
-	maxLimbs = context->contextCallBacks.maxLimbsFuncPtr ?
-			context->contextCallBacks.maxLimbsFuncPtr((PathOpsV0Lib::Context*) context) : 500;
+	maxLimbs = context->contextCallbacks.maxLimbsFuncPtr ?
+			context->contextCallbacks.maxLimbsFuncPtr((PathOpsV0Lib::Context*) context) : 500;
 	OP_DEBUG_CODE(context->debugTree = this);
 	OP_ASSERT(join.edge->inLinkups);
 	OP_DEBUG_IMAGE_CODE(context->debugLimbClear());
@@ -458,7 +458,7 @@ OpEdge* OpTree::addFiller(const OpPtT& ptT1, const OpPtT& ptT2)
 {
     float fillerLength = (ptT1.pt - ptT2.pt).length();
 	float thresholdLength = context->aliases.threshold.length();
-	PathOpsV0Lib::MaxGap gapFuncPtr = context->contextCallBacks.maxGapFuncPtr;
+	PathOpsV0Lib::MaxGap gapFuncPtr = context->contextCallbacks.maxGapFuncPtr;
 	float gapFactor = gapFuncPtr ? (*gapFuncPtr)((PathOpsV0Lib::Context*) context) : 15.f;
 	if (fillerLength > thresholdLength * gapFactor)
 		context->setError(PathOpsV0Lib::ContextError::gap  OP_DEBUG_PARAMS(id));

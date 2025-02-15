@@ -25,12 +25,12 @@ enum class BinaryWindType : int;
 SkPathOp MapInvertedSkPathOp(SkPathOp op, bool leftOperandIsInverted, bool rightOperandIsInverted);
 bool SkPathOpInvertOutput(SkPathOp op, bool leftOperandIsInverted, bool rightOperandIsInverted);
 
-void SetSkiaContextCallBacks(PathOpsV0Lib::Context* );
-void SetSkiaCurveCallBacks(PathOpsV0Lib::Context* );
-PathOpsV0Lib::Contour* SetSkiaSimplifyCallBacks(PathOpsV0Lib::Context* , PathOpsV0Lib::Winding , 
+void SetSkiaContextCallbacks(PathOpsV0Lib::Context* );
+void SetSkiaCurveCallbacks(PathOpsV0Lib::Context* );
+PathOpsV0Lib::Contour* SetSkiaSimplifyCallbacks(PathOpsV0Lib::Context* , PathOpsV0Lib::Winding , 
 		bool isWindingFill  OP_DEBUG_PARAMS(const SkPath& ));
-void SetSkiaOpContextCallBacks(PathOpsV0Lib::Context* , SkPathOp , PathOpsV0Lib::BinaryWindType );
-PathOpsV0Lib::Contour* SetSkiaOpContourCallBacks(PathOpsV0Lib::Context* , PathOpsV0Lib::Winding , 
+void SetSkiaOpContextCallbacks(PathOpsV0Lib::Context* , SkPathOp , PathOpsV0Lib::BinaryWindType );
+PathOpsV0Lib::Contour* SetSkiaOpContourCallbacks(PathOpsV0Lib::Context* , PathOpsV0Lib::Winding , 
 		PathOpsV0Lib::BinaryOperand  OP_DEBUG_PARAMS(const SkPath&));
 void AddSkiaPath(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* , const SkPath& path);
 

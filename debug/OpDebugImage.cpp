@@ -247,9 +247,9 @@ struct OpDebugDefeatDelete {
 
 void OpDebugImage::addToPath(const OpCurve& curve, SkPath& path) {
 	path.moveTo(curve.firstPt().x, curve.firstPt().y);
-	if ((size_t) curve.c.type > curve.contours->debugCallBacks.size())
+	if ((size_t) curve.c.type > curve.contours->debugCallbacks.size())
 		return;
-	PathOpsV0Lib::DebugAddToPath debugAddToPath = curve.contours->debugCallBack(curve.c.type).addToPathFuncPtr;
+	PathOpsV0Lib::DebugAddToPath debugAddToPath = curve.contours->debugCallback(curve.c.type).addToPathFuncPtr;
 	if (!debugAddToPath)
 		return;
 	(*debugAddToPath)(curve.c, path);
@@ -410,9 +410,9 @@ void OpDebugImage::drawDoubleFocus() {
 		bool first = true;
 		int alpha = drawFillOn ? 10 : 20;
 		for (auto contour : debugGlobalContours->contours) {
-			PathOpsV0Lib::DebugGetDraw debugGetDraw = contour->debugCallBacks.debugGetDrawFuncPtr;
+			PathOpsV0Lib::DebugGetDraw debugGetDraw = contour->debugCallbacks.debugGetDrawFuncPtr;
 			if (debugGetDraw && (*debugGetDraw)(contour->debugCaller)) {
-				PathOpsV0Lib::DebugNativePath debugNativePath = contour->debugCallBacks.debugNativePathFuncPtr;
+				PathOpsV0Lib::DebugNativePath debugNativePath = contour->debugCallbacks.debugNativePathFuncPtr;
 				if (!debugNativePath)
 					continue;
 				SkPath* skPath = (SkPath*) (*debugNativePath)(contour->debugCaller);
@@ -438,7 +438,7 @@ void OpDebugImage::drawDoubleFocus() {
 			edge->debugColor = purple;
 		else if (edgeIter.isCurveCurve) {
 			if (edge->ccOverlaps) {
-				PathOpsV0Lib::DebugOperand dbgOp = edge->segment->contour->debugCallBacks.debugOperandFuncPtr;
+				PathOpsV0Lib::DebugOperand dbgOp = edge->segment->contour->debugCallbacks.debugOperandFuncPtr;
 				edge->debugColor = dbgOp && (*dbgOp)(edge->segment->contour->debugCaller, 1)
 						? orange : darkGreen;
 			} else
@@ -458,7 +458,7 @@ void OpDebugImage::drawDoubleFocus() {
 		}
 		DebugOpDraw(rays);
 	}
-	if (drawSegmentsOn) {
+	if (drawSegmentsOn || drawContoursOn) {
 		DebugOpClearSegments();
 		for (auto segment : segmentIterator)
 			DebugOpAdd(segment);
@@ -477,6 +477,11 @@ void OpDebugImage::drawDoubleFocus() {
 	if (drawSegmentsOn && drawIDsOn) {
 		for (auto segment : segmentIterator)
 			DebugOpDrawSegmentID(segment, ids);
+	}
+	if (drawContoursOn && drawIDsOn) {
+		for (auto contour : debugGlobalContours->contours) {
+			DebugOpDrawContourID(contour, ids);
+		}
 	}
 	if (drawIDsOn || drawNormalsOn || drawTangentsOn
 			|| drawWindingsOn || drawEndToEndOn || drawControlLinesOn) {
@@ -1328,9 +1333,9 @@ void OpDebugImage::drawPoints() {
 		} while (verb != SkPath::kDone_Verb);
 	};
 	for (auto contour : debugGlobalContours->contours) {
-		PathOpsV0Lib::DebugGetDraw debugGetDraw = contour->debugCallBacks.debugGetDrawFuncPtr;
+		PathOpsV0Lib::DebugGetDraw debugGetDraw = contour->debugCallbacks.debugGetDrawFuncPtr;
 		if (debugGetDraw && (*debugGetDraw)(contour->debugCaller)) {
-			PathOpsV0Lib::DebugNativePath debugNativePath = contour->debugCallBacks.debugNativePathFuncPtr;
+			PathOpsV0Lib::DebugNativePath debugNativePath = contour->debugCallbacks.debugNativePathFuncPtr;
 			if (!debugNativePath)
 				continue;
 			SkPath* skPath = (SkPath*) (*debugNativePath)(contour->debugCaller);
@@ -1352,7 +1357,7 @@ void OpDebugImage::drawPoints() {
 		if (!edge->debugDraw)
 			continue;
 		OpContour* contour = edge->segment->contour;
-		PathOpsV0Lib::DebugOperand debugIsOpp = contour->debugCallBacks.debugOperandFuncPtr;
+		PathOpsV0Lib::DebugOperand debugIsOpp = contour->debugCallbacks.debugOperandFuncPtr;
 		bool isOpp = debugIsOpp && (*debugIsOpp)(contour->debugCaller, 1);
 		DebugOpBuild(edge->startPt(), edge->startT, isOpp);
 		DebugOpBuild(edge->endPt(), edge->endT, isOpp);
@@ -1378,9 +1383,9 @@ void OpDebugImage::drawPoints() {
 	if (drawLinesOn) {
 		for (const auto& line : lines) {
 			for (auto contour : debugGlobalContours->contours) {
-				PathOpsV0Lib::DebugGetDraw debugGetDraw = contour->debugCallBacks.debugGetDrawFuncPtr;
+				PathOpsV0Lib::DebugGetDraw debugGetDraw = contour->debugCallbacks.debugGetDrawFuncPtr;
 				if (debugGetDraw && (*debugGetDraw)(contour->debugCaller)) {
-					PathOpsV0Lib::DebugNativePath debugNativePath = contour->debugCallBacks.debugNativePathFuncPtr;
+					PathOpsV0Lib::DebugNativePath debugNativePath = contour->debugCallbacks.debugNativePathFuncPtr;
 					if (!debugNativePath)
 						continue;
 					DebugOpBuild(*(SkPath*)debugNativePath(contour->debugCaller), line);
@@ -1565,8 +1570,8 @@ EDGE_BOOL_LIST2
 
 static void doOperand(int operand, bool leftState) {
 	for (OpContour* contour : debugGlobalContours->contours) {
-		PathOpsV0Lib::DebugOperand debugOperand = contour->debugCallBacks.debugOperandFuncPtr;
-		PathOpsV0Lib::DebugSetDraw debugSetDraw = contour->debugCallBacks.debugSetDrawFuncPtr;
+		PathOpsV0Lib::DebugOperand debugOperand = contour->debugCallbacks.debugOperandFuncPtr;
+		PathOpsV0Lib::DebugSetDraw debugSetDraw = contour->debugCallbacks.debugSetDrawFuncPtr;
 		if (!debugOperand || !(*debugOperand)(contour->debugCaller, operand) || !debugSetDraw)
 			continue;
 		(*debugSetDraw)(contour->debugCaller, leftState);
@@ -1674,7 +1679,7 @@ void toggleTree() {
 
 void hideOperands() {
 	for (auto contour : debugGlobalContours->contours) {
-		PathOpsV0Lib::DebugSetDraw debugSetDraw = contour->debugCallBacks.debugSetDrawFuncPtr;
+		PathOpsV0Lib::DebugSetDraw debugSetDraw = contour->debugCallbacks.debugSetDrawFuncPtr;
 		if (!debugSetDraw)
 			continue;
 		(*debugSetDraw)(contour->debugCaller, false);
@@ -1685,7 +1690,7 @@ void hideOperands() {
 
 void showOperands() {
 	for (auto contour : debugGlobalContours->contours) {
-		PathOpsV0Lib::DebugSetDraw debugSetDraw = contour->debugCallBacks.debugSetDrawFuncPtr;
+		PathOpsV0Lib::DebugSetDraw debugSetDraw = contour->debugCallbacks.debugSetDrawFuncPtr;
 		if (!debugSetDraw)
 			continue;
 		(*debugSetDraw)(contour->debugCaller, true);
@@ -1696,8 +1701,8 @@ void showOperands() {
 
 void toggleOperands() {
 	for (auto contour : debugGlobalContours->contours) {
-		PathOpsV0Lib::DebugSetDraw debugSetDraw = contour->debugCallBacks.debugSetDrawFuncPtr;
-		PathOpsV0Lib::DebugGetDraw debugGetDraw = contour->debugCallBacks.debugGetDrawFuncPtr;
+		PathOpsV0Lib::DebugSetDraw debugSetDraw = contour->debugCallbacks.debugSetDrawFuncPtr;
+		PathOpsV0Lib::DebugGetDraw debugGetDraw = contour->debugCallbacks.debugGetDrawFuncPtr;
 		if (!debugSetDraw || !debugGetDraw)
 			continue;
 		(*debugSetDraw)(contour->debugCaller, !(*debugGetDraw)(contour->debugCaller));
@@ -1817,7 +1822,7 @@ void colorOut(uint32_t color) {
 void colorOpp(uint32_t color) {
 	for (auto edge : edgeIterator) {
 		OpContour* contour = edge->segment->contour;
-		PathOpsV0Lib::DebugOperand debugOperand = contour->debugCallBacks.debugOperandFuncPtr;
+		PathOpsV0Lib::DebugOperand debugOperand = contour->debugCallbacks.debugOperandFuncPtr;
 		if (debugOperand && (*debugOperand)(contour->debugCaller, 1)) {
 			edge->debugCustom = color;
 			edge->debugDraw = true;
@@ -2094,7 +2099,7 @@ bool OpDebugImage::drawEdgeWinding(const OpCurve& curve, const OpEdge* edge, uin
 	bool success = true;
 	const OpWinding& sum = edge->sum;
 	OpContour* contour = edge->segment->contour;
-	auto debugImageOut = contour->context->debugContextCallBacks.debugImageWindingOutFuncPtr;
+	auto debugImageOut = contour->context->debugContextCallbacks.debugImageWindingOutFuncPtr;
 	std::string sumLeft = debugImageOut && sum.isSet() ? (*debugImageOut)(sum.w, 0) : "?";
 	std::string sumRight = debugImageOut && sum.isSet() ? (*debugImageOut)(sum.w, 1) : "?";
 	if (!drawWinding(curve, sumLeft, sumRight, 1, color)) {
@@ -2108,7 +2113,7 @@ bool OpDebugImage::drawEdgeWinding(const OpCurve& curve, const OpEdge* edge, uin
 		if (debugImageOut && !sum.isSet())
 			return (*debugImageOut)(wind.w, index);
 		OpWinding diffWind(contour->context, edge->sum.w);
-		contour->context->windingCallBacks.windingSubtractFuncPtr(diffWind.w, wind.w);
+		contour->context->windingCallbacks.windingSubtractFuncPtr(diffWind.w, wind.w);
 		return debugImageOut ? (*debugImageOut)(diffWind.w, index) : "";
 	};
 	std::string oppLeft = sumString(edge->winding, sum, 0);
@@ -2388,7 +2393,7 @@ void resetFocus() {
 	}
 	if (!focusRect.isFinite()) {
 		for (auto contour : debugGlobalContours->contours) {
-			PathOpsV0Lib::DebugNativePath debugNativePath = contour->debugCallBacks.debugNativePathFuncPtr;
+			PathOpsV0Lib::DebugNativePath debugNativePath = contour->debugCallbacks.debugNativePathFuncPtr;
 			if (!debugNativePath)
 				continue;
 			SkPath* path = (SkPath*) (*debugNativePath)(contour->debugCaller);

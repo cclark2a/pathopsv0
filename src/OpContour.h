@@ -73,6 +73,7 @@ struct OpContour {
 	void buildDisabled();
 	void buildDisabledPals();
 	bool detachIfLoop(OpJoiner* , OpEdge* , EdgeMatch loopEnd);
+	bool isSorted(Axis axis) const { return Axis::horizontal == axis ? isXSorted : isYSorted; }
 	bool joinSetup();
 	void joinSort();
 	bool linkUp(OpJoiner* , OpEdge* );
@@ -81,6 +82,7 @@ struct OpContour {
 	void removeLast(OpEdge* , InOutput );
 	void removeLink(OpEdge* );
 	void setLinkEdge(OpEdge* link, size_t index);
+	void setSorted(Axis axis) { (Axis::horizontal == axis ? isXSorted : isYSorted) = true; }
 	void unlink(OpEdge* );
 	std::vector<OpEdge*>& windingEdges(Axis );
 
@@ -187,12 +189,14 @@ struct OpContour {
 	int treeID = 0;  // tracks if contour has been initialized in this tree's context (for edge 'seen')
 	bool disabledBuilt = false;
 	bool disabledPalsBuilt = false;
+	bool isXSorted = false;
+	bool isYSorted = false;
 #endif
 	PathOpsV0Lib::Winding winding;
 	OpPointBounds bounds;
 	int id;
 
-	OP_DEBUG_CODE(PathOpsV0Lib::DebugContourCallBacks debugCallBacks);
+	OP_DEBUG_CODE(PathOpsV0Lib::DebugContourCallbacks debugCallbacks);
 	OP_DEBUG_CODE(PathOpsV0Lib::DebugContourData debugCaller);  // note: must use std::memcpy before reading
 #if TEST_RASTER
 	OpDebugRaster rasterOperand;
@@ -353,8 +357,8 @@ struct OpContext {
 		}
 	}
 
-	PathOpsV0Lib::CurveCallBacks& callBack(PathOpsV0Lib::CurveType type) {
-		return callBacks[(int) type - 1];
+	PathOpsV0Lib::CurveCallbacks& callback(PathOpsV0Lib::CurveType type) {
+		return callbacks[(int) type - 1];
 	}
 
 	bool containsFiller(OpPoint start, OpPoint end) const;
@@ -436,6 +440,7 @@ struct OpContext {
 	OpPoint remapPts(OpPoint oldAlias, OpPoint newAlias);
 	void resetLimbs();
 	bool setError(PathOpsV0Lib::ContextError  OP_DEBUG_PARAMS(int id, int id2 = 0));
+	void setSortedBounds();
 	void setThreshold();
 	void sortIntersections();
 
@@ -453,8 +458,8 @@ struct OpContext {
 #if OP_DEBUG
 	void addDebugContextData(PathOpsV0Lib::DebugContextData );
 
-	PathOpsV0Lib::DebugCurveCallBacks& debugCallBack(PathOpsV0Lib::CurveType type) {
-		return debugCallBacks[(int) type - 1];
+	PathOpsV0Lib::DebugCurveCallbacks& debugCallback(PathOpsV0Lib::CurveType type) {
+		return debugCallbacks[(int) type - 1];
 	}
 
 	void debugRemap(int oldRayMatch, int newRayMatch);
@@ -482,11 +487,15 @@ struct OpContext {
 #endif
 
 	OpPtAliases aliases;  // !!! consider moving to context for non-overlapping context case
-	std::vector<PathOpsV0Lib::CurveCallBacks> callBacks;
-	PathOpsV0Lib::ContextCallBacks contextCallBacks;
-	PathOpsV0Lib::WindingCallBacks windingCallBacks;
+	std::vector<PathOpsV0Lib::CurveCallbacks> callbacks;
+	PathOpsV0Lib::ContextCallbacks contextCallbacks;
+	PathOpsV0Lib::WindingCallbacks windingCallbacks;
 	PathOpsV0Lib::PathOutput callerOutput;
 	PathOpsV0Lib::ErrorHandler errorHandler;
+
+#if WINDER_CONTOUR_EXPERIMENT
+	std::vector<OpContour*> sorted; 
+#endif
 	// these are pointers instead of inline values because the storage with empty slots is first
 	OpEdgeStorage* ccStorage;
 	CurveDataStorage* curveDataStorage;
@@ -516,8 +525,9 @@ struct OpContext {
 	bool rasterEnabled;
 #endif
 #if OP_DEBUG
-	std::vector<PathOpsV0Lib::DebugCurveCallBacks> debugCallBacks;
-	PathOpsV0Lib::DebugContextCallBacks debugContextCallBacks;
+	std::vector<PathOpsV0Lib::DebugCurveCallbacks> debugCallbacks;
+	PathOpsV0Lib::DebugContextCallbacks debugContextCallbacks;
+	PathOpsV0Lib::DebugContextData debugContextData;
 	OpDebugData debugData;
 	OpCurveCurve* debugCurveCurve;
 	OpJoiner* debugJoiner;

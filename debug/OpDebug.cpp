@@ -1131,45 +1131,31 @@ DebugContourData GetDebugContourData(Contour* ctour) {
     OpContour* contour = (OpContour*) ctour;
 	return contour->debugCaller;
 }
-
-void SetDebugContourData(Contour* ctour, DebugContourData cd) {
-    OpContour* contour = (OpContour*) ctour;
-	OP_ASSERT(cd.size == contour->debugCaller.size);
-	std::memcpy(contour->debugCaller.data, cd.data, contour->debugCaller.size);
-}
 #endif
 
-void SetDebugCurveCallBacks(Context* context, CurveType , DebugScale scaleFunc
-		OP_DEBUG_DUMP_PARAMS(DebugDumpCurveName dumpNameFunc, DebugDumpCurveExtra dumpExtraFunc)
-		OP_DEBUG_IMAGE_PARAMS(DebugAddToPath addToPathFunc) ) {
-    OpContext* contours = (OpContext*) context;
-	contours->debugCallBacks.push_back( { scaleFunc
-			OP_DEBUG_DUMP_PARAMS(dumpNameFunc, dumpExtraFunc)
-			OP_DEBUG_IMAGE_PARAMS(addToPathFunc) } );
-}
-
-void SetDebugContourCallBacks(Contour* ctour, DebugContourData contourData
-		OP_DEBUG_DUMP_PARAMS(DebugDumpContourExtra dumpFunc)
-        OP_DEBUG_IMAGE_PARAMS(DebugNativePath debugNativePathFunc, 
-                DebugGetDraw debugGetDrawFunc, DebugSetDraw debugSetDrawFunc,
-                DebugOperand debugIsOppFunc)
-) {
+void SetDebugContourData(Contour* ctour, DebugContourData contourData) {
     OpContour* contour = (OpContour*) ctour;
 	contour->addDebugContourData(contourData);
-    contour->debugCallBacks = {  OP_DEBUG_DUMP_CODE(dumpFunc)
-            OP_DEBUG_IMAGE_PARAMS(debugNativePathFunc, debugGetDrawFunc, debugSetDrawFunc, 
-			debugIsOppFunc) };
 }
 
-void SetDebugContextCallbacks(Context* ctext, DebugContextData contextData, DebugBitOper bitOper
-		OP_DEBUG_DUMP_PARAMS(DebugDumpContextExtra dumpFunc, DebugDumpWindingOut dumpWinding)
-        OP_DEBUG_IMAGE_PARAMS(DebugImageWindingOut windingOut)
-) {
-    OpContext* context = (OpContext*) ctext;
+void SetDebugContextData(Context* ctxt, DebugContextData contextData) {
+    OpContext* context = (OpContext*) ctxt;
 	context->addDebugContextData(contextData);
-	context->debugContextCallBacks = { bitOper 
-			OP_DEBUG_DUMP_PARAMS(dumpFunc, dumpWinding)
-			OP_DEBUG_IMAGE_PARAMS(windingOut) };
+}
+
+void SetDebugCurveCallbacks(Context* context, CurveType , DebugCurveCallbacks curveCallbacks) {
+    OpContext* contours = (OpContext*) context;
+	contours->debugCallbacks.push_back(curveCallbacks);
+}
+
+void SetDebugContourCallbacks(Contour* ctour, DebugContourCallbacks contourCallbacks) {
+    OpContour* contour = (OpContour*) ctour;
+    contour->debugCallbacks = contourCallbacks;
+}
+
+void SetDebugContextCallbacks(Context* ctext, DebugContextCallbacks contextCallbacks) {
+    OpContext* context = (OpContext*) ctext;
+	context->debugContextCallbacks = contextCallbacks;
 }
 
 void Debug(Context* context, OpDebugData& debugData) {

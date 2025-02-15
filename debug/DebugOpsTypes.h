@@ -22,7 +22,7 @@ typedef std::string (*DebugDumpCurveExtra)(Curve , DebugLevel , DebugBase);
 typedef void (*DebugAddToPath)(Curve , class SkPath& );
 #endif
 
-struct DebugCurveCallBacks {
+struct DebugCurveCallbacks {
 	DebugScale scaleFuncPtr;
 	OP_DEBUG_DUMP_CODE(DebugDumpCurveName curveNameFuncPtr;)
 	OP_DEBUG_DUMP_CODE(DebugDumpCurveExtra curveExtraFuncPtr;)
@@ -56,7 +56,7 @@ typedef std::string (*DebugDumpContextExtra)(DebugContextData , DebugLevel , Deb
 typedef std::string (*DebugImageWindingOut)(Winding , int index);
 #endif
 
-struct DebugContextCallBacks {
+struct DebugContextCallbacks {
 	DebugBitOper debugBitOperFuncPtr = nullptr;
 #if OP_DEBUG_DUMP
     DebugDumpContextExtra debugDumpContextExtraFuncPtr = nullptr;
@@ -77,7 +77,7 @@ typedef void (*DebugSetDraw)(DebugContourData , bool);
 typedef bool (*DebugOperand)(DebugContourData , int );
 #endif
 
-struct DebugContourCallBacks {
+struct DebugContourCallbacks {
 #if OP_DEBUG_DUMP
     DebugDumpContourExtra debugDumpContourExtraFuncPtr = nullptr;
 #endif

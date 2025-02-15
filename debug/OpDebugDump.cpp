@@ -460,7 +460,7 @@ void dmpFile() {
 
 OpContext* fromFileContours = nullptr;
 
-OpContext* fromFile(std::vector<PathOpsV0Lib::CurveCallBacks>* callBacks) {
+OpContext* fromFile(std::vector<PathOpsV0Lib::CurveCallbacks>* callbacks) {
     std::string buffer;
     if (FILE* file = fopen("dmp.txt", "r")) {
         int seek = fseek(file, 0, SEEK_END);
@@ -474,15 +474,15 @@ OpContext* fromFile(std::vector<PathOpsV0Lib::CurveCallBacks>* callBacks) {
     }
     const char* str = buffer.c_str();
     OpContext* fileContours = new OpContext();
-    if (callBacks)
-        fileContours->callBacks = *callBacks;
+    if (callbacks)
+        fileContours->callbacks = *callbacks;
     fileContours->dumpSet(str);  // also reads segments, which read segments' edges, etc.
     fileContours->dumpResolveAll(fileContours);
     return fileContours;
 }
 
 void verifyFile(OpContext* contours) {
-	OpContext* fileContours = fromFile(&contours->callBacks);
+	OpContext* fileContours = fromFile(&contours->callbacks);
     FILE* file = fopen("dmp2.txt", "w");
     std::string s;
     OP_ASSERT(fileContours);
@@ -634,6 +634,16 @@ void dmpSegments() {
             seg.dump();
         }
     }
+}
+
+void dmpSorted() {
+	std::string s = "sorted[";
+    for (const auto& c : debugGlobalContours->sorted) {
+		s += STR(c->id) + " ";
+	}
+	if (' ' == s.back())
+		s.pop_back();
+	OpDebugOut(s + "]\n");
 }
 
 void dmpUnsectable() {
@@ -1105,7 +1115,7 @@ const OpLimb& OpContext::debugNthLimb(int index) const {
 std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
     std::string s = "contour[" + STR(id) + "] ";
     if (DebugLevel::file != l) {
-		auto contourExtra = debugCallBacks.debugDumpContourExtraFuncPtr;
+		auto contourExtra = debugCallbacks.debugDumpContourExtraFuncPtr;
 		if (contourExtra)
 			s += (*contourExtra)(debugCaller, l, b) + " ";
 	}
@@ -1137,7 +1147,7 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 				s += "] ";
 			}
             if (segment.winding.w.data && segment.winding.w.size) {
-				auto windingOut = debugGlobalContours->debugContextCallBacks.debugDumpWindingOutFuncPtr;
+				auto windingOut = debugGlobalContours->debugContextCallbacks.debugDumpWindingOutFuncPtr;
 				if (windingOut)
 					s += "winding" + (*windingOut)(segment.winding.w) + " ";
 			}
@@ -1253,6 +1263,11 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 	if (disabledPalsBuilt)
 		s += "disabledPalsBuilt ";
 #endif
+    if (winding.data && winding.size) {
+		auto windingOut = debugGlobalContours->debugContextCallbacks.debugDumpWindingOutFuncPtr;
+		if (windingOut)
+			s += "winding" + (*windingOut)(winding) + " ";
+	}
     s += "bounds:" + bounds.debugDump(l, b) + " ";
     s.pop_back();
     return s;
@@ -1473,10 +1488,10 @@ void CurveDataStorage::DumpSet(const char*& str, CurveDataStorage** previousPtr)
 
 std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-	if ((size_t) c.type > contours->debugCallBacks.size())
+	if ((size_t) c.type > contours->debugCallbacks.size())
 		s += "(missing curve name) ";
     else {
-		auto curveName = contours->debugCallBack(c.type).curveNameFuncPtr;
+		auto curveName = contours->debugCallback(c.type).curveNameFuncPtr;
 		if (curveName)
 			s += (*curveName)() + " ";
 	}
@@ -1484,13 +1499,14 @@ std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
         s += "size:" + STR(c.size) + " ";
         s += "data:" + contours->curveDataStorage->debugDump(c.data) + " ";
     } else {
-        s += "{ ";
+		s.pop_back();  // remove trailing space
+        s += "{";
         for (int i = 0; i < pointCount(); ++i) 
             s += hullPt(i).debugDump(DebugLevel::error, b) + ", ";
-        s.pop_back(); s.pop_back();
-        s += " }";
-		if ((size_t) c.type <= contours->debugCallBacks.size()) {
-			auto curveExtra = contours->debugCallBack(c.type).curveExtraFuncPtr;
+        s.pop_back(); s.pop_back();  // remove space, comma
+        s += "}";
+		if ((size_t) c.type <= contours->debugCallbacks.size()) {
+			auto curveExtra = contours->debugCallback(c.type).curveExtraFuncPtr;
 			if (curveExtra)
 				s += (*curveExtra)(c, l, b);
 		}
@@ -1502,8 +1518,8 @@ void OpCurve::dumpSet(const char*& str) {
     size_t strLen = 0;
     while (isalnum(str[strLen]))
         ++strLen;
-    for (size_t index = 0; index < contours->callBacks.size(); ++index) {
-		auto curveName = contours->debugCallBacks[index].curveNameFuncPtr;
+    for (size_t index = 0; index < contours->callbacks.size(); ++index) {
+		auto curveName = contours->debugCallbacks[index].curveNameFuncPtr;
 		if (!curveName)
 			continue;
         std::string name = (*curveName)();
@@ -2064,11 +2080,11 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
             return std::string("");
         return strLabel(label) + bounds.debugDump(l, b)+ " ";
     };
-    auto strWinding = [l, b, strLabel](EdgeFilter match, std::string label,
+    auto strWinding = [dumpAlways, l, b, strLabel](EdgeFilter match, std::string label,
              const OpWinding& wind) {
-        std::string s;
-        s += strLabel(label) + ":" + wind.debugDump(l, b) + " ";
-        return s;
+        if (!dumpAlways(match) && !wind.isSet())
+            return std::string("");
+        return strLabel(label) + wind.debugDump(l, b) + " ";
     };
     auto strEnum = [dumpIt, dumpAlways, strLabel](EdgeFilter match, std::string label,
             bool enumHasDefault, std::string enumName) {
@@ -2103,12 +2119,12 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     if (dumpIt(EdgeFilter::sum)) s += strWinding(EdgeFilter::sum, "sum", sum);
     if (dumpIt(EdgeFilter::many)) s += strWinding(EdgeFilter::many, "many", many);
     if (dumpIt(EdgeFilter::coinPals) && (dumpAlways(EdgeFilter::coinPals) || coinPals.size())) {
-        s += strLabel("coinPals") + "[";
+        s += strLabel("coinPals") + "{";
         for (auto& cPal : coinPals) {
-            s += "{opp:" + STR(cPal.opp->id) + " coinID:" + STR(cPal.coinID) + "} ";
+            s += "{opp[" + STR(cPal.opp->id) + "] coinID[" + STR(cPal.coinID) + "]} ";
         }
         s.pop_back();
-        s += "] ";
+        s += "} ";
     }
     if (dumpIt(EdgeFilter::unSects) && (dumpAlways(EdgeFilter::unSects) || unSects.size())) {
         s += strLabel("unSects") + "[";
@@ -2118,12 +2134,12 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         s += "] ";
     }
     if (dumpIt(EdgeFilter::pals) && (dumpAlways(EdgeFilter::pals) || pals.size())) {
-        s += strLabel("pals") + "[";
+        s += strLabel("pals") + "{";
         for (auto& pal : pals) {
             s += pal.debugDump(DebugLevel::brief, b) + " ";
         }
         s.pop_back();
-        s += "] ";
+        s += "} ";
     }
 #if 0
     if (dumpIt(EdgeFilter::lessRay) && (dumpAlways(EdgeFilter::lessRay) || lessRay.size())) {
@@ -2142,11 +2158,11 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     }
 #endif
     if (dumpIt(EdgeFilter::hulls) && (dumpAlways(EdgeFilter::hulls) || hulls.h.size())) {
-        s += "hulls[";  // don't abbreviate in brief
+        s += "hulls{";  // don't abbreviate in brief
         for (auto& hs : hulls.h)
             s += hs.debugDump(l, b) + " ";
         if (' ' == s.back()) s.pop_back();
-        s += "] ";
+        s += "} ";
     }
     s += strFloat(EdgeFilter::startT, "startT", startT);
     s += strFloat(EdgeFilter::endT, "endT", endT);
@@ -4197,19 +4213,17 @@ ENUM_NAME(DebugWindingType, debugWindingType)
 
 std::string OpWinding::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-	s += "w.size:" + STR(w.size) + " [";
-    if (DebugLevel::file != l) {
+    if (DebugLevel::file == l) {
+		s += "w.size:" + STR(w.size) + " [";
 		for (size_t index = 0; index < w.size; ++index) {
 			s += STR(((uint8_t*) w.data)[index]) + " ";
 		}
-    } else {
-		auto windingOut = debugGlobalContours->debugContextCallBacks.debugDumpWindingOutFuncPtr;
+		s += "]";
+    } else if (w.size) {
+		auto windingOut = debugGlobalContours->debugContextCallbacks.debugDumpWindingOutFuncPtr;
 		if (windingOut)
 			s += (*windingOut)(w);
     }
-    if (' ' == s.back())
-        s.pop_back();
-    s += "] ";
     return s;
 }
 

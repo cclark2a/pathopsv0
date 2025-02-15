@@ -593,32 +593,32 @@ static PathOpsV0Lib::CurveType LineType(PathOpsV0Lib::Curve ) {
 }
 
 static void SetupCurves(Context* context) {
-	OP_DEBUG_CODE(CurveType lineType =) SetCurveCallBacks(context, { LineOutput });
-	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, lineType, { debugLineScale
+	OP_DEBUG_CODE(CurveType lineType =) SetCurveCallbacks(context, { LineOutput });
+	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, lineType, { debugLineScale
             OP_DEBUG_DUMP_PARAMS(lineDebugDumpName, nullptr)
             OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath) }));
 	OP_ASSERT((int) lineType == (int) Types::line);
-	OP_DEBUG_CODE(CurveType quadType =) SetCurveCallBacks(context, { QuadOutput, quadAxisT, 
+	OP_DEBUG_CODE(CurveType quadType =) SetCurveCallbacks(context, { QuadOutput, quadAxisT, 
 			quadHull, quadIsFinite, quadIsLine, quadSetBounds, quadPinCtrl, 
 			quadTangent, quadsEqual, quadPtAtT, quadHullPtCount, quadRotate, 
 			quadSubDivide, quadXYAtT });
-	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, quadType, { debugQuadScale
+	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, quadType, { debugQuadScale
             OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, nullptr)
             OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath) }));
 	OP_ASSERT((int) quadType == (int) Types::quad);
-        OP_DEBUG_CODE(CurveType conicType =) SetCurveCallBacks(context, { ConicOutput, conicAxisT,
+        OP_DEBUG_CODE(CurveType conicType =) SetCurveCallbacks(context, { ConicOutput, conicAxisT,
 			conicHull, conicIsFinite, conicIsLine, conicSetBounds, quadPinCtrl, 
 			conicTangent, conicsEqual, conicPtAtT, quadHullPtCount, conicRotate, 
 			conicSubDivide, conicXYAtT });
-	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, conicType, { debugConicScale
+	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, conicType, { debugConicScale
             OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
             OP_DEBUG_IMAGE_PARAMS(debugConicAddToSkPath) }));
 	OP_ASSERT((int) conicType == (int) Types::conic);
-	OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallBacks(context, { CubicOutput, cubicAxisT, 
+	OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallbacks(context, { CubicOutput, cubicAxisT, 
 			cubicHull, cubicIsFinite, cubicIsLine, cubicSetBounds, cubicPinCtrl, 
 			cubicTangent, cubicsEqual, cubicPtAtT, cubicHullPtCount, cubicRotate, 
 			cubicSubDivide, cubicXYAtT, cubicReverse });
-	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, cubicType, { debugCubicScale
+	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, cubicType, { debugCubicScale
             OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, nullptr)
             OP_DEBUG_IMAGE_PARAMS(debugCubicAddToSkPath) }));
 	OP_ASSERT((int) cubicType == (int) Types::cubic);
@@ -626,7 +626,7 @@ static void SetupCurves(Context* context) {
 
 ContextError FillPath::opCommon(FillPath& path, Ops oper) {
 	Context* context = CreateContext();
-	SetContextCallBacks(context, { LineType, EmptyFunc });	
+	SetContextCallbacks(context, { LineType, EmptyFunc });	
 	WindingKeep operatorFunc = nullptr;
 	switch (oper) {
 		case Ops::diff: operatorFunc = binaryWindingDifferenceFunc; break;
@@ -636,10 +636,10 @@ ContextError FillPath::opCommon(FillPath& path, Ops oper) {
 		case Ops::_xor: operatorFunc = binaryWindingExclusiveOrFunc; break;
 		default: OP_ASSERT(0);
 	}
-	SetWindingCallBacks(context, { binaryWindingAddFunc, operatorFunc, binaryWindingVisibleFunc, 
+	SetWindingCallbacks(context, { binaryWindingAddFunc, operatorFunc, binaryWindingVisibleFunc, 
 			binaryWindingZeroFunc, binaryWindingSubtractFunc });
 #if OP_DEBUG
-	SetDebugContextCallBacks(context, { nullptr
+	SetDebugContextCallbacks(context, { nullptr
 			OP_DEBUG_IMAGE_PARAMS(nullptr, binaryWindingDumpOutFunc)
 			OP_DEBUG_IMAGE_PARAMS(binaryWindingImageOutFunc) } );
 #endif
@@ -657,11 +657,11 @@ ContextError FillPath::opCommon(FillPath& path, Ops oper) {
 
 ContextError FillPath::simplify() {
 	Context* context = CreateContext();
-	SetContextCallBacks(context, { LineType, EmptyFunc });	
-    SetWindingCallBacks(context, { unaryWindingAddFunc, unaryWindingKeepFunc, 
+	SetContextCallbacks(context, { LineType, EmptyFunc });	
+    SetWindingCallbacks(context, { unaryWindingAddFunc, unaryWindingKeepFunc, 
 			unaryWindingVisibleFunc, unaryWindingZeroFunc, unaryWindingSubtractFunc });
 #if OP_DEBUG
-	SetDebugContextCallBacks(context, { nullptr
+	SetDebugContextCallbacks(context, { nullptr
 			OP_DEBUG_IMAGE_PARAMS(nullptr, unaryWindingDumpOutFunc)
 			OP_DEBUG_IMAGE_PARAMS(unaryWindingImageOutFunc) } );
 #endif
@@ -789,12 +789,12 @@ std::string frameWindingImageOutFunc(Winding winding, int index) {
 
 ContextError FramePath::opCommon(FillPath& path, Ops oper) {
 	Context* context = CreateContext();
-    SetContextCallBacks(context, { LineType });
+    SetContextCallbacks(context, { LineType });
 	WindingKeep operatorFunc = Ops::sect == oper ? frameKeepFunc : frameDiscardFunc;
-    SetWindingCallBacks(context, { frameAddFunc, operatorFunc, frameVisibleFunc, frameZeroFunc, 
+    SetWindingCallbacks(context, { frameAddFunc, operatorFunc, frameVisibleFunc, frameZeroFunc, 
             frameSubtractFunc });
 #if OP_DEBUG
-	SetDebugContextCallBacks(context, { nullptr
+	SetDebugContextCallbacks(context, { nullptr
             OP_DEBUG_IMAGE_PARAMS(nullptr, FrameWinding::DumpOutFunc)
             OP_DEBUG_IMAGE_PARAMS(frameWindingImageOutFunc) });
 #endif

@@ -213,15 +213,16 @@ extern void dmpIntersections();
 extern void dmpJoin();
 extern void dmpSects();
 extern void dmpSegments();
+extern void dmpSorted();
 extern void dmpUnsectable();
 extern void dmpUnsortable();
 extern void dmpWindings();
 
 namespace PathOpsV0Lib {
-struct CurveCallBacks;
+struct CurveCallbacks;
 }
 
-extern OpContext* fromFile(std::vector<PathOpsV0Lib::CurveCallBacks>* callBacks);
+extern OpContext* fromFile(std::vector<PathOpsV0Lib::CurveCallbacks>* callbacks);
 extern void verifyFile(OpContext* );
 
 #if OP_DEBUG_VERBOSE

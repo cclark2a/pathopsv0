@@ -126,33 +126,33 @@ enum class SkiaCurveType : int {
 
 // start here;
 // rearrange to allow nullptr as default
-void SetSkiaCurveCallBacks(Context* context) {
-    OP_DEBUG_CODE(CurveType lineType =) SetCurveCallBacks(context, { skiaLineOutput });
-	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, lineType, { debugLineScale
+void SetSkiaCurveCallbacks(Context* context) {
+    OP_DEBUG_CODE(CurveType lineType =) SetCurveCallbacks(context, { skiaLineOutput });
+	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, lineType, { debugLineScale
             OP_DEBUG_DUMP_PARAMS(lineDebugDumpName, nullptr)
             OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath) }));
 	OP_ASSERT((int) lineType == (int) SkiaCurveType::skiaLineType);
-    OP_DEBUG_CODE(CurveType quadType =) SetCurveCallBacks(context, { skiaQuadOutput, quadAxisT,
+    OP_DEBUG_CODE(CurveType quadType =) SetCurveCallbacks(context, { skiaQuadOutput, quadAxisT,
 			quadHull, quadIsFinite, quadIsLine, quadSetBounds, quadPinCtrl, 
             quadTangent, quadsEqual, quadPtAtT, quadHullPtCount, quadRotate, 
 			quadSubDivide, quadXYAtT });
-	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, quadType, { debugQuadScale
+	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, quadType, { debugQuadScale
             OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, nullptr)
             OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath) }));
 	OP_ASSERT((int) quadType == (int) SkiaCurveType::skiaQuadType);
-    OP_DEBUG_CODE(CurveType conicType =) SetCurveCallBacks(context, { skiaConicOutput, conicAxisT,
+    OP_DEBUG_CODE(CurveType conicType =) SetCurveCallbacks(context, { skiaConicOutput, conicAxisT,
 			conicHull, conicIsFinite, conicIsLine, conicSetBounds, quadPinCtrl, 
 			conicTangent, conicsEqual, conicPtAtT, quadHullPtCount, conicRotate, 
 			conicSubDivide, conicXYAtT });
-	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, conicType, { debugConicScale
+	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, conicType, { debugConicScale
             OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
             OP_DEBUG_IMAGE_PARAMS(debugConicAddToSkPath) }));
 	OP_ASSERT((int) conicType == (int) SkiaCurveType::skiaConicType);
-    OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallBacks(context, { skiaCubicOutput, cubicAxisT,
+    OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallbacks(context, { skiaCubicOutput, cubicAxisT,
 			cubicHull, cubicIsFinite, cubicIsLine, cubicSetBounds, cubicPinCtrl, 
 			cubicTangent, cubicsEqual, cubicPtAtT, cubicHullPtCount, cubicRotate, 
 			cubicSubDivide, cubicXYAtT, cubicReverse });
-	OP_DEBUG_CODE(SetDebugCurveCallBacks(context, cubicType, { debugCubicScale
+	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, cubicType, { debugCubicScale
             OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, nullptr)
             OP_DEBUG_IMAGE_PARAMS(debugCubicAddToSkPath) }));
 	OP_ASSERT((int) cubicType == (int) SkiaCurveType::skiaCubicType);
@@ -334,27 +334,27 @@ uint8_t skiaDebugBitOper(DebugContourData data, uint8_t src, uint8_t opp) {
 #include "OpSkiaTests.h"
 #endif
 
-void SetSkiaContextCallBacks(Context* context) {
+void SetSkiaContextCallbacks(Context* context) {
 #if OP_DEBUG && TEST_ANALYZE
 	extern bool DebugAnalyze(Context* );
 	if (DebugAnalyze(context))  // definition below
 		return;
 #endif
-    SetContextCallBacks(context, { setSkiaLineType, emptySkPathFunc });
+    SetContextCallbacks(context, { setSkiaLineType, emptySkPathFunc });
 }
 
-Contour* SetSkiaSimplifyCallBacks(Context* context, Winding winding,
+Contour* SetSkiaSimplifyCallbacks(Context* context, Winding winding,
         bool isWindingFill  OP_DEBUG_PARAMS(const SkPath& path)) {
     Contour* contour = CreateContour(context, winding);
     WindingAdd addFunc = isWindingFill ? unaryWindingAddFunc : unaryEvenOddFunc;
     WindingAdd subtractFunc = isWindingFill ? unaryWindingSubtractFunc : unaryEvenOddFunc;
-    SetWindingCallBacks(context, { addFunc, unaryWindingKeepFunc, unaryWindingVisibleFunc, 
+    SetWindingCallbacks(context, { addFunc, unaryWindingKeepFunc, unaryWindingVisibleFunc, 
 			unaryWindingZeroFunc, subtractFunc });
 
 #if OP_DEBUG
-    UnaryContour simplifyUserData { &path, 0 };
+    UnaryContour simplifyUserData { &path, 0, true };
 	SetDebugContourData(contour, { &simplifyUserData, sizeof(simplifyUserData) } );
-	SetDebugContourCallBacks(contour, { 
+	SetDebugContourCallbacks(contour, { 
             OP_DEBUG_DUMP_CODE(dumpUnaryContourFunc)
             OP_DEBUG_IMAGE_PARAMS(debugSimplifyPathFunc,
 	        debugSimplifyGetDrawFunc, debugSimplifySetDrawFunc) }
@@ -363,7 +363,7 @@ Contour* SetSkiaSimplifyCallBacks(Context* context, Winding winding,
     return contour;
 }
 
-void SetSkiaOpContextCallBacks(Context* context, SkPathOp op, BinaryWindType windType) {
+void SetSkiaOpContextCallbacks(Context* context, SkPathOp op, BinaryWindType windType) {
     WindingKeep operatorFunc = nullptr;
     switch (op) {
         case kDifference_SkPathOp: operatorFunc = binaryWindingDifferenceFunc; break;
@@ -389,25 +389,26 @@ void SetSkiaOpContextCallBacks(Context* context, SkPathOp op, BinaryWindType win
         case BinaryWindType::windBoth: subtractFunc = binaryWindingSubtractFunc; break;
         default: OP_ASSERT(0);
     }
-    SetWindingCallBacks(context, { addFunc, operatorFunc, binaryWindingVisibleFunc, 
+    SetWindingCallbacks(context, { addFunc, operatorFunc, binaryWindingVisibleFunc, 
 			binaryWindingZeroFunc, subtractFunc });
 #if OP_DEBUG
     BinaryContext windingUserData { {}, (BinaryOperation) op };
+	SetDebugContextData(context, { &windingUserData, sizeof(windingUserData) } );
 #endif
 }
 
-Contour* SetSkiaOpContourCallBacks(Context* context, Winding winding,
+Contour* SetSkiaOpContourCallbacks(Context* context, Winding winding,
         BinaryOperand operand  OP_DEBUG_PARAMS(const SkPath& path)) {
     Contour* contour = CreateContour(context, winding);
 #if OP_DEBUG
-    BinaryContour windingUserData { { &path, 0  OP_DEBUG_IMAGE_PARAMS(true) }, operand };
+    BinaryContour windingUserData { { &path, 0, true }, operand };
 	SetDebugContourData(contour, { &windingUserData, sizeof(windingUserData) } );
-	SetDebugContourCallBacks(contour, {
+	SetDebugContourCallbacks(contour, {
 			OP_DEBUG_DUMP_CODE(dumpBinaryContourFunc)
             OP_DEBUG_IMAGE_PARAMS(debugOpPathFunc,
 	        debugOpGetDrawFunc, debugOpSetDrawFunc, debugOpSetIsOppFunc) }
     );
-	SetDebugContextCallBacks(context, { skiaDebugBitOper
+	SetDebugContextCallbacks(context, { skiaDebugBitOper
 			OP_DEBUG_DUMP_PARAMS(dumpBinaryContextFunc, binaryWindingDumpOutFunc)
             OP_DEBUG_IMAGE_PARAMS(binaryWindingImageOutFunc) }
     );
@@ -443,8 +444,7 @@ void AddSkiaPath(Context* context, Contour* contour, const SkPath& path) {
 			UnaryContour windingUserData;
 			std::memcpy(&windingUserData, debugCaller.data, sizeof(windingUserData));
 			windingUserData.contourIndex = contourIndex;
-			debugCaller.data = &windingUserData;
-			SetDebugContourData(contour, debugCaller);
+			std::memcpy(debugCaller.data, &windingUserData, sizeof(windingUserData));
 		}
 	#endif
 			++contourIndex;
@@ -509,7 +509,7 @@ bool DebugAnalyze(Context* context) {
 	OpDebugData& debugData = contours->debugData;
 	if (debugData.limitContours <= 0)
 		return false;
-    SetContextCallBacks(context, { setSkiaLineType, emptySkPathFunc, nullptr,
+    SetContextCallbacks(context, { setSkiaLineType, emptySkPathFunc, nullptr,
 			nullptr, nullptr, minMaxLimbs });
 	return true;
 }

@@ -140,7 +140,7 @@ typedef float (*CurveConst)(Curve );
 
 // the collection of caller-defined functions that describe the geometry of the curve
 // most caller-defined functions are optional and default to built-in behavior
-struct CurveCallBacks {
+struct CurveCallbacks {
 	CurveOutput curveOutputFuncPtr; // !!! to do: should this default to no output? is that useful?
 	AxisT axisTFuncPtr = nullptr;
 	CurveHull curveHullFuncPtr = nullptr;
@@ -180,7 +180,7 @@ typedef WindKeep (*WindingKeep)(Winding winding, Winding sum);
 
 // the collection of call-defined functions that describe the winding
 // !!! to do: can / should winding callbacks have defaults? maybe the unary winding rule?
-struct WindingCallBacks {
+struct WindingCallbacks {
 	WindingAdd windingAddFuncPtr;
 	WindingKeep windingKeepFuncPtr;
 	WindingVisible windingVisibleFuncPtr;
@@ -210,7 +210,7 @@ typedef float (*MaxGap)(Context* );
 
 // caller-defined functions, most of which customize when the engine returns an error
 // most caller-defined functions are optional and have built-in defaults
-struct ContextCallBacks {
+struct ContextCallbacks {
 	SetLineType setLineTypeFuncPtr;  // !!! to do: should this default to (CurveType) 1 ?
 	EmptyCallerPath emptyCallerPathFuncPtr = nullptr;
 	MaxCurveCurveValue maxSignSwapFuncPtr = nullptr;

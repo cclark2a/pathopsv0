@@ -594,9 +594,9 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
 #if TEST_RASTER
 	((OpContext*) context)->rasterEnabled = true;
 #endif
-    SetSkiaContextCallBacks(context);
+    SetSkiaContextCallbacks(context);
     OP_DEBUG_CODE(if (debugDataPtr) Debug(context, *debugDataPtr));
-    SetSkiaCurveCallBacks(context);
+    SetSkiaCurveCallbacks(context);
     SkPathOp mappedOp = MapInvertedSkPathOp(op, a.isInverseFillType(), b.isInverseFillType());
     auto isWindingFill = [](const SkPath& path) {
         return SkPathFillType::kWinding == path.getFillType()
@@ -607,16 +607,16 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
     BinaryWindType windType = aIsWinding && bIsWinding ? BinaryWindType::windBoth
             : aIsWinding ? BinaryWindType::windLeft : bIsWinding ? BinaryWindType::windRight
             : BinaryWindType::evenOdd;
-	SetSkiaOpContextCallBacks(context, mappedOp, windType);
+	SetSkiaOpContextCallbacks(context, mappedOp, windType);
 
     int leftData[] = { 1, 0 };
     PathOpsV0Lib::Winding leftWinding { leftData, sizeof(leftData) };
-    Contour* left = SetSkiaOpContourCallBacks(context, leftWinding, BinaryOperand::left
+    Contour* left = SetSkiaOpContourCallbacks(context, leftWinding, BinaryOperand::left
             OP_DEBUG_PARAMS(a));
     AddSkiaPath(context, left, a);
     int rightData[] = { 0, 1 };
     PathOpsV0Lib::Winding rightWinding { rightData, sizeof(rightData) };
-    Contour* right = SetSkiaOpContourCallBacks(context, rightWinding, BinaryOperand::right
+    Contour* right = SetSkiaOpContourCallbacks(context, rightWinding, BinaryOperand::right
             OP_DEBUG_PARAMS(b));
     AddSkiaPath(context, right, b);
     PathOutput pathOutput = result;
@@ -933,15 +933,15 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
     using namespace PathOpsV0Lib;
     Context* context = CreateContext();
     OP_DEBUG_CODE(if (optional) Debug(context, *optional));
-    SetSkiaContextCallBacks(context);
-    SetSkiaCurveCallBacks(context);
+    SetSkiaContextCallbacks(context);
+    SetSkiaCurveCallbacks(context);
     auto isWindingFill = [](const SkPath& path) {
         return SkPathFillType::kWinding == path.getFillType()
                 || SkPathFillType::kInverseWinding == path.getFillType();
     }; 
     int simpleData[] = { 1 };
     PathOpsV0Lib::Winding simpleWinding { simpleData, sizeof(simpleData) };
-    Contour* simple = SetSkiaSimplifyCallBacks(context, simpleWinding, isWindingFill(path)
+    Contour* simple = SetSkiaSimplifyCallbacks(context, simpleWinding, isWindingFill(path)
             OP_DEBUG_PARAMS(path));
 #if TEST_ANALYZE && OP_DEBUG
 	// make failing tests smaller

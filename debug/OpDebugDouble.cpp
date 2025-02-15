@@ -1420,6 +1420,16 @@ void DebugOpDrawIntersectionID(const OpIntersection* sect, std::vector<int>& ids
 #endif
 }
 
+void DebugOpDrawContourID(const OpContour* contour, std::vector<int>& ids) {
+    if (ids.end() != std::find(ids.begin(), ids.end(), contour->id))
+        return;
+    ids.push_back(contour->id);
+	OpPoint midPt = contour->bounds.center();
+    DebugOpPoint dMidPt(midPt.x, midPt.y);
+	midPt = DebugOpMap(dMidPt);
+    OpDebugImage::drawValue(midPt, STR(contour->id), black);
+}
+
 void DebugOpDrawSegmentID(const OpSegment* segment, std::vector<int>& ids) {
         if (ids.end() != std::find(ids.begin(), ids.end(), segment->id))
             return;

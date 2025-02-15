@@ -34,6 +34,17 @@ void OpContour::addDebugContourData(PathOpsV0Lib::DebugContourData data) {
 	std::memcpy(debugCaller.data, data.data, data.size);
 	debugCaller.size = data.size;  // !!! don't know if size is really needed ...
 }
+
+void OpContext::addDebugContextData(PathOpsV0Lib::DebugContextData data) {
+	if (!data.size) {
+		debugContextData.data = nullptr;
+		debugContextData.size = 0;
+		return;
+	}
+	debugContextData.data = allocateCallerData(data.size);
+	std::memcpy(debugContextData.data, data.data, data.size);
+	debugContextData.size = data.size;  // !!! don't know if size is really needed ...
+}
 #endif
 
 #if WINDER_CONTOUR_EXPERIMENT
@@ -518,12 +529,6 @@ bool OpContext::assemble() {
 		initOutOnce();
 		return true;
 	}
-	std::vector<OpContour*> sorted;
-	for (auto contour : contours) {
-		sorted.push_back(contour);
-	}
-	std::sort(sorted.begin(), sorted.end(), [](OpContour* a, OpContour* b) {
-			return a->bounds.left < b->bounds.left; });
 	for (LinkPass linkPass : { LinkPass::normal, LinkPass::unsectable } ) {
 		for (auto contour : contours) {
 			joiner.linkUnambiguous(contour, linkPass);
@@ -575,7 +580,7 @@ void OpContext::disableSmallSegments() {
 void OpContext::initOutOnce() {
 	if (outputOne)
 		return;
-	PathOpsV0Lib::EmptyCallerPath emptyPath = contextCallBacks.emptyCallerPathFuncPtr;
+	PathOpsV0Lib::EmptyCallerPath emptyPath = contextCallbacks.emptyCallerPathFuncPtr;
 	if (emptyPath)
 		(*emptyPath)(callerOutput);
 	outputOne = true;
@@ -658,7 +663,7 @@ bool OpContext::pathOps() {
 	sortedSegments.initInX();
 	debugValidateIntersections();
 	if (empty()) {
-		contextCallBacks.emptyCallerPathFuncPtr(callerOutput);
+		contextCallbacks.emptyCallerPathFuncPtr(callerOutput);
 		OP_DEBUG_SUCCESS(*this, true);
 	}
 	if (FoundIntersections::fail == sortedSegments.findIntersections())
@@ -671,7 +676,7 @@ bool OpContext::pathOps() {
 	}
 	disableSmallSegments();  // moved points may allow disabling some segments
 	if (empty()) {
-		contextCallBacks.emptyCallerPathFuncPtr(callerOutput);  // no existing tests exercises
+		contextCallbacks.emptyCallerPathFuncPtr(callerOutput);  // no existing tests exercises
 		OP_DEBUG_SUCCESS(*this, true);
 	}
 	sortIntersections();
@@ -755,6 +760,31 @@ bool OpContext::setError(PathOpsV0Lib::ContextError e  OP_DEBUG_PARAMS(int eID, 
 	OP_DEBUG_CODE(debugErrorID = eID);
 	OP_DEBUG_CODE(debugOppErrorID = oID);
 	return false;
+}
+
+// if one contour is entirely to the left or above another, put it first
+//     if x-bounds or y-bounds do intersect, and
+//     if contour 1 right/bottom < contour 2 left/top, traverse contour 1 before contour 2
+// otherwise, return largest first
+void OpContext::setSortedBounds() {
+	OP_ASSERT(sorted.empty());
+	for (OpContour* contour : contours) {
+		OP_ASSERT(!contour->isSorted(Axis::horizontal));
+		OP_ASSERT(!contour->isSorted(Axis::vertical));
+		if (contour->bounds.isEmpty())
+			continue;
+		OP_ASSERT(contour->bounds.isFinite());
+		sorted.push_back(contour);
+	}
+	std::sort(sorted.begin(), sorted.end(), [](const OpContour* a, const OpContour* b) {
+		bool xOverlaps = a->bounds.right >= b->bounds.left && b->bounds.right >= a->bounds.left;
+		bool yOverlaps = a->bounds.bottom >= b->bounds.top && b->bounds.bottom >= a->bounds.top;
+		if (xOverlaps && !yOverlaps) 
+			return a->bounds.top < b->bounds.top;
+		if (!xOverlaps && yOverlaps) 
+			return a->bounds.left < b->bounds.left;
+		return a->bounds.perimeter() < b->bounds.perimeter();
+	});
 }
 
 void OpContext::setThreshold() {

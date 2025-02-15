@@ -37,7 +37,7 @@ void ResetContour(Contour* );
 void Resolve(Context* , PathOutput );
 
 // global callbacks
-void SetContextCallBacks(Context* , ContextCallBacks );
+void SetContextCallbacks(Context* , ContextCallbacks );
 
 // sets the context into an error state
 void SetError(Context* , ContextError );
@@ -46,10 +46,10 @@ void SetError(Context* , ContextError );
 void SetErrorHandler(Context* , ErrorDispatch );
 
 // curve callbacks; describes geometry between endpoints
-CurveType SetCurveCallBacks(Context* , CurveCallBacks );
+CurveType SetCurveCallbacks(Context* , CurveCallbacks );
 
 // winding callbacks; specifies which curves are kept and discarded
-void SetWindingCallBacks(Context* , WindingCallBacks ); 
+void SetWindingCallbacks(Context* , WindingCallbacks ); 
 
 }
 

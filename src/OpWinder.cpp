@@ -15,7 +15,7 @@
 //     needed
 void SectRay::addPals(OpEdge* home) {
 	OP_ASSERT(this == &home->ray);
-	if (!distances.size())
+	if (distances.empty())
 		return;
 	auto matchCept = [home](const EdgePal* test) {
 		home->addPal(*test);
@@ -122,7 +122,7 @@ bool SectRay::checkOrder(const OpEdge* home) const {
 }
 
 const EdgePal* SectRay::find(const OpEdge* edge) const {
-	if (!distances.size())
+	if (distances.empty())
 		return nullptr;
 	for (auto test = &distances.back(); test >= &distances.front(); --test) {
 		if (test->edge == edge)
@@ -566,6 +566,35 @@ void OpWinder::markUnsortable(Unsortable unsortable) {
 	home->rayFail = Axis::vertical == workingAxis ? EdgeFail::vertical : EdgeFail::horizontal;
 }
 
+#if WINDER_CONTOUR_EXPERIMENT
+OpEdge* OpWinder::partiallyCoincident(OpEdge* edge) {
+	std::vector<EdgePal>& distances = edge->ray.distances;
+	size_t index = distances.size();
+	OP_ASSERT(index);
+	if (1 == index)
+		return edge;
+	auto sects = edge->segment->contour->sects;
+	bool found = false;
+	while (index > 0) {
+		EdgePal& pal = distances[--index];
+		if (!found) {
+			found = pal.edge == edge;
+			continue;
+		}
+		if (pal.edge->sum.isSet())
+			return edge;
+		if (sects.end() == std::find(sects.begin(), sects.end(), pal.edge->segment->contour))
+			return pal.edge;
+		// if coin's contour is not in edge's contour sect, compute its sum first
+		for (auto& coinPal : pal.edge->coinPals) {
+			if (sects.end() == std::find(sects.begin(), sects.end(), coinPal.opp->contour))
+				return pal.edge;
+		}
+	}
+	return edge;
+}
+#endif
+
 size_t OpWinder::setInIndex(size_t homeIndex, float homeCept, std::vector<OpEdge*>& inArray) {
 	Axis perpendicular = !workingAxis;
 	// advance to furthest that could influence the sum winding of this edge
@@ -617,10 +646,10 @@ ChainFail OpWinder::setSumChain(size_t homeIndex) {
 	return ChainFail::none;
 }
 
-ResolveWinding OpWinder::setWindingByDistance(OpContext* contours) {
+ResolveWinding OpWinder::setWindingByDistance(OpContext* context) {
 	// find edge; then walk backwards to first known sum 
 	SectRay& ray = home->ray;
-	OpBreak(home, 355);
+	OpBreak(home, 403);
 	OP_ASSERT(ray.distances.size());
 	if (1 == ray.distances.size()) {
 		OP_ASSERT(home == ray.distances[0].edge);
@@ -632,7 +661,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContext* contours) {
 			if (CalcFail::fail == home->addIfUR(ray.axis, ray.distances[0].edgeInsideT, &prev))
 				home->setUnsortable(Unsortable::addCalcFail);
 			else
-				OP_EDGE_SET_SUM(home, prev);
+				home->setSum(prev  OP_LINE_FILE_PARGS());
 		}
 		return ResolveWinding::resolved;
 	}
@@ -685,11 +714,13 @@ ResolveWinding OpWinder::setWindingByDistance(OpContext* contours) {
 	if (sumIndex > 0 && !home->isUnsectable() && EdgeFail::none == home->rayFail 
 			&& !ray.checkOrder(home))
 		return ResolveWinding::retry;
+	// coincident edges may have winding contributions from contours not in home contour's sect
+	// remove winding values if the coin pal contour is not in home contour sect list
 	if (sumIndex >= 0) {
 		EdgePal& sumDistance = ray.distances[sumIndex];
 		OpEdge* sumEdge = sumDistance.edge;
 		OP_ASSERT(!sumEdge->isUnsectable());
-		sumWinding.w = sumEdge->sum.copyData(contours);
+		sumWinding.w = sumEdge->sum.copyData(context);
 		OP_DEBUG_CODE(sumWinding.debugType = DebugWindingType::temp);
 		// if pointing down/left, subtract winding
 		if (CalcFail::fail == sumEdge->subIfDL(ray.axis, sumDistance.edgeInsideT, &sumWinding))  
@@ -708,15 +739,15 @@ ResolveWinding OpWinder::setWindingByDistance(OpContext* contours) {
 			continue;
 		}
 		if (NormalDirection::downLeft == normDir && !anyPriorPal(prior, sumIndex))
-			OP_EDGE_SET_SUM(prior, sumWinding);
+			prior->setSum(sumWinding  OP_LINE_FILE_PARGS());
 		if (CalcFail::fail == prior->addSub(ray.axis, dist.edgeInsideT, &sumWinding)) // if d/l sub; if u/r add
 			OP_DEBUG_FAIL(*prior, ResolveWinding::fail);
 		if (NormalDirection::upRight == normDir && !anyPriorPal(prior, sumIndex))
-			OP_EDGE_SET_SUM(prior, sumWinding);
+			prior->setSum(sumWinding  OP_LINE_FILE_PARGS());
 	} while (home != prior);
 	if (!home->isUnsectable()) {
 		if (!home->sum.isSet())
-			OP_EDGE_SET_SUM(home, sumWinding);
+			home->setSum(sumWinding  OP_LINE_FILE_PARGS());
 		return ResolveWinding::resolved;
 	}
 	// if home is unsectable, set its sum winding as if all of its pals' windings were a single edge
@@ -724,18 +755,18 @@ ResolveWinding OpWinder::setWindingByDistance(OpContext* contours) {
 	// winding must be replaced by all unsectable windings -- however, other unsectables will want 
 	//   to see the original winding. This is why 'many' is used. After all sums are computed
 	//   replace winding with many.
-	std::swap(home->many, home->winding);	// back up winding
+	home->many.setWind(home->winding);
 	for (const auto& pal : home->pals) {
-		home->winding.move(contours, pal.edge->winding, pal.reversed);
+		home->winding.move(context, pal.edge->winding, pal.reversed);
 	}
-	if (!home->winding.visible(contours)) {
+	if (!home->winding.visible(context)) {
 		home->setDisabled(OP_LINE_FILE_NPARGS());
 //		home->windPal = true;	// !!! doesn't appear to be necessary
 	}
 	if (CalcFail::fail == home->addIfUR(ray.axis, homeT, &sumWinding))
 		home->setUnsortable(Unsortable::addCalcFail2);
 	else
-		OP_EDGE_SET_SUM(home, sumWinding);
+		home->setSum(sumWinding  OP_LINE_FILE_PARGS());
 	std::swap(home->many, home->winding);  // restore winding, put total of pals in many
 	return ResolveWinding::resolved;	   // (will copy many to winding after all many are found)
 }
@@ -744,12 +775,12 @@ ResolveWinding OpWinder::setWindingByDistance(OpContext* contours) {
 // probably it should walk the edges in the contour, after setting the inX/inY to the 
 // cache of sect edges held by the contour (or the 
 
-FoundWindings OpWinder::setWindings(OpContext* contours) {
+FoundWindings OpWinder::setWindings(OpContext* context) {
 	// test sum chain for correctness; recompute if prior or next are inconsistent
 	for (Axis a : { Axis::horizontal, Axis::vertical }) {
 		workingAxis = a;
 #if WINDER_CONTOUR_EXPERIMENT
-		for (OpContour* contour: contours->contours) {
+		for (OpContour* contour: context->contours) {
 			OpContour* owner = contour->winderOwner;
 			inXPtr = &owner->inX;
 			inYPtr = &owner->inY;
@@ -783,7 +814,7 @@ FoundWindings OpWinder::setWindings(OpContext* contours) {
 	}
 #endif
 	}
-	for (auto contour : contours->contours) {
+	for (auto contour : context->contours) {
 		for (auto& segment : contour->segments) {
 			for (auto& edge : segment.edges) {
 				SectRay& ray = edge.ray;
@@ -800,7 +831,7 @@ FoundWindings OpWinder::setWindings(OpContext* contours) {
 	}
 
 	// if a pair of pals share an edge, this puts each in the other's pal list
-	for (auto contour : contours->contours) {
+	for (auto contour : context->contours) {
 		for (auto& segment : contour->segments) {
 			for (auto& edge : segment.edges) {
 					// copy pals if reciprocal, and points to other pals (thread_cubics2247347)
@@ -837,18 +868,71 @@ FoundWindings OpWinder::setWindings(OpContext* contours) {
 			}
 		}
 	}
-
+#if WINDER_CONTOUR_EXPERIMENT
+	std::vector<OpEdge*> byX;
+	std::vector<OpEdge*> byY;
 	// sort edges so that largest edges' winding sums are computed first
+	// iterate all sect contours and mark them so they aren't inspected again
+	// collect edges common to sect contours and compute their sums before moving to inner contours
+	// then, iterate the edge size by perimeter
+	context->setSortedBounds();
+	for (auto sContour : context->sorted) {
+		// if edge (later) has horizontal ray, use left most; if vertical, use top most
+		OpContour* leftMost  OP_DEBUG_CODE(= nullptr);  // !!! defeat compiler warning?
+		OpContour* topMost  OP_DEBUG_CODE(= nullptr);
+		float smallestRight = OpInfinity;
+		float smallestBottom = OpInfinity;
+		for (OpContour* sect : sContour->sects) {
+			if (smallestRight > sect->bounds.right) {
+				smallestRight = sect->bounds.right;
+				leftMost = sect;
+			}
+			if (smallestBottom > sect->bounds.bottom) {
+				smallestBottom = sect->bounds.bottom;
+				topMost = sect;
+			}
+		}
+		auto gather = [](OpContour* edgeMost, Axis axis) {
+			std::vector<OpEdge*> sectsByAxis;
+			for (OpContour* sect : edgeMost->sects) {
+				if (sect->isSorted(axis))
+					continue;
+				sect->setSorted(axis);
+				for (auto& segment : sect->segments) {
+					for (auto& edge : segment.edges) {
+						if (edge.disabled)
+							continue;
+						if (axis != edge.ray.axis)
+							continue;
+						if (Unsortable::none != edge.isUnsortable)
+							continue;
+						if (edge.ray.distances.empty())
+							continue;
+						sectsByAxis.push_back(&edge);
+					}
+				}
+			}
+			std::sort(sectsByAxis.begin(), sectsByAxis.end(), [](const auto& s1, const auto& s2) {
+				return s1->ptBounds.perimeter() > s2->ptBounds.perimeter(); 
+			} );
+			return sectsByAxis;
+		};
+		std::vector<OpEdge*> sectsByX = gather(leftMost, Axis::horizontal);
+		byX.insert(byX.end(), sectsByX.begin(), sectsByX.end());
+		std::vector<OpEdge*> sectsByY = gather(topMost, Axis::vertical);
+		byY.insert(byY.end(), sectsByY.begin(), sectsByY.end());
+		for (auto sectsBy : { sectsByX, sectsByY }) {
+			for (auto edge : sectsBy) {
+#else
 	std::vector<OpEdge*> bySize;
-	for (auto contour : contours->contours) {
+	for (auto contour : context->contours) {
 		for (auto& segment : contour->segments) {
 			for (auto& edge : segment.edges) {
 				if (edge.disabled)
 					continue;
 				if (Unsortable::none != edge.isUnsortable)
 					continue;
-				SectRay& ray = edge.ray;
-				if (!ray.distances.size())
+				if (edge.ray.distances.empty())
 					continue;
 				bySize.push_back(&edge);
 			}
@@ -858,18 +942,30 @@ FoundWindings OpWinder::setWindings(OpContext* contours) {
 	// first. The intent was to make it easier to detect bad sum chains and perhaps recompute them.
 	// However, it had the downside of resolving short ambiguous edges early, and propogating bad
 	// results to larger more easily resolved edges. example: thread_loops169
+	// Sorting by size has the downside that, in the winder contour experiment, winding may compute
+	// incomplete sums. The contours visible to the winding may not include all contours to the left
+	// if an intersecting contour is partially coincident with a non-intersecting contour. The sort
+	// should prioritize edges with contours on the outside of the home's ray axis.
 	std::sort(bySize.begin(), bySize.end(), [](const auto& s1, const auto& s2) {
 		return s1->ptBounds.perimeter() > s2->ptBounds.perimeter(); 
 	} );
 	for (auto edge : bySize) {
+#endif
 		if (edge->sum.isSet())
 			continue;
+		ResolveWinding resolveWinding;
+#if WINDER_CONTOUR_EXPERIMENT
+		do {
+			OpBreak(edge, 403);
+			home = partiallyCoincident(edge);
+#else			
 		home = edge;
-		ResolveWinding resolveWinding = setWindingByDistance(contours);
+#endif
+		resolveWinding = setWindingByDistance(context);
 		if (ResolveWinding::retry == resolveWinding) {
 			workingAxis = home->ray.axis;
 #if WINDER_CONTOUR_EXPERIMENT
-			OpContour* contour = edge->segment->contour;
+			OpContour* contour = home->segment->contour;
 			std::vector<OpEdge*>& inX = contour->inX;
 			inXPtr = &inX;
 			std::vector<OpEdge*>& inY = contour->inY;
@@ -880,13 +976,18 @@ FoundWindings OpWinder::setWindings(OpContext* contours) {
 			OP_ASSERT(edges.end() != found);
 			size_t index = found - edges.begin();
 			setSumChain(index);
-			resolveWinding = setWindingByDistance(contours);
+			resolveWinding = setWindingByDistance(context);
 			OP_ASSERT(ResolveWinding::retry != resolveWinding);
 		}
 		if (ResolveWinding::fail == resolveWinding)
 			OP_DEBUG_FAIL(*home, FoundWindings::fail);
+#if WINDER_CONTOUR_EXPERIMENT
+				} while (home != edge);
+			}
+		}
+#endif
 	}
-	for (auto contour : contours->contours) {
+	for (auto contour : context->contours) {
 		for (auto& segment : contour->segments) {
 			for (auto& edge : segment.edges) {
 				if (edge.disabled)

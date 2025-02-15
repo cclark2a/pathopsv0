@@ -25,7 +25,7 @@ static float toLimit(float x) {
 
 void OpCurve::debugScale(double scale, double offsetX, double offsetY) {
 #if OP_DEBUG
-	contours->debugCallBack(c.type).scaleFuncPtr(c, scale, offsetX, offsetY);
+	contours->debugCallback(c.type).scaleFuncPtr(c, scale, offsetX, offsetY);
 #endif
 }
 
@@ -256,7 +256,7 @@ void OpDebugRaster::rasterize(const OpDebugSamples& samples, OpContour* cntr) {
 			sum.subtract(*sample.winding);
 		bool visible;
 		if (!cntr) {
-			WindKeep keep = contour->callBacks.windingKeepFuncPtr(sample.winding->w, sum.w);
+			WindKeep keep = contour->callbacks.windingKeepFuncPtr(sample.winding->w, sum.w);
 			visible = WindKeep::Start == keep;
 		} else
 			visible = sum.visible();

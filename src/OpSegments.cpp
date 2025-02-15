@@ -269,7 +269,7 @@ bool OpSegments::findCoincidence(OpSegment* seg, OpSegment* opp) {
 	if (MatchEnds::both != mr.match || curve.type != opp->c.c.type)
 		return true;
 	// if control points and weight match, treat as coincident: transfer winding
-	PathOpsV0Lib::CurvesEqual funcPtr = context.callBack(curve.type).curvesEqualFuncPtr;
+	PathOpsV0Lib::CurvesEqual funcPtr = context.callback(curve.type).curvesEqualFuncPtr;
 	if (funcPtr && !(*funcPtr)(curve, opp->c.c))
 		return true;
 	return seg->moveWinding(opp, mr.reversed);
@@ -417,6 +417,8 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 	}
 	if (SectFound::add == ccResult || cc.limits.size())
 		cc.findUnsectable();
+	cc.context->release(cc.context->ccStorage);
+	cc.context->ccStorage = nullptr;
 	OP_DEBUG_CONTEXT();
 	return true;
 }

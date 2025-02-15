@@ -125,18 +125,18 @@ void testFrame() {
     using namespace PathOpsV0Lib;
 
     Context* context = CreateContext();
-    SetContextCallBacks(context, { frameSetLineType });
-    SetWindingCallBacks(context, { frameAddFunc, frameKeepFunc, frameVisibleFunc, 
+    SetContextCallbacks(context, { frameSetLineType });
+    SetWindingCallbacks(context, { frameAddFunc, frameKeepFunc, frameVisibleFunc, 
 			frameZeroFunc, frameSubtractFunc });
 
 #if OP_DEBUG
     OpDebugData debugData(false);
     Debug(context, debugData);
-	SetDebugContextCallBacks(context, { nullptr  OP_DEBUG_DUMP_PARAMS(nullptr, frameDumpOutFunc) });
+	SetDebugContextCallbacks(context, { nullptr  OP_DEBUG_DUMP_PARAMS(nullptr, frameDumpOutFunc) });
 #endif
 
-    frameLine = SetCurveCallBacks(context, { frameOutput });
-    frameQuad = SetCurveCallBacks(context, { frameOutput, quadAxisT, quadHull, 
+    frameLine = SetCurveCallbacks(context, { frameOutput });
+    frameQuad = SetCurveCallbacks(context, { frameOutput, quadAxisT, quadHull, 
 			quadIsFinite, quadIsLine, quadSetBounds,  quadPinCtrl, 
             quadTangent, quadsEqual, quadPtAtT, quadHullPtCount, quadRotate, 
 			quadSubDivide, quadXYAtT });

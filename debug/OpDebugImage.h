@@ -191,6 +191,7 @@ OP_X(Centers) \
 OP_X(Coincidences) \
 OP_X(ControlLines) \
 OP_X(Controls) \
+OP_X(Contours) \
 OP_X(EdgesOut) \
 OP_X(EndToEnd) \
 OP_X(Fill) \
