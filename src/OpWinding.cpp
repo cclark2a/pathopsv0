@@ -68,6 +68,15 @@ void OpWinding::zero(OpContext* context) {
 	context->windingCallbacks.windingZeroFuncPtr(w);
 }
 
+void OpWinding::zeroUninitialized(OpContext* context, const OpWinding& winding) {
+	if (WindingType::copy == type)
+		return;
+	OP_ASSERT(WindingType::uninitialized == type);
+	w = { context->allocateWinding(winding.w.size), winding.w.size };
+	type = WindingType::copy;
+	context->windingCallbacks.windingZeroFuncPtr(w);
+}
+
 void OpWinding::move(OpContext* context, const OpWinding& opp, bool backwards) {
 	if (backwards)
 		subtract(context, opp);

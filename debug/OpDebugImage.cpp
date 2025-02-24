@@ -67,7 +67,7 @@ struct OpDebugSegmentIter {
 		segmentIndex = 0;
 		if (start)
 			return;
-		for (const auto c : debugGlobalContours->contours) {
+		for (const auto c : debugGlobalContext->contours) {
 			segmentIndex += c->segments.size();
 		}
 	}
@@ -78,7 +78,7 @@ struct OpDebugSegmentIter {
 
 	OpSegment* operator*() {
 		size_t index = 0;
-		for (auto c : debugGlobalContours->contours) {
+		for (auto c : debugGlobalContext->contours) {
 			for (auto& seg : c->segments) {
 				if (index == segmentIndex)
 					return &seg;
@@ -112,14 +112,14 @@ struct OpDebugEdgeIter {
 		edgeIndex = 0;
 		if (start)
 			return;
-		for (const auto c : debugGlobalContours->contours) {
+		for (const auto c : debugGlobalContext->contours) {
 			for (const auto& s : c->segments)
 				edgeIndex += (int) s.edges.size();
 		}
-		if (debugGlobalContours->fillerStorage)
-			edgeIndex += debugGlobalContours->fillerStorage->debugCount();
-		if (debugGlobalContours->ccStorage)
-			edgeIndex += debugGlobalContours->ccStorage->debugCount();
+		if (debugGlobalContext->fillerStorage)
+			edgeIndex += debugGlobalContext->fillerStorage->debugCount();
+		if (debugGlobalContext->ccStorage)
+			edgeIndex += debugGlobalContext->ccStorage->debugCount();
 	}
 
 	bool operator!=(OpDebugEdgeIter rhs) { 
@@ -128,7 +128,7 @@ struct OpDebugEdgeIter {
 
 	OpEdge* operator*() {
 		int index = 0;
-		for (auto c : debugGlobalContours->contours) {
+		for (auto c : debugGlobalContext->contours) {
 			for (auto& s : c->segments) {
 				for (auto& edge : s.edges) {
 					if (index == edgeIndex) {
@@ -141,25 +141,25 @@ struct OpDebugEdgeIter {
 				}
 			}
 		}
-		if (debugGlobalContours->fillerStorage) {
-			OpEdge* filler = debugGlobalContours->fillerStorage->debugIndex(edgeIndex - index);
+		if (debugGlobalContext->fillerStorage) {
+			OpEdge* filler = debugGlobalContext->fillerStorage->debugIndex(edgeIndex - index);
 			if (filler) {
 				isCurveCurve = false;
 				isFiller = true;
 				isLine = true;
 				return filler;
 			}
-			index += debugGlobalContours->fillerStorage->debugCount();
+			index += debugGlobalContext->fillerStorage->debugCount();
 		}
-		if (debugGlobalContours->ccStorage) {
-			OpEdge* ccEdge = debugGlobalContours->ccStorage->debugIndex(edgeIndex - index);
+		if (debugGlobalContext->ccStorage) {
+			OpEdge* ccEdge = debugGlobalContext->ccStorage->debugIndex(edgeIndex - index);
 			if (ccEdge) {
 				isCurveCurve = true;
 				isFiller = false;
 				isLine = false;
 				return ccEdge;
 			}
-			index += debugGlobalContours->ccStorage->debugCount();
+			index += debugGlobalContext->ccStorage->debugCount();
 		}
 		OpDebugOut("iterator out of bounds! edgeIndex: " + STR(edgeIndex) + 
 				"; max index: " + STR(index) + "\n");
@@ -189,7 +189,7 @@ struct OpDebugIntersectionIter {
 		localIntersectionIndex = 0;
 		if (start)
 			return;
-		for (const auto c : debugGlobalContours->contours) {
+		for (const auto c : debugGlobalContext->contours) {
 			for (const auto& seg : c->segments) {
 				localIntersectionIndex += seg.sects.i.size();
 			}
@@ -202,7 +202,7 @@ struct OpDebugIntersectionIter {
 
 	const OpIntersection* operator*() {
 		size_t index = 0;
-		for (const auto c : debugGlobalContours->contours) {
+		for (const auto c : debugGlobalContext->contours) {
 			for (const auto& seg : c->segments) {
 				for (const auto sect : seg.sects.i) {
 					if (index == localIntersectionIndex)
@@ -234,11 +234,11 @@ OpDebugIntersectionIterator intersectionIterator;
 struct OpDebugDefeatDelete {
 #if OP_DEBUG
 	OpDebugDefeatDelete() {
-		save = debugGlobalContours->debugInPathOps;
-		debugGlobalContours->debugInPathOps = false;
+		save = debugGlobalContext->debugInPathOps;
+		debugGlobalContext->debugInPathOps = false;
 	}
 	~OpDebugDefeatDelete() {
-		debugGlobalContours->debugInPathOps = save;
+		debugGlobalContext->debugInPathOps = save;
 	}
 
 	bool save;
@@ -409,7 +409,7 @@ void OpDebugImage::drawDoubleFocus() {
 		matrix.postTranslate((float) DebugOpGetOffsetX(), (float) DebugOpGetOffsetY());
 		bool first = true;
 		int alpha = drawFillOn ? 10 : 20;
-		for (auto contour : debugGlobalContours->contours) {
+		for (auto contour : debugGlobalContext->contours) {
 			PathOpsV0Lib::DebugGetDraw debugGetDraw = contour->debugCallbacks.debugGetDrawFuncPtr;
 			if (debugGetDraw && (*debugGetDraw)(contour->debugCaller)) {
 				PathOpsV0Lib::DebugNativePath debugNativePath = contour->debugCallbacks.debugNativePathFuncPtr;
@@ -421,8 +421,8 @@ void OpDebugImage::drawDoubleFocus() {
 			}
 			first = false;
 		}
-		if (drawResultOn && debugGlobalContours->callerOutput)
-			drawDoubleFill(((SkPath*) debugGlobalContours->callerOutput)
+		if (drawResultOn && debugGlobalContext->callerOutput)
+			drawDoubleFill(((SkPath*) debugGlobalContext->callerOutput)
 					->makeTransform(matrix), OpDebugAlphaColor(alpha, green));
 	}
 	if (drawLinesOn)
@@ -479,7 +479,7 @@ void OpDebugImage::drawDoubleFocus() {
 			DebugOpDrawSegmentID(segment, ids);
 	}
 	if (drawContoursOn && drawIDsOn) {
-		for (auto contour : debugGlobalContours->contours) {
+		for (auto contour : debugGlobalContext->contours) {
 			DebugOpDrawContourID(contour, ids);
 		}
 	}
@@ -917,7 +917,7 @@ void addFocus(const OpSegment* segment) {
 }
 
 void ctr() {
-	ctr(*debugGlobalContours);
+	ctr(*debugGlobalContext);
 }
 
 void ctr(int id) {
@@ -1200,7 +1200,7 @@ void OpDebugImage::drawGuide(const SkRect& test, OpPoint pt, uint32_t color) {
 }
 
 void OpDebugImage::drawRaster() {
-	OpPointBounds bounds = debugGlobalContours->maxBounds;
+	OpPointBounds bounds = debugGlobalContext->maxBounds;
 	if (bounds.width() > bounds.height())
 		bounds.bottom = bounds.top + bounds.width();
 	else
@@ -1247,13 +1247,13 @@ void OpDebugImage::drawRaster() {
 		}
 		return path;
 	};
-	SkPath lPath = draw(debugGlobalContours->debugData.leftRaster);
+	SkPath lPath = draw(debugGlobalContext->debugData.leftRaster);
 	OpDebugImage::drawDoubleFill(lPath, 0x7fff0000);
-	SkPath rPath = draw(debugGlobalContours->debugData.rightRaster);
+	SkPath rPath = draw(debugGlobalContext->debugData.rightRaster);
 	OpDebugImage::drawDoubleFill(rPath, 0x7f00ff00);
-	SkPath cPath = draw(debugGlobalContours->debugData.combinedRaster);
+	SkPath cPath = draw(debugGlobalContext->debugData.combinedRaster);
 	OpDebugImage::drawDoubleFill(cPath, 0x7f0000ff);
-	SkPath oPath = draw(&debugGlobalContours->opRaster);
+	SkPath oPath = draw(&debugGlobalContext->opRaster);
 	OpDebugImage::drawDoubleFill(oPath, 0x7fff00ff);
 #endif
 }
@@ -1332,7 +1332,7 @@ void OpDebugImage::drawPoints() {
 			}
 		} while (verb != SkPath::kDone_Verb);
 	};
-	for (auto contour : debugGlobalContours->contours) {
+	for (auto contour : debugGlobalContext->contours) {
 		PathOpsV0Lib::DebugGetDraw debugGetDraw = contour->debugCallbacks.debugGetDrawFuncPtr;
 		if (debugGetDraw && (*debugGetDraw)(contour->debugCaller)) {
 			PathOpsV0Lib::DebugNativePath debugNativePath = contour->debugCallbacks.debugNativePathFuncPtr;
@@ -1371,7 +1371,7 @@ void OpDebugImage::drawPoints() {
 			for (const HullSect& hull : edge->hulls.h)
 				DebugOpBuild(hull.sect.pt, hull.sect.t, DebugSprite::circle);
 		}
-		if (drawEdgeRunsOn && debugGlobalContours->debugCurveCurve) {
+		if (drawEdgeRunsOn && debugGlobalContext->debugCurveCurve) {
 
 		}
 	}
@@ -1382,7 +1382,7 @@ void OpDebugImage::drawPoints() {
 	}
 	if (drawLinesOn) {
 		for (const auto& line : lines) {
-			for (auto contour : debugGlobalContours->contours) {
+			for (auto contour : debugGlobalContext->contours) {
 				PathOpsV0Lib::DebugGetDraw debugGetDraw = contour->debugCallbacks.debugGetDrawFuncPtr;
 				if (debugGetDraw && (*debugGetDraw)(contour->debugCaller)) {
 					PathOpsV0Lib::DebugNativePath debugNativePath = contour->debugCallbacks.debugNativePathFuncPtr;
@@ -1569,7 +1569,7 @@ EDGE_BOOL_LIST2
 #undef OP_X
 
 static void doOperand(int operand, bool leftState) {
-	for (OpContour* contour : debugGlobalContours->contours) {
+	for (OpContour* contour : debugGlobalContext->contours) {
 		PathOpsV0Lib::DebugOperand debugOperand = contour->debugCallbacks.debugOperandFuncPtr;
 		PathOpsV0Lib::DebugSetDraw debugSetDraw = contour->debugCallbacks.debugSetDrawFuncPtr;
 		if (!debugOperand || !(*debugOperand)(contour->debugCaller, operand) || !debugSetDraw)
@@ -1592,23 +1592,23 @@ void toggleLeft() {
 }
 
 void hideRight() {
-	doOperand(1, (drawLeftOn = false));
+	doOperand(1, (drawRightOn = false));
 }
 
 void showRight() {
-	doOperand(1, (drawLeftOn = true));
+	doOperand(1, (drawRightOn = true));
 }
 
 void toggleRight() {
-	doOperand(1, (drawLeftOn ^= true));
+	doOperand(1, (drawRightOn ^= true));
 }
 
 static void operateOnLimbEdges(std::function<void (OpEdge*)> fun) {
-	const OpTree* tree = debugGlobalContours->debugTree;
+	const OpTree* tree = debugGlobalContext->debugTree;
 	if (!tree)
 		return;
 	for (int index = 0; index < tree->totalUsed; ++index) {
-		const OpLimb& limb = debugGlobalContours->debugNthLimb(index);
+		const OpLimb& limb = debugGlobalContext->debugNthLimb(index);
 		OpEdge* edge = limb.edge;
 		bool callFun = 0 >= limbsShown || limbsShown > index;
 		if (callFun)
@@ -1678,7 +1678,7 @@ void toggleTree() {
 // !!! could macro-tize this if common (note that disabled and linkups are nearly identical)
 
 void hideOperands() {
-	for (auto contour : debugGlobalContours->contours) {
+	for (auto contour : debugGlobalContext->contours) {
 		PathOpsV0Lib::DebugSetDraw debugSetDraw = contour->debugCallbacks.debugSetDrawFuncPtr;
 		if (!debugSetDraw)
 			continue;
@@ -1689,7 +1689,7 @@ void hideOperands() {
 }
 
 void showOperands() {
-	for (auto contour : debugGlobalContours->contours) {
+	for (auto contour : debugGlobalContext->contours) {
 		PathOpsV0Lib::DebugSetDraw debugSetDraw = contour->debugCallbacks.debugSetDrawFuncPtr;
 		if (!debugSetDraw)
 			continue;
@@ -1700,7 +1700,7 @@ void showOperands() {
 }
 
 void toggleOperands() {
-	for (auto contour : debugGlobalContours->contours) {
+	for (auto contour : debugGlobalContext->contours) {
 		PathOpsV0Lib::DebugSetDraw debugSetDraw = contour->debugCallbacks.debugSetDrawFuncPtr;
 		PathOpsV0Lib::DebugGetDraw debugGetDraw = contour->debugCallbacks.debugGetDrawFuncPtr;
 		if (!debugSetDraw || !debugGetDraw)
@@ -1712,7 +1712,7 @@ void toggleOperands() {
 }
 
 static void operateOnEdgeRuns(std::function<void (OpEdge*)> fun) {
-	const OpCurveCurve* cc = debugGlobalContours->debugCurveCurve;
+	const OpCurveCurve* cc = debugGlobalContext->debugCurveCurve;
 	if (!cc)
 		return;
 	for (const CcCurves& curves : { cc->edgeCurves, cc->oppCurves } ) {
@@ -1785,11 +1785,11 @@ COLOR_LIST2
 #undef OP_X
 
 void colorLimbs(uint32_t color) {
-	const OpTree* tree = debugGlobalContours->debugTree;
+	const OpTree* tree = debugGlobalContext->debugTree;
 	if (!tree)
 		return;
 	for (int index = 0; index < tree->totalUsed; ++index) {
-		const OpLimb& limb = debugGlobalContours->nthLimb(index);
+		const OpLimb& limb = debugGlobalContext->nthLimb(index);
 		OpEdge* edge = limb.edge;
 		edge->debugCustom = color;
 		edge->debugDraw = true;
@@ -2176,7 +2176,7 @@ void add(std::vector<OpEdge>& e) {
 
 #if OP_DEBUG_VERBOSE
 void drawDepth(int level) {
-	OpEdgeStorage* ccStorage = debugGlobalContours->ccStorage;
+	OpEdgeStorage* ccStorage = debugGlobalContext->ccStorage;
 	if (!ccStorage)
 		return;
 	int count = ccStorage->debugCount();
@@ -2184,7 +2184,7 @@ void drawDepth(int level) {
 		OpEdge* edge = ccStorage->debugIndex(index);
 		edge->debugDraw = false;
 	}
-	OpCurveCurve* cc = debugGlobalContours->debugCurveCurve;
+	OpCurveCurve* cc = debugGlobalContext->debugCurveCurve;
 	if (!cc)
 		return;
 	if (level > 0) {
@@ -2392,7 +2392,7 @@ void resetFocus() {
 		}
 	}
 	if (!focusRect.isFinite()) {
-		for (auto contour : debugGlobalContours->contours) {
+		for (auto contour : debugGlobalContext->contours) {
 			PathOpsV0Lib::DebugNativePath debugNativePath = contour->debugCallbacks.debugNativePathFuncPtr;
 			if (!debugNativePath)
 				continue;

@@ -20,7 +20,11 @@ OpRoots OpRoots::keepInteriorTs(float start, float end) {
 OpRoots OpRoots::keepValidTs(float start, float end) {
 	OpRoots validTs;
 	for (float tValue : roots) {
-		if (OpMath::IsNaN(tValue) || start > tValue || tValue > end)
+		if (OpMath::IsNaN(tValue)) {
+			fail = RootFail::rootIsNaN;
+			return *this;
+		}
+		if (start > tValue || tValue > end)
 			continue;
 		if (tValue < start + OpEpsilon)
 			tValue = start;

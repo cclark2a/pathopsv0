@@ -69,8 +69,7 @@ struct MatchReverse {
 enum class RootFail {
 	none,
 	rawIntersectFailed,
-//	outsideFirstPt,
-//	outsideLastPt
+	rootIsNaN,
 };
 
 // always assume a maximum of (and reserve space for) five roots

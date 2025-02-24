@@ -253,16 +253,69 @@ void OpEdge::addPal(const EdgePal& dist) {
 
 // given an intersecting ray and edge t, add or subtract edge winding to sum winding
 // but don't change edge's sum, since an unsectable edge does not allow that accumulation
-CalcFail OpEdge::addSub(Axis axis, float edgeInsideT, OpWinding* sumWinding) const {
+#if WINDER_CONTOUR_EXPERIMENT
+CalcFail OpEdge::addSub(OpContour* winderOwner, Axis axis, float edgeInsideT, OpWinding* sumWinding) const 
+#else
+CalcFail OpEdge::addSub(Axis axis, float edgeInsideT, OpWinding* sumWinding) const 
+#endif
+{
+#if WINDER_CONTOUR_EXPERIMENT
+	OpWinding adjust(WindingUninitialized::dummy);
+	bool hasAdjustment = adjustWinding(winderOwner, &adjust);
+#endif
 	NormalDirection NdotR = normalDirection(axis, edgeInsideT);
-	if (NormalDirection::upRight == NdotR)
+	if (NormalDirection::upRight == NdotR) {
 		sumWinding->add(context(), winding);
-	else if (NormalDirection::downLeft == NdotR)
+#if WINDER_CONTOUR_EXPERIMENT
+		if (hasAdjustment)
+			sumWinding->subtract(context(), adjust);
+#endif
+	 } else if (NormalDirection::downLeft == NdotR) {
 		sumWinding->subtract(context(), winding);
-	else
+#if WINDER_CONTOUR_EXPERIMENT
+		if (hasAdjustment)
+			sumWinding->add(context(), adjust);
+#endif
+	 } else
 		OP_DEBUG_FAIL(*this, CalcFail::fail);
 	return CalcFail::none;
 }
+
+#if WINDER_CONTOUR_EXPERIMENT
+// !!! if the contours are properly sorted: under what conditions is this needed?
+bool OpEdge::adjustWinding(OpContour* homeOwner, OpWinding* adjustment) const {
+	return false; // !!! disable this to discover what bug it exposes
+#if 0
+	OpContour* thisOwner = segment->contour->winderOwner;
+	if (thisOwner == homeOwner)
+		return false;
+	if (1 >= ray.distances.size())
+		return false;
+	std::vector<OpContour*>& thisSects = thisOwner->sects;
+	std::vector<OpContour*>& homeSects = homeOwner->sects;
+	if (std::includes(homeSects.begin(), homeSects.end(), thisSects.begin(), thisSects.end()))
+		return false;
+	auto addWinding = [homeSects, adjustment](OpContour* oppContour, OpWinding& oppWinding, bool flip) {
+		if (homeSects.end() == std::find(homeSects.begin(), homeSects.end(), oppContour)) {
+			adjustment->zeroUninitialized(oppContour->context, oppWinding);
+			adjustment->move(oppContour->context, oppWinding, flip);
+		}
+	};
+	// for every ray contributor, and every coin: if not from local sect contours, add winding
+	for (const EdgePal& edgePal : ray.distances) {
+		OpEdge* edge = edgePal.edge;
+		for (auto& coinPal : edge->coinPals) {
+			addWinding(coinPal.opp->contour, coinPal.opp->winding, coinPal.coinID > 0);
+		}
+		// if edge has coin, accumulate edge if coin is common to home and edge is not (and is this)
+		addWinding(edge->segment->contour, edge->winding, edgePal.reversed);
+		if (edge == this)
+			break;
+	}
+	return adjustment->isSet();
+#endif
+}
+#endif
 
 OpEdge* OpEdge::advanceToEnd(EdgeMatch match) {
 	OP_ASSERT(!debugIsLoop(match));
@@ -736,6 +789,15 @@ void OpEdge::setWhich(EdgeMatch m) {
 	whichEnd_impl = m;
 }
 
+#if WINDER_CONTOUR_EXPERIMENT
+void OpEdge::subAdjust(OpContour* winderOwner, OpWinding* accumulator) const {
+	OpWinding adjust(WindingUninitialized::dummy);
+	bool hasAdjustment = adjustWinding(winderOwner, &adjust);
+	if (hasAdjustment)
+		accumulator->subtract(context(), adjust);
+}
+#endif
+
 // use already computed points stored in edge
 void OpEdge::subDivide(OpPoint startPoint, OpPoint endPoint) {
 	id = segment->nextID();
@@ -754,11 +816,22 @@ void OpEdge::subDivide(OpPoint startPoint, OpPoint endPoint) {
 	}
 }
 
-CalcFail OpEdge::subIfDL(Axis axis, float edgeInsideT, OpWinding* sumWinding) const {
+#if WINDER_CONTOUR_EXPERIMENT
+CalcFail OpEdge::subIfDL(OpContour* winderOwner, Axis axis, float edgeInsideT, OpWinding* sumWinding) const 
+#else
+CalcFail OpEdge::subIfDL(Axis axis, float edgeInsideT, OpWinding* sumWinding) const 
+#endif
+{
 	NormalDirection NdotR = normalDirection(axis, edgeInsideT);
-	if (NormalDirection::downLeft == NdotR)
+	if (NormalDirection::downLeft == NdotR) {
 		sumWinding->subtract(context(), winding);
-	else if (NormalDirection::upRight != NdotR)
+#if WINDER_CONTOUR_EXPERIMENT
+		OpWinding adjust(WindingUninitialized::dummy);
+		bool hasAdjustment = adjustWinding(winderOwner, &adjust);
+		if (hasAdjustment)
+			sumWinding->add(context(), adjust);
+#endif
+	} else if (NormalDirection::upRight != NdotR)
 		OP_DEBUG_FAIL(*this, CalcFail::fail);
 	return CalcFail::none;
 }

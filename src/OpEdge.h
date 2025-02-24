@@ -75,6 +75,9 @@ struct EdgePal {
 	float cept;  // where normal intersects edge (e.g. for home, axis horz: center.x)
 	float edgeInsideT;  // !!! t value from 0 to 1 within edge range (seems bizarre)
 	bool reversed;
+#if WINDER_CONTOUR_EXPERIMENT
+	bool adjustSum = false;
+#endif
 	OP_DEBUG_CODE(int debugUID);  // unsect id from sect in edge's segment
 };
 
@@ -192,6 +195,7 @@ enum class Unsortable {
 	none,
 	addCalcFail,
 	addCalcFail2,
+	betweenCoins,
 	filler,
 	homeUnsectable,
 	noMidT,
@@ -295,7 +299,12 @@ public:
 
 	CalcFail addIfUR(Axis xis, float t, OpWinding* ) const;
 	void addPal(const EdgePal& );
+#if WINDER_CONTOUR_EXPERIMENT
+	CalcFail addSub(OpContour* winderOwner, Axis axis, float t, OpWinding* ) const;
+	bool adjustWinding(OpContour* winderOwner, OpWinding* ) const;
+#else
 	CalcFail addSub(Axis axis, float t, OpWinding* ) const;
+#endif
 	OpEdge* advanceToEnd(EdgeMatch );
 	void apply();
 	const OpRect& bounds() { return ptBounds; }
@@ -367,7 +376,12 @@ public:
 	OpPtT start() const { return OpPtT(startPt(), startT); }
 	OpPoint startPt() const { return curve.firstPt(); }
 	void subDivide(OpPoint start, OpPoint end);
+#if WINDER_CONTOUR_EXPERIMENT
+	void subAdjust(OpContour* winderOwner, OpWinding* ) const;
+	CalcFail subIfDL(OpContour* winderOwner, Axis axis, float t, OpWinding* ) const;
+#else
 	CalcFail subIfDL(Axis axis, float t, OpWinding* ) const;
+#endif
 	void unlink();  // restore edge to unlinked state (for reusing unsortable or unsectable edges)
 	EdgeMatch which() const {
 		return whichEnd_impl; }

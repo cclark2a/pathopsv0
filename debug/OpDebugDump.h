@@ -8,6 +8,7 @@
 
 #define DUMP_DECLARATIONS \
 std::string debugDump(DebugLevel , DebugBase ) const; \
+std::string debugDumpID() const; \
 void dump() const; \
 void dump(DebugLevel, DebugBase ) const; \
 void dumpBrief() const; \
@@ -41,6 +42,16 @@ OP_X(OpIntersection) \
 OP_X(OpPtT) \
 OP_X(OpSegment)
 
+#define STRUCT_ID \
+OP_X(CoinPair) \
+OP_X(OpContour) \
+OP_X(OpEdge)
+
+#define STRUCT_NO_ID \
+OP_X(FoundLimits) \
+OP_X(HullSect) \
+OP_X(OpPtT)
+
 #define OP_STRUCTS \
 OP_X(CcCurves) \
 OP_X(CoinEnd) \
@@ -73,6 +84,7 @@ OP_X(SegPt)
 #undef OP_X
 
 #define VECTOR_PTRS \
+OP_X(OpContour*) \
 OP_X(OpEdge*) \
 OP_X(const OpEdge*) \
 OP_X(OpIntersection*) \
@@ -83,7 +95,10 @@ OP_X(OpSegment*)
 	extern void dmp(const std::vector<Thing>* ); \
 	extern void dmp(const std::vector<Thing>& ); \
 	extern void dmpHex(const std::vector<Thing>* ); \
-	extern void dmpHex(const std::vector<Thing>& );
+	extern void dmpHex(const std::vector<Thing>& ); \
+	extern void dmpIDs(const std::vector<Thing>* ); \
+	extern void dmpIDs(const std::vector<Thing>& ); \
+	extern std::string debugDumpID(Thing);
 	VECTOR_STRUCTS
 	VECTOR_PTRS
 #undef OP_X
@@ -148,6 +163,7 @@ OP_X(Start) \
 OP_X(Center) \
 OP_X(Link) \
 OP_X(Points) \
+OP_X(Ray) \
 OP_X(Winding)
 
 #define OP_X(Thing) \
@@ -295,6 +311,24 @@ extern void addAlways(EdgeFilter);
 extern void clearAlways(EdgeFilter);
 extern void addFilter(EdgeFilter);
 extern void clearFilter(EdgeFilter);
+
+// if output matches note, use asterisks to make that output stand out  // !!! only partially implemented
+extern void addNote(int id);
+extern void addNote(std::string );
+extern void addNote(float );
+extern void addNote(OpPoint );
+extern void addNote(OpVector );
+extern void addNote(OpPtT );
+extern void clearNotes();
+
+// if output matches skip, omit it in the output  // !!! only partially implemented
+extern void addSkip(int id);
+extern void addSkip(std::string );
+extern void addSkip(float );
+extern void addSkip(OpPoint );
+extern void addSkip(OpVector );
+extern void addSkip(OpPtT );
+extern void clearSkips();
 
 // !!! working around laptop compiler bug; testing new w/o breaking old...
 extern void dp(const OpEdge* );

@@ -712,7 +712,7 @@ OpPoint DebugOpMap(DebugOpPoint dPt) {
 }
 
 void DebugOpCurve::mapTo(OpCurve& c) const {
-    c.c.data = debugGlobalContours->allocateCurveData(size);
+    c.c.data = debugGlobalContext->allocateCurveData(size);
     c.c.size = size;
     c.c.data->start = DebugOpMap(pts[0]);
     int endIndex;
@@ -749,7 +749,7 @@ void DebugOpCurve::mapTo(OpCurve& c) const {
     }
     c.c.data->end = DebugOpMap(pts[endIndex]);
     c.c.type = type;
-    c.contours = debugGlobalContours;
+    c.contours = debugGlobalContext;
     return;
 }
 
@@ -1297,7 +1297,7 @@ void DebugOpDrawEdgeID(const OpEdge* edge, uint32_t color, bool drawLimbs) {
         OpPoint midTPt = curve.ptAtT(.5);
 		std::string idStr = STR(edge->id);
 		if (drawLimbs && edge->debugLimb) {
-			int index = debugGlobalContours->debugLimbIndex(edge);
+			int index = debugGlobalContext->debugLimbIndex(edge);
 			if (index >= 0)
 				idStr = STR(index) + ":" + idStr;
 		}
@@ -1363,7 +1363,7 @@ void DebugOpDrawEdgeTangent(const OpEdge* edge, uint32_t color) {
     for (auto& drawnEdge : drawn) {
         OpCurve curve;
         drawnEdge.mapTo(curve);
-        if (curve.c.data->start.isNearly(curve.c.data->end, debugGlobalContours->threshold()))
+        if (curve.c.data->start.isNearly(curve.c.data->end, debugGlobalContext->threshold()))
             continue;
         OpVector tan = curve.tangent(.33f).normalize() * 15;
         if (EdgeMatch::end == edge->which()) {
@@ -1386,7 +1386,7 @@ void DebugOpDrawSegmentTangent(const OpSegment* seg, uint32_t color) {
     for (auto& drawnSeg : drawn) {
         OpCurve curve;
         drawnSeg.mapTo(curve);
-        if (curve.c.data->start.isNearly(curve.c.data->end, debugGlobalContours->threshold()))
+        if (curve.c.data->start.isNearly(curve.c.data->end, debugGlobalContext->threshold()))
             continue;
         OpVector tan = curve.tangent(.42f).normalize() * 15;
         if (!tan.isFinite() || tan == OpVector{ 0, 0 }) {

@@ -262,7 +262,7 @@ struct OpDebugMaker {
 #endif
 
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
-extern OpContext* debugGlobalContours;
+extern OpContext* debugGlobalContext;
 extern bool debugHexFloat;
 extern void playback();
 extern void record();

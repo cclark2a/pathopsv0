@@ -586,6 +586,15 @@ void OpContext::initOutOnce() {
 	outputOne = true;
 }
 
+void OpContext::markInCoincidence() {
+	for (auto contour : contours) {
+		for (auto& segment : contour->segments) {
+			if (segment.hasCoin)
+				segment.sects.markInCoincidence();
+		}
+	}
+}
+
 OpLimb& OpContext::nthLimb(int index) {
 	int blockBase = index & ~(ARRAY_COUNT(limbStorage->storage) - 1);
 	if (!limbCurrent || limbCurrent->baseIndex != blockBase) {
@@ -685,6 +694,7 @@ bool OpContext::pathOps() {
 	findMissingEnds();  // moved pts may require looking in aliases for an end match
 	betweenIntersections();  // fill in intersections in coin runs that are missing in other coins
 	sortIntersections();
+	markInCoincidence();
 	makeEdges();
 	makeCoins();
 	sortIntersections();
@@ -765,7 +775,7 @@ bool OpContext::setError(PathOpsV0Lib::ContextError e  OP_DEBUG_PARAMS(int eID, 
 // if one contour is entirely to the left or above another, put it first
 //     if x-bounds or y-bounds do intersect, and
 //     if contour 1 right/bottom < contour 2 left/top, traverse contour 1 before contour 2
-// otherwise, return largest first
+// otherwise, return smaller first  !!! why?
 void OpContext::setSortedBounds() {
 	OP_ASSERT(sorted.empty());
 	for (OpContour* contour : contours) {

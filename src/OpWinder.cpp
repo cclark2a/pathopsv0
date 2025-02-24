@@ -73,8 +73,18 @@ void SectRay::addPals(OpEdge* home) {
 			return;
 		if (ray.next(dist, offset)->edge != home)
 			return;
-		home->addPal(*dist);
-		edge->addPal(*homeDist);
+		// the copied edge pal does not have its reverse bit set since it is the home distance
+		// compare the two to see if they are reversed with respect to each other
+		EdgePal edgeRev = *dist;
+		EdgePal homeRev = *homeDist;
+		NormalDirection edgeNorm = edge->normalDirection(ray.axis, edgeRev.edgeInsideT);
+		NormalDirection homeNorm = home->normalDirection(home->ray.axis, homeRev.edgeInsideT);
+		if (edgeNorm != homeNorm) {
+			edgeRev.reversed = true;
+			homeRev.reversed = true;
+		}
+		home->addPal(edgeRev);
+		edge->addPal(homeRev);
 		return;
 	};
 	if (!priorIsPal)
@@ -176,6 +186,20 @@ FindCept SectRay::findIntercept(OpEdge* home, OpEdge* test) {
 	testXY = pt.choice(perpendicular);
 	bool reversed = tangent.dot(homeTangent) < 0;
 	distances.emplace_back(test, testXY, root, reversed);
+#if WINDER_CONTOUR_EXPERIMENT
+	// if test' distances has edge with contour not in home sects:
+	//     add inX/inY elements whose contour are not in home sects
+	std::vector<OpContour*>& sects = home->segment->contour->sects;
+	for (EdgePal& edgePal : test->ray.distances) {
+		if (edgePal.edge == test)
+			break;
+		OpContour* palCtr = edgePal.edge->segment->contour;
+		if (sects.end() == std::find(sects.begin(), sects.end(), palCtr)) {
+			distances.back().adjustSum = true;
+			break;
+		}
+	}
+#endif
 	if (!uSectPair && OpMath::Equal(testXY, homeCept, 
 			home->context()->threshold().choice(perpendicular)))
 		return FindCept::retry;  // e.g., testQuads1877923 has two small quads which just miss 
@@ -566,7 +590,11 @@ void OpWinder::markUnsortable(Unsortable unsortable) {
 	home->rayFail = Axis::vertical == workingAxis ? EdgeFail::vertical : EdgeFail::horizontal;
 }
 
-#if WINDER_CONTOUR_EXPERIMENT
+#if 0 // WINDER_CONTOUR_EXPERIMENT
+// this assumes that edges in pals make the winding inconsistent with the contours in sect
+// while true, the edges in the ray can also be inconsistent -- they may come from contours 
+// outside of the home contour sect. replace this with checking every edge that contributes
+// to the winding sum
 OpEdge* OpWinder::partiallyCoincident(OpEdge* edge) {
 	std::vector<EdgePal>& distances = edge->ray.distances;
 	size_t index = distances.size();
@@ -649,7 +677,6 @@ ChainFail OpWinder::setSumChain(size_t homeIndex) {
 ResolveWinding OpWinder::setWindingByDistance(OpContext* context) {
 	// find edge; then walk backwards to first known sum 
 	SectRay& ray = home->ray;
-	OpBreak(home, 403);
 	OP_ASSERT(ray.distances.size());
 	if (1 == ray.distances.size()) {
 		OP_ASSERT(home == ray.distances[0].edge);
@@ -703,6 +730,11 @@ ResolveWinding OpWinder::setWindingByDistance(OpContext* context) {
 		return false;
 	};
 	// starting with found or zero if none, accumulate sum up to winding
+#if WINDER_CONTOUR_EXPERIMENT
+	// edges in ray may have winding contributions from contours not in home contour's sect
+	// remove winding values if distance edge contour is not in home contour sect list
+	OpContour* winderOwner = home->segment->contour->winderOwner;
+#endif
 	OpWinding sumWinding(home, WindingSum::dummy);
 	int sumIndex = (int) ray.distances.size();
 	while (ray.distances[--sumIndex].edge != home) 
@@ -714,17 +746,26 @@ ResolveWinding OpWinder::setWindingByDistance(OpContext* context) {
 	if (sumIndex > 0 && !home->isUnsectable() && EdgeFail::none == home->rayFail 
 			&& !ray.checkOrder(home))
 		return ResolveWinding::retry;
-	// coincident edges may have winding contributions from contours not in home contour's sect
-	// remove winding values if the coin pal contour is not in home contour sect list
 	if (sumIndex >= 0) {
 		EdgePal& sumDistance = ray.distances[sumIndex];
 		OpEdge* sumEdge = sumDistance.edge;
 		OP_ASSERT(!sumEdge->isUnsectable());
 		sumWinding.w = sumEdge->sum.copyData(context);
 		OP_DEBUG_CODE(sumWinding.debugType = DebugWindingType::temp);
-		// if pointing down/left, subtract winding
+#if WINDER_CONTOUR_EXPERIMENT
+		// if adjust sum: subtract winding of ray distances whose contour is not in home's sect
+		if (sumDistance.adjustSum)
+			sumEdge->subAdjust(winderOwner, &sumWinding);
+#endif
+	// if pointing down/left, subtract winding
+#if WINDER_CONTOUR_EXPERIMENT
+		// if sumEdge coin pals' contour is not in home's contour sect, also subtract from winding
+		if (CalcFail::fail == sumEdge->subIfDL(winderOwner, ray.axis, sumDistance.edgeInsideT, &sumWinding))  
+			OP_DEBUG_FAIL(*sumEdge, ResolveWinding::fail);
+#else
 		if (CalcFail::fail == sumEdge->subIfDL(ray.axis, sumDistance.edgeInsideT, &sumWinding))  
 			OP_DEBUG_FAIL(*sumEdge, ResolveWinding::fail);
+#endif
 	}
 	OpEdge* prior;
 	do {
@@ -738,12 +779,27 @@ ResolveWinding OpWinder::setWindingByDistance(OpContext* context) {
 			prior->setUnsortable(Unsortable::underflow);
 			continue;
 		}
-		if (NormalDirection::downLeft == normDir && !anyPriorPal(prior, sumIndex))
+		if (NormalDirection::downLeft == normDir && !anyPriorPal(prior, sumIndex)) {
 			prior->setSum(sumWinding  OP_LINE_FILE_PARGS());
+#if WINDER_CONTOUR_EXPERIMENT
+			if (dist.adjustSum)
+				prior->subAdjust(winderOwner, &sumWinding);
+#endif
+		}
+#if WINDER_CONTOUR_EXPERIMENT
+		if (CalcFail::fail == prior->addSub(winderOwner, ray.axis, dist.edgeInsideT, &sumWinding)) // if d/l sub; if u/r add
+			OP_DEBUG_FAIL(*prior, ResolveWinding::fail);
+#else
 		if (CalcFail::fail == prior->addSub(ray.axis, dist.edgeInsideT, &sumWinding)) // if d/l sub; if u/r add
 			OP_DEBUG_FAIL(*prior, ResolveWinding::fail);
-		if (NormalDirection::upRight == normDir && !anyPriorPal(prior, sumIndex))
+#endif
+		if (NormalDirection::upRight == normDir && !anyPriorPal(prior, sumIndex)) {
 			prior->setSum(sumWinding  OP_LINE_FILE_PARGS());
+#if WINDER_CONTOUR_EXPERIMENT
+			if (dist.adjustSum)
+				prior->subAdjust(winderOwner, &sumWinding);
+#endif
+		}
 	} while (home != prior);
 	if (!home->isUnsectable()) {
 		if (!home->sum.isSet())
@@ -780,7 +836,7 @@ FoundWindings OpWinder::setWindings(OpContext* context) {
 	for (Axis a : { Axis::horizontal, Axis::vertical }) {
 		workingAxis = a;
 #if WINDER_CONTOUR_EXPERIMENT
-		for (OpContour* contour: context->contours) {
+		for (OpContour* contour : context->contours) {
 			OpContour* owner = contour->winderOwner;
 			inXPtr = &owner->inX;
 			inYPtr = &owner->inY;
@@ -869,8 +925,6 @@ FoundWindings OpWinder::setWindings(OpContext* context) {
 		}
 	}
 #if WINDER_CONTOUR_EXPERIMENT
-	std::vector<OpEdge*> byX;
-	std::vector<OpEdge*> byY;
 	// sort edges so that largest edges' winding sums are computed first
 	// iterate all sect contours and mark them so they aren't inspected again
 	// collect edges common to sect contours and compute their sums before moving to inner contours
@@ -918,9 +972,7 @@ FoundWindings OpWinder::setWindings(OpContext* context) {
 			return sectsByAxis;
 		};
 		std::vector<OpEdge*> sectsByX = gather(leftMost, Axis::horizontal);
-		byX.insert(byX.end(), sectsByX.begin(), sectsByX.end());
 		std::vector<OpEdge*> sectsByY = gather(topMost, Axis::vertical);
-		byY.insert(byY.end(), sectsByY.begin(), sectsByY.end());
 		for (auto sectsBy : { sectsByX, sectsByY }) {
 			for (auto edge : sectsBy) {
 #else
@@ -954,9 +1006,8 @@ FoundWindings OpWinder::setWindings(OpContext* context) {
 		if (edge->sum.isSet())
 			continue;
 		ResolveWinding resolveWinding;
-#if WINDER_CONTOUR_EXPERIMENT
+#if 0 // WINDER_CONTOUR_EXPERIMENT
 		do {
-			OpBreak(edge, 403);
 			home = partiallyCoincident(edge);
 #else			
 		home = edge;
@@ -965,7 +1016,7 @@ FoundWindings OpWinder::setWindings(OpContext* context) {
 		if (ResolveWinding::retry == resolveWinding) {
 			workingAxis = home->ray.axis;
 #if WINDER_CONTOUR_EXPERIMENT
-			OpContour* contour = home->segment->contour;
+			OpContour* contour = home->segment->contour->winderOwner;
 			std::vector<OpEdge*>& inX = contour->inX;
 			inXPtr = &inX;
 			std::vector<OpEdge*>& inY = contour->inY;
@@ -981,8 +1032,10 @@ FoundWindings OpWinder::setWindings(OpContext* context) {
 		}
 		if (ResolveWinding::fail == resolveWinding)
 			OP_DEBUG_FAIL(*home, FoundWindings::fail);
-#if WINDER_CONTOUR_EXPERIMENT
+#if 0  // WINDER_CONTOUR_EXPERIMENT
 				} while (home != edge);
+#endif
+#if WINDER_CONTOUR_EXPERIMENT
 			}
 		}
 #endif

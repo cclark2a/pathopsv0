@@ -404,6 +404,10 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 		return true;
 	// look for curve curve intersections (skip coincidence already found)
 	OpCurveCurve cc(seg, opp);
+	if (cc.boundedEdgeFailed) {
+		found = FoundIntersections::fail;
+		return false;
+	}
 	if (!cc.overlap)
 		return true;
 	SectFound ccResult = cc.divideAndConquer();

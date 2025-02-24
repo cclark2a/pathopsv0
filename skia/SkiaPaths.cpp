@@ -352,7 +352,7 @@ Contour* SetSkiaSimplifyCallbacks(Context* context, Winding winding,
 			unaryWindingZeroFunc, subtractFunc });
 
 #if OP_DEBUG
-    UnaryContour simplifyUserData { &path, 0, true };
+    UnaryContour simplifyUserData { &path, 0, false };
 	SetDebugContourData(contour, { &simplifyUserData, sizeof(simplifyUserData) } );
 	SetDebugContourCallbacks(contour, { 
             OP_DEBUG_DUMP_CODE(dumpUnaryContourFunc)
@@ -401,7 +401,7 @@ Contour* SetSkiaOpContourCallbacks(Context* context, Winding winding,
         BinaryOperand operand  OP_DEBUG_PARAMS(const SkPath& path)) {
     Contour* contour = CreateContour(context, winding);
 #if OP_DEBUG
-    BinaryContour windingUserData { { &path, 0, true }, operand };
+    BinaryContour windingUserData { { &path, 0, false }, operand };
 	SetDebugContourData(contour, { &windingUserData, sizeof(windingUserData) } );
 	SetDebugContourCallbacks(contour, {
 			OP_DEBUG_DUMP_CODE(dumpBinaryContourFunc)

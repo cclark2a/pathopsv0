@@ -54,7 +54,7 @@ PointsVerbs* activePtV;
 
 void readFromFile() {
     OpContext* fileContours = fromFile();
-    std::swap(fileContours, debugGlobalContours);
+    std::swap(fileContours, debugGlobalContext);
     // preserve original contour data so it can be edited/restored later (incomplete)
     resetPaths();
     OpDebugImage::init();

@@ -52,7 +52,7 @@ struct OpWinding {
 	int sum() const;
 	bool visible(OpContext* ) const;
 	void zero(OpContext* );
-
+	void zeroUninitialized(OpContext* , const OpWinding& );
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
 #endif

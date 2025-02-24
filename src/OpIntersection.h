@@ -46,29 +46,6 @@ struct CoinPair {
 // intersection to point at each other at time of creation.
 
 struct OpIntersection {
-	OpIntersection()
-		: opp(nullptr)
-		, coincidenceID(0)
-		, unsectID(0)
-		, coinEnd(MatchEnds::none)
-		, unsectEnd(MatchEnds::none)
-		, mergeProcessed(false)
-		, moved(false)
-		, collapsed(false) 
-		, ccSect(false) {
-#if OP_DEBUG
-	segment = nullptr;
-	id = 0;
-	debugSrcID = 0;
-	debugOppID = 0;
-	debugCoincidenceID = 0;
-	debugErased = false;
-#endif
-	}
-
-	// void betweenPair(OpIntersection* );
-	// OpIntersection* coinOtherEnd();
-
 	void pair(OpIntersection* o) {
 		OP_ASSERT(abs(unsectID) == abs(o->unsectID)); 
 		OP_ASSERT(coincidenceID == o->coincidenceID); 
@@ -133,24 +110,25 @@ struct OpIntersection {
 #include "OpDebugDeclarations.h"
 #endif
 
-	OpSegment* segment;
-	OpIntersection* opp;
+	OpSegment* segment  OP_DEBUG_CODE(=nullptr);
+	OpIntersection* opp = nullptr;
 	OpPtT ptT;
-	int coincidenceID;  // if non-zero, intersection marks range where edges completely overlap
-	int unsectID;  // if non-zero, intersection marks range where edges are too close to call
+	int coincidenceID = 0;  // if non-zero, intersection marks range where edges completely overlap
+	int unsectID = 0;  // if non-zero, intersection marks range where edges are too close to call
 	// !!! why does coin makes both negative but unsect only makes one negative...
-	MatchEnds coinEnd;  // used to put start before end on sect sort (negative if pair flipped)
-	MatchEnds unsectEnd;  // one side is negative if pair are flipped
-	bool mergeProcessed;
-	bool moved;
-	bool collapsed;  // set if coincidence or unsect pair collapsed to a point
-	bool ccSect;
+	MatchEnds coinEnd = MatchEnds::none;  // puts start before end on sort (neg. if pair flipped)
+	MatchEnds unsectEnd = MatchEnds::none;  // one side is negative if pair are flipped
+	bool betweenCoins = false;  // used to find unsortable edges between coincident pairs
+	bool mergeProcessed = false;
+	bool moved = false;
+	bool collapsed = false;  // set if coincidence or unsect pair collapsed to a point
+	bool ccSect = false;
 #if OP_DEBUG
-	int id;
-	int debugSrcID;	// pair of edges or segments that intersected (!!! only useful if edges?)
-	int debugOppID;
-	int debugCoincidenceID;	// this one does not get erased
-	mutable bool debugErased;
+	int id = 0;
+	int debugSrcID = 0;	// pair of edges or segments that intersected (!!! only useful if edges?)
+	int debugOppID = 0;
+	int debugCoincidenceID = 0;	// this one does not get erased
+	mutable bool debugErased = false;
 #endif
 #if OP_DEBUG_MAKER
 	OpDebugMaker debugSetMaker;
@@ -172,13 +150,14 @@ struct OpIntersections {
 //	OpIntersection* const * entry(const OpPtT& , const OpSegment* opp) const;  // exact opp + ptT
 	void eraseCollapsed();
 	void makeEdges(OpSegment* );
+	void markInCoincidence();
+	void mergeNear(OpPtAliases& );
+	void moveSects(OpPtT match, OpPoint destination, MoveSects );
 //	const OpIntersection* nearly(const OpPtT& ptT, OpSegment* oSeg) const;  // near match of pt or t
 //	void range(const OpSegment* , std::vector<OpIntersection*>& );
 	bool simpleEnd() const;  // true if array has only one entry with t equal to one
 	bool simpleStart() const;  // true if array has only one entry with t equal to zero
 	void sort();  // 
-	void mergeNear(OpPtAliases& );
-	void moveSects(OpPtT match, OpPoint destination, MoveSects );
 // return intersections that delineate unsectable runs that contain this edge
 	std::vector<OpIntersection*> unsectables(OpPoint );
 	static bool UnsectablesOverlap(std::vector<OpIntersection*> set1,

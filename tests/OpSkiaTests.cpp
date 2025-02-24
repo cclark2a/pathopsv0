@@ -10,8 +10,8 @@
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
 #define OP_TEST_V0 1  // set to zero to time Skia running tests
 
-#define CURVE_CURVE_1 8  // id of segment 1 to break in divide and conquer
-#define CURVE_CURVE_2 2  // id of segment 2 to break in divide and conquer
+#define CURVE_CURVE_1 17  // id of segment 1 to break in divide and conquer
+#define CURVE_CURVE_2 57  // id of segment 2 to break in divide and conquer
 #define CURVE_CURVE_DEPTH -1  // minimum recursion depth for curve curve break (-1 to disable)
 
 // when these tests are encountered, it and the remaining tests in the file are skipped

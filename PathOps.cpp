@@ -7,7 +7,7 @@ namespace PathOpsV0Lib {
 Context* CreateContext() {
     OpContext* contours = new OpContext();
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
-    debugGlobalContours = contours;
+    debugGlobalContext = contours;
 #endif
 #if OP_DEBUG_IMAGE
     OpDebugImage::init();
@@ -20,7 +20,7 @@ void Add(Contour* libContour, AddCurve curve) {
     OP_ASSERT(curve.points[0] != curve.points[1]);
     OpContour* contour = (OpContour*) libContour;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
-    debugGlobalContours = contour->context;
+    debugGlobalContext = contour->context;
 #endif
     contour->segments.emplace_back(libContour, curve);
 }
@@ -29,7 +29,7 @@ Contour* CreateContour(Context* context, Winding winding) {
     // reuse existing contour
     OpContext* contours = (OpContext*) context;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
-    debugGlobalContours = contours;
+    debugGlobalContext = contours;
 #endif
     OpContour* contour = contours->makeContour();
 	contour->winding = winding;
@@ -54,18 +54,18 @@ Contour* Clone(Contour* contour) {
 void DeleteContext(Context* context) {
     OpContext* contours = (OpContext*) context;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
-    debugGlobalContours = contours;
+    debugGlobalContext = contours;
 #endif
     delete contours;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
-    debugGlobalContours = nullptr;
+    debugGlobalContext = nullptr;
 #endif
 }
 
 ContextError Error(Context* context) {
     OpContext* contours = (OpContext*) context;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
-    debugGlobalContours = contours;
+    debugGlobalContext = contours;
 #endif
     return contours->error;
 }
@@ -102,7 +102,7 @@ void Resolve(Context* context, PathOutput output) {
     }
     contours->callerOutput = output;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
-    debugGlobalContours = contours;
+    debugGlobalContext = contours;
 #endif
     // !!! change this to record error instead of success
     /* bool success = */ contours->pathOps();

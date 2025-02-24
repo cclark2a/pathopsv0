@@ -62,7 +62,8 @@ struct OpWinder {
 			XyChoice* );
 	FoundIntercept findRayIntercept(size_t inIndex, OpVector tangent, float normal, float homeCept);
 	void markUnsortable(Unsortable );
-#if WINDER_CONTOUR_EXPERIMENT
+#if 0 // WINDER_CONTOUR_EXPERIMENT
+	// too specialized; needs to consider all edges in ray, not just coin pals pointed to by edge
 	OpEdge* partiallyCoincident(OpEdge *);  // returns partially coincident prior edge on ray 
 #endif
 	size_t setInIndex(size_t homeIndex, float homeCept, std::vector<OpEdge*>& inArray);

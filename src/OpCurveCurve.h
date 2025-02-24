@@ -179,6 +179,7 @@ struct OpCurveCurve {
 	int maxSplits;
 	int maxDepth;
 	bool addedPoint;
+	bool boundedEdgeFailed;
 	bool overlap;
 	bool rotateFailed;
 	bool sectResult;

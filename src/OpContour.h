@@ -423,6 +423,8 @@ struct OpContext {
 		}
 	}
 
+	void markInCoincidence();
+
 	int nextID() { 
 		return ++uniqueID; 
 	}
@@ -542,6 +544,8 @@ struct OpContext {
 	bool debugFailOnEqualCepts;
 #endif
 #if OP_DEBUG_DUMP
+	std::vector<std::string> debugDumpNotes;
+	std::vector<std::string> debugDumpSkips;
 	bool debugDumpInit;   // if true, created by dump init
 #endif
 };

@@ -294,6 +294,7 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
 	, uniqueLimits_impl(-1)
 	, unsplitables(0)
 	, addedPoint(false)
+	, boundedEdgeFailed(false)
 	, overlap(false)
 	, rotateFailed(false)
 	, sectResult(false)
@@ -525,7 +526,11 @@ OpEdge* OpCurveCurve::boundedEdge(OpSegment* segm, OpPointBounds& sectBounds, Ma
 		if (!(root <= maxPtT.t))  // works if max t is nan
 			maxPtT = { pt, root };
 	};
-	auto saveRoots = [c, sectBounds, saveBest](OpRoots roots, XyChoice choice) {
+	auto saveRoots = [c, sectBounds, saveBest, this](OpRoots roots, XyChoice choice) {
+		if (RootFail::rootIsNaN == roots.fail) {
+			boundedEdgeFailed = true;
+			return;
+		}
 		OP_ASSERT(roots.count());
 		for (float root : roots.roots) {
 			OpPoint pt = c.ptAtT(root);
@@ -552,6 +557,8 @@ OpEdge* OpCurveCurve::boundedEdge(OpSegment* segm, OpPointBounds& sectBounds, Ma
 		OP_ASSERT(segm->ptBounds.top <= sectBounds.bottom);
 		saveRoots(c.axisRayHit(Axis::horizontal, sectBounds.bottom), XyChoice::inX);
 	}
+	if (boundedEdgeFailed)
+		return nullptr;
 	if (!(minPtT.t < maxPtT.t))  // condition returns null if either is nan
 		return nullptr;
 	void* block = context->allocateEdge(context->ccStorage);

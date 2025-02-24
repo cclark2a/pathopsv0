@@ -24,7 +24,7 @@ constexpr auto to_array(T&&... t)->std::array < V, sizeof...(T) > {
 #endif
 
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
-OpContext* debugGlobalContours;
+OpContext* debugGlobalContext;
 #endif
 
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP || OP_TINY_SKIA
@@ -1066,12 +1066,12 @@ void debugImage() {
 void debug() {
     debugImage();
     if ("linkRemaining" == debugContext || "linkUnambiguous" == debugContext) {
-        ::dmp(debugGlobalContours->debugJoiner);
+        ::dmp(debugGlobalContext->debugJoiner);
         return;
     }
     if ("divideAndConquer" == debugContext) {
-        if (debugGlobalContours->debugCurveCurve)
-            ::dmp(debugGlobalContours->debugCurveCurve);
+        if (debugGlobalContext->debugCurveCurve)
+            ::dmp(debugGlobalContext->debugCurveCurve);
         return;
     }
     if ("findIntersections" == debugContext || "AddLineCurveIntersection" == debugContext
@@ -1080,7 +1080,7 @@ void debug() {
         ::dmpSegments();
         return;
     }
-    debugGlobalContours->dump();
+    debugGlobalContext->dump();
 }
 
 #endif

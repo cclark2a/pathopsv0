@@ -136,7 +136,7 @@ inline size_t AddConics(Contour* contour, AddCurve curve) {
     auto addExtrema = [start, control, end, &tValues](XyChoice offset) {
         OpQuadCoefficients dc = DerivativeCoefficients(start, control, end, offset);
         OpRoots roots = OpMath::QuadRootsInteriorT(dc.a, dc.b, dc.c);
-        OP_ASSERT(0 == roots.count() || 1 == roots.count());   // !!! I wanna see the extreme case...
+        OP_ASSERT(0 == roots.count() || 1 == roots.count() || RootFail::rootIsNaN == roots.fail);   // !!! I wanna see the extreme case...
         if (0 == roots.count())
             return;
         tValues.push_back(roots.roots[0]);

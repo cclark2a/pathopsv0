@@ -44,30 +44,52 @@ DebugLevel defaultLevel = DebugLevel::normal;
 	void dmpHex(const std::vector<Thing>& things) { \
 		for (const auto& thing : things) \
 			dmpHex(thing); \
-	}
-	VECTOR_STRUCTS
-#undef OP_X
-#define OP_X(Thing) \
-	void dmp(const std::vector<Thing>& things) { \
-		for (const auto& thing : things) \
-			dmp(thing); \
 	} \
-	void dmpHex(const std::vector<Thing>& things) { \
-		for (const auto& thing : things) \
-			dmpHex(thing); \
-	}
-	VECTOR_PTRS
-#undef OP_X
-#define OP_X(Thing) \
 	void dmp(const std::vector<Thing>* things) { \
         dmp(*things); \
     } \
 	void dmpHex(const std::vector<Thing>* things) { \
         dmpHex(*things); \
+    } \
+	void dmpIDs(const std::vector<Thing>* things) { \
+        dmpIDs(*things); \
     }
 	VECTOR_STRUCTS
 	VECTOR_PTRS
 #undef OP_X
+#define OP_X(Thing) \
+	void dmpIDs(const std::vector<Thing>& things) { \
+		std::string s = "["; \
+		for (const auto& thing : things) \
+			s += thing.debugDumpID() + " "; \
+		if (' ' == s.back()) s.pop_back(); \
+		OpDebugFormat(s + "]"); \
+	}
+	VECTOR_STRUCTS
+#undef OP_X
+#define OP_X(Thing) \
+	void dmpIDs(const std::vector<Thing>& things) { \
+		std::string s = "["; \
+		for (const auto& thing : things) \
+			s += STR(thing->id) + " "; \
+		if (' ' == s.back()) s.pop_back(); \
+		OpDebugFormat(s + "]"); \
+	}
+	VECTOR_PTRS
+#undef OP_X
+#define OP_X(Thing) \
+	std::string Thing::debugDumpID() const { \
+		return STR(id); \
+	}
+	STRUCT_ID
+#undef OP_X
+#define OP_X(Thing) \
+	std::string Thing::debugDumpID() const { \
+		return ""; \
+	}
+	STRUCT_NO_ID
+#undef OP_X
+
 #define OP_X(Thing) \
     void dmp(const Thing& thing) { \
         OpDebugFormat(thing.debugDump(defaultLevel, defaultBase)); \
@@ -311,16 +333,68 @@ Enum enum##Str(const char*& str, const char* label, Enum enumDefault) { \
     return (Enum) -1; \
 }
 
+static std::string wordBounds = "\t\n\r ,:<>()[]{}";
+static std::string bracketL = "<([{";
+static std::string bracketR = ">)]}";
+
+static std::string edit(std::string s, std::string skip, bool note) {
+	std::string result;
+	size_t first = 0;
+	size_t start = 0;
+    size_t end = s.size();
+	while (start < end) {
+		start = s.find(skip, start);
+		if (std::string::npos == start)
+			break;
+		char prior = start > 0 ? s[start - 1] : ' ';
+		if (std::string::npos == wordBounds.find(prior))
+			continue;
+		size_t last = start + skip.size();
+		char next = last < s.size() ? s[last] : ' ';
+		if (std::string::npos == wordBounds.find(next))
+			continue;
+		std::vector<size_t> brackets;
+		--last;
+		while (++last < end) {
+			char ch = s[last];
+			size_t bracketIndex = bracketL.find(ch);
+			if (std::string::npos != bracketIndex) {
+				brackets.push_back(bracketIndex);
+				continue;
+			}
+			bracketIndex = bracketR.find(ch);
+			if (std::string::npos != bracketIndex && brackets.back() == bracketIndex) {
+				brackets.pop_back();
+				continue;
+			} 
+			if (!brackets.size() && std::string::npos != wordBounds.find(ch))
+				break;
+		}
+		result += s.substr(first, start - first);
+		if (note) {
+			result += "**";
+			result += s.substr(start, last - start);
+			result += "**";
+		}
+		start = first = last;
+	}
+	result += s.substr(first);
+	return result;
+}
 
 std::string stringFormat(std::string s) {
     if (!s.size())
-        return "";
-    if (!lineWidth || lineWidth >= (int) s.size())
-        return s;
+		return "";
+	for (std::string skip : debugGlobalContext->debugDumpSkips) {
+		s = edit(s, skip, false);
+	}
+	for (std::string note : debugGlobalContext->debugDumpNotes) {
+		s = edit(s, note, true);
+	}
     std::string result;
-    const char* start = &s.front();
+	const char* start = &s.front();
     const char* end = &s.back();
-    while (start + lineWidth <= end) {
+    while (lineWidth && start + lineWidth <= end) {
         const char* c = start;
         for (int i = 0; i < lineWidth; ++i) {
             if ('\n' == c[i]) {
@@ -344,6 +418,22 @@ std::string stringFormat(std::string s) {
     return result;
 }
 
+void addNote(int id) {
+	debugGlobalContext->debugDumpNotes.push_back(STR(id));
+}
+
+void clearNotes() {
+	debugGlobalContext->debugDumpNotes.clear();
+}
+
+void addSkip(std::string s) {
+	debugGlobalContext->debugDumpSkips.push_back(s);
+}
+
+void clearSkips() {
+	debugGlobalContext->debugDumpSkips.clear();
+}
+
 void OpDebugFormat(std::string s) {
     std::string result = stringFormat(s);
     OpDebugOut(result + "\n");
@@ -362,7 +452,7 @@ void dmpWidth(int width) {
 }
 
 void dmpActive() {
-    for (const auto c : debugGlobalContours->contours) {
+    for (const auto c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (edge.isActive())
@@ -373,11 +463,11 @@ void dmpActive() {
 }
 
 void dmpAliases() {
-    debugGlobalContours->aliases.dump();
+    debugGlobalContext->aliases.dump();
 }
 
 void dmpCoincidences() {
-    for (const auto c : debugGlobalContours->contours) {
+    for (const auto c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             for (const auto sect : seg.sects.i) {
                 if (sect->coincidenceID)
@@ -393,7 +483,7 @@ void dmpCoins() {
 
 void dmpEdges() {
     std::string s;
-    for (const auto c : debugGlobalContours->contours) {
+    for (const auto c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             s += seg.debugDump(defaultLevel, defaultBase) + "\n";
             for (const auto& edge : seg.edges) {
@@ -405,18 +495,18 @@ void dmpEdges() {
 }
 
 std::string debugDumpContours() {
-    return debugGlobalContours->debugDump(DebugLevel::detailed, DebugBase::hex);
+    return debugGlobalContext->debugDump(DebugLevel::detailed, DebugBase::hex);
 }
 
 std::string debugDumpEdges() {
     size_t edgeCount = 0;
-    for (const auto c : debugGlobalContours->contours) {
+    for (const auto c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             edgeCount += seg.edges.size();
         }
     }
     std::string s = "edges:" + STR(edgeCount) + "\n";
-    for (const auto c : debugGlobalContours->contours) {
+    for (const auto c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 s += edge.debugDump(DebugLevel::detailed, DebugBase::hex) + "\n";
@@ -429,13 +519,13 @@ std::string debugDumpEdges() {
 
 std::string debugDumpIntersections() {
     size_t sectCount = 0;
-    for (const auto c : debugGlobalContours->contours) {
+    for (const auto c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             sectCount += seg.sects.i.size();
         }
     }
     std::string s = "sects:" + STR(sectCount) + "\n";
-    for (const auto c : debugGlobalContours->contours) {
+    for (const auto c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             for (const auto sect : seg.sects.i) {
                 s += sect->debugDump(DebugLevel::detailed, DebugBase::hex) + "\n";
@@ -449,7 +539,7 @@ std::string debugDumpIntersections() {
 void dmpFile() {
     FILE* file = fopen("dmp.txt", "w");
     std::string s;
-    s += debugGlobalContours->debugDump(DebugLevel::file, DebugBase::hex);
+    s += debugGlobalContext->debugDump(DebugLevel::file, DebugBase::hex);
     int saveWidth = lineWidth;
     lineWidth = 100;
     s = stringFormat(s);
@@ -570,7 +660,7 @@ void OpContext::dumpResolve(OpSegment*& segRef) {
 }
 
 void dmpDisabled() {
-    for (const auto c : debugGlobalContours->contours) {
+    for (const auto c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (edge.disabled)
@@ -581,7 +671,7 @@ void dmpDisabled() {
 }
 
 void dmpInOutput() {
-    for (const auto c : debugGlobalContours->contours) {
+    for (const auto c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (edge.inOutput)
@@ -593,7 +683,7 @@ void dmpInOutput() {
 
 void dmpIntersections() {
     std::string s;
-    for (const auto& c : debugGlobalContours->contours) {
+    for (const auto& c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             s += seg.debugDumpIntersections() + "\n";
         }
@@ -604,7 +694,7 @@ void dmpIntersections() {
 void dmpJoin() {
 #if !WINDER_CONTOUR_EXPERIMENT
     dmpActive();
-    for (const auto& c : debugGlobalContours->contours) {
+    for (const auto& c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (!edge.isActive() && edge.isUnsectable() && !edge.inOutput && !edge.inLinkups)
@@ -614,10 +704,10 @@ void dmpJoin() {
     }
     dmpUnsortable();
 #else
-	if (debugGlobalContours->debugJoiner)
-		dmp(debugGlobalContours->debugJoiner);
+	if (debugGlobalContext->debugJoiner)
+		dmp(debugGlobalContext->debugJoiner);
 	std::string s;
-    for (const auto& c : debugGlobalContours->contours) {
+    for (const auto& c : debugGlobalContext->contours) {
 		s += c->debugDumpJoin(defaultLevel, defaultBase);
 	}
     OpDebugOut(s);
@@ -629,7 +719,7 @@ void dmpSects() {
 }
 
 void dmpSegments() {
-    for (const auto& c : debugGlobalContours->contours) {
+    for (const auto& c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             seg.dump();
         }
@@ -638,7 +728,7 @@ void dmpSegments() {
 
 void dmpSorted() {
 	std::string s = "sorted[";
-    for (const auto& c : debugGlobalContours->sorted) {
+    for (const auto& c : debugGlobalContext->sorted) {
 		s += STR(c->id) + " ";
 	}
 	if (' ' == s.back())
@@ -647,7 +737,7 @@ void dmpSorted() {
 }
 
 void dmpUnsectable() {
-    for (const auto& c : debugGlobalContours->contours) {
+    for (const auto& c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (edge.isUnsectable())
@@ -658,7 +748,7 @@ void dmpUnsectable() {
 }
 
 void dmpUnsortable() {
-    for (const auto& c : debugGlobalContours->contours) {
+    for (const auto& c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (Unsortable::none != edge.isUnsortable)
@@ -670,7 +760,7 @@ void dmpUnsortable() {
 
 void dmpWindings() {
     std::string s;
-    for (const auto& c : debugGlobalContours->contours) {
+    for (const auto& c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 s += "edge[" + STR(edge.id) + "] ";
@@ -885,11 +975,11 @@ void OpContext::dumpResolveAll(OpContext* self) {
 }
 
 void dmpContours() {
-    dmp(*debugGlobalContours);
+    dmp(*debugGlobalContext);
 }
 
 void dmpMatch(const OpPoint& pt, bool detail) {
-    for (const auto c : debugGlobalContours->contours) {
+    for (const auto c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             if (pt == seg.c.firstPt() || pt == seg.c.lastPt()) {
                 std::string str = "seg: " 
@@ -941,7 +1031,7 @@ void dmpMatchEnd(int id) {
 
 std::vector<const OpIntersection*> findCoincidence(int ID) {
     std::vector<const OpIntersection*> result;
-    for (const auto c : debugGlobalContours->contours) {
+    for (const auto c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             for (const auto intersection : seg.sects.i) {
                 if (ID == abs(intersection->coincidenceID) 
@@ -955,7 +1045,7 @@ std::vector<const OpIntersection*> findCoincidence(int ID) {
 
 const OpContour* findContour(int ID) {
 #if OP_DEBUG
-    for (const auto c : debugGlobalContours->contours)
+    for (const auto c : debugGlobalContext->contours)
         if (ID == c->id)
             return c;
 #endif
@@ -967,7 +1057,7 @@ OpEdge* findEdge(int ID) {
         return edge.id == ID ||
                 edge.debugOutPath == ID || edge.debugRayMatch == ID;
     };
-    for (auto c : debugGlobalContours->contours) {
+    for (auto c : debugGlobalContext->contours) {
         for (auto& seg : c->segments) {
             for (auto& edge : seg.edges) {
                 if (match(edge))
@@ -975,19 +1065,19 @@ OpEdge* findEdge(int ID) {
             }
         }
     }
-    if (OpEdge* filler = debugGlobalContours->fillerStorage
-            ? debugGlobalContours->fillerStorage->debugFind(ID) : nullptr)
+    if (OpEdge* filler = debugGlobalContext->fillerStorage
+            ? debugGlobalContext->fillerStorage->debugFind(ID) : nullptr)
         return filler;
     // if edge intersect is active, search there too
-    if (OpEdge* ccEdge = debugGlobalContours->ccStorage
-            ? debugGlobalContours->ccStorage->debugFind(ID) : nullptr)
+    if (OpEdge* ccEdge = debugGlobalContext->ccStorage
+            ? debugGlobalContext->ccStorage->debugFind(ID) : nullptr)
         return ccEdge;
     return nullptr;
 }
 
 std::vector<const OpEdge*> findEdgeOutput(int ID) {
     std::vector<const OpEdge*> result;
-    for (const auto c : debugGlobalContours->contours) {
+    for (const auto c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (ID == edge.debugOutPath)
@@ -1000,7 +1090,7 @@ std::vector<const OpEdge*> findEdgeOutput(int ID) {
 
 std::vector<const OpEdge*> findEdgeRayMatch(int ID) {
     std::vector<const OpEdge*> result;
-    for (const auto c : debugGlobalContours->contours) {
+    for (const auto c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (ID == edge.debugRayMatch)
@@ -1013,7 +1103,7 @@ std::vector<const OpEdge*> findEdgeRayMatch(int ID) {
 
 const OpIntersection* findIntersection(int ID) {
 #if OP_DEBUG
-    for (const auto c : debugGlobalContours->contours) {
+    for (const auto c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             for (const auto intersection : seg.sects.i) {
                 if (ID == intersection->id)
@@ -1026,15 +1116,15 @@ const OpIntersection* findIntersection(int ID) {
 }
 
 const OpLimb* findLimb(int ID) {
-    if (const OpLimb* limb = debugGlobalContours->limbStorage
-            ? debugGlobalContours->limbStorage->debugFind(ID) : nullptr)
+    if (const OpLimb* limb = debugGlobalContext->limbStorage
+            ? debugGlobalContext->limbStorage->debugFind(ID) : nullptr)
         return limb;
     return nullptr;
 }
 
 std::vector<const OpIntersection*> findSectUnsectable(int ID) {
     std::vector<const OpIntersection*> result;
-    for (const auto c : debugGlobalContours->contours) {
+    for (const auto c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             for (const auto intersection : seg.sects.i) {
                 if (ID == abs(intersection->unsectID))
@@ -1046,7 +1136,7 @@ std::vector<const OpIntersection*> findSectUnsectable(int ID) {
 }
 
 const OpSegment* findSegment(int ID) {
-    for (const auto c : debugGlobalContours->contours) {
+    for (const auto c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             if (ID == seg.id)
                 return &seg;
@@ -1147,7 +1237,7 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 				s += "] ";
 			}
             if (segment.winding.w.data && segment.winding.w.size) {
-				auto windingOut = debugGlobalContours->debugContextCallbacks.debugDumpWindingOutFuncPtr;
+				auto windingOut = debugGlobalContext->debugContextCallbacks.debugDumpWindingOutFuncPtr;
 				if (windingOut)
 					s += "winding" + (*windingOut)(segment.winding.w) + " ";
 			}
@@ -1264,7 +1354,7 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 		s += "disabledPalsBuilt ";
 #endif
     if (winding.data && winding.size) {
-		auto windingOut = debugGlobalContours->debugContextCallbacks.debugDumpWindingOutFuncPtr;
+		auto windingOut = debugGlobalContext->debugContextCallbacks.debugDumpWindingOutFuncPtr;
 		if (windingOut)
 			s += "winding" + (*windingOut)(winding) + " ";
 	}
@@ -1988,6 +2078,7 @@ static UnsortableName unsortableNames[] = {
     UNSORTABLE_NAME(none),
     UNSORTABLE_NAME(addCalcFail),
     UNSORTABLE_NAME(addCalcFail2),
+    UNSORTABLE_NAME(betweenCoins),
     UNSORTABLE_NAME(filler),
 	UNSORTABLE_NAME(homeUnsectable),
 	UNSORTABLE_NAME(noMidT),
@@ -2002,9 +2093,11 @@ ENUM_NAME(Unsortable, unsortable)
 
 std::string EdgePal::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    s += "edge:" + STR(edge->id) + " ";
+    s += "edge[" + debugDumpID() + "] ";
 	if (DebugLevel::detailed == l && edge->segment)
-		s += "seg:" + STR(edge->segment->id) + " ";
+		s += "seg[" + STR(edge->segment->id) + "] ";
+	if (edge->segment)
+		s += "contour[" + STR(edge->segment->contour->id) + "] ";
     if (!OpMath::IsNaN(cept))
         s += debugValue(l, b, "cept", cept) + " ";
     if (!OpMath::IsNaN(edgeInsideT))
@@ -2017,6 +2110,12 @@ std::string EdgePal::debugDump(DebugLevel l, DebugBase b) const {
 		s += edge->debugDumpWinding() + " ";
     if (s.size())
         s.pop_back();
+    return s;
+}
+
+std::string EdgePal::debugDumpID() const {
+    std::string s;
+    s += STR(edge->id);
     return s;
 }
 
@@ -2700,6 +2799,11 @@ void dmpPoints(const OpEdge& edge) {
     OpDebugFormat(s);
 }
 
+void dmpRay(const OpEdge& edge) {
+	dmp(edge.ray);
+	dmp(edge.ray.distances);
+}
+
 void dmpStart(const OpEdge& edge) {
     dmpMatch(edge.startPt());
 }
@@ -3326,14 +3430,19 @@ std::string OpWinder::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 std::string EdgeRun::debugDump(DebugLevel l, DebugBase b) const {
-    std::string s;
-    s += "e[" + STR(runEdge->id) + "] ";
-    s += "o[" + STR(runOpp->id) + "] ";
+    std::string s = debugDumpID();
     s += "edgePtT:" + edgePtT.debugDump(l, b) + " ";
     s += "oppPtT:" + oppPtT.debugDump(DebugLevel::error, b) + " ";
     s += debugErrorValue(l, b, "oppDist", oppDist) + " ";
     OP_DEBUG_CODE(s += "debugBetween:" + STR(debugBetween) + " ");
     return s;
+}
+
+std::string EdgeRun::debugDumpID() const {
+    std::string s;
+    s += "e[" + STR(runEdge->id) + "] ";
+    s += "o[" + STR(runOpp->id) + "] ";
+	return s;
 }
 
 void EdgeRun::dumpSet(const char*& str) {
@@ -3371,9 +3480,9 @@ ENUM_NAME(CurveRef, curveRef)
 std::string FoundLimits::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     if (parentEdge)
-        s += "parentEdge:" + STR(parentEdge->id) + " ";
+        s += "parentEdge[" + STR(parentEdge->id) + "] ";
     if (parentOpp)
-        s += "parentOpp:" + STR(parentOpp->id) + " ";
+        s += "parentOpp[" + STR(parentOpp->id) + "] ";
     s += "seg:" + seg.debugDump(l, b);
     s += " opp:" + opp.debugDump(l, b);
     if (fromFoundT)
@@ -3698,9 +3807,9 @@ void OpCurveCurve::dumpDepth(int level) {
 }
 
 void dmpDepth(int level) {
-    OpCurveCurve* cc = debugGlobalContours->debugCurveCurve;
+    OpCurveCurve* cc = debugGlobalContext->debugCurveCurve;
     if (!cc)
-        return OpDebugOut("!debugGlobalContours->debugCurveCurve\n");
+        return OpDebugOut("!debugGlobalContext->debugCurveCurve\n");
     cc->dumpDepth(level);
 }
 
@@ -3711,9 +3820,9 @@ void OpCurveCurve::dumpDepth() {
 }
 
 void dmpDepth() {
-    OpCurveCurve* cc = debugGlobalContours->debugCurveCurve;
+    OpCurveCurve* cc = debugGlobalContext->debugCurveCurve;
     if (!cc)
-        return OpDebugOut("!debugGlobalContours->debugCurveCurve\n");
+        return OpDebugOut("!debugGlobalContext->debugCurveCurve\n");
     cc->dumpDepth();
 }
 #endif
@@ -3761,6 +3870,8 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
     if (!coincidenceID  OP_DEBUG_CODE(&& !debugCoincidenceID) && !unsectID 
             && MatchEnds::none != coinEnd)
         s += "!!! (unexpected) " + matchEndsName(coinEnd);
+    if (betweenCoins)
+        s += " betweenCoins";
     if (mergeProcessed)
         s += " mergeProcessed";
     if (moved)
@@ -4220,7 +4331,7 @@ std::string OpWinding::debugDump(DebugLevel l, DebugBase b) const {
 		}
 		s += "]";
     } else if (w.size) {
-		auto windingOut = debugGlobalContours->debugContextCallbacks.debugDumpWindingOutFuncPtr;
+		auto windingOut = debugGlobalContext->debugContextCallbacks.debugDumpWindingOutFuncPtr;
 		if (windingOut)
 			s += (*windingOut)(w);
     }
@@ -4230,7 +4341,7 @@ std::string OpWinding::debugDump(DebugLevel l, DebugBase b) const {
 void OpWinding::dumpSet(const char*& str) {
     OpDebugRequired(str, "w.size");
     w.size = OpDebugReadSizeT(str);
-    w.data = debugGlobalContours->allocateWinding(w.size);
+    w.data = debugGlobalContext->allocateWinding(w.size);
     OpDebugRequired(str, "[");
     for (size_t index = 0; index < w.size; ++index) {
         ((uint8_t*) w.data)[index] = OpDebugByteToInt(str);
@@ -4350,7 +4461,7 @@ ENUM_NAME(ChopUnsortable, chopUnsortable)
 std::string FoundEdge::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     if (DebugLevel::file == l)
-         s += STR(edge->id) + " ";
+         s += debugDumpID() + " ";
     else
          s += edge->debugDump(l, b) + "\n";
     bool dumpDetails = DebugLevel::detailed == l || DebugLevel::file == l;
@@ -4366,6 +4477,12 @@ std::string FoundEdge::debugDump(DebugLevel l, DebugBase b) const {
         s += "loops ";
     if (dumpDetails && ChopUnsortable::none != chop)
         s += "chopUnsortable:" + chopUnsortableName(chop) + " ";
+    return s;
+}
+
+std::string FoundEdge::debugDumpID() const {
+    std::string s;
+    s += STR(edge->id);
     return s;
 }
 

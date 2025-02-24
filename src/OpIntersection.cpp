@@ -129,8 +129,10 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 	for (OpIntersection* sectPtr : i) {
 		if (first->ptT.t != sectPtr->ptT.t) {
 			segment->edges.emplace_back(first, sectPtr  OP_LINE_FILE_PARGS());
-			first = sectPtr;
 			OpEdge& newEdge = segment->edges.back();
+			if (first->betweenCoins && sectPtr->betweenCoins)
+				newEdge.setUnsortable(Unsortable::betweenCoins);
+			first = sectPtr;
 			if (unsectables.size())
 				newEdge.unSects = unsectables;
 			if (coincidences.size()) {
@@ -337,6 +339,19 @@ void OpIntersections::eraseCollapsed() {
 			}
 		}
 		i.erase(i.begin() + index);
+	}
+}
+
+// mark intersections between coincident start and end which do not match same coin opposite
+// first pass: mark possible between sects
+// second pass: if opposite is also between sects, then neither is
+void OpIntersections::markInCoincidence() {
+	int coinCount = 0;
+	for (OpIntersection* iSect : i) {
+		if (MatchEnds::none != iSect->coinEnd)
+			coinCount += MatchEnds::start == iSect->coinEnd ? 1 : -1;
+		else if (coinCount)
+			iSect->opp->betweenCoins = true;
 	}
 }
 

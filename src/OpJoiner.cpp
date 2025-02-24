@@ -70,7 +70,6 @@ void OpLimb::addEach(OpJoiner& join, OpTree& tree)
 #endif
 	for (const std::vector<OpEdge*>& edges : { join.unsectByArea, join.unsortables } ) {
 		for (OpEdge* test : edges) {
-//			OpAssert(debugHits < 8 || 6866 != test->id);
 			if (test->inLinkups)
 				continue;
 			bool preferSibling = test->isUnsectable() && tree.preferSibling(this, test);
@@ -1124,7 +1123,6 @@ bool OpJoiner::linkRemaining(OP_DEBUG_CODE(OpContext* debugContours))
 #else
 	OP_DEBUG_CODE(debugMatchRay(debugContours));
 #endif
-	dmp(26);
 	OP_ASSERT(DebugShowImage());
 	linkPass = LinkPass::remaining;
 	// match links may add or remove from link ups. Iterate as long as link ups is not empty
