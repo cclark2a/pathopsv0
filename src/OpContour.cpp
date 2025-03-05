@@ -48,19 +48,22 @@ void OpContext::addDebugContextData(PathOpsV0Lib::DebugContextData data) {
 #endif
 
 #if WINDER_CONTOUR_EXPERIMENT
-// If edge is disabled, but its winding was transferred to another edge (potentially in another 
-// contour) remember that to check to see if coin edge should also be added. (fuzz763_1823)
-bool OpContour::addEdges(OpContour* contour) {
+// !!! disabled assuming new approach will find intersecting contours even if outside sects
+// !!! If edge is disabled, but its winding was transferred to another edge (potentially in another 
+// !!! contour) remember that to check to see if coin edge should also be added. (fuzz763_1823)
+bool OpContour::addEdges() {
 	bool addCoin = false;
-	for (auto& segment : contour->segments) {
+	for (auto& segment : segments) {
 		for (auto& edge : segment.edges) {
 			if (edge.disabled) {
+	#if 0
 				if (!addCoin) {
 					for (CoinPal& coinPal : edge.coinPals) {
 						addCoin |= sects.end() == std::find(sects.begin(), sects.end(), 
 								coinPal.opp->contour);
 					}
 				}
+	#endif
 				continue;
 			}
 			if (edge.ptBounds.height())
@@ -69,15 +72,22 @@ bool OpContour::addEdges(OpContour* contour) {
 				inY.push_back(&edge);
 		}
 	}
+	std::sort(inX.begin(), inX.end(), [](const OpEdge* s1, const OpEdge* s2) {
+		return s1->ptBounds.left < s2->ptBounds.left;
+	});
+	std::sort(inY.begin(), inY.end(), [](const OpEdge* s1, const OpEdge* s2) {
+		return s1->ptBounds.top < s2->ptBounds.top;
+	});
 	return addCoin;
 }
 
+#if 0  // !!! disabled (see above)
 // If an edge is disabled, but its winding was transferred to another edge (potentially in another 
 // contour) add the coincident edge to the list. (fuzz763_1823)
 // !!! this avoids adding the same edge more than once, at the expense of scanning all edges
 //     if this is a performance concern, defer duplicate check until after sort
-void OpContour::addCoinEdges(OpContour* contour) {
-	for (auto& segment : contour->segments) {
+void OpContour::addCoinEdges() {
+	for (auto& segment : segments) {
 		for (auto& edge : segment.edges) {
 			if (!edge.disabled)
 				continue;
@@ -97,6 +107,7 @@ void OpContour::addCoinEdges(OpContour* contour) {
 		}
 	}
 }
+#endif
 
 std::vector<OpEdge*>& OpContour::windingEdges(Axis axis) {
 	if (winderOwner != this) {
@@ -586,6 +597,7 @@ void OpContext::initOutOnce() {
 	outputOne = true;
 }
 
+#if 01  // breaks skpagentxsites_com55 (add what test this is required for...
 void OpContext::markInCoincidence() {
 	for (auto contour : contours) {
 		for (auto& segment : contour->segments) {
@@ -594,6 +606,7 @@ void OpContext::markInCoincidence() {
 		}
 	}
 }
+#endif
 
 OpLimb& OpContext::nthLimb(int index) {
 	int blockBase = index & ~(ARRAY_COUNT(limbStorage->storage) - 1);
@@ -623,10 +636,27 @@ void OpContext::opsInit() {
 			continue;
 		contours.push_back(contour);
 	}
+	normalize();  // collect extremes, map all from 0 to 1, map <= epsilon to zero
+	for (OpContour* contour : contours) {
+		for (const OpSegment& segment : contour->segments) {
+			if (segment.disabled)
+				continue;
+			contour->bounds.add(segment.ptBounds);
+		}
+		if (contour->bounds.isFinite())
+			maxBounds.add(contour->bounds);
+		else
+			contour->disabled = true;
+	}
 	for (size_t outer = 0; outer < contours.size(); ++outer) {
 		OpContour* oContour = contours[outer];
+		if (oContour->disabled)
+			continue;
+		oContour->winderOwner = oContour;
 		for (size_t inner = outer; inner < contours.size(); ++inner) {
 			OpContour* iContour = contours[inner];
+			if (iContour->disabled)
+				continue;
 			if (oContour->bounds.intersects(iContour->bounds)) {
 				oContour->sects.push_back(iContour);
 				if (oContour != iContour)
@@ -642,17 +672,19 @@ void OpContext::opsInit() {
 #if WINDER_CONTOUR_EXPERIMENT
 	for (size_t index = 0; index < contours.size(); ++index) {
 		OpContour* contour = contours[index];
-		contour->winderOwner = contour;
-		for (size_t previous = 0; previous < index; ++previous) {
-			OpContour* prev = contours[previous];
-			if (prev->sects == contour->sects) {
-				contour->winderOwner = prev;
-				break;
+		if (contour->winderOwner != contour)
+			continue;
+		for (OpContour* sect : contour->sects) {
+			contour->sectBounds.add(sect->bounds);
+			if (sect->id <= contour->id)
+				continue;
+			if (sect->sects == contour->sects) {
+				sect->winderOwner = contour;
+				continue;
 			}
 		}
 	}
 #endif
-	normalize();  // collect extremes, map all from 0 to 1, map <= epsilon to zero
 #if TEST_RASTER
 	if (rasterEnabled)
 		rasterOutput.init();

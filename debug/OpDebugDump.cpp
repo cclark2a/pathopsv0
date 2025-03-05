@@ -353,8 +353,10 @@ static std::string edit(std::string s, std::string skip, bool note) {
 		char next = last < s.size() ? s[last] : ' ';
 		if (std::string::npos == wordBounds.find(next))
 			continue;
+#if 0 // !!! enable and debug when needded
+	// (only) if prior is in bracket left, walk until balance in bracket right is found
 		std::vector<size_t> brackets;
-		--last;
+		last = start - 1;
 		while (++last < end) {
 			char ch = s[last];
 			size_t bracketIndex = bracketL.find(ch);
@@ -370,6 +372,7 @@ static std::string edit(std::string s, std::string skip, bool note) {
 			if (!brackets.size() && std::string::npos != wordBounds.find(ch))
 				break;
 		}
+#endif
 		result += s.substr(first, start - first);
 		if (note) {
 			result += "**";
@@ -419,7 +422,11 @@ std::string stringFormat(std::string s) {
 }
 
 void addNote(int id) {
-	debugGlobalContext->debugDumpNotes.push_back(STR(id));
+	std::string toAdd = STR(id);
+	auto& notes = debugGlobalContext->debugDumpNotes;
+	if (notes.end() != std::find(notes.begin(), notes.end(), toAdd))
+		return;
+	debugGlobalContext->debugDumpNotes.push_back(toAdd);
 }
 
 void clearNotes() {
@@ -427,6 +434,9 @@ void clearNotes() {
 }
 
 void addSkip(std::string s) {
+	auto& notes = debugGlobalContext->debugDumpSkips;
+	if (notes.end() != std::find(notes.begin(), notes.end(), s))
+		return;
 	debugGlobalContext->debugDumpSkips.push_back(s);
 }
 
@@ -1312,9 +1322,9 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 		s.pop_back();
 		s += "]\n";
 	}
-	if (disabled.size()) {
+	if (disabledEdges.size()) {
 		s += "disabled[";
-		for (OpEdge* e : disabled)
+		for (OpEdge* e : disabledEdges)
 			s += STR(e->id) + " ";
 		s.pop_back();
 		s += "]\n";
@@ -1347,11 +1357,20 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 		s.pop_back();
 		s += "]\n";
 	}
+	s += "sectBounds:" + sectBounds.debugDump(l, b) + " ";
 	s += "treeID[" + STR(treeID) + "] ";
+//	if (containsSects)
+//		s += "containsSects ";
 	if (disabledBuilt)
 		s += "disabledBuilt ";
 	if (disabledPalsBuilt)
 		s += "disabledPalsBuilt ";
+	if (isXSorted)
+		s += "isXSorted ";
+	if (isYSorted)
+		s += "isYSorted ";
+	if (disabled)
+		s += "disabled ";
 #endif
     if (winding.data && winding.size) {
 		auto windingOut = debugGlobalContext->debugContextCallbacks.debugDumpWindingOutFuncPtr;
@@ -3035,7 +3054,7 @@ std::string OpContour::debugDumpJoin(DebugLevel l, DebugBase b) const {
 	if (!disabledBuilt && DebugLevel::detailed == l)
 		s += "disabled (not built)\n";
     else
-		dumpEdgeIDs(disabled, "disabled");
+		dumpEdgeIDs(disabledEdges, "disabledEdges");
 	if (!disabledPalsBuilt && DebugLevel::detailed == l)
 		s += "disabledPals (not built)\n";
 	else
@@ -3343,6 +3362,7 @@ void OpLimb::dumpSet(const char*& str) {
     }
 }
 
+// !!! string gets truncated if it gets too big (don't know why) so output it in pieces for now...
 std::string OpTree::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
 //    if (limbStorage)
@@ -3373,7 +3393,8 @@ std::string OpTree::debugDump(DebugLevel l, DebugBase b) const {
     OpLimbStorage* saveCurrent = context->limbCurrent;
     for (int index = 0; index < totalUsed; ++index) {
         const OpLimb& limb = context->debugNthLimb(index);
-        s += "\n" + limb.debugDumpIDs(l, true);
+		OpDebugFormat(s);
+        s = limb.debugDumpIDs(l, true);
         s += " parent:" + (limb.parent ? limb.parent->debugDumpIDs(l, true) : "-");
         if (limb.debugBranches.size()) {
             s += " children:";
@@ -3400,32 +3421,12 @@ void dmp(std::array<CoinEnd, 4>& coinEndArray) {
         OpDebugOut(cea.debugDump(defaultLevel, defaultBase) + "\n");
 }
 
-std::string OpWinder::debugDumpAxis(Axis a, DebugLevel l, DebugBase b) const {
-    std::string s = "";
-#if WINDER_CONTOUR_EXPERIMENT
-	std::vector<OpEdge*>& inX = *inXPtr;
-	std::vector<OpEdge*>& inY = *inYPtr;
-#endif
-    for (const auto edge : Axis::vertical == a ? inY : inX) {
-        s += edge->debugDump(l, b) + "\n";
-    }
-    return s;
-}
-
 std::string OpWinder::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-#if WINDER_CONTOUR_EXPERIMENT
-	std::vector<OpEdge*>& inX = *inXPtr;
-	std::vector<OpEdge*>& inY = *inYPtr;
-#endif
-    if (inX.size()) {
-        s += "-- sorted in x --\n";
-        s += debugDumpAxis(Axis::horizontal, l, b);
-    }
-    if (inY.size()) {
-        s += "-- sorted in y --\n";
-        s += debugDumpAxis(Axis::vertical, l, b);
-    }
+	if (home)
+		s += "home[" + STR(home->id) + " ";
+	s += "axis:" + axisName(workingAxis) + " ";
+	s += "interceptLimit:" + STR(interceptLimit) + " ";
     return s;
 }
 
@@ -3641,7 +3642,7 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
         s += "originalEdge:" + originalEdge->debugDump(down1, b) + "\n";
     }
     if (DebugLevel::file == l || !opp->edges.size())
-        s += "opp:" + STR(seg->id) + "\n";
+        s += "opp:" + STR(opp->id) + "\n";
     else {
         const OpEdge* originalOpp = &opp->edges[0];
         s += "originalOpp:" + originalOpp->debugDump(down1, b) + "\n";
@@ -4268,7 +4269,7 @@ void dmpIntersections(const OpSegment& seg) {
 }
 
 void dmpCount(const OpSegment& seg) {
-    OpDebugOut("seg:" + seg.debugDumpID() + " edges:" + STR(seg.edges.size())
+    OpDebugFormat("seg:" + seg.debugDumpID() + " edges:" + STR(seg.edges.size())
             + " intersections:" + STR(seg.sects.i.size()) + "\n");
 }
 
@@ -4277,15 +4278,15 @@ void dmpEnd(const OpSegment& seg) {
 }
 
 void dmpFull(const OpSegment& seg) {
-    OpDebugOut(seg.debugDumpFull() + "\n"); 
+    OpDebugFormat(seg.debugDumpFull() + "\n"); 
 }
 
 void dmpSegmentEdges(const OpSegment& seg) {
-    OpDebugOut(seg.debugDumpEdges() + "\n");
+    OpDebugFormat(seg.debugDumpEdges() + "\n");
 }
 
 void dmpSegmentIntersections(const OpSegment& seg) {
-    OpDebugOut(seg.debugDumpIntersections() + "\n");
+    OpDebugFormat(seg.debugDumpIntersections() + "\n");
 }
 
 void dmpSegmentSects(const OpSegment& seg) {

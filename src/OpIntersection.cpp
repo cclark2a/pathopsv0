@@ -93,6 +93,34 @@ OpIntersection* const * OpIntersections::entry(const OpPtT& ptT, const OpSegment
 }
 #endif
 
+static void stackCoins(std::vector<CoinPal>& coincidences, OpIntersection* sect) {
+	int coinID = sect->coincidenceID;
+	if (!coinID)
+		return;
+	if (MatchEnds::start == sect->coinEnd) {
+		coincidences.push_back({ sect->opp->segment, coinID /*, Transfer::none */ });
+		return;
+	}
+	OP_ASSERT(MatchEnds::end == sect->coinEnd);
+	auto found = std::find_if(coincidences.begin(), coincidences.end(), [coinID]
+			(const CoinPal& cPal) { return cPal.coinID == coinID; });
+	OP_ASSERT(coincidences.end() != found);
+	coincidences.erase(found);
+}
+
+// only capture coin if start and end t values enclose test value
+static void findStack(std::vector<CoinPal>& coincidences, OpIntersection* opp) {
+	float oppT = opp->opp->ptT.t;
+	if (OpMath::NearlyEndT(oppT))
+		return;
+	for (OpIntersection* oppSect : opp->opp->segment->sects.i) {
+		if (oppSect->ptT.t > oppT)
+			break;
+		if (oppSect->ptT.t < oppT || MatchEnds::end == oppSect->coinEnd)
+			stackCoins(coincidences, oppSect);
+	}
+}
+
 // if the edge is inside an unsectable range, record all sects that start that range
 void OpIntersections::makeEdges(OpSegment* segment) {
 	OP_ASSERT(!unsorted);
@@ -111,27 +139,35 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 		unsectables.erase(found);
 	};
 	std::vector<CoinPal> coincidences;
-	auto stackCoins = [&coincidences](OpIntersection* sect) {
-		int coinID = sect->coincidenceID;
-		if (!coinID)
-			return;
-		if (MatchEnds::start == sect->coinEnd) {
-			coincidences.push_back({ sect->opp->segment, coinID /*, Transfer::none */ });
-			return;
-		}
-		OP_ASSERT(MatchEnds::end == sect->coinEnd);
-		auto found = std::find_if(coincidences.begin(), coincidences.end(), [coinID]
-				(const CoinPal& cPal) { return cPal.coinID == coinID; });
-		OP_ASSERT(coincidences.end() != found);
-		coincidences.erase(found);
-	};
 	OpIntersection* first = i.front();
 	for (OpIntersection* sectPtr : i) {
 		if (first->ptT.t != sectPtr->ptT.t) {
 			segment->edges.emplace_back(first, sectPtr  OP_LINE_FILE_PARGS());
 			OpEdge& newEdge = segment->edges.back();
-			if (first->betweenCoins && sectPtr->betweenCoins)
-				newEdge.setUnsortable(Unsortable::betweenCoins);
+#if 1   // old code breaks skpagentxsites_com55 / though loops61i works
+		// old code did not check if coincident pair where from same coincidence (same coin id)
+		// new code: if edge is between a pair of coincident edges, mark it unsortable
+			if (first->betweenCoins && sectPtr->betweenCoins 
+					&& first->opp->segment != sectPtr->opp->segment) {
+				std::vector<CoinPal> firstCoins;
+				// !!! optimization: could do cheaper nearly end test on sect ptr first ...
+				findStack(firstCoins, first);
+				if (!firstCoins.empty()) {
+					std::vector<CoinPal> sectCoins;
+					findStack(sectCoins, sectPtr);
+					if (!sectCoins.empty()) {
+						for (CoinPal& coinPal : firstCoins) {
+							if (sectCoins.end() != std::find_if(sectCoins.begin(), sectCoins.end(),
+									[coinPal](CoinPal& test) {
+									return coinPal.coinID == test.coinID; })) {
+								newEdge.setUnsortable(Unsortable::betweenCoins);
+								break;
+							}
+						}
+					}
+				}
+			}
+#endif
 			first = sectPtr;
 			if (unsectables.size())
 				newEdge.unSects = unsectables;
@@ -140,7 +176,7 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 			}
 		}
 		stackUnsects(sectPtr);
-		stackCoins(sectPtr);
+		stackCoins(coincidences, sectPtr);
 	}
 }
 
@@ -342,6 +378,7 @@ void OpIntersections::eraseCollapsed() {
 	}
 }
 
+#if 01  // breaks skpagentxsites_com55 (add what test this is required for...
 // mark intersections between coincident start and end which do not match same coin opposite
 // first pass: mark possible between sects
 // second pass: if opposite is also between sects, then neither is
@@ -354,6 +391,7 @@ void OpIntersections::markInCoincidence() {
 			iSect->opp->betweenCoins = true;
 	}
 }
+#endif
 
 	// intersections may have multiple different t values with the same pt value
 	// should be rare; do an exhaustive search for duplicates

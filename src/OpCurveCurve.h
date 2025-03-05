@@ -122,7 +122,7 @@ struct OpCurveCurve {
 			const OpPtT& oppStart, const OpPtT& oppEnd);
 	bool alreadyInLimits(const OpEdge* edge, const OpEdge* oEdge, float t);
 	bool betweenLimits(const OpEdge* edge, const OpEdge* oEdge, float lo, float hi);
-	OpEdge* boundedEdge(OpSegment* , OpPointBounds& , MatchEnds  OP_LINE_FILE_ARGS());
+	OpEdge* boundedEdge(OpSegment* , const OpPointBounds& , MatchEnds  OP_LINE_FILE_ARGS());
 	bool checkForGaps();
 	bool checkSect();
 	bool checkSplit(float lo, float hi, CurveRef , OpPtT& checkPtT) const;

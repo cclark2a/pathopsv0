@@ -21,9 +21,18 @@ struct OpPointBounds : OpRect {
 		add(pt2);
 	}
 
+	OpPointBounds(OpRect& r)
+		: OpRect(r) {
+	}
+
 	bool contains(OpPoint pt) const {
 		OP_ASSERT(pt.isFinite());
 		return OpMath::Between(left, pt.x, right) && OpMath::Between(top, pt.y, bottom);
+	}
+
+	bool contains(OpRect& r) const {
+		return OpMath::Between(left, r.left, right) && OpMath::Between(left, r.right, right) 
+				&& OpMath::Between(top, r.top, bottom) && OpMath::Between(top, r.bottom, bottom);
 	}
 
 	OpPointBounds intersect(const OpPointBounds& bounds) const {
@@ -37,7 +46,7 @@ struct OpPointBounds : OpRect {
 	}
 
 	bool isEmpty() const {
-		return left >= right && top >= bottom;
+		return left > right || top > bottom || (left == right && top == bottom);
 	}
 
 	bool isSet() const {

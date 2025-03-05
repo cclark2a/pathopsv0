@@ -65,8 +65,8 @@ struct OpContour {
 	}
 
 #if WINDER_CONTOUR_EXPERIMENT
-	void addCoinEdges(OpContour* );
-	bool addEdges(OpContour* );
+	void addCoinEdges();
+	bool addEdges();
 	void addJoinEdge(OpJoiner* , OpEdge* );
 	void addLast(OpEdge* );
 	void addToLinkups(OpJoiner* , OpEdge* );
@@ -181,16 +181,19 @@ struct OpContour {
 	// for joiner:
 	std::vector<OpEdge*> byArea;
 	std::vector<OpEdge*> unsectByArea;
-	std::vector<OpEdge*> disabled;
+	std::vector<OpEdge*> disabledEdges;
 	std::vector<OpEdge*> disabledPals;
 	std::vector<OpEdge*> unsortables;
 	LinkUps linkups;
 	LinkUps endLinks;
+	OpPointBounds sectBounds;
 	int treeID = 0;  // tracks if contour has been initialized in this tree's context (for edge 'seen')
+//	bool containsSects = true;  // set of sects contains all sects' sects
 	bool disabledBuilt = false;
 	bool disabledPalsBuilt = false;
 	bool isXSorted = false;
 	bool isYSorted = false;
+	bool disabled = false;
 #endif
 	PathOpsV0Lib::Winding winding;
 	OpPointBounds bounds;

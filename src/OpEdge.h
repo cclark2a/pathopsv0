@@ -75,7 +75,7 @@ struct EdgePal {
 	float cept;  // where normal intersects edge (e.g. for home, axis horz: center.x)
 	float edgeInsideT;  // !!! t value from 0 to 1 within edge range (seems bizarre)
 	bool reversed;
-#if WINDER_CONTOUR_EXPERIMENT
+#if 0 && WINDER_CONTOUR_EXPERIMENT
 	bool adjustSum = false;
 #endif
 	OP_DEBUG_CODE(int debugUID);  // unsect id from sect in edge's segment

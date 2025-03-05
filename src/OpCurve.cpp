@@ -308,7 +308,10 @@ OpPoint OpCurve::ptAtT(float t) const {
 	PathOpsV0Lib::PtAtT funcPtr = contours->callback(c.type).ptAtTFuncPtr;
 	if (!funcPtr)
 		return (1 - t) * c.data->start + t * c.data->end;
-	return (*funcPtr)(c, t);
+	OpPoint result = (*funcPtr)(c, t);
+	// !!! required by release_13: but, should caller's point at T function do the pinning?
+	result.pin(c.data->start, c.data->end);
+	return result;
 }
 
 OpCurve OpCurve::subDivide(OpPtT ptT1, OpPtT ptT2) const {

@@ -775,7 +775,7 @@ struct OpMath {
 		return CubicRootsReal(A, B, C, D, MatchEnds::none).keepValidTs();
 	}
 
-	static bool Equal(float a, float b, float threshold);
+	static bool Equal(float a, float b, float threshold = OpEpsilon);
 
 	static bool EqualT(float a, float b) {
 		return Equal(a, b, OpEpsilon); }

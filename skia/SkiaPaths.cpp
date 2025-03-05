@@ -174,17 +174,27 @@ std::string dumpSkPath(const SkPath* path, bool inHex) {
 
 std::string dumpSkContour(const SkPath* path, int contour, bool inHex) {
 	std::string s = dumpSkPath(path, inHex);
-	size_t pos = 0;
-	while (contour > 0) {
-		pos = s.find("path.close();", pos);
-		pos = s.find("path.moveTo(", pos);
-		--contour;
+	size_t pos = s.find("path.moveTo(", 0);
+	if (std::string::npos == pos || contour < 0)
+		return "";
+	std::string closeLine = "path.close();\n";
+	size_t endPos = std::string::npos;
+	while (contour >= 0) {
+		size_t closePos = s.find(closeLine, pos);
+		endPos = std::string::npos == closePos ? s.size() : closePos + closeLine.size();
+		size_t movePos = s.find("path.moveTo(", pos + 1);
+		if (std::string::npos != movePos && movePos < endPos)
+			endPos = movePos;
+		if (contour--) {
+			if (std::string::npos == movePos)
+				return "*** error: " + s;
+			pos = endPos;
+		}
 	}
-	size_t endPos = s.find("path.close();", pos);
-	endPos = s.find("path.moveTo(", endPos);
-	if (std::string::npos == endPos)
-		endPos = s.size();
-	return s.substr(pos, endPos);
+	std::string result = s.substr(pos, endPos - pos);
+	if ('\n' == result.back())
+		result.pop_back();
+	return result;
 }
 #endif
 
@@ -439,12 +449,12 @@ void AddSkiaPath(Context* context, Contour* contour, const SkPath& path) {
 	#if WINDER_CONTOUR_EXPERIMENT
 			contour = Clone(contour);
 	#if OP_DEBUG
-		{	DebugContourData debugCaller = GetDebugContourData(contour);
-			OP_ASSERT(sizeof(UnaryContour) <= debugCaller.size);
-			UnaryContour windingUserData;
-			std::memcpy(&windingUserData, debugCaller.data, sizeof(windingUserData));
+		{	
+			DebugContourData debugCaller = GetDebugContourData(contour);
+			BinaryContour windingUserData;
+			std::memcpy(&windingUserData, debugCaller.data, debugCaller.size);
 			windingUserData.contourIndex = contourIndex;
-			std::memcpy(debugCaller.data, &windingUserData, sizeof(windingUserData));
+			SetDebugContourData(contour, { &windingUserData, debugCaller.size } );
 		}
 	#endif
 			++contourIndex;

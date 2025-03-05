@@ -7,6 +7,8 @@
 
 namespace PathOpsV0Lib {
 
+// !!! optimization: quadPointAtT (lower case), called by OpCurve::ptAtT has checked for 0, 1
+// so no need to check again
 inline OpPoint QuadPointAtT(OpPoint start, OpPoint control, OpPoint end, float t) {
     if (0 == t)
         return start;

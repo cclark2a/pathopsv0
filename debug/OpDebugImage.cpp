@@ -1983,28 +1983,14 @@ void OpJoiner::debugDraw() {
 
 void OpTree::debugLimbEdges(OpEdge* edge) {
 	OP_ASSERT(!edge->debugIsLoop());
+	OpEdge* first = edge;
 	if (edge->priorEdge)
-		edge = const_cast<OpEdge*>(edge->debugAdvanceToEnd(EdgeMatch::start));
-	OP_ASSERT(edge->lastEdge || !edge->nextEdge);
+		first = const_cast<OpEdge*>(edge->debugAdvanceToEnd(EdgeMatch::start));
+	OP_ASSERT(first->lastEdge || !first->nextEdge || edge->disabled);
+	edge = first;
 	do {
 		edge->debugLimb = true;
 	} while ((edge = edge->nextEdge));
-}
-
-void OpWinder::debugDraw() {
-#if WINDER_CONTOUR_EXPERIMENT
-	for (auto e : *inXPtr)
-		e->debugDraw = true;
-	for (auto e : *inYPtr)
-		e->debugDraw = true;
-
-#else
-	for (auto e : inX)
-		e->debugDraw = true;
-	for (auto e : inY)
-		e->debugDraw = true;
-#endif
-	OpDebugImage::focusEdges();
 }
 
 #if 0

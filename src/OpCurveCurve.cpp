@@ -342,35 +342,27 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
 	OpVector sectWH = curveSect.widthHeight() * maxOverlap;
 	if (sectWH.dx < 0 || sectWH.dy < 0)
 		return;
-	// consider common function for seg and opp
-	OpVector segWH = seg->ptBounds.widthHeight();
-	if (sectWH < segWH && !sectWH.axisAligned()) {
-		parentEdge = boundedEdge(seg, curveSect, matchRev.match  OP_LINE_FILE_PARGS());
-		if (!parentEdge) {
-			OP_ASSERT(debugShowImage());
-			return;
+	auto makeEdge = [sectWH, &curveSect, this](OpSegment* segment) {
+		OpVector segWH = segment->ptBounds.widthHeight();
+		OpEdge* parent;
+		if (sectWH < segWH && !sectWH.axisAligned())
+			parent = boundedEdge(segment, curveSect, matchRev.match  OP_LINE_FILE_PARGS());
+		else {
+			segment->makeEdge(OP_LINE_FILE_NPARGS());
+			parent = &segment->edges.back();
 		}
-	} else {
-		seg->makeEdge(OP_LINE_FILE_NPARGS());
-		parentEdge = &seg->edges.back();
-	}
+		return parent;
+	};
+	if (!(parentEdge = makeEdge(seg)))
+		return;
 	parentEdge->ccStart = parentEdge->ccSmall = smallTFound;
 	parentEdge->ccEnd = parentEdge->ccLarge = largeTFound;
 	OP_ASSERT(!parentEdge->disabled);
 	edgeCurves.oppCurves = &oppCurves;
 	edgeCurves.c.push_back(parentEdge);
 	// end of seg; start of opp
-	OpVector oppWH = opp->ptBounds.widthHeight();
-	if (sectWH < oppWH && !sectWH.axisAligned()) {
-		parentOpp = boundedEdge(opp, curveSect, matchRev.match  OP_LINE_FILE_PARGS());
-		if (!parentOpp) {
-			OP_ASSERT(debugShowImage());
-			return;
-		}
-	} else {
-		opp->makeEdge(OP_LINE_FILE_NPARGS());
-		parentOpp = &opp->edges.back();
-	}
+	if (!(parentOpp = makeEdge(opp)))
+		return;
 	overlap = true;
 	if (matchRev.reversed)
 		std::swap(smallTFound, largeTFound);
@@ -510,10 +502,11 @@ bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 	return true; 
 }
 
-OpEdge* OpCurveCurve::boundedEdge(OpSegment* segm, OpPointBounds& sectBounds, MatchEnds match
-		OP_LINE_FILE_ARGS()) {
+OpEdge* OpCurveCurve::boundedEdge(OpSegment* segm, const OpPointBounds& sectBounds, 
+		MatchEnds match  OP_LINE_FILE_ARGS()) {
 	// while segment crosses at most two sect bounds' sides, all four must be checked
-	OpCurve& c = segm->c;
+	OpBreak2(seg, opp, 3, 6);
+	const OpCurve& c = segm->c;
 	OpPtT minPtT;
 	if (sectBounds.contains(segm->c.firstPt()))
 		minPtT = OpPtT(segm->c.firstPt(), 0);
@@ -529,9 +522,10 @@ OpEdge* OpCurveCurve::boundedEdge(OpSegment* segm, OpPointBounds& sectBounds, Ma
 	auto saveRoots = [c, sectBounds, saveBest, this](OpRoots roots, XyChoice choice) {
 		if (RootFail::rootIsNaN == roots.fail) {
 			boundedEdgeFailed = true;
-			return;
+			return false;
 		}
-		OP_ASSERT(roots.count());
+		if (!roots.count())
+			return false;
 		for (float root : roots.roots) {
 			OpPoint pt = c.ptAtT(root);
 			if (XyChoice::inX == choice) {
@@ -540,24 +534,28 @@ OpEdge* OpCurveCurve::boundedEdge(OpSegment* segm, OpPointBounds& sectBounds, Ma
 			} else if  (sectBounds.top <= pt.y && pt.y <= sectBounds.bottom)
 				saveBest(pt, root);
 		}
+		return true;
 	};
+	bool validRoots = true;
 	if (segm->ptBounds.left < sectBounds.left) {
 		OP_ASSERT(segm->ptBounds.right >= sectBounds.left);
-		saveRoots(c.axisRayHit(Axis::vertical, sectBounds.left), XyChoice::inY);
+		validRoots &= saveRoots(c.axisRayHit(Axis::vertical, sectBounds.left), XyChoice::inY);
 	}
 	if (segm->ptBounds.top < sectBounds.top) {
 		OP_ASSERT(segm->ptBounds.bottom >= sectBounds.top);
-		saveRoots(c.axisRayHit(Axis::horizontal, sectBounds.top), XyChoice::inX);
+		validRoots &= saveRoots(c.axisRayHit(Axis::horizontal, sectBounds.top), XyChoice::inX);
 	}
 	if (segm->ptBounds.right > sectBounds.right) {
 		OP_ASSERT(segm->ptBounds.left <= sectBounds.right);
-		saveRoots(c.axisRayHit(Axis::vertical, sectBounds.right), XyChoice::inY);
+		validRoots &= saveRoots(c.axisRayHit(Axis::vertical, sectBounds.right), XyChoice::inY);
 	}
 	if (segm->ptBounds.bottom > sectBounds.bottom) {
 		OP_ASSERT(segm->ptBounds.top <= sectBounds.bottom);
-		saveRoots(c.axisRayHit(Axis::horizontal, sectBounds.bottom), XyChoice::inX);
+		validRoots &= saveRoots(c.axisRayHit(Axis::horizontal, sectBounds.bottom), XyChoice::inX);
 	}
 	if (boundedEdgeFailed)
+		return nullptr;
+	if (!validRoots)
 		return nullptr;
 	if (!(minPtT.t < maxPtT.t))  // condition returns null if either is nan
 		return nullptr;
@@ -668,7 +666,7 @@ bool OpCurveCurve::checkSplit(float loT, float hiT, CurveRef which, OpPtT& check
 				return original != checkPtT;
 		}
 		// check for gap between original and edge list, and between edges in edge list
-		const OpEdge& oEdge = CurveRef::edge == which ? opp->edges[0] : seg->edges[0];
+		const OpEdge& oEdge = CurveRef::edge == which ? *parentOpp : *parentEdge;
 		OpPtT delLo = oEdge.start();
 		auto checkBounds = [checkPtT](const OpPtT& lo, const OpPtT& hi) {
 			OpPointBounds delBounds(lo.pt, hi.pt);

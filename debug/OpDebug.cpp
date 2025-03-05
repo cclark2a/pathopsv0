@@ -928,7 +928,7 @@ void OpJoiner::debugValidate() const
 #endif
 {
     OpEdge* anEdge = byArea.size() ? byArea[0] : unsectByArea.size() ? unsectByArea[0] : 
-            disabled.size() ? disabled[0] : unsortables.size() ? unsortables[0] :
+            disabledEdges.size() ? disabledEdges[0] : unsortables.size() ? unsortables[0] :
             linkups.l.size() ? linkups.l[0] : nullptr;
     if (!anEdge)
         return;
@@ -952,7 +952,7 @@ void OpJoiner::debugValidate() const
         e->debugValidate();
         OP_ASSERT(!e->isActive() || !e->debugIsLoop());
     }
-    for (auto e : disabled) {
+    for (auto e : disabledEdges) {
         e->debugValidate();
 //        OP_ASSERT(!e->debugIsLoop());
     }
@@ -993,18 +993,6 @@ OpTree::~OpTree() {
 	context->debugTree = nullptr;
 }
 
-#include "OpWinder.h"
-
-void OpWinder::debugValidate() const {
-#if WINDER_CONTOUR_EXPERIMENT
-	std::vector<OpEdge*>& inX = *inXPtr;
-	std::vector<OpEdge*>& inY = *inYPtr;
-#endif
-    for (auto& edge : inX)
-        edge->debugValidate();
-    for (auto& edge : inY)
-        edge->debugValidate();
-}
 #endif
 
 #if OP_DEBUG_DUMP

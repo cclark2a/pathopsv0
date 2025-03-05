@@ -41,15 +41,12 @@ OpSegment::OpSegment(PathOpsV0Lib::Contour* libContour, PathOpsV0Lib::AddCurve a
 	, hasUnsectable(false)
 	, startMoved(false)
 	, endMoved(false) {
+	OpContext* context = contour->context;
 	if (!c.isFinite()) {
-		contour->context->setError(PathOpsV0Lib::ContextError::finite  OP_DEBUG_PARAMS(id));
+		context->setError(PathOpsV0Lib::ContextError::finite  OP_DEBUG_PARAMS(id));
 		disabled = true;
-	} else {
-		ptBounds = c.ptBounds();
-		contour->bounds.add(ptBounds);
-		contour->context->maxBounds.add(ptBounds);  // !!! optimization: use contour bounds instead
-		closeBounds = ptBounds;  // no threshold until all segment bounds are set
-	}
+	} else
+		context->maxBounds.add(c.ptBounds());  // for threshold
 	OP_DEBUG_IMAGE_CODE(debugColor = black);
 }
 
