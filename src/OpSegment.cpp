@@ -746,6 +746,8 @@ OpPoint OpSegment::movePt(OpPtT match, OpPoint destination) {
 
 // two segments are coincident so move opp's winding to this and disabled opp
 bool OpSegment::moveWinding(OpSegment* opp, bool backwards) {
+	OpBreak(this, 2);
+	OpBreak(opp, 2);
 	winding.move(contour->context, opp->winding, backwards);
 	opp->winding.zero(contour->context);
 	opp->setDisabled(OP_LINE_FILE_NPARGS());

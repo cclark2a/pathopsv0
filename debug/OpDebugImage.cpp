@@ -446,6 +446,22 @@ void OpDebugImage::drawDoubleFocus() {
 		} else
 			edge->debugColor = black;
 	}
+	if (drawBoundsOn) {
+		std::vector<OpRect> bounds;
+		if (drawContoursOn) {
+			for (auto contour : debugGlobalContext->contours)
+				bounds.push_back(contour->bounds);
+		}
+		if (drawSegmentsOn) {
+			for (auto segment : segmentIterator)
+				bounds.push_back(segment->ptBounds);
+		}
+		if (drawEdgesOn) {
+			for (auto edge : edgeIterator)
+				bounds.push_back(edge->ptBounds);
+		}
+		DebugOpDraw(bounds);
+	}
 	if (drawRaysOn) {
 		std::vector<OpDebugRay> rays;
 		for (auto edge : edgeIterator) {

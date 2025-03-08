@@ -137,6 +137,10 @@ struct DebugOpRect {
                 && pt.y - OpEpsilon <= bottom;
     }
 
+	bool intersects(const OpRect& r) {
+		return r.left <= right && left <= r.right && r.top <= bottom && top <= r.bottom;
+	}
+
     void reset() {
         left = top = right = bottom = OpNaN;
     }
@@ -814,6 +818,32 @@ void DebugOpFill(std::vector<DebugOpCurve>& curves) {
         color = curve.color;
     }
     OpDebugImage::drawDoubleFill(path, color);
+}
+
+void DebugOpDraw(const std::vector<OpRect>& boxes) {
+    DebugOpRect bounds = ZoomToRect();
+	int leftS, topS, rightS, bottomS;
+	DebugOpScreenBounds(leftS, topS, rightS, bottomS);
+	float ls = leftS, ts = topS, rs = rightS, bs = bottomS;
+    for (auto& box : boxes) {
+		if (!bounds.intersects(box))
+			continue;
+		OpPoint pts[2] { DebugOpMap({ box.left, box.top }), DebugOpMap({ box.right, box.bottom }) };
+		SkPath path;
+		for (double x : { pts[0].x, pts[1].x } ) {
+			if (ls < x && x < rs) {
+				path.moveTo(x, std::max(ts, pts[0].y));
+				path.lineTo(x, std::min(bs, pts[1].y));
+			}
+		}
+		for (double y : { pts[0].y, pts[1].y } ) {
+			if (ts < y && y < bs) {
+				path.moveTo(std::max(ls, pts[0].x), y);
+				path.lineTo(std::min(rs, pts[1].x), y);
+			}
+		}
+		OpDebugImage::drawPath(path, lightgray);
+	}
 }
 
 void DebugOpDraw(const std::vector<OpDebugRay>& lines) {

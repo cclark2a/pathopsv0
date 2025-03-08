@@ -313,6 +313,8 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
 	maxSplits = cb.maxSplitsFuncPtr ? cb.maxSplitsFuncPtr(s->c.c, o->c.c) : 8;
 	maxDepth = cb.maxDepthFuncPtr ? cb.maxDepthFuncPtr(s->c.c, o->c.c) : 64;
 	float maxOverlap = cb.maxOverlapFuncPtr ? cb.maxOverlapFuncPtr(s->c.c, o->c.c) : 1.5f;
+	maxBoundedEdge = cb.maxBoundedEdgeFuncPtr ? cb.maxBoundedEdgeFuncPtr(s->c.c) : 2.0f;
+	maxBoundedT = cb.maxBoundedTFuncPtr ? cb.maxBoundedTFuncPtr(s->c.c) : 8.f;
 	matchRev = seg->matchEnds(opp);
 	smallTFound = MatchEnds::start & matchRev.match;
 	largeTFound = MatchEnds::end & matchRev.match;
@@ -505,19 +507,17 @@ bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 OpEdge* OpCurveCurve::boundedEdge(OpSegment* segm, const OpPointBounds& sectBounds, 
 		MatchEnds match  OP_LINE_FILE_ARGS()) {
 	// while segment crosses at most two sect bounds' sides, all four must be checked
-	OpBreak2(seg, opp, 3, 6);
 	const OpCurve& c = segm->c;
-	OpPtT minPtT;
-	if (sectBounds.contains(segm->c.firstPt()))
-		minPtT = OpPtT(segm->c.firstPt(), 0);
-	OpPtT maxPtT;
-	if (sectBounds.contains(segm->c.lastPt()))
-		maxPtT = OpPtT(segm->c.lastPt(), 1);
-	auto saveBest = [&minPtT, &maxPtT](OpPoint pt, float root) {
-		if (!(root >= minPtT.t))  // works if min t is nan
-			minPtT = { pt, root };
-		if (!(root <= maxPtT.t))  // works if max t is nan
-			maxPtT = { pt, root };
+	// This could use points at found t; but error in finding axis roots can cause points to miss 
+	// bounds. Instead, compute t range, and at the end, outset it to account for error; then
+	// compute the points from the liberal t values
+	float minT = sectBounds.contains(segm->c.firstPt()) ? 0 : OpNaN;
+	float maxT = sectBounds.contains(segm->c.lastPt()) ? 1 : OpNaN;
+	auto saveBest = [&minT, &maxT](float root) {
+		if (!(root >= minT)) // works if min t is nan
+			minT = root;
+		if (!(root <= maxT)) // works if max t is nan
+			maxT = root;
 	};
 	auto saveRoots = [c, sectBounds, saveBest, this](OpRoots roots, XyChoice choice) {
 		if (RootFail::rootIsNaN == roots.fail) {
@@ -526,13 +526,18 @@ OpEdge* OpCurveCurve::boundedEdge(OpSegment* segm, const OpPointBounds& sectBoun
 		}
 		if (!roots.count())
 			return false;
+		OpVector threshold = context->threshold() * maxBoundedEdge;
 		for (float root : roots.roots) {
 			OpPoint pt = c.ptAtT(root);
 			if (XyChoice::inX == choice) {
-				if (sectBounds.left <= pt.x && pt.x <= sectBounds.right)
-					saveBest(pt, root);
-			} else if  (sectBounds.top <= pt.y && pt.y <= sectBounds.bottom)
-				saveBest(pt, root);
+				if ((sectBounds.left <= pt.x && pt.x <= sectBounds.right)
+						|| OpMath::Equal(sectBounds.left, pt.x, threshold.dx)
+						|| OpMath::Equal(sectBounds.right, pt.x, threshold.dx))
+					saveBest(root);
+			} else if ((sectBounds.top <= pt.y && pt.y <= sectBounds.bottom)
+						|| OpMath::Equal(sectBounds.top, pt.y, threshold.dy)
+						|| OpMath::Equal(sectBounds.bottom, pt.y, threshold.dy))
+				saveBest(root);
 		}
 		return true;
 	};
@@ -555,9 +560,24 @@ OpEdge* OpCurveCurve::boundedEdge(OpSegment* segm, const OpPointBounds& sectBoun
 	}
 	if (boundedEdgeFailed)
 		return nullptr;
-	if (!validRoots)
+//	if (!validRoots)
+//		return nullptr;
+#if 0
+	//  debugger function determines error required for axisRayHit to 
+	//  move from given result to result on the other side of the target ray
+	//  note: can't call all the time: if edges do not intersect, assert may be triggered 
+	OP_DEBUG_CODE(debugBoundedEdge(segm, sectBounds, minT, "in"));
+	OP_DEBUG_CODE(debugBoundedEdge(segm, sectBounds, maxT, "ax"));
+#endif
+	minT = std::max(0.f, minT - OpEpsilon * maxBoundedT);
+	maxT = std::min(1.f, maxT + OpEpsilon * maxBoundedT);
+	if (!(minT < maxT))  // condition returns null if either is nan
 		return nullptr;
-	if (!(minPtT.t < maxPtT.t))  // condition returns null if either is nan
+	// outset t values to account for error introduced in caller's root finding
+	// !!! maybe the caller should be able to specify the amount of error ...
+	OpPtT minPtT = segm->c.ptTAtT(minT);
+	OpPtT maxPtT = segm->c.ptTAtT(maxT);
+	if (minPtT.pt.isNearly(maxPtT.pt, context->threshold()))
 		return nullptr;
 	void* block = context->allocateEdge(context->ccStorage);
 	return new(block) OpEdge(segm, minPtT, maxPtT  OP_LINE_FILE_PARGS());

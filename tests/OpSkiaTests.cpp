@@ -3,21 +3,6 @@
 // !!! test this ! (OpCurve::rawIntersect commented out code)
 // for thread_circles104483, edges 113 and 117 fail to find intersection; check for error here
 
-// switches that decide which tests to run and how to run them
-// these may be moved to command line parameters at some point
-#define TESTS_TO_SKIP 0 // 14295903  // tests to skip
-#define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
-#define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
-#define OP_TEST_V0 1  // set to zero to time Skia running tests
-
-#define CURVE_CURVE_1 3  // id of segment 1 to break in divide and conquer
-#define CURVE_CURVE_2 6  // id of segment 2 to break in divide and conquer
-#define CURVE_CURVE_DEPTH -1  // minimum recursion depth for curve curve break (-1 to disable)
-
-// when these tests are encountered, it and the remaining tests in the file are skipped
-#define TEST_PATH_OP_SKIP_REST ""
-#define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */
-
 #if OP_DEBUG_FAST_TEST && TEST_ANALYZE
 #error "turn off fast test"
 #endif

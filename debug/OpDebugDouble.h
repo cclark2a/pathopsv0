@@ -16,6 +16,7 @@ struct OpInPath;
 struct OpOutPath;
 struct OpPoint;
 struct OpPointBounds;
+struct OpRect;
 struct OpDebugRay;
 struct OpSegment;
 
@@ -46,6 +47,7 @@ void DebugOpClearInputs();
 void DebugOpClearPoints();
 void DebugOpClearSegments();
 void DebugOpDraw(const OpOutPath* , uint32_t color);
+void DebugOpDraw(const std::vector<OpRect>& );
 void DebugOpDraw(const std::vector<OpDebugRay>& );
 void DebugOpDraw(const std::vector<OpEdge>& );
 void DebugOpDraw(const std::vector<const OpEdge*>& );

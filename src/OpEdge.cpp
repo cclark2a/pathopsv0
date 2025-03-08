@@ -639,6 +639,7 @@ void OpEdge::setDisabled(OP_LINE_FILE_NP_ARGS()) {
 }
 
 void OpEdge::setDisabledZero(OP_LINE_FILE_NP_ARGS()) {
+	OpBreak(segment, 2);
 	winding.zero(context());
 	setDisabled(OP_LINE_FILE_NP_CARGS()); 
 }

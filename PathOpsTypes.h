@@ -196,6 +196,9 @@ typedef void (*EmptyCallerPath)(PathOutput );
 // returns the linear type defined by the caller
 typedef CurveType (*SetLineType)(Curve );
 
+// overrides a scalar used by the engine to test if curve intersects bounds 
+typedef float (*MaxCurveValue)(Curve );
+
 // overrides a scalar used by the engine to intersect a pair of curves 
 typedef float (*MaxCurveCurveValue)(Curve , Curve );
 
@@ -215,6 +218,8 @@ struct ContextCallbacks {
 	EmptyCallerPath emptyCallerPathFuncPtr = nullptr;
 	MaxCurveCurveValue maxSignSwapFuncPtr = nullptr;
 	MaxCurveCurveValue maxOverlapFuncPtr = nullptr;
+	MaxCurveValue maxBoundedEdgeFuncPtr = nullptr;
+	MaxCurveValue maxBoundedTFuncPtr = nullptr;
 	MaxCurveCurveCount maxDepthFuncPtr = nullptr;
 	MaxCurveCurveCount maxSplitsFuncPtr = nullptr;
 	MaxLimbs maxLimbsFuncPtr = nullptr;

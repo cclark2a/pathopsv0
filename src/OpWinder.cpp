@@ -491,8 +491,7 @@ IntersectResult OpWinder::CoincidentCheck(std::array<CoinEnd, 4>& ends, bool* op
 	return IntersectResult::coincident;
 }
 
-FoundIntercept OpWinder::findRayIntercept(OpVector homeTan, float normal, 
-		float homeCept) {
+FoundIntercept OpWinder::findRayIntercept(OpVector homeTan, float normal, float homeCept) {
 	SectRay& ray = home->ray;
 	ray.homeTangent = homeTan;
 	ray.normal = normal;
@@ -501,11 +500,6 @@ FoundIntercept OpWinder::findRayIntercept(OpVector homeTan, float normal,
 	Axis perpendicular = !workingAxis;
 	float mid = .5;
 	float midEnd = .5;
-#if WINDER_CONTOUR_EXPERIMENT
-//	std::vector<OpEdge*>& inArray = home->segment->contour->windingEdges(workingAxis);
-#else
-	std::vector<OpEdge*>& inArray = Axis::horizontal == workingAxis ? inX : inY;
-#endif
 	ray.homeT = OpMath::Ratio(home->startT, home->endT, home->center.t);
 	// if find intercept fails, retry some number of times
 	// if all retries fail, distinguish between failure cases
@@ -715,25 +709,63 @@ ChainFail OpWinder::setSumChain() {
 	OP_ASSERT(!home->disabled);
 	const OpSegment* edgeSeg = home->segment;
 	OpVector rayLine = Axis::horizontal == workingAxis ? OpVector{ 1, 0 } : OpVector{ 0, 1 };
-	OpVector homeTangent = edgeSeg->c.tangent(home->center.t);
-	float NxR = homeTangent.normalize().cross(rayLine);
-	if (!OpMath::IsFinite(NxR))
-		OP_DEBUG_FAIL(*home, ChainFail::normalizeOverflow);
-	if (fabs(NxR) < home->segment->c.normalLimit()) {
+	float midTest = home->center.t;
+	OP_ASSERT(home->startT < midTest && midTest < home->endT);
+	float normalLimit = home->segment->c.normalLimit();
+	float midLo = midTest - home->startT;
+	float midHi = home->endT - midTest;
+	interceptLimit = home->segment->c.interceptLimit();
+	OpVector homeTangent;
+	// curve may be flat at center and curved at one end, so don't give up too soon (loop45964)
+	auto testTangent = [&homeTangent, edgeSeg, rayLine, normalLimit](float testT) {
+		homeTangent = edgeSeg->c.tangent(testT);
+		float NxR = homeTangent.normalize().cross(rayLine);
+		if (!OpMath::IsFinite(NxR))
+			return ChainFail::normalizeOverflow;
+		if (fabs(NxR) < normalLimit)
+			return ChainFail::normalizeUnderflow;  // nonfatal error
+		return ChainFail::none;
+	};
+	bool firstPass = true;  // don't check 'hi' and 'lo' first time: they are the same
+	bool isLinear = home->curve.isLine();  // if curve is line, just check once
+	ChainFail chainFail;
+	do {  // check in both directions to see if, away from center, curve unflattens
+		chainFail = testTangent(midTest);
+		if (ChainFail::normalizeUnderflow != chainFail || isLinear)
+			break;
+		if (!firstPass) {
+			chainFail = testTangent(home->endT - midHi);
+			if (ChainFail::normalizeUnderflow != chainFail) {
+				midTest = home->endT - midHi;
+				break;
+			}
+		}
+		midLo /= 2;  // godbolt.org says 'divide by two' is identical to 'multiply by 0.5'
+		midTest = home->startT + midLo;
+		midHi /= 2;
+	} while (std::max(midLo, midHi) > interceptLimit);  // check both since center may not be mid t
+	if (ChainFail::normalizeOverflow == chainFail)
+		OP_DEBUG_FAIL(*home, chainFail);  // fatal error : cross product returned infinite / nan
+	if (ChainFail::normalizeUnderflow == chainFail) {  // nonfatal error -- try vertical instead
 		markUnsortable(Unsortable::rayTooShallow);
-		return ChainFail::normalizeUnderflow;  // nonfatal error
+		return chainFail;
 	}
-	// intersect normal with every edge in the direction of ray until we run out 
+#if 0  // !!! looks like bandaid if above code fails to detect shallow slope ...
+	   //     document test and circumstance when this is needed
 	float normal = home->center.pt.choice(workingAxis);
 	if (normal == home->startPt().choice(workingAxis)
 			|| normal == home->endPt().choice(workingAxis)) {
 		markUnsortable(Unsortable::noNormal);
 		return ChainFail::noNormal;  // nonfatal error
 	}
+#else
+	OpPoint midPt = edgeSeg->c.ptAtT(midTest);
+	float normal = midPt.choice(workingAxis);
+#endif
+	// intersect normal with every edge in the direction of ray until we run out 
 	Axis perpendicular = !workingAxis;
 	buildTargets();
-	interceptLimit = home->segment->c.interceptLimit();
-	float homeCept = home->center.pt.choice(perpendicular);
+	float homeCept = midPt.choice(perpendicular);
 	FoundIntercept foundIntercept = findRayIntercept(homeTangent, normal, homeCept);
 	if (FoundIntercept::fail == foundIntercept)
 		return ChainFail::failIntercept;
@@ -798,11 +830,9 @@ ResolveWinding OpWinder::setWindingByDistance(OpContext* context) {
 		return false;
 	};
 	// starting with found or zero if none, accumulate sum up to winding
-#if WINDER_CONTOUR_EXPERIMENT
 	// edges in ray may have winding contributions from contours not in home contour's sect
 	// remove winding values if distance edge contour is not in home contour sect list
 	OpContour* winderOwner = home->segment->contour->winderOwner;
-#endif
 	OpWinding sumWinding(home, WindingSum::dummy);
 	int sumIndex = (int) ray.distances.size();
 	while (ray.distances[--sumIndex].edge != home) 
@@ -820,20 +850,10 @@ ResolveWinding OpWinder::setWindingByDistance(OpContext* context) {
 		OP_ASSERT(!sumEdge->isUnsectable());
 		sumWinding.w = sumEdge->sum.copyData(context);
 		OP_DEBUG_CODE(sumWinding.debugType = DebugWindingType::temp);
-#if 0 && WINDER_CONTOUR_EXPERIMENT
-		// if adjust sum: subtract winding of ray distances whose contour is not in home's sect
-		if (sumDistance.adjustSum)
-			sumEdge->subAdjust(winderOwner, &sumWinding);
-#endif
 	// if pointing down/left, subtract winding
-#if WINDER_CONTOUR_EXPERIMENT
 		// if sumEdge coin pals' contour is not in home's contour sect, also subtract from winding
 		if (CalcFail::fail == sumEdge->subIfDL(winderOwner, ray.axis, sumDistance.edgeInsideT, &sumWinding))  
 			OP_DEBUG_FAIL(*sumEdge, ResolveWinding::fail);
-#else
-		if (CalcFail::fail == sumEdge->subIfDL(ray.axis, sumDistance.edgeInsideT, &sumWinding))  
-			OP_DEBUG_FAIL(*sumEdge, ResolveWinding::fail);
-#endif
 	}
 	OpEdge* prior;
 	do {
@@ -849,24 +869,11 @@ ResolveWinding OpWinder::setWindingByDistance(OpContext* context) {
 		}
 		if (NormalDirection::downLeft == normDir && !anyPriorPal(prior, sumIndex)) {
 			prior->setSum(sumWinding  OP_LINE_FILE_PARGS());
-#if 0 && WINDER_CONTOUR_EXPERIMENT
-			if (dist.adjustSum)
-				prior->subAdjust(winderOwner, &sumWinding);
-#endif
 		}
-#if WINDER_CONTOUR_EXPERIMENT
 		if (CalcFail::fail == prior->addSub(winderOwner, ray.axis, dist.edgeInsideT, &sumWinding)) // if d/l sub; if u/r add
 			OP_DEBUG_FAIL(*prior, ResolveWinding::fail);
-#else
-		if (CalcFail::fail == prior->addSub(ray.axis, dist.edgeInsideT, &sumWinding)) // if d/l sub; if u/r add
-			OP_DEBUG_FAIL(*prior, ResolveWinding::fail);
-#endif
 		if (NormalDirection::upRight == normDir && !anyPriorPal(prior, sumIndex)) {
 			prior->setSum(sumWinding  OP_LINE_FILE_PARGS());
-#if 0 && WINDER_CONTOUR_EXPERIMENT
-			if (dist.adjustSum)
-				prior->subAdjust(winderOwner, &sumWinding);
-#endif
 		}
 	} while (home != prior);
 	if (!home->isUnsectable()) {

@@ -446,7 +446,9 @@ void clearSkips() {
 
 void OpDebugFormat(std::string s) {
     std::string result = stringFormat(s);
-    OpDebugOut(result + "\n");
+	if ('\n' != result.back())
+		s += "\n";
+    OpDebugOut(result);
 }
 
 void dmpHex(float f) {
@@ -698,30 +700,19 @@ void dmpIntersections() {
             s += seg.debugDumpIntersections() + "\n";
         }
     }
-    OpDebugOut(s);
+    OpDebugFormat(s);
 }
 
 void dmpJoin() {
-#if !WINDER_CONTOUR_EXPERIMENT
-    dmpActive();
-    for (const auto& c : debugGlobalContext->contours) {
-        for (const auto& seg : c->segments) {
-            for (const auto& edge : seg.edges) {
-                if (!edge.isActive() && edge.isUnsectable() && !edge.inOutput && !edge.inLinkups)
-                    edge.dump(DebugLevel::detailed, defaultBase);
-            }
-        }
-    }
-    dmpUnsortable();
-#else
-	if (debugGlobalContext->debugJoiner)
-		dmp(debugGlobalContext->debugJoiner);
 	std::string s;
+	if (debugGlobalContext->debugJoiner) {
+		dmp(debugGlobalContext->debugJoiner);
+		s = "\n";
+	}
     for (const auto& c : debugGlobalContext->contours) {
 		s += c->debugDumpJoin(defaultLevel, defaultBase);
 	}
-    OpDebugOut(s);
-#endif
+    OpDebugFormat(s);
 }
 
 void dmpSects() {
@@ -743,7 +734,7 @@ void dmpSorted() {
 	}
 	if (' ' == s.back())
 		s.pop_back();
-	OpDebugOut(s + "]\n");
+	OpDebugFormat(s + "]\n");
 }
 
 void dmpUnsectable() {
@@ -4206,7 +4197,7 @@ std::string OpSegment::debugDumpEdges() const {
     std::string s;
     for (auto& e : edges)
         s += e.debugDump(defaultLevel, defaultBase) + "\n";
-    if (s.size())
+    if (!s.empty())
         s.pop_back();
     return s;
 }
@@ -4238,7 +4229,9 @@ std::string OpSegment::debugDumpFull() const {
     else
         s += "\n";
     s += debugDumpIntersections();
-    s += "edges:\n";
+    s += "edges:";
+	if (!edges.empty())
+        s += "\n";
     s += debugDumpEdges();
     return s;
 }

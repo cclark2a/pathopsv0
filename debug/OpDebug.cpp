@@ -471,6 +471,35 @@ OpCurve OpCurve::toVerticalDouble(const LinePts& line) const {
 }
 #endif
 
+	// determine error required for axisRayHit to 
+	// move from given result to result on the other side of the target ray
+void OpCurveCurve::debugBoundedEdge(OpSegment* segm, const OpPointBounds& sectBounds,
+		float minT, std::string inax) {
+	if (OpMath::IsNaN(minT))
+		return;
+	if (0 >= minT || minT >= 1)
+		return;
+	const OpCurve& c = segm->c;
+	OpPoint pt = c.ptAtT(minT);
+	bool isIn = sectBounds.contains(pt);
+	int factor = 1;
+	OpPoint minusPt, plusPt;
+	do {
+		minusPt = c.ptAtT(minT - OpEpsilon * factor);
+		plusPt  = c.ptAtT(minT + OpEpsilon * factor);
+	} while (sectBounds.contains(minusPt) == isIn && sectBounds.contains(plusPt) == isIn
+			&& ++factor < 256);
+	if (factor <= maxBoundedT)
+		return;
+	OpDebugOut("debugBoundedEdge seg[" + STR(segm->id) + "] opp[");
+	OpDebugOut(STR(segm == seg ? opp->id : seg->id) + "] sectBounds");
+	sectBounds.dump();
+	OpDebugOut(" m" + inax + "T:" + STR(minT));
+	if (factor >= 256)
+		OpDebugOut(" !!! max");
+	OpDebugOut(" factor:" + STR(factor) + "\n"); 
+}
+
 #if OP_DEBUG_VERBOSE
 void OpCurveCurve::debugSaveState() {
 	if ((int) dvDepthIndex.size() < depth)

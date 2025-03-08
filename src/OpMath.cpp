@@ -232,6 +232,8 @@ float OpMath::PinUnsorted(float min, float value, float max) {
 
 float OpMath::PinSorted(float min, float value, float max) {
 	OP_ASSERT(min <= max);
+	if (OpMath::IsNaN(value))
+		return OpNaN;
 	return std::max(min, std::min(value, max));
 }
 

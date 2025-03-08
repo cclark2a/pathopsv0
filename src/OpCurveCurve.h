@@ -122,7 +122,7 @@ struct OpCurveCurve {
 			const OpPtT& oppStart, const OpPtT& oppEnd);
 	bool alreadyInLimits(const OpEdge* edge, const OpEdge* oEdge, float t);
 	bool betweenLimits(const OpEdge* edge, const OpEdge* oEdge, float lo, float hi);
-	OpEdge* boundedEdge(OpSegment* , const OpPointBounds& , MatchEnds  OP_LINE_FILE_ARGS());
+	OpEdge* boundedEdge(OpSegment* s, const OpPointBounds& , MatchEnds  OP_LINE_FILE_ARGS());
 	bool checkForGaps();
 	bool checkSect();
 	bool checkSplit(float lo, float hi, CurveRef , OpPtT& checkPtT) const;
@@ -149,6 +149,7 @@ struct OpCurveCurve {
 	~OpCurveCurve() { 
 		context->debugCurveCurve = nullptr; }
 	bool debugShowImage(bool atDepth = false);
+	void debugBoundedEdge(OpSegment* segm, const OpPointBounds& , float minT, std::string );
 #endif
 #if OP_DEBUG_DUMP
 	OpCurveCurve(OpContext* c) { context = c; }
@@ -172,12 +173,14 @@ struct OpCurveCurve {
 	OpPtT snipEdge;
 	OpPtT snipOpp;
 	MatchReverse matchRev;
+	float maxBoundedEdge;
 	float maxSignSwap;
 	int depth;
 	int uniqueLimits_impl;  // cached count; set negative if invalid (call 
 	int unsplitables;
 	int maxSplits;
 	int maxDepth;
+	int maxBoundedT;
 	bool addedPoint;
 	bool boundedEdgeFailed;
 	bool overlap;
