@@ -57,13 +57,11 @@ inline CurveRef operator!(CurveRef a) {
 // distance from edge to opp at this edge t, and number of edges between this and next
 struct EdgeRun {
 	void set(OpEdge* edge, OpEdge* opp, EdgeMatch );
-	bool inDeleted(CcCurves* , CcCurves* oppCurves) const;
-	float setOppDist(const OpSegment* segment);
+	bool inDeleted(CcCurves* , CcCurves* oppCurves) const;  // true if edgePt t in edge curves, etc.
+	void setOppDist(const OpSegment* segment);
 	DUMP_DECLARATIONS
 
-	OpEdge* runEdge;
-	OpEdge* runOpp;
-	OpPtT edgePtT;
+	OpPtT edgePtT;	// should be sorted by t in cc curves' runs (e.g., cc curves check mid)
 	OpPtT oppPtT;
 	float oppDist;
 	bool fromFoundT;
@@ -75,25 +73,22 @@ struct EdgeRun {
 
 struct CcCurves {
 	void addEdgeRun(OpEdge* edge, OpEdge* opp, EdgeMatch );
-	bool checkMid(size_t index); // true if mid pt dist between this and next run dist is smaller
+	bool checkMid(OpSegment* , OpSegment* opp, size_t index); // mid pt distance to next run smaller
 	void clear();
-	OpPtT closest(OpPoint pt) const;
-	bool deletedT(float t) const;
-	static OpPtT Dist(const OpSegment* , const OpPtT& segPtT, const OpSegment* opp);
+	bool deletedT(float t) const;  // true if t is in deleted -- deleted need not be sorted
 	std::vector<CutRangeT> findGaps() const;
-	int groupCount() const;
 	void initialEdgeRun(OpEdge* edge, OpEdge* opp);
 	void markToDelete(float tStart, float tEnd);
 	int overlaps() const;
 	float perimeter() const;
 	void snipAndGo(const OpSegment* , const OpPtT& cut, OpPoint oppPt, OpEdge* opp);
-	// void snipOne(const OpSegment* , const OpPtT& lo, const OpPtT& hi);
 	void snipRange(const OpSegment* , const OpPtT& lo, const OpPtT& hi, OpEdge* opp);
 	DUMP_DECLARATIONS
+	OP_DEBUG_VALIDATE_CODE(void debugValidate() const);  // assert if not sorted
 
 	std::vector<OpEdge*> c;
 	std::vector<EdgeRun> runs;
-	std::vector<CutRangeT> deleted;
+	std::vector<CutRangeT> deleted;  // pairs of t ranges
 	CcCurves* oppCurves;
 };
 
@@ -121,7 +116,7 @@ struct OpCurveCurve {
 	bool addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 			const OpPtT& oppStart, const OpPtT& oppEnd);
 	bool alreadyInLimits(const OpEdge* edge, const OpEdge* oEdge, float t);
-	bool betweenLimits(const OpEdge* edge, const OpEdge* oEdge, float lo, float hi);
+	bool betweenLimits(OpSegment* , float lo, float hi);
 	OpEdge* boundedEdge(OpSegment* s, const OpPointBounds& , MatchEnds  OP_LINE_FILE_ARGS());
 	bool checkForGaps();
 	bool checkSect();

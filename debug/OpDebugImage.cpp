@@ -1387,9 +1387,6 @@ void OpDebugImage::drawPoints() {
 			for (const HullSect& hull : edge->hulls.h)
 				DebugOpBuild(hull.sect.pt, hull.sect.t, DebugSprite::circle);
 		}
-		if (drawEdgeRunsOn && debugGlobalContext->debugCurveCurve) {
-
-		}
 	}
 	if (drawIntersectionsOn) {
 		for (const auto& sect : intersectionIterator) {
@@ -1725,37 +1722,6 @@ void toggleOperands() {
 	}
 	OpDebugImage::drawDoubleFocus();
 	drawOperandsOn ^= true;
-}
-
-static void operateOnEdgeRuns(std::function<void (OpEdge*)> fun) {
-	const OpCurveCurve* cc = debugGlobalContext->debugCurveCurve;
-	if (!cc)
-		return;
-	for (const CcCurves& curves : { cc->edgeCurves, cc->oppCurves } ) {
-		for (const EdgeRun run : curves.runs) {
-			OpEdge* edge = const_cast<OpEdge*>(run.runEdge);
-			fun(edge);
-		}
-	}
-	OpDebugImage::drawDoubleFocus();
-}
-
-void hideEdgeRuns() {
-	operateOnEdgeRuns([](OpEdge* edge) {
-		edge->debugDraw = false;
-	});
-}
-
-void showEdgeRuns() {
-	operateOnEdgeRuns([](OpEdge* edge) {
-		edge->debugDraw = true;
-	});
-}
-
-void toggleEdgeRuns() {
-	operateOnEdgeRuns([](OpEdge* edge) {
-		edge->debugDraw ^= true;
-	});
 }
 
 static void operateOnID(std::function<void (OpEdge*)> fun, int id) {

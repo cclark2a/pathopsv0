@@ -471,6 +471,18 @@ OpCurve OpCurve::toVerticalDouble(const LinePts& line) const {
 }
 #endif
 
+#if OP_DEBUG_VALIDATE
+void CcCurves::debugValidate() const {
+	if (runs.empty())
+		return;
+	const EdgeRun* last = &runs.front();
+	for (const auto& run : runs) {
+		OP_ASSERT(last == &run || last->edgePtT.t < run.edgePtT.t);
+		last = &run;
+	}
+}
+#endif
+
 	// determine error required for axisRayHit to 
 	// move from given result to result on the other side of the target ray
 void OpCurveCurve::debugBoundedEdge(OpSegment* segm, const OpPointBounds& sectBounds,
@@ -493,7 +505,7 @@ void OpCurveCurve::debugBoundedEdge(OpSegment* segm, const OpPointBounds& sectBo
 		return;
 	OpDebugOut("debugBoundedEdge seg[" + STR(segm->id) + "] opp[");
 	OpDebugOut(STR(segm == seg ? opp->id : seg->id) + "] sectBounds");
-	sectBounds.dump();
+	OP_DEBUG_DUMP_CODE(sectBounds.dump());
 	OpDebugOut(" m" + inax + "T:" + STR(minT));
 	if (factor >= 256)
 		OpDebugOut(" !!! max");

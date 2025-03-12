@@ -232,7 +232,6 @@ OP_X(SegmentEdges, edge->debugJoin || edgeIter.isFiller || edgeIter.isCurveCurve
 OP_X(TemporaryEdges, !edgeIter.isFiller && !edgeIter.isCurveCurve) \
 
 #define ALIAS_LIST \
-OP_X(EdgeRuns) \
 OP_X(Operands) \
 OP_X(Limbs) \
 OP_X(Tree)

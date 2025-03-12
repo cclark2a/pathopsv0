@@ -48,6 +48,7 @@ OP_X(OpContour) \
 OP_X(OpEdge)
 
 #define STRUCT_NO_ID \
+OP_X(EdgeRun) \
 OP_X(FoundLimits) \
 OP_X(HullSect) \
 OP_X(OpPtT)

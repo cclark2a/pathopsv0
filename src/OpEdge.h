@@ -295,7 +295,7 @@ public:
 	OpEdge(OpContext* , const OpPtT& start, const OpPtT& end  OP_LINE_FILE_ARGS());  // make filler 
 	OpEdge(const OpEdge* e, const OpPtT& newPtT, NewEdge isLeftRight  OP_LINE_FILE_ARGS());
 	OpEdge(const OpEdge* e, const OpPtT& start, const OpPtT& end  OP_LINE_FILE_ARGS());
-	OpEdge(const OpEdge* e, float t1, float t2  OP_LINE_FILE_ARGS());
+	OpEdge(OpSegment* , float t1, float t2  OP_LINE_FILE_ARGS());
 
 	CalcFail addIfUR(Axis xis, float t, OpWinding* ) const;
 	void addPal(const EdgePal& );

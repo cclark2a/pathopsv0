@@ -422,6 +422,27 @@ void OpSegment::disableSmall() {
 	setDisabled(OP_LINE_FILE_NPARGS());
 }
 
+// !!! this was lineIntersect which could miss if normal line points away from seg
+//     but it was changed without fixing the root bug, so may make things less stable ...
+OpPtT OpSegment::distance(const OpPtT& segPtT, const OpSegment* opp) const {
+	OpVector normal = c.normal(segPtT.t);
+	if (!normal.isFinite())
+		return OpPtT(SetToNaN::dummy);
+	LinePts normLine { segPtT.pt - normal, segPtT.pt + normal };
+	OpRoots roots = opp->c.rayIntersect(normLine, MatchEnds::none);
+	float bestSq = OpInfinity;
+	OpPtT bestPtT(SetToNaN::dummy);
+	for (float root : roots.roots) {
+		OpPtT oppPtT = opp->c.ptTAtT(root);
+		float distSq = (segPtT.pt - oppPtT.pt).lengthSquared();
+		if (bestSq > distSq) {
+			bestSq = distSq;
+			bestPtT = oppPtT;
+		}
+	}
+	return bestPtT;
+}
+
 // !!! would it be any better (faster) to split this into findStart / findEnd instead?
 OpEdge* OpSegment::findEnabled(const OpPtT& ptT, EdgeMatch match) const {
 	for (auto& edge : edges) {
@@ -746,8 +767,6 @@ OpPoint OpSegment::movePt(OpPtT match, OpPoint destination) {
 
 // two segments are coincident so move opp's winding to this and disabled opp
 bool OpSegment::moveWinding(OpSegment* opp, bool backwards) {
-	OpBreak(this, 2);
-	OpBreak(opp, 2);
 	winding.move(contour->context, opp->winding, backwards);
 	opp->winding.zero(contour->context);
 	opp->setDisabled(OP_LINE_FILE_NPARGS());

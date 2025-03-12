@@ -89,6 +89,7 @@ struct OpSegment {
 	int coinID(bool flipped);
 //    void complete();
 	void disableSmall();
+	OpPtT distance(const OpPtT& segPtT, const OpSegment* opp) const;
 	OpEdge* findEnabled(const OpPtT& , EdgeMatch ) const;
 	void findMissingEnds();
 //    float findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const;

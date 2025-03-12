@@ -178,6 +178,7 @@ OpEdge::OpEdge(OpContext* contours, const OpPtT& start, const OpPtT& end  OP_LIN
 	segment = nullptr;  // assume these can't be used -- edge does not exist in segment
 //	startSect = -1;
 //	endSect = -1;
+	OP_ASSERT(start.t < end.t);
 	startT = start.t;
 	endT = end.t;
 	id = contours->nextID();
@@ -226,11 +227,11 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e  OP_LINE_FILE_
 	complete(s.pt, e.pt);
 }
 
-OpEdge::OpEdge(const OpEdge* edge, float t1, float t2  OP_LINE_FILE_ARGS())
+OpEdge::OpEdge(OpSegment* seg, float t1, float t2  OP_LINE_FILE_ARGS())
 	: OpEdge() {
 	OP_LINE_FILE_SET(debugSetMaker);
-	OP_DEBUG_CODE(debugParentID = edge->id);
-	segment = edge->segment;
+//	OP_DEBUG_CODE(debugParentID = edge->id);
+	segment = seg;
 	startT = t1;
 	endT = t2;
 	complete(segment->c.ptAtT(t1), segment->c.ptAtT(t2));
@@ -428,6 +429,7 @@ void OpEdge::clearPriorEdge() {
 }
 
 void OpEdge::complete(OpPoint startPoint, OpPoint endPoint) {
+	OP_ASSERT(startT < endT);
 	subDivide(startPoint, endPoint);	// uses already computed points stored in edge
 	winding.setWind(segment->winding);
 }
@@ -639,7 +641,6 @@ void OpEdge::setDisabled(OP_LINE_FILE_NP_ARGS()) {
 }
 
 void OpEdge::setDisabledZero(OP_LINE_FILE_NP_ARGS()) {
-	OpBreak(segment, 2);
 	winding.zero(context());
 	setDisabled(OP_LINE_FILE_NP_CARGS()); 
 }

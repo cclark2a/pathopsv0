@@ -4,7 +4,7 @@
 
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
 #define SKIP_TO_FILE "loop" // e.g., "simplify"  one file
-#define TEST_FIRST "loop48977"  // e.g., "testQuads23839519" if file, one test
+#define TEST_FIRST "" // loop6221 loop73018  // e.g., "testQuads23839519" if file, one test
 #define TEST_EXTENDED 1
 #define TEST_SKIA 1
 #define TEST_REGION 1
@@ -18,7 +18,7 @@
 #define OP_TEST_V0 1  // set to zero to time Skia running tests
 
 #define CURVE_CURVE_1 9  // id of segment 1 to break in divide and conquer
-#define CURVE_CURVE_2 3  // id of segment 2 to break in divide and conquer
+#define CURVE_CURVE_2 5  // id of segment 2 to break in divide and conquer
 #define CURVE_CURVE_DEPTH -1  // minimum recursion depth for curve curve break (-1 to disable)
 
 // when these tests are encountered, it and the remaining tests in the file are skipped

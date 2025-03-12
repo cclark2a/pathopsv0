@@ -38,12 +38,16 @@ DebugLevel defaultLevel = DebugLevel::normal;
 
 #define OP_X(Thing) \
 	void dmp(const std::vector<Thing>& things) { \
-		for (const auto& thing : things) \
+		for (const auto& thing : things) { \
 			dmp(thing); \
+			OpDebugOut("\n"); \
+		} \
 	} \
 	void dmpHex(const std::vector<Thing>& things) { \
-		for (const auto& thing : things) \
+		for (const auto& thing : things) { \
 			dmpHex(thing); \
+			OpDebugOut("\n"); \
+		} \
 	} \
 	void dmp(const std::vector<Thing>* things) { \
         dmp(*things); \
@@ -3422,7 +3426,7 @@ std::string OpWinder::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 std::string EdgeRun::debugDump(DebugLevel l, DebugBase b) const {
-    std::string s = debugDumpID();
+    std::string s;
     s += "edgePtT:" + edgePtT.debugDump(l, b) + " ";
     s += "oppPtT:" + oppPtT.debugDump(DebugLevel::error, b) + " ";
     s += debugErrorValue(l, b, "oppDist", oppDist) + " ";
@@ -3430,18 +3434,7 @@ std::string EdgeRun::debugDump(DebugLevel l, DebugBase b) const {
     return s;
 }
 
-std::string EdgeRun::debugDumpID() const {
-    std::string s;
-    s += "e[" + STR(runEdge->id) + "] ";
-    s += "o[" + STR(runOpp->id) + "] ";
-	return s;
-}
-
 void EdgeRun::dumpSet(const char*& str) {
-    OpDebugRequired(str, "e[");
-    runEdge = (OpEdge*) OpDebugReadSizeT(str);
-    OpDebugRequired(str, "o[");
-    runOpp = (OpEdge*) OpDebugReadSizeT(str);
     OpDebugRequired(str, "edgePtT:");
     edgePtT.dumpSet(str);
     OpDebugRequired(str, "oppPtT:");
@@ -3451,11 +3444,6 @@ void EdgeRun::dumpSet(const char*& str) {
     OpDebugRequired(str, "debugBetween");
     debugBetween = (int) OpDebugReadSizeT(str);
 #endif
-}
-
-void EdgeRun::dumpResolveAll(OpContext* c) {
-    c->dumpResolve(runEdge);
-    c->dumpResolve(runOpp);
 }
 
 ENUM_NAME_STRUCT(CurveRef);
@@ -3596,6 +3584,8 @@ std::string CcCurves::debugDump(DebugLevel l, DebugBase b) const {
     DebugLevel down1 = (DebugLevel) ((int) l - 1);
     for (auto& edge : c)
         s += edge->debugDump(down1, b) + "\n";
+    for (auto& run : runs)
+        s += run.debugDump(down1, b) + "\n";
     if ('\n' == s.back())
         s.pop_back();
     return s;
@@ -3619,8 +3609,6 @@ void CcCurves::dumpSet(const char*& str) {
 void CcCurves::dumpResolveAll(OpContext* contours) {
     for (auto& edge : c)
         contours->dumpResolve(edge);
-    for (auto& run : runs)
-        run.dumpResolveAll(contours);
 }
 
 std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
@@ -3785,16 +3773,16 @@ void OpCurveCurve::dumpDepth(int level) {
     size_t dvLevels = dvDepthIndex.size();
     if ((int) dvLevels <= level) {
         for (const auto e : edgeCurves.c)
-            dp(e);
+            OpDebugFormat(e->debugDump(defaultLevel, defaultBase) + "\n");
         for (const auto e : oppCurves.c)
-            dp(e);
+            OpDebugFormat(e->debugDump(defaultLevel, defaultBase) + "\n");
         return;
     }
     size_t lo = dvDepthIndex[level];
     size_t hi = (int) dvDepthIndex.size() <= level + 1 ? dvAll.size() : dvDepthIndex[level + 1];
     for (size_t index = lo; index < hi; ++index) {
         OpEdge* e = dvAll[index];
-        dp(e);
+        OpDebugFormat(e->debugDump(defaultLevel, defaultBase) + "\n");
     }
 }
 

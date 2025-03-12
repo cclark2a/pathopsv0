@@ -129,12 +129,13 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 	size_t segSects = seg->sects.i.size();
 	size_t oppSects = opp->sects.i.size();
 	for (float oppT : septs.roots) {
-		if (OpMath::NearlyEndT(oppT))
-			continue;
+//		if (OpMath::NearlyEndT(oppT))	// if curve hits middle of line, do not ignore (loop48977)
+//			continue;
 		// if computed point is nearly end, ignore
 		OpPoint oppPt = opp->c.ptAtT(oppT);  // !!! redundant if ray intersect is rewritten to return pt
-		if (oppPt.isNearly(oppT < .5 ? opp->c.firstPt() : opp->c.lastPt(), seg->threshold()))
-			continue;
+//		again, if curve hits middle of line, do not ignore (loop48977)
+//		if (oppPt.isNearly(oppT < .5 ? opp->c.firstPt() : opp->c.lastPt(), seg->threshold()))
+//			continue;
 		if (oppPt.isNearly(edgePts.pts[0], seg->threshold()))
 			continue;
 		if (oppPt.isNearly(edgePts.pts[1], seg->threshold()))
@@ -188,7 +189,7 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 		float midT = OpMath::Average(iStart->ptT.t, iEnd->ptT.t);
 		// distance from seg point at midT normal to opp segment
 		OpPtT midPtT = seg->c.ptTAtT(midT);
-		OpPtT oppPtT = CcCurves::Dist(seg, midPtT, opp);
+		OpPtT oppPtT = seg->distance(midPtT, opp);
 		float dist = (midPtT.pt - oppPtT.pt).length();
 		auto endFromT = [](OpIntersection* one, OpIntersection* two, MatchEnds match) -> MatchEnds {
 			return (one->ptT.t < two->ptT.t) == (MatchEnds::start == match) 
