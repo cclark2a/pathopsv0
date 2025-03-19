@@ -458,6 +458,7 @@ bool OpContext::addAlias(OpPoint pt, OpPoint alias) {
 
 OpEdge* OpContext::addFiller(const OpPtT& start, const OpPtT& end) {
 	void* block = allocateEdge(fillerStorage);
+	// note: start t may be greater than end t (for filler only)
 	OpEdge* filler = new(block) OpEdge(this, start, end  OP_LINE_FILE_PARGS());
 	return filler;
 }
@@ -835,6 +836,7 @@ void OpContext::setThreshold() {
 	};
 	aliases.threshold = { threshold(maxBounds.left, maxBounds.right),
 			threshold(maxBounds.top, maxBounds.bottom) };
+	aliases.thresholdLength = aliases.threshold.length();
 }
 
 void OpContext::sortIntersections() {

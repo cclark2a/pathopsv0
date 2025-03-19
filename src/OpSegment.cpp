@@ -665,8 +665,10 @@ void OpSegment::makePals() {
 			for (OpEdge& oEdge : oSeg->edges) {
 				if (oEdge.disabled)
 					continue;
+#if 0  // !!! causes nearly axis-aligned unsectables to fail (loop134368)
 				if (!edge.bounds().intersects(oEdge.bounds()))
 					continue;
+#endif
 				for (OpIntersection* oSect : oEdge.unSects) {
 					if (abs(oSect->unsectID) != uID)
 						continue;

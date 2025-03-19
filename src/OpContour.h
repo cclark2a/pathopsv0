@@ -322,6 +322,7 @@ struct OpPtAliases {
 	std::vector<OpPoint> aliases;
 	std::vector<OpPtAlias> maps;
 	OpVector threshold;
+	float thresholdLength;
 };
 
 struct OpContext {

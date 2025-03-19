@@ -122,7 +122,8 @@ struct OpIntersection {
 	bool mergeProcessed = false;
 	bool moved = false;
 	bool collapsed = false;  // set if coincidence or unsect pair collapsed to a point
-	bool ccSect = false;
+	bool ccSect = false;  // set if curve-curve created coins/unsectables (if possibly out-of-order)
+	bool ccUnsectable = false;  // set if curve-curve created or set unsectables (to treat as coin)
 #if OP_DEBUG
 	int id = 0;
 	int debugSrcID = 0;	// pair of edges or segments that intersected (!!! only useful if edges?)

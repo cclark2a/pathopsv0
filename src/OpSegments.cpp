@@ -413,13 +413,10 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 		return true;
 	SectFound ccResult = cc.divideAndConquer();
 	OP_ASSERT(cc.debugShowImage());
-	if (true) { // SectFound::fail == ccResult || SectFound::maxOverlaps == ccResult
-				//        || SectFound::noOverlapDeep == ccResult
-		// !!! as an experiment, search runs for small opp distances; turn found into limits
-		SectFound limitsResult = cc.runsToLimits();
-		if (SectFound::add == limitsResult)
-			ccResult = limitsResult;
-	}
+	// search runs for small opp distances; turn found into limits
+	SectFound limitsResult = cc.runsToLimits();
+	if (SectFound::add == limitsResult)
+		ccResult = limitsResult;
 	if (SectFound::add == ccResult || cc.limits.size())
 		cc.findUnsectable();
 	cc.context->release(cc.context->ccStorage);

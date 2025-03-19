@@ -11,7 +11,8 @@
 // don't add if points are close
 // prefer end if types are different
 // return true if close enough points are ctrl + mid
-bool OpHulls::add(const OpPtT& ptT, OpVector threshold, SectType sectType, const OpEdge* opp) {	
+bool OpHulls::add(const OpPtT& ptT, OpVector threshold, float dist, SectType sectType,
+		const OpEdge* opp) {	
 	bool foundNear = false;
 	bool nearEnd = false;
 	for (size_t index = h.size(); index-- != 0; ) {
@@ -26,7 +27,7 @@ bool OpHulls::add(const OpPtT& ptT, OpVector threshold, SectType sectType, const
 			nearEnd |= SectType::endHull != hSect.type && sectType != hSect.type;
 	}
 	if (!foundNear || SectType::endHull == sectType) {
-		h.emplace_back(ptT, sectType, opp);
+		h.emplace_back(ptT, dist, sectType, opp);
 		return false;
 	}
 	return nearEnd;
@@ -92,24 +93,30 @@ bool OpHulls::sectCandidates(int index, const OpEdge& edge) const {
 	return true;	// code coverage says this is never reached...
 }
 
-void OpHulls::nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef which) {
-	for (;;) {
+// !!! should this have a check to catch infinite loops if caller data isn't resolvable?
+bool OpHulls::nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef which) {
+	int safetyCount = 16;  // !!! could be caller provided, but hull context seems tricky...
+	do {
 		sort(false);
 		for (size_t index = 0; index + 1 < h.size(); ) {
+			HullSect& hull = h[index];
+			HullSect& next = h[++index];
+			OpPtT& sectToNudge = hull.sect;
+			OpPtT& nextToNudge = next.sect;
 			// while hull sect is in a deleted bounds, bump its t and recompute
-			if ((SectType::midHull == h[index].type || SectType::controlHull == h[index].type)
-					&& cc.checkSplit(edge.startT, h[index + 1].sect.t, which, h[index].sect))
+			if ((SectType::midHull == hull.type || SectType::controlHull == hull.type)
+					&& cc.checkSplit(edge.startT, nextToNudge.t, which, sectToNudge))
 				goto tryAgain;
-			++index;
-			if ((SectType::midHull == h[index].type || SectType::controlHull == h[index].type)
-					&& cc.checkSplit(h[index - 1].sect.t, edge.endT, which, h[index].sect))
+			if ((SectType::midHull == next.type || SectType::controlHull == next.type)
+					&& cc.checkSplit(sectToNudge.t, edge.endT, which, nextToNudge))
 				goto tryAgain;
-			OP_ASSERT(h[index - 1].sect.t <= h[index].sect.t);
+			OP_ASSERT(sectToNudge.t <= nextToNudge.t);
 		}
-		break;
+		return true;
 tryAgain:
 		;
-	}
+	} while (--safetyCount);
+	return false;
 }
 
 void OpHulls::sort(bool useSmall) {
@@ -147,7 +154,7 @@ OpEdge::OpEdge(OpSegment* s  OP_LINE_FILE_ARGS())
 	complete(s->c.firstPt(), s->c.lastPt());
 }
 
-// called when creating edges for curve curve intersection when segmemts partially intersect
+// called when creating edges for curve curve intersection when segments partially intersect
 OpEdge::OpEdge(OpSegment* s, const OpPtT& start, const OpPtT& end  OP_LINE_FILE_ARGS())
 	: OpEdge() {
 	OP_LINE_FILE_SET(debugSetMaker);
@@ -178,7 +185,7 @@ OpEdge::OpEdge(OpContext* contours, const OpPtT& start, const OpPtT& end  OP_LIN
 	segment = nullptr;  // assume these can't be used -- edge does not exist in segment
 //	startSect = -1;
 //	endSect = -1;
-	OP_ASSERT(start.t < end.t);
+//	OP_ASSERT(start.t < end.t);
 	startT = start.t;
 	endT = end.t;
 	id = contours->nextID();
@@ -201,15 +208,15 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight  OP_
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = edge->id);
 	segment = edge->segment;
-//	startSect = -1;
-//	endSect = -1;
 	if (NewEdge::isLeft == isLeftRight) {
 		startT = edge->startT;
+		startDist = edge->startDist;
 		endT = newPtT.t;
 		complete(edge->startPt(), newPtT.pt);
 	} else {
 		startT = newPtT.t;
 		endT = edge->endT;
+		startDist = edge->endDist;
 		complete(newPtT.pt, edge->endPt());
 	}
 }
@@ -220,20 +227,24 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e  OP_LINE_FILE_
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = edge->id);
 	segment = edge->segment;
-//	startSect = -1;
-//	endSect = -1;
 	startT = s.t;
 	endT = e.t;
+	if (edge->startT == s.t)
+		startDist = edge->startDist;
+	if (edge->endT == e.t)
+		startDist = edge->endDist;
 	complete(s.pt, e.pt);
 }
 
+// called by curve curve when constructing edge from hull intersections
 OpEdge::OpEdge(OpSegment* seg, float t1, float t2  OP_LINE_FILE_ARGS())
 	: OpEdge() {
 	OP_LINE_FILE_SET(debugSetMaker);
-//	OP_DEBUG_CODE(debugParentID = edge->id);
 	segment = seg;
 	startT = t1;
 	endT = t2;
+	startDist = OpNaN;	// !!! probably should always initialize this in default constructor
+	endDist = OpNaN;
 	complete(segment->c.ptAtT(t1), segment->c.ptAtT(t2));
 }
 

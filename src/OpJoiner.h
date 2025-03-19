@@ -98,7 +98,7 @@ struct OpLimb {
 		deadEnd = (bool) -1;
 		looped = (bool) -1;
 		resetPass = (bool) -1;
-		deferredUnsectable = (bool) -1;
+//		deferredUnsectable = (bool) -1;
 #endif
 		OP_DEBUG_DUMP_CODE(id = 0);
 	}
@@ -128,7 +128,7 @@ struct OpLimb {
 	bool deadEnd;
 	bool looped;
 	bool resetPass;  // when new parent is found, restart limb pass
-	bool deferredUnsectable;
+//	bool deferredUnsectable;
 
 #if OP_DEBUG_DUMP
 	std::vector<OpLimb*> debugBranches;
@@ -143,11 +143,11 @@ struct OpTree {
 	OpTree(OpJoiner& );
 	OP_DEBUG_CODE(~OpTree());
 	void addDisabled(OpContour& );
-	OpEdge* addFiller(OpSegment* , const OpPtT& , const OpPtT& );
+	OpEdge* addFiller(OpSegment* , const OpPtT& , const OpPtT& , bool fromCC);
 	void addUnsectableLoop(OpJoiner& , OpLimb* );
 	bool contains(OpLimb* , OpEdge* ) const;
 	bool containsFiller(OpLimb* , OpPoint , OpPoint ) const;
-	bool containsDeferred(OpPoint , OpPoint ) const;
+//	bool containsDeferred(OpPoint , OpPoint ) const;
 	bool containsParent(OpLimb* , OpEdge* , EdgeMatch ) const;
 	void initialize(OpContour& join);
 	bool join(OpJoiner& );

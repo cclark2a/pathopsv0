@@ -140,9 +140,10 @@ enum class SectType {
 
 // intersections of opposite curve's hull and this edge's segment
 struct HullSect {
-	HullSect(const OpPtT& ptT, SectType st, const OpEdge* o)
+	HullSect(const OpPtT& ptT, float dist, SectType st, const OpEdge* o)
 		: opp(o)
 		, sect(ptT)
+		, oppDist(dist)
 		, type(st) {
 	}
 #if OP_DEBUG_DUMP
@@ -151,14 +152,16 @@ struct HullSect {
 #endif
 	const OpEdge* opp;
 	OpPtT sect;			// point and t of intersection with hull on this edge
-	SectType type;
+	float oppDist;		// if ptT came from edge end: the distance from there to the opposite curve
+	SectType type;		// separate from match: intersection origin (or near origin)
 };
 
 struct OpHulls {
-	bool add(const OpPtT& ptT, OpVector threshold, SectType st, const OpEdge* o = nullptr);
+	bool add(const OpPtT& ptT, OpVector threshold, float dist, SectType st, 
+			const OpEdge* o = nullptr);
 	void clear() { h.clear(); }
 //	bool closeEnough(int index, const OpEdge& edge, const OpEdge& oEdge, OpPtT* oPtT, OpPtT* close);
-	void nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef which);
+	bool nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef which);
 	bool sectCandidates(int index, const OpEdge& edge) const;
 	void sort(bool useSmall);
 	DUMP_DECLARATIONS
@@ -265,6 +268,8 @@ private:
 	{
 #if OP_DEBUG // a few debug values are also nonzero
 		id = 0;
+		startDist = OpNaN;
+		endDist = OpNaN;
 		segment = nullptr;
 		startT = OpNaN;
 		endT = OpNaN;
@@ -442,6 +447,8 @@ public:
 	OpHulls hulls;  // curve-curve intersections
 	float startT;  // used to be ptT; needs sect to find unsectable
 	float endT;
+	float startDist;  // distance from start to opposite in curve-curve intersection
+	float endDist;  // distance from end to opposite in curve-curve intersection
 	int id;
 	EdgeMatch whichEnd_impl;  // if 'start', prior end equals start; if 'end' prior end matches end
 	EdgeFail rayFail;   // how computation (e.g., center) failed (on fail, windings are set to zero)

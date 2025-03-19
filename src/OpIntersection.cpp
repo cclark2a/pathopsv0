@@ -145,7 +145,7 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 			segment->edges.emplace_back(first, sectPtr  OP_LINE_FILE_PARGS());
 			OpEdge& newEdge = segment->edges.back();
 #if 1   // old code breaks skpagentxsites_com55 / though loops61i works
-		// old code did not check if coincident pair where from same coincidence (same coin id)
+		// old code did not check if coincident pair are from same coincidence (same coin id)
 		// new code: if edge is between a pair of coincident edges, mark it unsortable
 			if (first->betweenCoins && sectPtr->betweenCoins 
 					&& first->opp->segment != sectPtr->opp->segment) {
@@ -171,9 +171,8 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 			first = sectPtr;
 			if (unsectables.size())
 				newEdge.unSects = unsectables;
-			if (coincidences.size()) {
+			if (coincidences.size())
 				newEdge.coinPals = coincidences;
-			}
 		}
 		stackUnsects(sectPtr);
 		stackCoins(coincidences, sectPtr);
@@ -342,7 +341,9 @@ bool OpIntersections::checkCollapse(OpIntersection* sect, MoveSects zero) {
 	OP_ASSERT(cID || uID);  // could have both
 	for (size_t index = 0; index < i.size(); ++index) {
 		OpIntersection* test = i[index];
-		if ((!cID || cID != test->coincidenceID) && (!uID || uID != test->unsectID))
+		bool testIsCoin = cID && cID == test->coincidenceID;
+		bool testIsUnsect = uID && uID == test->unsectID;
+		if (!testIsCoin && !testIsUnsect)
 			continue;
 		if (test == sect)
 			continue;
@@ -355,6 +356,16 @@ bool OpIntersections::checkCollapse(OpIntersection* sect, MoveSects zero) {
 		} else {
 			OP_ASSERT(test->ptT.pt != sect->ptT.pt);
 			OP_ASSERT(test->ptT.t != sect->ptT.t);
+			// though coincident / unsectable didn't collapse, it may have reversed (loop16365)
+			bool testFirst = test->ptT.t < sect->ptT.t;
+			if (testIsCoin && testFirst != (MatchEnds::start == test->coinEnd)) {
+				std::swap(test->coinEnd, sect->coinEnd);
+				std::swap(test->opp->coinEnd, sect->opp->coinEnd);
+			}
+			if (testIsUnsect && testFirst != (MatchEnds::start == test->unsectEnd)) {
+				std::swap(test->unsectEnd, sect->unsectEnd);
+				std::swap(test->opp->unsectEnd, sect->opp->unsectEnd);
+			}
 		}
 	}
 	return result;

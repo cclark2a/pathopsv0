@@ -55,9 +55,12 @@ void OpLimb::addEach(OpContour& contour, OpTree& tree) {
 		for (OpEdge* test : edges) {
 			if (test->inLinkups)
 				continue;
+			// !!! test here is too soon : check after finding that unsectable extends tree
+		#if 0
 			bool preferSibling = test->isUnsectable() && tree.preferSibling(this, test);
 			if (preferSibling) //  && LimbPass::unsectPair > tree.limbPass)
 				continue;
+		#endif
 		//	tree.deferUnsectable = preferSibling;
 			tryAdd(tree, test, EdgeMatch::start, LimbPass::unlinked); 
 			tryAdd(tree, test, EdgeMatch::end, LimbPass::unlinked);
@@ -121,7 +124,7 @@ void OpLimb::set(OpTree& tree, OpEdge* test, OpLimb* p, EdgeMatch m, LimbPass l,
 	resetPass = true;
 	looped = false;
 	deadEnd = false;
-	deferredUnsectable = tree.deferUnsectable;
+//	deferredUnsectable = tree.deferUnsectable;
 	if (LimbPass::linked != treePass && LimbPass::miswound != treePass) {
 		lastLimbEdge = edge;
 		lastPtT = lastLimbEdge->whichPtT(!match);
@@ -171,6 +174,8 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 		if (LimbPass::unsectPair != tree.limbPass || !test->isUnsectable())
 			return nullptr;
 		for (const EdgePal& testPal : test->pals) {
+			if (testPal.edge == edge)
+				continue;
 			OpPoint palPt = testPal.edge->ptT(testPal.reversed ? !m : m).pt;
 			if (palPt == lastPtT.pt) {
 				edgePal = &testPal;
@@ -184,6 +189,8 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 		return nullptr;
 //	if (test->isUnsectable() && LimbPass::unlinkedPal != tree.limbPass && test->unsectableSeen(m))
 //		return nullptr;
+	if (test->isUnsectable() && tree.preferSibling(this, test))
+		return nullptr;
 	OP_ASSERT(lastLimbEdge);
 	if (LimbPass::miswound == limbPass && lastLimbEdge == test)
 		return nullptr;
@@ -223,6 +230,7 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 	// note that best may not have ray to edge; e.g., outline of 'O' (edge contains inner contour)
 	if (childBounds.perimeter() > tree.bestPerimeter)
 		return nullptr;
+	OpLimb* newParent = this;
 	if (LimbPass::unsectPair == tree.limbPass) {
 		OpPtT startI = test->whichPtT(m);
 		if (lastPtT.pt == startI.pt) 
@@ -236,13 +244,23 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 		}
 		// if tree contains deferred unsectable with ends equal to filler, use that instead
 		if (!tree.deferUnsectable) {
-			OpEdge* filler = tree.addFiller(lastLimbEdge->segment, lastPtT, startI);
+			// check if filler connects pair of unsectables constructed by curve curve intersection
+			bool fromCC = false;
+			for (OpIntersection* sect : test->unSects) {
+				if (sect->ptT == startI && sect->opp->ptT == lastPtT) {
+					fromCC = true;
+					break;
+				}
+			}
+			OpEdge* filler = tree.addFiller(lastLimbEdge->segment, lastPtT, startI, fromCC);
 			filler->setWhich(EdgeMatch::start);
 			OpLimb* fillerBranch = tree.makeLimb();
 			fillerBranch->set(tree, filler, this, EdgeMatch::start, tree.limbPass, limbContour,
 					limbIndex, nullptr, &filler->ptBounds);
 			fillerBranch->gapDistance = (startI.pt - lastPtT.pt).length();
-			return fillerBranch;
+			if (!fromCC)
+				return fillerBranch;
+			newParent = fillerBranch;
 		}
 	}
 	if (tree.containsParent(this, test, m))
@@ -251,7 +269,7 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 	OpLimb* branch = tree.makeLimb();
 	// !!! if some upper number of limbs are made, return fail instead of running forever
 	//      let caller supply limit?
-	branch->set(tree, test, this, m, limbPass, limbContour, limbIndex, otherEnd, &childBounds);
+	branch->set(tree, test, newParent, m, limbPass, limbContour, limbIndex, otherEnd, &childBounds);
 	return branch;
 }
 
@@ -351,7 +369,7 @@ void OpTree::addDisabled(OpContour& contour) {
 					OpIntersection* unOpp = unSect->opp;
 					if (unOpp->ptT.pt == unSect->ptT.pt)
 						continue;
-					OpEdge* filler = addFiller(unSect->segment, unSect->ptT, unOpp->ptT);
+					OpEdge* filler = addFiller(unSect->segment, unSect->ptT, unOpp->ptT, false);
 					filler->setWhich(EdgeMatch::start);
 					OpLimb* branch = makeLimb();
 					branch->set(*this, filler, &limb, match, LimbPass::disjoint, 
@@ -367,14 +385,16 @@ void OpTree::addDisabled(OpContour& contour) {
 }
 
 // convenience for setting breakpoints
-OpEdge* OpTree::addFiller(OpSegment* seg, const OpPtT& ptT1, const OpPtT& ptT2) {
-    float fillerLength = (ptT1.pt - ptT2.pt).length();
-	float thresholdLength = context->aliases.threshold.length();
-	PathOpsV0Lib::MaxGap gapFuncPtr = context->contextCallbacks.maxGapFuncPtr;
-	float gapFactor = gapFuncPtr ? (*gapFuncPtr)((PathOpsV0Lib::Context*) context) : 32.f;
-	if (fillerLength > thresholdLength * gapFactor)
-		context->setError(PathOpsV0Lib::ContextError::gap  OP_DEBUG_PARAMS(id));
-	OP_ASSERT(OpJoiner::DebugShowImage());
+OpEdge* OpTree::addFiller(OpSegment* seg, const OpPtT& ptT1, const OpPtT& ptT2, bool fromCC) {
+	if (!fromCC) {
+		float fillerLength = (ptT1.pt - ptT2.pt).length();
+		float thresholdLength = context->aliases.threshold.length();
+		PathOpsV0Lib::MaxGap gapFuncPtr = context->contextCallbacks.maxGapFuncPtr;
+		float gapFactor = gapFuncPtr ? (*gapFuncPtr)((PathOpsV0Lib::Context*) context) : 32.f;
+		if (fillerLength > thresholdLength * gapFactor)
+			context->setError(PathOpsV0Lib::ContextError::gap  OP_DEBUG_PARAMS(id));
+		OP_ASSERT(OpJoiner::DebugShowImage());
+	}
 	OpEdge* result = context->addFiller(ptT1, ptT2);
 	result->segment = seg;
 	return result;
@@ -383,7 +403,7 @@ OpEdge* OpTree::addFiller(OpSegment* seg, const OpPtT& ptT1, const OpPtT& ptT2) 
 void OpTree::addUnsectableLoop(OpJoiner& joiner, OpLimb* end) {
 	OpEdge* joinEdge = joiner.edge;
 	OpPtT startI = joinEdge->whichPtT(EdgeMatch::start);
-	OpEdge* filler = addFiller(end->edge->segment, end->lastPtT, startI);
+	OpEdge* filler = addFiller(end->edge->segment, end->lastPtT, startI, false);
 	OpLimb* limb = makeLimb();
 	limb->set(*this, filler, end, EdgeMatch::start, LimbPass::disjoint, 
 			nullptr, 0, nullptr);
@@ -436,6 +456,7 @@ bool OpTree::containsFiller(OpLimb* parent, OpPoint pt1, OpPoint pt2) const {
 	return context->containsFiller(pt1, pt2);
 }
 
+#if 0
 bool OpTree::containsDeferred(OpPoint pt1, OpPoint pt2) const {
 	OpLimbStorage* limbs = context->limbCurrent;
 	while (limbs) {
@@ -443,20 +464,21 @@ bool OpTree::containsDeferred(OpPoint pt1, OpPoint pt2) const {
 		OP_ASSERT(index > 0);
 		do {
 			OpLimb* testLimb = &limbs->storage[--index];
-			if (!testLimb->deferredUnsectable)
-				continue;
+//			if (!testLimb->deferredUnsectable)
+//				continue;
 			OpEdge* testEdge = testLimb->edge;
 			if (testEdge->curve.firstPt() != pt1 && testEdge->curve.firstPt() != pt2) 
 				continue;
 			if (testEdge->curve.lastPt() != pt1 && testEdge->curve.lastPt() != pt2) 
 				continue;
-			testLimb->deferredUnsectable = false;
+//			testLimb->deferredUnsectable = false;
 			return true;
 		} while (index > 0);
 		limbs = limbs->prevBlock;
 	}
 	return false;
 }
+#endif
 
 void OpTree::initialize(OpContour& contour) {
 	switch (limbPass) {
@@ -1114,7 +1136,7 @@ bool OpJoiner::matchLinks(bool popLast) {
 				nullptr)) {
 			OpPtT startI = edge->whichPtT(EdgeMatch::start);
 			OpPtT gapEnd = gap->lastLimbEdge->whichPtT(!gap->match);
-			OpEdge* filler = tree.addFiller(gap->lastLimbEdge->segment, gapEnd, startI);
+			OpEdge* filler = tree.addFiller(gap->lastLimbEdge->segment, gapEnd, startI, false);
 			OpLimb* branch = tree.makeLimb();
 			branch->set(tree, filler, gap, EdgeMatch::start, LimbPass::disjoint, 
 					nullptr, 0, nullptr);

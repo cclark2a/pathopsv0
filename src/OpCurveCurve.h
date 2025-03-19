@@ -72,7 +72,7 @@ struct EdgeRun {
 };
 
 struct CcCurves {
-	void addEdgeRun(OpEdge* edge, OpEdge* opp, EdgeMatch );
+	EdgeRun* addEdgeRun(OpEdge* edge, OpEdge* opp, EdgeMatch );
 	bool checkMid(OpSegment* , OpSegment* opp, size_t index); // mid pt distance to next run smaller
 	void clear();
 	bool deletedT(float t) const;  // true if t is in deleted -- deleted need not be sorted
@@ -112,10 +112,11 @@ struct FoundLimits {
 struct OpCurveCurve {
 	OpCurveCurve(OpSegment* seg, OpSegment* opp);
 	void addIntersection(OpEdge* edge, OpEdge* opp);
-	void addEdgeRun(OpEdge* , CurveRef , EdgeMatch );
+	EdgeRun* addEdgeRun(OpEdge* , CurveRef , EdgeMatch );
 	bool addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 			const OpPtT& oppStart, const OpPtT& oppEnd);
-	bool alreadyInLimits(const OpEdge* edge, const OpEdge* oEdge, float t);
+	bool alreadyInLimits(const OpEdge* edge, const OpEdge* oEdge, 
+			const OpPtT& edgePtT, const OpPtT& oppPtT);
 	bool betweenLimits(OpSegment* , float lo, float hi);
 	OpEdge* boundedEdge(OpSegment* s, const OpPointBounds& , MatchEnds  OP_LINE_FILE_ARGS());
 	bool checkForGaps();
@@ -173,8 +174,10 @@ struct OpCurveCurve {
 	int depth;
 	int uniqueLimits_impl;  // cached count; set negative if invalid (call 
 	int unsplitables;
-	int maxSplits;
-	int maxDepth;
+	int maxCheckSplit;  // iteration count to check if point is inside deleted bounds
+	int maxDeep;  // curves, when divided, always overlap, recurse further to look for sects
+	int maxShallow;  // curves, when divided, with no overlap, recurse less to look for sects
+	int maxSplits;  // if active splits of either curve exceed this level, give up
 	int maxBoundedT;
 	bool addedPoint;
 	bool boundedEdgeFailed;
