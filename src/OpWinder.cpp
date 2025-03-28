@@ -673,7 +673,8 @@ ChainFail OpWinder::setSumChain() {
 	if (ChainFail::normalizeOverflow == chainFail)
 		OP_DEBUG_FAIL(*home, chainFail);  // fatal error : cross product returned infinite / nan
 	if (ChainFail::normalizeUnderflow == chainFail) {  // nonfatal error -- try vertical instead
-		markUnsortable(Unsortable::rayTooShallow);
+		if (Axis::vertical == workingAxis)
+			markUnsortable(Unsortable::rayTooShallow);
 		return chainFail;
 	}
 #if 0  // !!! looks like bandaid if above code fails to detect shallow slope ...

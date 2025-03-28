@@ -1953,16 +1953,6 @@ void OpEdge::drawLink() {
 	addLink();
 }
 
-#if !WINDER_CONTOUR_EXPERIMENT
-void OpJoiner::debugDraw() {
-	for (auto e : byArea)
-		e->debugDraw = true;
-	for (auto e : unsectByArea)
-		e->debugDraw = true;
-	OpDebugImage::focusEdges();
-}
-#endif
-
 void OpTree::debugLimbEdges(OpEdge* edge) {
 	OP_ASSERT(!edge->debugIsLoop());
 	OpEdge* first = edge;

@@ -74,10 +74,12 @@ struct EdgeRun {
 struct CcCurves {
 	EdgeRun* addEdgeRun(OpEdge* edge, OpEdge* opp, EdgeMatch );
 	bool checkMid(OpSegment* , OpSegment* opp, size_t index); // mid pt distance to next run smaller
+	void checkSigns(OpSegment* opp);
 	void clear();
 	bool deletedT(float t) const;  // true if t is in deleted -- deleted need not be sorted
 	std::vector<CutRangeT> findGaps() const;
 	void initialEdgeRun(OpEdge* edge, OpEdge* opp);
+	bool lopSided(size_t priorCount, float maxBias) const;
 	void markToDelete(float tStart, float tEnd);
 	int overlaps() const;
 	float perimeter() const;
@@ -135,10 +137,9 @@ struct OpCurveCurve {
 	SectFound runsToLimits();
 	void setHullSects(OpEdge& edge, OpEdge& opp, CurveRef );
 	void setHulls(CurveRef curveRef);
-	void setIntersections();
 	bool setOverlaps();
 	bool setSnipFromLimits(size_t oldCount);
-	bool splitDownTheMiddle(const OpEdge& edge, const OpPtT& edgeMid, CurveRef , CcCurves& splits);
+	bool splitDownTheMiddle(const OpEdge& edge, CurveRef , CcCurves& splits);
 	bool splitHulls(CurveRef , CcCurves& splits);  // hull finds split point
 	size_t uniqueLimits();
 #if OP_DEBUG
@@ -171,6 +172,7 @@ struct OpCurveCurve {
 	MatchReverse matchRev;
 	float maxBoundedEdge;
 	float maxSignSwap;
+	float maxSplitBias;  // if bias does no meaningful reduction, split down the middle instead
 	int depth;
 	int uniqueLimits_impl;  // cached count; set negative if invalid (call 
 	int unsplitables;
@@ -179,7 +181,6 @@ struct OpCurveCurve {
 	int maxShallow;  // curves, when divided, with no overlap, recurse less to look for sects
 	int maxSplits;  // if active splits of either curve exceed this level, give up
 	int maxBoundedT;
-	bool addedPoint;
 	bool boundedEdgeFailed;
 	bool overlap;
 	bool rotateFailed;

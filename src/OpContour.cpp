@@ -47,7 +47,6 @@ void OpContext::addDebugContextData(PathOpsV0Lib::DebugContextData data) {
 }
 #endif
 
-#if WINDER_CONTOUR_EXPERIMENT
 // !!! disabled assuming new approach will find intersecting contours even if outside sects
 // !!! If edge is disabled, but its winding was transferred to another edge (potentially in another 
 // !!! contour) remember that to check to see if coin edge should also be added. (fuzz763_1823)
@@ -187,8 +186,6 @@ void OpContour::setLinkEdge(OpEdge* link, size_t index) {
 	link->linkHead = true;
 }
 
-#endif
-
 #if 0
 OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg  
 		OP_LINE_FILE_DEF(const OpEdge* edge, const OpEdge* oEdge)) {
@@ -230,7 +227,6 @@ int OpContour::nextID() const {
 }
 
 
-#if WINDER_CONTOUR_EXPERIMENT
 void OpContour::setSeen(int tree_id) {
 	treeID = tree_id;
 	for (OpEdge* test : linkups.l) {
@@ -240,7 +236,6 @@ void OpContour::setSeen(int tree_id) {
 		test->lastEdge->endSeen = false;
 	}
 }
-#endif
 
 // end of contour; start of contours
 
@@ -532,7 +527,6 @@ PathOpsV0Lib::WindingData* OpContext::allocateWinding(size_t size) {
 // returns true on success
 bool OpContext::assemble() {
 	OpJoiner joiner(*this);
-#if WINDER_CONTOUR_EXPERIMENT
 	bool linkableFound = false;
 	for (auto contour : contours) {
 		linkableFound |= !contour->joinSetup();  // !!! reverse return (now: true == no linkable edges)
@@ -560,19 +554,6 @@ bool OpContext::assemble() {
 		if (!remaining)
 			return true;
 	}
-#else
-	if (joiner.setup()) {
-		initOutOnce();
-		return true;
-	}
-	for (LinkPass linkPass : { LinkPass::normal, LinkPass::unsectable } ) {
-		joiner.linkUnambiguous(linkPass);
-		if (joiner.linkRemaining(OP_DEBUG_CODE(this)))
-			return true;
-		if (fatalError)
-			return false;
-	}
-#endif
 	return false;
 }
 
@@ -670,7 +651,6 @@ void OpContext::opsInit() {
 			return a->id < b->id;
 		});
 	}
-#if WINDER_CONTOUR_EXPERIMENT
 	for (size_t index = 0; index < contours.size(); ++index) {
 		OpContour* contour = contours[index];
 		if (contour->winderOwner != contour)
@@ -685,7 +665,6 @@ void OpContext::opsInit() {
 			}
 		}
 	}
-#endif
 #if TEST_RASTER
 	if (rasterEnabled)
 		rasterOutput.init();

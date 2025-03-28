@@ -154,6 +154,7 @@ struct OpIntersections {
 	void markInCoincidence();
 	void mergeNear(OpPtAliases& );
 	void moveSects(OpPtT match, OpPoint destination, MoveSects );
+	void orderPairs();
 //	const OpIntersection* nearly(const OpPtT& ptT, OpSegment* oSeg) const;  // near match of pt or t
 //	void range(const OpSegment* , std::vector<OpIntersection*>& );
 	bool simpleEnd() const;  // true if array has only one entry with t equal to one
@@ -177,6 +178,7 @@ struct OpIntersections {
 	std::vector<OpIntersection*> i;
 	bool unsorted = false;
 	bool hasCCSects = false;
+	bool hasPairs = false;
 };
 
 // allocating storage separately allows intersections to be immobile and have reliable pointers

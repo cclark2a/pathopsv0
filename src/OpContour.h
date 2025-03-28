@@ -36,7 +36,6 @@ struct CallerDataStorage {
 	char storage[2048];	// !!! size is arbitrary guess -- should measure and do better
 };
 
-#if WINDER_CONTOUR_EXPERIMENT
 enum class RelinkJoins {
 	uninitialized,
 	unchanged,
@@ -44,7 +43,6 @@ enum class RelinkJoins {
 	unmatched,
 	again
 };
-#endif
 
 struct OpContour {
 	OpIntersection* addEdgeSect(const OpPtT& , OpSegment* seg
@@ -64,7 +62,6 @@ struct OpContour {
 		}
 	}
 
-#if WINDER_CONTOUR_EXPERIMENT
 	void addCoinEdges();
 	bool addEdges();
 	void addJoinEdge(OpJoiner* , OpEdge* );
@@ -89,7 +86,6 @@ struct OpContour {
 	OP_DEBUG_CODE(void debugMatchRay());
 #if OP_DEBUG_VALIDATE
 	void debugValidate(const OpJoiner* ) const;
-#endif
 #endif
 
 	void apply() {
@@ -163,16 +159,13 @@ struct OpContour {
 	SEGMENT_DETAIL
 	EDGE_OR_SEGMENT_DETAIL
 	#undef OP_X
-#if WINDER_CONTOUR_EXPERIMENT
 	std::string debugDumpJoin(DebugLevel l, DebugBase b) const;
-#endif
 #endif
 
 	OpContext* context;
 	std::vector<OpSegment> segments;
 	std::vector<OpSegment*> sorted;
 	std::vector<OpContour*> sects;
-#if WINDER_CONTOUR_EXPERIMENT
 	OpContour* winderOwner;  // the master that has intersects the same set of contours as this
 	// !!! experiment; move winder data to contour for many-contours optimization
 	//  populate only with edges in contour, and edges in overlapping contours
@@ -194,7 +187,6 @@ struct OpContour {
 	bool isXSorted = false;
 	bool isYSorted = false;
 	bool disabled = false;
-#endif
 	PathOpsV0Lib::Winding winding;
 	OpPointBounds bounds;
 	int id;
@@ -325,9 +317,15 @@ struct OpPtAliases {
 	float thresholdLength;
 };
 
+typedef PathOpsV0Lib::Context* ContextPtr;
+
 struct OpContext {
 	OpContext();
 	~OpContext();
+
+	operator ContextPtr() const {
+		return (PathOpsV0Lib::Context*)(this);
+	}
 
 	bool addAlias(OpPoint pt, OpPoint alias);
 //    OpEdge* addFiller(OpEdge* edge, OpEdge* lastEdge);
@@ -498,10 +496,7 @@ struct OpContext {
 	PathOpsV0Lib::WindingCallbacks windingCallbacks;
 	PathOpsV0Lib::PathOutput callerOutput;
 	PathOpsV0Lib::ErrorHandler errorHandler;
-
-#if WINDER_CONTOUR_EXPERIMENT
 	std::vector<OpContour*> sorted; 
-#endif
 	// these are pointers instead of inline values because the storage with empty slots is first
 	OpEdgeStorage* ccStorage;
 	CurveDataStorage* curveDataStorage;

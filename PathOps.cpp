@@ -36,7 +36,6 @@ Contour* CreateContour(Context* context, Winding winding) {
     return (Contour*) contour;
 }
 
-#if WINDER_CONTOUR_EXPERIMENT
 Contour* Clone(Contour* contour) {
 	OpContour* original = (OpContour*) contour;
 	if (original->isEmpty())
@@ -49,7 +48,6 @@ Contour* Clone(Contour* contour) {
 #endif
     return (Contour*) clone;
 }
-#endif
 
 void DeleteContext(Context* context) {
     OpContext* contours = (OpContext*) context;

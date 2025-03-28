@@ -307,15 +307,10 @@ struct OpVector {
 		return dx * a.dx + dy * a.dy;
 	}
 
-	// !!! used by winder to check back ray tangent; however, breakpoint not recently triggered ...
+	// note that this may not return zero for a x a because of fma; but, don't rely on this behavior
+	// attempting to suppress fma isn't portable across compilers
 	float cross(OpVector a) const {
-#if 01
-		float dxy = dx * a.dy;
-		float dyx = dy * a.dx;
-		return dxy - dyx;
-#else
 		return dx * a.dy - dy * a.dx;
-#endif
 	}
 
 	float choice(Axis axis) const {
@@ -496,6 +491,10 @@ struct OpPoint {
 
 	float* asPtr(XyChoice xyChoice) {
 		return &x + +xyChoice;
+	}
+
+	static OpPoint Average(OpPoint a, OpPoint b) {
+		return (a + b) / 2;
 	}
 
 	// static bool Between(OpPoint start, OpPoint mid, OpPoint end);
@@ -691,9 +690,8 @@ struct OpPtT {
 		return 0 == t || 1 == t;
 	}
 
-	// !!! add point avg and call it here?
 	static void MeetInTheMiddle(OpPtT& a, OpPtT& b) {
-		OpPoint mid = a.onEnd() ? a.pt : b.onEnd() ? b.pt : (a.pt + b.pt) / 2;
+		OpPoint mid = a.onEnd() ? a.pt : b.onEnd() ? b.pt : OpPoint::Average(a.pt, b.pt);
 		a.pt = mid;
 		b.pt = mid;
 	}

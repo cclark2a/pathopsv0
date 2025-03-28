@@ -797,15 +797,8 @@ void OpContext::debugRemap(int oldRayMatch, int newRayMatch) {
 // assign the same ID for all edges linked together
 // also assign that ID to edges whose non-zero crossing rays attach to those edges
 
-#if WINDER_CONTOUR_EXPERIMENT
-void OpContour::debugMatchRay()
-#else
-void OpJoiner::debugMatchRay(OP_DEBUG_CODE(OpContext* contours))
-#endif
-{
-#if WINDER_CONTOUR_EXPERIMENT
+void OpContour::debugMatchRay() {
 	OpContext* contours = context;
-#endif
 	OP_DEBUG_CODE(bool mayFail = OpDebugExpect::unknown == contours->debugExpect);
 	for (auto linkup : linkups.l) {
         OP_ASSERT(!linkup->priorEdge);
@@ -956,18 +949,13 @@ bool OpJoiner::DebugShowImage() {
 
 #if OP_DEBUG_VALIDATE
 // !!! also debug prev/next edges (links)
-#if WINDER_CONTOUR_EXPERIMENT
 void OpJoiner::debugValidate() const {
 	for (auto contour : context->contours) {
 		contour->debugValidate(this);
 	}
 }
 
-void OpContour::debugValidate(const OpJoiner* joiner) const 
-#else
-void OpJoiner::debugValidate() const 
-#endif
-{
+void OpContour::debugValidate(const OpJoiner* joiner) const {
     OpEdge* anEdge = byArea.size() ? byArea[0] : unsectByArea.size() ? unsectByArea[0] : 
             disabledEdges.size() ? disabledEdges[0] : unsortables.size() ? unsortables[0] :
             linkups.l.size() ? linkups.l[0] : nullptr;
@@ -976,13 +964,7 @@ void OpJoiner::debugValidate() const
     OpContext* contours = anEdge->context();
     contours->debugValidateJoinerIndex += 1;
     contours->debugCheckLastEdge = false;
-#if WINDER_CONTOUR_EXPERIMENT
-    if (LinkPass::remaining != joiner->linkPass) 
-#else
-	if (LinkPass::remaining != linkPass) 
-#endif
-	
-	{
+    if (LinkPass::remaining != joiner->linkPass) {
         for (auto e : byArea) {
             e->debugValidate();
             OP_ASSERT(!e->isActive() || !e->debugIsLoop());
@@ -1006,7 +988,7 @@ void OpJoiner::debugValidate() const
         if (e->debugScheduledForErasure)
             continue;
         e->debugValidate();
-#if WINDER_CONTOUR_EXPERIMENT && OP_DEBUG_DUMP
+#if OP_DEBUG_DUMP
 		if (e->priorEdge)
 			dmpJoin();
 #endif
@@ -1065,6 +1047,7 @@ void debugImage() {
         ::showPoints();
         ::showTangents();
         ::showValues();
+		::drawDepth(0);
         ::resetFocus();
         ::oo();
         return;
@@ -1155,12 +1138,10 @@ void debugCubicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, do
 
 namespace PathOpsV0Lib {
 
-#if WINDER_CONTOUR_EXPERIMENT
 DebugContourData GetDebugContourData(Contour* ctour) {
     OpContour* contour = (OpContour*) ctour;
 	return contour->debugCaller;
 }
-#endif
 
 void SetDebugContourData(Contour* ctour, DebugContourData contourData) {
     OpContour* contour = (OpContour*) ctour;

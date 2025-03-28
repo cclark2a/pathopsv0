@@ -3,8 +3,6 @@
 #include "PathOps.h"
 #include "SkiaEnumSkPathOp.h"
 
-#define TEST_WINDER_CONTOUR_EXPERIMENT 1
-
 class SkPath;
 
 namespace PathOpsV0Lib {

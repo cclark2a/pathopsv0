@@ -218,6 +218,7 @@ struct ContextCallbacks {
 	EmptyCallerPath emptyCallerPathFuncPtr = nullptr;
 	MaxCurveCurveValue maxSignSwapFuncPtr = nullptr;
 	MaxCurveCurveValue maxOverlapFuncPtr = nullptr;
+	MaxCurveCurveValue maxSplitBiasFuncPtr = nullptr;
 	MaxCurveValue maxBoundedEdgeFuncPtr = nullptr;
 	MaxCurveValue maxBoundedTFuncPtr = nullptr;
 	MaxCurveCurveCount maxCheckSplitFuncPtr = nullptr;

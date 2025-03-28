@@ -7,6 +7,7 @@ void OpIntersection::setCoin(int cid, MatchEnds end) {
 	coincidenceID = cid;
 	coinEnd = end;
 	segment->hasCoin = true;
+	segment->sects.hasPairs = true;
 	segment->sects.unsorted = true;
 }
 
@@ -14,6 +15,7 @@ void OpIntersection::setUnsect(int uid, MatchEnds end) {
 	unsectID = uid;
 	unsectEnd = end;
 	segment->hasUnsectable = true;
+	segment->sects.hasPairs = true;
 	segment->sects.unsorted = true;
 }
 
@@ -353,22 +355,31 @@ bool OpIntersections::checkCollapse(OpIntersection* sect, MoveSects zero) {
 			if (MoveSects::zeroAll == zero && uID)
 				sect->zeroUnsectID();
 			result = test->collapsed = test->opp->collapsed = true;
-		} else {
-			OP_ASSERT(test->ptT.pt != sect->ptT.pt);
-			OP_ASSERT(test->ptT.t != sect->ptT.t);
-			// though coincident / unsectable didn't collapse, it may have reversed (loop16365)
-			bool testFirst = test->ptT.t < sect->ptT.t;
-			if (testIsCoin && testFirst != (MatchEnds::start == test->coinEnd)) {
-				std::swap(test->coinEnd, sect->coinEnd);
-				std::swap(test->opp->coinEnd, sect->opp->coinEnd);
-			}
-			if (testIsUnsect && testFirst != (MatchEnds::start == test->unsectEnd)) {
-				std::swap(test->unsectEnd, sect->unsectEnd);
-				std::swap(test->opp->unsectEnd, sect->opp->unsectEnd);
-			}
 		}
 	}
 	return result;
+}
+
+// wait until sorting to order pairs; ordering earlier may fail if sects are moved
+void OpIntersections::orderPairs() {
+	for (size_t index = 0; index + 1 < i.size(); ++index) {
+		OpIntersection* sect = i[index];
+		int cID = sect->coincidenceID;
+		int uID = sect->unsectID;
+		if (!cID && !uID)
+			continue;
+		for (size_t inner = index + 1; inner < i.size(); ++inner) {
+			OpIntersection* test = i[inner];
+			if (cID && cID == test->coincidenceID) {
+				sect->coinEnd = MatchEnds::start;
+				test->coinEnd = MatchEnds::end;
+			}
+			if (uID && uID == test->unsectID) {
+				sect->unsectEnd = MatchEnds::start;
+				test->unsectEnd = MatchEnds::end;
+			}
+		}
+	}
 }
 
 void OpIntersections::eraseCollapsed() {
@@ -529,38 +540,47 @@ void OpIntersections::sort() {
 		return;
 	}
 	unsorted = false;
-	// order first in t, then put coincident start before unmarked, and finally end
-	// start: put coincident, unmarked, unsectable (if t is equal)
-	// end: put unsectable, unmarked, coincident (if t is equal)
-	// sort unmarked by segment id
+	// moved sects may have put coin, unsect out of order -- reset coin, unsect: start and end
+	// order first in t
 	std::sort(i.begin(), i.end(), [](const OpIntersection* s1, const OpIntersection* s2) {
-		if (s1->ptT.t != s2->ptT.t)
-			return s1->ptT.t < s2->ptT.t;
-		if (MatchEnds::none != s1->unsectEnd || MatchEnds::none != s1->coinEnd
-				|| MatchEnds::none != s2->unsectEnd || MatchEnds::none != s2->coinEnd) {
-			bool s1start = MatchEnds::start == s1->unsectEnd || MatchEnds::start == s1->coinEnd;
-			bool s2end = MatchEnds::end == s2->unsectEnd || MatchEnds::end == s2->coinEnd;
-			if (s1start && s2end)
-				return false;
-			bool s1end = MatchEnds::end == s1->unsectEnd || MatchEnds::end == s1->coinEnd;
-			bool s2start = MatchEnds::start == s2->unsectEnd || MatchEnds::start == s2->coinEnd;
-			if (s1end && s2start)
-				return true;
-			if (s1start)
-				return MatchEnds::start == s1->coinEnd 
-						&& (!s2start || s2->coincidenceID < s1->coincidenceID);
-			if (s2end)
-				return MatchEnds::end == s2->coinEnd
-						&& (!s1end || s1->coincidenceID < s2->coincidenceID);
-			if (s1end)
-				return MatchEnds::end == s1->unsectEnd
-						&& (!s2end || s1->unsectID < s2->unsectID);
-			if (s2start)
-				return MatchEnds::start == s2->unsectEnd
-						&& (!s1start || s2->unsectID < s1->unsectID);
-		}
-		return s1->opp->segment->id < s2->opp->segment->id;  // compare seg ptr if id is debug only?
+		return s1->ptT.t < s2->ptT.t;
 	});
+	// mark coin, unsect: start, end
+	if (hasPairs) {
+		orderPairs();
+		// then put coincident start before unmarked, and finally end
+		// start: put coincident, unmarked, unsectable (if t is equal)
+		// end: put unsectable, unmarked, coincident (if t is equal)
+		// sort unmarked by segment id
+		std::sort(i.begin(), i.end(), [](const OpIntersection* s1, const OpIntersection* s2) {
+			if (s1->ptT.t != s2->ptT.t)
+				return s1->ptT.t < s2->ptT.t;
+			if (MatchEnds::none != s1->unsectEnd || MatchEnds::none != s1->coinEnd
+					|| MatchEnds::none != s2->unsectEnd || MatchEnds::none != s2->coinEnd) {
+				bool s1start = MatchEnds::start == s1->unsectEnd || MatchEnds::start == s1->coinEnd;
+				bool s2end = MatchEnds::end == s2->unsectEnd || MatchEnds::end == s2->coinEnd;
+				if (s1start && s2end)
+					return false;
+				bool s1end = MatchEnds::end == s1->unsectEnd || MatchEnds::end == s1->coinEnd;
+				bool s2start = MatchEnds::start == s2->unsectEnd || MatchEnds::start == s2->coinEnd;
+				if (s1end && s2start)
+					return true;
+				if (s1start)
+					return MatchEnds::start == s1->coinEnd 
+							&& (!s2start || s2->coincidenceID < s1->coincidenceID);
+				if (s2end)
+					return MatchEnds::end == s2->coinEnd
+							&& (!s1end || s1->coincidenceID < s2->coincidenceID);
+				if (s1end)
+					return MatchEnds::end == s1->unsectEnd
+							&& (!s2end || s1->unsectID < s2->unsectID);
+				if (s2start)
+					return MatchEnds::start == s2->unsectEnd
+							&& (!s1start || s2->unsectID < s1->unsectID);
+			}
+			return s1->opp->segment->id < s2->opp->segment->id;  // compare ptr if id is debug only?
+		});
+	}
 	if (3 >= i.size())
 		return;
 	// Two or more coincident (or unsectable) pairs with the same t may require further

@@ -170,16 +170,33 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 	OP_ASSERT(!test->hasLinkTo(m) || Unsortable::none != test->isUnsortable || test->disabled 
 			|| test->isUnsectable());
 	const EdgePal* edgePal = nullptr;
-	if (test->whichPtT(m).pt != lastPtT.pt) {
-		if (LimbPass::unsectPair != tree.limbPass || !test->isUnsectable())
+	bool fillerToTest = false;
+	OpPoint testPt = test->whichPtT(m).pt;
+	if (testPt != lastPtT.pt) {
+		if (LimbPass::unsectPair != tree.limbPass)
 			return nullptr;
+		if (Unsortable::filler == edge->isUnsortable)
+			return nullptr;
+		// check if filler from test to test's pal can connect to last point
 		for (const EdgePal& testPal : test->pals) {
 			if (testPal.edge == edge)
 				continue;
-			OpPoint palPt = testPal.edge->ptT(testPal.reversed ? !m : m).pt;
+			OpPoint palPt = testPal.matchPt(m);
 			if (palPt == lastPtT.pt) {
 				edgePal = &testPal;
 				break;
+			}
+		}
+		if (!edgePal) {  // check if filler added from limb to limb pal can connect to test point
+			for (const EdgePal& limbPal : edge->pals) {
+				if (limbPal.edge == test)
+					continue;
+				OpPoint palPt = limbPal.matchPt(m);
+				if (testPt == palPt) {
+					edgePal = &limbPal;
+					fillerToTest = true;
+					break;
+				}
 			}
 		}
 		if (!edgePal)
@@ -205,7 +222,8 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 	// 'Test' may need to be reversed to connect, and 'm' may be either end. Wind zero in both cases
 	// is computed for the unreversed orientation.
 	if (WindZero::unset != lastLimbEdge->windZero && WindZero::unset != test->windZero
-			&& (LimbPass::linked == limbPass || LimbPass::miswound == limbPass)) {
+			&& (LimbPass::linked == limbPass || LimbPass::miswound == limbPass)
+			&& !lastLimbEdge->many.isSet() && Unsortable::filler != lastLimbEdge->isUnsortable) {
 		WindZero zeroSide = test->windZero;
 		// if last which end is end, flip last's wind zero (for comparsion, flip zero side);
 		// if pass is linked: if test m is end, flip zero side; if test which is end, flip zero side
@@ -231,6 +249,7 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 	if (childBounds.perimeter() > tree.bestPerimeter)
 		return nullptr;
 	OpLimb* newParent = this;
+	OpBreak2(edge, test, 197, 214);
 	if (LimbPass::unsectPair == tree.limbPass) {
 		OpPtT startI = test->whichPtT(m);
 		if (lastPtT.pt == startI.pt) 
@@ -246,6 +265,14 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 		if (!tree.deferUnsectable) {
 			// check if filler connects pair of unsectables constructed by curve curve intersection
 			bool fromCC = false;
+			for (EdgePal& pal : edge->pals) {
+				for (OpIntersection* palSect : pal.edge->unSects) {
+					if (palSect->ptT == startI && palSect->opp->ptT == lastPtT) {
+						fromCC = true;
+						break;
+					}
+				}
+			}
 			for (OpIntersection* sect : test->unSects) {
 				if (sect->ptT == startI && sect->opp->ptT == lastPtT) {
 					fromCC = true;
@@ -258,7 +285,7 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 			fillerBranch->set(tree, filler, this, EdgeMatch::start, tree.limbPass, limbContour,
 					limbIndex, nullptr, &filler->ptBounds);
 			fillerBranch->gapDistance = (startI.pt - lastPtT.pt).length();
-			if (!fromCC)
+			if (!fromCC && !fillerToTest)
 				return fillerBranch;
 			newParent = fillerBranch;
 		}
@@ -384,15 +411,18 @@ void OpTree::addDisabled(OpContour& contour) {
 	}
 }
 
-// convenience for setting breakpoints
 OpEdge* OpTree::addFiller(OpSegment* seg, const OpPtT& ptT1, const OpPtT& ptT2, bool fromCC) {
 	if (!fromCC) {
 		float fillerLength = (ptT1.pt - ptT2.pt).length();
-		float thresholdLength = context->aliases.threshold.length();
 		PathOpsV0Lib::MaxGap gapFuncPtr = context->contextCallbacks.maxGapFuncPtr;
 		float gapFactor = gapFuncPtr ? (*gapFuncPtr)((PathOpsV0Lib::Context*) context) : 32.f;
-		if (fillerLength > thresholdLength * gapFactor)
+		if (fillerLength > context->aliases.thresholdLength * gapFactor) {
+			OP_DEBUG_CODE(OpDebugOut("\n" + seg->contour->context->debugData.testname + "\n"));
+			OP_DEBUG_DUMP_CODE(::debug());
+			OP_DEBUG_CODE(OpDebugOut("\n"));
+			OP_DEBUG_DUMP_CODE(dump());
 			context->setError(PathOpsV0Lib::ContextError::gap  OP_DEBUG_PARAMS(id));
+		}
 		OP_ASSERT(OpJoiner::DebugShowImage());
 	}
 	OpEdge* result = context->addFiller(ptT1, ptT2);
@@ -636,8 +666,10 @@ OpLimb* OpTree::unsectableLoop() const {
 	OpLimb& trunk = context->nthLimb(0);
 	OpSegment* trunkSeg = trunk.edge->segment;
 	std::vector<OpIntersection*> startUnsects = trunkSeg->sects.unsectables(firstPt);
-	if (!startUnsects.size())
+	if (startUnsects.empty())
 		return nullptr;
+	OpLimb* smallest = nullptr;  // return smallest gap
+	float bestDist = OpInfinity;
 	for (int index = 0; index < totalUsed; ++index) {
 		OpLimb& test = context->nthLimb(index);
 		OpSegment* testSeg = test.lastLimbEdge->segment;
@@ -645,13 +677,19 @@ OpLimb* OpTree::unsectableLoop() const {
 			continue;
 		std::vector<OpIntersection*> testUnsects = testSeg->sects.unsectables(test.lastPtT.pt);
 		for (OpIntersection* testSect : testUnsects) {
+			float testDist = (testSect->ptT.pt - firstPt).length();
+			if (testDist > bestDist) 
+				continue;
 			for (OpIntersection* trunkSect : startUnsects) {
-				if (trunkSect->unsectID == testSect->unsectID)
-					return &test;
+				if (trunkSect->unsectID != testSect->unsectID) 
+					continue;
+				smallest = &test;
+				bestDist = testDist;
+				break;
 			}
 		}
 	}
-	return nullptr;
+	return smallest;
 }
 
 // caller (in contours) has allocated storage already
@@ -1124,16 +1162,15 @@ bool OpJoiner::matchLinks(bool popLast) {
 //	found.clear();
 	matchPt = lastLink->whichPtT(EdgeMatch::end).pt;
 	OpTree tree(*this);
-	if (PathOpsV0Lib::ContextError::none != edge->context()->error)
+	if (PathOpsV0Lib::ContextError::none != context->error)
 		return false;
 	// adding gap edge in unsect pair case
 	if (!tree.bestLimb) {
 		OpLimb* gap = tree.bestGapLimb;
 		OP_ASSERT(gap);
-		if (!tree.context->errorHandler.errorDispatchFuncPtr
-				|| tree.context->errorHandler.errorDispatchFuncPtr(
-				PathOpsV0Lib::ContextError::missing, (PathOpsV0Lib::Context*) tree.context, 
-				nullptr)) {
+		if (!context->errorHandler.errorDispatchFuncPtr
+				|| context->errorHandler.errorDispatchFuncPtr(
+				PathOpsV0Lib::ContextError::missing, *context, nullptr)) {
 			OpPtT startI = edge->whichPtT(EdgeMatch::start);
 			OpPtT gapEnd = gap->lastLimbEdge->whichPtT(!gap->match);
 			OpEdge* filler = tree.addFiller(gap->lastLimbEdge->segment, gapEnd, startI, false);

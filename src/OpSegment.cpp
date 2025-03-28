@@ -871,6 +871,10 @@ OpVector OpSegment::threshold() const {
 	return contour->context->threshold(); 
 }
 
+float OpSegment::thresholdLength() const {
+	return contour->context->aliases.thresholdLength; 
+}
+
 // Note that this must handle a many-to-many relationship between seg and opp.
 // Coincident runs of edges may be interrupted by other intersections but their winding is
 // unaffected (only other coins may break inner coincident windings).

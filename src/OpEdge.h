@@ -65,6 +65,7 @@ enum class EdgeFail : uint8_t {
 struct EdgePal {
 	EdgePal(OpEdge* e, float c, float tIn, bool r);  // called when winder can't resolve order
 	EdgePal(OpEdge* e, bool r  OP_DEBUG_PARAMS(int uID)); // called when edge maker is between unsectables
+	OpPoint matchPt(EdgeMatch ) const;
 
 #if OP_DEBUG_DUMP
 	EdgePal() {}
@@ -75,9 +76,6 @@ struct EdgePal {
 	float cept;  // where normal intersects edge (e.g. for home, axis horz: center.x)
 	float edgeInsideT;  // !!! t value from 0 to 1 within edge range (seems bizarre)
 	bool reversed;
-#if 0 && WINDER_CONTOUR_EXPERIMENT
-	bool adjustSum = false;
-#endif
 	OP_DEBUG_CODE(int debugUID);  // unsect id from sect in edge's segment
 };
 
@@ -160,11 +158,10 @@ struct OpHulls {
 	bool add(const OpPtT& ptT, OpVector threshold, float dist, SectType st, 
 			const OpEdge* o = nullptr);
 	void clear() { h.clear(); }
-//	bool closeEnough(int index, const OpEdge& edge, const OpEdge& oEdge, OpPtT* oPtT, OpPtT* close);
 	bool nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef which);
-	bool sectCandidates(int index, const OpEdge& edge) const;
 	void sort(bool useSmall);
 	DUMP_DECLARATIONS
+	OP_DEBUG_CODE(bool debugSectCandidates(int index, const OpEdge& edge) const);
 	OP_DEBUG_VALIDATE_CODE(void debugValidate() const);
 
 	std::vector<HullSect> h;
@@ -208,12 +205,10 @@ enum class Unsortable {
 	underflow
 };
 
-#if WINDER_CONTOUR_EXPERIMENT
 enum class InOutput {
 	no,
 	yes
 };
-#endif
 
 #if OP_DEBUG
 enum class LeadingLoop {
@@ -250,9 +245,7 @@ private:
 		, isUnsortable(Unsortable::none)
 		, active_impl(false)
 		, inLinkups(false)
-#if WINDER_CONTOUR_EXPERIMENT
 		, linkHead(false)
-#endif
 		, inOutput(false)
 		, disabled(false)
 		, isUnsplitable(false)
@@ -277,6 +270,7 @@ private:
 		debugZeroErr = nullptr;
 		debugOutPath = 0;
 		debugParentID = 0;
+		debugDepth = 0;
 		debugRayMatch = 0;
 #endif
 #if OP_DEBUG_DUMP
@@ -285,7 +279,7 @@ private:
 #if OP_DEBUG_IMAGE
 		debugColor = debugBlack;
 		debugCustom = 0;
-		debugDraw = true;
+		debugDraw = false;
 		debugJoin = false;
 		debugLimb = false;
 #endif
@@ -304,31 +298,19 @@ public:
 
 	CalcFail addIfUR(Axis xis, float t, OpWinding* ) const;
 	void addPal(const EdgePal& );
-#if WINDER_CONTOUR_EXPERIMENT
 	CalcFail addSub(OpContour* winderOwner, Axis axis, float t, OpWinding* ) const;
-	bool adjustWinding(OpContour* winderOwner, OpWinding* ) const;
-#else
-	CalcFail addSub(Axis axis, float t, OpWinding* ) const;
-#endif
 	OpEdge* advanceToEnd(EdgeMatch );
 	void apply();
 	const OpRect& bounds() { return ptBounds; }
 	void calcCenterT();
+	void ccInit(bool overlaps);
 	void clearActiveAndPals(OP_LINE_FILE_NP_ARGS());
-#if WINDER_CONTOUR_EXPERIMENT
 	void clearLastEdge(InOutput );
-#else
-	void clearLastEdge();
-#endif
 	void clearNextEdge();
 	void clearPriorEdge();
 	void complete(OpPoint start, OpPoint end);
 	bool containsLink(const OpEdge* edge) const;
-#if 0
-	OpContext* contours() const;
-#else
 	OpContext* context() const;
-#endif
 	OpPtT end() const { return OpPtT(endPt(), endT); }
 	OpPoint endPt() const { return curve.lastPt(); }
 	OpPtT flipPtT(EdgeMatch match) const { 
@@ -361,16 +343,10 @@ public:
 	void setDisabled(OP_LINE_FILE_NP_ARGS());
 	void setDisabledZero(OP_LINE_FILE_NP_ARGS());
 	OpEdge* setLastEdge();
-#if WINDER_CONTOUR_EXPERIMENT
 	void setLastEdge(OpEdge* first, OpEdge* last, InOutput );
-#endif
 	bool setLastLink(EdgeMatch );  // returns true if link order was changed
 	OpPointBounds setLinkBounds();
-#if WINDER_CONTOUR_EXPERIMENT
 	bool setLinkDirection(EdgeMatch , std::vector<OpEdge*>* linkupsErasures, InOutput );
-#else
-	bool setLinkDirection(EdgeMatch );  // reverse links if handed link end instead of link start
-#endif
 	void setNextEdge(OpEdge*);  // setter exists so debug breakpoints can be set
 	void setPointBounds();
 	void setPriorEdge(OpEdge* );  // setter exists so debug breakpoints can be set
@@ -381,12 +357,7 @@ public:
 	OpPtT start() const { return OpPtT(startPt(), startT); }
 	OpPoint startPt() const { return curve.firstPt(); }
 	void subDivide(OpPoint start, OpPoint end);
-#if WINDER_CONTOUR_EXPERIMENT
-	void subAdjust(OpContour* winderOwner, OpWinding* ) const;
 	CalcFail subIfDL(OpContour* winderOwner, Axis axis, float t, OpWinding* ) const;
-#else
-	CalcFail subIfDL(Axis axis, float t, OpWinding* ) const;
-#endif
 	void unlink();  // restore edge to unlinked state (for reusing unsortable or unsectable edges)
 	EdgeMatch which() const {
 		return whichEnd_impl; }
@@ -449,6 +420,8 @@ public:
 	float endT;
 	float startDist;  // distance from start to opposite in curve-curve intersection
 	float endDist;  // distance from end to opposite in curve-curve intersection
+	OpPtT startOpp;	// opp pt at distance (uninitialized; may be unused)
+	OpPtT endOpp;
 	int id;
 	EdgeMatch whichEnd_impl;  // if 'start', prior end equals start; if 'end' prior end matches end
 	EdgeFail rayFail;   // how computation (e.g., center) failed (on fail, windings are set to zero)
@@ -456,9 +429,7 @@ public:
 	Unsortable isUnsortable;  // unsectable is unsortable; others (e.g., very small) are also unsortable
 	bool active_impl;  // used by ray casting to mark edges that may be to the left of casting edge
 	bool inLinkups; // set for edges in linkups l vector
-#if WINDER_CONTOUR_EXPERIMENT
 	bool linkHead;  // used to remove edge from contour linkups when edge is output 
-#endif
 	bool inOutput;	// set when edge is added to output path
 	bool disabled;	// winding is zero, or apply disqualified edge from appearing in output
 	bool isUnsplitable;  // too small to split in two during curve-curve intersection
@@ -468,7 +439,6 @@ public:
 	bool ccSmall;  // set if curve/curve has small t match and this edge is first
 	bool ccStart;  // set if edge start is closest to already found curve-curve intersection
 	bool centerless;  // center could not be computed (likely edge is too small)
-//	bool windPal;  // winding could not computed because of pal (doesn't appear needed)
 	bool startSeen;  // tracks start of edge in joiner linked list to add to tree only once
 	bool endSeen;  // tracks end of edge in joiner linked list to add to tree only once
 #if OP_DEBUG
@@ -476,6 +446,7 @@ public:
 	OpEdge* debugZeroErr;  // debug match ray found edge that does not match -- diagnostic for now
 	int debugOutPath;	// id to color output contours
 	int debugParentID;
+	int debugDepth;  // depth of curve-curve when edge was created
 	mutable int debugRayMatch;	// id: edges in common output contour determined from ray
 #endif
 #if OP_DEBUG_DUMP

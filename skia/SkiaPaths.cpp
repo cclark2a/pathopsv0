@@ -433,9 +433,7 @@ void AddSkiaPath(Context* context, Contour* contour, const SkPath& path) {
 	}
     SkPath::RawIter iter(path);
     OpPoint closeLine[2] = {{0, 0}, {0, 0}};  // initialize so first move doesn't add close line
-#if WINDER_CONTOUR_EXPERIMENT
 	int contourIndex = 0;
-#endif
     for (;;) {
         SkPoint pts[4];
         SkPath::Verb verb = iter.next(pts);
@@ -446,7 +444,6 @@ void AddSkiaPath(Context* context, Contour* contour, const SkPath& path) {
 						(CurveType) SkiaCurveType::skiaLineType } );
             closeLine[1] = { pts[0].fX, pts[0].fY };
             pts[1] = pts[0];
-	#if WINDER_CONTOUR_EXPERIMENT
 			contour = Clone(contour);
 	#if OP_DEBUG
 		{	
@@ -458,7 +455,6 @@ void AddSkiaPath(Context* context, Contour* contour, const SkPath& path) {
 		}
 	#endif
 			++contourIndex;
-	#endif
             break;
         case SkPath::kLine_Verb:
             if (pts[0] != pts[1])

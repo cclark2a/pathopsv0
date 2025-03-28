@@ -64,7 +64,8 @@ bool OpHulls::closeEnough(int index, const OpEdge& edge, const OpEdge& oEdge, Op
 }
 #endif
 
-bool OpHulls::sectCandidates(int index, const OpEdge& edge) const {
+#if OP_DEBUG
+bool OpHulls::debugSectCandidates(int index, const OpEdge& edge) const {
 	const HullSect& hullStart = h[index - 1];
 	const HullSect& hullEnd = h[index];
 	const OpPtT& hull1Sect = hullStart.sect;
@@ -92,6 +93,7 @@ bool OpHulls::sectCandidates(int index, const OpEdge& edge) const {
 #endif
 	return true;	// code coverage says this is never reached...
 }
+#endif
 
 // !!! should this have a check to catch infinite loops if caller data isn't resolvable?
 bool OpHulls::nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef which) {
@@ -116,6 +118,7 @@ bool OpHulls::nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef 
 tryAgain:
 		;
 	} while (--safetyCount);
+	OP_ASSERT(0);  // !!! add test that triggers this, if one exists -- treat as error?
 	return false;
 }
 
@@ -139,6 +142,10 @@ EdgePal::EdgePal(OpEdge* e, bool r  OP_DEBUG_PARAMS(int uID))
 	, edgeInsideT(OpNaN)
 	, reversed(r) {
 	OP_DEBUG_CODE(debugUID = uID);
+}
+
+OpPoint EdgePal::matchPt(EdgeMatch m) const {
+	return edge->ptT(reversed ? !m : m).pt;
 }
 
 // called when creating edge for curve curve intersection building
@@ -240,6 +247,7 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e  OP_LINE_FILE_
 OpEdge::OpEdge(OpSegment* seg, float t1, float t2  OP_LINE_FILE_ARGS())
 	: OpEdge() {
 	OP_LINE_FILE_SET(debugSetMaker);
+	OP_DEBUG_CODE(debugParentID = seg->id);
 	segment = seg;
 	startT = t1;
 	endT = t2;
@@ -265,69 +273,19 @@ void OpEdge::addPal(const EdgePal& dist) {
 
 // given an intersecting ray and edge t, add or subtract edge winding to sum winding
 // but don't change edge's sum, since an unsectable edge does not allow that accumulation
-#if WINDER_CONTOUR_EXPERIMENT
-CalcFail OpEdge::addSub(OpContour* winderOwner, Axis axis, float edgeInsideT, OpWinding* sumWinding) const 
-#else
-CalcFail OpEdge::addSub(Axis axis, float edgeInsideT, OpWinding* sumWinding) const 
-#endif
+CalcFail OpEdge::addSub(OpContour* winderOwner, Axis axis, float edgeInsideT, 
+		OpWinding* sumWinding) const 
 {
-#if WINDER_CONTOUR_EXPERIMENT
 	OpWinding adjust(WindingUninitialized::dummy);
-	bool hasAdjustment = adjustWinding(winderOwner, &adjust);
-#endif
 	NormalDirection NdotR = normalDirection(axis, edgeInsideT);
-	if (NormalDirection::upRight == NdotR) {
+	if (NormalDirection::upRight == NdotR)
 		sumWinding->add(context(), winding);
-#if WINDER_CONTOUR_EXPERIMENT
-		if (hasAdjustment)
-			sumWinding->subtract(context(), adjust);
-#endif
-	 } else if (NormalDirection::downLeft == NdotR) {
+	else if (NormalDirection::downLeft == NdotR)
 		sumWinding->subtract(context(), winding);
-#if WINDER_CONTOUR_EXPERIMENT
-		if (hasAdjustment)
-			sumWinding->add(context(), adjust);
-#endif
-	 } else
+	else
 		OP_DEBUG_FAIL(*this, CalcFail::fail);
 	return CalcFail::none;
 }
-
-#if WINDER_CONTOUR_EXPERIMENT
-// !!! if the contours are properly sorted: under what conditions is this needed?
-bool OpEdge::adjustWinding(OpContour* homeOwner, OpWinding* adjustment) const {
-	return false; // !!! disable this to discover what bug it exposes
-#if 0
-	OpContour* thisOwner = segment->contour->winderOwner;
-	if (thisOwner == homeOwner)
-		return false;
-	if (1 >= ray.distances.size())
-		return false;
-	std::vector<OpContour*>& thisSects = thisOwner->sects;
-	std::vector<OpContour*>& homeSects = homeOwner->sects;
-	if (std::includes(homeSects.begin(), homeSects.end(), thisSects.begin(), thisSects.end()))
-		return false;
-	auto addWinding = [homeSects, adjustment](OpContour* oppContour, OpWinding& oppWinding, bool flip) {
-		if (homeSects.end() == std::find(homeSects.begin(), homeSects.end(), oppContour)) {
-			adjustment->zeroUninitialized(oppContour->context, oppWinding);
-			adjustment->move(oppContour->context, oppWinding, flip);
-		}
-	};
-	// for every ray contributor, and every coin: if not from local sect contours, add winding
-	for (const EdgePal& edgePal : ray.distances) {
-		OpEdge* edge = edgePal.edge;
-		for (auto& coinPal : edge->coinPals) {
-			addWinding(coinPal.opp->contour, coinPal.opp->winding, coinPal.coinID > 0);
-		}
-		// if edge has coin, accumulate edge if coin is common to home and edge is not (and is this)
-		addWinding(edge->segment->contour, edge->winding, edgePal.reversed);
-		if (edge == this)
-			break;
-	}
-	return adjustment->isSet();
-#endif
-}
-#endif
 
 OpEdge* OpEdge::advanceToEnd(EdgeMatch match) {
 	OP_ASSERT(!debugIsLoop(match));
@@ -407,6 +365,12 @@ void OpEdge::calcCenterT() {
 	OP_ASSERT(OpMath::Between(ptBounds.top, center.pt.y, ptBounds.bottom));
 }
 
+void OpEdge::ccInit(bool overlaps) {
+	ccOverlaps = overlaps;
+	startOpp.t = OpNaN;
+	endOpp.t = OpNaN;
+}
+
 void OpEdge::clearActiveAndPals(OP_LINE_FILE_NP_ARGS()) {
 	setActive(false);
 	for (auto& pal : pals) {
@@ -415,19 +379,13 @@ void OpEdge::clearActiveAndPals(OP_LINE_FILE_NP_ARGS()) {
 		pal.edge->setActive(false);
 		pal.edge->setDisabled(OP_LINE_FILE_NP_CARGS());
 	}
-#if WINDER_CONTOUR_EXPERIMENT
 	clearLastEdge(InOutput::no);
-#else
-	clearLastEdge();
-#endif
 }
 
 void OpEdge::clearLastEdge(InOutput inOut) {
-#if WINDER_CONTOUR_EXPERIMENT
 	if (!lastEdge)
 		return;
 	lastEdge->segment->contour->removeLast(this, inOut);
-#endif
 	lastEdge = nullptr;
 }
 
@@ -443,17 +401,12 @@ void OpEdge::complete(OpPoint startPoint, OpPoint endPoint) {
 	OP_ASSERT(startT < endT);
 	subDivide(startPoint, endPoint);	// uses already computed points stored in edge
 	winding.setWind(segment->winding);
+	OP_DEBUG_IMAGE_CODE(debugDraw = true);  // don't draw until it is fully initialized
 }
 
-#if 0
-OpContext* OpEdge::contours() const {
-	return segment->contour->contours;
-}
-#else
 OpContext* OpEdge::context() const {
 	return segment->contour->context; 
 }
-#endif
 
 // !!! either: implement 'stamp' that puts a unique # on the edge to track if it has been visited;
 // or, re-walk the chain from this (where the find is now) to see if chain has been seen
@@ -510,12 +463,10 @@ void OpEdge::markPals() {
 OpEdge* OpEdge::nextOut() {
 	inOutput = true;
 	clearActiveAndPals(OP_LINE_FILE_NPARGS());
-#if WINDER_CONTOUR_EXPERIMENT
 	if (linkHead) {
 		segment->contour->removeLink(this);
 		linkHead = false;
 	}
-#endif
 	inLinkups = false;
 	OP_DEBUG_IMAGE_CODE(if (!debugCustom) debugColor = orange);
 	return nextEdge;
@@ -584,20 +535,12 @@ void OpEdge::output(bool closed) {
 	if (reverse) {
 		if (priorEdge) {
 			OP_ASSERT(debugIsLoop());
-#if WINDER_CONTOUR_EXPERIMENT
 			setLastEdge(this, priorEdge, InOutput::yes);
-#else
-			lastEdge = priorEdge;
-#endif
 			lastEdge->nextEdge = nullptr;
 			priorEdge = nullptr;
 		}
 		edge = lastEdge;
-#if WINDER_CONTOUR_EXPERIMENT
 		edge->setLinkDirection(EdgeMatch::none, nullptr, InOutput::yes);
-#else
-		edge->setLinkDirection(EdgeMatch::none);
-#endif
 		firstEdge = nullptr;
 	} else
 		edge = this;
@@ -626,24 +569,6 @@ void OpEdge::setActive(bool state) {
 	active_impl = state;
 }
 
-#if 0
-OpPtT OpEdge::ptTCloseTo(OpPtT oPtPair, const OpPtT& ptT) const {
-	OpVector unitTan = segment->c.tangent(ptT.t);
-	OpVector tan = unitTan.setLength(sqrtf(oPtPair.t));
-	if (1 == ptT.t)
-		tan = -tan;
-	OpPoint testPt = ptT.pt + tan;
-	if (!ptBounds.contains(testPt))
-		return center;
-	// use unit tan to pass correct axis to find pt t
-	Axis axis = fabsf(unitTan.dx) > fabsf(unitTan.dy) ? Axis::vertical : Axis::horizontal; 
-	float resultT = segment->findAxisT(axis, startT, endT, testPt.choice(axis));
-	if (!OpMath::IsNaN(resultT))
-		return OpPtT(segment->c.ptAtT(resultT), resultT);
-	return center;
-}
-#endif
-	
 // should be inlined. Out of line for ease of setting debugging breakpoints
 void OpEdge::setDisabled(OP_LINE_FILE_NP_ARGS()) {
 	disabled = true; 
@@ -657,21 +582,13 @@ void OpEdge::setDisabledZero(OP_LINE_FILE_NP_ARGS()) {
 }
 
 OpEdge* OpEdge::setLastEdge() {
-#if !WINDER_CONTOUR_EXPERIMENT
-	clearLastEdge();
-#endif
 	OpEdge* linkStart = advanceToEnd(EdgeMatch::start);
 	OpEdge* linkEnd = advanceToEnd(EdgeMatch::end);
-#if WINDER_CONTOUR_EXPERIMENT
 	if (linkStart->lastEdge != linkEnd)
 		linkStart->setLastEdge(linkStart, linkEnd, InOutput::no);
-#else
-	linkStart->lastEdge = linkEnd;
-#endif
 	return linkEnd;
 }
 
-#if WINDER_CONTOUR_EXPERIMENT
 void OpEdge::setLastEdge(OpEdge* first, OpEdge* last, InOutput inOut) {
 	OpContour* oldContour = lastEdge ? lastEdge->segment->contour : nullptr;
 	OP_ASSERT(InOutput::yes == inOut || !first->lastEdge || first->lastEdge == last);
@@ -688,25 +605,17 @@ void OpEdge::setLastEdge(OpEdge* first, OpEdge* last, InOutput inOut) {
 		newContour->addLast(this);
 	setLinkBounds();
 }
-#endif
 
 // this sets up the edge linked list to be suitable for joining another linked list
 // the edits are nondestructive 
 bool OpEdge::setLastLink(EdgeMatch match) {
 	if (!priorEdge && !nextEdge) {
-#if WINDER_CONTOUR_EXPERIMENT
-//		clearLastEdge();	// !!! don't know if this is needed or not
-#endif
 		lastEdge = this;
 		setWhich(match);
 		return false;
 	} 
 	if (!lastEdge)
-#if WINDER_CONTOUR_EXPERIMENT
 		return setLinkDirection(EdgeMatch::end, nullptr, InOutput::no);
-#else
-		return setLinkDirection(EdgeMatch::end);
-#endif
 	if (lastEdge == this) {
 		if (EdgeMatch::end == match && EdgeMatch::start == which())
 			setWhich(EdgeMatch::end);
@@ -734,12 +643,7 @@ OpPointBounds OpEdge::setLinkBounds() {
 
 // reverses link walk
 // if the edge chain is one long, match is required to know if it must be reversed
-#if WINDER_CONTOUR_EXPERIMENT
-bool OpEdge::setLinkDirection(EdgeMatch match, std::vector<OpEdge*>* linkErasures, InOutput inOut) 
-#else
-bool OpEdge::setLinkDirection(EdgeMatch match) 
-#endif
-{
+bool OpEdge::setLinkDirection(EdgeMatch match, std::vector<OpEdge*>* linkErasures, InOutput inOut) {
 	if (EdgeMatch::start == match && lastEdge)	// !!! this requires that lastEdge only be at start
 		return false;
 	OpEdge* edge = this;
@@ -750,13 +654,8 @@ bool OpEdge::setLinkDirection(EdgeMatch match)
 	}
 	std::swap(edge->priorEdge, edge->nextEdge);
 	edge->setWhich(!edge->which());
-#if WINDER_CONTOUR_EXPERIMENT
 	edge->clearLastEdge(inOut);
-#else
-	edge->clearLastEdge();
-#endif
 	lastEdge = edge;
-#if WINDER_CONTOUR_EXPERIMENT
 	if (edge->linkHead && linkErasures) {
 #if OP_DEBUG_VALIDATE
 		edge->debugScheduledForErasure = true;
@@ -765,7 +664,6 @@ bool OpEdge::setLinkDirection(EdgeMatch match)
 	}
 	if (InOutput::no == inOut)
 		edge->segment->contour->addLast(this);
-#endif
 	return true;
 }
 
@@ -802,15 +700,6 @@ void OpEdge::setWhich(EdgeMatch m) {
 	whichEnd_impl = m;
 }
 
-#if WINDER_CONTOUR_EXPERIMENT
-void OpEdge::subAdjust(OpContour* winderOwner, OpWinding* accumulator) const {
-	OpWinding adjust(WindingUninitialized::dummy);
-	bool hasAdjustment = adjustWinding(winderOwner, &adjust);
-	if (hasAdjustment)
-		accumulator->subtract(context(), adjust);
-}
-#endif
-
 // use already computed points stored in edge
 void OpEdge::subDivide(OpPoint startPoint, OpPoint endPoint) {
 	id = segment->nextID();
@@ -829,22 +718,13 @@ void OpEdge::subDivide(OpPoint startPoint, OpPoint endPoint) {
 	}
 }
 
-#if WINDER_CONTOUR_EXPERIMENT
-CalcFail OpEdge::subIfDL(OpContour* winderOwner, Axis axis, float edgeInsideT, OpWinding* sumWinding) const 
-#else
-CalcFail OpEdge::subIfDL(Axis axis, float edgeInsideT, OpWinding* sumWinding) const 
-#endif
+CalcFail OpEdge::subIfDL(OpContour* winderOwner, Axis axis, float edgeInsideT, 
+		OpWinding* sumWinding) const 
 {
 	NormalDirection NdotR = normalDirection(axis, edgeInsideT);
-	if (NormalDirection::downLeft == NdotR) {
+	if (NormalDirection::downLeft == NdotR)
 		sumWinding->subtract(context(), winding);
-#if WINDER_CONTOUR_EXPERIMENT
-		OpWinding adjust(WindingUninitialized::dummy);
-		bool hasAdjustment = adjustWinding(winderOwner, &adjust);
-		if (hasAdjustment)
-			sumWinding->add(context(), adjust);
-#endif
-	} else if (NormalDirection::upRight != NdotR)
+	else if (NormalDirection::upRight != NdotR)
 		OP_DEBUG_FAIL(*this, CalcFail::fail);
 	return CalcFail::none;
 }
@@ -877,11 +757,7 @@ void OpEdge::unlink() {
 #endif
 	priorEdge = nullptr;
 	nextEdge = nullptr;
-#if WINDER_CONTOUR_EXPERIMENT
 	clearLastEdge(InOutput::no);
-#else
-	clearLastEdge();
-#endif
 	setWhich(EdgeMatch::start);  // !!! should this set to none?
 }
 

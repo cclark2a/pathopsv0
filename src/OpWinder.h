@@ -70,10 +70,6 @@ struct OpWinder {
 	FoundIntercept findRayIntercept(OpVector tangent, float normal, float homeCept);
 	void markUnsortable(Unsortable );
 	OpEdge* nextTarget(float homeCept);
-#if 0 // WINDER_CONTOUR_EXPERIMENT
-	// too specialized; needs to consider all edges in ray, not just coin pals pointed to by edge
-	OpEdge* partiallyCoincident(OpEdge *);  // returns partially coincident prior edge on ray 
-#endif
 	void resetTarget();
 	ChainFail setSumChain();
 	void setTarget();
@@ -85,13 +81,6 @@ struct OpWinder {
 #include "OpDebugDeclarations.h"
 #endif
 
-#if WINDER_CONTOUR_EXPERIMENT  // instead, pass edge list to functions that need it
-	// std::vector<OpEdge*>* inXPtr;
-	// std::vector<OpEdge*>* inYPtr;
-#else
-	std::vector<OpEdge*> inX;
-	std::vector<OpEdge*> inY;
-#endif
 	std::vector<OpTarget> targets;
 	std::vector<OpEdge*>* targetEdges;
 	OpRect chainBounds;

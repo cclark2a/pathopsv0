@@ -124,6 +124,7 @@ struct OpSegment {
 	bool simpleEnd(const OpEdge* ) const;  // true if edge end connects to only one segment
 	bool simpleStart(const OpEdge* ) const;  // true if edge start connects to only one segment
 	OpVector threshold() const;
+	float thresholdLength() const;
 	void transferCoins();
 //    void windCoincidences();
 

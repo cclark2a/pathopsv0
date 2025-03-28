@@ -10,7 +10,6 @@
 #define TEST_RASTER 0  // work-in-progress to verify correctness (buggy)
 #endif
 #define OP_INTERACTIVE 0  // out of date
-#define WINDER_CONTOUR_EXPERIMENT 1 // move inX, inY from OpWinder to OpContour for contour callback
 #define TEST_DEFEAT_BREAK 1
 
 #endif
