@@ -47,6 +47,7 @@ struct OpDebugImage {
 	static void addToPath(const OpCurve& , class SkPath& );
 	static bool bitsAreBlank(bool allowIntersect, SkRect& test);
 	static void center(int id, bool add);
+	static void centerT(int id, float t);
 	static void clearIntersections();
 	static void clearLines();
 	static void clearPoints();
@@ -124,6 +125,9 @@ extern void ctr(const OpRect* );
 extern void ctr(const OpPoint* );
 extern void ctr(const OpPtT* );
 extern void ctr(const OpSegment* );
+extern void ctrT(int id, float t);
+extern void ctrT(const OpEdge* , float t);
+extern void ctrT(const OpEdge& , float t);
 extern void clear();
 extern void clearLines();
 extern void clearPoints();

@@ -62,19 +62,27 @@ enum class EdgeFail : uint8_t {
 	vertical,
 };
 
+enum class RayOrder : uint8_t {
+	uninitialized,
+	ok,
+	unordered,  // informative - unsectable could have been noted here
+	tooClose,    // actionable - find another ray that is unambiguous
+};
+
 struct EdgePal {
 	EdgePal(OpEdge* e, float c, float tIn, bool r);  // called when winder can't resolve order
-	EdgePal(OpEdge* e, bool r  OP_DEBUG_PARAMS(int uID)); // called when edge maker is between unsectables
+	EdgePal(OpEdge* e, bool r  OP_DEBUG_PARAMS(int uID)); //  when edge maker is between unsectables
 	OpPoint matchPt(EdgeMatch ) const;
 
 #if OP_DEBUG_DUMP
-	EdgePal() {}
+	EdgePal();
 	DUMP_DECLARATIONS
 #endif
 
 	OpEdge* edge;
 	float cept;  // where normal intersects edge (e.g. for home, axis horz: center.x)
 	float edgeInsideT;  // !!! t value from 0 to 1 within edge range (seems bizarre)
+	RayOrder rayOrder;  // note if computed sum can't be used because distance entries are unordered
 	bool reversed;
 	OP_DEBUG_CODE(int debugUID);  // unsect id from sect in edge's segment
 };
@@ -107,11 +115,11 @@ struct SectRay {
 	{
 	}
 	void addPals(OpEdge* );
-	bool checkOrder(const OpEdge* ) const;
+	RayOrder checkOrder(const OpEdge* );
 	const EdgePal* end(DistEnd e) const {
 		return DistEnd::front == e ? &distances.front() : &distances.back(); }
 	FindCept findIntercept(OpEdge* home, OpEdge* test);
-	const EdgePal* find(const OpEdge* ) const;  // returns edge in distances
+	EdgePal* find(const OpEdge* );  // returns edge in distances
 	const EdgePal* next(const EdgePal* dist, DistEnd e) const {
 		return dist + (int) e; }
 	bool sectsAllPals(const OpEdge* ) const;  // returns if edge + all of its pals are in distances
@@ -138,24 +146,30 @@ enum class SectType {
 
 // intersections of opposite curve's hull and this edge's segment
 struct HullSect {
-	HullSect(const OpPtT& ptT, float dist, SectType st, const OpEdge* o)
+	HullSect(const OpEdge* o, const OpPtT& ptT, SectType st)
 		: opp(o)
 		, sect(ptT)
-		, oppDist(dist)
+		, oppPtT(SetToNaN::dummy)
+		, oppDist(OpNaN)
 		, type(st) {
 	}
+
+	void setOpp(const OpPtT* oPtT, float oDist) {
+		oppPtT = *oPtT; oppDist = oDist; }
+
 #if OP_DEBUG_DUMP
 	HullSect() {}
 	DUMP_DECLARATIONS
 #endif
 	const OpEdge* opp;
 	OpPtT sect;			// point and t of intersection with hull on this edge
-	float oppDist;		// if ptT came from edge end: the distance from there to the opposite curve
+	OpPtT oppPtT;		// if sect came from edge end: the point closest on the opposite curve
+	float oppDist;		// if sect came from edge end: the distance from there to the opposite curve
 	SectType type;		// separate from match: intersection origin (or near origin)
 };
 
 struct OpHulls {
-	bool add(const OpPtT& ptT, OpVector threshold, float dist, SectType st, 
+	bool add(const OpPtT& ptT, OpVector threshold, const OpPtT* oPtT, float dist, SectType st, 
 			const OpEdge* o = nullptr);
 	void clear() { h.clear(); }
 	bool nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef which);
@@ -239,6 +253,7 @@ private:
 		, winding(WindingUninitialized::dummy)
 		, sum(WindingUninitialized::dummy)
 		, many(WindingUninitialized::dummy)
+		, ccUnsectID(0)
 		, whichEnd_impl(EdgeMatch::none)
 		, rayFail(EdgeFail::none)
 		, windZero(WindZero::unset)
@@ -272,6 +287,7 @@ private:
 		debugParentID = 0;
 		debugDepth = 0;
 		debugRayMatch = 0;
+		debugUnordered = false;
 #endif
 #if OP_DEBUG_DUMP
 		dumpContours = nullptr;
@@ -423,6 +439,7 @@ public:
 	OpPtT startOpp;	// opp pt at distance (uninitialized; may be unused)
 	OpPtT endOpp;
 	int id;
+	int ccUnsectID;  // filler made to connect pair of unsectables
 	EdgeMatch whichEnd_impl;  // if 'start', prior end equals start; if 'end' prior end matches end
 	EdgeFail rayFail;   // how computation (e.g., center) failed (on fail, windings are set to zero)
 	WindZero windZero;  // zero: edge normal points to zero side (the exterior of the loop)
@@ -448,6 +465,7 @@ public:
 	int debugParentID;
 	int debugDepth;  // depth of curve-curve when edge was created
 	mutable int debugRayMatch;	// id: edges in common output contour determined from ray
+	bool debugUnordered;  // set if check order detected some rays are out of order
 #endif
 #if OP_DEBUG_DUMP
 	OpContext* dumpContours;  // temporary edges don't have segment ptrs when unflattened
@@ -485,6 +503,7 @@ struct OpEdgeStorage {
 	}
 	bool contains(OpIntersection* start, OpIntersection* end) const;
 	bool contains(OpPoint start, OpPoint end) const;
+	bool contains(int ccUnsectableID) const;
 	void reuse();
 #if OP_DEBUG_DUMP
 	int debugCount() const;

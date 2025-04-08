@@ -1327,9 +1327,16 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 		s.pop_back();
 		s += "]\n";
 	}
-	if (disabledEdges.size()) {
-		s += "disabled[";
-		for (OpEdge* e : disabledEdges)
+	if (disabledBackwards.size()) {
+		s += "disabledBackwards[";
+		for (OpEdge* e : disabledBackwards)
+			s += STR(e->id) + " ";
+		s.pop_back();
+		s += "]\n";
+	}
+	if (disabledCenterless.size()) {
+		s += "disabledCenterless[";
+		for (OpEdge* e : disabledCenterless)
 			s += STR(e->id) + " ";
 		s.pop_back();
 		s += "]\n";
@@ -1366,10 +1373,12 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 	s += "treeID[" + STR(treeID) + "] ";
 //	if (containsSects)
 //		s += "containsSects ";
-	if (disabledBuilt)
-		s += "disabledBuilt ";
-	if (disabledPalsBuilt)
-		s += "disabledPalsBuilt ";
+	if (backwardsBuilt)
+		s += "backwardsBuilt ";
+	if (centerlessBuilt)
+		s += "centerlessBuilt ";
+	if (palsBuilt)
+		s += "palsBuilt ";
 	if (isXSorted)
 		s += "isXSorted ";
 	if (isYSorted)
@@ -1754,7 +1763,8 @@ ENUM_NAME(Axis, axis)
 	OP_X(ParentID) \
 	OP_X(Depth) \
 	OP_X(RayMatch) \
-	OP_X(Filler)
+	OP_X(Filler) \
+	OP_X(Unordered)
 
 #define EDGE_IMAGE \
 	OP_X(Color) \
@@ -2117,6 +2127,17 @@ static UnsortableName unsortableNames[] = {
 
 ENUM_NAME(Unsortable, unsortable)
 
+ENUM_NAME_STRUCT(RayOrder);
+#define RAYORDER_NAME(w) { RayOrder::w, #w }
+
+static RayOrderName rayOrderNames[] = {
+	RAYORDER_NAME(uninitialized),
+	RAYORDER_NAME(ok),
+	RAYORDER_NAME(unordered),
+	RAYORDER_NAME(tooClose),
+};
+
+ENUM_NAME(RayOrder, rayOrder)
 
 std::string EdgePal::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
@@ -2129,6 +2150,8 @@ std::string EdgePal::debugDump(DebugLevel l, DebugBase b) const {
         s += debugValue(l, b, "cept", cept) + " ";
     if (!OpMath::IsNaN(edgeInsideT))
         s += debugValue(l, b, "edgeInsideT", edgeInsideT) + " ";
+    if (RayOrder::uninitialized != rayOrder)
+		s += "rayOrder:" + rayOrderName(rayOrder) + " ";
     if (reversed) 
         s += DebugLevel::detailed == l ? "reversed " : "r ";
     if (debugUID)
@@ -2312,6 +2335,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     s += strID(EF::debugParentID, "debugParentID", debugParentID);
     s += strID(EF::debugDepth, "debugDepth", debugDepth);
     s += strID(EF::debugRayMatch, "debugRayMatch", debugRayMatch);
+	STR_BOOL(debugUnordered);
 #endif
 #if OP_DEBUG_IMAGE
     if (dumpIt(EF::debugColor) && (dumpAlways(EF::debugColor) || debugBlack != debugColor))
@@ -3050,11 +3074,15 @@ std::string OpContour::debugDumpJoin(DebugLevel l, DebugBase b) const {
     };
     dumpEdgeIDs(byArea, "byArea");
     dumpEdgeIDs(unsectByArea, "unsectByArea");
-	if (!disabledBuilt && DebugLevel::detailed == l)
-		s += "disabled (not built)\n";
+	if (!backwardsBuilt && DebugLevel::detailed == l)
+		s += "disabledBackwards (not built)\n";
     else
-		dumpEdgeIDs(disabledEdges, "disabledEdges");
-	if (!disabledPalsBuilt && DebugLevel::detailed == l)
+		dumpEdgeIDs(disabledBackwards, "disabledBackwards");
+	if (!centerlessBuilt && DebugLevel::detailed == l)
+		s += "disabledCenterless (not built)\n";
+    else
+		dumpEdgeIDs(disabledCenterless, "disabledCenterless");
+	if (!palsBuilt && DebugLevel::detailed == l)
 		s += "disabledPals (not built)\n";
 	else
 		dumpEdgeIDs(disabledPals, "disabledPals");
@@ -3128,11 +3156,15 @@ LimbPassName limbPassNames[] = {
 	LIMBPASS_NAME(linked),
     LIMBPASS_NAME(unlinked),
     LIMBPASS_NAME(unsectPair),
-	LIMBPASS_NAME(disabled),
+	LIMBPASS_NAME(disabledCenterless),
 	LIMBPASS_NAME(disabledPals),
 	LIMBPASS_NAME(miswound),
 	LIMBPASS_NAME(disjoint),
     LIMBPASS_NAME(unlinkedPal),
+	LIMBPASS_NAME(disabledBackwards),
+#if OP_DEBUG
+	LIMBPASS_NAME(debugStop),
+#endif
 };
 
 ENUM_NAME(LimbPass, limbPass)

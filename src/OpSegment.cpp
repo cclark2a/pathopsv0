@@ -58,7 +58,7 @@ OpSegment::OpSegment(PathOpsV0Lib::Contour* libContour, PathOpsV0Lib::AddCurve a
 
 // activeNeighbor is called separately because this iterates through opposite intersections only
 // returns true if any found edge is a pal
-bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<FoundEdge>& oppEdges
+bool OpSegment::activeAtT(OpEdge* edge, EdgeMatch match, std::vector<FoundEdge>& oppEdges
 		) const {
 	unsigned edgesSize = (unsigned) oppEdges.size();
 	OP_ASSERT(!edge->disabled);
@@ -82,7 +82,7 @@ bool OpSegment::activeAtT(const OpEdge* edge, EdgeMatch match, std::vector<Found
 				zeroSide = !zeroSide;
 			return zeroSide;
 		};
-		auto isSortable = [](const OpEdge* e, const OpEdge* o) {
+		auto isSortable = [](const OpEdge* e, OpEdge* o) {
 			if (Unsortable::none != e->isUnsortable)
 				return false;
 			if (!e->isUnsectable())
@@ -531,7 +531,11 @@ void OpSegment::fixCCSects() {
 	}
 	OpVector segTan = c.lastPt() - c.firstPt();
 	OP_ASSERT(sects.i.size() > 2);
+	// skip sects until sect point changes
 	OpIntersection* prior = sects.i[0];
+	start here;
+	// rework to advance while points are equal
+	// still, if any are cc sect, check for move?
 	OpIntersection* last = sects.i[1];
 	for (size_t index = 2; index < sects.i.size(); ++index) {
 		OpIntersection* sect = sects.i[index];
@@ -544,8 +548,10 @@ void OpSegment::fixCCSects() {
 				continue;
 			float priorDistSq = priorV.lengthSquared();
 			float nextDistSq = nextV.lengthSquared();
+			// move sects may collapse / erase intersections; so restart fix afterwards
 			sects.moveSects(last->ptT, priorDistSq < nextDistSq ? prior->ptT.pt : sect->ptT.pt,
 					MoveSects::zeroAll);
+			OpNop();
 		}
 		prior = last;
 		last = sect;

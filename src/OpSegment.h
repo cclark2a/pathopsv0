@@ -67,7 +67,7 @@ struct SegPt {
 
 struct OpSegment {
 	OpSegment(PathOpsV0Lib::Contour* , PathOpsV0Lib::AddCurve);
-	bool activeAtT(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const; // true if pal
+	bool activeAtT(OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const; // true if pal
 	bool activeNeighbor(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const; // true if pal
 	void addAlias(OpPoint original, OpPoint alias);
 	void addDisjointIntersections();

@@ -306,10 +306,9 @@ OpPoint OpCurve::ptAtT(float t) const {
 	if (1 == t)
 		return c.data->end;
 	PathOpsV0Lib::PtAtT funcPtr = contours->callback(c.type).ptAtTFuncPtr;
-	if (!funcPtr)
-		return (1 - t) * c.data->start + t * c.data->end;
-	OpPoint result = (*funcPtr)(c, t);
+	OpPoint result = funcPtr ? (*funcPtr)(c, t) : (1 - t) * c.data->start + t * c.data->end;
 	// !!! required by release_13: but, should caller's point at T function do the pinning?
+	// !!! counterpoint: loop8846 requires pinning on horizontal line (there's no function to call)
 	result.pin(c.data->start, c.data->end);
 	return result;
 }

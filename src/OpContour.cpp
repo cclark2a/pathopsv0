@@ -563,6 +563,12 @@ bool OpContext::containsFiller(OpPoint start, OpPoint end) const {
 	return fillerStorage->contains(start, end);
 }
 
+bool OpContext::containsFiller(int ccUnsectableID) const {
+	if (!fillerStorage)
+		return false;
+	return fillerStorage->contains(ccUnsectableID);
+}
+
 void OpContext::disableSmallSegments() {
 	SegmentIterator segIterator(this);
 	while (OpSegment* seg = segIterator.next()) {
@@ -601,6 +607,11 @@ OpLimb& OpContext::nthLimb(int index) {
 	}
 	index &= ~blockBase;
 	return limbCurrent->storage[index];
+}
+
+void OpContext::resetFiller() {
+	release(fillerStorage);
+	fillerStorage = nullptr;
 }
 
 void OpContext::resetLimbs() {

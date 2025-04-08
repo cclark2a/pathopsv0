@@ -68,11 +68,13 @@ enum class LimbPass : uint8_t {
 	linked,    // in linkups list with correct winding
 	unlinked,  // in unsectByArea and in unsortables
 	unsectPair, // gap to other edge in unsectable pair
-	disabled,  // in disabled
+	disabledCenterless,  // in disabled, and so small no center could be computed
 	disabledPals,  // in disabled pals
 	miswound,  // in linkups list, including entries with the wrong winding
 	disjoint,  // gap to closest in linkups list, or gap to edge start (loop)
 	unlinkedPal,  // unlinked variant that permits siblings to connect to seen edges' pals
+	disabledBackwards,  // undetected mis-sort may be closable (e.g, loop156850)
+	OP_DEBUG_CODE(debugStop)  // debugging aid when limb pass is advanced past final value
 };
 
 inline LimbPass operator++(LimbPass& limbPass) {
@@ -98,7 +100,6 @@ struct OpLimb {
 		deadEnd = (bool) -1;
 		looped = (bool) -1;
 		resetPass = (bool) -1;
-//		deferredUnsectable = (bool) -1;
 #endif
 		OP_DEBUG_DUMP_CODE(id = 0);
 	}
@@ -128,7 +129,6 @@ struct OpLimb {
 	bool deadEnd;
 	bool looped;
 	bool resetPass;  // when new parent is found, restart limb pass
-//	bool deferredUnsectable;
 
 #if OP_DEBUG_DUMP
 	std::vector<OpLimb*> debugBranches;
@@ -147,7 +147,7 @@ struct OpTree {
 	void addUnsectableLoop(OpJoiner& , OpLimb* );
 	bool contains(OpLimb* , OpEdge* ) const;
 	bool containsFiller(OpLimb* , OpPoint , OpPoint ) const;
-//	bool containsDeferred(OpPoint , OpPoint ) const;
+	bool containsFiller(int ccUnsectableID) const;
 	bool containsParent(OpLimb* , OpEdge* , EdgeMatch ) const;
 	void initialize(OpContour& join);
 	bool join(OpJoiner& );
@@ -158,8 +158,6 @@ struct OpTree {
 	DUMP_DECLARATIONS
 	OP_DEBUG_IMAGE_CODE(void debugLimbEdges(OpEdge*);)  // ; outside errors
 
-//	OpLimbStorage* limbStorage;
-//	OpLimbStorage* current;
 	OpContext* context;
 	OpLimb* bestGapLimb;  // used only by detached pass
 	const OpLimb* bestLimb;   // index into limbStorage
@@ -168,10 +166,8 @@ struct OpTree {
 	float bestDistance;  // used only by detached pass
 	float bestPerimeter;
 	int maxLimbs;
-//	int baseIndex;
 	int totalUsed;
 	int id;
-	bool deferUnsectable;
 };
 
 struct OpLimbStorage {

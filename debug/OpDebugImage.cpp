@@ -777,6 +777,11 @@ void OpDebugImage::center(int id, bool add) {
 		return OpDebugImage::drawDoubleCenter(point, add);
 }
 
+void OpDebugImage::centerT(int id, float t) {
+	if (OpEdge* edge = findEdge(id))
+		OpDebugImage::drawDoubleCenter(edge->curve.ptAtT(t), false);
+}
+
 bool OpDebugImage::find(int id, OpPointBounds* boundsPtr, OpPoint* pointPtr) {
 	if (std::vector<const OpIntersection*> coins = findCoincidence(id); coins.size()) {
 		DRAW_IDS_ON(Coincidences);
@@ -785,7 +790,7 @@ bool OpDebugImage::find(int id, OpPointBounds* boundsPtr, OpPoint* pointPtr) {
 			boundsPtr->add(coin->ptT.pt);
 		return true;
 	}
-	if (OpEdge* edge = const_cast<OpEdge*>(findEdge(id))) {
+	if (OpEdge* edge = findEdge(id)) {
 		edge->debugDraw = true;
 		drawIDsOn = true;
 		*boundsPtr = edge->ptBounds;
@@ -1018,6 +1023,19 @@ void ctr(const OpRect* rect) {
 void ctr(const OpSegment* segment) {
 	ctr(*segment);
 }
+
+void ctrT(int id, float t) {
+	OpDebugImage::centerT(id, t);
+}
+
+void ctrT(const OpEdge& edge, float t) {
+	ctr(edge.id, t);
+}
+
+void ctrT(const OpEdge* edge, float t) {
+	ctrT(*edge, t);
+}
+
 
 void focus(int id) {
 	OpDebugImage::focus(id, false);

@@ -67,8 +67,9 @@ struct OpContour {
 	void addJoinEdge(OpJoiner* , OpEdge* );
 	void addLast(OpEdge* );
 	void addToLinkups(OpJoiner* , OpEdge* );
-	void buildDisabled();
-	void buildDisabledPals();
+	void buildBackwards();
+	void buildCenterless();
+	void buildPals();
 	bool detachIfLoop(OpJoiner* , OpEdge* , EdgeMatch loopEnd);
 	bool isSorted(Axis axis) const { return Axis::horizontal == axis ? isXSorted : isYSorted; }
 	bool joinSetup();
@@ -174,7 +175,8 @@ struct OpContour {
 	// for joiner:
 	std::vector<OpEdge*> byArea;
 	std::vector<OpEdge*> unsectByArea;
-	std::vector<OpEdge*> disabledEdges;
+	std::vector<OpEdge*> disabledBackwards;
+	std::vector<OpEdge*> disabledCenterless;
 	std::vector<OpEdge*> disabledPals;
 	std::vector<OpEdge*> unsortables;
 	LinkUps linkups;
@@ -182,8 +184,9 @@ struct OpContour {
 	OpPointBounds sectBounds;
 	int treeID = 0;  // tracks if contour has been initialized in this tree's context (for edge 'seen')
 //	bool containsSects = true;  // set of sects contains all sects' sects
-	bool disabledBuilt = false;
-	bool disabledPalsBuilt = false;
+	bool backwardsBuilt = false;
+	bool centerlessBuilt = false;
+	bool palsBuilt = false;
 	bool isXSorted = false;
 	bool isYSorted = false;
 	bool disabled = false;
@@ -364,6 +367,7 @@ struct OpContext {
 	}
 
 	bool containsFiller(OpPoint start, OpPoint end) const;
+	bool containsFiller(int ccUnsectableID) const;
 //    WindingData* copySect(const OpWinding& );  // !!! add a separate OpWindingStorage for temporary blocks?
 	void disableSmallSegments();
 
@@ -442,6 +446,7 @@ struct OpContext {
 	bool pathOps();
 	void release(OpEdgeStorage*& );
 	OpPoint remapPts(OpPoint oldAlias, OpPoint newAlias);
+	void resetFiller();
 	void resetLimbs();
 	bool setError(PathOpsV0Lib::ContextError  OP_DEBUG_PARAMS(int id, int id2 = 0));
 	void setSortedBounds();

@@ -7,7 +7,7 @@
 #include <windows.h>
 #endif
 
-int debugPrecision = 8; // -1;		// minus one means unset
+int debugPrecision = 9; // -1 means unset; 9 is special -- leave trailing zeroes (match VS debugger)
 bool debugSmall = true;  // set to false to show sub-epsilon values as ~0
 bool debugEpsilon = false;  // set to true to show values smaller than 100 * OpEpsilon as eps 
 
@@ -134,18 +134,25 @@ std::string OpDebugStr(float value) {
 #else
         result += "\u03B5";  // epsilon (fails on Windows Visual Studio, wrong character encoding)
 #endif
-#if 1    // trim trailing zeroes (useful if precision is -1)
-    size_t pos = result.find('.');
-    if (std::string::npos == pos)
-        return result;
-    pos = result.find('e');
-    if (std::string::npos != pos)
-        return result;
-    while (result.back() == '0')
-        result.pop_back();
-    if (result.back() == '.')
-        result.pop_back();
-#endif
+	// trim trailing zeroes (useful if precision is -1)
+	size_t pos = result.find('.');
+	if (std::string::npos == pos)
+		return result;
+	pos = result.find('e');
+	if (std::string::npos != pos)
+		return result;
+	if (9 != debugPrecision) {
+		while (result.back() == '0')
+			result.pop_back();
+		if (result.back() == '.')
+			result.pop_back();
+	} else {
+		// try to match the Visual Studio debugger output
+		while (result.size() < 10)
+			result += "0";
+		if (fabsf(value) < 1 && result.size() < 11)
+			result += "0";
+	}
     return result;
 }
 
@@ -957,7 +964,7 @@ void OpJoiner::debugValidate() const {
 
 void OpContour::debugValidate(const OpJoiner* joiner) const {
     OpEdge* anEdge = byArea.size() ? byArea[0] : unsectByArea.size() ? unsectByArea[0] : 
-            disabledEdges.size() ? disabledEdges[0] : unsortables.size() ? unsortables[0] :
+            disabledCenterless.size() ? disabledCenterless[0] : unsortables.size() ? unsortables[0] :
             linkups.l.size() ? linkups.l[0] : nullptr;
     if (!anEdge)
         return;
@@ -975,7 +982,7 @@ void OpContour::debugValidate(const OpJoiner* joiner) const {
         e->debugValidate();
         OP_ASSERT(!e->isActive() || !e->debugIsLoop());
     }
-    for (auto e : disabledEdges) {
+    for (auto e : disabledCenterless) {
         e->debugValidate();
 //        OP_ASSERT(!e->debugIsLoop());
     }

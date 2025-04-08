@@ -11,8 +11,8 @@
 // don't add if points are close
 // prefer end if types are different
 // return true if close enough points are ctrl + mid
-bool OpHulls::add(const OpPtT& ptT, OpVector threshold, float dist, SectType sectType,
-		const OpEdge* opp) {	
+bool OpHulls::add(const OpPtT& ptT, OpVector threshold, const OpPtT* oPtT, float dist, 
+			SectType sectType, const OpEdge* opp) {	
 	bool foundNear = false;
 	bool nearEnd = false;
 	for (size_t index = h.size(); index-- != 0; ) {
@@ -27,7 +27,9 @@ bool OpHulls::add(const OpPtT& ptT, OpVector threshold, float dist, SectType sec
 			nearEnd |= SectType::endHull != hSect.type && sectType != hSect.type;
 	}
 	if (!foundNear || SectType::endHull == sectType) {
-		h.emplace_back(ptT, dist, sectType, opp);
+		h.emplace_back(opp, ptT, sectType);
+		if (SectType::endHull == sectType && oPtT && !OpMath::IsNaN(dist))
+			h.back().setOpp(oPtT, dist);
 		return false;
 	}
 	return nearEnd;
@@ -132,6 +134,7 @@ EdgePal::EdgePal(OpEdge* e, float c, float tIn, bool r)
 	: edge(e)
 	, cept(c)
 	, edgeInsideT(tIn)
+	, rayOrder(RayOrder::uninitialized)
 	, reversed(r) {
 	OP_DEBUG_CODE(debugUID = 0);
 }
@@ -140,9 +143,21 @@ EdgePal::EdgePal(OpEdge* e, bool r  OP_DEBUG_PARAMS(int uID))
 	: edge(e)
 	, cept(OpNaN)
 	, edgeInsideT(OpNaN)
+	, rayOrder(RayOrder::uninitialized)
 	, reversed(r) {
 	OP_DEBUG_CODE(debugUID = uID);
 }
+
+#if OP_DEBUG_DUMP
+EdgePal::EdgePal()
+	: edge(nullptr)
+	, cept(OpDebugNaN)
+	, edgeInsideT(OpDebugNaN)
+	, rayOrder((RayOrder) -1)
+	, reversed((bool) -1) {
+	OP_DEBUG_CODE(debugUID = -1);
+}
+#endif
 
 OpPoint EdgePal::matchPt(EdgeMatch m) const {
 	return edge->ptT(reversed ? !m : m).pt;
@@ -207,6 +222,7 @@ OpEdge::OpEdge(OpContext* contours, const OpPtT& start, const OpPtT& end  OP_LIN
 	center.pt = ptBounds.center();
 	setDisabled(OP_LINE_FILE_NPARGS());
 	setUnsortable(Unsortable::filler);
+	OP_DEBUG_IMAGE_CODE(debugDraw = true);
 }
 
 // called from curve curve when splitting edges
@@ -547,8 +563,7 @@ void OpEdge::output(bool closed) {
 	edge->outputLinkedList(firstEdge, true);
 }
 
-void OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first)
-{
+void OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first) {
 	OP_DEBUG_CODE(debugOutPath = curve.contours->debugOutputID);
 	OpEdge* next = nextOut();
 	OpCurve copy = curve;
@@ -794,6 +809,17 @@ bool OpEdgeStorage::contains(OpPoint start, OpPoint end) const {
 	if (!next)
 		return false;
 	return next->contains(start, end);
+}
+
+bool OpEdgeStorage::contains(int ccUnsectableID) const {
+	for (int index = 0; index < used; index++) {
+		const OpEdge* test = &storage[index];
+		if (test->ccUnsectID == ccUnsectableID)
+			return true;
+	}
+	if (!next)
+		return false;
+	return next->contains(ccUnsectableID);
 }
 
 void OpEdgeStorage::reuse() {

@@ -201,58 +201,43 @@ void CcCurves::checkSigns(OpSegment* opp) {
 		float endDist = curve->endDist;
 		EdgeRun run;
 		do {
+			float rangeT = endT - startT;
 			float absStart = fabs(startDist);
 			float absEnd = fabs(endDist);
-			float weight = absStart < absEnd ? 1 - absStart / absEnd / 2 : absEnd / absStart / 2;
-			float midT = startT * weight + endT * (1 - weight);
+			float rangeDist = absStart + absEnd;
+			float weight, midT;
+			if (absStart < absEnd) {
+				weight = absStart / rangeDist;
+				midT = rangeT * weight + startT;
+				if (startT == midT)
+					break;
+			} else {
+				weight = absEnd / rangeDist;
+				midT = endT - rangeT * weight;
+				if (endT == midT)
+					break;
+			}
+
 			run.edgePtT = seg->c.ptTAtT(midT);
 			run.oppPtT = seg->distance(run.edgePtT, opp);
 			run.setOppDist(seg);
-			if (0 == run.oppDist)  // was: startT + OpEpsilon > midT || midT > endT - OpEpsilon || 
+			float error = run.oppDist;
+			if (0 == error) 
 				break;
-			if (OpMath::IsNaN(run.oppDist)) 
+			if (OpMath::IsNaN(error)) 
 				break;
-			// when estimated zero point misses, use the error (distance) to make a better guess
+			// !!! when estimated zero point misses, use the error (distance) to make a better guess
 			// adjust the end further away, to cut down on the possible t range as much as possible
-			// if weight < .5, run pt is closer to start: move end close to 
 
-			if (startDist * run.oppDist < 0) {	// guess too large
-				endDist = run.oppDist;
-				endT = run.edgePtT.t;
-				float guessOffset = (fabs(endDist) / absStart) * (endT - startT);
-				for (;;) {
-					float startGuess = endT - guessOffset;
-					if (startGuess <= startT)
-						break;
-					run.edgePtT = seg->c.ptTAtT(startGuess);
-					run.oppPtT = seg->distance(run.edgePtT, opp);
-					run.setOppDist(seg);
-					if (startDist * run.oppDist >= 0) {
-						startT = startGuess;
-						startDist = run.oppDist;
-						break;
-					}
-					guessOffset *= 2;
-				}
+			// !!! if weight < .5, run pt is closer to start: move end close to guess
+
+			if (startDist * error < 0) {	// guess too large
+				endDist = error;
+				endT = midT;
 			} else {
-				OP_ASSERT(endDist * run.oppDist < 0);
-				startDist = run.oppDist;
-				startT = run.edgePtT.t;
-				float guessOffset = (fabs(startDist) / absEnd) * (endT - startT);
-				for (;;) {
-					float endGuess = startT + guessOffset;
-					if (endGuess >= endT)
-						break;
-					run.edgePtT = seg->c.ptTAtT(endGuess);
-					run.oppPtT = seg->distance(run.edgePtT, opp);
-					run.setOppDist(seg);
-					if (endDist * run.oppDist >= 0) {
-						endT = endGuess;
-						endDist = run.oppDist;
-						break;
-					}
-					guessOffset *= 2;
-				}
+				OP_ASSERT(endDist * error < 0);
+				startDist = error;
+				startT = midT;
 			}
 		} while (startT + OpEpsilon < endT);
 		if (OpMath::IsNaN(run.oppDist)) 
@@ -266,8 +251,14 @@ void CcCurves::checkSigns(OpSegment* opp) {
 			continue;
 		run.edgePtT.pt = midPt;
 		run.oppPtT.pt = midPt;
-		OpIntersection* sect = seg->addSegSect(run.edgePtT, opp  OP_LINE_FILE_PARGS());
-		OpIntersection* oSect = opp->addSegSect(run.oppPtT, seg  OP_LINE_FILE_PARGS());
+		if (seg->sects.contains(run.edgePtT, opp))
+			continue;
+		if (opp->sects.contains(run.oppPtT, seg))
+			continue;
+		OpIntersection* sect = seg->addSegBase(run.edgePtT  OP_LINE_FILE_PARAMS(opp));
+		OpIntersection* oSect = opp->addSegBase(run.oppPtT  OP_LINE_FILE_PARAMS(seg));
+		OP_ASSERT(sect);
+		OP_ASSERT(oSect);
 		sect->pair(oSect);
 	}
 }
@@ -1005,8 +996,8 @@ void OpCurveCurve::findUnsectable() {
 			return;
 		if (opp->sects.contains(limit.opp, seg))
 			return;
-		OpIntersection* sect = seg->addSegSect(limit.seg, opp  OP_LINE_FILE_PARGS());
-		OpIntersection* oSect = opp->addSegSect(limit.opp, seg  OP_LINE_FILE_PARGS());
+		OpIntersection* sect = seg->addSegBase(limit.seg  OP_LINE_FILE_PARAMS(opp));
+		OpIntersection* oSect = opp->addSegBase(limit.opp  OP_LINE_FILE_PARAMS(seg));
 		sect->pair(oSect);
 	};
 	float lastT = limits[0].seg.t;
@@ -1378,7 +1369,7 @@ void OpCurveCurve::setHullSects(OpEdge& edge, OpEdge& oppEdge, CurveRef curveRef
 			sectPtT.t = OpMath::Interp(edge.startT, edge.endT, sectPtT.t);
 			OP_ASSERT(edge.startT <= sectPtT.t && sectPtT.t <= edge.endT);
 			// if pt is close to existing hull sect, and both are not end, record intersection
-			if (edge.hulls.add(sectPtT, context->threshold(), OpNaN, sectType, &oppEdge)) {
+			if (edge.hulls.add(sectPtT, context->threshold(), nullptr, OpNaN, sectType, &oppEdge)) {
 				OpSegment* oSeg = oppEdge.segment;
 				OpPtT oppPtT { oSeg->c.ptTAtT(oSeg->findValidT(0, 1, sectPtT.pt))};
 				if (!oppPtT.pt.isFinite())
@@ -1530,8 +1521,8 @@ bool OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 #endif
 		}
 		OP_DEBUG_VALIDATE_CODE(hulls.debugValidate());
-		hulls.add(edge.start(), threshold, edge.startDist, SectType::endHull);
-		hulls.add(edge.end(), threshold, edge.endDist, SectType::endHull);
+		hulls.add(edge.start(), threshold, &edge.startOpp, edge.startDist, SectType::endHull);
+		hulls.add(edge.end(), threshold, &edge.endOpp, edge.endDist, SectType::endHull);
 		if (!hulls.nudgeDeleted(edge, *this, which))
 			return false;  // soft error; give up on this intersection
 		size_t splitCount = splits.c.size();
@@ -1551,10 +1542,14 @@ bool OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 			if (split->disabled)
 				continue;
 			split->ccInit(true);
-			split->startDist = hullLo.oppDist;
-			split->startOpp = hullLo.sect;
-			split->endDist = hullHi.oppDist;
-			split->endOpp = hullHi.sect;
+			if (!OpMath::IsNaN(hullLo.oppPtT.t)) {
+				split->startDist = hullLo.oppDist;
+				split->startOpp = hullLo.oppPtT;
+			}
+			if (!OpMath::IsNaN(hullHi.oppPtT.t)) {
+				split->endDist = hullHi.oppDist;
+				split->endOpp = hullHi.oppPtT;
+			}
 			split->ccStart = edge.ccStart && edge.start().isNearly(split->start(), threshold);
 			if (split->ccStart)
 				split->ccSmall = edge.ccSmall;

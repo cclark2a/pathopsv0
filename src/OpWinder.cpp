@@ -93,23 +93,34 @@ void SectRay::addPals(OpEdge* home) {
 		addIfFlipped(DistEnd::back);
 }
 
-bool SectRay::checkOrder(const OpEdge* home) const {
-	for (const EdgePal* dist = &distances.front(); (dist + 1)->edge != home; ++dist) {
+// check if pair of rays contributing to home are reversed from their own ray order (informative)
+// check if distance adjacent to home is too close to safely determine the ray order (actionable)
+RayOrder SectRay::checkOrder(const OpEdge* home) {
+	RayOrder result = RayOrder::ok;
+	for (EdgePal* dist = &distances.front(); (dist + 1)->edge != home; ++dist) {
 		OpEdge* prior = dist->edge;
 		OpEdge* last = (dist + 1)->edge;
 		// pal should be set in time for this : testQuads26519435
 		if (prior->isUnsectable() || last->isUnsectable() || last->isPal(prior))
 			continue;
 		if (last->ray.distances.size() > 1 && last->ray.axis == axis) {
-			const EdgePal* lastDist = last->ray.find(last);
+			EdgePal* lastDist = last->ray.find(last);
 			if (lastDist < &last->ray.distances.back() && (lastDist + 1)->edge == prior) {
-				return false;
+				dist->rayOrder = RayOrder::unordered;
+				(dist + 1)->rayOrder = RayOrder::unordered;
+				OP_DEBUG_CODE(lastDist->edge->debugUnordered = true);
+				OP_DEBUG_CODE((lastDist + 1)->edge->debugUnordered = true);
+				result = RayOrder::unordered;  // may be overridden below
 			}
 		}
 		if (prior->ray.distances.size() > 1 && prior->ray.axis == axis) {
-			const EdgePal* priorDist = prior->ray.find(prior);
+			EdgePal* priorDist = prior->ray.find(prior);
 			if (priorDist > &prior->ray.distances.front() && (priorDist - 1)->edge == last) {
-				return false;
+				dist->rayOrder = RayOrder::unordered;
+				(dist + 1)->rayOrder = RayOrder::unordered;
+				OP_DEBUG_CODE(priorDist->edge->debugUnordered = true);
+				OP_DEBUG_CODE((priorDist - 1)->edge->debugUnordered = true);
+				result = RayOrder::unordered;  // may be overridden below
 			}
 		}
 	}
@@ -124,14 +135,14 @@ bool SectRay::checkOrder(const OpEdge* home) const {
 	float hCept = homeD->cept;
 	float threshold = home->context()->threshold().choice(axis);
 	if (dist >= &distances.front() && OpMath::Equal(dist->cept, hCept, threshold))
-		return false;
+		return RayOrder::tooClose;
 	dist = homeD + 1;
 	if (dist <= &distances.back() && OpMath::Equal(dist->cept, hCept, threshold))
-		return false;
-	return true;
+		return RayOrder::tooClose;
+	return result;
 }
 
-const EdgePal* SectRay::find(const OpEdge* edge) const {
+EdgePal* SectRay::find(const OpEdge* edge) {
 	if (distances.empty())
 		return nullptr;
 	for (auto test = &distances.back(); test >= &distances.front(); --test) {
@@ -488,8 +499,14 @@ FoundIntercept OpWinder::findRayIntercept(OpVector homeTan, float normal, float 
 		ray.sort();
 		if (ray.distances.front().edge == home)
 			return FoundIntercept::yes;
-		if (ray.checkOrder(home))
-			return FoundIntercept::yes;
+		{
+			RayOrder rayOrder = ray.checkOrder(home);
+			if (RayOrder::ok == rayOrder)
+				return FoundIntercept::yes;
+			// !!! experiment: allow reversing ray edges that are before home
+			if (RayOrder::unordered == rayOrder)
+				return FoundIntercept::yes;
+		}
 	tryADifferentCenter:
 		mid /= 2;
 		midEnd = midEnd < .5 ? 1 - mid : mid;
@@ -686,7 +703,8 @@ ChainFail OpWinder::setSumChain() {
 		return ChainFail::noNormal;  // nonfatal error
 	}
 #else
-	OpPoint midPt = edgeSeg->c.ptAtT(midTest);
+//	OpPoint midPt = edgeSeg->c.ptAtT(midTest);
+	OpPoint midPt = home->curve.ptAtT((midTest - home->startT) / (home->endT - home->startT));
 	float normal = midPt.choice(workingAxis);
 #endif
 	// intersect normal with every edge in the direction of ray until we run out 
@@ -766,11 +784,15 @@ ResolveWinding OpWinder::setWindingByDistance(OpContext* context) {
 		OP_ASSERT(sumIndex > 0);
 	float homeT = ray.distances[sumIndex].edgeInsideT;  // used by unsectable, later
 	while (--sumIndex >= 0 && (anyPriorPal(ray.distances[sumIndex].edge, sumIndex) 
-			|| !ray.distances[sumIndex].edge->sum.isSet()))
+			|| !ray.distances[sumIndex].edge->sum.isSet() 
+			|| RayOrder::unordered == ray.distances[sumIndex].rayOrder))
 		;
-	if (sumIndex > 0 && !home->isUnsectable() && EdgeFail::none == home->rayFail 
-			&& !ray.checkOrder(home))
-		return ResolveWinding::retry;
+	if (sumIndex > 0 && !home->isUnsectable() && EdgeFail::none == home->rayFail) {
+		RayOrder rayOrder = ray.checkOrder(home);
+		// !!! experiment: try allowing unordered outside of home to contribute normally to winding
+		if (RayOrder::tooClose == rayOrder)
+			return ResolveWinding::retry;
+	}
 	if (sumIndex >= 0) {
 		EdgePal& sumDistance = ray.distances[sumIndex];
 		OpEdge* sumEdge = sumDistance.edge;
@@ -794,12 +816,14 @@ ResolveWinding OpWinder::setWindingByDistance(OpContext* context) {
 			prior->setUnsortable(Unsortable::underflow);
 			continue;
 		}
-		if (NormalDirection::downLeft == normDir && !anyPriorPal(prior, sumIndex)) {
+		if (NormalDirection::downLeft == normDir && !anyPriorPal(prior, sumIndex)
+				&& RayOrder::unordered != ray.distances[sumIndex].rayOrder) {
 			prior->setSum(sumWinding  OP_LINE_FILE_PARGS());
 		}
 		if (CalcFail::fail == prior->addSub(winderOwner, ray.axis, dist.edgeInsideT, &sumWinding)) // if d/l sub; if u/r add
 			OP_DEBUG_FAIL(*prior, ResolveWinding::fail);
-		if (NormalDirection::upRight == normDir && !anyPriorPal(prior, sumIndex)) {
+		if (NormalDirection::upRight == normDir && !anyPriorPal(prior, sumIndex)
+				&& RayOrder::unordered != ray.distances[sumIndex].rayOrder) {
 			prior->setSum(sumWinding  OP_LINE_FILE_PARGS());
 		}
 	} while (home != prior);
@@ -964,8 +988,12 @@ FoundWindings OpWinder::setWindings(OpContext* context) {
 				home = edge;
 				resolveWinding = setWindingByDistance(context);
 				if (ResolveWinding::retry == resolveWinding) {
+					// if edges in ray are too close, look for a better spot
 					workingAxis = home->ray.axis;
 					setSumChain();
+					// if looking again failed, and if horz axis, try vertical
+
+					// if vertical failed, mark as unsectable
 					resolveWinding = setWindingByDistance(context);
 					OP_ASSERT(ResolveWinding::retry != resolveWinding);
 				}
