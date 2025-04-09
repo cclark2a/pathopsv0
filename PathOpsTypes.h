@@ -21,6 +21,7 @@ enum class ContextError {
 	finite,  // curve points are not finite
 	gap,  // assembling output required filling larger gap than expected (non-fatal)
 	intersection, // curve intersection error (should not occur)
+	loop,  // stuck resolving error in curve-curve intersection (should not occur)
 	missing,  // results do not form closed loops (non-fatal)
 	toVertical, // rotating / skewing curve (to intersect) exceeds floating point range
 	tree	// decision tree to join found edges is too complex

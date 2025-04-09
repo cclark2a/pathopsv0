@@ -4,7 +4,7 @@
 
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
 #define SKIP_TO_FILE "loop" // e.g., "simplify"  one file
-#define TEST_FIRST "loop166113"  // "loop183625" // e.g., "testQuads23839519" if file, one test
+#define TEST_FIRST "loop13423"  // "loop166113"  // "loop183625" // e.g., "testQuads23839519" if file, one test
 #define TEST_EXTENDED 1
 #define TEST_SKIA 1
 #define TEST_REGION 1

@@ -220,6 +220,17 @@ OpIntersection* OpContour::addUnsect(const OpPtT& t, OpSegment* seg, int uID, Ma
 	return next;
 }
 
+bool OpContour::fixCCSects() {
+	for (auto& segment : segments) {
+		int safetyCount = 10;
+		while (segment.fixCCSects() && --safetyCount)
+			;
+		if (!safetyCount)
+			return context->setError(PathOpsV0Lib::ContextError::loop  OP_DEBUG_PARAMS(segment.id));
+	}
+	return true;
+}
+
 int OpContour::nextID() const {
 //    if (93 == contours->uniqueID + 1)
 //        OpDebugOut("");
@@ -712,7 +723,8 @@ bool OpContext::pathOps() {
 		OP_DEBUG_SUCCESS(*this, true);
 	}
 	sortIntersections();
-	fixCCSects();  // curve-curve intersections may have enough error to put sect list out of order
+	if (!fixCCSects())  // curve-curve intersections may have enough error to put sect list out of order
+		OP_DEBUG_FAIL(*this, false);
 	sortIntersections();
 	findMissingEnds();  // moved pts may require looking in aliases for an end match
 	betweenIntersections();  // fill in intersections in coin runs that are missing in other coins

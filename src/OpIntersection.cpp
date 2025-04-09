@@ -209,7 +209,7 @@ void OpIntersections::coinRange(OpEdge& edge, OpSegment* opp, bool reversed) {
 				OP_ASSERT(edgeStart->coincidenceID);
 				edgeStart->coincidenceID = edgeStart->opp->coincidenceID = coinID;
 				OP_ASSERT(t > edge.startT);
-				coinStart->zeroCoincidenceID();
+				coinStart->zeroCoincidencePair();
 			}
 		}
 		if (MatchEnds::end == sect->coinEnd) {
@@ -217,7 +217,7 @@ void OpIntersections::coinRange(OpEdge& edge, OpSegment* opp, bool reversed) {
 			coinStart = nullptr;
 			coinEnd = sect;
 			if (edgeStart && !edgeEnd)
-				coinEnd->zeroCoincidenceID();
+				coinEnd->zeroCoincidencePair();
 			if (edgeEnd)
 				return;
 		}
@@ -226,7 +226,7 @@ void OpIntersections::coinRange(OpEdge& edge, OpSegment* opp, bool reversed) {
 				edgeStart = sect;
 			else if (coinEnd) {
 				edgeStart = sect;
-				coinEnd->zeroCoincidenceID();
+				coinEnd->zeroCoincidencePair();
 			} else {
 				coinID = opp->nextID();
 				edgeStart = setCoin(sect, MatchEnds::start);
@@ -336,7 +336,7 @@ bool SectPreferred::find() {
 	return true;
 }
 
-bool OpIntersections::checkCollapse(OpIntersection* sect, MoveSects zero) {
+bool OpIntersections::checkCollapse(OpIntersection* sect, MoveSects ) {
 	bool result = false;
 	int cID = sect->coincidenceID;
 	int uID = sect->unsectID;
@@ -350,11 +350,15 @@ bool OpIntersections::checkCollapse(OpIntersection* sect, MoveSects zero) {
 		if (test == sect)
 			continue;
 		if (test->ptT == sect->ptT) {
+			OpIntersection* collapse = test;
+			OpIntersection* zero = sect;
+			if (zero->opp->ptT.pt != zero->ptT.pt)
+				std::swap(collapse, zero);
 			if (cID)
-				sect->zeroCoincidenceID();
-			if (MoveSects::zeroAll == zero && uID)
-				sect->zeroUnsectID();
-			result = test->collapsed = test->opp->collapsed = true;
+				zero->zeroCoincidencePair();
+			if (uID)
+				zero->zeroUnsectPair();
+			result = collapse->collapsed = collapse->opp->collapsed = true;
 		}
 	}
 	return result;
@@ -445,18 +449,101 @@ void OpIntersections::mergeNear(OpPtAliases& aliases) {
 }
 
 void OpIntersections::moveSects(OpPtT match, OpPoint destination, MoveSects zero) {
-	OP_ASSERT(match.pt != destination);
-	std::vector<OpIntersection*> moved;
-	std::vector<OpIntersection*> collaspes;
-	float destT = match.t;
-	if (0 < destT && destT < 1) {
-		for (OpIntersection* sect : i) {
-			if (sect->ptT.pt == destination) {
-				destT = sect->ptT.t;
+// before changing anything, determine if changing match.pt to destination collapses coin or unsect
+//   either in this sect pair, or in the opposite sect pair
+	auto findDestT = [destination](const OpPtT& match, std::vector<OpIntersection*>& isects) {
+		float destT = match.t;
+		if (0 < destT && destT < 1) {
+			for (OpIntersection* sect : isects) {
+				if (sect->ptT.pt == destination) {
+					destT = sect->ptT.t;
+					break;
+				}
+			}
+		}
+		return destT;
+	};
+	float destT = findDestT(match, i);
+	std::vector<size_t> remove;
+	std::vector<OpIntersection*> moveOpps;
+	for (size_t index = 0; index < i.size(); ++index) {
+		OpIntersection* toMove = i[index];
+		OpPtT& sPtT = toMove->ptT;
+		if (sPtT.pt != match.pt && sPtT.t != match.t && sPtT.t != destT)
+			continue;
+		if (sPtT.pt == destination)
+			continue;
+		// toMove will have its point values changed; look for duplicate
+		OpIntersection* toKeep = nullptr;
+		OpIntersection* mOpp = toMove->opp;
+		OpSegment* mOppSeg = mOpp->segment;
+		for (size_t remainder = index + 1; remainder < i.size(); ++remainder) {
+			OpIntersection* test = i[remainder];
+			if (test->ptT.pt != destination && test->ptT.t != destT)
+				continue;
+			if (test == toMove)
+				continue;
+			if (test->opp->segment != mOppSeg)
+				continue;
+			// sect and msect are different, but will have same point and t values -- remove one
+			toKeep = test;
+			break;
+		}
+		float oppT = findDestT(mOpp->ptT, mOppSeg->sects.i);
+		OpIntersection* oppKeep = nullptr;
+		for (OpIntersection* sect : mOppSeg->sects.i) {
+			if (sect->ptT.pt != destination && sect->ptT.t != oppT)
+				continue;
+			if (sect == mOpp)
+				continue;
+			if (sect->opp->segment != toMove->segment)
+				continue;
+			oppKeep = sect;
+			break;
+		}
+		// remove coin and/or unsect which have collapsed
+		if (toKeep || oppKeep) {
+			OP_DEBUG_CODE(int testCoinID = toMove->coincidenceID);
+			OP_DEBUG_CODE(int testUnsectID = toMove->unsectID);
+			OP_ASSERT(!toKeep || testCoinID == toKeep->coincidenceID);
+			OP_ASSERT(!toKeep || testUnsectID == toKeep->unsectID);
+			OP_ASSERT(!oppKeep || testCoinID == oppKeep->coincidenceID);
+			OP_ASSERT(!oppKeep || testUnsectID == oppKeep->unsectID);
+			OpIntersection* keep = toKeep ? toKeep : oppKeep;
+			keep->zeroCoincidencePair();
+			keep->zeroUnsectPair();
+			remove.push_back(index);
+		} else {
+			bool moveOpp = toMove->ptT.pt == mOpp->ptT.pt;
+			toMove->ptT = OpPtT(destination, destT);
+			if (moveOpp || mOpp->ptT.pt == destination)
+				moveOpps.push_back(toMove->opp);
+		}
+	}
+	// if pair of intersections collapsed, remove one
+	while (remove.size()) {
+		size_t index = remove.back();
+		OpIntersection* mOpp = i[index]->opp;
+		std::vector<OpIntersection*>& oppI = mOpp->segment->sects.i;
+		i.erase(i.begin() + index);
+		for (size_t oIndex = 0; oIndex < oppI.size(); ++oIndex) {
+			if (oppI[oIndex] == mOpp) {
+				oppI.erase(oppI.begin() + oIndex);
 				break;
 			}
 		}
+		remove.pop_back();
 	}
+	// recurse on matching opposite intersection
+	while (moveOpps.size()) {
+		OpIntersection* opp = moveOpps.back();
+		opp->segment->sects.moveSects(opp->ptT, destination, zero);
+		moveOpps.pop_back();
+	}
+#if 0
+	OP_ASSERT(match.pt != destination);
+	std::vector<OpIntersection*> moved;
+	std::vector<OpIntersection*> changed;
 	for (OpIntersection* sect : i) {
 		OpPtT& sPtT = sect->ptT;
 		if (sPtT.pt == destination ? sPtT.t == destT : 
@@ -468,12 +555,15 @@ void OpIntersections::moveSects(OpPtT match, OpPoint destination, MoveSects zero
 			sPtT.pt = destination;
 			if (oppMatches && !opp->moved)
 				moved.push_back(sect);
+			changed.push_back(sect);
 			sect->moved = true;
 		}
 		if (sPtT.t != destT) {
 			sPtT.t = destT;
 			unsorted = true;
 		}
+		// here, sect and another OpIntersection may contain identical ptT and opp
+		// !!! wait until this causes a bug before fixing
 	}
 	for (OpIntersection* sect : moved) {
 		OpIntersection* opp = sect->opp;
@@ -484,13 +574,13 @@ void OpIntersections::moveSects(OpPtT match, OpPoint destination, MoveSects zero
 		else
 			opp->segment->sects.moveSects(opp->ptT, destination, zero);
 	}
-	bool collapsed = false;
-	for (OpIntersection* sect : moved) {
+	for (OpIntersection* sect : changed) {
 		if (sect->coincidenceID || sect->unsectID)
 			collapsed |= checkCollapse(sect, zero);
 	}
 	if (collapsed)
 		eraseCollapsed();
+#endif
 }
 
 bool OpIntersections::simpleEnd() const {

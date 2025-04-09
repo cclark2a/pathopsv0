@@ -71,26 +71,27 @@ struct OpIntersection {
 	void setCoin(int id, MatchEnds end);  // setter to help debugging
 	void setUnsect(int id, MatchEnds end);  // setter to help debugging
 
-	void zeroCoincidenceID() {
-		OP_ASSERT(coincidenceID);
-		OP_ASSERT(opp->coincidenceID);
-#if OP_DEBUG
-		debugCoincidenceID = coincidenceID;
-		opp->debugCoincidenceID = opp->coincidenceID;
-#endif
+	void zeroCoincidence() {
+		OP_ASSERT(!debugCoincidenceID);  // !!! should this always be zero?
+		OP_DEBUG_CODE(debugCoincidenceID = coincidenceID);
 		coincidenceID = 0;
 		coinEnd = MatchEnds::none;
-		opp->coincidenceID = 0;
-		opp->coinEnd = MatchEnds::none;
 	}
 
-	void zeroUnsectID() {
-		OP_ASSERT(unsectID);
-		OP_ASSERT(opp->unsectID);
+	void zeroCoincidencePair() {
+		zeroCoincidence();
+		opp->zeroCoincidence();
+	}
+
+	void zeroUnsect() {
 		unsectID = 0;
 		unsectEnd = MatchEnds::none;
-		opp->unsectID = 0;
-		opp->unsectEnd = MatchEnds::none;
+		ccUnsectable = false;
+	}
+
+	void zeroUnsectPair() {
+		zeroUnsect();
+		opp->zeroUnsect();
 	}
 
 #if OP_DEBUG
@@ -137,6 +138,7 @@ struct OpIntersection {
 };
 
 enum class MoveSects {
+	movePairs,
 	zeroCoins,
 	zeroAll
 };

@@ -94,7 +94,7 @@ struct OpSegment {
 	void findMissingEnds();
 //    float findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const;
 	float findValidT(float start, float end, OpPoint opp);
-	void fixCCSects();
+	bool fixCCSects();
 	// count and sort extrema; create an edge for each extrema + 1
 	bool isFinite() const {
 		return closeBounds.isFinite(); } 

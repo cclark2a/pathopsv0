@@ -111,11 +111,7 @@ struct OpContour {
 		}
 	}
 
-	void fixCCSects() {
-		for (auto& segment : segments) {
-			segment.fixCCSects();
-		}
-	}
+	bool fixCCSects();
 
 	void makeCoins() {
 		for (auto& segment : segments) {
@@ -387,10 +383,12 @@ struct OpContext {
 		return aliases.find(pt);
 	}
 
-	void fixCCSects() {
-	   for (auto contour : contours) {
-			contour->fixCCSects();
+	bool fixCCSects() {
+		for (auto contour : contours) {
+			if (!contour->fixCCSects())
+				return false;
 		}
+		return true;
 	}
 	void findMissingEnds() {
 	   for (auto contour : contours) {

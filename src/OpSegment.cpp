@@ -516,10 +516,14 @@ float OpSegment::findValidT(float start, float end, OpPoint opp) {
 	return OpNaN;
 }
 
-void OpSegment::fixCCSects() {
+// if intersections collapse, return true to restart; we're in the middle of walking sect array
+bool OpSegment::fixCCSects() {
 	if (!sects.hasCCSects)
-		return;
+		return false;
 	sects.sort();
+	OP_ASSERT(2 < sects.i.size());
+	OP_ASSERT(0 == sects.i.front()->ptT.t);
+	OP_ASSERT(1 == sects.i.back()->ptT.t);
 	if (startMoved || endMoved) {
 		resetBounds();
 		for (OpIntersection* test : sects.i) {
@@ -530,32 +534,46 @@ void OpSegment::fixCCSects() {
 		}
 	}
 	OpVector segTan = c.lastPt() - c.firstPt();
-	OP_ASSERT(sects.i.size() > 2);
-	// skip sects until sect point changes
 	OpIntersection* prior = sects.i[0];
-	start here;
 	// rework to advance while points are equal
 	// still, if any are cc sect, check for move?
-	OpIntersection* last = sects.i[1];
-	for (size_t index = 2; index < sects.i.size(); ++index) {
-		OpIntersection* sect = sects.i[index];
-		if (last->ccSect) {
-			OpVector priorV = last->ptT.pt - prior->ptT.pt;
-			bool priorOK = segTan.dx * priorV.dx >= 0 && segTan.dy * priorV.dy >= 0;
-			OpVector nextV = sect->ptT.pt - last->ptT.pt;
-			bool nextOK = segTan.dx * nextV.dx >= 0 && segTan.dy * nextV.dy >= 0;
-			if (priorOK && nextOK)
-				continue;
-			float priorDistSq = priorV.lengthSquared();
-			float nextDistSq = nextV.lengthSquared();
-			// move sects may collapse / erase intersections; so restart fix afterwards
-			sects.moveSects(last->ptT, priorDistSq < nextDistSq ? prior->ptT.pt : sect->ptT.pt,
-					MoveSects::zeroAll);
-			OpNop();
+	size_t index = 0;
+	OpIntersection* mid;
+	bool midIsCcSect = false;
+	do {  // skip sects until sect point changes
+		mid = sects.i[++index];
+		midIsCcSect |= mid->ccSect;
+	} while (prior->ptT.t == mid->ptT.t);
+	while (++index < sects.i.size()) {
+		OpIntersection* next = sects.i[index];
+		if (mid->ptT.t == next->ptT.t) {
+			midIsCcSect |= next->ccSect;
+			continue;
 		}
-		prior = last;
-		last = sect;
+		OP_ASSERT(prior->ptT.t < mid->ptT.t && prior->ptT.pt != mid->ptT.pt);
+		OP_ASSERT(mid->ptT.t < next->ptT.t && mid->ptT.pt != next->ptT.pt);
+		if (midIsCcSect) {
+			OpVector priorV = mid->ptT.pt - prior->ptT.pt;
+			bool priorOK = segTan.dx * priorV.dx >= 0 && segTan.dy * priorV.dy >= 0;
+			OpVector nextV = next->ptT.pt - mid->ptT.pt;
+			bool nextOK = segTan.dx * nextV.dx >= 0 && segTan.dy * nextV.dy >= 0;
+			if (!priorOK || !nextOK) {
+				float priorDistSq = priorV.lengthSquared();
+				float nextDistSq = nextV.lengthSquared();
+				// if out-of-order pt is unsectable, no need to move opposite since it already
+				// is not equal. 
+				
+				// move sects may collapse / erase intersections; so restart fix afterwards
+				sects.moveSects(mid->ptT, priorDistSq < nextDistSq ? prior->ptT.pt : next->ptT.pt,
+						MoveSects::movePairs);
+				return true;  // restart
+			}
+		}  
+		prior = mid;
+		mid = next;
+		midIsCcSect = mid->ccSect;
 	}
+	return false;
 }
 
 bool OpSegment::isSmall() {
