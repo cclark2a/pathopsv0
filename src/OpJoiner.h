@@ -149,6 +149,7 @@ struct OpTree {
 	bool containsFiller(OpLimb* , OpPoint , OpPoint ) const;
 	bool containsFiller(int ccUnsectableID) const;
 	bool containsParent(OpLimb* , OpEdge* , EdgeMatch ) const;
+	bool gap(float distance) const;
 	void initialize(OpContour& join);
 	bool join(OpJoiner& );
 	OpLimb& nthLimb(int index);
@@ -168,6 +169,7 @@ struct OpTree {
 	int maxLimbs;
 	int totalUsed;
 	int id;
+	bool smallGap;
 };
 
 struct OpLimbStorage {

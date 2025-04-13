@@ -529,8 +529,10 @@ bool OpSegment::fixCCSects() {
 		for (OpIntersection* test : sects.i) {
 			if (ptBounds.contains(test->ptT.pt))
 				continue;
-			sects.moveSects(test->ptT, test->ptT.t < .5 ? c.firstPt() : c.lastPt(), 
-					MoveSects::zeroAll);
+			if (!sects.moveSects(test->ptT, test->ptT.t < .5 ? c.firstPt() : c.lastPt())) {
+				willDisable = true;
+				return false;
+			}
 		}
 	}
 	OpVector segTan = c.lastPt() - c.firstPt();
@@ -564,8 +566,10 @@ bool OpSegment::fixCCSects() {
 				// is not equal. 
 				
 				// move sects may collapse / erase intersections; so restart fix afterwards
-				sects.moveSects(mid->ptT, priorDistSq < nextDistSq ? prior->ptT.pt : next->ptT.pt,
-						MoveSects::movePairs);
+				if (!sects.moveSects(mid->ptT, priorDistSq < nextDistSq ? prior->ptT.pt : next->ptT.pt)) {
+					willDisable = true;
+					return false;
+				}
 				return true;  // restart
 			}
 		}  
@@ -785,8 +789,10 @@ OpPoint OpSegment::movePt(OpPtT match, OpPoint destination) {
    if (c.firstPt() == c.lastPt())
 		willDisable = true;
 //    setBounds();  // defer fixing in middle of finding intersections, which uses sorted bounds
-	if (match.pt != destination)
-		sects.moveSects(match, destination, MoveSects::zeroCoins);
+	if (match.pt != destination) {
+		if (!sects.moveSects(match, destination))
+			willDisable = true;
+	}
 	edges.clear();
 	return destination;
 }

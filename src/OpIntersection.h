@@ -130,32 +130,24 @@ struct OpIntersection {
 	int debugSrcID = 0;	// pair of edges or segments that intersected (!!! only useful if edges?)
 	int debugOppID = 0;
 	int debugCoincidenceID = 0;	// this one does not get erased
-	mutable bool debugErased = false;
+	bool debugErased = false;
 #endif
 #if OP_DEBUG_MAKER
 	OpDebugMaker debugSetMaker;
 #endif
 };
 
-enum class MoveSects {
-	movePairs,
-	zeroCoins,
-	zeroAll
-};
-
 struct OpIntersections {
 	OpIntersection* add(OpIntersection* );
-	bool checkCollapse(OpIntersection* , MoveSects );
 	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp);
 	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp, OpPtT* nearby);
 	void coinRange(OpEdge& , OpSegment* opp, bool reversed);
 	OpIntersection* contains(const OpPtT& ptT, const OpSegment* opp);  // nearby ptT
 //	OpIntersection* const * entry(const OpPtT& , const OpSegment* opp) const;  // exact opp + ptT
-	void eraseCollapsed();
 	void makeEdges(OpSegment* );
 	void markInCoincidence();
 	void mergeNear(OpPtAliases& );
-	void moveSects(OpPtT match, OpPoint destination, MoveSects );
+	bool moveSects(OpPtT match, OpPoint destination);
 	void orderPairs();
 //	const OpIntersection* nearly(const OpPtT& ptT, OpSegment* oSeg) const;  // near match of pt or t
 //	void range(const OpSegment* , std::vector<OpIntersection*>& );

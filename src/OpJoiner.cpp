@@ -109,6 +109,13 @@ void OpLimb::addEach(OpContour& contour, OpTree& tree) {
 	if (LimbPass::unlinkedPal == pass)
 		return;
 	OP_ASSERT(LimbPass::disabledBackwards == pass);
+	// check if tree's best distance is small enough with a user-provided multiplier
+	// (motivated by loop193532 whose best distance 9.53e-7 exceeds threshold length 8.18e-7;
+	//  an alternative would be to find the intersection of edges 198 and 208 -- somehow missed)
+	if (tree.gap(tree.bestDistance)) {
+		tree.smallGap = true;
+		return;
+	}
 	if (!contour.backwardsBuilt)
 		contour.buildBackwards();
 	for (OpEdge* test : contour.disabledBackwards) {
@@ -301,7 +308,8 @@ OpTree::OpTree(OpJoiner& join)
 	, limbPass(LimbPass::linked)
 	, bestDistance(OpInfinity)
 	, bestPerimeter(OpInfinity)
-	, totalUsed(0) {
+	, totalUsed(0) 
+	, smallGap(false) {
 	id = context->nextID();
 	maxLimbs = context->contextCallbacks.maxLimbsFuncPtr ?
 			context->contextCallbacks.maxLimbsFuncPtr((PathOpsV0Lib::Context*) context) : 500;
@@ -409,9 +417,7 @@ void OpTree::addDisabled(OpContour& contour) {
 OpEdge* OpTree::addFiller(OpSegment* seg, const OpPtT& ptT1, const OpPtT& ptT2, bool fromCC) {
 	if (!fromCC) {
 		float fillerLength = (ptT1.pt - ptT2.pt).length();
-		PathOpsV0Lib::MaxGap gapFuncPtr = context->contextCallbacks.maxGapFuncPtr;
-		float gapFactor = gapFuncPtr ? (*gapFuncPtr)((PathOpsV0Lib::Context*) context) : 32.f;
-		if (fillerLength > context->aliases.thresholdLength * gapFactor) {
+		if (!gap(fillerLength)) {
 			OP_DEBUG_CODE(OpDebugOut("\n" + seg->contour->context->debugData.testname + "\n"));
 			OP_DEBUG_DUMP_CODE(::debug());
 			OP_DEBUG_CODE(OpDebugOut("\n"));
@@ -483,6 +489,12 @@ bool OpTree::containsFiller(OpLimb* parent, OpPoint pt1, OpPoint pt2) const {
 
 bool OpTree::containsFiller(int ccUnsectableID) const {
 	return context->containsFiller(ccUnsectableID);
+}
+
+bool OpTree::gap(float distance) const {
+	PathOpsV0Lib::MaxGap gapFuncPtr = context->contextCallbacks.maxGapFuncPtr;
+	float gapFactor = gapFuncPtr ? (*gapFuncPtr)((ContextPtr) context) : 2.f;
+	return distance <= context->aliases.thresholdLength * gapFactor;
 }
 
 void OpTree::initialize(OpContour& contour) {
