@@ -877,7 +877,8 @@ bool OpContext::debugSuccess() const {
 void OpContext::debugValidateIntersections() {
 	for (auto contour : contours) {
 		for (auto& segment : contour->segments) {
-			segment.sects.debugValidate();
+			if (!segment.disabled && !segment.willDisable)
+				segment.sects.debugValidate();
 		}
 	}
 }

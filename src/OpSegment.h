@@ -111,6 +111,7 @@ struct OpSegment {
 //    MatchEnds matchExisting(const OpSegment* opp) const;
 	OpPoint mergePoints(OpPtT segPtT, OpSegment* opp, OpPtT oppPtT);
 	OpPoint movePt(OpPtT match, OpPoint dest);  // move segment/sect point to match another endpont
+	bool moveSects(OpPtT match, OpPoint dest);	// move matching sects and cleanup segment state
 	bool moveWinding(OpSegment* opp, bool backwards);
 	bool nearby(float t, const OpSegment* opp) const;
 	int nextID() const;

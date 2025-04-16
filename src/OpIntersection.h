@@ -137,6 +137,12 @@ struct OpIntersection {
 #endif
 };
 
+enum class SectCleanup {
+	none,
+	sectsRemoved,
+	segmentCollapsed,
+};
+
 struct OpIntersections {
 	OpIntersection* add(OpIntersection* );
 	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp);
@@ -146,8 +152,9 @@ struct OpIntersections {
 //	OpIntersection* const * entry(const OpPtT& , const OpSegment* opp) const;  // exact opp + ptT
 	void makeEdges(OpSegment* );
 	void markInCoincidence();
+	float matchT(const OpPtT& , OpPoint destination) const;
 	void mergeNear(OpPtAliases& );
-	bool moveSects(OpPtT match, OpPoint destination);
+	SectCleanup moveSects(const OpPtT& match, OpPoint destination);
 	void orderPairs();
 //	const OpIntersection* nearly(const OpPtT& ptT, OpSegment* oSeg) const;  // near match of pt or t
 //	void range(const OpSegment* , std::vector<OpIntersection*>& );
@@ -159,6 +166,7 @@ struct OpIntersections {
 	static bool UnsectablesOverlap(std::vector<OpIntersection*> set1,
 			std::vector<OpIntersection*> set2);
 //	void windCoincidences(std::vector<OpEdge>& edges);
+	void zeroPairs(OpIntersection* );
 #if OP_DEBUG
 	OpIntersection* debugAlreadyContains(const OpPoint& , const OpSegment* opp) const;
 	bool debugContains(const OpPtT& , const OpSegment* opp) const;  // check for duplicates

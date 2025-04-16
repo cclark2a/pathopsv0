@@ -1119,14 +1119,15 @@ std::vector<const OpEdge*> findEdgeRayMatch(int ID) {
 
 const OpIntersection* findIntersection(int ID) {
 #if OP_DEBUG
-    for (const auto c : debugGlobalContext->contours) {
-        for (const auto& seg : c->segments) {
-            for (const auto intersection : seg.sects.i) {
-                if (ID == intersection->id)
-                    return intersection;
-            }
+	OpSectStorage* sectStorage = debugGlobalContext->sectStorage;
+	while (sectStorage) {
+        for (int index = 0; index < sectStorage->used; ++index) {
+			OpIntersection* intersection = &sectStorage->storage[index];
+            if (ID == intersection->id)
+                return intersection;
         }
-    }
+		sectStorage = sectStorage->next;
+	}
 #endif
     return nullptr;
 }

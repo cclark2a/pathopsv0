@@ -529,10 +529,8 @@ bool OpSegment::fixCCSects() {
 		for (OpIntersection* test : sects.i) {
 			if (ptBounds.contains(test->ptT.pt))
 				continue;
-			if (!sects.moveSects(test->ptT, test->ptT.t < .5 ? c.firstPt() : c.lastPt())) {
-				willDisable = true;
+			if (!moveSects(test->ptT, test->ptT.t < .5 ? c.firstPt() : c.lastPt()))
 				return false;
-			}
 		}
 	}
 	OpVector segTan = c.lastPt() - c.firstPt();
@@ -562,15 +560,8 @@ bool OpSegment::fixCCSects() {
 			if (!priorOK || !nextOK) {
 				float priorDistSq = priorV.lengthSquared();
 				float nextDistSq = nextV.lengthSquared();
-				// if out-of-order pt is unsectable, no need to move opposite since it already
-				// is not equal. 
-				
-				// move sects may collapse / erase intersections; so restart fix afterwards
-				if (!sects.moveSects(mid->ptT, priorDistSq < nextDistSq ? prior->ptT.pt : next->ptT.pt)) {
-					willDisable = true;
-					return false;
-				}
-				return true;  // restart
+				// If collapsed, return false; otherwise, return true to restart.
+				return moveSects(mid->ptT, priorDistSq < nextDistSq ? prior->ptT.pt : next->ptT.pt);
 			}
 		}  
 		prior = mid;
@@ -789,12 +780,38 @@ OpPoint OpSegment::movePt(OpPtT match, OpPoint destination) {
    if (c.firstPt() == c.lastPt())
 		willDisable = true;
 //    setBounds();  // defer fixing in middle of finding intersections, which uses sorted bounds
-	if (match.pt != destination) {
-		if (!sects.moveSects(match, destination))
-			willDisable = true;
-	}
+	if (match.pt != destination)
+		moveSects(match, destination);
 	edges.clear();
 	return destination;
+}
+
+bool OpSegment::moveSects(OpPtT match, OpPoint destination) {
+	SectCleanup cleanup = sects.moveSects(match, destination);
+	switch (cleanup) {
+		case SectCleanup::none:
+			return true;
+		case SectCleanup::sectsRemoved:
+			hasCoin = false;
+			hasUnsectable = false;
+			sects.hasCCSects = false;
+			sects.hasPairs = false;
+			for (OpIntersection* sect : sects.i) {
+				if (sect->collapsed)
+					continue;
+				hasCoin |= !!sect->coincidenceID;
+				hasUnsectable |= !!sect->unsectID;
+				sects.hasCCSects |= sect->ccSect;
+				sects.hasPairs |= hasCoin | hasUnsectable;
+			}
+			return true;
+		case SectCleanup::segmentCollapsed:
+			willDisable = true;
+			return false;
+		default:
+			OP_ASSERT(0);
+			return false;
+	}
 }
 
 // two segments are coincident so move opp's winding to this and disabled opp
