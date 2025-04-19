@@ -1289,17 +1289,13 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 		s.pop_back();
 		s += "]\n";
 	}
-	if (sects.size()) {
-		s += "sects[";
-		for (OpContour* c : sects)
-			s += STR(c->id) + " ";
+	if (contourSet.size()) {
+		s += "contourSet[";
+		for (OpContour* member : contourSet)
+			s += STR(member->id) + " ";
 		s.pop_back();
-		s += "] ";
+		s += "]\n";
 	}
-	if (winderOwner) 
-		s += "winderOwner[" + STR(winderOwner->id) + "]";
-	if (sects.size() || winderOwner)
-		s += "\n";
 	if (inX.size()) {
 		s += "inX[";
 		for (OpEdge* e : inX)
@@ -1370,8 +1366,25 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 		s.pop_back();
 		s += "]\n";
 	}
-	s += "sectBounds:" + sectBounds.debugDump(l, b) + " ";
-	s += "treeID[" + STR(treeID) + "] ";
+	if (setBounds.isFinite())
+		s += "setBounds:" + setBounds.debugDump(l, b) + " ";
+	if (bounds.isFinite())
+		s += "bounds:" + bounds.debugDump(l, b) + " ";
+	if (setOwner) 
+		s += "setOwner[" + STR(setOwner->id) + "] ";
+#if 0
+	if (leftMost)
+		s += "leftMost[" + STR(leftMost->id) + "] "; 
+	if (topMost)
+		s += "topMost[" + STR(topMost->id) + "] "; 
+#endif
+	if (treeID)
+		s += "treeID[" + STR(treeID) + "] ";
+    if (winding.data && winding.size) {
+		auto windingOut = debugGlobalContext->debugContextCallbacks.debugDumpWindingOutFuncPtr;
+		if (windingOut)
+			s += "winding" + (*windingOut)(winding) + " ";
+	}
 //	if (containsSects)
 //		s += "containsSects ";
 	if (backwardsBuilt)
@@ -1386,12 +1399,6 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 		s += "isYSorted ";
 	if (disabled)
 		s += "disabled ";
-    if (winding.data && winding.size) {
-		auto windingOut = debugGlobalContext->debugContextCallbacks.debugDumpWindingOutFuncPtr;
-		if (windingOut)
-			s += "winding" + (*windingOut)(winding) + " ";
-	}
-    s += "bounds:" + bounds.debugDump(l, b) + " ";
     s.pop_back();
     return s;
 }
@@ -2844,8 +2851,11 @@ void dmpPoints(const OpEdge& edge) {
 }
 
 void dmpRay(const OpEdge& edge) {
-	dmp(edge.ray);
-	dmp(edge.ray.distances);
+	std::string s = edge.ray.debugDumpHeader(defaultLevel, defaultBase) + "\n";
+	for (auto distance : edge.ray.distances) {
+		s += distance.debugDump(defaultLevel, defaultBase) + "\n";
+	}
+    OpDebugFormat(s);
 }
 
 void dmpStart(const OpEdge& edge) {
@@ -2979,18 +2989,18 @@ int OpLimbStorage::debugCount() const {
     return result;
 }
 
-const OpLimb* OpLimbStorage::debugFind(int ID) const {
+OpLimb* OpLimbStorage::debugFind(int ID) const {
 	for (int index = 0; index < used; index++) {
         if (storage[index].id == ID)
-            return &storage[index];
+            return (OpLimb*) &storage[index];
     }
     if (nextBlock)
         return nextBlock->debugFind(ID);
     return nullptr;
 }
 
-OpLimb* OpLimbStorage::debugIndex(int index) {
-    OpLimbStorage* block = this;
+OpLimb* OpLimbStorage::debugIndex(int index) const  {
+    const OpLimbStorage* block = this;
     while (index > block->used) {
         index -= block->used;
         block = block->nextBlock;
@@ -2999,7 +3009,7 @@ OpLimb* OpLimbStorage::debugIndex(int index) {
     }
     if (block->used <= index)
         return nullptr;
-    return &block->storage[index];
+    return (OpLimb*) &block->storage[index];
 }
 
 std::string OpLimbStorage::debugDump(DebugLevel l, DebugBase b) const {
@@ -3018,7 +3028,7 @@ std::string OpLimbStorage::debugDump(DebugLevel l, DebugBase b) const {
 #endif
     } else {
         for (int index = 0; index < count; ++index)
-            s += debugFind(index)->debugDump(l, b) + "\n";
+            s += debugIndex(index)->debugDump(l, b) + "\n";
         s.pop_back();
     }
     return s;
@@ -3053,15 +3063,15 @@ ENUM_NAME(LinkPass, linkPass)
 std::string OpContour::debugDumpJoin(DebugLevel l, DebugBase b) const {
     std::string s;
 	s += "contour:" + STR(id) + " " ;
-	s += "sects: " + STR(sects.size()) + " [";
-	for (OpContour* sect : sects) {
-        s += STR(sect->id) + " ";
+	s += "contourSet: " + STR(contourSet.size()) + " [";
+	for (OpContour* member : contourSet) {
+        s += STR(member->id) + " ";
 	}
 	if (' ' == s.back())
 		s.pop_back();
     s += "]";
 	s += DebugLevel::detailed == l ? "\n" : " ";
-	s += " winderOwner: " + STR(winderOwner->id) + "\n";
+	s += " setOwner: " + STR(setOwner->id) + "\n";
     auto dumpEdgeIDs = [&s, l](const std::vector<OpEdge*>& edges, std::string name) {
         if (!edges.size())
             return;
@@ -3427,12 +3437,17 @@ std::string CoinPair::debugDump(DebugLevel l, DebugBase b) const {
     return s;
 }
 
-std::string SectRay::debugDump(DebugLevel l, DebugBase b) const {
+std::string SectRay::debugDumpHeader(DebugLevel l, DebugBase b) const {
     std::string s = "ray count:" + STR(distances.size()) + " ";
     s += debugValue(l, b, "normal", normal) + " ";
     s += debugValue(l, b, "homeCept", homeCept) + " ";
     s += debugValue(l, b, "homeT", homeT) + " ";
     s += "axis:" + axisName(axis) + (DebugLevel::detailed == l ? "\n" : " ");
+	return s;
+}
+
+std::string SectRay::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s = debugDumpHeader(l, b);
     for (const EdgePal& dist : distances) {
         s += dist.debugDump(DebugLevel::detailed == l ? l : DebugLevel::brief, b);
 		s += DebugLevel::detailed == l ? "\n" : " ";

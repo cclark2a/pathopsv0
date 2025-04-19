@@ -132,7 +132,8 @@ void testFrame() {
 #if OP_DEBUG
     OpDebugData debugData(false);
     Debug(context, debugData);
-	SetDebugContextCallbacks(context, { nullptr  OP_DEBUG_DUMP_PARAMS(nullptr, frameDumpOutFunc) });
+	SetDebugContextCallbacks(context, { // nullptr  
+			OP_DEBUG_DUMP_CODE(nullptr, frameDumpOutFunc) });
 #endif
 
     frameLine = SetCurveCallbacks(context, { frameOutput });

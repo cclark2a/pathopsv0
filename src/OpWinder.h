@@ -76,6 +76,7 @@ struct OpWinder {
 	ResolveWinding setWindingByDistance(OpContext* );
 	FoundWindings setWindings(OpContext* );
 	void sort();
+	bool targetMatch(OpContour* ) const;
 
 #if OP_DEBUG_DUMP
 #include "OpDebugDeclarations.h"

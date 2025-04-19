@@ -51,6 +51,7 @@ Contour* Clone(Contour* contour) {
 
 void DeleteContext(Context* context) {
     OpContext* contours = (OpContext*) context;
+	OP_DEBUG_VALIDATE_CODE(contours->debugJoiner = nullptr);
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContext = contours;
 #endif

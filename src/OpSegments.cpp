@@ -239,10 +239,10 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 
 void OpSegments::findCoincidences() {
 	for (OpContour* oContour: context.contours) {
-		for (OpContour* iContour : oContour->sects) {
-			if (oContour->id > iContour->id)
+		for (OpContour* member : oContour->members()) {
+			if (oContour->id > member->id)
 				continue;
-			findCoincidence(oContour, iContour);
+			findCoincidence(oContour, member);
 		}
 	}
 }
@@ -328,10 +328,10 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
 FoundIntersections OpSegments::findIntersections() {
 	OP_DEBUG_CONTEXT();
 	for (OpContour* oContour: context.contours) {
-		for (OpContour* iContour : oContour->sects) {
-			if (iContour->id > oContour->id)
+		for (OpContour* member : oContour->members()) {
+			if (member->id > oContour->id)
 				break;
-			findIntersection(oContour, iContour);
+			findIntersection(oContour, member);
 		}
 	}
 	return found;

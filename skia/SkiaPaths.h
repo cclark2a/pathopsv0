@@ -30,7 +30,8 @@ PathOpsV0Lib::Contour* SetSkiaSimplifyCallbacks(PathOpsV0Lib::Context* , PathOps
 void SetSkiaOpContextCallbacks(PathOpsV0Lib::Context* , SkPathOp , PathOpsV0Lib::BinaryWindType );
 PathOpsV0Lib::Contour* SetSkiaOpContourCallbacks(PathOpsV0Lib::Context* , PathOpsV0Lib::Winding , 
 		PathOpsV0Lib::BinaryOperand  OP_DEBUG_PARAMS(const SkPath&));
-void AddSkiaPath(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* , const SkPath& path);
+void AddSkiaPath(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* , const SkPath& );
+bool VeryLargeSkiaPath(const SkPath& );
 
 #if TEST_ANALYZE
 // used to break down tests that are too large to debug directly

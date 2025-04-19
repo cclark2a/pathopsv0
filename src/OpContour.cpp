@@ -109,9 +109,9 @@ void OpContour::addCoinEdges() {
 #endif
 
 std::vector<OpEdge*>& OpContour::windingEdges(Axis axis) {
-	if (winderOwner != this) {
+	if (setOwner != this) {
 		OP_ASSERT(inX.empty() && inY.empty());
-		return winderOwner->windingEdges(axis);
+		return setOwner->windingEdges(axis);
 	}
 	return Axis::horizontal == axis ? inX : inY;
 }
@@ -621,6 +621,10 @@ OpLimb& OpContext::nthLimb(int index) {
 }
 
 void OpContext::resetFiller() {
+#if OP_DEBUG_VALIDATE
+	if (debugJoiner && fillerStorage)
+		fillerStorage->debugRelease();
+#endif
 	release(fillerStorage);
 	fillerStorage = nullptr;
 }
@@ -656,37 +660,52 @@ void OpContext::opsInit() {
 		OpContour* oContour = contours[outer];
 		if (oContour->disabled)
 			continue;
-		oContour->winderOwner = oContour;
+		oContour->setOwner = oContour;
 		for (size_t inner = outer; inner < contours.size(); ++inner) {
 			OpContour* iContour = contours[inner];
 			if (iContour->disabled)
 				continue;
 			if (oContour->bounds.intersects(iContour->bounds)) {
-				oContour->sects.push_back(iContour);
+				oContour->contourSet.push_back(iContour);
 				if (oContour != iContour)
-					iContour->sects.push_back(oContour);
+					iContour->contourSet.push_back(oContour);
 			}
 		}
 	}
-	for (OpContour* contour : contours) {
-		sort(contour->sects.begin(), contour->sects.end(), [](OpContour* a, OpContour* b) {
+	for (OpContour* contour : contours) {  // sort so contours can find indentical intersection sets
+		sort(contour->contourSet.begin(), contour->contourSet.end(), [](OpContour* a, OpContour* b) {
 			return a->id < b->id;
 		});
 	}
 	for (size_t index = 0; index < contours.size(); ++index) {
 		OpContour* contour = contours[index];
-		if (contour->winderOwner != contour)
+		if (contour->setOwner != contour)
 			continue;
-		for (OpContour* sect : contour->sects) {
-			contour->sectBounds.add(sect->bounds);
-			if (sect->id <= contour->id)
-				continue;
-			if (sect->sects == contour->sects) {
-				sect->winderOwner = contour;
-				continue;
+		contour->setBounds = contour->bounds;
+//		float smallestRight = OpInfinity;
+//		float smallestBottom = OpInfinity;
+		for (OpContour* member : contour->contourSet) {
+			if (member != contour) {
+				contour->setBounds.add(member->bounds);
+				if (member->contourSet == contour->contourSet) {
+					member->setOwner = contour;  // if identical, point to master
+					member->contourSet.clear();  //  and remove duplicate data
+					OP_ASSERT(member->setBounds.isEmpty());
+				}
 			}
+#if 0
+			if (smallestRight > member->bounds.right) {
+				smallestRight = member->bounds.right;
+				contour->leftMost = member->setOwner;
+			}
+			if (smallestBottom > member->bounds.bottom) {
+				smallestBottom = member->bounds.bottom;
+				contour->topMost = member->setOwner;
+			}
+#endif
 		}
 	}
+
 #if TEST_RASTER
 	if (rasterEnabled)
 		rasterOutput.init();

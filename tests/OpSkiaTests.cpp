@@ -793,7 +793,6 @@ void RunTestSet(skiatest::Reporter* r, TestDesc tests[], size_t count,
 	}
 }
 
-
 int VerifySimplify(const SkPath& one, std::string testname, const SkPath& result, bool v0mayFail) {
     SkPath pathOut, scaledPathOut;
     SkRegion rgnA, openClip;
@@ -938,11 +937,21 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
     AddSkiaPath(context, simple, path);
 #endif
 	ContextError contextError = Error(context);
+	bool veryLarge = false;
+	if (ContextError::finite == contextError) {
+		// 'fail' tests 'dontFailOne' have 1e38 values as input. Generating extrema in skia adapter
+		// creates inf and nan. Return if this is the case so that caller can skip reporting error.
+		veryLarge = VeryLargeSkiaPath(path);
+		if (veryLarge)
+			out->setFillType(SkPathFillType::kEvenOdd);
+	}
 	if (ContextError::none == contextError) {
 		PathOutput pathOutput = out;
 		Normalize(context);
 		Resolve(context, pathOutput);
 		contextError = Error(context);
+		if (ContextError::toVertical == contextError)
+			veryLarge = VeryLargeSkiaPath(path);			
 		trackError(contextError);
 	}
 #if TEST_ANALYZE && OP_DEBUG
@@ -952,7 +961,7 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
 	}
 #endif
     DeleteContext(context);
-	return ContextError::none == contextError;
+	return ContextError::none == contextError || veryLarge;
 }
 
 void threadableSimplifyTest(int id, const SkPath& path, std::string testname, 

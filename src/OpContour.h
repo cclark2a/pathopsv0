@@ -75,6 +75,7 @@ struct OpContour {
 	bool joinSetup();
 	void joinSort();
 	bool linkUp(OpJoiner* , OpEdge* );
+	const std::vector<OpContour*>& members() const { return setOwner->contourSet; }
 	void pushLinkup(OpEdge* );
 	RelinkJoins relinkUnambiguous(OpJoiner* , size_t checked);
 	void removeLast(OpEdge* , InOutput );
@@ -159,15 +160,12 @@ struct OpContour {
 	std::string debugDumpJoin(DebugLevel l, DebugBase b) const;
 #endif
 
-	OpContext* context;
 	std::vector<OpSegment> segments;
 	std::vector<OpSegment*> sorted;
-	std::vector<OpContour*> sects;
-	OpContour* winderOwner;  // the master that has intersects the same set of contours as this
-	// !!! experiment; move winder data to contour for many-contours optimization
-	//  populate only with edges in contour, and edges in overlapping contours
-	std::vector<OpEdge*> inX;  // only good if winderOwner points to self
-	std::vector<OpEdge*> inY;
+	std::vector<OpContour*> contourSet;  // intersecting contours (valid if this equals setOwner)
+	//  populated only with edges in contour, and edges in overlapping contours
+	std::vector<OpEdge*> inX;  // edges intersecting horz rays (valid if this equals setOwner)
+	std::vector<OpEdge*> inY;  // edges intersecting vert rays (valid if this equals setOwner)
 	// for joiner:
 	std::vector<OpEdge*> byArea;
 	std::vector<OpEdge*> unsectByArea;
@@ -177,8 +175,15 @@ struct OpContour {
 	std::vector<OpEdge*> unsortables;
 	LinkUps linkups;
 	LinkUps endLinks;
-	OpPointBounds sectBounds;
+	OpPointBounds setBounds;	// bounds of intersecting contours (valid if this equals setOwner)
+	OpPointBounds bounds;	// bounds of segments in this contour
+	OpContext* context;
+	OpContour* setOwner;  // the master that intersects the same set of contours as this
+//	OpContour* leftMost = nullptr;  // smallest right bounds (valid if this equals setOwner)
+//	OpContour* topMost = nullptr;  // smallest bottom bounds (valid if this equals setOwner)
+	int id;
 	int treeID = 0;  // tracks if contour has been initialized in this tree's context (for edge 'seen')
+	PathOpsV0Lib::Winding winding;
 //	bool containsSects = true;  // set of sects contains all sects' sects
 	bool backwardsBuilt = false;
 	bool centerlessBuilt = false;
@@ -186,9 +191,6 @@ struct OpContour {
 	bool isXSorted = false;
 	bool isYSorted = false;
 	bool disabled = false;
-	PathOpsV0Lib::Winding winding;
-	OpPointBounds bounds;
-	int id;
 
 	OP_DEBUG_CODE(PathOpsV0Lib::DebugContourCallbacks debugCallbacks);
 	OP_DEBUG_CODE(PathOpsV0Lib::DebugContourData debugCaller);  // note: must use std::memcpy before reading

@@ -782,6 +782,7 @@ OpPoint OpSegment::movePt(OpPtT match, OpPoint destination) {
 //    setBounds();  // defer fixing in middle of finding intersections, which uses sorted bounds
 	if (match.pt != destination)
 		moveSects(match, destination);
+	OP_ASSERT(!contour->context->debugJoiner);
 	edges.clear();
 	return destination;
 }

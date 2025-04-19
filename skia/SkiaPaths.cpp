@@ -315,7 +315,7 @@ PathOpsV0Lib::CurveType setSkiaLineType(PathOpsV0Lib::Curve ) {
     return (CurveType) SkiaCurveType::skiaLineType;
 }
 
-#if OP_DEBUG
+#if 0 && OP_DEBUG  // !!! unused?
 // 0x00 (black) is 'on' ; 0xFF (white) is 'off' -- this reverses the intuitive operators
 uint8_t skiaDebugBitOper(DebugContourData data, uint8_t src, uint8_t opp) {
     BinaryContext opContextData;
@@ -369,6 +369,10 @@ Contour* SetSkiaSimplifyCallbacks(Context* context, Winding winding,
             OP_DEBUG_IMAGE_PARAMS(debugSimplifyPathFunc,
 	        debugSimplifyGetDrawFunc, debugSimplifySetDrawFunc) }
     );
+	SetDebugContextCallbacks(context, { // skiaDebugBitOper
+			OP_DEBUG_DUMP_CODE(dumpUnaryContextFunc, unaryWindingDumpOutFunc)
+            OP_DEBUG_IMAGE_PARAMS(unaryWindingImageOutFunc) }
+    );
 #endif
     return contour;
 }
@@ -418,8 +422,8 @@ Contour* SetSkiaOpContourCallbacks(Context* context, Winding winding,
             OP_DEBUG_IMAGE_PARAMS(debugOpPathFunc,
 	        debugOpGetDrawFunc, debugOpSetDrawFunc, debugOpSetIsOppFunc) }
     );
-	SetDebugContextCallbacks(context, { skiaDebugBitOper
-			OP_DEBUG_DUMP_PARAMS(dumpBinaryContextFunc, binaryWindingDumpOutFunc)
+	SetDebugContextCallbacks(context, { // skiaDebugBitOper
+			OP_DEBUG_DUMP_CODE(dumpBinaryContextFunc, binaryWindingDumpOutFunc)
             OP_DEBUG_IMAGE_PARAMS(binaryWindingImageOutFunc) }
     );
 #endif
@@ -500,6 +504,49 @@ void AddSkiaPath(Context* context, Contour* contour, const SkPath& path) {
         }
         closeLine[0] = { pts[1].fX, pts[1].fY };
     }
+}
+
+// return true if some point is very large but no value is inf or nan.
+bool VeryLargeSkiaPath(const SkPath& path) {
+	bool veryLarge = false;
+	constexpr float large = 1e38;
+	auto checkPt = [&veryLarge](SkPoint pt) {
+		veryLarge |= fabsf(pt.fX) >= large || fabsf(pt.fY) >= large;
+	};
+	auto checkPts = [checkPt](SkPoint* pts, size_t count) {
+		for (size_t index = 1; index <= count; ++index)
+			checkPt(pts[index]);
+	};
+    SkPath::RawIter iter(path);
+    for (;;) {
+        SkPoint pts[4];
+        SkPath::Verb verb = iter.next(pts);
+        switch (verb) {
+        case SkPath::kMove_Verb:
+            checkPt(pts[0]);
+            break;
+        case SkPath::kLine_Verb:
+            checkPt(pts[1]);
+            break;
+        case SkPath::kQuad_Verb:
+			checkPts(pts, 2);
+            break;
+        case SkPath::kConic_Verb:
+			checkPts(pts, 2);
+			veryLarge |= fabsf(iter.conicWeight()) >= large;
+            break;
+        case SkPath::kCubic_Verb:
+			checkPts(pts, 3);
+            break;
+        case SkPath::kClose_Verb:
+			break;
+        case SkPath::kDone_Verb:
+            return veryLarge;
+        default:
+            OP_ASSERT(0);
+        }
+	}
+	return veryLarge;
 }
 
 #if OP_DEBUG

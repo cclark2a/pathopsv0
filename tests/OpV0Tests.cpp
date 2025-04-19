@@ -6850,10 +6850,462 @@ void mikeClifton2(skiatest::Reporter* reporter, const char* filename) {
 	testPathOp(reporter, circle, heart, kDifference_SkPathOp, filename);
 }
 
+void testLine57725(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 40);
+path.lineTo(20, 40);
+path.lineTo(20, 20);
+path.lineTo(0, 20);
+path.lineTo(0, 40);
+path.close();
+path.moveTo(24, 18);
+path.lineTo(36, 18);
+path.lineTo(36, 36);
+path.lineTo(24, 36);
+path.lineTo(24, 18);
+path.close();
+path.moveTo(16, 0);
+path.lineTo(16, 25);
+path.lineTo(25, 25);
+path.lineTo(25, 0);
+path.lineTo(16, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testLine99027(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 30);
+path.lineTo(20, 30);
+path.lineTo(20, 20);
+path.lineTo(0, 20);
+path.lineTo(0, 30);
+path.close();
+path.moveTo(24, 20);
+path.lineTo(36, 20);
+path.lineTo(36, 30);
+path.lineTo(24, 30);
+path.lineTo(24, 20);
+path.close();
+path.moveTo(16, 4);
+path.lineTo(16, 25);
+path.lineTo(25, 25);
+path.lineTo(25, 4);
+path.lineTo(16, 4);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testLine99029(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 30);
+path.lineTo(20, 30);
+path.lineTo(20, 20);
+path.lineTo(0, 20);
+path.lineTo(0, 30);
+path.close();
+path.moveTo(24, 20);
+path.lineTo(36, 20);
+path.lineTo(36, 30);
+path.lineTo(24, 30);
+path.lineTo(24, 20);
+path.close();
+path.moveTo(16, 8);
+path.lineTo(16, 25);
+path.lineTo(25, 25);
+path.lineTo(25, 8);
+path.lineTo(16, 8);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testLine99275(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 40);
+path.lineTo(20, 40);
+path.lineTo(20, 20);
+path.lineTo(0, 20);
+path.lineTo(0, 40);
+path.close();
+path.moveTo(24, 20);
+path.lineTo(36, 20);
+path.lineTo(36, 30);
+path.lineTo(24, 30);
+path.lineTo(24, 20);
+path.close();
+path.moveTo(16, 0);
+path.lineTo(16, 25);
+path.lineTo(25, 25);
+path.lineTo(25, 0);
+path.lineTo(16, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testLine99277(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 40);
+path.lineTo(20, 40);
+path.lineTo(20, 20);
+path.lineTo(0, 20);
+path.lineTo(0, 40);
+path.close();
+path.moveTo(24, 20);
+path.lineTo(36, 20);
+path.lineTo(36, 30);
+path.lineTo(24, 30);
+path.lineTo(24, 20);
+path.close();
+path.moveTo(16, 4);
+path.lineTo(16, 25);
+path.lineTo(25, 25);
+path.lineTo(25, 4);
+path.lineTo(16, 4);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testLine99279(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 40);
+path.lineTo(20, 40);
+path.lineTo(20, 20);
+path.lineTo(0, 20);
+path.lineTo(0, 40);
+path.close();
+path.moveTo(24, 20);
+path.lineTo(36, 20);
+path.lineTo(36, 30);
+path.lineTo(24, 30);
+path.lineTo(24, 20);
+path.close();
+path.moveTo(16, 8);
+path.lineTo(16, 25);
+path.lineTo(25, 25);
+path.lineTo(25, 8);
+path.lineTo(16, 8);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testLine125025(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 40);
+path.lineTo(20, 40);
+path.lineTo(20, 20);
+path.lineTo(0, 20);
+path.lineTo(0, 40);
+path.close();
+path.moveTo(24, 18);
+path.lineTo(24, 36);
+path.lineTo(36, 36);
+path.lineTo(36, 18);
+path.lineTo(24, 18);
+path.close();
+path.moveTo(16, 0);
+path.lineTo(16, 25);
+path.lineTo(25, 25);
+path.lineTo(25, 0);
+path.lineTo(16, 0);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testLine479691(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(12, 0);
+path.lineTo(42, 0);
+path.lineTo(42, 60);
+path.lineTo(12, 60);
+path.lineTo(12, 0);
+path.close();
+path.moveTo(20, 10);
+path.lineTo(40, 10);
+path.lineTo(40, 40);
+path.lineTo(20, 40);
+path.lineTo(20, 10);
+path.close();
+path.moveTo(12, 20);
+path.lineTo(24, 20);
+path.lineTo(24, 30);
+path.lineTo(12, 30);
+path.lineTo(12, 20);
+path.close();
+path.moveTo(6, 32);
+path.lineTo(15, 32);
+path.lineTo(15, 36);
+path.lineTo(6, 36);
+path.lineTo(6, 32);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testLine479891(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(24, 0);
+path.lineTo(54, 0);
+path.lineTo(54, 60);
+path.lineTo(24, 60);
+path.lineTo(24, 0);
+path.close();
+path.moveTo(10, 10);
+path.lineTo(30, 10);
+path.lineTo(30, 40);
+path.lineTo(10, 40);
+path.lineTo(10, 10);
+path.close();
+path.moveTo(12, 20);
+path.lineTo(24, 20);
+path.lineTo(24, 30);
+path.lineTo(12, 30);
+path.lineTo(12, 20);
+path.close();
+path.moveTo(6, 32);
+path.lineTo(15, 32);
+path.lineTo(15, 36);
+path.lineTo(6, 36);
+path.lineTo(6, 32);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testLine479943(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(24, 0);
+path.lineTo(54, 0);
+path.lineTo(54, 60);
+path.lineTo(24, 60);
+path.lineTo(24, 0);
+path.close();
+path.moveTo(20, 10);
+path.lineTo(40, 10);
+path.lineTo(40, 40);
+path.lineTo(20, 40);
+path.lineTo(20, 10);
+path.close();
+path.moveTo(12, 20);
+path.lineTo(24, 20);
+path.lineTo(24, 30);
+path.lineTo(12, 30);
+path.lineTo(12, 20);
+path.close();
+path.moveTo(12, 32);
+path.lineTo(21, 32);
+path.lineTo(21, 36);
+path.lineTo(12, 36);
+path.lineTo(12, 32);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testLine479953(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(24, 0);
+path.lineTo(54, 0);
+path.lineTo(54, 60);
+path.lineTo(24, 60);
+path.lineTo(24, 0);
+path.close();
+path.moveTo(20, 10);
+path.lineTo(40, 10);
+path.lineTo(40, 40);
+path.lineTo(20, 40);
+path.lineTo(20, 10);
+path.close();
+path.moveTo(18, 20);
+path.lineTo(30, 20);
+path.lineTo(30, 30);
+path.lineTo(18, 30);
+path.lineTo(18, 20);
+path.close();
+path.moveTo(12, 32);
+path.lineTo(21, 32);
+path.lineTo(21, 36);
+path.lineTo(12, 36);
+path.lineTo(12, 32);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testLine480005(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(24, 0);
+path.lineTo(54, 0);
+path.lineTo(54, 60);
+path.lineTo(24, 60);
+path.lineTo(24, 0);
+path.close();
+path.moveTo(30, 10);
+path.lineTo(50, 10);
+path.lineTo(50, 40);
+path.lineTo(30, 40);
+path.lineTo(30, 10);
+path.close();
+path.moveTo(18, 20);
+path.lineTo(30, 20);
+path.lineTo(30, 30);
+path.lineTo(18, 30);
+path.lineTo(18, 20);
+path.close();
+path.moveTo(18, 32);
+path.lineTo(27, 32);
+path.lineTo(27, 36);
+path.lineTo(18, 36);
+path.lineTo(18, 32);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testLine480015(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(24, 0);
+path.lineTo(54, 0);
+path.lineTo(54, 60);
+path.lineTo(24, 60);
+path.lineTo(24, 0);
+path.close();
+path.moveTo(30, 10);
+path.lineTo(50, 10);
+path.lineTo(50, 40);
+path.lineTo(30, 40);
+path.lineTo(30, 10);
+path.close();
+path.moveTo(24, 20);
+path.lineTo(36, 20);
+path.lineTo(36, 30);
+path.lineTo(24, 30);
+path.lineTo(24, 20);
+path.close();
+path.moveTo(18, 32);
+path.lineTo(27, 32);
+path.lineTo(27, 36);
+path.lineTo(18, 36);
+path.lineTo(18, 32);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testLine480215(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(36, 0);
+path.lineTo(66, 0);
+path.lineTo(66, 60);
+path.lineTo(36, 60);
+path.lineTo(36, 0);
+path.close();
+path.moveTo(20, 10);
+path.lineTo(40, 10);
+path.lineTo(40, 40);
+path.lineTo(20, 40);
+path.lineTo(20, 10);
+path.close();
+path.moveTo(24, 20);
+path.lineTo(36, 20);
+path.lineTo(36, 30);
+path.lineTo(24, 30);
+path.lineTo(24, 20);
+path.close();
+path.moveTo(18, 32);
+path.lineTo(27, 32);
+path.lineTo(27, 36);
+path.lineTo(18, 36);
+path.lineTo(18, 32);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testLine480267(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(36, 0);
+path.lineTo(66, 0);
+path.lineTo(66, 60);
+path.lineTo(36, 60);
+path.lineTo(36, 0);
+path.close();
+path.moveTo(30, 10);
+path.lineTo(50, 10);
+path.lineTo(50, 40);
+path.lineTo(30, 40);
+path.lineTo(30, 10);
+path.close();
+path.moveTo(24, 20);
+path.lineTo(36, 20);
+path.lineTo(36, 30);
+path.lineTo(24, 30);
+path.lineTo(24, 20);
+path.close();
+path.moveTo(24, 32);
+path.lineTo(33, 32);
+path.lineTo(33, 36);
+path.lineTo(24, 36);
+path.lineTo(24, 32);
+path.close();
+    testSimplify(reporter, path, filename);
+}
+
+/* testLine488691
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(12, 0);
+path.lineTo(42, 0);
+path.lineTo(42, 60);
+path.lineTo(12, 60);
+path.lineTo(12, 0);
+path.close();
+path.moveTo(20, 10);
+path.lineTo(40, 10);
+path.lineTo(40, 40);
+path.lineTo(20, 40);
+path.lineTo(20, 10);
+path.close();
+path.moveTo(12, 20);
+path.lineTo(24, 20);
+path.lineTo(24, 30);
+path.lineTo(12, 30);
+path.lineTo(12, 20);
+path.close();
+path.moveTo(6, 32);
+path.lineTo(6, 36);
+path.lineTo(15, 36);
+path.lineTo(15, 32);
+path.lineTo(6, 32);
+path.close();
+*/
 
 static struct TestDesc tests[] = {
+    TEST(testLine57725),
+    TEST(testLine99027),
+    TEST(testLine99029),
+    TEST(testLine99275),
+    TEST(testLine99277),
+    TEST(testLine99279),
+    TEST(testLine125025),
+    TEST(testLine479691),
+    TEST(testLine479891),
+    TEST(testLine479943),
+    TEST(testLine479953),
+    TEST(testLine480005),
+    TEST(testLine480015),
+    TEST(testLine480215),
+    TEST(testLine480267),
+
     TEST(mikeClifton2),
     TEST(mikeClifton1),
+
     TEST(testQuads7512007),
 	TEST(testQuads23839519),
     TEST(skiaIssue377820800),

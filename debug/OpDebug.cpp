@@ -604,6 +604,8 @@ const OpEdge* OpEdge::debugIsLoop(EdgeMatch which, LeadingLoop leading) const {
 void OpEdge::debugValidate() const {
     OpContext* contours = this->context();
     contours->debugValidateEdgeIndex += 1;
+    OP_ASSERT(!priorEdge || priorEdge->nextEdge == this);
+    OP_ASSERT(!nextEdge || nextEdge->priorEdge == this);
     bool loopy = debugIsLoop();
     if (loopy) {
         const OpEdge* test = this;

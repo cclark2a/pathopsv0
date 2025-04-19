@@ -639,8 +639,8 @@ ContextError FillPath::opCommon(FillPath& path, Ops oper) {
 	SetWindingCallbacks(context, { binaryWindingAddFunc, operatorFunc, binaryWindingVisibleFunc, 
 			binaryWindingZeroFunc, binaryWindingSubtractFunc });
 #if OP_DEBUG
-	SetDebugContextCallbacks(context, { nullptr
-			OP_DEBUG_IMAGE_PARAMS(nullptr, binaryWindingDumpOutFunc)
+	SetDebugContextCallbacks(context, { // nullptr
+			OP_DEBUG_IMAGE_CODE(nullptr, binaryWindingDumpOutFunc)
 			OP_DEBUG_IMAGE_PARAMS(binaryWindingImageOutFunc) } );
 #endif
 	SetupCurves(context);
@@ -661,8 +661,8 @@ ContextError FillPath::simplify() {
     SetWindingCallbacks(context, { unaryWindingAddFunc, unaryWindingKeepFunc, 
 			unaryWindingVisibleFunc, unaryWindingZeroFunc, unaryWindingSubtractFunc });
 #if OP_DEBUG
-	SetDebugContextCallbacks(context, { nullptr
-			OP_DEBUG_IMAGE_PARAMS(nullptr, unaryWindingDumpOutFunc)
+	SetDebugContextCallbacks(context, { // nullptr
+			OP_DEBUG_IMAGE_CODE(nullptr, unaryWindingDumpOutFunc)
 			OP_DEBUG_IMAGE_PARAMS(unaryWindingImageOutFunc) } );
 #endif
 	SetupCurves(context);
@@ -794,8 +794,8 @@ ContextError FramePath::opCommon(FillPath& path, Ops oper) {
     SetWindingCallbacks(context, { frameAddFunc, operatorFunc, frameVisibleFunc, frameZeroFunc, 
             frameSubtractFunc });
 #if OP_DEBUG
-	SetDebugContextCallbacks(context, { nullptr
-            OP_DEBUG_IMAGE_PARAMS(nullptr, FrameWinding::DumpOutFunc)
+	SetDebugContextCallbacks(context, { // nullptr
+            OP_DEBUG_IMAGE_CODE(nullptr, FrameWinding::DumpOutFunc)
             OP_DEBUG_IMAGE_PARAMS(frameWindingImageOutFunc) });
 #endif
 	SetupCurves(context);

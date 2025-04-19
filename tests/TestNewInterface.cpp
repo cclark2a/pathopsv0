@@ -55,8 +55,8 @@ void testNewInterface() {
     debugData.curveCurve2 = 7;
     debugData.curveCurveDepth = 6;
     Debug(context, debugData);
-	SetDebugContextCallbacks(context, { nullptr
-            OP_DEBUG_DUMP_PARAMS(nullptr, unaryWindingDumpOutFunc) }
+	SetDebugContextCallbacks(context, {  // nullptr
+            OP_DEBUG_DUMP_CODE(nullptr, unaryWindingDumpOutFunc) }
     );
 #endif
 

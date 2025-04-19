@@ -57,7 +57,7 @@ typedef std::string (*DebugImageWindingOut)(Winding , int index);
 #endif
 
 struct DebugContextCallbacks {
-	DebugBitOper debugBitOperFuncPtr = nullptr;
+//	DebugBitOper debugBitOperFuncPtr = nullptr;
 #if OP_DEBUG_DUMP
     DebugDumpContextExtra debugDumpContextExtraFuncPtr = nullptr;
 	DebugDumpWindingOut debugDumpWindingOutFuncPtr = nullptr;

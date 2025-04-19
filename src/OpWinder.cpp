@@ -7,6 +7,31 @@
 #include "OpWinder.h"
 #include "PathOps.h"
 
+bool SectRay::addCoinContours(OpWinder* winder) {
+	if (!checkCoins)
+		return false;
+	std::vector<OpTarget> add;
+	for (EdgePal& edgePal : distances) {
+		OpEdge* test = edgePal.edge;
+		if (test->coinPals.empty())
+			continue;
+		for (CoinPal& coinPal : test->coinPals) {
+			OpContour* contour = coinPal.opp->contour;
+			if (!winder->targetMatch(contour) && add.end() == std::find_if(add.begin(), add.end(),
+					[contour](OpTarget& target) { return target.contour == contour; } )) {
+				OpPointBounds bounds(contour->bounds.intersect(winder->chainBounds));
+				if (bounds.isEmpty())
+					continue;
+				add.push_back({ contour, bounds });
+			}
+		}
+	}
+	if (add.empty())
+		return false;
+	winder->targets.insert(winder->targets.end(), add.begin(), add.end());
+	return true;
+}
+
 // this catches unsectables by keeping track of edges that are found to be adjacent
 // each time a ray is cast. If the edge is seen to the left during one ray cast, and to the right
 // on another, it is marked as an unsectable pair.
@@ -93,6 +118,11 @@ void SectRay::addPals(OpEdge* home) {
 		addIfFlipped(DistEnd::back);
 }
 
+// check ray edges for entry prior to edge
+bool SectRay::canSetSum(const OpEdge* edge) const {
+	return distances.size() && distances[0].edge != edge;
+}
+
 // check if pair of rays contributing to home are reversed from their own ray order (informative)
 // check if distance adjacent to home is too close to safely determine the ray order (actionable)
 RayOrder SectRay::checkOrder(const OpEdge* home) {
@@ -152,11 +182,12 @@ EdgePal* SectRay::find(const OpEdge* edge) {
 	return nullptr;
 }
 
-FindCept SectRay::findIntercept(OpEdge* home, OpEdge* test) {
+FindCept SectRay::findIntercept(OpWinder* winder, OpEdge* test) {
 	if (test->ptBounds.ltChoice(axis) > normal)
 		return FindCept::ok;
 	if (test->ptBounds.rbChoice(axis) < normal)
 		return FindCept::ok;
+	OpEdge* home = winder->home;
 	if (test == home)
 		return FindCept::ok;
 	if (Unsortable::none != test->isUnsortable && Unsortable::tooManyTries != test->isUnsortable)
@@ -197,10 +228,21 @@ FindCept SectRay::findIntercept(OpEdge* home, OpEdge* test) {
 	testXY = pt.choice(perpendicular);
 	bool reversed = tangent.dot(homeTangent) < 0;
 	distances.emplace_back(test, testXY, root, reversed);
+	if (test->coinPals.size() && missingContour(winder, test))
+		checkCoins = true;
 	if (!uSectPair && OpMath::Equal(testXY, homeCept, 
 			home->context()->threshold().choice(perpendicular)))
 		return FindCept::retry;  // e.g., testQuads1877923 has two small quads which just miss 
 	return uSectPair ? FindCept::addPal : FindCept::ok;
+}
+
+bool SectRay::missingContour(OpWinder* winder, OpEdge* test) const {
+	for (CoinPal& coinPal : test->coinPals) {
+		OpContour* contour = coinPal.opp->contour;
+		if (!winder->targetMatch(contour))
+			return true;
+	}
+	return false;
 }
 
 // returns true iff all pals of edge are in ray's distances
@@ -481,7 +523,7 @@ FoundIntercept OpWinder::findRayIntercept(OpVector homeTan, float normal, float 
 		resetTarget();
 		// start at edge with left equal to or left of center
 		while (OpEdge* test = nextTarget(homeCept)) {
-			FindCept findCept = ray.findIntercept(home, test);
+			FindCept findCept = ray.findIntercept(this, test);
 			if (FindCept::ok == findCept)
 				continue;
 			if (FindCept::retry == findCept)
@@ -494,6 +536,8 @@ FoundIntercept OpWinder::findRayIntercept(OpVector homeTan, float normal, float 
 			if (FindCept::unsortable == findCept)
 				goto giveUp;
 		}
+		if (ray.addCoinContours(this))  // unmatched coin was found in built distance array
+			continue;
 		if (ray.distances.size() <= 1) 
 			return FoundIntercept::yes;
 		ray.sort();
@@ -551,20 +595,22 @@ foundInY: ;
 // only include contours that intersect their parents and the chain bounds
 void OpWinder::buildTargets() {
 	// construct rectangle from home bounds and ray to home's sects' bounds 
+//	OpBreak(home, 62);
 	chainBounds = home->bounds();
-	OpContour* owner = home->segment->contour->winderOwner;
-	const OpRect& contourBounds = owner->sectBounds;
+	OpContour* contour = home->segment->contour;
+	const OpRect& setBounds = contour->setOwner->setBounds;
 	if (Axis::horizontal == workingAxis)
-		chainBounds.left = contourBounds.left;
+		chainBounds.left = setBounds.left;
 	else
-		chainBounds.top = contourBounds.top;
+		chainBounds.top = setBounds.top;
 	// build inX/Y from sects intersecting chain bounds
 	targets.clear();
-	for (OpContour* sect : owner->sects) {
-		OpPointBounds sectBounds(sect->bounds.intersect(chainBounds));
+	for (OpContour* member : contour->members()) {
+		OpPointBounds sectBounds(member->bounds.intersect(chainBounds));
 		if (sectBounds.isEmpty())
 			continue;
-		for (OpContour* second : sect->sects) {
+#if 0  // !!! try deferring each edge winding ray evaluation to its local contour set
+		for (OpContour* second : member->members()) {
 			// !!! optimization: could skip intersect if sect equals second
 			OpPointBounds secondBounds(sectBounds.intersect(second->bounds));
 			if (secondBounds.isEmpty())
@@ -586,6 +632,17 @@ void OpWinder::buildTargets() {
 			if (!merge)
 				targets.push_back({ second, secondBounds });
 		}
+#else
+#if 0
+		// if member contour is completely to the left / above home, can't skip it
+		Axis perpendicular = !workingAxis;
+		float memberLimit = member->bounds.rbChoice(perpendicular) 
+				+  contour->context->threshold().choice(perpendicular);
+		if (memberLimit < home->bounds().ltChoice(perpendicular))
+			continue;
+#endif
+		targets.push_back({ member, sectBounds });
+#endif
 	}
 }
 
@@ -619,13 +676,12 @@ void OpWinder::setTarget() {
 //   does that behavior need to be preserved?
 //   it seems odd -- but could be reproduced if needed (with effort)
 //   maybe put that off until it is needed...
-
-	// advance to furthest that could influence the sum winding of this edge
 OpEdge* OpWinder::nextTarget(float homeCept) {
+	Axis perpendicular = !workingAxis;
 	while (targetEdges) {
-		if (targetEdge >= targetEdges->size()) {
+		// advance to furthest that could influence the sum winding of this edge
+		if (targetEdge >= targetEdges->size()) {  
 			targetEdge = 0;
-			Axis perpendicular = !workingAxis;
 			while ((*targetEdges)[targetEdge]->ptBounds.ltChoice(perpendicular) <= homeCept
 						&& ++targetEdge < targetEdges->size())
 				;
@@ -635,12 +691,10 @@ OpEdge* OpWinder::nextTarget(float homeCept) {
 			}
 		}
 		OpEdge* result = (*targetEdges)[targetEdge];
-		OP_ASSERT(result->ptBounds.ltChoice(!workingAxis) <= homeCept);
-		bool intersectsTarget = targetBounds->intersects(result->ptBounds);
+		OP_ASSERT(result->ptBounds.ltChoice(perpendicular) <= homeCept);
 		if (0 == targetEdge--)
 			setTarget();
-		if (intersectsTarget)
-			return result;
+		return result;
 	}
 	return nullptr;
 }
@@ -722,6 +776,7 @@ ChainFail OpWinder::setSumChain() {
 ResolveWinding OpWinder::setWindingByDistance(OpContext* context) {
 	// find edge; then walk backwards to first known sum 
 	SectRay& ray = home->ray;
+	OpBreak(home, 62);
 	OP_ASSERT(ray.distances.size());
 	if (1 == ray.distances.size()) {
 		OP_ASSERT(home == ray.distances[0].edge);
@@ -777,7 +832,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpContext* context) {
 	// starting with found or zero if none, accumulate sum up to winding
 	// edges in ray may have winding contributions from contours not in home contour's sect
 	// remove winding values if distance edge contour is not in home contour sect list
-	OpContour* winderOwner = home->segment->contour->winderOwner;
+	OpContour* winderOwner = home->segment->contour->setOwner;
 	OpWinding sumWinding(home, WindingSum::dummy);
 	int sumIndex = (int) ray.distances.size();
 	while (ray.distances[--sumIndex].edge != home) 
@@ -804,7 +859,17 @@ ResolveWinding OpWinder::setWindingByDistance(OpContext* context) {
 		if (CalcFail::fail == sumEdge->subIfDL(winderOwner, ray.axis, sumDistance.edgeInsideT, &sumWinding))  
 			OP_DEBUG_FAIL(*sumEdge, ResolveWinding::fail);
 	}
+#if 1  // !!! if prior has not had its sum computed, and prior's edge run has entries, recurse
 	OpEdge* prior;
+	if (-1 == sumIndex) {
+		prior = ray.distances[0].edge;
+		if (!prior->sum.isSet() && prior->ray.canSetSum(prior)) {
+			home = prior;
+			setWindingByDistance(context);
+			return ResolveWinding::recursed;
+		}
+	}
+#endif
 	do {
 		OP_ASSERT(sumIndex + 1 < (int) ray.distances.size());
 		EdgePal& dist = ray.distances[++sumIndex];
@@ -939,38 +1004,21 @@ FoundWindings OpWinder::setWindings(OpContext* context) {
 	context->setSortedBounds();
 	for (auto sContour : context->sorted) {
 		// if edge (later) has horizontal ray, use left most; if vertical, use top most
-		OpContour* leftMost  OP_DEBUG_CODE(= nullptr);  // !!! defeat compiler warning?
-		OpContour* topMost  OP_DEBUG_CODE(= nullptr);
-		float smallestRight = OpInfinity;
-		float smallestBottom = OpInfinity;
-		for (OpContour* sect : sContour->sects) {
-			if (smallestRight > sect->bounds.right) {
-				smallestRight = sect->bounds.right;
-				leftMost = sect;
-			}
-			if (smallestBottom > sect->bounds.bottom) {
-				smallestBottom = sect->bounds.bottom;
-				topMost = sect;
-			}
-		}
-		auto gather = [](OpContour* edgeMost, Axis axis) {
+		auto gather = [sContour](Axis axis) {
 			std::vector<OpEdge*> sectsByAxis;
-			for (OpContour* sect : edgeMost->sects) {
-				if (sect->isSorted(axis))
-					continue;
-				sect->setSorted(axis);
-				for (auto& segment : sect->segments) {
-					for (auto& edge : segment.edges) {
-						if (edge.disabled)
-							continue;
-						if (axis != edge.ray.axis)
-							continue;
-						if (Unsortable::none != edge.isUnsortable)
-							continue;
-						if (edge.ray.distances.empty())
-							continue;
-						sectsByAxis.push_back(&edge);
-					}
+			OP_ASSERT(!sContour->isSorted(axis));
+			sContour->setSorted(axis);
+			for (auto& segment : sContour->segments) {
+				for (auto& edge : segment.edges) {
+					if (edge.disabled)
+						continue;
+					if (axis != edge.ray.axis)
+						continue;
+					if (Unsortable::none != edge.isUnsortable)
+						continue;
+					if (edge.ray.distances.empty())
+						continue;
+					sectsByAxis.push_back(&edge);
 				}
 			}
 			std::sort(sectsByAxis.begin(), sectsByAxis.end(), [](const auto& s1, const auto& s2) {
@@ -978,15 +1026,17 @@ FoundWindings OpWinder::setWindings(OpContext* context) {
 			} );
 			return sectsByAxis;
 		};
-		std::vector<OpEdge*> sectsByX = gather(leftMost, Axis::horizontal);
-		std::vector<OpEdge*> sectsByY = gather(topMost, Axis::vertical);
+		std::vector<OpEdge*> sectsByX = gather(Axis::horizontal);
+		std::vector<OpEdge*> sectsByY = gather(Axis::vertical);
 		for (auto sectsBy : { sectsByX, sectsByY }) {
 			for (auto edge : sectsBy) {
 				if (edge->sum.isSet())
 					continue;
 				ResolveWinding resolveWinding;
-				home = edge;
-				resolveWinding = setWindingByDistance(context);
+				do {
+					home = edge;
+					resolveWinding = setWindingByDistance(context);
+				} while (ResolveWinding::recursed == resolveWinding);
 				if (ResolveWinding::retry == resolveWinding) {
 					// if edges in ray are too close, look for a better spot
 					workingAxis = home->ray.axis;
@@ -1022,4 +1072,12 @@ FoundWindings OpWinder::setWindings(OpContext* context) {
 		}
 	}
 	return FoundWindings::yes;
+}
+
+bool OpWinder::targetMatch(OpContour* contour) const {
+	for (const OpTarget& target : targets) {
+		if (target.contour == contour)
+			return true;
+	}
+	return false;
 }

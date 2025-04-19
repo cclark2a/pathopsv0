@@ -272,6 +272,13 @@ OpEdge::OpEdge(OpSegment* seg, float t1, float t2  OP_LINE_FILE_ARGS())
 	complete(segment->c.ptAtT(t1), segment->c.ptAtT(t2));
 }
 
+#if OP_DEBUG_VALIDATE
+OpEdge::~OpEdge() {
+//	OP_ASSERT(!segment || !segment->contour->context->debugJoiner);
+	id = -1;
+}
+#endif 
+
 CalcFail OpEdge::addIfUR(Axis axis, float edgeInsideT, OpWinding* sumWinding) const {
 	NormalDirection NdotR = normalDirection(axis, edgeInsideT);
 	if (NormalDirection::upRight == NdotR)
@@ -414,6 +421,7 @@ void OpEdge::clearPriorEdge() {
 }
 
 void OpEdge::complete(OpPoint startPoint, OpPoint endPoint) {
+	OP_DEBUG_VALIDATE_CODE(OP_ASSERT(!segment->contour->context->debugJoiner));
 	OP_ASSERT(startT < endT);
 	subDivide(startPoint, endPoint);	// uses already computed points stored in edge
 	winding.setWind(segment->winding);
@@ -696,6 +704,7 @@ void OpEdge::setPriorEdge(OpEdge* edge) {
 	if (priorEdge)
 		priorEdge->nextEdge = nullptr;
 	priorEdge = edge;
+	OP_DEBUG_VALIDATE_CODE(if (edge) debugPriorID = edge->id);
 }
 
 void OpEdge::setUnsortable(Unsortable unsortable) {  // setter exists so breakpoints can be set
@@ -745,6 +754,7 @@ CalcFail OpEdge::subIfDL(OpContour* winderOwner, Axis axis, float edgeInsideT,
 }
 
 void OpEdge::setSum(const OpWinding& w  OP_LINE_FILE_ARGS()) {
+	OpBreak(this, 65);
 	OP_ASSERT(WindingType::uninitialized == sum.type);
 	sum.w = w.copyData(context());
 	sum.type = WindingType::copy;
@@ -822,7 +832,24 @@ bool OpEdgeStorage::contains(int ccUnsectableID) const {
 	return next->contains(ccUnsectableID);
 }
 
+#if OP_DEBUG_VALIDATE
+void OpEdgeStorage::debugRelease() {
+	for (int index = 0; index < used; ++index) {
+		OpEdge& edge = storage[index];
+		if (edge.priorEdge)
+			edge.priorEdge->nextEdge = nullptr;
+		if (edge.nextEdge)
+			edge.nextEdge->priorEdge = nullptr;
+	}
+	if (!next)
+		return;
+	return next->debugRelease();
+}
+
+#endif
+
 void OpEdgeStorage::reuse() {
+OP_ASSERT(0);
 	for (int index = 0; index < used; ++index)
 		storage[index].~OpEdge();
 	used = 0;

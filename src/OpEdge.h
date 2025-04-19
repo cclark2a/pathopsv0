@@ -14,6 +14,7 @@ struct OpCurveCurve;
 struct OpIntersection;
 struct OpOutPath;
 struct OpSegment;
+struct OpWinder;
 
 enum class CurveRef;
 enum class FoundPtT;
@@ -114,17 +115,21 @@ struct SectRay {
 		, firstTry(true)
 	{
 	}
+	bool addCoinContours(OpWinder* );
 	void addPals(OpEdge* );
+	bool canSetSum(const OpEdge* ) const;
 	RayOrder checkOrder(const OpEdge* );
 	const EdgePal* end(DistEnd e) const {
 		return DistEnd::front == e ? &distances.front() : &distances.back(); }
-	FindCept findIntercept(OpEdge* home, OpEdge* test);
+	FindCept findIntercept(OpWinder* , OpEdge* test);
 	EdgePal* find(const OpEdge* );  // returns edge in distances
+	bool missingContour(OpWinder* , OpEdge* ) const;
 	const EdgePal* next(const EdgePal* dist, DistEnd e) const {
 		return dist + (int) e; }
 	bool sectsAllPals(const OpEdge* ) const;  // returns if edge + all of its pals are in distances
 	void sort();
 	DUMP_DECLARATIONS
+	OP_DEBUG_DUMP_CODE(std::string debugDumpHeader(DebugLevel l, DebugBase b) const);
 
 	std::vector<EdgePal> distances;
 	OpVector homeTangent;  // used to determine if unsectable edge is reversed
@@ -133,6 +138,7 @@ struct SectRay {
 	float homeT;  // value from 0 to 1 within edge range (akin to edgeInsideT)
 	Axis axis;
 	bool firstTry;  // used to cache unsectable test
+	bool checkCoins = false;
 };
 
 enum class SectType {
@@ -195,6 +201,7 @@ enum class EdgeDirection {
 enum class ResolveWinding {
 	resolved,
 	loop,
+	recursed,
 	retry,
 	fail,
 };
@@ -275,7 +282,7 @@ private:
 		, endSeen(false)
 	{
 #if OP_DEBUG // a few debug values are also nonzero
-		id = 0;
+		id = -2;
 		startDist = OpNaN;
 		endDist = OpNaN;
 		segment = nullptr;
@@ -406,6 +413,8 @@ public:
 	const OpEdge* debugIsLoop(EdgeMatch , LeadingLoop = LeadingLoop::will) const;
 #endif
 #if OP_DEBUG_VALIDATE
+	OpEdge(const OpEdge& ) = default;
+	~OpEdge();
 	void debugValidate() const;  // make sure pointer to edge is valid
 #endif
 #if OP_DEBUG_IMAGE
@@ -483,6 +492,7 @@ public:
 	OpDebugMaker debugSetSum;
 #endif
 #if OP_DEBUG_VALIDATE
+	int debugPriorID = 0;
 	bool debugScheduledForErasure;
 #endif
 };
@@ -512,6 +522,9 @@ struct OpEdgeStorage {
 	OpEdge* debugIndex(int index);
 	static void DumpSet(const char*& str, OpContext* , DumpStorage );
 	DUMP_DECLARATIONS
+#endif
+#if OP_DEBUG_VALIDATE
+	void debugRelease();
 #endif
 
 	OpEdgeStorage* next;
