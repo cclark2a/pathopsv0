@@ -1457,7 +1457,7 @@ void DebugOpDrawContourID(const OpContour* contour, std::vector<int>& ids) {
 	OpPoint midPt = contour->bounds.center();
     DebugOpPoint dMidPt(midPt.x, midPt.y);
 	midPt = DebugOpMap(dMidPt);
-    OpDebugImage::drawValue(midPt, STR(contour->id), black);
+    OpDebugImage::drawValue(midPt, STR(contour->id), contour->debugColor);
 }
 
 void DebugOpDrawSegmentID(const OpSegment* segment, std::vector<int>& ids) {

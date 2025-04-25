@@ -170,6 +170,7 @@ struct OpTree {
 	int totalUsed;
 	int id;
 	bool smallGap;
+	OP_DEBUG_CODE(int debugAddEach = 0);
 };
 
 struct OpLimbStorage {

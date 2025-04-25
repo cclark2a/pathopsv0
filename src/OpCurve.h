@@ -64,7 +64,7 @@ struct OpCurve {
 	OpPoint ptAtT(float t) const;
 	OpPtT ptTAtT(float t) const {
 		return { ptAtT(t), t }; }
-	OpPointBounds ptBounds() const;
+	OpPointBounds ptBounds() const;  // if curve is rotated, may need to consider control points
 	int pointCount() const;
 	OpRoots rawIntersect(const LinePts& line, MatchEnds ) const;  // requires sect to be on curve
 	OpRoots rayIntersect(const LinePts& line, MatchEnds ) const;

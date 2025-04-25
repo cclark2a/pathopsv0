@@ -5,10 +5,17 @@
 #include "OpSegment.h"
 #include "PathOps.h"
 
+#if OP_DEBUG_DUMP && !TEST_DEFEAT_BREAK
 int debugHits = 0;
+#endif
 
 void OpLimb::addEach(OpContour& contour, OpTree& tree) {
-	if (looped || deadEnd)  // triggered when walking children of trunk 
+	OP_DEBUG_CODE(tree.debugAddEach++);
+#if 0 && OP_DEBUG_DUMP
+	OpDebugOut(STR(tree.debugAddEach) + ": limb[" + STR(id) + "] contour: " + STR(contour.id) 
+			+ " pass:" + debugLimbPass(tree.limbPass) + "\n");
+#endif
+if (looped || deadEnd)  // triggered when walking children of trunk 
 		return;
 	if (resetPass) {
 		tree.limbPass = LimbPass::linked;
@@ -255,7 +262,7 @@ connectWithFiller:
 			return nullptr;
 	}
 	OpPointBounds childBounds = test->lastEdge ? test->linkBounds : 
-			otherEnd ? otherEnd->linkBounds : test->ptBounds;
+			otherEnd ? otherEnd->linkBounds : test->bounds;
 	if (parent && LimbPass::disjoint != treePass)  // if not trunk
 		childBounds.add(bounds);
 	if (test->inLinkups)
@@ -284,7 +291,7 @@ connectWithFiller:
 		filler->setWhich(EdgeMatch::start);
 		OpLimb* fillerBranch = tree.makeLimb();
 		fillerBranch->set(tree, filler, this, EdgeMatch::start, tree.limbPass, limbContour,
-				limbIndex, nullptr, &filler->ptBounds);
+				limbIndex, nullptr, &filler->bounds);
 		fillerBranch->edge->ccUnsectID = abs(ccUnsectID);
 		fillerBranch->gapDistance = (startI.pt - lastPtT.pt).length();
 		if (loopedToFirstPoint)
@@ -781,16 +788,11 @@ void OpContour::addJoinEdge(OpJoiner* joiner, OpEdge* e) {
 		return;
 	OP_ASSERT(!e->priorEdge);
 	if (!e->nextEdge) {
-		OP_ASSERT(byArea.end() == std::find_if(byArea.begin(), byArea.end(), 
-			[e](const OpEdge* test) { return e == test;
-		}));
+		OP_ASSERT(byArea.end() == std::find(byArea.begin(), byArea.end(), e));
 		byArea.push_back(e);
 		return;
 	}
-	OP_ASSERT(linkups.l.end() == std::find_if(linkups.l.begin(), linkups.l.end(), 
-			[e](const OpEdge* test) {
-		return e == test;
-	}));
+	OP_ASSERT(linkups.l.end() == std::find(linkups.l.begin(), linkups.l.end(), e));
 	OpEdge* last = e->setLastEdge();
 	if (e->start().pt == last->end().pt) {
 		OP_ASSERT(!last->nextEdge);
@@ -870,7 +872,7 @@ void OpContour::buildPals() {
 		}
 	}
 	std::sort(disabledPals.begin(), disabledPals.end(), [](OpEdge* a, OpEdge* b)
-			{ return a->ptBounds.perimeter() < b->ptBounds.perimeter(); }
+			{ return a->bounds.perimeter() < b->bounds.perimeter(); }
 	);
 	palsBuilt = true;
 }
@@ -1316,8 +1318,8 @@ RelinkJoins OpContour::relinkUnambiguous(OpJoiner* joiner, size_t link) {
 }
 
 static bool compareSize(const OpEdge* s1, const OpEdge* s2) {
-	const OpRect& r1 = s1->ptBounds;
-	const OpRect& r2 = s2->ptBounds;
+	const OpRect& r1 = s1->bounds;
+	const OpRect& r2 = s2->bounds;
 	return r1.width() + r1.height() > r2.width() + r2.height();
 }
 

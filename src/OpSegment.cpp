@@ -820,8 +820,14 @@ bool OpSegment::moveWinding(OpSegment* opp, bool backwards) {
 	winding.move(contour->context, opp->winding, backwards);
 	opp->winding.zero(contour->context);
 	opp->setDisabled(OP_LINE_FILE_NPARGS());
-	if (winding.visible(contour->context))
+	OpContour* oContour = opp->contour;
+	contour->addCoin(oContour);
+	if (winding.visible(contour->context)) {
+		if (oContour != contour && coinContours.end() == std::find(coinContours.begin(),
+				coinContours.end(), oContour))
+			coinContours.push_back(oContour);
 		return true;
+	}
 	setDisabled(OP_LINE_FILE_NPARGS());
 	return false;
 }
@@ -959,10 +965,18 @@ void OpSegment::transferCoins() {
 				OP_ASSERT(ocPals.end() != ocPal);
 #endif
 //				OP_ASSERT(oEdge.winding.visible());
+				OP_ASSERT(!edge.disabled);
 				edge.winding.move(contour->context, oEdge.winding, cID < 0);
-				oEdge.setDisabledZero(OP_LINE_FILE_NPARGS());
-				break;
+				oEdge.winding.zero(contour->context);
+				oEdge.setDisabled(OP_LINE_FILE_NPARGS());
+				contour->addCoin(oSeg->contour);
+				if (edge.winding.visible(contour->context))
+					break;
+				edge.setDisabled(OP_LINE_FILE_NPARGS());
+				goto giveUp;
 			}
 		}
+giveUp:
+		;
 	}
 }

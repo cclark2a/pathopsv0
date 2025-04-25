@@ -14,7 +14,8 @@ enum class ChainFail {
 	failIntercept,
 	noNormal,
 	normalizeOverflow,
-	normalizeUnderflow
+	normalizeUnderflow,
+	recurse  // some member of the chain needs to be evaluated earlier
 };
 
 #if 0
@@ -32,6 +33,7 @@ enum class FoundIntersections {
 enum class FoundIntercept {
 	fail,
 	overflow,
+	recurse,
 	set,
 	yes
 };
@@ -55,39 +57,48 @@ struct CoinEnd {
 };
 
 // target bounds is intersection of contour bounds, parent bounds, and home/ray bounds
-struct OpTarget {
+struct RayTarget {
 	OpContour* contour;
 	OpPointBounds bounds;
+};
+
+struct RayTargets {
+	void build(OpWinder* );
+	bool match(OpContour* ) const;
+	OpEdge* next(float homeCept);
+	void reset();
+	void set();
+
+	std::vector<RayTarget> t;
+	std::vector<OpEdge*>* edges;
+	OpRect chainBounds;
+	size_t edgeIndex;
+	size_t index;
+	Axis axis;
 };
 
 struct OpWinder {
 	OpWinder(OpContext& contours);
 	void addEdge(OpEdge* );
-	void buildTargets();
 	static IntersectResult CoincidentCheck(OpSegment* seg, OpSegment* opp);
 	static IntersectResult CoincidentCheck(std::array<CoinEnd, 4>& ends, bool* oppReversed,
 			XyChoice* );
 	FoundIntercept findRayIntercept(OpVector tangent, float normal, float homeCept);
 	void markUnsortable(Unsortable );
-	OpEdge* nextTarget(float homeCept);
-	void resetTarget();
 	ChainFail setSumChain();
-	void setTarget();
 	ResolveWinding setWindingByDistance(OpContext* );
 	FoundWindings setWindings(OpContext* );
 	void sort();
-	bool targetMatch(OpContour* ) const;
 
 #if OP_DEBUG_DUMP
 #include "OpDebugDeclarations.h"
 #endif
-
-	std::vector<OpTarget> targets;
-	std::vector<OpEdge*>* targetEdges;
-	OpRect chainBounds;
-	OpRect* targetBounds;
-	size_t targetIndex;
-	size_t targetEdge;
+//		start here;
+		// findRayIntercept may need to add to targets any contour that
+		// can be used by an earlier edge in the ray distances, if the contour bounds is to the
+		// right of the earlier edge bounds
+		// requires recursive ray finding so that earlier edge's distances are known
+	RayTargets targets;
 	OpEdge* home;
 	Axis workingAxis;
 	float interceptLimit;

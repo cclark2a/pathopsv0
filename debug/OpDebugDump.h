@@ -221,6 +221,8 @@ extern void dmpActive();
 extern void dmpAliases();
 extern void dmpCoincidences();
 extern void dmpCoins();
+extern void dmpContext();
+extern void dmpContours();
 extern void dmpDisabled();
 extern void dmpEdges();
 extern void dmpEdgePts();
@@ -345,6 +347,10 @@ extern void debug();  // set debug bitmap to start and dump state using current 
 
 // used by new interface
 extern std::string debugValue(DebugLevel l, DebugBase b, std::string label, float value);
+
+enum class LimbPass : uint8_t;
+
+extern std::string debugLimbPass(LimbPass pass);
 
 struct OpSaveDump {
     OpSaveDump(DebugLevel l, DebugBase b);

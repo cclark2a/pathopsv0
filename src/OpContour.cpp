@@ -23,6 +23,15 @@ char* OpContext::allocateCallerData(size_t size) {
 	return result;
 }
 
+// opp and contour share at least one coincident segment or edge; makes opp member of contour set
+void OpContour::addCoin(OpContour* opp) {
+	if (this == opp)
+		return;
+	if (merges.end() != std::find(merges.begin(), merges.end(), opp))
+		return;
+	merges.push_back(opp);
+}
+
 #if OP_DEBUG
 void OpContour::addDebugContourData(PathOpsV0Lib::DebugContourData data) {
 	if (!data.size) {
@@ -65,17 +74,17 @@ bool OpContour::addEdges() {
 	#endif
 				continue;
 			}
-			if (edge.ptBounds.height())
+			if (edge.bounds.height())
 				inX.push_back(&edge);
-			if (edge.ptBounds.width())
+			if (edge.bounds.width())
 				inY.push_back(&edge);
 		}
 	}
 	std::sort(inX.begin(), inX.end(), [](const OpEdge* s1, const OpEdge* s2) {
-		return s1->ptBounds.left < s2->ptBounds.left;
+		return s1->bounds.left < s2->bounds.left;
 	});
 	std::sort(inY.begin(), inY.end(), [](const OpEdge* s1, const OpEdge* s2) {
-		return s1->ptBounds.top < s2->ptBounds.top;
+		return s1->bounds.top < s2->bounds.top;
 	});
 	return addCoin;
 }
@@ -109,11 +118,8 @@ void OpContour::addCoinEdges() {
 #endif
 
 std::vector<OpEdge*>& OpContour::windingEdges(Axis axis) {
-	if (setOwner != this) {
-		OP_ASSERT(inX.empty() && inY.empty());
-		return setOwner->windingEdges(axis);
-	}
-	return Axis::horizontal == axis ? inX : inY;
+	OP_ASSERT(overlapOwner == this || (inX.empty() && inY.empty()));
+	return Axis::horizontal == axis ? overlapOwner->inX : overlapOwner->inY;
 }
 
 void OpContour::addLast(OpEdge* edge) {
@@ -660,49 +666,36 @@ void OpContext::opsInit() {
 		OpContour* oContour = contours[outer];
 		if (oContour->disabled)
 			continue;
-		oContour->setOwner = oContour;
+		oContour->overlapOwner = oContour;
 		for (size_t inner = outer; inner < contours.size(); ++inner) {
 			OpContour* iContour = contours[inner];
 			if (iContour->disabled)
 				continue;
 			if (oContour->bounds.intersects(iContour->bounds)) {
-				oContour->contourSet.push_back(iContour);
+				oContour->overlaps.push_back(iContour);
 				if (oContour != iContour)
-					iContour->contourSet.push_back(oContour);
+					iContour->overlaps.push_back(oContour);
 			}
 		}
 	}
 	for (OpContour* contour : contours) {  // sort so contours can find indentical intersection sets
-		sort(contour->contourSet.begin(), contour->contourSet.end(), [](OpContour* a, OpContour* b) {
-			return a->id < b->id;
-		});
+		std::sort(contour->overlaps.begin(), contour->overlaps.end(), [](OpContour* a, OpContour* b) {
+				return a->id < b->id; });
 	}
 	for (size_t index = 0; index < contours.size(); ++index) {
 		OpContour* contour = contours[index];
-		if (contour->setOwner != contour)
+		if (contour->overlapOwner != contour)
 			continue;
-		contour->setBounds = contour->bounds;
-//		float smallestRight = OpInfinity;
-//		float smallestBottom = OpInfinity;
-		for (OpContour* member : contour->contourSet) {
+		contour->overlapBounds = contour->bounds;
+		for (OpContour* member : contour->overlaps) {
 			if (member != contour) {
-				contour->setBounds.add(member->bounds);
-				if (member->contourSet == contour->contourSet) {
-					member->setOwner = contour;  // if identical, point to master
-					member->contourSet.clear();  //  and remove duplicate data
-					OP_ASSERT(member->setBounds.isEmpty());
+				contour->overlapBounds.add(member->bounds);
+				if (member->overlaps == contour->overlaps) {
+					member->overlapOwner = contour;  // if identical, point to master
+					member->overlaps.clear();  //  and remove duplicate data
+					OP_ASSERT(member->overlapBounds.isEmpty());
 				}
 			}
-#if 0
-			if (smallestRight > member->bounds.right) {
-				smallestRight = member->bounds.right;
-				contour->leftMost = member->setOwner;
-			}
-			if (smallestBottom > member->bounds.bottom) {
-				smallestBottom = member->bounds.bottom;
-				contour->topMost = member->setOwner;
-			}
-#endif
 		}
 	}
 
@@ -710,6 +703,81 @@ void OpContext::opsInit() {
 	if (rasterEnabled)
 		rasterOutput.init();
 #endif
+}
+
+static void addMerges(OpContour* contour, OpContour* mergeOwner, 
+		std::vector<OpContour*>& visited) {
+	std::vector<OpContour*>& merges = mergeOwner->merges;
+	for (OpContour* merge : merges) {
+		if (visited.end() != std::find(visited.begin(), visited.end(), merge))
+			continue;
+		visited.push_back(merge);
+		addMerges(contour, merge, visited);
+	}
+	if (contour == mergeOwner)
+		return;
+	if (merges.end() == std::find(merges.begin(), merges.end(), contour))
+		merges.push_back(contour);
+	std::vector<OpContour*>& backs = contour->merges;
+	if (backs.end() == std::find(backs.begin(), backs.end(), mergeOwner))
+		backs.push_back(mergeOwner);
+}
+
+// after all coincidence has been found, rebuild overlaps
+void OpContext::rebuildOverlaps() {
+	// update merges to find multiple step coincident contour extensions
+	bool hasMerges = false;
+	for (OpContour* contour : contours) {
+		if (contour->merges.empty())
+			continue;
+		std::vector<OpContour*> visited = { contour };
+		addMerges(contour, contour, visited);
+		hasMerges = true;
+	}
+	if (!hasMerges)
+		return;
+	// update overlaps from full merges
+	for (OpContour* contour : contours) {
+		if (contour != contour->overlapOwner)
+			continue;
+		std::vector<OpContour*> adds;
+		std::vector<OpContour*>& overlaps = contour->overlaps;
+		for (OpContour* member : overlaps) {
+			for (OpContour* inner : member->merges) {
+				if (overlaps.end() != std::find(overlaps.begin(), overlaps.end(), inner))
+					continue;
+				if (adds.end() != std::find(adds.begin(), adds.end(), inner))
+					continue;
+				adds.push_back(inner);
+			}
+		}
+		if (adds.empty())
+			continue;
+		contour->overlapsMerged = true;
+		for (OpContour* add : adds) {
+			overlaps.push_back(add);
+			contour->overlapBounds.add(add->bounds);
+		}
+		std::sort(overlaps.begin(), overlaps.end(), [](OpContour* a, OpContour* b) {
+				return a->id < b->id; });
+	}
+	// if contour gained new overlaps, check for common ownership
+	for (OpContour* contour : contours) {
+		if (!contour->overlapsMerged)
+			continue;
+		for (OpContour* inner : contour->overlaps) {
+			if (contour == inner)
+				continue;
+			if (inner->overlaps != contour->overlaps)
+				continue;
+			inner->overlapOwner = contour;
+			inner->overlaps.clear();
+			for (OpContour* dups : contours) {
+				if (dups->overlapOwner == inner)
+					dups->overlapOwner = contour;
+			}
+		}
+	}
 }
 
 // If successive runs of the same input are flaky, check to see if identical ids are generated.
@@ -754,6 +822,7 @@ bool OpContext::pathOps() {
 	sortIntersections();
 	transferCoins();
 	makePals();  // edges too close to each other to sort or precisely intersect
+	rebuildOverlaps();
 
 	// made edges may include lines that are coincident with other edges. Undetected for now...
 //    windCoincidences();  // for segment h/v lines, compute their winding considering coincidence

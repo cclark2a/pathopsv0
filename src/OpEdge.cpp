@@ -219,7 +219,7 @@ OpEdge::OpEdge(OpContext* contours, const OpPtT& start, const OpPtT& end  OP_LIN
 	curve.isLineResult = true;
 	setPointBounds();
 	center.t = OpMath::Interp(startT, endT, .5);
-	center.pt = ptBounds.center();
+	center.pt = bounds.center();
 	setDisabled(OP_LINE_FILE_NPARGS());
 	setUnsortable(Unsortable::filler);
 	OP_DEBUG_IMAGE_CODE(debugDraw = true);
@@ -365,7 +365,7 @@ void OpEdge::apply() {
 // segments are now broken monotonically when they are built, so they should not return more than
 // one intersection anymore often than edges. 
 void OpEdge::calcCenterT() {
-	const OpRect& r = ptBounds;
+	const OpRect& r = bounds;
 	Axis axis = r.largerAxis();
 	float middle = OpMath::Average(r.ltChoice(axis), r.rbChoice(axis));
 	const OpCurve& segCurve = segment->c;
@@ -383,9 +383,9 @@ void OpEdge::calcCenterT() {
 		t = OpMath::Average(startT, endT);
 	center.t = t;
 	center.pt = segCurve.ptAtT(t);
-	center.pt.pin(ptBounds);  // required by pentrek6
-	OP_ASSERT(OpMath::Between(ptBounds.left, center.pt.x, ptBounds.right));
-	OP_ASSERT(OpMath::Between(ptBounds.top, center.pt.y, ptBounds.bottom));
+	center.pt.pin(bounds);  // required by pentrek6
+	OP_ASSERT(OpMath::Between(bounds.left, center.pt.x, bounds.right));
+	OP_ASSERT(OpMath::Between(bounds.top, center.pt.y, bounds.bottom));
 }
 
 void OpEdge::ccInit(bool overlaps) {
@@ -599,11 +599,6 @@ void OpEdge::setDisabled(OP_LINE_FILE_NP_ARGS()) {
 	OP_DEBUG_IMAGE_CODE(if (!debugCustom) debugColor = red);
 }
 
-void OpEdge::setDisabledZero(OP_LINE_FILE_NP_ARGS()) {
-	winding.zero(context());
-	setDisabled(OP_LINE_FILE_NP_CARGS()); 
-}
-
 OpEdge* OpEdge::setLastEdge() {
 	OpEdge* linkStart = advanceToEnd(EdgeMatch::start);
 	OpEdge* linkEnd = advanceToEnd(EdgeMatch::end);
@@ -651,13 +646,13 @@ bool OpEdge::setLastLink(EdgeMatch match) {
 OpPointBounds OpEdge::setLinkBounds() {
 	OP_ASSERT(lastEdge);  // fix caller to pass first edge of links
 	if (!linkBounds.isSet()) {
-		OP_ASSERT(ptBounds.isFinite());
-		linkBounds = ptBounds;
+		OP_ASSERT(bounds.isFinite());
+		linkBounds = bounds;
 		const OpEdge* edge = this;
 		while (edge != lastEdge) {
 			edge = edge->nextEdge;
-			OP_ASSERT(edge->ptBounds.isFinite());
-			linkBounds.add(edge->ptBounds);
+			OP_ASSERT(edge->bounds.isFinite());
+			linkBounds.add(edge->bounds);
 		}
 	}
 	OP_ASSERT(linkBounds.isFinite());
@@ -696,8 +691,8 @@ void OpEdge::setNextEdge(OpEdge* edge) {
 	nextEdge = edge;
 }
 
-void OpEdge::setPointBounds() {
-	ptBounds.set(startPt(), endPt());
+void OpEdge::setPointBounds() {		// note: does not call curve's bounds function, if any
+	bounds.set(startPt(), endPt());
 }
 
 void OpEdge::setPriorEdge(OpEdge* edge) {
@@ -754,7 +749,6 @@ CalcFail OpEdge::subIfDL(OpContour* winderOwner, Axis axis, float edgeInsideT,
 }
 
 void OpEdge::setSum(const OpWinding& w  OP_LINE_FILE_ARGS()) {
-	OpBreak(this, 65);
 	OP_ASSERT(WindingType::uninitialized == sum.type);
 	sum.w = w.copyData(context());
 	sum.type = WindingType::copy;

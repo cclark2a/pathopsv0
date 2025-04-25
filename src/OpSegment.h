@@ -159,6 +159,7 @@ struct OpSegment {
 	OpRect closeBounds;
 	OpIntersections sects;
 	std::vector<OpEdge> edges;
+	std::vector<OpContour*> coinContours;  // other contours referenced by coincident segments
 	OpWinding winding;
 	int id;     // !!! could be debug only; currently used to disambiguate sort, may be unneeded
 	bool disabled; // winding has canceled this edge out

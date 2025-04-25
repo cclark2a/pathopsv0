@@ -990,8 +990,17 @@ void OpContext::dumpResolveAll(OpContext* self) {
 #endif
 }
 
-void dmpContours() {
+void dmpContext() {
     dmp(*debugGlobalContext);
+}
+
+void dmpContours() {
+	std::string s;
+	for (OpContour* contour : debugGlobalContext->contours) {
+		s += contour->debugDump(defaultLevel, defaultBase) + "\n";
+	}
+	s.pop_back();
+	OpDebugFormat(s);
 }
 
 void dmpMatch(const OpPoint& pt, bool detail) {
@@ -1221,13 +1230,13 @@ const OpLimb& OpContext::debugNthLimb(int index) const {
 
 std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
     std::string s = "contour[" + STR(id) + "] ";
-    if (DebugLevel::file != l) {
+    if (DebugLevel::detailed == l) {
 		auto contourExtra = debugCallbacks.debugDumpContourExtraFuncPtr;
 		if (contourExtra)
 			s += (*contourExtra)(debugCaller, l, b) + " ";
 	}
-    s += "segments:" + STR(segments.size()) + "\n";
-    if (DebugLevel::brief == l) {
+    s += "segments:" + STR(segments.size()) + (DebugLevel::detailed == l ? "\n" : " ");
+    if (DebugLevel::detailed != l) {
         s += "[";
         for (auto& segment : segments)
             s += STR(segment.id) + " ";
@@ -1282,102 +1291,106 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 			s += "\n";
 		}
     }
-	if (sorted.size()) {
+	std::string closeBracket = DebugLevel::detailed == l ? "]\n" : "] ";
+	if (!sorted.empty()) {
 		s += "sorted[";
 		for (OpSegment* seg : sorted)
 			s += STR(seg->id) + " ";
 		s.pop_back();
-		s += "]\n";
+		s += closeBracket;
 	}
-	if (contourSet.size()) {
-		s += "contourSet[";
-		for (OpContour* member : contourSet)
+	if (DebugLevel::detailed != l)
+		s += "\n  ";
+	if (!overlaps.empty()) {
+		s += "overlaps[";
+		for (OpContour* member : overlaps)
 			s += STR(member->id) + " ";
 		s.pop_back();
-		s += "]\n";
+		s += closeBracket;
 	}
-	if (inX.size()) {
+	if (!merges.empty()) {
+		s += "merges[";
+		for (OpContour* member : merges)
+			s += STR(member->id) + " ";
+		s.pop_back();
+		s += closeBracket;
+	}
+	if (!inX.empty()) {
 		s += "inX[";
 		for (OpEdge* e : inX)
 			s += STR(e->id) + " ";
 		s.pop_back();
-		s += "]\n";
+		s += closeBracket;
 	}
-	if (inY.size()) {
+	if (!inY.empty()) {
 		s += "inY[";
 		for (OpEdge* e : inY)
 			s += STR(e->id) + " ";
 		s.pop_back();
-		s += "]\n";
+		s += closeBracket;
 	}
-	if (byArea.size()) {
+	if (!byArea.empty()) {
 		s += "byArea[";
 		for (OpEdge* e : byArea)
 			s += STR(e->id) + " ";
 		s.pop_back();
-		s += "]\n";
+		s += closeBracket;
 	}
-	if (unsectByArea.size()) {
+	if (!unsectByArea.empty()) {
 		s += "unsectByArea[";
 		for (OpEdge* e : unsectByArea)
 			s += STR(e->id) + " ";
 		s.pop_back();
-		s += "]\n";
+		s += closeBracket;
 	}
-	if (disabledBackwards.size()) {
+	if (!disabledBackwards.empty()) {
 		s += "disabledBackwards[";
 		for (OpEdge* e : disabledBackwards)
 			s += STR(e->id) + " ";
 		s.pop_back();
-		s += "]\n";
+		s += closeBracket;
 	}
-	if (disabledCenterless.size()) {
+	if (!disabledCenterless.empty()) {
 		s += "disabledCenterless[";
 		for (OpEdge* e : disabledCenterless)
 			s += STR(e->id) + " ";
 		s.pop_back();
-		s += "]\n";
+		s += closeBracket;
 	}
 	if (disabledPals.size()) {
 		s += "disabledPals[";
 		for (OpEdge* e : disabledPals)
 			s += STR(e->id) + " ";
 		s.pop_back();
-		s += "]\n";
+		s += closeBracket;
 	}
 	if (unsortables.size()) {
 		s += "unsortables[";
 		for (OpEdge* e : unsortables)
 			s += STR(e->id) + " ";
 		s.pop_back();
-		s += "]\n";
+		s += closeBracket;
 	}
 	if (linkups.l.size()) {
 		s += "linkups[";
 		for (OpEdge* e : linkups.l)
 			s += STR(e->id) + " ";
 		s.pop_back();
-		s += "]\n";
+		s += closeBracket;
 	}
 	if (endLinks.l.size()) {
 		s += "endLinks[";
 		for (OpEdge* e : endLinks.l)
 			s += STR(e->id) + " ";
 		s.pop_back();
-		s += "]\n";
+		s += closeBracket;
 	}
-	if (setBounds.isFinite())
-		s += "setBounds:" + setBounds.debugDump(l, b) + " ";
+	if (overlapBounds.isFinite())
+		s += "overlapBounds:" + overlapBounds.debugDump(l, b) + " ";
 	if (bounds.isFinite())
 		s += "bounds:" + bounds.debugDump(l, b) + " ";
-	if (setOwner) 
-		s += "setOwner[" + STR(setOwner->id) + "] ";
-#if 0
-	if (leftMost)
-		s += "leftMost[" + STR(leftMost->id) + "] "; 
-	if (topMost)
-		s += "topMost[" + STR(topMost->id) + "] "; 
-#endif
+	if (overlapOwner) 
+		s += "overlapOwner[" + STR(overlapOwner->id) + "] ";
 	if (treeID)
 		s += "treeID[" + STR(treeID) + "] ";
     if (winding.data && winding.size) {
@@ -1385,8 +1398,6 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 		if (windingOut)
 			s += "winding" + (*windingOut)(winding) + " ";
 	}
-//	if (containsSects)
-//		s += "containsSects ";
 	if (backwardsBuilt)
 		s += "backwardsBuilt ";
 	if (centerlessBuilt)
@@ -1724,7 +1735,7 @@ ENUM_NAME(Axis, axis)
 	OP_X(curve) \
 	OP_X(vertical_impl) \
 	OP_X(upright_impl) \
-	OP_X(ptBounds) \
+	OP_X(bounds) \
 	OP_X(linkBounds) \
 	OP_X(winding) \
 	OP_X(sum) \
@@ -2232,10 +2243,10 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         return strLabel(label) + "[" + STR(ID) + "] ";
     };
     auto strBounds = [dumpAlways, l, b, strLabel](EdgeFilter match, 
-            std::string label, const OpPointBounds& bounds) {
-        if (!dumpAlways(match) && !bounds.isSet())
+            std::string label, const OpPointBounds& ptBounds) {
+        if (!dumpAlways(match) && !ptBounds.isSet())
             return std::string("");
-        return strLabel(label) + bounds.debugDump(l, b)+ " ";
+        return strLabel(label) + ptBounds.debugDump(l, b)+ " ";
     };
     auto strWinding = [dumpAlways, l, b, strLabel](EdgeFilter match, std::string label,
              const OpWinding& wind) {
@@ -2270,7 +2281,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         if (dumpIt(EdgeFilter::vertical_impl))
             s += strCurve("vertical_impl", vertical_impl);
     }
-    if (dumpIt(EdgeFilter::ptBounds)) s += strBounds(EdgeFilter::ptBounds, "ptBounds", ptBounds);
+    if (dumpIt(EdgeFilter::bounds)) s += strBounds(EdgeFilter::bounds, "bounds", bounds);
     if (dumpIt(EdgeFilter::linkBounds)) s += strBounds(EF::linkBounds, "linkBounds", linkBounds);
     if (dumpIt(EdgeFilter::winding)) s += strWinding(EdgeFilter::winding, "winding", winding);
     if (dumpIt(EdgeFilter::sum)) s += strWinding(EdgeFilter::sum, "sum", sum);
@@ -2432,7 +2443,7 @@ void OpEdge::dumpSet(const char*& str) {
         vertical_impl.dumpSet(str);
     }
     OpDebugRequired(str, "ptBounds");
-    ptBounds.dumpSet(str);
+    bounds.dumpSet(str);
     if (OpDebugOptional(str, "linkBounds"))
         linkBounds.dumpSet(str);
     if (OpDebugOptional(str, "winding"))
@@ -2609,7 +2620,7 @@ void dmpIntersections(const OpEdge& edge) {
 // don't just dump it, find the best theoretical one through binary search
 std::string OpEdge::debugDumpCenter(DebugLevel l, DebugBase b) const {
     std::string s = "[" + STR(id) + "] center:" + center.debugDump(l, b);
-    OpPoint c = { (ptBounds.left + ptBounds.right) / 2, (ptBounds.top + ptBounds.bottom) / 2 };
+    OpPoint c = { (bounds.left + bounds.right) / 2, (bounds.top + bounds.bottom) / 2 };
     s += " bounds center:" + c.debugDump(l, b) + "\n";
     float lo = startT;
     float hi = endT;
@@ -3063,15 +3074,14 @@ ENUM_NAME(LinkPass, linkPass)
 std::string OpContour::debugDumpJoin(DebugLevel l, DebugBase b) const {
     std::string s;
 	s += "contour:" + STR(id) + " " ;
-	s += "contourSet: " + STR(contourSet.size()) + " [";
-	for (OpContour* member : contourSet) {
+	s += "merges: " + STR(merges.size()) + " [";
+	for (OpContour* member : merges) {
         s += STR(member->id) + " ";
 	}
 	if (' ' == s.back())
 		s.pop_back();
     s += "]";
 	s += DebugLevel::detailed == l ? "\n" : " ";
-	s += " setOwner: " + STR(setOwner->id) + "\n";
     auto dumpEdgeIDs = [&s, l](const std::vector<OpEdge*>& edges, std::string name) {
         if (!edges.size())
             return;
@@ -3179,6 +3189,10 @@ LimbPassName limbPassNames[] = {
 };
 
 ENUM_NAME(LimbPass, limbPass)
+
+std::string debugLimbPass(LimbPass pass) {
+	return limbPassName(pass);
+}
 
 std::string OpLimb::debugDumpIDs(DebugLevel l, bool bracket) const {
     std::string s = (bracket ? "[" : "id:") + STR(id);

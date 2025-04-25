@@ -458,7 +458,7 @@ void OpDebugImage::drawDoubleFocus() {
 		}
 		if (drawEdgesOn) {
 			for (auto edge : edgeIterator)
-				bounds.push_back(edge->ptBounds);
+				bounds.push_back(edge->bounds);
 		}
 		DebugOpDraw(bounds);
 	}
@@ -793,19 +793,19 @@ bool OpDebugImage::find(int id, OpPointBounds* boundsPtr, OpPoint* pointPtr) {
 	if (OpEdge* edge = findEdge(id)) {
 		edge->debugDraw = true;
 		drawIDsOn = true;
-		*boundsPtr = edge->ptBounds;
+		*boundsPtr = edge->bounds;
 		return true;
 	}
 	if (std::vector<const OpEdge*> outputs = findEdgeOutput(id); outputs.size()) {
 		drawIDsOn = true;
 		for (auto output : outputs)
-			boundsPtr->add(output->ptBounds);
+			boundsPtr->add(output->bounds);
 		return true;
 	}
 	if (std::vector<const OpEdge*> matches = findEdgeRayMatch(id); matches.size()) {
 		drawIDsOn = true;
 		for (auto match : matches)
-			boundsPtr->add(match->ptBounds);
+			boundsPtr->add(match->bounds);
 		return true;
 	}
 	if (const OpIntersection* intersection = findIntersection(id)) {
@@ -817,7 +817,7 @@ bool OpDebugImage::find(int id, OpPointBounds* boundsPtr, OpPoint* pointPtr) {
 	if (const OpLimb* limb = findLimb(id)) {
 		limb->edge->debugDraw = true;
 		drawIDsOn = true;
-		*boundsPtr = limb->edge->ptBounds;
+		*boundsPtr = limb->edge->bounds;
 		return true;
 	}
 	if (std::vector<const OpIntersection*> uSects = findSectUnsectable(id); uSects.size()) {
@@ -882,7 +882,7 @@ void addFocus(const OpContext& contours) {
 }
 
 void addFocus(const OpEdge& edge) {
-	addFocus(edge.ptBounds);
+	addFocus(edge.bounds);
 }
 
 void addFocus(const OpIntersection& sect) {
@@ -969,7 +969,7 @@ void ctr(const OpContext& contours) {
 }
 
 void ctr(const OpEdge& edge) {
-	ctr(edge.ptBounds);
+	ctr(edge.bounds);
 }
 
 void ctr(const OpIntersection& sect) {
@@ -1063,7 +1063,7 @@ void focus(const OpContext& contours) {
 }
 
 void focus(const OpEdge& edge) {
-	focus(edge.ptBounds);
+	focus(edge.bounds);
 }
 
 void focus(const OpRect& rect) {
@@ -1102,7 +1102,7 @@ void OpDebugImage::focusEdges() {
 	for (auto edge : edgeIterator) {
 		if (!edge->debugDraw)
 			continue;
-		focusRect.add(edge->ptBounds);
+		focusRect.add(edge->bounds);
 	}
 	drawIDsOn = true;
 	OpDebugImage::drawDoubleFocus(focusRect, false);
@@ -1797,6 +1797,13 @@ void colorLimbs(uint32_t color) {
 	OpDebugImage::drawDoubleFocus();
 }
 
+void colorContours(uint32_t color) {
+	for (auto contour : debugGlobalContext->contours) {
+		contour->debugColor = color;
+	}
+	OpDebugImage::drawDoubleFocus();
+}
+
 void colorSegments(uint32_t color) {
 	for (auto seg : segmentIterator) {
 		seg->debugColor = color;
@@ -2364,7 +2371,7 @@ void resetFocus() {
 		for (auto edge : edgeIterator) {
 			if (!edge->debugDraw)
 				continue;
-			focusRect.add(edge->ptBounds);
+			focusRect.add(edge->bounds);
 		}
 	}
 	if (!focusRect.isFinite()) {

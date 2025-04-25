@@ -767,7 +767,7 @@ bool OpCurveCurve::checkSplit(float loT, float hiT, CurveRef which, OpPtT& check
 	do {
 		// check edge cases (e.g., checkPtT.pt == oCurve end) first
 		for (OpEdge* oCurve : oCurves) {
-			if (oCurve->ccOverlaps && oCurve->ptBounds.contains(checkPtT.pt))
+			if (oCurve->ccOverlaps && oCurve->bounds.contains(checkPtT.pt))
 				return original != checkPtT;
 		}
 		// check for gap between original and edge list, and between edges in edge list
@@ -1419,14 +1419,14 @@ bool OpCurveCurve::setOverlaps() {
 		for (auto oppPtr : oppCurves.c) {
 			auto& oppEdge = *oppPtr;
 			// !!! used to be close bounds; simple bounds required for testQuads1883885
-			if (depth > 1 && !edge.bounds().intersects(oppEdge.bounds()))
+			if (depth > 1 && !edge.bounds.intersects(oppEdge.bounds))
 				continue;
 			bool sharesPoint = (edge.ccStart || edge.ccEnd) && (oppEdge.ccStart || oppEdge.ccEnd);
 			// if bounds have common edge only and already share point, they don't intersect
 			if (sharesPoint) {
 				// !!! can one have no area (e.g. horz or vert) and the other not?
-				if (edge.bounds().hasArea() && oppEdge.bounds().hasArea() &&
-						!edge.bounds().areaOverlaps(oppEdge.bounds()))
+				if (edge.bounds.hasArea() && oppEdge.bounds.hasArea() &&
+						!edge.bounds.areaOverlaps(oppEdge.bounds))
 					continue;
 			}
 			if (!rotatedIntersect(edge, oppEdge, sharesPoint))

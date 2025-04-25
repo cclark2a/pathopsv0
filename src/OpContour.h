@@ -62,33 +62,12 @@ struct OpContour {
 		}
 	}
 
+	void addCoin(OpContour* );  // track coincidence that effectively extend this contour
 	void addCoinEdges();
 	bool addEdges();
 	void addJoinEdge(OpJoiner* , OpEdge* );
 	void addLast(OpEdge* );
 	void addToLinkups(OpJoiner* , OpEdge* );
-	void buildBackwards();
-	void buildCenterless();
-	void buildPals();
-	bool detachIfLoop(OpJoiner* , OpEdge* , EdgeMatch loopEnd);
-	bool isSorted(Axis axis) const { return Axis::horizontal == axis ? isXSorted : isYSorted; }
-	bool joinSetup();
-	void joinSort();
-	bool linkUp(OpJoiner* , OpEdge* );
-	const std::vector<OpContour*>& members() const { return setOwner->contourSet; }
-	void pushLinkup(OpEdge* );
-	RelinkJoins relinkUnambiguous(OpJoiner* , size_t checked);
-	void removeLast(OpEdge* , InOutput );
-	void removeLink(OpEdge* );
-	void setLinkEdge(OpEdge* link, size_t index);
-	void setSorted(Axis axis) { (Axis::horizontal == axis ? isXSorted : isYSorted) = true; }
-	void unlink(OpEdge* );
-	std::vector<OpEdge*>& windingEdges(Axis );
-
-	OP_DEBUG_CODE(void debugMatchRay());
-#if OP_DEBUG_VALIDATE
-	void debugValidate(const OpJoiner* ) const;
-#endif
 
 	void apply() {
 		for (auto& segment : segments) {
@@ -102,9 +81,10 @@ struct OpContour {
 		}
 	}
 
-	bool isEmpty() {
-		return !segments.size();
-	}
+	void buildBackwards();
+	void buildCenterless();
+	void buildPals();
+	bool detachIfLoop(OpJoiner* , OpEdge* , EdgeMatch loopEnd);
 
 	void findMissingEnds() {
 		for (auto& segment : segments) {
@@ -113,6 +93,12 @@ struct OpContour {
 	}
 
 	bool fixCCSects();
+	bool isEmpty() { return segments.empty(); }
+	bool isOpen() { return !merges.empty(); }
+	bool isSorted(Axis axis) const { return Axis::horizontal == axis ? isXSorted : isYSorted; }
+	bool joinSetup();
+	void joinSort();
+	bool linkUp(OpJoiner* , OpEdge* );
 
 	void makeCoins() {
 		for (auto& segment : segments) {
@@ -132,6 +118,7 @@ struct OpContour {
 		}
 	}
 
+	const std::vector<OpContour*>& members() const { return overlapOwner->overlaps; }
 	int nextID() const;
 
 	void normalize() {
@@ -140,7 +127,13 @@ struct OpContour {
 		}
 	}
 
+	void pushLinkup(OpEdge* );
+	RelinkJoins relinkUnambiguous(OpJoiner* , size_t checked);
+	void removeLast(OpEdge* , InOutput );
+	void removeLink(OpEdge* );
+	void setLinkEdge(OpEdge* link, size_t index);
 	void setSeen(int tree_id);
+	void setSorted(Axis axis) { (Axis::horizontal == axis ? isXSorted : isYSorted) = true; }
 
 	void transferCoins() {
 		for (auto& segment : segments) {
@@ -148,8 +141,14 @@ struct OpContour {
 		}
 	}
 
-	OP_DEBUG_CODE(void addDebugContourData(PathOpsV0Lib::DebugContourData );)
+	void unlink(OpEdge* );
+	std::vector<OpEdge*>& windingEdges(Axis );
 
+	OP_DEBUG_CODE(void addDebugContourData(PathOpsV0Lib::DebugContourData );)
+	OP_DEBUG_CODE(void debugMatchRay());
+#if OP_DEBUG_VALIDATE
+	void debugValidate(const OpJoiner* ) const;
+#endif
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
 	#define OP_X(Thing) \
@@ -162,10 +161,11 @@ struct OpContour {
 
 	std::vector<OpSegment> segments;
 	std::vector<OpSegment*> sorted;
-	std::vector<OpContour*> contourSet;  // intersecting contours (valid if this equals setOwner)
-	//  populated only with edges in contour, and edges in overlapping contours
-	std::vector<OpEdge*> inX;  // edges intersecting horz rays (valid if this equals setOwner)
-	std::vector<OpEdge*> inY;  // edges intersecting vert rays (valid if this equals setOwner)
+	std::vector<OpContour*> overlaps;  // intersecting contours (valid if this equals overlapOwner)
+	std::vector<OpContour*> merges;	 // coincident contours added to this set (mergeOwner only)
+	//  populated with edges in this contour, merges and overlaps
+	std::vector<OpEdge*> inX;  // edges intersecting horz rays (valid if this equals overlapOwner)
+	std::vector<OpEdge*> inY;  // edges intersecting vert rays (valid if this equals overlapOwner)
 	// for joiner:
 	std::vector<OpEdge*> byArea;
 	std::vector<OpEdge*> unsectByArea;
@@ -175,25 +175,26 @@ struct OpContour {
 	std::vector<OpEdge*> unsortables;
 	LinkUps linkups;
 	LinkUps endLinks;
-	OpPointBounds setBounds;	// bounds of intersecting contours (valid if this equals setOwner)
+	OpPointBounds overlapBounds;  // bounds of intersecting contours (overlapOwner only)
 	OpPointBounds bounds;	// bounds of segments in this contour
 	OpContext* context;
-	OpContour* setOwner;  // the master that intersects the same set of contours as this
-//	OpContour* leftMost = nullptr;  // smallest right bounds (valid if this equals setOwner)
-//	OpContour* topMost = nullptr;  // smallest bottom bounds (valid if this equals setOwner)
+	OpContour* overlapOwner;  // the master that intersects the same set of contours as this
 	int id;
 	int treeID = 0;  // tracks if contour has been initialized in this tree's context (for edge 'seen')
 	PathOpsV0Lib::Winding winding;
-//	bool containsSects = true;  // set of sects contains all sects' sects
 	bool backwardsBuilt = false;
 	bool centerlessBuilt = false;
 	bool palsBuilt = false;
 	bool isXSorted = false;
 	bool isYSorted = false;
 	bool disabled = false;
+	bool overlapsMerged = false;
 
 	OP_DEBUG_CODE(PathOpsV0Lib::DebugContourCallbacks debugCallbacks);
-	OP_DEBUG_CODE(PathOpsV0Lib::DebugContourData debugCaller);  // note: must use std::memcpy before reading
+	OP_DEBUG_CODE(PathOpsV0Lib::DebugContourData debugCaller);  // note: use memcpy before reading
+#if OP_DEBUG_IMAGE
+	uint32_t debugColor = blue;
+#endif
 #if TEST_RASTER
 	OpDebugRaster rasterOperand;
 #endif
@@ -444,6 +445,7 @@ struct OpContext {
 	OpLimb& nthLimb(int index);
 	void opsInit();
 	bool pathOps();
+	void rebuildOverlaps();
 	void release(OpEdgeStorage*& );
 	OpPoint remapPts(OpPoint oldAlias, OpPoint newAlias);
 	void resetFiller();

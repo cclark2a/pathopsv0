@@ -116,6 +116,7 @@ struct SectRay {
 	{
 	}
 	bool addCoinContours(OpWinder* );
+	bool addDependentContours(OpWinder* );
 	void addPals(OpEdge* );
 	bool canSetSum(const OpEdge* ) const;
 	RayOrder checkOrder(const OpEdge* );
@@ -123,7 +124,9 @@ struct SectRay {
 		return DistEnd::front == e ? &distances.front() : &distances.back(); }
 	FindCept findIntercept(OpWinder* , OpEdge* test);
 	EdgePal* find(const OpEdge* );  // returns edge in distances
+	bool incomplete() const;
 	bool missingContour(OpWinder* , OpEdge* ) const;
+	bool missingContour(OpWinder* , OpSegment* ) const;
 	const EdgePal* next(const EdgePal* dist, DistEnd e) const {
 		return dist + (int) e; }
 	bool sectsAllPals(const OpEdge* ) const;  // returns if edge + all of its pals are in distances
@@ -138,7 +141,7 @@ struct SectRay {
 	float homeT;  // value from 0 to 1 within edge range (akin to edgeInsideT)
 	Axis axis;
 	bool firstTry;  // used to cache unsectable test
-	bool checkCoins = false;
+//	bool checkCoins = false;
 };
 
 enum class SectType {
@@ -324,7 +327,6 @@ public:
 	CalcFail addSub(OpContour* winderOwner, Axis axis, float t, OpWinding* ) const;
 	OpEdge* advanceToEnd(EdgeMatch );
 	void apply();
-	const OpRect& bounds() { return ptBounds; }
 	void calcCenterT();
 	void ccInit(bool overlaps);
 	void clearActiveAndPals(OP_LINE_FILE_NP_ARGS());
@@ -364,7 +366,6 @@ public:
 		return EdgeMatch::start == match ? start() : end(); }
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
 	void setDisabled(OP_LINE_FILE_NP_ARGS());
-	void setDisabledZero(OP_LINE_FILE_NP_ARGS());
 	OpEdge* setLastEdge();
 	void setLastEdge(OpEdge* first, OpEdge* last, InOutput );
 	bool setLastLink(EdgeMatch );  // returns true if link order was changed
@@ -432,7 +433,7 @@ public:
 	OpCurve curve;
 	OpCurve vertical_impl;	// only access through set vertical function
 	LinePts upright_impl;   //  "
-	OpPointBounds ptBounds;
+	OpPointBounds bounds;	// cache of bounds from curve endpoints 
 	OpPointBounds linkBounds;
 	OpWinding winding;	// contribution: always starts as 1, 0 (or 0, 1)
 	OpWinding sum;  // total incl. normal side of edge for operands (fill count in normal direction)

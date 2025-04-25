@@ -171,9 +171,9 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 			}
 #endif
 			first = sectPtr;
-			if (unsectables.size())
+			if (!unsectables.empty())
 				newEdge.unSects = unsectables;
-			if (coincidences.size())
+			if (!coincidences.empty())
 				newEdge.coinPals = coincidences;
 		}
 		stackUnsects(sectPtr);
