@@ -751,6 +751,7 @@ CalcFail OpEdge::subIfDL(OpContour* winderOwner, Axis axis, float edgeInsideT,
 void OpEdge::setSum(const OpWinding& w  OP_LINE_FILE_ARGS()) {
 	OP_ASSERT(WindingType::uninitialized == sum.type);
 	sum.w = w.copyData(context());
+	OP_ASSERT(sum.w.size);
 	sum.type = WindingType::copy;
 	OP_DEBUG_CODE(sum.debugType = DebugWindingType::sum);
 #if OP_DEBUG_MAKER

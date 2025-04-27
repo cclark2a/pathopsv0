@@ -141,6 +141,7 @@ struct SectRay {
 	float homeT;  // value from 0 to 1 within edge range (akin to edgeInsideT)
 	Axis axis;
 	bool firstTry;  // used to cache unsectable test
+	bool sorted = false;
 //	bool checkCoins = false;
 };
 

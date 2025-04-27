@@ -4255,11 +4255,19 @@ std::string OpWinding::debugDump(DebugLevel l, DebugBase b) const {
 			s += STR(((uint8_t*) w.data)[index]) + " ";
 		}
 		s += "]";
-    } else if (w.size) {
-		auto windingOut = debugGlobalContext->debugContextCallbacks.debugDumpWindingOutFuncPtr;
-		if (windingOut)
-			s += (*windingOut)(w);
-    }
+    } else {
+		if (w.size) {
+			auto windingOut = debugGlobalContext->debugContextCallbacks.debugDumpWindingOutFuncPtr;
+			if (windingOut)
+				s += (*windingOut)(w) + " ";
+		}
+		if (WindingType::uninitialized != type)
+			s += windingTypeName(type) + " ";
+		if (DebugWindingType::uninitialized != debugType)
+			s += debugWindingTypeName(debugType) + " ";
+		if (' ' == s.back())
+			s.pop_back();
+	}
     return s;
 }
 

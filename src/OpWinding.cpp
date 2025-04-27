@@ -25,6 +25,7 @@ OpWinding::OpWinding(OpEdge* edge, WindingSum )
 
 OpWinding::OpWinding(OpContext* context, const OpWinding& from) {
 	w = from.copyData(context);
+	OP_ASSERT(w.size);
 	type = WindingType::copy;
 	OP_DEBUG_CODE(debugType = from.debugType);
 }
@@ -45,6 +46,7 @@ void OpWinding::copyOnDemand(OpContext* context) {
 	if (WindingType::copy == type)
 		return;
 	w = copyData(context);
+	OP_ASSERT(w.size);
 	type = WindingType::copy;
 }
 
@@ -72,6 +74,7 @@ void OpWinding::zeroUninitialized(OpContext* context, const OpWinding& winding) 
 	if (WindingType::copy == type)
 		return;
 	OP_ASSERT(WindingType::uninitialized == type);
+	OP_ASSERT(winding.w.size);
 	w = { context->allocateWinding(winding.w.size), winding.w.size };
 	type = WindingType::copy;
 	context->windingCallbacks.windingZeroFuncPtr(w);

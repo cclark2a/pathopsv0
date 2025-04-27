@@ -407,6 +407,7 @@ FindCept SectRay::findIntercept(OpWinder* winder, OpEdge* test) {
 	testXY = pt.choice(perpendicular);
 	bool reversed = tangent.dot(homeTangent) < 0;
 	distances.emplace_back(test, testXY, root, reversed);
+	sorted = false;
 #if 0
 	if (!test->coinPals.empty() && missingContour(winder, test))
 		checkCoins = true;
@@ -463,10 +464,11 @@ bool SectRay::sectsAllPals(const OpEdge* edge) const {
 }
 
 void SectRay::sort() {
-	std::sort(distances.begin(), distances.end(), 
-			[](const EdgePal& s1, const EdgePal& s2) {
-		return s1.cept < s2.cept || (s1.cept == s2.cept && s1.edge->id < s2.edge->id);
-	});
+	if (sorted)
+		return;
+	sorted = true;
+	std::sort(distances.begin(), distances.end(), [](const EdgePal& s1, const EdgePal& s2) {
+			return s1.cept < s2.cept || (s1.cept == s2.cept && s1.edge->id < s2.edge->id); });
 }
 
 // add all edges in contour, and any other contours which the caller says overlap
@@ -480,8 +482,7 @@ OpWinder::OpWinder(OpContext& context) {
 struct SectPtT {
 	SectPtT(OpSegment* seg, const OpSegment* opp, OpPtT cePtT, XyChoice xyChoice)
 		: ptT(cePtT)
-		, sect(seg->sects.contains(cePtT, opp))
-	{
+		, sect(seg->sects.contains(cePtT, opp)) {
 		if (sect)
 			ptT = sect->ptT;
 		OpContext* contours = seg->contour->context;
@@ -503,8 +504,7 @@ struct SectPair {
 		, ceSeg(ce.seg)
 		, ceOpp(ce.opp)
 		, xyChoice(xy)
-		, isBaseSegment(base == ce.seg)
-	{
+		, isBaseSegment(base == ce.seg) {
 		if (seg.ptT.pt != opp.ptT.pt) {
 			if (seg.ptT.pt != seg.original)
 				if (opp.ptT.pt != opp.original)
@@ -543,8 +543,7 @@ struct SectPair {
 struct CoinSects {
 	CoinSects(CoinEnd& coinStart, CoinEnd& coinEnd, OpSegment* b, XyChoice xyChoice) 
 		: start(coinStart, b, xyChoice)
-		, end(coinEnd, b, xyChoice)
-	{
+		, end(coinEnd, b, xyChoice) {
 		if (coinStart.seg != coinEnd.seg) {
 			std::swap(end.seg, end.opp);
 			std::swap(end.ceSeg, end.ceOpp);
@@ -747,7 +746,6 @@ FoundIntercept OpWinder::findRayIntercept(OpVector homeTan, float normal, float 
 			continue;
 		if (ray.distances.size() <= 1) 
 			return FoundIntercept::yes;
-		ray.sort();
 		if (ray.distances.front().edge == home)
 			return FoundIntercept::yes;
 		{
@@ -865,6 +863,7 @@ ChainFail OpWinder::setSumChain() {
 	targets.build(this);
 	float homeCept = midPt.choice(perpendicular);
 	FoundIntercept foundIntercept = findRayIntercept(homeTangent, normal, homeCept);
+	home->ray.sort();
 	if (FoundIntercept::recurse == foundIntercept)	// some found edge is missing ray distances
 		return ChainFail::recurse;
 	if (FoundIntercept::fail == foundIntercept)
@@ -948,25 +947,39 @@ ResolveWinding OpWinder::setWindingByDistance(OpContext* context) {
 		if (RayOrder::tooClose == rayOrder)
 			return ResolveWinding::retry;
 	}
+	while (sumIndex >= 0 && RayOrder::unordered == ray.distances[sumIndex].rayOrder)
+		--sumIndex;
 	if (sumIndex >= 0) {
 		EdgePal& sumDistance = ray.distances[sumIndex];
 		OpEdge* sumEdge = sumDistance.edge;
 		OP_ASSERT(!sumEdge->isUnsectable());
-		sumWinding.w = sumEdge->sum.copyData(context);
+		if (sumEdge->sum.isSet())
+			sumWinding.w = sumEdge->sum.copyData(context);
+		else
+			sumWinding.zero(context);
 		OP_DEBUG_CODE(sumWinding.debugType = DebugWindingType::temp);
 	// if pointing down/left, subtract winding
-		// if sumEdge coin pals' contour is not in home's contour sect, also subtract from winding
-		if (CalcFail::fail == sumEdge->subIfDL(winderOwner, ray.axis, sumDistance.edgeInsideT, &sumWinding))  
+	// if sumEdge coin pals' contour is not in home's contour sect, also subtract from winding
+		if (CalcFail::fail == sumEdge->subIfDL(winderOwner, ray.axis, sumDistance.edgeInsideT, 
+				&sumWinding))  
 			OP_DEBUG_FAIL(*sumEdge, ResolveWinding::fail);
 	}
+// !!! start here;
+	// several bugs:
+	//  doesn't detect if home/prior are both unsectable
+	//  doesn't detect if home/prior have equal cept values
+	//  doesn't detect endless swapping recursion
 #if 1  // !!! if prior has not had its sum computed, and prior's edge run has entries, recurse
 	OpEdge* prior;
 	if (-1 == sumIndex) {
 		prior = ray.distances[0].edge;
 		if (!prior->sum.isSet() && prior->ray.canSetSum(prior)) {
-			home = prior;
-			setWindingByDistance(context);
-			return ResolveWinding::recursed;
+			RayOrder rayOrder = prior->ray.checkOrder(prior);
+			if (RayOrder::ok == rayOrder) {
+				home = prior;
+				setWindingByDistance(context);
+				return ResolveWinding::recursed;
+			}
 		}
 	}
 #endif
