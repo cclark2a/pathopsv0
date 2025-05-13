@@ -1,5 +1,4 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
-#include "OpContour.h"
 #include "OpCurveCurve.h"
 #include "OpDebugRecord.h"
 #include "OpSegment.h"
@@ -239,6 +238,8 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 
 void OpSegments::findCoincidences() {
 	for (OpContour* oContour: context.contours) {
+		if (oContour->disabled)
+			continue;
 		for (OpContour* member : oContour->members()) {
 			if (oContour->id > member->id)
 				continue;
@@ -328,6 +329,8 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
 FoundIntersections OpSegments::findIntersections() {
 	OP_DEBUG_CONTEXT();
 	for (OpContour* oContour: context.contours) {
+		if (oContour->disabled)
+			continue;
 		for (OpContour* member : oContour->members()) {
 			if (member->id > oContour->id)
 				break;

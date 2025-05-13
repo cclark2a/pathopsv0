@@ -1,5 +1,4 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
-#include "OpContour.h"
 #include "OpCurveCurve.h"
 #include "OpJoiner.h"
 #include "OpSegment.h"
@@ -82,7 +81,7 @@ if (looped || deadEnd)  // triggered when walking children of trunk
 	}
 	if (LimbPass::disabledCenterless == pass)
 		return;
-	if (!contour.palsBuilt) 
+	if (!contour.palsBuilt && contour.hasPals) 
 		contour.buildPals();
 	for (OpEdge* test : contour.disabledPals) {
 		tryAdd(tree, test, EdgeMatch::start, LimbPass::disabledPals);
@@ -206,6 +205,10 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 						ccUnsectID = testSect->unsectID;
 						goto connectWithFiller;
 					}
+				}
+				if (testPt == tree.firstPt) {
+					ccUnsectID = testPal.unsectID;
+					goto connectWithFiller;
 				}
 			}
 		}
@@ -401,7 +404,7 @@ void OpTree::addDisabled(OpContour& contour) {
 				limb.resetPass = false;
 				return;
 			}
-			auto addPal = [this, &limb, &test](EdgeMatch match) {
+			auto putPal = [this, &limb, &test](EdgeMatch match) {
 				for (OpIntersection* unSect : test->unSects) {
 					OpIntersection* unOpp = unSect->opp;
 					if (unOpp->ptT.pt == unSect->ptT.pt)
@@ -414,9 +417,9 @@ void OpTree::addDisabled(OpContour& contour) {
 				}
 			};
 			if (limb.tryAdd(*this, test, EdgeMatch::start, LimbPass::disabledPals))
-				addPal(EdgeMatch::start);
+				putPal(EdgeMatch::start);
 			if (limb.tryAdd(*this, test, EdgeMatch::end, LimbPass::disabledPals))
-				addPal(EdgeMatch::end);
+				putPal(EdgeMatch::end);
 		} while (++index < totalUsed);
 	}
 }
@@ -620,6 +623,7 @@ bool OpTree::join(OpJoiner& join) {
 	}
 	join.edge->output(false);
 	OP_DEBUG_VALIDATE_CODE(join.debugValidate());
+
 	context->resetLimbs();
 	context->resetFiller();  // may delete edge that another edge references in prior/next
 	return true;
@@ -732,6 +736,8 @@ OpJoiner::OpJoiner(OpContext& contours)
 	for (auto contour : contours.contours) {
 		for (auto& segment : contour->segments) {
 			for (auto& e : segment.edges) {
+				if (e.inOutput)
+					continue;
 				contour->addJoinEdge(this, &e);
 			}
 		}
@@ -742,218 +748,6 @@ OpJoiner::OpJoiner(OpContext& contours)
 	sort();
 	OP_DEBUG_CODE(contours.debugJoiner = this);
 	OP_DEBUG_VALIDATE_CODE(debugValidate());
-}
-
-// !!! reverse return bool : now true if no edges to join (reverse caller also)
-bool OpContour::joinSetup() {
-	if (!byArea.size() && !unsectByArea.size() && !linkups.l.size())
-		return true;
-	for (auto e : byArea) {
-		e->setActive(true);
-	}
-	for (auto unsectable : unsectByArea) {
-		unsectable->setActive(true);
-	}
-	// although unsortables are marked active, care must be taken since they may or may not
-	// be part of the output
-	for (auto unsortable : unsortables) {
-		unsortable->setActive(true);
-	}
-	return false;
-}
-
-void OpContour::addJoinEdge(OpJoiner* joiner, OpEdge* e) {
-	OP_ASSERT(e->segment->contour == this);
-	if (e->priorEdge || e->nextEdge)
-		return;
-	if (e->disabled)
-		return;
-	e->setWhich(EdgeMatch::start);
-#if OP_DEBUG_IMAGE
-	e->debugJoin = true;
-#endif
-	if (Unsortable::none != e->isUnsortable || e->isUnsectable()) {
-		OP_DEBUG_VALIDATE_CODE(e->debugValidate());
-		unsortables.push_back(e);
-		return;
-	}
-	OpSegment* seg = e->segment;
-	OP_ASSERT(!seg->disabled);
-	OP_ASSERT(e->isSimple());
-	if (seg->simpleEnd(e) && !OpJoiner::LinkEnd(e))  // returns false if loop was formed
-		return;
-	if (seg->simpleStart(e))
-		e = OpJoiner::LinkStart(e);  // returns new first edge
-	if (!e)  // loop
-		return;
-	OP_ASSERT(!e->priorEdge);
-	if (!e->nextEdge) {
-		OP_ASSERT(byArea.end() == std::find(byArea.begin(), byArea.end(), e));
-		byArea.push_back(e);
-		return;
-	}
-	OP_ASSERT(linkups.l.end() == std::find(linkups.l.begin(), linkups.l.end(), e));
-	OpEdge* last = e->setLastEdge();
-	if (e->start().pt == last->end().pt) {
-		OP_ASSERT(!last->nextEdge);
-		last->setNextEdge(e);
-		OP_ASSERT(!e->priorEdge);
-		e->setPriorEdge(last);
-		e->outputLinkedList(e, true);
-	} else {
-//		e->segment->contour->pushLinkup(e);
-		addToLinkups(joiner, e);
-		e->setLinkBounds();
-	}
-}
-
-void OpContour::addToLinkups(OpJoiner* joiner, OpEdge* e) {
-	OP_ASSERT(!e->debugIsLoop());
-	OpEdge* first = e->advanceToEnd(EdgeMatch::start);
-	OpEdge* next = first;
-	OpEdge* last;
-	do {
-		if (LinkPass::remaining != joiner->linkPass && LinkPass::none != joiner->linkPass) {
-			OP_ASSERT(next->isActive());
-			next->setActive(false);
-		}
-		next->clearLastEdge(InOutput::no);
-		next->inLinkups = true;
-		last = next;
-		next = next->nextEdge;
-	} while (next);
-	first->setLastEdge(first, last, InOutput::no);
-	OP_ASSERT(first->linkBounds.isFinite());
-#if OP_DEBUG_VALIDATE
-	OP_ASSERT(!first->debugScheduledForErasure);
-#endif
-	first->segment->contour->linkups.l.push_back(first);	// !!! call pushlinkup?
-	first->linkHead = true;
-}
-
-void OpContour::buildBackwards() {
-	for (auto& segment : segments) {
-		for (auto& e : segment.edges) {
-			if (e.disabled && Unsortable::none == e.isUnsortable && !e.isUnsectable()
-					&& !e.centerless && !e.coinPals.size())
-				disabledBackwards.push_back(&e);
-		}
-	}
-	backwardsBuilt = true;
-}
-
-void OpContour::buildCenterless() {
-	// example that needs small factor: testQuads18787007
-//	OpVector threshold = contours.threshold() * OpMath::smallJoinerFactor;
-	for (auto& segment : segments) {
-		for (auto& e : segment.edges) {
-			if (!e.disabled || Unsortable::none != e.isUnsortable || e.isUnsectable())
-				continue;
-			// for the very small, include disabled edges
-			// !!! this also tested on windPal, but non-extended tests don't need it
-			if (e.centerless || e.coinPals.size()) // entire segment is not coincident; partial is
-				disabledCenterless.push_back(&e);
-		}
-	}
-	centerlessBuilt = true;
-}
-
-void OpContour::buildPals() {
-	for (auto& segment : segments) {
-		for (auto& e : segment.edges) {
-			if (e.disabled && !e.inOutput && Unsortable::none == e.isUnsortable) {
-				// !!! test may be overbroad; may need to look at sect and include only
-				//     coin + unsect (or add bit in edge to register coin)
-				if (e.isUnsectable()) {
-					disabledPals.push_back(&e);
-					e.setWhich(EdgeMatch::start);
-				}
-			}
-		}
-	}
-	std::sort(disabledPals.begin(), disabledPals.end(), [](OpEdge* a, OpEdge* b)
-			{ return a->bounds.perimeter() < b->bounds.perimeter(); }
-	);
-	palsBuilt = true;
-}
-
-struct LoopCheck {
-	LoopCheck(OpEdge* e, EdgeMatch match) 
-		: edge(e) {
-		pt = e->flipPtT(match).pt;
-	}
-
-	bool operator<(const LoopCheck& rh) const {
-		return pt.x < rh.pt.x || (pt.x == rh.pt.x && pt.y < rh.pt.y);
-	}
-
-	OpEdge* edge;
-	OpPoint pt;
-};
-
-// iterate edges to see some pt forms a loop
-// if so, detach remaining chain and close loop
-// check if any points in next links are in previous links
-// !!! TODO : find direction of loop at add 'reverse' param to output if needed
-//     direction should consider whether edge normal points to inside or outside
-bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* e, EdgeMatch loopMatch) {
-	std::vector<LoopCheck> edges;
-	OpEdge* test = e;
-	// walk forwards to end, keeping one point per edge
-	OP_ASSERT(e && !e->debugIsLoop());
-	while (test) {
-		if (edges.end() != std::find_if(edges.begin(), edges.end(), 
-				[&test](const LoopCheck& check) {
-			return check.edge == test; } )) {
-			break;
-		}
-		edges.emplace_back(test, loopMatch);
-		test = EdgeMatch::start == loopMatch ? test->nextEdge : test->priorEdge;
-		if (e == test)
-			break;
-	}
-	if (e == test) {	// if this forms a loop, there's nothing to detach, return success
-		e->output(true);
-		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
-		return true;
-	}
-	// walk backwards to start
-	std::sort(edges.begin(), edges.end());
-	auto detachEdge = [this, joiner](OpEdge* e, EdgeMatch match) 
-	{
-		if (OpEdge* detach = EdgeMatch::start == match ? e->priorEdge : e->nextEdge) {
-			EdgeMatch::start == match ? detach->clearNextEdge() : detach->clearPriorEdge();
-			if (Unsortable::none == detach->isUnsortable || detach->priorEdge || detach->nextEdge)
-				addToLinkups(joiner, detach);	// return front edge
-		}
-	};
-	auto detachNext = [detachEdge](OpEdge* test, OpEdge* oppEdge) 
-	{
-		detachEdge(test, EdgeMatch::end);
-		detachEdge(oppEdge, EdgeMatch::start);
-		test->setNextEdge(oppEdge);
-		oppEdge->setPriorEdge(test);
-		test->output(true);
-		return true;
-	};
-	auto detachPrior = [detachEdge](OpEdge* test, OpEdge* oppEdge) {
-		detachEdge(test, EdgeMatch::start);
-		detachEdge(oppEdge, EdgeMatch::end);
-		test->setPriorEdge(oppEdge);
-		oppEdge->setNextEdge(test);
-		test->output(true);
-		return true;
-	};
-	test = e;
-	while ((test = (EdgeMatch::start == loopMatch ? test->priorEdge : test->nextEdge)) && e != test) {
-		LoopCheck testCheck(test, !loopMatch);
-		if (auto bound = std::lower_bound(edges.begin(), edges.end(), testCheck); 
-				bound != edges.end() && bound->pt == testCheck.pt)
-			return EdgeMatch::start == loopMatch ? detachNext(bound->edge, test) : 
-					detachPrior(bound->edge, test);
-	}
-	OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
-	return false;
 }
 
 // start here;
@@ -1108,57 +902,6 @@ void OpJoiner::linkUnambiguous(OpContour* contour, LinkPass lp) {
 	}
 }
 
-/* relationship between prev/this/next and whichEnd: (start, end)
-   a and b represent points that match; ? represents the other nonmatching end
-   prev: (?, a) which:start		this: (a, b) which:start		next: (b, ?) which: start
-   prev: (a, ?) which:end		this: (a, b) which:start		next: (b, ?) which: start
-   prev: (?, b) which:start		this: (a, b) which:end		    next: (a, ?) which: start
-   prev: (b, ?) which:end		this: (a, b) which:end  		next: (a, ?) which: start
-   prev: (?, a) which:start		this: (a, b) which:start		next: (?, b) which: end		etc...
-*/
-// caller clears active flag
-// parameter match determines whether link is looked for prior to, or next to edge
-// links a single edge or (link of edges) with another edge
-// first pass: only allow unambiguous connections; only one choice, matching zero side, etc.
-// second pass: check for unambiuous, then allow reversing, pick smallest area, etc.
-bool OpContour::linkUp(OpJoiner* joiner, OpEdge* e) {
-	for (;;) {
-		OP_ASSERT(++joiner->debugRecursiveDepth < 630);	// !!! set to deepest test
-		EdgeMatch linkMatch = joiner->linkMatch;
-		std::vector<FoundEdge> foundEdges;
-		OP_ASSERT(!e->debugIsLoop(EdgeMatch::end, LeadingLoop::will));
-		const OpSegment* segment = e->segment;
-		bool hasPal = segment->activeAtT(e, linkMatch, foundEdges);
-		hasPal |= segment->activeNeighbor(e, linkMatch, foundEdges);
-		// if oppEdges is count of one and unsortable, don't return any edges (testQuadratic67x)
-		if (foundEdges.size() == 1 && Unsortable::none != foundEdges[0].edge->isUnsortable /* && hadLinkTo */)
-			foundEdges.clear(); // hadLinkTo breaks thread_cubics147521
-		// skip pals should choose the pal that minimizes the output path area
-		// if there's not enough info here to do that, the pal choice should be reconsidered
-		//   when match links is called
-		// !!! maybe the right choice here is the wrong choice later?!
-		if ((foundEdges.size() && hasPal)  // if edges[x] has pals and pal is in linkups, remove edges[x]
-		//	e->skipPals(linkMatch, edges);
-		// if edge has pals, and there's a matching unsortable, don't return edge (thread_cubics502920)
-				|| 1 != foundEdges.size() || !foundEdges[0].edge->isActive()) {
-			if (EdgeMatch::start == linkMatch)
-				return true;  // 1) found multiple possibilities, try end
-			e->segment->contour->addToLinkups(joiner, e);
-			return false;  // 2) found multiple possibilities (end)
-		}
-		FoundEdge foundOne = foundEdges.front();
-		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
-		e->linkToEdge(foundOne, linkMatch);
-		OP_ASSERT(e->whichPtT(linkMatch).pt == foundOne.edge->flipPtT(linkMatch).pt);
-		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
-		if (detachIfLoop(joiner, e, linkMatch))
-			return false; // 4) found loop, nothing leftover; caller to move on to next edge
-		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
-		// move to the front or back edge depending on link match
-		e = foundOne.edge->advanceToEnd(linkMatch);  // 5)  recurse to extend prior or next
-	}
-}
-
 // at this point all singly linked edges have been found
 // every active set of links at this point must form a loop
 // the only distance that matters is zero. We should never have unexplained gaps (ideal, not real)
@@ -1195,154 +938,11 @@ bool OpJoiner::matchLinks(bool popLast) {
 	return tree.join(*this);
 }
 
-// check if resolution of link ups left unambiguous edge ends for further linkage
-// !!! this is missing a check to see if the matched edge has the correct winding
-// at very least, it should have an assert
-RelinkJoins OpContour::relinkUnambiguous(OpJoiner* joiner, size_t link) {
-	if (link >= linkups.l.size())
-		return RelinkJoins::done;
-	size_t tIndex = 0;
-	std::vector<OpEdge*> linkupsErasures;
-	OpContour* tContour = nullptr;
-	joiner->edge = linkups.l[link];
-	OpEdge* edge = joiner->edge;
-	{ // must have at least two link ups to hook together
-		EdgeMatch tMatch;
-		auto scanForMatch = [&tMatch, &tIndex, link, this, &tContour](OpEdge* eEdge, 
-				OpContour* eContour, EdgeMatch eMatch) {
-			OpPoint edgePt = eEdge->whichPtT(eMatch).pt;
-			auto testUnmatch = [edgePt](OpEdge* test, EdgeMatch match) {
-				return test->whichPtT(match).pt == edgePt;
-			};
-			tMatch = EdgeMatch::none;
-			for (OpContour* member : eContour->members()) {
-				for (const std::vector<OpEdge*>& edges : { member->unsectByArea, member->unsortables } ) {
-					for (OpEdge* test : edges) {
-						if (testUnmatch(test, EdgeMatch::start))
-							return false;
-						if (testUnmatch(test, EdgeMatch::end))
-							return false;
-					}
-				}
-				for (size_t index = 0; index < member->linkups.l.size(); ++index) {
-					if (index == link && member == this)
-						continue;
-					auto testMatch = [&tMatch, &tIndex, &tContour, index, member, edgePt]
-							(OpEdge* test, EdgeMatch match) {
-						if (test->whichPtT(match).pt == edgePt) {
-							if (tMatch != EdgeMatch::none)
-								return false;  // there is more than one match; give up on this end
-							tMatch = match;
-							tIndex = index;
-							tContour = member;
-						}
-						return true;
-					};
-					OpEdge* test = member->linkups.l[index];
-					if (!testMatch(test, EdgeMatch::start))
-						return false;
-					if (!testMatch(test->lastEdge, EdgeMatch::end))
-						return false;
-				}
-			}
-			return EdgeMatch::none != tMatch;
-		};
-		// single edge end found which matches; link the two
-		auto mergeLinks = [&tIndex, &tMatch, &tContour, &linkupsErasures](
-				OpEdge* e, EdgeMatch eMatch, OpContour* linkContour, size_t linkIndex) {
-			OpEdge* tEdge = tContour->linkups.l[tIndex];
-			OP_ASSERT(!tEdge->priorEdge);
-			if (EdgeMatch::start == eMatch) {
-				if (EdgeMatch::start == tMatch) {
-					if (!tEdge->nextEdge)
-						tEdge->setWhich(!tEdge->which());
-					else {
-						tEdge = tEdge->lastEdge;
-						tEdge->setLinkDirection(tMatch, &linkupsErasures, InOutput::no);  // reverse links
-						tEdge->setLinkBounds();
-						tContour->setLinkEdge(tEdge, tIndex);
-					}
-				}
-				e->setPriorEdge(tEdge->lastEdge);
-				tEdge->lastEdge->setNextEdge(e);
-				tEdge->setLastEdge(e, e->lastEdge, InOutput::no);
-			} else {
-				if (EdgeMatch::end == tMatch) {
-					tEdge = tEdge->lastEdge;
-					tEdge->setLinkDirection(tMatch, &linkupsErasures, InOutput::no);  // reverse links
-				}
-				e = e->advanceToEnd(EdgeMatch::start);
-				tEdge->setPriorEdge(e->lastEdge);
-				e->lastEdge->setNextEdge(tEdge);
-				e->setLastEdge(tEdge, tEdge->lastEdge, InOutput::no);
-			}
-			OpEdge* eraseEdge = linkContour->linkups.l[linkIndex];
-#if OP_DEBUG_VALIDATE
-			eraseEdge->debugScheduledForErasure = true;
-#endif
-			linkupsErasures.push_back(eraseEdge);
-		};
-		if (scanForMatch(edge, this, EdgeMatch::start))
-			mergeLinks(edge, EdgeMatch::start, this, link);
-		else {
-			joiner->lastLink = edge->lastEdge;
-			OpEdge* lastLink = joiner->lastLink;
-			if (!scanForMatch(lastLink, lastLink->segment->contour, EdgeMatch::end))
-				return RelinkJoins::unmatched;
-			mergeLinks(lastLink, EdgeMatch::end, tContour, tIndex);
-		}
-	}
-	context->linkErased = false;
-	bool somethingWasErased = false;
-	detachIfLoop(joiner, edge->advanceToEnd(EdgeMatch::start), EdgeMatch::end);
-	if (linkupsErasures.size()) {
-		for (OpEdge* entry : linkupsErasures) {
-			if (!entry->linkHead)
-				continue;
-			std::vector<OpEdge*>& links = entry->segment->contour->linkups.l;
-			OP_ASSERT(entry->debugScheduledForErasure);
-			OP_DEBUG_CODE(entry->debugScheduledForErasure = false);
-			entry->linkHead = false;
-			for (size_t index = 0; index < links.size(); ++index) {
-				if (links[index] == entry) {
-					links.erase(links.begin() + index);
-					somethingWasErased = true;
-					break;
-				}
-			}
-		}
-	}
-	if (!somethingWasErased && !context->linkErased)
-		return RelinkJoins::unchanged;
-	return RelinkJoins::again;
-}
-
-static bool compareSize(const OpEdge* s1, const OpEdge* s2) {
-	const OpRect& r1 = s1->bounds;
-	const OpRect& r2 = s2->bounds;
-	return r1.width() + r1.height() > r2.width() + r2.height();
-}
-
 // sort by size so that tiny edges with poor winding don't run the show
 void OpJoiner::sort() {
 	for (auto contour : context->contours) {
 		contour->joinSort();
 	}
-}
-
-void OpContour::joinSort() {
-	std::sort(byArea.begin(), byArea.end(), compareSize);
-	std::sort(unsectByArea.begin(), unsectByArea.end(), compareSize);
-}
-
-void OpContour::unlink(OpEdge* test) {
-	if (test->inOutput) {
-		test->unlink();
-		return;
-	}
-	OpEdge* first = test->advanceToEnd(EdgeMatch::start);
-	if (linkups.l.end() == std::find(linkups.l.begin(), linkups.l.end(), first))
-		test->unlink();
 }
 
 // sort by size to process largest (tail) first

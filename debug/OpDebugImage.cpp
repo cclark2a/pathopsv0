@@ -18,7 +18,6 @@
 #include "include/core/SkPath.h"
 #include "include/core/SkPaint.h"
 #endif
-#include "OpContour.h"
 #include "OpCurveCurve.h"
 #include "OpEdge.h"
 #include "OpJoiner.h"
@@ -247,9 +246,9 @@ struct OpDebugDefeatDelete {
 
 void OpDebugImage::addToPath(const OpCurve& curve, SkPath& path) {
 	path.moveTo(curve.firstPt().x, curve.firstPt().y);
-	if ((size_t) curve.c.type > curve.contours->debugCallbacks.size())
+	if ((size_t) curve.c.type > curve.context->debugCallbacks.size())
 		return;
-	PathOpsV0Lib::DebugAddToPath debugAddToPath = curve.contours->debugCallback(curve.c.type).addToPathFuncPtr;
+	PathOpsV0Lib::DebugAddToPath debugAddToPath = curve.context->debugCallback(curve.c.type).addToPathFuncPtr;
 	if (!debugAddToPath)
 		return;
 	(*debugAddToPath)(curve.c, path);
@@ -909,8 +908,8 @@ void addFocus(const OpContour* contour) {
 	addFocus(*contour);
 }
 
-void addFocus(const OpContext* contours) {
-	addFocus(*contours);
+void addFocus(const OpContext* context) {
+	addFocus(*context);
 }
 
 void addFocus(const OpEdge* edge) {
@@ -996,8 +995,8 @@ void ctr(const OpContour* contour) {
 	ctr(*contour);
 }
 
-void ctr(const OpContext* contours) {
-	ctr(*contours);
+void ctr(const OpContext* context) {
+	ctr(*context);
 }
 
 void ctr(const OpEdge* edge) {
@@ -1079,8 +1078,8 @@ void focus(const OpContour* contour) {
 	focus(*contour);
 }
 
-void focus(const OpContext* contours) {
-	focus(*contours);
+void focus(const OpContext* context) {
+	focus(*context);
 }
 
 void focus(const OpEdge* edge) {

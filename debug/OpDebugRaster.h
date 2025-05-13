@@ -40,7 +40,7 @@ struct OpDebugSamples {
 	void sort();
 
 	std::vector<RasterSample> samples;  // 1 per curve crossing scanline
-	OpContext* contours;
+	OpContext* context;
 	double scale;  // apply scale first
 	double offsetX;  // then apply offset
 	double offsetY;

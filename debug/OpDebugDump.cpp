@@ -5,7 +5,6 @@
 #include <ctype.h>
 
 #include "OpCurveCurve.h"
-#include "OpContour.h"
 #include "OpDebugColor.h"
 #include "OpDebugDump.h"
 #include "OpEdge.h"
@@ -518,7 +517,7 @@ void dmpEdges() {
     OpDebugOut(s);
 }
 
-std::string debugDumpContours() {
+std::string debugDumpContext() {
     return debugGlobalContext->debugDump(DebugLevel::detailed, DebugBase::hex);
 }
 
@@ -533,7 +532,7 @@ std::string debugDumpEdges() {
     for (const auto c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
-                s += edge.debugDump(DebugLevel::detailed, DebugBase::hex) + "\n";
+                s += edge.debugDump(defaultLevel, defaultBase) + "\n";
             }
         }
     }
@@ -595,19 +594,48 @@ OpContext* fromFile(std::vector<PathOpsV0Lib::CurveCallbacks>* callbacks) {
     return fileContours;
 }
 
-void verifyFile(OpContext* contours) {
-	OpContext* fileContours = fromFile(&contours->callbacks);
+void verifyFile(OpContext* context) {
+	OpContext* fileContext = fromFile(&context->callbacks);
     FILE* file = fopen("dmp2.txt", "w");
     std::string s;
-    OP_ASSERT(fileContours);
-    s += fileContours->debugDump(DebugLevel::file, DebugBase::hex);
+    OP_ASSERT(fileContext);
+    s += fileContext->debugDump(DebugLevel::file, DebugBase::hex);
     int saveWidth = lineWidth;
     lineWidth = 100;
     s = stringFormat(s);
     lineWidth = saveWidth;
     fwrite(&s[0], 1, s.size(), file);
     fclose(file);
-    delete fileContours;
+    delete fileContext;
+}
+
+void dmpRays() {
+    size_t edgeCount = 0;
+    for (const auto c : debugGlobalContext->contours) {
+        for (const auto& seg : c->segments) {
+            for (const auto& edge : seg.edges) {
+                if (!edge.ray.distances.empty())
+					++edgeCount;
+            }
+        }
+    }
+    std::string s = "edges with rays:" + STR(edgeCount) + "\n";
+    for (const auto c : debugGlobalContext->contours) {
+        for (const auto& seg : c->segments) {
+            for (const auto& edge : seg.edges) {
+				if (edge.ray.distances.empty())
+					continue;
+				s += "[" + STR(edge.id) + "] ";
+				if (DebugLevel::detailed == defaultLevel) {
+					s += "seg[" + STR(edge.segment->id) + "] ";
+					s += "contour[" + STR(edge.segment->contour->id)+ "] ";
+				}
+                s += edge.ray.debugDump(defaultLevel, defaultBase) + "\n";
+            }
+        }
+    }
+    s.pop_back();
+    OpDebugFormat(s);
 }
 
 void OpContext::dumpResolve(OpContour*& ) {
@@ -732,11 +760,13 @@ void dmpSects() {
 }
 
 void dmpSegments() {
+	std::string s;
     for (const auto& c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
-            seg.dump();
+            s += seg.debugDump(defaultLevel, defaultBase) + "\n";
         }
     }
+    OpDebugFormat(s);
 }
 
 void dmpSorted() {
@@ -1228,6 +1258,81 @@ const OpLimb& OpContext::debugNthLimb(int index) const {
     return result;
 }
 
+enum class ShowContour {
+	no,
+	yes
+};
+
+static std::string segmentDebugDump(const OpSegment& seg, ShowContour showContour, 
+		DebugLevel l, DebugBase b) {
+	std::string lf = ShowContour::yes == showContour ? "\n" : " ";
+    if (DebugLevel::brief != l) {
+        std::string s = "[" + STR(seg.id) + "] ";
+        if (ShowContour::yes == showContour && seg.contour)
+            s += "contour[" + STR(seg.contour->id) + "] ";
+        s += seg.c.debugDump(l, b) + lf;
+		if (ShowContour::yes == showContour) {
+			s += "ptBounds:" + seg.ptBounds.debugDump(l, b) + lf;
+			s += "closeBounds:" + seg.closeBounds.debugDump(l, b) + lf;
+		}
+        if (!seg.sects.i.empty()) {
+            s += "sects:" + STR(seg.sects.i.size()) + " [";
+            for (auto sect : seg.sects.i)
+                s += STR(sect->id) + " ";
+            s.pop_back();
+            s += "]" + lf;
+        }
+        if (!seg.edges.empty()) {
+            s += "edges:" + STR(seg.edges.size());
+            if (DebugLevel::normal == l) {
+                s += " [";
+                for (auto& edge : seg.edges)
+                    s += STR(edge.id) + " ";
+                s.pop_back();
+                s += "]" + lf;
+            } else {
+                s += "\n";
+                for (auto& edge : seg.edges)
+                    s += edge.debugDump(l, b) + "\n";
+            }
+        }
+		if (!seg.coinContours.empty()) {
+            s += "coinContours:" + STR(seg.coinContours.size());
+            s += " [";
+            for (auto& coinContour : seg.coinContours)
+                s += STR(coinContour->id) + " ";
+            s.pop_back();
+            s += "]\n";
+		}
+        s += "winding" + seg.winding.debugDump(l, b) + " ";
+        if (seg.disabled)
+            s += "disabled ";
+        if (seg.willDisable)
+            s += "willDisable ";
+        if (seg.hasCoin)
+            s += "hasCoin ";
+        if (seg.hasPals)
+            s += "hasPals ";
+        if (seg.hasUnsectable)
+            s += "hasUnsectable ";
+        if (seg.startMoved)
+            s += "startMoved ";
+        if (seg.endMoved)
+            s += "endMoved ";
+#if OP_DEBUG_IMAGE
+        if (seg.debugColor != black)
+            s += debugDumpColor(seg.debugColor) + " ";
+#endif
+#if OP_DEBUG_MAKER
+        if (seg.debugSetDisabled.line)
+            s += "debugSetDisabled:" + seg.debugSetDisabled.debugDump() + " ";
+#endif
+        s.pop_back();
+        return s;
+    }
+    return "seg:" + STR(seg.id) + " " + seg.c.debugDump(l, b);
+}
+
 std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
     std::string s = "contour[" + STR(id) + "] ";
     if (DebugLevel::detailed == l) {
@@ -1246,48 +1351,7 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 		// limit segment to id / curve / sects / edges / winding / disabled
 		// !!! add segment filter ala edges?  refactor this to call common code?
         for (auto& segment : segments) {
-			s += "[" + STR(segment.id) + "] ";
-			s += segment.c.debugDump(l, b) + " ";
-			if (segment.sects.i.size()) {
-				s += "sects:" + STR(segment.sects.i.size()) + " [";
-				for (auto sect : segment.sects.i)
-					s += STR(sect->id) + " ";
-				s.pop_back();
-				s += "] ";
-			}
-			if (segment.edges.size()) {
-				s += "edges:" + STR(segment.edges.size()) + " [";
-				for (auto& edge : segment.edges)
-					s += STR(edge.id) + " ";
-				s.pop_back();
-				s += "] ";
-			}
-            if (segment.winding.w.data && segment.winding.w.size) {
-				auto windingOut = debugGlobalContext->debugContextCallbacks.debugDumpWindingOutFuncPtr;
-				if (windingOut)
-					s += "winding" + (*windingOut)(segment.winding.w) + " ";
-			}
-			if (segment.disabled)
-				s += "disabled ";
-			if (segment.willDisable)
-				s += "willDisable ";
-			if (segment.hasCoin)
-				s += "hasCoin ";
-			if (segment.hasUnsectable)
-				s += "hasUnsectable ";
-			if (segment.startMoved)
-				s += "startMoved ";
-			if (segment.endMoved)
-				s += "endMoved ";
-#if OP_DEBUG_IMAGE
-			if (segment.debugColor != black)
-				s += debugDumpColor(segment.debugColor) + " ";
-#endif
-#if OP_DEBUG_MAKER
-			if (segment.debugSetDisabled.line)
-				s += "debugSetDisabled:" + segment.debugSetDisabled.debugDump() + " ";
-#endif
-			s.pop_back();
+			s += segmentDebugDump(segment, ShowContour::no, l, b);
 			s += "\n";
 		}
     }
@@ -1402,14 +1466,18 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 		s += "backwardsBuilt ";
 	if (centerlessBuilt)
 		s += "centerlessBuilt ";
+	if (hasPals)
+		s += "hasPals ";
 	if (palsBuilt)
 		s += "palsBuilt ";
-	if (isXSorted)
-		s += "isXSorted ";
-	if (isYSorted)
-		s += "isYSorted ";
+//	if (isXSorted)
+//		s += "isXSorted ";
+//	if (isYSorted)
+//		s += "isYSorted ";
 	if (disabled)
 		s += "disabled ";
+	if (overlapsMerged)
+		s += "overlapsMerged ";
     s.pop_back();
     return s;
 }
@@ -1490,11 +1558,11 @@ std::string OpContourStorage::debugDump(DebugLevel l, DebugBase b) const {
     return s;
 }
 
-void OpContourStorage::DumpSet(const char*& str, OpContext* dumpContours) {
+void OpContourStorage::DumpSet(const char*& str, OpContext* dumpContext) {
     size_t count = OpDebugReadSizeT(str);
     for (size_t index = 0; index < count; ++index) {
-        OpContour* sect = dumpContours->allocateContour();
-        sect->context = dumpContours;
+        OpContour* sect = dumpContext->allocateContour();
+        sect->context = dumpContext;
         sect->dumpSet(str);
     }
 }
@@ -1518,6 +1586,9 @@ std::vector<LabelAbbr> labelAbbrs = {
     {"prior", "p", "p"},
     {"segment", "seg", "s"},
     {"winding", "wind", "w"},
+	{"homeCept", "hCept", "hc"},
+	{"homeT", "hT", "hT"},
+	{"homeTangent", "hTan", "hTan"},
     {"isUnsplitable", "ccIsUS", "cUS"},
     {"ccEnd", "ccE", "cE"},
     {"ccLarge", "ccLg", "lg"},
@@ -1629,16 +1700,16 @@ void CurveDataStorage::DumpSet(const char*& str, CurveDataStorage** previousPtr)
 
 std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-	if ((size_t) c.type > contours->debugCallbacks.size())
+	if ((size_t) c.type > context->debugCallbacks.size())
 		s += "(missing curve name) ";
     else {
-		auto curveName = contours->debugCallback(c.type).curveNameFuncPtr;
+		auto curveName = context->debugCallback(c.type).curveNameFuncPtr;
 		if (curveName)
 			s += (*curveName)() + " ";
 	}
     if (DebugLevel::file == l) {
         s += "size:" + STR(c.size) + " ";
-        s += "data:" + contours->curveDataStorage->debugDump(c.data) + " ";
+        s += "data:" + context->curveDataStorage->debugDump(c.data) + " ";
     } else {
 		s.pop_back();  // remove trailing space
         s += "{";
@@ -1646,8 +1717,8 @@ std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
             s += hullPt(i).debugDump(DebugLevel::error, b) + ", ";
         s.pop_back(); s.pop_back();  // remove space, comma
         s += "}";
-		if ((size_t) c.type <= contours->debugCallbacks.size()) {
-			auto curveExtra = contours->debugCallback(c.type).curveExtraFuncPtr;
+		if ((size_t) c.type <= context->debugCallbacks.size()) {
+			auto curveExtra = context->debugCallback(c.type).curveExtraFuncPtr;
 			if (curveExtra)
 				s += (*curveExtra)(c, l, b);
 		}
@@ -1659,8 +1730,8 @@ void OpCurve::dumpSet(const char*& str) {
     size_t strLen = 0;
     while (isalnum(str[strLen]))
         ++strLen;
-    for (size_t index = 0; index < contours->callbacks.size(); ++index) {
-		auto curveName = contours->debugCallbacks[index].curveNameFuncPtr;
+    for (size_t index = 0; index < context->callbacks.size(); ++index) {
+		auto curveName = context->debugCallbacks[index].curveNameFuncPtr;
 		if (!curveName)
 			continue;
         std::string name = (*curveName)();
@@ -1674,7 +1745,7 @@ void OpCurve::dumpSet(const char*& str) {
     OpDebugRequired(str, "size");
     c.size = OpDebugReadSizeT(str);
     OpDebugRequired(str, "data");
-    c.data = contours->curveDataStorage->dumpSet(str);  // do not allocate, just point to
+    c.data = context->curveDataStorage->dumpSet(str);  // do not allocate, just point to
 }
 
 ENUM_NAME_STRUCT(EdgeMatch);
@@ -2139,6 +2210,7 @@ static UnsortableName unsortableNames[] = {
 	UNSORTABLE_NAME(homeUnsectable),
 	UNSORTABLE_NAME(noMidT),
 	UNSORTABLE_NAME(noNormal),
+	UNSORTABLE_NAME(palsEnd),
 	UNSORTABLE_NAME(rayTooShallow),
 	UNSORTABLE_NAME(tooManyTries),
 	UNSORTABLE_NAME(underflow),
@@ -2171,13 +2243,17 @@ std::string EdgePal::debugDump(DebugLevel l, DebugBase b) const {
         s += debugValue(l, b, "edgeInsideT", edgeInsideT) + " ";
     if (RayOrder::uninitialized != rayOrder)
 		s += "rayOrder:" + rayOrderName(rayOrder) + " ";
+    if (unsectID)
+		s += "unsectID:" + STR(unsectID) + " ";
     if (reversed) 
-        s += DebugLevel::detailed == l ? "reversed " : "r ";
-    if (debugUID)
-		s += "debugUID:" + STR(debugUID) + " ";
-	if (DebugLevel::detailed == l)
+        s += DebugLevel::brief != l ? "reversed " : "r ";
+    if (dependent) 
+        s += DebugLevel::brief != l ? "dependent " : "d ";
+    if (over) 
+        s += DebugLevel::brief != l ? "over " : "o ";
+    if (DebugLevel::detailed == l)
 		s += edge->debugDumpWinding() + " ";
-    if (s.size())
+    if (!s.empty())
         s.pop_back();
     return s;
 }
@@ -2195,10 +2271,10 @@ void EdgePal::dumpSet(const char*& str) {
         cept = OpDebugHexToFloat(str);
     if (OpDebugOptional(str, "edgeInsideT"))
         edgeInsideT = OpDebugHexToFloat(str);
+    if (OpDebugOptional(str, "unsectID"))
+        unsectID = (int) OpDebugReadSizeT(str);
     if (OpDebugOptional(str, "r"))
         reversed = true;
-    if (OpDebugOptional(str, "debugUID"))
-        debugUID = (int) OpDebugReadSizeT(str);
 }
 
 std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
@@ -2434,12 +2510,12 @@ void OpEdge::dumpSet(const char*& str) {
     if (OpDebugOptional(str, "center"))
         center.dumpSet(str);
     OpDebugRequired(str, "curve");
-    curve.contours = dumpContours;
+    curve.context = dumpContext;
     curve.dumpSet(str);
     if (OpDebugOptional(str, "upright_impl")) {
         upright_impl.dumpSet(str);
         OpDebugRequired(str, "vertical_impl");
-        vertical_impl.contours = dumpContours;
+        vertical_impl.context = dumpContext;
         vertical_impl.dumpSet(str);
     }
     OpDebugRequired(str, "ptBounds");
@@ -2582,12 +2658,13 @@ std::string OpEdge::debugDumpLink(EdgeMatch which, DebugLevel l, DebugBase b) co
 
 std::string OpEdge::debugDumpWinding() const {
     std::string s;
+	DebugLevel l = DebugLevel::detailed == defaultLevel ? DebugLevel::normal : defaultLevel;
     if (winding.isSet())
-        s += "winding: " + winding.debugDump(defaultLevel, defaultBase) + " ";
+        s += "winding" + winding.debugDump(l, defaultBase) + " ";
     if (sum.isSet())
-        s += "sum: " + sum.debugDump(defaultLevel, defaultBase) + " ";
+        s += "sum" + sum.debugDump(l, defaultBase) + " ";
     if (many.isSet())
-        s += "many: " + many.debugDump(defaultLevel, defaultBase);
+        s += "many" + many.debugDump(l, defaultBase);
     return s;
 }
 
@@ -2846,14 +2923,20 @@ void dmpClosest(const OpCurveCurve& cc, const OpPoint& p) {
 }
 
 void dmpLink(const OpEdge& edge) {
-   std::string s = edge.debugDump(defaultLevel, defaultBase);
-   OpDebugOut(s + "\n");
-   s = edge.debugDumpLink(EdgeMatch::start, defaultLevel, defaultBase);
-   if (s.size())
-       OpDebugOut("prior" + s + "\n");
-   s = edge.debugDumpLink(EdgeMatch::end, defaultLevel, defaultBase);
-   if (s.size())
-       OpDebugOut("next" + s + "\n");
+    std::vector<EdgeFilter> showFields = { EF::id, EF::segment, EF::contour, 
+			EF::priorEdge, EF::nextEdge, EF::lastEdge,
+			EF::startT, EF::endT, 
+			EF::active_impl, EF::inLinkups, EF::inOutput, EF::disabled, EF::isUnsplitable,
+			EF::centerless };
+    OpSaveEF saveEF(showFields);
+	std::string s = edge.debugDump(defaultLevel, defaultBase);
+	OpDebugOut(s + "\n");
+	s = edge.debugDumpLink(EdgeMatch::start, defaultLevel, defaultBase);
+	if (s.size())
+		OpDebugOut("prior" + s + "\n");
+	s = edge.debugDumpLink(EdgeMatch::end, defaultLevel, defaultBase);
+	if (s.size())
+		OpDebugOut("next" + s + "\n");
 }
 
 void dmpPoints(const OpEdge& edge) {
@@ -2966,20 +3049,20 @@ std::string OpEdgeStorage::debugDump(DebugLevel l, DebugBase b) const {
     return "";
 }
 
-void OpEdgeStorage::DumpSet(const char*& str, OpContext* dumpContours, DumpStorage type) {
+void OpEdgeStorage::DumpSet(const char*& str, OpContext* dumpContext, DumpStorage type) {
     size_t count = OpDebugReadSizeT(str);
     for (size_t index = 0; index < count; ++index) {
         OpEdge* edge = nullptr;
         // !!! hackery ahead: note that 'contours->allocateEdge(this)' won't compile
         if (DumpStorage::cc == type)
-            edge = dumpContours->allocateEdge(dumpContours->ccStorage);
+            edge = dumpContext->allocateEdge(dumpContext->ccStorage);
         else if (DumpStorage::filler == type)
-            edge = dumpContours->allocateEdge(dumpContours->fillerStorage);
+            edge = dumpContext->allocateEdge(dumpContext->fillerStorage);
         else {
             OpDebugExit("edge storage missing");
         }
         (void) new(edge) OpEdge();
-        edge->dumpContours = dumpContours;
+        edge->dumpContext = dumpContext;
         edge->dumpSet(str);
     }
 }
@@ -3045,10 +3128,10 @@ std::string OpLimbStorage::debugDump(DebugLevel l, DebugBase b) const {
     return s;
 }
 
-void OpLimbStorage::DumpSet(const char*& str, OpContext* dumpContours) {
+void OpLimbStorage::DumpSet(const char*& str, OpContext* dumpContext) {
     size_t count = OpDebugReadSizeT(str);
     for (size_t index = 0; index < count; ++index) {
-        OpLimb* limb = dumpContours->allocateLimb();
+        OpLimb* limb = dumpContext->allocateLimb();
         limb->dumpSet(str);
     }
 }
@@ -3453,21 +3536,44 @@ std::string CoinPair::debugDump(DebugLevel l, DebugBase b) const {
 
 std::string SectRay::debugDumpHeader(DebugLevel l, DebugBase b) const {
     std::string s = "ray count:" + STR(distances.size()) + " ";
-    s += debugValue(l, b, "normal", normal) + " ";
-    s += debugValue(l, b, "homeCept", homeCept) + " ";
-    s += debugValue(l, b, "homeT", homeT) + " ";
-    s += "axis:" + axisName(axis) + (DebugLevel::detailed == l ? "\n" : " ");
+	if (homeTangent.isFinite())
+		s += debugLabel(l, "homeTangent") + homeTangent.debugDump(l, b) + " ";
+	if (OpMath::IsFinite(normal))
+		s += debugValue(l, b, "normal", normal) + " ";
+	if (OpMath::IsFinite(homeCept))
+	    s += debugValue(l, b, "homeCept", homeCept) + " ";
+	if (OpMath::IsFinite(homeT))
+	    s += debugValue(l, b, "homeT", homeT) + " ";
+	if (Axis::neither != axis)
+		s += "axis:" + axisName(axis) + " ";
+	if (firstTry) s += "firstTry ";
+	if (sorted) s += "sorted ";
+	if (' ' == s.back())
+		s.pop_back();
 	return s;
 }
 
 std::string SectRay::debugDump(DebugLevel l, DebugBase b) const {
-    std::string s = debugDumpHeader(l, b);
+    std::string s = debugDumpHeader(l, b) + (DebugLevel::detailed == l ? "\n" : " ");
     for (const EdgePal& dist : distances) {
+		if (DebugLevel::detailed == l)
+			s += " ";  // indent
         s += dist.debugDump(DebugLevel::detailed == l ? l : DebugLevel::brief, b);
 		s += DebugLevel::detailed == l ? "\n" : " ";
 	}
-    if (s.size())
-        s.pop_back();
+	if (!containers.empty()) {
+		if (DebugLevel::detailed == l)
+			s += " ";  // indent
+		s += "containers[";
+		for (const OpContour* container : containers) {
+			s += STR(container->id) + " ";
+		}
+		if (!s.empty())
+			s.pop_back();
+		s += DebugLevel::detailed == l ? "]\n" : "] ";
+	}
+	if (!s.empty())
+		s.pop_back();
     return s;
 }
 
@@ -3554,9 +3660,9 @@ void CcCurves::dumpSet(const char*& str) {
     }
 }
 
-void CcCurves::dumpResolveAll(OpContext* contours) {
+void CcCurves::dumpResolveAll(OpContext* context) {
     for (auto& edge : c)
-        contours->dumpResolve(edge);
+        context->dumpResolve(edge);
 }
 
 std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
@@ -3999,10 +4105,10 @@ std::string OpSectStorage::debugDump(DebugLevel l, DebugBase b) const {
     return s;
 }
 
-void OpSectStorage::DumpSet(const char*& str, OpContext* dumpContours) {
+void OpSectStorage::DumpSet(const char*& str, OpContext* dumpContext) {
     size_t count = OpDebugReadSizeT(str);
     for (size_t index = 0; index < count; ++index) {
-        OpIntersection* sect = dumpContours->allocateIntersection();
+        OpIntersection* sect = dumpContext->allocateIntersection();
         sect->dumpSet(str);
     }
 }
@@ -4019,66 +4125,14 @@ OpSegment::OpSegment()
 }
 
 std::string OpSegment::debugDump(DebugLevel l, DebugBase b) const {
-    if (DebugLevel::brief != l) {
-        std::string s = "[" + STR(id) + "] ";
-        if (contour)
-            s += "contour[" + STR(contour->id) + "] ";
-        s += c.debugDump(l, b) + "\n";
-        s += "ptBounds:" + ptBounds.debugDump(l, b) + "\n";
-        s += "closeBounds:" + closeBounds.debugDump(l, b) + "\n";
-        if (sects.i.size()) {
-            s += "sects:" + STR(sects.i.size()) + " [";
-            for (auto sect : sects.i)
-                s += STR(sect->id) + " ";
-            s.pop_back();
-            s += "]\n";
-        }
-        if (edges.size()) {
-            s += "edges:" + STR(edges.size());
-            if (DebugLevel::normal == l) {
-                s += " [";
-                for (auto& edge : edges)
-                    s += STR(edge.id) + " ";
-                s.pop_back();
-                s += "]\n";
-            } else {
-                s += "\n";
-                for (auto& edge : edges)
-                    s += edge.debugDump(l, b) + "\n";
-            }
-        }
-        s += "winding:" + winding.debugDump(l, b) + " ";
-        if (disabled)
-            s += "disabled ";
-        if (willDisable)
-            s += "willDisable ";
-        if (hasCoin)
-            s += "hasCoin ";
-        if (hasUnsectable)
-            s += "hasUnsectable ";
-        if (startMoved)
-            s += "startMoved ";
-        if (endMoved)
-            s += "endMoved ";
-#if OP_DEBUG_IMAGE
-        if (debugColor != black)
-            s += debugDumpColor(debugColor) + " ";
-#endif
-#if OP_DEBUG_MAKER
-        if (debugSetDisabled.line)
-            s += "debugSetDisabled:" + debugSetDisabled.debugDump() + " ";
-#endif
-        s.pop_back();
-        return s;
-    }
-    return "seg:" + STR(id) + " " + c.debugDump(l, b);
+	return segmentDebugDump(*this, ShowContour::yes, l, b);
 }
 
 void OpSegment::dumpSet(const char*& str) {
     id = (int) OpDebugReadSizeT(str);
     int contourID = OpDebugOptional(str, "contour[") ? (int) OpDebugReadSizeT(str) : 0;
     OpDebugExitOnFail("mismatched contour id", contourID == contour->id);
-    c.contours = contour->context;
+    c.context = contour->context;
     c.dumpSet(str);
     OpDebugRequired(str, "ptBounds");
     ptBounds.dumpSet(str);
@@ -4095,7 +4149,7 @@ void OpSegment::dumpSet(const char*& str) {
         int edgeCount = (int) OpDebugReadSizeT(str);
         edges.resize(edgeCount);
         for (int index = 0; index < edgeCount; ++index)
-            edges[index].dumpContours = contour->context;
+            edges[index].dumpContext = contour->context;
         for (int index = 0; index < edgeCount; ++index)
             edges[index].dumpSet(str);
     }
@@ -4116,12 +4170,12 @@ void OpSegment::dumpSet(const char*& str) {
 #endif
 }
 
-void OpSegment::dumpResolveAll(OpContext* contours) {
-    contours->dumpResolve(contour);
+void OpSegment::dumpResolveAll(OpContext* context) {
+    context->dumpResolve(contour);
     for (auto& sect : sects.i)
-        contours->dumpResolve(sect);
+        context->dumpResolve(sect);
     for (auto& edge : edges)
-        edge.dumpResolveAll(contours);
+        edge.dumpResolveAll(context);
 }
 
 std::string OpSegment::debugDumpEdges() const {
@@ -4261,10 +4315,12 @@ std::string OpWinding::debugDump(DebugLevel l, DebugBase b) const {
 			if (windingOut)
 				s += (*windingOut)(w) + " ";
 		}
-		if (WindingType::uninitialized != type)
-			s += windingTypeName(type) + " ";
-		if (DebugWindingType::uninitialized != debugType)
-			s += debugWindingTypeName(debugType) + " ";
+		if (DebugLevel::detailed == l) {
+			if (WindingType::uninitialized != type)
+				s += windingTypeName(type) + " ";
+			if (DebugWindingType::uninitialized != debugType)
+				s += debugWindingTypeName(debugType) + " ";
+		}
 		if (' ' == s.back())
 			s.pop_back();
 	}

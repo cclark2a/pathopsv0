@@ -15,7 +15,7 @@ enum class ChainFail {
 	noNormal,
 	normalizeOverflow,
 	normalizeUnderflow,
-	recurse  // some member of the chain needs to be evaluated earlier
+	// recurse  // some member of the chain needs to be evaluated earlier !!! delay to sum
 };
 
 #if 0
@@ -33,7 +33,7 @@ enum class FoundIntersections {
 enum class FoundIntercept {
 	fail,
 	overflow,
-	recurse,
+//	recurse,  // recursion happens when sums are computed instead of when rays intersect
 	set,
 	yes
 };
@@ -63,6 +63,7 @@ struct RayTarget {
 };
 
 struct RayTargets {
+	void addContainer(OpContour* container, OpRect& bounds);
 	void build(OpWinder* );
 	bool match(OpContour* ) const;
 	OpEdge* next(float homeCept);
@@ -78,16 +79,17 @@ struct RayTargets {
 };
 
 struct OpWinder {
-	OpWinder(OpContext& contours);
+	OpWinder(OpContext& );
 	void addEdge(OpEdge* );
 	static IntersectResult CoincidentCheck(OpSegment* seg, OpSegment* opp);
 	static IntersectResult CoincidentCheck(std::array<CoinEnd, 4>& ends, bool* oppReversed,
 			XyChoice* );
 	FoundIntercept findRayIntercept(OpVector tangent, float normal, float homeCept);
 	void markUnsortable(Unsortable );
+	FoundWindings setPriors(OpContext& , OpEdge* );
 	ChainFail setSumChain();
-	ResolveWinding setWindingByDistance(OpContext* );
-	FoundWindings setWindings(OpContext* );
+	ResolveWinding setWindingByDistance(OpContext& );
+	FoundWindings setWindings(OpContext& );
 	void sort();
 
 #if OP_DEBUG_DUMP
@@ -102,6 +104,8 @@ struct OpWinder {
 	OpEdge* home;
 	Axis workingAxis;
 	float interceptLimit;
+	float minCeptDiff;
+//	int byDistanceDepth;  // !!! replace this with debug flag to detect infinite recursion
 };
 
 #endif

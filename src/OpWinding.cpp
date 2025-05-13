@@ -1,5 +1,5 @@
 // (c) 2024, Cary Clark cclark2@gmail.com
-#include "OpContour.h"
+#include "OpContext.h"
 #include "OpWinding.h"
 
 OpWinding::OpWinding(WindingUninitialized )

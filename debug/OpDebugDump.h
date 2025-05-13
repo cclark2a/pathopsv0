@@ -119,9 +119,25 @@ OP_X(OpSegment*)
 
 #define DUMP_GROUP \
 OP_X(Active) \
+OP_X(Aliases) \
+OP_X(Coincidences) \
+OP_X(Coins) \
+OP_X(Context) \
 OP_X(Contours) \
+OP_X(Disabled) \
+OP_X(Edges) \
+OP_X(EdgePts) \
+OP_X(File) \
+OP_X(InOutput) \
+OP_X(Intersections) \
+OP_X(Join) \
+OP_X(Rays) \
 OP_X(Sects) \
-OP_X(Segments)
+OP_X(Segments) \
+OP_X(Sorted) \
+OP_X(Unsectable) \
+OP_X(Unsortable) \
+OP_X(Windings)
 
 #define OP_X(Thing) \
 	extern void dmp##Thing();
@@ -216,26 +232,6 @@ DUMP_BY_DUMPID
 OP_X(Brief) \
 OP_X(Detailed) \
 OP_X(Hex)
-
-extern void dmpActive();
-extern void dmpAliases();
-extern void dmpCoincidences();
-extern void dmpCoins();
-extern void dmpContext();
-extern void dmpContours();
-extern void dmpDisabled();
-extern void dmpEdges();
-extern void dmpEdgePts();
-extern void dmpFile();
-extern void dmpInOutput();
-extern void dmpIntersections();
-extern void dmpJoin();
-extern void dmpSects();
-extern void dmpSegments();
-extern void dmpSorted();
-extern void dmpUnsectable();
-extern void dmpUnsortable();
-extern void dmpWindings();
 
 namespace PathOpsV0Lib {
 struct CurveCallbacks;

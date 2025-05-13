@@ -71,8 +71,9 @@ enum class RayOrder : uint8_t {
 };
 
 struct EdgePal {
-	EdgePal(OpEdge* e, float c, float tIn, bool r);  // called when winder can't resolve order
-	EdgePal(OpEdge* e, bool r  OP_DEBUG_PARAMS(int uID)); //  when edge maker is between unsectables
+	EdgePal(OpEdge* e, float c, float tIn, bool reversed, bool dependent, bool over);
+	EdgePal(OpEdge* e, float c, float tIn);  // when winder can't resolve order
+	EdgePal(OpEdge* e, int uID); //  when edge maker is between unsectables
 	OpPoint matchPt(EdgeMatch ) const;
 
 #if OP_DEBUG_DUMP
@@ -83,9 +84,11 @@ struct EdgePal {
 	OpEdge* edge;
 	float cept;  // where normal intersects edge (e.g. for home, axis horz: center.x)
 	float edgeInsideT;  // !!! t value from 0 to 1 within edge range (seems bizarre)
-	RayOrder rayOrder;  // note if computed sum can't be used because distance entries are unordered
-	bool reversed;
-	OP_DEBUG_CODE(int debugUID);  // unsect id from sect in edge's segment
+	RayOrder rayOrder = RayOrder::uninitialized;  // note if computed sum can't be used because distance entries are unordered
+	int unsectID;  // unsect id from sect in edge's segment, if any; or unique ID if missing
+	bool reversed = false;
+	bool dependent = false;  // set if edge contains dependencies (i.e., get sum winding from edge)
+	bool over = false;  // set if edge is home, or edge cept is close to or greater than home cept
 };
 
 enum class FindCept {
@@ -112,14 +115,20 @@ struct SectRay {
 		, homeCept(OpNaN)
 		, homeT(OpNaN)
 		, axis(Axis::neither)
-		, firstTry(true)
-	{
+		, firstTry(true) {
 	}
-	bool addCoinContours(OpWinder* );
+
+	bool add(OpWinder* , OpEdge* , float xy, float root, bool reversed);  // add to distances
+//	bool addCoinContours(OpWinder* );
+	void addContainers(OpWinder* , OpEdge* );
 	bool addDependentContours(OpWinder* );
-	void addPals(OpEdge* );
+	void addPals(OpEdge* , float minCeptDiff);
 	bool canSetSum(const OpEdge* ) const;
+	bool checkAdd(OpEdge* toAdd);
+	RayOrder checkClose(const OpEdge* ) const;
 	RayOrder checkOrder(const OpEdge* );
+	bool checkDependents(const OpEdge* addEdge, float xy, Axis perpendicular 
+			OP_DEBUG_PARAMS(std::vector<const SectRay*>& debugRays));
 	const EdgePal* end(DistEnd e) const {
 		return DistEnd::front == e ? &distances.front() : &distances.back(); }
 	FindCept findIntercept(OpWinder* , OpEdge* test);
@@ -135,6 +144,7 @@ struct SectRay {
 	OP_DEBUG_DUMP_CODE(std::string debugDumpHeader(DebugLevel l, DebugBase b) const);
 
 	std::vector<EdgePal> distances;
+	std::vector<OpContour*> containers;  // extra contours that affect home's winding sum
 	OpVector homeTangent;  // used to determine if unsectable edge is reversed
 	float normal;  // ray used to find windings on home edge (e.g., axis: h, center.y)
 	float homeCept;  // intersection of normal on home edge (e.g., axis: h, center.x)
@@ -142,7 +152,6 @@ struct SectRay {
 	Axis axis;
 	bool firstTry;  // used to cache unsectable test
 	bool sorted = false;
-//	bool checkCoins = false;
 };
 
 enum class SectType {
@@ -205,7 +214,7 @@ enum class EdgeDirection {
 enum class ResolveWinding {
 	resolved,
 	loop,
-	recursed,
+//	recursed,
 	retry,
 	fail,
 };
@@ -225,6 +234,7 @@ enum class Unsortable {
 	homeUnsectable,
 	noMidT,
 	noNormal,
+	palsEnd,
 	rayTooShallow,
 	tooManyTries,
 	underflow
@@ -299,9 +309,10 @@ private:
 		debugDepth = 0;
 		debugRayMatch = 0;
 		debugUnordered = false;
+		debugSumSet = false;
 #endif
 #if OP_DEBUG_DUMP
-		dumpContours = nullptr;
+		dumpContext = nullptr;
 #endif
 #if OP_DEBUG_IMAGE
 		debugColor = debugBlack;
@@ -426,7 +437,7 @@ public:
 #endif
 
 	OpSegment* segment;
-	SectRay ray;
+	SectRay ray;  // captures ray info that intersects other edges, horizontally or vertically
 	OpEdge* priorEdge;	// edges that link to form completed contour
 	OpEdge* nextEdge;
 	OpEdge* lastEdge;
@@ -477,9 +488,10 @@ public:
 	int debugDepth;  // depth of curve-curve when edge was created
 	mutable int debugRayMatch;	// id: edges in common output contour determined from ray
 	bool debugUnordered;  // set if check order detected some rays are out of order
+	bool debugSumSet;  // for 'set winding by distance' to detect infinite recursion
 #endif
 #if OP_DEBUG_DUMP
-	OpContext* dumpContours;  // temporary edges don't have segment ptrs when unflattened
+	OpContext* dumpContext;  // temporary edges don't have segment ptrs when unflattened
 #endif
 #if OP_DEBUG_IMAGE
 	uint32_t debugColor;

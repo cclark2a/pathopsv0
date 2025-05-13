@@ -1,5 +1,4 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
-#include "OpContour.h"
 #include "OpCurveCurve.h"
 #include "OpDebugRecord.h"
 #include "OpSegment.h"

@@ -222,6 +222,7 @@ struct ContextCallbacks {
 	MaxCurveCurveValue maxSplitBiasFuncPtr = nullptr;
 	MaxCurveValue maxBoundedEdgeFuncPtr = nullptr;
 	MaxCurveValue maxBoundedTFuncPtr = nullptr;
+	MaxCurveValue maxUnsectableTFuncPtr = nullptr;
 	MaxCurveCurveCount maxCheckSplitFuncPtr = nullptr;
 	MaxCurveCurveCount maxDeepFuncPtr = nullptr;
 	MaxCurveCurveCount maxShallowFuncPtr = nullptr;

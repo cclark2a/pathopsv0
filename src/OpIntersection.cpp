@@ -1,6 +1,6 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpIntersection.h"
-#include "OpContour.h"
+#include "OpContext.h"
 #include "OpSegment.h"
 
 void OpIntersection::setCoin(int cid, MatchEnds end) {
@@ -247,6 +247,22 @@ void OpIntersections::coinRange(OpEdge& edge, OpSegment* opp, bool reversed) {
 		}
 	}
 	OP_ASSERT(!coinStart);
+}
+
+// !!! optimize with binary search(es) once working
+// !!! wrong place to do this?
+// since there can be more than one connected edge that starts and ends on pals, this
+// needs to be found when tree building
+// which may (or may not) use the code below
+std::vector<int> OpIntersections::findPals(float t) const {
+	for (OpIntersection* sect : i) {
+		if (sect->ptT.t != t)
+			continue;
+//		start here;
+		// from sect, find edge(s)
+	}
+	std::vector<int> dummy;
+	return dummy;
 }
 
 std::vector<OpIntersection*> OpIntersections::unsectables(OpPoint pt) {

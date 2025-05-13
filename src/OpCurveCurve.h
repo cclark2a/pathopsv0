@@ -2,7 +2,7 @@
 #ifndef OpCurveCurve_DEFINED
 #define OpCurveCurve_DEFINED
 
-#include "OpContour.h"
+#include "OpContext.h"
 #include "OpCurve.h"
 #include "OpEdge.h"
 #include "OpIntersection.h"

@@ -574,8 +574,7 @@ struct OpRect {
 		return a.left != b.left || a.top != b.top || a.right != b.right || a.bottom != b.bottom; }
 
 	bool areaOverlaps(const OpRect& r) const {
-		return r.left < right && left < r.right && r.top < bottom && top < r.bottom;
-	}
+		return r.left < right && left < r.right && r.top < bottom && top < r.bottom; }
 
 	OpPoint add(OpPoint pt) {
 		if (!pt.isFinite())
@@ -610,7 +609,10 @@ struct OpRect {
 		debugValidate();
 		r.debugValidate();
 #endif
-		return r.left <= right && left <= r.right && r.top <= bottom && top <= r.bottom;
+		return r.left <= right && left <= r.right && r.top <= bottom && top <= r.bottom; }
+
+	bool isEmpty() const {
+		return left > right || top > bottom || (left == right && top == bottom);
 	}
 
 	Axis largerAxis() const {
@@ -624,6 +626,14 @@ struct OpRect {
 
 	float perimeter() const { 
 		return width() + height(); }
+
+#if 0
+	void setLtChoice(Axis axis, float value) {  // !!! unused
+		*(&left + +axis) = value; }
+
+	void setRbChoice(Axis axis, float value) {  // !!! unused
+		*(&right + +axis) = value; }
+#endif
 
 	float rbChoice(Axis axis) const {
 		return *(&right + +axis); }

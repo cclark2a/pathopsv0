@@ -150,6 +150,7 @@ struct OpIntersections {
 	void coinRange(OpEdge& , OpSegment* opp, bool reversed);
 	OpIntersection* contains(const OpPtT& ptT, const OpSegment* opp);  // nearby ptT
 //	OpIntersection* const * entry(const OpPtT& , const OpSegment* opp) const;  // exact opp + ptT
+	std::vector<int> findPals(float t) const;
 	void makeEdges(OpSegment* );
 	void markInCoincidence();
 	float matchT(const OpPtT& , OpPoint destination) const;

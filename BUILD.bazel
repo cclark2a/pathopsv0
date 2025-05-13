@@ -11,6 +11,7 @@ cc_binary_with_flags(
     srcs = [
         "HelloWorld.cpp",
         "HelloWorld.h",
+        "OpContext.cpp",
         "OpContour.cpp",
         "OpCurve.cpp",
         "OpEdge.h",

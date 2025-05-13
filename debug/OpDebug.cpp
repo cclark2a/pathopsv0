@@ -602,8 +602,7 @@ const OpEdge* OpEdge::debugIsLoop(EdgeMatch which, LeadingLoop leading) const {
 
 #if OP_DEBUG_VALIDATE
 void OpEdge::debugValidate() const {
-    OpContext* contours = this->context();
-    contours->debugValidateEdgeIndex += 1;
+    context()->debugValidateEdgeIndex += 1;
     OP_ASSERT(!priorEdge || priorEdge->nextEdge == this);
     OP_ASSERT(!nextEdge || nextEdge->priorEdge == this);
     bool loopy = debugIsLoop();
@@ -615,13 +614,13 @@ void OpEdge::debugValidate() const {
 //            OP_ASSERT(!test->lastEdge);
             test = test->nextEdge;
         } while (test != this);
-    } else if ((priorEdge || lastEdge) && contours->debugCheckLastEdge) {
+    } else if ((priorEdge || lastEdge) && context()->debugCheckLastEdge) {
         const OpEdge* linkStart = debugAdvanceToEnd(EdgeMatch::start);
         const OpEdge* linkEnd = debugAdvanceToEnd(EdgeMatch::end);
         OP_ASSERT(linkStart);
         OP_ASSERT(linkEnd);
-        OP_ASSERT(contours->debugCheckLastEdge ? !!linkStart->lastEdge : !linkStart->lastEdge);
-        OP_ASSERT(contours->debugCheckLastEdge ? linkStart->lastEdge == linkEnd : true);
+        OP_ASSERT(context()->debugCheckLastEdge ? !!linkStart->lastEdge : !linkStart->lastEdge);
+        OP_ASSERT(context()->debugCheckLastEdge ? linkStart->lastEdge == linkEnd : true);
         const OpEdge* test = linkStart;
         while ((test = test->nextEdge)) {
             OP_ASSERT(!test->lastEdge);
@@ -807,8 +806,7 @@ void OpContext::debugRemap(int oldRayMatch, int newRayMatch) {
 // also assign that ID to edges whose non-zero crossing rays attach to those edges
 
 void OpContour::debugMatchRay() {
-	OpContext* contours = context;
-	OP_DEBUG_CODE(bool mayFail = OpDebugExpect::unknown == contours->debugExpect);
+	OP_DEBUG_CODE(bool mayFail = OpDebugExpect::unknown == context->debugExpect);
 	for (auto linkup : linkups.l) {
         OP_ASSERT(!linkup->priorEdge);
         OP_ASSERT(linkup->lastEdge);
@@ -921,7 +919,7 @@ void OpContour::debugMatchRay() {
                 continue;
             if (match->debugRayMatch && nextID != match->debugRayMatch)
                 // remap everything with old match to next id (don't know how to do this efficiently
-                contours->debugRemap(match->debugRayMatch, nextID);
+                context->debugRemap(match->debugRayMatch, nextID);
             if (match->debugRayMatch)   // !!! could assert that all linked edges are ID'd
                 continue;
             if (match->debugIsLoop()) {
@@ -970,9 +968,8 @@ void OpContour::debugValidate(const OpJoiner* joiner) const {
             linkups.l.size() ? linkups.l[0] : nullptr;
     if (!anEdge)
         return;
-    OpContext* contours = anEdge->context();
-    contours->debugValidateJoinerIndex += 1;
-    contours->debugCheckLastEdge = false;
+    context->debugValidateJoinerIndex += 1;
+    context->debugCheckLastEdge = false;
     if (LinkPass::remaining != joiner->linkPass) {
         for (auto e : byArea) {
             e->debugValidate();
@@ -992,7 +989,7 @@ void OpContour::debugValidate(const OpJoiner* joiner) const {
         e->debugValidate();
         OP_ASSERT(!e->isActive() || !e->debugIsLoop());
     }
-    contours->debugCheckLastEdge = true;
+    context->debugCheckLastEdge = true;
     for (auto e : linkups.l) {
         if (e->debugScheduledForErasure)
             continue;
@@ -1032,6 +1029,18 @@ std::string debugContext;
 
 void debugImage() {
 #if OP_DEBUG_IMAGE
+	if ("setWindings" == debugContext) {
+        ::hideOperands();
+        ::showEdges();
+		::hideTemporaryEdges();
+        ::showIDs();
+        ::showPoints();
+        ::showValues();
+		::showContours();
+        ::resetFocus();
+        ::oo();
+		return;
+	}
     if ("linkRemaining" == debugContext || "linkUnambiguous" == debugContext 
             || "apply" == debugContext || "makeCoins" == debugContext
 			|| "transferCoins" == debugContext) {
@@ -1043,6 +1052,7 @@ void debugImage() {
         ::showValues();
         ::showWindings();
         ::showTangents();
+		::showContours();
         ::resetFocus();
         ::oo();
         return;
@@ -1086,6 +1096,11 @@ void debugImage() {
 
 void debug() {
     debugImage();
+	if ("setWindings" == debugContext) {
+        OpSaveDump save(DebugLevel::detailed, DebugBase::dec);
+		::dmpRays();
+        return;
+	}
     if ("linkRemaining" == debugContext || "linkUnambiguous" == debugContext) {
         ::dmp(debugGlobalContext->debugJoiner);
         return;
@@ -1162,9 +1177,9 @@ void SetDebugContextData(Context* ctxt, DebugContextData contextData) {
 	context->addDebugContextData(contextData);
 }
 
-void SetDebugCurveCallbacks(Context* context, CurveType , DebugCurveCallbacks curveCallbacks) {
-    OpContext* contours = (OpContext*) context;
-	contours->debugCallbacks.push_back(curveCallbacks);
+void SetDebugCurveCallbacks(Context* ctext, CurveType , DebugCurveCallbacks curveCallbacks) {
+    OpContext* context = (OpContext*) ctext;
+	context->debugCallbacks.push_back(curveCallbacks);
 }
 
 void SetDebugContourCallbacks(Contour* ctour, DebugContourCallbacks contourCallbacks) {
@@ -1177,9 +1192,9 @@ void SetDebugContextCallbacks(Context* ctext, DebugContextCallbacks contextCallb
 	context->debugContextCallbacks = contextCallbacks;
 }
 
-void Debug(Context* context, OpDebugData& debugData) {
-    OpContext* contours = (OpContext*) context;
-    contours->debugData = debugData;
+void Debug(Context* ctext, OpDebugData& debugData) {
+    OpContext* context = (OpContext*) ctext;
+    context->debugData = debugData;
 }
 
 }

@@ -45,10 +45,6 @@ struct OpPointBounds : OpRect {
 		};
 	}
 
-	bool isEmpty() const {
-		return left > right || top > bottom || (left == right && top == bottom);
-	}
-
 	bool isSet() const {
 		return OpMath::IsFinite(left);
 	}

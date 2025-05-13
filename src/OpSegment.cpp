@@ -1,5 +1,5 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
-#include "OpContour.h"
+#include "OpContext.h"
 #include "OpCurve.h"
 #include "OpSegment.h"
 #include "OpWinder.h"
@@ -409,6 +409,30 @@ int OpSegment::coinID(bool flipped) {
 	return flipped ? -coinID : coinID;
 }
 
+#if 0
+// if edge ends are pals sharing the same ID, mark the edge unsortable (loop183811)
+void OpSegment::demotePalLinks() {
+	OP_ASSERT(hasPals);
+	OP_DEBUG_CODE(bool foundPal = false);
+	for (OpEdge& edge : edges) {
+		if (edge.pals.empty())
+			continue;
+		if (Unsortable::none != edge.isUnsortable)
+			continue;
+		OP_DEBUG_CODE(foundPal = true);
+		std::vector<int> palStarts = sects.findPals(edge.startT);
+		std::vector<int> palEnds = sects.findPals(edge.endT);
+		for (int palStart : palStarts) {
+			if (palEnds.end() == std::find(palEnds.begin(), palEnds.end(), palStart)) 
+				continue;
+			edge.isUnsortable = Unsortable::palsEnd;
+			break;
+		}
+	}
+	OP_ASSERT(foundPal);
+}
+#endif
+
 void OpSegment::disableSmall() {
 	if (disabled)
 		return;
@@ -691,10 +715,10 @@ void OpSegment::makePals() {
 				for (OpIntersection* oSect : oEdge.unSects) {
 					if (abs(oSect->unsectID) != uID)
 						continue;
-					OP_ASSERT(edge.pals.end() == std::find_if(edge.pals.begin(), edge.pals.end(),
-							[&oEdge](const EdgePal& test) { return &oEdge == test.edge; }));
-					EdgePal pal {&oEdge, uSect->unsectID != oSect->unsectID  OP_DEBUG_PARAMS(uID)};
-					edge.pals.push_back(pal);
+					OP_ASSERT(!edge.isPal(&oEdge));
+					edge.pals.emplace_back(&oEdge, uID, uSect->unsectID != oSect->unsectID);
+					hasPals = true;
+					contour->hasPals = true;
 					continue;
 				}
 			}

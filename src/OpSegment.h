@@ -88,6 +88,7 @@ struct OpSegment {
 	SegPt checkAliases(OpPtT );
 	int coinID(bool flipped);
 //    void complete();
+//    void demotePalLinks();
 	void disableSmall();
 	OpPtT distance(const OpPtT& segPtT, const OpSegment* opp) const;
 	OpEdge* findEnabled(const OpPtT& , EdgeMatch ) const;
@@ -165,6 +166,7 @@ struct OpSegment {
 	bool disabled; // winding has canceled this edge out
 	bool willDisable;  // moveTo aligned ends; will be disabled by disable small segments
 	bool hasCoin;
+	bool hasPals = false;
 	bool hasUnsectable;
 	bool startMoved;
 	bool endMoved;

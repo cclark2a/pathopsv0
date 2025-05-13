@@ -551,15 +551,15 @@ bool VeryLargeSkiaPath(const SkPath& path) {
 
 #if OP_DEBUG
 #if TEST_ANALYZE
-#include "OpContour.h"
+#include "OpContext.h"
 
 inline int minMaxLimbs(Context* ) {
 	return 120;
 }
 
 bool DebugAnalyze(Context* context) {
-	OpContext* contours = (OpContext*) context;
-	OpDebugData& debugData = contours->debugData;
+	OpContext* context = (OpContext*) context;
+	OpDebugData& debugData = context->debugData;
 	if (debugData.limitContours <= 0)
 		return false;
     SetContextCallbacks(context, { setSkiaLineType, emptySkPathFunc, nullptr,
@@ -568,8 +568,8 @@ bool DebugAnalyze(Context* context) {
 }
 
 void AddDebugSkiaPath(Context* context, Contour* contour, const SkPath& path) {
-	OpContext* contours = (OpContext*) context;
-	OpDebugData& debugData = contours->debugData;
+	OpContext* context = (OpContext*) context;
+	OpDebugData& debugData = context->debugData;
 	OpPointBounds snag { 20, 0, 40, 10 };  // only snag contours that start in this bounds
 	bool snagOn = false;
 	int contourCount = 0;

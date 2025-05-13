@@ -27,6 +27,7 @@ configure_file(../tests/OpSkiaTests.h.in ../tests/OpSkiaTests.h)
 
 set(COMMON_SOURCES
 	"../debug/OpDebug.cpp"
+	"../src/OpContext.cpp"
 	"../src/OpContour.cpp"
 	"../src/OpCurve.cpp"
 	"../src/OpCurveCurve.cpp"

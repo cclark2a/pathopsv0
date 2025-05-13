@@ -1,79 +1,29 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
-#include "OpContour.h"
 #include "OpCurveCurve.h"
 #include "OpJoiner.h"
 #include "OpSegments.h"
 #include "OpWinder.h"
 #include "PathOps.h"
 
-char* OpContext::allocateCallerData(size_t size) {
-	if (!callerStorage)
-		callerStorage = new CallerDataStorage;
-	if (callerStorage->used + size > sizeof(callerStorage->storage)) {
-		CallerDataStorage* next = new CallerDataStorage;
-		next->next = callerStorage;
-		callerStorage = next;
-	}
-	char* result = &callerStorage->storage[callerStorage->used];
-	size_t alignSize = alignof(void*);  // !!! allow caller to specify this?
-	size_t alignPart = size % alignSize;
-	if (alignPart)
-		size += alignSize - alignPart;  // round up to next alignment
-	callerStorage->used += size;
-	return result;
-}
-
 // opp and contour share at least one coincident segment or edge; makes opp member of contour set
 void OpContour::addCoin(OpContour* opp) {
 	if (this == opp)
 		return;
-	if (merges.end() != std::find(merges.begin(), merges.end(), opp))
-		return;
-	merges.push_back(opp);
+	if (merges.end() == std::find(merges.begin(), merges.end(), opp))
+		merges.push_back(opp);
+	std::vector<OpContour*>& oMerges = opp->merges;
+	if (oMerges.end() == std::find(oMerges.begin(), oMerges.end(), this))
+		oMerges.push_back(this);
 }
-
-#if OP_DEBUG
-void OpContour::addDebugContourData(PathOpsV0Lib::DebugContourData data) {
-	if (!data.size) {
-		debugCaller.data = nullptr;
-		debugCaller.size = 0;
-		return;
-	}
-	debugCaller.data = context->allocateCallerData(data.size);
-	std::memcpy(debugCaller.data, data.data, data.size);
-	debugCaller.size = data.size;  // !!! don't know if size is really needed ...
-}
-
-void OpContext::addDebugContextData(PathOpsV0Lib::DebugContextData data) {
-	if (!data.size) {
-		debugContextData.data = nullptr;
-		debugContextData.size = 0;
-		return;
-	}
-	debugContextData.data = allocateCallerData(data.size);
-	std::memcpy(debugContextData.data, data.data, data.size);
-	debugContextData.size = data.size;  // !!! don't know if size is really needed ...
-}
-#endif
 
 // !!! disabled assuming new approach will find intersecting contours even if outside sects
 // !!! If edge is disabled, but its winding was transferred to another edge (potentially in another 
 // !!! contour) remember that to check to see if coin edge should also be added. (fuzz763_1823)
-bool OpContour::addEdges() {
-	bool addCoin = false;
+void OpContour::addEdges() {
 	for (auto& segment : segments) {
 		for (auto& edge : segment.edges) {
-			if (edge.disabled) {
-	#if 0
-				if (!addCoin) {
-					for (CoinPal& coinPal : edge.coinPals) {
-						addCoin |= sects.end() == std::find(sects.begin(), sects.end(), 
-								coinPal.opp->contour);
-					}
-				}
-	#endif
+			if (edge.disabled)
 				continue;
-			}
 			if (edge.bounds.height())
 				inX.push_back(&edge);
 			if (edge.bounds.width())
@@ -81,12 +31,9 @@ bool OpContour::addEdges() {
 		}
 	}
 	std::sort(inX.begin(), inX.end(), [](const OpEdge* s1, const OpEdge* s2) {
-		return s1->bounds.left < s2->bounds.left;
-	});
+			return s1->bounds.left < s2->bounds.left; });
 	std::sort(inY.begin(), inY.end(), [](const OpEdge* s1, const OpEdge* s2) {
-		return s1->bounds.top < s2->bounds.top;
-	});
-	return addCoin;
+			return s1->bounds.top < s2->bounds.top; });
 }
 
 #if 0  // !!! disabled (see above)
@@ -117,11 +64,6 @@ void OpContour::addCoinEdges() {
 }
 #endif
 
-std::vector<OpEdge*>& OpContour::windingEdges(Axis axis) {
-	OP_ASSERT(overlapOwner == this || (inX.empty() && inY.empty()));
-	return Axis::horizontal == axis ? overlapOwner->inX : overlapOwner->inY;
-}
-
 void OpContour::addLast(OpEdge* edge) {
 	OP_ASSERT(edge->lastEdge);
 	OP_ASSERT(edge->lastEdge->segment->contour == this);
@@ -135,6 +77,403 @@ void OpContour::addLast(OpEdge* edge) {
 	}
 #endif
 	endLinks.l.push_back(edge);
+}
+
+void OpContour::addJoinEdge(OpJoiner* joiner, OpEdge* e) {
+	OP_ASSERT(!e->inOutput);
+	OP_ASSERT(e->segment->contour == this);
+	if (e->priorEdge || e->nextEdge)
+		return;
+	if (e->disabled)
+		return;
+	e->setWhich(EdgeMatch::start);
+#if OP_DEBUG_IMAGE
+	e->debugJoin = true;
+#endif
+	if (Unsortable::none != e->isUnsortable || e->isUnsectable()) {
+		OP_DEBUG_VALIDATE_CODE(e->debugValidate());
+		unsortables.push_back(e);
+		return;
+	}
+	OpSegment* seg = e->segment;
+	OP_ASSERT(!seg->disabled);
+	OP_ASSERT(e->isSimple());
+	if (seg->simpleEnd(e) && !OpJoiner::LinkEnd(e))  // returns false if loop was formed
+		return;
+	if (seg->simpleStart(e))
+		e = OpJoiner::LinkStart(e);  // returns new first edge
+	if (!e)  // loop
+		return;
+	OP_ASSERT(!e->priorEdge);
+	if (!e->nextEdge) {
+		OP_ASSERT(byArea.end() == std::find(byArea.begin(), byArea.end(), e));
+		byArea.push_back(e);
+		return;
+	}
+	OP_ASSERT(linkups.l.end() == std::find(linkups.l.begin(), linkups.l.end(), e));
+	OpEdge* last = e->setLastEdge();
+	if (e->start().pt == last->end().pt) {
+		OP_ASSERT(!last->nextEdge);
+		last->setNextEdge(e);
+		OP_ASSERT(!e->priorEdge);
+		e->setPriorEdge(last);
+		e->outputLinkedList(e, true);
+	} else {
+//		e->segment->contour->pushLinkup(e);
+		addToLinkups(joiner, e);
+		e->setLinkBounds();
+	}
+}
+
+void OpContour::addToLinkups(OpJoiner* joiner, OpEdge* e) {
+	OP_ASSERT(!e->debugIsLoop());
+	OpEdge* first = e->advanceToEnd(EdgeMatch::start);
+	OpEdge* next = first;
+	OpEdge* last;
+	do {
+		if (LinkPass::remaining != joiner->linkPass && LinkPass::none != joiner->linkPass) {
+			OP_ASSERT(next->isActive());
+			next->setActive(false);
+		}
+		next->clearLastEdge(InOutput::no);
+		next->inLinkups = true;
+		last = next;
+		next = next->nextEdge;
+	} while (next);
+	first->setLastEdge(first, last, InOutput::no);
+	OP_ASSERT(first->linkBounds.isFinite());
+#if OP_DEBUG_VALIDATE
+	OP_ASSERT(!first->debugScheduledForErasure);
+#endif
+	first->segment->contour->linkups.l.push_back(first);	// !!! call pushlinkup?
+	first->linkHead = true;
+}
+
+void OpContour::buildBackwards() {
+	for (auto& segment : segments) {
+		for (auto& e : segment.edges) {
+			if (e.disabled && Unsortable::none == e.isUnsortable && !e.isUnsectable()
+					&& !e.centerless && !e.coinPals.size())
+				disabledBackwards.push_back(&e);
+		}
+	}
+	backwardsBuilt = true;
+}
+
+void OpContour::buildCenterless() {
+	// example that needs small factor: testQuads18787007
+//	OpVector threshold = contours.threshold() * OpMath::smallJoinerFactor;
+	for (auto& segment : segments) {
+		for (auto& e : segment.edges) {
+			if (!e.disabled || Unsortable::none != e.isUnsortable || e.isUnsectable())
+				continue;
+			// for the very small, include disabled edges
+			// !!! this also tested on windPal, but non-extended tests don't need it
+			if (e.centerless || e.coinPals.size()) // entire segment is not coincident; partial is
+				disabledCenterless.push_back(&e);
+		}
+	}
+	centerlessBuilt = true;
+}
+
+void OpContour::buildPals() {
+	for (auto& segment : segments) {
+		for (auto& e : segment.edges) {
+			if (e.disabled && !e.inOutput && Unsortable::none == e.isUnsortable) {
+				// !!! test may be overbroad; may need to look at sect and include only
+				//     coin + unsect (or add bit in edge to register coin)
+				if (e.isUnsectable()) {
+					disabledPals.push_back(&e);
+					e.setWhich(EdgeMatch::start);
+				}
+			}
+		}
+	}
+	std::sort(disabledPals.begin(), disabledPals.end(), [](OpEdge* a, OpEdge* b)
+			{ return a->bounds.perimeter() < b->bounds.perimeter(); }
+	);
+	palsBuilt = true;
+}
+
+struct LoopCheck {
+	LoopCheck(OpEdge* e, EdgeMatch match) 
+		: edge(e) {
+		pt = e->flipPtT(match).pt;
+	}
+
+	bool operator<(const LoopCheck& rh) const {
+		return pt.x < rh.pt.x || (pt.x == rh.pt.x && pt.y < rh.pt.y);
+	}
+
+	OpEdge* edge;
+	OpPoint pt;
+};
+
+// iterate edges to see some pt forms a loop
+// if so, detach remaining chain and close loop
+// check if any points in next links are in previous links
+// !!! TODO : find direction of loop at add 'reverse' param to output if needed
+//     direction should consider whether edge normal points to inside or outside
+bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* e, EdgeMatch loopMatch) {
+	std::vector<LoopCheck> edges;
+	OpEdge* test = e;
+	// walk forwards to end, keeping one point per edge
+	OP_ASSERT(e && !e->debugIsLoop());
+	while (test) {
+		if (edges.end() != std::find_if(edges.begin(), edges.end(), 
+				[&test](const LoopCheck& check) {
+			return check.edge == test; } )) {
+			break;
+		}
+		edges.emplace_back(test, loopMatch);
+		test = EdgeMatch::start == loopMatch ? test->nextEdge : test->priorEdge;
+		if (e == test)
+			break;
+	}
+	if (e == test) {	// if this forms a loop, there's nothing to detach, return success
+		e->output(true);
+		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
+		return true;
+	}
+	// walk backwards to start
+	std::sort(edges.begin(), edges.end());
+	auto detachEdge = [this, joiner](OpEdge* e, EdgeMatch match) 
+	{
+		if (OpEdge* detach = EdgeMatch::start == match ? e->priorEdge : e->nextEdge) {
+			EdgeMatch::start == match ? detach->clearNextEdge() : detach->clearPriorEdge();
+			if (Unsortable::none == detach->isUnsortable || detach->priorEdge || detach->nextEdge)
+				addToLinkups(joiner, detach);	// return front edge
+		}
+	};
+	auto detachNext = [detachEdge](OpEdge* test, OpEdge* oppEdge) 
+	{
+		detachEdge(test, EdgeMatch::end);
+		detachEdge(oppEdge, EdgeMatch::start);
+		test->setNextEdge(oppEdge);
+		oppEdge->setPriorEdge(test);
+		test->output(true);
+		return true;
+	};
+	auto detachPrior = [detachEdge](OpEdge* test, OpEdge* oppEdge) {
+		detachEdge(test, EdgeMatch::start);
+		detachEdge(oppEdge, EdgeMatch::end);
+		test->setPriorEdge(oppEdge);
+		oppEdge->setNextEdge(test);
+		test->output(true);
+		return true;
+	};
+	test = e;
+	while ((test = (EdgeMatch::start == loopMatch ? test->priorEdge : test->nextEdge)) && e != test) {
+		LoopCheck testCheck(test, !loopMatch);
+		if (auto bound = std::lower_bound(edges.begin(), edges.end(), testCheck); 
+				bound != edges.end() && bound->pt == testCheck.pt)
+			return EdgeMatch::start == loopMatch ? detachNext(bound->edge, test) : 
+					detachPrior(bound->edge, test);
+	}
+	OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
+	return false;
+}
+
+// !!! reverse return bool : now true if no edges to join (reverse caller also)
+bool OpContour::joinSetup() {
+	if (!byArea.size() && !unsectByArea.size() && !linkups.l.size())
+		return true;
+	for (auto e : byArea) {
+		e->setActive(true);
+	}
+	for (auto unsectable : unsectByArea) {
+		unsectable->setActive(true);
+	}
+	// although unsortables are marked active, care must be taken since they may or may not
+	// be part of the output
+	for (auto unsortable : unsortables) {
+		unsortable->setActive(true);
+	}
+	return false;
+}
+
+static bool compareSize(const OpEdge* s1, const OpEdge* s2) {
+	const OpRect& r1 = s1->bounds;
+	const OpRect& r2 = s2->bounds;
+	return r1.width() + r1.height() > r2.width() + r2.height();
+}
+
+void OpContour::joinSort() {
+	std::sort(byArea.begin(), byArea.end(), compareSize);
+	std::sort(unsectByArea.begin(), unsectByArea.end(), compareSize);
+}
+
+/* relationship between prev/this/next and whichEnd: (start, end)
+   a and b represent points that match; ? represents the other nonmatching end
+   prev: (?, a) which:start		this: (a, b) which:start		next: (b, ?) which: start
+   prev: (a, ?) which:end		this: (a, b) which:start		next: (b, ?) which: start
+   prev: (?, b) which:start		this: (a, b) which:end		    next: (a, ?) which: start
+   prev: (b, ?) which:end		this: (a, b) which:end  		next: (a, ?) which: start
+   prev: (?, a) which:start		this: (a, b) which:start		next: (?, b) which: end		etc...
+*/
+// caller clears active flag
+// parameter match determines whether link is looked for prior to, or next to edge
+// links a single edge or (link of edges) with another edge
+// first pass: only allow unambiguous connections; only one choice, matching zero side, etc.
+// second pass: check for unambiuous, then allow reversing, pick smallest area, etc.
+bool OpContour::linkUp(OpJoiner* joiner, OpEdge* e) {
+	for (;;) {
+		OP_ASSERT(++joiner->debugRecursiveDepth < 630);	// !!! set to deepest test
+		EdgeMatch linkMatch = joiner->linkMatch;
+		std::vector<FoundEdge> foundEdges;
+		OP_ASSERT(!e->debugIsLoop(EdgeMatch::end, LeadingLoop::will));
+		const OpSegment* segment = e->segment;
+		bool hasPal = segment->activeAtT(e, linkMatch, foundEdges);
+		hasPal |= segment->activeNeighbor(e, linkMatch, foundEdges);
+		// if oppEdges is count of one and unsortable, don't return any edges (testQuadratic67x)
+		if (foundEdges.size() == 1 && Unsortable::none != foundEdges[0].edge->isUnsortable /* && hadLinkTo */)
+			foundEdges.clear(); // hadLinkTo breaks thread_cubics147521
+		// skip pals should choose the pal that minimizes the output path area
+		// if there's not enough info here to do that, the pal choice should be reconsidered
+		//   when match links is called
+		// !!! maybe the right choice here is the wrong choice later?!
+		if ((foundEdges.size() && hasPal)  // if edges[x] has pals and pal is in linkups, remove edges[x]
+		//	e->skipPals(linkMatch, edges);
+		// if edge has pals, and there's a matching unsortable, don't return edge (thread_cubics502920)
+				|| 1 != foundEdges.size() || !foundEdges[0].edge->isActive()) {
+			if (EdgeMatch::start == linkMatch)
+				return true;  // 1) found multiple possibilities, try end
+			e->segment->contour->addToLinkups(joiner, e);
+			return false;  // 2) found multiple possibilities (end)
+		}
+		FoundEdge foundOne = foundEdges.front();
+		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
+		e->linkToEdge(foundOne, linkMatch);
+		OP_ASSERT(e->whichPtT(linkMatch).pt == foundOne.edge->flipPtT(linkMatch).pt);
+		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
+		if (detachIfLoop(joiner, e, linkMatch))
+			return false; // 4) found loop, nothing leftover; caller to move on to next edge
+		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
+		// move to the front or back edge depending on link match
+		e = foundOne.edge->advanceToEnd(linkMatch);  // 5)  recurse to extend prior or next
+	}
+}
+
+// check if resolution of link ups left unambiguous edge ends for further linkage
+// !!! this is missing a check to see if the matched edge has the correct winding
+// at very least, it should have an assert
+RelinkJoins OpContour::relinkUnambiguous(OpJoiner* joiner, size_t link) {
+	if (link >= linkups.l.size())
+		return RelinkJoins::done;
+	size_t tIndex = 0;
+	std::vector<OpEdge*> linkupsErasures;
+	OpContour* tContour = nullptr;
+	joiner->edge = linkups.l[link];
+	OpEdge* edge = joiner->edge;
+	{ // must have at least two link ups to hook together
+		EdgeMatch tMatch;
+		auto scanForMatch = [&tMatch, &tIndex, link, this, &tContour](OpEdge* eEdge, 
+				OpContour* eContour, EdgeMatch eMatch) {
+			OpPoint edgePt = eEdge->whichPtT(eMatch).pt;
+			auto testUnmatch = [edgePt](OpEdge* test, EdgeMatch match) {
+				return test->whichPtT(match).pt == edgePt;
+			};
+			tMatch = EdgeMatch::none;
+			for (OpContour* member : eContour->members()) {
+				for (const std::vector<OpEdge*>& edges : { member->unsectByArea, member->unsortables } ) {
+					for (OpEdge* test : edges) {
+						if (testUnmatch(test, EdgeMatch::start))
+							return false;
+						if (testUnmatch(test, EdgeMatch::end))
+							return false;
+					}
+				}
+				for (size_t index = 0; index < member->linkups.l.size(); ++index) {
+					if (index == link && member == this)
+						continue;
+					auto testMatch = [&tMatch, &tIndex, &tContour, index, member, edgePt]
+							(OpEdge* test, EdgeMatch match) {
+						if (test->whichPtT(match).pt == edgePt) {
+							if (tMatch != EdgeMatch::none)
+								return false;  // there is more than one match; give up on this end
+							tMatch = match;
+							tIndex = index;
+							tContour = member;
+						}
+						return true;
+					};
+					OpEdge* test = member->linkups.l[index];
+					if (!testMatch(test, EdgeMatch::start))
+						return false;
+					if (!testMatch(test->lastEdge, EdgeMatch::end))
+						return false;
+				}
+			}
+			return EdgeMatch::none != tMatch;
+		};
+		// single edge end found which matches; link the two
+		auto mergeLinks = [&tIndex, &tMatch, &tContour, &linkupsErasures](
+				OpEdge* e, EdgeMatch eMatch, OpContour* linkContour, size_t linkIndex) {
+			OpEdge* tEdge = tContour->linkups.l[tIndex];
+			OP_ASSERT(!tEdge->priorEdge);
+			if (EdgeMatch::start == eMatch) {
+				if (EdgeMatch::start == tMatch) {
+					if (!tEdge->nextEdge)
+						tEdge->setWhich(!tEdge->which());
+					else {
+						tEdge = tEdge->lastEdge;
+						tEdge->setLinkDirection(tMatch, &linkupsErasures, InOutput::no);  // reverse links
+						tEdge->setLinkBounds();
+						tContour->setLinkEdge(tEdge, tIndex);
+					}
+				}
+				e->setPriorEdge(tEdge->lastEdge);
+				tEdge->lastEdge->setNextEdge(e);
+				tEdge->setLastEdge(e, e->lastEdge, InOutput::no);
+			} else {
+				if (EdgeMatch::end == tMatch) {
+					tEdge = tEdge->lastEdge;
+					tEdge->setLinkDirection(tMatch, &linkupsErasures, InOutput::no);  // reverse links
+				}
+				e = e->advanceToEnd(EdgeMatch::start);
+				tEdge->setPriorEdge(e->lastEdge);
+				e->lastEdge->setNextEdge(tEdge);
+				e->setLastEdge(tEdge, tEdge->lastEdge, InOutput::no);
+			}
+			OpEdge* eraseEdge = linkContour->linkups.l[linkIndex];
+#if OP_DEBUG_VALIDATE
+			eraseEdge->debugScheduledForErasure = true;
+#endif
+			linkupsErasures.push_back(eraseEdge);
+		};
+		if (scanForMatch(edge, this, EdgeMatch::start))
+			mergeLinks(edge, EdgeMatch::start, this, link);
+		else {
+			joiner->lastLink = edge->lastEdge;
+			OpEdge* lastLink = joiner->lastLink;
+			if (!scanForMatch(lastLink, lastLink->segment->contour, EdgeMatch::end))
+				return RelinkJoins::unmatched;
+			mergeLinks(lastLink, EdgeMatch::end, tContour, tIndex);
+		}
+	}
+	context->linkErased = false;
+	bool somethingWasErased = false;
+	detachIfLoop(joiner, edge->advanceToEnd(EdgeMatch::start), EdgeMatch::end);
+	if (linkupsErasures.size()) {
+		for (OpEdge* entry : linkupsErasures) {
+			if (!entry->linkHead)
+				continue;
+			std::vector<OpEdge*>& links = entry->segment->contour->linkups.l;
+			OP_ASSERT(entry->debugScheduledForErasure);
+			OP_DEBUG_CODE(entry->debugScheduledForErasure = false);
+			entry->linkHead = false;
+			for (size_t index = 0; index < links.size(); ++index) {
+				if (links[index] == entry) {
+					links.erase(links.begin() + index);
+					somethingWasErased = true;
+					break;
+				}
+			}
+		}
+	}
+	if (!somethingWasErased && !context->linkErased)
+		return RelinkJoins::unchanged;
+	return RelinkJoins::again;
 }
 
 void OpContour::removeLast(OpEdge* edge, InOutput inOut) {
@@ -254,727 +593,24 @@ void OpContour::setSeen(int tree_id) {
 	}
 }
 
-// end of contour; start of contours
-
-bool OpPtAliases::add(OpPoint original, OpPoint alias) {
-	OP_ASSERT(original.isFinite());
-	OP_ASSERT(alias.isFinite());
-	OP_ASSERT(original != alias);
-	for (OpPtAlias& test : maps) {
-		if (original == test.alias)
-			return false;
-		if (test.original == original && test.alias == alias)
-			return true;
-		OP_ASSERT(test.original != alias);
+void OpContour::unlink(OpEdge* test) {
+	if (test->inOutput) {
+		test->unlink();
+		return;
 	}
-	maps.push_back({original, alias});
-	for (OpPoint pt : aliases) {
-		if (pt == alias)
-			return true;
-	}
-	aliases.push_back(alias);
-	return true;
+	OpEdge* first = test->advanceToEnd(EdgeMatch::start);
+	if (linkups.l.end() == std::find(linkups.l.begin(), linkups.l.end(), first))
+		test->unlink();
 }
 
-bool OpPtAliases::contains(OpPoint aliased) const {
-	OP_ASSERT(aliased.isFinite());
-	for (OpPoint pt : aliases) {
-		if (pt == aliased)
-			return true;
-	}
-	return false;
+std::vector<OpEdge*>& OpContour::windingEdges(Axis axis) {
+	OP_ASSERT(overlapOwner == this || (inX.empty() && inY.empty()));
+	return Axis::horizontal == axis ? overlapOwner->inX : overlapOwner->inY;
 }
 
-OpPoint OpPtAliases::existing(OpPoint match) const {
-	OP_ASSERT(match.isFinite());
-	for (const OpPtAlias& test : maps) {
-		if (test.original == match)
-			return test.alias;
-	}
-	return match;
-}
-
-#if 0  // there can be more than one. don't know when this behavior is desired
-OpPoint OpPtAliases::find(OpPoint aliased) const {
-	OP_ASSERT(aliased.isFinite());
-	for (const OpPtAlias& test : maps) {
-		if (test.alias == aliased)
-			return test.original;
-	}
-	return OpPoint();
-}
-#endif
-
-bool OpPtAliases::isSmall(OpPoint pt1, OpPoint pt2) {
-	OP_ASSERT(pt1.isFinite());
-	OP_ASSERT(pt2.isFinite());
-	if (pt1.isNearly(pt2, threshold)) {
-		if (contains(pt1))
-			add(pt2, pt1);
-		else if (contains(pt2) || existing(pt1) != existing(pt2))
-			add(pt1, pt2);
-		return true;
-	}
-	auto match = [this](OpPoint pt) -> SegPt {
-		if (!maps.size())
-			return { pt, PtType::noMatch };
-		if (contains(pt))
-			return { pt, PtType::isAlias };
-		for (OpPtAlias& test : maps) {
-			if (test.original == pt)
-				return { test.alias, PtType::original };
-		}
-		for (OpPoint alias : aliases) {
-			if (pt.isNearly(alias, threshold)) {
-				add(pt, alias);
-				return { alias, PtType::original };
-			}
-		}
 #if 0
-		for (OpPtAlias& test : maps) {
-			if (pt.isNearly(test.original, threshold)) {
-				add(pt, test.alias);
-				return { test.alias, PtType::original };
-			}
-		}
-#endif
-		return { pt, PtType::noMatch };
-	};
-	SegPt match1 = match(pt1);
-	SegPt match2 = match(pt2);
-	OP_ASSERT(match1.pt != match2.pt 
-		|| ((PtType::noMatch == match1.ptType) == (PtType::noMatch == match2.ptType)));
-	return PtType::noMatch != match1.ptType && PtType::noMatch != match2.ptType 
-			&& match1.pt == match2.pt;
-}
-
-void OpPtAliases::remap(OpPoint oldAlias, OpPoint newAlias) {
-	OP_ASSERT(oldAlias.isFinite());
-	OP_ASSERT(newAlias.isFinite());
-	for (OpPtAlias& test : maps) {
-		if (test.alias == oldAlias)
-			test.alias = newAlias;
-	}
-	for (size_t index = 0; index < aliases.size(); ++index) {
-		if (aliases[index] == oldAlias) {
-			aliases.erase(aliases.begin() + index);
-			break;
-		}
-	}
-	add(oldAlias, newAlias);
-}
-
-SegPt OpPtAliases::addIfClose(OpPoint match) {
-	OP_ASSERT(match.isFinite());
-	for (OpPoint alias : aliases) {
-		if (match == alias)
-			return { alias, PtType::isAlias };
-		if (match.isNearly(alias, threshold)) {
-			add(match, alias);
-			return { alias, PtType::original };
-		}
-	}
-	for (const OpPtAlias& alias : maps) {
-		if (alias.original.isNearly(match, threshold)) {
-			add(match, alias.alias);
-			return { alias.alias, PtType::original };
-		}
-	}
-	return { match, PtType::noMatch };
-}
-
-OpContext::OpContext()
-	: errorHandler({nullptr})
-	, ccStorage(nullptr)
-	, curveDataStorage(nullptr)
-	, contourStorage(nullptr)
-	, fillerStorage(nullptr)
-	, sectStorage(nullptr)
-	, limbStorage(nullptr)
-	, limbCurrent(nullptr)
-	, callerStorage(nullptr)
-	, error(PathOpsV0Lib::ContextError::none)
-	, fatalError(false)
-	, uniqueID(0) 
-	, outputOne(false)
-	OP_DEBUG_PARAMS(debugData(false)) {
-#if OP_DEBUG_VALIDATE
-	debugValidateEdgeIndex = 0;
-	debugValidateJoinerIndex = 0;
-#endif
-#if OP_DEBUG
-	debugCurveCurve = nullptr;
-	debugJoiner = nullptr;
-	debugTree = nullptr;
-	debugOutputID = 0;
-	debugErrorID = 0;
-	debugOppErrorID = 0;
-	debugExpect = OpDebugExpect::unknown;
-	debugInPathOps = false;
-	debugInClearEdges = false;
-	debugCheckLastEdge = false;
-	debugFailOnEqualCepts = false;
-	OP_DEBUG_DUMP_CODE(debugDumpInit = false);
-#endif
-#if TEST_RASTER
-	rasterEnabled = false;
-#endif
-}
-
-OpContext::~OpContext() {
-	release(ccStorage);
-	while (curveDataStorage) {
-		CurveDataStorage* next = curveDataStorage->next;
-		delete curveDataStorage;
-		curveDataStorage = next;
-	}
-	while (contourStorage) {
-		OpContourStorage* next = contourStorage->next;
-		delete contourStorage;
-		contourStorage = next;
-	}
-	release(fillerStorage);
-	while (sectStorage) {
-		OpSectStorage* next = sectStorage->next;
-		delete sectStorage;
-		sectStorage = next;
-	}
-	if (limbStorage) {
-		limbStorage->reset();
-		delete limbStorage;
-	}
-	while (callerStorage) {
-		CallerDataStorage* next = callerStorage->next;
-		delete callerStorage;
-		callerStorage = next;
-	}
-#if OP_DEBUG
-	debugInPathOps = false;
-	debugInClearEdges = false;
-#endif
-#if OP_DEBUG_DUMP
-	if (debugDumpInit) {
-		delete debugCurveCurve;
-		delete debugJoiner;
-	}
-#endif
-}
-
-bool OpContext::addAlias(OpPoint pt, OpPoint alias) {
-	   if (!aliases.add(pt, alias)) {
-		   remapPts(pt, alias);
-		   return false;
-	   }
-	   return true;
-}
-
-OpEdge* OpContext::addFiller(const OpPtT& start, const OpPtT& end) {
-	void* block = allocateEdge(fillerStorage);
-	// note: start t may be greater than end t (for filler only)
-	OpEdge* filler = new(block) OpEdge(this, start, end  OP_LINE_FILE_PARGS());
-	return filler;
-}
-
-OpContour* OpContext::allocateContour() {
-	if (!contourStorage)
-		contourStorage = new OpContourStorage;
-	if (contourStorage->used == ARRAY_COUNT(contourStorage->storage)) {
-		OpContourStorage* next = new OpContourStorage;
-		next->next = contourStorage;
-		contourStorage = next;
-	}
-	return &contourStorage->storage[contourStorage->used++];
-}
-
-OpEdge* OpContext::allocateEdge(OpEdgeStorage*& edgeStorage) {
-	if (!edgeStorage)
-		edgeStorage = new OpEdgeStorage;
-	if (edgeStorage->used == ARRAY_COUNT(edgeStorage->storage)) {
-		OpEdgeStorage* next = new OpEdgeStorage;
-		next->next = edgeStorage;
-		edgeStorage = next;
-	}
-	return &edgeStorage->storage[edgeStorage->used++];
-}
-
-PathOpsV0Lib::CurveData* OpContext::allocateCurveData(size_t size) {
-	if (!curveDataStorage)
-		curveDataStorage = new CurveDataStorage;
-	if (curveDataStorage->used + size > sizeof(curveDataStorage->storage)) {
-		CurveDataStorage* next = new CurveDataStorage;
-		next->next = curveDataStorage;
-		curveDataStorage = next;
-	}
-	return curveDataStorage->curveData(size);
-}
-
-OpIntersection* OpContext::allocateIntersection() {
-	if (!sectStorage)
-		sectStorage = new OpSectStorage;
-	if (sectStorage->used == ARRAY_COUNT(sectStorage->storage)) {
-		OpSectStorage* next = new OpSectStorage;
-		OP_ASSERT(!next->next);
-		next->next = sectStorage;
-		sectStorage = next;
-	}
-	return &sectStorage->storage[sectStorage->used++];
-}
-
-OpLimb* OpContext::allocateLimb() {
-	if (limbStorage->used == ARRAY_COUNT(limbStorage->storage)) {
-		OpLimbStorage* next = new OpLimbStorage;
-		next->nextBlock = limbStorage;
-		next->baseIndex = limbStorage->baseIndex + ARRAY_COUNT(limbStorage->storage);
-		limbStorage->prevBlock = next;
-		limbStorage = next;
-	}
-	return limbStorage->allocate();
-}
-
-PathOpsV0Lib::WindingData* OpContext::allocateWinding(size_t size) {
-	void* result = allocateCallerData(size);
-	return (PathOpsV0Lib::WindingData*) result;
-}
-
-// build list of linked edges
-// if they are closed, done
-// if not, match up remainder
-// make sure normals point same way
-// prefer smaller assembled contours
-// returns true on success
-bool OpContext::assemble() {
-	OpJoiner joiner(*this);
-	bool linkableFound = false;
-	for (auto contour : contours) {
-		linkableFound |= !contour->joinSetup();  // !!! reverse return (now: true == no linkable edges)
-	}
-	if (!linkableFound) {
-		initOutOnce();
-		return true;
-	}
-	for (LinkPass linkPass : { LinkPass::normal, LinkPass::unsectable } ) {
-		for (auto contour : contours) {
-			joiner.linkUnambiguous(contour, linkPass);
-		}
-		bool remaining = false;
-#if OP_DEBUG
-		for (auto contour : contours) {
-			contour->debugMatchRay();
-		}
-#endif
-		// sort contours so that first edge is on the outside
-		for (auto contour : sorted) {
-			remaining |= !joiner.linkRemaining(contour);
-			if (fatalError)
-				return false;
-		}
-		if (!remaining)
-			return true;
-	}
-	return false;
-}
-
-bool OpContext::containsFiller(OpPoint start, OpPoint end) const {
-	if (!fillerStorage)
-		return false;
-	return fillerStorage->contains(start, end);
-}
-
-bool OpContext::containsFiller(int ccUnsectableID) const {
-	if (!fillerStorage)
-		return false;
-	return fillerStorage->contains(ccUnsectableID);
-}
-
-void OpContext::disableSmallSegments() {
-	SegmentIterator segIterator(this);
-	while (OpSegment* seg = segIterator.next()) {
-		seg->disableSmall();
-	}
-}
-
-void OpContext::initOutOnce() {
-	if (outputOne)
-		return;
-	PathOpsV0Lib::EmptyCallerPath emptyPath = contextCallbacks.emptyCallerPathFuncPtr;
-	if (emptyPath)
-		(*emptyPath)(callerOutput);
-	outputOne = true;
-}
-
-#if 01  // breaks skpagentxsites_com55 (add what test this is required for...
-void OpContext::markInCoincidence() {
-	for (auto contour : contours) {
-		for (auto& segment : contour->segments) {
-			if (segment.hasCoin)
-				segment.sects.markInCoincidence();
-		}
-	}
-}
-#endif
-
-OpLimb& OpContext::nthLimb(int index) {
-	int blockBase = index & ~(ARRAY_COUNT(limbStorage->storage) - 1);
-	if (!limbCurrent || limbCurrent->baseIndex != blockBase) {
-		limbCurrent = limbStorage;
-		while (limbCurrent->baseIndex != blockBase) {
-			OP_ASSERT(limbCurrent->nextBlock);
-			limbCurrent = limbCurrent->nextBlock;
-		}
-	}
-	index &= ~blockBase;
-	return limbCurrent->storage[index];
-}
-
-void OpContext::resetFiller() {
-#if OP_DEBUG_VALIDATE
-	if (debugJoiner && fillerStorage)
-		fillerStorage->debugRelease();
-#endif
-	release(fillerStorage);
-	fillerStorage = nullptr;
-}
-
-void OpContext::resetLimbs() {
-	if (!limbStorage)
-		limbStorage = new OpLimbStorage;
-	limbStorage->reset();
-}
-
-void OpContext::opsInit() {
-	setThreshold();
-	OpContourIterator iterator(this);
-	for (OpContourIter iter = iterator.begin(); iter != iterator.end(); ++iter) {
-		OpContour* contour = *iter;
-		if (contour->isEmpty())
-			continue;
-		contours.push_back(contour);
-	}
-	normalize();  // collect extremes, map all from 0 to 1, map <= epsilon to zero
-	for (OpContour* contour : contours) {
-		for (const OpSegment& segment : contour->segments) {
-			if (segment.disabled)
-				continue;
-			contour->bounds.add(segment.ptBounds);
-		}
-		if (contour->bounds.isFinite())
-			maxBounds.add(contour->bounds);
-		else
-			contour->disabled = true;
-	}
-	for (size_t outer = 0; outer < contours.size(); ++outer) {
-		OpContour* oContour = contours[outer];
-		if (oContour->disabled)
-			continue;
-		oContour->overlapOwner = oContour;
-		for (size_t inner = outer; inner < contours.size(); ++inner) {
-			OpContour* iContour = contours[inner];
-			if (iContour->disabled)
-				continue;
-			if (oContour->bounds.intersects(iContour->bounds)) {
-				oContour->overlaps.push_back(iContour);
-				if (oContour != iContour)
-					iContour->overlaps.push_back(oContour);
-			}
-		}
-	}
-	for (OpContour* contour : contours) {  // sort so contours can find indentical intersection sets
-		std::sort(contour->overlaps.begin(), contour->overlaps.end(), [](OpContour* a, OpContour* b) {
-				return a->id < b->id; });
-	}
-	for (size_t index = 0; index < contours.size(); ++index) {
-		OpContour* contour = contours[index];
-		if (contour->overlapOwner != contour)
-			continue;
-		contour->overlapBounds = contour->bounds;
-		for (OpContour* member : contour->overlaps) {
-			if (member != contour) {
-				contour->overlapBounds.add(member->bounds);
-				if (member->overlaps == contour->overlaps) {
-					member->overlapOwner = contour;  // if identical, point to master
-					member->overlaps.clear();  //  and remove duplicate data
-					OP_ASSERT(member->overlapBounds.isEmpty());
-				}
-			}
-		}
-	}
-
-#if TEST_RASTER
-	if (rasterEnabled)
-		rasterOutput.init();
-#endif
-}
-
-static void addMerges(OpContour* contour, OpContour* mergeOwner, 
-		std::vector<OpContour*>& visited) {
-	std::vector<OpContour*>& merges = mergeOwner->merges;
-	for (OpContour* merge : merges) {
-		if (visited.end() != std::find(visited.begin(), visited.end(), merge))
-			continue;
-		visited.push_back(merge);
-		addMerges(contour, merge, visited);
-	}
-	if (contour == mergeOwner)
-		return;
-	if (merges.end() == std::find(merges.begin(), merges.end(), contour))
-		merges.push_back(contour);
-	std::vector<OpContour*>& backs = contour->merges;
-	if (backs.end() == std::find(backs.begin(), backs.end(), mergeOwner))
-		backs.push_back(mergeOwner);
-}
-
-// after all coincidence has been found, rebuild overlaps
-void OpContext::rebuildOverlaps() {
-	// update merges to find multiple step coincident contour extensions
-	bool hasMerges = false;
-	for (OpContour* contour : contours) {
-		if (contour->merges.empty())
-			continue;
-		std::vector<OpContour*> visited = { contour };
-		addMerges(contour, contour, visited);
-		hasMerges = true;
-	}
-	if (!hasMerges)
-		return;
-	// update overlaps from full merges
-	for (OpContour* contour : contours) {
-		if (contour != contour->overlapOwner)
-			continue;
-		std::vector<OpContour*> adds;
-		std::vector<OpContour*>& overlaps = contour->overlaps;
-		for (OpContour* member : overlaps) {
-			for (OpContour* inner : member->merges) {
-				if (overlaps.end() != std::find(overlaps.begin(), overlaps.end(), inner))
-					continue;
-				if (adds.end() != std::find(adds.begin(), adds.end(), inner))
-					continue;
-				adds.push_back(inner);
-			}
-		}
-		if (adds.empty())
-			continue;
-		contour->overlapsMerged = true;
-		for (OpContour* add : adds) {
-			overlaps.push_back(add);
-			contour->overlapBounds.add(add->bounds);
-		}
-		std::sort(overlaps.begin(), overlaps.end(), [](OpContour* a, OpContour* b) {
-				return a->id < b->id; });
-	}
-	// if contour gained new overlaps, check for common ownership
-	for (OpContour* contour : contours) {
-		if (!contour->overlapsMerged)
-			continue;
-		for (OpContour* inner : contour->overlaps) {
-			if (contour == inner)
-				continue;
-			if (inner->overlaps != contour->overlaps)
-				continue;
-			inner->overlapOwner = contour;
-			inner->overlaps.clear();
-			for (OpContour* dups : contours) {
-				if (dups->overlapOwner == inner)
-					dups->overlapOwner = contour;
-			}
-		}
-	}
-}
-
-// If successive runs of the same input are flaky, check to see if identical ids are generated.
-// To do this, insert OP_DEBUG_COUNT(*this, _some_identifer_); after every callout.  
-// This will compare the dumps of contours and contents to detect when something changed.
-// The callouts are removed when not in use as they are not maintained and reduce readability.
-// !!! OP_DEBUG_COUNT was unintentionally deleted at some point. Hopefully it is in git history...
-bool OpContext::pathOps() {
-	OpSegments segments(*this);
-	segments.findCoincidences();
-	debugValidateIntersections();
-	OpSegments sortedSegments(*this);
-	sortedSegments.initInX();
-	debugValidateIntersections();
-	if (empty()) {
-		contextCallbacks.emptyCallerPathFuncPtr(callerOutput);
-		OP_DEBUG_SUCCESS(*this, true);
-	}
-	if (FoundIntersections::fail == sortedSegments.findIntersections())
-		return setError(PathOpsV0Lib::ContextError::intersection  
-				OP_DEBUG_PARAMS(sortedSegments.debugFailSegID));
-	debugValidateIntersections();
-	if (errorHandler.errorDispatchFuncPtr && !errorHandler.errorDispatchFuncPtr(
-			PathOpsV0Lib::ContextError::missing, (PathOpsV0Lib::Context*) this, nullptr)) {
-		addDisjointIntersections();
-	}
-	disableSmallSegments();  // moved points may allow disabling some segments
-	if (empty()) {
-		contextCallbacks.emptyCallerPathFuncPtr(callerOutput);  // no existing tests exercises
-		OP_DEBUG_SUCCESS(*this, true);
-	}
-	sortIntersections();
-	if (!fixCCSects())  // curve-curve intersections may have enough error to put sect list out of order
-		OP_DEBUG_FAIL(*this, false);
-	sortIntersections();
-	findMissingEnds();  // moved pts may require looking in aliases for an end match
-	betweenIntersections();  // fill in intersections in coin runs that are missing in other coins
-	sortIntersections();
-	markInCoincidence();
-	makeEdges();
-	makeCoins();
-	sortIntersections();
-	transferCoins();
-	makePals();  // edges too close to each other to sort or precisely intersect
-	rebuildOverlaps();
-
-	// made edges may include lines that are coincident with other edges. Undetected for now...
-//    windCoincidences();  // for segment h/v lines, compute their winding considering coincidence
-	OpWinder windingEdges(*this);
-	FoundWindings foundWindings = windingEdges.setWindings(this);  // walk edges, compute windings
-	if (FoundWindings::fail == foundWindings)
-		OP_DEBUG_FAIL(*this, false);  // no existing tests exercises
-	OP_DEBUG_DUMP_CODE(debugContext = "apply");
-	apply();  // suppress edges which don't meet op criteria
-	if (!assemble())
-		OP_DEBUG_FAIL(*this, false);
-	// !!! missing final step to reverse order of contours as winding rule requires
-	// this should be driven by user choices since the engine itself can't know the winding rule
-	// it does require all output contours to be completed first. Perhaps the link-to-path
-	// step should be removed from assemble or placed at the end of assemble, so the reverse
-	// link loop can be decided once all loops are known
-	// !!! for now, set Skia adapter to create evenodd fills
-	OP_DEBUG_SUCCESS(*this, true);
-}
-
-void OpContext::release(OpEdgeStorage*& edgeStorage) {
-	while (edgeStorage) {
-		OpEdgeStorage* next = edgeStorage->next;
-		delete edgeStorage;
-		edgeStorage = next;
-	}
-}
-
-OpPoint OpContext::remapPts(OpPoint oldAlias, OpPoint newAlias) {
-	for (auto contour : contours) {
-		for (auto& segment : contour->segments) {
-			segment.remap(oldAlias, newAlias);
-		}
-	}
-	aliases.remap(oldAlias, newAlias);
-	return newAlias;
-}
-
-// seems too complicated to reuse multiple edge storage blocks, so delete all but first
-#if 0
-void OpContext::reuse(OpEdgeStorage* edgeStorage) {
-	if (!edgeStorage)
-		return;
-	OpEdgeStorage* next = edgeStorage->next;
-	while (next) {
-		OpEdgeStorage* following = next->next;
-		delete next;
-		next = following;
-	}
-	edgeStorage->reuse();
-}
-#endif
-
-bool OpContext::setError(PathOpsV0Lib::ContextError e  OP_DEBUG_PARAMS(int eID, int oID)) {
-	if (fatalError)
-		return false;
-#if OP_DEBUG
-	OP_ASSERT(debugData.limitContours <= 0);  // break when debugging limited number of contours
-	if (PathOpsV0Lib::ContextError::finite != e 
-			&& PathOpsV0Lib::ContextError::toVertical != e
-			&& PathOpsV0Lib::ContextError::gap != e)
-		OpDebugOut("fatal error in " + debugData.testname + "\n");
-#endif
-	fatalError = PathOpsV0Lib::ContextError::gap != e;
-	if (!fatalError && PathOpsV0Lib::ContextError::none != error)
-		return false;
-	error = e;
-	OP_DEBUG_CODE(debugErrorID = eID);
-	OP_DEBUG_CODE(debugOppErrorID = oID);
-	return false;
-}
-
-// if one contour is entirely to the left or above another, put it first
-//     if x-bounds or y-bounds do intersect, and
-//     if contour 1 right/bottom < contour 2 left/top, traverse contour 1 before contour 2
-// otherwise, return smaller first  !!! why?
-void OpContext::setSortedBounds() {
-	OP_ASSERT(sorted.empty());
-	for (OpContour* contour : contours) {
-		OP_ASSERT(!contour->isSorted(Axis::horizontal));
-		OP_ASSERT(!contour->isSorted(Axis::vertical));
-		if (contour->bounds.isEmpty())
-			continue;
-		OP_ASSERT(contour->bounds.isFinite());
-		sorted.push_back(contour);
-	}
-	std::sort(sorted.begin(), sorted.end(), [](const OpContour* a, const OpContour* b) {
-		bool xOverlaps = a->bounds.right >= b->bounds.left && b->bounds.right >= a->bounds.left;
-		bool yOverlaps = a->bounds.bottom >= b->bounds.top && b->bounds.bottom >= a->bounds.top;
-		if (xOverlaps && !yOverlaps) 
-			return a->bounds.top < b->bounds.top;
-		if (!xOverlaps && yOverlaps) 
-			return a->bounds.left < b->bounds.left;
-		return a->bounds.perimeter() < b->bounds.perimeter();
-	});
-}
-
-void OpContext::setThreshold() {
-	auto threshold = [](float left, float right) {
-		return std::max({1.f, fabsf(left), fabsf(right), right - left}) * OpEpsilon;
-	};
-	aliases.threshold = { threshold(maxBounds.left, maxBounds.right),
-			threshold(maxBounds.top, maxBounds.bottom) };
-	aliases.thresholdLength = aliases.threshold.length();
-}
-
-void OpContext::sortIntersections() {
-	for (auto contour : contours) {
-		for (auto& segment : contour->segments) {
-			segment.sects.sort();
-		}
-	}
-	for (auto contour : contours) {
-		for (auto& segment : contour->segments) {
-			segment.sects.mergeNear(aliases);
-		}
-	}
-	for (auto contour : contours) {
-		for (auto& segment : contour->segments) {
-			segment.sects.sort();
-		}
-	}
-}
-
-bool OpContext::debugFail() const {
-#if OP_DEBUG
-	return OpDebugExpect::unknown == debugExpect || OpDebugExpect::fail == debugExpect;
-#else
-	return false;
-#endif
-}
-
-#if OP_DEBUG
-bool OpContext::debugSuccess() const {
-	return OpDebugExpect::unknown == debugExpect || OpDebugExpect::success == debugExpect;
-}
-#endif
-
-#if OP_DEBUG_VALIDATE
-void OpContext::debugValidateIntersections() {
-	for (auto contour : contours) {
-		for (auto& segment : contour->segments) {
-			if (!segment.disabled && !segment.willDisable)
-				segment.sects.debugValidate();
-		}
-	}
-}
-#endif
-
 SegmentIterator::SegmentIterator(OpContext* c)
-	: contours(c)
-	, contourIterator(c)
+	: contourIterator(c)
 	, contourIter(c)
 	, segIndex(-1) 
 	OP_DEBUG_PARAMS(debugEnded(false)) {
@@ -998,9 +634,22 @@ OpSegment* SegmentIterator::next() {
 	} while (s->disabled);
 	return s;
 }
+#endif
 
-OpContourIter::OpContourIter(OpContext* contours) {
-	storage = contours->contourStorage;
+OpContourIter::OpContourIter(OpContext* context) {
+	storage = context->contourStorage;
 	contourIndex = 0;
 }
 
+#if OP_DEBUG
+void OpContour::addDebugContourData(PathOpsV0Lib::DebugContourData data) {
+	if (!data.size) {
+		debugCaller.data = nullptr;
+		debugCaller.size = 0;
+		return;
+	}
+	debugCaller.data = context->allocateCallerData(data.size);
+	std::memcpy(debugCaller.data, data.data, data.size);
+	debugCaller.size = data.size;  // !!! don't know if size is really needed ...
+}
+#endif

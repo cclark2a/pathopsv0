@@ -11,7 +11,7 @@
 #include <cmath>
 #include <vector>
 
-#include "OpContour.h"
+#include "OpContext.h"
 #include "OpCurve.h"
 #include "PathOps.h"
 #include "PathOpsTypes.h"
@@ -753,7 +753,7 @@ void DebugOpCurve::mapTo(OpCurve& c) const {
     }
     c.c.data->end = DebugOpMap(pts[endIndex]);
     c.c.type = type;
-    c.contours = debugGlobalContext;
+    c.context = debugGlobalContext;
     return;
 }
 

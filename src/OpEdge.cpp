@@ -1,6 +1,5 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpEdge.h"
-#include "OpContour.h"
 #include "OpCurveCurve.h"
 
 #if OP_DEBUG
@@ -130,22 +129,28 @@ void OpHulls::sort(bool useSmall) {
 	});
 }
 
-EdgePal::EdgePal(OpEdge* e, float c, float tIn, bool r)
+EdgePal::EdgePal(OpEdge* e, float c, float tIn, bool r, bool d, bool o)
 	: edge(e)
 	, cept(c)
 	, edgeInsideT(tIn)
-	, rayOrder(RayOrder::uninitialized)
-	, reversed(r) {
-	OP_DEBUG_CODE(debugUID = 0);
+	, unsectID(0)
+	, reversed(r)
+	, dependent(d)
+	, over(o) {
 }
 
-EdgePal::EdgePal(OpEdge* e, bool r  OP_DEBUG_PARAMS(int uID))
+EdgePal::EdgePal(OpEdge* e, float c, float tIn)
+	: edge(e)
+	, cept(c)
+	, edgeInsideT(tIn)
+	, unsectID(0) {
+}
+
+EdgePal::EdgePal(OpEdge* e, int uID)
 	: edge(e)
 	, cept(OpNaN)
 	, edgeInsideT(OpNaN)
-	, rayOrder(RayOrder::uninitialized)
-	, reversed(r) {
-	OP_DEBUG_CODE(debugUID = uID);
+	, unsectID(uID) {
 }
 
 #if OP_DEBUG_DUMP
@@ -154,8 +159,9 @@ EdgePal::EdgePal()
 	, cept(OpDebugNaN)
 	, edgeInsideT(OpDebugNaN)
 	, rayOrder((RayOrder) -1)
-	, reversed((bool) -1) {
-	OP_DEBUG_CODE(debugUID = -1);
+	, unsectID(-1)
+	, reversed((bool) -1)
+	, dependent((bool) -1) {
 }
 #endif
 
@@ -199,7 +205,7 @@ OpEdge::OpEdge(OpIntersection* sectStart, OpIntersection* sectEnd  OP_LINE_FILE_
 }
 
 // called when creating filler; edge that closes small gaps
-OpEdge::OpEdge(OpContext* contours, const OpPtT& start, const OpPtT& end  OP_LINE_FILE_ARGS())
+OpEdge::OpEdge(OpContext* context, const OpPtT& start, const OpPtT& end  OP_LINE_FILE_ARGS())
 	: OpEdge() {
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = 0);
@@ -210,11 +216,11 @@ OpEdge::OpEdge(OpContext* contours, const OpPtT& start, const OpPtT& end  OP_LIN
 //	OP_ASSERT(start.t < end.t);
 	startT = start.t;
 	endT = end.t;
-	id = contours->nextID();
+	id = context->nextID();
 	PathOpsV0Lib::CurveData lineData { start.pt, end.pt };
 	PathOpsV0Lib::Curve lineCurve { &lineData, sizeof(lineData), (PathOpsV0Lib::CurveType) 0 };
-	lineCurve.type = contours->contextCallbacks.setLineTypeFuncPtr(lineCurve);
-	curve = OpCurve(contours, lineCurve);
+	lineCurve.type = context->contextCallbacks.setLineTypeFuncPtr(lineCurve);
+	curve = OpCurve(context, lineCurve);
 	curve.isLineSet = true;
 	curve.isLineResult = true;
 	setPointBounds();
@@ -289,9 +295,25 @@ CalcFail OpEdge::addIfUR(Axis axis, float edgeInsideT, OpWinding* sumWinding) co
 }
 
 void OpEdge::addPal(const EdgePal& dist) {
-	if (pals.end() == std::find_if(pals.begin(), pals.end(), 
-			[dist](auto pal) { return dist.edge == pal.edge; }))
+	auto palIter = std::find_if(pals.begin(), pals.end(), 
+			[dist](const auto& pal) { return dist.edge == pal.edge; });
+	if (pals.end() == palIter) {
 		pals.push_back(dist);
+		palIter = pals.end() - 1;
+		segment->hasPals = true;
+		segment->contour->hasPals = true;
+	}
+	auto& oPals = dist.edge->pals;
+	auto distIter = std::find_if(oPals.begin(), oPals.end(), 
+			[this](auto oPal) { return oPal.edge == this; });
+	int uID = palIter->unsectID;
+	if (!uID && oPals.end() != distIter)
+		uID = distIter->unsectID;
+	if (!uID)
+		uID = context()->nextID();
+	palIter->unsectID = uID;
+	if (oPals.end() != distIter)
+		distIter->unsectID = uID;
 }
 
 // given an intersecting ray and edge t, add or subtract edge winding to sum winding
@@ -572,14 +594,15 @@ void OpEdge::output(bool closed) {
 }
 
 void OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first) {
-	OP_DEBUG_CODE(debugOutPath = curve.contours->debugOutputID);
+	OP_DEBUG_CODE(debugOutPath = curve.context->debugOutputID);
 	OpEdge* next = nextOut();
 	OpCurve copy = curve;
 	if (EdgeMatch::end == which())
 		copy.reverse();
 	copy.output(first, firstEdge == next  OP_DEBUG_PARAMS(id));
+	clearNextEdge();
 	if (firstEdge == next) {
-		OP_DEBUG_CODE(debugOutPath = curve.contours->nextID());
+		OP_DEBUG_CODE(debugOutPath = curve.context->nextID());
 		return;
 	}
 	OP_ASSERT(next);

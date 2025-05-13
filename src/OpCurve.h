@@ -26,7 +26,7 @@ struct CutRangeT {
 struct OpCurve {
 	OpCurve() 
 		: c{ nullptr, 0, (PathOpsV0Lib::CurveType) 0 }
-		, contours(nullptr)
+		, context(nullptr)
 		, isLineSet(false)
 		, isLineResult(false) {
 	}
@@ -91,7 +91,7 @@ struct OpCurve {
 
 	// create storage in contour; helper function casts it to CurveData
 	PathOpsV0Lib::Curve c;
-	OpContext* contours;  // required by new interface for caller function pointer access
+	OpContext* context;  // required by new interface for caller function pointer access
 	bool isLineSet;
 	bool isLineResult;
 };

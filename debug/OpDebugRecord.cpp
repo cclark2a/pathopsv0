@@ -3,7 +3,7 @@
 
 #if OP_DEBUG_RECORD
 
-#include "OpContour.h"
+#include "OpContext.h"
 #include "OpEdge.h"
 #include "OpSegment.h"
 

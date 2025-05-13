@@ -40,7 +40,7 @@ tests run:73859160 12/17/2024
 #define SkiaEnumSkPathOp_DEFINED
 #endif
 #include "SkiaTestCommon.h"
-#include "OpContour.h"  // !!! remove this ?
+#include "OpContext.h"  // !!! remove this ?
 #include "OpCurve.h"  // !!! remove this ?
 #include "OpDebugRaster.h"
 #include "OpSkiaTests.h"
@@ -607,15 +607,15 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
     PathOutput pathOutput = result;
 	Normalize(context);
 #if TEST_RASTER
-	OpContext* contours = (OpContext*) context;
-	if (contours->rasterEnabled) {
-		contours->sampleOutputs.init(contours);
-		contours->sampleOperands.init(contours);
-		for (auto contour : contours->contours) {
-			contours->sampleOperands.sample(contour);
-			contour->rasterOperand.rasterize(contours->sampleOperands, contour);
+	OpContext* implementationContext = (OpContext*) context;
+	if (implementationContext->rasterEnabled) {
+		implementationContext->sampleOutputs.init(implementationContext);
+		implementationContext->sampleOperands.init(implementationContext);
+		for (auto contour : implementationContext->contours) {
+			implementationContext->sampleOperands.sample(contour);
+			contour->rasterOperand.rasterize(implementationContext->sampleOperands, contour);
 		}
-		contours->rasterCombined.rasterize(contours->sampleOperands, nullptr);
+		implementationContext->rasterCombined.rasterize(implementationContext->sampleOperands, nullptr);
 	}
 #endif
     Resolve(context, pathOutput);
@@ -624,8 +624,8 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
     ContextError contextError = Error(context);
 	trackError(contextError);
 #if TEST_RASTER
-	contours->rasterOutput.rasterize(contours->sampleOutputs, nullptr);
-	int rasterErrors = contours->sampleOperands.compare(contours->sampleOutputs);
+	implementationContext->rasterOutput.rasterize(implementationContext->sampleOutputs, nullptr);
+	int rasterErrors = implementationContext->sampleOperands.compare(implementationContext->sampleOutputs);
 	if (ContextError::none == contextError) {
 		if (rasterErrors >= 9) {
 	#if OP_DEBUG_FAST_TEST

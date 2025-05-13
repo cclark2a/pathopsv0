@@ -19,6 +19,8 @@
         "example/debug/OpDebugImage.cpp",
         "example/debug/OpDebugImage.h",
         "example/src/OpConic.cpp",
+        "example/src/OpContext.cpp",
+        "example/src/OpContext.h",
         "example/src/OpContour.cpp",
         "example/src/OpContour.h",
         "example/src/OpCubic.cpp",
