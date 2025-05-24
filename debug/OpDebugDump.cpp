@@ -2402,8 +2402,9 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
 		s += strPtT(EdgeFilter::endOpp, "endOpp", endOpp, " ");
     s += strEnum(EF::whichEnd_impl, "whichEnd", EdgeMatch::none == which(), edgeMatchName(which()));
     s += strEnum(EF::rayFail, "rayFail", EdgeFail::none == rayFail, edgeFailName(rayFail));
-    s += strEnum(EF::windZero, "windZero", false, windZeroName(windZero));
-    s += strEnum(EF::isUnsortable, "isUnsortable", Unsortable::none == isUnsortable, unsortableName(isUnsortable));
+    s += strEnum(EF::windZero, "windZero", WindZero::unset == windZero, windZeroName(windZero));
+    s += strEnum(EF::isUnsortable, "isUnsortable", Unsortable::none == isUnsortable, 
+			unsortableName(isUnsortable));
 #define STR_BOOL(ef) do { if (dumpIt(EdgeFilter::ef) && (dumpAlways(EdgeFilter::ef) || ef)) { \
         s += strLabel(#ef) + " "; \
         if (1 != ((unsigned char) ef)) s += STR((size_t) ef) + " "; }} while(false)
@@ -3444,10 +3445,11 @@ void dmp(std::array<CoinEnd, 4>& coinEndArray) {
 
 std::string OpWinder::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-	if (home)
-		s += "home[" + STR(home->id) + " ";
-	s += "axis:" + axisName(workingAxis) + " ";
-	s += "interceptLimit:" + STR(interceptLimit) + " ";
+#if 0
+	s += "targets:" + targets.debugDump(l, b);
+#else
+	s += "targets:(incomplete)";
+#endif
     return s;
 }
 
@@ -3534,6 +3536,42 @@ std::string CoinPair::debugDump(DebugLevel l, DebugBase b) const {
     return s;
 }
 
+std::string RayTarget::debugDump(DebugLevel l, DebugBase b) const {
+	std::string s;
+	if (DebugLevel::detailed == l)
+		s += "[" + STR(contour->id) + bounds.debugDump(l, b) + "]";
+	else
+		s += STR(contour->id);
+	return s;
+}
+
+std::string RayTargets::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s = "target count:" + STR(t.size()) + " [";
+    for (const RayTarget& target : t) {
+		if (DebugLevel::detailed == l)
+			s += " ";  // indent
+        s += target.debugDump(DebugLevel::detailed == l ? l : DebugLevel::brief, b) + " ";
+	}
+	s.pop_back();
+	s += "]";
+	s += DebugLevel::detailed == l ? "\n " : " ";
+	if (edges && edges->size()) {
+		s += "edges[";
+		for (const OpEdge* edge : *edges) {
+			s += STR(edge->id) + " ";
+		}
+		s.pop_back();
+		s += "] ";
+	}
+	s += "chainBounds" + chainBounds.debugDump(l, b) + " ";
+	if (SIZE_MAX != edgeIndex)
+		s += "edgeIndex:" + STR(edgeIndex) +  " ";
+	if (SIZE_MAX != index)
+		s += "index:" + STR(index) + " ";
+	s.pop_back();
+	return s;
+}
+
 std::string SectRay::debugDumpHeader(DebugLevel l, DebugBase b) const {
     std::string s = "ray count:" + STR(distances.size()) + " ";
 	if (homeTangent.isFinite())
@@ -3544,9 +3582,14 @@ std::string SectRay::debugDumpHeader(DebugLevel l, DebugBase b) const {
 	    s += debugValue(l, b, "homeCept", homeCept) + " ";
 	if (OpMath::IsFinite(homeT))
 	    s += debugValue(l, b, "homeT", homeT) + " ";
+	if (OpMath::IsFinite(interceptLimit))
+	    s += debugValue(l, b, "interceptLimit", interceptLimit) + " ";
+	if (.5 != mid)
+	    s += debugValue(l, b, "mid", mid) + " ";
+	if (.5 != midEnd)
+	    s += debugValue(l, b, "midEnd", midEnd) + " ";
 	if (Axis::neither != axis)
 		s += "axis:" + axisName(axis) + " ";
-	if (firstTry) s += "firstTry ";
 	if (sorted) s += "sorted ";
 	if (' ' == s.back())
 		s.pop_back();
@@ -3554,13 +3597,16 @@ std::string SectRay::debugDumpHeader(DebugLevel l, DebugBase b) const {
 }
 
 std::string SectRay::debugDump(DebugLevel l, DebugBase b) const {
-    std::string s = debugDumpHeader(l, b) + (DebugLevel::detailed == l ? "\n" : " ");
+    std::string s = debugDumpHeader(l, b) + "\n ";  // indent
+	s += targets.debugDump(l, b);
+	s += DebugLevel::detailed == l ? "\n" : " ";
     for (const EdgePal& dist : distances) {
 		if (DebugLevel::detailed == l)
 			s += " ";  // indent
         s += dist.debugDump(DebugLevel::detailed == l ? l : DebugLevel::brief, b);
 		s += DebugLevel::detailed == l ? "\n" : " ";
 	}
+#if 0
 	if (!containers.empty()) {
 		if (DebugLevel::detailed == l)
 			s += " ";  // indent
@@ -3572,6 +3618,7 @@ std::string SectRay::debugDump(DebugLevel l, DebugBase b) const {
 			s.pop_back();
 		s += DebugLevel::detailed == l ? "]\n" : "] ";
 	}
+#endif
 	if (!s.empty())
 		s.pop_back();
     return s;

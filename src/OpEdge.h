@@ -15,6 +15,7 @@ struct OpIntersection;
 struct OpOutPath;
 struct OpSegment;
 struct OpWinder;
+struct RayTargets;
 
 enum class CurveRef;
 enum class FoundPtT;
@@ -71,7 +72,7 @@ enum class RayOrder : uint8_t {
 };
 
 struct EdgePal {
-	EdgePal(OpEdge* e, float c, float tIn, bool reversed, bool dependent, bool over);
+	EdgePal(OpEdge* e, float c, float tIn, bool reversed);
 	EdgePal(OpEdge* e, float c, float tIn);  // when winder can't resolve order
 	EdgePal(OpEdge* e, int uID); //  when edge maker is between unsectables
 	OpPoint matchPt(EdgeMatch ) const;
@@ -108,49 +109,72 @@ inline DistEnd operator!(DistEnd de) {
 	return static_cast<DistEnd>(-static_cast<int>(de));
 }
 
+// target bounds is intersection of contour bounds, parent bounds, and home/ray bounds
+struct RayTarget {
+	DUMP_DECLARATIONS
+
+	OpContour* contour = nullptr;
+	OpPointBounds bounds;
+};
+
+struct RayTargets {
+	bool addContainer(Axis , OpContour* container, OpRect& bounds);
+	void build(OpEdge* );
+	bool match(OpContour* ) const;
+	OpEdge* next(Axis , float homeCept);
+	void reset(Axis );
+	void set(Axis );
+	DUMP_DECLARATIONS
+
+	std::vector<RayTarget> t;
+	std::vector<OpEdge*>* edges = nullptr;
+	OpRect chainBounds;
+	size_t edgeIndex = SIZE_MAX;
+	size_t index = SIZE_MAX;
+};
+
 // captures ray info from edge that intersects other edges, horizontally or vertically
 struct SectRay {
-	SectRay()
-		: normal(OpNaN)
-		, homeCept(OpNaN)
-		, homeT(OpNaN)
-		, axis(Axis::neither)
-		, firstTry(true) {
-	}
-
 	bool add(OpWinder* , OpEdge* , float xy, float root, bool reversed);  // add to distances
 //	bool addCoinContours(OpWinder* );
-	void addContainers(OpWinder* , OpEdge* );
+	bool addContainers(OpEdge* add, OpEdge* home);
 	bool addDependentContours(OpWinder* );
-	void addPals(OpEdge* , float minCeptDiff);
+	void addDistance(OpEdge* , float xy, float root, bool reversed);
+	void addPals(OpEdge* );
 	bool canSetSum(const OpEdge* ) const;
 	bool checkAdd(OpEdge* toAdd);
 	RayOrder checkClose(const OpEdge* ) const;
 	RayOrder checkOrder(const OpEdge* );
-	bool checkDependents(const OpEdge* addEdge, float xy, Axis perpendicular 
-			OP_DEBUG_PARAMS(std::vector<const SectRay*>& debugRays));
+	void markDependents(OpEdge* edge);
+	bool cull();  // remove distances further from home than first dependent
 	const EdgePal* end(DistEnd e) const {
 		return DistEnd::front == e ? &distances.front() : &distances.back(); }
+	FindCept findCept(OpEdge* , OpEdge* test);
 	FindCept findIntercept(OpWinder* , OpEdge* test);
 	EdgePal* find(const OpEdge* );  // returns edge in distances
 	bool incomplete() const;
-	bool missingContour(OpWinder* , OpEdge* ) const;
-	bool missingContour(OpWinder* , OpSegment* ) const;
+	bool isOrdered(size_t index);  // false if dist edge and neighbors are reversed elsewhere
+//	bool missingContour(OpWinder* , OpEdge* ) const;
+//	bool missingContour(OpWinder* , OpSegment* ) const;
 	const EdgePal* next(const EdgePal* dist, DistEnd e) const {
 		return dist + (int) e; }
 	bool sectsAllPals(const OpEdge* ) const;  // returns if edge + all of its pals are in distances
 	void sort();
+	bool tryADifferentCenter(OpEdge* );
 	DUMP_DECLARATIONS
 	OP_DEBUG_DUMP_CODE(std::string debugDumpHeader(DebugLevel l, DebugBase b) const);
 
+	RayTargets targets;
 	std::vector<EdgePal> distances;
-	std::vector<OpContour*> containers;  // extra contours that affect home's winding sum
+//	std::vector<OpContour*> containers;  // extra contours that affect home's winding sum
 	OpVector homeTangent;  // used to determine if unsectable edge is reversed
-	float normal;  // ray used to find windings on home edge (e.g., axis: h, center.y)
-	float homeCept;  // intersection of normal on home edge (e.g., axis: h, center.x)
-	float homeT;  // value from 0 to 1 within edge range (akin to edgeInsideT)
-	Axis axis;
-	bool firstTry;  // used to cache unsectable test
+	float normal = OpNaN;  // ray used to find windings on home edge (e.g., axis: h, center.y)
+	float homeCept = OpNaN;  // intersection of normal on home edge (e.g., axis: h, center.x)
+	float homeT = OpNaN;  // value from 0 to 1 within edge range (akin to edgeInsideT)
+	float interceptLimit = OpNaN;
+	float mid = .5;
+	float midEnd = .5;
+	Axis axis = Axis::neither;
 	bool sorted = false;
 };
 
@@ -368,7 +392,9 @@ public:
 	void linkToEdge(FoundEdge& , EdgeMatch );
 	MatchReverse matchEnds(const LinePts& linePts) const {
 		return curve.matchEnds(linePts); }
+	float margin() const;
 	void markPals();
+	void markUnsortable(Unsortable );
 	OpEdge* nextOut();
 	NormalDirection normalDirection(Axis axis, float edgeInsideT) const {  // t value is not segment t
 		return curve.normalDirection(axis, edgeInsideT); }

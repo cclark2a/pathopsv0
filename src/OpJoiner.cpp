@@ -552,9 +552,8 @@ bool OpTree::join(OpJoiner& join) {
 	if (EdgeMatch::end == bestL->match) {	
 		(void) best->setLastLink(!best->which()); // make suitable for linking to a chain
 		best = best->advanceToEnd(EdgeMatch::start);
-	} else if (best != best->lastEdge) {
+	} else if (best != best->lastEdge)
 		(void) best->setLastLink(EdgeMatch::start);
-	}
 	if (LimbPass::linked == bestL->treePass || LimbPass::miswound == bestL->treePass) {
 		if (EdgeMatch::start == bestL->match) {
 			OpEdge* eraseLink = bestL->linkedContour->linkups.l[bestL->linkedIndex];
@@ -639,8 +638,11 @@ OpLimb* OpTree::makeLimb() {
 	return context->allocateLimb();
 }
 
+// !!! this code does not do what is described
+// breaks testQuads25988731; disabled to find test case for rewrite
 bool OpTree::preferSibling(OpLimb* palParent, OpEdge* edge) {
-	// try siblings to see if they are linkable, and can be extended (preferable)
+#if 0
+// try siblings to see if they are linkable, and can be extended (preferable)
 	OP_ASSERT(palParent);
 	// if limb edge and test edge are the only connections, don't check sibling linkage
 	int index = totalUsed;
@@ -662,6 +664,7 @@ bool OpTree::preferSibling(OpLimb* palParent, OpEdge* edge) {
 		}))
 			return true;
 	}
+#endif
 	return false;
 }
 

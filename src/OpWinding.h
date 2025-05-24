@@ -2,7 +2,11 @@
 #ifndef OpWinding_DEFINED
 #define OpWinding_DEFINED
 
+#include "OpDebug.h"
+
 struct OpContour;
+struct OpContext;
+struct OpEdge;
 
 enum class WindingEdge {
 	dummy
@@ -25,6 +29,10 @@ enum class WindingType  {
 	caller,
 	copy  // used only by new interface
 };
+
+namespace PathOpsV0Lib {
+	struct Winding;
+}
 
 #if OP_DEBUG
 // !!! this has mostly fallen into disrepair; either fix it or delete it

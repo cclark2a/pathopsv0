@@ -129,14 +129,14 @@ void OpHulls::sort(bool useSmall) {
 	});
 }
 
-EdgePal::EdgePal(OpEdge* e, float c, float tIn, bool r, bool d, bool o)
+EdgePal::EdgePal(OpEdge* e, float c, float tIn, bool r)
 	: edge(e)
 	, cept(c)
 	, edgeInsideT(tIn)
 	, unsectID(0)
 	, reversed(r)
-	, dependent(d)
-	, over(o) {
+	, dependent(false)
+	, over(false) {
 }
 
 EdgePal::EdgePal(OpEdge* e, float c, float tIn)
@@ -491,6 +491,12 @@ void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 		OP_ASSERT(edgePt == oppEdge->endPt());
 		oppEdge->setWhich(match);
 	}
+}
+
+float OpEdge::margin() const {
+	PathOpsV0Lib::ContextCallbacks& cb = context()->contextCallbacks;
+	float maxUnsectT = cb.maxUnsectableTFuncPtr ? cb.maxUnsectableTFuncPtr(curve.c) : 4.0f;
+	return context()->threshold().choice(!ray.axis) * maxUnsectT;
 }
 
 // Find pals for unsectables created during curve/curve intersection. There should be at most

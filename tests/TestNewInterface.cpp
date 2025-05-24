@@ -104,7 +104,7 @@ void testNewInterface() {
         exit(1);
 }
 
-#if OP_DEBUG && OP_TINY_TEST
+#if OP_DEBUG && OP_TINY_TEST && !OP_DEBUG_FAST_TEST
 bool OpDebugSkipBreak() {
 	return true;
 }

@@ -448,7 +448,7 @@ SectCleanup OpIntersections::moveSects(const OpPtT& match, OpPoint destination) 
 		if (toMove->ptT.pt != match.pt)
 			continue;
 		bool keepToMove = true;
-		size_t testIndex = INT_MAX;
+		size_t testIndex = SIZE_MAX;
 		OpIntersection* test  OP_DEBUG_CODE(= nullptr);  // suppress compiler warning
 		for (size_t inner = 0; inner < i.size(); ++inner) {  // look for coins, unsects, equal-to's
 			test = i[inner];
@@ -466,7 +466,7 @@ SectCleanup OpIntersections::moveSects(const OpPtT& match, OpPoint destination) 
 			}
 		}
 		OP_ASSERT(index != testIndex);
-		if (testIndex == INT_MAX) {
+		if (testIndex == SIZE_MAX) {
 			toMove->ptT = OpPtT(destination, destT);
 			if (toMove->opp->ptT.pt != destination)
 				moveOpps.push_back(toMove->opp);

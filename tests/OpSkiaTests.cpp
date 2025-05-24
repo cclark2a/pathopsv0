@@ -130,9 +130,9 @@ bool startFirstTest = "" == testFirst;
 bool endFirstTest = false;
 
 // break (return false) if running last failed fast test
-#if OP_DEBUG
+#if OP_DEBUG && !OP_DEBUG_FAST_TEST
 bool OpDebugSkipBreak() {
-	return OP_DEBUG_FAST_TEST || (!SKIP_TO_V0 && !requestedFirst.size());
+	return !SKIP_TO_V0 && !requestedFirst.size();
 }
 #endif
 

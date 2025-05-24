@@ -532,9 +532,11 @@ void OpCurveCurve::debugSaveState() {
 
 // return false for caller to assert
 bool OpCurveCurve::debugShowImage(bool atDepth) {
+#if !OP_DEBUG_FAST_TEST
 	if (OpDebugSkipBreak())
 		return true;
-    if (context->debugData.curveCurveDepth < 0)
+#endif
+	if (context->debugData.curveCurveDepth < 0)
         return true;
     if (atDepth && !context->debugData.curveCurveDepth)
         return true;
@@ -942,7 +944,7 @@ void OpContour::debugMatchRay() {
 
 // return false to auto-break
 bool OpJoiner::DebugShowImage() {
-#if !TEST_DEFEAT_BREAK
+#if !OP_DEBUG_FAST_TEST
 	if (!OpDebugSkipBreak()) {
 #if OP_DEBUG_IMAGE && !TEST_ANALYZE  // defeat if test is very large (e.g., grshapearc)
 		::debugImage();

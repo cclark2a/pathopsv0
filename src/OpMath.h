@@ -627,13 +627,11 @@ struct OpRect {
 	float perimeter() const { 
 		return width() + height(); }
 
-#if 0
 	void setLtChoice(Axis axis, float value) {  // !!! unused
 		*(&left + +axis) = value; }
 
 	void setRbChoice(Axis axis, float value) {  // !!! unused
 		*(&right + +axis) = value; }
-#endif
 
 	float rbChoice(Axis axis) const {
 		return *(&right + +axis); }

@@ -11,11 +11,12 @@ struct OpEdge;
 enum class ChainFail {
 	none,
 	betweenUnsectables,
+	containerAdded,
 	failIntercept,
 	noNormal,
 	normalizeOverflow,
 	normalizeUnderflow,
-	// recurse  // some member of the chain needs to be evaluated earlier !!! delay to sum
+	recurse
 };
 
 #if 0
@@ -33,7 +34,7 @@ enum class FoundIntersections {
 enum class FoundIntercept {
 	fail,
 	overflow,
-//	recurse,  // recursion happens when sums are computed instead of when rays intersect
+	recurse,  // recursion happens if simple sort isn't sufficient to compute rays in order
 	set,
 	yes
 };
@@ -56,39 +57,20 @@ struct CoinEnd {
 	OpVector oppT;
 };
 
-// target bounds is intersection of contour bounds, parent bounds, and home/ray bounds
-struct RayTarget {
-	OpContour* contour;
-	OpPointBounds bounds;
-};
-
-struct RayTargets {
-	void addContainer(OpContour* container, OpRect& bounds);
-	void build(OpWinder* );
-	bool match(OpContour* ) const;
-	OpEdge* next(float homeCept);
-	void reset();
-	void set();
-
-	std::vector<RayTarget> t;
-	std::vector<OpEdge*>* edges;
-	OpRect chainBounds;
-	size_t edgeIndex;
-	size_t index;
-	Axis axis;
-};
-
 struct OpWinder {
 	OpWinder(OpContext& );
+	ChainFail addContainers(OpEdge* edge, std::vector<OpEdge*>& );
 	void addEdge(OpEdge* );
 	static IntersectResult CoincidentCheck(OpSegment* seg, OpSegment* opp);
 	static IntersectResult CoincidentCheck(std::array<CoinEnd, 4>& ends, bool* oppReversed,
 			XyChoice* );
+	FoundIntercept findCept(OpEdge* );
 	FoundIntercept findRayIntercept(OpVector tangent, float normal, float homeCept);
-	void markUnsortable(Unsortable );
-	FoundWindings setPriors(OpContext& , OpEdge* );
-	ChainFail setSumChain();
-	ResolveWinding setWindingByDistance(OpContext& );
+//	void markUnsortable(OpEdge* , Unsortable );
+	ChainFail setCept(OpEdge* );
+	FoundWindings setPriors(OpEdge* );
+//	ChainFail setSumChain();
+	ResolveWinding setWindingByDistance(OpEdge* );
 	FoundWindings setWindings(OpContext& );
 	void sort();
 
@@ -100,11 +82,10 @@ struct OpWinder {
 		// can be used by an earlier edge in the ray distances, if the contour bounds is to the
 		// right of the earlier edge bounds
 		// requires recursive ray finding so that earlier edge's distances are known
-	RayTargets targets;
-	OpEdge* home;
-	Axis workingAxis;
-	float interceptLimit;
-	float minCeptDiff;
+//	RayTargets targets;
+//	std::vector<OpEdge*> recurse;
+//	OpEdge* home;
+//	Axis workingAxis;
 //	int byDistanceDepth;  // !!! replace this with debug flag to detect infinite recursion
 };
 

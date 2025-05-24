@@ -10,7 +10,6 @@
 
 #define OP_DEBUG_VERBOSE (1 && !OP_DEBUG_FAST_TEST)
 #define OP_RELEASE_TEST 1	// !!! set to zero to remove tests from release build (untested)
-#define OP_NEW_COINCIDENCE 1
 
 #if !defined(NDEBUG) || OP_RELEASE_TEST
 #include <string>
@@ -234,6 +233,8 @@ struct OpDebugMaker {
 #define OpNop() \
 	OpDebugOut("")
 
+bool OpDebugSkipBreak();
+
 #if OP_DEBUG_DUMP 
 #undef OP_DEBUG_DUMP_CODE
 #define OP_DEBUG_DUMP_CODE(...) __VA_ARGS__
@@ -276,7 +277,6 @@ std::vector<uint8_t> OpDebugByteArray(const char*& str);
 std::string OpDebugByteToHex(uint8_t);
 std::string OpDebugIntToHex(int32_t);
 std::string OpDebugPtrToHex(void*);
-bool OpDebugSkipBreak();
 
 #endif
 
