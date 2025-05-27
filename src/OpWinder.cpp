@@ -70,25 +70,29 @@ void RayTargets::set(Axis axis) {
 //   does that behavior need to be preserved?
 //   it seems odd -- but could be reproduced if needed (with effort)
 //   maybe put that off until it is needed...
+// !!! caller assumes this looks at chainBounds, but it does not...
 OpEdge* RayTargets::next(Axis axis, float homeCept) {
-	Axis perpendicular = !axis;
+	Axis uppity = !axis;
+	OpRect* bounds;
 	while (edges) {
 		// advance to furthest that could influence the sum winding of this edge
 		if (edgeIndex >= edges->size()) {  
 			edgeIndex = 0;
-			while ((*edges)[edgeIndex]->bounds.ltChoice(perpendicular) <= homeCept
-						&& ++edgeIndex < edges->size())
-				;
+			do {
+				bounds = &(*edges)[edgeIndex]->bounds;
+			} while (bounds->ltChoice(uppity) <= homeCept && ++edgeIndex < edges->size());
 			if (0 == edgeIndex--) {
 				set(axis);
 				continue;
 			}
 		}
 		OpEdge* result = (*edges)[edgeIndex];
-		OP_ASSERT(result->bounds.ltChoice(perpendicular) <= homeCept);
+		bounds = &result->bounds;
+		OP_ASSERT(bounds->ltChoice(uppity) <= homeCept);
 		if (0 == edgeIndex--)
 			set(axis);
-		return result;
+		if (bounds->rbChoice(uppity) >= chainBounds.ltChoice(uppity))
+			return result;
 	}
 	return nullptr;
 }
@@ -132,7 +136,13 @@ bool SectRay::addContainers(OpEdge* addEdge, OpEdge* home) {
 		return added;
 	};
 	// if added edge depends on contour not in winder target, add it
-	bool added = addContour(addEdge->segment->contour);
+	OpSegment* segment = addEdge->segment;
+	bool added = addContour(segment->contour);
+#if 0  // unnecessary?
+	for (OpContour* contour : segment->coinContours) {
+		added |= addContour(contour);
+	}
+#endif
 	return added;
 }
 
@@ -268,7 +278,6 @@ void SectRay::addPals(OpEdge* home) {
 		}
 		home->addPal(edgeRev);
 		edge->addPal(homeRev);
-		return;
 	};
 	if (!priorIsPal)
 		addIfFlipped(DistEnd::front);
@@ -356,6 +365,8 @@ FindCept SectRay::findCept(OpEdge* edge, OpEdge* test) {
 		return FindCept::unsortable;
 	if (test->disabled)
 		return FindCept::ok;
+	if (test->centerless)
+		return FindCept::retry;
 	bool uSectPair = test->isUnsectable() && edge->isUnsectable() && test->isPal(edge);
 //	if (uSectPair)
 //		return FindCept::unsectable;
@@ -773,10 +784,12 @@ foundInY: ;
 	rayFail = Axis::vertical == ray.axis ? EdgeFail::vertical : EdgeFail::horizontal;
 }
 
-FoundWindings OpWinder::setPriors(OpEdge* edge) {
+FoundWindings OpWinder::setPriors(OpEdge* edge  OP_DEBUG_PARAMS(std::vector<OpEdge*>& debugVisited)) {
+	OP_ASSERT(debugVisited.end() == std::find(debugVisited.begin(), debugVisited.end(), edge));
+	OP_DEBUG_CODE(debugVisited.push_back(edge));
 	OP_ASSERT(!edge->ray.distances.empty());
 	EdgePal& distance = edge->ray.distances.front();
-	if ((!distance.dependent || FoundWindings::fail != setPriors(distance.edge)) 
+	if ((!distance.dependent || FoundWindings::fail != setPriors(distance.edge  OP_DEBUG_PARAMS(debugVisited))) 
 			&& !edge->sum.isSet()) {
 //		home = edge;
 		ResolveWinding resolveWinding = setWindingByDistance(edge);
@@ -843,7 +856,6 @@ ChainFail OpWinder::setCept(OpEdge* edge) {
 	edge->ray.normal = midPt.choice(edge->ray.axis);
 	// intersect normal with every edge in the direction of ray until we run out 
 	Axis perpendicular = !edge->ray.axis;
-	edge->ray.targets.build(edge);
 	edge->ray.homeCept = midPt.choice(perpendicular);
 	FoundIntercept foundIntercept = findCept(edge);
 	edge->ray.sort();
@@ -854,13 +866,13 @@ ChainFail OpWinder::setCept(OpEdge* edge) {
 	return ChainFail::none;
 }
 
-ChainFail OpWinder::addContainers(OpEdge* edge, std::vector<OpEdge*>& addedSet) {
-	OP_ASSERT(edge->ray.sorted);
+ChainFail OpWinder::addContainers(OpEdge* top, OpEdge* child, std::vector<OpEdge*>& addedSet) {
+	OP_ASSERT(child->ray.sorted || child->ray.distances.empty());
 	bool seenHome = false;
 	bool added = false;
-	for (size_t index = edge->ray.distances.size(); index--; ) {
-		EdgePal& distance = edge->ray.distances[index];
-		if (distance.edge == edge) {
+	for (size_t index = child->ray.distances.size(); index--; ) {
+		EdgePal& distance = child->ray.distances[index];
+		if (distance.edge == child) {
 			seenHome = true;
 			continue;
 		}
@@ -869,10 +881,10 @@ ChainFail OpWinder::addContainers(OpEdge* edge, std::vector<OpEdge*>& addedSet) 
 		if (addedSet.end() != std::find(addedSet.begin(), addedSet.end(), distance.edge))
 			continue;
 		addedSet.push_back(distance.edge);
-		ChainFail result = addContainers(distance.edge, addedSet);
+		ChainFail result = addContainers(top, distance.edge, addedSet);
 		if (ChainFail::none != result)
 			return result;
-		added |= edge->ray.addContainers(distance.edge, edge);
+		added |= top->ray.addContainers(distance.edge, top);
 		if (distance.dependent)
 			break;
 	}
@@ -961,7 +973,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpEdge* edge) {
 	if (sumIndex >= 0) {
 		EdgePal& sumDistance = ray.distances[sumIndex];
 		OpEdge* sumEdge = sumDistance.edge;
-		OP_ASSERT(!sumEdge->isUnsectable());
+//		OP_ASSERT(!sumEdge->isUnsectable());
 		if (sumEdge->sum.isSet())
 			sumWinding.w = sumEdge->sum.copyData(context);
 		else
@@ -1036,79 +1048,89 @@ FoundWindings OpWinder::setWindings(OpContext& context) {
 			std::vector<OpEdge*>& in = Axis::horizontal == axis ? contour->inX : contour->inY;
 			edges.insert(edges.end(), in.begin(), in.end());
 		}
-		std::sort(edges.begin(), edges.end(), [axis](const OpEdge* s1, const OpEdge* s2) {
-			return Axis::horizontal == axis ? s1->bounds.left < s2->bounds.left
-					: s1->bounds.top < s2->bounds.top;
-		});
-		for (OpEdge* edge : edges) {  // first pass: find ray cepts for sorting
-			if (edge->disabled)	// may not be visible in vertical pass
-				continue;
-			if (edge->centerless)
-				continue;
-			if (!edge->ray.distances.empty() && EdgeFail::none == edge->rayFail)
-				continue;
-			edge->ray.interceptLimit = edge->segment->c.interceptLimit();
-			edge->ray.axis = axis;
-			ChainFail chainFail = setCept(edge);
-			if (ChainFail::normalizeOverflow == chainFail)
-				OP_DEBUG_FAIL(*edge, FoundWindings::fail);
-		}
-		std::sort(edges.begin(), edges.end(), [](const OpEdge* s1, const OpEdge* s2) {
-	//		OP_ASSERT(OpMath::IsFinite(s1->ray.homeCept));  // !!! if distances empty: no cept
-			return s1->ray.homeCept < s2->ray.homeCept;
-		});
-		for (OpEdge* edge : edges) {  // second pass: find left/topmost edge, make its chain first
-			if (axis != edge->ray.axis)
-				continue;
-			SectRay& ray = edge->ray;
-			if (ray.distances.empty())
-				continue;
-			//  add containers bracketed by dependent and home edges
-			ChainFail added;
-			for (;;) {
-				std::vector<OpEdge*> addedSet = { edge };
-				added = addContainers(edge, addedSet);
-				if (ChainFail::none == added)  
-					break;
-				OP_ASSERT(ChainFail::containerAdded == added);
-				// add edges between dependent and home
-				float left = -OpInfinity;
-				for (EdgePal& dist : ray.distances) {
-					if (edge == dist.edge)
-						break;
-					left = dist.cept;
-					if (dist.dependent)
-						break;
-				}
-				float margin = edge->margin();
-				OpRect& bounds = ray.targets.chainBounds;
-				bounds.setLtChoice(!axis, std::max(bounds.ltChoice(!axis), left - margin));
-				bounds.setRbChoice(!axis, std::min(bounds.rbChoice(!axis), ray.homeCept + margin));
-				while (OpEdge* test = ray.targets.next(ray.axis, ray.homeCept)) {
-					FindCept findCept = ray.findCept(edge, test);  // adds to back
-					if (FindCept::ok == findCept)
-						continue;
-					ray.targets.reset(ray.axis); // start over
-					if (!ray.tryADifferentCenter(edge))
-						OP_DEBUG_FAIL(*edge, FoundWindings::fail);
-					
-				}
-				break;
-			}
-		 }
-	}
-	for (auto contour : context.contours) {
-		for (auto& segment : contour->segments) {
-			for (auto& edge : segment.edges) {
-				SectRay& ray = edge.ray;
-				if (edge.disabled)
+		bool firstTry = true;
+		do {
+			std::sort(edges.begin(), edges.end(), [axis](const OpEdge* s1, const OpEdge* s2) {
+				return Axis::horizontal == axis ? s1->bounds.left < s2->bounds.left
+						: s1->bounds.top < s2->bounds.top;
+			});
+			for (OpEdge* edge : edges) {  // first pass: find ray cepts for sorting
+				if (edge->disabled)	// may not be visible in vertical pass
 					continue;
-				if (edge.isUnsectable())
-					edge.markPals();
-				else
-					ray.addPals(&edge);
+				if (edge->centerless)
+					continue;
+				if (!edge->ray.distances.empty() && EdgeFail::none == edge->rayFail)
+					continue;
+				edge->ray.interceptLimit = edge->segment->c.interceptLimit();
+				edge->ray.axis = axis;
+				if (firstTry)
+					edge->ray.targets.build(edge);
+				ChainFail chainFail = setCept(edge);
+				if (ChainFail::normalizeOverflow == chainFail)
+					OP_DEBUG_FAIL(*edge, FoundWindings::fail);
 			}
-		}
+			firstTry = false;
+			std::sort(edges.begin(), edges.end(), [](const OpEdge* s1, const OpEdge* s2) {
+		//		OP_ASSERT(OpMath::IsFinite(s1->ray.homeCept));  // !!! if distances empty: no cept
+				return s1->ray.homeCept < s2->ray.homeCept;
+			});
+			std::vector<OpEdge*> addedEdges;
+			for (OpEdge* edge : edges) {  // second pass: find left/topmost edge, make its chain first
+				if (axis != edge->ray.axis)
+					continue;
+				SectRay& ray = edge->ray;
+				if (ray.distances.empty())
+					continue;
+				//  add containers bracketed by dependent and home edges
+				std::vector<OpEdge*> addedSet = { edge };
+				ChainFail added = addContainers(edge, edge, addedSet);
+				if (ChainFail::none == added)
+					continue;
+				OP_ASSERT(ChainFail::containerAdded == added);
+				addedEdges.push_back(edge);
+			}
+			edges.clear();
+			edges.insert(edges.end(), addedEdges.begin(), addedEdges.end());
+			for (OpEdge* addedEdge : addedEdges) {
+				addedEdge->ray.distances.clear();
+			}
+			for (auto contour : context.contours) {
+				for (auto& segment : contour->segments) {
+					for (auto& edge : segment.edges) {
+						SectRay& ray = edge.ray;
+						if (edge.disabled)
+							continue;
+						if (edge.isUnsectable())
+							edge.markPals();
+						else
+							ray.addPals(&edge);
+						for (EdgePal& edgePal : edge.pals) {  // check if dependent is now a pal
+							int uID = edgePal.unsectID;
+							for (EdgePal& dist : ray.distances) {
+								if (!dist.dependent)
+									continue;
+								std::vector<EdgePal>& d = dist.edge->pals;
+								if (std::none_of(d.begin(), d.end(), [uID](EdgePal& td) {
+										return uID == td.unsectID; } ))
+									continue;
+								dist.dependent = false;
+								edges.push_back(&edge);
+							}
+							for (EdgePal& pDist : edgePal.edge->ray.distances) {
+								if (!pDist.dependent)
+									continue;
+								if (pDist.edge == &edge) {
+									pDist.dependent = false;
+									if (edges.end() != std::find(edges.begin(), edges.end(), 
+											&edge))
+										edges.push_back(&edge);
+								}
+							}
+						}
+					}
+				}
+			}
+		} while (!edges.empty());
 	}
 	// if a pair of pals share an edge, this puts each in the other's pal list
 	for (auto contour : context.contours) {
@@ -1184,7 +1206,10 @@ FoundWindings OpWinder::setWindings(OpContext& context) {
 		for (auto edge : sectsBy) {
 			if (edge->sum.isSet())
 				continue;
-			if (FoundWindings::fail == setPriors(edge))
+//			if (edge->isUnsectable())
+//				continue;
+			OP_DEBUG_CODE(std::vector<OpEdge*> debugVisited);
+			if (FoundWindings::fail == setPriors(edge  OP_DEBUG_PARAMS(debugVisited)))
 				OP_DEBUG_FAIL(*edge, FoundWindings::fail);
 		}
 	}

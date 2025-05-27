@@ -1296,6 +1296,7 @@ static std::string segmentDebugDump(const OpSegment& seg, ShowContour showContou
                     s += edge.debugDump(l, b) + "\n";
             }
         }
+#if 0
 		if (!seg.coinContours.empty()) {
             s += "coinContours:" + STR(seg.coinContours.size());
             s += " [";
@@ -1304,6 +1305,7 @@ static std::string segmentDebugDump(const OpSegment& seg, ShowContour showContou
             s.pop_back();
             s += "]\n";
 		}
+#endif
         s += "winding" + seg.winding.debugDump(l, b) + " ";
         if (seg.disabled)
             s += "disabled ";
@@ -2947,7 +2949,8 @@ void dmpPoints(const OpEdge& edge) {
 
 void dmpRay(const OpEdge& edge) {
 	std::string s = edge.ray.debugDumpHeader(defaultLevel, defaultBase) + "\n";
-	for (auto distance : edge.ray.distances) {
+	s += edge.ray.targets.debugDump(defaultLevel, defaultBase) + "\n";
+	for (const auto& distance : edge.ray.distances) {
 		s += distance.debugDump(defaultLevel, defaultBase) + "\n";
 	}
     OpDebugFormat(s);

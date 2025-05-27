@@ -847,9 +847,11 @@ bool OpSegment::moveWinding(OpSegment* opp, bool backwards) {
 	OpContour* oContour = opp->contour;
 	contour->addCoin(oContour);
 	if (winding.visible(contour->context)) {
+#if 0
 		if (oContour != contour && coinContours.end() == std::find(coinContours.begin(),
 				coinContours.end(), oContour))
 			coinContours.push_back(oContour);
+#endif
 		return true;
 	}
 	setDisabled(OP_LINE_FILE_NPARGS());

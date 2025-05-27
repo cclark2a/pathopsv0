@@ -59,7 +59,7 @@ struct CoinEnd {
 
 struct OpWinder {
 	OpWinder(OpContext& );
-	ChainFail addContainers(OpEdge* edge, std::vector<OpEdge*>& );
+	ChainFail addContainers(OpEdge* top, OpEdge* child, std::vector<OpEdge*>& );
 	void addEdge(OpEdge* );
 	static IntersectResult CoincidentCheck(OpSegment* seg, OpSegment* opp);
 	static IntersectResult CoincidentCheck(std::array<CoinEnd, 4>& ends, bool* oppReversed,
@@ -68,7 +68,7 @@ struct OpWinder {
 	FoundIntercept findRayIntercept(OpVector tangent, float normal, float homeCept);
 //	void markUnsortable(OpEdge* , Unsortable );
 	ChainFail setCept(OpEdge* );
-	FoundWindings setPriors(OpEdge* );
+	FoundWindings setPriors(OpEdge*   OP_DEBUG_PARAMS(std::vector<OpEdge*>& debugVisited));
 //	ChainFail setSumChain();
 	ResolveWinding setWindingByDistance(OpEdge* );
 	FoundWindings setWindings(OpContext& );

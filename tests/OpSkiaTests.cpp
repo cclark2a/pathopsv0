@@ -132,7 +132,7 @@ bool endFirstTest = false;
 // break (return false) if running last failed fast test
 #if OP_DEBUG && !OP_DEBUG_FAST_TEST
 bool OpDebugSkipBreak() {
-	return !SKIP_TO_V0 && !requestedFirst.size();
+	return TEST_DEFEAT_BREAK || (!SKIP_TO_V0 && !requestedFirst.size());
 }
 #endif
 
@@ -785,9 +785,10 @@ void RunTestSet(skiatest::Reporter* r, TestDesc tests[], size_t count,
         void (*firstTest)(skiatest::Reporter* , const char* testName),
         void (*skipTest)(skiatest::Reporter* , const char* testName),
         void (*stopTest)(skiatest::Reporter* , const char* testName), bool reverse) {
+	static const std::vector<std::string> skipTests = TEST_PATH_SKIP_TESTS;
     for (size_t i = 0; i < count; ++i) {
 		r->testname = tests[i].str;
-		if ("grshapearcs1" == r->testname)
+		if (skipTests.end() != std::find(skipTests.begin(), skipTests.end(), r->testname))
 			continue;
         (*tests[i].fun)(r, tests[i].str);
 	}
