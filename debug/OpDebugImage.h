@@ -196,7 +196,6 @@ OP_X(Coincidences) \
 OP_X(ControlLines) \
 OP_X(Controls) \
 OP_X(Contours) \
-OP_X(EdgesOut) \
 OP_X(EndToEnd) \
 OP_X(Fill) \
 OP_X(Grid) \
@@ -207,7 +206,6 @@ OP_X(IDs) \
 OP_X(Intersections) \
 OP_X(Lines) \
 OP_X(Normals) \
-OP_X(PathsOut) \
 OP_X(Points) \
 OP_X(Raster) \
 OP_X(Rays) \
@@ -261,25 +259,31 @@ OP_X(Edges) \
 OP_X(Limbs) \
 OP_X(Linkups) \
 OP_X(Opp) \
-OP_X(Out) \
-OP_X(PathsOut) \
+OP_X(Output) \
 OP_X(Segments) \
+OP_X(Tree) \
 OP_X(Unsectables) \
 OP_X(Unsortables)
 
 #define COLOR_LIST2 \
 OP_X(Active, edge->active_impl) \
-OP_X(Disabled, edge->disabled) \
-OP_X(Edges, true) \
-OP_X(Linkups, edge->inLinkups) \
+OP_X(Output, edge->inOutput) \
 OP_X(Unsectables, edge->isUnsectable()) \
 OP_X(Unsortables, Unsortable::none != edge->isUnsortable)
+
+#define COLOR_DUP_LIST2 \
+OP_X(Disabled, edge->disabled) \
+OP_X(Edges, true) \
+OP_X(Linkups, edge->inLinkups)
 
 #define OP_X(Thing) \
 	extern void color##Thing(); \
 	extern void color##Thing(uint32_t color); \
 	extern void color##Thing(uint8_t alpha, uint32_t color); \
-	extern void uncolor##Thing();
+	extern void uncolor##Thing(); \
+	extern void hide##Thing(); \
+	extern void show##Thing(); \
+	extern void toggle##Thing();
 	COLOR_LIST
 #undef OP_X
 
@@ -292,6 +296,7 @@ extern void color(int id, uint8_t alpha, uint32_t color);
 extern void colorLink(int id, uint32_t color);
 extern void colorLink(const OpEdge& , uint32_t color);
 extern void colorLink(const OpEdge* , uint32_t color);
+extern void colorLimbRange(int lastLimbID, uint32_t color);  // color tree from trunk to lastLimbID
 
 // affects edge list in: contour, link (edge), segment (and intersection? show shared edges?) 
 extern void show(int id);

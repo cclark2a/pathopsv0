@@ -322,7 +322,7 @@ OpTree::OpTree(OpJoiner& join)
 	, smallGap(false) {
 	id = context->nextID();
 	maxLimbs = context->contextCallbacks.maxLimbsFuncPtr ?
-			context->contextCallbacks.maxLimbsFuncPtr((PathOpsV0Lib::Context*) context) : 500;
+			context->contextCallbacks.maxLimbsFuncPtr((PathOpsV0Lib::Context*) context) : 1000;
 	OP_DEBUG_CODE(context->debugTree = this);
 	OP_ASSERT(join.edge->inLinkups);
 	OP_DEBUG_IMAGE_CODE(context->debugLimbClear());

@@ -44,8 +44,6 @@ ALIAS_LIST
 CALLOUT_LIST
 #undef OP_X
 
-uint32_t pathsOutColor = blue;
-
 inline uint32_t OpDebugAlphaColor(uint32_t alpha, uint32_t color) {
 	return (alpha << 24) | (color & 0x00FFFFFF);
 }
@@ -260,9 +258,7 @@ void OpDebugImage::init() {
 	focusSegments();
 }
 
-// !!! missing pathsOutColor
 void OpDebugImage::playback(FILE* file) {
-//	FILE* file = fopen("OpDebugImageState.txt", "r");
 	if (!file)
 		return;
 	std::vector<OpEdge*> ordered;
@@ -377,7 +373,6 @@ void OpDebugImage::playback(FILE* file) {
 	#undef OP_X
 		redraw();
 	}
-//	fclose(file);
 }
 
 #undef READ_FEATURE
@@ -1781,20 +1776,8 @@ void color##Thing(uint32_t color) { \
 	OpDebugImage::drawDoubleFocus(); \
 }
 COLOR_LIST2
+COLOR_DUP_LIST2
 #undef OP_X
-
-void colorLimbs(uint32_t color) {
-	const OpTree* tree = debugGlobalContext->debugTree;
-	if (!tree)
-		return;
-	for (int index = 0; index < tree->totalUsed; ++index) {
-		const OpLimb& limb = debugGlobalContext->nthLimb(index);
-		OpEdge* edge = limb.edge;
-		edge->debugCustom = color;
-		edge->debugDraw = true;
-	}
-	OpDebugImage::drawDoubleFocus();
-}
 
 void colorContours(uint32_t color) {
 	for (auto contour : debugGlobalContext->contours) {
@@ -1810,19 +1793,8 @@ void colorSegments(uint32_t color) {
 	OpDebugImage::drawDoubleFocus();
 }
 
-extern std::vector<std::pair<uint32_t, std::string>> debugColorArray;
-
-void colorOut(uint32_t color) {
-	for (auto edge : edgeIterator) {
-		if (!edge->inOutput)
-			continue;
-		if (multiColor != color)
-			edge->debugCustom = color;
-		else
-			edge->debugCustom = debugColorArray[edge->debugOutPath % debugColorArray.size()].first;
-		edge->debugDraw = true;
-	}
-	OpDebugImage::drawDoubleFocus();
+void colorLimbs(uint32_t color) {
+	colorLimbRange(0, color);
 }
 
 void colorOpp(uint32_t color) {
@@ -1837,9 +1809,8 @@ void colorOpp(uint32_t color) {
 	OpDebugImage::drawDoubleFocus();
 }
 
-void colorPathsOut(uint32_t color) {
-	pathsOutColor = color;
-	OpDebugImage::drawDoubleFocus();
+void colorTree(uint32_t color) {
+	colorLimbRange(0, color);
 }
 
 #define OP_X(Thing) \
@@ -1853,6 +1824,42 @@ void uncolor##Thing() { \
 	color##Thing(0); \
 }
 COLOR_LIST
+#undef OP_X
+
+#define OP_X(Thing, edgeCheck) \
+void show##Thing() { \
+	for (auto edge : edgeIterator) { \
+		if (edgeCheck) { \
+			edge->debugDraw = true; \
+		} \
+	} \
+	OpDebugImage::drawDoubleFocus(); \
+}
+COLOR_LIST2
+#undef OP_X
+
+#define OP_X(Thing, edgeCheck) \
+void hide##Thing() { \
+	for (auto edge : edgeIterator) { \
+		if (edgeCheck) { \
+			edge->debugDraw = false; \
+		} \
+	} \
+	OpDebugImage::drawDoubleFocus(); \
+}
+COLOR_LIST2
+#undef OP_X
+
+#define OP_X(Thing, edgeCheck) \
+void toggle##Thing() { \
+	for (auto edge : edgeIterator) { \
+		if (edgeCheck) { \
+			edge->debugDraw ^= true; \
+		} \
+	} \
+	OpDebugImage::drawDoubleFocus(); \
+}
+COLOR_LIST2
 #undef OP_X
 
 void color(int id) {
@@ -1928,6 +1935,24 @@ void OpContext::debugLimbClear() {
 			}
 		}
 	}
+}
+
+void OpContext::debugLimbColor(int lastLimbID, uint32_t color) {
+	if (!debugTree)
+		return;
+	for (int index = 0; index < debugTree->totalUsed; ++index) {
+		const OpLimb& limb = debugNthLimb(index);
+		if (!lastLimbID && limb.id > lastLimbID)
+			continue;
+		OpEdge* test = limb.edge;
+		test->debugCustom = color;
+		test->debugDraw = true;
+	}
+	OpDebugImage::drawDoubleFocus();
+}
+
+void colorLimbRange(int lastLimbID, uint32_t color) {
+	debugGlobalContext->debugLimbColor(lastLimbID, color);
 }
 
 int OpContext::debugLimbIndex(const OpEdge* edge) const {

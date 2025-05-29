@@ -225,6 +225,7 @@ struct OpContext {
 #endif
 #if OP_DEBUG_IMAGE
 	void debugLimbClear();
+	void debugLimbColor(int lastLimbID, uint32_t color);
 	int debugLimbIndex(const OpEdge* ) const;
 #endif
 
