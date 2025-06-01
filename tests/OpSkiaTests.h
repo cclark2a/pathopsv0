@@ -3,7 +3,7 @@
 #define OpSkiaTests_DEFINED
 
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
-#define SKIP_TO_FILE "tiger"   // "quad" // e.g., "simplify"  one file
+#define SKIP_TO_FILE ""   // "quad" // e.g., "simplify"  one file
 #define TEST_FIRST "tiger8b_x2" // e.g., "testQuads23839519" if file, one test
 #define TEST_EXTENDED 1
 #define TEST_SKIA 1

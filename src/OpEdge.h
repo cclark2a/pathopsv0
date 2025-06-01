@@ -72,9 +72,7 @@ enum class RayOrder : uint8_t {
 };
 
 struct EdgePal {
-	EdgePal(OpEdge* e, float c, float tIn, bool reversed);
-	EdgePal(OpEdge* e, float c, float tIn);  // when winder can't resolve order
-	EdgePal(OpEdge* e, int uID); //  when edge maker is between unsectables
+	EdgePal(OpEdge* e, int uID, bool reversed);
 	OpPoint matchPt(EdgeMatch ) const;
 
 #if OP_DEBUG_DUMP
@@ -83,13 +81,26 @@ struct EdgePal {
 #endif
 
 	OpEdge* edge;
+	int unsectID;  // unsect id from sect in edge's segment, if any; or unique ID if missing
+	bool reversed;
+};
+
+struct Distance {
+	Distance(OpEdge* e, float c, float tIn);
+
+#if OP_DEBUG_DUMP
+	Distance();
+	DUMP_DECLARATIONS
+#endif
+
+	OpEdge* edge;
+	RayOrder rayOrder = RayOrder::uninitialized;  // note if computed sum can't be used because distance entries are unordered
 	float cept;  // where normal intersects edge (e.g. for home, axis horz: center.x)
 	float edgeInsideT;  // !!! t value from 0 to 1 within edge range (seems bizarre)
-	RayOrder rayOrder = RayOrder::uninitialized;  // note if computed sum can't be used because distance entries are unordered
-	int unsectID;  // unsect id from sect in edge's segment, if any; or unique ID if missing
-	bool reversed = false;
 	bool dependent = false;  // set if edge contains dependencies (i.e., get sum winding from edge)
+	bool reversed = false;
 	bool over = false;  // set if edge is home, or edge cept is close to or greater than home cept
+	OP_DEBUG_CODE(int debugID);
 };
 
 enum class FindCept {
@@ -139,7 +150,8 @@ struct SectRay {
 //	bool addCoinContours(OpWinder* );
 	bool addContainers(OpEdge* add, OpEdge* home);
 	bool addDependentContours(OpWinder* );
-	void addDistance(OpEdge* , float xy, float root, bool reversed);
+	void addDistance(OpEdge* , float xy, float root, bool reversed  
+			OP_DEBUG_PARAMS(OpEdge* debugParent));
 	void addPals(OpEdge* );
 	bool canSetSum(const OpEdge* ) const;
 	bool checkAdd(OpEdge* toAdd);
@@ -147,16 +159,16 @@ struct SectRay {
 	RayOrder checkOrder(const OpEdge* );
 	void markDependents(OpEdge* edge);
 	bool cull();  // remove distances further from home than first dependent
-	const EdgePal* end(DistEnd e) const {
+	const Distance* end(DistEnd e) const {
 		return DistEnd::front == e ? &distances.front() : &distances.back(); }
 	FindCept findCept(OpEdge* , OpEdge* test);
 	FindCept findIntercept(OpWinder* , OpEdge* test);
-	EdgePal* find(const OpEdge* );  // returns edge in distances
+	Distance* find(const OpEdge* );  // returns edge in distances
 	bool incomplete() const;
 	bool isOrdered(size_t index);  // false if dist edge and neighbors are reversed elsewhere
 //	bool missingContour(OpWinder* , OpEdge* ) const;
 //	bool missingContour(OpWinder* , OpSegment* ) const;
-	const EdgePal* next(const EdgePal* dist, DistEnd e) const {
+	const Distance* next(const Distance* dist, DistEnd e) const {
 		return dist + (int) e; }
 	bool sectsAllPals(const OpEdge* ) const;  // returns if edge + all of its pals are in distances
 	void sort();
@@ -165,7 +177,7 @@ struct SectRay {
 	OP_DEBUG_DUMP_CODE(std::string debugDumpHeader(DebugLevel l, DebugBase b) const);
 
 	RayTargets targets;
-	std::vector<EdgePal> distances;
+	std::vector<Distance> distances;
 //	std::vector<OpContour*> containers;  // extra contours that affect home's winding sum
 	OpVector homeTangent;  // used to determine if unsectable edge is reversed
 	float normal = OpNaN;  // ray used to find windings on home edge (e.g., axis: h, center.y)
@@ -359,7 +371,9 @@ public:
 	OpEdge(OpSegment* , float t1, float t2  OP_LINE_FILE_ARGS());
 
 	CalcFail addIfUR(Axis xis, float t, OpWinding* ) const;
-	void addPal(const EdgePal& );
+	void addPal(OpEdge* , int uid, bool reversed);
+	void addPal(Distance* d) {
+		addPal(d->edge, 0, d->reversed); }
 	CalcFail addSub(OpContour* winderOwner, Axis axis, float t, OpWinding* ) const;
 	OpEdge* advanceToEnd(EdgeMatch );
 	void apply();

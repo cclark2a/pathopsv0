@@ -129,39 +129,45 @@ void OpHulls::sort(bool useSmall) {
 	});
 }
 
-EdgePal::EdgePal(OpEdge* e, float c, float tIn, bool r)
+Distance::Distance(OpEdge* e, float c, float tIn)
 	: edge(e)
 	, cept(c)
 	, edgeInsideT(tIn)
-	, unsectID(0)
-	, reversed(r)
-	, dependent(false)
-	, over(false) {
+	, reversed(false) {
+	OP_DEBUG_CODE(debugID = e->context()->nextID());
 }
 
+#if 0
 EdgePal::EdgePal(OpEdge* e, float c, float tIn)
 	: edge(e)
 	, cept(c)
 	, edgeInsideT(tIn)
 	, unsectID(0) {
 }
+#endif
 
-EdgePal::EdgePal(OpEdge* e, int uID)
+EdgePal::EdgePal(OpEdge* e, int uID, bool r)
 	: edge(e)
-	, cept(OpNaN)
-	, edgeInsideT(OpNaN)
-	, unsectID(uID) {
+	, unsectID(uID)
+	, reversed(r) {
 }
 
 #if OP_DEBUG_DUMP
+Distance::Distance()
+	: edge(nullptr)
+	, rayOrder((RayOrder) -1)
+	, cept(OpDebugNaN)
+	, edgeInsideT(OpDebugNaN)	
+	, dependent((bool) -1)
+	, reversed((bool) -1)
+	, over((bool) -1)
+	, debugID(-1) {
+}
+
 EdgePal::EdgePal()
 	: edge(nullptr)
-	, cept(OpDebugNaN)
-	, edgeInsideT(OpDebugNaN)
-	, rayOrder((RayOrder) -1)
-	, unsectID(-1)
-	, reversed((bool) -1)
-	, dependent((bool) -1) {
+	, unsectID(0)
+	, reversed((bool) -1) {
 }
 #endif
 
@@ -294,19 +300,18 @@ CalcFail OpEdge::addIfUR(Axis axis, float edgeInsideT, OpWinding* sumWinding) co
 	return CalcFail::none;
 }
 
-void OpEdge::addPal(const EdgePal& dist) {
+void OpEdge::addPal(OpEdge* edge, int uID, bool reversed) {
 	auto palIter = std::find_if(pals.begin(), pals.end(), 
-			[dist](const auto& pal) { return dist.edge == pal.edge; });
+			[edge](const auto& pal) { return edge == pal.edge; });
 	if (pals.end() == palIter) {
-		pals.push_back(dist);
+		pals.emplace_back(edge, uID, reversed);
 		palIter = pals.end() - 1;
 		segment->hasPals = true;
 		segment->contour->hasPals = true;
 	}
-	auto& oPals = dist.edge->pals;
+	auto& oPals = edge->pals;
 	auto distIter = std::find_if(oPals.begin(), oPals.end(), 
 			[this](auto oPal) { return oPal.edge == this; });
-	int uID = palIter->unsectID;
 	if (!uID && oPals.end() != distIter)
 		uID = distIter->unsectID;
 	if (!uID)
@@ -507,7 +512,7 @@ void OpEdge::markPals() {
 	for (EdgePal& pal : pals) {
 		for (auto& dist : ray.distances) {
 			if (pal.edge == dist.edge)
-				addPal(dist);
+				addPal(dist.edge, 0, dist.reversed);
 		}
 	}
 }
@@ -533,7 +538,7 @@ void OpEdge::output(bool closed) {
 	bool reverse = false;
 	bool abort = false;
 	// returns true if reverse/no reverse criteria found
-	auto test = [&reverse, &abort](const EdgePal* outer, const EdgePal* inner) {
+	auto test = [&reverse, &abort](const Distance* outer, const Distance* inner) {
 		if (!outer->edge->inOutput && !outer->edge->inLinkups)
 			return false;
 		// reverse iff normal direction of inner and outer match and outer normal points to nonzero
@@ -568,7 +573,7 @@ void OpEdge::output(bool closed) {
 	do {
 	//	OP_ASSERT(!edge->inOutput);	// !!! cubic714074 triggers with very small edge, used twice
 		unsigned index;
-		const EdgePal* inner = nullptr;
+		const Distance* inner = nullptr;
 		for (index = 0; index < edge->ray.distances.size(); ++index) {
 			inner = &edge->ray.distances[index];
 			if (inner->edge == edge)
@@ -577,7 +582,7 @@ void OpEdge::output(bool closed) {
 		OP_ASSERT(!index || index < edge->ray.distances.size());
 		if (index == 0)  // if nothing to its left, don't reverse
 			break;
-		const EdgePal* outer = &edge->ray.distances[index - 1];
+		const Distance* outer = &edge->ray.distances[index - 1];
 		if (test(outer, inner))
 			break;
 		edge = edge->nextEdge;

@@ -2239,14 +2239,30 @@ std::string EdgePal::debugDump(DebugLevel l, DebugBase b) const {
 		s += "seg[" + STR(edge->segment->id) + "] ";
 	if (edge->segment)
 		s += "contour[" + STR(edge->segment->contour->id) + "] ";
+    if (unsectID)
+		s += "unsectID:" + STR(unsectID) + " ";
+    if (reversed) 
+        s += DebugLevel::brief != l ? "reversed " : "r ";
+    if (DebugLevel::detailed == l)
+		s += edge->debugDumpWinding() + " ";
+    if (!s.empty())
+        s.pop_back();
+    return s;
+}
+
+std::string Distance::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s;
+    s += "edge[" + debugDumpID() + "] ";
+	if (DebugLevel::detailed == l && edge->segment)
+		s += "seg[" + STR(edge->segment->id) + "] ";
+	if (edge->segment)
+		s += "contour[" + STR(edge->segment->contour->id) + "] ";
     if (!OpMath::IsNaN(cept))
         s += debugValue(l, b, "cept", cept) + " ";
     if (!OpMath::IsNaN(edgeInsideT))
         s += debugValue(l, b, "edgeInsideT", edgeInsideT) + " ";
     if (RayOrder::uninitialized != rayOrder)
 		s += "rayOrder:" + rayOrderName(rayOrder) + " ";
-    if (unsectID)
-		s += "unsectID:" + STR(unsectID) + " ";
     if (reversed) 
         s += DebugLevel::brief != l ? "reversed " : "r ";
     if (dependent) 
@@ -2266,15 +2282,26 @@ std::string EdgePal::debugDumpID() const {
     return s;
 }
 
+std::string Distance::debugDumpID() const {
+    std::string s;
+    s += STR(edge->id);
+    return s;
+}
+
 void EdgePal::dumpSet(const char*& str) {
+    OpDebugRequired(str, "edge");
+    edge = (OpEdge*) OpDebugReadSizeT(str);
+    if (OpDebugOptional(str, "unsectID"))
+        unsectID = (int) OpDebugReadSizeT(str);
+}
+
+void Distance::dumpSet(const char*& str) {
     OpDebugRequired(str, "edge");
     edge = (OpEdge*) OpDebugReadSizeT(str);
     if (OpDebugOptional(str, "cept"))
         cept = OpDebugHexToFloat(str);
     if (OpDebugOptional(str, "edgeInsideT"))
         edgeInsideT = OpDebugHexToFloat(str);
-    if (OpDebugOptional(str, "unsectID"))
-        unsectID = (int) OpDebugReadSizeT(str);
     if (OpDebugOptional(str, "r"))
         reversed = true;
 }
@@ -3603,7 +3630,7 @@ std::string SectRay::debugDump(DebugLevel l, DebugBase b) const {
     std::string s = debugDumpHeader(l, b) + "\n ";  // indent
 	s += targets.debugDump(l, b);
 	s += DebugLevel::detailed == l ? "\n" : " ";
-    for (const EdgePal& dist : distances) {
+    for (const Distance& dist : distances) {
 		if (DebugLevel::detailed == l)
 			s += " ";  // indent
         s += dist.debugDump(DebugLevel::detailed == l ? l : DebugLevel::brief, b);

@@ -821,10 +821,10 @@ void OpContour::debugMatchRay() {
                 continue;
             if (linkup->disabled)
                 continue;
-            const EdgePal* linkDist = nullptr;
+            const Distance* linkDist = nullptr;
             OpEdge* dTest = nullptr;
-            OP_DEBUG_CODE(const EdgePal* dDist = nullptr);
-            for (const EdgePal* dist = &linkup->ray.distances.back(); 
+            OP_DEBUG_CODE(const Distance* dDist = nullptr);
+            for (const Distance* dist = &linkup->ray.distances.back(); 
                     dist >= &linkup->ray.distances.front(); --dist) {
                 OpEdge* test = dist->edge;
                 if (test == linkup) {
