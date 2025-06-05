@@ -23,10 +23,13 @@ extended: all tests run 11/9/24 exceptions: grshapearc (total run:74600014 v0 on
    but uses earlier retained inside winding (incorrect). Can the descrepency be detected so that 
    edges involved can be marked as unsectable or unsortable?
    
-tests run:73859160 12/17/2024
+tests run: 73859160 12/17/2024
  thread_cubics1585153 in "cubic" breaks intersection sort (segment 7) two end coins (opp seg:3)
    sects:[0] id=224 unsect:-276s [2] id:282 coin:330e(!)  [3] id:147 unsect:-177s [4] id:179 unsect:-177e
          [5] id=278 coin:362s unsect:-276e [9] id:280 coin:330e [10] id:225 coin:362e
+
+tests run: 68135597  6/1/2025 fails in tiger8b_x372506 : winding 'setPrior()' recurses on itself
+           71733769  6/3/2025 fails in cubic129075 : filler too large
 */
 
 #if OP_TINY_SKIA
@@ -105,6 +108,8 @@ std::atomic_int testsSkipped;
 std::atomic_int totalSkipped;
 std::atomic_int silentError;
 std::atomic_int totalError;
+std::atomic_int treeError;
+std::atomic_int gapError;
 std::atomic_int testsFailSkiaPass;
 std::atomic_int totalFailSkiaPass;
 std::atomic_int testsPassSkiaFail;
@@ -182,6 +187,8 @@ void initTests(std::string filename) {
                 + " v0:" + STR(testsPassSkiaFail) + " sk:" + STR(testsFailSkiaPass)
                 + " total run:" + STR(totalRun) + " skipped:" + STR(totalSkipped)
                 + " err:" + STR(totalError)
+                + " treeErr:" + STR(treeError)
+                + " gapErr:" + STR(gapError)
                 + " v0:" + STR(totalPassSkiaFail) + " sk:" + STR(totalFailSkiaPass) + "\n");
     currentTestFile = filename;
     testsRun = 0;
@@ -330,6 +337,8 @@ void runTests() {
     if (testsRun || testsSkipped)
         OpDebugOut("total run:" + STR(testsRun) + " skipped:" + STR(testsSkipped) 
             + " errors:" + STR(totalError)
+            + " treeErr:" + STR(treeError)
+            + " gapErr:" + STR(gapError)
             + " v0 only:" + STR(testsPassSkiaFail) + " skia only:" + STR(testsFailSkiaPass) + "\n");
 }
 
@@ -554,7 +563,10 @@ void trackError(PathOpsV0Lib::ContextError contextError) {
 			++silentError; 
 			break;
 		case PathOpsV0Lib::ContextError::tree:
-
+			++treeError;
+			break;
+		case PathOpsV0Lib::ContextError::gap:
+			++gapError;
 			break;
 		default:
 			OP_ASSERT(0);

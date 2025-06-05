@@ -507,14 +507,14 @@ void OpCurveCurve::debugBoundedEdge(OpSegment* segm, const OpPointBounds& sectBo
 		minusPt = c.ptAtT(minT - OpEpsilon * factor);
 		plusPt  = c.ptAtT(minT + OpEpsilon * factor);
 	} while (sectBounds.contains(minusPt) == isIn && sectBounds.contains(plusPt) == isIn
-			&& ++factor < 256);
+			&& ++factor < 65536);
 	if (factor <= maxBoundedT)
 		return;
 	OpDebugOut("debugBoundedEdge seg[" + STR(segm->id) + "] opp[");
 	OpDebugOut(STR(segm == seg ? opp->id : seg->id) + "] sectBounds");
 	OP_DEBUG_DUMP_CODE(sectBounds.dump());
 	OpDebugOut(" m" + inax + "T:" + STR(minT));
-	if (factor >= 256)
+	if (factor >= 65536)
 		OpDebugOut(" !!! max");
 	OpDebugOut(" factor:" + STR(factor) + "\n"); 
 }
@@ -704,6 +704,8 @@ void OpIntersection::debugCoinValidate() const {
 	int segEnd = 0;
 	int oppStart = 0;
 	int oppEnd = 0;
+	CoinOpp segCO = (CoinOpp) -1;  // !!! add uninitialized state?
+	CoinOpp oppCO = (CoinOpp) -1;
 	OP_ASSERT(coincidenceID);
 	for (auto seg : { segment, opp->segment } ) {
 		for (auto sect : seg->sects.i) {
@@ -715,11 +717,15 @@ void OpIntersection::debugCoinValidate() const {
 				++segCnt;
 				segStart += MatchEnds::start == sect->coinEnd;
 				segEnd += MatchEnds::end == sect->coinEnd;
+				OP_ASSERT(segCO == (CoinOpp) -1 || segCO == sect->coinOpp);
+				segCO = sect->coinOpp;
 			}
 			if (sect->segment == opp->segment) {
 				++oppCnt;
 				oppStart += MatchEnds::start == sect->coinEnd;
 				oppEnd += MatchEnds::end == sect->coinEnd;
+				OP_ASSERT(oppCO == (CoinOpp) -1 || oppCO == sect->coinOpp);
+				oppCO = sect->coinOpp;
 			}
 			for (int inner = 0; inner < used; ++inner) {
 				if (coins[inner]->ptT.pt == coins[used]->ptT.pt) {
@@ -737,6 +743,9 @@ void OpIntersection::debugCoinValidate() const {
 	OP_ASSERT(1 == segEnd);
 	OP_ASSERT(1 == oppStart);
 	OP_ASSERT(1 == oppEnd);
+	OP_ASSERT(segCO != (CoinOpp) -1);
+	OP_ASSERT(oppCO != (CoinOpp) -1);
+	OP_ASSERT(segCO != oppCO);
 	for (int index = 0; index < 4; ++index)
 		OP_ASSERT(0 <= match[index] && match[index] < 4);
 	for (int index = 0; index < 4; ++index)

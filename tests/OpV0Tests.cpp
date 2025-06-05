@@ -7398,8 +7398,55 @@ path.close();
     testSimplify(reporter, path, filename);
 }
 
+void tiger8b_x372506(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 0);
+path.conicTo(494.365143f, 224.633194f, 494.376404f, 224.684067f, 0.998645842f);
+path.quadTo(494.334961f, 224.538284f, 494.355774f, 224.605927f);
+path.quadTo(493.449341f, 221.885803f, 494.348663f, 224.583771f);
+    testSimplify(reporter, path, filename);
+}
+
+void cubic1548433(skiatest::Reporter* reporter, const char* filename) {
+    SkPath pathA, path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 6);
+path.cubicTo(1, 6, 5, 1, 5, 1);
+path.lineTo(1, 6);
+path.close();
+    pathA = path;
+    path.reset();
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 5);
+path.cubicTo(1, 5, 6, 1, 6, 1);
+path.lineTo(1, 5);
+path.close();
+    testPathOp(reporter, pathA, path, SkPathOp::kDifference_SkPathOp, filename);
+}
+
+void cubic1548865(skiatest::Reporter* reporter, const char* filename) {
+    SkPath pathA, path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 6);
+path.cubicTo(1, 6, 6, 1, 4, 3);
+path.lineTo(1, 6);
+path.close();
+    pathA = path;
+    path.reset();
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(1, 6);
+path.cubicTo(3, 4, 6, 1, 6, 1);
+path.lineTo(1, 6);
+path.close();
+    testPathOp(reporter, pathA, path, SkPathOp::kDifference_SkPathOp, filename);
+}
+
 static struct TestDesc tests[] = {
-    TEST(testLine480849),
+    TEST(cubic1548865),
+	TEST(cubic1548433),
+    TEST(tiger8b_x372506),
+	TEST(testLine480849),
 	TEST(testQuads25988731),
     TEST(testQuads11553625),
 	TEST(testLine480899),

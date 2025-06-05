@@ -176,13 +176,15 @@ OpIntersection* OpSegment::addSegSect(const OpPtT& ptT, const OpSegment* oSeg
 	return addSegBase(ptT  OP_LINE_FILE_CALLER(oSeg));
 }
 
-OpIntersection* OpSegment::addCoin(const OpPtT& ptT, int coinID, MatchEnds coinEnd, 
+OpIntersection* OpSegment::addCoin(const OpPtT& ptT, int coinID, MatchEnds coinEnd, CoinOpp coinOpp,
 		const OpSegment* oSeg  OP_LINE_FILE_ARGS()) {
 		// !!! commented out still may be necessary, but contains may need to be coinContains?
 //	if (sects.contains(ptT, oSeg))  // triggered by fuzz763_13
 //		return nullptr;
-	return sects.add(contour->addCoinSect(ptT, this, coinID, coinEnd  
-			OP_LINE_FILE_CALLER(oSeg)));
+	OpIntersection* next = contour->context->allocateIntersection();
+	next->set(ptT, this  OP_LINE_FILE_CALLER(id, oSeg->id));
+	next->setCoin(coinID, coinEnd, coinOpp);  // 0 if no coincidence; neg if coin pairs are reversed
+	return sects.add(next);
 }
 
 OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int usectID, MatchEnds end,
@@ -315,16 +317,17 @@ void OpSegment::betweenIntersections() {
 		bool cFlipped = miss.cStart.t > ptTc.t;
 		int coinID = miss.segC->coinID(cFlipped != aFlipped);
 		auto setSect = [coinID](OpIntersection*& cInA, const OpPtT& aPtT,
-				OpSegment* segA, MatchEnds match, OpSegment* segC  OP_LINE_FILE_ARGS()) {
+				OpSegment* segA, MatchEnds match, CoinOpp coinOpp, OpSegment* segC  
+				OP_LINE_FILE_ARGS()) {
 			if (cInA)
-				cInA->setCoin(coinID, match);
+				cInA->setCoin(coinID, match, cInA->segment == segA ? coinOpp : !coinOpp);
 			else
-				cInA = segA->addCoin(aPtT, coinID, match, segC  OP_LINE_FILE_PARGS());
+				cInA = segA->addCoin(aPtT, coinID, match, coinOpp, segC  OP_LINE_FILE_PARGS());
 		};
-		setSect(miss.aSSect, miss.aStart, segA, MatchEnds::start, segC  OP_LINE_FILE_PARGS());
-		setSect(miss.cSSect, miss.cStart, segC, MatchEnds::start, segA  OP_LINE_FILE_PARGS());
-		setSect(aInC, ptTa, segA, MatchEnds::end, segC  OP_LINE_FILE_PARGS());
-		setSect(cInA, ptTc, segC, MatchEnds::end, segA  OP_LINE_FILE_PARGS());
+		setSect(miss.aSSect, miss.aStart, segA, MatchEnds::start, CoinOpp::no, segC  OP_LINE_FILE_PARGS());
+		setSect(miss.cSSect, miss.cStart, segC, MatchEnds::start, CoinOpp::yes, segA  OP_LINE_FILE_PARGS());
+		setSect(aInC, ptTa, segA, MatchEnds::end, CoinOpp::no, segC  OP_LINE_FILE_PARGS());
+		setSect(cInA, ptTc, segC, MatchEnds::end, CoinOpp::yes, segA  OP_LINE_FILE_PARGS());
 		if (miss.aSSect->segment != aInC->segment)
 			std::swap(aInC, cInA);
 		if (aFlipped)
@@ -845,7 +848,7 @@ bool OpSegment::moveWinding(OpSegment* opp, bool backwards) {
 	opp->winding.zero(contour->context);
 	opp->setDisabled(OP_LINE_FILE_NPARGS());
 	OpContour* oContour = opp->contour;
-	contour->addCoin(oContour);
+	contour->addMerge(oContour);
 	if (winding.visible(contour->context)) {
 #if 0
 		if (oContour != contour && coinContours.end() == std::find(coinContours.begin(),
@@ -995,7 +998,7 @@ void OpSegment::transferCoins() {
 				edge.winding.move(contour->context, oEdge.winding, cID < 0);
 				oEdge.winding.zero(contour->context);
 				oEdge.setDisabled(OP_LINE_FILE_NPARGS());
-				contour->addCoin(oSeg->contour);
+				contour->addMerge(oSeg->contour);
 				if (edge.winding.visible(contour->context))
 					break;
 				edge.setDisabled(OP_LINE_FILE_NPARGS());

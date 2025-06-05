@@ -352,6 +352,18 @@ bool OpContext::containsFiller(int ccUnsectableID) const {
 	return fillerStorage->contains(ccUnsectableID);
 }
 
+bool OpContext::containsPals(OpEdge* edge, int totalLimbs) {
+	for (const EdgePal& edgePal : edge->pals) {
+		int index = 0;
+		do {
+			OpLimb& limb = nthLimb(index);
+			if (limb.edge == edgePal.edge)
+				return true;
+		} while (++index < totalLimbs);
+	}
+	return false;
+}
+
 #if 0
 void OpContext::demotePalLinks() {
 	for (auto contour : contours) {

@@ -36,9 +36,10 @@ struct OpJoiner {
 	bool linkRemaining(OpContour* );
 	void linkUnambiguous(OpContour* , LinkPass );
 	static OpEdge* LinkStart(OpEdge *);
-	bool matchLinks(bool popLast);
+	bool matchLinks(OpContour* , bool popLast);
 	bool setup();
 	void sort();
+	bool unsectableLink(OpContour* , OpPoint start, OpPoint end);
 #if OP_DEBUG
 	static bool DebugShowImage();
 #endif

@@ -5,11 +5,6 @@
 #include "OpWinder.h"
 #include <utility>
 
-enum class IsOpp {
-	no,
-	yes
-};
-
 enum class IsCoin {
 	no,
 	yes
@@ -427,7 +422,7 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
 	maxShallow = cb.maxShallowFuncPtr ? cb.maxShallowFuncPtr(s->c.c, o->c.c) : 8;
 	maxSplits = cb.maxSplitsFuncPtr ? cb.maxSplitsFuncPtr(s->c.c, o->c.c) : 8;
 	maxBoundedEdge = cb.maxBoundedEdgeFuncPtr ? cb.maxBoundedEdgeFuncPtr(s->c.c) : 2.0f;
-	maxBoundedT = cb.maxBoundedTFuncPtr ? cb.maxBoundedTFuncPtr(s->c.c) : 8.f;
+	maxBoundedT = cb.maxBoundedTFuncPtr ? cb.maxBoundedTFuncPtr(s->c.c) : 16384.f; // !!! was 8.f; cubic143299
 	matchRev = seg->matchEnds(opp);
 	smallTFound = MatchEnds::start & matchRev.match;
 	largeTFound = MatchEnds::end & matchRev.match;
@@ -554,27 +549,27 @@ bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 	if (sect1.o && sect1.o == sect2.o)
 		return false;
 	int usectID = seg->nextID();
-	auto idEnds = [usectID, &match, isCoin](IsOpp isOpp) {
+	auto idEnds = [usectID, &match, isCoin](CoinOpp isOpp) {
 		IdEnds idEnds {
-			match.reversed && (IsOpp::yes == isOpp || IsCoin::yes == isCoin) ? -usectID : usectID,
-			IsOpp::yes == isOpp && match.reversed ? !match.match : match.match };
+			match.reversed && (CoinOpp::yes == isOpp || IsCoin::yes == isCoin) ? -usectID : usectID,
+			CoinOpp::yes == isOpp && match.reversed ? !match.match : match.match };
 		return idEnds;
 	};
-	auto setSect = [isCoin, idEnds](OpIntersection* sect, IsOpp isOpp) {
+	auto setSect = [isCoin, idEnds](OpIntersection* sect, CoinOpp isOpp) {
 		IdEnds ie = idEnds(isOpp);
 		if (IsCoin::yes == isCoin)
-			sect->setCoin(ie.id, ie.matchEnds);
+			sect->setCoin(ie.id, ie.matchEnds, isOpp);
 		else {
 			sect->setUnsect(ie.id, ie.matchEnds);
 			sect->ccUnsectable = true;
 		}
 	};
 	auto addSect = [isCoin, idEnds](OpSegment* segs, OpSegment* opps, const OpPtT& start, 
-			IsOpp isOpp  OP_LINE_FILE_ARGS()) {
+			CoinOpp isOpp  OP_LINE_FILE_ARGS()) {
 		IdEnds ie = idEnds(isOpp);
 		OpIntersection* result;
 		if (IsCoin::yes == isCoin)
-			result = segs->addCoin(start, ie.id, ie.matchEnds, opps  OP_LINE_FILE_CARGS());
+			result = segs->addCoin(start, ie.id, ie.matchEnds, isOpp, opps  OP_LINE_FILE_CARGS());
 		else {
 			result = segs->addUnsectable(start, ie.id, ie.matchEnds, opps  OP_LINE_FILE_CARGS());
 			result->ccUnsectable = true;
@@ -585,11 +580,11 @@ bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 	};
 	auto addPair = [this, addSect, setSect](SectDuo sPair, const OpPtT& ePtT, const OpPtT& oPtT) {
 		if (sPair.s) {
-			setSect(sPair.s, IsOpp::no);
-			setSect(sPair.o, IsOpp::yes);
+			setSect(sPair.s, CoinOpp::no);
+			setSect(sPair.o, CoinOpp::yes);
 		} else {
-			sPair.s = addSect(seg, opp, ePtT, IsOpp::no  OP_LINE_FILE_PARGS());
-			sPair.o = addSect(opp, seg, oPtT, IsOpp::yes  OP_LINE_FILE_PARGS());
+			sPair.s = addSect(seg, opp, ePtT, CoinOpp::no  OP_LINE_FILE_PARGS());
+			sPair.o = addSect(opp, seg, oPtT, CoinOpp::yes  OP_LINE_FILE_PARGS());
 			sPair.s->pair(sPair.o);
 		}
 	};

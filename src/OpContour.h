@@ -20,16 +20,7 @@ enum class RelinkJoins {
 };
 
 struct OpContour {
-	OpIntersection* addEdgeSect(const OpPtT& , OpSegment* seg
-		   OP_LINE_FILE_DEF(const OpEdge* edge, const OpEdge* oEdge));
-	OpIntersection* addCoinSect(const OpPtT& , OpSegment* seg, int cID, MatchEnds 
-			OP_LINE_FILE_DEF(const OpSegment* oSeg));
-	OpIntersection* addSegSect(const OpPtT& , OpSegment* seg
-			OP_LINE_FILE_DEF(const OpSegment* oSeg));
-	OpIntersection* addUnsect(const OpPtT& , OpSegment* seg, int uID, MatchEnds 
-			OP_LINE_FILE_DEF(const OpSegment* oSeg));
-	void addLine(OpPoint pts[2]);
-	bool addQuad(OpPoint pts[3]);
+	void addCoinEdges();
 
 	void addDisjointIntersections() {
 		for (auto& segment : segments) {
@@ -37,12 +28,18 @@ struct OpContour {
 		}
 	}
 
-	void addCoin(OpContour* );  // track coincidence that effectively extend this contour
-	void addCoinEdges();
 	void addEdges();
+	OpIntersection* addEdgeSect(const OpPtT& , OpSegment* seg
+		   OP_LINE_FILE_DEF(const OpEdge* edge, const OpEdge* oEdge));
 	void addJoinEdge(OpJoiner* , OpEdge* );
 	void addLast(OpEdge* );
+	void addLine(OpPoint pts[2]);
+	void addMerge(OpContour* );  // track coincidence that effectively extend this contour
+	OpIntersection* addSegSect(const OpPtT& , OpSegment* seg
+			OP_LINE_FILE_DEF(const OpSegment* oSeg));
 	void addToLinkups(OpJoiner* , OpEdge* );
+	OpIntersection* addUnsect(const OpPtT& , OpSegment* seg, int uID, MatchEnds 
+			OP_LINE_FILE_DEF(const OpSegment* oSeg));
 
 	void apply() {
 		for (auto& segment : segments) {
@@ -60,6 +57,7 @@ struct OpContour {
 	void buildCenterless();
 	void buildPals();
 	bool detachIfLoop(OpJoiner* , OpEdge* , EdgeMatch loopEnd);
+	bool disabledPal(OpPoint, OpPoint) const;  // !!! bare minimum to fix cubic129075 (experiment)
 
 	void findMissingEnds() {
 		for (auto& segment : segments) {

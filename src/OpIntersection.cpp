@@ -3,9 +3,10 @@
 #include "OpContext.h"
 #include "OpSegment.h"
 
-void OpIntersection::setCoin(int cid, MatchEnds end) {
+void OpIntersection::setCoin(int cid, MatchEnds end, CoinOpp co) {
 	coincidenceID = cid;
 	coinEnd = end;
+	coinOpp = co;
 	segment->hasCoin = true;
 	segment->sects.hasPairs = true;
 	segment->sects.unsorted = true;
@@ -47,7 +48,7 @@ OpIntersection* OpIntersections::contains(const OpPtT& ptT, const OpSegment* opp
 	return nullptr;
 }
 
-OpIntersection* OpIntersections::coinContains(OpPoint pt, const OpSegment* opp, OpPtT* nearby) {
+OpIntersection* OpIntersections::coinContains(OpPoint pt, const OpSegment* opp, OpPtT* nearby) const {
 	OpIntersection* match = coinContains(pt, opp);
 	if (match)
 		return match;
@@ -70,7 +71,7 @@ OpIntersection* OpIntersections::coinContains(OpPoint pt, const OpSegment* opp, 
 	return match;
 }
 
-OpIntersection* OpIntersections::coinContains(OpPoint pt, const OpSegment* opp) {
+OpIntersection* OpIntersections::coinContains(OpPoint pt, const OpSegment* opp) const {
 	for (unsigned index = 0; index < i.size(); ++index) {
 		OpIntersection* sect = i[index];
 		if (!sect->coincidenceID || !sect->opp || sect->opp->segment != opp)
@@ -191,9 +192,9 @@ void OpIntersections::coinRange(OpEdge& edge, OpSegment* opp, bool reversed) {
 	OpIntersection* coinStart = nullptr;
 	OpIntersection* coinEnd = nullptr;
 	auto setCoin = [&coinID, reversed](OpIntersection* sect, MatchEnds matchEnd) {
-		sect->setCoin(coinID, matchEnd);
+		sect->setCoin(coinID, matchEnd, CoinOpp::no);
 		MatchReverse matchReverse { matchEnd, reversed };
-		sect->opp->setCoin(coinID, matchReverse.flipped());
+		sect->opp->setCoin(coinID, matchReverse.flipped(), CoinOpp::yes);
 		return sect;
 	};
 	for (OpIntersection* sect : i) {

@@ -222,6 +222,7 @@ void SectRay::addPals(OpEdge* home) {
 // consider writing more complex test to detect if edge between pals is not a pal
 //			OP_ASSERT(abs(homeDist - testDist) == 1);
 		}
+		return true;
 	};
 	Distance* homeDist = find(home);
 	Distance* test = homeDist;
@@ -230,17 +231,37 @@ void SectRay::addPals(OpEdge* home) {
 	bool priorIsPal = false;
 	while (test > &distances.front() && (--test)->cept >= lowLimit) {
 		OP_ASSERT((test + 1)->cept >= test->cept);
-		matchCept(test);
-		priorIsPal = true;
+		priorIsPal = matchCept(test);
 	}
+#if 0
+	if (!priorIsPal && homeDist > &distances.front()) {  // check order
+		OpEdge* priorEdge = (homeDist - 1)->edge;
+		if (priorEdge->ray.distances.size() > 1 && priorEdge->ray.axis == axis) {
+			Distance* priorDist = priorEdge->ray.find(priorEdge);
+			OP_ASSERT(priorDist);
+			if (priorDist > &priorEdge->ray.distances.front() && (priorDist - 1)->edge == home)
+				priorIsPal = matchCept(test);
+		}
+	}
+#endif
 	test = homeDist;
 	float highLimit = homeCept + margin;
 	bool nextIsPal = false;
 	while (test < &distances.back() && (++test)->cept <= highLimit) {
 		OP_ASSERT((test - 1)->cept <= test->cept);
-		matchCept(test);
-		nextIsPal = true;
+		nextIsPal = matchCept(test);
 	}
+#if 0
+	if (!nextIsPal && homeDist < &distances.back()) {  // check order
+		OpEdge* nextEdge = (homeDist + 1)->edge;
+		if (nextEdge->ray.distances.size() > 1 && nextEdge->ray.axis == axis) {
+			Distance* nextDist = nextEdge->ray.find(nextEdge);
+			OP_ASSERT(nextDist);
+			if (nextDist < &nextEdge->ray.distances.back() && (nextDist + 1)->edge == home)
+				nextIsPal = matchCept(test);
+		}
+	}
+#endif
 	// if axes are different, and if y-axis edge is oriented nw/se (not ne/sw), reverse
 	auto axesReversed = [home](OpEdge* test) {
 		if (test->ray.axis == home->ray.axis)
@@ -314,9 +335,7 @@ RayOrder SectRay::checkClose(const OpEdge* home) const {
 }
 
 // check if pair of rays contributing to home are reversed from their own ray order (informative)
-// check if distance adjacent to home is too close to safely determine the ray order (actionable)
-RayOrder SectRay::checkOrder(const OpEdge* home) {
-	RayOrder result = RayOrder::ok;
+void SectRay::checkOrder(const OpEdge* home) {
 	for (Distance* dist = &distances.front(); (dist + 1)->edge != home; ++dist) {
 		OpEdge* prior = dist->edge;
 		OpEdge* last = (dist + 1)->edge;
@@ -325,36 +344,34 @@ RayOrder SectRay::checkOrder(const OpEdge* home) {
 			continue;
 		if (last->ray.distances.size() > 1 && last->ray.axis == axis) {
 			Distance* lastDist = last->ray.find(last);
+			OP_ASSERT(lastDist);
 			if (lastDist < &last->ray.distances.back() && (lastDist + 1)->edge == prior) {
 				dist->rayOrder = RayOrder::unordered;
 				(dist + 1)->rayOrder = RayOrder::unordered;
 				OP_DEBUG_CODE(lastDist->edge->debugUnordered = true);
 				OP_DEBUG_CODE((lastDist + 1)->edge->debugUnordered = true);
-				result = RayOrder::unordered;
 			}
 		}
 		if (prior->ray.distances.size() > 1 && prior->ray.axis == axis) {
 			Distance* priorDist = prior->ray.find(prior);
+			OP_ASSERT(priorDist);
 			if (priorDist > &prior->ray.distances.front() && (priorDist - 1)->edge == last) {
 				dist->rayOrder = RayOrder::unordered;
 				(dist + 1)->rayOrder = RayOrder::unordered;
 				OP_DEBUG_CODE(priorDist->edge->debugUnordered = true);
 				OP_DEBUG_CODE((priorDist - 1)->edge->debugUnordered = true);
-				result = RayOrder::unordered;
 			}
 		}
 	}
-	return result;
 }
 
 Distance* SectRay::find(const OpEdge* edge) {
-	if (distances.empty())
+	auto dIter = std::find_if(distances.begin(), distances.end(), [edge](Distance& test) {
+			return test.edge == edge; });
+	if (dIter == distances.end())
 		return nullptr;
-	for (auto test = &distances.back(); test >= &distances.front(); --test) {
-		if (test->edge == edge)
-			return test;
-	}
-	return nullptr;
+	Distance* edgeDist = &*dIter;
+	return edgeDist;
 }
 
 FindCept SectRay::findCept(OpEdge* edge, OpEdge* test) {
@@ -408,21 +425,18 @@ FindCept SectRay::findCept(OpEdge* edge, OpEdge* test) {
 	return uSectPair ? FindCept::addPal : FindCept::ok;
 }
 
-bool SectRay::isOrdered(size_t index) {
+bool SectRay::isOrdered(size_t index) const {
 	OP_ASSERT(distances.size() > 1);
 	OP_ASSERT(index < distances.size());
-	Distance& distance = distances[index];
+	const Distance& distance = distances[index];
 	auto ordered = [distance](OpEdge* test, bool lessThan) {
-		std::vector<Distance>& testDs = test->ray.distances;
-		auto dIter = std::find_if(testDs.begin(), testDs.end(), [distance](Distance& testD) {
-				return distance.edge == testD.edge; });
-		if (dIter == testDs.end())
+		Distance* testDist = test->ray.find(distance.edge);
+		if (!testDist)
 			return true;
-		auto tIter = std::find_if(testDs.begin(), testDs.end(), [test](Distance& testD) {
-				return test == testD.edge; });
-		OP_ASSERT(tIter != testDs.end());
-		OP_ASSERT(tIter != dIter);
-		return lessThan == (dIter < tIter);
+		Distance* testSelf = test->ray.find(test);
+		OP_ASSERT(testSelf);
+		OP_ASSERT(testDist != testSelf);
+		return lessThan == (testDist < testSelf);
 	};
 	if (0 < index && !ordered(distances[index - 1].edge, false))
 		return false;
@@ -430,31 +444,66 @@ bool SectRay::isOrdered(size_t index) {
 }
 
 // search for dependent
-// if found, remove edges before dependent
+// only allow dependent if it is not too close, it is sectable, and it has the correct axis
+// also check if the proposed dependent has a different order in neighboring distance arrays
+// if dependent is found, remove edges before dependent
 void SectRay::markDependents(OpEdge* edge) {
 	float margin = edge->margin();
-	float last = homeCept;
-	size_t dependentIndex = 0;
 	size_t index = distances.size();
-	while (index-- && distances[index].edge != edge)
+	OP_ASSERT(index >= 2);
+	size_t dependentIndex = index;  // candidate to mark dependent, if smaller than home
+	while (index-- && distances[index].edge != edge)  // find home index
 		OP_ASSERT(index);
+	if (!index)  // do nothing if home is first
+		return;
+	Distance* test = &distances[--index];  // compare test (first to left of, or above) with home
+	OpEdge* testEdge = test->edge;
+	SectRay* testRay = &testEdge->ray;
+	Distance* testSelf = testRay->find(testEdge);  // position in its own distance array
+//	if (!testSelf)  // !!! test's ray wasn't built first, even though it is to the left / above home
+//		return;
+	float testCept = test->cept;
+	OP_ASSERT(testCept <= homeCept);  // assert if needs to be std::min(test.cept, homeCept);
+	if (!OpMath::Equal(testCept, homeCept, margin) && !testEdge->isUnsectable()  // not close
+			&& testRay->axis == edge->ray.axis && testSelf) {
+		Distance* testHome = testRay->find(edge);
+		if (!testHome || testSelf < testHome)
+			dependentIndex = index;
+	}
 	while (index--) {
-		Distance& distance = distances[index];
-		if (!OpMath::Equal(distance.cept, last, margin) && !distance.edge->isUnsectable()
-				 && isOrdered(index)) {
-			if (!dependentIndex) {
-				distance.dependent = true;
-				dependentIndex = index;
-			} else {
-				distances.erase(distances.begin(), distances.begin() + dependentIndex);
-				return;
-			}
-		} else if (dependentIndex) {
-			OP_ASSERT(distances[dependentIndex].dependent);
-			distances[dependentIndex].dependent = false;
-			dependentIndex = 0;
-		}
-		last = std::min(distance.cept, homeCept);
+		Distance& prior = distances[index];  // index is now one to the left of test
+		OpEdge* priorEdge = prior.edge;
+		SectRay* priorRay = &priorEdge->ray;
+		Distance* priorSelf = priorRay->find(priorEdge);
+//		OP_ASSERT(priorSelf);
+		if (!OpMath::Equal(prior.cept, testCept, margin) && !priorEdge->isUnsectable()
+				&& priorRay->axis == testRay->axis && priorSelf) {
+			bool outOfOrder = false;  // if not too close, sectable, same-axis: it's ordered
+			Distance* priorTest = priorRay->find(testEdge);
+			if (priorTest)
+				outOfOrder = priorTest < priorSelf;  // unless prior ray has pair out of order
+			Distance* testPrior = testRay->find(priorEdge);
+			if (testPrior)
+				outOfOrder = testSelf < testPrior;  // unless test ray has pair out of order
+			if (!outOfOrder && distances.size() > dependentIndex)
+				break;  // edge one past dependent is not too close, etc.
+			dependentIndex = index;
+		} else
+			dependentIndex = distances.size();  // need to find dependent and find one to left
+		test = &prior;
+		testEdge = priorEdge;
+		testRay = priorRay;
+		testSelf = priorSelf;
+		OP_ASSERT(prior.cept <= testCept && prior.cept <= homeCept);
+		testCept = prior.cept;  // assert if needs to be std::min(prior.cept, homeCept or testCept);
+	}
+	if (distances.size() <= dependentIndex) 
+		return;
+	test->dependent = true;
+	if (dependentIndex) {
+		// keep distances to be erased in case, later, axis conflict requires them
+		erased.insert(erased.begin(), distances.begin(), distances.begin() + dependentIndex);
+		distances.erase(distances.begin(), distances.begin() + dependentIndex);
 	}
 }
 
@@ -552,12 +601,14 @@ struct SectPair {
 		if (!isBaseSegment)
 			std::swap(segMatch.match, oppMatch);
 		if (seg.sect && opp.sect && !seg.sect->coincidenceID && !opp.sect->coincidenceID) {
-			seg.sect->setCoin(coinID, segMatch.match);
-			opp.sect->setCoin(coinID, oppMatch);
+			seg.sect->setCoin(coinID, segMatch.match, CoinOpp::no);
+			opp.sect->setCoin(coinID, oppMatch, CoinOpp::yes);
 		} else {
 			OP_ASSERT(!seg.sect && !opp.sect);
-			seg.sect = ceSeg->addCoin(seg.ptT, coinID, segMatch.match, ceOpp  OP_LINE_FILE_CARGS());
-			opp.sect = ceOpp->addCoin(opp.ptT, coinID, oppMatch, ceSeg  OP_LINE_FILE_CARGS());
+			seg.sect = ceSeg->addCoin(seg.ptT, coinID, segMatch.match, CoinOpp::no, ceOpp  
+					OP_LINE_FILE_CARGS());
+			opp.sect = ceOpp->addCoin(opp.ptT, coinID, oppMatch, CoinOpp::yes, ceSeg  
+					OP_LINE_FILE_CARGS());
 		}
 		seg.sect->pair(opp.sect);
 	}
@@ -615,6 +666,13 @@ struct CoinSects {
 		};
 		return unsectMatch(start.seg.sect, end.seg.sect)
 				|| unsectMatch(start.opp.sect, end.opp.sect);
+	}
+
+	bool fullCoincidence() const {
+		return OpMath::NearlyEndT(start.seg.ptT.t) && OpMath::NearlyEndT(start.opp.ptT.t)
+				&& OpMath::NearlyEndT(end.seg.ptT.t) && OpMath::NearlyEndT(end.opp.ptT.t)
+				&& !OpMath::Equal(start.seg.ptT.t, end.seg.ptT.t, OpEpsilon * 2)
+				&& !OpMath::Equal(start.opp.ptT.t, end.opp.ptT.t, OpEpsilon * 2);
 	}
 
 	SectPair start;
@@ -723,6 +781,10 @@ IntersectResult OpWinder::CoincidentCheck(std::array<CoinEnd, 4>& ends, bool* op
 		return IntersectResult::no;
 	if (coinSects.ptsAreClose)
 		return IntersectResult::yes;
+	if (coinSects.fullCoincidence()) {
+		baseSeg->moveWinding(baseOpp, oppReversed);
+		return IntersectResult::coincident;
+	}
 	int coinID = ends[0].seg->coinID(oppReversed);
 	coinSects.addSect(coinID, oppReversed  OP_LINE_FILE_PARGS());
 	if (oppReversedPtr)
@@ -966,7 +1028,7 @@ ResolveWinding OpWinder::setWindingByDistance(OpEdge* edge) {
 	while (ray.distances[--sumIndex].edge != edge) 
 		OP_ASSERT(sumIndex > 0);
 	float homeT = ray.distances[sumIndex].edgeInsideT;  // used by unsectable, later
-	/* RayOrder order = */ ray.checkOrder(edge);
+	ray.checkOrder(edge);
 	while (--sumIndex >= 0) {
 		Distance& dist = ray.distances[sumIndex];
 		if ((dist.dependent || !anyPriorPal(dist.edge, sumIndex)) && dist.edge->sum.isSet() 

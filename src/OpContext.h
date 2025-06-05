@@ -97,6 +97,7 @@ struct OpContext {
 
 	bool containsFiller(OpPoint start, OpPoint end) const;
 	bool containsFiller(int ccUnsectableID) const;
+	bool containsPals(OpEdge* , int totalLimbs);
 //    WindingData* copySect(const OpWinding& );  // !!! add a separate OpWindingStorage for temporary blocks?
 //    void demotePalLinks();
 	void disableSmallSegments();

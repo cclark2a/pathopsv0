@@ -2980,6 +2980,9 @@ void dmpRay(const OpEdge& edge) {
 	for (const auto& distance : edge.ray.distances) {
 		s += distance.debugDump(defaultLevel, defaultBase) + "\n";
 	}
+	for (const auto& erase : edge.ray.erased) {
+		s += "erased " + erase.debugDump(defaultLevel, defaultBase) + "\n";
+	}
     OpDebugFormat(s);
 }
 
@@ -3636,6 +3639,12 @@ std::string SectRay::debugDump(DebugLevel l, DebugBase b) const {
         s += dist.debugDump(DebugLevel::detailed == l ? l : DebugLevel::brief, b);
 		s += DebugLevel::detailed == l ? "\n" : " ";
 	}
+    for (const Distance& erase : erased) {
+		if (DebugLevel::detailed == l)
+			s += " ";  // indent
+        s += "erased " + erase.debugDump(DebugLevel::detailed == l ? l : DebugLevel::brief, b);
+		s += DebugLevel::detailed == l ? "\n" : " ";
+	}
 #if 0
 	if (!containers.empty()) {
 		if (DebugLevel::detailed == l)
@@ -3947,6 +3956,16 @@ MatchEndsName matchEndsNames[] {
 
 ENUM_NAME(MatchEnds, matchEnds)
 
+ENUM_NAME_STRUCT(CoinOpp);
+#define COIN_OPP_NAME(r) { CoinOpp::r, #r }
+
+CoinOppName coinOppNames[] {
+	COIN_OPP_NAME(no),
+    COIN_OPP_NAME(yes)
+};
+
+ENUM_NAME(CoinOpp, coinOpp)
+
 std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
     std::string s = "[" + debugDumpID() + "] ";
     if (DebugLevel::brief == l) {
@@ -3968,6 +3987,7 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
         s += "coinID:" + STR(coincidenceID)  OP_DEBUG_CODE(+ "/" + STR(debugCoincidenceID));
         s += DebugLevel::file == l ? " coinEnd:" : " " ;
         s += matchEndsName(coinEnd) + " ";
+        s += coinOppName(coinOpp) + " ";
     }
     if (unsectID) {
         s += "unsectID:" + STR(unsectID);
@@ -3977,6 +3997,8 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
     if (!coincidenceID  OP_DEBUG_CODE(&& !debugCoincidenceID) && !unsectID 
             && MatchEnds::none != coinEnd)
         s += "!!! (unexpected) " + matchEndsName(coinEnd) + " ";
+    if (!coincidenceID  OP_DEBUG_CODE(&& !debugCoincidenceID) && CoinOpp::yes == coinOpp)
+        s += "!!! (unexpected) " + coinOppName(coinOpp) + " ";
 	BOOL_TO_STR(betweenCoins);
 	BOOL_TO_STR(mergeProcessed);
 	BOOL_TO_STR(moved);

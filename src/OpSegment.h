@@ -70,14 +70,14 @@ struct OpSegment {
 	bool activeAtT(OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const; // true if pal
 	bool activeNeighbor(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const; // true if pal
 	void addAlias(OpPoint original, OpPoint alias);
+	OpIntersection* addCoin(const OpPtT& , int coinID, MatchEnds , CoinOpp , const OpSegment* o  
+			OP_LINE_FILE_ARGS());
 	void addDisjointIntersections();
 //	OpIntersection* addEdgeSect(const OpPtT&    
 //			OP_LINE_FILE_DEF(const OpEdge* e, const OpEdge* o));
 	OpIntersection* addSegBase(const OpPtT&  
 			OP_LINE_FILE_DEF(const OpSegment* o));
 	OpIntersection* addSegSect(const OpPtT& , const OpSegment* o  
-			OP_LINE_FILE_ARGS());
-	OpIntersection* addCoin(const OpPtT& , int coinID, MatchEnds , const OpSegment* o  
 			OP_LINE_FILE_ARGS());
 	OpIntersection* addUnsectable(const OpPtT& , int usectID, MatchEnds , const OpSegment* o 
 			OP_LINE_FILE_ARGS());

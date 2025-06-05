@@ -33,6 +33,16 @@ struct CoinPair {
 	OP_DEBUG_CODE(OpEdge* lastEdge);
 };
 
+enum class CoinOpp {
+	no,
+	yes  // set for the one of coin pair that will be disabled
+};
+
+inline CoinOpp operator!(CoinOpp m) {
+	OP_ASSERT(CoinOpp::no == m || CoinOpp::yes == m);
+	return static_cast<CoinOpp>(!static_cast<int>(m));
+}
+
 // Places where a pair of segments cross are recorded as intersections.
 // Pairs of intersections, along with segments' ends, extremas, and inflections,
 // are used to create edges. Edges may then be subdivided so that each edge has
@@ -49,7 +59,7 @@ struct OpIntersection {
 	void pair(OpIntersection* o) {
 		OP_ASSERT(abs(unsectID) == abs(o->unsectID)); 
 		OP_ASSERT(coincidenceID == o->coincidenceID); 
-		OP_ASSERT(ptT.pt == o->ptT.pt || (!!unsectID && !!o->unsectID));
+		OP_ASSERT(ptT.pt == o->ptT.pt || (!!unsectID && !!o->unsectID) || !opp);
 		opp = o;
 		o->opp = this;
 	}
@@ -68,7 +78,7 @@ struct OpIntersection {
 #endif
 	}
 
-	void setCoin(int id, MatchEnds end);  // setter to help debugging
+	void setCoin(int id, MatchEnds end, CoinOpp );  // setter to help debugging
 	void setUnsect(int id, MatchEnds end);  // setter to help debugging
 
 	void zeroCoincidence() {
@@ -119,12 +129,13 @@ struct OpIntersection {
 	// !!! why does coin makes both negative but unsect only makes one negative...
 	MatchEnds coinEnd = MatchEnds::none;  // puts start before end on sort (neg. if pair flipped)
 	MatchEnds unsectEnd = MatchEnds::none;  // one side is negative if pair are flipped
+	CoinOpp coinOpp = CoinOpp::no;  // set if coincident segment or edge will be disabled
 	bool betweenCoins = false;  // used to find unsortable edges between coincident pairs
-	bool mergeProcessed = false;
-	bool moved = false;
-	bool collapsed = false;  // set if coincidence or unsect pair collapsed to a point
 	bool ccSect = false;  // set if curve-curve created coins/unsectables (if possibly out-of-order)
 	bool ccUnsectable = false;  // set if curve-curve created or set unsectables (to treat as coin)
+	bool collapsed = false;  // set if coincidence or unsect pair collapsed to a point
+	bool mergeProcessed = false;
+	bool moved = false;
 #if OP_DEBUG
 	int id = 0;
 	int debugSrcID = 0;	// pair of edges or segments that intersected (!!! only useful if edges?)
@@ -145,8 +156,8 @@ enum class SectCleanup {
 
 struct OpIntersections {
 	OpIntersection* add(OpIntersection* );
-	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp);
-	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp, OpPtT* nearby);
+	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp) const;
+	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp, OpPtT* nearby) const;
 	void coinRange(OpEdge& , OpSegment* opp, bool reversed);
 	OpIntersection* contains(const OpPtT& ptT, const OpSegment* opp);  // nearby ptT
 //	OpIntersection* const * entry(const OpPtT& , const OpSegment* opp) const;  // exact opp + ptT

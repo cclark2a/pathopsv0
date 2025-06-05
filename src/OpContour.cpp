@@ -6,7 +6,7 @@
 #include "PathOps.h"
 
 // opp and contour share at least one coincident segment or edge; makes opp member of contour set
-void OpContour::addCoin(OpContour* opp) {
+void OpContour::addMerge(OpContour* opp) {
 	if (this == opp)
 		return;
 	if (merges.end() == std::find(merges.begin(), merges.end(), opp))
@@ -271,6 +271,20 @@ bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* e, EdgeMatch loopMatch) {
 					detachPrior(bound->edge, test);
 	}
 	OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
+	return false;
+}
+
+// !!! bare minimum to fix cubic129075 (experiment)
+bool OpContour::disabledPal(OpPoint a, OpPoint b) const {
+	OP_ASSERT(a != b);
+	for (OpEdge* edge : disabledPals) {
+		OP_ASSERT(edge->startPt() != edge->endPt());
+		if (edge->startPt() != a && edge->startPt() != b)
+			continue;
+		if (edge->endPt() != a && edge->endPt() != b)
+			continue;
+		return true;
+	}
 	return false;
 }
 
@@ -539,15 +553,6 @@ OpIntersection* OpContour::addEdgeSect(const OpPtT& t, OpSegment* seg
 	return next;
 }
 #endif
-
-OpIntersection* OpContour::addCoinSect(const OpPtT& t, OpSegment* seg, int cID, MatchEnds coinEnd
-		OP_LINE_FILE_DEF(const OpSegment* oSeg)) {
-	OP_ASSERT(MatchEnds::both != coinEnd);
-	OpIntersection* next = context->allocateIntersection();
-	next->set(t, seg  OP_LINE_FILE_CALLER(seg->id, oSeg->id));
-	next->setCoin(cID, coinEnd);  // 0 if no coincidence; negative if coincident pairs are reversed
-	return next;
-}
 
 OpIntersection* OpContour::addSegSect(const OpPtT& t, OpSegment* seg  
 		OP_LINE_FILE_DEF(const OpSegment* oSeg)) {

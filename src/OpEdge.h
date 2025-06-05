@@ -156,7 +156,7 @@ struct SectRay {
 	bool canSetSum(const OpEdge* ) const;
 	bool checkAdd(OpEdge* toAdd);
 	RayOrder checkClose(const OpEdge* ) const;
-	RayOrder checkOrder(const OpEdge* );
+	void checkOrder(const OpEdge* );
 	void markDependents(OpEdge* edge);
 	bool cull();  // remove distances further from home than first dependent
 	const Distance* end(DistEnd e) const {
@@ -165,7 +165,7 @@ struct SectRay {
 	FindCept findIntercept(OpWinder* , OpEdge* test);
 	Distance* find(const OpEdge* );  // returns edge in distances
 	bool incomplete() const;
-	bool isOrdered(size_t index);  // false if dist edge and neighbors are reversed elsewhere
+	bool isOrdered(size_t index) const;  // false if dist edge and neighbors are reversed elsewhere
 //	bool missingContour(OpWinder* , OpEdge* ) const;
 //	bool missingContour(OpWinder* , OpSegment* ) const;
 	const Distance* next(const Distance* dist, DistEnd e) const {
@@ -178,6 +178,7 @@ struct SectRay {
 
 	RayTargets targets;
 	std::vector<Distance> distances;
+	std::vector<Distance> erased;  // distances saved in case axis conflict requires restoring
 //	std::vector<OpContour*> containers;  // extra contours that affect home's winding sum
 	OpVector homeTangent;  // used to determine if unsectable edge is reversed
 	float normal = OpNaN;  // ray used to find windings on home edge (e.g., axis: h, center.y)
