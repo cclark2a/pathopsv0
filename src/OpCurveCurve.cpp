@@ -422,7 +422,7 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
 	maxShallow = cb.maxShallowFuncPtr ? cb.maxShallowFuncPtr(s->c.c, o->c.c) : 8;
 	maxSplits = cb.maxSplitsFuncPtr ? cb.maxSplitsFuncPtr(s->c.c, o->c.c) : 8;
 	maxBoundedEdge = cb.maxBoundedEdgeFuncPtr ? cb.maxBoundedEdgeFuncPtr(s->c.c) : 2.0f;
-	maxBoundedT = cb.maxBoundedTFuncPtr ? cb.maxBoundedTFuncPtr(s->c.c) : 16384.f; // !!! was 8.f; cubic143299
+	maxBoundedT = cb.maxBoundedTFuncPtr ? cb.maxBoundedTFuncPtr(s->c.c) : 65536.f; // !!! was 8.f; cubic143299; cubic867777
 	matchRev = seg->matchEnds(opp);
 	smallTFound = MatchEnds::start & matchRev.match;
 	largeTFound = MatchEnds::end & matchRev.match;
@@ -433,6 +433,7 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
 	OpPtT segE {seg->c.lastPt(), 1 };
 	OpPtT oppS {opp->c.firstPt(), 0 };
 	OpPtT oppE {opp->c.lastPt(), 1 };
+	OpBreak2(seg, opp, 8, 4);
 	if (matchRev.reversed)
 		std::swap(oppS, oppE);
 	if (smallTFound) {
@@ -632,6 +633,7 @@ OpEdge* OpCurveCurve::boundedEdge(OpSegment* segm, const OpPointBounds& sectBoun
 	};
 	if (segm->ptBounds.left < sectBounds.left) {
 		OP_ASSERT(segm->ptBounds.right >= sectBounds.left);
+		OpBreak(segm, 8);
 		saveRoots(c.axisRayHit(Axis::vertical, sectBounds.left), XyChoice::inY);
 	}
 	if (segm->ptBounds.top < sectBounds.top) {
@@ -650,7 +652,7 @@ OpEdge* OpCurveCurve::boundedEdge(OpSegment* segm, const OpPointBounds& sectBoun
 		return nullptr;
 //	if (!validRoots)
 //		return nullptr;
-#if 0
+#if 01
 	//  debugger function determines error required for axisRayHit to 
 	//  move from given result to result on the other side of the target ray
 	//  note: can't call all the time: if edges do not intersect, assert may be triggered 

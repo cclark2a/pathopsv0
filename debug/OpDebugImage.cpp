@@ -2194,7 +2194,7 @@ void drawDepth(int level) {
 	OpCurveCurve* cc = debugGlobalContext->debugCurveCurve;
 	if (!cc)
 		return;
-	if (level > 0) {
+	if (level > 0 && !cc->dvDepthIndex.empty()) {
 		size_t dvLevel = std::min((size_t) level, cc->dvDepthIndex.size() + 1);
 		size_t lo = cc->dvDepthIndex[dvLevel - 1];
 		size_t hi = cc->dvDepthIndex.size() <= dvLevel ? cc->dvAll.size() : cc->dvDepthIndex[dvLevel];

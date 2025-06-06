@@ -572,6 +572,8 @@ OpIntersection* OpContour::addUnsect(const OpPtT& t, OpSegment* seg, int uID, Ma
 
 bool OpContour::fixCCSects() {
 	for (auto& segment : segments) {
+		if (segment.disabled)
+			continue;
 		int safetyCount = 10;
 		while (segment.fixCCSects() && --safetyCount)
 			;

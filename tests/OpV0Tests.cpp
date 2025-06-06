@@ -7442,7 +7442,25 @@ path.close();
     testPathOp(reporter, pathA, path, SkPathOp::kDifference_SkPathOp, filename);
 }
 
+void cubic867777(skiatest::Reporter* reporter, const char* filename) {
+    SkPath pathA, path;
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(0, 6);
+path.cubicTo(4, 5, 6, 5, 6, 2);
+path.lineTo(0, 6);
+path.close();
+    pathA = path;
+    path.reset();
+path.setFillType(SkPathFillType::kWinding);
+path.moveTo(5, 6);
+path.cubicTo(2, 6, 6, 0, 5, 4);
+path.lineTo(5, 6);
+path.close();
+    testPathOp(reporter, pathA, path, SkPathOp::kDifference_SkPathOp, filename);
+}
+
 static struct TestDesc tests[] = {
+    TEST(cubic867777),
     TEST(cubic1548865),
 	TEST(cubic1548433),
     TEST(tiger8b_x372506),
