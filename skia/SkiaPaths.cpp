@@ -133,7 +133,7 @@ void SetSkiaCurveCallbacks(Context* context) {
             OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath) }));
 	OP_ASSERT((int) lineType == (int) SkiaCurveType::skiaLineType);
     OP_DEBUG_CODE(CurveType quadType =) SetCurveCallbacks(context, { skiaQuadOutput, quadAxisT,
-			quadHull, quadIsFinite, quadIsLine, quadSetBounds, quadPinCtrl, 
+			quadRotatedT, quadHull, quadIsFinite, quadIsLine, quadSetBounds, quadPinCtrl, 
             quadTangent, quadsEqual, quadPtAtT, quadHullPtCount, quadRotate, 
 			quadSubDivide, quadXYAtT });
 	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, quadType, { debugQuadScale
@@ -141,7 +141,7 @@ void SetSkiaCurveCallbacks(Context* context) {
             OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath) }));
 	OP_ASSERT((int) quadType == (int) SkiaCurveType::skiaQuadType);
     OP_DEBUG_CODE(CurveType conicType =) SetCurveCallbacks(context, { skiaConicOutput, conicAxisT,
-			conicHull, conicIsFinite, conicIsLine, conicSetBounds, quadPinCtrl, 
+			conicRotatedT, conicHull, conicIsFinite, conicIsLine, conicSetBounds, quadPinCtrl, 
 			conicTangent, conicsEqual, conicPtAtT, quadHullPtCount, conicRotate, 
 			conicSubDivide, conicXYAtT });
 	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, conicType, { debugConicScale
@@ -149,7 +149,7 @@ void SetSkiaCurveCallbacks(Context* context) {
             OP_DEBUG_IMAGE_PARAMS(debugConicAddToSkPath) }));
 	OP_ASSERT((int) conicType == (int) SkiaCurveType::skiaConicType);
     OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallbacks(context, { skiaCubicOutput, cubicAxisT,
-			cubicHull, cubicIsFinite, cubicIsLine, cubicSetBounds, cubicPinCtrl, 
+			cubicRotatedT, cubicHull, cubicIsFinite, cubicIsLine, cubicSetBounds, cubicPinCtrl, 
 			cubicTangent, cubicsEqual, cubicPtAtT, cubicHullPtCount, cubicRotate, 
 			cubicSubDivide, cubicXYAtT, cubicReverse });
 	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, cubicType, { debugCubicScale
@@ -311,7 +311,7 @@ void emptySkPathFunc(PathOutput output) {
 	skOutput->setFillType(SkPathFillType::kEvenOdd);
 }
 
-PathOpsV0Lib::CurveType setSkiaLineType(PathOpsV0Lib::Curve ) {
+PathOpsV0Lib::CurveType setSkiaLineType(PathOpsV0Lib::Context* , PathOpsV0Lib::Curve ) {
     return (CurveType) SkiaCurveType::skiaLineType;
 }
 

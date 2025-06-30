@@ -490,6 +490,7 @@ void CcCurves::debugValidate() const {
 }
 #endif
 
+#if 0
 	// determine error required for axisRayHit to 
 	// move from given result to result on the other side of the target ray
 void OpCurveCurve::debugBoundedEdge(OpSegment* segm, const OpPointBounds& sectBounds,
@@ -518,6 +519,7 @@ void OpCurveCurve::debugBoundedEdge(OpSegment* segm, const OpPointBounds& sectBo
 		OpDebugOut(" !!! max");
 	OpDebugOut(" factor:" + STR(factor) + "\n"); 
 }
+#endif
 
 #if OP_DEBUG_VERBOSE
 void OpCurveCurve::debugSaveState() {

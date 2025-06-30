@@ -323,7 +323,10 @@ bool SectPreferred::find() {
 				}
 #endif
 				OP_ASSERT(1 == sects.i.back()->ptT.t);
-				best->ptT.t = 1;
+				if (1 != best->ptT.t) {
+					best->ptT.t = 1;
+					sects.unsorted = true;
+				}
 			}
 		} else if (test->ptT != best->ptT) {
 	#if 0
@@ -340,8 +343,10 @@ bool SectPreferred::find() {
 			if (test->ptT.pt != best->ptT.pt) {
 				if (!seg->moveSects(test->ptT, best->ptT.pt))
 					return false;
-			} else
+			} else if (test->ptT.t != best->ptT.t) {
 				test->ptT.t = best->ptT.t;
+				sects.unsorted = true;
+			}
 		}
 		if (visited.end() == std::find(visited.begin(), visited.end(), test->opp->segment)) {
 			OpIntersection* save = best;
@@ -391,8 +396,8 @@ void OpIntersections::markInCoincidence() {
 }
 #endif
 
-float OpIntersections::matchT(const OpPtT& match, OpPoint destination) const {
-	float destT = match.t;
+float OpIntersections::matchT(const OpPtT& match, OpPoint destination, MatchEnds matchEnds) const {
+	float destT = MatchEnds::start == matchEnds ? 0 : MatchEnds::end == matchEnds ? 1 : match.t;
 	if (0 < destT && destT < 1) {
 		for (OpIntersection* sect : i) {
 			if (sect->ptT.pt == destination) {
@@ -434,14 +439,15 @@ void OpIntersections::mergeNear(OpPtAliases& aliases) {
 }
 
 // note that intersections may not be sorted
-SectCleanup OpIntersections::moveSects(const OpPtT& match, OpPoint destination) {
+SectCleanup OpIntersections::moveSects(const OpPtT& match, OpPoint destination,
+		MatchEnds matchEnds) {
 	OP_ASSERT(match.pt != destination);  // !!! maybe this is correct if t needs changing ?
 // before changing anything, determine if changing match.pt to destination collapses coin or unsect
 //   either in this sect pair, or in the opposite sect pair
 	std::vector<size_t> remove;
 	std::vector<OpIntersection*> moveOpps;
 	bool segmentCollapsed = false;
-	float destT = matchT(match, destination);
+	float destT = matchT(match, destination, matchEnds);
 	for (size_t index = 0; index < i.size(); ++index) {  // look for sects to move (match is equal)
 		OpIntersection* toMove = i[index];
 		if (toMove->collapsed && remove.end() == std::find(remove.begin(), remove.end(), index))
@@ -469,6 +475,7 @@ SectCleanup OpIntersections::moveSects(const OpPtT& match, OpPoint destination) 
 		OP_ASSERT(index != testIndex);
 		if (testIndex == SIZE_MAX) {
 			toMove->ptT = OpPtT(destination, destT);
+			unsorted = true;
 			if (toMove->opp->ptT.pt != destination)
 				moveOpps.push_back(toMove->opp);
 			continue;
@@ -486,6 +493,7 @@ SectCleanup OpIntersections::moveSects(const OpPtT& match, OpPoint destination) 
 					remove.push_back(idx2);
 			}
 			test2->ptT = OpPtT(destination, destT);
+			unsorted = true;
 			if (test2->opp->ptT.pt != destination)
 				moveOpps.push_back(test2->opp);
 		}
@@ -533,7 +541,7 @@ bool OpIntersections::simpleStart() const {
 
 void OpIntersections::sort() {
 	if (!unsorted) {
-#if 0 && OP_DEBUG  // !!! fails with fuzz763_378
+#if 01 && OP_DEBUG  // !!! fails with fuzz763_378
 		if (i.size()) {
 			const OpIntersection* last = i.front();
 			auto findEndIndex = [this](const OpIntersection* sect) {

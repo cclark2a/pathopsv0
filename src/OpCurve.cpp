@@ -6,6 +6,52 @@
 #include "OpDebugRaster.h"
 #endif
 
+OpCurve::OpCurve(OpContext* cntxt, PathOpsV0Lib::Curve curve, Rotated r) 
+	: c(curve)
+	, context(cntxt)
+	, rotated(r)
+	, isLineSet(false)
+	, isLineResult(false) {
+	c.data = context->allocateCurveData(c.size);
+	if (0 == (int) curve.type)
+		c.type = context->contextCallbacks.setLineTypeFuncPtr((PathOpsV0Lib::Context*) context,
+				curve);
+	if (curve.data) {
+		std::memcpy(c.data, curve.data, c.size);
+		OP_DEBUG_CODE(if (Rotated::debug == r) return);
+		isLine();
+	}
+}
+
+OpRoots OpCurve::axisRawHit(Axis axis, float intercept, MatchEnds matchEnds) const {
+	OP_ASSERT(debugIsLine() || MatchEnds::both != matchEnds);
+	OpRoots result;
+	if (MatchEnds::start == matchEnds || firstPt().choice(axis) == intercept)
+		result.add(0);
+	if (MatchEnds::end == matchEnds || lastPt().choice(axis) == intercept)
+		result.add(1);
+	if (Rotated::no == rotated && !result.roots.empty())
+		return result;
+	PathOpsV0Lib::AxisT func = Rotated::no == rotated
+			? context->callback(c.type).axisTFuncPtr
+			: context->callback(c.type).rotateTFuncPtr;
+	if (!func) {
+		const float* ptr = c.data->start.asPtr(axis);
+		return OpRoots((intercept - ptr[0]) / (ptr[2] - ptr[0]));
+	}
+	OpRoots moreRoots = (*func)(c, axis, intercept  OP_DEBUG_PARAMS(result));
+	for (float root : moreRoots.roots) {
+		result.addEnd(root);
+	}
+	result.sort();
+	if (Rotated::yes == rotated && 2 < result.count()) {
+		OpRoots temp(result.roots.front(), result.roots.back());
+		result = temp;
+	}
+	OP_ASSERT((Rotated::no == rotated ? 1 : 2) >= result.count());
+	return result;
+}
+
 OpRoots OpCurve::axisRayHit(Axis axis, float axisIntercept, float start, float end) const {
 	OpRoots roots = axisRawHit(axis, axisIntercept, MatchEnds::none);
 	roots.keepValidTs(start, end);
@@ -41,6 +87,39 @@ CutRangeT OpCurve::cutRange(const OpPtT& ptT, OpPoint oppPt, float loEnd, float 
 	return tRange;
 }
 
+float OpCurve::findValidT(float start, float end, OpPoint opp) {
+	if (!isLine()) {
+		OpRoots hRoots = axisRayHit(Axis::horizontal, opp.y, start, end);
+		OpRoots vRoots = axisRayHit(Axis::vertical, opp.x, start, end);
+	#if 01 // code coverage says this is unused, but it is required for loop48977
+		if (1 != hRoots.count() && 1 != vRoots.count()) {
+			if (0 == start && opp.isNearly(firstPt(), context->threshold()))
+				return 0;
+			if (1 == end && opp.isNearly(lastPt(), context->threshold()))
+				return 1;
+			return OpNaN;
+		}
+		if (1 != hRoots.count()) {
+			OP_ASSERT(1 == vRoots.count());  // !!! triggered by thread_loops46134
+			return vRoots.roots[0];
+		}
+	#endif
+		if (1 != vRoots.count())
+			return hRoots.roots[0];
+		OpPoint hPt = ptAtT(hRoots.roots[0]);
+		OpPoint vPt = ptAtT(vRoots.roots[0]);
+		return (hPt - opp).lengthSquared() < (vPt - opp).lengthSquared() 
+				? hRoots.roots[0] : vRoots.roots[0];
+	}
+	// this won't work for curves with linear control points since t is not necessarily linear
+	OpVector lineSize = lastPt() - firstPt();
+	float result = fabsf(lineSize.dy) > fabsf(lineSize.dx) ?
+		(opp.y - firstPt().y) / lineSize.dy : (opp.x - firstPt().x) / lineSize.dx;
+	if (start <= result && result <= end)
+		return result;
+	return OpNaN;
+}
+
 float OpCurve::interceptLimit() const {
 	PathOpsV0Lib::CurveConst limFuncPtr = context->callback(c.type).interceptFuncPtr;
 	if (!limFuncPtr)
@@ -48,9 +127,18 @@ float OpCurve::interceptLimit() const {
 	return (*limFuncPtr)(c);
 }
 
-OpRootPts OpCurve::lineIntersect(const LinePts& line) const {
-	OpRootPts result;
-	result.raw = rawIntersect(line, MatchEnds::none);
+OpRoots OpCurve::lineIntersect(const LinePts& line) const {
+	MatchEnds matchEnds = MatchEnds::none;
+	if (firstPt() == line.pts[0] || firstPt() == line.pts[1])
+		matchEnds |= MatchEnds::start;
+	if (lastPt() == line.pts[0] || lastPt() == line.pts[1])
+		matchEnds |= MatchEnds::end;
+	OpRoots result = rawIntersect(line, matchEnds);
+	OpRoots valid = result.keepValidTs();
+	return valid;
+// !!! complexity below may be necessary if curve and line are coincident...
+//     likely unnecessary with modern cubic root implementation
+#if 0
 	if (RootFail::rawIntersectFailed == result.raw.fail)
 		return result;
 	result.valid = result.raw;
@@ -78,6 +166,62 @@ OpRootPts OpCurve::lineIntersect(const LinePts& line) const {
 		}
 	}
 	return result;
+#endif
+}
+
+// given a t value of the intersection of this curve and a line, find the intersecting line point
+// returns true if computed point/t pair is not outside the line and is not near the end of the line
+OpPtT OpCurve::lineCurve(OpCurve& line, float inputT, float* lineTPtr, MatchEnds matchEnds,
+		float margin) {
+	OP_ASSERT(line.isLine());
+	OpPoint calcPt = ptAtT(inputT);
+	if (MatchEnds::none != matchEnds && calcPt.isNearly(line.firstPt(), context->threshold()))
+		return OpPtT(SetToNaN::dummy);
+	if (MatchEnds::none != matchEnds && calcPt.isNearly(line.lastPt(), context->threshold()))
+		return OpPtT(SetToNaN::dummy);
+#if 1  // !!! experiment: intersect curve with line
+	LinePts linePts { line.c.data->start, line.c.data->end };
+	float lineT = line.findValidT(-margin, 1 + margin, calcPt);
+	if (OpMath::IsNaN(lineT))
+		return OpPtT(SetToNaN::dummy);
+	OpPoint linePt = line.ptAtT(lineT);
+	if (!linePts.ptOnLine(calcPt)) { // if calc point is already on line, there's nothing more to do
+		OpVector calcTan = tangent(inputT);
+		LinePts tanPts { calcPt, { calcPt.x + calcTan.dx, calcPt.y + calcTan.dy } };
+		OpRoots tanSect = line.rawIntersect(tanPts, MatchEnds::none);
+		if (1 == tanSect.count()) {
+			float tanLineT = tanSect.roots[0];
+			OpPoint tanLinePt = line.ptAtT(tanLineT);
+			OpVector calcLine = calcPt - linePt;
+			OpVector tanLine = tanLinePt - linePt;
+			if (tanLine.lengthSquared() < calcLine.lengthSquared()) {
+				lineT = tanLineT;
+				linePt = tanLinePt;
+			}
+		}
+#if 0
+		// !!! next: adjust t value by assuming that for very small values of delta t, delta x/y 
+		//           is linear
+		// While this works, it doesn't make things better enough to keep it enabled
+		OpVector delta = linePt - calcPt;
+		OpVector deltaT = delta / calcTan;
+		float newT = inputT + deltaT.length();
+		OpPoint newPt = ptAtT(newT);
+		inputT = newT;
+#endif
+	}
+#else
+	float lineT = line.findValidT(0, 1, calcPt);
+	if (OpMath::IsNaN(lineT))
+		return false;
+	if (OpMath::NearlyEndT(lineT))
+		return false;
+	OpPoint linePt = line.ptAtT(lineT);  // use line instead of curve to keep points on line
+#endif
+	if (lineTPtr)
+		*lineTPtr = lineT;
+	OpPtT alignedPtT { linePt, inputT };
+	return alignedPtT;
 }
 
 float OpCurve::match(float start, float end, OpPoint pt) const {
@@ -166,10 +310,10 @@ bool OpCurve::normalize() {
 				|| aliases.contains(smaller);
 		if (swap)
 			std::swap(larger, smaller);
-		if (context->addAlias(larger, smaller))
+		if (context->addAlias(larger, smaller)) {
 			(swap ? c.data->end : c.data->start) = smaller;
-		else
 			context->remapPts(larger, smaller);
+		}
 		recomputeBounds = true;
 	}
 	if (recomputeBounds)
@@ -180,20 +324,30 @@ bool OpCurve::normalize() {
 // all raw intersects are basically the same
 // put any specialization (related to debugging?) in some type specific callout ?
 OpRoots OpCurve::rawIntersect(const LinePts& linePt, MatchEnds common) const {
-	if (linePt.pts[0].x == linePt.pts[1].x)
+	if (linePt.pts[0].x == linePt.pts[1].x) {
+		if (linePt.pts[0].x == firstPt().x)
+			common |= MatchEnds::start;
+		if (linePt.pts[0].x == lastPt().x)
+			common |= MatchEnds::end;
 		return axisRawHit(Axis::vertical, linePt.pts[0].x, common);
-	if (linePt.pts[0].y == linePt.pts[1].y)
+	}
+	if (linePt.pts[0].y == linePt.pts[1].y) {
+		if (linePt.pts[0].y == firstPt().y)
+			common |= MatchEnds::start;
+		if (linePt.pts[0].y == lastPt().y)
+			common |= MatchEnds::end;
 		return axisRawHit(Axis::horizontal, linePt.pts[0].y, common);
-	OpCurve rotated = toVertical(linePt, common);
-	if (!rotated.isFinite()) {
+	}
+	OpCurve isRotated = toVertical(linePt, common);
+	if (!isRotated.isFinite()) {
 		context->setError(PathOpsV0Lib::ContextError::toVertical  OP_DEBUG_PARAMS(0));
 		return OpRoots();
 	}
 	// if point bounds of rotated doesn't cross y-axis, this is no intersection
-	OpRect rotatedBounds = rotated.ptBounds();
+	OpRect rotatedBounds = isRotated.ptBounds();
 	if (rotatedBounds.right < 0 || rotatedBounds.left > 0)
 		return OpRoots();
-	OpRoots result = rotated.axisRawHit(Axis::vertical, 0, common);
+	OpRoots result = isRotated.axisRawHit(Axis::vertical, 0, common);
 	return result;
 }
 
@@ -273,24 +427,26 @@ bool OpCurve::isFinite() const {
 // this can fail (if rotated pts are not finite); can happen when input is finite
 // however, callers include sort predicate, which cannot return failure; so don't return failure here
 // !!! add match ends from caller so that rotated matching end point can guarantee x == 0
+// set curve to rotated so subsequent line intersections can check for extrema if needed
 OpCurve OpCurve::toVertical(const LinePts& line, MatchEnds match) const {
 	OpVector scale = line.pts[1] - line.pts[0];
 //	float opp = line.pts[1].y - line.pts[0].y;
-	OpCurve rotated(context, { nullptr, c.size, c.type } );
+	OpCurve isRotated(context, { nullptr, c.size, c.type }, Rotated::yes);
 	auto rotatePt = [line, scale](OpPoint pt) {
 		OpVector v = pt - line.pts[0];
 		return OpPoint(scale.cross(v), scale.dot(v));
 	};
-	rotated.c.data->start = rotatePt(c.data->start);
+	isRotated.c.data->start = rotatePt(c.data->start);
 	if (MatchEnds::start & match)
-		rotated.c.data->start.x = 0;
-	rotated.c.data->end = rotatePt(c.data->end);
+		isRotated.c.data->start.x = 0;
+	isRotated.c.data->end = rotatePt(c.data->end);
 	if (MatchEnds::end & match)
-		rotated.c.data->end.x = 0;
+		isRotated.c.data->end.x = 0;
 	PathOpsV0Lib::Rotate funcPtr = context->callback(c.type).rotateFuncPtr;
 	if (funcPtr)
-		(*funcPtr)(c, line.pts[0], scale, rotated.c);
-	return rotated;
+		(*funcPtr)(c, line.pts[0], scale, isRotated.c);
+	isRotated.isLine();
+	return isRotated;
 }
 
 int OpCurve::pointCount() const {
@@ -312,13 +468,21 @@ OpPoint OpCurve::ptAtT(float t) const {
 }
 
 OpCurve OpCurve::subDivide(OpPtT ptT1, OpPtT ptT2) const {
-	PathOpsV0Lib::Curve newCurve { c.data, c.size, c.type };
-	OpCurve newResult(context, newCurve);
+	if (0 == ptT1.t && 1 == ptT2.t)
+		return *this;
+	OpCurve newResult(context, c, rotated);
     newResult.c.data->start = ptT1.pt;
     newResult.c.data->end = ptT2.pt;
 	PathOpsV0Lib::SubDivide funcPtr = context->callback(c.type).subDivideFuncPtr;
-	if (funcPtr)
-		(*funcPtr)(c, ptT1.t, ptT2.t, newResult.c);
+	if (funcPtr) {
+		bool success = (*funcPtr)(c, ptT1.t, ptT2.t, newResult.c);
+		if (!success) {
+			newResult.c.type = context->contextCallbacks.setLineTypeFuncPtr(
+					(PathOpsV0Lib::Context*) context, newResult.c);
+			newResult.isLineSet = true;
+			newResult.isLineResult = true;
+		}
+	}
 	return newResult;
 }
 
@@ -343,7 +507,8 @@ OpPair OpCurve::xyAtT(OpPair t, XyChoice xy) const {
 }
 
 OpPoint OpCurve::hullPt(int index) const {
-	OP_ASSERT((PathOpsV0Lib::CurveType) 0 == c.type || (0 <= index && index < pointCount()));
+	OP_ASSERT((PathOpsV0Lib::CurveType) 0 != c.type);
+	OP_ASSERT(0 <= index && index < pointCount());
 	if (0 == index)
 		return c.data->start;
 	if (pointCount() - 1 == index)
@@ -359,43 +524,17 @@ void OpCurve::reverse() {
 		(*funcPtr)(c);
 }
 
-OpCurve::OpCurve(OpContext* cntrs, PathOpsV0Lib::Curve curve) {
-	context = cntrs;
-	c.size = curve.size;
-	c.data = context->allocateCurveData(c.size);
-	if (curve.data)
-		std::memcpy(c.data, curve.data, c.size);
-	c.type = curve.type;
-	PathOpsV0Lib::CurveIsLine funcPtr = context->callback(c.type).curveIsLineFuncPtr;
-	if (!funcPtr) {
-		isLineSet = true;
-		isLineResult = true;
-	} else {
-		isLineSet = false;
-		isLineResult = false;
-	}
-}
-
-OpRoots OpCurve::axisRawHit(Axis axis, float intercept, MatchEnds matchEnds) const {
-	PathOpsV0Lib::AxisT func = context->callback(c.type).axisTFuncPtr;
-	if (!func) {
-		const float* ptr = c.data->start.asPtr(axis);
-		return OpRoots((intercept - ptr[0]) / (ptr[2] - ptr[0]));
-	}
-	return (*func)(c, axis, intercept, matchEnds);
-}
-
 bool OpCurve::isLine() {
-	if (isLineSet)
-		return isLineResult;
-	isLineSet = true;
-	PathOpsV0Lib::CurveIsLine funcPtr = context->callback(c.type).curveIsLineFuncPtr;
-	OP_ASSERT(funcPtr);  // !!! can non-line omit this?
-	if (!funcPtr || (*funcPtr)(c)) {
-		c.type = context->contextCallbacks.setLineTypeFuncPtr(c);
-		return isLineResult = true;
+	if (!isLineSet) {
+		isLineSet = true;
+		PathOpsV0Lib::CurveIsLine funcPtr = context->callback(c.type).curveIsLineFuncPtr;
+		if (!funcPtr || (*funcPtr)(c)) {
+			c.type = context->contextCallbacks.setLineTypeFuncPtr((PathOpsV0Lib::Context*) context,
+					c);
+			isLineResult = true;
+		}
 	}
-	return false;
+	return isLineResult;
 }
 
 // This scales the allowable error from vertical by the magnitude of y.
@@ -414,7 +553,8 @@ bool OpCurve::isVertical() const {
 bool OpCurve::debugIsLine() const {
 	if (isLineSet)
 		return isLineResult;
-	return c.type == context->contextCallbacks.setLineTypeFuncPtr(c);
+	return c.type == context->contextCallbacks.setLineTypeFuncPtr((PathOpsV0Lib::Context*) context,
+			c);
 }
 #endif
 

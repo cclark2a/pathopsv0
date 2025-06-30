@@ -7,6 +7,10 @@
 #include <float.h>
 //#endif
 
+namespace PathOpsV0Lib {
+struct Curve;
+}
+
 enum class Axis : int8_t ;
 struct OpContour;
 struct OpEdge;
@@ -38,9 +42,11 @@ void DebugOpBuild(OpPoint , bool opp);
 void DebugOpBuild(OpPoint , float t, bool opp);
 void DebugOpBuild(OpPoint , float t, DebugSprite );
 void DebugOpBuild(Axis axis, float normal, float cept);
-void DebugOpBuild(const OpEdge& , const struct OpDebugRay& );
-void DebugOpBuild(const OpSegment& , const struct OpDebugRay& );
-void DebugOpBuild(const SkPath& , const struct OpDebugRay& );
+void DebugOpBuild(const OpEdge& , const OpDebugRay& );
+void DebugOpBuild(const OpSegment& , const OpDebugRay& );
+void DebugOpBuild(const SkPath& , const OpDebugRay& );
+void DebugOpBuild(const PathOpsV0Lib::Curve& );
+void DebugCurveBuild(const PathOpsV0Lib::Curve& , const OpDebugRay& );
 void DebugOpClearEdges();
 void DebugOpClearHighlight();
 void DebugOpClearInputs();
@@ -49,10 +55,15 @@ void DebugOpClearSegments();
 void DebugOpDraw(const OpOutPath* , uint32_t color);
 void DebugOpDraw(const std::vector<OpRect>& );
 void DebugOpDraw(const std::vector<OpDebugRay>& );
+void DebugOpDraw(const std::vector<PathOpsV0Lib::Curve>& );
 void DebugOpDraw(const std::vector<OpEdge>& );
 void DebugOpDraw(const std::vector<const OpEdge*>& );
 void DebugOpDraw(const std::vector<const SkPath*>& );
 void DebugOpDrawContourID(const OpContour* contour, std::vector<int>& ids);
+void DebugOpDrawCurveControlLines(const PathOpsV0Lib::Curve& , uint32_t color);
+void DebugOpDrawCurveEndToEnd(const PathOpsV0Lib::Curve& , uint32_t color);
+void DebugOpDrawCurveNormal(const PathOpsV0Lib::Curve& , uint32_t color);
+void DebugOpDrawCurveTangent(const PathOpsV0Lib::Curve& , uint32_t color);
 void DebugOpDrawEdgeControlLines(const OpEdge* , uint32_t color);
 void DebugOpDrawEdgeEndToEnd(const OpEdge* , uint32_t color);
 void DebugOpDrawEdgeID(const OpEdge* , uint32_t color, bool drawLimbs);
@@ -62,6 +73,9 @@ void DebugOpDrawEdgeWinding(const OpEdge* , uint32_t color);
 void DebugOpDrawEdges();
 void DebugOpDrawHighlight();
 void DebugOpDrawInputs();
+void DebugOpDrawSegmentControlLines(const OpSegment* , uint32_t color);
+void DebugOpDrawSegmentEndToEnd(const OpSegment* , uint32_t color);
+void DebugOpDrawSegmentNormal(const OpSegment* , uint32_t color);
 void DebugOpDrawSegmentTangent(const OpSegment* , uint32_t color);
 void DebugOpDrawSegments();
 void DebugOpDrawSprites();

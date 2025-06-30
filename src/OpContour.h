@@ -33,7 +33,7 @@ struct OpContour {
 		   OP_LINE_FILE_DEF(const OpEdge* edge, const OpEdge* oEdge));
 	void addJoinEdge(OpJoiner* , OpEdge* );
 	void addLast(OpEdge* );
-	void addLine(OpPoint pts[2]);
+//	void addLine(OpPoint pts[2]);
 	void addMerge(OpContour* );  // track coincidence that effectively extend this contour
 	OpIntersection* addSegSect(const OpPtT& , OpSegment* seg
 			OP_LINE_FILE_DEF(const OpSegment* oSeg));

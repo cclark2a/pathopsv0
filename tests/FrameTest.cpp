@@ -113,7 +113,7 @@ inline std::string frameImageOutFunc(Winding winding, int index) {
 }
 #endif
 
-CurveType frameSetLineType(Curve ) {
+CurveType frameSetLineType(Context* , Curve ) {
     return frameLine;
 }
 
@@ -137,7 +137,7 @@ void testFrame() {
 #endif
 
     frameLine = SetCurveCallbacks(context, { frameOutput });
-    frameQuad = SetCurveCallbacks(context, { frameOutput, quadAxisT, quadHull, 
+    frameQuad = SetCurveCallbacks(context, { frameOutput, quadAxisT, quadRotatedT, quadHull, 
 			quadIsFinite, quadIsLine, quadSetBounds,  quadPinCtrl, 
             quadTangent, quadsEqual, quadPtAtT, quadHullPtCount, quadRotate, 
 			quadSubDivide, quadXYAtT });

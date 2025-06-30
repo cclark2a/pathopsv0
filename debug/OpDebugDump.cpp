@@ -1273,7 +1273,7 @@ static std::string segmentDebugDump(const OpSegment& seg, ShowContour showContou
         s += seg.c.debugDump(l, b) + lf;
 		if (ShowContour::yes == showContour) {
 			s += "ptBounds:" + seg.ptBounds.debugDump(l, b) + lf;
-			s += "closeBounds:" + seg.closeBounds.debugDump(l, b) + lf;
+//			s += "closeBounds:" + seg.closeBounds.debugDump(l, b) + lf;
 		}
         if (!seg.sects.i.empty()) {
             s += "sects:" + STR(seg.sects.i.size()) + " [";
@@ -1726,6 +1726,20 @@ std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
 		}
     }
     return s;
+}
+
+void dmp(const PathOpsV0Lib::Curve& c) {
+	OpCurve curve(debugGlobalContext, c, Rotated::debug);
+	OpDebugFormat(curve.debugDump(defaultLevel, defaultBase));
+}
+
+void dmp(const PathOpsV0Lib::Curve* c) {
+	dmp(*c);
+}
+
+bool debugDmpIsLine(const PathOpsV0Lib::Curve& c) {
+	OpCurve test(debugGlobalContext, c, Rotated::no);
+	return test.isLine();
 }
 
 void OpCurve::dumpSet(const char*& str) {
@@ -2425,9 +2439,9 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     s += strFloat(EdgeFilter::endT, "endT", endT);
     s += strFloat(EdgeFilter::startDist, "startDist", startDist);
     s += strFloat(EdgeFilter::endDist, "endDist", endDist);
-    if (!OpMath::IsNaN(startDist)) 
+    if (!OpMath::IsNaN(startDist) && !OpMath::IsNaN(startOpp.t)) 
 		s += strPtT(EdgeFilter::startOpp, "startOpp", startOpp, " ");
-    if (!OpMath::IsNaN(endDist)) 
+    if (!OpMath::IsNaN(endDist) && !OpMath::IsNaN(endOpp.t)) 
 		s += strPtT(EdgeFilter::endOpp, "endOpp", endOpp, " ");
     s += strEnum(EF::whichEnd_impl, "whichEnd", EdgeMatch::none == which(), edgeMatchName(which()));
     s += strEnum(EF::rayFail, "rayFail", EdgeFail::none == rayFail, edgeFailName(rayFail));
@@ -4235,8 +4249,8 @@ void OpSegment::dumpSet(const char*& str) {
     c.dumpSet(str);
     OpDebugRequired(str, "ptBounds");
     ptBounds.dumpSet(str);
-    OpDebugRequired(str, "closeBounds");
-    closeBounds.dumpSet(str);
+//    OpDebugRequired(str, "closeBounds");
+//    closeBounds.dumpSet(str);
     if (OpDebugOptional(str, "sects:")) {
         int sectCount = (int) OpDebugReadSizeT(str);
         sects.i.resize(sectCount);
@@ -4668,6 +4682,7 @@ void OpPtT::dumpSet(const char*& str) {
     t = OpDebugReadNamedFloat(str, "t");
 }
 
+#if 0
 std::string OpRootPts::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     s += " raw[" + raw.debugDump(l, b) + "]";
@@ -4679,6 +4694,7 @@ std::string OpRootPts::debugDump(DebugLevel l, DebugBase b) const {
     if (',' == s.back()) s.pop_back();
     return s;
 }
+#endif
 
 std::string OpRect::debugDump(DebugLevel l, DebugBase b) const {
     return "{" + debugFloat(b, left) + ", " + debugFloat(b, top) + ", "

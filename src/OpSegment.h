@@ -92,13 +92,14 @@ struct OpSegment {
 	void disableSmall();
 	OpPtT distance(const OpPtT& segPtT, const OpSegment* opp) const;
 	OpEdge* findEnabled(const OpPtT& , EdgeMatch ) const;
+	float findLineT(OpPoint opp);
 	void findMissingEnds();
 //    float findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const;
-	float findValidT(float start, float end, OpPoint opp);
+//	float findValidT(float start, float end, OpPoint opp);
 	bool fixCCSects();
 	// count and sort extrema; create an edge for each extrema + 1
 	bool isFinite() const {
-		return closeBounds.isFinite(); } 
+		return ptBounds.isFinite(); } 
 //    bool isSimple() const {
 //        return 1 == edges.size() && 2 == sects.i.size(); }
 	bool isSmall();
@@ -157,7 +158,7 @@ struct OpSegment {
 	OpContour* contour;
 	OpCurve c;
 	OpPointBounds ptBounds;
-	OpRect closeBounds;
+//	OpRect closeBounds;
 	OpIntersections sects;
 	std::vector<OpEdge> edges;
 //	std::vector<OpContour*> coinContours;  // other contours referenced by coincident segments !!! unnecessary?

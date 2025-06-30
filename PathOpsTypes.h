@@ -92,7 +92,7 @@ typedef void* PathOutput;
 // curve callbacks
 
 // intersects the curve and axis at the axis intercept
-typedef OpRoots (*AxisT)(Curve , Axis , float axisIntercept, MatchEnds);
+typedef OpRoots (*AxisT)(Curve , Axis , float axisIntercept  OP_DEBUG_PARAMS(const OpRoots& ));
 
 // returns number of points in curve user data that contribute to its hull
 typedef int (*HullPtCount)();
@@ -124,8 +124,8 @@ typedef void (*CurveReverse)(Curve);
 // rotates curve user data about origin (not normalized)
 typedef void (*Rotate)(Curve , OpPoint origin, OpVector scale, Curve result);
 
-// computes part of Curve from parameter t1 to t2, both from zero to one
-typedef void (*SubDivide)(Curve , float t1, float t2, Curve result);
+// computes part from parameter t1 to t2, both from 0 to 1; returns false if result devolved to line
+typedef bool (*SubDivide)(Curve , float t1, float t2, Curve result);
 
 // returns tangent vector at parameter t, where: t=0 is start, t=1 is end
 typedef OpVector (*CurveTangent)(Curve, float t);
@@ -143,7 +143,8 @@ typedef float (*CurveConst)(Curve );
 // most caller-defined functions are optional and default to built-in behavior
 struct CurveCallbacks {
 	CurveOutput curveOutputFuncPtr; // !!! to do: should this default to no output? is that useful?
-	AxisT axisTFuncPtr = nullptr;
+	AxisT axisTFuncPtr = nullptr;  // curve is monotonic
+	AxisT rotateTFuncPtr = nullptr;  // curve was rotated and may require finding extrema
 	CurveHull curveHullFuncPtr = nullptr;
 	CurveIsFinite curveIsFiniteFuncPtr = nullptr;
 	CurveIsLine curveIsLineFuncPtr = nullptr;
@@ -195,7 +196,7 @@ struct WindingCallbacks {
 typedef void (*EmptyCallerPath)(PathOutput );
 
 // returns the linear type defined by the caller
-typedef CurveType (*SetLineType)(Curve );
+typedef CurveType (*SetLineType)(Context* , Curve );
 
 // overrides a scalar used by the engine to test if curve intersects bounds 
 typedef float (*MaxCurveValue)(Curve );
@@ -217,16 +218,19 @@ typedef float (*MaxGap)(Context* );
 struct ContextCallbacks {
 	SetLineType setLineTypeFuncPtr;  // !!! to do: should this default to (CurveType) 1 ?
 	EmptyCallerPath emptyCallerPathFuncPtr = nullptr;
+//	MaxCurveCurveValue maxBoundedEdgeFuncPtr = nullptr;
+	MaxCurveCurveValue maxLimitFuncPtr = nullptr;
 	MaxCurveCurveValue maxSignSwapFuncPtr = nullptr;
-	MaxCurveCurveValue maxOverlapFuncPtr = nullptr;
+//	MaxCurveCurveValue maxSlopFuncPtr = nullptr;
 	MaxCurveCurveValue maxSplitBiasFuncPtr = nullptr;
-	MaxCurveValue maxBoundedEdgeFuncPtr = nullptr;
-	MaxCurveValue maxBoundedTFuncPtr = nullptr;
-	MaxCurveValue maxUnsectableTFuncPtr = nullptr;
-	MaxCurveCurveCount maxCheckSplitFuncPtr = nullptr;
+	MaxCurveCurveValue maxOverlapFuncPtr = nullptr;
 	MaxCurveCurveCount maxDeepFuncPtr = nullptr;
 	MaxCurveCurveCount maxShallowFuncPtr = nullptr;
 	MaxCurveCurveCount maxSplitsFuncPtr = nullptr;
+//	MaxCurveCurveCount maxBoundedTFuncPtr = nullptr;
+	MaxCurveValue maxMarginFuncPtr = nullptr;
+	MaxCurveValue maxUnsectableTFuncPtr = nullptr;
+	MaxCurveCurveCount maxCheckSplitFuncPtr = nullptr;
 	MaxLimbs maxLimbsFuncPtr = nullptr;
 	MaxGap maxGapFuncPtr = nullptr;
 };

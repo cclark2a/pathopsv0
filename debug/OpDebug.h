@@ -66,6 +66,7 @@ struct OpDebugData {
 	int curveCurveDepth;
 	int limitContours;
 	bool limitReached;
+	bool runOneFile;
 	bool success;
 };
 
@@ -222,7 +223,7 @@ struct OpDebugMaker {
 
 #define OpBreak2(o1, o2, i1, i2) \
 	do { if ((o1)->id != (o2)->id && ((i1) == (o1)->id || (i2) == (o1)->id) && \
-             ((i1) == (o2)->id || (i2) == (o2)->id)) OP_DEBUG_BREAK(); } while (false)
+            ((i1) == (o2)->id || (i2) == (o2)->id)) OP_DEBUG_BREAK(); } while (false)
 
 #define OpBreakIf(opObject, ID, doBreak) \
 	do { if ((doBreak) && (ID) == (opObject)->id) OP_DEBUG_BREAK(); } while (false)
@@ -247,6 +248,10 @@ bool OpDebugSkipBreak();
 
 #define OpPlayback(opObject, ID) \
 	do { if ((ID) == (opObject)->id) { playback(); OP_DEBUG_BREAK(); } } while (false)
+
+#define OpPlayback2(o1, o2, i1, i2) \
+	do { if ((o1)->id != (o2)->id && ((i1) == (o1)->id || (i2) == (o1)->id) && \
+            ((i1) == (o2)->id || (i2) == (o2)->id)) { playback(); OP_DEBUG_BREAK(); } } while (false)
 
 #define OpPlaybackIf(opObject, ID, doBreak) \
 	do { if ((doBreak) && (ID) == (opObject)->id) { playback(); OP_DEBUG_BREAK(); } } while (false)

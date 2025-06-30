@@ -30,6 +30,13 @@ struct OpPointBounds : OpRect {
 		return OpMath::Between(left, pt.x, right) && OpMath::Between(top, pt.y, bottom);
 	}
 
+	bool contains(OpPoint pt, OpVector margin) const {
+		OP_ASSERT(pt.isFinite());
+		OP_ASSERT(margin.isFinite());
+		return OpMath::Between(left - margin.dx, pt.x, right + margin.dx) 
+				&& OpMath::Between(top - margin.dy, pt.y, bottom + margin.dy);
+	}
+
 	bool contains(OpRect& r) const {
 		return OpMath::Between(left, r.left, right) && OpMath::Between(left, r.right, right) 
 				&& OpMath::Between(top, r.top, bottom) && OpMath::Between(top, r.bottom, bottom);
@@ -43,6 +50,10 @@ struct OpPointBounds : OpRect {
 			std::min(right, bounds.right),
 			std::min(bottom, bounds.bottom)
 		};
+	}
+
+	bool intersectsThreshold(const OpPointBounds& bounds, OpVector thresh) const {
+		return intersects(bounds.outset(thresh)); 
 	}
 
 	bool isSet() const {

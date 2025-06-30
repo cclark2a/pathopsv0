@@ -120,7 +120,7 @@ struct OpCurveCurve {
 	bool alreadyInLimits(const OpEdge* edge, const OpEdge* oEdge, 
 			const OpPtT& edgePtT, const OpPtT& oppPtT);
 	bool betweenLimits(OpSegment* , float lo, float hi);
-	OpEdge* boundedEdge(OpSegment* s, const OpPointBounds& , MatchEnds  OP_LINE_FILE_ARGS());
+	OpEdge* boundedEdge(OpSegment* s, const OpPointBounds&, OpPtT* singleton  OP_LINE_FILE_ARGS());
 	bool checkForGaps();
 	bool checkSect();
 	bool checkSplit(float lo, float hi, CurveRef , OpPtT& checkPtT) const;
@@ -146,7 +146,7 @@ struct OpCurveCurve {
 	~OpCurveCurve() { 
 		context->debugCurveCurve = nullptr; }
 	bool debugShowImage(bool atDepth = false);
-	void debugBoundedEdge(OpSegment* segm, const OpPointBounds& , float minT, std::string );
+//	void debugBoundedEdge(OpSegment* segm, const OpPointBounds& , float minT, std::string );
 #endif
 #if OP_DEBUG_DUMP
 	OpCurveCurve(OpContext* c) { context = c; }
@@ -170,8 +170,10 @@ struct OpCurveCurve {
 	OpPtT snipEdge;
 	OpPtT snipOpp;
 	MatchReverse matchRev;
-	float maxBoundedEdge;
+	float maxLimit;  // if found point pair is too far apart, use linear intersection to refine
+//	float maxBoundedEdge;
 	float maxSignSwap;
+//	float maxSlop;
 	float maxSplitBias;  // if bias does no meaningful reduction, split down the middle instead
 	int depth;
 	int uniqueLimits_impl;  // cached count; set negative if invalid (call 
@@ -180,7 +182,7 @@ struct OpCurveCurve {
 	int maxDeep;  // curves, when divided, always overlap, recurse further to look for sects
 	int maxShallow;  // curves, when divided, with no overlap, recurse less to look for sects
 	int maxSplits;  // if active splits of either curve exceed this level, give up
-	int maxBoundedT;
+//	int maxBoundedT;
 	bool boundedEdgeFailed;
 	bool overlap;
 	bool rotateFailed;

@@ -114,6 +114,24 @@ inline OpVector ConicTangent(OpPoint start, PointWeight control, OpPoint end, fl
             ConicTangent(start, control, end, XyChoice::inY, t) };
 }
 
+inline std::vector<float> AddExtrema(OpPoint start, OpPoint end, PointWeight control,
+		bool monotonicInX, bool monotonicInY) {
+    std::vector<float> tValues;
+    auto addExtrema = [start, control, end, &tValues](XyChoice offset) {
+        OpQuadCoefficients dc = DerivativeCoefficients(start, control, end, offset);
+        OpRoots roots = OpMath::QuadRootsInteriorT(dc.a, dc.b, dc.c);
+        OP_ASSERT(0 == roots.count() || 1 == roots.count() || RootFail::rootIsNaN == roots.fail);   // !!! I wanna see the extreme case...
+        if (0 == roots.count())
+            return;
+        tValues.push_back(roots.roots[0]);
+    };
+    if (!monotonicInX)
+        addExtrema(XyChoice::inX);
+    if (!monotonicInY)
+        addExtrema(XyChoice::inY);
+    return tValues;
+}
+
 // Curves must be subdivided so their endpoints describe the rectangle that contains them
 // returns the number of curves generated from the Conicratic Bezier
 inline size_t AddConics(Contour* contour, AddCurve curve) {
@@ -132,19 +150,9 @@ inline size_t AddConics(Contour* contour, AddCurve curve) {
         return 1;
     }
     // control point is not inside bounds formed by end points; split Conic into parts
-    std::vector<float> tValues { 0, 1 };
-    auto addExtrema = [start, control, end, &tValues](XyChoice offset) {
-        OpQuadCoefficients dc = DerivativeCoefficients(start, control, end, offset);
-        OpRoots roots = OpMath::QuadRootsInteriorT(dc.a, dc.b, dc.c);
-        OP_ASSERT(0 == roots.count() || 1 == roots.count() || RootFail::rootIsNaN == roots.fail);   // !!! I wanna see the extreme case...
-        if (0 == roots.count())
-            return;
-        tValues.push_back(roots.roots[0]);
-    };
-    if (!monotonicInX)
-        addExtrema(XyChoice::inX);
-    if (!monotonicInY)
-        addExtrema(XyChoice::inY);
+	std::vector<float> tValues = AddExtrema(start, end, control, monotonicInX, monotonicInX);
+	tValues.push_back(0);
+	tValues.push_back(1);
     std::sort(tValues.begin(), tValues.end());
     std::vector<OpPtT> ptTs(tValues.size());
     ptTs.front() = { start, 0 };
@@ -177,7 +185,8 @@ inline bool conicIsLine(Curve c) {
     return linePts.ptOnLine(control.pt);
 }
 
-inline OpRoots conicAxisT(Curve curve, Axis axis, float intercept, MatchEnds ) {
+inline OpRoots conicAxisT(Curve curve, Axis axis, float intercept  
+		OP_DEBUG_PARAMS(const OpRoots& )) {
     PointWeight control(curve);
     float a = curve.data->end.choice(axis);
     float b = control.pt.choice(axis) * control.weight - intercept * control.weight + intercept;
@@ -185,6 +194,50 @@ inline OpRoots conicAxisT(Curve curve, Axis axis, float intercept, MatchEnds ) {
     a += c - 2 * b;    // A = a - 2*b + c
     b -= c;            // B = -(b - c)
     return OpMath::QuadRootsDouble(a, 2 * b, c - intercept);  // ? double req'd: testConics3759897
+}
+
+inline OpRoots conicRotatedT(Curve curve, Axis axis, float axisIntercept
+		OP_DEBUG_PARAMS(const OpRoots& debugRoots)) {
+	OpPoint start = curve.data->start;
+	OpPoint end = curve.data->end;
+	PointWeight control(curve);
+    bool monotonicInX = OpMath::Between(start.x, control.pt.x, end.x);
+    bool monotonicInY = OpMath::Between(start.y, control.pt.y, end.y);
+	std::vector<float> tValues = AddExtrema(start, end, control, monotonicInX, monotonicInY);
+	if (tValues.empty())
+		return conicAxisT(curve, axis, axisIntercept  OP_DEBUG_PARAMS(debugRoots));
+    std::sort(tValues.begin(), tValues.end());
+    std::vector<OpPtT> ptTs(tValues.size() + 2);
+    ptTs.front() = { start, 0 };
+    ptTs.back() = { end, 1 };
+    for (unsigned index = 0; index < tValues.size(); ++index) {
+        ptTs[index + 1] = { ConicPointAtT(start, control, end, tValues[index]), tValues[index] }; 
+    } 
+	OpRoots result;
+	unsigned lastIndex = ptTs.size() - 1;
+    for (unsigned index = 0; index < lastIndex; ++index) {
+        struct ConicData {
+            OpPoint endPts[2];
+            PointWeight control;
+        } conicData { { ptTs[index].pt, ptTs[index + 1].pt }, {} };
+		float startT = ptTs[index].t;
+		float endT = ptTs[index + 1].t;
+		if (0 == conicData.endPts[0].choice(axis)) {
+			result.add(startT);
+			continue;
+		}
+		if (0 == conicData.endPts[1].choice(axis)) {
+			result.add(endT);
+			continue;
+		}
+        OP_ASSERT(conicData.endPts[0] != conicData.endPts[1]);
+        conicData.control = ConicControl(start, control, end, ptTs[index], ptTs[index + 1]);
+		Curve part { (CurveData*) &conicData, curve.size, curve.type };
+		OpRoots partRoot = conicAxisT(part, axis, axisIntercept  OP_DEBUG_PARAMS(debugRoots));
+		for (float root : partRoot.roots)
+			result.add(startT + root * (endT - startT));
+	}
+	return result;
 }
 
 inline OpPoint conicPtAtT(Curve c, float t) {
@@ -231,12 +284,13 @@ inline void conicSetBounds(Curve c, OpRect& bounds) {
     bounds.add(control.pt);
 }
 
-inline void conicSubDivide(Curve curve, float t1, float t2, Curve result) {
+inline bool conicSubDivide(Curve curve, float t1, float t2, Curve result) {
 	OpPtT ptT1 { result.data->start, t1 };
 	OpPtT ptT2 { result.data->end, t2 };
     PointWeight control(curve);
     PointWeight subPtW = ConicControl(curve.data->start, control, curve.data->end, ptT1, ptT2);
     subPtW.copyTo(result);
+	return true;
 }
 
 inline OpPoint conicHull(Curve c, int index) {

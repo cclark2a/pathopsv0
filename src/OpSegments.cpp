@@ -128,6 +128,7 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 	size_t segSects = seg->sects.i.size();
 	size_t oppSects = opp->sects.i.size();
 	for (float oppT : septs.roots) {
+#if 0
 //		if (OpMath::NearlyEndT(oppT))	// if curve hits middle of line, do not ignore (loop48977)
 //			continue;
 		// if computed point is nearly end, ignore
@@ -146,6 +147,20 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 			continue;
 		if (OpMath::NearlyEndT(edgeT))
 			continue;
+#elif 0
+		float edgeT;
+		PathOpsV0Lib::ContextCallbacks& cb = seg->contour->context->contextCallbacks;
+		float margin = cb.maxMarginFuncPtr ? cb.maxMarginFuncPtr(seg->c.c) : 8.0f;
+		margin *= OpEpsilon;
+		OpPtT oppPtT = opp->c.lineCurve(seg->c, oppT, &edgeT, MatchEnds::both, margin);  // check ends
+		if (OpMath::IsNaN(oppPtT.t))
+			continue;
+#else
+		OpPtT oppPtT = opp->c.ptTAtT(oppT);
+		float edgeT = seg->findLineT(oppPtT.pt);
+		if (0 > edgeT || edgeT > 1)
+			continue;
+#endif
 		seg->ptBounds.pin(&oppPtT.pt);  // required by testLine409
 		opp->ptBounds.pin(&oppPtT.pt);
 		oppPtTs.push_back(oppPtT);
@@ -350,10 +365,10 @@ void OpSegments::findIntersection(OpContour* contour, OpContour* oContour) {
 			OpSegment* opp = oContour->sorted[oDex];
 			if (opp->disabled)
 				continue;
-			if (seg->closeBounds.right < opp->closeBounds.left)
+			if (seg->ptBounds.right < opp->ptBounds.left)
 				break;
 			// loop134071: seg 8 collapses. With pt bounds instead of 'close', seg 7 + 9 don't touch
-			if (!seg->closeBounds.intersects(opp->closeBounds))
+			if (!seg->ptBounds.intersectsThreshold(opp->ptBounds, contour->context->threshold()))
 				continue;
 			if (!findIntersection(seg, opp))
 				break;
@@ -415,7 +430,7 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 	if (!cc.overlap)
 		return true;
 	SectFound ccResult = cc.divideAndConquer();
-	OP_ASSERT(cc.debugShowImage());
+	OP_ASSERT(OP_DEBUG_FAST_TEST || cc.debugShowImage());
 	// search runs for small opp distances; turn found into limits
 	SectFound limitsResult = cc.runsToLimits();
 	if (SectFound::add == limitsResult)

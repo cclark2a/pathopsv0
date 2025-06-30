@@ -23,21 +23,29 @@ struct CutRangeT {
 	OpPtT hi;
 };
 
+enum class Rotated {
+	no,
+	yes
+	OP_DEBUG_PARAMS(debug)
+};
+
 struct OpCurve {
 	OpCurve() 
 		: c{ nullptr, 0, (PathOpsV0Lib::CurveType) 0 }
 		, context(nullptr)
+		, rotated(Rotated::no)
 		, isLineSet(false)
 		, isLineResult(false) {
 	}
 
-	OpCurve(OpContext* , PathOpsV0Lib::Curve );
+	OpCurve(OpContext* , PathOpsV0Lib::Curve , Rotated );
 	OpRoots axisRayHit(Axis offset, float axisIntercept, float start = 0, float end = 1) const;
-	OpRoots axisRawHit(Axis offset, float axisIntercept, MatchEnds ) const;
+	OpRoots axisRawHit(Axis offset, float axisIntercept, MatchEnds) const;
 	float center(Axis offset, float axisIntercept) const;
 //	OpPtT cut(const OpPtT& ptT, float loBounds, float hiBounds, float direction) const;
 	CutRangeT cutRange(const OpPtT& ptT, OpPoint oppPt, float loEnd, float hiEnd) const;
 //	OpPoint end(float t) const;
+    float findValidT(float start, float end, OpPoint opp);
 //	OpPtT findIntersect(Axis offset, const OpPtT& ) const;
 	OpPoint firstPt() const  {
 		return c.data->start; } 
@@ -50,7 +58,8 @@ struct OpCurve {
 		return c.data->end; }
 	LinePts linePts() const {
 		LinePts result { firstPt(), lastPt() }; return result; }
-	OpRootPts lineIntersect(const LinePts& line) const;
+	OpPtT lineCurve(OpCurve& line, float t, float* lineT, MatchEnds , float margin);
+	OpRoots lineIntersect(const LinePts& line) const;
 	// Returns t of point on curve if any; returns NaN if no match. Used by line/curve intersection.
 	float match(float start, float end, OpPoint ) const;
 	MatchReverse matchEnds(const LinePts& ) const;
@@ -92,6 +101,7 @@ struct OpCurve {
 	// create storage in contour; helper function casts it to CurveData
 	PathOpsV0Lib::Curve c;
 	OpContext* context;  // required by new interface for caller function pointer access
+	Rotated rotated;
 	bool isLineSet;
 	bool isLineResult;
 };

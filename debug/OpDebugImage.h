@@ -10,6 +10,10 @@ void OpDebugGenerateColorFiles();
 #include <string>
 #include <vector>
 
+namespace PathOpsV0Lib {
+struct Curve;
+}
+
 struct LinePts;
 struct LinkUps;
 struct OpContour;
@@ -39,6 +43,8 @@ struct OpDebugImage {
 	static void add(Axis axis, float value);
 	static void add(const OpDebugRay& );
 	static void add(const OpPtT& );
+	static void add(const OpRect& );
+	static void add(const PathOpsV0Lib::Curve& );
 	static void addArrowHeadToPath(const LinePts& , class SkPath& );
 	static void addCircleToPath(OpPoint , class SkPath& );
 	static void addDiamondToPath(OpPoint , class SkPath& );
@@ -49,6 +55,7 @@ struct OpDebugImage {
 	static void center(int id, bool add);
 	static void centerT(int id, float t);
 	static void clearIntersections();
+	static void clearCurves();
 	static void clearLines();
 	static void clearPoints();
 	static void clearScreen();
@@ -87,48 +94,59 @@ struct OpDebugImage {
 extern void add(std::vector<OpEdge>& );  // to draw edge list built from intersections
 extern void add(std::vector<OpEdge*>& ); // to draw unsortables
 extern void addFocus(int id);
+extern void addFocus(const LinePts& );
 extern void addFocus(const OpContour& );
 extern void addFocus(const OpContext& );
+extern void addFocus(const OpCurve& );
 extern void addFocus(const OpEdge& );
 extern void addFocus(const OpIntersection& );
 extern void addFocus(const OpPoint& );  // pass by reference; VS fails by value in immediate window
 extern void addFocus(const OpPtT& );
 extern void addFocus(const OpRect& );
+extern void addFocus(const PathOpsV0Lib::Curve& );
 extern void addFocus(const OpSegment& );
 extern void addFocus(const OpContour* );
 extern void addFocus(const OpContext* );
+extern void addFocus(const OpCurve* );
 extern void addFocus(const OpEdge* );
 extern void addFocus(const OpIntersection* );
 extern void addFocus(const OpPoint* );
 extern void addFocus(const OpPtT* );
 extern void addFocus(const OpRect* );
 extern void addFocus(const OpSegment* );
+extern void addFocus(const PathOpsV0Lib::Curve* );
 extern void addFocusLink(int id);
 extern void addFocusLink(const OpEdge& );
 extern void addFocusLink(const OpEdge* );
 extern void ctr();
 extern void ctr(int id);
 extern void ctr(float x, float y);
+extern void ctr(const LinePts& );
 extern void ctr(const OpContour& );
 extern void ctr(const OpContext& );
+extern void ctr(const OpCurve& );
 extern void ctr(const OpEdge& );
 extern void ctr(const OpIntersection& );
 extern void ctr(const OpRect& );
 extern void ctr(const OpPoint& );
 extern void ctr(const OpPtT& );
 extern void ctr(const OpSegment& );
+extern void ctr(const PathOpsV0Lib::Curve& );
 extern void ctr(const OpContour* );
 extern void ctr(const OpContext* );
+extern void ctr(const OpCurve* );
 extern void ctr(const OpEdge* );
 extern void ctr(const OpIntersection* );
 extern void ctr(const OpRect* );
 extern void ctr(const OpPoint* );
 extern void ctr(const OpPtT* );
 extern void ctr(const OpSegment* );
+extern void ctr(const PathOpsV0Lib::Curve* );
 extern void ctrT(int id, float t);
 extern void ctrT(const OpEdge* , float t);
 extern void ctrT(const OpEdge& , float t);
 extern void clear();
+extern void clearCurves();
 extern void clearLines();
 extern void clearPoints();
 extern void debugImage();
@@ -136,39 +154,64 @@ extern void draw(std::vector<OpEdge>& );  // to draw edge list built from inters
 extern void draw(std::vector<OpEdge*>& ); // to draw unsortables
 extern void draw(Axis , float );	// horizontal or vertical ray
 extern void draw(const LinePts& );	// arbitrary angled ray
+extern void draw(const OpCurve& );
 extern void draw(const OpPoint& );
 extern void draw(const OpPtT& );   // draw point (ignores t)
+extern void draw(const OpRect& );
+extern void draw(const PathOpsV0Lib::Curve& );
+extern void draw(const OpCurve* );
 extern void draw(const OpPoint* );
 extern void draw(const OpPtT* );
+extern void draw(const OpRect* );
+extern void draw(const PathOpsV0Lib::Curve* );
 extern void draw(float , float );
 extern void drawHex(uint32_t , uint32_t );
 extern void drawT(int id, float );
 extern void drawT(int id, const OpPtT& );
 extern void drawT(int id, const OpPtT* );
-extern void drawT(const OpSegment&, float );
-extern void drawT(const OpSegment&, const OpPtT& );
-extern void drawT(const OpSegment&, const OpPtT* );
-extern void drawT(const OpSegment*, float );
-extern void drawT(const OpSegment*, const OpPtT& );
-extern void drawT(const OpSegment*, const OpPtT* );
+extern void drawT(const OpCurve&, float );
+extern void drawT(const OpCurve&, const OpPtT& );
+extern void drawT(const OpCurve&, const OpPtT* );
+extern void drawT(const OpCurve*, float );
+extern void drawT(const OpCurve*, const OpPtT& );
+extern void drawT(const OpCurve*, const OpPtT* );
 extern void drawT(const OpEdge&, float );
 extern void drawT(const OpEdge&, const OpPtT& );
 extern void drawT(const OpEdge&, const OpPtT* );
 extern void drawT(const OpEdge*, float );
 extern void drawT(const OpEdge*, const OpPtT& );
 extern void drawT(const OpEdge*, const OpPtT* );
+extern void drawT(const OpSegment&, float );
+extern void drawT(const OpSegment&, const OpPtT& );
+extern void drawT(const OpSegment&, const OpPtT* );
+extern void drawT(const OpSegment*, float );
+extern void drawT(const OpSegment*, const OpPtT& );
+extern void drawT(const OpSegment*, const OpPtT* );
+extern void drawT(const PathOpsV0Lib::Curve&, float );
+extern void drawT(const PathOpsV0Lib::Curve&, const OpPtT& );
+extern void drawT(const PathOpsV0Lib::Curve&, const OpPtT* );
+extern void drawT(const PathOpsV0Lib::Curve*, float );
+extern void drawT(const PathOpsV0Lib::Curve*, const OpPtT& );
+extern void drawT(const PathOpsV0Lib::Curve*, const OpPtT* );
 extern void focus(int id);
+extern void focus(const LinePts& );
 extern void focus(const OpContour& );
 extern void focus(const OpContext& );
+extern void focus(const OpCurve& );
 extern void focus(const OpEdge& );
 extern void focus(const OpRect& );
 extern void focus(const OpSegment& );
+extern void focus(const PathOpsV0Lib::Curve& );
 extern void focus(const OpContour* );
 extern void focus(const OpContext* );
+extern void focus(const OpCurve* );
 extern void focus(const OpEdge* );
 extern void focus(const OpRect* );
 extern void focus(const OpSegment* );
+extern void focus(const PathOpsV0Lib::Curve* );
+extern void focusCurves();
 extern void focusEdges();
+extern void focusLines();
 extern void focusLink(int id);
 extern void focusLink(const OpEdge& );
 extern void focusLink(const OpEdge* );
@@ -196,6 +239,7 @@ OP_X(Coincidences) \
 OP_X(ControlLines) \
 OP_X(Controls) \
 OP_X(Contours) \
+OP_X(Curves) \
 OP_X(EndToEnd) \
 OP_X(Fill) \
 OP_X(Grid) \

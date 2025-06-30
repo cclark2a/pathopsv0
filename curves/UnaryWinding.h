@@ -9,11 +9,11 @@ namespace PathOpsV0Lib {
 struct UnaryWinding {
 	
     UnaryWinding()
-        : left(0) {
+        : value(0) {
 	}
 
     UnaryWinding(int initial)
-		: left(initial) {
+		: value(initial) {
 	}
 
     UnaryWinding(Winding w) {
@@ -26,20 +26,20 @@ struct UnaryWinding {
 		std::memcpy(w.data, this, sizeof(UnaryWinding));
 	}
 
-    int left;
+    int value;
 };
 
 inline void unaryEvenOddFunc(Winding winding, Winding toAdd) {
     UnaryWinding sum(winding);
     UnaryWinding addend(toAdd);
-    sum.left ^= addend.left;
+    sum.value ^= addend.value;
     sum.copyTo(winding);
 }
 
 inline void unaryWindingAddFunc(Winding winding, Winding toAdd) {
     UnaryWinding sum(winding);
     UnaryWinding addend(toAdd);
-    sum.left += addend.left;
+    sum.value += addend.value;
     sum.copyTo(winding);
 }
 
@@ -50,21 +50,21 @@ inline void unaryWindingAddFunc(Winding winding, Winding toAdd) {
 inline WindKeep unaryWindingKeepFunc(Winding winding, Winding sumWinding) {
     UnaryWinding wind(winding);
     UnaryWinding sum(sumWinding);
-    if (!wind.left || (sum.left && sum.left != wind.left))
+    if (!wind.value || (sum.value && sum.value != wind.value))
          return WindKeep::Discard;
-    return sum.left ? WindKeep::Start : WindKeep::End;
+    return sum.value ? WindKeep::Start : WindKeep::End;
 }
 
 inline void unaryWindingSubtractFunc(Winding winding, Winding toSubtract) {
     UnaryWinding difference(winding);
     UnaryWinding subtrahend(toSubtract);
-    difference.left -= subtrahend.left;
+    difference.value -= subtrahend.value;
     difference.copyTo(winding);
 }
     
 inline bool unaryWindingVisibleFunc(Winding winding) {
     UnaryWinding test(winding);
-    return !!test.left;
+    return !!test.value;
 }
 
 inline void unaryWindingZeroFunc(Winding toZero) {
@@ -75,7 +75,7 @@ inline void unaryWindingZeroFunc(Winding toZero) {
 #if OP_DEBUG_DUMP
 inline std::string unaryWindingDumpOutFunc(Winding winding) {
     UnaryWinding unary(winding);
-    std::string s = "{" + STR(unary.left) + "}";
+    std::string s = "{" + STR(unary.value) + "}";
     return s;
 }
 #endif
@@ -85,7 +85,7 @@ inline std::string unaryWindingImageOutFunc(Winding winding, int index) {
     if (index > 0)
         return "-";
     UnaryWinding unaryWinding(winding);
-    std::string s = STR(unaryWinding.left);
+    std::string s = STR(unaryWinding.value);
     return s;
 }
 #endif

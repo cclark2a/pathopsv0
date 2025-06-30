@@ -54,7 +54,7 @@ bool OpHulls::closeEnough(int index, const OpEdge& edge, const OpEdge& oEdge, Op
 			OpPoint sectPt = eLine.ptAtT(oRoots.roots[0]);
 			Axis eLarger = edge.ptBounds.largerAxis();
 			OpPtT ePtT = edge.findT(eLarger, sectPt.choice(eLarger));
-			float newOPtT = oEdge.segment->findValidT(0, 1, sectPt);
+			float newOPtT = oEdge.segment->c.findValidT(0, 1, sectPt);
 			if (OpMath::IsNaN(newOPtT))
 				return false;
 			*oPtT = OpPtT(sectPt, newOPtT);
@@ -225,8 +225,7 @@ OpEdge::OpEdge(OpContext* context, const OpPtT& start, const OpPtT& end  OP_LINE
 	id = context->nextID();
 	PathOpsV0Lib::CurveData lineData { start.pt, end.pt };
 	PathOpsV0Lib::Curve lineCurve { &lineData, sizeof(lineData), (PathOpsV0Lib::CurveType) 0 };
-	lineCurve.type = context->contextCallbacks.setLineTypeFuncPtr(lineCurve);
-	curve = OpCurve(context, lineCurve);
+	curve = OpCurve(context, lineCurve, Rotated::no);
 	curve.isLineSet = true;
 	curve.isLineResult = true;
 	setPointBounds();
@@ -271,6 +270,7 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e  OP_LINE_FILE_
 	complete(s.pt, e.pt);
 }
 
+#if 0  // !!! disallowed : it tosses point that has been adjusted and recomputes from t
 // called by curve curve when constructing edge from hull intersections
 OpEdge::OpEdge(OpSegment* seg, float t1, float t2  OP_LINE_FILE_ARGS())
 	: OpEdge() {
@@ -283,6 +283,7 @@ OpEdge::OpEdge(OpSegment* seg, float t1, float t2  OP_LINE_FILE_ARGS())
 	endDist = OpNaN;
 	complete(segment->c.ptAtT(t1), segment->c.ptAtT(t2));
 }
+#endif
 
 #if OP_DEBUG_VALIDATE
 OpEdge::~OpEdge() {

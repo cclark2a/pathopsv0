@@ -31,8 +31,8 @@ void FoundEdge::reset() {
 
 OpSegment::OpSegment(PathOpsV0Lib::Contour* libContour, PathOpsV0Lib::AddCurve addCurve)    
 	: contour((OpContour*) libContour)
-	, c(contour->context,  
-			{ (PathOpsV0Lib::CurveData*) addCurve.points, addCurve.size, addCurve.type } )
+	, c(contour->context, { (PathOpsV0Lib::CurveData*) addCurve.points, 
+			addCurve.size, addCurve.type }, Rotated::no )
 	, winding(contour->context, { contour->winding.data, contour->winding.size } )
 	, id(contour->nextID())
 	, disabled(false)
@@ -508,6 +508,7 @@ void OpSegment::findMissingEnds() {
 		resetBounds();
 }
 
+#if 0
 // returns t iff opp point is between start and end
 // start/end range is necessary since cubics can have more than one t at a point
 float OpSegment::findValidT(float start, float end, OpPoint opp) {
@@ -542,13 +543,24 @@ float OpSegment::findValidT(float start, float end, OpPoint opp) {
 		return result;
 	return OpNaN;
 }
+#endif
+
+float OpSegment::findLineT(OpPoint opp) {
+	OP_ASSERT(c.isLine());
+	OpVector lineSize = c.lastPt() - c.firstPt();
+	float result = fabsf(lineSize.dy) > fabsf(lineSize.dx) ?
+		(opp.y - c.firstPt().y) / lineSize.dy : (opp.x - c.firstPt().x) / lineSize.dx;
+	if (0 <= result && result <= 1)
+		return result;
+	return OpNaN;
+}
 
 // if intersections collapse, return true to restart; we're in the middle of walking sect array
 bool OpSegment::fixCCSects() {
 	if (!sects.hasCCSects)
 		return false;
 	sects.sort();
-	OP_ASSERT(2 < sects.i.size());
+//	OP_ASSERT(2 < sects.i.size());
 	OP_ASSERT(0 == sects.i.front()->ptT.t);
 	OP_ASSERT(1 == sects.i.back()->ptT.t);
 	if (startMoved || endMoved) {
@@ -811,11 +823,14 @@ OpPoint OpSegment::movePt(OpPtT match, OpPoint destination) {
 		moveSects(match, destination);
 	OP_ASSERT(!contour->context->debugJoiner);
 	edges.clear();
+	resetBounds();
 	return destination;
 }
 
 bool OpSegment::moveSects(OpPtT match, OpPoint destination) {
-	SectCleanup cleanup = sects.moveSects(match, destination);
+	SectCleanup cleanup = sects.moveSects(match, destination,
+			destination == c.firstPt() ? MatchEnds::start : destination == c.lastPt() 
+			? MatchEnds::end : MatchEnds::none);
 	switch (cleanup) {
 		case SectCleanup::none:
 			return true;
@@ -911,9 +926,9 @@ void OpSegment::resetBounds() {
 	ptBounds = c.ptBounds();
 	if (ptBounds.isEmpty()) {
 		disabled = true;
-		closeBounds = ptBounds;
-	} else
-		closeBounds = ptBounds.outset(threshold());
+//		closeBounds = ptBounds;
+	}// else
+	//	closeBounds = ptBounds.outset(threshold());
 }
 
 void OpSegment::setDisabled(OP_LINE_FILE_NP_ARGS()) {

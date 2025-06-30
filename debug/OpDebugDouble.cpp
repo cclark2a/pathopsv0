@@ -699,6 +699,7 @@ void DebugOpCurve::subDivide(double a, double b, DebugOpCurve& dest) const {
 #include "include/core/SkPath.h"
 #endif
 
+std::vector<DebugOpCurve> debugCurves;
 std::vector<DebugOpCurve> debugLines;
 std::vector<DebugOpCurve> debugSegments;
 std::vector<DebugOpCurve> debugEdges;
@@ -870,26 +871,84 @@ void DebugOpDraw(const std::vector<OpDebugRay>& lines) {
             debugLines.push_back(curve);
             continue;
         }
-        int outIndex = 0;
-        DebugOpPoint len { line.pts.pts[1].x - line.pts.pts[0].x, line.pts.pts[1].y - line.pts.pts[0].y };
-        float leftY = (float) (line.pts.pts[0].y + len.y * (bounds.left - line.pts.pts[0].x) / len.x);
-        if (bounds.top <= leftY && leftY < bounds.bottom)
-            curve.pts[outIndex++] = { bounds.left, leftY };
-        float topX = (float) (line.pts.pts[0].x + len.x * (bounds.top - line.pts.pts[0].y) / len.y);
-        if (bounds.left <= topX && topX < bounds.right)
-            curve.pts[outIndex++] = { bounds.top, topX };
-        float rightY = (float) (line.pts.pts[0].y + len.y * (bounds.right - line.pts.pts[0].x) / len.x);
-        if (bounds.top < rightY && rightY <= bounds.bottom)
-            curve.pts[outIndex++] = { bounds.right, rightY };
-        float bottomX = (float) (line.pts.pts[0].x + len.x * (bounds.bottom - line.pts.pts[0].y) / len.y);
-        if (bounds.left < bottomX && bottomX <= bounds.right)
-            curve.pts[outIndex++] = { bounds.bottom, bottomX };
-        if (2 == outIndex)
+		const std::array<OpPoint, 2>& pts = line.pts.pts;
+		std::vector<OpPoint> visible;
+		if (bounds.left <= pts[0].x && pts[0].x <= bounds.right
+					&& bounds.top <= pts[0].y && pts[0].y <= bounds.bottom)
+				visible.emplace_back(pts[0].x, pts[0].y);
+		if (bounds.left <= pts[1].x && pts[1].x <= bounds.right
+					&& bounds.top <= pts[1].y && pts[1].y <= bounds.bottom)
+				visible.emplace_back(pts[1].x, pts[1].y);
+		auto foundVisible = [&curve, &visible]() {
+			if (2 > visible.size())    // both line points are inside visible bounds
+				return false;
+			if (2 != visible.size())
+				OpDebugOut("unexpected ray intersections1\n");
+			curve.pts[0] = { visible[0].x, visible[0].y };
+			curve.pts[1] = { visible[1].x, visible[1].y };
             debugLines.push_back(curve);
-        else if (0 != outIndex)
-            OpDebugOut("unexpected ray bounds\n");
+			visible.clear();
+			return true;
+		};
+		if (foundVisible()) 
+			continue;
+		auto addVisible = [&visible](OpPoint visPt) {
+			if (visible.end() == std::find(visible.begin(), visible.end(), visPt))
+				visible.push_back(visPt);
+		};
+        DebugOpPoint len { pts[1].x - pts[0].x, pts[1].y - pts[0].y };
+        if (pts[0].x < bounds.left && bounds.left < pts[1].x) {
+			float leftY = (float) (pts[0].y + len.y * (bounds.left - pts[0].x) / len.x);
+			if (bounds.top <= leftY && leftY <= bounds.bottom)
+				addVisible({ (float) bounds.left, leftY });
+		}
+		if (pts[0].y < bounds.top && bounds.top < pts[1].y) {
+			float topX = (float) (pts[0].x + len.x * (bounds.top - pts[0].y) / len.y);
+			if (bounds.left <= topX && topX <= bounds.right)
+				addVisible({ topX, (float) bounds.top });
+		}
+        if (pts[0].x < bounds.right && bounds.right < pts[1].x) {
+			float rightY = (float) (pts[0].y + len.y * (bounds.right - pts[0].x) / len.x);
+			if (bounds.top < rightY && rightY <= bounds.bottom)
+				addVisible({ (float) bounds.right, rightY });
+		}
+		if (pts[0].y < bounds.bottom && bounds.bottom < pts[1].y) {
+			float bottomX = (float) (pts[0].x + len.x * (bounds.bottom - pts[0].y) / len.y);
+			if (bounds.left < bottomX && bottomX <= bounds.right)
+				addVisible({ bottomX, (float) bounds.bottom });
+		}
+		if (foundVisible()) 
+			continue;
+        if (visible.size())
+            OpDebugOut("unexpected ray intersections2\n");
     }
     DebugOpDraw(debugLines);
+}
+
+static void set(DebugOpCurve& dCurve, const PathOpsV0Lib::Curve& c) {
+	constexpr size_t conicSize = 3 * sizeof(OpPoint) + sizeof(float);  // !!! hacky
+	OpPoint* pts = &c.data->start;
+    dCurve.size = c.size;
+    dCurve.weight = c.size != conicSize ? 1 : pts[3].x;  // !!! hacky
+    dCurve.type = c.type;
+    dCurve.color = red;
+	size_t pointCount = c.size / sizeof(OpPoint);
+	dCurve.pts[0] = { c.data->start.x, c.data->start.y };
+	dCurve.pts[pointCount - 1] = { c.data->end.x, c.data->end.y };
+	for (size_t index = 1; index + 1 < pointCount; ++index) {
+		dCurve.pts[index] = { pts[1 + index].x, pts[1 + index].y }; 
+	}
+}
+
+void DebugOpDraw(const std::vector<PathOpsV0Lib::Curve>& curves) {
+    debugCurves.clear();
+//    DebugOpRect bounds = ZoomToRect();	// future optimization: clip to bounds
+    for (auto& c : curves) {
+        DebugOpCurve curve;
+		set(curve, c);
+		debugCurves.push_back(curve);
+	}
+	DebugOpDraw(debugCurves);
 }
 
 static double curveWeight(const OpCurve& curve) {
@@ -922,6 +981,20 @@ void DebugOpBuild(const DebugColorPt& dPt) {
         return;
     if (debugPoints.end() == std::find(debugPoints.begin(), debugPoints.end(), dPt))
         debugPoints.push_back(dPt);
+}
+
+static DebugOpCurve CurveDebugSetCurve(const PathOpsV0Lib::Curve& curve) {
+    DebugOpCurve dCurve;
+	OpCurve opCurve(debugGlobalContext, curve, Rotated::no);
+    for (int i = 0; i < opCurve.pointCount(); ++i)
+        dCurve.pts[i] = { opCurve.hullPt(i).x, opCurve.hullPt(i).y } ;
+    // !!! missing conic weight for now
+    dCurve.size = curve.size;
+    dCurve.weight = curveWeight(opCurve);
+    dCurve.type = curve.type;
+    dCurve.id = 0;
+    dCurve.color = red;
+    return dCurve;
 }
 
 void DebugOpBuild(const OpSegment& seg, const OpDebugRay& ray) {
@@ -1221,6 +1294,24 @@ void DebugOpBuild(const SkPath& path, const struct OpDebugRay& ray) {
     }
 }
 
+void DebugOpBuild(const PathOpsV0Lib::Curve& curve) {
+    DebugOpBuild(curve.data->start);
+    DebugOpBuild(curve.data->end);
+}
+
+void DebugCurveBuild(const PathOpsV0Lib::Curve& curve, const OpDebugRay& ray) {
+    auto axisSect = [&](const DebugOpCurve& curve) {  // lambda
+        DebugOpRoots roots = curve.rayIntersect(ray);
+        for (int index = 0; index < roots.count; ++index) {
+            DebugColorPt pt = { curve.ptAtT(roots.roots[index]), roots.roots[index], black };
+            DebugOpBuild(pt);
+        }
+    };
+    DebugOpCurve dCurve;
+	set(dCurve, curve);
+	axisSect(dCurve);
+}
+
 void DebugOpDraw(const std::vector<const SkPath*>& paths) {
     debugPaths.clear();
     for (auto& path : paths)
@@ -1317,6 +1408,75 @@ void DebugOpDrawValue(bool inHex) {
     }
 }
 
+void DebugOpDrawCurveControlLines(const PathOpsV0Lib::Curve& curve, uint32_t color) {
+	OpCurve c { debugGlobalContext, curve, Rotated::no };
+    int ptCount = c.pointCount();
+    if (ptCount <= 2)
+        return;
+    for (int index = 0; index < ptCount - 1; ++index) {
+        DebugOpCurve src;
+        src.pts[0] = { c.hullPt(index).x, c.hullPt(index).y };
+        src.pts[1] = { c.hullPt(index + 1).x, c.hullPt(index + 1).y };
+        src.weight = 1;
+        src.type = PathOpsV0Lib::CurveType::line;
+        src.id = 0;
+        src.color = color;
+        OpCurve dst;
+        src.mapTo(dst);
+        OpDebugImage::drawCurve(dst, color);
+    }
+}
+
+void DebugOpDrawCurveEndToEnd(const PathOpsV0Lib::Curve& curve, uint32_t color) {
+    DebugOpCurve src;
+    src.pts[0] = { curve.data->start.x, curve.data->start.y } ;
+    src.pts[1] = { curve.data->end.x, curve.data->end.y } ;
+    src.weight = 1;
+    src.size = 2 * sizeof(OpPoint);
+    src.type = PathOpsV0Lib::CurveType::line;
+    src.id = 0;
+    src.color = color;
+    OpCurve dst;
+    src.mapTo(dst);
+    OpDebugImage::drawCurve(dst, color);
+}
+
+void DebugOpDrawCurveNormal(const PathOpsV0Lib::Curve& c, uint32_t color) {
+    std::vector<DebugOpCurve> drawn;
+	drawn.push_back(CurveDebugSetCurve(c));
+    for (auto& drawnSeg : drawn) {
+        OpCurve curve { debugGlobalContext, c, Rotated::no };
+        drawnSeg.mapTo(curve);
+	    OpVector norm = curve.normal(.77f).normalize() * 15;
+        if (!norm.isFinite() || norm == OpVector{ 0, 0 }) {
+		    OpDebugOut("overflow on curve\n");
+		    return;
+	    }
+        OpPoint midTPt = curve.ptAtT(.77f);
+        if (OpDebugImage::drawEdgeNormal(norm, midTPt, 0, color))
+            break;
+    }
+}
+
+void DebugOpDrawCurveTangent(const PathOpsV0Lib::Curve& c, uint32_t color) {
+    std::vector<DebugOpCurve> drawn;
+	drawn.push_back(CurveDebugSetCurve(c));
+    for (auto& drawnSeg : drawn) {
+        OpCurve curve;
+        drawnSeg.mapTo(curve);
+        if (curve.c.data->start.isNearly(curve.c.data->end, debugGlobalContext->threshold()))
+            continue;
+        OpVector tan = curve.tangent(.42f).normalize() * 15;
+        if (!tan.isFinite() || tan == OpVector{ 0, 0 }) {
+		    OpDebugOut("overflow on curve\n");
+		    return;
+	    }
+        OpPoint midTPt = curve.ptAtT(.42f);
+        if (OpDebugImage::drawTangent(tan, midTPt, 0, color))
+            break;
+    }
+}
+
 // these edges are splits created when intersecting a pair of curves
 void DebugOpDrawEdgeID(const OpEdge* edge, uint32_t color, bool drawLimbs) {
     std::vector<DebugOpCurve> drawn;
@@ -1410,6 +1570,66 @@ void DebugOpDrawEdgeTangent(const OpEdge* edge, uint32_t color) {
     }
 }
 
+void DebugOpDrawEdgeWinding(const OpEdge* edge, uint32_t color) {
+    std::vector<DebugOpCurve> drawn;
+    DebugOpBuild(*edge, drawn);
+    for (auto& drawnEdge : drawn) {
+        OpCurve curve;
+        drawnEdge.mapTo(curve);
+        if (OpDebugImage::drawEdgeWinding(curve, edge, color))
+            break;
+    }
+}
+
+void DebugOpDrawSegmentControlLines(const OpSegment* seg, uint32_t color) {
+    int ptCount = seg->c.pointCount();
+    if (ptCount <= 2)
+        return;
+    for (int index = 0; index < ptCount - 1; ++index) {
+        DebugOpCurve src;
+        src.pts[0] = { seg->c.hullPt(index).x, seg->c.hullPt(index).y };
+        src.pts[1] = { seg->c.hullPt(index + 1).x, seg->c.hullPt(index + 1).y };
+        src.weight = 1;
+        src.type = PathOpsV0Lib::CurveType::line;
+        src.id = seg->id;
+        src.color = color;
+        OpCurve dst;
+        src.mapTo(dst);
+        OpDebugImage::drawCurve(dst, color);
+    }
+}
+
+void DebugOpDrawSegmentEndToEnd(const OpSegment* seg, uint32_t color) {
+    DebugOpCurve src;
+    src.pts[0] = { seg->c.c.data->start.x, seg->c.c.data->start.y } ;
+    src.pts[1] = { seg->c.c.data->end.x, seg->c.c.data->end.y } ;
+    src.weight = 1;
+    src.size = 2 * sizeof(OpPoint);
+    src.type = PathOpsV0Lib::CurveType::line;
+    src.id = seg->id;
+    src.color = color;
+    OpCurve dst;
+    src.mapTo(dst);
+    OpDebugImage::drawCurve(dst, color);
+}
+
+void DebugOpDrawSegmentNormal(const OpSegment* seg, uint32_t color) {
+    std::vector<DebugOpCurve> drawn;
+    DebugOpBuild(*seg, drawn);
+    for (auto& drawnSeg : drawn) {
+        OpCurve curve;
+        drawnSeg.mapTo(curve);
+	    OpVector norm = curve.normal(.77f).normalize() * 15;
+        if (!norm.isFinite() || norm == OpVector{ 0, 0 }) {
+		    OpDebugOut("overflow on seg " + STR(seg->id) + "\n");
+		    return;
+	    }
+        OpPoint midTPt = curve.ptAtT(.77f);
+        if (OpDebugImage::drawEdgeNormal(norm, midTPt, seg->id, color))
+            break;
+    }
+}
+
 void DebugOpDrawSegmentTangent(const OpSegment* seg, uint32_t color) {
     std::vector<DebugOpCurve> drawn;
     DebugOpBuild(*seg, drawn);
@@ -1425,17 +1645,6 @@ void DebugOpDrawSegmentTangent(const OpSegment* seg, uint32_t color) {
 	    }
         OpPoint midTPt = curve.ptAtT(.42f);
         if (OpDebugImage::drawTangent(tan, midTPt, seg->id, color))
-            break;
-    }
-}
-
-void DebugOpDrawEdgeWinding(const OpEdge* edge, uint32_t color) {
-    std::vector<DebugOpCurve> drawn;
-    DebugOpBuild(*edge, drawn);
-    for (auto& drawnEdge : drawn) {
-        OpCurve curve;
-        drawnEdge.mapTo(curve);
-        if (OpDebugImage::drawEdgeWinding(curve, edge, color))
             break;
     }
 }

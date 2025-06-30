@@ -164,9 +164,9 @@ struct OpIntersections {
 	std::vector<int> findPals(float t) const;
 	void makeEdges(OpSegment* );
 	void markInCoincidence();
-	float matchT(const OpPtT& , OpPoint destination) const;
+	float matchT(const OpPtT& , OpPoint destination, MatchEnds ) const;
 	void mergeNear(OpPtAliases& );
-	SectCleanup moveSects(const OpPtT& match, OpPoint destination);
+	SectCleanup moveSects(const OpPtT& match, OpPoint destination, MatchEnds );
 	void orderPairs();
 //	const OpIntersection* nearly(const OpPtT& ptT, OpSegment* oSeg) const;  // near match of pt or t
 //	void range(const OpSegment* , std::vector<OpIntersection*>& );

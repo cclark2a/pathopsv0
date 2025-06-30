@@ -3,8 +3,8 @@
 #define OpSkiaTests_DEFINED
 
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
-#define SKIP_TO_FILE "cubic" // e.g., "simplify"  one file
-#define TEST_FIRST "cubic181537" // "cubic867777"  // "cubic1548433" // e.g., "testQuads23839519" if file, one test
+#define SKIP_TO_FILE "loop" // e.g., "simplify"  one file
+#define TEST_FIRST "loop5058"  // "loop6764"  // "loop11727"  // "loop171687" // e.g., "testQuads23839519" if file, one test
 #define TEST_EXTENDED 1
 #define TEST_SKIA 1
 #define TEST_REGION 1
@@ -18,8 +18,8 @@
 #define OP_TEST_V0 1  // set to zero to time Skia running tests
 #define TEST_DEFEAT_BREAK 0  // set to one to disallow code to stop automatically when running
 
-#define CURVE_CURVE_1 8  // id of segment 1 to break in divide and conquer
-#define CURVE_CURVE_2 4  // id of segment 2 to break in divide and conquer
+#define CURVE_CURVE_1 3  // id of segment 1 to break in divide and conquer
+#define CURVE_CURVE_2 9  // id of segment 2 to break in divide and conquer
 #define CURVE_CURVE_DEPTH 0  // minimum recursion depth for curve curve break (-1 to disable)
 
 #define TEST_PATH_SKIP_TESTS { "grshapearc", "grshapearcs1", "release_13" }

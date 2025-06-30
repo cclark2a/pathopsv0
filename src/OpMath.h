@@ -41,21 +41,21 @@ enum class MatchEnds {
 };
 
 inline bool operator&(MatchEnds a, MatchEnds b) {
-	return (bool) ((int) a & (int) b);
-}
+	return (bool) ((int) a & (int) b); }
 
 inline MatchEnds operator|(MatchEnds a, MatchEnds b) {
-	return (MatchEnds) ((int) a | (int) b);
-}
+	return (MatchEnds) ((int) a | (int) b); }
 
 inline MatchEnds operator|=(MatchEnds& a, MatchEnds b) {
-	return a = a | b;
-}
+	return a = a | b; }
 
 inline MatchEnds operator!(MatchEnds a) {
 	OP_ASSERT(MatchEnds::start == a || MatchEnds::end == a);
-	return (MatchEnds) ((int) a ^ (int) MatchEnds::both);
-}
+	return (MatchEnds) ((int) a ^ (int) MatchEnds::both); }
+
+inline MatchEnds MatchEndsClear(MatchEnds match, MatchEnds clear) {
+	OP_ASSERT(MatchEnds::start == clear || MatchEnds::end == clear);
+	return (MatchEnds) ((int) match & ~(int) clear); }
 
 struct MatchReverse {
 	MatchEnds flipped() const { 
@@ -113,6 +113,8 @@ struct OpRoots {
 		roots.push_back(root);
 	}
 
+	void add(const OpRoots& );
+
 	void addEnd(float root) {
 		if (contains(root))
 			return;
@@ -130,6 +132,10 @@ struct OpRoots {
 
 	int count() const {
 		return (int) roots.size();
+	}
+
+	bool empty() const {
+		return roots.empty();
 	}
 
 	float get(unsigned index) {
@@ -692,6 +698,8 @@ struct OpPtT {
 		return a.pt != b.pt || a.t != b.t;
 	}
 
+	bool isFinite() const;
+
 	bool isNearly(const OpPtT& o, OpPoint threshold) const;
 
 	bool onEnd() const {
@@ -710,6 +718,7 @@ struct OpPtT {
 	float t;
 };
 
+#if 0  // !!! verify that this is still necessary with modern cubic roots
 struct OpRootPts {
 	OpRootPts() 
 		: count(0) {
@@ -730,6 +739,7 @@ struct OpRootPts {
 	std::array<OpPtT, 5> ptTs;  // intersects within line pts longer axis bounds
 	size_t count;  // number of entries in pt-t
 };
+#endif
 
 // used to pass pairs of values where SIMD allows computing two at once
 struct OpPair {
@@ -780,6 +790,10 @@ struct OpMath {
 			OpCubicFloatType D) {
 		return CubicRootsReal(A, B, C, D, MatchEnds::none).keepValidTs();
 	}
+
+	static float CubicRoot(OpCubicFloatType A, OpCubicFloatType B, OpCubicFloatType C, 
+			OpCubicFloatType D);
+	static OpRoots CubicRootsY(float A, float B, float C, float D);
 
 	static bool Equal(float a, float b, float threshold = OpEpsilon);
 

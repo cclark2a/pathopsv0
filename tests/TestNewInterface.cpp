@@ -37,7 +37,7 @@ void quadOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt,
     commonOutput(c, quadType, firstPt, lastPt, output);
 }
 
-PathOpsV0Lib::CurveType testNewSetLineType(PathOpsV0Lib::Curve ) {
+PathOpsV0Lib::CurveType testNewSetLineType(PathOpsV0Lib::Context* , PathOpsV0Lib::Curve ) {
     return lineType;
 }
 
@@ -61,7 +61,7 @@ void testNewInterface() {
 #endif
 
     lineType = SetCurveCallbacks(context, { lineOutput });
-    quadType = SetCurveCallbacks(context, { quadOutput, quadAxisT,
+    quadType = SetCurveCallbacks(context, { quadOutput, quadAxisT, quadRotatedT,
 			quadHull, quadIsFinite, quadIsLine, 
 			quadSetBounds, quadPinCtrl, 
 			quadTangent, quadsEqual, quadPtAtT,

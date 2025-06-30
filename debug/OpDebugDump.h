@@ -6,6 +6,10 @@
 
 #include <vector>
 
+namespace PathOpsV0Lib {
+struct Curve;
+}
+
 #define DUMP_DECLARATIONS \
 std::string debugDump(DebugLevel , DebugBase ) const; \
 std::string debugDumpID() const; \
@@ -70,7 +74,6 @@ OP_X(OpPoint) \
 OP_X(OpPointBounds) \
 OP_X(OpPtAliases) \
 OP_X(OpRect) \
-OP_X(OpRootPts) \
 OP_X(OpRoots) \
 OP_X(OpTree) \
 OP_X(OpVector) \
@@ -281,6 +284,8 @@ enum class DebugLevel {
 // const int normal = 1;
 // const int detailed = 2;
 
+extern void dmp(const PathOpsV0Lib::Curve& );
+extern void dmp(const PathOpsV0Lib::Curve* );
 extern void dmpBase(int );  // set to dec, hex, hexdec
 extern void dmpClosest(const OpCurveCurve& , const OpPoint& );
 extern void dmp(std::array<CoinEnd, 4>& );
@@ -343,6 +348,7 @@ extern void debug();  // set debug bitmap to start and dump state using current 
 
 // used by new interface
 extern std::string debugValue(DebugLevel l, DebugBase b, std::string label, float value);
+extern bool debugDmpIsLine(const PathOpsV0Lib::Curve& c);
 
 enum class LimbPass : uint8_t;
 

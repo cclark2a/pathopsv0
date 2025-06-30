@@ -202,6 +202,8 @@ struct OpContext {
 	void addDebugContextData(PathOpsV0Lib::DebugContextData );
 
 	PathOpsV0Lib::DebugCurveCallbacks& debugCallback(PathOpsV0Lib::CurveType type) {
+		OP_ASSERT((int) type >= 1);
+		OP_ASSERT((size_t) type <= debugCallbacks.size());
 		return debugCallbacks[(int) type - 1];
 	}
 

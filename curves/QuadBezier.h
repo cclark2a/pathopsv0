@@ -49,6 +49,26 @@ inline OpVector QuadTangent(OpPoint start, OpPoint control, OpPoint end, float t
     return a * start + b * control + c * end;
 }
 
+// break out extrema so it can be called by quadRotatedT
+inline std::vector<float> AddExtrema(OpPoint start, OpPoint end, OpPoint control,
+		bool monotonicInX, bool monotonicInY) {
+    std::vector<float> tValues;
+    auto addExtrema = [&tValues](float s, float c, float e) {
+        float numerator = s - c;
+        float denominator = numerator - c + e;
+        if (0 == denominator)
+            return;
+        float extrema = numerator / denominator;
+        if (OpEpsilon <= extrema && extrema < 1)
+            tValues.push_back(extrema);
+    };
+    if (!monotonicInX)
+	    addExtrema(start.x, control.x, end.x);
+    if (!monotonicInY)
+	    addExtrema(start.y, control.y, end.y);
+	return tValues;
+}
+
 // Curves must be subdivided so their endpoints describe the rectangle that contains them
 // returns the number of curves generated from the quadratic Bezier
 inline size_t AddQuads(Contour* contour, AddCurve curve) {
@@ -66,20 +86,9 @@ inline size_t AddQuads(Contour* contour, AddCurve curve) {
         return 1;
     }
     // control point is not inside bounds formed by end points; split quad into parts
-    std::vector<float> tValues { 0, 1 };
-    auto addExtrema = [&tValues](float s, float c, float e) {
-        float numerator = s - c;
-        float denominator = numerator - c + e;
-        if (0 == denominator)
-            return;
-        float extrema = numerator / denominator;
-        if (OpEpsilon <= extrema && extrema < 1)
-            tValues.push_back(extrema);
-    };
-    if (!monotonicInX)
-        addExtrema(start.x, control.x, end.x);
-    if (!monotonicInY)
-        addExtrema(start.y, control.y, end.y);
+	std::vector<float> tValues = AddExtrema(start, end, control, monotonicInX, monotonicInX);
+	tValues.push_back(0);
+	tValues.push_back(1);
     std::sort(tValues.begin(), tValues.end());
     std::vector<OpPtT> ptTs(tValues.size());
     ptTs.front() = { start, 0 };
@@ -125,13 +134,55 @@ inline bool quadIsLine(Curve c) {
     return linePts.ptOnLine(ctrlPt);
 }
 
-inline OpRoots quadAxisT(Curve curve, Axis axis, float axisIntercept, MatchEnds ) {
+inline OpRoots quadAxisT(Curve curve, Axis axis, float axisIntercept
+		OP_DEBUG_PARAMS(const OpRoots& )) {
     float a = curve.data->end.choice(axis);
     float b = quadControlPt(curve).choice(axis);
     float c = curve.data->start.choice(axis);
     a += c - 2 * b;    // A = a - 2*b + c
     b -= c;            // B = -(b - c)
     return OpMath::QuadRootsDouble(a, 2 * b, c - axisIntercept);  // double req'd: testQuads3759897
+}
+
+inline OpRoots quadRotatedT(Curve curve, Axis axis, float axisIntercept  
+		OP_DEBUG_PARAMS(const OpRoots& debugRoots)) {
+	OpPoint start = curve.data->start;
+	OpPoint end = curve.data->end;
+	OpPoint control = quadControlPt(curve);
+    bool monotonicInX = OpMath::Between(start.x, control.x, end.x);
+    bool monotonicInY = OpMath::Between(start.y, control.y, end.y);
+	std::vector<float> tValues = AddExtrema(start, end, control, monotonicInX, monotonicInY);
+	if (tValues.empty())
+		return quadAxisT(curve, axis, axisIntercept  OP_DEBUG_PARAMS(debugRoots));
+    std::sort(tValues.begin(), tValues.end());
+    std::vector<OpPtT> ptTs(tValues.size() + 2);
+    ptTs.front() = { start, 0 };
+    ptTs.back() = { end, 1 };
+    for (unsigned index = 0; index < tValues.size(); ++index) {
+        ptTs[index + 1] = { QuadPointAtT(start, control, end, tValues[index]), tValues[index] }; 
+    } 
+	OpRoots result;
+	unsigned lastIndex = ptTs.size() - 1;
+    for (unsigned index = 0; index < lastIndex; ++index) {
+        OpPoint curveData[3] { ptTs[index].pt, ptTs[index + 1].pt };
+		float startT = ptTs[index].t;
+		float endT = ptTs[index + 1].t;
+		if (0 == curveData[0].choice(axis)) {
+			result.add(startT);
+			continue;
+		}
+		if (0 == curveData[1].choice(axis)) {
+			result.add(endT);
+			continue;
+		}
+        OP_ASSERT(curveData[0] != curveData[1]);
+        curveData[2] = QuadControlPt(start, control, end, ptTs[index], ptTs[index + 1]);
+		Curve part { (CurveData*) curveData, curve.size, curve.type };
+		OpRoots partRoot = quadAxisT(part, axis, axisIntercept  OP_DEBUG_PARAMS(debugRoots));
+		for (float root : partRoot.roots)
+			result.add(startT + root * (endT - startT));
+	}
+	return result;
 }
 
 inline OpPoint quadPtAtT(Curve c, float t) {
@@ -180,11 +231,12 @@ inline void quadSetBounds(Curve c, OpRect& bounds) {
     bounds.add(quadControlPt(c));
 }
 
-inline void quadSubDivide(Curve c, float t1, float t2, Curve result) {
+inline bool quadSubDivide(Curve c, float t1, float t2, Curve result) {
 	OpPtT ptT1 { result.data->start, t1 };
 	OpPtT ptT2 { result.data->end, t2 };
     OpPoint subControl = QuadControlPt(c.data->start, quadControlPt(c), c.data->end, ptT1, ptT2);
     quadSetControl(result, subControl);
+	return true;
 }
 
 inline OpPoint quadHull(Curve c, int index) {

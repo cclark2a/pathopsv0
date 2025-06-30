@@ -2,6 +2,12 @@
 #include "OpMath.h"
 #include <cmath>
 
+void OpRoots::add(const OpRoots& toAdd) {
+    for (int index = 0; index < toAdd.count(); ++index) {
+        addEnd(toAdd.roots[index]);
+	}
+}
+
 // if t is nearly end of range, make it end of range
 // motivation for this is test cubics_d, which generates yExtrema very nearly equal to 1.
 // 'interior' is only used for extrema and inflections
@@ -121,6 +127,10 @@ OpPoint OpRect::center() const {
 bool OpRect::isFinite() const {
 	return OpMath::IsFinite(left) && OpMath::IsFinite(top)
 		&& OpMath::IsFinite(right) && OpMath::IsFinite(bottom);
+}
+
+bool OpPtT::isFinite() const {
+	return pt.isFinite() && OpMath::IsFinite(t);
 }
 
 bool OpPtT::isNearly(const OpPtT& o, OpPoint threshold) const {

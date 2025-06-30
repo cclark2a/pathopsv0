@@ -13,5 +13,4 @@ inline std::string lineDebugDumpName() {
 }
 #endif
 
-
 }
