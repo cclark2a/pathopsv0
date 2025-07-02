@@ -275,6 +275,14 @@ OpPoint LinePts::ptAtT(float t) const {
 }
 #endif
 
+bool LinePts::ptNearLine(OpPoint testPt, OpVector threshold) const {
+	if (!OpMath::InUnsorted(pts[0].x, testPt.x, pts[1].x, threshold.dx))
+		return false;
+	if (!OpMath::InUnsorted(pts[0].y, testPt.y, pts[1].y, threshold.dy))
+		return false;
+	return true;
+}
+
 bool LinePts::ptOnLine(OpPoint ctrlPt) const {
 	if (!OpMath::Between(pts[0].x, ctrlPt.x, pts[1].x))
 		return false;

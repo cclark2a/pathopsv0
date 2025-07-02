@@ -219,7 +219,6 @@ struct ContextCallbacks {
 	SetLineType setLineTypeFuncPtr;  // !!! to do: should this default to (CurveType) 1 ?
 	EmptyCallerPath emptyCallerPathFuncPtr = nullptr;
 //	MaxCurveCurveValue maxBoundedEdgeFuncPtr = nullptr;
-	MaxCurveCurveValue maxLimitFuncPtr = nullptr;
 	MaxCurveCurveValue maxSignSwapFuncPtr = nullptr;
 //	MaxCurveCurveValue maxSlopFuncPtr = nullptr;
 	MaxCurveCurveValue maxSplitBiasFuncPtr = nullptr;

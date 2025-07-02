@@ -381,7 +381,8 @@ FindCept SectRay::findCept(OpEdge* edge, OpEdge* test) {
 		return FindCept::ok;
 	if (test == edge)
 		return FindCept::ok;
-	if (Unsortable::none != test->isUnsortable && Unsortable::tooManyTries != test->isUnsortable)
+	// !!! loop11661 fails if too many retries is allowed -- find test that requires this
+	if (Unsortable::none != test->isUnsortable /* && Unsortable::tooManyTries != test->isUnsortable */)
 		return FindCept::unsortable;
 	if (test->disabled)
 		return FindCept::ok;

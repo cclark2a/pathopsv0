@@ -181,6 +181,7 @@ OP_X(Start) \
 
 #define EDGE_DETAIL \
 OP_X(Center) \
+OP_X(Hulls) \
 OP_X(Link) \
 OP_X(Points) \
 OP_X(Ray) \

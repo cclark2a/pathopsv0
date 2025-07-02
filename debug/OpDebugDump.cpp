@@ -2966,6 +2966,13 @@ void dmpClosest(const OpCurveCurve& cc, const OpPoint& p) {
     cc.dumpClosest(p);
 }
 
+void dmpHulls(const OpEdge& edge) {
+	std::string s;
+    for (auto& hs : edge.hulls.h)
+        s += hs.debugDump(defaultLevel, defaultBase) + "\n";
+    OpDebugFormat(s);
+}
+
 void dmpLink(const OpEdge& edge) {
     std::vector<EdgeFilter> showFields = { EF::id, EF::segment, EF::contour, 
 			EF::priorEdge, EF::nextEdge, EF::lastEdge,
@@ -4607,7 +4614,11 @@ std::string HullSect::debugDump(DebugLevel l, DebugBase b) const {
     if (opp)
         s += "[" + STR(opp->id) + "] ";
     s += sectTypeName(type, l);
-    s += ":" + sect.debugDump(l, b);
+    s += " sect:" + sect.debugDump(l, b);
+	if (oppPtT.isFinite())
+		s += " oppPtT:" + oppPtT.debugDump(l, b);
+	if (OpMath::IsFinite(oppDist))
+		s += debugValue(l, b, "oppDist", oppDist);
     return s;
 }
 

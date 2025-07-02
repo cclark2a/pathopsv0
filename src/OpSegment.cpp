@@ -456,7 +456,9 @@ OpPtT OpSegment::distance(const OpPtT& segPtT, const OpSegment* opp) const {
 	if (!normal.isFinite())
 		return OpPtT(SetToNaN::dummy);
 	LinePts normLine { segPtT.pt - normal, segPtT.pt + normal };
-	OpRoots roots = opp->c.rayIntersect(normLine, MatchEnds::none);
+	MatchEnds oppEnds = opp->c.firstPt() == segPtT.pt ? MatchEnds::start 
+			: opp->c.lastPt() == segPtT.pt ? MatchEnds::end : MatchEnds::none;
+	OpRoots roots = opp->c.rayIntersect(normLine, oppEnds);
 	float bestSq = OpInfinity;
 	OpPtT bestPtT(SetToNaN::dummy);
 	for (float root : roots.roots) {

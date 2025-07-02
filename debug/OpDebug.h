@@ -34,6 +34,7 @@ inline std::string OpDebugStr(int32_t x) { return std::to_string(x); }
 inline std::string OpDebugStr(size_t x) { return std::to_string(x); }
 inline std::string OpDebugStr(const char* x) { return std::string(x); }
 std::string OpDebugStr(float value);
+inline std::string OpDebugStr(double value) { return OpDebugStr((float) value); }
 extern int debugPrecision;	// minus one means unset
 extern bool debugSmall;		// set to false to show sub-epsilon values as ~0
 extern bool debugEpsilon;	// set to true to show values smaller than 100 * OpEpsilon as eps
@@ -255,6 +256,11 @@ bool OpDebugSkipBreak();
 
 #define OpPlaybackIf(opObject, ID, doBreak) \
 	do { if ((doBreak) && (ID) == (opObject)->id) { playback(); OP_DEBUG_BREAK(); } } while (false)
+
+#define OpPlayback2If(o1, o2, i1, i2, doBreak) \
+	do { if ((doBreak) && (o1)->id != (o2)->id && ((i1) == (o1)->id || (i2) == (o1)->id) && \
+            ((i1) == (o2)->id || (i2) == (o2)->id)) { playback(); OP_DEBUG_BREAK(); } } while (false)
+
 #endif
 #endif
 #endif

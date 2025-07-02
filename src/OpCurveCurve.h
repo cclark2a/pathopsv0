@@ -170,7 +170,6 @@ struct OpCurveCurve {
 	OpPtT snipEdge;
 	OpPtT snipOpp;
 	MatchReverse matchRev;
-	float maxLimit;  // if found point pair is too far apart, use linear intersection to refine
 //	float maxBoundedEdge;
 	float maxSignSwap;
 //	float maxSlop;

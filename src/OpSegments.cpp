@@ -102,7 +102,13 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 	MatchReverse matchRev = opp->matchEnds(seg);
 	// if line and curve share end point, pass hint that root finder can call
 	// reduced form that assumes one root is zero or one.
-	OpRoots septs = opp->c.rayIntersect(edgePts, matchRev.match);
+	OpRoots septs;
+	if (MatchEnds::both != matchRev.match)
+		septs = opp->c.rayIntersect(edgePts, matchRev.match);
+	else {
+		septs.add(0); 
+		septs.add(1);
+	}
 #if 0  // code coverage did not detect any of these cases
 	if (septs.fail == RootFail::rawIntersectFailed) {
 		// binary search on opp t-range to find where vert crosses zero
@@ -398,6 +404,8 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 		if (opp->c.isLine()) {
 			IntersectResult lineCoin = LineCoincidence(seg, opp);
 			if (seg->disabled)
+				return false;
+			if (opp->disabled)
 				return false;
 			if (IntersectResult::fail == lineCoin) {
 				OP_DEBUG_CODE(debugFailSegID = seg->id);
