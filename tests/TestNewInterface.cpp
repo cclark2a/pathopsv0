@@ -5,8 +5,8 @@
 #include "curves/UnaryWinding.h"
 
 // curve types
-PathOpsV0Lib::CurveType lineType = (PathOpsV0Lib::CurveType) 0;  // unset
-PathOpsV0Lib::CurveType quadType = (PathOpsV0Lib::CurveType) 0;
+PathOpsV0Lib::CurveType lineType = PathOpsV0Lib::degenerateLine;  // unset
+PathOpsV0Lib::CurveType quadType = PathOpsV0Lib::degenerateLine;
 constexpr size_t lineSize = sizeof(OpPoint) * 2;
 constexpr size_t quadSize = sizeof(OpPoint) * 3;
 
@@ -63,8 +63,8 @@ void testNewInterface() {
     lineType = SetCurveCallbacks(context, { lineOutput });
     quadType = SetCurveCallbacks(context, { quadOutput, quadAxisT, quadRotatedT,
 			quadHull, quadIsFinite, quadIsLine, 
-			quadSetBounds, quadPinCtrl, 
-			quadTangent, quadsEqual, quadPtAtT,
+			quadSetBounds, /* quadPinCtrl, */ 
+			quadTangent, quadsEqual, quadPtAtT, nullptr,
             quadHullPtCount, quadRotate, quadSubDivide, quadXYAtT });
 
     // example: given points describing a pair of closed loops with quadratic Beziers, find

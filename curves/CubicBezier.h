@@ -42,6 +42,25 @@ inline OpPoint CubicPtAtT(OpPoint start, CubicControls controls, OpPoint end, fl
     return result;
 }
 
+inline OpPoint CubicDPtAtT(OpPoint start, CubicControls controls, OpPoint end, float t) {
+    if (0 == t)
+        return start;
+    if (1 == t)
+        return end;
+    double one_t = 1 - t;
+    double one_t2 = one_t * one_t;
+    double a = one_t2 * one_t;
+    double b = 3 * one_t2 * t;
+    double t2 = t * t;
+    double c = 3 * one_t * t2;
+    double d = t2 * t;
+    OpPoint result = 
+		{ (float) (a * start.x + b * controls.pts[0].x + c * controls.pts[1].x + d * end.x),
+		  (float) (a * start.y + b * controls.pts[0].y + c * controls.pts[1].y + d * end.y) };
+    return result;
+}
+
+
 inline OpPair CubicXYAtT(OpPoint start, CubicControls controls, OpPoint end, OpPair t, XyChoice xy) {
     OpPair one_t = 1 - t;
     OpPair one_t2 = one_t * one_t;
@@ -81,8 +100,10 @@ inline OpVector CubicTangent(OpPoint start, CubicControls controls, OpPoint end,
 }
 
 inline CubicControls CubicControlPt(OpPoint start, CubicControls controls, OpPoint end, 
-        OpPtT ptT1, OpPtT ptT2) {
-#if 01 &&  OP_DEBUG_VALIDATE  // compare with pure double to see if it gets any more accurate...
+        float t1, float t2) {
+	OpPoint ptT1 = CubicPtAtT(start, controls, end, t1);
+	OpPoint ptT2 = CubicPtAtT(start, controls, end, t2);
+#if 01 && OP_DEBUG_VALIDATE  // compare with pure double to see if it gets any more accurate...
 	struct DPoint {
 		DPoint(double _x, double _y) :
 			x(_x),
@@ -108,12 +129,12 @@ inline CubicControls CubicControlPt(OpPoint start, CubicControls controls, OpPoi
         DPoint abcd = DInterp(abc, bcd, dT, dS);
         return abcd;
     };
-    DPoint dE = dInterp((ptT1.t * 2. + ptT2.t) / 3.);
-    DPoint dF = dInterp((ptT1.t + ptT2.t * 2.) / 3.);
-    DPoint dM(dE.x * 27. - ptT1.pt.x * 8. - ptT2.pt.x, 
-	          dE.y * 27. - ptT1.pt.y * 8. - ptT2.pt.y);
-    DPoint dN(dF.x * 27. - ptT1.pt.x - ptT2.pt.x * 8., 
-	          dF.y * 27. - ptT1.pt.y - ptT2.pt.y * 8.);
+    DPoint dE = dInterp((t1 * 2. + t2) / 3.);
+    DPoint dF = dInterp((t1 + t2 * 2.) / 3.);
+    DPoint dM(dE.x * 27. - ptT1.x * 8. - ptT2.x, 
+	          dE.y * 27. - ptT1.y * 8. - ptT2.y);
+    DPoint dN(dF.x * 27. - ptT1.x - ptT2.x * 8., 
+	          dF.y * 27. - ptT1.y - ptT2.y * 8.);
 	DPoint dCtrl1((dM.x * 2. - dN.x) / 18., (dM.y * 2. - dN.y) / 18.);
     DPoint dCtrl2((dN.x * 2. - dM.x) / 18., (dN.y * 2. - dM.y) / 18.);
 #endif
@@ -127,14 +148,14 @@ inline CubicControls CubicControlPt(OpPoint start, CubicControls controls, OpPoi
         return abcd;
     };
 //    OpPoint a = interp(ptT1.t);
-    OpPoint e = interp((ptT1.t * 2 + ptT2.t) / 3);
-    OpPoint f = interp((ptT1.t + ptT2.t * 2) / 3);
+    OpPoint e = interp((t1 * 2 + t2) / 3);
+    OpPoint f = interp((t1 + t2 * 2) / 3);
 //    OpPoint d = interp(ptT2.t);
-    OpVector m = e * 27 - ptT1.pt * 8 - ptT2.pt;
-    OpVector n = f * 27 - ptT1.pt - ptT2.pt * 8;
-    CubicControls results;
+    OpVector m = e * 27 - ptT1 * 8 - ptT2;
+    OpVector n = f * 27 - ptT1 - ptT2 * 8;
 	OpPoint ctrl1((m * 2 - n) / 18);
 	OpPoint ctrl2((n * 2 - m) / 18);
+    CubicControls results { ctrl1, ctrl2 };
 #if 0 && OP_DEBUG_VALIDATE // compare float and double to measure epsilon of float error
 	OpPoint err1((float) fabs(dCtrl1.x - ctrl1.x), (float) fabs(dCtrl1.y - ctrl1.y));
 	OpPoint err2((float) fabs(dCtrl2.x - ctrl2.x), (float) fabs(dCtrl2.y - ctrl2.y));
@@ -143,66 +164,31 @@ inline CubicControls CubicControlPt(OpPoint start, CubicControls controls, OpPoi
 	if (fabsf(err2.x) > OpEpsilon * 16 || fabsf(err2.y) > OpEpsilon * 16)
 		OpDebugOut("err2: " + STR(err2.x / OpEpsilon) + ", " + STR(err2.y / OpEpsilon) + "\n");
 #endif
-	// if control is not in hull, tweak it
-	// use original tangents to tweak error in computed control points
-	auto tweakControl = [start, controls, end](OpPoint ctrlPt, OpPtT& ptT, bool first) {
-		OpVector tanV = CubicTangent(start, controls, end, ptT.t);
-		OpVector ctrlHull = ctrlPt - ptT.pt;
-		OpVector tanHull = tanV - ptT.pt;
-		OpVector endHull = (first ? end : start) - ptT.pt;
-		float tanCross = tanHull.cross(endHull);
-		float ctrlCross = tanHull.cross(ctrlHull);
-		if (!OpMath::Between(0, ctrlCross, tanCross)) {
-			OpVector tanC = tanV.setLength(ctrlHull.length());
-			OpPoint cMod = ptT.pt + (first ? tanC : -tanC);
-			return cMod;
-		}
-		return ctrlPt;
-	};
 
-	OpPoint mod1 = tweakControl(ctrl1, ptT1, true);
-	OpPoint mod2 = tweakControl(ctrl2, ptT2, false);
-#if OP_DEBUG
-	OpPoint dMod1 = tweakControl(OpPoint(dCtrl1.x, dCtrl1.y), ptT1, true);
-	OpPoint dMod2 = tweakControl(OpPoint(dCtrl2.x, dCtrl2.y), ptT2, false);
-
-	auto threshold = [](float left, float right) {
-		return std::max({1.f, fabsf(left), fabsf(right), right - left}) * OpEpsilon;
-	};
-	OpRect maxBounds(start.x, start.y, start.x, start.y);
-	maxBounds.add(end);
-	OpVector debugThreshold = { threshold(maxBounds.left, maxBounds.right),
-			threshold(maxBounds.top, maxBounds.bottom) };
-	OpVector singleThreshold = debugThreshold * 256;
-	if ((mod1 - ctrl1).length() >= singleThreshold.length()) {
-		OpDebugOut("ctrl1"); dmp(ctrl1); OpDebugOut(" mod1"); dmp(mod1);
-		OpDebugOut(" len:" + STR((mod1 - ctrl1).length()) + "\n");
-		OpDebugOut("debugThreshold"); dmp(singleThreshold); 
-		OpDebugOut(" " + STR(singleThreshold.length()) + "\n");
-		OpDebugOut("dCtrl1{" + STR(dCtrl1.x) + ", " + STR(dCtrl1.y) + "}");
-		OpDebugOut(" dMod1{" + STR(dMod1.x) + ", " + STR(dMod1.y) + "}");
-		OpPoint dLen = OpPoint(dMod1.x - dCtrl1.x, dMod1.y - dCtrl1.y);
-		OpDebugOut(" dLen:" + STR((dMod1 - OpPoint(dCtrl1.x, dCtrl1.y)).length()) + "\n");
+#if OP_DEBUG_VALIDATE
+	// compare raw control points with mod points by evaluating pt values from t to see the
+	// tweak is distorting the cubic
+	constexpr int samples = 16;
+	static float gMaxError = 0;
+	for (int index = 0; index < samples; ++index) {
+		float sample = (t1 * (samples - index) + t2 * index) / samples;
+		float local = (float) index / samples;
+		OP_ASSERT(t1 <= sample && sample <= t2);
+		OP_ASSERT(0 <= local && local <= 1);
+		OP_ASSERT(t1 * (1 - local) + t2 * local == sample);
+		OpPoint truth = CubicPtAtT(start, controls, end, sample);
+		OpPoint raw = CubicPtAtT(ptT1, results, ptT2, local);
+		float rawError = (truth - raw).length();
+		gMaxError = std::max(gMaxError, rawError);
+		if (rawError > OpEpsilon * 8)
+			OpDebugOut(STR(rawError / OpEpsilon) + "\n");
+		OP_ASSERT(rawError <= OpEpsilon * 1024);
 	}
-	if ((mod2 - ctrl2).length() >= singleThreshold.length()) {
-		OpDebugOut("ctrl2"); dmp(ctrl2); OpDebugOut(" mod2"); dmp(mod2);
-		OpDebugOut(" len:" + STR((mod2 - ctrl2).length()) + "\n");
-		OpDebugOut("debugThreshold:"); dmp(singleThreshold); 
-		OpDebugOut(" " + STR(singleThreshold.length()) + "\n");
-		OpDebugOut("dCtrl2{" + STR(dCtrl2.x) + ", " + STR(dCtrl2.y) + "}");
-		OpDebugOut(" dMod2{" + STR(dMod2.x) + ", " + STR(dMod2.y) + "}");
-		OpPoint dLen = OpPoint(dMod2.x - dCtrl2.x, dMod2.y - dCtrl2.y);
-		OpDebugOut(" dLen:" + STR((dMod2 - OpPoint(dCtrl2.x, dCtrl2.y)).length()) + "\n");
-	}
-	OP_ASSERT((mod1 - ctrl1).length() < singleThreshold.length());
-	OP_ASSERT((mod2 - ctrl2).length() < singleThreshold.length());
 #endif
-	ctrl1 = mod1;
-	ctrl2 = mod2;
-	/* b = */ results.pts[0] = start == ptT1.pt && start == controls.pts[0] ? start : ctrl1;
-    /* c = */ results.pts[1] = end == ptT2.pt && end == controls.pts[1] ? end : ctrl2;
-    results.pts[0].pin(ptT1.pt, ptT2.pt);
-    results.pts[1].pin(ptT1.pt, ptT2.pt);
+	/* b = */ results.pts[0] = start == ptT1 && start == controls.pts[0] ? start : ctrl1;
+    /* c = */ results.pts[1] = end == ptT2 && end == controls.pts[1] ? end : ctrl2;
+    results.pts[0].pin(ptT1, ptT2);
+    results.pts[1].pin(ptT1, ptT2);
     return results;
 }
 
@@ -260,12 +246,12 @@ inline void AddCubics(Contour* contour, AddCurve curve) {
         OpPoint curveData[4] { ptTs[index].pt, ptTs[index + 1].pt };
         if (curveData[0] == curveData[1])
             continue;
-        *(CubicControls*)&curveData[2] = CubicControlPt(start, controls, end, 
-                ptTs[index], ptTs[index + 1]);
+        *(CubicControls*)&curveData[2] = CubicControlPt(start, controls, end,
+				tValues.get(index), tValues.get(index + 1));
         Add(contour, { curveData, curve.size, curve.type } );
 		// for debugging
 		OP_DEBUG_CODE(*(CubicControls*)&curveData[2] = CubicControlPt(start, controls, end, 
-                ptTs[index], ptTs[index + 1]));
+                tValues.get(index), tValues.get(index + 1)));
     }
 }
 
@@ -450,8 +436,7 @@ inline OpRoots cubicRotatedT(Curve c, Axis axis, float intercept
 		if (curveData[0].choice(axis) * curveData[1].choice(axis) > 0)
 			continue;
         OP_ASSERT(curveData[0] != curveData[1]);
-        *(CubicControls*)&curveData[2] = CubicControlPt(start, controls, end, 
-                ptTs[index], ptTs[index + 1]);
+        *(CubicControls*)&curveData[2] = CubicControlPt(start, controls, end, startT, endT);
 		Curve part { (CurveData*) curveData, c.size, c.type };
 		OpRoots partRoot = cubicAxisT(part, axis, intercept  OP_DEBUG_PARAMS(debugAdded));
 		for (float root : partRoot.roots)
@@ -463,6 +448,11 @@ inline OpRoots cubicRotatedT(Curve c, Axis axis, float intercept
 inline OpPoint cubicPtAtT(Curve c, float t) {
     CubicControls controls(c);
     return CubicPtAtT(c.data->start, controls, c.data->end, t);
+}
+
+inline OpPoint cubicDPtAtT(Curve c, float t) {
+    CubicControls controls(c);
+    return CubicDPtAtT(c.data->start, controls, c.data->end, t);
 }
 
 inline OpPair cubicXYAtT(Curve c, OpPair t, XyChoice xyChoice) {
@@ -490,12 +480,25 @@ inline OpVector cubicNormal(Curve c, float t) {
 }
 #endif
 
-inline void cubicPinCtrl(Curve c) {
+// end points may be adjusted to align with other curves
+// move control points to ensure cubic is monotonic
+// original cubic: oldStart c.ctrl1 c.ctrl2 oldEnd
+//      new cubic:  c.start   calc1   calc2  c.end
+// old tangent: c.ctrl1 - oldStart
+
+#if 0
+inline void cubicPinCtrl(Curve c, OpPoint oldStart, OpPoint oldEnd) {
+	OP_ASSERT(c.data->start != oldStart || c.data->end != oldEnd);
     CubicControls controls(c);
-    controls.pts[0].pin(c.data->start, c.data->end);
-    controls.pts[1].pin(c.data->start, c.data->end);
+	controls.pts[0] += c.data->start - oldStart;
+	controls.pts[1] += c.data->end - oldEnd;
+	OP_ASSERT(OpMath::Between(c.data->start.x, controls.pts[0].x, c.data->end.x));
+	OP_ASSERT(OpMath::Between(c.data->start.y, controls.pts[0].y, c.data->end.y));
+	OP_ASSERT(OpMath::Between(c.data->start.x, controls.pts[1].x, c.data->end.x));
+	OP_ASSERT(OpMath::Between(c.data->start.y, controls.pts[1].y, c.data->end.y));
     controls.copyTo(c);
 }
+#endif
 
 inline void cubicRotate(Curve c, OpPoint origin, OpVector scale, Curve result) {
     CubicControls controls(c);
@@ -516,31 +519,62 @@ inline void cubicSetBounds(Curve c, OpRect& bounds) {
     bounds.add(controls.pts[1]);
 }
 
-inline bool cubicSubDivide(Curve c, float t1, float t2, Curve result) {
-	OpPtT ptT1 { result.data->start, t1 };
-	OpPtT ptT2 { result.data->end, t2 };
+inline void cubicSubDivide(Curve c, float t1, float t2, float threshold, Curve* result) {
     CubicControls controls(c);
-    CubicControls subControl = CubicControlPt(c.data->start, controls, c.data->end, ptT1, ptT2);
-#if 0
-// if partial curve control points are not monotonic, assume cubic has devolved to line
-// !!! inflections are an indicator that the sub control points have error, but do not by themselves
-//     detect that the resulting curve (error free) is linear.  Maybe the present of inflections
-//     could trigger a more careful linear test..
-	OpRoots hasInflection = AddInflections(result.data->start, result.data->end, subControl);
-	if (!hasInflection.empty()) {
-#if OP_DEBUG_VALIDATE
-		subControl = CubicControlPt(c.data->start, controls, c.data->end, ptT1, ptT2);  // trace
-		subControl.copyTo(result);  // check if there is really an inflection
-		if (!debugDmpIsLine(result))
-			dmp(result);
-#endif
-		return false;
+	OpPoint start = c.data->start;
+	OpPoint end = c.data->end;
+	OpVector t1Tan = CubicTangent(start, controls, end, t1);
+	OpVector t2Tan = CubicTangent(start, controls, end, t2);
+	float tanAngle = t1Tan.cross(t2Tan);
+	if (fabsf(tanAngle) < threshold) {
+		result->type = degenerateLine;  // mark as linear
+		return;
 	}
+    CubicControls subControls = CubicControlPt(start, controls, end, t1, t2);
+    subControls.copyTo(*result);
+#if 1  // experiment: restrict sub controls to cross product of original controls w/ end tangent
+	// cross product of control lines should have same sign
+    auto makeLines = [](Curve& curve, CubicControls& controls) {
+        return std::array<OpVector, 3> { 
+                controls.pts[0] - curve.data->start, 
+	            controls.pts[1] - controls.pts[0],
+	            curve.data->end - controls.pts[1] };
+    };
+	std::array<OpVector, 3> ctrlLines = makeLines(c, controls);
+	std::array<OpVector, 3> subLines = makeLines(*result, subControls);
+    auto makeCrosses = [](std::array<OpVector, 3>& lines) {
+        return std::array<float, 2> { lines[0].cross(lines[1]), lines[1].cross(lines[2]) };
+    };
+    std::array<float, 2> ctrlCrosses = makeCrosses(ctrlLines);
+    std::array<float, 2> subCrosses = makeCrosses(subLines);
+    // check if original data is inflection-free
+    OP_ASSERT(ctrlCrosses[0] * ctrlCrosses[1] >= 0);
+    // sub divide should bend the same way as original
+    float crossAngle = ctrlCrosses[0] ? ctrlCrosses[0] : ctrlCrosses[1];
+    if (subCrosses[0] * subCrosses[1] < 0) {
+        result->type = degenerateLine;
+		return;
+    }
+    if (subCrosses[0] * crossAngle < 0) {
+        result->type = degenerateLine;
+		return;
+    }
+    if (subCrosses[1] * crossAngle < 0) {
+        result->type = degenerateLine;
+		return;
+    }
 #endif
-    subControl.copyTo(result);
-	if (cubicIsLine(result))
-		return false;
-	return true;
+#if OP_DEBUG  // !!! add these additional checks as needed; likely, they will return degenerate line
+	// pin control points to bounds of start/end
+    OpRect cBounds(start, end);
+    if (!cBounds.contains(subControls.pts[0])) {
+		OpNop();
+    }
+    if (!cBounds.contains(subControls.pts[1])) {
+		OpNop();
+    }
+#endif
+    subControls.copyTo(*result);
 }
 
 inline OpPoint cubicHull(Curve c, int index) {

@@ -133,24 +133,24 @@ void SetSkiaCurveCallbacks(Context* context) {
             OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath) }));
 	OP_ASSERT((int) lineType == (int) SkiaCurveType::skiaLineType);
     OP_DEBUG_CODE(CurveType quadType =) SetCurveCallbacks(context, { skiaQuadOutput, quadAxisT,
-			quadRotatedT, quadHull, quadIsFinite, quadIsLine, quadSetBounds, quadPinCtrl, 
-            quadTangent, quadsEqual, quadPtAtT, quadHullPtCount, quadRotate, 
+			quadRotatedT, quadHull, quadIsFinite, quadIsLine, quadSetBounds, /* quadPinCtrl, */
+            quadTangent, quadsEqual, quadPtAtT, nullptr, quadHullPtCount, quadRotate, 
 			quadSubDivide, quadXYAtT });
 	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, quadType, { debugQuadScale
             OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, nullptr)
             OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath) }));
 	OP_ASSERT((int) quadType == (int) SkiaCurveType::skiaQuadType);
     OP_DEBUG_CODE(CurveType conicType =) SetCurveCallbacks(context, { skiaConicOutput, conicAxisT,
-			conicRotatedT, conicHull, conicIsFinite, conicIsLine, conicSetBounds, quadPinCtrl, 
-			conicTangent, conicsEqual, conicPtAtT, quadHullPtCount, conicRotate, 
+			conicRotatedT, conicHull, conicIsFinite, conicIsLine, conicSetBounds, /* quadPinCtrl, */ 
+			conicTangent, conicsEqual, conicPtAtT, nullptr, quadHullPtCount, conicRotate, 
 			conicSubDivide, conicXYAtT });
 	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, conicType, { debugConicScale
             OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
             OP_DEBUG_IMAGE_PARAMS(debugConicAddToSkPath) }));
 	OP_ASSERT((int) conicType == (int) SkiaCurveType::skiaConicType);
     OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallbacks(context, { skiaCubicOutput, cubicAxisT,
-			cubicRotatedT, cubicHull, cubicIsFinite, cubicIsLine, cubicSetBounds, cubicPinCtrl, 
-			cubicTangent, cubicsEqual, cubicPtAtT, cubicHullPtCount, cubicRotate, 
+			cubicRotatedT, cubicHull, cubicIsFinite, cubicIsLine, cubicSetBounds, /* cubicPinCtrl, */
+			cubicTangent, cubicsEqual, cubicPtAtT, cubicDPtAtT, cubicHullPtCount, cubicRotate, 
 			cubicSubDivide, cubicXYAtT, cubicReverse });
 	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, cubicType, { debugCubicScale
             OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, nullptr)

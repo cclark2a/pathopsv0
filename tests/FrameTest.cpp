@@ -138,8 +138,8 @@ void testFrame() {
 
     frameLine = SetCurveCallbacks(context, { frameOutput });
     frameQuad = SetCurveCallbacks(context, { frameOutput, quadAxisT, quadRotatedT, quadHull, 
-			quadIsFinite, quadIsLine, quadSetBounds,  quadPinCtrl, 
-            quadTangent, quadsEqual, quadPtAtT, quadHullPtCount, quadRotate, 
+			quadIsFinite, quadIsLine, quadSetBounds,  /* quadPinCtrl, */ 
+            quadTangent, quadsEqual, quadPtAtT, nullptr, quadHullPtCount, quadRotate, 
 			quadSubDivide, quadXYAtT });
     FrameWinding frameData(FrameFill::frame, 1);
     Winding frameWinding { &frameData, sizeof(frameData) };

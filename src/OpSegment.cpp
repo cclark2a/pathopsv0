@@ -8,7 +8,7 @@
 void FoundEdge::check(std::vector<FoundEdge>* edges, OpEdge* test, EdgeMatch em, OpPoint match) {
 	if (edges && edges->size())
 		return;
-	float gapSq = (test->whichPtT(em).pt - match).lengthSquared();
+	float gapSq = (test->whichSect(em).pt - match).lengthSquared();
 	if (distSq > gapSq) {
 		distSq = gapSq;
 		edge = test;
@@ -64,7 +64,7 @@ bool OpSegment::activeAtT(OpEdge* edge, EdgeMatch match, std::vector<FoundEdge>&
 	OP_ASSERT(!edge->disabled);
 	// each prospective match normal must agree with edge, indicating direction of area outside fill
 	// if number of matching sects doesn't agree with opposite, collect next indirection as well
-	OpPtT ptT = edge->whichPtT(match);
+	OpPtT ptT = edge->whichSect(match);
 	for (auto sectPtr : sects.i) {
 		OpIntersection& sect = *sectPtr;
 		if (sect.ptT.t < ptT.t)
@@ -121,7 +121,7 @@ bool OpSegment::activeNeighbor(const OpEdge* edge, EdgeMatch match,
 			|| (EdgeMatch::end == match && edge->endT == 1))
 		return false;
 	EdgeMatch neighbor = EdgeMatch::start == match ? !edge->which() : edge->which();
-	OpPtT ptT = edge->whichPtT(match);
+	OpPtT ptT = edge->whichSect(match);
 	OpEdge* nextDoor = findEnabled(ptT, neighbor);
 	if (!nextDoor) 
 	   return false;
@@ -809,6 +809,8 @@ OpPoint OpSegment::movePt(OpPtT match, OpPoint destination) {
 	OP_ASSERT(0 == match.t || 1 == match.t);
 	// if end point and equal point are both aliases (rare), do a global remap of all points so 
 	// that the two are combined into a single alias
+//	OpPoint oldStart = c.firstPt();
+//	OpPoint oldEnd = c.lastPt();
 	if (0 == match.t) {
 		 c.setFirstPt(destination);
 		 startMoved = true;
@@ -816,7 +818,7 @@ OpPoint OpSegment::movePt(OpPtT match, OpPoint destination) {
 		 c.setLastPt(destination);
 		 endMoved = true;
 	}
-	c.pinCtrl();
+//	c.pinCtrl(oldStart, oldEnd);
 // defer disabling until all moves are complete; disable small segments will clean up
    if (c.firstPt() == c.lastPt())
 		willDisable = true;

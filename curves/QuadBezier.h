@@ -210,11 +210,13 @@ inline OpVector quadNormal(Curve c, float t) {
 }
 #endif
 
-inline void quadPinCtrl(Curve c) {
+#if 0
+inline void quadPinCtrl(Curve c, OpPoint oldStart, OpPoint oldEnd) {
     OpPoint ctrlPt = quadControlPt(c);
     ctrlPt.pin(c.data->start, c.data->end);
     quadSetControl(c, ctrlPt);
 }
+#endif
 
 inline void quadRotate(Curve c, OpPoint origin, OpVector s, Curve result) {
     OpPoint ctrlPt = quadControlPt(c);
@@ -231,12 +233,11 @@ inline void quadSetBounds(Curve c, OpRect& bounds) {
     bounds.add(quadControlPt(c));
 }
 
-inline bool quadSubDivide(Curve c, float t1, float t2, Curve result) {
-	OpPtT ptT1 { result.data->start, t1 };
-	OpPtT ptT2 { result.data->end, t2 };
+inline void quadSubDivide(Curve c, float t1, float t2, float threshold, Curve* result) {
+	OpPtT ptT1 { result->data->start, t1 };
+	OpPtT ptT2 { result->data->end, t2 };
     OpPoint subControl = QuadControlPt(c.data->start, quadControlPt(c), c.data->end, ptT1, ptT2);
-    quadSetControl(result, subControl);
-	return true;
+    quadSetControl(*result, subControl);
 }
 
 inline OpPoint quadHull(Curve c, int index) {

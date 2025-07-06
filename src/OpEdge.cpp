@@ -194,9 +194,7 @@ OpEdge::OpEdge(OpSegment* s, const OpPtT& start, const OpPtT& end  OP_LINE_FILE_
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = s->id);
 	segment = s;
-	startT = start.t;
-	endT = end.t;
-	complete(start.pt, end.pt);
+	complete(start, end);
 }
 
 // called when creating edge from intersection pairs
@@ -205,9 +203,9 @@ OpEdge::OpEdge(OpIntersection* sectStart, OpIntersection* sectEnd  OP_LINE_FILE_
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = sectStart->id);
 	segment = sectStart->segment;
-	startT = sectStart->ptT.t;
-	endT = sectEnd->ptT.t;
-	complete(sectStart->ptT.pt, sectEnd->ptT.pt);
+	complete(sectStart->ptT, sectEnd->ptT);
+    iStart = sectStart->ptT.pt;
+    iEnd = sectEnd->ptT.pt;
 }
 
 // called when creating filler; edge that closes small gaps
@@ -224,7 +222,7 @@ OpEdge::OpEdge(OpContext* context, const OpPtT& start, const OpPtT& end  OP_LINE
 	endT = end.t;
 	id = context->nextID();
 	PathOpsV0Lib::CurveData lineData { start.pt, end.pt };
-	PathOpsV0Lib::Curve lineCurve { &lineData, sizeof(lineData), (PathOpsV0Lib::CurveType) 0 };
+	PathOpsV0Lib::Curve lineCurve { &lineData, sizeof(lineData), PathOpsV0Lib::degenerateLine };
 	curve = OpCurve(context, lineCurve, Rotated::no);
 	curve.isLineSet = true;
 	curve.isLineResult = true;
@@ -243,15 +241,11 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight  OP_
 	OP_DEBUG_CODE(debugParentID = edge->id);
 	segment = edge->segment;
 	if (NewEdge::isLeft == isLeftRight) {
-		startT = edge->startT;
 		startDist = edge->startDist;
-		endT = newPtT.t;
-		complete(edge->startPt(), newPtT.pt);
+		complete(edge->start(), newPtT);
 	} else {
-		startT = newPtT.t;
-		endT = edge->endT;
 		startDist = edge->endDist;
-		complete(newPtT.pt, edge->endPt());
+		complete(newPtT, edge->end());
 	}
 }
 
@@ -261,13 +255,11 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e  OP_LINE_FILE_
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = edge->id);
 	segment = edge->segment;
-	startT = s.t;
-	endT = e.t;
 	if (edge->startT == s.t)
 		startDist = edge->startDist;
 	if (edge->endT == e.t)
 		startDist = edge->endDist;
-	complete(s.pt, e.pt);
+	complete(s, e);
 }
 
 #if 0  // !!! disallowed : it tosses point that has been adjusted and recomputes from t
@@ -327,7 +319,7 @@ void OpEdge::addPal(OpEdge* edge, int uID, bool reversed) {
 CalcFail OpEdge::addSub(OpContour* winderOwner, Axis axis, float edgeInsideT, 
 		OpWinding* sumWinding) const 
 {
-	OpWinding adjust(WindingUninitialized::dummy);
+//	OpWinding adjust(WindingUninitialized::dummy);
 	NormalDirection NdotR = normalDirection(axis, edgeInsideT);
 	if (NormalDirection::upRight == NdotR)
 		sumWinding->add(context(), winding);
@@ -448,6 +440,12 @@ void OpEdge::clearPriorEdge() {
 	setPriorEdge(nullptr);
 }
 
+void OpEdge::complete(OpPtT startPtT, OpPtT endPtT) {
+	startT = startPtT.t;
+	endT = endPtT.t;
+	complete(startPtT.pt, endPtT.pt);  // compute exact points
+}
+
 void OpEdge::complete(OpPoint startPoint, OpPoint endPoint) {
 	OP_DEBUG_VALIDATE_CODE(OP_ASSERT(!segment->contour->context->debugJoiner));
 	OP_ASSERT(startT < endT);
@@ -481,7 +479,7 @@ void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 	OpEdge* oppEdge = found.edge;
 	OP_ASSERT(!oppEdge->hasLinkTo(match));
 	OP_ASSERT(oppEdge != this);
-	const OpPoint edgePt = whichPtT(match).pt;
+	const OpPoint edgePt = whichSect(match).pt;
 	if (EdgeMatch::start == match) {
 		OP_ASSERT(!priorEdge);
 		setPriorEdge(oppEdge);
@@ -609,6 +607,14 @@ void OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first) {
 	OP_DEBUG_CODE(debugOutPath = curve.context->debugOutputID);
 	OpEdge* next = nextOut();
 	OpCurve copy = curve;
+    if (iStart.isFinite()) {
+        OP_ASSERT((curve.c.data->start - iStart).length() <= curve.context->threshold().length());
+        copy.c.data->start = iStart;
+    }
+    if (iEnd.isFinite()) {
+        OP_ASSERT((curve.c.data->end - iEnd).length() <= curve.context->threshold().length());
+        copy.c.data->end = iEnd;
+    }
 	if (EdgeMatch::end == which())
 		copy.reverse();
 	copy.output(first, firstEdge == next  OP_DEBUG_PARAMS(id));
@@ -757,7 +763,8 @@ void OpEdge::setWhich(EdgeMatch m) {
 // use already computed points stored in edge
 void OpEdge::subDivide(OpPoint startPoint, OpPoint endPoint) {
 	id = segment->nextID();
-	curve = segment->c.subDivide(OpPtT(startPoint, startT), OpPtT(endPoint, endT));
+	curve = segment->c.subDivide(startT, endT);
+//	curve.adjust(startPoint, endPoint);  // move ends and adjust controls to aligned points
 	setPointBounds();
 	calcCenterT();
 #if 0  // if curve is near-linear cubic, t value for edge is wrong
@@ -792,6 +799,12 @@ void OpEdge::setSum(const OpWinding& w  OP_LINE_FILE_ARGS()) {
 #if OP_DEBUG_MAKER
 	debugSetSum = { fileName, lineNo };
 #endif
+}
+
+OpPtT OpEdge::whichSect(EdgeMatch match) const {
+    return match == (EdgeMatch::none == whichEnd_impl ? EdgeMatch::start : whichEnd_impl)
+            ? iStart.isFinite() ? OpPtT(iStart, startT) : start()
+            : iEnd.isFinite() ?  OpPtT(iEnd, endT) : end();
 }
 
 // this is too complicated because

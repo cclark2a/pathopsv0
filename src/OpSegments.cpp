@@ -97,18 +97,10 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 	OP_DEBUG_CONTEXT();
 	OP_ASSERT(opp != seg);
 	OP_ASSERT(seg->c.debugIsLine());
-	LinePts edgePts { seg->c.firstPt(), seg->c.lastPt() };
-	OP_ASSERT(edgePts.pts[0] != edgePts.pts[1]);
+	OpRoots oppRoots = seg->c.lineIntersection(opp->c);
 	MatchReverse matchRev = opp->matchEnds(seg);
 	// if line and curve share end point, pass hint that root finder can call
 	// reduced form that assumes one root is zero or one.
-	OpRoots septs;
-	if (MatchEnds::both != matchRev.match)
-		septs = opp->c.rayIntersect(edgePts, matchRev.match);
-	else {
-		septs.add(0); 
-		septs.add(1);
-	}
 #if 0  // code coverage did not detect any of these cases
 	if (septs.fail == RootFail::rawIntersectFailed) {
 		// binary search on opp t-range to find where vert crosses zero
@@ -125,15 +117,15 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 		return;
 	}
 #else
-	OP_ASSERT(septs.fail != RootFail::rawIntersectFailed);
+	OP_ASSERT(oppRoots.fail != RootFail::rawIntersectFailed);
 	OP_ASSERT(!opp->c.isLine() || MatchEnds::both != matchRev.match);
-	OP_ASSERT(2 != septs.count() || !opp->c.isLine());
+	OP_ASSERT(2 != oppRoots.count() || !opp->c.isLine());
 #endif
 	std::vector<OpPtT> oppPtTs;
 	std::vector<OpPtT> edgePtTs;
 	size_t segSects = seg->sects.i.size();
 	size_t oppSects = opp->sects.i.size();
-	for (float oppT : septs.roots) {
+	for (float oppT : oppRoots.roots) {
 #if 0
 //		if (OpMath::NearlyEndT(oppT))	// if curve hits middle of line, do not ignore (loop48977)
 //			continue;

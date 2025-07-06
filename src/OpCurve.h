@@ -31,7 +31,7 @@ enum class Rotated {
 
 struct OpCurve {
 	OpCurve() 
-		: c{ nullptr, 0, (PathOpsV0Lib::CurveType) 0 }
+		: c{ nullptr, 0, PathOpsV0Lib::degenerateLine }
 		, context(nullptr)
 		, rotated(Rotated::no)
 		, isLineSet(false)
@@ -39,6 +39,7 @@ struct OpCurve {
 	}
 
 	OpCurve(OpContext* , PathOpsV0Lib::Curve , Rotated );
+	// void adjust(OpPoint start, OpPoint end);
 	OpRoots axisRayHit(Axis offset, float axisIntercept, float start = 0, float end = 1) const;
 	OpRoots axisRawHit(Axis offset, float axisIntercept, MatchEnds) const;
 	float center(Axis offset, float axisIntercept) const;
@@ -59,6 +60,7 @@ struct OpCurve {
 	LinePts linePts() const {
 		LinePts result { firstPt(), lastPt() }; return result; }
 	OpPtT lineCurve(OpCurve& line, float t, float* lineT, MatchEnds , float margin);
+    OpRoots lineIntersection(OpCurve& );
 	OpRoots lineIntersect(const LinePts& line) const;
 	// Returns t of point on curve if any; returns NaN if no match. Used by line/curve intersection.
 	float match(float start, float end, OpPoint ) const;
@@ -69,8 +71,9 @@ struct OpCurve {
 	float normalLimit() const;
 	bool normalize();
 	void output(bool firstPt, bool lastPt  OP_DEBUG_PARAMS(int parentID));
-	void pinCtrl();
+//	void pinCtrl(OpPoint oldStart, OpPoint oldEnd);
 	OpPoint ptAtT(float t) const;
+	OpPoint ptDAtT(float t) const;
 	OpPtT ptTAtT(float t) const {
 		return { ptAtT(t), t }; }
 	OpPointBounds ptBounds() const;  // if curve is rotated, may need to consider control points
@@ -82,7 +85,9 @@ struct OpCurve {
 		c.data->start = pt; }
 	void setLastPt(OpPoint pt) {
 		c.data->end = pt; }
-	OpCurve subDivide(OpPtT ptT1, OpPtT ptT2) const;
+	void setLine() {
+		isLineSet = false; isLine(); }
+	OpCurve subDivide(float t1, float t2) const;
 	OpVector tangent(float t) const;
 	float tAtXY(float t1, float t2, XyChoice , float goal) const;
 	// rotates curve so that line's (pt[0], pt[1]) moves to ((0, 0), (0, line[1].y - line[0].y))

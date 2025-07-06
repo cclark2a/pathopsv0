@@ -59,7 +59,7 @@ struct OpJoiner {
 	LinkPass linkPass;
 	OpEdge* edge;  // start of current link list
 	OpEdge* lastLink;  // end of current link list
-	OpPoint matchPt;
+//	OpPoint matchPt;
 	OP_DEBUG_CODE(int debugRecursiveDepth);
 };
 

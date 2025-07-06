@@ -573,6 +573,11 @@ struct OpRect {
 		, bottom(b) {
 	}
 
+    OpRect(OpPoint pt1, OpPoint pt2) {
+		set(pt1);
+		add(pt2);
+	}
+
 	friend bool operator==(OpRect a, OpRect b) {
 		return a.left == b.left && a.top == b.top && a.right == b.right && a.bottom == b.bottom; }
 
@@ -602,6 +607,9 @@ struct OpRect {
 	}
 
 	OpPoint center() const;
+    bool contains(OpPoint pt) const;
+	bool contains(OpPoint pt, OpVector margin) const;
+	bool contains(OpRect& r) const;
 	bool isFinite() const;
 
 	float height() const { 
@@ -632,6 +640,12 @@ struct OpRect {
 
 	float perimeter() const { 
 		return width() + height(); }
+
+	OpPoint set(OpPoint pt) {
+		left = right = pt.x;
+		top = bottom = pt.y;
+		return pt;
+	}
 
 	void setLtChoice(Axis axis, float value) {  // !!! unused
 		*(&left + +axis) = value; }
@@ -713,6 +727,10 @@ struct OpPtT {
 	}
 
 	DUMP_DECLARATIONS
+
+#if OP_DEBUG
+	bool debugIsUninitialized() const;
+#endif
 
 	OpPoint pt;
 	float t;

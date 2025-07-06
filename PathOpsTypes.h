@@ -30,8 +30,10 @@ enum class ContextError {
 // collection of curves that share the same fill rules
 struct Contour;
 
-// caller defined curve type (e.g., line, arc, cubic, ...); value zero is reserved
+// caller defined curve type (e.g., line, arc, cubic, ...); 
 enum class CurveType : int;
+
+static constexpr CurveType degenerateLine = (CurveType) 0;  // used when curve degenerates to line
 
 // caller-defined optional data for each curve
 struct CurveUserData;
@@ -116,7 +118,7 @@ typedef OpPoint (*CurveHull)(Curve, int index);
 typedef void (*CurveOutput)(Curve, bool firstPt, bool lastPt, PathOutput );
 
 // map the control points (if any) to lie inside the bounds of the curve (e.g., start and end)
-typedef void (*CurvePinCtrl)(Curve);
+// typedef void (*CurvePinCtrl)(Curve, OpPoint oldStart, OpPoint oldEnd);
 
 // reverses order of control points, if there is more than one
 typedef void (*CurveReverse)(Curve);
@@ -124,8 +126,9 @@ typedef void (*CurveReverse)(Curve);
 // rotates curve user data about origin (not normalized)
 typedef void (*Rotate)(Curve , OpPoint origin, OpVector scale, Curve result);
 
-// computes part from parameter t1 to t2, both from 0 to 1; returns false if result devolved to line
-typedef bool (*SubDivide)(Curve , float t1, float t2, Curve result);
+// computes part from parameter t1 to t2, both from 0 to 1
+// sets result type to zero if curve part is linear, within threshold tolerance
+typedef void (*SubDivide)(Curve , float t1, float t2, float threshold, Curve* result);
 
 // returns tangent vector at parameter t, where: t=0 is start, t=1 is end
 typedef OpVector (*CurveTangent)(Curve, float t);
@@ -149,18 +152,20 @@ struct CurveCallbacks {
 	CurveIsFinite curveIsFiniteFuncPtr = nullptr;
 	CurveIsLine curveIsLineFuncPtr = nullptr;
 	SetBounds setBoundsFuncPtr = nullptr;
-	CurvePinCtrl curvePinCtrlFuncPtr = nullptr;
+	// CurvePinCtrl curvePinCtrlFuncPtr = nullptr;
 	CurveTangent curveTangentFuncPtr = nullptr;
 	CurvesEqual curvesEqualFuncPtr = nullptr;
 	PtAtT  ptAtTFuncPtr = nullptr;
+	PtAtT  ptDAtTFuncPtr = nullptr;
 	HullPtCount ptCountFuncPtr = nullptr;
 	Rotate rotateFuncPtr = nullptr;
 	SubDivide subDivideFuncPtr = nullptr;
 	XYAtT xyAtTFuncPtr = nullptr;
 	CurveReverse curveReverseFuncPtr = nullptr;
+	CurveConst crossThresholdFuncPtr = nullptr;
 	CurveConst cutFuncPtr = nullptr;
-	CurveConst normalLimitFuncPtr = nullptr;
 	CurveConst interceptFuncPtr = nullptr;
+	CurveConst normalLimitFuncPtr = nullptr;
 };
 
 // winding callbacks

@@ -39,6 +39,9 @@ extern int debugPrecision;	// minus one means unset
 extern bool debugSmall;		// set to false to show sub-epsilon values as ~0
 extern bool debugEpsilon;	// set to true to show values smaller than 100 * OpEpsilon as eps
 
+#define OpNop() \
+	OpDebugOut("")
+
 #endif
 
 enum class OpDebugIntersect {
@@ -231,9 +234,6 @@ struct OpDebugMaker {
 
 #define OpAssert(doBreak) \
     do { if (!(doBreak)) OP_DEBUG_BREAK(); } while (false)
-
-#define OpNop() \
-	OpDebugOut("")
 
 bool OpDebugSkipBreak();
 

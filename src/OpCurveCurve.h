@@ -114,6 +114,7 @@ struct FoundLimits {
 struct OpCurveCurve {
 	OpCurveCurve(OpSegment* seg, OpSegment* opp);
 	void addIntersection(OpEdge* edge, OpEdge* opp);
+    void addLineCurveIntersection(OpEdge& edge, OpEdge& opp, CurveRef );
 	EdgeRun* addEdgeRun(OpEdge* , CurveRef , EdgeMatch );
 	bool addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 			const OpPtT& oppStart, const OpPtT& oppEnd);

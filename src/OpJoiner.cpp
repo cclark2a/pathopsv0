@@ -145,17 +145,15 @@ void OpLimb::set(OpTree& tree, OpEdge* test, OpLimb* p, EdgeMatch m, LimbPass l,
 	deadEnd = false;
 	if (LimbPass::linked != treePass && LimbPass::miswound != treePass) {
 		lastLimbEdge = edge;
-		lastPtT = lastLimbEdge->whichPtT(!match);
 		lastMatch = !match;
 	} else if (EdgeMatch::start == match) {
 		lastLimbEdge = edge->lastEdge;
-		lastPtT = lastLimbEdge->whichPtT(EdgeMatch::end);
 		lastMatch = EdgeMatch::end;
 	} else {
 		lastLimbEdge = otherEnd;
-		lastPtT = lastLimbEdge->whichPtT(EdgeMatch::start);
 		lastMatch = EdgeMatch::start;
 	}
+	lastPtT = lastLimbEdge->whichSect(lastMatch);
 	if (childBounds) {
 		bounds = *childBounds;
 		looped = tree.firstPt == lastPtT.pt;
@@ -188,7 +186,7 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 	OP_ASSERT(!test->hasLinkTo(m) || Unsortable::none != test->isUnsortable || test->disabled 
 			|| test->isUnsectable());
 	int ccUnsectID = 0;
-	OpPoint testPt = test->whichPtT(m).pt;
+	OpPoint testPt = test->whichSect(m).pt;
 	if (testPt != lastPtT.pt) {
 		if (LimbPass::unsectPair != tree.limbPass)
 			return nullptr;
@@ -280,7 +278,7 @@ connectWithFiller:
 		return nullptr;
 	OpLimb* newParent = this;
 	if (LimbPass::unsectPair == tree.limbPass) {
-		OpPtT startI = test->whichPtT(m);
+		OpPtT startI = test->whichSect(m);
 		if (lastPtT.pt == startI.pt) 
 			return nullptr;
 		if (tree.containsFiller(this, lastPtT.pt, startI.pt))
@@ -327,7 +325,7 @@ OpTree::OpTree(OpJoiner& join)
 	: context(join.edge->segment->contour->context)
 	, bestGapLimb(nullptr)
 	, bestLimb(nullptr)
-	, firstPt(join.edge->whichPtT().pt)
+	, firstPt(join.edge->whichSect().pt)
 	, limbPass(LimbPass::linked)
 	, bestDistance(OpInfinity)
 	, bestPerimeter(OpInfinity)
@@ -456,7 +454,7 @@ OpEdge* OpTree::addFiller(OpSegment* seg, const OpPtT& ptT1, const OpPtT& ptT2, 
 
 void OpTree::addUnsectableLoop(OpJoiner& joiner, OpLimb* end) {
 	OpEdge* joinEdge = joiner.edge;
-	OpPtT startI = joinEdge->whichPtT(EdgeMatch::start);
+	OpPtT startI = joinEdge->whichSect();
 	OpEdge* filler = addFiller(end->edge->segment, end->lastPtT, startI, false);
 	OpLimb* limb = makeLimb();
 	limb->set(*this, filler, end, EdgeMatch::start, LimbPass::disjoint, 
@@ -585,7 +583,7 @@ bool OpTree::join(OpJoiner& join) {
 		} else
 			(void) prior->setLastLink(prior->which());
 		OpEdge* last = prior->lastEdge;
-		OP_ASSERT(best->whichPtT().pt == last->whichPtT(EdgeMatch::end).pt);
+		OP_ASSERT(best->whichSect().pt == last->whichSect(EdgeMatch::end).pt);
 		best->setPriorEdge(last);
 		last->setNextEdge(best);
 		prior->setLastEdge(best, best->lastEdge, InOutput::yes);
@@ -929,7 +927,7 @@ bool OpJoiner::matchLinks(OpContour* contour, bool popLast) {
 	OP_ASSERT(!lastLink->nextEdge);
 	OP_ASSERT(EdgeMatch::start == lastLink->which() || EdgeMatch::end == lastLink->which());
 //	found.clear();
-	matchPt = lastLink->whichPtT(EdgeMatch::end).pt;
+//	matchPt = lastLink->whichSect(EdgeMatch::end).pt;
 	OpTree tree(*this);
 	if (PathOpsV0Lib::ContextError::none != context->error)
 		return false;
@@ -940,8 +938,8 @@ bool OpJoiner::matchLinks(OpContour* contour, bool popLast) {
 		if (!context->errorHandler.errorDispatchFuncPtr
 				|| context->errorHandler.errorDispatchFuncPtr(
 				PathOpsV0Lib::ContextError::missing, *context, nullptr)) {
-			OpPtT startI = edge->whichPtT(EdgeMatch::start);
-			OpPtT gapEnd = gap->lastLimbEdge->whichPtT(!gap->match);
+			OpPtT startI = edge->whichSect();
+			OpPtT gapEnd = gap->lastLimbEdge->whichSect(!gap->match);
 			bool usectLink = unsectableLink(contour, startI.pt, gapEnd.pt);
 			OpEdge* filler = tree.addFiller(gap->lastLimbEdge->segment, gapEnd, startI, usectLink);
 			OpLimb* branch = tree.makeLimb();

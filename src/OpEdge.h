@@ -164,7 +164,7 @@ struct SectRay {
 	FindCept findCept(OpEdge* , OpEdge* test);
 	FindCept findIntercept(OpWinder* , OpEdge* test);
 	Distance* find(const OpEdge* );  // returns edge in distances
-	bool incomplete() const;
+//	bool incomplete() const;
 	bool isOrdered(size_t index) const;  // false if dist edge and neighbors are reversed elsewhere
 //	bool missingContour(OpWinder* , OpEdge* ) const;
 //	bool missingContour(OpWinder* , OpSegment* ) const;
@@ -307,6 +307,8 @@ private:
 		: priorEdge(nullptr)
 		, nextEdge(nullptr)
 		, lastEdge(nullptr)
+        , iStart(SetToNaN::dummy)
+        , iEnd(SetToNaN::dummy)
 		, upright_impl( { SetToNaN::dummy, SetToNaN::dummy } )
 		, winding(WindingUninitialized::dummy)
 		, sum(WindingUninitialized::dummy)
@@ -369,7 +371,6 @@ public:
 	OpEdge(OpContext* , const OpPtT& start, const OpPtT& end  OP_LINE_FILE_ARGS());  // make filler 
 	OpEdge(const OpEdge* e, const OpPtT& newPtT, NewEdge isLeftRight  OP_LINE_FILE_ARGS());
 	OpEdge(const OpEdge* e, const OpPtT& start, const OpPtT& end  OP_LINE_FILE_ARGS());
-//	OpEdge(OpSegment* , float t1, float t2  OP_LINE_FILE_ARGS());
 
 	CalcFail addIfUR(Axis xis, float t, OpWinding* ) const;
 	void addPal(OpEdge* , int uid, bool reversed);
@@ -384,7 +385,8 @@ public:
 	void clearLastEdge(InOutput );
 	void clearNextEdge();
 	void clearPriorEdge();
-	void complete(OpPoint start, OpPoint end);
+	void complete(OpPtT startPtT, OpPtT endPtT);
+	void complete(OpPoint startPt, OpPoint endPt);
 	bool containsLink(const OpEdge* edge) const;
 	OpContext* context() const;
 	OpPtT end() const { return OpPtT(endPt(), endT); }
@@ -438,9 +440,7 @@ public:
 	void unlink();  // restore edge to unlinked state (for reusing unsortable or unsectable edges)
 	EdgeMatch which() const {
 		return whichEnd_impl; }
-	OpPtT whichPtT(EdgeMatch match = EdgeMatch::start) const { 
-		return match == (EdgeMatch::none == whichEnd_impl ? EdgeMatch::start : whichEnd_impl)
-				? start() : end(); }
+    OpPtT whichSect(EdgeMatch match = EdgeMatch::start) const;
 	bool debugFail() const;
 	bool debugSuccess() const;
 #if OP_DEBUG_DUMP
@@ -484,6 +484,8 @@ public:
 	OpEdge* lastEdge;
 	OpPtT center;  // curve location used to find winding contribution
 	OpCurve curve;
+    OpPoint iStart;  // average of intersections
+    OpPoint iEnd; 
 	OpCurve vertical_impl;	// only access through set vertical function
 	LinePts upright_impl;   //  "
 	OpPointBounds bounds;	// cache of bounds from curve endpoints 
@@ -571,7 +573,7 @@ struct OpEdgeStorage {
 	bool contains(int ccUnsectableID) const;
 	void reuse();
 #if OP_DEBUG_DUMP
-	int debugCount() const;
+	int debugCount();
 	std::string debugDump(std::string label, DebugLevel l, DebugBase b);
 	OpEdge* debugFind(int id);
 	OpEdge* debugIndex(int index);

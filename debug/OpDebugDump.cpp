@@ -508,12 +508,30 @@ void dmpEdges() {
     std::string s;
     for (const auto c : debugGlobalContext->contours) {
         for (const auto& seg : c->segments) {
+			if (!seg.edges.size())
+				continue;
             s += seg.debugDump(defaultLevel, defaultBase) + "\n";
             for (const auto& edge : seg.edges) {
                 s += edge.debugDump(defaultLevel, defaultBase) + "\n";
             }
         }
     }
+	if (debugGlobalContext->fillerStorage) {
+		s += "fillerStorage:\n";
+		int count = debugGlobalContext->fillerStorage->debugCount();
+		for (int index = 0; index < count; ++index) {
+			s += debugGlobalContext->fillerStorage->debugIndex(index)
+					->debugDump(defaultLevel, defaultBase) + "\n";
+		}
+	}
+	if (debugGlobalContext->ccStorage) {
+		s += "ccStorage:\n";
+		int count = debugGlobalContext->ccStorage->debugCount();
+		for (int index = 0; index < count; ++index) {
+			s += debugGlobalContext->ccStorage->debugIndex(index)
+					->debugDump(defaultLevel, defaultBase) + "\n";
+		}
+	}
     OpDebugOut(s);
 }
 
@@ -1820,6 +1838,8 @@ ENUM_NAME(Axis, axis)
 	OP_X(lastEdge) \
 	OP_X(center) \
 	OP_X(curve) \
+    OP_X(iStart) \
+    OP_X(iEnd) \
 	OP_X(vertical_impl) \
 	OP_X(upright_impl) \
 	OP_X(bounds) \
@@ -2350,6 +2370,12 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
             return std::string("");
         return debugValue(DebugLevel::error, b, label, t) + " ";
     };
+    auto strPoint = [dumpIt, dumpAlways, b, strLabel](EdgeFilter match, std::string label,
+                OpPoint pt) {
+        if (!dumpIt(match) || (!dumpAlways(match) && !pt.isFinite()))
+            return std::string("");
+        return strLabel(label) + pt.debugDump(DebugLevel::error, b) + " ";
+    };
     auto strPtT = [dumpIt, dumpAlways, b, strLabel](EdgeFilter match, std::string label,
                 OpPtT ptT, std::string suffix) {
         if (!dumpIt(match) || (!dumpAlways(match) && (!ptT.pt.isFinite() || !OpMath::IsFinite(ptT.t))))
@@ -2392,8 +2418,13 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         s += strEdge(EdgeFilter::lastEdge, "last", lastEdge);
         if ('/' == s.back()) s.back() = ' ';
     }
-    s += strPtT(EdgeFilter::center, "center", center, " ");
+	if (!center.debugIsUninitialized())
+		s += strPtT(EdgeFilter::center, "center", center, " ");
     if (dumpIt(EdgeFilter::curve)) s += strCurve("curve", curve);
+    if (iStart != startPt() || dumpAlways(EdgeFilter::iStart)) 
+        s += strPoint(EdgeFilter::iStart, "iStart", iStart);
+    if (iEnd != endPt() || dumpAlways(EdgeFilter::iEnd))
+        s += strPoint(EdgeFilter::iEnd, "iEnd", iEnd);
     if (upright_impl.pts[0].isFinite() || upright_impl.pts[1].isFinite()) {
         if (dumpIt(EdgeFilter::upright_impl))
             s += strPts("upright_impl", upright_impl);
@@ -2776,11 +2807,11 @@ std::string OpEdge::debugDumpPoints() const {
     s += " which:" + edgeMatchName(which());
     const OpEdge* startE = debugAdvanceToEnd(EdgeMatch::start);
     if (startE != this)
-        s += " start[" + STR(startE->id) + "] " + startE->whichPtT()
+        s += " start[" + STR(startE->id) + "] " + startE->whichSect()
                 .debugDump(defaultLevel, defaultBase);
     const OpEdge* endE = debugAdvanceToEnd(EdgeMatch::end);
     if (endE != this)
-        s += " end[" + STR(endE->id) + "] " + endE->whichPtT(!endE->which())
+        s += " end[" + STR(endE->id) + "] " + endE->whichSect(!endE->which())
                 .debugDump(defaultLevel, defaultBase);
     return s;
 }
@@ -3042,8 +3073,10 @@ void CallerDataStorage::DumpSet(const char*& str, CallerDataStorage** previousPt
         DumpSet(str, &storage->next);
 }
 
-int OpEdgeStorage::debugCount() const {
-    int result = used;
+// don't count curve that hasn't been built
+int OpEdgeStorage::debugCount() {
+	OpEdge* last = debugIndex(used - 1);
+    int result = used - (PathOpsV0Lib::degenerateLine == last->curve.c.type);
     OpEdgeStorage* block = next;
     while (block) {
         result += block->used;
@@ -3282,8 +3315,8 @@ std::string OpJoiner::debugDump(DebugLevel l, DebugBase b) const {
 		s += "edge:" + STR(edge->id) + " ";
     if (lastLink)
         s += "lastLink:" + STR(lastLink->id) + " ";
-    if (!OpMath::IsDebugNaN(matchPt.x) && !OpMath::IsDebugNaN(matchPt.y))
-        s += "matchPt:" + matchPt.debugDump(l, b) + " ";
+//    if (!OpMath::IsDebugNaN(matchPt.x) && !OpMath::IsDebugNaN(matchPt.y))
+//        s += "matchPt:" + matchPt.debugDump(l, b) + " ";
     s.pop_back();
     return s;
 }
@@ -3297,8 +3330,8 @@ void OpJoiner::dumpSet(const char*& str) {
         edge = (OpEdge*) OpDebugReadSizeT(str);
     if (OpDebugOptional(str, "lastLink"))
         lastLink = (OpEdge*) OpDebugReadSizeT(str);
-    if (OpDebugOptional(str, "matchPt"))
-        matchPt.dumpSet(str);
+//    if (OpDebugOptional(str, "matchPt"))
+//       matchPt.dumpSet(str);
 }
 
 void OpJoiner::dumpResolveAll(OpContext* c) {

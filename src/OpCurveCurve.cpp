@@ -506,6 +506,16 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o)
 		return;
 	}
 	overlap = true;
+	snipEdge = { SetToNaN::dummy };
+	snipOpp = { SetToNaN::dummy };
+	if (smallTFound) {
+		snipEdge = parentEdge->start();
+		snipOpp = parentOpp->ptT(matchRev.reversed ? EdgeMatch::end : EdgeMatch::start);
+	}
+	if (largeTFound) {
+		snipEdge = parentEdge->end();
+		snipOpp = parentOpp->ptT(matchRev.reversed ? EdgeMatch::start : EdgeMatch::end);
+	}
 	if (matchRev.reversed)
 		std::swap(smallTFound, largeTFound);
 	edgeCurves.oppCurves = &oppCurves;
@@ -892,7 +902,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 	// intersect a second time. Not sure what to do...
 	for (depth = 1; depth < maxDeep; ++depth) {
 		OP_ASSERT(debugShowImage(true));
-		bool snipEm = false;
+		bool snipEm = 1 == depth && snipEdge.isFinite() && snipOpp.isFinite();
 		if (!setOverlaps())
 			return SectFound::fail;
 		if (checkForGaps() || (splitMid && !endsOverlap()))
@@ -912,7 +922,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 		}
 		if (checkSect())
 			snipEm = true;
-		else {
+		else if (!snipEm) {
 			size_t limitCount = limits.size();
 			setHulls(CurveRef::edge);
 			setHulls(CurveRef::opp);
@@ -1179,7 +1189,7 @@ bool OpCurveCurve::reduceDistFlipped() {
 		size_t hidex = OpMax;
 		auto keepRun = [&segment, &lower, &upper, this](CcCurves& splits) {
 			void* block = context->allocateEdge(context->ccStorage);
-			OpEdge* split = new(block) OpEdge(segment, lower->edgePtT, upper->edgePtT  
+			OpEdge* split = new(block) OpEdge(segment, lower->edgePtT, upper->edgePtT 
 					OP_LINE_FILE_PARGS());
 			split->ccInit(true);
 			OP_ASSERT(!split->disabled);
@@ -1410,9 +1420,10 @@ void OpCurveCurve::setHullSects(OpEdge& edge, OpEdge& oppEdge, CurveRef curveRef
 			OP_ASSERT(edge.startT <= sectPtT.t && sectPtT.t <= edge.endT);
 			// if pt is close to existing hull sect, and both are not end, record intersection
 			if (edge.hulls.add(sectPtT, context->threshold(), nullptr, OpNaN, sectType, &oppEdge)) {
-#if 1  // !!! see comment above; if edge is preferred, oppEdge should be preferred also
+#if 1
+	// always use original segment to find points
 				OpSegment* oSeg = oppEdge.segment;
-				OpPtT oppPtT { oSeg->c.ptTAtT(oSeg->c.findValidT(0, 1, sectPtT.pt))};
+				OpPtT oppPtT { oSeg->c.ptTAtT(oSeg->c.findValidT(0, 1, sectPtT.pt)) };
 #else
 				OpPtT oppPtT { oppEdge.curve.ptTAtT(oppEdge.curve.findValidT(0, 1, sectPtT.pt))};
 				oppPtT.t = OpMath::Interp(oppEdge.startT, oppEdge.endT, oppPtT.t);
@@ -1466,6 +1477,20 @@ void OpCurveCurve::setHullSects(OpEdge& edge, OpEdge& oppEdge, CurveRef curveRef
 	}
 }
 
+void OpCurveCurve::addLineCurveIntersection(OpEdge& edge, OpEdge& oppEdge, CurveRef curveRef) {
+    OpRoots oppRoots = edge.curve.lineIntersection(oppEdge.curve);
+    for (float root : oppRoots.roots) {
+        OpPtT oppPtT = edge.curve.ptTAtT(root);
+        OpSegment* segment = CurveRef::edge == curveRef ? seg : opp;
+        float edgeT = segment->c.findValidT(edge.startT, edge.endT, oppPtT.pt);
+        OpPtT edgePtT = segment->c.ptTAtT(edgeT);
+        if (CurveRef::edge == curveRef)
+            recordSect(&edge, &oppEdge, edgePtT, oppPtT  OP_LINE_FILE_PARGS());
+        else
+            recordSect(&oppEdge, &edge, oppPtT, edgePtT  OP_LINE_FILE_PARGS());
+    }
+}
+
 // if ref is edge, records all intersections of edges with all hulls of opp
 void OpCurveCurve::setHulls(CurveRef curveRef) {
 	std::vector<OpEdge*>& eCurves = CurveRef::edge == curveRef ? edgeCurves.c : oppCurves.c;
@@ -1478,7 +1503,11 @@ void OpCurveCurve::setHulls(CurveRef curveRef) {
 			auto& oppEdge = *oppPtr;
 			if (!oppEdge.ccOverlaps)
 				continue;
-			if (!splitMid || edge.isLine())
+            if (edge.isLine())
+                addLineCurveIntersection(edge, oppEdge, CurveRef::edge);
+            else if (oppEdge.isLine())
+                addLineCurveIntersection(oppEdge, edge, CurveRef::opp);
+			else if (!splitMid)
 				setHullSects(edge, oppEdge, curveRef);
 		}
 	}
@@ -1618,6 +1647,7 @@ bool OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 			if (OpMath::EqualT(hullLo.sect.t, hullHi.sect.t))
 				continue;
 			void* block = context->allocateEdge(context->ccStorage);
+			// hull points have been aligned, and may not be on edge
 			OpEdge* split = new(block) OpEdge(segment, hullLo.sect, hullHi.sect  
 					OP_LINE_FILE_PARGS());
 			OP_DEBUG_CODE(split->debugParentID = edge.id);

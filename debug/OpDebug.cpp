@@ -437,6 +437,10 @@ bool OpPoint::debugIsUninitialized() const {
 	return OpMath::IsDebugNaN(x) && OpMath::IsDebugNaN(y);
 }
 
+bool OpPtT::debugIsUninitialized() const {
+	return pt.debugIsUninitialized() && OpMath::IsDebugNaN(t);
+}
+
 void OpMath::DebugCompare(float a, float b) {
     float diff = fabsf(a - b);
     float max = std::max(fabsf(a), fabsf(b));

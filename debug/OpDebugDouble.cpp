@@ -722,6 +722,7 @@ void DebugOpCurve::mapTo(OpCurve& c) const {
     c.c.data->start = DebugOpMap(pts[0]);
     int endIndex;
     switch (type) {
+        case PathOpsV0Lib::degenerateLine:
         case PathOpsV0Lib::CurveType::line:
             endIndex = 1;
             break;

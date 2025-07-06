@@ -358,7 +358,7 @@ bool OpContour::linkUp(OpJoiner* joiner, OpEdge* e) {
 		FoundEdge foundOne = foundEdges.front();
 		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
 		e->linkToEdge(foundOne, linkMatch);
-		OP_ASSERT(e->whichPtT(linkMatch).pt == foundOne.edge->flipPtT(linkMatch).pt);
+		OP_ASSERT(e->whichSect(linkMatch).pt == foundOne.edge->flipPtT(linkMatch).pt);
 		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
 		if (detachIfLoop(joiner, e, linkMatch))
 			return false; // 4) found loop, nothing leftover; caller to move on to next edge
@@ -383,9 +383,9 @@ RelinkJoins OpContour::relinkUnambiguous(OpJoiner* joiner, size_t link) {
 		EdgeMatch tMatch;
 		auto scanForMatch = [&tMatch, &tIndex, link, this, &tContour](OpEdge* eEdge, 
 				OpContour* eContour, EdgeMatch eMatch) {
-			OpPoint edgePt = eEdge->whichPtT(eMatch).pt;
+			OpPoint edgePt = eEdge->whichSect(eMatch).pt;
 			auto testUnmatch = [edgePt](OpEdge* test, EdgeMatch match) {
-				return test->whichPtT(match).pt == edgePt;
+				return test->whichSect(match).pt == edgePt;
 			};
 			tMatch = EdgeMatch::none;
 			for (OpContour* member : eContour->members()) {
@@ -402,7 +402,7 @@ RelinkJoins OpContour::relinkUnambiguous(OpJoiner* joiner, size_t link) {
 						continue;
 					auto testMatch = [&tMatch, &tIndex, &tContour, index, member, edgePt]
 							(OpEdge* test, EdgeMatch match) {
-						if (test->whichPtT(match).pt == edgePt) {
+						if (test->whichSect(match).pt == edgePt) {
 							if (tMatch != EdgeMatch::none)
 								return false;  // there is more than one match; give up on this end
 							tMatch = match;
