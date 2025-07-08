@@ -114,7 +114,7 @@ struct FoundLimits {
 struct OpCurveCurve {
 	OpCurveCurve(OpSegment* seg, OpSegment* opp);
 	void addIntersection(OpEdge* edge, OpEdge* opp);
-    void addLineCurveIntersection(OpEdge& edge, OpEdge& opp, CurveRef );
+    bool addLineCurveIntersection(OpEdge& edge, OpEdge& opp, CurveRef );
 	EdgeRun* addEdgeRun(OpEdge* , CurveRef , EdgeMatch );
 	bool addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 			const OpPtT& oppStart, const OpPtT& oppEnd);
@@ -136,8 +136,8 @@ struct OpCurveCurve {
 	bool reduceDistFlipped();  // replace edges with dist runs that change sign
 	bool rotatedIntersect(OpEdge& edge, OpEdge& opp, bool sharesPoint);
 	SectFound runsToLimits();
-	void setHullSects(OpEdge& edge, OpEdge& opp, CurveRef );
-	void setHulls(CurveRef curveRef);
+	bool setHullSects(OpEdge& edge, OpEdge& opp, CurveRef );
+	bool setHulls(CurveRef curveRef);
 	bool setOverlaps();
 	bool setSnipFromLimits(size_t oldCount);
 	bool splitDownTheMiddle(const OpEdge& edge, CurveRef , CcCurves& splits);

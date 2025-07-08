@@ -165,7 +165,7 @@ inline CubicControls CubicControlPt(OpPoint start, CubicControls controls, OpPoi
 		OpDebugOut("err2: " + STR(err2.x / OpEpsilon) + ", " + STR(err2.y / OpEpsilon) + "\n");
 #endif
 
-#if OP_DEBUG_VALIDATE
+#if 0 && OP_DEBUG_VALIDATE
 	// compare raw control points with mod points by evaluating pt values from t to see the
 	// tweak is distorting the cubic
 	constexpr int samples = 16;
@@ -181,7 +181,7 @@ inline CubicControls CubicControlPt(OpPoint start, CubicControls controls, OpPoi
 		float rawError = (truth - raw).length();
 		gMaxError = std::max(gMaxError, rawError);
 		if (rawError > OpEpsilon * 8)
-			OpDebugOut(STR(rawError / OpEpsilon) + "\n");
+			OpDebugOut("raw error too large: " + STR(rawError / OpEpsilon) + "\n");
 		OP_ASSERT(rawError <= OpEpsilon * 1024);
 	}
 #endif
@@ -520,6 +520,8 @@ inline void cubicSetBounds(Curve c, OpRect& bounds) {
 }
 
 inline void cubicSubDivide(Curve c, float t1, float t2, float threshold, Curve* result) {
+//    OP_ASSERT(!OpMath::Equal(t1, 0.363392949f));
+//    OP_ASSERT(!OpMath::Equal(t1, 0.670813143f));
     CubicControls controls(c);
 	OpPoint start = c.data->start;
 	OpPoint end = c.data->end;
@@ -542,15 +544,38 @@ inline void cubicSubDivide(Curve c, float t1, float t2, float threshold, Curve* 
     };
 	std::array<OpVector, 3> ctrlLines = makeLines(c, controls);
 	std::array<OpVector, 3> subLines = makeLines(*result, subControls);
-    auto makeCrosses = [](std::array<OpVector, 3>& lines) {
-        return std::array<float, 2> { lines[0].cross(lines[1]), lines[1].cross(lines[2]) };
+    auto makeCross = [](OpVector line1, OpVector line2) {
+        float result = line1.cross(line2);
+        return fabs(result) <= OpEpsilon ? 0 : result;
+    };
+    auto makeCrosses = [makeCross](std::array<OpVector, 3>& lines) {
+        std::array<float, 2> result{ makeCross(lines[0], lines[1]), makeCross(lines[1], lines[2]) };
+        if (result[0] * result[1] >= 0)
+            return result;
+        int smaller = fabs(result[0]) > fabs(result[1]);
+        float scale = fabs(result[!smaller] / result[smaller]);
+        if (fabs(result[smaller]) <= OpEpsilon * std::min(scale, 256.f))
+            result[smaller] = 0;
+        return result;
     };
     std::array<float, 2> ctrlCrosses = makeCrosses(ctrlLines);
+    int smallerCrossIndex = fabs(ctrlCrosses[0]) > fabs(ctrlCrosses[1]);
+    float crossAngle = smallerCrossIndex ? ctrlCrosses[0] : ctrlCrosses[1]; 
     std::array<float, 2> subCrosses = makeCrosses(subLines);
+    if (subCrosses[0] * subCrosses[1] < 0) {
+        float crossProduct = ctrlCrosses[0] * ctrlCrosses[1];
+        OP_ASSERT(crossProduct >= 0 || fabs(crossProduct) < OpEpsilon * 4);
+        int smallerSubIndex = fabs(subCrosses[0]) > fabs(subCrosses[1]);
+        float scale = ctrlCrosses[!smallerCrossIndex] / subCrosses[!smallerSubIndex];
+        if (subCrosses[smallerSubIndex] * scale < ctrlCrosses[smallerCrossIndex] * 4)
+            subCrosses[smallerSubIndex] = 0;  // don't mark it as a line
+    }
     // check if original data is inflection-free
-    OP_ASSERT(ctrlCrosses[0] * ctrlCrosses[1] >= 0);
     // sub divide should bend the same way as original
-    float crossAngle = ctrlCrosses[0] ? ctrlCrosses[0] : ctrlCrosses[1];
+    if (0 == subCrosses[0] && 0 == subCrosses[1]) {
+        result->type = degenerateLine;
+		return;
+    }
     if (subCrosses[0] * subCrosses[1] < 0) {
         result->type = degenerateLine;
 		return;

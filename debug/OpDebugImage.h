@@ -165,6 +165,7 @@ extern void draw(const OpPtT* );
 extern void draw(const OpRect* );
 extern void draw(const PathOpsV0Lib::Curve* );
 extern void draw(float , float );
+extern void draw(float , float , float , float);
 extern void drawHex(uint32_t , uint32_t );
 extern void drawT(int id, float );
 extern void drawT(int id, const OpPtT& );

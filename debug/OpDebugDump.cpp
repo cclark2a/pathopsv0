@@ -1756,8 +1756,8 @@ void dmp(const PathOpsV0Lib::Curve* c) {
 }
 
 bool debugDmpIsLine(const PathOpsV0Lib::Curve& c) {
-	OpCurve test(debugGlobalContext, c, Rotated::no);
-	return test.isLine();
+	OpCurve test(debugGlobalContext, c, Rotated::debug);
+	return test.debugIsLine();
 }
 
 void OpCurve::dumpSet(const char*& str) {
@@ -2821,14 +2821,14 @@ OpPtT OpEdge::debugFindT(Axis axis, float oppXY) const {
 	float startXY = startPt().choice(axis);
 	float endXY = endPt().choice(axis);
 	if (oppXY == startXY)
-		found = start();
+		found = startPtT();
 	else if (oppXY == endXY)
-		found = end();
+		found = endPtT();
 	else {
 		found.pt = OpPoint(SetToNaN::dummy);
 		found.t = segment->debugFindAxisT(axis, startT, endT, oppXY);
 		if (OpMath::IsNaN(found.t))
-			found = (oppXY < startXY) == (startXY < endXY) ? start() : end();
+			found = (oppXY < startXY) == (startXY < endXY) ? startPtT() : endPtT();
 	}
 	return found;
 }

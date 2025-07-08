@@ -482,6 +482,19 @@ OpCurve OpCurve::toVertical(const LinePts& line, MatchEnds match) const {
 	PathOpsV0Lib::Rotate funcPtr = context->callback(c.type).rotateFuncPtr;
 	if (funcPtr)
 		(*funcPtr)(c, line.pts[0], scale, isRotated.c);
+#if 0 && OP_DEBUG
+    LinePts debugLinePts {{{{0.929649651f, 1.59263349f}, {0.931356609f, 1.59143269f}}}};
+    if (debugLinePts.pts[0].isNearly(line.pts[0], OpVector{0, 0}) 
+            && debugLinePts.pts[1].isNearly(line.pts[1], OpVector{0, 0})
+            && isRotated.c.data->end.isNearly(OpPoint{-0.000159205912f, 0.000138030344f},
+                    OpVector{0, 0})) {
+        draw(isRotated);
+        focus(isRotated);
+        showPoints();
+        showValues();
+        showControls();
+    }
+#endif
 	isRotated.isLine();
 	return isRotated;
 }

@@ -307,7 +307,7 @@ bool LinePts::ptOnLine(OpPoint ctrlPt) const {
 		return false;
 	OpVector sxy = ctrlPt - pts[0];
 	OpVector dxy = pts[1] - pts[0];
-	float nearStart = dxy.cross(sxy);
+	float nearStart = dxy.cross(sxy) / dxy.length();
 	if (fabsf(nearStart) > OpEpsilon)
 		return false;
 	OpVector exy = pts[1] - ctrlPt;

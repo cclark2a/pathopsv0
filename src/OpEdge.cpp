@@ -242,10 +242,10 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight  OP_
 	segment = edge->segment;
 	if (NewEdge::isLeft == isLeftRight) {
 		startDist = edge->startDist;
-		complete(edge->start(), newPtT);
+		complete(OpPtT { edge->curve.firstPt(), edge->startT }, newPtT);
 	} else {
 		startDist = edge->endDist;
-		complete(newPtT, edge->end());
+		complete(newPtT, OpPtT { edge->curve.lastPt(), edge->endT });
 	}
 }
 
@@ -607,12 +607,15 @@ void OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first) {
 	OP_DEBUG_CODE(debugOutPath = curve.context->debugOutputID);
 	OpEdge* next = nextOut();
 	OpCurve copy = curve;
+    OP_DEBUG_CODE(float thresholdLength = curve.context->threshold().length());
     if (iStart.isFinite()) {
-        OP_ASSERT((curve.c.data->start - iStart).length() <= curve.context->threshold().length());
+        OP_DEBUG_CODE(float gapLength = (curve.c.data->start - iStart).length());
+        OP_ASSERT(gapLength <= thresholdLength * 16);
         copy.c.data->start = iStart;
     }
     if (iEnd.isFinite()) {
-        OP_ASSERT((curve.c.data->end - iEnd).length() <= curve.context->threshold().length());
+        OP_DEBUG_CODE(float gapLength = (curve.c.data->end - iEnd).length());
+        OP_ASSERT(gapLength <= thresholdLength * 16);
         copy.c.data->end = iEnd;
     }
 	if (EdgeMatch::end == which())
@@ -803,8 +806,7 @@ void OpEdge::setSum(const OpWinding& w  OP_LINE_FILE_ARGS()) {
 
 OpPtT OpEdge::whichSect(EdgeMatch match) const {
     return match == (EdgeMatch::none == whichEnd_impl ? EdgeMatch::start : whichEnd_impl)
-            ? iStart.isFinite() ? OpPtT(iStart, startT) : start()
-            : iEnd.isFinite() ?  OpPtT(iEnd, endT) : end();
+            ? startPtT() : endPtT();
 }
 
 // this is too complicated because
@@ -853,15 +855,15 @@ bool OpEdgeStorage::contains(OpIntersection* start, OpIntersection* end) const {
 }
 #endif
 
-bool OpEdgeStorage::contains(OpPoint start, OpPoint end) const {
+bool OpEdgeStorage::containsPts(OpPoint start, OpPoint end) const {
 	for (int index = 0; index < used; index++) {
 		const OpEdge* test = &storage[index];
-		if (test->start().pt == start && test->end().pt == end)
+		if (test->startPt() == start && test->endPt() == end)
 			return true;
 	}
 	if (!next)
 		return false;
-	return next->contains(start, end);
+	return next->containsPts(start, end);
 }
 
 bool OpEdgeStorage::contains(int ccUnsectableID) const {

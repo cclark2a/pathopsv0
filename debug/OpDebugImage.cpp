@@ -934,7 +934,7 @@ void addFocus(const OpSegment& segment) {
 }
 
 void addFocus(const PathOpsV0Lib::Curve& c) {
-	OpCurve curve(debugGlobalContext, c, Rotated::no);
+	OpCurve curve(debugGlobalContext, c, Rotated::debug);
 	addFocus(curve);
 }
 
@@ -1045,7 +1045,7 @@ void ctr(const OpSegment& segment) {
 }
 
 void ctr(const PathOpsV0Lib::Curve& c) {
-	OpCurve curve(debugGlobalContext, c, Rotated::no);
+	OpCurve curve(debugGlobalContext, c, Rotated::debug);
 	ctr(curve);
 }
 
@@ -1152,7 +1152,7 @@ void focus(const OpSegment& segment) {
 }
 
 void focus(const PathOpsV0Lib::Curve& c) {
-	OpCurve curve(debugGlobalContext, c, Rotated::no);
+	OpCurve curve(debugGlobalContext, c, Rotated::debug);
 	focus(curve);
 }
 
@@ -1562,7 +1562,7 @@ void OpDebugImage::drawPoints() {
 		for (const auto& curve : curves) {
 			DebugOpBuild(curve);
 			if (drawControlsOn) {
-				OpCurve opCurve(debugGlobalContext, curve, Rotated::no);
+				OpCurve opCurve(debugGlobalContext, curve, Rotated::debug);
 				for (int index = 1; index < opCurve.pointCount() - 1; ++index)
 					DebugOpBuild(opCurve.hullPt(index));
 			}
@@ -2400,6 +2400,11 @@ void draw(const LinePts& ray) {
 	OpDebugImage::drawDoubleFocus();
 }
 
+void draw(float x1, float y1, float x2, float y2) {
+    LinePts linePts {{{ {x1, y1}, {x2, y2} }}};
+    draw(linePts);
+}
+
 void draw(const OpPoint& pt) {
 	OpPtT ptT = { pt, OpNaN };
 	draw(ptT);
@@ -2598,7 +2603,7 @@ void drawT(const OpSegment* segment, const OpPtT* ptT) {
 }
 
 void drawT(const PathOpsV0Lib::Curve& curve, float t) {
-	OpCurve c(debugGlobalContext, curve, Rotated::no);
+	OpCurve c(debugGlobalContext, curve, Rotated::debug);
 	draw(c.ptAtT(t));
 }
 

@@ -389,10 +389,10 @@ public:
 	void complete(OpPoint startPt, OpPoint endPt);
 	bool containsLink(const OpEdge* edge) const;
 	OpContext* context() const;
-	OpPtT end() const { return OpPtT(endPt(), endT); }
-	OpPoint endPt() const { return curve.lastPt(); }
+	OpPtT endPtT() const { return OpPtT(endPt(), endT); }
+	OpPoint endPt() const { return iEnd.isFinite() ? iEnd : curve.lastPt(); }
 	OpPtT flipPtT(EdgeMatch match) const { 
-		return match == which() ? end() : start(); }
+		return match == which() ? endPtT() : startPtT(); }
 	bool hasLinkTo(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? priorEdge : nextEdge; }
 	bool isActive() const { 
@@ -418,7 +418,7 @@ public:
 	void output(bool closed);  // provided by the graphics implementation
 	void outputLinkedList(const OpEdge* firstEdge, bool first);
 	OpPtT ptT(EdgeMatch match) const { 
-		return EdgeMatch::start == match ? start() : end(); }
+		return EdgeMatch::start == match ? startPtT() : endPtT(); }
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
 	void setDisabled(OP_LINE_FILE_NP_ARGS());
 	OpEdge* setLastEdge();
@@ -433,8 +433,8 @@ public:
 	void setUnsortable(Unsortable );  // setter exists so debug breakpoints can be set
 	const OpCurve& setVertical(const LinePts& , MatchEnds);
 	void setWhich(EdgeMatch );  // setter exists so debug breakpoints can be set
-	OpPtT start() const { return OpPtT(startPt(), startT); }
-	OpPoint startPt() const { return curve.firstPt(); }
+	OpPtT startPtT() const { return OpPtT(startPt(), startT); }
+	OpPoint startPt() const { return iStart.isFinite() ? iStart : curve.firstPt(); }
 	void subDivide(OpPoint start, OpPoint end);
 	CalcFail subIfDL(OpContour* winderOwner, Axis axis, float t, OpWinding* ) const;
 	void unlink();  // restore edge to unlinked state (for reusing unsortable or unsectable edges)
@@ -569,7 +569,7 @@ struct OpEdgeStorage {
 		, used(0) {
 	}
 	bool contains(OpIntersection* start, OpIntersection* end) const;
-	bool contains(OpPoint start, OpPoint end) const;
+	bool containsPts(OpPoint start, OpPoint end) const;
 	bool contains(int ccUnsectableID) const;
 	void reuse();
 #if OP_DEBUG_DUMP

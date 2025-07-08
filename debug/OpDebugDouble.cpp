@@ -986,7 +986,7 @@ void DebugOpBuild(const DebugColorPt& dPt) {
 
 static DebugOpCurve CurveDebugSetCurve(const PathOpsV0Lib::Curve& curve) {
     DebugOpCurve dCurve;
-	OpCurve opCurve(debugGlobalContext, curve, Rotated::no);
+	OpCurve opCurve(debugGlobalContext, curve, Rotated::debug);
     for (int i = 0; i < opCurve.pointCount(); ++i)
         dCurve.pts[i] = { opCurve.hullPt(i).x, opCurve.hullPt(i).y } ;
     // !!! missing conic weight for now
@@ -1410,7 +1410,7 @@ void DebugOpDrawValue(bool inHex) {
 }
 
 void DebugOpDrawCurveControlLines(const PathOpsV0Lib::Curve& curve, uint32_t color) {
-	OpCurve c { debugGlobalContext, curve, Rotated::no };
+	OpCurve c { debugGlobalContext, curve, Rotated::debug };
     int ptCount = c.pointCount();
     if (ptCount <= 2)
         return;
@@ -1419,6 +1419,7 @@ void DebugOpDrawCurveControlLines(const PathOpsV0Lib::Curve& curve, uint32_t col
         src.pts[0] = { c.hullPt(index).x, c.hullPt(index).y };
         src.pts[1] = { c.hullPt(index + 1).x, c.hullPt(index + 1).y };
         src.weight = 1;
+        src.size = 2 * sizeof(OpPoint);
         src.type = PathOpsV0Lib::CurveType::line;
         src.id = 0;
         src.color = color;
@@ -1446,7 +1447,7 @@ void DebugOpDrawCurveNormal(const PathOpsV0Lib::Curve& c, uint32_t color) {
     std::vector<DebugOpCurve> drawn;
 	drawn.push_back(CurveDebugSetCurve(c));
     for (auto& drawnSeg : drawn) {
-        OpCurve curve { debugGlobalContext, c, Rotated::no };
+        OpCurve curve { debugGlobalContext, c, Rotated::debug };
         drawnSeg.mapTo(curve);
 	    OpVector norm = curve.normal(.77f).normalize() * 15;
         if (!norm.isFinite() || norm == OpVector{ 0, 0 }) {

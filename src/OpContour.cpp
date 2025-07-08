@@ -112,7 +112,7 @@ void OpContour::addJoinEdge(OpJoiner* joiner, OpEdge* e) {
 	}
 	OP_ASSERT(linkups.l.end() == std::find(linkups.l.begin(), linkups.l.end(), e));
 	OpEdge* last = e->setLastEdge();
-	if (e->start().pt == last->end().pt) {
+	if (e->startPt() == last->endPt()) {
 		OP_ASSERT(!last->nextEdge);
 		last->setNextEdge(e);
 		OP_ASSERT(!e->priorEdge);
@@ -358,7 +358,8 @@ bool OpContour::linkUp(OpJoiner* joiner, OpEdge* e) {
 		FoundEdge foundOne = foundEdges.front();
 		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
 		e->linkToEdge(foundOne, linkMatch);
-		OP_ASSERT(e->whichSect(linkMatch).pt == foundOne.edge->flipPtT(linkMatch).pt);
+		OP_ASSERT(e->whichSect(linkMatch).pt.isNearly(foundOne.edge->flipPtT(linkMatch).pt,
+                context->threshold()));
 		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
 		if (detachIfLoop(joiner, e, linkMatch))
 			return false; // 4) found loop, nothing leftover; caller to move on to next edge

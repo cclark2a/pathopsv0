@@ -343,7 +343,7 @@ bool OpContext::assemble() {
 bool OpContext::containsFiller(OpPoint start, OpPoint end) const {
 	if (!fillerStorage)
 		return false;
-	return fillerStorage->contains(start, end);
+	return fillerStorage->containsPts(start, end);
 }
 
 bool OpContext::containsFiller(int ccUnsectableID) const {
