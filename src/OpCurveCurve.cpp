@@ -1042,9 +1042,28 @@ void OpCurveCurve::findUnsectable() {
 			return;
 		if (opp->sects.contains(limit.opp, seg))
 			return;
+//        OpBreak2(seg, opp, 5, 11);
+        // check if sects added earlier by 'add end matches' form unsectable pair
+        // for each matching sect: see if span for both is linear or nearly so
+        auto lookForCandidate = [](OpSegment* segC, OpSegment* oppC, OpPtT& limS, OpPtT& limO) {
+            for (OpIntersection* cand : segC->sects.i) {
+                if (cand->opp->segment != oppC)
+                    continue;
+                OpRect candBounds(segC->c.ptAtT(cand->ptT.t), oppC->c.ptAtT(cand->opp->ptT.t));
+                OpPoint limSPt = segC->c.ptAtT(limS.t);
+                OpPoint limOPt = oppC->c.ptAtT(limO.t);
+                OpRect limBounds(limSPt, limOPt);
+                OpPoint midSPt = segC->c.ptAtT((cand->ptT.t + limS.t) / 2);
+                OpPoint midOPt = oppC->c.ptAtT((cand->opp->ptT.t + limO.t) / 2);
+                        OpNop();  // found linear candidate for unsectable pair
+            }
+        };
+        lookForCandidate(seg, opp, limit.seg, limit.opp);
+        lookForCandidate(opp, seg, limit.opp, limit.seg);
 		OpIntersection* sect = seg->addSegBase(limit.seg  OP_LINE_FILE_PARAMS(opp));
 		OpIntersection* oSect = opp->addSegBase(limit.opp  OP_LINE_FILE_PARAMS(seg));
 		sect->pair(oSect);
+
 	};
 	float lastT = limits[0].seg.t;
 	for (size_t index = 1; index < limits.size(); ++index) {
@@ -1490,6 +1509,8 @@ bool OpCurveCurve::addLineCurveIntersection(OpEdge& edge, OpEdge& oppEdge, Curve
         if (!OpMath::InSorted(oppEdge.startT, oppT, oppEdge.endT, OpEpsilon))  // !!! replace with max..
             continue;
         OpPtT oppPtT = opposite->c.ptTAtT(oppT);
+        if (!edge.bounds.nearlyContains(oppPtT.pt, context->threshold()))
+            continue;
         float edgeT = segment->c.findValidT(edge.startT, edge.endT, oppPtT.pt);
         if (OpMath::IsNaN(edgeT))
             continue;

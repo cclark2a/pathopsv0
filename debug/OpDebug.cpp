@@ -462,7 +462,28 @@ bool OpMath::IsDebugNaN(float f) {
 }
 
 #include "OpCurveCurve.h"
+#include "PathOpsTypes.h"
 
+#if OP_DEBUG_IMAGE
+OpCurve::OpCurve(OpContext* cntxt, PathOpsV0Lib::AddCurve addCurve, Rotated r)
+	: context(cntxt)
+	, rotated(r)
+	, isLineSet(false)
+	, isLineResult(false) {
+    PathOpsV0Lib::Curve curve { (PathOpsV0Lib::CurveData*) addCurve.points, addCurve.size, addCurve.type };
+    c.size = curve.size;
+    c.type = curve.type;
+	c.data = context->allocateCurveData(c.size);
+	if (0 == (int) curve.type)
+		c.type = context->contextCallbacks.setLineTypeFuncPtr((PathOpsV0Lib::Context*) context,
+				curve);
+	if (curve.data) {
+		std::memcpy(c.data, curve.data, c.size);
+		OP_DEBUG_CODE(if (Rotated::debug == r) return);
+		isLine();
+	}
+}
+#endif
 
 // !!! debugging failure in thread_cubics8753
 #if 0
@@ -1134,6 +1155,14 @@ void debug() {
         return;
     }
     debugGlobalContext->dump();
+}
+
+namespace PathOpsV0Lib {
+
+bool debugRunningTest(std::string testname) {
+    return debugGlobalContext->debugData.testname == testname; 
+}
+
 }
 
 #endif

@@ -203,9 +203,9 @@ OpEdge::OpEdge(OpIntersection* sectStart, OpIntersection* sectEnd  OP_LINE_FILE_
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = sectStart->id);
 	segment = sectStart->segment;
-	complete(sectStart->ptT, sectEnd->ptT);
     iStart = sectStart->ptT.pt;
     iEnd = sectEnd->ptT.pt;
+	complete(sectStart->ptT, sectEnd->ptT);
 }
 
 // called when creating filler; edge that closes small gaps
@@ -609,14 +609,14 @@ void OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first) {
 	OpCurve copy = curve;
     OP_DEBUG_CODE(float thresholdLength = curve.context->threshold().length());
     if (iStart.isFinite()) {
-        OP_DEBUG_CODE(float gapLength = (curve.c.data->start - iStart).length());
-        OP_ASSERT(gapLength <= thresholdLength * 16);
-        copy.c.data->start = iStart;
+        OP_DEBUG_CODE(float gapLength = (curve.firstPt() - iStart).length());
+        OP_ASSERT(gapLength <= thresholdLength * 16384);  // !!! gap can be very large; investigate...
+        copy.setFirstPt(iStart);
     }
     if (iEnd.isFinite()) {
-        OP_DEBUG_CODE(float gapLength = (curve.c.data->end - iEnd).length());
-        OP_ASSERT(gapLength <= thresholdLength * 16);
-        copy.c.data->end = iEnd;
+        OP_DEBUG_CODE(float gapLength = (curve.lastPt() - iEnd).length());
+        OP_ASSERT(gapLength <= thresholdLength * 16384);
+        copy.setLastPt(iEnd);
     }
 	if (EdgeMatch::end == which())
 		copy.reverse();
@@ -735,8 +735,13 @@ void OpEdge::setNextEdge(OpEdge* edge) {
 	nextEdge = edge;
 }
 
+// !!! note that this computes the intersection bounds, not the curve bounds
+//     may need to add separate curve bounds if algorithm requires it
 void OpEdge::setPointBounds() {		// note: does not call curve's bounds function, if any
 	bounds.set(startPt(), endPt());
+    bounds.add(iStart);
+    bounds.add(iEnd);
+
 }
 
 void OpEdge::setPriorEdge(OpEdge* edge) {
@@ -776,8 +781,8 @@ void OpEdge::subDivide(OpPoint startPoint, OpPoint endPoint) {
 		center.pt = ptBounds.center();
 	}
 #endif
- 	if (startPoint == endPoint) {
-//		OP_ASSERT(0);	// triggered by fuzz763_9
+ 	if (startPoint == endPoint || curve.firstPt() == curve.lastPt()) {
+//		OP_ASSERT(0);	// triggered by fuzz763_9 ; triggered by loop63275
 		setDisabled(OP_LINE_FILE_NPARGS());
 	}
 }

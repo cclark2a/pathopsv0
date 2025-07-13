@@ -382,7 +382,7 @@ SegPt OpSegment::checkAliases(OpPtT match) {
 	SegPt result;
 	if (0 == match.t ? startMoved : endMoved) {
 		if (match.pt == endPt)
-			result = { endPt, PtType::isAlias };
+			result = { contour->context->aliases.existing(endPt), PtType::isAlias };
 		else {
 			addAlias(match.pt, endPt);
 			result = { endPt, PtType::original };
@@ -613,7 +613,7 @@ bool OpSegment::fixCCSects() {
 }
 
 bool OpSegment::isSmall() {
-	return contour->context->aliases.isSmall(c.c.data->start, c.c.data->end);
+	return contour->context->aliases.isSmall(c.firstPt(), c.lastPt());
 }
 
 void OpSegment::makeCoins() {
@@ -805,6 +805,7 @@ OpPoint OpSegment::mergePoints(OpPtT segPtT, OpSegment* opp, OpPtT oppPtT) {
 // keep control point inside curve bounds
 // further, if old control point is axis aligned with end point, keep relationship after moving
 // detect if segment collapses to point?
+// !!! don't move the segment's points; just mark the segment as disabled if appropriate
 OpPoint OpSegment::movePt(OpPtT match, OpPoint destination) {
 	OP_ASSERT(0 == match.t || 1 == match.t);
 	// if end point and equal point are both aliases (rare), do a global remap of all points so 
@@ -812,16 +813,20 @@ OpPoint OpSegment::movePt(OpPtT match, OpPoint destination) {
 //	OpPoint oldStart = c.firstPt();
 //	OpPoint oldEnd = c.lastPt();
 	if (0 == match.t) {
-		 c.setFirstPt(destination);
-		 startMoved = true;
+	//	 c.setFirstPt(destination);
+        if (c.lastPt() == destination)
+            willDisable = true;
+		startMoved = true;
 	} else {
-		 c.setLastPt(destination);
-		 endMoved = true;
+	//	 c.setLastPt(destination);
+        if (c.firstPt() == destination)
+            willDisable = true;
+		endMoved = true;
 	}
 //	c.pinCtrl(oldStart, oldEnd);
 // defer disabling until all moves are complete; disable small segments will clean up
-   if (c.firstPt() == c.lastPt())
-		willDisable = true;
+//   if (c.firstPt() == c.lastPt())
+//		willDisable = true;
 //    setBounds();  // defer fixing in middle of finding intersections, which uses sorted bounds
 	if (match.pt != destination)
 		moveSects(match, destination);
@@ -885,7 +890,9 @@ int OpSegment::nextID() const {
 }
 
 void OpSegment::normalize() {
-	c.normalize(); 
+    if (willDisable)
+        return;
+    c.normalize(); 
 	resetBounds();
 }
 
@@ -937,7 +944,8 @@ void OpSegment::resetBounds() {
 
 void OpSegment::setDisabled(OP_LINE_FILE_NP_ARGS()) {
 	disabled = true; 
-	// coincident/unsectable intersections may confuse; remove any
+#if 0  // don't remove so that adjacent segments can still point to disabled segments (share t==0)
+    // coincident/unsectable intersections may confuse; remove any
 	size_t index = sects.i.size();
 	while (index) {
 		OpIntersection* i = sects.i[--index];
@@ -954,6 +962,7 @@ void OpSegment::setDisabled(OP_LINE_FILE_NP_ARGS()) {
 		sects.i.erase(sects.i.begin() + index);
 	}
 	OP_LINE_FILE_SET(debugSetDisabled); 
+#endif
 }
 
 bool OpSegment::simpleEnd(const OpEdge* edge) const {

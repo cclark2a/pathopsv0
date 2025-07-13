@@ -89,6 +89,14 @@ struct DebugContourCallbacks {
 #endif
 };
 
+
+#if OP_DEBUG_IMAGE
+struct ColorCurve {
+    Curve curve;
+    uint32_t color;
+};
+#endif
+
 #if 0  // not (yet) implemented
 typedef uint32_t (*DebugCCOverlapsColor)(DebugContextData );  
 typedef uint32_t (*DebugCurveCurveColor)(DebugContextData );

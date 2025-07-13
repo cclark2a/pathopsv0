@@ -39,6 +39,9 @@ struct OpCurve {
 	}
 
 	OpCurve(OpContext* , PathOpsV0Lib::Curve , Rotated );
+#if OP_DEBUG_IMAGE
+	OpCurve(OpContext* , PathOpsV0Lib::AddCurve , Rotated );
+#endif
 	// void adjust(OpPoint start, OpPoint end);
 	OpRoots axisRayHit(Axis offset, float axisIntercept, float start = 0, float end = 1) const;
 	OpRoots axisRawHit(Axis offset, float axisIntercept, MatchEnds) const;

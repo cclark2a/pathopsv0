@@ -41,8 +41,8 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
 	OP_DEBUG_CONTEXT();
 	auto add = [](OpSegment* seg, OpSegment* opp, OpPoint pt, float segT, float oppT   
 			OP_LINE_FILE_ARGS()) {
-		if (opp->willDisable || seg->willDisable)
-			return;
+	//	if (opp->willDisable || seg->willDisable)
+	//		return;
 		if (seg->sects.contains(OpPtT { pt, segT }, opp) 
 				|| opp->sects.contains(OpPtT { pt, oppT }, seg))
 			return;
@@ -58,7 +58,8 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
 			oppPt = seg->mergePoints(segPtT, opp, { oppPt, oppT });
 			add(seg, opp, oppPt, segPtT.t, oppT  OP_LINE_FILE_CARGS());
 		}
-		OP_ASSERT(opp->c.c.data->start != opp->c.c.data->end || opp->willDisable);
+		OP_ASSERT(opp->c.firstPt() != opp->c.lastPt() || opp->willDisable
+                || opp->disabled);
 		return segPtT.t;
 	};
 	float startSegT = checkEnds(opp->c.firstPt(), 0  OP_LINE_FILE_PARGS());
@@ -86,6 +87,7 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
 			add(opp, seg, oppPt, oppT, segPtT.t  OP_LINE_FILE_CARGS());
 		}
 	};
+//    OpBreak2(seg, opp, 5, 11);
 	if (OpMath::IsNaN(startSegT) && 0 != startOppT && 0 != endOppT)
 		checkSeg(opp->c.firstPt(), 0  OP_LINE_FILE_PARGS());
 	if (OpMath::IsNaN(endSegT) && 1 != startOppT && 1 != endOppT)
@@ -156,7 +158,7 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 #else
 		OpPtT oppPtT = opp->c.ptTAtT(oppT);
 		float edgeT = seg->findLineT(oppPtT.pt);
-		if (0 > edgeT || edgeT > 1)
+		if (!(0 <= edgeT) || !(edgeT <= 1))
 			continue;
 #endif
 		seg->ptBounds.pin(&oppPtT.pt);  // required by testLine409
@@ -357,18 +359,19 @@ void OpSegments::findIntersection(OpContour* contour, OpContour* oContour) {
 	bool same = contour == oContour;
 	for (size_t iDex = 0; iDex < contour->sorted.size(); ++iDex) {
 		OpSegment* seg = contour->sorted[iDex];
-		if (seg->disabled)
-			continue;
+//		if (seg->disabled)
+//			continue;
 		for (size_t oDex = same ? iDex + 1 : 0; oDex < oContour->sorted.size(); ++oDex) {
 			OpSegment* opp = oContour->sorted[oDex];
-			if (opp->disabled)
-				continue;
+//			if (opp->disabled)
+//				continue;
 			if (seg->ptBounds.right < opp->ptBounds.left)
 				break;
 			// loop134071: seg 8 collapses. With pt bounds instead of 'close', seg 7 + 9 don't touch
 			if (!seg->ptBounds.intersectsThreshold(opp->ptBounds, contour->context->threshold()))
 				continue;
-			if (!findIntersection(seg, opp))
+            bool result = findIntersection(seg, opp);
+			if (!result)
 				break;
 		}
 	}
@@ -394,6 +397,10 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 	// for line-curve intersection we can directly intersect
 	if (seg->c.isLine()) {
 		if (opp->c.isLine()) {
+			if (seg->disabled)
+				return false;
+			if (opp->disabled)
+				return false;
 			IntersectResult lineCoin = LineCoincidence(seg, opp);
 			if (seg->disabled)
 				return false;

@@ -264,11 +264,11 @@ float OpMath::PinSorted(float min, float value, float max) {
 	return std::max(min, std::min(value, max));
 }
 
-OpPoint OpMath::Threshold(OpPoint pt1, OpPoint pt2) {
+OpVector OpMath::Threshold(OpPoint pt1, OpPoint pt2) {
 	auto threshold = [](float left, float right) {
 		return std::max(1.f, std::max(fabsf(left), fabsf(right))) * OpEpsilon;
 	};
-	return OpPoint(threshold(pt1.x, pt2.x), threshold(pt1.y, pt2.y));
+	return OpVector(threshold(pt1.x, pt2.x), threshold(pt1.y, pt2.y));
 }
 
 #if 0

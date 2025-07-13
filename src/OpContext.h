@@ -39,6 +39,7 @@ struct OpPtAliases {
 	OpPoint existing(OpPoint ) const;
 	OpPoint find(OpPoint ) const;
 	bool isSmall(OpPoint pt1, OpPoint pt2);
+	bool original(OpPoint ) const;
 	void remap(OpPoint oldAlias, OpPoint newAlias);
 
 	DUMP_DECLARATIONS

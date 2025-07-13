@@ -267,7 +267,7 @@ void SectRay::addPals(OpEdge* home) {
 		if (test->ray.axis == home->ray.axis)
 			return false;
 		OpEdge* vertical = Axis::vertical == test->ray.axis ? test : home;
-		OpVector dxy = vertical->endPt() - vertical->startPt();
+		OpVector dxy = vertical->curve.lastPt() - vertical->curve.firstPt();
 		if (!dxy.dy)
 			return false;
 		return dxy.dy > 0 ? dxy.dx > 0 : dxy.dx < 0;

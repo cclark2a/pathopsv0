@@ -41,6 +41,11 @@ void Add(Contour* interfaceContour, AddCurve curve) {
     contour->segments.emplace_back(interfaceContour, curve);
 }
 
+void Add(Contour* interfaceContour, Curve curve) {
+    AddCurve addCurve { &curve.data->start, curve.size, curve.type };
+    Add(interfaceContour, addCurve);
+}
+
 Contour* CreateContour(Context* interfaceContext, Winding winding) {
     // reuse existing contour
     OpContext* context = toImplementation(interfaceContext);

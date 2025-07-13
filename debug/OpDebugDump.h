@@ -7,6 +7,7 @@
 #include <vector>
 
 namespace PathOpsV0Lib {
+struct AddCurve;
 struct Curve;
 }
 
@@ -285,6 +286,8 @@ enum class DebugLevel {
 // const int normal = 1;
 // const int detailed = 2;
 
+extern void dmp(const PathOpsV0Lib::AddCurve& );
+extern void dmp(const PathOpsV0Lib::AddCurve* );
 extern void dmp(const PathOpsV0Lib::Curve& );
 extern void dmp(const PathOpsV0Lib::Curve* );
 extern void dmpBase(int );  // set to dec, hex, hexdec
@@ -349,6 +352,7 @@ extern void debug();  // set debug bitmap to start and dump state using current 
 
 // used by new interface
 extern std::string debugValue(DebugLevel l, DebugBase b, std::string label, float value);
+extern bool debugDmpIsLine(const PathOpsV0Lib::AddCurve& c);
 extern bool debugDmpIsLine(const PathOpsV0Lib::Curve& c);
 
 enum class LimbPass : uint8_t;

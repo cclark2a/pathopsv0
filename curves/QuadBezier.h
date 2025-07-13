@@ -39,7 +39,7 @@ inline OpPoint QuadControlPt(OpPoint start, OpPoint control, OpPoint end, OpPtT 
 }
 
 inline OpVector QuadTangent(OpPoint start, OpPoint control, OpPoint end, float t) {
-    OpPoint threshold = OpMath::Threshold(start, end);
+    OpVector threshold = OpMath::Threshold(start, end);
     if ((OpMath::NearlyZeroT(t) && start.isNearly(control, threshold))
             || (OpMath::NearlyOneT(t) && end.isNearly(control, threshold)))
         return end - start;

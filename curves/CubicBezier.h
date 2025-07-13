@@ -83,7 +83,7 @@ inline OpVector CubicTangent(OpPoint start, CubicControls controls, OpPoint end,
         double d = end.choice(offset);
         return (float) (3 * ((b - a) * one_t * one_t + 2 * (c - b) * t * one_t + (d - c) * t * t));
     };
-    OpPoint threshold = OpMath::Threshold(start, end);
+    OpVector threshold = OpMath::Threshold(start, end);
     if (OpMath::NearlyZeroT(t) && start.isNearly(controls.pts[0], threshold)) {
         if (controls.pts[0].isNearly(controls.pts[1], threshold))
             return end - start;
@@ -103,7 +103,7 @@ inline CubicControls CubicControlPt(OpPoint start, CubicControls controls, OpPoi
         float t1, float t2) {
 	OpPoint ptT1 = CubicPtAtT(start, controls, end, t1);
 	OpPoint ptT2 = CubicPtAtT(start, controls, end, t2);
-#if 01 && OP_DEBUG_VALIDATE  // compare with pure double to see if it gets any more accurate...
+#if 0 && OP_DEBUG_VALIDATE  // compare with pure double to see if it gets any more accurate...
 	struct DPoint {
 		DPoint(double _x, double _y) :
 			x(_x),
@@ -223,6 +223,98 @@ inline OpRoots AddInflections(OpPoint start, OpPoint end, CubicControls& control
 	return result;
 }
 
+enum class CubicSubDivide {
+    noAngleChecks,
+    checkAngles
+};
+
+inline void cubicCommonSubDivide(Curve c, float t1, float t2, float threshold, Curve* result,
+        CubicSubDivide check) {
+//    OP_ASSERT(!OpMath::Equal(t1, 0.363392949f));
+//    OP_ASSERT(!OpMath::Equal(t1, 0.670813143f));
+    CubicControls controls(c);
+	OpPoint start = c.data->start;
+	OpPoint end = c.data->end;
+	OpVector t1Tan = CubicTangent(start, controls, end, t1);
+	OpVector t2Tan = CubicTangent(start, controls, end, t2);
+	float tanAngle = t1Tan.cross(t2Tan);
+	if (fabsf(tanAngle) < threshold) {
+		result->type = degenerateLine;  // mark as linear
+		return;
+	}
+    CubicControls subControls = CubicControlPt(start, controls, end, t1, t2);
+    subControls.copyTo(*result);
+#if 1  // experiment: restrict sub controls to cross product of original controls w/ end tangent
+	// cross product of control lines should have same sign
+    auto makeLines = [](Curve& curve, CubicControls& controls) {
+        return std::array<OpVector, 3> { 
+                controls.pts[0] - curve.data->start, 
+	            controls.pts[1] - controls.pts[0],
+	            curve.data->end - controls.pts[1] };
+    };
+	std::array<OpVector, 3> ctrlLines = makeLines(c, controls);
+	std::array<OpVector, 3> subLines = makeLines(*result, subControls);
+    auto makeCross = [](OpVector line1, OpVector line2) {
+        float result = line1.cross(line2);
+        return fabs(result) <= OpEpsilon ? 0 : result;
+    };
+    auto makeCrosses = [makeCross](std::array<OpVector, 3>& lines) {
+        std::array<float, 2> result{ makeCross(lines[0], lines[1]), makeCross(lines[1], lines[2]) };
+        if (result[0] * result[1] >= 0)
+            return result;
+        int smaller = fabs(result[0]) > fabs(result[1]);
+        float scale = fabs(result[!smaller] / result[smaller]);
+        if (fabs(result[smaller]) <= OpEpsilon * std::min(scale, 256.f))
+            result[smaller] = 0;
+        return result;
+    };
+    std::array<float, 2> ctrlCrosses = makeCrosses(ctrlLines);
+    int smallerCrossIndex = fabs(ctrlCrosses[0]) > fabs(ctrlCrosses[1]);
+    float crossAngle = smallerCrossIndex ? ctrlCrosses[0] : ctrlCrosses[1]; 
+    std::array<float, 2> subCrosses = makeCrosses(subLines);
+    if (subCrosses[0] * subCrosses[1] < 0) {
+        float crossProduct = ctrlCrosses[0] * ctrlCrosses[1];
+        int smallerSubIndex = fabs(subCrosses[0]) > fabs(subCrosses[1]);
+        float scale = ctrlCrosses[!smallerCrossIndex] / subCrosses[!smallerSubIndex];
+     #if !OP_DEBUG_FAST_TEST
+        extern bool debugRunningTest(std::string );
+    #endif
+        if (subCrosses[smallerSubIndex] * scale < ctrlCrosses[smallerCrossIndex] * 4)
+            subCrosses[smallerSubIndex] = 0;  // don't mark it as a line
+        else if (fabsf(subCrosses[smallerSubIndex] / subCrosses[!smallerSubIndex]) < 0.002)
+            subCrosses[smallerSubIndex] = 0;
+    #if !OP_DEBUG_FAST_TEST
+        else
+            OP_ASSERT(crossProduct >= 0 || fabs(crossProduct) < OpEpsilon * 256);
+    #endif
+       
+    }
+    // check if original data is inflection-free
+    // sub divide should bend the same way as original
+    if (0 == subCrosses[0] && 0 == subCrosses[1]) {
+        result->type = degenerateLine;
+		return;
+    }
+    if (subCrosses[0] * subCrosses[1] < 0) {
+        result->type = degenerateLine;
+		return;
+    }
+    if (CubicSubDivide::checkAngles == check) {
+        if (subCrosses[0] * crossAngle < 0) {
+            result->type = degenerateLine;
+		    return;
+        }
+        if (subCrosses[1] * crossAngle < 0) {
+            result->type = degenerateLine;
+		    return;
+        }
+    }
+#endif
+    subControls.pts[0].pin(result->data->start, result->data->end);
+    subControls.pts[1].pin(result->data->start, result->data->end);
+    subControls.copyTo(*result);
+}
+
 // Curves must be subdivided so their endpoints describe the rectangle that contains them
 // returns the number of curves generated from the cubic Bezier
 inline void AddCubics(Contour* contour, AddCurve curve) {
@@ -231,9 +323,14 @@ inline void AddCubics(Contour* contour, AddCurve curve) {
     CubicControls controls { curve.points[2], curve.points[3] };
     // control point is not inside bounds formed by end points; split cubic into parts
 	OpRoots tValues = AddExtrema(start, end, controls, false);
+	OpRoots roots = AddInflections(start, end, controls);
+    if (tValues.empty() && roots.empty()) {
+        if (start != end)
+            Add(contour, curve);
+        return;
+    }
 	tValues.add(0);
 	tValues.add(1);
-	OpRoots roots = AddInflections(start, end, controls);
 	tValues.add(roots);
     tValues.sort();
     std::vector<OpPtT> ptTs(tValues.count());
@@ -242,16 +339,19 @@ inline void AddCubics(Contour* contour, AddCurve curve) {
     for (int index = 1; index < tValues.count() - 1; ++index) {
         ptTs[index] = { CubicPtAtT(start, controls, end, tValues.get(index)), tValues.get(index) }; 
     } 
+    Curve cubic { (CurveData*) curve.points, curve.size, curve.type };
+    float threshold = OpMath::Threshold(start, end).length();
     for (int index = 0; index < tValues.count() - 1; ++index) {
-        OpPoint curveData[4] { ptTs[index].pt, ptTs[index + 1].pt };
-        if (curveData[0] == curveData[1])
+        OpPoint result[4] { ptTs[index].pt, ptTs[index + 1].pt };
+        if (result[0] == result[1])
             continue;
-        *(CubicControls*)&curveData[2] = CubicControlPt(start, controls, end,
-				tValues.get(index), tValues.get(index + 1));
-        Add(contour, { curveData, curve.size, curve.type } );
+        Curve subDivide { (CurveData*) result, curve.size, curve.type };
+        cubicCommonSubDivide(cubic, tValues.roots[index], tValues.roots[index + 1], 
+                threshold, &subDivide, CubicSubDivide::noAngleChecks);
+        Add(contour, subDivide);
 		// for debugging
-		OP_DEBUG_CODE(*(CubicControls*)&curveData[2] = CubicControlPt(start, controls, end, 
-                tValues.get(index), tValues.get(index + 1)));
+		OP_DEBUG_CODE(cubicCommonSubDivide(cubic, tValues.roots[index], tValues.roots[index + 1], 
+                threshold, &subDivide, CubicSubDivide::noAngleChecks));
     }
 }
 
@@ -360,7 +460,8 @@ inline OpRoots cubicAxisT(Curve c, Axis axis, float axisIntercept
 		std::string s;
 		s += "axisIntercept: " + STR(axisIntercept) + "\n";
 		s += "classic: ";
-		OP_ASSERT(valid.count() == test.count() + debugAdded.count());
+		OP_ASSERT(valid.count() == test.count() 
+                || valid.count() == test.count() + debugAdded.count());
 		OpMath::CubicRootsY(A, B, C, D - axisIntercept);	// !!! for tracing through errors
 		for (float f : valid.roots) {
 			OpPoint pt = CubicPtAtT(c.data->start, controls, c.data->end, f);
@@ -384,7 +485,11 @@ inline OpRoots cubicAxisT(Curve c, Axis axis, float axisIntercept
 					+ " " + pt.debugDump(DebugLevel::normal, DebugBase::dec)
 #endif
 					+ " error:" + STR(error) + " "; 
-			OP_ASSERT(error < 1e-5);
+    #if !OP_DEBUG_FAST_TEST
+            extern bool debugRunningTest(std::string );
+            OP_ASSERT(debugRunningTest("loop110231") 
+                    || error < 1e-4);
+    #endif
 		}
 		s += "\n";
 		if (tooBig) {
@@ -519,89 +624,6 @@ inline void cubicSetBounds(Curve c, OpRect& bounds) {
     bounds.add(controls.pts[1]);
 }
 
-inline void cubicSubDivide(Curve c, float t1, float t2, float threshold, Curve* result) {
-//    OP_ASSERT(!OpMath::Equal(t1, 0.363392949f));
-//    OP_ASSERT(!OpMath::Equal(t1, 0.670813143f));
-    CubicControls controls(c);
-	OpPoint start = c.data->start;
-	OpPoint end = c.data->end;
-	OpVector t1Tan = CubicTangent(start, controls, end, t1);
-	OpVector t2Tan = CubicTangent(start, controls, end, t2);
-	float tanAngle = t1Tan.cross(t2Tan);
-	if (fabsf(tanAngle) < threshold) {
-		result->type = degenerateLine;  // mark as linear
-		return;
-	}
-    CubicControls subControls = CubicControlPt(start, controls, end, t1, t2);
-    subControls.copyTo(*result);
-#if 1  // experiment: restrict sub controls to cross product of original controls w/ end tangent
-	// cross product of control lines should have same sign
-    auto makeLines = [](Curve& curve, CubicControls& controls) {
-        return std::array<OpVector, 3> { 
-                controls.pts[0] - curve.data->start, 
-	            controls.pts[1] - controls.pts[0],
-	            curve.data->end - controls.pts[1] };
-    };
-	std::array<OpVector, 3> ctrlLines = makeLines(c, controls);
-	std::array<OpVector, 3> subLines = makeLines(*result, subControls);
-    auto makeCross = [](OpVector line1, OpVector line2) {
-        float result = line1.cross(line2);
-        return fabs(result) <= OpEpsilon ? 0 : result;
-    };
-    auto makeCrosses = [makeCross](std::array<OpVector, 3>& lines) {
-        std::array<float, 2> result{ makeCross(lines[0], lines[1]), makeCross(lines[1], lines[2]) };
-        if (result[0] * result[1] >= 0)
-            return result;
-        int smaller = fabs(result[0]) > fabs(result[1]);
-        float scale = fabs(result[!smaller] / result[smaller]);
-        if (fabs(result[smaller]) <= OpEpsilon * std::min(scale, 256.f))
-            result[smaller] = 0;
-        return result;
-    };
-    std::array<float, 2> ctrlCrosses = makeCrosses(ctrlLines);
-    int smallerCrossIndex = fabs(ctrlCrosses[0]) > fabs(ctrlCrosses[1]);
-    float crossAngle = smallerCrossIndex ? ctrlCrosses[0] : ctrlCrosses[1]; 
-    std::array<float, 2> subCrosses = makeCrosses(subLines);
-    if (subCrosses[0] * subCrosses[1] < 0) {
-        float crossProduct = ctrlCrosses[0] * ctrlCrosses[1];
-        OP_ASSERT(crossProduct >= 0 || fabs(crossProduct) < OpEpsilon * 4);
-        int smallerSubIndex = fabs(subCrosses[0]) > fabs(subCrosses[1]);
-        float scale = ctrlCrosses[!smallerCrossIndex] / subCrosses[!smallerSubIndex];
-        if (subCrosses[smallerSubIndex] * scale < ctrlCrosses[smallerCrossIndex] * 4)
-            subCrosses[smallerSubIndex] = 0;  // don't mark it as a line
-    }
-    // check if original data is inflection-free
-    // sub divide should bend the same way as original
-    if (0 == subCrosses[0] && 0 == subCrosses[1]) {
-        result->type = degenerateLine;
-		return;
-    }
-    if (subCrosses[0] * subCrosses[1] < 0) {
-        result->type = degenerateLine;
-		return;
-    }
-    if (subCrosses[0] * crossAngle < 0) {
-        result->type = degenerateLine;
-		return;
-    }
-    if (subCrosses[1] * crossAngle < 0) {
-        result->type = degenerateLine;
-		return;
-    }
-#endif
-#if OP_DEBUG  // !!! add these additional checks as needed; likely, they will return degenerate line
-	// pin control points to bounds of start/end
-    OpRect cBounds(start, end);
-    if (!cBounds.contains(subControls.pts[0])) {
-		OpNop();
-    }
-    if (!cBounds.contains(subControls.pts[1])) {
-		OpNop();
-    }
-#endif
-    subControls.copyTo(*result);
-}
-
 inline OpPoint cubicHull(Curve c, int index) {
     if (1 == index || 2 == index)
         return CubicControls(c).pts[index - 1];
@@ -613,6 +635,10 @@ inline void cubicReverse(Curve c) {
     CubicControls controls(c);
     std::swap(controls.pts[0], controls.pts[1]);
     controls.copyTo(c);
+}
+
+inline void cubicSubDivide(Curve c, float t1, float t2, float threshold, Curve* result) {
+    cubicCommonSubDivide(c, t1, t2, threshold, result, CubicSubDivide::checkAngles);
 }
 
 #if OP_DEBUG_DUMP

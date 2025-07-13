@@ -1067,12 +1067,20 @@ void dmpMatch(const OpPoint& pt, bool detail) {
                 }
             }
             for (const auto& edge : seg.edges) {
-                if (edge.startPt() == pt) {
+                if (edge.curve.firstPt() == pt) {
                     OpDebugOut("edge start: ");
                     detail ? edge.dump(DebugLevel::detailed, defaultBase) : edge.dump();
                 }
-                if (edge.endPt() == pt) {
+                if (edge.curve.lastPt() == pt) {
                     OpDebugOut("edge end: ");
+                    detail ? edge.dump(DebugLevel::detailed, defaultBase) : edge.dump();
+                }
+                if (edge.curve.firstPt() != edge.iStart && edge.iStart == pt) {
+                    OpDebugOut("edge iStart: ");
+                    detail ? edge.dump(DebugLevel::detailed, defaultBase) : edge.dump();
+                }
+                if (edge.curve.lastPt() != edge.iEnd && edge.curve.lastPt() == pt) {
+                    OpDebugOut("edge iEnd: ");
                     detail ? edge.dump(DebugLevel::detailed, defaultBase) : edge.dump();
                 }
             }
@@ -1746,6 +1754,15 @@ std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
     return s;
 }
 
+void dmp(const PathOpsV0Lib::AddCurve& c) {
+	OpCurve curve(debugGlobalContext, c, Rotated::debug);
+	OpDebugFormat(curve.debugDump(defaultLevel, defaultBase));
+}
+
+void dmp(const PathOpsV0Lib::AddCurve* c) {
+	dmp(*c);
+}
+
 void dmp(const PathOpsV0Lib::Curve& c) {
 	OpCurve curve(debugGlobalContext, c, Rotated::debug);
 	OpDebugFormat(curve.debugDump(defaultLevel, defaultBase));
@@ -1753,6 +1770,11 @@ void dmp(const PathOpsV0Lib::Curve& c) {
 
 void dmp(const PathOpsV0Lib::Curve* c) {
 	dmp(*c);
+}
+
+bool debugDmpIsLine(const PathOpsV0Lib::AddCurve& c) {
+	OpCurve test(debugGlobalContext, c, Rotated::debug);
+	return test.debugIsLine();
 }
 
 bool debugDmpIsLine(const PathOpsV0Lib::Curve& c) {
@@ -2034,16 +2056,16 @@ void dmpFilters() {
 }
 
 void dmpEdgePts() {
-    std::vector<EdgeFilter> showFields = { EF::id, EF::startT, EF::endT, EF::curve, EF::winding,
-            EF::sum, EF::whichEnd_impl };
+    std::vector<EdgeFilter> showFields = { EF::id, EF::startT, EF::endT, EF::curve, EF::iStart,
+            EF::iEnd, EF::winding, EF::sum, EF::whichEnd_impl };
     OpSaveEF saveEF(showFields);
     dmpEdges();
 }
 
 void dmpPts(int ID) {
     if (findEdge(ID)) {
-        std::vector<EdgeFilter> showFields = { EF::id, EF::startT, EF::endT, EF::curve, EF::winding,
-                EF::sum, EF::whichEnd_impl };
+        std::vector<EdgeFilter> showFields = { EF::id, EF::startT, EF::endT, EF::curve, EF::iStart,
+            EF::iEnd, EF::winding, EF::sum, EF::whichEnd_impl };
         OpSaveEF saveEF(showFields);
         ::dmp(ID);
         return;
@@ -2421,9 +2443,9 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
 	if (!center.debugIsUninitialized())
 		s += strPtT(EdgeFilter::center, "center", center, " ");
     if (dumpIt(EdgeFilter::curve)) s += strCurve("curve", curve);
-    if (iStart != startPt() || dumpAlways(EdgeFilter::iStart)) 
+    if (iStart != curve.firstPt() || dumpAlways(EdgeFilter::iStart)) 
         s += strPoint(EdgeFilter::iStart, "iStart", iStart);
-    if (iEnd != endPt() || dumpAlways(EdgeFilter::iEnd))
+    if (iEnd != curve.lastPt() || dumpAlways(EdgeFilter::iEnd))
         s += strPoint(EdgeFilter::iEnd, "iEnd", iEnd);
     if (upright_impl.pts[0].isFinite() || upright_impl.pts[1].isFinite()) {
         if (dumpIt(EdgeFilter::upright_impl))
@@ -2749,7 +2771,9 @@ void dmpWinding(const OpEdge& edge) {
 }
 
 void dmpEnd(const OpEdge& edge)  {
-    dmpMatch(edge.endPt());
+    dmpMatch(edge.curve.lastPt());
+    if (edge.iEnd != edge.curve.lastPt())
+        dmpMatch(edge.iEnd);
 }
 
 void dmpFull(const OpEdge& edge) { 
@@ -2804,6 +2828,10 @@ std::string OpEdge::debugDumpPoints() const {
     s += " " + debugValue(DebugLevel::error, defaultBase, "startT", startT);
     s += " " + debugValue(DebugLevel::error, defaultBase, "endT", endT);
     s += " curve:" + curve.debugDump(defaultLevel, defaultBase);
+    if (iStart != curve.firstPt()) 
+        s += "iStart:" + iStart.debugDump(defaultLevel, defaultBase);
+    if (iEnd != curve.lastPt())
+        s += "iEnd:" + iEnd.debugDump(defaultLevel, defaultBase);
     s += " which:" + edgeMatchName(which());
     const OpEdge* startE = debugAdvanceToEnd(EdgeMatch::start);
     if (startE != this)
@@ -2818,17 +2846,18 @@ std::string OpEdge::debugDumpPoints() const {
 
 OpPtT OpEdge::debugFindT(Axis axis, float oppXY) const {
 	OpPtT found;
-	float startXY = startPt().choice(axis);
-	float endXY = endPt().choice(axis);
+	float startXY = curve.firstPt().choice(axis);
+	float endXY = curve.lastPt().choice(axis);
 	if (oppXY == startXY)
-		found = startPtT();
+		found = OpPtT(curve.firstPt(), startT);
 	else if (oppXY == endXY)
-		found = endPtT();
+		found = OpPtT(curve.lastPt(), endT);
 	else {
 		found.pt = OpPoint(SetToNaN::dummy);
 		found.t = segment->debugFindAxisT(axis, startT, endT, oppXY);
 		if (OpMath::IsNaN(found.t))
-			found = (oppXY < startXY) == (startXY < endXY) ? startPtT() : endPtT();
+			found = (oppXY < startXY) == (startXY < endXY) 
+                    ? OpPtT(curve.firstPt(), startT) : OpPtT(curve.lastPt(), endT);
 	}
 	return found;
 }
@@ -3039,7 +3068,9 @@ void dmpRay(const OpEdge& edge) {
 }
 
 void dmpStart(const OpEdge& edge) {
-    dmpMatch(edge.startPt());
+    dmpMatch(edge.curve.firstPt());
+    if (edge.iStart != edge.curve.firstPt())
+        dmpMatch(edge.iStart);
 }
 
 std::string CallerDataStorage::debugDump(DebugLevel l, DebugBase b) const {

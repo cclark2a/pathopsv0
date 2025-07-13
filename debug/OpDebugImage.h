@@ -11,6 +11,7 @@ void OpDebugGenerateColorFiles();
 #include <vector>
 
 namespace PathOpsV0Lib {
+struct AddCurve;
 struct Curve;
 }
 
@@ -44,7 +45,10 @@ struct OpDebugImage {
 	static void add(const OpDebugRay& );
 	static void add(const OpPtT& );
 	static void add(const OpRect& );
+	static void add(const PathOpsV0Lib::AddCurve& );
+	static void add(const PathOpsV0Lib::AddCurve& , uint32_t color);
 	static void add(const PathOpsV0Lib::Curve& );
+	static void add(const PathOpsV0Lib::Curve& , uint32_t color);
 	static void addArrowHeadToPath(const LinePts& , class SkPath& );
 	static void addCircleToPath(OpPoint , class SkPath& );
 	static void addDiamondToPath(OpPoint , class SkPath& );
@@ -103,6 +107,7 @@ extern void addFocus(const OpIntersection& );
 extern void addFocus(const OpPoint& );  // pass by reference; VS fails by value in immediate window
 extern void addFocus(const OpPtT& );
 extern void addFocus(const OpRect& );
+extern void addFocus(const PathOpsV0Lib::AddCurve& );
 extern void addFocus(const PathOpsV0Lib::Curve& );
 extern void addFocus(const OpSegment& );
 extern void addFocus(const OpContour* );
@@ -114,6 +119,7 @@ extern void addFocus(const OpPoint* );
 extern void addFocus(const OpPtT* );
 extern void addFocus(const OpRect* );
 extern void addFocus(const OpSegment* );
+extern void addFocus(const PathOpsV0Lib::AddCurve* );
 extern void addFocus(const PathOpsV0Lib::Curve* );
 extern void addFocusLink(int id);
 extern void addFocusLink(const OpEdge& );
@@ -131,6 +137,7 @@ extern void ctr(const OpRect& );
 extern void ctr(const OpPoint& );
 extern void ctr(const OpPtT& );
 extern void ctr(const OpSegment& );
+extern void ctr(const PathOpsV0Lib::AddCurve& );
 extern void ctr(const PathOpsV0Lib::Curve& );
 extern void ctr(const OpContour* );
 extern void ctr(const OpContext* );
@@ -141,6 +148,7 @@ extern void ctr(const OpRect* );
 extern void ctr(const OpPoint* );
 extern void ctr(const OpPtT* );
 extern void ctr(const OpSegment* );
+extern void ctr(const PathOpsV0Lib::AddCurve* );
 extern void ctr(const PathOpsV0Lib::Curve* );
 extern void ctrT(int id, float t);
 extern void ctrT(const OpEdge* , float t);
@@ -158,11 +166,13 @@ extern void draw(const OpCurve& );
 extern void draw(const OpPoint& );
 extern void draw(const OpPtT& );   // draw point (ignores t)
 extern void draw(const OpRect& );
+extern void draw(const PathOpsV0Lib::AddCurve& );
 extern void draw(const PathOpsV0Lib::Curve& );
 extern void draw(const OpCurve* );
 extern void draw(const OpPoint* );
 extern void draw(const OpPtT* );
 extern void draw(const OpRect* );
+extern void draw(const PathOpsV0Lib::AddCurve* );
 extern void draw(const PathOpsV0Lib::Curve* );
 extern void draw(float , float );
 extern void draw(float , float , float , float);
@@ -188,6 +198,12 @@ extern void drawT(const OpSegment&, const OpPtT* );
 extern void drawT(const OpSegment*, float );
 extern void drawT(const OpSegment*, const OpPtT& );
 extern void drawT(const OpSegment*, const OpPtT* );
+extern void drawT(const PathOpsV0Lib::AddCurve&, float );
+extern void drawT(const PathOpsV0Lib::AddCurve&, const OpPtT& );
+extern void drawT(const PathOpsV0Lib::AddCurve&, const OpPtT* );
+extern void drawT(const PathOpsV0Lib::AddCurve*, float );
+extern void drawT(const PathOpsV0Lib::AddCurve*, const OpPtT& );
+extern void drawT(const PathOpsV0Lib::AddCurve*, const OpPtT* );
 extern void drawT(const PathOpsV0Lib::Curve&, float );
 extern void drawT(const PathOpsV0Lib::Curve&, const OpPtT& );
 extern void drawT(const PathOpsV0Lib::Curve&, const OpPtT* );
@@ -202,6 +218,7 @@ extern void focus(const OpCurve& );
 extern void focus(const OpEdge& );
 extern void focus(const OpRect& );
 extern void focus(const OpSegment& );
+extern void focus(const PathOpsV0Lib::AddCurve& );
 extern void focus(const PathOpsV0Lib::Curve& );
 extern void focus(const OpContour* );
 extern void focus(const OpContext* );
@@ -209,6 +226,7 @@ extern void focus(const OpCurve* );
 extern void focus(const OpEdge* );
 extern void focus(const OpRect* );
 extern void focus(const OpSegment* );
+extern void focus(const PathOpsV0Lib::AddCurve* );
 extern void focus(const PathOpsV0Lib::Curve* );
 extern void focusCurves();
 extern void focusEdges();
@@ -249,6 +267,7 @@ OP_X(Hex) \
 OP_X(Hulls) \
 OP_X(IDs) \
 OP_X(Intersections) \
+OP_X(IPoints) \
 OP_X(Lines) \
 OP_X(Normals) \
 OP_X(Points) \
@@ -338,6 +357,10 @@ OP_X(Linkups, edge->inLinkups)
 
 extern void color(int id, uint32_t color);
 extern void color(int id, uint8_t alpha, uint32_t color);
+extern void color(PathOpsV0Lib::AddCurve& , uint32_t color);
+extern void color(PathOpsV0Lib::AddCurve* , uint32_t color);
+extern void color(PathOpsV0Lib::Curve& , uint32_t color);
+extern void color(PathOpsV0Lib::Curve* , uint32_t color);
 extern void colorLink(int id, uint32_t color);
 extern void colorLink(const OpEdge& , uint32_t color);
 extern void colorLink(const OpEdge* , uint32_t color);
@@ -365,6 +388,10 @@ namespace PathOpsV0Lib {
 	struct Curve;
 }
 
+extern void debugLineAddToSkPath(PathOpsV0Lib::AddCurve c, class SkPath& path);
+extern void debugQuadAddToSkPath(PathOpsV0Lib::AddCurve c, class SkPath& path);
+extern void debugConicAddToSkPath(PathOpsV0Lib::AddCurve c, class SkPath& path);
+extern void debugCubicAddToSkPath(PathOpsV0Lib::AddCurve c, class SkPath& path);
 extern void debugLineAddToSkPath(PathOpsV0Lib::Curve c, class SkPath& path);
 extern void debugQuadAddToSkPath(PathOpsV0Lib::Curve c, class SkPath& path);
 extern void debugConicAddToSkPath(PathOpsV0Lib::Curve c, class SkPath& path);

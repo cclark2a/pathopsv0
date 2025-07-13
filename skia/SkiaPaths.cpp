@@ -509,8 +509,8 @@ void AddSkiaPath(Context* context, Contour* contour, const SkPath& path) {
 // return true if some point is very large but no value is inf or nan.
 bool VeryLargeSkiaPath(const SkPath& path) {
 	bool veryLarge = false;
-	constexpr float large = 1e38;
-	auto checkPt = [&veryLarge](SkPoint pt) {
+	float large = 1e38f;
+	auto checkPt = [large, &veryLarge](SkPoint pt) {
 		veryLarge |= fabsf(pt.fX) >= large || fabsf(pt.fY) >= large;
 	};
 	auto checkPts = [checkPt](SkPoint* pts, size_t count) {

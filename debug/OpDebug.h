@@ -313,7 +313,6 @@ void OpDebugRequired(const char*& str, const char* match);
 extern int debugPrecision;		// minus one means unset
 #endif
 
-
 // if identical runs produce different results, use this to help determine where 
 // the successive runs first differ
 #if OP_DEBUG_COMPARE

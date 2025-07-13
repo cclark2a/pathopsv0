@@ -15,6 +15,7 @@
 #include "OpCurve.h"
 #include "PathOps.h"
 #include "PathOpsTypes.h"
+#include "DebugOpsTypes.h"
 #include "skia/SkiaPaths.h"  // for curve types
 
 enum class ClipToBounds {
@@ -719,7 +720,7 @@ OpPoint DebugOpMap(DebugOpPoint dPt) {
 void DebugOpCurve::mapTo(OpCurve& c) const {
     c.c.data = debugGlobalContext->allocateCurveData(size);
     c.c.size = size;
-    c.c.data->start = DebugOpMap(pts[0]);
+    c.setFirstPt(DebugOpMap(pts[0]));
     int endIndex;
     switch (type) {
         case PathOpsV0Lib::degenerateLine:
@@ -729,13 +730,13 @@ void DebugOpCurve::mapTo(OpCurve& c) const {
         case PathOpsV0Lib::CurveType::quad: {
             OpPoint ctrl = DebugOpMap(pts[1]);
             OP_ASSERT(size == PathOpsV0Lib::CurveUserDataOffset() + sizeof ctrl);
-            std::memcpy(CurveUserData(c.c.data), &ctrl, sizeof ctrl);
+            std::memcpy(PathOpsV0Lib::CurveUserData(c.c.data), &ctrl, sizeof ctrl);
             endIndex = 2;
             } break;
         case PathOpsV0Lib::CurveType::conic: {
             OpPoint ctrl = DebugOpMap(pts[1]);
             float floatWeight = (float) weight;
-            char* dst = (char*) CurveUserData(c.c.data);
+            char* dst = (char*) PathOpsV0Lib::CurveUserData(c.c.data);
             OP_ASSERT(size == PathOpsV0Lib::CurveUserDataOffset() + sizeof ctrl 
 					+ sizeof floatWeight);
             std::memcpy(dst, &ctrl, sizeof ctrl);
@@ -746,7 +747,7 @@ void DebugOpCurve::mapTo(OpCurve& c) const {
         case PathOpsV0Lib::CurveType::cubic: {
             OpPoint ctrls[2] { DebugOpMap(pts[1]), DebugOpMap(pts[2]) };
             OP_ASSERT(size == PathOpsV0Lib::CurveUserDataOffset() + sizeof ctrls);
-            std::memcpy(CurveUserData(c.c.data), ctrls, sizeof ctrls);
+            std::memcpy(PathOpsV0Lib::CurveUserData(c.c.data), ctrls, sizeof ctrls);
             endIndex = 3;
             } break;
         default:
@@ -802,6 +803,10 @@ void DebugOpDraw(std::vector<DebugOpCurve>& curves) {
     SkPath path;
     uint32_t color = black;
     for (auto& curve : curves) {
+        if (curve.color != color && !path.isEmpty()) {
+            OpDebugImage::drawDoublePath(path, color);
+            path.reset();
+        }
         OpCurve c;
         curve.mapTo(c);
         OpDebugImage::addToPath(c, path);
@@ -926,8 +931,9 @@ void DebugOpDraw(const std::vector<OpDebugRay>& lines) {
     DebugOpDraw(debugLines);
 }
 
-static void set(DebugOpCurve& dCurve, const PathOpsV0Lib::Curve& c) {
+static void set(DebugOpCurve& dCurve, const PathOpsV0Lib::ColorCurve& curve) {
 	constexpr size_t conicSize = 3 * sizeof(OpPoint) + sizeof(float);  // !!! hacky
+    const PathOpsV0Lib::Curve& c = curve.curve;
 	OpPoint* pts = &c.data->start;
     dCurve.size = c.size;
     dCurve.weight = c.size != conicSize ? 1 : pts[3].x;  // !!! hacky
@@ -941,12 +947,13 @@ static void set(DebugOpCurve& dCurve, const PathOpsV0Lib::Curve& c) {
 	}
 }
 
-void DebugOpDraw(const std::vector<PathOpsV0Lib::Curve>& curves) {
+void DebugOpDraw(const std::vector<PathOpsV0Lib::ColorCurve>& curves) {
     debugCurves.clear();
 //    DebugOpRect bounds = ZoomToRect();	// future optimization: clip to bounds
     for (auto& c : curves) {
         DebugOpCurve curve;
 		set(curve, c);
+        curve.color = c.color;
 		debugCurves.push_back(curve);
 	}
 	DebugOpDraw(debugCurves);
@@ -955,7 +962,7 @@ void DebugOpDraw(const std::vector<PathOpsV0Lib::Curve>& curves) {
 static double curveWeight(const OpCurve& curve) {
     // !!! haven't decided how to support this through callbacks
     if (PathOpsV0Lib::CurveType::conic == curve.c.type) {
-        char* dst = (char*) CurveUserData(curve.c.data);
+        char* dst = (char*) PathOpsV0Lib::CurveUserData(curve.c.data);
         dst += sizeof(OpPoint);
         float floatWeight;
         std::memcpy(&floatWeight, dst, sizeof floatWeight);
@@ -984,8 +991,9 @@ void DebugOpBuild(const DebugColorPt& dPt) {
         debugPoints.push_back(dPt);
 }
 
-static DebugOpCurve CurveDebugSetCurve(const PathOpsV0Lib::Curve& curve) {
+static DebugOpCurve CurveDebugSetCurve(const PathOpsV0Lib::ColorCurve& c) {
     DebugOpCurve dCurve;
+    const PathOpsV0Lib::Curve& curve = c.curve;
 	OpCurve opCurve(debugGlobalContext, curve, Rotated::debug);
     for (int i = 0; i < opCurve.pointCount(); ++i)
         dCurve.pts[i] = { opCurve.hullPt(i).x, opCurve.hullPt(i).y } ;
@@ -994,7 +1002,7 @@ static DebugOpCurve CurveDebugSetCurve(const PathOpsV0Lib::Curve& curve) {
     dCurve.weight = curveWeight(opCurve);
     dCurve.type = curve.type;
     dCurve.id = 0;
-    dCurve.color = red;
+    dCurve.color = c.color;
     return dCurve;
 }
 
@@ -1295,12 +1303,12 @@ void DebugOpBuild(const SkPath& path, const struct OpDebugRay& ray) {
     }
 }
 
-void DebugOpBuild(const PathOpsV0Lib::Curve& curve) {
-    DebugOpBuild(curve.data->start);
-    DebugOpBuild(curve.data->end);
+void DebugOpBuild(const PathOpsV0Lib::ColorCurve& curve) {
+    DebugOpBuild(curve.curve.data->start, curve.color);
+    DebugOpBuild(curve.curve.data->end, curve.color);
 }
 
-void DebugCurveBuild(const PathOpsV0Lib::Curve& curve, const OpDebugRay& ray) {
+void DebugCurveBuild(const PathOpsV0Lib::ColorCurve& curve, const OpDebugRay& ray) {
     auto axisSect = [&](const DebugOpCurve& curve) {  // lambda
         DebugOpRoots roots = curve.rayIntersect(ray);
         for (int index = 0; index < roots.count; ++index) {
@@ -1325,22 +1333,22 @@ void DebugOpClearPoints() {
     debugPoints.clear();
 }
 
-void DebugOpBuild(OpPoint pt) {
-    DebugColorPt dPt { pt.x, pt.y, black };
+void DebugOpBuild(OpPoint pt, uint32_t color) {
+    DebugColorPt dPt { pt.x, pt.y, color };
     DebugOpBuild(dPt);
 }
 
-void DebugOpBuild(OpPoint pt, float t, bool opp) {
-    DebugColorPt dPt { pt.x, pt.y, t, opp ? blue : darkGreen };
+void DebugOpBuild(OpPoint pt, uint32_t color, float t, bool opp) {
+    DebugColorPt dPt { pt.x, pt.y, t, black == color ? opp ? blue : darkGreen : color};
     DebugOpBuild(dPt);
 }
 
-void DebugOpBuild(OpPoint pt, bool opp) {
-    DebugOpBuild(pt, OpNaN, opp);
+void DebugOpBuild(OpPoint pt, uint32_t color, bool opp) {
+    DebugOpBuild(pt, color, OpNaN, opp);
 }
 
-void DebugOpBuild(OpPoint pt, float t, DebugSprite sprite) {
-    DebugColorPt dPt { pt.x, pt.y, t, darkBlue, sprite };
+void DebugOpBuild(OpPoint pt, uint32_t color, float t, DebugSprite sprite) {
+    DebugColorPt dPt { pt.x, pt.y, t, black == color ? darkBlue : color, sprite };
     DebugOpBuild(dPt);
 }
 
@@ -1409,8 +1417,8 @@ void DebugOpDrawValue(bool inHex) {
     }
 }
 
-void DebugOpDrawCurveControlLines(const PathOpsV0Lib::Curve& curve, uint32_t color) {
-	OpCurve c { debugGlobalContext, curve, Rotated::debug };
+void DebugOpDrawCurveControlLines(const PathOpsV0Lib::ColorCurve& curve, uint32_t color) {
+	OpCurve c { debugGlobalContext, curve.curve, Rotated::debug };
     int ptCount = c.pointCount();
     if (ptCount <= 2)
         return;
@@ -1429,8 +1437,9 @@ void DebugOpDrawCurveControlLines(const PathOpsV0Lib::Curve& curve, uint32_t col
     }
 }
 
-void DebugOpDrawCurveEndToEnd(const PathOpsV0Lib::Curve& curve, uint32_t color) {
+void DebugOpDrawCurveEndToEnd(const PathOpsV0Lib::ColorCurve& c, uint32_t color) {
     DebugOpCurve src;
+    const PathOpsV0Lib::Curve& curve = c.curve;
     src.pts[0] = { curve.data->start.x, curve.data->start.y } ;
     src.pts[1] = { curve.data->end.x, curve.data->end.y } ;
     src.weight = 1;
@@ -1443,9 +1452,10 @@ void DebugOpDrawCurveEndToEnd(const PathOpsV0Lib::Curve& curve, uint32_t color) 
     OpDebugImage::drawCurve(dst, color);
 }
 
-void DebugOpDrawCurveNormal(const PathOpsV0Lib::Curve& c, uint32_t color) {
+void DebugOpDrawCurveNormal(const PathOpsV0Lib::ColorCurve& ccurve, uint32_t color) {
     std::vector<DebugOpCurve> drawn;
-	drawn.push_back(CurveDebugSetCurve(c));
+    const PathOpsV0Lib::Curve& c = ccurve.curve;
+	drawn.push_back(CurveDebugSetCurve(ccurve));
     for (auto& drawnSeg : drawn) {
         OpCurve curve { debugGlobalContext, c, Rotated::debug };
         drawnSeg.mapTo(curve);
@@ -1460,13 +1470,13 @@ void DebugOpDrawCurveNormal(const PathOpsV0Lib::Curve& c, uint32_t color) {
     }
 }
 
-void DebugOpDrawCurveTangent(const PathOpsV0Lib::Curve& c, uint32_t color) {
+void DebugOpDrawCurveTangent(const PathOpsV0Lib::ColorCurve& c, uint32_t color) {
     std::vector<DebugOpCurve> drawn;
 	drawn.push_back(CurveDebugSetCurve(c));
     for (auto& drawnSeg : drawn) {
         OpCurve curve;
         drawnSeg.mapTo(curve);
-        if (curve.c.data->start.isNearly(curve.c.data->end, debugGlobalContext->threshold()))
+        if (curve.firstPt().isNearly(curve.lastPt(), debugGlobalContext->threshold()))
             continue;
         OpVector tan = curve.tangent(.42f).normalize() * 15;
         if (!tan.isFinite() || tan == OpVector{ 0, 0 }) {
@@ -1520,8 +1530,8 @@ void DebugOpDrawEdgeControlLines(const OpEdge* edge, uint32_t color) {
 
 void DebugOpDrawEdgeEndToEnd(const OpEdge* edge, uint32_t color) {
     DebugOpCurve src;
-    src.pts[0] = { edge->startPt().x, edge->startPt().y } ;
-    src.pts[1] = { edge->endPt().x, edge->endPt().y } ;
+    src.pts[0] = { edge->curve.firstPt().x, edge->curve.firstPt().y } ;
+    src.pts[1] = { edge->curve.lastPt().x, edge->curve.lastPt().y } ;
     src.weight = 1;
     src.size = 2 * sizeof(OpPoint);
     src.type = PathOpsV0Lib::CurveType::line;
@@ -1555,7 +1565,7 @@ void DebugOpDrawEdgeTangent(const OpEdge* edge, uint32_t color) {
     for (auto& drawnEdge : drawn) {
         OpCurve curve;
         drawnEdge.mapTo(curve);
-        if (curve.c.data->start.isNearly(curve.c.data->end, debugGlobalContext->threshold()))
+        if (curve.firstPt().isNearly(curve.lastPt(), debugGlobalContext->threshold()))
             continue;
         OpVector tan = curve.tangent(.33f).normalize() * 15;
         if (EdgeMatch::end == edge->which()) {
@@ -1603,8 +1613,8 @@ void DebugOpDrawSegmentControlLines(const OpSegment* seg, uint32_t color) {
 
 void DebugOpDrawSegmentEndToEnd(const OpSegment* seg, uint32_t color) {
     DebugOpCurve src;
-    src.pts[0] = { seg->c.c.data->start.x, seg->c.c.data->start.y } ;
-    src.pts[1] = { seg->c.c.data->end.x, seg->c.c.data->end.y } ;
+    src.pts[0] = { seg->c.firstPt().x, seg->c.firstPt().y } ;
+    src.pts[1] = { seg->c.lastPt().x, seg->c.lastPt().y } ;
     src.weight = 1;
     src.size = 2 * sizeof(OpPoint);
     src.type = PathOpsV0Lib::CurveType::line;
@@ -1638,7 +1648,7 @@ void DebugOpDrawSegmentTangent(const OpSegment* seg, uint32_t color) {
     for (auto& drawnSeg : drawn) {
         OpCurve curve;
         drawnSeg.mapTo(curve);
-        if (curve.c.data->start.isNearly(curve.c.data->end, debugGlobalContext->threshold()))
+        if (curve.firstPt().isNearly(curve.lastPt(), debugGlobalContext->threshold()))
             continue;
         OpVector tan = curve.tangent(.42f).normalize() * 15;
         if (!tan.isFinite() || tan == OpVector{ 0, 0 }) {

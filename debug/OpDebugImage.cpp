@@ -26,12 +26,13 @@
 #include "OpTightBounds.h"
 #include "OpWinder.h"
 #include "PathOps.h"
+#include "DebugOpsTypes.h"
 
 SkBitmap bitmap;
 SkFont labelFont(nullptr, 14, 1, 0);
 
 std::vector<OpDebugRay> lines;
-std::vector<PathOpsV0Lib::Curve> curves;
+std::vector<PathOpsV0Lib::ColorCurve> curves;
 std::vector<OpPtT> ptTs;
 int gridIntervals = 8;
 int rasterIntervals = 64;
@@ -471,7 +472,7 @@ void OpDebugImage::drawDoubleFocus() {
 		}
 		DebugOpDraw(rays);
 	}
-	if (drawSegmentsOn || drawContoursOn) {
+	if (drawSegmentsOn) {
 		DebugOpClearSegments();
 		for (auto segment : segmentIterator)
 			DebugOpAdd(segment);
@@ -933,6 +934,11 @@ void addFocus(const OpSegment& segment) {
 	addFocus(segment.ptBounds);
 }
 
+void addFocus(const PathOpsV0Lib::AddCurve& c) {
+	OpCurve curve(debugGlobalContext, c, Rotated::debug);
+	addFocus(curve);
+}
+
 void addFocus(const PathOpsV0Lib::Curve& c) {
 	OpCurve curve(debugGlobalContext, c, Rotated::debug);
 	addFocus(curve);
@@ -972,6 +978,10 @@ void addFocus(const OpRect* rect) {
 
 void addFocus(const OpSegment* segment) {
 	addFocus(*segment);
+}
+
+void addFocus(const PathOpsV0Lib::AddCurve* c) {
+	addFocus(*c);
 }
 
 void addFocus(const PathOpsV0Lib::Curve* c) {
@@ -1044,6 +1054,11 @@ void ctr(const OpSegment& segment) {
 	ctr(segment.ptBounds);
 }
 
+void ctr(const PathOpsV0Lib::AddCurve& c) {
+	OpCurve curve(debugGlobalContext, c, Rotated::debug);
+	ctr(curve);
+}
+
 void ctr(const PathOpsV0Lib::Curve& c) {
 	OpCurve curve(debugGlobalContext, c, Rotated::debug);
 	ctr(curve);
@@ -1083,6 +1098,10 @@ void ctr(const OpRect* rect) {
 
 void ctr(const OpSegment* segment) {
 	ctr(*segment);
+}
+
+void ctr(const PathOpsV0Lib::AddCurve* c) {
+	ctr(*c);
 }
 
 void ctr(const PathOpsV0Lib::Curve* c) {
@@ -1151,6 +1170,11 @@ void focus(const OpSegment& segment) {
 	focus(segment.ptBounds);
 }
 
+void focus(const PathOpsV0Lib::AddCurve& c) {
+	OpCurve curve(debugGlobalContext, c, Rotated::debug);
+	focus(curve);
+}
+
 void focus(const PathOpsV0Lib::Curve& c) {
 	OpCurve curve(debugGlobalContext, c, Rotated::debug);
 	focus(curve);
@@ -1178,6 +1202,10 @@ void focus(const OpRect* rect) {
 
 void focus(const OpSegment* segment) {
 	focus(*segment);
+}
+
+void focus(const PathOpsV0Lib::AddCurve* c) {
+	focus(*c);
 }
 
 void focus(const PathOpsV0Lib::Curve* c) {
@@ -1253,10 +1281,10 @@ void addFocusLink(int id) {
 void focusCurves() {
 	if (curves.empty())
 		return;
-	OpPointBounds focusRect = { curves.front().data->start, curves.front().data->end };
+	OpPointBounds focusRect = { curves.front().curve.data->start, curves.front().curve.data->end };
 	for (auto& curve : curves) {
-		focusRect.add(curve.data->start);
-		focusRect.add(curve.data->end);
+		focusRect.add(curve.curve.data->start);
+		focusRect.add(curve.curve.data->end);
 	}
 	OpDebugImage::drawDoubleFocus(focusRect, false);
 }
@@ -1465,23 +1493,23 @@ void OpDebugImage::drawPoints() {
 			case SkPath::kMove_Verb:
 				break;
 			case SkPath::kLine_Verb:
-				DebugOpBuild(OpPoint(pts[0].fX, pts[0].fY));
-				DebugOpBuild(OpPoint(pts[1].fX, pts[1].fY));
+				DebugOpBuild(OpPoint(pts[0].fX, pts[0].fY), black);
+				DebugOpBuild(OpPoint(pts[1].fX, pts[1].fY), black);
 				break;
 			case SkPath::kQuad_Verb:
 			case SkPath::kConic_Verb:
-				DebugOpBuild(OpPoint(pts[0].fX, pts[0].fY));
+				DebugOpBuild(OpPoint(pts[0].fX, pts[0].fY), black);
 				if (drawControlsOn)
-					DebugOpBuild(OpPoint(pts[1].fX, pts[1].fY));
-				DebugOpBuild(OpPoint(pts[2].fX, pts[2].fY));
+					DebugOpBuild(OpPoint(pts[1].fX, pts[1].fY), black);
+				DebugOpBuild(OpPoint(pts[2].fX, pts[2].fY), black);
 				break;
 			case SkPath::kCubic_Verb:
-				DebugOpBuild(OpPoint(pts[0].fX, pts[0].fY));
+				DebugOpBuild(OpPoint(pts[0].fX, pts[0].fY), black);
 				if (drawControlsOn) {
-					DebugOpBuild(OpPoint(pts[1].fX, pts[1].fY));
-					DebugOpBuild(OpPoint(pts[2].fX, pts[2].fY));
+					DebugOpBuild(OpPoint(pts[1].fX, pts[1].fY), black);
+					DebugOpBuild(OpPoint(pts[2].fX, pts[2].fY), black);
 				}
-				DebugOpBuild(OpPoint(pts[3].fX, pts[3].fY));
+				DebugOpBuild(OpPoint(pts[3].fX, pts[3].fY), black);
 				break;
 			case SkPath::kClose_Verb:
 			case SkPath::kDone_Verb:
@@ -1501,11 +1529,11 @@ void OpDebugImage::drawPoints() {
 	}
 	if (drawSegmentsOn) {
 		for (auto seg : segmentIterator) {
-			DebugOpBuild(seg->c.firstPt());
-			DebugOpBuild(seg->c.lastPt());
+			DebugOpBuild(seg->c.firstPt(), black);
+			DebugOpBuild(seg->c.lastPt(), black);
 			if (drawControlsOn) {
 				for (int index = 1; index < seg->c.pointCount() - 1; ++index)
-					DebugOpBuild(seg->c.hullPt(index));
+					DebugOpBuild(seg->c.hullPt(index), black);
 			}
 		}
 	}
@@ -1515,28 +1543,34 @@ void OpDebugImage::drawPoints() {
 		OpContour* contour = edge->segment->contour;
 		PathOpsV0Lib::DebugOperand debugIsOpp = contour->debugCallbacks.debugOperandFuncPtr;
 		bool isOpp = debugIsOpp && (*debugIsOpp)(contour->debugCaller, 1);
-		DebugOpBuild(edge->startPt(), edge->startT, isOpp);
-		DebugOpBuild(edge->endPt(), edge->endT, isOpp);
+		DebugOpBuild(edge->curve.firstPt(), edge->debugColor, edge->startT, isOpp);
+		DebugOpBuild(edge->curve.lastPt(), edge->debugColor, edge->endT, isOpp);
 		if (drawControlsOn) {
 			for (int index = 1; index < edge->curve.pointCount() - 1; ++index)
-				DebugOpBuild(edge->curve.hullPt(index));
+				DebugOpBuild(edge->curve.hullPt(index), edge->debugColor);
 		}
 		if (drawCentersOn)
-			DebugOpBuild(edge->center.pt, edge->center.t, DebugSprite::square);
+			DebugOpBuild(edge->center.pt, edge->debugColor, edge->center.t, DebugSprite::square);
 		if (drawHullsOn) {
 			for (const HullSect& hull : edge->hulls.h)
-				DebugOpBuild(hull.sect.pt, hull.sect.t, DebugSprite::circle);
+				DebugOpBuild(hull.sect.pt, edge->debugColor, hull.sect.t, DebugSprite::circle);
 		}
+        if (drawIPointsOn) {
+            if (edge->iStart != edge->curve.firstPt())
+		        DebugOpBuild(edge->iStart, edge->debugColor, edge->startT, isOpp);
+            if (edge->iEnd != edge->curve.lastPt())
+		        DebugOpBuild(edge->iEnd, edge->debugColor, edge->endT, isOpp);
+        }
 	}
 	if (drawIntersectionsOn) {
 		for (const auto& sect : intersectionIterator) {
-			DebugOpBuild(sect->ptT.pt);
+			DebugOpBuild(sect->ptT.pt, black);
 		}
 	}
 	if (drawLinesOn) {
 		for (const auto& line : lines) {
-			DebugOpBuild(line.pts.pts[0]);
-			DebugOpBuild(line.pts.pts[1]);
+			DebugOpBuild(line.pts.pts[0], black);
+			DebugOpBuild(line.pts.pts[1], black);
 			for (auto contour : debugGlobalContext->contours) {
 				PathOpsV0Lib::DebugGetDraw debugGetDraw = contour->debugCallbacks.debugGetDrawFuncPtr;
 				if (debugGetDraw && (*debugGetDraw)(contour->debugCaller)) {
@@ -1562,9 +1596,9 @@ void OpDebugImage::drawPoints() {
 		for (const auto& curve : curves) {
 			DebugOpBuild(curve);
 			if (drawControlsOn) {
-				OpCurve opCurve(debugGlobalContext, curve, Rotated::debug);
+				OpCurve opCurve(debugGlobalContext, curve.curve, Rotated::debug);
 				for (int index = 1; index < opCurve.pointCount() - 1; ++index)
-					DebugOpBuild(opCurve.hullPt(index));
+					DebugOpBuild(opCurve.hullPt(index), curve.color);
 			}
 			for (const auto& line : lines) {
 				DebugCurveBuild(curve, line);
@@ -1581,7 +1615,7 @@ void OpDebugImage::drawPoints() {
 		}
 	}
 	for (OpPtT ptT : ptTs)
-		DebugOpBuild(ptT.pt, ptT.t, DebugSprite::triangle);
+		DebugOpBuild(ptT.pt, black, ptT.t, DebugSprite::triangle);
 	if (drawValuesOn) {
 		if (drawTsOn)
 			DebugOpDrawT(drawHexOn);
@@ -1670,8 +1704,20 @@ void OpDebugImage::add(const OpDebugRay& ray) {
 	lines.emplace_back(ray);
 }
 
+void OpDebugImage::add(const PathOpsV0Lib::AddCurve& curve) {
+	curves.push_back({{ (PathOpsV0Lib::CurveData*) curve.points, curve.size, curve.type }, black});
+}
+
 void OpDebugImage::add(const PathOpsV0Lib::Curve& curve) {
-	curves.emplace_back(curve);
+	curves.push_back({ curve, black });
+}
+
+void OpDebugImage::add(const PathOpsV0Lib::AddCurve& curve, uint32_t color) {
+	curves.push_back({{ (PathOpsV0Lib::CurveData*) curve.points, curve.size, curve.type }, color});
+}
+
+void OpDebugImage::add(const PathOpsV0Lib::Curve& curve, uint32_t color) {
+	curves.push_back({ curve, color });
 }
 
 void OpDebugImage::add(const OpRect& r) {
@@ -1687,21 +1733,25 @@ void OpDebugImage::add(const OpRect& r) {
 
 void OpDebugImage::clearIntersections() {
 	drawIntersectionsOn = false;
+    OpDebugImage::drawDoubleFocus();
 }
 
 void OpDebugImage::clearCurves() {
 	curves.clear();
 	drawCurvesOn = false;
+    OpDebugImage::drawDoubleFocus();
 }
 
 void OpDebugImage::clearLines() {
 	lines.clear();
 	drawLinesOn = false;
+    OpDebugImage::drawDoubleFocus();
 }
 
 void OpDebugImage::clearPoints() {
 	ptTs.clear();
 	drawPointsOn = false;
+    OpDebugImage::drawDoubleFocus();
 }
 
 #define OP_X(Thing) \
@@ -2047,6 +2097,26 @@ void color(int id, uint32_t c) {
 
 void color(int id, uint8_t a, uint32_t c) {
 	color(id, OpDebugAlphaColor(a, c));
+}
+
+void color(PathOpsV0Lib::AddCurve& c, uint32_t clr) {
+	OpDebugImage::add(c, clr);
+	drawCurvesOn = true;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void color(PathOpsV0Lib::AddCurve* c, uint32_t clr) {
+    color(*c, clr);
+}
+
+void color(PathOpsV0Lib::Curve& c, uint32_t clr) {
+	OpDebugImage::add(c, clr);
+	drawCurvesOn = true;
+	OpDebugImage::drawDoubleFocus();
+}
+
+void color(PathOpsV0Lib::Curve* c, uint32_t clr) {
+    color(*c, clr);
 }
 
 void uncolor(int id) {
@@ -2422,6 +2492,12 @@ void draw(const OpRect& r) {
 	OpDebugImage::drawDoubleFocus();
 }
 
+void draw(const PathOpsV0Lib::AddCurve& c) {
+	OpDebugImage::add(c);
+	drawCurvesOn = true;
+	OpDebugImage::drawDoubleFocus();
+}
+
 void draw(const PathOpsV0Lib::Curve& c) {
 	OpDebugImage::add(c);
 	drawCurvesOn = true;
@@ -2442,6 +2518,10 @@ void draw(const OpPtT* ptT) {
 
 void draw(const OpRect* r) {
 	draw(*r);
+}
+
+void draw(const PathOpsV0Lib::AddCurve* c) {
+	draw(*c);
 }
 
 void draw(const PathOpsV0Lib::Curve* c) {
@@ -2602,24 +2682,49 @@ void drawT(const OpSegment* segment, const OpPtT* ptT) {
 	drawT(*segment, ptT);
 }
 
+void drawT(const PathOpsV0Lib::AddCurve& curve, float t) {
+	OpCurve c(debugGlobalContext, curve, Rotated::debug);
+	draw(c.ptAtT(t));
+}
+
 void drawT(const PathOpsV0Lib::Curve& curve, float t) {
 	OpCurve c(debugGlobalContext, curve, Rotated::debug);
 	draw(c.ptAtT(t));
+}
+
+void drawT(const PathOpsV0Lib::AddCurve& curve, const OpPtT& ptT) {
+	drawT(curve, ptT.t);
 }
 
 void drawT(const PathOpsV0Lib::Curve& curve, const OpPtT& ptT) {
 	drawT(curve, ptT.t);
 }
 
+void drawT(const PathOpsV0Lib::AddCurve& curve, const OpPtT* ptT) {
+	drawT(curve, *ptT);
+}
+
 void drawT(const PathOpsV0Lib::Curve& curve, const OpPtT* ptT) {
 	drawT(curve, *ptT);
+}
+
+void drawT(const PathOpsV0Lib::AddCurve* curve, float t) {
+	drawT(*curve, t);
 }
 
 void drawT(const PathOpsV0Lib::Curve* curve, float t) {
 	drawT(*curve, t);
 }
 
+void drawT(const PathOpsV0Lib::AddCurve* curve, const OpPtT& ptT) {
+	drawT(*curve, ptT);
+}
+
 void drawT(const PathOpsV0Lib::Curve* curve, const OpPtT& ptT) {
+	drawT(*curve, ptT);
+}
+
+void drawT(const PathOpsV0Lib::AddCurve* curve, const OpPtT* ptT) {
 	drawT(*curve, ptT);
 }
 

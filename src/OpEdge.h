@@ -488,7 +488,7 @@ public:
     OpPoint iEnd; 
 	OpCurve vertical_impl;	// only access through set vertical function
 	LinePts upright_impl;   //  "
-	OpPointBounds bounds;	// cache of bounds from curve endpoints 
+	OpPointBounds bounds;	// cache of bounds from curve endpoints and sect averages
 	OpPointBounds linkBounds;
 	OpWinding winding;	// contribution: always starts as 1, 0 (or 0, 1)
 	OpWinding sum;  // total incl. normal side of edge for operands (fill count in normal direction)

@@ -105,6 +105,7 @@ std::atomic_int testsDot;
 std::atomic_int testsLine;
 std::atomic_int totalRun;
 std::atomic_int testsSkipped;
+std::atomic_int testsToSkip;
 std::atomic_int totalSkipped;
 std::atomic_int silentError;
 std::atomic_int totalError;
@@ -195,6 +196,7 @@ void initTests(std::string filename) {
     testsDot = 0;
     testsLine = 0;
     testsSkipped = 0;
+    testsToSkip = TESTS_TO_SKIP;
     testsFailSkiaPass = 0;
     testsPassSkiaFail = 0;
     OpDebugOut(currentTestFile + "\n");
@@ -214,6 +216,8 @@ bool skipTest(std::string name) {
                 || skipTestFiles.end() != std::find(skipTestFiles.begin(), skipTestFiles.end(), 
                 currentTestFile))
             return (void) ++testsSkipped, true;
+        if (testsToSkip)
+            return (void) --testsToSkip, (void) ++testsSkipped, true;
     }
     if (runOneFile)
         startFirstTest = true;

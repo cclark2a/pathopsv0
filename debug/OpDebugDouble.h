@@ -9,9 +9,11 @@
 
 namespace PathOpsV0Lib {
 struct Curve;
+struct ColorCurve;
 }
 
 enum class Axis : int8_t ;
+struct ColorCurve;
 struct OpContour;
 struct OpEdge;
 class SkPath;
@@ -31,22 +33,23 @@ enum class DebugSprite {
     triangle,
 };
 
+
 void DebugOpAdd(const OpSegment* );
 void DebugOpAdd(const OpEdge* );
 void DebugOpAdd(const OpInPath& );
 void DebugOpAddBounds(double, double, double, double);
 void DebugOpAddHighlight(const OpEdge* );
 void DebugOpBounds(double& left, double& top, double& right, double& bottom);
-void DebugOpBuild(OpPoint );
-void DebugOpBuild(OpPoint , bool opp);
-void DebugOpBuild(OpPoint , float t, bool opp);
-void DebugOpBuild(OpPoint , float t, DebugSprite );
+void DebugOpBuild(OpPoint , uint32_t color);
+void DebugOpBuild(OpPoint , uint32_t color, bool opp);
+void DebugOpBuild(OpPoint , uint32_t color, float t, bool opp);
+void DebugOpBuild(OpPoint , uint32_t color, float t, DebugSprite );
 void DebugOpBuild(Axis axis, float normal, float cept);
 void DebugOpBuild(const OpEdge& , const OpDebugRay& );
 void DebugOpBuild(const OpSegment& , const OpDebugRay& );
 void DebugOpBuild(const SkPath& , const OpDebugRay& );
-void DebugOpBuild(const PathOpsV0Lib::Curve& );
-void DebugCurveBuild(const PathOpsV0Lib::Curve& , const OpDebugRay& );
+void DebugOpBuild(const PathOpsV0Lib::ColorCurve& );
+void DebugCurveBuild(const PathOpsV0Lib::ColorCurve& , const OpDebugRay& );
 void DebugOpClearEdges();
 void DebugOpClearHighlight();
 void DebugOpClearInputs();
@@ -55,15 +58,15 @@ void DebugOpClearSegments();
 void DebugOpDraw(const OpOutPath* , uint32_t color);
 void DebugOpDraw(const std::vector<OpRect>& );
 void DebugOpDraw(const std::vector<OpDebugRay>& );
-void DebugOpDraw(const std::vector<PathOpsV0Lib::Curve>& );
+void DebugOpDraw(const std::vector<PathOpsV0Lib::ColorCurve>& );
 void DebugOpDraw(const std::vector<OpEdge>& );
 void DebugOpDraw(const std::vector<const OpEdge*>& );
 void DebugOpDraw(const std::vector<const SkPath*>& );
 void DebugOpDrawContourID(const OpContour* contour, std::vector<int>& ids);
-void DebugOpDrawCurveControlLines(const PathOpsV0Lib::Curve& , uint32_t color);
-void DebugOpDrawCurveEndToEnd(const PathOpsV0Lib::Curve& , uint32_t color);
-void DebugOpDrawCurveNormal(const PathOpsV0Lib::Curve& , uint32_t color);
-void DebugOpDrawCurveTangent(const PathOpsV0Lib::Curve& , uint32_t color);
+void DebugOpDrawCurveControlLines(const PathOpsV0Lib::ColorCurve& , uint32_t color);
+void DebugOpDrawCurveEndToEnd(const PathOpsV0Lib::ColorCurve& , uint32_t color);
+void DebugOpDrawCurveNormal(const PathOpsV0Lib::ColorCurve& , uint32_t color);
+void DebugOpDrawCurveTangent(const PathOpsV0Lib::ColorCurve& , uint32_t color);
 void DebugOpDrawEdgeControlLines(const OpEdge* , uint32_t color);
 void DebugOpDrawEdgeEndToEnd(const OpEdge* , uint32_t color);
 void DebugOpDrawEdgeID(const OpEdge* , uint32_t color, bool drawLimbs);

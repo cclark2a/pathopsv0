@@ -57,9 +57,11 @@ bool OpPtAliases::isSmall(OpPoint pt1, OpPoint pt2) {
 	OP_ASSERT(pt1.isFinite());
 	OP_ASSERT(pt2.isFinite());
 	if (pt1.isNearly(pt2, threshold)) {
-		if (contains(pt1))
+        if (original(pt1) && original(pt2))
+            return true;
+		if (contains(pt1) || original(pt2))
 			add(pt2, pt1);
-		else if (contains(pt2) || existing(pt1) != existing(pt2))
+		else if (contains(pt2) || original(pt1))
 			add(pt1, pt2);
 		return true;
 	}
@@ -96,12 +98,23 @@ bool OpPtAliases::isSmall(OpPoint pt1, OpPoint pt2) {
 			&& match1.pt == match2.pt;
 }
 
+bool OpPtAliases::original(OpPoint match) const {
+	OP_ASSERT(match.isFinite());
+	for (const OpPtAlias& test : maps) {
+		if (test.original == match)
+			return true;
+	}
+	return false;
+}
+
 void OpPtAliases::remap(OpPoint oldAlias, OpPoint newAlias) {
 	OP_ASSERT(oldAlias.isFinite());
 	OP_ASSERT(newAlias.isFinite());
 	for (OpPtAlias& test : maps) {
-		if (test.alias == oldAlias)
+		if (test.alias == oldAlias) {
+            OP_ASSERT(test.original != newAlias);
 			test.alias = newAlias;
+        }
 	}
 	for (size_t index = 0; index < aliases.size(); ++index) {
 		if (aliases[index] == oldAlias) {
@@ -726,16 +739,22 @@ void OpContext::setThreshold() {
 void OpContext::sortIntersections() {
 	for (auto contour : contours) {
 		for (auto& segment : contour->segments) {
+            if (segment.disabled)
+                continue;
 			segment.sects.sort();
 		}
 	}
 	for (auto contour : contours) {
 		for (auto& segment : contour->segments) {
+            if (segment.disabled)
+                continue;
 			segment.sects.mergeNear(aliases);
 		}
 	}
 	for (auto contour : contours) {
 		for (auto& segment : contour->segments) {
+            if (segment.disabled)
+                continue;
 			segment.sects.sort();
 		}
 	}
