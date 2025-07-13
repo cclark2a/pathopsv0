@@ -470,7 +470,8 @@ bool OpCurve::isFinite() const {
 OpCurve OpCurve::toVertical(const LinePts& line, MatchEnds match) const {
 	OpVector scale = line.pts[1] - line.pts[0];
 //	float opp = line.pts[1].y - line.pts[0].y;
-	OpCurve isRotated(context, (PathOpsV0Lib::Curve) { nullptr, c.size, c.type }, Rotated::yes);
+    PathOpsV0Lib::Curve cRotated { nullptr, c.size, c.type };
+	OpCurve isRotated(context, cRotated, Rotated::yes);
 	auto rotatePt = [line, scale](OpPoint pt) {
 		OpVector v = pt - line.pts[0];
 		return OpPoint(scale.cross(v), scale.dot(v));
