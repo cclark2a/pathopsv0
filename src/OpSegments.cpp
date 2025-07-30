@@ -37,20 +37,18 @@ void OpSegments::initInX() {
 }
 
 // may need to adjust values in opp if end is nearly equal to seg
-void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
+std::vector<OpIntersection*> OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
 	OP_DEBUG_CONTEXT();
-	auto add = [](OpSegment* seg, OpSegment* opp, OpPoint pt, float segT, float oppT   
+    std::vector<OpIntersection*> result;
+	auto add = [&result](OpSegment* seg, OpSegment* opp, OpPoint pt, float segT, float oppT   
 			OP_LINE_FILE_ARGS()) {
-	//	if (opp->willDisable || seg->willDisable)
-	//		return;
 		if (seg->sects.contains(OpPtT { pt, segT }, opp) 
 				|| opp->sects.contains(OpPtT { pt, oppT }, seg))
 			return;
-		OpIntersection* sect = seg->addSegSect(OpPtT { pt, segT }, opp  
-				OP_LINE_FILE_CARGS());
-		OpIntersection* oSect = opp->addSegSect(OpPtT { pt, oppT }, seg 
-				OP_LINE_FILE_CARGS());
+		OpIntersection* sect = seg->addSegSect(OpPtT { pt, segT }, opp  OP_LINE_FILE_CARGS());
+		OpIntersection* oSect = opp->addSegSect(OpPtT { pt, oppT }, seg  OP_LINE_FILE_CARGS());
 		sect->pair(oSect);
+        result.push_back(sect);
 	};
 	auto checkEnds = [add, seg, opp](OpPoint oppPt, float oppT  OP_LINE_FILE_ARGS()) {
 		OpPtT segPtT = seg->alignToEnd(oppPt);
@@ -58,8 +56,7 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
 			oppPt = seg->mergePoints(segPtT, opp, { oppPt, oppT });
 			add(seg, opp, oppPt, segPtT.t, oppT  OP_LINE_FILE_CARGS());
 		}
-		OP_ASSERT(opp->c.firstPt() != opp->c.lastPt() || opp->willDisable
-                || opp->disabled);
+		OP_ASSERT(opp->c.firstPt() != opp->c.lastPt() || opp->willDisable || opp->disabled);
 		return segPtT.t;
 	};
 	float startSegT = checkEnds(opp->c.firstPt(), 0  OP_LINE_FILE_PARGS());
@@ -81,17 +78,18 @@ void OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
 		endOppT = checkOpp(seg->c.lastPt(), 1  OP_LINE_FILE_PARGS());
 	auto checkSeg = [add, seg, opp](OpPoint oppPt, float oppT  OP_LINE_FILE_ARGS()) {
 		OpPtT segPtT = seg->matchEnd(oppPt);
-		if (!OpMath::IsNaN(segPtT.t)) {
-			if (0 == segPtT.t || 1 == segPtT.t)
-				oppPt = opp->mergePoints({ oppPt, oppT }, seg, segPtT);
-			add(opp, seg, oppPt, oppT, segPtT.t  OP_LINE_FILE_CARGS());
-		}
+		if (OpMath::IsNaN(segPtT.t)) 
+            return;
+		if (0 == segPtT.t || 1 == segPtT.t)
+			oppPt = opp->mergePoints({ oppPt, oppT }, seg, segPtT);
+		add(seg, opp, oppPt, segPtT.t, oppT  OP_LINE_FILE_CARGS());
 	};
 //    OpBreak2(seg, opp, 5, 11);
 	if (OpMath::IsNaN(startSegT) && 0 != startOppT && 0 != endOppT)
 		checkSeg(opp->c.firstPt(), 0  OP_LINE_FILE_PARGS());
 	if (OpMath::IsNaN(endSegT) && 1 != startOppT && 1 != endOppT)
 		checkSeg(opp->c.lastPt(), 1  OP_LINE_FILE_PARGS());
+    return result;
 }
 
 // somewhat different from winder's edge based version, probably for no reason
@@ -100,7 +98,7 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 	OP_ASSERT(opp != seg);
 	OP_ASSERT(seg->c.debugIsLine());
 	OpRoots oppRoots = seg->c.lineIntersection(opp->c);
-	MatchReverse matchRev = opp->matchEnds(seg);
+	OP_DEBUG_CODE(MatchReverse matchRev = opp->matchEnds(seg));
 	// if line and curve share end point, pass hint that root finder can call
 	// reduced form that assumes one root is zero or one.
 #if 0  // code coverage did not detect any of these cases
@@ -383,7 +381,7 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 	// set both to lines if they are linear before using them in t calculations
 	(void) seg->c.isLine();
 	(void) opp->c.isLine();
-	AddEndMatches(seg, opp);
+	std::vector<OpIntersection*> matchingSects = AddEndMatches(seg, opp);
 	if (seg->willDisable || opp->willDisable)
 		return true;
 	if (seg->isSmall()) {
@@ -429,7 +427,7 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 	if (sharesHorizontal && sharesVertical)
 		return true;
 	// look for curve curve intersections (skip coincidence already found)
-	OpCurveCurve cc(seg, opp);
+	OpCurveCurve cc(seg, opp, matchingSects);
 	if (cc.boundedEdgeFailed) {
 		found = FoundIntersections::fail;
 		return false;
@@ -444,6 +442,7 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 		ccResult = limitsResult;
 	if (SectFound::add == ccResult || cc.limits.size())
 		cc.findUnsectable();
+//    OP_ASSERT(cc.limits.size() < 4);
 	cc.context->release(cc.context->ccStorage);
 	cc.context->ccStorage = nullptr;
 	OP_DEBUG_CONTEXT();

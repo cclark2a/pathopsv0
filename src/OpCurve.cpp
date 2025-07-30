@@ -2,9 +2,6 @@
 #include "OpCurve.h"
 #include "OpContext.h"
 #include "OpTightBounds.h"
-#if OP_DEBUG
-#include "OpDebugRaster.h"
-#endif
 
 OpCurve::OpCurve(OpContext* cntxt, PathOpsV0Lib::Curve curve, Rotated r) 
 	: c(curve)
@@ -637,9 +634,11 @@ void OpCurve::output(bool firstPt, bool lastPt  OP_DEBUG_PARAMS(int parentID)) {
 	context->initOutOnce();
 	context->callback(c.type).curveOutputFuncPtr(c, firstPt, lastPt, context->callerOutput);
 #if OP_DEBUG && TEST_RASTER
-	if (context->rasterEnabled) {
-		context->sampleOutputs.addCurveXatY(c  OP_DEBUG_PARAMS(parentID));
-		context->sampleOutputs.addCurveYatX(c  OP_DEBUG_PARAMS(parentID));
-	}
+	PathOpsV0Lib::DebugAddRaster addRaster = context->debugCallback(c.type).addRasterFuncPtr;
+    if (addRaster) {
+        PathOpsV0Lib::DebugContextData& data = context->debugGetContextData(
+                PathOpsV0Lib::DebugContextType::addRaster);
+        (*addRaster)(data, c, parentID);
+    }
 #endif
 }

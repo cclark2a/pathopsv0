@@ -138,7 +138,11 @@ bool endFirstTest = false;
 // break (return false) if running last failed fast test
 #if OP_DEBUG && !OP_DEBUG_FAST_TEST
 bool OpDebugSkipBreak() {
+#if OP_TINY_SKIA
+    return 1;
+#else
 	return TEST_DEFEAT_BREAK || (!SKIP_TO_V0 && !requestedFirst.size());
+#endif
 }
 #endif
 
@@ -346,10 +350,8 @@ void runTests() {
             + " v0 only:" + STR(testsPassSkiaFail) + " skia only:" + STR(testsFailSkiaPass) + "\n");
 }
 
-#if !TEST_RASTER
 const int bitWidth = 64;
 const int bitHeight = 64;
-#endif
 
 static SkRect debug_scale_matrix(const SkPath& one, const SkPath* two, SkMatrix& scale) {
     SkRect larger = one.getBounds();
@@ -592,9 +594,6 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
 		OpDebugData* debugDataPtr) {
     using namespace PathOpsV0Lib;
     Context* context = CreateContext();
-#if TEST_RASTER
-	((OpContext*) context)->rasterEnabled = true;
-#endif
     SetSkiaContextCallbacks(context);
     OP_DEBUG_CODE(if (debugDataPtr) Debug(context, *debugDataPtr));
     SetSkiaCurveCallbacks(context);
@@ -614,25 +613,23 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
     PathOpsV0Lib::Winding leftWinding { leftData, sizeof(leftData) };
     Contour* left = SetSkiaOpContourCallbacks(context, leftWinding, BinaryOperand::left
             OP_DEBUG_PARAMS(a));
-    AddSkiaPath(context, left, a);
+    OP_DEBUG_CODE(BinaryContour debugLeftData { { &a, 0, false }, BinaryOperand::left });
+    AddSkiaPath(context, left, a  OP_DEBUG_PARAMS(debugLeftData, sizeof(BinaryContour), 
+            PathOpsV0Lib::DebugContourType::windingUserData));
     int rightData[] = { 0, 1 };
     PathOpsV0Lib::Winding rightWinding { rightData, sizeof(rightData) };
     Contour* right = SetSkiaOpContourCallbacks(context, rightWinding, BinaryOperand::right
             OP_DEBUG_PARAMS(b));
-    AddSkiaPath(context, right, b);
+    OP_DEBUG_CODE(BinaryContour debugRightData { { &a, 0, false }, BinaryOperand::right });
+    AddSkiaPath(context, right, b  OP_DEBUG_PARAMS(debugRightData, sizeof(BinaryContour), 
+            PathOpsV0Lib::DebugContourType::windingUserData));
     PathOutput pathOutput = result;
 	Normalize(context);
 #if TEST_RASTER
-	OpContext* implementationContext = (OpContext*) context;
-	if (implementationContext->rasterEnabled) {
-		implementationContext->sampleOutputs.init(implementationContext);
-		implementationContext->sampleOperands.init(implementationContext);
-		for (auto contour : implementationContext->contours) {
-			implementationContext->sampleOperands.sample(contour);
-			contour->rasterOperand.rasterize(implementationContext->sampleOperands, contour);
-		}
-		implementationContext->rasterCombined.rasterize(implementationContext->sampleOperands, nullptr);
-	}
+    DebugRaster debugRaster;
+    debugRaster.in(context);
+    SetDebugContextData(context, { &debugRaster.outSamples, sizeof &debugRaster.outSamples }, 
+            DebugContextType::addRaster );
 #endif
     Resolve(context, pathOutput);
     if (SkPathOpInvertOutput(op, a.isInverseFillType(), b.isInverseFillType()))
@@ -640,22 +637,7 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
     ContextError contextError = Error(context);
 	trackError(contextError);
 #if TEST_RASTER
-	implementationContext->rasterOutput.rasterize(implementationContext->sampleOutputs, nullptr);
-	int rasterErrors = implementationContext->sampleOperands.compare(implementationContext->sampleOutputs);
-	if (ContextError::none == contextError) {
-		if (rasterErrors >= 9) {
-	#if OP_DEBUG_FAST_TEST
-			std::lock_guard<std::mutex> guard(out_mutex);
-	#endif
-	#if OP_DEBUG
-			std::string testname = ((OpContext*) context)->debugData.testname;
-			OpDebugOut(testname + " raster errors:" + STR(rasterErrors) + "\n");
-	#else
-			OpDebugOut("raster errors:" + STR(rasterErrors) + "\n");
-	#endif
-		}
-//		OP_ASSERT(rasterErrors < 9);
-	}
+    debugRaster.out(context);
 #endif
     DeleteContext(context);
 	return ContextError::none == contextError;
@@ -947,12 +929,14 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
     PathOpsV0Lib::Winding simpleWinding { simpleData, sizeof(simpleData) };
     Contour* simple = SetSkiaSimplifyCallbacks(context, simpleWinding, isWindingFill(path)
             OP_DEBUG_PARAMS(path));
+    OP_DEBUG_CODE(UnaryContour debugData { &path, 0, false } );
 #if TEST_ANALYZE && OP_DEBUG
 	// make failing tests smaller
 	// add contours until it fails
-    AddDebugSkiaPath(context, simple, path);
+    AddDebugSkiaPath(context, simple, path  OP_DEBUG_PARAMS(debugData, sizeof debugData));
 #else
-    AddSkiaPath(context, simple, path);
+    AddSkiaPath(context, simple, path  OP_DEBUG_PARAMS(debugData, sizeof debugData, 
+            DebugContourType::windingUserData));
 #endif
 	ContextError contextError = Error(context);
 	bool veryLarge = false;

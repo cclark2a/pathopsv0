@@ -221,6 +221,9 @@ std::string OpDebugDumpHex(float f) {
 #endif
 
 #if OP_DEBUG_DUMP || OP_DEBUG_IMAGE
+
+#include "OpContext.h"
+
 std::string OpDebugDumpByteArray(const char* bytes, size_t size) {
     std::string s = "[";
     size_t lastReturn = 0;
@@ -263,6 +266,117 @@ void record() {
     OpDebugImage::record(recordFile);
     dmpRecord(recordFile);
 	fclose(recordFile);
+}
+
+OpDebugSegmentIterator segmentIterator;
+
+OpDebugEdgeIterator edgeIterator;
+
+OpDebugIntersectionIterator intersectionIterator;
+
+OpDebugSegmentIter::OpDebugSegmentIter(bool start) {
+	segmentIndex = 0;
+	if (start)
+		return;
+	for (const auto c : debugGlobalContext->contours) {
+		segmentIndex += c->segments.size();
+	}
+}
+
+OpSegment* OpDebugSegmentIter::operator*() {
+	size_t index = 0;
+	for (auto c : debugGlobalContext->contours) {
+		for (auto& seg : c->segments) {
+			if (index == segmentIndex)
+				return &seg;
+			++index;
+		}
+	}
+	OpDebugOut("iterator out of bounds! segmentIndex: " + STR(segmentIndex) + "\n");
+	return nullptr; 
+}
+
+OpDebugEdgeIter::OpDebugEdgeIter(bool start)
+	: isCurveCurve(false)
+	, isFiller(false)
+	, isLine(false) {
+	edgeIndex = 0;
+	if (start)
+		return;
+	for (const auto c : debugGlobalContext->contours) {
+		for (const auto& s : c->segments)
+			edgeIndex += (int) s.edges.size();
+	}
+	if (debugGlobalContext->fillerStorage)
+		edgeIndex += debugGlobalContext->fillerStorage->debugCount();
+	if (debugGlobalContext->ccStorage)
+		edgeIndex += debugGlobalContext->ccStorage->debugCount();
+}
+
+OpEdge* OpDebugEdgeIter::operator*() {
+	int index = 0;
+	for (auto c : debugGlobalContext->contours) {
+		for (auto& s : c->segments) {
+			for (auto& edge : s.edges) {
+				if (index == edgeIndex) {
+					isCurveCurve = false;
+					isFiller = false;
+					isLine = edge.curve.debugIsLine();
+					return &edge;
+				}
+				++index;
+			}
+		}
+	}
+	if (debugGlobalContext->fillerStorage) {
+		OpEdge* filler = debugGlobalContext->fillerStorage->debugIndex(edgeIndex - index);
+		if (filler) {
+			isCurveCurve = false;
+			isFiller = true;
+			isLine = true;
+			return filler;
+		}
+		index += debugGlobalContext->fillerStorage->debugCount();
+	}
+	if (debugGlobalContext->ccStorage) {
+		OpEdge* ccEdge = debugGlobalContext->ccStorage->debugIndex(edgeIndex - index);
+		if (ccEdge) {
+			isCurveCurve = true;
+			isFiller = false;
+			isLine = false;
+			return ccEdge;
+		}
+		index += debugGlobalContext->ccStorage->debugCount();
+	}
+	OpDebugOut("iterator out of bounds! edgeIndex: " + STR(edgeIndex) + 
+			"; max index: " + STR(index) + "\n");
+	return nullptr; 
+}
+
+OpDebugIntersectionIter::OpDebugIntersectionIter(bool start) {
+	localIntersectionIndex = 0;
+	if (start)
+		return;
+	for (const auto c : debugGlobalContext->contours) {
+		for (const auto& seg : c->segments) {
+			localIntersectionIndex += seg.sects.i.size();
+		}
+	}
+}
+
+const OpIntersection* OpDebugIntersectionIter::operator*() {
+	size_t index = 0;
+	for (const auto c : debugGlobalContext->contours) {
+		for (const auto& seg : c->segments) {
+			for (const auto sect : seg.sects.i) {
+				if (index == localIntersectionIndex)
+					return sect;
+				++index;
+			}
+		}
+	}
+	OpDebugOut("iterator out of bounds! localIntersectionIndex: " + STR(localIntersectionIndex) + "\n");
+	return nullptr; 
 }
 #endif
 
@@ -502,6 +616,17 @@ OpCurve OpCurve::toVerticalDouble(const LinePts& line) const {
 	return rotated;
 }
 #endif
+
+// check to see that add edge run has already been called and doesn't need to be called again here
+void CcCurves::debugCheck(const OpEdge* edge, EdgeMatch match) const {
+    if (!(edge->startDist.dist * edge->endDist.dist < 0))
+        return;
+    for (const EdgeRun& run : runs) {
+        if (run.edgePtT.t == edge->ptT(match).t)
+            return;
+    }
+    OP_ASSERT(0);  // expected matching edge t in run
+}
 
 #if OP_DEBUG_VALIDATE
 void CcCurves::debugValidate() const {
@@ -1100,6 +1225,7 @@ void debugImage() {
         ::hideSegmentEdges();
         ::hideWindings();
         ::showEdges();
+        ::showTemporaryEdges();
         ::showIDs();
         ::showPoints();
         ::showTangents();
@@ -1157,14 +1283,12 @@ void debug() {
     debugGlobalContext->dump();
 }
 
-namespace PathOpsV0Lib {
+#endif
 
+#if OP_DEBUG && !OP_DEBUG_FAST_TEST && (OP_DEBUG_IMAGE || OP_DEBUG_DUMP)
 bool debugRunningTest(std::string testname) {
     return debugGlobalContext->debugData.testname == testname; 
 }
-
-}
-
 #endif
 
 #include "DebugOps.h"
@@ -1208,19 +1332,14 @@ void debugCubicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, do
 
 namespace PathOpsV0Lib {
 
-DebugContourData GetDebugContourData(Contour* ctour) {
+void SetDebugContourData(Contour* ctour, DebugContourData contourData, DebugContourType type) {
     OpContour* contour = (OpContour*) ctour;
-	return contour->debugCaller;
+	contour->addDebugContourData(contourData, type);
 }
 
-void SetDebugContourData(Contour* ctour, DebugContourData contourData) {
-    OpContour* contour = (OpContour*) ctour;
-	contour->addDebugContourData(contourData);
-}
-
-void SetDebugContextData(Context* ctxt, DebugContextData contextData) {
+void SetDebugContextData(Context* ctxt, DebugContextData contextData, DebugContextType type) {
     OpContext* context = (OpContext*) ctxt;
-	context->addDebugContextData(contextData);
+	context->addDebugContextData(contextData, type);
 }
 
 void SetDebugCurveCallbacks(Context* ctext, CurveType , DebugCurveCallbacks curveCallbacks) {

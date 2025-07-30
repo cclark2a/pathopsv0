@@ -456,7 +456,7 @@ SectCleanup OpIntersections::moveSects(const OpPtT& match, OpPoint destination,
 			continue;
 		bool keepToMove = true;
 		size_t testIndex = SIZE_MAX;
-		OpIntersection* test  OP_DEBUG_CODE(= nullptr);  // suppress compiler warning
+		OpIntersection* test = nullptr;  // suppress compiler warning
 		for (size_t inner = 0; inner < i.size(); ++inner) {  // look for coins, unsects, equal-to's
 			test = i[inner];
 			if (test->opp->segment != toMove->opp->segment)

@@ -11,54 +11,62 @@
 
 #include "OpContext.h"
 #include "OpSegment.h"
+#include "DebugOps.h"
 
 using namespace PathOpsV0Lib;
 
-static float toCenter(float x) {
-	return (int64_t) (x + .5f) + .5f;
+static float toSubGrid(float x) {
+	return std::floor(x * OpDebugSamples::subSamples) / OpDebugSamples::subSamples;
 }
-
-static float toLimit(float x) {
-	return (int64_t) (x - .5f) + .5f;
-}
-
 
 void OpCurve::debugScale(double scale, double offsetX, double offsetY) {
-#if OP_DEBUG
 	context->debugCallback(c.type).scaleFuncPtr(c, scale, offsetX, offsetY);
-#endif
 }
 
-void OpDebugSamples::addCurveXatY(Curve original, int parentID, OpWinding* winding, bool curveDown) {
-	OP_DEBUG_CODE(OpCurve orig(context, original));
-	OpCurve curve(context, original);
+// advance 1/8th (or whatever sub samples is set to)
+void OpDebugSamples::addCurveXatY(Curve original, int parentID, OpWinding* winding) {
+	OpCurve curve(context, original, Rotated::no);
 	curve.debugScale(scale, offsetX, offsetY);
 	OpPoint xy = curve.firstPt();
 	OpPoint xyEnd = curve.lastPt();
-	if (xy.y > xyEnd.y)
+    bool curveDown = xy.y <= xyEnd.y;
+	if (!curveDown)
 		std::swap(xy, xyEnd);
-	float y = toCenter(xy.y);
-	float yEnd = toLimit(xyEnd.y);
-	y = std::max(0.5f, y);
-	yEnd = std::min((bitHeight - 1) + 0.5f, yEnd);
-	while (y <= yEnd) {
+	float y = toSubGrid(xy.y);
+	float yEnd = toSubGrid(xyEnd.y);
+	y = std::max(0.f, y);
+	yEnd = std::min(1.f, yEnd);
+    int subline = (int) std::ceil(y * OpDebugSamples::subSamples);
+	while (y < yEnd) {
 		float t = curve.tAtXY(0, 1, XyChoice::inY, y);
 		float x = curve.ptAtT(t).x;
-		if (x < bitWidth) {
-//			OpDebugOut("x:" + STR(x) + " y:" + STR(y) + "\n");
+		if (x < OpDebugRaster::bitWidth) {
+			OpDebugOut("id:" + STR(parentID) + " x:" + STR(x) + " y:" + STR(y) 
+                    + " subline:" + STR(subline) + "\n");
 			x = std::max(0.f, x);
-			int intY = (int) y;
-			OP_ASSERT(0 <= x && x < bitWidth);
-			OP_ASSERT(0 <= intY && intY < bitHeight);
-			samples.push_back({ winding, x, y, intY, parentID, curveDown, false });
+            OP_ASSERT(subline < subSamples);
+            std::vector<RasterSample>& samples = sampleSet[subline];
+			OP_ASSERT(0 <= x && x < OpDebugRaster::bitWidth);
+			samples.push_back({ &winding->w, x, y, parentID, curveDown });
 		}
-		y += 1.f;
+        ++subline;
+		y += 1.f / subSamples;
 	}
 }
 
+namespace PathOpsV0Lib {
+
+void debugRasterAdd(DebugContextData caller, Curve curve, int parentID) {
+    OP_ASSERT(sizeof(OpDebugSamples*) == caller.size);
+    OpDebugSamples* samples = (OpDebugSamples*) caller.data;
+    samples->addCurveXatY(curve, parentID);
+}
+
+}
+
+#if 0
 void OpDebugSamples::addCurveYatX(Curve original, int parentID, OpWinding* winding, bool curveRight) {
-	OP_DEBUG_CODE(OpCurve orig(context, original));
-	OpCurve curve(context, original);
+	OpCurve curve(context, original, Rotated::no);
 	curve.debugScale(scale, offsetX, offsetY);
 	OpPoint xy = curve.firstPt();
 	OpPoint xyEnd = curve.lastPt();
@@ -67,29 +75,27 @@ void OpDebugSamples::addCurveYatX(Curve original, int parentID, OpWinding* windi
 	float x = toCenter(xy.x);
 	float xEnd = toLimit(xyEnd.x);
 	x = std::max(0.5f, x);
-	xEnd = std::min((bitHeight - 1) + 0.5f, xEnd);
+	xEnd = std::min((subSamples - 1) + 0.5f, xEnd);
 	while (x <= xEnd) {
 		float t = curve.tAtXY(0, 1, XyChoice::inX, x);
 		float y = curve.ptAtT(t).y;
-		if (y < bitHeight) {
+		if (y < subSamples) {
 //			OpDebugOut("x:" + STR(x) + " y:" + STR(y) + "\n");
 			y = std::max(0.f, y);
-			OP_ASSERT(0 <= x && x < bitWidth);
-			OP_ASSERT(0 <= y && y < bitHeight);
-			samples.push_back({ winding, x, y, (int) y, parentID, curveRight, true });
+			int intY = (int) y;
+            OP_ASSERT(0 <= intY && intY < subSamples);
+            std::vector<RasterSample>& samples = sampleSet[intY];
+			OP_ASSERT(0 <= x && x < OpDebugRaster::bitWidth);
+			OP_ASSERT(0 <= y && y < subSamples);
+			samples.push_back({ winding, x, y, parentID, curveRight });
 		}
 		x += 1.f;
 	}
 }
+#endif
 
 float OpDebugSamples::compare(OpDebugSamples& outputs) {
-	if (!context->rasterEnabled)
-		return 0;
-	if (samples.size())
-		return 0;
 	outputs.sort();
-	size_t comboIndex = 0;
-	size_t outIndex = 0;
 	OpWinding comboSum(WindingUninitialized::dummy);
 	float lastComboY = -1;
 	float lastOutY = -1;
@@ -100,94 +106,132 @@ float OpDebugSamples::compare(OpDebugSamples& outputs) {
 	float error = 0;
 	bool comboVisible = false;
 	bool outVisible = false;
-	while (comboIndex < samples.size() || outIndex < outputs.samples.size()) {
-		int comboX = comboIndex < samples.size() ? samples[comboIndex].x : bitWidth;
-		int comboY = comboIndex < samples.size() ? samples[comboIndex].y : bitHeight;
-		int outX = outIndex < outputs.samples.size() ? outputs.samples[outIndex].x : bitWidth;
-		int outY = outIndex < outputs.samples.size() ? outputs.samples[outIndex].y : bitHeight;
-		if ((comboY < outY || (comboY == outY && comboX < outX)) && comboIndex < samples.size()) {
-			RasterSample& sample = samples[comboIndex];
-			if (!comboSum.contour)
-				comboSum = OpWinding(sample.winding->contour, sample.winding->w);
-			if (comboY > lastComboY) {
-				comboSum.zero();
-				lastComboX = 0;
-				comboVisible = false;
-			}
-			if (sample.curveDown)
-				comboSum.add(*sample.winding);
-			else
-				comboSum.subtract(*sample.winding);
-			bool visible = comboSum.visible();
-			if (comboVisible != visible) {
-				if (visible)
-					comboCoverage += sample.x - lastComboX;
-				else
-					lastComboX = sample.x;
-			}
-			comboVisible = visible;
-			lastComboY = comboY;
-			comboY = ++comboIndex < samples.size() ? samples[comboIndex].y : bitHeight;
-		}
-		if ((outY < comboY || (outY == comboY && outX < comboX)) && outIndex < outputs.samples.size()) {
-			RasterSample& outSample = outputs.samples[outIndex];
-			if (outY > lastOutY) {
-				lastOutX = 0;
-				outVisible = false;
-			}
-			if (outVisible)
-				outCoverage += outSample.x - lastOutX;
-			else
-				lastOutX = outSample.x;
-			outVisible ^= true;
-			lastOutY = outY;
-			outY = ++outIndex < outputs.samples.size() ? outputs.samples[outIndex].y : bitHeight;
-		}
-		if (!comboVisible && !outVisible) {
-			error += fabs(comboCoverage - outCoverage);
-			comboCoverage = 0;
-			outCoverage = 0;
-		}
-	}
+    for (int sub = 0; sub < subSamples; ++sub) {
+        std::vector<RasterSample>& subS = sampleSet[sub];
+        std::vector<RasterSample>& subO = outputs.sampleSet[sub];
+	    size_t comboIndex = 0;
+	    size_t outIndex = 0;
+	    while (comboIndex < subS.size() || outIndex < subO.size()) {
+		    int comboX = comboIndex < subS.size() ? subS[comboIndex].x : OpDebugRaster::bitWidth;
+		    int comboY = comboIndex < subS.size() ? subS[comboIndex].y : OpDebugRaster::bitHeight;
+		    int outX = outIndex < subO.size() ? subO[outIndex].x : OpDebugRaster::bitWidth;
+		    int outY = outIndex < subO.size() ? subO[outIndex].y : OpDebugRaster::bitHeight;
+		    if ((comboY < outY || (comboY == outY && comboX < outX)) && comboIndex < subS.size()) {
+			    RasterSample& sample = subS[comboIndex];
+			    if (WindingType::uninitialized == comboSum.type)
+				    comboSum = OpWinding(context, *sample.winding);
+			    if (comboY > lastComboY) {
+				    comboSum.zero(context);
+				    lastComboX = 0;
+				    comboVisible = false;
+			    }
+			    if (sample.curveDown)
+				    comboSum.add(context, *sample.winding);
+			    else
+				    comboSum.subtract(context, *sample.winding);
+			    bool visible = comboSum.visible(context);
+			    if (comboVisible != visible) {
+				    if (visible)
+					    comboCoverage += sample.x - lastComboX;
+				    else
+					    lastComboX = sample.x;
+			    }
+			    comboVisible = visible;
+			    lastComboY = comboY;
+			    comboY = ++comboIndex < subS.size() ? subS[comboIndex].y : OpDebugRaster::bitHeight;
+		    }
+		    if ((outY < comboY || (outY == comboY && outX < comboX)) && outIndex < subO.size()) {
+			    RasterSample& outSample = subO[outIndex];
+			    if (outY > lastOutY) {
+				    lastOutX = 0;
+				    outVisible = false;
+			    }
+			    if (outVisible)
+				    outCoverage += outSample.x - lastOutX;
+			    else
+				    lastOutX = outSample.x;
+			    outVisible ^= true;
+			    lastOutY = outY;
+			    outY = ++outIndex < subO.size() ? subO[outIndex].y : OpDebugRaster::bitHeight;
+		    }
+		    if (!comboVisible && !outVisible) {
+			    error += fabs(comboCoverage - outCoverage);
+			    comboCoverage = 0;
+			    outCoverage = 0;
+		    }
+	    }
+    }
+	if (error >= 9) {
+	#if OP_DEBUG_FAST_TEST
+		std::lock_guard<std::mutex> guard(out_mutex);
+	#endif
+	    std::string testname = context->debugData.testname;
+	    OpDebugOut(testname + " raster errors:" + STR(error) + "\n");
+    }
 	return error;
 }
 
-void OpDebugSamples::init(OpContext* ctext) {
+void OpDebugSamples::init(OpContext* ctext, int scanline, bool keep) {
 	context = ctext;
-	if (!context->rasterEnabled)
-		return;
-	float scaleX = bitWidth / context->maxBounds.width();
-	float scaleY = bitHeight / context->maxBounds.height();
+	float scaleX = OpDebugRaster::bitWidth / context->maxBounds.width();
+	float scaleY = OpDebugRaster::bitHeight / context->maxBounds.height();
 	scale = std::min(scaleX, scaleY);
 	offsetX = -context->maxBounds.left * scale;
-	offsetY = -context->maxBounds.top * scale;
+	offsetY = -context->maxBounds.top * scale - scanline;
+    callKeep = keep;
+    OpDebugOut("  scanline:" + STR(scanline) + " offsetY:" + STR(offsetY) + "\n");
 }
 
-void OpDebugSamples::sample(OpContour* contour) {
+void OpDebugSamples::sample(OpContour* contour ) {
 	if (!contour->segments.size())
 		return;
 	for (OpSegment& segment : contour->segments) {
-		addCurveXatY(segment.c.c, segment.id, &segment.winding, 
-				segment.c.firstPt().y < segment.c.lastPt().y);
-		addCurveYatX(segment.c.c, segment.id, &segment.winding, 
+		addCurveXatY(segment.c.c, segment.id, &segment.winding);
+#if 0
+        addCurveYatX(segment.c.c, segment.id, &segment.winding, 
 				segment.c.firstPt().x < segment.c.lastPt().x);
+#endif
 	}
 	sort();
 }
 
 void OpDebugSamples::sort() {
-	std::sort(samples.begin(), samples.end(), [](const RasterSample& a, const RasterSample& b) {
-		return a.intY < b.intY || (a.intY == b.intY && a.x < b.x);
-	});
+    for (std::vector<RasterSample>& samps : sampleSet) {       
+	    std::sort(samps.begin(), samps.end(), [](const RasterSample& a, const RasterSample& b) {
+		    return a.x < b.x;
+	    });
+    }
 }
 
-void OpDebugRaster::fillScanline(float x, float endX, int y) {
+struct OpDebugScanLine {
+	void fill(float x, float endX, int y);
+	void init();
+
+    uint8_t subScan[OpDebugRaster::bitWidth * OpDebugSamples::subSamples];  // 1 byte per pixel, black/white only
+	char* data; // for image watch
+	int width; 
+	int height;
+	int stride;
+};
+
+void OpDebugScanLine::init() {
+	memset(subScan, 0xFF, sizeof(subScan));
+	// for image watch
+	width = OpDebugRaster::bitWidth;
+	height = OpDebugSamples::subSamples;
+	stride = OpDebugRaster::bitWidth;
+	data = (char*) subScan;
+}
+
+void OpDebugScanLine::fill(float x, float endX, int subLine) {
+    OP_ASSERT(0 <= subLine && subLine < OpDebugSamples::subSamples);
 	if (x >= endX)
 		return;
 	int intX = (int) x;
 	int intEndX = (int) endX;
 	int xPartial = std::min(intX + 1, intEndX);
-	uint8_t* bitsPtr = &bits[y * bitWidth + intX];
+    OP_ASSERT(0 <= intX && intX <= OpDebugRaster::bitWidth);
+	uint8_t* bitsPtr = &subScan[subLine * OpDebugRaster::bitWidth + intX];
 	if (x < xPartial)
 		*bitsPtr++ -= (xPartial - x) * 255;
 	while (++intX < intEndX) {
@@ -206,71 +250,124 @@ void OpDebugRaster::init() {
 	data = (char*) bits;
 }
 
-void dmpSample(const OpDebugSamples& samples, int match) {
-	for (size_t index = 0; index < samples.samples.size(); ++index) {
-		const RasterSample& sample = samples.samples[index];
-		if (sample.intY == match)
+void OpDebugRaster::rasterize(const OpDebugSamples& sampleSet, int scanLine) {
+    OpContext* context = sampleSet.context;
+    OpDebugScanLine subScan;
+    subScan.init();
+	int subLine = 0;
+	for (const std::vector<RasterSample>& samples : sampleSet.sampleSet) {
+	    OpWinding sum(WindingUninitialized::dummy);
+//		sum.zero(context);
+	    float x = 0;
+	    bool fillOn = false;
+	    bool lastVisible = false;
+		for (const RasterSample& sample : samples) {
+		    if (WindingType::uninitialized == sum.type)
+			    sum.zeroUninitialized(context, *sample.winding);
+		    if (sample.curveDown)
+			    sum.add(context, *sample.winding);
+		    else
+			    sum.subtract(context, *sample.winding);
+		    bool visible;
+		    if (sampleSet.callKeep) {
+			    WindKeep keep = context->windingCallbacks.windingKeepFuncPtr(
+                        *sample.winding, sum.w);
+			    visible = WindKeep::Start == keep;
+		    } else
+			    visible = sum.visible(context);
+		    if (lastVisible == visible)
+			    continue;
+		    lastVisible = visible;
+		    if (fillOn) {
+			    // use ids to determine that samples outside range are ok to consider?
+			    subScan.fill(x, sample.x, subLine);
+		    } else
+			    x = sample.x;
+		    fillOn ^= true;
+        }
+        ++subLine;
+	}
+    for (int x = 0; x < bitWidth; ++x) {
+        int pixel = 0;
+        for (int y = 0; y < OpDebugSamples::subSamples; ++y) {
+            pixel += subScan.subScan[y * bitWidth + x];
+        }
+        bits[scanLine * bitWidth + x] = pixel / OpDebugSamples::subSamples;
+    }
+    OpNop();  // dmpScan(this, scanLine)  and  dmpSub(subScan)
+}
+
+void OpDebugRaster::compare(OpDebugRaster& comp) {
+
+}
+
+void DebugRaster::in(Context* ctx) {
+	OpContext* context = (OpContext*) ctx;
+	OpDebugRaster inBits;
+    inBits.init();
+    for (int scanLine = 0; scanLine < OpDebugRaster::bitHeight; ++scanLine) {
+		inSamples.init(context, scanLine, false);
+		for (auto contour : context->contours) {
+            inSamples.sample(contour);
+            OpNop();
+		}
+		inBits.rasterize(inSamples, scanLine);
+	}
+    OpNop();  // !!! draw in bits for debugging
+}
+
+void DebugRaster::out(Context*  ) {
+    inSamples.compare(outSamples);
+	OpDebugRaster outBits;
+    outBits.init();
+    for (int scanLine = 0; scanLine < OpDebugRaster::bitHeight; ++scanLine) {
+        outBits.rasterize(outSamples, scanLine);
+    }
+    OpNop();  // !!! draw out bits for debugging
+}
+
+void dmpSample(const OpDebugSamples& sampleSet) {
+    int sub = 0;
+	for (const std::vector<RasterSample>& samples : sampleSet.sampleSet) {
+        OpDebugOut("sub:" + STR(sub) + "\n");
+		for (const RasterSample& sample : samples) {
 			OpDebugOut("id:" + STR(sample.parentID) + " x:" + STR(sample.x) + " y:" + STR(sample.y) 
 					+ " curve:" + std::string(sample.curveDown ? "T" : "F") 
-					+ " vert:" + std::string(sample.vertical ? "T" : "F") + "\n");  
+//					+ " vert:" + std::string(sample.vertical ? "T" : "F")
+                    + "\n");  
+        }
+        ++sub;
 	}
 }
 
-void dmpSample(const OpDebugSamples* samples, int match) {
-	dmpSample(*samples, match);
+void dmpSample(const OpDebugSamples* samples) {
+	dmpSample(*samples);
 }
 
-void OpDebugRaster::rasterize(const OpDebugSamples& samples, OpContour* cntr) {
-	init();
-	if (!samples.context->rasterEnabled)
-		return;
-	OpWinding sum(WindingUninitialized::dummy);
-	int intY = -1;
-	float x = 0;
-	bool fillOn = false;
-	bool lastVisible = false;
-	for (size_t index = 0; index < samples.samples.size(); ++index) {
-		const RasterSample& sample = samples.samples[index];
-		if (sample.vertical) {
-			// !!! add capture range of partial
-			continue;
-		}
-		OpContour* contour = sample.winding->contour;
-		if (cntr && contour != cntr)
-			continue;
-		
-		if (!sum.contour)
-			sum = OpWinding(sample.winding->contour, sample.winding->w);
-		if (sample.intY > intY) {
-			if (fillOn)
-				fillScanline(x, bitWidth, intY);  // probably an error
-			sum.zero();
-			x = 0;
-			intY = sample.intY;
-			fillOn = false;
-			lastVisible = false;
-		}
-		if (sample.curveDown)
-			sum.add(*sample.winding);
-		else
-			sum.subtract(*sample.winding);
-		bool visible;
-		if (!cntr) {
-			WindKeep keep = contour->callbacks.windingKeepFuncPtr(sample.winding->w, sum.w);
-			visible = WindKeep::Start == keep;
-		} else
-			visible = sum.visible();
-		if (lastVisible == visible)
-			continue;
-		lastVisible = visible;
-		if (fillOn) {
-			// !!! extend scanline to include partial coverage by verticals, if present
-			// use ids to determine that samples outside range are ok to consider?
-			fillScanline(x, sample.x, intY);
-		} else
-			x = sample.x;
-		fillOn ^= true;
-	}
+void dmpSub(const OpDebugScanLine& scans) {
+    for (int y = 0; y < OpDebugSamples::subSamples; ++y) {
+        std::string s;
+        for (int x = 0; x < OpDebugRaster::bitWidth; ++x) {
+            uint8_t bit = scans.subScan[y * OpDebugRaster::bitWidth + x];
+            s += bit < 64 ? " " : bit < 128 ?  "," :  bit < 192 ? "x" : "X";
+        }
+        OpDebugOut(s + "\n");
+    }
+}
+
+void dmpScan(const OpDebugRaster* rasta, int line) {
+    std::string s;
+    for (int x = 0; x < OpDebugRaster::bitWidth; ++x) {
+        uint8_t bit = rasta->bits[line * OpDebugRaster::bitWidth + x];
+        s += bit < 64 ? " " : bit < 128 ?  "," :  bit < 192 ? "x" : "X";
+    }
+    OpDebugOut(s + "\n");
+}
+
+void dmpScan(const OpDebugRaster* rasta) {
+    for (int y = 0; y < OpDebugRaster::bitHeight; ++y) {
+        dmpScan(rasta, y);
+    }
 }
 
 #endif

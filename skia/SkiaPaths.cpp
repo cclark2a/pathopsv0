@@ -7,6 +7,9 @@
 #endif
 
 #include "SkiaPaths.h"
+#if TEST_RASTER
+#include "OpDebugRaster.h"
+#endif
 
 static const SkPathOp inverseOpMapping[5][2][2] {
     {{kDifference_SkPathOp, kIntersect_SkPathOp}, {kUnion_SkPathOp, kReverseDifference_SkPathOp }},
@@ -45,21 +48,9 @@ bool SkPathOpInvertOutput(SkPathOp op, bool leftOperandIsInverted, bool rightOpe
 #include "curves/BinaryWinding.h"
 #include "curves/UnaryWinding.h"
 
-#include "PathOps.h"
-
 using namespace PathOpsV0Lib;
 
 #if OP_DEBUG
-struct UnaryContour {
-    const SkPath* pathPtr;
-    int contourIndex;
-	bool drawNativePath;
-};
-
-struct BinaryContour : public UnaryContour {
-	BinaryOperand operand;
-};
-
 struct UnaryContext {
 };
 
@@ -130,7 +121,8 @@ void SetSkiaCurveCallbacks(Context* context) {
     OP_DEBUG_CODE(CurveType lineType =) SetCurveCallbacks(context, { skiaLineOutput });
 	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, lineType, { debugLineScale
             OP_DEBUG_DUMP_PARAMS(lineDebugDumpName, nullptr)
-            OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath) }));
+            OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath) 
+            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) }));
 	OP_ASSERT((int) lineType == (int) SkiaCurveType::skiaLineType);
     OP_DEBUG_CODE(CurveType quadType =) SetCurveCallbacks(context, { skiaQuadOutput, quadAxisT,
 			quadRotatedT, quadHull, quadIsFinite, quadIsLine, quadSetBounds, /* quadPinCtrl, */
@@ -138,7 +130,8 @@ void SetSkiaCurveCallbacks(Context* context) {
 			quadSubDivide, quadXYAtT });
 	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, quadType, { debugQuadScale
             OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, nullptr)
-            OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath) }));
+            OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath) 
+            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) }));
 	OP_ASSERT((int) quadType == (int) SkiaCurveType::skiaQuadType);
     OP_DEBUG_CODE(CurveType conicType =) SetCurveCallbacks(context, { skiaConicOutput, conicAxisT,
 			conicRotatedT, conicHull, conicIsFinite, conicIsLine, conicSetBounds, /* quadPinCtrl, */ 
@@ -146,7 +139,8 @@ void SetSkiaCurveCallbacks(Context* context) {
 			conicSubDivide, conicXYAtT });
 	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, conicType, { debugConicScale
             OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
-            OP_DEBUG_IMAGE_PARAMS(debugConicAddToSkPath) }));
+            OP_DEBUG_IMAGE_PARAMS(debugConicAddToSkPath) 
+            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) }));
 	OP_ASSERT((int) conicType == (int) SkiaCurveType::skiaConicType);
     OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallbacks(context, { skiaCubicOutput, cubicAxisT,
 			cubicRotatedT, cubicHull, cubicIsFinite, cubicIsLine, cubicSetBounds, /* cubicPinCtrl, */
@@ -154,7 +148,8 @@ void SetSkiaCurveCallbacks(Context* context) {
 			cubicSubDivide, cubicXYAtT, cubicReverse });
 	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, cubicType, { debugCubicScale
             OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, nullptr)
-            OP_DEBUG_IMAGE_PARAMS(debugCubicAddToSkPath) }));
+            OP_DEBUG_IMAGE_PARAMS(debugCubicAddToSkPath) 
+            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) }));
 	OP_ASSERT((int) cubicType == (int) SkiaCurveType::skiaCubicType);
 }
 
@@ -363,7 +358,8 @@ Contour* SetSkiaSimplifyCallbacks(Context* context, Winding winding,
 
 #if OP_DEBUG
     UnaryContour simplifyUserData { &path, 0, false };
-	SetDebugContourData(contour, { &simplifyUserData, sizeof(simplifyUserData) } );
+	SetDebugContourData(contour, { &simplifyUserData, sizeof(simplifyUserData) }, 
+            DebugContourType::windingUserData );
 	SetDebugContourCallbacks(contour, { 
             OP_DEBUG_DUMP_CODE(dumpUnaryContourFunc)
             OP_DEBUG_IMAGE_PARAMS(debugSimplifyPathFunc,
@@ -407,7 +403,8 @@ void SetSkiaOpContextCallbacks(Context* context, SkPathOp op, BinaryWindType win
 			binaryWindingZeroFunc, subtractFunc });
 #if OP_DEBUG
     BinaryContext windingUserData { {}, (BinaryOperation) op };
-	SetDebugContextData(context, { &windingUserData, sizeof(windingUserData) } );
+	SetDebugContextData(context, { &windingUserData, sizeof(windingUserData) }, 
+            DebugContextType::windingUserData );
 #endif
 }
 
@@ -416,7 +413,8 @@ Contour* SetSkiaOpContourCallbacks(Context* context, Winding winding,
     Contour* contour = CreateContour(context, winding);
 #if OP_DEBUG
     BinaryContour windingUserData { { &path, 0, false }, operand };
-	SetDebugContourData(contour, { &windingUserData, sizeof(windingUserData) } );
+	SetDebugContourData(contour, { &windingUserData, sizeof(windingUserData) },
+            DebugContourType::windingUserData);
 	SetDebugContourCallbacks(contour, {
 			OP_DEBUG_DUMP_CODE(dumpBinaryContourFunc)
             OP_DEBUG_IMAGE_PARAMS(debugOpPathFunc,
@@ -430,14 +428,15 @@ Contour* SetSkiaOpContourCallbacks(Context* context, Winding winding,
     return contour;
 }
 
-void AddSkiaPath(Context* context, Contour* contour, const SkPath& path) {
+void AddSkiaPath(Context* context, Contour* contour, const SkPath& path
+        OP_DEBUG_PARAMS(UnaryContour& debugData, size_t debugSize, DebugContourType debugContourType)) {
 	if (!path.isFinite()) {  // raw iter treats non-finite path as empty
 		SetError(context, ContextError::finite);
 		return;
 	}
     SkPath::RawIter iter(path);
     OpPoint closeLine[2] = {{0, 0}, {0, 0}};  // initialize so first move doesn't add close line
-	int contourIndex = 0;
+	OP_DEBUG_CODE(int contourIndex = 0);
     for (;;) {
         SkPoint pts[4];
         SkPath::Verb verb = iter.next(pts);
@@ -450,15 +449,10 @@ void AddSkiaPath(Context* context, Contour* contour, const SkPath& path) {
             pts[1] = pts[0];
 			contour = Clone(contour);
 	#if OP_DEBUG
-		{	
-			DebugContourData debugCaller = GetDebugContourData(contour);
-			BinaryContour windingUserData;
-			std::memcpy(&windingUserData, debugCaller.data, debugCaller.size);
-			windingUserData.contourIndex = contourIndex;
-			SetDebugContourData(contour, { &windingUserData, debugCaller.size } );
-		}
-	#endif
+			debugData.contourIndex = contourIndex;
+			SetDebugContourData(contour, { &debugData, debugSize }, debugContourType );
 			++contourIndex;
+	#endif
             break;
         case SkPath::kLine_Verb:
             if (pts[0] != pts[1])

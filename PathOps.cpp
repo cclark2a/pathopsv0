@@ -65,7 +65,7 @@ Contour* Clone(Contour* interfaceContour) {
 	clone->winding = original->winding;
 #if OP_DEBUG
 	clone->debugCallbacks = original->debugCallbacks;
-	clone->debugCaller = original->debugCaller;
+	clone->debugContourData = original->debugContourData;
 #endif
     return toInterface(clone);
 }

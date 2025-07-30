@@ -177,9 +177,6 @@ OpContext::OpContext()
 	debugFailOnEqualCepts = false;
 	OP_DEBUG_DUMP_CODE(debugDumpInit = false);
 #endif
-#if TEST_RASTER
-	rasterEnabled = false;
-#endif
 }
 
 OpContext::~OpContext() {
@@ -490,10 +487,6 @@ void OpContext::opsInit() {
 		}
 	}
 
-#if TEST_RASTER
-	if (rasterEnabled)
-		rasterOutput.init();
-#endif
 }
 
 // If successive runs of the same input are flaky, check to see if identical ids are generated.
@@ -542,8 +535,7 @@ bool OpContext::pathOps() {
 
 	// made edges may include lines that are coincident with other edges. Undetected for now...
 //    windCoincidences();  // for segment h/v lines, compute their winding considering coincidence
-	OpWinder windingEdges(*this);
-	FoundWindings foundWindings = windingEdges.setWindings(*this);  // walk edges, compute windings
+	FoundWindings foundWindings = OpWinder::SetWindings(*this);  // walk edges, compute windings
 	if (FoundWindings::fail == foundWindings)
 		OP_DEBUG_FAIL(*this, false);  // no existing tests exercises
 	OP_DEBUG_DUMP_CODE(debugContext = "apply");
@@ -761,30 +753,30 @@ void OpContext::sortIntersections() {
 }
 
 #if OP_DEBUG
-void OpContext::addDebugContextData(PathOpsV0Lib::DebugContextData data) {
+void OpContext::addDebugContextData(PathOpsV0Lib::DebugContextData data, 
+        PathOpsV0Lib::DebugContextType type) {
+    PathOpsV0Lib::DebugContextData& contextData = debugContextData[(size_t) type];
+    contextData.size = data.size;
 	if (!data.size) {
-		debugContextData.data = nullptr;
-		debugContextData.size = 0;
+        contextData.data = nullptr;
 		return;
 	}
-	debugContextData.data = allocateCallerData(data.size);
-	std::memcpy(debugContextData.data, data.data, data.size);
-	debugContextData.size = data.size;  // !!! don't know if size is really needed ...
+	contextData.data = allocateCallerData(data.size);
+	std::memcpy(contextData.data, data.data, data.size);
+}
+
+PathOpsV0Lib::DebugContextData& OpContext::debugGetContextData(PathOpsV0Lib::DebugContextType type) {
+    OP_ASSERT((size_t) type < debugContextData.size());
+    return debugContextData[(size_t) type];
 }
 
 bool OpContext::debugFail() const {
-#if OP_DEBUG
 	return OpDebugExpect::unknown == debugExpect || OpDebugExpect::fail == debugExpect;
-#else
-	return false;
-#endif
 }
 
-#if OP_DEBUG
 bool OpContext::debugSuccess() const {
 	return OpDebugExpect::unknown == debugExpect || OpDebugExpect::success == debugExpect;
 }
-#endif
 
 #if OP_DEBUG_VALIDATE
 void OpContext::debugValidateIntersections() {

@@ -65,6 +65,26 @@ void OpRoots::prioritize01() {
 }
 #endif
 
+void OpRoots::smooth() {
+    float last = -1;
+    OP_ASSERT(0 == roots.front());
+    OP_ASSERT(1 == roots.back());
+	for (int index = 0; index < (int) roots.size(); ++index) {
+        float tValue = roots[index];
+        OP_ASSERT(tValue >= last);  // assert that it is already sorted
+        if (last + OpEpsilon >= tValue) {
+            if (1 == tValue)
+                --index;
+            int remaining = (int) roots.size() - index - 1;
+            if (remaining > 0)
+                memcpy(&roots[index], &roots[index + 1], sizeof(float) * remaining);
+            roots.pop_back();
+            tValue = roots[index];
+        }
+        last = tValue;
+    }
+}
+
 OpVector OpVector::normalize() {
 	float len = length();
 	if (!OpMath::IsFinite(len))
@@ -307,12 +327,13 @@ bool LinePts::ptOnLine(OpPoint ctrlPt) const {
 		return false;
 	OpVector sxy = ctrlPt - pts[0];
 	OpVector dxy = pts[1] - pts[0];
-	float nearStart = dxy.cross(sxy) / dxy.length();
-	if (fabsf(nearStart) > OpEpsilon)
+	float nearStart = dxy.cross(sxy);
+    float threshold = OpEpsilon * dxy.length();
+	if (fabsf(nearStart) > threshold)
 		return false;
 	OpVector exy = pts[1] - ctrlPt;
 	float nearEnd = dxy.cross(exy);
-	if (fabsf(nearEnd) > OpEpsilon)
+	if (fabsf(nearEnd) > threshold)
 		return false;
 	return true;
 }

@@ -6,6 +6,35 @@
 
 namespace PathOpsV0Lib {
 
+// caller defined contour data (e.g., a pointer to the native path)
+typedef void* DebugContour;
+
+enum class DebugContourType {
+    windingUserData,
+    Count
+};
+
+// for transport of contour data to callbacks
+struct DebugContourData {
+	DebugContour data;
+	size_t size;
+};
+
+// caller defined context data (e.g., the path operation)
+typedef void* DebugContext;
+
+enum class DebugContextType {
+    windingUserData,
+    addRaster,
+    Count
+};
+
+// for transport of context data to callbacks
+struct DebugContextData {
+	DebugContext data;
+	size_t size;
+};
+
 #if OP_DEBUG
 typedef void (*DebugScale)(Curve , double scale, double offsetX, double offsetY);
 
@@ -22,29 +51,18 @@ typedef std::string (*DebugDumpCurveExtra)(Curve , DebugLevel , DebugBase);
 typedef void (*DebugAddToPath)(Curve , class SkPath& );
 #endif
 
+#if TEST_RASTER
+typedef void (*DebugAddRaster)(DebugContextData , Curve , int parentID);
+#endif
+
 struct DebugCurveCallbacks {
 	DebugScale scaleFuncPtr;
 	OP_DEBUG_DUMP_CODE(DebugDumpCurveName curveNameFuncPtr;)
 	OP_DEBUG_DUMP_CODE(DebugDumpCurveExtra curveExtraFuncPtr;)
 	OP_DEBUG_IMAGE_CODE(DebugAddToPath addToPathFuncPtr;)
-};
-
-// caller defined context data (e.g., the path operation)
-typedef void* DebugContext;
-
-// for transport of context data to callbacks
-struct DebugContextData {
-	DebugContext data;
-	size_t size;
-};
-
-// caller defined contour data (e.g., a pointer to the native path)
-typedef void* DebugContour;
-
-// for transport of contour data to callbacks
-struct DebugContourData {
-	DebugContour data;
-	size_t size;
+#if TEST_RASTER
+    DebugAddRaster addRasterFuncPtr;
+#endif
 };
 
 typedef uint8_t (*DebugBitOper)(DebugContourData , uint8_t , uint8_t);

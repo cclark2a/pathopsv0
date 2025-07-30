@@ -78,7 +78,6 @@ OP_X(OpRect) \
 OP_X(OpRoots) \
 OP_X(OpTree) \
 OP_X(OpVector) \
-OP_X(OpWinder) \
 OP_X(OpWinding) \
 OP_X(SectRay) \
 OP_X(SegPt)

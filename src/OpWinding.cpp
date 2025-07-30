@@ -30,9 +30,13 @@ OpWinding::OpWinding(OpContext* context, const OpWinding& from) {
 	OP_DEBUG_CODE(debugType = from.debugType);
 }
 
-void OpWinding::add(OpContext* context, const OpWinding& winding) {
+void OpWinding::add(OpContext* context, const PathOpsV0Lib::Winding& winding) {
 	copyOnDemand(context);
-	context->windingCallbacks.windingAddFuncPtr(w, winding.w);
+	context->windingCallbacks.windingAddFuncPtr(w, winding);
+}
+
+void OpWinding::add(OpContext* context, const OpWinding& winding) {
+    add(context, winding.w);
 }
 
 PathOpsV0Lib::Winding OpWinding::copyData(OpContext* context) const {
@@ -56,9 +60,13 @@ void OpWinding::setWind(const OpWinding& fromSegment) {
 	type = WindingType::caller;  // copy before modify
 }
 
-void OpWinding::subtract(OpContext* context, const OpWinding& winding) {
+void OpWinding::subtract(OpContext* context, const PathOpsV0Lib::Winding& winding) {
 	copyOnDemand(context);
-	context->windingCallbacks.windingSubtractFuncPtr(w, winding.w);
+	context->windingCallbacks.windingSubtractFuncPtr(w, winding);
+}
+
+void OpWinding::subtract(OpContext* context, const OpWinding& winding) {
+    subtract(context, winding.w);
 }
 
 bool OpWinding::visible(OpContext* context) const {
@@ -70,14 +78,18 @@ void OpWinding::zero(OpContext* context) {
 	context->windingCallbacks.windingZeroFuncPtr(w);
 }
 
-void OpWinding::zeroUninitialized(OpContext* context, const OpWinding& winding) {
+void OpWinding::zeroUninitialized(OpContext* context, const PathOpsV0Lib::Winding& winding) {
 	if (WindingType::copy == type)
 		return;
 	OP_ASSERT(WindingType::uninitialized == type);
-	OP_ASSERT(winding.w.size);
-	w = { context->allocateWinding(winding.w.size), winding.w.size };
+	OP_ASSERT(winding.size);
+	w = { context->allocateWinding(winding.size), winding.size };
 	type = WindingType::copy;
 	context->windingCallbacks.windingZeroFuncPtr(w);
+}
+
+void OpWinding::zeroUninitialized(OpContext* context, const OpWinding& winding) {
+    zeroUninitialized(context, winding.w);
 }
 
 void OpWinding::move(OpContext* context, const OpWinding& opp, bool backwards) {

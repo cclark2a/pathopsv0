@@ -13,7 +13,7 @@
 #include "OpWinder.h"
 #include "PathOps.h"
 
-int OpCurveCurve::debugCall;  // which call to curve-curve was made
+int OpCurveCurve::debugCall = INT_MAX;  // which call to curve-curve was made
 
 // !!! things to do:
 // decrement debug level (and indent) when dumping (for example) edges within an edge
@@ -1052,39 +1052,26 @@ void dmpContours() {
 }
 
 void dmpMatch(const OpPoint& pt, bool detail) {
-    for (const auto c : debugGlobalContext->contours) {
-        for (const auto& seg : c->segments) {
-            if (pt == seg.c.firstPt() || pt == seg.c.lastPt()) {
-                std::string str = "seg: " 
-                        + (detail ? seg.debugDump(DebugLevel::detailed, defaultBase) 
-                        : seg.debugDump(defaultLevel, defaultBase));
-                OpDebugOut(str + "\n");
-            }
-            for (const auto sect : seg.sects.i) {
-                if (sect->ptT.pt == pt) {
-                    OpDebugOut("sect: ");
-                    detail ? sect->dump(DebugLevel::detailed, defaultBase) : sect->dump();
-                }
-            }
-            for (const auto& edge : seg.edges) {
-                if (edge.curve.firstPt() == pt) {
-                    OpDebugOut("edge start: ");
-                    detail ? edge.dump(DebugLevel::detailed, defaultBase) : edge.dump();
-                }
-                if (edge.curve.lastPt() == pt) {
-                    OpDebugOut("edge end: ");
-                    detail ? edge.dump(DebugLevel::detailed, defaultBase) : edge.dump();
-                }
-                if (edge.curve.firstPt() != edge.iStart && edge.iStart == pt) {
-                    OpDebugOut("edge iStart: ");
-                    detail ? edge.dump(DebugLevel::detailed, defaultBase) : edge.dump();
-                }
-                if (edge.curve.lastPt() != edge.iEnd && edge.curve.lastPt() == pt) {
-                    OpDebugOut("edge iEnd: ");
-                    detail ? edge.dump(DebugLevel::detailed, defaultBase) : edge.dump();
-                }
-            }
-        }
+    DebugLevel level = detail ? DebugLevel::detailed : defaultLevel;
+	for (auto segment : segmentIterator) {
+        OpSegment& seg = *segment;
+        if (pt == seg.c.firstPt() || pt == seg.c.lastPt())
+            OpDebugFormat("seg: " + seg.debugDump(level, defaultBase) + "\n");
+    }
+    for (auto sect : intersectionIterator) {
+        if (sect->ptT.pt == pt)
+            OpDebugFormat("sect: " +  sect->debugDump(level, defaultBase) + "\n");
+    }
+    for (auto edgePtr : edgeIterator) {
+    	OpEdge& edge = *edgePtr;
+        if (edge.curve.firstPt() == pt)
+            OpDebugFormat("edge start: " + edge.debugDump(level, defaultBase) + "\n");
+        if (edge.curve.lastPt() == pt)
+            OpDebugFormat("edge end: " + edge.debugDump(level, defaultBase) + "\n");
+        if (edge.curve.firstPt() != edge.iStart && edge.iStart == pt)
+            OpDebugFormat("edge iStart: " + edge.debugDump(level, defaultBase) + "\n");
+        if (edge.curve.lastPt() != edge.iEnd && edge.curve.lastPt() == pt)
+            OpDebugFormat("edge iEnd: " + edge.debugDump(level, defaultBase) + "\n");
     }
 }
 
@@ -1366,7 +1353,8 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
     if (DebugLevel::detailed == l) {
 		auto contourExtra = debugCallbacks.debugDumpContourExtraFuncPtr;
 		if (contourExtra)
-			s += (*contourExtra)(debugCaller, l, b) + " ";
+			s += (*contourExtra)(debugContourData[
+                (size_t) PathOpsV0Lib::DebugContourType::windingUserData], l, b) + " ";
 	}
     s += "segments:" + STR(segments.size()) + (DebugLevel::detailed == l ? "\n" : " ");
     if (DebugLevel::detailed != l) {
@@ -1919,7 +1907,7 @@ ENUM_NAME(Axis, axis)
 	OP_X(Draw) \
 	OP_X(Join) \
 	OP_X(Limb) \
-	OP_X(Custom)
+	OP_X(One)
 
 #define EDGE_MAKER \
     OP_X(SetDisabled) \
@@ -2362,6 +2350,14 @@ void Distance::dumpSet(const char*& str) {
         reversed = true;
 }
 
+std::string EdgeDist::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s;
+    if (isSet()) 
+		s += "opp:" + opp.debugDump(l, b) + " ";
+    s += debugValue(DebugLevel::error, b, "dist", dist) + " ";
+    return s;
+}
+
 std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     auto findFilter = [](const std::vector<EdgeFilter>& set, EdgeFilter match) {
         return set.end() != std::find(set.begin(), set.end(), match);
@@ -2488,14 +2484,12 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         if (' ' == s.back()) s.pop_back();
         s += "} ";
     }
+    if (dumpIt(EdgeFilter::startDist) && (dumpAlways(EdgeFilter::startDist) || startDist.debugIsSet()))
+        s += "startDist{" + startDist.debugDump(l, b) + "} ";
+    if (dumpIt(EdgeFilter::endDist) && (dumpAlways(EdgeFilter::endDist) || endDist.debugIsSet()))
+        s += "endDist{" + endDist.debugDump(l, b) + "} ";
     s += strFloat(EdgeFilter::startT, "startT", startT);
     s += strFloat(EdgeFilter::endT, "endT", endT);
-    s += strFloat(EdgeFilter::startDist, "startDist", startDist);
-    s += strFloat(EdgeFilter::endDist, "endDist", endDist);
-    if (!OpMath::IsNaN(startDist) && !OpMath::IsNaN(startOpp.t)) 
-		s += strPtT(EdgeFilter::startOpp, "startOpp", startOpp, " ");
-    if (!OpMath::IsNaN(endDist) && !OpMath::IsNaN(endOpp.t)) 
-		s += strPtT(EdgeFilter::endOpp, "endOpp", endOpp, " ");
     s += strEnum(EF::whichEnd_impl, "whichEnd", EdgeMatch::none == which(), edgeMatchName(which()));
     s += strEnum(EF::rayFail, "rayFail", EdgeFail::none == rayFail, edgeFailName(rayFail));
     s += strEnum(EF::windZero, "windZero", WindZero::unset == windZero, windZeroName(windZero));
@@ -2535,7 +2529,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     STR_BOOL(debugDraw);
     STR_BOOL(debugJoin);
     STR_BOOL(debugLimb);
-    STR_BOOL(debugCustom);
+    STR_BOOL(debugOne);
 #endif
 #if OP_DEBUG_MAKER
     if (dumpIt(EF::debugSetDisabled) && (dumpAlways(EdgeFilter::debugSetDisabled) 
@@ -2695,7 +2689,8 @@ void OpEdge::dumpSet(const char*& str) {
     // !!! skip debug color for now
     STR_BOOL(debugDraw);
     STR_BOOL(debugJoin);
-    STR_BOOL(debugCustom);
+    STR_BOOL(debugLimb);
+    STR_BOOL(debugOne);
 #endif
 #undef STR_BOOL
     // !!! skip missing if present
@@ -3561,21 +3556,15 @@ void dmp(std::array<CoinEnd, 4>& coinEndArray) {
         OpDebugOut(cea.debugDump(defaultLevel, defaultBase) + "\n");
 }
 
-std::string OpWinder::debugDump(DebugLevel l, DebugBase b) const {
-    std::string s;
-#if 0
-	s += "targets:" + targets.debugDump(l, b);
-#else
-	s += "targets:(incomplete)";
-#endif
-    return s;
-}
-
 std::string EdgeRun::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     s += "edgePtT:" + edgePtT.debugDump(l, b) + " ";
     s += "oppPtT:" + oppPtT.debugDump(DebugLevel::error, b) + " ";
     s += debugErrorValue(l, b, "oppDist", oppDist) + " ";
+    if (LimitFrom::yes == fromFoundT)
+        s += "fromFoundT ";
+    if (byZero)
+        s += "byZero ";
     OP_DEBUG_CODE(s += "debugBetween:" + STR(debugBetween) + " ");
     return s;
 }
@@ -3586,6 +3575,10 @@ void EdgeRun::dumpSet(const char*& str) {
     OpDebugRequired(str, "oppPtT:");
     oppPtT.dumpSet(str);
     oppDist = OpDebugReadNamedFloat(str, "oppDist");
+    if (OpDebugOptional(str, "fromFoundT"))
+        fromFoundT = LimitFrom::yes;
+    if (OpDebugOptional(str, "byZero"))
+        byZero = true;
 #if OP_DEBUG
     OpDebugRequired(str, "debugBetween");
     debugBetween = (int) OpDebugReadSizeT(str);
@@ -3611,8 +3604,14 @@ std::string FoundLimits::debugDump(DebugLevel l, DebugBase b) const {
         s += "parentOpp[" + STR(parentOpp->id) + "] ";
     s += "seg:" + seg.debugDump(l, b);
     s += " opp:" + opp.debugDump(l, b);
-    if (fromFoundT)
+    if (LimitFrom::yes == fromFoundT)
         s += " fromFoundT";
+    if (Unordered::yes == oppOutOfOrder)
+        s += " oppOutOfOrder";
+    if (LimitUsed::yes == used)
+        s += " used";
+    if (LimitMatch::yes == match)
+        s += " match";
 #if OP_DEBUG_MAKER
     s += " maker:" + maker.debugDump();
 #endif
@@ -3628,7 +3627,10 @@ void FoundLimits::dumpSet(const char*& str) {
     seg.dumpSet(str);
     OpDebugRequired(str, "opp");
     opp.dumpSet(str);
-    fromFoundT = OpDebugOptional(str, "fromFoundT");
+    fromFoundT = OpDebugOptional(str, "fromFoundT") ? LimitFrom::yes : LimitFrom::no;
+    oppOutOfOrder = OpDebugOptional(str, "oppOutOfOrder") ? Unordered::yes : Unordered::no;
+    used = OpDebugOptional(str, "used") ? LimitUsed::yes : LimitUsed::no;
+    match = OpDebugOptional(str, "match") ? LimitMatch::yes : LimitMatch::no;
 #if OP_DEBUG_MAKER
     OpDebugRequired(str, "maker");
     maker.dumpSet(str);
@@ -3638,6 +3640,20 @@ void FoundLimits::dumpSet(const char*& str) {
 void FoundLimits::dumpResolveAll(OpContext* c) {
     c->dumpResolve(parentEdge);
     c->dumpResolve(parentOpp);
+}
+
+std::string SnipPtTs::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s;
+    s += "seg:" + seg.debugDump(l, b);
+    s += " opp:" + opp.debugDump(l, b);
+    return s;
+}
+
+void SnipPtTs::dumpSet(const char*& str) {
+    OpDebugRequired(str, "seg");
+    seg.dumpSet(str);
+    OpDebugRequired(str, "opp");
+    opp.dumpSet(str);
 }
 
 std::string CoinPair::debugDump(DebugLevel l, DebugBase b) const {
@@ -3875,25 +3891,29 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
     for (const auto& limit : limits) {
         s += limit.debugDump(down1, b) + "\n";
     }
-    if (!OpMath::IsDebugNaN(snipEdge.t))
-        s += "snipEdge:" + snipEdge.debugDump(down1, b) + "\n";
-    if (!OpMath::IsDebugNaN(snipOpp.t))
-        s += "snipOpp:" + snipOpp.debugDump(down1, b) + "\n";
-    s += "matchRev:" + matchRev.debugDump(l, b) + " ";
+    for (const auto& snip : snips) {
+        s += snip.debugDump(down1, b) + "\n";
+    }
     s += "depth:" + STR(depth) + " ";
     s += "uniqueLimits:" + STR(uniqueLimits_impl) + " ";
+    if (reversed)
+        s += "reversed ";
+    if (boundedEdgeFailed) 
+        s += "boundedEdgeFailed ";
+    if (overlap) 
+        s += "overlap ";
     if (rotateFailed) 
         s += "rotateFailed ";
     if (sectResult) 
         s += "sectResult ";
-    if (smallTFound) 
-        s += "smallTFound ";
-    if (largeTFound) 
-        s += "largeTFound ";
+    if (lastDepthReduced) 
+        s += "lastDepthReduced ";
     if (foundGap) 
         s += "foundGap ";
     if (splitMid) 
         s += "splitMid ";
+    if (splitHullFail) 
+        s += "splitHullFail ";
 #if OP_DEBUG_DUMP
     if (DebugLevel::file == l)
         s += "debugLocalCall:" + STR(debugLocalCall) + " ";
@@ -3936,19 +3956,19 @@ void OpCurveCurve::dumpSet(const char*& str) {
         for (size_t index = 0; index < count; ++index)
             limits[index].dumpSet(str);
     }
-    if (OpDebugOptional(str, "snipEdge"))
-        snipEdge.dumpSet(str);
-    if (OpDebugOptional(str, "snipOpp"))
-        snipOpp.dumpSet(str);
+    if (OpDebugOptional(str, "snips")) {
+        size_t count = OpDebugReadSizeT(str);
+        snips.resize(count);
+        for (size_t index = 0; index < count; ++index)
+            snips[index].dumpSet(str);
+    }
     OpDebugRequired(str, "matchRev");
-    matchRev.dumpSet(str);
     OpDebugRequired(str, "depth");
     depth = (int) OpDebugReadSizeT(str);
     uniqueLimits_impl = OpDebugReadNamedInt(str, "uniqueLimits");
+    reversed = OpDebugOptional(str, "reversed");
     rotateFailed = OpDebugOptional(str, "rotateFailed");
     sectResult = OpDebugOptional(str, "sectResult");
-    smallTFound = OpDebugOptional(str, "smallTFound");
-    largeTFound = OpDebugOptional(str, "largeTFound");
     foundGap = OpDebugOptional(str, "foundGap");
     splitMid = OpDebugOptional(str, "splitMid");
 #if OP_DEBUG_DUMP
@@ -4679,10 +4699,8 @@ std::string HullSect::debugDump(DebugLevel l, DebugBase b) const {
         s += "[" + STR(opp->id) + "] ";
     s += sectTypeName(type, l);
     s += " sect:" + sect.debugDump(l, b);
-	if (oppPtT.isFinite())
-		s += " oppPtT:" + oppPtT.debugDump(l, b);
-	if (OpMath::IsFinite(oppDist))
-		s += debugValue(l, b, "oppDist", oppDist);
+	if (oppDist.isSet())
+		s += " oppDist:" + oppDist.debugDump(l, b);
     return s;
 }
 
@@ -4746,10 +4764,15 @@ void OpPointBounds::dumpSet(const char*& str) {
 }
 
 std::string OpPtT::debugDump(DebugLevel l, DebugBase b) const {
-    if (DebugLevel::error != l && !pt.isFinite() && !OpMath::IsFinite(t))
+    if (DebugLevel::error != l && !pt.debugIsUninitialized() && !pt.isFinite() 
+            && !OpMath::IsDebugNaN(t) && !OpMath::IsFinite(t))
         return "";
-    return pt.debugDump(DebugLevel::error, b) 
-            + debugValue(DebugLevel::error, b, "t", t);
+    std::string s;
+    if (!pt.debugIsUninitialized())
+        s += pt.debugDump(DebugLevel::error, b);
+    if (!OpMath::IsDebugNaN(t))
+        s += debugValue(DebugLevel::error, b, "t", t);
+    return s;
 }
 
 void OpPtT::dumpSet(const char*& str) {

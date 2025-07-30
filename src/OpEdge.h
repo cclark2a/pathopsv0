@@ -174,7 +174,7 @@ struct SectRay {
 	void sort();
 	bool tryADifferentCenter(OpEdge* );
 	DUMP_DECLARATIONS
-	OP_DEBUG_DUMP_CODE(std::string debugDumpHeader(DebugLevel l, DebugBase b) const);
+	OP_DEBUG_DUMP_CODE(std::string debugDumpHeader(DebugLevel l, DebugBase b) const;)  // clang wants semi inside
 
 	RayTargets targets;
 	std::vector<Distance> distances;
@@ -200,18 +200,44 @@ enum class SectType {
 	snipHi    // snip at t higher than intersection
 };
 
+// distance from one edge to another, used by curve-curve intersection
+struct EdgeDist {
+	EdgeDist()
+		OP_DEBUG_CODE(: dist(OpDebugNaN))  // uninitialized, unset
+	{
+	}
+
+    EdgeDist(OpPtT o, float d)
+        : opp(o)
+        , dist(d) {
+    }
+
+    EdgeDist(SetToNaN)
+        : opp(SetToNaN::dummy)
+        , dist(OpNaN) {
+    }
+
+    bool isSet() const {
+        return !OpMath::IsNaN(opp.t); }
+
+	DUMP_DECLARATIONS
+#if OP_DEBUG
+    bool debugIsSet() const {
+        return !OpMath::IsDebugNaN(opp.t) && isSet(); }
+#endif
+
+    OpPtT opp;
+    float dist;
+};
+
 // intersections of opposite curve's hull and this edge's segment
 struct HullSect {
 	HullSect(const OpEdge* o, const OpPtT& ptT, SectType st)
 		: opp(o)
 		, sect(ptT)
-		, oppPtT(SetToNaN::dummy)
-		, oppDist(OpNaN)
+        , oppDist(SetToNaN::dummy)
 		, type(st) {
 	}
-
-	void setOpp(const OpPtT* oPtT, float oDist) {
-		oppPtT = *oPtT; oppDist = oDist; }
 
 #if OP_DEBUG_DUMP
 	HullSect() {}
@@ -219,13 +245,12 @@ struct HullSect {
 #endif
 	const OpEdge* opp;
 	OpPtT sect;			// point and t of intersection with hull on this edge
-	OpPtT oppPtT;		// if sect came from edge end: the point closest on the opposite curve
-	float oppDist;		// if sect came from edge end: the distance from there to the opposite curve
+	EdgeDist oppDist;	// if sect came from edge end: the point closest on the opposite curve
 	SectType type;		// separate from match: intersection origin (or near origin)
 };
 
 struct OpHulls {
-	bool add(const OpPtT& ptT, OpVector threshold, const OpPtT* oPtT, float dist, SectType st, 
+	bool add(const OpPtT& ptT, OpVector threshold, const EdgeDist& dist, SectType st, 
 			const OpEdge* o = nullptr);
 	void clear() { h.clear(); }
 	bool nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef which);
@@ -313,6 +338,8 @@ private:
 		, winding(WindingUninitialized::dummy)
 		, sum(WindingUninitialized::dummy)
 		, many(WindingUninitialized::dummy)
+        , startDist(SetToNaN::dummy)
+        , endDist(SetToNaN::dummy)
 		, ccUnsectID(0)
 		, whichEnd_impl(EdgeMatch::none)
 		, rayFail(EdgeFail::none)
@@ -336,11 +363,9 @@ private:
 	{
 #if OP_DEBUG // a few debug values are also nonzero
 		id = -2;
-		startDist = OpNaN;
-		endDist = OpNaN;
 		segment = nullptr;
-		startT = OpNaN;
-		endT = OpNaN;
+		startT = OpDebugNaN;
+		endT = OpDebugNaN;
 		debugMatch = nullptr;
 		debugZeroErr = nullptr;
 		debugOutPath = 0;
@@ -355,10 +380,10 @@ private:
 #endif
 #if OP_DEBUG_IMAGE
 		debugColor = debugBlack;
-		debugCustom = 0;
 		debugDraw = false;
 		debugJoin = false;
 		debugLimb = false;
+        debugOne = false;
 #endif
 #if OP_DEBUG_VALIDATE
 		debugScheduledForErasure = false;
@@ -380,7 +405,6 @@ public:
 	OpEdge* advanceToEnd(EdgeMatch );
 	void apply();
 	void calcCenterT();
-	void ccInit(bool overlaps);
 	void clearActiveAndPals(OP_LINE_FILE_NP_ARGS());
 	void clearLastEdge(InOutput );
 	void clearNextEdge();
@@ -497,12 +521,10 @@ public:
 	std::vector<OpIntersection*> unSects;  // unsectable intersections bracketing edge
 	std::vector<EdgePal> pals;	 // edge + pals share sect overlap; or ray can't order edge and pals
 	OpHulls hulls;  // curve-curve intersections
+    EdgeDist startDist;  // distance from start to opposite in curve-curve intersection
+    EdgeDist endDist;  // distance from end to opposite in curve-curve intersection
 	float startT;  // used to be ptT; needs sect to find unsectable
 	float endT;
-	float startDist;  // distance from start to opposite in curve-curve intersection
-	float endDist;  // distance from end to opposite in curve-curve intersection
-	OpPtT startOpp;	// opp pt at distance (uninitialized; may be unused)
-	OpPtT endOpp;
 	int id;
 	int ccUnsectID;  // filler made to connect pair of unsectables
 	EdgeMatch whichEnd_impl;  // if 'start', prior end equals start; if 'end' prior end matches end
@@ -538,10 +560,10 @@ public:
 #endif
 #if OP_DEBUG_IMAGE
 	uint32_t debugColor;
-	uint32_t debugCustom;  // non-zero if color set by immediate mode debugging
-	bool debugDraw;
+	bool debugDraw;  // set true to be drawn in image watch
 	bool debugJoin;	 // true if included by joiner
 	bool debugLimb;  // true if a part of tree
+    bool debugOne;   // set by direct command changing color or visibility
 #endif
 #if OP_DEBUG_MAKER
 	OpDebugMaker debugSetDisabled;

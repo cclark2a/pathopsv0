@@ -4,9 +4,6 @@
 
 #include "OpJoiner.h"
 #include "OpTightBounds.h"
-#if TEST_RASTER
-#include "OpDebugRaster.h"
-#endif
 
 enum class EdgeMatch : int8_t;
 struct OpContext;
@@ -117,7 +114,8 @@ struct OpContour {
 	void unlink(OpEdge* );
 	std::vector<OpEdge*>& windingEdges(Axis );
 
-	OP_DEBUG_CODE(void addDebugContourData(PathOpsV0Lib::DebugContourData );)
+	OP_DEBUG_CODE(void addDebugContourData(PathOpsV0Lib::DebugContourData , 
+            PathOpsV0Lib::DebugContourType );)
 	OP_DEBUG_CODE(void debugMatchRay());
 #if OP_DEBUG_VALIDATE
 	void debugValidate(const OpJoiner* ) const;
@@ -165,12 +163,10 @@ struct OpContour {
 	bool overlapsMerged = false;
 
 	OP_DEBUG_CODE(PathOpsV0Lib::DebugContourCallbacks debugCallbacks);
-	OP_DEBUG_CODE(PathOpsV0Lib::DebugContourData debugCaller);  // note: use memcpy before reading
+	OP_DEBUG_CODE(std::array<PathOpsV0Lib::DebugContourData, static_cast<std::size_t>(
+            PathOpsV0Lib::DebugContourType::Count)> debugContourData);
 #if OP_DEBUG_IMAGE
 	uint32_t debugColor = blue;
-#endif
-#if TEST_RASTER
-	OpDebugRaster rasterOperand;
 #endif
 };
 

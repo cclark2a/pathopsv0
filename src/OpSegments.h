@@ -12,7 +12,7 @@ enum class IntersectResult;
 
 struct OpSegments {
 	OpSegments(OpContext& );
-	static void AddEndMatches(OpSegment* seg, OpSegment* opp);
+	static std::vector<OpIntersection*> AddEndMatches(OpSegment* seg, OpSegment* opp);
 	static void AddLineCurveIntersection(OpSegment* opp, OpSegment* seg);
 	void findCoincidence(OpContour* seg, OpContour* opp);
 	bool findCoincidence(OpSegment* seg, OpSegment* opp);

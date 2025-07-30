@@ -216,7 +216,7 @@ void SkCanvas::drawLine(float x1, float y1, float x2, float y2, const SkPaint& p
 	// move pixel center axis to pixel center axis
 }
 
-void SkCanvas::drawPath(const SkPath& path,const SkPaint& paint) {
+void SkCanvas::drawPath(const SkPath& path, const SkPaint& paint) {
 
 }
 

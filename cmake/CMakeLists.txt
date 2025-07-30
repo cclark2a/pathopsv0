@@ -29,6 +29,7 @@ set(COMMON_SOURCES
 	"../debug/OpDebug.cpp"
 	"../src/OpContext.cpp"
 	"../src/OpContour.cpp"
+	"../src/OpCubic.cpp"
 	"../src/OpCurve.cpp"
 	"../src/OpCurveCurve.cpp"
 	"../src/OpEdge.cpp"

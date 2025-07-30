@@ -72,9 +72,6 @@ void testNewInterface() {
     UnaryWinding windingData(1);
     Winding winding { &windingData, sizeof(windingData) };
     Contour* contour = CreateContour(context, winding);
-#if OP_DEBUG
-	SetDebugContourData(contour, { nullptr, 0 } );
-#endif
 
     // note that the data below omits start points for curves that match the previous end point
                       //  start      end      control

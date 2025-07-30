@@ -782,7 +782,7 @@ void DebugOpDrawEdges(std::vector<DebugOpCurve>& curves, DrawEdgeType edgeType) 
         uint32_t color = black;
         const OpEdge* edge = findEdge(curve.id);
         if (edge)
-            color = edge->debugCustom ? edge->debugCustom : edge->debugColor;
+            color = edge->debugColor;
         else
             OpDebugOut("edge " + STR(curve.id) + " not found\n");
         if (last != color) {

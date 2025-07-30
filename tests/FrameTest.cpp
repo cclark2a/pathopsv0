@@ -146,7 +146,8 @@ void testFrame() {
     Contour* frameContour = CreateContour(context, frameWinding);
 #if OP_DEBUG
 	FrameFill frameContourData = FrameFill::frame;
-	SetDebugContourData(frameContour, { &frameContourData, sizeof(frameContourData) } );
+	SetDebugContourData(frameContour, { &frameContourData, sizeof(frameContourData) }, 
+        DebugContourType::windingUserData );
 #endif
 
     FrameWinding fillData(FrameFill::fill, 1);
@@ -154,7 +155,8 @@ void testFrame() {
     Contour* fillContour = CreateContour(context, fillWinding);
 #if OP_DEBUG
 	FrameFill fillContourData = FrameFill::fill;
-	SetDebugContourData(fillContour, { &fillContourData, sizeof(fillContourData) } );
+	SetDebugContourData(fillContour, { &fillContourData, sizeof(fillContourData) }, 
+        DebugContourType::windingUserData );
 #endif
 
 	// example: return line parts in hourglass fill

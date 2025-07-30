@@ -54,65 +54,115 @@ inline CurveRef operator!(CurveRef a) {
 	return static_cast<CurveRef>(!static_cast<int>(a));
 }
 
+enum class LimitFrom : bool {
+    OP_DEBUG_ENUM()
+    no = false,
+    yes = true
+};
+
 // distance from edge to opp at this edge t, and number of edges between this and next
 struct EdgeRun {
-	void set(OpEdge* edge, OpEdge* opp, EdgeMatch );
 	bool inDeleted(CcCurves* , CcCurves* oppCurves) const;  // true if edgePt t in edge curves, etc.
-	void setOppDist(const OpSegment* segment);
+	void set(OpEdge* edge, OpSegment* opp, EdgeMatch , float distFactor);
+	bool set(OpPtT& s, OpPtT& o, OpSegment* seg, EdgeMatch , float distFactor);
+	void setOppDist(const OpSegment* segment, float distFactor);
 	DUMP_DECLARATIONS
 
 	OpPtT edgePtT;	// should be sorted by t in cc curves' runs (e.g., cc curves check mid)
 	OpPtT oppPtT;
-	float oppDist;
-	bool fromFoundT;
-	bool byZero;
+	float oppDist  OP_DEBUG_INIT_FLOAT();
+	LimitFrom fromFoundT  OP_DEBUG_INIT(LimitFrom);
+	bool byZero  OP_DEBUG_INIT_BOOL();
 #if OP_DEBUG
-	int debugBetween;  // incremented if edge t is between, and oppDist is between
+	int debugBetween = INT_MAX;  // incremented if edge t is between, and oppDist is between
 #endif
 };
 
+// distance from edge to opposite is left unclamped for hull intersections to detect crossings
+enum class ClampDist : bool {
+    OP_DEBUG_ENUM()
+    no = false,
+    yes = true
+};
+
 struct CcCurves {
-	EdgeRun* addEdgeRun(OpEdge* edge, OpEdge* opp, EdgeMatch );
-	bool checkMid(OpSegment* , OpSegment* opp, size_t index); // mid pt distance to next run smaller
-	void checkSigns(OpSegment* opp);
+	EdgeRun* addEdgeRun(OpEdge* edge, EdgeMatch , ClampDist );
+	EdgeRun* addEdgeRun(EdgeRun& , EdgeMatch , ClampDist );
+    bool checkMid(float midT, float startDist, float endDist);
+    bool checkMidEdge(OpEdge* );
+	bool checkMidRun(size_t index);  // mid pt distance to next run smaller
+	void checkSigns();
 	void clear();
+    void complementRun(OpEdge* opp);
 	bool deletedT(float t) const;  // true if t is in deleted -- deleted need not be sorted
 	std::vector<CutRangeT> findGaps() const;
-	void initialEdgeRun(OpEdge* edge, OpEdge* opp);
+    void init(CcCurves* oppCurves, float scaledMax, OpEdge* parent, OpSegment* opp);
+	void initialEdgeRun(OpEdge* edge);
 	bool lopSided(size_t priorCount, float maxBias) const;
 	void markToDelete(float tStart, float tEnd);
 	int overlaps() const;
 	float perimeter() const;
-	void snipAndGo(const OpSegment* , const OpPtT& cut, OpPoint oppPt, OpEdge* opp);
-	void snipRange(const OpSegment* , const OpPtT& lo, const OpPtT& hi, OpEdge* opp);
+    void shareDistance();
+	void snipAndGo(const OpPtT& cut, OpPoint oppPt);
+	void snipRange(const OpPtT& lo, const OpPtT& hi);
+    OpEdge* twoHulls(OpPtT& lower, OpPtT& upper);
 	DUMP_DECLARATIONS
+    OP_DEBUG_CODE(void debugCheck(const OpEdge* , EdgeMatch) const);
 	OP_DEBUG_VALIDATE_CODE(void debugValidate() const);  // assert if not sorted
 
-	std::vector<OpEdge*> c;
-	std::vector<EdgeRun> runs;
+	std::vector<OpEdge*> c;  // !!! is this sorted?
+	std::vector<EdgeRun> runs;  // !!! is this sorted?
 	std::vector<CutRangeT> deleted;  // pairs of t ranges
-	CcCurves* oppCurves;
+    OpSegment* seg  OP_DEBUG_INIT_PTR(OpSegment);
+    OpSegment* opp  OP_DEBUG_INIT_PTR(OpSegment);
+	CcCurves* oppCurves  OP_DEBUG_INIT_PTR(CcCurves);
+    float scaledMax  OP_DEBUG_INIT_FLOAT();
+};
+
+enum class Unordered : bool {
+    OP_DEBUG_ENUM()
+    no = false,
+    yes = true
+};
+
+enum class LimitUsed : bool {
+    OP_DEBUG_ENUM()
+    no = false,
+    yes = true
+};
+
+enum class LimitMatch : bool {
+    OP_DEBUG_ENUM()
+    no = false,
+    yes = true
 };
 
 struct FoundLimits {
 //	void setEnd(const OpSegment* opp, const OpCurve& curve, float t);
 	DUMP_DECLARATIONS
 
-	const OpEdge* parentEdge;
-	const OpEdge* parentOpp;  // may be null
+	const OpEdge* parentEdge  OP_DEBUG_INIT_PTR(OpEdge);
+	const OpEdge* parentOpp  OP_DEBUG_INIT_PTR(OpEdge);  // may be null
 	OpPtT seg;
 	OpPtT opp;
-	bool fromFoundT;  // if set, don't add segment intersections
-	bool oppOutOfOrder;  // if set, opp t is not ordered (skip this limit)  !!! detect error earlier
+	LimitFrom fromFoundT  OP_DEBUG_INIT(LimitFrom);  // if set, don't add segment intersections
+	Unordered oppOutOfOrder  OP_DEBUG_INIT(Unordered);  // if set, opp t is not ordered (skip this limit)  !!! detect error earlier
+    LimitUsed used  OP_DEBUG_INIT(LimitUsed);
+    LimitMatch match  OP_DEBUG_INIT(LimitMatch);
 #if OP_DEBUG_MAKER
-	OpDebugMaker maker;
+	OpDebugMaker maker { "uninitialized", -1 };
 #endif
 };
 
-#endif
+struct SnipPtTs {
+	DUMP_DECLARATIONS
+
+    OpPtT seg;
+    OpPtT opp;
+};
 
 struct OpCurveCurve {
-	OpCurveCurve(OpSegment* seg, OpSegment* opp);
+	OpCurveCurve(OpSegment* seg, OpSegment* opp, std::vector<OpIntersection*>& matchingSects);
 	void addIntersection(OpEdge* edge, OpEdge* opp);
     bool addLineCurveIntersection(OpEdge& edge, OpEdge& opp, CurveRef );
 	EdgeRun* addEdgeRun(OpEdge* , CurveRef , EdgeMatch );
@@ -140,6 +190,7 @@ struct OpCurveCurve {
 	bool setHulls(CurveRef curveRef);
 	bool setOverlaps();
 	bool setSnipFromLimits(size_t oldCount);
+    bool smallTFound(CurveRef );
 	bool splitDownTheMiddle(const OpEdge& edge, CurveRef , CcCurves& splits);
 	bool splitHulls(CurveRef , CcCurves& splits);  // hull finds split point
 	size_t uniqueLimits();
@@ -160,42 +211,42 @@ struct OpCurveCurve {
 	void dumpDepth(int level);
 	void dumpDepth();
 #endif
-	OpContext* context;
-	OpSegment* seg;
-	OpSegment* opp;
-	OpEdge* parentEdge;
-	OpEdge* parentOpp;
+	OpContext* context  OP_DEBUG_INIT_PTR(OpContext);
+	OpSegment* seg  OP_DEBUG_INIT_PTR(OpSegment);
+	OpSegment* opp  OP_DEBUG_INIT_PTR(OpSegment);
+	OpEdge* parentEdge  OP_DEBUG_INIT_PTR(OpEdge);
+	OpEdge* parentOpp  OP_DEBUG_INIT_PTR(OpEdge);
 	CcCurves edgeCurves;
 	CcCurves oppCurves;
 	std::vector<FoundLimits> limits;
-	OpPtT snipEdge;
-	OpPtT snipOpp;
-	MatchReverse matchRev;
+	std::vector<SnipPtTs> snips;
+//	MatchReverse matchRev;
+    size_t endMatches  OP_DEBUG_INIT_SIZE();
 //	float maxBoundedEdge;
-	float maxSignSwap;
+	float maxSignSwap  OP_DEBUG_INIT_FLOAT();
 //	float maxSlop;
-	float maxSplitBias;  // if bias does no meaningful reduction, split down the middle instead
-	int depth;
-	int uniqueLimits_impl;  // cached count; set negative if invalid (call 
-	int unsplitables;
-	int maxCheckSplit;  // iteration count to check if point is inside deleted bounds
-	int maxDeep;  // curves, when divided, always overlap, recurse further to look for sects
-	int maxShallow;  // curves, when divided, with no overlap, recurse less to look for sects
-	int maxSplits;  // if active splits of either curve exceed this level, give up
+	float maxSplitBias  OP_DEBUG_INIT_FLOAT();  // if bias does no meaningful reduction, split down the middle instead
+    float maxDist  OP_DEBUG_INIT_FLOAT();  // threshold factor comparing edge run distances between seg and opp
+	int depth  OP_DEBUG_INIT_INT();
+	int uniqueLimits_impl  OP_DEBUG_INIT_INT();  // cached count; set negative if invalid (call 
+	int unsplitables  OP_DEBUG_INIT_INT();
+	int maxCheckSplit  OP_DEBUG_INIT_INT();  // iteration count to check if point is inside deleted bounds
+	int maxDeep  OP_DEBUG_INIT_INT();  // curves, when divided, always overlap, recurse further to look for sects
+	int maxShallow  OP_DEBUG_INIT_INT();  // curves, when divided, with no overlap, recurse less to look for sects
+	int maxSplits  OP_DEBUG_INIT_INT();  // if active splits of either curve exceed this level, give up
 //	int maxBoundedT;
-	bool boundedEdgeFailed;
-	bool overlap;
-	bool rotateFailed;
-	bool sectResult;
-	bool smallTFound;  // if true, hull sort should prefer large t values
-	bool largeTFound;  // also used to resolve t gaps 
-	bool lastDepthReduced;
-	bool foundGap;
-	bool splitMid;
-	bool splitHullFail;  // set true if mid t is nearly equal to an end 
+    bool reversed  OP_DEBUG_INIT_BOOL();
+	bool boundedEdgeFailed  OP_DEBUG_INIT_BOOL();
+	bool overlap  OP_DEBUG_INIT_BOOL();
+	bool rotateFailed  OP_DEBUG_INIT_BOOL();
+	bool sectResult  OP_DEBUG_INIT_BOOL();
+	bool lastDepthReduced  OP_DEBUG_INIT_BOOL();
+	bool foundGap  OP_DEBUG_INIT_BOOL();
+	bool splitMid  OP_DEBUG_INIT_BOOL();
+	bool splitHullFail  OP_DEBUG_INIT_BOOL();  // set true if mid t is nearly equal to an end 
 #if OP_DEBUG_DUMP
 	static int debugCall;
-	int debugLocalCall;  // (copy so it is visible in debugger)
+	int debugLocalCall = INT_MAX;  // (copy so it is visible in debugger)
 #endif
 #if OP_DEBUG_VERBOSE
 	std::vector<size_t> dvDepthIndex;
@@ -203,3 +254,4 @@ struct OpCurveCurve {
 #endif
 };
 
+#endif

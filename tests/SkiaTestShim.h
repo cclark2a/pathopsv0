@@ -9,17 +9,25 @@
 
 #if OP_TINY_SKIA
 #include "TinySkia.h"
-#define SkString_DEFINED
+#define SkDebug_DEFINED
 #define SkFloatBits_DEFINED
 #define SkGeometry_DEFINED
+#define SkMatrix_DEFINED
 #define SkParsePath_DEFINED
 #define SkPath_DEFINED
+#define SkPathOpsCubic_DEFINED
+#define SkPathOpsDebug_DEFINED
+#define SkPathOpsPoint_DEFINED
+#define SkPathOpsQuad_DEFINED
+#define SkPathOpsTypes_DEFINED
+#define SkPathTypes_DEFINED
 #define SkPoint_DEFINED
 #define SkRandom_DEFINED
-#define SkPathOpsCubic_DEFINED
-#define SkPathOpsQuad_DEFINED
-#define SkPathOpsPoint_DEFINED
-
+#define SkRect_DEFINED
+#define SkScalar_DEFINED
+#define SkString_DEFINED
+#define SkTDArray_DEFINED
+#define SkTypes_DEFINED
 
 #else
 #include "include/core/SkString.h"

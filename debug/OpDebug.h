@@ -90,7 +90,14 @@ struct OpDebugData {
 #define OP_DEBUG_VALIDATE_CODE(...)
 #define OP_DEBUG 0
 #define OP_DEBUG_DUMP 0
+#define OP_DEBUG_ENUM()
 #define OP_DEBUG_IMAGE 0
+#define OP_DEBUG_INIT(enum_name)
+#define OP_DEBUG_INIT_BOOL()
+#define OP_DEBUG_INIT_FLOAT()
+#define OP_DEBUG_INIT_INT()
+#define OP_DEBUG_INIT_PTR(ptr_type)
+#define OP_DEBUG_INIT_SIZE()
 #define OP_DEBUG_MAKER 0
 #define OP_DEBUG_FAIL(object, returnValue) return returnValue
 #define OP_DEBUG_SUCCESS(object, returnValue) return returnValue
@@ -139,7 +146,15 @@ struct OpDebugData {
 #endif
 #define OP_DEBUG_PARAMS(...) , __VA_ARGS__
 #define OP_DEBUG_CODE(...) __VA_ARGS__
+#define OP_DEBUG_ENUM() uninitialized = (bool) -1,
+#define OP_DEBUG_INIT(enum_name) = enum_name::uninitialized
+#define OP_DEBUG_INIT_BOOL() = (bool) -1
+#define OP_DEBUG_INIT_FLOAT() = OpDebugNaN
+#define OP_DEBUG_INIT_INT() = INT_MAX
+#define OP_DEBUG_INIT_PTR(ptr_type) = (ptr_type*) 0xDEAD0ABEDEADBEEF
+#define OP_DEBUG_INIT_SIZE() = SIZE_MAX
 #define OP_RELEASE_CODE(...)
+
 #if OP_DEBUG_IMAGE
 #undef OP_DEBUG_IMAGE_CODE
 #define OP_DEBUG_IMAGE_CODE(...) __VA_ARGS__
@@ -278,6 +293,82 @@ extern OpContext* debugGlobalContext;
 extern bool debugHexFloat;
 extern void playback();
 extern void record();
+
+struct OpDebugSegmentIter {
+	OpDebugSegmentIter(bool start);
+
+	bool operator!=(OpDebugSegmentIter rhs) { 
+		return segmentIndex != rhs.segmentIndex; 
+	}
+
+	struct OpSegment* operator*();
+
+	void operator++() { 
+		++segmentIndex;
+	}
+
+	size_t segmentIndex;
+};
+
+struct OpDebugSegmentIterator {
+	OpDebugSegmentIter begin() { return OpDebugSegmentIter(true); }
+	OpDebugSegmentIter end() { return OpDebugSegmentIter(false); }
+	bool empty() { return !(begin() != end()); }
+};
+
+struct OpDebugEdgeIter {
+	OpDebugEdgeIter(bool start);
+
+	bool operator!=(OpDebugEdgeIter rhs) { 
+		return edgeIndex != rhs.edgeIndex; 
+	}
+
+	struct OpEdge* operator*();
+
+	void operator++() { 
+		++edgeIndex;
+	}
+
+	bool isCurveCurve;
+	bool isFiller;
+	bool isLine;
+	int edgeIndex;
+};
+
+struct OpDebugEdgeIterator {
+	OpDebugEdgeIter begin() { return OpDebugEdgeIter(true); }
+	OpDebugEdgeIter end() { return OpDebugEdgeIter(false); }
+	bool empty() { return !(begin() != end()); }
+};
+
+struct OpDebugIntersectionIter {
+	OpDebugIntersectionIter(bool start);
+
+	bool operator!=(OpDebugIntersectionIter rhs) { 
+		return localIntersectionIndex != rhs.localIntersectionIndex; 
+	}
+
+	const struct OpIntersection* operator*();
+
+	void operator++() { 
+		++localIntersectionIndex;
+	}
+
+	size_t localIntersectionIndex;
+};
+
+struct OpDebugIntersectionIterator {
+	OpDebugIntersectionIter begin() { return OpDebugIntersectionIter(true); }
+	OpDebugIntersectionIter end() { return OpDebugIntersectionIter(false); }
+	bool empty() { return !(begin() != end()); }
+};
+
+extern OpDebugSegmentIterator segmentIterator;
+
+extern OpDebugEdgeIterator edgeIterator;
+
+extern OpDebugIntersectionIterator intersectionIterator;
+
 #endif
 extern void v0(const char* testname, class SkPath& );  // immediate command to capture failing test
 
@@ -340,5 +431,14 @@ void debugQuadScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, dou
 void debugConicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY);
 void debugCubicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY);
 
+#if OP_DEBUG && TEST_RASTER
+#define OP_DEBUG_RASTER_PARAMS(params) , params
+#else
+#define OP_DEBUG_RASTER_PARAMS(params)
+#endif
+
+#if OP_DEBUG && !OP_DEBUG_FAST_TEST && (OP_DEBUG_IMAGE || OP_DEBUG_DUMP)
+    extern bool debugRunningTest(std::string );
+#endif
 
 #endif

@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <array>
+#include <climits>
 #include <cmath>
 #include <limits>
 #include <math.h>
@@ -152,6 +153,8 @@ struct OpRoots {
 	}
 
 	// void prioritize01();
+
+    void smooth();
 
 	void sort() {
 		std::sort(roots.begin(), roots.end());

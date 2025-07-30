@@ -552,14 +552,6 @@ bool SectRay::tryADifferentCenter(OpEdge* edge) {
 	return true;
 }
 
-// add all edges in contour, and any other contours which the caller says overlap
-OpWinder::OpWinder(OpContext& context) {
-	for (OpContour* contour : context.contours) {
-		OP_ASSERT(!contour->isEmpty());
-		contour->addEdges();
-	}
-}
-
 struct SectPtT {
 	SectPtT(OpSegment* seg, const OpSegment* opp, OpPtT cePtT, XyChoice xyChoice)
 		: ptT(cePtT)
@@ -795,7 +787,7 @@ IntersectResult OpWinder::CoincidentCheck(std::array<CoinEnd, 4>& ends, bool* op
 	return IntersectResult::coincident;
 }
 
-FoundIntercept OpWinder::findCept(OpEdge* edge) {
+FoundIntercept OpWinder::FindACept(OpEdge* edge) {
 	SectRay& ray = edge->ray;
 	ray.homeT = OpMath::Ratio(edge->startT, edge->endT, edge->center.t);
 	// if find intercept fails, retry some number of times
@@ -851,20 +843,20 @@ foundInY: ;
 	rayFail = Axis::vertical == ray.axis ? EdgeFail::vertical : EdgeFail::horizontal;
 }
 
-FoundWindings OpWinder::setPriors(OpEdge* edge  OP_DEBUG_PARAMS(std::vector<OpEdge*>& debugVisited)) {
+FoundWindings OpWinder::SetPriors(OpEdge* edge  OP_DEBUG_PARAMS(std::vector<OpEdge*>& debugVisited)) {
 	OP_ASSERT(debugVisited.end() == std::find(debugVisited.begin(), debugVisited.end(), edge));
 	OP_DEBUG_CODE(debugVisited.push_back(edge));
 	OP_ASSERT(!edge->ray.distances.empty());
 	Distance& distance = edge->ray.distances.front();
-	if ((!distance.dependent || FoundWindings::fail != setPriors(distance.edge  OP_DEBUG_PARAMS(debugVisited))) 
+	if ((!distance.dependent || FoundWindings::fail != SetPriors(distance.edge  OP_DEBUG_PARAMS(debugVisited))) 
 			&& !edge->sum.isSet()) {
 //		home = edge;
-		ResolveWinding resolveWinding = setWindingByDistance(edge);
+		ResolveWinding resolveWinding = SetWindingByDistance(edge);
 		if (ResolveWinding::retry == resolveWinding) {
 //			workingAxis = home->ray.axis;  // if edges in ray are too close, 
-			OP_DEBUG_CODE(ChainFail debugFail = ) setCept(edge);  // look for a better spot
+			OP_DEBUG_CODE(ChainFail debugFail = ) SetCept(edge);  // look for a better spot
 			OP_ASSERT(ChainFail::none == debugFail);
-			resolveWinding = setWindingByDistance(edge);
+			resolveWinding = SetWindingByDistance(edge);
 			OP_ASSERT(ResolveWinding::retry != resolveWinding);
 		}
 		if (ResolveWinding::fail == resolveWinding)
@@ -873,7 +865,7 @@ FoundWindings OpWinder::setPriors(OpEdge* edge  OP_DEBUG_PARAMS(std::vector<OpEd
 	return FoundWindings::yes;
 }
 
-ChainFail OpWinder::setCept(OpEdge* edge) {
+ChainFail OpWinder::SetCept(OpEdge* edge) {
 	// see if normal at center point is in direction of ray
 	OP_ASSERT(!edge->disabled);
 	const OpSegment* edgeSeg = edge->segment;
@@ -915,7 +907,7 @@ ChainFail OpWinder::setCept(OpEdge* edge) {
 	if (ChainFail::normalizeOverflow == chainFail)
 		OP_DEBUG_FAIL(*edge, chainFail);  // fatal error : cross product returned infinite / nan
 	if (ChainFail::normalizeUnderflow == chainFail) {  // nonfatal error -- try vertical instead
-		if (Axis::vertical == edge->ray.axis)
+		if (Axis::vertical == edge->ray.axis || 0 == edge->bounds.width())
 			edge->markUnsortable(Unsortable::rayTooShallow);
 		return chainFail;
 	}
@@ -924,7 +916,7 @@ ChainFail OpWinder::setCept(OpEdge* edge) {
 	// intersect normal with every edge in the direction of ray until we run out 
 	Axis perpendicular = !edge->ray.axis;
 	edge->ray.homeCept = midPt.choice(perpendicular);
-	FoundIntercept foundIntercept = findCept(edge);
+	FoundIntercept foundIntercept = FindACept(edge);
 	edge->ray.sort();
 	if (FoundIntercept::fail == foundIntercept)
 		return ChainFail::failIntercept;
@@ -933,7 +925,7 @@ ChainFail OpWinder::setCept(OpEdge* edge) {
 	return ChainFail::none;
 }
 
-ChainFail OpWinder::addContainers(OpEdge* top, OpEdge* child, std::vector<OpEdge*>& addedSet) {
+ChainFail OpWinder::AddContainers(OpEdge* top, OpEdge* child, std::vector<OpEdge*>& addedSet) {
 	OP_ASSERT(child->ray.sorted || child->ray.distances.empty());
 	bool seenHome = false;
 	bool added = false;
@@ -948,7 +940,7 @@ ChainFail OpWinder::addContainers(OpEdge* top, OpEdge* child, std::vector<OpEdge
 		if (addedSet.end() != std::find(addedSet.begin(), addedSet.end(), distance.edge))
 			continue;
 		addedSet.push_back(distance.edge);
-		ChainFail result = addContainers(top, distance.edge, addedSet);
+		ChainFail result = AddContainers(top, distance.edge, addedSet);
 		if (ChainFail::none != result)
 			return result;
 		added |= top->ray.addContainers(distance.edge, top);
@@ -959,11 +951,11 @@ ChainFail OpWinder::addContainers(OpEdge* top, OpEdge* child, std::vector<OpEdge
 	return added ? ChainFail::containerAdded : ChainFail::none;
 }
 
-ResolveWinding OpWinder::setWindingByDistance(OpEdge* edge) {
+ResolveWinding OpWinder::SetWindingByDistance(OpEdge* edge) {
 	// find edge; then walk backwards to first known sum 
 	// if previous edge is dependent, it cannot use this distance list -- other contours required
-	//  recursively evaluate the sum of the dependent edge before proceeding
-	OP_ASSERT(!edge->debugSumSet);
+	//  recursively evaluate the sum of the dependent edge before proceeding    
+	OP_ASSERT(!edge->debugSumSet || Unsortable::none != edge->isUnsortable);
 	OP_DEBUG_CODE(edge->debugSumSet = true);
 	SectRay& ray = edge->ray;
 	OP_ASSERT(ray.distances.size());
@@ -1106,8 +1098,12 @@ ResolveWinding OpWinder::setWindingByDistance(OpEdge* edge) {
 // probably it should walk the edges in the contour, after setting the inX/inY to the 
 // cache of sect edges held by the contour (or the 
 
-FoundWindings OpWinder::setWindings(OpContext& context) {
+FoundWindings OpWinder::SetWindings(OpContext& context) {
 	OP_DEBUG_CONTEXT();
+	for (OpContour* contour : context.contours) {
+		OP_ASSERT(!contour->isEmpty());
+		contour->addEdges();
+	}
 	std::vector<OpEdge*> verticals;
 	std::vector<OpEdge*> edges;
 	for (OpContour* contour : context.contours) {
@@ -1135,7 +1131,7 @@ FoundWindings OpWinder::setWindings(OpContext& context) {
 				edge->ray.axis = axis;
 				if (firstTry)
 					edge->ray.targets.build(edge);
-				ChainFail chainFail = setCept(edge);
+				ChainFail chainFail = SetCept(edge);
 				if (ChainFail::normalizeOverflow == chainFail)
 					OP_DEBUG_FAIL(*edge, FoundWindings::fail);
 				if (EdgeFail::horizontal == edge->rayFail
@@ -1162,7 +1158,7 @@ FoundWindings OpWinder::setWindings(OpContext& context) {
 					continue;
 				//  add containers bracketed by dependent and home edges
 				std::vector<OpEdge*> addedSet = { edge };
-				ChainFail added = addContainers(edge, edge, addedSet);
+				ChainFail added = AddContainers(edge, edge, addedSet);
 				if (ChainFail::none == added)
 					continue;
 				OP_ASSERT(ChainFail::containerAdded == added);
@@ -1288,7 +1284,7 @@ FoundWindings OpWinder::setWindings(OpContext& context) {
 //			if (edge->isUnsectable())
 //				continue;
 			OP_DEBUG_CODE(std::vector<OpEdge*> debugVisited);
-			if (FoundWindings::fail == setPriors(edge  OP_DEBUG_PARAMS(debugVisited)))
+			if (FoundWindings::fail == SetPriors(edge  OP_DEBUG_PARAMS(debugVisited)))
 				OP_DEBUG_FAIL(*edge, FoundWindings::fail);
 		}
 	}

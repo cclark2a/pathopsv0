@@ -1393,7 +1393,7 @@ inline bool PolynomialHasRoot( ftype const coef[N+1], ftype x0, ftype x1, ftype 
 		ftype y0 = PolynomialEval<N,ftype>( coef, x0 );
 		ftype y1 = PolynomialEval<N,ftype>( coef, x1 );
 		if ( IsDifferentSign(y0,y1) ) return true;
-		bool foundRoot = false;
+	//	bool foundRoot = false;
 		ftype deriv[N];
 		PolynomialDerivative<N,ftype>( deriv, coef );
 		return PolynomialForEachRoot<N-1,ftype,boundError,RootFinder>( [&]( ftype xa ) {

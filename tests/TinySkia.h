@@ -230,11 +230,11 @@ public:
 	void dumpCommon(bool) const;
 
 	std::vector<TinyCurve> path;
-	OpContours* contours;
+	OpContext* contours;
 	mutable SkRect bounds;
 	OpPoint last;
-	size_t firstIndex;
-	SkPathFillType fFillType;
+	size_t firstIndex = 0;
+	SkPathFillType fFillType = SkPathFillType::kWinding;
 };
 
 struct SkImageInfo {

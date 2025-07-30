@@ -49,17 +49,20 @@ struct OpWinding {
 	OpWinding(OpEdge* edge, WindingSum );
 	OpWinding(OpContext* c, PathOpsV0Lib::Winding );
 	OpWinding(OpContext* context, const OpWinding& );
+	void add(OpContext* , const PathOpsV0Lib::Winding& );
 	void add(OpContext* , const OpWinding& );
 	PathOpsV0Lib::Winding copyData(OpContext* ) const;
 	void copyOnDemand(OpContext* );
 	bool equal(const PathOpsV0Lib::Winding ) const;
 	bool isSet() const { return WindingType::uninitialized != type; }
+	void subtract(OpContext* , const PathOpsV0Lib::Winding& );
 	void subtract(OpContext* , const OpWinding& );
 	void move(OpContext* , const OpWinding& opp, bool backwards);
 	void setWind(const OpWinding& fromSegment);
 	int sum() const;
 	bool visible(OpContext* ) const;
 	void zero(OpContext* );
+	void zeroUninitialized(OpContext* , const PathOpsV0Lib::Winding& );
 	void zeroUninitialized(OpContext* , const OpWinding& );
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS

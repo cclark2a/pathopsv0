@@ -650,14 +650,15 @@ OpContourIter::OpContourIter(OpContext* context) {
 }
 
 #if OP_DEBUG
-void OpContour::addDebugContourData(PathOpsV0Lib::DebugContourData data) {
+void OpContour::addDebugContourData(PathOpsV0Lib::DebugContourData data, 
+        PathOpsV0Lib::DebugContourType type) {
+    PathOpsV0Lib::DebugContourData& contourData = debugContourData[(size_t) type];
+    contourData.size = data.size;
 	if (!data.size) {
-		debugCaller.data = nullptr;
-		debugCaller.size = 0;
+		contourData.data = nullptr;
 		return;
 	}
-	debugCaller.data = context->allocateCallerData(data.size);
-	std::memcpy(debugCaller.data, data.data, data.size);
-	debugCaller.size = data.size;  // !!! don't know if size is really needed ...
+	contourData.data = context->allocateCallerData(data.size);
+	std::memcpy(contourData.data, data.data, data.size);
 }
 #endif

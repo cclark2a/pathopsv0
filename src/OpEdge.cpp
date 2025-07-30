@@ -10,7 +10,7 @@
 // don't add if points are close
 // prefer end if types are different
 // return true if close enough points are ctrl + mid
-bool OpHulls::add(const OpPtT& ptT, OpVector threshold, const OpPtT* oPtT, float dist, 
+bool OpHulls::add(const OpPtT& ptT, OpVector threshold, const EdgeDist& dist, 
 			SectType sectType, const OpEdge* opp) {	
 	bool foundNear = false;
 	bool nearEnd = false;
@@ -27,8 +27,8 @@ bool OpHulls::add(const OpPtT& ptT, OpVector threshold, const OpPtT* oPtT, float
 	}
 	if (!foundNear || SectType::endHull == sectType) {
 		h.emplace_back(opp, ptT, sectType);
-		if (SectType::endHull == sectType && oPtT && !OpMath::IsNaN(dist))
-			h.back().setOpp(oPtT, dist);
+		if (SectType::endHull == sectType && dist.isSet())
+			h.back().oppDist = dist;
 		return false;
 	}
 	return nearEnd;
@@ -213,7 +213,7 @@ OpEdge::OpEdge(OpContext* context, const OpPtT& start, const OpPtT& end  OP_LINE
 	: OpEdge() {
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = 0);
-	OP_DEBUG_IMAGE_CODE(if (!debugCustom) debugColor = mediumPurple);
+	OP_DEBUG_IMAGE_CODE(debugColor = mediumPurple);
 	segment = nullptr;  // assume these can't be used -- edge does not exist in segment
 //	startSect = -1;
 //	endSect = -1;
@@ -244,7 +244,7 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight  OP_
 		startDist = edge->startDist;
 		complete(OpPtT { edge->curve.firstPt(), edge->startT }, newPtT);
 	} else {
-		startDist = edge->endDist;
+		endDist = edge->endDist;
 		complete(newPtT, OpPtT { edge->curve.lastPt(), edge->endT });
 	}
 }
@@ -258,7 +258,7 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& s, const OpPtT& e  OP_LINE_FILE_
 	if (edge->startT == s.t)
 		startDist = edge->startDist;
 	if (edge->endT == e.t)
-		startDist = edge->endDist;
+		endDist = edge->endDist;
 	complete(s, e);
 }
 
@@ -408,12 +408,6 @@ void OpEdge::calcCenterT() {
 	OP_ASSERT(OpMath::Between(bounds.top, center.pt.y, bounds.bottom));
 }
 
-void OpEdge::ccInit(bool overlaps) {
-	ccOverlaps = overlaps;
-	startOpp.t = OpNaN;
-	endOpp.t = OpNaN;
-}
-
 void OpEdge::clearActiveAndPals(OP_LINE_FILE_NP_ARGS()) {
 	setActive(false);
 	for (auto& pal : pals) {
@@ -524,7 +518,7 @@ OpEdge* OpEdge::nextOut() {
 		linkHead = false;
 	}
 	inLinkups = false;
-	OP_DEBUG_IMAGE_CODE(if (!debugCustom) debugColor = orange);
+	OP_DEBUG_IMAGE_CODE(debugColor = orange);
 	return nextEdge;
 }
 
@@ -640,7 +634,7 @@ void OpEdge::setActive(bool state) {
 void OpEdge::setDisabled(OP_LINE_FILE_NP_ARGS()) {
 	disabled = true; 
 	OP_LINE_FILE_SET(debugSetDisabled); 
-	OP_DEBUG_IMAGE_CODE(if (!debugCustom) debugColor = red);
+	OP_DEBUG_IMAGE_CODE(debugColor = red);
 }
 
 OpEdge* OpEdge::setLastEdge() {

@@ -200,7 +200,8 @@ struct OpContext {
 
 	bool debugFail() const;
 #if OP_DEBUG
-	void addDebugContextData(PathOpsV0Lib::DebugContextData );
+	void addDebugContextData(PathOpsV0Lib::DebugContextData , PathOpsV0Lib::DebugContextType );
+    PathOpsV0Lib::DebugContextData& debugGetContextData(PathOpsV0Lib::DebugContextType );
 
 	PathOpsV0Lib::DebugCurveCallbacks& debugCallback(PathOpsV0Lib::CurveType type) {
         if (PathOpsV0Lib::degenerateLine == type)
@@ -235,7 +236,7 @@ struct OpContext {
 	int debugLimbIndex(const OpEdge* ) const;
 #endif
 
-	OpPtAliases aliases;  // !!! consider moving to context for non-overlapping context case
+	OpPtAliases aliases;  // !!! consider moving to contour for non-overlapping contour case
 	std::vector<PathOpsV0Lib::CurveCallbacks> callbacks;
 	PathOpsV0Lib::ContextCallbacks contextCallbacks;
 	PathOpsV0Lib::WindingCallbacks windingCallbacks;
@@ -263,17 +264,11 @@ struct OpContext {
 	int debugValidateEdgeIndex;
 	int debugValidateJoinerIndex;
 #endif
-#if TEST_RASTER
-	OpDebugSamples sampleOperands;
-	OpDebugSamples sampleOutputs;  // curve output + combined operands
-	OpDebugRaster rasterOutput;
-	OpDebugRaster rasterCombined;
-	bool rasterEnabled;
-#endif
 #if OP_DEBUG
 	std::vector<PathOpsV0Lib::DebugCurveCallbacks> debugCallbacks;
 	PathOpsV0Lib::DebugContextCallbacks debugContextCallbacks;
-	PathOpsV0Lib::DebugContextData debugContextData;
+	std::array<PathOpsV0Lib::DebugContextData, static_cast<std::size_t>(
+            PathOpsV0Lib::DebugContextType::Count)> debugContextData;
 	OpDebugData debugData;
 	OpCurveCurve* debugCurveCurve;
 	OpJoiner* debugJoiner;
