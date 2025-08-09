@@ -93,13 +93,15 @@ struct OpContext {
 	}
 
 	PathOpsV0Lib::CurveCallbacks& callback(PathOpsV0Lib::CurveType type) {
-		return callbacks[(int) type - 1];
+		return callbacks[type];
 	}
 
 	bool containsFiller(OpPoint start, OpPoint end) const;
 	bool containsFiller(int ccUnsectableID) const;
 	bool containsPals(OpEdge* , int totalLimbs);
 //    WindingData* copySect(const OpWinding& );  // !!! add a separate OpWindingStorage for temporary blocks?
+    int curveIndex(int nativeType);
+    void curveIndex(PathOpsV0Lib::AddCurve& curvePtr);
 //    void demotePalLinks();
 	void disableSmallSegments();
 
@@ -202,15 +204,7 @@ struct OpContext {
 #if OP_DEBUG
 	void addDebugContextData(PathOpsV0Lib::DebugContextData , PathOpsV0Lib::DebugContextType );
     PathOpsV0Lib::DebugContextData& debugGetContextData(PathOpsV0Lib::DebugContextType );
-
-	PathOpsV0Lib::DebugCurveCallbacks& debugCallback(PathOpsV0Lib::CurveType type) {
-        if (PathOpsV0Lib::degenerateLine == type)
-            return debugCallbacks[0];
-		OP_ASSERT((int) type >= 1);
-		OP_ASSERT((size_t) type <= debugCallbacks.size());
-		return debugCallbacks[(int) type - 1];
-	}
-
+	PathOpsV0Lib::DebugCurveCallbacks& debugCallback(PathOpsV0Lib::Curve );
 	void debugRemap(int oldRayMatch, int newRayMatch);
 	bool debugSuccess() const;
 #endif
@@ -238,6 +232,7 @@ struct OpContext {
 
 	OpPtAliases aliases;  // !!! consider moving to contour for non-overlapping contour case
 	std::vector<PathOpsV0Lib::CurveCallbacks> callbacks;
+    std::vector<int> nativeCurveTypes;
 	PathOpsV0Lib::ContextCallbacks contextCallbacks;
 	PathOpsV0Lib::WindingCallbacks windingCallbacks;
 	PathOpsV0Lib::PathOutput callerOutput;

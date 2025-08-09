@@ -180,6 +180,10 @@ inline bool conicIsFinite(Curve c) {
     return control.pt.isFinite();
 }
 
+inline int conicHullPtCount() {
+    return 1;
+}
+
 inline bool conicIsLine(Curve c) {
     PointWeight control(c);
     LinePts linePts { c.data->start, c.data->end };
@@ -194,7 +198,10 @@ inline OpRoots conicAxisT(Curve curve, Axis axis, float intercept
     float c = curve.data->start.choice(axis);
     a += c - 2 * b;    // A = a - 2*b + c
     b -= c;            // B = -(b - c)
-    return OpMath::QuadRootsDouble(a, 2 * b, c - intercept);  // ? double req'd: testConics3759897
+    OpRoots result = OpMath::QuadRootsDouble(a, 2 * b, c - intercept);  // ? double req'd: testConics3759897
+    result = result.keepValidTs();
+    return result;
+    
 }
 
 inline OpRoots conicRotatedT(Curve curve, Axis axis, float axisIntercept
@@ -298,6 +305,13 @@ inline OpPoint conicHull(Curve c, int index) {
         return PointWeight(c).pt;
     OP_ASSERT(0); // should never be called
     return OpPoint();
+}
+
+inline void conicCallbacks(Context* context, int nativeCurveType) {
+    SetCurveCallbacks(context, nativeCurveType, { conicAxisT,
+			conicRotatedT, conicHull, conicIsFinite, conicIsLine, conicSetBounds,
+			conicTangent, conicsEqual, conicPtAtT, nullptr, conicHullPtCount, conicRotate, 
+			conicSubDivide, conicXYAtT });
 }
 
 #if OP_DEBUG_DUMP

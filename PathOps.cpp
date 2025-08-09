@@ -35,6 +35,7 @@ Context* CreateContext() {
 void Add(Contour* interfaceContour, AddCurve curve) {
     OP_ASSERT(curve.points[0] != curve.points[1]);
     OpContour* contour = toImplementation(interfaceContour);
+    contour->context->curveIndex(curve);
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContext = contour->context;
 #endif
@@ -133,10 +134,11 @@ void SetContextCallbacks(Context* interfaceContext, ContextCallbacks contextCall
     context->contextCallbacks = contextCallbacks;
 }
 
-CurveType SetCurveCallbacks(Context* interfaceContext, CurveCallbacks curveCallbacks) {
+void SetCurveCallbacks(Context* interfaceContext, int nativeCurveType,
+        CurveCallbacks curveCallbacks) {
     OpContext* context = toImplementation(interfaceContext);
     context->callbacks.push_back(curveCallbacks);
-    return (CurveType) context->callbacks.size();
+    context->nativeCurveTypes.push_back(nativeCurveType);
 }
 
 void SetWindingCallbacks(Context* interfaceContext, WindingCallbacks windingCallbacks) {

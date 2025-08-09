@@ -602,14 +602,17 @@ void OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first) {
 	OpEdge* next = nextOut();
 	OpCurve copy = curve;
     OP_DEBUG_CODE(float thresholdLength = curve.context->threshold().length());
+    bool allowGaps = curve.context->errorHandler.errorDispatchFuncPtr 
+            && !curve.context->errorHandler.errorDispatchFuncPtr(
+			PathOpsV0Lib::ContextError::missing, (PathOpsV0Lib::Context*) curve.context, &curve.c);
     if (iStart.isFinite()) {
         OP_DEBUG_CODE(float gapLength = (curve.firstPt() - iStart).length());
-        OP_ASSERT(gapLength <= thresholdLength * 16384);  // !!! gap can be very large; investigate...
+        OP_ASSERT(allowGaps || gapLength <= thresholdLength * 16384);  // !!! gap can be very large; investigate...
         copy.setFirstPt(iStart);
     }
     if (iEnd.isFinite()) {
         OP_DEBUG_CODE(float gapLength = (curve.lastPt() - iEnd).length());
-        OP_ASSERT(gapLength <= thresholdLength * 16384);
+        OP_ASSERT(allowGaps || gapLength <= thresholdLength * 16384);
         copy.setLastPt(iEnd);
     }
 	if (EdgeMatch::end == which())

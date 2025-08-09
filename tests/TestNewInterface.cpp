@@ -5,36 +5,25 @@
 #include "curves/UnaryWinding.h"
 
 // curve types
-PathOpsV0Lib::CurveType lineType = PathOpsV0Lib::degenerateLine;  // unset
-PathOpsV0Lib::CurveType quadType = PathOpsV0Lib::degenerateLine;
+PathOpsV0Lib::CurveType lineType = 1;  // unset
+PathOpsV0Lib::CurveType quadType = 2;
 constexpr size_t lineSize = sizeof(OpPoint) * 2;
 constexpr size_t quadSize = sizeof(OpPoint) * 3;
 
-void commonOutput(PathOpsV0Lib::Curve c, PathOpsV0Lib::CurveType type, bool firstPt, bool lastPt, 
-        PathOpsV0Lib::PathOutput output) {
+void commonOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathOpsV0Lib::PathOutput output) {
     if (firstPt)
         OpDebugOut("contour start --\n");
-    std::string outStr = lineType == type ? "line: " : "quad: ";
+    std::string outStr = lineType == c.type ? "line: " : "quad: ";
     auto addPtStr = [&outStr](const OpPoint& pt, std::string delimiter) {
         outStr += "{ " + std::to_string(pt.x) + ", " + std::to_string(pt.y) + " }" + delimiter;
     };
     addPtStr(c.data->start, ", ");
-    if (quadType == type)
+    if (quadType == c.type)
         addPtStr(quadControlPt(c), ", ");
     addPtStr(c.data->end, "\n");
     OpDebugOut(outStr);
     if (lastPt)
         OpDebugOut("-- contour end\n");
-}
-
-void lineOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, 
-        PathOpsV0Lib::PathOutput output) {
-    commonOutput(c, lineType, firstPt, lastPt, output);
-}
-
-void quadOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, 
-        PathOpsV0Lib::PathOutput output) {
-    commonOutput(c, quadType, firstPt, lastPt, output);
 }
 
 PathOpsV0Lib::CurveType testNewSetLineType(PathOpsV0Lib::Context* , PathOpsV0Lib::Curve ) {
@@ -45,7 +34,7 @@ void testNewInterface() {
     using namespace PathOpsV0Lib;
 
     Context* context = CreateContext();
-    SetContextCallbacks(context, { testNewSetLineType });
+    SetContextCallbacks(context, { commonOutput, testNewSetLineType });
     SetWindingCallbacks(context, { unaryWindingAddFunc, unaryWindingKeepFunc, unaryWindingVisibleFunc,
 			unaryWindingZeroFunc, unaryWindingSubtractFunc });
 
@@ -60,12 +49,8 @@ void testNewInterface() {
     );
 #endif
 
-    lineType = SetCurveCallbacks(context, { lineOutput });
-    quadType = SetCurveCallbacks(context, { quadOutput, quadAxisT, quadRotatedT,
-			quadHull, quadIsFinite, quadIsLine, 
-			quadSetBounds, /* quadPinCtrl, */ 
-			quadTangent, quadsEqual, quadPtAtT, nullptr,
-            quadHullPtCount, quadRotate, quadSubDivide, quadXYAtT });
+    SetCurveCallbacks(context, lineType, { });
+    quadCallbacks(context, quadType);
 
     // example: given points describing a pair of closed loops with quadratic Beziers, find
     //          their intersection

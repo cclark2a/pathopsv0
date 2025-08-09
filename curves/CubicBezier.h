@@ -375,17 +375,6 @@ inline bool cubicIsLine(Curve c) {
     return linePts.ptOnLine(controls.pts[0]) && linePts.ptOnLine(controls.pts[1]);
 }
 
-#define OP_DEBUG_CUBIC_VERBOSE 1
-#define OP_DEBUG_ROOT_CLASSIC 1
-#define OP_DEBUG_ROOT_CY 0
-#define OP_DEBUG_ROOT_NOUVEAU 1
-
-#if OP_DEBUG_CUBIC_VERBOSE
-	#define VERBOSE_OUT(...) OpDebugOut(__VA_ARGS__)
-#else
-	#define VERBOSE_OUT(...)
-#endif
-
 // cubic must be monotonic and non-linear (e.g., an arc, not a line)
 // axis-aligned intercept can at most cross the cubic at one point
 // if match ends is set, return appropriate root immediately
@@ -399,120 +388,12 @@ inline OpRoots cubicAxisT(Curve c, Axis axis, float axisIntercept
     A -= D - C + B;     // A =   -a + 3*b - 3*c + d
     B += 3 * D - 2 * C; // B =  3*a - 6*b + 3*c
     C -= 3 * D;         // C = -3*a + 3*b
-#if OP_DEBUG_ROOT_CLASSIC
-	MatchEnds ends = MatchEnds::none;
-    OpRoots result = OpMath::CubicRootsReal(A, B, C, D - axisIntercept, ends);
-#endif
-#if 0 && (OP_DEBUG_ROOT_CY || OP_DEBUG_ROOT_NOUVEAU)
-	float crossRoot = OpNaN;
-	if ((axisIntercept - A) * (D - axisIntercept) <= 0)  // if intercept is crossed...
-		crossRoot = fabs(axisIntercept - A) < fabs(D - axisIntercept);  // ...return 0 or 1
-#endif
-#if OP_DEBUG_ROOT_CY
-	OpRoots test2 = OpMath::CubicRootsY(a, b, c_, d - axisIntercept);  // cy's original
-#endif
-#if OP_DEBUG_ROOT_NOUVEAU
 	OpRoots test;
-	test.add(OpMath::CubicRoot(A, B, C, D - axisIntercept));  // cy's distilled
-#endif
-#if OP_DEBUG_ROOT_CY && OP_DEBUG_ROOT_NOUVEAU && OP_DEBUG_CUBIC_VERBOSE
-	if (test2.count() != test.count()) {
-		VERBOSE_OUT("distill count : " + STR(test.count()) + " disagrees with cy: " 
-				+ STR(test2.count()));
-		OpMath::CubicRootsY(a, b, c_, d - axisIntercept);	// !!! for tracing through errors
-		OpRoots knownRoots;
-		knownRoots.add(OpMath::CubicRoot(a, b, c_, d - axisIntercept));
-		OP_ASSERT(0);
-	} else {
-//		bool disagrees = false;
-		test.sort();
-		test2.sort();
-		for (int index = 0; index < test2.count(); ++index) {
-			if (test2.roots[index] != test.roots[index]) {
-				VERBOSE_OUT("distill value: " + STR(test.roots[index]) + " disagrees with cy: " 
-						+ STR(test2.roots[index]) + "\n");
-//				disagrees = true;
-#if 1
-				OpMath::CubicRootsY(a, b, c_, d - axisIntercept);	// !!! for tracing through errors
-				OpRoots knownRoots2;
-				knownRoots2.add(OpMath::CubicRoot(a, b, c_, d - axisIntercept));
-				OP_ASSERT(0);
-#endif
-			}
-		}
-//		OP_ASSERT(!disagrees);
-	}
-#endif
-#if OP_DEBUG_ROOT_CLASSIC
-	OpRoots valid = result.keepValidTs();
-	float classicError = 0;
-#endif
-#if OP_DEBUG_ROOT_CLASSIC && OP_DEBUG_ROOT_NOUVEAU && OP_DEBUG_CUBIC_VERBOSE
-	bool matchAll = true;
-	for (float f : valid.roots) {
-		bool matchOne = false;
-		for (float f2 : test.roots) {
-			matchOne |= f == f2;
-		}
-#if OP_DEBUG
-		for (float f3 : debugAdded.roots) {
-			matchOne |= f == f3;
-		}
-#endif
-		if (!matchOne)
-			matchAll = false;
-	}
-	if (!matchAll) {
-		std::string s;
-		s += "axisIntercept: " + STR(axisIntercept) + "\n";
-		s += "classic: ";
-		OP_ASSERT(valid.count() == test.count() 
-                || valid.count() == test.count() + debugAdded.count());
-		OpMath::CubicRootsY(A, B, C, D - axisIntercept);	// !!! for tracing through errors
-		for (float f : valid.roots) {
-			OpPoint pt = CubicPtAtT(c.data->start, controls, c.data->end, f);
-			float error = fabs(pt.choice(axis) - axisIntercept);
-			classicError = std::max(classicError, error);
-			s += STR(f)  
-#if OP_DEBUG_DUMP
-					+ " " + pt.debugDump(DebugLevel::normal, DebugBase::dec) 
-#endif
-					+ " error:" + STR(error) + " "; 
-		}
-		s += "\n";
-		s += "nouveau: ";
-		bool tooBig = false;
-		for (float f2 : test.roots) {
-			OpPoint pt = CubicPtAtT(c.data->start, controls, c.data->end, f2);
-			float error = fabs(pt.choice(axis) - axisIntercept);
-			tooBig |= error > 8 * OpEpsilon && error > classicError * 2;
-			s += STR(f2) 
-#if OP_DEBUG_DUMP
-					+ " " + pt.debugDump(DebugLevel::normal, DebugBase::dec)
-#endif
-					+ " error:" + STR(error) + " "; 
-    #if OP_DEBUG && !OP_DEBUG_FAST_TEST && (OP_DEBUG_IMAGE || OP_DEBUG_DUMP)
-            OP_ASSERT(debugRunningTest("loop110231") || error < 1e-4);
-    #endif
-		}
-		s += "\n";
-		if (tooBig && 0) {  // !!! disable this until needed to fix actual bug...
-			VERBOSE_OUT(s);
-			OpRoots cyRoots = OpMath::CubicRootsY(A, B, C, D - axisIntercept);	// !!! for tracing through errors
-			OpRoots knownRoots3;
-			knownRoots3.add(OpMath::CubicRoot(A, B, C, D - axisIntercept));
-		}
-	}
-#endif
-#if OP_DEBUG_ROOT_CLASSIC && !OP_DEBUG_ROOT_NOUVEAU
-	return result;
-#else
-	OP_ASSERT(OP_DEBUG_ROOT_NOUVEAU);
+	test.add(OpMath::CubicRoot(A, B, C, D - axisIntercept));
 	return test;
-#endif
 }
 
-// if curve is rotated, break at extrema before calling nouveau intersection finder
+// if curve is rotated, break at extrema before calling intersection finder
 inline OpRoots cubicRotatedT(Curve c, Axis axis, float intercept  
 		OP_DEBUG_PARAMS(const OpRoots& debugAdded)) {
 	OpPoint start = c.data->start;
@@ -643,6 +524,13 @@ inline void cubicReverse(Curve c) {
 
 inline void cubicSubDivide(Curve c, float t1, float t2, float threshold, Curve* result) {
     cubicCommonSubDivide(c, t1, t2, threshold, result, CubicSubDivide::checkAngles);
+}
+
+inline void cubicCallbacks(Context* context, int nativeCurveType) {
+    SetCurveCallbacks(context, nativeCurveType, { cubicAxisT,
+			cubicRotatedT, cubicHull, cubicIsFinite, cubicIsLine, cubicSetBounds,
+			cubicTangent, cubicsEqual, cubicPtAtT, cubicDPtAtT, cubicHullPtCount, cubicRotate, 
+			cubicSubDivide, cubicXYAtT, cubicReverse });
 }
 
 #if OP_DEBUG_DUMP

@@ -59,7 +59,8 @@ struct BinaryContext : public UnaryContext {
 };
 #endif
 
-void commonOutput(Curve c, SkPath::Verb type, bool firstPt, bool lastPt, PathOutput output) {
+void skiaOutput(Curve c, bool firstPt, bool lastPt, PathOutput output) {
+    SkPath::Verb type = (SkPath::Verb) c.type; 
     SkPath& skpath = *(SkPath*)(output);
     if (firstPt) {
 		skpath.setFillType(SkPathFillType::kEvenOdd);
@@ -92,66 +93,33 @@ void commonOutput(Curve c, SkPath::Verb type, bool firstPt, bool lastPt, PathOut
         skpath.close();
 }
 
-void skiaLineOutput(Curve c, bool firstPt, bool lastPt, PathOutput output) {
-    commonOutput(c, SkPath::kLine_Verb, firstPt, lastPt, output);
-}
-
-void skiaQuadOutput(Curve c, bool firstPt, bool lastPt, PathOutput output) {
-    commonOutput(c, SkPath::kQuad_Verb, firstPt, lastPt, output);
-}
-
-void skiaConicOutput(Curve c, bool firstPt, bool lastPt, PathOutput output) {
-    commonOutput(c, SkPath::kConic_Verb, firstPt, lastPt, output);
-}
-
-void skiaCubicOutput(Curve c, bool firstPt, bool lastPt, PathOutput output) {
-    commonOutput(c, SkPath::kCubic_Verb, firstPt, lastPt, output);
-}
-
-enum class SkiaCurveType : int {
-	skiaLineType = 1,
-	skiaQuadType,
-	skiaConicType,
-	skiaCubicType
-};
-
-// start here;
-// rearrange to allow nullptr as default
 void SetSkiaCurveCallbacks(Context* context) {
-    OP_DEBUG_CODE(CurveType lineType =) SetCurveCallbacks(context, { skiaLineOutput });
-	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, lineType, { debugLineScale
+    SetCurveCallbacks(context, SkPath::kLine_Verb, { } );
+    quadCallbacks(context, SkPath::kQuad_Verb);
+    conicCallbacks(context, SkPath::kConic_Verb);
+    cubicCallbacks(context, SkPath::kCubic_Verb);
+}
+
+#if OP_DEBUG
+void DebugSkiaCurveCallbacks(Context* context) {
+	SetDebugCurveCallbacks(context, SkPath::kLine_Verb, { debugLineScale
             OP_DEBUG_DUMP_PARAMS(lineDebugDumpName, nullptr)
             OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath) 
-            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) }));
-	OP_ASSERT((int) lineType == (int) SkiaCurveType::skiaLineType);
-    OP_DEBUG_CODE(CurveType quadType =) SetCurveCallbacks(context, { skiaQuadOutput, quadAxisT,
-			quadRotatedT, quadHull, quadIsFinite, quadIsLine, quadSetBounds, /* quadPinCtrl, */
-            quadTangent, quadsEqual, quadPtAtT, nullptr, quadHullPtCount, quadRotate, 
-			quadSubDivide, quadXYAtT });
-	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, quadType, { debugQuadScale
+            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) });
+    SetDebugCurveCallbacks(context, SkPath::kQuad_Verb, { debugQuadScale
             OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, nullptr)
             OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath) 
-            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) }));
-	OP_ASSERT((int) quadType == (int) SkiaCurveType::skiaQuadType);
-    OP_DEBUG_CODE(CurveType conicType =) SetCurveCallbacks(context, { skiaConicOutput, conicAxisT,
-			conicRotatedT, conicHull, conicIsFinite, conicIsLine, conicSetBounds, /* quadPinCtrl, */ 
-			conicTangent, conicsEqual, conicPtAtT, nullptr, quadHullPtCount, conicRotate, 
-			conicSubDivide, conicXYAtT });
-	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, conicType, { debugConicScale
+            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) });
+	SetDebugCurveCallbacks(context, SkPath::kConic_Verb, { debugConicScale
             OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
             OP_DEBUG_IMAGE_PARAMS(debugConicAddToSkPath) 
-            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) }));
-	OP_ASSERT((int) conicType == (int) SkiaCurveType::skiaConicType);
-    OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallbacks(context, { skiaCubicOutput, cubicAxisT,
-			cubicRotatedT, cubicHull, cubicIsFinite, cubicIsLine, cubicSetBounds, /* cubicPinCtrl, */
-			cubicTangent, cubicsEqual, cubicPtAtT, cubicDPtAtT, cubicHullPtCount, cubicRotate, 
-			cubicSubDivide, cubicXYAtT, cubicReverse });
-	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, cubicType, { debugCubicScale
+            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) });
+	SetDebugCurveCallbacks(context, SkPath::kCubic_Verb, { debugCubicScale
             OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, nullptr)
             OP_DEBUG_IMAGE_PARAMS(debugCubicAddToSkPath) 
-            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) }));
-	OP_ASSERT((int) cubicType == (int) SkiaCurveType::skiaCubicType);
+            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) });
 }
+#endif
 
 #if !OP_TINY_SKIA
 #include "include/core/SkStream.h"
@@ -307,7 +275,7 @@ void emptySkPathFunc(PathOutput output) {
 }
 
 PathOpsV0Lib::CurveType setSkiaLineType(PathOpsV0Lib::Context* , PathOpsV0Lib::Curve ) {
-    return (CurveType) SkiaCurveType::skiaLineType;
+    return SkPath::kLine_Verb;
 }
 
 #if 0 && OP_DEBUG  // !!! unused?
@@ -345,7 +313,7 @@ void SetSkiaContextCallbacks(Context* context) {
 	if (DebugAnalyze(context))  // definition below
 		return;
 #endif
-    SetContextCallbacks(context, { setSkiaLineType, emptySkPathFunc });
+    SetContextCallbacks(context, { skiaOutput, setSkiaLineType, emptySkPathFunc });
 }
 
 Contour* SetSkiaSimplifyCallbacks(Context* context, Winding winding,
@@ -436,39 +404,35 @@ void AddSkiaPath(Context* context, Contour* contour, const SkPath& path
 	}
     SkPath::RawIter iter(path);
     OpPoint closeLine[2] = {{0, 0}, {0, 0}};  // initialize so first move doesn't add close line
-	OP_DEBUG_CODE(int contourIndex = 0);
+	OP_DEBUG_CODE(debugData.contourIndex = 0);
     for (;;) {
         SkPoint pts[4];
         SkPath::Verb verb = iter.next(pts);
         switch (verb) {
         case SkPath::kMove_Verb:
             if (closeLine[0] != closeLine[1])
-                Add(contour, { closeLine, sizeof(closeLine), 
-						(CurveType) SkiaCurveType::skiaLineType } );
+                Add(contour, { closeLine, sizeof(closeLine), SkPath::kLine_Verb } );
             closeLine[1] = { pts[0].fX, pts[0].fY };
             pts[1] = pts[0];
 			contour = Clone(contour);
 	#if OP_DEBUG
-			debugData.contourIndex = contourIndex;
 			SetDebugContourData(contour, { &debugData, debugSize }, debugContourType );
-			++contourIndex;
+			debugData.contourIndex++;
 	#endif
             break;
         case SkPath::kLine_Verb:
             if (pts[0] != pts[1])
-                Add(contour, { (OpPoint*) pts, sizeof(SkPoint) * 2, 
-						(CurveType) SkiaCurveType::skiaLineType } );
+                Add(contour, { (OpPoint*) pts, sizeof(SkPoint) * 2, SkPath::kLine_Verb } );
             break;
         case SkPath::kQuad_Verb:
             std::swap(pts[1], pts[2]);  // rearrange order from 0/1/2 to 0/2/1
-            AddQuads(contour, { (OpPoint*) pts, sizeof(SkPoint) * 3, 
-					(CurveType) SkiaCurveType::skiaQuadType } );
+            AddQuads(contour, { (OpPoint*) pts, sizeof(SkPoint) * 3, SkPath::kQuad_Verb } );
             break;
         case SkPath::kConic_Verb:
             std::swap(pts[1], pts[2]);  // rearrange order from 0/1/2 to 0/2/1
             pts[3].fX = iter.conicWeight(); // !!! hacky
             AddConics(contour, { (OpPoint*) pts, sizeof(SkPoint) * 3 + sizeof(float), 
-                    (CurveType) SkiaCurveType::skiaConicType } );
+                    SkPath::kConic_Verb } );
             break;
         case SkPath::kCubic_Verb: {
 		#if 0
@@ -481,14 +445,12 @@ void AddSkiaPath(Context* context, Contour* contour, const SkPath& path
 			SkPoint temp[4] { pts[0], pts[3], pts[1], pts[2] };  //  put start, end, up front
 			std::memcpy(pts, temp, sizeof(temp));
 		#endif
-            AddCubics(contour, { (OpPoint*) pts, sizeof(SkPoint) * 4, 
-					(CurveType) SkiaCurveType::skiaCubicType } );
+            AddCubics(contour, { (OpPoint*) pts, sizeof(SkPoint) * 4, SkPath::kCubic_Verb } );
             } break;
         case SkPath::kClose_Verb:
         case SkPath::kDone_Verb:
             if (closeLine[0] != closeLine[1])
-                Add(contour, { closeLine, sizeof(closeLine), 
-						(CurveType) SkiaCurveType::skiaLineType } );
+                Add(contour, { closeLine, sizeof(closeLine), SkPath::kLine_Verb } );
             if (SkPath::kDone_Verb == verb)
                 return;
             closeLine[0] = closeLine[1];

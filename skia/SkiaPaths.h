@@ -10,14 +10,6 @@ class SkPath;
 
 namespace PathOpsV0Lib {
 
-enum class CurveType : int {
-    no,
-    line,
-    quad,
-    conic,
-    cubic
-};
-
 enum class BinaryOperand : int;
 enum class BinaryWindType : int;
 

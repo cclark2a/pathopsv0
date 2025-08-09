@@ -3,6 +3,8 @@
 #include "OpCurveCurve.h"
 #include "OpSegments.h"
 #include "OpWinder.h"
+#include "DebugOps.h"
+#include "PathOps.h"
 
 bool OpPtAliases::add(OpPoint original, OpPoint alias) {
 	OP_ASSERT(original.isFinite());
@@ -159,6 +161,7 @@ OpContext::OpContext()
 	, uniqueID(0) 
 	, outputOne(false)
 	OP_DEBUG_PARAMS(debugData(false)) {
+    PathOpsV0Lib::SetCurveCallbacks((PathOpsV0Lib::Context*)(this), 0, { } );
 #if OP_DEBUG_VALIDATE
 	debugValidateEdgeIndex = 0;
 	debugValidateJoinerIndex = 0;
@@ -176,7 +179,9 @@ OpContext::OpContext()
 	debugCheckLastEdge = false;
 	debugFailOnEqualCepts = false;
 	OP_DEBUG_DUMP_CODE(debugDumpInit = false);
+    PathOpsV0Lib::SetDebugCurveCallbacks((PathOpsV0Lib::Context*)(this), 0, { } );
 #endif
+
 }
 
 OpContext::~OpContext() {
@@ -372,6 +377,22 @@ bool OpContext::containsPals(OpEdge* edge, int totalLimbs) {
 		} while (++index < totalLimbs);
 	}
 	return false;
+}
+
+void OpContext::curveIndex(PathOpsV0Lib::AddCurve& curvePtr) {
+    curvePtr.type = curveIndex(curvePtr.type);
+}
+
+int OpContext::curveIndex(int nativeType) {
+    int count = (int) nativeCurveTypes.size();
+    if (nativeType < count && nativeCurveTypes[nativeType] == nativeType)
+        return nativeType;
+    for (int index = 0; index < count; ++index) {
+        if (nativeType == nativeCurveTypes[index]) {
+            return index;
+        }
+    }
+    return 0;
 }
 
 #if 0

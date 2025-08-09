@@ -31,7 +31,7 @@ enum class ContextError {
 struct Contour;
 
 // caller defined curve type (e.g., line, arc, cubic, ...); 
-enum class CurveType : int;
+typedef int CurveType;
 
 static constexpr CurveType degenerateLine = (CurveType) 0;  // used when curve degenerates to line
 
@@ -145,7 +145,6 @@ typedef float (*CurveConst)(Curve );
 // the collection of caller-defined functions that describe the geometry of the curve
 // most caller-defined functions are optional and default to built-in behavior
 struct CurveCallbacks {
-	CurveOutput curveOutputFuncPtr; // !!! to do: should this default to no output? is that useful?
 	AxisT axisTFuncPtr = nullptr;  // curve is monotonic
 	AxisT rotateTFuncPtr = nullptr;  // curve was rotated and may require finding extrema
 	CurveHull curveHullFuncPtr = nullptr;
@@ -221,7 +220,8 @@ typedef float (*MaxGap)(Context* );
 // caller-defined functions, most of which customize when the engine returns an error
 // most caller-defined functions are optional and have built-in defaults
 struct ContextCallbacks {
-	SetLineType setLineTypeFuncPtr;  // !!! to do: should this default to (CurveType) 1 ?
+	CurveOutput curveOutputFuncPtr = nullptr;
+	SetLineType setLineTypeFuncPtr = nullptr;  // default to (CurveType) 1
 	EmptyCallerPath emptyCallerPathFuncPtr = nullptr;
 	MaxCurveCurveValue maxSplitFuncPtr = nullptr;
 	MaxCurveCurveValue maxBoundedEdgeFuncPtr = nullptr;

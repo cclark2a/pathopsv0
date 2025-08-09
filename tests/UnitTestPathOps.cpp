@@ -505,7 +505,7 @@ void validateHTML() {
 }
 #endif
 
-#define TEST_SMALL_EXAMPLES 0
+#define TEST_SMALL_EXAMPLES 01
 
 extern void testFrame();
 extern void TestPath2D(bool debugIt);

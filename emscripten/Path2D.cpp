@@ -462,7 +462,7 @@ void Path::opAddPath(Context* context, Contour* contour, bool closeLoops) {
 }
 
 struct OutPath {
-	void commonOutput(PathOpsV0Lib::Curve c, Types type, bool firstPt, bool lastPt);
+	void commonOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt);
 	bool extendCommon(OpPoint prior, OpPoint* last, OpPoint pt);
 	bool extendLast(OpPoint pt);
 	bool wrapAround(OpPoint pt);
@@ -471,12 +471,12 @@ struct OutPath {
 	size_t startIndex;  // to handle wrap around, save moveTo position
 };
 
-void OutPath::commonOutput(PathOpsV0Lib::Curve c, Types type, bool firstPt, bool lastPt) {
+void OutPath::commonOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt) {
 	if (firstPt) {
 		startIndex = result.curves.size();
 		result.moveTo(c.data->start.x, c.data->start.y);
 	}
-	switch (type) {
+	switch ((Types) c.type) {
 		case Types::line:
 			if ((!lastPt || firstPt || !wrapAround(c.data->end)) && !extendLast(c.data->end))
 				result.lineTo(c.data->end.x, c.data->end.y);
@@ -568,24 +568,9 @@ static void EmptyFunc(PathOutput pathOutput) {
 	((Path*) pathOutput)->clear();
 }
 
-static void LineOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathOutput pathOutput) {
+static void Path2DOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathOutput pathOutput) {
 	OutPath* output = (OutPath*) pathOutput;
-	output->commonOutput(c, Types::line, firstPt, lastPt);
-}
-
-static void QuadOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathOutput pathOutput) {
-	OutPath* output = (OutPath*) pathOutput;
-	output->commonOutput(c, Types::quad, firstPt, lastPt);
-}
-
-static void ConicOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathOutput pathOutput) {
-	OutPath* output = (OutPath*) pathOutput;
-	output->commonOutput(c, Types::conic, firstPt, lastPt);
-}
-
-static void CubicOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathOutput pathOutput) {
-	OutPath* output = (OutPath*) pathOutput;
-	output->commonOutput(c, Types::cubic, firstPt, lastPt);
+	output->commonOutput(c, firstPt, lastPt);
 }
 
 static PathOpsV0Lib::CurveType LineType(PathOpsV0Lib::Context* , PathOpsV0Lib::Curve ) {
@@ -593,40 +578,27 @@ static PathOpsV0Lib::CurveType LineType(PathOpsV0Lib::Context* , PathOpsV0Lib::C
 }
 
 static void SetupCurves(Context* context) {
-	OP_DEBUG_CODE(CurveType lineType =) SetCurveCallbacks(context, { LineOutput });
-	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, lineType, { debugLineScale
+    SetCurveCallbacks(context, (int) Types::line, { } );
+    quadCallbacks(context, (int) Types::quad);
+    conicCallbacks(context, (int) Types::conic);
+    cubicCallbacks(context, (int) Types::cubic);
+	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, (int) Types::line, { debugLineScale
             OP_DEBUG_DUMP_PARAMS(lineDebugDumpName, nullptr)
             OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath) }));
-	OP_ASSERT((int) lineType == (int) Types::line);
-	OP_DEBUG_CODE(CurveType quadType =) SetCurveCallbacks(context, { QuadOutput, quadAxisT, 
-			quadRotatedT, quadHull, quadIsFinite, quadIsLine, quadSetBounds, /* quadPinCtrl, */ 
-			quadTangent, quadsEqual, quadPtAtT, nullptr, quadHullPtCount, quadRotate, 
-			quadSubDivide, quadXYAtT });
-	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, quadType, { debugQuadScale
+	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, (int) Types::quad, { debugQuadScale
             OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, nullptr)
             OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath) }));
-	OP_ASSERT((int) quadType == (int) Types::quad);
-        OP_DEBUG_CODE(CurveType conicType =) SetCurveCallbacks(context, { ConicOutput, conicAxisT,
-			conicRotatedT, conicHull, conicIsFinite, conicIsLine, conicSetBounds, /* quadPinCtrl, */ 
-			conicTangent, conicsEqual, conicPtAtT, nullptr, quadHullPtCount, conicRotate, 
-			conicSubDivide, conicXYAtT });
-	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, conicType, { debugConicScale
+	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, (int) Types::conic, { debugConicScale
             OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
             OP_DEBUG_IMAGE_PARAMS(debugConicAddToSkPath) }));
-	OP_ASSERT((int) conicType == (int) Types::conic);
-	OP_DEBUG_CODE(CurveType cubicType =) SetCurveCallbacks(context, { CubicOutput, cubicAxisT, 
-			cubicRotatedT, cubicHull, cubicIsFinite, cubicIsLine, cubicSetBounds, /* cubicPinCtrl, */
-			cubicTangent, cubicsEqual, cubicPtAtT, nullptr, cubicHullPtCount, cubicRotate, 
-			cubicSubDivide, cubicXYAtT, cubicReverse });
-	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, cubicType, { debugCubicScale
+	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, (int) Types::cubic, { debugCubicScale
             OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, nullptr)
             OP_DEBUG_IMAGE_PARAMS(debugCubicAddToSkPath) }));
-	OP_ASSERT((int) cubicType == (int) Types::cubic);
 }
 
 ContextError FillPath::opCommon(FillPath& path, Ops oper) {
 	Context* context = CreateContext();
-	SetContextCallbacks(context, { LineType, EmptyFunc });	
+	SetContextCallbacks(context, { Path2DOutput, LineType, EmptyFunc });	
 	WindingKeep operatorFunc = nullptr;
 	switch (oper) {
 		case Ops::diff: operatorFunc = binaryWindingDifferenceFunc; break;
@@ -657,7 +629,7 @@ ContextError FillPath::opCommon(FillPath& path, Ops oper) {
 
 ContextError FillPath::simplify() {
 	Context* context = CreateContext();
-	SetContextCallbacks(context, { LineType, EmptyFunc });	
+	SetContextCallbacks(context, { Path2DOutput, LineType, EmptyFunc });	
     SetWindingCallbacks(context, { unaryWindingAddFunc, unaryWindingKeepFunc, 
 			unaryWindingVisibleFunc, unaryWindingZeroFunc, unaryWindingSubtractFunc });
 #if OP_DEBUG
@@ -789,7 +761,7 @@ std::string frameWindingImageOutFunc(Winding winding, int index) {
 
 ContextError FramePath::opCommon(FillPath& path, Ops oper) {
 	Context* context = CreateContext();
-    SetContextCallbacks(context, { LineType });
+    SetContextCallbacks(context, { Path2DOutput, LineType, EmptyFunc });
 	WindingKeep operatorFunc = Ops::sect == oper ? frameKeepFunc : frameDiscardFunc;
     SetWindingCallbacks(context, { frameAddFunc, operatorFunc, frameVisibleFunc, frameZeroFunc, 
             frameSubtractFunc });

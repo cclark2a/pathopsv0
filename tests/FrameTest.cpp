@@ -68,9 +68,9 @@ void frameSubtractFunc(Winding winding, Winding toSubtract) {
 }
 
 // curve types
-CurveType frameLine = (CurveType) 0;  // unset
+CurveType frameLine = 1;
 constexpr size_t frameLineSize = sizeof(OpPoint) * 2;
-CurveType frameQuad = (CurveType) 0;  // unset
+CurveType frameQuad = 2;
 constexpr size_t frameQuadSize = sizeof(OpPoint) * 3;
 
 void frameOutput(Curve c, bool firstPt, bool lastPt, PathOutput output) {
@@ -125,7 +125,7 @@ void testFrame() {
     using namespace PathOpsV0Lib;
 
     Context* context = CreateContext();
-    SetContextCallbacks(context, { frameSetLineType });
+    SetContextCallbacks(context, { frameOutput, frameSetLineType });
     SetWindingCallbacks(context, { frameAddFunc, frameKeepFunc, frameVisibleFunc, 
 			frameZeroFunc, frameSubtractFunc });
 
@@ -136,8 +136,8 @@ void testFrame() {
 			OP_DEBUG_DUMP_CODE(nullptr, frameDumpOutFunc) });
 #endif
 
-    frameLine = SetCurveCallbacks(context, { frameOutput });
-    frameQuad = SetCurveCallbacks(context, { frameOutput, quadAxisT, quadRotatedT, quadHull, 
+    SetCurveCallbacks(context, frameLine, { } );
+    SetCurveCallbacks(context, frameQuad, { quadAxisT, quadRotatedT, quadHull, 
 			quadIsFinite, quadIsLine, quadSetBounds,  /* quadPinCtrl, */ 
             quadTangent, quadsEqual, quadPtAtT, nullptr, quadHullPtCount, quadRotate, 
 			quadSubDivide, quadXYAtT });
@@ -147,7 +147,7 @@ void testFrame() {
 #if OP_DEBUG
 	FrameFill frameContourData = FrameFill::frame;
 	SetDebugContourData(frameContour, { &frameContourData, sizeof(frameContourData) }, 
-        DebugContourType::windingUserData );
+            DebugContourType::windingUserData );
 #endif
 
     FrameWinding fillData(FrameFill::fill, 1);
@@ -156,7 +156,7 @@ void testFrame() {
 #if OP_DEBUG
 	FrameFill fillContourData = FrameFill::fill;
 	SetDebugContourData(fillContour, { &fillContourData, sizeof(fillContourData) }, 
-        DebugContourType::windingUserData );
+            DebugContourType::windingUserData );
 #endif
 
 	// example: return line parts in hourglass fill

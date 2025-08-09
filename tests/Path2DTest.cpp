@@ -180,8 +180,8 @@ void TestPath2D(bool debugIt) {
 	path2.rect(2, 2, 6, 6);
 	path.intersect(path2);
 	svg = path.toSVG();
-	OP_ASSERT(svg == "M 2 4 L 2 2 L 4 2 L 4 4 L 2 4 Z");
-
+	OP_ASSERT(svg == "M 4 2 L 4 4 L 2 4 L 2 2 L 4 2 Z");
+    
 	path.clear();
 	path.rect(0, 0, 4, 4);
 	path.rect(2, 0, 4, 4);

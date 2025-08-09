@@ -991,6 +991,17 @@ void OpContext::debugRemap(int oldRayMatch, int newRayMatch) {
     }
 }
 
+PathOpsV0Lib::DebugCurveCallbacks& OpContext::debugCallback(PathOpsV0Lib::Curve c) {
+    PathOpsV0Lib::CurveType type = c.type;
+    if (PathOpsV0Lib::degenerateLine == type) {
+        type = contextCallbacks.setLineTypeFuncPtr 
+                ? (*contextCallbacks.setLineTypeFuncPtr)((PathOpsV0Lib::Context*) this, c) : 1;
+    }
+	OP_ASSERT((int) type >= 1);
+	OP_ASSERT((size_t) type <= debugCallbacks.size());
+	return debugCallbacks[curveIndex(type)];
+}
+
 // assign the same ID for all edges linked together
 // also assign that ID to edges whose non-zero crossing rays attach to those edges
 

@@ -143,7 +143,9 @@ inline OpRoots quadAxisT(Curve curve, Axis axis, float axisIntercept
     float c = curve.data->start.choice(axis);
     a += c - 2 * b;    // A = a - 2*b + c
     b -= c;            // B = -(b - c)
-    return OpMath::QuadRootsDouble(a, 2 * b, c - axisIntercept);  // double req'd: testQuads3759897
+    OpRoots result = OpMath::QuadRootsDouble(a, 2 * b, c - axisIntercept);  // double req'd: testQuads3759897
+    result = result.keepValidTs();
+    return result;
 }
 
 inline OpRoots quadRotatedT(Curve curve, Axis axis, float axisIntercept  
@@ -205,21 +207,6 @@ inline OpVector quadTangent(Curve c, float t) {
     return QuadTangent(c.data->start, quadControlPt(c), c.data->end, t);
 }
 
-#if 0
-inline OpVector quadNormal(Curve c, float t) {
-    OpVector tan = quadTangent(c, t);
-    return { -tan.dy, tan.dx };
-}
-#endif
-
-#if 0
-inline void quadPinCtrl(Curve c, OpPoint oldStart, OpPoint oldEnd) {
-    OpPoint ctrlPt = quadControlPt(c);
-    ctrlPt.pin(c.data->start, c.data->end);
-    quadSetControl(c, ctrlPt);
-}
-#endif
-
 inline void quadRotate(Curve c, OpPoint origin, OpVector s, Curve result) {
     OpPoint ctrlPt = quadControlPt(c);
     OpVector v = ctrlPt - origin;
@@ -247,6 +234,13 @@ inline OpPoint quadHull(Curve c, int index) {
         return quadControlPt(c);
     OP_ASSERT(0); // should never be called
     return OpPoint();
+}
+
+inline void quadCallbacks(Context* context, int nativeCurveType) {
+    SetCurveCallbacks(context, nativeCurveType, 
+            { quadAxisT, quadRotatedT, quadHull, quadIsFinite, 
+            quadIsLine, quadSetBounds, quadTangent, quadsEqual, quadPtAtT, nullptr, quadHullPtCount,  
+			quadRotate, quadSubDivide, quadXYAtT });
 }
 
 #if OP_DEBUG_DUMP

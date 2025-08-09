@@ -1719,7 +1719,7 @@ std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
 	if ((size_t) c.type > context->debugCallbacks.size())
 		s += "(missing curve name) ";
     else {
-		auto curveName = context->debugCallback(c.type).curveNameFuncPtr;
+		auto curveName = context->debugCallback(c).curveNameFuncPtr;
 		if (curveName)
 			s += (*curveName)() + " ";
 	}
@@ -1734,7 +1734,7 @@ std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
         s.pop_back(); s.pop_back();  // remove space, comma
         s += "}";
 		if ((size_t) c.type <= context->debugCallbacks.size()) {
-			auto curveExtra = context->debugCallback(c.type).curveExtraFuncPtr;
+			auto curveExtra = context->debugCallback(c).curveExtraFuncPtr;
 			if (curveExtra)
 				s += (*curveExtra)(c, l, b);
 		}

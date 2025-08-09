@@ -139,6 +139,11 @@ if (looped || deadEnd)  // triggered when walking children of trunk
 		return;
 	if (LimbPass::unlinkedPal == pass)
 		return;
+    PathOpsV0Lib::ErrorHandler& errorHandler = contour.context->errorHandler;
+	if (errorHandler.errorDispatchFuncPtr && !errorHandler.errorDispatchFuncPtr(
+			PathOpsV0Lib::ContextError::missing, *contour.context, &edge->curve.c)) {
+        return;
+    }
 	OP_ASSERT(LimbPass::disabledBackwards == pass);
 	// check if tree's best distance is small enough with a user-provided multiplier
 	// (motivated by loop193532 whose best distance 9.53e-7 exceeds threshold length 8.18e-7;

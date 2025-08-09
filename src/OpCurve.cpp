@@ -632,7 +632,9 @@ OpPointBounds OpCurve::ptBounds() const {
 
 void OpCurve::output(bool firstPt, bool lastPt  OP_DEBUG_PARAMS(int parentID)) {
 	context->initOutOnce();
-	context->callback(c.type).curveOutputFuncPtr(c, firstPt, lastPt, context->callerOutput);
+    PathOpsV0Lib::Curve curve = c;
+    curve.type = context->nativeCurveTypes[c.type];
+	context->contextCallbacks.curveOutputFuncPtr(curve, firstPt, lastPt, context->callerOutput);
 #if OP_DEBUG && TEST_RASTER
 	PathOpsV0Lib::DebugAddRaster addRaster = context->debugCallback(c.type).addRasterFuncPtr;
     if (addRaster) {
