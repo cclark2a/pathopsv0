@@ -617,6 +617,20 @@ OpCurve OpCurve::toVerticalDouble(const LinePts& line) const {
 }
 #endif
 
+void CcCurves::debugAdd(EdgeRun& run) {
+    debugValidate();
+//    OP_ASSERT(!OpMath::Equal(0.921024084f, run.edgePtT.t));
+    int debugLo = debugRuns.empty() ? 0 : insertPos(debugRuns, run);
+    debugRuns.insert(debugRuns.begin() + abs(debugLo), run);  // keep everything
+    debugValidate();
+}
+
+void CcCurves::debugAdd(CcCurves& cc) {
+    for (EdgeRun& ccRun : cc.debugRuns) {
+        debugAdd(ccRun);
+    }
+}
+
 // check to see that add edge run has already been called and doesn't need to be called again here
 void CcCurves::debugCheck(const OpEdge* edge, EdgeMatch match) const {
     if (!(edge->startDist.dist * edge->endDist.dist < 0))
@@ -637,6 +651,13 @@ void CcCurves::debugValidate() const {
 		OP_ASSERT(last == &run || last->edgePtT.t < run.edgePtT.t);
 		last = &run;
 	}
+    last = &debugRuns.front();
+    for (const auto& run : debugRuns) {
+        if (!OpMath::IsFinite(run.edgePtT.t))
+            continue;
+		OP_ASSERT(last->edgePtT.t <= run.edgePtT.t);
+		last = &run;
+    }
 }
 #endif
 
@@ -674,11 +695,16 @@ void OpCurveCurve::debugBoundedEdge(OpSegment* segm, const OpPointBounds& sectBo
 #if OP_DEBUG_VERBOSE
 void OpCurveCurve::debugSaveState() {
 	if ((int) dvDepthIndex.size() < depth)
-		dvDepthIndex.push_back(dvAll.size());
+		dvDepthIndex.push_back({ depth, dvAll.size() });
 	for (auto edge : edgeCurves.c)
 		dvAll.push_back(edge);
 	for (auto oppEdge : oppCurves.c)
 		dvAll.push_back(oppEdge);
+    dvRunIndex.push_back({ dvRuns.size(), dvRuns.size() + edgeCurves.runs.size() });
+    for (auto run : edgeCurves.runs)
+        dvRuns.push_back(run);
+    for (auto run :oppCurves.runs)
+        dvRuns.push_back(run);
 }
 #endif
 

@@ -112,14 +112,13 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 		seg->moveWinding(opp, matchRev.reversed);
 		return;
 	}
-	if (2 == septs.count && opp->c.isLine()) {
+#else
+	if (2 == oppRoots.count() && opp->c.isLine()) {
 		OpWinder::CoincidentCheck(seg, opp);
 		return;
 	}
-#else
 	OP_ASSERT(oppRoots.fail != RootFail::rawIntersectFailed);
 	OP_ASSERT(!opp->c.isLine() || MatchEnds::both != matchRev.match);
-	OP_ASSERT(2 != oppRoots.count() || !opp->c.isLine());
 #endif
 	std::vector<OpPtT> oppPtTs;
 	std::vector<OpPtT> edgePtTs;
@@ -183,22 +182,22 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 		sect->pair(oSect);
 	}
 	// if pair share two intersections, and mid t is close, mark intersections as unsectable
-	OpIntersection* iStart = nullptr;
-	OpIntersection* iEnd = nullptr;
+	OpIntersection* sectS = nullptr;
+	OpIntersection* sectE = nullptr;
 	size_t index = 0;
 	while (index < seg->sects.i.size()) {
 		OpIntersection* test = seg->sects.i[index];
 		if (test->opp->segment == opp) {
-			if (iStart) {
-				iEnd = test;
+			if (sectS) {
+				sectE = test;
 				break;
 			}
-			iStart = test;
+			sectS = test;
 		}
 		++index;
 	}
-	if (iEnd) {
-		float midT = OpMath::Average(iStart->ptT.t, iEnd->ptT.t);
+	if (sectE) {
+		float midT = OpMath::Average(sectS->ptT.t, sectE->ptT.t);
 		// distance from seg point at midT normal to opp segment
 		OpPtT midPtT = seg->c.ptTAtT(midT);
 		OpPtT oppPtT = seg->distance(midPtT, opp);
@@ -222,21 +221,21 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 						seg->sects.i.erase(seg->sects.i.begin() + index);
 				}
 			};
-			removeBetweeners(seg, segSects, iStart, iEnd);
-			removeBetweeners(opp, oppSects, iStart->opp, iEnd->opp);
-			std::array<CoinEnd, 4> ends {{{ seg, opp, iStart->ptT, OpVector() }, 
-				{ seg, opp, iEnd->ptT, OpVector() },
-				{ opp, seg, iStart->opp->ptT, OpVector() }, 
-				{ opp, seg, iEnd->opp->ptT, OpVector() }}};
+			removeBetweeners(seg, segSects, sectS, sectE);
+			removeBetweeners(opp, oppSects, sectS->opp, sectE->opp);
+			std::array<CoinEnd, 4> ends {{{ seg, opp, sectS->ptT, OpVector() }, 
+				{ seg, opp, sectE->ptT, OpVector() },
+				{ opp, seg, sectS->opp->ptT, OpVector() }, 
+				{ opp, seg, sectE->opp->ptT, OpVector() }}};
 			OpWinder::CoincidentCheck(ends, nullptr, nullptr);
 		} else if (dist < seg->threshold().length() * 8) { // !!! who knows what this const should be?
 			int usectID = seg->nextID();
-			seg->addUnsectable(iStart->ptT, usectID, endFromT(iStart, iEnd, MatchEnds::start), opp
+			seg->addUnsectable(sectS->ptT, usectID, endFromT(sectS, sectE, MatchEnds::start), opp
 					OP_LINE_FILE_PARGS());
-			seg->addUnsectable(iEnd->ptT, usectID, endFromT(iStart, iEnd, MatchEnds::end), opp
+			seg->addUnsectable(sectE->ptT, usectID, endFromT(sectS, sectE, MatchEnds::end), opp
 					OP_LINE_FILE_PARGS());
-			OpIntersection* oStart = iStart->opp;
-			OpIntersection* oEnd = iEnd->opp;
+			OpIntersection* oStart = sectS->opp;
+			OpIntersection* oEnd = sectE->opp;
 			bool flipped = oStart->ptT.t > oEnd->ptT.t;
 			if (flipped)
 				usectID = -usectID;
@@ -357,12 +356,13 @@ void OpSegments::findIntersection(OpContour* contour, OpContour* oContour) {
 	bool same = contour == oContour;
 	for (size_t iDex = 0; iDex < contour->sorted.size(); ++iDex) {
 		OpSegment* seg = contour->sorted[iDex];
-//		if (seg->disabled)
-//			continue;
+// !!! why ignore disabled? (add example, reasoning
+		if (seg->disabled)
+			continue;
 		for (size_t oDex = same ? iDex + 1 : 0; oDex < oContour->sorted.size(); ++oDex) {
 			OpSegment* opp = oContour->sorted[oDex];
-//			if (opp->disabled)
-//				continue;
+			if (opp->disabled)
+				continue;
 			if (seg->ptBounds.right < opp->ptBounds.left)
 				break;
 			// loop134071: seg 8 collapses. With pt bounds instead of 'close', seg 7 + 9 don't touch

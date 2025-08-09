@@ -2387,8 +2387,8 @@ void drawDepth(int level) {
 	}
 	if (level > 0 && !cc->dvDepthIndex.empty()) {
 		size_t dvLevel = std::min((size_t) level, cc->dvDepthIndex.size());
-		size_t lo = cc->dvDepthIndex[dvLevel - 1];
-		size_t hi = cc->dvDepthIndex.size() <= dvLevel ? cc->dvAll.size() : cc->dvDepthIndex[dvLevel];
+		size_t lo = cc->dvDepthIndex[dvLevel - 1].all;
+		size_t hi = cc->dvDepthIndex.size() <= dvLevel ? cc->dvAll.size() : cc->dvDepthIndex[dvLevel].all;
 		if (lo < hi) {
 		    while (lo < hi) {
 			    cc->dvAll[lo]->debugDraw = true;

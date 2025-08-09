@@ -189,11 +189,12 @@ struct OpDebugMaker {
 	}
 
 #if OP_DEBUG_DUMP
+    bool valid() const { return line > 0; }
 	void dumpSet(const char*& );
 	std::string debugDump() const;
 #endif
-	std::string file;
-	int line;
+	std::string file = "uninitialized";
+	int line = -1;
 };
 
 #define OP_LINE_FILE_PARAMS(...) , __LINE__, std::string(__FILE__), __VA_ARGS__
@@ -210,8 +211,10 @@ struct OpDebugMaker {
 #define OP_LINE_FILE_ARGS() , int lineNo, std::string fileName
 #define OP_LINE_FILE_NP_DEF(...) int lineNo, std::string fileName, __VA_ARGS__
 #define OP_LINE_FILE_NP_ARGS() int lineNo, std::string fileName
+#define OP_LINE_FILE_DECLARE(debugMaker) OpDebugMaker debugMaker
 #define OP_LINE_FILE_SET(debugMaker) debugMaker = { fileName, lineNo }
 #define OP_LINE_FILE_SET_IMMED(debugMaker) debugMaker = { __FILE__, __LINE__ }
+
 #else
 #define OP_LINE_FILE_PARAMS(...) , __VA_ARGS__
 #define OP_LINE_FILE_PARGS()
@@ -227,6 +230,7 @@ struct OpDebugMaker {
 #define OP_LINE_FILE_ARGS()
 #define OP_LINE_FILE_NP_DEF(...) __VA_ARGS__
 #define OP_LINE_FILE_NP_ARGS()
+#define OP_LINE_FILE_DECLARE(debugMaker)
 #define OP_LINE_FILE_SET(debugMaker)
 #define OP_LINE_FILE_SET_IMMED(debugMaker)
 #endif

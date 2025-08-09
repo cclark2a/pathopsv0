@@ -43,8 +43,8 @@ inline float ConicDenom(float weight, float t) {
 inline OpPoint ConicNumer(OpPoint start, PointWeight control, OpPoint end, float t) {
     OpPoint pt1w = control.pt * control.weight;
     OpPoint C = start;
-    OpPoint A = end - 2 * pt1w + C;
-    OpPoint B = 2 * (pt1w - C);
+    OpPoint A = C + (end - 2 * pt1w);
+    OpVector B = 2 * (pt1w - C);
     return (A * t + B) * t + C;
 }
 
@@ -76,7 +76,8 @@ inline PointWeight ConicControl(OpPoint start, PointWeight control, OpPoint end,
     PointWeight c = subWeight(ptT2.t);
     float midT = OpMath::Average(ptT1.t, ptT2.t);
     PointWeight d(ConicNumer(start, control, end, midT), ConicDenom(control.weight, midT));
-    PointWeight b(2 * d.pt - (a.pt + c.pt) / 2,  // !!! add math pt average?
+    OpVector pwVec = 2 * d.pt - (a.pt + c.pt) / 2;
+    PointWeight b(OpPoint(pwVec.dx, pwVec.dy),  // !!! add math pt average?
             2 * d.weight - OpMath::Average(a.weight, c.weight));  // !!! rewrite with fma?
     // if bz is 0, weight is 0, control point has no effect: any value will do
     float bzNonZero = !b.weight ? 1 : b.weight;

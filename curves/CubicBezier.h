@@ -153,9 +153,9 @@ inline CubicControls CubicControlPt(OpPoint start, CubicControls controls, OpPoi
 //    OpPoint d = interp(ptT2.t);
     OpVector m = e * 27 - ptT1 * 8 - ptT2;
     OpVector n = f * 27 - ptT1 - ptT2 * 8;
-	OpPoint ctrl1((m * 2 - n) / 18);
-	OpPoint ctrl2((n * 2 - m) / 18);
-    CubicControls results { ctrl1, ctrl2 };
+	OpVector ctrl1((m * 2 - n) / 18);
+	OpVector ctrl2((n * 2 - m) / 18);
+    CubicControls results { OpPoint(ctrl1.dx, ctrl1.dy), OpPoint(ctrl2.dx, ctrl2.dy) };
 #if 0 && OP_DEBUG_VALIDATE // compare float and double to measure epsilon of float error
 	OpPoint err1((float) fabs(dCtrl1.x - ctrl1.x), (float) fabs(dCtrl1.y - ctrl1.y));
 	OpPoint err2((float) fabs(dCtrl2.x - ctrl2.x), (float) fabs(dCtrl2.y - ctrl2.y));
@@ -185,8 +185,10 @@ inline CubicControls CubicControlPt(OpPoint start, CubicControls controls, OpPoi
 		OP_ASSERT(rawError <= OpEpsilon * 1024);
 	}
 #endif
-	/* b = */ results.pts[0] = start == ptT1 && start == controls.pts[0] ? start : ctrl1;
-    /* c = */ results.pts[1] = end == ptT2 && end == controls.pts[1] ? end : ctrl2;
+    if (start == ptT1 && start == controls.pts[0])
+	    results.pts[0] = start;
+    if (end == ptT2 && end == controls.pts[1])
+        results.pts[1] = end;
     results.pts[0].pin(ptT1, ptT2);
     results.pts[1].pin(ptT1, ptT2);
     return results;
@@ -215,11 +217,11 @@ inline OpRoots AddExtrema(OpPoint start, OpPoint end, CubicControls& controls,
 }
 
 inline OpRoots AddInflections(OpPoint start, OpPoint end, CubicControls& controls) {
-    OpPoint A = controls.pts[0] - start;
-    OpPoint B = controls.pts[1] - 2 * controls.pts[0] + start;
-    OpPoint C = end + 3 * (controls.pts[0] - controls.pts[1]) - start;
-    OpRoots result = OpMath::QuadRootsInteriorT(B.x * C.y - B.y * C.x, A.x * C.y - A.y * C.x,
-            A.x * B.y - A.y * B.x);  // don't keep roots ~0, ~1
+    OpVector A = controls.pts[0] - start;
+    OpVector B = controls.pts[1] - 2 * controls.pts[0] + OpVector(start.x, start.y);
+    OpVector C = end + 3 * (controls.pts[0] - controls.pts[1]) - start;
+    OpRoots result = OpMath::QuadRootsInteriorT(B.dx * C.dy - B.dy * C.dx, A.dx * C.dy - A.dy * C.dx,
+            A.dx * B.dy - A.dy * B.dx);  // don't keep roots ~0, ~1
 	return result;
 }
 

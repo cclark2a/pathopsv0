@@ -798,9 +798,7 @@ void OpEdge::setSum(const OpWinding& w  OP_LINE_FILE_ARGS()) {
 	OP_ASSERT(sum.w.size);
 	sum.type = WindingType::copy;
 	OP_DEBUG_CODE(sum.debugType = DebugWindingType::sum);
-#if OP_DEBUG_MAKER
-	debugSetSum = { fileName, lineNo };
-#endif
+    OP_LINE_FILE_SET(debugSetSum);
 }
 
 OpPtT OpEdge::whichSect(EdgeMatch match) const {

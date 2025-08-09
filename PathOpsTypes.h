@@ -223,11 +223,13 @@ typedef float (*MaxGap)(Context* );
 struct ContextCallbacks {
 	SetLineType setLineTypeFuncPtr;  // !!! to do: should this default to (CurveType) 1 ?
 	EmptyCallerPath emptyCallerPathFuncPtr = nullptr;
-//	MaxCurveCurveValue maxBoundedEdgeFuncPtr = nullptr;
+	MaxCurveCurveValue maxSplitFuncPtr = nullptr;
+	MaxCurveCurveValue maxBoundedEdgeFuncPtr = nullptr;
 	MaxCurveCurveValue maxSignSwapFuncPtr = nullptr;
-//	MaxCurveCurveValue maxSlopFuncPtr = nullptr;
+	MaxCurveCurveValue maxTSlopFuncPtr = nullptr;
 	MaxCurveCurveValue maxSplitBiasFuncPtr = nullptr;
 	MaxCurveCurveValue maxOverlapFuncPtr = nullptr;
+	MaxCurveCurveValue maxUnsectableFuncPtr = nullptr;
     MaxCurveCurveValue maxDistFuncPtr = nullptr;
 	MaxCurveCurveCount maxDeepFuncPtr = nullptr;
 	MaxCurveCurveCount maxShallowFuncPtr = nullptr;

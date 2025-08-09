@@ -1339,7 +1339,7 @@ static std::string segmentDebugDump(const OpSegment& seg, ShowContour showContou
             s += debugDumpColor(seg.debugColor) + " ";
 #endif
 #if OP_DEBUG_MAKER
-        if (seg.debugSetDisabled.line)
+        if (seg.debugSetDisabled.valid())
             s += "debugSetDisabled:" + seg.debugSetDisabled.debugDump() + " ";
 #endif
         s.pop_back();
@@ -2533,14 +2533,14 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
 #endif
 #if OP_DEBUG_MAKER
     if (dumpIt(EF::debugSetDisabled) && (dumpAlways(EdgeFilter::debugSetDisabled) 
-            || debugSetDisabled.line))
+            || debugSetDisabled.valid()))
         s += "debugSetDisabled:" + debugSetDisabled.debugDump() + " ";
     if (dumpIt(EF::debugSetMaker)) {
         if (DebugLevel::file == l)
             s += "debugSetMaker:";
         s += debugSetMaker.debugDump() + " ";
     }
-    if (dumpIt(EF::debugSetSum) && (dumpAlways(EF::debugSetSum) || debugSetSum.line))
+    if (dumpIt(EF::debugSetSum) && (dumpAlways(EF::debugSetSum) || debugSetSum.valid()))
         s += "debugSetSum:" + debugSetSum.debugDump() + " ";
 #endif
 #if OP_DEBUG_VALIDATE
@@ -2857,7 +2857,16 @@ OpPtT OpEdge::debugFindT(Axis axis, float oppXY) const {
 	return found;
 }
 
+void dmpCompare(OpPoint a, OpPoint b) {
+    OpVector diff = a - b;
+    OpVector threshold = debugGlobalContext->threshold();
+    OpDebugOut("difference: " + STR(diff.dx / threshold.dx) + "x, " 
+            + STR(diff.dy / threshold.dy) + "x\n");
+}
 
+void dmpCompare(const OpPtT& a, const OpPtT& b) {
+    dmpCompare(a.pt, b.pt);
+}
 
 OpPtT dc_ex, dc_ey, dc_ox, dc_oy;
 extern void draw(const OpPtT& );
@@ -3565,7 +3574,10 @@ std::string EdgeRun::debugDump(DebugLevel l, DebugBase b) const {
         s += "fromFoundT ";
     if (byZero)
         s += "byZero ";
-    OP_DEBUG_CODE(s += "debugBetween:" + STR(debugBetween) + " ");
+ //   OP_DEBUG_CODE(s += "debugBetween:" + STR(debugBetween) + " ");
+#if OP_DEBUG_MAKER
+    s += debugSetMaker.debugDump();
+#endif
     return s;
 }
 
@@ -3581,7 +3593,10 @@ void EdgeRun::dumpSet(const char*& str) {
         byZero = true;
 #if OP_DEBUG
     OpDebugRequired(str, "debugBetween");
-    debugBetween = (int) OpDebugReadSizeT(str);
+//    debugBetween = (int) OpDebugReadSizeT(str);
+#endif
+#if OP_DEBUG_MAKER
+    debugSetMaker.dumpSet(str);
 #endif
 }
 
@@ -3613,7 +3628,7 @@ std::string FoundLimits::debugDump(DebugLevel l, DebugBase b) const {
     if (LimitMatch::yes == match)
         s += " match";
 #if OP_DEBUG_MAKER
-    s += " maker:" + maker.debugDump();
+    s += " debugMaker:" + debugMaker.debugDump();
 #endif
     return s;
 }
@@ -3632,8 +3647,8 @@ void FoundLimits::dumpSet(const char*& str) {
     used = OpDebugOptional(str, "used") ? LimitUsed::yes : LimitUsed::no;
     match = OpDebugOptional(str, "match") ? LimitMatch::yes : LimitMatch::no;
 #if OP_DEBUG_MAKER
-    OpDebugRequired(str, "maker");
-    maker.dumpSet(str);
+    OpDebugRequired(str, "debugMaker");
+    debugMaker.dumpSet(str);
 #endif
 }
 
@@ -3922,8 +3937,8 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
     if (DebugLevel::file == l) {
         if (dvDepthIndex.size()) {
             s += "dvDepthIndex[" + STR(dvDepthIndex.size()) + "\n";
-            for (size_t iDepth : dvDepthIndex)
-                s += STR(iDepth) + " ";
+            for (const DebugDepth& iDepth : dvDepthIndex)
+                s += "{depth:" + STR(iDepth.depth) + " " + STR(iDepth.all) + "} ";
             s.pop_back();
             s += "] ";
         }
@@ -3933,6 +3948,18 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
                 s += STR(edge->id) + " ";
             s.pop_back();
             s += "] ";
+        }
+        if (dvRunIndex.size()) {
+            s += "dvRunIndex[" + STR(dvRunIndex.size()) + "\n";
+            for (const DebugRunSize& size : dvRunIndex)
+                s += "{edgeRuns:" + STR(size.edgeRuns) + " oppRuns:" + STR(size.oppRuns) + "} ";
+            s.pop_back();
+            s += "] ";
+        }
+        if (dvRuns.size()) {
+            s += "dvRuns:" + STR(dvRuns.size()) + "\n";
+            for (const auto& run : dvRuns)
+                s += run.debugDump(l, b) + "\n";
         }
     }
 #endif
@@ -3975,7 +4002,7 @@ void OpCurveCurve::dumpSet(const char*& str) {
     OpDebugRequired(str, "debugLocalCall");
     debugLocalCall = (int) OpDebugReadSizeT(str);
 #endif
-#if OP_DEBUG_VERBOSE
+#if 0 && OP_DEBUG_VERBOSE  // out of date (update when needed)
     if (OpDebugOptional(str, "dvDepthIndex")) {
         size_t count = OpDebugReadSizeT(str);
         dvDepthIndex.resize(count);
@@ -4018,13 +4045,35 @@ void OpCurveCurve::dumpDepth(int level) {
             OpDebugFormat(e->debugDump(defaultLevel, defaultBase) + "\n");
         for (const auto e : oppCurves.c)
             OpDebugFormat(e->debugDump(defaultLevel, defaultBase) + "\n");
+        OpDebugOut("edgeCurves.runs: " + STR(edgeCurves.runs.size()) + "\n");
+        for (const auto& run : edgeCurves.runs)
+            OpDebugFormat(run.debugDump(defaultLevel, defaultBase) + "\n");
+        OpDebugOut("oppCurves.runs: " + STR(oppCurves.runs.size()) + "\n");
+        for (const auto& run : oppCurves.runs)
+            OpDebugFormat(run.debugDump(defaultLevel, defaultBase) + "\n");
         return;
     }
-    size_t lo = dvDepthIndex[level];
-    size_t hi = (int) dvDepthIndex.size() <= level + 1 ? dvAll.size() : dvDepthIndex[level + 1];
+    if (dvDepthIndex[level].depth != level + 1)
+        OpDebugOut("!mismatch:" + STR(dvDepthIndex[level].depth) + "!=" + STR(level + 1) + "\n");
+    size_t lo = dvDepthIndex[level].all;
+    size_t hi = (int) dvDepthIndex.size() <= level + 1 ? dvAll.size() : dvDepthIndex[level + 1].all;
     for (size_t index = lo; index < hi; ++index) {
         OpEdge* e = dvAll[index];
         OpDebugFormat(e->debugDump(defaultLevel, defaultBase) + "\n");
+    }
+    lo = dvRunIndex[level].edgeRuns;
+    hi = dvRunIndex[level].oppRuns;
+    OpDebugOut("edgeCurves.runs: " + STR(hi - lo) + "\n");
+    for (size_t index = lo; index < hi; ++index) {
+        const EdgeRun& run = dvRuns[index];
+        OpDebugFormat(run.debugDump(defaultLevel, defaultBase) + "\n");
+    }
+    lo = hi;
+    hi = (int) dvRunIndex.size() <= level + 1 ? dvRuns.size() : dvRunIndex[level + 1].edgeRuns;
+    OpDebugOut("oppCurves.runs: " + STR(hi - lo) + "\n");
+    for (size_t index = lo; index < hi; ++index) {
+        const EdgeRun& run = dvRuns[index];
+        OpDebugFormat(run.debugDump(defaultLevel, defaultBase) + "\n");
     }
 }
 
@@ -4833,7 +4882,10 @@ std::string OpRoots::debugDump(DebugLevel l, DebugBase b) const {
 
 #if OP_DEBUG_MAKER
 std::string OpDebugMaker::debugDump() const {
-	return ("" == file ? std::string("(no file)") : file.substr(file.find("Op"))) + ":" + STR(line);
+    if (!valid() || 0 == file.size())
+        return "! file name error";
+    size_t opPos = file.find("Op");
+	return (std::string::npos == opPos ? file : file.substr(opPos)) + ":" + STR(line);
 }
 
 void OpDebugMaker::dumpSet(const char*& str) {

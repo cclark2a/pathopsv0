@@ -170,7 +170,7 @@ bool OpPtT::isFinite() const {
 	return pt.isFinite() && OpMath::IsFinite(t);
 }
 
-bool OpPtT::isNearly(const OpPtT& o, OpPoint threshold) const {
+bool OpPtT::isNearly(const OpPtT& o, OpVector threshold) const {
 	return pt.isNearly(o.pt, threshold) || OpMath::EqualT(t, o.t);
 }
 

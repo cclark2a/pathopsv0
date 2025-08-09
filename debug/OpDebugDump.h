@@ -290,6 +290,8 @@ extern void dmp(const PathOpsV0Lib::AddCurve* );
 extern void dmp(const PathOpsV0Lib::Curve& );
 extern void dmp(const PathOpsV0Lib::Curve* );
 extern void dmpBase(int );  // set to dec, hex, hexdec
+extern void dmpCompare(OpPoint , OpPoint );  // show threshold difference between points
+extern void dmpCompare(const OpPtT& , const OpPtT& );
 extern void dmpClosest(const OpCurveCurve& , const OpPoint& );
 extern void dmp(std::array<CoinEnd, 4>& );
 extern std::string debugDumpColor(uint32_t c);
@@ -306,7 +308,7 @@ extern void dmpPts(const OpEdge* );
 extern void dmpPts(const OpEdge& );
 extern void dmpPts(const OpSegment* );
 extern void dmpPts(const OpSegment& );
-extern void dmpRecord(FILE * );
+extern void dmpRecord(FILE* );
 extern void dmpT(int ID, float t);
 extern void dmpT(const OpEdge* s, float t);
 extern void dmpT(const OpSegment* s, float t);

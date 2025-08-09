@@ -285,14 +285,15 @@ struct SectPreferred {
 		, collapsed(false) {
 		OP_DEBUG_CODE(int safetyValue = 10);  // !!! no idea what this should be
 		do {
-			if (find())  // repeat once if better point was found
+            PrefFound found = find();
+			if (PrefFound::retry != found)  // repeat once if better point was found
 				return;
 			visited.clear();
 			OP_ASSERT(--safetyValue);
 		} while (true);
 	}
 
-	bool find();  // make consecutive nearly equal sects the same, and follow each opposite
+	PrefFound find();  // make consecutive nearly equal sects the same, and follow each opposite
 
 	std::vector<OpSegment*> visited; // visit each segment with matching sects once
 	OpIntersection* best;  // an end point, if one exists; otherwise, an arbitrary sect
@@ -300,9 +301,11 @@ struct SectPreferred {
 	bool collapsed;
 };
 
-bool SectPreferred::find() {
+PrefFound SectPreferred::find() {
 	OpSegment* seg = best->segment;
-	OpIntersections& sects = seg->sects;
+    if (seg->disabled)
+        return PrefFound::disabled;
+    OpIntersections& sects = seg->sects;
 	visited.push_back(seg);
 	bool sawBest = false;
 	for (OpIntersection* test : sects.i) {
@@ -341,8 +344,9 @@ bool SectPreferred::find() {
 			}
 	#endif
 			if (test->ptT.pt != best->ptT.pt) {
-				if (!seg->moveSects(test->ptT, best->ptT.pt))
-					return false;
+                PrefFound found = seg->moveSects(test->ptT, best->ptT.pt);
+				if (PrefFound::ok != found)
+					return found;
 			} else if (test->ptT.t != best->ptT.t) {
 				test->ptT.t = best->ptT.t;
 				sects.unsorted = true;
@@ -351,12 +355,13 @@ bool SectPreferred::find() {
 		if (visited.end() == std::find(visited.begin(), visited.end(), test->opp->segment)) {
 			OpIntersection* save = best;
 			best = test->opp;
-			if (!find())
-				return false;	// code coverage says: never executed
+            PrefFound found = find();
+			if (PrefFound::disabled == found)
+				return found;
 			best = save;
 		}
 	}
-	return true;
+	return PrefFound::ok;
 }
 
 // wait until sorting to order pairs; ordering earlier may fail if sects are moved

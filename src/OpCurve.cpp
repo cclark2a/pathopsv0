@@ -338,8 +338,8 @@ bool OpCurve::normalize() {
 	OpPoint larger = aliases.existing(lastPt());
 	recomputeBounds |= larger != lastPt();
 	if (smaller != larger && smaller.isNearly(larger, threshold)) {
-		float smallerLen = OpVector(smaller).lengthSquared();
-		float largerLen = OpVector(larger).lengthSquared();
+		float smallerLen = OpVector(smaller.x, smaller.y).lengthSquared();
+		float largerLen = OpVector(larger.x, larger.y).lengthSquared();
 		bool swap = (smallerLen > largerLen && !aliases.contains(larger)) 
 				|| aliases.contains(smaller);
 		if (swap)

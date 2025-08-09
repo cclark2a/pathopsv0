@@ -33,7 +33,8 @@ inline OpPair QuadXYAtT(OpPoint start, OpPoint control, OpPoint end, OpPair t, X
 inline OpPoint QuadControlPt(OpPoint start, OpPoint control, OpPoint end, OpPtT ptT1, OpPtT ptT2) {
     OpPoint midPt = QuadPointAtT(start, control, end, (ptT1.t + ptT2.t) / 2);
     OpPoint avgPt = (ptT1.pt + ptT2.pt) / 2;
-    OpPoint result = 2 * midPt - avgPt;
+    OpVector diff = 2 * midPt - avgPt;
+    OpPoint result(diff.dx, diff.dy);
     result.pin(ptT1.pt, ptT2.pt);
     return result;
 }
@@ -46,7 +47,8 @@ inline OpVector QuadTangent(OpPoint start, OpPoint control, OpPoint end, float t
     float a = t - 1;
     float b = 1 - 2 * t;
     float c = t;
-    return a * start + b * control + c * end;
+    OpPoint sum = a * start + b * control + c * end;
+    return OpVector(sum.x, sum.y);
 }
 
 // break out extrema so it can be called by quadRotatedT

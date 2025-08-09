@@ -67,9 +67,34 @@ if (looped || deadEnd)  // triggered when walking children of trunk
 			if (preferSibling) //  && LimbPass::unsectPair > tree.limbPass)
 				continue;
 		#endif
-			tryAdd(tree, test, EdgeMatch::start, LimbPass::unlinked); 
-			tryAdd(tree, test, EdgeMatch::end, LimbPass::unlinked);
-		}
+			/* bool foundOne = !! */ tryAdd(tree, test, EdgeMatch::start, LimbPass::unlinked); 
+			/*foundOne |= !! */ tryAdd(tree, test, EdgeMatch::end, LimbPass::unlinked);
+            /*
+            if (!foundOne) {
+                for (EdgePal& foundPal : test->pals) {
+                    if (edge != foundPal.edge)
+                        continue;
+                    EdgeMatch testMatch = foundPal.reversed ? !lastMatch : lastMatch;
+                    OpPtT testPtT = test->ptT(testMatch);
+                    if (lastPtT.pt == testPtT.pt)
+                        continue;
+                    if (tree.containsFiller(this, lastPtT.pt, testPtT.pt))
+                        break;
+                    OpEdge* filler = tree.addFiller(edge->segment, lastPtT, testPtT, true);
+                    tryAdd(tree, filler, EdgeMatch::start, LimbPass::unlinked);
+                }
+            }  
+                else {
+                for (EdgePal& foundPal : test->pals) {
+                    EdgeMatch foundMatch = foundPal.reversed ? !lastMatch : lastMatch;
+                    OpPtT foundPtT = foundPal.edge->ptT(foundMatch);
+                    if (tree.containsFiller(this, lastPtT.pt, foundPtT.pt))
+                        break;
+                    OpEdge* filler = tree.addFiller(edge->segment, lastPtT, foundPtT, true);
+                    tryAdd(tree, filler, EdgeMatch::start, LimbPass::unlinked);
+                }
+		    } */
+        }
 	}
 	if (LimbPass::unlinked == pass)
 		return;
@@ -352,7 +377,7 @@ OpTree::OpTree(OpJoiner& join)
 	join.edge->lastEdge->endSeen = true;
 	// !!! can I know that join.edge never has prior, and is never loop?
 	do {
-		for (auto member : edgeContour->members()) {
+		for (OpContour* member : edgeContour->members()) {
 			initialize(*member);
 		}
 	#if 0 // !!! experiment: try adding disabled pals as regular entries in tree
@@ -376,7 +401,7 @@ OpTree::OpTree(OpJoiner& join)
 					endEdge = endEdge->lastEdge;
 				else if (endEdge->priorEdge)
 					endEdge = endEdge->advanceToEnd(EdgeMatch::start);
-				for (auto member : endEdge->segment->contour->members()) {
+				for (OpContour* member : endEdge->segment->contour->members()) {
 					if (member->treeID != id)
 						member->setSeen(id);
 					limb.addEach(*member, *this);
@@ -514,7 +539,7 @@ bool OpTree::containsFiller(int ccUnsectableID) const {
 
 bool OpTree::gap(float distance) const {
 	PathOpsV0Lib::MaxGap gapFuncPtr = context->contextCallbacks.maxGapFuncPtr;
-	float gapFactor = gapFuncPtr ? (*gapFuncPtr)((ContextPtr) context) : 2.f;
+	float gapFactor = gapFuncPtr ? (*gapFuncPtr)((ContextPtr) context) : 4.f;
 	return distance <= context->aliases.thresholdLength * gapFactor;
 }
 
@@ -560,8 +585,11 @@ bool OpTree::join(OpJoiner& join) {
 	std::vector<OpEdge*> linkupsErasures;
 	const OpLimb* bestL = bestLimb;
 	OpEdge* best = bestL->edge;
-	if (EdgeMatch::end == bestL->match) {	
-		(void) best->setLastLink(!best->which()); // make suitable for linking to a chain
+	if (EdgeMatch::end == bestL->match) {
+        OP_ASSERT(EdgeMatch::none != best->which()  // !!! assert may be unnecessary; make sure disabled is correct choice
+                || (best->disabled && LimbPass::disabledBackwards == bestL->treePass));
+        EdgeMatch which = EdgeMatch::none != best->which() ? best->which() : bestL->match;
+		(void) best->setLastLink(!which); // make suitable for linking to a chain
 		best = best->advanceToEnd(EdgeMatch::start);
 	} else if (best != best->lastEdge)
 		(void) best->setLastLink(EdgeMatch::start);
@@ -583,7 +611,7 @@ bool OpTree::join(OpJoiner& join) {
 		} else
 			(void) prior->setLastLink(prior->which());
 		OpEdge* last = prior->lastEdge;
-		OP_ASSERT(best->whichSect().pt == last->whichSect(EdgeMatch::end).pt);
+		OP_ASSERT(best->whichSect().pt == last->whichSect(EdgeMatch::end).pt || best->disabled);
 		best->setPriorEdge(last);
 		last->setNextEdge(best);
 		prior->setLastEdge(best, best->lastEdge, InOutput::yes);
@@ -819,7 +847,9 @@ OpEdge* OpJoiner::LinkStart(OpEdge* first) {
 		OP_ASSERT(!seg->sects.unsorted);
 		OpIntersection* prevSect = seg->sects.i.front();
 		OpSegment* opp = prevSect->opp->segment;
-		OP_ASSERT(!opp->disabled);
+//		OP_ASSERT(!opp->disabled);  // !!! may be disabled if tiny -- segment points no longer moved
+        if (opp->disabled)
+            break;
 		OpEdge* prevEdge = &opp->edges.back();
 		if (!prevEdge->isSimple())
 			break;
@@ -843,7 +873,9 @@ bool OpJoiner::LinkEnd(OpEdge* first) {
 		OP_ASSERT(!seg->sects.unsorted);
 		OpIntersection* nextSect = seg->sects.i.back();
 		OpSegment* opp = nextSect->opp->segment;
-		OP_ASSERT(!opp->disabled);
+//		OP_ASSERT(!opp->disabled);  // !!! may be disabled if tiny -- segment points no longer moved
+        if (opp->disabled)
+            break;
 		OpEdge* nextEdge = &opp->edges.front();
 		if (!nextEdge->isSimple())
 			break;

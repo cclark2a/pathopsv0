@@ -69,9 +69,7 @@ struct OpIntersection {
 		OP_DEBUG_CODE(debugSetID());  // debug for now
 		OP_ASSERT(OpMath::Between(0, t.t, 1));
 		ptT = t;
-#if OP_DEBUG_MAKER
-		debugSetMaker = { fileName, lineNo };
-#endif
+        OP_LINE_FILE_SET(debugSetMaker);
 #if OP_DEBUG
 		debugSrcID = srcID;
 		debugOppID = oppID;
@@ -143,9 +141,7 @@ struct OpIntersection {
 	int debugCoincidenceID = 0;	// this one does not get erased
 	bool debugErased = false;
 #endif
-#if OP_DEBUG_MAKER
-	OpDebugMaker debugSetMaker;
-#endif
+    OP_LINE_FILE_DECLARE(debugSetMaker);
 };
 
 enum class SectCleanup {

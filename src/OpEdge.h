@@ -565,11 +565,9 @@ public:
 	bool debugLimb;  // true if a part of tree
     bool debugOne;   // set by direct command changing color or visibility
 #endif
-#if OP_DEBUG_MAKER
-	OpDebugMaker debugSetDisabled;
-	OpDebugMaker debugSetMaker;
-	OpDebugMaker debugSetSum;
-#endif
+OP_LINE_FILE_DECLARE(debugSetDisabled);
+OP_LINE_FILE_DECLARE(debugSetMaker);
+OP_LINE_FILE_DECLARE(debugSetSum);
 #if OP_DEBUG_VALIDATE
 	int debugPriorID = 0;
 	bool debugScheduledForErasure;

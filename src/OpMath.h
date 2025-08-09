@@ -230,7 +230,9 @@ struct OpVector {
 		, dy(OpNaN) {
 	}
 
+    /* if vector needs to be built from point, do so explicitly
 	OpVector(OpPoint );
+    */
 
 	OpVector(float x, float y) {
 		dx = x;
@@ -387,10 +389,12 @@ struct OpPoint {
 		, y(yIn) {
 	}
 
+    /* if vector needs to be treated as point, do that conversion explicitly
 	OpPoint(OpVector v) 
 		: x(v.dx)
 		, y(v.dy) {
 	}
+    */
 
 	friend OpVector operator-(OpPoint a, OpPoint b) {
 		return { a.x - b.x, a.y - b.y };
@@ -556,10 +560,12 @@ struct OpHexPoint : OpPoint {
 };
 #endif
 
+/* if vector needs to be made from point, do that explicitly
 inline OpVector::OpVector(OpPoint pt)
 	: dx(pt.x)
 	, dy(pt.y) {
 }
+*/
 
 struct OpRect {
 	OpRect()
@@ -717,7 +723,7 @@ struct OpPtT {
 
 	bool isFinite() const;
 
-	bool isNearly(const OpPtT& o, OpPoint threshold) const;
+	bool isNearly(const OpPtT& o, OpVector threshold) const;
 
 	bool onEnd() const {
 		return 0 == t || 1 == t;
@@ -832,7 +838,7 @@ struct OpMath {
 	static OpPoint Interp(OpPoint A, OpPoint B, float t) {
 		return A * (1 - t) + B * t; }
 
-	static OpPoint Interp(float A, float B, OpVector t) {
+	static OpVector Interp(float A, float B, OpVector t) {
 		return A * t.tComplement() + B * t; }
 
 	// !!! could optimize with float bits trick

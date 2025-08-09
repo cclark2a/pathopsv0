@@ -455,7 +455,7 @@ OpPtT OpSegment::distance(const OpPtT& segPtT, const OpSegment* opp) const {
 	OpVector normal = c.normal(segPtT.t);
 	if (!normal.isFinite())
 		return OpPtT(SetToNaN::dummy);
-	LinePts normLine { segPtT.pt - normal, segPtT.pt + normal };
+	LinePts normLine { (OpPoint) segPtT.pt - normal, segPtT.pt + normal };
 	MatchEnds oppEnds = opp->c.firstPt() == segPtT.pt ? MatchEnds::start 
 			: opp->c.lastPt() == segPtT.pt ? MatchEnds::end : MatchEnds::none;
 	OpRoots roots = opp->c.rayIntersect(normLine, oppEnds);
@@ -570,7 +570,8 @@ bool OpSegment::fixCCSects() {
 		for (OpIntersection* test : sects.i) {
 			if (ptBounds.contains(test->ptT.pt))
 				continue;
-			if (!moveSects(test->ptT, test->ptT.t < .5 ? c.firstPt() : c.lastPt()))
+			if (PrefFound::disabled != moveSects(test->ptT, test->ptT.t < .5 
+                    ? c.firstPt() : c.lastPt()))
 				return false;
 		}
 	}
@@ -602,7 +603,8 @@ bool OpSegment::fixCCSects() {
 				float priorDistSq = priorV.lengthSquared();
 				float nextDistSq = nextV.lengthSquared();
 				// If collapsed, return false; otherwise, return true to restart.
-				return moveSects(mid->ptT, priorDistSq < nextDistSq ? prior->ptT.pt : next->ptT.pt);
+				return PrefFound::disabled == moveSects(mid->ptT, priorDistSq < nextDistSq 
+                        ? prior->ptT.pt : next->ptT.pt);
 			}
 		}  
 		prior = mid;
@@ -836,13 +838,13 @@ OpPoint OpSegment::movePt(OpPtT match, OpPoint destination) {
 	return destination;
 }
 
-bool OpSegment::moveSects(OpPtT match, OpPoint destination) {
+PrefFound OpSegment::moveSects(OpPtT match, OpPoint destination) {
 	SectCleanup cleanup = sects.moveSects(match, destination,
 			destination == c.firstPt() ? MatchEnds::start : destination == c.lastPt() 
 			? MatchEnds::end : MatchEnds::none);
 	switch (cleanup) {
 		case SectCleanup::none:
-			return true;
+			return PrefFound::ok;
 		case SectCleanup::sectsRemoved:
 			hasCoin = false;
 			hasUnsectable = false;
@@ -856,13 +858,13 @@ bool OpSegment::moveSects(OpPtT match, OpPoint destination) {
 				sects.hasCCSects |= sect->ccSect;
 				sects.hasPairs |= hasCoin | hasUnsectable;
 			}
-			return true;
+			return PrefFound::ok;
 		case SectCleanup::segmentCollapsed:
 			willDisable = true;
-			return false;
+			return PrefFound::disabled;
 		default:
 			OP_ASSERT(0);
-			return false;
+			return PrefFound::ok;
 	}
 }
 
