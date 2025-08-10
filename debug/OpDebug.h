@@ -116,6 +116,7 @@ struct OpDebugData {
 #define OP_LINE_FILE_ARGS()
 #define OP_LINE_FILE_NP_DEF(...)
 #define OP_LINE_FILE_NP_ARGS()
+#define OP_LINE_FILE_DECLARE(debugMaker)
 #define OP_LINE_FILE_SET(debugMaker)
 #define OP_LINE_FILE_SET_IMMED(debugMaker)
 #define OP_TRACK(vector)

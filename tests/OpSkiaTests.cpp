@@ -614,14 +614,14 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
             OP_DEBUG_PARAMS(a));
     OP_DEBUG_CODE(BinaryContour debugLeftData { { &a }, BinaryOperand::left });
     AddSkiaPath(context, left, a  OP_DEBUG_PARAMS({ debugLeftData, sizeof(BinaryContour), 
-            PathOpsV0Lib::DebugContourType::windingUserData) });
+            PathOpsV0Lib::DebugContourType::windingUserData } ));
     int rightData[] = { 0, 1 };
     PathOpsV0Lib::Winding rightWinding { rightData, sizeof(rightData) };
     Contour* right = SetSkiaOpContourCallbacks(context, rightWinding, BinaryOperand::right
             OP_DEBUG_PARAMS(b));
     OP_DEBUG_CODE(BinaryContour debugRightData { { &a }, BinaryOperand::right });
     AddSkiaPath(context, right, b  OP_DEBUG_PARAMS({ debugRightData, sizeof(BinaryContour), 
-            PathOpsV0Lib::DebugContourType::windingUserData) });
+            PathOpsV0Lib::DebugContourType::windingUserData } ));
     PathOutput pathOutput = result;
 	Normalize(context);
 #if TEST_RASTER
@@ -818,7 +818,7 @@ std::string debugSimplifyTest(const char* testname, const SkPath& path) {
 	std::string s;
     s += "void " + STR(testname) + "(skiatest::Reporter* reporter, const char* filename) {\n";
     s += "    SkPath path;\n";
-#if !OP_TINY_SKIA  // !!! missing dump path equivalent in tiny skia implementation
+#if OP_DEBUG && !OP_TINY_SKIA  // !!! missing dump path equivalent in tiny skia implementation
 	s += dumpSkPath(&path, false) + "\n";
 #endif
 	s += "    testSimplify(reporter, path, filename);\n";

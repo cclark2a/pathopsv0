@@ -103,7 +103,10 @@ PathOpsV0Lib::CurveType setSkiaLineType(PathOpsV0Lib::Context* , PathOpsV0Lib::C
 }
 
 void SetSkiaContextCallbacks(Context* context) {
-    OP_DEBUG_CODE(if (DebugAnalyze(context)) return);
+#if !OP_DEBUG_FAST_TEST && OP_DEBUG
+    if (DebugAnalyze(context))
+        return;
+#endif
     SetContextCallbacks(context, { skiaOutput, setSkiaLineType, emptySkPathFunc });
 }
 

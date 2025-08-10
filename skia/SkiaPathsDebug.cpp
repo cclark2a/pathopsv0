@@ -261,6 +261,7 @@ void AddDebugContour::add(PathOpsV0Lib::Contour* contour) {
 	debugData.contourIndex++;
 }
 
+#if !OP_DEBUG_FAST_TEST && OP_DEBUG
 #if !TEST_ANALYZE
 
 bool PathOpsV0Lib::DebugAnalyze(Context* ) {
@@ -355,4 +356,5 @@ void AddDebugSkiaPath(Context* context, Contour* contour, const SkPath& path) {
     }
 }
 
+#endif
 #endif

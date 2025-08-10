@@ -446,7 +446,6 @@ void Path::opAddPath(Context* context, Contour* contour, bool closeLoops) {
 			case Types::cubic: {
 				OpPoint c[4] { closeLine[0], pts[0], pts[1], pts[2] };
 				AddCubics(contour, { c, sizeof c, (CurveType) Types::cubic } );
-                dmpSegments();
 				closeLine[0] = pts[2];
 				} break;
 			case Types::close:
