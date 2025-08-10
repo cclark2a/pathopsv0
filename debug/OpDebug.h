@@ -256,6 +256,12 @@ struct OpDebugMaker {
 
 bool OpDebugSkipBreak();
 
+namespace PathOpsV0Lib {
+    struct Context;
+
+    bool DebugAnalyze(Context* );
+};
+
 #if OP_DEBUG_DUMP 
 #undef OP_DEBUG_DUMP_CODE
 #define OP_DEBUG_DUMP_CODE(...) __VA_ARGS__
@@ -297,6 +303,28 @@ extern OpContext* debugGlobalContext;
 extern bool debugHexFloat;
 extern void playback();
 extern void record();
+
+struct OpDebugContourIter {
+	OpDebugContourIter(bool start);
+
+	bool operator!=(OpDebugContourIter rhs) { 
+		return contourIndex != rhs.contourIndex; 
+	}
+
+	struct OpContour* operator*();
+
+	void operator++() { 
+		++contourIndex;
+	}
+
+	size_t contourIndex;
+};
+
+struct OpDebugContourIterator {
+	OpDebugContourIter begin() { return OpDebugContourIter(true); }
+	OpDebugContourIter end() { return OpDebugContourIter(false); }
+	bool empty() { return !(begin() != end()); }
+};
 
 struct OpDebugSegmentIter {
 	OpDebugSegmentIter(bool start);
@@ -366,6 +394,8 @@ struct OpDebugIntersectionIterator {
 	OpDebugIntersectionIter end() { return OpDebugIntersectionIter(false); }
 	bool empty() { return !(begin() != end()); }
 };
+
+extern OpDebugContourIterator contourIterator;
 
 extern OpDebugSegmentIterator segmentIterator;
 

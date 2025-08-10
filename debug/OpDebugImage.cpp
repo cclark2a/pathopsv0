@@ -304,7 +304,7 @@ void OpDebugImage::drawDoubleFocus() {
 		matrix.postTranslate((float) DebugOpGetOffsetX(), (float) DebugOpGetOffsetY());
 		bool first = true;
 		int alpha = drawFillOn ? 10 : 20;
-		for (auto contour : debugGlobalContext->contours) {
+		for (auto contour : contourIterator) {
 			PathOpsV0Lib::DebugGetDraw debugGetDraw = contour->debugCallbacks.debugGetDrawFuncPtr;
 			if (debugGetDraw && (*debugGetDraw)(contour->debugContourData[
                     (size_t) PathOpsV0Lib::DebugContourType::windingUserData])) {
@@ -351,7 +351,7 @@ void OpDebugImage::drawDoubleFocus() {
 	if (drawBoundsOn) {
 		std::vector<OpRect> bounds;
 		if (drawContoursOn) {
-			for (auto contour : debugGlobalContext->contours)
+			for (auto contour : contourIterator)
 				bounds.push_back(contour->bounds);
 		}
 		if (drawSegmentsOn) {
@@ -397,7 +397,7 @@ void OpDebugImage::drawDoubleFocus() {
 			DebugOpDrawSegmentID(segment, ids);
 	}
 	if (drawContoursOn && drawIDsOn) {
-		for (auto contour : debugGlobalContext->contours) {
+		for (auto contour : contourIterator) {
 			DebugOpDrawContourID(contour, ids);
 		}
 	}
@@ -1436,7 +1436,7 @@ void OpDebugImage::drawPoints() {
 			}
 		} while (verb != SkPath::kDone_Verb);
 	};
-	for (auto contour : debugGlobalContext->contours) {
+	for (auto contour : contourIterator) {
 		PathOpsV0Lib::DebugGetDraw debugGetDraw = contour->debugCallbacks.debugGetDrawFuncPtr;
 		if (debugGetDraw && (*debugGetDraw)(contour->debugContourData[
                     (size_t) PathOpsV0Lib::DebugContourType::windingUserData])) {
@@ -1493,7 +1493,7 @@ void OpDebugImage::drawPoints() {
 		for (const auto& line : lines) {
 			DebugOpBuild(line.pts.pts[0], black);
 			DebugOpBuild(line.pts.pts[1], black);
-			for (auto contour : debugGlobalContext->contours) {
+			for (auto contour : contourIterator) {
 				PathOpsV0Lib::DebugGetDraw debugGetDraw = contour->debugCallbacks.debugGetDrawFuncPtr;
 				if (debugGetDraw && (*debugGetDraw)(contour->debugContourData[
                     (size_t) PathOpsV0Lib::DebugContourType::windingUserData])) {
@@ -1732,7 +1732,7 @@ EDGE_BOOL_LIST2
 #undef OP_X
 
 static void doOperand(int operand, bool leftState) {
-	for (OpContour* contour : debugGlobalContext->contours) {
+	for (OpContour* contour : contourIterator) {
 		PathOpsV0Lib::DebugOperand debugOperand = contour->debugCallbacks.debugOperandFuncPtr;
 		PathOpsV0Lib::DebugSetDraw debugSetDraw = contour->debugCallbacks.debugSetDrawFuncPtr;
 		if (!debugOperand || !(*debugOperand)(contour->debugContourData[
@@ -1846,7 +1846,7 @@ void toggleTree() {
 // !!! could macro-tize this if common (note that disabled and linkups are nearly identical)
 
 void hideOperands() {
-	for (auto contour : debugGlobalContext->contours) {
+	for (auto contour : contourIterator) {
 		PathOpsV0Lib::DebugSetDraw debugSetDraw = contour->debugCallbacks.debugSetDrawFuncPtr;
 		if (!debugSetDraw)
 			continue;
@@ -1858,7 +1858,7 @@ void hideOperands() {
 }
 
 void showOperands() {
-	for (auto contour : debugGlobalContext->contours) {
+	for (auto contour : contourIterator) {
 		PathOpsV0Lib::DebugSetDraw debugSetDraw = contour->debugCallbacks.debugSetDrawFuncPtr;
 		if (!debugSetDraw)
 			continue;
@@ -1870,7 +1870,7 @@ void showOperands() {
 }
 
 void toggleOperands() {
-	for (auto contour : debugGlobalContext->contours) {
+	for (auto contour : contourIterator) {
 		PathOpsV0Lib::DebugSetDraw debugSetDraw = contour->debugCallbacks.debugSetDrawFuncPtr;
 		PathOpsV0Lib::DebugGetDraw debugGetDraw = contour->debugCallbacks.debugGetDrawFuncPtr;
 		if (!debugSetDraw || !debugGetDraw)
@@ -1936,7 +1936,7 @@ COLOR_DUP_LIST2
 #undef OP_X
 
 void colorContours(uint32_t color) {
-	for (auto contour : debugGlobalContext->contours) {
+	for (auto contour : contourIterator) {
 		contour->debugColor = color;
 	}
 	OpDebugImage::drawDoubleFocus();
@@ -2711,7 +2711,7 @@ void resetFocus() {
 		}
 	}
 	if (!focusRect.isFinite()) {
-		for (auto contour : debugGlobalContext->contours) {
+		for (auto contour : contourIterator) {
 			PathOpsV0Lib::DebugNativePath debugNativePath = contour->debugCallbacks.debugNativePathFuncPtr;
 			if (!debugNativePath)
 				continue;

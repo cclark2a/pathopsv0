@@ -268,24 +268,49 @@ void record() {
 	fclose(recordFile);
 }
 
+OpDebugContourIterator contourIterator;
+
 OpDebugSegmentIterator segmentIterator;
 
 OpDebugEdgeIterator edgeIterator;
 
 OpDebugIntersectionIterator intersectionIterator;
 
+OpDebugContourIter::OpDebugContourIter(bool start) {
+	contourIndex = 0;
+	if (start)
+		return;
+	OpContourIterator iterator(debugGlobalContext);
+	for (OpContourIter iter = iterator.begin(); iter != iterator.end(); ++iter) {
+	    ++contourIndex;
+	}
+}
+
+OpContour* OpDebugContourIter::operator*() {
+	size_t index = 0;
+	OpContourIterator iterator(debugGlobalContext);
+	for (OpContourIter iter = iterator.begin(); iter != iterator.end(); ++iter) {
+		OpContour* contour = *iter;
+		if (index == contourIndex)
+			return contour;
+		++index;
+	}
+	OpDebugOut("iterator out of bounds! contourIndex: " + STR(contourIndex) + "\n");
+	return nullptr; 
+}
+
 OpDebugSegmentIter::OpDebugSegmentIter(bool start) {
 	segmentIndex = 0;
 	if (start)
 		return;
-	for (const auto c : debugGlobalContext->contours) {
+	for (const auto c : contourIterator) {
 		segmentIndex += c->segments.size();
 	}
 }
 
 OpSegment* OpDebugSegmentIter::operator*() {
 	size_t index = 0;
-	for (auto c : debugGlobalContext->contours) {
+	for (auto c : contourIterator) {
 		for (auto& seg : c->segments) {
 			if (index == segmentIndex)
 				return &seg;
@@ -303,7 +328,7 @@ OpDebugEdgeIter::OpDebugEdgeIter(bool start)
 	edgeIndex = 0;
 	if (start)
 		return;
-	for (const auto c : debugGlobalContext->contours) {
+	for (const auto c : contourIterator) {
 		for (const auto& s : c->segments)
 			edgeIndex += (int) s.edges.size();
 	}
@@ -315,7 +340,7 @@ OpDebugEdgeIter::OpDebugEdgeIter(bool start)
 
 OpEdge* OpDebugEdgeIter::operator*() {
 	int index = 0;
-	for (auto c : debugGlobalContext->contours) {
+	for (auto c : contourIterator) {
 		for (auto& s : c->segments) {
 			for (auto& edge : s.edges) {
 				if (index == edgeIndex) {
@@ -357,7 +382,7 @@ OpDebugIntersectionIter::OpDebugIntersectionIter(bool start) {
 	localIntersectionIndex = 0;
 	if (start)
 		return;
-	for (const auto c : debugGlobalContext->contours) {
+	for (const auto c : contourIterator) {
 		for (const auto& seg : c->segments) {
 			localIntersectionIndex += seg.sects.i.size();
 		}
@@ -366,7 +391,7 @@ OpDebugIntersectionIter::OpDebugIntersectionIter(bool start) {
 
 const OpIntersection* OpDebugIntersectionIter::operator*() {
 	size_t index = 0;
-	for (const auto c : debugGlobalContext->contours) {
+	for (const auto c : contourIterator) {
 		for (const auto& seg : c->segments) {
 			for (const auto sect : seg.sects.i) {
 				if (index == localIntersectionIndex)

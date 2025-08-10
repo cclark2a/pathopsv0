@@ -60,23 +60,23 @@ void testNewInterface() {
 
     // note that the data below omits start points for curves that match the previous end point
                       //  start      end      control
-    OpPoint contour1[] { { 2, 0 }, { 1, 2 }, { 0, 2 },  // quad: start, end, control
-                         { 1, 2 }, { 2, 3 },            // line: start, end
-                                   { 2, 0 },            // line:        end
+    OpPoint contour1[] { { 2, 0 }, { 0, 2 }, { 1, 2 },  // quad: start, control, end
+                                             { 2, 3 },  // line:                 end
+                                             { 2, 0 },  // line:                 end
     };
     // break the quads so that their control points lie inside the bounds
     // formed by the end points (i.e., find the quads' extrema)
     AddQuads(contour, { &contour1[0], quadSize, quadType } );
+    Add(     contour, { &contour1[2], lineSize, lineType } );
     Add(     contour, { &contour1[3], lineSize, lineType } );
-    Add(     contour, { &contour1[4], lineSize, lineType } );
 
-    OpPoint contour2[] { { 0, 0 }, { 1, 1 },            // line: start, end
-                                   { 1, 3 }, { 0, 3 },  // quad:        end, control
-                         { 1, 3 }, { 0, 0 },            // line: start, end
+    OpPoint contour2[] { { 0, 0 },           { 1, 1 },  // line: start,          end
+                                   { 1, 3 }, { 0, 3 },  // quad:        control, end
+                                             { 0, 0 },  // line:                 end
     };
     Add(     contour, { &contour2[0], lineSize, lineType } );
     AddQuads(contour, { &contour2[1], quadSize, quadType } );
-    Add(     contour, { &contour2[4], lineSize, lineType } );
+    Add(     contour, { &contour2[3], lineSize, lineType } );
 
 	Normalize(context);
     Resolve(context, nullptr);

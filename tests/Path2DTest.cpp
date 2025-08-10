@@ -78,7 +78,7 @@ void TestPath2D(bool debugIt) {
 	path.lineTo(11, 12);
 	path.closePath();
 	path.quadraticCurveTo(13, 14, 15, 16);
-	path.bezierCurveTo(17, 18, 19, 20, 21, 22);
+	path.bezierCurveTo(17.5, 18, 19, 20, 21, 22);  // add 1/2 to prevent collapsing into line
 	std::vector<TwoD::Curve> commands = path.toCommands();
 	std::string cmdsStr = commandsArray(commands);
 	if (debugIt) OpDebugOut(cmdsStr + "\n");

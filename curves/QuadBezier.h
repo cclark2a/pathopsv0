@@ -75,8 +75,8 @@ inline std::vector<float> AddExtrema(OpPoint start, OpPoint end, OpPoint control
 // returns the number of curves generated from the quadratic Bezier
 inline size_t AddQuads(Contour* contour, AddCurve curve) {
     OpPoint start = curve.points[0];
-    OpPoint end = curve.points[1];
-    OpPoint control = curve.points[2];
+    OpPoint control = curve.points[1];
+    OpPoint end = curve.points[2];
     auto [left, right] = std::minmax(start.x, end.x);
     bool monotonicInX = left <= control.x && control.x <= right;
     auto [top, bottom] = std::minmax(start.y, end.y);
@@ -84,7 +84,9 @@ inline size_t AddQuads(Contour* contour, AddCurve curve) {
     if (monotonicInX && monotonicInY) {
         if (start == end)
             return 0;
-        Add(contour, curve);
+        // swizzle input to match v0's start/end/ctrl layout
+        OpPoint swizzled[3] { start, end, control };
+        Add(contour, { swizzled, curve.size, curve.type } );
         return 1;
     }
     // control point is not inside bounds formed by end points; split quad into parts

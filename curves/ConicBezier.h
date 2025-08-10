@@ -137,9 +137,9 @@ inline std::vector<float> AddExtrema(OpPoint start, OpPoint end, PointWeight con
 // returns the number of curves generated from the Conicratic Bezier
 inline size_t AddConics(Contour* contour, AddCurve curve) {
     OpPoint start = curve.points[0];
-    OpPoint end = curve.points[1];
+    OpPoint end = curve.points[2];
     float weight = curve.points[3].x;  // !!! a bit of a hack
-    PointWeight control(curve.points[2], weight);
+    PointWeight control(curve.points[1], weight);
     auto [left, right] = std::minmax(start.x, end.x);
     bool monotonicInX = left <= control.pt.x && control.pt.x <= right;
     auto [top, bottom] = std::minmax(start.y, end.y);
@@ -147,7 +147,8 @@ inline size_t AddConics(Contour* contour, AddCurve curve) {
     if (monotonicInX && monotonicInY) {
         if (start == end)
             return 0;
-        Add(contour, curve);
+        OpPoint swizzled[4] { start, end, control.pt, { weight, 0 } };
+        Add(contour, { swizzled, curve.size, curve.type } );
         return 1;
     }
     // control point is not inside bounds formed by end points; split Conic into parts

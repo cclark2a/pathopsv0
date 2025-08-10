@@ -321,15 +321,18 @@ inline void cubicCommonSubDivide(Curve c, float t1, float t2, float threshold, C
 // Curves must be subdivided so their endpoints describe the rectangle that contains them
 // returns the number of curves generated from the cubic Bezier
 inline void AddCubics(Contour* contour, AddCurve curve) {
+    // swizzle input to match v0's start/end/ctrl1/ctrl2 layout
     OpPoint start = curve.points[0];
-    OpPoint end = curve.points[1];
-    CubicControls controls { curve.points[2], curve.points[3] };
+    OpPoint end = curve.points[3];
+    CubicControls controls { curve.points[1], curve.points[2] };
+	OpPoint swizzled[4] { start, end, controls.pts[0], controls.pts[1] };  
+    Curve cubic { (CurveData*) swizzled, curve.size, curve.type };
     // control point is not inside bounds formed by end points; split cubic into parts
 	OpRoots tValues = AddExtrema(start, end, controls, false);
 	OpRoots roots = AddInflections(start, end, controls);
     if (tValues.empty() && roots.empty()) {
         if (start != end)
-            Add(contour, curve);
+            Add(contour, cubic);
         return;
     }
 	tValues.add(0);
@@ -343,13 +346,12 @@ inline void AddCubics(Contour* contour, AddCurve curve) {
     for (int index = 1; index < tValues.count() - 1; ++index) {
         ptTs[index] = { CubicPtAtT(start, controls, end, tValues.get(index)), tValues.get(index) }; 
     } 
-    Curve cubic { (CurveData*) curve.points, curve.size, curve.type };
     float threshold = OpMath::Threshold(start, end).length();
     for (int index = 0; index < tValues.count() - 1; ++index) {
         OpPoint result[4] { ptTs[index].pt, ptTs[index + 1].pt };
         if (result[0] == result[1])
             continue;
-        Curve subDivide { (CurveData*) result, curve.size, curve.type };
+        Curve subDivide { (CurveData*) result, cubic.size, cubic.type };
         cubicCommonSubDivide(cubic, tValues.roots[index], tValues.roots[index + 1], 
                 threshold, &subDivide, CubicSubDivide::noAngleChecks);
         Add(contour, subDivide);

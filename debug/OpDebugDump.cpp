@@ -475,7 +475,7 @@ void dmpWidth(int width) {
 }
 
 void dmpActive() {
-    for (const auto c : debugGlobalContext->contours) {
+    for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (edge.isActive())
@@ -490,7 +490,7 @@ void dmpAliases() {
 }
 
 void dmpCoincidences() {
-    for (const auto c : debugGlobalContext->contours) {
+    for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
             for (const auto sect : seg.sects.i) {
                 if (sect->coincidenceID)
@@ -506,7 +506,7 @@ void dmpCoins() {
 
 void dmpEdges() {
     std::string s;
-    for (const auto c : debugGlobalContext->contours) {
+    for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
 			if (!seg.edges.size())
 				continue;
@@ -541,13 +541,13 @@ std::string debugDumpContext() {
 
 std::string debugDumpEdges() {
     size_t edgeCount = 0;
-    for (const auto c : debugGlobalContext->contours) {
+    for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
             edgeCount += seg.edges.size();
         }
     }
     std::string s = "edges:" + STR(edgeCount) + "\n";
-    for (const auto c : debugGlobalContext->contours) {
+    for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 s += edge.debugDump(defaultLevel, defaultBase) + "\n";
@@ -560,13 +560,13 @@ std::string debugDumpEdges() {
 
 std::string debugDumpIntersections() {
     size_t sectCount = 0;
-    for (const auto c : debugGlobalContext->contours) {
+    for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
             sectCount += seg.sects.i.size();
         }
     }
     std::string s = "sects:" + STR(sectCount) + "\n";
-    for (const auto c : debugGlobalContext->contours) {
+    for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
             for (const auto sect : seg.sects.i) {
                 s += sect->debugDump(DebugLevel::detailed, DebugBase::hex) + "\n";
@@ -629,7 +629,7 @@ void verifyFile(OpContext* context) {
 
 void dmpRays() {
     size_t edgeCount = 0;
-    for (const auto c : debugGlobalContext->contours) {
+    for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (!edge.ray.distances.empty())
@@ -638,7 +638,7 @@ void dmpRays() {
         }
     }
     std::string s = "edges with rays:" + STR(edgeCount) + "\n";
-    for (const auto c : debugGlobalContext->contours) {
+    for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
 				if (edge.ray.distances.empty())
@@ -730,7 +730,7 @@ void OpContext::dumpResolve(OpSegment*& segRef) {
 }
 
 void dmpDisabled() {
-    for (const auto c : debugGlobalContext->contours) {
+    for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (edge.disabled)
@@ -741,7 +741,7 @@ void dmpDisabled() {
 }
 
 void dmpInOutput() {
-    for (const auto c : debugGlobalContext->contours) {
+    for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (edge.inOutput)
@@ -753,7 +753,7 @@ void dmpInOutput() {
 
 void dmpIntersections() {
     std::string s;
-    for (const auto& c : debugGlobalContext->contours) {
+    for (const auto& c : contourIterator) {
         for (const auto& seg : c->segments) {
             s += seg.debugDumpIntersections() + "\n";
         }
@@ -767,7 +767,7 @@ void dmpJoin() {
 		dmp(debugGlobalContext->debugJoiner);
 		s = "\n";
 	}
-    for (const auto& c : debugGlobalContext->contours) {
+    for (const auto& c : contourIterator) {
 		s += c->debugDumpJoin(defaultLevel, defaultBase);
 	}
     OpDebugFormat(s);
@@ -779,7 +779,7 @@ void dmpSects() {
 
 void dmpSegments() {
 	std::string s;
-    for (const auto& c : debugGlobalContext->contours) {
+    for (const auto& c : contourIterator) {
         for (const auto& seg : c->segments) {
             s += seg.debugDump(defaultLevel, defaultBase) + "\n";
         }
@@ -798,7 +798,7 @@ void dmpSorted() {
 }
 
 void dmpUnsectable() {
-    for (const auto& c : debugGlobalContext->contours) {
+    for (const auto& c : contourIterator) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (edge.isUnsectable())
@@ -809,7 +809,7 @@ void dmpUnsectable() {
 }
 
 void dmpUnsortable() {
-    for (const auto& c : debugGlobalContext->contours) {
+    for (const auto& c : contourIterator) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (Unsortable::none != edge.isUnsortable)
@@ -821,7 +821,7 @@ void dmpUnsortable() {
 
 void dmpWindings() {
     std::string s;
-    for (const auto& c : debugGlobalContext->contours) {
+    for (const auto& c : contourIterator) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 s += "edge[" + STR(edge.id) + "] ";
@@ -1044,7 +1044,7 @@ void dmpContext() {
 
 void dmpContours() {
 	std::string s;
-	for (OpContour* contour : debugGlobalContext->contours) {
+	for (OpContour* contour : contourIterator) {
 		s += contour->debugDump(defaultLevel, defaultBase) + "\n";
 	}
 	s.pop_back();
@@ -1099,7 +1099,7 @@ void dmpMatchEnd(int id) {
 
 std::vector<const OpIntersection*> findCoincidence(int ID) {
     std::vector<const OpIntersection*> result;
-    for (const auto c : debugGlobalContext->contours) {
+    for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
             for (const auto intersection : seg.sects.i) {
                 if (ID == abs(intersection->coincidenceID) 
@@ -1113,7 +1113,7 @@ std::vector<const OpIntersection*> findCoincidence(int ID) {
 
 const OpContour* findContour(int ID) {
 #if OP_DEBUG
-    for (const auto c : debugGlobalContext->contours)
+    for (const auto c : contourIterator)
         if (ID == c->id)
             return c;
 #endif
@@ -1125,7 +1125,7 @@ OpEdge* findEdge(int ID) {
         return edge.id == ID ||
                 edge.debugOutPath == ID || edge.debugRayMatch == ID;
     };
-    for (auto c : debugGlobalContext->contours) {
+    for (auto c : contourIterator) {
         for (auto& seg : c->segments) {
             for (auto& edge : seg.edges) {
                 if (match(edge))
@@ -1145,7 +1145,7 @@ OpEdge* findEdge(int ID) {
 
 std::vector<const OpEdge*> findEdgeOutput(int ID) {
     std::vector<const OpEdge*> result;
-    for (const auto c : debugGlobalContext->contours) {
+    for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (ID == edge.debugOutPath)
@@ -1158,7 +1158,7 @@ std::vector<const OpEdge*> findEdgeOutput(int ID) {
 
 std::vector<const OpEdge*> findEdgeRayMatch(int ID) {
     std::vector<const OpEdge*> result;
-    for (const auto c : debugGlobalContext->contours) {
+    for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (ID == edge.debugRayMatch)
@@ -1193,7 +1193,7 @@ const OpLimb* findLimb(int ID) {
 
 std::vector<const OpIntersection*> findSectUnsectable(int ID) {
     std::vector<const OpIntersection*> result;
-    for (const auto c : debugGlobalContext->contours) {
+    for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
             for (const auto intersection : seg.sects.i) {
                 if (ID == abs(intersection->unsectID))
@@ -1205,7 +1205,7 @@ std::vector<const OpIntersection*> findSectUnsectable(int ID) {
 }
 
 const OpSegment* findSegment(int ID) {
-    for (const auto c : debugGlobalContext->contours) {
+    for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
             if (ID == seg.id)
                 return &seg;

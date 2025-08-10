@@ -109,7 +109,7 @@ void Path::rBezierCurveTo(float rc1x, float rc1y, float rc2x, float rc2y, float 
 }
 
 void Path::conicTo(float cx, float cy, float cw, float x, float y) {
-	curves.push_back( { Types::conic, { cx, cy, cw, x, y }} );
+	curves.push_back( { Types::conic, { cx, cy, cw, 0, x, y }} );
 }
 
 void Path::rConicTo(float dcx, float dcy, float cw, float dx, float dy) {
@@ -431,22 +431,23 @@ void Path::opAddPath(Context* context, Contour* contour, bool closeLoops) {
 					OpPoint closer[2] { closeLine[0], pts[0] };
 					Add(contour, { closer, sizeof closer, (CurveType) Types::line } );
 				}
-				closeLine[0] = *pts;
+				closeLine[0] = pts[0];
 				break;
 			case Types::quad: {
-				OpPoint q[3] { closeLine[0], pts[1], pts[0] };
+				OpPoint q[3] { closeLine[0], pts[0], pts[1] };
 				AddQuads(contour, { q, sizeof q, (CurveType) Types::quad } );
-				closeLine[0] = q[1];
+				closeLine[0] = pts[1];
 				} break;
 			case Types::conic: {
-				OpPoint k[4] { closeLine[0], { pts[1].y, pts[2].x }, pts[0], { pts[1].x, 0 } };
+				OpPoint k[4] { closeLine[0], pts[0], pts[2], { pts[1].x, 0 } };
 				AddConics(contour, { k, sizeof(k) - sizeof(float), (CurveType) Types::conic } );
-				closeLine[0] = k[1];
+				closeLine[0] = pts[2];
 				} break;
 			case Types::cubic: {
-				OpPoint c[4] { closeLine[0], pts[2], pts[0], pts[1] };
+				OpPoint c[4] { closeLine[0], pts[0], pts[1], pts[2] };
 				AddCubics(contour, { c, sizeof c, (CurveType) Types::cubic } );
-				closeLine[0] = c[1];
+                dmpSegments();
+				closeLine[0] = pts[2];
 				} break;
 			case Types::close:
 				if (closeLoops && closeLine[0] != closeLine[1])
