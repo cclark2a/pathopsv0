@@ -599,6 +599,7 @@ static void SetupCurves(Context* context) {
 ContextError FillPath::opCommon(FillPath& path, Ops oper) {
 	Context* context = CreateContext();
 	SetContextCallbacks(context, { Path2DOutput, LineType, EmptyFunc });	
+
 	WindingKeep operatorFunc = nullptr;
 	switch (oper) {
 		case Ops::diff: operatorFunc = binaryWindingDifferenceFunc; break;
@@ -610,6 +611,7 @@ ContextError FillPath::opCommon(FillPath& path, Ops oper) {
 	}
 	SetWindingCallbacks(context, { binaryWindingAddFunc, operatorFunc, binaryWindingVisibleFunc, 
 			binaryWindingZeroFunc, binaryWindingSubtractFunc });
+
 #if OP_DEBUG
 	SetDebugContextCallbacks(context, { // nullptr
 			OP_DEBUG_IMAGE_CODE(nullptr, binaryWindingDumpOutFunc)
@@ -630,8 +632,7 @@ ContextError FillPath::opCommon(FillPath& path, Ops oper) {
 ContextError FillPath::simplify() {
 	Context* context = CreateContext();
 	SetContextCallbacks(context, { Path2DOutput, LineType, EmptyFunc });	
-    SetWindingCallbacks(context, { unaryWindingAddFunc, unaryWindingKeepFunc, 
-			unaryWindingVisibleFunc, unaryWindingZeroFunc, unaryWindingSubtractFunc });
+    unaryCallbacks(context);
 #if OP_DEBUG
 	SetDebugContextCallbacks(context, { // nullptr
 			OP_DEBUG_IMAGE_CODE(nullptr, unaryWindingDumpOutFunc)

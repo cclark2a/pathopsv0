@@ -144,6 +144,7 @@ struct OpRoots {
 		return roots[index];
 	}
 
+	OpRoots keepValidT(float start = 0, float end = 1);
 	OpRoots keepValidTs(float start = 0, float end = 1);
 	OpRoots keepInteriorTs(float start = 0, float end = 1);
 

@@ -115,18 +115,18 @@ void ResetContour(Contour* interfaceContour) {
     contour->segments.clear();
 }
 
-void Resolve(Context* interfaceContext, PathOutput output) {
+WindingCondition Resolve(Context* interfaceContext, PathOutput output) {
     OpContext* context = toImplementation(interfaceContext);
     if (ContextError::none != context->error) {
         OP_DEBUG_CODE(context->debugData.success = false);
-        return;
+        return false;
     }
     context->callerOutput = output;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContext = context;
 #endif
-    // !!! change this to record error instead of success
-    /* bool success = */ context->pathOps();
+    context->pathOps();
+    return true;
 }
 
 void SetContextCallbacks(Context* interfaceContext, ContextCallbacks contextCallbacks) {

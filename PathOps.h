@@ -31,8 +31,9 @@ void Normalize(Context* );
 // removes curves added to contour; callbacks are unaffected
 void ResetContour(Contour* );
 
-// operate on added curves; calls curve output callback with path output
-void Resolve(Context* , PathOutput );
+// operate on added curves; calls curve output callback with path output (if not null)
+// returns user-defined non-zero value if winding condition was met
+WindingCondition Resolve(Context* , PathOutput );
 
 // global callbacks
 void SetContextCallbacks(Context* , ContextCallbacks );

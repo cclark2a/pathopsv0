@@ -789,7 +789,7 @@ void dmpSegments() {
 
 void dmpSorted() {
 	std::string s = "sorted[";
-    for (const auto& c : debugGlobalContext->sorted) {
+    for (const auto& c : debugGlobalContext->sortedContours) {
 		s += STR(c->id) + " ";
 	}
 	if (' ' == s.back())
@@ -1718,6 +1718,8 @@ std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
 	if ((size_t) c.type > context->debugCallbacks.size())
 		s += "(missing curve name) ";
+    else if (!c.type)
+        s += "degenerateLine ";
     else {
 		auto curveName = context->debugCallback(c).curveNameFuncPtr;
 		if (curveName)

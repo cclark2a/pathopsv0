@@ -622,14 +622,17 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o, std::vector<OpIntersectio
 			if (opp->sects.contains(oppSingleton, seg))
 				return;
 		}
+        OpPtT original = segSingleton;
 		if (OpMath::IsNaN(segSingleton.t))
 			segSingleton = { oppSingleton.pt, parentEdge->curve.match(parentEdge->startT,
 					parentEdge->endT, oppSingleton.pt) };
 		if (OpMath::IsNaN(oppSingleton.t))
-			oppSingleton = { segSingleton.pt, parentOpp->curve.match(parentOpp->startT,
-					parentOpp->endT, segSingleton.pt) };
+			oppSingleton = { original.pt, parentOpp->curve.match(parentOpp->startT,
+					parentOpp->endT, original.pt) };
 		if (!segSingleton.isFinite() || !oppSingleton.isFinite())
 			return;
+        if (!segSingleton.pt.isNearly(oppSingleton.pt, context->threshold()))
+            return;
 		OpIntersection* sect = seg->addSegBase(segSingleton  OP_LINE_FILE_PARAMS(opp));
 		OpIntersection* oSect = opp->addSegBase(oppSingleton  OP_LINE_FILE_PARAMS(seg));
 		sect->pair(oSect);
@@ -1602,10 +1605,11 @@ bool OpCurveCurve::setHullSects(OpEdge& edge, OpEdge& oppEdge, CurveRef curveRef
 				LinePts oLinePts { oppPtT.pt, oppPtT.pt + oTan };
 				auto tryIt = [this](const LinePts& eLinePts, const LinePts& oLinePts,
 						OpCurve& eCurve) {
+                    PathOpsV0Lib::SetLineType funcPtr = context->contextCallbacks.setLineTypeFuncPtr;
+                    PathOpsV0Lib::CurveType lineType = funcPtr ? (*funcPtr)(
+                            (ContextPtr) context, eCurve.c) : 1;
 					PathOpsV0Lib::Curve eLineCurve { (PathOpsV0Lib::CurveData*) &eLinePts, 
-							sizeof eLinePts, 
-							context->contextCallbacks.setLineTypeFuncPtr((ContextPtr) context, 
-							eCurve.c) };
+							sizeof eLinePts, lineType };
 					OpCurve eLine(context, eLineCurve, Rotated::no);
 					OpCurve eRotLine = eLine.toVertical(oLinePts, MatchEnds::none);
 					OpRoots eLineT = eRotLine.axisRawHit(Axis::vertical, 0, MatchEnds::none);
@@ -1616,6 +1620,8 @@ bool OpCurveCurve::setHullSects(OpEdge& edge, OpEdge& oppEdge, CurveRef curveRef
 					// don't call pt at t ; need answer to be unpinned
 				//	OpPoint eLinePt = eLine.ptAtT(eLineT.get(0));
 					float eT = eLineT.get(0);
+                    if (!OpMath::IsFinite(eT))
+						return OpPtT(SetToNaN::dummy);
 					OpPoint eLinePt = (1 - eT) * eLinePts.pts[0] + eT * eLinePts.pts[1];
 					float validT = eCurve.findValidT(0, 1, eLinePt);
 					if (!OpMath::IsNaN(validT))

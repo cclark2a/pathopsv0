@@ -33,10 +33,10 @@ static float cubicDxAtT(const OpCubicFloatType derivative[3], float t) {
 	return (derivative[0] * t + derivative[1]) * t + derivative[2]; 
 }
 
-// assumption is that this can only return a single root (and that it must return that root)...
+// this can only return a single root (and that it must return that root)...
 float OpMath::CubicRoot(OpCubicFloatType A, OpCubicFloatType B, OpCubicFloatType C, 
 		OpCubicFloatType D) {
-	float result = 0; // OpNaN;
+	float result = 0;
 	OpRoots quadRoots;
 	if (0 == A) {
 		quadRoots = QuadRootsDouble(B, C, D);
@@ -55,6 +55,13 @@ float OpMath::CubicRoot(OpCubicFloatType A, OpCubicFloatType B, OpCubicFloatType
 		int tries = 0;
 		do {
 			float testT = midT - cubicXAtT(coefficient, midT) / cubicDxAtT(derivative, midT);
+            if (!OpMath::IsFinite(testT)) {
+#if OP_DEBUG
+                OpRoots roots = OpMath::CubicRootsReal(A, B, C, D, MatchEnds::none);
+                OP_ASSERT(roots.empty() ? 0 == midT : roots.get(0) == midT);
+#endif
+                return midT;
+            }
 			testT = std::max(std::min(testT, 1.f), 0.f);
 			if (std::abs(midT - testT) <= OpEpsilon) {
 				result = testT;

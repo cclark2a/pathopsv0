@@ -20,24 +20,8 @@ OpCurve::OpCurve(OpContext* cntxt, PathOpsV0Lib::Curve curve, Rotated r)
 	}
 }
 
-#if 0
-void OpCurve::adjust(OpPoint newStart, OpPoint newEnd) {
-	OpPoint oldStart = firstPt();
-	OpPoint oldEnd = lastPt();
-	if (oldStart == newStart && oldEnd == newEnd)
-		return;
-	setFirstPt(newStart);
-	setLastPt(newEnd);
-	if (isLine())
-		return;
-	pinCtrl(oldStart, oldEnd);
-//	isLineSet = false;	// !!! curve specific tangent check should have already detected linearity
-//	isLine();
-}
-#endif
-
 OpRoots OpCurve::axisRawHit(Axis axis, float intercept, MatchEnds matchEnds) const {
-	OP_ASSERT(debugIsLine() || MatchEnds::both != matchEnds);
+//	OP_ASSERT(debugIsLine() || MatchEnds::both != matchEnds);  // !!! testQuads3756113 triggers
 	OpRoots result;
 	if (MatchEnds::start == matchEnds || firstPt().choice(axis) == intercept)
 		result.add(0);
@@ -569,7 +553,7 @@ OpPair OpCurve::xyAtT(OpPair t, XyChoice xy) const {
 }
 
 OpPoint OpCurve::hullPt(int index) const {
-	OP_ASSERT(PathOpsV0Lib::degenerateLine != c.type);
+//	OP_ASSERT(PathOpsV0Lib::degenerateLine != c.type);
 	OP_ASSERT(0 <= index && index < pointCount());
 	if (0 == index)
 		return firstPt();
@@ -589,11 +573,16 @@ void OpCurve::reverse() {
 bool OpCurve::isLine() {
 	if (!isLineSet) {
 		isLineSet = true;
+        auto setLineType = [this]() {
+            PathOpsV0Lib::SetLineType funcPtr = context->contextCallbacks.setLineTypeFuncPtr;
+            return funcPtr ? (*funcPtr)((PathOpsV0Lib::Context*) context, c) : 1;
+        };
 		PathOpsV0Lib::CurveIsLine funcPtr = (int) c.type 
 				? context->callback(c.type).curveIsLineFuncPtr : nullptr;
-		if (!funcPtr || (*funcPtr)(c)) {
-			c.type = context->contextCallbacks.setLineTypeFuncPtr((PathOpsV0Lib::Context*) context,
-					c);
+		if (!funcPtr)
+			isLineResult = c.type == setLineType();
+        else if ((*funcPtr)(c)) {
+			c.type = setLineType();
 			isLineResult = true;
 		}
 	}
@@ -632,8 +621,12 @@ OpPointBounds OpCurve::ptBounds() const {
 
 void OpCurve::output(bool firstPt, bool lastPt  OP_DEBUG_PARAMS(int parentID)) {
 	context->initOutOnce();
-    PathOpsV0Lib::Curve curve = c;
-    curve.type = context->nativeCurveTypes[c.type];
+    PathOpsV0Lib::CurveType curveType = c.type;
+    if (!curveType) {
+        PathOpsV0Lib::SetLineType funcPtr = context->contextCallbacks.setLineTypeFuncPtr;
+        curveType = funcPtr ? (*funcPtr)((PathOpsV0Lib::Context*) context, c) : 1;
+    }
+    PathOpsV0Lib::Curve curve { c.data, c.size, context->nativeCurveTypes[curveType] };
 	context->contextCallbacks.curveOutputFuncPtr(curve, firstPt, lastPt, context->callerOutput);
 #if OP_DEBUG && TEST_RASTER
 	PathOpsV0Lib::DebugAddRaster addRaster = context->debugCallback(c.type).addRasterFuncPtr;

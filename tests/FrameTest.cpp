@@ -1,6 +1,5 @@
 // (c) 2024, Cary Clark cclark2@gmail.com
 
-#include "curves/Line.h"
 #include "curves/QuadBezier.h"
 
 using namespace PathOpsV0Lib;
@@ -35,7 +34,7 @@ struct FrameWinding {
 };
 
 // winding is always frame; toAdd comes from another edge, and may be frame or fill
-void frameAddFunc(Winding winding, Winding toAdd) {
+static void frameAddFunc(Winding winding, Winding toAdd) {
 	FrameWinding sum(winding);
 	if (FrameFill::frame == sum.isFrame)
 		return;
@@ -47,7 +46,7 @@ void frameAddFunc(Winding winding, Winding toAdd) {
 }
 
 // both winding and sumWinding come from the same edge
-WindKeep frameKeepFunc(Winding winding, Winding sumWinding) {
+static WindKeep frameKeepFunc(Winding winding, Winding sumWinding) {
 	FrameWinding wind(winding);
 	if (FrameFill::fill == wind.isFrame)
 		return WindKeep::Discard;
@@ -56,7 +55,7 @@ WindKeep frameKeepFunc(Winding winding, Winding sumWinding) {
 }
 
 // winding is always frame; toAdd comes from another edge, and may be frame or fill
-void frameSubtractFunc(Winding winding, Winding toSubtract) {
+static void frameSubtractFunc(Winding winding, Winding toSubtract) {
 	FrameWinding difference(winding);
 	if (FrameFill::frame == difference.isFrame)
 		return;
@@ -73,7 +72,7 @@ constexpr size_t frameLineSize = sizeof(OpPoint) * 2;
 CurveType frameQuad = 2;
 constexpr size_t frameQuadSize = sizeof(OpPoint) * 3;
 
-void frameOutput(Curve c, bool firstPt, bool lastPt, PathOutput output) {
+static void frameOutput(Curve c, bool firstPt, bool lastPt, PathOutput output) {
     std::string outStr = frameLine == c.type ? "line: " : "quad: ";
     auto addPtStr = [&outStr](const OpPoint& pt, std::string delimiter) {
         outStr += "{ " + std::to_string(pt.x) + ", " + std::to_string(pt.y) + " }" + delimiter;
@@ -85,12 +84,12 @@ void frameOutput(Curve c, bool firstPt, bool lastPt, PathOutput output) {
     OpDebugOut(outStr);
 }
 
-bool frameVisibleFunc(Winding winding) {
+static bool frameVisibleFunc(Winding winding) {
     FrameWinding test(winding);
     return !!test.left;
 }
 
-void frameZeroFunc(Winding toZero) {
+static void frameZeroFunc(Winding toZero) {
     FrameWinding zero(FrameFill::fill, 0);
     zero.copyTo(toZero);
 }
@@ -113,11 +112,7 @@ inline std::string frameImageOutFunc(Winding winding, int index) {
 }
 #endif
 
-CurveType frameSetLineType(Context* , Curve ) {
-    return frameLine;
-}
-
-bool allowDisjointLines(ContextError err, Context* , Curve* ) {
+static bool allowDisjointLines(ContextError err, Context* , Curve* ) {
 	return ContextError::end != err && ContextError::missing != err;
 }
 
@@ -125,7 +120,7 @@ void testFrame() {
     using namespace PathOpsV0Lib;
 
     Context* context = CreateContext();
-    SetContextCallbacks(context, { frameOutput, frameSetLineType });
+    SetContextCallbacks(context, { frameOutput });
     SetWindingCallbacks(context, { frameAddFunc, frameKeepFunc, frameVisibleFunc, 
 			frameZeroFunc, frameSubtractFunc });
 
@@ -137,10 +132,7 @@ void testFrame() {
 #endif
 
     SetCurveCallbacks(context, frameLine, { } );
-    SetCurveCallbacks(context, frameQuad, { quadAxisT, quadRotatedT, quadHull, 
-			quadIsFinite, quadIsLine, quadSetBounds,  /* quadPinCtrl, */ 
-            quadTangent, quadsEqual, quadPtAtT, nullptr, quadHullPtCount, quadRotate, 
-			quadSubDivide, quadXYAtT });
+    quadCallbacks(context, frameQuad);
     FrameWinding frameData(FrameFill::frame, 1);
     Winding frameWinding { &frameData, sizeof(frameData) };
     Contour* frameContour = CreateContour(context, frameWinding);
@@ -184,10 +176,3 @@ void testFrame() {
     if (ContextError::none != error)
         exit(1);
 }
-
-#if OP_DEBUG && OP_TINY_TEST
-bool OpDebugSkipBreak() {
-	return true;
-}
-#endif
-

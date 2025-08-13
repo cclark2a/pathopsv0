@@ -195,8 +195,7 @@ inline CubicControls CubicControlPt(OpPoint start, CubicControls controls, OpPoi
 }
 
 // if monotonic curve is rotated, there can be at most a single extrema
-inline OpRoots AddExtrema(OpPoint start, OpPoint end, CubicControls& controls,
-		bool single) {
+inline OpRoots AddExtrema(OpPoint start, OpPoint end, CubicControls& controls, bool single) {
     OpRoots tValues;
     auto addExtrema = [&tValues, single](float a, float b, float c, float d) {
         float A = d - a + 3 * (b - c);
@@ -232,8 +231,6 @@ enum class CubicSubDivide {
 
 inline void cubicCommonSubDivide(Curve c, float t1, float t2, float threshold, Curve* result,
         CubicSubDivide check) {
-//    OP_ASSERT(!OpMath::Equal(t1, 0.363392949f));
-//    OP_ASSERT(!OpMath::Equal(t1, 0.670813143f));
     CubicControls controls(c);
 	OpPoint start = c.data->start;
 	OpPoint end = c.data->end;

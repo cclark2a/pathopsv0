@@ -814,7 +814,7 @@ bool OpJoiner::linkRemaining(OpContour* contour) {
 	}
 	OP_DEBUG_CODE(int debugLoopCounter = 0);
 	while (linkups.l.size()) {
-		// sort to process largest first
+		// sort to process largest of left/top first
 		// !!! could optimize to avoid search, but for now, this is the simplest
 		linkups.sort();
 		edge = linkups.l.back();
@@ -1022,24 +1022,18 @@ bool OpJoiner::unsectableLink(OpContour* contour, OpPoint start, OpPoint end) {
 
 
 
-// sort by size to process largest (tail) first
+// sort by size to process largest of left (tail) first
 // sort should consider all edges in link
-//start here;
-// sort so that first, in addition to being largest, is also on the overall outside border
 void LinkUps::sort() {
-	OpPointBounds bounds;
+	float leftMost = OpInfinity;
 	for (auto& linkList : l) {
 		OP_ASSERT(linkList->linkBounds.isFinite());
-		bounds.add(linkList->linkBounds);
+		leftMost = std::min(linkList->linkBounds.left, leftMost);
 	}
-	auto onBounds = [bounds](const OpEdge* s) {
-		return s->linkBounds.left == bounds.left || s->linkBounds.top == bounds.top ||
-				s->linkBounds.right == bounds.right || s->linkBounds.bottom == bounds.bottom;
-	};
-	std::sort(l.begin(), l.end(), [onBounds](const auto& s1, const auto& s2) {
-		bool s1OnBounds = onBounds(s1);
-		bool s2OnBounds = onBounds(s2);
-		return s1OnBounds < s2OnBounds || (s1OnBounds == s2OnBounds 
-				&& s1->linkBounds.perimeter() < s2->linkBounds.perimeter()); 
+	std::sort(l.begin(), l.end(), [leftMost](const auto& s1, const auto& s2) {
+        bool s1Left = s1->linkBounds.left == leftMost;
+        bool s2Left = s2->linkBounds.left == leftMost;
+		return s1Left < s2Left || (s1Left == s2Left &&
+                s1->linkBounds.perimeter() < s2->linkBounds.perimeter()); 
 	} );
 }

@@ -1,16 +1,16 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 
-#include "curves/Line.h"
 #include "curves/QuadBezier.h"
 #include "curves/UnaryWinding.h"
 
 // curve types
-PathOpsV0Lib::CurveType lineType = 1;  // unset
-PathOpsV0Lib::CurveType quadType = 2;
+static PathOpsV0Lib::CurveType lineType = 1;
+static PathOpsV0Lib::CurveType quadType = 2;
 constexpr size_t lineSize = sizeof(OpPoint) * 2;
 constexpr size_t quadSize = sizeof(OpPoint) * 3;
 
-void commonOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathOpsV0Lib::PathOutput output) {
+static void pathOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, 
+        PathOpsV0Lib::PathOutput output) {
     if (firstPt)
         OpDebugOut("contour start --\n");
     std::string outStr = lineType == c.type ? "line: " : "quad: ";
@@ -26,30 +26,16 @@ void commonOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathOpsV0Lib
         OpDebugOut("-- contour end\n");
 }
 
-PathOpsV0Lib::CurveType testNewSetLineType(PathOpsV0Lib::Context* , PathOpsV0Lib::Curve ) {
-    return lineType;
-}
-
-void testNewInterface() {
+void SimpleTest() {
     using namespace PathOpsV0Lib;
 
     Context* context = CreateContext();
-    SetContextCallbacks(context, { commonOutput, testNewSetLineType });
-    SetWindingCallbacks(context, { unaryWindingAddFunc, unaryWindingKeepFunc, unaryWindingVisibleFunc,
-			unaryWindingZeroFunc, unaryWindingSubtractFunc });
+    SetContextCallbacks(context, { pathOutput } );
+    unaryCallbacks(context);
 
-#if OP_DEBUG
-    OpDebugData debugData(false);
-    debugData.curveCurve1 = 2;
-    debugData.curveCurve2 = 7;
-    debugData.curveCurveDepth = 6;
-    Debug(context, debugData);
-	SetDebugContextCallbacks(context, {  // nullptr
-            OP_DEBUG_DUMP_CODE(nullptr, unaryWindingDumpOutFunc) }
-    );
-#endif
+	OP_DEBUG_DUMP_CODE(SetDebugContextCallbacks(context, { nullptr, unaryWindingDumpOutFunc }) );
 
-    SetCurveCallbacks(context, lineType, { });
+    SetCurveCallbacks(context, lineType, { } );
     quadCallbacks(context, quadType);
 
     // example: given points describing a pair of closed loops with quadratic Beziers, find
@@ -85,9 +71,3 @@ void testNewInterface() {
     if (ContextError::none != error)
         exit(1);
 }
-
-#if OP_DEBUG && OP_TINY_TEST && !OP_DEBUG_FAST_TEST
-bool OpDebugSkipBreak() {
-	return true;
-}
-#endif

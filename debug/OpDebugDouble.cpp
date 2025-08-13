@@ -18,7 +18,7 @@
 #include "DebugOpsTypes.h"
 
 enum class DebugType {
-    none,
+    degenerateLine,
     line,
     quad,
     conic,
@@ -320,7 +320,7 @@ struct DebugOpCurve {
     DebugOpCurve()
         : size(0)
         , weight(1)
-        , type(DebugType::none)
+        , type(DebugType::degenerateLine)
         , id(0)
         , pathContour(0)
         , color(debugOpBlack) {
@@ -511,6 +511,7 @@ const DebugOpCubic& DebugOpCurve::asCubic() const { return *static_cast<const De
 
 DebugOpRoots DebugOpCurve::axisRayHit(Axis axis, double axisIntercept) const {
     switch (type) {
+    case DebugType::degenerateLine:
     case DebugType::line: {
         double denominator = pts[1].choice(axis) - pts[0].choice(axis);
         DebugOpRoots roots(0 == denominator ? OpNaN 
@@ -543,6 +544,7 @@ DebugOpRoots DebugOpCurve::rayIntersect(const OpDebugRay& ray) const {
 
 DebugOpPoint DebugOpCurve::ptAtT(double t) const {
     switch(type) {
+    case DebugType::degenerateLine:
     case DebugType::line: return DebugOpMath::Interp(pts[0], pts[1], t);    
     case DebugType::quad: return asQuad().ptAtT(t);
     case DebugType::conic: return asConic().ptAtT(t);
@@ -684,6 +686,7 @@ void DebugOpCurve::rectCurves(std::vector<DebugOpCurve>& bounded) const {
 
 void DebugOpCurve::subDivide(double a, double b, DebugOpCurve& dest) const {
     switch (type) {
+    case DebugType::degenerateLine:
     case DebugType::line: 
         dest.pts[0] = ptAtT(a); 
         dest.pts[1] = ptAtT(b); 
@@ -730,6 +733,7 @@ void DebugOpCurve::mapTo(OpCurve& c) const {
     c.setFirstPt(DebugOpMap(pts[0]));
     int endIndex;
     switch (type) {
+        case DebugType::degenerateLine:
         case DebugType::line:
             endIndex = 1;
             break;

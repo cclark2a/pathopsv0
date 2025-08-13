@@ -505,11 +505,12 @@ void validateHTML() {
 }
 #endif
 
-#define TEST_SMALL_EXAMPLES 01
+#define TEST_SMALL_EXAMPLES 0
 
+extern void ContainsTest();
 extern void testFrame();
 extern void TestPath2D(bool debugIt);
-extern void testNewInterface();
+extern void SimpleTest();
 extern void runTests();
 
 void OpTest(bool terminateEarly) {
@@ -523,9 +524,10 @@ void OpTest(bool terminateEarly) {
     }
 #endif
 #if TEST_SMALL_EXAMPLES
+    ContainsTest();
  	TestPath2D(true);
   	testFrame();
-    testNewInterface();
+    SimpleTest();
 #endif
 	runTests();
 	if (terminateEarly)

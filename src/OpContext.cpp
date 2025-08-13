@@ -344,7 +344,7 @@ bool OpContext::assemble() {
 		}
 #endif
 		// sort contours so that first edge is on the outside
-		for (auto contour : sorted) {
+		for (auto contour : sortedContours) {
 			remaining |= !joiner.linkRemaining(contour);
 			if (fatalError)
 				return false;
@@ -720,16 +720,16 @@ bool OpContext::setError(PathOpsV0Lib::ContextError e  OP_DEBUG_PARAMS(int eID, 
 //     if contour 1 right/bottom < contour 2 left/top, traverse contour 1 before contour 2
 // otherwise, return smaller first  !!! why?
 void OpContext::setSortedBounds() {
-	OP_ASSERT(sorted.empty());
+	OP_ASSERT(sortedContours.empty());
 	for (OpContour* contour : contours) {
 	//	OP_ASSERT(!contour->isSorted(Axis::horizontal));
 	//	OP_ASSERT(!contour->isSorted(Axis::vertical));
 		if (contour->bounds.isEmpty())
 			continue;
 		OP_ASSERT(contour->bounds.isFinite());
-		sorted.push_back(contour);
+		sortedContours.push_back(contour);
 	}
-	std::sort(sorted.begin(), sorted.end(), [](const OpContour* a, const OpContour* b) {
+	std::sort(sortedContours.begin(), sortedContours.end(), [](const OpContour* a, const OpContour* b) {
 		bool xOverlaps = a->bounds.right >= b->bounds.left && b->bounds.right >= a->bounds.left;
 		bool yOverlaps = a->bounds.bottom >= b->bounds.top && b->bounds.bottom >= a->bounds.top;
 		if (xOverlaps && !yOverlaps) 

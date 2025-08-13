@@ -152,7 +152,7 @@ inline size_t AddConics(Contour* contour, AddCurve curve) {
         return 1;
     }
     // control point is not inside bounds formed by end points; split Conic into parts
-	std::vector<float> tValues = AddExtrema(start, end, control, monotonicInX, monotonicInX);
+	std::vector<float> tValues = AddExtrema(start, end, control, monotonicInX, monotonicInY);
 	tValues.push_back(0);
 	tValues.push_back(1);
     std::sort(tValues.begin(), tValues.end());
@@ -200,13 +200,13 @@ inline OpRoots conicAxisT(Curve curve, Axis axis, float intercept
     a += c - 2 * b;    // A = a - 2*b + c
     b -= c;            // B = -(b - c)
     OpRoots result = OpMath::QuadRootsDouble(a, 2 * b, c - intercept);  // ? double req'd: testConics3759897
-    result = result.keepValidTs();
+    result = result.keepValidT();
     return result;
     
 }
 
-inline OpRoots conicRotatedT(Curve curve, Axis axis, float axisIntercept
-		OP_DEBUG_PARAMS(const OpRoots& debugRoots)) {
+inline OpRoots conicRotatedT(Curve curve, Axis axis, float intercept
+		OP_DEBUG_PARAMS(const OpRoots& debugAdded)) {
 	OpPoint start = curve.data->start;
 	OpPoint end = curve.data->end;
 	PointWeight control(curve);
@@ -214,7 +214,7 @@ inline OpRoots conicRotatedT(Curve curve, Axis axis, float axisIntercept
     bool monotonicInY = OpMath::Between(start.y, control.pt.y, end.y);
 	std::vector<float> tValues = AddExtrema(start, end, control, monotonicInX, monotonicInY);
 	if (tValues.empty())
-		return conicAxisT(curve, axis, axisIntercept  OP_DEBUG_PARAMS(debugRoots));
+		return conicAxisT(curve, axis, intercept  OP_DEBUG_PARAMS(debugAdded));
     std::sort(tValues.begin(), tValues.end());
     std::vector<OpPtT> ptTs(tValues.size() + 2);
     ptTs.front() = { start, 0 };
@@ -231,18 +231,20 @@ inline OpRoots conicRotatedT(Curve curve, Axis axis, float axisIntercept
         } conicData { { ptTs[index].pt, ptTs[index + 1].pt }, {} };
 		float startT = ptTs[index].t;
 		float endT = ptTs[index + 1].t;
-		if (0 == conicData.endPts[0].choice(axis)) {
+		if (OpMath::Equal(intercept, conicData.endPts[0].choice(axis))) {
 			result.add(startT);
 			continue;
 		}
-		if (0 == conicData.endPts[1].choice(axis)) {
+		if (OpMath::Equal(intercept, conicData.endPts[1].choice(axis))) {
 			result.add(endT);
 			continue;
 		}
+		if (conicData.endPts[0].choice(axis) * conicData.endPts[1].choice(axis) > 0)
+			continue;
         OP_ASSERT(conicData.endPts[0] != conicData.endPts[1]);
         conicData.control = ConicControl(start, control, end, ptTs[index], ptTs[index + 1]);
 		Curve part { (CurveData*) &conicData, curve.size, curve.type };
-		OpRoots partRoot = conicAxisT(part, axis, axisIntercept  OP_DEBUG_PARAMS(debugRoots));
+		OpRoots partRoot = conicAxisT(part, axis, intercept  OP_DEBUG_PARAMS(debugAdded));
 		for (float root : partRoot.roots)
 			result.add(startT + root * (endT - startT));
 	}
@@ -299,6 +301,8 @@ inline void conicSubDivide(Curve curve, float t1, float t2, float threshold, Cur
     PointWeight control(curve);
     PointWeight subPtW = ConicControl(curve.data->start, control, curve.data->end, ptT1, ptT2);
     subPtW.copyTo(*result);
+    if (conicIsLine(*result))
+        result->type = degenerateLine;
 }
 
 inline OpPoint conicHull(Curve c, int index) {

@@ -255,7 +255,9 @@ struct OpDebugMaker {
 #define OpAssert(doBreak) \
     do { if (!(doBreak)) OP_DEBUG_BREAK(); } while (false)
 
+#if !OP_TINY_TEST
 bool OpDebugSkipBreak();
+#endif
 
 namespace PathOpsV0Lib {
     struct Context;

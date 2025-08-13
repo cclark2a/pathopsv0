@@ -600,11 +600,11 @@ void OpEdge::output(bool closed) {
 void OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first) {
 	OP_DEBUG_CODE(debugOutPath = curve.context->debugOutputID);
 	OpEdge* next = nextOut();
-	OpCurve copy = curve;
+	OpCurve copy(curve.context, curve.c, Rotated::no);
     OP_DEBUG_CODE(float thresholdLength = curve.context->threshold().length());
-    bool allowGaps = curve.context->errorHandler.errorDispatchFuncPtr 
+    OP_DEBUG_CODE(bool allowGaps = curve.context->errorHandler.errorDispatchFuncPtr 
             && !curve.context->errorHandler.errorDispatchFuncPtr(
-			PathOpsV0Lib::ContextError::missing, (PathOpsV0Lib::Context*) curve.context, &curve.c);
+			PathOpsV0Lib::ContextError::missing, (PathOpsV0Lib::Context*) curve.context, &curve.c));
     if (iStart.isFinite()) {
         OP_DEBUG_CODE(float gapLength = (curve.firstPt() - iStart).length());
         OP_ASSERT(allowGaps || gapLength <= thresholdLength * 16384);  // !!! gap can be very large; investigate...

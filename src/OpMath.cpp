@@ -23,6 +23,36 @@ OpRoots OpRoots::keepInteriorTs(float start, float end) {
 	return *this;
 }
 
+// curve is monotonic and non-linear, so only a single answer should be returned
+// if two roots were found, pick the outside one (arbitrary, subject to change...)
+OpRoots OpRoots::keepValidT(float start, float end) {
+	OpRoots validTs;
+	for (float tValue : roots) {
+		if (OpMath::IsNaN(tValue)) {
+			fail = RootFail::rootIsNaN;
+			return *this;
+		}
+		if (start > tValue || tValue > end)
+			continue;
+		if (tValue < start + OpEpsilon)
+			tValue = start;
+		else if (tValue > end - OpEpsilon)
+			tValue = end;
+		for (float alreadyFound : validTs.roots) {
+			if (alreadyFound == tValue)
+				goto notUnique;
+		}
+        if (validTs.empty()) 
+		    validTs.roots.push_back(tValue);
+        else if (fabsf(validTs.roots[0] - .5f) < fabsf(tValue - .5f))
+            validTs.roots[0] = tValue;
+	notUnique:
+		;
+	}
+	std::swap(validTs.roots, roots);
+	return *this;
+}
+
 OpRoots OpRoots::keepValidTs(float start, float end) {
 	OpRoots validTs;
 	for (float tValue : roots) {

@@ -72,6 +72,11 @@ inline void unaryWindingZeroFunc(Winding toZero) {
     zero.copyTo(toZero);
 }
 
+inline void unaryCallbacks(Context* context) {
+    SetWindingCallbacks(context, { unaryWindingAddFunc, unaryWindingKeepFunc, 
+            unaryWindingVisibleFunc, unaryWindingZeroFunc, unaryWindingSubtractFunc } );
+}
+
 #if OP_DEBUG_DUMP
 inline std::string unaryWindingDumpOutFunc(Winding winding) {
     UnaryWinding unary(winding);

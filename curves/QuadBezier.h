@@ -90,7 +90,7 @@ inline size_t AddQuads(Contour* contour, AddCurve curve) {
         return 1;
     }
     // control point is not inside bounds formed by end points; split quad into parts
-	std::vector<float> tValues = AddExtrema(start, end, control, monotonicInX, monotonicInX);
+	std::vector<float> tValues = AddExtrema(start, end, control, monotonicInX, monotonicInY);
 	tValues.push_back(0);
 	tValues.push_back(1);
     std::sort(tValues.begin(), tValues.end());
@@ -146,12 +146,12 @@ inline OpRoots quadAxisT(Curve curve, Axis axis, float axisIntercept
     a += c - 2 * b;    // A = a - 2*b + c
     b -= c;            // B = -(b - c)
     OpRoots result = OpMath::QuadRootsDouble(a, 2 * b, c - axisIntercept);  // double req'd: testQuads3759897
-    result = result.keepValidTs();
+    result = result.keepValidT();
     return result;
 }
 
-inline OpRoots quadRotatedT(Curve curve, Axis axis, float axisIntercept  
-		OP_DEBUG_PARAMS(const OpRoots& debugRoots)) {
+inline OpRoots quadRotatedT(Curve curve, Axis axis, float intercept  
+		OP_DEBUG_PARAMS(const OpRoots& debugAdded)) {
 	OpPoint start = curve.data->start;
 	OpPoint end = curve.data->end;
 	OpPoint control = quadControlPt(curve);
@@ -159,7 +159,7 @@ inline OpRoots quadRotatedT(Curve curve, Axis axis, float axisIntercept
     bool monotonicInY = OpMath::Between(start.y, control.y, end.y);
 	std::vector<float> tValues = AddExtrema(start, end, control, monotonicInX, monotonicInY);
 	if (tValues.empty())
-		return quadAxisT(curve, axis, axisIntercept  OP_DEBUG_PARAMS(debugRoots));
+		return quadAxisT(curve, axis, intercept  OP_DEBUG_PARAMS(debugAdded));
     std::sort(tValues.begin(), tValues.end());
     std::vector<OpPtT> ptTs(tValues.size() + 2);
     ptTs.front() = { start, 0 };
@@ -173,18 +173,20 @@ inline OpRoots quadRotatedT(Curve curve, Axis axis, float axisIntercept
         OpPoint curveData[3] { ptTs[index].pt, ptTs[index + 1].pt };
 		float startT = ptTs[index].t;
 		float endT = ptTs[index + 1].t;
-		if (0 == curveData[0].choice(axis)) {
+		if (OpMath::Equal(intercept, curveData[0].choice(axis))) {
 			result.add(startT);
 			continue;
 		}
-		if (0 == curveData[1].choice(axis)) {
+		if (OpMath::Equal(intercept, curveData[1].choice(axis))) {
 			result.add(endT);
 			continue;
 		}
+		if (curveData[0].choice(axis) * curveData[1].choice(axis) > 0)
+			continue;
         OP_ASSERT(curveData[0] != curveData[1]);
         curveData[2] = QuadControlPt(start, control, end, ptTs[index], ptTs[index + 1]);
 		Curve part { (CurveData*) curveData, curve.size, curve.type };
-		OpRoots partRoot = quadAxisT(part, axis, axisIntercept  OP_DEBUG_PARAMS(debugRoots));
+		OpRoots partRoot = quadAxisT(part, axis, intercept  OP_DEBUG_PARAMS(debugAdded));
 		for (float root : partRoot.roots)
 			result.add(startT + root * (endT - startT));
 	}
@@ -229,6 +231,8 @@ inline void quadSubDivide(Curve c, float t1, float t2, float threshold, Curve* r
 	OpPtT ptT2 { result->data->end, t2 };
     OpPoint subControl = QuadControlPt(c.data->start, quadControlPt(c), c.data->end, ptT1, ptT2);
     quadSetControl(*result, subControl);
+    if (quadIsLine(*result))
+        result->type = degenerateLine;
 }
 
 inline OpPoint quadHull(Curve c, int index) {

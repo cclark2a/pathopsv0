@@ -208,9 +208,3 @@ void TestPath2D(bool debugIt) {
 	svg = result.toSVG();
 	OP_ASSERT(svg == "M 45 41.25 Q 47.5 45 50 50 Z M 10 10 L 15 15 Z");
 }
-
-#if OP_DEBUG && OP_TINY_TEST
-bool OpDebugSkipBreak() {
-	return true;
-}
-#endif

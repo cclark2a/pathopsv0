@@ -30,12 +30,12 @@ enum class ContextError {
 // collection of curves that share the same fill rules
 struct Contour;
 
-// caller defined curve type (e.g., line, arc, cubic, ...); 
+// caller defined curve type (e.g., line, arc, cubic, ...)
 typedef int CurveType;
 
 static constexpr CurveType degenerateLine = (CurveType) 0;  // used when curve degenerates to line
 
-// caller-defined optional data for each curve
+// caller defined optional data for each curve
 struct CurveUserData;
 
 /* Curve describes a set of continuous points from start to end.
@@ -87,6 +87,9 @@ enum class WindKeep {
     End,		// edge ends a filled area
     Start,		// edge begins a filled area
 };
+
+// caller defined winding condition type (e.g., contains, overlaps, excludes, ...)
+typedef int WindingCondition;
 
 // output path provided by caller
 typedef void* PathOutput;
@@ -142,8 +145,8 @@ typedef OpPair (*XYAtT)(Curve , OpPair t, XyChoice );
 // overrides engine maximum for a curve type
 typedef float (*CurveConst)(Curve );
 
-// the collection of caller-defined functions that describe the geometry of the curve
-// most caller-defined functions are optional and default to built-in behavior
+// the collection of caller defined functions that describe the geometry of the curve
+// caller defined functions are optional and default to built-in behavior
 struct CurveCallbacks {
 	AxisT axisTFuncPtr = nullptr;  // curve is monotonic
 	AxisT rotateTFuncPtr = nullptr;  // curve was rotated and may require finding extrema
@@ -217,8 +220,9 @@ typedef int (*MaxLimbs)(Context* );
 // overrides a scalar used by the engine to describe the error allowed when assembling the result
 typedef float (*MaxGap)(Context* );
 
-// caller-defined functions, most of which customize when the engine returns an error
-// most caller-defined functions are optional and have built-in defaults
+// the collection of caller defined functions that change the global context behavior
+// caller defined functions beginning with 'max' customize when the engine returns an error
+// caller defined functions are optional and default to built-in behavior
 struct ContextCallbacks {
 	CurveOutput curveOutputFuncPtr = nullptr;
 	SetLineType setLineTypeFuncPtr = nullptr;  // default to (CurveType) 1
