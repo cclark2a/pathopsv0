@@ -98,7 +98,7 @@ void emptySkPathFunc(PathOutput output) {
 	skOutput->setFillType(SkPathFillType::kEvenOdd);
 }
 
-PathOpsV0Lib::CurveType setSkiaLineType(PathOpsV0Lib::Context* , PathOpsV0Lib::Curve ) {
+PathOpsV0Lib::CurveType setSkiaLineType(PathOpsV0Lib::Curve ) {
     return SkPath::kLine_Verb;
 }
 
@@ -111,13 +111,13 @@ void SetSkiaContextCallbacks(Context* context) {
 }
 
 Contour* SetSkiaSimplifyCallbacks(Context* context, Winding winding,
-        bool isWindingFill  OP_DEBUG_PARAMS(const SkPath& path)) {
+        bool isWindingFill  OP_DEBUG_PARAMS(const SkPath* pathPtr)) {
     Contour* contour = CreateContour(context, winding);
     WindingAdd addFunc = isWindingFill ? unaryWindingAddFunc : unaryEvenOddFunc;
     WindingAdd subtractFunc = isWindingFill ? unaryWindingSubtractFunc : unaryEvenOddFunc;
     SetWindingCallbacks(context, { addFunc, unaryWindingKeepFunc, unaryWindingVisibleFunc, 
 			unaryWindingZeroFunc, subtractFunc });
-    OP_DEBUG_CODE(SetSkiaSimplifyCallbacksDebug(context, contour, path));
+    OP_DEBUG_CODE(if (pathPtr) SetSkiaSimplifyCallbacksDebug(context, contour, *pathPtr));
     return contour;
 }
 
@@ -153,14 +153,14 @@ void SetSkiaOpContextCallbacks(Context* context, SkPathOp op, BinaryWindType win
 }
 
 Contour* SetSkiaOpContourCallbacks(Context* context, Winding winding,
-        BinaryOperand operand  OP_DEBUG_PARAMS(const SkPath& path)) {
+        BinaryOperand operand  OP_DEBUG_PARAMS(const SkPath* pathPtr)) {
     Contour* contour = CreateContour(context, winding);
-    OP_DEBUG_CODE(SetSkiaOpContourCallbacksDebug(context, contour, operand, path));
+    OP_DEBUG_CODE(if (pathPtr) SetSkiaOpContourCallbacksDebug(context, contour, operand, *pathPtr));
     return contour;
 }
 
 void AddSkiaPath(Context* context, Contour* contour, const SkPath& path
-        OP_DEBUG_PARAMS(AddDebugContour addDebugContour)) {
+        OP_DEBUG_PARAMS(AddDebugContour* addDebugPtr)) {
 	if (!path.isFinite()) {  // raw iter treats non-finite path as empty
 		SetError(context, ContextError::finite);
 		return;
@@ -173,35 +173,35 @@ void AddSkiaPath(Context* context, Contour* contour, const SkPath& path
         switch (verb) {
         case SkPath::kMove_Verb:
             if (closeLine[0] != closeLine[1])
-                Add(contour, { closeLine, sizeof(closeLine), SkPath::kLine_Verb } );
+                Add(contour, { context, closeLine, sizeof(closeLine), SkPath::kLine_Verb } );
             closeLine[0] = closeLine[1] = { pts[0].fX, pts[0].fY };
             pts[1] = pts[0];
 			contour = Clone(contour);
-            OP_DEBUG_CODE(addDebugContour.add(contour));
+            OP_DEBUG_CODE(if (addDebugPtr) addDebugPtr->add(contour));
             break;
         case SkPath::kLine_Verb:
             if (pts[0] != pts[1])
-                Add(contour, { (OpPoint*) pts, sizeof(SkPoint) * 2, SkPath::kLine_Verb } );
+                Add(contour, { context, (OpPoint*) pts, sizeof(SkPoint) * 2, SkPath::kLine_Verb } );
             closeLine[0] = { pts[1].fX, pts[1].fY };
             break;
         case SkPath::kQuad_Verb:
-            AddQuads(contour, { (OpPoint*) pts, sizeof(SkPoint) * 3, SkPath::kQuad_Verb } );
+            AddQuads(contour, { context, (OpPoint*) pts, sizeof(SkPoint) * 3, SkPath::kQuad_Verb } );
             closeLine[0] = { pts[2].fX, pts[2].fY };
             break;
         case SkPath::kConic_Verb:
             pts[3].fX = iter.conicWeight(); // !!! hacky
-            AddConics(contour, { (OpPoint*) pts, sizeof(SkPoint) * 3 + sizeof(float), 
+            AddConics(contour, { context, (OpPoint*) pts, sizeof(SkPoint) * 3 + sizeof(float), 
                     SkPath::kConic_Verb } );
             closeLine[0] = { pts[2].fX, pts[2].fY };
             break;
         case SkPath::kCubic_Verb:
-            AddCubics(contour, { (OpPoint*) pts, sizeof(SkPoint) * 4, SkPath::kCubic_Verb } );
+            AddCubics(contour, { context, (OpPoint*) pts, sizeof(SkPoint) * 4, SkPath::kCubic_Verb } );
             closeLine[0] = { pts[3].fX, pts[3].fY };
             break;
         case SkPath::kClose_Verb:
         case SkPath::kDone_Verb:
             if (closeLine[0] != closeLine[1])
-                Add(contour, { closeLine, sizeof(closeLine), SkPath::kLine_Verb } );
+                Add(contour, { context, closeLine, sizeof(closeLine), SkPath::kLine_Verb } );
             if (SkPath::kDone_Verb == verb)
                 return;
             closeLine[0] = closeLine[1];

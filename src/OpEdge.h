@@ -314,6 +314,8 @@ enum class LeadingLoop {
 };
 #endif
 
+typedef int WindingCondition;
+
 struct CoinPal {
 	friend bool operator==(CoinPal a, CoinPal b) {
 		return a.coinID == b.coinID;
@@ -403,7 +405,7 @@ public:
 		addPal(d->edge, 0, d->reversed); }
 	CalcFail addSub(OpContour* winderOwner, Axis axis, float t, OpWinding* ) const;
 	OpEdge* advanceToEnd(EdgeMatch );
-	void apply();
+	WindingCondition apply();
 	void calcCenterT();
 	void clearActiveAndPals(OP_LINE_FILE_NP_ARGS());
 	void clearLastEdge(InOutput );

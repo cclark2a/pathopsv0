@@ -2,8 +2,6 @@
 #ifndef Path2D_DEFINED
 #define Path2D_DEFINED
 
-#include "curves/BinaryWinding.h"
-#include "curves/UnaryWinding.h"
 #include "PathOps.h"
 
 #define ARC_SUPPORT 0

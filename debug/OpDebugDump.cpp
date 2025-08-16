@@ -604,7 +604,7 @@ OpContext* fromFile(std::vector<PathOpsV0Lib::CurveCallbacks>* callbacks) {
         fclose(file);
     }
     const char* str = buffer.c_str();
-    OpContext* fileContours = new OpContext();
+    OpContext* fileContours = new OpContext(nullptr);
     if (callbacks)
         fileContours->callbacks = *callbacks;
     fileContours->dumpSet(str);  // also reads segments, which read segments' edges, etc.
@@ -1716,18 +1716,18 @@ void CurveDataStorage::DumpSet(const char*& str, CurveDataStorage** previousPtr)
 
 std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-	if ((size_t) c.type > context->debugCallbacks.size())
+	if ((size_t) c.type > context().debugCallbacks.size())
 		s += "(missing curve name) ";
     else if (!c.type)
         s += "degenerateLine ";
     else {
-		auto curveName = context->debugCallback(c).curveNameFuncPtr;
+		auto curveName = context().debugCallback(c).curveNameFuncPtr;
 		if (curveName)
 			s += (*curveName)() + " ";
 	}
     if (DebugLevel::file == l) {
         s += "size:" + STR(c.size) + " ";
-        s += "data:" + context->curveDataStorage->debugDump(c.data) + " ";
+        s += "data:" + context().curveDataStorage->debugDump(c.data) + " ";
     } else {
 		s.pop_back();  // remove trailing space
         s += "{";
@@ -1735,8 +1735,8 @@ std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
             s += hullPt(i).debugDump(DebugLevel::error, b) + ", ";
         s.pop_back(); s.pop_back();  // remove space, comma
         s += "}";
-		if ((size_t) c.type <= context->debugCallbacks.size()) {
-			auto curveExtra = context->debugCallback(c).curveExtraFuncPtr;
+		if ((size_t) c.type <= context().debugCallbacks.size()) {
+			auto curveExtra = context().debugCallback(c).curveExtraFuncPtr;
 			if (curveExtra)
 				s += (*curveExtra)(c, l, b);
 		}
@@ -1745,7 +1745,7 @@ std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 void dmp(const PathOpsV0Lib::AddCurve& c) {
-	OpCurve curve(debugGlobalContext, c, Rotated::debug);
+	OpCurve curve(c, Rotated::debug);
 	OpDebugFormat(curve.debugDump(defaultLevel, defaultBase));
 }
 
@@ -1754,7 +1754,7 @@ void dmp(const PathOpsV0Lib::AddCurve* c) {
 }
 
 void dmp(const PathOpsV0Lib::Curve& c) {
-	OpCurve curve(debugGlobalContext, c, Rotated::debug);
+	OpCurve curve(c, Rotated::debug);
 	OpDebugFormat(curve.debugDump(defaultLevel, defaultBase));
 }
 
@@ -1763,12 +1763,12 @@ void dmp(const PathOpsV0Lib::Curve* c) {
 }
 
 bool debugDmpIsLine(const PathOpsV0Lib::AddCurve& c) {
-	OpCurve test(debugGlobalContext, c, Rotated::debug);
+	OpCurve test(c, Rotated::debug);
 	return test.debugIsLine();
 }
 
 bool debugDmpIsLine(const PathOpsV0Lib::Curve& c) {
-	OpCurve test(debugGlobalContext, c, Rotated::debug);
+	OpCurve test(c, Rotated::debug);
 	return test.debugIsLine();
 }
 
@@ -1776,8 +1776,8 @@ void OpCurve::dumpSet(const char*& str) {
     size_t strLen = 0;
     while (isalnum(str[strLen]))
         ++strLen;
-    for (size_t index = 0; index < context->callbacks.size(); ++index) {
-		auto curveName = context->debugCallbacks[index].curveNameFuncPtr;
+    for (size_t index = 0; index < context().callbacks.size(); ++index) {
+		auto curveName = context().debugCallbacks[index].curveNameFuncPtr;
 		if (!curveName)
 			continue;
         std::string name = (*curveName)();
@@ -1791,7 +1791,7 @@ void OpCurve::dumpSet(const char*& str) {
     OpDebugRequired(str, "size");
     c.size = OpDebugReadSizeT(str);
     OpDebugRequired(str, "data");
-    c.data = context->curveDataStorage->dumpSet(str);  // do not allocate, just point to
+    c.data = context().curveDataStorage->dumpSet(str);  // do not allocate, just point to
 }
 
 ENUM_NAME_STRUCT(EdgeMatch);
@@ -2603,12 +2603,12 @@ void OpEdge::dumpSet(const char*& str) {
     if (OpDebugOptional(str, "center"))
         center.dumpSet(str);
     OpDebugRequired(str, "curve");
-    curve.context = dumpContext;
+    curve.c.context = (ContextPtr) dumpContext;
     curve.dumpSet(str);
     if (OpDebugOptional(str, "upright_impl")) {
         upright_impl.dumpSet(str);
         OpDebugRequired(str, "vertical_impl");
-        vertical_impl.context = dumpContext;
+        vertical_impl.c.context = (ContextPtr) dumpContext;
         vertical_impl.dumpSet(str);
     }
     OpDebugRequired(str, "ptBounds");
@@ -4387,7 +4387,7 @@ void OpSegment::dumpSet(const char*& str) {
     id = (int) OpDebugReadSizeT(str);
     int contourID = OpDebugOptional(str, "contour[") ? (int) OpDebugReadSizeT(str) : 0;
     OpDebugExitOnFail("mismatched contour id", contourID == contour->id);
-    c.context = contour->context;
+    c.c.context = (ContextPtr) contour->context;
     c.dumpSet(str);
     OpDebugRequired(str, "ptBounds");
     ptBounds.dumpSet(str);

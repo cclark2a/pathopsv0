@@ -31,7 +31,7 @@ void FoundEdge::reset() {
 
 OpSegment::OpSegment(PathOpsV0Lib::Contour* libContour, PathOpsV0Lib::AddCurve addCurve)    
 	: contour((OpContour*) libContour)
-	, c(contour->context, { (PathOpsV0Lib::CurveData*) addCurve.points, 
+	, c({ addCurve.context, (PathOpsV0Lib::CurveData*) addCurve.points, 
 			addCurve.size, addCurve.type }, Rotated::no )
 	, winding(contour->context, { contour->winding.data, contour->winding.size } )
 	, id(contour->nextID())
@@ -213,9 +213,12 @@ OpPtT OpSegment::alignToEnd(OpPoint oppPt) const {
 	return segPtT;
 }
 
-void OpSegment::apply() {
-	for (auto& edge : edges)
-		edge.apply();
+WindingCondition OpSegment::apply() {
+	for (auto& edge : edges) {
+        if (WindingCondition windingCondition = edge.apply())
+            return windingCondition;
+    }
+    return 0;
 }
 
 struct Misses {
@@ -451,7 +454,7 @@ void OpSegment::disableSmall() {
 
 // !!! this was lineIntersect which could miss if normal line points away from seg
 //     but it was changed without fixing the root bug, so may make things less stable ...
-OpPtT OpSegment::distance(const OpPtT& segPtT, const OpSegment* opp) const {
+OpPtT OpSegment::distance(const OpPtT& segPtT, OpSegment* opp) {
 	OpVector normal = c.normal(segPtT.t);
 	if (!normal.isFinite())
 		return OpPtT(SetToNaN::dummy);
@@ -493,7 +496,7 @@ void OpSegment::findMissingEnds() {
 		bool missingStart = !sects.i.size() || 0 != sects.i.front()->ptT.t;
 		bool missingEnd = !sects.i.size() || 1 != sects.i.back()->ptT.t;
 		if ((missingStart || missingEnd) && !context->errorHandler.errorDispatchFuncPtr(
-				PathOpsV0Lib::ContextError::end, (PathOpsV0Lib::Context*) context, &c.c)) {
+				PathOpsV0Lib::ContextError::end, &c.c)) {
 			if (missingStart) {
 				OpIntersection* sect = contour->addSegSect({c.firstPt(), 0}, this  
 						OP_LINE_FILE_PARAMS(this));
@@ -745,7 +748,7 @@ void OpSegment::makePals() {
 	}
 }
 
-OpPtT OpSegment::matchEnd(OpPoint opp) const {
+OpPtT OpSegment::matchEnd(OpPoint opp) {
 	OpPtT alignedEnd = alignToEnd(opp);
 	if (OpMath::IsNaN(alignedEnd.t))
 		alignedEnd = { opp, c.match(0, 1, opp) };

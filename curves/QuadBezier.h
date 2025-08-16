@@ -86,7 +86,7 @@ inline size_t AddQuads(Contour* contour, AddCurve curve) {
             return 0;
         // swizzle input to match v0's start/end/ctrl layout
         OpPoint swizzled[3] { start, end, control };
-        Add(contour, { swizzled, curve.size, curve.type } );
+        Add(contour, { curve.context, swizzled, curve.size, curve.type } );
         return 1;
     }
     // control point is not inside bounds formed by end points; split quad into parts
@@ -106,7 +106,7 @@ inline size_t AddQuads(Contour* contour, AddCurve curve) {
             continue;
         OpPoint curveData[3] { ptTs[index].pt, ptTs[index + 1].pt,
             QuadControlPt(start, control, end, ptTs[index], ptTs[index + 1]) };
-        Add(contour, { curveData, curve.size, curve.type } );
+        Add(contour, { curve.context, curveData, curve.size, curve.type } );
     }
     return curvesAdded;
 }
@@ -185,7 +185,7 @@ inline OpRoots quadRotatedT(Curve curve, Axis axis, float intercept
 			continue;
         OP_ASSERT(curveData[0] != curveData[1]);
         curveData[2] = QuadControlPt(start, control, end, ptTs[index], ptTs[index + 1]);
-		Curve part { (CurveData*) curveData, curve.size, curve.type };
+		Curve part { curve.context, (CurveData*) curveData, curve.size, curve.type };
 		OpRoots partRoot = quadAxisT(part, axis, intercept  OP_DEBUG_PARAMS(debugAdded));
 		for (float root : partRoot.roots)
 			result.add(startT + root * (endT - startT));

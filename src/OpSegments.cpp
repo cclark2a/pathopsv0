@@ -340,12 +340,16 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
 // note: ends have already been matched for consecutive segments
 FoundIntersections OpSegments::findIntersections() {
 	OP_DEBUG_CONTEXT();
+    PathOpsV0Lib::WindingIntersect windingSect = context.windingCallbacks.windingIntersectFuncPtr;
 	for (OpContour* oContour: context.contours) {
 		if (oContour->disabled)
 			continue;
 		for (OpContour* member : oContour->members()) {
 			if (member->id > oContour->id)
 				break;
+            if (windingSect && !(*windingSect)((ContextPtr) &context, oContour->winding, 
+                    member->winding))
+                continue;  // if oContour is frame, and member is frame, skip
 			findIntersection(oContour, member);
 		}
 	}

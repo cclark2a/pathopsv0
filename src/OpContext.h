@@ -53,7 +53,7 @@ struct OpPtAliases {
 typedef PathOpsV0Lib::Context* ContextPtr;
 
 struct OpContext {
-	OpContext();
+	OpContext(void* userData);
 	~OpContext();
 
 	operator ContextPtr() const {
@@ -78,12 +78,7 @@ struct OpContext {
 		}
 	}
 
-	void apply() {
-		for (auto contour : contours) {
-			contour->apply();
-		}
-	}
-
+	WindingCondition apply();
 	bool assemble();
 
 	void betweenIntersections() {
@@ -96,11 +91,15 @@ struct OpContext {
 		return callbacks[type];
 	}
 
+	const PathOpsV0Lib::CurveCallbacks& callback(PathOpsV0Lib::CurveType type) const {
+		return callbacks[type];
+	}
+
 	bool containsFiller(OpPoint start, OpPoint end) const;
 	bool containsFiller(int ccUnsectableID) const;
 	bool containsPals(OpEdge* , int totalLimbs);
 //    WindingData* copySect(const OpWinding& );  // !!! add a separate OpWindingStorage for temporary blocks?
-    int curveIndex(int nativeType);
+    int curveIndex(int nativeType) const;
     void curveIndex(PathOpsV0Lib::AddCurve& curvePtr);
 //    void demotePalLinks();
 	void disableSmallSegments();
@@ -179,7 +178,7 @@ struct OpContext {
 
 	OpLimb& nthLimb(int index);
 	void opsInit();
-	bool pathOps();
+	WindingCondition pathOps();
 	void rebuildOverlaps();
 	void release(OpEdgeStorage*& );
 	OpPoint remapPts(OpPoint oldAlias, OpPoint newAlias);
@@ -205,6 +204,7 @@ struct OpContext {
 	void addDebugContextData(PathOpsV0Lib::DebugContextData , PathOpsV0Lib::DebugContextType );
     PathOpsV0Lib::DebugContextData& debugGetContextData(PathOpsV0Lib::DebugContextType );
 	PathOpsV0Lib::DebugCurveCallbacks& debugCallback(PathOpsV0Lib::Curve );
+	const PathOpsV0Lib::DebugCurveCallbacks& debugCallback(PathOpsV0Lib::Curve ) const;
 	void debugRemap(int oldRayMatch, int newRayMatch);
 	bool debugSuccess() const;
 #endif
@@ -248,12 +248,16 @@ struct OpContext {
 	OpLimbStorage* limbStorage;
 	OpLimbStorage* limbCurrent;
 	CallerDataStorage* callerStorage;
+    void* userData;
 	OpPointBounds maxBounds;
 	PathOpsV0Lib::ContextError error;
-	bool fatalError;
 	int uniqueID;  // used for object id, unsectable id, coincidence id
+    bool allDiscarded;
+    bool allKept;
+	bool fatalError;
 	bool outputOne;
 	bool linkErased;  // used to tell relinkUnambiguous to continue or not
+    bool windingSet;
 
 #if OP_DEBUG_VALIDATE
 	int debugValidateEdgeIndex;

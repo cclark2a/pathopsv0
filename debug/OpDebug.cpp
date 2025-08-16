@@ -604,18 +604,17 @@ bool OpMath::IsDebugNaN(float f) {
 #include "PathOpsTypes.h"
 
 #if OP_DEBUG_IMAGE
-OpCurve::OpCurve(OpContext* cntxt, PathOpsV0Lib::AddCurve addCurve, Rotated r)
-	: context(cntxt)
-	, rotated(r)
+OpCurve::OpCurve(PathOpsV0Lib::AddCurve addCurve, Rotated r)
+	: rotated(r)
 	, isLineSet(false)
 	, isLineResult(false) {
-    PathOpsV0Lib::Curve curve { (PathOpsV0Lib::CurveData*) addCurve.points, addCurve.size, addCurve.type };
+    PathOpsV0Lib::Curve curve { addCurve.context, (PathOpsV0Lib::CurveData*) addCurve.points, 
+            addCurve.size, addCurve.type };
     c.size = curve.size;
     c.type = curve.type;
-	c.data = context->allocateCurveData(c.size);
+	c.data = context().allocateCurveData(c.size);
 	if (0 == (int) curve.type)
-		c.type = context->contextCallbacks.setLineTypeFuncPtr((PathOpsV0Lib::Context*) context,
-				curve);
+		c.type = context().contextCallbacks.setLineTypeFuncPtr(curve);
 	if (curve.data) {
 		std::memcpy(c.data, curve.data, c.size);
 		OP_DEBUG_CODE(if (Rotated::debug == r) return);
@@ -1020,7 +1019,18 @@ PathOpsV0Lib::DebugCurveCallbacks& OpContext::debugCallback(PathOpsV0Lib::Curve 
     PathOpsV0Lib::CurveType type = c.type;
     if (PathOpsV0Lib::degenerateLine == type) {
         type = contextCallbacks.setLineTypeFuncPtr 
-                ? (*contextCallbacks.setLineTypeFuncPtr)((PathOpsV0Lib::Context*) this, c) : 1;
+                ? (*contextCallbacks.setLineTypeFuncPtr)(c) : 1;
+    }
+	OP_ASSERT((int) type >= 1);
+	OP_ASSERT((size_t) type <= debugCallbacks.size());
+	return debugCallbacks[curveIndex(type)];
+}
+
+const PathOpsV0Lib::DebugCurveCallbacks& OpContext::debugCallback(PathOpsV0Lib::Curve c) const {
+    PathOpsV0Lib::CurveType type = c.type;
+    if (PathOpsV0Lib::degenerateLine == type) {
+        type = contextCallbacks.setLineTypeFuncPtr 
+                ? (*contextCallbacks.setLineTypeFuncPtr)(c) : 1;
     }
 	OP_ASSERT((int) type >= 1);
 	OP_ASSERT((size_t) type <= debugCallbacks.size());

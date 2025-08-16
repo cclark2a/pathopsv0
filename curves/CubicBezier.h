@@ -323,7 +323,7 @@ inline void AddCubics(Contour* contour, AddCurve curve) {
     OpPoint end = curve.points[3];
     CubicControls controls { curve.points[1], curve.points[2] };
 	OpPoint swizzled[4] { start, end, controls.pts[0], controls.pts[1] };  
-    Curve cubic { (CurveData*) swizzled, curve.size, curve.type };
+    Curve cubic { curve.context, (CurveData*) swizzled, curve.size, curve.type };
     // control point is not inside bounds formed by end points; split cubic into parts
 	OpRoots tValues = AddExtrema(start, end, controls, false);
 	OpRoots roots = AddInflections(start, end, controls);
@@ -348,7 +348,7 @@ inline void AddCubics(Contour* contour, AddCurve curve) {
         OpPoint result[4] { ptTs[index].pt, ptTs[index + 1].pt };
         if (result[0] == result[1])
             continue;
-        Curve subDivide { (CurveData*) result, cubic.size, cubic.type };
+        Curve subDivide { curve.context, (CurveData*) result, cubic.size, cubic.type };
         cubicCommonSubDivide(cubic, tValues.roots[index], tValues.roots[index + 1], 
                 threshold, &subDivide, CubicSubDivide::noAngleChecks);
         Add(contour, subDivide);
@@ -426,7 +426,7 @@ inline OpRoots cubicRotatedT(Curve c, Axis axis, float intercept
 			continue;
         OP_ASSERT(curveData[0] != curveData[1]);
         *(CubicControls*)&curveData[2] = CubicControlPt(start, controls, end, startT, endT);
-		Curve part { (CurveData*) curveData, c.size, c.type };
+		Curve part { c.context, (CurveData*) curveData, c.size, c.type };
 		OpRoots partRoot = cubicAxisT(part, axis, intercept  OP_DEBUG_PARAMS(debugAdded));
 		for (float root : partRoot.roots)
 			result.add(startT + root * (endT - startT));

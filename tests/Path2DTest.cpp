@@ -1,11 +1,11 @@
 // (c) 2024, Cary Clark cclark2@gmail.com
 
-#include "emscripten/Path2D.h"
+#include "port/Path2D.h"
 
 bool overrideDebugIt = false;
 
 static std::string typeToCommand(TwoD::Types type) { 
-	return std::string(1, "MLQCZ"[(int) type]); 
+	return std::string(1, "MLQKCZ"[(int) type]); 
 }
 
 static std::string commandsArray(std::vector<TwoD::Curve>& commands) {
@@ -188,7 +188,7 @@ void TestPath2D(bool debugIt) {
 	svg = path.toSVG();
 	path.simplify();
 	svg = path.toSVG();
-	OP_ASSERT(svg == "M 0 0 L 6 0 L 6 4 L 0 4 L 0 0 Z");
+	OP_ASSERT(svg == "M 6 4 L 0 4 L 0 0 L 6 0 L 6 4 Z");
 
 	// frame tests
 	TwoD::FramePath frame;
@@ -201,10 +201,10 @@ void TestPath2D(bool debugIt) {
 	TwoD::FramePath result = frame.clone();
 	result.intersect(path);
 	svg = result.toSVG();
-	OP_ASSERT(svg == "M 30 30 Q 37.5 30 45 41.25 Z M 15 15 L 20 20 Z");
+	OP_ASSERT(svg == "M 15 15 L 20 20 Z M 30 30 Q 37.5 30 45 41.25 Z");
 
 	result = frame.clone();
 	result.difference(path);
 	svg = result.toSVG();
-	OP_ASSERT(svg == "M 45 41.25 Q 47.5 45 50 50 Z M 10 10 L 15 15 Z");
+	OP_ASSERT(svg == "M 10 10 L 15 15 Z M 45 41.25 Q 47.5 45 50 50 Z");
 }

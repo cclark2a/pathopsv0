@@ -6,7 +6,7 @@
 #include "include/core/SkPath.h"
 #endif
 
-#include "SkiaPaths.h"
+#include "port/SkiaPaths.h"
 #include "OpSkiaTests.h"
 #if TEST_RASTER
 #include "OpDebugRaster.h"
@@ -113,18 +113,6 @@ std::string dumpBinaryContourFunc(DebugContourData caller, DebugLevel l, DebugBa
     return s;
 }
 
-std::string dumpUnaryContextFunc(DebugContextData caller, DebugLevel l, DebugBase b) {
-#if OP_TINY_SKIA
-    return "";
-#else
-    OP_ASSERT(sizeof(UnaryContext) <= caller.size);
-    UnaryContext callerData;
-    std::memcpy(&callerData, caller.data, caller.size);
-	// !!!ignore draw native path?
-#endif
-	return "";
-}
-
 std::string dumpBinaryContextFunc(DebugContextData caller, DebugLevel l, DebugBase b) {
 #if OP_TINY_SKIA
     return "";
@@ -228,8 +216,8 @@ void SetSkiaSimplifyCallbacksDebug(Context* context, Contour* contour, const SkP
             OP_DEBUG_IMAGE_PARAMS(debugSimplifyPathFunc,
 	        debugSimplifyGetDrawFunc, debugSimplifySetDrawFunc) }
     );
-	SetDebugContextCallbacks(context, { // skiaDebugBitOper
-			OP_DEBUG_DUMP_CODE(dumpUnaryContextFunc, unaryWindingDumpOutFunc)
+	SetDebugContextCallbacks(context, {
+			OP_DEBUG_DUMP_CODE(nullptr, unaryWindingDumpOutFunc)
             OP_DEBUG_IMAGE_PARAMS(unaryWindingImageOutFunc) }
     );
 }
@@ -250,7 +238,7 @@ void SetSkiaOpContourCallbacksDebug(Context* context, Contour* contour,
             OP_DEBUG_IMAGE_PARAMS(debugOpPathFunc,
 	        debugOpGetDrawFunc, debugOpSetDrawFunc, debugOpSetIsOppFunc) }
     );
-	SetDebugContextCallbacks(context, { // skiaDebugBitOper
+	SetDebugContextCallbacks(context, {
 			OP_DEBUG_DUMP_CODE(dumpBinaryContextFunc, binaryWindingDumpOutFunc)
             OP_DEBUG_IMAGE_PARAMS(binaryWindingImageOutFunc) }
     );

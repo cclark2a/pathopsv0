@@ -77,9 +77,9 @@ struct OpDebugDefeatDelete {
 
 void OpDebugImage::addToPath(const OpCurve& curve, SkPath& path) {
 	path.moveTo(curve.firstPt().x, curve.firstPt().y);
-	if ((size_t) curve.c.type > curve.context->debugCallbacks.size())
+	if ((size_t) curve.c.type > curve.context().debugCallbacks.size())
 		return;
-	PathOpsV0Lib::DebugAddToPath debugAddToPath = curve.context->debugCallback(curve.c).addToPathFuncPtr;
+	PathOpsV0Lib::DebugAddToPath debugAddToPath = curve.context().debugCallback(curve.c).addToPathFuncPtr;
 	if (!debugAddToPath)
 		return;
 	(*debugAddToPath)(curve.c, path);
@@ -854,12 +854,12 @@ void addFocus(const OpSegment& segment) {
 }
 
 void addFocus(const PathOpsV0Lib::AddCurve& c) {
-	OpCurve curve(debugGlobalContext, c, Rotated::debug);
+	OpCurve curve(c, Rotated::debug);
 	addFocus(curve);
 }
 
 void addFocus(const PathOpsV0Lib::Curve& c) {
-	OpCurve curve(debugGlobalContext, c, Rotated::debug);
+	OpCurve curve(c, Rotated::debug);
 	addFocus(curve);
 }
 
@@ -974,12 +974,12 @@ void ctr(const OpSegment& segment) {
 }
 
 void ctr(const PathOpsV0Lib::AddCurve& c) {
-	OpCurve curve(debugGlobalContext, c, Rotated::debug);
+	OpCurve curve(c, Rotated::debug);
 	ctr(curve);
 }
 
 void ctr(const PathOpsV0Lib::Curve& c) {
-	OpCurve curve(debugGlobalContext, c, Rotated::debug);
+	OpCurve curve(c, Rotated::debug);
 	ctr(curve);
 }
 
@@ -1090,12 +1090,12 @@ void focus(const OpSegment& segment) {
 }
 
 void focus(const PathOpsV0Lib::AddCurve& c) {
-	OpCurve curve(debugGlobalContext, c, Rotated::debug);
+	OpCurve curve(c, Rotated::debug);
 	focus(curve);
 }
 
 void focus(const PathOpsV0Lib::Curve& c) {
-	OpCurve curve(debugGlobalContext, c, Rotated::debug);
+	OpCurve curve(c, Rotated::debug);
 	focus(curve);
 }
 
@@ -1520,7 +1520,7 @@ void OpDebugImage::drawPoints() {
 		for (const auto& curve : curves) {
 			DebugOpBuild(curve);
 			if (drawControlsOn) {
-				OpCurve opCurve(debugGlobalContext, curve.curve, Rotated::debug);
+				OpCurve opCurve(curve.curve, Rotated::debug);
 				for (int index = 1; index < opCurve.pointCount() - 1; ++index)
 					DebugOpBuild(opCurve.hullPt(index), curve.color);
 			}
@@ -1629,7 +1629,7 @@ void OpDebugImage::add(const OpDebugRay& ray) {
 }
 
 void OpDebugImage::add(const PathOpsV0Lib::AddCurve& curve) {
-	curves.push_back({{ (PathOpsV0Lib::CurveData*) curve.points, curve.size, curve.type }, black});
+	curves.push_back({{ curve.context, (PathOpsV0Lib::CurveData*) curve.points, curve.size, curve.type }, black});
 }
 
 void OpDebugImage::add(const PathOpsV0Lib::Curve& curve) {
@@ -1637,7 +1637,7 @@ void OpDebugImage::add(const PathOpsV0Lib::Curve& curve) {
 }
 
 void OpDebugImage::add(const PathOpsV0Lib::AddCurve& curve, uint32_t color) {
-	curves.push_back({{ (PathOpsV0Lib::CurveData*) curve.points, curve.size, curve.type }, color});
+	curves.push_back({{ curve.context, (PathOpsV0Lib::CurveData*) curve.points, curve.size, curve.type }, color});
 }
 
 void OpDebugImage::add(const PathOpsV0Lib::Curve& curve, uint32_t color) {
@@ -2308,7 +2308,8 @@ bool OpDebugImage::drawEdgeWinding(const OpCurve& curve, const OpEdge* edge, uin
 		if (debugImageOut && !sum.isSet())
 			return (*debugImageOut)(wind.w, index);
 		OpWinding diffWind(contour->context, edge->sum.w);
-		contour->context->windingCallbacks.windingSubtractFuncPtr(diffWind.w, wind.w);
+		contour->context->windingCallbacks.windingSubtractFuncPtr((ContextPtr) contour->context,
+                diffWind.w, wind.w);
 		return debugImageOut ? (*debugImageOut)(diffWind.w, index) : "";
 	};
 	std::string oppLeft = sumString(edge->winding, sum, 0);
@@ -2645,12 +2646,12 @@ void drawT(const OpSegment* segment, const OpPtT* ptT) {
 }
 
 void drawT(const PathOpsV0Lib::AddCurve& curve, float t) {
-	OpCurve c(debugGlobalContext, curve, Rotated::debug);
+	OpCurve c(curve, Rotated::debug);
 	draw(c.ptAtT(t));
 }
 
 void drawT(const PathOpsV0Lib::Curve& curve, float t) {
-	OpCurve c(debugGlobalContext, curve, Rotated::debug);
+	OpCurve c(curve, Rotated::debug);
 	draw(c.ptAtT(t));
 }
 

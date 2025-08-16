@@ -31,21 +31,24 @@ enum class Rotated {
 
 struct OpCurve {
 	OpCurve() 
-		: c{ nullptr, 0, PathOpsV0Lib::degenerateLine }
-		, context(nullptr)
+		: c{ nullptr, nullptr, 0, PathOpsV0Lib::degenerateLine }
 		, rotated(Rotated::no)
 		, isLineSet(false)
 		, isLineResult(false) {
 	}
 
-	OpCurve(OpContext* , PathOpsV0Lib::Curve , Rotated );
+	OpCurve(PathOpsV0Lib::Curve , Rotated );
 #if OP_DEBUG_IMAGE
-	OpCurve(OpContext* , PathOpsV0Lib::AddCurve , Rotated );
+	OpCurve(PathOpsV0Lib::AddCurve , Rotated );
 #endif
 	// void adjust(OpPoint start, OpPoint end);
 	OpRoots axisRayHit(Axis offset, float axisIntercept, float start = 0, float end = 1) const;
 	OpRoots axisRawHit(Axis offset, float axisIntercept, MatchEnds) const;
 	float center(Axis offset, float axisIntercept) const;
+    OpContext& context() {
+        return *(OpContext*) c.context; }
+    const OpContext& context() const {
+        return *(const OpContext*) c.context; }
 //	OpPtT cut(const OpPtT& ptT, float loBounds, float hiBounds, float direction) const;
 	CutRangeT cutRange(const OpPtT& ptT, OpPoint oppPt, float loEnd, float hiEnd) const;
 //	OpPoint end(float t) const;
@@ -97,6 +100,8 @@ struct OpCurve {
 	// curve scale is not preserved
 	OpCurve toVertical(const LinePts& line, MatchEnds ) const;
 //	float tZeroX(float t1, float t2) const;  // binary search on t-range finds vert crossing zero
+    OpContext& writableContext() const { 
+        return *(OpContext*) c.context; }
 	OpPair xyAtT(OpPair t, XyChoice xy) const;
 #if OP_DEBUG
 	bool debugIsLine() const;
@@ -108,7 +113,6 @@ struct OpCurve {
 
 	// create storage in contour; helper function casts it to CurveData
 	PathOpsV0Lib::Curve c;
-	OpContext* context;  // required by new interface for caller function pointer access
 	Rotated rotated;
 	bool isLineSet;
 	bool isLineResult;

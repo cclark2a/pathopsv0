@@ -26,7 +26,7 @@ static void pathOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt,
         OpDebugOut("-- contour end\n");
 }
 
-void SimpleTest() {
+void SimplifyExample() {
     using namespace PathOpsV0Lib;
 
     Context* context = CreateContext();
@@ -52,17 +52,17 @@ void SimpleTest() {
     };
     // break the quads so that their control points lie inside the bounds
     // formed by the end points (i.e., find the quads' extrema)
-    AddQuads(contour, { &contour1[0], quadSize, quadType } );
-    Add(     contour, { &contour1[2], lineSize, lineType } );
-    Add(     contour, { &contour1[3], lineSize, lineType } );
+    AddQuads(contour, { context, &contour1[0], quadSize, quadType } );
+    Add(     contour, { context, &contour1[2], lineSize, lineType } );
+    Add(     contour, { context, &contour1[3], lineSize, lineType } );
 
     OpPoint contour2[] { { 0, 0 },           { 1, 1 },  // line: start,          end
                                    { 1, 3 }, { 0, 3 },  // quad:        control, end
                                              { 0, 0 },  // line:                 end
     };
-    Add(     contour, { &contour2[0], lineSize, lineType } );
-    AddQuads(contour, { &contour2[1], quadSize, quadType } );
-    Add(     contour, { &contour2[3], lineSize, lineType } );
+    Add(     contour, { context, &contour2[0], lineSize, lineType } );
+    AddQuads(contour, { context, &contour2[1], quadSize, quadType } );
+    Add(     contour, { context, &contour2[3], lineSize, lineType } );
 
 	Normalize(context);
     Resolve(context, nullptr);

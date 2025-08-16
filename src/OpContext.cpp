@@ -146,7 +146,7 @@ SegPt OpPtAliases::addIfClose(OpPoint match) {
 	return { match, PtType::noMatch };
 }
 
-OpContext::OpContext()
+OpContext::OpContext(void* data)
 	: errorHandler({nullptr})
 	, ccStorage(nullptr)
 	, curveDataStorage(nullptr)
@@ -156,10 +156,14 @@ OpContext::OpContext()
 	, limbStorage(nullptr)
 	, limbCurrent(nullptr)
 	, callerStorage(nullptr)
+    , userData(data)
 	, error(PathOpsV0Lib::ContextError::none)
-	, fatalError(false)
 	, uniqueID(0) 
+    , allDiscarded(false)
+    , allKept(false)
+	, fatalError(false)
 	, outputOne(false)
+    , windingSet(false)
 	OP_DEBUG_PARAMS(debugData(false)) {
     PathOpsV0Lib::SetCurveCallbacks((PathOpsV0Lib::Context*)(this), 0, { } );
 #if OP_DEBUG_VALIDATE
@@ -316,6 +320,26 @@ PathOpsV0Lib::WindingData* OpContext::allocateWinding(size_t size) {
 	return (PathOpsV0Lib::WindingData*) result;
 }
 
+WindingCondition OpContext::apply() {
+    OP_DEBUG_DUMP_CODE(debugContext = "apply");
+    allDiscarded = true;
+    allKept = true;
+	for (auto contour : contours) {
+		if (WindingCondition windingCondition = contour->apply())
+            return windingCondition;
+	}
+    if (PathOpsV0Lib::WindingShort windingShort = windingCallbacks.windingShortAllFuncPtr) {
+       if (allDiscarded != allKept) {
+            PathOpsV0Lib::WindKeep keep = allDiscarded ? PathOpsV0Lib::WindKeep::Discard
+                    : PathOpsV0Lib::WindKeep::Start;
+            if (WindingCondition condition = (*windingShort)((ContextPtr) this, keep))
+                return condition;
+        }
+        return -1;
+    }
+	return 0;
+}
+
 // build list of linked edges
 // if they are closed, done
 // if not, match up remainder
@@ -383,7 +407,7 @@ void OpContext::curveIndex(PathOpsV0Lib::AddCurve& curvePtr) {
     curvePtr.type = curveIndex(curvePtr.type);
 }
 
-int OpContext::curveIndex(int nativeType) {
+int OpContext::curveIndex(int nativeType) const {
     int count = (int) nativeCurveTypes.size();
     if (nativeType < count && nativeCurveTypes[nativeType] == nativeType)
         return nativeType;
@@ -515,8 +539,10 @@ void OpContext::opsInit() {
 // This will compare the dumps of contours and contents to detect when something changed.
 // The callouts are removed when not in use as they are not maintained and reduce readability.
 // !!! OP_DEBUG_COUNT was unintentionally deleted at some point. Hopefully it is in git history...
-bool OpContext::pathOps() {
-	OpSegments segments(*this);
+WindingCondition OpContext::pathOps() {
+	if (!windingSet) {
+    windingSet = true;
+    OpSegments segments(*this);
 	segments.findCoincidences();
 	debugValidateIntersections();
 	OpSegments sortedSegments(*this);
@@ -524,24 +550,25 @@ bool OpContext::pathOps() {
 	debugValidateIntersections();
 	if (empty()) {
 		contextCallbacks.emptyCallerPathFuncPtr(callerOutput);
-		OP_DEBUG_SUCCESS(*this, true);
+		OP_DEBUG_SUCCESS(*this, 0);
 	}
 	if (FoundIntersections::fail == sortedSegments.findIntersections())
 		return setError(PathOpsV0Lib::ContextError::intersection  
 				OP_DEBUG_PARAMS(sortedSegments.debugFailSegID));
 	debugValidateIntersections();
-	if (errorHandler.errorDispatchFuncPtr && !errorHandler.errorDispatchFuncPtr(
-			PathOpsV0Lib::ContextError::missing, (PathOpsV0Lib::Context*) this, nullptr)) {
-		addDisjointIntersections();
+	if (errorHandler.errorDispatchFuncPtr) {
+        PathOpsV0Lib::Curve dummy { (ContextPtr) this, (PathOpsV0Lib::CurveData*) nullptr, 0, 0 };
+        if (!errorHandler.errorDispatchFuncPtr(PathOpsV0Lib::ContextError::missing, &dummy))
+		    addDisjointIntersections();
 	}
 	disableSmallSegments();  // moved points may allow disabling some segments
 	if (empty()) {
 		contextCallbacks.emptyCallerPathFuncPtr(callerOutput);  // no existing tests exercises
-		OP_DEBUG_SUCCESS(*this, true);
+		OP_DEBUG_SUCCESS(*this, 0);
 	}
 	sortIntersections();
 	if (!fixCCSects())  // curve-curve intersections may have enough error to put sect list out of order
-		OP_DEBUG_FAIL(*this, false);
+		OP_DEBUG_FAIL(*this, -1);
 	sortIntersections();
 	findMissingEnds();  // moved pts may require looking in aliases for an end match
 	betweenIntersections();  // fill in intersections in coin runs that are missing in other coins
@@ -558,19 +585,19 @@ bool OpContext::pathOps() {
 //    windCoincidences();  // for segment h/v lines, compute their winding considering coincidence
 	FoundWindings foundWindings = OpWinder::SetWindings(*this);  // walk edges, compute windings
 	if (FoundWindings::fail == foundWindings)
-		OP_DEBUG_FAIL(*this, false);  // no existing tests exercises
-	OP_DEBUG_DUMP_CODE(debugContext = "apply");
-	apply();  // suppress edges which don't meet op criteria
+		OP_DEBUG_FAIL(*this, -1);  // no existing tests exercises
+    }
+	WindingCondition windingCondition = apply();  // suppress edges which don't meet op criteria
 //	demotePalLinks();  // mark edges that connect pal ends as unsortable so assembly can ignore them
-	if (!assemble())
-		OP_DEBUG_FAIL(*this, false);
+	if (!windingCondition && !assemble())
+		OP_DEBUG_FAIL(*this, -1);
 	// !!! missing final step to reverse order of contours as winding rule requires
 	// this should be driven by user choices since the engine itself can't know the winding rule
 	// it does require all output contours to be completed first. Perhaps the link-to-path
 	// step should be removed from assemble or placed at the end of assemble, so the reverse
 	// link loop can be decided once all loops are known
 	// !!! for now, set Skia adapter to create evenodd fills
-	OP_DEBUG_SUCCESS(*this, true);
+	OP_DEBUG_SUCCESS(*this, std::max(0, windingCondition));
 }
 
 static void addMerges(OpContour* contour, OpContour* mergeOwner, 

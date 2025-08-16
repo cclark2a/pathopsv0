@@ -89,14 +89,14 @@ struct OpSegment {
 			OP_LINE_FILE_ARGS());
 //    OpPoint aliasOriginal(MatchEnds ) const;
 	OpPtT alignToEnd(OpPoint oppPt) const;
-	void apply();
+	WindingCondition apply();
 	void betweenIntersections();
 	SegPt checkAliases(OpPtT );
 	int coinID(bool flipped);
 //    void complete();
 //    void demotePalLinks();
 	void disableSmall();
-	OpPtT distance(const OpPtT& segPtT, const OpSegment* opp) const;
+	OpPtT distance(const OpPtT& segPtT, OpSegment* opp);
 	OpEdge* findEnabled(const OpPtT& , EdgeMatch ) const;
 	float findLineT(OpPoint opp);
 	void findMissingEnds();
@@ -113,7 +113,7 @@ struct OpSegment {
 	void makeEdge(OP_LINE_FILE_NP_ARGS());
 	void makeEdges();
 	void makePals();
-	OpPtT matchEnd(OpPoint opp) const;
+	OpPtT matchEnd(OpPoint opp);
 	MatchReverse matchEnds(const LinePts& opp) const;
 	MatchReverse matchEnds(const OpSegment* opp) const;
 //    MatchEnds matchExisting(const OpSegment* opp) const;

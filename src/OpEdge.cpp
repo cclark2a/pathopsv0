@@ -222,8 +222,9 @@ OpEdge::OpEdge(OpContext* context, const OpPtT& start, const OpPtT& end  OP_LINE
 	endT = end.t;
 	id = context->nextID();
 	PathOpsV0Lib::CurveData lineData { start.pt, end.pt };
-	PathOpsV0Lib::Curve lineCurve { &lineData, sizeof(lineData), PathOpsV0Lib::degenerateLine };
-	curve = OpCurve(context, lineCurve, Rotated::no);
+	PathOpsV0Lib::Curve lineCurve { (ContextPtr) context, &lineData, sizeof(lineData), 
+            PathOpsV0Lib::degenerateLine };
+	curve = OpCurve(lineCurve, Rotated::no);
 	curve.isLineSet = true;
 	curve.isLineResult = true;
 	setPointBounds();
@@ -339,43 +340,34 @@ OpEdge* OpEdge::advanceToEnd(EdgeMatch match) {
 	return result;
 }
 
-/* table of winding states that the op types use to keep an edge
-	left op (first path)	right op (second path)		keep if:
-			0					0					---
-			0					flipOff				union, rdiff, xor
-			0					flipOn				union, rdiff, xor
-			0					1					---
-			flipOff				0					union, diff, xor
-			flipOff				flipOff				intersect, union
-			flipOff				flipOn				diff, rdiff
-			flipOff				1					intersect, rdiff, xor
-			flipOn				0					union, diff, xor
-			flipOn				flipOff				diff, rdiff
-			flipOn				flipOn				intersect, union
-			flipOn				1					intersect, rdiff, xor
-			1					0					---
-			1					flipOff				intersect, diff, xor
-			1					flipOn				intersect, diff, xor
-			1					1					---
-*/
-void OpEdge::apply() {
+WindingCondition OpEdge::apply() {
 	if (centerless)
 		setDisabled(OP_LINE_FILE_NPARGS());
 	if (disabled || Unsortable::none != isUnsortable)
-		return;
-	PathOpsV0Lib::WindKeep keep = context()->windingCallbacks.windingKeepFuncPtr(winding.w, sum.w);
+		return 0;
+    OpContext* ctxt = context();
+	PathOpsV0Lib::WindKeep keep = ctxt->windingCallbacks.windingKeepFuncPtr(curve.c.context, 
+            winding.w, sum.w);
 	switch (keep) {
 		case PathOpsV0Lib::WindKeep::Discard:
 			setDisabled(OP_LINE_FILE_NPARGS());
-			return;
+			break;
 		case PathOpsV0Lib::WindKeep::End:
 			windZero = WindZero::zero;
-			return;
+			break;
 		case PathOpsV0Lib::WindKeep::Start:
 			windZero = WindZero::nonZero;
-			return;
+			break;
+        default:
+        	OP_ASSERT(0);
 	}
-	OP_ASSERT(0);
+    // for contains-like, allow short circuiting if any-kept or any-discarded is expected and met
+    if (PathOpsV0Lib::WindingShort windingShort = ctxt->windingCallbacks.windingShortFuncPtr)
+        if (WindingCondition condition = (WindingCondition) (*windingShort)(curve.c.context, keep))
+            return condition;
+    ctxt->allDiscarded &= PathOpsV0Lib::WindKeep::Discard == keep;
+    ctxt->allKept &= PathOpsV0Lib::WindKeep::Discard != keep;
+    return 0;
 }
 
 // old thinking:
@@ -598,13 +590,14 @@ void OpEdge::output(bool closed) {
 }
 
 void OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first) {
-	OP_DEBUG_CODE(debugOutPath = curve.context->debugOutputID);
+	OP_DEBUG_CODE(debugOutPath = curve.context().debugOutputID);
 	OpEdge* next = nextOut();
-	OpCurve copy(curve.context, curve.c, Rotated::no);
-    OP_DEBUG_CODE(float thresholdLength = curve.context->threshold().length());
-    OP_DEBUG_CODE(bool allowGaps = curve.context->errorHandler.errorDispatchFuncPtr 
-            && !curve.context->errorHandler.errorDispatchFuncPtr(
-			PathOpsV0Lib::ContextError::missing, (PathOpsV0Lib::Context*) curve.context, &curve.c));
+	OpCurve copy(curve.c, Rotated::no);
+    OP_DEBUG_CODE(float thresholdLength = curve.context().threshold().length());
+    OP_DEBUG_CODE(PathOpsV0Lib::ErrorDispatch errorDispatchFuncPtr = 
+            curve.context().errorHandler.errorDispatchFuncPtr);
+    OP_DEBUG_CODE(bool allowGaps = errorDispatchFuncPtr 
+            && !(*errorDispatchFuncPtr)(PathOpsV0Lib::ContextError::missing, &curve.c));
     if (iStart.isFinite()) {
         OP_DEBUG_CODE(float gapLength = (curve.firstPt() - iStart).length());
         OP_ASSERT(allowGaps || gapLength <= thresholdLength * 16384);  // !!! gap can be very large; investigate...
@@ -620,7 +613,7 @@ void OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first) {
 	copy.output(first, firstEdge == next  OP_DEBUG_PARAMS(id));
 	clearNextEdge();
 	if (firstEdge == next) {
-		OP_DEBUG_CODE(debugOutPath = curve.context->nextID());
+		OP_DEBUG_CODE(debugOutPath = curve.context().nextID());
 		return;
 	}
 	OP_ASSERT(next);

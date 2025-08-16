@@ -32,7 +32,7 @@ OpWinding::OpWinding(OpContext* context, const OpWinding& from) {
 
 void OpWinding::add(OpContext* context, const PathOpsV0Lib::Winding& winding) {
 	copyOnDemand(context);
-	context->windingCallbacks.windingAddFuncPtr(w, winding);
+	context->windingCallbacks.windingAddFuncPtr((ContextPtr) context, w, winding);
 }
 
 void OpWinding::add(OpContext* context, const OpWinding& winding) {
@@ -62,7 +62,7 @@ void OpWinding::setWind(const OpWinding& fromSegment) {
 
 void OpWinding::subtract(OpContext* context, const PathOpsV0Lib::Winding& winding) {
 	copyOnDemand(context);
-	context->windingCallbacks.windingSubtractFuncPtr(w, winding);
+	context->windingCallbacks.windingSubtractFuncPtr((ContextPtr) context, w, winding);
 }
 
 void OpWinding::subtract(OpContext* context, const OpWinding& winding) {
@@ -70,12 +70,12 @@ void OpWinding::subtract(OpContext* context, const OpWinding& winding) {
 }
 
 bool OpWinding::visible(OpContext* context) const {
-	return context->windingCallbacks.windingVisibleFuncPtr(w);
+	return context->windingCallbacks.windingVisibleFuncPtr((ContextPtr) context, w);
 }
 
 void OpWinding::zero(OpContext* context) {
 	copyOnDemand(context);
-	context->windingCallbacks.windingZeroFuncPtr(w);
+	context->windingCallbacks.windingZeroFuncPtr((ContextPtr) context, w);
 }
 
 void OpWinding::zeroUninitialized(OpContext* context, const PathOpsV0Lib::Winding& winding) {
@@ -85,7 +85,7 @@ void OpWinding::zeroUninitialized(OpContext* context, const PathOpsV0Lib::Windin
 	OP_ASSERT(winding.size);
 	w = { context->allocateWinding(winding.size), winding.size };
 	type = WindingType::copy;
-	context->windingCallbacks.windingZeroFuncPtr(w);
+	context->windingCallbacks.windingZeroFuncPtr((ContextPtr) context, w);
 }
 
 void OpWinding::zeroUninitialized(OpContext* context, const OpWinding& winding) {

@@ -3,16 +3,16 @@
 #include "OpContext.h"
 #include "OpTightBounds.h"
 
-OpCurve::OpCurve(OpContext* cntxt, PathOpsV0Lib::Curve curve, Rotated r) 
+OpCurve::OpCurve(PathOpsV0Lib::Curve curve, Rotated r) 
 	: c(curve)
-	, context(cntxt)
 	, rotated(r)
 	, isLineSet(false)
 	, isLineResult(false) {
-	c.data = context->allocateCurveData(c.size);
-	if (0 == (int) curve.type)
-		c.type = context->contextCallbacks.setLineTypeFuncPtr((PathOpsV0Lib::Context*) context,
-				curve);
+	c.data = context().allocateCurveData(c.size);
+	if (0 == (int) curve.type) {
+        PathOpsV0Lib::SetLineType lineTypeFunc = context().contextCallbacks.setLineTypeFuncPtr;
+		c.type = lineTypeFunc ? (*lineTypeFunc)(curve) : 1;
+    }
 	if (curve.data) {
 		std::memcpy(c.data, curve.data, c.size);
 		OP_DEBUG_CODE(if (Rotated::debug == r) return);
@@ -30,8 +30,8 @@ OpRoots OpCurve::axisRawHit(Axis axis, float intercept, MatchEnds matchEnds) con
 	if (Rotated::no == rotated && !result.roots.empty())
 		return result;
 	PathOpsV0Lib::AxisT func = Rotated::no == rotated
-			? context->callback(c.type).axisTFuncPtr
-			: context->callback(c.type).rotateTFuncPtr;
+			? context().callback(c.type).axisTFuncPtr
+			: context().callback(c.type).rotateTFuncPtr;
 	if (!func) {
         if (!result.empty())
             return result;
@@ -66,10 +66,10 @@ float OpCurve::center(Axis axis, float intercept) const {
 
 // cut range minimum should be double the distance between ptT pt and opp pt
 CutRangeT OpCurve::cutRange(const OpPtT& ptT, OpPoint oppPt, float loEnd, float hiEnd) const {
-	PathOpsV0Lib::CurveConst cutFun = context->callback(c.type).cutFuncPtr;
+	PathOpsV0Lib::CurveConst cutFun = context().callback(c.type).cutFuncPtr;
 	float tStep = cutFun ? (*cutFun)(c) : 16.f;
 	float cutDt = OpEpsilon * tStep;
-	OpVector threshold = context->threshold();
+	OpVector threshold = context().threshold();
 	float minDistanceSq = threshold.lengthSquared() * tStep;
 	CutRangeT tRange;
 	for (float direction : { -1.f, 1.f }) {
@@ -92,9 +92,9 @@ float OpCurve::findValidT(float start, float end, OpPoint opp) {
 		OpRoots vRoots = axisRayHit(Axis::vertical, opp.x, start, end);
 	#if 01 // code coverage says this is unused, but it is required for loop48977
 		if (1 != hRoots.count() && 1 != vRoots.count()) {
-			if (0 == start && opp.isNearly(firstPt(), context->threshold()))
+			if (0 == start && opp.isNearly(firstPt(), context().threshold()))
 				return 0;
-			if (1 == end && opp.isNearly(lastPt(), context->threshold()))
+			if (1 == end && opp.isNearly(lastPt(), context().threshold()))
 				return 1;
 			return OpNaN;
 		}
@@ -120,7 +120,7 @@ float OpCurve::findValidT(float start, float end, OpPoint opp) {
 }
 
 float OpCurve::interceptLimit() const {
-	PathOpsV0Lib::CurveConst limFuncPtr = context->callback(c.type).interceptFuncPtr;
+	PathOpsV0Lib::CurveConst limFuncPtr = context().callback(c.type).interceptFuncPtr;
 	if (!limFuncPtr)
 		return 1.f / 256.f;
 	return (*limFuncPtr)(c);
@@ -167,7 +167,7 @@ OpRoots OpCurve::lineIntersect(const LinePts& line) const {
 		OpPoint hit = ptAtT(result.valid.roots[index]);
 		// thread_cubics23476 edges 55 & 52 trigger this need for betweenish
 		if (OpMath::InUnsorted(line.pts[0].choice(xy), hit.choice(xy), line.pts[1].choice(xy),
-				context->threshold().choice(xy))) {
+				context().threshold().choice(xy))) {
 			// curve/curve may need more exact results; try pinning valid hit to line bounds
 			if (!lineV.dx || !lineV.dy) {
 				// !!! don't like using pairs (may be less performant than returning struct)
@@ -191,9 +191,9 @@ OpPtT OpCurve::lineCurve(OpCurve& line, float inputT, float* lineTPtr, MatchEnds
 		float margin) {
 	OP_ASSERT(line.isLine());
 	OpPoint calcPt = ptAtT(inputT);
-	if (MatchEnds::none != matchEnds && calcPt.isNearly(line.firstPt(), context->threshold()))
+	if (MatchEnds::none != matchEnds && calcPt.isNearly(line.firstPt(), context().threshold()))
 		return OpPtT(SetToNaN::dummy);
-	if (MatchEnds::none != matchEnds && calcPt.isNearly(line.lastPt(), context->threshold()))
+	if (MatchEnds::none != matchEnds && calcPt.isNearly(line.lastPt(), context().threshold()))
 		return OpPtT(SetToNaN::dummy);
 #if 1  // !!! experiment: intersect curve with line
 	LinePts linePts { line.firstPt(), line.lastPt() };
@@ -252,8 +252,8 @@ float OpCurve::match(float start, float end, OpPoint pt) const {
 	float xDistSq = (pt - xPt).lengthSquared();
 	float yDistSq = (pt - yPt).lengthSquared();
 	// example: testQuads9421393 needs small curve factor for segs (3, 7 to detect intersection)
-	OpVector slop = context->threshold();  
-//			* context->callback(c.type).matchSlopFuncPtr();
+	OpVector slop = context().threshold();  
+//			* context().callback(c.type).matchSlopFuncPtr();
 	if (!(xDistSq > yDistSq)) {  // reverse test in case y dist is nan
 		if (pt.isNearly(xPt, slop))
 			return xRoot;
@@ -278,7 +278,7 @@ MatchReverse OpCurve::matchEnds(const LinePts& opp) const {
 
 bool OpCurve::nearBounds(OpPoint pt) const {
 	OpPointBounds bounds { firstPt(), lastPt() };
-	return bounds.nearlyContains(pt, context->threshold());
+	return bounds.nearlyContains(pt, context().threshold());
 }
 
 NormalDirection OpCurve::normalDirection(Axis axis, float t) const {
@@ -294,7 +294,7 @@ NormalDirection OpCurve::normalDirection(Axis axis, float t) const {
 }
 
 float OpCurve::normalLimit() const {
-	PathOpsV0Lib::CurveConst limFuncPtr = context->callback(c.type).normalLimitFuncPtr;
+	PathOpsV0Lib::CurveConst limFuncPtr = context().callback(c.type).normalLimitFuncPtr;
 	if (!limFuncPtr)
 		return 0.008f; // 0.004  fails on testQuads19022897 edge 151 NxR:-0.00746
 	return (*limFuncPtr)(c);
@@ -309,7 +309,7 @@ bool OpCurve::normalize() {
 		return false;
 	};
 	bool recomputeBounds = false;
-	OpPtAliases& aliases = context->aliases;
+	OpPtAliases& aliases = context().aliases;
 	OpVector threshold = aliases.threshold;
 //	OpPoint oldStart = firstPt();
 //	OpPoint oldEnd = lastPt();
@@ -328,9 +328,9 @@ bool OpCurve::normalize() {
 				|| aliases.contains(smaller);
 		if (swap)
 			std::swap(larger, smaller);
-		if (context->addAlias(larger, smaller)) {
+		if (context().addAlias(larger, smaller)) {
 			(swap ? lastPt() : firstPt()) = smaller;
-			context->remapPts(larger, smaller);
+			context().remapPts(larger, smaller);
 		}
 		recomputeBounds = true;
 	}
@@ -358,7 +358,7 @@ OpRoots OpCurve::rawIntersect(const LinePts& linePt, MatchEnds common) const {
 	}
 	OpCurve isRotated = toVertical(linePt, common);
 	if (!isRotated.isFinite()) {
-		context->setError(PathOpsV0Lib::ContextError::toVertical  OP_DEBUG_PARAMS(0));
+		writableContext().setError(PathOpsV0Lib::ContextError::toVertical  OP_DEBUG_PARAMS(0));
 		return OpRoots();
 	}
 	// if point bounds of rotated doesn't cross y-axis, this is no intersection
@@ -383,7 +383,7 @@ OpRoots OpCurve::rayIntersect(const LinePts& line, MatchEnds common) const {
 		// in thread_circles36945 : conic mid touches opposite conic only at end point
 		// without this fix, in one direction, intersection misses by 2 epsilon, in the other 1 eps
 		if (OpMath::InUnsorted(line.pts[0].choice(xy), hit.choice(xy), line.pts[1].choice(xy),
-				context->threshold().choice(xy)))
+				context().threshold().choice(xy)))
 			realRoots.add(rawRoot);
 	}
 	return realRoots;
@@ -428,7 +428,7 @@ float OpCurve::tZeroX(float t1, float t2) const {
 
 #if 0
 void OpCurve::pinCtrl(OpPoint oldStart, OpPoint oldEnd) {
-	PathOpsV0Lib::CurvePinCtrl funcPtr = context->callback(c.type).curvePinCtrlFuncPtr;
+	PathOpsV0Lib::CurvePinCtrl funcPtr = context().callback(c.type).curvePinCtrlFuncPtr;
 	if (funcPtr)
 		(*funcPtr)(c, oldStart, oldEnd);
 	return;
@@ -440,7 +440,7 @@ bool OpCurve::isFinite() const {
 		return false;
 	if (!lastPt().isFinite())
 		return false;
-	PathOpsV0Lib::CurveIsFinite funcPtr = context->callback(c.type).curveIsFiniteFuncPtr;
+	PathOpsV0Lib::CurveIsFinite funcPtr = context().callback(c.type).curveIsFiniteFuncPtr;
 	return funcPtr ? (*funcPtr)(c) : true;
 }
 
@@ -451,8 +451,8 @@ bool OpCurve::isFinite() const {
 OpCurve OpCurve::toVertical(const LinePts& line, MatchEnds match) const {
 	OpVector scale = line.pts[1] - line.pts[0];
 //	float opp = line.pts[1].y - line.pts[0].y;
-    PathOpsV0Lib::Curve cRotated { nullptr, c.size, c.type };
-	OpCurve isRotated(context, cRotated, Rotated::yes);
+    PathOpsV0Lib::Curve cRotated { c.context, nullptr, c.size, c.type };
+	OpCurve isRotated(cRotated, Rotated::yes);
 	auto rotatePt = [line, scale](OpPoint pt) {
 		OpVector v = pt - line.pts[0];
 		return OpPoint(scale.cross(v), scale.dot(v));
@@ -463,7 +463,7 @@ OpCurve OpCurve::toVertical(const LinePts& line, MatchEnds match) const {
 	isRotated.setLastPt(rotatePt(lastPt()));
 	if (MatchEnds::end & match)
 		isRotated.c.data->end.x = 0;
-	PathOpsV0Lib::Rotate funcPtr = context->callback(c.type).rotateFuncPtr;
+	PathOpsV0Lib::Rotate funcPtr = context().callback(c.type).rotateFuncPtr;
 	if (funcPtr)
 		(*funcPtr)(c, line.pts[0], scale, isRotated.c);
 #if 0 && OP_DEBUG
@@ -484,7 +484,7 @@ OpCurve OpCurve::toVertical(const LinePts& line, MatchEnds match) const {
 }
 
 int OpCurve::pointCount() const {
-	PathOpsV0Lib::HullPtCount funcPtr = context->callback(c.type).ptCountFuncPtr;
+	PathOpsV0Lib::HullPtCount funcPtr = context().callback(c.type).ptCountFuncPtr;
 	return 2 + (funcPtr ? (*funcPtr)() : 0);
 }
 
@@ -493,7 +493,7 @@ OpPoint OpCurve::ptAtT(float t) const {
 		return firstPt();
 	if (1 == t)
 		return lastPt();
-	PathOpsV0Lib::PtAtT funcPtr = context->callback(c.type).ptAtTFuncPtr;
+	PathOpsV0Lib::PtAtT funcPtr = context().callback(c.type).ptAtTFuncPtr;
 	OpPoint result = funcPtr ? (*funcPtr)(c, t) : (1 - t) * firstPt() + t * lastPt();
 	// !!! required by release_13: but, should caller's point at T function do the pinning?
 	// !!! counterpoint: loop8846 requires pinning on horizontal line (there's no function to call)
@@ -506,7 +506,7 @@ OpPoint OpCurve::ptDAtT(float t) const {
 		return firstPt();
 	if (1 == t)
 		return lastPt();
-	PathOpsV0Lib::PtAtT funcPtr = context->callback(c.type).ptDAtTFuncPtr;
+	PathOpsV0Lib::PtAtT funcPtr = context().callback(c.type).ptDAtTFuncPtr;
 	OpPoint result = funcPtr ? (*funcPtr)(c, t) : (1 - t) * firstPt() + t * lastPt();
 	// !!! required by release_13: but, should caller's point at T function do the pinning?
 	// !!! counterpoint: loop8846 requires pinning on horizontal line (there's no function to call)
@@ -517,13 +517,13 @@ OpPoint OpCurve::ptDAtT(float t) const {
 OpCurve OpCurve::subDivide(float t1, float t2) const {
 	if (0 == t1 && 1 == t2)
 		return *this;
-	OpCurve newResult(context, c, rotated);
+	OpCurve newResult(c, rotated);
     newResult.setFirstPt(ptAtT(t1));
     newResult.setLastPt(ptAtT(t2));
-	PathOpsV0Lib::SubDivide funcPtr = context->callback(c.type).subDivideFuncPtr;
+	PathOpsV0Lib::SubDivide funcPtr = context().callback(c.type).subDivideFuncPtr;
 	if (funcPtr) {
-		PathOpsV0Lib::CurveConst crossThreshold = context->callback(c.type).crossThresholdFuncPtr;
-		float threshold = context->threshold().length()
+		PathOpsV0Lib::CurveConst crossThreshold = context().callback(c.type).crossThresholdFuncPtr;
+		float threshold = context().threshold().length()
 				* (crossThreshold ? (*crossThreshold)(c) : 4.f);
 		(*funcPtr)(c, t1, t2, threshold, &newResult.c);
 		if (PathOpsV0Lib::degenerateLine == newResult.c.type)
@@ -539,14 +539,14 @@ OpVector OpCurve::normal(float t) const {
 }
 
 OpVector OpCurve::tangent(float t) const {
-	PathOpsV0Lib::CurveTangent funcPtr = context->callback(c.type).curveTangentFuncPtr;
+	PathOpsV0Lib::CurveTangent funcPtr = context().callback(c.type).curveTangentFuncPtr;
 	if (!funcPtr)
 		return lastPt() - firstPt();
 	return (*funcPtr)(c, t);
 }
 
 OpPair OpCurve::xyAtT(OpPair t, XyChoice xy) const {
-	PathOpsV0Lib::XYAtT funcPtr = context->callback(c.type).xyAtTFuncPtr;
+	PathOpsV0Lib::XYAtT funcPtr = context().callback(c.type).xyAtTFuncPtr;
 	if (!funcPtr)
 		return (1 - t) * firstPt().choice(xy) + t * lastPt().choice(xy);
 	return (*funcPtr)(c, t, xy);
@@ -559,13 +559,13 @@ OpPoint OpCurve::hullPt(int index) const {
 		return firstPt();
 	if (pointCount() - 1 == index)
 		return lastPt();
-	OP_ASSERT(context->callback(c.type).curveHullFuncPtr);
-	return context->callback(c.type).curveHullFuncPtr(c, index);
+	OP_ASSERT(context().callback(c.type).curveHullFuncPtr);
+	return context().callback(c.type).curveHullFuncPtr(c, index);
 }
 
 void OpCurve::reverse() {
 	std::swap(c.data->start, c.data->end);
-	PathOpsV0Lib::CurveReverse funcPtr = context->callback(c.type).curveReverseFuncPtr;
+	PathOpsV0Lib::CurveReverse funcPtr = context().callback(c.type).curveReverseFuncPtr;
 	if (funcPtr)
 		(*funcPtr)(c);
 }
@@ -574,11 +574,11 @@ bool OpCurve::isLine() {
 	if (!isLineSet) {
 		isLineSet = true;
         auto setLineType = [this]() {
-            PathOpsV0Lib::SetLineType funcPtr = context->contextCallbacks.setLineTypeFuncPtr;
-            return funcPtr ? (*funcPtr)((PathOpsV0Lib::Context*) context, c) : 1;
+            PathOpsV0Lib::SetLineType funcPtr = context().contextCallbacks.setLineTypeFuncPtr;
+            return funcPtr ? (*funcPtr)(c) : 1;
         };
 		PathOpsV0Lib::CurveIsLine funcPtr = (int) c.type 
-				? context->callback(c.type).curveIsLineFuncPtr : nullptr;
+				? context().callback(c.type).curveIsLineFuncPtr : nullptr;
 		if (!funcPtr)
 			isLineResult = c.type == setLineType();
         else if ((*funcPtr)(c)) {
@@ -605,31 +605,32 @@ bool OpCurve::isVertical() const {
 bool OpCurve::debugIsLine() const {
 	if (isLineSet)
 		return isLineResult;
-	return c.type == context->contextCallbacks.setLineTypeFuncPtr((PathOpsV0Lib::Context*) context,
-			c);
+	return c.type == context().contextCallbacks.setLineTypeFuncPtr(c);
 }
 #endif
 
 OpPointBounds OpCurve::ptBounds() const {
 	OpPointBounds result;
 	result.set(firstPt(), lastPt());
-	PathOpsV0Lib::SetBounds funcPtr = context->callback(c.type).setBoundsFuncPtr;
+	PathOpsV0Lib::SetBounds funcPtr = context().callback(c.type).setBoundsFuncPtr;
 	if (funcPtr)
 		(*funcPtr)(c, result);
 	return result;
 }
 
 void OpCurve::output(bool firstPt, bool lastPt  OP_DEBUG_PARAMS(int parentID)) {
-	context->initOutOnce();
+	context().initOutOnce();
     PathOpsV0Lib::CurveType curveType = c.type;
     if (!curveType) {
-        PathOpsV0Lib::SetLineType funcPtr = context->contextCallbacks.setLineTypeFuncPtr;
-        curveType = funcPtr ? (*funcPtr)((PathOpsV0Lib::Context*) context, c) : 1;
+        PathOpsV0Lib::SetLineType funcPtr = context().contextCallbacks.setLineTypeFuncPtr;
+        curveType = funcPtr ? (*funcPtr)(c) : 1;
     }
-    PathOpsV0Lib::Curve curve { c.data, c.size, context->nativeCurveTypes[curveType] };
-	context->contextCallbacks.curveOutputFuncPtr(curve, firstPt, lastPt, context->callerOutput);
+    PathOpsV0Lib::Curve curve { c.context, c.data, c.size, context().nativeCurveTypes[curveType] };
+    PathOpsV0Lib::CurveOutput curveOutput = context().contextCallbacks.curveOutputFuncPtr;
+    if (curveOutput)
+	    (*curveOutput)(curve, firstPt, lastPt, context().callerOutput);
 #if OP_DEBUG && TEST_RASTER
-	PathOpsV0Lib::DebugAddRaster addRaster = context->debugCallback(c.type).addRasterFuncPtr;
+	PathOpsV0Lib::DebugAddRaster addRaster = context().debugCallback(c.type).addRasterFuncPtr;
     if (addRaster) {
         PathOpsV0Lib::DebugContextData& data = context->debugGetContextData(
                 PathOpsV0Lib::DebugContextType::addRaster);

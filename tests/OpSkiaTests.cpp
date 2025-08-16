@@ -521,7 +521,7 @@ int VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op, std::string test
     return errors;
 }
 
-#include "skia/SkiaPaths.h"
+#include "port/SkiaPaths.h"
 #include "curves/BinaryWinding.h"
 #if OP_DEBUG
 #include "DebugOps.h"
@@ -607,17 +607,19 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
     int leftData[] = { 1, 0 };
     PathOpsV0Lib::Winding leftWinding { leftData, sizeof(leftData) };
     Contour* left = SetSkiaOpContourCallbacks(context, leftWinding, BinaryOperand::left
-            OP_DEBUG_PARAMS(a));
+            OP_DEBUG_PARAMS(&a));
     OP_DEBUG_CODE(BinaryContour debugLeftData { { &a }, BinaryOperand::left });
-    AddSkiaPath(context, left, a  OP_DEBUG_PARAMS({ debugLeftData, sizeof(BinaryContour), 
-            PathOpsV0Lib::DebugContourType::windingUserData } ));
+    OP_DEBUG_CODE(AddDebugContour debugLeft { debugLeftData, sizeof(BinaryContour), 
+            PathOpsV0Lib::DebugContourType::windingUserData } );
+    AddSkiaPath(context, left, a  OP_DEBUG_PARAMS(&debugLeft));
     int rightData[] = { 0, 1 };
     PathOpsV0Lib::Winding rightWinding { rightData, sizeof(rightData) };
     Contour* right = SetSkiaOpContourCallbacks(context, rightWinding, BinaryOperand::right
-            OP_DEBUG_PARAMS(b));
+            OP_DEBUG_PARAMS(&b));
     OP_DEBUG_CODE(BinaryContour debugRightData { { &a }, BinaryOperand::right });
-    AddSkiaPath(context, right, b  OP_DEBUG_PARAMS({ debugRightData, sizeof(BinaryContour), 
-            PathOpsV0Lib::DebugContourType::windingUserData } ));
+    OP_DEBUG_CODE(AddDebugContour debugRight { debugRightData, sizeof(BinaryContour), 
+            PathOpsV0Lib::DebugContourType::windingUserData } );
+    AddSkiaPath(context, right, b  OP_DEBUG_PARAMS(&debugRight));
     PathOutput pathOutput = result;
 	Normalize(context);
 #if TEST_RASTER
@@ -923,15 +925,16 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
     int simpleData[] = { 1 };
     PathOpsV0Lib::Winding simpleWinding { simpleData, sizeof(simpleData) };
     Contour* simple = SetSkiaSimplifyCallbacks(context, simpleWinding, isWindingFill(path)
-            OP_DEBUG_PARAMS(path));
+            OP_DEBUG_PARAMS(&path));
     OP_DEBUG_CODE(UnaryContour debugData { &path } );
 #if TEST_ANALYZE && OP_DEBUG
 	// make failing tests smaller
 	// add contours until it fails
     AddDebugSkiaPath(context, simple, path  OP_DEBUG_PARAMS(debugData, sizeof debugData));
 #else
-    AddSkiaPath(context, simple, path  OP_DEBUG_PARAMS({ debugData, sizeof debugData, 
-            DebugContourType::windingUserData }));
+    OP_DEBUG_CODE(AddDebugContour debugContour { debugData, sizeof debugData, 
+            DebugContourType::windingUserData } );
+    AddSkiaPath(context, simple, path  OP_DEBUG_PARAMS(&debugContour));
 #endif
 	ContextError contextError = Error(context);
 	bool veryLarge = false;

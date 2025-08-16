@@ -20,8 +20,8 @@ static Contour* toInterface(OpContour* implementationContour) {
 	return (Contour*) implementationContour;
 }
 
-Context* CreateContext() {
-    OpContext* context = new OpContext();
+Context* CreateContext(ContextUserData* userData) {
+    OpContext* context = new OpContext(userData);
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContext = context;
 #endif
@@ -30,6 +30,10 @@ Context* CreateContext() {
     oo();
 #endif
     return toInterface(context);
+}
+
+ContextUserData* UserData(Context* context) {
+    return (ContextUserData*) toImplementation(context)->userData;
 }
 
 void Add(Contour* interfaceContour, AddCurve curve) {
@@ -43,7 +47,7 @@ void Add(Contour* interfaceContour, AddCurve curve) {
 }
 
 void Add(Contour* interfaceContour, Curve curve) {
-    AddCurve addCurve { &curve.data->start, curve.size, curve.type };
+    AddCurve addCurve { curve.context, &curve.data->start, curve.size, curve.type };
     Add(interfaceContour, addCurve);
 }
 
@@ -119,14 +123,13 @@ WindingCondition Resolve(Context* interfaceContext, PathOutput output) {
     OpContext* context = toImplementation(interfaceContext);
     if (ContextError::none != context->error) {
         OP_DEBUG_CODE(context->debugData.success = false);
-        return false;
+        return -1;
     }
     context->callerOutput = output;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContext = context;
 #endif
-    context->pathOps();
-    return true;
+    return context->pathOps();
 }
 
 void SetContextCallbacks(Context* interfaceContext, ContextCallbacks contextCallbacks) {

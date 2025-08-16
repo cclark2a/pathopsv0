@@ -141,7 +141,7 @@ if (looped || deadEnd)  // triggered when walking children of trunk
 		return;
     PathOpsV0Lib::ErrorHandler& errorHandler = contour.context->errorHandler;
 	if (errorHandler.errorDispatchFuncPtr && !errorHandler.errorDispatchFuncPtr(
-			PathOpsV0Lib::ContextError::missing, *contour.context, &edge->curve.c)) {
+			PathOpsV0Lib::ContextError::missing, &edge->curve.c)) {
         return;
     }
 	OP_ASSERT(LimbPass::disabledBackwards == pass);
@@ -974,7 +974,7 @@ bool OpJoiner::matchLinks(OpContour* contour, bool popLast) {
 		OP_ASSERT(gap);
 		if (!context->errorHandler.errorDispatchFuncPtr
 				|| context->errorHandler.errorDispatchFuncPtr(
-				PathOpsV0Lib::ContextError::missing, *context, nullptr)) {
+				PathOpsV0Lib::ContextError::missing, &edge->curve.c)) {
 			OpPtT startI = edge->whichSect();
 			OpPtT gapEnd = gap->lastLimbEdge->whichSect(!gap->match);
 			bool usectLink = unsectableLink(contour, startI.pt, gapEnd.pt);

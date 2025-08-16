@@ -5,6 +5,9 @@
 #include "curves/ConicBezier.h"
 #include "curves/CubicBezier.h"
 #include "curves/QuadBezier.h"
+#include "curves/BinaryWinding.h"
+#include "curves/FrameWinding.h"
+#include "curves/UnaryWinding.h"
 #if 0 // emscripten as of 12/7/2024 does not support std::from_chars
 #include <charconv>
 #else
@@ -423,34 +426,34 @@ void Path::opAddPath(Context* context, Contour* contour, bool closeLoops) {
 		switch (curve.type) {
 			case Types::move:
 				if (closeLoops && closeLine[0] != closeLine[1])
-					Add(contour, { closeLine, sizeof(closeLine), (CurveType) Types::line } );
+					Add(contour, { context, closeLine, sizeof(closeLine), (CurveType) Types::line } );
 				closeLine[0] = closeLine[1] = *pts;
 				break;
 			case Types::line:
 				if (closeLine[0] != pts[0]) {
 					OpPoint closer[2] { closeLine[0], pts[0] };
-					Add(contour, { closer, sizeof closer, (CurveType) Types::line } );
+					Add(contour, { context, closer, sizeof closer, (CurveType) Types::line } );
 				}
 				closeLine[0] = pts[0];
 				break;
 			case Types::quad: {
 				OpPoint q[3] { closeLine[0], pts[0], pts[1] };
-				AddQuads(contour, { q, sizeof q, (CurveType) Types::quad } );
+				AddQuads(contour, { context, q, sizeof q, (CurveType) Types::quad } );
 				closeLine[0] = pts[1];
 				} break;
 			case Types::conic: {
 				OpPoint k[4] { closeLine[0], pts[0], pts[2], { pts[1].x, 0 } };
-				AddConics(contour, { k, sizeof(k) - sizeof(float), (CurveType) Types::conic } );
+				AddConics(contour, { context, k, sizeof(k) - sizeof(float), (CurveType) Types::conic } );
 				closeLine[0] = pts[2];
 				} break;
 			case Types::cubic: {
 				OpPoint c[4] { closeLine[0], pts[0], pts[1], pts[2] };
-				AddCubics(contour, { c, sizeof c, (CurveType) Types::cubic } );
+				AddCubics(contour, { context, c, sizeof c, (CurveType) Types::cubic } );
 				closeLine[0] = pts[2];
 				} break;
 			case Types::close:
 				if (closeLoops && closeLine[0] != closeLine[1])
-					Add(contour, { closeLine, sizeof closeLine, (CurveType) Types::line } );
+					Add(contour, { context, closeLine, sizeof closeLine, (CurveType) Types::line } );
 				closeLine[0] = closeLine[1];
 				break;
 			default:
@@ -458,7 +461,7 @@ void Path::opAddPath(Context* context, Contour* contour, bool closeLoops) {
 		}
 	}
 	if (closeLoops && closeLine[0] != closeLine[1])
-		Add(contour, { closeLine, sizeof closeLine, (CurveType) Types::line } );
+		Add(contour, { context, closeLine, sizeof closeLine, (CurveType) Types::line } );
 }
 
 struct OutPath {
@@ -573,7 +576,7 @@ static void Path2DOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathO
 	output->commonOutput(c, firstPt, lastPt);
 }
 
-static PathOpsV0Lib::CurveType LineType(PathOpsV0Lib::Context* , PathOpsV0Lib::Curve ) {
+static PathOpsV0Lib::CurveType LineType(PathOpsV0Lib::Curve ) {
 	return (CurveType) Types::line;
 }
 
@@ -613,8 +616,8 @@ ContextError FillPath::opCommon(FillPath& path, Ops oper) {
 			binaryWindingZeroFunc, binaryWindingSubtractFunc });
 
 #if OP_DEBUG
-	SetDebugContextCallbacks(context, { // nullptr
-			OP_DEBUG_IMAGE_CODE(nullptr, binaryWindingDumpOutFunc)
+	SetDebugContextCallbacks(context, {
+			OP_DEBUG_DUMP_CODE(nullptr, binaryWindingDumpOutFunc)
 			OP_DEBUG_IMAGE_PARAMS(binaryWindingImageOutFunc) } );
 #endif
 	SetupCurves(context);
@@ -634,8 +637,8 @@ ContextError FillPath::simplify() {
 	SetContextCallbacks(context, { Path2DOutput, LineType, EmptyFunc });	
     unaryCallbacks(context);
 #if OP_DEBUG
-	SetDebugContextCallbacks(context, { // nullptr
-			OP_DEBUG_IMAGE_CODE(nullptr, unaryWindingDumpOutFunc)
+	SetDebugContextCallbacks(context, {
+			OP_DEBUG_DUMP_CODE(nullptr, unaryWindingDumpOutFunc)
 			OP_DEBUG_IMAGE_PARAMS(unaryWindingImageOutFunc) } );
 #endif
 	SetupCurves(context);
@@ -646,95 +649,7 @@ ContextError FillPath::simplify() {
 	return handleError(context);
 }
 
-enum class FrameFill {
-	frame,
-	fill
-};
-
-struct FrameWinding {
-    FrameWinding(FrameFill frameFill) 
-		: isFrame(frameFill) {
-	}
-
-    FrameWinding(FrameFill frameFill, int windValue) 
-		: left(windValue)
-		, isFrame(frameFill) {
-	}
-
-    FrameWinding(Winding w) {
-        OP_ASSERT(w.size == sizeof(FrameWinding));
-        std::memcpy(this, w.data, sizeof(FrameWinding));
-	}
-
-	void copyTo(Winding& w) const {
-		OP_ASSERT(w.size == sizeof(FrameWinding));
-		std::memcpy(w.data, this, sizeof(FrameWinding));
-	}
-
-#if OP_DEBUG_DUMP
-	static std::string DumpOutFunc(Winding winding) {
-		FrameWinding fw(winding);
-		std::string s = "{" + STR(fw.left) + "}";
-		return s;
-	}
-#endif
-
-    int left = 1;
-	FrameFill isFrame;
-};
-
-// winding is always frame; toAdd comes from another edge, and may be frame or fill
-static void frameAddFunc(Winding winding, Winding toAdd) {
-	FrameWinding sum(winding);
-	if (FrameFill::frame == sum.isFrame)
-		return;
-	FrameWinding addend(toAdd);
-	if (FrameFill::frame == addend.isFrame)
-		return;
-	sum.left += addend.left;
-	sum.copyTo(winding);
-}
-
-// both winding and sumWinding come from the same edge
-static WindKeep frameKeepFunc(Winding winding, Winding sumWinding) {
-	FrameWinding wind(winding);
-	if (FrameFill::fill == wind.isFrame)
-		return WindKeep::Discard;
-	FrameWinding sum(sumWinding);
-	return sum.left ? WindKeep::Start : WindKeep::Discard;
-}
-
-static WindKeep frameDiscardFunc(Winding winding, Winding sumWinding) {
-	FrameWinding wind(winding);
-	if (FrameFill::fill == wind.isFrame)
-		return WindKeep::Discard;
-	FrameWinding sum(sumWinding);
-	return !sum.left ? WindKeep::Start : WindKeep::Discard;
-}
-
-// winding is always frame; toAdd comes from another edge, and may be frame or fill
-static void frameSubtractFunc(Winding winding, Winding toSubtract) {
-	FrameWinding difference(winding);
-	if (FrameFill::frame == difference.isFrame)
-		return;
-	FrameWinding subtrahend(toSubtract);
-	if (FrameFill::frame == subtrahend.isFrame)
-		return;
-	difference.left -= subtrahend.left;
-	difference.copyTo(winding);
-}
-
-bool frameVisibleFunc(Winding winding) {
-    FrameWinding test(winding);
-    return !!test.left;
-}
-
-void frameZeroFunc(Winding toZero) {
-    FrameWinding zero(FrameFill::fill, 0);
-    zero.copyTo(toZero);
-}
-
-static bool allowDisjointLines(ContextError err, Context* , PathOpsV0Lib::Curve* ) {
+static bool allowDisjointLines(ContextError err, PathOpsV0Lib::Curve* ) {
 	return ContextError::end != err && ContextError::missing != err;
 }
 
@@ -759,16 +674,15 @@ std::string frameWindingImageOutFunc(Winding winding, int index) {
 }
 #endif
 
-
 ContextError FramePath::opCommon(FillPath& path, Ops oper) {
 	Context* context = CreateContext();
     SetContextCallbacks(context, { Path2DOutput, LineType, EmptyFunc });
 	WindingKeep operatorFunc = Ops::sect == oper ? frameKeepFunc : frameDiscardFunc;
-    SetWindingCallbacks(context, { frameAddFunc, operatorFunc, frameVisibleFunc, frameZeroFunc, 
-            frameSubtractFunc });
+    SetWindingCallbacks(context, { frameAddFunc, operatorFunc, frameVisibleFunc, 
+            frameZeroFunc, frameSubtractFunc });
 #if OP_DEBUG
-	SetDebugContextCallbacks(context, { // nullptr
-            OP_DEBUG_IMAGE_CODE(nullptr, FrameWinding::DumpOutFunc)
+	SetDebugContextCallbacks(context, {
+            OP_DEBUG_DUMP_CODE(nullptr, frameDumpOutFunc)
             OP_DEBUG_IMAGE_PARAMS(frameWindingImageOutFunc) });
 #endif
 	SetupCurves(context);

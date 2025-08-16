@@ -38,11 +38,13 @@ struct OpContour {
 	OpIntersection* addUnsect(const OpPtT& , OpSegment* seg, int uID, MatchEnds 
 			OP_LINE_FILE_DEF(const OpSegment* oSeg));
 
-	void apply() {
+	WindingCondition apply() {
 		for (auto& segment : segments) {
-			segment.apply();
+			if (WindingCondition windingCondition = segment.apply())
+            return windingCondition;
 		}
-	}
+	    return 0;
+}
 
 	void betweenIntersections() {
 		for (auto& segment : segments) {

@@ -148,7 +148,7 @@ inline size_t AddConics(Contour* contour, AddCurve curve) {
         if (start == end)
             return 0;
         OpPoint swizzled[4] { start, end, control.pt, { weight, 0 } };
-        Add(contour, { swizzled, curve.size, curve.type } );
+        Add(contour, { curve.context, swizzled, curve.size, curve.type } );
         return 1;
     }
     // control point is not inside bounds formed by end points; split Conic into parts
@@ -170,7 +170,7 @@ inline size_t AddConics(Contour* contour, AddCurve curve) {
         } curveData { { ptTs[index].pt, ptTs[index + 1].pt },
                 ConicControl(start, control, end, ptTs[index], ptTs[index + 1]) };
         if (curveData.endPts[0] != curveData.endPts[1])
-            Add(contour, { curveData.endPts, curve.size, curve.type } );
+            Add(contour, { curve.context, curveData.endPts, curve.size, curve.type } );
     }
     return curvesAdded;
 }
@@ -243,7 +243,7 @@ inline OpRoots conicRotatedT(Curve curve, Axis axis, float intercept
 			continue;
         OP_ASSERT(conicData.endPts[0] != conicData.endPts[1]);
         conicData.control = ConicControl(start, control, end, ptTs[index], ptTs[index + 1]);
-		Curve part { (CurveData*) &conicData, curve.size, curve.type };
+		Curve part { curve.context, (CurveData*) &conicData, curve.size, curve.type };
 		OpRoots partRoot = conicAxisT(part, axis, intercept  OP_DEBUG_PARAMS(debugAdded));
 		for (float root : partRoot.roots)
 			result.add(startT + root * (endT - startT));

@@ -1606,11 +1606,10 @@ bool OpCurveCurve::setHullSects(OpEdge& edge, OpEdge& oppEdge, CurveRef curveRef
 				auto tryIt = [this](const LinePts& eLinePts, const LinePts& oLinePts,
 						OpCurve& eCurve) {
                     PathOpsV0Lib::SetLineType funcPtr = context->contextCallbacks.setLineTypeFuncPtr;
-                    PathOpsV0Lib::CurveType lineType = funcPtr ? (*funcPtr)(
-                            (ContextPtr) context, eCurve.c) : 1;
-					PathOpsV0Lib::Curve eLineCurve { (PathOpsV0Lib::CurveData*) &eLinePts, 
-							sizeof eLinePts, lineType };
-					OpCurve eLine(context, eLineCurve, Rotated::no);
+                    PathOpsV0Lib::CurveType lineType = funcPtr ? (*funcPtr)(eCurve.c) : 1;
+					PathOpsV0Lib::Curve eLineCurve { (ContextPtr) context, 
+                            (PathOpsV0Lib::CurveData*) &eLinePts, sizeof eLinePts, lineType };
+					OpCurve eLine(eLineCurve, Rotated::no);
 					OpCurve eRotLine = eLine.toVertical(oLinePts, MatchEnds::none);
 					OpRoots eLineT = eRotLine.axisRawHit(Axis::vertical, 0, MatchEnds::none);
 					if (eLineT.empty())

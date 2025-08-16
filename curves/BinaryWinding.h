@@ -55,7 +55,7 @@ struct BinaryOpData {
     BinaryOperand operand;
 };
 
-inline void binaryEvenOddFunc(Winding winding, Winding toAdd) {
+inline void binaryEvenOddFunc(Context* , Winding winding, Winding toAdd) {
     BinaryWinding sum(winding);
     BinaryWinding addend(toAdd);
     sum.left ^= addend.left;
@@ -63,7 +63,7 @@ inline void binaryEvenOddFunc(Winding winding, Winding toAdd) {
     sum.copyTo(winding);
 }
 
-inline void binaryWindingAddFunc(Winding winding, Winding toAdd) {
+inline void binaryWindingAddFunc(Context* , Winding winding, Winding toAdd) {
     BinaryWinding sum(winding);
     BinaryWinding addend(toAdd);
     sum.left += addend.left;
@@ -71,7 +71,7 @@ inline void binaryWindingAddFunc(Winding winding, Winding toAdd) {
     sum.copyTo(winding);
 }
 
-inline void binaryWindingAddLeftFunc(Winding winding, Winding toAdd) {
+inline void binaryWindingAddLeftFunc(Context* , Winding winding, Winding toAdd) {
     BinaryWinding sum(winding);
     BinaryWinding addend(toAdd);
     sum.left += addend.left;
@@ -79,7 +79,7 @@ inline void binaryWindingAddLeftFunc(Winding winding, Winding toAdd) {
     sum.copyTo(winding);
 }
 
-inline void binaryWindingAddRightFunc(Winding winding, Winding toAdd) {
+inline void binaryWindingAddRightFunc(Context* , Winding winding, Winding toAdd) {
     BinaryWinding sum(winding);
     BinaryWinding addend(toAdd);
     sum.left ^= addend.left;
@@ -168,27 +168,27 @@ struct KeepData {
     bool bothFlip;
 };
 
-inline WindKeep binaryWindingDifferenceFunc(Winding winding, Winding sumWinding) {
+inline WindKeep binaryWindingDifferenceFunc(Context* , Winding winding, Winding sumWinding) {
     return KeepData(winding, sumWinding, &KeepData::Difference).keep;
 }
 
-inline WindKeep binaryWindingExclusiveOrFunc(Winding winding, Winding sumWinding) {
+inline WindKeep binaryWindingExclusiveOrFunc(Context* , Winding winding, Winding sumWinding) {
     return KeepData(winding, sumWinding, &KeepData::ExclusiveOr).keep;
 }
 
-inline WindKeep binaryWindingIntersectFunc(Winding winding, Winding sumWinding) {
+inline WindKeep binaryWindingIntersectFunc(Context* , Winding winding, Winding sumWinding) {
     return KeepData(winding, sumWinding, &KeepData::Intersect).keep;
 }
 
-inline WindKeep binaryWindingReverseDifferenceFunc(Winding winding, Winding sumWinding) {
+inline WindKeep binaryWindingReverseDifferenceFunc(Context* , Winding winding, Winding sumWinding) {
     return KeepData(winding, sumWinding, &KeepData::ReverseDifference).keep;
 }
 
-inline WindKeep binaryWindingUnionFunc(Winding winding, Winding sumWinding) {
+inline WindKeep binaryWindingUnionFunc(Context* , Winding winding, Winding sumWinding) {
     return KeepData(winding, sumWinding, &KeepData::Union).keep;
 }
 
-inline void binaryWindingSubtractFunc(Winding winding, Winding toSubtract) {
+inline void binaryWindingSubtractFunc(Context* , Winding winding, Winding toSubtract) {
     BinaryWinding difference(winding);
     BinaryWinding subtrahend(toSubtract);
     difference.left -= subtrahend.left;
@@ -196,7 +196,7 @@ inline void binaryWindingSubtractFunc(Winding winding, Winding toSubtract) {
     difference.copyTo(winding);
 }
     
-inline void binaryWindingSubtractLeftFunc(Winding winding, Winding toSubtract) {
+inline void binaryWindingSubtractLeftFunc(Context* , Winding winding, Winding toSubtract) {
     BinaryWinding difference(winding);
     BinaryWinding subtrahend(toSubtract);
     difference.left -= subtrahend.left;
@@ -204,7 +204,7 @@ inline void binaryWindingSubtractLeftFunc(Winding winding, Winding toSubtract) {
     difference.copyTo(winding);
 }
     
-inline void binaryWindingSubtractRightFunc(Winding winding, Winding toSubtract) {
+inline void binaryWindingSubtractRightFunc(Context* , Winding winding, Winding toSubtract) {
     BinaryWinding difference(winding);
     BinaryWinding subtrahend(toSubtract);
     difference.left ^= subtrahend.left;
@@ -212,12 +212,12 @@ inline void binaryWindingSubtractRightFunc(Winding winding, Winding toSubtract) 
     difference.copyTo(winding);
 }
     
-inline bool binaryWindingVisibleFunc(Winding winding) {
+inline bool binaryWindingVisibleFunc(Context* , Winding winding) {
     BinaryWinding test(winding);
     return test.left || test.right;
 }
 
-inline void binaryWindingZeroFunc(Winding toZero) {
+inline void binaryWindingZeroFunc(Context* , Winding toZero) {
     BinaryWinding zero;
     zero.copyTo(toZero);
 }

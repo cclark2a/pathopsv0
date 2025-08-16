@@ -29,14 +29,14 @@ struct UnaryWinding {
     int value;
 };
 
-inline void unaryEvenOddFunc(Winding winding, Winding toAdd) {
+inline void unaryEvenOddFunc(Context* , Winding winding, Winding toAdd) {
     UnaryWinding sum(winding);
     UnaryWinding addend(toAdd);
     sum.value ^= addend.value;
     sum.copyTo(winding);
 }
 
-inline void unaryWindingAddFunc(Winding winding, Winding toAdd) {
+inline void unaryWindingAddFunc(Context* , Winding winding, Winding toAdd) {
     UnaryWinding sum(winding);
     UnaryWinding addend(toAdd);
     sum.value += addend.value;
@@ -47,7 +47,7 @@ inline void unaryWindingAddFunc(Winding winding, Winding toAdd) {
 // if winding is non-zero:
 //   if sum equals winding, fill starts
 //   if sum is zero, fill ends
-inline WindKeep unaryWindingKeepFunc(Winding winding, Winding sumWinding) {
+inline WindKeep unaryWindingKeepFunc(Context* , Winding winding, Winding sumWinding) {
     UnaryWinding wind(winding);
     UnaryWinding sum(sumWinding);
     if (!wind.value || (sum.value && sum.value != wind.value))
@@ -55,19 +55,19 @@ inline WindKeep unaryWindingKeepFunc(Winding winding, Winding sumWinding) {
     return sum.value ? WindKeep::Start : WindKeep::End;
 }
 
-inline void unaryWindingSubtractFunc(Winding winding, Winding toSubtract) {
+inline void unaryWindingSubtractFunc(Context* , Winding winding, Winding toSubtract) {
     UnaryWinding difference(winding);
     UnaryWinding subtrahend(toSubtract);
     difference.value -= subtrahend.value;
     difference.copyTo(winding);
 }
     
-inline bool unaryWindingVisibleFunc(Winding winding) {
+inline bool unaryWindingVisibleFunc(Context* , Winding winding) {
     UnaryWinding test(winding);
     return !!test.value;
 }
 
-inline void unaryWindingZeroFunc(Winding toZero) {
+inline void unaryWindingZeroFunc(Context* , Winding toZero) {
     UnaryWinding zero;
     zero.copyTo(toZero);
 }

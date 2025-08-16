@@ -7,10 +7,13 @@
 namespace PathOpsV0Lib {
 
 // makes a context: an instance of the PathOps engine
-Context* CreateContext();
+Context* CreateContext(ContextUserData* contextUserData = nullptr);
 
 // deletes a context, and frees any memory associated with that context
 void DeleteContext(Context* );
+
+// optional user data associated with this instance
+ContextUserData* UserData(Context* );
 
 // makes an empty contour: a collection of curves that share a winding
 Contour* CreateContour(Context* , Winding );

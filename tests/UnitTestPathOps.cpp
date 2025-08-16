@@ -505,12 +505,18 @@ void validateHTML() {
 }
 #endif
 
-#define TEST_SMALL_EXAMPLES 0
+#define TEST_SMALL_EXAMPLES 01
+#define TEST_SMALL_TESTS 01
 
-extern void ContainsTest();
-extern void testFrame();
+extern void ContainsExample();
+extern void FrameExample();
+extern void HTMLCanvasExample();
+extern void SimplifyExample();
+extern void SkiaIntersectExample();
+extern void SkiaSimplifyExample();
+extern void SVGExample();
+extern void TestFrame();
 extern void TestPath2D(bool debugIt);
-extern void SimpleTest();
 extern void runTests();
 
 void OpTest(bool terminateEarly) {
@@ -524,10 +530,17 @@ void OpTest(bool terminateEarly) {
     }
 #endif
 #if TEST_SMALL_EXAMPLES
-    ContainsTest();
+    ContainsExample();
+    HTMLCanvasExample();
+    SVGExample();
+    SkiaIntersectExample();
+    SkiaSimplifyExample();
+  	FrameExample();
+    SimplifyExample();
+#endif
+#if TEST_SMALL_TESTS
  	TestPath2D(true);
-  	testFrame();
-    SimpleTest();
+    TestFrame();
 #endif
 	runTests();
 	if (terminateEarly)
