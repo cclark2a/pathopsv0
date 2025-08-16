@@ -53,8 +53,8 @@ add_executable (skiatest "skiatest.cpp"
 	"../debug/OpDebugImage.cpp"
 	"../debug/OpDebugRaster.cpp"
 	"../debug/OpDebugRecord.cpp"
-	"../skia/SkiaPaths.cpp"
-	"../skia/SkiaPathsDebug.cpp"
+	"../port/SkiaPaths.cpp"
+	"../debug/SkiaPathsDebug.cpp"
     "../tests/OpSkiaTests.cpp"
     "../tests/OpV0Tests.cpp"
     "../tests/PathOpsBattles_shim.cpp"
@@ -80,7 +80,7 @@ add_executable (skiatest "skiatest.cpp"
 target_sources(skiatest PUBLIC ${COMMON_SOURCES})
 
 add_executable (tinytest "tinytest.cpp"
-	"../tests/TestNewInterface.cpp"
+	"../example/SimplifyExample.cpp"
 )
 target_sources(tinytest PUBLIC ${COMMON_SOURCES})
 
@@ -90,8 +90,8 @@ add_executable (frametest "frametest.cpp"
 target_sources(frametest PUBLIC ${COMMON_SOURCES})
 
 add_executable (path2Dtest "path2Dtest.cpp"
-	"../emscripten/Path2D.cpp"
-	"../tests/Path2Dtest.cpp"
+	"../port/Path2D.cpp"
+	"../tests/Path2DTest.cpp"
 )
 target_sources(path2Dtest PUBLIC ${COMMON_SOURCES})
 
