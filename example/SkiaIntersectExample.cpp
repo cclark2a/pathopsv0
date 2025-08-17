@@ -29,7 +29,6 @@ static void IntersectPath(const SkPath& onePath, const SkPath& twoPath, SkPath* 
     Contour* two = SetSkiaOpContourCallbacks(context, twoWinding, BinaryOperand::right);
     AddSkiaPath(context, two, twoPath);
 	PathOutput pathOutput = out;
-	Normalize(context);
 	Resolve(context, pathOutput);
     DeleteContext(context);
 }
@@ -45,3 +44,5 @@ void SkiaIntersectExample() {
     IntersectPath(one, two, &intersection);
     intersection.dump();
 }
+
+OP_TINY_MAIN(SkiaIntersectExample)  // main() for cmake

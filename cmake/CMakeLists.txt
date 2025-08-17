@@ -79,13 +79,13 @@ add_executable (skiatest "skiatest.cpp"
 )
 target_sources(skiatest PUBLIC ${COMMON_SOURCES})
 
-add_executable (tinytest "tinytest.cpp"
+add_executable (tinytest
 	"../example/SimplifyExample.cpp"
 )
 target_sources(tinytest PUBLIC ${COMMON_SOURCES})
 
-add_executable (frametest "frametest.cpp"
-	"../tests/FrameTest.cpp"
+add_executable (frametest
+	"../tests/FrameExample.cpp"
 )
 target_sources(frametest PUBLIC ${COMMON_SOURCES})
 

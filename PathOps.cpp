@@ -105,15 +105,6 @@ void SetErrorHandler(Context* interfaceContext, ErrorDispatch errorDispatch) {
 	context->errorHandler.errorDispatchFuncPtr = errorDispatch;
 }
 
-void Normalize(Context* interfaceContext) {
-    OpContext* context = toImplementation(interfaceContext);
-    if (ContextError::none != context->error) {
-        OP_DEBUG_CODE(context->debugData.success = false);
-        return;
-    }
-	context->opsInit();
-}
-
 void ResetContour(Contour* interfaceContour) {
     OpContour* contour = toImplementation(interfaceContour);
     contour->segments.clear();

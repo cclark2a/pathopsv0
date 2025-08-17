@@ -1,58 +1,58 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 
-#include "curves/QuadBezier.h"
-#include "curves/UnaryWinding.h"
+/* Given a pair of overlapping loops, compute the filled path which encloses exactly once. 
+   The loops are added using a clockwise winding rule; if the accumulated winding is non-zero,
+   the loop describes a fill. The coordinates of the simplified path are output to the console. */
 
-// curve types
-static PathOpsV0Lib::CurveType lineType = 1;
-static PathOpsV0Lib::CurveType quadType = 2;
-constexpr size_t lineSize = sizeof(OpPoint) * 2;
-constexpr size_t quadSize = sizeof(OpPoint) * 3;
+#include "curves/QuadBezier.h"  // rules for quadratic Beziers
+#include "curves/UnaryWinding.h"  // rules for single operand w/ winding (e.g. Simplify)
 
-static void pathOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, 
-        PathOpsV0Lib::PathOutput output) {
+using namespace PathOpsV0Lib;  // pathopsV0 public interfaces are here
+
+constexpr CurveType lineType = 1;  // caller curve type for lines
+constexpr CurveType quadType = 2;  // caller curve type for quadratic Beziers
+constexpr size_t lineSize = sizeof(OpPoint) * 2;  // caller size of line
+constexpr size_t quadSize = sizeof(OpPoint) * 3;  // caller size of quadratic Bezier
+
+// Called by the engine for each output curve. Write the curve description to the console
+static void pathOutput(Curve c, bool firstPt, bool lastPt, PathOutput ) {
     if (firstPt)
-        OpDebugOut("contour start --\n");
+        OpDebugOut("contour start --\n");  // portable printf() for std::string
     std::string outStr = lineType == c.type ? "line: " : "quad: ";
     auto addPtStr = [&outStr](const OpPoint& pt, std::string delimiter) {
         outStr += "{ " + std::to_string(pt.x) + ", " + std::to_string(pt.y) + " }" + delimiter;
     };
-    addPtStr(c.data->start, ", ");
+    addPtStr(c.data->start, ", ");  // first point of line or quadratic
     if (quadType == c.type)
-        addPtStr(quadControlPt(c), ", ");
-    addPtStr(c.data->end, "\n");
+        addPtStr(quadControlPt(c), ", ");  // control point of quadratic
+    addPtStr(c.data->end, "\n");  // last point of line or quadratic
     OpDebugOut(outStr);
     if (lastPt)
         OpDebugOut("-- contour end\n");
 }
 
+// Given points describing a pair of closed loops with quadratic Beziers, find their intersection
 void SimplifyExample() {
-    using namespace PathOpsV0Lib;
+    Context* context = CreateContext();  // an instance of the pathopsv0 engine
+    SetContextCallbacks(context, { pathOutput } );  // use the function above to generate output
+    unaryCallbacks(context);  // add the winding rules: single operand, winding operator
 
-    Context* context = CreateContext();
-    SetContextCallbacks(context, { pathOutput } );
-    unaryCallbacks(context);
+    SetCurveCallbacks(context, lineType, { } );  // add the rules to handle lines
+    quadCallbacks(context, quadType);  // add the rules to handle quadratic Beziers
 
-	OP_DEBUG_DUMP_CODE(SetDebugContextCallbacks(context, { nullptr, unaryWindingDumpOutFunc }) );
-
-    SetCurveCallbacks(context, lineType, { } );
-    quadCallbacks(context, quadType);
-
-    // example: given points describing a pair of closed loops with quadratic Beziers, find
-    //          their intersection
-    UnaryWinding windingData(1);
-    Winding winding { &windingData, sizeof(windingData) };
-    Contour* contour = CreateContour(context, winding);
+    UnaryWinding windingData(1);  // winding value for each line or quad (each contributes '1')
+    Winding winding { &windingData, sizeof(windingData) };  // a curve's winding structure
+    Contour* contour = CreateContour(context, winding);  // a closed loop of curves
 
     // note that the data below omits start points for curves that match the previous end point
-                      //  start      end      control
+                      //  start     control     end
     OpPoint contour1[] { { 2, 0 }, { 0, 2 }, { 1, 2 },  // quad: start, control, end
                                              { 2, 3 },  // line:                 end
                                              { 2, 0 },  // line:                 end
     };
     // break the quads so that their control points lie inside the bounds
     // formed by the end points (i.e., find the quads' extrema)
-    AddQuads(contour, { context, &contour1[0], quadSize, quadType } );
+    AddQuads(contour, { context, &contour1[0], quadSize, quadType } );  // add curve to loop
     Add(     contour, { context, &contour1[2], lineSize, lineType } );
     Add(     contour, { context, &contour1[3], lineSize, lineType } );
 
@@ -60,14 +60,12 @@ void SimplifyExample() {
                                    { 1, 3 }, { 0, 3 },  // quad:        control, end
                                              { 0, 0 },  // line:                 end
     };
-    Add(     contour, { context, &contour2[0], lineSize, lineType } );
+    Add(     contour, { context, &contour2[0], lineSize, lineType } );  // add to second loop
     AddQuads(contour, { context, &contour2[1], quadSize, quadType } );
     Add(     contour, { context, &contour2[3], lineSize, lineType } );
 
-	Normalize(context);
-    Resolve(context, nullptr);
-	ContextError error = Error(context);
-    DeleteContext(context);
-    if (ContextError::none != error)
-        exit(1);
+    Resolve(context, nullptr);  // compute the output; for each curve, call pathOutput()
+    DeleteContext(context);  // release memory allocated by context and contour
 }
+
+OP_TINY_MAIN(SimplifyExample)  // main() for cmake

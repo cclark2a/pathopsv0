@@ -39,7 +39,7 @@ void ContainsExample() {
     Contour* frameContour = CreateContour(context, frameWinding);
 
     // note that the data below omits start points for curves that match the previous end point
-                      //  start      end      control
+                      //  start    control     end
     OpPoint contour1[] { { 2, 0 }, { 0, 2 }, { 1, 2 },  // quad: start, control, end
                                              { 2, 3 },  // line:                 end
                                              { 2, 0 },  // line:                 end
@@ -62,7 +62,6 @@ void ContainsExample() {
     Add(     fillContour, { context, &contour2[3], lineSize, lineType } );
 
 	SetErrorHandler(context, allowDisjointLines);
-	Normalize(context);
     auto handleError = [context](WindingCondition result, WindingCondition expected) {
         OpDebugOut("contains example " + STR(result == expected ? "worked as expected" : "failed")
                 + "\n");
@@ -80,3 +79,5 @@ void ContainsExample() {
     handleError(isOutside, 0);  // not fully contained
     DeleteContext(context);
 }
+
+OP_TINY_MAIN(ContainsExample)

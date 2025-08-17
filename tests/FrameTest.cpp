@@ -79,10 +79,11 @@ void TestFrame() {
 #endif
 
 	SetErrorHandler(context, allowDisjointLines);
-	Normalize(context);
     Resolve(context, nullptr);
 	ContextError error = Error(context);
     DeleteContext(context);
     if (ContextError::none != error)
         exit(1);
 }
+
+OP_TINY_MAIN(TestFrame)  // main() for cmake

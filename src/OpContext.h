@@ -252,6 +252,7 @@ struct OpContext {
 	OpPointBounds maxBounds;
 	PathOpsV0Lib::ContextError error;
 	int uniqueID;  // used for object id, unsectable id, coincidence id
+    bool initialized;
     bool allDiscarded;
     bool allKept;
 	bool fatalError;

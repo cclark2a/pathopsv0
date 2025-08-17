@@ -19,3 +19,5 @@ void SVGExample() {
 		" M 295 55 Q 265 55 265 100 Q 265 145 295 145 Q 325 145 325 100 Q 325 55 295 55 Z";
     svgFrameIntersect(frame, fill);
 }
+
+OP_TINY_MAIN(SVGExample)  // main() for cmake

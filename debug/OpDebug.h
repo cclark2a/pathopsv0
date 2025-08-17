@@ -145,6 +145,11 @@ struct OpDebugData {
 	#define OP_DEBUG_MAKER 1
 	#define OP_DEBUG_VALIDATE 1
 #endif
+#if defined OP_TINY_TEST && OP_TINY_TEST
+    #define OP_TINY_MAIN(func) int main() { func(); return 0; }
+#else
+    #define OP_TINY_MAIN(func)
+#endif
 #define OP_DEBUG_PARAMS(...) , __VA_ARGS__
 #define OP_DEBUG_CODE(...) __VA_ARGS__
 #define OP_DEBUG_ENUM() uninitialized = (bool) -1,

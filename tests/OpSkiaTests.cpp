@@ -621,7 +621,6 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
             PathOpsV0Lib::DebugContourType::windingUserData } );
     AddSkiaPath(context, right, b  OP_DEBUG_PARAMS(&debugRight));
     PathOutput pathOutput = result;
-	Normalize(context);
 #if TEST_RASTER
     DebugRaster debugRaster;
     debugRaster.in(context);
@@ -947,7 +946,6 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
 	}
 	if (ContextError::none == contextError) {
 		PathOutput pathOutput = out;
-		Normalize(context);
 		Resolve(context, pathOutput);
 		contextError = Error(context);
 		if (ContextError::toVertical == contextError)

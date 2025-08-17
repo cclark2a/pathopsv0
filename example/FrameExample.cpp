@@ -28,8 +28,6 @@ static bool allowDisjointLines(ContextError err, Curve* ) {
 }
 
 void FrameExample() {
-    using namespace PathOpsV0Lib;
-
     Context* context = CreateContext();
     SetContextCallbacks(context, { frameOutput });
     frameCallbacks(context);
@@ -52,10 +50,8 @@ void FrameExample() {
 	for (int index = 0; index < 4; ++index)
 		Add(fillContour, { context, &rect[index], frameLineSize, frameLine } );
 	SetErrorHandler(context, allowDisjointLines);
-	Normalize(context);
     Resolve(context, nullptr);
-	ContextError error = Error(context);
     DeleteContext(context);
-    if (ContextError::none != error)
-        exit(1);
 }
+
+OP_TINY_MAIN(FrameExample)  // main() for cmake

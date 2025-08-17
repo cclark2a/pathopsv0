@@ -530,13 +530,13 @@ void OpTest(bool terminateEarly) {
     }
 #endif
 #if TEST_SMALL_EXAMPLES
+    SimplifyExample();
     ContainsExample();
     HTMLCanvasExample();
     SVGExample();
     SkiaIntersectExample();
     SkiaSimplifyExample();
   	FrameExample();
-    SimplifyExample();
 #endif
 #if TEST_SMALL_TESTS
  	TestPath2D(true);

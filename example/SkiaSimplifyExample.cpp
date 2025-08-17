@@ -18,7 +18,6 @@ static void SimplifyPath(const SkPath& path, SkPath* out) {
     Contour* simplify = SetSkiaSimplifyCallbacks(context, simplifyWinding, isWindingFill(path));
     AddSkiaPath(context, simplify, path);
 	PathOutput pathOutput = out;
-	Normalize(context);
 	Resolve(context, pathOutput);
     DeleteContext(context);
 }
@@ -35,3 +34,5 @@ void SkiaSimplifyExample() {
     SimplifyPath(path, &simplified);
     simplified.dump();
 }
+
+OP_TINY_MAIN(SkiaSimplifyExample)  // main() for cmake

@@ -158,7 +158,8 @@ OpContext::OpContext(void* data)
 	, callerStorage(nullptr)
     , userData(data)
 	, error(PathOpsV0Lib::ContextError::none)
-	, uniqueID(0) 
+	, uniqueID(0)
+    , initialized(false)
     , allDiscarded(false)
     , allKept(false)
 	, fatalError(false)
@@ -475,7 +476,9 @@ OpLimb& OpContext::nthLimb(int index) {
 }
 
 void OpContext::opsInit() {
-	setThreshold();
+    if (initialized || PathOpsV0Lib::ContextError::none != error)
+        return;
+    setThreshold();
 	OpContourIterator iterator(this);
 	for (OpContourIter iter = iterator.begin(); iter != iterator.end(); ++iter) {
 		OpContour* contour = *iter;
@@ -540,52 +543,53 @@ void OpContext::opsInit() {
 // The callouts are removed when not in use as they are not maintained and reduce readability.
 // !!! OP_DEBUG_COUNT was unintentionally deleted at some point. Hopefully it is in git history...
 WindingCondition OpContext::pathOps() {
+	opsInit();
 	if (!windingSet) {
-    windingSet = true;
-    OpSegments segments(*this);
-	segments.findCoincidences();
-	debugValidateIntersections();
-	OpSegments sortedSegments(*this);
-	sortedSegments.initInX();
-	debugValidateIntersections();
-	if (empty()) {
-		contextCallbacks.emptyCallerPathFuncPtr(callerOutput);
-		OP_DEBUG_SUCCESS(*this, 0);
-	}
-	if (FoundIntersections::fail == sortedSegments.findIntersections())
-		return setError(PathOpsV0Lib::ContextError::intersection  
-				OP_DEBUG_PARAMS(sortedSegments.debugFailSegID));
-	debugValidateIntersections();
-	if (errorHandler.errorDispatchFuncPtr) {
-        PathOpsV0Lib::Curve dummy { (ContextPtr) this, (PathOpsV0Lib::CurveData*) nullptr, 0, 0 };
-        if (!errorHandler.errorDispatchFuncPtr(PathOpsV0Lib::ContextError::missing, &dummy))
-		    addDisjointIntersections();
-	}
-	disableSmallSegments();  // moved points may allow disabling some segments
-	if (empty()) {
-		contextCallbacks.emptyCallerPathFuncPtr(callerOutput);  // no existing tests exercises
-		OP_DEBUG_SUCCESS(*this, 0);
-	}
-	sortIntersections();
-	if (!fixCCSects())  // curve-curve intersections may have enough error to put sect list out of order
-		OP_DEBUG_FAIL(*this, -1);
-	sortIntersections();
-	findMissingEnds();  // moved pts may require looking in aliases for an end match
-	betweenIntersections();  // fill in intersections in coin runs that are missing in other coins
-	sortIntersections();
-	markInCoincidence();
-	makeEdges();
-	makeCoins();
-	sortIntersections();
-	transferCoins();
-	makePals();  // edges too close to each other to sort or precisely intersect
-	rebuildOverlaps(); // add coincident contours to intersecting contour bounds arrays
+        windingSet = true;
+        OpSegments segments(*this);
+	    segments.findCoincidences();
+	    debugValidateIntersections();
+	    OpSegments sortedSegments(*this);
+	    sortedSegments.initInX();
+	    debugValidateIntersections();
+	    if (empty()) {
+		    contextCallbacks.emptyCallerPathFuncPtr(callerOutput);
+		    OP_DEBUG_SUCCESS(*this, 0);
+	    }
+	    if (FoundIntersections::fail == sortedSegments.findIntersections())
+		    return setError(PathOpsV0Lib::ContextError::intersection  
+				    OP_DEBUG_PARAMS(sortedSegments.debugFailSegID));
+	    debugValidateIntersections();
+	    if (errorHandler.errorDispatchFuncPtr) {
+            PathOpsV0Lib::Curve dummy { (ContextPtr) this, (PathOpsV0Lib::CurveData*) nullptr, 0, 0 };
+            if (!errorHandler.errorDispatchFuncPtr(PathOpsV0Lib::ContextError::missing, &dummy))
+		        addDisjointIntersections();
+	    }
+	    disableSmallSegments();  // moved points may allow disabling some segments
+	    if (empty()) {
+		    contextCallbacks.emptyCallerPathFuncPtr(callerOutput);  // no existing tests exercises
+		    OP_DEBUG_SUCCESS(*this, 0);
+	    }
+	    sortIntersections();
+	    if (!fixCCSects())  // curve-curve intersections may have enough error to put sect list out of order
+		    OP_DEBUG_FAIL(*this, -1);
+	    sortIntersections();
+	    findMissingEnds();  // moved pts may require looking in aliases for an end match
+	    betweenIntersections();  // fill in intersections in coin runs that are missing in other coins
+	    sortIntersections();
+	    markInCoincidence();
+	    makeEdges();
+	    makeCoins();
+	    sortIntersections();
+	    transferCoins();
+	    makePals();  // edges too close to each other to sort or precisely intersect
+	    rebuildOverlaps(); // add coincident contours to intersecting contour bounds arrays
 
-	// made edges may include lines that are coincident with other edges. Undetected for now...
-//    windCoincidences();  // for segment h/v lines, compute their winding considering coincidence
-	FoundWindings foundWindings = OpWinder::SetWindings(*this);  // walk edges, compute windings
-	if (FoundWindings::fail == foundWindings)
-		OP_DEBUG_FAIL(*this, -1);  // no existing tests exercises
+	    // made edges may include lines that are coincident with other edges. Undetected for now...
+    //    windCoincidences();  // for segment h/v lines, compute their winding considering coincidence
+	    FoundWindings foundWindings = OpWinder::SetWindings(*this);  // walk edges, compute windings
+	    if (FoundWindings::fail == foundWindings)
+		    OP_DEBUG_FAIL(*this, -1);  // no existing tests exercises
     }
 	WindingCondition windingCondition = apply();  // suppress edges which don't meet op criteria
 //	demotePalLinks();  // mark edges that connect pal ends as unsortable so assembly can ignore them

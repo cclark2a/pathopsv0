@@ -28,9 +28,6 @@ void Add(Contour* , Curve);
 // returns error code of previous call
 ContextError Error(Context* );
 
-// adjusts curves to place all numerical data in the same range
-void Normalize(Context* );
-
 // removes curves added to contour; callbacks are unaffected
 void ResetContour(Contour* );
 

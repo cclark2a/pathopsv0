@@ -23,3 +23,5 @@ void HTMLCanvasExample() {
 	s.pop_back();
     OpDebugOut(s + "\n");
 }
+
+OP_TINY_MAIN(HTMLCanvasExample)  // main() for cmake

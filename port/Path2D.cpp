@@ -655,7 +655,6 @@ static bool allowDisjointLines(ContextError err, PathOpsV0Lib::Curve* ) {
 
 ContextError Path::handleError(Context* context) {
 	OutPath outPath;
-	Normalize(context);
 	Resolve(context, &outPath);
 	ContextError error = Error(context);
 	if (ContextError::none == error)
