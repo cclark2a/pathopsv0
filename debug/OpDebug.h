@@ -57,8 +57,12 @@ struct OpDebugRaster;
 struct OpDebugData {
 	OpDebugData(bool mayFail) 
 		: expect(mayFail ? OpDebugExpect::fail : OpDebugExpect::success)
+        , curveCurve1(0)
+        , curveCurve2(0)
+        , curveCurveDepth(-1)
 		, limitContours(0)
 		, limitReached(false)
+        , runOneFile(false)
 		, success(true) {
 	}
 
@@ -217,7 +221,7 @@ struct OpDebugMaker {
 #define OP_LINE_FILE_ARGS() , int lineNo, std::string fileName
 #define OP_LINE_FILE_NP_DEF(...) int lineNo, std::string fileName, __VA_ARGS__
 #define OP_LINE_FILE_NP_ARGS() int lineNo, std::string fileName
-#define OP_LINE_FILE_DECLARE(debugMaker) OpDebugMaker debugMaker
+#define OP_LINE_FILE_DECLARE(debugMaker) OpDebugMaker debugMaker;
 #define OP_LINE_FILE_SET(debugMaker) debugMaker = { fileName, lineNo }
 #define OP_LINE_FILE_SET_IMMED(debugMaker) debugMaker = { __FILE__, __LINE__ }
 

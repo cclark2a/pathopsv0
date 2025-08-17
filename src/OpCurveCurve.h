@@ -76,7 +76,7 @@ struct EdgeRun {
 #if 0 && OP_DEBUG
 	int debugBetween = INT_MAX;  // incremented if edge t is between, and oppDist is between
 #endif
-	OP_LINE_FILE_DECLARE(debugSetMaker);
+	OP_LINE_FILE_DECLARE(debugSetMaker)
 };
 
 // distance from edge to opposite is left unclamped for hull intersections to detect crossings
@@ -155,7 +155,7 @@ struct FoundLimits {
 	Unordered oppOutOfOrder  OP_DEBUG_INIT(Unordered);  // if set, opp t is not ordered (skip this limit)  !!! detect error earlier
     LimitUsed used  OP_DEBUG_INIT(LimitUsed);
     LimitMatch match  OP_DEBUG_INIT(LimitMatch);
-	OP_LINE_FILE_DECLARE(debugMaker);
+	OP_LINE_FILE_DECLARE(debugMaker)
 };
 
 struct SnipPtTs {

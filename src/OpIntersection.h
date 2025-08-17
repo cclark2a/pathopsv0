@@ -141,7 +141,7 @@ struct OpIntersection {
 	int debugCoincidenceID = 0;	// this one does not get erased
 	bool debugErased = false;
 #endif
-    OP_LINE_FILE_DECLARE(debugSetMaker);
+    OP_LINE_FILE_DECLARE(debugSetMaker)
 };
 
 enum class SectCleanup {

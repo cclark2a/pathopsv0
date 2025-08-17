@@ -28,8 +28,6 @@ static bool allowDisjointLines(ContextError err, Curve* ) {
 }
 
 void TestFrame() {
-    using namespace PathOpsV0Lib;
-
     Context* context = CreateContext();
     SetContextCallbacks(context, { frameOutput });
     frameCallbacks(context);

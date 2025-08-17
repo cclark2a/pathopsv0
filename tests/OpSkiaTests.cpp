@@ -1321,3 +1321,5 @@ void CubicPathToQuads(skiatest::Reporter* reporter, const SkPath& cubicPath, SkP
 	OpDebugOut("end " + reporter->testname + "\n");
 }
 #endif
+
+OP_TINY_MAIN(runTests)  // main() for cmake

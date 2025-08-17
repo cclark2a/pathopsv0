@@ -180,7 +180,7 @@ struct OpSegment {
 #if OP_DEBUG_IMAGE
 	uint32_t debugColor;
 #endif
-    OP_LINE_FILE_DECLARE(debugSetDisabled);
+    OP_LINE_FILE_DECLARE(debugSetDisabled)
 };
 
 #endif

@@ -1,9 +1,9 @@
 // (c) 2024, Cary Clark cclark2@gmail.com
 
-extern void testFrame();
+extern void TestFrame();
 
 int main()
 {
-	testFrame();
+	TestFrame();
 	return 0;
 }
