@@ -13,13 +13,11 @@ static void SimplifyPath(const SkPath& path, SkPath* out) {
     Context* context = CreateContext();
     SetSkiaContextCallbacks(context);
     SetSkiaCurveCallbacks(context);
-    auto isWindingFill = [](const SkPath& path) {
-        return SkPathFillType::kWinding == path.getFillType()
-                || SkPathFillType::kInverseWinding == path.getFillType();
-    }; 
     int simplifyData[] = { 1 };
-    PathOpsV0Lib::Winding simplifyWinding { simplifyData, sizeof(simplifyData) };
-    Contour* simplify = SetSkiaSimplifyCallbacks(context, simplifyWinding, isWindingFill(path));
+    Winding simplifyWinding { simplifyData, sizeof(simplifyData) };
+    bool isWindingFill = SkPathFillType::kWinding == path.getFillType()
+            || SkPathFillType::kInverseWinding == path.getFillType();
+    Contour* simplify = SetSkiaSimplifyCallbacks(context, simplifyWinding, isWindingFill);
     AddSkiaPath(context, simplify, path);
 	PathOutput pathOutput = out;
 	Resolve(context, pathOutput);

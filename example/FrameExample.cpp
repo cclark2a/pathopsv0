@@ -1,5 +1,9 @@
 // (c) 2024, Cary Clark cclark2@gmail.com
 
+/* !!! add comment here
+*/
+
+#include "curves/Line.h"
 #include "curves/QuadBezier.h"
 #include "curves/FrameWinding.h"
 
@@ -28,27 +32,20 @@ static bool allowDisjointLines(ContextError err, Curve* ) {
 }
 
 void FrameExample() {
-    Context* context = CreateContext();
-    SetContextCallbacks(context, { frameOutput });
-    frameCallbacks(context);
-
-    SetCurveCallbacks(context, frameLine, { } );
+    Context* context = frameContext(frameOutput);
+    lineCallbacks(context, frameLine);
     quadCallbacks(context, frameQuad);
-    FrameWinding frameData(FrameFill::frame, 1);
-    Winding frameWinding { &frameData, sizeof(frameData) };
-    Contour* frameContour = CreateContour(context, frameWinding);
-    FrameWinding fillData(FrameFill::fill, 1);
-    Winding fillWinding { &fillData, sizeof(fillData) };
-    Contour* fillContour = CreateContour(context, fillWinding);
+    FrameWinding frameWinding(context, FrameFill::frame);
+    FrameWinding fillWinding(context, FrameFill::fill);
 
 	OpPoint line[] { { 10, 10 }, { 20, 20 } };
 	OpPoint quad[] { { 30, 30 }, { 50, 50 }, { 40, 30 } };
-    Add(frameContour, { context, line, frameLineSize, frameLine } );
-    Add(frameContour, { context, quad, frameQuadSize, frameQuad } );
+    Add(frameWinding.contour, { context, line, frameLineSize, frameLine } );
+    Add(frameWinding.contour, { context, quad, frameQuadSize, frameQuad } );
     OpPoint rect[] { { 15, 15 }, { 45, 15 }, { 45, 45 }, { 15, 45 }, { 15, 15 } };
 
 	for (int index = 0; index < 4; ++index)
-		Add(fillContour, { context, &rect[index], frameLineSize, frameLine } );
+		Add(fillWinding.contour, { context, &rect[index], frameLineSize, frameLine } );
 	SetErrorHandler(context, allowDisjointLines);
     Resolve(context, nullptr);
     DeleteContext(context);

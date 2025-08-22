@@ -3,6 +3,7 @@
 #define FrameWinding_DEFINED
 
 #include "PathOps.h"
+#include "DebugOps.h"
 
 namespace PathOpsV0Lib {
 
@@ -12,36 +13,44 @@ enum class FrameFill {
 	frame
 };
 
-struct FrameWinding {
-    FrameWinding(FrameFill frameFill) 
+struct FrameData {
+    FrameData(FrameFill frameFill) 
 		: isFrame(frameFill) {
 	}
 
-    FrameWinding(FrameFill frameFill, int windValue) 
+    FrameData(FrameFill frameFill, int windValue) 
 		: left(windValue)
 		, isFrame(frameFill) {
 	}
 
-    FrameWinding(Winding w) {
-        OP_ASSERT(w.size == sizeof(FrameWinding));
-        std::memcpy(this, w.data, sizeof(FrameWinding));
+    FrameData(Winding w) {
+        OP_ASSERT(w.size == sizeof(FrameData));
+        std::memcpy(this, w.data, sizeof(FrameData));
 	}
 
 	void copyTo(Winding& w) const {
-		OP_ASSERT(w.size == sizeof(FrameWinding));
-		std::memcpy(w.data, this, sizeof(FrameWinding));
+		OP_ASSERT(w.size == sizeof(FrameData));
+		std::memcpy(w.data, this, sizeof(FrameData));
 	}
 
     int left = 1;
 	FrameFill isFrame;
 };
 
+struct FrameWinding {
+    FrameWinding(Context* context, FrameFill frameFill);
+
+    Winding winding;
+    FrameData data;
+    Contour* contour;
+};
+
 // winding is always frame; toAdd comes from another edge, and may be frame or fill
 inline void frameAddFunc(Context* , Winding winding, Winding toAdd) {
-	FrameWinding sum(winding);
+	FrameData sum(winding);
 	if (FrameFill::frame == sum.isFrame)
 		return;
-	FrameWinding addend(toAdd);
+	FrameData addend(toAdd);
 	if (FrameFill::frame == addend.isFrame)
 		return;
 	sum.left += addend.left;
@@ -49,39 +58,39 @@ inline void frameAddFunc(Context* , Winding winding, Winding toAdd) {
 }
 
 inline WindKeep frameDiscardFunc(Context* , Winding winding, Winding sumWinding) {
-	FrameWinding wind(winding);
+	FrameData wind(winding);
 	if (FrameFill::fill == wind.isFrame)
 		return WindKeep::Discard;
-	FrameWinding sum(sumWinding);
+	FrameData sum(sumWinding);
 	return !sum.left ? WindKeep::Start : WindKeep::Discard;
 }
 
 inline bool frameIntersectFunc(Context* , Winding l, Winding r) {
-    FrameWinding left(l);
-    FrameWinding right(r);
+    FrameData left(l);
+    FrameData right(r);
     return FrameFill::fill == left.isFrame || FrameFill::fill == right.isFrame;
 }
 
 // both winding and sumWinding come from the same edge
 inline WindKeep frameKeepFunc(Context* , Winding winding, Winding sumWinding) {
-	FrameWinding wind(winding);
+	FrameData wind(winding);
 	if (FrameFill::fill == wind.isFrame)
 		return WindKeep::Discard;
-	FrameWinding sum(sumWinding);
+	FrameData sum(sumWinding);
 	return sum.left ? WindKeep::Start : WindKeep::Discard;
 }
 
 inline void frameZeroFunc(Context* , Winding toZero) {
-    FrameWinding zero(FrameFill::fill, 0);
+    FrameData zero(FrameFill::fill, 0);
     zero.copyTo(toZero);
 }
 
 // winding is always frame; toAdd comes from another edge, and may be frame or fill
 inline void frameSubtractFunc(Context* , Winding winding, Winding toSubtract) {
-	FrameWinding difference(winding);
+	FrameData difference(winding);
 	if (FrameFill::frame == difference.isFrame)
 		return;
-	FrameWinding subtrahend(toSubtract);
+	FrameData subtrahend(toSubtract);
 	if (FrameFill::frame == subtrahend.isFrame)
 		return;
 	difference.left -= subtrahend.left;
@@ -89,7 +98,7 @@ inline void frameSubtractFunc(Context* , Winding winding, Winding toSubtract) {
 }
 
 inline bool frameVisibleFunc(Context* , Winding winding) {
-    FrameWinding test(winding);
+    FrameData test(winding);
     return !!test.left;
 }
 
@@ -100,21 +109,68 @@ inline void frameCallbacks(Context* context) {
 
 #if OP_DEBUG_DUMP
 inline std::string frameDumpOutFunc(Winding winding) {
-    FrameWinding frameWinding(winding);
-    std::string s = "{" + STR(frameWinding.left) + ", " + STR((int) frameWinding.isFrame) + "}";
+    FrameData frameData(winding);
+    std::string s = "{" + STR(frameData.left) + ", " + STR((int) frameData.isFrame) + "}";
     return s;
 }
+
+inline void frameDumpSetFunc(const char*& str, Winding& winding) {
+    int left = OpDebugReadSizeT(str);
+    FrameFill frameFill = (FrameFill) OpDebugReadSizeT(str);
+    FrameData frameData(frameFill, left);
+    frameData.copyTo(winding);
+}
+
+#define FRAME_WINDING_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(frameAddFunc), \
+    OP_TAGGED_FUNCTION(frameDiscardFunc), \
+    OP_TAGGED_FUNCTION(frameIntersectFunc), \
+    OP_TAGGED_FUNCTION(frameKeepFunc), \
+    OP_TAGGED_FUNCTION(frameZeroFunc), \
+    OP_TAGGED_FUNCTION(frameSubtractFunc), \
+    OP_TAGGED_FUNCTION(frameVisibleFunc), \
+    OP_TAGGED_FUNCTION(frameDumpOutFunc), \
+    OP_TAGGED_FUNCTION(frameDumpSetFunc), \
+
 #endif
 
 #if OP_DEBUG_IMAGE
 inline std::string frameImageOutFunc(Winding winding, int index) {
     if (index > 0)
         return "-";
-    FrameWinding unaryWinding(winding);
-    std::string s = STR(unaryWinding.left);
+    FrameData data(winding);
+    std::string s = STR(data.left);
     return s;
 }
+
+#define FRAME_IMAGE_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(frameImageOutFunc), \
+
 #endif
+
+inline Context* frameContext(CurveOutput output = nullptr) {
+    Context* context = CreateContext();
+    SetContextCallbacks(context, { output });
+#if OP_DEBUG
+    OpDebugData debugData(false);
+    Debug(context, debugData);
+	SetDebugContextCallbacks(context, { 
+        OP_DEBUG_DUMP_CODE(nullptr, frameDumpOutFunc, frameDumpSetFunc)
+        OP_DEBUG_IMAGE_PARAMS(frameImageOutFunc)
+    });
+#endif
+    return context;
+}
+
+inline FrameWinding::FrameWinding(Context* context, FrameFill frameFill)
+    : data(frameFill) {
+    winding.data = &data;
+    winding.size = sizeof(data);
+    contour = CreateContour(context, winding);
+#if OP_DEBUG
+	SetDebugContourData(contour, { &data, sizeof(data) }, DebugContourType::windingUserData );
+#endif
+}
 
 }
 

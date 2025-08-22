@@ -192,7 +192,8 @@ typedef void (*WindingZero)(Context* , Winding toZero);
 // returns if curve transitions to a filled area and is kept; or if curve is discarded
 typedef WindKeep (*WindingKeep)(Context* , Winding winding, Winding sum);
 
-// returns true if winding pair can generate intersections (e.g., frame does not intersect itself)
+// returns true if winding pair can generate intersections (e.g., frame returns false because
+// it does not intersect itself)
 typedef bool (*WindingIntersect)(Context* , Winding left, Winding right);
 
 // return non-zero to discard subsequent winding operations; condition is returned by resolve 
@@ -239,8 +240,8 @@ typedef float (*MaxGap)(Context* );
 // caller defined functions are optional and default to built-in behavior
 struct ContextCallbacks {
 	CurveOutput curveOutputFuncPtr = nullptr;
-	SetLineType setLineTypeFuncPtr = nullptr;  // default to (CurveType) 1
 	EmptyCallerPath emptyCallerPathFuncPtr = nullptr;
+	SetLineType setLineTypeFuncPtr = nullptr;  // default to (CurveType) 1
 	MaxCurveCurveValue maxSplitFuncPtr = nullptr;
 	MaxCurveCurveValue maxBoundedEdgeFuncPtr = nullptr;
 	MaxCurveCurveValue maxSignSwapFuncPtr = nullptr;

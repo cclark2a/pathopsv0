@@ -4,6 +4,7 @@
    The loops are added using a clockwise winding rule; if the accumulated winding is non-zero,
    the loop describes a fill. The coordinates of the simplified path are output to the console. */
 
+#include "curves/Line.h"  // rules for lines
 #include "curves/QuadBezier.h"  // rules for quadratic Beziers
 #include "curves/UnaryWinding.h"  // rules for single operand w/ winding (e.g. Simplify)
 
@@ -33,16 +34,10 @@ static void pathOutput(Curve c, bool firstPt, bool lastPt, PathOutput ) {
 
 // Given points describing a pair of closed loops with quadratic Beziers, find their intersection
 void SimplifyExample() {
-    Context* context = CreateContext();  // an instance of the pathopsv0 engine
-    SetContextCallbacks(context, { pathOutput } );  // use the function above to generate output
-    unaryCallbacks(context);  // add the winding rules: single operand, winding operator
-
-    SetCurveCallbacks(context, lineType, { } );  // add the rules to handle lines
+    Context* context = unaryContext(pathOutput);  // an instance of the pathopsv0 engine
+    lineCallbacks(context, lineType);  // add the rules to handle lines
     quadCallbacks(context, quadType);  // add the rules to handle quadratic Beziers
-
-    UnaryWinding windingData(1);  // winding value for each line or quad (each contributes '1')
-    Winding winding { &windingData, sizeof(windingData) };  // a curve's winding structure
-    Contour* contour = CreateContour(context, winding);  // a closed loop of curves
+    UnaryWinding winding(context);  // winding value for each line or quad (each contributes '1')
 
     // note that the data below omits start points for curves that match the previous end point
                       //  start     control     end
@@ -52,17 +47,17 @@ void SimplifyExample() {
     };
     // break the quads so that their control points lie inside the bounds
     // formed by the end points (i.e., find the quads' extrema)
-    AddQuads(contour, { context, &contour1[0], quadSize, quadType } );  // add curve to loop
-    Add(     contour, { context, &contour1[2], lineSize, lineType } );
-    Add(     contour, { context, &contour1[3], lineSize, lineType } );
+    AddQuads(winding.contour, { context, &contour1[0], quadSize, quadType } );  // add curve to loop
+    Add(     winding.contour, { context, &contour1[2], lineSize, lineType } );
+    Add(     winding.contour, { context, &contour1[3], lineSize, lineType } );
 
     OpPoint contour2[] { { 0, 0 },           { 1, 1 },  // line: start,          end
                                    { 1, 3 }, { 0, 3 },  // quad:        control, end
                                              { 0, 0 },  // line:                 end
     };
-    Add(     contour, { context, &contour2[0], lineSize, lineType } );  // add to second loop
-    AddQuads(contour, { context, &contour2[1], quadSize, quadType } );
-    Add(     contour, { context, &contour2[3], lineSize, lineType } );
+    Add(     winding.contour, { context, &contour2[0], lineSize, lineType } );  // add to second loop
+    AddQuads(winding.contour, { context, &contour2[1], quadSize, quadType } );
+    Add(     winding.contour, { context, &contour2[3], lineSize, lineType } );
 
     Resolve(context, nullptr);  // compute the output; for each curve, call pathOutput()
     DeleteContext(context);  // release memory allocated by context and contour

@@ -85,11 +85,10 @@ void skiaOutput(Curve c, bool firstPt, bool lastPt, PathOutput output) {
 }
 
 void SetSkiaCurveCallbacks(Context* context) {
-    SetCurveCallbacks(context, SkPath::kLine_Verb, { } );
+    lineCallbacks(context, SkPath::kLine_Verb);
     quadCallbacks(context, SkPath::kQuad_Verb);
     conicCallbacks(context, SkPath::kConic_Verb);
     cubicCallbacks(context, SkPath::kCubic_Verb);
-    OP_DEBUG_CODE(SetSkiaCurveCallbacksDebug(context));
 }
 
 void emptySkPathFunc(PathOutput output) {
@@ -98,25 +97,21 @@ void emptySkPathFunc(PathOutput output) {
 	skOutput->setFillType(SkPathFillType::kEvenOdd);
 }
 
-PathOpsV0Lib::CurveType setSkiaLineType(PathOpsV0Lib::Curve ) {
-    return SkPath::kLine_Verb;
-}
-
 void SetSkiaContextCallbacks(Context* context) {
 #if !OP_DEBUG_FAST_TEST && OP_DEBUG
     if (DebugAnalyze(context))
         return;
 #endif
-    SetContextCallbacks(context, { skiaOutput, setSkiaLineType, emptySkPathFunc });
+    SetContextCallbacks(context, { skiaOutput, emptySkPathFunc });
 }
 
 Contour* SetSkiaSimplifyCallbacks(Context* context, Winding winding,
         bool isWindingFill  OP_DEBUG_PARAMS(const SkPath* pathPtr)) {
     Contour* contour = CreateContour(context, winding);
-    WindingAdd addFunc = isWindingFill ? unaryWindingAddFunc : unaryEvenOddFunc;
-    WindingAdd subtractFunc = isWindingFill ? unaryWindingSubtractFunc : unaryEvenOddFunc;
-    SetWindingCallbacks(context, { addFunc, unaryWindingKeepFunc, unaryWindingVisibleFunc, 
-			unaryWindingZeroFunc, subtractFunc });
+    WindingAdd addFunc = isWindingFill ? unaryAddFunc : unaryEvenOddFunc;
+    WindingAdd subtractFunc = isWindingFill ? unarySubtractFunc : unaryEvenOddFunc;
+    SetWindingCallbacks(context, { addFunc, unaryKeepFunc, unaryVisibleFunc, 
+			unaryZeroFunc, subtractFunc });
     OP_DEBUG_CODE(if (pathPtr) SetSkiaSimplifyCallbacksDebug(context, contour, *pathPtr));
     return contour;
 }
@@ -124,31 +119,31 @@ Contour* SetSkiaSimplifyCallbacks(Context* context, Winding winding,
 void SetSkiaOpContextCallbacks(Context* context, SkPathOp op, BinaryWindType windType) {
     WindingKeep operatorFunc = nullptr;
     switch (op) {
-        case kDifference_SkPathOp: operatorFunc = binaryWindingDifferenceFunc; break;
-        case kIntersect_SkPathOp: operatorFunc = binaryWindingIntersectFunc; break;
-        case kUnion_SkPathOp: operatorFunc = binaryWindingUnionFunc; break;
-        case kXOR_SkPathOp: operatorFunc = binaryWindingExclusiveOrFunc; break;
-        case kReverseDifference_SkPathOp: operatorFunc = binaryWindingReverseDifferenceFunc; break;
+        case kDifference_SkPathOp: operatorFunc = binaryDifferenceFunc; break;
+        case kIntersect_SkPathOp: operatorFunc = binaryIntersectFunc; break;
+        case kUnion_SkPathOp: operatorFunc = binaryUnionFunc; break;
+        case kXOR_SkPathOp: operatorFunc = binaryExclusiveOrFunc; break;
+        case kReverseDifference_SkPathOp: operatorFunc = binaryReverseDifferenceFunc; break;
         default: OP_ASSERT(0);
     }
     WindingAdd addFunc = nullptr;
     switch (windType) {
         case BinaryWindType::evenOdd: addFunc = binaryEvenOddFunc; break;
-        case BinaryWindType::windLeft: addFunc = binaryWindingAddLeftFunc; break;
-        case BinaryWindType::windRight: addFunc = binaryWindingAddRightFunc; break;
-        case BinaryWindType::windBoth: addFunc = binaryWindingAddFunc; break;
+        case BinaryWindType::windLeft: addFunc = binaryAddLeftFunc; break;
+        case BinaryWindType::windRight: addFunc = binaryAddRightFunc; break;
+        case BinaryWindType::windBoth: addFunc = binaryAddFunc; break;
         default: OP_ASSERT(0);
     }
     WindingAdd subtractFunc = nullptr;
     switch (windType) {
         case BinaryWindType::evenOdd: break;
-        case BinaryWindType::windLeft: subtractFunc = binaryWindingSubtractLeftFunc; break;
-        case BinaryWindType::windRight: subtractFunc = binaryWindingSubtractRightFunc; break;
-        case BinaryWindType::windBoth: subtractFunc = binaryWindingSubtractFunc; break;
+        case BinaryWindType::windLeft: subtractFunc = binarySubtractLeftFunc; break;
+        case BinaryWindType::windRight: subtractFunc = binarySubtractRightFunc; break;
+        case BinaryWindType::windBoth: subtractFunc = binarySubtractFunc; break;
         default: OP_ASSERT(0);
     }
-    SetWindingCallbacks(context, { addFunc, operatorFunc, binaryWindingVisibleFunc, 
-			binaryWindingZeroFunc, subtractFunc });
+    SetWindingCallbacks(context, { addFunc, operatorFunc, binaryVisibleFunc, 
+			binaryZeroFunc, subtractFunc });
     OP_DEBUG_CODE(SetSkiaOpContextCallbacksDebug(context, op));
 }
 

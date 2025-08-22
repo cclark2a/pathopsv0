@@ -1,4 +1,6 @@
 // (c) 2024, Cary Clark cclark2@gmail.com
+#ifndef QuadBezier_DEFINED
+#define QuadBezier_DEFINED
 
 #include "PathOps.h"
 #if OP_DEBUG
@@ -242,17 +244,40 @@ inline OpPoint quadHull(Curve c, int index) {
     return OpPoint();
 }
 
+#if OP_DEBUG_DUMP
+inline std::string quadDebugDumpName() { 
+    return "quad"; 
+}
+
+#define QUAD_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(quadAxisT), \
+    OP_TAGGED_FUNCTION(quadRotatedT), \
+    OP_TAGGED_FUNCTION(quadHull), \
+    OP_TAGGED_FUNCTION(quadIsFinite), \
+    OP_TAGGED_FUNCTION(quadIsLine), \
+    OP_TAGGED_FUNCTION(quadSetBounds), \
+    OP_TAGGED_FUNCTION(quadTangent), \
+    OP_TAGGED_FUNCTION(quadsEqual), \
+    OP_TAGGED_FUNCTION(quadPtAtT), \
+    OP_TAGGED_FUNCTION(quadHullPtCount), \
+	OP_TAGGED_FUNCTION(quadRotate), \
+    OP_TAGGED_FUNCTION(quadSubDivide), \
+    OP_TAGGED_FUNCTION(quadXYAtT), \
+    OP_TAGGED_FUNCTION(quadDebugDumpName), \
+
+#endif
+
 inline void quadCallbacks(Context* context, int nativeCurveType) {
     SetCurveCallbacks(context, nativeCurveType, 
             { quadAxisT, quadRotatedT, quadHull, quadIsFinite, 
             quadIsLine, quadSetBounds, quadTangent, quadsEqual, quadPtAtT, nullptr, quadHullPtCount,  
 			quadRotate, quadSubDivide, quadXYAtT });
+    SetDebugCurveCallbacks(context, nativeCurveType, { debugQuadScale
+        OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, nullptr)
+        OP_DEBUG_IMAGE_PARAMS(debugQuadToSkPath) 
+        OP_DEBUG_RASTER_PARAMS(debugRasterAdd) });
 }
 
-#if OP_DEBUG_DUMP
-inline std::string quadDebugDumpName() { 
-    return "quad"; 
 }
+
 #endif
-
-}

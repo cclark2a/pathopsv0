@@ -51,7 +51,6 @@ void SetSkiaSimplifyCallbacksDebug(PathOpsV0Lib::Context* , PathOpsV0Lib::Contou
 void SetSkiaOpContextCallbacksDebug(PathOpsV0Lib::Context* , SkPathOp );
 void SetSkiaOpContourCallbacksDebug(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* ,
         PathOpsV0Lib::BinaryOperand , const SkPath& );
-void SetSkiaCurveCallbacksDebug(PathOpsV0Lib::Context* );
 
 #if TEST_ANALYZE
 // used to break down tests that are too large to debug directly
@@ -60,13 +59,6 @@ void AddDebugSkiaPath(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* , const Sk
 
 #if !OP_TINY_SKIA
 std::string dumpSkPath(const SkPath* path, bool inHex);
-#endif
-
-#if OP_DEBUG_IMAGE
-void debugLineAddToSkPath(PathOpsV0Lib::Curve , SkPath& );
-void debugQuadAddToSkPath(PathOpsV0Lib::Curve , SkPath& );
-void debugConicAddToSkPath(PathOpsV0Lib::Curve , SkPath& );
-void debugCubicAddToSkPath(PathOpsV0Lib::Curve , SkPath& );
 #endif
 
 #endif

@@ -386,17 +386,20 @@ extern void oo();
 
 namespace PathOpsV0Lib {
 	struct Curve;
-}
 
-extern void debugLineAddToSkPath(PathOpsV0Lib::AddCurve c, class SkPath& path);
-extern void debugQuadAddToSkPath(PathOpsV0Lib::AddCurve c, class SkPath& path);
-extern void debugConicAddToSkPath(PathOpsV0Lib::AddCurve c, class SkPath& path);
-extern void debugCubicAddToSkPath(PathOpsV0Lib::AddCurve c, class SkPath& path);
-extern void debugLineAddToSkPath(PathOpsV0Lib::Curve c, class SkPath& path);
-extern void debugQuadAddToSkPath(PathOpsV0Lib::Curve c, class SkPath& path);
-extern void debugConicAddToSkPath(PathOpsV0Lib::Curve c, class SkPath& path);
-extern void debugCubicAddToSkPath(PathOpsV0Lib::Curve c, class SkPath& path);
+    extern void debugLineToSkPath(PathOpsV0Lib::Curve c, class SkPath& path);
+    extern void debugQuadToSkPath(PathOpsV0Lib::Curve c, class SkPath& path);
+    extern void debugConicToSkPath(PathOpsV0Lib::Curve c, class SkPath& path);
+    extern void debugCubicToSkPath(PathOpsV0Lib::Curve c, class SkPath& path);
+
+#define DEBUG_TO_SKPATH_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(debugLineToSkPath), \
+    OP_TAGGED_FUNCTION(debugQuadToSkPath), \
+    OP_TAGGED_FUNCTION(debugConicToSkPath), \
+    OP_TAGGED_FUNCTION(debugCubicToSkPath), \
 
 #endif
+
+}
 
 #endif

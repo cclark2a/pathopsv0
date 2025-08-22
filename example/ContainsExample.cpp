@@ -1,5 +1,6 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 
+#include "curves/Line.h"
 #include "curves/QuadBezier.h"
 #include "curves/FrameWinding.h"
 
@@ -26,17 +27,13 @@ static WindingCondition frameFullyContainsFunc(Context* , WindKeep keep) {
 }
 
 void ContainsExample() {
-    Context* context = CreateContext();
-    SetContextCallbacks(context, { } );
-
-    SetCurveCallbacks(context, lineType, { } );
+    Context* context = frameContext();
+    lineCallbacks(context, lineType);
     quadCallbacks(context, quadType);
 
     // example: given points describing a pair of closed loops with quadratic Beziers, find
     //          their intersection
-    FrameWinding windingData(FrameFill::frame, 1);
-    Winding frameWinding { &windingData, sizeof(windingData) };
-    Contour* frameContour = CreateContour(context, frameWinding);
+    FrameWinding frameWinding(context, FrameFill::frame);
 
     // note that the data below omits start points for curves that match the previous end point
                       //  start    control     end
@@ -46,20 +43,18 @@ void ContainsExample() {
     };
     // break the quads so that their control points lie inside the bounds
     // formed by the end points (i.e., find the quads' extrema)
-    AddQuads(frameContour, { context, &contour1[0], quadSize, quadType } );
-    Add(     frameContour, { context, &contour1[2], lineSize, lineType } );
-    Add(     frameContour, { context, &contour1[3], lineSize, lineType } );
+    AddQuads(frameWinding.contour, { context, &contour1[0], quadSize, quadType } );
+    Add(     frameWinding.contour, { context, &contour1[2], lineSize, lineType } );
+    Add(     frameWinding.contour, { context, &contour1[3], lineSize, lineType } );
 
-    FrameWinding fillData(FrameFill::fill, 1);
-    Winding fillWinding { &fillData, sizeof(fillData) };
-    Contour* fillContour = CreateContour(context, fillWinding);
+    FrameWinding fillWinding(context, FrameFill::fill);
     OpPoint contour2[] { { 0, 0 },           { 1, 1 },  // line: start,          end
                                    { 1, 3 }, { 0, 3 },  // quad:        control, end
                                              { 0, 0 },  // line:                 end
     };
-    Add(     fillContour, { context, &contour2[0], lineSize, lineType } );
-    AddQuads(fillContour, { context, &contour2[1], quadSize, quadType } );
-    Add(     fillContour, { context, &contour2[3], lineSize, lineType } );
+    Add(     fillWinding.contour, { context, &contour2[0], lineSize, lineType } );
+    AddQuads(fillWinding.contour, { context, &contour2[1], quadSize, quadType } );
+    Add(     fillWinding.contour, { context, &contour2[3], lineSize, lineType } );
 
 	SetErrorHandler(context, allowDisjointLines);
     auto handleError = [context](WindingCondition result, WindingCondition expected) {

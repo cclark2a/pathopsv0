@@ -5,7 +5,7 @@
 #include "curves/ConicBezier.h"
 #include "curves/CubicBezier.h"
 #include "curves/QuadBezier.h"
-#include "curves/BinaryWinding.h"
+#include "curves/binaryWinding.h"
 #include "curves/FrameWinding.h"
 #include "curves/UnaryWinding.h"
 #if 0 // emscripten as of 12/7/2024 does not support std::from_chars
@@ -576,76 +576,39 @@ static void Path2DOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathO
 	output->commonOutput(c, firstPt, lastPt);
 }
 
-static PathOpsV0Lib::CurveType LineType(PathOpsV0Lib::Curve ) {
-	return (CurveType) Types::line;
-}
-
 static void SetupCurves(Context* context) {
-    SetCurveCallbacks(context, (int) Types::line, { } );
+    lineCallbacks(context, (int) Types::line);
     quadCallbacks(context, (int) Types::quad);
     conicCallbacks(context, (int) Types::conic);
     cubicCallbacks(context, (int) Types::cubic);
-	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, (int) Types::line, { debugLineScale
-            OP_DEBUG_DUMP_PARAMS(lineDebugDumpName, nullptr)
-            OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath) }));
-	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, (int) Types::quad, { debugQuadScale
-            OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, nullptr)
-            OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath) }));
-	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, (int) Types::conic, { debugConicScale
-            OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
-            OP_DEBUG_IMAGE_PARAMS(debugConicAddToSkPath) }));
-	OP_DEBUG_CODE(SetDebugCurveCallbacks(context, (int) Types::cubic, { debugCubicScale
-            OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, nullptr)
-            OP_DEBUG_IMAGE_PARAMS(debugCubicAddToSkPath) }));
 }
 
 ContextError FillPath::opCommon(FillPath& path, Ops oper) {
-	Context* context = CreateContext();
-	SetContextCallbacks(context, { Path2DOutput, LineType, EmptyFunc });	
-
+	Context* context = binaryContext(Path2DOutput, EmptyFunc);
 	WindingKeep operatorFunc = nullptr;
 	switch (oper) {
-		case Ops::diff: operatorFunc = binaryWindingDifferenceFunc; break;
-		case Ops::sect: operatorFunc = binaryWindingIntersectFunc; break;
-		case Ops::_union: operatorFunc = binaryWindingUnionFunc; break;
-		case Ops::revDiff: operatorFunc = binaryWindingReverseDifferenceFunc; break;
-		case Ops::_xor: operatorFunc = binaryWindingExclusiveOrFunc; break;
+		case Ops::diff: operatorFunc = binaryDifferenceFunc; break;
+		case Ops::sect: operatorFunc = binaryIntersectFunc; break;
+		case Ops::_union: operatorFunc = binaryUnionFunc; break;
+		case Ops::revDiff: operatorFunc = binaryReverseDifferenceFunc; break;
+		case Ops::_xor: operatorFunc = binaryExclusiveOrFunc; break;
 		default: OP_ASSERT(0);
 	}
-	SetWindingCallbacks(context, { binaryWindingAddFunc, operatorFunc, binaryWindingVisibleFunc, 
-			binaryWindingZeroFunc, binaryWindingSubtractFunc });
-
-#if OP_DEBUG
-	SetDebugContextCallbacks(context, {
-			OP_DEBUG_DUMP_CODE(nullptr, binaryWindingDumpOutFunc)
-			OP_DEBUG_IMAGE_PARAMS(binaryWindingImageOutFunc) } );
-#endif
+	SetWindingCallbacks(context, { binaryAddFunc, operatorFunc, binaryVisibleFunc, 
+			binaryZeroFunc, binarySubtractFunc });
 	SetupCurves(context);
-	int leftData[] = { 1, 0 };
-	Winding leftWinding { leftData, sizeof(leftData) };
-	Contour* left = CreateContour(context, leftWinding);
-	opAddPath(context, left, true);
-	int rightData[] = { 0, 1 };
-	Winding rightWinding { rightData, sizeof(rightData) };
-	Contour* right = CreateContour(context, rightWinding);
-	path.opAddPath(context, right, true);
+	BinaryWinding leftWinding(context, BinaryOperand::left);
+	opAddPath(context, leftWinding.contour, true);
+	BinaryWinding rightWinding(context, BinaryOperand::right);
+	path.opAddPath(context, rightWinding.contour, true);
 	return handleError(context);
 }
 
 ContextError FillPath::simplify() {
-	Context* context = CreateContext();
-	SetContextCallbacks(context, { Path2DOutput, LineType, EmptyFunc });	
-    unaryCallbacks(context);
-#if OP_DEBUG
-	SetDebugContextCallbacks(context, {
-			OP_DEBUG_DUMP_CODE(nullptr, unaryWindingDumpOutFunc)
-			OP_DEBUG_IMAGE_PARAMS(unaryWindingImageOutFunc) } );
-#endif
+	Context* context = unaryContext(Path2DOutput, EmptyFunc);
 	SetupCurves(context);
-    int simpleData[] = { 1 };
-    Winding simpleWinding { simpleData, sizeof(simpleData) };
-	Contour* simple = CreateContour(context, simpleWinding);
-    opAddPath(context, simple, true);
+    UnaryWinding simpleWinding(context);
+    opAddPath(context, simpleWinding.contour, true);
 	return handleError(context);
 }
 
@@ -663,36 +626,17 @@ ContextError Path::handleError(Context* context) {
 	return error;
 }
 
-#if OP_DEBUG_IMAGE
-std::string frameWindingImageOutFunc(Winding winding, int index) {
-    if (index > 0)
-        return "-";
-    FrameWinding frameWinding(winding);
-    std::string s = STR(frameWinding.left);
-    return s;
-}
-#endif
-
 ContextError FramePath::opCommon(FillPath& path, Ops oper) {
 	Context* context = CreateContext();
-    SetContextCallbacks(context, { Path2DOutput, LineType, EmptyFunc });
+    SetContextCallbacks(context, { Path2DOutput, EmptyFunc });
 	WindingKeep operatorFunc = Ops::sect == oper ? frameKeepFunc : frameDiscardFunc;
     SetWindingCallbacks(context, { frameAddFunc, operatorFunc, frameVisibleFunc, 
             frameZeroFunc, frameSubtractFunc });
-#if OP_DEBUG
-	SetDebugContextCallbacks(context, {
-            OP_DEBUG_DUMP_CODE(nullptr, frameDumpOutFunc)
-            OP_DEBUG_IMAGE_PARAMS(frameWindingImageOutFunc) });
-#endif
 	SetupCurves(context);
-    FrameWinding frameData(FrameFill::frame, 1);
-    Winding frameWinding { &frameData, sizeof(frameData) };
-    Contour* frameContour = CreateContour(context, frameWinding);
-	opAddPath(context, frameContour, false);
-    FrameWinding fillData(FrameFill::fill, 1);
-    Winding fillWinding { &fillData, sizeof(fillData) };
-    Contour* fillContour = CreateContour(context, fillWinding);
-	path.opAddPath(context, fillContour, true);
+    FrameWinding frameWinding(context, FrameFill::frame);
+	opAddPath(context, frameWinding.contour, false);
+    FrameWinding fillWinding(context, FrameFill::fill);
+	path.opAddPath(context, fillWinding.contour, true);
 	SetErrorHandler(context, allowDisjointLines);
 	return handleError(context);
 }

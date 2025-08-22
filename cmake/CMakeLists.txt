@@ -76,7 +76,7 @@ set (COMMON_SOURCES
 )
 
 # Add source to this project's executable.
-add_executable (skia_test skiatest.cpp
+add_executable (skia_test
 	"../debug/OpDebugColor.cpp"
 	"../debug/OpDebugCompare.cpp"
 	"../debug/OpDebugDouble.cpp"

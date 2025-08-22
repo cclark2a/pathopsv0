@@ -1,6 +1,9 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
+#ifndef ConicBezier_DEFINED
+#define ConicBezier_DEFINED
 
 #include "PathOps.h"
+#include "DebugOps.h"
 
 namespace PathOpsV0Lib {
 
@@ -312,13 +315,6 @@ inline OpPoint conicHull(Curve c, int index) {
     return OpPoint();
 }
 
-inline void conicCallbacks(Context* context, int nativeCurveType) {
-    SetCurveCallbacks(context, nativeCurveType, { conicAxisT,
-			conicRotatedT, conicHull, conicIsFinite, conicIsLine, conicSetBounds,
-			conicTangent, conicsEqual, conicPtAtT, nullptr, conicHullPtCount, conicRotate, 
-			conicSubDivide, conicXYAtT });
-}
-
 #if OP_DEBUG_DUMP
 inline std::string conicDebugDumpName() { 
     return "conic"; 
@@ -328,6 +324,37 @@ inline std::string conicDebugDumpExtra(Curve c, DebugLevel l, DebugBase b) {
     PointWeight control(c);
     return debugValue(l, b, " weight", control.weight);
 }
+
+inline void conicCallbacks(Context* context, int nativeCurveType) {
+    SetCurveCallbacks(context, nativeCurveType, { conicAxisT,
+			conicRotatedT, conicHull, conicIsFinite, conicIsLine, conicSetBounds,
+			conicTangent, conicsEqual, conicPtAtT, nullptr, conicHullPtCount, conicRotate, 
+			conicSubDivide, conicXYAtT });
+	SetDebugCurveCallbacks(context, nativeCurveType, { debugConicScale
+            OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
+            OP_DEBUG_IMAGE_PARAMS(debugConicToSkPath) 
+            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) });
+}
+
+#define CONIC_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(conicAxisT), \
+    OP_TAGGED_FUNCTION(conicRotatedT), \
+    OP_TAGGED_FUNCTION(conicHull), \
+    OP_TAGGED_FUNCTION(conicIsFinite), \
+    OP_TAGGED_FUNCTION(conicIsLine), \
+    OP_TAGGED_FUNCTION(conicSetBounds), \
+    OP_TAGGED_FUNCTION(conicTangent), \
+    OP_TAGGED_FUNCTION(conicsEqual), \
+    OP_TAGGED_FUNCTION(conicPtAtT), \
+    OP_TAGGED_FUNCTION(conicHullPtCount), \
+	OP_TAGGED_FUNCTION(conicRotate), \
+    OP_TAGGED_FUNCTION(conicSubDivide), \
+    OP_TAGGED_FUNCTION(conicXYAtT), \
+    OP_TAGGED_FUNCTION(conicDebugDumpName), \
+    OP_TAGGED_FUNCTION(conicDebugDumpExtra), \
+
 #endif
 
 }
+
+#endif

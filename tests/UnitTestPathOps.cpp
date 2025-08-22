@@ -509,6 +509,7 @@ void validateHTML() {
 #define TEST_SMALL_TESTS 01
 
 extern void ContainsExample();
+extern void CutExample();
 extern void FrameExample();
 extern void HTMLCanvasExample();
 extern void SimplifyExample();
@@ -530,6 +531,7 @@ void OpTest(bool terminateEarly) {
     }
 #endif
 #if TEST_SMALL_EXAMPLES
+    CutExample();
     SimplifyExample();
     ContainsExample();
     HTMLCanvasExample();

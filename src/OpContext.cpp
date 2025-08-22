@@ -545,6 +545,16 @@ void OpContext::opsInit() {
 WindingCondition OpContext::pathOps() {
 	opsInit();
 	if (!windingSet) {
+        auto checkEmpty = [this]() {
+	        if (empty()) {
+                PathOpsV0Lib::EmptyCallerPath emptyPath = contextCallbacks.emptyCallerPathFuncPtr;
+                if (emptyPath)
+		            (*emptyPath)(callerOutput);
+		        OP_ASSERT(debugSuccess());  // break to verify that this is correct
+                return true;
+	        }
+            return false;
+        };
         windingSet = true;
         OpSegments segments(*this);
 	    segments.findCoincidences();
@@ -552,10 +562,8 @@ WindingCondition OpContext::pathOps() {
 	    OpSegments sortedSegments(*this);
 	    sortedSegments.initInX();
 	    debugValidateIntersections();
-	    if (empty()) {
-		    contextCallbacks.emptyCallerPathFuncPtr(callerOutput);
-		    OP_DEBUG_SUCCESS(*this, 0);
-	    }
+	    if (checkEmpty())
+		    return 0;
 	    if (FoundIntersections::fail == sortedSegments.findIntersections())
 		    return setError(PathOpsV0Lib::ContextError::intersection  
 				    OP_DEBUG_PARAMS(sortedSegments.debugFailSegID));
@@ -566,10 +574,8 @@ WindingCondition OpContext::pathOps() {
 		        addDisjointIntersections();
 	    }
 	    disableSmallSegments();  // moved points may allow disabling some segments
-	    if (empty()) {
-		    contextCallbacks.emptyCallerPathFuncPtr(callerOutput);  // no existing tests exercises
-		    OP_DEBUG_SUCCESS(*this, 0);
-	    }
+	    if (checkEmpty())
+		    return 0;  // no existing tests exercises
 	    sortIntersections();
 	    if (!fixCCSects())  // curve-curve intersections may have enough error to put sect list out of order
 		    OP_DEBUG_FAIL(*this, -1);
@@ -593,6 +599,10 @@ WindingCondition OpContext::pathOps() {
     }
 	WindingCondition windingCondition = apply();  // suppress edges which don't meet op criteria
 //	demotePalLinks();  // mark edges that connect pal ends as unsortable so assembly can ignore them
+#if 1
+    dmpFile(this);
+    verifyFile(this);
+#endif
 	if (!windingCondition && !assemble())
 		OP_DEBUG_FAIL(*this, -1);
 	// !!! missing final step to reverse order of contours as winding rule requires

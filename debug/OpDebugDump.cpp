@@ -266,7 +266,7 @@ struct enum##Name { \
     const char* abbr; \
 }
 
-
+// !!! it would be nice if this used static assert instead...
 #define ENUM_NAME(Enum, enum) \
 static bool enum##OutOfDate = false; \
 \
@@ -577,10 +577,10 @@ std::string debugDumpIntersections() {
     return s;
 }
 
-void dmpFile() {
+void dmpFile(OpContext* context) {
     FILE* file = fopen("dmp.txt", "w");
     std::string s;
-    s += debugGlobalContext->debugDump(DebugLevel::file, DebugBase::hex);
+    s += context->debugDump(DebugLevel::file, DebugBase::hex);
     int saveWidth = lineWidth;
     lineWidth = 100;
     s = stringFormat(s);
@@ -920,96 +920,475 @@ std::string OpPtAliases::debugDump(DebugLevel l, DebugBase b) const {
     }
     s += "] maps[\n";
     for (OpPtAlias map : maps) {
-        s += map.original.debugDump(l, b) + ":" + map.alias.debugDump(l, b) + "\n";
+        s += map.original.debugDump(l, b) + ":";
+        s += map.alias.debugDump(l, b) + "\n";
     }
     s += "] threshold:" + threshold.debugDump(l, b);
     return s;
 }
 
+void OpPtAliases::dumpSet(const char*& str) {
+    OpDebugRequired(str, "aliases");
+    size_t size = OpDebugReadSizeT(str);
+    aliases.resize(size);
+    for (auto& alias : aliases) {
+        alias.dumpSet(str);
+    }
+    OpDebugRequired(str, "maps");
+    size = OpDebugReadSizeT(str);
+    maps.resize(size);
+    for (auto& map : maps) {
+        map.original.dumpSet(str);
+        map.alias.dumpSet(str);
+    }
+    OpDebugRequired(str, "threshold");
+    threshold.dumpSet(str);
+}
+
+namespace PathOpsV0Lib {
+
+ENUM_NAME_STRUCT(ContextError);
+#define CONTEXT_ERROR_NAME(r) { ContextError::r, #r }
+
+ContextErrorName contextErrorNames[] = {
+	CONTEXT_ERROR_NAME(none),
+	CONTEXT_ERROR_NAME(end),
+    CONTEXT_ERROR_NAME(finite),
+    CONTEXT_ERROR_NAME(gap),
+	CONTEXT_ERROR_NAME(intersection),
+	CONTEXT_ERROR_NAME(loop),
+	CONTEXT_ERROR_NAME(missing),
+	CONTEXT_ERROR_NAME(toVertical),
+    CONTEXT_ERROR_NAME(tree),
+};
+
+ENUM_NAME(ContextError, contextError)
+
+}
+
+// macro checks that function ptrs are consecutive
+#define DEBUG_FIND_TAG(callback, last, thisField) \
+    static_assert(offsetof(std::remove_reference_t<decltype(callback)>, last) + sizeof(callback.last) \
+        == offsetof(std::remove_reference_t<decltype(callback)>, thisField)); \
+    s += debugFindTag(reinterpret_cast<DebugFunction>(callback.thisField))
+
+// use static asserts throughout to ensure that all of context is serialized
+#define STATIC_ASSERT(inst, last, thisField) \
+    static_assert(offsetof(std::remove_reference_t<decltype(*inst)>, last) + sizeof(inst->last) == \
+            offsetof(std::remove_reference_t<decltype(*inst)>, thisField))
+
+#define DEBUG_DUMP_BOOL(inst, last, thisBool) \
+    static_assert(offsetof(std::remove_reference_t<decltype(*inst)>, last) + sizeof(inst->last) == \
+            offsetof(std::remove_reference_t<decltype(*inst)>, thisBool)); \
+    if (thisBool) s += #thisBool " "
+
 std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    if (aliases.maps.size())
+    static_assert(0 == offsetof(OpContext, aliases));
+    if (aliases.maps.size()) {
+        s += "aliases:";
         s += aliases.debugDump(l, b) + "\n";
+    }
+    STATIC_ASSERT(this, aliases, callbacks);
+    s += "callbacks:" + STR(callbacks.size()) + "\n";
+    for (auto& callback : callbacks) {
+        static_assert(0 == offsetof(PathOpsV0Lib::CurveCallbacks, axisTFuncPtr));
+        s += debugFindTag(reinterpret_cast<DebugFunction>(callback.axisTFuncPtr));
+	    DEBUG_FIND_TAG(callback, axisTFuncPtr,          rotateTFuncPtr);
+	    DEBUG_FIND_TAG(callback, rotateTFuncPtr,        curveHullFuncPtr);
+	    DEBUG_FIND_TAG(callback, curveHullFuncPtr,      curveIsFiniteFuncPtr);
+	    DEBUG_FIND_TAG(callback, curveIsFiniteFuncPtr,  curveIsLineFuncPtr);
+	    DEBUG_FIND_TAG(callback, curveIsLineFuncPtr,    setBoundsFuncPtr);
+	    DEBUG_FIND_TAG(callback, setBoundsFuncPtr,      curveTangentFuncPtr);
+	    DEBUG_FIND_TAG(callback, curveTangentFuncPtr,   curvesEqualFuncPtr);
+	    DEBUG_FIND_TAG(callback, curvesEqualFuncPtr,    ptAtTFuncPtr);
+	    DEBUG_FIND_TAG(callback, ptAtTFuncPtr,          ptDAtTFuncPtr);
+	    DEBUG_FIND_TAG(callback, ptDAtTFuncPtr,         ptCountFuncPtr);
+	    DEBUG_FIND_TAG(callback, ptCountFuncPtr,        rotateFuncPtr);
+	    DEBUG_FIND_TAG(callback, rotateFuncPtr,         subDivideFuncPtr);
+	    DEBUG_FIND_TAG(callback, subDivideFuncPtr,      xyAtTFuncPtr);
+	    DEBUG_FIND_TAG(callback, xyAtTFuncPtr,          curveReverseFuncPtr);
+	    DEBUG_FIND_TAG(callback, curveReverseFuncPtr,   crossThresholdFuncPtr);
+	    DEBUG_FIND_TAG(callback, crossThresholdFuncPtr, cutFuncPtr);
+	    DEBUG_FIND_TAG(callback, cutFuncPtr,            interceptFuncPtr);
+	    DEBUG_FIND_TAG(callback, interceptFuncPtr,      normalLimitFuncPtr);
+        static_assert(offsetof(PathOpsV0Lib::CurveCallbacks, normalLimitFuncPtr) 
+                + sizeof(callback.normalLimitFuncPtr) == sizeof(callback));
+    }
+    STATIC_ASSERT(this, callbacks, nativeCurveTypes);
+    s += "nativeCurveTypes:" + STR(nativeCurveTypes.size()) + " ";
+    for (int nativeCurveType : nativeCurveTypes) {
+        s += STR(nativeCurveType) + " ";
+    }
+    s += "\n";
+    STATIC_ASSERT(this, nativeCurveTypes, contextCallbacks);
+    static_assert(0 == offsetof(PathOpsV0Lib::ContextCallbacks, curveOutputFuncPtr));
+    s += debugFindTag(reinterpret_cast<DebugFunction>(contextCallbacks.curveOutputFuncPtr));
+	DEBUG_FIND_TAG(contextCallbacks, curveOutputFuncPtr, emptyCallerPathFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, emptyCallerPathFuncPtr, setLineTypeFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, setLineTypeFuncPtr, maxSplitFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, maxSplitFuncPtr, maxBoundedEdgeFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, maxBoundedEdgeFuncPtr, maxSignSwapFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, maxSignSwapFuncPtr, maxTSlopFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, maxTSlopFuncPtr, maxSplitBiasFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, maxSplitBiasFuncPtr, maxOverlapFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, maxOverlapFuncPtr, maxUnsectableFuncPtr);
+    DEBUG_FIND_TAG(contextCallbacks, maxUnsectableFuncPtr, maxDistFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, maxDistFuncPtr, maxDeepFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, maxDeepFuncPtr, maxShallowFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, maxShallowFuncPtr, maxSplitsFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, maxSplitsFuncPtr, maxMarginFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, maxMarginFuncPtr, maxUnsectableTFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, maxUnsectableTFuncPtr, maxCheckSplitFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, maxCheckSplitFuncPtr, maxLimbsFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, maxLimbsFuncPtr, maxGapFuncPtr);
+    static_assert(offsetof(PathOpsV0Lib::ContextCallbacks, maxGapFuncPtr) 
+            + sizeof(contextCallbacks.maxGapFuncPtr) == sizeof(contextCallbacks));
+    STATIC_ASSERT(this, contextCallbacks, windingCallbacks);
+    static_assert(0 == offsetof(PathOpsV0Lib::WindingCallbacks, windingAddFuncPtr));
+	s += debugFindTag(reinterpret_cast<DebugFunction>(windingCallbacks.windingAddFuncPtr));
+	DEBUG_FIND_TAG(windingCallbacks, windingAddFuncPtr, windingKeepFuncPtr);
+	DEBUG_FIND_TAG(windingCallbacks, windingKeepFuncPtr, windingVisibleFuncPtr);
+    DEBUG_FIND_TAG(windingCallbacks, windingVisibleFuncPtr, windingZeroFuncPtr);
+	DEBUG_FIND_TAG(windingCallbacks, windingZeroFuncPtr, windingSubtractFuncPtr);
+    DEBUG_FIND_TAG(windingCallbacks, windingSubtractFuncPtr, windingIntersectFuncPtr);
+    DEBUG_FIND_TAG(windingCallbacks, windingIntersectFuncPtr, windingShortFuncPtr);
+    DEBUG_FIND_TAG(windingCallbacks, windingShortFuncPtr, windingShortAllFuncPtr);
+    static_assert(offsetof(PathOpsV0Lib::WindingCallbacks, windingShortAllFuncPtr) 
+            + sizeof(windingCallbacks.windingShortAllFuncPtr) == sizeof(windingCallbacks));
+    STATIC_ASSERT(this, windingCallbacks, callerOutput);  // omit callerOutput
+    STATIC_ASSERT(this, callerOutput, errorHandler);  // omit errorHandler
+    STATIC_ASSERT(this, errorHandler, sortedContours);
+    if (!sortedContours.empty()) {
+        s += "sortedContours:" + STR(sortedContours.size()) + " ";
+        for (auto sortedContour : sortedContours) {
+            s += STR(sortedContour->id) + " ";
+        }
+        s += "\n";
+    }
+    STATIC_ASSERT(this, sortedContours, ccStorage);
+    if (ccStorage)
+        s += ccStorage->debugDump("ccStorage", l, b) + "\n";
+    STATIC_ASSERT(this, ccStorage, curveDataStorage);
     if (curveDataStorage) {
         s += "curveDataStorage:";
         s += curveDataStorage->debugDump(l, b) + "\n";
     }
+    STATIC_ASSERT(this, curveDataStorage, contourStorage);
+    if (contourStorage)
+        s += contourStorage->debugDump(l, b) + "\n";
+    STATIC_ASSERT(this, contourStorage, contours);
+    if (!contours.empty()) {
+        s += "contours:" + STR(contours.size()) + " ";
+        for (auto contour : contours) {
+            s += STR(contour->id) + " ";
+        }
+        s += "\n";
+    }
+    STATIC_ASSERT(this, contours, fillerStorage);
+    if (fillerStorage)
+        s += fillerStorage->debugDump("fillerStorage", l, b) + "\n";
+    STATIC_ASSERT(this, fillerStorage, sectStorage);
+    if (sectStorage)
+        s += sectStorage->debugDump(l, b) + "\n";
+    STATIC_ASSERT(this, sectStorage, limbStorage);
+    if (limbStorage)
+        s += limbStorage->debugDump(l, b) + "\n";
+    STATIC_ASSERT(this, limbStorage, limbCurrent);  // omit limbCurrent
+    STATIC_ASSERT(this, limbCurrent, callerStorage);
     if (callerStorage) {
         s += "callerStorage:";
         s += callerStorage->debugDump(l, b) + "\n";
     }
-    if (contourStorage)
-        s += contourStorage->debugDump(l, b) + "\n";
-    if (ccStorage)
-        s += ccStorage->debugDump("ccStorage", l, b) + "\n";
-    // skip contour iterator for now
-    if (fillerStorage)
-        s += fillerStorage->debugDump("fillerStorage", l, b) + "\n";
-    if (sectStorage)
-        s += sectStorage->debugDump(l, b) + "\n";
-    if (limbStorage)
-        s += limbStorage->debugDump(l, b) + "\n";
+    STATIC_ASSERT(this, callerStorage, userData);  // omit userData
+    STATIC_ASSERT(this, userData, maxBounds);
+    if (maxBounds.isFinite()) {
+        s += "maxBounds:";
+        s += maxBounds.debugDump(l, b) + "\n"; 
+    }
+    STATIC_ASSERT(this, maxBounds, error);
+    if (PathOpsV0Lib::ContextError::none != error)
+        s += "error:" + PathOpsV0Lib::contextErrorName(error) + "\n";
+    STATIC_ASSERT(this, error, uniqueID);
     s += "uniqueID:" + STR(uniqueID) + " ";
+    DEBUG_DUMP_BOOL(this, uniqueID, initialized);
+    DEBUG_DUMP_BOOL(this, initialized, allDiscarded);
+    DEBUG_DUMP_BOOL(this, allDiscarded, allKept);
+    DEBUG_DUMP_BOOL(this, allKept, fatalError);
+    DEBUG_DUMP_BOOL(this, fatalError, outputOne);
+    DEBUG_DUMP_BOOL(this, outputOne, linkErased);
+    DEBUG_DUMP_BOOL(this, linkErased, windingSet);
+    STATIC_ASSERT(this, windingSet, dumpDummy);
 #if OP_DEBUG_VALIDATE
+    STATIC_ASSERT(this, dumpDummy, debugValidateEdgeIndex);
     s += "debugValidateEdgeIndex:" + STR(debugValidateEdgeIndex) + " ";
+    STATIC_ASSERT(this, debugValidateEdgeIndex, debugValidateJoinerIndex);
     s += "debugValidateJoinerIndex:" + STR(debugValidateJoinerIndex) + " ";
+    STATIC_ASSERT(this, debugValidateJoinerIndex, debugCallbacks);
+#else
+    STATIC_ASSERT(this, dumpDummy, debugCallbacks);
 #endif
     s.pop_back();
     s += "\n";
 #if OP_DEBUG
+    if (!debugCallbacks.empty()) {
+        s += "debugCallbacks:" + STR(debugCallbacks.size()) + "\n";
+        for (auto& debugCallback : debugCallbacks) {
+            static_assert(0 == offsetof(PathOpsV0Lib::DebugCurveCallbacks, scaleFuncPtr));
+            s += debugFindTag(reinterpret_cast<DebugFunction>(debugCallback.scaleFuncPtr));
+	        DEBUG_FIND_TAG(debugCallback, scaleFuncPtr,      curveNameFuncPtr);
+	        DEBUG_FIND_TAG(debugCallback, curveNameFuncPtr, curveExtraFuncPtr);
+#if OP_DEBUG_IMAGE
+	        DEBUG_FIND_TAG(debugCallback, curveExtraFuncPtr, addToPathFuncPtr);
+            static_assert(offsetof(PathOpsV0Lib::DebugCurveCallbacks, addToPathFuncPtr) 
+                    + sizeof(debugCallback.addToPathFuncPtr) == sizeof(debugCallback));
+#else
+            static_assert(offsetof(PathOpsV0Lib::DebugCurveCallbacks, curveExtraFuncPtr) 
+                    + sizeof(debugCallback.curveExtraFuncPtr) == sizeof(debugCallback));
+#endif
+        }
+    }
+
+    // add debugContextCallbacks
+    STATIC_ASSERT(this, debugCallbacks, debugContextCallbacks);
+    static_assert(0 == offsetof(PathOpsV0Lib::DebugContextCallbacks, debugDumpContextExtraFuncPtr));
+    s += debugFindTag(reinterpret_cast<DebugFunction>(debugContextCallbacks.debugDumpContextExtraFuncPtr));
+    DEBUG_FIND_TAG(debugContextCallbacks, debugDumpContextExtraFuncPtr, debugDumpWindingOutFuncPtr);
+    DEBUG_FIND_TAG(debugContextCallbacks, debugDumpWindingOutFuncPtr, debugDumpWindingSetFuncPtr);
+#if OP_DEBUG_IMAGE
+    DEBUG_FIND_TAG(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugImageWindingOutFuncPtr);
+    static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugImageWindingOutFuncPtr) 
+            + sizeof(debugContextCallbacks.debugImageWindingOutFuncPtr) == sizeof(debugContextCallbacks));
+
+#else
+    static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugDumpWindingSetFuncPtr) 
+            + sizeof(debugContextCallbacks.debugDumpWindingSetFuncPtr) == sizeof(debugContextCallbacks));
+
+#endif
+    STATIC_ASSERT(this, debugContextCallbacks, debugContextData);  // omit debugContextData
+    STATIC_ASSERT(this, debugContextData, debugData);  // omit debugData (!!! omit for now, may have uses...)
+    STATIC_ASSERT(this, debugData, debugCurveCurve);
     if (debugCurveCurve)
         s += "debugCurveCurve:" + debugCurveCurve->debugDump(l, b) + "\n";
+    STATIC_ASSERT(this, debugCurveCurve, debugJoiner);
     if (debugJoiner)
         s += "debugJoiner:" + debugJoiner->debugDump(l, b) + "\n";
+    STATIC_ASSERT(this, debugJoiner, debugTree);
+    if (debugTree)
+        s += "debugTree:" + debugTree->debugDump(l, b) + "\n";
+    STATIC_ASSERT(this, debugJoiner, debugTree);
     if (debugData.testname.size())
         s += "debugTestname:" + debugData.testname + " ";
     s += "debugExpect:" + debugExpectName(debugData.expect) + " ";
-	BOOL_TO_STR(debugInPathOps);
-	BOOL_TO_STR(debugInClearEdges);
-	BOOL_TO_STR(debugCheckLastEdge);
-	BOOL_TO_STR(debugFailOnEqualCepts);
+	DEBUG_DUMP_BOOL(this, debugExpect, debugInPathOps);
+	DEBUG_DUMP_BOOL(this, debugInPathOps, debugInClearEdges);
+	DEBUG_DUMP_BOOL(this, debugInClearEdges, debugCheckLastEdge);
+	DEBUG_DUMP_BOOL(this, debugCheckLastEdge, debugFailOnEqualCepts);
     s.pop_back();
+    static_assert(offsetof(OpContext, debugFailOnEqualCepts) + 4
+            + sizeof(debugFailOnEqualCepts) == offsetof(OpContext, debugDumpNotes));
+    // omit debugDumpNotes (for now)
+    // omit debugDumpSkips (for now)
 #endif
     return s;
 }
 
+#undef DEBUG_FIND_TAG
+
+// macro checks that function ptrs are consecutive
+#define DEBUG_FIND_FUNCTION(callback, last, thisField) \
+    static_assert(offsetof(std::remove_reference_t<decltype(callback)>, last) + sizeof(callback.last) \
+        == offsetof(std::remove_reference_t<decltype(callback)>, thisField)); \
+    callback.thisField = (decltype(callback.thisField)) debugFindFunction(str)
+
+#define DEBUG_SET_BOOL(struc, lastField, thisField) \
+    static_assert(offsetof(struc, lastField) + sizeof(lastField) == offsetof(struc, thisField)); \
+    thisField = OpDebugOptional(str, #thisField)
+
 void OpContext::dumpSet(const char*& str) {
     if (OpDebugOptional(str, "aliases"))
-        OP_ASSERT(0);  // !!! incomplete
-    if (OpDebugOptional(str, "curveDataStorage"))
-        CurveDataStorage::DumpSet(str, &curveDataStorage);
-    if (OpDebugOptional(str, "callerStorage"))
-        CallerDataStorage::DumpSet(str, &callerStorage);
-    if (OpDebugOptional(str, "contourStorage"))
-        OpContourStorage::DumpSet(str, this);
+        aliases.dumpSet(str);
+    OpDebugRequired(str, "callbacks");
+    size_t size = OpDebugReadSizeT(str);
+    callbacks.resize(size);
+    for (auto& callback : callbacks) {
+        static_assert(0 == offsetof(PathOpsV0Lib::CurveCallbacks, axisTFuncPtr));
+	    callback.axisTFuncPtr = (PathOpsV0Lib::AxisT) debugFindFunction(str);
+	    DEBUG_FIND_FUNCTION(callback, axisTFuncPtr,          rotateTFuncPtr);
+	    DEBUG_FIND_FUNCTION(callback, rotateTFuncPtr,        curveHullFuncPtr);
+	    DEBUG_FIND_FUNCTION(callback, curveHullFuncPtr,      curveIsFiniteFuncPtr);
+	    DEBUG_FIND_FUNCTION(callback, curveIsFiniteFuncPtr,  curveIsLineFuncPtr);
+	    DEBUG_FIND_FUNCTION(callback, curveIsLineFuncPtr,    setBoundsFuncPtr);
+	    DEBUG_FIND_FUNCTION(callback, setBoundsFuncPtr,      curveTangentFuncPtr);
+	    DEBUG_FIND_FUNCTION(callback, curveTangentFuncPtr,   curvesEqualFuncPtr);
+	    DEBUG_FIND_FUNCTION(callback, curvesEqualFuncPtr,    ptAtTFuncPtr);
+	    DEBUG_FIND_FUNCTION(callback, ptAtTFuncPtr,          ptDAtTFuncPtr);
+	    DEBUG_FIND_FUNCTION(callback, ptDAtTFuncPtr,         ptCountFuncPtr);
+	    DEBUG_FIND_FUNCTION(callback, ptCountFuncPtr,        rotateFuncPtr);
+	    DEBUG_FIND_FUNCTION(callback, rotateFuncPtr,         subDivideFuncPtr);
+	    DEBUG_FIND_FUNCTION(callback, subDivideFuncPtr,      xyAtTFuncPtr);
+	    DEBUG_FIND_FUNCTION(callback, xyAtTFuncPtr,          curveReverseFuncPtr);
+	    DEBUG_FIND_FUNCTION(callback, curveReverseFuncPtr,   crossThresholdFuncPtr);
+	    DEBUG_FIND_FUNCTION(callback, crossThresholdFuncPtr, cutFuncPtr);
+	    DEBUG_FIND_FUNCTION(callback, cutFuncPtr,            interceptFuncPtr);
+	    DEBUG_FIND_FUNCTION(callback, interceptFuncPtr,      normalLimitFuncPtr);
+        static_assert(offsetof(PathOpsV0Lib::CurveCallbacks, normalLimitFuncPtr) 
+                + sizeof(callback.normalLimitFuncPtr) == sizeof(callback));
+    }
+    STATIC_ASSERT(this, callbacks, nativeCurveTypes);
+    OpDebugRequired(str, "nativeCurveTypes");
+    size = OpDebugReadSizeT(str);
+    nativeCurveTypes.resize(size);
+    for (int& nativeCurveType : nativeCurveTypes) {
+       nativeCurveType = OpDebugReadSizeT(str);
+    }
+    STATIC_ASSERT(this, nativeCurveTypes, contextCallbacks);
+    static_assert(0 == offsetof(PathOpsV0Lib::ContextCallbacks, curveOutputFuncPtr));
+	contextCallbacks.curveOutputFuncPtr = (PathOpsV0Lib::CurveOutput) debugFindFunction(str);
+    DEBUG_FIND_FUNCTION(contextCallbacks, curveOutputFuncPtr, emptyCallerPathFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, emptyCallerPathFuncPtr, setLineTypeFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, setLineTypeFuncPtr, maxSplitFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxSplitFuncPtr, maxBoundedEdgeFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxBoundedEdgeFuncPtr, maxSignSwapFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxSignSwapFuncPtr, maxTSlopFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxTSlopFuncPtr, maxSplitBiasFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxSplitBiasFuncPtr, maxOverlapFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxOverlapFuncPtr, maxUnsectableFuncPtr);
+    DEBUG_FIND_FUNCTION(contextCallbacks, maxUnsectableFuncPtr, maxDistFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxDistFuncPtr, maxDeepFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxDeepFuncPtr, maxShallowFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxShallowFuncPtr, maxSplitsFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxSplitsFuncPtr, maxMarginFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxMarginFuncPtr, maxUnsectableTFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxUnsectableTFuncPtr, maxCheckSplitFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxCheckSplitFuncPtr, maxLimbsFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxLimbsFuncPtr, maxGapFuncPtr);
+    static_assert(offsetof(PathOpsV0Lib::ContextCallbacks, maxGapFuncPtr) 
+            + sizeof(contextCallbacks.maxGapFuncPtr) == sizeof(contextCallbacks));
+    static_assert(0 == offsetof(PathOpsV0Lib::WindingCallbacks, windingAddFuncPtr));
+	windingCallbacks.windingAddFuncPtr = (PathOpsV0Lib::WindingAdd) debugFindFunction(str);
+	DEBUG_FIND_FUNCTION(windingCallbacks, windingAddFuncPtr, windingKeepFuncPtr);
+	DEBUG_FIND_FUNCTION(windingCallbacks, windingKeepFuncPtr, windingVisibleFuncPtr);
+    DEBUG_FIND_FUNCTION(windingCallbacks, windingVisibleFuncPtr, windingZeroFuncPtr);
+	DEBUG_FIND_FUNCTION(windingCallbacks, windingZeroFuncPtr, windingSubtractFuncPtr);
+    DEBUG_FIND_FUNCTION(windingCallbacks, windingSubtractFuncPtr, windingIntersectFuncPtr);
+    DEBUG_FIND_FUNCTION(windingCallbacks, windingIntersectFuncPtr, windingShortFuncPtr);
+    DEBUG_FIND_FUNCTION(windingCallbacks, windingShortFuncPtr, windingShortAllFuncPtr);
+    static_assert(offsetof(PathOpsV0Lib::WindingCallbacks, windingShortAllFuncPtr) 
+            + sizeof(windingCallbacks.windingShortAllFuncPtr) == sizeof(windingCallbacks));
+    STATIC_ASSERT(this, windingCallbacks, callerOutput);  // omit callerOutput
+    STATIC_ASSERT(this, callerOutput, errorHandler);  // omit errorHandler
+    STATIC_ASSERT(this, errorHandler, sortedContours);
+    if (OpDebugOptional(str, "sortedContours")) {
+        size = OpDebugReadSizeT(str);
+        sortedContours.resize(size);
+        for (auto& sortedContour : sortedContours) {
+            sortedContour = (OpContour*) OpDebugReadSizeT(str);
+        }
+    }
+    STATIC_ASSERT(this, sortedContours, ccStorage);
     if (OpDebugOptional(str, "ccStorage"))
         OpEdgeStorage::DumpSet(str, this, DumpStorage::cc);
-    // skip contour iterator for now
+    STATIC_ASSERT(this, ccStorage, curveDataStorage);
+    if (OpDebugOptional(str, "curveDataStorage"))
+        CurveDataStorage::DumpSet(str, &curveDataStorage);
+    STATIC_ASSERT(this, curveDataStorage, contourStorage);
+    if (OpDebugOptional(str, "contourStorage"))
+        OpContourStorage::DumpSet(str, this);
+    STATIC_ASSERT(this, contourStorage, contours);
+    if (OpDebugOptional(str, "contours")) {
+        size = OpDebugReadSizeT(str);
+        contours.resize(size);
+        for (auto& contour : contours) {
+            contour = (OpContour*) OpDebugReadSizeT(str);
+        }
+    }
+    STATIC_ASSERT(this, contours, fillerStorage);
     if (OpDebugOptional(str, "fillerStorage"))
         OpEdgeStorage::DumpSet(str, this, DumpStorage::filler);
+    STATIC_ASSERT(this, fillerStorage, sectStorage);
     if (OpDebugOptional(str, "sectStorage"))
         OpSectStorage::DumpSet(str, this);
+    STATIC_ASSERT(this, sectStorage, limbStorage);
     if (OpDebugOptional(str, "limbStorage"))
         OpLimbStorage::DumpSet(str, this);
+    STATIC_ASSERT(this, limbStorage, limbCurrent);  // omit limbCurrent
+    STATIC_ASSERT(this, limbCurrent, callerStorage);
+    if (OpDebugOptional(str, "callerStorage"))
+        CallerDataStorage::DumpSet(str, &callerStorage);
+    STATIC_ASSERT(this, callerStorage, userData);  // omit userData
+    STATIC_ASSERT(this, userData, maxBounds);
+    if (OpDebugOptional(str, "maxBounds"))
+        maxBounds.dumpSet(str);
+    STATIC_ASSERT(this, maxBounds, error);
+    error = PathOpsV0Lib::contextErrorStr(str, "error", PathOpsV0Lib::ContextError::none);
+    STATIC_ASSERT(this, error, uniqueID);
     OpDebugRequired(str, "uniqueID");
     uniqueID = (int) OpDebugReadSizeT(str);
+    DEBUG_SET_BOOL(OpContext, uniqueID, initialized);
+    DEBUG_SET_BOOL(OpContext, initialized, allDiscarded);
+    DEBUG_SET_BOOL(OpContext, allDiscarded, allKept);
+    DEBUG_SET_BOOL(OpContext, allKept, fatalError);
+    DEBUG_SET_BOOL(OpContext, fatalError, outputOne);
+    DEBUG_SET_BOOL(OpContext, outputOne, linkErased);
+    DEBUG_SET_BOOL(OpContext, linkErased, windingSet);
+    STATIC_ASSERT(this, windingSet, dumpDummy);
 #if OP_DEBUG_VALIDATE
+    STATIC_ASSERT(this, dumpDummy, debugValidateEdgeIndex);
     OpDebugRequired(str, "debugValidateEdgeIndex");
     debugValidateEdgeIndex = (int) OpDebugReadSizeT(str);
+    STATIC_ASSERT(this, debugValidateEdgeIndex, debugValidateJoinerIndex);
     OpDebugRequired(str, "debugValidateJoinerIndex");
     debugValidateJoinerIndex = (int) OpDebugReadSizeT(str);
+    STATIC_ASSERT(this, debugValidateJoinerIndex, debugCallbacks);
+#else
+    STATIC_ASSERT(this, dumpDummy, debugCallbacks);
 #endif
 #if OP_DEBUG
+    if (OpDebugOptional(str, "debugCallbacks")) {
+        size = OpDebugReadSizeT(str);
+        debugCallbacks.resize(size);
+        for (auto& debugCallback : debugCallbacks) {
+            static_assert(0 == offsetof(PathOpsV0Lib::DebugCurveCallbacks, scaleFuncPtr));
+            debugCallback.scaleFuncPtr = (PathOpsV0Lib::DebugScale) debugFindFunction(str);
+	        DEBUG_FIND_FUNCTION(debugCallback, scaleFuncPtr,      curveNameFuncPtr);
+	        DEBUG_FIND_FUNCTION(debugCallback, curveNameFuncPtr, curveExtraFuncPtr);
+#if OP_DEBUG_IMAGE
+	        DEBUG_FIND_FUNCTION(debugCallback, curveExtraFuncPtr, addToPathFuncPtr);
+            static_assert(offsetof(PathOpsV0Lib::DebugCurveCallbacks, addToPathFuncPtr) 
+                    + sizeof(debugCallback.addToPathFuncPtr) == sizeof(debugCallback));
+#else
+            static_assert(offsetof(PathOpsV0Lib::DebugCurveCallbacks, curveExtraFuncPtr) 
+                    + sizeof(debugCallback.curveExtraFuncPtr) == sizeof(debugCallback));
+#endif
+        }
+    }
+    STATIC_ASSERT(this, debugCallbacks, debugContextCallbacks);
+    static_assert(0 == offsetof(PathOpsV0Lib::DebugContextCallbacks, debugDumpContextExtraFuncPtr));
+    debugContextCallbacks.debugDumpContextExtraFuncPtr = (PathOpsV0Lib::DebugDumpContextExtra) debugFindFunction(str);
+    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpContextExtraFuncPtr, debugDumpWindingOutFuncPtr);
+    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpWindingOutFuncPtr, debugDumpWindingSetFuncPtr);
+#if OP_DEBUG_IMAGE
+    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugImageWindingOutFuncPtr);
+    static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugImageWindingOutFuncPtr) 
+            + sizeof(debugContextCallbacks.debugImageWindingOutFuncPtr) == sizeof(debugContextCallbacks));
+
+#else
+    static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugDumpWindingSetFuncPtr) 
+            + sizeof(debugContextCallbacks.debugDumpWindingSetFuncPtr) == sizeof(debugContextCallbacks));
+
+#endif
+    STATIC_ASSERT(this, debugContextCallbacks, debugContextData);  // omit debugContextData
+    STATIC_ASSERT(this, debugContextData, debugData);  // omit debugData (!!! omit for now, may have uses...)
+    STATIC_ASSERT(this, debugData, debugCurveCurve);
     if (OpDebugOptional(str, "debugCurveCurve")) {
         if (!debugCurveCurve)
             debugCurveCurve = new OpCurveCurve(this);
         debugCurveCurve->dumpSet(str);
     }
     if (OpDebugOptional(str, "debugJoiner")) {
-#if 0  // !!! make this work eventually ( out of date because of winder contour work )
         if (!debugJoiner)
             debugJoiner = new OpJoiner(*this);
-#endif
         debugJoiner->dumpSet(str);
     }
     if (OpDebugOptional(str, "debugTestname"))
@@ -1023,10 +1402,15 @@ void OpContext::dumpSet(const char*& str) {
 #endif
 }
 
+#undef DEBUG_FIND_FUNCTION
+
 void OpContext::dumpResolveAll(OpContext* self) {
     OP_ASSERT(this == self);
-    contourStorage->dumpResolveAll(self);
+    for (auto& sortedContour : sortedContours) {
+        self->dumpResolve(sortedContour);
+    }
     ccStorage->dumpResolveAll(self);
+    contourStorage->dumpResolveAll(self);
     fillerStorage->dumpResolveAll(self);
     sectStorage->dumpResolveAll(self);
     limbStorage->dumpResolveAll(self);
@@ -1336,7 +1720,7 @@ static std::string segmentDebugDump(const OpSegment& seg, ShowContour showContou
             s += "endMoved ";
 #if OP_DEBUG_IMAGE
         if (seg.debugColor != black)
-            s += debugDumpColor(seg.debugColor) + " ";
+            s += debugDumpColor(l, seg.debugColor) + " ";
 #endif
 #if OP_DEBUG_MAKER
         if (seg.debugSetDisabled.valid())
@@ -1474,7 +1858,7 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 	if (treeID)
 		s += "treeID[" + STR(treeID) + "] ";
     if (winding.data && winding.size) {
-		auto windingOut = debugGlobalContext->debugContextCallbacks.debugDumpWindingOutFuncPtr;
+		auto windingOut = context->debugContextCallbacks.debugDumpWindingOutFuncPtr;
 		if (windingOut)
 			s += "winding" + (*windingOut)(winding) + " ";
 	}
@@ -1494,9 +1878,27 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 		s += "disabled ";
 	if (overlapsMerged)
 		s += "overlapsMerged ";
+#if OP_DEBUG_IMAGE
+    if (debugColor != blue) {
+        if (DebugLevel::file == l)
+            s += "debugColor:";
+        s += debugDumpColor(l, debugColor);
+    }
+#endif
     s.pop_back();
     return s;
 }
+
+static void dumpEdges(const char*& str, const char* arrayName, std::vector<OpEdge*>& edgeArray) {
+    if (!OpDebugOptional(str, arrayName))
+        return;
+    int count = (int) OpDebugReadSizeT(str);
+    edgeArray.resize(count);
+    for (auto& edge : edgeArray)
+        edge = (OpEdge*) OpDebugReadSizeT(str);
+}
+
+#define DUMP_EDGES(edgePtrArray) ::dumpEdges(str, #edgePtrArray, edgePtrArray)
 
 void OpContour::dumpSet(const char*& str) {
     OpDebugRequired(str, "contour");
@@ -1508,12 +1910,88 @@ void OpContour::dumpSet(const char*& str) {
         segments[index].contour = this;
     for (int index = 0; index < segmentCount; ++index)
         segments[index].dumpSet(str);
+    if (OpDebugOptional(str, "sorted")) {
+        int count = (int) OpDebugReadSizeT(str);
+        sorted.resize(count);
+        for (int index = 0; index < count; ++index)
+            sorted[index] = (OpSegment*) OpDebugReadSizeT(str);
+    }
+    if (OpDebugOptional(str, "overlaps")) {
+        int count = (int) OpDebugReadSizeT(str);
+        overlaps.resize(count);
+        for (int index = 0; index < count; ++index)
+            overlaps[index] = (OpContour*) OpDebugReadSizeT(str);
+    }
+    if (OpDebugOptional(str, "merges")) {
+        int count = (int) OpDebugReadSizeT(str);
+        merges.resize(count);
+        for (int index = 0; index < count; ++index)
+            merges[index] = (OpContour*) OpDebugReadSizeT(str);
+    }
+	DUMP_EDGES(inX);
+	DUMP_EDGES(inY);
+	DUMP_EDGES(byArea);
+	DUMP_EDGES(unsectByArea);
+	DUMP_EDGES(disabledBackwards);
+	DUMP_EDGES(disabledCenterless);
+	DUMP_EDGES(disabledPals);
+	DUMP_EDGES(unsortables);
+    ::dumpEdges(str, "linkups", linkups.l);
+    ::dumpEdges(str, "endLinks", endLinks.l);
+    if (OpDebugOptional(str, "overlapBounds"))
+        overlapBounds.dumpSet(str);
+    if (OpDebugOptional(str, "bounds"))
+        bounds.dumpSet(str);
+    if (OpDebugOptional(str, "overlapOwner"))
+        overlapOwner = (OpContour*) OpDebugReadSizeT(str);
+    if (OpDebugOptional(str, "treeID"))
+        treeID = OpDebugReadSizeT(str);
+    if (OpDebugOptional(str, "winding")) {
+        auto windingSet = context->debugContextCallbacks.debugDumpWindingSetFuncPtr;
+        if (!windingSet) {
+            OpDebugOut("!missing debugDumpWindingSetFuncPtr\n");
+            return;
+        }
+        (*windingSet)(str, winding);
+    }
+    backwardsBuilt = OpDebugOptional(str, "backwardsBuilt");
+    centerlessBuilt = OpDebugOptional(str, "centerlessBuilt");
+    hasPals = OpDebugOptional(str, "hasPals");
+    palsBuilt = OpDebugOptional(str, "palsBuilt");
+    disabled = OpDebugOptional(str, "disabled");
+    overlapsMerged = OpDebugOptional(str, "overlapsMerged");
+#if OP_DEBUG_IMAGE
+    if (OpDebugOptional(str, "debugColor"))
+        debugColor = OpDebugHexToInt(str);
+#endif
 }
+
+#undef DUMP_EDGES
+
+#define DUMP_RESOLVE_ARRAY(obj) \
+    for (auto& o : obj) \
+        c->dumpResolve(o)
 
 void OpContour::dumpResolveAll(OpContext* c) {
     for (OpSegment& segment : segments)
         segment.dumpResolveAll(c);
+    DUMP_RESOLVE_ARRAY(sorted);
+    DUMP_RESOLVE_ARRAY(overlaps);
+    DUMP_RESOLVE_ARRAY(merges);
+	DUMP_RESOLVE_ARRAY(inX);
+	DUMP_RESOLVE_ARRAY(inY);
+	DUMP_RESOLVE_ARRAY(byArea);
+	DUMP_RESOLVE_ARRAY(unsectByArea);
+	DUMP_RESOLVE_ARRAY(disabledBackwards);
+	DUMP_RESOLVE_ARRAY(disabledCenterless);
+	DUMP_RESOLVE_ARRAY(disabledPals);
+	DUMP_RESOLVE_ARRAY(unsortables);
+	DUMP_RESOLVE_ARRAY(linkups.l);
+	DUMP_RESOLVE_ARRAY(endLinks.l);
+    c->dumpResolve(overlapOwner);
 }
+
+#undef DUMP_RESOLVE_ARRAY
 
 void dmp(std::vector<OpContour>& contours) {
     for (const auto& c : contours)
@@ -2527,7 +3005,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
 #endif
 #if OP_DEBUG_IMAGE
     if (dumpIt(EF::debugColor) && (dumpAlways(EF::debugColor) || debugBlack != debugColor))
-        s += debugDumpColor(debugColor) + " ";
+        s += debugDumpColor(l, debugColor) + " ";
     STR_BOOL(debugDraw);
     STR_BOOL(debugJoin);
     STR_BOOL(debugLimb);
@@ -4948,20 +5426,23 @@ void dmpFull(const OpSegments& segs) {
 }
 #endif
 
-std::string debugDumpColor(uint32_t c) {
-    auto result = std::find_if(debugColorArray.begin(), debugColorArray.end(), [c](auto color) {
-        return color.first == c; });
+std::string debugDumpColor(DebugLevel l, uint32_t c) {
     char asHex[11];
     int written = snprintf(asHex, sizeof(asHex), "0x%08x", c);
     if (written != 10)
-         return "snprintf of " + STR_E(c) + " to hex failed (written:" + STR(written) + ")";
-    if (debugColorArray.end() == result)
-        return "color " + std::to_string(c) + " (" + std::string(asHex) + ") not found";
-    return std::string(asHex) + " " + (*result).second;
+        return "snprintf of " + STR_E(c) + " to hex failed (written:" + STR(written) + ")";
+    if (DebugLevel::file != l) {
+        auto result = std::find_if(debugColorArray.begin(), debugColorArray.end(), [c](auto color) {
+            return color.first == c; });
+        if (debugColorArray.end() == result)
+            return "color " + std::to_string(c) + " (" + std::string(asHex) + ") not found";
+        return std::string(asHex) + " " + (*result).second;
+    }
+    return std::string(asHex);
 }
 
 void dmpColor(uint32_t c) {
-    OpDebugOut(debugDumpColor(c) + "\n");
+    OpDebugOut(debugDumpColor(DebugLevel::normal, c) + "\n");
 }
 
 void dmpColor(const OpEdge* edge) {

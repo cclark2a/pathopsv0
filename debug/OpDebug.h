@@ -470,12 +470,19 @@ void OpDebugFormat(std::string );
 
 namespace PathOpsV0Lib {
 	struct Curve;
-}
 
-void debugLineScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY);
-void debugQuadScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY);
-void debugConicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY);
-void debugCubicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY);
+    void debugLineScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY);
+    void debugQuadScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY);
+    void debugConicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY);
+    void debugCubicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY);
+
+#define DEBUG_SCALE_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(debugLineScale), \
+    OP_TAGGED_FUNCTION(debugQuadScale), \
+    OP_TAGGED_FUNCTION(debugConicScale), \
+    OP_TAGGED_FUNCTION(debugCubicScale), \
+
+}
 
 #if OP_DEBUG && TEST_RASTER
 #define OP_DEBUG_RASTER_PARAMS(params) , params

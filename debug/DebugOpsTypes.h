@@ -68,6 +68,7 @@ struct DebugCurveCallbacks {
 typedef uint8_t (*DebugBitOper)(DebugContourData , uint8_t , uint8_t);
 #if OP_DEBUG_DUMP
 typedef std::string (*DebugDumpWindingOut)(Winding );
+typedef void (*DebugDumpWindingSet)(const char*& , Winding& );
 typedef std::string (*DebugDumpContextExtra)(DebugContextData , DebugLevel , DebugBase );
 #endif
 #if OP_DEBUG_IMAGE
@@ -75,10 +76,10 @@ typedef std::string (*DebugImageWindingOut)(Winding , int index);
 #endif
 
 struct DebugContextCallbacks {
-//	DebugBitOper debugBitOperFuncPtr = nullptr;
 #if OP_DEBUG_DUMP
     DebugDumpContextExtra debugDumpContextExtraFuncPtr = nullptr;
 	DebugDumpWindingOut debugDumpWindingOutFuncPtr = nullptr;
+	DebugDumpWindingSet debugDumpWindingSetFuncPtr = nullptr;
 #endif
 #if OP_DEBUG_IMAGE
 	DebugImageWindingOut debugImageWindingOutFuncPtr = nullptr;

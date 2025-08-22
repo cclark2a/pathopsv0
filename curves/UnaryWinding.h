@@ -3,42 +3,50 @@
 #define UnaryWinding_DEFINED
 
 #include "PathOps.h"
+#include "DebugOps.h"
 
 namespace PathOpsV0Lib {
 
-struct UnaryWinding {
-	
-    UnaryWinding()
+struct UnaryData {
+    UnaryData()
         : value(0) {
 	}
 
-    UnaryWinding(int initial)
+    UnaryData(int initial)
 		: value(initial) {
 	}
 
-    UnaryWinding(Winding w) {
-        OP_ASSERT(w.size == sizeof(UnaryWinding));
-        std::memcpy(this, w.data, sizeof(UnaryWinding));
+    UnaryData(Winding w) {
+        OP_ASSERT(w.size == sizeof(UnaryData));
+        std::memcpy(this, w.data, sizeof(UnaryData));
     }
 
 	void copyTo(Winding& w) const {
-		OP_ASSERT(w.size == sizeof(UnaryWinding));
-		std::memcpy(w.data, this, sizeof(UnaryWinding));
+		OP_ASSERT(w.size == sizeof(UnaryData));
+		std::memcpy(w.data, this, sizeof(UnaryData));
 	}
 
     int value;
 };
 
+struct UnaryWinding {
+    UnaryWinding(Context* context);
+
+    Winding winding;
+    UnaryData data;
+    Contour* contour;
+};
+
 inline void unaryEvenOddFunc(Context* , Winding winding, Winding toAdd) {
-    UnaryWinding sum(winding);
-    UnaryWinding addend(toAdd);
+    UnaryData sum(winding);
+    UnaryData addend(toAdd);
     sum.value ^= addend.value;
     sum.copyTo(winding);
 }
 
-inline void unaryWindingAddFunc(Context* , Winding winding, Winding toAdd) {
-    UnaryWinding sum(winding);
-    UnaryWinding addend(toAdd);
+inline void unaryAddFunc(Context* , Winding winding, Winding toAdd) {
+    UnaryData sum(winding);
+    UnaryData addend(toAdd);
     sum.value += addend.value;
     sum.copyTo(winding);
 }
@@ -47,53 +55,98 @@ inline void unaryWindingAddFunc(Context* , Winding winding, Winding toAdd) {
 // if winding is non-zero:
 //   if sum equals winding, fill starts
 //   if sum is zero, fill ends
-inline WindKeep unaryWindingKeepFunc(Context* , Winding winding, Winding sumWinding) {
-    UnaryWinding wind(winding);
-    UnaryWinding sum(sumWinding);
+inline WindKeep unaryKeepFunc(Context* , Winding winding, Winding sumWinding) {
+    UnaryData wind(winding);
+    UnaryData sum(sumWinding);
     if (!wind.value || (sum.value && sum.value != wind.value))
          return WindKeep::Discard;
     return sum.value ? WindKeep::Start : WindKeep::End;
 }
 
-inline void unaryWindingSubtractFunc(Context* , Winding winding, Winding toSubtract) {
-    UnaryWinding difference(winding);
-    UnaryWinding subtrahend(toSubtract);
+inline void unarySubtractFunc(Context* , Winding winding, Winding toSubtract) {
+    UnaryData difference(winding);
+    UnaryData subtrahend(toSubtract);
     difference.value -= subtrahend.value;
     difference.copyTo(winding);
 }
     
-inline bool unaryWindingVisibleFunc(Context* , Winding winding) {
-    UnaryWinding test(winding);
+inline bool unaryVisibleFunc(Context* , Winding winding) {
+    UnaryData test(winding);
     return !!test.value;
 }
 
-inline void unaryWindingZeroFunc(Context* , Winding toZero) {
-    UnaryWinding zero;
+inline void unaryZeroFunc(Context* , Winding toZero) {
+    UnaryData zero;
     zero.copyTo(toZero);
 }
 
 inline void unaryCallbacks(Context* context) {
-    SetWindingCallbacks(context, { unaryWindingAddFunc, unaryWindingKeepFunc, 
-            unaryWindingVisibleFunc, unaryWindingZeroFunc, unaryWindingSubtractFunc } );
+    SetWindingCallbacks(context, { unaryAddFunc, unaryKeepFunc, 
+            unaryVisibleFunc, unaryZeroFunc, unarySubtractFunc } );
 }
 
 #if OP_DEBUG_DUMP
-inline std::string unaryWindingDumpOutFunc(Winding winding) {
-    UnaryWinding unary(winding);
+inline std::string unaryDumpOutFunc(Winding winding) {
+    UnaryData unary(winding);
     std::string s = "{" + STR(unary.value) + "}";
     return s;
 }
+
+inline void unaryDumpSetFunc(const char*& str, Winding& winding) {
+    int left = OpDebugReadSizeT(str);
+    UnaryData unaryData(left);
+    unaryData.copyTo(winding);
+}
+
+#define UNARY_WINDING_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(unaryEvenOddFunc), \
+    OP_TAGGED_FUNCTION(unaryAddFunc), \
+    OP_TAGGED_FUNCTION(unaryKeepFunc), \
+    OP_TAGGED_FUNCTION(unarySubtractFunc), \
+    OP_TAGGED_FUNCTION(unaryVisibleFunc), \
+    OP_TAGGED_FUNCTION(unaryZeroFunc), \
+    OP_TAGGED_FUNCTION(unaryDumpOutFunc), \
+    OP_TAGGED_FUNCTION(unaryDumpSetFunc), \
+
 #endif
 
 #if OP_DEBUG_IMAGE
-inline std::string unaryWindingImageOutFunc(Winding winding, int index) {
+inline std::string unaryImageOutFunc(Winding winding, int index) {
     if (index > 0)
         return "-";
-    UnaryWinding unaryWinding(winding);
-    std::string s = STR(unaryWinding.value);
+    UnaryData unaryData(winding);
+    std::string s = STR(unaryData.value);
     return s;
 }
+
+#define UNARY_IMAGE_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(unaryImageOutFunc), \
+
 #endif
+
+inline Context* unaryContext(CurveOutput output = nullptr, EmptyCallerPath empty = nullptr) {
+    Context* context = CreateContext();
+    SetContextCallbacks(context, { output, empty });
+    unaryCallbacks(context);
+#if OP_DEBUG
+    OpDebugData debugData(false);
+    Debug(context, debugData);
+	SetDebugContextCallbacks(context, { 
+        OP_DEBUG_DUMP_CODE(nullptr, unaryDumpOutFunc, unaryDumpSetFunc)
+        OP_DEBUG_IMAGE_PARAMS(unaryImageOutFunc)
+    });
+#endif
+    return context;
+}
+
+inline UnaryWinding::UnaryWinding(Context* context) {
+    winding.data = &data;
+    winding.size = sizeof(data);
+    contour = CreateContour(context, winding);
+#if OP_DEBUG
+	SetDebugContourData(contour, { &data, sizeof(data) }, DebugContourType::windingUserData );
+#endif
+}
 
 }
 

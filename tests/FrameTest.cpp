@@ -1,5 +1,6 @@
 // (c) 2024, Cary Clark cclark2@gmail.com
 
+#include "curves/Line.h"
 #include "curves/QuadBezier.h"
 #include "curves/FrameWinding.h"
 
@@ -28,53 +29,18 @@ static bool allowDisjointLines(ContextError err, Curve* ) {
 }
 
 void TestFrame() {
-    Context* context = CreateContext();
-    SetContextCallbacks(context, { frameOutput });
-    frameCallbacks(context);
-
-#if OP_DEBUG
-    OpDebugData debugData(false);
-    Debug(context, debugData);
-	SetDebugContextCallbacks(context, { // nullptr  
-			OP_DEBUG_DUMP_CODE(nullptr, frameDumpOutFunc) });
-#endif
-
-    SetCurveCallbacks(context, frameLine, { } );
+    Context* context = frameContext(frameOutput);
+    lineCallbacks(context, frameLine );
     quadCallbacks(context, frameQuad);
-    FrameWinding frameData(FrameFill::frame, 1);
-    Winding frameWinding { &frameData, sizeof(frameData) };
-    Contour* frameContour = CreateContour(context, frameWinding);
-#if OP_DEBUG
-	FrameFill frameContourData = FrameFill::frame;
-	SetDebugContourData(frameContour, { &frameContourData, sizeof(frameContourData) }, 
-            DebugContourType::windingUserData );
-#endif
-
-    FrameWinding fillData(FrameFill::fill, 1);
-    Winding fillWinding { &fillData, sizeof(fillData) };
-    Contour* fillContour = CreateContour(context, fillWinding);
-#if OP_DEBUG
-	FrameFill fillContourData = FrameFill::fill;
-	SetDebugContourData(fillContour, { &fillContourData, sizeof(fillContourData) }, 
-            DebugContourType::windingUserData );
-#endif
-
-	// example: return line parts in hourglass fill
-#if 0
-    OpPoint line[] { { 2, 0 }, { 0, 2 } };
-    Add({ line, frameLineSize, frameLine }, frameAddWinding );
-    OpPoint hourglass[] { { 0.5, 1 }, { 2.5, 1 }, { 1.5, 0 }, { 1.5, 2 }, { 0.5, 1 } };
-	for (int index = 0; index < 4; ++index)
-		Add({ &hourglass[index], frameLineSize, frameLine }, fillAddWinding );
-#else
+    FrameWinding frameWinding(context, FrameFill::frame);
+    FrameWinding fillWinding(context, FrameFill::fill);
 	OpPoint line[] { { 10, 10 }, { 20, 20 } };
 	OpPoint quad[] { { 30, 30 }, { 50, 50 }, { 40, 30 } };
-    Add(frameContour, { context, line, frameLineSize, frameLine } );
-    Add(frameContour, { context, quad, frameQuadSize, frameQuad } );
+    Add(frameWinding.contour, { context, line, frameLineSize, frameLine } );
+    Add(frameWinding.contour, { context, quad, frameQuadSize, frameQuad } );
     OpPoint rect[] { { 15, 15 }, { 45, 15 }, { 45, 45 }, { 15, 45 }, { 15, 15 } };
 	for (int index = 0; index < 4; ++index)
-		Add(fillContour, { context, &rect[index], frameLineSize, frameLine } );
-#endif
+		Add(fillWinding.contour, { context, &rect[index], frameLineSize, frameLine } );
 
 	SetErrorHandler(context, allowDisjointLines);
     Resolve(context, nullptr);

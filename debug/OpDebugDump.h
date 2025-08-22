@@ -294,10 +294,11 @@ extern void dmpCompare(OpPoint , OpPoint );  // show threshold difference betwee
 extern void dmpCompare(const OpPtT& , const OpPtT& );
 extern void dmpClosest(const OpCurveCurve& , const OpPoint& );
 extern void dmp(std::array<CoinEnd, 4>& );
-extern std::string debugDumpColor(uint32_t c);
+extern std::string debugDumpColor(DebugLevel, uint32_t c);
 extern void dmpColor(uint32_t );
 extern void dmpColor(const OpEdge* );
 extern void dmpColor(const OpEdge& );
+extern void dmpFile(OpContext* context);
 extern void dmpFilters();  // returns current filter settings
 extern void dmpHex(float );
 extern void dmpHex(uint32_t );
@@ -352,6 +353,10 @@ extern std::string debugContext;
 extern void debug();  // set debug bitmap to start and dump state using current context
 
 // used by new interface
+
+typedef void (*DebugFunction)();
+extern std::string debugFindTag(DebugFunction function);
+extern DebugFunction debugFindFunction(const char*& tag);
 extern std::string debugValue(DebugLevel l, DebugBase b, std::string label, float value);
 extern bool debugDmpIsLine(const PathOpsV0Lib::AddCurve& c);
 extern bool debugDmpIsLine(const PathOpsV0Lib::Curve& c);

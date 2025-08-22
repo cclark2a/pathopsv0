@@ -1033,7 +1033,7 @@ const PathOpsV0Lib::DebugCurveCallbacks& OpContext::debugCallback(PathOpsV0Lib::
                 ? (*contextCallbacks.setLineTypeFuncPtr)(c) : 1;
     }
 	OP_ASSERT((int) type >= 1);
-	OP_ASSERT((size_t) type <= debugCallbacks.size());
+	OP_ASSERT((size_t) type < debugCallbacks.size());
 	return debugCallbacks[curveIndex(type)];
 }
 
@@ -1367,7 +1367,10 @@ bool debugRunningTest(std::string testname) {
 #include "curves/QuadBezier.h"
 #include "curves/CubicBezier.h"
 
-void debugCommonScale(PathOpsV0Lib::Curve curve, int extra, double scale, double offsetX, double offsetY) {
+namespace PathOpsV0Lib {
+
+static void debugCommonScale(PathOpsV0Lib::Curve curve, int extra, double scale, 
+        double offsetX, double offsetY) {
 	auto scaler = [scale, offsetX, offsetY](OpPoint& pt) {
 		pt.x = (float) (pt.x * scale + offsetX);
 		pt.y = (float) (pt.y * scale + offsetY);
@@ -1401,8 +1404,6 @@ void debugConicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, do
 void debugCubicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY) {
 	debugCommonScale(curve, 2, scale, offsetX, offsetY);
 }
-
-namespace PathOpsV0Lib {
 
 void SetDebugContourData(Contour* ctour, DebugContourData contourData, DebugContourType type) {
     OpContour* contour = (OpContour*) ctour;

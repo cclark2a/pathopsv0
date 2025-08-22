@@ -259,7 +259,7 @@ struct OpContext {
 	bool outputOne;
 	bool linkErased;  // used to tell relinkUnambiguous to continue or not
     bool windingSet;
-
+    OP_DEBUG_DUMP_CODE(bool dumpDummy);  // allow static assert to ensure all of context is dumped
 #if OP_DEBUG_VALIDATE
 	int debugValidateEdgeIndex;
 	int debugValidateJoinerIndex;

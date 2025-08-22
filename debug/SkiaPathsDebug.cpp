@@ -28,25 +28,6 @@ struct BinaryContext : public UnaryContext {
 	BinaryOperation operation;
 };
 
-void SetSkiaCurveCallbacksDebug(Context* context) {
-	SetDebugCurveCallbacks(context, SkPath::kLine_Verb, { debugLineScale
-            OP_DEBUG_DUMP_PARAMS(lineDebugDumpName, nullptr)
-            OP_DEBUG_IMAGE_PARAMS(debugLineAddToSkPath) 
-            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) });
-    SetDebugCurveCallbacks(context, SkPath::kQuad_Verb, { debugQuadScale
-            OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, nullptr)
-            OP_DEBUG_IMAGE_PARAMS(debugQuadAddToSkPath) 
-            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) });
-	SetDebugCurveCallbacks(context, SkPath::kConic_Verb, { debugConicScale
-            OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
-            OP_DEBUG_IMAGE_PARAMS(debugConicAddToSkPath) 
-            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) });
-	SetDebugCurveCallbacks(context, SkPath::kCubic_Verb, { debugCubicScale
-            OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, nullptr)
-            OP_DEBUG_IMAGE_PARAMS(debugCubicAddToSkPath) 
-            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) });
-}
-
 #if !OP_TINY_SKIA
 #include "include/core/SkStream.h"
 
@@ -92,7 +73,8 @@ std::string dumpUnaryContourFunc(DebugContourData caller, DebugLevel , DebugBase
 #if OP_TINY_SKIA
     return "";
 #else
-    OP_ASSERT(sizeof(UnaryContour) <= caller.size);
+    if (sizeof(UnaryContour) > caller.size)
+        return "size error:" + STR(caller.size);
     UnaryContour callerData;
     std::memcpy(&callerData, caller.data, caller.size);
     return dumpSkContour(callerData.pathPtr, callerData.contourIndex,
@@ -121,8 +103,9 @@ std::string dumpBinaryContextFunc(DebugContextData caller, DebugLevel l, DebugBa
         "ReverseDifference"  };
     BinaryContext callerData;
     std::memcpy(&callerData, caller.data, caller.size);
-    OP_ASSERT(BinaryOperation::Difference <= callerData.operation 
-            && callerData.operation <= BinaryOperation::ReverseDifference);
+    if (BinaryOperation::Difference > callerData.operation 
+            || callerData.operation > BinaryOperation::ReverseDifference)
+        return "caller.operation error:" + STR((int) callerData.operation);
     std::string s = "SkPathOp:" + skPathOpNames[(int) callerData.operation] + " ";
     return s;
 #endif
@@ -217,8 +200,8 @@ void SetSkiaSimplifyCallbacksDebug(Context* context, Contour* contour, const SkP
 	        debugSimplifyGetDrawFunc, debugSimplifySetDrawFunc) }
     );
 	SetDebugContextCallbacks(context, {
-			OP_DEBUG_DUMP_CODE(nullptr, unaryWindingDumpOutFunc)
-            OP_DEBUG_IMAGE_PARAMS(unaryWindingImageOutFunc) }
+			OP_DEBUG_DUMP_CODE(nullptr, unaryDumpOutFunc, unaryDumpSetFunc)
+            OP_DEBUG_IMAGE_PARAMS(unaryImageOutFunc) }
     );
 }
 
@@ -239,8 +222,8 @@ void SetSkiaOpContourCallbacksDebug(Context* context, Contour* contour,
 	        debugOpGetDrawFunc, debugOpSetDrawFunc, debugOpSetIsOppFunc) }
     );
 	SetDebugContextCallbacks(context, {
-			OP_DEBUG_DUMP_CODE(dumpBinaryContextFunc, binaryWindingDumpOutFunc)
-            OP_DEBUG_IMAGE_PARAMS(binaryWindingImageOutFunc) }
+			OP_DEBUG_DUMP_CODE(dumpBinaryContextFunc, binaryDumpOutFunc, binaryDumpSetFunc)
+            OP_DEBUG_IMAGE_PARAMS(binaryImageOutFunc) }
     );
 }
 

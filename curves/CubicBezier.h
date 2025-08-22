@@ -1,6 +1,9 @@
 // (c) 2024, Cary Clark cclark2@gmail.com
+#ifndef CubicBezier_DEFINED
+#define CubicBezier_DEFINED
 
 #include "PathOps.h"
+#include "DebugOps.h"
 
 namespace PathOpsV0Lib {
 
@@ -525,17 +528,40 @@ inline void cubicSubDivide(Curve c, float t1, float t2, float threshold, Curve* 
     cubicCommonSubDivide(c, t1, t2, threshold, result, CubicSubDivide::checkAngles);
 }
 
+#if OP_DEBUG_DUMP
+inline std::string cubicDebugDumpName() { 
+    return "cubic"; 
+}
+
 inline void cubicCallbacks(Context* context, int nativeCurveType) {
     SetCurveCallbacks(context, nativeCurveType, { cubicAxisT,
 			cubicRotatedT, cubicHull, cubicIsFinite, cubicIsLine, cubicSetBounds,
 			cubicTangent, cubicsEqual, cubicPtAtT, cubicDPtAtT, cubicHullPtCount, cubicRotate, 
 			cubicSubDivide, cubicXYAtT, cubicReverse });
+	SetDebugCurveCallbacks(context, nativeCurveType, { debugCubicScale
+            OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, nullptr)
+            OP_DEBUG_IMAGE_PARAMS(debugCubicToSkPath) 
+            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) });
 }
 
-#if OP_DEBUG_DUMP
-inline std::string cubicDebugDumpName() { 
-    return "cubic"; 
-}
+#define CUBIC_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(cubicAxisT), \
+    OP_TAGGED_FUNCTION(cubicRotatedT), \
+    OP_TAGGED_FUNCTION(cubicHull), \
+    OP_TAGGED_FUNCTION(cubicIsFinite), \
+    OP_TAGGED_FUNCTION(cubicIsLine), \
+    OP_TAGGED_FUNCTION(cubicSetBounds), \
+    OP_TAGGED_FUNCTION(cubicTangent), \
+    OP_TAGGED_FUNCTION(cubicsEqual), \
+    OP_TAGGED_FUNCTION(cubicPtAtT), \
+    OP_TAGGED_FUNCTION(cubicHullPtCount), \
+	OP_TAGGED_FUNCTION(cubicRotate), \
+    OP_TAGGED_FUNCTION(cubicSubDivide), \
+    OP_TAGGED_FUNCTION(cubicXYAtT), \
+    OP_TAGGED_FUNCTION(cubicDebugDumpName), \
+
 #endif
 
 }
+
+#endif
