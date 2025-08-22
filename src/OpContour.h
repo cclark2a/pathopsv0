@@ -159,8 +159,6 @@ struct OpContour {
 	bool centerlessBuilt = false;
 	bool hasPals = false;
 	bool palsBuilt = false;
-//	bool isXSorted = false;
-//	bool isYSorted = false;
 	bool disabled = false;
 	bool overlapsMerged = false;
 

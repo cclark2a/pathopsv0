@@ -11,14 +11,20 @@
 #define OP_DEBUG_VERBOSE (1 && !OP_DEBUG_FAST_TEST)
 #define OP_RELEASE_TEST 1	// !!! set to zero to remove tests from release build (untested)
 
+#define OP_ENUM_BASE(member, value) member = value
+#define OP_ENUM_MEMBER(member) member
+
 #if !defined(NDEBUG) || OP_RELEASE_TEST
 #include <string>
 #include <vector>
 
+#define OpDebugExpect_Enums \
+	OP_ENUM_MEMBER(unknown), \
+	OP_ENUM_MEMBER(fail), \
+	OP_ENUM_MEMBER(success),
+
 enum class OpDebugExpect {
-	unknown,
-	fail,
-	success,
+    OpDebugExpect_Enums
 };
 
 float OpDebugBitsToFloat(int32_t);

@@ -83,10 +83,13 @@ struct OpWinding {
 // winding is wrong.
 // The normal zero winding is computed before the edge orientation (e.g., whichEnd) 
 // is known, so it may be reversed if the edge is to be connected backwards.
+#define WindZero_Enums \
+	OP_ENUM_MEMBER(unset), \
+	OP_ENUM_MEMBER(zero), \
+	OP_ENUM_MEMBER(nonZero),
+
 enum class WindZero : int8_t {
-	unset,
-	zero,
-	nonZero,
+	WindZero_Enums
 };
 
 inline void OpDebugCheckSingleZero(WindZero left, WindZero right) {

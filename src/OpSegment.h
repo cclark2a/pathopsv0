@@ -8,15 +8,13 @@
 
 struct OpContour;
 
-enum class MatchSect {
-	allow,  // any ends of segment can match
-	existing    // consecutive segments cannot match
-};
+#define ChopUnsortable_Enums \
+    OP_ENUM_MEMBER(none), \
+    OP_ENUM_MEMBER(prior), \
+    OP_ENUM_MEMBER(next)
 
 enum class ChopUnsortable {
-	none,
-	prior,
-	next
+	ChopUnsortable_Enums
 };
 
 struct FoundEdge {
@@ -51,11 +49,14 @@ struct FoundEdge {
 	bool loops;  // true if edge when connected to existing link forms a loop
 };
 
+#define PtType_Enums \
+	OP_ENUM_MEMBER(noMatch),   /* pt not close to alias or original */ \
+	OP_ENUM_MEMBER(original),  /* pt maps to alias (if not equal to existing original, pt->alias added) */ \
+	OP_ENUM_MEMBER(isAlias),   /* pt is existing alias */ \
+	OP_ENUM_MEMBER(mapSegment) /* move end and/or sect of segment  */ \
+
 enum class PtType {
-	noMatch,   // pt not close to alias or original
-	original,  // pt maps to alias (if not equal to existing original, pt->alias added)
-	isAlias,   // pt is existing alias
-	mapSegment // move end and/or sect of segment 
+    PtType_Enums
 };
 
 struct SegPt {
@@ -70,6 +71,8 @@ enum class PrefFound {
     retry,
     ok
 };
+
+#undef OP_X
 
 struct OpSegment {
 	OpSegment(PathOpsV0Lib::Contour* , PathOpsV0Lib::AddCurve);

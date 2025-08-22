@@ -191,12 +191,17 @@ inline XyChoice operator!(XyChoice a) {
 
 // for other enums, neither would be valued at zero for struct initialization
 // here, axis is used as a component index for (x, y), so '-1' is used for neither
+#define Axis_Base OP_ENUM_BASE(neither, -1)  // set when axis parameter is passed but has no meaning
+
+#define Axis_Enums \
+    OP_ENUM_MEMBER(vertical),  /* vertical axis value in x; or is positive in y (top to bottom) */ \
+	OP_ENUM_MEMBER(horizontal),  /* horizontal axis in y; or is positive in x (left to right) */ \
+	OP_ENUM_MEMBER(up),  /* used sparsely to denote a vertical axis that points bottom to top */ \
+	OP_ENUM_MEMBER(left), /* used sparsely to denote a horizontal axis that points right to left */
+
 enum class Axis : int8_t {
-	neither = -1,   // set when axis parameter is passed but has no meaning
-	vertical,       // a vertical axis has a value in x; or axis is positive in y (top to bottom)
-	horizontal,     // a horizontal axis has a value in y; or axis is positive in x (left to right)
-	up,             // used sparsely to denote a vertical axis that points bottom to top
-	left,           // used sparsely to denote a horizontal axis that points right to left
+    Axis_Base,
+    Axis_Enums
 };
 
 inline int operator+(Axis a) {

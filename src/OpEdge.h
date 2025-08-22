@@ -4,7 +4,6 @@
 
 #include "OpCurve.h"
 #include "OpTightBounds.h"
-#include "OpOperators.h"
 #include "OpWinding.h"
 #include <vector>
 
@@ -29,10 +28,6 @@ inline NewEdge operator!(const NewEdge& a) {
 	return (NewEdge) !static_cast<int>(a);
 }
 
-enum RotateVertical {
-	rotateVertical,
-};
-
 enum class IntersectResult {
 	fail,
 	no,
@@ -41,15 +36,17 @@ enum class IntersectResult {
 	maybe,
 };
 
-enum EdgeRay {
-	xRay,
-	yRay,
-};
+#define EdgeMatch_Base \
+    OP_ENUM_BASE(none, -1)
+
+#define EdgeMatch_Enums \
+	OP_ENUM_MEMBER(start), \
+	OP_ENUM_MEMBER(end),
+
 
 enum class EdgeMatch : int8_t {
-	none = -1,
-	start,
-	end,
+	EdgeMatch_Base,
+	EdgeMatch_Enums
 };
 
 inline EdgeMatch operator!(EdgeMatch m) {
@@ -57,11 +54,13 @@ inline EdgeMatch operator!(EdgeMatch m) {
 	return static_cast<EdgeMatch>(!static_cast<int>(m));
 }
 
+#define EdgeFail_Enums \
+	OP_ENUM_MEMBER(none), \
+	OP_ENUM_MEMBER(horizontal), \
+	OP_ENUM_MEMBER(vertical),
+
 enum class EdgeFail : uint8_t {
-	none,
-//	center,
-	horizontal,
-	vertical,
+    EdgeFail_Enums
 };
 
 enum class RayOrder : uint8_t {
@@ -191,13 +190,16 @@ struct SectRay {
 	bool sorted = false;
 };
 
+#define SectType_Enums \
+	OP_ENUM_MEMBER(none), \
+	OP_ENUM_MEMBER(endHull),  /* intersection is close to or equal to curve end point */ \
+	OP_ENUM_MEMBER(controlHull),  /* sect is on hull between end & control, or pair of ctrl pts */ \
+	OP_ENUM_MEMBER(midHull),  /* hull intersects, but not near end point */ \
+	OP_ENUM_MEMBER(snipLo),   /* snip at t lower than intersection */ \
+	OP_ENUM_MEMBER(snipHi)    /* snip at t higher than intersection */
+
 enum class SectType {
-	none,
-	endHull,  // intersection is close to or equal to curve end point
-	controlHull,  // intersection is on hull between end and control, or pair of control points
-	midHull,  // hull intersects, but not near end point
-	snipLo,   // snip at t lower than intersection
-	snipHi    // snip at t higher than intersection
+    SectType_Enums
 };
 
 // distance from one edge to another, used by curve-curve intersection
@@ -287,19 +289,22 @@ enum class Unsectable {
 	multiple,
 };
 
+#define Unsortable_Enums \
+	OP_ENUM_MEMBER(none), \
+	OP_ENUM_MEMBER(addCalcFail), \
+	OP_ENUM_MEMBER(addCalcFail2), \
+	OP_ENUM_MEMBER(betweenCoins), \
+	OP_ENUM_MEMBER(filler), \
+	OP_ENUM_MEMBER(homeUnsectable), \
+	OP_ENUM_MEMBER(noMidT), \
+	OP_ENUM_MEMBER(noNormal), \
+	OP_ENUM_MEMBER(palsEnd), \
+	OP_ENUM_MEMBER(rayTooShallow), \
+	OP_ENUM_MEMBER(tooManyTries), \
+	OP_ENUM_MEMBER(underflow), \
+
 enum class Unsortable {
-	none,
-	addCalcFail,
-	addCalcFail2,
-	betweenCoins,
-	filler,
-	homeUnsectable,
-	noMidT,
-	noNormal,
-	palsEnd,
-	rayTooShallow,
-	tooManyTries,
-	underflow
+	Unsortable_Enums
 };
 
 enum class InOutput {
