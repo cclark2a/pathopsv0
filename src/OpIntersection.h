@@ -33,9 +33,12 @@ struct CoinPair {
 	OP_DEBUG_CODE(OpEdge* lastEdge);
 };
 
+#define CoinOpp_Enums \
+	OP_ENUM_MEMBER(no), \
+	OP_ENUM_MEMBER(yes)  /* set for the one of coin pair that will be disabled */
+
 enum class CoinOpp {
-	no,
-	yes  // set for the one of coin pair that will be disabled
+	CoinOpp_Enums
 };
 
 inline CoinOpp operator!(CoinOpp m) {

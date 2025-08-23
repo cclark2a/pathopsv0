@@ -63,11 +63,14 @@ enum class EdgeFail : uint8_t {
     EdgeFail_Enums
 };
 
+#define RayOrder_Enums \
+	OP_ENUM_MEMBER(uninitialized), \
+	OP_ENUM_MEMBER(ok), \
+	OP_ENUM_MEMBER(unordered),  /* informative - unsectable could have been noted here */ \
+	OP_ENUM_MEMBER(tooClose),   /* actionable - find another ray that is unambiguous  */
+
 enum class RayOrder : uint8_t {
-	uninitialized,
-	ok,
-	unordered,  // informative - unsectable could have been noted here
-	tooClose,    // actionable - find another ray that is unambiguous
+    RayOrder_Enums
 };
 
 struct EdgePal {

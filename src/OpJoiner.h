@@ -8,11 +8,14 @@ struct OpContour;
 struct OpContext;
 struct OpOutPath;
 
+#define LinkPass_Enums \
+	OP_ENUM_MEMBER(none), \
+	OP_ENUM_MEMBER(normal), \
+	OP_ENUM_MEMBER(unsectable), \
+	OP_ENUM_MEMBER(remaining),
+
 enum class LinkPass {
-	none,
-	normal,
-	unsectable,
-	remaining,
+    LinkPass_Enums
 };
 
 /* !!! consider a rewrite where a single link up is
@@ -63,19 +66,22 @@ struct OpJoiner {
 	OP_DEBUG_CODE(int debugRecursiveDepth);
 };
 
+#define LimbPass_Enums \
+	OP_ENUM_MEMBER(none), \
+	OP_ENUM_MEMBER(linked),    /* in linkups list with correct winding */ \
+	OP_ENUM_MEMBER(unlinked),  /* in unsectByArea and in unsortables */ \
+	OP_ENUM_MEMBER(unsectPair), /* gap to other edge in unsectable pair */ \
+	OP_ENUM_MEMBER(disabledCenterless),  /* in disabled, and so small no center could be computed */ \
+	OP_ENUM_MEMBER(disabledPals),  /* in disabled pals */ \
+	OP_ENUM_MEMBER(miswound),  /* in linkups list, including entries with the wrong winding */ \
+	OP_ENUM_MEMBER(disjoint),  /* gap to closest in linkups list, or gap to edge start (loop) */ \
+	OP_ENUM_MEMBER(unlinkedPal),  /* unlinked variant that permits siblings to connect to seen edges' pals */ \
+	OP_ENUM_MEMBER(disabledBackwards),  /* undetected mis-sort may be closable (e.g, loop156850) */ \
+	OP_ENUM_MEMBER(debugStop)  /* debugging aid when limb pass is advanced past final value */
+
 // keep track of all edge possibilities to find the best closing path
 enum class LimbPass : uint8_t {
-	none,
-	linked,    // in linkups list with correct winding
-	unlinked,  // in unsectByArea and in unsortables
-	unsectPair, // gap to other edge in unsectable pair
-	disabledCenterless,  // in disabled, and so small no center could be computed
-	disabledPals,  // in disabled pals
-	miswound,  // in linkups list, including entries with the wrong winding
-	disjoint,  // gap to closest in linkups list, or gap to edge start (loop)
-	unlinkedPal,  // unlinked variant that permits siblings to connect to seen edges' pals
-	disabledBackwards,  // undetected mis-sort may be closable (e.g, loop156850)
-	OP_DEBUG_CODE(debugStop)  // debugging aid when limb pass is advanced past final value
+    LimbPass_Enums
 };
 
 inline LimbPass operator++(LimbPass& limbPass) {

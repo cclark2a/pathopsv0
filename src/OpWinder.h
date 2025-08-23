@@ -4,10 +4,6 @@
 
 #include "OpEdge.h"
 
-enum class MatchEnds;  // for coin intersections
-struct OpContext;
-struct OpEdge;
-
 enum class ChainFail {
 	none,
 	betweenUnsectables,

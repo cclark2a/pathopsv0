@@ -24,10 +24,13 @@ enum class WindingTemp {	// used to accumulate winding sum before it is applied
 	dummy
 };
 
+#define WindingType_Enums \
+	OP_ENUM_MEMBER(uninitialized), \
+	OP_ENUM_MEMBER(caller), \
+	OP_ENUM_MEMBER(copy)
+
 enum class WindingType  {
-	uninitialized,
-	caller,
-	copy  // used only by new interface
+    WindingType_Enums
 };
 
 namespace PathOpsV0Lib {
@@ -35,12 +38,16 @@ namespace PathOpsV0Lib {
 }
 
 #if OP_DEBUG
+
+#define DebugWindingType_Enums \
+	OP_ENUM_MEMBER(uninitialized), \
+	OP_ENUM_MEMBER(temp), \
+	OP_ENUM_MEMBER(winding), \
+	OP_ENUM_MEMBER(sum) \
+
 // !!! this has mostly fallen into disrepair; either fix it or delete it
 enum class DebugWindingType {
-	uninitialized,
-	temp,
-	winding,
-	sum,
+    DebugWindingType_Enums
 };
 #endif
 

@@ -34,11 +34,14 @@ enum class WindState {
 
 typedef double OpCubicFloatType;
 
+#define MatchEnds_Enums \
+	OP_ENUM_MEMBER(none), \
+	OP_ENUM_MEMBER(start), \
+	OP_ENUM_MEMBER(end), \
+	OP_ENUM_MEMBER(both), \
+
 enum class MatchEnds {
-	none,
-	start,
-	end,
-	both
+	MatchEnds_Enums
 };
 
 inline bool operator&(MatchEnds a, MatchEnds b) {

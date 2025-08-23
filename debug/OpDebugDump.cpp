@@ -253,7 +253,7 @@ EDGE_DETAIL
     DUMP_BY_DUMPID
 #undef OP_X
 
-#define ENUM_NAME_STRUCT_X(enum) \
+#define ENUM_NAME_STRUCT(enum) \
 struct _##enum##Name { \
     enum element; \
     const char* name; \
@@ -287,95 +287,22 @@ enum enum##Str(const char*& str, const char* label, enum enumDefault) { \
     return (enum) -1; \
 }
 
-#define ENUM_NAME_STRUCT(enum) \
-struct enum##Name { \
-    enum element; \
-    const char* name; \
-}
-
 #define ENUM_NAME_STRUCT_ABBR(enum) \
-struct enum##Name { \
+struct _##enum##Abbr { \
     enum element; \
     const char* name; \
     const char* abbr; \
 }
 
-// !!! it would be nice if this used static assert instead...
-#define ENUM_NAME(Enum, enum) \
-static bool enum##OutOfDate = false; \
+#define ENUM_NAME_ABBR(enum) \
 \
-std::string enum##Name(Enum element) { \
-    static bool enum##Checked = false; \
-    int first = (int) enum##Names[0].element; \
-    if (!enum##Checked) { \
-        for (int index = 0; index < (int) ARRAY_COUNT(enum##Names); ++index) \
-           if (!enum##OutOfDate && (int) enum##Names[index].element != index + first) { \
-               OpDebugOut("!!! " #Enum " out of date\n"); \
-               enum##OutOfDate = true; \
-               break; \
-           } \
-        enum##Checked = true; \
+std::string enum##Abbr(enum element, DebugLevel l) { \
+    for (int index = 0; index < (int) ARRAY_COUNT(enum##Abbrs); ++index) { \
+        if (enum##Abbrs[index].element == element) \
+            return DebugLevel::brief == l ? enum##Abbrs[index].abbr \
+                    : enum##Abbrs[index].name; \
     } \
-    if (enum##OutOfDate) \
-        return STR_E(element); \
-    return enum##Names[(int) element - first].name; \
-} \
-\
-Enum enum##Str(const char*& str, const char* label, Enum enumDefault) { \
-    if (!OpDebugOptional(str, label)) \
-        return enumDefault; \
-    size_t strLen = 0; \
-    while (isalnum(str[strLen])) \
-        ++strLen; \
-    for (int index = 0; index < (int) ARRAY_COUNT(enum##Names); ++index) { \
-        size_t nameLen = strlen(enum##Names[index].name); \
-        if (strLen == nameLen && !strncmp(str, enum##Names[index].name, nameLen)) { \
-            str += strlen(enum##Names[index].name); \
-            if (' ' == str[0]) ++str; \
-            return enum##Names[index].element; \
-        } \
-    } \
-    OpDebugExitOnFail("missing enum", false); \
-    return (Enum) -1; \
-}
-
-#define ENUM_NAME_ABBR(Enum, enum) \
-static bool enum##OutOfDate = false; \
-\
-std::string enum##Name(Enum element, DebugLevel l) { \
-    static bool enum##Checked = false; \
-    int first = (int) enum##Names[0].element; \
-    if (!enum##Checked) { \
-        for (int index = 0; index < (int) ARRAY_COUNT(enum##Names); ++index) \
-           if (!enum##OutOfDate && (int) enum##Names[index].element != index + first) { \
-               OpDebugOut("!!! " #Enum " out of date\n"); \
-               enum##OutOfDate = true; \
-               break; \
-           } \
-        enum##Checked = true; \
-    } \
-    if (enum##OutOfDate) \
-        return STR_E(element); \
-    return DebugLevel::brief == l ? enum##Names[(int) element - first].abbr \
-        : enum##Names[(int) element - first].name; \
-} \
-\
-Enum enum##Str(const char*& str, const char* label, Enum enumDefault) { \
-    if (!OpDebugOptional(str, label)) \
-        return enumDefault; \
-    size_t strLen = 0; \
-    while (isalnum(str[strLen])) \
-        ++strLen; \
-    for (int index = 0; index < (int) ARRAY_COUNT(enum##Names); ++index) { \
-        size_t nameLen = strlen(enum##Names[index].name); \
-        if (strLen == nameLen && !strncmp(str, enum##Names[index].name, nameLen)) { \
-            str += nameLen; \
-            if (' ' == str[0]) ++str; \
-            return enum##Names[index].element; \
-        } \
-    } \
-    OpDebugExitOnFail("missing enum", false); \
-    return (Enum) -1; \
+    return "missing " + std::string(#enum) + " element:" + STR((int) element); \
 }
 
 static std::string wordBounds = "\t\n\r ,:<>()[]{}";
@@ -922,7 +849,7 @@ void OpContext::dumpCount(std::string label) const {
 #undef OP_ENUM_MEMBER
 #define OP_ENUM_MEMBER(w) { OpDebugExpect::w, #w }
 #define OpDebugExpect_Base
-ENUM_NAME_STRUCT_X(OpDebugExpect)
+ENUM_NAME_STRUCT(OpDebugExpect)
 
 #define BOOL_TO_STR(data) if (data) s += #data + std::string(" ")
 
@@ -961,12 +888,13 @@ void OpPtAliases::dumpSet(const char*& str) {
 
 namespace PathOpsV0Lib {
 
-// !!! unsure what to do ; don't want funny macros in public interface 
-//     but, do want robust number/name mapping...
-ENUM_NAME_STRUCT(ContextError);
+// don't want funny macros in public interface, so this is explicitly for the only public enum... 
 #define CONTEXT_ERROR_NAME(r) { ContextError::r, #r }
 
-ContextErrorName contextErrorNames[] = {
+struct ContextErrorName {
+    ContextError element;
+    std::string name;
+} contextErrorNames[] = {
 	CONTEXT_ERROR_NAME(none),
 	CONTEXT_ERROR_NAME(end),
     CONTEXT_ERROR_NAME(finite),
@@ -978,7 +906,44 @@ ContextErrorName contextErrorNames[] = {
     CONTEXT_ERROR_NAME(tree),
 };
 
-ENUM_NAME(ContextError, contextError)
+#undef CONTEXT_ERROR_NAME
+
+static bool contextErrorOutOfDate = false;
+
+std::string contextErrorName(ContextError element) {
+    static bool contextErrorChecked = false;
+    int first = (int) contextErrorNames[0].element;
+    if (!contextErrorChecked) {
+        for (int index = 0; index < (int) ARRAY_COUNT(contextErrorNames); ++index)
+           if (!contextErrorOutOfDate && (int) contextErrorNames[index].element != index + first) {
+               OpDebugOut("!!! contextErrorNames out of date\n");
+               contextErrorOutOfDate = true;
+               break;
+           }
+        contextErrorChecked = true;
+    }
+    if (contextErrorOutOfDate)
+        return STR_E(element);
+    return contextErrorNames[(int) element - first].name;
+}
+
+ContextError contextErrorStr(const char*& str, const char* label, ContextError enumDefault) {
+    if (!OpDebugOptional(str, label))
+        return enumDefault;
+    size_t strLen = 0;
+    while (isalnum(str[strLen]))
+        ++strLen;
+    for (int index = 0; index < (int) ARRAY_COUNT(contextErrorNames); ++index) {
+        size_t nameLen = contextErrorNames[index].name.size();
+        if (strLen == nameLen && !strncmp(str, contextErrorNames[index].name.c_str(), nameLen)) {
+            str += contextErrorNames[index].name.size();
+            if (' ' == str[0]) ++str;
+            return contextErrorNames[index].element;
+        }
+    }
+    OpDebugExitOnFail("missing enum", false);
+    return (ContextError) -1;
+}
 
 }
 
@@ -2357,23 +2322,23 @@ void OpCurve::dumpSet(const char*& str) {
 #define OP_ENUM_BASE(w, val) { EdgeMatch::w, #w },
 #undef OP_ENUM_MEMBER
 #define OP_ENUM_MEMBER(w) { EdgeMatch::w, #w }
-ENUM_NAME_STRUCT_X(EdgeMatch)
+ENUM_NAME_STRUCT(EdgeMatch)
 
 #undef OP_ENUM_MEMBER
 #define OP_ENUM_MEMBER(w) { EdgeFail::w, #w }
 #define EdgeFail_Base
-ENUM_NAME_STRUCT_X(EdgeFail)
+ENUM_NAME_STRUCT(EdgeFail)
 
 #undef OP_ENUM_MEMBER
 #define OP_ENUM_MEMBER(w) { WindZero::w, #w }
 #define WindZero_Base
-ENUM_NAME_STRUCT_X(WindZero)
+ENUM_NAME_STRUCT(WindZero)
 
 #undef OP_ENUM_BASE
 #define OP_ENUM_BASE(w, val) { Axis::w, #w },
 #undef OP_ENUM_MEMBER
 #define OP_ENUM_MEMBER(w) { Axis::w, #w }
-ENUM_NAME_STRUCT_X(Axis)
+ENUM_NAME_STRUCT(Axis)
 
 #define EDGE_FILTER \
 	OP_X(segment) \
@@ -2765,10 +2730,15 @@ void dmpT(const OpSegment* s, float t) {
             + pt.debugDump(defaultLevel, defaultBase) + "\n");
 }
 
+#undef OP_ENUM_MEMBER
+#define OP_ENUM_MEMBER(w) { SectType::w, #w }
+#define SectType_Base
+ENUM_NAME_STRUCT(SectType)
+
 ENUM_NAME_STRUCT_ABBR(SectType);
 #define SECTTYPE_NAME(w, abbr) { SectType::w, #w, #abbr }
 
-static SectTypeName sectTypeNames[] = {
+static _SectTypeAbbr SectTypeAbbrs[] = {
     SECTTYPE_NAME(none, none),
     SECTTYPE_NAME(endHull, end),
     SECTTYPE_NAME(controlHull, ctrl),
@@ -2777,24 +2747,17 @@ static SectTypeName sectTypeNames[] = {
 	SECTTYPE_NAME(snipHi, snpH),
 };
 
-ENUM_NAME_ABBR(SectType, sectType)
+ENUM_NAME_ABBR(SectType)
 
 #undef OP_ENUM_MEMBER
 #define OP_ENUM_MEMBER(w) { Unsortable::w, #w }
 #define Unsortable_Base
-ENUM_NAME_STRUCT_X(Unsortable)
+ENUM_NAME_STRUCT(Unsortable)
 
-ENUM_NAME_STRUCT(RayOrder);
-#define RAYORDER_NAME(w) { RayOrder::w, #w }
-
-static RayOrderName rayOrderNames[] = {
-	RAYORDER_NAME(uninitialized),
-	RAYORDER_NAME(ok),
-	RAYORDER_NAME(unordered),
-	RAYORDER_NAME(tooClose),
-};
-
-ENUM_NAME(RayOrder, rayOrder)
+#undef OP_ENUM_MEMBER
+#define OP_ENUM_MEMBER(w) { RayOrder::w, #w }
+#define RayOrder_Base
+ENUM_NAME_STRUCT(RayOrder)
 
 std::string EdgePal::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
@@ -2826,7 +2789,7 @@ std::string Distance::debugDump(DebugLevel l, DebugBase b) const {
     if (!OpMath::IsNaN(edgeInsideT))
         s += debugValue(l, b, "edgeInsideT", edgeInsideT) + " ";
     if (RayOrder::uninitialized != rayOrder)
-		s += "rayOrder:" + rayOrderName(rayOrder) + " ";
+		s += "rayOrder:" + RayOrderName(rayOrder) + " ";
     if (reversed) 
         s += DebugLevel::brief != l ? "reversed " : "r ";
     if (dependent) 
@@ -3785,17 +3748,10 @@ void OpLimbStorage::dumpResolveAll(OpContext* c) {
         debugIndex(index)->dumpResolveAll(c);
 }
 
-ENUM_NAME_STRUCT(LinkPass);
-#define LINKPASS_NAME(r) { LinkPass::r, #r }
-
-LinkPassName linkPassNames[] = {
-    LINKPASS_NAME(none),
-	LINKPASS_NAME(normal),
-	LINKPASS_NAME(unsectable),
-	LINKPASS_NAME(remaining),
-};
-
-ENUM_NAME(LinkPass, linkPass)
+#undef OP_ENUM_MEMBER
+#define OP_ENUM_MEMBER(w) { LinkPass::w, #w }
+#define LinkPass_Base
+ENUM_NAME_STRUCT(LinkPass)
 
 std::string OpContour::debugDumpJoin(DebugLevel l, DebugBase b) const {
     std::string s;
@@ -3865,7 +3821,7 @@ std::string OpJoiner::debugDump(DebugLevel l, DebugBase b) const {
     if (bestGap.edge)
         s += "bestGap:" + bestGap.debugDump(l, b) + "\n";
     s += "linkMatch:" + EdgeMatchName(linkMatch) + " ";
-    s += "linkPass:" + linkPassName(linkPass) + " ";
+    s += "linkPass:" + LinkPassName(linkPass) + " ";
     if (edge)
 		s += "edge:" + STR(edge->id) + " ";
     if (lastLink)
@@ -3880,7 +3836,7 @@ void OpJoiner::dumpSet(const char*& str) {
     OpDebugRequired(str, "bestGap");
     bestGap.dumpSet(str);
     linkMatch = EdgeMatchStr(str, "linkMatch", EdgeMatch::none);
-    linkPass = linkPassStr(str, "linkPass", LinkPass::none);
+    linkPass = LinkPassStr(str, "linkPass", LinkPass::none);
     if (OpDebugOptional(str, "edge"))
         edge = (OpEdge*) OpDebugReadSizeT(str);
     if (OpDebugOptional(str, "lastLink"))
@@ -3895,30 +3851,10 @@ void OpJoiner::dumpResolveAll(OpContext* c) {
     c->dumpResolve(lastLink);
 }
 
-ENUM_NAME_STRUCT(LimbPass);
-#define LIMBPASS_NAME(r) { LimbPass::r, #r }
-
-LimbPassName limbPassNames[] = {
-	LIMBPASS_NAME(none),
-	LIMBPASS_NAME(linked),
-    LIMBPASS_NAME(unlinked),
-    LIMBPASS_NAME(unsectPair),
-	LIMBPASS_NAME(disabledCenterless),
-	LIMBPASS_NAME(disabledPals),
-	LIMBPASS_NAME(miswound),
-	LIMBPASS_NAME(disjoint),
-    LIMBPASS_NAME(unlinkedPal),
-	LIMBPASS_NAME(disabledBackwards),
-#if OP_DEBUG
-	LIMBPASS_NAME(debugStop),
-#endif
-};
-
-ENUM_NAME(LimbPass, limbPass)
-
-std::string debugLimbPass(LimbPass pass) {
-	return limbPassName(pass);
-}
+#undef OP_ENUM_MEMBER
+#define OP_ENUM_MEMBER(w) { LimbPass::w, #w }
+#define LimbPass_Base
+ENUM_NAME_STRUCT(LimbPass)
 
 std::string OpLimb::debugDumpIDs(DebugLevel l, bool bracket) const {
     std::string s = (bracket ? "[" : "id:") + STR(id);
@@ -3971,7 +3907,7 @@ std::string OpLimb::debugDump(DebugLevel l, DebugBase b) const {
     if (EdgeMatch::none != lastMatch)
         s += " lastMatch:" + EdgeMatchName(lastMatch);
     if (LimbPass::none != treePass)
-        s += " treePass:" + limbPassName(treePass);
+        s += " treePass:" + LimbPassName(treePass);
     if (deadEnd != (bool) -1)
         s += " deadEnd";
     if (looped != (bool) -1)
@@ -4012,7 +3948,7 @@ void OpLimb::dumpSet(const char*& str) {
     closeDistance = OpDebugReadNamedFloat(str, "closeDistance");
     match = EdgeMatchStr(str, "match", EdgeMatch::none);
     lastMatch = EdgeMatchStr(str, "lastMatch", EdgeMatch::none);
-    treePass = limbPassStr(str, "treePass", LimbPass::unlinked);
+    treePass = LimbPassStr(str, "treePass", LimbPass::unlinked);
     looped = OpDebugOptional(str, "looped");
     resetPass = OpDebugOptional(str, "resetPass");
     if (OpDebugOptional(str, "debugBranches")) {
@@ -4038,7 +3974,7 @@ std::string OpTree::debugDump(DebugLevel l, DebugBase b) const {
     if (firstPt.isFinite())
         s += " firstPt:" + firstPt.debugDump(l, b);
     if (LimbPass::none != limbPass)
-        s += " limbPass:" + limbPassName(limbPass);
+        s += " limbPass:" + LimbPassName(limbPass);
     if (OpMath::IsFinite(bestDistance))
         s += " bestDistance:" + debugFloat(b, bestDistance);
     if (OpMath::IsFinite(bestPerimeter))
@@ -4065,7 +4001,7 @@ std::string OpTree::debugDump(DebugLevel l, DebugBase b) const {
             }
             s.pop_back();
         }
-        s += " treePass:" + limbPassName(limb.treePass) + "\n";
+        s += " treePass:" + LimbPassName(limb.treePass) + "\n";
     }
 	if ('\n' == s.back())
 		s.pop_back();
@@ -4119,17 +4055,6 @@ void EdgeRun::dumpSet(const char*& str) {
     debugSetMaker.dumpSet(str);
 #endif
 }
-
-ENUM_NAME_STRUCT(CurveRef);
-
-#define CURVEREF_NAME(s) { CurveRef::s, #s }
-
-static CurveRefName curveRefNames[] {
-    CURVEREF_NAME(edge),
-    CURVEREF_NAME(opp),
-};
-
-ENUM_NAME(CurveRef, curveRef)
 
 std::string FoundLimits::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
@@ -4315,7 +4240,7 @@ void SectRay::dumpSet(const char*& str) {
 #undef OP_ENUM_MEMBER
 #define OP_ENUM_MEMBER(w) { PtType::w, #w }
 #define PtType_Base
-ENUM_NAME_STRUCT_X(PtType)
+ENUM_NAME_STRUCT(PtType)
 
 std::string SegPt::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
@@ -4611,27 +4536,15 @@ void dmpDepth() {
 }
 #endif
 
-ENUM_NAME_STRUCT(MatchEnds);
-#define MATCH_ENDS_NAME(r) { MatchEnds::r, #r }
+#undef OP_ENUM_MEMBER
+#define OP_ENUM_MEMBER(w) { MatchEnds::w, #w }
+#define MatchEnds_Base
+ENUM_NAME_STRUCT(MatchEnds)
 
-MatchEndsName matchEndsNames[] {
-	MATCH_ENDS_NAME(none),
-    MATCH_ENDS_NAME(start),
-    MATCH_ENDS_NAME(end),
-    MATCH_ENDS_NAME(both)
-};
-
-ENUM_NAME(MatchEnds, matchEnds)
-
-ENUM_NAME_STRUCT(CoinOpp);
-#define COIN_OPP_NAME(r) { CoinOpp::r, #r }
-
-CoinOppName coinOppNames[] {
-	COIN_OPP_NAME(no),
-    COIN_OPP_NAME(yes)
-};
-
-ENUM_NAME(CoinOpp, coinOpp)
+#undef OP_ENUM_MEMBER
+#define OP_ENUM_MEMBER(w) { CoinOpp::w, #w }
+#define CoinOpp_Base
+ENUM_NAME_STRUCT(CoinOpp)
 
 std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
     std::string s = "[" + debugDumpID() + "] ";
@@ -4653,19 +4566,19 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
     if (coincidenceID  OP_DEBUG_CODE(|| debugCoincidenceID)) {
         s += "coinID:" + STR(coincidenceID)  OP_DEBUG_CODE(+ "/" + STR(debugCoincidenceID));
         s += DebugLevel::file == l ? " coinEnd:" : " " ;
-        s += matchEndsName(coinEnd) + " ";
-        s += coinOppName(coinOpp) + " ";
+        s += MatchEndsName(coinEnd) + " ";
+        s += CoinOppName(coinOpp) + " ";
     }
     if (unsectID) {
         s += "unsectID:" + STR(unsectID);
         s += DebugLevel::file == l ? " unsectEnd:" : " ";
-        s += matchEndsName(unsectEnd) + " ";
+        s += MatchEndsName(unsectEnd) + " ";
     }
     if (!coincidenceID  OP_DEBUG_CODE(&& !debugCoincidenceID) && !unsectID 
             && MatchEnds::none != coinEnd)
-        s += "!!! (unexpected) " + matchEndsName(coinEnd) + " ";
+        s += "!!! (unexpected) " + MatchEndsName(coinEnd) + " ";
     if (!coincidenceID  OP_DEBUG_CODE(&& !debugCoincidenceID) && CoinOpp::yes == coinOpp)
-        s += "!!! (unexpected) " + coinOppName(coinOpp) + " ";
+        s += "!!! (unexpected) " + CoinOppName(coinOpp) + " ";
 	BOOL_TO_STR(betweenCoins);
 	BOOL_TO_STR(mergeProcessed);
 	BOOL_TO_STR(moved);
@@ -4723,9 +4636,9 @@ void OpIntersection::dumpSet(const char*& str) {
 #if OP_DEBUG
     debugCoincidenceID = OpDebugOptional(str, "/") ? readCoinID(str) : 0;
 #endif
-    coinEnd = matchEndsStr(str, "coinEnd", MatchEnds::none);
+    coinEnd = MatchEndsStr(str, "coinEnd", MatchEnds::none);
     unsectID = OpDebugOptional(str, "unsectID") ? readCoinID(str) : 0;
-    unsectEnd = matchEndsStr(str, "unsectEnd", MatchEnds::none);
+    unsectEnd = MatchEndsStr(str, "unsectEnd", MatchEnds::none);
     mergeProcessed = OpDebugOptional(str, "mergeProcessed");
     moved = OpDebugOptional(str, "moved");
     collapsed = OpDebugOptional(str, "collapsed");
@@ -5043,29 +4956,15 @@ void dmpStart(const OpSegment& seg) {
 
 DEBUG_DUMP_ID_DEFINITION(OpSegment, id)
 
-ENUM_NAME_STRUCT(WindingType);
-#define WINDING_NAME(w) { WindingType::w, #w }
+#undef OP_ENUM_MEMBER
+#define OP_ENUM_MEMBER(w) { WindingType::w, #w }
+#define WindingType_Base
+ENUM_NAME_STRUCT(WindingType)
 
-static WindingTypeName windingTypeNames[] = {
-    WINDING_NAME(uninitialized),
-	WINDING_NAME(caller),
-	WINDING_NAME(copy),
-};
-
-ENUM_NAME(WindingType, windingType)
-
-ENUM_NAME_STRUCT(DebugWindingType);
-#define DEBUG_WINDING_NAME(w) { DebugWindingType::w, #w }
-
-static DebugWindingTypeName debugWindingTypeNames[] = {
-    DEBUG_WINDING_NAME(uninitialized),
-	DEBUG_WINDING_NAME(temp),
-	DEBUG_WINDING_NAME(winding),
-	DEBUG_WINDING_NAME(sum)
-};
-
-ENUM_NAME(DebugWindingType, debugWindingType)
-
+#undef OP_ENUM_MEMBER
+#define OP_ENUM_MEMBER(w) { DebugWindingType::w, #w }
+#define DebugWindingType_Base
+ENUM_NAME_STRUCT(DebugWindingType)
 
 std::string OpWinding::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
@@ -5083,9 +4982,9 @@ std::string OpWinding::debugDump(DebugLevel l, DebugBase b) const {
 		}
 		if (DebugLevel::detailed == l) {
 			if (WindingType::uninitialized != type)
-				s += windingTypeName(type) + " ";
+				s += WindingTypeName(type) + " ";
 			if (DebugWindingType::uninitialized != debugType)
-				s += debugWindingTypeName(debugType) + " ";
+				s += DebugWindingTypeName(debugType) + " ";
 		}
 		if (' ' == s.back())
 			s.pop_back();
@@ -5205,7 +5104,7 @@ std::string LinkUps::debugDump(DebugLevel li, DebugBase b) const {
 #undef OP_ENUM_MEMBER
 #define OP_ENUM_MEMBER(w) { ChopUnsortable::w, #w }
 #define ChopUnsortable_Base
-ENUM_NAME_STRUCT_X(ChopUnsortable)
+ENUM_NAME_STRUCT(ChopUnsortable)
 
 std::string FoundEdge::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
@@ -5253,7 +5152,7 @@ std::string HullSect::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     if (opp)
         s += "[" + STR(opp->id) + "] ";
-    s += sectTypeName(type, l);
+    s += SectTypeAbbr(type, l);
     s += " sect:" + sect.debugDump(l, b);
 	if (oppDist.isSet())
 		s += " oppDist:" + oppDist.debugDump(l, b);
@@ -5265,7 +5164,7 @@ void HullSect::dumpSet(const char*& str) {
         opp = (OpEdge*) OpDebugReadSizeT(str);
     else
         opp = nullptr;
-    type = sectTypeStr(str, "", SectType::none);
+    type = SectTypeStr(str, "", SectType::none);
     OpDebugRequired(str, ":");
     sect.dumpSet(str);
 }
@@ -5366,7 +5265,7 @@ void OpRect::dumpSet(const char*& str) {
 
 std::string MatchReverse::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    s += "match:" + matchEndsName(match) + " ";
+    s += "match:" + MatchEndsName(match) + " ";
     if (reversed)
         s += "reversed ";
     s.pop_back();
@@ -5374,7 +5273,7 @@ std::string MatchReverse::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 void MatchReverse::dumpSet(const char*& str) {
-    match = matchEndsStr(str, "match", MatchEnds::none);
+    match = MatchEndsStr(str, "match", MatchEnds::none);
     reversed = OpDebugOptional(str, "reversed");
 }
 
