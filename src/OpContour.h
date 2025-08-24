@@ -146,6 +146,7 @@ struct OpContour {
 	std::vector<OpEdge*> disabledCenterless;
 	std::vector<OpEdge*> disabledPals;
 	std::vector<OpEdge*> unsortables;
+    std::vector<uint8_t> windingStorage;
 	LinkUps linkups;
 	LinkUps endLinks;
 	OpPointBounds overlapBounds;  // bounds of intersecting contours (overlapOwner only)
@@ -178,6 +179,7 @@ struct OpContourStorage {
 
 #if OP_DEBUG_DUMP
 	int debugCount() const;
+    void debugCheck(const OpContour* ); // error and exit if contour is not in storage
 	OpContour* debugFind(int id) const;
 	OpContour* debugIndex(int index) const;
 	static void DumpSet(const char*& , OpContext* );

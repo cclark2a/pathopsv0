@@ -427,7 +427,7 @@ extern void v0(const char* testname, class SkPath& );  // immediate command to c
 int OpDebugCountDelimiters(const char* str, char delimiter, char openBracket, char closeBracket);
 void OpDebugExit(std::string);
 void OpDebugExitOnFail(std::string, bool );
-std::vector<uint8_t> OpDebugByteArray(const char*& str);
+void OpDebugByteArray(const char*& str, size_t size, uint8_t* );
 std::string OpDebugByteToHex(uint8_t);
 std::string OpDebugIntToHex(int32_t);
 std::string OpDebugPtrToHex(void*);
@@ -442,7 +442,7 @@ std::string OpDebugDumpHex(float);
 
 #if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE
 
-std::string OpDebugDumpByteArray(const char* bytes, size_t size);
+std::string OpDebugDumpByteArray(const uint8_t* bytes, size_t size);
 int32_t OpDebugFloatToBits(float);
 float OpDebugHexToFloat(const char*& str);
 uint8_t OpDebugByteToInt(const char*& str);

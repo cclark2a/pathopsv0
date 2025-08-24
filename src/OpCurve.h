@@ -138,7 +138,7 @@ struct CurveDataStorage {
 
 	CurveDataStorage* next;
 	size_t used;
-	char storage[sizeof(OpPoint) * 256];
+	uint8_t storage[sizeof(OpPoint) * 256];
 };
 
 #if OP_DEBUG_IMAGE  

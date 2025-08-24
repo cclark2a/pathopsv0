@@ -241,8 +241,9 @@ namespace PathOpsV0Lib {
 struct CurveCallbacks;
 }
 
-extern OpContext* fromFile(std::vector<PathOpsV0Lib::CurveCallbacks>* callbacks);
-extern void verifyFile(OpContext* );
+extern void dmpFile(OpContext* context, std::string filename);
+extern OpContext* fromFile(std::string filename);
+extern void verifyFile(OpContext* , std::string fromFilename, std::string verifyFilename);
 
 #if OP_DEBUG_VERBOSE
 extern void dmpDepth(int level);  // curve-curve intermediate edges created at some recursive depth
@@ -298,7 +299,6 @@ extern std::string debugDumpColor(DebugLevel, uint32_t c);
 extern void dmpColor(uint32_t );
 extern void dmpColor(const OpEdge* );
 extern void dmpColor(const OpEdge& );
-extern void dmpFile(OpContext* context);
 extern void dmpFilters();  // returns current filter settings
 extern void dmpHex(float );
 extern void dmpHex(uint32_t );

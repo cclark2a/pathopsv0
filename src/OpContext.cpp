@@ -243,7 +243,7 @@ OpEdge* OpContext::addFiller(const OpPtT& start, const OpPtT& end) {
 	return filler;
 }
 
-char* OpContext::allocateCallerData(size_t size) {
+uint8_t* OpContext::allocateCallerData(size_t size) {
 	if (!callerStorage)
 		callerStorage = new CallerDataStorage;
 	if (callerStorage->used + size > sizeof(callerStorage->storage)) {
@@ -251,7 +251,7 @@ char* OpContext::allocateCallerData(size_t size) {
 		next->next = callerStorage;
 		callerStorage = next;
 	}
-	char* result = &callerStorage->storage[callerStorage->used];
+	uint8_t* result = &callerStorage->storage[callerStorage->used];
 	size_t alignSize = alignof(void*);  // !!! allow caller to specify this?
 	size_t alignPart = size % alignSize;
 	if (alignPart)
@@ -317,7 +317,7 @@ OpLimb* OpContext::allocateLimb() {
 }
 
 PathOpsV0Lib::WindingData* OpContext::allocateWinding(size_t size) {
-	void* result = allocateCallerData(size);
+	uint8_t* result = allocateCallerData(size);
 	return (PathOpsV0Lib::WindingData*) result;
 }
 
@@ -600,8 +600,7 @@ WindingCondition OpContext::pathOps() {
 	WindingCondition windingCondition = apply();  // suppress edges which don't meet op criteria
 //	demotePalLinks();  // mark edges that connect pal ends as unsortable so assembly can ignore them
 #if 1
-    dmpFile(this);
-    verifyFile(this);
+    verifyFile(this, "dmp.txt", "dmp2.txt");
 #endif
 	if (!windingCondition && !assemble())
 		OP_DEBUG_FAIL(*this, -1);

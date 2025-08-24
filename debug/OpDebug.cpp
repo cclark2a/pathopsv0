@@ -224,12 +224,12 @@ std::string OpDebugDumpHex(float f) {
 
 #include "OpContext.h"
 
-std::string OpDebugDumpByteArray(const char* bytes, size_t size) {
+std::string OpDebugDumpByteArray(const uint8_t* bytes, size_t size) {
     std::string s = "[";
     size_t lastReturn = 0;
     for (size_t index = 0; index < size; ++index) {
         size_t lastSpace = s.size() - 1;
-        s += OpDebugByteToHex((uint8_t) bytes[index]) + " ";
+        s += OpDebugByteToHex(bytes[index]) + " ";
         if (s.size() - lastReturn > 100) {  // !!! hard-code to line length for now
             s[lastSpace] = '\n';
             lastReturn = lastSpace;
@@ -471,6 +471,8 @@ int32_t OpDebugHexToInt(const char*& str) {
 
 uint8_t OpDebugByteToInt(const char*& str) {
     uint8_t result = 0;
+    if (' ' >= str[0])
+        ++str;
     if ('[' == str[0])
         ++str;
     OpDebugRequired(str, "0x");
@@ -488,16 +490,14 @@ uint8_t OpDebugByteToInt(const char*& str) {
     return result;
 }
 
-std::vector<uint8_t> OpDebugByteArray(const char*& str) {
-    std::vector<uint8_t> result;
-    OpDebugRequired(str, "[");
-    OpDebugOptional(str, "]");
-    while (']' != str[-1]) {
-        result.push_back(OpDebugByteToInt(str));
+void OpDebugByteArray(const char*& str, size_t size, uint8_t* bytes) {
+    for (size_t index = 0; index < size; ++index) {
+        bytes[index] = OpDebugByteToInt(str);
+        if (index + 1 < size && ']' == str[-1])
+            OpDebugOut("unexpected end of array\n");
     }
     if (' ' >= str[0])
         ++str;
-    return result;
 }
 
 float OpDebugReadNamedFloat(const char*& str, const char* label) {
@@ -521,7 +521,7 @@ int OpDebugReadNamedInt(const char*& str, const char* label) {
 }
 
 size_t OpDebugReadSizeT(char const *& str) {
-    if ('[' == str[0])
+    if ('[' == str[0] || '{' == str[0] || ',' == str[0])
         ++str;
     unsigned long result;
     if (OpDebugOptional(str, "unset"))
@@ -533,7 +533,7 @@ size_t OpDebugReadSizeT(char const *& str) {
         result = strtoul(str, &endPtr, 10);
         str = endPtr;
     }
-    if (']' == str[0] || '/' == str[0])
+    if (']' == str[0] || '}' == str[0] || '/' == str[0])
         ++str;
     if (' ' >= str[0])
         ++str;
@@ -553,7 +553,9 @@ std::string OpDebugLabel(const char*& str) {
 
 bool OpDebugOptional(const char*& str, const char* match) {
     size_t matchLen = strlen(match);
-    while(str[0] && ' ' >= str[0])
+    if (']' == str[0] || '[' == str[0])
+        ++str;
+    while (str[0] && ' ' >= str[0])
         ++str;
     if (!strncmp(match, str, matchLen)) {
         str += matchLen;

@@ -24,7 +24,7 @@ struct CallerDataStorage {
 
 	CallerDataStorage* next;
 	size_t used;
-	char storage[2048];	// !!! size is arbitrary guess -- should measure and do better
+	uint8_t storage[2048];	// !!! size is arbitrary guess -- should measure and do better
 };
 
 struct OpPtAlias {
@@ -64,7 +64,7 @@ struct OpContext {
 //    OpEdge* addFiller(OpEdge* edge, OpEdge* lastEdge);
 	OpEdge* addFiller(const OpPtT& start, const OpPtT& end);
 	void addToBounds(const OpCurve& );
-	char* allocateCallerData(size_t );
+	uint8_t* allocateCallerData(size_t );
 	OpContour* allocateContour();
 	PathOpsV0Lib::CurveData* allocateCurveData(size_t );
 	OpEdge* allocateEdge(OpEdgeStorage*& );
@@ -142,10 +142,13 @@ struct OpContext {
 		}
 	}
 
-	OpContour* makeContour() {
+	OpContour* makeContour(PathOpsV0Lib::Winding winding) {
 		OpContour* contour = allocateContour();
 		contour->context = this;
 		contour->id = nextID();
+        contour->windingStorage.resize(winding.size);
+	    contour->winding = { &contour->windingStorage.front(), winding.size };
+        std::memcpy(contour->winding.data, winding.data, winding.size);
 		return contour;
 	}
 

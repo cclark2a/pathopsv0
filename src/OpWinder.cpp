@@ -59,6 +59,10 @@ void RayTargets::set(Axis axis) {
 		if (!contour)
 			continue;
 		edges = Axis::horizontal == axis ? &contour->inX : &contour->inY;	
+    #if OP_DEBUG_DUMP
+        debugEdgesContour = contour;
+        debugEdgesAxis = axis;
+    #endif
 		if (!edges->empty())
 			return;
 	}

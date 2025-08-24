@@ -57,8 +57,7 @@ Contour* CreateContour(Context* interfaceContext, Winding winding) {
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContext = context;
 #endif
-    OpContour* contour = context->makeContour();
-	contour->winding = winding;
+    OpContour* contour = context->makeContour(winding);
     return toInterface(contour);
 }
 
@@ -66,8 +65,7 @@ Contour* Clone(Contour* interfaceContour) {
 	OpContour* original = toImplementation(interfaceContour);
 	if (original->isEmpty())
 		return interfaceContour;
-    OpContour* clone = original->context->makeContour();
-	clone->winding = original->winding;
+    OpContour* clone = original->context->makeContour(original->winding);
 #if OP_DEBUG
 	clone->debugCallbacks = original->debugCallbacks;
 	clone->debugContourData = original->debugContourData;

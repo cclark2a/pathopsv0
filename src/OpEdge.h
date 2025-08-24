@@ -144,6 +144,10 @@ struct RayTargets {
 	OpRect chainBounds;
 	size_t edgeIndex = SIZE_MAX;
 	size_t index = SIZE_MAX;
+#if OP_DEBUG_DUMP  // edges is set from contour + axis, so track them
+    OpContour* debugEdgesContour = nullptr;
+    Axis debugEdgesAxis = Axis::neither;
+#endif
 };
 
 // captures ray info from edge that intersects other edges, horizontally or vertically
@@ -181,7 +185,6 @@ struct SectRay {
 	RayTargets targets;
 	std::vector<Distance> distances;
 	std::vector<Distance> erased;  // distances saved in case axis conflict requires restoring
-//	std::vector<OpContour*> containers;  // extra contours that affect home's winding sum
 	OpVector homeTangent;  // used to determine if unsectable edge is reversed
 	float normal = OpNaN;  // ray used to find windings on home edge (e.g., axis: h, center.y)
 	float homeCept = OpNaN;  // intersection of normal on home edge (e.g., axis: h, center.x)

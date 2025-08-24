@@ -167,10 +167,8 @@ struct OpSegment {
 	OpContour* contour;
 	OpCurve c;
 	OpPointBounds ptBounds;
-//	OpRect closeBounds;
 	OpIntersections sects;
 	std::vector<OpEdge> edges;
-//	std::vector<OpContour*> coinContours;  // other contours referenced by coincident segments !!! unnecessary?
 	OpWinding winding;
 	int id;     // !!! could be debug only; currently used to disambiguate sort, may be unneeded
 	bool disabled; // winding has canceled this edge out
@@ -181,7 +179,7 @@ struct OpSegment {
 	bool startMoved;
 	bool endMoved;
 #if OP_DEBUG_IMAGE
-	uint32_t debugColor;
+	uint32_t debugColor = debugBlack;
 #endif
     OP_LINE_FILE_DECLARE(debugSetDisabled)
 };

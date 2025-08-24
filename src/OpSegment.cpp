@@ -47,7 +47,6 @@ OpSegment::OpSegment(PathOpsV0Lib::Contour* libContour, PathOpsV0Lib::AddCurve a
 		disabled = true;
 	} else
 		context->maxBounds.add(c.ptBounds());  // for threshold
-	OP_DEBUG_IMAGE_CODE(debugColor = black);
 }
 
 // !!! optimization:  if called from opedge linkup, could abort if >1 active found?
