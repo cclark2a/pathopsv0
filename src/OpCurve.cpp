@@ -579,9 +579,8 @@ bool OpCurve::isLine() {
         };
 		PathOpsV0Lib::CurveIsLine funcPtr = (int) c.type 
 				? context().callback(c.type).curveIsLineFuncPtr : nullptr;
-		if (!funcPtr)
-			isLineResult = c.type == setLineType();
-        else if ((*funcPtr)(c)) {
+		if ((!funcPtr && (!c.type || c.type == setLineType()))
+                || (*funcPtr)(c, context().threshold().length())) {
 			c.type = setLineType();
 			isLineResult = true;
 		}
@@ -605,7 +604,8 @@ bool OpCurve::isVertical() const {
 bool OpCurve::debugIsLine() const {
 	if (isLineSet)
 		return isLineResult;
-	return c.type == context().contextCallbacks.setLineTypeFuncPtr(c);
+    PathOpsV0Lib::SetLineType funcPtr = context().contextCallbacks.setLineTypeFuncPtr;
+	return c.type == (funcPtr ? (*funcPtr)(c) : 1);
 }
 #endif
 

@@ -1,4 +1,3 @@
-// (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpDebug.h"
 #if OP_DEBUG_IMAGE
 
@@ -29,7 +28,8 @@
 #include "DebugOpsTypes.h"
 
 SkBitmap bitmap;
-SkFont labelFont(nullptr, 14, 1, 0);
+SkFont labelFont(nullptr, 14, 1, 0);  // windows by default: "Segoe UI"
+
 
 std::vector<OpDebugRay> lines;
 std::vector<PathOpsV0Lib::ColorCurve> curves;
@@ -292,6 +292,29 @@ void OpDebugImage::drawPath(const SkPath& path, uint32_t color) {
 	offscreen.drawPath(path, paint);
 }
 
+void DebugColorEdges() {
+	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
+		OpEdge* edge = *edgeIter;
+		if (edge->disabled)
+			edge->debugColor = red;
+		else if (edge->inOutput)
+			edge->debugColor = orange;
+		else if (Unsortable::none != edge->isUnsortable)
+			edge->debugColor = purple;
+		else if (edgeIter.isCurveCurve) {
+			if (edge->ccOverlaps) {
+				PathOpsV0Lib::DebugOperand dbgOp = edge->segment->contour->debugCallbacks.
+                    debugOperandFuncPtr;
+				edge->debugColor = dbgOp && (*dbgOp)(edge->segment->contour->debugContourData[
+                    (size_t) PathOpsV0Lib::DebugContourType::windingUserData], 1)
+						? orange : darkGreen;
+			} else
+				edge->debugColor = purple;
+		} else
+			edge->debugColor = black;
+	}
+}
+
 void OpDebugImage::drawDoubleFocus() {
 	OP_DEBUG_CODE(OpDebugDefeatDelete defeater);
 	std::vector<int> ids;
@@ -327,27 +350,7 @@ void OpDebugImage::drawDoubleFocus() {
 		DebugOpDraw(lines);
 	if (drawCurvesOn)
 		DebugOpDraw(curves);
-	// set up default colors for all edges
-	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
-		OpEdge* edge = *edgeIter;
-		if (edge->disabled)
-			edge->debugColor = red;
-		else if (edge->inOutput)
-			edge->debugColor = orange;
-		else if (Unsortable::none != edge->isUnsortable)
-			edge->debugColor = purple;
-		else if (edgeIter.isCurveCurve) {
-			if (edge->ccOverlaps) {
-				PathOpsV0Lib::DebugOperand dbgOp = edge->segment->contour->debugCallbacks.
-                    debugOperandFuncPtr;
-				edge->debugColor = dbgOp && (*dbgOp)(edge->segment->contour->debugContourData[
-                    (size_t) PathOpsV0Lib::DebugContourType::windingUserData], 1)
-						? orange : darkGreen;
-			} else
-				edge->debugColor = purple;
-		} else
-			edge->debugColor = black;
-	}
+	DebugColorEdges(); // set up default colors for all edges
 	if (drawBoundsOn) {
 		std::vector<OpRect> bounds;
 		if (drawContoursOn) {
@@ -1369,6 +1372,19 @@ bool OpDebugImage::drawValue(OpPoint pt, std::string ptStr, uint32_t color) {
 	SkCanvas offscreen(bitmap);
 	SkRect textBounds;
 	(void) labelFont.measureText(ptStr.c_str(), ptStr.length(), SkTextEncoding::kUTF8, &textBounds);
+
+   SkTypeface* typeface = labelFont.getTypefaceOrDefault();
+    if (typeface) {
+        SkString familyName;
+        typeface->getFamilyName(&familyName);
+        // Now 'familyName' contains the font's family name
+        // You can print it or use it as needed
+        printf("Font Family Name: %s\n", familyName.c_str());
+    } else {
+        printf("No typeface associated with this SkFont.\n");
+    }
+
+
 	const int xOffset = 2;
 	const int yOffset = 1;
 	textBounds.inset(-xOffset, -yOffset);

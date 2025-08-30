@@ -110,8 +110,8 @@ typedef int (*HullPtCount)();
 // returns true if all curve values that can describe hull points are finite 
 typedef bool (*CurveIsFinite)(Curve );
 
-// returns true if curve is line
-typedef bool (*CurveIsLine)(Curve ); 
+// returns true if curve is line within the given threshold
+typedef bool (*CurveIsLine)(Curve , float threshold); 
 
 // returns OpPoint at parameter t, where: t=0 is start, t=1 is end
 typedef OpPoint (*PtAtT)(Curve , float t);

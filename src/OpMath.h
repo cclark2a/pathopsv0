@@ -990,7 +990,7 @@ struct LinePts {
 //	bool isPoint() const;
 //	OpPoint ptAtT(float t) const;
 	bool ptNearLine(OpPoint pt, OpVector threshold) const;
-	bool ptOnLine(OpPoint pt) const;
+	bool ptOnLine(OpPoint pt, float threshold = OpNaN) const;
 //	OpRoots tangentIntersect(const LinePts& line) const;
 	DUMP_DECLARATIONS
 

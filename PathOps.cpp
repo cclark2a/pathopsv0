@@ -5,7 +5,11 @@
 namespace PathOpsV0Lib {
 
 static OpContext* toImplementation(Context* interfaceContext) {
-	return (OpContext*) interfaceContext;
+    OpContext* context = (OpContext*) interfaceContext;
+#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
+    debugGlobalContext = context;
+#endif
+	return context;
 }
 
 static OpContour* toImplementation(Contour* interfaceContour) {
@@ -22,9 +26,6 @@ static Contour* toInterface(OpContour* implementationContour) {
 
 Context* CreateContext(ContextUserData* userData) {
     OpContext* context = new OpContext(userData);
-#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
-    debugGlobalContext = context;
-#endif
 #if OP_DEBUG_IMAGE
     OpDebugImage::init();
     oo();
@@ -40,9 +41,6 @@ void Add(Contour* interfaceContour, AddCurve curve) {
     OP_ASSERT(curve.points[0] != curve.points[1]);
     OpContour* contour = toImplementation(interfaceContour);
     contour->context->curveIndex(curve);
-#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
-    debugGlobalContext = contour->context;
-#endif
     contour->segments.emplace_back(interfaceContour, curve);
 }
 
@@ -54,9 +52,6 @@ void Add(Contour* interfaceContour, Curve curve) {
 Contour* CreateContour(Context* interfaceContext, Winding winding) {
     // reuse existing contour
     OpContext* context = toImplementation(interfaceContext);
-#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
-    debugGlobalContext = context;
-#endif
     OpContour* contour = context->makeContour(winding);
     return toInterface(contour);
 }
@@ -76,9 +71,6 @@ Contour* Clone(Contour* interfaceContour) {
 void DeleteContext(Context* interfaceContext) {
     OpContext* context = toImplementation(interfaceContext);
 	OP_DEBUG_VALIDATE_CODE(context->debugJoiner = nullptr);
-#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
-    debugGlobalContext = context;
-#endif
     delete context;
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
     debugGlobalContext = nullptr;
@@ -87,9 +79,6 @@ void DeleteContext(Context* interfaceContext) {
 
 ContextError Error(Context* interfaceContext) {
     OpContext* context = toImplementation(interfaceContext);
-#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
-    debugGlobalContext = context;
-#endif
     return context->error;
 }
 
@@ -115,9 +104,6 @@ WindingCondition Resolve(Context* interfaceContext, PathOutput output) {
         return -1;
     }
     context->callerOutput = output;
-#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
-    debugGlobalContext = context;
-#endif
     return context->pathOps();
 }
 

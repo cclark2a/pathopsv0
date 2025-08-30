@@ -371,10 +371,11 @@ inline bool cubicIsFinite(Curve c) {
     return controls.pts[0].isFinite() && controls.pts[1].isFinite();
 }
 
-inline bool cubicIsLine(Curve c) {
+inline bool cubicIsLine(Curve c, float threshold) {
     CubicControls controls(c);
     LinePts linePts = { c.data->start, c.data->end };
-    return linePts.ptOnLine(controls.pts[0]) && linePts.ptOnLine(controls.pts[1]);
+    return linePts.ptOnLine(controls.pts[0], threshold) 
+            && linePts.ptOnLine(controls.pts[1], threshold);
 }
 
 // cubic must be monotonic and non-linear (e.g., an arc, not a line)
@@ -533,17 +534,6 @@ inline std::string cubicDebugDumpName() {
     return "cubic"; 
 }
 
-inline void cubicCallbacks(Context* context, int nativeCurveType) {
-    SetCurveCallbacks(context, nativeCurveType, { cubicAxisT,
-			cubicRotatedT, cubicHull, cubicIsFinite, cubicIsLine, cubicSetBounds,
-			cubicTangent, cubicsEqual, cubicPtAtT, cubicDPtAtT, cubicHullPtCount, cubicRotate, 
-			cubicSubDivide, cubicXYAtT, cubicReverse });
-	SetDebugCurveCallbacks(context, nativeCurveType, { debugCubicScale
-            OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, nullptr)
-            OP_DEBUG_IMAGE_PARAMS(debugCubicToSkPath) 
-            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) });
-}
-
 #define CUBIC_TAGGED_FUNCTIONS \
     OP_TAGGED_FUNCTION(cubicAxisT), \
     OP_TAGGED_FUNCTION(cubicRotatedT), \
@@ -561,6 +551,19 @@ inline void cubicCallbacks(Context* context, int nativeCurveType) {
     OP_TAGGED_FUNCTION(cubicDebugDumpName), \
 
 #endif
+
+inline void cubicCallbacks(Context* context, int nativeCurveType) {
+    SetCurveCallbacks(context, nativeCurveType, { cubicAxisT,
+			cubicRotatedT, cubicHull, cubicIsFinite, cubicIsLine, cubicSetBounds,
+			cubicTangent, cubicsEqual, cubicPtAtT, cubicDPtAtT, cubicHullPtCount, cubicRotate, 
+			cubicSubDivide, cubicXYAtT, cubicReverse });
+#if OP_DEBUG
+	SetDebugCurveCallbacks(context, nativeCurveType, { debugCubicScale
+            OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, nullptr)
+            OP_DEBUG_IMAGE_PARAMS(debugCubicToSkPath) 
+            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) });
+#endif
+}
 
 }
 

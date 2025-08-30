@@ -6,6 +6,8 @@
 #include "DebugOps.h"
 #include "PathOps.h"
 
+#include "OpDebugPicture.h"
+
 bool OpPtAliases::add(OpPoint original, OpPoint alias) {
 	OP_ASSERT(original.isFinite());
 	OP_ASSERT(alias.isFinite());
@@ -599,7 +601,12 @@ WindingCondition OpContext::pathOps() {
     }
 	WindingCondition windingCondition = apply();  // suppress edges which don't meet op criteria
 //	demotePalLinks();  // mark edges that connect pal ends as unsortable so assembly can ignore them
-#if 1
+debug();
+extern void V0D_AddEdges(OpContext* );
+extern void V0D_ClearScreen();
+V0D_ClearScreen();
+V0D_AddEdges(this);
+#if 0 && OP_DEBUG
     verifyFile(this, "dmp.txt", "dmp2.txt");
 #endif
 	if (!windingCondition && !assemble())

@@ -188,10 +188,10 @@ inline int conicHullPtCount() {
     return 1;
 }
 
-inline bool conicIsLine(Curve c) {
+inline bool conicIsLine(Curve c, float threshold) {
     PointWeight control(c);
     LinePts linePts { c.data->start, c.data->end };
-    return linePts.ptOnLine(control.pt);
+    return linePts.ptOnLine(control.pt, threshold);
 }
 
 inline OpRoots conicAxisT(Curve curve, Axis axis, float intercept  
@@ -304,7 +304,7 @@ inline void conicSubDivide(Curve curve, float t1, float t2, float threshold, Cur
     PointWeight control(curve);
     PointWeight subPtW = ConicControl(curve.data->start, control, curve.data->end, ptT1, ptT2);
     subPtW.copyTo(*result);
-    if (conicIsLine(*result))
+    if (conicIsLine(*result, threshold))
         result->type = degenerateLine;
 }
 
@@ -325,17 +325,6 @@ inline std::string conicDebugDumpExtra(Curve c, DebugLevel l, DebugBase b) {
     return debugValue(l, b, " weight", control.weight);
 }
 
-inline void conicCallbacks(Context* context, int nativeCurveType) {
-    SetCurveCallbacks(context, nativeCurveType, { conicAxisT,
-			conicRotatedT, conicHull, conicIsFinite, conicIsLine, conicSetBounds,
-			conicTangent, conicsEqual, conicPtAtT, nullptr, conicHullPtCount, conicRotate, 
-			conicSubDivide, conicXYAtT });
-	SetDebugCurveCallbacks(context, nativeCurveType, { debugConicScale
-            OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
-            OP_DEBUG_IMAGE_PARAMS(debugConicToSkPath) 
-            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) });
-}
-
 #define CONIC_TAGGED_FUNCTIONS \
     OP_TAGGED_FUNCTION(conicAxisT), \
     OP_TAGGED_FUNCTION(conicRotatedT), \
@@ -354,6 +343,19 @@ inline void conicCallbacks(Context* context, int nativeCurveType) {
     OP_TAGGED_FUNCTION(conicDebugDumpExtra), \
 
 #endif
+
+inline void conicCallbacks(Context* context, int nativeCurveType) {
+    SetCurveCallbacks(context, nativeCurveType, { conicAxisT,
+			conicRotatedT, conicHull, conicIsFinite, conicIsLine, conicSetBounds,
+			conicTangent, conicsEqual, conicPtAtT, nullptr, conicHullPtCount, conicRotate, 
+			conicSubDivide, conicXYAtT });
+#if OP_DEBUG
+	SetDebugCurveCallbacks(context, nativeCurveType, { debugConicScale
+            OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
+            OP_DEBUG_IMAGE_PARAMS(debugConicToSkPath) 
+            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) });
+#endif
+}
 
 }
 

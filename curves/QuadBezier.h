@@ -134,10 +134,10 @@ inline bool quadIsFinite(Curve c) {
     return quadControlPt(c).isFinite();
 }
 
-inline bool quadIsLine(Curve c) {
+inline bool quadIsLine(Curve c, float threshold) {
     OpPoint ctrlPt = quadControlPt(c);
     LinePts linePts = { c.data->start, c.data->end };
-    return linePts.ptOnLine(ctrlPt);
+    return linePts.ptOnLine(ctrlPt, threshold);
 }
 
 inline OpRoots quadAxisT(Curve curve, Axis axis, float axisIntercept
@@ -233,7 +233,7 @@ inline void quadSubDivide(Curve c, float t1, float t2, float threshold, Curve* r
 	OpPtT ptT2 { result->data->end, t2 };
     OpPoint subControl = QuadControlPt(c.data->start, quadControlPt(c), c.data->end, ptT1, ptT2);
     quadSetControl(*result, subControl);
-    if (quadIsLine(*result))
+    if (quadIsLine(*result, threshold))
         result->type = degenerateLine;
 }
 
@@ -272,10 +272,12 @@ inline void quadCallbacks(Context* context, int nativeCurveType) {
             { quadAxisT, quadRotatedT, quadHull, quadIsFinite, 
             quadIsLine, quadSetBounds, quadTangent, quadsEqual, quadPtAtT, nullptr, quadHullPtCount,  
 			quadRotate, quadSubDivide, quadXYAtT });
+#if OP_DEBUG
     SetDebugCurveCallbacks(context, nativeCurveType, { debugQuadScale
         OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, nullptr)
         OP_DEBUG_IMAGE_PARAMS(debugQuadToSkPath) 
         OP_DEBUG_RASTER_PARAMS(debugRasterAdd) });
+#endif
 }
 
 }

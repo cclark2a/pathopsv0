@@ -334,12 +334,20 @@ enum SkTextEncoding {
 	kUTF8
 };
 
+struct SkTypeface {
+    void getFamilyName(SkString* s) { *s = familyname; }
+
+    std::string familyname = "Segoe UI";
+};
+
 struct SkFont {
 	SkFont(void*, float s,float,float);
 	float getSize() const { return fSize; }
+    SkTypeface* getTypefaceOrDefault() { return &typeface; }
 	void setSize(float s) { fSize = s; }
 	float measureText(void const *,uint64_t,SkTextEncoding, SkRect*) const;
 
+    SkTypeface typeface;
 	float fSize;
 };
 

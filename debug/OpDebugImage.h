@@ -398,8 +398,8 @@ namespace PathOpsV0Lib {
     OP_TAGGED_FUNCTION(debugConicToSkPath), \
     OP_TAGGED_FUNCTION(debugCubicToSkPath), \
 
-#endif
-
 }
+
+#endif
 
 #endif
