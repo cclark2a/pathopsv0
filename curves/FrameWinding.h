@@ -135,7 +135,12 @@ inline void frameDumpSetFunc(const char*& str, Winding& winding) {
 #endif
 
 #if OP_DEBUG_IMAGE
-inline std::string frameImageOutFunc(Winding winding, int index) {
+inline std::string frameImageOutXFunc(Winding winding) {
+    FrameData data(winding);
+    return STR(data.left) + ((bool) data.isFrame ? "f" : "");
+}
+
+inline std::string frameImageOutFunc(Winding winding, int index) {  // deprecated
     if (index > 0)
         return "-";
     FrameData data(winding);
@@ -144,6 +149,7 @@ inline std::string frameImageOutFunc(Winding winding, int index) {
 }
 
 #define FRAME_IMAGE_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(frameImageOutXFunc), \
     OP_TAGGED_FUNCTION(frameImageOutFunc), \
 
 #endif
@@ -156,7 +162,7 @@ inline Context* frameContext(CurveOutput output = nullptr) {
     Debug(context, debugData);
 	SetDebugContextCallbacks(context, { 
         OP_DEBUG_DUMP_CODE(nullptr, frameDumpOutFunc, frameDumpSetFunc)
-        OP_DEBUG_IMAGE_PARAMS(frameImageOutFunc)
+        OP_DEBUG_IMAGE_PARAMS(frameImageOutXFunc, frameImageOutFunc)
     });
 #endif
     return context;

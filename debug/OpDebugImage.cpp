@@ -1372,7 +1372,7 @@ bool OpDebugImage::drawValue(OpPoint pt, std::string ptStr, uint32_t color) {
 	SkCanvas offscreen(bitmap);
 	SkRect textBounds;
 	(void) labelFont.measureText(ptStr.c_str(), ptStr.length(), SkTextEncoding::kUTF8, &textBounds);
-
+#if 0
    SkTypeface* typeface = labelFont.getTypefaceOrDefault();
     if (typeface) {
         SkString familyName;
@@ -1383,8 +1383,7 @@ bool OpDebugImage::drawValue(OpPoint pt, std::string ptStr, uint32_t color) {
     } else {
         printf("No typeface associated with this SkFont.\n");
     }
-
-
+#endif
 	const int xOffset = 2;
 	const int yOffset = 1;
 	textBounds.inset(-xOffset, -yOffset);

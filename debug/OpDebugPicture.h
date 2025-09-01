@@ -11,14 +11,25 @@
 // all points are in device coordinates
 
 // device bounds in float is rounded out
+extern std::string native_debugDump(size_t index);
+
+struct NativeTextCache {
+#if OP_DEBUG_DUMP
+    std::string debugDump() const;
+#endif
+
+    std::string str;
+    OpVector size;    // in device coordinates
+    void* texture;
+    uint32_t color;
+};
+
+size_t native_addText(std::string str, uint32_t color);
+const NativeTextCache& native_cache(size_t index);
 
 struct OpDebugPicture;
 
 struct OpDebugAddPoly {
-    OpDebugAddPoly(OpDebugPicture* p)
-        : picture(p) {
-    }
-
     void add(const LinePts& );
     void add(const PathOpsV0Lib::Curve& );
     void add(const OpCurve& c) { return add(c.c); }
@@ -63,34 +74,49 @@ struct OpDebugText {
 #if OP_DEBUG_DUMP
     void dump() const;
 #endif
-
-    OpPoint pos;    // always device
-    std::string str;
-    bool vertical;
+    OpPoint pt;    // in device coordinates
+    OpPoint debugLocal;
+    size_t cacheIndex;
+    bool vertical = false;
 };
 
-struct OpDPoint {
-    double x;
-    double y;
+struct OpDebugPoint {
+    OpDebugPoly* poly;
+    OpPoint local;
+    OpPoint device;
+    float thickness = 1;
+    DebugSprite sprite = DebugSprite::diamond;
 };
 
 struct OpDebugPicture {
+    void addLabels();
+    void addPoints();
+    void addTangents();
+    void addWindings();
+
     void add(OpPoint , OpPoint , OpDebugAddPoly* );
     void add(std::vector<OpPoint>& points );
     void add(const OpCurve& , OpDebugAddPoly* );
-    void addDevice(std::vector<OpPoint>& points, OpDebugPoly& );
+    void addDevice(std::vector<OpPoint>& points, OpDebugPoly& );\
+    void addTangent(OpDebugPoly& );
+    void addText(std::string , OpPoint , uint32_t color);
+    void addWinding(OpDebugPoly& );
     void append(OpPoint );
+    void bootStrap(OpContext* );  // temporary to get things going
     void clear();
     void setDevice();
     OpPoint toLocal(OpPoint p);
     OpPoint toDevice(OpPoint p);
+    bool touches(const OpRect& bounds);
 #if OP_DEBUG_DUMP
     void dump();
 #endif
 
+    OpDebugAddPoly addPoly;
     OpContext* context;
     std::vector<OpDebugPoly> polys;
     std::vector<OpDebugText> texts;
+    std::vector<OpDebugPoint> points;
     OpRect focus;  // local coordinates
     OpVector wh; // screen w/h
     OpVector threshold;

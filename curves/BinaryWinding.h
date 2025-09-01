@@ -273,6 +273,13 @@ inline void binaryDumpSetFunc(const char*& str, Winding& winding) {
 #endif
 
 #if OP_DEBUG_IMAGE
+// !!! this will replace index version
+inline std::string binaryImageOutXFunc(Winding winding) {
+    BinaryData binaryData(winding);
+    return STR(binaryData.left) + " " + STR(binaryData.right);
+}
+
+// !!! deprecated
 inline std::string binaryImageOutFunc(Winding winding, int index) {
     if (index > 1)
         return "-";
@@ -295,7 +302,7 @@ inline Context* binaryContext(CurveOutput output = nullptr, EmptyCallerPath empt
     Debug(context, debugData);
 	SetDebugContextCallbacks(context, { 
         OP_DEBUG_DUMP_CODE(nullptr, binaryDumpOutFunc, binaryDumpSetFunc)
-        OP_DEBUG_IMAGE_PARAMS(binaryImageOutFunc)
+        OP_DEBUG_IMAGE_PARAMS(binaryImageOutXFunc, binaryImageOutFunc)
     });
 #endif
     return context;

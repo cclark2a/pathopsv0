@@ -111,7 +111,12 @@ inline void unaryDumpSetFunc(const char*& str, Winding& winding) {
 #endif
 
 #if OP_DEBUG_IMAGE
-inline std::string unaryImageOutFunc(Winding winding, int index) {
+inline std::string unaryImageOutXFunc(Winding winding) {
+    UnaryData unaryData(winding);
+    return STR(unaryData.value);
+}
+
+inline std::string unaryImageOutFunc(Winding winding, int index) {  // deprecated
     if (index > 0)
         return "-";
     UnaryData unaryData(winding);
@@ -133,7 +138,7 @@ inline Context* unaryContext(CurveOutput output = nullptr, EmptyCallerPath empty
     Debug(context, debugData);
 	SetDebugContextCallbacks(context, { 
         OP_DEBUG_DUMP_CODE(nullptr, unaryDumpOutFunc, unaryDumpSetFunc)
-        OP_DEBUG_IMAGE_PARAMS(unaryImageOutFunc)
+        OP_DEBUG_IMAGE_PARAMS(unaryImageOutXFunc, unaryImageOutFunc)
     });
 #endif
     return context;

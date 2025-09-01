@@ -653,6 +653,12 @@ struct OpRect {
 	float ltChoice(Axis axis) const { 
 		return *(&left + +axis); }
 
+    float ltChoice(XyChoice choice) const { 
+		return *(&left + +choice); }
+
+	OpRect offset(OpVector off) const {
+		return { left + off.dx, top + off.dy, right + off.dx, bottom + off.dy }; }
+
 	OpRect outset(OpVector out) const {
 		return { left - out.dx, top - out.dy, right + out.dx, bottom + out.dy }; }
 
@@ -673,6 +679,9 @@ struct OpRect {
 
 	float rbChoice(Axis axis) const {
 		return *(&right + +axis); }
+
+	float rbChoice(XyChoice choice) const {
+		return *(&right + +choice); }
 
 	float width() const { 
 		return right - left; }

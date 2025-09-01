@@ -72,7 +72,8 @@ typedef void (*DebugDumpWindingSet)(const char*& , Winding& );
 typedef std::string (*DebugDumpContextExtra)(DebugContextData , DebugLevel , DebugBase );
 #endif
 #if OP_DEBUG_IMAGE
-typedef std::string (*DebugImageWindingOut)(Winding , int index);
+typedef std::string (*DebugImageWindingOutX)(Winding );
+typedef std::string (*DebugImageWindingOut)(Winding , int index);  // deprecated
 #endif
 
 struct DebugContextCallbacks {
@@ -82,7 +83,8 @@ struct DebugContextCallbacks {
 	DebugDumpWindingSet debugDumpWindingSetFuncPtr = nullptr;
 #endif
 #if OP_DEBUG_IMAGE
-	DebugImageWindingOut debugImageWindingOutFuncPtr = nullptr;
+	DebugImageWindingOutX debugImageWindingOutXFuncPtr = nullptr;
+	DebugImageWindingOut debugImageWindingOutFuncPtr = nullptr;  // deprecated
 #endif
 };
 

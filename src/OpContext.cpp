@@ -602,10 +602,6 @@ WindingCondition OpContext::pathOps() {
 	WindingCondition windingCondition = apply();  // suppress edges which don't meet op criteria
 //	demotePalLinks();  // mark edges that connect pal ends as unsortable so assembly can ignore them
 debug();
-extern void V0D_AddEdges(OpContext* );
-extern void V0D_ClearScreen();
-V0D_ClearScreen();
-V0D_AddEdges(this);
 #if 0 && OP_DEBUG
     verifyFile(this, "dmp.txt", "dmp2.txt");
 #endif

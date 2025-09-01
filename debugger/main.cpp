@@ -1,14 +1,3 @@
-/*
-  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
-
-  This software is provided 'as-is', without any express or implied
-  warranty.  In no event will the authors be held liable for any damages
-  arising from the use of this software.
-
-  Permission is granted to anyone to use this software for any purpose,
-  including commercial applications, and to alter it and redistribute it
-  freely.
-*/
 #define SDL_MAIN_USE_CALLBACKS 1  /* use the callbacks instead of main() */
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
@@ -22,8 +11,9 @@
 
 #include "OpContext.h"
 #include "debug/OpDebugPicture.h"
+extern void pentrek_draw(char*, int width, int height, int pitch);
 
-extern OpDebugPicture debugPicture;
+OpDebugPicture debugPicture;
 
 #define DRAW_SDL 1
 
@@ -36,67 +26,73 @@ bool debugUseAlt = false;
 static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
 static SDL_Texture* bitmapTexture = NULL;
-static SDL_Texture* textTexture = NULL;
-#if 1
 static int* frameBuffer = NULL;
-#endif
 static TTF_Font *font = NULL;
 const int WINDOW_WIDTH = 1000;
 const int WINDOW_HEIGHT = 1000;
 
-extern unsigned char tiny_ttf[];
-extern unsigned int tiny_ttf_len;
 OpContext* context = nullptr;
-extern void V0D_AddEdges(OpContext* context);
-extern void V0D_AddTangents();
 extern void DebugColorEdges();
-extern void V0D_ClearScreen();
 
-unsigned int checkFile(void* userdata, SDL_TimerID timerID, Uint32 interval) {
-    return interval;
+std::vector<NativeTextCache> nativeTextCache;
+
+size_t native_addText(std::string str, uint32_t color) {
+    auto found = std::find_if(nativeTextCache.begin(), nativeTextCache.end(), 
+            [str, color](NativeTextCache& cache) {
+            return str == cache.str && color == cache.color; } );
+    if (nativeTextCache.end() != found)
+        return found - nativeTextCache.begin();
+    uint32_t c = color;
+    SDL_Color sdlColor = { (c >> 16) & 0xFF, (c >> 8) & 0xFF, (c >> 0) & 0xFF, (c >> 24) & 0xFF };
+    SDL_Surface* textSurface = TTF_RenderText_Blended(font, str.c_str(), 0, sdlColor);
+    if (!textSurface) {
+        OpDebugOut(std::string("Couldn't create text: %s\n") + SDL_GetError());
+        exit(1);
+    }
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    SDL_DestroySurface(textSurface);
+    size_t cacheIndex = nativeTextCache.size();
+    OpVector size;
+    SDL_GetTextureSize(texture, &size.dx, &size.dy);
+    nativeTextCache.push_back({str, size, texture, color});
+    return cacheIndex;
+}
+
+const NativeTextCache& native_cache(size_t index) {
+    OP_ASSERT(index < nativeTextCache.size());
+    return nativeTextCache[index];
+}
+
+std::string native_debugDump(size_t index) {
+    OP_ASSERT(index < nativeTextCache.size());
+    return nativeTextCache[index].debugDump();
 }
 
 /* This function runs once at startup. */
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     SDL_Color color = { 0, 0, 0, SDL_ALPHA_OPAQUE };
-    SDL_Surface *text;
-    /* Create the window */
-    if (!SDL_CreateWindowAndRenderer("Hello World", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
+    if (!SDL_CreateWindowAndRenderer("V0 Debugger", WINDOW_WIDTH, WINDOW_HEIGHT, 
+            SDL_WINDOW_RESIZABLE, &window, &renderer)) {
         SDL_Log("Couldn't create window and renderer: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
-  #if 1
     frameBuffer = (int*) malloc(WINDOW_WIDTH * WINDOW_HEIGHT * sizeof(int));
-  bitmapTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STREAMING, WINDOW_WIDTH, WINDOW_HEIGHT);
-  #endif
-
+    bitmapTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888, 
+            SDL_TEXTUREACCESS_STREAMING,  WINDOW_WIDTH, WINDOW_HEIGHT);
     if (!TTF_Init()) {
         SDL_Log("Couldn't initialise SDL_ttf: %s\n", SDL_GetError());
         return SDL_APP_FAILURE;
     }
-    /* Open the font */
-    font = TTF_OpenFont("C:/Windows/Fonts/segoeui.ttf", 18.0f * 4);
+    font = TTF_OpenFont("C:/Windows/Fonts/segoeui.ttf", 14);
     if (!font) {
         SDL_Log("Couldn't open font: %s\n", SDL_GetError());
         return SDL_APP_FAILURE;
     }
-    /* Create the text */
-    text = TTF_RenderText_Blended(font, "Hello World!", 0, color);
-    if (text) {
-        textTexture = SDL_CreateTextureFromSurface(renderer, text);
-        SDL_DestroySurface(text);
-    }
-    if (!textTexture) {
-        SDL_Log("Couldn't create text: %s\n", SDL_GetError());
-        return SDL_APP_FAILURE;
-    }
-    SDL_AddTimer(100, checkFile, nullptr);
     return SDL_APP_CONTINUE;
 }
 
 /* This function runs when a new event (mouse input, keypresses, etc) occurs. */
-SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
-{
+SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
     if (event->type == SDL_EVENT_KEY_DOWN ||
         event->type == SDL_EVENT_QUIT) {
         return SDL_APP_SUCCESS;  /* end the program, reporting success to the OS. */
@@ -104,24 +100,9 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
     return SDL_APP_CONTINUE;
 }
 
-  #if 1
-void render(Uint64 aTicks)
-{
-  for (int i = 0, c = 0; i < WINDOW_HEIGHT; i++)
-  {
-    for (int j = 0; j < WINDOW_WIDTH; j++, c++)
-    {
-      frameBuffer[c] = (int)(i * i + j * j + aTicks) | 0xff000000;
-    }
-  }
-}
-#endif
-
-time_t lastTime = 0;
-
 /* This function runs once per frame, and is the heart of the program. */
-SDL_AppResult SDL_AppIterate(void *appstate)
-{
+SDL_AppResult SDL_AppIterate(void *appstate) {
+    static time_t lastTime = 0;
     struct stat info;    
     const char* opFileName = "d:/gerrit/skia/out/Debug/obj/dmp2.txt";
     if (stat(opFileName, &info) == -1) {
@@ -132,74 +113,63 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         delete context;
         context = fromFile(opFileName);
         debugGlobalContext = context;
-        V0D_ClearScreen();
         DebugColorEdges();
-        V0D_AddEdges(context);
+        debugPicture.bootStrap(context);
         debugPicture.setDevice();
-        V0D_AddTangents();
+        debugPicture.addPoints();
+        debugPicture.addTangents();
+        debugPicture.addLabels();
+        debugPicture.addWindings();
         lastTime = info.st_mtime;
     }
-    int w = 0, h = 0;
-    SDL_FRect dst;
-    const float scale = 1.0f;
-
-    /* Center the text and scale it up */
-    SDL_GetRenderOutputSize(renderer, &w, &h);
-    SDL_SetRenderScale(renderer, scale, scale);
-    SDL_GetTextureSize(textTexture, &dst.w, &dst.h);
-    dst.x = ((w / scale) - dst.w) / 2;
-    dst.y = ((h / scale) - dst.h) / 2;
-#if 1
-    if (!frameBuffer || !textTexture)
+    if (!frameBuffer)
         return SDL_APP_CONTINUE;
-    render(SDL_GetTicks());
-#endif
-
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
-#if 1
-  char* pix;
-  int pitch;
-  SDL_LockTexture(bitmapTexture, NULL, (void**)&pix, &pitch);
-#if 0
-  for (int i = 0, sp = 0, dp = 0; i < WINDOW_HEIGHT; i++, dp += WINDOW_WIDTH, sp += pitch)
-    memcpy(pix + sp, frameBuffer + dp, WINDOW_WIDTH * 4);
-#else
-    extern void pentrek_draw(char*, int width, int height, int pitch);
+    char* pix;
+    int pitch;
+    SDL_LockTexture(bitmapTexture, NULL, (void**)&pix, &pitch);
     pentrek_draw(pix, WINDOW_WIDTH, WINDOW_HEIGHT, pitch);
-#endif
-  SDL_UnlockTexture(bitmapTexture);  
-  SDL_RenderTexture(renderer, bitmapTexture, NULL, NULL);
-#endif
-    SDL_RenderTexture(renderer, textTexture, NULL, &dst);
+    SDL_UnlockTexture(bitmapTexture);  
+    SDL_RenderTexture(renderer, bitmapTexture, NULL, NULL);
+    for (OpDebugText& text : debugPicture.texts) {
+        OP_ASSERT(text.cacheIndex < nativeTextCache.size());
+        NativeTextCache& cache = nativeTextCache[text.cacheIndex];
+        SDL_Texture* texture = (SDL_Texture*) cache.texture;
+        SDL_FRect dst { text.pt.x, text.pt.y, cache.size.dx, cache.size.dy };
+        SDL_RenderTexture(renderer, texture, NULL, &dst);
+    }
     SDL_RenderPresent(renderer);
-
     return SDL_APP_CONTINUE;
 }
 
 /* This function runs once at shutdown. */
-void SDL_AppQuit(void *appstate, SDL_AppResult result)
-{
+void SDL_AppQuit(void *appstate, SDL_AppResult result) {
     if (font)
         TTF_CloseFont(font);
     TTF_Quit();
 }
 
 #include "include/shim/surface.h"
+// #include "include/canvas/fonts.h"
 #include "include/core/path_builder.h"
 #include "src/raster/raster_canvas.h"
 
 using namespace pentrek;
 
-extern void draw_circle(Canvas*, ShimContext*);
+#if 0
+rcp<Font> gDefaultFont;
+
+void pentrek_init() {
+    if (auto data = Data::File("C:/Windows/Fonts/segoeui.ttf"))
+        gDefaultFont = Font::MakePortable(data);
+}
+#endif
 
 void pentrek_draw(char* bits, int width, int height, int scan) {
     auto shim = ShimContext::MakeRaster();
     auto pm = Pixmap::C32(width, height, (Premul32*) bits, scan);
     RasterCanvas canvas(pm);
-#if 0
-    draw_circle(&canvas, shim.get());
-#else
     int debugCount = 0;
     for (OpDebugPoly& poly : debugPicture.polys) {
         size_t index = 0;
@@ -218,6 +188,16 @@ void pentrek_draw(char* bits, int width, int height, int scan) {
             canvas.drawPath(path, paint);
             ++debugCount;
         }
+    }
+#if 0
+    auto font = gDefaultFont;
+    font = font->makeAt({'wght', 600});
+    TextRun trun = { font, 100, 0, 5 };
+    auto gruns = font->shapeCString("Hello", {&trun, 1});
+    Paint paint;
+    canvas.translate(20, 120);
+    for (const auto& grun : gruns) {
+        canvas.drawGlyphs(grun.m_glyphs, grun.m_xpos, 0, *grun.m_font, grun.m_size, paint);
     }
 #endif
 }
