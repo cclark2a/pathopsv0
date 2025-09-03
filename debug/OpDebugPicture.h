@@ -46,7 +46,6 @@ struct OpDebugAddPoly {
     const OpEdge* edge = nullptr;
     const OpSegment* segment = nullptr;
     const OpContour* contour = nullptr;
-    uint32_t color = debugBlack;
     bool addingFill = false;  // true if added is fill, false if added is frame
 };
 
@@ -68,6 +67,7 @@ struct OpDebugPoly {
     uint32_t color = debugBlack;
     float tStart = 0;
     float tEnd = 1;
+    bool isCurveCurve = false;
 };
 
 struct OpDebugText {
@@ -93,6 +93,8 @@ struct OpDebugPicture {
     void addPoints();
     void addTangents();
     void addWindings();
+    void colorPolys();
+    void zoom(float factor);
 
     void add(OpPoint , OpPoint , OpDebugAddPoly* );
     void add(std::vector<OpPoint>& points );
@@ -104,6 +106,7 @@ struct OpDebugPicture {
     void append(OpPoint );
     void bootStrap(OpContext* );  // temporary to get things going
     void clear();
+    void pan(OpVector v);
     void setDevice();
     OpPoint toLocal(OpPoint p);
     OpPoint toDevice(OpPoint p);
@@ -118,9 +121,12 @@ struct OpDebugPicture {
     std::vector<OpDebugText> texts;
     std::vector<OpDebugPoint> points;
     OpRect focus;  // local coordinates
+    OpRect screen;  // device coordinates;
     OpVector wh; // screen w/h
     OpVector threshold;
+    OpVector zoomOffset {0, 0};
     double scale; // factor to go from local to device
+    float zoomFactor = 0.687500000f;  // !!! debugging : set to 1
 };
 
 #endif

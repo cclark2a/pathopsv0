@@ -148,9 +148,27 @@ inline std::string frameImageOutFunc(Winding winding, int index) {  // deprecate
     return s;
 }
 
+inline uint32_t frameColorFuncPtr(Winding winding, DebugEdgeType edgeType) {
+    FrameData data(winding);
+	if (edgeType.disabled)
+		return FrameFill::fill == data.isFrame ? red : darkRed;
+	else if (edgeType.inOutput)
+		return FrameFill::fill == data.isFrame ? orange : darkOrange;
+	else if (edgeType.unsortable)
+		return FrameFill::fill == data.isFrame ? purple : darkViolet;
+	else if (edgeType.curveCurve) {
+		if (edgeType.ccOverlaps)
+			return FrameFill::fill == data.isFrame ? orange : darkGreen;
+		else
+			return FrameFill::fill == data.isFrame ? purple : darkViolet;
+	}
+    return FrameFill::fill == data.isFrame ? debugBlack : darkGreen;
+}
+
 #define FRAME_IMAGE_TAGGED_FUNCTIONS \
     OP_TAGGED_FUNCTION(frameImageOutXFunc), \
     OP_TAGGED_FUNCTION(frameImageOutFunc), \
+    OP_TAGGED_FUNCTION(frameColorFuncPtr), \
 
 #endif
 
@@ -162,7 +180,7 @@ inline Context* frameContext(CurveOutput output = nullptr) {
     Debug(context, debugData);
 	SetDebugContextCallbacks(context, { 
         OP_DEBUG_DUMP_CODE(nullptr, frameDumpOutFunc, frameDumpSetFunc)
-        OP_DEBUG_IMAGE_PARAMS(frameImageOutXFunc, frameImageOutFunc)
+        OP_DEBUG_IMAGE_PARAMS(frameImageOutXFunc, frameImageOutFunc, frameColorFuncPtr)
     });
 #endif
     return context;
@@ -174,7 +192,7 @@ inline FrameWinding::FrameWinding(Context* context, FrameFill frameFill)
     winding.size = sizeof(data);
     contour = CreateContour(context, winding);
 #if OP_DEBUG
-	SetDebugContourData(contour, { &data, sizeof(data) }, DebugContourType::windingUserData );
+	SetDebugContourData(contour, { &data, sizeof(data) }, DebugContourType::windingUserData);
 #endif
 }
 

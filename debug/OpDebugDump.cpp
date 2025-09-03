@@ -1005,8 +1005,9 @@ static std::string debugContextCallbacksDump(const PathOpsV0Lib::DebugContextCal
 #if OP_DEBUG_IMAGE
     DEBUG_FIND_TAG(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugImageWindingOutXFuncPtr);
     DEBUG_FIND_TAG(debugContextCallbacks, debugImageWindingOutXFuncPtr, debugImageWindingOutFuncPtr);
-    static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugImageWindingOutFuncPtr) 
-            + sizeof(debugContextCallbacks.debugImageWindingOutFuncPtr) == sizeof(debugContextCallbacks));
+    DEBUG_FIND_TAG(debugContextCallbacks, debugImageWindingOutFuncPtr, debugEdgeColorFuncPtr);
+    static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugEdgeColorFuncPtr) 
+            + sizeof(debugContextCallbacks.debugEdgeColorFuncPtr) == sizeof(debugContextCallbacks));
 
 #else
     static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugDumpWindingSetFuncPtr) 
@@ -1238,8 +1239,9 @@ static void debugContextCallbacksDumpSet(PathOpsV0Lib::DebugContextCallbacks& de
 #if OP_DEBUG_IMAGE
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugImageWindingOutXFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugImageWindingOutXFuncPtr, debugImageWindingOutFuncPtr);
-    static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugImageWindingOutFuncPtr) 
-            + sizeof(debugContextCallbacks.debugImageWindingOutFuncPtr) == sizeof(debugContextCallbacks));
+    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugImageWindingOutFuncPtr, debugEdgeColorFuncPtr);
+    static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugEdgeColorFuncPtr) 
+            + sizeof(debugContextCallbacks.debugEdgeColorFuncPtr) == sizeof(debugContextCallbacks));
 
 #else
     static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugDumpWindingSetFuncPtr) 

@@ -32,7 +32,6 @@ const int WINDOW_WIDTH = 1000;
 const int WINDOW_HEIGHT = 1000;
 
 OpContext* context = nullptr;
-extern void DebugColorEdges();
 
 std::vector<NativeTextCache> nativeTextCache;
 
@@ -93,10 +92,37 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
 
 /* This function runs when a new event (mouse input, keypresses, etc) occurs. */
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
-    if (event->type == SDL_EVENT_KEY_DOWN ||
-        event->type == SDL_EVENT_QUIT) {
-        return SDL_APP_SUCCESS;  /* end the program, reporting success to the OS. */
+    SDL_Keymod mod = SDL_GetModState();
+    float scale = 1;
+    if (SDL_KMOD_SHIFT & mod)
+        scale *= 2;
+    if (SDL_KMOD_CTRL & mod)
+        scale *= 4;
+    if (SDL_KMOD_ALT & mod)
+        scale *= 16;
+    if (event->type == SDL_EVENT_MOUSE_WHEEL) {
+        SDL_MouseWheelEvent& wheel = event->wheel;
+        debugPicture.zoom(wheel.y * scale);
+        return SDL_APP_CONTINUE;
     }
+    if (event->type == SDL_EVENT_KEY_DOWN) {
+        switch (event->key.key) {
+            case SDLK_LEFT:
+                debugPicture.pan(OpVector(-1, 0) * scale);
+                break;
+            case SDLK_UP:
+                debugPicture.pan(OpVector(0, -1) * scale);
+                break;
+            case SDLK_RIGHT:
+                debugPicture.pan(OpVector(1, 0) * scale);
+                break;
+            case SDLK_DOWN:
+                debugPicture.pan(OpVector(0, 1) * scale);
+                break;
+        }
+    }
+    if (event->type == SDL_EVENT_QUIT)
+        return SDL_APP_SUCCESS;  /* end the program, reporting success to the OS. */
     return SDL_APP_CONTINUE;
 }
 
@@ -113,13 +139,8 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
         delete context;
         context = fromFile(opFileName);
         debugGlobalContext = context;
-        DebugColorEdges();
+        debugPicture.screen = OpRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
         debugPicture.bootStrap(context);
-        debugPicture.setDevice();
-        debugPicture.addPoints();
-        debugPicture.addTangents();
-        debugPicture.addLabels();
-        debugPicture.addWindings();
         lastTime = info.st_mtime;
     }
     if (!frameBuffer)

@@ -65,6 +65,16 @@ struct DebugCurveCallbacks {
 #endif
 };
 
+#if OP_DEBUG_IMAGE
+struct DebugEdgeType {
+    bool disabled;
+    bool inOutput;
+    bool unsortable;
+    bool curveCurve;
+    bool ccOverlaps;
+};
+#endif
+
 typedef uint8_t (*DebugBitOper)(DebugContourData , uint8_t , uint8_t);
 #if OP_DEBUG_DUMP
 typedef std::string (*DebugDumpWindingOut)(Winding );
@@ -74,6 +84,7 @@ typedef std::string (*DebugDumpContextExtra)(DebugContextData , DebugLevel , Deb
 #if OP_DEBUG_IMAGE
 typedef std::string (*DebugImageWindingOutX)(Winding );
 typedef std::string (*DebugImageWindingOut)(Winding , int index);  // deprecated
+typedef uint32_t (*DebugEdgeColor)(Winding , DebugEdgeType );
 #endif
 
 struct DebugContextCallbacks {
@@ -85,6 +96,7 @@ struct DebugContextCallbacks {
 #if OP_DEBUG_IMAGE
 	DebugImageWindingOutX debugImageWindingOutXFuncPtr = nullptr;
 	DebugImageWindingOut debugImageWindingOutFuncPtr = nullptr;  // deprecated
+    DebugEdgeColor debugEdgeColorFuncPtr = nullptr;
 #endif
 };
 
@@ -95,7 +107,7 @@ typedef std::string (*DebugDumpContourExtra)(DebugContourData , DebugLevel , Deb
 typedef void* (*DebugNativePath)(DebugContourData );
 typedef bool (*DebugGetDraw)(DebugContourData );
 typedef void (*DebugSetDraw)(DebugContourData , bool);
-typedef bool (*DebugOperand)(DebugContourData , int );
+typedef bool (*DebugOperand)(DebugContourData , int );  // deprecated
 #endif
 
 struct DebugContourCallbacks {
@@ -107,6 +119,7 @@ struct DebugContourCallbacks {
 	DebugGetDraw debugGetDrawFuncPtr = nullptr;
 	DebugSetDraw debugSetDrawFuncPtr = nullptr;
 	DebugOperand debugOperandFuncPtr = nullptr;
+    DebugEdgeColor debugEdgeColorFuncPtr = nullptr;
 #endif
 };
 
@@ -122,7 +135,6 @@ struct ColorCurve {
 typedef uint32_t (*DebugCCOverlapsColor)(DebugContextData );  
 typedef uint32_t (*DebugCurveCurveColor)(DebugContextData );
 typedef uint32_t (*DebugNativeFillColor)(DebugContextData );
-typedef uint32_t (*DebugNativeInColor)(DebugContextData );
 #endif
 
 #endif

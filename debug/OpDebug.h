@@ -259,14 +259,14 @@ struct OpDebugMaker {
 #if !OP_DEBUG_FAST_TEST
 // conditionalize the following to fast test so they don't end up in committed code by accident
 #define OpBreak(opObject, ID) \
-	do { if ((ID) == (opObject)->id) OP_DEBUG_BREAK(); } while (false)
+	do { if ((opObject) && (ID) == (opObject)->id) OP_DEBUG_BREAK(); } while (false)
 
 #define OpBreak2(o1, o2, i1, i2) \
-	do { if ((o1)->id != (o2)->id && ((i1) == (o1)->id || (i2) == (o1)->id) && \
+	do { if ((o1) && (o2) && (o1)->id != (o2)->id && ((i1) == (o1)->id || (i2) == (o1)->id) && \
             ((i1) == (o2)->id || (i2) == (o2)->id)) OP_DEBUG_BREAK(); } while (false)
 
 #define OpBreakIf(opObject, ID, doBreak) \
-	do { if ((doBreak) && (ID) == (opObject)->id) OP_DEBUG_BREAK(); } while (false)
+	do { if ((doBreak) && (opObject) && (ID) == (opObject)->id) OP_DEBUG_BREAK(); } while (false)
 
 #define OpAssert(doBreak) \
     do { if (!(doBreak)) OP_DEBUG_BREAK(); } while (false)

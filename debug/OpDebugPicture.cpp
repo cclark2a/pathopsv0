@@ -71,16 +71,22 @@ void OpDebugAddPoly::add(const PathOpsV0Lib::Curve& c) {
                 OpMath::PinSorted(picture->focus.top, end.pt.y, picture->focus.bottom) };
         sects.push_back({{ sect, end.t }, sect != end.pt });
     };
-    auto addSects = [this, &sects, &curve, addPin](OpRoots roots) {
+    auto addSects = [this, &sects, &curve, addPin](OpRoots roots, float xy, Axis axis) {
         for (float root : roots.roots) {
-            addPin(curve.ptTAtT(root));
+            OpPtT ptAtT = curve.ptTAtT(root);
+            ptAtT.pt.choice(axis) = xy;
+            addPin(ptAtT);
         }
     };
     addPin(OpPtT(c.data->start, 0));
-    addSects(curve.axisRayHit(Axis::vertical, picture->focus.left));
-    addSects(curve.axisRayHit(Axis::horizontal, picture->focus.top));
-    addSects(curve.axisRayHit(Axis::vertical, picture->focus.right));
-    addSects(curve.axisRayHit(Axis::horizontal, picture->focus.bottom));
+    addSects(curve.axisRayHit(Axis::vertical, picture->focus.left), picture->focus.left,
+            Axis::vertical);
+    addSects(curve.axisRayHit(Axis::horizontal, picture->focus.top), picture->focus.top,
+            Axis::horizontal);
+    addSects(curve.axisRayHit(Axis::vertical, picture->focus.right), picture->focus.right,
+            Axis::vertical);
+    addSects(curve.axisRayHit(Axis::horizontal, picture->focus.bottom), picture->focus.bottom,
+            Axis::horizontal);
     addPin(OpPtT(c.data->end, 1));
     // for each span : if middle is inside focus, keep ends of span
     std::sort(sects.begin(), sects.end(), [](const auto& s1, const auto& s2) {
@@ -88,11 +94,9 @@ void OpDebugAddPoly::add(const PathOpsV0Lib::Curve& c) {
     DebugSect* last = &sects.front();
     for (DebugSect& sect : sects) {
         if (last->sect.t < sect.sect.t) {
-            if (last->pin && sect.pin) {
-                if (addingFill) {
-                    if (last->sect.pt != sect.sect.pt)
-                        picture->add(last->sect.pt, sect.sect.pt, this);
-                }
+            if (last->pin || sect.pin) {
+                if (addingFill && last->sect.pt != sect.sect.pt)
+                    picture->add(last->sect.pt, sect.sect.pt, this);
             } else {
                 OpCurve piece = curve.subDivide(last->sect.t, sect.sect.t);
                 picture->add(piece, this);
@@ -144,17 +148,10 @@ struct OpContextSaveThreshold {
 void OpDebugPicture::add(const OpCurve& curve, OpDebugAddPoly* addPoly) {
     polys.push_back({ curve.c });
     OpDebugPoly& poly = polys.back();
-    if (!addPoly) {
-        poly.color = debugBlack;
-    } else if (const OpEdge* edge = addPoly->edge) {
-        poly.edge = edge;
-        poly.color = edge->debugColor;
-    } else if (const OpSegment* segment = addPoly->segment) {
-        poly.segment = segment;
-        poly.color = segment->debugColor;
-    } else if (const OpContour* contour = addPoly->contour) {
-        poly.contour = contour;
-        poly.color = contour->debugColor;
+    if (addPoly) {
+        poly.edge = addPoly->edge;
+        poly.segment = addPoly->segment;
+        poly.contour = addPoly->contour;
     }
     OpContextSaveThreshold save(context, threshold);
     // curve is fully inside focus; split it into lines
@@ -223,7 +220,6 @@ void OpDebugPicture::add(OpPoint pt1, OpPoint pt2, OpDebugAddPoly* addPoly) {
     auto getLines = [this, addPoly, &lines]() {
         polys.emplace_back();
         OpDebugPoly& poly = polys.back();
-        poly.color = addPoly->color;
         poly.edge = addPoly->edge;
         poly.segment = addPoly->segment;
         poly.contour = addPoly->contour;
@@ -388,6 +384,8 @@ void OpDebugPicture::addText(std::string s, OpPoint local, uint32_t color) {
                 default:
                     OP_ASSERT(0);
             }
+            if (!screen.contains(bounds))
+                continue;
             if (!touches(bounds)) {
                 text.pt = { bounds.left, bounds.top };  // found free-and-clear location
                 return;
@@ -400,7 +398,9 @@ void OpDebugPicture::addText(std::string s, OpPoint local, uint32_t color) {
 }
 
 void OpDebugPicture::addTangent(OpDebugPoly& poly) {
-    OpVector span = poly.device.back() - poly.device.front();
+    OP_ASSERT(poly.contours.size());
+    OP_ASSERT(0 < poly.contours[0] && poly.contours[0] <= poly.device.size());
+    OpVector span = poly.device[poly.contours[0] - 1] - poly.device.front();
     if (span.length() < 15)
         return;
     OpCurve curve(poly.c, Rotated::no);
@@ -469,18 +469,17 @@ void OpDebugPicture::addWinding(OpDebugPoly& poly) {
         }
     };
 	const OpWinding& sum = poly.edge->sum;
-	OpContour* contour = poly.edge->segment->contour;
-	auto debugImageOut = contour->context->debugContextCallbacks.debugImageWindingOutXFuncPtr;
+	OpContext contour = poly.edge->context();
+	auto debugImageOut = context->debugContextCallbacks.debugImageWindingOutXFuncPtr;
 	add(debugImageOut && sum.isSet() ? (*debugImageOut)(sum.w) : "?", 1);
 	std::string sumString = "?";
     const OpWinding& wind = poly.edge->winding;
 	if (sum.isSet() || wind.isSet()) {
-		OpContour* contour = poly.edge->segment->contour;
 		if (debugImageOut && !sum.isSet())
 			sumString = (*debugImageOut)(wind.w);
         else {
-		    OpWinding diffWind(contour->context, poly.edge->sum.w);
-		    contour->context->windingCallbacks.windingSubtractFuncPtr((ContextPtr) contour->context,
+		    OpWinding diffWind(context, poly.edge->sum.w);
+		    context->windingCallbacks.windingSubtractFuncPtr((ContextPtr) context,
                     diffWind.w, wind.w);
 		    sumString = debugImageOut ? (*debugImageOut)(diffWind.w) : "";
         }
@@ -678,6 +677,30 @@ void OpDebugPicture::addPoints() {
     }
 }
 
+void OpDebugPicture::colorPolys() {
+    for (OpDebugPoly& poly : polys) {
+        if (poly.contour) {
+            poly.color = poly.contour->debugColor;  // !!! convert this to context callout
+            continue;
+        }
+        if (poly.segment) {
+            poly.color = poly.segment->debugColor;  // !!! convert this to context callout
+            continue;
+        }
+        if (!poly.edge) {
+            poly.color = debugBlack;
+            continue;
+        }
+        const OpEdge& e = *poly.edge;
+        PathOpsV0Lib::DebugEdgeType edgeType {
+            e.disabled, e.inOutput, Unsortable::none != e.isUnsortable, poly.isCurveCurve, e.ccOverlaps
+        };
+        PathOpsV0Lib::DebugEdgeColor debugEdgeColor = 
+                poly.edge->context()->debugContextCallbacks.debugEdgeColorFuncPtr;
+        poly.color = debugEdgeColor ? (*debugEdgeColor)(poly.edge->winding.w, edgeType) : debugBlack;
+    }
+}
+
 void OpDebugPicture::bootStrap(OpContext* c) {
     clear();
     addPoly.picture = this;
@@ -686,8 +709,16 @@ void OpDebugPicture::bootStrap(OpContext* c) {
     double top = 6.2158576999455839;
     double right = 53.784142300054413;
     double bottom = 53.784142300054413;
+    left += zoomOffset.dx;
+    top += zoomOffset.dy;
+    right += zoomOffset.dx;
+    bottom += zoomOffset.dy;
 // !!! hard-code to above values to bootstrap
 //    DebugOpBounds(left, top, right, bottom);
+    left *= zoomFactor;
+    top *= zoomFactor;
+    right *= zoomFactor;
+    bottom *= zoomFactor;
     focus = { (float) left, (float) top, (float) right, (float) bottom };
     OpVector localWH { (float) right - (float) focus.left, 
             (float) bottom - (float) focus.top };
@@ -701,6 +732,24 @@ void OpDebugPicture::bootStrap(OpContext* c) {
 			continue;
         addPoly.add(edge);
     }
+    colorPolys();
+    setDevice();
+    addPoints();
+    addTangents();
+    addLabels();
+    addWindings();
+}
+
+void OpDebugPicture::pan(OpVector v) { 
+    zoomOffset += v;
+    debugGlobalContext = context;
+    bootStrap(context);
+}
+
+void OpDebugPicture::zoom(float factor) {
+    zoomFactor -= factor / 64;
+    debugGlobalContext = context;
+    bootStrap(context);
 }
 
 #endif
