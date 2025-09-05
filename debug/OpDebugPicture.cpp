@@ -8,6 +8,13 @@
 #include "OpDebugPicture.h"
 #include "OpContext.h"
 
+bool drawGridLinear = false;
+
+inline uint32_t OpDebugAlphaColor(uint32_t alpha, uint32_t color) {
+	return (alpha << 24) | (color & 0x00FFFFFF);
+}
+
+#if 0
 void OpDebugAddPoly::add(const LinePts& pts) {    
     std::vector<OpPoint> points { pts.pts[0], pts.pts[1] };
     return picture->add(points);
@@ -18,6 +25,7 @@ void OpDebugAddPoly::add(const OpRect& r) {
         { r.left, r.top }, { r.left, r.bottom }, { r.right, r.bottom }, { r.right, r.top } };
     return picture->add(points);
 }
+#endif
 
 struct DebugSect {  // curve intersected with focus rectangle, and intersection pinned to rect
     OpPtT sect;
@@ -71,7 +79,7 @@ void OpDebugAddPoly::add(const PathOpsV0Lib::Curve& c) {
                 OpMath::PinSorted(picture->focus.top, end.pt.y, picture->focus.bottom) };
         sects.push_back({{ sect, end.t }, sect != end.pt });
     };
-    auto addSects = [this, &sects, &curve, addPin](OpRoots roots, float xy, Axis axis) {
+    auto addSects = [&curve, addPin](OpRoots roots, float xy, Axis axis) {
         for (float root : roots.roots) {
             OpPtT ptAtT = curve.ptTAtT(root);
             ptAtT.pt.choice(axis) = xy;
@@ -109,23 +117,31 @@ void OpDebugAddPoly::add(const PathOpsV0Lib::Curve& c) {
     }
 }
 
-void OpDebugAddPoly::add(const OpEdge& e) {
+void OpDebugAddPoly::add(const OpEdge* e) {
+    edge = e;
+    segment = nullptr;
+    contour = nullptr;
     addingFill = false;
-    edge = &e;
-    return add(e.curve);
+    add(e->curve.c);
 }
 
-void OpDebugAddPoly::add(const OpSegment& s) {
+void OpDebugAddPoly::add(const OpSegment* s) {
+    edge = nullptr;
+    segment = s;
+    contour = nullptr;
     addingFill = false;
-    segment = &s;
-    return add(s.c);
+    add(s->c.c);
 }
 
 // !!! for segments making up area; color comes from contour
-void OpDebugAddPoly::fill(const OpSegment& s) {
+void OpDebugAddPoly::add(const OpContour* c) {
+    edge = nullptr;
+    segment = nullptr;
+    contour = c;
     addingFill = true;
-    contour = s.contour;
-    add(s.c);
+    for (const PathOpsV0Lib::Curve& curve : c->debugCurves) {
+        add(curve);
+    }
 }
 
 struct OpContextSaveThreshold {
@@ -145,13 +161,20 @@ struct OpContextSaveThreshold {
     OpVector save;
 };
 
-void OpDebugPicture::add(const OpCurve& curve, OpDebugAddPoly* addPoly) {
-    polys.push_back({ curve.c });
+void OpDebugPicture::add(const OpCurve& curve, OpDebugAddPoly* polyAdder) {
+        start here;
+        // if adding a contour lengthen existing poly it it matches and close the contour as well...
+//    if (!polyAdder->contour || 
+    polys.emplace_back();
+    polys.back().c = curve.c;
     OpDebugPoly& poly = polys.back();
-    if (addPoly) {
-        poly.edge = addPoly->edge;
-        poly.segment = addPoly->segment;
-        poly.contour = addPoly->contour;
+    if (polyAdder) {
+        poly.edge = polyAdder->edge;
+        poly.segment = polyAdder->segment;
+        poly.contour = polyAdder->contour;
+        poly.isPrimary = true;
+        if (poly.contour)
+            poly.thickness = OpDebugPoly::fill_thickness;
     }
     OpContextSaveThreshold save(context, threshold);
     // curve is fully inside focus; split it into lines
@@ -193,11 +216,11 @@ void OpDebugPicture::add(const OpCurve& curve, OpDebugAddPoly* addPoly) {
 }
 
 // span is between first and last points, but does not extend last point (unless, see below)
-void OpDebugPicture::add(std::vector<OpPoint>& points ) {
-    if (points.empty())
+void OpDebugPicture::add(std::vector<OpPoint>& pts ) {
+    if (pts.empty())
         return;
-    OpPoint last = points.front();
-    for (OpPoint pt : points) {
+    OpPoint last = pts.front();
+    for (OpPoint pt : pts) {
         if (last == pt)
             continue;
         polys.emplace_back();
@@ -213,16 +236,16 @@ void OpDebugPicture::add(std::vector<OpPoint>& points ) {
 
 // for fill only
 // span is between points, but does not extend last point unless last point equals first point
-void OpDebugPicture::add(OpPoint pt1, OpPoint pt2, OpDebugAddPoly* addPoly) {
+void OpDebugPicture::add(OpPoint pt1, OpPoint pt2, OpDebugAddPoly* polyAdder) {
     if (pt1 == pt2)
         return;
     std::vector<OpPoint>* lines = nullptr;
-    auto getLines = [this, addPoly, &lines]() {
+    auto getLines = [this, polyAdder, &lines]() {
         polys.emplace_back();
         OpDebugPoly& poly = polys.back();
-        poly.edge = addPoly->edge;
-        poly.segment = addPoly->segment;
-        poly.contour = addPoly->contour;
+        poly.edge = polyAdder->edge;
+        poly.segment = polyAdder->segment;
+        poly.contour = polyAdder->contour;
         lines = &poly.local;
     };
     if (polys.empty()) {
@@ -245,9 +268,45 @@ void OpDebugPicture::add(OpPoint pt1, OpPoint pt2, OpDebugAddPoly* addPoly) {
     lines->push_back(pt2);
 }
 
-void OpDebugPicture::addDevice(std::vector<OpPoint>& points, OpDebugPoly& poly) {
-    poly.contours.push_back(points.size());
-    poly.device.insert(poly.device.end(), points.begin(), points.end());
+void OpDebugPicture::addLine(OpPoint pt1, OpPoint pt2) {
+    OpDebugPoly& poly = polys.back();
+    std::vector<OpPoint>& lines = poly.device;
+    lines.push_back(pt1);
+    lines.push_back(pt2);
+    poly.contours.push_back(2);
+}
+
+void OpDebugPicture::addDevice(std::vector<OpPoint>& pts, OpDebugPoly& poly) {
+    poly.contours.push_back(pts.size());
+    poly.device.insert(poly.device.end(), pts.begin(), pts.end());
+}
+
+void OpDebugPicture::addHulls() {
+    if (!drawHullsOn)
+        return;
+    std::vector<OpDebugPoly> toAdd;
+    for (OpDebugPoly& poly : polys) {
+        if (!poly.edge || !poly.isPrimary)
+            continue;
+        const OpCurve& c = poly.edge->curve;
+        if (c.pointCount() <= 2)
+            continue;
+        if (!c.ptBounds().width())
+            continue;
+        if (!c.ptBounds().height())
+            continue;
+        toAdd.emplace_back();
+        toAdd.back().color = OpDebugAlphaColor(40, poly.color);
+        toAdd.back().edge = poly.edge;
+        std::vector<OpPoint>& hull = toAdd.back().device;
+        hull.resize(c.pointCount() + 1);
+        for (int index = 0; index < c.pointCount(); ++index) {
+            hull[index] = toDevice(c.hullPt(index));
+        }
+        hull.back() = toDevice(c.hullPt(0));
+        toAdd.back().contours.push_back(hull.size());
+    }
+    polys.insert(polys.begin(), toAdd.begin(), toAdd.end());
 }
 
 // span is between this point and last point, if any
@@ -311,9 +370,114 @@ bool boundsContains(const OpRect& r, LinePts& line) {
     return false;
 }
 
+void OpDebugPicture::addFittedBottom(std::string s, float xPos, float right, uint32_t color) {
+	const int xOffset = 2;
+    for (;;) {
+        OpDebugText& text = addText(s, OpPoint(), color);
+        const NativeTextCache& cache = native_cache(text.cacheIndex);
+        if (cache.size.dx + xOffset * 2 <= right - xPos) {
+            text.pt.x = xPos + xOffset;
+            text.pt.y = screen.bottom - cache.size.dy - xOffset;
+            return;
+        }
+        s.pop_back();
+        if (s.empty())
+            return;
+    }
+}
+
+void OpDebugPicture::addFittedSide(std::string s, float yPos, float bottom, uint32_t color) {
+	const int xOffset = 2;
+    for (;;) {
+        OpDebugText& text = addText(s, OpPoint(), color);
+        const NativeTextCache& cache = native_cache(text.cacheIndex);
+        if (cache.size.dx + xOffset * 2 <= yPos - bottom) {
+            text.pt.x = 0;
+            text.pt.y = yPos - xOffset;
+            text.vertical = true;
+            return;
+        }
+        s.pop_back();
+        if (s.empty())
+            return;
+    }
+}
+
+void OpDebugPicture::addGrid() {
+    if (!drawGridOn)
+        return;
+    auto unfixSign = [](int32_t i) {
+		return i < 0 ? -i | 0x80000000 : i;
+	};
+	auto fixSign = [](int32_t i) {
+		return i < 0 ? -(i & 0x7fffffff) : i;
+	};
+	auto hexWorks = [fixSign, unfixSign](std::vector<float>& lines, float fLo, float fHi) {
+	    int32_t lo = fixSign(OpDebugFloatToBits(fLo));
+	    int32_t hi = fixSign(OpDebugFloatToBits(fHi));
+        std::vector<float> linears;
+        bool useLinear = drawGridLinear;
+        // don't add line for first or last; don't add text for last x, first y
+		for (int index = 0; index <= gridIntervals; ++index) {
+		    int x = (int32_t) ((int64_t) lo * (gridIntervals - index) / gridIntervals 
+                    + (int64_t) hi * index / gridIntervals);
+			float fx = OpDebugBitsToFloat(unfixSign(x));
+			useLinear |= fabsf(fx) < 1;
+            if (lines.empty() || lines.back() != fx)
+			    lines.push_back(fx);
+            fx = fLo * (gridIntervals - index) / gridIntervals + fHi * index / gridIntervals;
+            if (linears.empty() || linears.back() != fx)
+			    linears.push_back(fx);
+		}
+        if (useLinear)
+            std::swap(lines, linears);
+	};
+    std::vector<float> xes;
+    hexWorks(xes, focus.left, focus.right);
+    std::vector<float> yes;
+	hexWorks(yes, focus.top, focus.bottom);
+	const uint32_t gridColor = 0x3f000000;
+    OpDebugPoly& grid = polys.emplace_back();
+    grid.color = gridColor;
+    auto xToScreen = [this](float x) {
+        return (float) (screen.left + (x - focus.left) * scale);
+    };
+    for (float fx : xes) {
+        if (fx != xes.front() && fx != xes.back())
+		    addLine({ xToScreen(fx), screen.top }, { xToScreen(fx), screen.bottom });
+    }
+    auto yToScreen = [this](float y) {
+        return (float) (screen.top + (y - focus.top) * scale);
+    };
+    for (float fy : yes) {
+        if (fy != yes.front() && fy != yes.back())
+    		addLine({ screen.left,  yToScreen(fy) }, { screen.right, yToScreen(fy) });
+    }
+	if (!drawValuesOn)
+        return;
+    for (size_t index = 0; index + 1 < xes.size(); ++index) {
+        float fx = xes[index];
+		std::string xValStr = drawHexOn ? OpDebugDumpHex(fx) : STR(fx);
+		addFittedBottom(xValStr, xToScreen(fx), xToScreen(xes[index + 1]), gridColor);
+    }
+    OpDebugText& lastText = texts.back();
+    const NativeTextCache& cache = native_cache(lastText.cacheIndex);
+	const int xOffset = 2;
+    for (size_t index = 1; index < yes.size(); ++index) {
+        float fy = yes[index];
+		std::string yValStr = drawHexOn ? OpDebugDumpHex(fy) : STR(fy);
+        float yScreen = yToScreen(fy);
+        if (index == xes.size() - 1)
+            yScreen -= cache.size.dy + xOffset;
+		addFittedSide(yValStr, yScreen, yToScreen(yes[index - 1]), gridColor);
+    }
+}
+
 bool OpDebugPicture::touches(const OpRect& bounds) {
     for (OpDebugPoly& poly : polys) {
         if (poly.device.empty())
+            continue;
+        if (!poly.c.data)
             continue;
         OpRect polyBounds(toDevice(poly.c.data->start), toDevice(poly.c.data->end));
         if (!bounds.intersects(polyBounds))
@@ -335,21 +499,27 @@ bool OpDebugPicture::touches(const OpRect& bounds) {
                 last = poly.device[index + 1];
             }
         }
-        for (const OpDebugText& text : texts) {
-            const NativeTextCache& cache = native_cache(text.cacheIndex);
-            OpRect textBounds(text.pt, text.pt + cache.size);
-            if (textBounds.intersects(bounds))
-                return true;
-        }
+    }
+    for (const OpDebugText& text : texts) {
+        const NativeTextCache& cache = native_cache(text.cacheIndex);
+        OpRect textBounds(text.pt, text.pt + cache.size);
+        if (textBounds.intersects(bounds))
+            return true;
     }
     return false;
 }
 
-void OpDebugPicture::addText(std::string s, OpPoint local, uint32_t color) {
+OpDebugText& OpDebugPicture::addText(std::string s, OpPoint device, uint32_t color, bool rotated) {
     OpDebugText& text = texts.emplace_back();
-    OpVector margin { 4, 4 };
     text.cacheIndex = native_addText(s, color);
-    text.pt = toDevice(local);
+    text.pt = device;
+    text.vertical = rotated;
+    return text;
+}
+
+void OpDebugPicture::addLabel(std::string s, OpPoint local, uint32_t color) {
+    OpVector margin { 4, 4 };
+    OpDebugText& text = addText(s, toDevice(local), color, false);
     text.debugLocal = local;
     const NativeTextCache& cache = native_cache(text.cacheIndex);
     // find closest free location
@@ -400,6 +570,7 @@ void OpDebugPicture::addText(std::string s, OpPoint local, uint32_t color) {
 void OpDebugPicture::addTangent(OpDebugPoly& poly) {
     OP_ASSERT(poly.contours.size());
     OP_ASSERT(0 < poly.contours[0] && poly.contours[0] <= poly.device.size());
+    OP_ASSERT((poly.edge || poly.segment) && poly.isPrimary);
     OpVector span = poly.device[poly.contours[0] - 1] - poly.device.front();
     if (span.length() < 15)
         return;
@@ -438,7 +609,7 @@ void OpDebugPicture::addTangent(OpDebugPoly& poly) {
 }
 
 void OpDebugPicture::addWinding(OpDebugPoly& poly) {
-    if (!poly.edge)
+    if (!poly.edge || !poly.isPrimary)
         return;
     auto add = [poly, this](std::string s, float normSign) {
         size_t cacheIndex = native_addText(s, poly.color);
@@ -462,14 +633,15 @@ void OpDebugPicture::addWinding(OpDebugPoly& poly) {
                 else  // anchor to bottom right
                     bounds = bounds.offset(-cache.size); 
                 if (!touches(bounds)) {
-                    texts.push_back({{bounds.left, bounds.top}, local, cacheIndex});
+                    texts.push_back({poly.edge, poly.segment, poly.contour, 
+                            {bounds.left, bounds.top}, local, cacheIndex});
+                    texts.back().edge = poly.edge;
                     return;
                 }
             }
         }
     };
 	const OpWinding& sum = poly.edge->sum;
-	OpContext contour = poly.edge->context();
 	auto debugImageOut = context->debugContextCallbacks.debugImageWindingOutXFuncPtr;
 	add(debugImageOut && sum.isSet() ? (*debugImageOut)(sum.w) : "?", 1);
 	std::string sumString = "?";
@@ -483,7 +655,7 @@ void OpDebugPicture::addWinding(OpDebugPoly& poly) {
                     diffWind.w, wind.w);
 		    sumString = debugImageOut ? (*debugImageOut)(diffWind.w) : "";
         }
-	};
+	}
 	add(sumString, -1);
 }
 
@@ -551,72 +723,68 @@ struct OpDebugFont {
     float size = 14.f;
 } labelFont;
 
-extern bool drawCentersOn;
-extern bool drawControlsOn;
-extern bool drawEdgesOn;
-extern bool drawHexOn;
-extern bool drawIDsOn;
-extern bool drawSegmentsOn;
-extern bool drawWindingsOn;
-extern bool drawValuesOn;
-
 void OpDebugPicture::addLabels() {
-    drawIDsOn = true;  // !!! hardcode for testing
-    drawEdgesOn = true;  // !!! hardcode for testing
     for (auto& poly : polys) {
-        if (poly.edge && drawEdgesOn) {
+        if (poly.edge && poly.isPrimary && drawEdgesOn) {
             if (drawIDsOn) {
                 OpCurve curve(poly.c, Rotated::no);
                 OpPoint midTPt = curve.ptAtT(.5);
-                addText(STR(poly.edge->id), midTPt, poly.color); 
+                addLabel(STR(poly.edge->id), midTPt, poly.color); 
+                texts.back().edge = poly.edge;
             }
         }
-        if (poly.segment && drawSegmentsOn) {
+        if (poly.segment && poly.isPrimary && drawSegmentsOn) {
             if (drawIDsOn) {
                 OpCurve curve(poly.c, Rotated::no);
                 OpPoint midTPt = curve.ptAtT(.5);
-                addText(STR(poly.segment->id), midTPt, poly.color); 
+                addLabel(STR(poly.segment->id), midTPt, poly.color); 
+                texts.back().segment = poly.segment;
             }
         }
     }
 }
 
 void OpDebugPicture::addTangents() {
+    if (!drawTangentsOn)
+        return;
     for (auto& poly : polys) {
-        if (!poly.edge && !poly.segment)
+        if ((!poly.edge && !poly.segment) || !poly.isPrimary)
             continue;
         addTangent(poly);
     }
 }
 
 void OpDebugPicture::addWindings() {
-    drawWindingsOn = true;  // !!! hardcode for testing
-    if (!drawEdgesOn)
+    if (!drawEdgesOn || !drawWindingsOn)
         return;
     for (auto& poly : polys) {
-        if (!poly.edge)
+        if (!poly.edge || !poly.isPrimary)
             continue;
         addWinding(poly);
     }
 }
 
 void OpDebugPicture::addPoints() {
-    drawEdgesOn = true;  // !!! hardcode for testing
-    drawValuesOn = true;  // !!! hardcode for testing
+    if (!drawPointsOn)
+        return;
     auto add = [this](OpDebugPoly* poly, OpPoint local, DebugSprite sprite = DebugSprite::diamond) {
         if (!focus.contains(local))
             return;
         OpPoint device = toDevice(local);
         if (points.end() == std::find_if(points.begin(), points.end(),
                 [device](auto& test) { return device == test.device; } )) {
-            points.push_back({ poly, local, device, 1, sprite });
+            points.push_back({ poly->edge, poly->segment, poly->contour, local, device, 1, sprite });
+            points.back().edge = poly->edge;
+            points.back().segment = poly->segment;
             if (drawValuesOn) {
                 std::string s = "(";
                 s += drawHexOn ? OpDebugDumpHex(local.x) : STR(local.x);
                 s += ", ";
                 s += drawHexOn ? OpDebugDumpHex(local.y) : STR(local.y);
                 s += ")";
-                addText(s, local, poly->color);
+                addLabel(s, local, poly->color);
+                texts.back().edge = poly->edge;
+                texts.back().segment = poly->segment;
             }
         }
     };
@@ -627,7 +795,7 @@ void OpDebugPicture::addPoints() {
     };
     points.clear();
     for (auto& poly : polys) {
-        if (poly.edge && drawEdgesOn) {
+        if (poly.edge && poly.isPrimary && drawEdgesOn) {
             add(&poly, poly.edge->curve.c.data->start);
             add(&poly, poly.edge->curve.c.data->end);
             if (drawControlsOn)
@@ -636,7 +804,7 @@ void OpDebugPicture::addPoints() {
                 add(&poly, poly.edge->center.pt, DebugSprite::square);
 
         }
-        if (poly.segment && drawSegmentsOn) {
+        if (poly.segment && poly.isPrimary && drawSegmentsOn) {
             add(&poly, poly.segment->c.c.data->start);
             add(&poly, poly.segment->c.c.data->end);
             if (drawControlsOn)
@@ -644,11 +812,14 @@ void OpDebugPicture::addPoints() {
         }
     }
     for (OpDebugPoint& dPt : points) {
-        auto add = [this, &dPt](std::vector<OpPoint>& path) {
+        auto adder = [this, &dPt](std::vector<OpPoint>& path) {
             for (OpPoint& pt : path) {
                 pt += dPt.device;
             }
-	        addDevice(path, *dPt.poly);
+            if (OpDebugPoly* ePoly = findPoly(dPt.edge))
+	            return addDevice(path, *ePoly);
+            if (OpDebugPoly* sPoly = findPoly(dPt.segment))
+                return addDevice(path, *sPoly);
         };
         switch (dPt.sprite) {
             case DebugSprite::circle: {
@@ -657,19 +828,19 @@ void OpDebugPicture::addPoints() {
                     {  0,  4 }, { -1.531f,  3.696f }, { -2.828f,  2.828f }, { -3.696f,  1.531f }, 
                     { -4,  0 }, { -3.696f, -1.531f }, { -2.828f, -2.828f }, { -1.531f, -3.696f }, 
                     {  0, -4 }, {  1.531f, -3.696f }, {  2.828f, -2.828f }, {  3.696f, -1.531f }};
-                add(path);
+                adder(path);
                 } break;
             case DebugSprite::diamond: {
 	            std::vector<OpPoint> path {{ 4,  0 }, { 0,  4 }, { -4,  0 }, { 0, -4 }, { 4,  0 }};
-                add(path);
+                adder(path);
                 } break;
             case DebugSprite::square: {
 	            std::vector<OpPoint> path {{ -4, -4 }, { 4, -4 }, { 4, 4 }, { -4, 4 }, { -4, -4 }};
-                add(path);
+                adder(path);
                 } break;
             case DebugSprite::triangle: {
 	            std::vector<OpPoint> path {{ 0, -4 }, { 4, 4 }, { -4, 4 }, { 0, -4 }};
-                add(path);
+                adder(path);
                 } break;
             default:
                 OpDebugOut("unknown sprite (%d)" + STR_E(dPt.sprite) + "\n");
@@ -699,6 +870,24 @@ void OpDebugPicture::colorPolys() {
                 poly.edge->context()->debugContextCallbacks.debugEdgeColorFuncPtr;
         poly.color = debugEdgeColor ? (*debugEdgeColor)(poly.edge->winding.w, edgeType) : debugBlack;
     }
+}
+
+OpDebugPoly* OpDebugPicture::findPoly(const OpEdge* edge) {
+    for (OpDebugPoly& poly : polys) {
+        if (poly.edge == edge)
+            return &poly;
+    }
+    OP_ASSERT(0);
+    return nullptr;
+}
+
+OpDebugPoly* OpDebugPicture::findPoly(const OpSegment* segment) {
+    for (OpDebugPoly& poly : polys) {
+        if (poly.segment == segment)
+            return &poly;
+    }
+    OP_ASSERT(0);
+    return nullptr;
 }
 
 void OpDebugPicture::bootStrap(OpContext* c) {
@@ -732,24 +921,38 @@ void OpDebugPicture::bootStrap(OpContext* c) {
 			continue;
         addPoly.add(edge);
     }
+    for (auto segmentIter = segmentIterator.begin(); segmentIter != segmentIterator.end(); ++segmentIter) {
+        const OpSegment* segment = *segmentIter;
+        addPoly.add(segment);
+    }
+    for (OpContour* contour : context->contours) {
+        PathOpsV0Lib::DebugIsFill debugIsFill = context->debugContextCallbacks.debugIsFillFuncPtr;
+        if (debugIsFill && (*debugIsFill)(contour->winding))
+            addPoly.add(contour);
+    }
     colorPolys();
     setDevice();
+    addHulls();
     addPoints();
     addTangents();
     addLabels();
     addWindings();
+    addGrid();
 }
 
 void OpDebugPicture::pan(OpVector v) { 
     zoomOffset += v;
+    redraw();
+}
+
+void OpDebugPicture::redraw() {
     debugGlobalContext = context;
     bootStrap(context);
 }
 
 void OpDebugPicture::zoom(float factor) {
     zoomFactor -= factor / 64;
-    debugGlobalContext = context;
-    bootStrap(context);
+    redraw();
 }
 
 #endif

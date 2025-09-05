@@ -44,17 +44,17 @@ void ContainsExample() {
     // break the quads so that their control points lie inside the bounds
     // formed by the end points (i.e., find the quads' extrema)
     AddQuads(frameWinding.contour, { context, &contour1[0], quadSize, quadType } );
-    Add(     frameWinding.contour, { context, &contour1[2], lineSize, lineType } );
-    Add(     frameWinding.contour, { context, &contour1[3], lineSize, lineType } );
+    AddLine( frameWinding.contour, { context, &contour1[2], lineSize, lineType } );
+    AddLine( frameWinding.contour, { context, &contour1[3], lineSize, lineType } );
 
     FrameWinding fillWinding(context, FrameFill::fill);
     OpPoint contour2[] { { 0, 0 },           { 1, 1 },  // line: start,          end
                                    { 1, 3 }, { 0, 3 },  // quad:        control, end
                                              { 0, 0 },  // line:                 end
     };
-    Add(     fillWinding.contour, { context, &contour2[0], lineSize, lineType } );
+    AddLine( fillWinding.contour, { context, &contour2[0], lineSize, lineType } );
     AddQuads(fillWinding.contour, { context, &contour2[1], quadSize, quadType } );
-    Add(     fillWinding.contour, { context, &contour2[3], lineSize, lineType } );
+    AddLine( fillWinding.contour, { context, &contour2[3], lineSize, lineType } );
 
 	SetErrorHandler(context, allowDisjointLines);
     auto handleError = [context](WindingCondition result, WindingCondition expected) {

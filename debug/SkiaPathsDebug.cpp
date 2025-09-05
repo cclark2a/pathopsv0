@@ -200,7 +200,8 @@ void SetSkiaSimplifyCallbacksDebug(Context* context, Contour* contour, const SkP
 	        debugSimplifyGetDrawFunc, debugSimplifySetDrawFunc) }
     );
 	SetDebugContextCallbacks(context, {
-			OP_DEBUG_DUMP_CODE(nullptr, unaryDumpOutFunc, unaryDumpSetFunc)
+            unaryDebugIsFill
+			OP_DEBUG_DUMP_PARAMS(nullptr, unaryDumpOutFunc, unaryDumpSetFunc)
             OP_DEBUG_IMAGE_PARAMS(unaryImageOutXFunc, unaryImageOutFunc) }
     );
 }
@@ -222,7 +223,8 @@ void SetSkiaOpContourCallbacksDebug(Context* context, Contour* contour,
 	        debugOpGetDrawFunc, debugOpSetDrawFunc, debugOpSetIsOppFunc) }
     );
 	SetDebugContextCallbacks(context, {
-			OP_DEBUG_DUMP_CODE(dumpBinaryContextFunc, binaryDumpOutFunc, binaryDumpSetFunc)
+            binaryDebugIsFill
+			OP_DEBUG_DUMP_PARAMS(dumpBinaryContextFunc, binaryDumpOutFunc, binaryDumpSetFunc)
             OP_DEBUG_IMAGE_PARAMS(binaryImageOutXFunc, binaryImageOutFunc) }
     );
 }
@@ -275,7 +277,7 @@ void AddDebugSkiaPath(Context* context, Contour* contour, const SkPath& path) {
         switch (verb) {
         case SkPath::kMove_Verb:
             if (closeLine[0] != closeLine[1]) {
-                if (snagOn) Add(contour, { closeLine, sizeof(closeLine), 
+                if (snagOn) AddLine(contour, { closeLine, sizeof(closeLine), 
 						(CurveType) SkiaCurveType::skiaLineType } );
 				if (++contourCount >= debugData.limitContours)
 					return;
@@ -288,7 +290,7 @@ void AddDebugSkiaPath(Context* context, Contour* contour, const SkPath& path) {
             break;
         case SkPath::kLine_Verb:
             if (pts[0] != pts[1])
-                if (snagOn) Add(contour, { (OpPoint*) pts, sizeof(SkPoint) * 2, 
+                if (snagOn) AddLine(contour, { (OpPoint*) pts, sizeof(SkPoint) * 2, 
 						(CurveType) SkiaCurveType::skiaLineType } );
             closeLine[0] = { pts[1].fX, pts[1].fY };
             break;
@@ -311,7 +313,7 @@ void AddDebugSkiaPath(Context* context, Contour* contour, const SkPath& path) {
         case SkPath::kClose_Verb:
         case SkPath::kDone_Verb:
             if (closeLine[0] != closeLine[1])
-                if (snagOn) Add(contour, { closeLine, sizeof(closeLine), 
+                if (snagOn) AddLine(contour, { closeLine, sizeof(closeLine), 
 						(CurveType) SkiaCurveType::skiaLineType } );
 			if (++contourCount >= debugData.limitContours)
 				return;

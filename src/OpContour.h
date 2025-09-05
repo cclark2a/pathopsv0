@@ -131,6 +131,9 @@ struct OpContour {
 	#undef OP_X
 	std::string debugDumpJoin(DebugLevel l, DebugBase b) const;
 #endif
+#if OP_DEBUG_IMAGE
+	uint8_t* debugAllocateCallerData(size_t );
+#endif
 
 	std::vector<OpSegment> segments;
 	std::vector<OpSegment*> sorted;
@@ -167,6 +170,8 @@ struct OpContour {
 	OP_DEBUG_CODE(std::array<PathOpsV0Lib::DebugContourData, static_cast<std::size_t>(
             PathOpsV0Lib::DebugContourType::Count)> debugContourData);
 #if OP_DEBUG_IMAGE
+    // AddQuads/AddCubics/AddLine/AddConics save original curve for graphics debugger
+    std::vector<PathOpsV0Lib::Curve> debugCurves;
 	uint32_t debugColor = blue;
 #endif
 };

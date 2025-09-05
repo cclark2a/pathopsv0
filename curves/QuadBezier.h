@@ -79,6 +79,12 @@ inline size_t AddQuads(Contour* contour, AddCurve curve) {
     OpPoint start = curve.points[0];
     OpPoint control = curve.points[1];
     OpPoint end = curve.points[2];
+        // swizzle input to match v0's start/end/ctrl layout
+    OpPoint swizzled[3] { start, end, control };
+    Curve quad { curve.context, (CurveData*) swizzled, curve.size, curve.type };
+#if OP_DEBUG_IMAGE
+    SetDebugContourImage(contour, quad);
+#endif
     auto [left, right] = std::minmax(start.x, end.x);
     bool monotonicInX = left <= control.x && control.x <= right;
     auto [top, bottom] = std::minmax(start.y, end.y);
@@ -86,9 +92,7 @@ inline size_t AddQuads(Contour* contour, AddCurve curve) {
     if (monotonicInX && monotonicInY) {
         if (start == end)
             return 0;
-        // swizzle input to match v0's start/end/ctrl layout
-        OpPoint swizzled[3] { start, end, control };
-        Add(contour, { curve.context, swizzled, curve.size, curve.type } );
+        Add(contour, quad);
         return 1;
     }
     // control point is not inside bounds formed by end points; split quad into parts

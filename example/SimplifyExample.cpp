@@ -48,16 +48,16 @@ void SimplifyExample() {
     // break the quads so that their control points lie inside the bounds
     // formed by the end points (i.e., find the quads' extrema)
     AddQuads(winding.contour, { context, &contour1[0], quadSize, quadType } );  // add curve to loop
-    Add(     winding.contour, { context, &contour1[2], lineSize, lineType } );
-    Add(     winding.contour, { context, &contour1[3], lineSize, lineType } );
+    AddLine( winding.contour, { context, &contour1[2], lineSize, lineType } );
+    AddLine( winding.contour, { context, &contour1[3], lineSize, lineType } );
 
     OpPoint contour2[] { { 0, 0 },           { 1, 1 },  // line: start,          end
                                    { 1, 3 }, { 0, 3 },  // quad:        control, end
                                              { 0, 0 },  // line:                 end
     };
-    Add(     winding.contour, { context, &contour2[0], lineSize, lineType } );  // add to second loop
+    AddLine( winding.contour, { context, &contour2[0], lineSize, lineType } );  // add to second loop
     AddQuads(winding.contour, { context, &contour2[1], quadSize, quadType } );
-    Add(     winding.contour, { context, &contour2[3], lineSize, lineType } );
+    AddLine( winding.contour, { context, &contour2[3], lineSize, lineType } );
 
     Resolve(context, nullptr);  // compute the output; for each curve, call pathOutput()
     DeleteContext(context);  // release memory allocated by context and contour

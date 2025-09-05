@@ -85,6 +85,12 @@ inline void unaryCallbacks(Context* context) {
             unaryVisibleFunc, unaryZeroFunc, unarySubtractFunc } );
 }
 
+#if OP_DEBUG
+inline bool unaryDebugIsFill(Winding winding) {
+    return true;
+}
+#endif
+
 #if OP_DEBUG_DUMP
 inline std::string unaryDumpOutFunc(Winding winding) {
     UnaryData unary(winding);
@@ -105,6 +111,7 @@ inline void unaryDumpSetFunc(const char*& str, Winding& winding) {
     OP_TAGGED_FUNCTION(unarySubtractFunc), \
     OP_TAGGED_FUNCTION(unaryVisibleFunc), \
     OP_TAGGED_FUNCTION(unaryZeroFunc), \
+    OP_TAGGED_FUNCTION(unaryDebugIsFill), \
     OP_TAGGED_FUNCTION(unaryDumpOutFunc), \
     OP_TAGGED_FUNCTION(unaryDumpSetFunc), \
 
@@ -137,7 +144,8 @@ inline Context* unaryContext(CurveOutput output = nullptr, EmptyCallerPath empty
     OpDebugData debugData(false);
     Debug(context, debugData);
 	SetDebugContextCallbacks(context, { 
-        OP_DEBUG_DUMP_CODE(nullptr, unaryDumpOutFunc, unaryDumpSetFunc)
+        unaryDebugIsFill
+        OP_DEBUG_DUMP_PARAMS(nullptr, unaryDumpOutFunc, unaryDumpSetFunc)
         OP_DEBUG_IMAGE_PARAMS(unaryImageOutXFunc, unaryImageOutFunc)
     });
 #endif

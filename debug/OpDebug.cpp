@@ -1437,6 +1437,18 @@ void Debug(Context* ctext, OpDebugData& debugData) {
     context->debugData = debugData;
 }
 
+#if OP_DEBUG_IMAGE
+
+void SetDebugContourImage(Contour* ctour, Curve curve) {
+    OpContour* contour = (OpContour*) ctour;
+    PathOpsV0Lib::CurveData* data = contour->context->allocateCurveData(curve.size);
+	std::memcpy(data, curve.data, curve.size);
+    curve.data = data;
+    contour->debugCurves.push_back(curve);
+}
+
+#endif
+
 }
 
 #endif

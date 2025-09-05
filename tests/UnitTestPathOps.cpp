@@ -505,6 +505,14 @@ void validateHTML() {
 }
 #endif
 
+#include "OpDebug.h"
+
+std::string native_debugDump(size_t index) { return ""; }
+size_t native_addText(std::string str, uint32_t color)  { return 0; }
+struct NativeTextCache { int d = 0; } dummy;
+const NativeTextCache& native_cache(size_t index) { return dummy; }
+
+
 #define TEST_SMALL_EXAMPLES 01
 #define TEST_SMALL_TESTS 01
 

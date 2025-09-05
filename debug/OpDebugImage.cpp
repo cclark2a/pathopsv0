@@ -30,7 +30,6 @@
 SkBitmap bitmap;
 SkFont labelFont(nullptr, 14, 1, 0);  // windows by default: "Segoe UI"
 
-
 std::vector<OpDebugRay> lines;
 std::vector<PathOpsV0Lib::ColorCurve> curves;
 std::vector<OpPtT> ptTs;

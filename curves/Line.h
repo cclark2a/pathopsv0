@@ -9,6 +9,15 @@
 
 namespace PathOpsV0Lib {
 
+inline size_t AddLine(Contour* contour, AddCurve curve) {
+#if OP_DEBUG_IMAGE
+    Curve line { curve.context, (CurveData*) curve.points, curve.size, curve.type };
+    SetDebugContourImage(contour, line);
+#endif
+    Add(contour, curve);
+    return 1;
+}
+
 #if OP_DEBUG_DUMP
 inline std::string lineDebugDumpName() { 
     return "line"; 

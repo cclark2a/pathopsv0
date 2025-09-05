@@ -168,7 +168,7 @@ void AddSkiaPath(Context* context, Contour* contour, const SkPath& path
         switch (verb) {
         case SkPath::kMove_Verb:
             if (closeLine[0] != closeLine[1])
-                Add(contour, { context, closeLine, sizeof(closeLine), SkPath::kLine_Verb } );
+                AddLine(contour, { context, closeLine, sizeof(closeLine), SkPath::kLine_Verb } );
             closeLine[0] = closeLine[1] = { pts[0].fX, pts[0].fY };
             pts[1] = pts[0];
 			contour = Clone(contour);
@@ -176,7 +176,7 @@ void AddSkiaPath(Context* context, Contour* contour, const SkPath& path
             break;
         case SkPath::kLine_Verb:
             if (pts[0] != pts[1])
-                Add(contour, { context, (OpPoint*) pts, sizeof(SkPoint) * 2, SkPath::kLine_Verb } );
+                AddLine(contour, { context, (OpPoint*) pts, sizeof(SkPoint) * 2, SkPath::kLine_Verb } );
             closeLine[0] = { pts[1].fX, pts[1].fY };
             break;
         case SkPath::kQuad_Verb:
@@ -196,7 +196,7 @@ void AddSkiaPath(Context* context, Contour* contour, const SkPath& path
         case SkPath::kClose_Verb:
         case SkPath::kDone_Verb:
             if (closeLine[0] != closeLine[1])
-                Add(contour, { context, closeLine, sizeof(closeLine), SkPath::kLine_Verb } );
+                AddLine(contour, { context, closeLine, sizeof(closeLine), SkPath::kLine_Verb } );
             if (SkPath::kDone_Verb == verb)
                 return;
             closeLine[0] = closeLine[1];

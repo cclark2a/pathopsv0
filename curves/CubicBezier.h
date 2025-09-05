@@ -327,6 +327,9 @@ inline void AddCubics(Contour* contour, AddCurve curve) {
     CubicControls controls { curve.points[1], curve.points[2] };
 	OpPoint swizzled[4] { start, end, controls.pts[0], controls.pts[1] };  
     Curve cubic { curve.context, (CurveData*) swizzled, curve.size, curve.type };
+#if OP_DEBUG_IMAGE
+    SetDebugContourImage(contour, cubic);
+#endif
     // control point is not inside bounds formed by end points; split cubic into parts
 	OpRoots tValues = AddExtrema(start, end, controls, false);
 	OpRoots roots = AddInflections(start, end, controls);

@@ -39,13 +39,13 @@ void FrameExample() {
     FrameWinding fillWinding(context, FrameFill::fill);
 
 	OpPoint line[] { { 10, 10 }, { 20, 20 } };
-	OpPoint quad[] { { 30, 30 }, { 50, 50 }, { 40, 30 } };
-    Add(frameWinding.contour, { context, line, frameLineSize, frameLine } );
-    Add(frameWinding.contour, { context, quad, frameQuadSize, frameQuad } );
+	OpPoint quad[] { { 30, 30 }, { 40, 30 }, { 50, 50 } };
+    AddLine(frameWinding.contour, { context, line, frameLineSize, frameLine } );
+    AddQuads(frameWinding.contour, { context, quad, frameQuadSize, frameQuad } );
     OpPoint rect[] { { 15, 15 }, { 45, 15 }, { 45, 45 }, { 15, 45 }, { 15, 15 } };
 
 	for (int index = 0; index < 4; ++index)
-		Add(fillWinding.contour, { context, &rect[index], frameLineSize, frameLine } );
+		AddLine(fillWinding.contour, { context, &rect[index], frameLineSize, frameLine } );
 	SetErrorHandler(context, allowDisjointLines);
     Resolve(context, nullptr);
     DeleteContext(context);

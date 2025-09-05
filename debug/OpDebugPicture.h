@@ -8,6 +8,23 @@
 #include "PathOpsTypes.h"
 #include "OpSegment.h"
 
+extern bool drawCentersOn;
+extern bool drawControlsOn;
+extern bool drawEdgesOn;
+extern bool drawFillOn;
+extern bool drawGridOn;
+extern bool drawHexOn;
+extern bool drawHullsOn;
+extern bool drawIDsOn;
+extern bool drawPointsOn;
+extern bool drawSegmentsOn;
+extern bool drawTangentsOn;
+extern bool drawWindingsOn;
+extern bool drawValuesOn;
+extern bool drawGridLinear;
+extern int debugPrecision;
+extern int gridIntervals;
+
 // all points are in device coordinates
 
 // device bounds in float is rounded out
@@ -30,17 +47,10 @@ const NativeTextCache& native_cache(size_t index);
 struct OpDebugPicture;
 
 struct OpDebugAddPoly {
-    void add(const LinePts& );
     void add(const PathOpsV0Lib::Curve& );
-    void add(const OpCurve& c) { return add(c.c); }
-    void add(const OpCurve* c) { return add(*c); }
-    void add(const OpEdge& e);
-    void add(const OpEdge* e) { return add(*e); }
-    void add(const OpSegment& s);
-    void add(const OpSegment* s) { return add(*s); }
-    void fill(const OpSegment& s);
-    void fill(const OpSegment* s) { fill(*s); }
-    void add(const OpRect& );
+    void add(const OpEdge* );
+    void add(const OpSegment* );
+    void add(const OpContour* );
 
     OpDebugPicture* picture;
     const OpEdge* edge = nullptr;
@@ -68,12 +78,16 @@ struct OpDebugPoly {
     float tStart = 0;
     float tEnd = 1;
     bool isCurveCurve = false;
+    bool isPrimary = false;
 };
 
 struct OpDebugText {
 #if OP_DEBUG_DUMP
     void dump() const;
 #endif
+    const OpEdge* edge = nullptr;
+    const OpSegment* segment = nullptr;
+    const OpContour* contour = nullptr;
     OpPoint pt;    // in device coordinates
     OpPoint debugLocal;
     size_t cacheIndex;
@@ -81,7 +95,10 @@ struct OpDebugText {
 };
 
 struct OpDebugPoint {
-    OpDebugPoly* poly;
+    const OpEdge* edge = nullptr;
+    const OpSegment* segment = nullptr;
+    const OpContour* contour = nullptr;
+//    OpDebugPoly* poly;
     OpPoint local;
     OpPoint device;
     float thickness = 1;
@@ -89,6 +106,8 @@ struct OpDebugPoint {
 };
 
 struct OpDebugPicture {
+    void addGrid();
+    void addHulls();
     void addLabels();
     void addPoints();
     void addTangents();
@@ -99,14 +118,21 @@ struct OpDebugPicture {
     void add(OpPoint , OpPoint , OpDebugAddPoly* );
     void add(std::vector<OpPoint>& points );
     void add(const OpCurve& , OpDebugAddPoly* );
-    void addDevice(std::vector<OpPoint>& points, OpDebugPoly& );\
+    void addDevice(std::vector<OpPoint>& points, OpDebugPoly& );
+    void addFittedBottom(std::string , float xPos, float right, uint32_t color);
+    void addFittedSide(std::string , float yPos, float bottom, uint32_t color);
+    void addLabel(std::string , OpPoint , uint32_t color);
+    void addLine(OpPoint pt1, OpPoint pt2);
     void addTangent(OpDebugPoly& );
-    void addText(std::string , OpPoint , uint32_t color);
+    OpDebugText& addText(std::string , OpPoint , uint32_t color, bool rotated = false);
     void addWinding(OpDebugPoly& );
     void append(OpPoint );
     void bootStrap(OpContext* );  // temporary to get things going
     void clear();
+    OpDebugPoly* findPoly(const OpEdge* );
+    OpDebugPoly* findPoly(const OpSegment* );
     void pan(OpVector v);
+    void redraw();
     void setDevice();
     OpPoint toLocal(OpPoint p);
     OpPoint toDevice(OpPoint p);

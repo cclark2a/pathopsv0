@@ -426,13 +426,13 @@ void Path::opAddPath(Context* context, Contour* contour, bool closeLoops) {
 		switch (curve.type) {
 			case Types::move:
 				if (closeLoops && closeLine[0] != closeLine[1])
-					Add(contour, { context, closeLine, sizeof(closeLine), (CurveType) Types::line } );
+					AddLine(contour, { context, closeLine, sizeof(closeLine), (CurveType) Types::line } );
 				closeLine[0] = closeLine[1] = *pts;
 				break;
 			case Types::line:
 				if (closeLine[0] != pts[0]) {
 					OpPoint closer[2] { closeLine[0], pts[0] };
-					Add(contour, { context, closer, sizeof closer, (CurveType) Types::line } );
+					AddLine(contour, { context, closer, sizeof closer, (CurveType) Types::line } );
 				}
 				closeLine[0] = pts[0];
 				break;
@@ -453,7 +453,7 @@ void Path::opAddPath(Context* context, Contour* contour, bool closeLoops) {
 				} break;
 			case Types::close:
 				if (closeLoops && closeLine[0] != closeLine[1])
-					Add(contour, { context, closeLine, sizeof closeLine, (CurveType) Types::line } );
+					AddLine(contour, { context, closeLine, sizeof closeLine, (CurveType) Types::line } );
 				closeLine[0] = closeLine[1];
 				break;
 			default:
@@ -461,7 +461,7 @@ void Path::opAddPath(Context* context, Contour* contour, bool closeLoops) {
 		}
 	}
 	if (closeLoops && closeLine[0] != closeLine[1])
-		Add(contour, { context, closeLine, sizeof closeLine, (CurveType) Types::line } );
+		AddLine(contour, { context, closeLine, sizeof closeLine, (CurveType) Types::line } );
 }
 
 struct OutPath {

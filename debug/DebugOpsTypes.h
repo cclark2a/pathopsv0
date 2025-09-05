@@ -76,6 +76,7 @@ struct DebugEdgeType {
 #endif
 
 typedef uint8_t (*DebugBitOper)(DebugContourData , uint8_t , uint8_t);
+typedef bool (*DebugIsFill)(Winding );
 #if OP_DEBUG_DUMP
 typedef std::string (*DebugDumpWindingOut)(Winding );
 typedef void (*DebugDumpWindingSet)(const char*& , Winding& );
@@ -88,6 +89,7 @@ typedef uint32_t (*DebugEdgeColor)(Winding , DebugEdgeType );
 #endif
 
 struct DebugContextCallbacks {
+    DebugIsFill debugIsFillFuncPtr = nullptr;
 #if OP_DEBUG_DUMP
     DebugDumpContextExtra debugDumpContextExtraFuncPtr = nullptr;
 	DebugDumpWindingOut debugDumpWindingOutFuncPtr = nullptr;

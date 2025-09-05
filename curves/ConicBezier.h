@@ -143,6 +143,11 @@ inline size_t AddConics(Contour* contour, AddCurve curve) {
     OpPoint end = curve.points[2];
     float weight = curve.points[3].x;  // !!! a bit of a hack
     PointWeight control(curve.points[1], weight);
+    OpPoint swizzled[4] { start, end, control.pt, { weight, 0 } };
+    Curve conic { curve.context, (CurveData*) swizzled, curve.size, curve.type };
+#if OP_DEBUG_IMAGE
+    SetDebugContourImage(contour, conic);
+#endif
     auto [left, right] = std::minmax(start.x, end.x);
     bool monotonicInX = left <= control.pt.x && control.pt.x <= right;
     auto [top, bottom] = std::minmax(start.y, end.y);
@@ -150,7 +155,6 @@ inline size_t AddConics(Contour* contour, AddCurve curve) {
     if (monotonicInX && monotonicInY) {
         if (start == end)
             return 0;
-        OpPoint swizzled[4] { start, end, control.pt, { weight, 0 } };
         Add(contour, { curve.context, swizzled, curve.size, curve.type } );
         return 1;
     }
@@ -173,7 +177,7 @@ inline size_t AddConics(Contour* contour, AddCurve curve) {
         } curveData { { ptTs[index].pt, ptTs[index + 1].pt },
                 ConicControl(start, control, end, ptTs[index], ptTs[index + 1]) };
         if (curveData.endPts[0] != curveData.endPts[1])
-            Add(contour, { curve.context, curveData.endPts, curve.size, curve.type } );
+            Add(contour, conic);
     }
     return curvesAdded;
 }

@@ -36,13 +36,13 @@ void CutExample() {
     FrameWinding fillWinding(context, FrameFill::fill);
 
 	OpPoint linePts[] { { 10, 10 }, { 20, 20 } };
-	OpPoint quadPts[] { { 30, 30 }, { 50, 50 }, { 40, 30 } };
-    Add(cutWinding.contour, { context, linePts, lineSize, line } );
-    Add(cutWinding.contour, { context, quadPts, quadSize, quad } );
+	OpPoint quadPts[] { { 30, 30 }, { 40, 30 }, { 50, 50 } };
+    AddLine(cutWinding.contour, { context, linePts, lineSize, line } );
+    AddQuads(cutWinding.contour, { context, quadPts, quadSize, quad } );
     OpPoint rect[] { { 15, 15 }, { 45, 15 }, { 45, 45 }, { 15, 45 }, { 15, 15 } };
 
 	for (int index = 0; index < 4; ++index)
-		Add(fillWinding.contour, { context, &rect[index], lineSize, line } );
+		AddLine(fillWinding.contour, { context, &rect[index], lineSize, line } );
 	SetErrorHandler(context, allowDisjointLines);
     cutLeftCallbacks(context);
     Resolve(context, nullptr);

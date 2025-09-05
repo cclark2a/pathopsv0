@@ -15,6 +15,10 @@ void SetDebugContextCallbacks(Context* , DebugContextCallbacks );
 void SetDebugContourData(Contour* , DebugContourData , DebugContourType );
 void SetDebugContextData(Context* , DebugContextData , DebugContextType );
 
+#if OP_DEBUG_IMAGE
+void SetDebugContourImage(Contour* , Curve );
+#endif
+
 #endif
 
 }

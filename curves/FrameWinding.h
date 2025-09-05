@@ -107,6 +107,13 @@ inline void frameCallbacks(Context* context) {
 			frameZeroFunc, frameSubtractFunc, frameIntersectFunc });
 }
 
+#if OP_DEBUG
+inline bool frameDebugIsFill(Winding winding) {
+    FrameData frameData(winding);
+    return FrameFill::fill == frameData.isFrame;
+}
+#endif
+
 #if OP_DEBUG_DUMP
 inline std::string frameDumpOutFunc(Winding winding) {
     FrameData frameData(winding);
@@ -129,6 +136,7 @@ inline void frameDumpSetFunc(const char*& str, Winding& winding) {
     OP_TAGGED_FUNCTION(frameZeroFunc), \
     OP_TAGGED_FUNCTION(frameSubtractFunc), \
     OP_TAGGED_FUNCTION(frameVisibleFunc), \
+    OP_TAGGED_FUNCTION(frameDebugIsFill), \
     OP_TAGGED_FUNCTION(frameDumpOutFunc), \
     OP_TAGGED_FUNCTION(frameDumpSetFunc), \
 
@@ -179,7 +187,8 @@ inline Context* frameContext(CurveOutput output = nullptr) {
     OpDebugData debugData(false);
     Debug(context, debugData);
 	SetDebugContextCallbacks(context, { 
-        OP_DEBUG_DUMP_CODE(nullptr, frameDumpOutFunc, frameDumpSetFunc)
+        frameDebugIsFill
+        OP_DEBUG_DUMP_PARAMS(nullptr, frameDumpOutFunc, frameDumpSetFunc)
         OP_DEBUG_IMAGE_PARAMS(frameImageOutXFunc, frameImageOutFunc, frameColorFuncPtr)
     });
 #endif

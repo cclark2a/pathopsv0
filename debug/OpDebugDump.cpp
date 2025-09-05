@@ -998,8 +998,9 @@ static std::string debugCallbacksDump(const std::vector<PathOpsV0Lib::DebugCurve
 static std::string debugContextCallbacksDump(const PathOpsV0Lib::DebugContextCallbacks& 
         debugContextCallbacks, DebugLevel l, DebugBase b) {
     std::string s = "debugContextCallbacks:";
-    static_assert(0 == offsetof(PathOpsV0Lib::DebugContextCallbacks, debugDumpContextExtraFuncPtr));
-    s += debugFindTag(reinterpret_cast<DebugFunction>(debugContextCallbacks.debugDumpContextExtraFuncPtr));
+    static_assert(0 == offsetof(PathOpsV0Lib::DebugContextCallbacks, debugIsFillFuncPtr));
+    s += debugFindTag(reinterpret_cast<DebugFunction>(debugContextCallbacks.debugIsFillFuncPtr));
+    DEBUG_FIND_TAG(debugContextCallbacks, debugIsFillFuncPtr, debugDumpContextExtraFuncPtr);
     DEBUG_FIND_TAG(debugContextCallbacks, debugDumpContextExtraFuncPtr, debugDumpWindingOutFuncPtr);
     DEBUG_FIND_TAG(debugContextCallbacks, debugDumpWindingOutFuncPtr, debugDumpWindingSetFuncPtr);
 #if OP_DEBUG_IMAGE
@@ -1232,8 +1233,9 @@ static void debugCallbacksDumpSet(std::vector<PathOpsV0Lib::DebugCurveCallbacks>
 static void debugContextCallbacksDumpSet(PathOpsV0Lib::DebugContextCallbacks& debugContextCallbacks, 
         const char*& str) {
     OpDebugRequired(str, "debugContextCallbacks");
-    static_assert(0 == offsetof(PathOpsV0Lib::DebugContextCallbacks, debugDumpContextExtraFuncPtr));
-    debugContextCallbacks.debugDumpContextExtraFuncPtr = (PathOpsV0Lib::DebugDumpContextExtra) debugFindFunction(str);
+    static_assert(0 == offsetof(PathOpsV0Lib::DebugContextCallbacks, debugIsFillFuncPtr));
+    debugContextCallbacks.debugIsFillFuncPtr = (PathOpsV0Lib::DebugIsFill) debugFindFunction(str);
+    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugIsFillFuncPtr, debugDumpContextExtraFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpContextExtraFuncPtr, debugDumpWindingOutFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpWindingOutFuncPtr, debugDumpWindingSetFuncPtr);
 #if OP_DEBUG_IMAGE
@@ -1752,6 +1754,47 @@ static std::string segmentDebugDump(const OpSegment& seg, ShowContour showContou
     return "seg:" + STR(seg.id) + " " + seg.c.debugDump(l, b);
 }
 
+std::string Curve_DebugDump(PathOpsV0Lib::Curve c, DebugLevel l, DebugBase b) {
+    std::string s;
+    OpContext& context = *(OpContext*) c.context;
+	if ((size_t) c.type > context.debugCallbacks.size())
+		s += "(missing curve name) ";
+    else if (!c.type)
+        s += "degenerateLine ";
+    else {
+		auto curveName = context.debugCallback(c).curveNameFuncPtr;
+		if (curveName)
+			s += (*curveName)() + " ";
+	}
+    if (DebugLevel::file == l) {
+        s += "size:" + STR(c.size) + " ";
+        s += "data:" + context.curveDataStorage->debugDump(c.data) + " ";
+    } else {
+		s.pop_back();  // remove trailing space
+        s += "{";
+    	PathOpsV0Lib::HullPtCount funcPtr = context.callback(c.type).ptCountFuncPtr;
+	    int pointCount = 2 + (funcPtr ? (*funcPtr)() : 0);
+        for (int i = 0; i < pointCount; ++i) {
+            OpPoint pt;
+	        if (0 == i)
+		        pt = c.data->start;
+	        else if (pointCount - 1 == i)
+		        pt = c.data->end;
+	        else
+                pt = context.callback(c.type).curveHullFuncPtr(c, i);
+            s += pt.debugDump(DebugLevel::error, b) + ", ";
+        }
+        s.pop_back(); s.pop_back();  // remove space, comma
+        s += "}";
+		if ((size_t) c.type <= context.debugCallbacks.size()) {
+			auto curveExtra = context.debugCallback(c).curveExtraFuncPtr;
+			if (curveExtra)
+				s += (*curveExtra)(c, l, b);
+		}
+    }
+    return s;
+}
+
 std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
     std::string s = "contour[" + STR(id) + "] ";
     if (DebugLevel::detailed == l) {
@@ -1936,7 +1979,16 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 #endif
     ASSERT_SERIAL(*this, debugCallbacks, debugContourData);  // omit debugContourData
 #if OP_DEBUG_IMAGE
-    ASSERT_SERIAL(*this, debugContourData, debugColor);
+    ASSERT_SERIAL(*this, debugContourData, debugCurves);
+    if (debugCurves.size()) {
+		s += "debugCurves:" + STR(debugCurves.size()) + "{";
+		for (PathOpsV0Lib::Curve c : debugCurves) {
+			s += Curve_DebugDump(c, l, b) + " ";
+        }
+		s.pop_back();
+		s += DebugLevel::detailed == l ? "}\n" : "} ";
+    }
+    ASSERT_SERIAL(*this, debugCurves, debugColor);
     if (debugColor != blue) {
         if (DebugLevel::file == l)
             s += "debugColor:";
@@ -1945,6 +1997,29 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 #endif
     s.pop_back();
     return s;
+}
+
+void Curve_DumpSet(PathOpsV0Lib::Curve& c, const char*& str) {
+    OpContext& context = *(OpContext*) c.context;
+    size_t strLen = 0;
+    while (isalnum(str[strLen]))
+        ++strLen;
+    for (size_t index = 0; index < context.callbacks.size(); ++index) {
+		auto curveName = context.debugCallbacks[index].curveNameFuncPtr;
+		if (!curveName)
+			continue;
+        std::string name = (*curveName)();
+        if (name.size() != strLen || strncmp(str, name.c_str(), strLen))
+			continue;
+        str += strLen;
+        if (' ' == str[0])
+            ++str;
+        c.type = (PathOpsV0Lib::CurveType) index;
+    }
+    OpDebugRequired(str, "size");
+    c.size = OpDebugReadSizeT(str);
+    OpDebugRequired(str, "data");
+    c.data = context.curveDataStorage->dumpSet(str);  // do not allocate, just point to
 }
 
 static void dumpEdges(const char*& str, const char* arrayName, std::vector<OpEdge*>& edgeArray) {
@@ -2060,7 +2135,22 @@ void OpContour::dumpSet(const char*& str) {
 #endif
     ASSERT_SERIAL(*this, debugCallbacks, debugContourData);  // omit debugContourData
 #if OP_DEBUG_IMAGE
-    ASSERT_SERIAL(*this, debugContourData, debugColor);
+    ASSERT_SERIAL(*this, debugContourData, debugCurves);
+    if (OpDebugOptional(str, "debugCurves")) {
+        int count = (int) OpDebugReadSizeT(str);
+        if ('{' == *str)
+            str++;
+        debugCurves.resize(count);
+        for (int index = 0; index < count; ++index) {
+            debugCurves[index].context = (ContextPtr) context;
+            Curve_DumpSet(debugCurves[index], str);
+            while (' ' >= *str)
+                str++;
+        }
+        if ('}' == *str)
+            str++;
+    }
+    ASSERT_SERIAL(*this, debugCurves, debugColor);
     if (OpDebugOptional(str, "debugColor"))
         debugColor = OpDebugHexToInt(str);
 #endif
@@ -2246,7 +2336,8 @@ std::string debugErrorValue(DebugLevel l, DebugBase b, std::string label, float 
 // returns caller curve data stored in contours as bytes encoded in string
 std::string CurveDataStorage::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    s += "next:" + STR(next) + " ";  // only zero/nonzero is read
+    if (next)        
+        s += "next ";  // only zero/nonzero is read
     s += "used:" + STR(used) + " ";
     if (DebugLevel::detailed == l || DebugLevel::file == l) {
         s += "\n";
@@ -2267,7 +2358,7 @@ std::string CurveDataStorage::debugDump(PathOpsV0Lib::CurveData* curveData) cons
     uint8_t* data = (uint8_t*) curveData;
     size_t result = 0;
     while (data < test->storage || data >= &test->storage[sizeof(test->storage)]) {
-        result += used;
+        result += test->used;
         test = test->next;
         OP_ASSERT(test);
     }
@@ -2294,8 +2385,7 @@ PathOpsV0Lib::CurveData* CurveDataStorage::dumpSet(const char*& str) {
 void CurveDataStorage::DumpSet(const char*& str, CurveDataStorage** previousPtr) {
     CurveDataStorage* storage = new CurveDataStorage;
     *previousPtr = storage;
-    OpDebugRequired(str, "next");
-    storage->next = (CurveDataStorage*) OpDebugReadSizeT(str);  // non-zero means there is more
+    storage->next = (CurveDataStorage*) OpDebugOptional(str, "next");  // non-zero means there is more
     OpDebugRequired(str, "used");
     storage->used = OpDebugReadSizeT(str);
     OpDebugByteArray(str, storage->used, storage->storage);
@@ -2304,32 +2394,7 @@ void CurveDataStorage::DumpSet(const char*& str, CurveDataStorage** previousPtr)
 }
 
 std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
-    std::string s;
-	if ((size_t) c.type > context().debugCallbacks.size())
-		s += "(missing curve name) ";
-    else if (!c.type)
-        s += "degenerateLine ";
-    else {
-		auto curveName = context().debugCallback(c).curveNameFuncPtr;
-		if (curveName)
-			s += (*curveName)() + " ";
-	}
-    if (DebugLevel::file == l) {
-        s += "size:" + STR(c.size) + " ";
-        s += "data:" + context().curveDataStorage->debugDump(c.data) + " ";
-    } else {
-		s.pop_back();  // remove trailing space
-        s += "{";
-        for (int i = 0; i < pointCount(); ++i) 
-            s += hullPt(i).debugDump(DebugLevel::error, b) + ", ";
-        s.pop_back(); s.pop_back();  // remove space, comma
-        s += "}";
-		if ((size_t) c.type <= context().debugCallbacks.size()) {
-			auto curveExtra = context().debugCallback(c).curveExtraFuncPtr;
-			if (curveExtra)
-				s += (*curveExtra)(c, l, b);
-		}
-    }
+    std::string s = Curve_DebugDump(c, l, b);
     return s;
 }
 
@@ -2362,25 +2427,7 @@ bool debugDmpIsLine(const PathOpsV0Lib::Curve& c) {
 }
 
 void OpCurve::dumpSet(const char*& str) {
-    size_t strLen = 0;
-    while (isalnum(str[strLen]))
-        ++strLen;
-    for (size_t index = 0; index < context().callbacks.size(); ++index) {
-		auto curveName = context().debugCallbacks[index].curveNameFuncPtr;
-		if (!curveName)
-			continue;
-        std::string name = (*curveName)();
-        if (name.size() != strLen || strncmp(str, name.c_str(), strLen))
-			continue;
-        str += strLen;
-        if (' ' == str[0])
-            ++str;
-        c.type = (PathOpsV0Lib::CurveType) index;
-    }
-    OpDebugRequired(str, "size");
-    c.size = OpDebugReadSizeT(str);
-    OpDebugRequired(str, "data");
-    c.data = context().curveDataStorage->dumpSet(str);  // do not allocate, just point to
+    Curve_DumpSet(c, str);
 }
 
 #undef OP_ENUM_BASE

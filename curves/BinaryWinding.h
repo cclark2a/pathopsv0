@@ -238,6 +238,12 @@ inline void binaryZeroFunc(Context* , Winding toZero) {
     zero.copyTo(toZero);
 }
 
+#if OP_DEBUG
+inline bool binaryDebugIsFill(Winding winding) {
+    return true;
+}
+#endif
+
 #if OP_DEBUG_DUMP
 inline std::string binaryDumpOutFunc(Winding winding) {
     BinaryData binary(winding);
@@ -267,6 +273,7 @@ inline void binaryDumpSetFunc(const char*& str, Winding& winding) {
     OP_TAGGED_FUNCTION(binarySubtractRightFunc), \
     OP_TAGGED_FUNCTION(binaryVisibleFunc), \
     OP_TAGGED_FUNCTION(binaryZeroFunc), \
+    OP_TAGGED_FUNCTION(binaryDebugIsFill), \
     OP_TAGGED_FUNCTION(binaryDumpOutFunc), \
     OP_TAGGED_FUNCTION(binaryDumpSetFunc), \
 
@@ -300,8 +307,9 @@ inline Context* binaryContext(CurveOutput output = nullptr, EmptyCallerPath empt
 #if OP_DEBUG
     OpDebugData debugData(false);
     Debug(context, debugData);
-	SetDebugContextCallbacks(context, { 
-        OP_DEBUG_DUMP_CODE(nullptr, binaryDumpOutFunc, binaryDumpSetFunc)
+	SetDebugContextCallbacks(context, {
+        binaryDebugIsFill
+        OP_DEBUG_DUMP_PARAMS(nullptr, binaryDumpOutFunc, binaryDumpSetFunc)
         OP_DEBUG_IMAGE_PARAMS(binaryImageOutXFunc, binaryImageOutFunc)
     });
 #endif

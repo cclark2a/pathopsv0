@@ -35,14 +35,18 @@ OpContext* context = nullptr;
 
 std::vector<NativeTextCache> nativeTextCache;
 
+SDL_Color toSDLColor(uint32_t c) {
+    SDL_Color sdlColor = { (c >> 16) & 0xFF, (c >> 8) & 0xFF, (c >> 0) & 0xFF, (c >> 24) & 0xFF };
+    return sdlColor;
+}
+
 size_t native_addText(std::string str, uint32_t color) {
     auto found = std::find_if(nativeTextCache.begin(), nativeTextCache.end(), 
             [str, color](NativeTextCache& cache) {
             return str == cache.str && color == cache.color; } );
     if (nativeTextCache.end() != found)
         return found - nativeTextCache.begin();
-    uint32_t c = color;
-    SDL_Color sdlColor = { (c >> 16) & 0xFF, (c >> 8) & 0xFF, (c >> 0) & 0xFF, (c >> 24) & 0xFF };
+    SDL_Color sdlColor = toSDLColor(color);
     SDL_Surface* textSurface = TTF_RenderText_Blended(font, str.c_str(), 0, sdlColor);
     if (!textSurface) {
         OpDebugOut(std::string("Couldn't create text: %s\n") + SDL_GetError());
@@ -69,6 +73,12 @@ std::string native_debugDump(size_t index) {
 
 /* This function runs once at startup. */
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
+    drawIDsOn = true;  // !!! hardcode for testing
+    drawEdgesOn = true;  // !!! hardcode for testing
+    drawWindingsOn = true;  // !!! hardcode for testing
+    drawValuesOn = true;  // !!! hardcode for testing
+    drawGridOn = true; // !!! hardcode for testing
+    drawPointsOn = true;
     SDL_Color color = { 0, 0, 0, SDL_ALPHA_OPAQUE };
     if (!SDL_CreateWindowAndRenderer("V0 Debugger", WINDOW_WIDTH, WINDOW_HEIGHT, 
             SDL_WINDOW_RESIZABLE, &window, &renderer)) {
@@ -119,7 +129,67 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
             case SDLK_DOWN:
                 debugPicture.pan(OpVector(0, 1) * scale);
                 break;
+            case SDLK_C:
+                drawCentersOn ^= true;
+                break;
+            case SDLK_E:
+                drawEdgesOn ^= true;
+                break;
+            case SDLK_F:
+                drawFillOn ^= true;
+                break;
+            case SDLK_G:
+                if (drawGridOn && !drawGridLinear)
+                    drawGridLinear = true;
+                else {
+                    drawGridOn ^= true;
+                    drawGridLinear = false;
+                }
+                break;
+            case SDLK_H:
+                drawHullsOn ^= true;
+                break;
+            case SDLK_I:
+                drawIDsOn ^= true;
+                break;
+            case SDLK_K:
+                drawControlsOn ^= true;
+                break;
+            case SDLK_P:
+                drawPointsOn ^= true;
+                break;
+            case SDLK_S:
+                drawSegmentsOn ^= true;
+                break;
+            case SDLK_T:
+                drawTangentsOn ^= true;
+                break;
+            case SDLK_W:
+                drawWindingsOn ^= true;
+                break;
+            case SDLK_V:
+                drawValuesOn ^= true;
+                break;
+            case SDLK_X:
+                drawHexOn ^= true;
+                break;
+            case SDLK_0:
+            case SDLK_1:
+            case SDLK_2:
+            case SDLK_3:
+            case SDLK_4:
+            case SDLK_5:
+            case SDLK_6:
+            case SDLK_7:
+            case SDLK_8:
+            case SDLK_9:
+                debugPrecision = event->key.key - SDLK_0;
+                break;
+            case SDLK_MINUS:
+                debugPrecision = -1;
+                break;
         }
+        debugPicture.redraw();
     }
     if (event->type == SDL_EVENT_QUIT)
         return SDL_APP_SUCCESS;  /* end the program, reporting success to the OS. */
@@ -158,7 +228,11 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
         NativeTextCache& cache = nativeTextCache[text.cacheIndex];
         SDL_Texture* texture = (SDL_Texture*) cache.texture;
         SDL_FRect dst { text.pt.x, text.pt.y, cache.size.dx, cache.size.dy };
-        SDL_RenderTexture(renderer, texture, NULL, &dst);
+        if (text.vertical) {
+            SDL_FPoint center { 0, 0 };
+            SDL_RenderTextureRotated(renderer, texture, NULL, &dst, -90.0, &center, SDL_FLIP_NONE);
+        } else
+            SDL_RenderTexture(renderer, texture, NULL, &dst);
     }
     SDL_RenderPresent(renderer);
     return SDL_APP_CONTINUE;
@@ -193,6 +267,12 @@ void pentrek_draw(char* bits, int width, int height, int scan) {
     RasterCanvas canvas(pm);
     int debugCount = 0;
     for (OpDebugPoly& poly : debugPicture.polys) {
+        if (poly.segment && !drawSegmentsOn)
+            continue;
+        if (poly.edge && !drawEdgesOn)
+            continue;
+        if (poly.contour && !drawFillOn)
+            continue;
         size_t index = 0;
         for (size_t count : poly.contours) {
             Span<Point> points((Point*) (&poly.device.front() + index), count);
@@ -205,7 +285,8 @@ void pentrek_draw(char* bits, int width, int height, int scan) {
                     | ((poly.color >> 16) & 0xFF);
             paint.color(Color::FromColor32(color));
             paint.stroke(!!poly.thickness);
-            paint.width(poly.thickness * 2);
+            if (poly.thickness)
+                paint.width(poly.thickness * 2);
             canvas.drawPath(path, paint);
             ++debugCount;
         }
