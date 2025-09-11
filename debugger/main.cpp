@@ -73,12 +73,13 @@ std::string native_debugDump(size_t index) {
 
 /* This function runs once at startup. */
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
-    drawIDsOn = true;  // !!! hardcode for testing
-    drawEdgesOn = true;  // !!! hardcode for testing
-    drawWindingsOn = true;  // !!! hardcode for testing
-    drawValuesOn = true;  // !!! hardcode for testing
-    drawGridOn = true; // !!! hardcode for testing
-    drawPointsOn = true;
+    drawIDsOn = false;  // !!! hardcode for testing
+    drawEdgesOn = false;  // !!! hardcode for testing
+    drawWindingsOn = false;  // !!! hardcode for testing
+    drawValuesOn = false;  // !!! hardcode for testing
+    drawGridOn = false; // !!! hardcode for testing
+    drawPointsOn = false;
+    drawFillOn = true;
     SDL_Color color = { 0, 0, 0, SDL_ALPHA_OPAQUE };
     if (!SDL_CreateWindowAndRenderer("V0 Debugger", WINDOW_WIDTH, WINDOW_HEIGHT, 
             SDL_WINDOW_RESIZABLE, &window, &renderer)) {
@@ -281,9 +282,10 @@ void pentrek_draw(char* bits, int width, int height, int scan) {
             bu.addPoly(points, false);
             auto path = bu.snapshot();
             Paint paint;
-            uint32_t color = (poly.color & 0xFF00FF00) | ((poly.color & 0xFF) << 16) 
-                    | ((poly.color >> 16) & 0xFF);
-            paint.color(Color::FromColor32(color));
+            float a = (poly.color >> 24) / 255.f;
+            auto premul = [a, poly](int bit) { return a * ((poly.color >> bit) & 0xFF) / 255.f; };
+            paint.color({ premul(16), premul(8), premul(0), a });
+//            paint.color({ 1, 0, 0, .3 });
             paint.stroke(!!poly.thickness);
             if (poly.thickness)
                 paint.width(poly.thickness * 2);

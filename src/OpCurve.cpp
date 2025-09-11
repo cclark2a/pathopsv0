@@ -618,7 +618,8 @@ OpPointBounds OpCurve::ptBounds() const {
 	return result;
 }
 
-void OpCurve::output(bool firstPt, bool lastPt  OP_DEBUG_PARAMS(int parentID)) {
+PathOpsV0Lib::WindKeep OpCurve::output(PathOpsV0Lib::Winding w, bool firstPt, bool lastPt  
+        OP_DEBUG_PARAMS(int parentID)) {
 	context().initOutOnce();
     PathOpsV0Lib::CurveType curveType = c.type;
     if (!curveType) {
@@ -628,7 +629,7 @@ void OpCurve::output(bool firstPt, bool lastPt  OP_DEBUG_PARAMS(int parentID)) {
     PathOpsV0Lib::Curve curve { c.context, c.data, c.size, context().nativeCurveTypes[curveType] };
     PathOpsV0Lib::CurveOutput curveOutput = context().contextCallbacks.curveOutputFuncPtr;
     if (curveOutput)
-	    (*curveOutput)(curve, firstPt, lastPt, context().callerOutput);
+	    return (*curveOutput)(curve, w, firstPt, lastPt);
 #if OP_DEBUG && TEST_RASTER
 	PathOpsV0Lib::DebugAddRaster addRaster = context().debugCallback(c.type).addRasterFuncPtr;
     if (addRaster) {
@@ -637,4 +638,5 @@ void OpCurve::output(bool firstPt, bool lastPt  OP_DEBUG_PARAMS(int parentID)) {
         (*addRaster)(data, c, parentID);
     }
 #endif
+    return PathOpsV0Lib::WindKeep::Discard;
 }

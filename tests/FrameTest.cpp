@@ -12,16 +12,17 @@ constexpr size_t frameLineSize = sizeof(OpPoint) * 2;
 constexpr CurveType frameQuad = 2;
 constexpr size_t frameQuadSize = sizeof(OpPoint) * 3;
 
-static void frameOutput(Curve c, bool firstPt, bool lastPt, PathOutput output) {
+static WindKeep frameOutput(Curve c, Winding , bool firstPt, bool lastPt) {
     std::string outStr = frameLine == c.type ? "line: " : "quad: ";
     auto addPtStr = [&outStr](const OpPoint& pt, std::string delimiter) {
-        outStr += "{ " + std::to_string(pt.x) + ", " + std::to_string(pt.y) + " }" + delimiter;
+        outStr += pt.toString() + delimiter;
     };
     addPtStr(c.data->start, ", ");
 	if (frameQuad == c.type)
         addPtStr(quadControlPt(c), ", ");
     addPtStr(c.data->end, "\n");
     OpDebugOut(outStr);
+    return WindKeep::Discard;
 }
 
 static bool allowDisjointLines(ContextError err, Curve* ) {
@@ -32,18 +33,18 @@ void TestFrame() {
     Context* context = frameContext(frameOutput);
     lineCallbacks(context, frameLine );
     quadCallbacks(context, frameQuad);
-    FrameWinding frameWinding(context, FrameFill::frame);
-    FrameWinding fillWinding(context, FrameFill::fill);
+    FrameWinding frame(context, FrameFill::frame);
+    FrameWinding fill(context, FrameFill::fill);
 	OpPoint line[] { { 10, 10 }, { 20, 20 } };
 	OpPoint quad[] { { 30, 30 }, { 50, 50 }, { 40, 30 } };
-    AddLine(frameWinding.contour, { context, line, frameLineSize, frameLine } );
-    AddQuads(frameWinding.contour, { context, quad, frameQuadSize, frameQuad } );
+    AddLine(frame.winding.contour, { context, line, frameLineSize, frameLine } );
+    AddQuads(frame.winding.contour, { context, quad, frameQuadSize, frameQuad } );
     OpPoint rect[] { { 15, 15 }, { 45, 15 }, { 45, 45 }, { 15, 45 }, { 15, 15 } };
 	for (int index = 0; index < 4; ++index)
-		AddLine(fillWinding.contour, { context, &rect[index], frameLineSize, frameLine } );
+		AddLine(fill.winding.contour, { context, &rect[index], frameLineSize, frameLine } );
 
 	SetErrorHandler(context, allowDisjointLines);
-    Resolve(context, nullptr);
+    Resolve(context);
 	ContextError error = Error(context);
     DeleteContext(context);
     if (ContextError::none != error)

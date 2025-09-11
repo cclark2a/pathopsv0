@@ -34,7 +34,6 @@ struct UnaryWinding {
 
     Winding winding;
     UnaryData data;
-    Contour* contour;
 };
 
 inline void unaryEvenOddFunc(Context* , Winding winding, Winding toAdd) {
@@ -153,11 +152,9 @@ inline Context* unaryContext(CurveOutput output = nullptr, EmptyCallerPath empty
 }
 
 inline UnaryWinding::UnaryWinding(Context* context) {
-    winding.data = &data;
-    winding.size = sizeof(data);
-    contour = CreateContour(context, winding);
+    winding.contour = CreateContour(context, &data, sizeof(data));
 #if OP_DEBUG
-	SetDebugContourData(contour, { &data, sizeof(data) }, DebugContourType::windingUserData );
+	SetDebugContourData(winding.contour, { &data, sizeof(data) }, DebugContourType::windingUserData );
 #endif
 }
 

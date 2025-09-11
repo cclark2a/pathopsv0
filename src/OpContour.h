@@ -16,7 +16,12 @@ enum class RelinkJoins {
 	again
 };
 
+typedef PathOpsV0Lib::Contour* ContourPtr;
+
 struct OpContour {
+	operator ContourPtr() const {
+		return (ContourPtr)(this);
+	}
 	void addCoinEdges();
 
 	void addDisjointIntersections() {
@@ -65,6 +70,7 @@ struct OpContour {
 	}
 
 	bool fixCCSects();
+    void init(OpContext* , PathOpsV0Lib::WindingData winding, size_t size);
 	bool isEmpty() { return segments.empty(); }
 	bool isOpen() { return !merges.empty(); }
 //	bool isSorted(Axis axis) const { return Axis::horizontal == axis ? isXSorted : isYSorted; }
@@ -114,6 +120,8 @@ struct OpContour {
 	}
 
 	void unlink(OpEdge* );
+    PathOpsV0Lib::Winding winding() const { 
+        return { (ContourPtr) this, (void*) &windingStorage.front(), windingStorage.size() }; }
 	std::vector<OpEdge*>& windingEdges(Axis );
 
 	OP_DEBUG_CODE(void addDebugContourData(PathOpsV0Lib::DebugContourData , 
@@ -158,7 +166,6 @@ struct OpContour {
 	OpContour* overlapOwner;  // the master that intersects the same set of contours as this
 	int id;
 	int treeID = 0;  // tracks if contour has been initialized in this tree's context (for edge 'seen')
-	PathOpsV0Lib::Winding winding;
 	bool backwardsBuilt = false;
 	bool centerlessBuilt = false;
 	bool hasPals = false;

@@ -5,6 +5,10 @@
 #include "OpWinder.h"
 #include "PathOps.h"
 
+#if OP_DEBUG_IMAGE
+#include "OpDebugColor.h"
+#endif
+
 // opp and contour share at least one coincident segment or edge; makes opp member of contour set
 void OpContour::addMerge(OpContour* opp) {
 	if (this == opp)
@@ -231,7 +235,9 @@ bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* e, EdgeMatch loopMatch) {
 			break;
 	}
 	if (e == test) {	// if this forms a loop, there's nothing to detach, return success
-		e->output(true);
+        int safetyCounter = context->loopCount;
+		while (e->output(true) && --safetyCounter >= 0)
+            ;
 		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
 		return true;
 	}
@@ -251,7 +257,9 @@ bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* e, EdgeMatch loopMatch) {
 		detachEdge(oppEdge, EdgeMatch::start);
 		test->setNextEdge(oppEdge);
 		oppEdge->setPriorEdge(test);
-		test->output(true);
+        int safetyCounter = test->context()->loopCount;
+		while (test->output(true) && --safetyCounter >= 0)
+            ;
 		return true;
 	};
 	auto detachPrior = [detachEdge](OpEdge* test, OpEdge* oppEdge) {
@@ -259,7 +267,9 @@ bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* e, EdgeMatch loopMatch) {
 		detachEdge(oppEdge, EdgeMatch::end);
 		test->setPriorEdge(oppEdge);
 		oppEdge->setNextEdge(test);
-		test->output(true);
+        int safetyCounter = test->context()->loopCount;
+		while (test->output(true) && --safetyCounter >= 0)
+            ;
 		return true;
 	};
 	test = e;
@@ -510,6 +520,7 @@ void OpContour::removeLink(OpEdge* edge) {
 		OpEdge* test = linkups.l[index];
 		if (edge == test) {
 			linkups.l.erase(linkups.l.begin() + index);
+		    edge->linkHead = false;
 			return;
 		}
 	}
@@ -582,6 +593,22 @@ bool OpContour::fixCCSects() {
 			return context->setError(PathOpsV0Lib::ContextError::loop  OP_DEBUG_PARAMS(segment.id));
 	}
 	return true;
+}
+
+void OpContour::init(OpContext* ctxt, PathOpsV0Lib::WindingData wind, size_t size) {
+		context = ctxt;
+		id = ctxt->nextID();
+        windingStorage.resize(size);
+        std::memcpy(&windingStorage.front(), wind, size);
+#if OP_DEBUG_IMAGE
+        int used = ctxt->contourStorage->used;
+        if (1 == used)
+            debugColor = blue;
+        else if (2 == used)
+            debugColor = red;
+        else
+            debugColor = debugColorArray[id % debugColorArray.size()].first;
+#endif
 }
 
 int OpContour::nextID() const {

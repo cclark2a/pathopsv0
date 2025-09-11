@@ -1032,15 +1032,14 @@ ResolveWinding OpWinder::SetWindingByDistance(OpEdge* edge) {
 				&& RayOrder::unordered != dist.rayOrder)
 			break;
 	}
-	OpContext* context = edge->context();
 	if (sumIndex >= 0) {
 		Distance& sumDistance = ray.distances[sumIndex];
 		OpEdge* sumEdge = sumDistance.edge;
 //		OP_ASSERT(!sumEdge->isUnsectable());
 		if (sumEdge->sum.isSet())
-			sumWinding.w = sumEdge->sum.copyData(context);
+			sumWinding.w = sumEdge->sum.copyData();
 		else
-			sumWinding.zero(context);
+			sumWinding.zero();
 		OP_DEBUG_CODE(sumWinding.debugType = DebugWindingType::temp);
 	// if pointing down/left, subtract winding
 	// if sumEdge coin pals' contour is not in home's contour sect, also subtract from winding
@@ -1083,9 +1082,9 @@ ResolveWinding OpWinder::SetWindingByDistance(OpEdge* edge) {
 	//   replace winding with many.
 	edge->many.setWind(edge->winding);
 	for (const auto& pal : edge->pals) {
-		edge->winding.move(context, pal.edge->winding, pal.reversed);
+		edge->winding.move(pal.edge->winding, pal.reversed);
 	}
-	if (!edge->winding.visible(context)) {
+	if (!edge->winding.visible()) {
 		edge->setDisabled(OP_LINE_FILE_NPARGS());
 //		edge->segment->contour->isOpen = true;		// !!! may be required (wait for test case)
 //		edge->windPal = true;	// !!! doesn't appear to be necessary

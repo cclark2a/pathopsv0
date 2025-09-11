@@ -5,6 +5,5 @@
 #define OP_DEBUG_FAST_TEST 0
 
 #define TEST_RASTER 0  // work-in-progress to verify correctness (buggy)
-#define OP_INTERACTIVE 0  // out of date
 
 #endif

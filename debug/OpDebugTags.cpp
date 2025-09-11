@@ -16,12 +16,6 @@
 
 #include "debug/OpDebugDump.h"
 
-extern void cutExampleOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, 
-        PathOpsV0Lib::PathOutput output);
-
-#define CUT_EXAMPLE_TAGGED_FUNCTIONS \
-    { reinterpret_cast<DebugFunction>(cutExampleOutput), "cutExampleOutput" }, \
-
 struct DebugTags {
     DebugFunction function;
     std::string tag;
@@ -45,7 +39,6 @@ std::vector<DebugTags> debugTags {
     FRAME_IMAGE_TAGGED_FUNCTIONS
     DEBUG_TO_SKPATH_TAGGED_FUNCTIONS
 #endif
-    CUT_EXAMPLE_TAGGED_FUNCTIONS
 };
 
 #undef OP_TAGGED_FUNCTION

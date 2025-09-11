@@ -12,16 +12,17 @@ constexpr size_t lineSize = sizeof(OpPoint) * 2;
 constexpr CurveType quad = 2;
 constexpr size_t quadSize = sizeof(OpPoint) * 3;
 
-void cutExampleOutput(Curve c, bool firstPt, bool lastPt, PathOutput output) {
+WindKeep cutExampleOutput(Curve c, Winding , bool firstPt, bool lastPt) {
     std::string outStr = line == c.type ? "line: " : "quad: ";
     auto addPtStr = [&outStr](const OpPoint& pt, std::string delimiter) {
-        outStr += "{ " + std::to_string(pt.x) + ", " + std::to_string(pt.y) + " }" + delimiter;
+        outStr += pt.toString() + delimiter;
     };
     addPtStr(c.data->start, ", ");
 	if (quad == c.type)
         addPtStr(quadControlPt(c), ", ");
     addPtStr(c.data->end, "\n");
     OpDebugOut(outStr);
+    return WindKeep::Discard;
 }
 
 static bool allowDisjointLines(ContextError err, Curve* ) {
@@ -29,7 +30,8 @@ static bool allowDisjointLines(ContextError err, Curve* ) {
 }
 
 void CutExample() {
-    Context* context = frameContext(cutExampleOutput);
+    CutData cutData(CutDirection::clockwise);
+    Context* context = cutContext((ContextUserData*) &cutData, cutExampleOutput);
     lineCallbacks(context, line);
     quadCallbacks(context, quad);
     FrameWinding cutWinding(context, FrameFill::frame);
@@ -37,17 +39,16 @@ void CutExample() {
 
 	OpPoint linePts[] { { 10, 10 }, { 20, 20 } };
 	OpPoint quadPts[] { { 30, 30 }, { 40, 30 }, { 50, 50 } };
-    AddLine(cutWinding.contour, { context, linePts, lineSize, line } );
-    AddQuads(cutWinding.contour, { context, quadPts, quadSize, quad } );
+    AddLine(cutWinding.winding.contour, { context, linePts, lineSize, line } );
+    AddQuads(cutWinding.winding.contour, { context, quadPts, quadSize, quad } );
     OpPoint rect[] { { 15, 15 }, { 45, 15 }, { 45, 45 }, { 15, 45 }, { 15, 15 } };
-
 	for (int index = 0; index < 4; ++index)
-		AddLine(fillWinding.contour, { context, &rect[index], lineSize, line } );
+		AddLine(fillWinding.winding.contour, { context, &rect[index], lineSize, line } );
 	SetErrorHandler(context, allowDisjointLines);
-    cutLeftCallbacks(context);
-    Resolve(context, nullptr);
-    cutRightCallbacks(context);
-    Resolve(context, nullptr);
+    cutCallbacks(context);
+    Resolve(context);
+    cutData = CutData(CutDirection::counterclockwise);
+    Resolve(context);
     DeleteContext(context);
 }
 

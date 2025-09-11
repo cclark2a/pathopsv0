@@ -19,24 +19,10 @@ class SkSurface;
 class HelloWorld : public sk_app::Application, sk_app::Window::Layer {
 public:
     HelloWorld(int argc, char** argv, void* platformData);
-    ~HelloWorld() override;
 
     void onIdle() override;
 
-    void onBackendCreated() override;
-    void onPaint(SkSurface*) override;
-    bool onChar(SkUnichar c, skui::ModifierKey modifiers) override;
-    bool onKey(skui::Key, skui::InputState, skui::ModifierKey) override;
-    bool onMouse(int x, int y, skui::InputState state, skui::ModifierKey modifiers) override;
-//    bool onMouseWheel(float delta, skui::ModifierKey ) override;
-
 private:
-    void updateTitle();
-
-    sk_app::Window* fWindow;
-    sk_app::Window::BackendType fBackendType;
-
-//    SkScalar fRotationAngle;
 };
 
 #endif

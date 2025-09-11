@@ -43,18 +43,18 @@ void ContainsExample() {
     };
     // break the quads so that their control points lie inside the bounds
     // formed by the end points (i.e., find the quads' extrema)
-    AddQuads(frameWinding.contour, { context, &contour1[0], quadSize, quadType } );
-    AddLine( frameWinding.contour, { context, &contour1[2], lineSize, lineType } );
-    AddLine( frameWinding.contour, { context, &contour1[3], lineSize, lineType } );
+    AddQuads(frameWinding.winding.contour, { context, &contour1[0], quadSize, quadType } );
+    AddLine( frameWinding.winding.contour, { context, &contour1[2], lineSize, lineType } );
+    AddLine( frameWinding.winding.contour, { context, &contour1[3], lineSize, lineType } );
 
     FrameWinding fillWinding(context, FrameFill::fill);
     OpPoint contour2[] { { 0, 0 },           { 1, 1 },  // line: start,          end
                                    { 1, 3 }, { 0, 3 },  // quad:        control, end
                                              { 0, 0 },  // line:                 end
     };
-    AddLine( fillWinding.contour, { context, &contour2[0], lineSize, lineType } );
-    AddQuads(fillWinding.contour, { context, &contour2[1], quadSize, quadType } );
-    AddLine( fillWinding.contour, { context, &contour2[3], lineSize, lineType } );
+    AddLine( fillWinding.winding.contour, { context, &contour2[0], lineSize, lineType } );
+    AddQuads(fillWinding.winding.contour, { context, &contour2[1], quadSize, quadType } );
+    AddLine( fillWinding.winding.contour, { context, &contour2[3], lineSize, lineType } );
 
 	SetErrorHandler(context, allowDisjointLines);
     auto handleError = [context](WindingCondition result, WindingCondition expected) {
@@ -65,12 +65,12 @@ void ContainsExample() {
     };
     SetWindingCallbacks(context, { frameAddFunc, frameKeepFunc, frameVisibleFunc, 
 			frameZeroFunc, frameSubtractFunc, frameIntersectFunc, framePartiallyContainsFunc });
-    WindingCondition isOutside = Resolve(context, nullptr);
+    WindingCondition isOutside = Resolve(context);
     handleError(isOutside, framePartiallyContained);
     SetWindingCallbacks(context, { frameAddFunc, frameKeepFunc, frameVisibleFunc, 
 			frameZeroFunc, frameSubtractFunc, frameIntersectFunc, nullptr, 
             frameFullyContainsFunc });
-    isOutside = Resolve(context, nullptr);
+    isOutside = Resolve(context);
     handleError(isOutside, 0);  // not fully contained
     DeleteContext(context);
 }

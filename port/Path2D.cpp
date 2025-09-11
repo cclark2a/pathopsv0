@@ -567,13 +567,15 @@ bool OutPath::wrapAround(OpPoint pt) {
 	return true;
 }
 
-static void EmptyFunc(PathOutput pathOutput) {
-	((Path*) pathOutput)->clear();
+static void EmptyFunc(PathOpsV0Lib::Context* context) {
+    Path* pathOutput = (Path*) PathOpsV0Lib::UserData(context);
+	pathOutput->clear();
 }
 
-static void Path2DOutput(PathOpsV0Lib::Curve c, bool firstPt, bool lastPt, PathOutput pathOutput) {
-	OutPath* output = (OutPath*) pathOutput;
+static WindKeep Path2DOutput(PathOpsV0Lib::Curve c, Winding , bool firstPt, bool lastPt) {
+	OutPath* output = (OutPath*) PathOpsV0Lib::UserData(c.context);
 	output->commonOutput(c, firstPt, lastPt);
+    return WindKeep::Discard;
 }
 
 static void SetupCurves(Context* context) {
@@ -598,9 +600,9 @@ ContextError FillPath::opCommon(FillPath& path, Ops oper) {
 			binaryZeroFunc, binarySubtractFunc });
 	SetupCurves(context);
 	BinaryWinding leftWinding(context, BinaryOperand::left);
-	opAddPath(context, leftWinding.contour, true);
+	opAddPath(context, leftWinding.winding.contour, true);
 	BinaryWinding rightWinding(context, BinaryOperand::right);
-	path.opAddPath(context, rightWinding.contour, true);
+	path.opAddPath(context, rightWinding.winding.contour, true);
 	return handleError(context);
 }
 
@@ -608,7 +610,7 @@ ContextError FillPath::simplify() {
 	Context* context = unaryContext(Path2DOutput, EmptyFunc);
 	SetupCurves(context);
     UnaryWinding simpleWinding(context);
-    opAddPath(context, simpleWinding.contour, true);
+    opAddPath(context, simpleWinding.winding.contour, true);
 	return handleError(context);
 }
 
@@ -617,26 +619,28 @@ static bool allowDisjointLines(ContextError err, PathOpsV0Lib::Curve* ) {
 }
 
 ContextError Path::handleError(Context* context) {
-	OutPath outPath;
-	Resolve(context, &outPath);
+	Resolve(context);
 	ContextError error = Error(context);
-	if (ContextError::none == error)
-		curves = outPath.result.curves;
+	if (ContextError::none == error) {
+	    OutPath* outPath = (OutPath*) PathOpsV0Lib::UserData(context);
+	    curves = outPath->result.curves;
+    }
 	DeleteContext(context);
 	return error;
 }
 
 ContextError FramePath::opCommon(FillPath& path, Ops oper) {
-	Context* context = CreateContext();
+    OutPath outPath;
+    Context* context = CreateContext((ContextUserData*) &outPath);
     SetContextCallbacks(context, { Path2DOutput, EmptyFunc });
 	WindingKeep operatorFunc = Ops::sect == oper ? frameKeepFunc : frameDiscardFunc;
     SetWindingCallbacks(context, { frameAddFunc, operatorFunc, frameVisibleFunc, 
             frameZeroFunc, frameSubtractFunc });
 	SetupCurves(context);
     FrameWinding frameWinding(context, FrameFill::frame);
-	opAddPath(context, frameWinding.contour, false);
+	opAddPath(context, frameWinding.winding.contour, false);
     FrameWinding fillWinding(context, FrameFill::fill);
-	path.opAddPath(context, fillWinding.contour, true);
+	path.opAddPath(context, fillWinding.winding.contour, true);
 	SetErrorHandler(context, allowDisjointLines);
 	return handleError(context);
 }

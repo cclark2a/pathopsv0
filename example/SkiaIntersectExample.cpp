@@ -11,7 +11,7 @@
 using namespace PathOpsV0Lib;
 
 static void IntersectPath(const SkPath& onePath, const SkPath& twoPath, SkPath* out) {
-    Context* context = CreateContext();
+    Context* context = CreateContext((ContextUserData*) out);
     SetSkiaContextCallbacks(context);
     SetSkiaCurveCallbacks(context);
     auto isWindingFill = [](const SkPath& path) {
@@ -25,15 +25,12 @@ static void IntersectPath(const SkPath& onePath, const SkPath& twoPath, SkPath* 
             : BinaryWindType::evenOdd;
 	SetSkiaOpContextCallbacks(context, kIntersect_SkPathOp, windType);
     int oneData[] = { 1, 0 };
-    PathOpsV0Lib::Winding oneWinding { oneData, sizeof(oneData) };
-    Contour* one = SetSkiaOpContourCallbacks(context, oneWinding, BinaryOperand::left);
+    Contour* one = SetSkiaOpContourCallbacks(context, oneData, sizeof(oneData), BinaryOperand::left);
     AddSkiaPath(context, one, onePath);
     int twoData[] = { 0, 1 };
-    PathOpsV0Lib::Winding twoWinding { twoData, sizeof(twoData) };
-    Contour* two = SetSkiaOpContourCallbacks(context, twoWinding, BinaryOperand::right);
+    Contour* two = SetSkiaOpContourCallbacks(context, twoData, sizeof(twoData), BinaryOperand::right);
     AddSkiaPath(context, two, twoPath);
-	PathOutput pathOutput = out;
-	Resolve(context, pathOutput);
+	Resolve(context);
     DeleteContext(context);
 }
 

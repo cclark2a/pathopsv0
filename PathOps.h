@@ -16,7 +16,7 @@ void DeleteContext(Context* );
 ContextUserData* UserData(Context* );
 
 // makes an empty contour: a collection of curves that share a winding
-Contour* CreateContour(Context* , Winding );
+Contour* CreateContour(Context* , WindingData , size_t );
 
 // returns new empty contour, or argument if already empty
 Contour* Clone(Contour* );
@@ -33,7 +33,7 @@ void ResetContour(Contour* );
 
 // operate on added curves; calls curve output callback with path output (if not null)
 // returns user-defined non-zero value if winding condition was met
-WindingCondition Resolve(Context* , PathOutput );
+WindingCondition Resolve(Context* );
 
 // global callbacks
 void SetContextCallbacks(Context* , ContextCallbacks );

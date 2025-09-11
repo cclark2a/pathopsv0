@@ -20,11 +20,11 @@ bool SkPathOpInvertOutput(SkPathOp op, bool leftOperandIsInverted, bool rightOpe
 
 void SetSkiaContextCallbacks(PathOpsV0Lib::Context* );
 void SetSkiaCurveCallbacks(PathOpsV0Lib::Context* );
-PathOpsV0Lib::Contour* SetSkiaSimplifyCallbacks(PathOpsV0Lib::Context* , PathOpsV0Lib::Winding , 
-		bool isWindingFill  OP_DEBUG_PARAMS(const SkPath* debugSkPath = nullptr));
+PathOpsV0Lib::Contour* SetSkiaSimplifyCallbacks(PathOpsV0Lib::Context* , PathOpsV0Lib::WindingData , 
+		size_t size, bool isWindingFill  OP_DEBUG_PARAMS(const SkPath* debugSkPath = nullptr));
 void SetSkiaOpContextCallbacks(PathOpsV0Lib::Context* , SkPathOp , PathOpsV0Lib::BinaryWindType );
-PathOpsV0Lib::Contour* SetSkiaOpContourCallbacks(PathOpsV0Lib::Context* , PathOpsV0Lib::Winding , 
-		PathOpsV0Lib::BinaryOperand  OP_DEBUG_PARAMS(const SkPath* debugSkPath = nullptr));
+PathOpsV0Lib::Contour* SetSkiaOpContourCallbacks(PathOpsV0Lib::Context* , PathOpsV0Lib::WindingData , 
+		size_t size, PathOpsV0Lib::BinaryOperand  OP_DEBUG_PARAMS(const SkPath* debugSkPath = nullptr));
 void AddSkiaPath(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* , const SkPath& 
         OP_DEBUG_PARAMS(AddDebugContour* debugAddContour = nullptr));
 bool VeryLargeSkiaPath(const SkPath& );

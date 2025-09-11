@@ -26,7 +26,6 @@ struct EdgeFilters {
 };
 
 std::array<EdgeFilters, 3> edgeFilters;
-extern std::vector<std::pair<uint32_t, std::string>> debugColorArray;
 int lineWidth = 200;
 DebugBase defaultBase = DebugBase::dec;
 DebugLevel defaultLevel = DebugLevel::normal;
@@ -210,14 +209,6 @@ EDGE_DETAIL
         if (const OpEdge* edge = findEdge(ID)) { \
             edge->Method(); \
             found = true; \
-        } \
-        if (std::vector<const OpEdge*> outputs = findEdgeOutput(ID); outputs.size()) { \
-            for (auto output : outputs) { \
-                output->Method(); \
-				if (output != outputs.back()) \
-					OpDebugOut("\n"); \
-                found = true; \
-            } \
         } \
         if (std::vector<const OpEdge*> matches = findEdgeRayMatch(ID); matches.size()) { \
             for (auto match : matches) { \
@@ -582,6 +573,7 @@ void verifyFile(OpContext* context, std::string fromFilename, std::string verify
     std::string copy = fileToStr(verifyFilename);
     OP_ASSERT(orig == copy);
     delete fileContext;
+    debugGlobalContext = context;
 }
 
 void dmpRays() {
@@ -1059,7 +1051,9 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
     s += "\n";
     ASSERT_SERIAL(*this, nativeCurveTypes, contextCallbacks);
     static_assert(0 == offsetof(PathOpsV0Lib::ContextCallbacks, curveOutputFuncPtr));
+#if 0  // omit curve output function
     s += debugFindTag(reinterpret_cast<DebugFunction>(contextCallbacks.curveOutputFuncPtr));
+#endif
 	DEBUG_FIND_TAG(contextCallbacks, curveOutputFuncPtr, emptyCallerPathFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, emptyCallerPathFuncPtr, setLineTypeFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, setLineTypeFuncPtr, maxSplitFuncPtr);
@@ -1077,7 +1071,8 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
 	DEBUG_FIND_TAG(contextCallbacks, maxMarginFuncPtr, maxUnsectableTFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, maxUnsectableTFuncPtr, maxCheckSplitFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, maxCheckSplitFuncPtr, maxLimbsFuncPtr);
-	DEBUG_FIND_TAG(contextCallbacks, maxLimbsFuncPtr, maxGapFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, maxLimbsFuncPtr, maxLoopsFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, maxLoopsFuncPtr, maxGapFuncPtr);
     static_assert(offsetof(PathOpsV0Lib::ContextCallbacks, maxGapFuncPtr) 
             + sizeof(contextCallbacks.maxGapFuncPtr) == sizeof(contextCallbacks));
     ASSERT_SERIAL(*this, contextCallbacks, windingCallbacks);
@@ -1096,8 +1091,7 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
     if (!debugCallbacks.empty())
         s += debugCallbacksDump(debugCallbacks, l, b);
     s += debugContextCallbacksDump(debugContextCallbacks, l, b);
-    ASSERT_SERIAL(*this, windingCallbacks, callerOutput);  // omit callerOutput
-    ASSERT_SERIAL(*this, callerOutput, errorHandler);  // omit errorHandler
+    ASSERT_SERIAL(*this, windingCallbacks, errorHandler);  // omit errorHandler
     ASSERT_SERIAL(*this, errorHandler, sortedContours);
     if (!sortedContours.empty()) {
         s += "sortedContours:" + STR(sortedContours.size()) + " ";
@@ -1149,7 +1143,10 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
     ASSERT_SERIAL(*this, maxBounds, error);
     if (PathOpsV0Lib::ContextError::none != error)
         s += "error:" + PathOpsV0Lib::contextErrorName(error) + "\n";
-    ASSERT_SERIAL(*this, error, uniqueID);
+    ASSERT_SERIAL(*this, error, loopCount);
+    if (loopCount)
+        s += "loopCount:" + STR(loopCount) + " ";
+    ASSERT_SERIAL(*this, loopCount, uniqueID);
     s += "uniqueID:" + STR(uniqueID) + " ";
     DEBUG_DUMP_BOOL(*this, uniqueID, initialized);
     DEBUG_DUMP_BOOL(*this, initialized, allDiscarded);
@@ -1163,7 +1160,7 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
     s += "debugValidateEdgeIndex:" + STR(debugValidateEdgeIndex) + " ";
     ASSERT_SERIAL(*this, debugValidateEdgeIndex, debugValidateJoinerIndex);
     s += "debugValidateJoinerIndex:" + STR(debugValidateJoinerIndex) + " ";
-    ASSERT_SERIAL(*this, debugValidateJoinerIndex, debugCallbacks);
+    ASSERT_SERIAL_OFFSET(*this, debugValidateJoinerIndex, 4, debugCallbacks);
 #else
     ASSERT_SERIAL(*this, dumpDummy, debugCallbacks);
 #endif
@@ -1191,7 +1188,7 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
 	DEBUG_DUMP_BOOL(*this, debugInPathOps, debugInClearEdges);
 	DEBUG_DUMP_BOOL(*this, debugInClearEdges, debugCheckLastEdge);
 	DEBUG_DUMP_BOOL(*this, debugCheckLastEdge, debugFailOnEqualCepts);
-    static_assert(offsetof(OpContext, debugFailOnEqualCepts) + 4
+    static_assert(offsetof(OpContext, debugFailOnEqualCepts)
             + sizeof(debugFailOnEqualCepts) == offsetof(OpContext, debugDumpNotes));
     // omit debugDumpNotes (for now)
     // omit debugDumpSkips (for now)
@@ -1291,7 +1288,9 @@ void OpContext::dumpSet(const char*& str) {
     }
     ASSERT_SERIAL(*this, nativeCurveTypes, contextCallbacks);
     static_assert(0 == offsetof(PathOpsV0Lib::ContextCallbacks, curveOutputFuncPtr));
+#if 0  // omit curveOutputFuncPtr
 	contextCallbacks.curveOutputFuncPtr = (PathOpsV0Lib::CurveOutput) debugFindFunction(str);
+#endif
     DEBUG_FIND_FUNCTION(contextCallbacks, curveOutputFuncPtr, emptyCallerPathFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, emptyCallerPathFuncPtr, setLineTypeFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, setLineTypeFuncPtr, maxSplitFuncPtr);
@@ -1309,7 +1308,8 @@ void OpContext::dumpSet(const char*& str) {
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxMarginFuncPtr, maxUnsectableTFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxUnsectableTFuncPtr, maxCheckSplitFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxCheckSplitFuncPtr, maxLimbsFuncPtr);
-	DEBUG_FIND_FUNCTION(contextCallbacks, maxLimbsFuncPtr, maxGapFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxLimbsFuncPtr, maxLoopsFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxLoopsFuncPtr, maxGapFuncPtr);
     static_assert(offsetof(PathOpsV0Lib::ContextCallbacks, maxGapFuncPtr) 
             + sizeof(contextCallbacks.maxGapFuncPtr) == sizeof(contextCallbacks));
     static_assert(0 == offsetof(PathOpsV0Lib::WindingCallbacks, windingAddFuncPtr));
@@ -1326,8 +1326,7 @@ void OpContext::dumpSet(const char*& str) {
     // out of order ... but callbacks must be set before curves and windings are read
     debugCallbacksDumpSet(debugCallbacks, str);
     debugContextCallbacksDumpSet(debugContextCallbacks, str);
-    ASSERT_SERIAL(*this, windingCallbacks, callerOutput);  // omit callerOutput
-    ASSERT_SERIAL(*this, callerOutput, errorHandler);  // omit errorHandler
+    ASSERT_SERIAL(*this, windingCallbacks, errorHandler);  // omit errorHandler
     ASSERT_SERIAL(*this, errorHandler, sortedContours);
     if (OpDebugOptional(str, "sortedContours")) {
         size = OpDebugReadSizeT(str);
@@ -1372,7 +1371,10 @@ void OpContext::dumpSet(const char*& str) {
         maxBounds.dumpSet(str);
     ASSERT_SERIAL(*this, maxBounds, error);
     error = PathOpsV0Lib::contextErrorStr(str, "error", PathOpsV0Lib::ContextError::none);
-    ASSERT_SERIAL(*this, error, uniqueID);
+    ASSERT_SERIAL(*this, error, loopCount);
+    if (OpDebugOptional(str, "loopCount"))
+        loopCount = OpDebugReadSizeT(str);
+    ASSERT_SERIAL(*this, loopCount, uniqueID);
     OpDebugRequired(str, "uniqueID");
     uniqueID = (int) OpDebugReadSizeT(str);
     DEBUG_SET_BOOL(OpContext, uniqueID, initialized);
@@ -1389,7 +1391,7 @@ void OpContext::dumpSet(const char*& str) {
     ASSERT_SERIAL(*this, debugValidateEdgeIndex, debugValidateJoinerIndex);
     OpDebugRequired(str, "debugValidateJoinerIndex");
     debugValidateJoinerIndex = (int) OpDebugReadSizeT(str);
-    ASSERT_SERIAL(*this, debugValidateJoinerIndex, debugCallbacks);
+    ASSERT_SERIAL_OFFSET(*this, debugValidateJoinerIndex, 4, debugCallbacks);
 #else
     ASSERT_SERIAL(*this, dumpDummy, debugCallbacks);
 #endif
@@ -1528,8 +1530,7 @@ const OpContour* findContour(int ID) {
 
 OpEdge* findEdge(int ID) {
     auto match = [ID](const OpEdge& edge) {
-        return edge.id == ID ||
-                edge.debugOutPath == ID || edge.debugRayMatch == ID;
+        return edge.id == ID || edge.debugRayMatch == ID;
     };
     for (auto c : contourIterator) {
         for (auto& seg : c->segments) {
@@ -1547,19 +1548,6 @@ OpEdge* findEdge(int ID) {
             ? debugGlobalContext->ccStorage->debugFind(ID) : nullptr)
         return ccEdge;
     return nullptr;
-}
-
-std::vector<const OpEdge*> findEdgeOutput(int ID) {
-    std::vector<const OpEdge*> result;
-    for (const auto c : contourIterator) {
-        for (const auto& seg : c->segments) {
-            for (const auto& edge : seg.edges) {
-                if (ID == edge.debugOutPath)
-                    result.push_back(&edge);
-            }
-        }
-    }
-    return result;
 }
 
 std::vector<const OpEdge*> findEdgeRayMatch(int ID) {
@@ -1943,15 +1931,7 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
     ASSERT_SERIAL(*this, id, treeID);
 	if (treeID)
 		s += "treeID[" + STR(treeID) + "] ";
-    ASSERT_SERIAL(*this, treeID, winding);
-#if 0  // for now, just write winding storage passed in at contour creation time
-    if (winding.data && winding.size) {
-		auto windingOut = context->debugContextCallbacks.debugDumpWindingOutFuncPtr;
-		if (windingOut)
-			s += "winding" + (*windingOut)(winding) + " ";
-	}
-#endif
-    ASSERT_SERIAL(*this, winding, backwardsBuilt);
+    ASSERT_SERIAL(*this, treeID, backwardsBuilt);
 	if (backwardsBuilt)
 		s += "backwardsBuilt ";
     ASSERT_SERIAL(*this, backwardsBuilt, centerlessBuilt);
@@ -1989,10 +1969,9 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 		s += DebugLevel::detailed == l ? "}\n" : "} ";
     }
     ASSERT_SERIAL(*this, debugCurves, debugColor);
-    if (debugColor != blue) {
-        if (DebugLevel::file == l)
-            s += "debugColor:";
-        s += debugDumpColor(l, debugColor);
+    if (DebugLevel::file == l) {
+        s += "debugColor:";
+        s += debugDumpColor(l, debugColor) + " ";
     }
 #endif
     s.pop_back();
@@ -2100,20 +2079,7 @@ void OpContour::dumpSet(const char*& str) {
     ASSERT_SERIAL(*this, id, treeID);
     if (OpDebugOptional(str, "treeID"))
         treeID = OpDebugReadSizeT(str);
-    ASSERT_SERIAL(*this, treeID, winding);
-#if 0  // maybe something like this is needed? 
-    if (OpDebugOptional(str, "winding")) {
-        auto windingSet = context->debugContextCallbacks.debugDumpWindingSetFuncPtr;
-        if (!windingSet) {
-            OpDebugOut("!missing debugDumpWindingSetFuncPtr\n");
-            return;
-        }
-        (*windingSet)(str, winding);
-    }
-#else  // for now, set to value passed at contour allocation
-    winding = { &windingStorage.front(), windingStorage.size() };
-#endif
-    ASSERT_SERIAL(*this, winding, backwardsBuilt);
+    ASSERT_SERIAL(*this, treeID, backwardsBuilt);
     backwardsBuilt = OpDebugOptional(str, "backwardsBuilt");
     ASSERT_SERIAL(*this, backwardsBuilt, centerlessBuilt);
     centerlessBuilt = OpDebugOptional(str, "centerlessBuilt");
@@ -2151,7 +2117,7 @@ void OpContour::dumpSet(const char*& str) {
             str++;
     }
     ASSERT_SERIAL(*this, debugCurves, debugColor);
-    if (OpDebugOptional(str, "debugColor"))
+	if (OpDebugOptional(str, "debugColor"))
         debugColor = OpDebugHexToInt(str);
 #endif
 }
@@ -3132,7 +3098,6 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         s += (debugMatch ? STR(debugMatch->id) : std::string("-")) + " ";
     if (dumpIt(EdgeFilter::debugZeroErr) && (dumpAlways(EdgeFilter::debugZeroErr) || debugZeroErr))  
         s += (debugZeroErr ? STR(debugZeroErr->id) : std::string("-")) + " ";
-    s += strID(EF::debugOutPath, "debugOutPath", debugOutPath);
     s += strID(EF::debugParentID, "debugParentID", debugParentID);
     s += strID(EF::debugDepth, "debugDepth", debugDepth);
     s += strID(EF::debugRayMatch, "debugRayMatch", debugRayMatch);
@@ -3294,7 +3259,6 @@ void OpEdge::dumpSet(const char*& str) {
 #if OP_DEBUG
     debugMatch = (OpEdge*) strID("debugMatch");
     debugZeroErr = (OpEdge*) strID("debugZeroErr");
-    debugOutPath = (int) strID("debugOutPath");
     debugParentID = (int) strID("debugParentID");
     debugDepth = (int) strID("debugDepth");
     debugRayMatch = (int) strID("debugRayMatch");
@@ -3682,6 +3646,61 @@ void dmpLink(const OpEdge& edge) {
 		OpDebugOut("next" + s + "\n");
 }
 
+static void addToSeen(std::vector<const OpEdge*>& seen, const OpEdge& edge) {
+    const OpEdge* loopStart = edge.debugIsLoop(EdgeMatch::start, LeadingLoop::in);
+    int safetyCount = 0;
+    const OpEdge* link = &edge;
+    if (seen.end() == std::find(seen.begin(), seen.end(), &edge))
+        seen.push_back(&edge);
+    while ((link = link->priorEdge)) {
+        if (seen.end() == std::find(seen.begin(), seen.end(), link))
+            seen.push_back(link);
+        if (link == loopStart)
+            break;
+        if (++safetyCount > 700) {
+            OpDebugOut(std::string("!!! likely loops forever: prior\n"));
+            break;
+        }
+    }
+    const OpEdge* loopEnd = edge.debugIsLoop(EdgeMatch::end, LeadingLoop::in);
+    safetyCount = 0;
+    link = &edge;
+    while ((link = link->nextEdge)) {
+        if (seen.end() == std::find(seen.begin(), seen.end(), link))
+            seen.push_back(link);
+        if (link == loopEnd)
+            break;
+        if (++safetyCount > 700) {
+            OpDebugOut(std::string("!!! likely loops forever: next\n"));
+            break;
+        }
+    }
+}
+
+void dmpLinks() {
+    std::vector<const OpEdge*> seen;
+    for (const auto c : contourIterator) {
+        for (const auto& seg : c->segments) {
+            for (const auto& edge : seg.edges) {
+                if (edge.priorEdge)
+                    continue;
+                addToSeen(seen, edge);
+                dmpLink(edge);
+            }
+        }
+    }
+    for (const auto c : contourIterator) {
+        for (const auto& seg : c->segments) {
+            for (const auto& edge : seg.edges) {
+                if (seen.end() == std::find(seen.begin(), seen.end(), &edge)) {
+                    dmpLink(edge);
+                    addToSeen(seen, edge);
+                }
+            }
+        }
+    }
+}
+
 void dmpPoints(const OpEdge& edge) {
     std::string s = edge.debugDumpPoints();
     OpDebugFormat(s);
@@ -3749,8 +3768,7 @@ int OpEdgeStorage::debugCount() {
 OpEdge* OpEdgeStorage::debugFind(int ID) {
 	for (int index = 0; index < used; index++) {
 		OpEdge& test = storage[index];
-        if (test.id == ID ||
-                test.debugOutPath == ID || test.debugRayMatch == ID)
+        if (test.id == ID || test.debugRayMatch == ID)
             return &test;
 	}
     if (!next)
@@ -5056,7 +5074,7 @@ void OpSegment::dumpSet(const char*& str) {
 #if OP_DEBUG_IMAGE
     ASSERT_SERIAL_OFFSET(*this, endMoved, 1, debugColor);
 	if (OpDebugOptional(str, "debugColor"))
-		debugColor = (int) OpDebugReadSizeT(str);
+        debugColor = OpDebugHexToInt(str);
 #else
     ASSERT_SERIAL_OFFSET(*this, endMoved, 1, debugSetDisabled);
 #endif

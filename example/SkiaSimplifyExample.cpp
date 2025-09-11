@@ -10,17 +10,16 @@
 using namespace PathOpsV0Lib;
 
 static void SimplifyPath(const SkPath& path, SkPath* out) {
-    Context* context = CreateContext();
+    Context* context = CreateContext((ContextUserData*) out);
     SetSkiaContextCallbacks(context);
     SetSkiaCurveCallbacks(context);
     int simplifyData[] = { 1 };
-    Winding simplifyWinding { simplifyData, sizeof(simplifyData) };
     bool isWindingFill = SkPathFillType::kWinding == path.getFillType()
             || SkPathFillType::kInverseWinding == path.getFillType();
-    Contour* simplify = SetSkiaSimplifyCallbacks(context, simplifyWinding, isWindingFill);
+    Contour* simplify = SetSkiaSimplifyCallbacks(context, 
+            simplifyData, sizeof(simplifyData), isWindingFill);
     AddSkiaPath(context, simplify, path);
-	PathOutput pathOutput = out;
-	Resolve(context, pathOutput);
+	Resolve(context);
     DeleteContext(context);
 }
 

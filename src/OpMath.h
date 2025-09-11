@@ -542,6 +542,9 @@ struct OpPoint {
 	void pin(const OpRect& );
 	// bool soClose(OpPoint test) const;
 
+    std::string toString() const {
+        return "{ " + std::to_string(x) + ", " + std::to_string(y) + " }";
+    }
 
 	void zeroTiny() {  // set denormalized inputs to zero
 		if (fabsf(x) < OpEpsilon)

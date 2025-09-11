@@ -160,6 +160,7 @@ OpContext::OpContext(void* data)
 	, callerStorage(nullptr)
     , userData(data)
 	, error(PathOpsV0Lib::ContextError::none)
+    , loopCount(0)
 	, uniqueID(0)
     , initialized(false)
     , allDiscarded(false)
@@ -177,7 +178,6 @@ OpContext::OpContext(void* data)
 	debugCurveCurve = nullptr;
 	debugJoiner = nullptr;
 	debugTree = nullptr;
-	debugOutputID = 0;
 	debugErrorID = 0;
 	debugOppErrorID = 0;
 	debugExpect = OpDebugExpect::unknown;
@@ -449,7 +449,7 @@ void OpContext::initOutOnce() {
 		return;
 	PathOpsV0Lib::EmptyCallerPath emptyPath = contextCallbacks.emptyCallerPathFuncPtr;
 	if (emptyPath)
-		(*emptyPath)(callerOutput);
+		(*emptyPath)((ContextPtr) this);
 	outputOne = true;
 }
 
@@ -551,7 +551,7 @@ WindingCondition OpContext::pathOps() {
 	        if (empty()) {
                 PathOpsV0Lib::EmptyCallerPath emptyPath = contextCallbacks.emptyCallerPathFuncPtr;
                 if (emptyPath)
-		            (*emptyPath)(callerOutput);
+		            (*emptyPath)((ContextPtr) this);
 		        OP_ASSERT(debugSuccess());  // break to verify that this is correct
                 return true;
 	        }

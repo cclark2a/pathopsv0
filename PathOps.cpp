@@ -49,10 +49,10 @@ void Add(Contour* interfaceContour, Curve curve) {
     Add(interfaceContour, addCurve);
 }
 
-Contour* CreateContour(Context* interfaceContext, Winding winding) {
+Contour* CreateContour(Context* interfaceContext, WindingData winding, size_t size) {
     // reuse existing contour
     OpContext* context = toImplementation(interfaceContext);
-    OpContour* contour = context->makeContour(winding);
+    OpContour* contour = context->makeContour(winding, size);
     return toInterface(contour);
 }
 
@@ -60,7 +60,8 @@ Contour* Clone(Contour* interfaceContour) {
 	OpContour* original = toImplementation(interfaceContour);
 	if (original->isEmpty())
 		return interfaceContour;
-    OpContour* clone = original->context->makeContour(original->winding);
+    OpContour* clone = original->context->makeContour(&original->windingStorage.front(), 
+            original->windingStorage.size());
 #if OP_DEBUG
 	clone->debugCallbacks = original->debugCallbacks;
 	clone->debugContourData = original->debugContourData;
@@ -97,13 +98,12 @@ void ResetContour(Contour* interfaceContour) {
     contour->segments.clear();
 }
 
-WindingCondition Resolve(Context* interfaceContext, PathOutput output) {
+WindingCondition Resolve(Context* interfaceContext) {
     OpContext* context = toImplementation(interfaceContext);
     if (ContextError::none != context->error) {
         OP_DEBUG_CODE(context->debugData.success = false);
         return -1;
     }
-    context->callerOutput = output;
     return context->pathOps();
 }
 

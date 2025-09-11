@@ -589,7 +589,7 @@ extern void alt_cubicOp114asQuad();
 bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
 		OpDebugData* debugDataPtr) {
     using namespace PathOpsV0Lib;
-    Context* context = CreateContext();
+    Context* context = CreateContext((ContextUserData*) result);
     SetSkiaContextCallbacks(context);
     OP_DEBUG_CODE(if (debugDataPtr) Debug(context, *debugDataPtr));
     SetSkiaCurveCallbacks(context);
@@ -605,29 +605,26 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
             : BinaryWindType::evenOdd;
 	SetSkiaOpContextCallbacks(context, mappedOp, windType);
     int leftData[] = { 1, 0 };
-    PathOpsV0Lib::Winding leftWinding { leftData, sizeof(leftData) };
-    Contour* left = SetSkiaOpContourCallbacks(context, leftWinding, BinaryOperand::left
+    Contour* left = SetSkiaOpContourCallbacks(context, leftData, sizeof(leftData), BinaryOperand::left
             OP_DEBUG_PARAMS(&a));
     OP_DEBUG_CODE(BinaryContour debugLeftData { { &a }, BinaryOperand::left });
     OP_DEBUG_CODE(AddDebugContour debugLeft { debugLeftData, sizeof(BinaryContour), 
             PathOpsV0Lib::DebugContourType::windingUserData } );
     AddSkiaPath(context, left, a  OP_DEBUG_PARAMS(&debugLeft));
     int rightData[] = { 0, 1 };
-    PathOpsV0Lib::Winding rightWinding { rightData, sizeof(rightData) };
-    Contour* right = SetSkiaOpContourCallbacks(context, rightWinding, BinaryOperand::right
+    Contour* right = SetSkiaOpContourCallbacks(context, rightData, sizeof(rightData), BinaryOperand::right
             OP_DEBUG_PARAMS(&b));
     OP_DEBUG_CODE(BinaryContour debugRightData { { &a }, BinaryOperand::right });
     OP_DEBUG_CODE(AddDebugContour debugRight { debugRightData, sizeof(BinaryContour), 
             PathOpsV0Lib::DebugContourType::windingUserData } );
     AddSkiaPath(context, right, b  OP_DEBUG_PARAMS(&debugRight));
-    PathOutput pathOutput = result;
 #if TEST_RASTER
     DebugRaster debugRaster;
     debugRaster.in(context);
     SetDebugContextData(context, { &debugRaster.outSamples, sizeof &debugRaster.outSamples }, 
             DebugContextType::addRaster );
 #endif
-    Resolve(context, pathOutput);
+    Resolve(context);
     if (SkPathOpInvertOutput(op, a.isInverseFillType(), b.isInverseFillType()))
         result->toggleInverseFillType();
     ContextError contextError = Error(context);
@@ -913,7 +910,7 @@ void run() {
 
 bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
     using namespace PathOpsV0Lib;
-    Context* context = CreateContext();
+    Context* context = CreateContext((ContextUserData*) out);
     OP_DEBUG_CODE(if (optional) Debug(context, *optional));
     SetSkiaContextCallbacks(context);
     SetSkiaCurveCallbacks(context);
@@ -922,8 +919,7 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
                 || SkPathFillType::kInverseWinding == path.getFillType();
     }; 
     int simpleData[] = { 1 };
-    PathOpsV0Lib::Winding simpleWinding { simpleData, sizeof(simpleData) };
-    Contour* simple = SetSkiaSimplifyCallbacks(context, simpleWinding, isWindingFill(path)
+    Contour* simple = SetSkiaSimplifyCallbacks(context, simpleData, sizeof(simpleData), isWindingFill(path)
             OP_DEBUG_PARAMS(&path));
     OP_DEBUG_CODE(UnaryContour debugData { &path } );
 #if TEST_ANALYZE && OP_DEBUG
@@ -945,8 +941,7 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
 			out->setFillType(SkPathFillType::kEvenOdd);
 	}
 	if (ContextError::none == contextError) {
-		PathOutput pathOutput = out;
-		Resolve(context, pathOutput);
+		Resolve(context);
 		contextError = Error(context);
 		if (ContextError::toVertical == contextError)
 			veryLarge = VeryLargeSkiaPath(path);			

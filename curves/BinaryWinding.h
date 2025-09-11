@@ -63,7 +63,6 @@ struct BinaryWinding {
 
     Winding winding;
     BinaryData data;
-    Contour* contour;
 };
 
 struct BinaryOpData {
@@ -318,11 +317,9 @@ inline Context* binaryContext(CurveOutput output = nullptr, EmptyCallerPath empt
 
 inline BinaryWinding::BinaryWinding(Context* context, BinaryOperand binaryOperand) 
     : data(binaryOperand) {
-    winding.data = &data;
-    winding.size = sizeof(data);
-    contour = CreateContour(context, winding);
+    winding.contour = CreateContour(context, &data, sizeof(data));
 #if OP_DEBUG
-	SetDebugContourData(contour, { &data, sizeof(data) }, DebugContourType::windingUserData );
+	SetDebugContourData(winding.contour, { &data, sizeof(data) }, DebugContourType::windingUserData );
 #endif
 }
 

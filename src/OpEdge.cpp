@@ -288,7 +288,7 @@ OpEdge::~OpEdge() {
 CalcFail OpEdge::addIfUR(Axis axis, float edgeInsideT, OpWinding* sumWinding) const {
 	NormalDirection NdotR = normalDirection(axis, edgeInsideT);
 	if (NormalDirection::upRight == NdotR)
-		sumWinding->add(context(), winding);
+		sumWinding->add(winding);
 	else if (NormalDirection::downLeft != NdotR)
 		return CalcFail::fail; // e.g., may underflow if edge is too small
 	return CalcFail::none;
@@ -323,9 +323,9 @@ CalcFail OpEdge::addSub(OpContour* winderOwner, Axis axis, float edgeInsideT,
 //	OpWinding adjust(WindingUninitialized::dummy);
 	NormalDirection NdotR = normalDirection(axis, edgeInsideT);
 	if (NormalDirection::upRight == NdotR)
-		sumWinding->add(context(), winding);
+		sumWinding->add(winding);
 	else if (NormalDirection::downLeft == NdotR)
-		sumWinding->subtract(context(), winding);
+		sumWinding->subtract(winding);
 	else
 		OP_DEBUG_FAIL(*this, CalcFail::fail);
 	return CalcFail::none;
@@ -502,22 +502,10 @@ void OpEdge::markPals() {
 	}
 }
 
-OpEdge* OpEdge::nextOut() {
-	inOutput = true;
-	clearActiveAndPals(OP_LINE_FILE_NPARGS());
-	if (linkHead) {
-		segment->contour->removeLink(this);
-		linkHead = false;
-	}
-	inLinkups = false;
-	OP_DEBUG_IMAGE_CODE(debugColor = orange);
-	return nextEdge;
-}
-
 // if there is another path already output, and it is first found in this ray,
 // check to see if the tangent directions are opposite. If they aren't, reverse
 // this edge's links before sending it to the host graphics engine
-void OpEdge::output(bool closed) {
+bool OpEdge::output(bool closed) {
 	const OpEdge* firstEdge = closed ? this : nullptr;
 	OpEdge* edge = this;
 	bool reverse = false;
@@ -573,7 +561,7 @@ void OpEdge::output(bool closed) {
 		edge = edge->nextEdge;
 	} while (firstEdge != edge);
 	if (abort)
-		return;
+		return false;
 	if (reverse) {
 		if (priorEdge) {
 			OP_ASSERT(debugIsLoop());
@@ -586,12 +574,10 @@ void OpEdge::output(bool closed) {
 		firstEdge = nullptr;
 	} else
 		edge = this;
-	edge->outputLinkedList(firstEdge, true);
+	return edge->outputLinkedList(firstEdge, true);
 }
 
-void OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first) {
-	OP_DEBUG_CODE(debugOutPath = curve.context().debugOutputID);
-	OpEdge* next = nextOut();
+bool OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first) {
 	OpCurve copy(curve.c, Rotated::no);
     OP_DEBUG_CODE(float thresholdLength = curve.context().threshold().length());
     OP_DEBUG_CODE(PathOpsV0Lib::ErrorDispatch errorDispatchFuncPtr = 
@@ -610,14 +596,25 @@ void OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first) {
     }
 	if (EdgeMatch::end == which())
 		copy.reverse();
-	copy.output(first, firstEdge == next  OP_DEBUG_PARAMS(id));
-	clearNextEdge();
-	if (firstEdge == next) {
-		OP_DEBUG_CODE(debugOutPath = curve.context().nextID());
-		return;
-	}
+    // track if caller returns 'keep' 
+    // if so, mark edges accordingly and reuse to build next linked list
+	OpEdge* next = nextEdge;
+	PathOpsV0Lib::WindKeep keep = copy.output(winding.w, first, firstEdge == next  
+            OP_DEBUG_PARAMS(id));
+    if (PathOpsV0Lib::WindKeep::Discard == keep) {
+	    inOutput = true;
+	    clearActiveAndPals(OP_LINE_FILE_NPARGS());
+	    if (linkHead) {
+		    segment->contour->removeLink(this);
+	    }
+	    inLinkups = false;
+	    OP_DEBUG_IMAGE_CODE(debugColor = orange);
+	    clearNextEdge();	    
+    }
+	if (firstEdge == next)
+		return !inOutput;
 	OP_ASSERT(next);
-	next->outputLinkedList(firstEdge, false);
+	return next->outputLinkedList(firstEdge, false) || !inOutput;
 }
 
 // in function to make setting breakpoints easier
@@ -782,7 +779,7 @@ CalcFail OpEdge::subIfDL(OpContour* winderOwner, Axis axis, float edgeInsideT,
 {
 	NormalDirection NdotR = normalDirection(axis, edgeInsideT);
 	if (NormalDirection::downLeft == NdotR)
-		sumWinding->subtract(context(), winding);
+		sumWinding->subtract(winding);
 	else if (NormalDirection::upRight != NdotR)
 		OP_DEBUG_FAIL(*this, CalcFail::fail);
 	return CalcFail::none;
@@ -790,7 +787,7 @@ CalcFail OpEdge::subIfDL(OpContour* winderOwner, Axis axis, float edgeInsideT,
 
 void OpEdge::setSum(const OpWinding& w  OP_LINE_FILE_ARGS()) {
 	OP_ASSERT(WindingType::uninitialized == sum.type);
-	sum.w = w.copyData(context());
+	sum.w = w.copyData();
 	OP_ASSERT(sum.w.size);
 	sum.type = WindingType::copy;
 	OP_DEBUG_CODE(sum.debugType = DebugWindingType::sum);

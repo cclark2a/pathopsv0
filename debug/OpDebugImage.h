@@ -365,6 +365,11 @@ extern void colorLink(int id, uint32_t color);
 extern void colorLink(const OpEdge& , uint32_t color);
 extern void colorLink(const OpEdge* , uint32_t color);
 extern void colorLimbRange(int lastLimbID, uint32_t color);  // color tree from trunk to lastLimbID
+extern std::vector<std::pair<uint32_t, std::string>> debugColorArray;
+
+inline uint32_t OpDebugAlphaColor(uint32_t alpha, uint32_t color) {
+	return (alpha << 24) | (color & 0x00FFFFFF);
+}
 
 // affects edge list in: contour, link (edge), segment (and intersection? show shared edges?) 
 extern void show(int id);

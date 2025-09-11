@@ -10,10 +10,6 @@
 
 bool drawGridLinear = false;
 
-inline uint32_t OpDebugAlphaColor(uint32_t alpha, uint32_t color) {
-	return (alpha << 24) | (color & 0x00FFFFFF);
-}
-
 #if 0
 void OpDebugAddPoly::add(const LinePts& pts) {    
     std::vector<OpPoint> points { pts.pts[0], pts.pts[1] };
@@ -57,7 +53,7 @@ void OpDebugAddPoly::add(const PathOpsV0Lib::Curve& c) {
             return;
         if (c.data->start.x > c.data->end.x)
             std::swap(left, right);
-        picture->add({ y, left }, { y, right }, this);
+        picture->add({ left, y }, { right, y }, this);
     };
     if (bounds.right <= picture->focus.left)
         return addVertical(picture->focus.left);
@@ -107,6 +103,8 @@ void OpDebugAddPoly::add(const PathOpsV0Lib::Curve& c) {
                     picture->add(last->sect.pt, sect.sect.pt, this);
             } else {
                 OpCurve piece = curve.subDivide(last->sect.t, sect.sect.t);
+                piece.setFirstPt(last->sect.pt);
+                piece.setLastPt(sect.sect.pt);
                 picture->add(piece, this);
                 OpDebugPoly& added = picture->polys.back();
                 added.tStart = last->sect.t;
@@ -139,9 +137,13 @@ void OpDebugAddPoly::add(const OpContour* c) {
     segment = nullptr;
     contour = c;
     addingFill = true;
+    OpPoint last(SetToNaN::dummy);
     for (const PathOpsV0Lib::Curve& curve : c->debugCurves) {
+        continueCurve = last == curve.data->start;
         add(curve);
+        last = curve.data->end;
     }
+    continueCurve = false;
 }
 
 struct OpContextSaveThreshold {
@@ -162,11 +164,13 @@ struct OpContextSaveThreshold {
 };
 
 void OpDebugPicture::add(const OpCurve& curve, OpDebugAddPoly* polyAdder) {
-        start here;
         // if adding a contour lengthen existing poly it it matches and close the contour as well...
-//    if (!polyAdder->contour || 
-    polys.emplace_back();
-    polys.back().c = curve.c;
+    if (!polyAdder->continueCurve) {
+        polys.emplace_back();
+        polys.back().c = curve.c;
+        if (polyAdder->contour)
+            polys.back().color = polyAdder->contour->debugColor;
+    }
     OpDebugPoly& poly = polys.back();
     if (polyAdder) {
         poly.edge = polyAdder->edge;
@@ -264,7 +268,8 @@ void OpDebugPicture::add(OpPoint pt1, OpPoint pt2, OpDebugAddPoly* polyAdder) {
                 lines->pop_back();
         }
     }
-    lines->push_back(pt1);
+    if (lines->empty() || lines->back() != pt1)
+        lines->push_back(pt1);
     lines->push_back(pt2);
 }
 
@@ -650,7 +655,7 @@ void OpDebugPicture::addWinding(OpDebugPoly& poly) {
 		if (debugImageOut && !sum.isSet())
 			sumString = (*debugImageOut)(wind.w);
         else {
-		    OpWinding diffWind(context, poly.edge->sum.w);
+		    OpWinding diffWind(poly.edge->sum.w);
 		    context->windingCallbacks.windingSubtractFuncPtr((ContextPtr) context,
                     diffWind.w, wind.w);
 		    sumString = debugImageOut ? (*debugImageOut)(diffWind.w) : "";
@@ -665,8 +670,27 @@ extern DebugLevel defaultLevel;
 
 void OpDebugPoly::dump() const {
     std::string s;
-    s += "local:" + STR(local.size()) + " thickness:" + STR(thickness) + " color:" + 
-            debugDumpColor(defaultLevel, color) + "\n";
+    s += "local:" + STR(local.size()) + " ";
+    if (edge)
+        s += "edge:" + STR(edge->id) + " ";
+    if (segment)
+        s += "segment:" + STR(segment->id) + " ";
+    if (contour)
+        s += "contour:" + STR(contour->id) + " ";
+    if (1 != thickness)
+        s += " thickness:" + STR(thickness) + " ";
+    if (debugBlack != color)
+        s += "color:" + debugDumpColor(defaultLevel, color) + " ";
+    if (0 != tStart)
+        s += "tStart:" + STR(tStart) + " ";
+    if (1 != tEnd)
+        s += "tEnd:" + STR(tEnd) + " ";
+    if (isCurveCurve)
+        s += "isCurveCurve ";
+    if (isPrimary)
+        s += "isPrimary ";
+    s.pop_back();
+    s += "\n";
     for (OpPoint pt : local) {
          s += pt.debugDump(defaultLevel, defaultBase) + "\n";
     }
@@ -851,7 +875,11 @@ void OpDebugPicture::addPoints() {
 void OpDebugPicture::colorPolys() {
     for (OpDebugPoly& poly : polys) {
         if (poly.contour) {
-            poly.color = poly.contour->debugColor;  // !!! convert this to context callout
+        #if 1
+            poly.color = OpDebugAlphaColor(31, poly.contour->debugColor);  // !!! convert this to context callout
+        #else
+            poly.color = poly.contour->debugColor;
+        #endif
             continue;
         }
         if (poly.segment) {
@@ -927,7 +955,7 @@ void OpDebugPicture::bootStrap(OpContext* c) {
     }
     for (OpContour* contour : context->contours) {
         PathOpsV0Lib::DebugIsFill debugIsFill = context->debugContextCallbacks.debugIsFillFuncPtr;
-        if (debugIsFill && (*debugIsFill)(contour->winding))
+        if (debugIsFill && (*debugIsFill)(contour->winding()))
             addPoly.add(contour);
     }
     colorPolys();

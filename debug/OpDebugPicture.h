@@ -56,6 +56,7 @@ struct OpDebugAddPoly {
     const OpEdge* edge = nullptr;
     const OpSegment* segment = nullptr;
     const OpContour* contour = nullptr;
+    bool continueCurve = false;  // true if contour extends loop
     bool addingFill = false;  // true if added is fill, false if added is frame
 };
 

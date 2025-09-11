@@ -45,10 +45,6 @@ ALIAS_LIST
 CALLOUT_LIST
 #undef OP_X
 
-inline uint32_t OpDebugAlphaColor(uint32_t alpha, uint32_t color) {
-	return (alpha << 24) | (color & 0x00FFFFFF);
-}
-
 SkBitmap& bitmapRef() {
 	return bitmap;
 }
@@ -341,9 +337,11 @@ void OpDebugImage::drawDoubleFocus() {
 			}
 			first = false;
 		}
-		if (drawResultOn && debugGlobalContext->callerOutput)
+#if 0
+        if (drawResultOn && debugGlobalContext->callerOutput)
 			drawDoubleFill(((SkPath*) debugGlobalContext->callerOutput)
 					->makeTransform(matrix), OpDebugAlphaColor(alpha, green));
+#endif
 	}
 	if (drawLinesOn)
 		DebugOpDraw(lines);
@@ -734,12 +732,6 @@ bool OpDebugImage::find(int id, OpPointBounds* boundsPtr, OpPoint* pointPtr) {
 		*boundsPtr = edge->bounds;
 		return true;
 	}
-	if (std::vector<const OpEdge*> outputs = findEdgeOutput(id); outputs.size()) {
-		drawIDsOn = true;
-		for (auto output : outputs)
-			boundsPtr->add(output->bounds);
-		return true;
-	}
 	if (std::vector<const OpEdge*> matches = findEdgeRayMatch(id); matches.size()) {
 		drawIDsOn = true;
 		for (auto match : matches)
@@ -773,20 +765,6 @@ bool OpDebugImage::find(int id, OpPointBounds* boundsPtr, OpPoint* pointPtr) {
 	OpDebugOut("id " + STR(id) + " not found\n");
 	return false;
 }
-
-#if 0
-// !!! not sure I need this; but it does raise the question if dump and image need their own finds
-std::vector<const OpEdge*> OpDebugImage::find(int id) {
-	extern OpEdge* findEdge(int id);
-	extern std::vector<const OpEdge*> findEdgeOutput(int id);
-	std::vector<const OpEdge*> result;
-	if (OpEdge* edge = findEdge(id))
-		result.push_back(edge);
-	if (std::vector<const OpEdge*> oEdges = findEdgeOutput(id); oEdges.size())
-		result.insert(result.end(), oEdges.begin(), oEdges.end());
-	return result;
-}
-#endif
 
 void OpDebugImage::focus(int id, bool add) {
 	OpPointBounds pointBounds;
@@ -2321,7 +2299,7 @@ bool OpDebugImage::drawEdgeWinding(const OpCurve& curve, const OpEdge* edge, uin
 		OpContour* contour = edge->segment->contour;
 		if (debugImageOut && !sum.isSet())
 			return (*debugImageOut)(wind.w, index);
-		OpWinding diffWind(contour->context, edge->sum.w);
+		OpWinding diffWind(edge->sum.w);
 		contour->context->windingCallbacks.windingSubtractFuncPtr((ContextPtr) contour->context,
                 diffWind.w, wind.w);
 		return debugImageOut ? (*debugImageOut)(diffWind.w, index) : "";

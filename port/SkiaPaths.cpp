@@ -50,9 +50,9 @@ bool SkPathOpInvertOutput(SkPathOp op, bool leftOperandIsInverted, bool rightOpe
 
 using namespace PathOpsV0Lib;
 
-void skiaOutput(Curve c, bool firstPt, bool lastPt, PathOutput output) {
+WindKeep skiaOutput(Curve c, Winding , bool firstPt, bool lastPt) {
+    SkPath& skpath = *(SkPath*) UserData(c.context);
     SkPath::Verb type = (SkPath::Verb) c.type; 
-    SkPath& skpath = *(SkPath*)(output);
     if (firstPt) {
 		skpath.setFillType(SkPathFillType::kEvenOdd);
         skpath.moveTo(c.data->start.x, c.data->start.y);
@@ -82,6 +82,7 @@ void skiaOutput(Curve c, bool firstPt, bool lastPt, PathOutput output) {
     }
     if (lastPt)
         skpath.close();
+    return WindKeep::Discard;
 }
 
 void SetSkiaCurveCallbacks(Context* context) {
@@ -91,8 +92,8 @@ void SetSkiaCurveCallbacks(Context* context) {
     cubicCallbacks(context, SkPath::kCubic_Verb);
 }
 
-void emptySkPathFunc(PathOutput output) {
-    SkPath* skOutput = (SkPath*) output;
+void emptySkPathFunc(Context* context) {
+    SkPath* skOutput = (SkPath*) UserData(context);
     skOutput->reset();
 	skOutput->setFillType(SkPathFillType::kEvenOdd);
 }
@@ -105,9 +106,9 @@ void SetSkiaContextCallbacks(Context* context) {
     SetContextCallbacks(context, { skiaOutput, emptySkPathFunc });
 }
 
-Contour* SetSkiaSimplifyCallbacks(Context* context, Winding winding,
+Contour* SetSkiaSimplifyCallbacks(Context* context, WindingData data, size_t size,
         bool isWindingFill  OP_DEBUG_PARAMS(const SkPath* pathPtr)) {
-    Contour* contour = CreateContour(context, winding);
+    Contour* contour = CreateContour(context, data, size);
     WindingAdd addFunc = isWindingFill ? unaryAddFunc : unaryEvenOddFunc;
     WindingAdd subtractFunc = isWindingFill ? unarySubtractFunc : unaryEvenOddFunc;
     SetWindingCallbacks(context, { addFunc, unaryKeepFunc, unaryVisibleFunc, 
@@ -147,9 +148,9 @@ void SetSkiaOpContextCallbacks(Context* context, SkPathOp op, BinaryWindType win
     OP_DEBUG_CODE(SetSkiaOpContextCallbacksDebug(context, op));
 }
 
-Contour* SetSkiaOpContourCallbacks(Context* context, Winding winding,
-        BinaryOperand operand  OP_DEBUG_PARAMS(const SkPath* pathPtr)) {
-    Contour* contour = CreateContour(context, winding);
+Contour* SetSkiaOpContourCallbacks(Context* context, PathOpsV0Lib::WindingData windingData, 
+		size_t size, BinaryOperand operand  OP_DEBUG_PARAMS(const SkPath* pathPtr)) {
+    Contour* contour = CreateContour(context, windingData, size);
     OP_DEBUG_CODE(if (pathPtr) SetSkiaOpContourCallbacksDebug(context, contour, operand, *pathPtr));
     return contour;
 }

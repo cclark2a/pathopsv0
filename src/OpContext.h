@@ -57,7 +57,7 @@ struct OpContext {
 	~OpContext();
 
 	operator ContextPtr() const {
-		return (PathOpsV0Lib::Context*)(this);
+		return (ContextPtr)(this);
 	}
 
 	bool addAlias(OpPoint pt, OpPoint alias);
@@ -142,13 +142,9 @@ struct OpContext {
 		}
 	}
 
-	OpContour* makeContour(PathOpsV0Lib::Winding winding) {
+	OpContour* makeContour(PathOpsV0Lib::WindingData winding, size_t size) {
 		OpContour* contour = allocateContour();
-		contour->context = this;
-		contour->id = nextID();
-        contour->windingStorage.resize(winding.size);
-	    contour->winding = { &contour->windingStorage.front(), winding.size };
-        std::memcpy(contour->winding.data, winding.data, winding.size);
+        contour->init(this, winding, size);
 		return contour;
 	}
 
@@ -238,7 +234,6 @@ struct OpContext {
     std::vector<int> nativeCurveTypes;
 	PathOpsV0Lib::ContextCallbacks contextCallbacks;
 	PathOpsV0Lib::WindingCallbacks windingCallbacks;
-	PathOpsV0Lib::PathOutput callerOutput;
 	PathOpsV0Lib::ErrorHandler errorHandler;
 	std::vector<OpContour*> sortedContours; 
 	// these are pointers instead of inline values because the storage with empty slots is first
@@ -254,6 +249,7 @@ struct OpContext {
     void* userData;
 	OpPointBounds maxBounds;
 	PathOpsV0Lib::ContextError error;
+    int loopCount;  // max loop count for output
 	int uniqueID;  // used for object id, unsectable id, coincidence id
     bool initialized;
     bool allDiscarded;
@@ -275,7 +271,6 @@ struct OpContext {
 	OpCurveCurve* debugCurveCurve;
 	OpJoiner* debugJoiner;
 	OpTree* debugTree;
-	int debugOutputID;
 	int debugErrorID;
 	int debugOppErrorID;
 	OpDebugExpect debugExpect;

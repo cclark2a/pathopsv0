@@ -82,6 +82,7 @@ typedef void* WindingData;
 
 // the winding data and its size
 struct Winding {
+    Contour* contour;
 	WindingData data;
 	size_t size;
 };
@@ -95,9 +96,6 @@ enum class WindKeep {
 
 // caller defined winding condition type (e.g., contains, overlaps, excludes, ...)
 typedef int WindingCondition;
-
-// output path provided by caller
-typedef void* PathOutput;
 
 // curve callbacks
 
@@ -121,9 +119,6 @@ typedef bool (*CurvesEqual)(Curve , Curve );
 
 // returns point constructs curve's hull; the curve is tightly contained by the hull's polygon
 typedef OpPoint (*CurveHull)(Curve, int index);
-
-// adds curve to output
-typedef void (*CurveOutput)(Curve, bool firstPt, bool lastPt, PathOutput );
 
 // map the control points (if any) to lie inside the bounds of the curve (e.g., start and end)
 // typedef void (*CurvePinCtrl)(Curve, OpPoint oldStart, OpPoint oldEnd);
@@ -214,8 +209,12 @@ struct WindingCallbacks {
 
 // context callbacks
 
+// Common path operations return WindKeep::discard, so that curves are output once.
+// adds curve to output
+typedef WindKeep (*CurveOutput)(Curve , Winding , bool firstPt, bool lastPt);
+
 // initializes caller's path as empty
-typedef void (*EmptyCallerPath)(PathOutput );
+typedef void (*EmptyCallerPath)(Context* );
 
 // returns the linear type defined by the caller
 typedef CurveType (*SetLineType)(Curve );
@@ -230,7 +229,7 @@ typedef float (*MaxCurveCurveValue)(Curve , Curve );
 typedef int (*MaxCurveCurveCount)(Curve , Curve );
 
 // overrides a count used by the engine to limit the memory used to assemble the result
-typedef int (*MaxLimbs)(Context* );
+typedef int (*MaxCount)(Context* );
 
 // overrides a scalar used by the engine to describe the error allowed when assembling the result
 typedef float (*MaxGap)(Context* );
@@ -257,7 +256,8 @@ struct ContextCallbacks {
 	MaxCurveValue maxMarginFuncPtr = nullptr;
 	MaxCurveValue maxUnsectableTFuncPtr = nullptr;
 	MaxCurveCurveCount maxCheckSplitFuncPtr = nullptr;
-	MaxLimbs maxLimbsFuncPtr = nullptr;
+	MaxCount maxLimbsFuncPtr = nullptr;
+	MaxCount maxLoopsFuncPtr = nullptr;
 	MaxGap maxGapFuncPtr = nullptr;
 };
 

@@ -134,6 +134,7 @@ OP_X(File) \
 OP_X(InOutput) \
 OP_X(Intersections) \
 OP_X(Join) \
+OP_X(Links) \
 OP_X(Rays) \
 OP_X(Sects) \
 OP_X(Segments) \
@@ -253,7 +254,6 @@ extern void dmpDepth();  // curve-curve intermediate edges at all depths
 extern std::vector<const OpIntersection*> findCoincidence(int id);
 extern const OpContour* findContour(int id);
 extern OpEdge* findEdge(int id);
-extern std::vector<const OpEdge*> findEdgeOutput(int id);
 extern std::vector<const OpEdge*> findEdgeRayMatch(int id);
 extern const OpIntersection* findIntersection(int id);
 extern const OpLimb* findLimb(int id);

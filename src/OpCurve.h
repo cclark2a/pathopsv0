@@ -76,7 +76,8 @@ struct OpCurve {
 	NormalDirection normalDirection(Axis axis, float t) const;
 	float normalLimit() const;
 	bool normalize();
-	void output(bool firstPt, bool lastPt  OP_DEBUG_PARAMS(int parentID));
+	PathOpsV0Lib::WindKeep output(PathOpsV0Lib::Winding , bool firstPt, bool lastPt  
+            OP_DEBUG_PARAMS(int parentID));
 //	void pinCtrl(OpPoint oldStart, OpPoint oldEnd);
 	OpPoint ptAtT(float t) const;
 	OpPoint ptDAtT(float t) const;

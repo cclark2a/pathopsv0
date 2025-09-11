@@ -381,7 +381,6 @@ private:
 		endT = OpDebugNaN;
 		debugMatch = nullptr;
 		debugZeroErr = nullptr;
-		debugOutPath = 0;
 		debugParentID = 0;
 		debugDepth = 0;
 		debugRayMatch = 0;
@@ -449,11 +448,10 @@ public:
 	float margin() const;
 	void markPals();
 	void markUnsortable(Unsortable );
-	OpEdge* nextOut();
 	NormalDirection normalDirection(Axis axis, float edgeInsideT) const {  // t value is not segment t
 		return curve.normalDirection(axis, edgeInsideT); }
-	void output(bool closed);  // provided by the graphics implementation
-	void outputLinkedList(const OpEdge* firstEdge, bool first);
+	bool output(bool closed);  // provided by the graphics implementation
+	bool outputLinkedList(const OpEdge* firstEdge, bool first);
 	OpPtT ptT(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? startPtT() : endPtT(); }
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
@@ -561,7 +559,6 @@ public:
 #if OP_DEBUG
 	OpEdge* debugMatch;  // left side of nonzero ray from this edge
 	OpEdge* debugZeroErr;  // debug match ray found edge that does not match -- diagnostic for now
-	int debugOutPath;	// id to color output contours
 	int debugParentID;
 	int debugDepth;  // depth of curve-curve when edge was created
 	mutable int debugRayMatch;	// id: edges in common output contour determined from ray

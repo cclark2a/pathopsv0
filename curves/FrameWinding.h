@@ -16,6 +16,8 @@ enum class FrameFill {
 struct FrameData {
     FrameData(FrameFill frameFill) 
 		: isFrame(frameFill) {
+        if (FrameFill::frame == frameFill)
+            left = 0;
 	}
 
     FrameData(FrameFill frameFill, int windValue) 
@@ -34,7 +36,7 @@ struct FrameData {
 	}
 
     int left = 1;
-	FrameFill isFrame;
+	FrameFill isFrame = FrameFill::fill;
 };
 
 struct FrameWinding {
@@ -42,17 +44,11 @@ struct FrameWinding {
 
     Winding winding;
     FrameData data;
-    Contour* contour;
 };
 
-// winding is always frame; toAdd comes from another edge, and may be frame or fill
 inline void frameAddFunc(Context* , Winding winding, Winding toAdd) {
 	FrameData sum(winding);
-	if (FrameFill::frame == sum.isFrame)
-		return;
 	FrameData addend(toAdd);
-	if (FrameFill::frame == addend.isFrame)
-		return;
 	sum.left += addend.left;
 	sum.copyTo(winding);
 }
@@ -85,21 +81,16 @@ inline void frameZeroFunc(Context* , Winding toZero) {
     zero.copyTo(toZero);
 }
 
-// winding is always frame; toAdd comes from another edge, and may be frame or fill
 inline void frameSubtractFunc(Context* , Winding winding, Winding toSubtract) {
 	FrameData difference(winding);
-	if (FrameFill::frame == difference.isFrame)
-		return;
 	FrameData subtrahend(toSubtract);
-	if (FrameFill::frame == subtrahend.isFrame)
-		return;
 	difference.left -= subtrahend.left;
 	difference.copyTo(winding);
 }
 
 inline bool frameVisibleFunc(Context* , Winding winding) {
     FrameData test(winding);
-    return !!test.left;
+    return FrameFill::frame == test.isFrame || !!test.left;
 }
 
 inline void frameCallbacks(Context* context) {
@@ -116,14 +107,13 @@ inline bool frameDebugIsFill(Winding winding) {
 
 #if OP_DEBUG_DUMP
 inline std::string frameDumpOutFunc(Winding winding) {
-    FrameData frameData(winding);
-    std::string s = "{" + STR(frameData.left) + ", " + STR((int) frameData.isFrame) + "}";
-    return s;
+    FrameData data(winding);
+    return "{" + STR(data.left) + (FrameFill::frame == data.isFrame ? ":f}" : "}");
 }
 
 inline void frameDumpSetFunc(const char*& str, Winding& winding) {
     int left = OpDebugReadSizeT(str);
-    FrameFill frameFill = (FrameFill) OpDebugReadSizeT(str);
+    FrameFill frameFill = OpDebugOptional(str, "f") ? FrameFill::frame : FrameFill::fill;
     FrameData frameData(frameFill, left);
     frameData.copyTo(winding);
 }
@@ -145,7 +135,7 @@ inline void frameDumpSetFunc(const char*& str, Winding& winding) {
 #if OP_DEBUG_IMAGE
 inline std::string frameImageOutXFunc(Winding winding) {
     FrameData data(winding);
-    return STR(data.left) + ((bool) data.isFrame ? "f" : "");
+    return STR(data.left) + (FrameFill::frame == data.isFrame ? "f" : "");
 }
 
 inline std::string frameImageOutFunc(Winding winding, int index) {  // deprecated
@@ -197,11 +187,9 @@ inline Context* frameContext(CurveOutput output = nullptr) {
 
 inline FrameWinding::FrameWinding(Context* context, FrameFill frameFill)
     : data(frameFill) {
-    winding.data = &data;
-    winding.size = sizeof(data);
-    contour = CreateContour(context, winding);
+    winding.contour = CreateContour(context, &data, sizeof(data));
 #if OP_DEBUG
-	SetDebugContourData(contour, { &data, sizeof(data) }, DebugContourType::windingUserData);
+	SetDebugContourData(winding.contour, { &data, sizeof(data) }, DebugContourType::windingUserData);
 #endif
 }
 

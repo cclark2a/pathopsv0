@@ -33,7 +33,7 @@ OpSegment::OpSegment(PathOpsV0Lib::Contour* libContour, PathOpsV0Lib::AddCurve a
 	: contour((OpContour*) libContour)
 	, c({ addCurve.context, (PathOpsV0Lib::CurveData*) addCurve.points, 
 			addCurve.size, addCurve.type }, Rotated::no )
-	, winding(contour->context, { contour->winding.data, contour->winding.size } )
+	, winding(contour->winding())
 	, id(contour->nextID())
 	, disabled(false)
 	, willDisable(false)
@@ -872,12 +872,12 @@ PrefFound OpSegment::moveSects(OpPtT match, OpPoint destination) {
 
 // two segments are coincident so move opp's winding to this and disabled opp
 bool OpSegment::moveWinding(OpSegment* opp, bool backwards) {
-	winding.move(contour->context, opp->winding, backwards);
-	opp->winding.zero(contour->context);
+	winding.move(opp->winding, backwards);
+	opp->winding.zero();
 	opp->setDisabled(OP_LINE_FILE_NPARGS());
 	OpContour* oContour = opp->contour;
 	contour->addMerge(oContour);
-	if (winding.visible(contour->context)) {
+	if (winding.visible()) {
 #if 0
 		if (oContour != contour && coinContours.end() == std::find(coinContours.begin(),
 				coinContours.end(), oContour))
@@ -1027,11 +1027,11 @@ void OpSegment::transferCoins() {
 #endif
 //				OP_ASSERT(oEdge.winding.visible());
 				OP_ASSERT(!edge.disabled);
-				edge.winding.move(contour->context, oEdge.winding, cID < 0);
-				oEdge.winding.zero(contour->context);
+				edge.winding.move(oEdge.winding, cID < 0);
+				oEdge.winding.zero();
 				oEdge.setDisabled(OP_LINE_FILE_NPARGS());
 				contour->addMerge(oSeg->contour);
-				if (edge.winding.visible(contour->context))
+				if (edge.winding.visible())
 					break;
 				edge.setDisabled(OP_LINE_FILE_NPARGS());
 				goto giveUp;
