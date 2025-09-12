@@ -1317,10 +1317,4 @@ void CubicPathToQuads(skiatest::Reporter* reporter, const SkPath& cubicPath, SkP
 }
 #endif
 
-#if OP_TINY_SKIA
-int main()
-{
-	runTests();
-	return 0;
-}
-#endif
+OP_TINY_MAIN(runTests);  // for cmake
