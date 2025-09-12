@@ -44,7 +44,7 @@ if (looped || deadEnd)  // triggered when walking children of trunk
 		++debugHits;
 		OpDebugOut("debugHits: " + STR(debugHits) + "\n");
 		if (debugHits == 8) {
-#if OP_DEBUG_IMAGE
+#if OP_DEBUG_IMAGE && !OP_TINY_SKIA
 			playback();
 			hideTemporaryEdges();
 			colorActive(transparent);
@@ -206,7 +206,7 @@ void OpLimb::set(OpTree& tree, OpEdge* test, OpLimb* p, EdgeMatch m, LimbPass l,
 		tree.bestGapLimb = this;
 	}
 	OP_DEBUG_DUMP_CODE(if (p) p->debugBranches.push_back(this));
-	OP_DEBUG_IMAGE_CODE(tree.debugLimbEdges(edge));
+	OP_DEBUG_IMAGE_CODE_OLD(tree.debugLimbEdges(edge));
 }
 
 OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPass, 
@@ -366,8 +366,8 @@ OpTree::OpTree(OpJoiner& join)
 			context->contextCallbacks.maxLimbsFuncPtr((PathOpsV0Lib::Context*) context) : 1000;
 	OP_DEBUG_CODE(context->debugTree = this);
 	OP_ASSERT(join.edge->inLinkups);
-	OP_DEBUG_IMAGE_CODE(context->debugLimbClear());
-	OP_DEBUG_IMAGE_CODE(debugLimbEdges(join.edge));
+	OP_DEBUG_IMAGE_CODE_OLD(context->debugLimbClear());
+	OP_DEBUG_IMAGE_CODE_OLD(debugLimbEdges(join.edge));
 // Mark edges' 'seen' as unset in this tree. Later, mark additional contours as they are linked
 	OpContour* edgeContour = join.edge->segment->contour;
 	for (auto member : edgeContour->members()) {

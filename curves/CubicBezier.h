@@ -563,7 +563,7 @@ inline void cubicCallbacks(Context* context, int nativeCurveType) {
 #if OP_DEBUG
 	SetDebugCurveCallbacks(context, nativeCurveType, { debugCubicScale
             OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, nullptr)
-            OP_DEBUG_IMAGE_PARAMS(debugCubicToSkPath) 
+//            OP_DEBUG_IMAGE_PARAMS_OLD(debugCubicToSkPath) 
             OP_DEBUG_RASTER_PARAMS(debugRasterAdd) });
 #endif
 }

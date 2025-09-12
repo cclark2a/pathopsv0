@@ -972,7 +972,7 @@ static std::string debugCallbacksDump(const std::vector<PathOpsV0Lib::DebugCurve
         s += debugFindTag(reinterpret_cast<DebugFunction>(debugCallback.scaleFuncPtr));
 	    DEBUG_FIND_TAG(debugCallback, scaleFuncPtr,      curveNameFuncPtr);
 	    DEBUG_FIND_TAG(debugCallback, curveNameFuncPtr,  curveExtraFuncPtr);
-#if OP_DEBUG_IMAGE
+#if OP_DEBUG_IMAGE && !OP_TINY_SKIA && 0 // !!! deprecate add to path since it uses Skia
 	    DEBUG_FIND_TAG(debugCallback, curveExtraFuncPtr, addToPathFuncPtr);
         static_assert(sizeof(PathOpsV0Lib::DebugCurveCallbacks)  
                 == offsetof(PathOpsV0Lib::DebugCurveCallbacks, addToPathFuncPtr)
@@ -1215,7 +1215,7 @@ static void debugCallbacksDumpSet(std::vector<PathOpsV0Lib::DebugCurveCallbacks>
             debugCallback.scaleFuncPtr = (PathOpsV0Lib::DebugScale) debugFindFunction(str);
 	        DEBUG_FIND_FUNCTION(debugCallback, scaleFuncPtr,      curveNameFuncPtr);
 	        DEBUG_FIND_FUNCTION(debugCallback, curveNameFuncPtr, curveExtraFuncPtr);
-#if OP_DEBUG_IMAGE
+#if OP_DEBUG_IMAGE && !OP_TINY_SKIA && 0 // !!! deprecate
 	        DEBUG_FIND_FUNCTION(debugCallback, curveExtraFuncPtr, addToPathFuncPtr);
             static_assert(offsetof(PathOpsV0Lib::DebugCurveCallbacks, addToPathFuncPtr) 
                     + sizeof(debugCallback.addToPathFuncPtr) == sizeof(debugCallback));
@@ -3464,11 +3464,13 @@ OpPtT dc_ex, dc_ey, dc_ox, dc_oy;
 extern void draw(const OpPtT& );
 
 void OpCurveCurve::drawClosest(const OpPoint& originalPt) const {
+#if !OP_TINY_SKIA
     dumpClosest(originalPt);
     ::draw(dc_ex);
     ::draw(dc_ey);
     ::draw(dc_ox);
     ::draw(dc_oy);
+#endif
 }
 
 // find and report closest t value of both curves though binary search

@@ -88,7 +88,9 @@ struct OpDebugData {
 #define OP_DEBUG_DUMP_CODE(...)
 #define OP_DEBUG_DUMP_PARAMS(...)
 #define OP_DEBUG_IMAGE_CODE(...)
+#define OP_DEBUG_IMAGE_CODE_OLD(...)
 #define OP_DEBUG_IMAGE_PARAMS(...)
+#define OP_DEBUG_IMAGE_PARAMS_OLD(...)
 
 #if defined OP_TINY_TEST && OP_TINY_TEST
     #define OP_TINY_MAIN(func) int main() { func(); return 0; }
@@ -175,8 +177,16 @@ struct OpDebugData {
 #if OP_DEBUG_IMAGE
 #undef OP_DEBUG_IMAGE_CODE
 #define OP_DEBUG_IMAGE_CODE(...) __VA_ARGS__
+#if !OP_TINY_SKIA
+#undef OP_DEBUG_IMAGE_CODE_OLD
+#define OP_DEBUG_IMAGE_CODE_OLD(...) __VA_ARGS__
+#endif
 #undef OP_DEBUG_IMAGE_PARAMS
 #define OP_DEBUG_IMAGE_PARAMS(...) , __VA_ARGS__
+#if !OP_TINY_SKIA
+#undef OP_DEBUG_IMAGE_PARAMS_OLD
+#define OP_DEBUG_IMAGE_PARAMS_OLD(...) , __VA_ARGS__
+#endif
 #endif
 #if OP_DEBUG_VALIDATE
 	#define OP_DEBUG_VALIDATE_CODE(...) __VA_ARGS__

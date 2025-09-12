@@ -356,7 +356,7 @@ inline void conicCallbacks(Context* context, int nativeCurveType) {
 #if OP_DEBUG
 	SetDebugCurveCallbacks(context, nativeCurveType, { debugConicScale
             OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
-            OP_DEBUG_IMAGE_PARAMS(debugConicToSkPath) 
+//            OP_DEBUG_IMAGE_PARAMS_OLD(debugConicToSkPath) 
             OP_DEBUG_RASTER_PARAMS(debugRasterAdd) });
 #endif
 }

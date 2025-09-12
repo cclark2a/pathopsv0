@@ -279,7 +279,7 @@ inline void quadCallbacks(Context* context, int nativeCurveType) {
 #if OP_DEBUG
     SetDebugCurveCallbacks(context, nativeCurveType, { debugQuadScale
         OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, nullptr)
-        OP_DEBUG_IMAGE_PARAMS(debugQuadToSkPath) 
+//        OP_DEBUG_IMAGE_PARAMS_OLD(debugQuadToSkPath) 
         OP_DEBUG_RASTER_PARAMS(debugRasterAdd) });
 #endif
 }

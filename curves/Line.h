@@ -32,7 +32,8 @@ inline void lineCallbacks(Context* context, CurveType nativeCurveType) {
     SetCurveCallbacks(context, nativeCurveType, { } );
     OP_DEBUG_CODE(SetDebugCurveCallbacks(context, nativeCurveType, { debugLineScale
         OP_DEBUG_DUMP_PARAMS(lineDebugDumpName, nullptr)
-        OP_DEBUG_IMAGE_PARAMS(debugLineToSkPath) }));
+//        OP_DEBUG_IMAGE_PARAMS_OLD(debugLineToSkPath) 
+        }));
 }
 
 }

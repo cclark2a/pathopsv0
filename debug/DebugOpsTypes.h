@@ -46,7 +46,7 @@ typedef std::string (*DebugDumpCurveName)();
 typedef std::string (*DebugDumpCurveExtra)(Curve , DebugLevel , DebugBase);
 #endif
 
-#if OP_DEBUG_IMAGE
+#if OP_DEBUG_IMAGE && !OP_TINY_SKIA
 // !!! documentation comment missing
 typedef void (*DebugAddToPath)(Curve , class SkPath& );
 #endif
@@ -59,7 +59,7 @@ struct DebugCurveCallbacks {
 	DebugScale scaleFuncPtr;
 	OP_DEBUG_DUMP_CODE(DebugDumpCurveName curveNameFuncPtr;)
 	OP_DEBUG_DUMP_CODE(DebugDumpCurveExtra curveExtraFuncPtr;)
-	OP_DEBUG_IMAGE_CODE(DebugAddToPath addToPathFuncPtr;)
+//	OP_DEBUG_IMAGE_CODE_OLD(DebugAddToPath addToPathFuncPtr;)
 #if TEST_RASTER
     DebugAddRaster addRasterFuncPtr;
 #endif

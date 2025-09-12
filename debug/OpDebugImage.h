@@ -389,6 +389,7 @@ extern void i();
 extern void oo(float );
 extern void oo();
 
+#if !OP_TINY_SKIA
 namespace PathOpsV0Lib {
 	struct Curve;
 
@@ -404,6 +405,7 @@ namespace PathOpsV0Lib {
     OP_TAGGED_FUNCTION(debugCubicToSkPath), \
 
 }
+#endif
 
 #endif
 

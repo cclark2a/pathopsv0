@@ -242,12 +242,14 @@ std::string OpDebugDumpByteArray(const uint8_t* bytes, size_t size) {
 }
 
 void playback() {
+#if !OP_TINY_SKIA
 	FILE* file = fopen("OpDebugImageState.txt", "r");
 	if (!file)
 		return;
     OpDebugImage::playback(file);
     dmpPlayback(file);
 	fclose(file);
+#endif
 }
 
 void record() {
@@ -258,6 +260,7 @@ void record() {
    else
       OpDebugOut( "Invalid path\n" );
 #endif
+#if !OP_TINY_SKIA
 	FILE* recordFile = fopen("opDebugImageState.txt", "w");
 	if (!recordFile) {
 		OpDebugOut("failed to open opDebugImageState.txt for writing\n");
@@ -266,6 +269,7 @@ void record() {
     OpDebugImage::record(recordFile);
     dmpRecord(recordFile);
 	fclose(recordFile);
+#endif
 }
 
 OpDebugContourIterator contourIterator;
@@ -754,9 +758,11 @@ bool OpCurveCurve::debugShowImage(bool atDepth) {
 	if (!atDepth || context->debugData.curveCurveDepth == depth)
 		::debug();
 #endif
+#if !OP_TINY_SKIA
 	OP_DEBUG_IMAGE_CODE(1 == depth ? ::showSegmentEdges() : ::hideSegmentEdges());
+#endif
 #if OP_DEBUG_DUMP
-#if OP_DEBUG_VALIDATE
+#if OP_DEBUG_VALIDATE && !OP_TINY_SKIA
 	if (context->debugData.curveCurveDepth < depth) {
 		::dmpDepth(depth);
 		::drawDepth(depth);
@@ -1181,7 +1187,7 @@ void OpContour::debugMatchRay() {
 bool OpJoiner::DebugShowImage() {
 #if !OP_DEBUG_FAST_TEST && !OP_TINY_TEST
 	if (!OpDebugSkipBreak()) {
-#if OP_DEBUG_IMAGE && !TEST_ANALYZE  // defeat if test is very large (e.g., grshapearc)
+#if OP_DEBUG_IMAGE && !TEST_ANALYZE && !OP_TINY_SKIA  // defeat if test is very large (e.g., grshapearc)
 		::debugImage();
 		::showFill();
 #endif
@@ -1265,7 +1271,7 @@ OpTree::~OpTree() {
 std::string debugContext;
 
 void debugImage() {
-#if OP_DEBUG_IMAGE
+#if OP_DEBUG_IMAGE && !OP_TINY_SKIA
 	if ("setWindings" == debugContext) {
         ::hideOperands();
         ::showEdges();

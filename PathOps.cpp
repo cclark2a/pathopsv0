@@ -26,7 +26,7 @@ static Contour* toInterface(OpContour* implementationContour) {
 
 Context* CreateContext(ContextUserData* userData) {
     OpContext* context = new OpContext(userData);
-#if OP_DEBUG_IMAGE
+#if OP_DEBUG_IMAGE && !OP_TINY_SKIA
     OpDebugImage::init();
     oo();
 #endif

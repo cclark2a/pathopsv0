@@ -983,4 +983,18 @@ void OpDebugPicture::zoom(float factor) {
     redraw();
 }
 
+#if OP_TINY_SKIA
+
+#define OP_X(Thing) \
+bool draw##Thing##On = false;
+MASTER_LIST
+EDGE_BOOL_LIST
+ALIAS_LIST
+CALLOUT_LIST
+#undef OP_X
+
+int gridIntervals = 8;
+
+#endif
+
 #endif
