@@ -74,10 +74,12 @@ void OpDebugImage::addToPath(const OpCurve& curve, SkPath& path) {
 	path.moveTo(curve.firstPt().x, curve.firstPt().y);
 	if ((size_t) curve.c.type > curve.context().debugCallbacks.size())
 		return;
+#if !OP_TINY_SKIA
 	PathOpsV0Lib::DebugAddToPath debugAddToPath = nullptr; // !!! curve.context().debugCallback(curve.c).addToPathFuncPtr;
 	if (!debugAddToPath)
 		return;
 	(*debugAddToPath)(curve.c, path);
+#endif
 }
 
 void OpDebugImage::init() {

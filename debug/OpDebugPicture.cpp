@@ -655,7 +655,9 @@ void OpDebugPicture::addWinding(OpDebugPoly& poly) {
 		if (debugImageOut && !sum.isSet())
 			sumString = (*debugImageOut)(wind.w);
         else {
-		    OpWinding diffWind(poly.edge->sum.w);
+		    OpWinding diffWind(poly.edge->sum.w); // !!! this should be local copy ...
+    //        start here;
+            // !!! this should be a debug const thingy that can't change user data
 		    context->windingCallbacks.windingSubtractFuncPtr((ContextPtr) context,
                     diffWind.w, wind.w);
 		    sumString = debugImageOut ? (*debugImageOut)(diffWind.w) : "";

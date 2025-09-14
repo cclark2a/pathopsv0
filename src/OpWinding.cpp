@@ -11,6 +11,7 @@ OpWinding::OpWinding(WindingUninitialized )
 OpWinding::OpWinding(const PathOpsV0Lib::Winding& copy)
 	: w({ copy.contour, copy.data, copy.size })
 	, type(WindingType::copy) {
+    w = copyData();
 	OP_DEBUG_CODE(debugType = DebugWindingType::winding);
 }
 

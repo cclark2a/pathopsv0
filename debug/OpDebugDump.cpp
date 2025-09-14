@@ -612,7 +612,7 @@ void OpContext::dumpResolve(OpContour*& contourRef) {
         exit(1);
     }
     contourRef = contourStorage->debugFind(contourID);
-    if (contourRef->id != contourID) {
+    if (!contourRef || contourRef->id != contourID) {
         OpDebugOut(__func__ + std::string(": contourRef->id != contourID"));
         exit(1);
     }
@@ -3295,6 +3295,9 @@ void OpEdge::dumpResolveAll(OpContext* c) {
     c->dumpResolve(priorEdge);
     c->dumpResolve(nextEdge);
     c->dumpResolve(lastEdge);
+    winding.dumpResolveAll(c);
+    sum.dumpResolveAll(c);
+    many.dumpResolveAll(c);
     for (auto& unSect : unSects)
         c->dumpResolve(unSect);
     for (auto& hull : hulls.h)
@@ -5101,6 +5104,7 @@ void OpSegment::dumpResolveAll(OpContext* context) {
         context->dumpResolve(sect);
     for (auto& edge : edges)
         edge.dumpResolveAll(context);
+    winding.dumpResolveAll(context);
 }
 
 std::string OpSegment::debugDumpEdges() const {
@@ -5215,6 +5219,7 @@ ENUM_NAME_STRUCT(DebugWindingType)
 std::string OpWinding::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     if (DebugLevel::file == l) {
+        s += "w.contour:" + STR(((OpContour*)(w.contour))->id) + " ";
 		s += "w.size:" + STR(w.size) + " ";
         s += OpDebugDumpByteArray((const uint8_t*) w.data, w.size);
     } else {
@@ -5236,6 +5241,8 @@ std::string OpWinding::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 void OpWinding::dumpSet(const char*& str) {
+    OpDebugRequired(str, "w.contour");
+    w.contour = (PathOpsV0Lib::Contour*) OpDebugReadSizeT(str);
     OpDebugRequired(str, "w.size");
     w.size = OpDebugReadSizeT(str);
     w.data = debugGlobalContext->allocateWinding(w.size);
@@ -5244,6 +5251,14 @@ void OpWinding::dumpSet(const char*& str) {
 	}
     type = WindingTypeStr(str, "type", WindingType::uninitialized);
     debugType = DebugWindingTypeStr(str, "debugType", DebugWindingType::uninitialized);
+}
+
+void OpWinding::dumpResolveAll(OpContext* context) {
+    OpContour* tempContour = (OpContour*) w.contour;
+    if (!tempContour)
+        return;
+    context->dumpResolve(tempContour);
+    w.contour = (ContourPtr) tempContour;
 }
 
 std::string LinkUps::debugDump(DebugLevel li, DebugBase b) const {

@@ -200,8 +200,8 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
 /* This function runs once per frame, and is the heart of the program. */
 SDL_AppResult SDL_AppIterate(void *appstate) {
     static time_t lastTime = 0;
-    struct stat info;    
-    const char* opFileName = "d:/gerrit/skia/out/Debug/obj/dmp2.txt";
+    struct stat info;
+    const char* opFileName = "c:/users/cclar/source/repos/v0/v0/dmp2.txt";
     if (stat(opFileName, &info) == -1) {
         assert(0);
         return SDL_APP_FAILURE;
@@ -266,6 +266,9 @@ void pentrek_draw(char* bits, int width, int height, int scan) {
     auto shim = ShimContext::MakeRaster();
     auto pm = Pixmap::C32(width, height, (Premul32*) bits, scan);
     RasterCanvas canvas(pm);
+    Paint clrPaint;
+    clrPaint.color({1, 1, 1, 1});
+    canvas.drawIRect({0, 0, width, height}, clrPaint);
     int debugCount = 0;
     for (OpDebugPoly& poly : debugPicture.polys) {
         if (poly.segment && !drawSegmentsOn)
