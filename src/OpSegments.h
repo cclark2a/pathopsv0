@@ -14,6 +14,7 @@ struct OpSegments {
 	OpSegments(OpContext& );
 	static std::vector<OpIntersection*> AddEndMatches(OpSegment* seg, OpSegment* opp);
 	static void AddLineCurveIntersection(OpSegment* opp, OpSegment* seg);
+    static void AddEndMatches(OpContour* seg, OpContour* opp);
 	void findCoincidence(OpContour* seg, OpContour* opp);
 	bool findCoincidence(OpSegment* seg, OpSegment* opp);
 	void findCoincidences();

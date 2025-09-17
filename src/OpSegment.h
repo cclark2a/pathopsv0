@@ -106,6 +106,7 @@ struct OpSegment {
 //    float findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const;
 //	float findValidT(float start, float end, OpPoint opp);
 	bool fixCCSects();
+    void init();
 	// count and sort extrema; create an edge for each extrema + 1
 	bool isFinite() const {
 		return ptBounds.isFinite(); } 
@@ -149,8 +150,9 @@ struct OpSegment {
 #endif
 #if OP_DEBUG_DUMP
 	OpSegment();
-	void dumpCount() const;
 	float debugFindAxisT(Axis , float start, float end, float oppXY);
+	void dumpCount() const;
+    bool dumpInitialized() const;
 	#define OP_X(Thing) \
 	std::string debugDump##Thing() const; \
 	void dump##Thing() const;

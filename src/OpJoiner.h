@@ -27,6 +27,7 @@ enum class LinkPass {
 	and add any other data in OpEdge which is only relevant to a linked up list of edges (if any)
 */
 struct LinkUps {
+    void clear();
 	void sort();
 	DUMP_DECLARATIONS
 
@@ -35,6 +36,7 @@ struct LinkUps {
 
 struct OpJoiner {
 	OpJoiner(OpContext& contours);
+	OP_DEBUG_CODE(~OpJoiner());
 	static bool LinkEnd(OpEdge *);
 	bool linkRemaining(OpContour* );
 	void linkUnambiguous(OpContour* , LinkPass );

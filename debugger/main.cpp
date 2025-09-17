@@ -73,13 +73,13 @@ std::string native_debugDump(size_t index) {
 
 /* This function runs once at startup. */
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
-    drawIDsOn = false;  // !!! hardcode for testing
-    drawEdgesOn = false;  // !!! hardcode for testing
-    drawWindingsOn = false;  // !!! hardcode for testing
-    drawValuesOn = false;  // !!! hardcode for testing
+    drawIDsOn = true;  // !!! hardcode for testing
+    drawEdgesOn = true;  // !!! hardcode for testing
+    drawWindingsOn = true;  // !!! hardcode for testing
+    drawValuesOn = true;  // !!! hardcode for testing
     drawGridOn = false; // !!! hardcode for testing
-    drawPointsOn = false;
-    drawFillOn = true;
+    drawPointsOn = true;
+    drawFillOn = false;
     SDL_Color color = { 0, 0, 0, SDL_ALPHA_OPAQUE };
     if (!SDL_CreateWindowAndRenderer("V0 Debugger", WINDOW_WIDTH, WINDOW_HEIGHT, 
             SDL_WINDOW_RESIZABLE, &window, &renderer)) {
@@ -201,7 +201,11 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
 SDL_AppResult SDL_AppIterate(void *appstate) {
     static time_t lastTime = 0;
     struct stat info;
+#if 1
+    const char* opFileName = "d:/gerrit/skia/out/Debug/obj/dmp.txt";
+#else
     const char* opFileName = "c:/users/cclar/source/repos/v0/v0/dmp2.txt";
+#endif
     if (stat(opFileName, &info) == -1) {
         assert(0);
         return SDL_APP_FAILURE;
@@ -210,8 +214,10 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
         delete context;
         context = fromFile(opFileName);
         debugGlobalContext = context;
-        debugPicture.screen = OpRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-        debugPicture.bootStrap(context);
+        if (context) {
+            debugPicture.screen = OpRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+            debugPicture.bootStrap(context);
+        }
         lastTime = info.st_mtime;
     }
     if (!frameBuffer)
@@ -266,9 +272,11 @@ void pentrek_draw(char* bits, int width, int height, int scan) {
     auto shim = ShimContext::MakeRaster();
     auto pm = Pixmap::C32(width, height, (Premul32*) bits, scan);
     RasterCanvas canvas(pm);
+#if 0
     Paint clrPaint;
     clrPaint.color({1, 1, 1, 1});
     canvas.drawIRect({0, 0, width, height}, clrPaint);
+#endif
     int debugCount = 0;
     for (OpDebugPoly& poly : debugPicture.polys) {
         if (poly.segment && !drawSegmentsOn)

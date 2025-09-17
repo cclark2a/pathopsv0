@@ -227,16 +227,6 @@ inline void binarySubtractRightFunc(Context* , Winding winding, Winding toSubtra
     difference.copyTo(winding);
 }
     
-inline bool binaryVisibleFunc(Context* , Winding winding) {
-    BinaryData test(winding);
-    return test.left || test.right;
-}
-
-inline void binaryZeroFunc(Context* , Winding toZero) {
-    BinaryData zero;
-    zero.copyTo(toZero);
-}
-
 #if OP_DEBUG
 inline bool binaryDebugIsFill(Winding winding) {
     return true;
@@ -270,8 +260,6 @@ inline void binaryDumpSetFunc(const char*& str, Winding& winding) {
     OP_TAGGED_FUNCTION(binarySubtractFunc), \
     OP_TAGGED_FUNCTION(binarySubtractLeftFunc), \
     OP_TAGGED_FUNCTION(binarySubtractRightFunc), \
-    OP_TAGGED_FUNCTION(binaryVisibleFunc), \
-    OP_TAGGED_FUNCTION(binaryZeroFunc), \
     OP_TAGGED_FUNCTION(binaryDebugIsFill), \
     OP_TAGGED_FUNCTION(binaryDumpOutFunc), \
     OP_TAGGED_FUNCTION(binaryDumpSetFunc), \

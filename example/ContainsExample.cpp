@@ -63,13 +63,12 @@ void ContainsExample() {
         if (ContextError::none != Error(context))
             exit(1);
     };
-    SetWindingCallbacks(context, { frameAddFunc, frameKeepFunc, frameVisibleFunc, 
-			frameZeroFunc, frameSubtractFunc, frameIntersectFunc, framePartiallyContainsFunc });
+    SetWindingCallbacks(context, { frameAddFunc, frameKeepFunc, frameSubtractFunc, frameWoundFunc,
+            frameVisibleFunc, frameZeroFunc, frameIntersectFunc, framePartiallyContainsFunc });
     WindingCondition isOutside = Resolve(context);
     handleError(isOutside, framePartiallyContained);
-    SetWindingCallbacks(context, { frameAddFunc, frameKeepFunc, frameVisibleFunc, 
-			frameZeroFunc, frameSubtractFunc, frameIntersectFunc, nullptr, 
-            frameFullyContainsFunc });
+    SetWindingCallbacks(context, { frameAddFunc, frameKeepFunc, frameSubtractFunc, frameWoundFunc,
+            frameVisibleFunc, frameZeroFunc, frameIntersectFunc, nullptr, frameFullyContainsFunc });
     isOutside = Resolve(context);
     handleError(isOutside, 0);  // not fully contained
     DeleteContext(context);

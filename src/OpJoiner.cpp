@@ -587,7 +587,6 @@ void OpTree::initialize(OpContour& contour) {
 
 // join best limb to edge start, then parent to best limb, until lastEdge is found
 bool OpTree::join(OpJoiner& join) {
-    dmpLinks();
 	std::vector<OpEdge*> linkupsErasures;
 	const OpLimb* bestL = bestLimb;
 	OpEdge* best = bestL->edge;
@@ -637,9 +636,7 @@ bool OpTree::join(OpJoiner& join) {
 		bestL = lastLimb;
 		best = bestL->edge;
 	}
-    int safetyCounter = context->loopCount;
-	while (join.edge->output(false) && --safetyCounter >= 0)
-        ;
+    EdgeOutput edgeOutput(context, join.edge);
 	OP_TRACK(linkupsErasures);
 	for (OpEdge* edge : linkupsErasures) {
         if (!edge->inOutput)
@@ -769,9 +766,6 @@ OpJoiner::OpJoiner(OpContext& contours)
 	, edge(nullptr)
 	, lastLink(nullptr)
 	OP_DEBUG_PARAMS(debugRecursiveDepth(0)) {
-    PathOpsV0Lib::MaxCount maxLoops = context->contextCallbacks.maxLoopsFuncPtr;
-    if (maxLoops)
-        context->loopCount = (*maxLoops)((ContextPtr) context);
     for (auto contour : contours.contours) {
 		for (auto& segment : contour->segments) {
 			for (auto& e : segment.edges) {
@@ -788,6 +782,12 @@ OpJoiner::OpJoiner(OpContext& contours)
 	OP_DEBUG_CODE(contours.debugJoiner = this);
 	OP_DEBUG_VALIDATE_CODE(debugValidate());
 }
+
+#if OP_DEBUG
+OpJoiner::~OpJoiner() {
+    context->debugJoiner = nullptr;
+}
+#endif
 
 // start here;
 // one thing broken with this overall approach is that very small loops get priority over joining
@@ -1012,7 +1012,9 @@ bool OpJoiner::unsectableLink(OpContour* contour, OpPoint start, OpPoint end) {
 	return false;
 }
 
-
+void LinkUps::clear() {
+    l.clear();
+}
 
 // sort by size to process largest of left (tail) first
 // sort should consider all edges in link

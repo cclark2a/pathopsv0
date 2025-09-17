@@ -69,19 +69,8 @@ inline void unarySubtractFunc(Context* , Winding winding, Winding toSubtract) {
     difference.copyTo(winding);
 }
     
-inline bool unaryVisibleFunc(Context* , Winding winding) {
-    UnaryData test(winding);
-    return !!test.value;
-}
-
-inline void unaryZeroFunc(Context* , Winding toZero) {
-    UnaryData zero;
-    zero.copyTo(toZero);
-}
-
 inline void unaryCallbacks(Context* context) {
-    SetWindingCallbacks(context, { unaryAddFunc, unaryKeepFunc, 
-            unaryVisibleFunc, unaryZeroFunc, unarySubtractFunc } );
+    SetWindingCallbacks(context, { unaryAddFunc, unaryKeepFunc, unarySubtractFunc } );
 }
 
 #if OP_DEBUG
@@ -108,8 +97,6 @@ inline void unaryDumpSetFunc(const char*& str, Winding& winding) {
     OP_TAGGED_FUNCTION(unaryAddFunc), \
     OP_TAGGED_FUNCTION(unaryKeepFunc), \
     OP_TAGGED_FUNCTION(unarySubtractFunc), \
-    OP_TAGGED_FUNCTION(unaryVisibleFunc), \
-    OP_TAGGED_FUNCTION(unaryZeroFunc), \
     OP_TAGGED_FUNCTION(unaryDebugIsFill), \
     OP_TAGGED_FUNCTION(unaryDumpOutFunc), \
     OP_TAGGED_FUNCTION(unaryDumpSetFunc), \

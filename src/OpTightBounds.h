@@ -6,10 +6,7 @@
 
 struct OpPointBounds : OpRect {
 	OpPointBounds() {
-		left = +OpInfinity;
-		top = +OpInfinity;
-		right = -OpInfinity;
-		bottom = -OpInfinity;
+		clear();
 	}
 
 	OpPointBounds(float l, float t, float r, float b)
@@ -24,6 +21,13 @@ struct OpPointBounds : OpRect {
 	OpPointBounds(OpRect& r)
 		: OpRect(r) {
 	}
+
+    void clear() {
+		left = +OpInfinity;
+		top = +OpInfinity;
+		right = -OpInfinity;
+		bottom = -OpInfinity;
+    }
 
 	OpPointBounds intersect(const OpPointBounds& bounds) const {
 		OP_ASSERT(bounds.isFinite());

@@ -31,7 +31,8 @@ static bool allowDisjointLines(ContextError err, Curve* ) {
 
 void CutExample() {
     CutData cutData(CutDirection::clockwise);
-    Context* context = cutContext((ContextUserData*) &cutData, cutExampleOutput);
+    ContextUserData userData { &cutData, sizeof(cutData), UserDataType::outData };
+    Context* context = cutContext(userData, cutExampleOutput);
     lineCallbacks(context, line);
     quadCallbacks(context, quad);
     FrameWinding cutWinding(context, FrameFill::frame);

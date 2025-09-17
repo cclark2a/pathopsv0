@@ -199,6 +199,41 @@ void OpContour::buildPals() {
 	palsBuilt = true;
 }
 
+void OpContour::clear() {
+    sorted.clear();
+    overlaps.clear();
+    merges.clear();
+    inX.clear();
+    inY.clear();
+    byArea.clear();
+    unsectByArea.clear();
+    disabledBackwards.clear();
+    disabledCenterless.clear();
+    disabledPals.clear();
+    unsortables.clear();
+    linkups.clear();
+    endLinks.clear();
+    overlapBounds.clear();
+    bounds.clear();
+    init();
+}
+
+void OpContour::clearEdges() {
+	for (auto& segment : segments) {
+		for (auto& e : segment.edges) {
+            e.inOutput = false;
+        }
+    }
+}
+
+void OpContour::clearSegments() {
+	for (auto& segment : segments) {
+	    segment.winding = segment.contour->winding();
+        segment.init();
+        segment.sects.clear();
+    }
+}
+
 struct LoopCheck {
 	LoopCheck(OpEdge* e, EdgeMatch match) 
 		: edge(e) {
@@ -235,9 +270,7 @@ bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* e, EdgeMatch loopMatch) {
 			break;
 	}
 	if (e == test) {	// if this forms a loop, there's nothing to detach, return success
-        int safetyCounter = context->loopCount;
-		while (e->output(true) && --safetyCounter >= 0)
-            ;
+        EdgeOutput edgeOutput(context, e);
 		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
 		return true;
 	}
@@ -257,9 +290,7 @@ bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* e, EdgeMatch loopMatch) {
 		detachEdge(oppEdge, EdgeMatch::start);
 		test->setNextEdge(oppEdge);
 		oppEdge->setPriorEdge(test);
-        int safetyCounter = test->context()->loopCount;
-		while (test->output(true) && --safetyCounter >= 0)
-            ;
+        EdgeOutput edgeOutput(test->context(), test);
 		return true;
 	};
 	auto detachPrior = [detachEdge](OpEdge* test, OpEdge* oppEdge) {
@@ -267,9 +298,7 @@ bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* e, EdgeMatch loopMatch) {
 		detachEdge(oppEdge, EdgeMatch::end);
 		test->setPriorEdge(oppEdge);
 		oppEdge->setNextEdge(test);
-        int safetyCounter = test->context()->loopCount;
-		while (test->output(true) && --safetyCounter >= 0)
-            ;
+        EdgeOutput edgeOutput(test->context(), test);
 		return true;
 	};
 	test = e;
@@ -596,19 +625,30 @@ bool OpContour::fixCCSects() {
 }
 
 void OpContour::init(OpContext* ctxt, PathOpsV0Lib::WindingData wind, size_t size) {
-		context = ctxt;
-		id = ctxt->nextID();
-        windingStorage.resize(size);
-        std::memcpy(&windingStorage.front(), wind, size);
+    init();
+	context = ctxt;
+	id = ctxt->nextID();
+    windingStorage.resize(size);
+    std::memcpy(&windingStorage.front(), wind, size);
 #if OP_DEBUG_IMAGE
-        int used = ctxt->contourStorage->used;
-        if (1 == used)
-            debugColor = blue;
-        else if (2 == used)
-            debugColor = red;
-        else
-            debugColor = debugColorArray[id % debugColorArray.size()].first;
+    int used = ctxt->contourStorage->used;
+    if (1 == used)
+        debugColor = blue;
+    else if (2 == used)
+        debugColor = red;
+    else
+        debugColor = debugColorArray[id % debugColorArray.size()].first;
 #endif
+}
+
+void OpContour::init() {
+	treeID = 0;  // tracks if contour has been initialized in this tree's context (for edge 'seen')
+	backwardsBuilt = false;
+	centerlessBuilt = false;
+	hasPals = false;
+	palsBuilt = false;
+	disabled = false;
+	overlapsMerged = false;
 }
 
 int OpContour::nextID() const {

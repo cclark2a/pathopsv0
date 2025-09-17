@@ -24,8 +24,8 @@ inline WindKeep cutKeepFunc(Context* , Winding winding, Winding sumWinding) {
 }
 
 inline void cutCallbacks(Context* context) {
-    SetWindingCallbacks(context, { frameAddFunc, cutKeepFunc, frameVisibleFunc, 
-			frameZeroFunc, frameSubtractFunc, frameIntersectFunc });
+    SetWindingCallbacks(context, { frameAddFunc, cutKeepFunc, frameSubtractFunc, frameWoundFunc,
+            frameVisibleFunc, frameZeroFunc, frameIntersectFunc });
 }
 
 // CutData (context user data) contains desired output loop direction, and tracks output pass.
@@ -46,7 +46,7 @@ struct CutData {
         : direction(dir) {
     }
 
-    std::array<OpPoint, 3> corner;
+    std::array<OpPoint, 3> corner;  // outside corner used to determine winding direction
     OpPoint priorPt;
     OpPoint firstPt;
     CutDirection direction; 
@@ -54,12 +54,17 @@ struct CutData {
     bool sawFrame = false;
 };
 
-inline int cutMaxLoopsFunc(Context* ) {
-    return 3;
+inline int cutMaxLoopsFunc(Context* context) {
+    PathOpsV0Lib::ContextUserData data = UserData(context, UserDataType::outData);
+    CutData* cutData = (CutData*) data.data;
+    cutData->pass = CutPass::checkDirection;
+    cutData->sawFrame = false;
+    return 3;  // maximum number of passes through output loop
 }
 
-inline Context* cutContext(ContextUserData* userData, CurveOutput output = nullptr) {
-    Context* context = CreateContext(userData);
+inline Context* cutContext(ContextUserData userData, CurveOutput output = nullptr) {
+    Context* context = CreateContext();
+    AddUserData(context, userData);
     ContextCallbacks contextCallbacks { output };
     contextCallbacks.maxLoopsFuncPtr = cutMaxLoopsFunc;
     SetContextCallbacks(context, contextCallbacks);

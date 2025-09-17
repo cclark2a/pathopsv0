@@ -248,6 +248,21 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 	return;
 }
 
+void OpSegments::AddEndMatches(OpContour* contour, OpContour* oContour) {
+	bool same = contour == oContour;
+	for (size_t iDex = 0; iDex < contour->sorted.size(); ++iDex) {
+		OpSegment* seg = contour->sorted[iDex];
+		if (seg->disabled)
+			continue;
+		for (size_t oDex = same ? iDex + 1 : 0; oDex < oContour->sorted.size(); ++oDex) {
+			OpSegment* opp = oContour->sorted[oDex];
+			if (seg->ptBounds.right < opp->ptBounds.left)
+				break;
+            (void) AddEndMatches(seg, opp);  // ignore return result
+		}
+	}
+}
+
 void OpSegments::findCoincidences() {
 	for (OpContour* oContour: context.contours) {
 		if (oContour->disabled)
@@ -348,8 +363,10 @@ FoundIntersections OpSegments::findIntersections() {
 			if (member->id > oContour->id)
 				break;
             if (windingSect && !(*windingSect)((ContextPtr) &context, oContour->winding(), 
-                    member->winding()))
-                continue;  // if oContour is frame, and member is frame, skip
+                    member->winding())) {
+                AddEndMatches(oContour, member);  // if both are frame, check endpoints only
+                continue;
+            }
 			findIntersection(oContour, member);
 		}
 	}

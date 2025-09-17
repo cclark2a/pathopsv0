@@ -33,20 +33,10 @@ OpSegment::OpSegment(PathOpsV0Lib::Contour* libContour, PathOpsV0Lib::AddCurve a
 	: contour((OpContour*) libContour)
 	, c({ addCurve.context, (PathOpsV0Lib::CurveData*) addCurve.points, 
 			addCurve.size, addCurve.type }, Rotated::no )
-	, winding(contour->winding())
-	, id(contour->nextID())
-	, disabled(false)
-	, willDisable(false)
-	, hasCoin(false)
-	, hasUnsectable(false)
-	, startMoved(false)
-	, endMoved(false) {
-	OpContext* context = contour->context;
-	if (!c.isFinite()) {
-		context->setError(PathOpsV0Lib::ContextError::finite  OP_DEBUG_PARAMS(id));
-		disabled = true;
-	} else
-		context->maxBounds.add(c.ptBounds());  // for threshold
+    , winding(contour->winding())
+    , id(contour->nextID())
+{
+    init();
 }
 
 // !!! optimization:  if called from opedge linkup, could abort if >1 active found?
@@ -146,6 +136,7 @@ void OpSegment::addDisjointIntersections() {
 	if (!sects.i.size() || 0 != sects.i.front()->ptT.t) {
 		OpIntersection* sect = addSegBase({ c.firstPt(), 0 }  OP_LINE_FILE_PARAMS(this));
 		sect->pair(sect);
+	    sects.sort();
 	}
 	if (!sects.i.size() || 1 != sects.i.back()->ptT.t) {
 		OpIntersection* sect = addSegBase({ c.lastPt(), 1 }  OP_LINE_FILE_PARAMS(this));
@@ -614,6 +605,21 @@ bool OpSegment::fixCCSects() {
 		midIsCcSect = mid->ccSect;
 	}
 	return false;
+}
+
+void OpSegment::init() {
+	disabled = false;
+	willDisable = false;
+	hasCoin = false;
+	hasUnsectable = false;
+	startMoved = false;
+	endMoved = false;
+	OpContext* context = contour->context;
+	if (!c.isFinite()) {
+		context->setError(PathOpsV0Lib::ContextError::finite  OP_DEBUG_PARAMS(id));
+		disabled = true;
+	} else
+		context->maxBounds.add(c.ptBounds());  // for threshold
 }
 
 bool OpSegment::isSmall() {

@@ -309,7 +309,7 @@ enum class Unsectable {
 	OP_ENUM_MEMBER(tooManyTries), \
 	OP_ENUM_MEMBER(underflow), \
 
-enum class Unsortable {
+enum class Unsortable : uint8_t {
 	Unsortable_Enums
 };
 
@@ -334,6 +334,10 @@ struct CoinPal {
 
 	OpSegment* opp;
 	int coinID;
+};
+
+struct EdgeOutput {
+    EdgeOutput(OpContext* context, OpEdge* edge);
 };
 
 struct OpEdge {

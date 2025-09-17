@@ -24,8 +24,8 @@ static Contour* toInterface(OpContour* implementationContour) {
 	return (Contour*) implementationContour;
 }
 
-Context* CreateContext(ContextUserData* userData) {
-    OpContext* context = new OpContext(userData);
+Context* CreateContext() {
+    OpContext* context = new OpContext();
 #if OP_DEBUG_IMAGE && !OP_TINY_SKIA
     OpDebugImage::init();
     oo();
@@ -33,13 +33,18 @@ Context* CreateContext(ContextUserData* userData) {
     return toInterface(context);
 }
 
-ContextUserData* UserData(Context* context) {
-    return (ContextUserData*) toImplementation(context)->userData;
+void AddUserData(Context* context, ContextUserData userData) {
+    toImplementation(context)->addUserData(userData);
+}
+
+ContextUserData UserData(Context* context, UserDataType type) {
+    return toImplementation(context)->findUserData(type);
 }
 
 void Add(Contour* interfaceContour, AddCurve curve) {
     OP_ASSERT(curve.points[0] != curve.points[1]);
     OpContour* contour = toImplementation(interfaceContour);
+    contour->context->initialized = false;
     contour->context->curveIndex(curve);
     contour->segments.emplace_back(interfaceContour, curve);
 }

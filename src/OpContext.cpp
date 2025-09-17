@@ -148,7 +148,7 @@ SegPt OpPtAliases::addIfClose(OpPoint match) {
 	return { match, PtType::noMatch };
 }
 
-OpContext::OpContext(void* data)
+OpContext::OpContext()
 	: errorHandler({nullptr})
 	, ccStorage(nullptr)
 	, curveDataStorage(nullptr)
@@ -158,9 +158,7 @@ OpContext::OpContext(void* data)
 	, limbStorage(nullptr)
 	, limbCurrent(nullptr)
 	, callerStorage(nullptr)
-    , userData(data)
 	, error(PathOpsV0Lib::ContextError::none)
-    , loopCount(0)
 	, uniqueID(0)
     , initialized(false)
     , allDiscarded(false)
@@ -203,16 +201,7 @@ OpContext::~OpContext() {
 		delete contourStorage;
 		contourStorage = next;
 	}
-	release(fillerStorage);
-	while (sectStorage) {
-		OpSectStorage* next = sectStorage->next;
-		delete sectStorage;
-		sectStorage = next;
-	}
-	if (limbStorage) {
-		limbStorage->reset();
-		delete limbStorage;
-	}
+    clear();
 	while (callerStorage) {
 		CallerDataStorage* next = callerStorage->next;
 		delete callerStorage;
@@ -243,6 +232,12 @@ OpEdge* OpContext::addFiller(const OpPtT& start, const OpPtT& end) {
 	// note: start t may be greater than end t (for filler only)
 	OpEdge* filler = new(block) OpEdge(this, start, end  OP_LINE_FILE_PARGS());
 	return filler;
+}
+
+void OpContext::addUserData(PathOpsV0Lib::ContextUserData contextUserData) {
+    uint8_t* storage = allocateCallerData(contextUserData.size);
+    std::memcpy(storage, contextUserData.data, contextUserData.size);
+    userData.push_back({ storage,contextUserData.size, contextUserData.type });
 }
 
 uint8_t* OpContext::allocateCallerData(size_t size) {
@@ -382,6 +377,19 @@ bool OpContext::assemble() {
 	return false;
 }
 
+void OpContext::clear() {
+	release(fillerStorage);
+	while (sectStorage) {
+		OpSectStorage* next = sectStorage->next;
+		delete sectStorage;
+		sectStorage = next;
+	}
+	if (limbStorage) {
+		limbStorage->reset();
+		delete limbStorage;
+	}
+}
+
 bool OpContext::containsFiller(OpPoint start, OpPoint end) const {
 	if (!fillerStorage)
 		return false;
@@ -480,14 +488,28 @@ OpLimb& OpContext::nthLimb(int index) {
 void OpContext::opsInit() {
     if (initialized || PathOpsV0Lib::ContextError::none != error)
         return;
+    initialized = true;
+    if (windingSet) {
+        clearSegments();
+        contours.clear();
+        clear();
+        sortedContours.clear();
+        fillerStorage = nullptr;
+        sectStorage = nullptr;
+        limbStorage = nullptr;
+        limbCurrent = nullptr;
+    }
     setThreshold();
 	OpContourIterator iterator(this);
 	for (OpContourIter iter = iterator.begin(); iter != iterator.end(); ++iter) {
 		OpContour* contour = *iter;
 		if (contour->isEmpty())
 			continue;
+        if (windingSet)
+            contour->clear();
 		contours.push_back(contour);
 	}
+    windingSet = false;
 	normalize();  // collect extremes, map all from 0 to 1, map <= epsilon to zero
 	for (OpContour* contour : contours) {
 		for (const OpSegment& segment : contour->segments) {
@@ -598,11 +620,14 @@ WindingCondition OpContext::pathOps() {
 	    FoundWindings foundWindings = OpWinder::SetWindings(*this);  // walk edges, compute windings
 	    if (FoundWindings::fail == foundWindings)
 		    OP_DEBUG_FAIL(*this, -1);  // no existing tests exercises
+    } else {
+        sortedContours.clear();
+        clearContours();
+        clearEdges();
     }
 	WindingCondition windingCondition = apply();  // suppress edges which don't meet op criteria
 //	demotePalLinks();  // mark edges that connect pal ends as unsortable so assembly can ignore them
-debug();
-#if 01 && OP_DEBUG
+#if 0 && OP_DEBUG && !OP_DEBUG_FAST_TEST
     verifyFile(this, "dmp.txt", "dmp2.txt");
 #endif
 	if (!windingCondition && !assemble())
@@ -815,6 +840,16 @@ void OpContext::sortIntersections() {
 		}
 	}
 }
+
+PathOpsV0Lib::ContextUserData OpContext::findUserData(PathOpsV0Lib::UserDataType type) {
+    for (PathOpsV0Lib::ContextUserData& user : userData) {
+        if (user.type == type)
+            return user;
+    }
+    OP_ASSERT(0);
+    return { nullptr, 0, PathOpsV0Lib::UserDataType::none };
+}
+
 
 #if OP_DEBUG
 void OpContext::addDebugContextData(PathOpsV0Lib::DebugContextData data, 

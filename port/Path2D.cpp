@@ -567,13 +567,15 @@ bool OutPath::wrapAround(OpPoint pt) {
 	return true;
 }
 
-static void EmptyFunc(PathOpsV0Lib::Context* context) {
-    Path* pathOutput = (Path*) PathOpsV0Lib::UserData(context);
+static void EmptyFunc(Context* context) {
+    ContextUserData data = UserData(context, UserDataType::outPath);
+    Path* pathOutput = (Path*) data.data;
 	pathOutput->clear();
 }
 
 static WindKeep Path2DOutput(PathOpsV0Lib::Curve c, Winding , bool firstPt, bool lastPt) {
-	OutPath* output = (OutPath*) PathOpsV0Lib::UserData(c.context);
+	ContextUserData data = UserData(c.context, UserDataType::outPath);
+    OutPath* output = (OutPath*) data.data;
 	output->commonOutput(c, firstPt, lastPt);
     return WindKeep::Discard;
 }
@@ -596,8 +598,7 @@ ContextError FillPath::opCommon(FillPath& path, Ops oper) {
 		case Ops::_xor: operatorFunc = binaryExclusiveOrFunc; break;
 		default: OP_ASSERT(0);
 	}
-	SetWindingCallbacks(context, { binaryAddFunc, operatorFunc, binaryVisibleFunc, 
-			binaryZeroFunc, binarySubtractFunc });
+	SetWindingCallbacks(context, { binaryAddFunc, operatorFunc, binarySubtractFunc });
 	SetupCurves(context);
 	BinaryWinding leftWinding(context, BinaryOperand::left);
 	opAddPath(context, leftWinding.winding.contour, true);
@@ -622,7 +623,8 @@ ContextError Path::handleError(Context* context) {
 	Resolve(context);
 	ContextError error = Error(context);
 	if (ContextError::none == error) {
-	    OutPath* outPath = (OutPath*) PathOpsV0Lib::UserData(context);
+	    ContextUserData data = UserData(context, UserDataType::outPath);
+        OutPath* outPath = (OutPath*) data.data;
 	    curves = outPath->result.curves;
     }
 	DeleteContext(context);
@@ -631,11 +633,12 @@ ContextError Path::handleError(Context* context) {
 
 ContextError FramePath::opCommon(FillPath& path, Ops oper) {
     OutPath outPath;
-    Context* context = CreateContext((ContextUserData*) &outPath);
+    Context* context = CreateContext();
+    AddUserData(context, { &outPath, sizeof(outPath), UserDataType::outPath } );
     SetContextCallbacks(context, { Path2DOutput, EmptyFunc });
 	WindingKeep operatorFunc = Ops::sect == oper ? frameKeepFunc : frameDiscardFunc;
-    SetWindingCallbacks(context, { frameAddFunc, operatorFunc, frameVisibleFunc, 
-            frameZeroFunc, frameSubtractFunc });
+    SetWindingCallbacks(context, { frameAddFunc, operatorFunc, frameSubtractFunc, frameWoundFunc,
+            frameVisibleFunc, frameZeroFunc });
 	SetupCurves(context);
     FrameWinding frameWinding(context, FrameFill::frame);
 	opAddPath(context, frameWinding.winding.contour, false);

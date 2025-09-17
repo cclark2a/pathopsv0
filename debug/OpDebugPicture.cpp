@@ -976,8 +976,8 @@ void OpDebugPicture::pan(OpVector v) {
 }
 
 void OpDebugPicture::redraw() {
-    debugGlobalContext = context;
-    bootStrap(context);
+    if (context)
+        bootStrap(context);
 }
 
 void OpDebugPicture::zoom(float factor) {

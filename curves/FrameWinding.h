@@ -61,6 +61,11 @@ inline WindKeep frameDiscardFunc(Context* , Winding winding, Winding sumWinding)
 	return !sum.left ? WindKeep::Start : WindKeep::Discard;
 }
 
+inline bool frameWoundFunc(Context* , Winding winding) {
+	FrameData wind(winding);
+    return !!wind.left;
+}
+
 inline bool frameIntersectFunc(Context* , Winding l, Winding r) {
     FrameData left(l);
     FrameData right(r);
@@ -94,8 +99,8 @@ inline bool frameVisibleFunc(Context* , Winding winding) {
 }
 
 inline void frameCallbacks(Context* context) {
-    SetWindingCallbacks(context, { frameAddFunc, frameKeepFunc, frameVisibleFunc, 
-			frameZeroFunc, frameSubtractFunc, frameIntersectFunc });
+    SetWindingCallbacks(context, { frameAddFunc, frameKeepFunc, frameSubtractFunc, frameWoundFunc,
+            frameVisibleFunc,  frameZeroFunc, frameIntersectFunc });
 }
 
 #if OP_DEBUG
@@ -113,7 +118,7 @@ inline std::string frameDumpOutFunc(Winding winding) {
 
 inline void frameDumpSetFunc(const char*& str, Winding& winding) {
     int left = OpDebugReadSizeT(str);
-    FrameFill frameFill = OpDebugOptional(str, "f") ? FrameFill::frame : FrameFill::fill;
+    FrameFill frameFill = OpDebugOptional(str, "fr") ? FrameFill::frame : FrameFill::fill;
     FrameData frameData(frameFill, left);
     frameData.copyTo(winding);
 }
@@ -135,7 +140,7 @@ inline void frameDumpSetFunc(const char*& str, Winding& winding) {
 #if OP_DEBUG_IMAGE
 inline std::string frameImageOutXFunc(Winding winding) {
     FrameData data(winding);
-    return STR(data.left) + (FrameFill::frame == data.isFrame ? "f" : "");
+    return STR(data.left) + (FrameFill::frame == data.isFrame ? "fr" : "");
 }
 
 inline std::string frameImageOutFunc(Winding winding, int index) {  // deprecated

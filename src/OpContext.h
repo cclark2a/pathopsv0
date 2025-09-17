@@ -18,6 +18,8 @@ struct CallerDataStorage {
 
 //	static char* Allocate(size_t size, CallerDataStorage** );
 #if OP_DEBUG_DUMP
+    size_t dumpOffset(PathOpsV0Lib::ContextUserData data) const;
+    void dumpResolve(PathOpsV0Lib::ContextUserData& );
 	static void DumpSet(const char*& str, CallerDataStorage** previousPtr);
 	DUMP_DECLARATIONS
 #endif
@@ -50,10 +52,15 @@ struct OpPtAliases {
 	float thresholdLength;
 };
 
+struct OpUserData {
+    PathOpsV0Lib::ContextUserData data;
+    PathOpsV0Lib::UserDataType type;
+};
+
 typedef PathOpsV0Lib::Context* ContextPtr;
 
 struct OpContext {
-	OpContext(void* userData);
+	OpContext();
 	~OpContext();
 
 	operator ContextPtr() const {
@@ -64,6 +71,7 @@ struct OpContext {
 //    OpEdge* addFiller(OpEdge* edge, OpEdge* lastEdge);
 	OpEdge* addFiller(const OpPtT& start, const OpPtT& end);
 	void addToBounds(const OpCurve& );
+    void addUserData(PathOpsV0Lib::ContextUserData );
 	uint8_t* allocateCallerData(size_t );
 	OpContour* allocateContour();
 	PathOpsV0Lib::CurveData* allocateCurveData(size_t );
@@ -95,6 +103,26 @@ struct OpContext {
 		return callbacks[type];
 	}
 
+    void clearContours() {
+    	for (auto contour : contours) {
+            contour->byArea.clear();
+        }
+    }
+
+    void clearEdges() {
+    	for (auto contour : contours) {
+            contour->clearEdges();
+        }
+    }
+
+    void clearSegments() {
+    	for (auto contour : contours) {
+            contour->clearSegments();
+        }
+    }
+
+    void clear();
+
 	bool containsFiller(OpPoint start, OpPoint end) const;
 	bool containsFiller(int ccUnsectableID) const;
 	bool containsPals(OpEdge* , int totalLimbs);
@@ -119,6 +147,8 @@ struct OpContext {
 	OpPoint findAlias(OpPoint pt) const {
 		return aliases.find(pt);
 	}
+
+    PathOpsV0Lib::ContextUserData findUserData(PathOpsV0Lib::UserDataType );
 
 	bool fixCCSects() {
 		for (auto contour : contours) {
@@ -198,6 +228,7 @@ struct OpContext {
 		}
 	}
 
+
 	bool debugFail() const;
 #if OP_DEBUG
 	void addDebugContextData(PathOpsV0Lib::DebugContextData , PathOpsV0Lib::DebugContextType );
@@ -215,6 +246,8 @@ struct OpContext {
 #if OP_DEBUG_DUMP
 	void debugCompare(std::string s);
 	const OpLimb& debugNthLimb(int) const;
+    bool dumpInitialized() const {
+                return initialized || !windingSet;  }
 	void dumpResolve(OpContour*& contourRef);
 	void dumpResolve(const OpEdge*& );
 	void dumpResolve(OpEdge*& );
@@ -231,6 +264,7 @@ struct OpContext {
 
 	OpPtAliases aliases;  // !!! consider moving to contour for non-overlapping contour case
 	std::vector<PathOpsV0Lib::CurveCallbacks> callbacks;
+    std::vector<PathOpsV0Lib::ContextUserData> userData;
     std::vector<int> nativeCurveTypes;
 	PathOpsV0Lib::ContextCallbacks contextCallbacks;
 	PathOpsV0Lib::WindingCallbacks windingCallbacks;
@@ -246,10 +280,8 @@ struct OpContext {
 	OpLimbStorage* limbStorage;
 	OpLimbStorage* limbCurrent;
 	CallerDataStorage* callerStorage;
-    void* userData;
 	OpPointBounds maxBounds;
 	PathOpsV0Lib::ContextError error;
-    int loopCount;  // max loop count for output
 	int uniqueID;  // used for object id, unsectable id, coincidence id
     bool initialized;
     bool allDiscarded;

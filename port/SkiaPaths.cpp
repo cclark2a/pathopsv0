@@ -51,7 +51,8 @@ bool SkPathOpInvertOutput(SkPathOp op, bool leftOperandIsInverted, bool rightOpe
 using namespace PathOpsV0Lib;
 
 WindKeep skiaOutput(Curve c, Winding , bool firstPt, bool lastPt) {
-    SkPath& skpath = *(SkPath*) UserData(c.context);
+    ContextUserData data = UserData(c.context, UserDataType::outPath);
+    SkPath& skpath = *(SkPath*) data.data;
     SkPath::Verb type = (SkPath::Verb) c.type; 
     if (firstPt) {
 		skpath.setFillType(SkPathFillType::kEvenOdd);
@@ -93,7 +94,8 @@ void SetSkiaCurveCallbacks(Context* context) {
 }
 
 void emptySkPathFunc(Context* context) {
-    SkPath* skOutput = (SkPath*) UserData(context);
+    ContextUserData data = UserData(context, UserDataType::outPath);
+    SkPath* skOutput = (SkPath*) data.data;
     skOutput->reset();
 	skOutput->setFillType(SkPathFillType::kEvenOdd);
 }
@@ -111,8 +113,7 @@ Contour* SetSkiaSimplifyCallbacks(Context* context, WindingData data, size_t siz
     Contour* contour = CreateContour(context, data, size);
     WindingAdd addFunc = isWindingFill ? unaryAddFunc : unaryEvenOddFunc;
     WindingAdd subtractFunc = isWindingFill ? unarySubtractFunc : unaryEvenOddFunc;
-    SetWindingCallbacks(context, { addFunc, unaryKeepFunc, unaryVisibleFunc, 
-			unaryZeroFunc, subtractFunc });
+    SetWindingCallbacks(context, { addFunc, unaryKeepFunc, subtractFunc });
     OP_DEBUG_CODE(if (pathPtr) SetSkiaSimplifyCallbacksDebug(context, contour, *pathPtr));
     return contour;
 }
@@ -143,8 +144,7 @@ void SetSkiaOpContextCallbacks(Context* context, SkPathOp op, BinaryWindType win
         case BinaryWindType::windBoth: subtractFunc = binarySubtractFunc; break;
         default: OP_ASSERT(0);
     }
-    SetWindingCallbacks(context, { addFunc, operatorFunc, binaryVisibleFunc, 
-			binaryZeroFunc, subtractFunc });
+    SetWindingCallbacks(context, { addFunc, operatorFunc, subtractFunc });
     OP_DEBUG_CODE(SetSkiaOpContextCallbacksDebug(context, op));
 }
 

@@ -589,7 +589,9 @@ extern void alt_cubicOp114asQuad();
 bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
 		OpDebugData* debugDataPtr) {
     using namespace PathOpsV0Lib;
-    Context* context = CreateContext((ContextUserData*) result);
+    Context* context = CreateContext();
+    ContextUserData data { result, sizeof(result), UserDataType::outPath };
+    AddUserData(context, data);
     SetSkiaContextCallbacks(context);
     OP_DEBUG_CODE(if (debugDataPtr) Debug(context, *debugDataPtr));
     SetSkiaCurveCallbacks(context);
@@ -910,7 +912,9 @@ void run() {
 
 bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
     using namespace PathOpsV0Lib;
-    Context* context = CreateContext((ContextUserData*) out);
+    Context* context = CreateContext();
+    ContextUserData data { out, sizeof(out), UserDataType::outPath };
+    AddUserData(context, data);
     OP_DEBUG_CODE(if (optional) Debug(context, *optional));
     SetSkiaContextCallbacks(context);
     SetSkiaCurveCallbacks(context);

@@ -82,6 +82,7 @@ struct OpWinding {
 #endif
 };
 
+// (for edges that represent fills:)
 // An edge that can contribute to the answer has a zero winding on one side
 // For a pair of edges to connect, they have to have zero windings on the same side
 // If they have zero windings that do not match, there should be a third (and fourth)
@@ -90,6 +91,7 @@ struct OpWinding {
 // winding is wrong.
 // The normal zero winding is computed before the edge orientation (e.g., whichEnd) 
 // is known, so it may be reversed if the edge is to be connected backwards.
+// (for edges that represent frames: their zero winding is unset)
 #define WindZero_Enums \
 	OP_ENUM_MEMBER(unset), \
 	OP_ENUM_MEMBER(zero), \

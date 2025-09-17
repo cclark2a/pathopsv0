@@ -175,6 +175,13 @@ OpPoint EdgePal::matchPt(EdgeMatch m) const {
 	return edge->ptT(reversed ? !m : m).pt;
 }
 
+EdgeOutput::EdgeOutput(OpContext* context, OpEdge* edge) {
+    PathOpsV0Lib::MaxCount maxLoops = context->contextCallbacks.maxLoopsFuncPtr;
+    int safetyCounter = maxLoops ? (*maxLoops)((ContextPtr) context) : 0;
+	while (edge->output(false) && --safetyCounter >= 0)
+        OP_ASSERT(safetyCounter >= 0);
+}
+
 // called when creating edge for curve curve intersection building
 OpEdge::OpEdge(OpSegment* s  OP_LINE_FILE_ARGS())
 	: OpEdge() {
@@ -348,15 +355,19 @@ WindingCondition OpEdge::apply() {
     OpContext* ctxt = context();
 	PathOpsV0Lib::WindKeep keep = ctxt->windingCallbacks.windingKeepFuncPtr(curve.c.context, 
             winding.w, sum.w);
+    PathOpsV0Lib::WindingVisible woundFunc = ctxt->windingCallbacks.windingWoundFuncPtr;
+    bool affectsWinding = woundFunc ? (*woundFunc)(curve.c.context, winding.w) : true;
 	switch (keep) {
 		case PathOpsV0Lib::WindKeep::Discard:
 			setDisabled(OP_LINE_FILE_NPARGS());
 			break;
 		case PathOpsV0Lib::WindKeep::End:
-			windZero = WindZero::zero;
+            if (affectsWinding)
+			    windZero = WindZero::zero;
 			break;
 		case PathOpsV0Lib::WindKeep::Start:
-			windZero = WindZero::nonZero;
+			if (affectsWinding)
+                windZero = WindZero::nonZero;
 			break;
         default:
         	OP_ASSERT(0);

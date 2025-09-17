@@ -60,6 +60,9 @@ struct OpContour {
 	void buildBackwards();
 	void buildCenterless();
 	void buildPals();
+    void clear();
+    void clearEdges();
+    void clearSegments();
 	bool detachIfLoop(OpJoiner* , OpEdge* , EdgeMatch loopEnd);
 	bool disabledPal(OpPoint, OpPoint) const;  // !!! bare minimum to fix cubic129075 (experiment)
 
@@ -71,6 +74,7 @@ struct OpContour {
 
 	bool fixCCSects();
     void init(OpContext* , PathOpsV0Lib::WindingData winding, size_t size);
+    void init();
 	bool isEmpty() { return segments.empty(); }
 	bool isOpen() { return !merges.empty(); }
 //	bool isSorted(Axis axis) const { return Axis::horizontal == axis ? isXSorted : isYSorted; }
@@ -139,9 +143,6 @@ struct OpContour {
 	#undef OP_X
 	std::string debugDumpJoin(DebugLevel l, DebugBase b) const;
 #endif
-#if OP_DEBUG_IMAGE
-	uint8_t* debugAllocateCallerData(size_t );
-#endif
 
 	std::vector<OpSegment> segments;
 	std::vector<OpSegment*> sorted;
@@ -165,13 +166,13 @@ struct OpContour {
 	OpContext* context;
 	OpContour* overlapOwner;  // the master that intersects the same set of contours as this
 	int id;
-	int treeID = 0;  // tracks if contour has been initialized in this tree's context (for edge 'seen')
-	bool backwardsBuilt = false;
-	bool centerlessBuilt = false;
-	bool hasPals = false;
-	bool palsBuilt = false;
-	bool disabled = false;
-	bool overlapsMerged = false;
+	int treeID;  // tracks if contour has been initialized in this tree's context (for edge 'seen')
+	bool backwardsBuilt;
+	bool centerlessBuilt;
+	bool hasPals;
+	bool palsBuilt;
+	bool disabled;
+	bool overlapsMerged;
 
 	OP_DEBUG_CODE(PathOpsV0Lib::DebugContourCallbacks debugCallbacks);
 	OP_DEBUG_CODE(std::array<PathOpsV0Lib::DebugContourData, static_cast<std::size_t>(
@@ -187,6 +188,9 @@ struct OpContourStorage {
 	OpContourStorage()
 		: next(nullptr)
 		, used(0) {
+        for (OpContour& contour : storage) {
+            contour.init();
+        }
 	}
 
 #if OP_DEBUG_DUMP

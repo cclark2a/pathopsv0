@@ -11,7 +11,9 @@
 using namespace PathOpsV0Lib;
 
 static void IntersectPath(const SkPath& onePath, const SkPath& twoPath, SkPath* out) {
-    Context* context = CreateContext((ContextUserData*) out);
+    Context* context = CreateContext();
+    ContextUserData data { out, sizeof(out), UserDataType::outPath };
+    AddUserData(context, data);
     SetSkiaContextCallbacks(context);
     SetSkiaCurveCallbacks(context);
     auto isWindingFill = [](const SkPath& path) {

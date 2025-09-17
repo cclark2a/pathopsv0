@@ -34,7 +34,8 @@ struct TestData {
 };
 
 WindKeep cutOutput(Curve c, Winding w, bool firstPt, bool lastPt) {
-    TestData& test = *(TestData*) UserData(c.context);
+    ContextUserData data = UserData(c.context, UserDataType::outData);
+    TestData& test = *(TestData*) data.data;
     CutData& cut = test.cutData;
 	FrameData wind(w);
     switch (cut.pass) {
@@ -68,8 +69,10 @@ WindKeep cutOutput(Curve c, Winding w, bool firstPt, bool lastPt) {
                 cut.pass = CutPass::discardFill;
                 return keep;
             }
-            if (cut.firstPt != c.data->end)
+            if (cut.firstPt != c.data->end) {
                 cut.pass = CutPass::discardFrame;
+                break;
+            }
             OpVector v0 = cut.corner[1] - cut.corner[0];
             OpVector v1 = cut.corner[1] - cut.corner[2];
             v0.normalize();
@@ -97,7 +100,8 @@ static bool allowDisjointLines(ContextError err, Curve* ) {
 
 void TestCut() {
     TestData testData(CutDirection::clockwise);
-    Context* context = cutContext((ContextUserData*) &testData, cutOutput);
+    ContextUserData userData { &testData, sizeof(testData), UserDataType::outData };
+    Context* context = cutContext(userData, cutOutput);
     lineCallbacks(context, line);
     quadCallbacks(context, quad);
 
@@ -114,15 +118,15 @@ void TestCut() {
     AddLine(cutWinding.winding.contour, { context, linePts, lineSize, line } );
     AddQuads(cutWinding.winding.contour, { context, quadPts, quadSize, quad } );
 
-    // no output is generated, error is set
 	SetErrorHandler(context, allowDisjointLines);
     cutCallbacks(context);
     Resolve(context);
-    OP_ASSERT(ContextError::missing == Error(context));
+    // No output is generated, no error is set. To detect frame pieces, use a different output func.
+    OP_ASSERT(ContextError::none == Error(context));
     OP_ASSERT(testData.outStr.empty());
     testData.cutData = CutData(CutDirection::counterclockwise);
     Resolve(context);
-    OP_ASSERT(ContextError::missing == Error(context));
+    OP_ASSERT(ContextError::none == Error(context));
     OP_ASSERT(testData.outStr.empty());
 
     // added line completes cut; resolve should outputs left half, right half; no error
@@ -135,6 +139,7 @@ void TestCut() {
     OP_ASSERT(std::string::npos != testData.outStr.find("{ 15, 45 }")); 
     OP_ASSERT(std::string::npos == testData.outStr.find("{ 45, 15 }")); 
     testData.cutData = CutData(CutDirection::counterclockwise);
+    Resolve(context);
     OP_ASSERT(ContextError::none == Error(context));
     OP_ASSERT(std::string::npos == testData.outStr.find("{ 15, 45 }")); 
     OP_ASSERT(std::string::npos != testData.outStr.find("{ 45, 15 }")); 

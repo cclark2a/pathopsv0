@@ -36,6 +36,13 @@ OpIntersection* OpIntersections::add(OpIntersection* sect) {
 	return sect;
 }
 
+void OpIntersections::clear() {
+    i.clear();
+	unsorted = false;
+	hasCCSects = false;
+	hasPairs = false;
+}
+
 // this matches opp with nearby ptT
 OpIntersection* OpIntersections::contains(const OpPtT& ptT, const OpSegment* opp) {
 	for (unsigned index = 0; index < i.size(); ++index) {

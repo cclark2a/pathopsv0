@@ -74,15 +74,39 @@ void OpWinding::subtract(const OpWinding& winding) {
     subtract(winding.w);
 }
 
+static const uint8_t zeroes[8] {};
+
 bool OpWinding::visible() const {
     OpContext* context = ((OpContour*) w.contour)->context;
-	return context->windingCallbacks.windingVisibleFuncPtr((ContextPtr) context, w);
+    PathOpsV0Lib::WindingVisible visibleFunc = context->windingCallbacks.windingVisibleFuncPtr;
+    if (visibleFunc)
+	    return (*visibleFunc)((ContextPtr) context, w);
+    // default windings (binary, unary, frame) fit in 8 bytes
+    const uint8_t* data = (const uint8_t*) w.data;
+    int size = (int) w.size;  // limit size of winding to 2 gigabytes
+    while (size > 0) {
+        if (std::memcmp(data, zeroes, std::min(size, (int) sizeof(zeroes))))
+            return true;
+        size -= sizeof(zeroes);
+        data += sizeof(zeroes);
+    }
+    return false;
 }
 
 void OpWinding::zero() {
 	copyOnDemand();
     OpContext* context = ((OpContour*) w.contour)->context;
-	context->windingCallbacks.windingZeroFuncPtr((ContextPtr) context, w);
+    PathOpsV0Lib::WindingZero zeroFunc = context->windingCallbacks.windingZeroFuncPtr;
+    if (zeroFunc)
+	    return (*zeroFunc)((ContextPtr) context, w);
+    // default windings (binary, unary, frame) fit in 8 bytes
+    uint8_t* data = (uint8_t*) w.data;
+    int size = (int) w.size;  // limit size of winding to 2 gigabytes
+    while (size > 0) {
+        std::memcpy(data, zeroes, std::min(size, (int) sizeof(zeroes)));
+        size -= sizeof(zeroes);
+        data += sizeof(zeroes);
+    }
 }
 
 void OpWinding::zeroUninitialized(const PathOpsV0Lib::Winding& winding) {

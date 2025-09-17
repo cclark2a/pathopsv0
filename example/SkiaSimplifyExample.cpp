@@ -10,7 +10,9 @@
 using namespace PathOpsV0Lib;
 
 static void SimplifyPath(const SkPath& path, SkPath* out) {
-    Context* context = CreateContext((ContextUserData*) out);
+    Context* context = CreateContext();
+    ContextUserData data { out, sizeof(out), UserDataType::outPath };
+    AddUserData(context, data);
     SetSkiaContextCallbacks(context);
     SetSkiaCurveCallbacks(context);
     int simplifyData[] = { 1 };

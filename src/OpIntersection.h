@@ -155,6 +155,7 @@ enum class SectCleanup {
 
 struct OpIntersections {
 	OpIntersection* add(OpIntersection* );
+    void clear();
 	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp) const;
 	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp, OpPtT* nearby) const;
 	void coinRange(OpEdge& , OpSegment* opp, bool reversed);
