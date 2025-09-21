@@ -58,6 +58,19 @@ void OpWinding::copyOnDemand() {
 	type = WindingType::copy;
 }
 
+bool OpWinding::isWound() const {
+    OpContext* context = ((OpContour*) w.contour)->context;
+    PathOpsV0Lib::WindingVisible woundFunc = context->windingCallbacks.windingWoundFuncPtr;
+    return woundFunc ? (*woundFunc)((ContextPtr) context, w) : true;
+}
+
+PathOpsV0Lib::WindKeep OpWinding::keep(const OpWinding& sum) const {
+    OpContext* context = ((OpContour*) w.contour)->context;
+    PathOpsV0Lib::WindingKeep keepFunc = context->windingCallbacks.windingKeepFuncPtr;
+    OP_ASSERT(keepFunc);
+    return (*keepFunc)((ContextPtr) context, w, sum.w);
+}
+
 void OpWinding::setWind(const OpWinding& fromSegment) {
 	w = fromSegment.w;
 	OP_ASSERT(WindingType::uninitialized == type);

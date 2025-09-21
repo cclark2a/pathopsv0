@@ -6,9 +6,6 @@ namespace PathOpsV0Lib {
 
 static OpContext* toImplementation(Context* interfaceContext) {
     OpContext* context = (OpContext*) interfaceContext;
-#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
-    debugGlobalContext = context;
-#endif
 	return context;
 }
 
@@ -26,9 +23,8 @@ static Contour* toInterface(OpContour* implementationContour) {
 
 Context* CreateContext() {
     OpContext* context = new OpContext();
-#if OP_DEBUG_IMAGE && !OP_TINY_SKIA
-    OpDebugImage::init();
-    oo();
+#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
+    debugGlobalContext = context;
 #endif
     return toInterface(context);
 }

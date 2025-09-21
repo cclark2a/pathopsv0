@@ -41,17 +41,24 @@ enum class CutPass {
     outputLoop
 };
 
+struct CutCurve {
+    bool isFrame;
+    bool isReversed;
+};
+
 struct CutData {
     CutData(CutDirection dir)
         : direction(dir) {
     }
 
     std::array<OpPoint, 3> corner;  // outside corner used to determine winding direction
+    std::array<CutCurve, 2> curves;  // corner of interest has one frame and one fill curve
     OpPoint priorPt;
     OpPoint firstPt;
     CutDirection direction; 
     CutPass pass = CutPass::checkDirection;
     bool sawFrame = false;
+    bool frameFirst = false;  // if true, corner is frame/fill; if false, corner is fill/frame
 };
 
 inline int cutMaxLoopsFunc(Context* context) {
@@ -62,10 +69,11 @@ inline int cutMaxLoopsFunc(Context* context) {
     return 3;  // maximum number of passes through output loop
 }
 
-inline Context* cutContext(ContextUserData userData, CurveOutput output = nullptr) {
+inline Context* cutContext(ContextUserData userData, CurveOutput output = nullptr,
+        CurveOutput best = nullptr) {
     Context* context = CreateContext();
     AddUserData(context, userData);
-    ContextCallbacks contextCallbacks { output };
+    ContextCallbacks contextCallbacks { output, nullptr, best };
     contextCallbacks.maxLoopsFuncPtr = cutMaxLoopsFunc;
     SetContextCallbacks(context, contextCallbacks);
 #if OP_DEBUG

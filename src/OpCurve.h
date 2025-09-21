@@ -23,7 +23,7 @@ struct CutRangeT {
 	OpPtT hi;
 };
 
-enum class Rotated {
+enum class Rotated : int8_t {
 	no,
 	yes
 	OP_DEBUG_PARAMS(debug)
@@ -34,7 +34,8 @@ struct OpCurve {
 		: c{ nullptr, nullptr, 0, PathOpsV0Lib::degenerateLine }
 		, rotated(Rotated::no)
 		, isLineSet(false)
-		, isLineResult(false) {
+		, isLineResult(false)
+        , reversed(false) {
 	}
 
 	OpCurve(PathOpsV0Lib::Curve , Rotated );
@@ -44,6 +45,8 @@ struct OpCurve {
 	// void adjust(OpPoint start, OpPoint end);
 	OpRoots axisRayHit(Axis offset, float axisIntercept, float start = 0, float end = 1) const;
 	OpRoots axisRawHit(Axis offset, float axisIntercept, MatchEnds) const;
+	PathOpsV0Lib::WindKeep bestLoop(PathOpsV0Lib::Winding , bool firstPt, bool lastPt  
+            OP_DEBUG_PARAMS(int parentID));
 	float center(Axis offset, float axisIntercept) const;
     OpContext& context() {
         return *(OpContext*) c.context; }
@@ -117,6 +120,7 @@ struct OpCurve {
 	Rotated rotated;
 	bool isLineSet;
 	bool isLineResult;
+    bool reversed;
 };
 
 struct CurveDataStorage {

@@ -254,7 +254,7 @@ bool PathOpsV0Lib::DebugAnalyze(Context* context) {
 	OpDebugData& debugData = context->debugData;
 	if (debugData.limitContours <= 0)
 		return false;
-    SetContextCallbacks(context, { setSkiaLineType, emptySkPathFunc, nullptr,
+    SetContextCallbacks(context, { setSkiaLineType, emptySkPathFunc, nullptr, nullptr
 			nullptr, nullptr, minMaxLimbs });
 	return true;
 }

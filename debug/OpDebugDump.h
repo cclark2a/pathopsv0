@@ -11,6 +11,11 @@ struct AddCurve;
 struct Curve;
 }
 
+
+enum class DumpSerialization {
+    dummy
+};
+
 #define DUMP_DECLARATIONS \
 std::string debugDump(DebugLevel , DebugBase ) const; \
 std::string debugDumpID() const; \
@@ -139,6 +144,7 @@ OP_X(Rays) \
 OP_X(Sects) \
 OP_X(Segments) \
 OP_X(Sorted) \
+OP_X(Tree) \
 OP_X(Unsectable) \
 OP_X(Unsortable) \
 OP_X(Windings)

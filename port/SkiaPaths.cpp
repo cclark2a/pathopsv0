@@ -50,7 +50,10 @@ bool SkPathOpInvertOutput(SkPathOp op, bool leftOperandIsInverted, bool rightOpe
 
 using namespace PathOpsV0Lib;
 
-WindKeep skiaOutput(Curve c, Winding , bool firstPt, bool lastPt) {
+WindKeep skiaOutput(Output o) {
+    const Curve& c = o.curve;
+    bool firstPt = (int) o.attribute & (int) LoopAttribute::first;
+    bool lastPt = (int) o.attribute & (int) LoopAttribute::last;
     ContextUserData data = UserData(c.context, UserDataType::outPath);
     SkPath& skpath = *(SkPath*) data.data;
     SkPath::Verb type = (SkPath::Verb) c.type; 

@@ -573,7 +573,10 @@ static void EmptyFunc(Context* context) {
 	pathOutput->clear();
 }
 
-static WindKeep Path2DOutput(PathOpsV0Lib::Curve c, Winding , bool firstPt, bool lastPt) {
+static WindKeep Path2DOutput(Output o) {
+    const PathOpsV0Lib::Curve& c = o.curve;
+    bool firstPt = (int) o.attribute & (int) LoopAttribute::first;
+    bool lastPt = (int) o.attribute & (int) LoopAttribute::last;
 	ContextUserData data = UserData(c.context, UserDataType::outPath);
     OutPath* output = (OutPath*) data.data;
 	output->commonOutput(c, firstPt, lastPt);

@@ -33,14 +33,22 @@ struct TestData {
     std::string outStr;
 };
 
-WindKeep cutOutput(Curve c, Winding w, bool firstPt, bool lastPt) {
+WindKeep cutOutput(Output o) {
+    const Curve& c = o.curve;
+    const Winding& w = o.winding;
+    auto loopAttributeSet = [o](LoopAttribute attr) {
+        return !!((int) o.attribute & (int) attr);
+    };
+    bool firstPt = loopAttributeSet(LoopAttribute::first);
+    bool lastPt = loopAttributeSet(LoopAttribute::last);
+    bool reversed = loopAttributeSet(LoopAttribute::reversed);
     ContextUserData data = UserData(c.context, UserDataType::outData);
     TestData& test = *(TestData*) data.data;
     CutData& cut = test.cutData;
 	FrameData wind(w);
     switch (cut.pass) {
         case CutPass::outputLoop: {
-            test.outStr = line == c.type ? "line: " : "quad: ";
+            test.outStr += line == c.type ? "line: " : "quad: ";
             auto addPtStr = [&test](OpPoint pt, std::string delimiter) {
                 test.outStr += pt.toString() + delimiter;
             };
@@ -48,19 +56,25 @@ WindKeep cutOutput(Curve c, Winding w, bool firstPt, bool lastPt) {
 	        if (quad == c.type)
                 addPtStr(quadControlPt(c), ", ");
             addPtStr(c.data->end, "\n");
-            } return WindKeep::Discard;
+            return WindKeep::Discard;
+        } 
         case CutPass::checkDirection: {
+            cut.curves[1] = { FrameFill::frame == wind.isFrame, reversed };
             if (firstPt) {
                 cut.corner[1] = OpPoint(SetToNaN::dummy);
                 cut.firstPt = c.data->start;
             } else {
+                dmpFile();
                 OpPoint least = cut.corner[1];
-                if (!least.isFinite() || c.data->start.x < least.x || 
-                        (c.data->start.x == least.x && c.data->start.y < least.y)) {
+                if (cut.curves[0].isFrame != cut.curves[1].isFrame 
+                        && (!least.isFinite() || c.data->start.x < least.x 
+                        || (c.data->start.x == least.x && c.data->start.y < least.y))) {
                     cut.corner = { cut.priorPt, c.data->start, c.data->end };
+                    cut.frameFirst = cut.curves[0].isFrame;
                 }
             }
             cut.priorPt = c.data->start;
+            cut.curves[0] = cut.curves[1];
             cut.sawFrame |= FrameFill::frame == wind.isFrame;
             WindKeep keep = FrameFill::frame == wind.isFrame ? WindKeep::Start : WindKeep::End;
             if (!lastPt)
@@ -73,17 +87,22 @@ WindKeep cutOutput(Curve c, Winding w, bool firstPt, bool lastPt) {
                 cut.pass = CutPass::discardFrame;
                 break;
             }
+            // If successive curves form corner with one fill and one frame:
+            // keep loop if the corner matches the desired direction (clockwise or counterclockwise)
+            // use curve reverse attribute to ensure that corner computes consistent cross product
             OpVector v0 = cut.corner[1] - cut.corner[0];
             OpVector v1 = cut.corner[1] - cut.corner[2];
             v0.normalize();
             v1.normalize();
             float cross = v0.cross(v1);
+            if (!cut.frameFirst)
+                cross = -cross;
             if ((cross > 0) == (CutDirection::clockwise == cut.direction))
                 cut.pass = CutPass::outputLoop;
             else
                 cut.pass = CutPass::discardFill;
             return keep;
-            } 
+        } 
         case CutPass::discardFill:
             return FrameFill::fill == wind.isFrame ? WindKeep::Discard : WindKeep::Start;
         case CutPass::discardFrame:
@@ -94,6 +113,13 @@ WindKeep cutOutput(Curve c, Winding w, bool firstPt, bool lastPt) {
     return WindKeep::Discard;
 }
 
+// choose loop containing frame curves over ones without
+WindKeep bestLoop(Output o) {
+    const Winding& w = o.winding;
+	FrameData wind(w);
+    return FrameFill::frame == wind.isFrame ? WindKeep::Start : WindKeep::Discard;
+}
+
 static bool allowDisjointLines(ContextError err, Curve* ) {
 	return ContextError::end != err && ContextError::missing != err;
 }
@@ -101,7 +127,7 @@ static bool allowDisjointLines(ContextError err, Curve* ) {
 void TestCut() {
     TestData testData(CutDirection::clockwise);
     ContextUserData userData { &testData, sizeof(testData), UserDataType::outData };
-    Context* context = cutContext(userData, cutOutput);
+    Context* context = cutContext(userData, cutOutput, bestLoop);
     lineCallbacks(context, line);
     quadCallbacks(context, quad);
 
@@ -132,17 +158,17 @@ void TestCut() {
     // added line completes cut; resolve should outputs left half, right half; no error
     OpPoint connectingPts[] { linePts[1], quadPts[0] };
     AddLine(cutWinding.winding.contour, { context, connectingPts, lineSize, line } );
-    cutCallbacks(context);
+ //   cutCallbacks(context);
     testData.cutData = CutData(CutDirection::clockwise);
     Resolve(context);
     OP_ASSERT(ContextError::none == Error(context));
-    OP_ASSERT(std::string::npos != testData.outStr.find("{ 15, 45 }")); 
-    OP_ASSERT(std::string::npos == testData.outStr.find("{ 45, 15 }")); 
+    OP_ASSERT(std::string::npos != testData.outStr.find("{ 15.000000, 45.000000 }")); 
+    OP_ASSERT(std::string::npos == testData.outStr.find("{ 45.000000, 15.000000 }")); 
     testData.cutData = CutData(CutDirection::counterclockwise);
     Resolve(context);
     OP_ASSERT(ContextError::none == Error(context));
-    OP_ASSERT(std::string::npos == testData.outStr.find("{ 15, 45 }")); 
-    OP_ASSERT(std::string::npos != testData.outStr.find("{ 45, 15 }")); 
+    OP_ASSERT(std::string::npos == testData.outStr.find("{ 15.000000, 45.000000 }")); 
+    OP_ASSERT(std::string::npos != testData.outStr.find("{ 45.000000, 15.000000 }")); 
 
     DeleteContext(context);
 }

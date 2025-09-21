@@ -16,7 +16,10 @@ constexpr size_t lineSize = sizeof(OpPoint) * 2;  // caller size of line
 constexpr size_t quadSize = sizeof(OpPoint) * 3;  // caller size of quadratic Bezier
 
 // Called by the engine for each output curve. Write the curve description to the console
-static WindKeep pathOutput(Curve c, Winding , bool firstPt, bool lastPt ) {
+static WindKeep pathOutput(Output o) {
+    const Curve& c = o.curve;
+    bool firstPt = (int) o.attribute & (int) LoopAttribute::first;
+    bool lastPt = (int) o.attribute & (int) LoopAttribute::last;
     if (firstPt)
         OpDebugOut("contour start --\n");  // portable printf() for std::string
     std::string outStr = lineType == c.type ? "line: " : "quad: ";

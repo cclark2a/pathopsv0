@@ -353,10 +353,8 @@ WindingCondition OpEdge::apply() {
 	if (disabled || Unsortable::none != isUnsortable)
 		return 0;
     OpContext* ctxt = context();
-	PathOpsV0Lib::WindKeep keep = ctxt->windingCallbacks.windingKeepFuncPtr(curve.c.context, 
-            winding.w, sum.w);
-    PathOpsV0Lib::WindingVisible woundFunc = ctxt->windingCallbacks.windingWoundFuncPtr;
-    bool affectsWinding = woundFunc ? (*woundFunc)(curve.c.context, winding.w) : true;
+	PathOpsV0Lib::WindKeep keep = winding.keep(sum);
+    bool affectsWinding = winding.isWound();
 	switch (keep) {
 		case PathOpsV0Lib::WindKeep::Discard:
 			setDisabled(OP_LINE_FILE_NPARGS());
@@ -419,13 +417,13 @@ void OpEdge::clearActiveAndPals(OP_LINE_FILE_NP_ARGS()) {
 		pal.edge->setActive(false);
 		pal.edge->setDisabled(OP_LINE_FILE_NP_CARGS());
 	}
-	clearLastEdge(InOutput::no);
+	clearLastEdge(/* InOutput::no */);
 }
 
-void OpEdge::clearLastEdge(InOutput inOut) {
+void OpEdge::clearLastEdge(/* InOutput inOut */) {
 	if (!lastEdge)
 		return;
-	lastEdge->segment->contour->removeLast(this, inOut);
+	lastEdge->segment->contour->removeLast(this /*, inOut*/);
 	lastEdge = nullptr;
 }
 
@@ -554,23 +552,25 @@ bool OpEdge::output(bool closed) {
 		reverse = iNormal == oNormal;
 		return true;
 	};
-	do {
-	//	OP_ASSERT(!edge->inOutput);	// !!! cubic714074 triggers with very small edge, used twice
-		unsigned index;
-		const Distance* inner = nullptr;
-		for (index = 0; index < edge->ray.distances.size(); ++index) {
-			inner = &edge->ray.distances[index];
-			if (inner->edge == edge)
-				break;
-		}
-		OP_ASSERT(!index || index < edge->ray.distances.size());
-		if (index == 0)  // if nothing to its left, don't reverse
-			break;
-		const Distance* outer = &edge->ray.distances[index - 1];
-		if (test(outer, inner))
-			break;
-		edge = edge->nextEdge;
-	} while (firstEdge != edge);
+    if (!context()->windingCallbacks.windingWoundFuncPtr) {
+	    do {
+	    //	OP_ASSERT(!edge->inOutput);	// !!! cubic714074 triggers with very small edge, used twice
+		    unsigned index;
+		    const Distance* inner = nullptr;
+		    for (index = 0; index < edge->ray.distances.size(); ++index) {
+			    inner = &edge->ray.distances[index];
+			    if (inner->edge == edge)
+				    break;
+		    }
+		    OP_ASSERT(!index || index < edge->ray.distances.size());
+		    if (index == 0)  // if nothing to its left, don't reverse
+			    break;
+		    const Distance* outer = &edge->ray.distances[index - 1];
+		    if (test(outer, inner))
+			    break;
+		    edge = edge->nextEdge;
+	    } while (firstEdge != edge);
+    }
 	if (abort)
 		return false;
 	if (reverse) {
@@ -625,7 +625,7 @@ bool OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first) {
 	if (firstEdge == next)
 		return !inOutput;
 	OP_ASSERT(next);
-	return next->outputLinkedList(firstEdge, false) || !inOutput;
+	return next->outputLinkedList(firstEdge, false) && !inOutput;
 }
 
 // in function to make setting breakpoints easier
@@ -655,11 +655,13 @@ void OpEdge::setLastEdge(OpEdge* first, OpEdge* last, InOutput inOut) {
 	OP_ASSERT(InOutput::yes == inOut || first == last || !last->lastEdge);
 //	OP_ASSERT(!last->nextEdge);
 	OpContour* newContour = last->segment->contour;
-	if (first->lastEdge && first != this)
-		newContour->removeLast(first, inOut);
+	if (first->lastEdge && first != this) {
+		newContour->removeLast(first /*, inOut */);
+        first->lastEdge = nullptr;
+    }
 	bool updateLast = !oldContour || oldContour != newContour;
 	if (updateLast && oldContour)
-		oldContour->removeLast(this, inOut);
+		oldContour->removeLast(this /*, inOut */);
 	lastEdge = last;
 	if (updateLast && InOutput::no == inOut)
 		newContour->addLast(this);
@@ -714,7 +716,7 @@ bool OpEdge::setLinkDirection(EdgeMatch match, std::vector<OpEdge*>* linkErasure
 	}
 	std::swap(edge->priorEdge, edge->nextEdge);
 	edge->setWhich(!edge->which());
-	edge->clearLastEdge(inOut);
+	edge->clearLastEdge(/* inOut */);
 	lastEdge = edge;
 	if (edge->linkHead && linkErasures) {
 #if OP_DEBUG_VALIDATE
@@ -828,7 +830,7 @@ void OpEdge::unlink() {
 #endif
 	priorEdge = nullptr;
 	nextEdge = nullptr;
-	clearLastEdge(InOutput::no);
+	clearLastEdge(/* InOutput::no */);
 	setWhich(EdgeMatch::start);  // !!! should this set to none?
 }
 

@@ -12,7 +12,8 @@ constexpr size_t frameLineSize = sizeof(OpPoint) * 2;
 constexpr CurveType frameQuad = 2;
 constexpr size_t frameQuadSize = sizeof(OpPoint) * 3;
 
-static WindKeep frameOutput(Curve c, Winding , bool firstPt, bool lastPt) {
+static WindKeep frameOutput(Output o) {
+    const Curve& c = o.curve;
     std::string outStr = frameLine == c.type ? "line: " : "quad: ";
     auto addPtStr = [&outStr](const OpPoint& pt, std::string delimiter) {
         outStr += pt.toString() + delimiter;

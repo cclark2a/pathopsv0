@@ -128,6 +128,7 @@ inline void frameDumpSetFunc(const char*& str, Winding& winding) {
     OP_TAGGED_FUNCTION(frameDiscardFunc), \
     OP_TAGGED_FUNCTION(frameIntersectFunc), \
     OP_TAGGED_FUNCTION(frameKeepFunc), \
+    OP_TAGGED_FUNCTION(frameWoundFunc), \
     OP_TAGGED_FUNCTION(frameZeroFunc), \
     OP_TAGGED_FUNCTION(frameSubtractFunc), \
     OP_TAGGED_FUNCTION(frameVisibleFunc), \

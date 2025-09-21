@@ -253,6 +253,7 @@ struct OpContext {
 	void dumpResolve(OpEdge*& );
 	void dumpResolve(OpIntersection*& );
 	void dumpResolve(const OpLimb*& limbRef);
+	void dumpResolve(OpLimb*& limbRef);
 	void dumpResolve(OpSegment*& );
 	#include "OpDebugDeclarations.h"
 #endif

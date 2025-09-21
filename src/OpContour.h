@@ -111,7 +111,7 @@ struct OpContour {
 
 	void pushLinkup(OpEdge* );
 	RelinkJoins relinkUnambiguous(OpJoiner* , size_t checked);
-	void removeLast(OpEdge* , InOutput );
+	void removeLast(OpEdge* /*, InOutput */);
 	void removeLink(OpEdge* );
 	void setLinkEdge(OpEdge* link, size_t index);
 	void setSeen(int tree_id);

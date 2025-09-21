@@ -62,6 +62,8 @@ struct OpWinding {
 	void copyOnDemand();
 	bool equal(const PathOpsV0Lib::Winding& ) const;
 	bool isSet() const { return WindingType::uninitialized != type; }
+    bool isWound() const;
+    PathOpsV0Lib::WindKeep keep(const OpWinding& sum) const;
 	void subtract(const PathOpsV0Lib::Winding& );
 	void subtract(const OpWinding& );
 	void move(const OpWinding& opp, bool backwards);

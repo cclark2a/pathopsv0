@@ -139,7 +139,7 @@ void OpContour::addToLinkups(OpJoiner* joiner, OpEdge* e) {
 			OP_ASSERT(next->isActive());
 			next->setActive(false);
 		}
-		next->clearLastEdge(InOutput::no);
+		next->clearLastEdge(/* InOutput::no */);
 		next->inLinkups = true;
 		last = next;
 		next = next->nextEdge;
@@ -254,7 +254,9 @@ struct LoopCheck {
 // !!! TODO : find direction of loop at add 'reverse' param to output if needed
 //     direction should consider whether edge normal points to inside or outside
 bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* e, EdgeMatch loopMatch) {
-	std::vector<LoopCheck> edges;
+    if (context->windingCallbacks.windingWoundFuncPtr)
+        return false;
+    std::vector<LoopCheck> edges;
 	OpEdge* test = e;
 	// walk forwards to end, keeping one point per edge
 	OP_ASSERT(e && !e->debugIsLoop());
@@ -530,18 +532,22 @@ RelinkJoins OpContour::relinkUnambiguous(OpJoiner* joiner, size_t link) {
 	return RelinkJoins::again;
 }
 
-void OpContour::removeLast(OpEdge* edge, InOutput inOut) {
+// !!! this had incomplete code that cared about 'InOutput' but didn't do anything with it
+//     removing that for now...
+void OpContour::removeLast(OpEdge* edge  /*, InOutput inOut */) {
 	for (size_t index = 0; index < endLinks.l.size(); ++index) {
 		OpEdge* test = endLinks.l[index];
 		if (edge == test) {
 			endLinks.l.erase(endLinks.l.begin() + index);
-			edge->lastEdge = nullptr;
+//			edge->lastEdge = nullptr;
 			return;
 		}
 	}
-	if (edge->inOutput || InOutput::yes == inOut)
+#if 0
+    if (edge->inOutput || InOutput::yes == inOut)
 		return;
 	OP_ASSERT(0);
+#endif
 }
 
 void OpContour::removeLink(OpEdge* edge) {

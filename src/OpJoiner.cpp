@@ -196,9 +196,46 @@ void OpLimb::set(OpTree& tree, OpEdge* test, OpLimb* p, EdgeMatch m, LimbPass l,
 			testParent = testParent->parent;
 		}
 	}
-	if (looped && tree.bestPerimeter > bounds.perimeter()) {
-		tree.bestPerimeter = bounds.perimeter();
-		tree.bestLimb = this;
+    // !!! start here
+    // cut test uses winding frame-fill instead of perimeter to choose best child
+    // cut test needs to be given each possibility and then have a way to provide
+    // selection akin to best-perimeter once all possible choices are known...
+    if (looped) {
+        PathOpsV0Lib::CurveOutput outFunc = tree.context->contextCallbacks.bestLoopFuncPtr;
+        bool kept = false;
+        if (outFunc) {
+            const OpLimb* limb = this;
+            bool firstPt = true;
+	        do {
+                OpEdge* outEdge = limb->edge;
+                if (EdgeMatch::end == limb->match) {
+                    outEdge = outEdge->lastEdge;
+                    do {
+	                    OpCurve copy(outEdge->curve.c, Rotated::no);
+                        copy.reverse();
+                        OpEdge* next = outEdge->priorEdge;
+                        kept |= PathOpsV0Lib::WindKeep::Discard != copy.bestLoop(outEdge->winding.w, 
+                                firstPt, !!next  OP_DEBUG_PARAMS(outEdge->id));
+                        firstPt = false;
+                        outEdge = next;
+                    } while (outEdge && !kept);
+                } else {
+                    do {
+                        if (93 == outEdge->id)
+                            dmpFile();
+                        OpEdge* next = outEdge->nextEdge;
+                        kept |= PathOpsV0Lib::WindKeep::Discard != outEdge->curve.bestLoop(
+                                outEdge->winding.w, firstPt, !!next  OP_DEBUG_PARAMS(outEdge->id));
+                        outEdge = next;
+                    } while (outEdge && !kept);
+                }
+            } while ((limb = limb->parent) && !kept);
+            if (kept)
+                tree.bestLimb = this;
+        } else if (tree.bestPerimeter > bounds.perimeter()) {
+		    tree.bestPerimeter = bounds.perimeter();
+		    tree.bestLimb = this;
+        }
 	}
 	closeDistance = (lastPtT.pt - tree.firstPt).length();
 	if (tree.bestDistance > closeDistance) {
@@ -351,15 +388,30 @@ connectWithFiller:
 	return branch;
 }
 
+#if OP_DEBUG_DUMP
+OpTree::OpTree(DumpSerialization , OpContext* c)
+    : context(c)
+	, bestGapLimb(nullptr)
+	, bestLimb(nullptr)
+	, bestDistance(OpNaN)
+	, bestPerimeter(OpNaN)
+	, maxLimbs(0) 
+	, totalUsed(0) 
+    , id(0)
+	, limbPass(LimbPass::none)
+	, smallGap(false) {
+}
+#endif
+
 OpTree::OpTree(OpJoiner& join) 
 	: context(join.edge->segment->contour->context)
 	, bestGapLimb(nullptr)
 	, bestLimb(nullptr)
 	, firstPt(join.edge->whichSect().pt)
-	, limbPass(LimbPass::linked)
 	, bestDistance(OpInfinity)
 	, bestPerimeter(OpInfinity)
 	, totalUsed(0) 
+	, limbPass(LimbPass::linked)
 	, smallGap(false) {
 	id = context->nextID();
 	maxLimbs = context->contextCallbacks.maxLimbsFuncPtr ?
@@ -587,6 +639,7 @@ void OpTree::initialize(OpContour& contour) {
 
 // join best limb to edge start, then parent to best limb, until lastEdge is found
 bool OpTree::join(OpJoiner& join) {
+    OpBreak(this, 129);
 	std::vector<OpEdge*> linkupsErasures;
 	const OpLimb* bestL = bestLimb;
 	OpEdge* best = bestL->edge;
@@ -636,13 +689,17 @@ bool OpTree::join(OpJoiner& join) {
 		bestL = lastLimb;
 		best = bestL->edge;
 	}
+//    start here;
+    // set join.edge to first in linked list
     EdgeOutput edgeOutput(context, join.edge);
 	OP_TRACK(linkupsErasures);
 	for (OpEdge* edge : linkupsErasures) {
-        if (!edge->inOutput)
+        if (!edge->inOutput) {
+            edge->setLastEdge();
             continue;
+        }
 		if (edge != join.edge && edge->lastEdge)
-            edge->lastEdge->segment->contour->removeLast(edge, InOutput::yes);
+            edge->clearLastEdge(/* InOutput::yes */);
 #if OP_DEBUG_VALIDATE
 		OP_ASSERT(edge->debugScheduledForErasure);
 		edge->debugScheduledForErasure = false;
@@ -759,9 +816,21 @@ void OpLimbStorage::reset() {
 	used = 0;
 }
 
+#if OP_DEBUG_DUMP
+OpJoiner::OpJoiner(DumpSerialization , OpContext* c) 
+    : context(c)
+    , linkMatch(EdgeMatch::none)
+	, linkPass(LinkPass::none)
+	, edge(nullptr)
+	, lastLink(nullptr) 
+    OP_DEBUG_PARAMS(debugRecursiveDepth(0)) {
+}
+
+#endif
+
 OpJoiner::OpJoiner(OpContext& contours)
-	: context(&contours),
-      linkMatch(EdgeMatch::none)
+	: context(&contours)
+    , linkMatch(EdgeMatch::none)
 	, linkPass(LinkPass::none)
 	, edge(nullptr)
 	, lastLink(nullptr)

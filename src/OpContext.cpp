@@ -235,9 +235,7 @@ OpEdge* OpContext::addFiller(const OpPtT& start, const OpPtT& end) {
 }
 
 void OpContext::addUserData(PathOpsV0Lib::ContextUserData contextUserData) {
-    uint8_t* storage = allocateCallerData(contextUserData.size);
-    std::memcpy(storage, contextUserData.data, contextUserData.size);
-    userData.push_back({ storage,contextUserData.size, contextUserData.type });
+    userData.push_back(contextUserData);
 }
 
 uint8_t* OpContext::allocateCallerData(size_t size) {
@@ -303,6 +301,8 @@ OpIntersection* OpContext::allocateIntersection() {
 }
 
 OpLimb* OpContext::allocateLimb() {
+	if (!limbStorage)
+		limbStorage = new OpLimbStorage;
 	if (limbStorage->used == ARRAY_COUNT(limbStorage->storage)) {
 		OpLimbStorage* next = new OpLimbStorage;
 		next->nextBlock = limbStorage;
@@ -627,9 +627,6 @@ WindingCondition OpContext::pathOps() {
     }
 	WindingCondition windingCondition = apply();  // suppress edges which don't meet op criteria
 //	demotePalLinks();  // mark edges that connect pal ends as unsortable so assembly can ignore them
-#if 0 && OP_DEBUG && !OP_DEBUG_FAST_TEST
-    verifyFile(this, "dmp.txt", "dmp2.txt");
-#endif
 	if (!windingCondition && !assemble())
 		OP_DEBUG_FAIL(*this, -1);
 	// !!! missing final step to reverse order of contours as winding rule requires

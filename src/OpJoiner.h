@@ -35,6 +35,7 @@ struct LinkUps {
 };
 
 struct OpJoiner {
+    OP_DEBUG_DUMP_CODE(OpJoiner(DumpSerialization , OpContext* ));
 	OpJoiner(OpContext& contours);
 	OP_DEBUG_CODE(~OpJoiner());
 	static bool LinkEnd(OpEdge *);
@@ -64,7 +65,6 @@ struct OpJoiner {
 	LinkPass linkPass;
 	OpEdge* edge;  // start of current link list
 	OpEdge* lastLink;  // end of current link list
-//	OpPoint matchPt;
 	OP_DEBUG_CODE(int debugRecursiveDepth);
 };
 
@@ -145,10 +145,10 @@ struct OpLimb {
 #endif
 };
 
-
 // !!! eventually (if this works) add tree (or limb storage) to joiner
 // prefer the looped limb with the smallest perimeter 
 struct OpTree {
+    OP_DEBUG_DUMP_CODE(OpTree(DumpSerialization , OpContext* ));
 	OpTree(OpJoiner& );
 	OP_DEBUG_CODE(~OpTree());
 	void addDisabled(OpContour& );
@@ -172,12 +172,12 @@ struct OpTree {
 	OpLimb* bestGapLimb;  // used only by detached pass
 	const OpLimb* bestLimb;   // index into limbStorage
 	OpPoint firstPt;
-	LimbPass limbPass;
 	float bestDistance;  // used only by detached pass
 	float bestPerimeter;
 	int maxLimbs;
 	int totalUsed;
 	int id;
+	LimbPass limbPass;
 	bool smallGap;
 	OP_DEBUG_CODE(int debugAddEach = 0);
 };

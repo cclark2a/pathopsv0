@@ -422,7 +422,7 @@ public:
 	WindingCondition apply();
 	void calcCenterT();
 	void clearActiveAndPals(OP_LINE_FILE_NP_ARGS());
-	void clearLastEdge(InOutput );
+	void clearLastEdge(/* InOutput */);
 	void clearNextEdge();
 	void clearPriorEdge();
 	void complete(OpPtT startPtT, OpPtT endPtT);

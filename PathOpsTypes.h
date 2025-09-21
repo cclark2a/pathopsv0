@@ -107,6 +107,20 @@ enum class WindKeep {
 // caller defined winding condition type (e.g., contains, overlaps, excludes, ...)
 typedef int WindingCondition;
 
+// both first and last may be set
+enum class LoopAttribute {
+    none = 0,
+    first = 1,
+    last = 2,
+    reversed = 4
+};
+
+struct Output {
+    Curve curve;
+    Winding winding;
+    LoopAttribute attribute;
+};
+
 // curve callbacks
 
 // intersects the curve and axis at the axis intercept
@@ -222,7 +236,7 @@ struct WindingCallbacks {
 
 // Common path operations return WindKeep::discard, so that curves are output once.
 // adds curve to output
-typedef WindKeep (*CurveOutput)(Curve , Winding , bool firstPt, bool lastPt);
+typedef WindKeep (*CurveOutput)(Output );
 
 // initializes caller's path as empty
 typedef void (*EmptyCallerPath)(Context* );
@@ -251,6 +265,7 @@ typedef float (*MaxGap)(Context* );
 struct ContextCallbacks {
 	CurveOutput curveOutputFuncPtr = nullptr;
 	EmptyCallerPath emptyCallerPathFuncPtr = nullptr;
+    CurveOutput bestLoopFuncPtr = nullptr;  // can override smallest perimeter for best output loop
 	SetLineType setLineTypeFuncPtr = nullptr;  // default to (CurveType) 1
 	MaxCurveCurveValue maxSplitFuncPtr = nullptr;
 	MaxCurveCurveValue maxBoundedEdgeFuncPtr = nullptr;
@@ -275,7 +290,7 @@ struct ContextCallbacks {
 // return true if the engine should abort
 typedef bool (*ErrorDispatch)(ContextError , Curve* );
 
-// callder-defined function that determines if an error is fatal
+// caller-defined function that determines if an error is fatal
 struct ErrorHandler {
 	ErrorDispatch errorDispatchFuncPtr;
 };

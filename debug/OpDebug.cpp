@@ -505,13 +505,15 @@ void OpDebugByteArray(const char*& str, size_t size, uint8_t* bytes) {
 }
 
 float OpDebugReadNamedFloat(const char*& str, const char* label) {
-    OpDebugRequired(str, label);
+    if (!OpDebugOptional(str, label))
+        return OpNaN;        
     float result = OpDebugHexToFloat(str);
     return result;
 }
 
 int OpDebugReadNamedInt(const char*& str, const char* label) {
-    OpDebugRequired(str, label);
+    if (!OpDebugOptional(str, label))
+        return 0;
     char* endPtr;
     int result = strtol(str, &endPtr, 10);
     str = endPtr;
@@ -767,10 +769,6 @@ bool OpCurveCurve::debugShowImage(bool atDepth) {
 		::dmpDepth(depth);
 		::drawDepth(depth);
 	}
-#endif
-#if 0  // !!! broken; fix next time it is needed
-	dmpFile();
-	verifyFile(context);
 #endif
 #endif
 	return false;
@@ -1084,7 +1082,7 @@ void OpContour::debugMatchRay() {
             }
             // look to see if edge maps a non-zero ray to a prior edge
             WindZero linkZero = linkup->windZero;
-            OP_ASSERT(WindZero::unset != linkZero);
+            OP_ASSERT(WindZero::unset != linkZero || !linkup->winding.isWound());
 	        NormalDirection NdotR = linkup->normalDirection(-linkup->ray.axis, 
                     linkDist->edgeInsideT);
             if (NormalDirection::downLeft == NdotR)

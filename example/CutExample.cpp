@@ -12,7 +12,8 @@ constexpr size_t lineSize = sizeof(OpPoint) * 2;
 constexpr CurveType quad = 2;
 constexpr size_t quadSize = sizeof(OpPoint) * 3;
 
-WindKeep cutExampleOutput(Curve c, Winding , bool firstPt, bool lastPt) {
+WindKeep cutExampleOutput(Output o) {
+    const Curve& c = o.curve;
     std::string outStr = line == c.type ? "line: " : "quad: ";
     auto addPtStr = [&outStr](const OpPoint& pt, std::string delimiter) {
         outStr += pt.toString() + delimiter;
