@@ -337,7 +337,7 @@ struct CoinPal {
 };
 
 struct EdgeOutput {
-    EdgeOutput(OpContext* context, OpEdge* edge);
+    EdgeOutput(OpContext* context, OpEdge* edge, bool isLoop);
 };
 
 struct OpEdge {

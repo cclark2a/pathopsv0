@@ -924,27 +924,42 @@ void OpDebugPicture::bootStrap(OpContext* c) {
     clear();
     addPoly.picture = this;
     context = c;
-    double left = 6.2158576999455839;
-    double top = 6.2158576999455839;
-    double right = 53.784142300054413;
-    double bottom = 53.784142300054413;
-    left += zoomOffset.dx;
-    top += zoomOffset.dy;
-    right += zoomOffset.dx;
-    bottom += zoomOffset.dy;
+    OpPointBounds contourBounds;
+    for (auto contourIter = contourIterator.begin(); contourIter != contourIterator.end(); ++contourIter) {
+        contourBounds.add((*contourIter)->bounds);
+    }
+    OpPoint leftTop {0, 0};
+    OpPoint rightBottom { 100, 100};
+    if (contourBounds.isFinite()) {
+        leftTop = { contourBounds.left, contourBounds.top };
+        rightBottom = { contourBounds.right, contourBounds.bottom };
+        float dWH = contourBounds.width() - contourBounds.height();
+        if (dWH > 0) {
+            leftTop.y -= dWH / 2;
+            rightBottom.y += dWH / 2;
+        } else if (dWH < 0) {
+            leftTop.x += dWH / 2; 
+            rightBottom.x -= dWH / 2; 
+        }
+    }   
+    leftTop += zoomOffset;
+    rightBottom += zoomOffset;
 // !!! hard-code to above values to bootstrap
 //    DebugOpBounds(left, top, right, bottom);
-    left *= zoomFactor;
-    top *= zoomFactor;
-    right *= zoomFactor;
-    bottom *= zoomFactor;
-    focus = { (float) left, (float) top, (float) right, (float) bottom };
-    OpVector localWH { (float) right - (float) focus.left, 
-            (float) bottom - (float) focus.top };
+    OpPoint center = (rightBottom + leftTop) / 2;
+    OpVector size = (rightBottom - leftTop) / 2;
+    float zFactor = tuneThreshold ? 1 : zoomFactor;
+    leftTop = center - zFactor * size;
+    rightBottom = center + zFactor * size;
+    focus = { leftTop, rightBottom };
+    OpVector localWH { focus.width(), focus.height() };
     wh = { 1000, 1000 };
     constexpr float subpixels = 4;
-    threshold = { localWH.dx / (wh.dx * subpixels), localWH.dy / (wh.dy * subpixels) };
-    scale = wh.dx / (right - focus.left);
+    threshold = localWH / (wh * subpixels);
+    if (tuneThreshold) {
+        threshold *= zoomFactor;
+    }
+    scale = wh.dx / localWH.dx;
 	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 		const OpEdge* edge = *edgeIter;
 		if (!edge->debugDraw)
@@ -970,8 +985,13 @@ void OpDebugPicture::bootStrap(OpContext* c) {
     addGrid();
 }
 
+void OpDebugPicture::move(OpVector v) { 
+    zoomOffset -= v / scale;
+    redraw();
+}
+
 void OpDebugPicture::pan(OpVector v) { 
-    zoomOffset += v;
+    zoomOffset += v * 1000 / scale;
     redraw();
 }
 
@@ -980,8 +1000,9 @@ void OpDebugPicture::redraw() {
         bootStrap(context);
 }
 
-void OpDebugPicture::zoom(float factor) {
-    zoomFactor -= factor / 64;
+void OpDebugPicture::zoom(int factor) {
+    zoomer -= factor;
+    zoomFactor = powf(2, zoomer / 32.f);
     redraw();
 }
 

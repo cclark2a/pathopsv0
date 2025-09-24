@@ -28,6 +28,8 @@ static SDL_Renderer *renderer = NULL;
 static SDL_Texture* bitmapTexture = NULL;
 static int* frameBuffer = NULL;
 static TTF_Font *font = NULL;
+OpPoint lastMouse;
+static bool dragging = false;
 const int WINDOW_WIDTH = 1000;
 const int WINDOW_HEIGHT = 1000;
 
@@ -104,91 +106,127 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
 /* This function runs when a new event (mouse input, keypresses, etc) occurs. */
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
     SDL_Keymod mod = SDL_GetModState();
-    float scale = 1;
+    int scale = 1;
     if (SDL_KMOD_SHIFT & mod)
         scale *= 2;
     if (SDL_KMOD_CTRL & mod)
         scale *= 4;
     if (SDL_KMOD_ALT & mod)
         scale *= 16;
-    if (event->type == SDL_EVENT_MOUSE_WHEEL) {
-        SDL_MouseWheelEvent& wheel = event->wheel;
-        debugPicture.zoom(wheel.y * scale);
-        return SDL_APP_CONTINUE;
-    }
-    if (event->type == SDL_EVENT_KEY_DOWN) {
-        switch (event->key.key) {
-            case SDLK_LEFT:
-                debugPicture.pan(OpVector(-1, 0) * scale);
-                break;
-            case SDLK_UP:
-                debugPicture.pan(OpVector(0, -1) * scale);
-                break;
-            case SDLK_RIGHT:
-                debugPicture.pan(OpVector(1, 0) * scale);
-                break;
-            case SDLK_DOWN:
-                debugPicture.pan(OpVector(0, 1) * scale);
-                break;
-            case SDLK_C:
-                drawCentersOn ^= true;
-                break;
-            case SDLK_E:
-                drawEdgesOn ^= true;
-                break;
-            case SDLK_F:
-                drawFillOn ^= true;
-                break;
-            case SDLK_G:
-                if (drawGridOn && !drawGridLinear)
-                    drawGridLinear = true;
-                else {
-                    drawGridOn ^= true;
-                    drawGridLinear = false;
-                }
-                break;
-            case SDLK_H:
-                drawHullsOn ^= true;
-                break;
-            case SDLK_I:
-                drawIDsOn ^= true;
-                break;
-            case SDLK_K:
-                drawControlsOn ^= true;
-                break;
-            case SDLK_P:
-                drawPointsOn ^= true;
-                break;
-            case SDLK_S:
-                drawSegmentsOn ^= true;
-                break;
-            case SDLK_T:
-                drawTangentsOn ^= true;
-                break;
-            case SDLK_W:
-                drawWindingsOn ^= true;
-                break;
-            case SDLK_V:
-                drawValuesOn ^= true;
-                break;
-            case SDLK_X:
-                drawHexOn ^= true;
-                break;
-            case SDLK_0:
-            case SDLK_1:
-            case SDLK_2:
-            case SDLK_3:
-            case SDLK_4:
-            case SDLK_5:
-            case SDLK_6:
-            case SDLK_7:
-            case SDLK_8:
-            case SDLK_9:
-                debugPrecision = event->key.key - SDLK_0;
-                break;
-            case SDLK_MINUS:
-                debugPrecision = -1;
-                break;
+    switch (event->type) {
+        case SDL_EVENT_MOUSE_WHEEL: {
+            SDL_MouseWheelEvent& wheel = event->wheel;
+            debugPicture.zoom(wheel.y * scale);
+            OpDebugOut("zoom:" + STR(debugPicture.zoomFactor)
+                    + " wheel.y:" + STR(wheel.y)
+                    + " scale:" + STR(scale) + "\n");
+            return SDL_APP_CONTINUE;
+        } 
+        case SDL_EVENT_MOUSE_BUTTON_DOWN: {
+            dragging = true;
+            SDL_GetMouseState(&lastMouse.x, &lastMouse.y);
+            return SDL_APP_CONTINUE;
+        }
+        case SDL_EVENT_MOUSE_BUTTON_UP: {
+            dragging = false;
+            return SDL_APP_CONTINUE;
+        }
+        case SDL_EVENT_MOUSE_MOTION: {
+            if (!dragging)
+                return SDL_APP_CONTINUE;
+            float x, y;
+            SDL_GetMouseState( &x, &y );
+            if (lastMouse == OpPoint(x, y))
+                return SDL_APP_CONTINUE;
+            OpVector mouseMove = OpPoint(x, y) - lastMouse;
+            debugPicture.move(mouseMove);
+            lastMouse = {x, y};
+            break;
+        }
+        case SDL_EVENT_KEY_DOWN: {
+            constexpr float pan_factor = 1.f / 8;
+            if (SDLK_LSHIFT == event->key.key)
+                return SDL_APP_CONTINUE;
+            switch (event->key.key) {
+                case SDLK_LEFT:
+                    debugPicture.pan(OpVector(-pan_factor * scale, 0));
+                    break;
+                case SDLK_UP:
+                    debugPicture.pan(OpVector(0, -pan_factor * scale));
+                    break;
+                case SDLK_RIGHT:
+                    debugPicture.pan(OpVector(pan_factor * scale, 0));
+                    break;
+                case SDLK_DOWN:
+                    debugPicture.pan(OpVector(0, pan_factor * scale));
+                    break;
+                case SDLK_C:
+                    drawCentersOn ^= true;
+                    break;
+                case SDLK_D:
+                    debugPicture.dump();
+                    break;
+                case SDLK_E:
+                    drawEdgesOn ^= true;
+                    break;
+                case SDLK_F:
+                    drawFillOn ^= true;
+                    break;
+                case SDLK_G:
+                    if (drawGridOn && !drawGridLinear)
+                        drawGridLinear = true;
+                    else {
+                        drawGridOn ^= true;
+                        drawGridLinear = false;
+                    }
+                    break;
+                case SDLK_H:
+                    drawHullsOn ^= true;
+                    break;
+                case SDLK_I:
+                    drawIDsOn ^= true;
+                    break;
+                case SDLK_K:
+                    drawControlsOn ^= true;
+                    break;
+                case SDLK_P:
+                    drawPointsOn ^= true;
+                    break;
+                case SDLK_S:
+                    drawSegmentsOn ^= true;
+                    break;
+                case SDLK_T:
+                    drawTangentsOn ^= true;
+                    break;
+                case SDLK_W:
+                    drawWindingsOn ^= true;
+                    break;
+                case SDLK_V:
+                    drawValuesOn ^= true;
+                    break;
+                case SDLK_X:
+                    drawHexOn ^= true;
+                    break;
+                case SDLK_0:
+                case SDLK_1:
+                case SDLK_2:
+                case SDLK_3:
+                case SDLK_4:
+                case SDLK_5:
+                case SDLK_6:
+                case SDLK_7:
+                case SDLK_8:
+                case SDLK_9:
+                    debugPrecision = event->key.key - SDLK_0;
+                    break;
+                case SDLK_MINUS:
+                    debugPrecision = -1;
+                    break;
+                case SDLK_GRAVE:
+                    if (SDL_KMOD_SHIFT & mod)
+                        debugPicture.tuneThreshold ^= true;
+                    break;
+            }
         }
         debugPicture.redraw();
     }

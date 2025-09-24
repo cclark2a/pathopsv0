@@ -13,7 +13,7 @@
 #include "curves/BinaryWinding.h"
 #include "curves/FrameWinding.h"
 #include "curves/CutWinding.h"
-
+#include "port/SkiaPaths.h"
 #include "debug/OpDebugDump.h"
 
 struct DebugTags {
@@ -30,8 +30,10 @@ std::vector<DebugTags> debugTags {
     BINARY_WINDING_TAGGED_FUNCTIONS
     FRAME_WINDING_TAGGED_FUNCTIONS
     CUT_WINDING_TAGGED_FUNCTIONS
+    SKIAPATH_TAGGED_FUNCTIONS
 #if OP_DEBUG
     DEBUG_SCALE_TAGGED_FUNCTIONS
+    DEBUG_SKIAPATH_TAGGED_FUNCTIONS
 #endif
 #if OP_DEBUG_IMAGE
     UNARY_IMAGE_TAGGED_FUNCTIONS

@@ -272,7 +272,7 @@ bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* e, EdgeMatch loopMatch) {
 			break;
 	}
 	if (e == test) {	// if this forms a loop, there's nothing to detach, return success
-        EdgeOutput edgeOutput(context, e);
+        EdgeOutput edgeOutput(context, e, true);
 		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
 		return true;
 	}
@@ -292,7 +292,7 @@ bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* e, EdgeMatch loopMatch) {
 		detachEdge(oppEdge, EdgeMatch::start);
 		test->setNextEdge(oppEdge);
 		oppEdge->setPriorEdge(test);
-        EdgeOutput edgeOutput(test->context(), test);
+        EdgeOutput edgeOutput(test->context(), test, true);
 		return true;
 	};
 	auto detachPrior = [detachEdge](OpEdge* test, OpEdge* oppEdge) {
@@ -300,7 +300,7 @@ bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* e, EdgeMatch loopMatch) {
 		detachEdge(oppEdge, EdgeMatch::end);
 		test->setPriorEdge(oppEdge);
 		oppEdge->setNextEdge(test);
-        EdgeOutput edgeOutput(test->context(), test);
+        EdgeOutput edgeOutput(test->context(), test, true);
 		return true;
 	};
 	test = e;

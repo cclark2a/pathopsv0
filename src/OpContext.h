@@ -272,8 +272,8 @@ struct OpContext {
 	PathOpsV0Lib::ErrorHandler errorHandler;
 	std::vector<OpContour*> sortedContours; 
 	// these are pointers instead of inline values because the storage with empty slots is first
-	OpEdgeStorage* ccStorage;
 	CurveDataStorage* curveDataStorage;
+	OpEdgeStorage* ccStorage;
 	OpContourStorage* contourStorage;
 	std::vector<OpContour*> contours;
 	OpEdgeStorage* fillerStorage;

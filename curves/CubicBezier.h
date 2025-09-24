@@ -547,10 +547,12 @@ inline std::string cubicDebugDumpName() {
     OP_TAGGED_FUNCTION(cubicTangent), \
     OP_TAGGED_FUNCTION(cubicsEqual), \
     OP_TAGGED_FUNCTION(cubicPtAtT), \
+    OP_TAGGED_FUNCTION(cubicDPtAtT), \
     OP_TAGGED_FUNCTION(cubicHullPtCount), \
 	OP_TAGGED_FUNCTION(cubicRotate), \
     OP_TAGGED_FUNCTION(cubicSubDivide), \
     OP_TAGGED_FUNCTION(cubicXYAtT), \
+    OP_TAGGED_FUNCTION(cubicReverse), \
     OP_TAGGED_FUNCTION(cubicDebugDumpName), \
 
 #endif

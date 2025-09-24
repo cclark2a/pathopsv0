@@ -175,10 +175,10 @@ OpPoint EdgePal::matchPt(EdgeMatch m) const {
 	return edge->ptT(reversed ? !m : m).pt;
 }
 
-EdgeOutput::EdgeOutput(OpContext* context, OpEdge* edge) {
+EdgeOutput::EdgeOutput(OpContext* context, OpEdge* edge, bool isLoop) {
     PathOpsV0Lib::MaxCount maxLoops = context->contextCallbacks.maxLoopsFuncPtr;
     int safetyCounter = maxLoops ? (*maxLoops)((ContextPtr) context) : 0;
-	while (edge->output(false) && --safetyCounter >= 0)
+	while (edge->output(isLoop) && --safetyCounter >= 0)
         OP_ASSERT(safetyCounter >= 0);
 }
 
@@ -597,12 +597,12 @@ bool OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first) {
             && !(*errorDispatchFuncPtr)(PathOpsV0Lib::ContextError::missing, &curve.c));
     if (iStart.isFinite()) {
         OP_DEBUG_CODE(float gapLength = (curve.firstPt() - iStart).length());
-        OP_ASSERT(allowGaps || gapLength <= thresholdLength * 16384);  // !!! gap can be very large; investigate...
+        OP_ASSERT(allowGaps || gapLength <= thresholdLength * 131072);  // !!! gap can be very large; investigate...
         copy.setFirstPt(iStart);
     }
     if (iEnd.isFinite()) {
         OP_DEBUG_CODE(float gapLength = (curve.lastPt() - iEnd).length());
-        OP_ASSERT(allowGaps || gapLength <= thresholdLength * 16384);
+        OP_ASSERT(allowGaps || gapLength <= thresholdLength * 131072);
         copy.setLastPt(iEnd);
     }
 	if (EdgeMatch::end == which())

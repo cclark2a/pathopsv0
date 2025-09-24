@@ -683,7 +683,7 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     debugData.curveCurve1 = CURVE_CURVE_1;
     debugData.curveCurve2 = CURVE_CURVE_2;
     debugData.curveCurveDepth = CURVE_CURVE_DEPTH;
-	debugData.runOneFile = runOneFile;
+	debugData.runOneFile = runOneFile || SKIP_TO_V0;
 	(void) OpV0(a, b, op, &result, &debugData);
 #endif
 #if TEST_SKIA
@@ -994,6 +994,7 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
     debugData.curveCurve1 = CURVE_CURVE_1;
     debugData.curveCurve2 = CURVE_CURVE_2;
     debugData.curveCurveDepth = CURVE_CURVE_DEPTH;
+	debugData.runOneFile = runOneFile || SKIP_TO_V0;
 #if TEST_ANALYZE
 	debugData.limitContours = 165;
 	debugData.limitReached = false;

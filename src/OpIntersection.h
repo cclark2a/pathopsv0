@@ -37,7 +37,7 @@ struct CoinPair {
 	OP_ENUM_MEMBER(no), \
 	OP_ENUM_MEMBER(yes)  /* set for the one of coin pair that will be disabled */
 
-enum class CoinOpp {
+enum class CoinOpp : int8_t {
 	CoinOpp_Enums
 };
 

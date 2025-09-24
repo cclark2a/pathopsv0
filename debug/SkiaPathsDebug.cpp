@@ -69,7 +69,8 @@ std::string dumpSkContour(const SkPath* path, int contour, bool inHex) {
 #endif
 
 #if OP_DEBUG_DUMP
-std::string dumpUnaryContourFunc(DebugContourData caller, DebugLevel , DebugBase debugBase) {
+std::string PathOpsV0Lib::dumpUnaryContourFunc(DebugContourData caller, DebugLevel , 
+        DebugBase debugBase) {
 #if OP_TINY_SKIA
     return "";
 #else
@@ -82,7 +83,7 @@ std::string dumpUnaryContourFunc(DebugContourData caller, DebugLevel , DebugBase
 #endif
 }
 
-std::string dumpBinaryContourFunc(DebugContourData caller, DebugLevel l, DebugBase b) {
+std::string PathOpsV0Lib::dumpBinaryContourFunc(DebugContourData caller, DebugLevel l, DebugBase b) {
 	std::string s = dumpUnaryContourFunc(caller, l, b);
 #if !OP_TINY_SKIA
     BinaryContour callerData;
@@ -95,7 +96,7 @@ std::string dumpBinaryContourFunc(DebugContourData caller, DebugLevel l, DebugBa
     return s;
 }
 
-std::string dumpBinaryContextFunc(DebugContextData caller, DebugLevel l, DebugBase b) {
+std::string PathOpsV0Lib::dumpBinaryContextFunc(DebugContextData caller, DebugLevel l, DebugBase b) {
 #if OP_TINY_SKIA
     return "";
 #else
@@ -113,21 +114,21 @@ std::string dumpBinaryContextFunc(DebugContextData caller, DebugLevel l, DebugBa
 #endif
 
 #if OP_DEBUG_IMAGE
-void* debugSimplifyPathFunc(DebugContourData data) {
+void* PathOpsV0Lib::debugSimplifyPathFunc(DebugContourData data) {
     UnaryContour simplifyContourData;
     OP_ASSERT(sizeof(simplifyContourData) == data.size);
     std::memcpy(&simplifyContourData, data.data, data.size);
     return (void*) simplifyContourData.pathPtr;
 }
 
-bool debugSimplifyGetDrawFunc(DebugContourData data) {
+bool PathOpsV0Lib::debugSimplifyGetDrawFunc(DebugContourData data) {
     UnaryContour simplifyContourData;
     OP_ASSERT(sizeof(simplifyContourData) == data.size);
     std::memcpy(&simplifyContourData, data.data, data.size);
     return simplifyContourData.drawNativePath;
 }
 
-void debugSimplifySetDrawFunc(DebugContourData data, bool draw) {
+void PathOpsV0Lib::debugSimplifySetDrawFunc(DebugContourData data, bool draw) {
     UnaryContour simplifyContourData;
     OP_ASSERT(sizeof(simplifyContourData) == data.size);
     std::memcpy(&simplifyContourData, data.data, data.size);
@@ -135,21 +136,21 @@ void debugSimplifySetDrawFunc(DebugContourData data, bool draw) {
     std::memcpy(data.data, &simplifyContourData, data.size);
 }
 
-void* debugOpPathFunc(DebugContourData data) {
+void* PathOpsV0Lib::debugOpPathFunc(DebugContourData data) {
     BinaryContour opContourData;
     OP_ASSERT(sizeof(opContourData) == data.size);
     std::memcpy(&opContourData, data.data, data.size);
     return (void*) opContourData.pathPtr;
 }
 
-bool debugOpGetDrawFunc(DebugContourData data) {
+bool PathOpsV0Lib::debugOpGetDrawFunc(DebugContourData data) {
     BinaryContour opContourData;
     OP_ASSERT(sizeof(opContourData) == data.size);
     std::memcpy(&opContourData, data.data, data.size);
     return opContourData.drawNativePath;
 }
 
-void debugOpSetDrawFunc(DebugContourData data, bool draw) {
+void PathOpsV0Lib::debugOpSetDrawFunc(DebugContourData data, bool draw) {
     BinaryContour opContourData;
     OP_ASSERT(sizeof(opContourData) == data.size);
     std::memcpy(&opContourData, data.data, data.size);
@@ -157,7 +158,7 @@ void debugOpSetDrawFunc(DebugContourData data, bool draw) {
     std::memcpy(data.data, &opContourData, data.size);
 }
 
-inline bool debugOpSetIsOppFunc(DebugContourData data, int opp) {
+bool PathOpsV0Lib::debugOpSetIsOppFunc(DebugContourData data, int opp) {
     BinaryContour opContourData;
     OP_ASSERT(sizeof(opContourData) == data.size);
     std::memcpy(&opContourData, data.data, data.size);

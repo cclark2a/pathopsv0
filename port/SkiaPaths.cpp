@@ -96,7 +96,7 @@ void SetSkiaCurveCallbacks(Context* context) {
     cubicCallbacks(context, SkPath::kCubic_Verb);
 }
 
-void emptySkPathFunc(Context* context) {
+void PathOpsV0Lib::emptySkPathFunc(Context* context) {
     ContextUserData data = UserData(context, UserDataType::outPath);
     SkPath* skOutput = (SkPath*) data.data;
     skOutput->reset();

@@ -114,7 +114,6 @@ struct OpDebugPicture {
     void addTangents();
     void addWindings();
     void colorPolys();
-    void zoom(float factor);
 
     void add(OpPoint , OpPoint , OpDebugAddPoly* );
     void add(std::vector<OpPoint>& points );
@@ -132,12 +131,14 @@ struct OpDebugPicture {
     void clear();
     OpDebugPoly* findPoly(const OpEdge* );
     OpDebugPoly* findPoly(const OpSegment* );
-    void pan(OpVector v);
+    void move(OpVector v);  // v is in screen coordinates
+    void pan(OpVector v);  // v is percentage of screen
     void redraw();
     void setDevice();
     OpPoint toLocal(OpPoint p);
     OpPoint toDevice(OpPoint p);
     bool touches(const OpRect& bounds);
+    void zoom(int factor);
 #if OP_DEBUG_DUMP
     void dump();
 #endif
@@ -153,7 +154,9 @@ struct OpDebugPicture {
     OpVector threshold;
     OpVector zoomOffset {0, 0};
     double scale; // factor to go from local to device
-    float zoomFactor = 0.687500000f;  // !!! debugging : set to 1
+    float zoomFactor = 1;
+    int zoomer = 0;
+    bool tuneThreshold = false;
 };
 
 #endif

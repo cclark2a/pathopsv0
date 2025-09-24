@@ -40,7 +40,7 @@ typedef double OpCubicFloatType;
 	OP_ENUM_MEMBER(end), \
 	OP_ENUM_MEMBER(both), \
 
-enum class MatchEnds {
+enum class MatchEnds : int8_t {
 	MatchEnds_Enums
 };
 

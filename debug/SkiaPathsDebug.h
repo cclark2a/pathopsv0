@@ -14,6 +14,19 @@ namespace PathOpsV0Lib {
 enum class BinaryOperand : int;
 enum class BinaryWindType : int;
 
+#if OP_DEBUG_DUMP
+std::string dumpUnaryContourFunc(DebugContourData , DebugLevel , DebugBase );
+std::string dumpBinaryContourFunc(DebugContourData caller, DebugLevel , DebugBase );
+std::string dumpBinaryContextFunc(DebugContextData caller, DebugLevel , DebugBase );
+#endif
+void* debugSimplifyPathFunc(DebugContourData );
+bool debugSimplifyGetDrawFunc(DebugContourData );
+void debugSimplifySetDrawFunc(DebugContourData , bool draw);
+void* debugOpPathFunc(DebugContourData );
+bool debugOpGetDrawFunc(DebugContourData );
+void debugOpSetDrawFunc(DebugContourData , bool draw);
+bool debugOpSetIsOppFunc(DebugContourData , int opp);
+
 }
 
 struct UnaryContour {
@@ -60,6 +73,22 @@ void AddDebugSkiaPath(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* , const Sk
 #if !OP_TINY_SKIA
 std::string dumpSkPath(const SkPath* path, bool inHex);
 #endif
+
+#if OP_DEBUG_DUMP && OP_DEBUG
+#define DEBUG_SKIAPATH_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(dumpUnaryContourFunc), \
+    OP_TAGGED_FUNCTION(dumpBinaryContourFunc), \
+    OP_TAGGED_FUNCTION(dumpBinaryContextFunc), \
+    OP_TAGGED_FUNCTION(debugSimplifyPathFunc), \
+    OP_TAGGED_FUNCTION(debugSimplifyGetDrawFunc), \
+    OP_TAGGED_FUNCTION(debugSimplifySetDrawFunc), \
+    OP_TAGGED_FUNCTION(debugOpPathFunc), \
+    OP_TAGGED_FUNCTION(debugOpGetDrawFunc), \
+    OP_TAGGED_FUNCTION(debugOpSetDrawFunc), \
+    OP_TAGGED_FUNCTION(debugOpSetIsOppFunc), \
+
+#endif
+
 
 #endif
 #endif

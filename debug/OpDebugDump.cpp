@@ -261,6 +261,8 @@ std::string enum##Name(enum element) { \
 } \
 \
 enum enum##Str(const char*& str, const char* label, enum enumDefault) { \
+    while ('{' == str[0]) \
+        ++str; \
     if (!OpDebugOptional(str, label)) \
         return enumDefault; \
     size_t strLen = 0; \
@@ -866,37 +868,81 @@ ENUM_NAME_STRUCT(OpDebugExpect)
 
 #define BOOL_TO_STR(data) if (data) s += #data + std::string(" ")
 
+// use static asserts throughout to ensure that all of context is serialized
+#define ASSERT_SERIAL_OFFSET(inst, last, offset, thisField) \
+    static_assert(offsetof(std::remove_reference_t<decltype(inst)>, last) + sizeof((inst).last) \
+            + offset == offsetof(std::remove_reference_t<decltype(inst)>, thisField))
+
+#define ASSERT_SERIAL(instance, lastField, thisField) \
+    ASSERT_SERIAL_OFFSET(instance, lastField, 0, thisField)
+
+// macro checks that function ptrs are consecutive
+#define DEBUG_FIND_TAG(callback, lastField, thisField) \
+    ASSERT_SERIAL(callback, lastField, thisField); \
+    s += debugFindTag(reinterpret_cast<DebugFunction>(callback.thisField))
+
+#define DEBUG_DUMP_BOOL(instance, lastField, thisBool) \
+    ASSERT_SERIAL(instance, lastField, thisBool); \
+    if (thisBool) s += #thisBool " "
+
+#define DEBUG_DUMP_BOOL_INST(instance, lastField, thisBool) \
+    ASSERT_SERIAL(instance, lastField, thisBool); \
+    if (instance.thisBool) s += #thisBool " "
+
 std::string OpPtAliases::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    s += "aliases[\n";
-    for (OpPoint pt : aliases) {
-        s += pt.debugDump(l, b) + "\n";
+    static_assert(0 == offsetof(OpPtAliases, aliases));
+    if (aliases.size()) {
+        s += "aliases:" + STR(aliases.size()) + " [\n";
+        for (OpPoint pt : aliases) {
+            s += pt.debugDump(l, b) + "\n";
+        }
+        s += "] ";
     }
-    s += "] maps[\n";
-    for (OpPtAlias map : maps) {
-        s += map.original.debugDump(l, b) + ":";
-        s += map.alias.debugDump(l, b) + "\n";
+    ASSERT_SERIAL(*this, aliases, maps);
+    if (maps.size()) {
+        s += "maps:" + STR(maps.size()) + " [\n";
+        for (OpPtAlias map : maps) {
+            s += map.original.debugDump(l, b) + ":";
+            s += map.alias.debugDump(l, b) + "\n";
+        }
+        s += "] ";
     }
-    s += "] threshold:" + threshold.debugDump(l, b);
+    ASSERT_SERIAL(*this, maps, threshold);
+    s += "threshold:" + threshold.debugDump(l, b) + " ";
+    ASSERT_SERIAL(*this, threshold, thresholdLength);
+    if (!OpMath::IsDebugNaN(thresholdLength))
+        s += debugValue(DebugLevel::error, b, "thresholdLength", thresholdLength);
+    static_assert(sizeof(OpPtAliases) == offsetof(OpPtAliases, thresholdLength) 
+            + sizeof(thresholdLength) + 4);
     return s;
 }
 
 void OpPtAliases::dumpSet(const char*& str) {
-    OpDebugRequired(str, "aliases");
-    size_t size = OpDebugReadSizeT(str);
-    aliases.resize(size);
-    for (auto& alias : aliases) {
-        alias.dumpSet(str);
+    static_assert(0 == offsetof(OpPtAliases, aliases));
+    if (OpDebugOptional(str, "aliases")) {
+        size_t size = OpDebugReadSizeT(str);
+        aliases.resize(size);
+        for (auto& alias : aliases) {
+            alias.dumpSet(str);
+        }
     }
-    OpDebugRequired(str, "maps");
-    size = OpDebugReadSizeT(str);
-    maps.resize(size);
-    for (auto& map : maps) {
-        map.original.dumpSet(str);
-        map.alias.dumpSet(str);
+    ASSERT_SERIAL(*this, aliases, maps);
+    if (OpDebugOptional(str, "maps")) {
+        size_t size = OpDebugReadSizeT(str);
+        maps.resize(size);
+        for (auto& map : maps) {
+            map.original.dumpSet(str);
+            map.alias.dumpSet(str);
+        }
     }
+    ASSERT_SERIAL(*this, maps, threshold);
     OpDebugRequired(str, "threshold");
     threshold.dumpSet(str);
+    ASSERT_SERIAL(*this, threshold, thresholdLength);
+    thresholdLength = OpDebugReadNamedFloat(str, "thresholdLength");
+    static_assert(sizeof(OpPtAliases) == offsetof(OpPtAliases, thresholdLength) 
+            + sizeof(thresholdLength) + 4);
 }
 
 namespace PathOpsV0Lib {
@@ -960,27 +1006,6 @@ ContextError contextErrorStr(const char*& str, const char* label, ContextError e
 
 }
 
-// use static asserts throughout to ensure that all of context is serialized
-#define ASSERT_SERIAL_OFFSET(inst, last, offset, thisField) \
-    static_assert(offsetof(std::remove_reference_t<decltype(inst)>, last) + sizeof((inst).last) \
-            + offset == offsetof(std::remove_reference_t<decltype(inst)>, thisField))
-
-#define ASSERT_SERIAL(instance, lastField, thisField) \
-    ASSERT_SERIAL_OFFSET(instance, lastField, 0, thisField)
-
-// macro checks that function ptrs are consecutive
-#define DEBUG_FIND_TAG(callback, lastField, thisField) \
-    ASSERT_SERIAL(callback, lastField, thisField); \
-    s += debugFindTag(reinterpret_cast<DebugFunction>(callback.thisField))
-
-#define DEBUG_DUMP_BOOL(instance, lastField, thisBool) \
-    ASSERT_SERIAL(instance, lastField, thisBool); \
-    if (thisBool) s += #thisBool " "
-
-#define DEBUG_DUMP_BOOL_INST(instance, lastField, thisBool) \
-    ASSERT_SERIAL(instance, lastField, thisBool); \
-    if (instance.thisBool) s += #thisBool " "
-
 // must be written before segments' curves for curve names
 static std::string debugCallbacksDump(const std::vector<PathOpsV0Lib::DebugCurveCallbacks>& 
         debugCallbacks, DebugLevel l, DebugBase b) {
@@ -1031,8 +1056,7 @@ static std::string debugContextCallbacksDump(const PathOpsV0Lib::DebugContextCal
 std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     static_assert(0 == offsetof(OpContext, aliases));
-    if (aliases.maps.size()) {
-        s += "aliases:";
+    if (DebugLevel::file == l || aliases.maps.size()) {
         s += aliases.debugDump(l, b) + "\n";
     }
     ASSERT_SERIAL(*this, aliases, callbacks);
@@ -1137,15 +1161,15 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
         }
         s += "\n";
     }
-    ASSERT_SERIAL(*this, sortedContours, ccStorage);
-    if (ccStorage)
-        s += ccStorage->debugDump("ccStorage", l, b) + "\n";
-    ASSERT_SERIAL(*this, ccStorage, curveDataStorage);
+    ASSERT_SERIAL(*this, sortedContours, curveDataStorage);
     if (curveDataStorage) {
         s += "curveDataStorage:";
         s += curveDataStorage->debugDump(l, b) + "\n";
     }
-    ASSERT_SERIAL(*this, curveDataStorage, contourStorage);
+    ASSERT_SERIAL(*this, curveDataStorage, ccStorage);
+    if (ccStorage)
+        s += ccStorage->debugDump("ccStorage", l, b) + "\n";
+    ASSERT_SERIAL(*this, ccStorage, contourStorage);
     if (contourStorage)
         s += contourStorage->debugDump(l, b) + "\n";
     ASSERT_SERIAL(*this, contourStorage, contours);
@@ -1289,8 +1313,9 @@ static void debugContextCallbacksDumpSet(PathOpsV0Lib::DebugContextCallbacks& de
 }
 
 void OpContext::dumpSet(const char*& str) {
-    if (OpDebugOptional(str, "aliases"))
-        aliases.dumpSet(str);
+    static_assert(0 == offsetof(OpContext, aliases));
+    aliases.dumpSet(str);
+    ASSERT_SERIAL(*this, aliases, callbacks);
     OpDebugRequired(str, "callbacks");
     size_t size = OpDebugReadSizeT(str);
     callbacks.resize(size);
@@ -1394,13 +1419,13 @@ void OpContext::dumpSet(const char*& str) {
             sortedContour = (OpContour*) OpDebugReadSizeT(str);
         }
     }
-    ASSERT_SERIAL(*this, sortedContours, ccStorage);
-    if (OpDebugOptional(str, "ccStorage"))
-        OpEdgeStorage::DumpSet(str, this, DumpStorage::cc);
-    ASSERT_SERIAL(*this, ccStorage, curveDataStorage);
+    ASSERT_SERIAL(*this, sortedContours, curveDataStorage);
     if (OpDebugOptional(str, "curveDataStorage"))
         CurveDataStorage::DumpSet(str, &curveDataStorage);
-    ASSERT_SERIAL(*this, curveDataStorage, contourStorage);
+    ASSERT_SERIAL(*this, curveDataStorage, ccStorage);
+    if (OpDebugOptional(str, "ccStorage"))
+        OpEdgeStorage::DumpSet(str, this, DumpStorage::cc);
+    ASSERT_SERIAL(*this, ccStorage, contourStorage);
     if (OpDebugOptional(str, "contourStorage"))
         OpContourStorage::DumpSet(str, this);
     ASSERT_SERIAL(*this, contourStorage, contours);
@@ -3046,10 +3071,12 @@ std::string EdgeDist::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 void EdgeDist::dumpSet(const char*& str) {
+    OpDebugOptional(str, "{");
     if (OpDebugOptional(str, "opp"))
         opp.dumpSet(str);
     if (OpDebugOptional(str, "dist"))
         dist = OpDebugHexToFloat(str);
+    OpDebugOptional(str, "}");
 }
 
 std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
@@ -3074,7 +3101,12 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         return strLabel(label) + " 0:" + p.pts[0].debugDump(l, b) + " 1:"
                 + p.pts[1].debugDump(l, b) + " ";
     };
-    auto strEdge = [dumpIt, strLabel](EdgeFilter match, std::string label, const OpEdge* edge) {
+    auto strEdge = [l, dumpIt, strLabel](EdgeFilter match, std::string label, const OpEdge* edge) {
+        if (DebugLevel::file == l) {
+            if (!edge)
+                return std::string();
+            return label + ":" + STR(edge->id) + " ";
+        }
         if (!dumpIt(match))
             return std::string("");
         return strLabel(label) + ":" + (edge ? STR(edge->id) : std::string("-")) + "/";
@@ -3168,7 +3200,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     if (dumpIt(EdgeFilter::many)) s += strWinding(EdgeFilter::many, "many", many);
     ASSERT_SERIAL(*this, many, coinPals);
     if (dumpIt(EdgeFilter::coinPals) && (dumpAlways(EdgeFilter::coinPals) || coinPals.size())) {
-        s += strLabel("coinPals") + "{";
+        s += strLabel("coinPals:") + STR(coinPals.size()) + " {";
         for (auto& cPal : coinPals) {
             s += "{opp[" + STR(cPal.opp->id) + "] coinID[" + STR(cPal.coinID) + "]} ";
         }
@@ -3197,11 +3229,15 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         s += "hulls";
         if (DebugLevel::file == l)
             s += ":" + STR(hulls.h.size()) + " ";
-        s += "{";  // don't abbreviate in brief
+        else
+            s += "{";  // don't abbreviate in brief
         for (auto& hs : hulls.h)
             s += hs.debugDump(l, b) + " ";
-        if (' ' == s.back()) s.pop_back();
-        s += "} ";
+        if (DebugLevel::file != l) {
+            if (' ' == s.back()) 
+                s.pop_back();
+            s += "} ";
+        }
     }
     ASSERT_SERIAL(*this, hulls, startDist);
     if (dumpIt(EdgeFilter::startDist) && (dumpAlways(EdgeFilter::startDist) || startDist.debugIsSet()))
@@ -3345,9 +3381,7 @@ void dp(int id) {
 void OpEdge::dumpSet(const char*& str) {
     // note that edge pointers are returned as IDs since edge may not have been inflated yet
     auto strID = [&str](const char* label) {
-        if (OpDebugOptional(str, label))
-            return OpDebugReadSizeT(str);
-        return (size_t) 0;
+        return (int64_t) OpDebugReadNamedInt(str, label);
     };
     id = (int) strID("edge");
     static_assert(0 == offsetof(OpEdge, segment));
@@ -3530,6 +3564,8 @@ void OpEdge::dumpResolveAll(OpContext* c) {
     winding.dumpResolveAll(c);
     sum.dumpResolveAll(c);
     many.dumpResolveAll(c);
+    for (auto& coinPal : coinPals)
+        c->dumpResolve(coinPal.opp);
     for (auto& unSect : unSects)
         c->dumpResolve(unSect);
     for (auto& hull : hulls.h)
@@ -4560,7 +4596,7 @@ void EdgeRun::dumpSet(const char*& str) {
     if (OpDebugOptional(str, "byZero"))
         byZero = true;
 #if OP_DEBUG
-    OpDebugRequired(str, "debugBetween");
+//    OpDebugRequired(str, "debugBetween");
 //    debugBetween = (int) OpDebugReadSizeT(str);
 #endif
 #if OP_DEBUG_MAKER
@@ -4644,18 +4680,24 @@ std::string CoinPair::debugDump(DebugLevel l, DebugBase b) const {
 
 std::string RayTarget::debugDump(DebugLevel l, DebugBase b) const {
 	std::string s;
+    static_assert(0 == offsetof(RayTarget, contour));
+    ASSERT_SERIAL(*this, contour, bounds);
 	if (DebugLevel::detailed == l || DebugLevel::file == l)
-		s += "contour[" + STR(contour->id) + "] bounds:" + bounds.debugDump(l, b) + " ";
+		s += "contour[" + STR(contour->id) + "] bounds:" + bounds.debugDump(l, b);
 	else
-		s += STR(contour->id) + " ";
+		s += STR(contour->id);
+    static_assert(sizeof(RayTarget) == offsetof(RayTarget, bounds) + sizeof(bounds));
 	return s;
 }
 
 void RayTarget::dumpSet(const char*& str) {
+    static_assert(0 == offsetof(RayTarget, contour));
     OpDebugRequired(str, "contour");
     contour = (OpContour*) OpDebugReadSizeT(str);
+    ASSERT_SERIAL(*this, contour, bounds);
     OpDebugRequired(str, "bounds");
     bounds.dumpSet(str);
+    static_assert(sizeof(RayTarget) == offsetof(RayTarget, bounds) + sizeof(bounds));
 }
 
 void RayTarget::dumpResolveAll(OpContext* context) {
@@ -4663,6 +4705,7 @@ void RayTarget::dumpResolveAll(OpContext* context) {
 }
 
 std::string RayTargets::debugDump(DebugLevel l, DebugBase b) const {
+    static_assert(0 == offsetof(RayTargets, t));
     std::string s = "t:" + STR(t.size()) + " [";
     for (const RayTarget& target : t) {
 		if (DebugLevel::detailed == l)
@@ -4671,45 +4714,65 @@ std::string RayTargets::debugDump(DebugLevel l, DebugBase b) const {
                 : DebugLevel::brief, b) + " ";
 	}
 	s.pop_back();
-	s += "]";
-	s += DebugLevel::detailed == l ? "\n " : " ";
-	if (edges && DebugLevel::file != l && edges->size()) {
-		s += "edges:" + STR(edges->size()) +  " [";
-		for (const OpEdge* edge : *edges) {
-			s += STR(edge->id) + " ";
-		}
-		s.pop_back();
-		s += "] ";
-	}
+	s += "] ";
+    ASSERT_SERIAL(*this, t, edges);
+    if (DebugLevel::file != l) {  // either target.contour->inX or inY (not worth serializing ?)
+	    s += DebugLevel::detailed == l ? "\n " : " ";
+	    if (edges && DebugLevel::file != l && edges->size()) {
+		    s += "edges:" + STR(edges->size()) +  " [";
+		    for (const OpEdge* edge : *edges) {
+			    s += STR(edge->id) + " ";
+		    }
+		    s.pop_back();
+		    s += "] ";
+	    }
+    }
+    ASSERT_SERIAL(*this, edges, chainBounds);
 	s += "chainBounds" + chainBounds.debugDump(l, b) + " ";
+    ASSERT_SERIAL(*this, chainBounds, edgeIndex);
 	if (SIZE_MAX != edgeIndex)
 		s += "edgeIndex:" + STR(edgeIndex) +  " ";
+    ASSERT_SERIAL(*this, edgeIndex, index);
 	if (SIZE_MAX != index)
 		s += "index:" + STR(index) + " ";
     if (DebugLevel::file == l && debugEdgesContour) {
+        ASSERT_SERIAL(*this, index, debugEdgesContour);
         s += "debugEdgesContour:" + STR(debugEdgesContour->id) + " ";
+        ASSERT_SERIAL(*this, debugEdgesContour, debugEdgesAxis);
         s += "debugEdgesAxis:" + AxisName(debugEdgesAxis) + " ";
+        static_assert(sizeof(RayTargets) == offsetof(RayTargets, debugEdgesAxis) 
+                + sizeof(debugEdgesAxis) + 7);
     }
 	s.pop_back();
 	return s;
 }
 
 void RayTargets::dumpSet(const char*& str) {
+    static_assert(0 == offsetof(RayTargets, t));
     OpDebugRequired(str, "t");
     size_t size = OpDebugReadSizeT(str);
     t.resize(size);
     for (RayTarget& target : t) {
         target.dumpSet(str);
     }
+    OpDebugOptional(str, "]");
+    ASSERT_SERIAL(*this, t, edges);  // either target.contour->inX or inY (not worth serializing ?)
+    ASSERT_SERIAL(*this, edges, chainBounds);
     OpDebugRequired(str, "chainBounds");
     chainBounds.dumpSet(str);
+    ASSERT_SERIAL(*this, chainBounds, edgeIndex);
     if (OpDebugOptional(str, "edgeIndex"))
         edgeIndex = OpDebugReadSizeT(str);
+    ASSERT_SERIAL(*this, edgeIndex, index);
     if (OpDebugOptional(str, "index"))
         index = OpDebugReadSizeT(str);
     if (OpDebugOptional(str, "debugEdgesContour")) {
+        ASSERT_SERIAL(*this, debugEdgesContour, debugEdgesAxis);
         debugEdgesContour = (OpContour*) OpDebugReadSizeT(str);
+        ASSERT_SERIAL(*this, debugEdgesContour, debugEdgesAxis);
         debugEdgesAxis = AxisStr(str, "debugEdgesAxis", Axis::neither);
+        static_assert(sizeof(RayTargets) == offsetof(RayTargets, debugEdgesAxis) 
+                + sizeof(debugEdgesAxis) + 7);
     }
 }
 
@@ -4726,30 +4789,43 @@ void RayTargets::dumpResolveAll(OpContext* context) {
 
 std::string SectRay::debugDumpHeader(DebugLevel l, DebugBase b) const {
     std::string s;
+    ASSERT_SERIAL(*this, erased, homeTangent);
 	if (homeTangent.isFinite())
 		s += debugLabel(l, "homeTangent") + homeTangent.debugDump(l, b) + " ";
+    ASSERT_SERIAL(*this, homeTangent, normal);
 	if (OpMath::IsFinite(normal))
 		s += debugValue(l, b, "normal", normal) + " ";
+    ASSERT_SERIAL(*this, normal, homeCept);
 	if (OpMath::IsFinite(homeCept))
 	    s += debugValue(l, b, "homeCept", homeCept) + " ";
+    ASSERT_SERIAL(*this, homeCept, homeT);
 	if (OpMath::IsFinite(homeT))
 	    s += debugValue(l, b, "homeT", homeT) + " ";
+    ASSERT_SERIAL(*this, homeT, interceptLimit);
 	if (OpMath::IsFinite(interceptLimit))
 	    s += debugValue(l, b, "interceptLimit", interceptLimit) + " ";
+    ASSERT_SERIAL(*this, interceptLimit, mid);
 	if (.5 != mid)
 	    s += debugValue(l, b, "mid", mid) + " ";
+    ASSERT_SERIAL(*this, mid, midEnd);
 	if (.5 != midEnd)
 	    s += debugValue(l, b, "midEnd", midEnd) + " ";
+    ASSERT_SERIAL(*this, midEnd, axis);
 	if (Axis::neither != axis)
 		s += "axis:" + AxisName(axis) + " ";
+    ASSERT_SERIAL(*this, axis, sorted);
 	if (sorted) s += "sorted ";
+    static_assert(sizeof(SectRay) == offsetof(SectRay, sorted) 
+            + sizeof(sorted) + 6);
 	if (' ' == s.back())
 		s.pop_back();
 	return s;
 }
 
 std::string SectRay::debugDump(DebugLevel l, DebugBase b) const {
+    static_assert(0 == offsetof(SectRay, targets));
     std::string s = "targets:" + targets.debugDump(l, b) + "\n";
+    ASSERT_SERIAL(*this, targets, distances);
     s += "distances:" + STR(distances.size()) + " ";
     for (const Distance& dist : distances) {
 		if (DebugLevel::detailed == l)
@@ -4758,6 +4834,7 @@ std::string SectRay::debugDump(DebugLevel l, DebugBase b) const {
                 : DebugLevel::brief, b);
 		s += DebugLevel::detailed == l || DebugLevel::file == l ? "\n" : " ";
 	}
+    ASSERT_SERIAL(*this, distances, erased);
     s += "erased:" + STR(erased.size()) + " ";
     for (const Distance& erase : erased) {
 		if (DebugLevel::detailed == l)
@@ -4766,6 +4843,7 @@ std::string SectRay::debugDump(DebugLevel l, DebugBase b) const {
                 : DebugLevel::brief, b);
 		s += DebugLevel::detailed == l || DebugLevel::file == l ? "\n" : " ";
 	}
+    ASSERT_SERIAL(*this, erased, homeTangent);
     s += debugDumpHeader(l, b) + "\n ";  // indent
 	s += DebugLevel::detailed == l || DebugLevel::file == l ? "\n" : " ";
 	if (!s.empty())
@@ -4774,34 +4852,49 @@ std::string SectRay::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 void SectRay::dumpSet(const char*& str) {
-    OpDebugRequired(str, "targets");
+    static_assert(0 == offsetof(SectRay, targets));
+    if (!OpDebugOptional(str, "targets"))
+        return;
     targets.dumpSet(str);
+    ASSERT_SERIAL(*this, targets, distances);
     OpDebugRequired(str, "distances");
     size_t size = OpDebugReadSizeT(str);
     distances.resize(size);
     for (Distance& dist : distances)
         dist.dumpSet(str);
+    ASSERT_SERIAL(*this, distances, erased);
     OpDebugRequired(str, "erased");
     size = OpDebugReadSizeT(str);
     erased.resize(size);
     for (Distance& erase : erased)
         erase.dumpSet(str);
+    ASSERT_SERIAL(*this, erased, homeTangent);
     if (OpDebugOptional(str, "homeTangent"))
         homeTangent.dumpSet(str);
+    ASSERT_SERIAL(*this, homeTangent, normal);
     if (OpDebugOptional(str, "normal"))
         normal = OpDebugHexToFloat(str);
+    ASSERT_SERIAL(*this, normal, homeCept);
     if (OpDebugOptional(str, "homeCept"))
         homeCept = OpDebugHexToFloat(str);
+    ASSERT_SERIAL(*this, homeCept, homeT);
     if (OpDebugOptional(str, "homeT"))
         homeT = OpDebugHexToFloat(str);
+    ASSERT_SERIAL(*this, homeT, interceptLimit);
     if (OpDebugOptional(str, "interceptLimit"))
         interceptLimit = OpDebugHexToFloat(str);
+    ASSERT_SERIAL(*this, interceptLimit, mid);
     if (OpDebugOptional(str, "mid"))
         mid = OpDebugHexToFloat(str);
+    ASSERT_SERIAL(*this, mid, midEnd);
     if (OpDebugOptional(str, "midEnd"))
        midEnd = OpDebugHexToFloat(str);
+    ASSERT_SERIAL(*this, midEnd, axis);
     axis = AxisStr(str, "axis:", Axis::neither);
+    ASSERT_SERIAL(*this, axis, sorted);
     sorted = OpDebugOptional(str, "sorted");
+    static_assert(sizeof(SectRay) == offsetof(SectRay, sorted) 
+            + sizeof(sorted) + 6);
 }
 
 void SectRay::dumpResolveAll(OpContext* context) {
@@ -4879,6 +4972,9 @@ void CcCurves::dumpResolveAll(OpContext* context) {
     for (auto& edge : c)
         context->dumpResolve(edge);
 }
+
+// start here;
+// stuff is missing, stuff is out of sync
 
 std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
@@ -5002,7 +5098,7 @@ void OpCurveCurve::dumpSet(const char*& str) {
         for (size_t index = 0; index < count; ++index)
             snips[index].dumpSet(str);
     }
-    OpDebugRequired(str, "matchRev");
+//    OpDebugRequired(str, "matchRev");
     OpDebugRequired(str, "depth");
     depth = (int) OpDebugReadSizeT(str);
     uniqueLimits_impl = OpDebugReadNamedInt(str, "uniqueLimits");
@@ -5122,109 +5218,143 @@ ENUM_NAME_STRUCT(MatchEnds)
 ENUM_NAME_STRUCT(CoinOpp)
 
 std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
-    std::string s = "[" + debugDumpID() + "] ";
-    if (DebugLevel::brief == l) {
-        s += "{" + ptT.debugDump(l, b) + ", ";
-        s += "seg:" + segment->debugDumpID();
-        return s;
+    std::string s;
+    if (DebugLevel::file != l) {
+        s = "[" + debugDumpID() + "] ";
+        if (DebugLevel::brief == l) {
+            s += "{" + ptT.debugDump(l, b) + ", ";
+            s += "seg:" + segment->debugDumpID();
+            return s;
+        }
+        s += ptT.debugDump(id ? l : DebugLevel::error, b) + " ";   // !!! may be uninitialized?
+        std::string segmentID = segment ? segment->debugDumpID() : "-";
+        const OpSegment* oppParent = opp ? opp->segment : nullptr;
+        std::string oppID = opp ? opp->debugDumpID() : "-";
+        std::string oppParentID = oppParent ? oppParent->debugDumpID() : "-";
+        s += "segment:" + segmentID + " ";
+        s += "opp/sect:" + oppParentID + "/" + oppID + " ";
+        if (coincidenceID  OP_DEBUG_CODE(|| debugCoincidenceID)) {
+            s += "coinID:" + STR(coincidenceID)  OP_DEBUG_CODE(+ "/" + STR(debugCoincidenceID));
+            s += DebugLevel::file == l ? " coinEnd:" : " " ;
+            s += MatchEndsName(coinEnd) + " ";
+            s += DebugLevel::file == l ? " coinOpp:" : " " ;
+            s += CoinOppName(coinOpp) + " ";
+        }
+        if (unsectID) {
+            s += "unsectID:" + STR(unsectID);
+            ASSERT_SERIAL(*this, coinEnd, unsectEnd);
+            s += DebugLevel::file == l ? " unsectEnd:" : " ";
+            s += MatchEndsName(unsectEnd) + " ";
+        }
+        if (!coincidenceID  OP_DEBUG_CODE(&& !debugCoincidenceID) && !unsectID 
+                && MatchEnds::none != coinEnd)
+            s += "!!! (unexpected) " + MatchEndsName(coinEnd) + " ";
+        if (!coincidenceID  OP_DEBUG_CODE(&& !debugCoincidenceID) && CoinOpp::yes == coinOpp)
+            s += "!!! (unexpected) " + CoinOppName(coinOpp) + " ";
+    } else {
+        static_assert(0 == offsetof(OpIntersection, segment));
+        if (segment)
+            s += "segment:" + segment->debugDumpID() + " ";
+        ASSERT_SERIAL(*this, segment, opp);
+        if (opp)
+            s += "opp:" + opp->debugDumpID() + " ";
+        ASSERT_SERIAL(*this, opp, ptT);
+        s += "ptT:" + ptT.debugDump(id ? l : DebugLevel::error, b) + " ";
+        ASSERT_SERIAL(*this, ptT, coincidenceID);
+        if (coincidenceID)
+            s += "coincidenceID:" + STR(coincidenceID) + " ";
+        ASSERT_SERIAL(*this, coincidenceID, unsectID);
+        if (unsectID)
+            s += "unsectID:" + STR(unsectID) + " ";
+        ASSERT_SERIAL(*this, unsectID, coinEnd);
+        if (MatchEnds::none != coinEnd)
+            s += "coinEnd:" + MatchEndsName(coinEnd) + " ";
+        ASSERT_SERIAL(*this, coinEnd, unsectEnd);
+        if (MatchEnds::none != unsectEnd)
+            s += "unsectEnd:" + MatchEndsName(unsectEnd) + " ";
+        ASSERT_SERIAL(*this, unsectEnd, coinOpp);
+        if (CoinOpp::yes == coinOpp)
+            s += "coinOpp:" + CoinOppName(coinOpp) + " ";
     }
-    s += ptT.debugDump(id ? l : DebugLevel::error, b) + " ";   // !!! may be uninitialized?
+	DEBUG_DUMP_BOOL(*this, coinOpp, betweenCoins);
+	DEBUG_DUMP_BOOL(*this, betweenCoins, ccSect);
+	DEBUG_DUMP_BOOL(*this, ccSect, ccUnsectable);
+	DEBUG_DUMP_BOOL(*this, ccUnsectable, collapsed);
+	DEBUG_DUMP_BOOL(*this, collapsed, mergeProcessed);
+	DEBUG_DUMP_BOOL(*this, mergeProcessed, moved);
 #if OP_DEBUG
-	BOOL_TO_STR(debugErased);
+    if (DebugLevel::file != l) {
+        auto edgeOrSegment = [l](int debug_id, std::string label) {
+            std::string result = label + " ";
+            if (DebugLevel::file != l) {
+                if (::findEdge(debug_id))
+                    result += "(edge) ";
+                else if (::findSegment(debug_id))
+                    result += "(segment) ";
+                else
+                    result += "(edge/seg:" + STR(debug_id) + " not found) ";
+            }
+            result += STR(debug_id) + " ";
+            return result;
+        };
+        if (debugSrcID)
+            s += edgeOrSegment(debugSrcID, "debugSrcID:");
+        if (debugOppID)
+            s += edgeOrSegment(debugOppID, "debugOppID:");
+    } else {
+        if (id)
+            s += "id:" + STR(id) + " ";
+        if (debugSrcID)
+            s += "debugSrcID:" + STR(debugSrcID) + " ";
+        if (debugOppID)
+            s += "debugOppID:" + STR(debugOppID) + " ";
+    }
+    if (debugCoincidenceID)
+        s += "debugCoincidenceID:" + STR(debugCoincidenceID) + " ";
+    DEBUG_DUMP_BOOL(*this, debugCoincidenceID, debugErased);
 #endif
-    std::string segmentID = segment ? segment->debugDumpID() : "-";
-    const OpSegment* oppParent = opp ? opp->segment : nullptr;
-    std::string oppID = opp ? opp->debugDumpID() : "-";
-    std::string oppParentID = oppParent ? oppParent->debugDumpID() : "-";
-    s += "segment:" + segmentID + " ";
-    s += "opp/sect:" + oppParentID + "/" + oppID + " ";
-    if (coincidenceID  OP_DEBUG_CODE(|| debugCoincidenceID)) {
-        s += "coinID:" + STR(coincidenceID)  OP_DEBUG_CODE(+ "/" + STR(debugCoincidenceID));
-        s += DebugLevel::file == l ? " coinEnd:" : " " ;
-        s += MatchEndsName(coinEnd) + " ";
-        s += DebugLevel::file == l ? " coinOpp:" : " " ;
-        s += CoinOppName(coinOpp) + " ";
-    }
-    if (unsectID) {
-        s += "unsectID:" + STR(unsectID);
-        s += DebugLevel::file == l ? " unsectEnd:" : " ";
-        s += MatchEndsName(unsectEnd) + " ";
-    }
-    if (!coincidenceID  OP_DEBUG_CODE(&& !debugCoincidenceID) && !unsectID 
-            && MatchEnds::none != coinEnd)
-        s += "!!! (unexpected) " + MatchEndsName(coinEnd) + " ";
-    if (!coincidenceID  OP_DEBUG_CODE(&& !debugCoincidenceID) && CoinOpp::yes == coinOpp)
-        s += "!!! (unexpected) " + CoinOppName(coinOpp) + " ";
-	BOOL_TO_STR(betweenCoins);
-	BOOL_TO_STR(mergeProcessed);
-	BOOL_TO_STR(moved);
-	BOOL_TO_STR(collapsed);
-	BOOL_TO_STR(ccSect);
-	BOOL_TO_STR(ccUnsectable);
 #if OP_DEBUG_MAKER
     s += debugSetMaker.debugDump() + " ";
-#endif
-#if OP_DEBUG
-    auto edgeOrSegment = [l](int debug_id, std::string label) {
-        std::string result = label + " ";
-        if (DebugLevel::file != l) {
-            if (::findEdge(debug_id))
-                result += "(edge) ";
-            else if (::findSegment(debug_id))
-                result += "(segment) ";
-            else
-                result += "(edge/seg:" + STR(debug_id) + " not found) ";
-        }
-        result += STR(debug_id) + " ";
-        return result;
-    };
-    if (debugSrcID)
-        s += edgeOrSegment(debugSrcID, "debugSrcID:");
-    if (debugOppID)
-        s += edgeOrSegment(debugOppID, "debugOppID:");
 #endif
 	s.pop_back();
     return s;
 }
 
 void OpIntersection::dumpSet(const char*& str) {
-    id = (int) OpDebugReadSizeT(str);
+    static_assert(0 == offsetof(OpIntersection, segment));
+    if (OpDebugOptional(str, "segment"))
+        segment = (OpSegment*) OpDebugReadSizeT(str);
+    ASSERT_SERIAL(*this, segment, opp);
+    if (OpDebugOptional(str, "opp"))
+        opp = (OpIntersection*) OpDebugReadSizeT(str);
+    ASSERT_SERIAL(*this, opp, ptT);
+    OpDebugRequired(str, "ptT");
     ptT.dumpSet(str);
-#if OP_DEBUG
-    debugErased = OpDebugOptional(str, "erased");
-#endif
-    OpDebugRequired(str, "segment");
-    segment = (OpSegment*) OpDebugReadSizeT(str);
-    OpDebugRequired(str, "opp/sect");
-    const OpSegment* oppParent = (const OpSegment*) OpDebugReadSizeT(str);  // discarded
-    OP_ASSERT(oppParent || true);
-    opp = (OpIntersection*) OpDebugReadSizeT(str);
-    auto readCoinID = [](const char*& str) {
-        bool isNegative = OpDebugOptional(str, "-");
-        if (OpDebugOptional(str, "-"))
-            return 0;
-        size_t coinID = OpDebugReadSizeT(str);
-        if ('/' == str[-1])
-            --str;
-        return isNegative ? -(int) coinID : (int) coinID;
-    };
-    coincidenceID = OpDebugOptional(str, "coinID") ? readCoinID(str) : 0;
-#if OP_DEBUG
-    debugCoincidenceID = OpDebugOptional(str, "/") ? readCoinID(str) : 0;
-#endif
+    ASSERT_SERIAL(*this, ptT, coincidenceID);
+    coincidenceID = OpDebugReadNamedInt(str, "coincidenceID");
+    ASSERT_SERIAL(*this, coincidenceID, unsectID);
+    unsectID = OpDebugReadNamedInt(str, "unsectID");
+    ASSERT_SERIAL(*this, unsectID, coinEnd);
     coinEnd = MatchEndsStr(str, "coinEnd", MatchEnds::none);
-    coinOpp = CoinOppStr(str, "coinOpp", CoinOpp::no);
-    unsectID = OpDebugOptional(str, "unsectID") ? readCoinID(str) : 0;
+    ASSERT_SERIAL(*this, coinEnd, unsectEnd);
     unsectEnd = MatchEndsStr(str, "unsectEnd", MatchEnds::none);
-    mergeProcessed = OpDebugOptional(str, "mergeProcessed");
-    moved = OpDebugOptional(str, "moved");
-    collapsed = OpDebugOptional(str, "collapsed");
+    ASSERT_SERIAL(*this, unsectEnd, coinOpp);
+    coinOpp = CoinOppStr(str, "coinOpp", CoinOpp::no);
+	DEBUG_SET_BOOL(OpIntersection, coinOpp, betweenCoins);
+	DEBUG_SET_BOOL(OpIntersection, betweenCoins, ccSect);
+	DEBUG_SET_BOOL(OpIntersection, ccSect, ccUnsectable);
+	DEBUG_SET_BOOL(OpIntersection, ccUnsectable, collapsed);
+	DEBUG_SET_BOOL(OpIntersection, collapsed, mergeProcessed);
+	DEBUG_SET_BOOL(OpIntersection, mergeProcessed, moved);
+#if OP_DEBUG
+    id = OpDebugReadNamedInt(str, "id");
+    debugSrcID = OpDebugReadNamedInt(str, "debugSrcID");
+    debugOppID = OpDebugReadNamedInt(str, "debugOppID");
+    debugCoincidenceID = OpDebugReadNamedInt(str, "debugCoincidenceID");
+	DEBUG_SET_BOOL(OpIntersection, debugCoincidenceID, debugErased);
+#endif
 #if OP_DEBUG_MAKER
     debugSetMaker.dumpSet(str);
-#endif
-#if OP_DEBUG
-    debugSrcID = OpDebugOptional(str, "debugSrcID") ? (int) OpDebugReadSizeT(str) : 0;
-    debugOppID = OpDebugOptional(str, "debugOppID") ? (int) OpDebugReadSizeT(str) : 0;
 #endif
 }
 
@@ -5761,23 +5891,26 @@ void FoundEdge::dumpResolveAll(OpContext* c) {
 
 std::string HullSect::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    if (opp)
+    if (DebugLevel::file == l)
+        s += "opp:" + STR(opp ? opp->id : 0) + " ";
+    else if (opp)
         s += "[" + STR(opp->id) + "] ";
-    s += SectTypeAbbr(type, l);
-    s += " sect:" + sect.debugDump(l, b);
+    s += "sect:" + sect.debugDump(l, b) + " ";
 	if (oppDist.isSet())
-		s += " oppDist:" + oppDist.debugDump(l, b);
+		s += "oppDist:" + oppDist.debugDump(l, b) + " ";
+    s += DebugLevel::file == l ? "type:" + SectTypeName(type) + " " : SectTypeAbbr(type, l) + " ";
+    s.pop_back();
     return s;
 }
 
 void HullSect::dumpSet(const char*& str) {
-    if (OpDebugOptional(str, "["))
-        opp = (OpEdge*) OpDebugReadSizeT(str);
-    else
-        opp = nullptr;
-    type = SectTypeStr(str, "", SectType::none);
-    OpDebugRequired(str, ":");
+    OpDebugRequired(str, "opp");
+    opp = (OpEdge*) OpDebugReadSizeT(str);
+    OpDebugRequired(str, "sect");
     sect.dumpSet(str);
+    if (OpDebugOptional(str, "oppDist"))
+        oppDist.dumpSet(str);
+    type = SectTypeStr(str, "type", SectType::none);
 }
 
 void HullSect::dumpResolveAll(OpContext* c) {

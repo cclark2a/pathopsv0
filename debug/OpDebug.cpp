@@ -512,16 +512,26 @@ float OpDebugReadNamedFloat(const char*& str, const char* label) {
 }
 
 int OpDebugReadNamedInt(const char*& str, const char* label) {
+    while (' ' >= str[0])
+        ++str;
+    while ('{' == str[0])
+        ++str;
     if (!OpDebugOptional(str, label))
         return 0;
+    if ('[' == str[0])
+        ++str;
     char* endPtr;
     int result = strtol(str, &endPtr, 10);
     str = endPtr;
+    if (']' == str[0])
+        ++str;
+    while ('}' == str[0])
+        ++str;
     if (')' == str[0])
         ++str;
     if (',' == str[0])
         ++str;
-    if (' ' >= str[0])
+    while (' ' >= str[0])
         ++str;
     return result;
 }

@@ -9,7 +9,7 @@ struct NativeTextCache { int d = 0; } dummy;
 const NativeTextCache& native_cache(size_t index) { return dummy; }
 
 #define TEST_SMALL_EXAMPLES 0
-#define TEST_SMALL_TESTS 01
+#define TEST_SMALL_TESTS 0
 
 extern void ContainsExample();
 extern void CutExample();

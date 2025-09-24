@@ -118,6 +118,7 @@ inline std::string unaryImageOutFunc(Winding winding, int index) {  // deprecate
 }
 
 #define UNARY_IMAGE_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(unaryImageOutXFunc), \
     OP_TAGGED_FUNCTION(unaryImageOutFunc), \
 
 #endif

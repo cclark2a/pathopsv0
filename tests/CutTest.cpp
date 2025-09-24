@@ -1,4 +1,4 @@
-// (c) 2024, Cary Clark cclark2@gmail.com
+// (c) 2025, Cary Clark cclark2@gmail.com
 
 #include "curves/Line.h"
 #include "curves/QuadBezier.h"
@@ -64,7 +64,6 @@ WindKeep cutOutput(Output o) {
                 cut.corner[1] = OpPoint(SetToNaN::dummy);
                 cut.firstPt = c.data->start;
             } else {
-                dmpFile();
                 OpPoint least = cut.corner[1];
                 if (cut.curves[0].isFrame != cut.curves[1].isFrame 
                         && (!least.isFinite() || c.data->start.x < least.x 
@@ -165,6 +164,7 @@ void TestCut() {
     OP_ASSERT(std::string::npos != testData.outStr.find("{ 15.000000, 45.000000 }")); 
     OP_ASSERT(std::string::npos == testData.outStr.find("{ 45.000000, 15.000000 }")); 
     testData.cutData = CutData(CutDirection::counterclockwise);
+    testData.outStr.clear();
     Resolve(context);
     OP_ASSERT(ContextError::none == Error(context));
     OP_ASSERT(std::string::npos == testData.outStr.find("{ 15.000000, 45.000000 }")); 

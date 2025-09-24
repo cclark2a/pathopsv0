@@ -221,8 +221,6 @@ void OpLimb::set(OpTree& tree, OpEdge* test, OpLimb* p, EdgeMatch m, LimbPass l,
                     } while (outEdge && !kept);
                 } else {
                     do {
-                        if (93 == outEdge->id)
-                            dmpFile();
                         OpEdge* next = outEdge->nextEdge;
                         kept |= PathOpsV0Lib::WindKeep::Discard != outEdge->curve.bestLoop(
                                 outEdge->winding.w, firstPt, !!next  OP_DEBUG_PARAMS(outEdge->id));
@@ -639,7 +637,6 @@ void OpTree::initialize(OpContour& contour) {
 
 // join best limb to edge start, then parent to best limb, until lastEdge is found
 bool OpTree::join(OpJoiner& join) {
-    OpBreak(this, 129);
 	std::vector<OpEdge*> linkupsErasures;
 	const OpLimb* bestL = bestLimb;
 	OpEdge* best = bestL->edge;
@@ -691,7 +688,7 @@ bool OpTree::join(OpJoiner& join) {
 	}
 //    start here;
     // set join.edge to first in linked list
-    EdgeOutput edgeOutput(context, join.edge);
+    EdgeOutput edgeOutput(context, join.edge, false);
 	OP_TRACK(linkupsErasures);
 	for (OpEdge* edge : linkupsErasures) {
         if (!edge->inOutput) {
@@ -867,7 +864,14 @@ OpJoiner::~OpJoiner() {
 bool OpJoiner::linkRemaining(OpContour* contour) {
 	OP_DEBUG_CONTEXT();
 	LinkUps& linkups = contour->linkups;
-	OP_ASSERT(DebugShowImage());
+//	OP_ASSERT(DebugShowImage());
+#if OP_DEBUG_DUMP && !TEST_DEFEAT_BREAK
+    OpDebugData& debugData = context->debugData;
+    if (debugData.runOneFile) {
+        dmpFile();
+        OpAssert(0);
+    }
+#endif
 	linkPass = LinkPass::remaining;
 	// match links may add or remove from link ups. Iterate as long as link ups is not empty
 	for (auto e : linkups.l) {
@@ -986,11 +990,17 @@ bool OpJoiner::linkSimple(OpEdge* first) {
 #endif
 
 void OpJoiner::linkUnambiguous(OpContour* contour, LinkPass lp) {
+#if OP_DEBUG_DUMP && !TEST_DEFEAT_BREAK
+    OpDebugData& debugData = context->debugData;
+    if (debugData.runOneFile) {
+        dmpFile();
+        OpAssert(0);
+    }
+#endif
 	OP_DEBUG_CONTEXT();
 	OP_DEBUG_VALIDATE_CODE(debugValidate());
 	// match up edges that have only a single possible prior or next link, and add them to new list
 	linkPass = lp;
-	OP_DEBUG_VALIDATE_CODE(debugValidate());
 	std::vector<OpEdge*>& edges = LinkPass::normal == lp ? contour->byArea : contour->unsectByArea;
 	for (auto& e : edges) {
 		if (e->disabled)

@@ -150,8 +150,8 @@ SegPt OpPtAliases::addIfClose(OpPoint match) {
 
 OpContext::OpContext()
 	: errorHandler({nullptr})
-	, ccStorage(nullptr)
 	, curveDataStorage(nullptr)
+	, ccStorage(nullptr)
 	, contourStorage(nullptr)
 	, fillerStorage(nullptr)
 	, sectStorage(nullptr)
