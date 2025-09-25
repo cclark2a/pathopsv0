@@ -584,7 +584,7 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o, std::vector<OpIntersectio
 	if (curveSectBounds.widthHeight().axisAligned())
 		return;
 	OP_ASSERT(curveSectBounds.width() && curveSectBounds.height());
-#if 01  // enable to debug errors in bounded edge
+#if 0  // enable to debug errors in bounded edge
 	OP_DEBUG_CODE(OpDebugData& debugData = context->debugData);
 	OP_DEBUG_CODE(bool dbg1 = debugData.curveCurve1 == seg->id || debugData.curveCurve1 == opp->id);
 	OP_DEBUG_CODE(bool dbg2 = debugData.curveCurve2 == seg->id || debugData.curveCurve2 == opp->id);

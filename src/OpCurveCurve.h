@@ -167,11 +167,15 @@ struct SnipPtTs {
 
 #if OP_DEBUG_VERBOSE
 struct DebugDepth {
-    int depth;
+	DUMP_DECLARATIONS
+
     size_t all;
+    int depth;
 };
 
 struct DebugRunSize {
+	DUMP_DECLARATIONS
+
     size_t edgeRuns;
     size_t oppRuns;
 };
@@ -263,7 +267,7 @@ struct OpCurveCurve {
 	bool splitMid  OP_DEBUG_INIT_BOOL();
 	bool splitHullFail  OP_DEBUG_INIT_BOOL();  // set true if mid t is nearly equal to an end 
 #if OP_DEBUG_DUMP
-	static int debugCall;
+	static int debugCall;  // used to break on the nth call (not serialized)
 	int debugLocalCall = INT_MAX;  // (copy so it is visible in debugger)
 #endif
 #if OP_DEBUG_VERBOSE

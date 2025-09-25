@@ -737,7 +737,7 @@ void OpCurveCurve::debugBoundedEdge(OpSegment* segm, const OpPointBounds& sectBo
 #if OP_DEBUG_VERBOSE
 void OpCurveCurve::debugSaveState() {
 	if ((int) dvDepthIndex.size() < depth)
-		dvDepthIndex.push_back({ depth, dvAll.size() });
+		dvDepthIndex.push_back({ dvAll.size(), depth });
 	for (auto edge : edgeCurves.c)
 		dvAll.push_back(edge);
 	for (auto oppEdge : oppCurves.c)
