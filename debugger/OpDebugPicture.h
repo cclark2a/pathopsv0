@@ -6,12 +6,14 @@
 #if OP_DEBUG_IMAGE
 
 #include "PathOpsTypes.h"
-#include "OpSegment.h"
+struct DebuggerEvent;
 struct SDL_Window;
 struct SDL_Renderer;
 struct SDL_Texture;
 struct Window;
 enum SDL_AppResult;
+typedef uint32_t SDL_WindowID;
+typedef uint16_t SDL_Keymod;
 
 extern bool drawCentersOn;
 extern bool drawControlsOn;
@@ -51,7 +53,12 @@ struct NativeTextCache {
 
 struct OpDebugPicture;
 
-struct OpDebugAddPoly {
+struct DebugSect {  // curve intersected with focus rectangle, and intersection pinned to rect
+    OpPtT sect;
+    bool pin;
+};
+
+struct DebuggerAddPoly {
     void add(const PathOpsV0Lib::Curve& );
     void add(const OpEdge* );
     void add(const OpSegment* );
@@ -65,7 +72,7 @@ struct OpDebugAddPoly {
     bool addingFill = false;  // true if added is fill, false if added is frame
 };
 
-struct OpDebugPoly {
+struct DebuggerPoly {
 #if OP_DEBUG_DUMP
     void dump() const;
 #endif
@@ -103,7 +110,7 @@ struct OpDebugPoint {
     const OpEdge* edge = nullptr;
     const OpSegment* segment = nullptr;
     const OpContour* contour = nullptr;
-//    OpDebugPoly* poly;
+//    DebuggerPoly* poly;
     OpPoint local;
     OpPoint device;
     float thickness = 1;
@@ -117,25 +124,25 @@ struct OpDebugPicture {
     void addPoints();
     void addTangents();
     void addWindings();
-    void colorPolys();
-
-    void add(OpPoint , OpPoint , OpDebugAddPoly* );
+    void add(OpPoint , OpPoint , DebuggerAddPoly* );
     void add(std::vector<OpPoint>& points );
-    void add(const OpCurve& , OpDebugAddPoly* );
-    void addDevice(std::vector<OpPoint>& points, OpDebugPoly& );
+    void add(const OpCurve& , DebuggerAddPoly* );
+    void addDevice(std::vector<OpPoint>& points, DebuggerPoly& );
     void addFittedBottom(std::string , float xPos, float right, uint32_t color);
     void addFittedSide(std::string , float yPos, float bottom, uint32_t color);
     void addLabel(std::string , OpPoint , uint32_t color);
     void addLine(OpPoint pt1, OpPoint pt2);
-    void addTangent(OpDebugPoly& );
+    void addTangent(DebuggerPoly& );
     OpDebugText& addText(std::string , OpPoint , uint32_t color, bool rotated = false);
-    void addWinding(OpDebugPoly& );
+    void addWinding(DebuggerPoly& );
     void append(OpPoint );
     void bootStrap();  // temporary to get things going
     void clear();
+    void colorPolys();
+    void copy(const OpDebugPicture& );
     std::string debugTextDump(size_t index);
-    OpDebugPoly* findPoly(const OpEdge* );
-    OpDebugPoly* findPoly(const OpSegment* );
+    DebuggerPoly* findPoly(const OpEdge* );
+    DebuggerPoly* findPoly(const OpSegment* );
     const NativeTextCache& getCache(size_t index);
     void move(OpVector v);  // v is in screen coordinates
     void pan(OpVector v);  // v is percentage of screen
@@ -145,15 +152,16 @@ struct OpDebugPicture {
     OpPoint toLocal(OpPoint p);
     OpPoint toDevice(OpPoint p);
     bool touches(const OpRect& bounds);
+    bool update(const Window& , const char* filename);
     void zoom(int factor);
 #if OP_DEBUG_DUMP
     void dump();
 #endif
 
+    OpContext* context = nullptr;
     Window* window;
-    OpDebugAddPoly addPoly;
-    OpContext* context;
-    std::vector<OpDebugPoly> polys;
+    DebuggerAddPoly addPoly;
+    std::vector<DebuggerPoly> polys;
     std::vector<OpDebugText> texts;
     std::vector<OpDebugPoint> points;
     std::vector<NativeTextCache> textCache;
@@ -169,19 +177,94 @@ struct OpDebugPicture {
     bool tuneThreshold = false;
 };
 
+typedef void (*WindowEventHandler)(Window* , const DebuggerEvent& );
+
 struct Window {
+    Window();
+
     size_t addText(std::string str, uint32_t color);
+    void (*doEvent)(DebuggerEvent& );
     SDL_AppResult draw();
     void drawText();
-    SDL_AppResult init(std::string name, OpVector offset);
+    SDL_AppResult init(WindowEventHandler , std::string name, OpVector offset);
     void pentrek_draw(char*, int width, int height, int pitch);
+    void update(Window& text, const char* filename);
 
     OpDebugPicture debugPicture;
+    WindowEventHandler eventHandler;
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
     SDL_Texture* polysTexture = nullptr;
     int* buffer = nullptr;
     std::string name;
+    OpVector windowSize;
 };
+
+enum class KeyMods {
+    none = 0,
+    shift = 1,
+    ctrl = 2,
+    alt = 4
+};
+
+inline KeyMods operator|(KeyMods a, KeyMods b) {
+	return (KeyMods) ((int) a | (int) b); }
+
+inline KeyMods operator|=(KeyMods& a, KeyMods b) {
+	return a = a | b; }
+
+inline KeyMods operator&(KeyMods a, KeyMods b) {
+	return (KeyMods) ((int) a & (int) b); }
+
+inline KeyMods operator&=(KeyMods a, KeyMods b) {
+	return a = a & b; }
+
+extern int keyModMultiplier(KeyMods mods);
+
+enum class MouseAction {
+    none,
+    click,
+    drag,
+    move,
+    wheel
+};
+
+// Use ascii characters as themselves. Map special keys to unused control characters
+enum class KeyCode : uint8_t {
+    none,
+    downArrow,
+    leftArrow,
+    rightArrow,
+    upArrow
+};
+
+struct DebuggerEvent {
+    DebuggerEvent(SDL_Keymod , SDL_WindowID );
+    void doEvent();
+
+    OpPoint mouse;
+    OpPoint mouseDown;
+    Window* focused;
+    MouseAction mouseAction = MouseAction::none;
+    KeyMods keyMods; //  = KeyMods::none;
+    uint8_t key = 0;
+    int wheel = 0;
+};
+
+extern void pictureEvent(Window* , const DebuggerEvent& );
+extern void textEvent(Window* , const DebuggerEvent& );
+
+struct DebuggerState {
+    DebuggerState();
+    DebuggerEvent addEvent(SDL_Keymod , SDL_WindowID );
+    void draw();
+    Window* focus(SDL_WindowID );
+    void redraw();
+    void update(const char* );
+
+    Window picture;
+    Window text;
+};
+
 
 #endif
