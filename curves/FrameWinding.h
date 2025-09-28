@@ -144,6 +144,7 @@ inline std::string frameImageOutXFunc(Winding winding) {
     return STR(data.left) + (FrameFill::frame == data.isFrame ? "fr" : "");
 }
 
+// !!! deprecated
 inline std::string frameImageOutFunc(Winding winding, int index) {  // deprecated
     if (index > 0)
         return "-";

@@ -75,7 +75,7 @@ struct OpContext {
 	uint8_t* allocateCallerData(size_t );
 	OpContour* allocateContour();
 	PathOpsV0Lib::CurveData* allocateCurveData(size_t );
-	OpEdge* allocateEdge(OpEdgeStorage*& );
+	OpEdge* allocateEdge(OpEdgeStorage*&   OP_DEBUG_PARAMS(std::string debugName));
 	OpIntersection* allocateIntersection();
 	OpLimb* allocateLimb();
 	PathOpsV0Lib::WindingData* allocateWinding(size_t );

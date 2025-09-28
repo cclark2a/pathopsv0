@@ -790,11 +790,13 @@ void DebugOpDrawEdges(std::vector<DebugOpCurve>& curves, DrawEdgeType edgeType) 
     uint32_t last = black;
     for (auto& curve : curves) {
         uint32_t color = black;
+#if 0
         const OpEdge* edge = findEdge(curve.id);
         if (edge)
             color = edge->debugColor;
         else
             OpDebugOut("edge " + STR(curve.id) + " not found\n");
+#endif
         if (last != color) {
             if (!path.isEmpty()) {
                 OpDebugImage::drawDoublePath(path, last, strokeWidth);
@@ -1051,7 +1053,7 @@ DebugOpCurve OpEdge::debugSetCurve() const {
     dCurve.weight = curveWeight(curve);
     dCurve.type = (DebugType) curve.c.type;
     dCurve.id = id;
-    dCurve.color = debugColor;
+//    dCurve.color = debugColor;
     return dCurve;
 }
 

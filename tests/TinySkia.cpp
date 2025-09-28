@@ -353,7 +353,7 @@ void SkPath::close() {
 
 void SkPath::arcTo(const SkRect& , float startAngle, float sweepAngle, bool forceMoveTo) {
 	// intentionally unimplmented
-	#if !OP_DEBUG_FAST_TEST
+	#if 0 && !OP_DEBUG_FAST_TEST
 		OP_DEBUG_CODE(extern bool debugUseAlt);
 		OP_DEBUG_CODE(debugUseAlt = true);
 	#endif

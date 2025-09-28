@@ -88,6 +88,7 @@ void OpDebugImage::init() {
 	focusSegments();
 }
 
+#if 0
 static size_t playbackBytes(const char** strPtr, uint8_t* data, size_t size) {
     const char* str = *strPtr;
     const char* s = str;
@@ -272,6 +273,7 @@ void OpDebugImage::playback(FILE* file) {
 		redraw();
 	}
 }
+#endif
 
 #undef READ_FEATURE
 
@@ -289,6 +291,7 @@ void OpDebugImage::drawPath(const SkPath& path, uint32_t color) {
 	offscreen.drawPath(path, paint);
 }
 
+#if 0
 void DebugColorEdges() {
 	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 		OpEdge* edge = *edgeIter;
@@ -311,6 +314,7 @@ void DebugColorEdges() {
 			edge->debugColor = black;
 	}
 }
+#endif
 
 void OpDebugImage::drawDoubleFocus() {
 	OP_DEBUG_CODE(OpDebugDefeatDelete defeater);
@@ -349,7 +353,7 @@ void OpDebugImage::drawDoubleFocus() {
 		DebugOpDraw(lines);
 	if (drawCurvesOn)
 		DebugOpDraw(curves);
-	DebugColorEdges(); // set up default colors for all edges
+//	DebugColorEdges(); // set up default colors for all edges
 	if (drawBoundsOn) {
 		std::vector<OpRect> bounds;
 		if (drawContoursOn) {
@@ -411,7 +415,7 @@ void OpDebugImage::drawDoubleFocus() {
 			if (ids.end() != std::find(ids.begin(), ids.end(), edge->id))
 				continue;
 			ids.push_back(edge->id);
-			uint32_t color = edge->debugColor;
+			uint32_t color = debugBlack; // edge->debugColor;
 			if (drawIDsOn) {
 				DebugOpDrawEdgeID(edge, color, drawLimbsOn);
 			}
@@ -465,6 +469,7 @@ void OpDebugImage::drawDoubleFocus() {
 		drawRaster();
 }
 
+#if 0
 static void recordBytes(FILE* recordFile, std::string text, uint8_t* data, size_t size) {
     std::string label = text  + ": ";
     fprintf(recordFile, "%s", label.c_str());
@@ -494,7 +499,7 @@ void OpDebugImage::record(FILE* recordFile) {
 	CALLOUT_LIST
 #undef OP_X
 	for (auto e : edgeIterator) {
-		if (!e->debugOne)
+        if (!e->debugOne)
             continue;
 		fprintf(recordFile, "edge: %d draw: %d color: 0x%08x\n", e->id, (int) e->debugDraw,
                 e->debugColor);
@@ -514,6 +519,7 @@ void OpDebugImage::record(FILE* recordFile) {
     }
 //	fclose(recordFile);
 }
+#endif
 
 #undef RECORD_FEATURE
 
@@ -729,7 +735,7 @@ bool OpDebugImage::find(int id, OpPointBounds* boundsPtr, OpPoint* pointPtr) {
 	}
 	if (OpEdge* edge = findEdge(id)) {
 		edge->debugDraw = true;
-		edge->debugOne = true;
+//		edge->debugOne = true;
 		drawIDsOn = true;
 		*boundsPtr = edge->bounds;
 		return true;
@@ -748,7 +754,7 @@ bool OpDebugImage::find(int id, OpPointBounds* boundsPtr, OpPoint* pointPtr) {
 	}
 	if (const OpLimb* limb = findLimb(id)) {
 		limb->edge->debugDraw = true;
-		limb->edge->debugOne = true;
+//		limb->edge->debugOne = true;
 		drawIDsOn = true;
 		*boundsPtr = limb->edge->bounds;
 		return true;
@@ -1459,23 +1465,23 @@ void OpDebugImage::drawPoints() {
 		PathOpsV0Lib::DebugOperand debugIsOpp = contour->debugCallbacks.debugOperandFuncPtr;
 		bool isOpp = debugIsOpp && (*debugIsOpp)(contour->debugContourData[
                     (size_t) PathOpsV0Lib::DebugContourType::windingUserData], 1);
-		DebugOpBuild(edge->curve.firstPt(), edge->debugColor, edge->startT, isOpp);
-		DebugOpBuild(edge->curve.lastPt(), edge->debugColor, edge->endT, isOpp);
+		DebugOpBuild(edge->curve.firstPt(), debugBlack, edge->startT, isOpp);
+		DebugOpBuild(edge->curve.lastPt(), debugBlack, edge->endT, isOpp);
 		if (drawControlsOn) {
 			for (int index = 1; index < edge->curve.pointCount() - 1; ++index)
-				DebugOpBuild(edge->curve.hullPt(index), edge->debugColor);
+				DebugOpBuild(edge->curve.hullPt(index), debugBlack);
 		}
 		if (drawCentersOn)
-			DebugOpBuild(edge->center.pt, edge->debugColor, edge->center.t, DebugSprite::square);
+			DebugOpBuild(edge->center.pt, debugBlack, edge->center.t, DebugSprite::square);
 		if (drawHullsOn) {
 			for (const HullSect& hull : edge->hulls.h)
-				DebugOpBuild(hull.sect.pt, edge->debugColor, hull.sect.t, DebugSprite::circle);
+				DebugOpBuild(hull.sect.pt, debugBlack, hull.sect.t, DebugSprite::circle);
 		}
         if (drawIPointsOn) {
             if (edge->iStart != edge->curve.firstPt())
-		        DebugOpBuild(edge->iStart, edge->debugColor, edge->startT, isOpp);
+		        DebugOpBuild(edge->iStart, debugBlack, edge->startT, isOpp);
             if (edge->iEnd != edge->curve.lastPt())
-		        DebugOpBuild(edge->iEnd, edge->debugColor, edge->endT, isOpp);
+		        DebugOpBuild(edge->iEnd, debugBlack, edge->endT, isOpp);
         }
 	}
 	if (drawIntersectionsOn) {
@@ -1697,7 +1703,6 @@ static void operateOn##Thing(std::function<void (OpEdge*)> fun) { \
 		if (edgeCheck) \
 			continue; \
 		fun(edge); \
-		edge->debugOne = false; \
 	} \
 	OpDebugImage::drawDoubleFocus(); \
 } \
@@ -1775,7 +1780,7 @@ static void operateOnLimbEdges(std::function<void (OpEdge*)> fun) {
 			fun(edge);
 		else
 			edge->debugDraw = false;
-        edge->debugOne = false;
+ //       edge->debugOne = false;
 		std::vector<OpEdge*> visited;
 		if (edge->priorEdge && !edge->debugIsLoop())
 			edge = const_cast<OpEdge*>(edge->debugAdvanceToEnd(EdgeMatch::start));
@@ -1788,7 +1793,7 @@ static void operateOnLimbEdges(std::function<void (OpEdge*)> fun) {
 					fun(next);
 				else
 					next->debugDraw = false;
-                next->debugOne = false;
+//                next->debugOne = false;
 				visited.push_back(next);
 			}
 		}
@@ -1891,7 +1896,7 @@ static void operateOnID(std::function<void (OpEdge*)> fun, int id) {
 		}
     } else if (OpEdge* e = (OpEdge*) findEdge(id)) {
         fun(e);
-        e->debugOne = true;
+//        e->debugOne = true;
     }
     OpDebugImage::drawDoubleFocus();
 }
@@ -1914,6 +1919,7 @@ void toggle(int id) {
 	}, id);
 }
 
+#if 0
 #define OP_X(Thing, edgeCheck) \
 void color##Thing(uint32_t color) { \
 	for (auto edge : edgeIterator) { \
@@ -2104,6 +2110,7 @@ void colorLink(OpEdge& edge, uint32_t color) {
 void colorLink(int id, uint32_t color) {
 	colorLink(findEdge(id), color);
 }
+#endif
 
 void OpContext::debugLimbClear() {
 	for (auto contour : contours) {
@@ -2115,6 +2122,7 @@ void OpContext::debugLimbClear() {
 	}
 }
 
+#if 0
 void OpContext::debugLimbColor(int lastLimbID, uint32_t color) {
 	if (!debugTree)
 		return;
@@ -2133,6 +2141,7 @@ void OpContext::debugLimbColor(int lastLimbID, uint32_t color) {
 void colorLimbRange(int lastLimbID, uint32_t color) {
 	debugGlobalContext->debugLimbColor(lastLimbID, color);
 }
+#endif
 
 int OpContext::debugLimbIndex(const OpEdge* edge) const {
 	if (!debugTree)
@@ -2154,25 +2163,27 @@ int OpContext::debugLimbIndex(const OpEdge* edge) const {
 	return -1;
 }
 
+#if 0
 void OpEdge::color(uint32_t c) {
 	debugColor = c;
 	debugDraw = true;
     debugOne = true;
 	OpDebugImage::drawDoubleFocus();
 }
+#endif
 
 void OpEdge::addLink() {
 	OpEdge* chain = this;
 	std::vector<OpEdge*> seen;
 	do {
 		chain->debugDraw = true;
-        chain->debugOne = true;
+//        chain->debugOne = true;
 		seen.push_back(chain);
 	} while ((chain = chain->nextEdge) && seen.end() == std::find(seen.begin(), seen.end(), chain));
 	chain = this;
 	while ((chain = chain->priorEdge) && seen.end() == std::find(seen.begin(), seen.end(), chain)) {
 		chain->debugDraw = true;
-        chain->debugOne = true;
+//        chain->debugOne = true;
 		seen.push_back(chain);
 	}
 	drawIDsOn = true;
@@ -2353,7 +2364,7 @@ void OpDebugImage::drawLines() {
 void add(std::vector<OpEdge*>& e) {
 	for (auto edge : e) {
 		edge->debugDraw = true;
-        edge->debugOne = true;
+//        edge->debugOne = true;
 	}
 	OpDebugImage::focusEdges();
 }
@@ -2361,7 +2372,7 @@ void add(std::vector<OpEdge*>& e) {
 void add(std::vector<OpEdge>& e) {
 	for (auto& edge : e) {
 		edge.debugDraw = true;
-        edge.debugOne = true;
+//        edge.debugOne = true;
 	}
 	OpDebugImage::focusEdges();
 }
@@ -2377,28 +2388,11 @@ void drawDepth(int level) {
 	int count = ccStorage->debugCount();
 	for (int index = 0; index < count; ++index) {
 		OpEdge* edge = ccStorage->debugIndex(index);
-		edge->debugDraw = false;
-        edge->debugOne = true;
-	}
-	if (level > 0 && !cc->dvDepthIndex.empty()) {
-		size_t dvLevel = std::min((size_t) level, cc->dvDepthIndex.size());
-		size_t lo = cc->dvDepthIndex[dvLevel - 1].all;
-		size_t hi = cc->dvDepthIndex.size() <= dvLevel ? cc->dvAll.size() : cc->dvDepthIndex[dvLevel].all;
-		if (lo < hi) {
-		    while (lo < hi) {
-			    cc->dvAll[lo]->debugDraw = true;
-			    cc->dvAll[lo]->debugOne = true;
-			    ++lo;
-		    }
-	        OpDebugImage::drawDoubleFocus();
-            return;
-        }
-	}
-	for (const CcCurves& ccCurves : { cc->edgeCurves, cc->oppCurves } ) {
-		for (OpEdge* edge : ccCurves.c) {
-			edge->debugDraw = true;
-            edge->debugOne = true;
-		}
+        if (edge->debugDepth == level) {
+		    edge->debugDraw = true;
+//            edge->debugOne = true;
+        } else
+		    edge->debugDraw = false;
 	}
 	OpDebugImage::drawDoubleFocus();
 }
@@ -2509,7 +2503,7 @@ OpPoint OpDebugImage::find(int id, float t) {
 		if (id != edge->id)
 			continue;
 		edge->debugDraw = true;
-		edge->debugOne = true;
+//		edge->debugOne = true;
 		drawIDsOn = true;
 		return edge->curve.ptAtT(t);
 	}

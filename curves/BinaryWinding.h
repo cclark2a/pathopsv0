@@ -282,8 +282,27 @@ inline std::string binaryImageOutFunc(Winding winding, int index) {
     return s;
 }
 
+inline uint32_t binaryColorFuncPtr(Winding winding, DebugEdgeType edgeType) {
+    BinaryData data(winding);
+	if (edgeType.disabled)
+		return data.left ? red : darkRed;
+	else if (edgeType.inOutput)
+		return data.left ? orange : darkOrange;
+	else if (edgeType.unsortable)
+		return data.left ? purple : darkViolet;
+	else if (edgeType.curveCurve) {
+		if (edgeType.ccOverlaps)
+			return data.left ? orange : darkGreen;
+		else
+			return data.left ? purple : darkViolet;
+	}
+    return data.left ? debugBlack : darkGreen;
+}
+
 #define BINARY_IMAGE_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(binaryImageOutXFunc), \
     OP_TAGGED_FUNCTION(binaryImageOutFunc), \
+    OP_TAGGED_FUNCTION(binaryColorFuncPtr), \
 
 #endif
 
@@ -297,7 +316,7 @@ inline Context* binaryContext(CurveOutput output = nullptr, EmptyCallerPath empt
 	SetDebugContextCallbacks(context, {
         binaryDebugIsFill
         OP_DEBUG_DUMP_PARAMS(nullptr, binaryDumpOutFunc, binaryDumpSetFunc)
-        OP_DEBUG_IMAGE_PARAMS(binaryImageOutXFunc, binaryImageOutFunc)
+        OP_DEBUG_IMAGE_PARAMS(binaryImageOutXFunc, binaryImageOutFunc, binaryColorFuncPtr)
     });
 #endif
     return context;

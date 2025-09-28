@@ -338,8 +338,13 @@ std::vector<CutRangeT> CcCurves::findGaps() const {
 	return gaps;
 }
 
-void CcCurves::init(CcCurves* oppCs, float sMax, OpEdge* parent, OpSegment* o) {
+void CcCurves::baseInit(OpCurveCurve* _cc, CcCurves* oppCs) {
+    cc = _cc;
 	oppCurves = oppCs;
+}
+
+void CcCurves::init(OpCurveCurve* _cc, CcCurves* oppCs, float sMax, OpEdge* parent, OpSegment* o) {
+    baseInit(_cc, oppCs);
     scaledMax = sMax;
     seg = parent->segment;
     opp = o;
@@ -454,12 +459,11 @@ void CcCurves::snipAndGo(const OpPtT& ptT, OpPoint oppPt) {
 // after snipping, don't push distance to zero if really small
 void CcCurves::snipRange(const OpPtT& lo, const OpPtT& hi) {
 	CcCurves snips;
-	OpContext* context = seg->contour->context;
-	auto addSnip = [context](const OpEdge* edge, const OpPtT& start, const OpPtT& end) {
-		void* block = context->allocateEdge(context->ccStorage);
-		OpEdge* newE = new(block) OpEdge(edge, start, end  OP_LINE_FILE_PARGS());
-		newE->ccOverlaps = true;
-		return newE;
+	auto addSnip = [this](const OpEdge* edge, const OpPtT& start, const OpPtT& end
+            OP_LINE_FILE_ARGS()) {
+        OpEdge* newEdge = cc->allocateEdge(nullptr, edge, start, end, NewEdge::none, 
+                EdgeOverlaps::overlaps   OP_LINE_FILE_PARAMS(edge->id));
+		return newEdge;
 	};
 	for (OpEdge* edge : c) {
 		if (edge->startT >= hi.t || edge->endT <= lo.t) {
@@ -467,9 +471,9 @@ void CcCurves::snipRange(const OpPtT& lo, const OpPtT& hi) {
 			snips.c.push_back(edge);
 			continue;
 		}
-		OpVector threshold = context->threshold();
+		OpVector threshold = cc->context->threshold();
 		if (edge->startT < lo.t && !edge->startPtT().isNearly(lo, threshold)) {
-			OpEdge* snipE = addSnip(edge, edge->startPtT(), lo);
+			OpEdge* snipE = addSnip(edge, edge->startPtT(), lo  OP_LINE_FILE_PARGS());
 			snipE->ccStart = edge->ccStart;
 			snipE->ccSmall = edge->ccSmall;
 			snipE->ccEnd = true;
@@ -478,7 +482,7 @@ void CcCurves::snipRange(const OpPtT& lo, const OpPtT& hi) {
 			snips.c.push_back(snipE);
 		}
 		if (edge->endT > hi.t && !hi.isNearly(edge->endPtT(), threshold)) {
-			OpEdge* snipS = addSnip(edge, hi, edge->endPtT());
+			OpEdge* snipS = addSnip(edge, hi, edge->endPtT()  OP_LINE_FILE_PARGS());
 			snipS->ccStart = true;
 			snipS->ccEnd = edge->ccEnd;
 			snipS->ccLarge = edge->ccLarge;
@@ -639,8 +643,8 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o, std::vector<OpIntersectio
 		return;
 	}
 	overlap = true;
-    edgeCurves.init(&oppCurves, maxDist * context->aliases.thresholdLength, parentEdge, opp);
-    oppCurves.init(&edgeCurves, maxDist * context->aliases.thresholdLength, parentOpp, seg);
+    edgeCurves.init(this, &oppCurves, maxDist * context->aliases.thresholdLength, parentEdge, opp);
+    oppCurves.init(this, &edgeCurves, maxDist * context->aliases.thresholdLength, parentOpp, seg);
 	// end of common function
 	for (FoundLimits& limit : limits) {
 		limit.parentEdge = parentEdge;
@@ -743,6 +747,27 @@ bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 	match.match = MatchEnds::end;
 	addPair(sect2, eEnd, oEnd);
 	return true; 
+}
+
+OpEdge* OpCurveCurve::allocateEdge(OpSegment* segment, const OpEdge* edge, const OpPtT& start,
+        const OpPtT& end, NewEdge newEdge, EdgeOverlaps overlaps  
+        OP_LINE_FILE_DEF(int parentID)) {
+	void* block = context->allocateEdge(context->ccStorage  OP_DEBUG_PARAMS("ccStorage"));
+	OpEdge* newE = nullptr;
+    if (NewEdge::none != newEdge) {
+        OP_ASSERT(!segment);
+        OP_ASSERT(end.debugIsUninitialized());
+        newE = new(block) OpEdge(edge, start, newEdge  OP_LINE_FILE_CALLER());
+    } else if (!segment)
+        newE = new(block) OpEdge(edge, start, end  OP_LINE_FILE_CALLER());
+    else {
+        OP_ASSERT(!edge);
+        newE = new(block) OpEdge(segment, start, end  OP_LINE_FILE_CALLER());
+    }
+	newE->ccOverlaps = !newE->disabled && EdgeOverlaps::overlaps == overlaps;
+	OP_DEBUG_CODE(newE->debugParentID = parentID);
+    OP_DEBUG_CODE(newE->debugDepth = depth);
+    return newE;
 }
 
 #if 0
@@ -850,8 +875,8 @@ OpEdge* OpCurveCurve::boundedEdge(OpSegment* segm, const OpPointBounds& sectBoun
 		return nullptr;
 	if (minT.pt == maxT.pt)
 		return nullptr;
-	void* block = context->allocateEdge(context->ccStorage);
-	OpEdge* result = new(block) OpEdge(segm, minT, maxT  OP_LINE_FILE_PARGS());
+    OpEdge* result = allocateEdge(segm, nullptr, minT, maxT, NewEdge::none, EdgeOverlaps::no
+            OP_LINE_FILE_PARAMS(segm->id));
 	result->ccOverlaps = false;
 	return result;
 }
@@ -1038,6 +1063,13 @@ SectFound OpCurveCurve::divideAndConquer() {
 	// !!! testQuads5721199 segments 2 and 5 share (0, 0) but iterate depth to 24 to see if they
 	// intersect a second time. Not sure what to do...
 	for (depth = 1; depth < maxDeep; ++depth) {
+#if OP_DEBUG_DUMP
+        for (auto& edges : { edgeCurves.c, oppCurves.c } ) {
+            for (auto& edge : edges) {
+                edge->debugCC = depth;
+            }
+        }
+#endif
 		OP_ASSERT(debugShowImage(true));
 		bool snipEm = 1 == depth && !snips.empty();
 		if (!setOverlaps())
@@ -1330,8 +1362,8 @@ bool OpCurveCurve::reduceDistFlipped() {
     auto addSplit = [this, &segment](CcCurves& splits, OpPtT& lower, OpPtT& upper) {
         if (lower.isNearly(upper, maxSplit))
             return;
-		void* block = context->allocateEdge(context->ccStorage);
-		OpEdge* split = new(block) OpEdge(segment, lower, upper  OP_LINE_FILE_PARGS());
+        OpEdge* split = allocateEdge(segment, nullptr, lower, upper, NewEdge::none, 
+                EdgeOverlaps::overlaps  OP_LINE_FILE_PARAMS(segment->id));
 		split->ccOverlaps = true;
 		OP_ASSERT(!split->disabled);
 		splits.c.push_back(split);
@@ -1772,20 +1804,18 @@ bool OpCurveCurve::splitDownTheMiddle(const OpEdge& edge, CurveRef curveRef, CcC
 	OP_ASSERT(edge.startT < edgeMid.t);
 	OP_ASSERT(edgeMid.t < edge.endT);
 	CcCurves& curves = CurveRef::edge == curveRef ? edgeCurves : oppCurves;
-	void* blockL = context->allocateEdge(context->ccStorage);
-	OpEdge* splitLeft = new(blockL) OpEdge(&edge, edgeMid, NewEdge::isLeft  OP_LINE_FILE_PARGS());
+    OpEdge* splitLeft = allocateEdge(nullptr, &edge, edgeMid, OpPtT(), NewEdge::isLeft,  
+            EdgeOverlaps::overlaps  OP_LINE_FILE_PARAMS(edge.id));
 	if (!splitLeft->disabled) {
-		splitLeft->ccOverlaps = true;
 		splitLeft->ccStart = edge.ccStart;
 		splitLeft->ccSmall = edge.ccSmall;
 		OP_ASSERT(!splitLeft->disabled);
 		splits.c.push_back(splitLeft);
 		curves.addEdgeRun(splitLeft, EdgeMatch::end, ClampDist::yes  OP_LINE_FILE_PARGS());
 	}
-	void* blockR = context->allocateEdge(context->ccStorage);
-	OpEdge* splitRight = new(blockR) OpEdge(&edge, edgeMid, NewEdge::isRight  OP_LINE_FILE_PARGS());
+	OpEdge* splitRight = allocateEdge(nullptr, &edge, edgeMid, OpPtT(), NewEdge::isRight,  
+             EdgeOverlaps::overlaps  OP_LINE_FILE_PARAMS(edge.id));
 	if (!splitRight->disabled) {
-		splitRight->ccOverlaps = true;
 		splitRight->ccEnd = edge.ccEnd;
 		splitRight->ccLarge = edge.ccLarge;
 		OP_ASSERT(!splitRight->disabled);
@@ -1853,14 +1883,11 @@ bool OpCurveCurve::splitHulls(CurveRef which, CcCurves& splits) {
 				continue;
 			if (OpMath::EqualT(hullLo.sect.t, hullHi.sect.t))
 				continue;
-			void* block = context->allocateEdge(context->ccStorage);
 			// hull points have been aligned, and may not be on edge
-			OpEdge* split = new(block) OpEdge(segment, hullLo.sect, hullHi.sect  
-					OP_LINE_FILE_PARGS());
-			OP_DEBUG_CODE(split->debugParentID = edge.id);
+			OpEdge* split = allocateEdge(segment, nullptr, hullLo.sect, hullHi.sect, NewEdge::none,  
+					EdgeOverlaps::overlaps  OP_LINE_FILE_PARAMS(edge.id));
 			if (split->disabled)
 				continue;
-			split->ccOverlaps = true;
 			if (hullLo.oppDist.isSet()) {
 				split->startDist = hullLo.oppDist;
                 if (split->startDist.dist * split->endDist.dist < 0) {

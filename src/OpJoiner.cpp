@@ -44,7 +44,7 @@ if (looped || deadEnd)  // triggered when walking children of trunk
 		++debugHits;
 		OpDebugOut("debugHits: " + STR(debugHits) + "\n");
 		if (debugHits == 8) {
-#if OP_DEBUG_IMAGE && !OP_TINY_SKIA
+#if 0 && OP_DEBUG_IMAGE && !OP_TINY_SKIA
 			playback();
 			hideTemporaryEdges();
 			colorActive(transparent);

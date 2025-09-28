@@ -301,6 +301,7 @@ namespace PathOpsV0Lib {
 #define OP_DEBUG_CONTEXT() \
 	debugContext = __func__
 
+#if 0
 #define OpPlayback(opObject, ID) \
 	do { if ((ID) == (opObject)->id) { playback(); OP_DEBUG_BREAK(); } } while (false)
 
@@ -314,6 +315,7 @@ namespace PathOpsV0Lib {
 #define OpPlayback2If(o1, o2, i1, i2, doBreak) \
 	do { if ((doBreak) && (o1)->id != (o2)->id && ((i1) == (o1)->id || (i2) == (o1)->id) && \
             ((i1) == (o2)->id || (i2) == (o2)->id)) { playback(); OP_DEBUG_BREAK(); } } while (false)
+#endif
 
 #endif
 #endif
@@ -330,8 +332,8 @@ namespace PathOpsV0Lib {
 #if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
 extern OpContext* debugGlobalContext;
 extern bool debugHexFloat;
-extern void playback();
-extern void record();
+// extern void playback();
+// extern void record();
 
 struct OpDebugContourIter {
 	OpDebugContourIter(bool start);

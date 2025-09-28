@@ -220,7 +220,6 @@ OpEdge::OpEdge(OpContext* context, const OpPtT& start, const OpPtT& end  OP_LINE
 	: OpEdge() {
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = 0);
-	OP_DEBUG_IMAGE_CODE(debugColor = mediumPurple);
 	segment = nullptr;  // assume these can't be used -- edge does not exist in segment
 //	startSect = -1;
 //	endSect = -1;
@@ -252,6 +251,7 @@ OpEdge::OpEdge(const OpEdge* edge, const OpPtT& newPtT, NewEdge isLeftRight  OP_
 		startDist = edge->startDist;
 		complete(OpPtT { edge->curve.firstPt(), edge->startT }, newPtT);
 	} else {
+        OP_ASSERT(NewEdge::isRight == isLeftRight);
 		endDist = edge->endDist;
 		complete(newPtT, OpPtT { edge->curve.lastPt(), edge->endT });
 	}
@@ -619,7 +619,6 @@ bool OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first) {
 		    segment->contour->removeLink(this);
 	    }
 	    inLinkups = false;
-	    OP_DEBUG_IMAGE_CODE(debugColor = orange);
 	    clearNextEdge();	    
     }
 	if (firstEdge == next)
@@ -638,7 +637,6 @@ void OpEdge::setActive(bool state) {
 void OpEdge::setDisabled(OP_LINE_FILE_NP_ARGS()) {
 	disabled = true; 
 	OP_LINE_FILE_SET(debugSetDisabled); 
-	OP_DEBUG_IMAGE_CODE(debugColor = red);
 }
 
 OpEdge* OpEdge::setLastEdge() {

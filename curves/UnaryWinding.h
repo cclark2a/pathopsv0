@@ -109,6 +109,7 @@ inline std::string unaryImageOutXFunc(Winding winding) {
     return STR(unaryData.value);
 }
 
+// !!! deprecated
 inline std::string unaryImageOutFunc(Winding winding, int index) {  // deprecated
     if (index > 0)
         return "-";
@@ -117,9 +118,27 @@ inline std::string unaryImageOutFunc(Winding winding, int index) {  // deprecate
     return s;
 }
 
+inline uint32_t unaryColorFuncPtr(Winding winding, DebugEdgeType edgeType) {
+UnaryData unaryData(winding);
+	if (edgeType.disabled || !unaryData.value)
+		return red;
+	else if (edgeType.inOutput)
+		return orange;
+	else if (edgeType.unsortable)
+		return purple;
+	else if (edgeType.curveCurve) {
+		if (edgeType.ccOverlaps)
+			return orange;
+		else
+			return purple;
+	}
+    return debugBlack;
+}
+
 #define UNARY_IMAGE_TAGGED_FUNCTIONS \
     OP_TAGGED_FUNCTION(unaryImageOutXFunc), \
     OP_TAGGED_FUNCTION(unaryImageOutFunc), \
+    OP_TAGGED_FUNCTION(unaryColorFuncPtr), \
 
 #endif
 
@@ -133,7 +152,7 @@ inline Context* unaryContext(CurveOutput output = nullptr, EmptyCallerPath empty
 	SetDebugContextCallbacks(context, { 
         unaryDebugIsFill
         OP_DEBUG_DUMP_PARAMS(nullptr, unaryDumpOutFunc, unaryDumpSetFunc)
-        OP_DEBUG_IMAGE_PARAMS(unaryImageOutXFunc, unaryImageOutFunc)
+        OP_DEBUG_IMAGE_PARAMS(unaryImageOutXFunc, unaryImageOutFunc, unaryColorFuncPtr)
     });
 #endif
     return context;

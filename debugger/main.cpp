@@ -11,9 +11,6 @@
 
 #include "OpContext.h"
 #include "debug/OpDebugPicture.h"
-extern void pentrek_draw(char*, int width, int height, int pitch);
-
-OpDebugPicture debugPicture;
 
 #define DRAW_SDL 1
 
@@ -21,33 +18,25 @@ bool OpDebugSkipBreak() {
     return true;
 }
 
-bool debugUseAlt = false;
-
-static SDL_Window *window = NULL;
-static SDL_Renderer *renderer = NULL;
-static SDL_Texture* bitmapTexture = NULL;
-static int* frameBuffer = NULL;
-static TTF_Font *font = NULL;
+static TTF_Font* font = nullptr;
 OpPoint lastMouse;
 static bool dragging = false;
 const int WINDOW_WIDTH = 1000;
 const int WINDOW_HEIGHT = 1000;
-
 OpContext* context = nullptr;
+// bool debugUseAlt = false;
 
-std::vector<NativeTextCache> nativeTextCache;
-
-SDL_Color toSDLColor(uint32_t c) {
+static SDL_Color toSDLColor(uint32_t c) {
     SDL_Color sdlColor = { (c >> 16) & 0xFF, (c >> 8) & 0xFF, (c >> 0) & 0xFF, (c >> 24) & 0xFF };
     return sdlColor;
 }
 
-size_t native_addText(std::string str, uint32_t color) {
-    auto found = std::find_if(nativeTextCache.begin(), nativeTextCache.end(), 
+size_t Window::addText(std::string str, uint32_t color) {
+    auto found = std::find_if(debugPicture.textCache.begin(), debugPicture.textCache.end(), 
             [str, color](NativeTextCache& cache) {
             return str == cache.str && color == cache.color; } );
-    if (nativeTextCache.end() != found)
-        return found - nativeTextCache.begin();
+    if (debugPicture.textCache.end() != found)
+        return found - debugPicture.textCache.begin();
     SDL_Color sdlColor = toSDLColor(color);
     SDL_Surface* textSurface = TTF_RenderText_Blended(font, str.c_str(), 0, sdlColor);
     if (!textSurface) {
@@ -56,55 +45,118 @@ size_t native_addText(std::string str, uint32_t color) {
     }
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, textSurface);
     SDL_DestroySurface(textSurface);
-    size_t cacheIndex = nativeTextCache.size();
+    size_t cacheIndex = debugPicture.textCache.size();
     OpVector size;
     SDL_GetTextureSize(texture, &size.dx, &size.dy);
-    nativeTextCache.push_back({str, size, texture, color});
+    debugPicture.textCache.push_back({str, size, texture, color});
     return cacheIndex;
 }
 
-const NativeTextCache& native_cache(size_t index) {
-    OP_ASSERT(index < nativeTextCache.size());
-    return nativeTextCache[index];
+SDL_AppResult Window::draw() {
+    if (!buffer)
+        return SDL_APP_CONTINUE;
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDL_RenderClear(renderer);
+    char* pix;
+    int pitch;
+    SDL_LockTexture(polysTexture, nullptr, (void**)&pix, &pitch);
+    pentrek_draw(pix, WINDOW_WIDTH, WINDOW_HEIGHT, pitch);
+    SDL_UnlockTexture(polysTexture);  
+    SDL_RenderTexture(renderer, polysTexture, nullptr, nullptr);
+    for (OpDebugText& text : debugPicture.texts) {
+        OP_ASSERT(text.cacheIndex < debugPicture.textCache.size());
+        NativeTextCache& cache = debugPicture.textCache[text.cacheIndex];
+        SDL_Texture* texture = (SDL_Texture*) cache.texture;
+        SDL_FRect dst { text.pt.x, text.pt.y, cache.size.dx, cache.size.dy };
+        if (text.vertical) {
+            SDL_FPoint center { 0, 0 };
+            SDL_RenderTextureRotated(renderer, texture, nullptr, &dst, -90.0, &center, 
+                    SDL_FLIP_NONE);
+        } else
+            SDL_RenderTexture(renderer, texture, nullptr, &dst);
+    }
+    SDL_RenderPresent(renderer);
+    return SDL_APP_CONTINUE;
 }
 
-std::string native_debugDump(size_t index) {
-    OP_ASSERT(index < nativeTextCache.size());
-    return nativeTextCache[index].debugDump();
+void Window::drawText() {
+    for (OpDebugText& text : debugPicture.texts) {
+        OP_ASSERT(text.cacheIndex < debugPicture.textCache.size());
+        const NativeTextCache& cache = debugPicture.getCache(text.cacheIndex);
+        SDL_Texture* texture = (SDL_Texture*) cache.texture;
+        SDL_FRect dst { text.pt.x, text.pt.y, cache.size.dx, cache.size.dy };
+        if (text.vertical) {
+            SDL_FPoint center { 0, 0 };
+            SDL_RenderTextureRotated(renderer, texture, nullptr, &dst, -90.0, &center, 
+                    SDL_FLIP_NONE);
+        } else
+            SDL_RenderTexture(renderer, texture, nullptr, &dst);
+    }
 }
+
+SDL_AppResult Window::init(std::string n, OpVector offset) {
+    name = n;
+    SDL_Color color = { 0, 0, 0, SDL_ALPHA_OPAQUE };
+    if (!SDL_CreateWindowAndRenderer(("V0 Debugger " + name).c_str(), WINDOW_WIDTH, WINDOW_HEIGHT, 
+            SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN, &window, &renderer)) {
+        OpDebugOut("Couldn't create window and renderer: " + std::string(SDL_GetError()) + "\n");
+        return SDL_APP_FAILURE;
+    }
+    int x, y;
+    if (SDL_GetWindowPosition(window, &x, &y)) {
+        SDL_SetWindowPosition(window, (int) (x + offset.dx), (int) (y + offset.dy));
+    }
+    if (!SDL_ShowWindow(window)) {
+        OpDebugOut("Couldn't show window at (" + STR(x) + ", " + STR(y) + "with offset "
+                + offset.debugDump(DebugLevel::normal, DebugBase::dec) + ": " 
+                + std::string(SDL_GetError()) + "\n");
+        return SDL_APP_FAILURE;
+    }
+    buffer = (int*) malloc(WINDOW_WIDTH * WINDOW_HEIGHT * sizeof(int));
+    polysTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888, 
+            SDL_TEXTUREACCESS_STREAMING,  WINDOW_WIDTH, WINDOW_HEIGHT);
+
+    return SDL_APP_CONTINUE;
+}
+
+static Window picture;
+static Window text;
 
 /* This function runs once at startup. */
-SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
+SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
+    picture.debugPicture.window = &picture;
+    text.debugPicture.window = &text;
     drawIDsOn = true;  // !!! hardcode for testing
     drawEdgesOn = true;  // !!! hardcode for testing
-    drawWindingsOn = true;  // !!! hardcode for testing
+    drawWindingsOn = false;  // !!! hardcode for testing
     drawValuesOn = true;  // !!! hardcode for testing
     drawGridOn = false; // !!! hardcode for testing
     drawPointsOn = true;
     drawFillOn = false;
-    SDL_Color color = { 0, 0, 0, SDL_ALPHA_OPAQUE };
-    if (!SDL_CreateWindowAndRenderer("V0 Debugger", WINDOW_WIDTH, WINDOW_HEIGHT, 
-            SDL_WINDOW_RESIZABLE, &window, &renderer)) {
-        SDL_Log("Couldn't create window and renderer: %s", SDL_GetError());
+    SDL_AppResult result = text.init("text", { -100, -100 });
+    if (SDL_APP_CONTINUE != result) {
+        OpDebugOut("Couldn't initialise text window: " + std::string(SDL_GetError()) + "\n");
         return SDL_APP_FAILURE;
     }
-    frameBuffer = (int*) malloc(WINDOW_WIDTH * WINDOW_HEIGHT * sizeof(int));
-    bitmapTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888, 
-            SDL_TEXTUREACCESS_STREAMING,  WINDOW_WIDTH, WINDOW_HEIGHT);
+     result = picture.init("picture", { 100, 100 } );
+    if (SDL_APP_CONTINUE != result) {
+        OpDebugOut("Couldn't initialise picture window: " + std::string(SDL_GetError()) + "\n");
+        return SDL_APP_FAILURE;
+    }
     if (!TTF_Init()) {
-        SDL_Log("Couldn't initialise SDL_ttf: %s\n", SDL_GetError());
+        OpDebugOut("Couldn't initialise SDL_ttf: " + std::string(SDL_GetError()) + "\n");
         return SDL_APP_FAILURE;
     }
     font = TTF_OpenFont("C:/Windows/Fonts/segoeui.ttf", 14);
     if (!font) {
-        SDL_Log("Couldn't open font: %s\n", SDL_GetError());
+        OpDebugOut("Couldn't open font: " + std::string(SDL_GetError()) + "\n");
         return SDL_APP_FAILURE;
     }
     return SDL_APP_CONTINUE;
 }
 
 /* This function runs when a new event (mouse input, keypresses, etc) occurs. */
-SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
+SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
     SDL_Keymod mod = SDL_GetModState();
     int scale = 1;
     if (SDL_KMOD_SHIFT & mod)
@@ -113,11 +165,15 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
         scale *= 4;
     if (SDL_KMOD_ALT & mod)
         scale *= 16;
+    Window* focused = SDL_GetWindowID(picture.window) == event->window.windowID ? &picture :
+            SDL_GetWindowID(text.window) == event->window.windowID ? &text : nullptr;
     switch (event->type) {
         case SDL_EVENT_MOUSE_WHEEL: {
+            if (!focused)
+                return SDL_APP_CONTINUE;
             SDL_MouseWheelEvent& wheel = event->wheel;
-            debugPicture.zoom(wheel.y * scale);
-            OpDebugOut("zoom:" + STR(debugPicture.zoomFactor)
+            focused->debugPicture.zoom(wheel.y * scale);
+            OpDebugOut("zoom:" + STR(focused->debugPicture.zoomFactor)
                     + " wheel.y:" + STR(wheel.y)
                     + " scale:" + STR(scale) + "\n");
             return SDL_APP_CONTINUE;
@@ -132,103 +188,111 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
             return SDL_APP_CONTINUE;
         }
         case SDL_EVENT_MOUSE_MOTION: {
-            if (!dragging)
+            if (!dragging || !focused)
                 return SDL_APP_CONTINUE;
             float x, y;
             SDL_GetMouseState( &x, &y );
             if (lastMouse == OpPoint(x, y))
                 return SDL_APP_CONTINUE;
             OpVector mouseMove = OpPoint(x, y) - lastMouse;
-            debugPicture.move(mouseMove);
+            focused->debugPicture.move(mouseMove);
             lastMouse = {x, y};
             break;
         }
         case SDL_EVENT_KEY_DOWN: {
-            constexpr float pan_factor = 1.f / 8;
-            if (SDLK_LSHIFT == event->key.key)
-                return SDL_APP_CONTINUE;
-            switch (event->key.key) {
-                case SDLK_LEFT:
-                    debugPicture.pan(OpVector(-pan_factor * scale, 0));
-                    break;
-                case SDLK_UP:
-                    debugPicture.pan(OpVector(0, -pan_factor * scale));
-                    break;
-                case SDLK_RIGHT:
-                    debugPicture.pan(OpVector(pan_factor * scale, 0));
-                    break;
-                case SDLK_DOWN:
-                    debugPicture.pan(OpVector(0, pan_factor * scale));
-                    break;
-                case SDLK_C:
-                    drawCentersOn ^= true;
-                    break;
-                case SDLK_D:
-                    debugPicture.dump();
-                    break;
-                case SDLK_E:
-                    drawEdgesOn ^= true;
-                    break;
-                case SDLK_F:
-                    drawFillOn ^= true;
-                    break;
-                case SDLK_G:
-                    if (drawGridOn && !drawGridLinear)
-                        drawGridLinear = true;
-                    else {
-                        drawGridOn ^= true;
-                        drawGridLinear = false;
-                    }
-                    break;
-                case SDLK_H:
-                    drawHullsOn ^= true;
-                    break;
-                case SDLK_I:
-                    drawIDsOn ^= true;
-                    break;
-                case SDLK_K:
-                    drawControlsOn ^= true;
-                    break;
-                case SDLK_P:
-                    drawPointsOn ^= true;
-                    break;
-                case SDLK_S:
-                    drawSegmentsOn ^= true;
-                    break;
-                case SDLK_T:
-                    drawTangentsOn ^= true;
-                    break;
-                case SDLK_W:
-                    drawWindingsOn ^= true;
-                    break;
-                case SDLK_V:
-                    drawValuesOn ^= true;
-                    break;
-                case SDLK_X:
-                    drawHexOn ^= true;
-                    break;
-                case SDLK_0:
-                case SDLK_1:
-                case SDLK_2:
-                case SDLK_3:
-                case SDLK_4:
-                case SDLK_5:
-                case SDLK_6:
-                case SDLK_7:
-                case SDLK_8:
-                case SDLK_9:
-                    debugPrecision = event->key.key - SDLK_0;
-                    break;
-                case SDLK_MINUS:
-                    debugPrecision = -1;
-                    break;
-                case SDLK_GRAVE:
-                    if (SDL_KMOD_SHIFT & mod)
-                        debugPicture.tuneThreshold ^= true;
-                    break;
+            if (focused == &picture) {
+                constexpr float pan_factor = 1.f / 8;
+                if (SDLK_LSHIFT == event->key.key)
+                    return SDL_APP_CONTINUE;
+                switch (event->key.key) {
+                    case SDLK_LEFT:
+                        picture.debugPicture.pan(OpVector(-pan_factor * scale, 0));
+                        break;
+                    case SDLK_UP:
+                        picture.debugPicture.pan(OpVector(0, -pan_factor * scale));
+                        break;
+                    case SDLK_RIGHT:
+                        picture.debugPicture.pan(OpVector(pan_factor * scale, 0));
+                        break;
+                    case SDLK_DOWN:
+                        picture.debugPicture.pan(OpVector(0, pan_factor * scale));
+                        break;
+                    case SDLK_C:
+                        drawCentersOn ^= true;
+                        break;
+                    case SDLK_D:
+                        if (SDL_KMOD_CTRL & mod)
+                            picture.debugPicture.dump();
+                        else if (SDL_KMOD_SHIFT & mod)
+                            picture.debugPicture.setDepth(--picture.debugPicture.depth);
+                        else
+                            picture.debugPicture.setDepth(++picture.debugPicture.depth);
+                        break;
+                    case SDLK_E:
+                        drawEdgesOn ^= true;
+                        break;
+                    case SDLK_F:
+                        drawFillOn ^= true;
+                        break;
+                    case SDLK_G:
+                        if (drawGridOn && !drawGridLinear)
+                            drawGridLinear = true;
+                        else {
+                            drawGridOn ^= true;
+                            drawGridLinear = false;
+                        }
+                        break;
+                    case SDLK_H:
+                        drawHullsOn ^= true;
+                        break;
+                    case SDLK_I:
+                        drawIDsOn ^= true;
+                        break;
+                    case SDLK_K:
+                        drawControlsOn ^= true;
+                        break;
+                    case SDLK_P:
+                        drawPointsOn ^= true;
+                        break;
+                    case SDLK_S:
+                        drawSegmentsOn ^= true;
+                        break;
+                    case SDLK_T:
+                        drawTangentsOn ^= true;
+                        break;
+                    case SDLK_W:
+                        drawWindingsOn ^= true;
+                        break;
+                    case SDLK_V:
+                        drawValuesOn ^= true;
+                        break;
+                    case SDLK_X:
+                        drawHexOn ^= true;
+                        break;
+                    case SDLK_0:
+                    case SDLK_1:
+                    case SDLK_2:
+                    case SDLK_3:
+                    case SDLK_4:
+                    case SDLK_5:
+                    case SDLK_6:
+                    case SDLK_7:
+                    case SDLK_8:
+                    case SDLK_9:
+                        debugPrecision = event->key.key - SDLK_0;
+                        break;
+                    case SDLK_MINUS:
+                        debugPrecision = -1;
+                        break;
+                    case SDLK_GRAVE:
+                        if (SDL_KMOD_SHIFT & mod)
+                            picture.debugPicture.tuneThreshold ^= true;
+                        break;
+                }
             }
         }
-        debugPicture.redraw();
+        picture.debugPicture.redraw();
+        text.debugPicture.redraw();
     }
     if (event->type == SDL_EVENT_QUIT)
         return SDL_APP_SUCCESS;  /* end the program, reporting success to the OS. */
@@ -236,7 +300,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
 }
 
 /* This function runs once per frame, and is the heart of the program. */
-SDL_AppResult SDL_AppIterate(void *appstate) {
+SDL_AppResult SDL_AppIterate(void* appstate) {
     static time_t lastTime = 0;
     struct stat info;
 #if 1
@@ -253,38 +317,21 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
         context = fromFile(opFileName);
         debugGlobalContext = context;
         if (context) {
-            debugPicture.screen = OpRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-            debugPicture.bootStrap(context);
+            picture.debugPicture.context = context;
+            picture.debugPicture.screen = OpRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+            picture.debugPicture.bootStrap();
+            text.debugPicture.context = context;
+            text.debugPicture.screen = OpRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
         }
         lastTime = info.st_mtime;
     }
-    if (!frameBuffer)
-        return SDL_APP_CONTINUE;
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    SDL_RenderClear(renderer);
-    char* pix;
-    int pitch;
-    SDL_LockTexture(bitmapTexture, NULL, (void**)&pix, &pitch);
-    pentrek_draw(pix, WINDOW_WIDTH, WINDOW_HEIGHT, pitch);
-    SDL_UnlockTexture(bitmapTexture);  
-    SDL_RenderTexture(renderer, bitmapTexture, NULL, NULL);
-    for (OpDebugText& text : debugPicture.texts) {
-        OP_ASSERT(text.cacheIndex < nativeTextCache.size());
-        NativeTextCache& cache = nativeTextCache[text.cacheIndex];
-        SDL_Texture* texture = (SDL_Texture*) cache.texture;
-        SDL_FRect dst { text.pt.x, text.pt.y, cache.size.dx, cache.size.dy };
-        if (text.vertical) {
-            SDL_FPoint center { 0, 0 };
-            SDL_RenderTextureRotated(renderer, texture, NULL, &dst, -90.0, &center, SDL_FLIP_NONE);
-        } else
-            SDL_RenderTexture(renderer, texture, NULL, &dst);
-    }
-    SDL_RenderPresent(renderer);
+    picture.draw();
+    text.draw();
     return SDL_APP_CONTINUE;
 }
 
 /* This function runs once at shutdown. */
-void SDL_AppQuit(void *appstate, SDL_AppResult result) {
+void SDL_AppQuit(void* appstate, SDL_AppResult result) {
     if (font)
         TTF_CloseFont(font);
     TTF_Quit();
@@ -306,7 +353,7 @@ void pentrek_init() {
 }
 #endif
 
-void pentrek_draw(char* bits, int width, int height, int scan) {
+void Window::pentrek_draw(char* bits, int width, int height, int scan) {
     auto shim = ShimContext::MakeRaster();
     auto pm = Pixmap::C32(width, height, (Premul32*) bits, scan);
     RasterCanvas canvas(pm);
@@ -331,9 +378,8 @@ void pentrek_draw(char* bits, int width, int height, int scan) {
             bu.addPoly(points, false);
             auto path = bu.snapshot();
             Paint paint;
-            float a = (poly.color >> 24) / 255.f;
-            auto premul = [a, poly](int bit) { return a * ((poly.color >> bit) & 0xFF) / 255.f; };
-            paint.color({ premul(16), premul(8), premul(0), a });
+            auto component = [poly](int bit) { return ((poly.color >> bit) & 0xFF) / 255.f; };
+            paint.color({ component(16), component(8), component(0), component(24) });
 //            paint.color({ 1, 0, 0, .3 });
             paint.stroke(!!poly.thickness);
             if (poly.thickness)

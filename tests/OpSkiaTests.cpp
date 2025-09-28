@@ -288,12 +288,12 @@ void bulkTest(int index) {
 uint64_t timerFrequency;
 uint64_t timerStart;
 
-#if !OP_DEBUG_FAST_TEST
+#if 0 && !OP_DEBUG_FAST_TEST
 bool debugUseAlt;
 #endif
 
 void runTests() {
-#if !OP_DEBUG_FAST_TEST
+#if 0 && !OP_DEBUG_FAST_TEST
 	debugUseAlt = false;
 #endif
 
@@ -643,7 +643,7 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
         SkPathOp op, std::string testname, bool v0MayFail, bool skiaMayFail, bool mayDiffer) {
 	auto alt = [&testname](std::string name, void (*func)()) {
 		if (name == testname) {
-#if !OP_DEBUG_FAST_TEST			
+#if 0 && !OP_DEBUG_FAST_TEST			
 			OP_ASSERT(debugUseAlt);
 			OP_DEBUG_CODE(debugUseAlt = false);
 #endif
@@ -671,7 +671,7 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
 		return;
 	if (alt("cubicOp114asQuad", alt_cubicOp114asQuad))
 		return;
-#if !OP_DEBUG_FAST_TEST			
+#if 0 && !OP_DEBUG_FAST_TEST			
 	OP_ASSERT(!debugUseAlt);
 #endif
     const char* tn = testname.c_str();
@@ -736,7 +736,7 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
 bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b, 
         SkPathOp op, const char* name, bool v0MayFail, bool skiaMayFail, bool mayDiffer) {
     if (skipTest(name)) {
-#if !OP_DEBUG_FAST_TEST
+#if 0 && !OP_DEBUG_FAST_TEST
 		debugUseAlt = false;
 #endif
         return true;
@@ -966,7 +966,7 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
 #if OP_TINY_SKIA
 	auto alt = [&testname](std::string name, void (*func)()) {
 		if (name == testname) {
-#if !OP_DEBUG_FAST_TEST			
+#if 0 && !OP_DEBUG_FAST_TEST			
 			OP_ASSERT(debugUseAlt);
 			OP_DEBUG_CODE(debugUseAlt = false);
 #endif
@@ -1059,7 +1059,7 @@ bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& st
     if ("" == testname)
         testname = state.fReporter->testname + STR(++unnamedCount);
     if (skipTest(testname)) {
-#if OP_TINY_SKIA && !OP_DEBUG_FAST_TEST
+#if 0 && OP_TINY_SKIA && !OP_DEBUG_FAST_TEST
 		debugUseAlt = false;
 #endif
         return true;
@@ -1072,7 +1072,7 @@ bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& st
 bool testSimplifyBase(skiatest::Reporter* r, const SkPath& path, const char* name, 
         bool v0MayFail, bool skiaMayFail) {
     if (skipTest(name)) {
-#if OP_TINY_SKIA && !OP_DEBUG_FAST_TEST
+#if 0 && OP_TINY_SKIA && !OP_DEBUG_FAST_TEST
 		debugUseAlt = false;
 #endif
         return true;

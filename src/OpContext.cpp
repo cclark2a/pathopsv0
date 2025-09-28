@@ -6,8 +6,6 @@
 #include "DebugOps.h"
 #include "PathOps.h"
 
-#include "OpDebugPicture.h"
-
 bool OpPtAliases::add(OpPoint original, OpPoint alias) {
 	OP_ASSERT(original.isFinite());
 	OP_ASSERT(alias.isFinite());
@@ -228,7 +226,7 @@ bool OpContext::addAlias(OpPoint pt, OpPoint alias) {
 }
 
 OpEdge* OpContext::addFiller(const OpPtT& start, const OpPtT& end) {
-	void* block = allocateEdge(fillerStorage);
+	void* block = allocateEdge(fillerStorage  OP_DEBUG_PARAMS("fillerStorage"));
 	// note: start t may be greater than end t (for filler only)
 	OpEdge* filler = new(block) OpEdge(this, start, end  OP_LINE_FILE_PARGS());
 	return filler;
@@ -266,9 +264,11 @@ OpContour* OpContext::allocateContour() {
 	return &contourStorage->storage[contourStorage->used++];
 }
 
-OpEdge* OpContext::allocateEdge(OpEdgeStorage*& edgeStorage) {
-	if (!edgeStorage)
+OpEdge* OpContext::allocateEdge(OpEdgeStorage*& edgeStorage  OP_DEBUG_PARAMS(std::string name)) {
+	if (!edgeStorage) {
 		edgeStorage = new OpEdgeStorage;
+        OP_DEBUG_CODE(edgeStorage->debugName = name);
+    }
 	if (edgeStorage->used == ARRAY_COUNT(edgeStorage->storage)) {
 		OpEdgeStorage* next = new OpEdgeStorage;
 		next->next = edgeStorage;

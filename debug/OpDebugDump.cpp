@@ -874,15 +874,15 @@ ENUM_NAME_STRUCT(OpDebugExpect)
 #define ASSERT_SERIAL(instance, lastField, thisField) \
     ASSERT_SERIAL_OFFSET(instance, lastField, 0, thisField)
 
-#define ASSERT_START(firstField) \
+#define ASSERT_FIRST(firstField) \
     static_assert(0 == offsetof(std::remove_reference_t<decltype(*this)>, firstField))
 
-#define ASSERT_END_OFFSET(lastField, offset) \
+#define ASSERT_LAST_OFFSET(lastField, offset) \
     static_assert(sizeof(*this) == offsetof(std::remove_reference_t<decltype(*this)>, lastField) \
             + sizeof(lastField) + offset)
 
-#define ASSERT_END(lastField) \
-    ASSERT_END_OFFSET(lastField, 0)
+#define ASSERT_LAST(lastField) \
+    ASSERT_LAST_OFFSET(lastField, 0)
 
 #define ASSERT_ORDERED(lastField, thisField) \
     ASSERT_SERIAL(*this, lastField, thisField)
@@ -929,17 +929,38 @@ ENUM_NAME_STRUCT(OpDebugExpect)
     if (OpDebugOptional(str, #thisID)) \
         thisID = (decltype(thisID)) OpDebugReadSizeT(str)
 
-#define DEBUG_DUMP_START_STRUCT(thisStruct) \
+#define DEBUG_DUMP_COMMON_STRUCT(thisStruct) \
     s += #thisStruct ":" + thisStruct.debugDump(l, b) + "\n"
+
+#define DEBUG_DUMP_FIRST_STRUCT(thisStruct) \
+    std::string s; \
+    ASSERT_FIRST(thisStruct); \
+    DEBUG_DUMP_COMMON_STRUCT(thisStruct)
 
 #define DEBUG_DUMP_STRUCT(lastField, thisStruct) \
     ASSERT_ORDERED(lastField, thisStruct); \
-    DEBUG_DUMP_START_STRUCT(thisStruct)
+    DEBUG_DUMP_COMMON_STRUCT(thisStruct)
+
+#define DEBUG_DUMP_LAST_STRUCT(lastField, thisStruct) \
+    DEBUG_DUMP_STRUCT(lastField, thisStruct); \
+    ASSERT_LAST(hi); \
+    return s
+
+#define DEBUG_SET_COMMON_STRUCT(thisStruct) \
+    OpDebugRequired(str, #thisStruct); \
+    thisStruct.dumpSet(str)
+
+#define DEBUG_SET_FIRST_STRUCT(thisStruct) \
+    ASSERT_FIRST(thisStruct); \
+    DEBUG_SET_COMMON_STRUCT(thisStruct)
 
 #define DEBUG_SET_STRUCT(lastField, thisStruct) \
     ASSERT_ORDERED(lastField, thisStruct); \
-    OpDebugRequired(str, #thisStruct); \
-    thisStruct.dumpSet(str)
+    DEBUG_SET_COMMON_STRUCT(thisStruct)
+
+#define DEBUG_SET_LAST_STRUCT(lastField, thisStruct) \
+    DEBUG_SET_STRUCT(lastField, thisStruct); \
+    ASSERT_LAST(thisStruct)
 
 #define DEBUG_DUMP_OPTIONAL_VALUE(lastField, thisValue) \
     ASSERT_ORDERED(lastField, thisValue); \
@@ -1298,7 +1319,7 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
     }
     ASSERT_ORDERED(curveDataStorage, ccStorage);
     if (ccStorage)
-        s += ccStorage->debugDump("ccStorage", l, b) + "\n";
+        s += ccStorage->debugDump(l, b) + "\n";
     ASSERT_ORDERED(ccStorage, contourStorage);
     if (contourStorage)
         s += contourStorage->debugDump(l, b) + "\n";
@@ -1312,7 +1333,7 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
     }
     ASSERT_ORDERED(contours, fillerStorage);
     if (fillerStorage)
-        s += fillerStorage->debugDump("fillerStorage", l, b) + "\n";
+        s += fillerStorage->debugDump(l, b) + "\n";
     ASSERT_ORDERED(fillerStorage, sectStorage);
     if (sectStorage)
         s += sectStorage->debugDump(l, b) + "\n";
@@ -2588,6 +2609,16 @@ void CurveDataStorage::DumpSet(const char*& str, CurveDataStorage** previousPtr)
         DumpSet(str, &storage->next);
 }
 
+std::string CutRangeT::debugDump(DebugLevel l, DebugBase b) const {
+    DEBUG_DUMP_FIRST_STRUCT(lo);
+    DEBUG_DUMP_LAST_STRUCT(lo, hi);
+}
+
+void CutRangeT::dumpSet(const char*& str) {
+    DEBUG_SET_FIRST_STRUCT(lo);
+    DEBUG_SET_LAST_STRUCT(lo, hi);
+}
+
 std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
     std::string s = Curve_DebugDump(c, l, b) + " ";
     if (DebugLevel::detailed == l || DebugLevel::file == l) {
@@ -2716,6 +2747,7 @@ ENUM_NAME_STRUCT(Axis)
 	OP_X(OutPath) \
 	OP_X(ParentID) \
 	OP_X(Depth) \
+	OP_X(CC) \
 	OP_X(RayMatch) \
 	OP_X(Filler) \
 	OP_X(Unordered) \
@@ -3378,26 +3410,22 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     ASSERT_ORDERED(windZero, isUnsortable);
     s += strEnum(EF::isUnsortable, "isUnsortable", Unsortable::none == isUnsortable, 
 			UnsortableName(isUnsortable));
-#define STR_BOOL(prior, ef) do { ASSERT_ORDERED(prior, ef); \
-        if (dumpIt(EdgeFilter::ef) && (dumpAlways(EdgeFilter::ef) || ef)) { \
-        s += strLabel(#ef) + " "; \
-        if (1 != ((unsigned char) ef)) s += STR((size_t) ef) + " "; }} while(false)
-	STR_BOOL(isUnsortable, active_impl);
-    STR_BOOL(active_impl, inLinkups);
-    STR_BOOL(inLinkups, linkHead);
-    STR_BOOL(linkHead, inOutput);
-    STR_BOOL(inOutput, disabled);
-    STR_BOOL(disabled, isUnsplitable);
-    STR_BOOL(isUnsplitable, ccEnd);
-    STR_BOOL(ccEnd, ccLarge);
-    STR_BOOL(ccLarge, ccOverlaps);
-    STR_BOOL(ccOverlaps, ccSmall);
-    STR_BOOL(ccSmall, ccStart);
-    STR_BOOL(ccStart, centerless);
-    STR_BOOL(centerless, startSeen);
-    STR_BOOL(startSeen, endSeen);
+	DEBUG_DUMP_BOOL(isUnsortable, active_impl);
+    DEBUG_DUMP_BOOL(active_impl, inLinkups);
+    DEBUG_DUMP_BOOL(inLinkups, linkHead);
+    DEBUG_DUMP_BOOL(linkHead, inOutput);
+    DEBUG_DUMP_BOOL(inOutput, disabled);
+    DEBUG_DUMP_BOOL(disabled, isUnsplitable);
+    DEBUG_DUMP_BOOL(isUnsplitable, ccEnd);
+    DEBUG_DUMP_BOOL(ccEnd, ccLarge);
+    DEBUG_DUMP_BOOL(ccLarge, ccOverlaps);
+    DEBUG_DUMP_BOOL(ccOverlaps, ccSmall);
+    DEBUG_DUMP_BOOL(ccSmall, ccStart);
+    DEBUG_DUMP_BOOL(ccStart, centerless);
+    DEBUG_DUMP_BOOL(centerless, startSeen);
+    DEBUG_DUMP_BOOL(startSeen, endSeen);
 #if OP_DEBUG
-    ASSERT_SERIAL_OFFSET(*this, endSeen, 6, debugMatch);
+    ASSERT_ORDERED_OFFSET(endSeen, debugMatch, 6);
     if (dumpIt(EdgeFilter::debugMatch) && (dumpAlways(EdgeFilter::debugMatch) || debugMatch))
         s += "debugMatch:" + (debugMatch ? STR(debugMatch->id) : std::string("-")) + " ";
     ASSERT_ORDERED(debugMatch, debugZeroErr);
@@ -3407,22 +3435,20 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     s += strID(EF::debugParentID, "debugParentID", debugParentID);
     ASSERT_ORDERED(debugParentID, debugDepth);
     s += strID(EF::debugDepth, "debugDepth", debugDepth);
-    ASSERT_ORDERED(debugDepth, debugRayMatch);
+    ASSERT_ORDERED(debugDepth, debugCC);
+    s += strID(EF::debugCC, "debugCC", debugCC);
+    ASSERT_ORDERED(debugCC, debugRayMatch);
     s += strID(EF::debugRayMatch, "debugRayMatch", debugRayMatch);
-	STR_BOOL(debugRayMatch, debugUnordered);
-	STR_BOOL(debugUnordered, debugSumSet);
+	DEBUG_DUMP_BOOL(debugRayMatch, debugUnordered);
+	DEBUG_DUMP_BOOL(debugUnordered, debugSumSet);
 #endif
-    ASSERT_SERIAL_OFFSET(*this, debugSumSet, 2, dumpContext);
+    ASSERT_ORDERED_OFFSET(debugSumSet, dumpContext, 6);
     // omit dumpContext
 #if OP_DEBUG_IMAGE
-    ASSERT_ORDERED(dumpContext, debugColor);
-    if (dumpIt(EF::debugColor) && (dumpAlways(EF::debugColor) || debugBlack != debugColor))
-        s += "debugColor:" + debugDumpColor(l, debugColor) + " ";
-    STR_BOOL(debugColor, debugDraw);
-    STR_BOOL(debugDraw, debugJoin);
-    STR_BOOL(debugJoin, debugLimb);
-    STR_BOOL(debugLimb, debugOne);
-    ASSERT_ORDERED(debugOne, debugSetDisabled);
+    DEBUG_DUMP_BOOL(dumpContext, debugDraw);
+    DEBUG_DUMP_BOOL(debugDraw, debugJoin);
+    DEBUG_DUMP_BOOL(debugJoin, debugLimb);
+    ASSERT_ORDERED_OFFSET(debugLimb, debugSetDisabled, 5);
 #else
     ASSERT_ORDERED(dumpContext, debugSetDisabled);
 #endif
@@ -3447,7 +3473,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
 #endif
 #if OP_DEBUG_VALIDATE
     s += strID(EF::debugPriorID, "debugPriorID", debugPriorID);
-    STR_BOOL(debugPriorID, debugScheduledForErasure);
+    DEBUG_DUMP_BOOL(debugPriorID, debugScheduledForErasure);
     static_assert(offsetof(OpEdge, debugScheduledForErasure) + sizeof(debugScheduledForErasure)
             + 3 == sizeof(OpEdge));
 #elif OP_DEBUG_IMAGE
@@ -3457,7 +3483,6 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     static_assert(offsetof(OpEdge, dumpContext) + sizeof(dumpContext)
             + 0 == sizeof(OpEdge));
 #endif
-#undef STR_BOOL
     return s;
 }
 
@@ -3598,22 +3623,20 @@ void OpEdge::dumpSet(const char*& str) {
     windZero = WindZeroStr(str, "windZero", WindZero::unset);
     ASSERT_ORDERED(windZero, isUnsortable);
     isUnsortable = UnsortableStr(str, "unsortable", Unsortable::none);
-#define STR_BOOL(prior, ef) do { ASSERT_ORDERED(prior, ef); \
-        ef = OpDebugOptional(str, #ef); } while(false)
-	STR_BOOL(isUnsortable, active_impl);
-    STR_BOOL(active_impl, inLinkups);
-    STR_BOOL(inLinkups, linkHead);
-    STR_BOOL(linkHead, inOutput);
-    STR_BOOL(inOutput, disabled);
-    STR_BOOL(disabled, isUnsplitable);
-    STR_BOOL(isUnsplitable, ccEnd);
-    STR_BOOL(ccEnd, ccLarge);
-    STR_BOOL(ccLarge, ccOverlaps);
-    STR_BOOL(ccOverlaps, ccSmall);
-    STR_BOOL(ccSmall, ccStart);
-    STR_BOOL(ccStart, centerless);
-    STR_BOOL(centerless, startSeen);
-    STR_BOOL(startSeen, endSeen);
+	DEBUG_SET_BOOL(isUnsortable, active_impl);
+    DEBUG_SET_BOOL(active_impl, inLinkups);
+    DEBUG_SET_BOOL(inLinkups, linkHead);
+    DEBUG_SET_BOOL(linkHead, inOutput);
+    DEBUG_SET_BOOL(inOutput, disabled);
+    DEBUG_SET_BOOL(disabled, isUnsplitable);
+    DEBUG_SET_BOOL(isUnsplitable, ccEnd);
+    DEBUG_SET_BOOL(ccEnd, ccLarge);
+    DEBUG_SET_BOOL(ccLarge, ccOverlaps);
+    DEBUG_SET_BOOL(ccOverlaps, ccSmall);
+    DEBUG_SET_BOOL(ccSmall, ccStart);
+    DEBUG_SET_BOOL(ccStart, centerless);
+    DEBUG_SET_BOOL(centerless, startSeen);
+    DEBUG_SET_BOOL(startSeen, endSeen);
 #if OP_DEBUG
     ASSERT_SERIAL_OFFSET(*this, endSeen, 6, debugMatch);
     debugMatch = (OpEdge*) strID("debugMatch");
@@ -3623,22 +3646,20 @@ void OpEdge::dumpSet(const char*& str) {
     debugParentID = (int) strID("debugParentID");
     ASSERT_ORDERED(debugParentID, debugDepth);
     debugDepth = (int) strID("debugDepth");
-    ASSERT_ORDERED(debugDepth, debugRayMatch);
+    ASSERT_ORDERED(debugDepth, debugCC);
+    debugCC = (int) strID("debugCC");
+    ASSERT_ORDERED(debugCC, debugRayMatch);
     debugRayMatch = (int) strID("debugRayMatch");
-	STR_BOOL(debugRayMatch, debugUnordered);
-	STR_BOOL(debugUnordered, debugSumSet);
+	DEBUG_SET_BOOL(debugRayMatch, debugUnordered);
+	DEBUG_SET_BOOL(debugUnordered, debugSumSet);
 #endif
-    ASSERT_SERIAL_OFFSET(*this, debugSumSet, 2, dumpContext);
+    ASSERT_SERIAL_OFFSET(*this, debugSumSet, 6, dumpContext);
     // omit dumpContext
 #if OP_DEBUG_IMAGE
-    ASSERT_ORDERED(dumpContext, debugColor);
-    if (OpDebugOptional(str, "debugColor"))
-        debugColor = OpDebugHexToInt(str);
-    STR_BOOL(debugColor, debugDraw);
-    STR_BOOL(debugDraw, debugJoin);
-    STR_BOOL(debugJoin, debugLimb);
-    STR_BOOL(debugLimb, debugOne);
-    ASSERT_ORDERED(debugOne, debugSetDisabled);
+    DEBUG_SET_BOOL(dumpContext, debugDraw);
+    DEBUG_SET_BOOL(debugDraw, debugJoin);
+    DEBUG_SET_BOOL(debugJoin, debugLimb);
+    ASSERT_ORDERED_OFFSET(debugLimb, debugSetDisabled, 5);
 #else
     ASSERT_ORDERED(dumpContext, debugSetDisabled);
 #endif
@@ -3659,7 +3680,7 @@ void OpEdge::dumpSet(const char*& str) {
 #endif
 #if OP_DEBUG_VALIDATE
     debugPriorID = (int) strID("debugPriorID");
-    STR_BOOL(debugPriorID, debugScheduledForErasure);
+    DEBUG_SET_BOOL(debugPriorID, debugScheduledForErasure);
     static_assert(offsetof(OpEdge, debugScheduledForErasure) + sizeof(debugScheduledForErasure)
             + 3 == sizeof(OpEdge));
 #elif OP_DEBUG_IMAGE
@@ -3669,7 +3690,6 @@ void OpEdge::dumpSet(const char*& str) {
     static_assert(offsetof(OpEdge, dumpContext) + sizeof(dumpContext)
             + 0 == sizeof(OpEdge));
 #endif
-#undef STR_BOOL
 }
 
 void OpEdge::dumpResolveAll(OpContext* c) {
@@ -4169,8 +4189,8 @@ void CallerDataStorage::dumpResolve(PathOpsV0Lib::ContextUserData& data) {
 }
 
 // don't count curve that hasn't been built
-int OpEdgeStorage::debugCount() {
-	OpEdge* last = debugIndex(used - 1);
+int OpEdgeStorage::debugCount() const {
+	const OpEdge* last = debugIndex(used - 1);
     int result = used - (PathOpsV0Lib::degenerateLine == last->curve.c.type);
     OpEdgeStorage* block = next;
     while (block) {
@@ -4204,12 +4224,16 @@ OpEdge* OpEdgeStorage::debugIndex(int index) {
     return &block->storage[index];
 }
 
-std::string OpEdgeStorage::debugDump(std::string label, DebugLevel l, DebugBase b) {
+const OpEdge* OpEdgeStorage::debugIndex(int index) const {
+    return (const_cast<OpEdgeStorage*>(this))->debugIndex(index);
+}
+
+std::string OpEdgeStorage::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     int count = debugCount();
     if (!count)
         return s;
-    s = label + ":" + STR(count) + "\n";
+    s = debugName + ":" + STR(count) + "\n";
     if (DebugLevel::brief == l) {
         s += "[";
         for (int index = 0; index < count; ++index)
@@ -4226,20 +4250,15 @@ std::string OpEdgeStorage::debugDump(std::string label, DebugLevel l, DebugBase 
     return s;
 }
 
-std::string OpEdgeStorage::debugDump(DebugLevel l, DebugBase b) const {
-    OP_ASSERT(0);  // !!! call the label version above instead
-    return "";
-}
-
 void OpEdgeStorage::DumpSet(const char*& str, OpContext* dumpContext, DumpStorage type) {
     size_t count = OpDebugReadSizeT(str);
     for (size_t index = 0; index < count; ++index) {
         OpEdge* edge = nullptr;
         // !!! hackery ahead: note that 'contours->allocateEdge(this)' won't compile
         if (DumpStorage::cc == type)
-            edge = dumpContext->allocateEdge(dumpContext->ccStorage);
+            edge = dumpContext->allocateEdge(dumpContext->ccStorage  OP_DEBUG_PARAMS("ccStorage"));
         else if (DumpStorage::filler == type)
-            edge = dumpContext->allocateEdge(dumpContext->fillerStorage);
+            edge = dumpContext->allocateEdge(dumpContext->fillerStorage  OP_DEBUG_PARAMS("fillerStorage"));
         else {
             OpDebugExit("edge storage missing");
         }
@@ -4252,7 +4271,7 @@ void OpEdgeStorage::DumpSet(const char*& str, OpContext* dumpContext, DumpStorag
 void OpEdgeStorage::dumpResolveAll(OpContext* c) {
     int count = debugCount();
     for (int index = 0; index < count; ++index)
-        debugIndex(index)->dumpResolveAll(c);
+        ((OpEdge*) debugIndex(index))->dumpResolveAll(c);
 }
 
 int OpLimbStorage::debugCount() const {
@@ -5035,54 +5054,50 @@ std::string SegPt::debugDump(DebugLevel l, DebugBase b) const {
 #if OP_DEBUG_VERBOSE
 std::string DebugDepth::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    ASSERT_START(all);
+    ASSERT_FIRST(all);
     DEBUG_DUMP_START_REQUIRED_VALUE(all);
     DEBUG_DUMP_REQUIRED_VALUE(all, depth);
-    ASSERT_END_OFFSET(depth, 4);
+    ASSERT_LAST_OFFSET(depth, 4);
     return s;
 }
 
 void DebugDepth::dumpSet(const char*& str) {
-    ASSERT_START(all);
+    ASSERT_FIRST(all);
     DEBUG_SET_START_REQUIRED_VALUE(all);
     DEBUG_SET_REQUIRED_VALUE(all, depth);
-    ASSERT_END_OFFSET(depth, 4);
+    ASSERT_LAST_OFFSET(depth, 4);
 }
 
 std::string DebugRunSize::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    ASSERT_START(edgeRuns);
+    ASSERT_FIRST(edgeRuns);
     DEBUG_DUMP_START_REQUIRED_VALUE(edgeRuns);
     DEBUG_DUMP_REQUIRED_VALUE(edgeRuns, oppRuns);
-    ASSERT_END(oppRuns);
+    ASSERT_LAST(oppRuns);
     return s;
 }
 
 void DebugRunSize::dumpSet(const char*& str) {
-    ASSERT_START(edgeRuns);
+    ASSERT_FIRST(edgeRuns);
     DEBUG_SET_START_REQUIRED_VALUE(edgeRuns);
     DEBUG_SET_REQUIRED_VALUE(edgeRuns, oppRuns);
-    ASSERT_END(oppRuns);
+    ASSERT_LAST(oppRuns);
 }
 #endif
 
 std::string CcCurves::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     if (DebugLevel::file == l || DebugLevel::detailed == l) {
-        if (c.size()) {
-            s = "c:" + STR(c.size()) + " [";
-            for (auto edge : c)
-                s += STR(edge->id) + " ";
-            s.pop_back();
-            s += "]\n";
-        }
-        if (runs.size()) {
-            s += "runs:" + STR(runs.size()) + "\n";
-            for (auto& run : runs)
-                s += run.debugDump(l, b) + "\n";
-        }
-        if ('\n' == s.back())
-            s.pop_back();
+        ASSERT_FIRST(cc);   // skip
+        DEBUG_DUMP_VECTOR_IDS(cc, c);
+        DEBUG_DUMP_VECTOR(c, runs);
+        DEBUG_DUMP_VECTOR(runs, deleted);
+        DEBUG_DUMP_ID(deleted, seg);
+        DEBUG_DUMP_ID(seg, opp);
+        ASSERT_SERIAL(*this, opp, oppCurves);  // skip
+        DEBUG_DUMP_FLOAT(oppCurves, scaledMax);
+        DEBUG_DUMP_VECTOR_OFFSET(scaledMax, debugRuns, 4);
+        ASSERT_LAST(debugRuns);
         return s;
     }
     // set up edge::debugDump to only show curvecurve relevant fields
@@ -5103,28 +5118,28 @@ std::string CcCurves::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 void CcCurves::dumpSet(const char*& str) {
-    if (OpDebugOptional(str, "c")) {
-        size_t count = OpDebugReadSizeT(str);
-        c.resize(count);
-        for (size_t index = 0; index < count; ++index)
-            c[index] = (OpEdge*) OpDebugReadSizeT(str);
-    }
-    if (OpDebugOptional(str, "runs")) {
-        size_t count = OpDebugReadSizeT(str);
-        runs.resize(count);
-        for (size_t index = 0; index < count; ++index)
-            runs[index].dumpSet(str);
-    }
+    ASSERT_FIRST(cc);   // skip  (must be set by caller)
+    DEBUG_SET_VECTOR_IDS(cc, c);
+    DEBUG_SET_VECTOR(c, runs);
+    DEBUG_SET_VECTOR(runs, deleted);
+    DEBUG_SET_ID(deleted, seg);
+    DEBUG_SET_ID(seg, opp);
+    ASSERT_SERIAL(*this, opp, oppCurves);  // skip  (must be set by caller)
+    DEBUG_SET_FLOAT(oppCurves, scaledMax);
+    DEBUG_SET_VECTOR_OFFSET(scaledMax, debugRuns, 4);
+    ASSERT_LAST(debugRuns);
 }
 
 void CcCurves::dumpResolveAll(OpContext* context) {
+    context->dumpResolve(seg);
+    context->dumpResolve(opp);
     for (auto& edge : c)
         context->dumpResolve(edge);
 }
 
 std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    ASSERT_START(context);
+    ASSERT_FIRST(context);
     if (DebugLevel::file != l) {
         DebugLevel down1 = DebugLevel::file == l ? DebugLevel::file : (DebugLevel) ((int) l - 1);
         if (!seg->edges.size())
@@ -5194,15 +5209,13 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
         ASSERT_ORDERED_OFFSET(splitHullFail, debugLocalCall, 3);  // not serialized
     #endif
     #if OP_DEBUG_VERBOSE
-        DEBUG_DUMP_VECTOR_OFFSET(debugLocalCall, dvDepthIndex, 4);
-        DEBUG_DUMP_VECTOR_IDS(dvDepthIndex, dvAll);
-        DEBUG_DUMP_VECTOR(dvAll, dvRunIndex);
+        DEBUG_DUMP_VECTOR_OFFSET(debugLocalCall, dvRunIndex, 4);
         DEBUG_DUMP_VECTOR(dvRunIndex, dvRuns);
-        ASSERT_END(dvRuns);
+        ASSERT_LAST(dvRuns);
     #elif OP_DEBUG_DUMP
-        ASSERT_END_OFFSET(debugLocalCall, 4);
+        ASSERT_LAST_OFFSET(debugLocalCall, 4);
     #else
-        ASSERT_END_OFFSET(splitHullFail, 3);
+        ASSERT_LAST_OFFSET(splitHullFail, 3);
     #endif
         return s;
     }
@@ -5232,20 +5245,6 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
 #endif
 #if OP_DEBUG_VERBOSE
     if (DebugLevel::file == l) {
-        if (dvDepthIndex.size()) {
-            s += "dvDepthIndex[" + STR(dvDepthIndex.size()) + "\n";
-            for (const DebugDepth& iDepth : dvDepthIndex)
-                s += "{depth:" + STR(iDepth.depth) + " " + STR(iDepth.all) + "} ";
-            s.pop_back();
-            s += "] ";
-        }
-        if (dvAll.size()) {
-            s += "dvAll[" + STR(dvAll.size()) + "\n";
-            for (auto edge : dvAll)
-                s += STR(edge->id) + " ";
-            s.pop_back();
-            s += "] ";
-        }
         if (dvRunIndex.size()) {
             s += "dvRunIndex[" + STR(dvRunIndex.size()) + "\n";
             for (const DebugRunSize& size : dvRunIndex)
@@ -5266,13 +5265,16 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 void OpCurveCurve::dumpSet(const char*& str) {
-    ASSERT_START(context);
+    ASSERT_FIRST(context);
     DEBUG_SET_ID(context, seg);
     DEBUG_SET_ID(seg, opp);
     DEBUG_SET_ID(opp, parentEdge);
     DEBUG_SET_ID(parentEdge, parentOpp);
     DEBUG_SET_STRUCT(parentOpp, edgeCurves);
     DEBUG_SET_STRUCT(edgeCurves, oppCurves);
+    // note that edgeCurves, oppCurves have pointers to each other and to parent
+    edgeCurves.baseInit(this, &oppCurves);
+    oppCurves.baseInit(this, &edgeCurves);
     DEBUG_SET_VECTOR(oppCurves, limits);
     DEBUG_SET_VECTOR(limits, snips);
     DEBUG_SET_STRUCT(snips, maxSplit);
@@ -5303,15 +5305,13 @@ void OpCurveCurve::dumpSet(const char*& str) {
     ASSERT_ORDERED_OFFSET(splitHullFail, debugLocalCall, 3);  // not serialized
 #endif
 #if OP_DEBUG_VERBOSE
-    DEBUG_SET_VECTOR_OFFSET(debugLocalCall, dvDepthIndex, 4);
-    DEBUG_SET_VECTOR_IDS(dvDepthIndex, dvAll);
-    DEBUG_SET_VECTOR(dvAll, dvRunIndex);
+    DEBUG_SET_VECTOR_OFFSET(debugLocalCall, dvRunIndex, 4);
     DEBUG_SET_VECTOR(dvRunIndex, dvRuns);
-    ASSERT_END(dvRuns);
+    ASSERT_LAST(dvRuns);
 #elif OP_DEBUG_DUMP
-    ASSERT_END_OFFSET(debugLocalCall, 4);
+    ASSERT_LAST_OFFSET(debugLocalCall, 4);
 #else
-    ASSERT_END_OFFSET(splitHullFail, 3);
+    ASSERT_LAST_OFFSET(splitHullFail, 3);
 #endif
 }
 
@@ -5324,56 +5324,55 @@ void OpCurveCurve::dumpResolveAll(OpContext* c) {
     oppCurves.dumpResolveAll(c);
     for (auto& limit : limits)
         limit.dumpResolveAll(c);
-#if OP_DEBUG_VERBOSE
-    for (OpEdge*& edge : dvAll)
-        c->dumpResolve(edge);
-#endif
 }
 
 #if OP_DEBUG_VERBOSE
 void OpCurveCurve::dumpDepth(int level) {
+    std::string s;
     std::vector<EdgeFilter> showFields = { EF::id, EF::segment, EF::startT, EF::endT, 
 			EF::isUnsplitable,
             EF::ccEnd, EF::ccLarge, EF::ccOverlaps, EF::ccSmall, EF::ccStart,
             EF::hulls, EF::debugParentID, EF::debugSetMaker };
     OpSaveEF saveEF(showFields);
-    OpDebugOut("depth:" + STR(level) + "\n");
-    size_t dvLevels = dvDepthIndex.size();
-    if ((int) dvLevels <= level) {
+    s += "depth:" + STR(level) + "\n";
+    if (depth <= level) {
         for (const auto e : edgeCurves.c)
-            OpDebugFormat(e->debugDump(defaultLevel, defaultBase) + "\n");
+            s += e->debugDump(defaultLevel, defaultBase) + "\n";
         for (const auto e : oppCurves.c)
-            OpDebugFormat(e->debugDump(defaultLevel, defaultBase) + "\n");
-        OpDebugOut("edgeCurves.runs: " + STR(edgeCurves.runs.size()) + "\n");
+            s += e->debugDump(defaultLevel, defaultBase) + "\n";
+        s += "edgeCurves.runs: " + STR(edgeCurves.runs.size()) + "\n";
         for (const auto& run : edgeCurves.runs)
-            OpDebugFormat(run.debugDump(defaultLevel, defaultBase) + "\n");
-        OpDebugOut("oppCurves.runs: " + STR(oppCurves.runs.size()) + "\n");
+            s += run.debugDump(defaultLevel, defaultBase) + "\n";
+        s += "oppCurves.runs: " + STR(oppCurves.runs.size()) + "\n";
         for (const auto& run : oppCurves.runs)
-            OpDebugFormat(run.debugDump(defaultLevel, defaultBase) + "\n");
+            s += run.debugDump(defaultLevel, defaultBase) + "\n";
+        OpDebugFormat(s);
         return;
     }
-    if (dvDepthIndex[level].depth != level + 1)
-        OpDebugOut("!mismatch:" + STR(dvDepthIndex[level].depth) + "!=" + STR(level + 1) + "\n");
-    size_t lo = dvDepthIndex[level].all;
-    size_t hi = (int) dvDepthIndex.size() <= level + 1 ? dvAll.size() : dvDepthIndex[level + 1].all;
-    for (size_t index = lo; index < hi; ++index) {
-        OpEdge* e = dvAll[index];
-        OpDebugFormat(e->debugDump(defaultLevel, defaultBase) + "\n");
+    if (context->ccStorage) {
+		int count = context->ccStorage->debugCount();
+		for (int index = 0; index < count; ++index) {
+            const OpEdge* edge = context->ccStorage->debugIndex(index);
+            if (edge->debugDepth == level)
+			    s += edge->debugDump(defaultLevel, defaultBase) + "\n";
+		}
+
     }
-    lo = dvRunIndex[level].edgeRuns;
-    hi = dvRunIndex[level].oppRuns;
-    OpDebugOut("edgeCurves.runs: " + STR(hi - lo) + "\n");
+    size_t lo = dvRunIndex[level].edgeRuns;
+    size_t hi = dvRunIndex[level].oppRuns;
+    s += "edgeCurves.runs: " + STR(hi - lo) + "\n";
     for (size_t index = lo; index < hi; ++index) {
         const EdgeRun& run = dvRuns[index];
         OpDebugFormat(run.debugDump(defaultLevel, defaultBase) + "\n");
     }
     lo = hi;
     hi = (int) dvRunIndex.size() <= level + 1 ? dvRuns.size() : dvRunIndex[level + 1].edgeRuns;
-    OpDebugOut("oppCurves.runs: " + STR(hi - lo) + "\n");
+    s += "oppCurves.runs: " + STR(hi - lo) + "\n";
     for (size_t index = lo; index < hi; ++index) {
         const EdgeRun& run = dvRuns[index];
         OpDebugFormat(run.debugDump(defaultLevel, defaultBase) + "\n");
     }
+    OpDebugFormat(s);
 }
 
 void dmpDepth(int level) {
@@ -5384,7 +5383,7 @@ void dmpDepth(int level) {
 }
 
 void OpCurveCurve::dumpDepth() {
-    for (int level = 0; level <= (int) dvDepthIndex.size(); ++level) {
+    for (int level = 0; level <= depth; ++level) {
         dumpDepth(level);
     }
 }
@@ -6303,11 +6302,19 @@ void dmpColor(uint32_t c) {
 }
 
 void dmpColor(const OpEdge* edge) {
-    dmpColor(edge->debugColor);
+    dmpColor(*edge);
 }
 
-void dmpColor(const OpEdge& edge) {
-    dmpColor(edge.debugColor);
+void dmpColor(const OpEdge& e) {
+    OpContext* context = e.context();
+    OpEdge* ccEdge = context->ccStorage->debugFind(e.id);
+    bool isCurveCurve = ccEdge && e.id == ccEdge->id;
+    PathOpsV0Lib::DebugEdgeType edgeType {
+        e.disabled, e.inOutput, Unsortable::none != e.isUnsortable, isCurveCurve, e.ccOverlaps };
+    PathOpsV0Lib::DebugEdgeColor debugEdgeColor = 
+            context->debugContextCallbacks.debugEdgeColorFuncPtr;
+    uint32_t color = debugEdgeColor ? (*debugEdgeColor)(e.winding.w, edgeType) : debugBlack;
+    dmpColor(color);
 }
 
 // for typing in immediate window as parameters to dmpBase

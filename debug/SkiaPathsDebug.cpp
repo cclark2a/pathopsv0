@@ -203,7 +203,7 @@ void SetSkiaSimplifyCallbacksDebug(Context* context, Contour* contour, const SkP
 	SetDebugContextCallbacks(context, {
             unaryDebugIsFill
 			OP_DEBUG_DUMP_PARAMS(nullptr, unaryDumpOutFunc, unaryDumpSetFunc)
-            OP_DEBUG_IMAGE_PARAMS(unaryImageOutXFunc, unaryImageOutFunc) }
+            OP_DEBUG_IMAGE_PARAMS(unaryImageOutXFunc, unaryImageOutFunc, unaryColorFuncPtr) }
     );
 }
 
@@ -226,7 +226,7 @@ void SetSkiaOpContourCallbacksDebug(Context* context, Contour* contour,
 	SetDebugContextCallbacks(context, {
             binaryDebugIsFill
 			OP_DEBUG_DUMP_PARAMS(dumpBinaryContextFunc, binaryDumpOutFunc, binaryDumpSetFunc)
-            OP_DEBUG_IMAGE_PARAMS(binaryImageOutXFunc, binaryImageOutFunc) }
+            OP_DEBUG_IMAGE_PARAMS(binaryImageOutXFunc, binaryImageOutFunc, binaryColorFuncPtr) }
     );
 }
 

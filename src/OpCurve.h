@@ -19,6 +19,8 @@ inline NormalDirection operator!(NormalDirection a) {
 }
 
 struct CutRangeT {
+	DUMP_DECLARATIONS
+
 	OpPtT lo;
 	OpPtT hi;
 };

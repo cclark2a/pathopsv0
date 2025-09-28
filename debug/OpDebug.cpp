@@ -241,6 +241,7 @@ std::string OpDebugDumpByteArray(const uint8_t* bytes, size_t size) {
     return s;
 }
 
+#if 0
 void playback() {
 #if !OP_TINY_SKIA
 	FILE* file = fopen("OpDebugImageState.txt", "r");
@@ -271,6 +272,7 @@ void record() {
 	fclose(recordFile);
 #endif
 }
+#endif
 
 OpDebugContourIterator contourIterator;
 
@@ -667,8 +669,8 @@ void CcCurves::debugAdd(EdgeRun& run) {
     debugValidate();
 }
 
-void CcCurves::debugAdd(CcCurves& cc) {
-    for (EdgeRun& ccRun : cc.debugRuns) {
+void CcCurves::debugAdd(CcCurves& ccCurves) {
+    for (EdgeRun& ccRun : ccCurves.debugRuns) {
         debugAdd(ccRun);
     }
 }
@@ -736,12 +738,6 @@ void OpCurveCurve::debugBoundedEdge(OpSegment* segm, const OpPointBounds& sectBo
 
 #if OP_DEBUG_VERBOSE
 void OpCurveCurve::debugSaveState() {
-	if ((int) dvDepthIndex.size() < depth)
-		dvDepthIndex.push_back({ dvAll.size(), depth });
-	for (auto edge : edgeCurves.c)
-		dvAll.push_back(edge);
-	for (auto oppEdge : oppCurves.c)
-		dvAll.push_back(oppEdge);
     dvRunIndex.push_back({ dvRuns.size(), dvRuns.size() + edgeCurves.runs.size() });
     for (auto run : edgeCurves.runs)
         dvRuns.push_back(run);

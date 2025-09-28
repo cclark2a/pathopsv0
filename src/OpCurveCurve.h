@@ -33,6 +33,12 @@
 */
 
 struct CcCurves;
+struct OpCurveCurve;
+
+enum class EdgeOverlaps {
+    no,
+    overlaps,
+};
 
 enum class SectFound {
 	no,
@@ -89,6 +95,7 @@ enum class ClampDist : bool {
 struct CcCurves {
 	EdgeRun* addEdgeRun(OpEdge* edge, EdgeMatch , ClampDist  OP_LINE_FILE_ARGS());
 	EdgeRun* addEdgeRun(EdgeRun& , EdgeMatch , ClampDist);
+    void baseInit(OpCurveCurve* , CcCurves* );
     bool checkMid(float midT, float startDist, float endDist);
     bool checkMidEdge(OpEdge* );
 	bool checkMidRun(size_t index);  // mid pt distance to next run smaller
@@ -97,7 +104,7 @@ struct CcCurves {
     void complementRun(OpEdge* opp);
 	bool deletedT(float t) const;  // true if t is in deleted -- deleted need not be sorted
 	std::vector<CutRangeT> findGaps() const;
-    void init(CcCurves* oppCurves, float scaledMax, OpEdge* parent, OpSegment* opp);
+    void init(OpCurveCurve* , CcCurves* oppCurves, float scaledMax, OpEdge* parent, OpSegment* opp);
 	void initialEdgeRun(OpEdge* edge);
     int insertPos(std::vector<EdgeRun>& , EdgeRun& );
 	bool lopSided(size_t priorCount, float maxBias) const;
@@ -114,6 +121,7 @@ struct CcCurves {
     OP_DEBUG_CODE(void debugCheck(const OpEdge* , EdgeMatch) const);
 	OP_DEBUG_VALIDATE_CODE(void debugValidate() const);  // assert if not sorted
 
+    OpCurveCurve* cc;
 	std::vector<OpEdge*> c;  // !!! is this sorted?
 	std::vector<EdgeRun> runs;  // sorted culled runs, keeping extreme distances
 	std::vector<CutRangeT> deleted;  // pairs of t ranges
@@ -188,6 +196,8 @@ struct OpCurveCurve {
 	EdgeRun* addEdgeRun(OpEdge* , CurveRef , EdgeMatch  OP_LINE_FILE_ARGS());
 	bool addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 			const OpPtT& oppStart, const OpPtT& oppEnd);
+    OpEdge* allocateEdge(OpSegment* , const OpEdge* , const OpPtT& start, const OpPtT& end,
+            NewEdge, EdgeOverlaps  OP_LINE_FILE_DEF(int parentID));
 	bool alreadyInLimits(const OpEdge* edge, const OpEdge* oEdge, 
 			const OpPtT& edgePtT, const OpPtT& oppPtT);
 	bool betweenLimits(OpSegment* , float lo, float hi);
@@ -271,8 +281,6 @@ struct OpCurveCurve {
 	int debugLocalCall = INT_MAX;  // (copy so it is visible in debugger)
 #endif
 #if OP_DEBUG_VERBOSE
-	std::vector<DebugDepth> dvDepthIndex;
-	std::vector<OpEdge*> dvAll;
 	std::vector<DebugRunSize> dvRunIndex;
 	std::vector<EdgeRun> dvRuns;  // make copy because some originals are temporary
 #endif

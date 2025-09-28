@@ -20,6 +20,7 @@ enum class CurveRef;
 enum class FoundPtT;
 
 enum class NewEdge {
+    none,
 	isLeft,
 	isRight,
 };
@@ -387,6 +388,7 @@ private:
 		debugZeroErr = nullptr;
 		debugParentID = 0;
 		debugDepth = 0;
+        debugCC = 0;
 		debugRayMatch = 0;
 		debugUnordered = false;
 		debugSumSet = false;
@@ -395,11 +397,11 @@ private:
 		dumpContext = nullptr;
 #endif
 #if OP_DEBUG_IMAGE
-		debugColor = debugBlack;
+//		debugColor = debugBlack;
 		debugDraw = false;
 		debugJoin = false;
 		debugLimb = false;
-        debugOne = false;
+ //       debugOne = false;
 #endif
 #if OP_DEBUG_VALIDATE
 		debugScheduledForErasure = false;
@@ -565,6 +567,7 @@ public:
 	OpEdge* debugZeroErr;  // debug match ray found edge that does not match -- diagnostic for now
 	int debugParentID;
 	int debugDepth;  // depth of curve-curve when edge was created
+	int debugCC;   // depth when edge is in edgeCurves or oppCurves
 	mutable int debugRayMatch;	// id: edges in common output contour determined from ray
 	bool debugUnordered;  // set if check order detected some rays are out of order
 	bool debugSumSet;  // for 'set winding by distance' to detect infinite recursion
@@ -573,11 +576,11 @@ public:
 	OpContext* dumpContext;  // temporary edges don't have segment ptrs when unflattened
 #endif
 #if OP_DEBUG_IMAGE
-	uint32_t debugColor;
-	bool debugDraw;  // set true to be drawn in image watch
+//	uint32_t debugColor;    // !!! custom color is now in debugger
+	bool debugDraw;  // set true to be drawn in image watch !!! move this to debugger
 	bool debugJoin;	 // true if included by joiner
 	bool debugLimb;  // true if a part of tree
-    bool debugOne;   // set by direct command changing color or visibility
+//    bool debugOne;   // set by direct command changing color or visibility
 #endif
 OP_LINE_FILE_DECLARE(debugSetDisabled)
 OP_LINE_FILE_DECLARE(debugSetMaker)
@@ -607,10 +610,10 @@ struct OpEdgeStorage {
 	bool contains(int ccUnsectableID) const;
 	void reuse();
 #if OP_DEBUG_DUMP
-	int debugCount();
-	std::string debugDump(std::string label, DebugLevel l, DebugBase b);
+	int debugCount() const;
 	OpEdge* debugFind(int id);
 	OpEdge* debugIndex(int index);
+	const OpEdge* debugIndex(int index) const;
 	static void DumpSet(const char*& str, OpContext* , DumpStorage );
 	DUMP_DECLARATIONS
 #endif
@@ -621,6 +624,9 @@ struct OpEdgeStorage {
 	OpEdgeStorage* next;
 	OpEdge storage[256];
 	int used;
+#if OP_DEBUG_DUMP
+    std::string debugName;
+#endif
 };
 
 #endif

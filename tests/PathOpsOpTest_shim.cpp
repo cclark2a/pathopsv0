@@ -1,7 +1,7 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "SkiaTestShim.h"
 
-#if !OP_DEBUG_FAST_TEST
+#if 0 && !OP_DEBUG_FAST_TEST
 OP_DEBUG_CODE(extern bool debugUseAlt);
 #endif
 
@@ -88,7 +88,7 @@ struct SkDCubic {
     SkDCubicPair chopAt(double t) const;
 
     static int ComplexBreak(const SkPoint pts[4], SkScalar* t) {
-#if !OP_DEBUG_FAST_TEST
+#if 0 && !OP_DEBUG_FAST_TEST
 		OP_DEBUG_CODE(debugUseAlt = true);
 #endif
 		// intentionally unimplemented
@@ -101,7 +101,7 @@ struct SkDCubic {
 	}
 
 	int findInflections(double tValues[2]) const {
-#if !OP_DEBUG_FAST_TEST
+#if 0 && !OP_DEBUG_FAST_TEST
 		OP_DEBUG_CODE(debugUseAlt = true);
 #endif
 		// intentionally unimplemented
@@ -118,7 +118,7 @@ struct SkDCubic {
 
     SkDQuad toQuad() const {
 		SkDQuad result;
-#if !OP_DEBUG_FAST_TEST
+#if 0 && !OP_DEBUG_FAST_TEST
 		OP_DEBUG_CODE(debugUseAlt = true);
 #endif
 		// intentionally unimplemented
@@ -142,7 +142,7 @@ struct SkDCubicPair {
 
 SkDCubicPair SkDCubic::chopAt(double t) const {
 	SkDCubicPair result;
-#if !OP_DEBUG_FAST_TEST
+#if 0 && !OP_DEBUG_FAST_TEST
 	OP_DEBUG_CODE(debugUseAlt = true);
 #endif
 	// intentionally unimplemented
@@ -271,7 +271,7 @@ struct CubicPts {
 };
 
 inline void CubicPathToQuads(const SkPath& cubicPath, SkPath* quadPath) {
-#if !OP_DEBUG_FAST_TEST
+#if 0 && !OP_DEBUG_FAST_TEST
 		OP_DEBUG_CODE(debugUseAlt = true);
 #endif
 	// intentionally left unimplemented

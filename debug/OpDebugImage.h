@@ -316,6 +316,7 @@ OP_X(Right)
 	CALLOUT_LIST
 #undef OP_X
 
+#if 0
 #define COLOR_LIST \
 OP_X(Active) \
 OP_X(Disabled) \
@@ -365,6 +366,8 @@ extern void colorLink(int id, uint32_t color);
 extern void colorLink(const OpEdge& , uint32_t color);
 extern void colorLink(const OpEdge* , uint32_t color);
 extern void colorLimbRange(int lastLimbID, uint32_t color);  // color tree from trunk to lastLimbID
+#endif
+
 extern std::vector<std::pair<uint32_t, std::string>> debugColorArray;
 
 inline uint32_t OpDebugAlphaColor(uint32_t alpha, uint32_t color) {

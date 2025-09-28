@@ -7,6 +7,7 @@
 
 #include "OpDebugPicture.h"
 #include "OpContext.h"
+#include "OpCurveCurve.h"
 
 bool drawGridLinear = false;
 
@@ -331,15 +332,12 @@ void OpDebugPicture::clear() {
     scale = OpNaN;
 }
 
-void OpDebugPicture::setDevice() {
-    for (OpDebugPoly& poly : polys) {
-        poly.device.reserve(poly.local.size());
-        for (OpPoint lPt : poly.local) {
-            poly.device.push_back(toDevice(lPt));
-        }
-        poly.contours.push_back(poly.device.size());
-    }
+std::string OpDebugPicture::debugTextDump(size_t index) {
+    OP_ASSERT(index < textCache.size());
+    return textCache[index].debugDump();
 }
+
+
 
 OpPoint OpDebugPicture::toLocal(OpPoint pt) {
     return { (float) (pt.x / scale + focus.left), (float) (pt.y / scale + focus.top) };
@@ -379,7 +377,7 @@ void OpDebugPicture::addFittedBottom(std::string s, float xPos, float right, uin
 	const int xOffset = 2;
     for (;;) {
         OpDebugText& text = addText(s, OpPoint(), color);
-        const NativeTextCache& cache = native_cache(text.cacheIndex);
+        const NativeTextCache& cache = getCache(text.cacheIndex);
         if (cache.size.dx + xOffset * 2 <= right - xPos) {
             text.pt.x = xPos + xOffset;
             text.pt.y = screen.bottom - cache.size.dy - xOffset;
@@ -395,7 +393,7 @@ void OpDebugPicture::addFittedSide(std::string s, float yPos, float bottom, uint
 	const int xOffset = 2;
     for (;;) {
         OpDebugText& text = addText(s, OpPoint(), color);
-        const NativeTextCache& cache = native_cache(text.cacheIndex);
+        const NativeTextCache& cache = getCache(text.cacheIndex);
         if (cache.size.dx + xOffset * 2 <= yPos - bottom) {
             text.pt.x = 0;
             text.pt.y = yPos - xOffset;
@@ -466,7 +464,7 @@ void OpDebugPicture::addGrid() {
 		addFittedBottom(xValStr, xToScreen(fx), xToScreen(xes[index + 1]), gridColor);
     }
     OpDebugText& lastText = texts.back();
-    const NativeTextCache& cache = native_cache(lastText.cacheIndex);
+    const NativeTextCache& cache = getCache(lastText.cacheIndex);
 	const int xOffset = 2;
     for (size_t index = 1; index < yes.size(); ++index) {
         float fy = yes[index];
@@ -476,6 +474,11 @@ void OpDebugPicture::addGrid() {
             yScreen -= cache.size.dy + xOffset;
 		addFittedSide(yValStr, yScreen, yToScreen(yes[index - 1]), gridColor);
     }
+}
+
+const NativeTextCache& OpDebugPicture::getCache(size_t index) {
+    OP_ASSERT(index < textCache.size());
+    return textCache[index];
 }
 
 bool OpDebugPicture::touches(const OpRect& bounds) {
@@ -506,7 +509,7 @@ bool OpDebugPicture::touches(const OpRect& bounds) {
         }
     }
     for (const OpDebugText& text : texts) {
-        const NativeTextCache& cache = native_cache(text.cacheIndex);
+        const NativeTextCache& cache = getCache(text.cacheIndex);
         OpRect textBounds(text.pt, text.pt + cache.size);
         if (textBounds.intersects(bounds))
             return true;
@@ -516,8 +519,9 @@ bool OpDebugPicture::touches(const OpRect& bounds) {
 
 OpDebugText& OpDebugPicture::addText(std::string s, OpPoint device, uint32_t color, bool rotated) {
     OpDebugText& text = texts.emplace_back();
-    text.cacheIndex = native_addText(s, color);
+    text.cacheIndex = window->addText(s, color);
     text.pt = device;
+    text.debugLocal = device;
     text.vertical = rotated;
     return text;
 }
@@ -526,7 +530,7 @@ void OpDebugPicture::addLabel(std::string s, OpPoint local, uint32_t color) {
     OpVector margin { 4, 4 };
     OpDebugText& text = addText(s, toDevice(local), color, false);
     text.debugLocal = local;
-    const NativeTextCache& cache = native_cache(text.cacheIndex);
+    const NativeTextCache& cache = getCache(text.cacheIndex);
     // find closest free location
     for (int marginTries = 0; marginTries < 4; ++marginTries) {
         for (int octant = 0; octant < 8; ++octant) {
@@ -568,7 +572,7 @@ void OpDebugPicture::addLabel(std::string s, OpPoint local, uint32_t color) {
         }
         margin *= 2;
     }
-    text.cacheIndex = native_addText(".", color);
+    text.cacheIndex = window->addText(".", color);
     text.pt += margin;  // if all else fails...
 }
 
@@ -617,8 +621,8 @@ void OpDebugPicture::addWinding(OpDebugPoly& poly) {
     if (!poly.edge || !poly.isPrimary)
         return;
     auto add = [poly, this](std::string s, float normSign) {
-        size_t cacheIndex = native_addText(s, poly.color);
-        const NativeTextCache& cache = native_cache(cacheIndex);
+        size_t cacheIndex = window->addText(s, poly.color);
+        const NativeTextCache& cache = getCache(cacheIndex);
 		for (float normLength : { 4.f, 15.f } ) {
 			for (float normT : { .58f, .38f, .78f, .18f, .98f } ) {
                 OpCurve curve(poly.c, Rotated::no);
@@ -687,8 +691,6 @@ void OpDebugPoly::dump() const {
         s += "tStart:" + STR(tStart) + " ";
     if (1 != tEnd)
         s += "tEnd:" + STR(tEnd) + " ";
-    if (isCurveCurve)
-        s += "isCurveCurve ";
     if (isPrimary)
         s += "isPrimary ";
     s.pop_back();
@@ -707,13 +709,13 @@ std::string NativeTextCache::debugDump() const {
     return s;
 }
 
-void OpDebugText::dump() const {
+void OpDebugText::dump(OpDebugPicture& picture) const {
     std::string s;
     s += "pt:" + pt.debugDump(defaultLevel, defaultBase) + " ";
     s += "debugLocal:" + debugLocal.debugDump(defaultLevel, defaultBase) + " ";
     s += "cacheIndex:" + STR(cacheIndex) + " ";
     if (vertical) s += "vertical ";
-    s += native_debugDump(cacheIndex);
+    s += picture.debugTextDump(cacheIndex);
     OpDebugOut(s + "\n");
 }
 
@@ -729,7 +731,7 @@ void OpDebugPicture::dump() {
         poly.dump();
     OpDebugOut("texts:\n");
     for (const OpDebugText& text : texts)
-        text.dump();
+        text.dump(*this);
 }
 
 #endif
@@ -893,8 +895,10 @@ void OpDebugPicture::colorPolys() {
             continue;
         }
         const OpEdge& e = *poly.edge;
+        OpEdge* ccEdge = context->ccStorage->debugFind(e.id);
+        bool isCurveCurve = ccEdge && e.id == ccEdge->id;
         PathOpsV0Lib::DebugEdgeType edgeType {
-            e.disabled, e.inOutput, Unsortable::none != e.isUnsortable, poly.isCurveCurve, e.ccOverlaps
+            e.disabled, e.inOutput, Unsortable::none != e.isUnsortable, isCurveCurve, e.ccOverlaps
         };
         PathOpsV0Lib::DebugEdgeColor debugEdgeColor = 
                 poly.edge->context()->debugContextCallbacks.debugEdgeColorFuncPtr;
@@ -920,10 +924,9 @@ OpDebugPoly* OpDebugPicture::findPoly(const OpSegment* segment) {
     return nullptr;
 }
 
-void OpDebugPicture::bootStrap(OpContext* c) {
+void OpDebugPicture::bootStrap() {
     clear();
     addPoly.picture = this;
-    context = c;
     OpPointBounds contourBounds;
     for (auto contourIter = contourIterator.begin(); contourIter != contourIterator.end(); ++contourIter) {
         contourBounds.add((*contourIter)->bounds);
@@ -996,8 +999,53 @@ void OpDebugPicture::pan(OpVector v) {
 }
 
 void OpDebugPicture::redraw() {
-    if (context)
-        bootStrap(context);
+    if ("picture" == window->name) {
+        if (context)
+            bootStrap();
+        return;
+    }
+    if ("text" == window->name) {
+        if (!context)
+            return;
+        OpCurveCurve* curveCurve = context->debugCurveCurve;
+        if (!curveCurve)
+            return;
+        clear();
+        addPoly.picture = this;
+        OpPoint localLocation(10, 10);
+        std::string depthStr = "depth: " + STR(curveCurve->depth);
+        (void) addText(depthStr, localLocation, debugBlack, false);
+
+    }
+}
+
+// -1: draw none ; 0: draw all ; > 0 draw matching depth
+void OpDebugPicture::setDepth(int ) {
+	OpEdgeStorage* ccStorage = context->ccStorage;
+	int count = ccStorage ? ccStorage->debugCount() : 0;
+    int maxDepth = 0;
+	for (int index = 0; index < count; ++index) {
+		OpEdge* edge = ccStorage->debugIndex(index);
+        maxDepth = std::max(maxDepth, edge->debugDepth);
+        edge->debugDraw = true;
+    }
+    depth = std::max(-1, std::min(maxDepth, depth));
+    if (depth == 0)  // draw all
+        return;
+    for (int index = 0; index < count; ++index) {
+		OpEdge* edge = ccStorage->debugIndex(index);
+		edge->debugDraw = edge->debugDepth < depth && edge->debugCC >= depth;
+	}
+}
+
+void OpDebugPicture::setDevice() {
+    for (OpDebugPoly& poly : polys) {
+        poly.device.reserve(poly.local.size());
+        for (OpPoint lPt : poly.local) {
+            poly.device.push_back(toDevice(lPt));
+        }
+        poly.contours.push_back(poly.device.size());
+    }
 }
 
 void OpDebugPicture::zoom(int factor) {
