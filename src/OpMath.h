@@ -307,7 +307,7 @@ struct OpVector {
 		return { a * b.dx, a * b.dy };
 	}
 
-	OpVector operator/(float s) {
+	OpVector operator/(float s) const {  // !!! const needs to be added to all similar overloads
 		OpVector result = *this;
 		result /= s;
 		return result;

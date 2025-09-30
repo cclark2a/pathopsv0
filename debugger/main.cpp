@@ -26,11 +26,11 @@ static SDL_Color toSDLColor(uint32_t c) {
 }
 
 size_t Window::addText(std::string str, uint32_t color) {
-    auto found = std::find_if(debugPicture.textCache.begin(), debugPicture.textCache.end(), 
+    auto found = std::find_if(textCache.begin(), textCache.end(), 
             [str, color](NativeTextCache& cache) {
             return str == cache.str && color == cache.color; } );
-    if (debugPicture.textCache.end() != found)
-        return found - debugPicture.textCache.begin();
+    if (textCache.end() != found)
+        return found - textCache.begin();
     SDL_Color sdlColor = toSDLColor(color);
     SDL_Surface* textSurface = TTF_RenderText_Blended(font, str.c_str(), 0, sdlColor);
     if (!textSurface) {
@@ -39,10 +39,10 @@ size_t Window::addText(std::string str, uint32_t color) {
     }
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, textSurface);
     SDL_DestroySurface(textSurface);
-    size_t cacheIndex = debugPicture.textCache.size();
+    size_t cacheIndex = textCache.size();
     OpVector size;
     SDL_GetTextureSize(texture, &size.dx, &size.dy);
-    debugPicture.textCache.push_back({str, size, texture, color});
+    textCache.push_back({str, size, texture, color});
     return cacheIndex;
 }
 
@@ -62,26 +62,15 @@ SDL_AppResult Window::draw() {
     pentrek_draw(pix, windowWidth, windowHeight, pitch);
     SDL_UnlockTexture(polysTexture);  
     SDL_RenderTexture(renderer, polysTexture, nullptr, nullptr);
-    for (OpDebugText& text : debugPicture.texts) {
-        OP_ASSERT(text.cacheIndex < debugPicture.textCache.size());
-        NativeTextCache& cache = debugPicture.textCache[text.cacheIndex];
-        SDL_Texture* texture = (SDL_Texture*) cache.texture;
-        SDL_FRect dst { text.pt.x, text.pt.y, cache.size.dx, cache.size.dy };
-        if (text.vertical) {
-            SDL_FPoint center { 0, 0 };
-            SDL_RenderTextureRotated(renderer, texture, nullptr, &dst, -90.0, &center, 
-                    SDL_FLIP_NONE);
-        } else
-            SDL_RenderTexture(renderer, texture, nullptr, &dst);
-    }
+    drawText();
     SDL_RenderPresent(renderer);
     return SDL_APP_CONTINUE;
 }
 
 void Window::drawText() {
-    for (OpDebugText& text : debugPicture.texts) {
-        OP_ASSERT(text.cacheIndex < debugPicture.textCache.size());
-        const NativeTextCache& cache = debugPicture.getCache(text.cacheIndex);
+    for (OpDebugText& text : texts) {
+        OP_ASSERT(text.cacheIndex < textCache.size());
+        const NativeTextCache& cache = getCache(text.cacheIndex);
         SDL_Texture* texture = (SDL_Texture*) cache.texture;
         SDL_FRect dst { text.pt.x, text.pt.y, cache.size.dx, cache.size.dy };
         if (text.vertical) {
@@ -93,15 +82,8 @@ void Window::drawText() {
     }
 }
 
-void Window::update(Window& text, const char* filename) {
-    if (debugPicture.update(*this, filename))
-        text.debugPicture.copy(debugPicture);
-}
-
-SDL_AppResult Window::init(WindowEventHandler handler, std::string n, OpVector offset) {
-    eventHandler = handler;
+SDL_AppResult Window::init(std::string n, OpVector offset) {
     name = n;
-    SDL_Color color = { 0, 0, 0, SDL_ALPHA_OPAQUE };
     const int WINDOW_WIDTH = 1000;
     const int WINDOW_HEIGHT = 1000;
     if (!SDL_CreateWindowAndRenderer(("V0 Debugger " + name).c_str(), WINDOW_WIDTH, WINDOW_HEIGHT, 
@@ -109,37 +91,48 @@ SDL_AppResult Window::init(WindowEventHandler handler, std::string n, OpVector o
         OpDebugOut("Couldn't create window and renderer: " + std::string(SDL_GetError()) + "\n");
         return SDL_APP_FAILURE;
     }
+    windowID = SDL_GetWindowID(window);
+    setSize();
     int x, y;
-    if (SDL_GetWindowSize(window, &x, &y))
-        windowSize = { (float) x, (float) y };
-    if (SDL_GetWindowPosition(window, &x, &y)) {
+    if (SDL_GetWindowPosition(window, &x, &y))
         SDL_SetWindowPosition(window, (int) (x + offset.dx), (int) (y + offset.dy));
-    }
     if (!SDL_ShowWindow(window)) {
-        OpDebugOut("Couldn't show window at (" + STR(x) + ", " + STR(y) + "with offset "
+        OpDebugOut("Couldn't show window " + n + " at (" + STR(x) + ", " + STR(y) + "with offset "
                 + offset.debugDump(DebugLevel::normal, DebugBase::dec) + ": " 
                 + std::string(SDL_GetError()) + "\n");
         return SDL_APP_FAILURE;
     }
-    buffer = (int*) malloc(WINDOW_WIDTH * WINDOW_HEIGHT * sizeof(int));
-    polysTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888, 
-            SDL_TEXTUREACCESS_STREAMING,  WINDOW_WIDTH, WINDOW_HEIGHT);
+    allocateBuffers(WINDOW_WIDTH, WINDOW_HEIGHT);
+    return SDL_APP_CONTINUE;
+}
 
+SDL_AppResult Window::allocateBuffers(int width, int height) {
+    size_t bufferSize = width * height * sizeof(uint32_t);
+    if (buffer)
+        free(buffer);
+    buffer = (int*) malloc(bufferSize);
+    if (!buffer) {
+        OpDebugOut("Couldn't allocate buffer of size: " + STR(bufferSize) + "\n");
+        return SDL_APP_FAILURE;
+    }
+    memset(buffer, 0xFF, bufferSize);
+    if (polysTexture)
+        SDL_DestroyTexture(polysTexture);
+    polysTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888, 
+            SDL_TEXTUREACCESS_STREAMING, width, height);
+    if (!polysTexture) {
+        OpDebugOut("Couldn't allocate texture w/h: " + STR(width) + "/" + STR(height) + "\n");
+        return SDL_APP_FAILURE;
+    }
     return SDL_APP_CONTINUE;
 }
 
 /* This function runs once at startup. */
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     DebuggerState* debuggerState = new DebuggerState();
+    if (argc == 2)
+        debuggerState->opFileName = argv[1];
     *appstate = debuggerState;
-
-    drawIDsOn = true;  // !!! hardcode for testing
-    drawEdgesOn = true;  // !!! hardcode for testing
-    drawWindingsOn = false;  // !!! hardcode for testing
-    drawValuesOn = true;  // !!! hardcode for testing
-    drawGridOn = false; // !!! hardcode for testing
-    drawPointsOn = true;
-    drawFillOn = false;
     if (!TTF_Init()) {
         OpDebugOut("Couldn't initialise SDL_ttf: " + std::string(SDL_GetError()) + "\n");
         return SDL_APP_FAILURE;
@@ -154,18 +147,82 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
 /* This function runs when a new event (mouse input, keypresses, etc) occurs. */
 SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
+    static OpPoint downMouse;
     static OpPoint lastMouse;
     static bool dragging = false;
     DebuggerState* debuggerState = (DebuggerState*) appstate;
-    DebuggerEvent debuggerEvent = debuggerState->addEvent(SDL_GetModState(), event->window.windowID);
+    DebuggerEvent debuggerEvent(debuggerState, SDL_GetModState(), event->window.windowID);
+    bool verbose = false;
+    bool systemRedraw = false;
+    std::string windowName;
+    if (debuggerState->pictureWindow.windowID == event->window.windowID)
+        windowName = debuggerState->pictureWindow.name;
+    else if (debuggerState->textWindow.windowID == event->window.windowID)
+        windowName = debuggerState->textWindow.name;
+    if (       event->type != SDL_EVENT_MOUSE_MOTION         // 0x400
+            && event->type != SDL_EVENT_WINDOW_SHOWN         // 0x202
+            && event->type != SDL_EVENT_WINDOW_EXPOSED       // 0x204
+            && event->type != SDL_EVENT_WINDOW_MOVED         // 0x205
+            && event->type != SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED // 0x207
+            && event->type != SDL_EVENT_WINDOW_MOUSE_ENTER   // 0x20c
+            && event->type != SDL_EVENT_WINDOW_MOUSE_LEAVE   // 0x20d
+            && event->type != SDL_EVENT_WINDOW_FOCUS_GAINED  // 0x20e
+            && event->type != SDL_EVENT_WINDOW_FOCUS_LOST    // 0x20f
+            && event->type != SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED // 0x214
+            && event->type != SDL_EVENT_CLIPBOARD_UPDATE     // 0x900
+            )
+        OpDebugOut("event:" + OpDebugIntToHex(event->type) + "\n");
     switch (event->type) {
+        case SDL_EVENT_CLIPBOARD_UPDATE:
+            OpDebugOut("clipboard update\n");
+            break;
+        case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+            OpDebugOut(windowName + " pixel size changed\n");
+            systemRedraw = true;
+            break;
+        case SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED:
+            OpDebugOut(windowName + " display scale changed\n");
+            systemRedraw = true;
+            break;
+        case SDL_EVENT_WINDOW_SHOWN:
+            OpDebugOut(windowName + " shown\n");
+            systemRedraw = true;
+            break;
+        case SDL_EVENT_WINDOW_RESIZED:
+            OpDebugOut(windowName + " resized\n");
+            systemRedraw = true;
+            break;
+        case SDL_EVENT_WINDOW_EXPOSED:
+            OpDebugOut(windowName + " exposed\n");
+            systemRedraw = true;
+            break;
+        case SDL_EVENT_WINDOW_MOVED:
+            OpDebugOut(windowName + " moved\n");
+            break;
+        case SDL_EVENT_WINDOW_MOUSE_ENTER:
+            if (verbose) OpDebugOut(windowName + " mouse enter\n");
+            ;
+            break;
+        case SDL_EVENT_WINDOW_MOUSE_LEAVE:
+            if (verbose) OpDebugOut(windowName + " mouse leave\n");
+            ;
+            break;
+        case SDL_EVENT_WINDOW_FOCUS_GAINED:
+            OpDebugOut(windowName + " focus gained\n");
+            ;
+            break;
+        case SDL_EVENT_WINDOW_FOCUS_LOST:
+            OpDebugOut(windowName + " focus lost\n");
+            ;
+            break;
         case SDL_EVENT_MOUSE_WHEEL: 
             debuggerEvent.wheel = event->wheel.y;
             break;
         case SDL_EVENT_MOUSE_BUTTON_DOWN: {
             debuggerEvent.mouseAction = MouseAction::click;
-            SDL_GetMouseState(&lastMouse.x, &lastMouse.y);
-            debuggerEvent.mouse = lastMouse;
+            SDL_GetMouseState(&downMouse.x, &downMouse.y);
+            debuggerEvent.mouse = downMouse;
+            lastMouse = downMouse;
             dragging = true;
             break;
         }
@@ -180,7 +237,9 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
             if (lastMouse == debuggerEvent.mouse)
                 break;
             if (dragging) {
-                debuggerEvent.mouseDown = lastMouse;
+                debuggerEvent.mouseDown = downMouse;
+                debuggerEvent.mouseLast = lastMouse;
+                lastMouse = debuggerEvent.mouse;
                 debuggerEvent.mouseAction = MouseAction::drag;
             } else
                 debuggerEvent.mouseAction = MouseAction::move;
@@ -229,9 +288,14 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
                 break;
             }
         }
-        debuggerEvent.doEvent();
-        debuggerState->redraw();
     }
+    DrawLevel update = debuggerEvent.doEvent();
+    if (DrawLevel::file == update)
+        debuggerState->update();
+    if (DrawLevel::update == update || systemRedraw)
+        debuggerState->redraw();
+    else if (DrawLevel::draw == update)
+        debuggerState->draw();
     if (event->type == SDL_EVENT_QUIT)
         return SDL_APP_SUCCESS;  /* end the program, reporting success to the OS. */
     return SDL_APP_CONTINUE;
@@ -242,20 +306,14 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     DebuggerState* debuggerState = (DebuggerState*) appstate;
     static time_t lastTime = 0;
     struct stat info;
-#if 1
-    const char* opFileName = "d:/gerrit/skia/out/Debug/obj/dmp.txt";
-#else
-    const char* opFileName = "c:/users/cclar/source/repos/v0/v0/dmp2.txt";
-#endif
-    if (stat(opFileName, &info) == -1) {
-        assert(0);
+    if (stat(debuggerState->opFileName.c_str(), &info) == -1) {
+        OP_ASSERT(0);
         return SDL_APP_FAILURE;
     }
     if (info.st_mtime != lastTime) {
-        debuggerState->update(opFileName);
+        debuggerState->update();
         lastTime = info.st_mtime;
     }
-    debuggerState->draw();
     return SDL_APP_CONTINUE;
 }
 

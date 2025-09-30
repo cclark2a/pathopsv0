@@ -1,157 +1,18 @@
 // (c) 2025, Cary Clark cclark2@gmail.com
 // everything drawn by op debug image
 
-#include "OpDebug.h"
-
-#if OP_DEBUG_IMAGE
-
 #include "OpDebugPicture.h"
 #include "OpCurveCurve.h"
 #include "OpSegment.h"
 
 bool drawGridLinear = false;
 
-struct OpContextSaveThreshold {
-    OpContextSaveThreshold(OpContext* c, OpVector threshold) {
-        context = c;
-        save = context->aliases.threshold;
-        context->aliases.threshold = threshold;
-        context->aliases.thresholdLength = context->aliases.threshold.length();
-    }
-
-    ~OpContextSaveThreshold() {
-        context->aliases.threshold = save;
-        context->aliases.thresholdLength = context->aliases.threshold.length();
-    }
-
-    OpContext* context;
-    OpVector save;
-};
-
-void OpDebugPicture::add(const OpCurve& curve, DebuggerAddPoly* polyAdder) {
-        // if adding a contour lengthen existing poly it it matches and close the contour as well...
-    if (!polyAdder->continueCurve) {
-        polys.emplace_back();
-        polys.back().c = curve.c;
-        if (polyAdder->contour)
-            polys.back().color = polyAdder->contour->debugColor;
-    }
-    DebuggerPoly& poly = polys.back();
-    if (polyAdder) {
-        poly.edge = polyAdder->edge;
-        poly.segment = polyAdder->segment;
-        poly.contour = polyAdder->contour;
-        poly.isPrimary = true;
-        if (poly.contour)
-            poly.thickness = DebuggerPoly::fill_thickness;
-    }
-    OpContextSaveThreshold save(context, threshold);
-    // curve is fully inside focus; split it into lines
-    // lengthen curve while longer is linear
-    float start = 0;
-    float end = 1;
-    // split curve until a piece is linear
-    append(curve.c.data->start);
-    OpCurve piece = curve;
-    do {
-        while (!piece.isLine()) {
-            end = OpMath::Average(start, end);
-            piece = curve.subDivide(start, end);
-        }
-        append(piece.c.data->end);
-        float span = end - start;
-        OP_ASSERT(span > 0);
-        // lengthen the curve while a piece is linear (and while it can be longer)
-        bool pieceIsLine = false;
-        OpPoint lastEnd(SetToNaN::dummy);
-        do {
-            start = end;
-            end = std::min(1.f, start + span);
-            if (start >= end)
-                return;
-            piece = curve.subDivide(start, end);
-            pieceIsLine = piece.isLine();
-            if (!pieceIsLine && lastEnd.isFinite()) {
-                append(lastEnd);
-                start = OpMath::Average(start, end);
-                piece = curve.subDivide(start, end);
-                break;
-            }
-            span *= 2;
-            lastEnd = piece.c.data->end;
-        } while (pieceIsLine && end < 1.f);
-    } while (end < 1 || !piece.isLine());
-    append(curve.c.data->end);
-}
-
-// span is between first and last points, but does not extend last point (unless, see below)
-void OpDebugPicture::add(std::vector<OpPoint>& pts ) {
-    if (pts.empty())
-        return;
-    OpPoint last = pts.front();
-    for (OpPoint pt : pts) {
-        if (last == pt)
-            continue;
-        polys.emplace_back();
-        DebuggerPoly& back = polys.back();
-        back.cData.start = last;
-        back.cData.end = pt;
-        back.c = { (ContextPtr) context, &back.cData, sizeof(back.cData), 0 }; 
-        OpCurve curve(back.c, Rotated::no);
-        add(curve, nullptr);
-        last = pt;
-    }
-}
-
-// for fill only
-// span is between points, but does not extend last point unless last point equals first point
-void OpDebugPicture::add(OpPoint pt1, OpPoint pt2, DebuggerAddPoly* polyAdder) {
-    if (pt1 == pt2)
-        return;
-    std::vector<OpPoint>* lines = nullptr;
-    auto getLines = [this, polyAdder, &lines]() {
-        polys.emplace_back();
-        DebuggerPoly& poly = polys.back();
-        poly.edge = polyAdder->edge;
-        poly.segment = polyAdder->segment;
-        poly.contour = polyAdder->contour;
-        lines = &poly.local;
-    };
-    if (polys.empty()) {
-        getLines();
-    } else {
-        DebuggerPoly& last = polys.back();
-        if (!last.local.empty() && last.local.back() != pt1) {
-            getLines();
-        } else {
-            lines = &last.local;
-            OP_ASSERT(lines->size() > 1);
-            auto aligned = [](OpPoint p0, OpPoint p1, OpPoint p2) {
-                return (p0.x == p1.x && p1.x == p2.x) || (p0.y == p1.y && p1.y == p2.y);
-            };
-            if (aligned((&lines->back())[-1], pt1, pt2))
-                lines->pop_back();
-        }
-    }
-    if (lines->empty() || lines->back() != pt1)
-        lines->push_back(pt1);
-    lines->push_back(pt2);
-}
-
-void OpDebugPicture::addLine(OpPoint pt1, OpPoint pt2) {
-    DebuggerPoly& poly = polys.back();
-    std::vector<OpPoint>& lines = poly.device;
-    lines.push_back(pt1);
-    lines.push_back(pt2);
-    poly.contours.push_back(2);
-}
-
-void OpDebugPicture::addDevice(std::vector<OpPoint>& pts, DebuggerPoly& poly) {
+void PictureWindow::addDevice(std::vector<OpPoint>& pts, DebuggerPoly& poly) {
     poly.contours.push_back(pts.size());
     poly.device.insert(poly.device.end(), pts.begin(), pts.end());
 }
 
-void OpDebugPicture::addHulls() {
+void PictureWindow::addHulls() {
     if (!drawHullsOn)
         return;
     std::vector<DebuggerPoly> toAdd;
@@ -180,35 +41,24 @@ void OpDebugPicture::addHulls() {
 }
 
 // span is between this point and last point, if any
-void OpDebugPicture::append(OpPoint pt) {
+void Window::append(OpPoint pt) {
     if (polys.empty())
         polys.emplace_back();
     polys.back().local.push_back(pt);
 }
 
-void OpDebugPicture::clear() {
-    polys.clear();
-    texts.clear();
-    points.clear();
-    focus = OpRect();
-    wh = OpVector();
+void PictureWindow::clear() {
+    clearWindow();
     threshold = OpVector();
-    scale = OpNaN;
+    scale = 0;
 }
 
-std::string OpDebugPicture::debugTextDump(size_t index) {
-    OP_ASSERT(index < textCache.size());
-    return textCache[index].debugDump();
-}
-
-
-
-OpPoint OpDebugPicture::toLocal(OpPoint pt) {
+OpPoint PictureWindow::toLocal(OpPoint pt) {
     return { (float) (pt.x / scale + focus.left), (float) (pt.y / scale + focus.top) };
 }
 
 // return local space point in device space
-OpPoint OpDebugPicture::toDevice(OpPoint pt) {
+OpPoint PictureWindow::toDevice(OpPoint pt) {
     return { (float) ((pt.x - focus.left) * scale), (float) ((pt.y - focus.top) * scale) };
 }
 
@@ -237,7 +87,7 @@ bool boundsContains(const OpRect& r, LinePts& line) {
     return false;
 }
 
-void OpDebugPicture::addFittedBottom(std::string s, float xPos, float right, uint32_t color) {
+void PictureWindow::addFittedBottom(std::string s, float xPos, float right, uint32_t color) {
 	const int xOffset = 2;
     for (;;) {
         OpDebugText& text = addText(s, OpPoint(), color);
@@ -253,7 +103,7 @@ void OpDebugPicture::addFittedBottom(std::string s, float xPos, float right, uin
     }
 }
 
-void OpDebugPicture::addFittedSide(std::string s, float yPos, float bottom, uint32_t color) {
+void PictureWindow::addFittedSide(std::string s, float yPos, float bottom, uint32_t color) {
 	const int xOffset = 2;
     for (;;) {
         OpDebugText& text = addText(s, OpPoint(), color);
@@ -270,7 +120,7 @@ void OpDebugPicture::addFittedSide(std::string s, float yPos, float bottom, uint
     }
 }
 
-void OpDebugPicture::addGrid() {
+void PictureWindow::addGrid() {
     if (!drawGridOn)
         return;
     auto unfixSign = [](int32_t i) {
@@ -279,7 +129,7 @@ void OpDebugPicture::addGrid() {
 	auto fixSign = [](int32_t i) {
 		return i < 0 ? -(i & 0x7fffffff) : i;
 	};
-	auto hexWorks = [fixSign, unfixSign](std::vector<float>& lines, float fLo, float fHi) {
+	auto hexWorks = [fixSign, unfixSign, this](std::vector<float>& lines, float fLo, float fHi) {
 	    int32_t lo = fixSign(OpDebugFloatToBits(fLo));
 	    int32_t hi = fixSign(OpDebugFloatToBits(fHi));
         std::vector<float> linears;
@@ -340,12 +190,7 @@ void OpDebugPicture::addGrid() {
     }
 }
 
-const NativeTextCache& OpDebugPicture::getCache(size_t index) {
-    OP_ASSERT(index < textCache.size());
-    return textCache[index];
-}
-
-bool OpDebugPicture::touches(const OpRect& bounds) {
+bool PictureWindow::touches(const OpRect& bounds) {
     for (DebuggerPoly& poly : polys) {
         if (poly.device.empty())
             continue;
@@ -381,18 +226,9 @@ bool OpDebugPicture::touches(const OpRect& bounds) {
     return false;
 }
 
-OpDebugText& OpDebugPicture::addText(std::string s, OpPoint device, uint32_t color, bool rotated) {
-    OpDebugText& text = texts.emplace_back();
-    text.cacheIndex = window->addText(s, color);
-    text.pt = device;
-    text.debugLocal = device;
-    text.vertical = rotated;
-    return text;
-}
-
-void OpDebugPicture::addLabel(std::string s, OpPoint local, uint32_t color) {
+void PictureWindow::addLabel(std::string s, OpPoint local, uint32_t color) {
     OpVector margin { 4, 4 };
-    OpDebugText& text = addText(s, toDevice(local), color, false);
+    OpDebugText& text = addText(s, toDevice(local), color);
     text.debugLocal = local;
     const NativeTextCache& cache = getCache(text.cacheIndex);
     // find closest free location
@@ -436,11 +272,11 @@ void OpDebugPicture::addLabel(std::string s, OpPoint local, uint32_t color) {
         }
         margin *= 2;
     }
-    text.cacheIndex = window->addText(".", color);
+    text.cacheIndex = addText(".", color);
     text.pt += margin;  // if all else fails...
 }
 
-void OpDebugPicture::addTangent(DebuggerPoly& poly) {
+void PictureWindow::addTangent(DebuggerPoly& poly) {
     OP_ASSERT(poly.contours.size());
     OP_ASSERT(0 < poly.contours[0] && poly.contours[0] <= poly.device.size());
     OP_ASSERT((poly.edge || poly.segment) && poly.isPrimary);
@@ -481,11 +317,11 @@ void OpDebugPicture::addTangent(DebuggerPoly& poly) {
 	addDevice(tangentPath, poly);
 }
 
-void OpDebugPicture::addWinding(DebuggerPoly& poly) {
+void PictureWindow::addWinding(DebuggerPoly& poly) {
     if (!poly.edge || !poly.isPrimary)
         return;
     auto add = [poly, this](std::string s, float normSign) {
-        size_t cacheIndex = window->addText(s, poly.color);
+        size_t cacheIndex = addText(s, poly.color);
         const NativeTextCache& cache = getCache(cacheIndex);
 		for (float normLength : { 4.f, 15.f } ) {
 			for (float normT : { .58f, .38f, .78f, .18f, .98f } ) {
@@ -515,7 +351,7 @@ void OpDebugPicture::addWinding(DebuggerPoly& poly) {
         }
     };
 	const OpWinding& sum = poly.edge->sum;
-	auto debugImageOut = context->debugContextCallbacks.debugImageWindingOutXFuncPtr;
+	auto debugImageOut = context()->debugContextCallbacks.debugImageWindingOutXFuncPtr;
 	add(debugImageOut && sum.isSet() ? (*debugImageOut)(sum.w) : "?", 1);
 	std::string sumString = "?";
     const OpWinding& wind = poly.edge->winding;
@@ -526,7 +362,7 @@ void OpDebugPicture::addWinding(DebuggerPoly& poly) {
 		    OpWinding diffWind(poly.edge->sum.w); // !!! this should be local copy ...
     //        start here;
             // !!! this should be a debug const thingy that can't change user data
-		    context->windingCallbacks.windingSubtractFuncPtr((ContextPtr) context,
+		    context()->windingCallbacks.windingSubtractFuncPtr((ContextPtr) context(),
                     diffWind.w, wind.w);
 		    sumString = debugImageOut ? (*debugImageOut)(diffWind.w) : "";
         }
@@ -546,7 +382,7 @@ std::string NativeTextCache::debugDump() const {
     return s;
 }
 
-void OpDebugText::dump(OpDebugPicture& picture) const {
+void OpDebugText::dump(Window& picture) const {
     std::string s;
     s += "pt:" + pt.debugDump(defaultLevel, defaultBase) + " ";
     s += "debugLocal:" + debugLocal.debugDump(defaultLevel, defaultBase) + " ";
@@ -556,10 +392,9 @@ void OpDebugText::dump(OpDebugPicture& picture) const {
     OpDebugOut(s + "\n");
 }
 
-void OpDebugPicture::dump() {
+void PictureWindow::dump() {
     std::string s;
     s += "focus:" + focus.debugDump(defaultLevel, defaultBase) + " ";
-    s += "wh:" + wh.debugDump(defaultLevel, defaultBase) + " ";
     s += "scale:" + STR(scale) + " ";
     s.pop_back();
     OpDebugOut(s + "\n");
@@ -588,7 +423,7 @@ struct OpDebugFont {
     float size = 14.f;
 } labelFont;
 
-void OpDebugPicture::addLabels() {
+void PictureWindow::addLabels() {
     for (auto& poly : polys) {
         if (poly.edge && poly.isPrimary && drawEdgesOn) {
             if (drawIDsOn) {
@@ -609,7 +444,7 @@ void OpDebugPicture::addLabels() {
     }
 }
 
-void OpDebugPicture::addTangents() {
+void PictureWindow::addTangents() {
     if (!drawTangentsOn)
         return;
     for (auto& poly : polys) {
@@ -619,7 +454,7 @@ void OpDebugPicture::addTangents() {
     }
 }
 
-void OpDebugPicture::addWindings() {
+void PictureWindow::addWindings() {
     if (!drawEdgesOn || !drawWindingsOn)
         return;
     for (auto& poly : polys) {
@@ -629,7 +464,7 @@ void OpDebugPicture::addWindings() {
     }
 }
 
-void OpDebugPicture::addPoints() {
+void PictureWindow::addPoints() {
     if (!drawPointsOn)
         return;
     auto add = [this](DebuggerPoly* poly, OpPoint local, DebugSprite sprite = DebugSprite::diamond) {
@@ -713,7 +548,7 @@ void OpDebugPicture::addPoints() {
     }
 }
 
-void OpDebugPicture::colorPolys() {
+void PictureWindow::colorPolys() {
     for (DebuggerPoly& poly : polys) {
         if (poly.contour) {
         #if 1
@@ -732,43 +567,30 @@ void OpDebugPicture::colorPolys() {
             continue;
         }
         const OpEdge& e = *poly.edge;
-        OpEdge* ccEdge = context->ccStorage->debugFind(e.id);
+        OpEdge* ccEdge = context()->ccStorage->debugFind(e.id);
         bool isCurveCurve = ccEdge && e.id == ccEdge->id;
         PathOpsV0Lib::DebugEdgeType edgeType {
             e.disabled, e.inOutput, Unsortable::none != e.isUnsortable, isCurveCurve, e.ccOverlaps
         };
         PathOpsV0Lib::DebugEdgeColor debugEdgeColor = 
-                poly.edge->context()->debugContextCallbacks.debugEdgeColorFuncPtr;
+                context()->debugContextCallbacks.debugEdgeColorFuncPtr;
         poly.color = debugEdgeColor ? (*debugEdgeColor)(poly.edge->winding.w, edgeType) : debugBlack;
     }
 }
 
-void OpDebugPicture::copy(const OpDebugPicture& original) {
-    context = original.context;
-    screen = original.screen;
+bool PictureWindow::drawOne(DebuggerPoly& poly) {
+    if (poly.segment && !drawSegmentsOn)
+        return false;
+    if (poly.edge && !drawEdgesOn)
+        return false;
+    if (poly.contour && !drawFillOn)
+        return false;
+    return true;
 }
 
-DebuggerPoly* OpDebugPicture::findPoly(const OpEdge* edge) {
-    for (DebuggerPoly& poly : polys) {
-        if (poly.edge == edge)
-            return &poly;
-    }
-    OP_ASSERT(0);
-    return nullptr;
-}
-
-DebuggerPoly* OpDebugPicture::findPoly(const OpSegment* segment) {
-    for (DebuggerPoly& poly : polys) {
-        if (poly.segment == segment)
-            return &poly;
-    }
-    OP_ASSERT(0);
-    return nullptr;
-}
-
-void OpDebugPicture::bootStrap() {
+void PictureWindow::redraw() {
+    setSize();
     clear();
-    addPoly.picture = this;
     OpPointBounds contourBounds;
     for (auto contourIter = contourIterator.begin(); contourIter != contourIterator.end(); ++contourIter) {
         contourBounds.add((*contourIter)->bounds);
@@ -798,13 +620,14 @@ void OpDebugPicture::bootStrap() {
     rightBottom = center + zFactor * size;
     focus = { leftTop, rightBottom };
     OpVector localWH { focus.width(), focus.height() };
-    wh = { 1000, 1000 };
+    OpVector wh = screen.widthHeight();
     constexpr float subpixels = 4;
     threshold = localWH / (wh * subpixels);
     if (tuneThreshold) {
         threshold *= zoomFactor;
     }
-    scale = wh.dx / localWH.dx;
+    if (!scale)
+        scale = wh.dx / localWH.dx;
 	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 		const OpEdge* edge = *edgeIter;
 		if (!edge->debugDraw)
@@ -815,8 +638,8 @@ void OpDebugPicture::bootStrap() {
         const OpSegment* segment = *segmentIter;
         addPoly.add(segment);
     }
-    for (OpContour* contour : context->contours) {
-        PathOpsV0Lib::DebugIsFill debugIsFill = context->debugContextCallbacks.debugIsFillFuncPtr;
+    for (OpContour* contour : context()->contours) {
+        PathOpsV0Lib::DebugIsFill debugIsFill = context()->debugContextCallbacks.debugIsFillFuncPtr;
         if (debugIsFill && (*debugIsFill)(contour->winding()))
             addPoly.add(contour);
     }
@@ -830,40 +653,19 @@ void OpDebugPicture::bootStrap() {
     addGrid();
 }
 
-void OpDebugPicture::move(OpVector v) { 
+void PictureWindow::move(OpVector v) { 
     zoomOffset -= v / scale;
-    redraw();
+    draw();
 }
 
-void OpDebugPicture::pan(OpVector v) { 
+void PictureWindow::pan(OpVector v) { 
     zoomOffset += v * 1000 / scale;
-    redraw();
-}
-
-void OpDebugPicture::redraw() {
-    if ("picture" == window->name) {
-        if (context)
-            bootStrap();
-        return;
-    }
-    if ("text" == window->name) {
-        if (!context)
-            return;
-        OpCurveCurve* curveCurve = context->debugCurveCurve;
-        if (!curveCurve)
-            return;
-        clear();
-        addPoly.picture = this;
-        OpPoint localLocation(10, 10);
-        std::string depthStr = "depth: " + STR(depth) + " / " + STR(curveCurve->depth);
-        (void) addText(depthStr, localLocation, debugBlack, false);
-
-    }
+    draw();
 }
 
 // -1: draw none ; 0: draw all ; > 0 draw matching depth
-void OpDebugPicture::setDepth(int ) {
-	OpEdgeStorage* ccStorage = context->ccStorage;
+void PictureWindow::setDepth(int ) {
+	OpEdgeStorage* ccStorage = context()->ccStorage;
 	int count = ccStorage ? ccStorage->debugCount() : 0;
     int maxDepth = 0;
 	for (int index = 0; index < count; ++index) {
@@ -880,7 +682,7 @@ void OpDebugPicture::setDepth(int ) {
 	}
 }
 
-void OpDebugPicture::setDevice() {
+void PictureWindow::setDevice() {
     for (DebuggerPoly& poly : polys) {
         poly.device.reserve(poly.local.size());
         for (OpPoint lPt : poly.local) {
@@ -890,49 +692,52 @@ void OpDebugPicture::setDevice() {
     }
 }
 
-bool OpDebugPicture::update(const Window& w, const char* filename) {
-    delete context;
-    context = fromFile(filename);
-    debugGlobalContext = context;
-    if (context) {
-        screen = OpRect({0, 0}, OpPoint(0, 0) + w.windowSize);
-        bootStrap();
-    }
-    return !!context;
-}
-
-void OpDebugPicture::zoom(int factor) {
+void PictureWindow::zoom(int factor) {
     zoomer -= factor;
     zoomFactor = powf(2, zoomer / 32.f);
-    redraw();
+    draw();
 }
 
-void pictureEvent(Window* window, const DebuggerEvent& debuggerEvent) {
+DrawLevel PictureWindow::event(const DebuggerEvent& debuggerEvent) {
+    if (debuggerEvent.wheel) {
+        int scale = keyModMultiplier(debuggerEvent.keyMods);
+        zoom(debuggerEvent.wheel * scale);
+        OpDebugOut("zoom:" + STR(zoomFactor)
+            + " wheel:" + STR(debuggerEvent.wheel)
+            + " scale:" + STR(scale) + "\n");
+        return DrawLevel::update;
+    }
+    if (MouseAction::drag == debuggerEvent.mouseAction) {
+        move(debuggerEvent.mouse - debuggerEvent.mouseLast);
+        return DrawLevel::update;
+    }
     constexpr float pan_factor = 1.f / 8;
     int scale = keyModMultiplier(debuggerEvent.keyMods);
+    bool redraw = true;
     switch (uint8_t key = debuggerEvent.key) {
         case (uint8_t) KeyCode::leftArrow:
-            window->debugPicture.pan(OpVector(-pan_factor * scale, 0));
+            pan(OpVector(-pan_factor * scale, 0));
             break;
         case (uint8_t) KeyCode::upArrow:
-            window->debugPicture.pan(OpVector(0, -pan_factor * scale));
+            pan(OpVector(0, -pan_factor * scale));
             break;
         case (uint8_t) KeyCode::rightArrow:
-            window->debugPicture.pan(OpVector(pan_factor * scale, 0));
+            pan(OpVector(pan_factor * scale, 0));
             break;
         case (uint8_t) KeyCode::downArrow:
-            window->debugPicture.pan(OpVector(0, pan_factor * scale));
+            pan(OpVector(0, pan_factor * scale));
             break;
         case 'c':
             drawCentersOn ^= true;
             break;
         case 'd':
             if (KeyMods::ctrl == (KeyMods::ctrl & debuggerEvent.keyMods))
-                window->debugPicture.dump();
-            else if (KeyMods::shift == (KeyMods::ctrl & debuggerEvent.keyMods))
-                window->debugPicture.setDepth(--window->debugPicture.depth);
+                dump();
             else
-                window->debugPicture.setDepth(++window->debugPicture.depth);
+                setDepth(++depth);
+            break;
+        case 'D':
+            setDepth(--depth);
             break;
         case 'e':
             drawEdgesOn ^= true;
@@ -991,9 +796,13 @@ void pictureEvent(Window* window, const DebuggerEvent& debuggerEvent) {
             debugPrecision = -1;
             break;
         case '~':
-            window->debugPicture.tuneThreshold ^= true;
+            tuneThreshold ^= true;
+            break;
+        default:
+            redraw = false;
             break;
     }
+    return redraw ? DrawLevel::update : DrawLevel::none;
 }
 
 void textEvent(Window* window, const DebuggerEvent& debuggerEvent) {
@@ -1011,7 +820,5 @@ CALLOUT_LIST
 #undef OP_X
 
 int gridIntervals = 8;
-
-#endif
 
 #endif

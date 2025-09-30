@@ -6,6 +6,7 @@
 using namespace pentrek;
 
 void Window::pentrek_draw(char* bits, int width, int height, int scan) {
+    OpDebugOut("pentrek_draw " + name + "\n");
     auto shim = ShimContext::MakeRaster();
     auto pm = Pixmap::C32(width, height, (Premul32*) bits, scan);
     RasterCanvas canvas(pm);
@@ -15,12 +16,9 @@ void Window::pentrek_draw(char* bits, int width, int height, int scan) {
     canvas.drawIRect({0, 0, width, height}, clrPaint);
 #endif
     int debugCount = 0;
-    for (DebuggerPoly& poly : debugPicture.polys) {
-        if (poly.segment && !drawSegmentsOn)
-            continue;
-        if (poly.edge && !drawEdgesOn)
-            continue;
-        if (poly.contour && !drawFillOn)
+    PictureWindow& picture = debuggerState->pictureWindow;
+    for (DebuggerPoly& poly : polys) {
+        if (!drawOne(poly))
             continue;
         size_t index = 0;
         for (size_t count : poly.contours) {

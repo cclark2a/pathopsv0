@@ -12,43 +12,43 @@ void DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
     auto addVertical = [c, bounds, this](float x) {
         if (!addingFill)
             return;
-        float top = std::max(bounds.top, picture->focus.top);
-        float bottom = std::min(bounds.bottom, picture->focus.bottom);
+        float top = std::max(bounds.top, window->focus.top);
+        float bottom = std::min(bounds.bottom, window->focus.bottom);
         if (top >= bottom)
             return;
         if (c.data->start.y > c.data->end.y)
             std::swap(top, bottom);
-        picture->add({ x, top }, { x, bottom }, this);
+        window->add({ x, top }, { x, bottom }, this);
     };
     auto addHorizontal = [c, bounds, this](float y) {
         if (!addingFill)
             return;
-        float left = std::max(bounds.left, picture->focus.left);
-        float right = std::min(bounds.right, picture->focus.right);
+        float left = std::max(bounds.left, window->focus.left);
+        float right = std::min(bounds.right, window->focus.right);
         if (left >= right)
             return;
         if (c.data->start.x > c.data->end.x)
             std::swap(left, right);
-        picture->add({ left, y }, { right, y }, this);
+        window->add({ left, y }, { right, y }, this);
     };
-    if (bounds.right <= picture->focus.left)
-        return addVertical(picture->focus.left);
-    if (bounds.left >= picture->focus.right)
-        return addVertical(picture->focus.right);
-    if (bounds.bottom <= picture->focus.top)
-        return addHorizontal(picture->focus.top);
-    if (bounds.top >= picture->focus.bottom)
-        return addHorizontal(picture->focus.bottom);
+    if (bounds.right <= window->focus.left)
+        return addVertical(window->focus.left);
+    if (bounds.left >= window->focus.right)
+        return addVertical(window->focus.right);
+    if (bounds.bottom <= window->focus.top)
+        return addHorizontal(window->focus.top);
+    if (bounds.top >= window->focus.bottom)
+        return addHorizontal(window->focus.bottom);
     OpCurve curve(c, Rotated::no);
-    if (picture->focus.contains(bounds)) {
-        picture->add(curve, this);
+    if (window->focus.contains(bounds)) {
+        window->add(curve, this);
         return;
     }
     std::vector<DebugSect> sects;
     // bounds overlaps, but curve may not intersect; find interior ends, intersection with bounds
     auto addPin = [this, &sects](OpPtT end) {
-        OpPoint sect = { OpMath::PinSorted(picture->focus.left, end.pt.x, picture->focus.right),
-                OpMath::PinSorted(picture->focus.top, end.pt.y, picture->focus.bottom) };
+        OpPoint sect = { OpMath::PinSorted(window->focus.left, end.pt.x, window->focus.right),
+                OpMath::PinSorted(window->focus.top, end.pt.y, window->focus.bottom) };
         sects.push_back({{ sect, end.t }, sect != end.pt });
     };
     auto addSects = [&curve, addPin](OpRoots roots, float xy, Axis axis) {
@@ -59,13 +59,13 @@ void DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
         }
     };
     addPin(OpPtT(c.data->start, 0));
-    addSects(curve.axisRayHit(Axis::vertical, picture->focus.left), picture->focus.left,
+    addSects(curve.axisRayHit(Axis::vertical, window->focus.left), window->focus.left,
             Axis::vertical);
-    addSects(curve.axisRayHit(Axis::horizontal, picture->focus.top), picture->focus.top,
+    addSects(curve.axisRayHit(Axis::horizontal, window->focus.top), window->focus.top,
             Axis::horizontal);
-    addSects(curve.axisRayHit(Axis::vertical, picture->focus.right), picture->focus.right,
+    addSects(curve.axisRayHit(Axis::vertical, window->focus.right), window->focus.right,
             Axis::vertical);
-    addSects(curve.axisRayHit(Axis::horizontal, picture->focus.bottom), picture->focus.bottom,
+    addSects(curve.axisRayHit(Axis::horizontal, window->focus.bottom), window->focus.bottom,
             Axis::horizontal);
     addPin(OpPtT(c.data->end, 1));
     // for each span : if middle is inside focus, keep ends of span
@@ -76,13 +76,13 @@ void DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
         if (last->sect.t < sect.sect.t) {
             if (last->pin || sect.pin) {
                 if (addingFill && last->sect.pt != sect.sect.pt)
-                    picture->add(last->sect.pt, sect.sect.pt, this);
+                    window->add(last->sect.pt, sect.sect.pt, this);
             } else {
                 OpCurve piece = curve.subDivide(last->sect.t, sect.sect.t);
                 piece.setFirstPt(last->sect.pt);
                 piece.setLastPt(sect.sect.pt);
-                picture->add(piece, this);
-                DebuggerPoly& added = picture->polys.back();
+                window->add(piece, this);
+                DebuggerPoly& added = window->polys.back();
                 added.tStart = last->sect.t;
                 added.tEnd = sect.sect.t;
             }
