@@ -152,7 +152,6 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
     static bool dragging = false;
     DebuggerState* debuggerState = (DebuggerState*) appstate;
     DebuggerEvent debuggerEvent(debuggerState, SDL_GetModState(), event->window.windowID);
-    bool verbose = false;
     bool systemRedraw = false;
     std::string windowName;
     if (debuggerState->pictureWindow.windowID == event->window.windowID)
@@ -171,53 +170,54 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
             && event->type != SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED // 0x214
             && event->type != SDL_EVENT_CLIPBOARD_UPDATE     // 0x900
             )
-        OpDebugOut("event:" + OpDebugIntToHex(event->type) + "\n");
+        if (verboseLevel) OpDebugOut("event:" + OpDebugIntToHex(event->type) + "\n");
     switch (event->type) {
         case SDL_EVENT_CLIPBOARD_UPDATE:
-            OpDebugOut("clipboard update\n");
+            if (verboseLevel) OpDebugOut("clipboard update\n");
             break;
         case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
-            OpDebugOut(windowName + " pixel size changed\n");
+            if (verboseLevel) OpDebugOut(windowName + " pixel size changed\n");
             systemRedraw = true;
             break;
         case SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED:
-            OpDebugOut(windowName + " display scale changed\n");
+            if (verboseLevel) OpDebugOut(windowName + " display scale changed\n");
             systemRedraw = true;
             break;
         case SDL_EVENT_WINDOW_SHOWN:
-            OpDebugOut(windowName + " shown\n");
+            if (verboseLevel) OpDebugOut(windowName + " shown\n");
             systemRedraw = true;
             break;
         case SDL_EVENT_WINDOW_RESIZED:
-            OpDebugOut(windowName + " resized\n");
+            if (verboseLevel) OpDebugOut(windowName + " resized\n");
             systemRedraw = true;
             break;
         case SDL_EVENT_WINDOW_EXPOSED:
-            OpDebugOut(windowName + " exposed\n");
+            if (verboseLevel) OpDebugOut(windowName + " exposed\n");
             systemRedraw = true;
             break;
         case SDL_EVENT_WINDOW_MOVED:
-            OpDebugOut(windowName + " moved\n");
+            if (verboseLevel) OpDebugOut(windowName + " moved\n");
             break;
         case SDL_EVENT_WINDOW_MOUSE_ENTER:
-            if (verbose) OpDebugOut(windowName + " mouse enter\n");
+            if (verboseLevel > 1) OpDebugOut(windowName + " mouse enter\n");
             ;
             break;
         case SDL_EVENT_WINDOW_MOUSE_LEAVE:
-            if (verbose) OpDebugOut(windowName + " mouse leave\n");
-            ;
-            break;
-        case SDL_EVENT_WINDOW_FOCUS_GAINED:
-            OpDebugOut(windowName + " focus gained\n");
+            if (verboseLevel > 1) OpDebugOut(windowName + " mouse leave\n");
             ;
             break;
         case SDL_EVENT_WINDOW_FOCUS_LOST:
-            OpDebugOut(windowName + " focus lost\n");
+            if (verboseLevel) OpDebugOut(windowName + " focus lost\n");
             ;
             break;
         case SDL_EVENT_MOUSE_WHEEL: 
             debuggerEvent.wheel = event->wheel.y;
             break;
+        case SDL_EVENT_WINDOW_FOCUS_GAINED:
+            if (verboseLevel) OpDebugOut(windowName + " focus gained\n");
+            if (!debuggerState->context)
+                break;
+            [[fallthrough]];
         case SDL_EVENT_MOUSE_BUTTON_DOWN: {
             debuggerEvent.mouseAction = MouseAction::click;
             SDL_GetMouseState(&downMouse.x, &downMouse.y);
@@ -236,10 +236,10 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
             SDL_GetMouseState(&debuggerEvent.mouse.x, &debuggerEvent.mouse.y);
             if (lastMouse == debuggerEvent.mouse)
                 break;
+            debuggerEvent.mouseLast = lastMouse;
+            lastMouse = debuggerEvent.mouse;
             if (dragging) {
                 debuggerEvent.mouseDown = downMouse;
-                debuggerEvent.mouseLast = lastMouse;
-                lastMouse = debuggerEvent.mouse;
                 debuggerEvent.mouseAction = MouseAction::drag;
             } else
                 debuggerEvent.mouseAction = MouseAction::move;
@@ -269,10 +269,6 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
                     if (KeyMods::shift == debuggerEvent.keyMods) {
                         if ('a' <= key && key <= 'z') {
                             debuggerEvent.key = (uint8_t) key - 0x20;
-                            break;
-                        }
-                        if ('0' <= key && key <= '9') {
-                            debuggerEvent.key = ")!@#$%^&*("[key - '0'];
                             break;
                         }
                         const char* shifted =   "~!@#$%^&*()_+" "{}|"  ":\"" "<>?";

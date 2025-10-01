@@ -23,11 +23,40 @@ bool TextWindow::drawOne(DebuggerPoly& poly) {
     return true;
 }
 
+static void AddEdge(const DebuggerEvent* , const OpRect& r, Window* w, const OpEdge& edge) {
+    TextWindow* textWindow = (TextWindow*) w;
+    DebuggerPoly& edgeRect = textWindow->addRect(r, STR(edge.id), lightGray);
+    edgeRect.edge = &edge;
+}
+
+static void HoverEdge(const DebuggerEvent* event, const OpRect& r, Window* w, const OpEdge& edge) {
+    DebuggerPoly* poly = w->findPoly(&edge);
+    if (!poly)
+        return;
+    bool mouseOverButton = r.contains(event->mouse);
+    poly->color = mouseOverButton ? white : lightGray;
+    poly = w->debuggerState->pictureWindow.findPoly(&edge);
+    if (poly && poly->thickness)
+        poly->thickness = mouseOverButton ? 4 : 1;
+}
+
+static void SelectEdge(const DebuggerEvent* event, const OpRect& r, Window* , const OpEdge& edge) {
+    if (!r.contains(event->mouse))
+        return;
+    std::string s = edge.debugDump(DebugLevel::file, DebugBase::dec);
+    OpDebugOut(s + "\n");
+}
+
 DrawLevel TextWindow::event(const DebuggerEvent& debuggerEvent) {
     if (MouseAction::move == debuggerEvent.mouseAction) {
-        doEdge(DoType::hoverEdge, &debuggerEvent);
+        doEdge(&HoverEdge, &debuggerEvent);
         return DrawLevel::draw;
     }
+    if (MouseAction::click == debuggerEvent.mouseAction) {
+        doEdge(&SelectEdge, &debuggerEvent);
+        return DrawLevel::draw;
+    }
+
     return DrawLevel::none;
 }
 
@@ -43,10 +72,11 @@ void TextWindow::redraw() {
     std::string depthStr = "depth: " + STR(debuggerState->pictureWindow.depth) 
             + " / " + STR(curveCurve->depth);
     (void) addText(depthStr, localLocation, debugBlack, false);
-    doEdge(DoType::addEdge, nullptr);
+    doEdge(&AddEdge, nullptr);
 }
 
-void TextWindow::doEdge(DoType doType, const DebuggerEvent* event) {
+
+void TextWindow::doEdge(EventAction eventAction, const DebuggerEvent* event) {
     static const int leftMargin = 10;
     OpPoint loc { leftMargin, 50 };
     OpVector wh { 50, 20 };
@@ -58,22 +88,7 @@ void TextWindow::doEdge(DoType doType, const DebuggerEvent* event) {
             loc.y += wh.dy + 8;
             r = OpRect(loc, loc + wh);
         }
-        switch (doType) {
-            case DoType::addEdge: {
-                DebuggerPoly& edgeRect = addRect(r, STR(edge.id), lightGray);
-                edgeRect.edge = &edge;
-                } break;
-            case DoType::hoverEdge: {
-                DebuggerPoly* poly = findPoly(&edge);
-                if (!poly)
-                    break;
-                bool mouseOverButton = r.contains(event->mouse);
-                poly->color = mouseOverButton ? white : lightGray;
-                poly = debuggerState->pictureWindow.findPoly(&edge);
-                if (poly && poly->thickness)
-                    poly->thickness = mouseOverButton ? 4 : 1;
-                } break;
-        }
+        (*eventAction)(event, r, this, edge);
         loc.x += wh.dx + 8;
     }
 }

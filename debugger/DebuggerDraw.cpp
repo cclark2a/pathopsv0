@@ -6,7 +6,7 @@
 using namespace pentrek;
 
 void Window::pentrek_draw(char* bits, int width, int height, int scan) {
-    OpDebugOut("pentrek_draw " + name + "\n");
+    if (verboseLevel) OpDebugOut("pentrek_draw " + name + "\n");
     auto shim = ShimContext::MakeRaster();
     auto pm = Pixmap::C32(width, height, (Premul32*) bits, scan);
     RasterCanvas canvas(pm);

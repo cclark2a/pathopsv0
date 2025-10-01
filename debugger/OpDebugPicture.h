@@ -16,6 +16,8 @@ enum SDL_AppResult;
 typedef uint32_t SDL_WindowID;
 typedef uint16_t SDL_Keymod;
 
+static const int verboseLevel = 1;
+
 // all points are in device coordinates
 
 // device bounds in float is rounded out
@@ -151,6 +153,8 @@ struct Window {
     int windowID;
 };
 
+typedef void (*EventAction)(const DebuggerEvent* , const OpRect& , Window* , const OpEdge& );
+
 struct PictureWindow : public Window {
     void addGrid();
     void addHulls();
@@ -205,14 +209,16 @@ struct PictureWindow : public Window {
     bool drawGridLinear = false;
 };
 
+#if 0
 enum class DoType {
     addEdge,
     hoverEdge,
 };
+#endif
 
 struct TextWindow : public Window {
     DebuggerPoly& addRect(const OpRect& , std::string , uint32_t color);
-    void doEdge(DoType , const DebuggerEvent* );
+    void doEdge(EventAction , const DebuggerEvent* );
     bool drawOne(DebuggerPoly& ) override;
     DrawLevel event(const DebuggerEvent& );
     void redraw();
