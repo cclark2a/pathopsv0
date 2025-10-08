@@ -321,8 +321,129 @@ extern void dmpT(const OpEdge* s, float t);
 extern void dmpT(const OpSegment* s, float t);
 extern void dmpWidth(int );  // max chars before inserting linefeed
 
-enum class EF;
+#define EDGE_FILTER \
+	OP_X(segment) \
+	OP_X(ray) \
+	OP_X(priorEdge) \
+	OP_X(nextEdge) \
+	OP_X(lastEdge) \
+	OP_X(center) \
+	OP_X(curve) \
+    OP_X(iStart) \
+    OP_X(iEnd) \
+	OP_X(vertical_impl) \
+	OP_X(upright_impl) \
+	OP_X(bounds) \
+	OP_X(linkBounds) \
+	OP_X(winding) \
+	OP_X(sum) \
+	OP_X(many) \
+	OP_X(coinPals) \
+	OP_X(unSects) \
+	OP_X(pals) \
+    OP_X(hulls) \
+	OP_X(startT) \
+	OP_X(endT) \
+	OP_X(startDist) \
+	OP_X(endDist) \
+	OP_X(id) \
+    OP_X(ccUnsectID) \
+	OP_X(whichEnd_impl) \
+	OP_X(rayFail) \
+	OP_X(windZero) \
+	OP_X(doSplit) \
+	OP_X(isUnsortable) \
+	OP_X(closeSet) \
+	OP_X(active_impl) \
+	OP_X(inLinkups) \
+	OP_X(linkHead) \
+	OP_X(inOutput) \
+	OP_X(disabled) \
+	OP_X(isUnsplitable) \
+	OP_X(ccEnd) \
+	OP_X(ccLarge) \
+	OP_X(ccOverlaps) \
+	OP_X(ccSmall) \
+	OP_X(ccStart) \
+	OP_X(centerless) \
+	OP_X(startSeen) \
+	OP_X(endSeen)
+
+#define EDGE_VIRTUAL \
+    OP_X(contour)
+
+#define EDGE_DEBUG \
+	OP_X(Match) \
+	OP_X(ZeroErr) \
+	OP_X(OutPath) \
+	OP_X(ParentID) \
+	OP_X(Depth) \
+	OP_X(CC) \
+	OP_X(RayMatch) \
+	OP_X(Filler) \
+	OP_X(Unordered) \
+	OP_X(SumSet)
+
+#define EDGE_IMAGE \
+	OP_X(Color) \
+	OP_X(Draw) \
+	OP_X(Join) \
+	OP_X(Limb) \
+	OP_X(One)
+
+#define EDGE_MAKER \
+    OP_X(SetDisabled) \
+	OP_X(SetMaker) \
+	OP_X(SetSum)
+
+#define EDGE_VALIDATE \
+    OP_X(PriorID) \
+    OP_X(ScheduledForErasure)
+
+enum class EF {
+#define OP_X(Field) \
+    Field,
+    EDGE_FILTER
+#undef OP_X
+#define OP_X(Field) \
+    Field,
+    EDGE_VIRTUAL
+#undef OP_X
+#if OP_DEBUG
+    #define OP_X(Field) \
+        debug##Field,
+        EDGE_DEBUG
+    #undef OP_X
+#endif
+#if OP_DEBUG_IMAGE
+    #define OP_X(Field) \
+        debug##Field,
+        EDGE_IMAGE
+    #undef OP_X
+#endif
+#if OP_DEBUG_MAKER
+    #define OP_X(Field) \
+        debug##Field,
+        EDGE_MAKER
+    #undef OP_X
+#endif
+#if OP_DEBUG_VALIDATE
+    #define OP_X(Field) \
+        debug##Field,
+        EDGE_VALIDATE
+    #undef OP_X
+#endif
+    last
+};
+
 typedef EF EdgeFilter;
+
+struct OpSaveEF {
+    OpSaveEF(std::vector<EdgeFilter>& temp);
+    ~OpSaveEF();
+    std::vector<EdgeFilter> save;
+};
+
 extern void addAlways(EdgeFilter);
 extern void clearAlways(EdgeFilter);
 extern void addFilter(EdgeFilter);
@@ -378,6 +499,180 @@ struct OpSaveDump {
     DebugLevel saveL;
     DebugBase saveB;
 };
+
+// use static asserts throughout to ensure that all of context is serialized
+#define ASSERT_SERIAL_OFFSET(inst, last, offset, thisField) \
+    static_assert(offsetof(std::remove_reference_t<decltype(inst)>, last) + sizeof((inst).last) \
+            + offset == offsetof(std::remove_reference_t<decltype(inst)>, thisField))
+
+#define ASSERT_SERIAL(instance, lastField, thisField) \
+    ASSERT_SERIAL_OFFSET(instance, lastField, 0, thisField)
+
+#define ASSERT_FIRST(firstField) \
+    static_assert(0 == offsetof(std::remove_reference_t<decltype(*this)>, firstField))
+
+#define ASSERT_LAST_OFFSET(lastField, offset) \
+    static_assert(sizeof(*this) == offsetof(std::remove_reference_t<decltype(*this)>, lastField) \
+            + sizeof(lastField) + offset)
+
+#define ASSERT_LAST(lastField) \
+    ASSERT_LAST_OFFSET(lastField, 0)
+
+#define ASSERT_ORDERED(lastField, thisField) \
+    ASSERT_SERIAL(*this, lastField, thisField)
+
+#define ASSERT_ORDERED_OFFSET(lastField, thisField, offset) \
+    ASSERT_SERIAL_OFFSET(*this, lastField, offset, thisField)
+
+#define DEBUG_DUMP_BOOL(lastField, thisBool) \
+    ASSERT_ORDERED(lastField, thisBool); \
+    if (thisBool) s += #thisBool " "
+
+// !!! replace with debug dump bool
+#define BOOL_TO_STR(data) if (data) s += #data + std::string(" ")
+
+#define DEBUG_SET_BOOL(lastField, thisBool) \
+    ASSERT_ORDERED(lastField, thisBool); \
+    thisBool = OpDebugOptional(str, #thisBool)
+
+// macro checks that function ptrs are consecutive
+#define DEBUG_FIND_TAG(callback, lastField, thisField) \
+    ASSERT_SERIAL(callback, lastField, thisField); \
+    s += debugFindTag(reinterpret_cast<DebugFunction>(callback.thisField))
+
+// macro checks that function ptrs are consecutive
+#define DEBUG_FIND_FUNCTION(callback, lastField, thisField) \
+    ASSERT_SERIAL(callback, lastField, thisField); \
+    callback.thisField = (decltype(callback.thisField)) debugFindFunction(str)
+
+#define DEBUG_DUMP_FLOAT(lastField, thisFloat) \
+    ASSERT_ORDERED(lastField, thisFloat); \
+    if (!OpMath::IsDebugNaN(thisFloat)) \
+        s += debugValue(DebugLevel::error, b, #thisFloat, thisFloat) + " "
+
+#define DEBUG_SET_FLOAT(lastField, thisFloat) \
+    ASSERT_ORDERED(lastField, thisFloat); \
+    thisFloat = OpDebugReadNamedFloat(str, #thisFloat)
+
+#define DEBUG_DUMP_ID(lastField, thisID) \
+    ASSERT_ORDERED(lastField, thisID); \
+    if (thisID) s += #thisID ":" + STR(thisID->id) + " "
+
+#define DEBUG_SET_ID(lastField, thisID) \
+    ASSERT_ORDERED(lastField, thisID); \
+    if (OpDebugOptional(str, #thisID)) \
+        thisID = (decltype(thisID)) OpDebugReadSizeT(str)
+
+#define DEBUG_DUMP_COMMON_STRUCT(thisStruct) \
+    s += #thisStruct ":" + thisStruct.debugDump(l, b) + "\n"
+
+#define DEBUG_DUMP_FIRST_STRUCT(thisStruct) \
+    std::string s; \
+    ASSERT_FIRST(thisStruct); \
+    DEBUG_DUMP_COMMON_STRUCT(thisStruct)
+
+#define DEBUG_DUMP_STRUCT(lastField, thisStruct) \
+    ASSERT_ORDERED(lastField, thisStruct); \
+    DEBUG_DUMP_COMMON_STRUCT(thisStruct)
+
+#define DEBUG_DUMP_LAST_STRUCT(lastField, thisStruct) \
+    DEBUG_DUMP_STRUCT(lastField, thisStruct); \
+    ASSERT_LAST(hi); \
+    return s
+
+#define DEBUG_SET_COMMON_STRUCT(thisStruct) \
+    OpDebugRequired(str, #thisStruct); \
+    thisStruct.dumpSet(str)
+
+#define DEBUG_SET_FIRST_STRUCT(thisStruct) \
+    ASSERT_FIRST(thisStruct); \
+    DEBUG_SET_COMMON_STRUCT(thisStruct)
+
+#define DEBUG_SET_STRUCT(lastField, thisStruct) \
+    ASSERT_ORDERED(lastField, thisStruct); \
+    DEBUG_SET_COMMON_STRUCT(thisStruct)
+
+#define DEBUG_SET_LAST_STRUCT(lastField, thisStruct) \
+    DEBUG_SET_STRUCT(lastField, thisStruct); \
+    ASSERT_LAST(thisStruct)
+
+#define DEBUG_DUMP_OPTIONAL_VALUE(lastField, thisValue) \
+    ASSERT_ORDERED(lastField, thisValue); \
+    if (thisValue) \
+        s += #thisValue ":" + STR(thisValue) + " "
+
+#define DEBUG_SET_OPTIONAL_VALUE(lastField, thisValue) \
+    ASSERT_ORDERED(lastField, thisValue); \
+    if (OpDebugOptional(str, #thisValue)) \
+        thisValue = (decltype(thisValue)) OpDebugReadSizeT(str)
+
+#define DEBUG_DUMP_START_REQUIRED_VALUE(thisValue) \
+    s += #thisValue ":" + STR(thisValue) + " "
+
+#define DEBUG_DUMP_REQUIRED_VALUE(lastField, thisValue) \
+    ASSERT_ORDERED(lastField, thisValue); \
+    DEBUG_DUMP_START_REQUIRED_VALUE(thisValue)
+
+#define DEBUG_SET_START_REQUIRED_VALUE(thisValue) \
+    OpDebugRequired(str, #thisValue); \
+    thisValue = (decltype(thisValue)) OpDebugReadSizeT(str)
+
+#define DEBUG_SET_REQUIRED_VALUE(lastField, thisValue) \
+    ASSERT_ORDERED(lastField, thisValue); \
+    DEBUG_SET_START_REQUIRED_VALUE(thisValue)
+
+#define DEBUG_DUMP_VECTOR_OFFSET(lastField, thisVector, offset) \
+    do { \
+    ASSERT_ORDERED_OFFSET(lastField, thisVector, offset); \
+    if (thisVector.size()) { \
+        s += #thisVector ":" + STR(thisVector.size()) + " "; \
+        for (const auto& member : thisVector) { \
+            s += member.debugDump(l, b) + "\n"; \
+        } \
+    } \
+    } while (false)
+
+#define DEBUG_DUMP_VECTOR(lastField, thisVector) \
+    DEBUG_DUMP_VECTOR_OFFSET(lastField, thisVector, 0)
+
+#define DEBUG_SET_VECTOR_OFFSET(lastField, thisVector, offset) \
+    do { \
+    ASSERT_ORDERED_OFFSET(lastField, thisVector, offset); \
+    if (OpDebugOptional(str, #thisVector)) { \
+        size_t count = OpDebugReadSizeT(str); \
+        thisVector.resize(count); \
+        for (auto& member : thisVector) \
+            member.dumpSet(str); \
+    } \
+    } while (false)
+
+#define DEBUG_SET_VECTOR(lastField, thisVector) \
+    DEBUG_SET_VECTOR_OFFSET(lastField, thisVector, 0)
+
+#define DEBUG_DUMP_VECTOR_IDS(lastField, thisVector) \
+    do { \
+    ASSERT_ORDERED(lastField, thisVector); \
+    if (thisVector.size()) { \
+        s += #thisVector ":" + STR(thisVector.size()) + " ["; \
+        for (const auto& member : thisVector) { \
+            s += STR(member->id) + " "; \
+        } \
+        s.pop_back(); \
+        s += "] "; \
+    } \
+    } while (false)
+
+#define DEBUG_SET_VECTOR_IDS(lastField, thisVector) \
+    do { \
+    ASSERT_ORDERED(lastField, thisVector); \
+    if (OpDebugOptional(str, #thisVector)) { \
+        size_t count = OpDebugReadSizeT(str); \
+        thisVector.resize(count); \
+        for (auto& member : thisVector) { \
+            member = (std::remove_reference_t<decltype(member)>) OpDebugReadSizeT(str); \
+        } \
+    } \
+    } while (false)
 
 #endif
 

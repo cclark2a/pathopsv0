@@ -542,11 +542,12 @@ size_t OpDebugReadSizeT(char const *& str) {
     if ('[' == str[0] || '{' == str[0] || ',' == str[0])
         ++str;
     unsigned long result;
+    bool negate = false;
     if (OpDebugOptional(str, "unset"))
         result = OpMax;
-    else if (OpDebugOptional(str, "-"))
-        result = 0;
     else {
+        if (OpDebugOptional(str, "-"))
+            negate = true;
         char* endPtr;
         result = strtoul(str, &endPtr, 10);
         str = endPtr;
@@ -555,6 +556,8 @@ size_t OpDebugReadSizeT(char const *& str) {
         ++str;
     if (' ' >= str[0])
         ++str;
+    if (negate)
+        result = (unsigned long) -(long) result;
     return (size_t) result;
 }
 
@@ -572,6 +575,8 @@ std::string OpDebugLabel(const char*& str) {
 bool OpDebugOptional(const char*& str, const char* match) {
     size_t matchLen = strlen(match);
     if (']' == str[0] || '[' == str[0])
+        ++str;
+    if (match[0] != str[0] && ('}' == str[0] || '{' == str[0]))
         ++str;
     while (str[0] && ' ' >= str[0])
         ++str;
@@ -748,7 +753,9 @@ void OpCurveCurve::debugSaveState() {
 
 // return false for caller to assert
 bool OpCurveCurve::debugShowImage(bool atDepth) {
-#if !OP_DEBUG_FAST_TEST && !OP_TINY_TEST
+#if OP_DEBUG_FAST_TEST
+    return true;
+#elif !OP_TINY_TEST
 	if (OpDebugSkipBreak())
 		return true;
 #endif
@@ -766,14 +773,14 @@ bool OpCurveCurve::debugShowImage(bool atDepth) {
 	if (!atDepth || context->debugData.curveCurveDepth == depth)
 		::debug();
 #endif
-#if !OP_TINY_SKIA
+#if 0 && !OP_TINY_SKIA  // !!! obsolete
 	OP_DEBUG_IMAGE_CODE(1 == depth ? ::showSegmentEdges() : ::hideSegmentEdges());
 #endif
 #if OP_DEBUG_DUMP
 #if OP_DEBUG_VALIDATE && !OP_TINY_SKIA
 	if (context->debugData.curveCurveDepth < depth) {
 		::dmpDepth(depth);
-		::drawDepth(depth);
+//		::drawDepth(depth);
 	}
 #endif
 #endif
@@ -1275,7 +1282,7 @@ OpTree::~OpTree() {
 std::string debugContext;
 
 void debugImage() {
-#if OP_DEBUG_IMAGE && !OP_TINY_SKIA
+#if 0 && OP_DEBUG_IMAGE && !OP_TINY_SKIA  // !!! obsolete; replaced by visual debugger
 	if ("setWindings" == debugContext) {
         ::hideOperands();
         ::showEdges();

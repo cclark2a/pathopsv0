@@ -12,14 +12,38 @@ void PictureWindow::addDevice(std::vector<OpPoint>& pts, DebuggerPoly& poly) {
     poly.device.insert(poly.device.end(), pts.begin(), pts.end());
 }
 
+void PictureWindow::addEdgeHulls() {
+    if (!drawEdgeHullsOn)
+        return;
+	for (auto& id : debuggerState->ids) {
+        if (!id.drawn)
+            continue;
+        if (IDType::edge != id.idType)
+            continue;
+        for (const auto& hull : id.edge->hulls.h) {
+            if (SectType::endHull == hull.type)
+                continue;
+            OpPoint device = toDevice(hull.sect.pt);
+            if (points.end() != std::find_if(points.begin(), points.end(),
+                    [device](auto& test) { return device == test.device; } ))
+                continue;
+            points.push_back({ id, hull.sect.pt, device, 1, DebugSprite::triangle });
+            if (drawValuesOn)
+                addPointLabel(hull.sect.pt, id); 
+        }
+    }
+}
+
 void PictureWindow::addHulls() {
     if (!drawHullsOn)
         return;
     std::vector<DebuggerPoly> toAdd;
     for (DebuggerPoly& poly : polys) {
-        if (!poly.edge || !poly.isPrimary)
+        if (IDType::edge != poly.opType.idType)
             continue;
-        const OpCurve& c = poly.edge->curve;
+        if (!poly.opType.edge || !poly.isPrimary)
+            continue;
+        const OpCurve& c = poly.opType.edge->curve;
         if (c.pointCount() <= 2)
             continue;
         if (!c.ptBounds().width())
@@ -28,7 +52,7 @@ void PictureWindow::addHulls() {
             continue;
         toAdd.emplace_back();
         toAdd.back().color = OpDebugAlphaColor(40, poly.color);
-        toAdd.back().edge = poly.edge;
+        toAdd.back().opType = OpType(poly.opType.edge);
         std::vector<OpPoint>& hull = toAdd.back().device;
         hull.resize(c.pointCount() + 1);
         for (int index = 0; index < c.pointCount(); ++index) {
@@ -49,7 +73,6 @@ void Window::append(OpPoint pt) {
 
 void PictureWindow::clear() {
     clearWindow();
-    threshold = OpVector();
     scale = 0;
 }
 
@@ -174,7 +197,7 @@ void PictureWindow::addGrid() {
         return;
     for (size_t index = 0; index + 1 < xes.size(); ++index) {
         float fx = xes[index];
-		std::string xValStr = drawHexOn ? OpDebugDumpHex(fx) : STR(fx);
+		std::string xValStr = debuggerState->drawHexOn ? OpDebugDumpHex(fx) : STR(fx);
 		addFittedBottom(xValStr, xToScreen(fx), xToScreen(xes[index + 1]), gridColor);
     }
     OpDebugText& lastText = texts.back();
@@ -182,7 +205,7 @@ void PictureWindow::addGrid() {
 	const int xOffset = 2;
     for (size_t index = 1; index < yes.size(); ++index) {
         float fy = yes[index];
-		std::string yValStr = drawHexOn ? OpDebugDumpHex(fy) : STR(fy);
+		std::string yValStr = debuggerState->drawHexOn ? OpDebugDumpHex(fy) : STR(fy);
         float yScreen = yToScreen(fy);
         if (index == xes.size() - 1)
             yScreen -= cache.size.dy + xOffset;
@@ -279,18 +302,19 @@ void PictureWindow::addLabel(std::string s, OpPoint local, uint32_t color) {
 void PictureWindow::addTangent(DebuggerPoly& poly) {
     OP_ASSERT(poly.contours.size());
     OP_ASSERT(0 < poly.contours[0] && poly.contours[0] <= poly.device.size());
-    OP_ASSERT((poly.edge || poly.segment) && poly.isPrimary);
+    OP_ASSERT((IDType::edge == poly.opType.idType 
+            || IDType::segment == poly.opType.idType) && poly.isPrimary);
     OpVector span = poly.device[poly.contours[0] - 1] - poly.device.front();
     if (span.length() < 15)
         return;
     OpCurve curve(poly.c, Rotated::no);
     OpVector tan = curve.tangent(.33f).normalize() * 15;
-    if (poly.edge && EdgeMatch::end == poly.edge->which()) {
+    if (IDType::edge == poly.opType.idType && EdgeMatch::end == poly.opType.edge->which()) {
         tan = -tan;
         poly.color = red;
     }
-    std::string curveStr = poly.edge ? "edge" : "segment"; 
-    int id = poly.edge ? poly.edge->id : poly.segment->id;
+    std::string curveStr = IDType::edge == poly.opType.idType ? "edge" : "segment"; 
+    int id = poly.opType.id;
     if (!tan.isFinite() || tan == OpVector{ 0, 0 }) {
 		OpDebugOut(curveStr + " " + STR(id) + " overflow\n");
 		return;
@@ -318,7 +342,7 @@ void PictureWindow::addTangent(DebuggerPoly& poly) {
 }
 
 void PictureWindow::addWinding(DebuggerPoly& poly) {
-    if (!poly.edge || !poly.isPrimary)
+    if (IDType::edge != poly.opType.idType || !poly.isPrimary)
         return;
     auto add = [poly, this](std::string s, float normSign) {
         size_t cacheIndex = addText(s, poly.color);
@@ -342,24 +366,22 @@ void PictureWindow::addWinding(DebuggerPoly& poly) {
                 else  // anchor to bottom right
                     bounds = bounds.offset(-cache.size); 
                 if (!touches(bounds)) {
-                    texts.push_back({poly.edge, poly.segment, poly.contour, 
-                            {bounds.left, bounds.top}, local, cacheIndex});
-                    texts.back().edge = poly.edge;
+                    texts.push_back({poly.opType, {bounds.left, bounds.top}, local, cacheIndex});
                     return;
                 }
             }
         }
     };
-	const OpWinding& sum = poly.edge->sum;
+	const OpWinding& sum = poly.opType.edge->sum;
 	auto debugImageOut = context()->debugContextCallbacks.debugImageWindingOutXFuncPtr;
 	add(debugImageOut && sum.isSet() ? (*debugImageOut)(sum.w) : "?", 1);
 	std::string sumString = "?";
-    const OpWinding& wind = poly.edge->winding;
+    const OpWinding& wind = poly.opType.edge->winding;
 	if (sum.isSet() || wind.isSet()) {
 		if (debugImageOut && !sum.isSet())
 			sumString = (*debugImageOut)(wind.w);
         else {
-		    OpWinding diffWind(poly.edge->sum.w); // !!! this should be local copy ...
+		    OpWinding diffWind(poly.opType.edge->sum.w); // !!! this should be local copy ...
     //        start here;
             // !!! this should be a debug const thingy that can't change user data
 		    context()->windingCallbacks.windingSubtractFuncPtr((ContextPtr) context(),
@@ -425,22 +447,17 @@ struct OpDebugFont {
 
 void PictureWindow::addLabels() {
     for (auto& poly : polys) {
-        if (poly.edge && poly.isPrimary && drawEdgesOn) {
-            if (drawIDsOn) {
-                OpCurve curve(poly.c, Rotated::no);
-                OpPoint midTPt = curve.ptAtT(.5);
-                addLabel(STR(poly.edge->id), midTPt, poly.color); 
-                texts.back().edge = poly.edge;
-            }
-        }
-        if (poly.segment && poly.isPrimary && drawSegmentsOn) {
-            if (drawIDsOn) {
-                OpCurve curve(poly.c, Rotated::no);
-                OpPoint midTPt = curve.ptAtT(.5);
-                addLabel(STR(poly.segment->id), midTPt, poly.color); 
-                texts.back().segment = poly.segment;
-            }
-        }
+        if (!poly.isPrimary)
+            continue;
+        if ((IDType::edge != poly.opType.idType || !debuggerState->drawEdgesOn)
+                && (IDType::segment != poly.opType.idType || !debuggerState->drawSegmentsOn))
+            continue;
+        if (!drawIDsOn)
+            continue;
+        OpCurve curve(poly.c, Rotated::no);
+        OpPoint midTPt = curve.ptAtT(.5);
+        addLabel(STR(poly.opType.id), midTPt, poly.color); 
+        texts.back().opType = poly.opType;
     }
 }
 
@@ -448,20 +465,51 @@ void PictureWindow::addTangents() {
     if (!drawTangentsOn)
         return;
     for (auto& poly : polys) {
-        if ((!poly.edge && !poly.segment) || !poly.isPrimary)
+        if (!poly.isPrimary)
+            continue;
+        if ((IDType::edge != poly.opType.idType || !debuggerState->drawEdgesOn)
+                && (IDType::segment != poly.opType.idType || !debuggerState->drawSegmentsOn))
             continue;
         addTangent(poly);
     }
 }
 
-void PictureWindow::addWindings() {
-    if (!drawEdgesOn || !drawWindingsOn)
+void PictureWindow::addTs() {
+    if (!debuggerState->drawEdgesOn || !drawTsOn)
         return;
     for (auto& poly : polys) {
-        if (!poly.edge || !poly.isPrimary)
+        if (!poly.isPrimary)
+            continue;
+        if (IDType::edge != poly.opType.idType)
+            continue;
+        const OpEdge* edge = poly.opType.edge;
+        addLabel(STR(edge->startT), edge->startPt(), poly.color);
+        texts.back().opType = poly.opType;
+        addLabel(STR(edge->endT), edge->endPt(), poly.color);
+        texts.back().opType = poly.opType;
+    }
+}
+
+void PictureWindow::addWindings() {
+    if (!debuggerState->drawEdgesOn || !drawWindingsOn)
+        return;
+    for (auto& poly : polys) {
+        if (!poly.isPrimary)
+            continue;
+        if (IDType::edge != poly.opType.idType)
             continue;
         addWinding(poly);
     }
+}
+
+void PictureWindow::addPointLabel(OpPoint local, OpType& opType) {
+    std::string s = "(";
+    s += debuggerState->drawHexOn ? OpDebugDumpHex(local.x) : STR(local.x);
+    s += ", ";
+    s += debuggerState->drawHexOn ? OpDebugDumpHex(local.y) : STR(local.y);
+    s += ")";
+    addLabel(s, local, IDType::edge == opType.idType ? edgeColor(*opType.edge) : black);
+    texts.back().opType = opType;
 }
 
 void PictureWindow::addPoints() {
@@ -473,19 +521,9 @@ void PictureWindow::addPoints() {
         OpPoint device = toDevice(local);
         if (points.end() == std::find_if(points.begin(), points.end(),
                 [device](auto& test) { return device == test.device; } )) {
-            points.push_back({ poly->edge, poly->segment, poly->contour, local, device, 1, sprite });
-            points.back().edge = poly->edge;
-            points.back().segment = poly->segment;
-            if (drawValuesOn) {
-                std::string s = "(";
-                s += drawHexOn ? OpDebugDumpHex(local.x) : STR(local.x);
-                s += ", ";
-                s += drawHexOn ? OpDebugDumpHex(local.y) : STR(local.y);
-                s += ")";
-                addLabel(s, local, poly->color);
-                texts.back().edge = poly->edge;
-                texts.back().segment = poly->segment;
-            }
+            points.push_back({ poly->opType, local, device, 1, sprite });
+            if (drawValuesOn)
+                addPointLabel(local, poly->opType );
         }
     };
     auto addControl = [add](DebuggerPoly* poly, const OpCurve& c) {
@@ -493,33 +531,33 @@ void PictureWindow::addPoints() {
             add(poly, c.hullPt(index));
         }
     };
-    points.clear();
     for (auto& poly : polys) {
-        if (poly.edge && poly.isPrimary && drawEdgesOn) {
-            add(&poly, poly.edge->curve.c.data->start);
-            add(&poly, poly.edge->curve.c.data->end);
+        if (IDType::edge == poly.opType.idType && poly.isPrimary && debuggerState->drawEdgesOn) {
+            add(&poly, poly.opType.edge->curve.c.data->start);
+            add(&poly, poly.opType.edge->curve.c.data->end);
             if (drawControlsOn)
-                addControl(&poly, poly.edge->curve);
+                addControl(&poly, poly.opType.edge->curve);
             if (drawCentersOn)
-                add(&poly, poly.edge->center.pt, DebugSprite::square);
+                add(&poly, poly.opType.edge->center.pt, DebugSprite::square);
 
         }
-        if (poly.segment && poly.isPrimary && drawSegmentsOn) {
-            add(&poly, poly.segment->c.c.data->start);
-            add(&poly, poly.segment->c.c.data->end);
+        if (IDType::segment == poly.opType.idType && poly.isPrimary && debuggerState->drawSegmentsOn) {
+            add(&poly, poly.opType.segment->c.c.data->start);
+            add(&poly, poly.opType.segment->c.c.data->end);
             if (drawControlsOn)
-                addControl(&poly, poly.segment->c);
+                addControl(&poly, poly.opType.segment->c);
         }
     }
+}
+
+void PictureWindow::resolvePoints() {
     for (OpDebugPoint& dPt : points) {
         auto adder = [this, &dPt](std::vector<OpPoint>& path) {
             for (OpPoint& pt : path) {
                 pt += dPt.device;
             }
-            if (DebuggerPoly* ePoly = findPoly(dPt.edge))
+            if (DebuggerPoly* ePoly = findPolyByID(dPt.opType.id))
 	            return addDevice(path, *ePoly);
-            if (DebuggerPoly* sPoly = findPoly(dPt.segment))
-                return addDevice(path, *sPoly);
         };
         switch (dPt.sprite) {
             case DebugSprite::circle: {
@@ -550,50 +588,57 @@ void PictureWindow::addPoints() {
 
 void PictureWindow::colorPolys() {
     for (DebuggerPoly& poly : polys) {
-        if (poly.contour) {
+        if (IDType::contour == poly.opType.idType) {
         #if 1
-            poly.color = OpDebugAlphaColor(31, poly.contour->debugColor);  // !!! convert this to context callout
+            poly.color = OpDebugAlphaColor(31, poly.opType.contour->debugColor);  // !!! convert this to context callout
         #else
             poly.color = poly.contour->debugColor;
         #endif
             continue;
         }
-        if (poly.segment) {
-            poly.color = poly.segment->debugColor;  // !!! convert this to context callout
+        if (IDType::segment == poly.opType.idType) {
+            poly.color = poly.opType.segment->debugColor;  // !!! convert this to context callout
             continue;
         }
-        if (!poly.edge) {
+        if (IDType::edge != poly.opType.idType) {
             poly.color = debugBlack;
             continue;
         }
-        const OpEdge& e = *poly.edge;
-        OpEdge* ccEdge = context()->ccStorage->debugFind(e.id);
-        bool isCurveCurve = ccEdge && e.id == ccEdge->id;
-        PathOpsV0Lib::DebugEdgeType edgeType {
-            e.disabled, e.inOutput, Unsortable::none != e.isUnsortable, isCurveCurve, e.ccOverlaps
-        };
-        PathOpsV0Lib::DebugEdgeColor debugEdgeColor = 
-                context()->debugContextCallbacks.debugEdgeColorFuncPtr;
-        poly.color = debugEdgeColor ? (*debugEdgeColor)(poly.edge->winding.w, edgeType) : debugBlack;
+        poly.color = edgeColor(*poly.opType.edge);
     }
 }
 
 bool PictureWindow::drawOne(DebuggerPoly& poly) {
-    if (poly.segment && !drawSegmentsOn)
+    if (IDType::segment == poly.opType.idType && !debuggerState->drawSegmentsOn)
         return false;
-    if (poly.edge && !drawEdgesOn)
+    if (IDType::edge == poly.opType.idType && !debuggerState->drawEdgesOn)
         return false;
-    if (poly.contour && !drawFillOn)
+    if (IDType::contour == poly.opType.idType && !drawFillOn)
         return false;
     return true;
+}
+
+uint32_t PictureWindow::edgeColor(const OpEdge& e) {
+    bool isCurveCurve = false;
+    if (OpEdgeStorage* ccStorage = context()->ccStorage) {
+        OpEdge* ccEdge = ccStorage->debugFind(e.id);
+        isCurveCurve = ccEdge && e.id == ccEdge->id;
+    }
+    PathOpsV0Lib::DebugEdgeType edgeType {
+        e.disabled, e.inOutput, Unsortable::none != e.isUnsortable, isCurveCurve, e.ccOverlaps
+    };
+    PathOpsV0Lib::DebugEdgeColor debugEdgeColor = 
+            context()->debugContextCallbacks.debugEdgeColorFuncPtr;
+    uint32_t color = debugEdgeColor ? (*debugEdgeColor)(e.winding.w, edgeType) : black;
+    return color;
 }
 
 void PictureWindow::redraw() {
     setSize();
     clear();
     OpPointBounds contourBounds;
-    for (auto contourIter = contourIterator.begin(); contourIter != contourIterator.end(); ++contourIter) {
-        contourBounds.add((*contourIter)->bounds);
+    for (OpContour* contour : context()->contours) {
+        contourBounds.add(contour->bounds);
     }
     OpPoint leftTop {0, 0};
     OpPoint rightBottom { 100, 100};
@@ -615,39 +660,33 @@ void PictureWindow::redraw() {
 //    DebugOpBounds(left, top, right, bottom);
     OpPoint center = (rightBottom + leftTop) / 2;
     OpVector size = (rightBottom - leftTop) / 2;
-    float zFactor = tuneThreshold ? 1 : zoomFactor;
-    leftTop = center - zFactor * size;
-    rightBottom = center + zFactor * size;
+    leftTop = center - zoomFactor * size;
+    rightBottom = center + zoomFactor * size;
     focus = { leftTop, rightBottom };
     OpVector localWH { focus.width(), focus.height() };
     OpVector wh = screen.widthHeight();
     constexpr float subpixels = 4;
-    threshold = localWH / (wh * subpixels);
-    if (tuneThreshold) {
-        threshold *= zoomFactor;
-    }
+    debuggerState->threshold = localWH / (wh * subpixels);
+    debuggerState->threshold *= debuggerState->thresholdMultiplier;
     if (!scale)
         scale = wh.dx / localWH.dx;
-	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
-		const OpEdge* edge = *edgeIter;
-		if (!edge->debugDraw)
-			continue;
-        addPoly.add(edge);
-    }
-    for (auto segmentIter = segmentIterator.begin(); segmentIter != segmentIterator.end(); ++segmentIter) {
-        const OpSegment* segment = *segmentIter;
-        addPoly.add(segment);
-    }
-    for (OpContour* contour : context()->contours) {
-        PathOpsV0Lib::DebugIsFill debugIsFill = context()->debugContextCallbacks.debugIsFillFuncPtr;
-        if (debugIsFill && (*debugIsFill)(contour->winding()))
-            addPoly.add(contour);
+    PathOpsV0Lib::DebugIsFill debugIsFill = context()->debugContextCallbacks.debugIsFillFuncPtr;
+	for (auto& id : debuggerState->ids) {
+        if (IDType::edge == id.idType && id.drawn)
+            addPoly.add(id.edge);
+        if (IDType::contour == id.idType && debugIsFill && (*debugIsFill)(id.contour->winding()))
+            addPoly.add(id.contour);
+       if (IDType::segment == id.idType)
+            addPoly.add(id.segment);
     }
     colorPolys();
     setDevice();
     addHulls();
+    addEdgeHulls();
     addPoints();
     addTangents();
+    addTs();
+    resolvePoints();
     addLabels();
     addWindings();
     addGrid();
@@ -661,25 +700,6 @@ void PictureWindow::move(OpVector v) {
 void PictureWindow::pan(OpVector v) { 
     zoomOffset += v * 1000 / scale;
     draw();
-}
-
-// -1: draw none ; 0: draw all ; > 0 draw matching depth
-void PictureWindow::setDepth(int ) {
-	OpEdgeStorage* ccStorage = context()->ccStorage;
-	int count = ccStorage ? ccStorage->debugCount() : 0;
-    int maxDepth = 0;
-	for (int index = 0; index < count; ++index) {
-		OpEdge* edge = ccStorage->debugIndex(index);
-        maxDepth = std::max(maxDepth, edge->debugDepth);
-        edge->debugDraw = true;
-    }
-    depth = std::max(-1, std::min(maxDepth, depth));
-    if (depth == 0)  // draw all
-        return;
-    for (int index = 0; index < count; ++index) {
-		OpEdge* edge = ccStorage->debugIndex(index);
-		edge->debugDraw = edge->debugDepth < depth && edge->debugCC >= depth;
-	}
 }
 
 void PictureWindow::setDevice() {
@@ -698,9 +718,11 @@ void PictureWindow::zoom(int factor) {
     draw();
 }
 
-DrawLevel PictureWindow::event(const DebuggerEvent& debuggerEvent) {
+DrawLevel PictureWindow::event(const DebuggerEvent& debuggerEvent) {    
+    if (DrawLevel common = debuggerState->eventCommon(debuggerEvent); DrawLevel::none != common)
+        return common;
     if (debuggerEvent.wheel) {
-        int scale = keyModMultiplier(debuggerEvent.keyMods);
+        int scale = DebuggerEvent::KeyModMultiplier(debuggerEvent.keyMods);
         zoom(debuggerEvent.wheel * scale);
         OpDebugOut("zoom:" + STR(zoomFactor)
             + " wheel:" + STR(debuggerEvent.wheel)
@@ -712,36 +734,35 @@ DrawLevel PictureWindow::event(const DebuggerEvent& debuggerEvent) {
         return DrawLevel::update;
     }
     constexpr float pan_factor = 1.f / 8;
-    int scale = keyModMultiplier(debuggerEvent.keyMods);
+    int scale = DebuggerEvent::KeyModMultiplier(debuggerEvent.keyMods);
     bool redraw = true;
     switch (uint8_t key = debuggerEvent.key) {
         case (uint8_t) KeyCode::leftArrow:
-            pan(OpVector(-pan_factor * scale, 0));
+            pan(OpVector(+pan_factor * scale, 0));
             break;
         case (uint8_t) KeyCode::upArrow:
-            pan(OpVector(0, -pan_factor * scale));
+            if (keyboardZoom) {
+                zoom(+1 * scale);
+                return DrawLevel::update;
+            }
+            pan(OpVector(0, +pan_factor * scale));
             break;
         case (uint8_t) KeyCode::rightArrow:
-            pan(OpVector(pan_factor * scale, 0));
+            pan(OpVector(-pan_factor * scale, 0));
             break;
         case (uint8_t) KeyCode::downArrow:
-            pan(OpVector(0, pan_factor * scale));
+            if (keyboardZoom) {
+                zoom(-1 * scale);
+                return DrawLevel::update;
+            }
+            pan(OpVector(0, -pan_factor * scale));
             break;
         case 'c':
             drawCentersOn ^= true;
             break;
-        case 'd':
-            if (KeyMods::ctrl == (KeyMods::ctrl & debuggerEvent.keyMods))
-                dump();
-            else
-                setDepth(++depth);
-            break;
-        case 'D':
-            setDepth(--depth);
-            break;
-        case 'e':
-            drawEdgesOn ^= true;
-            break;
+        // case 'C': // contours handled by event common
+        // case 'D': case 'd':  // curve/curve depth handled by event common
+        // case 'e': // edges handled by event common
         case 'f':
             drawFillOn ^= true;
             break;
@@ -756,47 +777,37 @@ DrawLevel PictureWindow::event(const DebuggerEvent& debuggerEvent) {
         case 'h':
             drawHullsOn ^= true;
             break;
+        case 'H':
+            drawEdgeHullsOn ^= true;
+            break;
         case 'i':
             drawIDsOn ^= true;
             break;
+        // case 'I':  // intersections handled by event common
         case 'k':
             drawControlsOn ^= true;
             break;
-        case 'p':
+        case 'p':  // (independent of show only curve points)
             drawPointsOn ^= true;
             break;
-        case 's':
-            drawSegmentsOn ^= true;
-            break;
+        // case 'P': // playback handled by event common
+        // case 'R': // record handled by event common
+        // case 's': // segments handled by event common
         case 't':
             drawTangentsOn ^= true;
             break;
-        case 'w':
-            drawWindingsOn ^= true;
+        case 'T':
+            drawTsOn ^= true;
             break;
         case 'v':
             drawValuesOn ^= true;
             break;
-        case 'x':
-            drawHexOn ^= true;
+        case 'w':
+            drawWindingsOn ^= true;
             break;
-        case '0':
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5':
-        case '6':
-        case '7':
-        case '8':
-        case '9':
-            debugPrecision = key - '0';
-            break;
-        case '-':
-            debugPrecision = -1;
-            break;
-        case '~':
-            tuneThreshold ^= true;
+        // case 'x': // hex handled by event common
+        case 'z':
+            keyboardZoom ^= true;
             break;
         default:
             redraw = false;
@@ -805,8 +816,54 @@ DrawLevel PictureWindow::event(const DebuggerEvent& debuggerEvent) {
     return redraw ? DrawLevel::update : DrawLevel::none;
 }
 
-void textEvent(Window* window, const DebuggerEvent& debuggerEvent) {
-    OP_ASSERT(0);   // !!! start here
+void PictureWindow::playback(const char*& str) {
+    playbackCommon(str);
+    DEBUG_SET_COMMON_STRUCT(zoomOffset);
+    DEBUG_SET_FLOAT(zoomOffset, scale); // factor to go from local to device (zero is uninitialized)
+    DEBUG_SET_FLOAT(scale, zoomFactor);
+    DEBUG_SET_REQUIRED_VALUE(zoomFactor, zoomer);
+    DEBUG_SET_REQUIRED_VALUE(zoomer, gridIntervals);
+    DEBUG_SET_BOOL(gridIntervals, drawCentersOn);
+    DEBUG_SET_BOOL(drawCentersOn, drawControlsOn);
+    DEBUG_SET_BOOL(drawControlsOn, drawEdgeHullsOn);
+    DEBUG_SET_BOOL(drawEdgeHullsOn, drawFillOn);
+    DEBUG_SET_BOOL(drawFillOn, drawGridOn);
+    DEBUG_SET_BOOL(drawGridOn, drawHullsOn);
+    DEBUG_SET_BOOL(drawHullsOn, drawIDsOn);
+    DEBUG_SET_BOOL(drawIDsOn, drawPointsOn);
+    DEBUG_SET_BOOL(drawPointsOn, drawTangentsOn);
+    DEBUG_SET_BOOL(drawTangentsOn, drawTsOn);
+    DEBUG_SET_BOOL(drawTsOn, drawValuesOn);
+    DEBUG_SET_BOOL(drawValuesOn, drawWindingsOn);
+    DEBUG_SET_BOOL(drawWindingsOn, drawGridLinear);
+    DEBUG_SET_BOOL(drawGridLinear, keyboardZoom);
+}
+
+std::string PictureWindow::record() {
+    std::string s;
+    DebugLevel l = DebugLevel::file;
+    DebugBase b = DebugBase::hex;
+    s += recordCommon();
+    DEBUG_DUMP_COMMON_STRUCT(zoomOffset);
+    DEBUG_DUMP_FLOAT(zoomOffset, scale); // factor to go from local to device (zero is uninitialized)
+    DEBUG_DUMP_FLOAT(scale, zoomFactor);
+    DEBUG_DUMP_REQUIRED_VALUE(zoomFactor, zoomer);
+    DEBUG_DUMP_REQUIRED_VALUE(zoomer, gridIntervals);
+    DEBUG_DUMP_BOOL(gridIntervals, drawCentersOn);
+    DEBUG_DUMP_BOOL(drawCentersOn, drawControlsOn);
+    DEBUG_DUMP_BOOL(drawControlsOn, drawEdgeHullsOn);
+    DEBUG_DUMP_BOOL(drawEdgeHullsOn, drawFillOn);
+    DEBUG_DUMP_BOOL(drawFillOn, drawGridOn);
+    DEBUG_DUMP_BOOL(drawGridOn, drawHullsOn);
+    DEBUG_DUMP_BOOL(drawHullsOn, drawIDsOn);
+    DEBUG_DUMP_BOOL(drawIDsOn, drawPointsOn);
+    DEBUG_DUMP_BOOL(drawPointsOn, drawTangentsOn);
+    DEBUG_DUMP_BOOL(drawTangentsOn, drawTsOn);
+    DEBUG_DUMP_BOOL(drawTsOn, drawValuesOn);
+    DEBUG_DUMP_BOOL(drawValuesOn, drawWindingsOn);
+    DEBUG_DUMP_BOOL(drawWindingsOn, drawGridLinear);
+    DEBUG_DUMP_BOOL(drawGridLinear, keyboardZoom);
+    return s;
 }
 
 #if OP_TINY_SKIA

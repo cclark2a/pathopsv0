@@ -58,11 +58,9 @@ typedef void (*DebugAddRaster)(DebugContextData , Curve , int parentID);
 struct DebugCurveCallbacks {
 	DebugScale scaleFuncPtr;
 	OP_DEBUG_DUMP_CODE(DebugDumpCurveName curveNameFuncPtr;)
-	OP_DEBUG_DUMP_CODE(DebugDumpCurveExtra curveExtraFuncPtr;)
-//	OP_DEBUG_IMAGE_CODE_OLD(DebugAddToPath addToPathFuncPtr;)
-#if TEST_RASTER
-    DebugAddRaster addRasterFuncPtr;
-#endif
+	OP_DEBUG_DUMP_CODE(DebugDumpCurveExtra curveExtraFuncPtr = nullptr;)
+    OP_DEBUG_DUMP_CODE(SubDivide debugSubDivideFuncPtr = nullptr;)
+    OP_DEBUG_RASTER_CODE(DebugAddRaster addRasterFuncPtr = nullptr;)
 };
 
 #if OP_DEBUG_IMAGE

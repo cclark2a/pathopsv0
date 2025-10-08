@@ -230,6 +230,7 @@ inline OpRoots AddInflections(OpPoint start, OpPoint end, CubicControls& control
 enum class CubicSubDivide {
     noAngleChecks,
     checkAngles
+    OP_DEBUGGER_PARAMS(debuggerSubDivide)
 };
 
 inline void cubicCommonSubDivide(Curve c, float t1, float t2, float threshold, Curve* result,
@@ -248,6 +249,10 @@ inline void cubicCommonSubDivide(Curve c, float t1, float t2, float threshold, C
 	}
     CubicControls subControls = CubicControlPt(start, controls, end, t1, t2);
     subControls.copyTo(*result);
+#if OP_DEBUGGER
+    if (CubicSubDivide::debuggerSubDivide == check)
+        return;
+#endif
 #if 1  // experiment: restrict sub controls to cross product of original controls w/ end tangent
 	// cross product of control lines should have same sign
     auto makeLines = [](Curve& curve, CubicControls& controls) {
@@ -532,6 +537,12 @@ inline void cubicSubDivide(Curve c, float t1, float t2, float threshold, Curve* 
     cubicCommonSubDivide(c, t1, t2, threshold, result, CubicSubDivide::checkAngles);
 }
 
+#if OP_DEBUGGER
+inline void debugCubicSubDivide(Curve c, float t1, float t2, float threshold, Curve* result) {
+    cubicCommonSubDivide(c, t1, t2, threshold, result, CubicSubDivide::debuggerSubDivide);
+}
+#endif
+
 #if OP_DEBUG_DUMP
 inline std::string cubicDebugDumpName() { 
     return "cubic"; 
@@ -565,8 +576,9 @@ inline void cubicCallbacks(Context* context, int nativeCurveType) {
 #if OP_DEBUG
 	SetDebugCurveCallbacks(context, nativeCurveType, { debugCubicScale
             OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, nullptr)
-//            OP_DEBUG_IMAGE_PARAMS_OLD(debugCubicToSkPath) 
-            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) });
+            OP_DEBUG_RASTER_PARAMS(debugRasterAdd)
+            OP_DEBUGGER_PARAMS(debugCubicSubDivide)
+            });
 #endif
 }
 

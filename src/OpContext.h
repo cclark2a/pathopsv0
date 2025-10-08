@@ -246,6 +246,8 @@ struct OpContext {
 #if OP_DEBUG_DUMP
 	void debugCompare(std::string s);
 	const OpLimb& debugNthLimb(int) const;
+    const OpEdge* debugFindEdge(int id) const;
+    const OpSegment* debugFindSegment(int id) const;
     bool dumpInitialized() const {
                 return initialized || !windingSet;  }
 	void dumpResolve(OpContour*& contourRef);

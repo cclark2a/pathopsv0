@@ -7,7 +7,8 @@ OpCurve::OpCurve(PathOpsV0Lib::Curve curve, Rotated r)
 	: c(curve)
 	, rotated(r)
 	, isLineSet(false)
-	, isLineResult(false) {
+	, isLineResult(false)
+    , reversed(false) {
 	c.data = context().allocateCurveData(c.size);
 	if (0 == (int) curve.type) {
         PathOpsV0Lib::SetLineType lineTypeFunc = context().contextCallbacks.setLineTypeFuncPtr;
@@ -608,6 +609,27 @@ bool OpCurve::debugIsLine() const {
     PathOpsV0Lib::SetLineType funcPtr = context().contextCallbacks.setLineTypeFuncPtr;
 	return c.type == (funcPtr ? (*funcPtr)(c) : 1);
 }
+#endif
+
+#if OP_DEBUGGER
+OpCurve OpCurve::debugSubDivide(float t1, float t2) const {
+	if (0 == t1 && 1 == t2)
+		return *this;
+	OpCurve newResult(c, rotated);
+    newResult.setFirstPt(ptAtT(t1));
+    newResult.setLastPt(ptAtT(t2));
+	PathOpsV0Lib::SubDivide funcPtr = context().debugCallback(c).debugSubDivideFuncPtr;
+	if (funcPtr) {
+		PathOpsV0Lib::CurveConst crossThreshold = context().callback(c.type).crossThresholdFuncPtr;
+		float threshold = context().threshold().length()
+				* (crossThreshold ? (*crossThreshold)(c) : 4.f);
+		(*funcPtr)(c, t1, t2, threshold, &newResult.c);
+		if (PathOpsV0Lib::degenerateLine == newResult.c.type)
+			newResult.setLine();
+	}
+	return newResult;
+}
+
 #endif
 
 OpPointBounds OpCurve::ptBounds() const {

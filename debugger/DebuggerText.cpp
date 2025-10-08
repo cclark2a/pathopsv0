@@ -3,6 +3,57 @@
 
 #include "OpDebugPicture.h"
 #include "OpCurveCurve.h"
+#include "OpJoiner.h"
+
+extern std::string stringFormat(OpContext* context, std::string s, int lineWidth);
+
+OpType::OpType(const OpEdge* e)
+        : edge(e)
+        , id(e->id)
+        , idType(IDType::edge) {
+    }
+
+OpType::OpType(const OpSegment* s)
+        : segment(s)
+        , id(s->id)
+        , idType(IDType::segment) {
+    }
+
+OpType::OpType(const OpContour* c)
+        : contour(c)
+        , id(c->id)
+        , idType(IDType::contour) {
+    }
+
+OpType::OpType(const OpIntersection* i, IDType t)
+        : intersection(i)
+        , id(i->id)
+        , idType(t) {
+    }
+
+OpType::OpType(const Distance* d)
+        : distance(d)
+        , id(d->debugID)
+        , idType(IDType::distance) {
+    }
+
+OpType::OpType(const EdgePal* p)
+    : pal(p)
+    , id(p->unsectID)
+    , idType(IDType::pal) {
+}
+
+OpType::OpType(const OpTree* t)
+        : tree(t)
+        , id(t->id)
+        , idType(IDType::tree) {
+    }
+
+OpType::OpType(const OpLimb* l)
+        : limb(l)
+        , id(l->id)
+        , idType(IDType::limb) {
+    }
 
 DebuggerPoly& TextWindow::addRect(const OpRect& r, std::string s, uint32_t color) {
     uint32_t darker = color & 0xff3f3f3f;
@@ -15,80 +66,201 @@ DebuggerPoly& TextWindow::addRect(const OpRect& r, std::string s, uint32_t color
     return result;
 }
 
-bool TextWindow::drawOne(DebuggerPoly& poly) {
-    if (poly.edge) {
-        if (poly.color == white)
-            OpNop();
-    }
-    return true;
+static DrawLevel AddType(const DebuggerEvent* , TextWindow* textWindow, OpType& opType) {
+    DebuggerPoly& polyRect = textWindow->addRect(opType.bounds, STR(opType.id), 
+        opType.selected ? yellow : lightGray);
+    polyRect.opType = opType;
+    return DrawLevel::draw;
 }
 
-static void AddEdge(const DebuggerEvent* , const OpRect& r, Window* w, const OpEdge& edge) {
-    TextWindow* textWindow = (TextWindow*) w;
-    DebuggerPoly& edgeRect = textWindow->addRect(r, STR(edge.id), lightGray);
-    edgeRect.edge = &edge;
-}
-
-static void HoverEdge(const DebuggerEvent* event, const OpRect& r, Window* w, const OpEdge& edge) {
-    DebuggerPoly* poly = w->findPoly(&edge);
-    if (!poly)
-        return;
-    bool mouseOverButton = r.contains(event->mouse);
-    poly->color = mouseOverButton ? white : lightGray;
-    poly = w->debuggerState->pictureWindow.findPoly(&edge);
-    if (poly && poly->thickness)
-        poly->thickness = mouseOverButton ? 4 : 1;
-}
-
-static void SelectEdge(const DebuggerEvent* event, const OpRect& r, Window* , const OpEdge& edge) {
-    if (!r.contains(event->mouse))
-        return;
-    std::string s = edge.debugDump(DebugLevel::file, DebugBase::dec);
-    OpDebugOut(s + "\n");
-}
-
-DrawLevel TextWindow::event(const DebuggerEvent& debuggerEvent) {
-    if (MouseAction::move == debuggerEvent.mouseAction) {
-        doEdge(&HoverEdge, &debuggerEvent);
-        return DrawLevel::draw;
-    }
-    if (MouseAction::click == debuggerEvent.mouseAction) {
-        doEdge(&SelectEdge, &debuggerEvent);
-        return DrawLevel::draw;
-    }
-
+static DrawLevel DragType(const DebuggerEvent* , TextWindow* textWindow, OpType& opType) {
+    // !!! not implemented, yet
+        // move boxes around?
     return DrawLevel::none;
 }
+
+static DrawLevel HoverType(const DebuggerEvent* event, TextWindow* textWindow, OpType& opType) {
+    DebuggerPoly* poly = textWindow->findPolyByID(opType.id);
+    if (!poly)
+        return DrawLevel::none;
+    bool mouseOverButton = opType.bounds.contains(event->mouse);
+    poly->color = opType.selected ? yellow : mouseOverButton ? white : lightGray;
+    poly = textWindow->debuggerState->pictureWindow.findPolyByID(opType.id);
+    if (poly && poly->thickness)
+        poly->thickness = mouseOverButton ? 4 : 1;
+    return DrawLevel::draw;
+}
+
+static DrawLevel SelectType(const DebuggerEvent* event, TextWindow* , OpType& opType) {
+    if (!opType.bounds.contains(event->mouse))
+        return DrawLevel::none;
+    opType.selected ^= true;
+    return DrawLevel::update;
+}
+
+DrawLevel TextWindow::event(const DebuggerEvent& debuggerEvent) {    
+    if (DrawLevel common = debuggerState->eventCommon(debuggerEvent); DrawLevel::none != common)
+        return common;
+    if (debuggerEvent.wheel) {
+        // scroll text area ? (to be implemented)
+    }
+    if (MouseAction::drag == debuggerEvent.mouseAction)
+        return doType(&DragType, &debuggerEvent);
+    if (MouseAction::move == debuggerEvent.mouseAction)
+        return doType(&HoverType, &debuggerEvent);
+    if (MouseAction::click == debuggerEvent.mouseAction)
+        return doType(&SelectType, &debuggerEvent);
+//    int scale = keyModMultiplier(debuggerEvent.keyMods);  // !!! unused for now
+    bool redraw = true;
+    switch (uint8_t key = debuggerEvent.key) {
+        case 'a':
+            showAll ^= true;
+            break;
+        case 'c':
+            showCurveCurve ^= true;
+            break;
+        // case 'C': // contours handled by event common
+        // case 'D': case 'd':  // curve/curve depth handled by event common
+        // case 'e': // edges handled by event common
+        case 'f':  // show full relationship of edge to segment and intersections
+            showFull ^= true;
+            break;
+        case 'h':
+            showEdgeHulls ^= true;
+            break;
+        // case 'I':  // intersections handled by event common
+        case 'l':
+            showLinks ^= true;
+            break;
+        case 'p':  // show curve points (independent of draw points)
+            showPoints ^= true;
+            break;
+        // case 'P': // playback handled by event common
+        case 'r':   // show (edge) rays
+            showRays ^= true;
+            break;
+        // case 'R': // record handled by event common
+        // case 's': // segments handled by event common
+        case 't':
+            showTree ^= true;
+            break;
+        // case 'x': // hex handled by event common
+        default:
+            redraw = false;
+            break;
+    }
+    return redraw ? DrawLevel::update : DrawLevel::none;
+}
+
+extern DebugBase defaultBase;
 
 void TextWindow::redraw() {
     if (!context())
         return;
-    OpCurveCurve* curveCurve = context()->debugCurveCurve;
-    if (!curveCurve)
-        return;
     clearWindow();
-    addPoly.window = this;
     OpPoint localLocation(10, 10);
-    std::string depthStr = "depth: " + STR(debuggerState->pictureWindow.depth) 
-            + " / " + STR(curveCurve->depth);
-    (void) addText(depthStr, localLocation, debugBlack, false);
-    doEdge(&AddEdge, nullptr);
+    doType(&AddType, nullptr);
+    float y = 60;
+    auto addWrapped = [&y, this](std::string s) {
+        s = stringFormat(debuggerState->context, s, 100);
+        const NativeTextCache& cache = getCache(addText(s, {10, y}, black, detailFont).cacheIndex);
+        y += cache.size.dy;
+
+    };
+	for (auto& id : debuggerState->ids) {
+        if (!id.selected && !showAll)
+            continue;
+        defaultBase = debuggerState->drawHexOn ? DebugBase::hex : DebugBase::dec;
+        std::string s;
+        if (showFull) {
+            const OpSegment* segment = nullptr;
+            if (IDType::segment == id.idType)
+               segment = id.segment;
+            else if (IDType::edge == id.idType)
+                segment = id.edge->segment;
+            else if (IDType::intersection == id.idType)
+                segment = id.intersection->segment;
+            if (segment)
+                s = segment->debugDumpFull();
+        } else if (showPoints) {
+            if (IDType::segment == id.idType)
+                s = id.segment->debugDump(DebugLevel::brief, defaultBase);
+            else if (IDType::edge == id.idType) {
+                std::vector<EdgeFilter> showFields = { EF::id, EF::startT, EF::endT, EF::curve, 
+                    EF::iStart, EF::iEnd, EF::winding, EF::sum, EF::whichEnd_impl };
+                OpSaveEF saveEF(showFields);
+                s = id.edge->debugDump(DebugLevel::normal, defaultBase);
+            }
+        } else {
+            if (IDType::segment == id.idType)
+                s = id.segment->debugDump(DebugLevel::normal, defaultBase);
+            else if (IDType::edge == id.idType)
+                s = id.edge->debugDump(DebugLevel::normal, defaultBase);
+        }
+        if (s.empty())
+            continue;
+        addWrapped(s);
+    }
+    if (OpCurveCurve* cc = debuggerState->context->debugCurveCurve; showCurveCurve) {
+        std::string s = cc->debugDump(DebugLevel::normal, defaultBase);
+        addWrapped(s);
+        if (debuggerState->depth) {
+            s = cc->debugDumpDepth(debuggerState->depth);
+            addWrapped(s);
+        }
+    }
 }
 
+// start here;
+// change this to generate the set of interesting ids into an array
+// use user choices to order that id set, add breaking lines, etc
 
-void TextWindow::doEdge(EventAction eventAction, const DebuggerEvent* event) {
+DrawLevel TextWindow::doType(EventAction eventAction, const DebuggerEvent* event) {
+    if (!context())
+        return DrawLevel::none;
     static const int leftMargin = 10;
-    OpPoint loc { leftMargin, 50 };
+    OpPoint loc { leftMargin, 10 };
     OpVector wh { 50, 20 };
-	for (const auto& edgeIter : edgeIterator) {
-        const OpEdge& edge = *edgeIter;
-        OpRect r(loc, loc + wh);
-        if (r.right > screen.width() && r.left > leftMargin) {
+    DrawLevel result = DrawLevel::none;
+	for (auto& id : debuggerState->ids) {
+        if (IDType::edge != id.idType)
+            continue;
+        id.bounds = OpRect(loc, loc + wh);
+        if (id.bounds.right > screen.width() && id.bounds.left > leftMargin) {
             loc.x = leftMargin;
             loc.y += wh.dy + 8;
-            r = OpRect(loc, loc + wh);
+            id.bounds = OpRect(loc, loc + wh);
         }
-        (*eventAction)(event, r, this, edge);
+        result |= (*eventAction)(event, this, id);
         loc.x += wh.dx + 8;
     }
+    return result;
+}
+
+void TextWindow::playback(const char*& str) {
+    playbackCommon(str);
+    DEBUG_SET_BOOL(detailFont, showAll);
+    DEBUG_SET_BOOL(showAll, showCurveCurve);
+    DEBUG_SET_BOOL(showCurveCurve, showFull);
+    DEBUG_SET_BOOL(showFull, showEdgeHulls);
+    DEBUG_SET_BOOL(showEdgeHulls, showLinks);
+    DEBUG_SET_BOOL(showLinks, showPoints);
+    DEBUG_SET_BOOL(showPoints, showRays);
+    DEBUG_SET_BOOL(showRays, showTree); 
+}
+
+std::string TextWindow::record() {
+    std::string s;
+    DebugLevel l = DebugLevel::file;
+    DebugBase b = DebugBase::hex;
+    s += recordCommon();
+    DEBUG_DUMP_BOOL(detailFont, showAll);
+    DEBUG_DUMP_BOOL(showAll, showCurveCurve);
+    DEBUG_DUMP_BOOL(showCurveCurve, showFull);
+    DEBUG_DUMP_BOOL(showFull, showEdgeHulls);
+    DEBUG_DUMP_BOOL(showEdgeHulls, showLinks);
+    DEBUG_DUMP_BOOL(showLinks, showPoints);
+    DEBUG_DUMP_BOOL(showPoints, showRays);
+    DEBUG_DUMP_BOOL(showRays, showTree);
+    return s;
 }

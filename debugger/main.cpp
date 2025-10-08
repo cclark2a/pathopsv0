@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <time.h>
 
 #include "debugger/OpDebugPicture.h"
 
@@ -17,7 +16,7 @@ bool OpDebugSkipBreak() {
     return true;
 }
 
-static TTF_Font* font = nullptr;
+// static TTF_Font* font = nullptr;
 // bool debugUseAlt = false;
 
 static SDL_Color toSDLColor(uint32_t c) {
@@ -25,16 +24,19 @@ static SDL_Color toSDLColor(uint32_t c) {
     return sdlColor;
 }
 
-size_t Window::addText(std::string str, uint32_t color) {
+size_t Window::addText(std::string str, uint32_t color, TTF_Font* f) {
+    if (!f)
+        f = font;
     auto found = std::find_if(textCache.begin(), textCache.end(), 
-            [str, color](NativeTextCache& cache) {
-            return str == cache.str && color == cache.color; } );
+            [f, str, color](NativeTextCache& cache) {
+            return f == cache.font && str == cache.str && color == cache.color; } );
     if (textCache.end() != found)
         return found - textCache.begin();
     SDL_Color sdlColor = toSDLColor(color);
-    SDL_Surface* textSurface = TTF_RenderText_Blended(font, str.c_str(), 0, sdlColor);
+    SDL_Surface* textSurface = TTF_RenderText_Blended_Wrapped(f, str.c_str(), 0, sdlColor, 0);
     if (!textSurface) {
-        OpDebugOut(std::string("Couldn't create text: %s\n") + SDL_GetError());
+        OpDebugOut("Couldn't create text:\"" + str + "\"\n");
+        OpDebugOut(STR("SDL error:") + SDL_GetError() + STR("\n"));
         exit(1);
     }
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, textSurface);
@@ -42,8 +44,15 @@ size_t Window::addText(std::string str, uint32_t color) {
     size_t cacheIndex = textCache.size();
     OpVector size;
     SDL_GetTextureSize(texture, &size.dx, &size.dy);
-    textCache.push_back({str, size, texture, color});
+    textCache.push_back({f, str, size, texture, color});
     return cacheIndex;
+}
+
+void Window::deleteTextCache() {
+    for (auto& entry : textCache) {
+        SDL_DestroyTexture(entry.texture);
+    }
+    textCache.clear();
 }
 
 SDL_AppResult Window::draw() {
@@ -84,9 +93,7 @@ void Window::drawText() {
 
 SDL_AppResult Window::init(std::string n, OpVector offset) {
     name = n;
-    const int WINDOW_WIDTH = 1000;
-    const int WINDOW_HEIGHT = 1000;
-    if (!SDL_CreateWindowAndRenderer(("V0 Debugger " + name).c_str(), WINDOW_WIDTH, WINDOW_HEIGHT, 
+    if (!SDL_CreateWindowAndRenderer(("V0 Debugger " + name).c_str(), screen.width(), screen.height(), 
             SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN, &window, &renderer)) {
         OpDebugOut("Couldn't create window and renderer: " + std::string(SDL_GetError()) + "\n");
         return SDL_APP_FAILURE;
@@ -102,7 +109,18 @@ SDL_AppResult Window::init(std::string n, OpVector offset) {
                 + std::string(SDL_GetError()) + "\n");
         return SDL_APP_FAILURE;
     }
-    allocateBuffers(WINDOW_WIDTH, WINDOW_HEIGHT);
+    allocateBuffers(screen.width(), screen.height());
+    return SDL_APP_CONTINUE;
+}
+
+SDL_AppResult Window::addFont(float fontSize, TTF_Font** result) {
+    if (!result)
+        result = &font;
+    *result = TTF_OpenFont("C:/Windows/Fonts/segoeui.ttf", fontSize);
+    if (!*result) {
+        OpDebugOut("Couldn't open font: " + std::string(SDL_GetError()) + "\n");
+        return SDL_APP_FAILURE;
+    }
     return SDL_APP_CONTINUE;
 }
 
@@ -129,21 +147,20 @@ SDL_AppResult Window::allocateBuffers(int width, int height) {
 
 /* This function runs once at startup. */
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
-    DebuggerState* debuggerState = new DebuggerState();
-    if (argc == 2)
-        debuggerState->opFileName = argv[1];
-    *appstate = debuggerState;
     if (!TTF_Init()) {
         OpDebugOut("Couldn't initialise SDL_ttf: " + std::string(SDL_GetError()) + "\n");
         return SDL_APP_FAILURE;
     }
-    font = TTF_OpenFont("C:/Windows/Fonts/segoeui.ttf", 14);
-    if (!font) {
-        OpDebugOut("Couldn't open font: " + std::string(SDL_GetError()) + "\n");
+    DebuggerState* debuggerState = new DebuggerState();
+    if (!debuggerState || debuggerState->error)
         return SDL_APP_FAILURE;
-    }
+    if (argc == 2)
+        debuggerState->opFileName = argv[1];
+    *appstate = debuggerState;
     return SDL_APP_CONTINUE;
 }
+
+
 
 /* This function runs when a new event (mouse input, keypresses, etc) occurs. */
 SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
@@ -151,14 +168,15 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
     static OpPoint lastMouse;
     static bool dragging = false;
     DebuggerState* debuggerState = (DebuggerState*) appstate;
-    DebuggerEvent debuggerEvent(debuggerState, SDL_GetModState(), event->window.windowID);
+    unsigned int winID = event->window.windowID;
+    DebuggerEvent debuggerEvent(debuggerState, SDL_GetModState(), winID);
     bool systemRedraw = false;
-    std::string windowName;
-    if (debuggerState->pictureWindow.windowID == event->window.windowID)
-        windowName = debuggerState->pictureWindow.name;
-    else if (debuggerState->textWindow.windowID == event->window.windowID)
-        windowName = debuggerState->textWindow.name;
-    if (       event->type != SDL_EVENT_MOUSE_MOTION         // 0x400
+    Window* eventWindow = debuggerState->pictureWindow.windowID == winID
+            ? (Window*) &debuggerState->pictureWindow : debuggerState->textWindow.windowID == winID
+            ? (Window*) &debuggerState->textWindow : debuggerState->helpWindow.windowID == winID
+            ? (Window*) &debuggerState->helpWindow : nullptr;
+    std::string windowName = eventWindow ? eventWindow->name : "(unnamed window)";
+    if (verboseLevel && event->type != SDL_EVENT_MOUSE_MOTION         // 0x400
             && event->type != SDL_EVENT_WINDOW_SHOWN         // 0x202
             && event->type != SDL_EVENT_WINDOW_EXPOSED       // 0x204
             && event->type != SDL_EVENT_WINDOW_MOVED         // 0x205
@@ -168,9 +186,11 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
             && event->type != SDL_EVENT_WINDOW_FOCUS_GAINED  // 0x20e
             && event->type != SDL_EVENT_WINDOW_FOCUS_LOST    // 0x20f
             && event->type != SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED // 0x214
+            && event->type != SDL_EVENT_KEY_DOWN // 0x300
+            && event->type != SDL_EVENT_KEY_UP // 0x301
             && event->type != SDL_EVENT_CLIPBOARD_UPDATE     // 0x900
             )
-        if (verboseLevel) OpDebugOut("event:" + OpDebugIntToHex(event->type) + "\n");
+            OpDebugOut("event:" + OpDebugIntToHex(event->type) + "\n");
     switch (event->type) {
         case SDL_EVENT_CLIPBOARD_UPDATE:
             if (verboseLevel) OpDebugOut("clipboard update\n");
@@ -189,6 +209,7 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
             break;
         case SDL_EVENT_WINDOW_RESIZED:
             if (verboseLevel) OpDebugOut(windowName + " resized\n");
+            eventWindow->setSize();
             systemRedraw = true;
             break;
         case SDL_EVENT_WINDOW_EXPOSED:
@@ -223,7 +244,7 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
             SDL_GetMouseState(&downMouse.x, &downMouse.y);
             debuggerEvent.mouse = downMouse;
             lastMouse = downMouse;
-            dragging = true;
+            dragging = SDL_EVENT_MOUSE_BUTTON_DOWN == event->type;
             break;
         }
         case SDL_EVENT_MOUSE_BUTTON_UP: {
@@ -248,7 +269,7 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
         case SDL_EVENT_KEY_DOWN: {
             if (!debuggerEvent.focused)
                 break;
-            switch (uint8_t key = event->key.key) {
+            switch (SDL_Keycode key = event->key.key) {
                 case SDLK_LEFT:
                     debuggerEvent.key = (uint8_t) KeyCode::leftArrow;
                 break;
@@ -298,24 +319,33 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 }
 
 /* This function runs once per frame, and is the heart of the program. */
+// on windows, at least, this appears to need to wait a bit before reading the file after finding
+// that the file time has changed -- set it to repeatedly call update for some number of times
+// once per frame
 SDL_AppResult SDL_AppIterate(void* appstate) {
     DebuggerState* debuggerState = (DebuggerState*) appstate;
-    static time_t lastTime = 0;
     struct stat info;
     if (stat(debuggerState->opFileName.c_str(), &info) == -1) {
         OP_ASSERT(0);
         return SDL_APP_FAILURE;
     }
-    if (info.st_mtime != lastTime) {
-        debuggerState->update();
-        lastTime = info.st_mtime;
+    if (info.st_mtime != debuggerState->lastTime) {
+        if (debuggerState->update()) {
+            debuggerState->lastTime = info.st_mtime;
+            debuggerState->updateAttempts = 0;
+        } else if (++debuggerState->updateAttempts > maxUpdateAttempts) {
+            OpDebugOut("failed to update\n"); 
+            OP_ASSERT(0);
+            debuggerState->update();  // for debugging
+            return SDL_APP_FAILURE;
+        }
     }
     return SDL_APP_CONTINUE;
 }
 
 /* This function runs once at shutdown. */
 void SDL_AppQuit(void* appstate, SDL_AppResult result) {
-    if (font)
-        TTF_CloseFont(font);
+//    if (font)
+//        TTF_CloseFont(font);  // !!! is this necessary?
     TTF_Quit();
 }

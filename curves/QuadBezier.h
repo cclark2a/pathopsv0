@@ -37,6 +37,11 @@ inline OpPoint QuadControlPt(OpPoint start, OpPoint control, OpPoint end, OpPtT 
     OpPoint avgPt = (ptT1.pt + ptT2.pt) / 2;
     OpVector diff = 2 * midPt - avgPt;
     OpPoint result(diff.dx, diff.dy);
+    return result;
+}
+
+inline OpPoint QuadCtrlPin(OpPoint start, OpPoint control, OpPoint end, OpPtT ptT1, OpPtT ptT2) {
+    OpPoint result = QuadControlPt(start, control, end, ptT1, ptT2);
     result.pin(ptT1.pt, ptT2.pt);
     return result;
 }
@@ -111,7 +116,7 @@ inline size_t AddQuads(Contour* contour, AddCurve curve) {
         if (ptTs[index].pt == ptTs[index + 1].pt)
             continue;
         OpPoint curveData[3] { ptTs[index].pt, ptTs[index + 1].pt,
-            QuadControlPt(start, control, end, ptTs[index], ptTs[index + 1]) };
+            QuadCtrlPin(start, control, end, ptTs[index], ptTs[index + 1]) };
         Add(contour, { curve.context, curveData, curve.size, curve.type } );
     }
     return curvesAdded;
@@ -187,10 +192,17 @@ inline OpRoots quadRotatedT(Curve curve, Axis axis, float intercept
 			result.add(endT);
 			continue;
 		}
+#if OP_DEBUGGER  // !!! I don't know why this isn't required all the time!
+        float top = curveData[0].choice(axis) - intercept;
+        float bottom = curveData[1].choice(axis) - intercept;
+		if (top * bottom > 0)
+			continue;
+#else
 		if (curveData[0].choice(axis) * curveData[1].choice(axis) > 0)
 			continue;
+#endif
         OP_ASSERT(curveData[0] != curveData[1]);
-        curveData[2] = QuadControlPt(start, control, end, ptTs[index], ptTs[index + 1]);
+        curveData[2] = QuadCtrlPin(start, control, end, ptTs[index], ptTs[index + 1]);
 		Curve part { curve.context, (CurveData*) curveData, curve.size, curve.type };
 		OpRoots partRoot = quadAxisT(part, axis, intercept  OP_DEBUG_PARAMS(debugAdded));
 		for (float root : partRoot.roots)
@@ -232,10 +244,11 @@ inline void quadSetBounds(Curve c, OpRect& bounds) {
     bounds.add(quadControlPt(c));
 }
 
+// this assumes the result is monotonic (e.g., the control point can be pinned to the bounds)
 inline void quadSubDivide(Curve c, float t1, float t2, float threshold, Curve* result) {
 	OpPtT ptT1 { result->data->start, t1 };
 	OpPtT ptT2 { result->data->end, t2 };
-    OpPoint subControl = QuadControlPt(c.data->start, quadControlPt(c), c.data->end, ptT1, ptT2);
+    OpPoint subControl = QuadCtrlPin(c.data->start, quadControlPt(c), c.data->end, ptT1, ptT2);
     quadSetControl(*result, subControl);
     if (quadIsLine(*result, threshold))
         result->type = degenerateLine;
@@ -253,6 +266,16 @@ inline std::string quadDebugDumpName() {
     return "quad"; 
 }
 
+// this is used by the debugger to split the original curves that are not necessarily monotonic
+inline void quadDebugSubDivide(Curve c, float t1, float t2, float threshold, Curve* result) {
+	OpPtT ptT1 { result->data->start, t1 };
+	OpPtT ptT2 { result->data->end, t2 };
+    OpPoint subControl = QuadControlPt(c.data->start, quadControlPt(c), c.data->end, ptT1, ptT2);
+    quadSetControl(*result, subControl);
+    if (quadIsLine(*result, threshold))
+        result->type = degenerateLine;
+}
+
 #define QUAD_TAGGED_FUNCTIONS \
     OP_TAGGED_FUNCTION(quadAxisT), \
     OP_TAGGED_FUNCTION(quadRotatedT), \
@@ -268,6 +291,7 @@ inline std::string quadDebugDumpName() {
     OP_TAGGED_FUNCTION(quadSubDivide), \
     OP_TAGGED_FUNCTION(quadXYAtT), \
     OP_TAGGED_FUNCTION(quadDebugDumpName), \
+    OP_TAGGED_FUNCTION(quadDebugSubDivide), \
 
 #endif
 
@@ -278,9 +302,9 @@ inline void quadCallbacks(Context* context, int nativeCurveType) {
 			quadRotate, quadSubDivide, quadXYAtT });
 #if OP_DEBUG
     SetDebugCurveCallbacks(context, nativeCurveType, { debugQuadScale
-        OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, nullptr)
-//        OP_DEBUG_IMAGE_PARAMS_OLD(debugQuadToSkPath) 
-        OP_DEBUG_RASTER_PARAMS(debugRasterAdd) });
+        OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, nullptr, quadDebugSubDivide)
+        OP_DEBUG_RASTER_PARAMS(debugRasterAdd) 
+        });
 #endif
 }
 

@@ -8,7 +8,8 @@ void DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
     if (c.data->start == c.data->end)
         return;
     // if adding fill, wrap curve to focus bounds
-    OpRect bounds(c.data->start, c.data->end);
+    OpCurve curve(c, monotonic ? Rotated::no : Rotated::yes);
+    OpPointBounds bounds = curve.ptBounds();
     auto addVertical = [c, bounds, this](float x) {
         if (!addingFill)
             return;
@@ -39,7 +40,6 @@ void DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
         return addHorizontal(window->focus.top);
     if (bounds.top >= window->focus.bottom)
         return addHorizontal(window->focus.bottom);
-    OpCurve curve(c, Rotated::no);
     if (window->focus.contains(bounds)) {
         window->add(curve, this);
         return;
@@ -74,11 +74,13 @@ void DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
     DebugSect* last = &sects.front();
     for (DebugSect& sect : sects) {
         if (last->sect.t < sect.sect.t) {
-            if (last->pin || sect.pin) {
+            OpCurve piece = curve.debugSubDivide(last->sect.t, sect.sect.t);
+            OpPointBounds pieceBounds = piece.ptBounds();
+            bool overlaps = pieceBounds.intersectsThreshold(window->focus, -debuggerState->threshold);
+            if (!overlaps) {
                 if (addingFill && last->sect.pt != sect.sect.pt)
                     window->add(last->sect.pt, sect.sect.pt, this);
             } else {
-                OpCurve piece = curve.subDivide(last->sect.t, sect.sect.t);
                 piece.setFirstPt(last->sect.pt);
                 piece.setLastPt(sect.sect.pt);
                 window->add(piece, this);
@@ -92,27 +94,24 @@ void DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
 }
 
 void DebuggerAddPoly::add(const OpEdge* e) {
-    edge = e;
-    segment = nullptr;
-    contour = nullptr;
+    opType = OpType(e);
     addingFill = false;
+    monotonic = true;
     add(e->curve.c);
 }
 
 void DebuggerAddPoly::add(const OpSegment* s) {
-    edge = nullptr;
-    segment = s;
-    contour = nullptr;
+    opType = OpType(s);
     addingFill = false;
+    monotonic = true;
     add(s->c.c);
 }
 
 // !!! for segments making up area; color comes from contour
 void DebuggerAddPoly::add(const OpContour* c) {
-    edge = nullptr;
-    segment = nullptr;
-    contour = c;
+    opType = OpType(c);
     addingFill = true;
+    monotonic = false;
     OpPoint last(SetToNaN::dummy);
     for (const PathOpsV0Lib::Curve& curve : c->debugCurves) {
         continueCurve = last == curve.data->start;
@@ -143,12 +142,12 @@ extern DebugLevel defaultLevel;
 void DebuggerPoly::dump() const {
     std::string s;
     s += "local:" + STR(local.size()) + " ";
-    if (edge)
-        s += "edge:" + STR(edge->id) + " ";
-    if (segment)
-        s += "segment:" + STR(segment->id) + " ";
-    if (contour)
-        s += "contour:" + STR(contour->id) + " ";
+    if (IDType::edge == opType.idType)
+        s += "edge:";
+    if (IDType::segment == opType.idType)
+        s += "segment:";
+    if (opType.id)
+    s += STR(opType.id) + " ";
     if (1 != thickness)
         s += " thickness:" + STR(thickness) + " ";
     if (debugBlack != color)

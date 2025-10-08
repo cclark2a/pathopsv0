@@ -91,6 +91,8 @@ struct OpDebugData {
 #define OP_DEBUG_IMAGE_CODE_OLD(...)
 #define OP_DEBUG_IMAGE_PARAMS(...)
 #define OP_DEBUG_IMAGE_PARAMS_OLD(...)
+#define OP_DEBUGGER_CODE(...)
+#define OP_DEBUGGER_PARAMS(...)
 
 #if defined OP_TINY_TEST && OP_TINY_TEST
     #define OP_TINY_MAIN(func) int main() { func(); return 0; }
@@ -162,6 +164,9 @@ struct OpDebugData {
 	#define OP_DEBUG_IMAGE 1
 	#define OP_DEBUG_MAKER 1
 	#define OP_DEBUG_VALIDATE 1
+#endif
+#ifndef OP_DEBUGGER
+    #define OP_DEBUGGER 0
 #endif
 #define OP_DEBUG_PARAMS(...) , __VA_ARGS__
 #define OP_DEBUG_CODE(...) __VA_ARGS__
@@ -300,24 +305,15 @@ namespace PathOpsV0Lib {
 #undef OP_DEBUG_CONTEXT
 #define OP_DEBUG_CONTEXT() \
 	debugContext = __func__
-
-#if 0
-#define OpPlayback(opObject, ID) \
-	do { if ((ID) == (opObject)->id) { playback(); OP_DEBUG_BREAK(); } } while (false)
-
-#define OpPlayback2(o1, o2, i1, i2) \
-	do { if ((o1)->id != (o2)->id && ((i1) == (o1)->id || (i2) == (o1)->id) && \
-            ((i1) == (o2)->id || (i2) == (o2)->id)) { playback(); OP_DEBUG_BREAK(); } } while (false)
-
-#define OpPlaybackIf(opObject, ID, doBreak) \
-	do { if ((doBreak) && (ID) == (opObject)->id) { playback(); OP_DEBUG_BREAK(); } } while (false)
-
-#define OpPlayback2If(o1, o2, i1, i2, doBreak) \
-	do { if ((doBreak) && (o1)->id != (o2)->id && ((i1) == (o1)->id || (i2) == (o1)->id) && \
-            ((i1) == (o2)->id || (i2) == (o2)->id)) { playback(); OP_DEBUG_BREAK(); } } while (false)
 #endif
 
+#if OP_DEBUGGER
+#undef OP_DEBUGGER_CODE
+#define OP_DEBUGGER_CODE(...) __VA_ARGS__
+#undef OP_DEBUGGER_PARAMS
+#define OP_DEBUGGER_PARAMS(...) , __VA_ARGS__
 #endif
+
 #endif
 #endif
 
@@ -426,6 +422,7 @@ struct OpDebugIntersectionIterator {
 	bool empty() { return !(begin() != end()); }
 };
 
+// !!! eventually, move iterators into op context
 extern OpDebugContourIterator contourIterator;
 
 extern OpDebugSegmentIterator segmentIterator;
@@ -504,8 +501,10 @@ namespace PathOpsV0Lib {
 }
 
 #if OP_DEBUG && TEST_RASTER
+#define OP_DEBUG_RASTER_CODE(...) __VA_ARGS__
 #define OP_DEBUG_RASTER_PARAMS(params) , params
 #else
+#define OP_DEBUG_RASTER_CODE(...)
 #define OP_DEBUG_RASTER_PARAMS(params)
 #endif
 

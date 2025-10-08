@@ -92,6 +92,11 @@ enum class ClampDist : bool {
     yes = true
 };
 
+struct Interval {
+    OpPtT lo;
+    OpPtT hi;
+};
+
 struct CcCurves {
 	EdgeRun* addEdgeRun(OpEdge* edge, EdgeMatch , ClampDist  OP_LINE_FILE_ARGS());
 	EdgeRun* addEdgeRun(EdgeRun& , EdgeMatch , ClampDist);
@@ -102,6 +107,7 @@ struct CcCurves {
 	void checkSigns();
 	void clear();
     void complementRun(OpEdge* opp);
+    std::vector<Interval> continuous(const OpPtT& lower, const OpPtT& upper) const;  // true if edges link lower to upper
 	bool deletedT(float t) const;  // true if t is in deleted -- deleted need not be sorted
 	std::vector<CutRangeT> findGaps() const;
     void init(OpCurveCurve* , CcCurves* oppCurves, float scaledMax, OpEdge* parent, OpSegment* opp);
@@ -238,6 +244,7 @@ struct OpCurveCurve {
 #endif
 #if OP_DEBUG_VERBOSE
 	void debugSaveState();
+	std::string debugDumpDepth(int level);
 	void dumpDepth(int level);
 	void dumpDepth();
 #endif

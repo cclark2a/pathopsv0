@@ -65,7 +65,8 @@ inline OpPair ConicXYAtT(OpPoint s, PointWeight c, OpPoint e, OpPair t, XyChoice
     return { ConicPointAtT(s, c, e, t.s).choice(xy), ConicPointAtT(s, c, e, t.l).choice(xy) };
 }
 
-inline PointWeight ConicControl(OpPoint start, PointWeight control, OpPoint end, OpPtT ptT1, OpPtT ptT2) {
+inline PointWeight ConicControl(OpPoint start, PointWeight control, OpPoint end, OpPtT ptT1, 
+        OpPtT ptT2  OP_DEBUGGER_PARAMS(bool debugSubDivide = false)) {
     if (0 == ptT1.t && 1 == ptT2.t)
         return control;
     auto subWeight = [start, control, end, ptT1, ptT2](float t) {
@@ -87,7 +88,7 @@ inline PointWeight ConicControl(OpPoint start, PointWeight control, OpPoint end,
     if (!b.weight)
         b.weight = 1;
     PointWeight result(b.pt / bzNonZero, b.weight / sqrtf(a.weight * c.weight));
-    if (ptT1.pt.isFinite() && ptT2.pt.isFinite())
+    if (ptT1.pt.isFinite() && ptT2.pt.isFinite()  OP_DEBUGGER_CODE(&& !debugSubDivide))
         result.pt.pin(ptT1.pt, ptT2.pt);
     return result;
 }
@@ -319,6 +320,18 @@ inline OpPoint conicHull(Curve c, int index) {
     return OpPoint();
 }
 
+#if OP_DEBUGGER
+inline void debugConicSubDivide(Curve curve, float t1, float t2, float threshold, Curve* result) {
+	OpPtT ptT1 { result->data->start, t1 };
+	OpPtT ptT2 { result->data->end, t2 };
+    PointWeight control(curve);
+    PointWeight subPtW = ConicControl(curve.data->start, control, curve.data->end, ptT1, ptT2, true);
+    subPtW.copyTo(*result);
+    if (conicIsLine(*result, threshold))
+        result->type = degenerateLine;
+}
+#endif
+
 #if OP_DEBUG_DUMP
 inline std::string conicDebugDumpName() { 
     return "conic"; 
@@ -356,8 +369,9 @@ inline void conicCallbacks(Context* context, int nativeCurveType) {
 #if OP_DEBUG
 	SetDebugCurveCallbacks(context, nativeCurveType, { debugConicScale
             OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
-//            OP_DEBUG_IMAGE_PARAMS_OLD(debugConicToSkPath) 
-            OP_DEBUG_RASTER_PARAMS(debugRasterAdd) });
+            OP_DEBUG_RASTER_PARAMS(debugRasterAdd)
+            OP_DEBUGGER_PARAMS(debugConicSubDivide)
+            });
 #endif
 }
 

@@ -310,6 +310,23 @@ void CcCurves::complementRun(OpEdge* oppEdge) {
     complement(oppEdge->endDist, EdgeMatch::end);
 }
 
+// earlier limit may make curves discontinuous. Check to see if a gap separates lower from upper
+// !!! some future optimization could keep edges rather than creating new ones with the same
+//     startT/endT as existing ones
+// return intersection of current edges with lower/upper
+std::vector<Interval> CcCurves::continuous(const OpPtT& lower, const OpPtT& upper) const {
+    OP_ASSERT(lower.t < upper.t);
+    OP_ASSERT(c.size());
+    std::vector<Interval> result;
+    for (OpEdge* edge : c) {
+        OpPtT loPtT = lower.t > edge->startT ? lower : edge->startPtT();
+        OpPtT hiPtT = upper.t < edge->endT ? upper : edge->endPtT();
+        if (loPtT.t < hiPtT.t)
+            result.push_back({ loPtT, hiPtT });
+    }
+    return result;
+}
+
 bool CcCurves::deletedT(float t) const {
 	for (const CutRangeT& test : deleted) {
 		if (test.lo.t <= t && t <= test.hi.t)
@@ -1359,14 +1376,20 @@ bool OpCurveCurve::reduceDistFlipped() {
 	OpSegment* segment = seg;
 	OpSegment* oSegment = opp;
 	bool swap = false;
-    auto addSplit = [this, &segment](CcCurves& splits, OpPtT& lower, OpPtT& upper) {
+    auto addSplit = [this, &segment, &curves](CcCurves& splits, OpPtT& lower, OpPtT& upper) {
         if (lower.isNearly(upper, maxSplit))
             return;
-        OpEdge* split = allocateEdge(segment, nullptr, lower, upper, NewEdge::none, 
-                EdgeOverlaps::overlaps  OP_LINE_FILE_PARAMS(segment->id));
-		split->ccOverlaps = true;
-		OP_ASSERT(!split->disabled);
-		splits.c.push_back(split);
+        // return intersection of lower/upper and on intervals in curve
+        std::vector<Interval> intervals = curves->continuous(lower, upper);
+        if (intervals.empty())
+            return;
+        for (Interval interval : intervals) {
+            OpEdge* split = allocateEdge(segment, nullptr, interval.lo, interval.hi, NewEdge::none, 
+                    EdgeOverlaps::overlaps  OP_LINE_FILE_PARAMS(segment->id));
+		    split->ccOverlaps = true;
+		    OP_ASSERT(!split->disabled);
+		    splits.c.push_back(split);
+        }
     };
 	do {
 		EdgeRun* lower = nullptr;

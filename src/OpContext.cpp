@@ -267,7 +267,7 @@ OpContour* OpContext::allocateContour() {
 OpEdge* OpContext::allocateEdge(OpEdgeStorage*& edgeStorage  OP_DEBUG_PARAMS(std::string name)) {
 	if (!edgeStorage) {
 		edgeStorage = new OpEdgeStorage;
-        OP_DEBUG_CODE(edgeStorage->debugName = name);
+        OP_DEBUG_DUMP_CODE(edgeStorage->debugName = name);
     }
 	if (edgeStorage->used == ARRAY_COUNT(edgeStorage->storage)) {
 		OpEdgeStorage* next = new OpEdgeStorage;

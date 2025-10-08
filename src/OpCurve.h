@@ -115,6 +115,9 @@ struct OpCurve {
 #if TEST_RASTER
 	void debugScale(double scale, double offsetX, double offsetY);
 #endif
+#if OP_DEBUGGER
+	OpCurve debugSubDivide(float t1, float t2) const;
+#endif
 	DUMP_DECLARATIONS
 
 	// create storage in contour; helper function casts it to CurveData

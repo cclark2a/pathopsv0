@@ -39,10 +39,6 @@ struct OpPointBounds : OpRect {
 		};
 	}
 
-	bool intersectsThreshold(const OpPointBounds& bounds, OpVector thresh) const {
-		return intersects(bounds.outset(thresh)); 
-	}
-
 	bool isSet() const {
 		return OpMath::IsFinite(left);
 	}

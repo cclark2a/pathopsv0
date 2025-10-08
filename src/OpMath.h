@@ -652,6 +652,10 @@ struct OpRect {
 		return left > right || top > bottom || (left == right && top == bottom);
 	}
 
+	bool intersectsThreshold(const OpRect& bounds, OpVector thresh) const {
+		return intersects(bounds.outset(thresh)); 
+	}
+
 	Axis largerAxis() const {
 		return width() >= height() ? Axis::vertical : Axis::horizontal; }
 

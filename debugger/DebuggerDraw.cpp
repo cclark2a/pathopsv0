@@ -1,4 +1,4 @@
-#include "debugger/OpDebugPicture.h"
+#include "OpDebugPicture.h"
 #include "include/shim/surface.h"
 #include "include/core/path_builder.h"
 #include "src/raster/raster_canvas.h"
@@ -14,9 +14,11 @@ void Window::pentrek_draw(char* bits, int width, int height, int scan) {
     Paint clrPaint;
     clrPaint.color({1, 1, 1, 1});
     canvas.drawIRect({0, 0, width, height}, clrPaint);
+#else
+    memset(bits, 0xff, scan * height);
 #endif
     int debugCount = 0;
-    PictureWindow& picture = debuggerState->pictureWindow;
+    Paint paint;
     for (DebuggerPoly& poly : polys) {
         if (!drawOne(poly))
             continue;
@@ -24,16 +26,12 @@ void Window::pentrek_draw(char* bits, int width, int height, int scan) {
         for (size_t count : poly.contours) {
             Span<Point> points((Point*) (&poly.device.front() + index), count);
             index += count;
-            PathBuilder bu;
-            bu.addPoly(points, false);
-            auto path = bu.snapshot();
-            Paint paint;
             auto component = [poly](int bit) { return ((poly.color >> bit) & 0xFF) / 255.f; };
             paint.color({ component(16), component(8), component(0), component(24) });
             paint.stroke(!!poly.thickness);
             if (poly.thickness)
                 paint.width(poly.thickness * 2);
-            canvas.drawPath(path, paint);
+            canvas.drawPoly(points, false, paint);
             ++debugCount;
         }
     }

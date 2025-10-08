@@ -456,11 +456,6 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 	if (!cc.overlap)
 		return true;
 	SectFound ccResult = cc.divideAndConquer();
-#if OP_DEBUG_DUMP
-    if (2 == opp->id && 7 == seg->id)
-        dmpFile();
-    dmp(cc.context->ccStorage);
-#endif
 	OP_ASSERT(OP_DEBUG_FAST_TEST || cc.debugShowImage());
 	// search runs for small opp distances; turn found into limits
 	SectFound limitsResult = cc.runsToLimits();
