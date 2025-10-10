@@ -21,6 +21,7 @@ bool RayTargets::addContainer(Axis axis, OpContour* container, OpRect& bounds) {
 // only include contours that intersect their parents and the chain bounds
 void RayTargets::build(OpEdge* edge) {
 	// construct rectangle from edge bounds and ray to edge's sects' bounds 
+    context = edge->context();
 	chainBounds = edge->bounds;
 	OpContour* contour = edge->segment->contour;
 	const OpRect& overlapBounds = contour->overlapOwner->overlapBounds;
@@ -74,17 +75,18 @@ void RayTargets::set(Axis axis) {
 //   does that behavior need to be preserved?
 //   it seems odd -- but could be reproduced if needed (with effort)
 //   maybe put that off until it is needed...
-// !!! caller assumes this looks at chainBounds, but it does not...
 OpEdge* RayTargets::next(Axis axis, float homeCept) {
 	Axis uppity = !axis;
 	OpRect* bounds;
+    OpVector threshold = context->threshold();
+    float thresXY = threshold.choice(uppity);
 	while (edges) {
 		// advance to furthest that could influence the sum winding of this edge
 		if (edgeIndex >= edges->size()) {  
 			edgeIndex = 0;
 			do {
 				bounds = &(*edges)[edgeIndex]->bounds;
-			} while (bounds->ltChoice(uppity) <= homeCept && ++edgeIndex < edges->size());
+			} while (bounds->ltChoice(uppity) - thresXY <= homeCept && ++edgeIndex < edges->size());
 			if (0 == edgeIndex--) {
 				set(axis);
 				continue;
@@ -92,7 +94,7 @@ OpEdge* RayTargets::next(Axis axis, float homeCept) {
 		}
 		OpEdge* result = (*edges)[edgeIndex];
 		bounds = &result->bounds;
-		OP_ASSERT(bounds->ltChoice(uppity) <= homeCept);
+		OP_ASSERT(bounds->ltChoice(uppity) - thresXY <= homeCept);
 		if (0 == edgeIndex--)
 			set(axis);
 		if (bounds->rbChoice(uppity) >= chainBounds.ltChoice(uppity))

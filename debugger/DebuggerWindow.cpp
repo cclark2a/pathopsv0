@@ -195,6 +195,20 @@ const NativeTextCache& Window::getCache(size_t index) {
 
 void Window::playbackCommon(const char*& str) {
     DEBUG_SET_COMMON_STRUCT(screen);
+    if (OpDebugOptional(str, "windowWidth")) {
+        int windowWidth = OpDebugReadSizeT(str);
+        OpDebugRequired(str, "windowHeight");
+        int windowHeight = OpDebugReadSizeT(str);
+        SDL_SetWindowSize(window, windowWidth, windowHeight);
+    }
+    if (OpDebugOptional(str, "windowX")) {
+        int windowX = OpDebugReadSizeT(str);
+        OpDebugRequired(str, "windowY");
+        int windowY = OpDebugReadSizeT(str);
+        SDL_SetWindowPosition(window, windowX, windowY);
+    }
+    if (OpDebugOptional(str, "windowVisible"))
+        SDL_ShowWindow(window);
 }
 
 
@@ -203,6 +217,18 @@ std::string Window::recordCommon() {
     DebugLevel l = DebugLevel::file;
     DebugBase b = DebugBase::hex;
     DEBUG_DUMP_COMMON_STRUCT(screen);
+    int windowWidth, windowHeight;
+    if (SDL_GetWindowSize(window, &windowWidth, &windowHeight)) {
+        s += "windowWidth:" + STR(windowWidth) + " ";
+        s += "windowHeight:" + STR(windowHeight) + " ";
+    }
+    int windowX, windowY;
+    if (SDL_GetWindowPosition(window, &windowX, &windowY)) {
+        s += "windowX:" + STR(windowX) + " ";
+        s += "windowY:" + STR(windowY) + " ";
+    }
+    if (0 == (SDL_GetWindowFlags(window) & SDL_WINDOW_HIDDEN))
+        s += "windowVisible ";
     return s;
 }
 
@@ -259,6 +285,7 @@ void HelpWindow::redraw() {
         showHide("C", debuggerState->drawContoursOn, "contours");
         nextLine("d / D  curve/curve intersection depth" + depthInfo);
         showHide("e", debuggerState->drawEdgesOn, "edges");
+        showHide("E", debuggerState->drawEpsilonOn, "epsilon");
         showHide("f", picWin.drawFillOn, "fill");
         nextLine("g  show grid");
         showHide("h", picWin.drawHullsOn, "hulls");
@@ -281,6 +308,7 @@ void HelpWindow::redraw() {
     } else {
         OP_ASSERT(&textWin == debuggerState->lastFocus);
         showHide("a", textWin.showAll, "all");
+        showHide("A", textWin.showAliases, "aliases");
         showHide("C", debuggerState->drawContoursOn, "contours");
         nextLine("d / D  curve/curve intersection depth" + depthInfo);
         showHide("e", debuggerState->drawEdgesOn, "edges");
@@ -353,6 +381,7 @@ DebuggerState::DebuggerState()
 }
 
 void DebuggerState::draw() {
+    debugEpsilon = drawEpsilonOn;   // !!! eventually, merge so duplication is unnecessary
     pictureWindow.draw();
     textWindow.draw();
     helpWindow.redraw();
@@ -426,6 +455,10 @@ DrawLevel DebuggerState::eventCommon(const DebuggerEvent& debuggerEvent) {
     return key ? DrawLevel::update : DrawLevel::none;
 }
 
+std::string DebuggerState::floatToStr(float f) {
+    return drawHexOn ? OpDebugDumpHex(f) : STR(f);
+}
+
 Window* DebuggerState::focus(SDL_WindowID id) {
     if (helpWindow.windowID == id)
         return lastFocus;
@@ -455,7 +488,14 @@ void DebuggerState::playback() {
     if (buffer.empty())
         return;
     const char* str = buffer.c_str();
-    // !!! add global state here
+    while (OpDebugOptional(str, "id")) {
+        int id = OpDebugReadSizeT(str);
+        auto foundID = std::find_if(ids.begin(), ids.end(), [id](const OpType& opType) {
+                return id == opType.id; });
+        if (ids.end() != foundID)
+            foundID->selected = true;
+    }
+    // !!! add any additional global state here
     DEBUG_SET_STRUCT(helpWindow, threshold);
     DEBUG_SET_FLOAT(threshold, thresholdMultiplier);
     DEBUG_SET_REQUIRED_VALUE(thresholdMultiplier, thresholdWheel);
@@ -463,13 +503,15 @@ void DebuggerState::playback() {
     DEBUG_SET_REQUIRED_VALUE(depth, error);
     DEBUG_SET_BOOL(error, drawContoursOn);
     DEBUG_SET_BOOL(drawContoursOn, drawEdgesOn);
-    DEBUG_SET_BOOL(drawEdgesOn, drawHexOn);
+    DEBUG_SET_BOOL(drawEdgesOn, drawEpsilonOn);
+    DEBUG_SET_BOOL(drawEpsilonOn, drawHexOn);
     DEBUG_SET_BOOL(drawHexOn, drawIntersectionsOn);
     DEBUG_SET_BOOL(drawIntersectionsOn, drawSegmentsOn);
     DEBUG_SET_BOOL(drawSegmentsOn, tuneThreshold);
     DEBUG_SET_BOOL(tuneThreshold, drawHelp);
     pictureWindow.playback(str);
     textWindow.playback(str);
+    helpWindow.playback(str);
 }
 
 void DebuggerState::record() {
@@ -481,6 +523,13 @@ void DebuggerState::record() {
       OpDebugOut( "Invalid path\n" );
 #endif
     std::string s;
+    for (auto& id : ids) {
+        if (id.selected)
+            s += "id:" + STR(id.id) + " ";
+    }
+    if (!s.empty())
+        s.back() = '\n';
+    // !!! add any additional global state here
     DebugLevel l = DebugLevel::file;
     DebugBase b = DebugBase::hex;
     DEBUG_DUMP_STRUCT(helpWindow, threshold);
@@ -490,13 +539,15 @@ void DebuggerState::record() {
     DEBUG_DUMP_REQUIRED_VALUE(depth, error);
     DEBUG_DUMP_BOOL(error, drawContoursOn);
     DEBUG_DUMP_BOOL(drawContoursOn, drawEdgesOn);
-    DEBUG_DUMP_BOOL(drawEdgesOn, drawHexOn);
+    DEBUG_DUMP_BOOL(drawEdgesOn, drawEpsilonOn);
+    DEBUG_DUMP_BOOL(drawEpsilonOn, drawHexOn);
     DEBUG_DUMP_BOOL(drawHexOn, drawIntersectionsOn);
     DEBUG_DUMP_BOOL(drawIntersectionsOn, drawSegmentsOn);
     DEBUG_DUMP_BOOL(drawSegmentsOn, tuneThreshold);
     DEBUG_DUMP_BOOL(tuneThreshold, drawHelp);
     s += pictureWindow.record();
     s += textWindow.record();
+    s += helpWindow.record();
 	FILE* file = fopen("DebuggerState.txt", "w");
     fwrite(&s[0], 1, s.size(), file);
 	fclose(file);
@@ -581,13 +632,22 @@ void DebuggerState::setIDTypes() {
 }
 
 bool DebuggerState::update() {
-    OpContext* newContext = fromFile(opFileName);
-    if (!newContext)
+    if (--updateCount >= 0)
         return false;
+    ++updateAttempts;
+    OpContext* newContext = fromFile(opFileName);
+    if (!newContext) {
+        updateCount = updateDelay;
+        updateDelay += updateDelay;
+        return false;
+    }
     delete context;
     context = newContext;
     debugGlobalContext = nullptr; // debugGlobalContext = context;   // !!! needed?
     setIDTypes();
     redraw();
+    updateAttempts = 0;
+    updateDelay = 1;
+    updateCount = 0;
     return true;
 }

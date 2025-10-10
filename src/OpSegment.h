@@ -93,7 +93,7 @@ struct OpSegment {
 //    OpPoint aliasOriginal(MatchEnds ) const;
 	OpPtT alignToEnd(OpPoint oppPt) const;
 	WindingCondition apply();
-	void betweenIntersections();
+	void betweenCoincidence();
 	SegPt checkAliases(OpPtT );
 	int coinID(bool flipped);
 //    void complete();
@@ -125,6 +125,7 @@ struct OpSegment {
 	OpPoint movePt(OpPtT match, OpPoint dest);  // move segment/sect point to match another endpont
 	PrefFound moveSects(OpPtT match, OpPoint dest);	// move matching sects and cleanup segment state
 	bool moveWinding(OpSegment* opp, bool backwards);
+	void manyCoincidences();
 	bool nearby(float t, const OpSegment* opp) const;
 	int nextID() const;
 //    void newWindCoincidences();  // !!! will eventually replace wind coincidences

@@ -140,6 +140,7 @@ struct RayTargets {
 	void set(Axis );
 	DUMP_DECLARATIONS
 
+    OpContext* context;  // to access threshold
 	std::vector<RayTarget> t;
 	std::vector<OpEdge*>* edges = nullptr;
 	OpRect chainBounds;

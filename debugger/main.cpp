@@ -332,8 +332,9 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     if (info.st_mtime != debuggerState->lastTime) {
         if (debuggerState->update()) {
             debuggerState->lastTime = info.st_mtime;
-            debuggerState->updateAttempts = 0;
-        } else if (++debuggerState->updateAttempts > maxUpdateAttempts) {
+            return SDL_APP_CONTINUE;
+        } 
+        if (debuggerState->updateAttempts > maxUpdateAttempts) {
             OpDebugOut("failed to update\n"); 
             OP_ASSERT(0);
             debuggerState->update();  // for debugging

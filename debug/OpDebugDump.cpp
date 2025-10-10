@@ -3369,7 +3369,7 @@ void OpEdge::dumpSet(const char*& str) {
     ASSERT_ORDERED(rayFail, windZero);
     windZero = WindZeroStr(str, "windZero", WindZero::unset);
     ASSERT_ORDERED(windZero, isUnsortable);
-    isUnsortable = UnsortableStr(str, "unsortable", Unsortable::none);
+    isUnsortable = UnsortableStr(str, "isUnsortable", Unsortable::none);
 	DEBUG_SET_BOOL(isUnsortable, active_impl);
     DEBUG_SET_BOOL(active_impl, inLinkups);
     DEBUG_SET_BOOL(inLinkups, linkHead);
@@ -4588,7 +4588,7 @@ void RayTarget::dumpResolveAll(OpContext* context) {
 }
 
 std::string RayTargets::debugDump(DebugLevel l, DebugBase b) const {
-    static_assert(0 == offsetof(RayTargets, t));
+    ASSERT_ORDERED(context, t);
     std::string s = "t:" + STR(t.size()) + " [";
     for (const RayTarget& target : t) {
 		if (DebugLevel::detailed == l)
@@ -4631,7 +4631,7 @@ std::string RayTargets::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 void RayTargets::dumpSet(const char*& str) {
-    static_assert(0 == offsetof(RayTargets, t));
+    ASSERT_ORDERED(context, t);
     OpDebugRequired(str, "t");
     size_t size = OpDebugReadSizeT(str);
     t.resize(size);
@@ -4659,7 +4659,8 @@ void RayTargets::dumpSet(const char*& str) {
     }
 }
 
-void RayTargets::dumpResolveAll(OpContext* context) {
+void RayTargets::dumpResolveAll(OpContext* ctx) {
+    context = ctx;
     for (RayTarget& target : t) {
         target.dumpResolveAll(context);
     }

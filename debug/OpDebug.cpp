@@ -574,6 +574,8 @@ std::string OpDebugLabel(const char*& str) {
 
 bool OpDebugOptional(const char*& str, const char* match) {
     size_t matchLen = strlen(match);
+    while (str[0] && ' ' >= str[0])
+        ++str;
     if (']' == str[0] || '[' == str[0])
         ++str;
     if (match[0] != str[0] && ('}' == str[0] || '{' == str[0]))
@@ -755,7 +757,8 @@ void OpCurveCurve::debugSaveState() {
 bool OpCurveCurve::debugShowImage(bool atDepth) {
 #if OP_DEBUG_FAST_TEST
     return true;
-#elif !OP_TINY_TEST
+#else
+#if !OP_TINY_TEST
 	if (OpDebugSkipBreak())
 		return true;
 #endif
@@ -785,6 +788,7 @@ bool OpCurveCurve::debugShowImage(bool atDepth) {
 #endif
 #endif
 	return false;
+#endif
 }
 
 const OpEdge* OpEdge::debugAdvanceToEnd(EdgeMatch match) const {

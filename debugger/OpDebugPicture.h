@@ -178,9 +178,9 @@ struct Window {
     const NativeTextCache& getCache(size_t index);
     SDL_AppResult init(std::string name, OpVector offset);
     void pentrek_draw(char*, int width, int height, int pitch);
-    virtual void playback(const char*&  ) {}
+    virtual void playback(const char*&  str) { playbackCommon(str); }
     void playbackCommon(const char*& );
-    virtual std::string record() { return ""; };
+    virtual std::string record() { return recordCommon(); };
     std::string recordCommon();
     void setSize();
 #if OP_DEBUG_DUMP
@@ -280,6 +280,7 @@ struct TextWindow : public Window {
     
     TTF_Font* detailFont;
     bool showAll = false;
+    bool showAliases = false;
     bool showCurveCurve = false;
     bool showFull = false;
     bool showEdgeHulls = false;
@@ -354,6 +355,7 @@ struct DebuggerState {
     DebuggerEvent addEvent(SDL_Keymod , SDL_WindowID );
     void draw();
     DrawLevel eventCommon(const DebuggerEvent& );
+    std::string floatToStr(float );
     Window* focus(SDL_WindowID );
     void playback();
     void record();
@@ -368,7 +370,8 @@ struct DebuggerState {
     Window* lastFocus = nullptr;  // either picture window or text window
     time_t lastTime = 0;
     int updateAttempts = 0;
-
+    int updateDelay = 1;
+    int updateCount = 0;
     PictureWindow pictureWindow;
     TextWindow textWindow;
     HelpWindow helpWindow;
@@ -380,6 +383,7 @@ struct DebuggerState {
     SDL_AppResult error = (SDL_AppResult) 0;
     bool drawContoursOn = false;
     bool drawEdgesOn = true;
+    bool drawEpsilonOn = true;
     bool drawHexOn = false;
     bool drawIntersectionsOn = false;
     bool drawSegmentsOn = false;

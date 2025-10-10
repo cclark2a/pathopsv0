@@ -197,7 +197,7 @@ void PictureWindow::addGrid() {
         return;
     for (size_t index = 0; index + 1 < xes.size(); ++index) {
         float fx = xes[index];
-		std::string xValStr = debuggerState->drawHexOn ? OpDebugDumpHex(fx) : STR(fx);
+		std::string xValStr = debuggerState->floatToStr(fx);
 		addFittedBottom(xValStr, xToScreen(fx), xToScreen(xes[index + 1]), gridColor);
     }
     OpDebugText& lastText = texts.back();
@@ -205,7 +205,7 @@ void PictureWindow::addGrid() {
 	const int xOffset = 2;
     for (size_t index = 1; index < yes.size(); ++index) {
         float fy = yes[index];
-		std::string yValStr = debuggerState->drawHexOn ? OpDebugDumpHex(fy) : STR(fy);
+		std::string yValStr = debuggerState->floatToStr(fy);
         float yScreen = yToScreen(fy);
         if (index == xes.size() - 1)
             yScreen -= cache.size.dy + xOffset;
@@ -503,11 +503,8 @@ void PictureWindow::addWindings() {
 }
 
 void PictureWindow::addPointLabel(OpPoint local, OpType& opType) {
-    std::string s = "(";
-    s += debuggerState->drawHexOn ? OpDebugDumpHex(local.x) : STR(local.x);
-    s += ", ";
-    s += debuggerState->drawHexOn ? OpDebugDumpHex(local.y) : STR(local.y);
-    s += ")";
+    std::string s = "(" + debuggerState->floatToStr(local.x) + ", " 
+            + debuggerState->floatToStr(local.y) + ")";
     addLabel(s, local, IDType::edge == opType.idType ? edgeColor(*opType.edge) : black);
     texts.back().opType = opType;
 }
@@ -763,6 +760,7 @@ DrawLevel PictureWindow::event(const DebuggerEvent& debuggerEvent) {
         // case 'C': // contours handled by event common
         // case 'D': case 'd':  // curve/curve depth handled by event common
         // case 'e': // edges handled by event common
+        // case 'E': // show epsilon handled by event common
         case 'f':
             drawFillOn ^= true;
             break;

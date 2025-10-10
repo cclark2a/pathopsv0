@@ -89,9 +89,9 @@ struct OpContext {
 	WindingCondition apply();
 	bool assemble();
 
-	void betweenIntersections() {
+	void betweenCoincidence() {
 	   for (auto contour : contours) {
-			contour->betweenIntersections();
+			contour->betweenCoincidence();
 		}
 	}
 
@@ -190,6 +190,12 @@ struct OpContext {
 	void makePals() {
 	   for (auto contour : contours) {
 			contour->makePals();
+		}
+	}
+
+	void manyCoincidences() {
+	   for (auto contour : contours) {
+			contour->manyCoincidences();
 		}
 	}
 

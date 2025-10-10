@@ -51,9 +51,15 @@ struct OpContour {
 	    return 0;
 }
 
-	void betweenIntersections() {
+	void manyCoincidences() {
 		for (auto& segment : segments) {
-			segment.betweenIntersections();
+            segment.manyCoincidences();
+        }
+    }
+
+    void betweenCoincidence() {
+        for (auto& segment : segments) {
+			segment.betweenCoincidence();
 		}
 	}
 

@@ -116,12 +116,15 @@ DrawLevel TextWindow::event(const DebuggerEvent& debuggerEvent) {
         case 'a':
             showAll ^= true;
             break;
+        case 'A': 
+            showAliases ^= true;
         case 'c':
             showCurveCurve ^= true;
             break;
         // case 'C': // contours handled by event common
         // case 'D': case 'd':  // curve/curve depth handled by event common
         // case 'e': // edges handled by event common
+        // case 'E': // show epsilon handled by event common
         case 'f':  // show full relationship of edge to segment and intersections
             showFull ^= true;
             break;
@@ -201,13 +204,17 @@ void TextWindow::redraw() {
             continue;
         addWrapped(s);
     }
-    if (OpCurveCurve* cc = debuggerState->context->debugCurveCurve; showCurveCurve) {
+    if (OpCurveCurve* cc = debuggerState->context->debugCurveCurve; cc && showCurveCurve) {
         std::string s = cc->debugDump(DebugLevel::normal, defaultBase);
         addWrapped(s);
         if (debuggerState->depth) {
             s = cc->debugDumpDepth(debuggerState->depth);
             addWrapped(s);
         }
+    }
+    if (showAliases) {
+        std::string s = debuggerState->context->aliases.debugDump(DebugLevel::normal, defaultBase);
+        addWrapped(s);
     }
 }
 
@@ -240,7 +247,8 @@ DrawLevel TextWindow::doType(EventAction eventAction, const DebuggerEvent* event
 void TextWindow::playback(const char*& str) {
     playbackCommon(str);
     DEBUG_SET_BOOL(detailFont, showAll);
-    DEBUG_SET_BOOL(showAll, showCurveCurve);
+    DEBUG_SET_BOOL(showAll, showAliases);
+    DEBUG_SET_BOOL(showAliases, showCurveCurve);
     DEBUG_SET_BOOL(showCurveCurve, showFull);
     DEBUG_SET_BOOL(showFull, showEdgeHulls);
     DEBUG_SET_BOOL(showEdgeHulls, showLinks);
@@ -255,7 +263,8 @@ std::string TextWindow::record() {
     DebugBase b = DebugBase::hex;
     s += recordCommon();
     DEBUG_DUMP_BOOL(detailFont, showAll);
-    DEBUG_DUMP_BOOL(showAll, showCurveCurve);
+    DEBUG_DUMP_BOOL(showAll, showAliases);
+    DEBUG_DUMP_BOOL(showAliases, showCurveCurve);
     DEBUG_DUMP_BOOL(showCurveCurve, showFull);
     DEBUG_DUMP_BOOL(showFull, showEdgeHulls);
     DEBUG_DUMP_BOOL(showEdgeHulls, showLinks);

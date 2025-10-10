@@ -990,7 +990,7 @@ bool OpJoiner::linkSimple(OpEdge* first) {
 #endif
 
 void OpJoiner::linkUnambiguous(OpContour* contour, LinkPass lp) {
-#if OP_DEBUG_DUMP && !TEST_DEFEAT_BREAK
+#if 0 && OP_DEBUG_DUMP && !TEST_DEFEAT_BREAK
     OpDebugData& debugData = context->debugData;
     if (debugData.runOneFile) {
         dmpFile();

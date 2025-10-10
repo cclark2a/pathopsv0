@@ -236,10 +236,8 @@ struct Misses {
 	bool used;
 };
 
-		// walk sects in coincidences;
-		// look at opp sects (reversed if necessary)
-		// if opp sects is missing this point, add it
-void OpSegment::betweenIntersections() {
+// if a and b are coincident, and a and c are coincident, add b/c coin if missing
+void OpSegment::manyCoincidences() {
 	if (!hasCoin)
 		return;
 	// if this segment has coincident runs with three or more edges, make the sects consistent
@@ -364,7 +362,77 @@ void OpSegment::betweenIntersections() {
 			checkEnd(miss, sect, thresh);  // use lesser of candidates' t, since it is <= sect opp T
 		}
 	}
+}
 
+struct MissingSect {
+    OpIntersection* sect;
+    OpIntersection* coinStart;
+};
+
+// walk sects with coincidences; look at opp sects
+// if opp sects is missing this point, add intersection
+// if intersection is added, rebuild edges (should be rare)
+    // a pair of segments are partially coincident: testQuads25683917
+    // a third segment intersects one of the pair but not the other (curve grazes line)
+    // without between coincidence, winding sees two edges in one coin but only one in the other
+void OpSegment::betweenCoincidence() {
+	if (!hasCoin)
+		return;
+	std::vector<OpIntersection*> coinSects;
+	std::vector<MissingSect> missing;
+	OpVector thresh = threshold();
+	for (OpIntersection* sect : sects.i) {
+		if (!sect->coincidenceID && coinSects.empty())
+				continue;
+		if (MatchEnds::start == sect->coinEnd) {
+		    coinSects.push_back(sect);
+        } else if (MatchEnds::end == sect->coinEnd) {
+		    auto csIter = std::find_if(coinSects.begin(), coinSects.end(), 
+                    [sect](OpIntersection* test) {
+			    return test->coincidenceID == sect->coincidenceID;
+		    });
+		    OP_ASSERT(coinSects.end() != csIter);
+		    coinSects.erase(csIter);
+        }
+        // check this point against all coincident ranges containing it; is it in opp. sect list?
+        OpSegment* thirdParty = sect->opp->segment;
+        for (auto coinSect : coinSects) {
+            OpSegment* coinOpp = coinSect->opp->segment;
+            if (thirdParty == coinOpp)
+                continue;
+            auto sectInOpp = std::find_if(coinOpp->sects.i.begin(), coinOpp->sects.i.end(),
+                    [sect, thresh](OpIntersection* oppSect) {
+                return sect->ptT.pt.isNearly(oppSect->ptT.pt, thresh);
+            } );
+            if (sectInOpp == coinOpp->sects.i.end())
+                missing.push_back({ sect, coinSect });
+        }
+	}
+    // add missing points to coincident ranges
+    for (const MissingSect& miss : missing) {
+        OP_ASSERT(MatchEnds::start == miss.coinStart->coinEnd);
+        auto coinEnd = std::find_if(sects.i.begin(), sects.i.end(), [miss]
+                (const OpIntersection* sect) {
+            return MatchEnds::end == sect->coinEnd 
+                    && miss.coinStart->coincidenceID == sect->coincidenceID; 
+        } );
+        OP_ASSERT(sects.i.end() != coinEnd);
+        float oppCoinStartT = miss.coinStart->opp->ptT.t;
+        float oppCoinRange = (*coinEnd)->opp->ptT.t - oppCoinStartT;
+        float coinRange = (*coinEnd)->ptT.t - miss.coinStart->ptT.t;
+        OpSegment* sectOpp = miss.sect->opp->segment;
+        OpSegment* coinOpp = miss.coinStart->opp->segment;
+        OpPtT oppPtT { miss.sect->ptT.pt,  oppCoinStartT 
+                + (miss.sect->ptT.t - miss.coinStart->ptT.t) * oppCoinRange / coinRange };
+        OpIntersection* oSect = coinOpp->addSegSect(oppPtT, sectOpp  OP_LINE_FILE_PARAMS());
+        if (!oSect)
+            continue;
+        OpIntersection* iSect = sectOpp->addSegBase(miss.sect->opp->ptT
+                OP_LINE_FILE_PARAMS(coinOpp));
+        iSect->pair(oSect);
+        sectOpp->sects.sort();
+        coinOpp->sects.sort();
+    }
 }
 
 // returns point that matches input; returned point may be nearby; may already be aliased

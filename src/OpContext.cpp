@@ -605,7 +605,9 @@ WindingCondition OpContext::pathOps() {
 		    OP_DEBUG_FAIL(*this, -1);
 	    sortIntersections();
 	    findMissingEnds();  // moved pts may require looking in aliases for an end match
-	    betweenIntersections();  // fill in intersections in coin runs that are missing in other coins
+	    manyCoincidences();  // fill in intersections in coin runs that are missing in other coins
+	    sortIntersections();
+	    betweenCoincidence();  // fill in intersections in coin runs that are missing in other coins
 	    sortIntersections();
 	    markInCoincidence();
 	    makeEdges();
