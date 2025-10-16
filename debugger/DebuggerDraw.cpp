@@ -35,4 +35,5 @@ void Window::pentrek_draw(char* bits, int width, int height, int scan) {
             ++debugCount;
         }
     }
+    OP_ASSERT(debugCount || bits);  // nonsense alert to suppress unused var warning
 }

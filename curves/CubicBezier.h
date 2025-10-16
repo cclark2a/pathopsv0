@@ -230,7 +230,7 @@ inline OpRoots AddInflections(OpPoint start, OpPoint end, CubicControls& control
 enum class CubicSubDivide {
     noAngleChecks,
     checkAngles
-    OP_DEBUGGER_PARAMS(debuggerSubDivide)
+    OP_DEBUG_DUMP_PARAMS(debuggerSubDivide)
 };
 
 inline void cubicCommonSubDivide(Curve c, float t1, float t2, float threshold, Curve* result,
@@ -537,13 +537,11 @@ inline void cubicSubDivide(Curve c, float t1, float t2, float threshold, Curve* 
     cubicCommonSubDivide(c, t1, t2, threshold, result, CubicSubDivide::checkAngles);
 }
 
-#if OP_DEBUGGER
+#if OP_DEBUG_DUMP
 inline void debugCubicSubDivide(Curve c, float t1, float t2, float threshold, Curve* result) {
     cubicCommonSubDivide(c, t1, t2, threshold, result, CubicSubDivide::debuggerSubDivide);
 }
-#endif
 
-#if OP_DEBUG_DUMP
 inline std::string cubicDebugDumpName() { 
     return "cubic"; 
 }
@@ -565,6 +563,7 @@ inline std::string cubicDebugDumpName() {
     OP_TAGGED_FUNCTION(cubicXYAtT), \
     OP_TAGGED_FUNCTION(cubicReverse), \
     OP_TAGGED_FUNCTION(cubicDebugDumpName), \
+    OP_TAGGED_FUNCTION(debugCubicSubDivide), \
 
 #endif
 
@@ -575,9 +574,8 @@ inline void cubicCallbacks(Context* context, int nativeCurveType) {
 			cubicSubDivide, cubicXYAtT, cubicReverse });
 #if OP_DEBUG
 	SetDebugCurveCallbacks(context, nativeCurveType, { debugCubicScale
-            OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, nullptr)
+            OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, nullptr, debugCubicSubDivide)
             OP_DEBUG_RASTER_PARAMS(debugRasterAdd)
-            OP_DEBUGGER_PARAMS(debugCubicSubDivide)
             });
 #endif
 }

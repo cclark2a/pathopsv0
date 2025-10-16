@@ -2,16 +2,17 @@
 // everything drawn by op debug image
 #include "OpDebug.h"
 #include "PathOpsTypes.h"
+#include <SDL3/SDL_init.h>
 #include <time.h>
 
 struct DebuggerEvent;
 struct DebuggerState;
+struct OpCurve;
 struct SDL_Window;
 struct SDL_Renderer;
 struct SDL_Texture;
 struct TTF_Font;
 struct Window;
-enum SDL_AppResult;
 typedef uint32_t SDL_WindowID;
 typedef uint16_t SDL_Keymod;
 
@@ -79,8 +80,8 @@ struct OpType {
         const OpTree* tree;
         const OpLimb* limb;
     };
-    IDType idType = IDType::none;
     int id = 0;
+    IDType idType = IDType::none;
     bool inCcStorage = false;
     bool selected = false;
     bool drawn = true;
@@ -113,7 +114,7 @@ struct DebuggerPoly {
     std::vector<size_t> contours;  // index for each device contour
     OpType opType;
     float thickness = 1;    // special value for fill
-    uint32_t color = debugBlack;
+    uint32_t color = black;
     float tStart = 0;
     float tEnd = 1;
     bool isPrimary = false;
@@ -244,6 +245,7 @@ struct PictureWindow : public Window {
 #endif
 
     OpVector zoomOffset {0, 0};
+    double dummy;  // alignment of double following struct of floats is not portable
     double scale = 0; // factor to go from local to device (zero is uninitialized)
     float zoomFactor = 1;
     int zoomer = 0;

@@ -66,7 +66,7 @@ inline OpPair ConicXYAtT(OpPoint s, PointWeight c, OpPoint e, OpPair t, XyChoice
 }
 
 inline PointWeight ConicControl(OpPoint start, PointWeight control, OpPoint end, OpPtT ptT1, 
-        OpPtT ptT2  OP_DEBUGGER_PARAMS(bool debugSubDivide = false)) {
+        OpPtT ptT2  OP_DEBUG_DUMP_PARAMS(bool debugSubDivide = false)) {
     if (0 == ptT1.t && 1 == ptT2.t)
         return control;
     auto subWeight = [start, control, end, ptT1, ptT2](float t) {
@@ -320,7 +320,7 @@ inline OpPoint conicHull(Curve c, int index) {
     return OpPoint();
 }
 
-#if OP_DEBUGGER
+#if OP_DEBUG_DUMP
 inline void debugConicSubDivide(Curve curve, float t1, float t2, float threshold, Curve* result) {
 	OpPtT ptT1 { result->data->start, t1 };
 	OpPtT ptT2 { result->data->end, t2 };
@@ -330,9 +330,7 @@ inline void debugConicSubDivide(Curve curve, float t1, float t2, float threshold
     if (conicIsLine(*result, threshold))
         result->type = degenerateLine;
 }
-#endif
 
-#if OP_DEBUG_DUMP
 inline std::string conicDebugDumpName() { 
     return "conic"; 
 }
@@ -358,7 +356,8 @@ inline std::string conicDebugDumpExtra(Curve c, DebugLevel l, DebugBase b) {
     OP_TAGGED_FUNCTION(conicXYAtT), \
     OP_TAGGED_FUNCTION(conicDebugDumpName), \
     OP_TAGGED_FUNCTION(conicDebugDumpExtra), \
-
+    OP_TAGGED_FUNCTION(debugConicSubDivide), \
+    
 #endif
 
 inline void conicCallbacks(Context* context, int nativeCurveType) {
@@ -368,9 +367,8 @@ inline void conicCallbacks(Context* context, int nativeCurveType) {
 			conicSubDivide, conicXYAtT });
 #if OP_DEBUG
 	SetDebugCurveCallbacks(context, nativeCurveType, { debugConicScale
-            OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra)
+            OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra, debugConicSubDivide)
             OP_DEBUG_RASTER_PARAMS(debugRasterAdd)
-            OP_DEBUGGER_PARAMS(debugConicSubDivide)
             });
 #endif
 }

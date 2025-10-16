@@ -46,9 +46,6 @@ else ()
 	set (TEST_REGION 0)
 endif ()
 
-configure_file (../tests/OpTestDrive.h.in ../tests/OpTestDrive.h)
-configure_file (../tests/OpSkiaTests.h.in ../tests/OpSkiaTests.h)
-
 include_directories(
 	"../debug"
 	"../src"
@@ -85,6 +82,7 @@ add_executable (skia_test
 	"../debug/OpDebugImage.cpp"
 	"../debug/OpDebugRaster.cpp"
 	"../debug/OpDebugRecord.cpp"
+	"../debug/OpDebugTags.cpp"
 	"../port/SkiaPaths.cpp"
 	"../debug/SkiaPathsDebug.cpp"
     "../tests/OpSkiaTests.cpp"
@@ -108,6 +106,7 @@ add_executable (skia_test
     "../tests/PathOpsSimplifyTrianglesThreadedTest_shim.cpp"
     "../tests/PathOpsTigerTest_shim.cpp"
     "../tests/TinySkia.cpp"
+    "../tests/UnitTestPathOps.cpp"
 )
 
 add_executable (contains_example "../example/ContainsExample.cpp" )
@@ -158,7 +157,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options (frame_test PUBLIC)
     target_compile_options (path_2d_test PUBLIC)
 elseif (CMAKE_BUILD_TYPE MATCHES "Debug")
-    target_compile_options (skia_test PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -fprofile-update=atomic)
+    target_compile_options (skia_test PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof -fprofile-update=atomic)
     target_compile_options (contains_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter )
     target_compile_options (frame_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter )
     target_compile_options (html_canvas_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter )

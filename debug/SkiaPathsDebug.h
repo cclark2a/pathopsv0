@@ -74,7 +74,8 @@ void AddDebugSkiaPath(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* , const Sk
 std::string dumpSkPath(const SkPath* path, bool inHex);
 #endif
 
-#if OP_DEBUG_DUMP && OP_DEBUG
+// !!! unsure if visual debugger needs these or not in the long run; for now, disable
+#if 0 && OP_DEBUG_DUMP && OP_DEBUG
 #define DEBUG_SKIAPATH_TAGGED_FUNCTIONS \
     OP_TAGGED_FUNCTION(dumpUnaryContourFunc), \
     OP_TAGGED_FUNCTION(dumpBinaryContourFunc), \

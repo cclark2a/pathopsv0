@@ -24,7 +24,7 @@ extern void TestFrame();
 extern void TestPath2D(bool debugIt);
 extern void runTests();
 
-void OpTest() {
+int main() {
 #if 0 && OP_DEBUG_IMAGE
     if (GENERATE_COLOR_FILES) {
         OpDebugGenerateColorFiles();
@@ -47,4 +47,5 @@ void OpTest() {
     TestFrame();
 #endif
 	runTests();
+    return 0;
 }

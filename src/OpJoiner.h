@@ -35,7 +35,7 @@ struct LinkUps {
 };
 
 struct OpJoiner {
-    OP_DEBUG_DUMP_CODE(OpJoiner(DumpSerialization , OpContext* ));
+    OP_DEBUG_DUMP_CODE(OpJoiner(DumpSerialization , OpContext* );)
 	OpJoiner(OpContext& contours);
 	OP_DEBUG_CODE(~OpJoiner());
 	static bool LinkEnd(OpEdge *);
@@ -148,7 +148,7 @@ struct OpLimb {
 // !!! eventually (if this works) add tree (or limb storage) to joiner
 // prefer the looped limb with the smallest perimeter 
 struct OpTree {
-    OP_DEBUG_DUMP_CODE(OpTree(DumpSerialization , OpContext* ));
+    OP_DEBUG_DUMP_CODE(OpTree(DumpSerialization , OpContext* );)
 	OpTree(OpJoiner& );
 	OP_DEBUG_CODE(~OpTree());
 	void addDisabled(OpContour& );

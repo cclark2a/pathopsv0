@@ -1202,7 +1202,7 @@ void OpContour::debugMatchRay() {
 bool OpJoiner::DebugShowImage() {
 #if !OP_DEBUG_FAST_TEST && !OP_TINY_TEST
 	if (!OpDebugSkipBreak()) {
-#if OP_DEBUG_IMAGE && !TEST_ANALYZE && !OP_TINY_SKIA  // defeat if test is very large (e.g., grshapearc)
+#if 0  // defeat if test is very large (e.g., grshapearc)
 		::debugImage();
 		::showFill();
 #endif

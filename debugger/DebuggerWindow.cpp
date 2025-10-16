@@ -3,7 +3,6 @@
 #include "OpCurveCurve.h"
 #include "OpDebugPicture.h"
 #include <SDL3/SDL_error.h>
-#include <SDL3/SDL_init.h>
 
 Window::Window(DebuggerState* state) 
     : debuggerState(state) {
@@ -359,11 +358,7 @@ DebuggerState::DebuggerState()
     : pictureWindow(this)
     , textWindow(this)
     , helpWindow(this) {
-#if 1
-    opFileName = "d:/gerrit/skia/out/Debug/obj/dmp.txt";
-#else
-    opFileName = "c:/users/cclar/source/repos/v0/v0/dmp2.txt";
-#endif
+    opFileName = "dmp.txt";
     if (SDL_APP_CONTINUE != (error = pictureWindow.addFont(14)))
         OpDebugOut("Couldn't add picture font: " + std::string(SDL_GetError()) + "\n");
     else if (SDL_APP_CONTINUE != (error = textWindow.addFont(14)))

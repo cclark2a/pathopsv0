@@ -733,7 +733,7 @@ DrawLevel PictureWindow::event(const DebuggerEvent& debuggerEvent) {
     constexpr float pan_factor = 1.f / 8;
     int scale = DebuggerEvent::KeyModMultiplier(debuggerEvent.keyMods);
     bool redraw = true;
-    switch (uint8_t key = debuggerEvent.key) {
+    switch (debuggerEvent.key) {
         case (uint8_t) KeyCode::leftArrow:
             pan(OpVector(+pan_factor * scale, 0));
             break;
@@ -817,7 +817,7 @@ DrawLevel PictureWindow::event(const DebuggerEvent& debuggerEvent) {
 void PictureWindow::playback(const char*& str) {
     playbackCommon(str);
     DEBUG_SET_COMMON_STRUCT(zoomOffset);
-    DEBUG_SET_FLOAT(zoomOffset, scale); // factor to go from local to device (zero is uninitialized)
+    DEBUG_SET_FLOAT(dummy, scale); // factor to go from local to device (zero is uninitialized)
     DEBUG_SET_FLOAT(scale, zoomFactor);
     DEBUG_SET_REQUIRED_VALUE(zoomFactor, zoomer);
     DEBUG_SET_REQUIRED_VALUE(zoomer, gridIntervals);
@@ -843,7 +843,7 @@ std::string PictureWindow::record() {
     DebugBase b = DebugBase::hex;
     s += recordCommon();
     DEBUG_DUMP_COMMON_STRUCT(zoomOffset);
-    DEBUG_DUMP_FLOAT(zoomOffset, scale); // factor to go from local to device (zero is uninitialized)
+    DEBUG_DUMP_FLOAT(dummy, scale); // factor to go from local to device (zero is uninitialized)
     DEBUG_DUMP_FLOAT(scale, zoomFactor);
     DEBUG_DUMP_REQUIRED_VALUE(zoomFactor, zoomer);
     DEBUG_DUMP_REQUIRED_VALUE(zoomer, gridIntervals);

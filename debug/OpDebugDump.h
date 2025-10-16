@@ -305,6 +305,7 @@ extern std::string debugDumpColor(DebugLevel, uint32_t c);
 extern void dmpColor(uint32_t );
 extern void dmpColor(const OpEdge* );
 extern void dmpColor(const OpEdge& );
+extern std::string dmpFileToPath(std::string name);
 extern void dmpFilters();  // returns current filter settings
 extern void dmpHex(float );
 extern void dmpHex(uint32_t );

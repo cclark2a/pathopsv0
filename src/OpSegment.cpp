@@ -424,7 +424,7 @@ void OpSegment::betweenCoincidence() {
         OpSegment* coinOpp = miss.coinStart->opp->segment;
         OpPtT oppPtT { miss.sect->ptT.pt,  oppCoinStartT 
                 + (miss.sect->ptT.t - miss.coinStart->ptT.t) * oppCoinRange / coinRange };
-        OpIntersection* oSect = coinOpp->addSegSect(oppPtT, sectOpp  OP_LINE_FILE_PARAMS());
+        OpIntersection* oSect = coinOpp->addSegSect(oppPtT, sectOpp  OP_LINE_FILE_PARGS());
         if (!oSect)
             continue;
         OpIntersection* iSect = sectOpp->addSegBase(miss.sect->opp->ptT

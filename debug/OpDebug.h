@@ -8,7 +8,7 @@
 
 #include "OpTestDrive.h"  // set test specific settings here
 
-#define OP_DEBUG_VERBOSE (1 && !OP_DEBUG_FAST_TEST)
+#define OP_DEBUG_VERBOSE (OP_DEBUGGER || !OP_DEBUG_FAST_TEST)
 #define OP_RELEASE_TEST 1	// !!! set to zero to remove tests from release build (untested)
 
 #define OP_ENUM_BASE(member, value) member = value
@@ -148,13 +148,13 @@ struct OpDebugData {
 #define OP_DEBUG_BREAK() __debugbreak()
 #define OP_ASSERT(expr) do { if (!(expr)) __debugbreak(); } while (false)
 #else
-#define OP_DEBUG_BREAK() __builtin_trap()
+#define OP_DEBUG_BREAK() __builtin_debugtrap()
 #define OP_ASSERT(expr) assert(expr)
 #endif
 
 #define OP_EXECUTE_AND_ASSERT(expr) OP_ASSERT(expr)
 
-#if OP_DEBUG_FAST_TEST || (defined OP_TINY_TEST && OP_TINY_TEST)
+#if (!OP_DEBUGGER && OP_DEBUG_FAST_TEST) || (defined OP_TINY_TEST && OP_TINY_TEST)
 	#define OP_DEBUG_DUMP 0
 	#define OP_DEBUG_IMAGE 0
 	#define OP_DEBUG_MAKER 0
@@ -182,13 +182,13 @@ struct OpDebugData {
 #if OP_DEBUG_IMAGE
 #undef OP_DEBUG_IMAGE_CODE
 #define OP_DEBUG_IMAGE_CODE(...) __VA_ARGS__
-#if !OP_TINY_SKIA
+#if !OP_TINY_SKIA && !OP_DEBUGGER
 #undef OP_DEBUG_IMAGE_CODE_OLD
 #define OP_DEBUG_IMAGE_CODE_OLD(...) __VA_ARGS__
 #endif
 #undef OP_DEBUG_IMAGE_PARAMS
 #define OP_DEBUG_IMAGE_PARAMS(...) , __VA_ARGS__
-#if !OP_TINY_SKIA
+#if !OP_TINY_SKIA && !OP_DEBUGGER
 #undef OP_DEBUG_IMAGE_PARAMS_OLD
 #define OP_DEBUG_IMAGE_PARAMS_OLD(...) , __VA_ARGS__
 #endif
@@ -271,7 +271,7 @@ struct OpDebugMaker {
 #define OP_TRACK(v)
 
 // debug compare, debug dump, and debug image as written only work when testing uses a single thread
-#if !OP_DEBUG_FAST_TEST
+#if OP_DEBUGGER || !OP_DEBUG_FAST_TEST
 // conditionalize the following to fast test so they don't end up in committed code by accident
 #define OpBreak(opObject, ID) \
 	do { if ((opObject) && (ID) == (opObject)->id) OP_DEBUG_BREAK(); } while (false)
@@ -296,6 +296,8 @@ namespace PathOpsV0Lib {
     bool DebugAnalyze(Context* );
 };
 
+#endif
+
 #if OP_DEBUG_DUMP 
 #undef OP_DEBUG_DUMP_CODE
 #define OP_DEBUG_DUMP_CODE(...) __VA_ARGS__
@@ -314,7 +316,6 @@ namespace PathOpsV0Lib {
 #define OP_DEBUGGER_PARAMS(...) , __VA_ARGS__
 #endif
 
-#endif
 #endif
 
 #if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE

@@ -5,7 +5,7 @@
 #include "curves/ConicBezier.h"
 #include "curves/CubicBezier.h"
 #include "curves/QuadBezier.h"
-#include "curves/binaryWinding.h"
+#include "curves/BinaryWinding.h"
 #include "curves/FrameWinding.h"
 #include "curves/UnaryWinding.h"
 #if 0 // emscripten as of 12/7/2024 does not support std::from_chars

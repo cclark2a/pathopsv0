@@ -20,7 +20,8 @@ bool OpDebugSkipBreak() {
 // bool debugUseAlt = false;
 
 static SDL_Color toSDLColor(uint32_t c) {
-    SDL_Color sdlColor = { (c >> 16) & 0xFF, (c >> 8) & 0xFF, (c >> 0) & 0xFF, (c >> 24) & 0xFF };
+    auto byte = [c](int component) { return (uint8_t) (c >> (component * 8)); };
+    SDL_Color sdlColor = { byte(2), byte(1), byte(0), byte(3) };
     return sdlColor;
 }
 
@@ -116,7 +117,14 @@ SDL_AppResult Window::init(std::string n, OpVector offset) {
 SDL_AppResult Window::addFont(float fontSize, TTF_Font** result) {
     if (!result)
         result = &font;
+#ifdef _WIN32
     *result = TTF_OpenFont("C:/Windows/Fonts/segoeui.ttf", fontSize);
+#elif defined __APPLE__
+    *result = TTF_OpenFont("/System/Library/Fonts/Monaco.ttf", fontSize);
+#else
+    OpDebugOut("missing font for platform\n");
+    return SDL_APP_FAILURE;
+#endif
     if (!*result) {
         OpDebugOut("Couldn't open font: " + std::string(SDL_GetError()) + "\n");
         return SDL_APP_FAILURE;
@@ -325,7 +333,8 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 SDL_AppResult SDL_AppIterate(void* appstate) {
     DebuggerState* debuggerState = (DebuggerState*) appstate;
     struct stat info;
-    if (stat(debuggerState->opFileName.c_str(), &info) == -1) {
+    std::string filename = dmpFileToPath(debuggerState->opFileName);
+    if (stat(filename.c_str(), &info) == -1) {
         OP_ASSERT(0);
         return SDL_APP_FAILURE;
     }

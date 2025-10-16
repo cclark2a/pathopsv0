@@ -171,7 +171,11 @@ struct OpRoots {
 };
 
 #if OP_DEBUG
-const float OpDebugNaN = std::numeric_limits<float>::signaling_NaN(); // std::nanf("1");
+#ifdef _WIN32
+const float OpDebugNaN = std::numeric_limits<float>::signaling_NaN();
+#else
+const float OpDebugNaN = std::nanf("1");
+#endif
 #endif
 
 struct OpPoint;

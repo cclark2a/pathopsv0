@@ -531,8 +531,26 @@ std::string debugDumpIntersections() {
     return s;
 }
 
-void dmpFile(OpContext* context, std::string filename) {
+    // !!! temporary : I need to figure out where to put the dmp.txt file
+std::string dmpFileToPath(std::string name) {
+#ifdef __APPLE__
+    std::string filename = "/Users/cary/pathopsv0/cmake/build/" + name;
+#elif _WIN32
+    std::string filename = "c:/users/cclar/source/repos/v0/v0/" + name";
+#else
+    std::string filename = name;
+#endif
+    OpDebugOut(filename + "\n");
+    return filename;
+}
+
+void dmpFile(OpContext* context, std::string name) {
+    std::string filename = dmpFileToPath(name);
     FILE* file = fopen(filename.c_str(), "w");
+    if (!file) {
+        OpDebugOut("could not open " + filename + " to write\n");
+        return;
+    }
     std::string s;
     s += context->debugDump(DebugLevel::file, DebugBase::hex);
     s = stringFormat(debugGlobalContext, s, 100);
@@ -540,15 +558,24 @@ void dmpFile(OpContext* context, std::string filename) {
     fclose(file);
 }
 
-static std::string fileToStr(std::string filename) {
+static std::string fileToStr(std::string name) {
+    std::string filename = dmpFileToPath(name);
     std::string buffer;
     FILE* file = fopen(filename.c_str(), "r");
+    if (!file) {
+        OpDebugOut("could not open " + filename + " to read (1st time)\n");
+        return "";
+    }
     OP_ASSERT(file);
     int seek = fseek(file, 0, SEEK_END);
     OP_ASSERT(!seek);
     long size = ftell(file);
     fclose(file);
     file = fopen(filename.c_str(), "r");
+    if (!file) {
+        OpDebugOut("could not open " + filename + " to read (2nd time)\n");
+        return "";
+    }
     buffer.resize(size);
     fread(&buffer[0], 1, size, file);
     fclose(file);
@@ -1084,10 +1111,11 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
 #if 0  // omit curve output function
     s += debugFindTag(reinterpret_cast<DebugFunction>(contextCallbacks.curveOutputFuncPtr));
 #endif
-	DEBUG_FIND_TAG(contextCallbacks, curveOutputFuncPtr, emptyCallerPathFuncPtr);
 #if 0  // skip find tag for best loop function
+	DEBUG_FIND_TAG(contextCallbacks, curveOutputFuncPtr, emptyCallerPathFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, emptyCallerPathFuncPtr, bestLoopFuncPtr);
 #else
+	ASSERT_SERIAL(contextCallbacks, curveOutputFuncPtr, emptyCallerPathFuncPtr);
 	ASSERT_SERIAL(contextCallbacks, emptyCallerPathFuncPtr, bestLoopFuncPtr);
 #endif
 	DEBUG_FIND_TAG(contextCallbacks, bestLoopFuncPtr, setLineTypeFuncPtr);
@@ -1336,10 +1364,11 @@ void OpContext::dumpSet(const char*& str) {
 	contextCallbacks.curveOutputFuncPtr = (PathOpsV0Lib::CurveOutput) debugFindFunction(str);
 #endif
     DEBUG_FIND_FUNCTION(contextCallbacks, curveOutputFuncPtr, emptyCallerPathFuncPtr);
-	DEBUG_FIND_FUNCTION(contextCallbacks, emptyCallerPathFuncPtr, bestLoopFuncPtr);
 #if 0  // skip find function for best loop func
+	DEBUG_FIND_FUNCTION(contextCallbacks, emptyCallerPathFuncPtr, bestLoopFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, bestLoopFuncPtr, setLineTypeFuncPtr);
 #else
+	ASSERT_SERIAL(contextCallbacks, emptyCallerPathFuncPtr, bestLoopFuncPtr);
 	ASSERT_SERIAL(contextCallbacks, bestLoopFuncPtr, setLineTypeFuncPtr);
 #endif
 	DEBUG_FIND_FUNCTION(contextCallbacks, setLineTypeFuncPtr, maxSplitFuncPtr);
@@ -2056,8 +2085,8 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 	if (overlapsMerged)
 		s += "overlapsMerged ";
     ASSERT_SERIAL_OFFSET(*this, overlapsMerged, 2, debugCallbacks);
-    s += debugFindTag(reinterpret_cast<DebugFunction>(debugCallbacks.debugDumpContourExtraFuncPtr));
-#if OP_DEBUG_IMAGE
+//    s += debugFindTag(reinterpret_cast<DebugFunction>(debugCallbacks.debugDumpContourExtraFuncPtr));
+#if 0 && OP_DEBUG_IMAGE
     DEBUG_FIND_TAG(debugCallbacks, debugDumpContourExtraFuncPtr, debugNativePathFuncPtr);
 	DEBUG_FIND_TAG(debugCallbacks, debugNativePathFuncPtr, debugGetDrawFuncPtr);
 	DEBUG_FIND_TAG(debugCallbacks, debugGetDrawFuncPtr, debugSetDrawFuncPtr);
@@ -2198,8 +2227,8 @@ void OpContour::dumpSet(const char*& str) {
     ASSERT_ORDERED(disabled, overlapsMerged);
     overlapsMerged = OpDebugOptional(str, "overlapsMerged");
     ASSERT_SERIAL_OFFSET(*this, overlapsMerged, 2, debugCallbacks);
-    debugCallbacks.debugDumpContourExtraFuncPtr = (PathOpsV0Lib::DebugDumpContourExtra) debugFindFunction(str);
-#if OP_DEBUG_IMAGE
+//    debugCallbacks.debugDumpContourExtraFuncPtr = (PathOpsV0Lib::DebugDumpContourExtra) debugFindFunction(str);
+#if 0 && OP_DEBUG_IMAGE
     DEBUG_FIND_FUNCTION(debugCallbacks, debugDumpContourExtraFuncPtr, debugNativePathFuncPtr);
 	DEBUG_FIND_FUNCTION(debugCallbacks, debugNativePathFuncPtr, debugGetDrawFuncPtr);
 	DEBUG_FIND_FUNCTION(debugCallbacks, debugGetDrawFuncPtr, debugSetDrawFuncPtr);
@@ -3621,7 +3650,7 @@ OpPtT dc_ex, dc_ey, dc_ox, dc_oy;
 extern void draw(const OpPtT& );
 
 void OpCurveCurve::drawClosest(const OpPoint& originalPt) const {
-#if !OP_TINY_SKIA
+#if !OP_TINY_SKIA && !OP_DEBUGGER
     dumpClosest(originalPt);
     ::draw(dc_ex);
     ::draw(dc_ey);

@@ -774,12 +774,12 @@ OpEdge* OpCurveCurve::allocateEdge(OpSegment* segment, const OpEdge* edge, const
     if (NewEdge::none != newEdge) {
         OP_ASSERT(!segment);
         OP_ASSERT(end.debugIsUninitialized());
-        newE = new(block) OpEdge(edge, start, newEdge  OP_LINE_FILE_CALLER());
+        newE = new(block) OpEdge(edge, start, newEdge  OP_LINE_FILE_CARGS());
     } else if (!segment)
-        newE = new(block) OpEdge(edge, start, end  OP_LINE_FILE_CALLER());
+        newE = new(block) OpEdge(edge, start, end  OP_LINE_FILE_CARGS());
     else {
         OP_ASSERT(!edge);
-        newE = new(block) OpEdge(segment, start, end  OP_LINE_FILE_CALLER());
+        newE = new(block) OpEdge(segment, start, end  OP_LINE_FILE_CARGS());
     }
 	newE->ccOverlaps = !newE->disabled && EdgeOverlaps::overlaps == overlaps;
 	OP_DEBUG_CODE(newE->debugParentID = parentID);

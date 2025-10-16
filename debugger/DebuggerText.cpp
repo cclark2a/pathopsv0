@@ -112,7 +112,7 @@ DrawLevel TextWindow::event(const DebuggerEvent& debuggerEvent) {
         return doType(&SelectType, &debuggerEvent);
 //    int scale = keyModMultiplier(debuggerEvent.keyMods);  // !!! unused for now
     bool redraw = true;
-    switch (uint8_t key = debuggerEvent.key) {
+    switch (debuggerEvent.key) {
         case 'a':
             showAll ^= true;
             break;
@@ -259,8 +259,6 @@ void TextWindow::playback(const char*& str) {
 
 std::string TextWindow::record() {
     std::string s;
-    DebugLevel l = DebugLevel::file;
-    DebugBase b = DebugBase::hex;
     s += recordCommon();
     DEBUG_DUMP_BOOL(detailFont, showAll);
     DEBUG_DUMP_BOOL(showAll, showAliases);
