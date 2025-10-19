@@ -1,12 +1,12 @@
-#include "OpDebugPicture.h"
+#include "DebuggerState.h"
 #include "include/shim/surface.h"
 #include "include/core/path_builder.h"
 #include "src/raster/raster_canvas.h"
 
 using namespace pentrek;
 
-void Window::pentrek_draw(char* bits, int width, int height, int scan) {
-    if (verboseLevel) OpDebugOut("pentrek_draw " + name + "\n");
+void DebuggerWindow::pentrek_draw(char* bits, int width, int height, int scan) {
+    if (debuggerState->verboseLevel) OpDebugOut("pentrek_draw " + name + "\n");
     auto shim = ShimContext::MakeRaster();
     auto pm = Pixmap::C32(width, height, (Premul32*) bits, scan);
     RasterCanvas canvas(pm);

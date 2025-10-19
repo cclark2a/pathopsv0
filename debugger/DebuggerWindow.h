@@ -1,0 +1,69 @@
+// (c) 2025, Cary Clark cclark2@gmail.com
+#ifndef DebuggerWindow_DEFINED
+#define DebuggerWindow_DEFINED
+
+#include "DebuggerTypes.h"
+#include <SDL3/SDL_init.h>
+
+struct DebuggerAddPoly;
+struct DebuggerEvent;
+struct DebuggerPoly;
+struct OpCurve;
+struct OpDebugText;
+struct NativeTextCache;
+struct SDL_Window;
+struct SDL_Renderer;
+
+struct DebuggerWindow {
+    DebuggerWindow(DebuggerState* state);
+    void add(const OpCurve& , DebuggerAddPoly* );
+    DebuggerPoly& add(const OpRect& , uint32_t color, float thickness);
+    void add(OpPoint , OpPoint , DebuggerAddPoly* );
+    void add(std::vector<OpPoint>& points );
+    void addLine(OpPoint pt1, OpPoint pt2);
+    SDL_AppResult addFont(float fontSize, TTF_Font** result = nullptr);
+    size_t addText(std::string , uint32_t color, TTF_Font* f = nullptr);
+    OpDebugText& addText(std::string , OpPoint , uint32_t color, TTF_Font* = nullptr, 
+            bool rotated = false);
+    SDL_AppResult allocateBuffers(int width, int height);
+    void append(OpPoint );
+    void clearWindow();
+    OpContext* context();
+    void deleteTextCache();
+    SDL_AppResult draw();
+    virtual bool drawOne(DebuggerPoly& ) { return true; }
+    void drawText();
+    virtual DrawLevel event(const DebuggerEvent& ) { return DrawLevel::none; }
+    DebuggerPoly* findPoly(const OpEdge* );
+    DebuggerPoly* findPoly(const OpSegment* );
+    DebuggerPoly* findPolyByID(int );
+    const NativeTextCache& getCache(size_t index);
+    SDL_AppResult init(std::string name, OpVector offset);
+    void pentrek_draw(char*, int width, int height, int pitch);
+    virtual void playback(const char*&  str) { playbackCommon(str); }
+    void playbackCommon(const char*& );
+    virtual std::string record() { return recordCommon(); };
+    std::string recordCommon();
+    void setSize();
+#if OP_DEBUG_DUMP
+    std::string debugTextDump(size_t index);
+    void dumpWindow();
+#endif
+    DebuggerState* debuggerState;
+    DebuggerAddPoly addPoly;
+    std::vector<DebuggerPoly> polys;
+    std::vector<OpDebugText> texts;
+    std::vector<OpDebugPoint> points;
+    std::vector<NativeTextCache> textCache;
+    OpRect focus;  // local coordinates
+    OpRect screen { 0, 0, 1000, 1000 };  // device coordinates;
+    SDL_Window* window = nullptr;
+    SDL_Renderer* renderer = nullptr;
+    SDL_Texture* polysTexture = nullptr;
+    TTF_Font* font = nullptr;
+    int* buffer = nullptr;
+    std::string name;
+    int windowID;
+};
+
+#endif

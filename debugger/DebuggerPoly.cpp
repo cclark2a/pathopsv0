@@ -1,8 +1,13 @@
 // (c) 2025, Cary Clark cclark2@gmail.com
 
-#include "OpDebugPicture.h"
+#include "DebuggerState.h"
 #include "OpContour.h"
 #include "OpSegment.h"
+
+struct DebugSect {  // curve intersected with focus rectangle, and intersection pinned to rect
+    OpPtT sect;
+    bool pin;
+};
 
 void DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
     if (c.data->start == c.data->end)

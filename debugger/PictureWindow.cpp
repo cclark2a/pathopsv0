@@ -1,7 +1,7 @@
 // (c) 2025, Cary Clark cclark2@gmail.com
 // everything drawn by op debug image
 
-#include "OpDebugPicture.h"
+#include "DebuggerState.h"
 #include "OpCurveCurve.h"
 #include "OpSegment.h"
 
@@ -62,13 +62,6 @@ void PictureWindow::addHulls() {
         toAdd.back().contours.push_back(hull.size());
     }
     polys.insert(polys.begin(), toAdd.begin(), toAdd.end());
-}
-
-// span is between this point and last point, if any
-void Window::append(OpPoint pt) {
-    if (polys.empty())
-        polys.emplace_back();
-    polys.back().local.push_back(pt);
 }
 
 void PictureWindow::clear() {
@@ -177,7 +170,8 @@ void PictureWindow::addGrid() {
     std::vector<float> yes;
 	hexWorks(yes, focus.top, focus.bottom);
 	const uint32_t gridColor = 0x3f000000;
-    DebuggerPoly& grid = polys.emplace_back();
+    polys.emplace_back();
+    DebuggerPoly& grid = polys.back();
     grid.color = gridColor;
     auto xToScreen = [this](float x) {
         return (float) (screen.left + (x - focus.left) * scale);
@@ -396,24 +390,6 @@ void PictureWindow::addWinding(DebuggerPoly& poly) {
 extern DebugBase defaultBase;
 extern DebugLevel defaultLevel;
 
-std::string NativeTextCache::debugDump() const {
-    std::string s = "\"" + str + "\" ";
-    s += "size:" + size.debugDump(defaultLevel, defaultBase) + " ";
-    // skip texture
-    s += "color:" + debugDumpColor(defaultLevel, color);
-    return s;
-}
-
-void OpDebugText::dump(Window& picture) const {
-    std::string s;
-    s += "pt:" + pt.debugDump(defaultLevel, defaultBase) + " ";
-    s += "debugLocal:" + debugLocal.debugDump(defaultLevel, defaultBase) + " ";
-    s += "cacheIndex:" + STR(cacheIndex) + " ";
-    if (vertical) s += "vertical ";
-    s += picture.debugTextDump(cacheIndex);
-    OpDebugOut(s + "\n");
-}
-
 void PictureWindow::dump() {
     std::string s;
     s += "focus:" + focus.debugDump(defaultLevel, defaultBase) + " ";
@@ -427,9 +403,9 @@ void PictureWindow::dump() {
     for (const OpDebugText& text : texts)
         text.dump(*this);
 }
-
 #endif
 
+#if 0
 struct OpDebugBitmap {
     char* bits = nullptr;
     int width = 0;
@@ -444,6 +420,7 @@ struct OpDebugFont {
     std::string name = "Segoe UI";
     float size = 14.f;
 } labelFont;
+#endif
 
 void PictureWindow::addLabels() {
     for (auto& poly : polys) {
@@ -630,7 +607,7 @@ uint32_t PictureWindow::edgeColor(const OpEdge& e) {
     return color;
 }
 
-void PictureWindow::redraw() {
+void PictureWindow::update() {
     setSize();
     clear();
     OpPointBounds contourBounds;
@@ -863,17 +840,3 @@ std::string PictureWindow::record() {
     DEBUG_DUMP_BOOL(drawGridLinear, keyboardZoom);
     return s;
 }
-
-#if OP_TINY_SKIA
-
-#define OP_X(Thing) \
-bool draw##Thing##On = false;
-MASTER_LIST
-EDGE_BOOL_LIST
-ALIAS_LIST
-CALLOUT_LIST
-#undef OP_X
-
-int gridIntervals = 8;
-
-#endif

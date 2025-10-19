@@ -8,7 +8,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#include "debugger/OpDebugPicture.h"
+#include "DebuggerState.h"
 
 #define DRAW_SDL 1
 
@@ -25,7 +25,7 @@ static SDL_Color toSDLColor(uint32_t c) {
     return sdlColor;
 }
 
-size_t Window::addText(std::string str, uint32_t color, TTF_Font* f) {
+size_t DebuggerWindow::addText(std::string str, uint32_t color, TTF_Font* f) {
     if (!f)
         f = font;
     auto found = std::find_if(textCache.begin(), textCache.end(), 
@@ -49,14 +49,14 @@ size_t Window::addText(std::string str, uint32_t color, TTF_Font* f) {
     return cacheIndex;
 }
 
-void Window::deleteTextCache() {
+void DebuggerWindow::deleteTextCache() {
     for (auto& entry : textCache) {
         SDL_DestroyTexture(entry.texture);
     }
     textCache.clear();
 }
 
-SDL_AppResult Window::draw() {
+SDL_AppResult DebuggerWindow::draw() {
     if (!buffer)
         return SDL_APP_CONTINUE;
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
@@ -77,7 +77,7 @@ SDL_AppResult Window::draw() {
     return SDL_APP_CONTINUE;
 }
 
-void Window::drawText() {
+void DebuggerWindow::drawText() {
     for (OpDebugText& text : texts) {
         OP_ASSERT(text.cacheIndex < textCache.size());
         const NativeTextCache& cache = getCache(text.cacheIndex);
@@ -92,13 +92,15 @@ void Window::drawText() {
     }
 }
 
-SDL_AppResult Window::init(std::string n, OpVector offset) {
+SDL_AppResult DebuggerWindow::init(std::string n, OpVector offset) {
     name = n;
     if (!SDL_CreateWindowAndRenderer(("V0 Debugger " + name).c_str(), screen.width(), screen.height(), 
             SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN, &window, &renderer)) {
         OpDebugOut("Couldn't create window and renderer: " + std::string(SDL_GetError()) + "\n");
         return SDL_APP_FAILURE;
     }
+    SDL_SetRenderLogicalPresentation(renderer, (int) screen.width(), (int) screen.height(),
+            SDL_LOGICAL_PRESENTATION_DISABLED);
     windowID = SDL_GetWindowID(window);
     setSize();
     int x, y;
@@ -114,7 +116,7 @@ SDL_AppResult Window::init(std::string n, OpVector offset) {
     return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult Window::addFont(float fontSize, TTF_Font** result) {
+SDL_AppResult DebuggerWindow::addFont(float fontSize, TTF_Font** result) {
     if (!result)
         result = &font;
 #ifdef _WIN32
@@ -132,7 +134,7 @@ SDL_AppResult Window::addFont(float fontSize, TTF_Font** result) {
     return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult Window::allocateBuffers(int width, int height) {
+SDL_AppResult DebuggerWindow::allocateBuffers(int width, int height) {
     size_t bufferSize = width * height * sizeof(uint32_t);
     if (buffer)
         free(buffer);
@@ -155,6 +157,7 @@ SDL_AppResult Window::allocateBuffers(int width, int height) {
 
 /* This function runs once at startup. */
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
+//    SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "1");
     if (!TTF_Init()) {
         OpDebugOut("Couldn't initialise SDL_ttf: " + std::string(SDL_GetError()) + "\n");
         return SDL_APP_FAILURE;
@@ -168,8 +171,6 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     return SDL_APP_CONTINUE;
 }
 
-
-
 /* This function runs when a new event (mouse input, keypresses, etc) occurs. */
 SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
     static OpPoint downMouse;
@@ -179,12 +180,12 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
     unsigned int winID = event->window.windowID;
     DebuggerEvent debuggerEvent(debuggerState, SDL_GetModState(), winID);
     bool systemRedraw = false;
-    Window* eventWindow = debuggerState->pictureWindow.windowID == winID
-            ? (Window*) &debuggerState->pictureWindow : debuggerState->textWindow.windowID == winID
-            ? (Window*) &debuggerState->textWindow : debuggerState->helpWindow.windowID == winID
-            ? (Window*) &debuggerState->helpWindow : nullptr;
+    DebuggerWindow* eventWindow = debuggerState->pictureWindow.windowID == winID
+            ? (DebuggerWindow*) &debuggerState->pictureWindow : debuggerState->textWindow.windowID == winID
+            ? (DebuggerWindow*) &debuggerState->textWindow : debuggerState->helpWindow.windowID == winID
+            ? (DebuggerWindow*) &debuggerState->helpWindow : nullptr;
     std::string windowName = eventWindow ? eventWindow->name : "(unnamed window)";
-    if (verboseLevel && event->type != SDL_EVENT_MOUSE_MOTION         // 0x400
+    if (debuggerState->verboseLevel && event->type != SDL_EVENT_MOUSE_MOTION         // 0x400
             && event->type != SDL_EVENT_WINDOW_SHOWN         // 0x202
             && event->type != SDL_EVENT_WINDOW_EXPOSED       // 0x204
             && event->type != SDL_EVENT_WINDOW_MOVED         // 0x205
@@ -201,49 +202,49 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
             OpDebugOut("event:" + OpDebugIntToHex(event->type) + "\n");
     switch (event->type) {
         case SDL_EVENT_CLIPBOARD_UPDATE:
-            if (verboseLevel) OpDebugOut("clipboard update\n");
+            if (debuggerState->verboseLevel) OpDebugOut("clipboard update\n");
             break;
         case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
-            if (verboseLevel) OpDebugOut(windowName + " pixel size changed\n");
+            if (debuggerState->verboseLevel) OpDebugOut(windowName + " pixel size changed\n");
             systemRedraw = true;
             break;
         case SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED:
-            if (verboseLevel) OpDebugOut(windowName + " display scale changed\n");
+            if (debuggerState->verboseLevel) OpDebugOut(windowName + " display scale changed\n");
             systemRedraw = true;
             break;
         case SDL_EVENT_WINDOW_SHOWN:
-            if (verboseLevel) OpDebugOut(windowName + " shown\n");
+            if (debuggerState->verboseLevel) OpDebugOut(windowName + " shown\n");
             systemRedraw = true;
             break;
         case SDL_EVENT_WINDOW_RESIZED:
-            if (verboseLevel) OpDebugOut(windowName + " resized\n");
+            if (debuggerState->verboseLevel) OpDebugOut(windowName + " resized\n");
             eventWindow->setSize();
             systemRedraw = true;
             break;
         case SDL_EVENT_WINDOW_EXPOSED:
-            if (verboseLevel) OpDebugOut(windowName + " exposed\n");
+            if (debuggerState->verboseLevel) OpDebugOut(windowName + " exposed\n");
             systemRedraw = true;
             break;
         case SDL_EVENT_WINDOW_MOVED:
-            if (verboseLevel) OpDebugOut(windowName + " moved\n");
+            if (debuggerState->verboseLevel) OpDebugOut(windowName + " moved\n");
             break;
         case SDL_EVENT_WINDOW_MOUSE_ENTER:
-            if (verboseLevel > 1) OpDebugOut(windowName + " mouse enter\n");
+            if (debuggerState->verboseLevel > 1) OpDebugOut(windowName + " mouse enter\n");
             ;
             break;
         case SDL_EVENT_WINDOW_MOUSE_LEAVE:
-            if (verboseLevel > 1) OpDebugOut(windowName + " mouse leave\n");
+            if (debuggerState->verboseLevel > 1) OpDebugOut(windowName + " mouse leave\n");
             ;
             break;
         case SDL_EVENT_WINDOW_FOCUS_LOST:
-            if (verboseLevel) OpDebugOut(windowName + " focus lost\n");
+            if (debuggerState->verboseLevel) OpDebugOut(windowName + " focus lost\n");
             ;
             break;
         case SDL_EVENT_MOUSE_WHEEL: 
             debuggerEvent.wheel = event->wheel.y;
             break;
         case SDL_EVENT_WINDOW_FOCUS_GAINED:
-            if (verboseLevel) OpDebugOut(windowName + " focus gained\n");
+            if (debuggerState->verboseLevel) OpDebugOut(windowName + " focus gained\n");
             if (!debuggerState->context)
                 break;
             [[fallthrough]];
@@ -343,7 +344,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
             debuggerState->lastTime = info.st_mtime;
             return SDL_APP_CONTINUE;
         } 
-        if (debuggerState->updateAttempts > maxUpdateAttempts) {
+        if (debuggerState->updateAttempts > debuggerState->maxUpdateAttempts) {
             OpDebugOut("failed to update\n"); 
             OP_ASSERT(0);
             debuggerState->update();  // for debugging

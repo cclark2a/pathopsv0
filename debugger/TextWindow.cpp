@@ -1,61 +1,21 @@
 // (c) 2025, Cary Clark cclark2@gmail.com
-// everything drawn by op debug image
 
-#include "OpDebugPicture.h"
+#include "DebuggerState.h"
 #include "OpCurveCurve.h"
 #include "OpJoiner.h"
 
+// !!! hackery
+#if _APPLE_
+#define TEXT_DETAIL_FONT_SIZE 14
+#elif _WIN32
+#define TEXT_DETAIL_FONT_SIZE 18
+#else
+#define TEXT_DETAIL_FONT_SIZE 18
+#endif
+
 extern std::string stringFormat(OpContext* context, std::string s, int lineWidth);
 
-OpType::OpType(const OpEdge* e)
-        : edge(e)
-        , id(e->id)
-        , idType(IDType::edge) {
-    }
-
-OpType::OpType(const OpSegment* s)
-        : segment(s)
-        , id(s->id)
-        , idType(IDType::segment) {
-    }
-
-OpType::OpType(const OpContour* c)
-        : contour(c)
-        , id(c->id)
-        , idType(IDType::contour) {
-    }
-
-OpType::OpType(const OpIntersection* i, IDType t)
-        : intersection(i)
-        , id(i->id)
-        , idType(t) {
-    }
-
-OpType::OpType(const Distance* d)
-        : distance(d)
-        , id(d->debugID)
-        , idType(IDType::distance) {
-    }
-
-OpType::OpType(const EdgePal* p)
-    : pal(p)
-    , id(p->unsectID)
-    , idType(IDType::pal) {
-}
-
-OpType::OpType(const OpTree* t)
-        : tree(t)
-        , id(t->id)
-        , idType(IDType::tree) {
-    }
-
-OpType::OpType(const OpLimb* l)
-        : limb(l)
-        , id(l->id)
-        , idType(IDType::limb) {
-    }
-
-DebuggerPoly& TextWindow::addRect(const OpRect& r, std::string s, uint32_t color) {
+DebuggerPoly& TextWindow::addIdBox(const OpRect& r, std::string s, uint32_t color) {
     uint32_t darker = color & 0xff3f3f3f;
     add(r, darker, 2);
     DebuggerPoly& result = add(r, color, 0);
@@ -67,7 +27,7 @@ DebuggerPoly& TextWindow::addRect(const OpRect& r, std::string s, uint32_t color
 }
 
 static DrawLevel AddType(const DebuggerEvent* , TextWindow* textWindow, OpType& opType) {
-    DebuggerPoly& polyRect = textWindow->addRect(opType.bounds, STR(opType.id), 
+    DebuggerPoly& polyRect = textWindow->addIdBox(opType.bounds, STR(opType.id), 
         opType.selected ? yellow : lightGray);
     polyRect.opType = opType;
     return DrawLevel::draw;
@@ -98,11 +58,23 @@ static DrawLevel SelectType(const DebuggerEvent* event, TextWindow* , OpType& op
     return DrawLevel::update;
 }
 
+TextWindow::TextWindow(DebuggerState* state)
+        : DebuggerWindow(state) {
+    if (SDL_APP_CONTINUE != (state->error = addFont(14)))
+        OpDebugOut("Couldn't add text font: " + std::string(SDL_GetError()) + "\n");
+    else if (SDL_APP_CONTINUE != (state->error = addFont(TEXT_DETAIL_FONT_SIZE, &detailFont)))
+        OpDebugOut("Couldn't add text detail font: " + std::string(SDL_GetError()) + "\n");
+    else if (SDL_APP_CONTINUE != (state->error = init("text", { -100, -100 })))
+        OpDebugOut("Couldn't initialise text window: " + std::string(SDL_GetError()) + "\n");
+}
+
+
 DrawLevel TextWindow::event(const DebuggerEvent& debuggerEvent) {    
     if (DrawLevel common = debuggerState->eventCommon(debuggerEvent); DrawLevel::none != common)
         return common;
     if (debuggerEvent.wheel) {
-        // scroll text area ? (to be implemented)
+        int scale = DebuggerEvent::KeyModMultiplier(debuggerEvent.keyMods);
+        scroll(debuggerEvent.wheel * scale);
     }
     if (MouseAction::drag == debuggerEvent.mouseAction)
         return doType(&DragType, &debuggerEvent);
@@ -157,18 +129,26 @@ DrawLevel TextWindow::event(const DebuggerEvent& debuggerEvent) {
 
 extern DebugBase defaultBase;
 
-void TextWindow::redraw() {
+void TextWindow::innerUpdate(int& safetyCheck) {
+    if (++safetyCheck > 2) {
+        OpDebugOut(std::string(__func__) + ": unexpected recursion: " + STR(safetyCheck) + "\n");
+        exit(1);
+    }
     if (!context())
         return;
     clearWindow();
     OpPoint localLocation(10, 10);
     doType(&AddType, nullptr);
-    float y = 60;
-    auto addWrapped = [&y, this](std::string s) {
+    int lastDetailHeight = detailHeight;  // re-pin scroll if changed
+    detailHeight = 60;
+    // set position based on last update and last scroll wheel
+    // find window height available
+    // 
+    auto addWrapped = [this](std::string s) {
         s = stringFormat(debuggerState->context, s, 100);
-        const NativeTextCache& cache = getCache(addText(s, {10, y}, black, detailFont).cacheIndex);
-        y += cache.size.dy;
-
+        const NativeTextCache& cache = getCache(addText(s, 
+                { 10, (float) (detailHeight - detailPos) }, black, detailFont).cacheIndex);
+        detailHeight += cache.size.dy;
     };
 	for (auto& id : debuggerState->ids) {
         if (!id.selected && !showAll)
@@ -216,6 +196,23 @@ void TextWindow::redraw() {
         std::string s = debuggerState->context->aliases.debugDump(DebugLevel::normal, defaultBase);
         addWrapped(s);
     }
+    if (showJoin) {
+        std::string s = debugDmpJoin(debuggerState->context, DebugLevel::normal, defaultBase);
+        addWrapped(s);
+    }
+    if (showLinks) {
+        std::string s = debugDmpLinks(DebugLevel::normal, defaultBase);
+        addWrapped(s);
+    }
+    if (lastDetailHeight != detailHeight) {
+        scroll(0);
+        innerUpdate(safetyCheck);
+    }
+}
+
+void TextWindow::update() {
+    int safetyCheck = 0;
+    innerUpdate(safetyCheck);
 }
 
 // start here;
@@ -246,12 +243,13 @@ DrawLevel TextWindow::doType(EventAction eventAction, const DebuggerEvent* event
 
 void TextWindow::playback(const char*& str) {
     playbackCommon(str);
-    DEBUG_SET_BOOL(detailFont, showAll);
+    DEBUG_SET_BOOL(boxHeight, showAll);
     DEBUG_SET_BOOL(showAll, showAliases);
     DEBUG_SET_BOOL(showAliases, showCurveCurve);
     DEBUG_SET_BOOL(showCurveCurve, showFull);
     DEBUG_SET_BOOL(showFull, showEdgeHulls);
-    DEBUG_SET_BOOL(showEdgeHulls, showLinks);
+    DEBUG_SET_BOOL(showEdgeHulls, showJoin);
+    DEBUG_SET_BOOL(showJoin, showLinks);
     DEBUG_SET_BOOL(showLinks, showPoints);
     DEBUG_SET_BOOL(showPoints, showRays);
     DEBUG_SET_BOOL(showRays, showTree); 
@@ -260,14 +258,22 @@ void TextWindow::playback(const char*& str) {
 std::string TextWindow::record() {
     std::string s;
     s += recordCommon();
-    DEBUG_DUMP_BOOL(detailFont, showAll);
+    DEBUG_DUMP_BOOL(boxHeight, showAll);
     DEBUG_DUMP_BOOL(showAll, showAliases);
     DEBUG_DUMP_BOOL(showAliases, showCurveCurve);
     DEBUG_DUMP_BOOL(showCurveCurve, showFull);
     DEBUG_DUMP_BOOL(showFull, showEdgeHulls);
-    DEBUG_DUMP_BOOL(showEdgeHulls, showLinks);
+    DEBUG_DUMP_BOOL(showEdgeHulls, showJoin);
+    DEBUG_DUMP_BOOL(showJoin, showLinks);
     DEBUG_DUMP_BOOL(showLinks, showPoints);
     DEBUG_DUMP_BOOL(showPoints, showRays);
     DEBUG_DUMP_BOOL(showRays, showTree);
     return s;
+}
+
+void TextWindow::scroll(int wheel) {
+    scrollPos += wheel;
+    int detailArea = (int) screen.height() - boxHeight;
+    int scrollable = std::max(0, detailHeight - detailArea);
+    scrollPos = std::max(0, std::min(scrollable, scrollPos));
 }

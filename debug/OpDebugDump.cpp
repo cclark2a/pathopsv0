@@ -752,15 +752,18 @@ void dmpIntersections() {
     OpDebugFormat(s);
 }
 
-void dmpJoin() {
+std::string debugDmpJoin(OpContext* context, DebugLevel l, DebugBase b) {
 	std::string s;
-	if (debugGlobalContext->debugJoiner) {
-		dmp(debugGlobalContext->debugJoiner);
-		s = "\n";
-	}
+	if (context->debugJoiner)
+		s += context->debugJoiner->debugDump(l, b) + "\n";
     for (const auto& c : contourIterator) {
-		s += c->debugDumpJoin(defaultLevel, defaultBase);
+		s += c->debugDumpJoin(l, b);
 	}
+    return s;
+}
+
+void dmpJoin() {
+    std::string s = debugDmpJoin(debugGlobalContext, defaultLevel, defaultBase);
     OpDebugFormat(s);
 }
 
@@ -3817,21 +3820,27 @@ void dmpHulls(const OpEdge& edge) {
     OpDebugFormat(s);
 }
 
-void dmpLink(const OpEdge& edge) {
+std::string debugDmpLink(const OpEdge& edge, DebugLevel l, DebugBase b) {
+    std::string s;
     std::vector<EdgeFilter> showFields = { EF::id, EF::segment, EF::contour, 
 			EF::priorEdge, EF::nextEdge, EF::lastEdge,
 			EF::startT, EF::endT, 
 			EF::active_impl, EF::inLinkups, EF::inOutput, EF::disabled, EF::isUnsplitable,
 			EF::centerless };
     OpSaveEF saveEF(showFields);
-	std::string s = edge.debugDump(defaultLevel, defaultBase);
-	OpDebugOut(s + "\n");
-	s = edge.debugDumpLink(EdgeMatch::start, defaultLevel, defaultBase);
+	s += edge.debugDump(l, b) + "\n";
+	s += edge.debugDumpLink(EdgeMatch::start, l, b);
 	if (s.size())
 		OpDebugOut("prior" + s + "\n");
-	s = edge.debugDumpLink(EdgeMatch::end, defaultLevel, defaultBase);
+	s = edge.debugDumpLink(EdgeMatch::end, l, b);
 	if (s.size())
 		OpDebugOut("next" + s + "\n");
+    return s;
+}
+
+void dmpLink(const OpEdge& edge) {
+    std::string s = debugDmpLink(edge, defaultLevel, defaultBase);
+    OpDebugFormat(s + "\n");
 }
 
 static void addToSeen(std::vector<const OpEdge*>& seen, const OpEdge& edge) {
@@ -3865,7 +3874,8 @@ static void addToSeen(std::vector<const OpEdge*>& seen, const OpEdge& edge) {
     }
 }
 
-void dmpLinks() {
+std::string debugDmpLinks(DebugLevel l, DebugBase b) {
+    std::string s;
     std::vector<const OpEdge*> seen;
     for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
@@ -3873,7 +3883,7 @@ void dmpLinks() {
                 if (edge.priorEdge)
                     continue;
                 addToSeen(seen, edge);
-                dmpLink(edge);
+                s += debugDmpLink(edge, l, b) + "\n";
             }
         }
     }
@@ -3881,12 +3891,20 @@ void dmpLinks() {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (seen.end() == std::find(seen.begin(), seen.end(), &edge)) {
-                    dmpLink(edge);
+                    s += debugDmpLink(edge, l, b) + "\n";
                     addToSeen(seen, edge);
                 }
             }
         }
     }
+    if (s.empty())
+        s.pop_back();
+    return s;
+}
+
+void dmpLinks() {
+    std::string s = debugDmpLinks(defaultLevel, defaultBase);
+    OpDebugFormat(s + "\n");
 }
 
 void dmpPoints(const OpEdge& edge) {
