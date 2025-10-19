@@ -1,6 +1,6 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "SkiaTestShim.h"
-#include "tests/PathOpsSimplifyFailTest.cpp"
+#include "skiatests/PathOpsSimplifyFailTest.cpp"
 
 void run_simplify_fail_tests(skiatest::Reporter* reporter) {
 	reporter->subname = "failOne";

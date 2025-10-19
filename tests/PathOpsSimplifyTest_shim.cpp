@@ -1,6 +1,6 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "SkiaTestShim.h"
-#include "tests/PathOpsSimplifyTest.cpp"
+#include "skiatests/PathOpsSimplifyTest.cpp"
 
 extern void threadableSimplifyTest(int id, const SkPath& path, std::string testname, 
             SkPath& out, bool v0MayFail, bool skiaMayFail);

@@ -47,11 +47,14 @@ else ()
 endif ()
 
 include_directories(
+	"../curves"
 	"../debug"
+	"../debugger"
+	"../example"
+	"../port"
+	"../public"
 	"../src"
 	"../tests"
-	".."
-	"../.."
 )
 
 set (COMMON_SOURCES
@@ -69,7 +72,7 @@ set (COMMON_SOURCES
 	"../src/OpSegments.cpp"
     "../src/OpWinder.cpp"
     "../src/OpWinding.cpp"
-    "../PathOps.cpp"
+    "../engine/PathOps.cpp"
 )
 
 # Add source to this project's executable.
@@ -83,7 +86,7 @@ add_executable (skia_test
 	"../debug/OpDebugRaster.cpp"
 	"../debug/OpDebugRecord.cpp"
 	"../debug/OpDebugTags.cpp"
-	"../port/SkiaPaths.cpp"
+	"../public/port/SkiaPaths.cpp"
 	"../debug/SkiaPathsDebug.cpp"
     "../tests/OpSkiaTests.cpp"
     "../tests/OpV0Tests.cpp"
@@ -111,14 +114,14 @@ add_executable (skia_test
 
 add_executable (contains_example "../example/ContainsExample.cpp" )
 add_executable (frame_example "../example/FrameExample.cpp" )
-add_executable (html_canvas_example "../port/Path2D.cpp" "../example/HTMLCanvasExample.cpp" )
+add_executable (html_canvas_example "../public/port/Path2D.cpp" "../example/HTMLCanvasExample.cpp" )
 add_executable (simplify_example "../example/SimplifyExample.cpp" )
-add_executable (skia_intersect_example "../port/SkiaPaths.cpp" "../debug/SkiaPathsDebug.cpp" "../tests/TinySkia.cpp" "../example/SkiaIntersectExample.cpp" )
-add_executable (skia_simplify_example "../port/SkiaPaths.cpp" "../debug/SkiaPathsDebug.cpp" "../tests/TinySkia.cpp" "../example/SkiaSimplifyExample.cpp" )
-add_executable (svg_example "../port/Path2D.cpp" "../example/SVGExample.cpp" )
+add_executable (skia_intersect_example "../public/port/SkiaPaths.cpp" "../debug/SkiaPathsDebug.cpp" "../tests/TinySkia.cpp" "../example/SkiaIntersectExample.cpp" )
+add_executable (skia_simplify_example "../public/port/SkiaPaths.cpp" "../debug/SkiaPathsDebug.cpp" "../tests/TinySkia.cpp" "../example/SkiaSimplifyExample.cpp" )
+add_executable (svg_example "../public/port/Path2D.cpp" "../example/SVGExample.cpp" )
 add_executable (cut_test "../tests/CutTest.cpp" )
 add_executable (frame_test "../tests/FrameTest.cpp" )
-add_executable (path_2d_test "../port/Path2D.cpp" "../tests/Path2DTest.cpp" )
+add_executable (path_2d_test "../public/port/Path2D.cpp" "../tests/Path2DTest.cpp" )
 
 target_sources (skia_test PUBLIC ${COMMON_SOURCES})
 target_sources (contains_example PUBLIC ${COMMON_SOURCES})
@@ -158,16 +161,16 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options (path_2d_test PUBLIC)
 elseif (CMAKE_BUILD_TYPE MATCHES "Debug")
     target_compile_options (skia_test PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof -fprofile-update=atomic)
-    target_compile_options (contains_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter )
-    target_compile_options (frame_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter )
-    target_compile_options (html_canvas_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter )
-    target_compile_options (simplify_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter )
-    target_compile_options (skia_intersect_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter )
-    target_compile_options (skia_simplify_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter )
-    target_compile_options (svg_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter )
-    target_compile_options (cut_test PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter )
-    target_compile_options (frame_test PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter )
-    target_compile_options (path_2d_test PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter )
+    target_compile_options (contains_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof )
+    target_compile_options (frame_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof )
+    target_compile_options (html_canvas_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof )
+    target_compile_options (simplify_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof )
+    target_compile_options (skia_intersect_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof )
+    target_compile_options (skia_simplify_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof )
+    target_compile_options (svg_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof )
+    target_compile_options (cut_test PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof )
+    target_compile_options (frame_test PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof )
+    target_compile_options (path_2d_test PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof )
 elseif (CMAKE_BUILD_TYPE MATCHES "Release")
     target_compile_options (skia_test PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra -fprofile-update=atomic)
     target_compile_options (contains_example PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra)

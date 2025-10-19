@@ -1,6 +1,6 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "SkiaTestShim.h"
-#include "tests/PathOpsOpRectThreadedTest.cpp"
+#include "skiatests/PathOpsOpRectThreadedTest.cpp"
 
 void run_op_rect_tests(skiatest::Reporter* reporter) {
     test_PathOpsRectsThreaded(reporter);

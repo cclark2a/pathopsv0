@@ -14,7 +14,7 @@
 #include "curves/FrameWinding.h"
 #include "curves/CutWinding.h"
 #include "port/SkiaPaths.h"
-#include "debug/OpDebugDump.h"
+#include "OpDebugDump.h"
 
 struct DebugTags {
     DebugFunction function;

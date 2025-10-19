@@ -277,7 +277,7 @@ inline void CubicPathToQuads(const SkPath& cubicPath, SkPath* quadPath) {
 	// intentionally left unimplemented
 }
 
-#include "tests/PathOpsOpTest.cpp"
+#include "skiatests/PathOpsOpTest.cpp"
 
 void run_op_tests(skiatest::Reporter* reporter) {
     reporter->subname = "fail";

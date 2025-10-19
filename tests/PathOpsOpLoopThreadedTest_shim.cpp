@@ -1,6 +1,6 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "SkiaTestShim.h"
-#include "tests/PathOpsOpLoopThreadedTest.cpp"
+#include "skiatests/PathOpsOpLoopThreadedTest.cpp"
 
 // !!! mistake in dumptest() accidentally isolated individual tests as:
 //     op(a, a+b, operator)
