@@ -13,13 +13,14 @@ struct TextWindow : public DebuggerWindow {
     DrawLevel event(const DebuggerEvent& ) override;
     void playback(const char*& str ) override;
     std::string record() override;
-    void scroll(int );
+    DrawLevel scroll(int );
     void update();
     void innerUpdate(int& );
     
     TTF_Font* detailFont;
+    int lineHeight = 14;  // !!! change this to the text line height
     int detailHeight = 0;  // the height of the window content, visible or not
-    int detailPos = 0;  // the offset into the window content (to make part of it visible)
+ //   int detailPos = 0;  // the offset into the window content (to make part of it visible)
     int scrollPos = 0;  // accumulated scroll wheel value, pinned to detail height - window pane
     int boxHeight = 60;  // area for box ids; remainder is for details
     bool showAll = false;

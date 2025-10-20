@@ -74,7 +74,7 @@ DrawLevel TextWindow::event(const DebuggerEvent& debuggerEvent) {
         return common;
     if (debuggerEvent.wheel) {
         int scale = DebuggerEvent::KeyModMultiplier(debuggerEvent.keyMods);
-        scroll(debuggerEvent.wheel * scale);
+        return scroll(debuggerEvent.wheel * scale);
     }
     if (MouseAction::drag == debuggerEvent.mouseAction)
         return doType(&DragType, &debuggerEvent);
@@ -104,6 +104,9 @@ DrawLevel TextWindow::event(const DebuggerEvent& debuggerEvent) {
             showEdgeHulls ^= true;
             break;
         // case 'I':  // intersections handled by event common
+        case 'j':
+            showJoin ^= true;
+            break;
         case 'l':
             showLinks ^= true;
             break;
@@ -147,7 +150,7 @@ void TextWindow::innerUpdate(int& safetyCheck) {
     auto addWrapped = [this](std::string s) {
         s = stringFormat(debuggerState->context, s, 100);
         const NativeTextCache& cache = getCache(addText(s, 
-                { 10, (float) (detailHeight - detailPos) }, black, detailFont).cacheIndex);
+                { 10, (float) (detailHeight - scrollPos) }, black, detailFont).cacheIndex);
         detailHeight += cache.size.dy;
     };
 	for (auto& id : debuggerState->ids) {
@@ -201,11 +204,11 @@ void TextWindow::innerUpdate(int& safetyCheck) {
         addWrapped(s);
     }
     if (showLinks) {
-        std::string s = debugDmpLinks(DebugLevel::normal, defaultBase);
+        std::string s = debugDmpLinks(debuggerState->context, DebugLevel::normal, defaultBase);
         addWrapped(s);
     }
     if (lastDetailHeight != detailHeight) {
-        scroll(0);
+        (void) scroll(0);
         innerUpdate(safetyCheck);
     }
 }
@@ -271,9 +274,15 @@ std::string TextWindow::record() {
     return s;
 }
 
-void TextWindow::scroll(int wheel) {
-    scrollPos += wheel;
+DrawLevel TextWindow::scroll(int wheel) {
+    int lastPos = scrollPos;
+    scrollPos += wheel * lineHeight;
     int detailArea = (int) screen.height() - boxHeight;
     int scrollable = std::max(0, detailHeight - detailArea);
     scrollPos = std::max(0, std::min(scrollable, scrollPos));
+    if (!wheel || lastPos == scrollPos)
+        return DrawLevel::none;
+    OpDebugOut("scrollPos: " + STR(scrollPos) + "\n");
+    update();
+    return DrawLevel::update;
 }

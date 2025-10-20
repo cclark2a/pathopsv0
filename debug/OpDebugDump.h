@@ -150,7 +150,7 @@ OP_X(Unsortable) \
 OP_X(Windings)
 
 extern std::string debugDmpJoin(OpContext* , DebugLevel l, DebugBase b);
-extern std::string debugDmpLinks(DebugLevel l, DebugBase b);
+extern std::string debugDmpLinks(OpContext* , DebugLevel l, DebugBase b);
 
 #define OP_X(Thing) \
 	extern void dmp##Thing();

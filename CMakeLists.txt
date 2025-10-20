@@ -47,81 +47,81 @@ else ()
 endif ()
 
 include_directories(
-	"../curves"
-	"../debug"
-	"../debugger"
-	"../example"
-	"../port"
-	"../public"
-	"../src"
-	"../tests"
+	"debug"
+	"debugger"
+	"example"
+	"public"
+	"public/curves"
+	"public/port"
+	"src"
+	"tests"
 )
 
 set (COMMON_SOURCES
-	"../debug/OpDebug.cpp"
-	"../src/OpContext.cpp"
-	"../src/OpContour.cpp"
-	"../src/OpCubic.cpp"
-	"../src/OpCurve.cpp"
-	"../src/OpCurveCurve.cpp"
-	"../src/OpEdge.cpp"
-	"../src/OpIntersection.cpp"
-	"../src/OpJoiner.cpp"
-	"../src/OpMath.cpp"
-	"../src/OpSegment.cpp"
-	"../src/OpSegments.cpp"
-    "../src/OpWinder.cpp"
-    "../src/OpWinding.cpp"
-    "../engine/PathOps.cpp"
+	"debug/OpDebug.cpp"
+	"src/OpContext.cpp"
+	"src/OpContour.cpp"
+	"src/OpCubic.cpp"
+	"src/OpCurve.cpp"
+	"src/OpCurveCurve.cpp"
+	"src/OpEdge.cpp"
+	"src/OpIntersection.cpp"
+	"src/OpJoiner.cpp"
+	"src/OpMath.cpp"
+	"src/OpSegment.cpp"
+	"src/OpSegments.cpp"
+    "src/OpWinder.cpp"
+    "src/OpWinding.cpp"
+    "engine/PathOps.cpp"
 )
 
 # Add source to this project's executable.
 add_executable (skia_test
-	"../debug/OpDebugColor.cpp"
-	"../debug/OpDebugCompare.cpp"
-	"../debug/OpDebugDouble.cpp"
-	"../debug/OpDebugDump.cpp"
-	"../debug/OpDebugGenerator.cpp"
-	"../debug/OpDebugImage.cpp"
-	"../debug/OpDebugRaster.cpp"
-	"../debug/OpDebugRecord.cpp"
-	"../debug/OpDebugTags.cpp"
-	"../public/port/SkiaPaths.cpp"
-	"../debug/SkiaPathsDebug.cpp"
-    "../tests/OpSkiaTests.cpp"
-    "../tests/OpV0Tests.cpp"
-    "../tests/PathOpsBattles_shim.cpp"
-    "../tests/PathOpsChalkboardTest_shim.cpp"
-    "../tests/PathOpsFuzz763Test_shim.cpp"
-    "../tests/PathOpsInverseTest_shim.cpp"
-    "../tests/PathOpsIssue3651_shim.cpp"
-    "../tests/PathOpsOpCircleThreadedTest_shim.cpp"
-    "../tests/PathOpsOpCubicThreadedTest_shim.cpp"
-    "../tests/PathOpsOpLoopThreadedTest_shim.cpp"
-    "../tests/PathOpsOpRectThreadedTest_shim.cpp"
-    "../tests/PathOpsOpTest_shim.cpp"
-    "../tests/PathOpsSimplifyDegenerateThreadedTest_shim.cpp"
-    "../tests/PathOpsSimplifyFailTest_shim.cpp"
-    "../tests/PathOpsSimplifyQuadThreadedTest_shim.cpp"
-    "../tests/PathOpsSimplifyQuadralateralsThreadedTest_shim.cpp"
-    "../tests/PathOpsSimplifyRectThreadedTest_shim.cpp"
-    "../tests/PathOpsSimplifyTest_shim.cpp"
-    "../tests/PathOpsSimplifyTrianglesThreadedTest_shim.cpp"
-    "../tests/PathOpsTigerTest_shim.cpp"
-    "../tests/TinySkia.cpp"
-    "../tests/UnitTestPathOps.cpp"
+	"debug/OpDebugColor.cpp"
+	"debug/OpDebugCompare.cpp"
+	"debug/OpDebugDouble.cpp"
+	"debug/OpDebugDump.cpp"
+	"debug/OpDebugGenerator.cpp"
+	"debug/OpDebugImage.cpp"
+	"debug/OpDebugRaster.cpp"
+	"debug/OpDebugRecord.cpp"
+	"debug/OpDebugTags.cpp"
+	"public/port/SkiaPaths.cpp"
+	"debug/SkiaPathsDebug.cpp"
+    "tests/OpSkiaTests.cpp"
+    "tests/OpV0Tests.cpp"
+    "tests/PathOpsBattles_shim.cpp"
+    "tests/PathOpsChalkboardTest_shim.cpp"
+    "tests/PathOpsFuzz763Test_shim.cpp"
+    "tests/PathOpsInverseTest_shim.cpp"
+    "tests/PathOpsIssue3651_shim.cpp"
+    "tests/PathOpsOpCircleThreadedTest_shim.cpp"
+    "tests/PathOpsOpCubicThreadedTest_shim.cpp"
+    "tests/PathOpsOpLoopThreadedTest_shim.cpp"
+    "tests/PathOpsOpRectThreadedTest_shim.cpp"
+    "tests/PathOpsOpTest_shim.cpp"
+    "tests/PathOpsSimplifyDegenerateThreadedTest_shim.cpp"
+    "tests/PathOpsSimplifyFailTest_shim.cpp"
+    "tests/PathOpsSimplifyQuadThreadedTest_shim.cpp"
+    "tests/PathOpsSimplifyQuadralateralsThreadedTest_shim.cpp"
+    "tests/PathOpsSimplifyRectThreadedTest_shim.cpp"
+    "tests/PathOpsSimplifyTest_shim.cpp"
+    "tests/PathOpsSimplifyTrianglesThreadedTest_shim.cpp"
+    "tests/PathOpsTigerTest_shim.cpp"
+    "tests/TinySkia.cpp"
+    "tests/UnitTestPathOps.cpp"
 )
 
-add_executable (contains_example "../example/ContainsExample.cpp" )
-add_executable (frame_example "../example/FrameExample.cpp" )
-add_executable (html_canvas_example "../public/port/Path2D.cpp" "../example/HTMLCanvasExample.cpp" )
-add_executable (simplify_example "../example/SimplifyExample.cpp" )
-add_executable (skia_intersect_example "../public/port/SkiaPaths.cpp" "../debug/SkiaPathsDebug.cpp" "../tests/TinySkia.cpp" "../example/SkiaIntersectExample.cpp" )
-add_executable (skia_simplify_example "../public/port/SkiaPaths.cpp" "../debug/SkiaPathsDebug.cpp" "../tests/TinySkia.cpp" "../example/SkiaSimplifyExample.cpp" )
-add_executable (svg_example "../public/port/Path2D.cpp" "../example/SVGExample.cpp" )
-add_executable (cut_test "../tests/CutTest.cpp" )
-add_executable (frame_test "../tests/FrameTest.cpp" )
-add_executable (path_2d_test "../public/port/Path2D.cpp" "../tests/Path2DTest.cpp" )
+add_executable (contains_example "example/ContainsExample.cpp" )
+add_executable (frame_example "example/FrameExample.cpp" )
+add_executable (html_canvas_example "public/port/Path2D.cpp" "example/HTMLCanvasExample.cpp" )
+add_executable (simplify_example "example/SimplifyExample.cpp" )
+add_executable (skia_intersect_example "public/port/SkiaPaths.cpp" "debug/SkiaPathsDebug.cpp" "tests/TinySkia.cpp" "example/SkiaIntersectExample.cpp" )
+add_executable (skia_simplify_example "public/port/SkiaPaths.cpp" "debug/SkiaPathsDebug.cpp" "tests/TinySkia.cpp" "example/SkiaSimplifyExample.cpp" )
+add_executable (svg_example "public/port/Path2D.cpp" "example/SVGExample.cpp" )
+add_executable (cut_test "tests/CutTest.cpp" )
+add_executable (frame_test "tests/FrameTest.cpp" )
+add_executable (path_2d_test "public/port/Path2D.cpp" "tests/Path2DTest.cpp" )
 
 target_sources (skia_test PUBLIC ${COMMON_SOURCES})
 target_sources (contains_example PUBLIC ${COMMON_SOURCES})

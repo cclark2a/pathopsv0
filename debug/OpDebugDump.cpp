@@ -534,13 +534,13 @@ std::string debugDumpIntersections() {
     // !!! temporary : I need to figure out where to put the dmp.txt file
 std::string dmpFileToPath(std::string name) {
 #ifdef __APPLE__
-    std::string filename = "/Users/cary/pathopsv0/cmake/build/" + name;
+    std::string filename = "/Users/cary/pathopsv0/build/" + name;
 #elif _WIN32
     std::string filename = "c:/users/cclar/source/repos/v0/v0/" + name";
 #else
     std::string filename = name;
 #endif
-    OpDebugOut(filename + "\n");
+//    OpDebugOut(filename + "\n");  // !!! calling this too often makes vscode debugging unstable...
     return filename;
 }
 
@@ -754,8 +754,9 @@ void dmpIntersections() {
 
 std::string debugDmpJoin(OpContext* context, DebugLevel l, DebugBase b) {
 	std::string s;
-	if (context->debugJoiner)
-		s += context->debugJoiner->debugDump(l, b) + "\n";
+	if (!context->debugJoiner)
+        return "(no debug joiner in context)\n";
+	s += context->debugJoiner->debugDump(l, b) + "\n";
     for (const auto& c : contourIterator) {
 		s += c->debugDumpJoin(l, b);
 	}
@@ -3874,10 +3875,10 @@ static void addToSeen(std::vector<const OpEdge*>& seen, const OpEdge& edge) {
     }
 }
 
-std::string debugDmpLinks(DebugLevel l, DebugBase b) {
+std::string debugDmpLinks(OpContext* context, DebugLevel l, DebugBase b) {
     std::string s;
     std::vector<const OpEdge*> seen;
-    for (const auto c : contourIterator) {
+    for (const OpContour* c : context->contours) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (edge.priorEdge)
@@ -3887,7 +3888,7 @@ std::string debugDmpLinks(DebugLevel l, DebugBase b) {
             }
         }
     }
-    for (const auto c : contourIterator) {
+    for (const OpContour* c : context->contours) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (seen.end() == std::find(seen.begin(), seen.end(), &edge)) {
@@ -3903,7 +3904,7 @@ std::string debugDmpLinks(DebugLevel l, DebugBase b) {
 }
 
 void dmpLinks() {
-    std::string s = debugDmpLinks(defaultLevel, defaultBase);
+    std::string s = debugDmpLinks(debugGlobalContext, defaultLevel, defaultBase);
     OpDebugFormat(s + "\n");
 }
 
