@@ -122,11 +122,11 @@ inline uint32_t unaryColorFuncPtr(Winding winding, DebugEdgeType edgeType) {
 UnaryData unaryData(winding);
 	if (edgeType.disabled || !unaryData.value)
 		return red;
-	else if (edgeType.inOutput)
+	if (edgeType.inOutput)
 		return orange;
-	else if (edgeType.unsortable)
+	if (edgeType.unsortable)
 		return purple;
-	else if (edgeType.curveCurve) {
+	if (edgeType.curveCurve) {
 		if (edgeType.ccOverlaps)
 			return orange;
 		else

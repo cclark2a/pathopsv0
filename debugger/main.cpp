@@ -10,19 +10,24 @@
 
 #include "DebuggerState.h"
 
-#define DRAW_SDL 1
-
-bool OpDebugSkipBreak() {
-    return true;
-}
-
-// static TTF_Font* font = nullptr;
-// bool debugUseAlt = false;
-
-static SDL_Color toSDLColor(uint32_t c) {
-    auto byte = [c](int component) { return (uint8_t) (c >> (component * 8)); };
-    SDL_Color sdlColor = { byte(2), byte(1), byte(0), byte(3) };
-    return sdlColor;
+SDL_AppResult DebuggerWindow::addFont(float fontSize, TTF_Font** result) {
+    if (!result)
+        result = &font;
+    float multiplier = pixelScale;  // !!! for now, just pick one
+    fontSize *= multiplier;
+#ifdef _WIN32
+    *result = TTF_OpenFont("C:/Windows/Fonts/segoeui.ttf", fontSize);
+#elif defined __APPLE__
+    *result = TTF_OpenFont("/System/Library/Fonts/Monaco.ttf", fontSize);
+#else
+    OpDebugOut("missing font for platform\n");
+    return SDL_APP_FAILURE;
+#endif
+    if (!*result) {
+        OpDebugOut("Couldn't open font: " + std::string(SDL_GetError()) + "\n");
+        return SDL_APP_FAILURE;
+    }
+    return SDL_APP_CONTINUE;
 }
 
 size_t DebuggerWindow::addText(std::string str, uint32_t color, TTF_Font* f) {
@@ -33,6 +38,11 @@ size_t DebuggerWindow::addText(std::string str, uint32_t color, TTF_Font* f) {
             return f == cache.font && str == cache.str && color == cache.color; } );
     if (textCache.end() != found)
         return found - textCache.begin();
+    auto toSDLColor = [](uint32_t c) {
+        auto byte = [c](int component) { return (uint8_t) (c >> (component * 8)); };
+        SDL_Color sdlColor = { byte(2), byte(1), byte(0), byte(3) };
+        return sdlColor;
+    };
     SDL_Color sdlColor = toSDLColor(color);
     SDL_Surface* textSurface = TTF_RenderText_Blended_Wrapped(f, str.c_str(), 0, sdlColor, 0);
     if (!textSurface) {
@@ -45,8 +55,30 @@ size_t DebuggerWindow::addText(std::string str, uint32_t color, TTF_Font* f) {
     size_t cacheIndex = textCache.size();
     OpVector size;
     SDL_GetTextureSize(texture, &size.dx, &size.dy);
+    size /= pixelScale;
     textCache.push_back({f, str, size, texture, color});
     return cacheIndex;
+}
+
+SDL_AppResult DebuggerWindow::allocateBuffers(int width, int height) {
+    size_t bufferSize = width * height * sizeof(uint32_t);
+    if (buffer)
+        free(buffer);
+    buffer = (int*) malloc(bufferSize);
+    if (!buffer) {
+        OpDebugOut("Couldn't allocate buffer of size: " + STR(bufferSize) + "\n");
+        return SDL_APP_FAILURE;
+    }
+    memset(buffer, 0xFF, bufferSize);
+    if (polysTexture)
+        SDL_DestroyTexture(polysTexture);
+    polysTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888, 
+            SDL_TEXTUREACCESS_STREAMING, width, height);
+    if (!polysTexture) {
+        OpDebugOut("Couldn't allocate texture w/h: " + STR(width) + "/" + STR(height) + "\n");
+        return SDL_APP_FAILURE;
+    }
+    return SDL_APP_CONTINUE;
 }
 
 void DebuggerWindow::deleteTextCache() {
@@ -83,19 +115,39 @@ void DebuggerWindow::drawText() {
         const NativeTextCache& cache = getCache(text.cacheIndex);
         SDL_Texture* texture = (SDL_Texture*) cache.texture;
         SDL_FRect dst { text.pt.x, text.pt.y, cache.size.dx, cache.size.dy };
+        dst.x *= pixelScale;
+        dst.y *= pixelScale;
+        dst.w *= pixelScale;
+        dst.h *= pixelScale;
         if (text.vertical) {
             SDL_FPoint center { 0, 0 };
             SDL_RenderTextureRotated(renderer, texture, nullptr, &dst, -90.0, &center, 
                     SDL_FLIP_NONE);
-        } else
-            SDL_RenderTexture(renderer, texture, nullptr, &dst);
+            continue;
+        }
+        if (text.clip && topClip) {
+            if (text.pt.y + cache.size.dy <= topClip)
+                continue;
+            float upperCut = topClip - text.pt.y;
+            if (0 < upperCut) {
+                float scaledCut = upperCut * pixelScale;
+                SDL_FRect src { 0, scaledCut, dst.w, dst.h - scaledCut };
+                dst.y = topClip * pixelScale;
+                dst.h -= scaledCut;
+                SDL_RenderTexture(renderer, texture, &src, &dst);
+                continue;
+            }
+        }
+        SDL_RenderTexture(renderer, texture, nullptr, &dst);
     }
 }
 
 SDL_AppResult DebuggerWindow::init(std::string n, OpVector offset) {
     name = n;
-    if (!SDL_CreateWindowAndRenderer(("V0 Debugger " + name).c_str(), screen.width(), screen.height(), 
-            SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN, &window, &renderer)) {
+    std::string windowName = "V0 Debugger " + n;
+    if (!SDL_CreateWindowAndRenderer(windowName.c_str(), screen.width(), screen.height(), 
+            SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN | SDL_WINDOW_HIGH_PIXEL_DENSITY, 
+            &window, &renderer)) {
         OpDebugOut("Couldn't create window and renderer: " + std::string(SDL_GetError()) + "\n");
         return SDL_APP_FAILURE;
     }
@@ -113,44 +165,13 @@ SDL_AppResult DebuggerWindow::init(std::string n, OpVector offset) {
         return SDL_APP_FAILURE;
     }
     allocateBuffers(screen.width(), screen.height());
-    return SDL_APP_CONTINUE;
-}
-
-SDL_AppResult DebuggerWindow::addFont(float fontSize, TTF_Font** result) {
-    if (!result)
-        result = &font;
-#ifdef _WIN32
-    *result = TTF_OpenFont("C:/Windows/Fonts/segoeui.ttf", fontSize);
-#elif defined __APPLE__
-    *result = TTF_OpenFont("/System/Library/Fonts/Monaco.ttf", fontSize);
-#else
-    OpDebugOut("missing font for platform\n");
-    return SDL_APP_FAILURE;
-#endif
-    if (!*result) {
-        OpDebugOut("Couldn't open font: " + std::string(SDL_GetError()) + "\n");
-        return SDL_APP_FAILURE;
-    }
-    return SDL_APP_CONTINUE;
-}
-
-SDL_AppResult DebuggerWindow::allocateBuffers(int width, int height) {
-    size_t bufferSize = width * height * sizeof(uint32_t);
-    if (buffer)
-        free(buffer);
-    buffer = (int*) malloc(bufferSize);
-    if (!buffer) {
-        OpDebugOut("Couldn't allocate buffer of size: " + STR(bufferSize) + "\n");
-        return SDL_APP_FAILURE;
-    }
-    memset(buffer, 0xFF, bufferSize);
-    if (polysTexture)
-        SDL_DestroyTexture(polysTexture);
-    polysTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888, 
-            SDL_TEXTUREACCESS_STREAMING, width, height);
-    if (!polysTexture) {
-        OpDebugOut("Couldn't allocate texture w/h: " + STR(width) + "/" + STR(height) + "\n");
-        return SDL_APP_FAILURE;
+    int pixelsW, pixelsH;
+    if (!SDL_GetWindowSizeInPixels(window, &pixelsW, &pixelsH))
+        OpDebugOut(windowName + ": could not get size in pixels\n"); 
+    else {
+        OpVector scale((float) pixelsW / screen.width(), (float) pixelsH / screen.height());
+        OP_ASSERT(scale.dx == scale.dy);  // !!! if screen is not square scale, debug
+        pixelScale = scale.dx;
     }
     return SDL_APP_CONTINUE;
 }
@@ -159,7 +180,7 @@ SDL_AppResult DebuggerWindow::allocateBuffers(int width, int height) {
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 //    SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "1");
     if (!TTF_Init()) {
-        OpDebugOut("Couldn't initialise SDL_ttf: " + std::string(SDL_GetError()) + "\n");
+        OpDebugOut("Couldn't initialize SDL_ttf: " + std::string(SDL_GetError()) + "\n");
         return SDL_APP_FAILURE;
     }
     DebuggerState* debuggerState = new DebuggerState();

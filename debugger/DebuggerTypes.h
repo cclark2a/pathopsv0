@@ -130,6 +130,7 @@ struct OpDebugText {
     OpPoint debugLocal;
     size_t cacheIndex;
     bool vertical = false;
+    bool clip = false;
 };
 
 #endif

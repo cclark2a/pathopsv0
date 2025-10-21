@@ -289,7 +289,11 @@ struct OpDebugMaker {
     do { if (!(doBreak)) OP_DEBUG_BREAK(); } while (false)
 
 #if !OP_TINY_TEST
+#if OP_DEBUGGER
+inline bool OpDebugSkipBreak() { return true; }
+#else
 bool OpDebugSkipBreak();
+#endif
 #endif
 
 namespace PathOpsV0Lib {

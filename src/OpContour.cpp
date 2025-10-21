@@ -147,6 +147,10 @@ void OpContour::addToLinkups(OpJoiner* joiner, OpEdge* e) {
 	first->setLastEdge(first, last, InOutput::no);
 	OP_ASSERT(first->linkBounds.isFinite());
 #if OP_DEBUG_VALIDATE
+#if OP_DEBUG_DUMP
+	if (first->debugScheduledForErasure)
+		dmpFile();
+#endif
 	OP_ASSERT(!first->debugScheduledForErasure);
 #endif
 	first->segment->contour->linkups.l.push_back(first);	// !!! call pushlinkup?

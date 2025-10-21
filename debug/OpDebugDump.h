@@ -491,6 +491,7 @@ extern DebugFunction debugFindFunction(const char*& tag);
 extern std::string debugValue(DebugLevel l, DebugBase b, std::string label, float value);
 extern bool debugDmpIsLine(const PathOpsV0Lib::AddCurve& c);
 extern bool debugDmpIsLine(const PathOpsV0Lib::Curve& c);
+extern std::string stringFormat(OpContext* context, std::string s, int lineWidth);
 
 enum class LimbPass : uint8_t;
 

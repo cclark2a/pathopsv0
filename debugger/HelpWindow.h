@@ -5,10 +5,7 @@
 #include "DebuggerWindow.h"
 
 struct HelpWindow : public DebuggerWindow {
-    HelpWindow(DebuggerState* state)
-        : DebuggerWindow(state) {
-        screen = { 0, 0, 365, 1000 };
-    }
+    HelpWindow(DebuggerState* state);
     DrawLevel event(const DebuggerEvent& ) override;  // defer to topmost window
     void update();  // draw help corresponding to topmost window
 };

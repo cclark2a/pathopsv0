@@ -3,6 +3,15 @@
 #include "DebuggerState.h"
 #include "OpCurveCurve.h"
 
+HelpWindow::HelpWindow(DebuggerState* state)
+    : DebuggerWindow(state) {
+    screen = { 0, 0, 365, 1000 };
+    if (SDL_APP_CONTINUE != (state->error = init("help", { -200, -200 })))
+        OpDebugOut("Couldn't initialize help window: " + std::string(SDL_GetError()) + "\n");
+    else 
+        SDL_HideWindow(window);
+}
+
 // events SDL_WINDOWEVENT_FOCUS_GAINED and SDL_WINDOWEVENT_FOCUS_LOST track which of 
 // picture window and text window is top most; send events to that window
 DrawLevel HelpWindow::event(const DebuggerEvent& event) {

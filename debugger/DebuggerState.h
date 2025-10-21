@@ -99,6 +99,7 @@ struct DebuggerState {
     bool drawEpsilonOn = true;
     bool drawHexOn = false;
     bool drawIntersectionsOn = false;
+    bool drawOutputOn = false;
     bool drawSegmentsOn = false;
     bool tuneThreshold = false;
     bool drawHelp = false;

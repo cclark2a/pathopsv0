@@ -9,14 +9,6 @@ DebuggerState::DebuggerState()
     , textWindow(this)
     , helpWindow(this) {
     opFileName = "dmp.txt";
-    if (SDL_APP_CONTINUE != (error = pictureWindow.addFont(14)))
-        OpDebugOut("Couldn't add picture font: " + std::string(SDL_GetError()) + "\n");
-    else if (SDL_APP_CONTINUE != (error = pictureWindow.init("picture", { 100, 100 } )))
-        OpDebugOut("Couldn't initialise picture window: " + std::string(SDL_GetError()) + "\n");
-    else if (SDL_APP_CONTINUE != (error = helpWindow.init("help", { -200, -200 })))
-        OpDebugOut("Couldn't initialise help window: " + std::string(SDL_GetError()) + "\n");
-    else 
-        SDL_HideWindow(helpWindow.window);
 }
 
 void DebuggerState::draw() {
@@ -50,6 +42,9 @@ DrawLevel DebuggerState::eventCommon(const DebuggerEvent& debuggerEvent) {
             break;
         case 'I':
             drawIntersectionsOn ^= true;
+            break;
+        case 'o':
+            drawOutputOn ^= true;
             break;
         case 'P':
             playback();
@@ -147,7 +142,8 @@ void DebuggerState::playback() {
     DEBUG_SET_BOOL(drawEdgesOn, drawEpsilonOn);
     DEBUG_SET_BOOL(drawEpsilonOn, drawHexOn);
     DEBUG_SET_BOOL(drawHexOn, drawIntersectionsOn);
-    DEBUG_SET_BOOL(drawIntersectionsOn, drawSegmentsOn);
+    DEBUG_SET_BOOL(drawIntersectionsOn, drawOutputOn);
+    DEBUG_SET_BOOL(drawOutputOn, drawSegmentsOn);
     DEBUG_SET_BOOL(drawSegmentsOn, tuneThreshold);
     DEBUG_SET_BOOL(tuneThreshold, drawHelp);
     pictureWindow.playback(str);
@@ -185,7 +181,8 @@ void DebuggerState::record() {
     DEBUG_DUMP_BOOL(drawEdgesOn, drawEpsilonOn);
     DEBUG_DUMP_BOOL(drawEpsilonOn, drawHexOn);
     DEBUG_DUMP_BOOL(drawHexOn, drawIntersectionsOn);
-    DEBUG_DUMP_BOOL(drawIntersectionsOn, drawSegmentsOn);
+    DEBUG_DUMP_BOOL(drawIntersectionsOn, drawOutputOn);
+    DEBUG_DUMP_BOOL(drawOutputOn, drawSegmentsOn);
     DEBUG_DUMP_BOOL(drawSegmentsOn, tuneThreshold);
     DEBUG_DUMP_BOOL(tuneThreshold, drawHelp);
     s += pictureWindow.record();

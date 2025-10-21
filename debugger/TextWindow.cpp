@@ -5,15 +5,24 @@
 #include "OpJoiner.h"
 
 // !!! hackery
-#if _APPLE_
+#if __APPLE__
 #define TEXT_DETAIL_FONT_SIZE 14
 #elif _WIN32
 #define TEXT_DETAIL_FONT_SIZE 18
 #else
 #define TEXT_DETAIL_FONT_SIZE 18
-#endif
+#endif 
 
-extern std::string stringFormat(OpContext* context, std::string s, int lineWidth);
+TextWindow::TextWindow(DebuggerState* state)
+        : DebuggerWindow(state) {
+    if (SDL_APP_CONTINUE != (state->error = init("text", { -100, -100 })))
+        OpDebugOut("Couldn't initialize text window: " + std::string(SDL_GetError()) + "\n");
+    else if (SDL_APP_CONTINUE != (state->error = addFont(14)))
+        OpDebugOut("Couldn't add text font: " + std::string(SDL_GetError()) + "\n");
+    else if (SDL_APP_CONTINUE != (state->error = addFont(TEXT_DETAIL_FONT_SIZE, &detailFont)))
+        OpDebugOut("Couldn't add text detail font: " + std::string(SDL_GetError()) + "\n");
+    topClip = 60;  // !!! should be set to 30 x # of button rows
+}
 
 DebuggerPoly& TextWindow::addIdBox(const OpRect& r, std::string s, uint32_t color) {
     uint32_t darker = color & 0xff3f3f3f;
@@ -58,17 +67,6 @@ static DrawLevel SelectType(const DebuggerEvent* event, TextWindow* , OpType& op
     return DrawLevel::update;
 }
 
-TextWindow::TextWindow(DebuggerState* state)
-        : DebuggerWindow(state) {
-    if (SDL_APP_CONTINUE != (state->error = addFont(14)))
-        OpDebugOut("Couldn't add text font: " + std::string(SDL_GetError()) + "\n");
-    else if (SDL_APP_CONTINUE != (state->error = addFont(TEXT_DETAIL_FONT_SIZE, &detailFont)))
-        OpDebugOut("Couldn't add text detail font: " + std::string(SDL_GetError()) + "\n");
-    else if (SDL_APP_CONTINUE != (state->error = init("text", { -100, -100 })))
-        OpDebugOut("Couldn't initialise text window: " + std::string(SDL_GetError()) + "\n");
-}
-
-
 DrawLevel TextWindow::event(const DebuggerEvent& debuggerEvent) {    
     if (DrawLevel common = debuggerState->eventCommon(debuggerEvent); DrawLevel::none != common)
         return common;
@@ -110,6 +108,7 @@ DrawLevel TextWindow::event(const DebuggerEvent& debuggerEvent) {
         case 'l':
             showLinks ^= true;
             break;
+        // case 'o':   // output edges handled by event common
         case 'p':  // show curve points (independent of draw points)
             showPoints ^= true;
             break;
@@ -143,13 +142,13 @@ void TextWindow::innerUpdate(int& safetyCheck) {
     OpPoint localLocation(10, 10);
     doType(&AddType, nullptr);
     int lastDetailHeight = detailHeight;  // re-pin scroll if changed
-    detailHeight = 60;
+    detailHeight = topClip;
     // set position based on last update and last scroll wheel
     // find window height available
     // 
     auto addWrapped = [this](std::string s) {
         s = stringFormat(debuggerState->context, s, 100);
-        const NativeTextCache& cache = getCache(addText(s, 
+        const NativeTextCache& cache = getCache(addClipped(s, 
                 { 10, (float) (detailHeight - scrollPos) }, black, detailFont).cacheIndex);
         detailHeight += cache.size.dy;
     };

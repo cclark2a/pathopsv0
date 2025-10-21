@@ -5,9 +5,7 @@
 #include "DebuggerWindow.h"
 
 struct PictureWindow : public DebuggerWindow {
-    PictureWindow(DebuggerState* state)
-        : DebuggerWindow(state) {
-    }
+    PictureWindow(DebuggerState* state);
     void addGrid();
     void addHulls();
     void addLabel(std::string , OpPoint , uint32_t color);

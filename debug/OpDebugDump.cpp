@@ -757,7 +757,7 @@ std::string debugDmpJoin(OpContext* context, DebugLevel l, DebugBase b) {
 	if (!context->debugJoiner)
         return "(no debug joiner in context)\n";
 	s += context->debugJoiner->debugDump(l, b) + "\n";
-    for (const auto& c : contourIterator) {
+    for (const auto c : context->contours) {
 		s += c->debugDumpJoin(l, b);
 	}
     return s;
@@ -3829,14 +3829,31 @@ std::string debugDmpLink(const OpEdge& edge, DebugLevel l, DebugBase b) {
 			EF::active_impl, EF::inLinkups, EF::inOutput, EF::disabled, EF::isUnsplitable,
 			EF::centerless };
     OpSaveEF saveEF(showFields);
-	s += edge.debugDump(l, b) + "\n";
-	s += edge.debugDumpLink(EdgeMatch::start, l, b);
-	if (s.size())
-		OpDebugOut("prior" + s + "\n");
-	s = edge.debugDumpLink(EdgeMatch::end, l, b);
-	if (s.size())
-		OpDebugOut("next" + s + "\n");
-    return s;
+    std::vector<const OpEdge*> links;
+    auto dumpEm = [edge, &links, &s, l, b](std::string post = "") {
+        for (const OpEdge* link : links) {
+            if (link == &edge)
+                s += ">>> ";
+            s += link->debugDump(l, b) + "\n";
+            if (link == &edge)
+                s += " <<<";
+        }
+        return s;
+    };
+    links.push_back(&edge);
+    const OpEdge* link = &edge;
+    while ((link = link->priorEdge)) {
+        if (links.end() != std::find(links.begin(), links.end(), link))
+            return dumpEm(" (loop prior)\n");
+        links.insert(links.begin(), link);
+    }
+    link = &edge;
+    while ((link = link->nextEdge)) {
+        if (links.end() != std::find(links.begin(), links.end(), link))
+            return dumpEm(" (loop next)\n");
+        links.push_back(link);
+    }
+    return dumpEm();
 }
 
 void dmpLink(const OpEdge& edge) {
@@ -3856,7 +3873,7 @@ static void addToSeen(std::vector<const OpEdge*>& seen, const OpEdge& edge) {
         if (link == loopStart)
             break;
         if (++safetyCount > 700) {
-            OpDebugOut(std::string("!!! likely loops forever: prior\n"));
+            OpDebugOut("!!! likely loops forever: prior\n");
             break;
         }
     }
@@ -3869,7 +3886,7 @@ static void addToSeen(std::vector<const OpEdge*>& seen, const OpEdge& edge) {
         if (link == loopEnd)
             break;
         if (++safetyCount > 700) {
-            OpDebugOut(std::string("!!! likely loops forever: next\n"));
+            OpDebugOut("!!! likely loops forever: next\n");
             break;
         }
     }
@@ -3884,7 +3901,8 @@ std::string debugDmpLinks(OpContext* context, DebugLevel l, DebugBase b) {
                 if (edge.priorEdge)
                     continue;
                 addToSeen(seen, edge);
-                s += debugDmpLink(edge, l, b) + "\n";
+                if (edge.priorEdge || edge.nextEdge || edge.lastEdge)
+                    s += debugDmpLink(edge, l, b) + "\n";
             }
         }
     }
@@ -3892,7 +3910,8 @@ std::string debugDmpLinks(OpContext* context, DebugLevel l, DebugBase b) {
         for (const auto& seg : c->segments) {
             for (const auto& edge : seg.edges) {
                 if (seen.end() == std::find(seen.begin(), seen.end(), &edge)) {
-                    s += debugDmpLink(edge, l, b) + "\n";
+                    if (edge.priorEdge || edge.nextEdge || edge.lastEdge)
+                        s += debugDmpLink(edge, l, b) + "\n";
                     addToSeen(seen, edge);
                 }
             }

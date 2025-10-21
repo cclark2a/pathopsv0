@@ -157,6 +157,12 @@ void DebuggerWindow::addLine(OpPoint pt1, OpPoint pt2) {
     poly.contours.push_back(2);
 }
 
+OpDebugText& DebuggerWindow::addClipped(std::string s , OpPoint pt, uint32_t color, TTF_Font* f) {
+    OpDebugText& text = addText(s, pt, color, f);
+    text.clip = true;
+    return text;
+}
+
 OpDebugText& DebuggerWindow::addText(std::string s, OpPoint device, uint32_t color, TTF_Font* f, 
         bool rotated) {
     OpDebugText& text = texts.emplace_back();

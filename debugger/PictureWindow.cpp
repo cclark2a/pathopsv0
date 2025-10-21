@@ -7,6 +7,14 @@
 
 bool drawGridLinear = false;
 
+PictureWindow::PictureWindow(DebuggerState* state)
+        : DebuggerWindow(state) {
+    if (SDL_APP_CONTINUE != (state->error = init("picture", { 100, 100 } )))
+        OpDebugOut("Couldn't initialize picture window: " + std::string(SDL_GetError()) + "\n");
+    else if (SDL_APP_CONTINUE != (state->error = addFont(14)))
+        OpDebugOut("Couldn't add picture font: " + std::string(SDL_GetError()) + "\n");
+}
+
 void PictureWindow::addDevice(std::vector<OpPoint>& pts, DebuggerPoly& poly) {
     poly.contours.push_back(pts.size());
     poly.device.insert(poly.device.end(), pts.begin(), pts.end());
@@ -762,6 +770,7 @@ DrawLevel PictureWindow::event(const DebuggerEvent& debuggerEvent) {
         case 'k':
             drawControlsOn ^= true;
             break;
+        // case 'o':   // output edges handled by event common
         case 'p':  // (independent of show only curve points)
             drawPointsOn ^= true;
             break;

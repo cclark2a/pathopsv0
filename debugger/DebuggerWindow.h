@@ -22,6 +22,7 @@ struct DebuggerWindow {
     void add(std::vector<OpPoint>& points );
     void addLine(OpPoint pt1, OpPoint pt2);
     SDL_AppResult addFont(float fontSize, TTF_Font** result = nullptr);
+    OpDebugText& addClipped(std::string , OpPoint , uint32_t color, TTF_Font* f = nullptr);
     size_t addText(std::string , uint32_t color, TTF_Font* f = nullptr);
     OpDebugText& addText(std::string , OpPoint , uint32_t color, TTF_Font* = nullptr, 
             bool rotated = false);
@@ -63,6 +64,8 @@ struct DebuggerWindow {
     TTF_Font* font = nullptr;
     int* buffer = nullptr;
     std::string name;
+    float pixelScale = 1;  // if this is non-square, much work will need to be done...
+    float topClip = 0;  // if non-zero, clip text above this vertical offset
     int windowID;
 };
 
