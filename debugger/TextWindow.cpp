@@ -8,7 +8,7 @@
 #if __APPLE__
 #define TEXT_DETAIL_FONT_SIZE 14
 #elif _WIN32
-#define TEXT_DETAIL_FONT_SIZE 18
+#define TEXT_DETAIL_FONT_SIZE 24
 #else
 #define TEXT_DETAIL_FONT_SIZE 18
 #endif 
@@ -17,11 +17,12 @@ TextWindow::TextWindow(DebuggerState* state)
         : DebuggerWindow(state) {
     if (SDL_APP_CONTINUE != (state->error = init("text", { -100, -100 })))
         OpDebugOut("Couldn't initialize text window: " + std::string(SDL_GetError()) + "\n");
-    else if (SDL_APP_CONTINUE != (state->error = addFont(14)))
+    else if (SDL_APP_CONTINUE != (state->error = addFont(fontSize)))
         OpDebugOut("Couldn't add text font: " + std::string(SDL_GetError()) + "\n");
     else if (SDL_APP_CONTINUE != (state->error = addFont(TEXT_DETAIL_FONT_SIZE, &detailFont)))
         OpDebugOut("Couldn't add text detail font: " + std::string(SDL_GetError()) + "\n");
     topClip = 60;  // !!! should be set to 30 x # of button rows
+    lineHeight = fontSize;
 }
 
 DebuggerPoly& TextWindow::addIdBox(const OpRect& r, std::string s, uint32_t color) {
@@ -32,6 +33,39 @@ DebuggerPoly& TextWindow::addIdBox(const OpRect& r, std::string s, uint32_t colo
     OpDebugText& text = addText(s, pt, black);
     const NativeTextCache& cache = getCache(text.cacheIndex);
     text.pt -= cache.size / 2;
+    return result;
+}
+
+// start here;
+// change this to generate the set of interesting ids into an array
+// use user choices to order that id set, add breaking lines, etc
+
+DrawLevel TextWindow::doType(EventAction eventAction, const DebuggerEvent* event) {
+    if (!context())
+        return DrawLevel::none;
+    static const int leftMargin = 10;
+    static const int topMargin = 10;
+    OpPoint loc { leftMargin, topMargin };
+    DrawLevel result = DrawLevel::none;
+	for (auto& id : debuggerState->ids) {
+        if (IDType::intersection == id.type) {
+            if (!debuggerState->showIntersections)
+                continue;
+        } else if (IDType::segment == id.type) {
+            if (!debuggerState->showSegments)
+                continue;
+        } else if (IDType::edge != id.type)
+            continue;
+        id.bounds = OpRect(loc, loc + boxWH);
+        if (id.bounds.right > screen.width() && id.bounds.left > leftMargin) {
+            loc.x = leftMargin;
+            loc.y += boxWH.dy + 8;
+            topClip = loc.y + boxWH.dy + topMargin;
+            id.bounds = OpRect(loc, loc + boxWH);
+        }
+        result |= (*eventAction)(event, this, id);
+        loc.x += boxWH.dx + 8;
+    }
     return result;
 }
 
@@ -70,24 +104,38 @@ static DrawLevel SelectType(const DebuggerEvent* event, TextWindow* , OpType& op
 DrawLevel TextWindow::event(const DebuggerEvent& debuggerEvent) {    
     if (DrawLevel common = debuggerState->eventCommon(debuggerEvent); DrawLevel::none != common)
         return common;
-    if (debuggerEvent.wheel) {
-        int scale = DebuggerEvent::KeyModMultiplier(debuggerEvent.keyMods);
-        return scroll(debuggerEvent.wheel * scale);
-    }
+    int scale = DebuggerEvent::KeyModMultiplier(debuggerEvent.keyMods);
+    auto doWheel = [scale, this](int delta) {
+        return scroll(delta * scale);
+    };
+    if (debuggerEvent.wheel)
+        return doWheel(debuggerEvent.wheel);
     if (MouseAction::drag == debuggerEvent.mouseAction)
         return doType(&DragType, &debuggerEvent);
     if (MouseAction::move == debuggerEvent.mouseAction)
         return doType(&HoverType, &debuggerEvent);
     if (MouseAction::click == debuggerEvent.mouseAction)
         return doType(&SelectType, &debuggerEvent);
-//    int scale = keyModMultiplier(debuggerEvent.keyMods);  // !!! unused for now
+    if (!debuggerEvent.key)
+        return DrawLevel::none;
     bool redraw = true;
     switch (debuggerEvent.key) {
+        case (uint8_t) KeyCode::upArrow:
+            if (debuggerState->keyboardZoom)
+                return doWheel(+1);
+            redraw = false;
+            break;
+        case (uint8_t) KeyCode::downArrow:
+            if (debuggerState->keyboardZoom)
+                return doWheel(-1);
+            redraw = false;
+            break;
         case 'a':
             showAll ^= true;
             break;
         case 'A': 
             showAliases ^= true;
+            break;
         case 'c':
             showCurveCurve ^= true;
             break;
@@ -122,6 +170,7 @@ DrawLevel TextWindow::event(const DebuggerEvent& debuggerEvent) {
             showTree ^= true;
             break;
         // case 'x': // hex handled by event common
+        // case 'z': // keyboard zoom handled by event common
         default:
             redraw = false;
             break;
@@ -140,6 +189,12 @@ void TextWindow::innerUpdate(int& safetyCheck) {
         return;
     clearWindow();
     OpPoint localLocation(10, 10);
+    // find box size from current font; create temporary, then remove it from draw list
+    OpDebugText& text = addText("9999", {0, 0}, black);
+    const NativeTextCache& cache = getCache(text.cacheIndex);
+    boxWH = cache.size;
+    boxWH += OpVector(10, 10);
+    texts.pop_back();
     doType(&AddType, nullptr);
     int lastDetailHeight = detailHeight;  // re-pin scroll if changed
     detailHeight = topClip;
@@ -152,36 +207,45 @@ void TextWindow::innerUpdate(int& safetyCheck) {
                 { 10, (float) (detailHeight - scrollPos) }, black, detailFont).cacheIndex);
         detailHeight += cache.size.dy;
     };
+    std::vector<const OpSegment*> shown;
 	for (auto& id : debuggerState->ids) {
         if (!id.selected && !showAll)
             continue;
-        defaultBase = debuggerState->drawHexOn ? DebugBase::hex : DebugBase::dec;
+        defaultBase = debuggerState->showHex ? DebugBase::hex : DebugBase::dec;
         std::string s;
-        if (showFull) {
-            const OpSegment* segment = nullptr;
-            if (IDType::segment == id.idType)
-               segment = id.segment;
-            else if (IDType::edge == id.idType)
-                segment = id.edge->segment;
-            else if (IDType::intersection == id.idType)
-                segment = id.intersection->segment;
-            if (segment)
-                s = segment->debugDumpFull();
-        } else if (showPoints) {
-            if (IDType::segment == id.idType)
+        const OpSegment* segment = nullptr;
+        if (IDType::segment == id.type)
+            segment = id.segment;
+        else if (IDType::edge == id.type)
+            segment = id.edge->segment;
+        else if (IDType::intersection == id.type)
+            segment = id.intersection->segment;
+        if (shown.end() == std::find(shown.begin(), shown.end(), segment))
+            shown.push_back(segment);  // only show segment once, when edges/intersections selected
+        else
+            segment = nullptr;
+        if (showFull && segment)
+            s = segment->debugDumpFull();
+        if (s.empty() && debuggerState->showSegments)
+            s = segment->debugDump(DebugLevel::normal, defaultBase);
+        if (s.empty() && showPoints) {
+            if (IDType::segment == id.type)
                 s = id.segment->debugDump(DebugLevel::brief, defaultBase);
-            else if (IDType::edge == id.idType) {
+            else if (IDType::edge == id.type) {
                 std::vector<EdgeFilter> showFields = { EF::id, EF::startT, EF::endT, EF::curve, 
                     EF::iStart, EF::iEnd, EF::winding, EF::sum, EF::whichEnd_impl };
                 OpSaveEF saveEF(showFields);
                 s = id.edge->debugDump(DebugLevel::normal, defaultBase);
+            } else if (IDType::intersection == id.type) {
+                s = id.intersection->debugDump(DebugLevel::normal, defaultBase);
             }
-        } else {
-            if (IDType::segment == id.idType)
-                s = id.segment->debugDump(DebugLevel::normal, defaultBase);
-            else if (IDType::edge == id.idType)
-                s = id.edge->debugDump(DebugLevel::normal, defaultBase);
-        }
+        } 
+        if (s.empty() && IDType::intersection == id.type)
+            s = id.intersection->debugDump(DebugLevel::normal, defaultBase);
+        if (s.empty() && IDType::segment == id.type)
+            s = id.segment->debugDump(DebugLevel::normal, defaultBase);
+        if (s.empty() && IDType::edge == id.type)
+            s = id.edge->debugDump(DebugLevel::normal, defaultBase);
         if (s.empty())
             continue;
         addWrapped(s);
@@ -217,35 +281,9 @@ void TextWindow::update() {
     innerUpdate(safetyCheck);
 }
 
-// start here;
-// change this to generate the set of interesting ids into an array
-// use user choices to order that id set, add breaking lines, etc
-
-DrawLevel TextWindow::doType(EventAction eventAction, const DebuggerEvent* event) {
-    if (!context())
-        return DrawLevel::none;
-    static const int leftMargin = 10;
-    OpPoint loc { leftMargin, 10 };
-    OpVector wh { 50, 20 };
-    DrawLevel result = DrawLevel::none;
-	for (auto& id : debuggerState->ids) {
-        if (IDType::edge != id.idType)
-            continue;
-        id.bounds = OpRect(loc, loc + wh);
-        if (id.bounds.right > screen.width() && id.bounds.left > leftMargin) {
-            loc.x = leftMargin;
-            loc.y += wh.dy + 8;
-            id.bounds = OpRect(loc, loc + wh);
-        }
-        result |= (*eventAction)(event, this, id);
-        loc.x += wh.dx + 8;
-    }
-    return result;
-}
-
 void TextWindow::playback(const char*& str) {
     playbackCommon(str);
-    DEBUG_SET_BOOL(boxHeight, showAll);
+    DEBUG_SET_BOOL(scrollPos, showAll);
     DEBUG_SET_BOOL(showAll, showAliases);
     DEBUG_SET_BOOL(showAliases, showCurveCurve);
     DEBUG_SET_BOOL(showCurveCurve, showFull);
@@ -260,7 +298,7 @@ void TextWindow::playback(const char*& str) {
 std::string TextWindow::record() {
     std::string s;
     s += recordCommon();
-    DEBUG_DUMP_BOOL(boxHeight, showAll);
+    DEBUG_DUMP_BOOL(scrollPos, showAll);
     DEBUG_DUMP_BOOL(showAll, showAliases);
     DEBUG_DUMP_BOOL(showAliases, showCurveCurve);
     DEBUG_DUMP_BOOL(showCurveCurve, showFull);
@@ -276,7 +314,7 @@ std::string TextWindow::record() {
 DrawLevel TextWindow::scroll(int wheel) {
     int lastPos = scrollPos;
     scrollPos += wheel * lineHeight;
-    int detailArea = (int) screen.height() - boxHeight;
+    int detailArea = (int) screen.height() - topClip;
     int scrollable = std::max(0, detailHeight - detailArea);
     scrollPos = std::max(0, std::min(scrollable, scrollPos));
     if (!wheel || lastPos == scrollPos)

@@ -15,6 +15,17 @@ SDL_AppResult DebuggerWindow::addFont(float fontSize, TTF_Font** result) {
         result = &font;
     float multiplier = pixelScale;  // !!! for now, just pick one
     fontSize *= multiplier;
+    TTF_Font* oldFont = *result;
+    if (oldFont) {
+        for (auto& cache : textCache) {
+            if (cache.window == this && cache.font == oldFont)      
+                SDL_DestroyTexture(cache.texture);
+        }
+        auto& v = textCache;
+        v.erase(std::remove_if(v.begin(), v.end(), [oldFont, this](const NativeTextCache& c) { 
+                return c.window == this && c.font == oldFont; }), v.end());
+        TTF_CloseFont(oldFont);
+    }
 #ifdef _WIN32
     *result = TTF_OpenFont("C:/Windows/Fonts/segoeui.ttf", fontSize);
 #elif defined __APPLE__
@@ -56,7 +67,7 @@ size_t DebuggerWindow::addText(std::string str, uint32_t color, TTF_Font* f) {
     OpVector size;
     SDL_GetTextureSize(texture, &size.dx, &size.dy);
     size /= pixelScale;
-    textCache.push_back({f, str, size, texture, color});
+    textCache.push_back({f, this, str, size, texture, color});
     return cacheIndex;
 }
 

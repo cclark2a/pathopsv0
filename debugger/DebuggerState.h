@@ -94,15 +94,17 @@ struct DebuggerState {
     int maxUpdateAttempts = 10;
 
     SDL_AppResult error = (SDL_AppResult) 0;
-    bool drawContoursOn = false;
-    bool drawEdgesOn = true;
-    bool drawEpsilonOn = true;
-    bool drawHexOn = false;
-    bool drawIntersectionsOn = false;
-    bool drawOutputOn = false;
-    bool drawSegmentsOn = false;
+    bool showContours = false;
+    bool showEdges = true;
+    bool showEpsilon = true;
+    bool showHex = false;
+    bool showIntersections = false;
+    bool showOutput = false;
+    bool showSegments = false;
     bool tuneThreshold = false;
-    bool drawHelp = false;
+    bool showHelp = false;
+    bool keyboardZoom = false;
+    bool adjustFont = false;
 };
 
 #endif

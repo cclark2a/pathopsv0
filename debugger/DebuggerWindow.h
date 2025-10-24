@@ -66,6 +66,7 @@ struct DebuggerWindow {
     std::string name;
     float pixelScale = 1;  // if this is non-square, much work will need to be done...
     float topClip = 0;  // if non-zero, clip text above this vertical offset
+    int fontSize = 14;
     int windowID;
 };
 

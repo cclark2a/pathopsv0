@@ -17,12 +17,12 @@ struct TextWindow : public DebuggerWindow {
     void update();
     void innerUpdate(int& );
     
-    TTF_Font* detailFont;
-    int lineHeight = 14;  // !!! change this to the text line height
+    TTF_Font* detailFont = nullptr;
+    OpVector boxWH { 50, 20 };  // !!! get metrics from font instead of hard-coding them
+    int lineHeight = 0;  // !!! change this to the text line height
     int detailHeight = 0;  // the height of the window content, visible or not
  //   int detailPos = 0;  // the offset into the window content (to make part of it visible)
     int scrollPos = 0;  // accumulated scroll wheel value, pinned to detail height - window pane
-    int boxHeight = 60;  // area for box ids; remainder is for details
     bool showAll = false;
     bool showAliases = false;
     bool showCurveCurve = false;

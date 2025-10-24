@@ -536,7 +536,7 @@ std::string dmpFileToPath(std::string name) {
 #ifdef __APPLE__
     std::string filename = "/Users/cary/pathopsv0/build/" + name;
 #elif _WIN32
-    std::string filename = "c:/users/cclar/source/repos/v0/v0/" + name";
+    std::string filename = "c:/users/cclar/source/repos/v0/v0/" + name;
 #else
     std::string filename = name;
 #endif

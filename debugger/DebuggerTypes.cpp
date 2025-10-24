@@ -9,49 +9,49 @@
 OpType::OpType(const OpEdge* e)
         : edge(e)
         , id(e->id)
-        , idType(IDType::edge) {
+        , type(IDType::edge) {
     }
 
 OpType::OpType(const OpSegment* s)
         : segment(s)
         , id(s->id)
-        , idType(IDType::segment) {
+        , type(IDType::segment) {
     }
 
 OpType::OpType(const OpContour* c)
         : contour(c)
         , id(c->id)
-        , idType(IDType::contour) {
+        , type(IDType::contour) {
     }
 
 OpType::OpType(const OpIntersection* i, IDType t)
         : intersection(i)
         , id(i->id)
-        , idType(t) {
+        , type(t) {
     }
 
 OpType::OpType(const Distance* d)
         : distance(d)
         , id(d->debugID)
-        , idType(IDType::distance) {
+        , type(IDType::distance) {
     }
 
 OpType::OpType(const EdgePal* p)
     : pal(p)
     , id(p->unsectID)
-    , idType(IDType::pal) {
+    , type(IDType::pal) {
 }
 
 OpType::OpType(const OpTree* t)
         : tree(t)
         , id(t->id)
-        , idType(IDType::tree) {
+        , type(IDType::tree) {
     }
 
 OpType::OpType(const OpLimb* l)
         : limb(l)
         , id(l->id)
-        , idType(IDType::limb) {
+        , type(IDType::limb) {
     }
 
 #if OP_DEBUG_DUMP

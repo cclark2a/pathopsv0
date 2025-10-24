@@ -12,7 +12,7 @@ DebuggerState::DebuggerState()
 }
 
 void DebuggerState::draw() {
-    debugEpsilon = drawEpsilonOn;   // !!! eventually, merge so duplication is unnecessary
+    debugEpsilon = showEpsilon;   // !!! eventually, merge so duplication is unnecessary
     pictureWindow.draw();
     textWindow.draw();
     helpWindow.update();
@@ -20,16 +20,38 @@ void DebuggerState::draw() {
 }
 
 DrawLevel DebuggerState::eventCommon(const DebuggerEvent& debuggerEvent) {
-    if (debuggerEvent.wheel && tuneThreshold) {
-        int scale = DebuggerEvent::KeyModMultiplier(debuggerEvent.keyMods);
-        thresholdWheel -= debuggerEvent.wheel * scale;
-        thresholdMultiplier = powf(2, thresholdWheel / 32.f);
+    int scale = DebuggerEvent::KeyModMultiplier(debuggerEvent.keyMods);
+    auto doWheel = [debuggerEvent, scale, this](int delta) {
+        if (tuneThreshold) {
+            thresholdWheel -= debuggerEvent.wheel * scale;
+            thresholdMultiplier = powf(2, thresholdWheel / 32.f);
+            return DrawLevel::update;
+        }
+        if (!adjustFont)
+            return DrawLevel::none;
+        DebuggerWindow* f = debuggerEvent.focused;
+        if (!f)
+            return DrawLevel::none;
+        int fontSize = f->fontSize;
+        fontSize += scale;
+        fontSize = std::max(3, fontSize);
+        if (f->fontSize == fontSize)
+            return DrawLevel::none;
+        f->fontSize = fontSize;
+        if (SDL_APP_CONTINUE != (error = f->addFont(fontSize))) // deletes font cache
+            OpDebugOut("Couldn't add text font: " + std::string(SDL_GetError()) + "\n");
         return DrawLevel::update;
-    }
+    };
+    if (debuggerEvent.wheel)
+        return doWheel(debuggerEvent.wheel);
     uint8_t key = debuggerEvent.key;
     switch (key) {
+        case (uint8_t) KeyCode::upArrow:
+            return doWheel(1);
+        case (uint8_t) KeyCode::downArrow:
+            return doWheel(-1);
         case 'C':
-            drawContoursOn ^= true;
+            showContours ^= true;
             break;
         case 'd':
             setDepth(++depth);
@@ -38,13 +60,16 @@ DrawLevel DebuggerState::eventCommon(const DebuggerEvent& debuggerEvent) {
             setDepth(--depth);
             break;
         case 'e':
-            drawEdgesOn ^= true;
+            showEdges ^= true;
+            break;
+        case 'F':
+            adjustFont ^= true;
             break;
         case 'I':
-            drawIntersectionsOn ^= true;
+            showIntersections ^= true;
             break;
         case 'o':
-            drawOutputOn ^= true;
+            showOutput ^= true;
             break;
         case 'P':
             playback();
@@ -53,10 +78,13 @@ DrawLevel DebuggerState::eventCommon(const DebuggerEvent& debuggerEvent) {
             record();
             break;
         case 's':
-            drawSegmentsOn ^= true;
+            showSegments ^= true;
             break;
         case 'x':
-            drawHexOn ^= true;
+            showHex ^= true;
+            break;
+        case 'z':
+            keyboardZoom ^= true;
             break;
         case '0':
         case '1':
@@ -77,8 +105,8 @@ DrawLevel DebuggerState::eventCommon(const DebuggerEvent& debuggerEvent) {
             tuneThreshold ^= true;
             break;
         case '?':
-            drawHelp ^= true;
-            if (drawHelp)
+            showHelp ^= true;
+            if (showHelp)
                 SDL_ShowWindow(helpWindow.window);
             else
                 SDL_HideWindow(helpWindow.window);
@@ -90,7 +118,7 @@ DrawLevel DebuggerState::eventCommon(const DebuggerEvent& debuggerEvent) {
 }
 
 std::string DebuggerState::floatToStr(float f) {
-    return drawHexOn ? OpDebugDumpHex(f) : STR(f);
+    return showHex ? OpDebugDumpHex(f) : STR(f);
 }
 
 DebuggerWindow* DebuggerState::focus(SDL_WindowID id) {
@@ -137,28 +165,23 @@ void DebuggerState::playback() {
     DEBUG_SET_REQUIRED_VALUE(depth, verboseLevel);
     DEBUG_SET_REQUIRED_VALUE(verboseLevel, maxUpdateAttempts);
     DEBUG_SET_REQUIRED_VALUE(maxUpdateAttempts, error);
-    DEBUG_SET_BOOL(error, drawContoursOn);
-    DEBUG_SET_BOOL(drawContoursOn, drawEdgesOn);
-    DEBUG_SET_BOOL(drawEdgesOn, drawEpsilonOn);
-    DEBUG_SET_BOOL(drawEpsilonOn, drawHexOn);
-    DEBUG_SET_BOOL(drawHexOn, drawIntersectionsOn);
-    DEBUG_SET_BOOL(drawIntersectionsOn, drawOutputOn);
-    DEBUG_SET_BOOL(drawOutputOn, drawSegmentsOn);
-    DEBUG_SET_BOOL(drawSegmentsOn, tuneThreshold);
-    DEBUG_SET_BOOL(tuneThreshold, drawHelp);
+    DEBUG_SET_BOOL(error, showContours);
+    DEBUG_SET_BOOL(showContours, showEdges);
+    DEBUG_SET_BOOL(showEdges, showEpsilon);
+    DEBUG_SET_BOOL(showEpsilon, showHex);
+    DEBUG_SET_BOOL(showHex, showIntersections);
+    DEBUG_SET_BOOL(showIntersections, showOutput);
+    DEBUG_SET_BOOL(showOutput, showSegments);
+    DEBUG_SET_BOOL(showSegments, tuneThreshold);
+    DEBUG_SET_BOOL(tuneThreshold, showHelp);
+    DEBUG_SET_BOOL(showHelp, keyboardZoom);
+    DEBUG_SET_BOOL(keyboardZoom, adjustFont);
     pictureWindow.playback(str);
     textWindow.playback(str);
     helpWindow.playback(str);
 }
 
 void DebuggerState::record() {
-#if 01 && defined _WIN32
-   char full[_MAX_PATH];
-   if( _fullpath( full, ".\\", _MAX_PATH ) != NULL )
-      OpDebugOut( "Full path is: %s" + std::string(full) + "\n");
-   else
-      OpDebugOut( "Invalid path\n" );
-#endif
     std::string s;
     for (auto& id : ids) {
         if (id.selected)
@@ -176,19 +199,29 @@ void DebuggerState::record() {
     DEBUG_DUMP_REQUIRED_VALUE(depth, verboseLevel);
     DEBUG_DUMP_REQUIRED_VALUE(verboseLevel, maxUpdateAttempts);
     DEBUG_DUMP_REQUIRED_VALUE(maxUpdateAttempts, error);
-    DEBUG_DUMP_BOOL(error, drawContoursOn);
-    DEBUG_DUMP_BOOL(drawContoursOn, drawEdgesOn);
-    DEBUG_DUMP_BOOL(drawEdgesOn, drawEpsilonOn);
-    DEBUG_DUMP_BOOL(drawEpsilonOn, drawHexOn);
-    DEBUG_DUMP_BOOL(drawHexOn, drawIntersectionsOn);
-    DEBUG_DUMP_BOOL(drawIntersectionsOn, drawOutputOn);
-    DEBUG_DUMP_BOOL(drawOutputOn, drawSegmentsOn);
-    DEBUG_DUMP_BOOL(drawSegmentsOn, tuneThreshold);
-    DEBUG_DUMP_BOOL(tuneThreshold, drawHelp);
+    DEBUG_DUMP_BOOL(error, showContours);
+    DEBUG_DUMP_BOOL(showContours, showEdges);
+    DEBUG_DUMP_BOOL(showEdges, showEpsilon);
+    DEBUG_DUMP_BOOL(showEpsilon, showHex);
+    DEBUG_DUMP_BOOL(showHex, showIntersections);
+    DEBUG_DUMP_BOOL(showIntersections, showOutput);
+    DEBUG_DUMP_BOOL(showOutput, showSegments);
+    DEBUG_DUMP_BOOL(showSegments, tuneThreshold);
+    DEBUG_DUMP_BOOL(tuneThreshold, showHelp);
+    DEBUG_DUMP_BOOL(showHelp, keyboardZoom);
+    DEBUG_DUMP_BOOL(keyboardZoom, adjustFont);
     s += pictureWindow.record();
     s += textWindow.record();
     s += helpWindow.record();
-	FILE* file = fopen("DebuggerState.txt", "w");
+    std::string fileName = "DebuggerState.txt";
+	FILE* file = fopen(fileName.c_str(), "w");
+#if 01 && defined _WIN32  // !!! switch to std::filesystem::absolute(fileName)
+   char full[_MAX_PATH];
+   if( _fullpath( full, ".\\", _MAX_PATH ) != NULL && file)
+      OpDebugOut( "recording: " + std::string(full) + "/" + fileName + "\n");
+   else
+      OpDebugOut( "invalid path: " + std::string(full) + "/" + fileName + "\n");
+#endif
     fwrite(&s[0], 1, s.size(), file);
 	fclose(file);
 }
@@ -206,7 +239,7 @@ void DebuggerState::redraw() {
 void DebuggerState::setDepth(int ) {
     int maxDepth = 0;
 	for (auto& id : ids) {
-        if (IDType::edge != id.idType)
+        if (IDType::edge != id.type)
             continue;
         if (id.edge->debugDepth)
             maxDepth = std::max(maxDepth, id.edge->debugCC);
@@ -216,7 +249,7 @@ void DebuggerState::setDepth(int ) {
     if (depth == 0)  // draw all
         return;
 	for (auto& id : ids) {
-        if (IDType::edge != id.idType)
+        if (IDType::edge != id.type)
             continue;
 		id.drawn = id.edge->debugDepth < depth && id.edge->debugCC >= depth;
 	}

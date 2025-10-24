@@ -147,9 +147,9 @@ extern DebugLevel defaultLevel;
 void DebuggerPoly::dump() const {
     std::string s;
     s += "local:" + STR(local.size()) + " ";
-    if (IDType::edge == opType.idType)
+    if (IDType::edge == opType.type)
         s += "edge:";
-    if (IDType::segment == opType.idType)
+    if (IDType::segment == opType.type)
         s += "segment:";
     if (opType.id)
     s += STR(opType.id) + " ";

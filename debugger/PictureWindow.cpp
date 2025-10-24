@@ -11,7 +11,7 @@ PictureWindow::PictureWindow(DebuggerState* state)
         : DebuggerWindow(state) {
     if (SDL_APP_CONTINUE != (state->error = init("picture", { 100, 100 } )))
         OpDebugOut("Couldn't initialize picture window: " + std::string(SDL_GetError()) + "\n");
-    else if (SDL_APP_CONTINUE != (state->error = addFont(14)))
+    else if (SDL_APP_CONTINUE != (state->error = addFont(fontSize)))
         OpDebugOut("Couldn't add picture font: " + std::string(SDL_GetError()) + "\n");
 }
 
@@ -21,12 +21,12 @@ void PictureWindow::addDevice(std::vector<OpPoint>& pts, DebuggerPoly& poly) {
 }
 
 void PictureWindow::addEdgeHulls() {
-    if (!drawEdgeHullsOn)
+    if (!drawEdgeHulls)
         return;
 	for (auto& id : debuggerState->ids) {
         if (!id.drawn)
             continue;
-        if (IDType::edge != id.idType)
+        if (IDType::edge != id.type)
             continue;
         for (const auto& hull : id.edge->hulls.h) {
             if (SectType::endHull == hull.type)
@@ -36,18 +36,18 @@ void PictureWindow::addEdgeHulls() {
                     [device](auto& test) { return device == test.device; } ))
                 continue;
             points.push_back({ id, hull.sect.pt, device, 1, DebugSprite::triangle });
-            if (drawValuesOn)
+            if (drawValues)
                 addPointLabel(hull.sect.pt, id); 
         }
     }
 }
 
 void PictureWindow::addHulls() {
-    if (!drawHullsOn)
+    if (!drawHulls)
         return;
     std::vector<DebuggerPoly> toAdd;
     for (DebuggerPoly& poly : polys) {
-        if (IDType::edge != poly.opType.idType)
+        if (IDType::edge != poly.opType.type)
             continue;
         if (!poly.opType.edge || !poly.isPrimary)
             continue;
@@ -145,7 +145,7 @@ void PictureWindow::addFittedSide(std::string s, float yPos, float bottom, uint3
 }
 
 void PictureWindow::addGrid() {
-    if (!drawGridOn)
+    if (!drawGrid)
         return;
     auto unfixSign = [](int32_t i) {
 		return i < 0 ? -i | 0x80000000 : i;
@@ -195,7 +195,7 @@ void PictureWindow::addGrid() {
         if (fy != yes.front() && fy != yes.back())
     		addLine({ screen.left,  yToScreen(fy) }, { screen.right, yToScreen(fy) });
     }
-	if (!drawValuesOn)
+	if (!drawValues)
         return;
     for (size_t index = 0; index + 1 < xes.size(); ++index) {
         float fx = xes[index];
@@ -304,18 +304,18 @@ void PictureWindow::addLabel(std::string s, OpPoint local, uint32_t color) {
 void PictureWindow::addTangent(DebuggerPoly& poly) {
     OP_ASSERT(poly.contours.size());
     OP_ASSERT(0 < poly.contours[0] && poly.contours[0] <= poly.device.size());
-    OP_ASSERT((IDType::edge == poly.opType.idType 
-            || IDType::segment == poly.opType.idType) && poly.isPrimary);
+    OP_ASSERT((IDType::edge == poly.opType.type 
+            || IDType::segment == poly.opType.type) && poly.isPrimary);
     OpVector span = poly.device[poly.contours[0] - 1] - poly.device.front();
     if (span.length() < 15)
         return;
     OpCurve curve(poly.c, Rotated::no);
     OpVector tan = curve.tangent(.33f).normalize() * 15;
-    if (IDType::edge == poly.opType.idType && EdgeMatch::end == poly.opType.edge->which()) {
+    if (IDType::edge == poly.opType.type && EdgeMatch::end == poly.opType.edge->which()) {
         tan = -tan;
         poly.color = red;
     }
-    std::string curveStr = IDType::edge == poly.opType.idType ? "edge" : "segment"; 
+    std::string curveStr = IDType::edge == poly.opType.type ? "edge" : "segment"; 
     int id = poly.opType.id;
     if (!tan.isFinite() || tan == OpVector{ 0, 0 }) {
 		OpDebugOut(curveStr + " " + STR(id) + " overflow\n");
@@ -344,7 +344,7 @@ void PictureWindow::addTangent(DebuggerPoly& poly) {
 }
 
 void PictureWindow::addWinding(DebuggerPoly& poly) {
-    if (IDType::edge != poly.opType.idType || !poly.isPrimary)
+    if (IDType::edge != poly.opType.type || !poly.isPrimary)
         return;
     auto add = [poly, this](std::string s, float normSign) {
         size_t cacheIndex = addText(s, poly.color);
@@ -413,31 +413,15 @@ void PictureWindow::dump() {
 }
 #endif
 
-#if 0
-struct OpDebugBitmap {
-    char* bits = nullptr;
-    int width = 0;
-    int height = 0;
-    int rowBytes = 0;
-} bitmap;
-
-struct OpDebugFont {
-    float getSize() { return size; }
-    void setSize(float s) { size = s; }
-
-    std::string name = "Segoe UI";
-    float size = 14.f;
-} labelFont;
-#endif
-
-void PictureWindow::addLabels() {
+// does not add id for intersection, since it does not have polygon to draw
+void PictureWindow::addIDs() {
     for (auto& poly : polys) {
         if (!poly.isPrimary)
             continue;
-        if ((IDType::edge != poly.opType.idType || !debuggerState->drawEdgesOn)
-                && (IDType::segment != poly.opType.idType || !debuggerState->drawSegmentsOn))
+        if ((IDType::edge != poly.opType.type || !debuggerState->showEdges)
+                && (IDType::segment != poly.opType.type || !debuggerState->showSegments))
             continue;
-        if (!drawIDsOn)
+        if (!drawIDs)
             continue;
         OpCurve curve(poly.c, Rotated::no);
         OpPoint midTPt = curve.ptAtT(.5);
@@ -446,26 +430,35 @@ void PictureWindow::addLabels() {
     }
 }
 
+void PictureWindow::addIntersections() {
+	for (auto& id : debuggerState->ids) {
+        if (IDType::intersection != id.type)
+            continue;
+        addLabel(STR(id.intersection->id), id.intersection->ptT.pt, black); 
+        texts.back().opType = id;
+    }
+}
+
 void PictureWindow::addTangents() {
-    if (!drawTangentsOn)
+    if (!drawTangents)
         return;
     for (auto& poly : polys) {
         if (!poly.isPrimary)
             continue;
-        if ((IDType::edge != poly.opType.idType || !debuggerState->drawEdgesOn)
-                && (IDType::segment != poly.opType.idType || !debuggerState->drawSegmentsOn))
+        if ((IDType::edge != poly.opType.type || !debuggerState->showEdges)
+                && (IDType::segment != poly.opType.type || !debuggerState->showSegments))
             continue;
         addTangent(poly);
     }
 }
 
 void PictureWindow::addTs() {
-    if (!debuggerState->drawEdgesOn || !drawTsOn)
+    if (!debuggerState->showEdges || !drawTs)
         return;
     for (auto& poly : polys) {
         if (!poly.isPrimary)
             continue;
-        if (IDType::edge != poly.opType.idType)
+        if (IDType::edge != poly.opType.type)
             continue;
         const OpEdge* edge = poly.opType.edge;
         addLabel(STR(edge->startT), edge->startPt(), poly.color);
@@ -476,12 +469,12 @@ void PictureWindow::addTs() {
 }
 
 void PictureWindow::addWindings() {
-    if (!debuggerState->drawEdgesOn || !drawWindingsOn)
+    if (!debuggerState->showEdges || !drawWindings)
         return;
     for (auto& poly : polys) {
         if (!poly.isPrimary)
             continue;
-        if (IDType::edge != poly.opType.idType)
+        if (IDType::edge != poly.opType.type)
             continue;
         addWinding(poly);
     }
@@ -490,45 +483,50 @@ void PictureWindow::addWindings() {
 void PictureWindow::addPointLabel(OpPoint local, OpType& opType) {
     std::string s = "(" + debuggerState->floatToStr(local.x) + ", " 
             + debuggerState->floatToStr(local.y) + ")";
-    addLabel(s, local, IDType::edge == opType.idType ? edgeColor(*opType.edge) : black);
+    addLabel(s, local, IDType::edge == opType.type ? edgeColor(*opType.edge) : black);
     texts.back().opType = opType;
 }
 
 void PictureWindow::addPoints() {
-    if (!drawPointsOn)
+    if (!drawPoints)
         return;
-    auto add = [this](DebuggerPoly* poly, OpPoint local, DebugSprite sprite = DebugSprite::diamond) {
+    auto add = [this](OpType& opType, OpPoint local, DebugSprite sprite = DebugSprite::diamond) {
         if (!focus.contains(local))
             return;
         OpPoint device = toDevice(local);
         if (points.end() == std::find_if(points.begin(), points.end(),
                 [device](auto& test) { return device == test.device; } )) {
-            points.push_back({ poly->opType, local, device, 1, sprite });
-            if (drawValuesOn)
-                addPointLabel(local, poly->opType );
+            points.push_back({ opType, local, device, 1, sprite });
+            if (drawValues)
+                addPointLabel(local, opType );
         }
     };
     auto addControl = [add](DebuggerPoly* poly, const OpCurve& c) {
         for (int index = 1; index < c.pointCount() - 1; ++index) {
-            add(poly, c.hullPt(index));
+            add(poly->opType, c.hullPt(index));
         }
     };
     for (auto& poly : polys) {
-        if (IDType::edge == poly.opType.idType && poly.isPrimary && debuggerState->drawEdgesOn) {
-            add(&poly, poly.opType.edge->curve.c.data->start);
-            add(&poly, poly.opType.edge->curve.c.data->end);
-            if (drawControlsOn)
+        if (IDType::edge == poly.opType.type && poly.isPrimary && debuggerState->showEdges) {
+            add(poly.opType, poly.opType.edge->curve.c.data->start);
+            add(poly.opType, poly.opType.edge->curve.c.data->end);
+            if (drawControls)
                 addControl(&poly, poly.opType.edge->curve);
-            if (drawCentersOn)
-                add(&poly, poly.opType.edge->center.pt, DebugSprite::square);
+            if (drawCenters)
+                add(poly.opType, poly.opType.edge->center.pt, DebugSprite::square);
 
         }
-        if (IDType::segment == poly.opType.idType && poly.isPrimary && debuggerState->drawSegmentsOn) {
-            add(&poly, poly.opType.segment->c.c.data->start);
-            add(&poly, poly.opType.segment->c.c.data->end);
-            if (drawControlsOn)
+        if (IDType::segment == poly.opType.type && poly.isPrimary && debuggerState->showSegments) {
+            add(poly.opType, poly.opType.segment->c.c.data->start);
+            add(poly.opType, poly.opType.segment->c.c.data->end);
+            if (drawControls)
                 addControl(&poly, poly.opType.segment->c);
         }
+    }
+	for (auto& id : debuggerState->ids) {
+        if (IDType::intersection != id.type)
+            continue;
+        add(id, id.intersection->ptT.pt, DebugSprite::square);
     }
 }
 
@@ -570,7 +568,7 @@ void PictureWindow::resolvePoints() {
 
 void PictureWindow::colorPolys() {
     for (DebuggerPoly& poly : polys) {
-        if (IDType::contour == poly.opType.idType) {
+        if (IDType::contour == poly.opType.type) {
         #if 1
             poly.color = OpDebugAlphaColor(31, poly.opType.contour->debugColor);  // !!! convert this to context callout
         #else
@@ -578,11 +576,11 @@ void PictureWindow::colorPolys() {
         #endif
             continue;
         }
-        if (IDType::segment == poly.opType.idType) {
+        if (IDType::segment == poly.opType.type) {
             poly.color = poly.opType.segment->debugColor;  // !!! convert this to context callout
             continue;
         }
-        if (IDType::edge != poly.opType.idType) {
+        if (IDType::edge != poly.opType.type) {
             poly.color = debugBlack;
             continue;
         }
@@ -591,11 +589,11 @@ void PictureWindow::colorPolys() {
 }
 
 bool PictureWindow::drawOne(DebuggerPoly& poly) {
-    if (IDType::segment == poly.opType.idType && !debuggerState->drawSegmentsOn)
+    if (IDType::segment == poly.opType.type && !debuggerState->showSegments)
         return false;
-    if (IDType::edge == poly.opType.idType && !debuggerState->drawEdgesOn)
+    if (IDType::edge == poly.opType.type && !debuggerState->showEdges)
         return false;
-    if (IDType::contour == poly.opType.idType && !drawFillOn)
+    if (IDType::contour == poly.opType.type && !drawFill)
         return false;
     return true;
 }
@@ -654,22 +652,23 @@ void PictureWindow::update() {
         scale = wh.dx / localWH.dx;
     PathOpsV0Lib::DebugIsFill debugIsFill = context()->debugContextCallbacks.debugIsFillFuncPtr;
 	for (auto& id : debuggerState->ids) {
-        if (IDType::edge == id.idType && id.drawn)
+        if (IDType::edge == id.type && id.drawn)
             addPoly.add(id.edge);
-        if (IDType::contour == id.idType && debugIsFill && (*debugIsFill)(id.contour->winding()))
+        if (IDType::contour == id.type && debugIsFill && (*debugIsFill)(id.contour->winding()))
             addPoly.add(id.contour);
-       if (IDType::segment == id.idType)
+       if (IDType::segment == id.type)
             addPoly.add(id.segment);
     }
     colorPolys();
     setDevice();
     addHulls();
     addEdgeHulls();
+    addIDs();
+    addIntersections();
     addPoints();
     addTangents();
     addTs();
     resolvePoints();
-    addLabels();
     addWindings();
     addGrid();
 }
@@ -703,95 +702,91 @@ void PictureWindow::zoom(int factor) {
 DrawLevel PictureWindow::event(const DebuggerEvent& debuggerEvent) {    
     if (DrawLevel common = debuggerState->eventCommon(debuggerEvent); DrawLevel::none != common)
         return common;
-    if (debuggerEvent.wheel) {
-        int scale = DebuggerEvent::KeyModMultiplier(debuggerEvent.keyMods);
-        zoom(debuggerEvent.wheel * scale);
+    int scale = DebuggerEvent::KeyModMultiplier(debuggerEvent.keyMods);
+    auto doWheel = [scale, this](int delta) {
+        zoom(delta * scale);
         OpDebugOut("zoom:" + STR(zoomFactor)
-            + " wheel:" + STR(debuggerEvent.wheel)
+            + " wheel:" + STR(delta)
             + " scale:" + STR(scale) + "\n");
         return DrawLevel::update;
-    }
+    };
+    if (debuggerEvent.wheel)
+        return doWheel(debuggerEvent.wheel);
     if (MouseAction::drag == debuggerEvent.mouseAction) {
         move(debuggerEvent.mouse - debuggerEvent.mouseLast);
         return DrawLevel::update;
     }
     constexpr float pan_factor = 1.f / 8;
-    int scale = DebuggerEvent::KeyModMultiplier(debuggerEvent.keyMods);
     bool redraw = true;
     switch (debuggerEvent.key) {
         case (uint8_t) KeyCode::leftArrow:
             pan(OpVector(+pan_factor * scale, 0));
             break;
         case (uint8_t) KeyCode::upArrow:
-            if (keyboardZoom) {
-                zoom(+1 * scale);
-                return DrawLevel::update;
-            }
+            if (debuggerState->keyboardZoom)
+                return doWheel(+1);
             pan(OpVector(0, +pan_factor * scale));
             break;
         case (uint8_t) KeyCode::rightArrow:
             pan(OpVector(-pan_factor * scale, 0));
             break;
         case (uint8_t) KeyCode::downArrow:
-            if (keyboardZoom) {
-                zoom(-1 * scale);
-                return DrawLevel::update;
-            }
+            if (debuggerState->keyboardZoom)
+                return doWheel(-1);
             pan(OpVector(0, -pan_factor * scale));
             break;
         case 'c':
-            drawCentersOn ^= true;
+            drawCenters ^= true;
             break;
         // case 'C': // contours handled by event common
         // case 'D': case 'd':  // curve/curve depth handled by event common
         // case 'e': // edges handled by event common
         // case 'E': // show epsilon handled by event common
         case 'f':
-            drawFillOn ^= true;
+            drawFill ^= true;
             break;
         case 'g':
-            if (drawGridOn && !drawGridLinear)
+            if (drawGrid && !drawGridLinear)
                 drawGridLinear = true;
             else {
-                drawGridOn ^= true;
+                drawGrid ^= true;
                 drawGridLinear = false;
             }
             break;
         case 'h':
-            drawHullsOn ^= true;
+            drawHulls ^= true;
             break;
         case 'H':
-            drawEdgeHullsOn ^= true;
+            drawEdgeHulls ^= true;
             break;
         case 'i':
-            drawIDsOn ^= true;
+            drawIDs ^= true;
             break;
         // case 'I':  // intersections handled by event common
         case 'k':
-            drawControlsOn ^= true;
+            drawControls ^= true;
             break;
         // case 'o':   // output edges handled by event common
         case 'p':  // (independent of show only curve points)
-            drawPointsOn ^= true;
+            drawPoints ^= true;
             break;
         // case 'P': // playback handled by event common
         // case 'R': // record handled by event common
         // case 's': // segments handled by event common
         case 't':
-            drawTangentsOn ^= true;
+            drawTangents ^= true;
             break;
         case 'T':
-            drawTsOn ^= true;
+            drawTs ^= true;
             break;
         case 'v':
-            drawValuesOn ^= true;
+            drawValues ^= true;
             break;
         case 'w':
-            drawWindingsOn ^= true;
+            drawWindings ^= true;
             break;
         // case 'x': // hex handled by event common
-        case 'z':
-            keyboardZoom ^= true;
+        // case 'z': // keyboard zoom handled by event common
             break;
         default:
             redraw = false;
@@ -807,20 +802,19 @@ void PictureWindow::playback(const char*& str) {
     DEBUG_SET_FLOAT(scale, zoomFactor);
     DEBUG_SET_REQUIRED_VALUE(zoomFactor, zoomer);
     DEBUG_SET_REQUIRED_VALUE(zoomer, gridIntervals);
-    DEBUG_SET_BOOL(gridIntervals, drawCentersOn);
-    DEBUG_SET_BOOL(drawCentersOn, drawControlsOn);
-    DEBUG_SET_BOOL(drawControlsOn, drawEdgeHullsOn);
-    DEBUG_SET_BOOL(drawEdgeHullsOn, drawFillOn);
-    DEBUG_SET_BOOL(drawFillOn, drawGridOn);
-    DEBUG_SET_BOOL(drawGridOn, drawHullsOn);
-    DEBUG_SET_BOOL(drawHullsOn, drawIDsOn);
-    DEBUG_SET_BOOL(drawIDsOn, drawPointsOn);
-    DEBUG_SET_BOOL(drawPointsOn, drawTangentsOn);
-    DEBUG_SET_BOOL(drawTangentsOn, drawTsOn);
-    DEBUG_SET_BOOL(drawTsOn, drawValuesOn);
-    DEBUG_SET_BOOL(drawValuesOn, drawWindingsOn);
-    DEBUG_SET_BOOL(drawWindingsOn, drawGridLinear);
-    DEBUG_SET_BOOL(drawGridLinear, keyboardZoom);
+    DEBUG_SET_BOOL(gridIntervals, drawCenters);
+    DEBUG_SET_BOOL(drawCenters, drawControls);
+    DEBUG_SET_BOOL(drawControls, drawEdgeHulls);
+    DEBUG_SET_BOOL(drawEdgeHulls, drawFill);
+    DEBUG_SET_BOOL(drawFill, drawGrid);
+    DEBUG_SET_BOOL(drawGrid, drawHulls);
+    DEBUG_SET_BOOL(drawHulls, drawIDs);
+    DEBUG_SET_BOOL(drawIDs, drawPoints);
+    DEBUG_SET_BOOL(drawPoints, drawTangents);
+    DEBUG_SET_BOOL(drawTangents, drawTs);
+    DEBUG_SET_BOOL(drawTs, drawValues);
+    DEBUG_SET_BOOL(drawValues, drawWindings);
+    DEBUG_SET_BOOL(drawWindings, drawGridLinear);
 }
 
 std::string PictureWindow::record() {
@@ -833,19 +827,18 @@ std::string PictureWindow::record() {
     DEBUG_DUMP_FLOAT(scale, zoomFactor);
     DEBUG_DUMP_REQUIRED_VALUE(zoomFactor, zoomer);
     DEBUG_DUMP_REQUIRED_VALUE(zoomer, gridIntervals);
-    DEBUG_DUMP_BOOL(gridIntervals, drawCentersOn);
-    DEBUG_DUMP_BOOL(drawCentersOn, drawControlsOn);
-    DEBUG_DUMP_BOOL(drawControlsOn, drawEdgeHullsOn);
-    DEBUG_DUMP_BOOL(drawEdgeHullsOn, drawFillOn);
-    DEBUG_DUMP_BOOL(drawFillOn, drawGridOn);
-    DEBUG_DUMP_BOOL(drawGridOn, drawHullsOn);
-    DEBUG_DUMP_BOOL(drawHullsOn, drawIDsOn);
-    DEBUG_DUMP_BOOL(drawIDsOn, drawPointsOn);
-    DEBUG_DUMP_BOOL(drawPointsOn, drawTangentsOn);
-    DEBUG_DUMP_BOOL(drawTangentsOn, drawTsOn);
-    DEBUG_DUMP_BOOL(drawTsOn, drawValuesOn);
-    DEBUG_DUMP_BOOL(drawValuesOn, drawWindingsOn);
-    DEBUG_DUMP_BOOL(drawWindingsOn, drawGridLinear);
-    DEBUG_DUMP_BOOL(drawGridLinear, keyboardZoom);
+    DEBUG_DUMP_BOOL(gridIntervals, drawCenters);
+    DEBUG_DUMP_BOOL(drawCenters, drawControls);
+    DEBUG_DUMP_BOOL(drawControls, drawEdgeHulls);
+    DEBUG_DUMP_BOOL(drawEdgeHulls, drawFill);
+    DEBUG_DUMP_BOOL(drawFill, drawGrid);
+    DEBUG_DUMP_BOOL(drawGrid, drawHulls);
+    DEBUG_DUMP_BOOL(drawHulls, drawIDs);
+    DEBUG_DUMP_BOOL(drawIDs, drawPoints);
+    DEBUG_DUMP_BOOL(drawPoints, drawTangents);
+    DEBUG_DUMP_BOOL(drawTangents, drawTs);
+    DEBUG_DUMP_BOOL(drawTs, drawValues);
+    DEBUG_DUMP_BOOL(drawValues, drawWindings);
+    DEBUG_DUMP_BOOL(drawWindings, drawGridLinear);
     return s;
 }

@@ -44,6 +44,7 @@ struct NativeTextCache {
     std::string debugDump() const;
 #endif
     TTF_Font* font;
+    DebuggerWindow* window;
     std::string str;
     OpVector size;    // in device coordinates
     SDL_Texture* texture;
@@ -73,7 +74,7 @@ struct OpType {
         const OpLimb* limb;
     };
     int id = 0;
-    IDType idType = IDType::none;
+    IDType type = IDType::none;
     bool inCcStorage = false;
     bool selected = false;
     bool drawn = true;

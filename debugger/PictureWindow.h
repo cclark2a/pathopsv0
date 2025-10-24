@@ -8,8 +8,9 @@ struct PictureWindow : public DebuggerWindow {
     PictureWindow(DebuggerState* state);
     void addGrid();
     void addHulls();
+    void addIDs();
+    void addIntersections();
     void addLabel(std::string , OpPoint , uint32_t color);
-    void addLabels();
     void addPointLabel(OpPoint , OpType& );
     void addPoints();
     void addTangents();
@@ -48,20 +49,19 @@ struct PictureWindow : public DebuggerWindow {
     int zoomer = 0;
 //    int debugPrecision = 0;
     int gridIntervals = 8;
-    bool drawCentersOn = false;
-    bool drawControlsOn = false;
-    bool drawEdgeHullsOn = false;
-    bool drawFillOn = false;
-    bool drawGridOn = true;
-    bool drawHullsOn = false;
-    bool drawIDsOn = true;
-    bool drawPointsOn = true;
-    bool drawTangentsOn = false;
-    bool drawTsOn = false;
-    bool drawValuesOn = true;
-    bool drawWindingsOn = true;
+    bool drawCenters = false;
+    bool drawControls = false;
+    bool drawEdgeHulls = false;
+    bool drawFill = false;
+    bool drawGrid = true;
+    bool drawHulls = false;
+    bool drawIDs = true;
+    bool drawPoints = true;
+    bool drawTangents = false;
+    bool drawTs = false;
+    bool drawValues = true;
+    bool drawWindings = true;
     bool drawGridLinear = false;
-    bool keyboardZoom = false;
 };
 
 #endif

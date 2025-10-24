@@ -32,14 +32,14 @@ void DebuggerWindow::add(const OpCurve& curve, DebuggerAddPoly* polyAdder) {
     if (!polyAdder->continueCurve) {
         polys.emplace_back();
         polys.back().c = curve.c;
-        if (IDType::contour == polyAdder->opType.idType)
+        if (IDType::contour == polyAdder->opType.type)
             polys.back().color = polyAdder->opType.contour->debugColor;
     }
     DebuggerPoly& poly = polys.back();
     if (polyAdder) {
         poly.opType = polyAdder->opType;
         poly.isPrimary = true;
-        if (IDType::contour == poly.opType.idType)
+        if (IDType::contour == poly.opType.type)
             poly.thickness = DebuggerPoly::fill_thickness;
     }
     OpContextSaveThreshold save(context(), debuggerState->threshold);
@@ -221,6 +221,8 @@ void DebuggerWindow::playbackCommon(const char*& str) {
     }
     if (OpDebugOptional(str, "windowVisible"))
         SDL_ShowWindow(window);
+    OpDebugRequired(str, "fontSize");
+    fontSize = (int) OpDebugReadSizeT(str);
 }
 
 
@@ -241,6 +243,7 @@ std::string DebuggerWindow::recordCommon() {
     }
     if (0 == (SDL_GetWindowFlags(window) & SDL_WINDOW_HIDDEN))
         s += "windowVisible ";
+    s += "fontSize:" + STR(fontSize) + " ";
     return s;
 }
 
