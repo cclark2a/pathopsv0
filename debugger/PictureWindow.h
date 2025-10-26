@@ -4,6 +4,14 @@
 
 #include "DebuggerWindow.h"
 
+enum class DrawGrid {
+    none,
+    linear,
+    log
+};
+
+extern const std::vector<std::string> drawGridStrs;
+
 struct PictureWindow : public DebuggerWindow {
     PictureWindow(DebuggerState* state);
     void addGrid();
@@ -43,17 +51,17 @@ struct PictureWindow : public DebuggerWindow {
 #endif
 
     OpVector zoomOffset {0, 0};
-    double dummy;  // alignment of double following struct of floats is not portable
+    double dummy = 0; // alignment of double following struct of floats is not portable
     double scale = 0; // factor to go from local to device (zero is uninitialized)
     float zoomFactor = 1;
     int zoomer = 0;
 //    int debugPrecision = 0;
     int gridIntervals = 8;
+    DrawGrid drawGrid = DrawGrid::none;
     bool drawCenters = false;
     bool drawControls = false;
     bool drawEdgeHulls = false;
     bool drawFill = false;
-    bool drawGrid = true;
     bool drawHulls = false;
     bool drawIDs = true;
     bool drawPoints = true;
@@ -61,7 +69,6 @@ struct PictureWindow : public DebuggerWindow {
     bool drawTs = false;
     bool drawValues = true;
     bool drawWindings = true;
-    bool drawGridLinear = false;
 };
 
 #endif

@@ -216,6 +216,8 @@ void DebuggerState::record() {
     std::string fileName = "DebuggerState.txt";
 	FILE* file = fopen(fileName.c_str(), "w");
 #if 01 && defined _WIN32  // !!! switch to std::filesystem::absolute(fileName)
+ //   std::filesystem::path fullPath = std::filesystem::absolute(fileName);
+//    ... fullPath1.string() 
    char full[_MAX_PATH];
    if( _fullpath( full, ".\\", _MAX_PATH ) != NULL && file)
       OpDebugOut( "recording: " + std::string(full) + "/" + fileName + "\n");
@@ -302,6 +304,8 @@ void DebuggerState::setIDTypes() {
             ids.emplace_back(&limb);
         }
     }
+    std::sort(ids.begin(), ids.end(), [](const OpType& a, const OpType& b) {
+            return a.id < b.id; });
 }
 
 bool DebuggerState::update() {

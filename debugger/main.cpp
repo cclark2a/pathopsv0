@@ -208,90 +208,149 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
     static OpPoint downMouse;
     static OpPoint lastMouse;
     static bool dragging = false;
-    DebuggerState* debuggerState = (DebuggerState*) appstate;
-    unsigned int winID = event->window.windowID;
-    DebuggerEvent debuggerEvent(debuggerState, SDL_GetModState(), winID);
+    DebuggerState* state = (DebuggerState*) appstate;
     bool systemRedraw = false;
-    DebuggerWindow* eventWindow = debuggerState->pictureWindow.windowID == winID
-            ? (DebuggerWindow*) &debuggerState->pictureWindow : debuggerState->textWindow.windowID == winID
-            ? (DebuggerWindow*) &debuggerState->textWindow : debuggerState->helpWindow.windowID == winID
-            ? (DebuggerWindow*) &debuggerState->helpWindow : nullptr;
+    // if event type can accumulate safely (window resize, window move, mouse wheel, mouse move)
+    // defer until event queue is empty or another event type is seen
+    uint32_t accumulate = 0;
+    unsigned int winID = event->window.windowID;
+    DebuggerEvent debuggerEvent(state, SDL_GetModState(), winID);
+    DebuggerWindow* eventWindow = state->pictureWindow.windowID == winID
+            ? (DebuggerWindow*) &state->pictureWindow : state->textWindow.windowID == winID
+            ? (DebuggerWindow*) &state->textWindow : state->helpWindow.windowID == winID
+            ? (DebuggerWindow*) &state->helpWindow : nullptr;
     std::string windowName = eventWindow ? eventWindow->name : "(unnamed window)";
-    if (debuggerState->verboseLevel && event->type != SDL_EVENT_MOUSE_MOTION         // 0x400
-            && event->type != SDL_EVENT_WINDOW_SHOWN         // 0x202
-            && event->type != SDL_EVENT_WINDOW_EXPOSED       // 0x204
-            && event->type != SDL_EVENT_WINDOW_MOVED         // 0x205
-            && event->type != SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED // 0x207
-            && event->type != SDL_EVENT_WINDOW_MOUSE_ENTER   // 0x20c
-            && event->type != SDL_EVENT_WINDOW_MOUSE_LEAVE   // 0x20d
-            && event->type != SDL_EVENT_WINDOW_FOCUS_GAINED  // 0x20e
-            && event->type != SDL_EVENT_WINDOW_FOCUS_LOST    // 0x20f
-            && event->type != SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED // 0x214
-            && event->type != SDL_EVENT_KEY_DOWN // 0x300
-            && event->type != SDL_EVENT_KEY_UP // 0x301
-            && event->type != SDL_EVENT_CLIPBOARD_UPDATE     // 0x900
-            )
-            OpDebugOut("event:" + OpDebugIntToHex(event->type) + "\n");
-    switch (event->type) {
-        case SDL_EVENT_CLIPBOARD_UPDATE:
-            if (debuggerState->verboseLevel) OpDebugOut("clipboard update\n");
+    do {
+        if (state->verboseLevel && event->type != SDL_EVENT_MOUSE_MOTION         // 0x400
+                && event->type != SDL_EVENT_WINDOW_SHOWN         // 0x202
+                && event->type != SDL_EVENT_WINDOW_EXPOSED       // 0x204
+                && event->type != SDL_EVENT_WINDOW_MOVED         // 0x205
+                && event->type != SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED // 0x207
+                && event->type != SDL_EVENT_WINDOW_MOUSE_ENTER   // 0x20c
+                && event->type != SDL_EVENT_WINDOW_MOUSE_LEAVE   // 0x20d
+                && event->type != SDL_EVENT_WINDOW_FOCUS_GAINED  // 0x20e
+                && event->type != SDL_EVENT_WINDOW_FOCUS_LOST    // 0x20f
+                && event->type != SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED // 0x214
+                && event->type != SDL_EVENT_KEY_DOWN // 0x300
+                && event->type != SDL_EVENT_KEY_UP // 0x301
+                && event->type != SDL_EVENT_CLIPBOARD_UPDATE     // 0x900
+                )
+                OpDebugOut("event:" + OpDebugIntToHex(event->type) + "\n");
+        switch (event->type) {
+            case SDL_EVENT_CLIPBOARD_UPDATE:
+                if (state->verboseLevel) OpDebugOut("clipboard update\n");
+                break;
+            case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+                if (state->verboseLevel) OpDebugOut(windowName + " pixel size changed\n");
+                systemRedraw = true;
+                break;
+            case SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED:
+                if (state->verboseLevel) OpDebugOut(windowName + " display scale changed\n");
+                systemRedraw = true;
+                break;
+            case SDL_EVENT_WINDOW_SHOWN:
+                if (state->verboseLevel) OpDebugOut(windowName + " shown\n");
+                systemRedraw = true;
+                break;
+            case SDL_EVENT_WINDOW_RESIZED:
+                if (state->verboseLevel) OpDebugOut(windowName + " resized\n");
+                accumulate = event->type;
+                break;
+            case SDL_EVENT_WINDOW_EXPOSED:
+                if (state->verboseLevel) OpDebugOut(windowName + " exposed\n");
+                systemRedraw = true;
+                break;
+            case SDL_EVENT_WINDOW_MOVED:
+                if (state->verboseLevel) OpDebugOut(windowName + " moved\n");
+                break;
+            case SDL_EVENT_WINDOW_MOUSE_ENTER:
+                if (state->verboseLevel > 1) OpDebugOut(windowName + " mouse enter\n");
+                ;
+                break;
+            case SDL_EVENT_WINDOW_MOUSE_LEAVE:
+                if (state->verboseLevel > 1) OpDebugOut(windowName + " mouse leave\n");
+                ;
+                break;
+            case SDL_EVENT_WINDOW_FOCUS_LOST:
+                if (state->verboseLevel) OpDebugOut(windowName + " focus lost\n");
+                ;
+                break;
+            case SDL_EVENT_MOUSE_WHEEL: 
+                debuggerEvent.wheel += event->wheel.y;
+                break;
+            case SDL_EVENT_WINDOW_FOCUS_GAINED:
+                if (state->verboseLevel) OpDebugOut(windowName + " focus gained\n");
+                if (!state->context)
+                    break;
+                [[fallthrough]];
+            case SDL_EVENT_MOUSE_BUTTON_DOWN: {
+                debuggerEvent.mouseAction = MouseAction::click;
+                SDL_GetMouseState(&downMouse.x, &downMouse.y);
+                debuggerEvent.mouse = downMouse;
+                lastMouse = downMouse;
+                dragging = SDL_EVENT_MOUSE_BUTTON_DOWN == event->type;
+                break;
+            }
+            case SDL_EVENT_MOUSE_BUTTON_UP:
+                dragging = false;
+                break;
+            case SDL_EVENT_MOUSE_MOTION:
+                accumulate = event->type;
+                break;
+            case SDL_EVENT_KEY_DOWN: {
+                if (!debuggerEvent.focused)
+                    break;
+                switch (SDL_Keycode key = event->key.key) {
+                    case SDLK_LEFT:
+                        debuggerEvent.key = (uint8_t) KeyCode::leftArrow;
+                    break;
+                    case SDLK_UP:
+                        debuggerEvent.key = (uint8_t) KeyCode::upArrow;
+                    break;
+                    case SDLK_RIGHT:
+                        debuggerEvent.key = (uint8_t) KeyCode::rightArrow;
+                    break;
+                    case SDLK_DOWN:
+                        debuggerEvent.key = (uint8_t) KeyCode::downArrow;
+                    break;
+                    default:
+                        if (KeyMods::none == debuggerEvent.keyMods) {
+                            debuggerEvent.key = key;
+                            break;
+                        }
+                        if (KeyMods::shift == debuggerEvent.keyMods) {
+                            if ('a' <= key && key <= 'z') {
+                                debuggerEvent.key = (uint8_t) key - 0x20;
+                                break;
+                            }
+                            const char* shifted =   "~!@#$%^&*()_+" "{}|"  ":\"" "<>?";
+                            const char* unshifted = "`1234567890-=" "[]\\" ";'"  ",./";
+                            static_assert(sizeof(shifted) == sizeof(unshifted));
+                            for (int index = 0; index < strlen(unshifted); ++index) {
+                                if (unshifted[index] == key) {
+                                    debuggerEvent.key = shifted[index];
+                                    break;
+                                }
+                            }
+                        }
+                    break;
+                }
+            }
+        }
+        SDL_Event peek;
+        if (1 != SDL_PeepEvents(&peek, 1, SDL_PEEKEVENT, SDL_EVENT_FIRST, SDL_EVENT_LAST)
+                || peek.type != accumulate)
             break;
-        case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
-            if (debuggerState->verboseLevel) OpDebugOut(windowName + " pixel size changed\n");
-            systemRedraw = true;
-            break;
-        case SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED:
-            if (debuggerState->verboseLevel) OpDebugOut(windowName + " display scale changed\n");
-            systemRedraw = true;
-            break;
-        case SDL_EVENT_WINDOW_SHOWN:
-            if (debuggerState->verboseLevel) OpDebugOut(windowName + " shown\n");
-            systemRedraw = true;
-            break;
+    } while (true);
+    switch (accumulate) {
         case SDL_EVENT_WINDOW_RESIZED:
-            if (debuggerState->verboseLevel) OpDebugOut(windowName + " resized\n");
             eventWindow->setSize();
             systemRedraw = true;
-            break;
-        case SDL_EVENT_WINDOW_EXPOSED:
-            if (debuggerState->verboseLevel) OpDebugOut(windowName + " exposed\n");
-            systemRedraw = true;
-            break;
+        break;
         case SDL_EVENT_WINDOW_MOVED:
-            if (debuggerState->verboseLevel) OpDebugOut(windowName + " moved\n");
-            break;
-        case SDL_EVENT_WINDOW_MOUSE_ENTER:
-            if (debuggerState->verboseLevel > 1) OpDebugOut(windowName + " mouse enter\n");
-            ;
-            break;
-        case SDL_EVENT_WINDOW_MOUSE_LEAVE:
-            if (debuggerState->verboseLevel > 1) OpDebugOut(windowName + " mouse leave\n");
-            ;
-            break;
-        case SDL_EVENT_WINDOW_FOCUS_LOST:
-            if (debuggerState->verboseLevel) OpDebugOut(windowName + " focus lost\n");
-            ;
-            break;
-        case SDL_EVENT_MOUSE_WHEEL: 
-            debuggerEvent.wheel = event->wheel.y;
-            break;
-        case SDL_EVENT_WINDOW_FOCUS_GAINED:
-            if (debuggerState->verboseLevel) OpDebugOut(windowName + " focus gained\n");
-            if (!debuggerState->context)
-                break;
-            [[fallthrough]];
-        case SDL_EVENT_MOUSE_BUTTON_DOWN: {
-            debuggerEvent.mouseAction = MouseAction::click;
-            SDL_GetMouseState(&downMouse.x, &downMouse.y);
-            debuggerEvent.mouse = downMouse;
-            lastMouse = downMouse;
-            dragging = SDL_EVENT_MOUSE_BUTTON_DOWN == event->type;
-            break;
-        }
-        case SDL_EVENT_MOUSE_BUTTON_UP: {
-            dragging = false;
-            break;
-        }
+        break;
+        case SDL_EVENT_MOUSE_WHEEL:
+        break;
         case SDL_EVENT_MOUSE_MOTION: {
             if (!debuggerEvent.focused)
                 break;
@@ -307,53 +366,14 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
                 debuggerEvent.mouseAction = MouseAction::move;
             break;
         }
-        case SDL_EVENT_KEY_DOWN: {
-            if (!debuggerEvent.focused)
-                break;
-            switch (SDL_Keycode key = event->key.key) {
-                case SDLK_LEFT:
-                    debuggerEvent.key = (uint8_t) KeyCode::leftArrow;
-                break;
-                case SDLK_UP:
-                    debuggerEvent.key = (uint8_t) KeyCode::upArrow;
-                break;
-                case SDLK_RIGHT:
-                    debuggerEvent.key = (uint8_t) KeyCode::rightArrow;
-                break;
-                case SDLK_DOWN:
-                    debuggerEvent.key = (uint8_t) KeyCode::downArrow;
-                break;
-                default:
-                    if (KeyMods::none == debuggerEvent.keyMods) {
-                        debuggerEvent.key = key;
-                        break;
-                    }
-                    if (KeyMods::shift == debuggerEvent.keyMods) {
-                        if ('a' <= key && key <= 'z') {
-                            debuggerEvent.key = (uint8_t) key - 0x20;
-                            break;
-                        }
-                        const char* shifted =   "~!@#$%^&*()_+" "{}|"  ":\"" "<>?";
-                        const char* unshifted = "`1234567890-=" "[]\\" ";'"  ",./";
-                        static_assert(sizeof(shifted) == sizeof(unshifted));
-                        for (int index = 0; index < strlen(unshifted); ++index) {
-                            if (unshifted[index] == key) {
-                                debuggerEvent.key = shifted[index];
-                                break;
-                            }
-                        }
-                    }
-                break;
-            }
-        }
     }
     DrawLevel update = debuggerEvent.doEvent();
     if (DrawLevel::file == update)
-        debuggerState->update();
+        state->update();
     if (DrawLevel::update == update || systemRedraw)
-        debuggerState->redraw();
+        state->redraw();
     else if (DrawLevel::draw == update)
-        debuggerState->draw();
+        state->draw();
     if (event->type == SDL_EVENT_QUIT)
         return SDL_APP_SUCCESS;  /* end the program, reporting success to the OS. */
     return SDL_APP_CONTINUE;

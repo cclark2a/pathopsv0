@@ -5,7 +5,11 @@
 #include "OpCurveCurve.h"
 #include "OpSegment.h"
 
-bool drawGridLinear = false;
+const std::vector<std::string> drawGridStrs {
+    "show grid (linear)",
+    "show grid (log)",
+    "hide grid"
+};
 
 PictureWindow::PictureWindow(DebuggerState* state)
         : DebuggerWindow(state) {
@@ -145,7 +149,7 @@ void PictureWindow::addFittedSide(std::string s, float yPos, float bottom, uint3
 }
 
 void PictureWindow::addGrid() {
-    if (!drawGrid)
+    if (DrawGrid::none == drawGrid)
         return;
     auto unfixSign = [](int32_t i) {
 		return i < 0 ? -i | 0x80000000 : i;
@@ -157,7 +161,7 @@ void PictureWindow::addGrid() {
 	    int32_t lo = fixSign(OpDebugFloatToBits(fLo));
 	    int32_t hi = fixSign(OpDebugFloatToBits(fHi));
         std::vector<float> linears;
-        bool useLinear = drawGridLinear;
+        bool useLinear = DrawGrid::linear == drawGrid;
         // don't add line for first or last; don't add text for last x, first y
 		for (int index = 0; index <= gridIntervals; ++index) {
 		    int x = (int32_t) ((int64_t) lo * (gridIntervals - index) / gridIntervals 
@@ -746,12 +750,12 @@ DrawLevel PictureWindow::event(const DebuggerEvent& debuggerEvent) {
             drawFill ^= true;
             break;
         case 'g':
-            if (drawGrid && !drawGridLinear)
-                drawGridLinear = true;
-            else {
-                drawGrid ^= true;
-                drawGridLinear = false;
-            }
+            if (DrawGrid::none == drawGrid)
+                drawGrid = DrawGrid::log;
+            else if (DrawGrid::log == drawGrid)
+                drawGrid = DrawGrid::linear;
+            else
+                drawGrid = DrawGrid::none;
             break;
         case 'h':
             drawHulls ^= true;
@@ -802,20 +806,23 @@ void PictureWindow::playback(const char*& str) {
     DEBUG_SET_FLOAT(scale, zoomFactor);
     DEBUG_SET_REQUIRED_VALUE(zoomFactor, zoomer);
     DEBUG_SET_REQUIRED_VALUE(zoomer, gridIntervals);
-    DEBUG_SET_BOOL(gridIntervals, drawCenters);
+    DEBUG_SET_REQUIRED_VALUE(gridIntervals, drawGrid);
+    DEBUG_SET_BOOL(drawGrid, drawCenters);
     DEBUG_SET_BOOL(drawCenters, drawControls);
     DEBUG_SET_BOOL(drawControls, drawEdgeHulls);
     DEBUG_SET_BOOL(drawEdgeHulls, drawFill);
-    DEBUG_SET_BOOL(drawFill, drawGrid);
-    DEBUG_SET_BOOL(drawGrid, drawHulls);
+    DEBUG_SET_BOOL(drawFill, drawHulls);
     DEBUG_SET_BOOL(drawHulls, drawIDs);
     DEBUG_SET_BOOL(drawIDs, drawPoints);
     DEBUG_SET_BOOL(drawPoints, drawTangents);
     DEBUG_SET_BOOL(drawTangents, drawTs);
     DEBUG_SET_BOOL(drawTs, drawValues);
     DEBUG_SET_BOOL(drawValues, drawWindings);
-    DEBUG_SET_BOOL(drawWindings, drawGridLinear);
 }
+
+#define DEBUG_DUMP_ENUM_VALUE(lastField, thisValue) \
+    ASSERT_ORDERED(lastField, thisValue); \
+    s += #thisValue ":" + STR((int) thisValue) + " "
 
 std::string PictureWindow::record() {
     std::string s;
@@ -827,18 +834,17 @@ std::string PictureWindow::record() {
     DEBUG_DUMP_FLOAT(scale, zoomFactor);
     DEBUG_DUMP_REQUIRED_VALUE(zoomFactor, zoomer);
     DEBUG_DUMP_REQUIRED_VALUE(zoomer, gridIntervals);
-    DEBUG_DUMP_BOOL(gridIntervals, drawCenters);
+    DEBUG_DUMP_ENUM_VALUE(gridIntervals, drawGrid);
+    DEBUG_DUMP_BOOL(drawGrid, drawCenters);
     DEBUG_DUMP_BOOL(drawCenters, drawControls);
     DEBUG_DUMP_BOOL(drawControls, drawEdgeHulls);
     DEBUG_DUMP_BOOL(drawEdgeHulls, drawFill);
-    DEBUG_DUMP_BOOL(drawFill, drawGrid);
-    DEBUG_DUMP_BOOL(drawGrid, drawHulls);
+    DEBUG_DUMP_BOOL(drawFill, drawHulls);
     DEBUG_DUMP_BOOL(drawHulls, drawIDs);
     DEBUG_DUMP_BOOL(drawIDs, drawPoints);
     DEBUG_DUMP_BOOL(drawPoints, drawTangents);
     DEBUG_DUMP_BOOL(drawTangents, drawTs);
     DEBUG_DUMP_BOOL(drawTs, drawValues);
     DEBUG_DUMP_BOOL(drawValues, drawWindings);
-    DEBUG_DUMP_BOOL(drawWindings, drawGridLinear);
     return s;
 }

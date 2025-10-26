@@ -226,7 +226,7 @@ void TextWindow::innerUpdate(int& safetyCheck) {
             segment = nullptr;
         if (showFull && segment)
             s = segment->debugDumpFull();
-        if (s.empty() && debuggerState->showSegments)
+        if (s.empty() && segment && debuggerState->showSegments)
             s = segment->debugDump(DebugLevel::normal, defaultBase);
         if (s.empty() && showPoints) {
             if (IDType::segment == id.type)
