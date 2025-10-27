@@ -32,11 +32,12 @@ struct PictureWindow : public DebuggerWindow {
     void addWinding(DebuggerPoly& );
     void clear();
     void colorPolys();
+    DrawLevel doWheel(const DebuggerEvent& , int delta) override;
     bool drawOne(DebuggerPoly& ) override;
     uint32_t edgeColor(const OpEdge& );
     DrawLevel event(const DebuggerEvent& ) override;
     void move(OpVector v);  // v is in screen coordinates
-    void pan(OpVector v);  // v is percentage of screen
+    DrawLevel pan(OpVector v);  // v is percentage of screen
     void playback(const char*& str ) override;
     std::string record() override;
     void resolvePoints();
@@ -49,13 +50,13 @@ struct PictureWindow : public DebuggerWindow {
 #if OP_DEBUG_DUMP
     void dump();
 #endif
-
+    float dummyForAlignment;
     OpVector zoomOffset {0, 0};
-    double dummy = 0; // alignment of double following struct of floats is not portable
     double scale = 0; // factor to go from local to device (zero is uninitialized)
+    float thresholdMultiplier = 1;
     float zoomFactor = 1;
+    int thresholdWheel = 0;
     int zoomer = 0;
-//    int debugPrecision = 0;
     int gridIntervals = 8;
     DrawGrid drawGrid = DrawGrid::none;
     bool drawCenters = false;

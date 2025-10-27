@@ -14,8 +14,21 @@ struct NativeTextCache;
 struct SDL_Window;
 struct SDL_Renderer;
 
+enum class WheelTarget {
+    none,
+    zoomAndKeyPan,  // picture only
+    zoomAndKeyZoom, // picture only
+    threshold,      // picture only
+    font,           // picture and text
+    scroll         // text only
+    // !!! add grid lines?
+    // !!! add detail font for text window?
+};
+
+extern const std::array<std::string, 6> WheelTargetVerbage;
+
 struct DebuggerWindow {
-    DebuggerWindow(DebuggerState* state);
+    DebuggerWindow(DebuggerState* state, WheelTarget);
     void add(const OpCurve& , DebuggerAddPoly* );
     DebuggerPoly& add(const OpRect& , uint32_t color, float thickness);
     void add(OpPoint , OpPoint , DebuggerAddPoly* );
@@ -31,6 +44,7 @@ struct DebuggerWindow {
     void clearWindow();
     OpContext* context();
     void deleteTextCache();
+    virtual DrawLevel doWheel(const DebuggerEvent& , int delta) { return DrawLevel::none; }
     SDL_AppResult draw();
     virtual bool drawOne(DebuggerPoly& ) { return true; }
     void drawText();
@@ -64,10 +78,12 @@ struct DebuggerWindow {
     TTF_Font* font = nullptr;
     int* buffer = nullptr;
     std::string name;
+    OpVector threshold;
     float pixelScale = 1;  // if this is non-square, much work will need to be done...
     float topClip = 0;  // if non-zero, clip text above this vertical offset
     int fontSize = 14;
-    int windowID;
+    int windowID = 0;
+    WheelTarget wheelTarget; 
 };
 
 #endif

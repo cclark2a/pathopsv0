@@ -81,7 +81,7 @@ void DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
         if (last->sect.t < sect.sect.t) {
             OpCurve piece = curve.debugSubDivide(last->sect.t, sect.sect.t);
             OpPointBounds pieceBounds = piece.ptBounds();
-            bool overlaps = pieceBounds.intersectsThreshold(window->focus, -debuggerState->threshold);
+            bool overlaps = pieceBounds.intersectsThreshold(window->focus, -window->threshold);
             if (!overlaps) {
                 if (addingFill && last->sect.pt != sect.sect.pt)
                     window->add(last->sect.pt, sect.sect.pt, this);

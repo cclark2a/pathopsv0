@@ -4,8 +4,18 @@
 #include "DebuggerState.h"
 #include <SDL3/SDL_error.h>
 
-DebuggerWindow::DebuggerWindow(DebuggerState* state) 
-    : debuggerState(state) {
+const std::array<std::string, 6> WheelTargetVerbage {
+    "none",
+    "pan",
+    "zoom",
+    "tune threshold",
+    "scale font",
+    "scroll text"
+};
+
+DebuggerWindow::DebuggerWindow(DebuggerState* state, WheelTarget target) 
+    : debuggerState(state)
+    , wheelTarget(target) {
     addPoly.debuggerState = state;
     addPoly.window = this;
 }
@@ -42,7 +52,7 @@ void DebuggerWindow::add(const OpCurve& curve, DebuggerAddPoly* polyAdder) {
         if (IDType::contour == poly.opType.type)
             poly.thickness = DebuggerPoly::fill_thickness;
     }
-    OpContextSaveThreshold save(context(), debuggerState->threshold);
+    OpContextSaveThreshold save(context(), threshold);
     // curve is fully inside focus; split it into lines
     // lengthen curve while longer is linear
     float start = 0;

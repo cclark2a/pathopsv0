@@ -597,6 +597,8 @@ WindingCondition OpContext::pathOps() {
             if (!errorHandler.errorDispatchFuncPtr(PathOpsV0Lib::ContextError::missing, &dummy))
 		        addDisjointIntersections();
 	    }
+	    sortIntersections();
+		tripleSect(); // if three or more segments intersect, make the points the same 
 	    disableSmallSegments();  // moved points may allow disabling some segments
 	    if (checkEmpty())
 		    return 0;  // no existing tests exercises

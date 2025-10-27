@@ -9,7 +9,9 @@ typedef DrawLevel (*EventAction)(const DebuggerEvent* , struct TextWindow* , OpT
 struct TextWindow : public DebuggerWindow {
     TextWindow(DebuggerState* state);
     DebuggerPoly& addIdBox(const OpRect& , std::string , uint32_t color);
+    int canScroll() const;
     DrawLevel doType(EventAction , const DebuggerEvent* );
+    DrawLevel doWheel(const DebuggerEvent& , int delta) override;
     DrawLevel event(const DebuggerEvent& ) override;
     void playback(const char*& str ) override;
     std::string record() override;

@@ -14,7 +14,7 @@
 #endif 
 
 TextWindow::TextWindow(DebuggerState* state)
-        : DebuggerWindow(state) {
+        : DebuggerWindow(state, WheelTarget::scroll) {
     if (SDL_APP_CONTINUE != (state->error = init("text", { -100, -100 })))
         OpDebugOut("Couldn't initialize text window: " + std::string(SDL_GetError()) + "\n");
     else if (SDL_APP_CONTINUE != (state->error = addFont(fontSize)))
@@ -101,81 +101,23 @@ static DrawLevel SelectType(const DebuggerEvent* event, TextWindow* , OpType& op
     return DrawLevel::update;
 }
 
+DrawLevel TextWindow::doWheel(const DebuggerEvent& debuggerEvent, int delta) {
+    int scale = DebuggerEvent::KeyModMultiplier(debuggerEvent.keyMods);
+    return scroll(delta * scale);
+}
+
 DrawLevel TextWindow::event(const DebuggerEvent& debuggerEvent) {    
     if (DrawLevel common = debuggerState->eventCommon(debuggerEvent); DrawLevel::none != common)
         return common;
-    int scale = DebuggerEvent::KeyModMultiplier(debuggerEvent.keyMods);
-    auto doWheel = [scale, this](int delta) {
-        return scroll(delta * scale);
-    };
     if (debuggerEvent.wheel)
-        return doWheel(debuggerEvent.wheel);
+        return doWheel(debuggerEvent, debuggerEvent.wheel);
     if (MouseAction::drag == debuggerEvent.mouseAction)
         return doType(&DragType, &debuggerEvent);
     if (MouseAction::move == debuggerEvent.mouseAction)
         return doType(&HoverType, &debuggerEvent);
     if (MouseAction::click == debuggerEvent.mouseAction)
         return doType(&SelectType, &debuggerEvent);
-    if (!debuggerEvent.key)
-        return DrawLevel::none;
-    bool redraw = true;
-    switch (debuggerEvent.key) {
-        case (uint8_t) KeyCode::upArrow:
-            if (debuggerState->keyboardZoom)
-                return doWheel(+1);
-            redraw = false;
-            break;
-        case (uint8_t) KeyCode::downArrow:
-            if (debuggerState->keyboardZoom)
-                return doWheel(-1);
-            redraw = false;
-            break;
-        case 'a':
-            showAll ^= true;
-            break;
-        case 'A': 
-            showAliases ^= true;
-            break;
-        case 'c':
-            showCurveCurve ^= true;
-            break;
-        // case 'C': // contours handled by event common
-        // case 'D': case 'd':  // curve/curve depth handled by event common
-        // case 'e': // edges handled by event common
-        // case 'E': // show epsilon handled by event common
-        case 'f':  // show full relationship of edge to segment and intersections
-            showFull ^= true;
-            break;
-        case 'h':
-            showEdgeHulls ^= true;
-            break;
-        // case 'I':  // intersections handled by event common
-        case 'j':
-            showJoin ^= true;
-            break;
-        case 'l':
-            showLinks ^= true;
-            break;
-        // case 'o':   // output edges handled by event common
-        case 'p':  // show curve points (independent of draw points)
-            showPoints ^= true;
-            break;
-        // case 'P': // playback handled by event common
-        case 'r':   // show (edge) rays
-            showRays ^= true;
-            break;
-        // case 'R': // record handled by event common
-        // case 's': // segments handled by event common
-        case 't':
-            showTree ^= true;
-            break;
-        // case 'x': // hex handled by event common
-        // case 'z': // keyboard zoom handled by event common
-        default:
-            redraw = false;
-            break;
-    }
-    return redraw ? DrawLevel::update : DrawLevel::none;
+    return DrawLevel::none;
 }
 
 extern DebugBase defaultBase;
@@ -212,6 +154,9 @@ void TextWindow::innerUpdate(int& safetyCheck) {
         if (!id.selected && !showAll)
             continue;
         defaultBase = debuggerState->showHex ? DebugBase::hex : DebugBase::dec;
+        bool shownEdge = false;
+        bool shownIntersection = false;
+        bool shownSegment = false;
         std::string s;
         const OpSegment* segment = nullptr;
         if (IDType::segment == id.type)
@@ -224,27 +169,36 @@ void TextWindow::innerUpdate(int& safetyCheck) {
             shown.push_back(segment);  // only show segment once, when edges/intersections selected
         else
             segment = nullptr;
-        if (showFull && segment)
+        if (showFull && segment) {
             s = segment->debugDumpFull();
-        if (s.empty() && segment && debuggerState->showSegments)
+            shownSegment = true;
+        }
+        if (!shownSegment && segment && debuggerState->showSegments) {
             s = segment->debugDump(DebugLevel::normal, defaultBase);
-        if (s.empty() && showPoints) {
-            if (IDType::segment == id.type)
+            shownSegment = true;
+        }
+        if (showPoints) {
+            if (!shownSegment && IDType::segment == id.type) {
                 s = id.segment->debugDump(DebugLevel::brief, defaultBase);
-            else if (IDType::edge == id.type) {
+                shownSegment = true;
+            } 
+            if (IDType::edge == id.type) {
                 std::vector<EdgeFilter> showFields = { EF::id, EF::startT, EF::endT, EF::curve, 
                     EF::iStart, EF::iEnd, EF::winding, EF::sum, EF::whichEnd_impl };
                 OpSaveEF saveEF(showFields);
                 s = id.edge->debugDump(DebugLevel::normal, defaultBase);
-            } else if (IDType::intersection == id.type) {
+                shownEdge = true;
+            } 
+            if (IDType::intersection == id.type) {
                 s = id.intersection->debugDump(DebugLevel::normal, defaultBase);
+                shownIntersection = true;
             }
         } 
-        if (s.empty() && IDType::intersection == id.type)
-            s = id.intersection->debugDump(DebugLevel::normal, defaultBase);
-        if (s.empty() && IDType::segment == id.type)
+        if (!shownSegment && IDType::segment == id.type)
             s = id.segment->debugDump(DebugLevel::normal, defaultBase);
-        if (s.empty() && IDType::edge == id.type)
+        if (!shownIntersection && IDType::intersection == id.type)
+            s = id.intersection->debugDump(DebugLevel::normal, defaultBase);
+        if (!shownEdge && IDType::edge == id.type)
             s = id.edge->debugDump(DebugLevel::normal, defaultBase);
         if (s.empty())
             continue;
@@ -311,11 +265,15 @@ std::string TextWindow::record() {
     return s;
 }
 
+int TextWindow::canScroll() const {
+    int detailArea = (int) screen.height() - topClip;
+    return std::max(0, detailHeight - detailArea);
+}
+
 DrawLevel TextWindow::scroll(int wheel) {
     int lastPos = scrollPos;
     scrollPos += wheel * lineHeight;
-    int detailArea = (int) screen.height() - topClip;
-    int scrollable = std::max(0, detailHeight - detailArea);
+    int scrollable = canScroll();
     scrollPos = std::max(0, std::min(scrollable, scrollPos));
     if (!wheel || lastPos == scrollPos)
         return DrawLevel::none;

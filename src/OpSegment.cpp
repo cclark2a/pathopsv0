@@ -1115,3 +1115,7 @@ giveUp:
 		;
 	}
 }
+
+void OpSegment::tripleSect() {
+	sects.tripleSect();
+}

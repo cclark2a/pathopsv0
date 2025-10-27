@@ -160,6 +160,7 @@ struct OpIntersections {
 	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp, OpPtT* nearby) const;
 	void coinRange(OpEdge& , OpSegment* opp, bool reversed);
 	OpIntersection* contains(const OpPtT& ptT, const OpSegment* opp);  // nearby ptT
+	OpIntersection* containsClose(OpPoint pt, OpVector threshold, const OpSegment* opp);
 //	OpIntersection* const * entry(const OpPtT& , const OpSegment* opp) const;  // exact opp + ptT
 	std::vector<int> findPals(float t) const;
 	void makeEdges(OpSegment* );
@@ -173,6 +174,7 @@ struct OpIntersections {
 	bool simpleEnd() const;  // true if array has only one entry with t equal to one
 	bool simpleStart() const;  // true if array has only one entry with t equal to zero
 	void sort();  // 
+	void tripleSect();  // check for three or more points
 // return intersections that delineate unsectable runs that contain this edge
 	std::vector<OpIntersection*> unsectables(OpPoint );
 	static bool UnsectablesOverlap(std::vector<OpIntersection*> set1,

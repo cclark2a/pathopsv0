@@ -12,7 +12,7 @@ const std::vector<std::string> drawGridStrs {
 };
 
 PictureWindow::PictureWindow(DebuggerState* state)
-        : DebuggerWindow(state) {
+        : DebuggerWindow(state, WheelTarget::zoomAndKeyPan) {
     if (SDL_APP_CONTINUE != (state->error = init("picture", { 100, 100 } )))
         OpDebugOut("Couldn't initialize picture window: " + std::string(SDL_GetError()) + "\n");
     else if (SDL_APP_CONTINUE != (state->error = addFont(fontSize)))
@@ -650,8 +650,8 @@ void PictureWindow::update() {
     OpVector localWH { focus.width(), focus.height() };
     OpVector wh = screen.widthHeight();
     constexpr float subpixels = 4;
-    debuggerState->threshold = localWH / (wh * subpixels);
-    debuggerState->threshold *= debuggerState->thresholdMultiplier;
+    threshold = localWH / (wh * subpixels);
+    threshold *= thresholdMultiplier;
     if (!scale)
         scale = wh.dx / localWH.dx;
     PathOpsV0Lib::DebugIsFill debugIsFill = context()->debugContextCallbacks.debugIsFillFuncPtr;
@@ -682,9 +682,9 @@ void PictureWindow::move(OpVector v) {
     draw();
 }
 
-void PictureWindow::pan(OpVector v) { 
+DrawLevel PictureWindow::pan(OpVector v) { 
     zoomOffset += v * 1000 / scale;
-    draw();
+    return DrawLevel::update;
 }
 
 void PictureWindow::setDevice() {
@@ -703,108 +703,40 @@ void PictureWindow::zoom(int factor) {
     draw();
 }
 
+DrawLevel PictureWindow::doWheel(const DebuggerEvent& debuggerEvent, int delta) {
+    int scale = DebuggerEvent::KeyModMultiplier(debuggerEvent.keyMods);
+    if (WheelTarget::threshold == wheelTarget) {
+        thresholdWheel -= debuggerEvent.wheel * scale;
+        thresholdMultiplier = powf(2, thresholdWheel / 32.f);
+    } else {
+        zoom(delta * scale);
+        OpDebugOut("zoom:" + STR(zoomFactor)
+                + " wheel:" + STR(delta)
+                + " scale:" + STR(scale) + "\n");
+    }
+    return DrawLevel::update;
+}
+
 DrawLevel PictureWindow::event(const DebuggerEvent& debuggerEvent) {    
     if (DrawLevel common = debuggerState->eventCommon(debuggerEvent); DrawLevel::none != common)
         return common;
-    int scale = DebuggerEvent::KeyModMultiplier(debuggerEvent.keyMods);
-    auto doWheel = [scale, this](int delta) {
-        zoom(delta * scale);
-        OpDebugOut("zoom:" + STR(zoomFactor)
-            + " wheel:" + STR(delta)
-            + " scale:" + STR(scale) + "\n");
-        return DrawLevel::update;
-    };
     if (debuggerEvent.wheel)
-        return doWheel(debuggerEvent.wheel);
+        return doWheel(debuggerEvent, debuggerEvent.wheel);
     if (MouseAction::drag == debuggerEvent.mouseAction) {
         move(debuggerEvent.mouse - debuggerEvent.mouseLast);
         return DrawLevel::update;
     }
-    constexpr float pan_factor = 1.f / 8;
-    bool redraw = true;
-    switch (debuggerEvent.key) {
-        case (uint8_t) KeyCode::leftArrow:
-            pan(OpVector(+pan_factor * scale, 0));
-            break;
-        case (uint8_t) KeyCode::upArrow:
-            if (debuggerState->keyboardZoom)
-                return doWheel(+1);
-            pan(OpVector(0, +pan_factor * scale));
-            break;
-        case (uint8_t) KeyCode::rightArrow:
-            pan(OpVector(-pan_factor * scale, 0));
-            break;
-        case (uint8_t) KeyCode::downArrow:
-            if (debuggerState->keyboardZoom)
-                return doWheel(-1);
-            pan(OpVector(0, -pan_factor * scale));
-            break;
-        case 'c':
-            drawCenters ^= true;
-            break;
-        // case 'C': // contours handled by event common
-        // case 'D': case 'd':  // curve/curve depth handled by event common
-        // case 'e': // edges handled by event common
-        // case 'E': // show epsilon handled by event common
-        case 'f':
-            drawFill ^= true;
-            break;
-        case 'g':
-            if (DrawGrid::none == drawGrid)
-                drawGrid = DrawGrid::log;
-            else if (DrawGrid::log == drawGrid)
-                drawGrid = DrawGrid::linear;
-            else
-                drawGrid = DrawGrid::none;
-            break;
-        case 'h':
-            drawHulls ^= true;
-            break;
-        case 'H':
-            drawEdgeHulls ^= true;
-            break;
-        case 'i':
-            drawIDs ^= true;
-            break;
-        // case 'I':  // intersections handled by event common
-        case 'k':
-            drawControls ^= true;
-            break;
-        // case 'o':   // output edges handled by event common
-        case 'p':  // (independent of show only curve points)
-            drawPoints ^= true;
-            break;
-        // case 'P': // playback handled by event common
-        // case 'R': // record handled by event common
-        // case 's': // segments handled by event common
-        case 't':
-            drawTangents ^= true;
-            break;
-        case 'T':
-            drawTs ^= true;
-            break;
-        case 'v':
-            drawValues ^= true;
-            break;
-        case 'w':
-            drawWindings ^= true;
-            break;
-        // case 'x': // hex handled by event common
-        // case 'z': // keyboard zoom handled by event common
-            break;
-        default:
-            redraw = false;
-            break;
-    }
-    return redraw ? DrawLevel::update : DrawLevel::none;
+    return DrawLevel::none;
 }
 
 void PictureWindow::playback(const char*& str) {
     playbackCommon(str);
     DEBUG_SET_COMMON_STRUCT(zoomOffset);
-    DEBUG_SET_FLOAT(dummy, scale); // factor to go from local to device (zero is uninitialized)
-    DEBUG_SET_FLOAT(scale, zoomFactor);
-    DEBUG_SET_REQUIRED_VALUE(zoomFactor, zoomer);
+    DEBUG_SET_FLOAT(zoomOffset, scale); // factor to go from local to device (zero is uninitialized)
+    DEBUG_SET_FLOAT(scale, thresholdMultiplier);
+    DEBUG_SET_FLOAT(thresholdMultiplier, zoomFactor);
+    DEBUG_SET_REQUIRED_VALUE(zoomFactor, thresholdWheel);
+    DEBUG_SET_REQUIRED_VALUE(thresholdWheel, zoomer);
     DEBUG_SET_REQUIRED_VALUE(zoomer, gridIntervals);
     DEBUG_SET_REQUIRED_VALUE(gridIntervals, drawGrid);
     DEBUG_SET_BOOL(drawGrid, drawCenters);
@@ -830,9 +762,11 @@ std::string PictureWindow::record() {
     DebugBase b = DebugBase::hex;
     s += recordCommon();
     DEBUG_DUMP_COMMON_STRUCT(zoomOffset);
-    DEBUG_DUMP_FLOAT(dummy, scale); // factor to go from local to device (zero is uninitialized)
-    DEBUG_DUMP_FLOAT(scale, zoomFactor);
-    DEBUG_DUMP_REQUIRED_VALUE(zoomFactor, zoomer);
+    DEBUG_DUMP_FLOAT(zoomOffset, scale); // factor to go from local to device (zero is uninitialized)
+    DEBUG_DUMP_FLOAT(scale, thresholdMultiplier);
+    DEBUG_DUMP_FLOAT(thresholdMultiplier, zoomFactor);
+    DEBUG_DUMP_REQUIRED_VALUE(zoomFactor, thresholdWheel);
+    DEBUG_DUMP_REQUIRED_VALUE(thresholdWheel, zoomer);
     DEBUG_DUMP_REQUIRED_VALUE(zoomer, gridIntervals);
     DEBUG_DUMP_ENUM_VALUE(gridIntervals, drawGrid);
     DEBUG_DUMP_BOOL(drawGrid, drawCenters);

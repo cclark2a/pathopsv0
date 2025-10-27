@@ -55,6 +55,24 @@ OpIntersection* OpIntersections::contains(const OpPtT& ptT, const OpSegment* opp
 	return nullptr;
 }
 
+// returns point on matching segment within threshold, if any
+OpIntersection* OpIntersections::containsClose(OpPoint pt, OpVector threshold, 
+		const OpSegment* opp) {
+	OpIntersection* nearby = nullptr;
+	for (unsigned index = 0; index < i.size(); ++index) {
+		OpIntersection* sect = i[index];
+		if (!sect->opp || sect->opp->segment != opp)
+			continue;
+		if (pt.isNearly(sect->ptT.pt, threshold)) {
+			if (pt == sect->ptT.pt)
+				return sect;
+			OP_ASSERT(!nearby);  // !!! more code to write: two points are close (choose closer?)
+			nearby = sect;
+		}
+	}
+	return nearby;
+}
+
 OpIntersection* OpIntersections::coinContains(OpPoint pt, const OpSegment* opp, OpPtT* nearby) const {
 	OpIntersection* match = coinContains(pt, opp);
 	if (match)
@@ -716,6 +734,48 @@ void OpIntersections::sort() {
 	} while (++index < i.size());
 	if (rangeStart + 2 <= index)
 		processEnd(index);
+}
+
+// look for cases where seg A intersects seg B at X, and seg A intersects seg C at X
+//   but seg B does not intersect seg C at X
+void OpIntersections::tripleSect() {
+	OP_ASSERT(!unsorted);
+	OpIntersection* last = nullptr;
+	OpPoint lastPt;
+	size_t index = 0;
+	while (index < i.size() && !i[index]->ptT.t)
+		++index;
+	while (index < i.size()) {
+		OpIntersection* test = i[index];
+		if (1 == test->ptT.t)
+			break;
+		OpPoint testPt = test->ptT.pt;
+		if (testPt == lastPt) {
+			// there are 3 or more intersections at the same point (3 or more different segments)
+			OP_ASSERT(test->segment->id != test->opp->segment->id);
+			OP_ASSERT(test->opp->segment->id != last->opp->segment->id);
+			OP_ASSERT(last->opp->segment->id != test->segment->id);
+			// there may be multiple intersections with correct segment pair
+			// the matching one may be identical, may be close, or may be missing
+			// use threshold to distinguish between close and missing
+			OpVector threshold = test->segment->threshold();  // !!! may need a scaling factor
+			threshold *= 5;  // !!! hardcode for now
+			OpBreak2(test, last, 60, 77);
+			OpIntersection* oppPair = test->opp->segment->sects.containsClose(testPt, threshold,
+					last->opp->segment);
+			if (oppPair) {
+				if (oppPair->ptT.pt != testPt) {
+					oppPair->ptT.pt = testPt;
+					oppPair->opp->ptT.pt = testPt;
+				}
+			} else {
+				OP_ASSERT(0);  // !!! more code to write: intersection point is missing from B/C
+			}
+		}
+		last = test;
+		lastPt = testPt;
+		++index;
+	}
 }
 
 void OpIntersections::zeroPairs(OpIntersection* sect) {

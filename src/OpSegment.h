@@ -140,6 +140,7 @@ struct OpSegment {
 	OpVector threshold() const;
 	float thresholdLength() const;
 	void transferCoins();
+	void tripleSect();  // check intersections for three or more identical points
 //    void windCoincidences();
 
 #if OP_DEBUG

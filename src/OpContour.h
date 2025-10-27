@@ -129,6 +129,12 @@ struct OpContour {
 		}
 	}
 
+	void tripleSect() {
+		for (auto& segment : segments) {
+			segment.tripleSect();
+		}
+	}
+
 	void unlink(OpEdge* );
     PathOpsV0Lib::Winding winding() const { 
         return { (ContourPtr) this, (void*) &windingStorage.front(), windingStorage.size() }; }

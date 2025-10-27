@@ -234,6 +234,11 @@ struct OpContext {
 		}
 	}
 
+	void tripleSect() {
+	   for (auto contour : contours) {
+			contour->tripleSect();
+		}
+	}
 
 	bool debugFail() const;
 #if OP_DEBUG

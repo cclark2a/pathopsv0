@@ -3,6 +3,7 @@
 #include "OpCurveCurve.h"
 #include "DebuggerState.h"
 #include <SDL3/SDL_error.h>
+#include <filesystem>
 
 DebuggerState::DebuggerState() 
     : pictureWindow(this)
@@ -12,109 +13,34 @@ DebuggerState::DebuggerState()
 }
 
 void DebuggerState::draw() {
-    debugEpsilon = showEpsilon;   // !!! eventually, merge so duplication is unnecessary
     pictureWindow.draw();
     textWindow.draw();
     helpWindow.update();
     helpWindow.draw();
 }
 
-DrawLevel DebuggerState::eventCommon(const DebuggerEvent& debuggerEvent) {
+DrawLevel DebuggerState::doWheelCommon(const DebuggerEvent& debuggerEvent, int delta) {
+    DebuggerWindow* f = debuggerEvent.focused;
+    if (!f || WheelTarget::font != f->wheelTarget)
+        return DrawLevel::none;
+    int fontSize = f->fontSize;
     int scale = DebuggerEvent::KeyModMultiplier(debuggerEvent.keyMods);
-    auto doWheel = [debuggerEvent, scale, this](int delta) {
-        if (tuneThreshold) {
-            thresholdWheel -= debuggerEvent.wheel * scale;
-            thresholdMultiplier = powf(2, thresholdWheel / 32.f);
-            return DrawLevel::update;
-        }
-        if (!adjustFont)
-            return DrawLevel::none;
-        DebuggerWindow* f = debuggerEvent.focused;
-        if (!f)
-            return DrawLevel::none;
-        int fontSize = f->fontSize;
-        fontSize += scale;
-        fontSize = std::max(3, fontSize);
-        if (f->fontSize == fontSize)
-            return DrawLevel::none;
-        f->fontSize = fontSize;
-        if (SDL_APP_CONTINUE != (error = f->addFont(fontSize))) // deletes font cache
-            OpDebugOut("Couldn't add text font: " + std::string(SDL_GetError()) + "\n");
-        return DrawLevel::update;
-    };
+    fontSize += scale;
+    fontSize = std::max(3, fontSize);
+    if (f->fontSize == fontSize)
+        return DrawLevel::none;
+    f->fontSize = fontSize;
+    if (SDL_APP_CONTINUE != (error = f->addFont(fontSize))) // deletes font cache
+        OpDebugOut("Couldn't add text font: " + std::string(SDL_GetError()) + "\n");
+    return DrawLevel::update;
+}
+
+DrawLevel DebuggerState::eventCommon(const DebuggerEvent& debuggerEvent) {
     if (debuggerEvent.wheel)
-        return doWheel(debuggerEvent.wheel);
-    uint8_t key = debuggerEvent.key;
-    switch (key) {
-        case (uint8_t) KeyCode::upArrow:
-            return doWheel(1);
-        case (uint8_t) KeyCode::downArrow:
-            return doWheel(-1);
-        case 'C':
-            showContours ^= true;
-            break;
-        case 'd':
-            setDepth(++depth);
-            break;
-        case 'D':
-            setDepth(--depth);
-            break;
-        case 'e':
-            showEdges ^= true;
-            break;
-        case 'F':
-            adjustFont ^= true;
-            break;
-        case 'I':
-            showIntersections ^= true;
-            break;
-        case 'o':
-            showOutput ^= true;
-            break;
-        case 'P':
-            playback();
-            break;
-        case 'R':
-            record();
-            break;
-        case 's':
-            showSegments ^= true;
-            break;
-        case 'x':
-            showHex ^= true;
-            break;
-        case 'z':
-            keyboardZoom ^= true;
-            break;
-        case '0':
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5':
-        case '6':
-        case '7':
-        case '8':
-        case '9':
-            debugPrecision = key - '0';
-            break;
-        case '-':
-            debugPrecision = -1;
-            break;
-        case '~':
-            tuneThreshold ^= true;
-            break;
-        case '?':
-            showHelp ^= true;
-            if (showHelp)
-                SDL_ShowWindow(helpWindow.window);
-            else
-                SDL_HideWindow(helpWindow.window);
-            break;
-        default:
-            return DrawLevel::none;
-    }
-    return key ? DrawLevel::update : DrawLevel::none;
+        return doWheelCommon(debuggerEvent, debuggerEvent.wheel);
+    if (debuggerEvent.key)
+        return keyEvent(debuggerEvent, KeyAction::act).l;
+    return DrawLevel::none;
 }
 
 std::string DebuggerState::floatToStr(float f) {
@@ -158,24 +84,17 @@ void DebuggerState::playback() {
             foundID->selected = true;
     }
     // !!! add any additional global state here
-    DEBUG_SET_STRUCT(helpWindow, threshold);
-    DEBUG_SET_FLOAT(threshold, thresholdMultiplier);
-    DEBUG_SET_REQUIRED_VALUE(thresholdMultiplier, thresholdWheel);
-    DEBUG_SET_REQUIRED_VALUE(thresholdWheel, depth);
+    DEBUG_SET_REQUIRED_VALUE(helpWindow, depth);
     DEBUG_SET_REQUIRED_VALUE(depth, verboseLevel);
     DEBUG_SET_REQUIRED_VALUE(verboseLevel, maxUpdateAttempts);
     DEBUG_SET_REQUIRED_VALUE(maxUpdateAttempts, error);
     DEBUG_SET_BOOL(error, showContours);
     DEBUG_SET_BOOL(showContours, showEdges);
-    DEBUG_SET_BOOL(showEdges, showEpsilon);
-    DEBUG_SET_BOOL(showEpsilon, showHex);
+    DEBUG_SET_BOOL(showEdges, showHex);
     DEBUG_SET_BOOL(showHex, showIntersections);
     DEBUG_SET_BOOL(showIntersections, showOutput);
     DEBUG_SET_BOOL(showOutput, showSegments);
-    DEBUG_SET_BOOL(showSegments, tuneThreshold);
-    DEBUG_SET_BOOL(tuneThreshold, showHelp);
-    DEBUG_SET_BOOL(showHelp, keyboardZoom);
-    DEBUG_SET_BOOL(keyboardZoom, adjustFont);
+    DEBUG_SET_BOOL(showSegments, showHelp);
     pictureWindow.playback(str);
     textWindow.playback(str);
     helpWindow.playback(str);
@@ -190,40 +109,29 @@ void DebuggerState::record() {
     if (!s.empty())
         s.back() = '\n';
     // !!! add any additional global state here
-    DebugLevel l = DebugLevel::file;
-    DebugBase b = DebugBase::hex;
-    DEBUG_DUMP_STRUCT(helpWindow, threshold);
-    DEBUG_DUMP_FLOAT(threshold, thresholdMultiplier);
-    DEBUG_DUMP_REQUIRED_VALUE(thresholdMultiplier, thresholdWheel);
-    DEBUG_DUMP_REQUIRED_VALUE(thresholdWheel, depth);
+    DEBUG_DUMP_REQUIRED_VALUE(helpWindow, depth);
     DEBUG_DUMP_REQUIRED_VALUE(depth, verboseLevel);
     DEBUG_DUMP_REQUIRED_VALUE(verboseLevel, maxUpdateAttempts);
     DEBUG_DUMP_REQUIRED_VALUE(maxUpdateAttempts, error);
     DEBUG_DUMP_BOOL(error, showContours);
     DEBUG_DUMP_BOOL(showContours, showEdges);
-    DEBUG_DUMP_BOOL(showEdges, showEpsilon);
-    DEBUG_DUMP_BOOL(showEpsilon, showHex);
+    DEBUG_DUMP_BOOL(showEdges, showHex);
     DEBUG_DUMP_BOOL(showHex, showIntersections);
     DEBUG_DUMP_BOOL(showIntersections, showOutput);
     DEBUG_DUMP_BOOL(showOutput, showSegments);
-    DEBUG_DUMP_BOOL(showSegments, tuneThreshold);
-    DEBUG_DUMP_BOOL(tuneThreshold, showHelp);
-    DEBUG_DUMP_BOOL(showHelp, keyboardZoom);
-    DEBUG_DUMP_BOOL(keyboardZoom, adjustFont);
+    DEBUG_DUMP_BOOL(showSegments, showHelp);
     s += pictureWindow.record();
-    s += textWindow.record();
+    s += textWindow.record(); 
     s += helpWindow.record();
     std::string fileName = "DebuggerState.txt";
+    std::filesystem::path fullPath = std::filesystem::absolute(fileName);
 	FILE* file = fopen(fileName.c_str(), "w");
-#if 01 && defined _WIN32  // !!! switch to std::filesystem::absolute(fileName)
- //   std::filesystem::path fullPath = std::filesystem::absolute(fileName);
-//    ... fullPath1.string() 
-   char full[_MAX_PATH];
-   if( _fullpath( full, ".\\", _MAX_PATH ) != NULL && file)
-      OpDebugOut( "recording: " + std::string(full) + "/" + fileName + "\n");
-   else
-      OpDebugOut( "invalid path: " + std::string(full) + "/" + fileName + "\n");
-#endif
+    if (file)
+        OpDebugOut( "recording: " + fullPath.string() + "\n");
+    else {
+        OpDebugOut( "invalid path: " + fullPath.string() + "\n");
+        return;
+    }
     fwrite(&s[0], 1, s.size(), file);
 	fclose(file);
 }

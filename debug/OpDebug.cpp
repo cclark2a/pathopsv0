@@ -105,21 +105,21 @@ std::string OpDebugStr(float value) {
         return value > 0 ? "Inf" : "-Inf";
     if (0 == value)
         return "0";
-    if (!debugSmall && fabsf(value) < OpEpsilon)
+    if (debugPrecision >= 0 && fabsf(value) < OpEpsilon)
         return "~0";
     std::string result;
-    bool _small = false;
-    if (debugEpsilon) {
-        _small = fabsf(value) <= OpEpsilon * 100;
-        if (_small)
-            value = value / OpEpsilon;
-    }
     if (debugPrecision < 0) {
-        if (_small) {
+        if (fabsf(value) <= OpEpsilon * 100) {
+            value = value / OpEpsilon;
             if (value < 0)
                 result = "-";
             value = floorf((fabsf(value) * 10 + 5));  // round up to epsilon + one digit of fraction
             result += std::to_string((int) value / 10) + "." + std::to_string((int) value % 10);
+#if _WIN32
+            result += "ep";
+#else
+            result += "\u03B5";  // epsilon (fails on Windows Visual Studio, wrong character encoding)
+#endif
         } else
             result = std::to_string(value);
     } else {
@@ -128,12 +128,6 @@ std::string OpDebugStr(float value) {
         s.resize(written);
         result = s;
     }
-    if (_small)
-#if _WIN32
-        result += "ep";
-#else
-        result += "\u03B5";  // epsilon (fails on Windows Visual Studio, wrong character encoding)
-#endif
 	// trim trailing zeroes (useful if precision is -1)
 	size_t pos = result.find('.');
 	if (std::string::npos == pos)

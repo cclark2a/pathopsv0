@@ -40,11 +40,13 @@ enum class MouseAction {
 // Use ascii characters as themselves. Map special keys to unused control characters
 enum class KeyCode : uint8_t {
     none,
-    downArrow,
-    leftArrow,
-    rightArrow,
-    upArrow
+    leftArrow,   // unicode 2190
+    upArrow,     //         2191
+    rightArrow,  //         2192
+    downArrow,   //         2193
 };
+
+extern const std::array<std::string, 5> KeyCodeUTF8;
 
 struct DebuggerEvent {
     DebuggerEvent(DebuggerState* , SDL_Keymod , SDL_WindowID );
@@ -61,13 +63,25 @@ struct DebuggerEvent {
     int wheel = 0;
 };
 
+enum class KeyAction {
+    act,
+    show
+};
+
+struct KeyResult {
+    std::string s;
+    DrawLevel l = DrawLevel::none;
+};
+
 struct DebuggerState {
     DebuggerState();
     DebuggerEvent addEvent(SDL_Keymod , SDL_WindowID );
+    DrawLevel doWheelCommon(const DebuggerEvent& debuggerEvent, int delta);
     void draw();  // same window as before
     DrawLevel eventCommon(const DebuggerEvent& );
     std::string floatToStr(float );
     DebuggerWindow* focus(SDL_WindowID );
+    KeyResult keyEvent(const DebuggerEvent& debuggerEvent, KeyAction action);
     void playback();
     void record();
     void redraw();  // changed window size, lay out again
@@ -86,25 +100,17 @@ struct DebuggerState {
     PictureWindow pictureWindow;
     TextWindow textWindow;
     HelpWindow helpWindow;
-    OpVector threshold;
-    float thresholdMultiplier = 1;
-    int thresholdWheel = 0;
     int depth = 0;
     int verboseLevel = 0;
     int maxUpdateAttempts = 10;
-
     SDL_AppResult error = (SDL_AppResult) 0;
     bool showContours = false;
     bool showEdges = true;
-    bool showEpsilon = true;
     bool showHex = false;
     bool showIntersections = false;
     bool showOutput = false;
     bool showSegments = false;
-    bool tuneThreshold = false;
     bool showHelp = false;
-    bool keyboardZoom = false;
-    bool adjustFont = false;
 };
 
 #endif
