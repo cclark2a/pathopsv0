@@ -56,23 +56,8 @@ DebuggerWindow* DebuggerState::focus(SDL_WindowID id) {
     return lastFocus;
 }
 
-static std::string fileToStr(std::string filename) {
-    std::string buffer;
-    FILE* file = fopen(filename.c_str(), "r");
-    OP_ASSERT(file);
-    int seek = fseek(file, 0, SEEK_END);
-    OP_ASSERT(!seek);
-    long size = ftell(file);
-    fclose(file);
-    file = fopen(filename.c_str(), "r");
-    buffer.resize(size);
-    fread(&buffer[0], 1, size, file);
-    fclose(file);
-    return buffer;
-}
-
 void DebuggerState::playback() {
-    std::string buffer = fileToStr("DebuggerState.txt");
+    std::string buffer = dmpFileToStr("DebuggerState.txt");
     if (buffer.empty())
         return;
     const char* str = buffer.c_str();

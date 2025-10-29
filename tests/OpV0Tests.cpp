@@ -8138,7 +8138,72 @@ testQuads10616408 had errors=103
 
 
 */
+
+void testQuads3004679(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+    path.moveTo(0, 0);
+    path.quadTo(3, 0, 1, 1);
+    path.lineTo(3, 1);
+    path.lineTo(0, 0);
+    path.close();
+    path.moveTo(3, 0);
+    path.lineTo(2, 1);
+    path.quadTo(2, 2, 0, 3);
+    path.lineTo(3, 0);
+    path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads6020439(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+    path.moveTo(0, 0);
+    path.quadTo(2, 2, 1, 3);
+    path.lineTo(3, 3);
+    path.lineTo(0, 0);
+    path.close();
+    path.moveTo(3, 0);
+    path.lineTo(1, 2);
+    path.quadTo(3, 2, 2, 3);
+    path.lineTo(3, 0);
+    path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads6028011(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+    path.moveTo(0, 0);
+    path.quadTo(2, 2, 2, 3);
+    path.lineTo(2, 3);
+    path.lineTo(0, 0);
+    path.close();
+    path.moveTo(3, 0);
+    path.lineTo(3, 1);
+    path.quadTo(3, 1, 2, 3);
+    path.lineTo(3, 0);
+    path.close();
+    testSimplify(reporter, path, filename);
+}
+
+void testQuads6132691(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+    path.moveTo(0, 0);
+    path.quadTo(3, 2, 1, 3);
+    path.lineTo(3, 3);
+    path.lineTo(0, 0);
+    path.close();
+    path.moveTo(0, 0);
+    path.lineTo(3, 0);
+    path.quadTo(1, 2, 2, 3);
+    path.lineTo(0, 0);
+    path.close();
+    testSimplify(reporter, path, filename);
+}
+
 static struct TestDesc tests[] = {
+    TEST(testQuads6132691),
+    TEST(testQuads6028011),
+    TEST(testQuads6020439),
+    TEST(testQuads3004679),
     TEST(testQuads14771280),
     TEST(testQuads15163993),
     TEST(testQuads18829945),

@@ -447,38 +447,48 @@ void SkPath::offset(float dx, float dy) {
 	}
 }
 
-void SkPath::dumpCommon(bool hex) const {
+std::string SkPath::debugDumpCommon(bool hex) const {
+	std::string result;
 	bool move = true;
 	OpPoint first;
 	for (const TinyCurve& c : path) {
 		if (move) {
-			OpDebugOut("moveTo(" + STR(c.pts[0].x) + ", " + STR(c.pts[0].y) + ");\n");
+			result += "    path.moveTo(" + STR(c.pts[0].x) + ", " + STR(c.pts[0].y) + ");\n";
 			first = c.pts[0];
 		}
 		move = false;
 		switch (c.type) {
 			case TinyType::line:
-				OpDebugOut("lineTo(" + STR(c.pts[1].x) + ", " + STR(c.pts[1].y) + ");\n");
+				result += "    path.lineTo(" + STR(c.pts[1].x) + ", " + STR(c.pts[1].y) + ");\n";
 				break;
 			case TinyType::quad:
-				OpDebugOut("quadTo(" + STR(c.pts[1].x) + ", " + STR(c.pts[1].y) + ", " 
-					+ STR(c.pts[2].x) + ", " + STR(c.pts[2].y) + ");\n");
+				result += "    path.quadTo(" + STR(c.pts[1].x) + ", " + STR(c.pts[1].y) + ", " 
+					+ STR(c.pts[2].x) + ", " + STR(c.pts[2].y) + ");\n";
 				break;
 			case TinyType::conic:
-				OpDebugOut("conicTo(" + STR(c.pts[1].x) + ", " + STR(c.pts[1].y) + ", " 
-					+ STR(c.pts[2].x) + ", " + STR(c.pts[2].y) + ", " + STR(c.weight) + ");\n");
+				result += "    path.conicTo(" + STR(c.pts[1].x) + ", " + STR(c.pts[1].y) + ", " 
+					+ STR(c.pts[2].x) + ", " + STR(c.pts[2].y) + ", " + STR(c.weight) + ");\n";
 				break;
 			case TinyType::cubic:
-				OpDebugOut("cubicTo(" + STR(c.pts[1].x) + ", " + STR(c.pts[1].y) + ", " 
+				result += "    path.cubicTo(" + STR(c.pts[1].x) + ", " + STR(c.pts[1].y) + ", " 
 					+ STR(c.pts[2].x) + ", " + STR(c.pts[2].y) + ", "
-					+ STR(c.pts[3].x) + ", " + STR(c.pts[3].y) + ");\n");
+					+ STR(c.pts[3].x) + ", " + STR(c.pts[3].y) + ");\n";
 				break;
 		}
 		if (first == c.lastPt()) {
-			OpDebugOut("close();\n");
+			result += "    path.close();\n";
 			first = c.lastPt();
+			move = true;
 		}
 	}
+	if ('\n' == result.back())
+		result.pop_back();
+	return result;
+}
+
+void SkPath::dumpCommon(bool hex) const {
+	std::string s = debugDumpCommon(hex);
+	OpDebugOut(s);
 }
 
 void SkPath::dump() const {

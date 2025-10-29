@@ -558,7 +558,7 @@ void dmpFile(OpContext* context, std::string name) {
     fclose(file);
 }
 
-static std::string fileToStr(std::string name) {
+std::string dmpFileToStr(std::string name) {
     std::string filename = dmpFileToPath(name);
     std::string buffer;
     FILE* file = fopen(filename.c_str(), "r");
@@ -587,8 +587,8 @@ void dmpFile() {
 #if OP_DEBUG_VALIDATE
 	OpContext* fileContext = fromFile("dmp.txt");
     dmpFile(fileContext, "dmp2.txt");
-    std::string orig = fileToStr("dmp.txt");
-    std::string copy = fileToStr("dmp2.txt");
+    std::string orig = dmpFileToStr("dmp.txt");
+    std::string copy = dmpFileToStr("dmp2.txt");
     if (orig != copy)
         OpDebugOut("!!! dmp.txt != dmp2.txt\n");
     delete fileContext;
@@ -596,7 +596,7 @@ void dmpFile() {
 }
 
 OpContext* fromFile(std::string filename) {
-    std::string buffer = fileToStr(filename);
+    std::string buffer = dmpFileToStr(filename);
     if (buffer.empty())
         return nullptr;
     const char* str = buffer.c_str();

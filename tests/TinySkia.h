@@ -225,6 +225,7 @@ public:
 	void transform(const SkMatrix& matrix, SkPath* dst = nullptr);
     void updateBoundsCache() const {
         getBounds(); }
+	std::string debugDumpCommon(bool ) const;
 	void dump() const;
 	void dumpHex() const;
 	void dumpCommon(bool) const;
@@ -398,6 +399,10 @@ struct SkParsePath {
 
 inline void SkChopCubicAt(const SkPoint* pts, SkPoint* cubicPair, float loopT) {
 	// incomplete
+}
+
+inline std::string dumpSkPath(const SkPath* p, bool hex) {
+	return p->debugDumpCommon(hex);
 }
 
 typedef float SkScalar;

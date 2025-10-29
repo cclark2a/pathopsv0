@@ -1117,5 +1117,9 @@ giveUp:
 }
 
 void OpSegment::tripleSect() {
-	sects.tripleSect();
+	OP_DEBUG_CODE(int safetyHatch = 10);
+	while (TripleSected::tryAgain == sects.tripleSect()) {
+		contour->context->sortIntersections();
+		OP_ASSERT(--safetyHatch);
+	}
 }

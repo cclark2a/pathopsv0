@@ -814,7 +814,7 @@ std::string debugSimplifyTest(const char* testname, const SkPath& path) {
 	std::string s;
     s += "void " + STR(testname) + "(skiatest::Reporter* reporter, const char* filename) {\n";
     s += "    SkPath path;\n";
-#if OP_DEBUG && !OP_TINY_SKIA  // !!! missing dump path equivalent in tiny skia implementation
+#if OP_DEBUG
 	s += dumpSkPath(&path, false) + "\n";
 #endif
 	s += "    testSimplify(reporter, path, filename);\n";
