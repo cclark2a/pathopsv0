@@ -15,8 +15,8 @@ enum class BinaryOperand : int;
 enum class BinaryWindType : int;
 
 #if OP_DEBUG_DUMP
-std::string dumpUnaryContourFunc(DebugContourData , DebugLevel , DebugBase );
-std::string dumpBinaryContourFunc(DebugContourData caller, DebugLevel , DebugBase );
+// std::string dumpUnaryContourFunc(DebugContourData , DebugLevel , DebugBase );
+// std::string dumpBinaryContourFunc(DebugContourData caller, DebugLevel , DebugBase );
 std::string dumpBinaryContextFunc(DebugContextData caller, DebugLevel , DebugBase );
 #endif
 void* debugSimplifyPathFunc(DebugContourData );

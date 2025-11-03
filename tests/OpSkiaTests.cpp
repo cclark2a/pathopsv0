@@ -296,7 +296,6 @@ void runTests() {
 #if 0 && !OP_DEBUG_FAST_TEST
 	debugUseAlt = false;
 #endif
-
     timerFrequency = OpInitTimer();
     timerStart = OpReadTimer();
 #if OP_DEBUG_FAST_TEST
@@ -1044,8 +1043,8 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
         std::lock_guard<std::mutex> guard(out_mutex);
 		v0(tn, p);
 #endif
-        dumpSimplifyTest(tn, p)
-            ;   // <<<<<<<< paste this into immediate window
+        // -exec p dumpSimplifyTest(tn, p)  <<<<<<<< paste this into vscode debug console
+        dumpSimplifyTest(tn, p);   
         ReportError(testname, errors);
 #endif
         totalError++;

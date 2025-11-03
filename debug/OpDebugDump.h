@@ -627,9 +627,8 @@ struct OpSaveDump {
     ASSERT_ORDERED(lastField, thisValue); \
     DEBUG_SET_START_REQUIRED_VALUE(thisValue)
 
-#define DEBUG_DUMP_VECTOR_OFFSET(lastField, thisVector, offset) \
+#define DEBUG_DUMP_COMMON_VECTOR(thisVector) \
     do { \
-    ASSERT_ORDERED_OFFSET(lastField, thisVector, offset); \
     if (thisVector.size()) { \
         s += #thisVector ":" + STR(thisVector.size()) + " "; \
         for (const auto& member : thisVector) { \
@@ -638,18 +637,29 @@ struct OpSaveDump {
     } \
     } while (false)
 
+#define DEBUG_DUMP_VECTOR_OFFSET(lastField, thisVector, offset) \
+    do { \
+    ASSERT_ORDERED_OFFSET(lastField, thisVector, offset); \
+    DEBUG_DUMP_COMMON_VECTOR(thisVector); \
+    } while (false)
+
 #define DEBUG_DUMP_VECTOR(lastField, thisVector) \
     DEBUG_DUMP_VECTOR_OFFSET(lastField, thisVector, 0)
 
-#define DEBUG_SET_VECTOR_OFFSET(lastField, thisVector, offset) \
+#define DEBUG_SET_COMMON_VECTOR(thisVector) \
     do { \
-    ASSERT_ORDERED_OFFSET(lastField, thisVector, offset); \
     if (OpDebugOptional(str, #thisVector)) { \
         size_t count = OpDebugReadSizeT(str); \
         thisVector.resize(count); \
         for (auto& member : thisVector) \
             member.dumpSet(str); \
     } \
+    } while (false)
+
+#define DEBUG_SET_VECTOR_OFFSET(lastField, thisVector, offset) \
+    do { \
+    ASSERT_ORDERED_OFFSET(lastField, thisVector, offset); \
+    DEBUG_SET_COMMON_VECTOR(thisVector); \
     } while (false)
 
 #define DEBUG_SET_VECTOR(lastField, thisVector) \

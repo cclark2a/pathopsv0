@@ -1,9 +1,13 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpCurveCurve.h"
-#include "OpDebugRecord.h"
 #include "OpSegment.h"
 #include "OpWinder.h"
 #include <utility>
+
+// in single-threaded debugging mode, keep every level of recursion for serializing to debugger
+#if OP_DEBUG_DUMP
+DumpCurveCurve dumpCurveCurve;
+#endif
 
 enum class IsCoin {
 	no,
@@ -464,19 +468,16 @@ void CcCurves::shareDistance() {
 
 // snip out the curve 16 units to the side of the intersection point, to prevent another closeby
 // intersection from also getting recorded. The units maybe t values, or may be x/y distances.
-void CcCurves::snipAndGo(const OpPtT& ptT, OpPoint oppPt) {
+void CcCurves::snipAndGo(const CutRangeT& tRange) {
 	// snip distance must be large enough to differ in x/y and in t
-	CutRangeT tRange = seg->c.cutRange(ptT, oppPt, 0, 1);
 	OP_ASSERT(tRange.lo.t < tRange.hi.t);
 	// remove part or all of edges that overlap tRange
 	deleted.push_back(tRange);
-	snipRange(tRange.lo, tRange.hi);
-}
-
-// after snipping, don't push distance to zero if really small
-void CcCurves::snipRange(const OpPtT& lo, const OpPtT& hi) {
-	CcCurves snips;
-	auto addSnip = [this](const OpEdge* edge, const OpPtT& start, const OpPtT& end
+	const OpPtT& lo = tRange.lo;
+	const OpPtT& hi = tRange.hi;
+	// after snipping, don't push distance to zero if really small
+	CcCurves snippedEdges;
+	auto addSnipEdge = [this](const OpEdge* edge, const OpPtT& start, const OpPtT& end
             OP_LINE_FILE_ARGS()) {
         OpEdge* newEdge = cc->allocateEdge(nullptr, edge, start, end, NewEdge::none, 
                 EdgeOverlaps::overlaps   OP_LINE_FILE_PARAMS(edge->id));
@@ -485,31 +486,31 @@ void CcCurves::snipRange(const OpPtT& lo, const OpPtT& hi) {
 	for (OpEdge* edge : c) {
 		if (edge->startT >= hi.t || edge->endT <= lo.t) {
 			OP_ASSERT(!edge->disabled);
-			snips.c.push_back(edge);
+			snippedEdges.c.push_back(edge);
 			continue;
 		}
 		OpVector threshold = cc->context->threshold();
 		if (edge->startT < lo.t && !edge->startPtT().isNearly(lo, threshold)) {
-			OpEdge* snipE = addSnip(edge, edge->startPtT(), lo  OP_LINE_FILE_PARGS());
+			OpEdge* snipE = addSnipEdge(edge, edge->startPtT(), lo  OP_LINE_FILE_PARGS());
 			snipE->ccStart = edge->ccStart;
 			snipE->ccSmall = edge->ccSmall;
 			snipE->ccEnd = true;
 			addEdgeRun(snipE, EdgeMatch::end, ClampDist::no  OP_LINE_FILE_PARGS());
 			OP_ASSERT(!snipE->disabled);
-			snips.c.push_back(snipE);
+			snippedEdges.c.push_back(snipE);
 		}
 		if (edge->endT > hi.t && !hi.isNearly(edge->endPtT(), threshold)) {
-			OpEdge* snipS = addSnip(edge, hi, edge->endPtT()  OP_LINE_FILE_PARGS());
+			OpEdge* snipS = addSnipEdge(edge, hi, edge->endPtT()  OP_LINE_FILE_PARGS());
 			snipS->ccStart = true;
 			snipS->ccEnd = edge->ccEnd;
 			snipS->ccLarge = edge->ccLarge;
 			addEdgeRun(snipS, EdgeMatch::start, ClampDist::no  OP_LINE_FILE_PARGS());
 			OP_ASSERT(!snipS->disabled);
-			snips.c.push_back(snipS);
+			snippedEdges.c.push_back(snipS);
 		}
 	}
-    OP_DEBUG_CODE(snips.debugAdd(*this));
-	snips.c.swap(c);
+    OP_DEBUG_CODE(snippedEdges.debugAdd(*this));
+	snippedEdges.c.swap(c);
 }
 
 // !!! I wonder ... should this be a binary search of sorted entries?
@@ -551,8 +552,7 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o, std::vector<OpIntersectio
 	, splitHullFail(false)
 {
 #if OP_DEBUG_DUMP
-	++debugCall;
-	debugLocalCall = debugCall;  // copied so value is visible in debugger
+	++dumpCurveCurve.nthCall;
 	context->debugCurveCurve = this;
 #endif
 //	contours->reuse(contours->ccStorage);  // !!! consider adding starting block of edges to context
@@ -591,7 +591,7 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o, std::vector<OpIntersectio
 		FoundLimits smT { nullptr, nullptr, sPtT, oPtT, LimitFrom::yes, Unordered::no, 
                 LimitUsed::no, LimitMatch::yes  OP_LINE_FILE_STRUCT() }; // no edges
 		limits.push_back(std::move(smT));
-        snips.push_back({ sPtT, oPtT });
+		addSnip({ sPtT, oPtT });
     }
 	seg->edges.clear();
 	opp->edges.clear();
@@ -676,7 +676,135 @@ EdgeRun* OpCurveCurve::addEdgeRun(OpEdge* edge, CurveRef curveRef, EdgeMatch mat
 
 void OpCurveCurve::addIntersection(OpEdge* edge, OpEdge* oppEdge) {
 	recordSect(edge, oppEdge, edge->startPtT(), oppEdge->startPtT()   OP_LINE_FILE_PARGS());
-	snips.push_back({ edge->startPtT(), oppEdge->startPtT() });
+	addSnip({ edge->startPtT(), oppEdge->startPtT() });
+}
+
+enum class DiffIntersect {
+	intersect,
+	ignore,
+	replace
+};
+
+struct LoHi {
+	float lo;
+	float hi;
+	DiffIntersect diffSect;
+};
+
+void OpCurveCurve::cutPair(SnipPtTs& snip) {
+	const OpCurve& curve = seg->c;
+	const OpCurve& oppCurve = opp->c;
+	OpPtT ptT = snip.seg;
+	OpPtT oppPtT = snip.opp;
+	PathOpsV0Lib::MaxCurveCurveCount cutFun = context->contextCallbacks.maxCutFuncPtr;
+	float tStep = cutFun ? (*cutFun)(curve.c, oppCurve.c) : 16.f;
+	OpVector threshold = context->threshold() * tStep;
+	float scaleThres = threshold.length();  // !!! probably should be its own scaled number
+	float tDiff = tStep * OpEpsilon;
+	std::array<float, 2> diff { tDiff, tDiff };
+	OpVector segTan = curve.tangent(snip.seg.t);
+	OpVector oppTan = oppCurve.tangent(snip.opp.t);
+	bool segOppReversed = segTan.dot(oppTan) < 0;  // not curve-curve reversed, serves a diff. purp.
+	float oppTDiff = segOppReversed ? -tDiff : tDiff;
+	std::array<float, 2> oppDiff { oppTDiff, oppTDiff };
+	for (float dir : { -1, 1 }) {
+		auto advanceFibonacci = [](std::array<float, 2>& sums) {
+			float sum = sums[0] + sums[1];
+			sums[0] = sums[1];
+			sums[1] = sum;
+		};
+		auto nextCut = [&dir](const OpCurve& c, const OpPtT& ptT, OpPtT& cut, float sum) {
+			cut.t = std::max(0.f, std::min(1.f, ptT.t + sum * dir));
+			cut.pt = c.ptAtT(cut.t);
+			return (cut.pt - ptT.pt).length();
+		};
+		OpPtT cut, oppCut;
+		float oppDir = segOppReversed ? -dir : dir;
+		do {
+			float segDist = nextCut(curve, ptT, cut, diff[1]);
+			advanceFibonacci(diff);
+			bool segHitEnd = (0 == cut.t && dir < 0) || (1 == cut.t & dir > 0);
+			// use length ratio to refine opp cuts
+			float oppDist;
+			// !!! put safety count limit in callbacks? 
+			for (int safetyCount = 0; safetyCount < 8; ++safetyCount) {
+				oppDist = nextCut(oppCurve, oppPtT, oppCut, oppDiff[1]);
+				if ((oppDir < 0 ? 0 : 1) == oppCut.t)
+					break;  // stop searching for better matching point if end of segment is reached
+				if (segHitEnd) {
+					advanceFibonacci(oppDiff);
+					break;
+				}
+				if (OpMath::Equal(segDist, oppDist, scaleThres))
+					break;
+				oppDiff[1] *= segDist / oppDist;
+			}
+		} while (cut.pt.isNearly(oppCut.pt, threshold) && (dir < 0 ? 0 < cut.t : 1 > cut.t));
+		if (-1 == dir) {
+			snip.segCut.lo = cut;
+			snip.oppCut.lo = oppCut;
+		} else {
+			snip.segCut.hi = cut;
+			snip.oppCut.hi = oppCut;
+		}
+	}
+	if (segOppReversed)
+		std::swap(snip.oppCut.lo, snip.oppCut.hi);
+}
+
+// if snip supercedes existing snip, replace it
+void OpCurveCurve::addSnip(SnipPtTs snip) {
+	cutPair(snip);
+	if (snips.empty()) {
+		snips.push_back(snip);
+		return;
+	}
+	// check if added is in current snip range
+	bool copySnip = true;
+	for (size_t index = 0; index < snips.size(); ) {
+		SnipPtTs& existing = snips[index];
+		auto snipIntersects = [](CutRangeT& exists, CutRangeT& newSnip) {
+			LoHi diffLoHi { exists.lo.t, exists.hi.t, DiffIntersect::intersect };  // assumed answer for exists minus snip
+			if (newSnip.lo.t <= exists.lo.t && exists.hi.t <= newSnip.hi.t) {
+				diffLoHi.diffSect = DiffIntersect::replace;
+				return diffLoHi;
+			}
+			if (exists.lo.t < newSnip.lo.t && newSnip.lo.t < exists.hi.t)
+				diffLoHi.hi = newSnip.lo.t;
+			if (exists.lo.t < newSnip.hi.t && newSnip.hi.t < exists.hi.t)
+				diffLoHi.lo = newSnip.hi.t;
+			if (diffLoHi.lo != exists.lo.t && diffLoHi.hi != exists.hi.t)
+				diffLoHi.diffSect = DiffIntersect::ignore;
+			return diffLoHi;
+		};
+		auto keepDiff = [](const CcCurves& curves, const LoHi& diff) {
+			for (const OpEdge* edge : curves.c) {
+				if (diff.lo < edge->endT && diff.hi > edge->startT)
+					return true;
+			}
+			return false;		
+		};
+		LoHi segDiff = snipIntersects(existing.segCut, snip.segCut);
+		LoHi oppDiff = snipIntersects(existing.oppCut, snip.oppCut);
+		if (DiffIntersect::ignore == segDiff.diffSect && DiffIntersect::ignore == oppDiff.diffSect)
+			copySnip = false;
+		bool keptDiff = DiffIntersect::replace != segDiff.diffSect 
+					&& DiffIntersect::replace != oppDiff.diffSect
+					&& (keepDiff(edgeCurves, segDiff) || keepDiff(oppCurves, oppDiff));
+		if (keptDiff) {
+			++index;
+			continue;
+		}
+		if (!copySnip)
+			snips.erase(snips.begin() + index);
+		else {
+			snips[index] = snip;
+			++index;
+			copySnip = false;
+		}
+	}
+	if (copySnip)
+		snips.push_back(snip);
 }
 
 bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
@@ -1081,13 +1209,16 @@ SectFound OpCurveCurve::divideAndConquer() {
 	// intersect a second time. Not sure what to do...
 	for (depth = 1; depth < maxDeep; ++depth) {
 #if OP_DEBUG_DUMP
+		dumpCurveCurve.cc.push_back(*this);
         for (auto& edges : { edgeCurves.c, oppCurves.c } ) {
             for (auto& edge : edges) {
                 edge->debugCC = depth;
             }
         }
 #endif
-		OP_ASSERT(debugShowImage(true));
+#if !OP_DEBUGGER && !OP_DEBUG_FAST_TEST
+		OP_ASSERT(debugBreak(CcBreak::atDepth));
+#endif
 		bool snipEm = 1 == depth && !snips.empty();
 		if (!setOverlaps())
 			return SectFound::fail;
@@ -1156,8 +1287,8 @@ SectFound OpCurveCurve::divideAndConquer() {
 			snipEm = setSnipFromLimits(limitCount);
 		}
 		for (SnipPtTs snip : snips) {
-			edgeCurves.snipAndGo(snip.seg, snip.opp.pt);
-			oppCurves.snipAndGo(snip.opp, snip.seg.pt);
+			edgeCurves.snipAndGo(snip.segCut);
+			oppCurves.snipAndGo(snip.oppCut);
             // if one side computed start or end distances, and the other did not, copy distances
             // so that 'reduce dist flipped' can keep snipped edges if needed
             // !!! mistakenly thought needed -- disable until proven
@@ -1288,7 +1419,7 @@ bool OpCurveCurve::ifExactly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& oppEdge
 	if (edge.ccEnd && edge.endT == edgePtT.t)
 		return false;
 	recordSect(&edge, &oppEdge, edgePtT, oppPtT  OP_LINE_FILE_PARGS());
-	snips.push_back({ edgePtT, oppPtT });
+	addSnip({ edgePtT, oppPtT });
 	return true;
 }
 
@@ -1301,7 +1432,7 @@ bool OpCurveCurve::ifNearly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& oppEdge,
 	if (edge.ccEnd && edge.endPtT().isNearly(edgePtT, threshold))
 		return false;
 	recordSect(&edge, &oppEdge, edgePtT, oppPtT  OP_LINE_FILE_PARGS());
-	snips.push_back({ edgePtT, oppPtT });
+	addSnip({ edgePtT, oppPtT });
 	return true;
 }
 
@@ -1728,7 +1859,13 @@ bool OpCurveCurve::addLineCurveIntersection(OpEdge& edge, OpEdge& oppEdge, Curve
         }
         return false;
     };
+#if OP_DEBUG_DUMP
+	debugDumpOn = true;
+#endif
     OpRoots oppRoots = edge.curve.lineIntersection(opposite->c);
+#if OP_DEBUG_DUMP
+	debugDumpOn = false;
+#endif
     if (checkIntersection(oppRoots))
         return true;
     // if line and segment didn't intersect, check line and edge
@@ -1771,7 +1908,7 @@ bool OpCurveCurve::setSnipFromLimits(size_t oldCount) {
 	if (oldCount >= limits.size())
 		return false;
 	FoundLimits limit = limits[oldCount];
-	snips.push_back({ limit.seg, limit.opp });
+	addSnip({ limit.seg, limit.opp });
 	return true;
 }
 

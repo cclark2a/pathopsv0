@@ -55,7 +55,7 @@ struct OpCurve {
     const OpContext& context() const {
         return *(const OpContext*) c.context; }
 //	OpPtT cut(const OpPtT& ptT, float loBounds, float hiBounds, float direction) const;
-	CutRangeT cutRange(const OpPtT& ptT, OpPoint oppPt, float loEnd, float hiEnd) const;
+//	CutRangeT cutRange(const OpPtT& ptT, OpPoint oppPt, float loEnd, float hiEnd) const;
 //	OpPoint end(float t) const;
     float findValidT(float start, float end, OpPoint opp);
 //	OpPtT findIntersect(Axis offset, const OpPtT& ) const;
@@ -105,6 +105,7 @@ struct OpCurve {
 	// rotates curve so that line's (pt[0], pt[1]) moves to ((0, 0), (0, line[1].y - line[0].y))
 	// curve scale is not preserved
 	OpCurve toVertical(const LinePts& line, MatchEnds ) const;
+	OpCurve toVerticalBase(const LinePts& line, MatchEnds ) const;
 //	float tZeroX(float t1, float t2) const;  // binary search on t-range finds vert crossing zero
     OpContext& writableContext() const { 
         return *(OpContext*) c.context; }

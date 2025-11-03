@@ -315,7 +315,7 @@ inline Context* binaryContext(CurveOutput output = nullptr, EmptyCallerPath empt
     Debug(context, debugData);
 	SetDebugContextCallbacks(context, {
         binaryDebugIsFill
-        OP_DEBUG_DUMP_PARAMS(nullptr, binaryDumpOutFunc, binaryDumpSetFunc)
+        OP_DEBUG_DUMP_PARAMS(binaryDumpOutFunc, binaryDumpSetFunc)
         OP_DEBUG_IMAGE_PARAMS(binaryImageOutXFunc, binaryImageOutFunc, binaryColorFuncPtr)
     });
 #endif

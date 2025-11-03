@@ -206,7 +206,8 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 			return (one->ptT.t < two->ptT.t) == (MatchEnds::start == match) 
 					? MatchEnds::start : MatchEnds::end;
 		};
-		if (dist <= seg->threshold().length()) {
+		float threshLen = seg->threshold().length();
+		if (dist <= threshLen) {
 			auto removeBetweeners = [](OpSegment* seg, size_t segSects, 
 					OpIntersection* start, OpIntersection* end) {
 				if (start->ptT.t > end->ptT.t)
@@ -228,7 +229,11 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 				{ opp, seg, sectS->opp->ptT, OpVector() }, 
 				{ opp, seg, sectE->opp->ptT, OpVector() }}};
 			OpWinder::CoincidentCheck(ends, nullptr, nullptr);
-		} else if (dist < seg->threshold().length() * 8) { // !!! who knows what this const should be?
+			return;
+		} 
+		PathOpsV0Lib::ContextCallbacks& cb = seg->contour->context->contextCallbacks;
+		float unsectDist = cb.maxUnsectDistFuncPtr ? cb.maxUnsectDistFuncPtr(seg->c.c) : 8.0f;
+		if (dist < seg->threshold().length() * unsectDist) {
 			int usectID = seg->nextID();
 			seg->addUnsectable(sectS->ptT, usectID, endFromT(sectS, sectE, MatchEnds::start), opp
 					OP_LINE_FILE_PARGS());
@@ -451,14 +456,17 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 	OpCurveCurve cc(seg, opp, matchingSects);
 	if (cc.boundedEdgeFailed) {
 		found = FoundIntersections::fail;
+		OP_DEBUG_CODE(cc.context->debugCurveCurve = nullptr);
 		return false;
 	}
-	if (!cc.overlap)
+	if (!cc.overlap) {
+		OP_DEBUG_CODE(cc.context->debugCurveCurve = nullptr);
 		return true;
+	}
 	SectFound ccResult = cc.divideAndConquer();
-	#ifndef OP_DEBUGGER
-	OP_ASSERT(OP_DEBUG_FAST_TEST || cc.debugShowImage());
-	#endif
+#if !OP_DEBUGGER && !OP_DEBUG_FAST_TEST
+	OP_ASSERT(cc.debugBreak(CcBreak::atEnd));
+#endif
 	// search runs for small opp distances; turn found into limits
 	SectFound limitsResult = cc.runsToLimits();
 	if (SectFound::add == limitsResult)
@@ -468,6 +476,7 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 //    OP_ASSERT(cc.limits.size() < 4);
 	cc.context->release(cc.context->ccStorage);
 	cc.context->ccStorage = nullptr;
+	OP_DEBUG_CODE(cc.context->debugCurveCurve = nullptr);
 	OP_DEBUG_CONTEXT();
 	return true;
 }

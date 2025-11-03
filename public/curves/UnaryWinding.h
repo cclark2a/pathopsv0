@@ -151,7 +151,7 @@ inline Context* unaryContext(CurveOutput output = nullptr, EmptyCallerPath empty
     Debug(context, debugData);
 	SetDebugContextCallbacks(context, { 
         unaryDebugIsFill
-        OP_DEBUG_DUMP_PARAMS(nullptr, unaryDumpOutFunc, unaryDumpSetFunc)
+        OP_DEBUG_DUMP_PARAMS(unaryDumpOutFunc, unaryDumpSetFunc)
         OP_DEBUG_IMAGE_PARAMS(unaryImageOutXFunc, unaryImageOutFunc, unaryColorFuncPtr)
     });
 #endif

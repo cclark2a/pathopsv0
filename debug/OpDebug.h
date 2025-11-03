@@ -148,11 +148,13 @@ struct OpDebugData {
 #ifdef _WIN32
 #include <intrin.h>
 #define OP_DEBUG_BREAK() __debugbreak()
-#define OP_ASSERT(expr) do { if (!(expr)) __debugbreak(); } while (false)
-#else
+#elif __clang__
 #define OP_DEBUG_BREAK() __builtin_debugtrap()
-#define OP_ASSERT(expr) assert(expr)
+#else
+#include <signal.h>
+#define OP_DEBUG_BREAK() raise(SIGTRAP)
 #endif
+#define OP_ASSERT(expr) do { if (!(expr)) OP_DEBUG_BREAK(); } while (false)
 
 #define OP_EXECUTE_AND_ASSERT(expr) OP_ASSERT(expr)
 

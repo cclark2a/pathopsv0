@@ -4,7 +4,7 @@
 
 #define SKIP_TO_V0 1  // set to 1 to ignore file, test first and run first test in v0
 #define SKIP_TO_FILE "quad" // e.g., "simplify"  one file
-#define TEST_FIRST "testQuads3004679"  // e.g., "testQuads23839519" if file, one test
+#define TEST_FIRST "testQuads21962910"  // e.g., "testQuads23839519" if file, one test
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
 #define TEST_EXTENDED 1
@@ -22,9 +22,9 @@
 
 // loop191404 missing -0.078, 1.5323 t=0.281543255 oppT=0.290549636; 
 //                    -0.3563 2.0153 t=0.139774203 oppT=0.113169670
-#define CURVE_CURVE_1 3  // id of segment 1 to break in divide and conquer
+#define CURVE_CURVE_1 2  // id of segment 1 to break in divide and conquer
 #define CURVE_CURVE_2 7  // id of segment 2 to break in divide and conquer
-#define CURVE_CURVE_DEPTH -1  // minimum recursion depth for curve curve break (-1 to disable)
+#define CURVE_CURVE_DEPTH 2  // minimum recursion depth for curve curve break (-1 to disable)
 
 #define TEST_PATH_SKIP_TESTS { "grshapearc", "grshapearcs1", "release_13" }
 // when these tests are encountered, it and the remaining tests in the file are skipped

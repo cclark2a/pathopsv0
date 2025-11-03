@@ -2,6 +2,9 @@
 #include "OpCurve.h"
 #include "OpContext.h"
 #include "OpTightBounds.h"
+#if OP_DEBUG_DUMP
+#include "OpCurveCurve.h"
+#endif
 
 OpCurve::OpCurve(PathOpsV0Lib::Curve curve, Rotated r) 
 	: c(curve)
@@ -65,6 +68,7 @@ float OpCurve::center(Axis axis, float intercept) const {
 	return roots.roots[0];
 }
 
+#if 0
 // cut range minimum should be double the distance between ptT pt and opp pt
 CutRangeT OpCurve::cutRange(const OpPtT& ptT, OpPoint oppPt, float loEnd, float hiEnd) const {
 	PathOpsV0Lib::CurveConst cutFun = context().callback(c.type).cutFuncPtr;
@@ -86,6 +90,7 @@ CutRangeT OpCurve::cutRange(const OpPtT& ptT, OpPoint oppPt, float loEnd, float 
 	}
 	return tRange;
 }
+#endif
 
 float OpCurve::findValidT(float start, float end, OpPoint opp) {
 	if (!isLine()) {
@@ -357,7 +362,24 @@ OpRoots OpCurve::rawIntersect(const LinePts& linePt, MatchEnds common) const {
 			common |= MatchEnds::end;
 		return axisRawHit(Axis::horizontal, linePt.pts[0].y, common);
 	}
-	OpCurve isRotated = toVertical(linePt, common);
+#if OP_DEBUG_DUMP
+	OpContext* context = (OpContext*) c.context;
+	OpCurveCurve* cc = context->debugCurveCurve;
+	if (cc && cc->debugDumpOn) { 
+		dump();
+		OpDebugOut("\n");
+		linePt.dump();
+		OpDebugOut("\n");
+	}
+#endif
+	// do not turn result into a line, since rotated is only used to find intersecting t value
+	OpCurve isRotated = toVerticalBase(linePt, common);
+#if OP_DEBUG_DUMP
+	if (cc && cc->debugDumpOn) {
+		isRotated.dump();
+		OpDebugOut("\n\n");
+	}
+#endif
 	if (!isRotated.isFinite()) {
 		writableContext().setError(PathOpsV0Lib::ContextError::toVertical  OP_DEBUG_PARAMS(0));
 		return OpRoots();
@@ -449,7 +471,7 @@ bool OpCurve::isFinite() const {
 // however, callers include sort predicate, which cannot return failure; so don't return failure here
 // !!! add match ends from caller so that rotated matching end point can guarantee x == 0
 // set curve to rotated so subsequent line intersections can check for extrema if needed
-OpCurve OpCurve::toVertical(const LinePts& line, MatchEnds match) const {
+OpCurve OpCurve::toVerticalBase(const LinePts& line, MatchEnds match) const {
 	OpVector scale = line.pts[1] - line.pts[0];
 //	float opp = line.pts[1].y - line.pts[0].y;
     PathOpsV0Lib::Curve cRotated { c.context, nullptr, c.size, c.type };
@@ -467,19 +489,11 @@ OpCurve OpCurve::toVertical(const LinePts& line, MatchEnds match) const {
 	PathOpsV0Lib::Rotate funcPtr = context().callback(c.type).rotateFuncPtr;
 	if (funcPtr)
 		(*funcPtr)(c, line.pts[0], scale, isRotated.c);
-#if 0 && OP_DEBUG
-    LinePts debugLinePts {{{{0.929649651f, 1.59263349f}, {0.931356609f, 1.59143269f}}}};
-    if (debugLinePts.pts[0].isNearly(line.pts[0], OpVector{0, 0}) 
-            && debugLinePts.pts[1].isNearly(line.pts[1], OpVector{0, 0})
-            && isRotated.lastPt().isNearly(OpPoint{-0.000159205912f, 0.000138030344f},
-                    OpVector{0, 0})) {
-        draw(isRotated);
-        focus(isRotated);
-        showPoints();
-        showValues();
-        showControls();
-    }
-#endif
+	return isRotated;
+}
+
+OpCurve OpCurve::toVertical(const LinePts& line, MatchEnds match) const {
+	OpCurve isRotated = toVerticalBase(line, match);
 	isRotated.isLine();
 	return isRotated;
 }

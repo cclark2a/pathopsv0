@@ -593,7 +593,7 @@ void OpDebugRequired(const char*& str, const char* match) {
 
 #if OP_DEBUG
 
-bool OpPoint::debugIsUninitialized() const {
+bool OpPoint::debugIsUninitialized() const { 
 	return OpMath::IsDebugNaN(x) && OpMath::IsDebugNaN(y);
 }
 
@@ -739,49 +739,34 @@ void OpCurveCurve::debugBoundedEdge(OpSegment* segm, const OpPointBounds& sectBo
 
 #if OP_DEBUG_VERBOSE
 void OpCurveCurve::debugSaveState() {
-    dvRunIndex.push_back({ dvRuns.size(), dvRuns.size() + edgeCurves.runs.size() });
+    dumpCurveCurve.runIndex.push_back({ dumpCurveCurve.runs.size(), 
+            dumpCurveCurve.runs.size() + edgeCurves.runs.size() });
     for (auto run : edgeCurves.runs)
-        dvRuns.push_back(run);
-    for (auto run :oppCurves.runs)
-        dvRuns.push_back(run);
+        dumpCurveCurve.runs.push_back(run);
+    for (auto run : oppCurves.runs)
+        dumpCurveCurve.runs.push_back(run);
 }
 #endif
 
 // return false for caller to assert
-bool OpCurveCurve::debugShowImage(bool atDepth) {
-#if OP_DEBUG_FAST_TEST
-    return true;
-#else
-#if !OP_TINY_TEST
+bool OpCurveCurve::debugBreak(CcBreak atDepth) {
+#if OP_DEBUG_DUMP
 	if (OpDebugSkipBreak())
 		return true;
-#endif
 	if (context->debugData.curveCurveDepth < 0)
         return true;
-    if (atDepth && !context->debugData.curveCurveDepth)
+    if (CcBreak::atDepth == atDepth && !context->debugData.curveCurveDepth)
         return true;
     if (context->debugData.curveCurve1 != seg->id && context->debugData.curveCurve2 != seg->id)
         return true;
     if (context->debugData.curveCurve1 != opp->id && context->debugData.curveCurve2 != opp->id)
         return true;
-    if (atDepth && depth < context->debugData.curveCurveDepth)
+    if (CcBreak::atDepth == atDepth && depth < context->debugData.curveCurveDepth)
 		return true;
-#if OP_DEBUG_DUMP
-	if (!atDepth || context->debugData.curveCurveDepth == depth)
-		::debug();
-#endif
-#if 0 && !OP_TINY_SKIA  // !!! obsolete
-	OP_DEBUG_IMAGE_CODE(1 == depth ? ::showSegmentEdges() : ::hideSegmentEdges());
-#endif
-#if OP_DEBUG_DUMP
-#if OP_DEBUG_VALIDATE && !OP_TINY_SKIA
-	if (context->debugData.curveCurveDepth < depth) {
-		::dmpDepth(depth);
-//		::drawDepth(depth);
-	}
-#endif
-#endif
+	dmpFile();
 	return false;
+#else
+    return true;
 #endif
 }
 

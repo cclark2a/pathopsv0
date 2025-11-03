@@ -78,7 +78,7 @@ typedef bool (*DebugIsFill)(Winding );
 #if OP_DEBUG_DUMP
 typedef std::string (*DebugDumpWindingOut)(Winding );
 typedef void (*DebugDumpWindingSet)(const char*& , Winding& );
-typedef std::string (*DebugDumpContextExtra)(DebugContextData , DebugLevel , DebugBase );
+// typedef std::string (*DebugDumpContextExtra)(DebugContextData , DebugLevel , DebugBase );
 #endif
 #if OP_DEBUG_IMAGE
 typedef std::string (*DebugImageWindingOutX)(Winding );
@@ -89,7 +89,7 @@ typedef uint32_t (*DebugEdgeColor)(Winding , DebugEdgeType );
 struct DebugContextCallbacks {
     DebugIsFill debugIsFillFuncPtr = nullptr;
 #if OP_DEBUG_DUMP
-    DebugDumpContextExtra debugDumpContextExtraFuncPtr = nullptr;
+//    DebugDumpContextExtra debugDumpContextExtraFuncPtr = nullptr;
 	DebugDumpWindingOut debugDumpWindingOutFuncPtr = nullptr;
 	DebugDumpWindingSet debugDumpWindingSetFuncPtr = nullptr;
 #endif
@@ -100,7 +100,7 @@ struct DebugContextCallbacks {
 #endif
 };
 
-#if OP_DEBUG_DUMP
+#if 0 && OP_DEBUG_DUMP  // disable until we need it
 typedef std::string (*DebugDumpContourExtra)(DebugContourData , DebugLevel , DebugBase );
 #endif
 #if OP_DEBUG_IMAGE
@@ -112,7 +112,7 @@ typedef bool (*DebugOperand)(DebugContourData , int );  // deprecated
 
 struct DebugContourCallbacks {
 #if OP_DEBUG_DUMP
-    DebugDumpContourExtra debugDumpContourExtraFuncPtr = nullptr;
+//    DebugDumpContourExtra debugDumpContourExtraFuncPtr = nullptr;
 #endif
 #if OP_DEBUG_IMAGE
 	DebugNativePath debugNativePathFuncPtr = nullptr;

@@ -28,6 +28,7 @@ struct BinaryContext : public UnaryContext {
 	BinaryOperation operation;
 };
 
+#if 0  // disabled until we need it
 #if !OP_TINY_SKIA
 #include "include/core/SkStream.h"
 
@@ -95,6 +96,7 @@ std::string PathOpsV0Lib::dumpBinaryContourFunc(DebugContourData caller, DebugLe
 #endif
     return s;
 }
+#endif
 
 std::string PathOpsV0Lib::dumpBinaryContextFunc(DebugContextData caller, DebugLevel l, DebugBase b) {
 #if OP_TINY_SKIA
@@ -196,13 +198,13 @@ void SetSkiaSimplifyCallbacksDebug(Context* context, Contour* contour, const SkP
 	SetDebugContourData(contour, { &simplifyUserData, sizeof(simplifyUserData) }, 
             DebugContourType::windingUserData );
 	SetDebugContourCallbacks(contour, { 
-            OP_DEBUG_DUMP_CODE(dumpUnaryContourFunc)
-            OP_DEBUG_IMAGE_PARAMS(debugSimplifyPathFunc,
+    //        OP_DEBUG_DUMP_CODE(dumpUnaryContourFunc)
+            OP_DEBUG_IMAGE_CODE(debugSimplifyPathFunc,
 	        debugSimplifyGetDrawFunc, debugSimplifySetDrawFunc) }
     );
 	SetDebugContextCallbacks(context, {
             unaryDebugIsFill
-			OP_DEBUG_DUMP_PARAMS(nullptr, unaryDumpOutFunc, unaryDumpSetFunc)
+			OP_DEBUG_DUMP_PARAMS(unaryDumpOutFunc, unaryDumpSetFunc)
             OP_DEBUG_IMAGE_PARAMS(unaryImageOutXFunc, unaryImageOutFunc, unaryColorFuncPtr) }
     );
 }
@@ -219,13 +221,13 @@ void SetSkiaOpContourCallbacksDebug(Context* context, Contour* contour,
 	SetDebugContourData(contour, { &windingUserData, sizeof(windingUserData) },
             DebugContourType::windingUserData);
 	SetDebugContourCallbacks(contour, {
-			OP_DEBUG_DUMP_CODE(dumpBinaryContourFunc)
-            OP_DEBUG_IMAGE_PARAMS(debugOpPathFunc,
+	//		OP_DEBUG_DUMP_CODE(dumpBinaryContourFunc)
+            OP_DEBUG_IMAGE_CODE(debugOpPathFunc,
 	        debugOpGetDrawFunc, debugOpSetDrawFunc, debugOpSetIsOppFunc) }
     );
 	SetDebugContextCallbacks(context, {
             binaryDebugIsFill
-			OP_DEBUG_DUMP_PARAMS(dumpBinaryContextFunc, binaryDumpOutFunc, binaryDumpSetFunc)
+			OP_DEBUG_DUMP_PARAMS(binaryDumpOutFunc, binaryDumpSetFunc)
             OP_DEBUG_IMAGE_PARAMS(binaryImageOutXFunc, binaryImageOutFunc, binaryColorFuncPtr) }
     );
 }

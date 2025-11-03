@@ -118,8 +118,7 @@ struct CcCurves {
 	int overlaps() const;
 	float perimeter() const;
     void shareDistance();
-	void snipAndGo(const OpPtT& cut, OpPoint oppPt);
-	void snipRange(const OpPtT& lo, const OpPtT& hi);
+	void snipAndGo(const CutRangeT& );
     OpEdge* twoHulls(OpPtT& lower, OpPtT& upper);
 	DUMP_DECLARATIONS
     OP_DEBUG_CODE(void debugAdd(EdgeRun& ));
@@ -177,6 +176,8 @@ struct SnipPtTs {
 
     OpPtT seg;
     OpPtT opp;
+	CutRangeT segCut;
+	CutRangeT oppCut;
 };
 
 #if OP_DEBUG_VERBOSE
@@ -195,11 +196,22 @@ struct DebugRunSize {
 };
 #endif
 
+#if OP_DEBUG
+enum class CcBreak {
+	atEnd,
+	atDepth
+};
+#endif
+
 struct OpCurveCurve {
+#if OP_DEBUG_DUMP
+	OpCurveCurve() {}
+#endif
 	OpCurveCurve(OpSegment* seg, OpSegment* opp, std::vector<OpIntersection*>& matchingSects);
 	void addIntersection(OpEdge* edge, OpEdge* opp);
     bool addLineCurveIntersection(OpEdge& edge, OpEdge& opp, CurveRef );
 	EdgeRun* addEdgeRun(OpEdge* , CurveRef , EdgeMatch  OP_LINE_FILE_ARGS());
+	void addSnip(SnipPtTs );
 	bool addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 			const OpPtT& oppStart, const OpPtT& oppEnd);
     OpEdge* allocateEdge(OpSegment* , const OpEdge* , const OpPtT& start, const OpPtT& end,
@@ -212,6 +224,7 @@ struct OpCurveCurve {
 	bool checkSect();
 	bool checkSplit(float lo, float hi, CurveRef , OpPtT& checkPtT) const;
 	void checkUnsplitables();
+	void cutPair(SnipPtTs& );
 	SectFound divideAndConquer();
 	bool endsOverlap() const;
 	void findUnsectable();
@@ -231,10 +244,7 @@ struct OpCurveCurve {
 	bool splitHulls(CurveRef , CcCurves& splits);  // hull finds split point
 	size_t uniqueLimits();
 #if OP_DEBUG
-	~OpCurveCurve() { 
-		context->debugCurveCurve = nullptr; }
-	bool debugShowImage(bool atDepth = false);
-//	void debugBoundedEdge(OpSegment* segm, const OpPointBounds& , float minT, std::string );
+	bool debugBreak(CcBreak );
 #endif
 #if OP_DEBUG_DUMP
 	OpCurveCurve(OpContext* c) { context = c; }
@@ -248,6 +258,7 @@ struct OpCurveCurve {
 	void dumpDepth(int level);
 	void dumpDepth();
 #endif
+
 	OpContext* context  OP_DEBUG_INIT_PTR(OpContext);
 	OpSegment* seg  OP_DEBUG_INIT_PTR(OpSegment);
 	OpSegment* opp  OP_DEBUG_INIT_PTR(OpSegment);
@@ -284,13 +295,21 @@ struct OpCurveCurve {
 	bool splitMid  OP_DEBUG_INIT_BOOL();
 	bool splitHullFail  OP_DEBUG_INIT_BOOL();  // set true if mid t is nearly equal to an end 
 #if OP_DEBUG_DUMP
-	static int debugCall;  // used to break on the nth call (not serialized)
-	int debugLocalCall = INT_MAX;  // (copy so it is visible in debugger)
-#endif
-#if OP_DEBUG_VERBOSE
-	std::vector<DebugRunSize> dvRunIndex;
-	std::vector<EdgeRun> dvRuns;  // make copy because some originals are temporary
+	bool debugDumpOn = false;
 #endif
 };
+
+#if OP_DEBUG_DUMP
+struct DumpCurveCurve {
+	DUMP_DECLARATIONS
+
+	std::vector<OpCurveCurve> cc;
+	std::vector<DebugRunSize> runIndex;
+	std::vector<EdgeRun> runs;  // make copy because some originals are temporary
+	int nthCall = 0;  // used to break on the nth call (not serialized)
+};
+
+extern DumpCurveCurve dumpCurveCurve;
+#endif
 
 #endif

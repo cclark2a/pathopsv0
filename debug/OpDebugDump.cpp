@@ -13,8 +13,6 @@
 #include "OpWinder.h"
 #include "PathOps.h"
 
-int OpCurveCurve::debugCall = INT_MAX;  // which call to curve-curve was made
-
 // !!! things to do:
 // decrement debug level (and indent) when dumping (for example) edges within an edge
 // allow more flexible abbreviations for labels (none, first letter, string)
@@ -1041,8 +1039,7 @@ static std::string debugContextCallbacksDump(const PathOpsV0Lib::DebugContextCal
     std::string s = "debugContextCallbacks:";
     static_assert(0 == offsetof(PathOpsV0Lib::DebugContextCallbacks, debugIsFillFuncPtr));
     s += debugFindTag(reinterpret_cast<DebugFunction>(debugContextCallbacks.debugIsFillFuncPtr));
-    DEBUG_FIND_TAG(debugContextCallbacks, debugIsFillFuncPtr, debugDumpContextExtraFuncPtr);
-    DEBUG_FIND_TAG(debugContextCallbacks, debugDumpContextExtraFuncPtr, debugDumpWindingOutFuncPtr);
+    DEBUG_FIND_TAG(debugContextCallbacks, debugIsFillFuncPtr, debugDumpWindingOutFuncPtr);
     DEBUG_FIND_TAG(debugContextCallbacks, debugDumpWindingOutFuncPtr, debugDumpWindingSetFuncPtr);
 #if OP_DEBUG_IMAGE
     DEBUG_FIND_TAG(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugImageWindingOutXFuncPtr);
@@ -1134,9 +1131,11 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
 	DEBUG_FIND_TAG(contextCallbacks, maxDistFuncPtr, maxDeepFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, maxDeepFuncPtr, maxShallowFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, maxShallowFuncPtr, maxSplitsFuncPtr);
-	DEBUG_FIND_TAG(contextCallbacks, maxSplitsFuncPtr, maxMarginFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, maxSplitsFuncPtr, maxCutFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, maxCutFuncPtr, maxMarginFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, maxMarginFuncPtr, maxUnsectableTFuncPtr);
-	DEBUG_FIND_TAG(contextCallbacks, maxUnsectableTFuncPtr, maxCheckSplitFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, maxUnsectableTFuncPtr, maxUnsectDistFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, maxUnsectDistFuncPtr, maxCheckSplitFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, maxCheckSplitFuncPtr, maxLimbsFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, maxLimbsFuncPtr, maxLoopsFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, maxLoopsFuncPtr, maxGapFuncPtr);
@@ -1293,8 +1292,7 @@ static void debugContextCallbacksDumpSet(PathOpsV0Lib::DebugContextCallbacks& de
     OpDebugRequired(str, "debugContextCallbacks");
     static_assert(0 == offsetof(PathOpsV0Lib::DebugContextCallbacks, debugIsFillFuncPtr));
     debugContextCallbacks.debugIsFillFuncPtr = (PathOpsV0Lib::DebugIsFill) debugFindFunction(str);
-    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugIsFillFuncPtr, debugDumpContextExtraFuncPtr);
-    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpContextExtraFuncPtr, debugDumpWindingOutFuncPtr);
+    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugIsFillFuncPtr, debugDumpWindingOutFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpWindingOutFuncPtr, debugDumpWindingSetFuncPtr);
 #if OP_DEBUG_IMAGE
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugImageWindingOutXFuncPtr);
@@ -1386,9 +1384,11 @@ void OpContext::dumpSet(const char*& str) {
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxDistFuncPtr, maxDeepFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxDeepFuncPtr, maxShallowFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxShallowFuncPtr, maxSplitsFuncPtr);
-	DEBUG_FIND_FUNCTION(contextCallbacks, maxSplitsFuncPtr, maxMarginFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxSplitsFuncPtr, maxCutFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxCutFuncPtr, maxMarginFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxMarginFuncPtr, maxUnsectableTFuncPtr);
-	DEBUG_FIND_FUNCTION(contextCallbacks, maxUnsectableTFuncPtr, maxCheckSplitFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxUnsectableTFuncPtr, maxUnsectDistFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxUnsectDistFuncPtr, maxCheckSplitFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxCheckSplitFuncPtr, maxLimbsFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxLimbsFuncPtr, maxLoopsFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxLoopsFuncPtr, maxGapFuncPtr);
@@ -1924,12 +1924,14 @@ std::string Curve_DebugDump(PathOpsV0Lib::Curve c, DebugLevel l, DebugBase b) {
 
 std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
     std::string s = "contour[" + STR(id) + "] ";
+#if 0  // disable until we need it
     if (DebugLevel::detailed == l) {
 		auto contourExtra = debugCallbacks.debugDumpContourExtraFuncPtr;
 		if (contourExtra)
 			s += (*contourExtra)(debugContourData[
                 (size_t) PathOpsV0Lib::DebugContourType::windingUserData], l, b) + " ";
 	}
+#endif
     static_assert(0 == offsetof(OpContour, segments));
     s += "segments:" + STR(segments.size()) + (DebugLevel::detailed == l ? "\n" : " ");
     if (DebugLevel::detailed != l && DebugLevel::file != l) {
@@ -5022,18 +5024,7 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
         DEBUG_DUMP_BOOL(lastDepthReduced, foundGap);
         DEBUG_DUMP_BOOL(foundGap, splitMid);
         DEBUG_DUMP_BOOL(splitMid, splitHullFail);
-    #if OP_DEBUG_DUMP
-        ASSERT_ORDERED_OFFSET(splitHullFail, debugLocalCall, 3);  // not serialized
-    #endif
-    #if OP_DEBUG_VERBOSE
-        DEBUG_DUMP_VECTOR_OFFSET(debugLocalCall, dvRunIndex, 4);
-        DEBUG_DUMP_VECTOR(dvRunIndex, dvRuns);
-        ASSERT_LAST(dvRuns);
-    #elif OP_DEBUG_DUMP
-        ASSERT_LAST_OFFSET(debugLocalCall, 4);
-    #else
         ASSERT_LAST_OFFSET(splitHullFail, 3);
-    #endif
         return s;
     }
     s += "depth:" + STR(depth) + " ";
@@ -5056,28 +5047,38 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
         s += "splitMid ";
     if (splitHullFail) 
         s += "splitHullFail ";
-#if OP_DEBUG_DUMP
-    if (DebugLevel::file == l)
-        s += "debugLocalCall:" + STR(debugLocalCall) + " ";
-#endif
-#if OP_DEBUG_VERBOSE
+    if (' ' >= s[0])
+        s.pop_back();
+    return s;
+}
+
+std::string DumpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s;
     if (DebugLevel::file == l) {
-        if (dvRunIndex.size()) {
-            s += "dvRunIndex[" + STR(dvRunIndex.size()) + "\n";
-            for (const DebugRunSize& size : dvRunIndex)
+        ASSERT_FIRST(cc);
+        DEBUG_DUMP_COMMON_VECTOR(cc);
+        DEBUG_DUMP_VECTOR(cc, runIndex);
+        DEBUG_DUMP_VECTOR(runIndex, runs);
+        DEBUG_DUMP_REQUIRED_VALUE(runs, nthCall);
+        ASSERT_LAST_OFFSET(nthCall, 4);
+        return s;
+    }
+    if (DebugLevel::file == l)
+        s += "nthCall:" + STR(nthCall) + " ";
+    if (DebugLevel::file == l) {
+        if (runIndex.size()) {
+            s += "runIndex[" + STR(runIndex.size()) + "\n";
+            for (const DebugRunSize& size : runIndex)
                 s += "{edgeRuns:" + STR(size.edgeRuns) + " oppRuns:" + STR(size.oppRuns) + "} ";
             s.pop_back();
             s += "] ";
         }
-        if (dvRuns.size()) {
-            s += "dvRuns:" + STR(dvRuns.size()) + "\n";
-            for (const auto& run : dvRuns)
+        if (runs.size()) {
+            s += "runs:" + STR(runs.size()) + "\n";
+            for (const auto& run : runs)
                 s += run.debugDump(l, b) + "\n";
         }
     }
-#endif
-    if (' ' >= s[0])
-        s.pop_back();
     return s;
 }
 
@@ -5118,18 +5119,16 @@ void OpCurveCurve::dumpSet(const char*& str) {
     DEBUG_SET_BOOL(lastDepthReduced, foundGap);
     DEBUG_SET_BOOL(foundGap, splitMid);
     DEBUG_SET_BOOL(splitMid, splitHullFail);
-#if OP_DEBUG_DUMP
-    ASSERT_ORDERED_OFFSET(splitHullFail, debugLocalCall, 3);  // not serialized
-#endif
-#if OP_DEBUG_VERBOSE
-    DEBUG_SET_VECTOR_OFFSET(debugLocalCall, dvRunIndex, 4);
-    DEBUG_SET_VECTOR(dvRunIndex, dvRuns);
-    ASSERT_LAST(dvRuns);
-#elif OP_DEBUG_DUMP
-    ASSERT_LAST_OFFSET(debugLocalCall, 4);
-#else
     ASSERT_LAST_OFFSET(splitHullFail, 3);
-#endif
+}
+
+void DumpCurveCurve::dumpSet(const char*& str) {
+    ASSERT_FIRST(cc);
+    DEBUG_SET_COMMON_VECTOR(cc);
+    DEBUG_SET_VECTOR(cc, runIndex);
+    DEBUG_SET_VECTOR(runIndex, runs);
+    DEBUG_SET_REQUIRED_VALUE(runs, nthCall);
+    ASSERT_LAST_OFFSET(nthCall, 4);
 }
 
 void OpCurveCurve::dumpResolveAll(OpContext* c) {
@@ -5174,19 +5173,20 @@ std::string OpCurveCurve::debugDumpDepth(int level) {
 		}
 
     }
-    if ((size_t) level < dvRunIndex.size()) {
-        size_t lo = dvRunIndex[level].edgeRuns;
-        size_t hi = dvRunIndex[level].oppRuns;
+    if ((size_t) level < dumpCurveCurve.runIndex.size()) {
+        size_t lo = dumpCurveCurve.runIndex[level].edgeRuns;
+        size_t hi = dumpCurveCurve.runIndex[level].oppRuns;
         s += "edgeCurves.runs: " + STR(hi - lo) + "\n";
         for (size_t index = lo; index < hi; ++index) {
-            const EdgeRun& run = dvRuns[index];
+            const EdgeRun& run = dumpCurveCurve.runs[index];
             s += run.debugDump(defaultLevel, defaultBase) + "\n";
         }
         lo = hi;
-        hi = (int) dvRunIndex.size() <= level + 1 ? dvRuns.size() : dvRunIndex[level + 1].edgeRuns;
+        hi = (int) dumpCurveCurve.runIndex.size() <= level + 1 ? dumpCurveCurve.runs.size() 
+                : dumpCurveCurve.runIndex[level + 1].edgeRuns;
         s += "oppCurves.runs: " + STR(hi - lo) + "\n";
         for (size_t index = lo; index < hi; ++index) {
-            const EdgeRun& run = dvRuns[index];
+            const EdgeRun& run = dumpCurveCurve.runs[index];
             s += run.debugDump(defaultLevel, defaultBase) + "\n";
         }
     }

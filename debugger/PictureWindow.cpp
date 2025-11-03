@@ -435,6 +435,8 @@ void PictureWindow::addIDs() {
 }
 
 void PictureWindow::addIntersections() {
+    if (!debuggerState->showIntersections)
+        return;
 	for (auto& id : debuggerState->ids) {
         if (IDType::intersection != id.type)
             continue;
