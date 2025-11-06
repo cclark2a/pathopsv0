@@ -4,6 +4,7 @@
 
 #include "PathOps.h"
 #include "DebugOps.h"
+#include "OpDebugRaster.h"
 
 namespace PathOpsV0Lib {
 
@@ -346,6 +347,11 @@ inline void AddCubics(Contour* contour, AddCurve curve) {
 	tValues.add(0);
 	tValues.add(1);
 	tValues.add(roots);
+    if (std::any_of(tValues.roots.begin(), tValues.roots.end(), [](float t) {
+            return OpMath::IsNaN(t); })) {
+        PathOpsV0Lib::SetError(curve.context, PathOpsV0Lib::ContextError::root);
+        return;
+    }
     tValues.sort();
     tValues.smooth();  // disallow intervals <= epsilon
     std::vector<OpPtT> ptTs(tValues.count());
@@ -469,6 +475,16 @@ inline bool cubicsEqual(Curve one, Curve two) {
             : ctrlPt1.pts[0] == ctrlPt2.pts[1] && ctrlPt1.pts[1] == ctrlPt2.pts[0];
 }
 
+inline void cubicPin(Curve c, OpPoint oldStart, OpPoint oldEnd) {
+//	OP_ASSERT(c.data->start != oldStart || c.data->end != oldEnd);
+    CubicControls controls(c);
+	controls.pts[0] += c.data->start - oldStart;
+	controls.pts[1] += c.data->end - oldEnd;
+    controls.pts[0].pin(c.data->start, c.data->end);
+    controls.pts[1].pin(c.data->start, c.data->end);
+    controls.copyTo(c);
+}
+
 inline OpVector cubicTangent(Curve c, float t) {
     CubicControls controls(c);
     return CubicTangent(c.data->start, controls, c.data->end, t);
@@ -486,20 +502,6 @@ inline OpVector cubicNormal(Curve c, float t) {
 // original cubic: oldStart c.ctrl1 c.ctrl2 oldEnd
 //      new cubic:  c.start   calc1   calc2  c.end
 // old tangent: c.ctrl1 - oldStart
-
-#if 0
-inline void cubicPinCtrl(Curve c, OpPoint oldStart, OpPoint oldEnd) {
-	OP_ASSERT(c.data->start != oldStart || c.data->end != oldEnd);
-    CubicControls controls(c);
-	controls.pts[0] += c.data->start - oldStart;
-	controls.pts[1] += c.data->end - oldEnd;
-	OP_ASSERT(OpMath::Between(c.data->start.x, controls.pts[0].x, c.data->end.x));
-	OP_ASSERT(OpMath::Between(c.data->start.y, controls.pts[0].y, c.data->end.y));
-	OP_ASSERT(OpMath::Between(c.data->start.x, controls.pts[1].x, c.data->end.x));
-	OP_ASSERT(OpMath::Between(c.data->start.y, controls.pts[1].y, c.data->end.y));
-    controls.copyTo(c);
-}
-#endif
 
 inline void cubicRotate(Curve c, OpPoint origin, OpVector scale, Curve result) {
     CubicControls controls(c);
@@ -553,6 +555,7 @@ inline std::string cubicDebugDumpName() {
     OP_TAGGED_FUNCTION(cubicIsFinite), \
     OP_TAGGED_FUNCTION(cubicIsLine), \
     OP_TAGGED_FUNCTION(cubicSetBounds), \
+    OP_TAGGED_FUNCTION(cubicPin), \
     OP_TAGGED_FUNCTION(cubicTangent), \
     OP_TAGGED_FUNCTION(cubicsEqual), \
     OP_TAGGED_FUNCTION(cubicPtAtT), \
@@ -569,7 +572,7 @@ inline std::string cubicDebugDumpName() {
 
 inline void cubicCallbacks(Context* context, int nativeCurveType) {
     SetCurveCallbacks(context, nativeCurveType, { cubicAxisT,
-			cubicRotatedT, cubicHull, cubicIsFinite, cubicIsLine, cubicSetBounds,
+			cubicRotatedT, cubicHull, cubicIsFinite, cubicIsLine, cubicSetBounds, cubicPin,
 			cubicTangent, cubicsEqual, cubicPtAtT, cubicDPtAtT, cubicHullPtCount, cubicRotate, 
 			cubicSubDivide, cubicXYAtT, cubicReverse });
 #if OP_DEBUG

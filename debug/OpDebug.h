@@ -64,7 +64,7 @@ struct OpDebugRaster;
 
 struct OpDebugData {
 	OpDebugData(bool mayFail) 
-		: expect(mayFail ? OpDebugExpect::fail : OpDebugExpect::success)
+		:  expect(mayFail ? OpDebugExpect::fail : OpDebugExpect::success)
         , curveCurve1(0)
         , curveCurve2(0)
         , curveCurveDepth(-1)

@@ -64,13 +64,22 @@ void DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
         }
     };
     addPin(OpPtT(c.data->start, 0));
-    addSects(curve.axisRayHit(Axis::vertical, window->focus.left), window->focus.left,
+    bool debugThis = IDType::segment == opType.type && 5 == opType.segment->id 
+            && opType.segment->ptBounds.top < window->focus.top;
+    auto crossRoots = [&curve](Axis axis, float xy) {
+        if (!OpMath::Between(curve.firstPt().choice(axis), xy, curve.lastPt().choice(axis)))
+            return OpRoots();
+        return curve.axisRayHit(axis, xy);
+    };
+    addSects(crossRoots(Axis::vertical, window->focus.left), window->focus.left,
             Axis::vertical);
-    addSects(curve.axisRayHit(Axis::horizontal, window->focus.top), window->focus.top,
+    addSects(crossRoots(Axis::horizontal, window->focus.top), window->focus.top,
             Axis::horizontal);
-    addSects(curve.axisRayHit(Axis::vertical, window->focus.right), window->focus.right,
+    addSects(crossRoots(Axis::vertical, window->focus.right), window->focus.right,
             Axis::vertical);
-    addSects(curve.axisRayHit(Axis::horizontal, window->focus.bottom), window->focus.bottom,
+    if (debugThis)
+        OpNop();
+    addSects(crossRoots(Axis::horizontal, window->focus.bottom), window->focus.bottom,
             Axis::horizontal);
     addPin(OpPtT(c.data->end, 1));
     // for each span : if middle is inside focus, keep ends of span
@@ -80,6 +89,8 @@ void DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
     for (DebugSect& sect : sects) {
         if (last->sect.t < sect.sect.t) {
             OpCurve piece = curve.debugSubDivide(last->sect.t, sect.sect.t);
+            if (debugThis)
+                OpNop();
             OpPointBounds pieceBounds = piece.ptBounds();
             bool overlaps = pieceBounds.intersectsThreshold(window->focus, -window->threshold);
             if (!overlaps) {
@@ -96,6 +107,8 @@ void DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
         }
         last = &sect;
     }
+    if (debugThis)
+        OpNop();
 }
 
 void DebuggerAddPoly::add(const OpEdge* e) {

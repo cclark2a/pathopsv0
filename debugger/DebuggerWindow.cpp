@@ -39,6 +39,8 @@ struct OpContextSaveThreshold {
 
 void DebuggerWindow::add(const OpCurve& curve, DebuggerAddPoly* polyAdder) {
         // if adding a contour lengthen existing poly it it matches and close the contour as well...
+    bool debugThis = IDType::segment == polyAdder->opType.type && 5 == polyAdder->opType.segment->id 
+            && polyAdder->opType.segment->ptBounds.top < focus.top;
     if (!polyAdder->continueCurve) {
         polys.emplace_back();
         polys.back().c = curve.c;
@@ -89,6 +91,8 @@ void DebuggerWindow::add(const OpCurve& curve, DebuggerAddPoly* polyAdder) {
         } while (pieceIsLine && end < 1.f);
     } while (end < 1 || !piece.isLine());
     append(curve.c.data->end);
+    if (debugThis)
+        OpNop();
 }
 
 // span is between first and last points, but does not extend last point (unless, see below)
@@ -210,7 +214,7 @@ DebuggerPoly* DebuggerWindow::findPolyByID(int id) {
     return nullptr;
 }
 
-const NativeTextCache& DebuggerWindow::getCache(size_t index) {
+const NativeTextCache& DebuggerWindow::getCache(size_t index) const {
     OP_ASSERT(index < textCache.size());
     return textCache[index];
 }

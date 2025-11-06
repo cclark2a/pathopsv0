@@ -202,6 +202,8 @@ bool CcCurves::checkMid(float midT, float startDist, float endDist) {
 bool CcCurves::checkMidEdge(OpEdge* edge) {
     if (!edge->startDist.isSet() || !edge->endDist.isSet())
         return true;
+	if (edge->centerless)
+		return false;
     return checkMid(edge->center.t, edge->startDist.dist, edge->endDist.dist);
 }
 
@@ -1588,9 +1590,11 @@ bool OpCurveCurve::reduceDistFlipped() {
 			if (switchesSides && !nearlyZero && !byZero)
 				keepRun(splits);
             else if (OpEdge* edge = curves->twoHulls(lower->edgePtT, upper->edgePtT)) {
-                OpPtT midPtT = edge->center;
-                addSplit(splits, lower->edgePtT, midPtT);
-                addSplit(splits, midPtT, upper->edgePtT);
+				if (!edge->centerless) {
+					OpPtT midPtT = edge->center;
+					addSplit(splits, lower->edgePtT, midPtT);
+					addSplit(splits, midPtT, upper->edgePtT);
+				}
             }  // check for missed sects between smallest magnitude dist and adjacent dist
             else if (prior && !switchesSides && !(prior->oppDist * run.oppDist < 0)
                     && !prior->byZero && !byZero && fabsf(prior->oppDist) > fabsf(lower->oppDist)

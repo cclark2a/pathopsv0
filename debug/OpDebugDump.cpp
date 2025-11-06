@@ -964,6 +964,7 @@ struct ContextErrorName {
 	CONTEXT_ERROR_NAME(intersection),
 	CONTEXT_ERROR_NAME(loop),
 	CONTEXT_ERROR_NAME(missing),
+	CONTEXT_ERROR_NAME(root),
 	CONTEXT_ERROR_NAME(toVertical),
     CONTEXT_ERROR_NAME(tree),
 };
@@ -1019,11 +1020,11 @@ static std::string debugCallbacksDump(const std::vector<PathOpsV0Lib::DebugCurve
 	    DEBUG_FIND_TAG(debugCallback, scaleFuncPtr,      curveNameFuncPtr);
 	    DEBUG_FIND_TAG(debugCallback, curveNameFuncPtr,  curveExtraFuncPtr);
         DEBUG_FIND_TAG(debugCallback, curveExtraFuncPtr, debugSubDivideFuncPtr);
-#if OP_DEBUG_IMAGE && !OP_TINY_SKIA && 0 // !!! deprecate add to path since it uses Skia
-	    DEBUG_FIND_TAG(debugCallback, curveExtraFuncPtr, addToPathFuncPtr);
+#if TEST_RASTER
+        DEBUG_FIND_TAG(debugCallback, debugSubDivideFuncPtr, addRasterFuncPtr);
         static_assert(sizeof(PathOpsV0Lib::DebugCurveCallbacks)  
-                == offsetof(PathOpsV0Lib::DebugCurveCallbacks, addToPathFuncPtr)
-                + sizeof(debugCallback.addToPathFuncPtr));
+                == offsetof(PathOpsV0Lib::DebugCurveCallbacks, addRasterFuncPtr)
+                + sizeof(debugCallback.addRasterFuncPtr));
 #else
         static_assert(sizeof(PathOpsV0Lib::DebugCurveCallbacks)  
                 == offsetof(PathOpsV0Lib::DebugCurveCallbacks, debugSubDivideFuncPtr)
@@ -1068,11 +1069,12 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
         static_assert(0 == offsetof(PathOpsV0Lib::CurveCallbacks, axisTFuncPtr));
         s += debugFindTag(reinterpret_cast<DebugFunction>(callback.axisTFuncPtr));
 	    DEBUG_FIND_TAG(callback, axisTFuncPtr,          rotateTFuncPtr);
-	    DEBUG_FIND_TAG(callback, rotateTFuncPtr,        curveHullFuncPtr);
+	    DEBUG_FIND_TAG(callback, rotateTFuncPtr,        curveHullFuncPtr); 
 	    DEBUG_FIND_TAG(callback, curveHullFuncPtr,      curveIsFiniteFuncPtr);
 	    DEBUG_FIND_TAG(callback, curveIsFiniteFuncPtr,  curveIsLineFuncPtr);
 	    DEBUG_FIND_TAG(callback, curveIsLineFuncPtr,    setBoundsFuncPtr);
-	    DEBUG_FIND_TAG(callback, setBoundsFuncPtr,      curveTangentFuncPtr);
+	    DEBUG_FIND_TAG(callback, setBoundsFuncPtr,      curvePinFuncPtr);
+	    DEBUG_FIND_TAG(callback, curvePinFuncPtr,       curveTangentFuncPtr);
 	    DEBUG_FIND_TAG(callback, curveTangentFuncPtr,   curvesEqualFuncPtr);
 	    DEBUG_FIND_TAG(callback, curvesEqualFuncPtr,    ptAtTFuncPtr);
 	    DEBUG_FIND_TAG(callback, ptAtTFuncPtr,          ptDAtTFuncPtr);
@@ -1252,7 +1254,7 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
     if (debugOppErrorID)
         s += "debugOppErrorID:" + STR(debugOppErrorID) + " ";
     ASSERT_ORDERED(debugOppErrorID, debugExpect);
-    s += "debugExpect:" + OpDebugExpectName(debugData.expect) + " ";
+    s += "debugExpect:" + OpDebugExpectName(debugExpect) + " ";
 	DEBUG_DUMP_BOOL(debugExpect, debugInPathOps);
 	DEBUG_DUMP_BOOL(debugInPathOps, debugInClearEdges);
 	DEBUG_DUMP_BOOL(debugInClearEdges, debugCheckLastEdge);
@@ -1275,10 +1277,10 @@ static void debugCallbacksDumpSet(std::vector<PathOpsV0Lib::DebugCurveCallbacks>
 	        DEBUG_FIND_FUNCTION(debugCallback, scaleFuncPtr,      curveNameFuncPtr);
 	        DEBUG_FIND_FUNCTION(debugCallback, curveNameFuncPtr, curveExtraFuncPtr);
             DEBUG_FIND_FUNCTION(debugCallback, curveExtraFuncPtr, debugSubDivideFuncPtr);
-#if OP_DEBUG_IMAGE && !OP_TINY_SKIA && 0 // !!! deprecate
-	        DEBUG_FIND_FUNCTION(debugCallback, curveExtraFuncPtr, addToPathFuncPtr);
-            static_assert(offsetof(PathOpsV0Lib::DebugCurveCallbacks, addToPathFuncPtr) 
-                    + sizeof(debugCallback.addToPathFuncPtr) == sizeof(debugCallback));
+#if TEST_RASTER
+            DEBUG_FIND_FUNCTION(debugCallback, debugSubDivideFuncPtr, addRasterFuncPtr);
+            static_assert(offsetof(PathOpsV0Lib::DebugCurveCallbacks, addRasterFuncPtr) 
+                    + sizeof(debugCallback.addRasterFuncPtr) == sizeof(debugCallback));
 #else
             static_assert(offsetof(PathOpsV0Lib::DebugCurveCallbacks, debugSubDivideFuncPtr) 
                     + sizeof(debugCallback.debugSubDivideFuncPtr) == sizeof(debugCallback));
@@ -1323,7 +1325,8 @@ void OpContext::dumpSet(const char*& str) {
 	    DEBUG_FIND_FUNCTION(callback, curveHullFuncPtr,      curveIsFiniteFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, curveIsFiniteFuncPtr,  curveIsLineFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, curveIsLineFuncPtr,    setBoundsFuncPtr);
-	    DEBUG_FIND_FUNCTION(callback, setBoundsFuncPtr,      curveTangentFuncPtr);
+	    DEBUG_FIND_FUNCTION(callback, setBoundsFuncPtr,      curvePinFuncPtr);
+	    DEBUG_FIND_FUNCTION(callback, curvePinFuncPtr,       curveTangentFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, curveTangentFuncPtr,   curvesEqualFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, curvesEqualFuncPtr,    ptAtTFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, ptAtTFuncPtr,          ptDAtTFuncPtr);

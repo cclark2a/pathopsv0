@@ -1,4 +1,8 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
+#include "OpDebug.h"
+
+#if OP_DEBUG
+
 #if OP_TINY_SKIA
 #include "TinySkia.h"
 #else
@@ -333,4 +337,6 @@ void AddDebugSkiaPath(Context* context, Contour* contour, const SkPath& path) {
 }
 
 #endif
+#endif
+
 #endif

@@ -3,9 +3,8 @@
 #define QuadBezier_DEFINED
 
 #include "PathOps.h"
-#if OP_DEBUG
 #include "DebugOps.h"
-#endif
+#include "OpDebugRaster.h"
 
 namespace PathOpsV0Lib {
 
@@ -225,6 +224,12 @@ inline bool quadsEqual(Curve one, Curve two) {
     return ctrlPt1 == ctrlPt2;
 }
 
+inline void quadPin(Curve c, OpPoint oldStart, OpPoint oldEnd) {
+    OpPoint ctrlPt = quadControlPt(c);
+    ctrlPt.pin(c.data->start, c.data->end);
+    quadSetControl(c, ctrlPt);
+}
+
 inline OpVector quadTangent(Curve c, float t) {
     return QuadTangent(c.data->start, quadControlPt(c), c.data->end, t);
 }
@@ -283,6 +288,7 @@ inline void quadDebugSubDivide(Curve c, float t1, float t2, float threshold, Cur
     OP_TAGGED_FUNCTION(quadIsFinite), \
     OP_TAGGED_FUNCTION(quadIsLine), \
     OP_TAGGED_FUNCTION(quadSetBounds), \
+    OP_TAGGED_FUNCTION(quadPin), \
     OP_TAGGED_FUNCTION(quadTangent), \
     OP_TAGGED_FUNCTION(quadsEqual), \
     OP_TAGGED_FUNCTION(quadPtAtT), \
@@ -296,10 +302,10 @@ inline void quadDebugSubDivide(Curve c, float t1, float t2, float threshold, Cur
 #endif
 
 inline void quadCallbacks(Context* context, int nativeCurveType) {
-    SetCurveCallbacks(context, nativeCurveType, 
-            { quadAxisT, quadRotatedT, quadHull, quadIsFinite, 
-            quadIsLine, quadSetBounds, quadTangent, quadsEqual, quadPtAtT, nullptr, quadHullPtCount,  
-			quadRotate, quadSubDivide, quadXYAtT });
+    SetCurveCallbacks(context, nativeCurveType, { quadAxisT, 
+            quadRotatedT, quadHull, quadIsFinite, quadIsLine, quadSetBounds, quadPin, 
+            quadTangent, quadsEqual, quadPtAtT, nullptr, quadHullPtCount, quadRotate, 
+            quadSubDivide, quadXYAtT });
 #if OP_DEBUG
     SetDebugCurveCallbacks(context, nativeCurveType, { debugQuadScale
         OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, nullptr, quadDebugSubDivide)

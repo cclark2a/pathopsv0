@@ -81,12 +81,12 @@ void PictureWindow::clear() {
     scale = 0;
 }
 
-OpPoint PictureWindow::toLocal(OpPoint pt) {
+OpPoint PictureWindow::toLocal(OpPoint pt) const {
     return { (float) (pt.x / scale + focus.left), (float) (pt.y / scale + focus.top) };
 }
 
 // return local space point in device space
-OpPoint PictureWindow::toDevice(OpPoint pt) {
+OpPoint PictureWindow::toDevice(OpPoint pt) const {
     return { (float) ((pt.x - focus.left) * scale), (float) ((pt.y - focus.top) * scale) };
 }
 
@@ -219,8 +219,8 @@ void PictureWindow::addGrid() {
     }
 }
 
-bool PictureWindow::touches(const OpRect& bounds) {
-    for (DebuggerPoly& poly : polys) {
+bool PictureWindow::touches(const OpRect& bounds) const {
+    for (const DebuggerPoly& poly : polys) {
         if (poly.device.empty())
             continue;
         if (!poly.c.data)
@@ -228,8 +228,8 @@ bool PictureWindow::touches(const OpRect& bounds) {
         OpRect polyBounds(toDevice(poly.c.data->start), toDevice(poly.c.data->end));
         if (!bounds.intersects(polyBounds))
             continue;
-        size_t* contourCounts = &poly.contours.front();
-        size_t* contourLast = &poly.contours.back();
+        const size_t* contourCounts = &poly.contours.front();
+        const size_t* contourLast = &poly.contours.back();
         size_t contourCount = *contourCounts;
         OpPoint last = poly.device.front();
         for (size_t index = 0; index < poly.device.size(); ++index) {
@@ -691,11 +691,16 @@ DrawLevel PictureWindow::pan(OpVector v) {
 
 void PictureWindow::setDevice() {
     for (DebuggerPoly& poly : polys) {
+        bool debugThis = IDType::segment == poly.opType.type && 5 == poly.opType.segment->id 
+                && poly.opType.segment->ptBounds.top < focus.top;
+
         poly.device.reserve(poly.local.size());
         for (OpPoint lPt : poly.local) {
             poly.device.push_back(toDevice(lPt));
         }
         poly.contours.push_back(poly.device.size());
+        if (debugThis)
+            OpNop();
     }
 }
 

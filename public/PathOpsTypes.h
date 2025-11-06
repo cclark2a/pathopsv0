@@ -36,6 +36,7 @@ enum class ContextError {
 	intersection, // curve intersection error (should not occur)
 	loop,  // stuck resolving error in curve-curve intersection (should not occur)
 	missing,  // results do not form closed loops (non-fatal)
+	root,  // curve root finder returned NaN
 	toVertical, // rotating / skewing curve (to intersect) exceeds floating point range
 	tree	// decision tree to join found edges is too complex
 };
@@ -145,7 +146,7 @@ typedef bool (*CurvesEqual)(Curve , Curve );
 typedef OpPoint (*CurveHull)(Curve, int index);
 
 // map the control points (if any) to lie inside the bounds of the curve (e.g., start and end)
-// typedef void (*CurvePinCtrl)(Curve, OpPoint oldStart, OpPoint oldEnd);
+typedef void (*CurvePin)(Curve, OpPoint oldStart, OpPoint oldEnd);
 
 // reverses order of control points, if there is more than one
 typedef void (*CurveReverse)(Curve);
@@ -178,7 +179,7 @@ struct CurveCallbacks {
 	CurveIsFinite curveIsFiniteFuncPtr = nullptr;
 	CurveIsLine curveIsLineFuncPtr = nullptr;
 	SetBounds setBoundsFuncPtr = nullptr;
-	// CurvePinCtrl curvePinCtrlFuncPtr = nullptr;
+	CurvePin curvePinFuncPtr = nullptr;
 	CurveTangent curveTangentFuncPtr = nullptr;
 	CurvesEqual curvesEqualFuncPtr = nullptr;
 	PtAtT  ptAtTFuncPtr = nullptr;

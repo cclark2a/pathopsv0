@@ -213,7 +213,7 @@ bool DebuggerState::update() {
     }
     delete context;
     context = newContext;
-    debugGlobalContext = nullptr; // debugGlobalContext = context;   // !!! needed?
+    debugGlobalContext = context;   // needed for OpDebugFormat; major rework to remove dependency
     setIDTypes();
     redraw();
     updateAttempts = 0;

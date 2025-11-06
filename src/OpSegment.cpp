@@ -32,7 +32,7 @@ void FoundEdge::reset() {
 OpSegment::OpSegment(PathOpsV0Lib::Contour* libContour, PathOpsV0Lib::AddCurve addCurve)    
 	: contour((OpContour*) libContour)
 	, c({ addCurve.context, (PathOpsV0Lib::CurveData*) addCurve.points, 
-			addCurve.size, addCurve.type }, Rotated::no )
+			addCurve.size, addCurve.type }, Rotated::init )
     , winding(contour->winding())
     , id(contour->nextID())
 {
@@ -1117,6 +1117,8 @@ giveUp:
 }
 
 void OpSegment::tripleSect() {
+	if (disabled)
+		return;
 	OP_DEBUG_CODE(int safetyHatch = 10);
 	while (TripleSected::tryAgain == sects.tripleSect()) {
 		contour->context->sortIntersections();

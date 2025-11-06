@@ -664,6 +664,7 @@ OpCurve OpCurve::toVerticalDouble(const LinePts& line) const {
 
 void CcCurves::debugAdd(EdgeRun& run) {
     debugValidate();
+    OP_ASSERT(run.edgePtT.isFinite());
 //    OP_ASSERT(!OpMath::Equal(0.921024084f, run.edgePtT.t));
     int debugLo = debugRuns.empty() ? 0 : insertPos(debugRuns, run);
     debugRuns.insert(debugRuns.begin() + abs(debugLo), run);  // keep everything
@@ -737,14 +738,16 @@ void OpCurveCurve::debugBoundedEdge(OpSegment* segm, const OpPointBounds& sectBo
 }
 #endif
 
-#if OP_DEBUG_VERBOSE
+#if OP_DEBUG_VERBOSE 
 void OpCurveCurve::debugSaveState() {
+#if OP_DEBUG_DUMP
     dumpCurveCurve.runIndex.push_back({ dumpCurveCurve.runs.size(), 
             dumpCurveCurve.runs.size() + edgeCurves.runs.size() });
     for (auto run : edgeCurves.runs)
         dumpCurveCurve.runs.push_back(run);
     for (auto run : oppCurves.runs)
         dumpCurveCurve.runs.push_back(run);
+#endif
 }
 #endif
 
@@ -1043,7 +1046,7 @@ const PathOpsV0Lib::DebugCurveCallbacks& OpContext::debugCallback(PathOpsV0Lib::
 // also assign that ID to edges whose non-zero crossing rays attach to those edges
 
 void OpContour::debugMatchRay() {
-	OP_DEBUG_CODE(bool mayFail = OpDebugExpect::unknown == context->debugExpect);
+	bool mayFail = OpDebugExpect::unknown == context->debugExpect;
 	for (auto linkup : linkups.l) {
         OP_ASSERT(!linkup->priorEdge);
         OP_ASSERT(linkup->lastEdge);
@@ -1058,7 +1061,7 @@ void OpContour::debugMatchRay() {
                 continue;
             const Distance* linkDist = nullptr;
             OpEdge* dTest = nullptr;
-            OP_DEBUG_CODE(const Distance* dDist = nullptr);
+            const Distance* dDist = nullptr;
             for (const Distance* dist = &linkup->ray.distances.back(); 
                     dist >= &linkup->ray.distances.front(); --dist) {
                 OpEdge* test = dist->edge;
@@ -1072,7 +1075,7 @@ void OpContour::debugMatchRay() {
                     continue;
                 if (test->disabled)
                     continue;
-                OP_DEBUG_CODE(dDist = dist);
+                dDist = dist;
                 dTest = test;
                 break;
             }
@@ -1084,25 +1087,24 @@ void OpContour::debugMatchRay() {
             if (NormalDirection::downLeft == NdotR)
                 linkZero = !linkZero;    // get wind zero for edge normal pointing left
             if (WindZero::nonZero == linkZero) {
-#if OP_DEBUG
                 if (dTest && !dTest->inLinkups && !dTest->inOutput) {
                     bool foundOne = false;
                     for (auto& pal : dTest->pals)
                         foundOne |= pal.edge->inLinkups;
-                    for (auto& us : unsectByArea)
-                        foundOne |= dTest == us && dTest->isActive();
-                    for (auto& u : unsortables)
-                        foundOne |= dTest == u && dTest->isActive();
+                    for (OpContour* overlap : overlaps) {
+                        for (auto& us : overlap->unsectByArea)
+                            foundOne |= dTest == us && dTest->isActive();
+                        for (auto& u : overlap->unsortables)
+                            foundOne |= dTest == u && dTest->isActive();
+                    }
                     OP_ASSERT(foundOne || mayFail);
                 }
-#endif
                 if (dTest)
                     linkup->debugMatch = dTest;
 // if verbose...
 //                else
 //                    OpDebugOut("wind zero missing: edge " + STR(linkup->id) + "\n");
             }
-#if OP_DEBUG
             if (!dTest)
                 continue;
             WindZero distZero = dTest->windZero;
@@ -1125,7 +1127,6 @@ void OpContour::debugMatchRay() {
 //                            + STR(dTest->id) + "\n");
                 }
             }
-#endif
         } while ((linkup = linkup->nextEdge));
         // search links and ray matches for an ID
         linkup = firstLink;
@@ -1435,6 +1436,7 @@ void SetDebugContextCallbacks(Context* ctext, DebugContextCallbacks contextCallb
 void Debug(Context* ctext, OpDebugData& debugData) {
     OpContext* context = (OpContext*) ctext;
     context->debugData = debugData;
+    context->debugExpect = debugData.expect;
 }
 
 #if OP_DEBUG_IMAGE

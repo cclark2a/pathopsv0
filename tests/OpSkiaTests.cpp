@@ -569,6 +569,9 @@ void trackError(PathOpsV0Lib::ContextError contextError) {
 		case PathOpsV0Lib::ContextError::gap:
 			++gapError;
 			break;
+        case PathOpsV0Lib::ContextError::root:
+            ++silentError;
+            break;
 		default:
 			OP_ASSERT(0);
 	}
@@ -620,10 +623,10 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
             PathOpsV0Lib::DebugContourType::windingUserData } );
     AddSkiaPath(context, right, b  OP_DEBUG_PARAMS(&debugRight));
 #if TEST_RASTER
-    DebugRaster debugRaster;
-    debugRaster.in(context);
+    DebugRaster debugRaster((OpContext*) context, RasterType::compare);
     SetDebugContextData(context, { &debugRaster.outSamples, sizeof &debugRaster.outSamples }, 
             DebugContextType::addRaster );
+    debugRaster.in();
 #endif
     Resolve(context);
     if (SkPathOpInvertOutput(op, a.isInverseFillType(), b.isInverseFillType()))
@@ -631,7 +634,7 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
     ContextError contextError = Error(context);
 	trackError(contextError);
 #if TEST_RASTER
-    debugRaster.out(context);
+    /* float compareError = */ debugRaster.out();
 #endif
     DeleteContext(context);
 	return ContextError::none == contextError;
@@ -934,6 +937,12 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
             DebugContourType::windingUserData } );
     AddSkiaPath(context, simple, path  OP_DEBUG_PARAMS(&debugContour));
 #endif
+#if TEST_RASTER
+    DebugRaster debugRaster((OpContext*) context, RasterType::compare);
+    SetDebugContextData(context, { &debugRaster.outSamples, sizeof &debugRaster.outSamples }, 
+            DebugContextType::addRaster );
+    debugRaster.in();
+#endif
 	ContextError contextError = Error(context);
 	bool veryLarge = false;
 	if (ContextError::finite == contextError) {
@@ -950,6 +959,9 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
 			veryLarge = VeryLargeSkiaPath(path);			
 		trackError(contextError);
 	}
+#if TEST_RASTER
+    /* float compareError = */ debugRaster.out();
+#endif
 #if TEST_ANALYZE && OP_DEBUG
 	if (optional) {
 		OP_DEBUG_CODE(*optional = ((OpContext*) context)->debugData);

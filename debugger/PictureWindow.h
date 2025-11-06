@@ -42,9 +42,9 @@ struct PictureWindow : public DebuggerWindow {
     std::string record() override;
     void resolvePoints();
     void setDevice();
-    OpPoint toLocal(OpPoint p);
-    OpPoint toDevice(OpPoint p);
-    bool touches(const OpRect& bounds);
+    OpPoint toLocal(OpPoint p) const;
+    OpPoint toDevice(OpPoint p) const;
+    bool touches(const OpRect& bounds) const;
     void update();
     void zoom(int factor);
 #if OP_DEBUG_DUMP

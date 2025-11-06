@@ -27,7 +27,8 @@ struct CutRangeT {
 
 enum class Rotated : int8_t {
 	no,
-	yes
+	yes,
+	init  // during initialization, threshold is not yet set (so degenerate lines cannot be found)
 	OP_DEBUG_PARAMS(debug)
 };
 
@@ -83,7 +84,7 @@ struct OpCurve {
 	bool normalize();
 	PathOpsV0Lib::WindKeep output(PathOpsV0Lib::Winding , bool firstPt, bool lastPt  
             OP_DEBUG_PARAMS(int parentID));
-//	void pinCtrl(OpPoint oldStart, OpPoint oldEnd);
+	void pinCtrl(OpPoint oldStart, OpPoint oldEnd);
 	OpPoint ptAtT(float t) const;
 	OpPoint ptDAtT(float t) const;
 	OpPtT ptTAtT(float t) const {

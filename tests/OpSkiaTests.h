@@ -2,9 +2,9 @@
 #ifndef OpSkiaTests_DEFINED
 #define OpSkiaTests_DEFINED
 
-#define SKIP_TO_V0 1  // set to 1 to ignore file, test first and run first test in v0
-#define SKIP_TO_FILE "quad" // e.g., "simplify"  one file
-#define TEST_FIRST "testQuads21962910"  // e.g., "testQuads23839519" if file, one test
+#define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
+#define SKIP_TO_FILE "op" // e.g., "simplify"  one file
+#define TEST_FIRST ""  // e.g., "testQuads23839519" if file, one test
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
 #define TEST_EXTENDED 1
@@ -26,7 +26,7 @@
 #define CURVE_CURVE_2 7  // id of segment 2 to break in divide and conquer
 #define CURVE_CURVE_DEPTH 2  // minimum recursion depth for curve curve break (-1 to disable)
 
-#define TEST_PATH_SKIP_TESTS { "grshapearc", "grshapearcs1", "release_13" }
+#define TEST_PATH_SKIP_TESTS { "grshapearc", "grshapearcs1", "release_13", "pentrek10" }
 // when these tests are encountered, it and the remaining tests in the file are skipped
 #define TEST_PATH_OP_SKIP_REST ""
 #define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */

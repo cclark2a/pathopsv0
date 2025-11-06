@@ -20,7 +20,10 @@ OpCurve::OpCurve(PathOpsV0Lib::Curve curve, Rotated r)
 	if (curve.data) {
 		std::memcpy(c.data, curve.data, c.size);
 		OP_DEBUG_CODE(if (Rotated::debug == r) return);
-		isLine();
+		if (Rotated::init == r)
+			rotated = Rotated::no;
+		else
+			isLine();
 	}
 }
 
@@ -51,6 +54,10 @@ OpRoots OpCurve::axisRawHit(Axis axis, float intercept, MatchEnds matchEnds) con
 		OpRoots temp(result.roots.front(), result.roots.back());
 		result = temp;
 	}
+#if OP_DEBUG_DUMP
+	if (Rotated::no == rotated && result.count() > 1)
+		dmpFile();
+#endif
 	OP_ASSERT((Rotated::no == rotated ? 1 : 2) >= result.count());
 	return result;
 }
@@ -62,7 +69,9 @@ OpRoots OpCurve::axisRayHit(Axis axis, float axisIntercept, float start, float e
 }
 
 float OpCurve::center(Axis axis, float intercept) const {
-	OpRoots roots = axisRayHit(axis, intercept);
+	OpRoots roots;
+	if (OpMath::Between(c.data->start.choice(axis), intercept, c.data->end.choice(axis)))
+		roots = axisRayHit(axis, intercept);
 	if (1 != roots.count())
 		return OpNaN;   // numerics failed
 	return roots.roots[0];
@@ -94,8 +103,12 @@ CutRangeT OpCurve::cutRange(const OpPtT& ptT, OpPoint oppPt, float loEnd, float 
 
 float OpCurve::findValidT(float start, float end, OpPoint opp) {
 	if (!isLine()) {
-		OpRoots hRoots = axisRayHit(Axis::horizontal, opp.y, start, end);
-		OpRoots vRoots = axisRayHit(Axis::vertical, opp.x, start, end);
+		OpRoots hRoots;
+		if (OpMath::Between(c.data->start.y, opp.y, c.data->end.y))
+			hRoots = axisRayHit(Axis::horizontal, opp.y, start, end);
+		OpRoots vRoots;
+		if (OpMath::Between(c.data->start.x, opp.x, c.data->end.x))
+			vRoots = axisRayHit(Axis::vertical, opp.x, start, end);
 	#if 01 // code coverage says this is unused, but it is required for loop48977
 		if (1 != hRoots.count() && 1 != vRoots.count()) {
 			if (0 == start && opp.isNearly(firstPt(), context().threshold()))
@@ -130,6 +143,15 @@ float OpCurve::interceptLimit() const {
 	if (!limFuncPtr)
 		return 1.f / 256.f;
 	return (*limFuncPtr)(c);
+}
+
+bool OpCurve::isFinite() const {
+	if (!firstPt().isFinite())
+		return false;
+	if (!lastPt().isFinite())
+		return false;
+	PathOpsV0Lib::CurveIsFinite funcPtr = context().callback(c.type).curveIsFiniteFuncPtr;
+	return funcPtr ? (*funcPtr)(c) : true;
 }
 
 OpRoots OpCurve::lineIntersection(OpCurve& curve) {
@@ -317,8 +339,8 @@ bool OpCurve::normalize() {
 	bool recomputeBounds = false;
 	OpPtAliases& aliases = context().aliases;
 	OpVector threshold = aliases.threshold;
-//	OpPoint oldStart = firstPt();
-//	OpPoint oldEnd = lastPt();
+	OpPoint oldStart = firstPt();
+	OpPoint oldEnd = lastPt();
 	recomputeBounds |= zeroSmall(&c.data->start.x, threshold.dx);
 	recomputeBounds |= zeroSmall(&c.data->start.y, threshold.dy);
 	recomputeBounds |= zeroSmall(&c.data->end.x, threshold.dx);
@@ -340,8 +362,8 @@ bool OpCurve::normalize() {
 		}
 		recomputeBounds = true;
 	}
-//	if (recomputeBounds)
-//		pinCtrl(oldStart, oldEnd);
+	if (recomputeBounds)
+		pinCtrl(oldStart, oldEnd);
 	return recomputeBounds;
 }
 
@@ -449,22 +471,11 @@ float OpCurve::tZeroX(float t1, float t2) const {
 }
 #endif
 
-#if 0
 void OpCurve::pinCtrl(OpPoint oldStart, OpPoint oldEnd) {
-	PathOpsV0Lib::CurvePinCtrl funcPtr = context().callback(c.type).curvePinCtrlFuncPtr;
+	PathOpsV0Lib::CurvePin funcPtr = context().callback(c.type).curvePinFuncPtr;
 	if (funcPtr)
 		(*funcPtr)(c, oldStart, oldEnd);
 	return;
-}
-#endif
-
-bool OpCurve::isFinite() const {
-	if (!firstPt().isFinite())
-		return false;
-	if (!lastPt().isFinite())
-		return false;
-	PathOpsV0Lib::CurveIsFinite funcPtr = context().callback(c.type).curveIsFiniteFuncPtr;
-	return funcPtr ? (*funcPtr)(c) : true;
 }
 
 // this can fail (if rotated pts are not finite); can happen when input is finite
@@ -494,7 +505,8 @@ OpCurve OpCurve::toVerticalBase(const LinePts& line, MatchEnds match) const {
 
 OpCurve OpCurve::toVertical(const LinePts& line, MatchEnds match) const {
 	OpCurve isRotated = toVerticalBase(line, match);
-	isRotated.isLine();
+	if (isRotated.isFinite())
+		isRotated.isLine();
 	return isRotated;
 }
 
@@ -691,9 +703,9 @@ PathOpsV0Lib::WindKeep OpCurve::output(PathOpsV0Lib::Winding w, bool firstPt, bo
 	    return (*curveOutput)({ curve, w, attr });
     }
 #if OP_DEBUG && TEST_RASTER
-	PathOpsV0Lib::DebugAddRaster addRaster = context().debugCallback(c.type).addRasterFuncPtr;
+	PathOpsV0Lib::DebugAddRaster addRaster = context().debugCallback(c).addRasterFuncPtr;
     if (addRaster) {
-        PathOpsV0Lib::DebugContextData& data = context->debugGetContextData(
+        PathOpsV0Lib::DebugContextData& data = context().debugGetContextData(
                 PathOpsV0Lib::DebugContextType::addRaster);
         (*addRaster)(data, c, parentID);
     }

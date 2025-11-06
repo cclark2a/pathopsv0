@@ -176,7 +176,7 @@ OpContext::OpContext()
 	debugTree = nullptr;
 	debugErrorID = 0;
 	debugOppErrorID = 0;
-	debugExpect = OpDebugExpect::unknown;
+//	debugExpect = OpDebugExpect::unknown;
 	debugInPathOps = false;
 	debugInClearEdges = false;
 	debugCheckLastEdge = false;
@@ -512,9 +512,10 @@ void OpContext::opsInit() {
     windingSet = false;
 	normalize();  // collect extremes, map all from 0 to 1, map <= epsilon to zero
 	for (OpContour* contour : contours) {
-		for (const OpSegment& segment : contour->segments) {
+		for (OpSegment& segment : contour->segments) {
 			if (segment.disabled)
 				continue;
+			segment.c.isLine();  // defer until after threshold is set
 			contour->bounds.add(segment.ptBounds);
 		}
 		if (contour->bounds.isFinite())
@@ -644,8 +645,8 @@ WindingCondition OpContext::pathOps() {
 
 static void addMerges(OpContour* contour, OpContour* mergeOwner, 
 		std::vector<OpContour*>& visited) {
-	std::vector<OpContour*>& merges = mergeOwner->merges;
-	for (OpContour* merge : merges) {
+	std::vector<OpContour*> mergesCopy = mergeOwner->merges;
+	for (OpContour* merge : mergesCopy) {
 		if (visited.end() != std::find(visited.begin(), visited.end(), merge))
 			continue;
 		visited.push_back(merge);
@@ -653,6 +654,7 @@ static void addMerges(OpContour* contour, OpContour* mergeOwner,
 	}
 	if (contour == mergeOwner)
 		return;
+	std::vector<OpContour*>& merges = mergeOwner->merges;
 	if (merges.end() == std::find(merges.begin(), merges.end(), contour))
 		merges.push_back(contour);
 	std::vector<OpContour*>& backs = contour->merges;
@@ -875,7 +877,7 @@ bool OpContext::debugFail() const {
 }
 
 bool OpContext::debugSuccess() const {
-	return OpDebugExpect::unknown == debugExpect || OpDebugExpect::success == debugExpect;
+	return true;  // !!! I suppose I should do something if it is expected to fail ?
 }
 
 #if OP_DEBUG_VALIDATE

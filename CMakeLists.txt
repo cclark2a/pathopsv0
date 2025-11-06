@@ -145,7 +145,7 @@ set (COMMON_DEFINITIONS
     "_CRT_SECURE_NO_WARNINGS"
 )
 
-target_compile_definitions (skia_test              PUBLIC ${COMMON_DEFINITIONS})
+target_compile_definitions (skia_test              PUBLIC ${COMMON_DEFINITIONS} TEST_RASTER=1)
 target_compile_definitions (test_drive PUBLIC OP_DEBUG_FAST_TEST=1 OP_TINY_SKIA=1 NOMINMAX _CRT_SECURE_NO_WARNINGS)
 target_compile_definitions (contains_example       PUBLIC ${COMMON_DEFINITIONS} OP_TINY_TEST=1)
 target_compile_definitions (frame_example          PUBLIC ${COMMON_DEFINITIONS} OP_TINY_TEST=1)

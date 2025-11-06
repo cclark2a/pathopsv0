@@ -570,6 +570,21 @@ SectCleanup OpIntersections::moveSects(const OpPtT& match, OpPoint destination,
 			: SectCleanup::none;
 }
 
+#if 0
+bool OpIntersections::outOfOrder() const {
+	if (!i.size())
+		return false;
+	float last = i[0]->ptT.t;
+	for (size_t index = 1; index < i.size(); ++index) {
+			float next = i[index]->ptT.t;
+			if (last > next)
+				return true;
+			last = next;
+	}
+	return false;
+}
+#endif
+
 bool OpIntersections::simpleEnd() const {
 	OP_ASSERT(!unsorted);
 	OP_ASSERT(i.size() > 1);
@@ -783,6 +798,8 @@ TripleSected OpIntersections::tripleSect() {
 				OP_ASSERT(testPt.isNearly(close.sect->ptT.pt, threshold));
 				close.sect->ptT = test->opp->ptT;
 				close.sect->opp->ptT = last->opp->ptT;
+//				if (oppSegment->sects.outOfOrder())
+//					return TripleSected::tryAgain;
 			} else if (NearBy::none == close.nearby) {
 				OpIntersection* testSect = oppSegment->addSegBase(test->opp->ptT  
 						OP_LINE_FILE_PARAMS(last->opp->segment));

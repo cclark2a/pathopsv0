@@ -851,7 +851,7 @@ struct OpMath {
 
 	static float CubicRoot(OpCubicFloatType A, OpCubicFloatType B, OpCubicFloatType C, 
 			OpCubicFloatType D);
-	static OpRoots CubicRootsY(float A, float B, float C, float D);
+	// static OpRoots CubicRootsY(float A, float B, float C, float D);
 
 	static bool Equal(float a, float b, float threshold = OpEpsilon);
 

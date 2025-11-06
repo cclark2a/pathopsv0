@@ -52,7 +52,7 @@ struct DebuggerWindow {
     DebuggerPoly* findPoly(const OpEdge* );
     DebuggerPoly* findPoly(const OpSegment* );
     DebuggerPoly* findPolyByID(int );
-    const NativeTextCache& getCache(size_t index);
+    const NativeTextCache& getCache(size_t index) const;
     SDL_AppResult init(std::string name, OpVector offset);
     void pentrek_draw(char*, int width, int height, int pitch);
     virtual void playback(const char*&  str) { playbackCommon(str); }

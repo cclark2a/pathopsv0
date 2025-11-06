@@ -4,6 +4,7 @@
 
 #include "PathOps.h"
 #include "DebugOps.h"
+#include "OpDebugRaster.h"
 
 namespace PathOpsV0Lib {
 
@@ -275,6 +276,12 @@ inline bool conicsEqual(Curve one, Curve two) {
     return ctrl1.pt == ctrl2.pt && ctrl1.weight == ctrl2.weight;
 }
 
+inline void conicPin(Curve c, OpPoint oldStart, OpPoint oldEnd) {
+    PointWeight control(c);
+    control.pt.pin(c.data->start, c.data->end);
+    control.copyTo(c);
+ }
+
 inline OpVector conicTangent(Curve c, float t) {
     PointWeight control(c);
     return ConicTangent(c.data->start, control, c.data->end, t);
@@ -347,6 +354,7 @@ inline std::string conicDebugDumpExtra(Curve c, DebugLevel l, DebugBase b) {
     OP_TAGGED_FUNCTION(conicIsFinite), \
     OP_TAGGED_FUNCTION(conicIsLine), \
     OP_TAGGED_FUNCTION(conicSetBounds), \
+    OP_TAGGED_FUNCTION(conicPin), \
     OP_TAGGED_FUNCTION(conicTangent), \
     OP_TAGGED_FUNCTION(conicsEqual), \
     OP_TAGGED_FUNCTION(conicPtAtT), \
@@ -362,7 +370,7 @@ inline std::string conicDebugDumpExtra(Curve c, DebugLevel l, DebugBase b) {
 
 inline void conicCallbacks(Context* context, int nativeCurveType) {
     SetCurveCallbacks(context, nativeCurveType, { conicAxisT,
-			conicRotatedT, conicHull, conicIsFinite, conicIsLine, conicSetBounds,
+			conicRotatedT, conicHull, conicIsFinite, conicIsLine, conicSetBounds, conicPin,
 			conicTangent, conicsEqual, conicPtAtT, nullptr, conicHullPtCount, conicRotate, 
 			conicSubDivide, conicXYAtT });
 #if OP_DEBUG

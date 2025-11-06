@@ -185,8 +185,9 @@ struct OpIntersections {
 	float matchT(const OpPtT& , OpPoint destination, MatchEnds ) const;
 	void mergeNear(OpPtAliases& );
 	SectCleanup moveSects(const OpPtT& match, OpPoint destination, MatchEnds );
-	void orderPairs();
 //	const OpIntersection* nearly(const OpPtT& ptT, OpSegment* oSeg) const;  // near match of pt or t
+	void orderPairs();
+//	bool outOfOrder() const;
 //	void range(const OpSegment* , std::vector<OpIntersection*>& );
 	bool simpleEnd() const;  // true if array has only one entry with t equal to one
 	bool simpleStart() const;  // true if array has only one entry with t equal to zero
