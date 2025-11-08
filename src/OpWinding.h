@@ -55,6 +55,9 @@ struct OpWinding {
 	OpWinding(WindingUninitialized );
 	OpWinding(OpEdge* edge, WindingSum );
 	OpWinding(const PathOpsV0Lib::Winding& );
+#if 0 && TEST_RASTER
+	OpWinding(const PathOpsV0Lib::Winding* , bool curveDown);
+#endif
 //	OpWinding(const OpWinding& );
 	void add(const PathOpsV0Lib::Winding& );
 	void add(const OpWinding& );
@@ -71,8 +74,8 @@ struct OpWinding {
 	int sum() const;
 	bool visible() const;
 	void zero();
-	void zeroUninitialized(const PathOpsV0Lib::Winding& );
-	void zeroUninitialized(const OpWinding& );
+//	void zeroUninitialized(const PathOpsV0Lib::Winding& );
+//	void zeroUninitialized(const OpWinding& );
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
 #endif

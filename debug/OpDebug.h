@@ -111,6 +111,7 @@ struct OpDebugData {
 #define OP_RELEASE_CODE(...) __VA_ARGS__
 #define OP_DEBUG_VALIDATE_CODE(...)
 #define OP_DEBUG 0
+#define OP_DEBUG_BREAK()
 #define OP_DEBUG_DUMP 0
 #define OP_DEBUG_ENUM()
 #define OP_DEBUG_IMAGE 0

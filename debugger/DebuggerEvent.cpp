@@ -6,6 +6,56 @@
 const std::array<std::string, 5> KeyCodeUTF8 {  "",  // key code : none
         "\xE2\x86\x90 ", "\xE2\x86\x91 ", "\xE2\x86\x92 ", "\xE2\x86\x93 " }; // lurd arrows
 
+int DebuggerState::count(IDType idType) const {
+    if (!context)
+        return -2;
+    int result = 0;
+    switch (idType) {
+        case IDType::contour:
+            if (!context->contourStorage)
+                return -1;
+            return context->contourStorage->debugCount();
+        break;
+        case IDType::segment:
+            if (!context->contourStorage)
+                return -1;
+            {
+                OpContourIterator contourIter(context);
+                for (auto contour : contourIter) {
+                    result += (int) contour->segments.size();
+                }
+            }
+        break;
+        case IDType::edge:
+            if (!context->contourStorage)
+                return -1;
+            {
+                OpContourIterator contourIter(context);
+                for (auto contour : contourIter) {
+                    for (auto segment :  contour->segments) {
+                        result += (int) segment.edges.size();
+                    }
+                }
+            }
+        break;
+        case IDType::intersection:
+            if (!context->contourStorage)
+                return -1;
+            {
+                OpContourIterator contourIter(context);
+                for (auto contour : contourIter) {
+                    for (auto segment :  contour->segments) {
+                        result += (int) segment.sects.i.size();
+                    }
+                }
+            }
+        break;
+        default:
+            ;
+    }
+    return result;
+}
+
 KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction action) {
     PictureWindow& picWin = pictureWindow;
     TextWindow& textWin = textWindow;
@@ -87,7 +137,13 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
             break;
         case 'a': if (textTop) flip(textWin.showAll, "all"); break;
         case 'A': if (textTop) flip(textWin.showAliases, "aliases"); break;
-        case 'C': flip(showContours, "contours"); break;
+        case 'b':             
+            flip(showBits, "bits");
+            if (KeyAction::act == action)
+                showBits ? SDL_ShowWindow(compareWindow.window)        
+                        : SDL_HideWindow(compareWindow.window);
+        break;
+        case 'C': flip(showContours, "contours (" + STR(count(IDType::contour)) + ")"); break;
         case 'c': 
             if (picTop) flip(picWin.drawCenters, "center points"); 
             if (textTop) flip(textWin.showCurveCurve, "curve/curve intersection");
@@ -106,7 +162,7 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
                 result.s = "d / D  curve/curve intersection depth: " 
                         + STR(depth) + " / " + STR(curveCurve->depth);
         break; 
-        case 'e': flip(showEdges, "edges"); break;
+        case 'e': flip(showEdges, "edges (" + STR(count(IDType::edge)) + ")"); break;
         case 'f': 
             if (picTop) flip(picWin.drawFill, "fill"); 
             if (textTop) flip(textWin.showFull, "full");
@@ -118,7 +174,7 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
             if (textTop) flip(textWin.showEdgeHulls, "edge hulls");
         break;
         case 'i': if (picTop) flip(picWin.drawIDs, "IDs"); break;
-        case 'I': flip(showIntersections, "intersections"); break;
+        case 'I': flip(showIntersections, "intersections (" + STR(count(IDType::intersection)) + ")"); break;
         case 'j': if (textTop) flip(textWin.showJoin, "join"); break;
         case 'k': if (picTop) flip(picWin.drawControls, "controls"); break;
         case 'l': if (textTop) flip(textWin.showLinks, "links"); break;
@@ -139,7 +195,7 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
             else
                 result.s += "record"; 
         break;
-        case 's': flip(showSegments, "segments"); break;
+        case 's': flip(showSegments, "segments (" + STR(count(IDType::segment)) + ")"); break;
         case 't': 
             if (picTop) flip(picWin.drawTangents, "tangents");
             if (textTop) flip(textWin.showTree, "tree");

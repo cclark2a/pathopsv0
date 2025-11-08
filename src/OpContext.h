@@ -242,8 +242,8 @@ struct OpContext {
 
 	bool debugFail() const;
 #if OP_DEBUG
-	void addDebugContextData(PathOpsV0Lib::DebugContextData , PathOpsV0Lib::DebugContextType );
-    PathOpsV0Lib::DebugContextData& debugGetContextData(PathOpsV0Lib::DebugContextType );
+//	void addDebugContextData(PathOpsV0Lib::DebugContextData , PathOpsV0Lib::DebugContextType );
+//    PathOpsV0Lib::DebugContextData& debugGetContextData(PathOpsV0Lib::DebugContextType );
 	PathOpsV0Lib::DebugCurveCallbacks& debugCallback(PathOpsV0Lib::Curve );
 	const PathOpsV0Lib::DebugCurveCallbacks& debugCallback(PathOpsV0Lib::Curve ) const;
 	void debugRemap(int oldRayMatch, int newRayMatch);
@@ -311,8 +311,8 @@ struct OpContext {
 #if OP_DEBUG
 	std::vector<PathOpsV0Lib::DebugCurveCallbacks> debugCallbacks;
 	PathOpsV0Lib::DebugContextCallbacks debugContextCallbacks;
-	std::array<PathOpsV0Lib::DebugContextData, static_cast<std::size_t>(
-            PathOpsV0Lib::DebugContextType::Count)> debugContextData;
+//	std::array<PathOpsV0Lib::DebugContextData, static_cast<std::size_t>(
+//            PathOpsV0Lib::DebugContextType::Count)> debugContextData;
 	OpDebugData debugData;
 	OpCurveCurve* debugCurveCurve;
 	OpJoiner* debugJoiner;

@@ -2,6 +2,7 @@
 #ifndef DebuggerState_DEFINED
 #define DebuggerState_DEFINED
 
+#include "CompareWindow.h"
 #include "PictureWindow.h"
 #include "TextWindow.h"
 #include "HelpWindow.h"
@@ -76,6 +77,7 @@ struct KeyResult {
 struct DebuggerState {
     DebuggerState();
     DebuggerEvent addEvent(SDL_Keymod , SDL_WindowID );
+    int count(IDType ) const;
     DrawLevel doWheelCommon(const DebuggerEvent& debuggerEvent, int delta);
     void draw();  // same window as before
     DrawLevel eventCommon(const DebuggerEvent& );
@@ -100,6 +102,7 @@ struct DebuggerState {
     PictureWindow pictureWindow;
     TextWindow textWindow;
     HelpWindow helpWindow;
+    CompareWindow compareWindow;
     int depth = 0;
     int verboseLevel = 0;
     int maxUpdateAttempts = 16;
@@ -111,6 +114,7 @@ struct DebuggerState {
     bool showOutput = false;
     bool showSegments = false;
     bool showHelp = false;
+    bool showBits = false;
 };
 
 #endif

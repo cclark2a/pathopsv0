@@ -11,6 +11,7 @@
 #include "OpSegment.h"
 #include "DebugOps.h"
 
+#if 0
 namespace PathOpsV0Lib {
 
 void debugRasterAdd(DebugContextData caller, Curve curve, int parentID) {
@@ -20,6 +21,7 @@ void debugRasterAdd(DebugContextData caller, Curve curve, int parentID) {
 }
 
 }
+#endif
 
 using namespace PathOpsV0Lib;
 
@@ -27,7 +29,8 @@ void OpCurve::debugScale(double scale, double offsetX, double offsetY) {
 	context().debugCallback(c).scaleFuncPtr(c, scale, offsetX, offsetY);
 }
 
-OpDebugSamples::OpDebugSamples(DebugRaster* r) {
+OpDebugSamples::OpDebugSamples(DebugRaster* r) 
+	: raster(r) {
 	OpContext* context = r->context;
 	float scaleX = r->bitWidth / context->maxBounds.width();
 	float scaleY = r->bitHeight / context->maxBounds.height();
@@ -41,8 +44,8 @@ OpDebugSamples::OpDebugSamples(DebugRaster* r) {
 // advance 1/8th (or whatever sub samples is set to)
 void OpDebugSamples::addCurveXatY(Curve original, int id, OpWinding* winding) {
 	int rows = raster->bitHeight * raster->subSamples;
-	auto toSubGrid = [rows](float x) {
-		return std::floorf(x * rows) / rows;
+	auto toSubGrid = [this](float x) {
+		return std::floorf(x * raster->subSamples) / raster->subSamples;
 	};
 	OpCurve curve(original, Rotated::no);
 	curve.debugScale(scale, offsetX, offsetY);
@@ -54,8 +57,8 @@ void OpDebugSamples::addCurveXatY(Curve original, int id, OpWinding* winding) {
 	float y = toSubGrid(xy.y);
 	float yEnd = toSubGrid(xyEnd.y);
 	y = std::max(0.f, y);
-	yEnd = std::min(1.f, yEnd);
-    int row = (int) std::ceil(y * rows);
+	yEnd = std::min((float) raster->bitHeight, yEnd);
+    int row = (int) std::ceil(y * raster->subSamples);
 	while (y < yEnd) {
 		float t = curve.tAtXY(0, 1, XyChoice::inY, y);
 		float x = curve.ptAtT(t).x;
@@ -69,7 +72,7 @@ void OpDebugSamples::addCurveXatY(Curve original, int id, OpWinding* winding) {
 			samples.push_back({ &winding->w, x, id, curveDown });
 		}
         ++row;
-		y = (float) row / (float) rows;
+		y = (float) row * raster->bitHeight / (float) rows;
 	}
 }
 
@@ -95,8 +98,10 @@ float OpDebugSamples::compare(OpDebugSamples& outputs) {
 		    int outX = outIndex < subO.size() ? subO[outIndex].x : raster->bitWidth;
 		    if (comboX < outX && comboIndex < subS.size()) {
 			    RasterSample& sample = subS[comboIndex];
-				if (!comboSum.isSet())
-					comboSum.zeroUninitialized(*sample.winding);
+				if (!comboSum.isSet()) {
+					comboSum.setWind(*sample.winding);
+					comboSum.zero();
+				}
 			    if (sample.curveDown)
 				    comboSum.add(*sample.winding);
 			    else
@@ -135,12 +140,17 @@ float OpDebugSamples::compare(OpDebugSamples& outputs) {
 	return error;
 }
 
-void OpDebugSamples::sample(OpContour* contour) {
+void OpDebugSamples::sample(OpContour* contour, SampleType sampleType) {
 	for (OpSegment& segment : contour->segments) {
-		addCurveXatY(segment.c.c, segment.id, &segment.winding);
+		if (SampleType::in == sampleType)
+			addCurveXatY(segment.c.c, segment.id, &segment.winding);
+		else {
+			for (OpEdge& edge : segment.edges) {
+				if (edge.inOutput)
+					addCurveXatY(edge.curve.c, edge.id, &edge.winding);
+			}
+		}
 	}
-	if (contour->segments.size())
-		sort();
 }
 
 void OpDebugSamples::sort() {
@@ -191,74 +201,96 @@ void OpDebugBitmap::rasterize(const OpDebugSamples& sampleSet, int row) {
 	int scanLine = row * debugRaster->subSamples;
 	for (int subLine = 0; subLine < debugRaster->subSamples; ++subLine) {
 		const std::vector<RasterSample>& samples = sampleSet.sampleSet[scanLine + subLine];
-	    OpWinding sum(WindingUninitialized::dummy);
-//		sum.zero(context);
-	    float x = 0;
-	    bool fillOn = false;
-	    bool lastVisible = false;
-		for (const RasterSample& sample : samples) {
-		    if (WindingType::uninitialized == sum.type)
-			    sum.zeroUninitialized(*sample.winding);
-		    if (sample.curveDown)
-			    sum.add(*sample.winding);
-		    else
-			    sum.subtract(*sample.winding);
-		    bool visible;
-//		    if (sampleSet.callKeep) {  // !!! unsure what this is for...
-			    WindKeep keep = context->windingCallbacks.windingKeepFuncPtr(
-                        (ContextPtr) context, *sample.winding, sum.w);
-			    visible = WindKeep::Start == keep;
-//		    } else
-//			    visible = sum.visible();
-		    if (lastVisible == visible)
-			    continue;
-		    lastVisible = visible;
-		    if (fillOn) {
-			    // use ids to determine that samples outside range are ok to consider?
-			    subScan.fill(x, sample.x, subLine);
-		    } else
-			    x = sample.x;
-		    fillOn ^= true;
-        }
+		if (samples.empty())
+			continue;
+		OpWinding zeroWinding(*samples[0].winding);
+		zeroWinding.zero();
+		size_t index = 0;
+		do {
+			auto advance = [context, &index, &samples]
+					(float& x, OpWinding& priorWinding, OpWinding& winding, WindKeep keeper) {
+				x = OpNaN;
+				while (index < samples.size()) {  // accumulate winding of start
+					x = samples[index].x;
+					do {
+						const RasterSample& next = samples[index];
+						if (x != next.x)
+							break;
+						if (next.curveDown)
+							winding.add(*next.winding);
+						else
+							winding.subtract(*next.winding);
+						++index;
+					} while (index < samples.size());
+					WindKeep keep = context->windingCallbacks.windingKeepFuncPtr(
+							(ContextPtr) context, priorWinding.w, winding.w);
+					if (keeper == keep)
+						break;
+					OP_ASSERT(WindKeep::Discard == keep);
+					x = OpNaN;
+					winding.zero();
+				}
+			};
+			float startX;
+			OpWinding startWinding(zeroWinding.w);
+			advance(startX, zeroWinding, startWinding, WindKeep::Start);
+			float endX;
+			OpWinding endWinding(zeroWinding.w);
+			advance(endX, startWinding, endWinding, WindKeep::End);
+			if (OpMath::IsNaN(startX))
+				break;
+			if (OpMath::IsNaN(endX))
+				endX = (float) debugRaster->bitWidth;
+			subScan.fill(startX, endX, subLine);
+		} while (index < samples.size());
 	}
     for (int x = 0; x < debugRaster->bitWidth; ++x) {
         int pixel = 0;
         for (int y = 0; y < debugRaster->subSamples; ++y) {
             pixel += subScan.subScan[y * debugRaster->bitWidth + x];
         }
-        bits[scanLine * debugRaster->bitWidth + x] = pixel / debugRaster->subSamples;
+        bits[row * debugRaster->bitWidth + x] = pixel / debugRaster->subSamples;
     }
     OpNop();  // dmpScan(this, scanLine)  and  dmpSub(subScan)
 }
 
 void DebugRaster::in() {
+	// use contour iterator; context contours is not set up
+	OpContourIterator iterator(context);
+	for (auto contour : iterator) {
+		inSamples.sample(contour, SampleType::in);
+	}
+	inSamples.sort();
+	if (RasterType::compare == rasterType && !sendToDebugger)
+		return;
     for (int row = 0; row < bitHeight; ++row) {
-		for (auto contour : context->contours) {
-            inSamples.sample(contour);
-		}
-		if (RasterType::draw == rasterType)
 			inBits.rasterize(inSamples, row);
 	}
-    sendToDebugger(inBits, inSamples, "inBits"); // if a single test is run, serialize data so debugger can draw it
+    dmp(inBits, inSamples, "inBits"); // if a single test is run, serialize data so debugger can draw it
+	OpNop();
 }
 
 float DebugRaster::out() {
+	for (auto contour : context->contours) {
+		outSamples.sample(contour, SampleType::out);
+	}
+	float result = 0;
+	if (RasterType::compare == rasterType) {
+    	result = inSamples.compare(outSamples);
+		if (!sendToDebugger)
+			return result;
+	}
 	for (int row = 0; row < bitHeight; ++row) {
-		for (auto contour : context->contours) {
-            outSamples.sample(contour);
-		}
 		if (RasterType::draw == rasterType)
         	outBits.rasterize(outSamples, row);
     }
-	float result = 0;
-	if (RasterType::compare == rasterType)
-    	result = inSamples.compare(outSamples);
-    sendToDebugger(outBits, outSamples, "outBits"); // if a single test is run, serialize data so debugger can draw it
+    dmp(outBits, outSamples, "outBits"); // if a single test is run, serialize data so debugger can draw it
+	OpNop();
 	return result;
 }
 
-void DebugRaster::sendToDebugger(OpDebugBitmap& bits, OpDebugSamples& samples, std::string name) {
-	if (!context->debugData.runOneFile) 
+void DebugRaster::dmp(OpDebugBitmap& bits, OpDebugSamples& samples, std::string name) {
+	if (!sendToDebugger)
 		return;
     std::string filename = dmpFileToPath(name);
 	FILE* file = fopen(filename.c_str(), "wb");

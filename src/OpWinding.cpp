@@ -23,6 +23,17 @@ OpWinding::OpWinding(OpEdge* edge, WindingSum )
 	OP_DEBUG_CODE(debugType = DebugWindingType::sum);
 }
 
+#if 0 && TEST_RASTER
+OpWinding::OpWinding(const PathOpsV0Lib::Winding* copy, bool curveDown)
+	: w({ copy->contour, copy->data, copy->size })
+	, type(WindingType::copy) {
+	if (!curveDown) {
+		zero();
+		subtract(*copy);
+	}
+}
+#endif
+
 #if 0
 OpWinding::OpWinding(const OpWinding& from) {
 	w = from.copyData();
@@ -122,6 +133,7 @@ void OpWinding::zero() {
     }
 }
 
+#if 0
 void OpWinding::zeroUninitialized(const PathOpsV0Lib::Winding& winding) {
 	if (WindingType::copy == type)
 		return;
@@ -136,6 +148,7 @@ void OpWinding::zeroUninitialized(const PathOpsV0Lib::Winding& winding) {
 void OpWinding::zeroUninitialized(const OpWinding& winding) {
     zeroUninitialized(winding.w);
 }
+#endif
 
 void OpWinding::move(const OpWinding& opp, bool backwards) {
 	if (backwards)

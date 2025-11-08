@@ -624,9 +624,8 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
     AddSkiaPath(context, right, b  OP_DEBUG_PARAMS(&debugRight));
 #if TEST_RASTER
     DebugRaster debugRaster((OpContext*) context, RasterType::compare);
-    SetDebugContextData(context, { &debugRaster.outSamples, sizeof &debugRaster.outSamples }, 
-            DebugContextType::addRaster );
-    debugRaster.in();
+    if (OpDebugExpect::success == debugDataPtr->expect)
+        debugRaster.in();
 #endif
     Resolve(context);
     if (SkPathOpInvertOutput(op, a.isInverseFillType(), b.isInverseFillType()))
@@ -634,7 +633,8 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
     ContextError contextError = Error(context);
 	trackError(contextError);
 #if TEST_RASTER
-    /* float compareError = */ debugRaster.out();
+    if (OpDebugExpect::success == debugDataPtr->expect)
+        /* float compareError = */ debugRaster.out();
 #endif
     DeleteContext(context);
 	return ContextError::none == contextError;
@@ -939,9 +939,8 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
 #endif
 #if TEST_RASTER
     DebugRaster debugRaster((OpContext*) context, RasterType::compare);
-    SetDebugContextData(context, { &debugRaster.outSamples, sizeof &debugRaster.outSamples }, 
-            DebugContextType::addRaster );
-    debugRaster.in();
+    if (OpDebugExpect::success == optional->expect)    
+        debugRaster.in();
 #endif
 	ContextError contextError = Error(context);
 	bool veryLarge = false;
@@ -960,7 +959,8 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
 		trackError(contextError);
 	}
 #if TEST_RASTER
-    /* float compareError = */ debugRaster.out();
+    if (OpDebugExpect::success == optional->expect)
+        /* float compareError = */ debugRaster.out();
 #endif
 #if TEST_ANALYZE && OP_DEBUG
 	if (optional) {

@@ -702,7 +702,7 @@ PathOpsV0Lib::WindKeep OpCurve::output(PathOpsV0Lib::Winding w, bool firstPt, bo
         PathOpsV0Lib::LoopAttribute attr = loopAttribute(firstPt, lastPt, reversed);
 	    return (*curveOutput)({ curve, w, attr });
     }
-#if OP_DEBUG && TEST_RASTER
+#if 0 && OP_DEBUG && TEST_RASTER
 	PathOpsV0Lib::DebugAddRaster addRaster = context().debugCallback(c).addRasterFuncPtr;
     if (addRaster) {
         PathOpsV0Lib::DebugContextData& data = context().debugGetContextData(

@@ -300,22 +300,24 @@ inline void cubicCommonSubDivide(Curve c, float t1, float t2, float threshold, C
     }
     // check if original data is inflection-free
     // sub divide should bend the same way as original
-    if (0 == subCrosses[0] && 0 == subCrosses[1]) {
-        result->type = degenerateLine;
-		return;
-    }
-    if (subCrosses[0] * subCrosses[1] < 0) {
-        result->type = degenerateLine;
-		return;
-    }
-    if (CubicSubDivide::checkAngles == check) {
-        if (subCrosses[0] * crossAngle < 0) {
+    if (!OP_DEBUGGER) {
+        if (0 == subCrosses[0] && 0 == subCrosses[1]) {
             result->type = degenerateLine;
-		    return;
+            return;
         }
-        if (subCrosses[1] * crossAngle < 0) {
+        if (subCrosses[0] * subCrosses[1] < 0) {
             result->type = degenerateLine;
-		    return;
+            return;
+        }
+        if (CubicSubDivide::checkAngles == check) {
+            if (subCrosses[0] * crossAngle < 0) {
+                result->type = degenerateLine;
+                return;
+            }
+            if (subCrosses[1] * crossAngle < 0) {
+                result->type = degenerateLine;
+                return;
+            }
         }
     }
 #endif
@@ -578,7 +580,7 @@ inline void cubicCallbacks(Context* context, int nativeCurveType) {
 #if OP_DEBUG
 	SetDebugCurveCallbacks(context, nativeCurveType, { debugCubicScale
             OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, nullptr, debugCubicSubDivide)
-            OP_DEBUG_RASTER_PARAMS(debugRasterAdd)
+//            OP_DEBUG_RASTER_PARAMS(debugRasterAdd)
             });
 #endif
 }

@@ -13,7 +13,7 @@ void SetDebugCurveCallbacks(Context* , int nativeCurveType , DebugCurveCallbacks
 void SetDebugContourCallbacks(Contour* , DebugContourCallbacks );
 void SetDebugContextCallbacks(Context* , DebugContextCallbacks );
 void SetDebugContourData(Contour* , DebugContourData , DebugContourType );
-void SetDebugContextData(Context* , DebugContextData , DebugContextType );
+// void SetDebugContextData(Context* , DebugContextData , DebugContextType );
 
 #if OP_DEBUG_IMAGE
 void SetDebugContourImage(Contour* , Curve );

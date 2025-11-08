@@ -1,0 +1,20 @@
+{
+    "configurations": [
+        {
+            "name": "skia_test",
+            "includePath": [
+                "${default}"
+            ],
+            "defines": [
+                "OP_DEBUG_FAST_TEST=0",
+                "OP_TINY_SKIA=1",
+                "TEST_RASTER=1"
+            ],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "macos-clang-arm64"
+        }
+    ],
+    "version": 4
+}

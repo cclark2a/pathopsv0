@@ -623,8 +623,20 @@ void PictureWindow::update() {
     setSize();
     clear();
     OpPointBounds contourBounds;
-    for (OpContour* contour : context()->contours) {
-        contourBounds.add(contour->bounds);
+    OpContourIterator contourIter(context());
+    for (auto contour : contourIter) {
+        if (contour->bounds.isFinite())
+            contourBounds.add(contour->bounds);  // (may not be set up early on)
+        else {
+            for (auto segment : contour->segments) {
+                if (segment.ptBounds.isFinite())
+                    contourBounds.add(segment.ptBounds);
+                else {
+                    OpPointBounds segBounds(segment.c.ptBounds());
+                    contourBounds.add(segBounds);
+                }
+            }
+        }
     }
     OpPoint leftTop {0, 0};
     OpPoint rightBottom { 100, 100};

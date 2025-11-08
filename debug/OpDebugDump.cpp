@@ -638,13 +638,14 @@ void dmpRays() {
 
 void OpContext::dumpResolve(OpContour*& contourRef) {
     int contourID = (int) (size_t) contourRef;
-    if (!contourStorage) {  // !!! looks like a macro candidate to me
+    if (!contourStorage)  // !!! looks like a macro candidate to me
         OpDebugExit(__func__ + std::string(": !contourStorage"));
-    }
     contourRef = contourStorage->debugFind(contourID);
-    if (!contourRef || contourRef->id != contourID) {
-        OpDebugExit(__func__ + std::string(": contourRef->id != contourID"));
-    }
+    if (!contourRef)
+        OpDebugExit(__func__ + std::string(": !contourRef"));
+    if (contourRef->id != contourID)
+        OpDebugExit(__func__ + std::string(": contourRef->id [") + STR(contourRef->id)
+                + "] != contourID [" + STR(contourID) + "]");
 }
 
 void OpContext::dumpResolve(OpEdge*& edgeRef) {
@@ -912,7 +913,7 @@ std::string OpPtAliases::debugDump(DebugLevel l, DebugBase b) const {
         s += "] ";
     }
     ASSERT_ORDERED(maps, threshold);
-    s += "threshold:" + threshold.debugDump(l, b) + " ";
+    s += "threshold:" + threshold.debugDump(DebugLevel::error, b) + " ";
     ASSERT_ORDERED(threshold, thresholdLength);
     if (!OpMath::IsDebugNaN(thresholdLength))
         s += debugValue(DebugLevel::error, b, "thresholdLength", thresholdLength);
@@ -1020,7 +1021,7 @@ static std::string debugCallbacksDump(const std::vector<PathOpsV0Lib::DebugCurve
 	    DEBUG_FIND_TAG(debugCallback, scaleFuncPtr,      curveNameFuncPtr);
 	    DEBUG_FIND_TAG(debugCallback, curveNameFuncPtr,  curveExtraFuncPtr);
         DEBUG_FIND_TAG(debugCallback, curveExtraFuncPtr, debugSubDivideFuncPtr);
-#if TEST_RASTER
+#if 0 && TEST_RASTER
         DEBUG_FIND_TAG(debugCallback, debugSubDivideFuncPtr, addRasterFuncPtr);
         static_assert(sizeof(PathOpsV0Lib::DebugCurveCallbacks)  
                 == offsetof(PathOpsV0Lib::DebugCurveCallbacks, addRasterFuncPtr)
@@ -1234,8 +1235,7 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
     // debugCallbacks is out of order; must be set before curves are read
     // debugContextCallbacks is out of order; must be set before windings in contours are read
     ASSERT_ORDERED(debugCallbacks, debugContextCallbacks);
-    ASSERT_ORDERED(debugContextCallbacks, debugContextData);  // omit debugContextData
-    ASSERT_ORDERED(debugContextData, debugData);  // omit debugData (!!! omit most for now, may have uses...)
+    ASSERT_ORDERED(debugContextCallbacks, debugData);  // omit debugData (!!! omit most for now, may have uses...)
     if (debugData.testname.size())
         s += "debugTestname:" + debugData.testname + " ";
     ASSERT_ORDERED(debugData, debugCurveCurve);
@@ -1277,7 +1277,7 @@ static void debugCallbacksDumpSet(std::vector<PathOpsV0Lib::DebugCurveCallbacks>
 	        DEBUG_FIND_FUNCTION(debugCallback, scaleFuncPtr,      curveNameFuncPtr);
 	        DEBUG_FIND_FUNCTION(debugCallback, curveNameFuncPtr, curveExtraFuncPtr);
             DEBUG_FIND_FUNCTION(debugCallback, curveExtraFuncPtr, debugSubDivideFuncPtr);
-#if TEST_RASTER
+#if 0 && TEST_RASTER
             DEBUG_FIND_FUNCTION(debugCallback, debugSubDivideFuncPtr, addRasterFuncPtr);
             static_assert(offsetof(PathOpsV0Lib::DebugCurveCallbacks, addRasterFuncPtr) 
                     + sizeof(debugCallback.addRasterFuncPtr) == sizeof(debugCallback));
@@ -1479,8 +1479,7 @@ void OpContext::dumpSet(const char*& str) {
 #endif
 // debug call backs must be set before segments' curves can be set
     ASSERT_ORDERED(debugCallbacks, debugContextCallbacks);
-    ASSERT_ORDERED(debugContextCallbacks, debugContextData);  // omit debugContextData
-    ASSERT_ORDERED(debugContextData, debugData);  // omit most of debugData (!!! omit for now, may have uses...)
+    ASSERT_ORDERED(debugContextCallbacks, debugData);  // omit most of debugData (!!! omit for now, may have uses...)
     if (OpDebugOptional(str, "debugTestname"))
         debugData.testname = OpDebugLabel(str);
     ASSERT_ORDERED(debugData, debugCurveCurve);
@@ -2291,7 +2290,8 @@ void OpContour::dumpResolveAll(OpContext* c) {
 	DUMP_RESOLVE_ARRAY(unsortables);
 	DUMP_RESOLVE_ARRAY(linkups.l);
 	DUMP_RESOLVE_ARRAY(endLinks.l);
-    c->dumpResolve(overlapOwner);
+    if (overlapOwner)
+        c->dumpResolve(overlapOwner);
 }
 
 #undef DUMP_RESOLVE_ARRAY

@@ -4,7 +4,7 @@
 
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
 #define SKIP_TO_FILE "op" // e.g., "simplify"  one file
-#define TEST_FIRST ""  // e.g., "testQuads23839519" if file, one test
+#define TEST_FIRST "cubics_d"  // e.g., "testQuads23839519" if file, one test
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
 #define TEST_EXTENDED 1

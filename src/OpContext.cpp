@@ -855,6 +855,7 @@ PathOpsV0Lib::ContextUserData OpContext::findUserData(PathOpsV0Lib::UserDataType
 
 
 #if OP_DEBUG
+#if 0
 void OpContext::addDebugContextData(PathOpsV0Lib::DebugContextData data, 
         PathOpsV0Lib::DebugContextType type) {
     PathOpsV0Lib::DebugContextData& contextData = debugContextData[(size_t) type];
@@ -871,6 +872,7 @@ PathOpsV0Lib::DebugContextData& OpContext::debugGetContextData(PathOpsV0Lib::Deb
     OP_ASSERT((size_t) type < debugContextData.size());
     return debugContextData[(size_t) type];
 }
+#endif
 
 bool OpContext::debugFail() const {
 	return OpDebugExpect::unknown == debugExpect || OpDebugExpect::fail == debugExpect;

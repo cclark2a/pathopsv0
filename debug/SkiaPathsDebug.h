@@ -61,7 +61,7 @@ struct AddDebugContour {
 
 void SetSkiaSimplifyCallbacksDebug(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* , 
         const SkPath& );
-void SetSkiaOpContextCallbacksDebug(PathOpsV0Lib::Context* , SkPathOp );
+// void SetSkiaOpContextCallbacksDebug(PathOpsV0Lib::Context* , SkPathOp );
 void SetSkiaOpContourCallbacksDebug(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* ,
         PathOpsV0Lib::BinaryOperand , const SkPath& );
 

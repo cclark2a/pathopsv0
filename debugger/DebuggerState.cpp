@@ -8,7 +8,8 @@
 DebuggerState::DebuggerState() 
     : pictureWindow(this)
     , textWindow(this)
-    , helpWindow(this) {
+    , helpWindow(this)
+    , compareWindow(this) {
     opFileName = "dmp.txt";
 }
 
@@ -17,6 +18,7 @@ void DebuggerState::draw() {
     textWindow.draw();
     helpWindow.update();
     helpWindow.draw();
+    compareWindow.draw();
 }
 
 DrawLevel DebuggerState::doWheelCommon(const DebuggerEvent& debuggerEvent, int delta) {
@@ -48,7 +50,7 @@ std::string DebuggerState::floatToStr(float f) {
 }
 
 DebuggerWindow* DebuggerState::focus(SDL_WindowID id) {
-    if (helpWindow.windowID == id)
+    if (helpWindow.windowID == id || compareWindow.windowID == id)
         return lastFocus;
     lastFocus = pictureWindow.windowID == id ? (DebuggerWindow*) &pictureWindow :
             textWindow.windowID == id ? (DebuggerWindow*) &textWindow : nullptr;
@@ -69,7 +71,7 @@ void DebuggerState::playback() {
             foundID->selected = true;
     }
     // !!! add any additional global state here
-    DEBUG_SET_REQUIRED_VALUE(helpWindow, depth);
+    DEBUG_SET_REQUIRED_VALUE(compareWindow, depth);
     DEBUG_SET_REQUIRED_VALUE(depth, verboseLevel);
     DEBUG_SET_REQUIRED_VALUE(verboseLevel, maxUpdateAttempts);
     DEBUG_SET_REQUIRED_VALUE(maxUpdateAttempts, error);
@@ -83,6 +85,7 @@ void DebuggerState::playback() {
     pictureWindow.playback(str);
     textWindow.playback(str);
     helpWindow.playback(str);
+    compareWindow.playback(str);
 }
 
 void DebuggerState::record() {
@@ -94,7 +97,7 @@ void DebuggerState::record() {
     if (!s.empty())
         s.back() = '\n';
     // !!! add any additional global state here
-    DEBUG_DUMP_REQUIRED_VALUE(helpWindow, depth);
+    DEBUG_DUMP_REQUIRED_VALUE(compareWindow, depth);
     DEBUG_DUMP_REQUIRED_VALUE(depth, verboseLevel);
     DEBUG_DUMP_REQUIRED_VALUE(verboseLevel, maxUpdateAttempts);
     DEBUG_DUMP_REQUIRED_VALUE(maxUpdateAttempts, error);
@@ -108,6 +111,7 @@ void DebuggerState::record() {
     s += pictureWindow.record();
     s += textWindow.record(); 
     s += helpWindow.record();
+    s += compareWindow.record();
     std::string fileName = "DebuggerState.txt";
     std::filesystem::path fullPath = std::filesystem::absolute(fileName);
 	FILE* file = fopen(fileName.c_str(), "w");
@@ -127,6 +131,7 @@ void DebuggerState::redraw() {
     pictureWindow.update();
     textWindow.update();
     helpWindow.update();
+    compareWindow.update();
     draw();
 }
 
@@ -173,7 +178,8 @@ void DebuggerState::setIDTypes() {
             pushEdge(edge);
         }
 	}
-    for (OpContour* contour : context->contours) {
+    OpContourIterator contourIter(context);
+    for (auto contour : contourIter) {
         ids.emplace_back(contour);
         for (const auto& seg : contour->segments) {
             ids.emplace_back(&seg);

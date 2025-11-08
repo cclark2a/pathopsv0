@@ -4,10 +4,9 @@
 
 #if TEST_RASTER
 
-#include "OpMath.h"
+#include "OpContext.h"
 #include "DebugOpsTypes.h"
 
-struct OpContext;
 struct OpContour;
 struct OpWinding;
 struct DebugRaster;
@@ -20,15 +19,22 @@ constexpr int compareXY = 64;
 constexpr int drawXY = 1000;
 constexpr int compareSub = 8;
 constexpr int drawSub = 4;
+inline const std::string BitsFile = "DebuggerBits.txt";
+
+enum class SampleType {
+	in,
+	out
+};
 
 struct RasterSample {
-    PathOpsV0Lib::Winding* winding;  // index into debug raster windings
-    float x;
-	int id;  // edge or segment (for debugging  / something-went-wrong info)
-	bool curveDown;
+    PathOpsV0Lib::Winding* winding = nullptr;  // index into debug raster windings
+    float x = OpDebugNaN;
+	int id = -1;  // edge or segment (for debugging  / something-went-wrong info)
+	bool curveDown = (bool) -1;
 };
 
 typedef std::vector<RasterSample> RasterSamples;
+constexpr auto OpDoubleNaN = std::numeric_limits<double>::quiet_NaN();
 
 // creates an array of intersections of contour curves and horizontal scanlines
 // this permits region-like operations to validate pathops
@@ -37,14 +43,14 @@ struct OpDebugSamples {
 	OpDebugSamples(DebugRaster* );
 	void addCurveXatY(PathOpsV0Lib::Curve , int id, OpWinding* w = nullptr);
 	float compare(OpDebugSamples& );  // return error as sum of partial-x differences
-	void sample(OpContour* );
+	void sample(OpContour* , SampleType );
 	void sort();
 
 	std::vector<RasterSamples> sampleSet;  // 1 per curve crossing scanline
-	DebugRaster* raster;
-	double scale;  // apply scale first
-	double offsetX;  // then apply offset
-	double offsetY;
+	DebugRaster* raster = nullptr;
+	double scale = OpDoubleNaN;  // apply scale first
+	double offsetX = OpDoubleNaN;  // then apply offset
+	double offsetY = OpDoubleNaN;
 };
 
 // turns chosen group of debug samples into pixel array that can be visualized
@@ -55,8 +61,9 @@ struct OpDebugBitmap {
 		free(bits); }
 	void rasterize(const OpDebugSamples& , int row);  // sets bits to sample coverage
 
-	DebugRaster* debugRaster;
+	DebugRaster* debugRaster = nullptr;
     uint8_t* bits = nullptr;  // 1 byte per pixel, black/white only
+	size_t size = 0;
 };
 
 struct OpDebugScanLine {
@@ -65,11 +72,12 @@ struct OpDebugScanLine {
 		free(subScan); }
 	void fill(float x, float endX, int y);
 
-	DebugRaster* debugRaster;
+	DebugRaster* debugRaster = nullptr;
     uint8_t* subScan = nullptr;  // 1 byte per pixel (inverse alpha map)
 };
 
 enum class RasterType {
+	none,
 	compare,
 	draw
 };
@@ -80,8 +88,10 @@ struct DebugRaster {
 		, bitWidth(RasterType::compare == rt ? compareXY : drawXY)
 		, bitHeight(RasterType::compare == rt ? compareXY : drawXY)
 		, subSamples(RasterType::compare == rt ? compareSub : drawSub)
-		, inBits(RasterType::compare == rt ? nullptr : this)
-		, outBits(RasterType::compare == rt ? nullptr : this)
+		, sendToDebugger(context->debugData.runOneFile)
+		, makeBits(RasterType::draw == rt || sendToDebugger)
+		, inBits(makeBits ? this : nullptr)
+		, outBits(makeBits ? this : nullptr)
 		, inSamples(this)
 		, outSamples(this)
 		, rasterType(rt) {
@@ -89,17 +99,19 @@ struct DebugRaster {
 	
     void in();
     float out();
-	void sendToDebugger(OpDebugBitmap& bits, OpDebugSamples& samples, std::string );
+	void dmp(OpDebugBitmap& bits, OpDebugSamples& samples, std::string );
 
-	OpContext* context;
-	int bitWidth;
-	int bitHeight;
-	int subSamples;
+	OpContext* context = nullptr;
+	int bitWidth = -1;
+	int bitHeight = -1;
+	int subSamples = -1;
+	bool sendToDebugger = (bool) -1;
+	bool makeBits = (bool) -1;
 	OpDebugBitmap inBits;
 	OpDebugBitmap outBits;
 	OpDebugSamples inSamples;
 	OpDebugSamples outSamples;
-	RasterType rasterType;
+	RasterType rasterType = RasterType::none;
 };
 
 #endif

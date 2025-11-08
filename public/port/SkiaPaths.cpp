@@ -148,7 +148,7 @@ void SetSkiaOpContextCallbacks(Context* context, SkPathOp op, BinaryWindType win
         default: OP_ASSERT(0);
     }
     SetWindingCallbacks(context, { addFunc, operatorFunc, subtractFunc });
-    OP_DEBUG_CODE(SetSkiaOpContextCallbacksDebug(context, op));
+//    OP_DEBUG_CODE(SetSkiaOpContextCallbacksDebug(context, op));
 }
 
 Contour* SetSkiaOpContourCallbacks(Context* context, PathOpsV0Lib::WindingData windingData, 

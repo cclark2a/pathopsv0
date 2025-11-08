@@ -422,6 +422,7 @@ int OpDebugCountDelimiters(const char* str, char delimiter, char openBracket, ch
 
 void OpDebugExit(std::string message) {
     OpDebugOut(message);
+    OP_DEBUG_BREAK();
     exit(1);
 }
 
@@ -1413,10 +1414,12 @@ void SetDebugContourData(Contour* ctour, DebugContourData contourData, DebugCont
 	contour->addDebugContourData(contourData, type);
 }
 
+#if 0
 void SetDebugContextData(Context* ctxt, DebugContextData contextData, DebugContextType type) {
     OpContext* context = (OpContext*) ctxt;
 	context->addDebugContextData(contextData, type);
 }
+#endif
 
 void SetDebugCurveCallbacks(Context* ctext, CurveType , DebugCurveCallbacks curveCallbacks) {
     OpContext* context = (OpContext*) ctext;

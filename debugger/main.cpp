@@ -218,7 +218,8 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
     DebuggerWindow* eventWindow = state->pictureWindow.windowID == winID
             ? (DebuggerWindow*) &state->pictureWindow : state->textWindow.windowID == winID
             ? (DebuggerWindow*) &state->textWindow : state->helpWindow.windowID == winID
-            ? (DebuggerWindow*) &state->helpWindow : nullptr;
+            ? (DebuggerWindow*) &state->helpWindow : state->compareWindow.windowID == winID
+            ? (DebuggerWindow*) &state->compareWindow : nullptr;
     std::string windowName = eventWindow ? eventWindow->name : "(unnamed window)";
     do {
         if (state->verboseLevel && event->type != SDL_EVENT_MOUSE_MOTION         // 0x400

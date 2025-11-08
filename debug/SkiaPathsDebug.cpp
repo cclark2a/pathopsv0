@@ -12,10 +12,6 @@
 
 #include "port/SkiaPaths.h"
 #include "OpSkiaTests.h"
-#if TEST_RASTER
-#include "OpDebugRaster.h"
-#endif
-
 #include "curves/Line.h"
 #include "curves/QuadBezier.h"
 #include "curves/ConicBezier.h"
@@ -213,11 +209,13 @@ void SetSkiaSimplifyCallbacksDebug(Context* context, Contour* contour, const SkP
     );
 }
 
+#if 0
 void SetSkiaOpContextCallbacksDebug(Context* context, SkPathOp op) {
     BinaryContext windingUserData { {}, (BinaryOperation) op };
 	SetDebugContextData(context, { &windingUserData, sizeof(windingUserData) }, 
             DebugContextType::windingUserData );
 }
+#endif
 
 void SetSkiaOpContourCallbacksDebug(Context* context, Contour* contour,
         BinaryOperand operand, const SkPath& path) {

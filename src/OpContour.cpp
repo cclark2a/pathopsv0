@@ -652,6 +652,7 @@ void OpContour::init(OpContext* ctxt, PathOpsV0Lib::WindingData wind, size_t siz
 }
 
 void OpContour::init() {
+	overlapOwner = nullptr;
 	treeID = 0;  // tracks if contour has been initialized in this tree's context (for edge 'seen')
 	backwardsBuilt = false;
 	centerlessBuilt = false;

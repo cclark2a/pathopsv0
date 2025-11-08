@@ -23,11 +23,13 @@ struct DebugContourData {
 // caller defined context data (e.g., the path operation)
 typedef void* DebugContext;
 
+#if 0
 enum class DebugContextType {
-    windingUserData,
+//    windingUserData,
     addRaster,
     Count
 };
+#endif
 
 // for transport of context data to callbacks
 struct DebugContextData {
@@ -51,7 +53,7 @@ typedef std::string (*DebugDumpCurveExtra)(Curve , DebugLevel , DebugBase);
 typedef void (*DebugAddToPath)(Curve , class SkPath& );
 #endif
 
-#if TEST_RASTER
+#if 0 && TEST_RASTER
 typedef void (*DebugAddRaster)(DebugContextData , Curve , int parentID);
 #endif
 
@@ -60,7 +62,7 @@ struct DebugCurveCallbacks {
 	OP_DEBUG_DUMP_CODE(DebugDumpCurveName curveNameFuncPtr;)
 	OP_DEBUG_DUMP_CODE(DebugDumpCurveExtra curveExtraFuncPtr = nullptr;)
     OP_DEBUG_DUMP_CODE(SubDivide debugSubDivideFuncPtr = nullptr;)
-    OP_DEBUG_RASTER_CODE(DebugAddRaster addRasterFuncPtr = nullptr;)
+//    OP_DEBUG_RASTER_CODE(DebugAddRaster addRasterFuncPtr = nullptr;)
 };
 
 #if OP_DEBUG_IMAGE
