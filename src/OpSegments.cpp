@@ -367,8 +367,7 @@ FoundIntersections OpSegments::findIntersections() {
 		for (OpContour* member : oContour->members()) {
 			if (member->id > oContour->id)
 				break;
-            if (windingSect && !(*windingSect)((ContextPtr) &context, oContour->winding(), 
-                    member->winding())) {
+            if (windingSect && !(*windingSect)(oContour->winding(), member->winding())) {
                 AddEndMatches(oContour, member);  // if both are frame, check endpoints only
                 continue;
             }

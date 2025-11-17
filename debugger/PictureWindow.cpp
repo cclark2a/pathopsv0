@@ -372,7 +372,7 @@ void PictureWindow::addWinding(DebuggerPoly& poly) {
                 else  // anchor to bottom right
                     bounds = bounds.offset(-cache.size); 
                 if (!touches(bounds)) {
-                    texts.push_back({poly.opType, {bounds.left, bounds.top}, local, cacheIndex});
+                    texts.push_back({ poly.opType, {bounds.left, bounds.top}, local, cacheIndex });
                     return;
                 }
             }

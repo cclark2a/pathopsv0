@@ -70,7 +70,7 @@ struct BinaryOpData {
     BinaryOperand operand;
 };
 
-inline void binaryEvenOddFunc(Context* , Winding winding, Winding toAdd) {
+inline void binaryEvenOddFunc(Winding winding, Winding toAdd) {
     BinaryData sum(winding);
     BinaryData addend(toAdd);
     sum.left ^= addend.left;
@@ -78,7 +78,7 @@ inline void binaryEvenOddFunc(Context* , Winding winding, Winding toAdd) {
     sum.copyTo(winding);
 }
 
-inline void binaryAddFunc(Context* , Winding winding, Winding toAdd) {
+inline void binaryAddFunc(Winding winding, Winding toAdd) {
     BinaryData sum(winding);
     BinaryData addend(toAdd);
     sum.left += addend.left;
@@ -86,7 +86,7 @@ inline void binaryAddFunc(Context* , Winding winding, Winding toAdd) {
     sum.copyTo(winding);
 }
 
-inline void binaryAddLeftFunc(Context* , Winding winding, Winding toAdd) {
+inline void binaryAddLeftFunc(Winding winding, Winding toAdd) {
     BinaryData sum(winding);
     BinaryData addend(toAdd);
     sum.left += addend.left;
@@ -94,7 +94,7 @@ inline void binaryAddLeftFunc(Context* , Winding winding, Winding toAdd) {
     sum.copyTo(winding);
 }
 
-inline void binaryAddRightFunc(Context* , Winding winding, Winding toAdd) {
+inline void binaryAddRightFunc(Winding winding, Winding toAdd) {
     BinaryData sum(winding);
     BinaryData addend(toAdd);
     sum.left ^= addend.left;
@@ -183,27 +183,27 @@ struct KeepData {
     bool bothFlip;
 };
 
-inline WindKeep binaryDifferenceFunc(Context* , Winding winding, Winding sumWinding) {
+inline WindKeep binaryDifferenceFunc(Winding winding, Winding sumWinding) {
     return KeepData(winding, sumWinding, &KeepData::Difference).keep;
 }
 
-inline WindKeep binaryExclusiveOrFunc(Context* , Winding winding, Winding sumWinding) {
+inline WindKeep binaryExclusiveOrFunc(Winding winding, Winding sumWinding) {
     return KeepData(winding, sumWinding, &KeepData::ExclusiveOr).keep;
 }
 
-inline WindKeep binaryIntersectFunc(Context* , Winding winding, Winding sumWinding) {
+inline WindKeep binaryIntersectFunc(Winding winding, Winding sumWinding) {
     return KeepData(winding, sumWinding, &KeepData::Intersect).keep;
 }
 
-inline WindKeep binaryReverseDifferenceFunc(Context* , Winding winding, Winding sumWinding) {
+inline WindKeep binaryReverseDifferenceFunc(Winding winding, Winding sumWinding) {
     return KeepData(winding, sumWinding, &KeepData::ReverseDifference).keep;
 }
 
-inline WindKeep binaryUnionFunc(Context* , Winding winding, Winding sumWinding) {
+inline WindKeep binaryUnionFunc(Winding winding, Winding sumWinding) {
     return KeepData(winding, sumWinding, &KeepData::Union).keep;
 }
 
-inline void binarySubtractFunc(Context* , Winding winding, Winding toSubtract) {
+inline void binarySubtractFunc(Winding winding, Winding toSubtract) {
     BinaryData difference(winding);
     BinaryData subtrahend(toSubtract);
     difference.left -= subtrahend.left;
@@ -211,7 +211,7 @@ inline void binarySubtractFunc(Context* , Winding winding, Winding toSubtract) {
     difference.copyTo(winding);
 }
     
-inline void binarySubtractLeftFunc(Context* , Winding winding, Winding toSubtract) {
+inline void binarySubtractLeftFunc(Winding winding, Winding toSubtract) {
     BinaryData difference(winding);
     BinaryData subtrahend(toSubtract);
     difference.left -= subtrahend.left;
@@ -219,7 +219,7 @@ inline void binarySubtractLeftFunc(Context* , Winding winding, Winding toSubtrac
     difference.copyTo(winding);
 }
     
-inline void binarySubtractRightFunc(Context* , Winding winding, Winding toSubtract) {
+inline void binarySubtractRightFunc(Winding winding, Winding toSubtract) {
     BinaryData difference(winding);
     BinaryData subtrahend(toSubtract);
     difference.left ^= subtrahend.left;
@@ -315,7 +315,7 @@ inline Context* binaryContext(CurveOutput output = nullptr, EmptyCallerPath empt
     Debug(context, debugData);
 	SetDebugContextCallbacks(context, {
         binaryDebugIsFill
-        OP_DEBUG_DUMP_PARAMS(binaryDumpOutFunc, binaryDumpSetFunc)
+        OP_DEBUG_DUMP_PARAMS(binaryDumpOutFunc, binaryDumpSetFunc, nullptr)
         OP_DEBUG_IMAGE_PARAMS(binaryImageOutXFunc, binaryImageOutFunc, binaryColorFuncPtr)
     });
 #endif

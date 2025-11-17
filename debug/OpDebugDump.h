@@ -9,6 +9,7 @@
 namespace PathOpsV0Lib {
 struct AddCurve;
 struct Curve;
+struct Winding;
 }
 
 
@@ -490,8 +491,10 @@ typedef void (*DebugFunction)();
 extern std::string debugFindTag(DebugFunction function);
 extern DebugFunction debugFindFunction(const char*& tag);
 extern std::string debugValue(DebugLevel l, DebugBase b, std::string label, float value);
+extern std::string DebugDump(const PathOpsV0Lib::Winding& , DebugLevel , DebugBase );
 extern bool debugDmpIsLine(const PathOpsV0Lib::AddCurve& c);
 extern bool debugDmpIsLine(const PathOpsV0Lib::Curve& c);
+extern void DumpSet(PathOpsV0Lib::Winding&, char const*& str);
 extern std::string stringFormat(OpContext* context, std::string s, int lineWidth);
 
 enum class LimbPass : uint8_t;
@@ -577,9 +580,12 @@ struct OpSaveDump {
     ASSERT_FIRST(thisStruct); \
     DEBUG_DUMP_COMMON_STRUCT(thisStruct)
 
-#define DEBUG_DUMP_STRUCT(lastField, thisStruct) \
-    ASSERT_ORDERED(lastField, thisStruct); \
+#define DEBUG_DUMP_STRUCT_OFFSET(lastField, thisStruct, offset) \
+    ASSERT_ORDERED_OFFSET(lastField, thisStruct, offset); \
     DEBUG_DUMP_COMMON_STRUCT(thisStruct)
+
+#define DEBUG_DUMP_STRUCT(lastField, thisStruct) \
+    DEBUG_DUMP_STRUCT_OFFSET(lastField, thisStruct, 0)
 
 #define DEBUG_DUMP_LAST_STRUCT(lastField, thisStruct) \
     DEBUG_DUMP_STRUCT(lastField, thisStruct); \
@@ -594,13 +600,69 @@ struct OpSaveDump {
     ASSERT_FIRST(thisStruct); \
     DEBUG_SET_COMMON_STRUCT(thisStruct)
 
-#define DEBUG_SET_STRUCT(lastField, thisStruct) \
-    ASSERT_ORDERED(lastField, thisStruct); \
+#define DEBUG_SET_STRUCT_OFFSET(lastField, thisStruct, offset) \
+    ASSERT_ORDERED_OFFSET(lastField, thisStruct, offset); \
     DEBUG_SET_COMMON_STRUCT(thisStruct)
+
+#define DEBUG_SET_STRUCT(lastField, thisStruct) \
+    DEBUG_SET_STRUCT_OFFSET(lastField, thisStruct, 0)
 
 #define DEBUG_SET_LAST_STRUCT(lastField, thisStruct) \
     DEBUG_SET_STRUCT(lastField, thisStruct); \
     ASSERT_LAST(thisStruct)
+
+#define DEBUG_DUMP_OPTIONAL_COMMON_ID(thisValue) \
+    if (thisValue) \
+        s += #thisValue ":" + STR(thisValue->id) + " "
+
+#define DEBUG_SET_OPTIONAL_COMMON_ID(thisValue) \
+    if (OpDebugOptional(str, #thisValue)) \
+        thisValue = (decltype(thisValue)) OpDebugReadSizeT(str)
+
+#define DEBUG_DUMP_OPTIONAL_ID(lastField, thisValue) \
+    ASSERT_ORDERED(lastField, thisValue); \
+    DEBUG_DUMP_OPTIONAL_COMMON_ID(thisValue)
+
+#define DEBUG_SET_OPTIONAL_ID(lastField, thisValue) \
+    ASSERT_ORDERED(lastField, thisValue); \
+    DEBUG_SET_OPTIONAL_COMMON_ID(thisValue)
+
+#define DEBUG_DUMP_OPTIONAL_POS_VALUE(lastField, thisValue) \
+    ASSERT_ORDERED(lastField, thisValue); \
+    if (thisValue >= 0) \
+        s += #thisValue ":" + STR(thisValue) + " "
+
+#define DEBUG_DUMP_OPTIONAL_FINITE_VALUE(lastField, thisValue) \
+    ASSERT_ORDERED(lastField, thisValue); \
+    if (!OpMath::IsDebugNaN(thisValue)) \
+        s += #thisValue ":" + OpDebugDumpHex(thisValue) + " (" + STR(thisValue) + ") "
+
+#define DEBUG_SET_OPTIONAL_FINITE_VALUE(lastField, thisValue) \
+    ASSERT_ORDERED(lastField, thisValue); \
+    if (OpDebugOptional(str, #thisValue)) { \
+		thisValue = (decltype(thisValue)) OpDebugHexToFloat(str); \
+		while (*str && ')' != *str++) \
+			; \
+	}
+
+#define DEBUG_SET_PUBLIC_VALUE(lastField, thisValue) \
+    ASSERT_ORDERED(lastField, thisValue); \
+    if (OpDebugRequired(str, #thisValue)) \
+        DumpSet(thisValue, str);
+
+#define DEBUG_DUMP_PUBLIC_VALUE(lastField, thisValue) \
+    ASSERT_ORDERED(lastField, thisValue); \
+    s += #thisValue ":" + DebugDump(thisValue, l, b) + "\n";
+
+#define DEBUG_SET_OPTIONAL_PUBLIC_VALUE(lastField, thisValue) \
+    ASSERT_ORDERED(lastField, thisValue); \
+    if (OpDebugOptional(str, #thisValue)) \
+        DumpSet(thisValue, str);
+
+#define DEBUG_DUMP_OPTIONAL_PUBLIC_VALUE(lastField, thisValue, condition) \
+    ASSERT_ORDERED(lastField, thisValue); \
+    if (condition) \
+        s += DebugDump(thisValue, l, b) + "\n";
 
 #define DEBUG_DUMP_OPTIONAL_VALUE(lastField, thisValue) \
     ASSERT_ORDERED(lastField, thisValue); \
@@ -646,6 +708,16 @@ struct OpSaveDump {
 #define DEBUG_DUMP_VECTOR(lastField, thisVector) \
     DEBUG_DUMP_VECTOR_OFFSET(lastField, thisVector, 0)
 
+#define DEBUG_DUMP_PUBLIC_VECTOR(thisVector) \
+    do { \
+    if (thisVector.size()) { \
+        s += #thisVector ":" + STR(thisVector.size()) + " "; \
+        for (const auto& member : thisVector) { \
+            s += DebugDump(member, l, b) + "\n"; \
+        } \
+    } \
+    } while (false)
+
 #define DEBUG_SET_COMMON_VECTOR(thisVector) \
     do { \
     if (OpDebugOptional(str, #thisVector)) { \
@@ -664,6 +736,16 @@ struct OpSaveDump {
 
 #define DEBUG_SET_VECTOR(lastField, thisVector) \
     DEBUG_SET_VECTOR_OFFSET(lastField, thisVector, 0)
+
+#define DEBUG_SET_PUBLIC_VECTOR(thisVector) \
+    do { \
+    if (OpDebugOptional(str, #thisVector)) { \
+        size_t count = OpDebugReadSizeT(str); \
+        thisVector.resize(count); \
+        for (auto& member : thisVector) \
+            DumpSet(member, str); \
+    } \
+    } while (false)
 
 #define DEBUG_DUMP_VECTOR_IDS(lastField, thisVector) \
     do { \
@@ -689,6 +771,60 @@ struct OpSaveDump {
         } \
     } \
     } while (false)
+
+#define ENUM_NAME_STRUCT(enum) \
+struct _##enum##Name { \
+    enum element; \
+    const char* name; \
+}; \
+\
+static _##enum##Name enum##Names[] = { \
+    enum##_Base \
+    enum##_Enums \
+}; \
+\
+std::string enum##Name(enum element) { \
+    int first = (int) enum##Names[0].element; \
+    return enum##Names[(int) element - first].name; \
+} \
+\
+enum enum##Str(const char*& str, const char* label, enum enumDefault) { \
+    while ('{' == str[0]) \
+        ++str; \
+    if (!OpDebugOptional(str, label)) \
+        return enumDefault; \
+    size_t strLen = 0; \
+    while (isalnum(str[strLen])) \
+        ++strLen; \
+    for (int index = 0; index < (int) ARRAY_COUNT(enum##Names); ++index) { \
+        size_t nameLen = strlen(enum##Names[index].name); \
+        if (strLen == nameLen && !strncmp(str, enum##Names[index].name, nameLen)) { \
+            str += strlen(enum##Names[index].name); \
+            if (' ' == str[0]) ++str; \
+            return enum##Names[index].element; \
+        } \
+    } \
+    OpDebugExitOnFail("missing enum", false); \
+    return (enum) -1; \
+}
+
+#define ENUM_NAME_STRUCT_ABBR(enum) \
+struct _##enum##Abbr { \
+    enum element; \
+    const char* name; \
+    const char* abbr; \
+}
+
+#define ENUM_NAME_ABBR(enum) \
+\
+std::string enum##Abbr(enum element, DebugLevel l) { \
+    for (int index = 0; index < (int) ARRAY_COUNT(enum##Abbrs); ++index) { \
+        if (enum##Abbrs[index].element == element) \
+            return DebugLevel::brief == l ? enum##Abbrs[index].abbr \
+                    : enum##Abbrs[index].name; \
+    } \
+    return "missing " + std::string(#enum) + " element:" + STR((int) element); \
+}
 
 #endif
 

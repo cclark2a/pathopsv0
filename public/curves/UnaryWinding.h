@@ -36,14 +36,14 @@ struct UnaryWinding {
     UnaryData data;
 };
 
-inline void unaryEvenOddFunc(Context* , Winding winding, Winding toAdd) {
+inline void unaryEvenOddFunc(Winding winding, Winding toAdd) {
     UnaryData sum(winding);
     UnaryData addend(toAdd);
     sum.value ^= addend.value;
     sum.copyTo(winding);
 }
 
-inline void unaryAddFunc(Context* , Winding winding, Winding toAdd) {
+inline void unaryAddFunc(Winding winding, Winding toAdd) {
     UnaryData sum(winding);
     UnaryData addend(toAdd);
     sum.value += addend.value;
@@ -54,7 +54,7 @@ inline void unaryAddFunc(Context* , Winding winding, Winding toAdd) {
 // if winding is non-zero:
 //   if sum equals winding, fill starts
 //   if sum is zero, fill ends
-inline WindKeep unaryKeepFunc(Context* , Winding winding, Winding sumWinding) {
+inline WindKeep unaryKeepFunc(Winding winding, Winding sumWinding) {
     UnaryData wind(winding);
     UnaryData sum(sumWinding);
     if (!wind.value || (sum.value && sum.value != wind.value))
@@ -62,7 +62,7 @@ inline WindKeep unaryKeepFunc(Context* , Winding winding, Winding sumWinding) {
     return sum.value ? WindKeep::Start : WindKeep::End;
 }
 
-inline void unarySubtractFunc(Context* , Winding winding, Winding toSubtract) {
+inline void unarySubtractFunc(Winding winding, Winding toSubtract) {
     UnaryData difference(winding);
     UnaryData subtrahend(toSubtract);
     difference.value -= subtrahend.value;
@@ -151,7 +151,7 @@ inline Context* unaryContext(CurveOutput output = nullptr, EmptyCallerPath empty
     Debug(context, debugData);
 	SetDebugContextCallbacks(context, { 
         unaryDebugIsFill
-        OP_DEBUG_DUMP_PARAMS(unaryDumpOutFunc, unaryDumpSetFunc)
+        OP_DEBUG_DUMP_PARAMS(unaryDumpOutFunc, unaryDumpSetFunc, nullptr)
         OP_DEBUG_IMAGE_PARAMS(unaryImageOutXFunc, unaryImageOutFunc, unaryColorFuncPtr)
     });
 #endif

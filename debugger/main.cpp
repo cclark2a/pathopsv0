@@ -99,7 +99,7 @@ void DebuggerWindow::deleteTextCache() {
     textCache.clear();
 }
 
-SDL_AppResult DebuggerWindow::draw() {
+SDL_AppResult DebuggerWindow::drawCommon() {
     if (!buffer)
         return SDL_APP_CONTINUE;
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);

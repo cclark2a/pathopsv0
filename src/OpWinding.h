@@ -24,6 +24,16 @@ enum class WindingTemp {	// used to accumulate winding sum before it is applied
 	dummy
 };
 
+#if TEST_RASTER
+enum class DebugWindingSum {
+	dummy
+};
+
+enum class DebugWindingZero {
+	dummy
+};
+#endif
+
 #define WindingType_Enums \
 	OP_ENUM_MEMBER(uninitialized), \
 	OP_ENUM_MEMBER(caller), \
@@ -54,15 +64,18 @@ enum class DebugWindingType {
 struct OpWinding {
 	OpWinding(WindingUninitialized );
 	OpWinding(OpEdge* edge, WindingSum );
-	OpWinding(const PathOpsV0Lib::Winding& );
-#if 0 && TEST_RASTER
-	OpWinding(const PathOpsV0Lib::Winding* , bool curveDown);
+	OpWinding(const PathOpsV0Lib::Winding& );  // allocates and copies
+#if TEST_RASTER
+	OpWinding(OpWinding& , DebugWindingSum );
+	OpWinding(OpContext* , DebugWindingZero );
 #endif
-//	OpWinding(const OpWinding& );
 	void add(const PathOpsV0Lib::Winding& );
 	void add(const OpWinding& );
-	PathOpsV0Lib::Winding copyData() const;
-	void copyOnDemand();
+	PathOpsV0Lib::Winding copyData() const;  // allocate new storage, copy values
+#if TEST_RASTER
+	void copyExisting(const OpWinding& );  // allocate if caller, always copy values
+#endif
+	bool copyOnDemand();  // allocate + copy iff it hasn't been copied already
 	bool equal(const PathOpsV0Lib::Winding& ) const;
 	bool isSet() const { return WindingType::uninitialized != type; }
     bool isWound() const;
@@ -74,8 +87,10 @@ struct OpWinding {
 	int sum() const;
 	bool visible() const;
 	void zero();
-//	void zeroUninitialized(const PathOpsV0Lib::Winding& );
-//	void zeroUninitialized(const OpWinding& );
+	void zeroCommon();
+#if TEST_RASTER
+	void debugZero();
+#endif
 #if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
 #endif

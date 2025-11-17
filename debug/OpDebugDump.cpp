@@ -242,60 +242,6 @@ EDGE_DETAIL
     DUMP_BY_DUMPID
 #undef OP_X
 
-#define ENUM_NAME_STRUCT(enum) \
-struct _##enum##Name { \
-    enum element; \
-    const char* name; \
-}; \
-\
-static _##enum##Name enum##Names[] = { \
-    enum##_Base \
-    enum##_Enums \
-}; \
-\
-std::string enum##Name(enum element) { \
-    int first = (int) enum##Names[0].element; \
-    return enum##Names[(int) element - first].name; \
-} \
-\
-enum enum##Str(const char*& str, const char* label, enum enumDefault) { \
-    while ('{' == str[0]) \
-        ++str; \
-    if (!OpDebugOptional(str, label)) \
-        return enumDefault; \
-    size_t strLen = 0; \
-    while (isalnum(str[strLen])) \
-        ++strLen; \
-    for (int index = 0; index < (int) ARRAY_COUNT(enum##Names); ++index) { \
-        size_t nameLen = strlen(enum##Names[index].name); \
-        if (strLen == nameLen && !strncmp(str, enum##Names[index].name, nameLen)) { \
-            str += strlen(enum##Names[index].name); \
-            if (' ' == str[0]) ++str; \
-            return enum##Names[index].element; \
-        } \
-    } \
-    OpDebugExitOnFail("missing enum", false); \
-    return (enum) -1; \
-}
-
-#define ENUM_NAME_STRUCT_ABBR(enum) \
-struct _##enum##Abbr { \
-    enum element; \
-    const char* name; \
-    const char* abbr; \
-}
-
-#define ENUM_NAME_ABBR(enum) \
-\
-std::string enum##Abbr(enum element, DebugLevel l) { \
-    for (int index = 0; index < (int) ARRAY_COUNT(enum##Abbrs); ++index) { \
-        if (enum##Abbrs[index].element == element) \
-            return DebugLevel::brief == l ? enum##Abbrs[index].abbr \
-                    : enum##Abbrs[index].name; \
-    } \
-    return "missing " + std::string(#enum) + " element:" + STR((int) element); \
-}
-
 static std::string wordBounds = "\t\n\r ,:<>()[]{}";
 static std::string bracketL = "<([{";
 static std::string bracketR = ">)]}";
@@ -1043,8 +989,9 @@ static std::string debugContextCallbacksDump(const PathOpsV0Lib::DebugContextCal
     s += debugFindTag(reinterpret_cast<DebugFunction>(debugContextCallbacks.debugIsFillFuncPtr));
     DEBUG_FIND_TAG(debugContextCallbacks, debugIsFillFuncPtr, debugDumpWindingOutFuncPtr);
     DEBUG_FIND_TAG(debugContextCallbacks, debugDumpWindingOutFuncPtr, debugDumpWindingSetFuncPtr);
+    DEBUG_FIND_TAG(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugWindingVisibleFuncPtr);
 #if OP_DEBUG_IMAGE
-    DEBUG_FIND_TAG(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugImageWindingOutXFuncPtr);
+    DEBUG_FIND_TAG(debugContextCallbacks, debugWindingVisibleFuncPtr, debugImageWindingOutXFuncPtr);
     DEBUG_FIND_TAG(debugContextCallbacks, debugImageWindingOutXFuncPtr, debugImageWindingOutFuncPtr);
     DEBUG_FIND_TAG(debugContextCallbacks, debugImageWindingOutFuncPtr, debugEdgeColorFuncPtr);
     static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugEdgeColorFuncPtr) 
@@ -1141,7 +1088,8 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
 	DEBUG_FIND_TAG(contextCallbacks, maxUnsectDistFuncPtr, maxCheckSplitFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, maxCheckSplitFuncPtr, maxLimbsFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, maxLimbsFuncPtr, maxLoopsFuncPtr);
-	DEBUG_FIND_TAG(contextCallbacks, maxLoopsFuncPtr, maxGapFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, maxLoopsFuncPtr, windingBytesFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, windingBytesFuncPtr, maxGapFuncPtr);
     static_assert(offsetof(PathOpsV0Lib::ContextCallbacks, maxGapFuncPtr) 
             + sizeof(contextCallbacks.maxGapFuncPtr) == sizeof(contextCallbacks));
     ASSERT_ORDERED(contextCallbacks, windingCallbacks);
@@ -1296,8 +1244,9 @@ static void debugContextCallbacksDumpSet(PathOpsV0Lib::DebugContextCallbacks& de
     debugContextCallbacks.debugIsFillFuncPtr = (PathOpsV0Lib::DebugIsFill) debugFindFunction(str);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugIsFillFuncPtr, debugDumpWindingOutFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpWindingOutFuncPtr, debugDumpWindingSetFuncPtr);
+    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugWindingVisibleFuncPtr);
 #if OP_DEBUG_IMAGE
-    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugImageWindingOutXFuncPtr);
+    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugWindingVisibleFuncPtr, debugImageWindingOutXFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugImageWindingOutXFuncPtr, debugImageWindingOutFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugImageWindingOutFuncPtr, debugEdgeColorFuncPtr);
     static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugEdgeColorFuncPtr) 
@@ -1394,7 +1343,8 @@ void OpContext::dumpSet(const char*& str) {
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxUnsectDistFuncPtr, maxCheckSplitFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxCheckSplitFuncPtr, maxLimbsFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxLimbsFuncPtr, maxLoopsFuncPtr);
-	DEBUG_FIND_FUNCTION(contextCallbacks, maxLoopsFuncPtr, maxGapFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxLoopsFuncPtr, windingBytesFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, windingBytesFuncPtr, maxGapFuncPtr);
     static_assert(offsetof(PathOpsV0Lib::ContextCallbacks, maxGapFuncPtr) 
             + sizeof(contextCallbacks.maxGapFuncPtr) == sizeof(contextCallbacks));
     static_assert(0 == offsetof(PathOpsV0Lib::WindingCallbacks, windingAddFuncPtr));
@@ -5709,7 +5659,7 @@ ENUM_NAME_STRUCT(WindingType)
 #define DebugWindingType_Base
 ENUM_NAME_STRUCT(DebugWindingType)
 
-std::string OpWinding::debugDump(DebugLevel l, DebugBase b) const {
+std::string DebugDump(const PathOpsV0Lib::Winding& w, DebugLevel l, DebugBase b) {
     std::string s;
     OpContour* contour = (OpContour*) w.contour;
     OpContext* context = contour->context;
@@ -5724,6 +5674,23 @@ std::string OpWinding::debugDump(DebugLevel l, DebugBase b) const {
 				s += (*windingOut)(w) + " ";
 		}
     }
+    return s;
+}
+
+void DumpSet(PathOpsV0Lib::Winding& w, char const*& str) {
+    OpDebugRequired(str, "w.contour");
+    w.contour = (PathOpsV0Lib::Contour*) OpDebugReadSizeT(str);
+    OpDebugRequired(str, "w.size");
+    w.size = OpDebugReadSizeT(str);
+    w.data = debugGlobalContext->allocateWinding(w.size);
+    for (size_t index = 0; index < w.size; ++index) {
+        ((uint8_t*) w.data)[index] = OpDebugByteToInt(str);
+	}
+}
+
+std::string OpWinding::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s;
+    s += DebugDump(w, l, b);
 	if (DebugLevel::detailed == l || DebugLevel::file == l) {
 		if (WindingType::uninitialized != type)
 			s += "type:" + WindingTypeName(type) + " ";
@@ -5736,14 +5703,7 @@ std::string OpWinding::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 void OpWinding::dumpSet(const char*& str) {
-    OpDebugRequired(str, "w.contour");
-    w.contour = (PathOpsV0Lib::Contour*) OpDebugReadSizeT(str);
-    OpDebugRequired(str, "w.size");
-    w.size = OpDebugReadSizeT(str);
-    w.data = debugGlobalContext->allocateWinding(w.size);
-    for (size_t index = 0; index < w.size; ++index) {
-        ((uint8_t*) w.data)[index] = OpDebugByteToInt(str);
-	}
+    DumpSet(w, str);
     type = WindingTypeStr(str, "type", WindingType::uninitialized);
     debugType = DebugWindingTypeStr(str, "debugType", DebugWindingType::uninitialized);
 }

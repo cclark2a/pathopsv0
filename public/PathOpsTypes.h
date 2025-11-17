@@ -198,23 +198,23 @@ struct CurveCallbacks {
 // winding callbacks
 
 // adds winding
-typedef void (*WindingAdd)(Context* , Winding winding, Winding toAdd);
+typedef void (*WindingAdd)(Winding winding, Winding toAdd);
 
 // subtracts winding
-typedef void (*WindingSubtract)(Context* , Winding winding, Winding toSubtract);
+typedef void (*WindingSubtract)(Winding winding, Winding toSubtract);
 
 // returns true if winding affects operation (frame is not wound but is visible)
-typedef bool (*WindingVisible)(Context* , Winding winding);
+typedef bool (*WindingVisible)(Winding winding);
 
 // marks winding as having no effect
-typedef void (*WindingZero)(Context* , Winding toZero);
+typedef void (*WindingZero)(Winding toZero);
 
 // returns if curve transitions to a filled area and is kept; or if curve is discarded
-typedef WindKeep (*WindingKeep)(Context* , Winding winding, Winding sum);
+typedef WindKeep (*WindingKeep)(Winding winding, Winding sum);
 
 // returns true if winding pair can generate intersections (e.g., frame returns false because
 // it does not intersect itself)
-typedef bool (*WindingIntersect)(Context* , Winding left, Winding right);
+typedef bool (*WindingIntersect)(Winding left, Winding right);
 
 // return non-zero to discard subsequent winding operations; condition is returned by resolve 
 typedef WindingCondition (*WindingShort)(Context* , WindKeep );
@@ -246,19 +246,19 @@ typedef void (*EmptyCallerPath)(Context* );
 typedef CurveType (*SetLineType)(Curve );
 
 // overrides a scalar used by the engine to test if curve intersects bounds 
-typedef float (*MaxCurveValue)(Curve );
+typedef float (*CurveValue)(Curve );
 
 // overrides a scalar used by the engine to intersect a pair of curves 
-typedef float (*MaxCurveCurveValue)(Curve , Curve );
+typedef float (*CurveCurveValue)(Curve , Curve );
 
 // overrides a count used by the engine to intersect a pair of curves 
-typedef int (*MaxCurveCurveCount)(Curve , Curve );
+typedef int (*CurveCurveCount)(Curve , Curve );
 
 // overrides a count used by the engine to limit the memory used to assemble the result
-typedef int (*MaxCount)(Context* );
+typedef int (*ContextCount)(Context* );
 
 // overrides a scalar used by the engine to describe the error allowed when assembling the result
-typedef float (*MaxGap)(Context* );
+typedef float (*ContextValue)(Context* );
 
 // the collection of caller defined functions that change the global context behavior
 // caller defined functions beginning with 'max' customize when the engine returns an error
@@ -268,25 +268,26 @@ struct ContextCallbacks {
 	EmptyCallerPath emptyCallerPathFuncPtr = nullptr;
     CurveOutput bestLoopFuncPtr = nullptr;  // can override smallest perimeter for best output loop
 	SetLineType setLineTypeFuncPtr = nullptr;  // default to (CurveType) 1
-	MaxCurveCurveValue maxSplitFuncPtr = nullptr;
-	MaxCurveCurveValue maxBoundedEdgeFuncPtr = nullptr;
-	MaxCurveCurveValue maxSignSwapFuncPtr = nullptr;
-	MaxCurveCurveValue maxTSlopFuncPtr = nullptr;
-	MaxCurveCurveValue maxSplitBiasFuncPtr = nullptr;
-	MaxCurveCurveValue maxOverlapFuncPtr = nullptr;
-	MaxCurveCurveValue maxUnsectableFuncPtr = nullptr;
-    MaxCurveCurveValue maxDistFuncPtr = nullptr;
-	MaxCurveCurveCount maxDeepFuncPtr = nullptr;
-	MaxCurveCurveCount maxShallowFuncPtr = nullptr;
-	MaxCurveCurveCount maxSplitsFuncPtr = nullptr;
-	MaxCurveCurveCount maxCutFuncPtr = nullptr;
-	MaxCurveValue maxMarginFuncPtr = nullptr;
-	MaxCurveValue maxUnsectableTFuncPtr = nullptr;
-	MaxCurveValue maxUnsectDistFuncPtr = nullptr;
-	MaxCurveCurveCount maxCheckSplitFuncPtr = nullptr;
-	MaxCount maxLimbsFuncPtr = nullptr;
-	MaxCount maxLoopsFuncPtr = nullptr;
-	MaxGap maxGapFuncPtr = nullptr;
+	CurveCurveValue maxSplitFuncPtr = nullptr;
+	CurveCurveValue maxBoundedEdgeFuncPtr = nullptr;
+	CurveCurveValue maxSignSwapFuncPtr = nullptr;
+	CurveCurveValue maxTSlopFuncPtr = nullptr;
+	CurveCurveValue maxSplitBiasFuncPtr = nullptr;
+	CurveCurveValue maxOverlapFuncPtr = nullptr;
+	CurveCurveValue maxUnsectableFuncPtr = nullptr;
+    CurveCurveValue maxDistFuncPtr = nullptr;
+	CurveCurveCount maxDeepFuncPtr = nullptr;
+	CurveCurveCount maxShallowFuncPtr = nullptr;
+	CurveCurveCount maxSplitsFuncPtr = nullptr;
+	CurveCurveCount maxCutFuncPtr = nullptr;
+	CurveValue maxMarginFuncPtr = nullptr;
+	CurveValue maxUnsectableTFuncPtr = nullptr;
+	CurveValue maxUnsectDistFuncPtr = nullptr;
+	CurveCurveCount maxCheckSplitFuncPtr = nullptr;
+	ContextCount maxLimbsFuncPtr = nullptr;
+	ContextCount maxLoopsFuncPtr = nullptr;
+	ContextCount windingBytesFuncPtr = nullptr;
+	ContextValue maxGapFuncPtr = nullptr;
 };
 
 // return true if the engine should abort

@@ -17,6 +17,7 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "lldb",
+            "visualizerFile": "/Users/cary/pathopsv0/.vscode/v0.natvis",
             "logging": {
                 "moduleLoad": false
             }
@@ -34,6 +35,7 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "lldb",
+            "visualizerFile": "/Users/cary/pathopsv0/.vscode/v0.natvis",
             "logging": {
                 "moduleLoad": false
             }

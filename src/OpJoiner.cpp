@@ -586,14 +586,14 @@ bool OpTree::containsParent(OpLimb* parent, OpEdge* edge, EdgeMatch m) const {
 // to contour to minimize this search
 bool OpTree::containsFiller(OpLimb* parent, OpPoint pt1, OpPoint pt2) const {
 	return context->containsFiller(pt1, pt2);
-}
+} 
 
 bool OpTree::containsFiller(int ccUnsectableID) const {
 	return context->containsFiller(ccUnsectableID);
 }
 
 bool OpTree::gap(float distance) const {
-	PathOpsV0Lib::MaxGap gapFuncPtr = context->contextCallbacks.maxGapFuncPtr;
+	PathOpsV0Lib::ContextValue gapFuncPtr = context->contextCallbacks.maxGapFuncPtr;
 	float gapFactor = gapFuncPtr ? (*gapFuncPtr)((ContextPtr) context) : 4.f;
 	return distance <= context->aliases.thresholdLength * gapFactor;
 }
@@ -869,7 +869,7 @@ bool OpJoiner::linkRemaining(OpContour* contour) {
     OpDebugData& debugData = context->debugData;
     if (debugData.runOneFile) {
         dmpFile();
-        OpAssert(0);
+//        OpAssert(0);
     }
 #endif
 	linkPass = LinkPass::remaining;

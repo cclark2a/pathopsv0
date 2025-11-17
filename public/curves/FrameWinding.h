@@ -46,14 +46,14 @@ struct FrameWinding {
     FrameData data;
 };
 
-inline void frameAddFunc(Context* , Winding winding, Winding toAdd) {
+inline void frameAddFunc(Winding winding, Winding toAdd) {
 	FrameData sum(winding);
 	FrameData addend(toAdd);
 	sum.left += addend.left;
 	sum.copyTo(winding);
 }
 
-inline WindKeep frameDiscardFunc(Context* , Winding winding, Winding sumWinding) {
+inline WindKeep frameDiscardFunc(Winding winding, Winding sumWinding) {
 	FrameData wind(winding);
 	if (FrameFill::fill == wind.isFrame)
 		return WindKeep::Discard;
@@ -61,19 +61,19 @@ inline WindKeep frameDiscardFunc(Context* , Winding winding, Winding sumWinding)
 	return !sum.left ? WindKeep::Start : WindKeep::Discard;
 }
 
-inline bool frameWoundFunc(Context* , Winding winding) {
+inline bool frameWoundFunc(Winding winding) {
 	FrameData wind(winding);
     return !!wind.left;
 }
 
-inline bool frameIntersectFunc(Context* , Winding l, Winding r) {
+inline bool frameIntersectFunc(Winding l, Winding r) {
     FrameData left(l);
     FrameData right(r);
     return FrameFill::fill == left.isFrame || FrameFill::fill == right.isFrame;
 }
 
 // both winding and sumWinding come from the same edge
-inline WindKeep frameKeepFunc(Context* , Winding winding, Winding sumWinding) {
+inline WindKeep frameKeepFunc(Winding winding, Winding sumWinding) {
 	FrameData wind(winding);
 	if (FrameFill::fill == wind.isFrame)
 		return WindKeep::Discard;
@@ -81,19 +81,19 @@ inline WindKeep frameKeepFunc(Context* , Winding winding, Winding sumWinding) {
 	return sum.left ? WindKeep::Start : WindKeep::Discard;
 }
 
-inline void frameZeroFunc(Context* , Winding toZero) {
+inline void frameZeroFunc(Winding toZero) {
     FrameData zero(FrameFill::fill, 0);
     zero.copyTo(toZero);
 }
 
-inline void frameSubtractFunc(Context* , Winding winding, Winding toSubtract) {
+inline void frameSubtractFunc(Winding winding, Winding toSubtract) {
 	FrameData difference(winding);
 	FrameData subtrahend(toSubtract);
 	difference.left -= subtrahend.left;
 	difference.copyTo(winding);
 }
 
-inline bool frameVisibleFunc(Context* , Winding winding) {
+inline bool frameVisibleFunc(Winding winding) {
     FrameData test(winding);
     return FrameFill::frame == test.isFrame || !!test.left;
 }
@@ -185,7 +185,7 @@ inline Context* frameContext(CurveOutput output = nullptr) {
     Debug(context, debugData);
 	SetDebugContextCallbacks(context, { 
         frameDebugIsFill
-        OP_DEBUG_DUMP_PARAMS(frameDumpOutFunc, frameDumpSetFunc)
+        OP_DEBUG_DUMP_PARAMS(frameDumpOutFunc, frameDumpSetFunc, nullptr)
         OP_DEBUG_IMAGE_PARAMS(frameImageOutXFunc, frameImageOutFunc, frameColorFuncPtr)
     });
 #endif

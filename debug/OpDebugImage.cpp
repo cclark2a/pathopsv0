@@ -2313,8 +2313,7 @@ bool OpDebugImage::drawEdgeWinding(const OpCurve& curve, const OpEdge* edge, uin
 		if (debugImageOut && !sum.isSet())
 			return (*debugImageOut)(wind.w, index);
 		OpWinding diffWind(edge->sum.w);
-		contour->context->windingCallbacks.windingSubtractFuncPtr((ContextPtr) contour->context,
-                diffWind.w, wind.w);
+		contour->context->windingCallbacks.windingSubtractFuncPtr(diffWind.w, wind.w);
 		return debugImageOut ? (*debugImageOut)(diffWind.w, index) : "";
 	};
 	std::string oppLeft = sumString(edge->winding, sum, 0);

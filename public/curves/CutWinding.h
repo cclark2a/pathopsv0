@@ -12,7 +12,7 @@ namespace PathOpsV0Lib {
 // keep right connects down/right frame to ccw loop formed by fill
 
 // both winding and sumWinding come from the same edge
-inline WindKeep cutKeepFunc(Context* , Winding winding, Winding sumWinding) {
+inline WindKeep cutKeepFunc(Winding winding, Winding sumWinding) {
 	FrameData wind(winding);
 	FrameData sum(sumWinding);
 	if (FrameFill::fill == wind.isFrame) {
@@ -81,7 +81,7 @@ inline Context* cutContext(ContextUserData userData, CurveOutput output = nullpt
     Debug(context, debugData);
 	SetDebugContextCallbacks(context, { 
         frameDebugIsFill
-        OP_DEBUG_DUMP_PARAMS(frameDumpOutFunc, frameDumpSetFunc)
+        OP_DEBUG_DUMP_PARAMS(frameDumpOutFunc, frameDumpSetFunc, nullptr)
         OP_DEBUG_IMAGE_PARAMS(frameImageOutXFunc, frameImageOutFunc, frameColorFuncPtr)
     });
 #endif

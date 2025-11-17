@@ -176,7 +176,7 @@ OpPoint EdgePal::matchPt(EdgeMatch m) const {
 }
 
 EdgeOutput::EdgeOutput(OpContext* context, OpEdge* edge, bool isLoop) {
-    PathOpsV0Lib::MaxCount maxLoops = context->contextCallbacks.maxLoopsFuncPtr;
+    PathOpsV0Lib::ContextCount maxLoops = context->contextCallbacks.maxLoopsFuncPtr;
     int safetyCounter = maxLoops ? (*maxLoops)((ContextPtr) context) : 0;
 	while (edge->output(isLoop) && --safetyCounter >= 0)
         OP_ASSERT(safetyCounter >= 0);

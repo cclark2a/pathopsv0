@@ -24,7 +24,7 @@
 //                    -0.3563 2.0153 t=0.139774203 oppT=0.113169670
 #define CURVE_CURVE_1 2  // id of segment 1 to break in divide and conquer
 #define CURVE_CURVE_2 7  // id of segment 2 to break in divide and conquer
-#define CURVE_CURVE_DEPTH 2  // minimum recursion depth for curve curve break (-1 to disable)
+#define CURVE_CURVE_DEPTH -1  // minimum recursion depth for curve curve break (-1 to disable)
 
 #define TEST_PATH_SKIP_TESTS { "grshapearc", "grshapearcs1", "release_13", "pentrek10" }
 // when these tests are encountered, it and the remaining tests in the file are skipped

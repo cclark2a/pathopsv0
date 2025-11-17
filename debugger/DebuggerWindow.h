@@ -45,7 +45,8 @@ struct DebuggerWindow {
     OpContext* context();
     void deleteTextCache();
     virtual DrawLevel doWheel(const DebuggerEvent& , int delta) { return DrawLevel::none; }
-    SDL_AppResult draw();
+    virtual SDL_AppResult draw() { return drawCommon(); }
+    SDL_AppResult drawCommon();
     virtual bool drawOne(DebuggerPoly& ) { return true; }
     void drawText();
     virtual DrawLevel event(const DebuggerEvent& ) { return DrawLevel::none; }

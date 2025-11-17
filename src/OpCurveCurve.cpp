@@ -698,7 +698,7 @@ void OpCurveCurve::cutPair(SnipPtTs& snip) {
 	const OpCurve& oppCurve = opp->c;
 	OpPtT ptT = snip.seg;
 	OpPtT oppPtT = snip.opp;
-	PathOpsV0Lib::MaxCurveCurveCount cutFun = context->contextCallbacks.maxCutFuncPtr;
+	PathOpsV0Lib::CurveCurveCount cutFun = context->contextCallbacks.maxCutFuncPtr;
 	float tStep = cutFun ? (*cutFun)(curve.c, oppCurve.c) : 16.f;
 	OpVector threshold = context->threshold() * tStep;
 	float scaleThres = threshold.length();  // !!! probably should be its own scaled number

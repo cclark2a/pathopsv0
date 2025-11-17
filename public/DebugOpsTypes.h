@@ -94,6 +94,7 @@ struct DebugContextCallbacks {
 //    DebugDumpContextExtra debugDumpContextExtraFuncPtr = nullptr;
 	DebugDumpWindingOut debugDumpWindingOutFuncPtr = nullptr;
 	DebugDumpWindingSet debugDumpWindingSetFuncPtr = nullptr;
+    WindingKeep debugWindingVisibleFuncPtr = nullptr;  // returns if winding effects fill for one contour
 #endif
 #if OP_DEBUG_IMAGE
 	DebugImageWindingOutX debugImageWindingOutXFuncPtr = nullptr;

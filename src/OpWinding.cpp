@@ -23,30 +23,19 @@ OpWinding::OpWinding(OpEdge* edge, WindingSum )
 	OP_DEBUG_CODE(debugType = DebugWindingType::sum);
 }
 
-#if 0 && TEST_RASTER
-OpWinding::OpWinding(const PathOpsV0Lib::Winding* copy, bool curveDown)
-	: w({ copy->contour, copy->data, copy->size })
-	, type(WindingType::copy) {
-	if (!curveDown) {
-		zero();
-		subtract(*copy);
-	}
-}
-#endif
-
-#if 0
-OpWinding::OpWinding(const OpWinding& from) {
-	w = from.copyData();
-	OP_ASSERT(w.size);
-	type = WindingType::copy;
-	OP_DEBUG_CODE(debugType = from.debugType);
+#if TEST_RASTER
+OpWinding::OpWinding(OpWinding& winding, DebugWindingSum ) 
+	: w({ (ContourPtr) winding.w.contour, winding.w.data, winding.w.size })
+	, type(WindingType::caller) {  // always copy
+	zero();
+	OP_DEBUG_CODE(debugType = DebugWindingType::sum);
 }
 #endif
 
 void OpWinding::add(const PathOpsV0Lib::Winding& winding) {
 	copyOnDemand();
     OpContext* context = ((OpContour*) winding.contour)->context;
-	context->windingCallbacks.windingAddFuncPtr((ContextPtr) context, w, winding);
+	context->windingCallbacks.windingAddFuncPtr(w, winding);
 }
 
 void OpWinding::add(const OpWinding& winding) {
@@ -60,26 +49,38 @@ PathOpsV0Lib::Winding OpWinding::copyData() const {
 	return copy;
 }
 
-void OpWinding::copyOnDemand() {
+#if TEST_RASTER
+void OpWinding::copyExisting(const OpWinding& existing) {
+	if (WindingType::caller == type || w.size != existing.w.size) {
+		w = existing.copyData();
+		type = WindingType::copy;
+		return;
+	}
+	std::memcpy(w.data, existing.w.data, w.size);
+}
+#endif
+
+bool OpWinding::copyOnDemand() {
 	OP_ASSERT(WindingType::uninitialized != type);
 	if (WindingType::copy == type)
-		return;
+		return false;
 	w = copyData();
 	OP_ASSERT(w.size);
 	type = WindingType::copy;
+	return true;
 }
 
 bool OpWinding::isWound() const {
     OpContext* context = ((OpContour*) w.contour)->context;
     PathOpsV0Lib::WindingVisible woundFunc = context->windingCallbacks.windingWoundFuncPtr;
-    return woundFunc ? (*woundFunc)((ContextPtr) context, w) : true;
+    return woundFunc ? (*woundFunc)(w) : true;
 }
 
 PathOpsV0Lib::WindKeep OpWinding::keep(const OpWinding& sum) const {
     OpContext* context = ((OpContour*) w.contour)->context;
     PathOpsV0Lib::WindingKeep keepFunc = context->windingCallbacks.windingKeepFuncPtr;
     OP_ASSERT(keepFunc);
-    return (*keepFunc)((ContextPtr) context, w, sum.w);
+    return (*keepFunc)(w, sum.w);
 }
 
 void OpWinding::setWind(const OpWinding& fromSegment) {
@@ -91,7 +92,7 @@ void OpWinding::setWind(const OpWinding& fromSegment) {
 void OpWinding::subtract(const PathOpsV0Lib::Winding& winding) {
 	copyOnDemand();
     OpContext* context = ((OpContour*) winding.contour)->context;
-	context->windingCallbacks.windingSubtractFuncPtr((ContextPtr) context, w, winding);
+	context->windingCallbacks.windingSubtractFuncPtr(w, winding);
 }
 
 void OpWinding::subtract(const OpWinding& winding) {
@@ -104,7 +105,7 @@ bool OpWinding::visible() const {
     OpContext* context = ((OpContour*) w.contour)->context;
     PathOpsV0Lib::WindingVisible visibleFunc = context->windingCallbacks.windingVisibleFuncPtr;
     if (visibleFunc)
-	    return (*visibleFunc)((ContextPtr) context, w);
+	    return (*visibleFunc)(w);
     // default windings (binary, unary, frame) fit in 8 bytes
     const uint8_t* data = (const uint8_t*) w.data;
     int size = (int) w.size;  // limit size of winding to 2 gigabytes
@@ -117,12 +118,11 @@ bool OpWinding::visible() const {
     return false;
 }
 
-void OpWinding::zero() {
-	copyOnDemand();
+void OpWinding::zeroCommon() {
     OpContext* context = ((OpContour*) w.contour)->context;
     PathOpsV0Lib::WindingZero zeroFunc = context->windingCallbacks.windingZeroFuncPtr;
     if (zeroFunc)
-	    return (*zeroFunc)((ContextPtr) context, w);
+	    return (*zeroFunc)(w);
     // default windings (binary, unary, frame) fit in 8 bytes
     uint8_t* data = (uint8_t*) w.data;
     int size = (int) w.size;  // limit size of winding to 2 gigabytes
@@ -131,6 +131,11 @@ void OpWinding::zero() {
         size -= sizeof(zeroes);
         data += sizeof(zeroes);
     }
+}
+
+void OpWinding::zero() {
+	copyOnDemand();
+	zeroCommon();
 }
 
 #if 0
@@ -142,7 +147,7 @@ void OpWinding::zeroUninitialized(const PathOpsV0Lib::Winding& winding) {
     OpContext* context = ((OpContour*) winding.contour)->context;
 	w = { winding.contour, context->allocateWinding(winding.size), winding.size };
 	type = WindingType::copy;
-	context->windingCallbacks.windingZeroFuncPtr((ContextPtr) context, w);
+	context->windingCallbacks.windingZeroFuncPtr(w);
 }
 
 void OpWinding::zeroUninitialized(const OpWinding& winding) {
