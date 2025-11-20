@@ -282,7 +282,7 @@ inline std::string binaryImageOutFunc(Winding winding, int index) {
     return s;
 }
 
-inline uint32_t binaryColorFuncPtr(Winding winding, DebugEdgeType edgeType) {
+inline uint32_t binaryColorFunc(Winding winding, DebugEdgeType edgeType) {
     BinaryData data(winding);
 	if (edgeType.disabled)
 		return data.left ? red : darkRed;
@@ -299,10 +299,29 @@ inline uint32_t binaryColorFuncPtr(Winding winding, DebugEdgeType edgeType) {
     return data.left ? debugBlack : darkGreen;
 }
 
+inline WindKeep binaryVisibleFunc(Winding w, Winding s) {
+    BinaryData winding(w);
+    BinaryData sum(s);
+    auto keeper = [](int wValue, int sValue) {  // stolen from unary keep
+        if (!wValue || (sValue && sValue != wValue))
+            return WindKeep::Discard;
+        return sValue ? WindKeep::Start : WindKeep::End;
+    };
+    WindKeep keepLeft = keeper(winding.left, sum.left);
+    WindKeep keepRight = keeper(winding.right, sum.right);
+    if (WindKeep::Discard == keepLeft)
+        return keepRight;
+    if (WindKeep::Discard == keepRight)
+        return keepLeft;
+    OP_ASSERT(keepLeft == keepRight);  // !!! think about it if this returns start + end
+    return keepLeft;
+}
+
 #define BINARY_IMAGE_TAGGED_FUNCTIONS \
     OP_TAGGED_FUNCTION(binaryImageOutXFunc), \
     OP_TAGGED_FUNCTION(binaryImageOutFunc), \
-    OP_TAGGED_FUNCTION(binaryColorFuncPtr), \
+    OP_TAGGED_FUNCTION(binaryColorFunc), \
+    OP_TAGGED_FUNCTION(binaryVisibleFunc), \
 
 #endif
 
@@ -312,11 +331,12 @@ inline Context* binaryContext(CurveOutput output = nullptr, EmptyCallerPath empt
 //    binaryCallbacks(context);  // !!! still thinking about this
 #if OP_DEBUG
     OpDebugData debugData(false);
-    Debug(context, debugData);
+    SetDebugData(context, debugData);
 	SetDebugContextCallbacks(context, {
         binaryDebugIsFill
-        OP_DEBUG_DUMP_PARAMS(binaryDumpOutFunc, binaryDumpSetFunc, nullptr)
-        OP_DEBUG_IMAGE_PARAMS(binaryImageOutXFunc, binaryImageOutFunc, binaryColorFuncPtr)
+        OP_DEBUG_DUMP_PARAMS(binaryDumpOutFunc, binaryDumpSetFunc)
+        OP_DEBUG_IMAGE_PARAMS(binaryImageOutXFunc, binaryImageOutFunc, binaryColorFunc,
+                    binaryVisibleFunc)
     });
 #endif
     return context;
@@ -325,9 +345,6 @@ inline Context* binaryContext(CurveOutput output = nullptr, EmptyCallerPath empt
 inline BinaryWinding::BinaryWinding(Context* context, BinaryOperand binaryOperand) 
     : data(binaryOperand) {
     winding.contour = CreateContour(context, &data, sizeof(data));
-#if OP_DEBUG
-	SetDebugContourData(winding.contour, { &data, sizeof(data) }, DebugContourType::windingUserData );
-#endif
 }
 
 }

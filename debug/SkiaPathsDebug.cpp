@@ -195,8 +195,6 @@ uint8_t skiaDebugBitOper(DebugContourData data, uint8_t src, uint8_t opp) {
 
 void SetSkiaSimplifyCallbacksDebug(Context* context, Contour* contour, const SkPath& path) {
     UnaryContour simplifyUserData { &path };
-	SetDebugContourData(contour, { &simplifyUserData, sizeof(simplifyUserData) }, 
-            DebugContourType::windingUserData );
 	SetDebugContourCallbacks(contour, { 
     //        OP_DEBUG_DUMP_CODE(dumpUnaryContourFunc)
             OP_DEBUG_IMAGE_CODE(debugSimplifyPathFunc,
@@ -204,8 +202,8 @@ void SetSkiaSimplifyCallbacksDebug(Context* context, Contour* contour, const SkP
     );
 	SetDebugContextCallbacks(context, {
             unaryDebugIsFill
-			OP_DEBUG_DUMP_PARAMS(unaryDumpOutFunc, unaryDumpSetFunc, nullptr)
-            OP_DEBUG_IMAGE_PARAMS(unaryImageOutXFunc, unaryImageOutFunc, unaryColorFuncPtr) }
+			OP_DEBUG_DUMP_PARAMS(unaryDumpOutFunc, unaryDumpSetFunc)
+            OP_DEBUG_IMAGE_PARAMS(unaryImageOutXFunc, unaryImageOutFunc, unaryColorFunc) }
     );
 }
 
@@ -219,25 +217,24 @@ void SetSkiaOpContextCallbacksDebug(Context* context, SkPathOp op) {
 
 void SetSkiaOpContourCallbacksDebug(Context* context, Contour* contour,
         BinaryOperand operand, const SkPath& path) {
-    BinaryContour windingUserData { { &path }, operand };
-	SetDebugContourData(contour, { &windingUserData, sizeof(windingUserData) },
-            DebugContourType::windingUserData);
 	SetDebugContourCallbacks(contour, {
-	//		OP_DEBUG_DUMP_CODE(dumpBinaryContourFunc)
             OP_DEBUG_IMAGE_CODE(debugOpPathFunc,
 	        debugOpGetDrawFunc, debugOpSetDrawFunc, debugOpSetIsOppFunc) }
     );
 	SetDebugContextCallbacks(context, {
             binaryDebugIsFill
-			OP_DEBUG_DUMP_PARAMS(binaryDumpOutFunc, binaryDumpSetFunc, nullptr)
-            OP_DEBUG_IMAGE_PARAMS(binaryImageOutXFunc, binaryImageOutFunc, binaryColorFuncPtr) }
-    );
+			OP_DEBUG_DUMP_PARAMS(binaryDumpOutFunc, binaryDumpSetFunc)
+            OP_DEBUG_IMAGE_PARAMS(binaryImageOutXFunc, binaryImageOutFunc, binaryColorFunc,
+                    binaryVisibleFunc)
+    });
 }
 
+#if 0
 void AddDebugContour::add(PathOpsV0Lib::Contour* contour) {
 	SetDebugContourData(contour, { &debugData, debugSize }, debugContourType );
 	debugData.contourIndex++;
 }
+#endif
 
 #if !OP_DEBUG_FAST_TEST && OP_DEBUG
 #if !TEST_ANALYZE

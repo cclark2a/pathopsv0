@@ -317,6 +317,7 @@ void DebugColorEdges() {
 #endif
 
 void OpDebugImage::drawDoubleFocus() {
+#if 0
 	OP_DEBUG_CODE(OpDebugDefeatDelete defeater);
 	std::vector<int> ids;
 	clearScreen();
@@ -467,6 +468,7 @@ void OpDebugImage::drawDoubleFocus() {
 		drawGrid();
 	if (drawRasterOn)
 		drawRaster();
+#endif
 }
 
 #if 0
@@ -1400,6 +1402,7 @@ bool OpDebugImage::drawValue(OpPoint pt, std::string ptStr, uint32_t color) {
 	return false;
 }
 
+#if 0
 void OpDebugImage::drawPoints() {
 	DebugOpClearPoints();
 	auto drawPathPt = [](const SkPath* path) { // lambda
@@ -1548,6 +1551,7 @@ void OpDebugImage::drawPoints() {
 	}
 	DebugOpDrawSprites();
 }
+#endif
 
 void OpDebugImage::add(Axis axis, float value) {
 	lines.emplace_back(axis, value);
@@ -1730,6 +1734,7 @@ void toggle##Thing() { \
 EDGE_BOOL_LIST2
 #undef OP_X
 
+#if 0
 static void doOperand(int operand, bool leftState) {
 	for (OpContour* contour : contourIterator) {
 		PathOpsV0Lib::DebugOperand debugOperand = contour->debugCallbacks.debugOperandFuncPtr;
@@ -1767,6 +1772,7 @@ void showRight() {
 void toggleRight() {
 	doOperand(1, (drawRightOn ^= true));
 }
+#endif
 
 static void operateOnLimbEdges(std::function<void (OpEdge*)> fun) {
 	const OpTree* tree = debugGlobalContext->debugTree;
@@ -1843,7 +1849,7 @@ void toggleTree() {
 }
 
 // !!! could macro-tize this if common (note that disabled and linkups are nearly identical)
-
+#if 0
 void hideOperands() {
 	for (auto contour : contourIterator) {
 		PathOpsV0Lib::DebugSetDraw debugSetDraw = contour->debugCallbacks.debugSetDrawFuncPtr;
@@ -1882,6 +1888,7 @@ void toggleOperands() {
 	OpDebugImage::drawDoubleFocus();
 	drawOperandsOn ^= true;
 }
+#endif
 
 static void operateOnID(std::function<void (OpEdge*)> fun, int id) {
 	if (OpContour* contour = (OpContour*) findContour(id)) {
@@ -2689,6 +2696,7 @@ void help() {
 	OpDebugOut("hideIDs() hideValues() hideHex()\n");
 }
 
+#if 0
 void resetFocus() {
 	OpPointBounds focusRect;
 	if (!drawSegmentsOn) {
@@ -2718,6 +2726,7 @@ void resetFocus() {
 	} else
 		OpDebugOut("operand bounds are not finite\n");
 }
+#endif
 
 void u(float s) {
 	DebugOpOffsetCenter(0, -DebugOpTranslate(s));

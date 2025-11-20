@@ -11,8 +11,9 @@ namespace PathOpsV0Lib {
 
 inline size_t AddLine(Contour* contour, AddCurve curve) {
 #if OP_DEBUG_IMAGE
-    Curve line { curve.context, (CurveData*) curve.points, curve.size, curve.type };
-    SetDebugContourImage(contour, line);
+    SetDebugContourData(contour, { curve.points, curve.size, DebugContourType::curveData });
+    SetDebugContourData(contour, { &curve.type, sizeof(curve.type), DebugContourType::curveType });
+    SetDebugContourData(contour, { nullptr, 0, DebugContourType::curveExtrema });
 #endif
     Add(contour, curve);
     return 1;

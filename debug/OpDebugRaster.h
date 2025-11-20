@@ -30,7 +30,7 @@ struct OpDebugBitmap {
 	std::string debugDump(DebugLevel l, DebugBase b) const;
 	void dumpSet(char const*& str);
 	static void DumpSet(char const*& str, uint32_t* pixels);
-	void rasterize(const OpDebugSamples& , int row);  // sets bits to sample coverage
+	void rasterize(OpDebugSamples& , int row);  // sets bits to sample coverage
 
     std::vector<uint8_t> bits;  // 1 byte per pixel, black/white only
 	DebugRaster* raster = nullptr;
@@ -39,7 +39,7 @@ struct OpDebugBitmap {
 struct RasterSample {
 	std::string debugDump(DebugLevel l, DebugBase b) const;
 	void dumpSet(char const*& str);
-	PathOpsV0Lib::Winding winding() const;
+	const OpWinding& winding() const;
 
 	const OpContour* contour = nullptr;  // if this represents original curve (segment/edge are nullptr)
 	const OpSegment* segment = nullptr;  // if set, contour and edge are nullptr
@@ -47,6 +47,7 @@ struct RasterSample {
 	int curveIndex = -1;  // for contour : index of user-provided curve
     float x = OpDebugNaN;
 	bool curveDown = (bool) -1;  // unset for contour curve
+	bool visible = true;
 };
 
 typedef std::vector<RasterSample> RasterSamples;
@@ -69,9 +70,10 @@ enum class SampleType {
 // one for operands; and one more for comparing combined with output (both stored in contours)
 struct OpDebugSamples {
 	OpDebugSamples() 
-		: zeroWinding(WindingUninitialized::dummy) {};
+		: zeroWinding(WindingUninitialized::dummy)
+		, winding(WindingUninitialized::dummy) {};
 	OpDebugSamples(DebugRaster* );
-	void addCurveXatY(const PathOpsV0Lib::Curve& , RasterSample& base);
+	void addCurveXatY(const PathOpsV0Lib::Curve& , RasterSample& base, float tLo, float tHi);
 	void addCurveXatY(const OpContour* , int debugCurveIndex);
 	void addCurveXatY(const OpSegment* );
 	void addCurveXatY(const OpEdge* );
@@ -86,13 +88,10 @@ struct OpDebugSamples {
 	PathOpsV0Lib::WindingKeep visibleFunc() const;
 
 	OpWinding zeroWinding;
+	OpWinding winding;
 	DebugRaster* raster = nullptr;
 	std::vector<RasterSamples> sampleSet;  // 1 per curve crossing scanline
 	OpDebugBitmap mask;
-	double scale = OpDoubleNaN;  // apply scale first
-	double offsetX = OpDoubleNaN;  // then apply offset
-	double offsetY = OpDoubleNaN;
-	PathOpsV0Lib::Winding winding = { nullptr, nullptr, 0 };
 	SampleType sampleType = SampleType::none;
 };
 
@@ -112,6 +111,11 @@ struct DebugRaster {
 		, subSamples(compareSub)
 		, sendToDebugger(context->debugData.runOneFile)
 		, makeBits(sendToDebugger) {
+		float scaleX = bitWidth / context->maxBounds.width();
+		float scaleY = bitHeight / context->maxBounds.height();
+		scale = std::min(scaleX, scaleY);
+		offsetX = -context->maxBounds.left * scale;
+		offsetY = -context->maxBounds.top * scale;
 	}
 	
 	std::string debugDump(DebugLevel l, DebugBase b) const;
@@ -122,9 +126,13 @@ struct DebugRaster {
 	void record(std::string filename);
 	void sample(SampleType );
 	void sampleEdges();
+	OP_DEBUG_VALIDATE_CODE(void validate());
 
 	std::vector<OpDebugSamples> samples;  // one per initial winding value
 	OpContext* context = nullptr;
+	double scale = OpDoubleNaN;  // apply scale first
+	double offsetX = OpDoubleNaN;  // then apply offset
+	double offsetY = OpDoubleNaN;
 	int bitWidth = -1;
 	int bitHeight = -1;
 	int subSamples = -1;

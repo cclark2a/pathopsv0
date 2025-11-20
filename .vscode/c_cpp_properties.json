@@ -8,7 +8,8 @@
             "defines": [
                 "OP_DEBUG_FAST_TEST=0",
                 "OP_TINY_SKIA=1",
-                "TEST_RASTER=1"
+                "TEST_RASTER=1",
+                "_GLIBCXX_DEBUG"
             ],
             "compilerPath": "/usr/bin/clang",
             "cStandard": "c17",

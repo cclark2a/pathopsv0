@@ -2,7 +2,6 @@
 #ifndef OpDebugDouble_DEFINED
 #define OpDebugDouble_DEFINED
 
-#include <vector>
 //#ifndef _WIN32
 #include <float.h>
 //#endif

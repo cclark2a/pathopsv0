@@ -641,6 +641,7 @@ void OpContour::init(OpContext* ctxt, PathOpsV0Lib::WindingData wind, size_t siz
     windingStorage.resize(size);
     std::memcpy(&windingStorage.front(), wind, size);
 #if OP_DEBUG_IMAGE
+	debugWinding = OpWinding(this, wind, size);
     int used = ctxt->contourStorage->used;
     if (1 == used)
         debugColor = blue;
@@ -727,7 +728,7 @@ OpContourIter::OpContourIter(OpContext* context) {
 	contourIndex = 0;
 }
 
-#if OP_DEBUG
+#if 0 && OP_DEBUG
 void OpContour::addDebugContourData(PathOpsV0Lib::DebugContourData data, 
         PathOpsV0Lib::DebugContourType type) {
     PathOpsV0Lib::DebugContourData& contourData = debugContourData[(size_t) type];

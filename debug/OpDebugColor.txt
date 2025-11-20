@@ -8,9 +8,7 @@ $ prefix for OpDebugColor.h
 #include "OpDebug.h"
 
 #if OP_DEBUG_IMAGE
-#include <string>
 #include <utility>
-#include <vector>
 
 $ prefix for OpDebugColor.cpp
 // (c) 2023, Cary Clark cclark2@gmail.com

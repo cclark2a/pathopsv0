@@ -335,20 +335,24 @@ inline void AddCubics(Contour* contour, AddCurve curve) {
     CubicControls controls { curve.points[1], curve.points[2] };
 	OpPoint swizzled[4] { start, end, controls.pts[0], controls.pts[1] };  
     Curve cubic { curve.context, (CurveData*) swizzled, curve.size, curve.type };
-#if OP_DEBUG_IMAGE
-    SetDebugContourImage(contour, cubic);
-#endif
     // control point is not inside bounds formed by end points; split cubic into parts
 	OpRoots tValues = AddExtrema(start, end, controls, false);
-	OpRoots roots = AddInflections(start, end, controls);
-    if (tValues.empty() && roots.empty()) {
+	tValues.add(AddInflections(start, end, controls));
+#if OP_DEBUG_IMAGE
+    // save original curve and extrema t values as debugging data for visualization (sequentially)
+    // data is formatted as : ptr to original curve, size of original, ptr to extreme ts, size of ts
+    SetDebugContourData(contour, { swizzled, sizeof(swizzled), DebugContourType::curveData });
+    SetDebugContourData(contour, { &curve.type, sizeof(curve.type), DebugContourType::curveType });
+    SetDebugContourData(contour, { &tValues.roots.front(), tValues.count() * sizeof(float), 
+            DebugContourType::curveExtrema });
+#endif
+    if (tValues.empty()) {
         if (start != end)
             Add(contour, cubic);
         return;
     }
 	tValues.add(0);
 	tValues.add(1);
-	tValues.add(roots);
     if (std::any_of(tValues.roots.begin(), tValues.roots.end(), [](float t) {
             return OpMath::IsNaN(t); })) {
         PathOpsV0Lib::SetError(curve.context, PathOpsV0Lib::ContextError::root);

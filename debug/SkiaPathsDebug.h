@@ -51,6 +51,7 @@ struct BinaryContour : public UnaryContour {
 	PathOpsV0Lib::BinaryOperand operand;
 };
 
+#if 0
 struct AddDebugContour {
     void add(PathOpsV0Lib::Contour* );
 
@@ -58,6 +59,7 @@ struct AddDebugContour {
     size_t debugSize;
     PathOpsV0Lib::DebugContourType debugContourType;
 };
+#endif
 
 void SetSkiaSimplifyCallbacksDebug(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* , 
         const SkPath& );

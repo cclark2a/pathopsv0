@@ -118,7 +118,7 @@ inline std::string unaryImageOutFunc(Winding winding, int index) {  // deprecate
     return s;
 }
 
-inline uint32_t unaryColorFuncPtr(Winding winding, DebugEdgeType edgeType) {
+inline uint32_t unaryColorFunc(Winding winding, DebugEdgeType edgeType) {
 UnaryData unaryData(winding);
 	if (edgeType.disabled || !unaryData.value)
 		return red;
@@ -138,7 +138,7 @@ UnaryData unaryData(winding);
 #define UNARY_IMAGE_TAGGED_FUNCTIONS \
     OP_TAGGED_FUNCTION(unaryImageOutXFunc), \
     OP_TAGGED_FUNCTION(unaryImageOutFunc), \
-    OP_TAGGED_FUNCTION(unaryColorFuncPtr), \
+    OP_TAGGED_FUNCTION(unaryColorFunc), \
 
 #endif
 
@@ -148,11 +148,11 @@ inline Context* unaryContext(CurveOutput output = nullptr, EmptyCallerPath empty
     unaryCallbacks(context);
 #if OP_DEBUG
     OpDebugData debugData(false);
-    Debug(context, debugData);
+    SetDebugData(context, debugData);
 	SetDebugContextCallbacks(context, { 
         unaryDebugIsFill
-        OP_DEBUG_DUMP_PARAMS(unaryDumpOutFunc, unaryDumpSetFunc, nullptr)
-        OP_DEBUG_IMAGE_PARAMS(unaryImageOutXFunc, unaryImageOutFunc, unaryColorFuncPtr)
+        OP_DEBUG_DUMP_PARAMS(unaryDumpOutFunc, unaryDumpSetFunc)
+        OP_DEBUG_IMAGE_PARAMS(unaryImageOutXFunc, unaryImageOutFunc, unaryColorFunc)
     });
 #endif
     return context;
@@ -160,9 +160,6 @@ inline Context* unaryContext(CurveOutput output = nullptr, EmptyCallerPath empty
 
 inline UnaryWinding::UnaryWinding(Context* context) {
     winding.contour = CreateContour(context, &data, sizeof(data));
-#if OP_DEBUG
-	SetDebugContourData(winding.contour, { &data, sizeof(data) }, DebugContourType::windingUserData );
-#endif
 }
 
 }

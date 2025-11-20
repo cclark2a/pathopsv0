@@ -148,13 +148,17 @@ inline size_t AddConics(Contour* contour, AddCurve curve) {
     OpPoint swizzled[4] { start, end, control.pt, { weight, 0 } };
     Curve conic { curve.context, (CurveData*) swizzled, curve.size, curve.type };
 #if OP_DEBUG_IMAGE
-    SetDebugContourImage(contour, conic);
+    SetDebugContourData(contour, { swizzled, sizeof(swizzled), DebugContourType::curveData });
+    SetDebugContourData(contour, { &curve.type, sizeof(curve.type), DebugContourType::curveType });
 #endif
     auto [left, right] = std::minmax(start.x, end.x);
     bool monotonicInX = left <= control.pt.x && control.pt.x <= right;
     auto [top, bottom] = std::minmax(start.y, end.y);
     bool monotonicInY = top <= control.pt.y && control.pt.y <= bottom;
     if (monotonicInX && monotonicInY) {
+#if OP_DEBUG_IMAGE
+        SetDebugContourData(contour, { nullptr, 0, DebugContourType::curveExtrema });
+#endif
         if (start == end)
             return 0;
         Add(contour, { curve.context, swizzled, curve.size, curve.type } );
@@ -162,6 +166,10 @@ inline size_t AddConics(Contour* contour, AddCurve curve) {
     }
     // control point is not inside bounds formed by end points; split Conic into parts
 	std::vector<float> tValues = AddExtrema(start, end, control, monotonicInX, monotonicInY);
+#if OP_DEBUG_IMAGE
+    SetDebugContourData(contour, { &tValues.front(), tValues.size() * sizeof(float), 
+            DebugContourType::curveExtrema });
+#endif
 	tValues.push_back(0);
 	tValues.push_back(1);
     std::sort(tValues.begin(), tValues.end());

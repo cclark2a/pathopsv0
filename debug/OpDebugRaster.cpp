@@ -54,44 +54,39 @@ void RasterSample::dumpSet(char const*& str) {
 	curveDown = OpDebugOptional(str, "curveDown");
 }
 
-PathOpsV0Lib::Winding RasterSample::winding() const {
+const OpWinding& RasterSample::winding() const {
 	if (contour) {
 		OP_ASSERT(!segment);
 		OP_ASSERT(!edge);
-		return contour->winding();
+		return contour->debugWinding;
 	}
 	if (segment) {
 		OP_ASSERT(!edge);
-		return segment->winding.w;
+		return segment->winding;
 	}
 	OP_ASSERT(edge);
-	return edge->winding.w;
+	return edge->winding;
 }
 
 OpDebugSamples::OpDebugSamples(DebugRaster* r) 
 	: zeroWinding(r->context, DebugWindingZero::dummy)
+	, winding(WindingUninitialized::dummy)
 	, raster(r)
 	, mask(r) {
-	OpContext* context = r->context;
-	float scaleX = r->bitWidth / context->maxBounds.width();
-	float scaleY = r->bitHeight / context->maxBounds.height();
-	scale = std::min(scaleX, scaleY);
-	offsetX = -context->maxBounds.left * scale;
-	offsetY = -context->maxBounds.top * scale;
 	sampleSet.resize(r->bitHeight * r->subSamples);
 //    OpDebugOut("  scanline:" + STR(scanline) + " offsetY:" + STR(offsetY) + "\n");
 }
 
 // advance 1/8th (or whatever sub samples is set to)
-void OpDebugSamples::addCurveXatY(const Curve& original, RasterSample& base) {
+void OpDebugSamples::addCurveXatY(const Curve& original, RasterSample& base, float tLo, float tHi) {
 	int rows = raster->bitHeight * raster->subSamples;
 	auto toSubGrid = [this](float x) {
 		return std::floorf(x * raster->subSamples) / raster->subSamples;
 	};
 	OpCurve curve(original, Rotated::no);
-	curve.debugScale(scale, offsetX, offsetY);
-	OpPoint xy = curve.firstPt();
-	OpPoint xyEnd = curve.lastPt();
+	curve.debugScale(raster->scale, raster->offsetX, raster->offsetY);
+	OpPoint xy = curve.ptAtT(tLo);
+	OpPoint xyEnd = curve.ptAtT(tHi);
     bool curveDown = xy.y <= xyEnd.y;
 	if (!curveDown)
 		std::swap(xy, xyEnd);
@@ -100,8 +95,8 @@ void OpDebugSamples::addCurveXatY(const Curve& original, RasterSample& base) {
 	y = std::max(0.f, y);
 	yEnd = std::min((float) raster->bitHeight, yEnd);
     int row = (int) std::ceil(y * raster->subSamples);
-	while (y < yEnd) {
-		float t = curve.tAtXY(0, 1, XyChoice::inY, y);
+	while (y <= yEnd) {
+		float t = curve.tAtXY(tLo, tHi, XyChoice::inY, y);
 		float x = curve.ptAtT(t).x;
 		if (x < raster->bitWidth) {
 //			OpDebugOut("id:" + STR(id) + " x:" + STR(x) + " y:" + STR(y) + " row:" + STR(row) + "\n");
@@ -120,27 +115,45 @@ void OpDebugSamples::addCurveXatY(const Curve& original, RasterSample& base) {
 }
 
 void OpDebugSamples::addCurveXatY(const OpContour* contour, int debugCurveIndex) {
-	const Curve& curve = contour->debugCurves[debugCurveIndex];
-	RasterSample base { contour, nullptr, nullptr, debugCurveIndex };
-	addCurveXatY(curve, base);
+	int baseIndex = debugCurveIndex;
+	OP_ASSERT(baseIndex < contour->debugContourData.size());
+	const DebugContourData& curveData = contour->debugContourData[baseIndex++];
+	OP_ASSERT(DebugContourType::curveData == curveData.type);
+	OP_ASSERT(baseIndex < contour->debugContourData.size());
+	const DebugContourData& curveType = contour->debugContourData[baseIndex++];
+	OP_ASSERT(DebugContourType::curveType == curveType.type);
+	OP_ASSERT(sizeof(CurveType) == curveType.size);
+	const Curve curve { (ContextPtr) contour->context, (CurveData*) curveData.data, curveData.size,
+			*(CurveType*) curveType.data }; 
+	OP_ASSERT(baseIndex < contour->debugContourData.size());
+	const DebugContourData& curveExtrema = contour->debugContourData[baseIndex++];
+	OP_ASSERT(DebugContourType::curveExtrema == curveExtrema.type);
+	OpRoots tValues;
+	float* extrema = (float*) curveExtrema.data;
+	size_t count = curveExtrema.size / sizeof(float);
+	for (size_t index = 0; index < count; ++index) {
+		tValues.add(extrema[index]);
+	}
+	tValues.add(0);
+	tValues.add(1);
+	tValues.sort();
+    for (int index = 0; index < tValues.count() - 1; ++index) {
+		RasterSample base { contour, nullptr, nullptr, debugCurveIndex };
+		addCurveXatY(curve, base, tValues.roots[index], tValues.roots[index + 1]);
+	}
 }
 
 void OpDebugSamples::addCurveXatY(const OpSegment* segment) {
 	const Curve& curve = segment->c.c;
 	RasterSample base { nullptr, segment };
-	addCurveXatY(curve, base);
+	addCurveXatY(curve, base, 0, 1);
 }
 
 void OpDebugSamples::addCurveXatY(const OpEdge* edge) {
 	const Curve& curve = edge->curve.c;
 	RasterSample base { nullptr, nullptr, edge };
-	addCurveXatY(curve, base);
+	addCurveXatY(curve, base, 0, 1);
 }
-
-struct InSamples {
-	float x;
-	WindKeep keep;
-};
 
 static float NextX(const std::vector<RasterSample>& samples, size_t& index, OpWinding& winding) {
 	OP_ASSERT(index < samples.size());
@@ -149,7 +162,7 @@ static float NextX(const std::vector<RasterSample>& samples, size_t& index, OpWi
 		const RasterSample& next = samples[index];
 		if (x != next.x)
 			break;
-		Winding w = next.winding();
+		const OpWinding& w = next.winding();
 		if (next.curveDown)
 			winding.add(w);	// copy-on-demand
 		else
@@ -160,25 +173,41 @@ static float NextX(const std::vector<RasterSample>& samples, size_t& index, OpWi
 }
 
 static float NextVisible(const OpDebugSamples& sampleSet, OpWinding& sum, size_t& index, 
-		const std::vector<RasterSample>& samples, WindKeep keeper) {
+		std::vector<RasterSample>& samples, WindKeep keeper) {
+	OP_DEBUG_VALIDATE_CODE(sampleSet.raster->validate());
 	float x = OpNaN;
 	OpWinding winding(sampleSet.zeroWinding);  // shallow zeroed winding for this x value
 	while (index < samples.size()) {  // accumulate winding of start
+		size_t firstIndex = index;
 		x = NextX(samples, index, winding);
+		OP_DEBUG_VALIDATE_CODE(sampleSet.raster->validate());
 		sum.add(winding);
+		OP_DEBUG_VALIDATE_CODE(sampleSet.raster->validate());
 		// choose between 'visible' and 'keep'
 		// use 'visible' to say if source path shows
 		// use 'keep' to say if computed path shows
 		if (sampleSet.alwaysVisible())
 			break;
 		WindKeep keep = (*sampleSet.visibleFunc())(winding.w, sum.w);
+		OP_DEBUG_VALIDATE_CODE(sampleSet.raster->validate());
 		if (keeper == keep)
 			break;
+		OP_ASSERT(firstIndex < index);
+		while (firstIndex < index) {
+			samples[firstIndex++].visible = false;
+		}
 		OP_ASSERT(WindKeep::Discard == keep);
 		x = OpNaN;
+		OP_DEBUG_VALIDATE_CODE(sampleSet.raster->validate());
 	}
+	OP_DEBUG_VALIDATE_CODE(sampleSet.raster->validate());
 	return x;
 }
+
+struct XRange {
+	float start = 0;
+	float end = 0;
+};
 
 float OpDebugSamples::compare(std::vector<RasterSamples>& outputs) {
     OpContext* context = raster->context;
@@ -191,55 +220,47 @@ float OpDebugSamples::compare(std::vector<RasterSamples>& outputs) {
 	    size_t outIndex = 0;
 		OpWinding sum(zeroWinding);
 		// build spans of coverage from 'in' samples, using winding
-		std::vector<InSamples> inSamples;
 		// !!! this needs work to function with frames instead of fills
 		//     put that task off until after fills work
 		//     of concern: how to distinguish horizontal frames from frames with two intersections
 		do {
-			float xStart = NextVisible(*this, sum, inIndex, subS, WindKeep::Start);
-			if (OpMath::IsNaN(xStart))
+			if (OpMath::IsNaN(NextVisible(*this, sum, inIndex, subS, WindKeep::Start)))
 				break;
-			inSamples.push_back({ xStart, WindKeep::Start });
-			float xEnd = NextVisible(*this, sum, inIndex, subS, WindKeep::End);
-			if (OpMath::IsNaN(xEnd)) {
-				xEnd = raster->bitWidth;
+			if (OpMath::IsNaN(NextVisible(*this, sum, inIndex, subS, WindKeep::End)))
 				break;
-			}
-			if (OpMath::IsNaN(xEnd))
-				break;
-			inSamples.push_back({ xEnd, WindKeep::End });
 		} while (inIndex < subS.size());
 		// note that 'out' samples do not have or need winding; they implicitly describe coverage
+		auto advance = [this](const std::vector<RasterSample>& samples, size_t& index) {
+			while (index < samples.size()) {
+				const RasterSample& sample = samples[index];
+				++index;
+				if (sample.visible)
+						return sample.x;
+			}
+			return (float) raster->bitWidth;
+		};
 		inIndex = 0;
+		XRange inXs { advance(subS, inIndex), advance(subS, inIndex) }; 
 		outIndex = 0;
-		InSamples inStart, inEnd;
-		float outStart, outEnd;
-		auto advanceIn = [&inStart, &inEnd, &inIndex, &inSamples, this]() {
-			inStart = { (float) raster->bitWidth, WindKeep::Discard };
-			inEnd = inStart;
-			if (inIndex < inSamples.size())  
-				inStart = inSamples[inIndex++];
-			if (inIndex < inSamples.size())
-				inEnd = inSamples[inIndex++];
-			return inStart.x;
+		XRange outXs { advance(subO, outIndex), advance(subO, outIndex) }; 
+		float x = std::min(inXs.start, outXs.start);
+		auto nextX = [&error, &x](const XRange& upper, const XRange& lower) {
+			float xEnd = std::min(upper.start, lower.end);
+			OP_ASSERT(x < xEnd);
+			error += xEnd - x;
+			x = xEnd;
 		};
-		float inPos = advanceIn();
-		auto advanceOut = [&outStart, &outEnd, &outIndex, subO, this]() {
-			outStart = outIndex < subO.size() ? subO[outIndex++].x : raster->bitWidth;
-			outEnd = outIndex < subO.size() ? subO[outIndex++].x : raster->bitWidth;
-			return outStart;
-		};
-		float outPos = advanceOut();
-		// advance 'in' until it describes a coverage span; advance 'out' the same
-		// find in/out overlap; missing overlap is error amount
-		// if no overlap, advance the one of in/out to the left of the other
-	    while (inIndex < inSamples.size() || outIndex < subO.size()) {
-			float errorEnd = inPos < outPos ? std::min(inEnd.x, outPos) : std::min(outEnd, inPos);
-			error += errorEnd - std::min(inPos, outPos);
-			if (inPos < errorEnd)
-				inPos = inEnd.x <= errorEnd ? advanceIn() : errorEnd;
-			if (outPos < errorEnd)
-				outPos = outEnd <= errorEnd ? advanceOut() : errorEnd;
+		while (x < raster->bitWidth) {
+			if (x < inXs.start)
+				nextX(inXs, outXs);
+			else if (x < outXs.start)
+				nextX(outXs, inXs);
+			else
+				x = std::min(inXs.end, outXs.end);
+			if (x >= inXs.end)
+				inXs = { advance(subS, inIndex), advance(subS, inIndex) };
+			if (x >= outXs.end)
+				outXs = { advance(subO, outIndex), advance(subO, outIndex) };
 		}
     }
 	if (error >= 9) {
@@ -253,9 +274,11 @@ float OpDebugSamples::compare(std::vector<RasterSamples>& outputs) {
 }
 
 void OpDebugSamples::sample(OpContour* contour) {
+	OP_ASSERT(WindingType::uninitialized != contour->debugWinding.type);
 	if (SampleType::contourInput == sampleType || SampleType::contourResolved == sampleType) {
-		for (int index = 0; index < (int) contour->debugCurves.size(); ++index) {
-			addCurveXatY(contour, index);
+		for (int index = 0; index < (int) contour->debugContourData.size(); ++index) {
+			if (DebugContourType::curveData == contour->debugContourData[index].type)
+				addCurveXatY(contour, index);
 		}
 		return;
 	}
@@ -311,9 +334,13 @@ WindingKeep OpDebugSamples::visibleFunc() const {
 ENUM_NAME_STRUCT(SampleType)
 
 std::string OpDebugSamples::debugDump(DebugLevel l, DebugBase b) const {
-	OP_ASSERT(raster);
 	std::string s;
+	OP_ASSERT(raster);
 	ASSERT_FIRST(zeroWinding);
+	DEBUG_DUMP_COMMON_STRUCT(zeroWinding);
+	DEBUG_DUMP_STRUCT(zeroWinding, winding);
+	ASSERT_ORDERED(winding, raster);
+	ASSERT_ORDERED(raster, sampleSet);
 	s += "size:" + STR(sampleSet.size()) + "\n";
 	for (const auto& sample : sampleSet) {
 		if (!sample.size())
@@ -327,11 +354,7 @@ std::string OpDebugSamples::debugDump(DebugLevel l, DebugBase b) const {
 		s += "\n";
 	}
 	DEBUG_DUMP_STRUCT(sampleSet, mask);
-    DEBUG_DUMP_REQUIRED_VALUE(mask, scale);
-    DEBUG_DUMP_REQUIRED_VALUE(scale, offsetX);
-    DEBUG_DUMP_REQUIRED_VALUE(offsetX, offsetY);
-    DEBUG_DUMP_OPTIONAL_PUBLIC_VALUE(offsetY, winding, winding.contour);
-	ASSERT_ORDERED(winding, sampleType);
+	ASSERT_ORDERED(mask, sampleType);
     s += "sampleType:" + SampleTypeName(sampleType) + " ";
 	ASSERT_LAST_OFFSET(sampleType, 4);
 	return s;
@@ -340,6 +363,10 @@ std::string OpDebugSamples::debugDump(DebugLevel l, DebugBase b) const {
 void OpDebugSamples::dumpSet(char const*& str) {
 	OP_ASSERT(raster);
 	ASSERT_FIRST(zeroWinding);
+	DEBUG_SET_COMMON_STRUCT(zeroWinding);
+	DEBUG_SET_STRUCT(zeroWinding, winding);
+	ASSERT_ORDERED(winding, raster);
+	ASSERT_ORDERED(raster, sampleSet);
 	OpDebugRequired(str, "size");
 	size_t size = OpDebugReadSizeT(str);
 	sampleSet.resize(size);
@@ -347,11 +374,7 @@ void OpDebugSamples::dumpSet(char const*& str) {
 		DEBUG_SET_COMMON_VECTOR(sample);
 	}
 	DEBUG_SET_STRUCT(sampleSet, mask);
-    DEBUG_SET_REQUIRED_VALUE(mask, scale);
-    DEBUG_SET_REQUIRED_VALUE(scale, offsetX);
-    DEBUG_SET_REQUIRED_VALUE(offsetX, offsetY);
-    DEBUG_SET_OPTIONAL_PUBLIC_VALUE(offsetY, winding);
-	ASSERT_ORDERED(winding, sampleType);
+	ASSERT_ORDERED(mask, sampleType);
     sampleType = SampleTypeStr(str, "sampleType", SampleType::none);
 	ASSERT_LAST_OFFSET(sampleType, 4);
 }
@@ -400,27 +423,33 @@ OpDebugBitmap::OpDebugBitmap(DebugRaster* r)
 	std::fill(bits.begin(), bits.end(), 0);
 }
 
-void OpDebugBitmap::rasterize(const OpDebugSamples& sampleSet, int row) {
+void OpDebugBitmap::rasterize(OpDebugSamples& sampleSet, int row) {
+	OP_DEBUG_VALIDATE_CODE(raster->validate());
     OpDebugScanLine subScan(raster);
 	int scanLine = row * raster->subSamples;
+//	OP_ASSERT(12 != row || SampleType::contourResolved != sampleSet.sampleType);
 	for (int subLine = 0; subLine < raster->subSamples; ++subLine) {
-		const std::vector<RasterSample>& samples = sampleSet.sampleSet[scanLine + subLine];
+		std::vector<RasterSample>& samples = sampleSet.sampleSet[scanLine + subLine];
 		if (samples.empty())
 			continue;
 		size_t index = 0;
+		OP_DEBUG_VALIDATE_CODE(raster->validate());
 		OpWinding sum(sampleSet.zeroWinding);  // shallow zero winding
 		// zero winding
 			// accumulate winding while x is unchanged
 		// add accumulated winding to sum 
 		// call keep with winding, sum
 		do {
+			OP_DEBUG_VALIDATE_CODE(raster->validate());
 			float startX = NextVisible(sampleSet, sum, index, samples, WindKeep::Start);
+			OP_DEBUG_VALIDATE_CODE(raster->validate());
 			if (OpMath::IsNaN(startX))
 				break;
 			float endX = NextVisible(sampleSet, sum, index, samples, WindKeep::End);
 			if (OpMath::IsNaN(endX))
 				endX = (float) raster->bitWidth;
 			subScan.fill(startX, endX, subLine);
+			OP_DEBUG_VALIDATE_CODE(raster->validate());
 		} while (index < samples.size());
 	}
     for (int x = 0; x < raster->bitWidth; ++x) {
@@ -432,7 +461,7 @@ void OpDebugBitmap::rasterize(const OpDebugSamples& sampleSet, int row) {
 		OP_ASSERT(bitOffset < bits.size());
         bits[bitOffset] = pixel / raster->subSamples;
     }
-    OpNop();  // dmpScan(this, scanLine)  and  dmpSub(subScan)
+    OpNop();
 }
 
 std::string OpDebugBitmap::debugDump(DebugLevel l, DebugBase b) const {
@@ -471,6 +500,7 @@ void OpDebugBitmap::dumpSet(char const*& str) {
 
 void DebugRaster::in() {
 	sample(SampleType::contourResolved);
+	validate();
 	if (sendToDebugger) {
 		sample(SampleType::contourInput);
 		sample(SampleType::segmentInput);
@@ -481,6 +511,7 @@ void DebugRaster::in() {
 	}
 	if (!sendToDebugger)
 		return;
+	validate();
 	for (auto& s : samples) {
 		s.rasterize();
 	}
@@ -548,10 +579,10 @@ void DebugRaster::sample(SampleType sampleType) {
 	for (auto contour : iterator) {
 		OpDebugSamples* addSamples = nullptr;
 		for (auto& test : samples) {
-			Winding& w = test.winding;
+			OpWinding& w = test.winding;
 			if (test.sampleType == sampleType && (gatherAll
-					|| (contour->windingStorage.size() == w.size 
-					&& !std::memcmp(&contour->windingStorage.front(), w.data, w.size)))) {
+					|| (contour->windingStorage.size() == w.w.size 
+					&& !std::memcmp(&contour->windingStorage.front(), w.w.data, w.w.size)))) {
 				addSamples = &test;
 				break;
 			}
@@ -571,7 +602,10 @@ std::string DebugRaster::debugDump(DebugLevel l, DebugBase b) const {
 	ASSERT_FIRST(samples);
 	DEBUG_DUMP_COMMON_VECTOR(samples);
 	ASSERT_ORDERED(samples, context);
-    DEBUG_DUMP_REQUIRED_VALUE(context, bitWidth);
+	DEBUG_DUMP_REQUIRED_VALUE(context, scale);
+    DEBUG_DUMP_REQUIRED_VALUE(scale, offsetX);
+    DEBUG_DUMP_REQUIRED_VALUE(offsetX, offsetY);
+    DEBUG_DUMP_REQUIRED_VALUE(offsetY, bitWidth);
     DEBUG_DUMP_REQUIRED_VALUE(bitWidth, bitHeight);
     DEBUG_DUMP_REQUIRED_VALUE(bitHeight, subSamples);
 	ASSERT_ORDERED(subSamples, sendToDebugger);
@@ -584,7 +618,10 @@ void DebugRaster::dumpSet(char const*& str) {
 	ASSERT_FIRST(samples);
 	DEBUG_SET_COMMON_VECTOR(samples);
 	ASSERT_ORDERED(samples, context);
-    DEBUG_SET_REQUIRED_VALUE(context, bitWidth);
+	DEBUG_SET_REQUIRED_VALUE(context, scale);
+    DEBUG_SET_REQUIRED_VALUE(scale, offsetX);
+    DEBUG_SET_REQUIRED_VALUE(offsetX, offsetY);
+    DEBUG_SET_REQUIRED_VALUE(offsetY, bitWidth);
     DEBUG_SET_REQUIRED_VALUE(bitWidth, bitHeight);
     DEBUG_SET_REQUIRED_VALUE(bitHeight, subSamples);
 	ASSERT_ORDERED(subSamples, sendToDebugger);
@@ -592,53 +629,18 @@ void DebugRaster::dumpSet(char const*& str) {
 	ASSERT_LAST_OFFSET(makeBits, 2);
 }
 
-extern DebugLevel defaultLevel;
-extern DebugBase defaultBase;
-
-std::string debugDmpSample(const OpDebugSamples& sampleSet) {
-	std::string s = "sampleSet:" + STR(sampleSet.sampleSet.size()) + "\n";
-    int sub = 0;
-	for (const std::vector<RasterSample>& samples : sampleSet.sampleSet) {
-        OpDebugOut("sub:" + STR(sub) + "\n");
-		for (const RasterSample& sample : samples) {
-			s += sample.debugDump(defaultLevel, defaultBase);  
-        }
-		s += "\n";
-        ++sub;
+#if OP_DEBUG_VALIDATE
+void DebugRaster::validate() {
+	for (const auto& sample : samples) {
+		for (const auto& set : sample.sampleSet) {
+			for (const auto& s : set) {
+				if (s.contour)
+					OP_ASSERT(WindingType::uninitialized != s.contour->debugWinding.type);
+			}
+		}
 	}
-	return s;
 }
-
-void dmpSample(const OpDebugSamples* samples) {
-	std::string s = debugDmpSample(*samples);
-	OpDebugOut(s);
-}
-
-void dmpSub(const OpDebugScanLine& scans) {
-    for (int y = 0; y < scans.raster->subSamples; ++y) {
-        std::string s;
-        for (int x = 0; x < scans.raster->bitWidth; ++x) {
-            uint8_t bit = scans.subScan[y * scans.raster->bitWidth + x];
-            s += bit < 64 ? " " : bit < 128 ?  "," :  bit < 192 ? "x" : "X";
-        }
-        OpDebugOut(s + "\n");
-    }
-}
-
-void dmpScan(const OpDebugBitmap* rasta, int line) {
-    std::string s;
-    for (int x = 0; x < rasta->raster->bitWidth; ++x) {
-        uint8_t bit = rasta->bits[line * rasta->raster->bitWidth + x];
-        s += bit < 64 ? " " : bit < 128 ?  "," :  bit < 192 ? "x" : "X";
-    }
-    OpDebugOut(s + "\n");
-}
-
-void dmpScan(const OpDebugBitmap* rasta) {
-    for (int y = 0; y < rasta->raster->bitHeight; ++y) {
-        dmpScan(rasta, y);
-    }
-}
+#endif
 
 OpWinding::OpWinding(OpContext* context, DebugWindingZero)
 	: w({ nullptr, nullptr, 0 })

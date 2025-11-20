@@ -159,7 +159,7 @@ Contour* SetSkiaOpContourCallbacks(Context* context, PathOpsV0Lib::WindingData w
 }
 
 void AddSkiaPath(Context* context, Contour* contour, const SkPath& path
-        OP_DEBUG_PARAMS(AddDebugContour* addDebugPtr)) {
+        /* OP_DEBUG_PARAMS(AddDebugContour* addDebugPtr) */) {
 	if (!path.isFinite()) {  // raw iter treats non-finite path as empty
 		SetError(context, ContextError::finite);
 		return;
@@ -176,7 +176,7 @@ void AddSkiaPath(Context* context, Contour* contour, const SkPath& path
             closeLine[0] = closeLine[1] = { pts[0].fX, pts[0].fY };
             pts[1] = pts[0];
 			contour = Clone(contour);
-            OP_DEBUG_CODE(if (addDebugPtr) addDebugPtr->add(contour));
+//            OP_DEBUG_CODE(if (addDebugPtr) addDebugPtr->add(contour));
             break;
         case SkPath::kLine_Verb:
             if (pts[0] != pts[1])

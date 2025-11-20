@@ -7,9 +7,6 @@ void OpDebugGenerateColorFiles();
 
 #if OP_DEBUG_IMAGE
 
-#include <string>
-#include <vector>
-
 namespace PathOpsV0Lib {
 struct AddCurve;
 struct Curve;

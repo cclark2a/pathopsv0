@@ -182,10 +182,10 @@ inline Context* frameContext(CurveOutput output = nullptr) {
     SetContextCallbacks(context, { output });
 #if OP_DEBUG
     OpDebugData debugData(false);
-    Debug(context, debugData);
+    SetDebugData(context, debugData);
 	SetDebugContextCallbacks(context, { 
         frameDebugIsFill
-        OP_DEBUG_DUMP_PARAMS(frameDumpOutFunc, frameDumpSetFunc, nullptr)
+        OP_DEBUG_DUMP_PARAMS(frameDumpOutFunc, frameDumpSetFunc)
         OP_DEBUG_IMAGE_PARAMS(frameImageOutXFunc, frameImageOutFunc, frameColorFuncPtr)
     });
 #endif
@@ -195,9 +195,6 @@ inline Context* frameContext(CurveOutput output = nullptr) {
 inline FrameWinding::FrameWinding(Context* context, FrameFill frameFill)
     : data(frameFill) {
     winding.contour = CreateContour(context, &data, sizeof(data));
-#if OP_DEBUG
-	SetDebugContourData(winding.contour, { &data, sizeof(data) }, DebugContourType::windingUserData);
-#endif
 }
 
 }

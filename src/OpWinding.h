@@ -68,6 +68,7 @@ struct OpWinding {
 #if TEST_RASTER
 	OpWinding(OpWinding& , DebugWindingSum );
 	OpWinding(OpContext* , DebugWindingZero );
+	OpWinding(OpContour* , PathOpsV0Lib::WindingData wind, size_t size);
 #endif
 	void add(const PathOpsV0Lib::Winding& );
 	void add(const OpWinding& );

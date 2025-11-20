@@ -87,13 +87,17 @@ inline size_t AddQuads(Contour* contour, AddCurve curve) {
     OpPoint swizzled[3] { start, end, control };
     Curve quad { curve.context, (CurveData*) swizzled, curve.size, curve.type };
 #if OP_DEBUG_IMAGE
-    SetDebugContourImage(contour, quad);
+    SetDebugContourData(contour, { swizzled, sizeof(swizzled), DebugContourType::curveData });
+    SetDebugContourData(contour, { &curve.type, sizeof(curve.type), DebugContourType::curveType });
 #endif
     auto [left, right] = std::minmax(start.x, end.x);
     bool monotonicInX = left <= control.x && control.x <= right;
     auto [top, bottom] = std::minmax(start.y, end.y);
     bool monotonicInY = top <= control.y && control.y <= bottom;
     if (monotonicInX && monotonicInY) {
+#if OP_DEBUG_IMAGE
+        SetDebugContourData(contour, { nullptr, 0, DebugContourType::curveExtrema });
+#endif
         if (start == end)
             return 0;
         Add(contour, quad);
@@ -101,6 +105,10 @@ inline size_t AddQuads(Contour* contour, AddCurve curve) {
     }
     // control point is not inside bounds formed by end points; split quad into parts
 	std::vector<float> tValues = AddExtrema(start, end, control, monotonicInX, monotonicInY);
+#if OP_DEBUG_IMAGE
+    SetDebugContourData(contour, { &tValues.front(), tValues.size() * sizeof(float), 
+            DebugContourType::curveExtrema });
+#endif
 	tValues.push_back(0);
 	tValues.push_back(1);
     std::sort(tValues.begin(), tValues.end());

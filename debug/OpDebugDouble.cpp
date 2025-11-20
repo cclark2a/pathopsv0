@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <vector>
 
 #include "OpContext.h"
 #include "OpCurve.h"

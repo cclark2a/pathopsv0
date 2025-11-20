@@ -140,8 +140,8 @@ struct OpContour {
         return { (ContourPtr) this, (void*) &windingStorage.front(), windingStorage.size() }; }
 	std::vector<OpEdge*>& windingEdges(Axis );
 
-	OP_DEBUG_CODE(void addDebugContourData(PathOpsV0Lib::DebugContourData , 
-            PathOpsV0Lib::DebugContourType );)
+	// OP_DEBUG_CODE(void addDebugContourData(PathOpsV0Lib::DebugContourData , 
+    //        PathOpsV0Lib::DebugContourType );)
 	OP_DEBUG_CODE(void debugMatchRay());
 #if OP_DEBUG_VALIDATE
 	void debugValidate(const OpJoiner* ) const;
@@ -187,11 +187,13 @@ struct OpContour {
 	bool overlapsMerged;
 
 	OP_DEBUG_CODE(PathOpsV0Lib::DebugContourCallbacks debugCallbacks);
-	OP_DEBUG_CODE(std::array<PathOpsV0Lib::DebugContourData, static_cast<std::size_t>(
-            PathOpsV0Lib::DebugContourType::Count)> debugContourData);
+//	OP_DEBUG_CODE(std::array<PathOpsV0Lib::DebugContourData, static_cast<std::size_t>(
+//            PathOpsV0Lib::DebugContourType::Count)> debugContourData);
 #if OP_DEBUG_IMAGE
     // AddQuads/AddCubics/AddLine/AddConics save original curve for graphics debugger
-    std::vector<PathOpsV0Lib::Curve> debugCurves;
+	std::vector<PathOpsV0Lib::DebugContourData> debugContourData;
+//    std::vector<PathOpsV0Lib::Curve> debugCurves;
+	OpWinding debugWinding = OpWinding(WindingUninitialized::dummy);
 	uint32_t debugColor = blue;
 #endif
 };

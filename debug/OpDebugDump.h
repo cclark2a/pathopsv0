@@ -4,8 +4,6 @@
 
 #if OP_DEBUG_DUMP
 
-#include <vector>
-
 namespace PathOpsV0Lib {
 struct AddCurve;
 struct Curve;

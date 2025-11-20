@@ -1409,17 +1409,13 @@ void debugCubicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, do
 	debugCommonScale(curve, 2, scale, offsetX, offsetY);
 }
 
-void SetDebugContourData(Contour* ctour, DebugContourData contourData, DebugContourType type) {
+void SetDebugContourData(Contour* ctour, DebugContourData contourData) {
     OpContour* contour = (OpContour*) ctour;
-	contour->addDebugContourData(contourData, type);
+    PathOpsV0Lib::CurveData* data = contour->context->allocateCurveData(contourData.size);
+	std::memcpy(data, contourData.data, contourData.size);
+    contourData.data = data;
+    contour->debugContourData.push_back(contourData);
 }
-
-#if 0
-void SetDebugContextData(Context* ctxt, DebugContextData contextData, DebugContextType type) {
-    OpContext* context = (OpContext*) ctxt;
-	context->addDebugContextData(contextData, type);
-}
-#endif
 
 void SetDebugCurveCallbacks(Context* ctext, CurveType , DebugCurveCallbacks curveCallbacks) {
     OpContext* context = (OpContext*) ctext;
@@ -1436,15 +1432,15 @@ void SetDebugContextCallbacks(Context* ctext, DebugContextCallbacks contextCallb
 	context->debugContextCallbacks = contextCallbacks;
 }
 
-void Debug(Context* ctext, OpDebugData& debugData) {
+void SetDebugData(Context* ctext, OpDebugData& debugData) {
     OpContext* context = (OpContext*) ctext;
     context->debugData = debugData;
     context->debugExpect = debugData.expect;
 }
 
-#if OP_DEBUG_IMAGE
+#if 0 && OP_DEBUG_IMAGE
 
-void SetDebugContourImage(Contour* ctour, Curve curve) {
+void SetDebugContourImage(Contour* ctour, Curve curve, float* extrema, size_t count) {
     OpContour* contour = (OpContour*) ctour;
     PathOpsV0Lib::CurveData* data = contour->context->allocateCurveData(curve.size);
 	std::memcpy(data, curve.data, curve.size);

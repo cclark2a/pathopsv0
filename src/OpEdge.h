@@ -5,7 +5,6 @@
 #include "OpCurve.h"
 #include "OpTightBounds.h"
 #include "OpWinding.h"
-#include <vector>
 
 struct FoundEdge;
 struct OpContext;

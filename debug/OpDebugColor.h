@@ -7,9 +7,7 @@
 #include "OpDebug.h"
 
 #if OP_DEBUG_IMAGE
-#include <string>
 #include <utility>
-#include <vector>
 
 extern uint32_t maroon;
 extern uint32_t Maroon;

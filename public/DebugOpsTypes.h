@@ -10,26 +10,21 @@ namespace PathOpsV0Lib {
 typedef void* DebugContour;
 
 enum class DebugContourType {
-    windingUserData,
-    Count
+    none,
+    curveData,
+    curveType,
+    curveExtrema
 };
 
 // for transport of contour data to callbacks
 struct DebugContourData {
-	DebugContour data;
-	size_t size;
+	DebugContour data = nullptr;
+	size_t size = 0;
+    DebugContourType type = DebugContourType::none;
 };
 
 // caller defined context data (e.g., the path operation)
 typedef void* DebugContext;
-
-#if 0
-enum class DebugContextType {
-//    windingUserData,
-    addRaster,
-    Count
-};
-#endif
 
 // for transport of context data to callbacks
 struct DebugContextData {
@@ -80,7 +75,6 @@ typedef bool (*DebugIsFill)(Winding );
 #if OP_DEBUG_DUMP
 typedef std::string (*DebugDumpWindingOut)(Winding );
 typedef void (*DebugDumpWindingSet)(const char*& , Winding& );
-// typedef std::string (*DebugDumpContextExtra)(DebugContextData , DebugLevel , DebugBase );
 #endif
 #if OP_DEBUG_IMAGE
 typedef std::string (*DebugImageWindingOutX)(Winding );
@@ -91,15 +85,14 @@ typedef uint32_t (*DebugEdgeColor)(Winding , DebugEdgeType );
 struct DebugContextCallbacks {
     DebugIsFill debugIsFillFuncPtr = nullptr;
 #if OP_DEBUG_DUMP
-//    DebugDumpContextExtra debugDumpContextExtraFuncPtr = nullptr;
 	DebugDumpWindingOut debugDumpWindingOutFuncPtr = nullptr;
 	DebugDumpWindingSet debugDumpWindingSetFuncPtr = nullptr;
-    WindingKeep debugWindingVisibleFuncPtr = nullptr;  // returns if winding effects fill for one contour
 #endif
 #if OP_DEBUG_IMAGE
 	DebugImageWindingOutX debugImageWindingOutXFuncPtr = nullptr;
 	DebugImageWindingOut debugImageWindingOutFuncPtr = nullptr;  // deprecated
     DebugEdgeColor debugEdgeColorFuncPtr = nullptr;
+    WindingKeep debugWindingVisibleFuncPtr = nullptr;  // if winding effects fill for one contour
 #endif
 };
 

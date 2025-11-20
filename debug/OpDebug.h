@@ -10,6 +10,11 @@
 #include "OpTestDrive.h"  // set test specific settings here
 #endif
 
+#ifndef NDEBUG
+#define _GLIBCXX_DEBUG 1
+#endif
+#include <vector>
+
 #define OP_DEBUG_VERBOSE (OP_DEBUGGER || !OP_DEBUG_FAST_TEST)
 #define OP_RELEASE_TEST 1	// !!! set to zero to remove tests from release build (untested)
 
@@ -18,7 +23,6 @@
 
 #if !defined(NDEBUG) || OP_RELEASE_TEST
 #include <string>
-#include <vector>
 
 #define OpDebugExpect_Enums \
 	OP_ENUM_MEMBER(unknown), \

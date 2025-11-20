@@ -55,7 +55,6 @@ tests run: 68135597  6/1/2025 fails in tiger8b_x372506 : winding 'setPrior()' re
  #define OP_MAX_THREADS 1
 #endif
 #include <atomic>
-#include <vector>
 
 struct testInfo {
     void (*func)(skiatest::Reporter* );
@@ -595,7 +594,7 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
     ContextUserData data { result, sizeof(result), UserDataType::outPath };
     AddUserData(context, data);
     SetSkiaContextCallbacks(context);
-    OP_DEBUG_CODE(if (debugDataPtr) Debug(context, *debugDataPtr));
+    OP_DEBUG_CODE(if (debugDataPtr) SetDebugData(context, *debugDataPtr));
     SetSkiaCurveCallbacks(context);
     SkPathOp mappedOp = MapInvertedSkPathOp(op, a.isInverseFillType(), b.isInverseFillType());
     auto isWindingFill = [](const SkPath& path) {
@@ -611,17 +610,17 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
     int leftData[] = { 1, 0 };
     Contour* left = SetSkiaOpContourCallbacks(context, leftData, sizeof(leftData), BinaryOperand::left
             OP_DEBUG_PARAMS(&a));
-    OP_DEBUG_CODE(BinaryContour debugLeftData { { &a }, BinaryOperand::left });
-    OP_DEBUG_CODE(AddDebugContour debugLeft { debugLeftData, sizeof(BinaryContour), 
-            PathOpsV0Lib::DebugContourType::windingUserData } );
-    AddSkiaPath(context, left, a  OP_DEBUG_PARAMS(&debugLeft));
+ //   OP_DEBUG_CODE(BinaryContour debugLeftData { { &a }, BinaryOperand::left });
+ //   OP_DEBUG_CODE(AddDebugContour debugLeft { debugLeftData, sizeof(BinaryContour), 
+ //           PathOpsV0Lib::DebugContourType::windingUserData } );
+    AddSkiaPath(context, left, a  /* OP_DEBUG_PARAMS(&debugLeft) */);
     int rightData[] = { 0, 1 };
     Contour* right = SetSkiaOpContourCallbacks(context, rightData, sizeof(rightData), BinaryOperand::right
             OP_DEBUG_PARAMS(&b));
-    OP_DEBUG_CODE(BinaryContour debugRightData { { &a }, BinaryOperand::right });
-    OP_DEBUG_CODE(AddDebugContour debugRight { debugRightData, sizeof(BinaryContour), 
-            PathOpsV0Lib::DebugContourType::windingUserData } );
-    AddSkiaPath(context, right, b  OP_DEBUG_PARAMS(&debugRight));
+//    OP_DEBUG_CODE(BinaryContour debugRightData { { &a }, BinaryOperand::right });
+//    OP_DEBUG_CODE(AddDebugContour debugRight { debugRightData, sizeof(BinaryContour), 
+//            PathOpsV0Lib::DebugContourType::windingUserData } );
+    AddSkiaPath(context, right, b  /* OP_DEBUG_PARAMS(&debugRight) */);
 #if TEST_RASTER
     DebugRaster debugRaster((OpContext*) context);
     if (OpDebugExpect::success == debugDataPtr->expect)
@@ -917,7 +916,7 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
     Context* context = CreateContext();
     ContextUserData data { out, sizeof(out), UserDataType::outPath };
     AddUserData(context, data);
-    OP_DEBUG_CODE(if (optional) Debug(context, *optional));
+    OP_DEBUG_CODE(if (optional) SetDebugData(context, *optional));
     SetSkiaContextCallbacks(context);
     SetSkiaCurveCallbacks(context);
     auto isWindingFill = [](const SkPath& path) {
@@ -933,9 +932,9 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
 	// add contours until it fails
     AddDebugSkiaPath(context, simple, path  OP_DEBUG_PARAMS(debugData, sizeof debugData));
 #else
-    OP_DEBUG_CODE(AddDebugContour debugContour { debugData, sizeof debugData, 
-            DebugContourType::windingUserData } );
-    AddSkiaPath(context, simple, path  OP_DEBUG_PARAMS(&debugContour));
+//    OP_DEBUG_CODE(AddDebugContour debugContour { debugData, sizeof debugData, 
+//            DebugContourType::windingUserData } );
+    AddSkiaPath(context, simple, path  /* OP_DEBUG_PARAMS(&debugContour) */);
 #endif
 #if TEST_RASTER
     DebugRaster debugRaster((OpContext*) context);

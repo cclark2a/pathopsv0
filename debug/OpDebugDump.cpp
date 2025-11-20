@@ -989,13 +989,13 @@ static std::string debugContextCallbacksDump(const PathOpsV0Lib::DebugContextCal
     s += debugFindTag(reinterpret_cast<DebugFunction>(debugContextCallbacks.debugIsFillFuncPtr));
     DEBUG_FIND_TAG(debugContextCallbacks, debugIsFillFuncPtr, debugDumpWindingOutFuncPtr);
     DEBUG_FIND_TAG(debugContextCallbacks, debugDumpWindingOutFuncPtr, debugDumpWindingSetFuncPtr);
-    DEBUG_FIND_TAG(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugWindingVisibleFuncPtr);
 #if OP_DEBUG_IMAGE
-    DEBUG_FIND_TAG(debugContextCallbacks, debugWindingVisibleFuncPtr, debugImageWindingOutXFuncPtr);
+    DEBUG_FIND_TAG(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugImageWindingOutXFuncPtr);
     DEBUG_FIND_TAG(debugContextCallbacks, debugImageWindingOutXFuncPtr, debugImageWindingOutFuncPtr);
     DEBUG_FIND_TAG(debugContextCallbacks, debugImageWindingOutFuncPtr, debugEdgeColorFuncPtr);
-    static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugEdgeColorFuncPtr) 
-            + sizeof(debugContextCallbacks.debugEdgeColorFuncPtr) == sizeof(debugContextCallbacks));
+    DEBUG_FIND_TAG(debugContextCallbacks, debugEdgeColorFuncPtr, debugWindingVisibleFuncPtr);
+    static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugWindingVisibleFuncPtr) 
+            + sizeof(debugContextCallbacks.debugWindingVisibleFuncPtr) == sizeof(debugContextCallbacks));
 
 #else
     static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugDumpWindingSetFuncPtr) 
@@ -1244,13 +1244,13 @@ static void debugContextCallbacksDumpSet(PathOpsV0Lib::DebugContextCallbacks& de
     debugContextCallbacks.debugIsFillFuncPtr = (PathOpsV0Lib::DebugIsFill) debugFindFunction(str);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugIsFillFuncPtr, debugDumpWindingOutFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpWindingOutFuncPtr, debugDumpWindingSetFuncPtr);
-    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugWindingVisibleFuncPtr);
 #if OP_DEBUG_IMAGE
-    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugWindingVisibleFuncPtr, debugImageWindingOutXFuncPtr);
+    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugImageWindingOutXFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugImageWindingOutXFuncPtr, debugImageWindingOutFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugImageWindingOutFuncPtr, debugEdgeColorFuncPtr);
-    static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugEdgeColorFuncPtr) 
-            + sizeof(debugContextCallbacks.debugEdgeColorFuncPtr) == sizeof(debugContextCallbacks));
+    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugEdgeColorFuncPtr, debugWindingVisibleFuncPtr);
+    static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugWindingVisibleFuncPtr) 
+            + sizeof(debugContextCallbacks.debugWindingVisibleFuncPtr) == sizeof(debugContextCallbacks));
 
 #else
     static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugDumpWindingSetFuncPtr) 
@@ -2052,16 +2052,8 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 #endif
     ASSERT_ORDERED(debugCallbacks, debugContourData);  // omit debugContourData
 #if OP_DEBUG_IMAGE
-    ASSERT_ORDERED(debugContourData, debugCurves);
-    if (debugCurves.size()) {
-		s += "debugCurves:" + STR(debugCurves.size()) + "{";
-		for (PathOpsV0Lib::Curve c : debugCurves) {
-			s += Curve_DebugDump(c, l, b) + " ";
-        }
-		s.pop_back();
-		s += DebugLevel::detailed == l ? "}\n" : "} ";
-    }
-    ASSERT_ORDERED(debugCurves, debugColor);
+    ASSERT_ORDERED(debugContourData, debugWinding);
+    ASSERT_ORDERED(debugWinding, debugColor);
     if (DebugLevel::file == l) {
         s += "debugColor:";
         s += debugDumpColor(l, debugColor) + " ";
@@ -2194,22 +2186,8 @@ void OpContour::dumpSet(const char*& str) {
 #endif
     ASSERT_ORDERED(debugCallbacks, debugContourData);  // omit debugContourData
 #if OP_DEBUG_IMAGE
-    ASSERT_ORDERED(debugContourData, debugCurves);
-    if (OpDebugOptional(str, "debugCurves")) {
-        int count = (int) OpDebugReadSizeT(str);
-        if ('{' == *str)
-            str++;
-        debugCurves.resize(count);
-        for (int index = 0; index < count; ++index) {
-            debugCurves[index].context = (ContextPtr) context;
-            Curve_DumpSet(debugCurves[index], str);
-            while (' ' >= *str)
-                str++;
-        }
-        if ('}' == *str)
-            str++;
-    }
-    ASSERT_ORDERED(debugCurves, debugColor);
+    ASSERT_ORDERED(debugContourData, debugWinding);
+    ASSERT_ORDERED(debugWinding, debugColor);
 	if (OpDebugOptional(str, "debugColor"))
         debugColor = OpDebugHexToInt(str);
 #endif
@@ -5662,9 +5640,9 @@ ENUM_NAME_STRUCT(DebugWindingType)
 std::string DebugDump(const PathOpsV0Lib::Winding& w, DebugLevel l, DebugBase b) {
     std::string s;
     OpContour* contour = (OpContour*) w.contour;
-    OpContext* context = contour->context;
+    OpContext* context = contour ? contour->context : nullptr;
     if (DebugLevel::file == l) {
-        s += "w.contour:" + STR(contour->id) + " ";
+        s += "w.contour:" + STR(contour ? contour->id : 0) + " ";
 		s += "w.size:" + STR(w.size) + " ";
         s += OpDebugDumpByteArray((const uint8_t*) w.data, w.size);
     } else {

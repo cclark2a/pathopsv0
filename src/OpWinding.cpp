@@ -24,6 +24,12 @@ OpWinding::OpWinding(OpEdge* edge, WindingSum )
 }
 
 #if TEST_RASTER
+OpWinding::OpWinding(OpContour* contour, PathOpsV0Lib::WindingData wind, size_t size)
+	: w({ (ContourPtr) contour, wind, size })
+	, type(WindingType::caller) {  // always copy
+	OP_DEBUG_CODE(debugType = DebugWindingType::winding);
+}
+
 OpWinding::OpWinding(OpWinding& winding, DebugWindingSum ) 
 	: w({ (ContourPtr) winding.w.contour, winding.w.data, winding.w.size })
 	, type(WindingType::caller) {  // always copy
