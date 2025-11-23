@@ -64,8 +64,7 @@ Contour* Clone(Contour* interfaceContour) {
     OpContour* clone = original->context->makeContour(&original->windingStorage.front(), 
             original->windingStorage.size());
 #if OP_DEBUG
-	clone->debugCallbacks = original->debugCallbacks;
-	clone->debugContourData = original->debugContourData;
+//	clone->debugCallbacks = original->debugCallbacks;
 #endif
     return toInterface(clone);
 }

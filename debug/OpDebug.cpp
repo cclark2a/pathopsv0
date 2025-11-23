@@ -1193,6 +1193,25 @@ bool OpJoiner::DebugShowImage() {
 	return true;
 }
 
+#if OP_DEBUG_IMAGE
+OpCurve OpContour::debugCurve(int index, std::vector<float>* extremaArray) const {
+    OP_ASSERT(index < (int) debugCurveData.size());
+    const PathOpsV0Lib::DebugCurveData& data = debugCurveData[index];
+    if (extremaArray) {
+        float* limit = (float*) ((char*) data.data + data.size);
+        float* extrema = (float*) ((char*) &data.data->curveData + data.data->curveSize);
+        while (extrema < limit) {
+            if (OpMath::IsNaN(extrema[0]))
+                break;
+            extremaArray->push_back(*extrema++);
+        }
+    }
+	const PathOpsV0Lib::Curve curve { (ContextPtr) context, &data.data->curveData, 
+            (size_t) data.data->curveSize, data.data->curveType }; 
+    return OpCurve(curve, Rotated::no);
+}
+#endif
+
 #if OP_DEBUG_VALIDATE
 // !!! also debug prev/next edges (links)
 void OpJoiner::debugValidate() const {
@@ -1409,12 +1428,13 @@ void debugCubicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, do
 	debugCommonScale(curve, 2, scale, offsetX, offsetY);
 }
 
-void SetDebugContourData(Contour* ctour, DebugContourData contourData) {
+void SetDebugCurveData(Contour* ctour, DebugCurveData curveData) {
     OpContour* contour = (OpContour*) ctour;
-    PathOpsV0Lib::CurveData* data = contour->context->allocateCurveData(contourData.size);
-	std::memcpy(data, contourData.data, contourData.size);
-    contourData.data = data;
-    contour->debugContourData.push_back(contourData);
+    PathOpsV0Lib::DebugCurve* data = 
+            (PathOpsV0Lib::DebugCurve*) contour->context->allocateCurveData(curveData.size);
+	std::memcpy(data, curveData.data, curveData.size);
+    curveData.data = data;
+    contour->debugCurveData.push_back(curveData);
 }
 
 void SetDebugCurveCallbacks(Context* ctext, CurveType , DebugCurveCallbacks curveCallbacks) {
@@ -1422,10 +1442,12 @@ void SetDebugCurveCallbacks(Context* ctext, CurveType , DebugCurveCallbacks curv
 	context->debugCallbacks.push_back(curveCallbacks);
 }
 
+#if 0
 void SetDebugContourCallbacks(Contour* ctour, DebugContourCallbacks contourCallbacks) {
     OpContour* contour = (OpContour*) ctour;
     contour->debugCallbacks = contourCallbacks;
 }
+#endif
 
 void SetDebugContextCallbacks(Context* ctext, DebugContextCallbacks contextCallbacks) {
     OpContext* context = (OpContext*) ctext;

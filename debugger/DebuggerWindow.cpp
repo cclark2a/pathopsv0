@@ -195,6 +195,7 @@ void DebuggerWindow::append(OpPoint pt) {
 }
 
 void DebuggerWindow::clearWindow() {
+    allocateBuffers();
     focus = OpRect();
     polys.clear();
     deleteTextCache();
@@ -270,7 +271,7 @@ void DebuggerWindow::setSize() {
     screen = OpRect(0, 0, x, y);
     if (!focus.isFinite())
         focus = screen;
-    allocateBuffers(x, y);
+    allocateBuffers();
 }
 
 #if OP_DEBUG_DUMP

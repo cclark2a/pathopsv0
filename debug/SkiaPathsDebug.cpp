@@ -115,7 +115,7 @@ std::string PathOpsV0Lib::dumpBinaryContextFunc(DebugContextData caller, DebugLe
 }
 #endif
 
-#if OP_DEBUG_IMAGE
+#if 0 && OP_DEBUG_IMAGE
 void* PathOpsV0Lib::debugSimplifyPathFunc(DebugContourData data) {
     UnaryContour simplifyContourData;
     OP_ASSERT(sizeof(simplifyContourData) == data.size);
@@ -195,11 +195,13 @@ uint8_t skiaDebugBitOper(DebugContourData data, uint8_t src, uint8_t opp) {
 
 void SetSkiaSimplifyCallbacksDebug(Context* context, Contour* contour, const SkPath& path) {
     UnaryContour simplifyUserData { &path };
+#if 0
 	SetDebugContourCallbacks(contour, { 
     //        OP_DEBUG_DUMP_CODE(dumpUnaryContourFunc)
             OP_DEBUG_IMAGE_CODE(debugSimplifyPathFunc,
 	        debugSimplifyGetDrawFunc, debugSimplifySetDrawFunc) }
     );
+#endif
 	SetDebugContextCallbacks(context, {
             unaryDebugIsFill
 			OP_DEBUG_DUMP_PARAMS(unaryDumpOutFunc, unaryDumpSetFunc)
@@ -217,10 +219,12 @@ void SetSkiaOpContextCallbacksDebug(Context* context, SkPathOp op) {
 
 void SetSkiaOpContourCallbacksDebug(Context* context, Contour* contour,
         BinaryOperand operand, const SkPath& path) {
+#if 0
 	SetDebugContourCallbacks(contour, {
             OP_DEBUG_IMAGE_CODE(debugOpPathFunc,
 	        debugOpGetDrawFunc, debugOpSetDrawFunc, debugOpSetIsOppFunc) }
     );
+#endif
 	SetDebugContextCallbacks(context, {
             binaryDebugIsFill
 			OP_DEBUG_DUMP_PARAMS(binaryDumpOutFunc, binaryDumpSetFunc)
@@ -228,13 +232,6 @@ void SetSkiaOpContourCallbacksDebug(Context* context, Contour* contour,
                     binaryVisibleFunc)
     });
 }
-
-#if 0
-void AddDebugContour::add(PathOpsV0Lib::Contour* contour) {
-	SetDebugContourData(contour, { &debugData, debugSize }, debugContourType );
-	debugData.contourIndex++;
-}
-#endif
 
 #if !OP_DEBUG_FAST_TEST && OP_DEBUG
 #if !TEST_ANALYZE

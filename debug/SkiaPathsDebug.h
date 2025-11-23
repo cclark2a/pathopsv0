@@ -19,6 +19,7 @@ enum class BinaryWindType : int;
 // std::string dumpBinaryContourFunc(DebugContourData caller, DebugLevel , DebugBase );
 std::string dumpBinaryContextFunc(DebugContextData caller, DebugLevel , DebugBase );
 #endif
+#if 0
 void* debugSimplifyPathFunc(DebugContourData );
 bool debugSimplifyGetDrawFunc(DebugContourData );
 void debugSimplifySetDrawFunc(DebugContourData , bool draw);
@@ -26,6 +27,7 @@ void* debugOpPathFunc(DebugContourData );
 bool debugOpGetDrawFunc(DebugContourData );
 void debugOpSetDrawFunc(DebugContourData , bool draw);
 bool debugOpSetIsOppFunc(DebugContourData , int opp);
+#endif
 
 }
 

@@ -6,21 +6,19 @@
 
 namespace PathOpsV0Lib {
 
-// caller defined contour data (e.g., a pointer to the native path)
-typedef void* DebugContour;
-
-enum class DebugContourType {
-    none,
-    curveData,
-    curveType,
-    curveExtrema
+// caller defined curve data (e.g., a pointer to the native path)
+struct DebugCurve {
+    CurveType curveType;
+    size_t curveSize;  // size of curve data and optional curve data
+    CurveData curveData;
+    // ... optional curve data 
+    // ... extrema t values
 };
 
-// for transport of contour data to callbacks
-struct DebugContourData {
-	DebugContour data = nullptr;
-	size_t size = 0;
-    DebugContourType type = DebugContourType::none;
+// for transport of curve data to callbacks
+struct DebugCurveData {
+	DebugCurve* data = nullptr;
+	size_t size = 0;  // size of debug curve including extrema values
 };
 
 // caller defined context data (e.g., the path operation)
@@ -70,7 +68,7 @@ struct DebugEdgeType {
 };
 #endif
 
-typedef uint8_t (*DebugBitOper)(DebugContourData , uint8_t , uint8_t);
+// typedef uint8_t (*DebugBitOper)(DebugContourData , uint8_t , uint8_t);
 typedef bool (*DebugIsFill)(Winding );
 #if OP_DEBUG_DUMP
 typedef std::string (*DebugDumpWindingOut)(Winding );
@@ -99,7 +97,7 @@ struct DebugContextCallbacks {
 #if 0 && OP_DEBUG_DUMP  // disable until we need it
 typedef std::string (*DebugDumpContourExtra)(DebugContourData , DebugLevel , DebugBase );
 #endif
-#if OP_DEBUG_IMAGE
+#if 0 && OP_DEBUG_IMAGE
 typedef void* (*DebugNativePath)(DebugContourData );
 typedef bool (*DebugGetDraw)(DebugContourData );
 typedef void (*DebugSetDraw)(DebugContourData , bool);
@@ -110,7 +108,7 @@ struct DebugContourCallbacks {
 #if OP_DEBUG_DUMP
 //    DebugDumpContourExtra debugDumpContourExtraFuncPtr = nullptr;
 #endif
-#if OP_DEBUG_IMAGE
+#if 0 && OP_DEBUG_IMAGE
 	DebugNativePath debugNativePathFuncPtr = nullptr;
 	DebugGetDraw debugGetDrawFuncPtr = nullptr;
 	DebugSetDraw debugSetDrawFuncPtr = nullptr;

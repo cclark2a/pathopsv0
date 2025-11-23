@@ -114,32 +114,18 @@ void OpDebugSamples::addCurveXatY(const Curve& original, RasterSample& base, flo
 	}
 }
 
-void OpDebugSamples::addCurveXatY(const OpContour* contour, int debugCurveIndex) {
-	int baseIndex = debugCurveIndex;
-	OP_ASSERT(baseIndex < contour->debugContourData.size());
-	const DebugContourData& curveData = contour->debugContourData[baseIndex++];
-	OP_ASSERT(DebugContourType::curveData == curveData.type);
-	OP_ASSERT(baseIndex < contour->debugContourData.size());
-	const DebugContourData& curveType = contour->debugContourData[baseIndex++];
-	OP_ASSERT(DebugContourType::curveType == curveType.type);
-	OP_ASSERT(sizeof(CurveType) == curveType.size);
-	const Curve curve { (ContextPtr) contour->context, (CurveData*) curveData.data, curveData.size,
-			*(CurveType*) curveType.data }; 
-	OP_ASSERT(baseIndex < contour->debugContourData.size());
-	const DebugContourData& curveExtrema = contour->debugContourData[baseIndex++];
-	OP_ASSERT(DebugContourType::curveExtrema == curveExtrema.type);
+void OpDebugSamples::addCurveXatY(const OpContour* contour, int debugCurveIndex,
+		const OpCurve& opCurve, std::vector<float>& extrema) {
 	OpRoots tValues;
-	float* extrema = (float*) curveExtrema.data;
-	size_t count = curveExtrema.size / sizeof(float);
-	for (size_t index = 0; index < count; ++index) {
-		tValues.add(extrema[index]);
+	for (float ex : extrema) {
+		tValues.add(ex);
 	}
 	tValues.add(0);
 	tValues.add(1);
 	tValues.sort();
     for (int index = 0; index < tValues.count() - 1; ++index) {
 		RasterSample base { contour, nullptr, nullptr, debugCurveIndex };
-		addCurveXatY(curve, base, tValues.roots[index], tValues.roots[index + 1]);
+		addCurveXatY(opCurve.c, base, tValues.roots[index], tValues.roots[index + 1]);
 	}
 }
 
@@ -164,9 +150,9 @@ static float NextX(const std::vector<RasterSample>& samples, size_t& index, OpWi
 			break;
 		const OpWinding& w = next.winding();
 		if (next.curveDown)
-			winding.add(w);	// copy-on-demand
+			winding.subtract(w);	// copy-on-demand
 		else
-			winding.subtract(w);
+			winding.add(w);
 		++index;
 	} while (index < samples.size());
 	return x;
@@ -176,21 +162,21 @@ static float NextVisible(const OpDebugSamples& sampleSet, OpWinding& sum, size_t
 		std::vector<RasterSample>& samples, WindKeep keeper) {
 	OP_DEBUG_VALIDATE_CODE(sampleSet.raster->validate());
 	float x = OpNaN;
-	OpWinding winding(sampleSet.zeroWinding);  // shallow zeroed winding for this x value
 	while (index < samples.size()) {  // accumulate winding of start
 		size_t firstIndex = index;
+		OpWinding winding(sampleSet.zeroWinding);  // shallow zeroed winding for this x value
 		x = NextX(samples, index, winding);
 		OP_DEBUG_VALIDATE_CODE(sampleSet.raster->validate());
-		sum.add(winding);
 		OP_DEBUG_VALIDATE_CODE(sampleSet.raster->validate());
 		// choose between 'visible' and 'keep'
 		// use 'visible' to say if source path shows
 		// use 'keep' to say if computed path shows
 		if (sampleSet.alwaysVisible())
 			break;
+		sum.add(winding);
 		WindKeep keep = (*sampleSet.visibleFunc())(winding.w, sum.w);
 		OP_DEBUG_VALIDATE_CODE(sampleSet.raster->validate());
-		if (keeper == keep)
+		if (/* keeper == keep */ WindKeep::Discard != keep)
 			break;
 		OP_ASSERT(firstIndex < index);
 		while (firstIndex < index) {
@@ -261,6 +247,7 @@ float OpDebugSamples::compare(std::vector<RasterSamples>& outputs) {
 				inXs = { advance(subS, inIndex), advance(subS, inIndex) };
 			if (x >= outXs.end)
 				outXs = { advance(subO, outIndex), advance(subO, outIndex) };
+			x = std::max(x, std::min(inXs.start, outXs.start));
 		}
     }
 	if (error >= 9) {
@@ -276,9 +263,10 @@ float OpDebugSamples::compare(std::vector<RasterSamples>& outputs) {
 void OpDebugSamples::sample(OpContour* contour) {
 	OP_ASSERT(WindingType::uninitialized != contour->debugWinding.type);
 	if (SampleType::contourInput == sampleType || SampleType::contourResolved == sampleType) {
-		for (int index = 0; index < (int) contour->debugContourData.size(); ++index) {
-			if (DebugContourType::curveData == contour->debugContourData[index].type)
-				addCurveXatY(contour, index);
+		for (size_t index = 0; index < contour->debugCurveData.size(); ++index) {
+			std::vector<float> extrema;
+			OpCurve opCurve = contour->debugCurve(index, &extrema);
+			addCurveXatY(contour, index, opCurve, extrema);
 		}
 		return;
 	}
@@ -361,7 +349,6 @@ std::string OpDebugSamples::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 void OpDebugSamples::dumpSet(char const*& str) {
-	OP_ASSERT(raster);
 	ASSERT_FIRST(zeroWinding);
 	DEBUG_SET_COMMON_STRUCT(zeroWinding);
 	DEBUG_SET_STRUCT(zeroWinding, winding);
@@ -427,7 +414,6 @@ void OpDebugBitmap::rasterize(OpDebugSamples& sampleSet, int row) {
 	OP_DEBUG_VALIDATE_CODE(raster->validate());
     OpDebugScanLine subScan(raster);
 	int scanLine = row * raster->subSamples;
-//	OP_ASSERT(12 != row || SampleType::contourResolved != sampleSet.sampleType);
 	for (int subLine = 0; subLine < raster->subSamples; ++subLine) {
 		std::vector<RasterSample>& samples = sampleSet.sampleSet[scanLine + subLine];
 		if (samples.empty())
@@ -467,7 +453,9 @@ void OpDebugBitmap::rasterize(OpDebugSamples& sampleSet, int row) {
 std::string OpDebugBitmap::debugDump(DebugLevel l, DebugBase b) const {
 	OP_ASSERT(raster);
 	std::string s;
-	s += "size:" + STR(bits.size()) + "\n";
+	s += "size:" + STR(bits.size());
+	s += " height:" + STR(raster->bitHeight);
+	s += " width:" + STR(raster->bitWidth) + "\n";
 	OP_ASSERT(bits.size() == raster->bitHeight * raster->bitWidth);
 	for (int y = 0; y < raster->bitHeight; ++y) {
 		for (int x = 0; x < raster->bitWidth; ++x) {
@@ -481,17 +469,19 @@ std::string OpDebugBitmap::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 void OpDebugBitmap::dumpSet(char const*& str) {
-	OP_ASSERT(raster);
 	OpDebugRequired(str, "size");
 	bits.resize(OpDebugReadSizeT(str));
-	OP_ASSERT(bits.size() == raster->bitHeight * raster->bitWidth);
+	OpDebugRequired(str, "height");
+	int height = OpDebugReadSizeT(str);
+	OpDebugRequired(str, "width");
+	int width = OpDebugReadSizeT(str);
 	char hexStr[5] { '0', 'x', '?', '?', '\0' };
-	for (int y = 0; y < raster->bitHeight; ++y) {
-		for (int x = 0; x < raster->bitWidth; ++x) {
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
 			hexStr[2] = *str++; 
 			hexStr[3] = *str++;
 			const char* hexPtr = hexStr;
-			bits[y * raster->bitWidth + x] = OpDebugByteToInt(hexPtr);
+			bits[y * width + x] = OpDebugByteToInt(hexPtr);
 		}
 		OpDebugExitOnFail("missing \\n", '\n' == *str++);
 	}
@@ -602,9 +592,9 @@ std::string DebugRaster::debugDump(DebugLevel l, DebugBase b) const {
 	ASSERT_FIRST(samples);
 	DEBUG_DUMP_COMMON_VECTOR(samples);
 	ASSERT_ORDERED(samples, context);
-	DEBUG_DUMP_REQUIRED_VALUE(context, scale);
-    DEBUG_DUMP_REQUIRED_VALUE(scale, offsetX);
-    DEBUG_DUMP_REQUIRED_VALUE(offsetX, offsetY);
+	DEBUG_DUMP_REQUIRED_FLOAT(context, scale);
+    DEBUG_DUMP_REQUIRED_FLOAT(scale, offsetX);
+    DEBUG_DUMP_REQUIRED_FLOAT(offsetX, offsetY);
     DEBUG_DUMP_REQUIRED_VALUE(offsetY, bitWidth);
     DEBUG_DUMP_REQUIRED_VALUE(bitWidth, bitHeight);
     DEBUG_DUMP_REQUIRED_VALUE(bitHeight, subSamples);
@@ -618,9 +608,9 @@ void DebugRaster::dumpSet(char const*& str) {
 	ASSERT_FIRST(samples);
 	DEBUG_SET_COMMON_VECTOR(samples);
 	ASSERT_ORDERED(samples, context);
-	DEBUG_SET_REQUIRED_VALUE(context, scale);
-    DEBUG_SET_REQUIRED_VALUE(scale, offsetX);
-    DEBUG_SET_REQUIRED_VALUE(offsetX, offsetY);
+	DEBUG_SET_REQUIRED_FLOAT(context, scale);
+    DEBUG_SET_REQUIRED_FLOAT(scale, offsetX);
+    DEBUG_SET_REQUIRED_FLOAT(offsetX, offsetY);
     DEBUG_SET_REQUIRED_VALUE(offsetY, bitWidth);
     DEBUG_SET_REQUIRED_VALUE(bitWidth, bitHeight);
     DEBUG_SET_REQUIRED_VALUE(bitHeight, subSamples);

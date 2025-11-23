@@ -390,8 +390,7 @@ void PictureWindow::addWinding(DebuggerPoly& poly) {
 		    OpWinding diffWind(poly.opType.edge->sum.w); // !!! this should be local copy ...
     //        start here;
             // !!! this should be a debug const thingy that can't change user data
-		    context()->windingCallbacks.windingSubtractFuncPtr((ContextPtr) context(),
-                    diffWind.w, wind.w);
+		    context()->windingCallbacks.windingSubtractFuncPtr(diffWind.w, wind.w);
 		    sumString = debugImageOut ? (*debugImageOut)(diffWind.w) : "";
         }
 	}
@@ -423,7 +422,8 @@ void PictureWindow::addIDs() {
         if (!poly.isPrimary)
             continue;
         if ((IDType::edge != poly.opType.type || !debuggerState->showEdges)
-                && (IDType::segment != poly.opType.type || !debuggerState->showSegments))
+                && (IDType::segment != poly.opType.type || !debuggerState->showSegments)
+                && (IDType::contour != poly.opType.type || !debuggerState->showContours))
             continue;
         if (!drawIDs)
             continue;
@@ -452,7 +452,8 @@ void PictureWindow::addTangents() {
         if (!poly.isPrimary)
             continue;
         if ((IDType::edge != poly.opType.type || !debuggerState->showEdges)
-                && (IDType::segment != poly.opType.type || !debuggerState->showSegments))
+                && (IDType::segment != poly.opType.type || !debuggerState->showSegments)
+                && (IDType::contour != poly.opType.type || !debuggerState->showContours))
             continue;
         addTangent(poly);
     }
@@ -527,6 +528,15 @@ void PictureWindow::addPoints() {
             add(poly.opType, poly.opType.segment->c.c.data->end);
             if (drawControls)
                 addControl(&poly, poly.opType.segment->c);
+        }
+        // !!! add contours : may require some thought for poly-to-contour-curve mapping
+        if (IDType::contour == poly.opType.type && poly.isPrimary && debuggerState->showContours) {
+            std::vector<float> extrema;
+            OpCurve curve = poly.opType.contour->debugCurve(poly.curveIndex, &extrema);
+            add(poly.opType, curve.c.data->start);
+            add(poly.opType, curve.c.data->end);
+            if (drawControls)
+                addControl(&poly, curve);
         }
     }
 	for (auto& id : debuggerState->ids) {
@@ -674,7 +684,7 @@ void PictureWindow::update() {
             addPoly.add(id.edge);
         if (IDType::contour == id.type && debugIsFill && (*debugIsFill)(id.contour->winding()))
             addPoly.add(id.contour);
-       if (IDType::segment == id.type)
+        if (IDType::segment == id.type)
             addPoly.add(id.segment);
     }
     colorPolys();
@@ -751,7 +761,7 @@ DrawLevel PictureWindow::event(const DebuggerEvent& debuggerEvent) {
 void PictureWindow::playback(const char*& str) {
     playbackCommon(str);
     DEBUG_SET_COMMON_STRUCT(zoomOffset);
-    DEBUG_SET_FLOAT(zoomOffset, scale); // factor to go from local to device (zero is uninitialized)
+    scale = OpDebugReadNamedFloat(str, "scale");  // factor to go from local to device (zero is uninitialized)
     DEBUG_SET_FLOAT(scale, thresholdMultiplier);
     DEBUG_SET_FLOAT(thresholdMultiplier, zoomFactor);
     DEBUG_SET_REQUIRED_VALUE(zoomFactor, thresholdWheel);
@@ -781,7 +791,8 @@ std::string PictureWindow::record() {
     DebugBase b = DebugBase::hex;
     s += recordCommon();
     DEBUG_DUMP_COMMON_STRUCT(zoomOffset);
-    DEBUG_DUMP_FLOAT(zoomOffset, scale); // factor to go from local to device (zero is uninitialized)
+    if (!OpMath::IsDebugNaN(scale))
+        s += debugValue(DebugLevel::error, b, "scale", scale) + " ";
     DEBUG_DUMP_FLOAT(scale, thresholdMultiplier);
     DEBUG_DUMP_FLOAT(thresholdMultiplier, zoomFactor);
     DEBUG_DUMP_REQUIRED_VALUE(zoomFactor, thresholdWheel);

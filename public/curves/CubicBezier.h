@@ -326,6 +326,15 @@ inline void cubicCommonSubDivide(Curve c, float t1, float t2, float threshold, C
     subControls.copyTo(*result);
 }
 
+#if OP_DEBUG_IMAGE
+struct DebugCubic {
+    CurveType curveType;
+    size_t curveSize;
+    OpPoint curveData[4];
+    float extrema[3];
+};
+#endif
+
 // Curves must be subdivided so their endpoints describe the rectangle that contains them
 // returns the number of curves generated from the cubic Bezier
 inline void AddCubics(Contour* contour, AddCurve curve) {
@@ -339,12 +348,16 @@ inline void AddCubics(Contour* contour, AddCurve curve) {
 	OpRoots tValues = AddExtrema(start, end, controls, false);
 	tValues.add(AddInflections(start, end, controls));
 #if OP_DEBUG_IMAGE
-    // save original curve and extrema t values as debugging data for visualization (sequentially)
-    // data is formatted as : ptr to original curve, size of original, ptr to extreme ts, size of ts
-    SetDebugContourData(contour, { swizzled, sizeof(swizzled), DebugContourType::curveData });
-    SetDebugContourData(contour, { &curve.type, sizeof(curve.type), DebugContourType::curveType });
-    SetDebugContourData(contour, { &tValues.roots.front(), tValues.count() * sizeof(float), 
-            DebugContourType::curveExtrema });
+    // save original curve and extrema t values as debugging data for visualization
+    OP_ASSERT(sizeof(swizzled) == sizeof(DebugCubic::curveData));
+    OP_ASSERT(sizeof(tValues.roots[0]) == sizeof(DebugCubic::extrema[0]));
+    OP_ASSERT(tValues.count() <= (int) ARRAY_COUNT(DebugCubic::extrema));
+    DebugCubic debugCubic { curve.type, sizeof(swizzled) };
+    memcpy(debugCubic.curveData, swizzled, sizeof(swizzled));
+    for (size_t index = 0; index < ARRAY_COUNT(DebugCubic::extrema); ++index) {
+        debugCubic.extrema[index] = index < (size_t) tValues.count() ? tValues.get(index) : OpNaN;
+    }
+    SetDebugCurveData(contour, { (DebugCurve*) &debugCubic, sizeof(debugCubic) });
 #endif
     if (tValues.empty()) {
         if (start != end)

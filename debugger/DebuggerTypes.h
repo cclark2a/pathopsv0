@@ -98,6 +98,7 @@ struct DebuggerAddPoly {
     DebuggerState* debuggerState;
     DebuggerWindow* window;
     OpType opType;
+    int curveIndex = -1;  // only used by contour
     bool continueCurve = false;  // true if contour extends loop
     bool addingFill = false;  // true if added is fill, false if added is frame
     bool monotonic = false;
@@ -115,6 +116,7 @@ struct DebuggerPoly {
     std::vector<OpPoint> device;    // lines used to draw, in device coordinates
     std::vector<size_t> contours;  // index for each device contour
     OpType opType;
+    int curveIndex = -1;  // only used by contour
     float thickness = 1;    // special value for fill
     uint32_t color = black;
     float tStart = 0;

@@ -9,11 +9,20 @@
 
 namespace PathOpsV0Lib {
 
+#if OP_DEBUG_IMAGE
+struct DebugLine {
+    CurveType curveType;
+    size_t curveSize;
+    OpPoint curveData[2];
+};
+#endif
+
 inline size_t AddLine(Contour* contour, AddCurve curve) {
 #if OP_DEBUG_IMAGE
-    SetDebugContourData(contour, { curve.points, curve.size, DebugContourType::curveData });
-    SetDebugContourData(contour, { &curve.type, sizeof(curve.type), DebugContourType::curveType });
-    SetDebugContourData(contour, { nullptr, 0, DebugContourType::curveExtrema });
+    OP_ASSERT(sizeof(OpPoint) * 2 == sizeof(DebugLine::curveData));
+    DebugLine debugLine { curve.type, sizeof(DebugLine::curveData) };
+    memcpy(debugLine.curveData, curve.points, curve.size);
+    SetDebugCurveData(contour, { (DebugCurve*) &debugLine, sizeof(debugLine) });
 #endif
     Add(contour, curve);
     return 1;
@@ -32,9 +41,7 @@ inline std::string lineDebugDumpName() {
 inline void lineCallbacks(Context* context, CurveType nativeCurveType) {
     SetCurveCallbacks(context, nativeCurveType, { } );
     OP_DEBUG_CODE(SetDebugCurveCallbacks(context, nativeCurveType, { debugLineScale
-        OP_DEBUG_DUMP_PARAMS(lineDebugDumpName, nullptr)
-//        OP_DEBUG_IMAGE_PARAMS_OLD(debugLineToSkPath) 
-        }));
+            OP_DEBUG_DUMP_PARAMS(lineDebugDumpName, nullptr) }));
 }
 
 }

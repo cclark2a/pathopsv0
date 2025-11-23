@@ -1874,6 +1874,23 @@ std::string Curve_DebugDump(PathOpsV0Lib::Curve c, DebugLevel l, DebugBase b) {
     return s;
 }
 
+std::string DebugCurveData_DebugDump(OpContext* context, const PathOpsV0Lib::DebugCurveData& dcd) {
+    std::string s;
+    CurveDataStorage* storage = context->curveDataStorage;
+    OP_ASSERT(storage);
+    uint8_t* dcdPtr = (uint8_t*) dcd.data;
+    size_t offset = 0;
+    while (dcdPtr < storage->storage || &storage->storage[sizeof(storage->storage)] <= dcdPtr) {
+        OP_ASSERT(storage->next);
+        offset += sizeof(storage->storage);
+        storage = storage->next;
+    }
+    offset += dcdPtr - storage->storage;
+    s += "data:" + STR(offset) + " ";
+    s += "size:" + STR(dcd.size) + " ";
+    return s;
+}
+
 std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
     std::string s = "contour[" + STR(id) + "] ";
 #if 0  // disable until we need it
@@ -2010,49 +2027,28 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 		s.pop_back();
 		s += closeBracket;
 	}
-    ASSERT_ORDERED(endLinks, overlapBounds);
-	if (overlapBounds.isFinite())
-		s += "overlapBounds:" + overlapBounds.debugDump(l, b) + " ";
-    ASSERT_ORDERED(overlapBounds, bounds);
-	if (bounds.isFinite())
-		s += "bounds:" + bounds.debugDump(l, b) + " ";
+    DEBUG_DUMP_OPTIONAL_STRUCT(endLinks, overlapBounds, overlapBounds.isFinite());
+    DEBUG_DUMP_OPTIONAL_STRUCT(overlapBounds, bounds, bounds.isFinite());
     ASSERT_ORDERED(bounds, context);  // omit context
-    ASSERT_ORDERED(context, overlapOwner);
-	if (overlapOwner) 
-		s += "overlapOwner[" + STR(overlapOwner->id) + "] ";
+    DEBUG_DUMP_OPTIONAL_ID(context, overlapOwner);
     ASSERT_ORDERED(overlapOwner, id);  // id written up front
-    ASSERT_ORDERED(id, treeID);
-	if (treeID)
-		s += "treeID[" + STR(treeID) + "] ";
-    ASSERT_ORDERED(treeID, backwardsBuilt);
-	if (backwardsBuilt)
-		s += "backwardsBuilt ";
-    ASSERT_ORDERED(backwardsBuilt, centerlessBuilt);
-	if (centerlessBuilt)
-		s += "centerlessBuilt ";
-    ASSERT_ORDERED(centerlessBuilt, hasPals);
-	if (hasPals)
-		s += "hasPals ";
-    ASSERT_ORDERED(hasPals, palsBuilt);
-	if (palsBuilt)
-		s += "palsBuilt ";
-    ASSERT_ORDERED(palsBuilt, disabled);
-	if (disabled)
-		s += "disabled ";
-    ASSERT_ORDERED(disabled, overlapsMerged);
-	if (overlapsMerged)
-		s += "overlapsMerged ";
-    ASSERT_SERIAL_OFFSET(*this, overlapsMerged, 2, debugCallbacks);
-//    s += debugFindTag(reinterpret_cast<DebugFunction>(debugCallbacks.debugDumpContourExtraFuncPtr));
-#if 0 && OP_DEBUG_IMAGE
-    DEBUG_FIND_TAG(debugCallbacks, debugDumpContourExtraFuncPtr, debugNativePathFuncPtr);
-	DEBUG_FIND_TAG(debugCallbacks, debugNativePathFuncPtr, debugGetDrawFuncPtr);
-	DEBUG_FIND_TAG(debugCallbacks, debugGetDrawFuncPtr, debugSetDrawFuncPtr);
-	DEBUG_FIND_TAG(debugCallbacks, debugSetDrawFuncPtr, debugOperandFuncPtr);
-#endif
-    ASSERT_ORDERED(debugCallbacks, debugContourData);  // omit debugContourData
+    DEBUG_DUMP_OPTIONAL_VALUE(id, treeID);
+    DEBUG_DUMP_BOOL(treeID, backwardsBuilt);
+    DEBUG_DUMP_BOOL(backwardsBuilt, centerlessBuilt);
+    DEBUG_DUMP_BOOL(centerlessBuilt, hasPals);
+    DEBUG_DUMP_BOOL(hasPals, palsBuilt);
+    DEBUG_DUMP_BOOL(palsBuilt, disabled);
+    DEBUG_DUMP_BOOL(disabled, overlapsMerged);
 #if OP_DEBUG_IMAGE
-    ASSERT_ORDERED(debugContourData, debugWinding);
+    ASSERT_SERIAL_OFFSET(*this, overlapsMerged, 2, debugCurveData);
+    if (!debugCurveData.empty()) {
+		s += "debugCurveData:" + STR(debugCurveData.size()) + " [";
+		for (const PathOpsV0Lib::DebugCurveData& dcd : debugCurveData)
+            s += DebugCurveData_DebugDump(context, dcd);
+		s.pop_back();
+		s += closeBracket;
+    }
+    ASSERT_ORDERED(debugCurveData, debugWinding);
     ASSERT_ORDERED(debugWinding, debugColor);
     if (DebugLevel::file == l) {
         s += "debugColor:";
@@ -2102,6 +2098,13 @@ static void dumpEdges(const char*& str, const char* arrayName, std::vector<OpEdg
 #define DUMP_NAMED_EDGES(instance, lastField, arrayName, edgePtrArray) \
     ASSERT_SERIAL(instance, lastField, edgePtrArray); \
     ::dumpEdges(str, arrayName, edgePtrArray)
+
+void DebugCurveData_DumpSet(PathOpsV0Lib::DebugCurveData& dcd, const char*& str) {
+    OpDebugRequired(str, "data");
+    dcd.data = (PathOpsV0Lib::DebugCurve*) OpDebugReadSizeT(str);
+    OpDebugRequired(str, "size");
+    dcd.size = OpDebugReadSizeT(str);
+}
 
 void OpContour::dumpSet(const char*& str) {
     OpDebugRequired(str, "contour");
@@ -2176,17 +2179,15 @@ void OpContour::dumpSet(const char*& str) {
     disabled = OpDebugOptional(str, "disabled");
     ASSERT_ORDERED(disabled, overlapsMerged);
     overlapsMerged = OpDebugOptional(str, "overlapsMerged");
-    ASSERT_SERIAL_OFFSET(*this, overlapsMerged, 2, debugCallbacks);
-//    debugCallbacks.debugDumpContourExtraFuncPtr = (PathOpsV0Lib::DebugDumpContourExtra) debugFindFunction(str);
-#if 0 && OP_DEBUG_IMAGE
-    DEBUG_FIND_FUNCTION(debugCallbacks, debugDumpContourExtraFuncPtr, debugNativePathFuncPtr);
-	DEBUG_FIND_FUNCTION(debugCallbacks, debugNativePathFuncPtr, debugGetDrawFuncPtr);
-	DEBUG_FIND_FUNCTION(debugCallbacks, debugGetDrawFuncPtr, debugSetDrawFuncPtr);
-	DEBUG_FIND_FUNCTION(debugCallbacks, debugSetDrawFuncPtr, debugOperandFuncPtr);
-#endif
-    ASSERT_ORDERED(debugCallbacks, debugContourData);  // omit debugContourData
 #if OP_DEBUG_IMAGE
-    ASSERT_ORDERED(debugContourData, debugWinding);
+    ASSERT_SERIAL_OFFSET(*this, overlapsMerged, 2, debugCurveData);
+    if (OpDebugOptional(str, "debugCurveData")) {
+        debugCurveData.resize(OpDebugReadSizeT(str));
+        for (PathOpsV0Lib::DebugCurveData& curveData : debugCurveData) {
+            DebugCurveData_DumpSet(curveData, str);
+        }
+    }
+    ASSERT_ORDERED(debugCurveData, debugWinding);
     ASSERT_ORDERED(debugWinding, debugColor);
 	if (OpDebugOptional(str, "debugColor"))
         debugColor = OpDebugHexToInt(str);
@@ -2195,6 +2196,20 @@ void OpContour::dumpSet(const char*& str) {
 
 #undef DUMP_EDGES
 #undef DUMP_NAMED_EDGES
+
+void DebugCurveData_DumpResolve(OpContext* context, PathOpsV0Lib::DebugCurveData& dcd) {
+    CurveDataStorage* storage = context->curveDataStorage;
+    OP_ASSERT(storage);
+    size_t offset = (size_t) dcd.data;
+    while (offset >= sizeof(storage->storage)) {
+        OP_ASSERT(storage->next);
+        offset -= sizeof(storage->storage);
+        storage = storage->next;
+    }
+    OP_ASSERT(dcd.size);
+    OP_ASSERT(offset + dcd.size <= storage->used);
+    dcd.data = (PathOpsV0Lib::DebugCurve*) &storage->storage[offset];
+}
 
 #define DUMP_RESOLVE_ARRAY(obj) \
     for (auto& o : obj) \
@@ -2220,6 +2235,11 @@ void OpContour::dumpResolveAll(OpContext* c) {
 	DUMP_RESOLVE_ARRAY(endLinks.l);
     if (overlapOwner)
         c->dumpResolve(overlapOwner);
+#if OP_DEBUG_IMAGE
+    for (PathOpsV0Lib::DebugCurveData& dcd : debugCurveData) {
+        DebugCurveData_DumpResolve(context, dcd);
+    }
+#endif
 }
 
 #undef DUMP_RESOLVE_ARRAY

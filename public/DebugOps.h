@@ -10,9 +10,9 @@ namespace PathOpsV0Lib {
 
 void SetDebugData(Context* , OpDebugData& );
 void SetDebugCurveCallbacks(Context* , int nativeCurveType , DebugCurveCallbacks );
-void SetDebugContourCallbacks(Contour* , DebugContourCallbacks );
+// void SetDebugContourCallbacks(Contour* , DebugContourCallbacks );
 void SetDebugContextCallbacks(Context* , DebugContextCallbacks );
-void SetDebugContourData(Contour* , DebugContourData);
+void SetDebugCurveData(Contour* , DebugCurveData );
 #endif
 
 }

@@ -77,6 +77,15 @@ inline std::vector<float> AddExtrema(OpPoint start, OpPoint end, OpPoint control
 	return tValues;
 }
 
+#if OP_DEBUG_IMAGE
+struct DebugQuad {
+    CurveType curveType;
+    size_t curveSize;
+    OpPoint curveData[3];
+    float extrema[2];
+};
+#endif
+
 // Curves must be subdivided so their endpoints describe the rectangle that contains them
 // returns the number of curves generated from the quadratic Bezier
 inline size_t AddQuads(Contour* contour, AddCurve curve) {
@@ -87,17 +96,24 @@ inline size_t AddQuads(Contour* contour, AddCurve curve) {
     OpPoint swizzled[3] { start, end, control };
     Curve quad { curve.context, (CurveData*) swizzled, curve.size, curve.type };
 #if OP_DEBUG_IMAGE
-    SetDebugContourData(contour, { swizzled, sizeof(swizzled), DebugContourType::curveData });
-    SetDebugContourData(contour, { &curve.type, sizeof(curve.type), DebugContourType::curveType });
+    // save original curve and extrema t values as debugging data for visualization
+    auto setDebugQuad = [contour, swizzled, &quad](std::vector<float>* tValues) {
+        OP_ASSERT(sizeof(swizzled) == sizeof(DebugQuad::curveData));
+        DebugQuad debugQuad { quad.type, sizeof(swizzled) };
+        memcpy(debugQuad.curveData, swizzled, sizeof(swizzled));
+        size_t extremaCount = tValues ? tValues->size() : 0;
+        for (size_t index = 0; index < ARRAY_COUNT(DebugQuad::extrema); ++index) {
+            debugQuad.extrema[index] = index < extremaCount ? (*tValues)[index] : OpNaN;
+        }
+        SetDebugCurveData(contour, { (DebugCurve*) &debugQuad, sizeof(debugQuad) });
+    };
 #endif
     auto [left, right] = std::minmax(start.x, end.x);
     bool monotonicInX = left <= control.x && control.x <= right;
     auto [top, bottom] = std::minmax(start.y, end.y);
     bool monotonicInY = top <= control.y && control.y <= bottom;
     if (monotonicInX && monotonicInY) {
-#if OP_DEBUG_IMAGE
-        SetDebugContourData(contour, { nullptr, 0, DebugContourType::curveExtrema });
-#endif
+        OP_DEBUG_IMAGE_CODE(setDebugQuad(nullptr));
         if (start == end)
             return 0;
         Add(contour, quad);
@@ -105,10 +121,9 @@ inline size_t AddQuads(Contour* contour, AddCurve curve) {
     }
     // control point is not inside bounds formed by end points; split quad into parts
 	std::vector<float> tValues = AddExtrema(start, end, control, monotonicInX, monotonicInY);
-#if OP_DEBUG_IMAGE
-    SetDebugContourData(contour, { &tValues.front(), tValues.size() * sizeof(float), 
-            DebugContourType::curveExtrema });
-#endif
+    OP_DEBUG_IMAGE_CODE(OP_ASSERT(sizeof(tValues[0]) == sizeof(DebugQuad::extrema[0])));
+    OP_DEBUG_IMAGE_CODE(OP_ASSERT(tValues.size() <= ARRAY_COUNT(DebugQuad::extrema)));
+    OP_DEBUG_IMAGE_CODE(setDebugQuad(&tValues));
 	tValues.push_back(0);
 	tValues.push_back(1);
     std::sort(tValues.begin(), tValues.end());

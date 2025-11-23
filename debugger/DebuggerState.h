@@ -104,7 +104,7 @@ struct DebuggerState {
     HelpWindow helpWindow;
     CompareWindow compareWindow;
     int depth = 0;
-    int verboseLevel = 0;
+    int verboseLevel = 1;
     int maxUpdateAttempts = 16;
     SDL_AppResult error = (SDL_AppResult) 0;
     bool showContours = false;

@@ -138,6 +138,15 @@ inline std::vector<float> AddExtrema(OpPoint start, OpPoint end, PointWeight con
     return tValues;
 }
 
+#if OP_DEBUG_IMAGE
+struct DebugConic {
+    CurveType curveType;
+    size_t curveSize;
+    OpPoint curveData[4];
+    float extrema[2];
+};
+#endif
+
 // Curves must be subdivided so their endpoints describe the rectangle that contains them
 // returns the number of curves generated from the Conicratic Bezier
 inline size_t AddConics(Contour* contour, AddCurve curve) {
@@ -148,17 +157,24 @@ inline size_t AddConics(Contour* contour, AddCurve curve) {
     OpPoint swizzled[4] { start, end, control.pt, { weight, 0 } };
     Curve conic { curve.context, (CurveData*) swizzled, curve.size, curve.type };
 #if OP_DEBUG_IMAGE
-    SetDebugContourData(contour, { swizzled, sizeof(swizzled), DebugContourType::curveData });
-    SetDebugContourData(contour, { &curve.type, sizeof(curve.type), DebugContourType::curveType });
+    // save original curve and extrema t values as debugging data for visualization
+    auto setDebugConic = [contour, swizzled, &conic](std::vector<float>* tValues) {
+        OP_ASSERT(sizeof(swizzled) == sizeof(DebugConic::curveData));
+        DebugConic debugConic { conic.type, sizeof(swizzled) };
+        memcpy(debugConic.curveData, swizzled, sizeof(swizzled));
+        size_t extremaCount = tValues ? tValues->size() : 0;
+        for (size_t index = 0; index < ARRAY_COUNT(DebugConic::extrema); ++index) {
+            debugConic.extrema[index] = index < extremaCount ? (*tValues)[index] : OpNaN;
+        }
+        SetDebugCurveData(contour, { (DebugCurve*) &debugConic, sizeof(debugConic) });
+    };
 #endif
     auto [left, right] = std::minmax(start.x, end.x);
     bool monotonicInX = left <= control.pt.x && control.pt.x <= right;
     auto [top, bottom] = std::minmax(start.y, end.y);
     bool monotonicInY = top <= control.pt.y && control.pt.y <= bottom;
     if (monotonicInX && monotonicInY) {
-#if OP_DEBUG_IMAGE
-        SetDebugContourData(contour, { nullptr, 0, DebugContourType::curveExtrema });
-#endif
+        OP_DEBUG_IMAGE_CODE(setDebugConic(nullptr));
         if (start == end)
             return 0;
         Add(contour, { curve.context, swizzled, curve.size, curve.type } );
@@ -166,10 +182,9 @@ inline size_t AddConics(Contour* contour, AddCurve curve) {
     }
     // control point is not inside bounds formed by end points; split Conic into parts
 	std::vector<float> tValues = AddExtrema(start, end, control, monotonicInX, monotonicInY);
-#if OP_DEBUG_IMAGE
-    SetDebugContourData(contour, { &tValues.front(), tValues.size() * sizeof(float), 
-            DebugContourType::curveExtrema });
-#endif
+    OP_DEBUG_IMAGE_CODE(OP_ASSERT(sizeof(tValues[0]) == sizeof(DebugConic::extrema[0])));
+    OP_DEBUG_IMAGE_CODE(OP_ASSERT(tValues.size() <= ARRAY_COUNT(DebugConic::extrema)));
+    OP_DEBUG_IMAGE_CODE(setDebugConic(&tValues));
 	tValues.push_back(0);
 	tValues.push_back(1);
     std::sort(tValues.begin(), tValues.end());

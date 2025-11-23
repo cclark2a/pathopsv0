@@ -155,6 +155,9 @@ struct OpContour {
 	#undef OP_X
 	std::string debugDumpJoin(DebugLevel l, DebugBase b) const;
 #endif
+#if OP_DEBUG_IMAGE
+	OpCurve debugCurve(int index, std::vector<float>* extrema) const;
+#endif
 
 	std::vector<OpSegment> segments;
 	std::vector<OpSegment*> sorted;
@@ -186,13 +189,10 @@ struct OpContour {
 	bool disabled;
 	bool overlapsMerged;
 
-	OP_DEBUG_CODE(PathOpsV0Lib::DebugContourCallbacks debugCallbacks);
-//	OP_DEBUG_CODE(std::array<PathOpsV0Lib::DebugContourData, static_cast<std::size_t>(
-//            PathOpsV0Lib::DebugContourType::Count)> debugContourData);
+//	OP_DEBUG_CODE(PathOpsV0Lib::DebugContourCallbacks debugCallbacks);
 #if OP_DEBUG_IMAGE
     // AddQuads/AddCubics/AddLine/AddConics save original curve for graphics debugger
-	std::vector<PathOpsV0Lib::DebugContourData> debugContourData;
-//    std::vector<PathOpsV0Lib::Curve> debugCurves;
+	std::vector<PathOpsV0Lib::DebugCurveData> debugCurveData;
 	OpWinding debugWinding = OpWinding(WindingUninitialized::dummy);
 	uint32_t debugColor = blue;
 #endif

@@ -50,7 +50,6 @@ struct PictureWindow : public DebuggerWindow {
 #if OP_DEBUG_DUMP
     void dump();
 #endif
-    float dummyForAlignment;
     OpVector zoomOffset {0, 0};
     double scale = 0; // factor to go from local to device (zero is uninitialized)
     float thresholdMultiplier = 1;

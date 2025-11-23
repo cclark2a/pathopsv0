@@ -74,7 +74,8 @@ struct OpDebugSamples {
 		, winding(WindingUninitialized::dummy) {};
 	OpDebugSamples(DebugRaster* );
 	void addCurveXatY(const PathOpsV0Lib::Curve& , RasterSample& base, float tLo, float tHi);
-	void addCurveXatY(const OpContour* , int debugCurveIndex);
+	void addCurveXatY(const OpContour* , int debugCurveIndex,
+			const OpCurve& opCurve, std::vector<float>& extrema);
 	void addCurveXatY(const OpSegment* );
 	void addCurveXatY(const OpEdge* );
 	bool alwaysVisible() const {

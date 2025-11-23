@@ -50,16 +50,19 @@ std::string DebuggerState::floatToStr(float f) {
 }
 
 DebuggerWindow* DebuggerState::focus(SDL_WindowID id) {
-    if (helpWindow.windowID == id || compareWindow.windowID == id)
+    if (helpWindow.windowID == id)
         return lastFocus;
-    lastFocus = pictureWindow.windowID == id ? (DebuggerWindow*) &pictureWindow :
-            textWindow.windowID == id ? (DebuggerWindow*) &textWindow : nullptr;
+    lastFocus = pictureWindow.windowID == id ? (DebuggerWindow*) &pictureWindow
+            : textWindow.windowID == id ? (DebuggerWindow*) &textWindow
+            : compareWindow.windowID == id ? (DebuggerWindow*) &compareWindow : nullptr;
 //    OP_ASSERT(lastFocus);  // if left running, id may not match any window
     return lastFocus;
 }
 
+const std::string StateFile = "DebuggerState.txt";
+
 void DebuggerState::playback() {
-    std::string buffer = dmpFileToStr("DebuggerState.txt");
+    std::string buffer = dmpFileToStr(StateFile);
     if (buffer.empty())
         return;
     const char* str = buffer.c_str();
@@ -112,13 +115,12 @@ void DebuggerState::record() {
     s += textWindow.record(); 
     s += helpWindow.record();
     s += compareWindow.record();
-    std::string fileName = "DebuggerState.txt";
-    std::filesystem::path fullPath = std::filesystem::absolute(fileName);
+    std::string fileName = dmpFileToPath(StateFile);
 	FILE* file = fopen(fileName.c_str(), "w");
     if (file)
-        OpDebugOut( "recording: " + fullPath.string() + "\n");
+        OpDebugOut( "recording: " + fileName + "\n");
     else {
-        OpDebugOut( "invalid path: " + fullPath.string() + "\n");
+        OpDebugOut( "invalid path: " + fileName + "\n");
         return;
     }
     fwrite(&s[0], 1, s.size(), file);

@@ -71,7 +71,12 @@ size_t DebuggerWindow::addText(std::string str, uint32_t color, TTF_Font* f) {
     return cacheIndex;
 }
 
-SDL_AppResult DebuggerWindow::allocateBuffers(int width, int height) {
+SDL_AppResult DebuggerWindow::allocateBuffers() {
+    int width, height;
+    if (!SDL_GetWindowSize(window, &width, &height)) {
+        OpDebugOut("failed to get window size: " + std::string(SDL_GetError()) + "\n");
+        return SDL_APP_CONTINUE;
+    }
     size_t bufferSize = width * height * sizeof(uint32_t);
     if (buffer)
         free(buffer);
@@ -175,7 +180,7 @@ SDL_AppResult DebuggerWindow::init(std::string n, OpVector offset) {
                 + std::string(SDL_GetError()) + "\n");
         return SDL_APP_FAILURE;
     }
-    allocateBuffers(screen.width(), screen.height());
+    allocateBuffers();
     int pixelsW, pixelsH;
     if (!SDL_GetWindowSizeInPixels(window, &pixelsW, &pixelsH))
         OpDebugOut(windowName + ": could not get size in pixels\n"); 

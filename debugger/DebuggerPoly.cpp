@@ -1,8 +1,9 @@
 // (c) 2025, Cary Clark cclark2@gmail.com
 
 #include "DebuggerState.h"
-#include "OpContour.h"
+#include "OpContext.h"
 #include "OpSegment.h"
+#include "DebugOpsTypes.h"
 
 struct DebugSect {  // curve intersected with focus rectangle, and intersection pinned to rect
     OpPtT sect;
@@ -131,10 +132,22 @@ void DebuggerAddPoly::add(const OpContour* c) {
     addingFill = true;
     monotonic = false;
     OpPoint last(SetToNaN::dummy);
-    for (const PathOpsV0Lib::Curve& curve : c->debugCurves) {
-        continueCurve = last == curve.data->start;
-        add(curve);
-        last = curve.data->end;
+    for (curveIndex = 0; curveIndex < (int) c->debugCurveData.size(); ++curveIndex) {
+        std::vector<float> extrema;
+        OpCurve opCurve = c->debugCurve(curveIndex, &extrema);
+        OpRoots tValues;
+        for (float ex : extrema) {
+            tValues.add(ex);
+        }
+        tValues.add(0);
+        tValues.add(1);
+        tValues.sort();
+        for (int index = 0; index < tValues.count() - 1; ++index) {
+            OpCurve piece = opCurve.subDivide(tValues.roots[index], tValues.roots[index + 1]);
+            continueCurve = last == piece.firstPt();
+            add(piece.c);
+            last = piece.lastPt();
+        }   
     }
     continueCurve = false;
 }

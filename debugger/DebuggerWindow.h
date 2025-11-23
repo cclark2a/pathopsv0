@@ -39,7 +39,7 @@ struct DebuggerWindow {
     size_t addText(std::string , uint32_t color, TTF_Font* f = nullptr);
     OpDebugText& addText(std::string , OpPoint , uint32_t color, TTF_Font* = nullptr, 
             bool rotated = false);
-    SDL_AppResult allocateBuffers(int width, int height);
+    SDL_AppResult allocateBuffers();
     void append(OpPoint );
     void clearWindow();
     OpContext* context();

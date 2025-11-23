@@ -561,6 +561,22 @@ struct OpSaveDump {
     ASSERT_ORDERED(lastField, thisFloat); \
     thisFloat = OpDebugReadNamedFloat(str, #thisFloat)
 
+#define DEBUG_DUMP_START_REQUIRED_FLOAT(thisFloat) \
+    s += #thisFloat ":"; \
+    s += debugValue(DebugLevel::error, b, #thisFloat, thisFloat) + " "
+
+#define DEBUG_DUMP_REQUIRED_FLOAT(lastField, thisFloat) \
+    ASSERT_ORDERED(lastField, thisFloat); \
+    DEBUG_DUMP_START_REQUIRED_FLOAT(thisFloat)
+
+#define DEBUG_SET_START_REQUIRED_FLOAT(thisFloat) \
+    OpDebugRequired(str, #thisFloat); \
+    thisFloat = OpDebugReadNamedFloat(str, #thisFloat)
+
+#define DEBUG_SET_REQUIRED_FLOAT(lastField, thisFloat) \
+    ASSERT_ORDERED(lastField, thisFloat); \
+    DEBUG_SET_START_REQUIRED_FLOAT(thisFloat)
+
 #define DEBUG_DUMP_ID(lastField, thisID) \
     ASSERT_ORDERED(lastField, thisID); \
     if (thisID) s += #thisID ":" + STR(thisID->id) + " "
@@ -589,6 +605,11 @@ struct OpSaveDump {
     DEBUG_DUMP_STRUCT(lastField, thisStruct); \
     ASSERT_LAST(hi); \
     return s
+
+#define DEBUG_DUMP_OPTIONAL_STRUCT(lastField, thisStruct, condition) \
+    ASSERT_ORDERED(lastField, thisStruct); \
+    if (condition) \
+        DEBUG_DUMP_COMMON_STRUCT(thisStruct)
 
 #define DEBUG_SET_COMMON_STRUCT(thisStruct) \
     OpDebugRequired(str, #thisStruct); \

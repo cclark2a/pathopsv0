@@ -59,8 +59,11 @@ int DebuggerState::count(IDType idType) const {
 KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction action) {
     PictureWindow& picWin = pictureWindow;
     TextWindow& textWin = textWindow;
+    CompareWindow& compareWin = compareWindow;
     bool picTop = &picWin == lastFocus;
     bool textTop = &textWin == lastFocus;
+    bool compareTop = &compareWin == lastFocus;
+    bool isLower = std::islower(debuggerEvent.key);
     KeyResult result;
     auto flip = [action, &result](bool& bit, std::string postfix) {
         switch (action) {
@@ -75,11 +78,13 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
                 OP_ASSERT(0);
         }
     };
-    auto bumpEnum = [action, &result](int& enumIndex, const std::vector<std::string>& strs) {
+    auto bump = [action, &result, isLower](int& enumIndex, const std::vector<std::string>& strs) {
         switch (action) {
             case KeyAction::act:
-                enumIndex += 1;
-                if (enumIndex >= strs.size())
+                enumIndex += isLower ? 1 : -1;
+                if (enumIndex < 0)
+                    enumIndex = (int) (strs.size() - 1);
+                else if (enumIndex >= (int) strs.size())
                     enumIndex = 0;
                 result.l = DrawLevel::update;
             break;
@@ -167,7 +172,10 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
             if (picTop) flip(picWin.drawFill, "fill"); 
             if (textTop) flip(textWin.showFull, "full");
         break;
-        case 'g': if (picTop) bumpEnum(*(int*)&picWin.drawGrid, drawGridStrs); break;
+        case 'g':
+        case 'G': 
+            if (picTop) bump(*(int*)&picWin.drawGrid, drawGridStrs); 
+        break;
         case 'h': if (picTop) flip(picWin.drawHulls, "hulls"); break;
         case 'H': 
             if (picTop) flip(picWin.drawEdgeHulls, "edge hull intersection points"); 
@@ -177,7 +185,11 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
         case 'I': flip(showIntersections, "intersections (" + STR(count(IDType::intersection)) + ")"); break;
         case 'j': if (textTop) flip(textWin.showJoin, "join"); break;
         case 'k': if (picTop) flip(picWin.drawControls, "controls"); break;
-        case 'l': if (textTop) flip(textWin.showLinks, "links"); break;
+        case 'l': 
+        case 'L':
+            if (textTop && isLower) flip(textWin.showLinks, "links"); 
+            if (compareTop) bump(compareWindow.leftBits, drawCompareStrs); 
+        break;
         case 'o': flip(showOutput, "output"); break;
         case 'p': 
             if (picTop) flip(picWin.drawPoints, "points"); 
@@ -189,7 +201,14 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
             else
                 result.s += "playback"; 
         break;
+        case 'r':
         case 'R': 
+            if (compareTop) {
+                bump(compareWindow.rightBits, drawCompareStrs);
+                break;
+            }
+            if (!isLower)
+                break;
             if (KeyAction::act == action)
                 record();
             else
