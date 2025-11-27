@@ -1,0 +1,12 @@
+https://marketplace.visualstudio.com/items?itemName=vadimcn.vscode-lldb
+
+https://www.cppstories.com/2021/natvis-dbg-tip/
+
+https://www.reddit.com/r/cpp/comments/kuyyps/a_debugging_tip_write_custom_visualizers_in/
+
+vscode custom natvis
+
+https://code.visualstudio.com/docs/cpp/natvis
+
+https://github.com/vadimcn/codelldb/blob/v1.11.8/MANUAL.md
+
