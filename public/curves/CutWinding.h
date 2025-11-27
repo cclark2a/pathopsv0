@@ -82,7 +82,7 @@ inline Context* cutContext(ContextUserData userData, CurveOutput output = nullpt
 	SetDebugContextCallbacks(context, { 
         frameDebugIsFill
         OP_DEBUG_DUMP_PARAMS(frameDumpOutFunc, frameDumpSetFunc)
-        OP_DEBUG_IMAGE_PARAMS(frameImageOutXFunc, frameImageOutFunc, frameColorFuncPtr)
+        OP_DEBUG_IMAGE_PARAMS(frameImageOutFunc, frameImageNamesFunc, frameColorFuncPtr)
     });
 #endif
     return context;

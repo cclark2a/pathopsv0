@@ -250,6 +250,7 @@ struct OpContext {
 	bool debugSuccess() const;
 #endif
 #if OP_DEBUG_VALIDATE
+	void debugValidate() const;
 	void debugValidateIntersections();
 #else
 	void debugValidateIntersections() {}

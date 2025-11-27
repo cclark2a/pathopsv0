@@ -331,7 +331,7 @@ struct DebugCubic {
     CurveType curveType;
     size_t curveSize;
     OpPoint curveData[4];
-    float extrema[3];
+    float extrema[4];
 };
 #endif
 
@@ -351,11 +351,17 @@ inline void AddCubics(Contour* contour, AddCurve curve) {
     // save original curve and extrema t values as debugging data for visualization
     OP_ASSERT(sizeof(swizzled) == sizeof(DebugCubic::curveData));
     OP_ASSERT(sizeof(tValues.roots[0]) == sizeof(DebugCubic::extrema[0]));
-    OP_ASSERT(tValues.count() <= (int) ARRAY_COUNT(DebugCubic::extrema));
     DebugCubic debugCubic { curve.type, sizeof(swizzled) };
     memcpy(debugCubic.curveData, swizzled, sizeof(swizzled));
-    for (size_t index = 0; index < ARRAY_COUNT(DebugCubic::extrema); ++index) {
-        debugCubic.extrema[index] = index < (size_t) tValues.count() ? tValues.get(index) : OpNaN;
+    size_t index = 0;
+    for (float t : tValues.roots) {
+        if (OpMath::IsNaN(t))
+            continue;
+        OP_ASSERT(index < ARRAY_COUNT(debugCubic.extrema));
+        debugCubic.extrema[index++] = t;
+    }
+    while (index < ARRAY_COUNT(debugCubic.extrema)) {
+        debugCubic.extrema[index++] = OpNaN;
     }
     SetDebugCurveData(contour, { (DebugCurve*) &debugCubic, sizeof(debugCubic) });
 #endif

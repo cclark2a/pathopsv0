@@ -55,12 +55,13 @@ struct OpType {
     OpType() { contour = nullptr; }
     OpType(const OpEdge* e);
     OpType(const OpSegment* s);
-    OpType(const OpContour* c);
+    OpType(const OpContour* c, int cIndex);
     OpType(const OpIntersection* i, IDType t = IDType::intersection);
     OpType(const struct Distance* d);
     OpType(const struct EdgePal* p);
     OpType(const struct OpTree* t);
     OpType(const struct OpLimb* l);
+    void validate() const;
 
     OpRect bounds;
     union {
@@ -74,6 +75,7 @@ struct OpType {
         const OpLimb* limb;
     };
     int id = 0;
+    int curveIndex = -1;  // only used by contour
     IDType type = IDType::none;
     bool inCcStorage = false;
     bool selected = false;
@@ -90,24 +92,22 @@ struct OpDebugPoint {
 };
 
 struct DebuggerAddPoly {
-    void add(const PathOpsV0Lib::Curve& );
+    bool add(const PathOpsV0Lib::Curve& );
     void add(const OpEdge* );
     void add(const OpSegment* );
     void add(const OpContour* );
 
-    DebuggerState* debuggerState;
-    DebuggerWindow* window;
+    DebuggerState* debuggerState = nullptr;
+    DebuggerWindow* window = nullptr;
     OpType opType;
-    int curveIndex = -1;  // only used by contour
     bool continueCurve = false;  // true if contour extends loop
     bool addingFill = false;  // true if added is fill, false if added is frame
     bool monotonic = false;
 };
 
 struct DebuggerPoly {
-#if OP_DEBUG_DUMP
     void dump() const;
-#endif
+    void validate() const;
 
     PathOpsV0Lib::Curve c;
     PathOpsV0Lib::CurveData cData;  // used by construction lines
@@ -116,7 +116,6 @@ struct DebuggerPoly {
     std::vector<OpPoint> device;    // lines used to draw, in device coordinates
     std::vector<size_t> contours;  // index for each device contour
     OpType opType;
-    int curveIndex = -1;  // only used by contour
     float thickness = 1;    // special value for fill
     uint32_t color = black;
     float tStart = 0;

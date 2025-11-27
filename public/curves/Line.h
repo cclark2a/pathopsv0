@@ -24,7 +24,8 @@ inline size_t AddLine(Contour* contour, AddCurve curve) {
     memcpy(debugLine.curveData, curve.points, curve.size);
     SetDebugCurveData(contour, { (DebugCurve*) &debugLine, sizeof(debugLine) });
 #endif
-    Add(contour, curve);
+    if (curve.points[0] != curve.points[1])
+        Add(contour, curve);
     return 1;
 }
 

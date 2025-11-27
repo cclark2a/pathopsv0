@@ -38,7 +38,6 @@ ContextUserData UserData(Context* context, UserDataType type) {
 }
 
 void Add(Contour* interfaceContour, AddCurve curve) {
-    OP_ASSERT(curve.points[0] != curve.points[1]);
     OpContour* contour = toImplementation(interfaceContour);
     contour->context->initialized = false;
     contour->context->curveIndex(curve);
@@ -63,9 +62,6 @@ Contour* Clone(Contour* interfaceContour) {
 		return interfaceContour;
     OpContour* clone = original->context->makeContour(&original->windingStorage.front(), 
             original->windingStorage.size());
-#if OP_DEBUG
-//	clone->debugCallbacks = original->debugCallbacks;
-#endif
     return toInterface(clone);
 }
 

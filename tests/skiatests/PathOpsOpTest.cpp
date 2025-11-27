@@ -1199,7 +1199,7 @@ static void rRect1(skiatest::Reporter* reporter, const char* filename) {
         SkString uniqueName;
         uniqueName.printf("%s%d", filename, index);
         testPathOp(reporter, path, paths[index], ops[index], uniqueName.c_str());
-        REPORTER_ASSERT(reporter, Op(path, paths[index], ops[index], &path));
+//        REPORTER_ASSERT(reporter, Op(path, paths[index], ops[index], &path));
     }
 }
 

@@ -989,6 +989,13 @@ void OpIntersections::debugValidate() const {
 				|| (!!sectPtr->unsectID && !!sectPtr->opp->unsectID));
 	}
 }
+
+// !!! flesh this out as needed
+void OpContext::debugValidate() const {
+    for (const auto contour : contours) {
+        contour->debugValidate(nullptr);
+    }
+}
 #endif
 
 bool OpIntersections::debugContains(const OpPtT& ptT, const OpSegment* opp) const {
@@ -1194,7 +1201,7 @@ bool OpJoiner::DebugShowImage() {
 }
 
 #if OP_DEBUG_IMAGE
-OpCurve OpContour::debugCurve(int index, std::vector<float>* extremaArray) const {
+PathOpsV0Lib::Curve OpContour::debugCurve(int index, std::vector<float>* extremaArray) const {
     OP_ASSERT(index < (int) debugCurveData.size());
     const PathOpsV0Lib::DebugCurveData& data = debugCurveData[index];
     if (extremaArray) {
@@ -1206,13 +1213,17 @@ OpCurve OpContour::debugCurve(int index, std::vector<float>* extremaArray) const
             extremaArray->push_back(*extrema++);
         }
     }
-	const PathOpsV0Lib::Curve curve { (ContextPtr) context, &data.data->curveData, 
+	return { (ContextPtr) context, &data.data->curveData, 
             (size_t) data.data->curveSize, data.data->curveType }; 
-    return OpCurve(curve, Rotated::no);
 }
 #endif
 
 #if OP_DEBUG_VALIDATE
+// !!! flesh out as needed
+void PathOpsV0Lib::OpDebugValidate(PathOpsV0Lib::Curve curve) {
+    OP_ASSERT(curve.context);
+}
+
 // !!! also debug prev/next edges (links)
 void OpJoiner::debugValidate() const {
 	for (auto contour : context->contours) {
@@ -1380,12 +1391,6 @@ void debug() {
 
 #endif
 
-#if OP_DEBUG && !OP_DEBUG_FAST_TEST && (OP_DEBUG_IMAGE || OP_DEBUG_DUMP)
-bool debugRunningTest(std::string testname) {
-    return debugGlobalContext->debugData.testname == testname; 
-}
-#endif
-
 #include "DebugOps.h"
 #include "curves/QuadBezier.h"
 #include "curves/CubicBezier.h"
@@ -1429,12 +1434,14 @@ void debugCubicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, do
 }
 
 void SetDebugCurveData(Contour* ctour, DebugCurveData curveData) {
+#if OP_DEBUG_IMAGE
     OpContour* contour = (OpContour*) ctour;
     PathOpsV0Lib::DebugCurve* data = 
             (PathOpsV0Lib::DebugCurve*) contour->context->allocateCurveData(curveData.size);
 	std::memcpy(data, curveData.data, curveData.size);
     curveData.data = data;
     contour->debugCurveData.push_back(curveData);
+#endif
 }
 
 void SetDebugCurveCallbacks(Context* ctext, CurveType , DebugCurveCallbacks curveCallbacks) {

@@ -268,18 +268,13 @@ inline void binaryDumpSetFunc(const char*& str, Winding& winding) {
 
 #if OP_DEBUG_IMAGE
 // !!! this will replace index version
-inline std::string binaryImageOutXFunc(Winding winding) {
+inline std::string binaryImageOutFunc(Winding winding) {
     BinaryData binaryData(winding);
     return STR(binaryData.left) + " " + STR(binaryData.right);
 }
 
-// !!! deprecated
-inline std::string binaryImageOutFunc(Winding winding, int index) {
-    if (index > 1)
-        return "-";
-    BinaryData binaryData(winding);
-    std::string s = STR(index ? binaryData.right : binaryData.left);
-    return s;
+inline std::vector<std::string> binaryImageNamesFunc() {
+    return { "left", "right" };
 }
 
 inline uint32_t binaryColorFunc(Winding winding, DebugEdgeType edgeType) {
@@ -318,8 +313,8 @@ inline WindKeep binaryVisibleFunc(Winding w, Winding s) {
 }
 
 #define BINARY_IMAGE_TAGGED_FUNCTIONS \
-    OP_TAGGED_FUNCTION(binaryImageOutXFunc), \
     OP_TAGGED_FUNCTION(binaryImageOutFunc), \
+    OP_TAGGED_FUNCTION(binaryImageNamesFunc), \
     OP_TAGGED_FUNCTION(binaryColorFunc), \
     OP_TAGGED_FUNCTION(binaryVisibleFunc), \
 
@@ -335,7 +330,7 @@ inline Context* binaryContext(CurveOutput output = nullptr, EmptyCallerPath empt
 	SetDebugContextCallbacks(context, {
         binaryDebugIsFill
         OP_DEBUG_DUMP_PARAMS(binaryDumpOutFunc, binaryDumpSetFunc)
-        OP_DEBUG_IMAGE_PARAMS(binaryImageOutXFunc, binaryImageOutFunc, binaryColorFunc,
+        OP_DEBUG_IMAGE_PARAMS(binaryImageOutFunc, binaryImageNamesFunc, binaryColorFunc,
                     binaryVisibleFunc)
     });
 #endif

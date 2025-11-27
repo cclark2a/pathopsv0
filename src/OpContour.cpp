@@ -663,6 +663,14 @@ void OpContour::init() {
 	overlapsMerged = false;
 }
 
+bool OpContour::isEmpty() {
+#if OP_DEBUG_IMAGE
+	OP_ASSERT(segments.empty() || !debugCurveData.empty());
+	return debugCurveData.empty();
+#endif
+	return segments.empty();
+}
+
 int OpContour::nextID() const {
 //    if (93 == contours->uniqueID + 1)
 //        OpDebugOut("");

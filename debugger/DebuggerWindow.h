@@ -27,11 +27,39 @@ enum class WheelTarget {
 
 extern const std::array<std::string, 6> WheelTargetVerbage;
 
+struct Bumper {
+    void bumpUp(int delta) {
+        lastIndex = next(delta);
+    }
+
+    std::string label() {
+        return labelAt(lastIndex);
+    }
+
+    int next(int delta) {
+        int result = lastIndex + delta;
+        if (result < 0)
+            result = size() - 1;
+        else if (result >= size())
+            result = 0;
+        return result;
+    }
+
+    std::string nextLabel(int delta) {
+        return labelAt(next(delta));
+    }
+    
+    virtual std::string labelAt(int index) = 0;
+    virtual int size() const = 0;
+
+    int lastIndex = 0;
+};
+
 struct DebuggerWindow {
     DebuggerWindow(DebuggerState* state, WheelTarget);
-    void add(const OpCurve& , DebuggerAddPoly* );
+    bool add(const OpCurve& , DebuggerAddPoly* );
     DebuggerPoly& add(const OpRect& , uint32_t color, float thickness);
-    void add(OpPoint , OpPoint , DebuggerAddPoly* );
+    bool add(OpPoint , OpPoint , DebuggerAddPoly* );
     void add(std::vector<OpPoint>& points );
     void addLine(OpPoint pt1, OpPoint pt2);
     SDL_AppResult addFont(float fontSize, TTF_Font** result = nullptr);
@@ -61,10 +89,11 @@ struct DebuggerWindow {
     virtual std::string record() { return recordCommon(); };
     std::string recordCommon();
     void setSize();
-#if OP_DEBUG_DUMP
+    // self-debugging:
     std::string debugTextDump(size_t index);
     void dumpWindow();
-#endif
+    void validate() const;
+
     DebuggerState* debuggerState;
     DebuggerAddPoly addPoly;
     std::vector<DebuggerPoly> polys;

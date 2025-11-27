@@ -95,7 +95,7 @@ void OpDebugSamples::addCurveXatY(const Curve& original, RasterSample& base, flo
 	y = std::max(0.f, y);
 	yEnd = std::min((float) raster->bitHeight, yEnd);
     int row = (int) std::ceil(y * raster->subSamples);
-	while (y <= yEnd) {
+	while (y < yEnd) {
 		float t = curve.tAtXY(tLo, tHi, XyChoice::inY, y);
 		float x = curve.ptAtT(t).x;
 		if (x < raster->bitWidth) {
@@ -167,7 +167,6 @@ static float NextVisible(const OpDebugSamples& sampleSet, OpWinding& sum, size_t
 		OpWinding winding(sampleSet.zeroWinding);  // shallow zeroed winding for this x value
 		x = NextX(samples, index, winding);
 		OP_DEBUG_VALIDATE_CODE(sampleSet.raster->validate());
-		OP_DEBUG_VALIDATE_CODE(sampleSet.raster->validate());
 		// choose between 'visible' and 'keep'
 		// use 'visible' to say if source path shows
 		// use 'keep' to say if computed path shows
@@ -216,19 +215,48 @@ float OpDebugSamples::compare(std::vector<RasterSamples>& outputs) {
 				break;
 		} while (inIndex < subS.size());
 		// note that 'out' samples do not have or need winding; they implicitly describe coverage
-		auto advance = [this](const std::vector<RasterSample>& samples, size_t& index) {
+		auto advance = [](const std::vector<RasterSample>& samples, size_t& index) {
+			float result = OpNaN;
 			while (index < samples.size()) {
 				const RasterSample& sample = samples[index];
 				++index;
-				if (sample.visible)
-						return sample.x;
+				if (sample.visible) {
+					result = sample.x;
+					break;
+				}
 			}
-			return (float) raster->bitWidth;
+			if (OpMath::IsNaN(result))
+				return OpNaN;
+			size_t testIndex = index;
+			while (testIndex < samples.size()) {
+				const RasterSample& test = samples[testIndex];
+				if (test.x != result)
+					break;
+				testIndex = ++index;
+			}
+			return result;
 		};
 		inIndex = 0;
 		XRange inXs { advance(subS, inIndex), advance(subS, inIndex) }; 
 		outIndex = 0;
 		XRange outXs { advance(subO, outIndex), advance(subO, outIndex) }; 
+		auto checkExhausted = [&inXs, &outXs, &error](float x) {
+			if (OpMath::IsNaN(inXs.end)) {
+				if (!OpMath::IsNaN(outXs.end)) {
+					float xStart = OpMath::IsNaN(x) ? outXs.start : x;
+					error += outXs.end - xStart;
+				}
+				return true;
+			}
+			if (OpMath::IsNaN(outXs.end)) {
+				float xStart = OpMath::IsNaN(x) ? inXs.start : x;
+				error += inXs.end - xStart;
+				return true;
+			}
+			return false;
+		};
+		if (checkExhausted(OpNaN))
+			continue;
 		float x = std::min(inXs.start, outXs.start);
 		auto nextX = [&error, &x](const XRange& upper, const XRange& lower) {
 			float xEnd = std::min(upper.start, lower.end);
@@ -247,6 +275,8 @@ float OpDebugSamples::compare(std::vector<RasterSamples>& outputs) {
 				inXs = { advance(subS, inIndex), advance(subS, inIndex) };
 			if (x >= outXs.end)
 				outXs = { advance(subO, outIndex), advance(subO, outIndex) };
+			if (checkExhausted(x))
+				break;
 			x = std::max(x, std::min(inXs.start, outXs.start));
 		}
     }
@@ -265,7 +295,7 @@ void OpDebugSamples::sample(OpContour* contour) {
 	if (SampleType::contourInput == sampleType || SampleType::contourResolved == sampleType) {
 		for (size_t index = 0; index < contour->debugCurveData.size(); ++index) {
 			std::vector<float> extrema;
-			OpCurve opCurve = contour->debugCurve(index, &extrema);
+			OpCurve opCurve(contour->debugCurve(index, &extrema), Rotated::no);
 			addCurveXatY(contour, index, opCurve, extrema);
 		}
 		return;
@@ -621,6 +651,8 @@ void DebugRaster::dumpSet(char const*& str) {
 
 #if OP_DEBUG_VALIDATE
 void DebugRaster::validate() {
+	if (disableValidate)
+		return;
 	for (const auto& sample : samples) {
 		for (const auto& set : sample.sampleSet) {
 			for (const auto& s : set) {

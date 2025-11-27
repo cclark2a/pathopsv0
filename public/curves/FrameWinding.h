@@ -139,18 +139,14 @@ inline void frameDumpSetFunc(const char*& str, Winding& winding) {
 #endif
 
 #if OP_DEBUG_IMAGE
-inline std::string frameImageOutXFunc(Winding winding) {
+inline std::string frameImageOutFunc(Winding winding) {
     FrameData data(winding);
     return STR(data.left) + (FrameFill::frame == data.isFrame ? "fr" : "");
 }
 
 // !!! deprecated
-inline std::string frameImageOutFunc(Winding winding, int index) {  // deprecated
-    if (index > 0)
-        return "-";
-    FrameData data(winding);
-    std::string s = STR(data.left);
-    return s;
+inline std::vector<std::string> frameImageNamesFunc() {
+    return { "fill", "frame" };
 }
 
 inline uint32_t frameColorFuncPtr(Winding winding, DebugEdgeType edgeType) {
@@ -171,8 +167,8 @@ inline uint32_t frameColorFuncPtr(Winding winding, DebugEdgeType edgeType) {
 }
 
 #define FRAME_IMAGE_TAGGED_FUNCTIONS \
-    OP_TAGGED_FUNCTION(frameImageOutXFunc), \
     OP_TAGGED_FUNCTION(frameImageOutFunc), \
+    OP_TAGGED_FUNCTION(frameImageNamesFunc), \
     OP_TAGGED_FUNCTION(frameColorFuncPtr), \
 
 #endif
@@ -186,7 +182,7 @@ inline Context* frameContext(CurveOutput output = nullptr) {
 	SetDebugContextCallbacks(context, { 
         frameDebugIsFill
         OP_DEBUG_DUMP_PARAMS(frameDumpOutFunc, frameDumpSetFunc)
-        OP_DEBUG_IMAGE_PARAMS(frameImageOutXFunc, frameImageOutFunc, frameColorFuncPtr)
+        OP_DEBUG_IMAGE_PARAMS(frameImageOutFunc, frameImageNamesFunc, frameColorFuncPtr)
     });
 #endif
     return context;

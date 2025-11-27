@@ -73,6 +73,7 @@ struct OpDebugData {
         , curveCurve2(0)
         , curveCurveDepth(-1)
 		, limitContours(0)
+		, error(0)
 		, limitReached(false)
         , runOneFile(false)
 		, success(true) {
@@ -85,6 +86,7 @@ struct OpDebugData {
 	int curveCurve2;
 	int curveCurveDepth;
 	int limitContours;
+	float error;
 	bool limitReached;
 	bool runOneFile;
 	bool success;
@@ -303,12 +305,6 @@ bool OpDebugSkipBreak();
 #endif
 #endif
 
-namespace PathOpsV0Lib {
-    struct Context;
-
-    bool DebugAnalyze(Context* );
-};
-
 #endif
 
 #if OP_DEBUG_DUMP 
@@ -501,6 +497,8 @@ void OpDebugFormat(std::string );
 namespace PathOpsV0Lib {
 	struct Curve;
 
+	OP_DEBUG_VALIDATE_CODE(void OpDebugValidate(Curve ));
+
     void debugLineScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY);
     void debugQuadScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY);
     void debugConicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY);
@@ -520,10 +518,6 @@ namespace PathOpsV0Lib {
 #else
 #define OP_DEBUG_RASTER_CODE(...)
 #define OP_DEBUG_RASTER_PARAMS(params)
-#endif
-
-#if OP_DEBUG && !OP_DEBUG_FAST_TEST && (OP_DEBUG_IMAGE || OP_DEBUG_DUMP)
-    extern bool debugRunningTest(std::string );
 #endif
 
 #endif

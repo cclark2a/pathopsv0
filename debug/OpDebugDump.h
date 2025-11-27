@@ -10,10 +10,11 @@ struct Curve;
 struct Winding;
 }
 
-
 enum class DumpSerialization {
     dummy
 };
+
+inline const std::string TestFile = "Test.txt";
 
 #define DUMP_DECLARATIONS \
 std::string debugDump(DebugLevel , DebugBase ) const; \

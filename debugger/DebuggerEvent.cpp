@@ -78,18 +78,15 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
                 OP_ASSERT(0);
         }
     };
-    auto bump = [action, &result, isLower](int& enumIndex, const std::vector<std::string>& strs) {
+    auto bump = [action, &result, isLower](Bumper& bumper) {
+        int delta = isLower ? 1 : -1;
         switch (action) {
-            case KeyAction::act:
-                enumIndex += isLower ? 1 : -1;
-                if (enumIndex < 0)
-                    enumIndex = (int) (strs.size() - 1);
-                else if (enumIndex >= (int) strs.size())
-                    enumIndex = 0;
+            case KeyAction::act: 
+                bumper.bumpUp(delta);
                 result.l = DrawLevel::update;
             break;
             case KeyAction::show:
-                result.s += strs[enumIndex];
+                result.s += bumper.nextLabel(delta);
             break;
             default:
                 OP_ASSERT(0);
@@ -174,7 +171,7 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
         break;
         case 'g':
         case 'G': 
-            if (picTop) bump(*(int*)&picWin.drawGrid, drawGridStrs); 
+            if (picTop) bump(picWin.gridLabel); 
         break;
         case 'h': if (picTop) flip(picWin.drawHulls, "hulls"); break;
         case 'H': 
@@ -188,7 +185,7 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
         case 'l': 
         case 'L':
             if (textTop && isLower) flip(textWin.showLinks, "links"); 
-            if (compareTop) bump(compareWindow.leftBits, drawCompareStrs); 
+            if (compareTop) bump(compareWindow.leftLabel); 
         break;
         case 'o': flip(showOutput, "output"); break;
         case 'p': 
@@ -204,7 +201,7 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
         case 'r':
         case 'R': 
             if (compareTop) {
-                bump(compareWindow.rightBits, drawCompareStrs);
+                bump(compareWindow.rightLabel);
                 break;
             }
             if (!isLower)
@@ -219,7 +216,10 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
             if (picTop) flip(picWin.drawTangents, "tangents");
             if (textTop) flip(textWin.showTree, "tree");
         break;
-        case 'T': if (picTop) flip(picWin.drawTs, "t values"); break;
+        case 'T': 
+            if (picTop) flip(picWin.drawTs, "t values"); 
+            if (textTop) flip(textWin.showTest, "test");
+        break;
         case 'v': if (picTop) flip(picWin.drawValues, "point values"); break;
         case 'w': if (picTop) flip(picWin.drawWindings, "windings"); break;
         case 'x': flip(showHex, "hex"); break;

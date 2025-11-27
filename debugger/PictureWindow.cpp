@@ -11,8 +11,17 @@ const std::vector<std::string> drawGridStrs {
     "hide grid"
 };
 
+std::string GridLabel::labelAt(int index) {
+    return drawGridStrs[index];
+}
+
+int GridLabel::size() const {
+    return (int) drawGridStrs.size();
+}
+
 PictureWindow::PictureWindow(DebuggerState* state)
-        : DebuggerWindow(state, WheelTarget::zoomAndKeyPan) {
+        : DebuggerWindow(state, WheelTarget::zoomAndKeyPan)
+        , gridLabel(this) {
     if (SDL_APP_CONTINUE != (state->error = init("picture", { 100, 100 } )))
         OpDebugOut("Couldn't initialize picture window: " + std::string(SDL_GetError()) + "\n");
     else if (SDL_APP_CONTINUE != (state->error = addFont(fontSize)))
@@ -74,6 +83,7 @@ void PictureWindow::addHulls() {
         toAdd.back().contours.push_back(hull.size());
     }
     polys.insert(polys.begin(), toAdd.begin(), toAdd.end());
+    validate();
 }
 
 void PictureWindow::clear() {
@@ -149,6 +159,7 @@ void PictureWindow::addFittedSide(std::string s, float yPos, float bottom, uint3
 }
 
 void PictureWindow::addGrid() {
+    DrawGrid drawGrid = gridLabel.drawGrid();
     if (DrawGrid::none == drawGrid)
         return;
     auto unfixSign = [](int32_t i) {
@@ -157,7 +168,8 @@ void PictureWindow::addGrid() {
 	auto fixSign = [](int32_t i) {
 		return i < 0 ? -(i & 0x7fffffff) : i;
 	};
-	auto hexWorks = [fixSign, unfixSign, this](std::vector<float>& lines, float fLo, float fHi) {
+	auto hexWorks = [drawGrid, fixSign, unfixSign, this]
+            (std::vector<float>& lines, float fLo, float fHi) {
 	    int32_t lo = fixSign(OpDebugFloatToBits(fLo));
 	    int32_t hi = fixSign(OpDebugFloatToBits(fHi));
         std::vector<float> linears;
@@ -199,6 +211,7 @@ void PictureWindow::addGrid() {
         if (fy != yes.front() && fy != yes.back())
     		addLine({ screen.left,  yToScreen(fy) }, { screen.right, yToScreen(fy) });
     }
+    grid.validate();
 	if (!drawValues)
         return;
     for (size_t index = 0; index + 1 < xes.size(); ++index) {
@@ -379,7 +392,7 @@ void PictureWindow::addWinding(DebuggerPoly& poly) {
         }
     };
 	const OpWinding& sum = poly.opType.edge->sum;
-	auto debugImageOut = context()->debugContextCallbacks.debugImageWindingOutXFuncPtr;
+	auto debugImageOut = context()->debugContextCallbacks.debugImageWindingOutFuncPtr;
 	add(debugImageOut && sum.isSet() ? (*debugImageOut)(sum.w) : "?", 1);
 	std::string sumString = "?";
     const OpWinding& wind = poly.opType.edge->winding;
@@ -532,7 +545,8 @@ void PictureWindow::addPoints() {
         // !!! add contours : may require some thought for poly-to-contour-curve mapping
         if (IDType::contour == poly.opType.type && poly.isPrimary && debuggerState->showContours) {
             std::vector<float> extrema;
-            OpCurve curve = poly.opType.contour->debugCurve(poly.curveIndex, &extrema);
+            OpCurve curve(poly.opType.contour->debugCurve(poly.opType.curveIndex, &extrema), 
+                    Rotated::no);
             add(poly.opType, curve.c.data->start);
             add(poly.opType, curve.c.data->end);
             if (drawControls)
@@ -760,6 +774,8 @@ DrawLevel PictureWindow::event(const DebuggerEvent& debuggerEvent) {
 
 void PictureWindow::playback(const char*& str) {
     playbackCommon(str);
+    OpDebugRequired(str, "gridLabel");
+    gridLabel.lastIndex = OpDebugReadSizeT(str);
     DEBUG_SET_COMMON_STRUCT(zoomOffset);
     scale = OpDebugReadNamedFloat(str, "scale");  // factor to go from local to device (zero is uninitialized)
     DEBUG_SET_FLOAT(scale, thresholdMultiplier);
@@ -767,8 +783,7 @@ void PictureWindow::playback(const char*& str) {
     DEBUG_SET_REQUIRED_VALUE(zoomFactor, thresholdWheel);
     DEBUG_SET_REQUIRED_VALUE(thresholdWheel, zoomer);
     DEBUG_SET_REQUIRED_VALUE(zoomer, gridIntervals);
-    DEBUG_SET_REQUIRED_VALUE(gridIntervals, drawGrid);
-    DEBUG_SET_BOOL(drawGrid, drawCenters);
+    DEBUG_SET_BOOL(gridIntervals, drawCenters);
     DEBUG_SET_BOOL(drawCenters, drawControls);
     DEBUG_SET_BOOL(drawControls, drawEdgeHulls);
     DEBUG_SET_BOOL(drawEdgeHulls, drawFill);
@@ -790,6 +805,7 @@ std::string PictureWindow::record() {
     DebugLevel l = DebugLevel::file;
     DebugBase b = DebugBase::hex;
     s += recordCommon();
+    s += "gridLabel:" + STR(gridLabel.lastIndex) + " ";
     DEBUG_DUMP_COMMON_STRUCT(zoomOffset);
     if (!OpMath::IsDebugNaN(scale))
         s += debugValue(DebugLevel::error, b, "scale", scale) + " ";
@@ -798,8 +814,7 @@ std::string PictureWindow::record() {
     DEBUG_DUMP_REQUIRED_VALUE(zoomFactor, thresholdWheel);
     DEBUG_DUMP_REQUIRED_VALUE(thresholdWheel, zoomer);
     DEBUG_DUMP_REQUIRED_VALUE(zoomer, gridIntervals);
-    DEBUG_DUMP_ENUM_VALUE(gridIntervals, drawGrid);
-    DEBUG_DUMP_BOOL(drawGrid, drawCenters);
+    DEBUG_DUMP_BOOL(gridIntervals, drawCenters);
     DEBUG_DUMP_BOOL(drawCenters, drawControls);
     DEBUG_DUMP_BOOL(drawControls, drawEdgeHulls);
     DEBUG_DUMP_BOOL(drawEdgeHulls, drawFill);

@@ -81,7 +81,7 @@ struct OpContour {
 	bool fixCCSects();
     void init(OpContext* , PathOpsV0Lib::WindingData winding, size_t size);
     void init();
-	bool isEmpty() { return segments.empty(); }
+	bool isEmpty();
 	bool isOpen() { return !merges.empty(); }
 //	bool isSorted(Axis axis) const { return Axis::horizontal == axis ? isXSorted : isYSorted; }
 	bool joinSetup();
@@ -156,7 +156,7 @@ struct OpContour {
 	std::string debugDumpJoin(DebugLevel l, DebugBase b) const;
 #endif
 #if OP_DEBUG_IMAGE
-	OpCurve debugCurve(int index, std::vector<float>* extrema) const;
+	PathOpsV0Lib::Curve debugCurve(int index, std::vector<float>* extrema) const;
 #endif
 
 	std::vector<OpSegment> segments;
@@ -196,6 +196,7 @@ struct OpContour {
 	OpWinding debugWinding = OpWinding(WindingUninitialized::dummy);
 	uint32_t debugColor = blue;
 #endif
+	OP_DEBUG_CODE(bool debugEmpty = false);  // if empty, when cloned, this is reused in release
 };
 
 struct OpContourStorage {

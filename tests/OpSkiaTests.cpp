@@ -32,16 +32,7 @@ tests run: 68135597  6/1/2025 fails in tiger8b_x372506 : winding 'setPrior()' re
            71733769  6/3/2025 fails in cubic129075 : filler too large
 */
 
-#if OP_TINY_SKIA
 #include "TinySkia.h"
-#else
-#include "include/core/SkBitmap.h"
-#include "include/core/SkCanvas.h"
-#include "include/core/SkPath.h"
-#include "include/core/SkRegion.h"
-#include "include/pathops/SkPathOps.h"
-#define SkiaEnumSkPathOp_DEFINED
-#endif
 #include "SkiaTestCommon.h"
 #include "OpContext.h"  // !!! remove this ?
 #include "OpCurve.h"  // !!! remove this ?
@@ -287,14 +278,7 @@ void bulkTest(int index) {
 uint64_t timerFrequency;
 uint64_t timerStart;
 
-#if 0 && !OP_DEBUG_FAST_TEST
-bool debugUseAlt;
-#endif
-
 void runTests() {
-#if 0 && !OP_DEBUG_FAST_TEST
-	debugUseAlt = false;
-#endif
     timerFrequency = OpInitTimer();
     timerStart = OpReadTimer();
 #if OP_DEBUG_FAST_TEST
@@ -344,179 +328,12 @@ void runTests() {
             + " v0 only:" + STR(testsPassSkiaFail) + " skia only:" + STR(testsFailSkiaPass) + "\n");
 }
 
-const int bitWidth = 64;
-const int bitHeight = 64;
-
-static SkRect debug_scale_matrix(const SkPath& one, const SkPath* two, SkMatrix& scale) {
-    SkRect larger = one.getBounds();
-    if (two) {
-        larger.join(two->getBounds());
-    }
-    SkScalar largerWidth = larger.width();
-    if (largerWidth < 4) {
-        largerWidth = 4;
-    }
-    SkScalar largerHeight = larger.height();
-    if (largerHeight < 4) {
-        largerHeight = 4;
-    }
-    SkScalar hScale = (bitWidth - 2) / largerWidth;
-    SkScalar vScale = (bitHeight - 2) / largerHeight;
-    scale.reset();
-    scale.preScale(hScale, vScale);
-    larger.fLeft *= hScale;
-    larger.fRight *= hScale;
-    larger.fTop *= vScale;
-    larger.fBottom *= vScale;
-    SkScalar dx = -16000 > larger.fLeft ? -16000 - larger.fLeft
-        : 16000 < larger.fRight ? 16000 - larger.fRight : 0;
-    SkScalar dy = -16000 > larger.fTop ? -16000 - larger.fTop
-        : 16000 < larger.fBottom ? 16000 - larger.fBottom : 0;
-    scale.preTranslate(dx, dy);
-    return larger;
-}
-
-static int debug_paths_draw_the_same(const SkPath& one, const SkPath& two, SkBitmap& bits,
-        bool v0mayFail, bool assertOnError) {
-    if (bits.width() == 0) {
-        bits.allocN32Pixels(bitWidth * 2, bitHeight);
-    }
-    SkCanvas canvas(bits);
-    canvas.drawColor(SK_ColorWHITE);
-    SkPaint paint;
-    canvas.save();
-    const SkRect& bounds1 = one.getBounds();
-    canvas.translate(-bounds1.fLeft + 1, -bounds1.fTop + 1);
-    canvas.drawPath(one, paint);
-    canvas.restore();
-    canvas.save();
-    canvas.translate(-bounds1.fLeft + 1 + bitWidth, -bounds1.fTop + 1);
-    canvas.drawPath(two, paint);
-    canvas.restore();
-    int errors = 0;
-    for (int y = 0; y < bitHeight - 1; ++y) {
-        uint32_t* addr1 = bits.getAddr32(0, y);
-        uint32_t* addr2 = bits.getAddr32(0, y + 1);
-        uint32_t* addr3 = bits.getAddr32(bitWidth, y);
-        uint32_t* addr4 = bits.getAddr32(bitWidth, y + 1);
-        for (int x = 0; x < bitWidth - 1; ++x) {
-            // count 2x2 blocks
-            bool err = addr1[x] != addr3[x];
-            if (err) {
-                errors += addr1[x + 1] != addr3[x + 1]
-                    && addr2[x] != addr4[x] && addr2[x + 1] != addr4[x + 1];
-            }
-        }
-    }
-    OP_ASSERT(!assertOnError || errors < 9 || v0mayFail);
-    return errors;
-}
-
 void ReportError(std::string testname, int errors) {
     std::string s = testname;
     if (errors)
         s += " had errors=" + STR(errors);
     OpDebugOut(s + "\n");
     OpDebugOut("");  // for setting a breakpoint
-}
-
-int VerifyOpNoRegion(const SkPath& left, const SkPath& right, SkPathOp op, const SkPath& result) {
-    SkMatrix scale;
-    SkRect bounds = debug_scale_matrix(left, &right, scale);
-    SkPath scaledLeft, scaledRight, scaledResult;
-    scaledLeft.addPath(left, scale);
-    scaledLeft.setFillType(left.getFillType());
-    scaledRight.addPath(right, scale);
-    scaledRight.setFillType(right.getFillType());
-    scaledResult.addPath(result, scale);
-    scaledResult.setFillType(result.getFillType());
-    SkBitmap bitmap;
-    bitmap.allocN32Pixels(bitWidth, bitHeight);
-    SkCanvas canvas(bitmap);
-    canvas.drawColor(SK_ColorBLACK);
-    SkPaint paint;
-    paint.setBlendMode(SkBlendMode::kPlus);
-    constexpr uint32_t leftColor = SK_ColorRED;
-    constexpr uint32_t rightColor = SK_ColorBLUE;
-    constexpr uint32_t resultColor = SK_ColorGREEN;
-    canvas.translate(-bounds.fLeft, -bounds.fTop);
-    paint.setColor(leftColor);
-    canvas.drawPath(scaledLeft, paint);
-    paint.setColor(rightColor);
-    canvas.drawPath(scaledRight, paint);
-    paint.setColor(resultColor);
-    canvas.drawPath(scaledResult, paint);
-    std::vector<uint32_t> okColors = { SK_ColorBLACK };
-    switch (op) {
-        case kDifference_SkPathOp:
-            okColors.push_back(leftColor | resultColor);
-            okColors.push_back(rightColor);
-            okColors.push_back(leftColor | rightColor);
-        break;
-        case kIntersect_SkPathOp:
-            okColors.push_back(leftColor);
-            okColors.push_back(rightColor);
-            okColors.push_back(leftColor | rightColor | resultColor);
-        break;
-        case kUnion_SkPathOp:
-            okColors.push_back(leftColor | resultColor);
-            okColors.push_back(rightColor | resultColor);
-            okColors.push_back(leftColor | rightColor | resultColor);
-        break;
-        case kXOR_SkPathOp:
-            okColors.push_back(leftColor | resultColor);
-            okColors.push_back(rightColor | resultColor);
-            okColors.push_back(leftColor | rightColor);
-        break;
-        case kReverseDifference_SkPathOp:
-            okColors.push_back(leftColor);
-            okColors.push_back(rightColor | resultColor);
-            okColors.push_back(leftColor | rightColor);
-        break;
-        default:
-            OP_ASSERT(0);
-    }
-    int errors = 0;
-    for (int y = 0; y < bitHeight - 1; ++y) {
-        uint32_t* addr1 = bitmap.getAddr32(0, y);
-        for (int x = 0; x < bitWidth - 1; ++x) {
-            if (okColors.end() != std::find(okColors.begin(), okColors.end(), addr1[x]))
-                continue;
-            ++errors;
-        }
-    }
-    if (errors > 9)
-        OpDebugOut("");
-    return errors;
-}
-
-int VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op, std::string testname,
-        const SkPath& result, bool v0mayFail) {
-    SkPath pathOut, scaledPathOut;
-    SkRegion rgnA, rgnB, openClip, rgnOut;
-    openClip.setRect({ -16000, -16000, 16000, 16000 });
-    rgnA.setPath(one, openClip);
-    rgnB.setPath(two, openClip);
-    rgnOut.op(rgnA, rgnB, (SkRegion::Op)op);
-    rgnOut.getBoundaryPath(&pathOut);
-    SkMatrix scale;
-    debug_scale_matrix(one, &two, scale);
-    SkRegion scaledRgnA, scaledRgnB, scaledRgnOut;
-    SkPath scaledA, scaledB;
-    scaledA.addPath(one, scale);
-    scaledA.setFillType(one.getFillType());
-    scaledB.addPath(two, scale);
-    scaledB.setFillType(two.getFillType());
-    scaledRgnA.setPath(scaledA, openClip);
-    scaledRgnB.setPath(scaledB, openClip);
-    scaledRgnOut.op(scaledRgnA, scaledRgnB, (SkRegion::Op)op);
-    scaledRgnOut.getBoundaryPath(&scaledPathOut);
-    SkBitmap bitmap;
-    SkPath scaledOut;
-    scaledOut.addPath(result, scale);
-    scaledOut.setFillType(result.getFillType());
-    int errors = debug_paths_draw_the_same(scaledPathOut, scaledOut, bitmap, v0mayFail, true);
-    return errors;
 }
 
 #include "port/SkiaPaths.h"
@@ -526,15 +343,23 @@ int VerifyOp(const SkPath& one, const SkPath& two, SkPathOp op, std::string test
 #endif
 
 // char* so it can be called from immediate window
+#if !OP_DEBUG_FAST_TEST
 void dumpOpTest(const char* testname, const SkPath& pathA, const SkPath& pathB, SkPathOp op) {
-    OpDebugOut("\nvoid ");
-    OpDebugOut(testname);
-    OpDebugOut("(skiatest::Reporter* reporter, const char* filename) {\n");
-    OpDebugOut("    SkPath pathA, path;\n");
-    pathA.dump();
-    OpDebugOut("    pathA = path;\n");
-    OpDebugOut("    path.reset();\n");
-    pathB.dump();
+    std::string filename = dmpFileToPath(TestFile);
+    FILE* file = fopen(filename.c_str(), "w");
+    if (!file) {
+        OpDebugOut("could not open " + filename + " to write\n");
+        return;
+    }
+	std::string s;
+    s += "void ";
+    s += testname;
+    s += "(skiatest::Reporter* reporter, const char* filename) {\n";
+    s += "    SkPath pathA, path;\n";
+    s += dumpSkPath(&pathA, false) + "\n";
+    s += "    pathA = path;\n";
+    s += "    path.reset();\n";
+    s += dumpSkPath(&pathB, false) + "\n";
     std::string opStr;
     switch(op) {
         case SkPathOp::kDifference_SkPathOp: opStr = "SkPathOp::kDifference_SkPathOp"; break;
@@ -544,11 +369,14 @@ void dumpOpTest(const char* testname, const SkPath& pathA, const SkPath& pathB, 
         case SkPathOp::kReverseDifference_SkPathOp: opStr = "SkPathOp::kReverseDifference_SkPathOp"; break;
         default: OP_ASSERT(0);
     }
-    OpDebugOut("    testPathOp(reporter, pathA, path, " + opStr + ", filename);\n");
-    OpDebugOut("}\n\n");
-    OpDebugOut("static struct TestDesc tests[] = {\n");
-    OpDebugOut("    TEST(" + std::string(testname) + "),\n");
+    s += "    testPathOp(reporter, pathA, path, " + opStr + ", filename);\n";
+    s += "}\n\n";
+    s += "static struct TestDesc tests[] = {\n";
+    s += "    TEST(" + std::string(testname) + "),\n";
+    fwrite(&s[0], 1, s.size(), file);
+    fclose(file);
 }
+#endif
 
 void trackError(PathOpsV0Lib::ContextError contextError) {
 	if (PathOpsV0Lib::ContextError::none != contextError)
@@ -627,6 +455,8 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
         debugRaster.in();
 #endif
     Resolve(context);
+    if (runOneFile)
+        dmpFile();
     if (SkPathOpInvertOutput(op, a.isInverseFillType(), b.isInverseFillType()))
         result->toggleInverseFillType();
     ContextError contextError = Error(context);
@@ -644,10 +474,6 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
         SkPathOp op, std::string testname, bool v0MayFail, bool skiaMayFail, bool mayDiffer) {
 	auto alt = [&testname](std::string name, void (*func)()) {
 		if (name == testname) {
-#if 0 && !OP_DEBUG_FAST_TEST			
-			OP_ASSERT(debugUseAlt);
-			OP_DEBUG_CODE(debugUseAlt = false);
-#endif
 			(*func)();
 			return true;
 		}
@@ -672,11 +498,7 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
 		return;
 	if (alt("cubicOp114asQuad", alt_cubicOp114asQuad))
 		return;
-#if 0 && !OP_DEBUG_FAST_TEST			
-	OP_ASSERT(!debugUseAlt);
-#endif
     const char* tn = testname.c_str();
-#if OP_TEST_V0
     SkPath result;
     result.setFillType(SkPathFillType::kEvenOdd);  // !!! workaround
     OpDebugData debugData(v0MayFail);
@@ -685,17 +507,13 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     debugData.curveCurve2 = CURVE_CURVE_2;
     debugData.curveCurveDepth = CURVE_CURVE_DEPTH;
 	debugData.runOneFile = runOneFile || SKIP_TO_V0;
-	(void) OpV0(a, b, op, &result, &debugData);
+#if !OP_DEBUG_FAST_TEST
+    dumpOpTest(tn, a, b, op);
 #endif
+	(void) OpV0(a, b, op, &result, &debugData);
 #if TEST_SKIA
     SkPath skresult;
-#if OP_TINY_SKIA
 	bool skSuccess = skiaMayFail;
-#else
-	extern bool SK_API Op(const SkPath& one, const SkPath& two, SkPathOp op, SkPath* result);
-    bool skSuccess = Op(a, b, op, &skresult);
-    OP_ASSERT(skSuccess || skiaMayFail);
-#endif
 #if OP_TEST_V0
     if (debugData.success && !skSuccess)
         testsPassSkiaFail++;
@@ -713,7 +531,7 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
 #if OP_TEST_V0 && TEST_REGION
     if (!debugData.success || !skSuccess || v0MayFail || skiaMayFail || mayDiffer)
         return;
-    int errors = VerifyOp(a, b, op, testname, result, v0MayFail);
+    int errors = (int) (debugData.error + .5f);
 //  int altErrors = VerifyOpNoRegion(a, b, op, result);
     const int MAX_ERRORS = 9;
     if (errors > MAX_ERRORS) {
@@ -721,8 +539,6 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
 #if OP_DEBUG_FAST_TEST
         std::lock_guard<std::mutex> guard(out_mutex);
 #endif
-        dumpOpTest(tn, a, b, op)
-            ;   // <<<<<<<< paste this into immediate window
         ReportError(testname, errors);
         if (errors > MAX_ERRORS)
             totalError++;
@@ -737,9 +553,6 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
 bool testPathOpBase(skiatest::Reporter* r, const SkPath& a, const SkPath& b, 
         SkPathOp op, const char* name, bool v0MayFail, bool skiaMayFail, bool mayDiffer) {
     if (skipTest(name)) {
-#if 0 && !OP_DEBUG_FAST_TEST
-		debugUseAlt = false;
-#endif
         return true;
 	}
     threadablePathOpTest(0, a, b, op, name, v0MayFail, skiaMayFail, mayDiffer);
@@ -789,6 +602,7 @@ void RunTestSet(skiatest::Reporter* r, TestDesc tests[], size_t count,
 	}
 }
 
+#if 0
 int VerifySimplify(const SkPath& one, std::string testname, const SkPath& result, bool v0mayFail) {
     SkPath pathOut, scaledPathOut;
     SkRegion rgnA, openClip;
@@ -810,27 +624,34 @@ int VerifySimplify(const SkPath& one, std::string testname, const SkPath& result
     int errors = debug_paths_draw_the_same(scaledPathOut, scaledOut, bitmap, v0mayFail, false);
     return errors;
 }
+#endif
 
+#if !OP_DEBUG_FAST_TEST
 std::string debugSimplifyTest(const char* testname, const SkPath& path) {
 	std::string s;
     s += "void " + STR(testname) + "(skiatest::Reporter* reporter, const char* filename) {\n";
     s += "    SkPath path;\n";
-#if OP_DEBUG
 	s += dumpSkPath(&path, false) + "\n";
-#endif
 	s += "    testSimplify(reporter, path, filename);\n";
     s += "}\n\n";
     s += "static struct TestDesc tests[] = {\n";
-    s += "    TEST(" + std::string(testname) + "),";
+    s += "    TEST(" + std::string(testname) + "),\n";
 	return s;
 }
 
 // char* so it can be called from immediate window
 void dumpSimplifyTest(const char* testname, const SkPath& path) {
-	std::string s = "\n";
-	s += debugSimplifyTest(testname, path) + "\n";
-    OpDebugOut(s);
+    std::string filename = dmpFileToPath(TestFile);
+    FILE* file = fopen(filename.c_str(), "w");
+    if (!file) {
+        OpDebugOut("could not open " + filename + " to write\n");
+        return;
+    }
+	std::string s = debugSimplifyTest(testname, path);
+    fwrite(&s[0], 1, s.size(), file);
+    fclose(file);
 }
+#endif
 
 struct AutoClose {
     AutoClose(FILE* f)
@@ -952,6 +773,8 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
 	}
 	if (ContextError::none == contextError) {
 		Resolve(context);
+        if (runOneFile)
+            dmpFile();
 		contextError = Error(context);
 		if (ContextError::toVertical == contextError)
 			veryLarge = VeryLargeSkiaPath(path);			
@@ -973,13 +796,8 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
 
 void threadableSimplifyTest(int id, const SkPath& path, std::string testname, 
             SkPath& out, bool v0MayFail, bool skiaMayFail) {
-#if OP_TINY_SKIA
 	auto alt = [&testname](std::string name, void (*func)()) {
 		if (name == testname) {
-#if 0 && !OP_DEBUG_FAST_TEST			
-			OP_ASSERT(debugUseAlt);
-			OP_DEBUG_CODE(debugUseAlt = false);
-#endif
 			(*func)();
 			return true;
 		}
@@ -990,11 +808,6 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
 	};
 	if (alt("testArc", alt_testArc))
 		return;
-#endif
-#if OP_TEST_V0
-#if TEST_REGION
-	const SkPath& p = path;
-#endif
     out.setFillType(SkPathFillType::kEvenOdd); // !!! workaround
     const char* tn = testname.c_str();
     if ("never!" == testname)
@@ -1019,34 +832,23 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
 		++debugData.limitContours;
 	} while (!debugData.limitReached);
 #else
+    dumpSimplifyTest(tn, path);   
 	(void) SimplifyV0(path, &out, &debugData);
 #endif
     OP_ASSERT(v0MayFail || debugData.success);
-#endif
 #if TEST_SKIA
     SkPath skOut;
-#if OP_TINY_SKIA
 	bool skSuccess = skiaMayFail;
-#else
-    bool skSuccess = Simplify(path, &skOut);
-    OP_ASSERT(skiaMayFail || skSuccess);
-#endif
-#if OP_TEST_V0
     if (debugData.success && !skSuccess)
         testsPassSkiaFail++;
     else if (!debugData.success && skSuccess)
         testsFailSkiaPass++;
-#else
-    if (skiaMayFail && skSuccess)
-        testsFailSkiaPass++;
-#endif
 #endif
     if (startFirstTest && runOneFile)
         endFirstTest = true;
-#if OP_TEST_V0 && TEST_REGION
     if (!debugData.success)
         return;
-    int errors = VerifySimplify(path, testname, out, v0MayFail);
+    int errors = (int) (debugData.error + .5f);
     const int MAX_ERRORS = 9;
     if (errors > MAX_ERRORS && !v0MayFail) {
 #if !defined(NDEBUG) || OP_RELEASE_TEST
@@ -1054,13 +856,10 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
         std::lock_guard<std::mutex> guard(out_mutex);
 		v0(tn, p);
 #endif
-        // -exec p dumpSimplifyTest(tn, p)  <<<<<<<< paste this into vscode debug console
-        dumpSimplifyTest(tn, p);   
         ReportError(testname, errors);
 #endif
         totalError++;
     }
-#endif
 }
 
 bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& state, 
@@ -1069,9 +868,6 @@ bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& st
     if ("" == testname)
         testname = state.fReporter->testname + STR(++unnamedCount);
     if (skipTest(testname)) {
-#if 0 && OP_TINY_SKIA && !OP_DEBUG_FAST_TEST
-		debugUseAlt = false;
-#endif
         return true;
 	}
     path.setFillType(useXor ? SkPathFillType::kEvenOdd : SkPathFillType::kWinding);
@@ -1082,9 +878,6 @@ bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& st
 bool testSimplifyBase(skiatest::Reporter* r, const SkPath& path, const char* name, 
         bool v0MayFail, bool skiaMayFail) {
     if (skipTest(name)) {
-#if 0 && OP_TINY_SKIA && !OP_DEBUG_FAST_TEST
-		debugUseAlt = false;
-#endif
         return true;
 	}
     SkPath out;

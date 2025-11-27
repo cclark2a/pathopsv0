@@ -783,6 +783,7 @@ enum class DrawEdgeType {
 // !!! haven't decided how I want to abstract this : for now, just reference directly
 #include "OpDebugColor.h"
 
+#if 0
 void DebugOpDrawEdges(std::vector<DebugOpCurve>& curves, DrawEdgeType edgeType) {
     float strokeWidth = DrawEdgeType::normal == edgeType ? 0.f : 5.f;
     SkPath path;
@@ -941,6 +942,7 @@ void DebugOpDraw(const std::vector<OpDebugRay>& lines) {
     }
     DebugOpDraw(debugLines);
 }
+#endif
 
 static void set(DebugOpCurve& dCurve, const PathOpsV0Lib::ColorCurve& curve) {
 	constexpr size_t conicSize = 3 * sizeof(OpPoint) + sizeof(float);  // !!! hacky
@@ -958,6 +960,7 @@ static void set(DebugOpCurve& dCurve, const PathOpsV0Lib::ColorCurve& curve) {
 	}
 }
 
+#if 0
 void DebugOpDraw(const std::vector<PathOpsV0Lib::ColorCurve>& curves) {
     debugCurves.clear();
 //    DebugOpRect bounds = ZoomToRect();	// future optimization: clip to bounds
@@ -969,6 +972,7 @@ void DebugOpDraw(const std::vector<PathOpsV0Lib::ColorCurve>& curves) {
 	}
 	DebugOpDraw(debugCurves);
 }
+#endif
 
 static double curveWeight(const OpCurve& curve) {
     // !!! haven't decided how to support this through callbacks
@@ -1002,6 +1006,7 @@ void DebugOpBuild(const DebugColorPt& dPt) {
         debugPoints.push_back(dPt);
 }
 
+#if 0
 static DebugOpCurve CurveDebugSetCurve(const PathOpsV0Lib::ColorCurve& c) {
     DebugOpCurve dCurve;
     const PathOpsV0Lib::Curve& curve = c.curve;
@@ -1016,6 +1021,7 @@ static DebugOpCurve CurveDebugSetCurve(const PathOpsV0Lib::ColorCurve& c) {
     dCurve.color = c.color;
     return dCurve;
 }
+#endif
 
 void DebugOpBuild(const OpSegment& seg, const OpDebugRay& ray) {
     DebugOpCurve curve;
@@ -1039,9 +1045,11 @@ void DebugOpAdd(const OpSegment* segment) {
     DebugOpBuild(*segment, debugSegments);
 }
 
+#if 0
 void DebugOpDrawSegments() {
     DebugOpDraw(debugSegments);
 }
+#endif
 
 DebugOpCurve OpEdge::debugSetCurve() const {
     DebugOpCurve dCurve;
@@ -1097,6 +1105,7 @@ void DebugOpAddHighlight(const OpEdge* edge) {
     DebugOpBuild(*edge, debugHighlights);
 }
 
+#if 0
 void DebugOpDrawEdges() {
     DebugOpDrawEdges(debugEdges, DrawEdgeType::normal);
 }
@@ -1122,6 +1131,7 @@ void DebugOpHighlight(const std::vector<const OpEdge*>& edges) {
         DebugOpBuild(*edge, debugHighlights);
     DebugOpDrawEdges(debugHighlights, DrawEdgeType::highlight);
 }
+#endif
 
 void DebugOpBuild(const SkPath& path, std::vector<DebugOpCurve>& debugPs, ClipToBounds clip,
         uint32_t color) {
@@ -1332,6 +1342,7 @@ void DebugCurveBuild(const PathOpsV0Lib::ColorCurve& curve, const OpDebugRay& ra
 	axisSect(dCurve);
 }
 
+#if 0
 void DebugOpDraw(const std::vector<const SkPath*>& paths) {
     debugPaths.clear();
     for (auto& path : paths)
@@ -1339,6 +1350,7 @@ void DebugOpDraw(const std::vector<const SkPath*>& paths) {
             DebugOpBuild(*path, debugPaths, ClipToBounds::clip, blue);
     DebugOpDraw(debugPaths);
 }
+#endif
 
 void DebugOpClearPoints() {
     debugPoints.clear();
@@ -1367,9 +1379,11 @@ void DebugOpClearInputs() {
     debugInputs.clear();
 }
 
+#if 0
 void DebugOpDrawInputs() {
     DebugOpDraw(debugInputs);
 }
+#endif
 
 struct ColorPath {
     ColorPath(uint32_t c)
@@ -1379,6 +1393,7 @@ struct ColorPath {
     uint32_t color;
 };
 
+#if 0
 void DebugOpDrawSprites() {
     std::vector<ColorPath> colorPaths;
     for (auto& point : debugPoints) {
@@ -1710,6 +1725,7 @@ void DebugOpDrawSegmentID(const OpSegment* segment, std::vector<int>& ids) {
 void DebugOpDrawPointID(const OpSegment* segment, std::vector<int>& ids) {
     // !!! incomplete
 }
+#endif
 
 void DebugOpAddBounds(double left, double top, double right, double bottom) {
     if (!OpMath::IsNaN((float) setBounds.left)) {

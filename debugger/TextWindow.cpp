@@ -3,6 +3,7 @@
 #include "DebuggerState.h"
 #include "OpCurveCurve.h"
 #include "OpJoiner.h"
+#include <sys/stat.h>
 
 // !!! hackery
 #if __APPLE__
@@ -40,19 +41,28 @@ DebuggerPoly& TextWindow::addIdBox(const OpRect& r, std::string s, uint32_t colo
 // change this to generate the set of interesting ids into an array
 // use user choices to order that id set, add breaking lines, etc
 
-DrawLevel TextWindow::doType(EventAction eventAction, const DebuggerEvent* event) {
+DrawLevel TextWindow::doType(TextAction eventAction, const DebuggerEvent* event) {
     if (!context())
         return DrawLevel::none;
     static const int leftMargin = 10;
     static const int topMargin = 10;
     OpPoint loc { leftMargin, topMargin };
     DrawLevel result = DrawLevel::none;
+    std::vector<const OpContour*> shownContours;
 	for (auto& id : debuggerState->ids) {
         if (IDType::intersection == id.type) {
             if (!debuggerState->showIntersections)
                 continue;
         } else if (IDType::segment == id.type) {
             if (!debuggerState->showSegments)
+                continue;
+        } else if (IDType::contour == id.type) {
+            if (!debuggerState->showContours)
+                continue;
+            if (shownContours.end() == std::find(shownContours.begin(), shownContours.end(), 
+                    id.contour))
+                shownContours.push_back(id.contour);
+            else
                 continue;
         } else if (IDType::edge != id.type)
             continue;
@@ -149,7 +159,8 @@ void TextWindow::innerUpdate(int& safetyCheck) {
                 { 10, (float) (detailHeight - scrollPos) }, black, detailFont).cacheIndex);
         detailHeight += cache.size.dy;
     };
-    std::vector<const OpSegment*> shown;
+    std::vector<const OpSegment*> shownSegs;
+    std::vector<const OpContour*> shownContours;
 	for (auto& id : debuggerState->ids) {
         if (!id.selected && !showAll)
             continue;
@@ -165,8 +176,8 @@ void TextWindow::innerUpdate(int& safetyCheck) {
             segment = id.edge->segment;
         else if (IDType::intersection == id.type)
             segment = id.intersection->segment;
-        if (shown.end() == std::find(shown.begin(), shown.end(), segment))
-            shown.push_back(segment);  // only show segment once, when edges/intersections selected
+        if (segment && shownSegs.end() == std::find(shownSegs.begin(), shownSegs.end(), segment))
+            shownSegs.push_back(segment);  // only show segment once, when edges/intersections selected
         else
             segment = nullptr;
         if (showFull && segment) {
@@ -200,6 +211,11 @@ void TextWindow::innerUpdate(int& safetyCheck) {
             s = id.intersection->debugDump(DebugLevel::normal, defaultBase);
         if (!shownEdge && IDType::edge == id.type)
             s = id.edge->debugDump(DebugLevel::normal, defaultBase);
+        if (IDType::contour == id.type && shownContours.end() == std::find(shownContours.begin(), 
+                shownContours.end(), id.contour)) {
+            shownContours.push_back(id.contour);
+            s = id.contour->debugDump(DebugLevel::normal, defaultBase);
+        }
         if (s.empty())
             continue;
         addWrapped(s);
@@ -224,6 +240,8 @@ void TextWindow::innerUpdate(int& safetyCheck) {
         std::string s = debugDmpLinks(debuggerState->context, DebugLevel::normal, defaultBase);
         addWrapped(s);
     }
+    if (showTest && !test.empty())
+        addWrapped(test);
     if (lastDetailHeight != detailHeight) {
         (void) scroll(0);
         innerUpdate(safetyCheck);
@@ -231,13 +249,32 @@ void TextWindow::innerUpdate(int& safetyCheck) {
 }
 
 void TextWindow::update() {
+    // retrieve test first if changed
+    struct stat info;
+    std::string filename = dmpFileToPath(TestFile);
+    if (stat(filename.c_str(), &info) != -1) {
+        auto readText = [this]() {
+            test = dmpFileToStr(TestFile);
+            return !test.empty();
+        };
+        if (info.st_mtime != debuggerState->lastTime) {
+            if (readText())
+                lastTime = info.st_mtime;
+            else if (updateAttempts > maxUpdateAttempts) {
+                OpDebugOut("failed to update\n"); 
+                OP_ASSERT(0);
+                readText();  // for debugging
+                return;
+            }
+        }
+    }
     int safetyCheck = 0;
     innerUpdate(safetyCheck);
 }
 
 void TextWindow::playback(const char*& str) {
     playbackCommon(str);
-    DEBUG_SET_BOOL(scrollPos, showAll);
+    DEBUG_SET_BOOL(updateAttempts, showAll);
     DEBUG_SET_BOOL(showAll, showAliases);
     DEBUG_SET_BOOL(showAliases, showCurveCurve);
     DEBUG_SET_BOOL(showCurveCurve, showFull);
@@ -246,13 +283,14 @@ void TextWindow::playback(const char*& str) {
     DEBUG_SET_BOOL(showJoin, showLinks);
     DEBUG_SET_BOOL(showLinks, showPoints);
     DEBUG_SET_BOOL(showPoints, showRays);
-    DEBUG_SET_BOOL(showRays, showTree); 
+    DEBUG_SET_BOOL(showRays, showTest); 
+    DEBUG_SET_BOOL(showTest, showTree); 
 }
 
 std::string TextWindow::record() {
     std::string s;
     s += recordCommon();
-    DEBUG_DUMP_BOOL(scrollPos, showAll);
+    DEBUG_DUMP_BOOL(updateAttempts, showAll);
     DEBUG_DUMP_BOOL(showAll, showAliases);
     DEBUG_DUMP_BOOL(showAliases, showCurveCurve);
     DEBUG_DUMP_BOOL(showCurveCurve, showFull);
@@ -261,7 +299,8 @@ std::string TextWindow::record() {
     DEBUG_DUMP_BOOL(showJoin, showLinks);
     DEBUG_DUMP_BOOL(showLinks, showPoints);
     DEBUG_DUMP_BOOL(showPoints, showRays);
-    DEBUG_DUMP_BOOL(showRays, showTree);
+    DEBUG_DUMP_BOOL(showRays, showTest);
+    DEBUG_DUMP_BOOL(showTest, showTree);
     return s;
 }
 

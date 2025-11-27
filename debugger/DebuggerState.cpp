@@ -130,6 +130,8 @@ void DebuggerState::record() {
 void DebuggerState::redraw() {
     if (!context) 
         return;
+    if (validation)
+        validate();
     pictureWindow.update();
     textWindow.update();
     helpWindow.update();
@@ -182,7 +184,8 @@ void DebuggerState::setIDTypes() {
 	}
     OpContourIterator contourIter(context);
     for (auto contour : contourIter) {
-        ids.emplace_back(contour);
+        for (int index = 0; index < contour->debugCurveData.size(); ++index)
+            ids.emplace_back(contour, index);
         for (const auto& seg : contour->segments) {
             ids.emplace_back(&seg);
 			for (auto& edge : seg.edges) {
@@ -228,4 +231,15 @@ bool DebuggerState::update() {
     updateDelay = 1;
     updateCount = 0;
     return true;
+}
+
+void DebuggerState::validate() {
+    for (OpType& id : ids) {
+        id.validate();
+    }
+    context->debugValidate();
+    pictureWindow.validate();
+    textWindow.validate();
+    helpWindow.validate();
+    compareWindow.validate();
 }

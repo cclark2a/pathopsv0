@@ -354,6 +354,7 @@ WindingCondition OpEdge::apply() {
 		return 0;
     OpContext* ctxt = context();
 	PathOpsV0Lib::WindKeep keep = winding.keep(sum);
+#if 0  // enable to see how windings are passed to caller
 	DebugLevel l = DebugLevel::normal;
 	DebugBase b = DebugBase::dec;
 	std::string keepNames[] = { "Discard", "End", "Start" };
@@ -361,6 +362,7 @@ WindingCondition OpEdge::apply() {
 			+ " winding:" + winding.debugDump(l, b) + " sum:" + sum.debugDump(l, b) 
 			+ " keep:" + keepNames[(int) keep] 
 			+ (startPt().y < endPt().y ? " down" : " up") + "\n");
+#endif
     bool affectsWinding = winding.isWound();
 	switch (keep) {
 		case PathOpsV0Lib::WindKeep::Discard:

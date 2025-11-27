@@ -4,18 +4,36 @@
 
 #include "DebuggerWindow.h"
 
+struct CompareWindow;
 struct DebugRaster;
+struct OpDebugSamples;
+
+typedef DrawLevel (*CompareAction)(const DebuggerEvent* , CompareWindow* , 
+        const OpDebugSamples& , int row);
 
 // !!! eventually move this into debugging strings in curves or maybe debugger bits txt
-extern const std::vector<std::string> drawCompareStrs;
+struct CompareLabel : Bumper {
+    CompareLabel(CompareWindow* w)
+        : window(w) {
+    }
+
+    std::string labelAt(int index) override;
+    int size() const override;
+
+    CompareWindow* window;
+};
 
 struct CompareWindow : public DebuggerWindow {
     CompareWindow(DebuggerState* state);
+    DrawLevel doType(CompareAction , const DebuggerEvent* );
     SDL_AppResult draw() override;
+    static std::string DrawCompareLabel(int index);
     DrawLevel event(const DebuggerEvent& ) override;  // defer to topmost window
     bool readBits();
     void update();  // draw help corresponding to topmost window
     DebugRaster* debugRaster = nullptr;
+    CompareLabel leftLabel;
+    CompareLabel rightLabel;
     OpRect leftFocus;
     OpRect rightFocus;
     time_t lastTime = 0;
@@ -25,8 +43,6 @@ struct CompareWindow : public DebuggerWindow {
     int updateAttempts = 0;
     int maxUpdateAttempts = 16;
     int margin = 1;
-    int leftBits = 0;
-    int rightBits = 1;
 };
 
 #endif

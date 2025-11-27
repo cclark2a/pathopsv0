@@ -175,6 +175,7 @@ void SkMatrix::setConcat(const SkMatrix& a, const SkMatrix& b) {
 	*this = tmp;
 }
 
+#if 0
 void SkBitmap::allocPixels(struct SkImageInfo const & i) {
 	info = i;
 	delete[] pixels;
@@ -231,6 +232,7 @@ SkFont::SkFont(void*, float s, float, float) {
 float SkFont::measureText(void const *, uint64_t, SkTextEncoding, SkRect *) const { 
 	return 0; 
 }
+#endif
 
 void SkPath::reset() { 
 	path.clear();
@@ -353,10 +355,6 @@ void SkPath::close() {
 
 void SkPath::arcTo(const SkRect& , float startAngle, float sweepAngle, bool forceMoveTo) {
 	// intentionally unimplmented
-	#if 0 && !OP_DEBUG_FAST_TEST
-		OP_DEBUG_CODE(extern bool debugUseAlt);
-		OP_DEBUG_CODE(debugUseAlt = true);
-	#endif
 }
 
 void SkPath::addCircle(float x, float y, float r, SkPathDirection /* !!! ignored for now */) {  

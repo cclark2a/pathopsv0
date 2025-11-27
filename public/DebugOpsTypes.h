@@ -75,8 +75,8 @@ typedef std::string (*DebugDumpWindingOut)(Winding );
 typedef void (*DebugDumpWindingSet)(const char*& , Winding& );
 #endif
 #if OP_DEBUG_IMAGE
-typedef std::string (*DebugImageWindingOutX)(Winding );
-typedef std::string (*DebugImageWindingOut)(Winding , int index);  // deprecated
+typedef std::string (*DebugImageWindingOut)(Winding );
+typedef std::vector<std::string> (*DebugImageWindingNames)();
 typedef uint32_t (*DebugEdgeColor)(Winding , DebugEdgeType );
 #endif
 
@@ -87,8 +87,8 @@ struct DebugContextCallbacks {
 	DebugDumpWindingSet debugDumpWindingSetFuncPtr = nullptr;
 #endif
 #if OP_DEBUG_IMAGE
-	DebugImageWindingOutX debugImageWindingOutXFuncPtr = nullptr;
-	DebugImageWindingOut debugImageWindingOutFuncPtr = nullptr;  // deprecated
+	DebugImageWindingOut debugImageWindingOutFuncPtr = nullptr;
+    DebugImageWindingNames debugImageWindingNamesFuncPtr = nullptr;
     DebugEdgeColor debugEdgeColorFuncPtr = nullptr;
     WindingKeep debugWindingVisibleFuncPtr = nullptr;  // if winding effects fill for one contour
 #endif

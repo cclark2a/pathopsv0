@@ -10,7 +10,23 @@ enum class DrawGrid {
     log
 };
 
-extern const std::vector<std::string> drawGridStrs;
+struct PictureWindow;
+
+struct GridLabel : Bumper {
+    GridLabel(PictureWindow* w)
+        : window(w) {
+    }
+
+    DrawGrid drawGrid() {
+        OP_ASSERT(0 <= lastIndex && lastIndex <= (int) DrawGrid::log);
+        return (DrawGrid) lastIndex;
+    }
+
+    std::string labelAt(int index) override;
+    int size() const override;
+
+    PictureWindow* window;
+};
 
 struct PictureWindow : public DebuggerWindow {
     PictureWindow(DebuggerState* state);
@@ -33,6 +49,7 @@ struct PictureWindow : public DebuggerWindow {
     void clear();
     void colorPolys();
     DrawLevel doWheel(const DebuggerEvent& , int delta) override;
+    static std::string DrawGridLabel(int index);
     bool drawOne(DebuggerPoly& ) override;
     uint32_t edgeColor(const OpEdge& );
     DrawLevel event(const DebuggerEvent& ) override;
@@ -50,6 +67,7 @@ struct PictureWindow : public DebuggerWindow {
 #if OP_DEBUG_DUMP
     void dump();
 #endif
+    GridLabel gridLabel;
     OpVector zoomOffset {0, 0};
     double scale = 0; // factor to go from local to device (zero is uninitialized)
     float thresholdMultiplier = 1;
@@ -57,7 +75,6 @@ struct PictureWindow : public DebuggerWindow {
     int thresholdWheel = 0;
     int zoomer = 0;
     int gridIntervals = 8;
-    DrawGrid drawGrid = DrawGrid::none;
     bool drawCenters = false;
     bool drawControls = false;
     bool drawEdgeHulls = false;

@@ -1,10 +1,6 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "SkiaTestShim.h"
 
-#if 0 && !OP_DEBUG_FAST_TEST
-OP_DEBUG_CODE(extern bool debugUseAlt);
-#endif
-
 extern void threadablePathOpTest(int id, const SkPath& a, const SkPath& b, 
         SkPathOp op, std::string testname, bool v0MayFail, bool skiaMayFail, bool mayDiffer);
 
@@ -88,9 +84,6 @@ struct SkDCubic {
     SkDCubicPair chopAt(double t) const;
 
     static int ComplexBreak(const SkPoint pts[4], SkScalar* t) {
-#if 0 && !OP_DEBUG_FAST_TEST
-		OP_DEBUG_CODE(debugUseAlt = true);
-#endif
 		// intentionally unimplemented
 		// tests that call this are substituted by name
 		return 0;
@@ -101,9 +94,6 @@ struct SkDCubic {
 	}
 
 	int findInflections(double tValues[2]) const {
-#if 0 && !OP_DEBUG_FAST_TEST
-		OP_DEBUG_CODE(debugUseAlt = true);
-#endif
 		// intentionally unimplemented
 		// tests that call this are substituted by name
 		tValues[0] = 1;
@@ -118,9 +108,6 @@ struct SkDCubic {
 
     SkDQuad toQuad() const {
 		SkDQuad result;
-#if 0 && !OP_DEBUG_FAST_TEST
-		OP_DEBUG_CODE(debugUseAlt = true);
-#endif
 		// intentionally unimplemented
 		// tests that call this are substituted by name
 		result.fPts[0] = { 0, 0 };
@@ -142,9 +129,6 @@ struct SkDCubicPair {
 
 SkDCubicPair SkDCubic::chopAt(double t) const {
 	SkDCubicPair result;
-#if 0 && !OP_DEBUG_FAST_TEST
-	OP_DEBUG_CODE(debugUseAlt = true);
-#endif
 	// intentionally unimplemented
 	// tests that call this are substituted by name
 	result.pts[0] = { 0, 0 };
@@ -271,9 +255,6 @@ struct CubicPts {
 };
 
 inline void CubicPathToQuads(const SkPath& cubicPath, SkPath* quadPath) {
-#if 0 && !OP_DEBUG_FAST_TEST
-		OP_DEBUG_CODE(debugUseAlt = true);
-#endif
 	// intentionally left unimplemented
 }
 

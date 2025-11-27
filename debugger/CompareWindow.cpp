@@ -8,17 +8,78 @@
 
 // !!! eventually move this into debugging strings in curves or maybe debugger bits txt
 const std::vector<std::string> drawCompareStrs {
-    "contour resolved",
-    "contour input (left)",
-    "contour input (right)",
-    "segment input (left)",
-    "segment input (right)",
-    "segment resolved",
+    "(unknown)",
+    "contours resolved",
+    "contour input",
+    "segment input",
+    "segments resolved",
     "edge output"
 };
 
+std::string CompareLabel::labelAt(int index) {
+    if (!window->debugRaster)
+        return "(uninitialized)";
+    const DebugRaster* raster = window->debugRaster;
+    const OpDebugSamples& sample = raster->samples[index];
+    std::string postfix;
+    const OpContext* context = raster->context;
+    PathOpsV0Lib::DebugImageWindingNames nameFunc 
+            = context->debugContextCallbacks.debugImageWindingNamesFuncPtr;
+    std::vector<std::string> names;
+    if (nameFunc)
+        names = (*nameFunc)();
+    auto inputName = [&names, sample, raster](int index) {
+        if (names.empty())
+            return std::string("");
+        size_t strIndex = 0;
+        for (int testIndex = 0; testIndex < raster->samples.size(); ++testIndex) {
+            const OpDebugSamples& test = raster->samples[testIndex];
+            if (test.sampleType != sample.sampleType)
+                continue;
+            if (testIndex == index) {
+                OP_ASSERT(strIndex < names.size());
+                return " (" + names[strIndex] + ")";
+            }
+            ++strIndex;
+        }
+        return std::string("");
+    };
+    switch (sample.sampleType) {
+        case SampleType::contourInput:
+            index = 2;
+            postfix = inputName(index);
+            break;
+        case SampleType::contourResolved:
+            index = 1;
+            break;
+        case SampleType::segmentInput:
+            index = 3;
+            postfix = inputName(index);
+            break;
+        case SampleType::segmentResolved:
+            index = 4;
+            break;
+        case SampleType::edgeOutput:
+            index = 5;
+            break;
+        default:
+            index = 0;
+            break;
+    }
+    return drawCompareStrs[index] + postfix;
+}
+
+int CompareLabel::size() const {
+    const DebugRaster* raster = window->debugRaster;
+    if (!raster)
+        return 0;
+    return (int) raster->samples.size();
+}
+
 CompareWindow::CompareWindow(DebuggerState* state)
-    : DebuggerWindow(state, WheelTarget::none) {
+    : DebuggerWindow(state, WheelTarget::none)
+    , leftLabel(this)
+    , rightLabel(this) {
     pixelScale = 8;
     if (SDL_APP_CONTINUE != (state->error = init("compare", { -200, -200 })))
         OpDebugOut("Couldn't initialize compare window: " + std::string(SDL_GetError()) + "\n");
@@ -124,27 +185,72 @@ SDL_AppResult CompareWindow::draw() {
         }
     };
     // !!! placeholder : need to be able to choose any sample set for left and right
-    drawHalf(debugRaster->samples[leftBits].mask, leftFocus, CompareHalf::left);
-    drawHalf(debugRaster->samples[rightBits].mask, rightFocus, CompareHalf::right);
+    drawHalf(debugRaster->samples[leftLabel.lastIndex].mask, leftFocus, CompareHalf::left);
+    drawHalf(debugRaster->samples[rightLabel.lastIndex].mask, rightFocus, CompareHalf::right);
     SDL_UnlockTexture(polysTexture);  
     SDL_RenderTexture(renderer, polysTexture, nullptr, nullptr);
     drawText();
     SDL_RenderPresent(renderer);
-#if 0
-    OpPoint localLocation(10, 10);
-    TTF_Font* detailFont = debuggerState->textWindow.detailFont;
-    addText(drawCompareStrs[leftBits], localLocation, debugBlack, detailFont);
-    localLocation.x += (rightFocus.width() + margin) * scale;
-    addText(drawCompareStrs[rightBits], localLocation, debugBlack, detailFont);
-#endif
     return SDL_APP_CONTINUE;
 }
 
-// events SDL_WINDOWEVENT_FOCUS_GAINED and SDL_WINDOWEVENT_FOCUS_LOST track which of 
-// picture window and text window is top most; send events to that window
+static DrawLevel HoverType(const DebuggerEvent* event, CompareWindow* textWindow, 
+        const OpDebugSamples& sample, int row) {
+//    start here;
+    // given RasterSample, show id/curveIndex/x/curveDown/visible as text
+    return DrawLevel::draw;
+}
+
+DrawLevel CompareWindow::doType(CompareAction eventAction, const DebuggerEvent* event) {
+    DrawLevel result = DrawLevel::none;
+    if (!debugRaster)
+        return result;
+    // find set of samples corresponding to mouse position
+    int windowWidth, windowHeight;
+    if (!SDL_GetWindowSize(window, &windowWidth, &windowHeight)) {
+        OpDebugOut("failed to get window size: " + std::string(SDL_GetError()) + "\n");
+        return result;
+    }
+    int index = event->mouse.x < windowWidth / 2 ? leftLabel.lastIndex : rightLabel.lastIndex;
+    if (index < 0 || index >= (int) debugRaster->samples.size())
+        return result;
+    const OpDebugSamples& sample = debugRaster->samples[index];
+    OpRect area;
+    if (event->mouse.x < windowWidth / 2) {
+        area = OpRect(xOffset, yOffset, 0, 0);
+        area.right = area.left + leftFocus.width() * scale;
+        area.bottom = area.top + leftFocus.height() * scale;
+    } else {
+        area = OpRect(xOffset + (leftFocus.width() + margin) * scale, yOffset, 0, 0);
+        area.right = area.left + rightFocus.width() * scale;
+        area.bottom = area.top + rightFocus.height() * scale; 
+    }
+    int row = 0;
+    if (event->mouse.y >= area.top) {
+        if (event->mouse.y > area.bottom)
+            row = leftFocus.height() - 1;
+        else {
+            row = (event->mouse.y - area.top) / scale;
+            row = std::max(0, std::min(row, (int) leftFocus.height() - 1));
+        }
+    }
+    OP_ASSERT(0 <= row && row < sample.sampleSet.size());
+    const RasterSamples& samples = sample.sampleSet[row];
+    const RasterSample* active = nullptr;
+    for (const RasterSample& test : samples) {
+        if (test.x <= event->mouse.x - area.left)
+            active = &test;
+    }
+    // !!! use x position to find RasterSample to the left
+    result = (*eventAction)(event, this, sample, row);
+    return result;
+}
+
 DrawLevel CompareWindow::event(const DebuggerEvent& event) {
     if (DrawLevel common = debuggerState->eventCommon(event); DrawLevel::none != common)
         return common;
+    if (MouseAction::move == event.mouseAction)
+        return doType(&HoverType, &event);
     return DrawLevel::none;
 }
 
@@ -162,9 +268,9 @@ void CompareWindow::update() {
     clearWindow();
     OpPoint localLocation(10, 10);
     TTF_Font* detailFont = debuggerState->textWindow.detailFont;
-    addText(drawCompareStrs[leftBits], localLocation, debugBlack, detailFont);
+    addText(leftLabel.label(), localLocation, debugBlack, detailFont);
     localLocation.x += (rightFocus.width() + margin) * scale;
-    addText(drawCompareStrs[rightBits], localLocation, debugBlack, detailFont);
+    addText(rightLabel.label(), localLocation, debugBlack, detailFont);
     struct stat info;
     std::string filename = dmpFileToPath(BitsFile);
     if (stat(filename.c_str(), &info) == -1) 

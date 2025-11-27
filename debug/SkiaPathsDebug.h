@@ -71,6 +71,7 @@ void SetSkiaOpContourCallbacksDebug(PathOpsV0Lib::Context* , PathOpsV0Lib::Conto
 
 #if TEST_ANALYZE
 // used to break down tests that are too large to debug directly
+bool DebugAnalyze(PathOpsV0Lib::Context* );
 void AddDebugSkiaPath(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* , const SkPath& path);
 #endif
 

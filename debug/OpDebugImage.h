@@ -34,7 +34,7 @@ enum class Axis : int8_t;
 constexpr int bitmapWH = 1000;
 constexpr uint32_t debugBlack = 0xFF000000;
 static_assert(bitmapWH / 2 * 2 == bitmapWH);	// must be multiple of 2
-class SkBitmap& bitmapRef();
+// class SkBitmap& bitmapRef();
 
 // it should not be necessary to call these implementation functions directly
 struct OpDebugImage {

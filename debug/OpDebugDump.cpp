@@ -990,9 +990,9 @@ static std::string debugContextCallbacksDump(const PathOpsV0Lib::DebugContextCal
     DEBUG_FIND_TAG(debugContextCallbacks, debugIsFillFuncPtr, debugDumpWindingOutFuncPtr);
     DEBUG_FIND_TAG(debugContextCallbacks, debugDumpWindingOutFuncPtr, debugDumpWindingSetFuncPtr);
 #if OP_DEBUG_IMAGE
-    DEBUG_FIND_TAG(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugImageWindingOutXFuncPtr);
-    DEBUG_FIND_TAG(debugContextCallbacks, debugImageWindingOutXFuncPtr, debugImageWindingOutFuncPtr);
-    DEBUG_FIND_TAG(debugContextCallbacks, debugImageWindingOutFuncPtr, debugEdgeColorFuncPtr);
+    DEBUG_FIND_TAG(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugImageWindingOutFuncPtr);
+    DEBUG_FIND_TAG(debugContextCallbacks, debugImageWindingOutFuncPtr, debugImageWindingNamesFuncPtr);
+    DEBUG_FIND_TAG(debugContextCallbacks, debugImageWindingNamesFuncPtr, debugEdgeColorFuncPtr);
     DEBUG_FIND_TAG(debugContextCallbacks, debugEdgeColorFuncPtr, debugWindingVisibleFuncPtr);
     static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugWindingVisibleFuncPtr) 
             + sizeof(debugContextCallbacks.debugWindingVisibleFuncPtr) == sizeof(debugContextCallbacks));
@@ -1245,9 +1245,9 @@ static void debugContextCallbacksDumpSet(PathOpsV0Lib::DebugContextCallbacks& de
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugIsFillFuncPtr, debugDumpWindingOutFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpWindingOutFuncPtr, debugDumpWindingSetFuncPtr);
 #if OP_DEBUG_IMAGE
-    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugImageWindingOutXFuncPtr);
-    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugImageWindingOutXFuncPtr, debugImageWindingOutFuncPtr);
-    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugImageWindingOutFuncPtr, debugEdgeColorFuncPtr);
+    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugImageWindingOutFuncPtr);
+    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugImageWindingOutFuncPtr, debugImageWindingNamesFuncPtr);
+    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugImageWindingNamesFuncPtr, debugEdgeColorFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugEdgeColorFuncPtr, debugWindingVisibleFuncPtr);
     static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugWindingVisibleFuncPtr) 
             + sizeof(debugContextCallbacks.debugWindingVisibleFuncPtr) == sizeof(debugContextCallbacks));
@@ -2009,8 +2009,19 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 		s += closeBracket;
 	}
     ASSERT_ORDERED(unsortables, windingStorage);
-    s += "windingStorage:" + STR(windingStorage.size()) + " ";
-    s += OpDebugDumpByteArray(&windingStorage.front(), windingStorage.size()) + " ";
+    if (DebugLevel::file == l) {
+        s += "windingStorage:" + STR(windingStorage.size()) + " ";
+        s += OpDebugDumpByteArray(&windingStorage.front(), windingStorage.size()) + " ";
+    } else {
+        s += "winding(";
+	    auto debugImageOut = context->debugContextCallbacks.debugImageWindingOutFuncPtr;
+        if (debugImageOut) {
+            PathOpsV0Lib::Winding winding { (ContourPtr) this, (void*) &windingStorage.front(), 
+                    windingStorage.size() };
+            s += (*debugImageOut)(winding) + ") ";
+        } else
+            s += "?) ";
+    }
     ASSERT_ORDERED(windingStorage, linkups);
 	if (linkups.l.size()) {
 		s += "linkups:" + STR(linkups.l.size()) + " [";
@@ -2043,8 +2054,24 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
     ASSERT_SERIAL_OFFSET(*this, overlapsMerged, 2, debugCurveData);
     if (!debugCurveData.empty()) {
 		s += "debugCurveData:" + STR(debugCurveData.size()) + " [";
-		for (const PathOpsV0Lib::DebugCurveData& dcd : debugCurveData)
-            s += DebugCurveData_DebugDump(context, dcd);
+		for (size_t index = 0; index < debugCurveData.size(); ++index) {
+            const PathOpsV0Lib::DebugCurveData& dcd = debugCurveData[index];
+            if (DebugLevel::file == l)
+                s += DebugCurveData_DebugDump(context, dcd);
+            else {
+                std::vector<float> extrema;
+                PathOpsV0Lib::Curve c = debugCurve(index, &extrema);
+                s += Curve_DebugDump(c, l, b) + " ";
+                if (!extrema.empty()) {
+                    s += "extrema:" + STR(extrema.size()) + " [";
+                    for (float extreme : extrema) {
+                        s += STR(extreme) + " ";
+                    }
+		            s.pop_back();
+		            s += closeBracket;
+                }
+            }
+        }
 		s.pop_back();
 		s += closeBracket;
     }
@@ -2281,17 +2308,23 @@ OpContour* OpContourStorage::debugFind(int ID) const {
     return next->debugFind(ID);
 }
 
-OpContour* OpContourStorage::debugIndex(int index) const {
+// this walks 'backwards', from oldest to newest
+OpContour* OpContourStorage::debugIndex(int contourIndex) const {
     const OpContourStorage* block = this;
-    while (index >= block->used) {
-        index -= block->used;
+    // build an array from that can be walked from back to front
+    std::vector<const OpContourStorage*> blocks;
+    do {
+	    blocks.push_back(block);
         block = block->next;
-        if (!block)
-            return nullptr;
+    } while (block);
+    // walk the array of blocks in the order they were allocated (back to front)
+    for (size_t index = blocks.size(); index-- != 0; ) {
+        block = blocks[index];
+        if (contourIndex < block->used)
+            return const_cast<OpContour*>(&block->storage[contourIndex]);
+        contourIndex -= block->used;
     }
-    if (block->used <= index)
-        return nullptr;
-    return const_cast<OpContour*>(&block->storage[index]);
+    return nullptr;
 }
 
 std::string OpContourStorage::debugDump(DebugLevel l, DebugBase b) const {

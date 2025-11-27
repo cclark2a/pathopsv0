@@ -27,8 +27,10 @@
 #include "PathOps.h"
 #include "DebugOpsTypes.h"
 
+#if 0
 SkBitmap bitmap;
 SkFont labelFont(nullptr, 14, 1, 0);  // windows by default: "Segoe UI"
+#endif
 
 std::vector<OpDebugRay> lines;
 std::vector<PathOpsV0Lib::ColorCurve> curves;
@@ -45,9 +47,11 @@ ALIAS_LIST
 CALLOUT_LIST
 #undef OP_X
 
+#if 0
 SkBitmap& bitmapRef() {
 	return bitmap;
 }
+#endif
 
 #define DRAW_IDS_ON(Thing) \
 	do { \
@@ -83,7 +87,7 @@ void OpDebugImage::addToPath(const OpCurve& curve, SkPath& path) {
 }
 
 void OpDebugImage::init() {
-	bitmap.allocPixels(SkImageInfo::MakeN32Premul(bitmapWH, bitmapWH));
+//	bitmap.allocPixels(SkImageInfo::MakeN32Premul(bitmapWH, bitmapWH));
 	::clear();
 	focusSegments();
 }
@@ -277,6 +281,7 @@ void OpDebugImage::playback(FILE* file) {
 
 #undef READ_FEATURE
 
+#if 0
 void OpDebugImage::clearScreen() {
 	SkCanvas offscreen(bitmap);
 	offscreen.clear(SK_ColorWHITE);
@@ -291,7 +296,6 @@ void OpDebugImage::drawPath(const SkPath& path, uint32_t color) {
 	offscreen.drawPath(path, paint);
 }
 
-#if 0
 void DebugColorEdges() {
 	for (auto edgeIter = edgeIterator.begin(); edgeIter != edgeIterator.end(); ++edgeIter) {
 		OpEdge* edge = *edgeIter;
@@ -537,6 +541,7 @@ void OpDebugImage::drawDoubleFocus(const OpRect& b, bool add) {
 	drawDoubleFocus();
 }
 
+#if 0
 void OpDebugImage::drawDoubleFill(const SkPath& path, uint32_t color, bool strokeAndFill) {
 	SkCanvas offscreen(bitmap);
 	SkPaint paint;
@@ -660,6 +665,7 @@ void OpDebugImage::drawGrid() {
 		}
 	}
 }
+#endif
 
 // !!! should be named 'move grid center to' ? or should it keep center while zooming?
 void gridCenter(int x, int y) {
@@ -706,10 +712,12 @@ void redraw() {
 	OpDebugImage::drawDoubleFocus();
 }
 
+#if 0
 void textSize(float s) {
 	labelFont.setSize(s);
 	OpDebugImage::drawDoubleFocus();
 }
+#endif
 
 void OpDebugImage::center(int id, bool add) {
 	OpPointBounds pointBounds;
@@ -1223,7 +1231,7 @@ void focusSegments() {
 
 // note that operands are not cleared
 void clear() {
-	OpDebugImage::clearScreen();
+//	OpDebugImage::clearScreen();
 	OpDebugImage::clearCurves();
 	OpDebugImage::clearLines();
 	OpDebugImage::clearPoints();
@@ -1245,6 +1253,7 @@ void clearPoints() {
 	DebugOpResetFocus();
 }
 
+#if 0
 bool OpDebugImage::bitsAreBlank(bool allowIntersect, SkRect& test) {
 	SkRect skBounds { 0, 0, bitmapWH, bitmapWH };
 	if (allowIntersect ? !skBounds.intersect(test) : !skBounds.contains(test))
@@ -1402,7 +1411,6 @@ bool OpDebugImage::drawValue(OpPoint pt, std::string ptStr, uint32_t color) {
 	return false;
 }
 
-#if 0
 void OpDebugImage::drawPoints() {
 	DebugOpClearPoints();
 	auto drawPathPt = [](const SkPath* path) { // lambda
@@ -2226,7 +2234,6 @@ void OpCurveCurve::draw() const {
 	DRAW_IDS_ON(Edges);
 	OpDebugImage::drawDoubleFocus(focusRect, false);
 }
-#endif
 
 bool OpDebugImage::drawEdgeNormal(OpVector norm, OpPoint midTPt, int edgeID, uint32_t color) {
 	LinePts normal { midTPt, midTPt + norm };
@@ -2341,7 +2348,6 @@ bool OpDebugImage::drawCurve(OpCurve& curve, uint32_t color) {
 	return true;
 }
 
-#if 0
 void OpDebugImage::drawLines() {
 	SkCanvas offscreen(bitmap);
 	SkPaint paint;

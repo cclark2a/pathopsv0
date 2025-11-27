@@ -139,6 +139,7 @@ struct DebugRaster {
 	int subSamples = -1;
 	bool sendToDebugger = (bool) -1;
 	bool makeBits = (bool) -1;
+	OP_DEBUG_VALIDATE_CODE(bool disableValidate = true);
 };
 
 #endif

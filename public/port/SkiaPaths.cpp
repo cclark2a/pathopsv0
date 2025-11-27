@@ -104,7 +104,7 @@ void PathOpsV0Lib::emptySkPathFunc(Context* context) {
 }
 
 void SetSkiaContextCallbacks(Context* context) {
-#if !OP_DEBUG_FAST_TEST && OP_DEBUG
+#if TEST_ANALYZE
     if (DebugAnalyze(context))
         return;
 #endif
@@ -179,8 +179,7 @@ void AddSkiaPath(Context* context, Contour* contour, const SkPath& path
 //            OP_DEBUG_CODE(if (addDebugPtr) addDebugPtr->add(contour));
             break;
         case SkPath::kLine_Verb:
-            if (pts[0] != pts[1])
-                AddLine(contour, { context, (OpPoint*) pts, sizeof(SkPoint) * 2, SkPath::kLine_Verb } );
+            AddLine(contour, { context, (OpPoint*) pts, sizeof(SkPoint) * 2, SkPath::kLine_Verb } );
             closeLine[0] = { pts[1].fX, pts[1].fY };
             break;
         case SkPath::kQuad_Verb:

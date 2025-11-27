@@ -238,6 +238,7 @@ public:
 	SkPathFillType fFillType = SkPathFillType::kWinding;
 };
 
+#if 0
 struct SkImageInfo {
 	static SkImageInfo MakeN32Premul(int w, int h) {
 		SkImageInfo i;
@@ -319,6 +320,7 @@ struct SkPaint {
 	Style style;
 	SkBlendMode blendMode;
 };
+#endif
 
 struct SkString {
 	SkString() {}
@@ -331,6 +333,7 @@ struct SkString {
 	std::string string;
 };
 
+#if 0
 enum SkTextEncoding {
 	kUTF8
 };
@@ -380,6 +383,7 @@ struct SkCanvas {
 	SkBitmap& bitmap;
 	std::vector<SkMatrix> m;
 };
+#endif
 
 // !!! don't think I'll implement these!
 //inline bool Op(const SkPath& one, const SkPath& two, SkPathOp op, SkPath* result) { return true; }

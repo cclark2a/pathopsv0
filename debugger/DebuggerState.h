@@ -90,11 +90,12 @@ struct DebuggerState {
     void setDepth(int );
     void setIDTypes();
     bool update();  // changed dump file, context data
+    void validate();
 
     std::vector<OpType> ids;
     std::string opFileName;
     OpContext* context = nullptr;
-    DebuggerWindow* lastFocus = nullptr;  // either picture window or text window
+    DebuggerWindow* lastFocus = nullptr;  // never help window
     time_t lastTime = 0;
     int updateAttempts = 0;
     int updateDelay = 1;
@@ -115,6 +116,7 @@ struct DebuggerState {
     bool showSegments = false;
     bool showHelp = false;
     bool showBits = false;
+    bool validation = true;  // turn on as needed
 };
 
 #endif

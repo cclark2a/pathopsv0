@@ -10,33 +10,33 @@ struct DebugSect {  // curve intersected with focus rectangle, and intersection 
     bool pin;
 };
 
-void DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
+bool DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
     if (c.data->start == c.data->end)
-        return;
+        return false;
     // if adding fill, wrap curve to focus bounds
     OpCurve curve(c, monotonic ? Rotated::no : Rotated::yes);
     OpPointBounds bounds = curve.ptBounds();
     auto addVertical = [c, bounds, this](float x) {
         if (!addingFill)
-            return;
+            return false;
         float top = std::max(bounds.top, window->focus.top);
         float bottom = std::min(bounds.bottom, window->focus.bottom);
         if (top >= bottom)
-            return;
+            return false;
         if (c.data->start.y > c.data->end.y)
             std::swap(top, bottom);
-        window->add({ x, top }, { x, bottom }, this);
+        return window->add({ x, top }, { x, bottom }, this);
     };
     auto addHorizontal = [c, bounds, this](float y) {
         if (!addingFill)
-            return;
+            return false;
         float left = std::max(bounds.left, window->focus.left);
         float right = std::min(bounds.right, window->focus.right);
         if (left >= right)
-            return;
+            return false;
         if (c.data->start.x > c.data->end.x)
             std::swap(left, right);
-        window->add({ left, y }, { right, y }, this);
+        return window->add({ left, y }, { right, y }, this);
     };
     if (bounds.right <= window->focus.left)
         return addVertical(window->focus.left);
@@ -46,10 +46,8 @@ void DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
         return addHorizontal(window->focus.top);
     if (bounds.top >= window->focus.bottom)
         return addHorizontal(window->focus.bottom);
-    if (window->focus.contains(bounds)) {
-        window->add(curve, this);
-        return;
-    }
+    if (window->focus.contains(bounds))
+        return window->add(curve, this);
     std::vector<DebugSect> sects;
     // bounds overlaps, but curve may not intersect; find interior ends, intersection with bounds
     auto addPin = [this, &sects](OpPtT end) {
@@ -110,6 +108,7 @@ void DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
     }
     if (debugThis)
         OpNop();
+    return true;  // !!! don't know that this is always true
 }
 
 void DebuggerAddPoly::add(const OpEdge* e) {
@@ -128,13 +127,14 @@ void DebuggerAddPoly::add(const OpSegment* s) {
 
 // !!! for segments making up area; color comes from contour
 void DebuggerAddPoly::add(const OpContour* c) {
-    opType = OpType(c);
+    opType = OpType(c, -1);
     addingFill = true;
     monotonic = false;
     OpPoint last(SetToNaN::dummy);
-    for (curveIndex = 0; curveIndex < (int) c->debugCurveData.size(); ++curveIndex) {
+    for (opType.curveIndex = 0; opType.curveIndex < (int) c->debugCurveData.size(); 
+            ++opType.curveIndex) {
         std::vector<float> extrema;
-        OpCurve opCurve = c->debugCurve(curveIndex, &extrema);
+        OpCurve opCurve(c->debugCurve(opType.curveIndex, &extrema), Rotated::no);
         OpRoots tValues;
         for (float ex : extrema) {
             tValues.add(ex);
@@ -145,8 +145,8 @@ void DebuggerAddPoly::add(const OpContour* c) {
         for (int index = 0; index < tValues.count() - 1; ++index) {
             OpCurve piece = opCurve.subDivide(tValues.roots[index], tValues.roots[index + 1]);
             continueCurve = last == piece.firstPt();
-            add(piece.c);
-            last = piece.lastPt();
+            if (add(piece.c))
+                last = piece.lastPt();
         }   
     }
     continueCurve = false;
@@ -164,8 +164,6 @@ void DebuggerAddPoly::add(const OpRect& r) {
     return picture->add(points);
 }
 #endif
-
-#if OP_DEBUG_DUMP
 
 extern DebugBase defaultBase;
 extern DebugLevel defaultLevel;
@@ -197,4 +195,9 @@ void DebuggerPoly::dump() const {
     OpDebugOut(s);
 }
 
-#endif
+void DebuggerPoly::validate() const {
+    if (!isPrimary)
+        return;
+    OpDebugValidate(c);  // !!! add when needed
+    opType.validate();
+}

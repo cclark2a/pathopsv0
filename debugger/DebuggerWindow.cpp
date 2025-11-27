@@ -37,18 +37,20 @@ struct OpContextSaveThreshold {
     OpVector save;
 };
 
-void DebuggerWindow::add(const OpCurve& curve, DebuggerAddPoly* polyAdder) {
+bool DebuggerWindow::add(const OpCurve& curve, DebuggerAddPoly* polyAdder) {
         // if adding a contour lengthen existing poly it it matches and close the contour as well...
-    bool debugThis = IDType::segment == polyAdder->opType.type && 5 == polyAdder->opType.segment->id 
-            && polyAdder->opType.segment->ptBounds.top < focus.top;
+    bool debugThis = IDType::contour == polyAdder->opType.type && 1 == polyAdder->opType.contour->id 
+            && 1 == polyAdder->opType.curveIndex;
+    if (debugThis)
+        OpNop();
     if (!polyAdder->continueCurve) {
         polys.emplace_back();
         polys.back().c = curve.c;
         if (IDType::contour == polyAdder->opType.type)
             polys.back().color = polyAdder->opType.contour->debugColor;
     }
-    DebuggerPoly& poly = polys.back();
-    if (polyAdder) {
+    if (polyAdder && !polys.empty()) {
+        DebuggerPoly& poly = polys.back();
         poly.opType = polyAdder->opType;
         poly.isPrimary = true;
         if (IDType::contour == poly.opType.type)
@@ -76,8 +78,10 @@ void DebuggerWindow::add(const OpCurve& curve, DebuggerAddPoly* polyAdder) {
         do {
             start = end;
             end = std::min(1.f, start + span);
-            if (start >= end)
-                return;
+            if (start >= end) {
+                validate();
+                return true;  // !!! don't know that this is always right
+            }
             piece = curve.subDivide(start, end);
             pieceIsLine = piece.isLine();
             if (!pieceIsLine && lastEnd.isFinite()) {
@@ -93,6 +97,8 @@ void DebuggerWindow::add(const OpCurve& curve, DebuggerAddPoly* polyAdder) {
     append(curve.c.data->end);
     if (debugThis)
         OpNop();
+    validate();
+    return true;  // !!! don't know that this is always right
 }
 
 // span is between first and last points, but does not extend last point (unless, see below)
@@ -112,13 +118,14 @@ void DebuggerWindow::add(std::vector<OpPoint>& pts ) {
         add(curve, nullptr);
         last = pt;
     }
+    validate();
 }
 
 // for fill only
 // span is between points, but does not extend last point unless last point equals first point
-void DebuggerWindow::add(OpPoint pt1, OpPoint pt2, DebuggerAddPoly* polyAdder) {
+bool DebuggerWindow::add(OpPoint pt1, OpPoint pt2, DebuggerAddPoly* polyAdder) {
     if (pt1 == pt2)
-        return;
+        return false;
     std::vector<OpPoint>* lines = nullptr;
     auto getLines = [this, polyAdder, &lines]() {
         polys.emplace_back();
@@ -146,6 +153,8 @@ void DebuggerWindow::add(OpPoint pt1, OpPoint pt2, DebuggerAddPoly* polyAdder) {
     if (lines->empty() || lines->back() != pt1)
         lines->push_back(pt1);
     lines->push_back(pt2);
+    validate();
+    return true;
 }
 
 DebuggerPoly& DebuggerWindow::add(const OpRect& r, uint32_t color, float thickness) {
@@ -160,6 +169,7 @@ DebuggerPoly& DebuggerWindow::add(const OpRect& r, uint32_t color, float thickne
     poly.contours.push_back(points.size());
     poly.color = color;
     poly.thickness = thickness;
+    validate();
     return poly;
 }
 
@@ -192,6 +202,7 @@ void DebuggerWindow::append(OpPoint pt) {
     if (polys.empty())
         polys.emplace_back();
     polys.back().local.push_back(pt);
+//    validate();  // !!! too soon, added poly isn't initialized
 }
 
 void DebuggerWindow::clearWindow() {
@@ -274,12 +285,16 @@ void DebuggerWindow::setSize() {
     allocateBuffers();
 }
 
-#if OP_DEBUG_DUMP
 std::string DebuggerWindow::debugTextDump(size_t index) {
     OP_ASSERT(index < textCache.size());
     return textCache[index].debugDump();
 }
-#endif
+
+void DebuggerWindow::validate() const {
+    for (const DebuggerPoly& poly : polys) {
+        poly.validate();
+    }
+}
 
 DebuggerEvent::DebuggerEvent(DebuggerState* debuggerState, SDL_Keymod mod, SDL_WindowID windowID) {
     keyMods = KeyMods::none;
