@@ -31,18 +31,19 @@ struct DebugContextData {
 };
 
 #if OP_DEBUG
-typedef void (*DebugScale)(Curve , double scale, double offsetX, double offsetY);
+typedef void (*DebugScale)(Curve , double scaleX, double scaleY, double offsetX, double offsetY);
 
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_SERIALIZE_OUT
 // returns string name of curve type
 typedef std::string (*DebugDumpCurveName)();
 
 // describes caller data for debugging (does not include points: e.g., a rational Bezier weight)
 typedef std::string (*DebugDumpCurveExtra)(Curve , DebugLevel , DebugBase);
+
+typedef void (*DebugSubDivide)(Curve , float t1, float t2, Curve* result);
 #endif
 
-#if OP_DEBUG_IMAGE && !OP_TINY_SKIA
-// !!! documentation comment missing
+#if 0
 typedef void (*DebugAddToPath)(Curve , class SkPath& );
 #endif
 
@@ -52,13 +53,15 @@ typedef void (*DebugAddRaster)(DebugContextData , Curve , int parentID);
 
 struct DebugCurveCallbacks {
 	DebugScale scaleFuncPtr;
-	OP_DEBUG_DUMP_CODE(DebugDumpCurveName curveNameFuncPtr;)
-	OP_DEBUG_DUMP_CODE(DebugDumpCurveExtra curveExtraFuncPtr = nullptr;)
-    OP_DEBUG_DUMP_CODE(SubDivide debugSubDivideFuncPtr = nullptr;)
+#if OP_DEBUG_SERIALIZE_OUT
+	DebugDumpCurveName curveNameFuncPtr;
+	DebugDumpCurveExtra curveExtraFuncPtr = nullptr;
+    DebugSubDivide debugSubDivideFuncPtr = nullptr;
+#endif
 //    OP_DEBUG_RASTER_CODE(DebugAddRaster addRasterFuncPtr = nullptr;)
 };
 
-#if OP_DEBUG_IMAGE
+#if OP_DEBUG_SERIALIZE_OUT
 struct DebugEdgeType {
     bool disabled;
     bool inOutput;
@@ -70,11 +73,10 @@ struct DebugEdgeType {
 
 // typedef uint8_t (*DebugBitOper)(DebugContourData , uint8_t , uint8_t);
 typedef bool (*DebugIsFill)(Winding );
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_SERIALIZE_OUT
 typedef std::string (*DebugDumpWindingOut)(Winding );
 typedef void (*DebugDumpWindingSet)(const char*& , Winding& );
-#endif
-#if OP_DEBUG_IMAGE
+typedef std::string (*DebugDumpOut)(Context* );
 typedef std::string (*DebugImageWindingOut)(Winding );
 typedef std::vector<std::string> (*DebugImageWindingNames)();
 typedef uint32_t (*DebugEdgeColor)(Winding , DebugEdgeType );
@@ -82,11 +84,10 @@ typedef uint32_t (*DebugEdgeColor)(Winding , DebugEdgeType );
 
 struct DebugContextCallbacks {
     DebugIsFill debugIsFillFuncPtr = nullptr;
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_SERIALIZE_OUT
 	DebugDumpWindingOut debugDumpWindingOutFuncPtr = nullptr;
 	DebugDumpWindingSet debugDumpWindingSetFuncPtr = nullptr;
-#endif
-#if OP_DEBUG_IMAGE
+    DebugDumpOut debugDumpOutFuncPtr = nullptr;
 	DebugImageWindingOut debugImageWindingOutFuncPtr = nullptr;
     DebugImageWindingNames debugImageWindingNamesFuncPtr = nullptr;
     DebugEdgeColor debugEdgeColorFuncPtr = nullptr;
@@ -94,10 +95,8 @@ struct DebugContextCallbacks {
 #endif
 };
 
-#if 0 && OP_DEBUG_DUMP  // disable until we need it
+#if 0 && OP_DEBUG_SERIALIZE_OUT  // disable until we need it
 typedef std::string (*DebugDumpContourExtra)(DebugContourData , DebugLevel , DebugBase );
-#endif
-#if 0 && OP_DEBUG_IMAGE
 typedef void* (*DebugNativePath)(DebugContourData );
 typedef bool (*DebugGetDraw)(DebugContourData );
 typedef void (*DebugSetDraw)(DebugContourData , bool);
@@ -105,10 +104,8 @@ typedef bool (*DebugOperand)(DebugContourData , int );  // deprecated
 #endif
 
 struct DebugContourCallbacks {
-#if OP_DEBUG_DUMP
-//    DebugDumpContourExtra debugDumpContourExtraFuncPtr = nullptr;
-#endif
-#if 0 && OP_DEBUG_IMAGE
+#if 0 && OP_DEBUG_SERIALIZE_OUT
+    DebugDumpContourExtra debugDumpContourExtraFuncPtr = nullptr;
 	DebugNativePath debugNativePathFuncPtr = nullptr;
 	DebugGetDraw debugGetDrawFuncPtr = nullptr;
 	DebugSetDraw debugSetDrawFuncPtr = nullptr;
@@ -116,20 +113,6 @@ struct DebugContourCallbacks {
     DebugEdgeColor debugEdgeColorFuncPtr = nullptr;
 #endif
 };
-
-
-#if OP_DEBUG_IMAGE
-struct ColorCurve {
-    Curve curve;
-    uint32_t color;
-};
-#endif
-
-#if 0  // not (yet) implemented
-typedef uint32_t (*DebugCCOverlapsColor)(DebugContextData );  
-typedef uint32_t (*DebugCurveCurveColor)(DebugContextData );
-typedef uint32_t (*DebugNativeFillColor)(DebugContextData );
-#endif
 
 #endif
 

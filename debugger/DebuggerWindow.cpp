@@ -20,6 +20,7 @@ DebuggerWindow::DebuggerWindow(DebuggerState* state, WheelTarget target)
     addPoly.window = this;
 }
 
+/*
 struct OpContextSaveThreshold {
     OpContextSaveThreshold(OpContext* c, OpVector threshold) {
         context = c;
@@ -36,13 +37,12 @@ struct OpContextSaveThreshold {
     OpContext* context;
     OpVector save;
 };
+*/
 
+// !!! usable, but needs work
+// consecutive lines need to overlap; as is, next line is not close to tangent with previous...
 bool DebuggerWindow::add(const OpCurve& curve, DebuggerAddPoly* polyAdder) {
-        // if adding a contour lengthen existing poly it it matches and close the contour as well...
-    bool debugThis = IDType::contour == polyAdder->opType.type && 1 == polyAdder->opType.contour->id 
-            && 1 == polyAdder->opType.curveIndex;
-    if (debugThis)
-        OpNop();
+    // if adding a contour lengthen existing poly it it matches and close the contour as well...
     if (!polyAdder->continueCurve) {
         polys.emplace_back();
         polys.back().c = curve.c;
@@ -56,48 +56,53 @@ bool DebuggerWindow::add(const OpCurve& curve, DebuggerAddPoly* polyAdder) {
         if (IDType::contour == poly.opType.type)
             poly.thickness = DebuggerPoly::fill_thickness;
     }
-    OpContextSaveThreshold save(context(), threshold);
     // curve is fully inside focus; split it into lines
     // lengthen curve while longer is linear
-    float start = 0;
-    float end = 1;
+    OpPtT start { curve.c.data->start, 0 };
+    OpPtT end { curve.c.data->end, 1 };
     // split curve until a piece is linear
-    append(curve.c.data->start);
-    OpCurve piece = curve;
-    do {
-        while (!piece.isLine()) {
-            end = OpMath::Average(start, end);
-            piece = curve.subDivide(start, end);
+    append(start.pt);
+    if (curve.debugIsLine()) {
+        append(end.pt);
+        return true;
+    }
+    float thresLen = threshold.length();
+    OpPoint lastAppend = start.pt;
+    for (;;) {
+        LinePts ends { start.pt, end.pt };
+        for (;;) {
+            float midT = OpMath::Average(start.t, end.t);
+            if (start.t >= midT || midT >= end.t)
+                goto giveUp;
+            OpPoint midPt = curve.ptAtT(midT);
+            if (ends.ptOnLine(midPt, thresLen))
+                break;
+            end = { midPt, midT };
+            ends.pts[1] = end.pt;
         }
-        append(piece.c.data->end);
-        float span = end - start;
-        OP_ASSERT(span > 0);
+        float spanT = end.t - start.t;
+        OP_ASSERT(spanT > 0);
         // lengthen the curve while a piece is linear (and while it can be longer)
-        bool pieceIsLine = false;
-        OpPoint lastEnd(SetToNaN::dummy);
-        do {
-            start = end;
-            end = std::min(1.f, start + span);
-            if (start >= end) {
-                validate();
-                return true;  // !!! don't know that this is always right
-            }
-            piece = curve.subDivide(start, end);
-            pieceIsLine = piece.isLine();
-            if (!pieceIsLine && lastEnd.isFinite()) {
-                append(lastEnd);
-                start = OpMath::Average(start, end);
-                piece = curve.subDivide(start, end);
+        while (end.t < 1) {
+            float longerT = std::min(1.f, end.t + spanT);
+            ends.pts[1] = curve.ptAtT(longerT);
+            if (!ends.ptOnLine(end.pt, thresLen)) {
+                append(end.pt);
+                lastAppend = end.pt;
                 break;
             }
-            span *= 2;
-            lastEnd = piece.c.data->end;
-        } while (pieceIsLine && end < 1.f);
-    } while (end < 1 || !piece.isLine());
-    append(curve.c.data->end);
-    if (debugThis)
-        OpNop();
-    validate();
+            end = { ends.pts[1], longerT };
+            spanT *= 2;
+        }
+        if (end.t >= 1)
+            break;
+        start = end;
+        float endT = std::min(1.f, start.t + spanT);
+        end = curve.ptTAtT(endT); 
+    }
+giveUp:
+    if (lastAppend != curve.c.data->end)
+        append(curve.c.data->end);
     return true;  // !!! don't know that this is always right
 }
 

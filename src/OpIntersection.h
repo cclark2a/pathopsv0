@@ -114,6 +114,8 @@ struct OpIntersection {
 #endif
 #if OP_DEBUG_DUMP
 	void debugCompare(std::string) const;
+#endif
+#if OP_DEBUG_SERIALIZE_OUT
 	#define OP_X(Thing) \
 	std::string debugDump##Thing() const; \
 	void dump##Thing() const;
@@ -222,12 +224,14 @@ struct OpSectStorage {
 		, used(0) {
 	}
 #if OP_DEBUG_DUMP
-	int debugCount() const;
 	OpIntersection* debugFind(int id) const;
-	OpIntersection* debugIndex(int index) const;
 	static void DumpSet(const char*& , OpContext* );
-	DUMP_DECLARATIONS
 #endif
+#if OP_DEBUG_SERIALIZE_OUT
+	int debugCount() const;
+	OpIntersection* debugIndex(int index) const;
+#endif
+	DUMP_DECLARATIONS
 
 	OpSectStorage* next;
 	OpIntersection storage[256];

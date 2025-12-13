@@ -143,7 +143,7 @@ void DebuggerAddPoly::add(const OpContour* c) {
         tValues.add(1);
         tValues.sort();
         for (int index = 0; index < tValues.count() - 1; ++index) {
-            OpCurve piece = opCurve.subDivide(tValues.roots[index], tValues.roots[index + 1]);
+            OpCurve piece = opCurve.debugSubDivide(tValues.roots[index], tValues.roots[index + 1]);
             continueCurve = last == piece.firstPt();
             if (add(piece.c))
                 last = piece.lastPt();
@@ -198,6 +198,7 @@ void DebuggerPoly::dump() const {
 void DebuggerPoly::validate() const {
     if (!isPrimary)
         return;
-    OpDebugValidate(c);  // !!! add when needed
+    if (c.context)
+        OpDebugValidate(c);  // !!! add when needed
     opType.validate();
 }

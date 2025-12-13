@@ -233,18 +233,11 @@ inline bool binaryDebugIsFill(Winding winding) {
 }
 #endif
 
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_SERIALIZE_OUT
 inline std::string binaryDumpOutFunc(Winding winding) {
     BinaryData binary(winding);
     std::string s = "{" + STR(binary.left) + ", " + STR(binary.right) + "}";
     return s;
-}
-
-inline void binaryDumpSetFunc(const char*& str, Winding& winding) {
-    int left = OpDebugReadSizeT(str);
-    int right = OpDebugReadSizeT(str);
-    BinaryData binary(left, right);
-    binary.copyTo(winding);
 }
 
 #define BINARY_WINDING_TAGGED_FUNCTIONS \
@@ -262,15 +255,16 @@ inline void binaryDumpSetFunc(const char*& str, Winding& winding) {
     OP_TAGGED_FUNCTION(binarySubtractRightFunc), \
     OP_TAGGED_FUNCTION(binaryDebugIsFill), \
     OP_TAGGED_FUNCTION(binaryDumpOutFunc), \
-    OP_TAGGED_FUNCTION(binaryDumpSetFunc), \
 
 #endif
 
-#if OP_DEBUG_IMAGE
-// !!! this will replace index version
-inline std::string binaryImageOutFunc(Winding winding) {
-    BinaryData binaryData(winding);
-    return STR(binaryData.left) + " " + STR(binaryData.right);
+#if OP_DEBUG_DUMP
+
+inline void binaryDumpSetFunc(const char*& str, Winding& winding) {
+    int left = OpDebugReadSizeT(str);
+    int right = OpDebugReadSizeT(str);
+    BinaryData binary(left, right);
+    binary.copyTo(winding);
 }
 
 inline std::vector<std::string> binaryImageNamesFunc() {
@@ -312,11 +306,23 @@ inline WindKeep binaryVisibleFunc(Winding w, Winding s) {
     return keepLeft;
 }
 
-#define BINARY_IMAGE_TAGGED_FUNCTIONS \
-    OP_TAGGED_FUNCTION(binaryImageOutFunc), \
+#define DUMP_BINARY_WINDING_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(binaryDumpSetFunc), \
     OP_TAGGED_FUNCTION(binaryImageNamesFunc), \
     OP_TAGGED_FUNCTION(binaryColorFunc), \
     OP_TAGGED_FUNCTION(binaryVisibleFunc), \
+
+#endif
+
+#if OP_DEBUG_SERIALIZE_OUT
+// !!! this will replace index version
+inline std::string binaryImageOutFunc(Winding winding) {
+    BinaryData binaryData(winding);
+    return STR(binaryData.left) + " " + STR(binaryData.right);
+}
+
+#define BINARY_IMAGE_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(binaryImageOutFunc), \
 
 #endif
 
@@ -329,9 +335,8 @@ inline Context* binaryContext(CurveOutput output = nullptr, EmptyCallerPath empt
     SetDebugData(context, debugData);
 	SetDebugContextCallbacks(context, {
         binaryDebugIsFill
-        OP_DEBUG_DUMP_PARAMS(binaryDumpOutFunc, binaryDumpSetFunc)
-        OP_DEBUG_IMAGE_PARAMS(binaryImageOutFunc, binaryImageNamesFunc, binaryColorFunc,
-                    binaryVisibleFunc)
+        OP_DEBUG_DUMP_PARAMS(binaryDumpOutFunc, binaryDumpSetFunc, nullptr,
+                binaryImageOutFunc, binaryImageNamesFunc, binaryColorFunc, binaryVisibleFunc)
     });
 #endif
     return context;

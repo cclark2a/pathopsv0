@@ -139,11 +139,8 @@ if (looped || deadEnd)  // triggered when walking children of trunk
 		return;
 	if (LimbPass::unlinkedPal == pass)
 		return;
-    PathOpsV0Lib::ErrorHandler& errorHandler = contour.context->errorHandler;
-	if (errorHandler.errorDispatchFuncPtr && !errorHandler.errorDispatchFuncPtr(
-			PathOpsV0Lib::ContextError::missing, &edge->curve.c)) {
-        return;
-    }
+	if (contour.context->allowError(PathOpsV0Lib::ContextError::missing, &edge->curve.c))
+		return;
 	OP_ASSERT(LimbPass::disabledBackwards == pass);
 	// check if tree's best distance is small enough with a user-provided multiplier
 	// (motivated by loop193532 whose best distance 9.53e-7 exceeds threshold length 8.18e-7;
@@ -524,11 +521,10 @@ OpEdge* OpTree::addFiller(OpSegment* seg, const OpPtT& ptT1, const OpPtT& ptT2, 
 			OP_DEBUG_CODE(OpDebugOut("\n"));
 			OP_DEBUG_DUMP_CODE(dump());
 			context->setError(PathOpsV0Lib::ContextError::gap  OP_DEBUG_PARAMS(id));
+			// !!! dump file here?
 		}
-		OP_ASSERT(OpJoiner::DebugShowImage());
 	}
-	OpEdge* result = context->addFiller(ptT1, ptT2);
-	result->segment = seg;
+	OpEdge* result = context->addFiller(ptT1, ptT2, seg);
 	return result;
 }
 
@@ -686,9 +682,9 @@ bool OpTree::join(OpJoiner& join) {
 		bestL = lastLimb;
 		best = bestL->edge;
 	}
-//    start here;
-    // set join.edge to first in linked list
-    EdgeOutput edgeOutput(context, join.edge, false);
+	// close path unless caller allows disjoint results (by allowing context error missing) 
+	bool allowGaps = context->allowError(PathOpsV0Lib::ContextError::missing, &join.edge->curve.c);
+	EdgeOutput edgeOutput(context, join.edge, !allowGaps);
 	OP_TRACK(linkupsErasures);
 	for (OpEdge* edge : linkupsErasures) {
         if (!edge->inOutput) {
@@ -708,6 +704,7 @@ bool OpTree::join(OpJoiner& join) {
 	}
 	OP_DEBUG_VALIDATE_CODE(join.debugValidate());
 	context->resetLimbs();
+	// in dump mode, this does not release filler which is in output, for raster debugging
 	context->resetFiller();  // may delete edge that another edge references in prior/next
 	return true;
 }
@@ -864,14 +861,7 @@ OpJoiner::~OpJoiner() {
 bool OpJoiner::linkRemaining(OpContour* contour) {
 	OP_DEBUG_CONTEXT();
 	LinkUps& linkups = contour->linkups;
-//	OP_ASSERT(DebugShowImage());
-#if OP_DEBUG_DUMP && !TEST_DEFEAT_BREAK
-    OpDebugData& debugData = context->debugData;
-    if (debugData.runOneFile) {
-        dmpFile();
-//        OpAssert(0);
-    }
-#endif
+    OP_DEBUG_DUMP_CODE(context->dumpFile("linkRemaining"));
 	linkPass = LinkPass::remaining;
 	// match links may add or remove from link ups. Iterate as long as link ups is not empty
 	for (auto e : linkups.l) {
@@ -958,7 +948,7 @@ bool OpJoiner::LinkEnd(OpEdge* first) {
 			last->setNextEdge(first);
 			OP_ASSERT(!first->priorEdge);
 			first->setPriorEdge(last);
-			first->outputLinkedList(first, true);
+			first->outputLinkedList();
 			return false;
 		}
 		OP_ASSERT(!nextEdge->priorEdge);
@@ -967,7 +957,7 @@ bool OpJoiner::LinkEnd(OpEdge* first) {
 		OP_ASSERT(!edge->nextEdge);
 		edge->setNextEdge(nextEdge);
 		if (nextEdge->nextEdge && edge->priorEdge) {
-			first->outputLinkedList(first, true);
+			first->outputLinkedList();
 			return false;
 		}
 		edge = nextEdge;
@@ -990,13 +980,7 @@ bool OpJoiner::linkSimple(OpEdge* first) {
 #endif
 
 void OpJoiner::linkUnambiguous(OpContour* contour, LinkPass lp) {
-#if 0 && OP_DEBUG_DUMP && !TEST_DEFEAT_BREAK
-    OpDebugData& debugData = context->debugData;
-    if (debugData.runOneFile) {
-        dmpFile();
-        OpAssert(0);
-    }
-#endif
+    OP_DEBUG_DUMP_CODE(context->dumpFile("linkUnambiguous"));
 	OP_DEBUG_CONTEXT();
 	OP_DEBUG_VALIDATE_CODE(debugValidate());
 	// match up edges that have only a single possible prior or next link, and add them to new list
@@ -1043,9 +1027,7 @@ bool OpJoiner::matchLinks(OpContour* contour, bool popLast) {
 	if (!tree.bestLimb) {
 		OpLimb* gap = tree.bestGapLimb;
 		OP_ASSERT(gap);
-		if (!context->errorHandler.errorDispatchFuncPtr
-				|| context->errorHandler.errorDispatchFuncPtr(
-				PathOpsV0Lib::ContextError::missing, &edge->curve.c)) {
+		if (context->allowError(PathOpsV0Lib::ContextError::missing, &edge->curve.c)) {
 			OpPtT startI = edge->whichSect();
 			OpPtT gapEnd = gap->lastLimbEdge->whichSect(!gap->match);
 			bool usectLink = unsectableLink(contour, startI.pt, gapEnd.pt);

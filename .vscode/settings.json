@@ -54,6 +54,7 @@
         "type_traits": "cpp",
         "__config": "cpp",
         "cstddef": "cpp",
-        "iterator": "cpp"
+        "iterator": "cpp",
+        "tuple": "cpp"
     },
 }

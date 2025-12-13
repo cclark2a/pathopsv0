@@ -290,18 +290,22 @@ inline OpPoint quadHull(Curve c, int index) {
 }
 
 #if OP_DEBUG_DUMP
-inline std::string quadDebugDumpName() { 
-    return "quad"; 
-}
-
 // this is used by the debugger to split the original curves that are not necessarily monotonic
-inline void quadDebugSubDivide(Curve c, float t1, float t2, float threshold, Curve* result) {
+inline void quadDebugSubDivide(Curve c, float t1, float t2, Curve* result) {
 	OpPtT ptT1 { result->data->start, t1 };
 	OpPtT ptT2 { result->data->end, t2 };
     OpPoint subControl = QuadControlPt(c.data->start, quadControlPt(c), c.data->end, ptT1, ptT2);
     quadSetControl(*result, subControl);
-    if (quadIsLine(*result, threshold))
-        result->type = degenerateLine;
+}
+
+#define DUMP_QUAD_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(quadDebugSubDivide), \
+
+#endif
+
+#if OP_DEBUG_SERIALIZE_OUT
+inline std::string quadDebugDumpName() { 
+    return "quad"; 
 }
 
 #define QUAD_TAGGED_FUNCTIONS \
@@ -320,7 +324,6 @@ inline void quadDebugSubDivide(Curve c, float t1, float t2, float threshold, Cur
     OP_TAGGED_FUNCTION(quadSubDivide), \
     OP_TAGGED_FUNCTION(quadXYAtT), \
     OP_TAGGED_FUNCTION(quadDebugDumpName), \
-    OP_TAGGED_FUNCTION(quadDebugSubDivide), \
 
 #endif
 

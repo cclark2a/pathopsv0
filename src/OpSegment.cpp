@@ -550,21 +550,18 @@ void OpSegment::findMissingEnds() {
 		return;
 	OP_ASSERT(!sects.unsorted);
 	OpContext* context = contour->context;
-	if (context->errorHandler.errorDispatchFuncPtr) {
+	if (context->allowError(PathOpsV0Lib::ContextError::end, &c.c)) {
 		bool missingStart = !sects.i.size() || 0 != sects.i.front()->ptT.t;
+		if (missingStart) {
+			OpIntersection* sect = contour->addSegSect({c.firstPt(), 0}, this  
+					OP_LINE_FILE_PARAMS(this));
+			sect->pair(sect);
+			sects.i.insert(sects.i.begin(), sect);
+		}
 		bool missingEnd = !sects.i.size() || 1 != sects.i.back()->ptT.t;
-		if ((missingStart || missingEnd) && !context->errorHandler.errorDispatchFuncPtr(
-				PathOpsV0Lib::ContextError::end, &c.c)) {
-			if (missingStart) {
-				OpIntersection* sect = contour->addSegSect({c.firstPt(), 0}, this  
-						OP_LINE_FILE_PARAMS(this));
-				sect->pair(sect);
-				sects.i.insert(sects.i.begin(), sect);
-			}
-			if (missingEnd) {
-				OpIntersection* sect = addSegBase({c.lastPt(), 1}  OP_LINE_FILE_PARAMS(this));
-				sect->pair(sect);
-			}
+		if (missingEnd) {
+			OpIntersection* sect = addSegBase({c.lastPt(), 1}  OP_LINE_FILE_PARAMS(this));
+			sect->pair(sect);
 		}
 	}
 	if (startMoved || endMoved)
@@ -1067,6 +1064,8 @@ float OpSegment::thresholdLength() const {
 // Note that this must handle a many-to-many relationship between seg and opp.
 // Coincident runs of edges may be interrupted by other intersections but their winding is
 // unaffected (only other coins may break inner coincident windings).
+
+// If edges are not identical, add filler to connect disabled next to kept coin (testQuads2558209)
 void OpSegment::transferCoins() {
 	OP_DEBUG_CONTEXT();
 	if (!hasCoin)

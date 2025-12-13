@@ -637,6 +637,8 @@ uint32_t PictureWindow::edgeColor(const OpEdge& e) {
     PathOpsV0Lib::DebugEdgeType edgeType {
         e.disabled, e.inOutput, Unsortable::none != e.isUnsortable, isCurveCurve, e.ccOverlaps
     };
+    if (WindingType::uninitialized == e.winding.type)
+        return black;
     PathOpsV0Lib::DebugEdgeColor debugEdgeColor = 
             context()->debugContextCallbacks.debugEdgeColorFuncPtr;
     uint32_t color = debugEdgeColor ? (*debugEdgeColor)(e.winding.w, edgeType) : black;

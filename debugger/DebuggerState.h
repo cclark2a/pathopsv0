@@ -3,13 +3,18 @@
 #define DebuggerState_DEFINED
 
 #include "CompareWindow.h"
+#include "DumpWindow.h"
+#include "HelpWindow.h"
 #include "PictureWindow.h"
 #include "TextWindow.h"
-#include "HelpWindow.h"
 #include <SDL3/SDL_init.h>
 
 typedef uint32_t SDL_WindowID;
 typedef uint16_t SDL_Keymod;
+
+extern SDL_AppResult Fail(std::string s);
+extern SDL_AppResult Continue(std::string s);
+extern void ReportError(std::string s);
 
 enum class KeyMods {
     none = 0,
@@ -74,9 +79,21 @@ struct KeyResult {
     DrawLevel l = DrawLevel::none;
 };
 
+struct DebuggerDump {
+    bool update(struct DebuggerState* );
+    std::string filename;
+    OpContext* context = nullptr;
+    time_t lastTime = 0;
+    int maxUpdateAttempts = 16;
+    int updateAttempts = 0;
+    int updateDelay = 1;
+    int updateCount = 0;
+};
+
 struct DebuggerState {
     DebuggerState();
     DebuggerEvent addEvent(SDL_Keymod , SDL_WindowID );
+    SDL_AppResult checkForNewFiles();
     int count(IDType ) const;
     DrawLevel doWheelCommon(const DebuggerEvent& debuggerEvent, int delta);
     void draw();  // same window as before
@@ -89,24 +106,21 @@ struct DebuggerState {
     void redraw();  // changed window size, lay out again
     void setDepth(int );
     void setIDTypes();
-    bool update();  // changed dump file, context data
+    void update();
     void validate();
 
+    std::vector<DebuggerDump> dumps;
     std::vector<OpType> ids;
-    std::string opFileName;
     OpContext* context = nullptr;
     DebuggerWindow* lastFocus = nullptr;  // never help window
-    time_t lastTime = 0;
-    int updateAttempts = 0;
-    int updateDelay = 1;
-    int updateCount = 0;
     PictureWindow pictureWindow;
     TextWindow textWindow;
     HelpWindow helpWindow;
     CompareWindow compareWindow;
+    DumpWindow dumpWindow;
+    size_t currentDump = 0;
     int depth = 0;
     int verboseLevel = 1;
-    int maxUpdateAttempts = 16;
     SDL_AppResult error = (SDL_AppResult) 0;
     bool showContours = false;
     bool showEdges = true;
@@ -116,6 +130,7 @@ struct DebuggerState {
     bool showSegments = false;
     bool showHelp = false;
     bool showBits = false;
+    bool showDumps = false;
     bool validation = true;  // turn on as needed
 };
 

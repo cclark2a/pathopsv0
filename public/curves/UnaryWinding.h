@@ -80,16 +80,22 @@ inline bool unaryDebugIsFill(Winding winding) {
 #endif
 
 #if OP_DEBUG_DUMP
-inline std::string unaryDumpOutFunc(Winding winding) {
-    UnaryData unary(winding);
-    std::string s = "{" + STR(unary.value) + "}";
-    return s;
-}
-
 inline void unaryDumpSetFunc(const char*& str, Winding& winding) {
     int left = OpDebugReadSizeT(str);
     UnaryData unaryData(left);
     unaryData.copyTo(winding);
+}
+
+#define DUMP_UNARY_WINDING_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(unaryDumpSetFunc), \
+
+#endif
+
+#if OP_DEBUG_SERIALIZE_OUT
+inline std::string unaryDumpOutFunc(Winding winding) {
+    UnaryData unary(winding);
+    std::string s = "{" + STR(unary.value) + "}";
+    return s;
 }
 
 #define UNARY_WINDING_TAGGED_FUNCTIONS \
@@ -99,7 +105,6 @@ inline void unaryDumpSetFunc(const char*& str, Winding& winding) {
     OP_TAGGED_FUNCTION(unarySubtractFunc), \
     OP_TAGGED_FUNCTION(unaryDebugIsFill), \
     OP_TAGGED_FUNCTION(unaryDumpOutFunc), \
-    OP_TAGGED_FUNCTION(unaryDumpSetFunc), \
 
 #endif
 
@@ -139,10 +144,9 @@ inline Context* unaryContext(CurveOutput output = nullptr, EmptyCallerPath empty
 #if OP_DEBUG
     OpDebugData debugData(false);
     SetDebugData(context, debugData);
-	SetDebugContextCallbacks(context, { 
-        unaryDebugIsFill
-        OP_DEBUG_DUMP_PARAMS(unaryDumpOutFunc, unaryDumpSetFunc)
-        OP_DEBUG_IMAGE_PARAMS(unaryImageOutFunc, nullptr, unaryColorFunc)
+	SetDebugContextCallbacks(context, { unaryDebugIsFill
+            OP_DEBUG_DUMP_PARAMS(unaryDumpOutFunc, unaryDumpSetFunc, nullptr,
+            unaryImageOutFunc, nullptr, unaryColorFunc)
     });
 #endif
     return context;

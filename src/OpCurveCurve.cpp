@@ -1795,8 +1795,7 @@ bool OpCurveCurve::setHullSects(OpEdge& edge, OpEdge& oppEdge, CurveRef curveRef
 				LinePts oLinePts { oppPtT.pt, oppPtT.pt + oTan };
 				auto tryIt = [this](const LinePts& eLinePts, const LinePts& oLinePts,
 						OpCurve& eCurve) {
-                    PathOpsV0Lib::SetLineType funcPtr = context->contextCallbacks.setLineTypeFuncPtr;
-                    PathOpsV0Lib::CurveType lineType = funcPtr ? (*funcPtr)(eCurve.c) : 1;
+                    PathOpsV0Lib::CurveType lineType = eCurve.lineType();
 					PathOpsV0Lib::Curve eLineCurve { (ContextPtr) context, 
                             (PathOpsV0Lib::CurveData*) &eLinePts, sizeof eLinePts, lineType };
 					OpCurve eLine(eLineCurve, Rotated::no);
@@ -1864,7 +1863,7 @@ bool OpCurveCurve::addLineCurveIntersection(OpEdge& edge, OpEdge& oppEdge, Curve
         return false;
     };
 #if OP_DEBUG_DUMP
-	debugDumpOn = true;
+	debugDumpOn = false; // true;
 #endif
     OpRoots oppRoots = edge.curve.lineIntersection(opposite->c);
 #if OP_DEBUG_DUMP

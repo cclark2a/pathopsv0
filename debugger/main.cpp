@@ -31,13 +31,10 @@ SDL_AppResult DebuggerWindow::addFont(float fontSize, TTF_Font** result) {
 #elif defined __APPLE__
     *result = TTF_OpenFont("/System/Library/Fonts/Monaco.ttf", fontSize);
 #else
-    OpDebugOut("missing font for platform\n");
-    return SDL_APP_FAILURE;
+    return Fail("missing font for platform");
 #endif
-    if (!*result) {
-        OpDebugOut("Couldn't open font: " + std::string(SDL_GetError()) + "\n");
-        return SDL_APP_FAILURE;
-    }
+    if (!*result)
+        return Fail("Couldn't open font");
     return SDL_APP_CONTINUE;
 }
 
@@ -57,8 +54,7 @@ size_t DebuggerWindow::addText(std::string str, uint32_t color, TTF_Font* f) {
     SDL_Color sdlColor = toSDLColor(color);
     SDL_Surface* textSurface = TTF_RenderText_Blended_Wrapped(f, str.c_str(), 0, sdlColor, 0);
     if (!textSurface) {
-        OpDebugOut("Couldn't create text:\"" + str + "\"\n");
-        OpDebugOut(STR("SDL error:") + SDL_GetError() + STR("\n"));
+        ReportError("Couldn't create text:\"" + str + "\"\n");
         exit(1);
     }
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, textSurface);
@@ -73,27 +69,21 @@ size_t DebuggerWindow::addText(std::string str, uint32_t color, TTF_Font* f) {
 
 SDL_AppResult DebuggerWindow::allocateBuffers() {
     int width, height;
-    if (!SDL_GetWindowSize(window, &width, &height)) {
-        OpDebugOut("failed to get window size: " + std::string(SDL_GetError()) + "\n");
-        return SDL_APP_CONTINUE;
-    }
+    if (!SDL_GetWindowSize(window, &width, &height))
+        return Continue("failed to get window size");
     size_t bufferSize = width * height * sizeof(uint32_t);
     if (buffer)
         free(buffer);
     buffer = (int*) malloc(bufferSize);
-    if (!buffer) {
-        OpDebugOut("Couldn't allocate buffer of size: " + STR(bufferSize) + "\n");
-        return SDL_APP_FAILURE;
-    }
+    if (!buffer)
+        return Fail("Couldn't allocate buffer of size: " + STR(bufferSize));
     memset(buffer, 0xFF, bufferSize);
     if (polysTexture)
         SDL_DestroyTexture(polysTexture);
     polysTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888, 
             SDL_TEXTUREACCESS_STREAMING, width, height);
-    if (!polysTexture) {
-        OpDebugOut("Couldn't allocate texture w/h: " + STR(width) + "/" + STR(height) + "\n");
-        return SDL_APP_FAILURE;
-    }
+    if (!polysTexture)
+        return Fail("Couldn't allocate texture w/h: " + STR(width) + "/" + STR(height));
     return SDL_APP_CONTINUE;
 }
 
@@ -113,10 +103,8 @@ SDL_AppResult DebuggerWindow::drawCommon() {
     int pitch;
     SDL_LockTexture(polysTexture, nullptr, (void**)&pix, &pitch);
     int windowWidth, windowHeight;
-    if (!SDL_GetWindowSize(window, &windowWidth, &windowHeight)) {
-        OpDebugOut("failed to get window size: " + std::string(SDL_GetError()) + "\n");
-        return SDL_APP_CONTINUE;
-    }
+    if (!SDL_GetWindowSize(window, &windowWidth, &windowHeight))
+        return Continue("failed to get window size");
     pentrek_draw(pix, windowWidth, windowHeight, pitch);
     SDL_UnlockTexture(polysTexture);  
     SDL_RenderTexture(renderer, polysTexture, nullptr, nullptr);
@@ -163,10 +151,8 @@ SDL_AppResult DebuggerWindow::init(std::string n, OpVector offset) {
     std::string windowName = "V0 Debugger " + n;
     if (!SDL_CreateWindowAndRenderer(windowName.c_str(), screen.width(), screen.height(), 
             SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN | SDL_WINDOW_HIGH_PIXEL_DENSITY, 
-            &window, &renderer)) {
-        OpDebugOut("Couldn't create window and renderer: " + std::string(SDL_GetError()) + "\n");
-        return SDL_APP_FAILURE;
-    }
+            &window, &renderer))
+        return Fail("Couldn't create window and renderer");
     SDL_SetRenderLogicalPresentation(renderer, (int) screen.width(), (int) screen.height(),
             SDL_LOGICAL_PRESENTATION_DISABLED);
     windowID = SDL_GetWindowID(window);
@@ -174,12 +160,9 @@ SDL_AppResult DebuggerWindow::init(std::string n, OpVector offset) {
     int x, y;
     if (SDL_GetWindowPosition(window, &x, &y))
         SDL_SetWindowPosition(window, (int) (x + offset.dx), (int) (y + offset.dy));
-    if (!SDL_ShowWindow(window)) {
-        OpDebugOut("Couldn't show window " + n + " at (" + STR(x) + ", " + STR(y) + "with offset "
-                + offset.debugDump(DebugLevel::normal, DebugBase::dec) + ": " 
-                + std::string(SDL_GetError()) + "\n");
-        return SDL_APP_FAILURE;
-    }
+    if (!SDL_ShowWindow(window))
+        return Fail("Couldn't show window " + n + " at (" + STR(x) + ", " + STR(y) + "with offset "
+                + offset.debugDump(DebugLevel::normal, DebugBase::dec));
     allocateBuffers();
     int pixelsW, pixelsH;
     if (!SDL_GetWindowSizeInPixels(window, &pixelsW, &pixelsH))
@@ -195,15 +178,13 @@ SDL_AppResult DebuggerWindow::init(std::string n, OpVector offset) {
 /* This function runs once at startup. */
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 //    SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "1");
-    if (!TTF_Init()) {
-        OpDebugOut("Couldn't initialize SDL_ttf: " + std::string(SDL_GetError()) + "\n");
-        return SDL_APP_FAILURE;
-    }
+    if (!TTF_Init())
+        return Fail("Couldn't initialize SDL_ttf");
     DebuggerState* debuggerState = new DebuggerState();
-    if (!debuggerState || debuggerState->error)
-        return SDL_APP_FAILURE;
-    if (argc == 2)
-        debuggerState->opFileName = argv[1];
+    if (!debuggerState)
+        return Fail("failed to allocate debuggerState");
+    if (debuggerState->error)
+        return Fail("debuggerState error: " + STR(debuggerState->error));
     *appstate = debuggerState;
     return SDL_APP_CONTINUE;
 }
@@ -220,11 +201,13 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
     uint32_t accumulate = 0;
     unsigned int winID = event->window.windowID;
     DebuggerEvent debuggerEvent(state, SDL_GetModState(), winID);
-    DebuggerWindow* eventWindow = state->pictureWindow.windowID == winID
-            ? (DebuggerWindow*) &state->pictureWindow : state->textWindow.windowID == winID
-            ? (DebuggerWindow*) &state->textWindow : state->helpWindow.windowID == winID
-            ? (DebuggerWindow*) &state->helpWindow : state->compareWindow.windowID == winID
-            ? (DebuggerWindow*) &state->compareWindow : nullptr;
+    DebuggerWindow* eventWindow = 
+            state->pictureWindow.windowID == winID ? (DebuggerWindow*) &state->pictureWindow  
+            : state->textWindow.windowID == winID ? (DebuggerWindow*) &state->textWindow 
+            : state->helpWindow.windowID == winID ? (DebuggerWindow*) &state->helpWindow 
+            : state->compareWindow.windowID == winID ? (DebuggerWindow*) &state->compareWindow 
+            : state->dumpWindow.windowID == winID ? (DebuggerWindow*) &state->dumpWindow 
+            : nullptr;
     std::string windowName = eventWindow ? eventWindow->name : "(unnamed window)";
     do {
         if (state->verboseLevel && event->type != SDL_EVENT_MOUSE_MOTION         // 0x400
@@ -391,25 +374,7 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 // once per frame
 SDL_AppResult SDL_AppIterate(void* appstate) {
     DebuggerState* debuggerState = (DebuggerState*) appstate;
-    struct stat info;
-    std::string filename = dmpFileToPath(debuggerState->opFileName);
-    if (stat(filename.c_str(), &info) == -1) {
-        OP_ASSERT(0);
-        return SDL_APP_FAILURE;
-    }
-    if (info.st_mtime != debuggerState->lastTime) {
-        if (debuggerState->update()) {
-            debuggerState->lastTime = info.st_mtime;
-            return SDL_APP_CONTINUE;
-        } 
-        if (debuggerState->updateAttempts > debuggerState->maxUpdateAttempts) {
-            OpDebugOut("failed to update\n"); 
-            OP_ASSERT(0);
-            debuggerState->update();  // for debugging
-            return SDL_APP_FAILURE;
-        }
-    }
-    return SDL_APP_CONTINUE;
+    return debuggerState->checkForNewFiles();
 }
 
 /* This function runs once at shutdown. */

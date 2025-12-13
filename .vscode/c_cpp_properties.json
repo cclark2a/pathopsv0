@@ -13,7 +13,22 @@
             ],
             "compilerPath": "/usr/bin/clang",
             "cStandard": "c17",
-            "cppStandard": "c++17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "macos-clang-arm64"
+        }, {
+            "name": "test_drive",
+            "includePath": [
+                "${default}"
+            ],
+            "defines": [
+                "OP_DEBUG_FAST_TEST=1",
+                "OP_TINY_SKIA=1",
+                "TEST_RASTER=0",
+                "_GLIBCXX_DEBUG"
+            ],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c17",
+            "cppStandard": "c++20",
             "intelliSenseMode": "macos-clang-arm64"
         }
     ],

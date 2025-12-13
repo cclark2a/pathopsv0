@@ -79,8 +79,8 @@ struct EdgePal {
 
 #if OP_DEBUG_DUMP
 	EdgePal();
-	DUMP_DECLARATIONS
 #endif
+	DUMP_DECLARATIONS
 
 	OpEdge* edge;
 	int unsectID;  // unsect id from sect in edge's segment, if any; or unique ID if missing
@@ -92,8 +92,9 @@ struct Distance {
 
 #if OP_DEBUG_DUMP
 	Distance();
-	DUMP_DECLARATIONS
 #endif
+	DUMP_DECLARATIONS
+
 
 	OpEdge* edge;
 	RayOrder rayOrder = RayOrder::uninitialized;  // note if computed sum can't be used because distance entries are unordered
@@ -145,7 +146,7 @@ struct RayTargets {
 	OpRect chainBounds;
 	size_t edgeIndex = SIZE_MAX;
 	size_t index = SIZE_MAX;
-#if OP_DEBUG_DUMP  // edges is set from contour + axis, so track them
+#if OP_DEBUG_SERIALIZE_OUT  // edges is set from contour + axis, so track them
     OpContour* debugEdgesContour = nullptr;
     Axis debugEdgesAxis = Axis::neither;
 #endif
@@ -181,7 +182,9 @@ struct SectRay {
 	void sort();
 	bool tryADifferentCenter(OpEdge* );
 	DUMP_DECLARATIONS
-	OP_DEBUG_DUMP_CODE(std::string debugDumpHeader(DebugLevel l, DebugBase b) const;)  // clang wants semi inside
+#if OP_DEBUG_SERIALIZE_OUT
+	std::string debugDumpHeader(DebugLevel l, DebugBase b) const;
+#endif
 
 	RayTargets targets;
 	std::vector<Distance> distances;
@@ -250,8 +253,8 @@ struct HullSect {
 
 #if OP_DEBUG_DUMP
 	HullSect() {}
-	DUMP_DECLARATIONS
 #endif
+	DUMP_DECLARATIONS
 	const OpEdge* opp;
 	OpPtT sect;			// point and t of intersection with hull on this edge
 	EdgeDist oppDist;	// if sect came from edge end: the point closest on the opposite curve
@@ -395,13 +398,9 @@ private:
 #endif
 #if OP_DEBUG_DUMP
 		dumpContext = nullptr;
-#endif
-#if OP_DEBUG_IMAGE
-//		debugColor = debugBlack;
-		debugDraw = false;
 		debugJoin = false;
 		debugLimb = false;
- //       debugOne = false;
+		debugReleased = false;
 #endif
 #if OP_DEBUG_VALIDATE
 		debugScheduledForErasure = false;
@@ -457,7 +456,8 @@ public:
 	NormalDirection normalDirection(Axis axis, float edgeInsideT) const {  // t value is not segment t
 		return curve.normalDirection(axis, edgeInsideT); }
 	bool output(bool closed);  // provided by the graphics implementation
-	bool outputLinkedList(const OpEdge* firstEdge, bool first);
+	void outputLink(OpEdge* , bool closeLoop);
+	bool outputLinkedList();
 	OpPtT ptT(EdgeMatch match) const { 
 		return EdgeMatch::start == match ? startPtT() : endPtT(); }
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
@@ -484,20 +484,27 @@ public:
     OpPtT whichSect(EdgeMatch match = EdgeMatch::start) const;
 	bool debugFail() const;
 	bool debugSuccess() const;
-#if OP_DEBUG_DUMP
-	void debugCompare(std::string ) const;
+#if OP_DEBUG_SERIALIZE_OUT
 	std::string debugDumpCenter(DebugLevel , DebugBase ) const;
 	std::string debugDumpLink(EdgeMatch , DebugLevel , DebugBase ) const;
+	#define OP_X(Thing) \
+			std::string debugDump##Thing() const;
+	DEBUG_DUMP
+	EDGE_DETAIL
+	EDGE_OR_SEGMENT_DETAIL
+	#undef OP_X
+#endif
+#if OP_DEBUG_DUMP
+	void debugCompare(std::string ) const;
 	OpPtT debugFindT(Axis , float oppXY) const;
 	#define OP_X(Thing) \
-			std::string debugDump##Thing() const; \
 			void dump##Thing() const;
 	DEBUG_DUMP
 	EDGE_DETAIL
 	EDGE_OR_SEGMENT_DETAIL
 	#undef OP_X
-	#include "OpDebugDeclarations.h"
 #endif
+#include "OpDebugDeclarations.h"
 #if OP_DEBUG_IMAGE
 	struct DebugOpCurve debugSetCurve() const;
 #endif
@@ -574,13 +581,9 @@ public:
 #endif
 #if OP_DEBUG_DUMP
 	OpContext* dumpContext;  // temporary edges don't have segment ptrs when unflattened
-#endif
-#if OP_DEBUG_IMAGE
-//	uint32_t debugColor;    // !!! custom color is now in debugger
-	bool debugDraw;  // set true to be drawn in image watch !!! move this to debugger
 	bool debugJoin;	 // true if included by joiner
 	bool debugLimb;  // true if a part of tree
-//    bool debugOne;   // set by direct command changing color or visibility
+	bool debugReleased;  // true if (filler storage has been) deleted
 #endif
 OP_LINE_FILE_DECLARE(debugSetDisabled)
 OP_LINE_FILE_DECLARE(debugSetMaker)
@@ -610,13 +613,15 @@ struct OpEdgeStorage {
 	bool contains(int ccUnsectableID) const;
 	void reuse();
 #if OP_DEBUG_DUMP
-	int debugCount() const;
 	OpEdge* debugFind(int id);
+	static void DumpSet(const char*& str, OpContext* , DumpStorage );
+#endif
+#if OP_DEBUG_SERIALIZE_OUT
+	int debugCount() const;
 	OpEdge* debugIndex(int index);
 	const OpEdge* debugIndex(int index) const;
-	static void DumpSet(const char*& str, OpContext* , DumpStorage );
-	DUMP_DECLARATIONS
 #endif
+	DUMP_DECLARATIONS
 #if OP_DEBUG_VALIDATE
 	void debugRelease();
 #endif

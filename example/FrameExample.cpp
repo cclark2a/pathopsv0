@@ -30,7 +30,7 @@ static WindKeep frameOutput(Output o) {
 }
 
 static bool allowDisjointLines(ContextError err, Curve* ) {
-	return ContextError::end != err && ContextError::missing != err;
+	return ContextError::end == err || ContextError::missing == err;
 }
 
 void FrameExample() {

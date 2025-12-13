@@ -4,13 +4,88 @@
 #include "DebuggerState.h"
 #include <SDL3/SDL_error.h>
 #include <filesystem>
+#include <sys/stat.h>
+
+// !!! hackery for now (include a dummy copy of PathOpsV0Lib::dumpSkiaOutPath())
+// probably need to eliminate OpDebugTags from needing this
+namespace PathOpsV0Lib {
+    void dumpSkiaOutPath(Context*) {
+    }
+}
+
+void ReportError(std::string s) {
+    const char* sdlError = SDL_GetError();
+    if (sdlError[0])
+        s += ": " + std::string(sdlError);
+    OpDebugOut(s + "\n"); 
+ }
+
+SDL_AppResult Continue(std::string s) {
+    ReportError(s);
+    return SDL_APP_CONTINUE; 
+}
+
+SDL_AppResult Fail(std::string s) {
+    ReportError(s);
+    return SDL_APP_FAILURE; 
+}
+
+bool DebuggerDump::update(DebuggerState* state) {
+    if (--updateCount >= 0)
+        return false;
+    ++updateAttempts;
+    OpContext* newContext = fromFile(filename);
+    if (!newContext) {
+        updateCount = updateDelay;
+        updateDelay += updateDelay;
+        return false;
+    }
+    delete context;
+    context = newContext;
+    debugGlobalContext = context;   // needed for OpDebugFormat; major rework to remove dependency
+    state->update();
+    updateAttempts = 0;
+    updateDelay = 1;
+    updateCount = 0;
+    return true;
+}
 
 DebuggerState::DebuggerState() 
     : pictureWindow(this)
     , textWindow(this)
     , helpWindow(this)
-    , compareWindow(this) {
-    opFileName = "dmp.txt";
+    , compareWindow(this)
+    , dumpWindow(this) {
+}
+
+SDL_AppResult DebuggerState::checkForNewFiles() {
+    struct stat info;
+    size_t fileNumber = 0;
+    for (;;) {
+        std::string filename = DumpFile + STR(++fileNumber) + ".txt";
+        std::string filePath = dmpFileToPath(filename);
+        if (stat(filePath.c_str(), &info) == -1)
+            break;
+        if (dumps.size() < fileNumber)
+            dumps.emplace_back();
+        OP_ASSERT(fileNumber <= dumps.size());
+        DebuggerDump& dump = dumps[fileNumber - 1];
+        dump.filename = filename;
+        if (info.st_mtime == dump.lastTime)
+            continue;
+        if (dump.update(this)) {
+            dump.lastTime = info.st_mtime;
+            continue;
+        } 
+        if (dump.updateAttempts > dump.maxUpdateAttempts) {
+            OP_ASSERT(0);
+            dump.update(this);  // for debugging
+            return Fail("failed to update");
+        }
+    }
+    if (1 == fileNumber)
+        return Fail("no dmp found");
+    return SDL_APP_CONTINUE;
 }
 
 void DebuggerState::draw() {
@@ -19,6 +94,7 @@ void DebuggerState::draw() {
     helpWindow.update();
     helpWindow.draw();
     compareWindow.draw();
+    dumpWindow.draw();
 }
 
 DrawLevel DebuggerState::doWheelCommon(const DebuggerEvent& debuggerEvent, int delta) {
@@ -33,7 +109,7 @@ DrawLevel DebuggerState::doWheelCommon(const DebuggerEvent& debuggerEvent, int d
         return DrawLevel::none;
     f->fontSize = fontSize;
     if (SDL_APP_CONTINUE != (error = f->addFont(fontSize))) // deletes font cache
-        OpDebugOut("Couldn't add text font: " + std::string(SDL_GetError()) + "\n");
+        ReportError("Couldn't add text font");
     return DrawLevel::update;
 }
 
@@ -54,7 +130,9 @@ DebuggerWindow* DebuggerState::focus(SDL_WindowID id) {
         return lastFocus;
     lastFocus = pictureWindow.windowID == id ? (DebuggerWindow*) &pictureWindow
             : textWindow.windowID == id ? (DebuggerWindow*) &textWindow
-            : compareWindow.windowID == id ? (DebuggerWindow*) &compareWindow : nullptr;
+            : compareWindow.windowID == id ? (DebuggerWindow*) &compareWindow 
+            : dumpWindow.windowID == id ? (DebuggerWindow*) &dumpWindow 
+            : nullptr;
 //    OP_ASSERT(lastFocus);  // if left running, id may not match any window
     return lastFocus;
 }
@@ -74,10 +152,10 @@ void DebuggerState::playback() {
             foundID->selected = true;
     }
     // !!! add any additional global state here
-    DEBUG_SET_REQUIRED_VALUE(compareWindow, depth);
+    DEBUG_SET_REQUIRED_VALUE(dumpWindow, currentDump);
+    DEBUG_SET_REQUIRED_VALUE(currentDump, depth);
     DEBUG_SET_REQUIRED_VALUE(depth, verboseLevel);
-    DEBUG_SET_REQUIRED_VALUE(verboseLevel, maxUpdateAttempts);
-    DEBUG_SET_REQUIRED_VALUE(maxUpdateAttempts, error);
+    DEBUG_SET_REQUIRED_VALUE(verboseLevel, error);
     DEBUG_SET_BOOL(error, showContours);
     DEBUG_SET_BOOL(showContours, showEdges);
     DEBUG_SET_BOOL(showEdges, showHex);
@@ -89,6 +167,7 @@ void DebuggerState::playback() {
     textWindow.playback(str);
     helpWindow.playback(str);
     compareWindow.playback(str);
+    dumpWindow.playback(str);
 }
 
 void DebuggerState::record() {
@@ -100,10 +179,10 @@ void DebuggerState::record() {
     if (!s.empty())
         s.back() = '\n';
     // !!! add any additional global state here
-    DEBUG_DUMP_REQUIRED_VALUE(compareWindow, depth);
+    DEBUG_DUMP_REQUIRED_VALUE(dumpWindow, currentDump);
+    DEBUG_DUMP_REQUIRED_VALUE(currentDump, depth);
     DEBUG_DUMP_REQUIRED_VALUE(depth, verboseLevel);
-    DEBUG_DUMP_REQUIRED_VALUE(verboseLevel, maxUpdateAttempts);
-    DEBUG_DUMP_REQUIRED_VALUE(maxUpdateAttempts, error);
+    DEBUG_DUMP_REQUIRED_VALUE(verboseLevel, error);
     DEBUG_DUMP_BOOL(error, showContours);
     DEBUG_DUMP_BOOL(showContours, showEdges);
     DEBUG_DUMP_BOOL(showEdges, showHex);
@@ -115,6 +194,7 @@ void DebuggerState::record() {
     s += textWindow.record(); 
     s += helpWindow.record();
     s += compareWindow.record();
+    s += dumpWindow.record();
     std::string fileName = dmpFileToPath(StateFile);
 	FILE* file = fopen(fileName.c_str(), "w");
     if (file)
@@ -136,6 +216,7 @@ void DebuggerState::redraw() {
     textWindow.update();
     helpWindow.update();
     compareWindow.update();
+    dumpWindow.update();
     draw();
 }
 
@@ -212,25 +293,11 @@ void DebuggerState::setIDTypes() {
             return a.id < b.id; });
 }
 
-bool DebuggerState::update() {
-    if (--updateCount >= 0)
-        return false;
-    ++updateAttempts;
-    OpContext* newContext = fromFile(opFileName);
-    if (!newContext) {
-        updateCount = updateDelay;
-        updateDelay += updateDelay;
-        return false;
-    }
-    delete context;
-    context = newContext;
-    debugGlobalContext = context;   // needed for OpDebugFormat; major rework to remove dependency
+void DebuggerState::update() {
+    OP_ASSERT(currentDump < dumps.size());
+    context = dumps[currentDump].context;
     setIDTypes();
     redraw();
-    updateAttempts = 0;
-    updateDelay = 1;
-    updateCount = 0;
-    return true;
 }
 
 void DebuggerState::validate() {
@@ -242,4 +309,5 @@ void DebuggerState::validate() {
     textWindow.validate();
     helpWindow.validate();
     compareWindow.validate();
+    dumpWindow.validate();
 }

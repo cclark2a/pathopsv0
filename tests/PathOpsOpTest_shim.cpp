@@ -2,7 +2,7 @@
 #include "SkiaTestShim.h"
 
 extern void threadablePathOpTest(int id, const SkPath& a, const SkPath& b, 
-        SkPathOp op, std::string testname, bool v0MayFail, bool skiaMayFail, bool mayDiffer);
+        SkPathOp op, std::string testname, bool v0MayFail);
 
 #if OP_TINY_SKIA
 
@@ -23,7 +23,7 @@ path.setFillType(SkPathFillType::kWinding);
 path.moveTo(SkBits2Float(0x00000000), SkBits2Float(0x40400000));  // 0, 3
 path.close();
 SkPath b = path;
-threadablePathOpTest(0, a, b, kDifference_SkPathOp, __FUNCTION__, false, false, false);
+threadablePathOpTest(0, a, b, kDifference_SkPathOp, __FUNCTION__, false);
 }
 
 void alt_loop1asQuad() {
@@ -44,7 +44,7 @@ path.quadTo(SkBits2Float(0x40a98186), SkBits2Float(0x3fff192c), SkBits2Float(0x0
 path.lineTo(SkBits2Float(0x3f800000), SkBits2Float(0x40a00000));  // 1, 5
 path.close();
 SkPath b = path;
-threadablePathOpTest(0, a, b, kIntersect_SkPathOp, __FUNCTION__, false, false, false);
+threadablePathOpTest(0, a, b, kIntersect_SkPathOp, __FUNCTION__, false);
 }
 
 #define SkPathOpsCubic_DEFINED
@@ -160,7 +160,7 @@ void alt_loops58iAsQuads() {
 	qPathB.quadTo(SkBits2Float(0x40292498), SkBits2Float(0x40404f8c), SkBits2Float(0x40000000), SkBits2Float(0x40400000));  // 2.64285851f, 3.00485516f, 2, 3
 	qPathB.lineTo(SkBits2Float(0x40400000), SkBits2Float(0x40a00000));  // 3, 5
 	qPathB.close();
-threadablePathOpTest(0, qPath, qPathB, kDifference_SkPathOp, __FUNCTION__, false, false, false);
+threadablePathOpTest(0, qPath, qPathB, kDifference_SkPathOp, __FUNCTION__, false);
 }
 
 // note: qPathB includes path_edit
@@ -184,7 +184,7 @@ void alt_loops59iasQuads() {
 	qPathB.quadTo(SkBits2Float(0xc00b1652), SkBits2Float(0x40932b41), SkBits2Float(0x00000000), SkBits2Float(0x40c00000));  // -2.17323732f, 4.59903002f, 0, 6
 	qPathB.lineTo(SkBits2Float(0x3f800000), SkBits2Float(0x40000000));  // 1, 2
 	qPathB.close();
-threadablePathOpTest(0, qPath, qPathB, kDifference_SkPathOp, __FUNCTION__, false, false, false);
+threadablePathOpTest(0, qPath, qPathB, kDifference_SkPathOp, __FUNCTION__, false);
 }
 
 void alt_loops33iAsQuads() {
@@ -204,7 +204,7 @@ void alt_loops33iAsQuads() {
 	qPathB.quadTo(SkBits2Float(0xbddea6f2), SkBits2Float(0x40d342c7), SkBits2Float(0x40000000), SkBits2Float(0x40c00000));  // -0.10871686f, 6.60190153f, 2, 6
 	qPathB.lineTo(SkBits2Float(0x3f800000), SkBits2Float(0x40000000));  // 1, 2
 	qPathB.close();
-threadablePathOpTest(0, qPath, qPathB, kDifference_SkPathOp, __FUNCTION__, false, false, false);
+threadablePathOpTest(0, qPath, qPathB, kDifference_SkPathOp, __FUNCTION__, false);
 }
 
 void alt_loops40iAsQuads() {
@@ -224,7 +224,7 @@ void alt_loops40iAsQuads() {
 	qPathB.quadTo(SkBits2Float(0x40400000), SkBits2Float(0x40ead772), SkBits2Float(0x40400000), SkBits2Float(0x40a00000));  // 3, 7.33879948f, 3, 5
 	qPathB.lineTo(SkBits2Float(0x00000000), SkBits2Float(0x40a00000));  // 0, 5
 	qPathB.close();
-threadablePathOpTest(0, qPath, qPathB, kDifference_SkPathOp, __FUNCTION__, false, false, false);
+threadablePathOpTest(0, qPath, qPathB, kDifference_SkPathOp, __FUNCTION__, false);
 }
 
 void alt_cubicOp114asQuad() {
@@ -246,7 +246,7 @@ void alt_cubicOp114asQuad() {
 	qPathB.quadTo(SkBits2Float(0x3fa6f27f), SkBits2Float(0x3f90aeb1), SkBits2Float(0x00000000), SkBits2Float(0x3f800000));  // 1.30427539f, 1.13033116f, 0, 1
 	qPathB.lineTo(SkBits2Float(0x3f800000), SkBits2Float(0x40400000));  // 1, 3
 	qPathB.close();
-threadablePathOpTest(0, qPath, qPathB, kDifference_SkPathOp, __FUNCTION__, false, false, false);
+threadablePathOpTest(0, qPath, qPathB, kDifference_SkPathOp, __FUNCTION__, false);
 }
 
 struct CubicPts {

@@ -121,7 +121,7 @@ void OpContour::addJoinEdge(OpJoiner* joiner, OpEdge* e) {
 		last->setNextEdge(e);
 		OP_ASSERT(!e->priorEdge);
 		e->setPriorEdge(last);
-		e->outputLinkedList(e, true);
+		e->outputLinkedList();
 	} else {
 //		e->segment->contour->pushLinkup(e);
 		addToLinkups(joiner, e);
@@ -149,7 +149,7 @@ void OpContour::addToLinkups(OpJoiner* joiner, OpEdge* e) {
 #if OP_DEBUG_VALIDATE
 #if OP_DEBUG_DUMP
 	if (first->debugScheduledForErasure)
-		dmpFile();
+		context->dumpFile("addToLinkups debugScheduledForErasure");
 #endif
 	OP_ASSERT(!first->debugScheduledForErasure);
 #endif

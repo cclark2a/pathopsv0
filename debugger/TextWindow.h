@@ -23,7 +23,7 @@ struct TextWindow : public DebuggerWindow {
     
     TTF_Font* detailFont = nullptr;
     OpVector boxWH { 50, 20 };  // !!! get metrics from font instead of hard-coding them
-    std::string test;
+    std::string testIn;
     time_t lastTime;
     int lineHeight = 0;  // !!! change this to the text line height
     int detailHeight = 0;  // the height of the window content, visible or not

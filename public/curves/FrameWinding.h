@@ -110,17 +110,10 @@ inline bool frameDebugIsFill(Winding winding) {
 }
 #endif
 
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_SERIALIZE_OUT
 inline std::string frameDumpOutFunc(Winding winding) {
     FrameData data(winding);
-    return "{" + STR(data.left) + (FrameFill::frame == data.isFrame ? ":f}" : "}");
-}
-
-inline void frameDumpSetFunc(const char*& str, Winding& winding) {
-    int left = OpDebugReadSizeT(str);
-    FrameFill frameFill = OpDebugOptional(str, "fr") ? FrameFill::frame : FrameFill::fill;
-    FrameData frameData(frameFill, left);
-    frameData.copyTo(winding);
+    return STR(data.left) + (FrameFill::frame == data.isFrame ? "fr" : "");
 }
 
 #define FRAME_WINDING_TAGGED_FUNCTIONS \
@@ -134,14 +127,15 @@ inline void frameDumpSetFunc(const char*& str, Winding& winding) {
     OP_TAGGED_FUNCTION(frameVisibleFunc), \
     OP_TAGGED_FUNCTION(frameDebugIsFill), \
     OP_TAGGED_FUNCTION(frameDumpOutFunc), \
-    OP_TAGGED_FUNCTION(frameDumpSetFunc), \
 
 #endif
 
-#if OP_DEBUG_IMAGE
-inline std::string frameImageOutFunc(Winding winding) {
-    FrameData data(winding);
-    return STR(data.left) + (FrameFill::frame == data.isFrame ? "fr" : "");
+#if OP_DEBUG_DUMP
+inline void frameDumpSetFunc(const char*& str, Winding& winding) {
+    int left = OpDebugReadSizeT(str);
+    FrameFill frameFill = OpDebugOptional(str, "fr") ? FrameFill::frame : FrameFill::fill;
+    FrameData frameData(frameFill, left);
+    frameData.copyTo(winding);
 }
 
 // !!! deprecated
@@ -166,8 +160,8 @@ inline uint32_t frameColorFuncPtr(Winding winding, DebugEdgeType edgeType) {
     return FrameFill::fill == data.isFrame ? debugBlack : darkGreen;
 }
 
-#define FRAME_IMAGE_TAGGED_FUNCTIONS \
-    OP_TAGGED_FUNCTION(frameImageOutFunc), \
+#define DUMP_FRAME_WINDING_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(frameDumpSetFunc), \
     OP_TAGGED_FUNCTION(frameImageNamesFunc), \
     OP_TAGGED_FUNCTION(frameColorFuncPtr), \
 
@@ -181,8 +175,8 @@ inline Context* frameContext(CurveOutput output = nullptr) {
     SetDebugData(context, debugData);
 	SetDebugContextCallbacks(context, { 
         frameDebugIsFill
-        OP_DEBUG_DUMP_PARAMS(frameDumpOutFunc, frameDumpSetFunc)
-        OP_DEBUG_IMAGE_PARAMS(frameImageOutFunc, frameImageNamesFunc, frameColorFuncPtr)
+        OP_DEBUG_DUMP_PARAMS(frameDumpOutFunc, frameDumpSetFunc, nullptr,
+                frameDumpOutFunc, frameImageNamesFunc, frameColorFuncPtr)
     });
 #endif
     return context;

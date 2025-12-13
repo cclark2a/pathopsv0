@@ -2,6 +2,8 @@
 #ifndef OpDebugDump_DEFINED
 #define OpDebugDump_DEFINED
 
+#include "OpDebugSerializeOut.h"
+
 #if OP_DEBUG_DUMP
 
 namespace PathOpsV0Lib {
@@ -14,8 +16,7 @@ enum class DumpSerialization {
     dummy
 };
 
-inline const std::string TestFile = "Test.txt";
-
+#undef DUMP_DECLARATIONS
 #define DUMP_DECLARATIONS \
 std::string debugDump(DebugLevel , DebugBase ) const; \
 std::string debugDumpID() const; \
@@ -27,7 +28,7 @@ void dumpHex() const; \
 void dumpResolveAll(OpContext* ); \
 void dumpSet(const char*& );
 
-
+#undef DUMP_DECLARATIONS_OVERRIDE
 #define DUMP_DECLARATIONS_OVERRIDE \
 std::string debugDump(DebugLevel , DebugBase ) const override; \
 void dump() const override; \
@@ -157,14 +158,6 @@ extern std::string debugDmpLinks(OpContext* , DebugLevel l, DebugBase b);
 	DUMP_GROUP
 #undef OP_X
 
-#define DEBUG_DUMP \
-OP_X(ID) \
-
-#define DEBUG_DUMP_ID_DEFINITION(OWNER, ID) \
-	std::string OWNER::debugDumpID() const { \
-		return std::to_string(ID); \
-	}
-
 #define DUMP_POINT \
 OP_X(Match)
 
@@ -181,21 +174,6 @@ DETAIL_POINTS
 
 extern void dmpMatchEnd(int id);
 extern void dmpMatchStart(int id);
-
-#define EDGE_OR_SEGMENT_DETAIL \
-OP_X(Edges) \
-OP_X(End) \
-OP_X(Full) \
-OP_X(Intersections) \
-OP_X(Start) \
-
-#define EDGE_DETAIL \
-OP_X(Center) \
-OP_X(Hulls) \
-OP_X(Link) \
-OP_X(Points) \
-OP_X(Ray) \
-OP_X(Winding)
 
 #define OP_X(Thing) \
 extern void dmp##Thing(int ID); \
@@ -251,7 +229,6 @@ namespace PathOpsV0Lib {
 struct CurveCallbacks;
 }
 
-extern void dmpFile(OpContext* context, std::string filename);
 extern OpContext* fromFile(std::string filename);
 extern void verifyFile(OpContext* , std::string fromFilename, std::string verifyFilename);
 
@@ -268,20 +245,6 @@ extern const OpIntersection* findIntersection(int id);
 extern const OpLimb* findLimb(int id);
 extern std::vector<const OpIntersection*> findSectUnsectable(int id);
 extern const OpSegment* findSegment(int id);
-
-enum class DebugBase {
-    dec,
-    hex,
-	hexdec,
-};
-
-enum class DebugLevel {
-	brief,
-	normal,
-	detailed,
-	file,
-    error      // displays uninitialized and error conditions like nan and infinities
-};
 
 // for typing in immediate window as parameters to dmpBase
 // commented out here to avoid declaration shadowing, but defined for real at bottom of cpp file
@@ -308,8 +271,6 @@ extern std::string debugDumpColor(DebugLevel, uint32_t c);
 extern void dmpColor(uint32_t );
 extern void dmpColor(const OpEdge* );
 extern void dmpColor(const OpEdge& );
-extern std::string dmpFileToPath(std::string name);
-extern std::string dmpFileToStr(std::string name);
 extern void dmpFilters();  // returns current filter settings
 extern void dmpHex(float );
 extern void dmpHex(uint32_t );
@@ -325,123 +286,6 @@ extern void dmpT(int ID, float t);
 extern void dmpT(const OpEdge* s, float t);
 extern void dmpT(const OpSegment* s, float t);
 extern void dmpWidth(int );  // max chars before inserting linefeed
-
-#define EDGE_FILTER \
-	OP_X(segment) \
-	OP_X(ray) \
-	OP_X(priorEdge) \
-	OP_X(nextEdge) \
-	OP_X(lastEdge) \
-	OP_X(center) \
-	OP_X(curve) \
-    OP_X(iStart) \
-    OP_X(iEnd) \
-	OP_X(vertical_impl) \
-	OP_X(upright_impl) \
-	OP_X(bounds) \
-	OP_X(linkBounds) \
-	OP_X(winding) \
-	OP_X(sum) \
-	OP_X(many) \
-	OP_X(coinPals) \
-	OP_X(unSects) \
-	OP_X(pals) \
-    OP_X(hulls) \
-	OP_X(startT) \
-	OP_X(endT) \
-	OP_X(startDist) \
-	OP_X(endDist) \
-	OP_X(id) \
-    OP_X(ccUnsectID) \
-	OP_X(whichEnd_impl) \
-	OP_X(rayFail) \
-	OP_X(windZero) \
-	OP_X(doSplit) \
-	OP_X(isUnsortable) \
-	OP_X(closeSet) \
-	OP_X(active_impl) \
-	OP_X(inLinkups) \
-	OP_X(linkHead) \
-	OP_X(inOutput) \
-	OP_X(disabled) \
-	OP_X(isUnsplitable) \
-	OP_X(ccEnd) \
-	OP_X(ccLarge) \
-	OP_X(ccOverlaps) \
-	OP_X(ccSmall) \
-	OP_X(ccStart) \
-	OP_X(centerless) \
-	OP_X(startSeen) \
-	OP_X(endSeen)
-
-#define EDGE_VIRTUAL \
-    OP_X(contour)
-
-#define EDGE_DEBUG \
-	OP_X(Match) \
-	OP_X(ZeroErr) \
-	OP_X(OutPath) \
-	OP_X(ParentID) \
-	OP_X(Depth) \
-	OP_X(CC) \
-	OP_X(RayMatch) \
-	OP_X(Filler) \
-	OP_X(Unordered) \
-	OP_X(SumSet)
-
-#define EDGE_IMAGE \
-	OP_X(Color) \
-	OP_X(Draw) \
-	OP_X(Join) \
-	OP_X(Limb) \
-	OP_X(One)
-
-#define EDGE_MAKER \
-    OP_X(SetDisabled) \
-	OP_X(SetMaker) \
-	OP_X(SetSum)
-
-#define EDGE_VALIDATE \
-    OP_X(PriorID) \
-    OP_X(ScheduledForErasure)
-
-enum class EF {
-#define OP_X(Field) \
-    Field,
-    EDGE_FILTER
-#undef OP_X
-#define OP_X(Field) \
-    Field,
-    EDGE_VIRTUAL
-#undef OP_X
-#if OP_DEBUG
-    #define OP_X(Field) \
-        debug##Field,
-        EDGE_DEBUG
-    #undef OP_X
-#endif
-#if OP_DEBUG_IMAGE
-    #define OP_X(Field) \
-        debug##Field,
-        EDGE_IMAGE
-    #undef OP_X
-#endif
-#if OP_DEBUG_MAKER
-    #define OP_X(Field) \
-        debug##Field,
-        EDGE_MAKER
-    #undef OP_X
-#endif
-#if OP_DEBUG_VALIDATE
-    #define OP_X(Field) \
-        debug##Field,
-        EDGE_VALIDATE
-    #undef OP_X
-#endif
-    last
-};
-
-typedef EF EdgeFilter;
 
 struct OpSaveEF {
     OpSaveEF(std::vector<EdgeFilter>& temp);
@@ -486,15 +330,12 @@ extern void debug();  // set debug bitmap to start and dump state using current 
 
 // used by new interface
 
-typedef void (*DebugFunction)();
-extern std::string debugFindTag(DebugFunction function);
 extern DebugFunction debugFindFunction(const char*& tag);
 extern std::string debugValue(DebugLevel l, DebugBase b, std::string label, float value);
 extern std::string DebugDump(const PathOpsV0Lib::Winding& , DebugLevel , DebugBase );
 extern bool debugDmpIsLine(const PathOpsV0Lib::AddCurve& c);
 extern bool debugDmpIsLine(const PathOpsV0Lib::Curve& c);
 extern void DumpSet(PathOpsV0Lib::Winding&, char const*& str);
-extern std::string stringFormat(OpContext* context, std::string s, int lineWidth);
 
 enum class LimbPass : uint8_t;
 
@@ -508,67 +349,13 @@ struct OpSaveDump {
     DebugBase saveB;
 };
 
-// use static asserts throughout to ensure that all of context is serialized
-#define ASSERT_SERIAL_OFFSET(inst, last, offset, thisField) \
-    static_assert(offsetof(std::remove_reference_t<decltype(inst)>, last) + sizeof((inst).last) \
-            + offset == offsetof(std::remove_reference_t<decltype(inst)>, thisField))
-
-#define ASSERT_SERIAL(instance, lastField, thisField) \
-    ASSERT_SERIAL_OFFSET(instance, lastField, 0, thisField)
-
-#define ASSERT_FIRST(firstField) \
-    static_assert(0 == offsetof(std::remove_reference_t<decltype(*this)>, firstField))
-
-#define ASSERT_LAST_OFFSET(lastField, offset) \
-    static_assert(sizeof(*this) == offsetof(std::remove_reference_t<decltype(*this)>, lastField) \
-            + sizeof(lastField) + offset)
-
-#define ASSERT_LAST(lastField) \
-    ASSERT_LAST_OFFSET(lastField, 0)
-
-#define ASSERT_ORDERED(lastField, thisField) \
-    ASSERT_SERIAL(*this, lastField, thisField)
-
-#define ASSERT_ORDERED_OFFSET(lastField, thisField, offset) \
-    ASSERT_SERIAL_OFFSET(*this, lastField, offset, thisField)
-
-#define DEBUG_DUMP_BOOL(lastField, thisBool) \
-    ASSERT_ORDERED(lastField, thisBool); \
-    if (thisBool) s += #thisBool " "
-
-// !!! replace with debug dump bool
-#define BOOL_TO_STR(data) if (data) s += #data + std::string(" ")
-
 #define DEBUG_SET_BOOL(lastField, thisBool) \
     ASSERT_ORDERED(lastField, thisBool); \
     thisBool = OpDebugOptional(str, #thisBool)
 
-// macro checks that function ptrs are consecutive
-#define DEBUG_FIND_TAG(callback, lastField, thisField) \
-    ASSERT_SERIAL(callback, lastField, thisField); \
-    s += debugFindTag(reinterpret_cast<DebugFunction>(callback.thisField))
-
-// macro checks that function ptrs are consecutive
-#define DEBUG_FIND_FUNCTION(callback, lastField, thisField) \
-    ASSERT_SERIAL(callback, lastField, thisField); \
-    callback.thisField = (decltype(callback.thisField)) debugFindFunction(str)
-
-#define DEBUG_DUMP_FLOAT(lastField, thisFloat) \
-    ASSERT_ORDERED(lastField, thisFloat); \
-    if (!OpMath::IsDebugNaN(thisFloat)) \
-        s += debugValue(DebugLevel::error, b, #thisFloat, thisFloat) + " "
-
 #define DEBUG_SET_FLOAT(lastField, thisFloat) \
     ASSERT_ORDERED(lastField, thisFloat); \
     thisFloat = OpDebugReadNamedFloat(str, #thisFloat)
-
-#define DEBUG_DUMP_START_REQUIRED_FLOAT(thisFloat) \
-    s += #thisFloat ":"; \
-    s += debugValue(DebugLevel::error, b, #thisFloat, thisFloat) + " "
-
-#define DEBUG_DUMP_REQUIRED_FLOAT(lastField, thisFloat) \
-    ASSERT_ORDERED(lastField, thisFloat); \
-    DEBUG_DUMP_START_REQUIRED_FLOAT(thisFloat)
 
 #define DEBUG_SET_START_REQUIRED_FLOAT(thisFloat) \
     OpDebugRequired(str, #thisFloat); \
@@ -578,39 +365,10 @@ struct OpSaveDump {
     ASSERT_ORDERED(lastField, thisFloat); \
     DEBUG_SET_START_REQUIRED_FLOAT(thisFloat)
 
-#define DEBUG_DUMP_ID(lastField, thisID) \
-    ASSERT_ORDERED(lastField, thisID); \
-    if (thisID) s += #thisID ":" + STR(thisID->id) + " "
-
 #define DEBUG_SET_ID(lastField, thisID) \
     ASSERT_ORDERED(lastField, thisID); \
     if (OpDebugOptional(str, #thisID)) \
         thisID = (decltype(thisID)) OpDebugReadSizeT(str)
-
-#define DEBUG_DUMP_COMMON_STRUCT(thisStruct) \
-    s += #thisStruct ":" + thisStruct.debugDump(l, b) + "\n"
-
-#define DEBUG_DUMP_FIRST_STRUCT(thisStruct) \
-    std::string s; \
-    ASSERT_FIRST(thisStruct); \
-    DEBUG_DUMP_COMMON_STRUCT(thisStruct)
-
-#define DEBUG_DUMP_STRUCT_OFFSET(lastField, thisStruct, offset) \
-    ASSERT_ORDERED_OFFSET(lastField, thisStruct, offset); \
-    DEBUG_DUMP_COMMON_STRUCT(thisStruct)
-
-#define DEBUG_DUMP_STRUCT(lastField, thisStruct) \
-    DEBUG_DUMP_STRUCT_OFFSET(lastField, thisStruct, 0)
-
-#define DEBUG_DUMP_LAST_STRUCT(lastField, thisStruct) \
-    DEBUG_DUMP_STRUCT(lastField, thisStruct); \
-    ASSERT_LAST(hi); \
-    return s
-
-#define DEBUG_DUMP_OPTIONAL_STRUCT(lastField, thisStruct, condition) \
-    ASSERT_ORDERED(lastField, thisStruct); \
-    if (condition) \
-        DEBUG_DUMP_COMMON_STRUCT(thisStruct)
 
 #define DEBUG_SET_COMMON_STRUCT(thisStruct) \
     OpDebugRequired(str, #thisStruct); \
@@ -631,31 +389,13 @@ struct OpSaveDump {
     DEBUG_SET_STRUCT(lastField, thisStruct); \
     ASSERT_LAST(thisStruct)
 
-#define DEBUG_DUMP_OPTIONAL_COMMON_ID(thisValue) \
-    if (thisValue) \
-        s += #thisValue ":" + STR(thisValue->id) + " "
-
 #define DEBUG_SET_OPTIONAL_COMMON_ID(thisValue) \
     if (OpDebugOptional(str, #thisValue)) \
         thisValue = (decltype(thisValue)) OpDebugReadSizeT(str)
 
-#define DEBUG_DUMP_OPTIONAL_ID(lastField, thisValue) \
-    ASSERT_ORDERED(lastField, thisValue); \
-    DEBUG_DUMP_OPTIONAL_COMMON_ID(thisValue)
-
 #define DEBUG_SET_OPTIONAL_ID(lastField, thisValue) \
     ASSERT_ORDERED(lastField, thisValue); \
     DEBUG_SET_OPTIONAL_COMMON_ID(thisValue)
-
-#define DEBUG_DUMP_OPTIONAL_POS_VALUE(lastField, thisValue) \
-    ASSERT_ORDERED(lastField, thisValue); \
-    if (thisValue >= 0) \
-        s += #thisValue ":" + STR(thisValue) + " "
-
-#define DEBUG_DUMP_OPTIONAL_FINITE_VALUE(lastField, thisValue) \
-    ASSERT_ORDERED(lastField, thisValue); \
-    if (!OpMath::IsDebugNaN(thisValue)) \
-        s += #thisValue ":" + OpDebugDumpHex(thisValue) + " (" + STR(thisValue) + ") "
 
 #define DEBUG_SET_OPTIONAL_FINITE_VALUE(lastField, thisValue) \
     ASSERT_ORDERED(lastField, thisValue); \
@@ -670,36 +410,15 @@ struct OpSaveDump {
     if (OpDebugRequired(str, #thisValue)) \
         DumpSet(thisValue, str);
 
-#define DEBUG_DUMP_PUBLIC_VALUE(lastField, thisValue) \
-    ASSERT_ORDERED(lastField, thisValue); \
-    s += #thisValue ":" + DebugDump(thisValue, l, b) + "\n";
-
 #define DEBUG_SET_OPTIONAL_PUBLIC_VALUE(lastField, thisValue) \
     ASSERT_ORDERED(lastField, thisValue); \
     if (OpDebugOptional(str, #thisValue)) \
         DumpSet(thisValue, str);
 
-#define DEBUG_DUMP_OPTIONAL_PUBLIC_VALUE(lastField, thisValue, condition) \
-    ASSERT_ORDERED(lastField, thisValue); \
-    if (condition) \
-        s += DebugDump(thisValue, l, b) + "\n";
-
-#define DEBUG_DUMP_OPTIONAL_VALUE(lastField, thisValue) \
-    ASSERT_ORDERED(lastField, thisValue); \
-    if (thisValue) \
-        s += #thisValue ":" + STR(thisValue) + " "
-
 #define DEBUG_SET_OPTIONAL_VALUE(lastField, thisValue) \
     ASSERT_ORDERED(lastField, thisValue); \
     if (OpDebugOptional(str, #thisValue)) \
         thisValue = (decltype(thisValue)) OpDebugReadSizeT(str)
-
-#define DEBUG_DUMP_START_REQUIRED_VALUE(thisValue) \
-    s += #thisValue ":" + STR(thisValue) + " "
-
-#define DEBUG_DUMP_REQUIRED_VALUE(lastField, thisValue) \
-    ASSERT_ORDERED(lastField, thisValue); \
-    DEBUG_DUMP_START_REQUIRED_VALUE(thisValue)
 
 #define DEBUG_SET_START_REQUIRED_VALUE(thisValue) \
     OpDebugRequired(str, #thisValue); \
@@ -708,35 +427,6 @@ struct OpSaveDump {
 #define DEBUG_SET_REQUIRED_VALUE(lastField, thisValue) \
     ASSERT_ORDERED(lastField, thisValue); \
     DEBUG_SET_START_REQUIRED_VALUE(thisValue)
-
-#define DEBUG_DUMP_COMMON_VECTOR(thisVector) \
-    do { \
-    if (thisVector.size()) { \
-        s += #thisVector ":" + STR(thisVector.size()) + " "; \
-        for (const auto& member : thisVector) { \
-            s += member.debugDump(l, b) + "\n"; \
-        } \
-    } \
-    } while (false)
-
-#define DEBUG_DUMP_VECTOR_OFFSET(lastField, thisVector, offset) \
-    do { \
-    ASSERT_ORDERED_OFFSET(lastField, thisVector, offset); \
-    DEBUG_DUMP_COMMON_VECTOR(thisVector); \
-    } while (false)
-
-#define DEBUG_DUMP_VECTOR(lastField, thisVector) \
-    DEBUG_DUMP_VECTOR_OFFSET(lastField, thisVector, 0)
-
-#define DEBUG_DUMP_PUBLIC_VECTOR(thisVector) \
-    do { \
-    if (thisVector.size()) { \
-        s += #thisVector ":" + STR(thisVector.size()) + " "; \
-        for (const auto& member : thisVector) { \
-            s += DebugDump(member, l, b) + "\n"; \
-        } \
-    } \
-    } while (false)
 
 #define DEBUG_SET_COMMON_VECTOR(thisVector) \
     do { \
@@ -767,19 +457,6 @@ struct OpSaveDump {
     } \
     } while (false)
 
-#define DEBUG_DUMP_VECTOR_IDS(lastField, thisVector) \
-    do { \
-    ASSERT_ORDERED(lastField, thisVector); \
-    if (thisVector.size()) { \
-        s += #thisVector ":" + STR(thisVector.size()) + " ["; \
-        for (const auto& member : thisVector) { \
-            s += STR(member->id) + " "; \
-        } \
-        s.pop_back(); \
-        s += "] "; \
-    } \
-    } while (false)
-
 #define DEBUG_SET_VECTOR_IDS(lastField, thisVector) \
     do { \
     ASSERT_ORDERED(lastField, thisVector); \
@@ -792,6 +469,7 @@ struct OpSaveDump {
     } \
     } while (false)
 
+#undef ENUM_NAME_STRUCT
 #define ENUM_NAME_STRUCT(enum) \
 struct _##enum##Name { \
     enum element; \
@@ -802,11 +480,6 @@ static _##enum##Name enum##Names[] = { \
     enum##_Base \
     enum##_Enums \
 }; \
-\
-std::string enum##Name(enum element) { \
-    int first = (int) enum##Names[0].element; \
-    return enum##Names[(int) element - first].name; \
-} \
 \
 enum enum##Str(const char*& str, const char* label, enum enumDefault) { \
     while ('{' == str[0]) \

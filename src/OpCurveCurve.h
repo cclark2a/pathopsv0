@@ -250,6 +250,8 @@ struct OpCurveCurve {
 	OpCurveCurve(OpContext* c) { context = c; }
 	void drawClosest(const OpPoint& originalPt) const;
 	void dumpClosest(const OpPoint& pt) const;
+#endif
+#if OP_DEBUG_SERIALIZE_OUT
 #include "OpDebugDeclarations.h"
 #endif
 #if OP_DEBUG_VERBOSE

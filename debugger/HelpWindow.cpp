@@ -1,7 +1,6 @@
 // (c) 2025, Cary Clark cclark2@gmail.com
 #include "HelpWindow.h"
 #include "DebuggerState.h"
-#include "OpCurveCurve.h"
 
 HelpWindow::HelpWindow(DebuggerState* state)
     : DebuggerWindow(state, WheelTarget::none) {
@@ -34,7 +33,7 @@ void HelpWindow::update() {
     };
     std::string shortCuts = "\x01\x02\x03\x04" 
             "aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXuyYzZ"
-            "0123456789-~?";
+            "0123456789-~[]?";
     for (char c : shortCuts) {
         event.key = c;
         nextLine(debuggerState->keyEvent(event, KeyAction::show).s);

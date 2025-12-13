@@ -113,8 +113,8 @@ struct OpPointBounds : OpRect {
 	~OpPointBounds() override {}
 	OpPointBounds(const OpPointBounds& p) = default;
 	OpPointBounds& operator=(const OpPointBounds& p) = default;
-	DUMP_DECLARATIONS_OVERRIDE
 #endif
+	DUMP_DECLARATIONS_OVERRIDE
 
 };
 

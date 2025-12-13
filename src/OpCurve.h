@@ -7,6 +7,12 @@
 #include "DebugOpsTypes.h"
 #endif
 
+struct OpContext;
+
+#if TEST_RASTER
+struct OpEdge;
+#endif
+
 // arranged so down/left is -1, up/right is +1
 enum class NormalDirection {
 	downLeft = -1,
@@ -48,8 +54,8 @@ struct OpCurve {
 	// void adjust(OpPoint start, OpPoint end);
 	OpRoots axisRayHit(Axis offset, float axisIntercept, float start = 0, float end = 1) const;
 	OpRoots axisRawHit(Axis offset, float axisIntercept, MatchEnds) const;
-	PathOpsV0Lib::WindKeep bestLoop(PathOpsV0Lib::Winding , bool firstPt, bool lastPt  
-            OP_DEBUG_PARAMS(int parentID));
+	PathOpsV0Lib::WindKeep bestLoop(PathOpsV0Lib::Winding , 
+			bool firstPt, bool lastPt  OP_DEBUG_PARAMS(int parentID));
 	float center(Axis offset, float axisIntercept) const;
     OpContext& context() {
         return *(OpContext*) c.context; }
@@ -74,6 +80,7 @@ struct OpCurve {
 	OpPtT lineCurve(OpCurve& line, float t, float* lineT, MatchEnds , float margin);
     OpRoots lineIntersection(OpCurve& );
 	OpRoots lineIntersect(const LinePts& line) const;
+	PathOpsV0Lib::CurveType lineType() const;
 	// Returns t of point on curve if any; returns NaN if no match. Used by line/curve intersection.
 	float match(float start, float end, OpPoint ) const;
 	MatchReverse matchEnds(const LinePts& ) const;
@@ -83,7 +90,7 @@ struct OpCurve {
 	float normalLimit() const;
 	bool normalize();
 	PathOpsV0Lib::WindKeep output(PathOpsV0Lib::Winding , bool firstPt, bool lastPt  
-            OP_DEBUG_PARAMS(int parentID));
+			OP_DEBUG_RASTER_PARAMS(OpEdge* ));
 	void pinCtrl(OpPoint oldStart, OpPoint oldEnd);
 	OpPoint ptAtT(float t) const;
 	OpPoint ptDAtT(float t) const;
@@ -100,6 +107,9 @@ struct OpCurve {
 		c.data->end = pt; }
 	void setLine() {
 		isLineSet = false; isLine(); }
+	void setLineType() {
+		c.type = lineType(); }
+
 	OpCurve subDivide(float t1, float t2) const;
 	OpVector tangent(float t) const;
 	float tAtXY(float t1, float t2, XyChoice , float goal) const;
@@ -115,7 +125,7 @@ struct OpCurve {
 	bool debugIsLine() const;
 #endif
 #if TEST_RASTER
-	void debugScale(double scale, double offsetX, double offsetY);
+	void debugScale(double scaleX, double scaleY, double offsetX, double offsetY);
 #endif
 #if OP_DEBUGGER
 	OpCurve debugSubDivide(float t1, float t2) const;
@@ -141,9 +151,11 @@ struct CurveDataStorage {
 		used += size;
 		return result;
 	}
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_SERIALIZE_OUT
 	std::string debugDump(DebugLevel l, DebugBase b) const;
 	std::string debugDump(PathOpsV0Lib::CurveData* ) const;
+#endif
+#if OP_DEBUG_DUMP
 	PathOpsV0Lib::CurveData* dumpSet(const char*& str);
 	static void DumpSet(const char*& str, CurveDataStorage** previousPtr);
 #endif

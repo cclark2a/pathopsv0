@@ -5,6 +5,8 @@
 #include "OpMath.h"
 #include "SkiaEnumSkPathOp.h"
 
+struct OpContext;
+
 #if OP_DEBUG
 #define SkDEBUGCODE(x) x
 #else

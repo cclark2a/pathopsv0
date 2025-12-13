@@ -351,23 +351,28 @@ inline OpPoint conicHull(Curve c, int index) {
 }
 
 #if OP_DEBUG_DUMP
-inline void debugConicSubDivide(Curve curve, float t1, float t2, float threshold, Curve* result) {
+inline void debugConicSubDivide(Curve curve, float t1, float t2, Curve* result) {
 	OpPtT ptT1 { result->data->start, t1 };
 	OpPtT ptT2 { result->data->end, t2 };
     PointWeight control(curve);
     PointWeight subPtW = ConicControl(curve.data->start, control, curve.data->end, ptT1, ptT2, true);
     subPtW.copyTo(*result);
-    if (conicIsLine(*result, threshold))
-        result->type = degenerateLine;
-}
-
-inline std::string conicDebugDumpName() { 
-    return "conic"; 
 }
 
 inline std::string conicDebugDumpExtra(Curve c, DebugLevel l, DebugBase b) {
     PointWeight control(c);
     return debugValue(l, b, " weight", control.weight);
+}
+
+#define DUMP_CONIC_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(conicDebugDumpExtra), \
+    OP_TAGGED_FUNCTION(debugConicSubDivide), \
+
+#endif
+
+#if OP_DEBUG_SERIALIZE_OUT
+inline std::string conicDebugDumpName() { 
+    return "conic"; 
 }
 
 #define CONIC_TAGGED_FUNCTIONS \
@@ -386,8 +391,6 @@ inline std::string conicDebugDumpExtra(Curve c, DebugLevel l, DebugBase b) {
     OP_TAGGED_FUNCTION(conicSubDivide), \
     OP_TAGGED_FUNCTION(conicXYAtT), \
     OP_TAGGED_FUNCTION(conicDebugDumpName), \
-    OP_TAGGED_FUNCTION(conicDebugDumpExtra), \
-    OP_TAGGED_FUNCTION(debugConicSubDivide), \
     
 #endif
 

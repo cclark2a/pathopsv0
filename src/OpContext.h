@@ -21,8 +21,8 @@ struct CallerDataStorage {
     size_t dumpOffset(PathOpsV0Lib::ContextUserData data) const;
     void dumpResolve(PathOpsV0Lib::ContextUserData& );
 	static void DumpSet(const char*& str, CallerDataStorage** previousPtr);
-	DUMP_DECLARATIONS
 #endif
+	DUMP_DECLARATIONS
 
 	CallerDataStorage* next;
 	size_t used;
@@ -69,7 +69,7 @@ struct OpContext {
 
 	bool addAlias(OpPoint pt, OpPoint alias);
 //    OpEdge* addFiller(OpEdge* edge, OpEdge* lastEdge);
-	OpEdge* addFiller(const OpPtT& start, const OpPtT& end);
+	OpEdge* addFiller(const OpPtT& start, const OpPtT& end, OpSegment* parent);
 	void addToBounds(const OpCurve& );
     void addUserData(PathOpsV0Lib::ContextUserData );
 	uint8_t* allocateCallerData(size_t );
@@ -79,6 +79,7 @@ struct OpContext {
 	OpIntersection* allocateIntersection();
 	OpLimb* allocateLimb();
 	PathOpsV0Lib::WindingData* allocateWinding(size_t );
+	bool allowError(PathOpsV0Lib::ContextError , PathOpsV0Lib::Curve* = nullptr);
 
 	void addDisjointIntersections() {
 		for (auto contour : contours) {
@@ -255,13 +256,17 @@ struct OpContext {
 #else
 	void debugValidateIntersections() {}
 #endif
-#if OP_DEBUG_DUMP
-	void debugCompare(std::string s);
-	const OpLimb& debugNthLimb(int) const;
+#if OP_DEBUG_SERIALIZE_OUT
+	void dumpBaseFile() const;
+	void dumpFile(std::string description);
     const OpEdge* debugFindEdge(int id) const;
     const OpSegment* debugFindSegment(int id) const;
+	const OpLimb& debugNthLimb(int) const;
     bool dumpInitialized() const {
                 return initialized || !windingSet;  }
+#endif
+#if OP_DEBUG_DUMP
+	void debugCompare(std::string s);
 	void dumpResolve(OpContour*& contourRef);
 	void dumpResolve(const OpEdge*& );
 	void dumpResolve(OpEdge*& );
@@ -269,8 +274,8 @@ struct OpContext {
 	void dumpResolve(const OpLimb*& limbRef);
 	void dumpResolve(OpLimb*& limbRef);
 	void dumpResolve(OpSegment*& );
-	#include "OpDebugDeclarations.h"
 #endif
+#include "OpDebugDeclarations.h"
 #if OP_DEBUG_IMAGE
 	void debugLimbClear();
 	void debugLimbColor(int lastLimbID, uint32_t color);
@@ -312,8 +317,6 @@ struct OpContext {
 #if OP_DEBUG
 	std::vector<PathOpsV0Lib::DebugCurveCallbacks> debugCallbacks;
 	PathOpsV0Lib::DebugContextCallbacks debugContextCallbacks;
-//	std::array<PathOpsV0Lib::DebugContextData, static_cast<std::size_t>(
-//            PathOpsV0Lib::DebugContextType::Count)> debugContextData;
 	OpDebugData debugData;
 	OpCurveCurve* debugCurveCurve;
 	OpJoiner* debugJoiner;
@@ -326,10 +329,19 @@ struct OpContext {
 	bool debugCheckLastEdge;
 	bool debugFailOnEqualCepts;
 #endif
+#if OP_DEBUG_SERIALIZE_OUT
+	std::string debugFilename;
+	std::string debugDescription;
+	std::string debugOutPath;
+	int dumpIndex = 0;  // number of dumped file
+#endif
 #if OP_DEBUG_DUMP
 	std::vector<std::string> debugDumpNotes;
 	std::vector<std::string> debugDumpSkips;
 	bool debugDumpInit;   // if true, created by dump init
+#endif
+#if TEST_RASTER
+	struct DebugRaster* debugRaster = nullptr;
 #endif
 };
 

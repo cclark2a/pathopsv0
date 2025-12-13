@@ -13,6 +13,19 @@
 #include "curves/UnaryWinding.h"
 #include "OpContext.h"
 
+
+// char* so it can be called from immediate window
+namespace PathOpsV0Lib {
+
+std::string dumpSkiaOutPath(Context* context) {
+    ContextUserData userData = UserData(context, UserDataType::outPath);
+    OP_ASSERT(userData.size == sizeof(const SkPath*));
+    const SkPath* outPath = (const SkPath*) userData.data;
+    return dumpSkPath(outPath, false);
+}
+
+}
+
 using namespace PathOpsV0Lib;
 
 int minMaxLimbs(Context* ) {
@@ -31,8 +44,8 @@ bool DebugAnalyze(Context* c) {
 void SetSkiaSimplifyCallbacksDebug(Context* context, Contour*, SkPath const&) {
     SetDebugContextCallbacks(context, {
             unaryDebugIsFill
-            OP_DEBUG_DUMP_PARAMS(unaryDumpOutFunc, unaryDumpSetFunc)
-            OP_DEBUG_IMAGE_PARAMS(unaryImageOutFunc, nullptr, unaryColorFunc) }
+            OP_DEBUG_DUMP_PARAMS(unaryDumpOutFunc, unaryDumpSetFunc, dumpSkiaOutPath,
+                    unaryImageOutFunc, nullptr, unaryColorFunc) }
     );
 }
 
@@ -40,11 +53,10 @@ void SetSkiaOpContourCallbacksDebug(Context* context, Contour*,
         BinaryOperand, SkPath const&) {
     SetDebugContextCallbacks(context, {
             binaryDebugIsFill
-            OP_DEBUG_DUMP_PARAMS(binaryDumpOutFunc, binaryDumpSetFunc)
-            OP_DEBUG_IMAGE_PARAMS(binaryImageOutFunc, binaryImageNamesFunc, binaryColorFunc,
+            OP_DEBUG_DUMP_PARAMS(binaryDumpOutFunc, binaryDumpSetFunc, dumpSkiaOutPath,
+                    binaryImageOutFunc, binaryImageNamesFunc, binaryColorFunc,
                     binaryVisibleFunc)
     });
-
 }
 
 void AddDebugSkiaPath(Context* c, Contour* contour, const SkPath& path) {

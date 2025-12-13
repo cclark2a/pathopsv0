@@ -154,7 +154,7 @@ void TextWindow::innerUpdate(int& safetyCheck) {
     // find window height available
     // 
     auto addWrapped = [this](std::string s) {
-        s = stringFormat(debuggerState->context, s, 100);
+        s = stringFormat(s, 100);
         const NativeTextCache& cache = getCache(addClipped(s, 
                 { 10, (float) (detailHeight - scrollPos) }, black, detailFont).cacheIndex);
         detailHeight += cache.size.dy;
@@ -240,8 +240,10 @@ void TextWindow::innerUpdate(int& safetyCheck) {
         std::string s = debugDmpLinks(debuggerState->context, DebugLevel::normal, defaultBase);
         addWrapped(s);
     }
-    if (showTest && !test.empty())
-        addWrapped(test);
+    if (showTest && !testIn.empty())
+        addWrapped(testIn);
+    if (showTest && !debuggerState->context->debugOutPath.empty())
+        addWrapped(debuggerState->context->debugOutPath);
     if (lastDetailHeight != detailHeight) {
         (void) scroll(0);
         innerUpdate(safetyCheck);
@@ -250,24 +252,27 @@ void TextWindow::innerUpdate(int& safetyCheck) {
 
 void TextWindow::update() {
     // retrieve test first if changed
-    struct stat info;
-    std::string filename = dmpFileToPath(TestFile);
-    if (stat(filename.c_str(), &info) != -1) {
-        auto readText = [this]() {
-            test = dmpFileToStr(TestFile);
-            return !test.empty();
+    auto readTest = [this](std::string filename, std::string& testCode) {
+        struct stat info;
+        std::string filePath = dmpFileToPath(filename);
+        if (stat(filePath.c_str(), &info) == -1)
+            return;
+        auto readText = [filename, &testCode]() {
+            testCode = dmpFileToStr(filename);
+            return !testCode.empty();
         };
-        if (info.st_mtime != debuggerState->lastTime) {
-            if (readText())
-                lastTime = info.st_mtime;
-            else if (updateAttempts > maxUpdateAttempts) {
-                OpDebugOut("failed to update\n"); 
-                OP_ASSERT(0);
-                readText();  // for debugging
-                return;
-            }
+        if (info.st_mtime == lastTime)
+            return;
+        if (readText())
+            lastTime = info.st_mtime;
+        else if (++updateAttempts > maxUpdateAttempts) {
+            OpDebugOut("failed to update\n"); 
+            OP_ASSERT(0);
+            readText();  // for debugging
+            return;
         }
-    }
+    };
+    readTest(TestInFile, testIn);
     int safetyCheck = 0;
     innerUpdate(safetyCheck);
 }

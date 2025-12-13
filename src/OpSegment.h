@@ -154,14 +154,16 @@ struct OpSegment {
 	OpSegment();
 	float debugFindAxisT(Axis , float start, float end, float oppXY);
 	void dumpCount() const;
-    bool dumpInitialized() const;
 	#define OP_X(Thing) \
 	std::string debugDump##Thing() const; \
 	void dump##Thing() const;
-	DEBUG_DUMP
 	SEGMENT_DETAIL
 	EDGE_OR_SEGMENT_DETAIL
 	#undef OP_X
+#endif
+#if OP_DEBUG_SERIALIZE_OUT
+	std::string debugDumpID() const;
+    bool dumpInitialized() const;
 	#include "OpDebugDeclarations.h"
 #endif
 #if OP_DEBUG_IMAGE

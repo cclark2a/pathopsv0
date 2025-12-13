@@ -565,9 +565,16 @@ inline void cubicSubDivide(Curve c, float t1, float t2, float threshold, Curve* 
 }
 
 #if OP_DEBUG_DUMP
-inline void debugCubicSubDivide(Curve c, float t1, float t2, float threshold, Curve* result) {
-    cubicCommonSubDivide(c, t1, t2, threshold, result, CubicSubDivide::debuggerSubDivide);
+inline void debugCubicSubDivide(Curve c, float t1, float t2, Curve* result) {
+    cubicCommonSubDivide(c, t1, t2, OpNaN, result, CubicSubDivide::debuggerSubDivide);
 }
+
+#define DUMP_CUBIC_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(debugCubicSubDivide), \
+
+#endif
+
+#if OP_DEBUG_SERIALIZE_OUT
 
 inline std::string cubicDebugDumpName() { 
     return "cubic"; 
@@ -591,7 +598,6 @@ inline std::string cubicDebugDumpName() {
     OP_TAGGED_FUNCTION(cubicXYAtT), \
     OP_TAGGED_FUNCTION(cubicReverse), \
     OP_TAGGED_FUNCTION(cubicDebugDumpName), \
-    OP_TAGGED_FUNCTION(debugCubicSubDivide), \
 
 #endif
 

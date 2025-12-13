@@ -619,7 +619,7 @@ ContextError FillPath::simplify() {
 }
 
 static bool allowDisjointLines(ContextError err, PathOpsV0Lib::Curve* ) {
-	return ContextError::end != err && ContextError::missing != err;
+	return ContextError::end == err || ContextError::missing == err;
 }
 
 ContextError Path::handleError(Context* context) {

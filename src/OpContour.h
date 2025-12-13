@@ -146,8 +146,8 @@ struct OpContour {
 #if OP_DEBUG_VALIDATE
 	void debugValidate(const OpJoiner* ) const;
 #endif
-#if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
+#if OP_DEBUG_DUMP
 	#define OP_X(Thing) \
 	void dump##Thing() const;
 	SEGMENT_DETAIL
@@ -208,14 +208,16 @@ struct OpContourStorage {
         }
 	}
 
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_SERIALIZE_OUT
 	int debugCount() const;
+	OpContour* debugIndex(int index) const;
+#endif
+#if OP_DEBUG_DUMP
     void debugCheck(const OpContour* ); // error and exit if contour is not in storage
 	OpContour* debugFind(int id) const;
-	OpContour* debugIndex(int index) const;
 	static void DumpSet(const char*& , OpContext* );
-	DUMP_DECLARATIONS
 #endif
+	DUMP_DECLARATIONS
 
 	OpContourStorage* next;
 	OpContour storage[2];

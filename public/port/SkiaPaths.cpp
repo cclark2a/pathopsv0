@@ -54,8 +54,8 @@ WindKeep skiaOutput(Output o) {
     const Curve& c = o.curve;
     bool firstPt = (int) o.attribute & (int) LoopAttribute::first;
     bool lastPt = (int) o.attribute & (int) LoopAttribute::last;
-    ContextUserData data = UserData(c.context, UserDataType::outPath);
-    SkPath& skpath = *(SkPath*) data.data;
+    ContextUserData path = UserData(c.context, UserDataType::outPath);
+    SkPath& skpath = *(SkPath*) path.data;
     SkPath::Verb type = (SkPath::Verb) c.type; 
     if (firstPt) {
 		skpath.setFillType(SkPathFillType::kEvenOdd);

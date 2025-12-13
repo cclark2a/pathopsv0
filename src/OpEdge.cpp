@@ -238,7 +238,6 @@ OpEdge::OpEdge(OpContext* context, const OpPtT& start, const OpPtT& end  OP_LINE
 	center.pt = bounds.center();
 	setDisabled(OP_LINE_FILE_NPARGS());
 	setUnsortable(Unsortable::filler);
-	OP_DEBUG_IMAGE_CODE(debugDraw = true);
 }
 
 // called from curve curve when splitting edges
@@ -455,7 +454,6 @@ void OpEdge::complete(OpPoint startPoint, OpPoint endPoint) {
 	OP_ASSERT(startT < endT);
 	subDivide(startPoint, endPoint);	// uses already computed points stored in edge
 	winding.setWind(segment->winding);
-	OP_DEBUG_IMAGE_CODE(debugDraw = true);  // don't draw until it is fully initialized
 }
 
 OpContext* OpEdge::context() const {
@@ -591,36 +589,41 @@ bool OpEdge::output(bool closed) {
 		}
 		edge = lastEdge;
 		edge->setLinkDirection(EdgeMatch::none, nullptr, InOutput::yes);
-		firstEdge = nullptr;
 	} else
 		edge = this;
-	return edge->outputLinkedList(firstEdge, true);
+	return edge->outputLinkedList();
 }
 
-bool OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first) {
+// !!! this doesn't account for frames that may or may not form loops
+// if frame, only add filler from last to first if gap can be accounted for by iStart, iEnd...
+bool OpEdge::outputLinkedList() {
+	OpEdge* firstEdge = this;
+	OpEdge* edge = this;
+	bool result = true;
+	bool closeLoop = context()->allowError(PathOpsV0Lib::ContextError::missing, &curve.c);
+	do {
+		OpEdge* next = edge->nextEdge;
+		edge->outputLink(firstEdge, closeLoop);
+		result &= !edge->inOutput;
+		edge = next;
+	} while (edge && edge != firstEdge);
+	return result;  // if true, all edges are kept by caller; none in linked list are in output
+}
+
+// track if caller returns 'keep' 
+// if so, mark edges accordingly and reuse to build next linked list
+// !!! tracking must be used for cut or some other new frame fill, but unsure if it still works...
+void OpEdge::outputLink(OpEdge* firstEdge, bool closeLoop) {
 	OpCurve copy(curve.c, Rotated::no);
-    OP_DEBUG_CODE(float thresholdLength = curve.context().threshold().length());
-    OP_DEBUG_CODE(PathOpsV0Lib::ErrorDispatch errorDispatchFuncPtr = 
-            curve.context().errorHandler.errorDispatchFuncPtr);
-    OP_DEBUG_CODE(bool allowGaps = errorDispatchFuncPtr 
-            && !(*errorDispatchFuncPtr)(PathOpsV0Lib::ContextError::missing, &curve.c));
-    if (iStart.isFinite()) {
-        OP_DEBUG_CODE(float gapLength = (curve.firstPt() - iStart).length());
-        OP_ASSERT(allowGaps || gapLength <= thresholdLength * 131072);  // !!! gap can be very large; investigate...
-        copy.setFirstPt(iStart);
-    }
-    if (iEnd.isFinite()) {
-        OP_DEBUG_CODE(float gapLength = (curve.lastPt() - iEnd).length());
-        OP_ASSERT(allowGaps || gapLength <= thresholdLength * 131072);
-        copy.setLastPt(iEnd);
-    }
 	if (EdgeMatch::end == which())
 		copy.reverse();
-    // track if caller returns 'keep' 
-    // if so, mark edges accordingly and reuse to build next linked list
-	OpEdge* next = nextEdge;
-	PathOpsV0Lib::WindKeep keep = copy.output(winding.w, first, firstEdge == next  
-            OP_DEBUG_PARAMS(id));
+	bool last = !nextEdge || firstEdge == nextEdge;
+	OpEdge* nextPtEdge = nextEdge ? nextEdge : firstEdge;
+	OpPoint nextPt = EdgeMatch::start == nextPtEdge->which() 
+			? nextPtEdge->curve.firstPt() : nextPtEdge->curve.lastPt();
+	bool addFiller = nextPt != copy.lastPt();
+	PathOpsV0Lib::WindKeep keep = copy.output(winding.w, this == firstEdge, last && !addFiller 
+            OP_DEBUG_RASTER_PARAMS(this));
     if (PathOpsV0Lib::WindKeep::Discard == keep) {
 	    inOutput = true;
 	    clearActiveAndPals(OP_LINE_FILE_NPARGS());
@@ -630,10 +633,10 @@ bool OpEdge::outputLinkedList(const OpEdge* firstEdge, bool first) {
 	    inLinkups = false;
 	    clearNextEdge();	    
     }
-	if (firstEdge == next)
-		return !inOutput;
-	OP_ASSERT(next);
-	return next->outputLinkedList(firstEdge, false) && !inOutput;
+	if (addFiller && (!last || !closeLoop)) {
+		OpEdge* filler = context()->addFiller({ copy.lastPt(), 0 }, { nextPt, 1 }, segment);
+    	filler->curve.output(winding.w, false, last  OP_DEBUG_RASTER_PARAMS(filler));
+	}
 }
 
 // in function to make setting breakpoints easier
@@ -887,26 +890,24 @@ bool OpEdgeStorage::contains(int ccUnsectableID) const {
 	return next->contains(ccUnsectableID);
 }
 
-#if OP_DEBUG_VALIDATE
+#if OP_DEBUG_DUMP
 void OpEdgeStorage::debugRelease() {
 	for (int index = 0; index < used; ++index) {
 		OpEdge& edge = storage[index];
-		if (edge.priorEdge)
-			edge.priorEdge->nextEdge = nullptr;
-		if (edge.nextEdge)
-			edge.nextEdge->priorEdge = nullptr;
+		edge.debugReleased = true;
 	}
 	if (!next)
 		return;
 	return next->debugRelease();
 }
-
 #endif
 
 void OpEdgeStorage::reuse() {
-OP_ASSERT(0);
+	OP_ASSERT(0);  // !!! not plumbed in, yet
+#if OP_DEBUG_VALIDATE
 	for (int index = 0; index < used; ++index)
 		storage[index].~OpEdge();
+#endif
 	used = 0;
 	next = nullptr;
 }

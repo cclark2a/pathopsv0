@@ -32,6 +32,10 @@ enum class DebugWindingSum {
 enum class DebugWindingZero {
 	dummy
 };
+
+enum class DebugWindingRef {
+	dummy
+};
 #endif
 
 #define WindingType_Enums \
@@ -67,6 +71,7 @@ struct OpWinding {
 	OpWinding(const PathOpsV0Lib::Winding& );  // allocates and copies
 #if TEST_RASTER
 	OpWinding(OpWinding& , DebugWindingSum );
+	OpWinding(const PathOpsV0Lib::Winding& , DebugWindingRef );
 	OpWinding(OpContext* , DebugWindingZero );
 	OpWinding(OpContour* , PathOpsV0Lib::WindingData wind, size_t size);
 #endif
@@ -92,8 +97,9 @@ struct OpWinding {
 #if TEST_RASTER
 	void debugZero();
 #endif
-#if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
+#if OP_DEBUG_DUMP
+	void dumpSet(OpContext* , const char*& str);
 #endif
 
 	PathOpsV0Lib::Winding w;

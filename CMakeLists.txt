@@ -3,7 +3,7 @@
 cmake_minimum_required (VERSION 3.15)
 project (pov0 VERSION 0.1)
 
-set (CMAKE_CXX_STANDARD 17)
+set (CMAKE_CXX_STANDARD 20)
 set (CMAKE_CXX_STANDARD_REQUIRED ON)
 set (CMAKE_CXX_EXTENSIONS OFF)
 
@@ -38,14 +38,6 @@ set (TEST_FIRST "")
 set (SKIP_TO_FILE "")
 set (TEST_EXTENDED 0)
 
-if (NOT DEFINED ONLY_V0)
-	set (TEST_SKIA 1)
-	set (TEST_REGION 1)
-else ()
-	set (TEST_SKIA 0)
-	set (TEST_REGION 0)
-endif ()
-
 include_directories(
 	"debug"
 	"debugger"
@@ -59,6 +51,8 @@ include_directories(
 
 set (COMMON_SOURCES
 	"debug/OpDebug.cpp"
+    "debug/OpDebugSerializeOut.cpp"
+	"debug/OpDebugTags.cpp"
 	"src/OpContext.cpp"
 	"src/OpContour.cpp"
 	"src/OpCubic.cpp"
@@ -79,13 +73,10 @@ set (COMMON_SOURCES
 set (SKIA_TESTS
 	"debug/OpDebugColor.cpp"
 	"debug/OpDebugCompare.cpp"
-	"debug/OpDebugDouble.cpp"
 	"debug/OpDebugDump.cpp"
 	"debug/OpDebugGenerator.cpp"
-	"debug/OpDebugImage.cpp"
 	"debug/OpDebugRaster.cpp"
 	"debug/OpDebugRecord.cpp"
-	"debug/OpDebugTags.cpp"
 	"public/port/SkiaPaths.cpp"
 	"debug/SkiaPathsDebug.cpp"
     "tests/OpSkiaTests.cpp"

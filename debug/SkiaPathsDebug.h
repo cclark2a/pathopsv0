@@ -29,6 +29,8 @@ void debugOpSetDrawFunc(DebugContourData , bool draw);
 bool debugOpSetIsOppFunc(DebugContourData , int opp);
 #endif
 
+std::string dumpSkiaOutPath(Context* context);
+
 }
 
 struct UnaryContour {

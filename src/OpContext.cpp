@@ -225,10 +225,11 @@ bool OpContext::addAlias(OpPoint pt, OpPoint alias) {
 	   return true;
 }
 
-OpEdge* OpContext::addFiller(const OpPtT& start, const OpPtT& end) {
+OpEdge* OpContext::addFiller(const OpPtT& start, const OpPtT& end, OpSegment* parent) {
 	void* block = allocateEdge(fillerStorage  OP_DEBUG_PARAMS("fillerStorage"));
 	// note: start t may be greater than end t (for filler only)
 	OpEdge* filler = new(block) OpEdge(this, start, end  OP_LINE_FILE_PARGS());
+	filler->segment = parent;
 	return filler;
 }
 
@@ -316,6 +317,10 @@ OpLimb* OpContext::allocateLimb() {
 PathOpsV0Lib::WindingData* OpContext::allocateWinding(size_t size) {
 	uint8_t* result = allocateCallerData(size);
 	return (PathOpsV0Lib::WindingData*) result;
+}
+
+bool OpContext::allowError(PathOpsV0Lib::ContextError error, PathOpsV0Lib::Curve* c) {
+	return errorHandler.errorDispatchFuncPtr && (*errorHandler.errorDispatchFuncPtr)(error, c);
 }
 
 WindingCondition OpContext::apply() {
@@ -586,6 +591,7 @@ WindingCondition OpContext::pathOps() {
 	    debugValidateIntersections();
 	    OpSegments sortedSegments(*this);
 	    sortedSegments.initInX();
+		OP_DEBUG_DUMP_CODE(dumpFile("sortedSegments"));
 	    debugValidateIntersections();
 	    if (checkEmpty())
 		    return 0;
@@ -593,11 +599,8 @@ WindingCondition OpContext::pathOps() {
 		    return setError(PathOpsV0Lib::ContextError::intersection  
 				    OP_DEBUG_PARAMS(sortedSegments.debugFailSegID));
 	    debugValidateIntersections();
-	    if (errorHandler.errorDispatchFuncPtr) {
-            PathOpsV0Lib::Curve dummy { (ContextPtr) this, (PathOpsV0Lib::CurveData*) nullptr, 0, 0 };
-            if (!errorHandler.errorDispatchFuncPtr(PathOpsV0Lib::ContextError::missing, &dummy))
-		        addDisjointIntersections();
-	    }
+	    if (allowError(PathOpsV0Lib::ContextError::missing))
+		    addDisjointIntersections();
 	    sortIntersections();
 		tripleSect(); // if three or more segments intersect, make the points the same 
 	    disableSmallSegments();  // moved points may allow disabling some segments
@@ -613,16 +616,19 @@ WindingCondition OpContext::pathOps() {
 	    betweenCoincidence();  // fill in intersections in coin runs that are missing in other coins
 	    sortIntersections();
 	    markInCoincidence();
+		OP_DEBUG_DUMP_CODE(dumpFile("markInCoincidence"));
 	    makeEdges();
 	    makeCoins();
 	    sortIntersections();
 	    transferCoins();
 	    makePals();  // edges too close to each other to sort or precisely intersect
 	    rebuildOverlaps(); // add coincident contours to intersecting contour bounds arrays
+		OP_DEBUG_DUMP_CODE(dumpFile("rebuildOverlaps"));
 
 	    // made edges may include lines that are coincident with other edges. Undetected for now...
     //    windCoincidences();  // for segment h/v lines, compute their winding considering coincidence
 	    FoundWindings foundWindings = OpWinder::SetWindings(*this);  // walk edges, compute windings
+		OP_DEBUG_DUMP_CODE(dumpFile("foundWindings"));
 	    if (FoundWindings::fail == foundWindings)
 		    OP_DEBUG_FAIL(*this, -1);  // no existing tests exercises
     } else {
@@ -738,12 +744,13 @@ OpPoint OpContext::remapPts(OpPoint oldAlias, OpPoint newAlias) {
 }
 
 void OpContext::resetFiller() {
-#if OP_DEBUG_VALIDATE
-	if (debugJoiner && fillerStorage)
+#if OP_DEBUG_DUMP
+	if (fillerStorage)
 		fillerStorage->debugRelease();
-#endif
+#else
 	release(fillerStorage);
 	fillerStorage = nullptr;
+#endif
 }
 
 void OpContext::resetLimbs() {

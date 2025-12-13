@@ -381,6 +381,7 @@ Distance* SectRay::find(const OpEdge* edge) {
 }
 
 FindCept SectRay::findCept(OpEdge* edge, OpEdge* test) {
+	OpDebugOut(__func__ + std::string(" edge:") + STR(edge->id) + " test:" + STR(test->id) + "\n");
 	if (test->bounds.ltChoice(axis) > normal)
 		return FindCept::ok;
 	if (test->bounds.rbChoice(axis) < normal)
@@ -394,6 +395,28 @@ FindCept SectRay::findCept(OpEdge* edge, OpEdge* test) {
 		return FindCept::ok;
 	if (test->centerless)
 		return FindCept::retry;
+	if (test->iStart.isFinite() || test->iEnd.isFinite()) {
+		// check if axis at normal is between ends of nearly coincident edges (testQuad2558209)
+		for (const CoinPal& pal : test->coinPals) {
+			bool palsReversed = pal.coinID < 0;
+			for (const OpEdge& palEdge : pal.opp->edges) {
+				if (std::none_of(palEdge.coinPals.begin(), palEdge.coinPals.end(),
+						[pal](const CoinPal& oPal) { return oPal == pal; } ))
+					continue;
+				OP_ASSERT(test->startPt() == palEdge.startPt() || palsReversed);
+				OpPoint testStart = test->curve.firstPt();
+				OpPoint oppStart = palsReversed ? palEdge.curve.lastPt() : palEdge.curve.firstPt();
+				if (testStart != oppStart 
+						&& OpMath::Between(testStart.choice(axis), normal, oppStart.choice(axis)))
+					return FindCept::retry;
+				OpPoint testEnd = test->curve.lastPt();
+				OpPoint oppEnd = palsReversed ? palEdge.curve.firstPt() : palEdge.curve.lastPt();
+				if (testEnd != oppEnd 
+						&& OpMath::Between(testEnd.choice(axis), normal, oppEnd.choice(axis)))
+					return FindCept::retry;
+			}
+		}
+	}
 	bool uSectPair = test->isUnsectable() && edge->isUnsectable() && test->isPal(edge);
 //	if (uSectPair)
 //		return FindCept::unsectable;
@@ -805,6 +828,7 @@ FoundIntercept OpWinder::FindACept(OpEdge* edge) {
 		ray.targets.reset(ray.axis);
 		// start at edge with left equal to or left of center
 		while (OpEdge* test = ray.targets.next(ray.axis, ray.homeCept)) {
+//			OpBreak2(edge, test, 45, 44);
 			FindCept findCept = ray.findCept(edge, test);  // adds to back
 			if (FindCept::ok == findCept) {
 				continue;

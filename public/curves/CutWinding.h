@@ -79,19 +79,16 @@ inline Context* cutContext(ContextUserData userData, CurveOutput output = nullpt
 #if OP_DEBUG
     OpDebugData debugData(false);
     SetDebugData(context, debugData);
-	SetDebugContextCallbacks(context, { 
-        frameDebugIsFill
-        OP_DEBUG_DUMP_PARAMS(frameDumpOutFunc, frameDumpSetFunc)
-        OP_DEBUG_IMAGE_PARAMS(frameImageOutFunc, frameImageNamesFunc, frameColorFuncPtr)
+	SetDebugContextCallbacks(context, { frameDebugIsFill
+            OP_DEBUG_DUMP_PARAMS(frameDumpOutFunc, frameDumpSetFunc, nullptr,
+            frameDumpOutFunc, frameImageNamesFunc, frameColorFuncPtr)
     });
 #endif
     return context;
 }
 
-
-
 #if OP_DEBUG_DUMP
-#define CUT_WINDING_TAGGED_FUNCTIONS \
+#define DUMP_CUT_WINDING_TAGGED_FUNCTIONS \
     OP_TAGGED_FUNCTION(cutKeepFunc), \
     OP_TAGGED_FUNCTION(cutMaxLoopsFunc), \
 

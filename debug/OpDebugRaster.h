@@ -30,22 +30,35 @@ struct OpDebugBitmap {
 	std::string debugDump(DebugLevel l, DebugBase b) const;
 	void dumpSet(char const*& str);
 	static void DumpSet(char const*& str, uint32_t* pixels);
-	void rasterize(OpDebugSamples& , int row);  // sets bits to sample coverage
+	void rasterize(OpDebugSamples& , int row, float sx, float dx);  // sets bits to sample coverage
 
     std::vector<uint8_t> bits;  // 1 byte per pixel, black/white only
 	DebugRaster* raster = nullptr;
 };
 
+struct DebugOutput {
+	std::string debugDump(DebugLevel , DebugBase ) const;
+	void dumpResolveAll(OpContext* );
+	void dumpSet(OpContext* , char const*& str);
+
+	OpCurve curve;
+	OpWinding winding = OpWinding(WindingUninitialized::dummy); 
+	PathOpsV0Lib::LoopAttribute loopAttr = PathOpsV0Lib::LoopAttribute::none;
+	OpEdge* edge = nullptr;
+};
+
 struct RasterSample {
 	std::string debugDump(DebugLevel l, DebugBase b) const;
+	void dumpResolveAll(OpContext* );
 	void dumpSet(char const*& str);
 	const OpWinding& winding() const;
 
-	const OpContour* contour = nullptr;  // if this represents original curve (segment/edge are nullptr)
-	const OpSegment* segment = nullptr;  // if set, contour and edge are nullptr
-	const OpEdge* edge = nullptr;  // if set, contour and segment are nullptr
+	OpContour* contour = nullptr;  // if this represents original curve (segment/edge are nullptr)
+	OpSegment* segment = nullptr;  // if set, contour and edge are nullptr
+	OpEdge* edge = nullptr;  // if set, contour and segment are nullptr
 	int curveIndex = -1;  // for contour : index of user-provided curve
     float x = OpDebugNaN;
+	float t = OpDebugNaN;  // unused by rasterizer, but useful for debugging
 	bool curveDown = (bool) -1;  // unset for contour curve
 	bool visible = true;
 };
@@ -59,7 +72,8 @@ constexpr auto OpDoubleNaN = std::numeric_limits<double>::quiet_NaN();
 	OP_ENUM_MEMBER(contourResolved), \
 	OP_ENUM_MEMBER(segmentInput), \
 	OP_ENUM_MEMBER(segmentResolved), \
-	OP_ENUM_MEMBER(edgeOutput) /**/ 
+	OP_ENUM_MEMBER(edges), \
+	OP_ENUM_MEMBER(output)
 
 enum class SampleType {
 	SampleType_Enums
@@ -74,17 +88,20 @@ struct OpDebugSamples {
 		, winding(WindingUninitialized::dummy) {};
 	OpDebugSamples(DebugRaster* );
 	void addCurveXatY(const PathOpsV0Lib::Curve& , RasterSample& base, float tLo, float tHi);
-	void addCurveXatY(const OpContour* , int debugCurveIndex,
+	void addCurveXatY(OpContour* , int debugCurveIndex,
 			const OpCurve& opCurve, std::vector<float>& extrema);
-	void addCurveXatY(const OpSegment* );
-	void addCurveXatY(const OpEdge* );
+	void addCurveXatY(OpSegment* );
+	void addCurveXatY(OpEdge* );
 	bool alwaysVisible() const {
-		return SampleType::edgeOutput == sampleType; }
+		return SampleType::edges == sampleType || SampleType::output == sampleType; }
 	float compare(std::vector<RasterSamples>& );  // return error as sum of partial-x differences
 	std::string debugDump(DebugLevel l, DebugBase b) const;
+	void dumpResolveAll(OpContext* );
 	void dumpSet(char const*& str);
 	void rasterize();
+//	void resetAdd();
 	void sample(OpContour* );
+	void sample(DebugOutput& );
 	void sort();
 	PathOpsV0Lib::WindingKeep visibleFunc() const;
 
@@ -94,6 +111,14 @@ struct OpDebugSamples {
 	std::vector<RasterSamples> sampleSet;  // 1 per curve crossing scanline
 	OpDebugBitmap mask;
 	SampleType sampleType = SampleType::none;
+	// the following is not serialized
+#if 0
+	int firstRow = INT_MAX;  // used to prevent double hits on first and last curve
+	int lastRow = INT_MAX; // used to prevent double hits on consecutive curves
+	bool firstDown = false;	// initial curve direction
+	bool lastDown = false; // prior curve direction
+	bool lastCurve = false;  // set when final curve of closed loop is added
+#endif
 };
 
 struct OpDebugScanLine {
@@ -107,19 +132,22 @@ struct OpDebugScanLine {
 struct DebugRaster {
 	DebugRaster(OpContext* c) 
 		: context(c) 
-		, bitWidth(compareXY)
-		, bitHeight(compareXY)
+		, bitWidth(compareXY + 2)
+		, bitHeight(compareXY + 2)
 		, subSamples(compareSub)
 		, sendToDebugger(context->debugData.runOneFile)
 		, makeBits(sendToDebugger) {
-		float scaleX = bitWidth / context->maxBounds.width();
-		float scaleY = bitHeight / context->maxBounds.height();
+		context->debugRaster = this;
+		float scaleX = compareXY / context->maxBounds.width();
+		float scaleY = compareXY / context->maxBounds.height();
 		scale = std::min(scaleX, scaleY);
-		offsetX = -context->maxBounds.left * scale;
-		offsetY = -context->maxBounds.top * scale;
+		offsetX = -context->maxBounds.left * scale + 1;
+		offsetY = (-context->maxBounds.top * scale + 1) * subSamples;
 	}
 	
+	void addOutput(PathOpsV0Lib::Output , OpEdge* );
 	std::string debugDump(DebugLevel l, DebugBase b) const;
+	void dumpResolveAll();
 	void dumpSet(char const*& str);
     void in();
     float out();
@@ -127,9 +155,11 @@ struct DebugRaster {
 	void record(std::string filename);
 	void sample(SampleType );
 	void sampleEdges();
+	void sampleOutput();
 	OP_DEBUG_VALIDATE_CODE(void validate());
 
 	std::vector<OpDebugSamples> samples;  // one per initial winding value
+	std::vector<DebugOutput> outputs;
 	OpContext* context = nullptr;
 	double scale = OpDoubleNaN;  // apply scale first
 	double offsetX = OpDoubleNaN;  // then apply offset

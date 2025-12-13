@@ -4,17 +4,15 @@
 
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
 #define SKIP_TO_FILE "quad" // e.g., "simplify"  one file
-#define TEST_FIRST "testQuads1109"  // e.g., "testQuads23839519" if file, one test
+#define TEST_FIRST ""  // e.g., "testQuads2558209" if file, one test
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
 #define TEST_EXTENDED 1
-#define TEST_SKIA 1
-#define TEST_REGION 1
 #define TEST_ANALYZE 0
 
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
-#define TESTS_TO_SKIP 0  // 636082  // tests to skip
+#define TESTS_TO_SKIP 147656  // 1372140  // 636082  // tests to skip
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
 #define OP_TEST_V0 1  // set to zero to time Skia running tests
@@ -30,5 +28,5 @@
 // when these tests are encountered, it and the remaining tests in the file are skipped
 #define TEST_PATH_OP_SKIP_REST ""
 #define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */
-
+// row 200
 #endif

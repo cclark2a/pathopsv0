@@ -46,13 +46,10 @@ struct OpJoiner {
 	bool setup();
 	void sort();
 	bool unsectableLink(OpContour* , OpPoint start, OpPoint end);
-#if OP_DEBUG
-	static bool DebugShowImage();
-#endif
 #if OP_DEBUG_VALIDATE
 	void debugValidate() const;
 #endif
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_SERIALIZE_OUT
 #include "OpDebugDeclarations.h"
 #endif
 #if OP_DEBUG_IMAGE
@@ -118,8 +115,8 @@ struct OpLimb {
 	OpLimb* tryAdd(OpTree& , OpEdge* , EdgeMatch , LimbPass , 
 			OpContour* limbContour = nullptr,
 			size_t index = 0, OpEdge* first = nullptr);
-#if OP_DEBUG_DUMP
 	DUMP_DECLARATIONS
+#if OP_DEBUG_SERIALIZE_OUT
 	std::string debugDumpIDs(DebugLevel , bool bracket) const;
 #endif
 
@@ -139,7 +136,7 @@ struct OpLimb {
 	bool looped;
 	bool resetPass;  // when new parent is found, restart limb pass
 
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_SERIALIZE_OUT
 	std::vector<OpLimb*> debugBranches;
 	int id;
 #endif
@@ -192,13 +189,15 @@ struct OpLimbStorage {
 	}
 	OpLimb* allocate();
 	void reset();
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_SERIALIZE_OUT
 	int debugCount() const;
 	OpLimb* debugFind(int ID) const;
 	OpLimb* debugIndex(int index) const;
-	static void DumpSet(const char*& , OpContext* );
-	DUMP_DECLARATIONS
 #endif
+#if OP_DEBUG_DUMP
+	static void DumpSet(const char*& , OpContext* );
+#endif
+	DUMP_DECLARATIONS
 
 	OpLimbStorage* nextBlock;
 	OpLimbStorage* prevBlock;

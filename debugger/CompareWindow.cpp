@@ -1,7 +1,10 @@
 // (c) 2025, Cary Clark cclark2@gmail.com
+#ifndef TEST_RASTER
+#define TEST_RASTER 1  // !!! shouldn't be needed, but intelliSense doesn't work without it
+#endif
 #include "CompareWindow.h"
 #include "DebuggerState.h"
-#define TEST_RASTER 1
+#include "OpContext.h"
 #include "OpDebugRaster.h"
 #include <sys/stat.h>
 #include <SDL3/SDL.h>
@@ -13,7 +16,8 @@ const std::vector<std::string> drawCompareStrs {
     "contour input",
     "segment input",
     "segments resolved",
-    "edge output"
+    "edges",
+    "output"
 };
 
 std::string CompareLabel::labelAt(int index) {
@@ -59,8 +63,11 @@ std::string CompareLabel::labelAt(int index) {
         case SampleType::segmentResolved:
             index = 4;
             break;
-        case SampleType::edgeOutput:
+        case SampleType::edges:
             index = 5;
+            break;
+        case SampleType::output:
+            index = 6;
             break;
         default:
             index = 0;
@@ -97,7 +104,8 @@ enum class CompareHalf {
 SDL_AppResult CompareWindow::draw() {
     if (!buffer)
         return SDL_APP_CONTINUE;
-    
+    if (!debugRaster)
+        return SDL_APP_CONTINUE;
     SDL_SetRenderDrawColor(renderer, 0xEE, 0xEE, 0xEE, 255);
     SDL_RenderClear(renderer);
     uint32_t* pixels;
@@ -131,7 +139,7 @@ SDL_AppResult CompareWindow::draw() {
     yOffset = yScale == scale ? 0 : (winHeight - bitHeight * xScale) / 2;
     // 'screen' is where focus is in window pixel coordinates; only draw part that intersects
     auto drawHalf = [this, pixels, winWidth, winHeight, rowWidth]
-            (OpDebugBitmap& srcBits, OpRect& bitFocus, CompareHalf half) {
+            (OpDebugBitmap& srcBits, OpRect& bitFocus, CompareHalf half, uint32_t filter) {
         screen = { xOffset, yOffset, 
                 xOffset + bitFocus.width() * scale, yOffset + bitFocus.height() * scale };
         screen.offset({ -bitFocus.left * scale, -bitFocus.top * scale });
@@ -142,11 +150,11 @@ SDL_AppResult CompareWindow::draw() {
         int dstV = std::max(0, (int) screen.top);
         int dstBottom = std::min(winHeight, (int) screen.bottom);
         if (dstV >= dstBottom)
-                return;
+            return;
         int dstH = std::max(0, (int) screen.left);
         int dstRight = std::min(winWidth, (int) screen.right);
         if (dstH >= dstRight)
-                return;
+            return;
         uint32_t* destLine = pixels + dstV * rowWidth + dstH;
         int srcV = std::max(0, (int) bitFocus.top);
         int srcBottom = std::min(debugRaster->bitHeight, (int) bitFocus.bottom);
@@ -163,15 +171,16 @@ SDL_AppResult CompareWindow::draw() {
             uint32_t* destPtr = destLine;
             OP_ASSERT(pixels + rowWidth * dstV <= destPtr);
             float srcHPos = srcH;
-            auto to32 = [&srcLine, &srcHPos]() {
+            auto to32 = [&srcLine, &srcHPos, filter]() {
                 uint8_t c = 0xFF - srcLine[(int) srcHPos];
                 uint32_t color = (0xFF << 24) | (c << 0) | (c << 8) | (c << 16);
+                color |= filter;
                 return color;
             };
             uint32_t srcColor = to32();
             for (int dH = dstH; dH < dstRight; ++dH) {
                 OP_ASSERT(destPtr < pixels + rowWidth * dstBottom);
-                *destPtr++ = srcColor;
+                *destPtr++ &= srcColor;
                 float hPos = srcHPos;
                 srcHPos += srcBump;
                 if (floorf(srcHPos) > hPos)
@@ -184,9 +193,28 @@ SDL_AppResult CompareWindow::draw() {
                 srcLine += debugRaster->bitWidth;
         }
     };
-    // !!! placeholder : need to be able to choose any sample set for left and right
-    drawHalf(debugRaster->samples[leftLabel.lastIndex].mask, leftFocus, CompareHalf::left);
-    drawHalf(debugRaster->samples[rightLabel.lastIndex].mask, rightFocus, CompareHalf::right);
+    auto clearPixels = [pixels, winWidth, winHeight, rowWidth]() {
+        uint32_t* destLine = pixels;
+        for (int dstV = 0; dstV < winHeight; ++dstV) {
+            uint32_t* destPtr = destLine;
+            for (int dH = 0; dH < winWidth; ++dH) {
+                *destPtr++ = 0xFFFFFFFF;
+            }
+            destLine += rowWidth;
+        }
+    };
+    clearPixels(); 
+    drawHalf(debugRaster->samples[leftLabel.lastIndex].mask, leftFocus, CompareHalf::left, 
+            0);
+    if (!overlay)
+        drawHalf(debugRaster->samples[rightLabel.lastIndex].mask, rightFocus, CompareHalf::right, 
+                0);
+    else {
+        drawHalf(debugRaster->samples[leftLabel.lastIndex].mask, leftFocus, CompareHalf::right, 
+                0xFF00FFFF);
+        drawHalf(debugRaster->samples[rightLabel.lastIndex].mask, rightFocus, CompareHalf::right, 
+                0xFFFFFF00);
+    }
     SDL_UnlockTexture(polysTexture);  
     SDL_RenderTexture(renderer, polysTexture, nullptr, nullptr);
     drawText();
@@ -194,14 +222,7 @@ SDL_AppResult CompareWindow::draw() {
     return SDL_APP_CONTINUE;
 }
 
-static DrawLevel HoverType(const DebuggerEvent* event, CompareWindow* textWindow, 
-        const OpDebugSamples& sample, int row) {
-//    start here;
-    // given RasterSample, show id/curveIndex/x/curveDown/visible as text
-    return DrawLevel::draw;
-}
-
-DrawLevel CompareWindow::doType(CompareAction eventAction, const DebuggerEvent* event) {
+DrawLevel CompareWindow::hover(const DebuggerEvent* event) {
     DrawLevel result = DrawLevel::none;
     if (!debugRaster)
         return result;
@@ -225,24 +246,31 @@ DrawLevel CompareWindow::doType(CompareAction eventAction, const DebuggerEvent* 
         area.right = area.left + rightFocus.width() * scale;
         area.bottom = area.top + rightFocus.height() * scale; 
     }
-    int row = 0;
+    activeRow = -1;
+    // active row needs to be between 0 and pixel height * raster sub samples
+    // needs to be different once scrolling / zooming is supported, but not now
     if (event->mouse.y >= area.top) {
+        int rowLimit = debugRaster->bitHeight * debugRaster->subSamples;
         if (event->mouse.y > area.bottom)
-            row = leftFocus.height() - 1;
+            activeRow = rowLimit - 1;
         else {
-            row = (event->mouse.y - area.top) / scale;
-            row = std::max(0, std::min(row, (int) leftFocus.height() - 1));
+            activeRow = (int) ((event->mouse.y - area.top) * rowLimit / (area.bottom - area.top));
+            activeRow = std::max(0, std::min(activeRow, rowLimit - 1));
         }
     }
-    OP_ASSERT(0 <= row && row < sample.sampleSet.size());
-    const RasterSamples& samples = sample.sampleSet[row];
-    const RasterSample* active = nullptr;
+    if (-1 == activeRow)
+        return result;
+    OP_ASSERT(0 <= activeRow && activeRow < sample.sampleSet.size());
+    const RasterSamples& samples = sample.sampleSet[activeRow];
+    activeSample = nullptr;
+    float locX = (event->mouse.x - area.left) / scale;
     for (const RasterSample& test : samples) {
-        if (test.x <= event->mouse.x - area.left)
-            active = &test;
+        if (test.x <= locX)
+            activeSample = &test;
     }
     // !!! use x position to find RasterSample to the left
-    result = (*eventAction)(event, this, sample, row);
+    if (activeSample) 
+        return DrawLevel::update;
     return result;
 }
 
@@ -250,13 +278,21 @@ DrawLevel CompareWindow::event(const DebuggerEvent& event) {
     if (DrawLevel common = debuggerState->eventCommon(event); DrawLevel::none != common)
         return common;
     if (MouseAction::move == event.mouseAction)
-        return doType(&HoverType, &event);
+        return hover(&event);
     return DrawLevel::none;
 }
 
 bool CompareWindow::readBits() {
+    if (debuggerState->dumps.empty())
+        return false;
+    DebuggerDump& lastDump = debuggerState->dumps.back();
+    if (!lastDump.context->debugDescription.ends_with("resolved"))
+        return false;
+    OpContext* context = lastDump.context;
     if (!debugRaster)
-        debugRaster = new DebugRaster(debuggerState->context);
+        debugRaster = new DebugRaster(context);
+    if (context->callbacks.empty())
+        return false;
     if (!debugRaster->playback(BitsFile))
         return false;
     leftFocus = { 0, 0, (float) debugRaster->bitWidth, (float) debugRaster->bitHeight };
@@ -271,11 +307,31 @@ void CompareWindow::update() {
     addText(leftLabel.label(), localLocation, debugBlack, detailFont);
     localLocation.x += (rightFocus.width() + margin) * scale;
     addText(rightLabel.label(), localLocation, debugBlack, detailFont);
+    if (activeSample) {
+        OpPoint pt { activeSample->x, (float) activeRow / debugRaster->subSamples };
+        double srcX = (pt.x - debugRaster->offsetX) / debugRaster->scale;
+        double srcY = (pt.y - debugRaster->offsetY) / debugRaster->scale;
+        std::string s;
+        if (activeSample->contour)
+            s = "contour id:" + STR(activeSample->contour->id) + " curve:" 
+                    + STR(activeSample->curveIndex);
+        else if (activeSample->segment)
+            s = "sample id:" + STR(activeSample->segment->id);
+        else if (activeSample->edge)
+            s = "edge id:" + STR(activeSample->edge->id);
+        if (activeSample->curveDown)
+            s += " curveDown";
+        if (activeSample->visible)
+            s += " visible";
+        s += " x:" + STR(srcX) + " (" + STR(pt.x) + ")";
+        s += " y:" + STR(srcY) + " (" + STR(((float) activeRow / debugRaster->subSamples)) + ")";
+        addText(s, { 10, 30}, debugBlack, detailFont);
+    }
     struct stat info;
     std::string filename = dmpFileToPath(BitsFile);
     if (stat(filename.c_str(), &info) == -1) 
         return;
-    if (info.st_mtime != debuggerState->lastTime) {
+    if (info.st_mtime != lastTime) {
         if (readBits()) {
             lastTime = info.st_mtime;
             return;

@@ -9,6 +9,7 @@
 // All Macros below are defined in OpDebugDump.h
 
 std::string debugDump(DebugLevel, DebugBase ) const;
+#if OP_DEBUG_DUMP
 void dump() const;
 void dump(DebugLevel, DebugBase ) const;
 void dumpResolveAll(OpContext* );
@@ -18,3 +19,4 @@ void dumpSet(const char*& );
 	void dump##Thing() const;
 	DUMP_BY_ID
 #undef OP_X
+#endif

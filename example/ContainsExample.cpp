@@ -15,7 +15,7 @@ constexpr WindingCondition framePartiallyContained = 1;
 constexpr WindingCondition frameFullyContained = 2;
 
 static bool allowDisjointLines(ContextError err, Curve* ) {
-	return ContextError::end != err && ContextError::missing != err;
+	return ContextError::end == err || ContextError::missing == err;
 }
 
 static WindingCondition framePartiallyContainsFunc(Context* , WindKeep keep) {

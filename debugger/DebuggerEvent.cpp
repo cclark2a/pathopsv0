@@ -3,6 +3,8 @@
 #include "DebuggerWindow.h"
 #include "OpCurveCurve.h"
 
+extern int debugPrecision;  // not in an include to avoid breaking multi-threaded testing
+
 const std::array<std::string, 5> KeyCodeUTF8 {  "",  // key code : none
         "\xE2\x86\x90 ", "\xE2\x86\x91 ", "\xE2\x86\x92 ", "\xE2\x86\x93 " }; // lurd arrows
 
@@ -57,12 +59,9 @@ int DebuggerState::count(IDType idType) const {
 }
 
 KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction action) {
-    PictureWindow& picWin = pictureWindow;
-    TextWindow& textWin = textWindow;
-    CompareWindow& compareWin = compareWindow;
-    bool picTop = &picWin == lastFocus;
-    bool textTop = &textWin == lastFocus;
-    bool compareTop = &compareWin == lastFocus;
+    bool picTop = &pictureWindow == lastFocus;
+    bool textTop = &textWindow == lastFocus;
+    bool compareTop = &compareWindow == lastFocus;
     bool isLower = std::islower(debuggerEvent.key);
     KeyResult result;
     auto flip = [action, &result](bool& bit, std::string postfix) {
@@ -100,27 +99,27 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
         case (uint8_t) KeyCode::leftArrow:
             if (KeyAction::act == action && lastFocus
                     && WheelTarget::zoomAndKeyPan == lastFocus->wheelTarget)
-                result.l = picWin.pan(OpVector(+pan_factor * scale, 0));
+                result.l = pictureWindow.pan(OpVector(+pan_factor * scale, 0));
             break;
         case (uint8_t) KeyCode::upArrow:
             if (KeyAction::act == action) {
                 if (lastFocus && WheelTarget::zoomAndKeyPan != lastFocus->wheelTarget)
                     result.l = lastFocus->doWheel(debuggerEvent, +1);
                 else if (picTop)
-                    result.l = picWin.pan(OpVector(0, +pan_factor * scale));
+                    result.l = pictureWindow.pan(OpVector(0, +pan_factor * scale));
             }
             break;
         case (uint8_t) KeyCode::rightArrow:
             if (KeyAction::act == action && lastFocus
                     && WheelTarget::zoomAndKeyPan == lastFocus->wheelTarget)
-                result.l = picWin.pan(OpVector(-pan_factor * scale, 0));
+                result.l = pictureWindow.pan(OpVector(-pan_factor * scale, 0));
             break;
         case (uint8_t) KeyCode::downArrow:
             if (KeyAction::act == action) {
                 if (lastFocus && WheelTarget::zoomAndKeyPan != lastFocus->wheelTarget)
                     result.l = lastFocus->doWheel(debuggerEvent, -1);
                 else if (picTop)
-                    result.l = picWin.pan(OpVector(0, -pan_factor * scale));
+                    result.l = pictureWindow.pan(OpVector(0, -pan_factor * scale));
             } else if (lastFocus && WheelTarget::zoomAndKeyPan == lastFocus->wheelTarget) {
                 result.s = KeyCodeUTF8[1] + KeyCodeUTF8[2] + KeyCodeUTF8[3] + KeyCodeUTF8[4]
                         + "  pan picture left/up/right/down";
@@ -129,16 +128,16 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
                 result.s = KeyCodeUTF8[(int) KeyCode::upArrow] + KeyCodeUTF8[debuggerEvent.key]
                         + "  " + verbage + " up/down";
                 if (WheelTarget::zoomAndKeyZoom == lastFocus->wheelTarget)
-                    result.s += " (" + STR(picWin.zoomer) + ")";
+                    result.s += " (" + STR(pictureWindow.zoomer) + ")";
                 else if (WheelTarget::threshold == lastFocus->wheelTarget)
-                    result.s += " (" + STR(picWin.thresholdWheel) + " / "
-                            + STR(picWin.thresholdMultiplier) + ")";
+                    result.s += " (" + STR(pictureWindow.thresholdWheel) + " / "
+                            + STR(pictureWindow.thresholdMultiplier) + ")";
                 else if (WheelTarget::font == lastFocus->wheelTarget)
                     result.s += " (" + STR(lastFocus->fontSize) + ")";
             }
             break;
-        case 'a': if (textTop) flip(textWin.showAll, "all"); break;
-        case 'A': if (textTop) flip(textWin.showAliases, "aliases"); break;
+        case 'a': if (textTop) flip(textWindow.showAll, "all"); break;
+        case 'A': if (textTop) flip(textWindow.showAliases, "aliases"); break;
         case 'b':             
             flip(showBits, "bits");
             if (KeyAction::act == action)
@@ -147,8 +146,8 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
         break;
         case 'C': flip(showContours, "contours (" + STR(count(IDType::contour)) + ")"); break;
         case 'c': 
-            if (picTop) flip(picWin.drawCenters, "center points"); 
-            if (textTop) flip(textWin.showCurveCurve, "curve/curve intersection");
+            if (picTop) flip(pictureWindow.drawCenters, "center points"); 
+            if (textTop) flip(textWindow.showCurveCurve, "curve/curve intersection");
         break;
         case 'd': 
             if (KeyAction::act == action) {
@@ -166,31 +165,36 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
         break; 
         case 'e': flip(showEdges, "edges (" + STR(count(IDType::edge)) + ")"); break;
         case 'f': 
-            if (picTop) flip(picWin.drawFill, "fill"); 
-            if (textTop) flip(textWin.showFull, "full");
+            if (picTop) flip(pictureWindow.drawFill, "fill"); 
+            if (textTop) flip(textWindow.showFull, "full");
         break;
         case 'g':
         case 'G': 
-            if (picTop) bump(picWin.gridLabel); 
+            if (picTop) bump(pictureWindow.gridLabel); 
         break;
-        case 'h': if (picTop) flip(picWin.drawHulls, "hulls"); break;
+        case 'h': if (picTop) flip(pictureWindow.drawHulls, "hulls"); break;
         case 'H': 
-            if (picTop) flip(picWin.drawEdgeHulls, "edge hull intersection points"); 
-            if (textTop) flip(textWin.showEdgeHulls, "edge hulls");
+            if (picTop) flip(pictureWindow.drawEdgeHulls, "edge hull intersection points"); 
+            if (textTop) flip(textWindow.showEdgeHulls, "edge hulls");
         break;
-        case 'i': if (picTop) flip(picWin.drawIDs, "IDs"); break;
+        case 'i': if (picTop) flip(pictureWindow.drawIDs, "IDs"); break;
         case 'I': flip(showIntersections, "intersections (" + STR(count(IDType::intersection)) + ")"); break;
-        case 'j': if (textTop) flip(textWin.showJoin, "join"); break;
-        case 'k': if (picTop) flip(picWin.drawControls, "controls"); break;
+        case 'j': if (textTop) flip(textWindow.showJoin, "join"); break;
+        case 'k': if (picTop) flip(pictureWindow.drawControls, "controls"); break;
         case 'l': 
         case 'L':
-            if (textTop && isLower) flip(textWin.showLinks, "links"); 
+            if (textTop && isLower) flip(textWindow.showLinks, "links"); 
             if (compareTop) bump(compareWindow.leftLabel); 
         break;
-        case 'o': flip(showOutput, "output"); break;
+        case 'o': 
+            if (compareTop)
+                flip(compareWindow.overlay, "overlay");
+            else
+                flip(showOutput, "output");  // !!! unimplemented
+            break;
         case 'p': 
-            if (picTop) flip(picWin.drawPoints, "points"); 
-            if (textTop) flip(textWin.showPoints, "points");
+            if (picTop) flip(pictureWindow.drawPoints, "points"); 
+            if (textTop) flip(textWindow.showPoints, "points");
         break;
         case 'P': 
             if (KeyAction::act == action)
@@ -198,13 +202,19 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
             else
                 result.s += "playback"; 
         break;
+        case 'q': 
+            flip(showDumps, "dumps");
+            if (KeyAction::act == action)
+                showDumps ? SDL_ShowWindow(dumpWindow.window)        
+                        : SDL_HideWindow(dumpWindow.window);
+        break;
         case 'r':
         case 'R': 
             if (compareTop) {
                 bump(compareWindow.rightLabel);
                 break;
             }
-            if (!isLower)
+            if (isLower)
                 break;
             if (KeyAction::act == action)
                 record();
@@ -213,15 +223,15 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
         break;
         case 's': flip(showSegments, "segments (" + STR(count(IDType::segment)) + ")"); break;
         case 't': 
-            if (picTop) flip(picWin.drawTangents, "tangents");
-            if (textTop) flip(textWin.showTree, "tree");
+            if (picTop) flip(pictureWindow.drawTangents, "tangents");
+            if (textTop) flip(textWindow.showTree, "tree");
         break;
         case 'T': 
-            if (picTop) flip(picWin.drawTs, "t values"); 
-            if (textTop) flip(textWin.showTest, "test");
+            if (picTop) flip(pictureWindow.drawTs, "t values"); 
+            if (textTop) flip(textWindow.showTest, "test");
         break;
-        case 'v': if (picTop) flip(picWin.drawValues, "point values"); break;
-        case 'w': if (picTop) flip(picWin.drawWindings, "windings"); break;
+        case 'v': if (picTop) flip(pictureWindow.drawValues, "point values"); break;
+        case 'w': if (picTop) flip(pictureWindow.drawWindings, "windings"); break;
         case 'x': flip(showHex, "hex"); break;
         case 'z': 
             if (lastFocus) {
@@ -259,6 +269,24 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
                 result.l = DrawLevel::update;
             } else
                 result.s += "show epsilon";
+            break;
+        case '[':
+            if (!currentDump) 
+                break;
+            if (KeyAction::act == action) {
+                --currentDump;
+                result.l = DrawLevel::file;
+            } else
+                result.s += "show dump " + STR(currentDump - 1);
+            break;
+        case ']':
+            if (currentDump + 1 >= dumps.size())
+                break;
+            if (KeyAction::act == action) {
+                ++currentDump;
+                result.l = DrawLevel::file;
+            } else
+                result.s += "show dump " + STR(currentDump + 1);
             break;
          case '?':
             flip(showHelp, "help");

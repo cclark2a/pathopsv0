@@ -7,10 +7,6 @@
 #include <windows.h>
 #endif
 
-int debugPrecision = 9; // -1 means unset; 9 is special -- leave trailing zeroes (match VS debugger)
-bool debugSmall = true;  // set to false to show sub-epsilon values as ~0
-bool debugEpsilon = false;  // set to true to show values smaller than 100 * OpEpsilon as eps 
-
 #if 0
 // code pattern to find one of several id values
 template <typename V, typename... T>   // replace with std::to_array in c++20
@@ -23,13 +19,18 @@ constexpr auto to_array(T&&... t)->std::array < V, sizeof...(T) > {
         OP_ASSERT(0);
 #endif
 
-#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
+#include "OpContour.h"
+#include "OpContext.h"
+
+#if OP_DEBUG_GLOBALS
+// !!! pare down usage of globals to allow multi-threaded testing to have better debugging
 OpContext* debugGlobalContext;
 #endif
 
-#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP || OP_TINY_SKIA
-bool debugHexFloat = false;
-#endif
+// these globals are used only in this file and are unchanged during testing; ok for multi-threaded
+int debugPrecision = 9;	// -1: unset; 9: leave trailing zeroes (match VS debugger)
+// bool debugSmall = true;  // set to false to show sub-epsilon values as ~0 (unused for now)
+// bool debugEpsilon = false;  // show values smaller than 100 * OpEpsilon as eps (unused for now)
 
 union FloatIntUnion {
     float   f;
@@ -152,128 +153,11 @@ std::string OpDebugStr(float value) {
 
 #endif
 
-#if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE
-
-#include "OpCurve.h"
-
-#if OP_DEBUG_DUMP || OP_DEBUG_IMAGE
-std::string OpDebugByteToHex(uint8_t hex) {
-    std::string s = "0x";
-    for (int index = 4; index >= 0; index -= 4) {
-        int nybble = (hex >> index) & 0xF;
-        if (nybble <= 9)
-            s += '0' + nybble;
-        else 
-            s += 'a' + nybble - 10;
-    }
-    return s;
-}
-#endif
-
-
-#if OP_DEBUG_DUMP || OP_DEBUG_IMAGE || OP_TINY_SKIA
-std::string OpDebugIntToHex(int32_t hex) {
-    std::string s = "0x";
-    for (int index = 28; index >= 0; index -= 4) {
-        int nybble = (hex >> index) & 0xF;
-        if (nybble <= 9)
-            s += '0' + nybble;
-        else 
-            s += 'a' + nybble - 10;
-    }
-    return s;
-}
-#endif
-
-
-#if OP_DEBUG_DUMP || OP_DEBUG_IMAGE
-std::string OpDebugPtrToHex(void* ptr) {
-    uint64_t hex = (uint64_t) ptr;
-    std::string s = "0x";
-    for (int index = 60; index >= 0; index -= 4) {
-        int nybble = (hex >> index) & 0xF;
-        if (nybble <= 9)
-            s += '0' + nybble;
-        else 
-            s += 'a' + nybble - 10;
-    }
-    return s;
-}
-#endif
-
-#if OP_DEBUG_DUMP || OP_DEBUG_IMAGE || OP_TINY_SKIA
-std::string OpDebugDumpHex(float f) {
-    if (!debugHexFloat) {
-        int32_t hex = OpDebugFloatToBits(f);
-        std::string s = OpDebugIntToHex(hex);
-        return s;
-    }
-    char buffer[256];
-    int bytes = snprintf(buffer, sizeof(buffer), "%af", f);
-    return std::string(buffer, bytes);
-}
-#endif
-
-#if OP_DEBUG_DUMP || OP_DEBUG_IMAGE
-
-#include "OpContext.h"
-
-std::string OpDebugDumpByteArray(const uint8_t* bytes, size_t size) {
-    std::string s = "[";
-    size_t lastReturn = 0;
-    for (size_t index = 0; index < size; ++index) {
-        size_t lastSpace = s.size() - 1;
-        s += OpDebugByteToHex(bytes[index]) + " ";
-        if (s.size() - lastReturn > 100) {  // !!! hard-code to line length for now
-            s[lastSpace] = '\n';
-            lastReturn = lastSpace;
-        }
-    }
-    if (' ' >= s.back())
-        s.pop_back();
-    s += "]";
-    return s;
-}
-
-#if 0
-void playback() {
-#if !OP_TINY_SKIA
-	FILE* file = fopen("OpDebugImageState.txt", "r");
-	if (!file)
-		return;
-    OpDebugImage::playback(file);
-    dmpPlayback(file);
-	fclose(file);
-#endif
-}
-
-void record() {
-#if 0 && defined _WIN32
-   char full[_MAX_PATH];
-   if( _fullpath( full, ".\\", _MAX_PATH ) != NULL )
-      OpDebugOut( "Full path is: %s" + std::string(full) + "\n");
-   else
-      OpDebugOut( "Invalid path\n" );
-#endif
-#if !OP_TINY_SKIA
-	FILE* recordFile = fopen("opDebugImageState.txt", "w");
-	if (!recordFile) {
-		OpDebugOut("failed to open opDebugImageState.txt for writing\n");
-		return;
-	}
-    OpDebugImage::record(recordFile);
-    dmpRecord(recordFile);
-	fclose(recordFile);
-#endif
-}
-#endif
+#if OP_DEBUG_GLOBALS && OP_DEBUG_DUMP
 
 OpDebugContourIterator contourIterator;
-
 OpDebugSegmentIterator segmentIterator;
-
 OpDebugEdgeIterator edgeIterator;
-
 OpDebugIntersectionIterator intersectionIterator;
 
 OpDebugContourIter::OpDebugContourIter(bool start) {
@@ -403,7 +287,82 @@ const OpIntersection* OpDebugIntersectionIter::operator*() {
 	OpDebugOut("iterator out of bounds! localIntersectionIndex: " + STR(localIntersectionIndex) + "\n");
 	return nullptr; 
 }
+
 #endif
+
+int32_t OpDebugFloatToBits(float f) {
+    FloatIntUnion d;
+    d.f = f;
+    return d.i;
+}
+
+#if OP_DEBUG_SERIALIZE_OUT
+
+std::string OpDebugByteToHex(uint8_t hex) {
+    std::string s = "0x";
+    for (int index = 4; index >= 0; index -= 4) {
+        int nybble = (hex >> index) & 0xF;
+        if (nybble <= 9)
+            s += '0' + nybble;
+        else 
+            s += 'a' + nybble - 10;
+    }
+    return s;
+}
+
+std::string OpDebugIntToHex(int32_t hex) {
+    std::string s = "0x";
+    for (int index = 28; index >= 0; index -= 4) {
+        int nybble = (hex >> index) & 0xF;
+        if (nybble <= 9)
+            s += '0' + nybble;
+        else 
+            s += 'a' + nybble - 10;
+    }
+    return s;
+}
+
+std::string OpDebugPtrToHex(void* ptr) {
+    uint64_t hex = (uint64_t) ptr;
+    std::string s = "0x";
+    for (int index = 60; index >= 0; index -= 4) {
+        int nybble = (hex >> index) & 0xF;
+        if (nybble <= 9)
+            s += '0' + nybble;
+        else 
+            s += 'a' + nybble - 10;
+    }
+    return s;
+}
+
+std::string OpDebugDumpHex(float f) {
+#if 1
+    int32_t hex = OpDebugFloatToBits(f);
+    std::string s = OpDebugIntToHex(hex);
+    return s;
+#else  // standards way to do the same thing; unused for now
+    char buffer[256];
+    int bytes = snprintf(buffer, sizeof(buffer), "%af", f);
+    return std::string(buffer, bytes);
+#endif
+}
+
+std::string OpDebugDumpByteArray(const uint8_t* bytes, size_t size) {
+    std::string s = "[";
+    size_t lastReturn = 0;
+    for (size_t index = 0; index < size; ++index) {
+        size_t lastSpace = s.size() - 1;
+        s += OpDebugByteToHex(bytes[index]) + " ";
+        if (s.size() - lastReturn > 100) {  // !!! hard-code to line length for now
+            s[lastSpace] = '\n';
+            lastReturn = lastSpace;
+        }
+    }
+    if (' ' >= s.back())
+        s.pop_back();
+    s += "]";
+    return s;
+}
 
 int OpDebugCountDelimiters(const char* str, char delimiter, char openBracket, char closeBracket) {
     int count = 0;
@@ -430,12 +389,6 @@ void OpDebugExitOnFail(std::string message, bool condition) {
     if (condition)
         return;
     OpDebugExit(message);
-}
-
-int32_t OpDebugFloatToBits(float f) {
-    FloatIntUnion d;
-    d.f = f;
-    return d.i;
 }
 
 float OpDebugHexToFloat(const char*& str) {
@@ -755,7 +708,7 @@ void OpCurveCurve::debugSaveState() {
 // return false for caller to assert
 bool OpCurveCurve::debugBreak(CcBreak atDepth) {
 #if OP_DEBUG_DUMP
-	if (OpDebugSkipBreak())
+	if (context->debugData.defeatBreak)
 		return true;
 	if (context->debugData.curveCurveDepth < 0)
         return true;
@@ -767,7 +720,12 @@ bool OpCurveCurve::debugBreak(CcBreak atDepth) {
         return true;
     if (CcBreak::atDepth == atDepth && depth < context->debugData.curveCurveDepth)
 		return true;
-	dmpFile();
+    std::string s = "OpCurveCurve ";
+    if (CcBreak::atDepth == atDepth)
+        s += "atDepth:" + STR(depth);
+    if (CcBreak::atEnd == atDepth)
+        s += "atEnd:" + STR(depth);
+	context->dumpFile(s);
 	return false;
 #else
     return true;
@@ -1186,20 +1144,6 @@ void OpContour::debugMatchRay() {
     }
 }
 
-// return false to auto-break
-bool OpJoiner::DebugShowImage() {
-#if !OP_DEBUG_FAST_TEST && !OP_TINY_TEST
-	if (!OpDebugSkipBreak()) {
-#if 0  // defeat if test is very large (e.g., grshapearc)
-		::debugImage();
-		::showFill();
-#endif
-		return false;
-	}
-#endif
-	return true;
-}
-
 #if OP_DEBUG_IMAGE
 PathOpsV0Lib::Curve OpContour::debugCurve(int index, std::vector<float>* extremaArray) const {
     OP_ASSERT(index < (int) debugCurveData.size());
@@ -1239,7 +1183,7 @@ void OpContour::debugValidate(const OpJoiner* joiner) const {
         return;
     context->debugValidateJoinerIndex += 1;
     context->debugCheckLastEdge = false;
-    if (LinkPass::remaining != joiner->linkPass) {
+    if (joiner && LinkPass::remaining != joiner->linkPass) {
         for (auto e : byArea) {
             e->debugValidate();
             OP_ASSERT(!e->isActive() || !e->debugIsLoop());
@@ -1397,11 +1341,11 @@ void debug() {
 
 namespace PathOpsV0Lib {
 
-static void debugCommonScale(PathOpsV0Lib::Curve curve, int extra, double scale, 
-        double offsetX, double offsetY) {
-	auto scaler = [scale, offsetX, offsetY](OpPoint& pt) {
-		pt.x = (float) (pt.x * scale + offsetX);
-		pt.y = (float) (pt.y * scale + offsetY);
+static void debugCommonScale(PathOpsV0Lib::Curve curve, int extra, double sX, double sY, 
+        double dX, double dY) {
+	auto scaler = [sX, sY, dX, dY](OpPoint& pt) {
+		pt.x = (float) (pt.x * sX + dX);
+		pt.y = (float) (pt.y * sY + dY);
 	};
 	scaler(curve.data->start);
 	scaler(curve.data->end);
@@ -1417,20 +1361,20 @@ static void debugCommonScale(PathOpsV0Lib::Curve curve, int extra, double scale,
 	}
 }
 
-void debugLineScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY) {
-	debugCommonScale(curve, 0, scale, offsetX, offsetY);
+void debugLineScale(PathOpsV0Lib::Curve curve, double sX, double sY, double dX, double dY) {
+	debugCommonScale(curve, 0, sX, sY, dX, dY);
 }
 
-void debugQuadScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY) {
-	debugCommonScale(curve, 1, scale, offsetX, offsetY);
+void debugQuadScale(PathOpsV0Lib::Curve curve, double sX, double sY, double dX, double dY) {
+	debugCommonScale(curve, 1, sX, sY, dX, dY);
 }
 
-void debugConicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY) {
-	debugCommonScale(curve, 1, scale, offsetX, offsetY);
+void debugConicScale(PathOpsV0Lib::Curve curve, double sX, double sY, double dX, double dY) {
+	debugCommonScale(curve, 1, sX, sY, dX, dY);
 }
 
-void debugCubicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY) {
-	debugCommonScale(curve, 2, scale, offsetX, offsetY);
+void debugCubicScale(PathOpsV0Lib::Curve curve, double sX, double sY, double dX, double dY) {
+	debugCommonScale(curve, 2, sX, sY, dX, dY);
 }
 
 void SetDebugCurveData(Contour* ctour, DebugCurveData curveData) {

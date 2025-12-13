@@ -15,7 +15,9 @@
 #endif
 #include <vector>
 
+// OP_DEBUG_FAST_TEST uses threads; all code must be thread-safe
 #define OP_DEBUG_VERBOSE (OP_DEBUGGER || !OP_DEBUG_FAST_TEST)
+#define OP_DEBUG_GLOBALS (!OP_DEBUG_FAST_TEST)  // globals available while debugging single-threaded
 #define OP_RELEASE_TEST 1	// !!! set to zero to remove tests from release build (untested)
 
 #define OP_ENUM_BASE(member, value) member = value
@@ -47,9 +49,6 @@ inline std::string OpDebugStr(size_t x) { return std::to_string(x); }
 inline std::string OpDebugStr(const char* x) { return std::string(x); }
 std::string OpDebugStr(float value);
 inline std::string OpDebugStr(double value) { return OpDebugStr((float) value); }
-extern int debugPrecision;	// minus one means unset
-extern bool debugSmall;		// set to false to show sub-epsilon values as ~0
-extern bool debugEpsilon;	// set to true to show values smaller than 100 * OpEpsilon as eps
 
 #define OpNop() \
 	OpDebugOut("")
@@ -61,7 +60,6 @@ enum class OpDebugIntersect {
 	edge
 };
 
-struct OpContext;
 #if TEST_RASTER
 struct OpDebugRaster;
 #endif
@@ -74,6 +72,7 @@ struct OpDebugData {
         , curveCurveDepth(-1)
 		, limitContours(0)
 		, error(0)
+		, defeatBreak(false)
 		, limitReached(false)
         , runOneFile(false)
 		, success(true) {
@@ -87,6 +86,7 @@ struct OpDebugData {
 	int curveCurveDepth;
 	int limitContours;
 	float error;
+	bool defeatBreak;
 	bool limitReached;
 	bool runOneFile;
 	bool success;
@@ -129,8 +129,9 @@ struct OpDebugData {
 #define OP_DEBUG_INIT_SIZE()
 #define OP_DEBUG_MAKER 0
 #define OP_DEBUG_FAIL(object, returnValue) return returnValue
+#define OP_DEBUG_SERIALIZE_OUT 0
+#define OP_DEBUG_SERIALIZE_IN 0
 #define OP_DEBUG_SUCCESS(object, returnValue) return returnValue
-#define OP_EXECUTE_AND_ASSERT(expr) (expr)
 #define OP_LINE_FILE_PARAMS(...)
 #define OP_LINE_FILE_PARGS()
 #define OP_LINE_FILE_NPARAMS(...)
@@ -163,7 +164,8 @@ struct OpDebugData {
 #endif
 #define OP_ASSERT(expr) do { if (!(expr)) OP_DEBUG_BREAK(); } while (false)
 
-#define OP_EXECUTE_AND_ASSERT(expr) OP_ASSERT(expr)
+#define OP_DEBUG_SERIALIZE_OUT 1  // !!! migrate debug dump so threaded test can write to debugger
+#define OP_DEBUG_SERIALIZE_IN (OP_DEBUGGER) // !!! isolate code used by debugger to read serialized
 
 #if (!OP_DEBUGGER && OP_DEBUG_FAST_TEST) || (defined OP_TINY_TEST && OP_TINY_TEST)
 	#define OP_DEBUG_DUMP 0
@@ -297,14 +299,6 @@ struct OpDebugMaker {
 #define OpAssert(doBreak) \
     do { if (!(doBreak)) OP_DEBUG_BREAK(); } while (false)
 
-#if !OP_TINY_TEST
-#if OP_DEBUGGER
-inline bool OpDebugSkipBreak() { return true; }
-#else
-bool OpDebugSkipBreak();
-#endif
-#endif
-
 #endif
 
 #if OP_DEBUG_DUMP 
@@ -327,19 +321,10 @@ bool OpDebugSkipBreak();
 
 #endif
 
-#if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE
-
 #if OP_DEBUG
-#define OP_DEBUG_STR_ID(x) OpDebugStr(x->id)
-#else
-#define OP_DEBUG_STR_ID(x) OpDebugStr(x)
-#endif
 
-#if OP_DEBUG_IMAGE || OP_DEBUG_DUMP
-extern OpContext* debugGlobalContext;
-extern bool debugHexFloat;
-// extern void playback();
-// extern void record();
+#if OP_DEBUG_GLOBALS && OP_DEBUG_DUMP
+extern struct OpContext* debugGlobalContext;
 
 struct OpDebugContourIter {
 	OpDebugContourIter(bool start);
@@ -434,14 +419,12 @@ struct OpDebugIntersectionIterator {
 
 // !!! eventually, move iterators into op context
 extern OpDebugContourIterator contourIterator;
-
 extern OpDebugSegmentIterator segmentIterator;
-
 extern OpDebugEdgeIterator edgeIterator;
-
 extern OpDebugIntersectionIterator intersectionIterator;
 
 #endif
+
 extern void v0(const char* testname, class SkPath& );  // immediate command to capture failing test
 
 int OpDebugCountDelimiters(const char* str, char delimiter, char openBracket, char closeBracket);
@@ -473,7 +456,7 @@ bool OpDebugOptional(const char*& str, const char* match);
 float OpDebugReadNamedFloat(const char*& str, const char* label);
 size_t OpDebugReadSizeT(const char*& str);
 void OpDebugRequired(const char*& str, const char* match);
-extern int debugPrecision;		// minus one means unset
+
 #endif
 
 // if identical runs produce different results, use this to help determine where 
@@ -485,7 +468,7 @@ extern int debugPrecision;		// minus one means unset
 #define OP_DEBUG_DUMP_COUNT(contours, label)
 #endif
 
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_SERIALIZE_OUT
 enum class DebugLevel;
 enum class DebugBase;
 
@@ -499,10 +482,10 @@ namespace PathOpsV0Lib {
 
 	OP_DEBUG_VALIDATE_CODE(void OpDebugValidate(Curve ));
 
-    void debugLineScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY);
-    void debugQuadScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY);
-    void debugConicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY);
-    void debugCubicScale(PathOpsV0Lib::Curve curve, double scale, double offsetX, double offsetY);
+    void debugLineScale(PathOpsV0Lib::Curve curve, double sX, double SY, double dX, double dY);
+    void debugQuadScale(PathOpsV0Lib::Curve curve, double sX, double SY, double dX, double dY);
+    void debugConicScale(PathOpsV0Lib::Curve curve, double sX, double SY, double dX, double dY);
+    void debugCubicScale(PathOpsV0Lib::Curve curve, double sX, double SY, double dX, double dY);
 
 #define DEBUG_SCALE_TAGGED_FUNCTIONS \
     OP_TAGGED_FUNCTION(debugLineScale), \
@@ -512,7 +495,7 @@ namespace PathOpsV0Lib {
 
 }
 
-#if OP_DEBUG && TEST_RASTER
+#if TEST_RASTER
 #define OP_DEBUG_RASTER_CODE(...) __VA_ARGS__
 #define OP_DEBUG_RASTER_PARAMS(params) , params
 #else

@@ -5,6 +5,9 @@
 #if OP_DEBUG_DUMP
 #include "OpCurveCurve.h"
 #endif
+#if TEST_RASTER
+#include "OpDebugRaster.h"
+#endif
 
 OpCurve::OpCurve(PathOpsV0Lib::Curve curve, Rotated r) 
 	: c(curve)
@@ -13,10 +16,8 @@ OpCurve::OpCurve(PathOpsV0Lib::Curve curve, Rotated r)
 	, isLineResult(false)
     , reversed(false) {
 	c.data = context().allocateCurveData(c.size);
-	if (0 == (int) curve.type) {
-        PathOpsV0Lib::SetLineType lineTypeFunc = context().contextCallbacks.setLineTypeFuncPtr;
-		c.type = lineTypeFunc ? (*lineTypeFunc)(curve) : 1;
-    }
+	if (0 == (int) curve.type)
+		c.type = lineType();
 	if (curve.data) {
 		std::memcpy(c.data, curve.data, c.size);
 		OP_DEBUG_CODE(if (Rotated::debug == r) return);
@@ -54,9 +55,11 @@ OpRoots OpCurve::axisRawHit(Axis axis, float intercept, MatchEnds matchEnds) con
 		OpRoots temp(result.roots.front(), result.roots.back());
 		result = temp;
 	}
-#if OP_DEBUG_DUMP
-	if (Rotated::no == rotated && result.count() > 1)
-		dmpFile();
+#if OP_DEBUG
+	if (Rotated::no == rotated && result.count() > 1) {
+		OpDebugOut("!!! axisRawHit count > 1: " + context().debugData.testname + "\n");
+		OP_DEBUG_DUMP_CODE(((OpContext&) context()).dumpFile("axisRawHit count > 1"));
+	}
 #endif
 	OP_ASSERT((Rotated::no == rotated ? 1 : 2) >= result.count());
 	return result;
@@ -266,6 +269,11 @@ OpPtT OpCurve::lineCurve(OpCurve& line, float inputT, float* lineTPtr, MatchEnds
 		*lineTPtr = lineT;
 	OpPtT alignedPtT { linePt, inputT };
 	return alignedPtT;
+}
+
+PathOpsV0Lib::CurveType OpCurve::lineType() const {
+	PathOpsV0Lib::SetLineType funcPtr = context().contextCallbacks.setLineTypeFuncPtr;
+    return funcPtr ? (*funcPtr)(c) : 1;
 }
 
 float OpCurve::match(float start, float end, OpPoint pt) const {
@@ -601,15 +609,11 @@ void OpCurve::reverse() {
 bool OpCurve::isLine() {
 	if (!isLineSet) {
 		isLineSet = true;
-        auto setLineType = [this]() {
-            PathOpsV0Lib::SetLineType funcPtr = context().contextCallbacks.setLineTypeFuncPtr;
-            return funcPtr ? (*funcPtr)(c) : 1;
-        };
 		PathOpsV0Lib::CurveIsLine funcPtr = (int) c.type 
 				? context().callback(c.type).curveIsLineFuncPtr : nullptr;
-		if ((!funcPtr && (!c.type || c.type == setLineType()))
+		if ((!funcPtr && (!c.type || c.type == lineType()))
                 || (*funcPtr)(c, context().threshold().length())) {
-			c.type = setLineType();
+			setLineType();
 			isLineResult = true;
 		}
 	}
@@ -627,13 +631,11 @@ bool OpCurve::isVertical() const {
 	return fabsf(firstPt().x) <= epsilon && fabsf(lastPt().x) <= epsilon; 
 }
 
-
 #if OP_DEBUG
 bool OpCurve::debugIsLine() const {
 	if (isLineSet)
 		return isLineResult;
-    PathOpsV0Lib::SetLineType funcPtr = context().contextCallbacks.setLineTypeFuncPtr;
-	return c.type == (funcPtr ? (*funcPtr)(c) : 1);
+	return c.type == lineType();
 }
 #endif
 
@@ -644,15 +646,9 @@ OpCurve OpCurve::debugSubDivide(float t1, float t2) const {
 	OpCurve newResult(c, rotated);
     newResult.setFirstPt(ptAtT(t1));
     newResult.setLastPt(ptAtT(t2));
-	PathOpsV0Lib::SubDivide funcPtr = context().debugCallback(c).debugSubDivideFuncPtr;
-	if (funcPtr) {
-		PathOpsV0Lib::CurveConst crossThreshold = context().callback(c.type).crossThresholdFuncPtr;
-		float threshold = context().threshold().length()
-				* (crossThreshold ? (*crossThreshold)(c) : 4.f);
-		(*funcPtr)(c, t1, t2, threshold, &newResult.c);
-		if (PathOpsV0Lib::degenerateLine == newResult.c.type)
-			newResult.setLine();
-	}
+	PathOpsV0Lib::DebugSubDivide funcPtr = context().debugCallback(c).debugSubDivideFuncPtr;
+	if (funcPtr)
+		(*funcPtr)(c, t1, t2, &newResult.c);
 	return newResult;
 }
 
@@ -671,16 +667,14 @@ static PathOpsV0Lib::LoopAttribute loopAttribute(bool firstPt, bool lastPt, bool
 	return (PathOpsV0Lib::LoopAttribute) ((int) firstPt | (int) lastPt << 1 | (int) reversed << 2); 
 }
 
-PathOpsV0Lib::WindKeep OpCurve::bestLoop(PathOpsV0Lib::Winding w, bool firstPt, bool lastPt  
-        OP_DEBUG_PARAMS(int parentID)) {
+PathOpsV0Lib::WindKeep OpCurve::bestLoop(PathOpsV0Lib::Winding w, 
+		bool firstPt, bool lastPt  OP_DEBUG_PARAMS(int parentID)) {
     PathOpsV0Lib::CurveOutput bestLoop = context().contextCallbacks.bestLoopFuncPtr;
     if (bestLoop) {
     	context().initOutOnce();
         PathOpsV0Lib::CurveType curveType = c.type;
-        if (!curveType) {
-            PathOpsV0Lib::SetLineType funcPtr = context().contextCallbacks.setLineTypeFuncPtr;
-            curveType = funcPtr ? (*funcPtr)(c) : 1;
-        }
+        if (!curveType)
+            curveType = lineType();
         PathOpsV0Lib::Curve curve { c.context, c.data, c.size, context().nativeCurveTypes[curveType] };
         PathOpsV0Lib::LoopAttribute attr = loopAttribute(firstPt, lastPt, reversed);
 	    return (*bestLoop)({ curve, w, attr });
@@ -688,27 +682,21 @@ PathOpsV0Lib::WindKeep OpCurve::bestLoop(PathOpsV0Lib::Winding w, bool firstPt, 
     return PathOpsV0Lib::WindKeep::Discard;
 }
 
-PathOpsV0Lib::WindKeep OpCurve::output(PathOpsV0Lib::Winding w, bool firstPt, bool lastPt  
-        OP_DEBUG_PARAMS(int parentID)) {
+PathOpsV0Lib::WindKeep OpCurve::output(PathOpsV0Lib::Winding w, 
+		bool firstPt, bool lastPt  OP_DEBUG_RASTER_PARAMS(OpEdge* edge)) {
     PathOpsV0Lib::CurveOutput curveOutput = context().contextCallbacks.curveOutputFuncPtr;
     if (curveOutput) {
     	context().initOutOnce();
         PathOpsV0Lib::CurveType curveType = c.type;
-        if (!curveType) {
-            PathOpsV0Lib::SetLineType funcPtr = context().contextCallbacks.setLineTypeFuncPtr;
-            curveType = funcPtr ? (*funcPtr)(c) : 1;
-        }
+        if (!curveType)
+            curveType = lineType();
         PathOpsV0Lib::Curve curve { c.context, c.data, c.size, context().nativeCurveTypes[curveType] };
         PathOpsV0Lib::LoopAttribute attr = loopAttribute(firstPt, lastPt, reversed);
+#if TEST_RASTER
+		OP_ASSERT(context().debugRaster);
+		context().debugRaster->addOutput({ curve, w, attr }, edge);
+#endif
 	    return (*curveOutput)({ curve, w, attr });
     }
-#if 0 && OP_DEBUG && TEST_RASTER
-	PathOpsV0Lib::DebugAddRaster addRaster = context().debugCallback(c).addRasterFuncPtr;
-    if (addRaster) {
-        PathOpsV0Lib::DebugContextData& data = context().debugGetContextData(
-                PathOpsV0Lib::DebugContextType::addRaster);
-        (*addRaster)(data, c, parentID);
-    }
-#endif
     return PathOpsV0Lib::WindKeep::Discard;
 }

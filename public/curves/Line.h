@@ -29,7 +29,7 @@ inline size_t AddLine(Contour* contour, AddCurve curve) {
     return 1;
 }
 
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_SERIALIZE_OUT
 inline std::string lineDebugDumpName() { 
     return "line"; 
 }

@@ -20,6 +20,7 @@ void emptySkPathFunc(Context* );
 SkPathOp MapInvertedSkPathOp(SkPathOp op, bool leftOperandIsInverted, bool rightOperandIsInverted);
 bool SkPathOpInvertOutput(SkPathOp op, bool leftOperandIsInverted, bool rightOperandIsInverted);
 
+void AlignSkiaOutput(PathOpsV0Lib::Output o);
 void SetSkiaContextCallbacks(PathOpsV0Lib::Context* );
 void SetSkiaCurveCallbacks(PathOpsV0Lib::Context* );
 PathOpsV0Lib::Contour* SetSkiaSimplifyCallbacks(PathOpsV0Lib::Context* , PathOpsV0Lib::WindingData , 

@@ -701,12 +701,13 @@ struct OpRect {
 
 	OpVector widthHeight() const {
 		return *(OpPoint*) &right - *(OpPoint*) &left; }
-
+#if OP_DEBUG_SERIALIZE_OUT
+	virtual std::string debugDump(DebugLevel , DebugBase ) const;
+#endif
 #if OP_DEBUG_DUMP
 	virtual ~OpRect() {}
 	OpRect(const OpRect& r) = default;
 	OpRect& operator=(const OpRect& ) = default;
-	virtual std::string debugDump(DebugLevel , DebugBase ) const;
 	virtual void dump() const;
 	virtual void dump(DebugLevel, DebugBase ) const;
 	virtual void dumpBrief() const;
