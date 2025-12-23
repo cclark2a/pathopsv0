@@ -84,7 +84,6 @@ std::vector<OpIntersection*> OpSegments::AddEndMatches(OpSegment* seg, OpSegment
 			oppPt = opp->mergePoints({ oppPt, oppT }, seg, segPtT);
 		add(seg, opp, oppPt, segPtT.t, oppT  OP_LINE_FILE_CARGS());
 	};
-//    OpBreak2(seg, opp, 5, 11);
 	if (OpMath::IsNaN(startSegT) && 0 != startOppT && 0 != endOppT)
 		checkSeg(opp->c.firstPt(), 0  OP_LINE_FILE_PARGS());
 	if (OpMath::IsNaN(endSegT) && 1 != startOppT && 1 != endOppT)
@@ -99,6 +98,7 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 	OP_ASSERT(seg->c.debugIsLine());
 	OpRoots oppRoots = seg->c.lineIntersection(opp->c);
 	OP_DEBUG_CODE(MatchReverse matchRev = opp->matchEnds(seg));
+	OpBreak2(seg, opp, 4, 7);
 	// if line and curve share end point, pass hint that root finder can call
 	// reduced form that assumes one root is zero or one.
 #if 0  // code coverage did not detect any of these cases
@@ -463,6 +463,7 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 		return true;
 	}
 	SectFound ccResult = cc.divideAndConquer();
+	OP_DEBUG_DUMP_CODE(cc.context->dumpFile("curve:" + STR(seg->id) + "curve:" + STR(opp->id)));
 #if !OP_DEBUGGER && !OP_DEBUG_FAST_TEST
 	OP_ASSERT(cc.debugBreak(CcBreak::atEnd));
 #endif

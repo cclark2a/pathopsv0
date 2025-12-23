@@ -321,6 +321,7 @@ struct OpContext {
 	OpCurveCurve* debugCurveCurve;
 	OpJoiner* debugJoiner;
 	OpTree* debugTree;
+	std::vector<OpEdge*>* debugErasures;
 	int debugErrorID;
 	int debugOppErrorID;
 	OpDebugExpect debugExpect;
@@ -338,6 +339,7 @@ struct OpContext {
 #if OP_DEBUG_DUMP
 	std::vector<std::string> debugDumpNotes;
 	std::vector<std::string> debugDumpSkips;
+	std::vector<OpEdge*> debugDumpErasures;  // read from flattened data
 	bool debugDumpInit;   // if true, created by dump init
 #endif
 #if TEST_RASTER

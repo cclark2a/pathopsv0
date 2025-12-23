@@ -37,9 +37,10 @@ enum class IntersectResult {
 };
 
 #define EdgeMatch_Base \
-    OP_ENUM_BASE(none, -1)
+    OP_ENUM_BASE(uninitialized, -1)
 
 #define EdgeMatch_Enums \
+	OP_ENUM_MEMBER(none), \
 	OP_ENUM_MEMBER(start), \
 	OP_ENUM_MEMBER(end),
 
@@ -51,7 +52,7 @@ enum class EdgeMatch : int8_t {
 
 inline EdgeMatch operator!(EdgeMatch m) {
 	OP_ASSERT(EdgeMatch::start == m || EdgeMatch::end == m);
-	return static_cast<EdgeMatch>(!static_cast<int>(m));
+	return static_cast<EdgeMatch>(static_cast<int>(m) ^ 0x3);
 }
 
 #define EdgeFail_Enums \
@@ -381,6 +382,8 @@ private:
 //		, windPal(false)
 		, startSeen(false)
 		, endSeen(false)
+		, unsectableStart(false)
+		, unsectableEnd(false)
 	{
 #if OP_DEBUG // a few debug values are also nonzero
 		id = -2;
@@ -423,9 +426,12 @@ public:
 	WindingCondition apply();
 	void calcCenterT();
 	void clearActiveAndPals(OP_LINE_FILE_NP_ARGS());
-	void clearLastEdge(/* InOutput */);
+	void clearLast(/* InOutput */);
+	void clearLastEdge();
 	void clearNextEdge();
 	void clearPriorEdge();
+	std::vector<OpPoint> collectMatch(EdgeMatch m, float* t = nullptr) const;
+	bool compareMatch(EdgeMatch m, OpEdge* opp, EdgeMatch oppM) const;
 	void complete(OpPtT startPtT, OpPtT endPtT);
 	void complete(OpPoint startPt, OpPoint endPt);
 	bool containsLink(const OpEdge* edge) const;
@@ -462,12 +468,13 @@ public:
 		return EdgeMatch::start == match ? startPtT() : endPtT(); }
 	void setActive(bool state);  // setter exists so debug breakpoints can be set
 	void setDisabled(OP_LINE_FILE_NP_ARGS());
-	OpEdge* setLastEdge();
-	void setLastEdge(OpEdge* first, OpEdge* last, InOutput );
+	OpEdge* updateLastEdge();
+	void setLast(OpEdge* first, OpEdge* last, InOutput );
+	void setLastEdge(OpEdge* );  // actual setter
 	bool setLastLink(EdgeMatch );  // returns true if link order was changed
 	OpPointBounds setLinkBounds();
 	bool setLinkDirection(EdgeMatch , std::vector<OpEdge*>* linkupsErasures, InOutput );
-	void setNextEdge(OpEdge*);  // setter exists so debug breakpoints can be set
+	void setNextEdge(OpEdge* );  // setter exists so debug breakpoints can be set
 	void setPointBounds();
 	void setPriorEdge(OpEdge* );  // setter exists so debug breakpoints can be set
 	void setSum(const OpWinding&  OP_LINE_FILE_ARGS());  // called by macro SET_SUM
@@ -542,7 +549,7 @@ public:
 	OpWinding sum;  // total incl. normal side of edge for operands (fill count in normal direction)
 	OpWinding many;  // temporary used by unsectables to contain all pal windings combined
 	std::vector<CoinPal> coinPals;  // track coincidences bracketing edge by ID
-	std::vector<OpIntersection*> unSects;  // unsectable intersections bracketing edge
+	std::vector<OpIntersection*> unSects;  // unsectable sects bracketing edge (to mark as pals)
 	std::vector<EdgePal> pals;	 // edge + pals share sect overlap; or ray can't order edge and pals
 	OpHulls hulls;  // curve-curve intersections
     EdgeDist startDist;  // distance from start to opposite in curve-curve intersection
@@ -569,6 +576,8 @@ public:
 	bool centerless;  // center could not be computed (likely edge is too small)
 	bool startSeen;  // tracks start of edge in joiner linked list to add to tree only once
 	bool endSeen;  // tracks end of edge in joiner linked list to add to tree only once
+	bool unsectableStart;  // set if start intersection has an unsectable id
+	bool unsectableEnd;  // set if end intersection has an unsectable id
 #if OP_DEBUG
 	OpEdge* debugMatch;  // left side of nonzero ray from this edge
 	OpEdge* debugZeroErr;  // debug match ray found edge that does not match -- diagnostic for now

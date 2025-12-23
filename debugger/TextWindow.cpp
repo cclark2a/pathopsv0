@@ -132,6 +132,12 @@ DrawLevel TextWindow::event(const DebuggerEvent& debuggerEvent) {
 
 extern DebugBase defaultBase;
 
+struct Field {
+    const char* name;
+    const char* data;
+    const char* end;
+};
+
 void TextWindow::innerUpdate(int& safetyCheck) {
     if (++safetyCheck > 2) {
         OpDebugOut(std::string(__func__) + ": unexpected recursion: " + STR(safetyCheck) + "\n");
@@ -194,10 +200,45 @@ void TextWindow::innerUpdate(int& safetyCheck) {
                 shownSegment = true;
             } 
             if (IDType::edge == id.type) {
+        #if 0
                 std::vector<EdgeFilter> showFields = { EF::id, EF::startT, EF::endT, EF::curve, 
                     EF::iStart, EF::iEnd, EF::winding, EF::sum, EF::whichEnd_impl };
                 OpSaveEF saveEF(showFields);
                 s = id.edge->debugDump(DebugLevel::normal, defaultBase);
+        #else
+                std::vector<std::string> showFields = { "edge", "startT", "endT", "curve",
+                    "iStart", "iEnd", "wind", "sum", "whichEnd_impl" };
+                std::string master = id.edge->debugDump(DebugLevel::normal, defaultBase);
+                std::vector<Field> foundFields;
+                for (const char* ch = &master.front(); ch < &master.back(); ) {
+                    if (!isalpha(*ch)) {
+                        OP_ASSERT(*ch <= ' ');
+                        ++ch;
+                        continue;
+                    }
+                    const char* start = ch;
+                    while (ch < &master.back() && isalpha(*ch))
+                        ++ch;
+                    const char* data = ch;
+                    int brackets = 0;
+                    while (ch < &master.back()) {
+                        brackets += '[' == *ch || '{' == *ch;
+                        brackets -= ']' == *ch || '}' == *ch;
+                        ++ch;
+                        if (!brackets && ' ' == *ch)
+                            break;
+                    }
+                    foundFields.push_back({ start, data, ch });
+                }
+                for (std::string& show : showFields) {
+                    for (const Field& found : foundFields) {
+                        if (show.size() == found.data - found.name  
+                                && 0 == strncmp(&show.front(), found.name, show.size()))
+                            s += std::string(found.name, found.end - found.name) + " ";
+                    }
+                }
+                debugPopMatching(s, ' ');
+        #endif
                 shownEdge = true;
             } 
             if (IDType::intersection == id.type) {
@@ -236,9 +277,35 @@ void TextWindow::innerUpdate(int& safetyCheck) {
         std::string s = debugDmpJoin(debuggerState->context, DebugLevel::normal, defaultBase);
         addWrapped(s);
     }
+    if (showTree) {
+        OpTree* tree = debuggerState->context->debugTree;
+        if (!tree)
+            addWrapped("(no tree in context)");
+        else {
+            std::string s = tree->debugDump(DebugLevel::normal, defaultBase);
+            addWrapped(s);
+        }
+    }
+    if (showErasures) {
+        std::vector<OpEdge*>* erasures = debuggerState->context->debugErasures;
+        if (!erasures)
+            addWrapped("(no erasures in context)");
+        else {
+            std::string s = "erasures [";
+            for (OpEdge* edge : *erasures) {
+                s += STR(edge->id) + " ";
+            }
+            debugPopMatching(s, ' ');
+            s += "]";
+            addWrapped(s);
+        }
+    }
     if (showLinks) {
         std::string s = debugDmpLinks(debuggerState->context, DebugLevel::normal, defaultBase);
-        addWrapped(s);
+        if (s.empty())
+            addWrapped("(no links)");
+        else
+            addWrapped(s);
     }
     if (showTest && !testIn.empty())
         addWrapped(testIn);
@@ -282,7 +349,8 @@ void TextWindow::playback(const char*& str) {
     DEBUG_SET_BOOL(updateAttempts, showAll);
     DEBUG_SET_BOOL(showAll, showAliases);
     DEBUG_SET_BOOL(showAliases, showCurveCurve);
-    DEBUG_SET_BOOL(showCurveCurve, showFull);
+    DEBUG_SET_BOOL(showCurveCurve, showErasures);
+    DEBUG_SET_BOOL(showErasures, showFull);
     DEBUG_SET_BOOL(showFull, showEdgeHulls);
     DEBUG_SET_BOOL(showEdgeHulls, showJoin);
     DEBUG_SET_BOOL(showJoin, showLinks);
@@ -298,7 +366,8 @@ std::string TextWindow::record() {
     DEBUG_DUMP_BOOL(updateAttempts, showAll);
     DEBUG_DUMP_BOOL(showAll, showAliases);
     DEBUG_DUMP_BOOL(showAliases, showCurveCurve);
-    DEBUG_DUMP_BOOL(showCurveCurve, showFull);
+    DEBUG_DUMP_BOOL(showCurveCurve, showErasures);
+    DEBUG_DUMP_BOOL(showErasures, showFull);
     DEBUG_DUMP_BOOL(showFull, showEdgeHulls);
     DEBUG_DUMP_BOOL(showEdgeHulls, showJoin);
     DEBUG_DUMP_BOOL(showJoin, showLinks);

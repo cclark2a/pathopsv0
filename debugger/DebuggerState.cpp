@@ -1,6 +1,7 @@
 // (c) 2025, Cary Clark cclark2@gmail.com
 
 #include "OpCurveCurve.h"
+#include "OpDebugRaster.h"
 #include "DebuggerState.h"
 #include <SDL3/SDL_error.h>
 #include <filesystem>
@@ -64,8 +65,12 @@ SDL_AppResult DebuggerState::checkForNewFiles() {
     for (;;) {
         std::string filename = DumpFile + STR(++fileNumber) + ".txt";
         std::string filePath = dmpFileToPath(filename);
-        if (stat(filePath.c_str(), &info) == -1)
+        if (stat(filePath.c_str(), &info) == -1) {
+            if (dumps.size() >= fileNumber)
+                dumps.resize(fileNumber - 1);
+            currentDump = std::max(0, std::min(currentDump, (int) dumps.size() - 1));
             break;
+        }
         if (dumps.size() < fileNumber)
             dumps.emplace_back();
         OP_ASSERT(fileNumber <= dumps.size());
@@ -80,11 +85,22 @@ SDL_AppResult DebuggerState::checkForNewFiles() {
         if (dump.updateAttempts > dump.maxUpdateAttempts) {
             OP_ASSERT(0);
             dump.update(this);  // for debugging
-            return Fail("failed to update");
+            return Fail("failed to update: " + filename);
         }
     }
-    if (1 == fileNumber)
-        return Fail("no dmp found");
+//    if (1 == fileNumber)  // all dumps have been deleted, but that should be OK
+//        return Fail("no dmp found");
+    std::string bitsFilename = dmpFileToPath(BitsFile);
+    bitsToShow = stat(bitsFilename.c_str(), &info) != -1;
+    if (!bitsToShow) {
+        if (showBits) {
+            showBits = false;
+            SDL_HideWindow(compareWindow.window);
+        }
+    } else if (info.st_mtime != compareWindow.lastTime) {
+        compareWindow.update();
+        compareWindow.lastTime = info.st_mtime;
+    }
     return SDL_APP_CONTINUE;
 }
 
@@ -156,13 +172,16 @@ void DebuggerState::playback() {
     DEBUG_SET_REQUIRED_VALUE(currentDump, depth);
     DEBUG_SET_REQUIRED_VALUE(depth, verboseLevel);
     DEBUG_SET_REQUIRED_VALUE(verboseLevel, error);
-    DEBUG_SET_BOOL(error, showContours);
+    ASSERT_ORDERED(error, bitsToShow);  // don't restore
+    DEBUG_SET_BOOL(bitsToShow, showContours);
     DEBUG_SET_BOOL(showContours, showEdges);
     DEBUG_SET_BOOL(showEdges, showHex);
     DEBUG_SET_BOOL(showHex, showIntersections);
     DEBUG_SET_BOOL(showIntersections, showOutput);
     DEBUG_SET_BOOL(showOutput, showSegments);
     DEBUG_SET_BOOL(showSegments, showHelp);
+    DEBUG_SET_BOOL(showHelp, showBits);
+    DEBUG_SET_BOOL(showBits, showDumps);
     pictureWindow.playback(str);
     textWindow.playback(str);
     helpWindow.playback(str);
@@ -183,13 +202,16 @@ void DebuggerState::record() {
     DEBUG_DUMP_REQUIRED_VALUE(currentDump, depth);
     DEBUG_DUMP_REQUIRED_VALUE(depth, verboseLevel);
     DEBUG_DUMP_REQUIRED_VALUE(verboseLevel, error);
-    DEBUG_DUMP_BOOL(error, showContours);
+    ASSERT_ORDERED(error, bitsToShow);  // don't save
+    DEBUG_DUMP_BOOL(bitsToShow, showContours);
     DEBUG_DUMP_BOOL(showContours, showEdges);
     DEBUG_DUMP_BOOL(showEdges, showHex);
     DEBUG_DUMP_BOOL(showHex, showIntersections);
     DEBUG_DUMP_BOOL(showIntersections, showOutput);
     DEBUG_DUMP_BOOL(showOutput, showSegments);
     DEBUG_DUMP_BOOL(showSegments, showHelp);
+    DEBUG_DUMP_BOOL(showHelp, showBits);
+    DEBUG_DUMP_BOOL(showBits, showDumps);
     s += pictureWindow.record();
     s += textWindow.record(); 
     s += helpWindow.record();

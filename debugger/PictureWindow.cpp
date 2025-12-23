@@ -321,7 +321,7 @@ void PictureWindow::addLabel(std::string s, OpPoint local, uint32_t color) {
 void PictureWindow::addTangent(DebuggerPoly& poly) {
     OP_ASSERT(poly.contours.size());
     OP_ASSERT(0 < poly.contours[0] && poly.contours[0] <= poly.device.size());
-    OP_ASSERT((IDType::edge == poly.opType.type 
+    OP_ASSERT((IDType::edge == poly.opType.type || IDType::contour == poly.opType.type
             || IDType::segment == poly.opType.type) && poly.isPrimary);
     OpVector span = poly.device[poly.contours[0] - 1] - poly.device.front();
     if (span.length() < 15)
@@ -332,7 +332,8 @@ void PictureWindow::addTangent(DebuggerPoly& poly) {
         tan = -tan;
         poly.color = red;
     }
-    std::string curveStr = IDType::edge == poly.opType.type ? "edge" : "segment"; 
+    std::string curveStr = IDType::edge == poly.opType.type ? "edge" : 
+            IDType::contour == poly.opType.type ? "contour" : "segment"; 
     int id = poly.opType.id;
     if (!tan.isFinite() || tan == OpVector{ 0, 0 }) {
 		OpDebugOut(curveStr + " " + STR(id) + " overflow\n");

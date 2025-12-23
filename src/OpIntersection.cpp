@@ -94,8 +94,7 @@ OpIntersection* OpIntersections::coinContains(OpPoint pt, const OpSegment* opp, 
 		return match;
 	OpVector thresh = opp->threshold();
 	// return exact match first
-	for (unsigned index = 0; index < i.size(); ++index) {
-		OpIntersection* sect = i[index];
+	for (OpIntersection* sect : i) {
 		bool sectNearby = sect->ptT.pt.isNearly(pt, thresh);
 		if (sectNearby)
 			*nearby = sect->ptT;
@@ -112,14 +111,23 @@ OpIntersection* OpIntersections::coinContains(OpPoint pt, const OpSegment* opp, 
 }
 
 OpIntersection* OpIntersections::coinContains(OpPoint pt, const OpSegment* opp) const {
-	for (unsigned index = 0; index < i.size(); ++index) {
-		OpIntersection* sect = i[index];
+	for (OpIntersection* sect : i) {
 		if (!sect->coincidenceID || !sect->opp || sect->opp->segment != opp)
 			continue;
 		if (sect->ptT.pt == pt)
 			return sect;
 	}
 	return nullptr;
+}
+
+void OpIntersections::collectMatchingPts(OpPoint pt, std::vector<OpPoint>& pts) const {
+	for (const OpIntersection* sect : i) {
+		if (sect->ptT.pt != pt)
+			continue;
+		OpPoint oppPt = sect->opp->ptT.pt;
+		if (pts.end() == std::find(pts.begin(), pts.end(), oppPt))
+			pts.push_back(oppPt);
+	}
 }
 
 #if 0
@@ -187,6 +195,8 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 		if (first->ptT.t != sectPtr->ptT.t) {
 			segment->edges.emplace_back(first, sectPtr  OP_LINE_FILE_PARGS());
 			OpEdge& newEdge = segment->edges.back();
+			newEdge.unsectableStart = !!first->unsectID;
+			newEdge.unsectableEnd = !!sectPtr->unsectID;
 #if 1   // old code breaks skpagentxsites_com55 / though loops61i works
 		// old code did not check if coincident pair are from same coincidence (same coin id)
 		// new code: if edge is between a pair of coincident edges, mark it unsortable

@@ -34,6 +34,7 @@ struct TextWindow : public DebuggerWindow {
     bool showAll = false;
     bool showAliases = false;
     bool showCurveCurve = false;
+    bool showErasures = false;
     bool showFull = false;
     bool showEdgeHulls = false;
     bool showJoin = false;

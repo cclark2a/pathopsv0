@@ -3,6 +3,7 @@
 
 #if OP_DEBUG_SERIALIZE_OUT
 
+#include <filesystem>
 #include "DebugOpsTypes.h"
 #include "OpCurveCurve.h"
 #include "OpDebugSerializeOut.h"
@@ -41,7 +42,7 @@ OP_X(OpPtT)
 
 #define EDGE_BOOL(lastField, thisBool) \
     ASSERT_ORDERED(lastField, thisBool); \
-    if (((DebugLevel::file == l || dumpIt(EF::thisBool)) && thisBool) || dumpAlways(EF::thisBool)) \
+    if (thisBool) \
         s += #thisBool " "
 
 namespace PathOpsV0Lib {
@@ -62,6 +63,16 @@ std::string debugFloat(DebugBase b, float value) {
 
 std::string debugFloat(DebugLevel l, float value) {
     return debugFloat(DebugLevel::file == l ? DebugBase::hex : defaultBase, value);
+}
+
+bool debugIfMatching(std::string& s, char match) {
+    return !s.empty() && match == s.back();
+}
+
+std::string debugPopMatching(std::string& s, char match) {
+    if (debugIfMatching(s, match))
+        s.pop_back();
+    return s;
 }
 
 std::string stringFormat(std::string s, int lineWidth) {
@@ -148,6 +159,7 @@ ENUM_NAME_STRUCT(Axis)
 
 #undef OP_ENUM_MEMBER
 #define OP_ENUM_MEMBER(w) { LimbPass::w, #w }
+#undef LimbPass_Base
 #define LimbPass_Base
 ENUM_NAME_STRUCT(LimbPass)
 
@@ -326,9 +338,7 @@ std::string CallerDataStorage::debugDump(DebugLevel l, DebugBase b) const {
     }
     if (next)
         s += " " + next->debugDump(l, b);
-    if (' ' == s.back())
-        s.pop_back();
-    return s;
+    return debugPopMatching(s, ' ');
 }
 
 std::string CcCurves::debugDump(DebugLevel l, DebugBase b) const {
@@ -360,9 +370,7 @@ std::string CcCurves::debugDump(DebugLevel l, DebugBase b) const {
         s += edge->debugDump(down1, b) + "\n";
     for (auto& run : runs)
         s += run.debugDump(down1, b) + "\n";
-    if ('\n' == s.back())
-        s.pop_back();
-    return s;
+    return debugPopMatching(s, '\n');
 #endif
 }
 
@@ -403,7 +411,7 @@ std::string Curve_DebugDump(PathOpsV0Lib::Curve c, DebugLevel l, DebugBase b) {
         s += "size:" + STR(c.size) + " ";
         s += "data:" + context.curveDataStorage->debugDump(c.data) + " ";
     } else {
-		s.pop_back();  // remove trailing space
+        debugPopMatching(s, ' ');
         s += "{";
     	PathOpsV0Lib::HullPtCount funcPtr = context.callback(c.type).ptCountFuncPtr;
 	    int pointCount = 2 + (funcPtr ? (*funcPtr)() : 0);
@@ -417,7 +425,8 @@ std::string Curve_DebugDump(PathOpsV0Lib::Curve c, DebugLevel l, DebugBase b) {
                 pt = context.callback(c.type).curveHullFuncPtr(c, i);
             s += pt.debugDump(DebugLevel::error, b) + ", ";
         }
-        s.pop_back(); s.pop_back();  // remove space, comma
+        debugPopMatching(s, ' ');
+        debugPopMatching(s, ',');
         s += "}";
 		if ((size_t) c.type <= context.debugCallbacks.size()) {
 			auto curveExtra = context.debugCallback(c).curveExtraFuncPtr;
@@ -442,9 +451,7 @@ std::string CurveDataStorage::debugDump(DebugLevel l, DebugBase b) const {
     }
     if (next)
         s += " " + next->debugDump(l, b);
-    if (' ' == s.back())
-        s.pop_back();
-    return s;
+    return debugPopMatching(s, ' ');
 }
 
 // returns byte offset of caller curve data stored in contours
@@ -547,24 +554,18 @@ std::string DebugDump(const PathOpsV0Lib::Winding& w, DebugLevel l, DebugBase b)
 
 std::string Distance::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    s += "edge[" + debugDumpID() + "] ";
-	if (DebugLevel::detailed == l && edge->segment)
-		s += "seg[" + STR(edge->segment->id) + "] ";
-	if (DebugLevel::file != l && edge->segment)
-		s += "contour[" + STR(edge->segment->contour->id) + "] ";
-    if (!OpMath::IsNaN(cept))
+    s += "{edge[" + debugDumpID() + "] ";
+    if (!OpMath::IsDebugNaN(cept))
         s += debugValue(l, b, "cept", cept) + " ";
-    if (!OpMath::IsNaN(edgeInsideT))
+    if (!OpMath::IsDebugNaN(edgeInsideT))
         s += debugValue(l, b, "edgeInsideT", edgeInsideT) + " ";
     if (RayOrder::uninitialized != rayOrder)
 		s += "rayOrder:" + RayOrderName(rayOrder) + " ";
     s += BoolToStr(l, reversed, "reversed", "r");
     s += BoolToStr(l, dependent, "dependent", "d");
     s += BoolToStr(l, over, "over", "o");
-    if (DebugLevel::detailed == l)
-		s += edge->debugDumpWinding() + " ";
-    if (!s.empty())
-        s.pop_back();
+    debugPopMatching(s, ' ');
+    s += "}";
     return s;
 }
 
@@ -596,9 +597,7 @@ std::string EdgePal::debugDump(DebugLevel l, DebugBase b) const {
     s += BoolToStr(l, reversed, "reversed", "r");
     if (DebugLevel::detailed == l)
 		s += edge->debugDumpWinding() + " ";
-    if (!s.empty())
-        s.pop_back();
-    return s;
+    return debugPopMatching(s, ' ');
 }
 
 std::string EdgePal::debugDumpID() const {
@@ -683,8 +682,7 @@ std::string HullSect::debugDump(DebugLevel l, DebugBase b) const {
 	if (oppDist.isSet())
 		s += "oppDist:" + oppDist.debugDump(l, b) + " ";
     s += "type:" + SectTypeName(type) + " ";
-    s.pop_back();
-    return s;
+    return debugPopMatching(s, ' ');
 }
 
 std::string LinePts::debugDump(DebugLevel l, DebugBase b) const {
@@ -725,12 +723,12 @@ std::string LinkUps::debugDump(DebugLevel li, DebugBase b) const {
             }
         }
         if (looped && count != priorCount)
-            OpDebugOut("!!! linkup " + STR(linkupIndex) + " [" + STR(linkup->id) + "]"
+            OpDebugOut("!!! linkup " + STR(linkupIndex) + "[" + STR(linkup->id) + "]"
                     " with unexpected tail: count " + STR(count) 
                     + "!= priorCount " + STR(priorCount) + "\n");
         if (looped)
             priorCount = 0;
-        if (s.size() && s.back() != '\n')
+        if (debugIfMatching(s, '\n'))
             s += "\n";
         s += "[" + STR(linkupIndex) + "] linkup count:" + STR(count + priorCount);
         if (priorCount && !looped)
@@ -757,7 +755,7 @@ std::string LinkUps::debugDump(DebugLevel li, DebugBase b) const {
         }
         next = linkup->nextEdge;
 		if (DebugLevel::brief == li)
-			s += " [" + STR(linkup->id) + " ";
+			s += "[" + STR(linkup->id) + " ";
 		else
 			s += " " + linkup->debugDump(li, b);
         bool hasNext = false;
@@ -780,7 +778,7 @@ std::string LinkUps::debugDump(DebugLevel li, DebugBase b) const {
             next = next->nextEdge;
         }
 		if (DebugLevel::brief == li) {
-			s.pop_back();
+            debugPopMatching(s, ' ');
 			s += "] ";
 		}
         if (hasNext)
@@ -795,8 +793,7 @@ std::string MatchReverse::debugDump(DebugLevel l, DebugBase b) const {
     s += "match:" + MatchEndsName(match) + " ";
     if (reversed)
         s += "reversed ";
-    s.pop_back();
-    return s;
+    return debugPopMatching(s, ' ');
 }
 
 void OpContext::dumpBaseFile() const {
@@ -833,16 +830,28 @@ void OpContext::dumpBaseFile() const {
 }
 
 void OpContext::dumpFile(std::string description) {
-#if !TEST_DEFEAT_BREAK
-    if (!debugData.runOneFile)
+    if (!debugData.runOneFile || debugData.defeatDumps)
         return;
+    // !!! not sure that this is always the right thing to do, but ...
+    //     remove all older files so that the debugger does not see a mix of old and new data
+    //     Note that DumpCopy.txt is not deleted because the debugger doesn't read it, and in
+    //     case it's useful to see the last sucessful dump.
+    if (0 == dumpIndex) {
+        for (;;) {
+            debugFilename = DumpFile + STR(++dumpIndex) + ".txt";
+            std::string filePath = dmpFileToPath(debugFilename);
+            if (!std::filesystem::exists(filePath))
+                break;
+            std::filesystem::remove(filePath);
+        }
+        dumpIndex = 0;
+    }
     debugFilename = DumpFile + STR(++dumpIndex) + ".txt";
     OP_ASSERT(description.size() <= 80);  // !!! forced by line wrapping, could be relaxed
     debugDescription = description;
     if (debugContextCallbacks.debugDumpOutFuncPtr)
         debugOutPath = (*debugContextCallbacks.debugDumpOutFuncPtr)((ContextPtr) this);
     dumpBaseFile();
-#endif
 }
 
 std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
@@ -886,10 +895,8 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
         s += "size:" + STR(data.size) + " ";
         s += "type:" + STR((int) data.type) + " ";
     }
-    if (' ' == s.back()) {
-        s.pop_back();
-        s += "\n";
-    }
+    debugPopMatching(s, ' ');
+    s += "\n";
 #endif
     ASSERT_ORDERED(userData, nativeCurveTypes);
     s += "nativeCurveTypes:" + STR(nativeCurveTypes.size()) + " ";
@@ -1018,7 +1025,7 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
 #else
     ASSERT_ORDERED(dumpDummy, debugCallbacks);
 #endif
-    s.pop_back();
+    debugPopMatching(s, ' ');
     s += "\n";
     // debugCallbacks is out of order; must be set before curves are read
     // debugContextCallbacks is out of order; must be set before windings in contours are read
@@ -1035,7 +1042,16 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
     ASSERT_ORDERED(debugJoiner, debugTree);
     if (debugTree)
         s += "debugTree:" + debugTree->debugDump(l, b) + "\n";
-    ASSERT_ORDERED(debugTree, debugErrorID);
+    ASSERT_ORDERED(debugTree, debugErasures);
+    if (debugErasures) {
+        s += "debugErasures:" + STR(debugErasures->size()) + "[";
+        for (OpEdge* edge : *debugErasures) {
+            s += STR(edge->id) + " ";
+        }
+        debugPopMatching(s, ' ');
+        s += "]\n";
+    }
+    ASSERT_ORDERED(debugErasures, debugErrorID);
     if (debugErrorID)
         s += "debugErrorID:" + STR(debugErrorID) + " ";
     ASSERT_ORDERED(debugErrorID, debugOppErrorID);
@@ -1121,7 +1137,7 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
         s += "[";
         for (auto& segment : segments)
             s += STR(segment.id) + " ";
-        s.pop_back();
+        debugPopMatching(s, ' ');
         s += "] ";
     } else {
 		// limit segment to id / curve / sects / edges / winding / disabled
@@ -1134,92 +1150,92 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 	std::string closeBracket = DebugLevel::detailed == l ? "]\n" : "] ";
     ASSERT_ORDERED(segments, sorted);
 	if (!sorted.empty()) {
-		s += "sorted:" + STR(sorted.size()) + " [";
+		s += "sorted:" + STR(sorted.size()) + "[";
 		for (OpSegment* seg : sorted)
 			s += STR(seg->id) + " ";
-		s.pop_back();
+        debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
 	if (DebugLevel::detailed != l)
 		s += "\n  ";
     ASSERT_ORDERED(sorted, overlaps);
 	if (!overlaps.empty()) {
-		s += "overlaps:" + STR(overlaps.size()) + " [";
+		s += "overlaps:" + STR(overlaps.size()) + "[";
 		for (OpContour* member : overlaps)
 			s += STR(member->id) + " ";
-		s.pop_back();
+        debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
     ASSERT_ORDERED(overlaps, merges);
 	if (!merges.empty()) {
-		s += "merges:" + STR(merges.size()) + " [";
+		s += "merges:" + STR(merges.size()) + "[";
 		for (OpContour* member : merges)
 			s += STR(member->id) + " ";
-		s.pop_back();
+        debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
     ASSERT_ORDERED(merges, inX);
 	if (!inX.empty()) {
-		s += "inX:" + STR(inX.size()) + " [";
+		s += "inX:" + STR(inX.size()) + "[";
 		for (OpEdge* e : inX)
 			s += STR(e->id) + " ";
-		s.pop_back();
+        debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
     ASSERT_ORDERED(inX, inY);
 	if (!inY.empty()) {
-		s += "inY:" + STR(inY.size()) + " [";
+		s += "inY:" + STR(inY.size()) + "[";
 		for (OpEdge* e : inY)
 			s += STR(e->id) + " ";
-		s.pop_back();
+        debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
     ASSERT_ORDERED(inY, byArea);
 	if (!byArea.empty()) {
-		s += "byArea:" + STR(byArea.size()) + " [";
+		s += "byArea:" + STR(byArea.size()) + "[";
 		for (OpEdge* e : byArea)
 			s += STR(e->id) + " ";
-		s.pop_back();
+        debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
     ASSERT_ORDERED(byArea, unsectByArea);
 	if (!unsectByArea.empty()) {
-		s += "unsectByArea:" + STR(unsectByArea.size()) + " [";
+		s += "unsectByArea:" + STR(unsectByArea.size()) + "[";
 		for (OpEdge* e : unsectByArea)
 			s += STR(e->id) + " ";
-		s.pop_back();
+        debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
     ASSERT_ORDERED(unsectByArea, disabledBackwards);
 	if (!disabledBackwards.empty()) {
-		s += "disabledBackwards:" + STR(disabledBackwards.size()) + " [";
+		s += "disabledBackwards:" + STR(disabledBackwards.size()) + "[";
 		for (OpEdge* e : disabledBackwards)
 			s += STR(e->id) + " ";
-		s.pop_back();
+        debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
     ASSERT_ORDERED(disabledBackwards, disabledCenterless);
 	if (!disabledCenterless.empty()) {
-		s += "disabledCenterless:" + STR(disabledCenterless.size()) + " [";
+		s += "disabledCenterless:" + STR(disabledCenterless.size()) + "[";
 		for (OpEdge* e : disabledCenterless)
 			s += STR(e->id) + " ";
-		s.pop_back();
+        debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
     ASSERT_ORDERED(disabledCenterless, disabledPals);
 	if (disabledPals.size()) {
-		s += "disabledPals:" + STR(disabledPals.size()) + " [";
+		s += "disabledPals:" + STR(disabledPals.size()) + "[";
 		for (OpEdge* e : disabledPals)
 			s += STR(e->id) + " ";
-		s.pop_back();
+        debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
     ASSERT_ORDERED(disabledPals, unsortables);
 	if (unsortables.size()) {
-		s += "unsortables:" + STR(unsortables.size()) + " [";
+		s += "unsortables:" + STR(unsortables.size()) + "[";
 		for (OpEdge* e : unsortables)
 			s += STR(e->id) + " ";
-		s.pop_back();
+        debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
     ASSERT_ORDERED(unsortables, windingStorage);
@@ -1238,18 +1254,18 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
     }
     ASSERT_ORDERED(windingStorage, linkups);
 	if (linkups.l.size()) {
-		s += "linkups:" + STR(linkups.l.size()) + " [";
+		s += "linkups:" + STR(linkups.l.size()) + "[";
 		for (OpEdge* e : linkups.l)
 			s += STR(e->id) + " ";
-		s.pop_back();
+        debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
     ASSERT_ORDERED(linkups, endLinks);
 	if (endLinks.l.size()) {
-		s += "endLinks:" + STR(endLinks.l.size()) + " [";
+		s += "endLinks:" + STR(endLinks.l.size()) + "[";
 		for (OpEdge* e : endLinks.l)
 			s += STR(e->id) + " ";
-		s.pop_back();
+        debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
     DEBUG_DUMP_OPTIONAL_STRUCT(endLinks, overlapBounds, overlapBounds.isFinite());
@@ -1267,7 +1283,7 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 #if OP_DEBUG_IMAGE
     ASSERT_SERIAL_OFFSET(*this, overlapsMerged, 2, debugCurveData);
     if (!debugCurveData.empty()) {
-		s += "debugCurveData:" + STR(debugCurveData.size()) + " [";
+		s += "debugCurveData:" + STR(debugCurveData.size()) + "[";
 		for (size_t index = 0; index < debugCurveData.size(); ++index) {
             const PathOpsV0Lib::DebugCurveData& dcd = debugCurveData[index];
             if (DebugLevel::file == l)
@@ -1277,16 +1293,16 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
                 PathOpsV0Lib::Curve c = debugCurve(index, &extrema);
                 s += Curve_DebugDump(c, l, b) + " ";
                 if (!extrema.empty()) {
-                    s += "extrema:" + STR(extrema.size()) + " [";
+                    s += "extrema:" + STR(extrema.size()) + "[";
                     for (float extreme : extrema) {
                         s += STR(extreme) + " ";
                     }
-		            s.pop_back();
+                    debugPopMatching(s, ' ');
 		            s += closeBracket;
                 }
             }
         }
-		s.pop_back();
+        debugPopMatching(s, ' ');
 		s += closeBracket;
     }
     ASSERT_ORDERED(debugCurveData, debugWinding);
@@ -1296,8 +1312,7 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
         s += debugDumpColor(l, debugColor) + " ";
     }
 #endif
-    s.pop_back();
-    return s;
+    return debugPopMatching(s, ' ');
 }
 
 int OpContourStorage::debugCount() const {
@@ -1320,12 +1335,12 @@ std::string OpContourStorage::debugDump(DebugLevel l, DebugBase b) const {
         s += "[";
         for (int index = 0; index < count; ++index)
             s += STR(debugIndex(index)->id) + " ";
-        s.pop_back();
+        debugPopMatching(s, ' ');
         s += "]";
     } else {
         for (int index = 0; index < count; ++index)
             s += debugIndex(index)->debugDump(l, b) + "\n";
-        s.pop_back();
+        debugPopMatching(s, '\n');
     }
     return s;
 }
@@ -1359,8 +1374,7 @@ std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
         if (reversed)
             s += "reversed ";
     }
-    s.pop_back();
-    return s;
+    return debugPopMatching(s, ' ');
 }
 
 std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
@@ -1454,20 +1468,12 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
         s += "splitMid ";
     if (splitHullFail) 
         s += "splitHullFail ";
-    if (' ' >= s[0])
-        s.pop_back();
-    return s;
+    return debugPopMatching(s, ' ');
 }
 
 std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     DebugLevel brief = DebugLevel::file != l ? DebugLevel::brief : DebugLevel::file;
     DebugLevel error = DebugLevel::file != l ? DebugLevel::error : DebugLevel::file;
-    auto dumpAlways = [](EdgeFilter ) {
-        return true;
-    };
-    auto dumpIt = [](EdgeFilter ) {
-        return true;
-    };
     auto strLabel = [l](std::string label) {
         return debugLabel(l, label);
     };
@@ -1475,134 +1481,130 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         return strLabel(label) + ":" + c.debugDump(l, b) + " ";
     };
     auto strPts = [b, l, strLabel](std::string label, const LinePts& p) {
-        return strLabel(label) + " 0:" + p.pts[0].debugDump(l, b) + " 1:"
-                + p.pts[1].debugDump(l, b) + " ";
+        return strLabel(label) 
+                + "[" + p.pts[0].debugDump(l, b) + ", " + p.pts[1].debugDump(l, b) + "] ";
     };
-    auto strEdge = [l, dumpIt, strLabel](EdgeFilter match, std::string label, const OpEdge* edge) {
+    auto strEdge = [l, strLabel](EdgeFilter match, std::string label, const OpEdge* edge) {
         if (DebugLevel::file == l) {
             if (!edge)
                 return std::string();
             return label + ":" + STR(edge->id) + " ";
         }
-        if (!dumpIt(match))
-            return std::string("");
         return strLabel(label) + ":" + (edge ? STR(edge->id) : std::string("-")) + "/";
     };
-    auto strFloat = [dumpIt, dumpAlways, b, error](EdgeFilter match, std::string label, float t) {
-        if (!dumpIt(match) || (!dumpAlways(match) && !OpMath::IsFinite(t)))
+    auto strFloat = [b, error](EdgeFilter match, std::string label, float t) {
+        if (!OpMath::IsFinite(t))
             return std::string("");
         return debugValue(error, b, label, t) + " ";
     };
-    auto strPoint = [dumpIt, dumpAlways, b, error, strLabel](EdgeFilter match, std::string label,
+    auto strPoint = [b, error, strLabel](EdgeFilter match, std::string label,
                 OpPoint pt) {
-        if (!dumpIt(match) || (!dumpAlways(match) && !pt.isFinite()))
+        if (!pt.isFinite())
             return std::string("");
         return strLabel(label) + pt.debugDump(error, b) + " ";
     };
-    auto strPtT = [dumpIt, dumpAlways, b, error, strLabel](EdgeFilter match, std::string label,
-                OpPtT ptT, std::string suffix) {
-        if (!dumpIt(match) || (!dumpAlways(match) && (!ptT.pt.isFinite() || !OpMath::IsFinite(ptT.t))))
+    auto strPtT = [b, error, strLabel](EdgeFilter match, std::string label, OpPtT ptT) {
+        if (!ptT.pt.isFinite() || !OpMath::IsFinite(ptT.t))
             return std::string("");
-        return strLabel(label) + ptT.debugDump(error, b) + suffix;
+        return strLabel(label) + "{" + ptT.debugDump(error, b) + "} ";
     };
-    auto strID = [dumpIt, dumpAlways, strLabel](EdgeFilter match, std::string label, int ID) {
-        if (!dumpIt(match) || (!dumpAlways(match) && !ID))
+    auto strID = [strLabel](EdgeFilter match, std::string label, int ID) {
+        if (!ID)
             return std::string("");
         return strLabel(label) + "[" + STR(ID) + "] ";
     };
-    auto strBounds = [dumpAlways, l, b, strLabel](EdgeFilter match, 
+    auto strBounds = [l, b, strLabel](EdgeFilter match, 
             std::string label, const OpPointBounds& ptBounds) {
-        if (!dumpAlways(match) && !ptBounds.isSet())
+        if (!ptBounds.isSet())
             return std::string("");
         return strLabel(label) + ptBounds.debugDump(l, b)+ " ";
     };
-    auto strWinding = [dumpAlways, l, b, strLabel](EdgeFilter match, std::string label,
+    auto strWinding = [l, b, strLabel](EdgeFilter match, std::string label,
              const OpWinding& wind) {
-        if (!dumpAlways(match) && !wind.isSet())
+        if (!wind.isSet())
             return std::string("");
         return strLabel(label) + ":" + wind.debugDump(l, b) + " ";
     };
-    auto strEnum = [dumpIt, dumpAlways, strLabel](EdgeFilter match, std::string label,
+    auto strEnum = [strLabel](EdgeFilter match, std::string label,
             bool enumHasDefault, std::string enumName) {
-        if (!dumpIt(match) || (!dumpAlways(match) && enumHasDefault))
+        if (enumHasDefault)
             return std::string("");
         return strLabel(label) + ":" + enumName + " ";
     };
     std::string s = strID(EdgeFilter::id, "edge", id);
     static_assert(0 == offsetof(OpEdge, segment));
-    if (dumpIt(EdgeFilter::segment) && segment) 
+    if (segment) 
         s += strID(EdgeFilter::segment, "segment", segment->id);
-    if (dumpIt(EdgeFilter::contour) && segment && segment->contour)
+    if (segment && segment->contour)
         s += strID(EF::contour, "contour", segment->contour->id);
     ASSERT_ORDERED(segment, ray);
-    if (ray.distances.size() && dumpIt(EdgeFilter::ray)) 
+    if (ray.distances.size()) 
         s += ray.debugDump(brief, b) + " ";
     ASSERT_ORDERED(ray, priorEdge);
     ASSERT_ORDERED(priorEdge, nextEdge);
     ASSERT_ORDERED(nextEdge, lastEdge);
-    if (priorEdge || nextEdge || lastEdge || dumpAlways(EF::priorEdge) || dumpAlways(EF::nextEdge)) { 
+    if (priorEdge || nextEdge || lastEdge) { 
         s += strEdge(EdgeFilter::priorEdge, "prior", priorEdge);
         s += strEdge(EdgeFilter::nextEdge, "next", nextEdge);
         s += strEdge(EdgeFilter::lastEdge, "last", lastEdge);
-        if ('/' == s.back()) s.back() = ' ';
+        if (debugIfMatching(s, '/'))
+            s.back() = ' ';
     }
     ASSERT_ORDERED(lastEdge, center);
 	if (!center.debugIsUninitialized())
-		s += strPtT(EdgeFilter::center, "center", center, " ");
+		s += strPtT(EdgeFilter::center, "center", center);
     ASSERT_SERIAL_OFFSET(*this, center, 4, curve);
-    if (dumpIt(EdgeFilter::curve)) s += strCurve("curve", curve);
+    s += strCurve("curve", curve);
     ASSERT_ORDERED(curve, iStart);
-    if (iStart != curve.firstPt() || dumpAlways(EdgeFilter::iStart)) 
+    if (iStart != curve.firstPt()) 
         s += strPoint(EdgeFilter::iStart, "iStart", iStart);
     ASSERT_ORDERED(iStart, iEnd);
-    if (iEnd != curve.lastPt() || dumpAlways(EdgeFilter::iEnd))
+    if (iEnd != curve.lastPt())
         s += strPoint(EdgeFilter::iEnd, "iEnd", iEnd);
     ASSERT_ORDERED(iEnd, vertical_impl);
     ASSERT_ORDERED(vertical_impl, upright_impl);
     if (upright_impl.pts[0].isFinite() || upright_impl.pts[1].isFinite()) {
-        if (dumpIt(EdgeFilter::upright_impl))
-            s += strPts("upright_impl", upright_impl);
-        if (dumpIt(EdgeFilter::vertical_impl))
-            s += strCurve("vertical_impl", vertical_impl);
+        s += strPts("upright_impl", upright_impl);
+        s += strCurve("vertical_impl", vertical_impl);
     }
     ASSERT_ORDERED(upright_impl, bounds);
-    if (dumpIt(EdgeFilter::bounds)) s += strBounds(EdgeFilter::bounds, "bounds", bounds);
+    s += strBounds(EdgeFilter::bounds, "bounds", bounds);
     ASSERT_ORDERED(bounds, linkBounds);
-    if (dumpIt(EdgeFilter::linkBounds)) s += strBounds(EF::linkBounds, "linkBounds", linkBounds);
+    s += strBounds(EF::linkBounds, "linkBounds", linkBounds);
     ASSERT_ORDERED(linkBounds, winding);
-    if (dumpIt(EdgeFilter::winding)) s += strWinding(EdgeFilter::winding, "winding", winding);
+    s += strWinding(EdgeFilter::winding, "winding", winding);
     ASSERT_ORDERED(winding, sum);
-    if (dumpIt(EdgeFilter::sum)) s += strWinding(EdgeFilter::sum, "sum", sum);
+    s += strWinding(EdgeFilter::sum, "sum", sum);
     ASSERT_ORDERED(sum, many);
-    if (dumpIt(EdgeFilter::many)) s += strWinding(EdgeFilter::many, "many", many);
+    s += strWinding(EdgeFilter::many, "many", many);
     ASSERT_ORDERED(many, coinPals);
-    if (dumpIt(EdgeFilter::coinPals) && (dumpAlways(EdgeFilter::coinPals) || coinPals.size())) {
-        s += strLabel("coinPals:") + STR(coinPals.size()) + " {";
+    if (coinPals.size()) {
+        s += strLabel("coinPals:") + STR(coinPals.size()) + "{";
         for (auto& cPal : coinPals) {
             s += "{opp[" + STR(cPal.opp->id) + "] coinID[" + STR(cPal.coinID) + "]} ";
         }
-        s.pop_back();
+        debugPopMatching(s, ' ');
         s += "} ";
     }
     ASSERT_ORDERED(coinPals, unSects);
-    if (dumpIt(EdgeFilter::unSects) && (dumpAlways(EdgeFilter::unSects) || unSects.size())) {
-        s += strLabel("unSects:") + STR(unSects.size()) + " [";
+    if (unSects.size()) {
+        s += strLabel("unSects:") + STR(unSects.size()) + "[";
         for (auto& uSect : unSects)
             s += STR(uSect->id) + " ";
-        s.pop_back();
+        debugPopMatching(s, ' ');
         s += "] ";
     }
     ASSERT_ORDERED(unSects, pals);
-    if (dumpIt(EdgeFilter::pals) && (dumpAlways(EdgeFilter::pals) || pals.size())) {
-        s += strLabel("pals:") + STR(pals.size()) + " {";
+    if (pals.size()) {
+        s += strLabel("pals:") + STR(pals.size()) + "{";
         for (auto& pal : pals) {
             s += pal.debugDump(brief, b) + " ";
         }
-        s.pop_back();
+        debugPopMatching(s, ' ');
         s += "} ";
     }
     ASSERT_ORDERED(pals, hulls);
-    if (dumpIt(EdgeFilter::hulls) && (dumpAlways(EdgeFilter::hulls) || hulls.h.size())) {
+    if (hulls.h.size()) {
         s += "hulls";
         if (DebugLevel::file == l)
             s += ":" + STR(hulls.h.size()) + " ";
@@ -1611,16 +1613,15 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         for (auto& hs : hulls.h)
             s += hs.debugDump(l, b) + " ";
         if (DebugLevel::file != l) {
-            if (' ' == s.back()) 
-                s.pop_back();
+            debugPopMatching(s, ' ');
             s += "} ";
         }
     }
     ASSERT_ORDERED(hulls, startDist);
-    if (dumpIt(EdgeFilter::startDist) && (dumpAlways(EdgeFilter::startDist) || startDist.debugIsSet()))
+    if (startDist.debugIsSet())
         s += "startDist{" + startDist.debugDump(l, b) + "} ";
     ASSERT_ORDERED(startDist, endDist);
-    if (dumpIt(EdgeFilter::endDist) && (dumpAlways(EdgeFilter::endDist) || endDist.debugIsSet()))
+    if (endDist.debugIsSet())
         s += "endDist{" + endDist.debugDump(l, b) + "} ";
     ASSERT_ORDERED(endDist, startT);
     s += strFloat(EdgeFilter::startT, "startT", startT);
@@ -1652,12 +1653,14 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     EDGE_BOOL(ccStart, centerless);
     EDGE_BOOL(centerless, startSeen);
     EDGE_BOOL(startSeen, endSeen);
+    EDGE_BOOL(endSeen, unsectableStart);
+    EDGE_BOOL(unsectableStart, unsectableEnd);
 #if OP_DEBUG
-    ASSERT_ORDERED_OFFSET(endSeen, debugMatch, 6);
-    if (dumpIt(EdgeFilter::debugMatch) && (dumpAlways(EdgeFilter::debugMatch) || debugMatch))
+    ASSERT_ORDERED_OFFSET(unsectableEnd, debugMatch, 4);
+    if (debugMatch)
         s += "debugMatch:" + (debugMatch ? STR(debugMatch->id) : std::string("-")) + " ";
     ASSERT_ORDERED(debugMatch, debugZeroErr);
-    if (dumpIt(EdgeFilter::debugZeroErr) && (dumpAlways(EdgeFilter::debugZeroErr) || debugZeroErr))  
+    if (debugZeroErr)
         s += "debugZeroErr:" + (debugZeroErr ? STR(debugZeroErr->id) : std::string("-")) + " ";
     ASSERT_ORDERED(debugZeroErr, debugParentID);
     s += strID(EF::debugParentID, "debugParentID", debugParentID);
@@ -1679,17 +1682,14 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     ASSERT_ORDERED_OFFSET(debugReleased, debugSetDisabled, 5);
 #endif
 #if OP_DEBUG_MAKER
-    if (dumpIt(EF::debugSetDisabled) && (dumpAlways(EdgeFilter::debugSetDisabled) 
-            || debugSetDisabled.valid()))
+    if (debugSetDisabled.valid())
         s += "debugSetDisabled:" + debugSetDisabled.debugDump() + " ";
     ASSERT_ORDERED(debugSetDisabled, debugSetMaker);
-    if (dumpIt(EF::debugSetMaker)) {
-        if (DebugLevel::file == l)
-            s += "debugSetMaker:";
-        s += debugSetMaker.debugDump() + " ";
-    }
+    if (DebugLevel::file == l)
+        s += "debugSetMaker:";
+    s += debugSetMaker.debugDump() + " ";
     ASSERT_ORDERED(debugSetMaker, debugSetSum);
-    if (dumpIt(EF::debugSetSum) && (dumpAlways(EF::debugSetSum) || debugSetSum.valid()))
+    if (debugSetSum.valid())
         s += "debugSetSum:" + debugSetSum.debugDump() + " ";
     ASSERT_ORDERED(debugSetSum, debugPriorID);
 #endif
@@ -1774,14 +1774,14 @@ std::string OpEdgeStorage::debugDump(DebugLevel l, DebugBase b) const {
         s += "[";
         for (int index = 0; index < count; ++index)
             s += STR(debugIndex(index)->id) + " ";
-        s.pop_back();
+        debugPopMatching(s, ' ');
         s += "]";
     } else {
 	    for (int index = 0; index < count; index++) {
 		    const OpEdge* test = debugIndex(index);
             s += test->debugDump(l, b) + "\n";
 	    }
-        s.pop_back();
+        debugPopMatching(s, '\n');
     }
     return s;
 }
@@ -1892,8 +1892,7 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
 #if OP_DEBUG_MAKER
     s += debugSetMaker.debugDump() + " ";
 #endif
-	s.pop_back();
-    return s;
+    return debugPopMatching(s, ' ');
 }
 
 std::string OpIntersections::debugDump(DebugLevel l, DebugBase b) const {
@@ -1907,12 +1906,12 @@ std::string OpIntersections::debugDump(DebugLevel l, DebugBase b) const {
         s += "[";
         for (OpIntersection* sect : i)
             s += STR(sect->id) + " ";
-        s.pop_back();
+        debugPopMatching(s, ' ');
         s += "] ";
     } else {
         for (OpIntersection* sect : i)
             s += sect->debugDump(l, b) + "\n";
-        s.pop_back();
+        debugPopMatching(s, '\n');
     }
     return s;
 }
@@ -1929,68 +1928,87 @@ std::string OpJoiner::debugDump(DebugLevel l, DebugBase b) const {
         s += "lastLink:" + STR(lastLink->id) + " ";
 //    if (!OpMath::IsDebugNaN(matchPt.x) && !OpMath::IsDebugNaN(matchPt.y))
 //        s += "matchPt:" + matchPt.debugDump(l, b) + " ";
-    s.pop_back();
-    return s;
+    return debugPopMatching(s, ' ');
 }
 
 std::string OpLimb::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     if (DebugLevel::file != l)
-        s = debugDumpIDs(l, false);  // note: dumps edge
+        s = debugDumpIDs(l, false) + " ";  // note: dumps edge
     static_assert(0 == offsetof(OpLimb, bounds));
     if (bounds.isFinite())
-        s += " bounds:" + bounds.debugDump(l, b);
-    ASSERT_ORDERED(bounds, edge);
-    if (DebugLevel::file == l && edge)
-        s += " edge:" + STR(edge->id);
+        s += "bounds:" + bounds.debugDump(l, b) + " ";
+    ASSERT_ORDERED(bounds, firstPts);
+    if (firstPts.size()) {
+        s += " firstPts:" + STR(firstPts.size()) + "{";
+        for (OpPoint pt : firstPts) {
+            s += pt.debugDump(l, b) + ", ";
+        }
+        debugPopMatching(s, ' ');
+        debugPopMatching(s, ',');
+        s += "} ";
+    }
+    ASSERT_ORDERED(firstPts, lastPts);
+    if (lastPts.size()) {
+        s += " lastPts:" + STR(lastPts.size()) + "{";
+        for (OpPoint pt : lastPts) {
+            s += pt.debugDump(l, b) + ", ";
+        }
+        debugPopMatching(s, ' ');
+        debugPopMatching(s, ',');
+        s += "} ";
+    }
+    ASSERT_ORDERED(lastPts, edge);
+    if (DebugLevel::file == l && OP_DEBUG_INITED_PTR(edge))
+        s += "edge:" + STR(edge->id) + " ";
     ASSERT_ORDERED(edge, lastLimbEdge);
-    if (lastLimbEdge)
-        s += " lastLimbEdge:" + STR(lastLimbEdge->id);
+    if (OP_DEBUG_INITED_PTR(lastLimbEdge))
+        s += "lastLimbEdge:" + STR(lastLimbEdge->id) + " ";
     ASSERT_ORDERED(lastLimbEdge, parent);
-    if (parent)
-        s += " parent:" +  parent->debugDumpIDs(l, true);
+    if (OP_DEBUG_INITED_PTR(parent))
+        s += "parent:" +  parent->debugDumpIDs(l, true) + " ";
     ASSERT_ORDERED(parent, linkedContour);
-    if (linkedContour)
-        s += " linkedContour:" + STR(linkedContour->id);
-    ASSERT_ORDERED(linkedContour, lastPtT);
-    if (lastPtT.pt.isFinite())
-        s += " lastPtT:" + lastPtT.debugDump(l, b);
-    ASSERT_ORDERED(lastPtT, linkedIndex);
-    if (OpMax != linkedIndex)
-        s += " linkedIndex:" + STR((int) linkedIndex);
-    ASSERT_ORDERED(linkedIndex, gapDistance);
-    if (!OpMath::IsNaN(gapDistance))
-        s += " gapDistance:" + debugFloat(l, gapDistance);
+    if (OP_DEBUG_INITED_PTR(linkedContour))
+        s += "linkedContour:" + STR(linkedContour->id) + " ";
+    ASSERT_ORDERED(linkedContour, lastT);
+    if (!OpMath::IsDebugNaN(lastT))
+        s += "lastT:" + debugFloat(l, lastT) + " ";
+    ASSERT_ORDERED(lastT, gapDistance);
+    if (!OpMath::IsDebugNaN(gapDistance))
+        s += "gapDistance:" + debugFloat(l, gapDistance) + " ";
     ASSERT_ORDERED(gapDistance, closeDistance);
-    if (!OpMath::IsNaN(closeDistance))
-        s += " closeDistance:" + debugFloat(l, closeDistance);
-    ASSERT_ORDERED(closeDistance, match);
-    if (EdgeMatch::none != match)
-        s += " match:" + EdgeMatchName(match);
+    if (!OpMath::IsDebugNaN(closeDistance))
+        s += "closeDistance:" + debugFloat(l, closeDistance) + " ";
+    ASSERT_ORDERED(closeDistance, linkedIndex);
+    if (UINT_MAX != linkedIndex)
+        s += "linkedIndex:" + STR((int) linkedIndex) + " ";
+    ASSERT_ORDERED(linkedIndex, match);
+    if (EdgeMatch::uninitialized != match)
+        s += "match:" + EdgeMatchName(match) + " ";
     ASSERT_ORDERED(match, lastMatch);
-    if (EdgeMatch::none != lastMatch)
-        s += " lastMatch:" + EdgeMatchName(lastMatch);
+    if (EdgeMatch::uninitialized != lastMatch)
+        s += "lastMatch:" + EdgeMatchName(lastMatch) + " ";
     ASSERT_ORDERED(lastMatch, treePass);
-    if (LimbPass::none != treePass)
-        s += " treePass:" + LimbPassName(treePass);
+    if (LimbPass::uninitialized != treePass)
+        s += "treePass:" + LimbPassName(treePass) + " ";
     ASSERT_ORDERED(treePass, deadEnd);
-    s += " " + BoolToStr(l, deadEnd, "deadEnd", "deadEnd");  // !!! padding space is on wrong side
+    s += BoolToStr(l, deadEnd, "deadEnd", "deadEnd") + " "; 
     ASSERT_ORDERED(deadEnd, looped);
-    s += " " + BoolToStr(l, looped, "looped", "looped");  // !!! padding space is on wrong side
+    s += BoolToStr(l, looped, "looped", "looped") + " ";
     ASSERT_ORDERED(looped, resetPass);
-    s += " " + BoolToStr(l, resetPass, "resetPass", "resetPass");  // !!! padding space is on wrong side
+    s += BoolToStr(l, resetPass, "resetPass", "resetPass") + " ";
 #if OP_DEBUG_DUMP
     ASSERT_SERIAL_OFFSET(*this, resetPass, 2, debugBranches);
     if (debugBranches.size()) {
-        s += " debugBranches:" + STR(debugBranches.size()) + " [";
+        s += "debugBranches:" + STR(debugBranches.size()) + "[";
         for (auto limb : debugBranches)
             s += STR(limb->id) + " ";
-        s.pop_back();
-        s += "]";
+        debugPopMatching(s, ' ');
+        s += "] ";
     }
     ASSERT_ORDERED(debugBranches, id);
     if (DebugLevel::file == l)
-        s += " id:" + STR(id);
+        s += "id:" + STR(id) + " ";
     static_assert(sizeof(*this) == offsetof(OpLimb, id) + sizeof(id) + 4);
 #endif
     return s;
@@ -2070,13 +2088,13 @@ std::string OpLimbStorage::debugDump(DebugLevel l, DebugBase b) const {
         s += "[";
         for (int index = 0; index < count; ++index)
             s += STR(debugFind(index)->id) + " ";
-        s.pop_back();
+        debugPopMatching(s, ' ');
         s += "]";
 #endif
     } else {
         for (int index = 0; index < count; ++index)
             s += debugIndex(index)->debugDump(l, b) + "\n";
-        s.pop_back();
+        debugPopMatching(s, '\n');
     }
     return s;
 }
@@ -2089,7 +2107,7 @@ std::string OpPtAliases::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     static_assert(0 == offsetof(OpPtAliases, aliases));
     if (aliases.size()) {
-        s += "aliases:" + STR(aliases.size()) + " [\n";
+        s += "aliases:" + STR(aliases.size()) + "[\n";
         for (OpPoint pt : aliases) {
             s += pt.debugDump(l, b) + "\n";
         }
@@ -2097,7 +2115,7 @@ std::string OpPtAliases::debugDump(DebugLevel l, DebugBase b) const {
     }
     ASSERT_ORDERED(aliases, maps);
     if (maps.size()) {
-        s += "maps:" + STR(maps.size()) + " [\n";
+        s += "maps:" + STR(maps.size()) + "[\n";
         for (OpPtAlias map : maps) {
             s += map.original.debugDump(l, b) + ":";
             s += map.alias.debugDump(l, b) + "\n";
@@ -2126,9 +2144,10 @@ std::string OpPtT::debugDump(DebugLevel l, DebugBase b) const {
         return "";
     std::string s;
     if (!pt.debugIsUninitialized())
-        s += pt.debugDump(DebugLevel::error, b);
+        s += pt.debugDump(DebugLevel::error, b) + " ";
     if (!OpMath::IsDebugNaN(t))
-        s += debugValue(DebugLevel::error, b, "t", t);
+        s += debugValue(DebugLevel::error, b, "t", t) + " ";
+    debugPopMatching(s, ' ');
     return s;
 }
 
@@ -2141,9 +2160,8 @@ std::string OpRoots::debugDump(DebugLevel l, DebugBase b) const {
     std::string s = "count:" + STR(count()) + " ";
     for (int index = 0; index < count(); ++index)
         s += debugFloat(b, roots[index]) + ", ";
-    s.pop_back();
-    if (',' == s.back()) s.pop_back();
-    return s;
+    debugPopMatching(s, ' ');
+    return debugPopMatching(s, ',');
 }
 
 int OpSectStorage::debugCount() const {
@@ -2179,12 +2197,12 @@ std::string OpSectStorage::debugDump(DebugLevel l, DebugBase b) const {
         s += "[";
         for (int index = 0; index < count; ++index)
             s += STR(debugIndex(index)->id) + " ";
-        s.pop_back();
+        debugPopMatching(s, ' ');
         s += "]";
     } else {
         for (int index = 0; index < count; ++index)
             s += debugIndex(index)->debugDump(l, b) + "\n";
-        s.pop_back();
+        debugPopMatching(s, '\n');
     }
     return s;
 }
@@ -2201,20 +2219,20 @@ std::string OpSegment::debugDump(DebugLevel l, DebugBase b) const {
 		s += "ptBounds:" + ptBounds.debugDump(l, b) + "\n";
         ASSERT_ORDERED(ptBounds, sects);
         if (!sects.i.empty()) {
-            s += "sects:" + STR(sects.i.size()) + " [";
+            s += "sects:" + STR(sects.i.size()) + "[";
             for (auto sect : sects.i)
                 s += STR(sect->id) + " ";
-            s.pop_back();
+            debugPopMatching(s, ' ');
             s += "]\n";
         }
         ASSERT_ORDERED(sects, edges);
         if (!edges.empty() && dumpInitialized()) {
             s += "edges:" + STR(edges.size());
             if (DebugLevel::normal == l) {
-                s += " [";
+                s += "[";
                 for (auto& edge : edges)
                     s += STR(edge.id) + " ";
-                s.pop_back();
+                debugPopMatching(s, ' ');
                 s += "]\n";
             } else {
                 s += "\n";
@@ -2238,8 +2256,7 @@ std::string OpSegment::debugDump(DebugLevel l, DebugBase b) const {
         static_assert(sizeof(OpSegment) == offsetof(OpSegment, debugSetDisabled) 
                 + sizeof(debugSetDisabled));
 #endif
-        s.pop_back();
-        return s;
+        return debugPopMatching(s, ' ');
     }
     return "seg:" + STR(id) + " " + c.debugDump(l, b);
 }
@@ -2248,20 +2265,19 @@ bool OpSegment::dumpInitialized() const {
     return contour && contour->context->dumpInitialized(); 
 }
 
-// !!! string gets truncated if it gets too big (don't know why) so output it in pieces for now...
 std::string OpTree::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     static_assert(0 == offsetof(OpTree, context));  // skip context
-    ASSERT_ORDERED(context, bestGapLimb);
+    ASSERT_ORDERED(context, trunk);
+    if (trunk)
+        s += " trunk:" + STR(trunk->id);
+    ASSERT_ORDERED(trunk, bestGapLimb);
     if (bestGapLimb)
         s += " bestGapLimb:" + bestGapLimb->debugDumpIDs(l, true);
     ASSERT_ORDERED(bestGapLimb, bestLimb);
     if (bestLimb)
         s += " bestLimb:" + bestLimb->debugDumpIDs(l, true);
-    ASSERT_ORDERED(bestLimb, firstPt);
-    if (firstPt.isFinite())
-        s += " firstPt:" + firstPt.debugDump(l, b);
-    ASSERT_ORDERED(firstPt, bestDistance);
+    ASSERT_ORDERED(bestLimb, bestDistance);
     if (OpMath::IsFinite(bestDistance))
         s += " bestDistance:" + debugFloat(b, bestDistance);
     ASSERT_ORDERED(bestDistance, bestPerimeter);
@@ -2277,7 +2293,7 @@ std::string OpTree::debugDump(DebugLevel l, DebugBase b) const {
     if (DebugLevel::file == l)
         s += " id:" + STR(id);
     ASSERT_ORDERED(id, limbPass);
-    if (LimbPass::none != limbPass)
+    if (LimbPass::uninitialized != limbPass)
         s += " limbPass:" + LimbPassName(limbPass);
     ASSERT_ORDERED(limbPass, smallGap);
     if (smallGap)
@@ -2302,12 +2318,11 @@ std::string OpTree::debugDump(DebugLevel l, DebugBase b) const {
             for (OpLimb* child : limb.debugBranches) {
                 s += child->debugDumpIDs(l, true) + " ";
             }
-            s.pop_back();
+            debugPopMatching(s, ' ');
         }
         s += " treePass:" + LimbPassName(limb.treePass) + "\n";
     }
-	if ('\n' == s.back())
-		s.pop_back();
+    debugPopMatching(s, '\n');
     context->limbCurrent = saveCurrent;
     return s;
 }
@@ -2327,8 +2342,7 @@ std::string OpWinding::debugDump(DebugLevel l, DebugBase b) const {
 		if (DebugWindingType::uninitialized != debugType)
 			s += "debugType:" + DebugWindingTypeName(debugType) + " ";
 	}
-	if (' ' == s.back())
-		s.pop_back();
+	debugPopMatching(s, ' ');
     return s;
 }
 
@@ -2346,24 +2360,24 @@ std::string RayTarget::debugDump(DebugLevel l, DebugBase b) const {
 
 std::string RayTargets::debugDump(DebugLevel l, DebugBase b) const {
     ASSERT_ORDERED(context, t);
-    std::string s = "t:" + STR(t.size()) + " [";
+    std::string s = "t:" + STR(t.size()) + "[";
     for (const RayTarget& target : t) {
 		if (DebugLevel::detailed == l)
 			s += " ";  // indent
         s += target.debugDump(DebugLevel::detailed == l || DebugLevel::file == l ? l 
                 : DebugLevel::brief, b) + " ";
 	}
-	s.pop_back();
+	debugPopMatching(s, ' ');
 	s += "] ";
     ASSERT_ORDERED(t, edges);
     if (DebugLevel::file != l) {  // either target.contour->inX or inY (not worth serializing ?)
 	    s += DebugLevel::detailed == l ? "\n " : " ";
 	    if (edges && DebugLevel::file != l && edges->size()) {
-		    s += "edges:" + STR(edges->size()) +  " [";
+		    s += "edges:" + STR(edges->size()) +  "[";
 		    for (const OpEdge* edge : *edges) {
 			    s += STR(edge->id) + " ";
 		    }
-		    s.pop_back();
+		    debugPopMatching(s, ' ');
 		    s += "] ";
 	    }
     }
@@ -2383,8 +2397,7 @@ std::string RayTargets::debugDump(DebugLevel l, DebugBase b) const {
         static_assert(sizeof(RayTargets) == offsetof(RayTargets, debugEdgesAxis) 
                 + sizeof(debugEdgesAxis) + 7);
     }
-	s.pop_back();
-	return s;
+	return debugPopMatching(s, ' ');
 }
 
 std::string SectRay::debugDumpHeader(DebugLevel l, DebugBase b) const {
@@ -2417,37 +2430,30 @@ std::string SectRay::debugDumpHeader(DebugLevel l, DebugBase b) const {
 	if (sorted) s += "sorted ";
     static_assert(sizeof(SectRay) == offsetof(SectRay, sorted) 
             + sizeof(sorted) + 6);
-	if (' ' == s.back())
-		s.pop_back();
-	return s;
+	return debugPopMatching(s, ' ');
 }
 
 std::string SectRay::debugDump(DebugLevel l, DebugBase b) const {
     static_assert(0 == offsetof(SectRay, targets));
     std::string s = "targets:" + targets.debugDump(l, b) + "\n";
     ASSERT_ORDERED(targets, distances);
-    s += "distances:" + STR(distances.size()) + " ";
+    s += "distances:" + STR(distances.size()) + "{";
     for (const Distance& dist : distances) {
-		if (DebugLevel::detailed == l)
-			s += " ";  // indent
-        s += dist.debugDump(DebugLevel::detailed == l || DebugLevel::file == l ? l 
-                : DebugLevel::brief, b);
-		s += DebugLevel::detailed == l || DebugLevel::file == l ? "\n" : " ";
+        s += dist.debugDump(l, b) + ", ";
 	}
+    debugPopMatching(s, ' ');
+    debugPopMatching(s, ',');
+    s += "} ";
     ASSERT_ORDERED(distances, erased);
-    s += "erased:" + STR(erased.size()) + " ";
+    s += "erased:" + STR(erased.size()) + "{";
     for (const Distance& erase : erased) {
-		if (DebugLevel::detailed == l)
-			s += " ";  // indent
-        s += erase.debugDump(DebugLevel::detailed == l || DebugLevel::file == l ? l 
-                : DebugLevel::brief, b);
-		s += DebugLevel::detailed == l || DebugLevel::file == l ? "\n" : " ";
+        s += erase.debugDump(l, b) + ", ";
 	}
+    debugPopMatching(s, ' ');
+    debugPopMatching(s, ',');
+    s += "} ";
     ASSERT_ORDERED(erased, homeTangent);
-    s += debugDumpHeader(l, b) + "\n ";  // indent
-	s += DebugLevel::detailed == l || DebugLevel::file == l ? "\n" : " ";
-	if (!s.empty())
-		s.pop_back();
+    s += debugDumpHeader(l, b); 
     return s;
 }
 

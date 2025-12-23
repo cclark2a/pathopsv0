@@ -61,8 +61,8 @@ bool OpSegment::activeAtT(OpEdge* edge, EdgeMatch match, std::vector<FoundEdge>&
 		if (sect.ptT.t > ptT.t)
 			break;
 		OpIntersection* oSect = sect.opp;
-		if (ptT.pt != oSect->ptT.pt)
-			continue;
+//		if (ptT.pt != oSect->ptT.pt)
+//			continue;
 		// op operator is not needed since zero side was computed by apply
 		auto checkZero = [match](const OpEdge* test, EdgeMatch eWhich, EdgeMatch testEnd) {
 			WindZero zeroSide = test->windZero;

@@ -175,6 +175,18 @@ SDL_AppResult DebuggerWindow::init(std::string n, OpVector offset) {
     return SDL_APP_CONTINUE;
 }
 
+void DebuggerState::RaiseWindows() {
+    int count = 0;
+    SDL_Window** windows = SDL_GetWindows(&count);
+    for (int index = 0; index < count; ++index) {
+        SDL_Window* window = windows[index];
+        if ((SDL_WINDOW_HIDDEN & SDL_GetWindowFlags(window)))
+            continue;
+        SDL_RaiseWindow(window);
+    }
+    SDL_free(windows);
+}
+
 /* This function runs once at startup. */
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 //    SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "1");
@@ -373,8 +385,8 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 // that the file time has changed -- set it to repeatedly call update for some number of times
 // once per frame
 SDL_AppResult SDL_AppIterate(void* appstate) {
-    DebuggerState* debuggerState = (DebuggerState*) appstate;
-    return debuggerState->checkForNewFiles();
+    DebuggerState* state = (DebuggerState*) appstate;
+    return state->checkForNewFiles();
 }
 
 /* This function runs once at shutdown. */

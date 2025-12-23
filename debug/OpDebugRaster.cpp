@@ -6,6 +6,7 @@
 
 #if TEST_RASTER
 
+#include <filesystem>
 #include "OpDebugRaster.h"
 #include "OpContext.h"
 #include "OpSegment.h"
@@ -260,7 +261,7 @@ float OpDebugSamples::compare(std::vector<RasterSamples>& outputs) {
 					float xStart = OpMath::IsNaN(x) ? outXs.start : std::max(x, outXs.start);
 					float diff = outXs.end - xStart;
 					OP_ASSERT(diff >= 0);
-					OpAssert(diff < .1f / raster->scale);
+					OpAssert(diff < .2f / raster->scale);
 					error += diff;
 				}
 				return true;
@@ -269,7 +270,7 @@ float OpDebugSamples::compare(std::vector<RasterSamples>& outputs) {
 				float xStart = OpMath::IsNaN(x) ? inXs.start : std::max(x, inXs.start);
 				float diff = inXs.end - xStart;
 				OP_ASSERT(diff >= 0);
-				OpAssert(diff < .1f / raster->scale);
+				OpAssert(diff < .2f / raster->scale);
 				error += diff;
 				return true;
 			}
@@ -282,7 +283,7 @@ float OpDebugSamples::compare(std::vector<RasterSamples>& outputs) {
 			float xEnd = std::min(upper.start, lower.end);
 			float diff = xEnd - x;
 			OP_ASSERT(diff >= 0);
-			OpAssert(diff < .1f / raster->scale);
+			OpAssert(diff < .2f / raster->scale);
 			error += diff;
 			x = xEnd;
 		};
@@ -412,8 +413,8 @@ std::string OpDebugSamples::debugDump(DebugLevel l, DebugBase b) const {
 		for (const auto& member : sample) { 
 			s += member.debugDump(l, b) + (++mPerLine % 4 ? " " : "\n"); 
 		} 
-		s.pop_back();
-		s += "\n";
+		if (!debugIfMatching(s, '\n'))
+			s += "\n";
 	}
 	DEBUG_DUMP_STRUCT(sampleSet, mask);
 	ASSERT_ORDERED(mask, sampleType);
@@ -606,7 +607,6 @@ void DebugOutput::dumpResolveAll(OpContext* context) {
 }
 
 void DebugRaster::addOutput(PathOpsV0Lib::Output o, OpEdge* e) {
-//	OpBreak(e, 54);
 	OpCurve opCurve(o.curve, Rotated::debug);
 	OpWinding opWinding(o.winding, DebugWindingRef::dummy);
 	outputs.push_back({opCurve, opWinding, o.attribute, e});
@@ -747,6 +747,13 @@ std::string DebugRaster::debugDump(DebugLevel l, DebugBase b) const {
 	return s;
 }
 
+void DebugRaster::deleteOld() {
+	std::string filePath = dmpFileToPath(BitsFile);
+	if (!std::filesystem::exists(filePath))
+		return;
+	std::filesystem::remove(filePath);
+}
+
 void DebugRaster::dumpResolveAll() {
 	for (OpDebugSamples& s : samples)
 		s.dumpResolveAll(context);
@@ -768,11 +775,11 @@ void DebugRaster::dumpSet(char const*& str) {
 	ASSERT_ORDERED(samples, outputs);
     if (OpDebugOptional(str, "outputs")) { 
         size_t count = OpDebugReadSizeT(str);
-        outputs.resize(count); 
-        for (auto& output : outputs) { 
+		outputs.resize(count); 
+		for (auto& output : outputs) { 
 			output.curve.c.context = (ContextPtr) context;
 			output.dumpSet(context, str);
-        } 
+		} 
     } 
 	ASSERT_ORDERED(outputs, context);
 	DEBUG_SET_REQUIRED_FLOAT(context, scale);

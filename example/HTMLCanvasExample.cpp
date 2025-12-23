@@ -13,14 +13,16 @@ void HTMLCanvasExample() {
 		s += "[\"" + std::string(1, "MLQKCZ"[(int) curve.type]) + "\", [";
 		for (float f : curve.data)
 			s += STR(f) + ", ";
-		if (' ' == s.back())
+		if (!s.empty() && ' ' == s.back())
 			s.pop_back();
-		if (',' == s.back())
+		if (!s.empty() && ',' == s.back())
 			s.pop_back();
 		s += "]], ";
 	}
-	s.pop_back();
-	s.pop_back();
+	if (!s.empty())
+		s.pop_back();
+	if (!s.empty())
+		s.pop_back();
     OpDebugOut(s + "\n");
 }
 

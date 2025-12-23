@@ -171,8 +171,6 @@ inline Context* frameContext(CurveOutput output = nullptr) {
     Context* context = CreateContext();
     SetContextCallbacks(context, { output });
 #if OP_DEBUG
-    OpDebugData debugData(false);
-    SetDebugData(context, debugData);
 	SetDebugContextCallbacks(context, { 
         frameDebugIsFill
         OP_DEBUG_DUMP_PARAMS(frameDumpOutFunc, frameDumpSetFunc, nullptr,

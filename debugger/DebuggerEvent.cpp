@@ -138,11 +138,16 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
             break;
         case 'a': if (textTop) flip(textWindow.showAll, "all"); break;
         case 'A': if (textTop) flip(textWindow.showAliases, "aliases"); break;
-        case 'b':             
-            flip(showBits, "bits");
-            if (KeyAction::act == action)
-                showBits ? SDL_ShowWindow(compareWindow.window)        
-                        : SDL_HideWindow(compareWindow.window);
+        case 'b':
+            if (!bitsToShow) {
+                if (KeyAction::show == action)
+                    result.s += "no bits to show";
+            } else {
+                flip(showBits, "bits");
+                if (KeyAction::act == action)
+                    showBits ? SDL_ShowWindow(compareWindow.window)        
+                            : SDL_HideWindow(compareWindow.window);
+            }
         break;
         case 'C': flip(showContours, "contours (" + STR(count(IDType::contour)) + ")"); break;
         case 'c': 
@@ -164,6 +169,7 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
                         + STR(depth) + " / " + STR(curveCurve->depth);
         break; 
         case 'e': flip(showEdges, "edges (" + STR(count(IDType::edge)) + ")"); break;
+        case 'E': if (textTop) flip(textWindow.showErasures, "tree erasures"); break;
         case 'f': 
             if (picTop) flip(pictureWindow.drawFill, "fill"); 
             if (textTop) flip(textWindow.showFull, "full");
@@ -232,6 +238,12 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
         break;
         case 'v': if (picTop) flip(pictureWindow.drawValues, "point values"); break;
         case 'w': if (picTop) flip(pictureWindow.drawWindings, "windings"); break;
+        case 'W': 
+            if (KeyAction::act == action)
+                        DebuggerState::RaiseWindows(); 
+            else
+                result.s += "bring windows to front";
+            break;
         case 'x': flip(showHex, "hex"); break;
         case 'z': 
             if (lastFocus) {

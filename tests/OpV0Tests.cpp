@@ -7922,7 +7922,23 @@ void testQuads21962910(skiatest::Reporter* reporter, const char* filename) {
     testSimplify(reporter, path, filename);
 }
 
+void testQuads12019952(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+    path.moveTo(2, 0);
+    path.quadTo(2, 0, 2, 1);
+    path.lineTo(3, 2);
+    path.lineTo(2, 0);
+    path.close();
+    path.moveTo(3, 0);
+    path.lineTo(0, 1);
+    path.quadTo(2, 1, 3, 2);
+    path.lineTo(3, 0);
+    path.close();
+    testSimplify(reporter, path, filename);
+}
+
 static struct TestDesc tests[] = {
+    TEST(testQuads12019952),
     TEST(testQuads21962910),
     TEST(testQuads3070137),
     TEST(testQuads6132691),

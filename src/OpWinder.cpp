@@ -381,7 +381,6 @@ Distance* SectRay::find(const OpEdge* edge) {
 }
 
 FindCept SectRay::findCept(OpEdge* edge, OpEdge* test) {
-	OpDebugOut(__func__ + std::string(" edge:") + STR(edge->id) + " test:" + STR(test->id) + "\n");
 	if (test->bounds.ltChoice(axis) > normal)
 		return FindCept::ok;
 	if (test->bounds.rbChoice(axis) < normal)
@@ -402,6 +401,8 @@ FindCept SectRay::findCept(OpEdge* edge, OpEdge* test) {
 			for (const OpEdge& palEdge : pal.opp->edges) {
 				if (std::none_of(palEdge.coinPals.begin(), palEdge.coinPals.end(),
 						[pal](const CoinPal& oPal) { return oPal == pal; } ))
+					continue;
+				if (!test->bounds.overlaps(palEdge.bounds))
 					continue;
 				OP_ASSERT(test->startPt() == palEdge.startPt() || palsReversed);
 				OpPoint testStart = test->curve.firstPt();
@@ -828,7 +829,6 @@ FoundIntercept OpWinder::FindACept(OpEdge* edge) {
 		ray.targets.reset(ray.axis);
 		// start at edge with left equal to or left of center
 		while (OpEdge* test = ray.targets.next(ray.axis, ray.homeCept)) {
-//			OpBreak2(edge, test, 45, 44);
 			FindCept findCept = ray.findCept(edge, test);  // adds to back
 			if (FindCept::ok == findCept) {
 				continue;

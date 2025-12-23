@@ -79,7 +79,7 @@ void OpDebugRecordStart(const OpEdge& opp, const OpEdge& edge) {
 	if (OpDebugExpect::unknown == edge.contours()->debugExpect)
 		return;
 	recordCubic = true;
-	if (!recordAll && data.size())
+	if (!recordAll && !data.empty())
 		data.pop_back();
 	data.push_back(Fodder(opp, edge));
 }

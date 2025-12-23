@@ -102,6 +102,7 @@ struct DebuggerState {
     DebuggerWindow* focus(SDL_WindowID );
     KeyResult keyEvent(const DebuggerEvent& debuggerEvent, KeyAction action);
     void playback();
+    static void RaiseWindows();
     void record();
     void redraw();  // changed window size, lay out again
     void setDepth(int );
@@ -118,10 +119,11 @@ struct DebuggerState {
     HelpWindow helpWindow;
     CompareWindow compareWindow;
     DumpWindow dumpWindow;
-    size_t currentDump = 0;
+    int currentDump = 0;
     int depth = 0;
     int verboseLevel = 1;
     SDL_AppResult error = (SDL_AppResult) 0;
+    bool bitsToShow = true;
     bool showContours = false;
     bool showEdges = true;
     bool showHex = false;

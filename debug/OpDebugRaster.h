@@ -147,6 +147,7 @@ struct DebugRaster {
 	
 	void addOutput(PathOpsV0Lib::Output , OpEdge* );
 	std::string debugDump(DebugLevel l, DebugBase b) const;
+	void deleteOld();
 	void dumpResolveAll();
 	void dumpSet(char const*& str);
     void in();

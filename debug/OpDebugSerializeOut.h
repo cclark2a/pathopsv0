@@ -27,6 +27,8 @@ extern std::string dmpFileToPath(std::string filename);
 extern std::string dmpFileToStr(std::string filename);
 extern std::string debugFloat(DebugBase , float );
 extern std::string debugFloat(DebugLevel , float );
+extern std::string debugPopMatching(std::string& s, char match);
+extern bool debugIfMatching(std::string& s, char match);
 extern DebugBase defaultBase;
 extern DebugLevel defaultLevel;
 
@@ -338,7 +340,7 @@ struct EdgeFilterName {
 
 #define DEBUG_DUMP_PUBLIC_VECTOR(thisVector) \
     do { \
-    if (thisVector.size()) { \
+    if (!thisVector.empty()) { \
         s += #thisVector ":" + STR(thisVector.size()) + " "; \
         for (const auto& member : thisVector) { \
             s += DebugDump(member, l, b) + "\n"; \
@@ -349,7 +351,7 @@ struct EdgeFilterName {
 #define DEBUG_DUMP_VECTOR_IDS(lastField, thisVector) \
     do { \
     ASSERT_ORDERED(lastField, thisVector); \
-    if (thisVector.size()) { \
+    if (!thisVector.empty()) { \
         s += #thisVector ":" + STR(thisVector.size()) + " ["; \
         for (const auto& member : thisVector) { \
             s += STR(member->id) + " "; \

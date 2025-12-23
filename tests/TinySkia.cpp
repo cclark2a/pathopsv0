@@ -479,7 +479,7 @@ std::string SkPath::debugDumpCommon(bool hex) const {
 			move = true;
 		}
 	}
-	if ('\n' == result.back())
+	if (!result.empty() && '\n' == result.back())
 		result.pop_back();
 	return result;
 }

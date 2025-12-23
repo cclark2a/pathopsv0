@@ -15,7 +15,24 @@
             "cStandard": "c17",
             "cppStandard": "c++20",
             "intelliSenseMode": "macos-clang-arm64"
-        }, {
+        }, 
+        {
+            "name": "skia_test_asan",
+            "includePath": [
+                "${default}"
+            ],
+            "defines": [
+                "OP_DEBUG_FAST_TEST=0",
+                "OP_TINY_SKIA=1",
+                "TEST_RASTER=1",
+                "_GLIBCXX_DEBUG"
+            ],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "macos-clang-arm64"
+        },
+        {
             "name": "test_drive",
             "includePath": [
                 "${default}"

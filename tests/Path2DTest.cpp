@@ -14,15 +14,15 @@ static std::string commandsArray(std::vector<TwoD::Curve>& commands) {
 		s += "[\"" + typeToCommand(curve.type) + "\", [";
 		for (float f : curve.data)
 			s += STR(f) + ", ";
-		if (' ' == s.back())
+		if (!s.empty() && ' ' == s.back())
 			s.pop_back();
-		if (',' == s.back())
+		if (!s.empty() && ',' == s.back())
 			s.pop_back();
 		s += "]], ";
 	}
-	if (' ' == s.back())
+	if (!s.empty() && ' ' == s.back())
 		s.pop_back();
-	if (',' == s.back())
+	if (!s.empty() && ',' == s.back())
 		s.pop_back();
 	s += "]";
 	return s;

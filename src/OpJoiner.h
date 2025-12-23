@@ -65,6 +65,9 @@ struct OpJoiner {
 	OP_DEBUG_CODE(int debugRecursiveDepth);
 };
 
+#define LimbPass_Base \
+    OP_ENUM_BASE(uninitialized, -1)
+
 #define LimbPass_Enums \
 	OP_ENUM_MEMBER(none), \
 	OP_ENUM_MEMBER(linked),    /* in linkups list with correct winding */ \
@@ -79,7 +82,8 @@ struct OpJoiner {
 	OP_ENUM_MEMBER(debugStop)  /* debugging aid when limb pass is advanced past final value */
 
 // keep track of all edge possibilities to find the best closing path
-enum class LimbPass : uint8_t {
+enum class LimbPass : int8_t {
+	LimbPass_Base,
     LimbPass_Enums
 };
 
@@ -91,25 +95,9 @@ struct OpTree;
 struct OpLimbStorage;
 
 struct OpLimb {
-	OpLimb() {
-#if OP_DEBUG
-		edge = nullptr;
-		lastLimbEdge = nullptr;
-		parent = nullptr;
-		linkedContour = nullptr;
-		linkedIndex = OpMax;
-		gapDistance = OpNaN;
-		closeDistance = OpNaN;
-		match = EdgeMatch::none;
-		lastMatch = EdgeMatch::none;
-		treePass = LimbPass::none;
-		deadEnd = (bool) -1;
-		looped = (bool) -1;
-		resetPass = (bool) -1;
-#endif
-		OP_DEBUG_DUMP_CODE(id = 0);
-	}
 	void addEach(OpContour& , OpTree& );
+	bool ptsMatch(EdgeMatch limbEnd, const std::vector<OpPoint>& ) const;
+	bool ptsMatch(EdgeMatch limbEnd, const OpLimb* test, EdgeMatch testEnd) const;
 	void set(OpTree& , OpEdge* , OpLimb* parent, EdgeMatch , LimbPass , OpContour* ,
 			size_t index, OpEdge* otherEnd, const OpPointBounds* bounds = nullptr);
 	OpLimb* tryAdd(OpTree& , OpEdge* , EdgeMatch , LimbPass , 
@@ -121,24 +109,26 @@ struct OpLimb {
 #endif
 
 	OpPointBounds bounds;
-	OpEdge* edge;
-	OpEdge* lastLimbEdge;
-	const OpLimb* parent;
-	OpContour* linkedContour;
-	OpPtT lastPtT;
-	uint32_t linkedIndex;
-	float gapDistance;
-	float closeDistance;
-	EdgeMatch match; // end of edge that matches last point in parent limb
-	EdgeMatch lastMatch;
-	LimbPass treePass;  // if linked or miswound: if match is end, edge is last in linked list
-	bool deadEnd;
-	bool looped;
-	bool resetPass;  // when new parent is found, restart limb pass
+	std::vector<OpPoint> firstPts;  // only required for first limb in tree, but eases debugging
+	std::vector<OpPoint> lastPts;  // [0] is last t's point; others are sect aliases
+	OpEdge* edge  OP_DEBUG_INIT_PTR(OpEdge);
+	OpEdge* lastLimbEdge  OP_DEBUG_INIT_PTR(OpEdge);
+	const OpLimb* parent  OP_DEBUG_INIT_PTR(const OpLimb);
+	OpContour* linkedContour  OP_DEBUG_INIT_PTR(OpContour);
+	float lastT  OP_DEBUG_INIT_FLOAT();
+	float gapDistance  OP_DEBUG_INIT_FLOAT();
+	float closeDistance  OP_DEBUG_INIT_FLOAT();
+	uint32_t linkedIndex  OP_DEBUG_INIT_UINT();
+	EdgeMatch match  OP_DEBUG_INIT(EdgeMatch); // end of edge that matches last point in parent limb
+	EdgeMatch lastMatch  OP_DEBUG_INIT(EdgeMatch);
+	LimbPass treePass  OP_DEBUG_INIT(LimbPass);  // linked/miswound: if match is end, last in linked
+	bool deadEnd  OP_DEBUG_INIT_BOOL();
+	bool looped  OP_DEBUG_INIT_BOOL();
+	bool resetPass  OP_DEBUG_INIT_BOOL();  // when new parent is found, restart limb pass
 
 #if OP_DEBUG_SERIALIZE_OUT
 	std::vector<OpLimb*> debugBranches;
-	int id;
+	int id = 0;
 #endif
 };
 
@@ -150,25 +140,27 @@ struct OpTree {
 	OP_DEBUG_CODE(~OpTree());
 	void addDisabled(OpContour& );
 	OpEdge* addFiller(OpSegment* , const OpPtT& , const OpPtT& , bool fromCC);
-	void addUnsectableLoop(OpJoiner& , OpLimb* );
+//	void addUnsectableLoop(OpJoiner& , OpLimb* );
 	bool contains(OpLimb* , OpEdge* ) const;
 	bool containsFiller(OpLimb* , OpPoint , OpPoint ) const;
 	bool containsFiller(int ccUnsectableID) const;
 	bool containsParent(OpLimb* , OpEdge* , EdgeMatch ) const;
+	float firstDistance(OpPoint pt) const;
+	bool firstMatch(OpPoint pt) const;
 	bool gap(float distance) const;
 	void initialize(OpContour& join);
 	bool join(OpJoiner& );
 	OpLimb& nthLimb(int index);
 	OpLimb* makeLimb();
 	bool preferSibling(OpLimb*, OpEdge* );
-	OpLimb* unsectableLoop() const;
+//	OpLimb* unsectableLoop() const;
 	DUMP_DECLARATIONS
 	OP_DEBUG_IMAGE_CODE(void debugLimbEdges(OpEdge*);)  // ; outside errors
 
 	OpContext* context;
+	OpLimb* trunk;
 	OpLimb* bestGapLimb;  // used only by detached pass
 	const OpLimb* bestLimb;   // index into limbStorage
-	OpPoint firstPt;
 	float bestDistance;  // used only by detached pass
 	float bestPerimeter;
 	int maxLimbs;

@@ -163,8 +163,7 @@ OpContext::OpContext()
     , allKept(false)
 	, fatalError(false)
 	, outputOne(false)
-    , windingSet(false)
-	OP_DEBUG_PARAMS(debugData(false)) {
+    , windingSet(false) {
     PathOpsV0Lib::SetCurveCallbacks((PathOpsV0Lib::Context*)(this), 0, { } );
 #if OP_DEBUG_VALIDATE
 	debugValidateEdgeIndex = 0;
@@ -213,6 +212,7 @@ OpContext::~OpContext() {
 	if (debugDumpInit) {
 		delete debugCurveCurve;
 		delete debugJoiner;
+		delete debugTree;
 	}
 #endif
 }

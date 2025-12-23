@@ -65,31 +65,31 @@ struct OpDebugRaster;
 #endif
 
 struct OpDebugData {
-	OpDebugData(bool mayFail) 
-		:  expect(mayFail ? OpDebugExpect::fail : OpDebugExpect::success)
-        , curveCurve1(0)
-        , curveCurve2(0)
-        , curveCurveDepth(-1)
-		, limitContours(0)
-		, error(0)
-		, defeatBreak(false)
-		, limitReached(false)
-        , runOneFile(false)
-		, success(true) {
+	OpDebugData() {}
+	OpDebugData(std::string tn, OpDebugExpect expected, int cc1, int cc2, int ccDepth, 
+			bool noBreaks, bool noDumps, bool runOne) 
+		: testname(tn)
+		, expect(expected)
+        , curveCurve1(cc1)
+        , curveCurve2(cc2)
+        , curveCurveDepth(ccDepth)
+		, defeatBreak(noBreaks)
+		, defeatDumps(noDumps)
+        , runOneFile(runOne) {
 	}
 
 	std::string testname;
-	OpDebugExpect expect;
-
-	int curveCurve1;
-	int curveCurve2;
-	int curveCurveDepth;
-	int limitContours;
-	float error;
-	bool defeatBreak;
-	bool limitReached;
-	bool runOneFile;
-	bool success;
+	OpDebugExpect expect = OpDebugExpect::success;
+	int curveCurve1 = 0;
+	int curveCurve2 = 0;
+	int curveCurveDepth = -1;
+	int limitContours = 0;
+	float error = 0;
+	bool defeatBreak = false;
+	bool defeatDumps = false;
+	bool limitReached = false;
+	bool runOneFile = false;
+	bool success = true;
 };
 
 #define OP_DEBUG_CONTEXT(...)
@@ -126,7 +126,9 @@ struct OpDebugData {
 #define OP_DEBUG_INIT_FLOAT()
 #define OP_DEBUG_INIT_INT()
 #define OP_DEBUG_INIT_PTR(ptr_type)
+#define OP_DEBUG_INITED_PTR(ptr)  #error "should never be in release code"
 #define OP_DEBUG_INIT_SIZE()
+#define OP_DEBUG_INIT_UINT()
 #define OP_DEBUG_MAKER 0
 #define OP_DEBUG_FAIL(object, returnValue) return returnValue
 #define OP_DEBUG_SERIALIZE_OUT 0
@@ -189,7 +191,9 @@ struct OpDebugData {
 #define OP_DEBUG_INIT_FLOAT() = OpDebugNaN
 #define OP_DEBUG_INIT_INT() = INT_MAX
 #define OP_DEBUG_INIT_PTR(ptr_type) = (ptr_type*) 0xDEAD0ABEDEADBEEF
+#define OP_DEBUG_INITED_PTR(ptr) (!!ptr && (decltype(ptr)) 0xDEAD0ABEDEADBEEF)
 #define OP_DEBUG_INIT_SIZE() = SIZE_MAX
+#define OP_DEBUG_INIT_UINT() = UINT_MAX
 #define OP_RELEASE_CODE(...)
 
 #if OP_DEBUG_IMAGE

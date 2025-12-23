@@ -75,10 +75,26 @@ std::vector<testInfo> testSuites = {
     { run_simplify_degenerate_tests, "degenerate", 47872, 2345984 },
     { run_simplify_fail_tests, "fail", 7, 7 },
     { run_simplify_quadralaterals_tests, "quadralateral", 124032, 30046752 },
-    { run_simplify_quads_tests, "quad", 124032, 30046752 },
+    { run_simplify_quads_tests, "quad", 124032, 30046752 }, // through test 1635740: max pixelError:0.00247338437 testQuads1411840
     { run_simplify_rect_tests, "rects", 152, 1280660 },
     { run_simplify_triangles_tests, "triangle", 24768, 2130048 },
     { run_tiger_tests, "tiger", 7005, 700005 },
+};
+
+std::vector<std::string> highError = {
+"testQuads1868284", // "0.00301069394"
+"testQuads2441981", // "0.00984116644"
+"testQuads2449734", // "0.00984228961"
+"testQuads2465237", // "0.00986487791"
+"testQuads2472989", // "0.00987935439"
+"testQuads2558547", // "0.0110246753"
+"testQuads2558548", // "0.0111738387"
+"testQuads2559908", // "0.0112013761"
+"testQuads2566300", // "0.0112189064"
+"testQuads2567659", // "0.0112196235"
+"testQuads2567660", // "0.0112479953"
+"testQuads5109541", // "0.0114621641"
+"testQuads5109542", // "0.0121286092"    
 };
 
 // skip tests by filename
@@ -87,6 +103,7 @@ std::vector<std::string> skipRestFiles = { TEST_PATH_OP_SKIP_REST };
 std::string requestedFirst = TEST_FIRST;
 std::string testFirst = OP_DEBUG_FAST_TEST || SKIP_TO_V0 ? "" : TEST_FIRST;
 bool runOneFile = !OP_DEBUG_FAST_TEST && (!requestedFirst.empty() || SKIP_TO_V0);
+bool defeatBreak = TEST_DEFEAT_BREAK || (requestedFirst.empty() && !SKIP_TO_V0);
 std::string skipToFile = !OP_DEBUG_FAST_TEST && SKIP_TO_V0  ? "v0" : SKIP_TO_FILE;
 std::string largestPixelError;
 std::atomic_int testIndex = 0; 
@@ -103,7 +120,7 @@ std::atomic_int totalError = 0;
 std::atomic_int treeError = 0;
 std::atomic_int gapError = 0;
 std::atomic<float> pixelError = 0.f;
-float maxPixelError = 0.f;
+float maxPixelError = 0.00247338437f;  // testQuads1411840
 #if OP_DEBUG_FAST_TEST
 #define OP_THREAD_LOCAL thread_local
 #else
@@ -333,8 +350,13 @@ void CheckForError(const OpDebugData& debugData, bool mayFail) {
     pixelError += debugData.error; 
 #if OP_DEBUG_FAST_TEST
     std::lock_guard<std::mutex> guard(out_mutex);
+#else
+    if (debugData.error > maxPixelError) {
+        OpDebugOut("pixelError:" + STR(debugData.error) + " " + debugData.testname + "\n");
+        largestPixelError = debugData.testname;
+    }
 #endif
-    maxPixelError = std::max(pixelError.load(), maxPixelError);
+    maxPixelError = std::max(debugData.error, maxPixelError);
     const int MAX_ERRORS = 9;
     if (debugData.error <= MAX_ERRORS)
         return;
@@ -527,13 +549,10 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
 		return;
     SkPath result;
     result.setFillType(SkPathFillType::kEvenOdd);  // !!! workaround
-    OpDebugData debugData(v0MayFail);
-    debugData.testname = testname;
-    debugData.curveCurve1 = CURVE_CURVE_1;
-    debugData.curveCurve2 = CURVE_CURVE_2;
-    debugData.curveCurveDepth = CURVE_CURVE_DEPTH;
-    debugData.defeatBreak = TEST_DEFEAT_BREAK || (!SKIP_TO_V0 && !requestedFirst.size());;
-	debugData.runOneFile = runOneFile;
+    OpDebugData debugData(testname, v0MayFail ? OpDebugExpect::fail : OpDebugExpect::success,
+            CURVE_CURVE_1, CURVE_CURVE_2, CURVE_CURVE_DEPTH, 
+            defeatBreak, TEST_DEFEAT_DUMPS, runOneFile
+        );
     if (runOneFile)
         dumpOpTest(testname, a, b, op, TestInFile);
 	(void) OpV0(a, b, op, &result, &debugData);
@@ -619,6 +638,7 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
 #endif
 #if TEST_RASTER
     DebugRaster debugRaster((OpContext*) context);
+    debugRaster.deleteOld();
     if (OpDebugExpect::success == optional->expect)    
         debugRaster.in();
 #endif
@@ -668,15 +688,10 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
 	if (alt("testArc", alt_testArc))
 		return;
     out.setFillType(SkPathFillType::kEvenOdd); // !!! workaround
-    const char* tn = testname.c_str();
-    if ("never!" == testname)
-        OpDebugOut(tn);  // prevent optimizer from removing tn
-    OpDebugData debugData(v0MayFail);
-    debugData.testname = testname;
-    debugData.curveCurve1 = CURVE_CURVE_1;
-    debugData.curveCurve2 = CURVE_CURVE_2;
-    debugData.curveCurveDepth = CURVE_CURVE_DEPTH;
-	debugData.runOneFile = runOneFile;
+    OpDebugData debugData(testname, v0MayFail ? OpDebugExpect::fail : OpDebugExpect::success, 
+            CURVE_CURVE_1, CURVE_CURVE_2, CURVE_CURVE_DEPTH, 
+            defeatBreak, TEST_DEFEAT_DUMPS, runOneFile
+        );
 #if TEST_ANALYZE
 	debugData.limitContours = 165;
 	debugData.limitReached = false;
@@ -692,7 +707,7 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
 	} while (!debugData.limitReached);
 #else
     if (runOneFile)
-        dumpSimplifyTest(tn, path, TestInFile);
+        dumpSimplifyTest(testname, path, TestInFile);
 #endif
 	(void) SimplifyV0(path, &out, &debugData);
     CheckForError(debugData, v0MayFail);

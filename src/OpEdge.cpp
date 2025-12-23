@@ -425,13 +425,17 @@ void OpEdge::clearActiveAndPals(OP_LINE_FILE_NP_ARGS()) {
 		pal.edge->setActive(false);
 		pal.edge->setDisabled(OP_LINE_FILE_NP_CARGS());
 	}
-	clearLastEdge(/* InOutput::no */);
+	clearLast(/* InOutput::no */);
 }
 
-void OpEdge::clearLastEdge(/* InOutput inOut */) {
+void OpEdge::clearLast(/* InOutput inOut */) {
 	if (!lastEdge)
 		return;
 	lastEdge->segment->contour->removeLast(this /*, inOut*/);
+	clearLastEdge();
+}
+
+void OpEdge::clearLastEdge() {
 	lastEdge = nullptr;
 }
 
@@ -441,6 +445,34 @@ void OpEdge::clearNextEdge() {
 
 void OpEdge::clearPriorEdge() {
 	setPriorEdge(nullptr);
+}
+
+std::vector<OpPoint> OpEdge::collectMatch(EdgeMatch m, float* t) const {
+	std::vector<OpPoint> pts;
+	OpPtT firstPtT = whichSect(m);
+	if (t)
+		*t = firstPtT.t;
+	OpPoint pt = firstPtT.pt;
+	pts.push_back(pt);
+	if (segment)
+		segment->sects.collectMatchingPts(pt, pts);
+	if (iStart == pt && pts.end() == std::find(pts.begin(), pts.end(), curve.firstPt()))
+		pts.push_back(curve.firstPt());
+	if (iEnd == pt && pts.end() == std::find(pts.begin(), pts.end(), curve.lastPt()))
+		pts.push_back(curve.lastPt());
+	return pts;
+}
+
+bool OpEdge::compareMatch(EdgeMatch m, OpEdge* opp, EdgeMatch oppM) const {
+	std::vector<OpPoint> pts = collectMatch(m);
+	std::vector<OpPoint> oppPts = opp->collectMatch(oppM);
+	for (OpPoint pt : pts) {
+		for (OpPoint oppPt : oppPts) {
+			if (pt == oppPt)
+				return true;
+		}
+	}
+	return false;
 }
 
 void OpEdge::complete(OpPtT startPtT, OpPtT endPtT) {
@@ -479,23 +511,30 @@ bool OpEdge::containsLink(const OpEdge* edge) const {
 
 void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 	OpEdge* oppEdge = found.edge;
-	OP_ASSERT(!oppEdge->hasLinkTo(match));
+//	OP_ASSERT(!oppEdge->hasLinkTo(match));  // !!! doesn't make sense -- opp match is unknown
 	OP_ASSERT(oppEdge != this);
 	const OpPoint edgePt = whichSect(match).pt;
 	if (EdgeMatch::start == match) {
 		OP_ASSERT(!priorEdge);
 		setPriorEdge(oppEdge);
+		OP_ASSERT(!oppEdge->nextEdge);
 		oppEdge->setNextEdge(this);
 	} else {
 		OP_ASSERT(!nextEdge);
 		setNextEdge(oppEdge);
+		OP_ASSERT(!oppEdge->priorEdge);
 		oppEdge->setPriorEdge(this);
 	}
 	if (edgePt == oppEdge->startPt())
 		oppEdge->setWhich(!match);
-	else {
-		OP_ASSERT(edgePt == oppEdge->endPt());
+	else if (edgePt == oppEdge->endPt())
 		oppEdge->setWhich(match);
+	else {
+		// !!! for now, brute force check all matching possibilities
+		bool startFoundMatch = compareMatch(match, found.edge, EdgeMatch::start);
+		bool endFoundMatch = compareMatch(match, found.edge, EdgeMatch::end);
+		OP_ASSERT(startFoundMatch != endFoundMatch);
+		oppEdge->setWhich(startFoundMatch ? !match : match);
 	}
 }
 
@@ -527,6 +566,7 @@ bool OpEdge::output(bool closed) {
 	bool reverse = false;
 	bool abort = false;
 	// returns true if reverse/no reverse criteria found
+	// if all loop edges are unsectable, there may be no valid reverse criteria (testQuads5343280)
 	auto test = [&reverse, &abort](const Distance* outer, const Distance* inner) {
 		if (!outer->edge->inOutput && !outer->edge->inLinkups)
 			return false;
@@ -576,14 +616,14 @@ bool OpEdge::output(bool closed) {
 		    if (test(outer, inner))
 			    break;
 		    edge = edge->nextEdge;
-	    } while (firstEdge != edge);
+	    } while (edge && firstEdge != edge);  // may be closed and edge==null if no valid reverse
     }
 	if (abort)
 		return false;
 	if (reverse) {
 		if (priorEdge) {
 			OP_ASSERT(debugIsLoop());
-			setLastEdge(this, priorEdge, InOutput::yes);
+			setLast(this, priorEdge, InOutput::yes);
 			lastEdge->nextEdge = nullptr;
 			priorEdge = nullptr;
 		}
@@ -651,15 +691,7 @@ void OpEdge::setDisabled(OP_LINE_FILE_NP_ARGS()) {
 	OP_LINE_FILE_SET(debugSetDisabled); 
 }
 
-OpEdge* OpEdge::setLastEdge() {
-	OpEdge* linkStart = advanceToEnd(EdgeMatch::start);
-	OpEdge* linkEnd = advanceToEnd(EdgeMatch::end);
-	if (linkStart->lastEdge != linkEnd)
-		linkStart->setLastEdge(linkStart, linkEnd, InOutput::no);
-	return linkEnd;
-}
-
-void OpEdge::setLastEdge(OpEdge* first, OpEdge* last, InOutput inOut) {
+void OpEdge::setLast(OpEdge* first, OpEdge* last, InOutput inOut) {
 	OpContour* oldContour = lastEdge ? lastEdge->segment->contour : nullptr;
 	OP_ASSERT(InOutput::yes == inOut || !first->lastEdge || first->lastEdge == last);
 	OP_ASSERT(InOutput::yes == inOut || first == last || !last->lastEdge);
@@ -667,22 +699,26 @@ void OpEdge::setLastEdge(OpEdge* first, OpEdge* last, InOutput inOut) {
 	OpContour* newContour = last->segment->contour;
 	if (first->lastEdge && first != this) {
 		newContour->removeLast(first /*, inOut */);
-        first->lastEdge = nullptr;
+        first->setLastEdge(nullptr);
     }
 	bool updateLast = !oldContour || oldContour != newContour;
 	if (updateLast && oldContour)
 		oldContour->removeLast(this /*, inOut */);
-	lastEdge = last;
+	setLastEdge(last);
 	if (updateLast && InOutput::no == inOut)
 		newContour->addLast(this);
 	setLinkBounds();
+}
+
+void OpEdge::setLastEdge(OpEdge* last) {  // !!! to allow setting breakpoints at runtime
+	lastEdge = last;
 }
 
 // this sets up the edge linked list to be suitable for joining another linked list
 // the edits are nondestructive 
 bool OpEdge::setLastLink(EdgeMatch match) {
 	if (!priorEdge && !nextEdge) {
-		lastEdge = this;
+		setLastEdge(this);
 		setWhich(match);
 		return false;
 	} 
@@ -726,8 +762,8 @@ bool OpEdge::setLinkDirection(EdgeMatch match, std::vector<OpEdge*>* linkErasure
 	}
 	std::swap(edge->priorEdge, edge->nextEdge);
 	edge->setWhich(!edge->which());
-	edge->clearLastEdge(/* inOut */);
-	lastEdge = edge;
+	edge->clearLast(/* inOut */);
+	setLastEdge(edge);
 	if (edge->linkHead && linkErasures) {
 #if OP_DEBUG_VALIDATE
 		edge->debugScheduledForErasure = true;
@@ -817,6 +853,14 @@ void OpEdge::setSum(const OpWinding& w  OP_LINE_FILE_ARGS()) {
     OP_LINE_FILE_SET(debugSetSum);
 }
 
+OpEdge* OpEdge::updateLastEdge() {
+	OpEdge* linkStart = advanceToEnd(EdgeMatch::start);
+	OpEdge* linkEnd = advanceToEnd(EdgeMatch::end);
+	if (linkStart->lastEdge != linkEnd)
+		linkStart->setLast(linkStart, linkEnd, InOutput::no);
+	return linkEnd;
+}
+
 OpPtT OpEdge::whichSect(EdgeMatch match) const {
     return match == (EdgeMatch::none == whichEnd_impl ? EdgeMatch::start : whichEnd_impl)
             ? startPtT() : endPtT();
@@ -840,7 +884,7 @@ void OpEdge::unlink() {
 #endif
 	priorEdge = nullptr;
 	nextEdge = nullptr;
-	clearLastEdge(/* InOutput::no */);
+	clearLast(/* InOutput::no */);
 	setWhich(EdgeMatch::start);  // !!! should this set to none?
 }
 

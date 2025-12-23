@@ -337,7 +337,7 @@ extern bool debugDmpIsLine(const PathOpsV0Lib::AddCurve& c);
 extern bool debugDmpIsLine(const PathOpsV0Lib::Curve& c);
 extern void DumpSet(PathOpsV0Lib::Winding&, char const*& str);
 
-enum class LimbPass : uint8_t;
+enum class LimbPass : int8_t;
 
 extern std::string debugLimbPass(LimbPass pass);
 

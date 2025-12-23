@@ -137,9 +137,9 @@ std::string OpDebugStr(float value) {
 	if (std::string::npos != pos)
 		return result;
 	if (9 != debugPrecision) {
-		while (result.back() == '0')
+		while (!result.empty() && result.back() == '0')
 			result.pop_back();
-		if (result.back() == '.')
+		if (!result.empty() && result.back() == '.')
 			result.pop_back();
 	} else {
 		// try to match the Visual Studio debugger output
@@ -358,7 +358,7 @@ std::string OpDebugDumpByteArray(const uint8_t* bytes, size_t size) {
             lastReturn = lastSpace;
         }
     }
-    if (' ' >= s.back())
+    if (!s.empty() && ' ' >= s.back())
         s.pop_back();
     s += "]";
     return s;
@@ -526,8 +526,12 @@ bool OpDebugOptional(const char*& str, const char* match) {
         ++str;
     if (']' == str[0] || '[' == str[0])
         ++str;
-    if (match[0] != str[0] && ('}' == str[0] || '{' == str[0]))
-        ++str;
+    if (match[0] != str[0]) {
+        if ('{' == str[0])
+            ++str;
+        if ('}' == str[0])
+            ++str;
+    }
     while (str[0] && ' ' >= str[0])
         ++str;
     if (!strncmp(match, str, matchLen)) {

@@ -22,7 +22,25 @@
                 "moduleLoad": false
             }
         },
-       {
+        {
+            "name": "skia_test_asan",
+            "type": "cppdbg",
+            "request": "launch",
+            "targetArchitecture": "arm64",
+            "program": "/Users/cary/pathopsv0/asan/skia_test",
+            "preLaunchTask": "skia test asan",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "visualizerFile": "/Users/cary/pathopsv0/.vscode/v0.natvis",
+            "logging": {
+                "moduleLoad": false
+            }
+        },
+        {
             "name": "test_drive",
             "type": "cppdbg",
             "request": "launch",

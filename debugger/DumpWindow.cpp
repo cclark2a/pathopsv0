@@ -23,8 +23,8 @@ DrawLevel DumpWindow::click(const DebuggerEvent* event) {
     float lineHeight = debuggerState->textWindow.boxWH.dy;
     if (event->mouse.y < localLocation.y)
         return result;
-    size_t index = (size_t) ((event->mouse.y - localLocation.y) / lineHeight);
-    if (index >= debuggerState->dumps.size())
+    int index = (int) ((event->mouse.y - localLocation.y) / lineHeight);
+    if (index >= (int) debuggerState->dumps.size())
         return result;
     debuggerState->currentDump = index;
     return DrawLevel::file;

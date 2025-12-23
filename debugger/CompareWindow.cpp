@@ -288,11 +288,11 @@ bool CompareWindow::readBits() {
     DebuggerDump& lastDump = debuggerState->dumps.back();
     if (!lastDump.context->debugDescription.ends_with("resolved"))
         return false;
-    OpContext* context = lastDump.context;
-    if (!debugRaster)
-        debugRaster = new DebugRaster(context);
-    if (context->callbacks.empty())
+    if (lastDump.context->callbacks.empty())
         return false;
+    OpContext* context = lastDump.context;
+    delete debugRaster;
+    debugRaster = new DebugRaster(context);
     if (!debugRaster->playback(BitsFile))
         return false;
     leftFocus = { 0, 0, (float) debugRaster->bitWidth, (float) debugRaster->bitHeight };
@@ -302,6 +302,8 @@ bool CompareWindow::readBits() {
 
 void CompareWindow::update() {
     clearWindow();
+    if (!readBits())
+        return;
     OpPoint localLocation(10, 10);
     TTF_Font* detailFont = debuggerState->textWindow.detailFont;
     addText(leftLabel.label(), localLocation, debugBlack, detailFont);
@@ -327,21 +329,4 @@ void CompareWindow::update() {
         s += " y:" + STR(srcY) + " (" + STR(((float) activeRow / debugRaster->subSamples)) + ")";
         addText(s, { 10, 30}, debugBlack, detailFont);
     }
-    struct stat info;
-    std::string filename = dmpFileToPath(BitsFile);
-    if (stat(filename.c_str(), &info) == -1) 
-        return;
-    if (info.st_mtime != lastTime) {
-        if (readBits()) {
-            lastTime = info.st_mtime;
-            return;
-        } 
-        if (updateAttempts > maxUpdateAttempts) {
-            OpDebugOut("failed to update\n"); 
-            OP_ASSERT(0);
-            readBits();  // for debugging
-            return;
-        }
-    }
-
 }

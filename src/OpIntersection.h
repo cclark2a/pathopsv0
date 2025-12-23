@@ -178,6 +178,7 @@ struct OpIntersections {
 	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp) const;
 	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp, OpPtT* nearby) const;
 	void coinRange(OpEdge& , OpSegment* opp, bool reversed);
+	void collectMatchingPts(OpPoint , std::vector<OpPoint>& ) const;
 	OpIntersection* contains(const OpPtT& ptT, const OpSegment* opp);  // nearby ptT
 	CloseBy containsClose(OpPoint pt, OpVector threshold, const OpSegment* opp) const;
 //	OpIntersection* const * entry(const OpPtT& , const OpSegment* opp) const;  // exact opp + ptT
