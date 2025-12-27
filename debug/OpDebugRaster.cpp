@@ -465,25 +465,25 @@ void OpDebugScanLine::fill(float x, float endX, int subLine) {
 		return;
 	int intX = (int) x;
     OP_ASSERT(0 <= intX && intX < raster->bitWidth);
-	OP_DEBUG_CODE(uint8_t* limit = &subScan[(subLine + 1) * raster->bitWidth]);
+	OP_DEBUG_CODE(uint8_t* limit = &subScan[(subLine + 1) * raster->bitWidth - 1]);
 	uint8_t* bitsPtr = &subScan[subLine * raster->bitWidth + intX];
 	int intEndX = (int) endX;
 	if (intX == intEndX) {
-		OP_ASSERT(bitsPtr < limit);
+		OP_ASSERT(bitsPtr <= limit);
 		bitsPtr[0] = std::min(255, bitsPtr[0] + (int) ((endX - x) * 255));
 		return;
 	}
 	if (x != intX) {
-		OP_ASSERT(bitsPtr < limit);
+		OP_ASSERT(bitsPtr <= limit);
 		bitsPtr[0] = std::min(255, bitsPtr[0] + (int) ((intX + 1 - x) * 255));
 		++bitsPtr;
 	}
 	while (++intX < intEndX) {
-		OP_ASSERT(bitsPtr < limit);
+		OP_ASSERT(bitsPtr <= limit);
 		*bitsPtr++ = 255;
 	}
 	if (intEndX < endX) {
-		OP_ASSERT(bitsPtr < limit);
+		OP_ASSERT(bitsPtr <= limit);
 		bitsPtr[0] = (int) ((endX - intEndX) * 255);
 	}
 }

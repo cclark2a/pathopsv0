@@ -725,7 +725,7 @@ void OpCurveCurve::cutPair(SnipPtTs& snip) {
 		do {
 			float segDist = nextCut(curve, ptT, cut, diff[1]);
 			advanceFibonacci(diff);
-			bool segHitEnd = (0 == cut.t && dir < 0) || (1 == cut.t & dir > 0);
+			bool segHitEnd = (0 == cut.t && dir < 0) || (1 == cut.t && dir > 0);
 			// use length ratio to refine opp cuts
 			float oppDist;
 			// !!! put safety count limit in callbacks? 

@@ -288,47 +288,47 @@ struct OpContext {
     std::vector<int> nativeCurveTypes;
 	PathOpsV0Lib::ContextCallbacks contextCallbacks;
 	PathOpsV0Lib::WindingCallbacks windingCallbacks;
-	PathOpsV0Lib::ErrorHandler errorHandler;
+	PathOpsV0Lib::ErrorHandler errorHandler = { nullptr };
 	std::vector<OpContour*> sortedContours; 
 	// these are pointers instead of inline values because the storage with empty slots is first
-	CurveDataStorage* curveDataStorage;
-	OpEdgeStorage* ccStorage;
-	OpContourStorage* contourStorage;
+	CurveDataStorage* curveDataStorage = nullptr;
+	OpEdgeStorage* ccStorage = nullptr;
+	OpContourStorage* contourStorage = nullptr;
 	std::vector<OpContour*> contours;
-	OpEdgeStorage* fillerStorage;
-	OpSectStorage* sectStorage;
-	OpLimbStorage* limbStorage;
-	OpLimbStorage* limbCurrent;
-	CallerDataStorage* callerStorage;
+	OpEdgeStorage* fillerStorage = nullptr;
+	OpSectStorage* sectStorage = nullptr;
+	OpLimbStorage* limbStorage = nullptr;
+	OpLimbStorage* limbCurrent = nullptr;
+	CallerDataStorage* callerStorage = nullptr;
 	OpPointBounds maxBounds;
-	PathOpsV0Lib::ContextError error;
-	int uniqueID;  // used for object id, unsectable id, coincidence id
-    bool initialized;
-    bool allDiscarded;
-    bool allKept;
-	bool fatalError;
-	bool outputOne;
-	bool linkErased;  // used to tell relinkUnambiguous to continue or not
-    bool windingSet;
+	PathOpsV0Lib::ContextError error = PathOpsV0Lib::ContextError::none;
+	int uniqueID = 0;  // used for object id, unsectable id, coincidence id
+    bool initialized = false;
+    bool allDiscarded = false;
+    bool allKept = false;
+	bool fatalError = false;
+	bool outputOne = false;
+	bool linkErased = false;  // used to tell relinkUnambiguous to continue or not
+    bool windingSet = false;
 #if OP_DEBUG_VALIDATE
-	int debugValidateEdgeIndex;
-	int debugValidateJoinerIndex;
+	int debugValidateEdgeIndex = 0;
+	int debugValidateJoinerIndex = 0;
 #endif
 #if OP_DEBUG
 	std::vector<PathOpsV0Lib::DebugCurveCallbacks> debugCallbacks;
 	PathOpsV0Lib::DebugContextCallbacks debugContextCallbacks;
 	OpDebugData debugData;
-	OpCurveCurve* debugCurveCurve;
-	OpJoiner* debugJoiner;
-	OpTree* debugTree;
-	std::vector<OpEdge*>* debugErasures;
-	int debugErrorID;
-	int debugOppErrorID;
-	OpDebugExpect debugExpect;
-	bool debugInPathOps;
-	bool debugInClearEdges;
-	bool debugCheckLastEdge;
-	bool debugFailOnEqualCepts;
+	OpCurveCurve* debugCurveCurve = nullptr;
+	OpJoiner* debugJoiner = nullptr;
+	OpTree* debugTree = nullptr;
+	std::vector<OpEdge*>* debugErasures = nullptr;
+	int debugErrorID = 0;
+	int debugOppErrorID = 0;
+	OpDebugExpect debugExpect = OpDebugExpect::unknown;
+	bool debugInPathOps = false;
+	bool debugInClearEdges = false;
+	bool debugCheckLastEdge = false;
+	bool debugFailOnEqualCepts = false;
 #endif
 #if OP_DEBUG_SERIALIZE_OUT
 	std::string debugFilename;
@@ -340,7 +340,7 @@ struct OpContext {
 	std::vector<std::string> debugDumpNotes;
 	std::vector<std::string> debugDumpSkips;
 	std::vector<OpEdge*> debugDumpErasures;  // read from flattened data
-	bool debugDumpInit;   // if true, created by dump init
+	bool debugDumpInit = false;   // if true, created by dump init
 #endif
 #if TEST_RASTER
 	struct DebugRaster* debugRaster = nullptr;

@@ -5,15 +5,6 @@
 #include "OpJoiner.h"
 #include <sys/stat.h>
 
-// !!! hackery
-#if __APPLE__
-#define TEXT_DETAIL_FONT_SIZE 14
-#elif _WIN32
-#define TEXT_DETAIL_FONT_SIZE 24
-#else
-#define TEXT_DETAIL_FONT_SIZE 18
-#endif 
-
 TextWindow::TextWindow(DebuggerState* state)
         : DebuggerWindow(state, WheelTarget::scroll) {
     if (SDL_APP_CONTINUE != (state->error = init("text", { -100, -100 })))

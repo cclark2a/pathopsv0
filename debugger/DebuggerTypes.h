@@ -11,6 +11,18 @@ struct DebuggerWindow;
 struct SDL_Texture;
 struct TTF_Font;
 
+// !!! hackery
+#if __APPLE__
+#define TEXT_FONT_SIZE 14
+#define TEXT_DETAIL_FONT_SIZE 14
+#elif _WIN32
+#define TEXT_FONT_SIZE 24
+#define TEXT_DETAIL_FONT_SIZE 24
+#else
+#define TEXT_FONT_SIZE 18
+#define TEXT_DETAIL_FONT_SIZE 18
+#endif 
+
 enum class DrawLevel {
     none,  // do nothing
     draw,  // draw the polys (e.g. in case color changed)

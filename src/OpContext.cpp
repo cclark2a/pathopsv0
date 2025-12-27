@@ -146,44 +146,11 @@ SegPt OpPtAliases::addIfClose(OpPoint match) {
 	return { match, PtType::noMatch };
 }
 
-OpContext::OpContext()
-	: errorHandler({nullptr})
-	, curveDataStorage(nullptr)
-	, ccStorage(nullptr)
-	, contourStorage(nullptr)
-	, fillerStorage(nullptr)
-	, sectStorage(nullptr)
-	, limbStorage(nullptr)
-	, limbCurrent(nullptr)
-	, callerStorage(nullptr)
-	, error(PathOpsV0Lib::ContextError::none)
-	, uniqueID(0)
-    , initialized(false)
-    , allDiscarded(false)
-    , allKept(false)
-	, fatalError(false)
-	, outputOne(false)
-    , windingSet(false) {
+OpContext::OpContext() {
     PathOpsV0Lib::SetCurveCallbacks((PathOpsV0Lib::Context*)(this), 0, { } );
-#if OP_DEBUG_VALIDATE
-	debugValidateEdgeIndex = 0;
-	debugValidateJoinerIndex = 0;
-#endif
 #if OP_DEBUG
-	debugCurveCurve = nullptr;
-	debugJoiner = nullptr;
-	debugTree = nullptr;
-	debugErrorID = 0;
-	debugOppErrorID = 0;
-//	debugExpect = OpDebugExpect::unknown;
-	debugInPathOps = false;
-	debugInClearEdges = false;
-	debugCheckLastEdge = false;
-	debugFailOnEqualCepts = false;
-	OP_DEBUG_DUMP_CODE(debugDumpInit = false);
     PathOpsV0Lib::SetDebugCurveCallbacks((PathOpsV0Lib::Context*)(this), 0, { } );
 #endif
-
 }
 
 OpContext::~OpContext() {

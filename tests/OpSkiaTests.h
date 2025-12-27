@@ -17,7 +17,7 @@
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
 #define OP_TEST_V0 1  // set to zero to time Skia running tests
 #define TEST_DEFEAT_BREAK 0  // set to one to disallow debug breakpoints
-#define TEST_DEFEAT_DUMPS 1  // set to one to disallow rewriting dumps
+#define TEST_DEFEAT_DUMPS 0  // set to one to disallow rewriting dumps
 
 // loop191404 missing -0.078, 1.5323 t=0.281543255 oppT=0.290549636; 
 //                    -0.3563 2.0153 t=0.139774203 oppT=0.113169670
