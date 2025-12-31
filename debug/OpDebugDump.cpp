@@ -2935,28 +2935,37 @@ void EdgeRun::dumpSet(const char*& str) {
 #endif
 }
 
-void FoundLimits::dumpSet(const char*& str) {
-    parentEdge = OpDebugOptional(str, "parentEdge") ? (const OpEdge*) OpDebugReadSizeT(str) 
-            :  (const OpEdge*) 0;
-    parentOpp = OpDebugOptional(str, "parentOpp") ? (const OpEdge*) OpDebugReadSizeT(str)
-            :  (const OpEdge*) 0;
-    OpDebugRequired(str, "seg");
-    seg.dumpSet(str);
-    OpDebugRequired(str, "opp");
-    opp.dumpSet(str);
+void FoundLimit::dumpSet(const char*& str) {
+    OpDebugRequired(str, "segPtT");
+    segPtT.dumpSet(str);
+    OpDebugRequired(str, "oppPtT");
+    oppPtT.dumpSet(str);
     fromFoundT = OpDebugOptional(str, "fromFoundT") ? LimitFrom::yes : LimitFrom::no;
     oppOutOfOrder = OpDebugOptional(str, "oppOutOfOrder") ? Unordered::yes : Unordered::no;
     used = OpDebugOptional(str, "used") ? LimitUsed::yes : LimitUsed::no;
     match = OpDebugOptional(str, "match") ? LimitMatch::yes : LimitMatch::no;
+    swapped = OpDebugOptional(str, "swapped") ? LimitSwapped::yes : LimitSwapped::no;
 #if OP_DEBUG_MAKER
     OpDebugRequired(str, "debugMaker");
     debugMaker.dumpSet(str);
 #endif
 }
 
+void FoundLimits::dumpSet(const char*& str) {
+	DEBUG_SET_FIRST_VECTOR(limits);
+	DEBUG_SET_VECTOR(limits, snips);
+    DEBUG_SET_ID(snips, seg);
+    DEBUG_SET_ID(seg, opp);
+    DEBUG_SET_OPTIONAL_VALUE(opp, unique);
+	DEBUG_SET_BOOL(unique, smSegT);
+    DEBUG_SET_BOOL(smSegT, lgSegT);
+    DEBUG_SET_BOOL(lgSegT, smOppT);
+	DEBUG_SET_BOOL(smOppT, lgOppT);
+}
+
 void FoundLimits::dumpResolveAll(OpContext* c) {
-    c->dumpResolve(parentEdge);
-    c->dumpResolve(parentOpp);
+    c->dumpResolve(seg);
+    c->dumpResolve(opp);
 }
 
 void SnipPtTs::dumpSet(const char*& str) {
@@ -3175,9 +3184,8 @@ void OpCurveCurve::dumpSet(const char*& str) {
     // note that edgeCurves, oppCurves have pointers to each other and to parent
     edgeCurves.baseInit(this, &oppCurves);
     oppCurves.baseInit(this, &edgeCurves);
-    DEBUG_SET_VECTOR(oppCurves, limits);
-    DEBUG_SET_VECTOR(limits, snips);
-    DEBUG_SET_STRUCT(snips, maxSplit);
+    DEBUG_SET_STRUCT(oppCurves, fl);
+    DEBUG_SET_STRUCT(fl, maxSplit);
     DEBUG_SET_STRUCT(maxSplit, maxBoundedEdge);
     DEBUG_SET_STRUCT(maxBoundedEdge, maxUnsectable);
     DEBUG_SET_REQUIRED_VALUE(maxUnsectable, endMatches);
@@ -3186,8 +3194,7 @@ void OpCurveCurve::dumpSet(const char*& str) {
     DEBUG_SET_FLOAT(maxSplitBias, maxDist);
     DEBUG_SET_FLOAT(maxDist, maxEdgeTSlop);
     DEBUG_SET_OPTIONAL_VALUE(maxEdgeTSlop, depth);
-    DEBUG_SET_REQUIRED_VALUE(depth, uniqueLimits_impl);
-    DEBUG_SET_REQUIRED_VALUE(uniqueLimits_impl, unsplitables);
+    DEBUG_SET_REQUIRED_VALUE(depth, unsplitables);
     DEBUG_SET_REQUIRED_VALUE(unsplitables, maxCheckSplit);
     DEBUG_SET_REQUIRED_VALUE(maxCheckSplit, maxDeep);
     DEBUG_SET_REQUIRED_VALUE(maxDeep, maxShallow);
@@ -3201,7 +3208,7 @@ void OpCurveCurve::dumpSet(const char*& str) {
     DEBUG_SET_BOOL(lastDepthReduced, foundGap);
     DEBUG_SET_BOOL(foundGap, splitMid);
     DEBUG_SET_BOOL(splitMid, splitHullFail);
-    ASSERT_LAST_OFFSET(splitHullFail, 3);
+//    ASSERT_LAST_OFFSET(splitHullFail, 3);
 }
 
 void DumpCurveCurve::dumpSet(const char*& str) {
@@ -3220,8 +3227,7 @@ void OpCurveCurve::dumpResolveAll(OpContext* c) {
     c->dumpResolve(parentOpp);
     edgeCurves.dumpResolveAll(c);
     oppCurves.dumpResolveAll(c);
-    for (auto& limit : limits)
-        limit.dumpResolveAll(c);
+    fl.dumpResolveAll(c);
 }
 
 #if OP_DEBUG_VERBOSE

@@ -92,7 +92,6 @@ struct OpDebugData {
 	bool success = true;
 };
 
-#define OP_DEBUG_CONTEXT(...)
 #define OP_DEBUG_DUMP_CODE(...)
 #define OP_DEBUG_DUMP_PARAMS(...)
 #define OP_DEBUG_IMAGE_CODE(...)
@@ -310,10 +309,6 @@ struct OpDebugMaker {
 #define OP_DEBUG_DUMP_CODE(...) __VA_ARGS__
 #undef OP_DEBUG_DUMP_PARAMS
 #define OP_DEBUG_DUMP_PARAMS(...) , __VA_ARGS__
-
-#undef OP_DEBUG_CONTEXT
-#define OP_DEBUG_CONTEXT() \
-	debugContext = __func__
 #endif
 
 #if OP_DEBUGGER

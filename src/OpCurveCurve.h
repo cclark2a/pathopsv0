@@ -97,6 +97,18 @@ struct Interval {
     OpPtT hi;
 };
 
+enum class DiffIntersect {
+	intersect,
+	ignore,
+	replace
+};
+
+struct LoHi {
+	float lo;
+	float hi;
+	DiffIntersect diffSect;
+};
+
 struct CcCurves {
 	EdgeRun* addEdgeRun(OpEdge* edge, EdgeMatch , ClampDist  OP_LINE_FILE_ARGS());
 	EdgeRun* addEdgeRun(EdgeRun& , EdgeMatch , ClampDist);
@@ -113,6 +125,7 @@ struct CcCurves {
     void init(OpCurveCurve* , CcCurves* oppCurves, float scaledMax, OpEdge* parent, OpSegment* opp);
 	void initialEdgeRun(OpEdge* edge);
     int insertPos(std::vector<EdgeRun>& , EdgeRun& );
+	bool keepDiff(const LoHi& ) const;
 	bool lopSided(size_t priorCount, float maxBias) const;
 	void markToDelete(float tStart, float tEnd);
 	int overlaps() const;
@@ -156,18 +169,24 @@ enum class LimitMatch : bool {
     yes = true
 };
 
-struct FoundLimits {
-//	void setEnd(const OpSegment* opp, const OpCurve& curve, float t);
+enum class LimitSwapped : bool {
+	OP_DEBUG_ENUM()
+    no = false,
+    yes = true
+};
+
+struct FoundLimit {
 	DUMP_DECLARATIONS
 
-	const OpEdge* parentEdge  OP_DEBUG_INIT_PTR(OpEdge);
-	const OpEdge* parentOpp  OP_DEBUG_INIT_PTR(OpEdge);  // may be null
-	OpPtT seg;
-	OpPtT opp;
+//	const OpEdge* parentEdge  OP_DEBUG_INIT_PTR(OpEdge);
+//	const OpEdge* parentOpp  OP_DEBUG_INIT_PTR(OpEdge);  // may be null
+	OpPtT segPtT;
+	OpPtT oppPtT;
 	LimitFrom fromFoundT  OP_DEBUG_INIT(LimitFrom);  // if set, don't add segment intersections
 	Unordered oppOutOfOrder  OP_DEBUG_INIT(Unordered);  // if set, opp t is not ordered (skip this limit)  !!! detect error earlier
     LimitUsed used  OP_DEBUG_INIT(LimitUsed);
     LimitMatch match  OP_DEBUG_INIT(LimitMatch);
+	LimitSwapped swapped  OP_DEBUG_INIT(LimitSwapped);
 	OP_LINE_FILE_DECLARE(debugMaker)
 };
 
@@ -178,6 +197,33 @@ struct SnipPtTs {
     OpPtT opp;
 	CutRangeT segCut;
 	CutRangeT oppCut;
+};
+
+struct FoundLimits {
+	FoundLimits(OpSegment* s, OpSegment* o) {
+		seg = s; opp = o; }
+	void addSnip(SnipPtTs , const OpCurveCurve* );
+	bool alreadyIn(const OpPtT& edgePtT, const OpPtT& oppPtT) const;
+	void cutPair(SnipPtTs& ) const;
+	bool empty() const { return limits.empty(); }
+	void markOutOfOrder();
+	void setEnds(std::vector<OpIntersection*>& matchingSects, bool& reversed, bool& splitMid);
+	void setUnique();
+	size_t size() const { return limits.size(); }
+	void sort() {
+		std::sort(limits.begin(), limits.end(), [](const FoundLimit& a, const FoundLimit& b) {
+			return a.segPtT.t < b.segPtT.t; }); }
+	DUMP_DECLARATIONS
+
+	std::vector<FoundLimit> limits;
+	std::vector<SnipPtTs> snips;
+	OpSegment* seg  OP_DEBUG_INIT_PTR(OpSegment);
+	OpSegment* opp  OP_DEBUG_INIT_PTR(OpSegment);
+	int unique = -1;  // cached count; set negative if invalid
+	bool smSegT = false;
+    bool lgSegT = false;
+    bool smOppT = false;
+    bool lgOppT = false;
 };
 
 #if OP_DEBUG_VERBOSE
@@ -205,13 +251,13 @@ enum class CcBreak {
 
 struct OpCurveCurve {
 #if OP_DEBUG_DUMP
-	OpCurveCurve() {}
+	OpCurveCurve() 
+		: fl(nullptr, nullptr) {}
 #endif
 	OpCurveCurve(OpSegment* seg, OpSegment* opp, std::vector<OpIntersection*>& matchingSects);
 	void addIntersection(OpEdge* edge, OpEdge* opp);
     bool addLineCurveIntersection(OpEdge& edge, OpEdge& opp, CurveRef );
 	EdgeRun* addEdgeRun(OpEdge* , CurveRef , EdgeMatch  OP_LINE_FILE_ARGS());
-	void addSnip(SnipPtTs );
 	bool addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 			const OpPtT& oppStart, const OpPtT& oppEnd);
     OpEdge* allocateEdge(OpSegment* , const OpEdge* , const OpPtT& start, const OpPtT& end,
@@ -224,7 +270,6 @@ struct OpCurveCurve {
 	bool checkSect();
 	bool checkSplit(float lo, float hi, CurveRef , OpPtT& checkPtT) const;
 	void checkUnsplitables();
-	void cutPair(SnipPtTs& );
 	SectFound divideAndConquer();
 	bool endsOverlap() const;
 	void findUnsectable();
@@ -247,7 +292,9 @@ struct OpCurveCurve {
 	bool debugBreak(CcBreak );
 #endif
 #if OP_DEBUG_DUMP
-	OpCurveCurve(OpContext* c) { context = c; }
+	OpCurveCurve(OpContext* c) 
+		: fl(nullptr, nullptr) { 
+		context = c; }
 	void drawClosest(const OpPoint& originalPt) const;
 	void dumpClosest(const OpPoint& pt) const;
 #endif
@@ -268,8 +315,7 @@ struct OpCurveCurve {
 	OpEdge* parentOpp  OP_DEBUG_INIT_PTR(OpEdge);
 	CcCurves edgeCurves;
 	CcCurves oppCurves;
-	std::vector<FoundLimits> limits;
-	std::vector<SnipPtTs> snips;
+	FoundLimits fl;
     OpVector maxSplit;  // limit of subdivision when reducing via distance flip
 	OpVector maxBoundedEdge; // threshold factor comparing edge line/line or line/curve intersection
 	OpVector maxUnsectable;  // threshold factor to move sect pairs to common points
@@ -280,7 +326,6 @@ struct OpCurveCurve {
     float maxDist  OP_DEBUG_INIT_FLOAT();  // threshold factor comparing edge run distances between seg and opp
 	float maxEdgeTSlop  OP_DEBUG_INIT_FLOAT();  // slop allowed for edge t range to intersect opposite for line/curve or line/line
     int depth  OP_DEBUG_INIT_INT();
-	int uniqueLimits_impl  OP_DEBUG_INIT_INT();  // cached count; set negative if invalid (call 
 	int unsplitables  OP_DEBUG_INIT_INT();
 	int maxCheckSplit  OP_DEBUG_INIT_INT();  // iteration count to check if point is inside deleted bounds
 	int maxDeep  OP_DEBUG_INIT_INT();  // curves, when divided, always overlap, recurse further to look for sects

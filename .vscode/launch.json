@@ -5,6 +5,15 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "skia_test_codelldb",
+            "type": "lldb",
+            "request": "launch",
+            "program": "/Users/cary/pathopsv0/asan/skia_test",
+            "preLaunchTask": "skia test asan",
+            "args": [],
+            "cwd": "${fileDirname}",
+        },
+        {
             "name": "skia_test",
             "type": "cppdbg",
             "request": "launch",

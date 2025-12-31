@@ -547,8 +547,6 @@ OpEdge* OpTree::addFiller(OpSegment* seg, const OpPtT& ptT1, const OpPtT& ptT2, 
 		float fillerLength = (ptT1.pt - ptT2.pt).length();
 		if (!gap(fillerLength)) {
 			OP_DEBUG_CODE(OpDebugOut("\n" + seg->contour->context->debugData.testname + "\n"));
-			OP_DEBUG_DUMP_CODE(::debug());
-			OP_DEBUG_CODE(OpDebugOut("\n"));
 			OP_DEBUG_DUMP_CODE(dump());
 			context->setError(PathOpsV0Lib::ContextError::gap  OP_DEBUG_PARAMS(id));
 			// !!! dump file here?
@@ -920,7 +918,6 @@ OpJoiner::~OpJoiner() {
 // first, figure out why the current test fails
 
 bool OpJoiner::linkRemaining(OpContour* contour) {
-	OP_DEBUG_CONTEXT();
 	LinkUps& linkups = contour->linkups;
     OP_DEBUG_DUMP_CODE(context->dumpFile("linkRemaining"));
 	linkPass = LinkPass::remaining;
@@ -1042,7 +1039,6 @@ bool OpJoiner::linkSimple(OpEdge* first) {
 
 void OpJoiner::linkUnambiguous(OpContour* contour, LinkPass lp) {
     OP_DEBUG_DUMP_CODE(context->dumpFile("linkUnambiguous"));
-	OP_DEBUG_CONTEXT();
 	OP_DEBUG_VALIDATE_CODE(debugValidate());
 	// match up edges that have only a single possible prior or next link, and add them to new list
 	linkPass = lp;

@@ -291,7 +291,6 @@ bool OpContext::allowError(PathOpsV0Lib::ContextError error, PathOpsV0Lib::Curve
 }
 
 WindingCondition OpContext::apply() {
-    OP_DEBUG_DUMP_CODE(debugContext = "apply");
     allDiscarded = true;
     allKept = true;
 	for (auto contour : contours) {

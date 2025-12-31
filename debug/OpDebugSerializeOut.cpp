@@ -650,14 +650,10 @@ std::string FoundEdge::debugDumpID() const {
     return s;
 }
 
-std::string FoundLimits::debugDump(DebugLevel l, DebugBase b) const {
+std::string FoundLimit::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    if (parentEdge)
-        s += "parentEdge[" + STR(parentEdge->id) + "] ";
-    if (parentOpp)
-        s += "parentOpp[" + STR(parentOpp->id) + "] ";
-    s += "seg:" + seg.debugDump(l, b);
-    s += " opp:" + opp.debugDump(l, b);
+    s += "segPtT:" + segPtT.debugDump(l, b);
+    s += " oppPtT:" + oppPtT.debugDump(l, b);
     if (LimitFrom::yes == fromFoundT)
         s += " fromFoundT";
     if (Unordered::yes == oppOutOfOrder)
@@ -666,9 +662,37 @@ std::string FoundLimits::debugDump(DebugLevel l, DebugBase b) const {
         s += " used";
     if (LimitMatch::yes == match)
         s += " match";
+    if (LimitSwapped::yes == swapped)
+        s += " swapped";
 #if OP_DEBUG_MAKER
     s += " debugMaker:" + debugMaker.debugDump();
 #endif
+    return s;
+}
+
+std::string FoundLimits::debugDump(DebugLevel l, DebugBase b) const {
+    DebugLevel down1 = DebugLevel::file == l ? DebugLevel::file : (DebugLevel) ((int) l - 1);
+    std::string s;
+    if (DebugLevel::file != l) {
+        if (limits.size())
+            s += "-- limits:" + STR(limits.size()) + " --\n";
+        for (const auto& limit : limits) {
+            s += limit.debugDump(down1, b) + "\n";
+        }
+        for (const auto& snip : snips) {
+            s += snip.debugDump(down1, b) + "\n";
+        }
+    } else {
+        DEBUG_DUMP_FIRST_VECTOR(limits);
+        DEBUG_DUMP_VECTOR(limits, snips);
+        DEBUG_DUMP_ID(snips, seg);
+        DEBUG_DUMP_ID(seg, opp);
+        DEBUG_DUMP_OPTIONAL_VALUE(opp, unique);
+        DEBUG_DUMP_BOOL(unique, smSegT);
+        DEBUG_DUMP_BOOL(smSegT, lgSegT);
+        DEBUG_DUMP_BOOL(lgSegT, smOppT);
+        DEBUG_DUMP_BOOL(smOppT, lgOppT);
+    }
     return s;
 }
 
@@ -1404,14 +1428,8 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
             }
             ++count;
         }
-         if (limits.size())
-            s += "-- limits:" + STR(limits.size()) + " --\n";
-        for (const auto& limit : limits) {
-            s += limit.debugDump(down1, b) + "\n";
-        }
-        for (const auto& snip : snips) {
-            s += snip.debugDump(down1, b) + "\n";
-        }
+        if (fl.size())
+            s += fl.debugDump(l, b);
    } else {
         DEBUG_DUMP_ID(context, seg);
         DEBUG_DUMP_ID(seg, opp);
@@ -1419,9 +1437,8 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
         DEBUG_DUMP_ID(parentEdge, parentOpp);
         DEBUG_DUMP_STRUCT(parentOpp, edgeCurves);
         DEBUG_DUMP_STRUCT(edgeCurves, oppCurves);
-        DEBUG_DUMP_VECTOR(oppCurves, limits);
-        DEBUG_DUMP_VECTOR(limits, snips);
-        DEBUG_DUMP_STRUCT(snips, maxSplit);
+        DEBUG_DUMP_STRUCT(oppCurves, fl);
+        DEBUG_DUMP_STRUCT(fl, maxSplit);
         DEBUG_DUMP_STRUCT(maxSplit, maxBoundedEdge);
         DEBUG_DUMP_STRUCT(maxBoundedEdge, maxUnsectable);
         DEBUG_DUMP_REQUIRED_VALUE(maxUnsectable, endMatches);
@@ -1430,8 +1447,7 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
         DEBUG_DUMP_FLOAT(maxSplitBias, maxDist);
         DEBUG_DUMP_FLOAT(maxDist, maxEdgeTSlop);
         DEBUG_DUMP_OPTIONAL_VALUE(maxEdgeTSlop, depth);
-        DEBUG_DUMP_REQUIRED_VALUE(depth, uniqueLimits_impl);
-        DEBUG_DUMP_REQUIRED_VALUE(uniqueLimits_impl, unsplitables);
+        DEBUG_DUMP_REQUIRED_VALUE(depth, unsplitables);
         DEBUG_DUMP_REQUIRED_VALUE(unsplitables, maxCheckSplit);
         DEBUG_DUMP_REQUIRED_VALUE(maxCheckSplit, maxDeep);
         DEBUG_DUMP_REQUIRED_VALUE(maxDeep, maxShallow);
@@ -1445,11 +1461,10 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
         DEBUG_DUMP_BOOL(lastDepthReduced, foundGap);
         DEBUG_DUMP_BOOL(foundGap, splitMid);
         DEBUG_DUMP_BOOL(splitMid, splitHullFail);
-        ASSERT_LAST_OFFSET(splitHullFail, 3);
+//        ASSERT_LAST_OFFSET(splitHullFail, 7);
         return s;
     }
     s += "depth:" + STR(depth) + " ";
-    s += "uniqueLimits:" + STR(uniqueLimits_impl) + " ";
     if (reversed)
         s += "reversed ";
     if (boundedEdgeFailed) 

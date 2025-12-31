@@ -329,6 +329,10 @@ struct EdgeFilterName {
     } \
     } while (false)
 
+#define DEBUG_DUMP_FIRST_VECTOR(thisVector) \
+    ASSERT_FIRST(thisVector); \
+    DEBUG_DUMP_COMMON_VECTOR(thisVector)
+
 #define DEBUG_DUMP_VECTOR_OFFSET(lastField, thisVector, offset) \
     do { \
     ASSERT_ORDERED_OFFSET(lastField, thisVector, offset); \

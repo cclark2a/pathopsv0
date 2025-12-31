@@ -438,6 +438,10 @@ struct OpSaveDump {
     } \
     } while (false)
 
+#define DEBUG_SET_FIRST_VECTOR(thisVector) \
+    ASSERT_FIRST(thisVector); \
+    DEBUG_SET_COMMON_VECTOR(thisVector)
+
 #define DEBUG_SET_VECTOR_OFFSET(lastField, thisVector, offset) \
     do { \
     ASSERT_ORDERED_OFFSET(lastField, thisVector, offset); \

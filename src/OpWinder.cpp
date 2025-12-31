@@ -1128,7 +1128,6 @@ ResolveWinding OpWinder::SetWindingByDistance(OpEdge* edge) {
 // cache of sect edges held by the contour (or the 
 
 FoundWindings OpWinder::SetWindings(OpContext& context) {
-	OP_DEBUG_CONTEXT();
 	for (OpContour* contour : context.contours) {
 		OP_ASSERT(!contour->isEmpty());
 		contour->addEdges();

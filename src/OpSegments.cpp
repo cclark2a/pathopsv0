@@ -38,7 +38,6 @@ void OpSegments::initInX() {
 
 // may need to adjust values in opp if end is nearly equal to seg
 std::vector<OpIntersection*> OpSegments::AddEndMatches(OpSegment* seg, OpSegment* opp) {
-	OP_DEBUG_CONTEXT();
     std::vector<OpIntersection*> result;
 	auto add = [&result](OpSegment* seg, OpSegment* opp, OpPoint pt, float segT, float oppT   
 			OP_LINE_FILE_ARGS()) {
@@ -92,13 +91,16 @@ std::vector<OpIntersection*> OpSegments::AddEndMatches(OpSegment* seg, OpSegment
 }
 
 // somewhat different from winder's edge based version, probably for no reason
-void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
-	OP_DEBUG_CONTEXT();
+void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg,
+		std::vector<OpIntersection*>& matchingSects) {
 	OP_ASSERT(opp != seg);
 	OP_ASSERT(seg->c.debugIsLine());
+	FoundLimits limits(seg, opp);
+	bool reversed;
+	bool splitMid;
+	limits.setEnds(matchingSects, reversed, splitMid);
 	OpRoots oppRoots = seg->c.lineIntersection(opp->c);
 	OP_DEBUG_CODE(MatchReverse matchRev = opp->matchEnds(seg));
-	OpBreak2(seg, opp, 4, 7);
 	// if line and curve share end point, pass hint that root finder can call
 	// reduced form that assumes one root is zero or one.
 #if 0  // code coverage did not detect any of these cases
@@ -120,63 +122,41 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 	OP_ASSERT(oppRoots.fail != RootFail::rawIntersectFailed);
 	OP_ASSERT(!opp->c.isLine() || MatchEnds::both != matchRev.match);
 #endif
-	std::vector<OpPtT> oppPtTs;
-	std::vector<OpPtT> edgePtTs;
+//	std::vector<OpPtT> oppPtTs;
+//	std::vector<OpPtT> edgePtTs;
 	size_t segSects = seg->sects.i.size();
 	size_t oppSects = opp->sects.i.size();
 	for (float oppT : oppRoots.roots) {
-#if 0
-//		if (OpMath::NearlyEndT(oppT))	// if curve hits middle of line, do not ignore (loop48977)
-//			continue;
-		// if computed point is nearly end, ignore
-		OpPoint oppPt = opp->c.ptAtT(oppT);  // !!! redundant if ray intersect is rewritten to return pt
-//		again, if curve hits middle of line, do not ignore (loop48977)
-//		if (oppPt.isNearly(oppT < .5 ? opp->c.firstPt() : opp->c.lastPt(), seg->threshold()))
-//			continue;
-		if (oppPt.isNearly(edgePts.pts[0], seg->threshold()))
-			continue;
-		if (oppPt.isNearly(edgePts.pts[1], seg->threshold()))
-			continue;
-		float edgeT = seg->findValidT(0, 1, oppPt);
-		oppPt = seg->c.ptAtT(edgeT);  // use line instead of curve to keep points on line
-		OpPtT oppPtT { oppPt, oppT };
-		if (OpMath::IsNaN(edgeT))
-			continue;
-		if (OpMath::NearlyEndT(edgeT))
-			continue;
-#elif 0
-		float edgeT;
-		PathOpsV0Lib::ContextCallbacks& cb = seg->contour->context->contextCallbacks;
-		float margin = cb.maxMarginFuncPtr ? cb.maxMarginFuncPtr(seg->c.c) : 8.0f;
-		margin *= OpEpsilon;
-		OpPtT oppPtT = opp->c.lineCurve(seg->c, oppT, &edgeT, MatchEnds::both, margin);  // check ends
-		if (OpMath::IsNaN(oppPtT.t))
-			continue;
-#else
 		OpPtT oppPtT = opp->c.ptTAtT(oppT);
 		float edgeT = seg->findLineT(oppPtT.pt);
 		if (!(0 <= edgeT) || !(edgeT <= 1))
 			continue;
-#endif
 		seg->ptBounds.pin(&oppPtT.pt);  // required by testLine409
 		opp->ptBounds.pin(&oppPtT.pt);
-		oppPtTs.push_back(oppPtT);
+//		oppPtTs.push_back(oppPtT);
+#if 0
 		edgePtTs.emplace_back(oppPtT.pt, edgeT);
 		OpPtT& edgePtT = edgePtTs.back();
-		for (size_t earlier = 1; earlier < oppPtTs.size(); ++earlier) {
-			if (oppPtTs[earlier - 1].t == oppPtT.t)
-				continue;
-		}
-		for (size_t earlier = 1; earlier < edgePtTs.size(); ++earlier) {
-			if (edgePtTs[earlier - 1].t == edgePtT.t)
-				continue;
-		}
-		if (seg->sects.contains(edgePtT, opp))
-			continue;
-		if (opp->sects.contains(oppPtT, seg))
-			continue;
+#else
+		OpPtT edgePtT(oppPtT.pt, edgeT);
+#endif
+		OP_DEBUG_CODE(bool alreadyContained = seg->sects.contains(edgePtT, opp));
+		OP_DEBUG_CODE(alreadyContained |= !!opp->sects.contains(oppPtT, seg));
 			// don't add sects here if coincident or unsectable will be added below --
 			// i guess record this and defer until after coin/unsect has been checked
+		if (limits.alreadyIn(edgePtT, oppPtT))
+			continue;
+		bool skipIt = false;
+		for (const SnipPtTs& snip : limits.snips) {
+			if ((snip.segCut.lo.t <= edgePtT.t && edgePtT.t <= snip.segCut.hi.t) 
+					|| (snip.oppCut.lo.t <= oppPtT.t && oppPtT.t <= snip.oppCut.hi.t)) {
+				skipIt = true;
+				break;
+			}
+		}
+		if (skipIt)
+			continue;
+		OP_ASSERT(!alreadyContained);
 		OpIntersection* sect = seg->addSegBase(edgePtT  OP_LINE_FILE_PARAMS(opp));
 		OpIntersection* oSect = opp->addSegBase(oppPtT  OP_LINE_FILE_PARAMS(seg));
 		sect->pair(oSect);
@@ -196,61 +176,60 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg) {
 		}
 		++index;
 	}
-	if (sectE) {
-		float midT = OpMath::Average(sectS->ptT.t, sectE->ptT.t);
-		// distance from seg point at midT normal to opp segment
-		OpPtT midPtT = seg->c.ptTAtT(midT);
-		OpPtT oppPtT = seg->distance(midPtT, opp);
-		float dist = (midPtT.pt - oppPtT.pt).length();
-		auto endFromT = [](OpIntersection* one, OpIntersection* two, MatchEnds match) -> MatchEnds {
-			return (one->ptT.t < two->ptT.t) == (MatchEnds::start == match) 
-					? MatchEnds::start : MatchEnds::end;
+	if (!sectE)
+		return;
+	float midT = OpMath::Average(sectS->ptT.t, sectE->ptT.t);
+	// distance from seg point at midT normal to opp segment
+	OpPtT midPtT = seg->c.ptTAtT(midT);
+	OpPtT oppPtT = seg->distance(midPtT, opp);
+	float dist = (midPtT.pt - oppPtT.pt).length();
+	auto endFromT = [](OpIntersection* one, OpIntersection* two, MatchEnds match) -> MatchEnds {
+		return (one->ptT.t < two->ptT.t) == (MatchEnds::start == match) 
+				? MatchEnds::start : MatchEnds::end;
+	};
+	float threshLen = seg->threshold().length();
+	if (dist <= threshLen) {
+		auto removeBetweeners = [](OpSegment* seg, size_t segSects, 
+				OpIntersection* start, OpIntersection* end) {
+			if (start->ptT.t > end->ptT.t)
+				std::swap(start, end);
+			size_t index = seg->sects.i.size();
+			const OpSegment* opp = start->opp->segment;
+			OP_ASSERT(opp == end->opp->segment);
+			while (index > segSects) {
+				OpIntersection* test = seg->sects.i[--index];
+				if (test->opp->segment == opp 
+						&& start->ptT.t < test->ptT.t && test->ptT.t < end->ptT.t)
+					seg->sects.i.erase(seg->sects.i.begin() + index);
+			}
 		};
-		float threshLen = seg->threshold().length();
-		if (dist <= threshLen) {
-			auto removeBetweeners = [](OpSegment* seg, size_t segSects, 
-					OpIntersection* start, OpIntersection* end) {
-				if (start->ptT.t > end->ptT.t)
-					std::swap(start, end);
-				size_t index = seg->sects.i.size();
-				const OpSegment* opp = start->opp->segment;
-				OP_ASSERT(opp == end->opp->segment);
-				while (index > segSects) {
-					OpIntersection* test = seg->sects.i[--index];
-					if (test->opp->segment == opp 
-							&& start->ptT.t < test->ptT.t && test->ptT.t < end->ptT.t)
-						seg->sects.i.erase(seg->sects.i.begin() + index);
-				}
-			};
-			removeBetweeners(seg, segSects, sectS, sectE);
-			removeBetweeners(opp, oppSects, sectS->opp, sectE->opp);
-			std::array<CoinEnd, 4> ends {{{ seg, opp, sectS->ptT, OpVector() }, 
-				{ seg, opp, sectE->ptT, OpVector() },
-				{ opp, seg, sectS->opp->ptT, OpVector() }, 
-				{ opp, seg, sectE->opp->ptT, OpVector() }}};
-			OpWinder::CoincidentCheck(ends, nullptr, nullptr);
-			return;
-		} 
-		PathOpsV0Lib::ContextCallbacks& cb = seg->contour->context->contextCallbacks;
-		float unsectDist = cb.maxUnsectDistFuncPtr ? cb.maxUnsectDistFuncPtr(seg->c.c) : 8.0f;
-		if (dist < seg->threshold().length() * unsectDist) {
-			int usectID = seg->nextID();
-			seg->addUnsectable(sectS->ptT, usectID, endFromT(sectS, sectE, MatchEnds::start), opp
-					OP_LINE_FILE_PARGS());
-			seg->addUnsectable(sectE->ptT, usectID, endFromT(sectS, sectE, MatchEnds::end), opp
-					OP_LINE_FILE_PARGS());
-			OpIntersection* oStart = sectS->opp;
-			OpIntersection* oEnd = sectE->opp;
-			bool flipped = oStart->ptT.t > oEnd->ptT.t;
-			if (flipped)
-				usectID = -usectID;
-			opp->addUnsectable(oStart->ptT, usectID, endFromT(oStart, oEnd, MatchEnds::start), seg
-					OP_LINE_FILE_PARGS());
-			opp->addUnsectable(oEnd->ptT, usectID, endFromT(oStart, oEnd, MatchEnds::end), seg
-					OP_LINE_FILE_PARGS());
-		}
+		removeBetweeners(seg, segSects, sectS, sectE);
+		removeBetweeners(opp, oppSects, sectS->opp, sectE->opp);
+		std::array<CoinEnd, 4> ends {{{ seg, opp, sectS->ptT, OpVector() }, 
+			{ seg, opp, sectE->ptT, OpVector() },
+			{ opp, seg, sectS->opp->ptT, OpVector() }, 
+			{ opp, seg, sectE->opp->ptT, OpVector() }}};
+		OpWinder::CoincidentCheck(ends, nullptr, nullptr);
+		return;
+	} 
+	PathOpsV0Lib::ContextCallbacks& cb = seg->contour->context->contextCallbacks;
+	float unsectDist = cb.maxUnsectDistFuncPtr ? cb.maxUnsectDistFuncPtr(seg->c.c) : 8.0f;
+	if (dist < seg->threshold().length() * unsectDist) {
+		int usectID = seg->nextID();
+		seg->addUnsectable(sectS->ptT, usectID, endFromT(sectS, sectE, MatchEnds::start), opp
+				OP_LINE_FILE_PARGS());
+		seg->addUnsectable(sectE->ptT, usectID, endFromT(sectS, sectE, MatchEnds::end), opp
+				OP_LINE_FILE_PARGS());
+		OpIntersection* oStart = sectS->opp;
+		OpIntersection* oEnd = sectE->opp;
+		bool flipped = oStart->ptT.t > oEnd->ptT.t;
+		if (flipped)
+			usectID = -usectID;
+		opp->addUnsectable(oStart->ptT, usectID, endFromT(oStart, oEnd, MatchEnds::start), seg
+				OP_LINE_FILE_PARGS());
+		opp->addUnsectable(oEnd->ptT, usectID, endFromT(oStart, oEnd, MatchEnds::end), seg
+				OP_LINE_FILE_PARGS());
 	}
-	return;
 }
 
 void OpSegments::AddEndMatches(OpContour* contour, OpContour* oContour) {
@@ -359,7 +338,6 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
 
 // note: ends have already been matched for consecutive segments
 FoundIntersections OpSegments::findIntersections() {
-	OP_DEBUG_CONTEXT();
     PathOpsV0Lib::WindingIntersect windingSect = context.windingCallbacks.windingIntersectFuncPtr;
 	for (OpContour* oContour: context.contours) {
 		if (oContour->disabled)
@@ -406,7 +384,6 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 	// set both to lines if they are linear before using them in t calculations
 	(void) seg->c.isLine();
 	(void) opp->c.isLine();
-	std::vector<OpIntersection*> matchingSects = AddEndMatches(seg, opp);
 	if (seg->willDisable || opp->willDisable)
 		return true;
 	if (seg->isSmall()) {
@@ -418,6 +395,7 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 		return true;
 	}
 	// for line-curve intersection we can directly intersect
+	std::vector<OpIntersection*> matchingSects = AddEndMatches(seg, opp);
 	if (seg->c.isLine()) {
 		if (opp->c.isLine()) {
 			if (seg->disabled)
@@ -438,10 +416,11 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 			if (IntersectResult::coincident == lineCoin)
 				return true;
 		}
-		AddLineCurveIntersection(opp, seg);
+		AddLineCurveIntersection(opp, seg, matchingSects);
 		return true;
 	} else if (opp->c.isLine()) {
-		AddLineCurveIntersection(seg, opp);
+		SwapEndMatches(matchingSects);
+		AddLineCurveIntersection(seg, opp, matchingSects);
 		return true;
 	}
 	// if the bounds only share a corner, there's nothing more to do
@@ -471,12 +450,17 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 	SectFound limitsResult = cc.runsToLimits();
 	if (SectFound::add == limitsResult)
 		ccResult = limitsResult;
-	if (SectFound::add == ccResult || cc.limits.size())
+	if (SectFound::add == ccResult || cc.fl.size())
 		cc.findUnsectable();
 //    OP_ASSERT(cc.limits.size() < 4);
 	cc.context->release(cc.context->ccStorage);
 	cc.context->ccStorage = nullptr;
 	OP_DEBUG_CODE(cc.context->debugCurveCurve = nullptr);
-	OP_DEBUG_CONTEXT();
 	return true;
+}
+
+void OpSegments::SwapEndMatches(std::vector<OpIntersection*>& matches) {
+	for (OpIntersection*& match : matches) {
+		match = match->opp;
+	}
 }

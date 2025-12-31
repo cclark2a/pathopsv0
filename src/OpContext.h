@@ -167,7 +167,6 @@ struct OpContext {
 	void initOutOnce();
 
 	void makeCoins() {
-		OP_DEBUG_CONTEXT();
 	    for (auto contour : contours) {
 			contour->makeCoins();
 		}

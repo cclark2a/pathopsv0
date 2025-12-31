@@ -1067,7 +1067,6 @@ float OpSegment::thresholdLength() const {
 
 // If edges are not identical, add filler to connect disabled next to kept coin (testQuads2558209)
 void OpSegment::transferCoins() {
-	OP_DEBUG_CONTEXT();
 	if (!hasCoin)
 		return;
 	if (disabled)
