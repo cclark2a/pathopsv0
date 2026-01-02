@@ -4,6 +4,7 @@
 
 #define TEST_SMALL_EXAMPLES 0
 #define TEST_SMALL_TESTS 0
+#define TINY_TESTS 1
 
 extern void ContainsExample();
 extern void CutExample();
@@ -17,6 +18,7 @@ extern void TestCut();
 extern void TestFrame();
 extern void TestPath2D(bool debugIt);
 extern void runTests();
+extern void runTinyTests();
 
 int main() {
 #if 0 && OP_DEBUG_IMAGE
@@ -40,6 +42,10 @@ int main() {
  	TestPath2D(true);
     TestFrame();
 #endif
+#if TINY_TESTS
+    runTinyTests();
+#else
 	runTests();
+#endif
     return 0;
 }

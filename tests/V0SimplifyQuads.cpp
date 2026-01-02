@@ -1,0 +1,69 @@
+// (c) 2025, Cary Clark cclark2@gmail.com
+// the test below is optimized for speed, reduced memory, and random access
+#include "TinySkia.h"
+#include "TinySkiaTests.h"
+
+void V0SimplifyQuads(TestOptions* options) {
+    auto test = [options](int a, int b, int c, int d) {
+        float ax = (float) (a & 0x03);
+        float ay = (float) (a >> 2);
+        float bx = (float) (b & 0x03);
+        float by = (float) (b >> 2);
+        float cx = (float) (c & 0x03);
+        float cy = (float) (c >> 2);
+        float dx = (float) (d & 0x03);
+        float dy = (float) (d >> 2);
+        for (int e = 0 ; e < 16; ++e) {
+            float ex = (float) (e & 0x03);
+            float ey = (float) (e >> 2);
+            for (int f = e ; f < 16; ++f) {
+                float fx = (float) (f & 0x03);
+                float fy = (float) (f >> 2);
+                for (int g = f ; g < 16; ++g) {
+                    float gx = (float) (g & 0x03);
+                    float gy = (float) (g >> 2);
+                    for (int h = g ; h < 16; ++h) {
+                        if (options->skipTests(2))
+                            continue;
+                        float hx = (float) (h & 0x03);
+                        float hy = (float) (h >> 2);
+                        SkPath path;
+                        path.moveTo(ax, ay);
+                        path.quadTo(bx, by, cx, cy);
+                        path.lineTo(dx, dy);
+                        path.close();
+                        path.moveTo(ex, ey);
+                        path.lineTo(fx, fy);
+                        path.quadTo(gx, gy, hx, hy);
+                        path.close();
+                        path.setFillType(SkPathFillType::kWinding);
+                        if (!options->testOne(path)) // 1st test is quad1
+                            return false;
+                        path.setFillType(SkPathFillType::kEvenOdd);
+                        if (!options->testOne(path))
+                            return false;
+                    }
+                }
+            }
+        }
+        return true;
+    };
+    // 4 axis triangular number (pentatope number) is 3876 for 16
+    // since each path is evaluated twice (winding, even odd) skip by 7752
+    const int testCount = 16 * 17 * 18 * 19 * 2 / 24;
+    options->indexOffset = testCount;
+    options->index = -testCount + 1;  // skia test framework bug skips first set of tests
+    options->skip += testCount - 1;
+    for (int a = 0; a < 16; ++a) {
+        for (int b = a; b < 16; ++b) {
+            for (int c = b; c < 16; ++c) {
+                for (int d = c; d < 16; ++d) {
+                    if (!options->skipTests(testCount) && !test(a, b, c, d))
+                        return;
+                }
+                if (!options->extended) 
+                    return;
+            }
+        }
+    }
+}

@@ -481,7 +481,7 @@ int OpDebugReadNamedInt(const char*& str, const char* label) {
         ++str;
     if (',' == str[0])
         ++str;
-    while (' ' >= str[0])
+    while (str[0] && ' ' >= str[0])
         ++str;
     return result;
 }
@@ -729,7 +729,7 @@ bool OpCurveCurve::debugBreak(CcBreak atDepth) {
         s += "atDepth:" + STR(depth);
     if (CcBreak::atEnd == atDepth)
         s += "atEnd:" + STR(depth);
-	context->dumpFile(s);
+    context->dumpFile(s);
 	return false;
 #else
     return true;
@@ -1060,7 +1060,7 @@ void OpContour::debugMatchRay() {
                 if (dTest && !dTest->inLinkups && !dTest->inOutput) {
                     bool foundOne = false;
                     for (auto& pal : dTest->pals)
-                        foundOne |= pal.edge->inLinkups;
+                        foundOne |= dTest->active_impl || pal.edge->active_impl;
                     for (OpContour* overlap : overlaps) {
                         for (auto& us : overlap->unsectByArea)
                             foundOne |= dTest == us && dTest->isActive();

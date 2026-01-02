@@ -81,22 +81,6 @@ std::vector<testInfo> testSuites = {
     { run_tiger_tests, "tiger", 7005, 700005 },
 };
 
-std::vector<std::string> highError = {
-"testQuads1868284", // "0.00301069394"
-"testQuads2441981", // "0.00984116644"
-"testQuads2449734", // "0.00984228961"
-"testQuads2465237", // "0.00986487791"
-"testQuads2472989", // "0.00987935439"
-"testQuads2558547", // "0.0110246753"
-"testQuads2558548", // "0.0111738387"
-"testQuads2559908", // "0.0112013761"
-"testQuads2566300", // "0.0112189064"
-"testQuads2567659", // "0.0112196235"
-"testQuads2567660", // "0.0112479953"
-"testQuads5109541", // "0.0114621641"
-"testQuads5109542", // "0.0121286092"    
-};
-
 // skip tests by filename
 std::vector<std::string> skipTestFiles = { TEST_PATH_OP_SKIP_FILES };
 std::vector<std::string> skipRestFiles = { TEST_PATH_OP_SKIP_REST };
@@ -113,6 +97,7 @@ std::atomic_int testsDot = 0;
 std::atomic_int testsLine = 0;
 std::atomic_int totalRun = 0;
 std::atomic_int testsSkipped = 0;
+std::atomic_int testsToRun = 0;
 std::atomic_int testsToSkip = 0;
 std::atomic_int totalSkipped = 0;
 std::atomic_int silentError = 0;
@@ -206,6 +191,7 @@ void initTests(std::string filename) {
     testsDot = 0;
     testsLine = 0;
     testsSkipped = 0;
+    testsToRun = TESTS_TO_RUN;
     testsToSkip = TESTS_TO_SKIP;
     OpDebugOut(currentTestFile + "\n");
 }
@@ -237,7 +223,10 @@ bool skipTest(std::string name) {
 #endif
     if (showTestName)
         OpDebugOut(name + "\n");
-    ++testsRun;
+    if (++testsRun == testsToRun) {
+        endFirstTest = true;
+        return true;
+    }
     {
 #if OP_DEBUG_FAST_TEST
         std::lock_guard<std::mutex> guard(out_mutex);
@@ -555,7 +544,7 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
         );
     if (runOneFile)
         dumpOpTest(testname, a, b, op, TestInFile);
-	(void) OpV0(a, b, op, &result, &debugData);
+    (void) OpV0(a, b, op, &result, &debugData);
     CheckForError(debugData, v0MayFail);
 }
 

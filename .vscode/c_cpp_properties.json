@@ -11,7 +11,7 @@
                 "TEST_RASTER=1",
                 "_GLIBCXX_DEBUG"
             ],
-            "compilerPath": "/usr/bin/clang",
+            "compilerPath": "/opt/homebrew/opt/llvm/bin/clang++",
             "cStandard": "c17",
             "cppStandard": "c++20",
             "intelliSenseMode": "macos-clang-arm64"
@@ -27,7 +27,12 @@
                 "TEST_RASTER=1",
                 "_GLIBCXX_DEBUG"
             ],
-            "compilerPath": "/usr/bin/clang",
+            "compilerPath": "/opt/homebrew/opt/llvm/bin/clang++",
+            "compilerArgs": [
+                "-fsanitize=address",
+                "-fno-omit-frame-pointer",
+                "-Wno-invalid-offsetof"
+            ],
             "cStandard": "c17",
             "cppStandard": "c++20",
             "intelliSenseMode": "macos-clang-arm64"
@@ -43,7 +48,7 @@
                 "TEST_RASTER=0",
                 "_GLIBCXX_DEBUG"
             ],
-            "compilerPath": "/usr/bin/clang",
+            "compilerPath": "/opt/homebrew/opt/llvm/bin/clang++",
             "cStandard": "c17",
             "cppStandard": "c++20",
             "intelliSenseMode": "macos-clang-arm64"

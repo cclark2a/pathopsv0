@@ -458,15 +458,6 @@ void OpDebugRequired(const char*& str, const char* match);
 
 #endif
 
-// if identical runs produce different results, use this to help determine where 
-// the successive runs first differ
-#if OP_DEBUG_COMPARE
-#define OP_DEBUG_DUMP_COUNT(contours, label) contours.dumpCount(#label)
-
-#else
-#define OP_DEBUG_DUMP_COUNT(contours, label)
-#endif
-
 #if OP_DEBUG_SERIALIZE_OUT
 enum class DebugLevel;
 enum class DebugBase;

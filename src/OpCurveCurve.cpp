@@ -392,7 +392,7 @@ bool CcCurves::checkMid(float midT, float startDist, float endDist) {
 bool CcCurves::checkMidEdge(OpEdge* edge) {
     if (!edge->startDist.isSet() || !edge->endDist.isSet())
         return true;
-	if (edge->centerless)
+    if (edge->centerless)
 		return false;
     return checkMid(edge->center.t, edge->startDist.dist, edge->endDist.dist);
 }

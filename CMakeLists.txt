@@ -13,20 +13,21 @@ if (DEFINED COVERAGE)
 endif()
 
 if (DEFINED TSAN)
-	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
+	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread -Wno-invalid-offsetof")
 	set (CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fsanitize=thread")
 endif ()
 
 if (DEFINED ASAN)
-	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
+	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer -Wno-invalid-offsetof")
+    set (ENV{MallocNanoZone} "0")
 endif ()
 
 if (DEFINED MSAN)
-	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=memory")
+	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=memory -Wno-invalid-offsetof")
 endif ()
 
 if (DEFINED LSAN)
-	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=leak")
+	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=leak -Wno-invalid-offsetof")
 	set (CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fsanitize=leak")
 endif ()
 
@@ -72,7 +73,6 @@ set (COMMON_SOURCES
 # Add source to this project's executable.
 set (SKIA_TESTS
 	"debug/OpDebugColor.cpp"
-	"debug/OpDebugCompare.cpp"
 	"debug/OpDebugDump.cpp"
 	"debug/OpDebugGenerator.cpp"
 	"debug/OpDebugRaster.cpp"
@@ -100,7 +100,9 @@ set (SKIA_TESTS
     "tests/PathOpsSimplifyTrianglesThreadedTest_shim.cpp"
     "tests/PathOpsTigerTest_shim.cpp"
     "tests/TinySkia.cpp"
+    "tests/TinySkiaTests.cpp"
     "tests/UnitTestPathOps.cpp"
+    "tests/V0SimplifyQuads.cpp"
 )
 
 add_executable (skia_test )
@@ -193,7 +195,13 @@ endif()
 # (remove all built files)
 # cmake -S . -B destDir/ -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
 # cmake --build destDir/
-# destDir/skia_test
+# ./destDir/skia_test
+# or xx=={a, t, l, m}
+# cmake -S . -B xxsan/ -D XXSAN=1 -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
+# cmake --build xxsan/
+# lldb xxsan/skia_test
+# run
+
 # lcov -c -d  . -o skiatest.info
 # genhtml --ignore-errors inconsistent skiatest.info --output-directory skiatestout
 # file:///D:/gerrit/skia/example/cmake/skiatestout/example/
