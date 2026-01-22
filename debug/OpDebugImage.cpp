@@ -1324,7 +1324,7 @@ void OpDebugImage::drawRaster() {
 		y += yStep;
 	}
 	OpDebugImage::drawPath(path, 0x3f000000);
-#if 0 && TEST_RASTER
+#if 0 && OP_TEST_RASTER
 	float rW = xStep / 2;
 	float rH = yStep / 2;
 	auto draw = [rW, rH, mapLT, xStep, yStep](OpDebugRaster* raster) {

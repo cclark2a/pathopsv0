@@ -69,7 +69,7 @@ struct OpContext {
 
 	bool addAlias(OpPoint pt, OpPoint alias);
 //    OpEdge* addFiller(OpEdge* edge, OpEdge* lastEdge);
-	OpEdge* addFiller(const OpPtT& start, const OpPtT& end, OpSegment* parent);
+	OpEdge* addFiller(OpPoint start, OpPoint end, OpSegment* parent);
 	void addToBounds(const OpCurve& );
     void addUserData(PathOpsV0Lib::ContextUserData );
 	uint8_t* allocateCallerData(size_t );
@@ -255,7 +255,7 @@ struct OpContext {
 #else
 	void debugValidateIntersections() {}
 #endif
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 	void dumpBaseFile() const;
 	void dumpFile(std::string description);
     const OpEdge* debugFindEdge(int id) const;
@@ -329,19 +329,17 @@ struct OpContext {
 	bool debugCheckLastEdge = false;
 	bool debugFailOnEqualCepts = false;
 #endif
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 	std::string debugFilename;
 	std::string debugDescription;
 	std::string debugOutPath;
 	int dumpIndex = 0;  // number of dumped file
 #endif
 #if OP_DEBUG_DUMP
-	std::vector<std::string> debugDumpNotes;
-	std::vector<std::string> debugDumpSkips;
 	std::vector<OpEdge*> debugDumpErasures;  // read from flattened data
 	bool debugDumpInit = false;   // if true, created by dump init
 #endif
-#if TEST_RASTER
+#if OP_TEST_RASTER
 	struct DebugRaster* debugRaster = nullptr;
 #endif
 };

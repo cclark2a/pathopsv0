@@ -158,16 +158,16 @@ Distance::Distance()
 	, rayOrder((RayOrder) -1)
 	, cept(OpDebugNaN)
 	, edgeInsideT(OpDebugNaN)	
-	, dependent((bool) -1)
-	, reversed((bool) -1)
-	, over((bool) -1)
+	, dependent(-1)
+	, reversed(-1)
+	, over(-1)
 	, debugID(-1) {
 }
 
 EdgePal::EdgePal()
 	: edge(nullptr)
 	, unsectID(0)
-	, reversed((bool) -1) {
+	, reversed(-1) {
 }
 #endif
 
@@ -216,25 +216,26 @@ OpEdge::OpEdge(OpIntersection* sectStart, OpIntersection* sectEnd  OP_LINE_FILE_
 }
 
 // called when creating filler; edge that closes small gaps
-OpEdge::OpEdge(OpContext* context, const OpPtT& start, const OpPtT& end  OP_LINE_FILE_ARGS())
+// points may not be on segment, so don't guess at t values
+OpEdge::OpEdge(OpContext* context, const OpPoint start, const OpPoint end  OP_LINE_FILE_ARGS())
 	: OpEdge() {
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = 0);
-	segment = nullptr;  // assume these can't be used -- edge does not exist in segment
 //	startSect = -1;
 //	endSect = -1;
 //	OP_ASSERT(start.t < end.t);
-	startT = start.t;
-	endT = end.t;
+//	startT = start.t;
+//	endT = end.t;
 	id = context->nextID();
-	PathOpsV0Lib::CurveData lineData { start.pt, end.pt };
+	PathOpsV0Lib::CurveData lineData { start, end };
 	PathOpsV0Lib::Curve lineCurve { (ContextPtr) context, &lineData, sizeof(lineData), 
             PathOpsV0Lib::degenerateLine };
 	curve = OpCurve(lineCurve, Rotated::no);
 	curve.isLineSet = true;
 	curve.isLineResult = true;
 	setPointBounds();
-	center.t = OpMath::Interp(startT, endT, .5);
+//	center.t = OpMath::Interp(startT, endT, .5);
+	center.t = OpNaN;
 	center.pt = bounds.center();
 	setDisabled(OP_LINE_FILE_NPARGS());
 	setUnsortable(Unsortable::filler);
@@ -659,8 +660,7 @@ void OpEdge::outputLink(OpEdge* firstEdge, bool closeLoop) {
 		copy.reverse();
 	bool last = !nextEdge || firstEdge == nextEdge;
 	OpEdge* nextPtEdge = nextEdge ? nextEdge : firstEdge;
-	OpPoint nextPt = EdgeMatch::start == nextPtEdge->which() 
-			? nextPtEdge->curve.firstPt() : nextPtEdge->curve.lastPt();
+	OpPoint nextPt = nextPtEdge->whichCurvePt();
 	bool addFiller = nextPt != copy.lastPt();
 	PathOpsV0Lib::WindKeep keep = copy.output(winding.w, this == firstEdge, last && !addFiller 
             OP_DEBUG_RASTER_PARAMS(this));
@@ -674,7 +674,7 @@ void OpEdge::outputLink(OpEdge* firstEdge, bool closeLoop) {
 	    clearNextEdge();	    
     }
 	if (addFiller && (!last || !closeLoop)) {
-		OpEdge* filler = context()->addFiller({ copy.lastPt(), 0 }, { nextPt, 1 }, segment);
+		OpEdge* filler = context()->addFiller(copy.lastPt(), nextPt, segment);
     	filler->curve.output(winding.w, false, last  OP_DEBUG_RASTER_PARAMS(filler));
 	}
 }
@@ -862,7 +862,7 @@ OpEdge* OpEdge::updateLastEdge() {
 }
 
 OpPtT OpEdge::whichSect(EdgeMatch match) const {
-    return match == (EdgeMatch::none == whichEnd_impl ? EdgeMatch::start : whichEnd_impl)
+    return match == (EdgeMatch::none == which() ? EdgeMatch::start : which())
             ? startPtT() : endPtT();
 }
 

@@ -115,7 +115,7 @@ struct OpIntersection {
 #if OP_DEBUG_DUMP
 	void debugCompare(std::string) const;
 #endif
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 	#define OP_X(Thing) \
 	std::string debugDump##Thing() const; \
 	void dump##Thing() const;
@@ -134,6 +134,7 @@ struct OpIntersection {
 	MatchEnds unsectEnd = MatchEnds::none;  // one side is negative if pair are flipped
 	CoinOpp coinOpp = CoinOpp::no;  // set if coincident segment or edge will be disabled
 	bool betweenCoins = false;  // used to find unsortable edges between coincident pairs
+	bool ccLine = false;  // set if curve-curve flattened to line to find intersection
 	bool ccSect = false;  // set if curve-curve created coins/unsectables (if possibly out-of-order)
 	bool ccUnsectable = false;  // set if curve-curve created or set unsectables (to treat as coin)
 	bool collapsed = false;  // set if coincidence or unsect pair collapsed to a point
@@ -182,7 +183,7 @@ struct OpIntersections {
 	OpIntersection* contains(const OpPtT& ptT, const OpSegment* opp);  // nearby ptT
 	CloseBy containsClose(OpPoint pt, OpVector threshold, const OpSegment* opp) const;
 //	OpIntersection* const * entry(const OpPtT& , const OpSegment* opp) const;  // exact opp + ptT
-	std::vector<int> findPals(float t) const;
+//	std::vector<int> findPals(float t) const;
 	void makeEdges(OpSegment* );
 	void markInCoincidence();
 	float matchT(const OpPtT& , OpPoint destination, MatchEnds ) const;
@@ -228,7 +229,7 @@ struct OpSectStorage {
 	OpIntersection* debugFind(int id) const;
 	static void DumpSet(const char*& , OpContext* );
 #endif
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 	int debugCount() const;
 	OpIntersection* debugIndex(int index) const;
 #endif

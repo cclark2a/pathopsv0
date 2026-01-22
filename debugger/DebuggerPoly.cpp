@@ -2,6 +2,7 @@
 
 #include "DebuggerState.h"
 #include "OpContext.h"
+#include "OpDebugRaster.h"
 #include "OpSegment.h"
 #include "DebugOpsTypes.h"
 
@@ -49,6 +50,7 @@ bool DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
     if (window->focus.contains(bounds))
         return window->add(curve, this);
     std::vector<DebugSect> sects;
+    // !!! this generates parallels to window frame which are not part of original curve
     // bounds overlaps, but curve may not intersect; find interior ends, intersection with bounds
     auto addPin = [this, &sects](OpPtT end) {
         OpPoint sect = { OpMath::PinSorted(window->focus.left, end.pt.x, window->focus.right),
@@ -63,8 +65,6 @@ bool DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
         }
     };
     addPin(OpPtT(c.data->start, 0));
-    bool debugThis = IDType::segment == opType.type && 5 == opType.segment->id 
-            && opType.segment->ptBounds.top < window->focus.top;
     auto crossRoots = [&curve](Axis axis, float xy) {
         if (!OpMath::Between(curve.firstPt().choice(axis), xy, curve.lastPt().choice(axis)))
             return OpRoots();
@@ -76,8 +76,6 @@ bool DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
             Axis::horizontal);
     addSects(crossRoots(Axis::vertical, window->focus.right), window->focus.right,
             Axis::vertical);
-    if (debugThis)
-        OpNop();
     addSects(crossRoots(Axis::horizontal, window->focus.bottom), window->focus.bottom,
             Axis::horizontal);
     addPin(OpPtT(c.data->end, 1));
@@ -85,30 +83,43 @@ bool DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
     std::sort(sects.begin(), sects.end(), [](const auto& s1, const auto& s2) {
 			return s1.sect.t < s2.sect.t; } );
     DebugSect* last = &sects.front();
+//    OpBreak(&opType, 70);
     for (DebugSect& sect : sects) {
-        if (last->sect.t < sect.sect.t) {
-            OpCurve piece = curve.debugSubDivide(last->sect.t, sect.sect.t);
-            if (debugThis)
-                OpNop();
-            OpPointBounds pieceBounds = piece.ptBounds();
-            bool overlaps = pieceBounds.intersectsThreshold(window->focus, -window->threshold);
-            if (!overlaps) {
-                if (addingFill && last->sect.pt != sect.sect.pt)
-                    window->add(last->sect.pt, sect.sect.pt, this);
-            } else {
-                piece.setFirstPt(last->sect.pt);
-                piece.setLastPt(sect.sect.pt);
-                window->add(piece, this);
-                DebuggerPoly& added = window->polys.back();
-                added.tStart = last->sect.t;
-                added.tEnd = sect.sect.t;
-            }
-        }
+        if (last->sect.t == sect.sect.t)
+            sect.pin &= last->pin;
         last = &sect;
     }
-    if (debugThis)
-        OpNop();
+    last = &sects.front();
+    for (DebugSect& sect : sects) {
+        if (last->sect.t == sect.sect.t)
+            continue;
+        if (last->pin || sect.pin) {
+            if (addingFill)
+                window->add(last->sect.pt, sect.sect.pt, this);
+            last = &sect;
+            continue;
+        }
+        OpCurve piece = curve.debugSubDivide(last->sect.t, sect.sect.t);
+        piece.setFirstPt(last->sect.pt);
+        piece.setLastPt(sect.sect.pt);
+        window->add(piece, this);
+        DebuggerPoly& added = window->polys.back();
+        added.tStart = last->sect.t;
+        added.tEnd = sect.sect.t;
+        last = &sect;
+    }
     return true;  // !!! don't know that this is always true
+}
+
+void DebuggerAddPoly::add(const DebugOutput& debugOutput) {
+    opType = OpType(debugOutput.edge);
+    addingFill = true;
+    monotonic = true;
+    auto loopAttributeSet = [debugOutput](PathOpsV0Lib::LoopAttribute attr) {
+        return !!((int) debugOutput.loopAttr & (int) attr);
+    };
+    continueCurve = !loopAttributeSet(PathOpsV0Lib::LoopAttribute::first);
+    add(debugOutput.curve.c);
 }
 
 void DebuggerAddPoly::add(const OpEdge* e) {
@@ -123,6 +134,14 @@ void DebuggerAddPoly::add(const OpSegment* s) {
     addingFill = false;
     monotonic = true;
     add(s->c.c);
+}
+
+void DebuggerAddPoly::add(const OpIntersection* i) {
+    opType = OpType(i);
+    addingFill = false;
+    pointOnly = true;
+    if (window->focus.contains(i->ptT.pt))
+        window->add(i->ptT.pt, i->ptT.pt, this);
 }
 
 // !!! for segments making up area; color comes from contour
@@ -165,9 +184,6 @@ void DebuggerAddPoly::add(const OpRect& r) {
 }
 #endif
 
-extern DebugBase defaultBase;
-extern DebugLevel defaultLevel;
-
 void DebuggerPoly::dump() const {
     std::string s;
     s += "local:" + STR(local.size()) + " ";
@@ -175,6 +191,10 @@ void DebuggerPoly::dump() const {
         s += "edge:";
     if (IDType::segment == opType.type)
         s += "segment:";
+    if (IDType::intersection == opType.type)
+        s += "intersection:";
+    if (IDType::contour == opType.type)
+        s += "contour:";
     if (opType.id)
     s += STR(opType.id) + " ";
     if (1 != thickness)

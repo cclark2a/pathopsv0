@@ -1,7 +1,7 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpDebug.h"
 
-#if OP_DEBUG || OP_RELEASE_TEST
+#if OP_TEST
 #include <string>
 #ifdef _WIN32
 #include <windows.h>
@@ -89,7 +89,7 @@ float OpTicksToSeconds(uint64_t diff, uint64_t frequency) {
 
 #endif
 
-#if !defined(NDEBUG) || OP_RELEASE_TEST
+#if OP_TEST
 void OpDebugOut(const std::string& s) {
 #ifdef _WIN32
     if (s.size()) OutputDebugStringA(s.c_str());  // !!! printing empty strings slows visual studio!
@@ -296,7 +296,7 @@ int32_t OpDebugFloatToBits(float f) {
     return d.i;
 }
 
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 
 std::string OpDebugByteToHex(uint8_t hex) {
     std::string s = "0x";
@@ -437,6 +437,8 @@ uint8_t OpDebugByteToInt(const char*& str) {
             nybble = c - 'a' + 10;
         result = (result << 4) | nybble;
     }
+    if ('\0' == str[0])
+        return result;
     if (' ' >= str[0])
         ++str;
     if (']' == str[0])
@@ -1067,7 +1069,7 @@ void OpContour::debugMatchRay() {
                         for (auto& u : overlap->unsortables)
                             foundOne |= dTest == u && dTest->isActive();
                     }
-                    OP_ASSERT(foundOne || mayFail);
+                    OP_ASSERT(foundOne || mayFail || Unsortable::none != dTest->isUnsortable);
                 }
                 if (dTest)
                     linkup->debugMatch = dTest;
@@ -1148,7 +1150,7 @@ void OpContour::debugMatchRay() {
     }
 }
 
-#if OP_DEBUG_IMAGE
+#if OP_DEBUG_DUMP || OP_DEBUGGER || OP_TEST
 PathOpsV0Lib::Curve OpContour::debugCurve(int index, std::vector<float>* extremaArray) const {
     OP_ASSERT(index < (int) debugCurveData.size());
     const PathOpsV0Lib::DebugCurveData& data = debugCurveData[index];
@@ -1284,7 +1286,7 @@ void debugCubicScale(PathOpsV0Lib::Curve curve, double sX, double sY, double dX,
 }
 
 void SetDebugCurveData(Contour* ctour, DebugCurveData curveData) {
-#if OP_DEBUG_IMAGE
+#if OP_TEST
     OpContour* contour = (OpContour*) ctour;
     PathOpsV0Lib::DebugCurve* data = 
             (PathOpsV0Lib::DebugCurve*) contour->context->allocateCurveData(curveData.size);

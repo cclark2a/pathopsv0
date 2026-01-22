@@ -6,6 +6,7 @@
 #include <atomic>
 #include <mutex>
 #include <thread>
+#include "OpContext.h"
 #include "OpDebugRaster.h"
 #include "OpSkiaTests.h"
 #include "PathOps.h"
@@ -50,8 +51,10 @@ std::vector<std::string> highError = {
 "testQuads5109542", // "0.0121286092"    
 };
 
+thread_local std::string currentTest;  // can't be in a struct
+
 struct TinyState {
-    void addADot();
+    void addADot(const OpDebugData& );
     void test();
     void trackError(PathOpsV0Lib::ContextError contextError);
     std::string stats();
@@ -63,29 +66,20 @@ struct TinyState {
     std::atomic<float> pixelError = 0.f;
     std::atomic_int testIndex = 0; 
     std::atomic_int gapError = 0;
+    std::atomic_int testsError = 0;
     std::atomic_int testsRun = 0;
     std::atomic_int testsDot = 0;
     std::atomic_int testsLine = 0;
     std::atomic_int testsSkipped = 0;
     std::atomic_int testsToRun = TESTS_TO_RUN;
     std::atomic_int testsToSkip = TESTS_TO_SKIP;
-    std::atomic_int totalError = 0;
-    std::atomic_int totalRun = 0;
-    std::atomic_int totalSkipped = 0;
     std::atomic_int treeError = 0;
     std::atomic_int silentError = 0;
     #if OP_DEBUG_FAST_TEST
-    #define OP_THREAD_LOCAL thread_local
-    #else
-    #define OP_THREAD_LOCAL
-    #endif
-    OP_THREAD_LOCAL std::string currentTest;
-    OP_THREAD_LOCAL int firstTest = 0;
-    OP_THREAD_LOCAL int lastTest = 0;
-    #if OP_DEBUG_FAST_TEST
     std::mutex out_mutex;
     #endif
-    float maxError = 0.00247338437f;  // testQuads1411840
+    float baseError = 0.00247338437f;
+    float maxError = baseError;  // testQuads1411840
     int maxThreads = std::thread::hardware_concurrency();
     bool checkForDuplicateNames = false;
     bool defeatBreak = TEST_DEFEAT_BREAK || !strlen(TEST_FIRST);
@@ -97,10 +91,15 @@ struct TinyState {
     bool endFirstTest = false;
 } tinyState;
 
-void TinyState::addADot() {
+void TinyState::addADot(const OpDebugData& debugData) {
 #if OP_DEBUG_FAST_TEST
     std::lock_guard<std::mutex> guard(out_mutex);
 #endif
+    ++testsRun;
+    pixelError += debugData.error; 
+    if (debugData.error > maxError)
+        largestError = debugData.testname;
+    maxError = std::max(debugData.error, maxError);
     if (!OP_SHOW_ERRORS_ONLY && !showName && testsRun && testsRun % 1000000 == 0)
         OpDebugOut(STR(testsRun / 1000000) + "M");
     ++testsDot;
@@ -117,26 +116,25 @@ void TinyState::addADot() {
 
 std::string TinyState::stats() {
     std::string s;
-    if (!currentTest.empty())
-        s += currentTest + " run:" + STR(testsRun) + " skipped:" + STR(testsSkipped);
-    if (currentTest.empty() || testsRun != totalRun || testsSkipped != totalSkipped)
-        s += "  total run:" + STR(totalRun) + " skipped:" + STR(totalSkipped);
-    if (totalError)
-        s += "  error count:" + STR(totalError);
-    if (treeError)
-        s += "  treeErr count:" + STR(treeError);
+    s += "testsRun:" + STR(testsRun) + " testsSkipped:" + STR(testsSkipped) + " ";
     if (gapError)
-        s += "  gapErr count:" + STR(gapError);
-    if (pixelError && totalRun)
-        s += "  avg pixel error:" + STR(pixelError / totalRun);
-    if (maxError)
-        s += "  max pixel error:" + STR(maxError) + " " + largestError;
+        s += "gapError:" + STR(gapError) + " ";
+    if (testsError)
+        s += "testsError:" + STR(testsError) + " ";
+    if (treeError)
+        s += "treeError:" + STR(treeError) + " ";
+    if (silentError)
+        s += "silentError:" + STR(silentError) + " ";
+    if (pixelError && testsRun)
+        s += " avg pixelError:" + STR(pixelError / testsRun) + " ";
+    if (baseError < maxError)
+        s += "maxError:" + STR(maxError) + " largestError:" + largestError + " ";
     return s;
 }
 
 void TinyState::trackError(PathOpsV0Lib::ContextError contextError) {
 	if (PathOpsV0Lib::ContextError::none != contextError)
-		++totalError;
+		++testsError;
 	switch (contextError) {
 		case PathOpsV0Lib::ContextError::none:
 			break;
@@ -182,7 +180,7 @@ void TestSimplify(SkPath& path , TestOptions* options) {
     Contour* simple = SetSkiaSimplifyCallbacks(context, simpleData, sizeof(simpleData), 
             isWindingFill(path)  OP_DEBUG_PARAMS(&path));
     AddSkiaPath(context, simple, path);
-#if TEST_RASTER
+#if OP_TEST_RASTER
     DebugRaster debugRaster((OpContext*) context);
     debugRaster.deleteOld();
     if (OpDebugExpect::success == debugData.expect)    
@@ -195,12 +193,12 @@ void TestSimplify(SkPath& path , TestOptions* options) {
 	}
     contextError = Error(context);
 	tinyState.trackError(contextError);
-#if TEST_RASTER
+#if OP_TEST_RASTER
     if (OpDebugExpect::success == debugData.expect)
         debugData.error = debugRaster.out();
 #endif
     DeleteContext(context);
-    tinyState.addADot();
+    tinyState.addADot(debugData);
 }
 
 static void threadTest(TinySuite tinySuite, TestOptions options) {
@@ -220,7 +218,7 @@ void TinyState::test() {
                 if (Skippable::yes == tinySuite.skippable) {
                     const char* firstStr = testFirst.c_str();
                     options.skip = OpDebugReadNamedInt(firstStr, tinySuite.baseName.c_str());
-                    OP_ASSERT(options.skip > 0);
+//                    OP_ASSERT(options.skip > 0);
                     options.skip -= 1;
                 } else
                     options.testFirst = testFirst;

@@ -77,10 +77,6 @@ bool DebugAnalyze(PathOpsV0Lib::Context* );
 void AddDebugSkiaPath(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* , const SkPath& path);
 #endif
 
-#if !OP_TINY_SKIA
-std::string dumpSkPath(const SkPath* path, bool inHex);
-#endif
-
 // !!! unsure if visual debugger needs these or not in the long run; for now, disable
 #if 0 && OP_DEBUG_DUMP && OP_DEBUG
 #define DEBUG_SKIAPATH_TAGGED_FUNCTIONS \

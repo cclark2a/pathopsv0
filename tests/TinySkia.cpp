@@ -447,6 +447,8 @@ void SkPath::offset(float dx, float dy) {
 
 std::string SkPath::debugDumpCommon(bool hex) const {
 	std::string result;
+	std::array<std::string, 4> ws { "kWinding", "kEvenOdd", "kInverseWinding",  "kInverseEvenOdd" };
+	result += "path.setFillType(SkPathFillType::" + ws[(int) fFillType] + ")\n";
 	bool move = true;
 	OpPoint first;
 	for (const TinyCurve& c : path) {

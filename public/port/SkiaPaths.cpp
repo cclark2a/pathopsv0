@@ -1,13 +1,7 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
-#if OP_TINY_SKIA
 #include "TinySkia.h"
-#else
-#include "include/core/SkPathTypes.h"
-#include "include/core/SkPath.h"
-#endif
-
 #include "SkiaPaths.h"
-#if TEST_RASTER
+#if OP_TEST_RASTER
 #include "OpDebugRaster.h"
 #endif
 

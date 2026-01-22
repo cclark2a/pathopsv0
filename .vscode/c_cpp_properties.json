@@ -2,15 +2,8 @@
     "configurations": [
         {
             "name": "skia_test",
-            "includePath": [
-                "${default}"
-            ],
-            "defines": [
-                "OP_DEBUG_FAST_TEST=0",
-                "OP_TINY_SKIA=1",
-                "TEST_RASTER=1",
-                "_GLIBCXX_DEBUG"
-            ],
+            "includePath": [ "${default}" ],
+            "defines": [ "_GLIBCXX_DEBUG" ],
             "compilerPath": "/opt/homebrew/opt/llvm/bin/clang++",
             "cStandard": "c17",
             "cppStandard": "c++20",
@@ -18,15 +11,8 @@
         }, 
         {
             "name": "skia_test_asan",
-            "includePath": [
-                "${default}"
-            ],
-            "defines": [
-                "OP_DEBUG_FAST_TEST=0",
-                "OP_TINY_SKIA=1",
-                "TEST_RASTER=1",
-                "_GLIBCXX_DEBUG"
-            ],
+            "includePath": [ "${default}" ],
+            "defines": [ "_GLIBCXX_DEBUG" ],
             "compilerPath": "/opt/homebrew/opt/llvm/bin/clang++",
             "compilerArgs": [
                 "-fsanitize=address",
@@ -39,15 +25,8 @@
         },
         {
             "name": "test_drive",
-            "includePath": [
-                "${default}"
-            ],
-            "defines": [
-                "OP_DEBUG_FAST_TEST=1",
-                "OP_TINY_SKIA=1",
-                "TEST_RASTER=0",
-                "_GLIBCXX_DEBUG"
-            ],
+            "includePath": [ "${default}" ],
+            "defines": [ "OP_DEBUG_FAST_TEST=1", "_GLIBCXX_DEBUG" ],
             "compilerPath": "/opt/homebrew/opt/llvm/bin/clang++",
             "cStandard": "c17",
             "cppStandard": "c++20",

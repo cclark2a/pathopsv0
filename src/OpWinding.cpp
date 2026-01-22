@@ -23,13 +23,15 @@ OpWinding::OpWinding(OpEdge* edge, WindingSum )
 	OP_DEBUG_CODE(debugType = DebugWindingType::sum);
 }
 
-#if TEST_RASTER
+#if OP_TEST
 OpWinding::OpWinding(OpContour* contour, PathOpsV0Lib::WindingData wind, size_t size)
 	: w({ (ContourPtr) contour, wind, size })
 	, type(WindingType::caller) {  // always copy
 	OP_DEBUG_CODE(debugType = DebugWindingType::winding);
 }
+#endif
 
+#if OP_TEST_RASTER
 OpWinding::OpWinding(OpWinding& winding, DebugWindingSum ) 
 	: w({ (ContourPtr) winding.w.contour, winding.w.data, winding.w.size })
 	, type(WindingType::caller) {  // always copy
@@ -55,7 +57,7 @@ PathOpsV0Lib::Winding OpWinding::copyData() const {
 	return copy;
 }
 
-#if TEST_RASTER
+#if OP_TEST_RASTER
 void OpWinding::copyExisting(const OpWinding& existing) {
 	if (WindingType::caller == type || w.size != existing.w.size) {
 		w = existing.copyData();

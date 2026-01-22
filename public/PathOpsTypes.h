@@ -193,6 +193,7 @@ struct CurveCallbacks {
 	CurveConst cutFuncPtr = nullptr;
 	CurveConst interceptFuncPtr = nullptr;
 	CurveConst normalLimitFuncPtr = nullptr;
+	CurveConst maxAlternateEndFuncPtr = nullptr;
 };
 
 // winding callbacks
@@ -268,6 +269,8 @@ struct ContextCallbacks {
 	EmptyCallerPath emptyCallerPathFuncPtr = nullptr;
     CurveOutput bestLoopFuncPtr = nullptr;  // can override smallest perimeter for best output loop
 	SetLineType setLineTypeFuncPtr = nullptr;  // default to (CurveType) 1
+	CurveCurveValue maxAngleMatchFuncPtr = nullptr;
+	CurveCurveValue maxAngleSweepFuncPtr = nullptr;
 	CurveCurveValue maxSplitFuncPtr = nullptr;
 	CurveCurveValue maxBoundedEdgeFuncPtr = nullptr;
 	CurveCurveValue maxSignSwapFuncPtr = nullptr;

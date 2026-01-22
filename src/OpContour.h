@@ -155,7 +155,7 @@ struct OpContour {
 	#undef OP_X
 	std::string debugDumpJoin(DebugLevel l, DebugBase b) const;
 #endif
-#if OP_DEBUG_IMAGE
+#if OP_DEBUG_DUMP || OP_DEBUGGER || OP_TEST
 	PathOpsV0Lib::Curve debugCurve(int index, std::vector<float>* extrema) const;
 #endif
 
@@ -190,10 +190,12 @@ struct OpContour {
 	bool overlapsMerged;
 
 //	OP_DEBUG_CODE(PathOpsV0Lib::DebugContourCallbacks debugCallbacks);
-#if OP_DEBUG_IMAGE
-    // AddQuads/AddCubics/AddLine/AddConics save original curve for graphics debugger
+#if OP_DEBUG || OP_DEBUGGER || OP_TEST
 	std::vector<PathOpsV0Lib::DebugCurveData> debugCurveData;
 	OpWinding debugWinding = OpWinding(WindingUninitialized::dummy);
+#endif
+#if OP_DEBUG_IMAGE
+    // AddQuads/AddCubics/AddLine/AddConics save original curve for graphics debugger
 	uint32_t debugColor = blue;
 #endif
 	OP_DEBUG_CODE(bool debugEmpty = false);  // if empty, when cloned, this is reused in release
@@ -208,7 +210,7 @@ struct OpContourStorage {
         }
 	}
 
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 	int debugCount() const;
 	OpContour* debugIndex(int index) const;
 #endif

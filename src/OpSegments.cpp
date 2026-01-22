@@ -442,15 +442,18 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 		return true;
 	}
 	SectFound ccResult = cc.divideAndConquer();
-	OP_DEBUG_DUMP_CODE(cc.context->dumpFile("curve:" + STR(seg->id) + "curve:" + STR(opp->id)));
+	OP_DEBUG_DUMP_CODE(cc.context->dumpFile("curve:" + STR(seg->id) + " curve:" + STR(opp->id)));
 #if !OP_DEBUGGER && !OP_DEBUG_FAST_TEST
-	OP_ASSERT(cc.debugBreak(CcBreak::atEnd));
+	if (!cc.debugBreak(CcBreak::atEnd)) {
+		OP_DEBUG_DUMP_CODE(cc.limits.dump());
+		OP_ASSERT(0);
+	}
 #endif
 	// search runs for small opp distances; turn found into limits
 	SectFound limitsResult = cc.runsToLimits();
 	if (SectFound::add == limitsResult)
 		ccResult = limitsResult;
-	if (SectFound::add == ccResult || cc.fl.size())
+	if (SectFound::add == ccResult || cc.limits.size())
 		cc.findUnsectable();
 //    OP_ASSERT(cc.limits.size() < 4);
 	cc.context->release(cc.context->ccStorage);

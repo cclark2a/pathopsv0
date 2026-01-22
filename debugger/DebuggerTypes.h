@@ -6,10 +6,14 @@
 #include "OpDebugColor.h"
 #include "PathOpsTypes.h"
 
+struct DebugOutput;
 struct DebuggerState;
 struct DebuggerWindow;
 struct SDL_Texture;
 struct TTF_Font;
+
+extern DebugBase defaultBase;
+extern DebugLevel defaultLevel;
 
 // !!! hackery
 #if __APPLE__
@@ -105,7 +109,10 @@ struct OpDebugPoint {
 
 struct DebuggerAddPoly {
     bool add(const PathOpsV0Lib::Curve& );
+    void add(const DebugOutput& );
+    bool add(OpPoint );
     void add(const OpEdge* );
+    void add(const OpIntersection* );  // point only
     void add(const OpSegment* );
     void add(const OpContour* );
 
@@ -115,6 +122,7 @@ struct DebuggerAddPoly {
     bool continueCurve = false;  // true if contour extends loop
     bool addingFill = false;  // true if added is fill, false if added is frame
     bool monotonic = false;
+    bool pointOnly = false;
 };
 
 struct DebuggerPoly {

@@ -4,8 +4,6 @@
 extern void threadablePathOpTest(int id, const SkPath& a, const SkPath& b, 
         SkPathOp op, std::string testname, bool v0MayFail);
 
-#if OP_TINY_SKIA
-
 void alt_cubicOp130a() {
 SkPath path;
 path.setFillType(SkPathFillType::kWinding);
@@ -134,12 +132,6 @@ SkDCubicPair SkDCubic::chopAt(double t) const {
 	result.pts[0] = { 0, 0 };
 	return result;
 }
-
-#else
-
-#include "src/pathops/SkPathOpsQuad.h"
-
-#endif
 
 // some tests call internal routines to construct the tests. Code to do that is commented out below
 // save the results to test without Skia

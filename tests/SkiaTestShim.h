@@ -2,12 +2,12 @@
 #ifndef SkiaTestShim_DEFINED
 #define SkiaTestShim_DEFINED
 
+#include "OpDebug.h"
 #include "SkiaEnumSkPathOp.h"
 
 // below redirections are only visible to consumed tests
 #define SkPathOps_DEFINED
 
-#if OP_TINY_SKIA
 #include "TinySkia.h"
 #define SkDebug_DEFINED
 #define SkFloatBits_DEFINED
@@ -28,13 +28,6 @@
 #define SkString_DEFINED
 #define SkTDArray_DEFINED
 #define SkTypes_DEFINED
-
-#else
-#include "include/core/SkString.h"
-#include "src/pathops/SkPathOpsDebug.h"
-#include "src/pathops/SkPathOpsTypes.h"
-#endif
-#include "OpDebug.h"
 
 // since we're defining our own test harness, don't allow this to be included
 #define PathOpsDebug_DEFINED

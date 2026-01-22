@@ -491,7 +491,7 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
     Contour* right = SetSkiaOpContourCallbacks(context, rightData, sizeof(rightData), 
             BinaryOperand::right  OP_DEBUG_PARAMS(&b));
     AddSkiaPath(context, right, b);
-#if TEST_RASTER
+#if OP_TEST_RASTER
     DebugRaster debugRaster((OpContext*) context);
     if (OpDebugExpect::success == debugDataPtr->expect)
         debugRaster.in();
@@ -502,7 +502,7 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
         result->toggleInverseFillType();
     ContextError contextError = Error(context);
 	trackError(contextError);
-#if TEST_RASTER
+#if OP_TEST_RASTER
     if (OpDebugExpect::success == debugDataPtr->expect)
         debugDataPtr->error = debugRaster.out();
 #endif
@@ -625,7 +625,7 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
 //            DebugContourType::windingUserData } );
     AddSkiaPath(context, simple, path  /* OP_DEBUG_PARAMS(&debugContour) */);
 #endif
-#if TEST_RASTER
+#if OP_TEST_RASTER
     DebugRaster debugRaster((OpContext*) context);
     debugRaster.deleteOld();
     if (OpDebugExpect::success == optional->expect)    
@@ -648,7 +648,7 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
 			veryLarge = VeryLargeSkiaPath(path);			
 		trackError(contextError);
 	}
-#if TEST_RASTER
+#if OP_TEST_RASTER
     if (OpDebugExpect::success == optional->expect)
         optional->error = debugRaster.out();
 #endif

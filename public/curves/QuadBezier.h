@@ -77,7 +77,7 @@ inline std::vector<float> AddExtrema(OpPoint start, OpPoint end, OpPoint control
 	return tValues;
 }
 
-#if OP_DEBUG_IMAGE
+#if OP_TEST
 struct DebugQuad {
     CurveType curveType;
     size_t curveSize;
@@ -95,7 +95,7 @@ inline size_t AddQuads(Contour* contour, AddCurve curve) {
         // swizzle input to match v0's start/end/ctrl layout
     OpPoint swizzled[3] { start, end, control };
     Curve quad { curve.context, (CurveData*) swizzled, curve.size, curve.type };
-#if OP_DEBUG_IMAGE
+#if OP_TEST
     // save original curve and extrema t values as debugging data for visualization
     auto setDebugQuad = [contour, swizzled, &quad](std::vector<float>* tValues) {
         OP_ASSERT(sizeof(swizzled) == sizeof(DebugQuad::curveData));
@@ -113,7 +113,9 @@ inline size_t AddQuads(Contour* contour, AddCurve curve) {
     auto [top, bottom] = std::minmax(start.y, end.y);
     bool monotonicInY = top <= control.y && control.y <= bottom;
     if (monotonicInX && monotonicInY) {
-        OP_DEBUG_IMAGE_CODE(setDebugQuad(nullptr));
+#if OP_TEST
+        setDebugQuad(nullptr);
+#endif
         if (start == end)
             return 0;
         Add(contour, quad);
@@ -121,9 +123,11 @@ inline size_t AddQuads(Contour* contour, AddCurve curve) {
     }
     // control point is not inside bounds formed by end points; split quad into parts
 	std::vector<float> tValues = AddExtrema(start, end, control, monotonicInX, monotonicInY);
-    OP_DEBUG_IMAGE_CODE(OP_ASSERT(sizeof(tValues[0]) == sizeof(DebugQuad::extrema[0])));
-    OP_DEBUG_IMAGE_CODE(OP_ASSERT(tValues.size() <= ARRAY_COUNT(DebugQuad::extrema)));
-    OP_DEBUG_IMAGE_CODE(setDebugQuad(&tValues));
+#if OP_TEST
+    OP_ASSERT(sizeof(tValues[0]) == sizeof(DebugQuad::extrema[0]));
+    OP_ASSERT(tValues.size() <= ARRAY_COUNT(DebugQuad::extrema));
+    setDebugQuad(&tValues);
+#endif
 	tValues.push_back(0);
 	tValues.push_back(1);
     std::sort(tValues.begin(), tValues.end());
@@ -303,7 +307,7 @@ inline void quadDebugSubDivide(Curve c, float t1, float t2, Curve* result) {
 
 #endif
 
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 inline std::string quadDebugDumpName() { 
     return "quad"; 
 }

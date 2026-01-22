@@ -12,6 +12,7 @@
             "preLaunchTask": "skia test asan",
             "args": [],
             "cwd": "${fileDirname}",
+            "console": "internalConsole"
         },
         {
             "name": "skia_test",

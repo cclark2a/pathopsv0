@@ -43,17 +43,19 @@ struct OpContextSaveThreshold {
 // consecutive lines need to overlap; as is, next line is not close to tangent with previous...
 bool DebuggerWindow::add(const OpCurve& curve, DebuggerAddPoly* polyAdder) {
     // if adding a contour lengthen existing poly it it matches and close the contour as well...
+    OP_ASSERT(curve.c.context);
     if (!polyAdder->continueCurve) {
         polys.emplace_back();
-        polys.back().c = curve.c;
+        DebuggerPoly& poly = polys.back();
+        poly.c = curve.c;
         if (IDType::contour == polyAdder->opType.type)
-            polys.back().color = polyAdder->opType.contour->debugColor;
+            poly.color = polyAdder->opType.contour->debugColor;
     }
-    if (polyAdder && !polys.empty()) {
+    if (!polys.empty()) {
         DebuggerPoly& poly = polys.back();
         poly.opType = polyAdder->opType;
         poly.isPrimary = true;
-        if (IDType::contour == poly.opType.type)
+        if (polyAdder->addingFill)
             poly.thickness = DebuggerPoly::fill_thickness;
     }
     // curve is fully inside focus; split it into lines
@@ -119,6 +121,7 @@ void DebuggerWindow::add(std::vector<OpPoint>& pts ) {
         back.cData.start = last;
         back.cData.end = pt;
         back.c = { (ContextPtr) context(), &back.cData, sizeof(back.cData), 0 }; 
+        OP_ASSERT(back.c.context);
         OpCurve curve(back.c, Rotated::no);
         add(curve, nullptr);
         last = pt;
@@ -129,10 +132,12 @@ void DebuggerWindow::add(std::vector<OpPoint>& pts ) {
 // for fill only
 // span is between points, but does not extend last point unless last point equals first point
 bool DebuggerWindow::add(OpPoint pt1, OpPoint pt2, DebuggerAddPoly* polyAdder) {
-    if (pt1 == pt2)
+    if (pt1 == pt2 && !polyAdder->pointOnly)
         return false;
     std::vector<OpPoint>* lines = nullptr;
     auto getLines = [this, polyAdder, &lines]() {
+        OP_ASSERT(polyAdder->opType.id != 70 || std::none_of(polys.begin(), polys.end(),
+            [](const DebuggerPoly& test) { return test.opType.id == 70; }));
         polys.emplace_back();
         DebuggerPoly& poly = polys.back();
         poly.opType = polyAdder->opType;

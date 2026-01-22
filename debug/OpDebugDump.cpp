@@ -7,6 +7,7 @@
 #include "OpCurveCurve.h"
 #include "OpDebugColor.h"
 #include "OpDebugDump.h"
+#include "OpDebugRaster.h"
 #include "OpEdge.h"
 #include "OpJoiner.h"
 #include "OpSegments.h"
@@ -222,97 +223,6 @@ EDGE_DETAIL
     }
     DUMP_BY_DUMPID
 #undef OP_X
-
-static std::string wordBounds = "\t\n\r ,:<>()[]{}";
-static std::string bracketL = "<([{";
-static std::string bracketR = ">)]}";
-
-static std::string edit(std::string s, std::string skip, bool note) {
-	std::string result;
-	size_t first = 0;
-	size_t start = 0;
-    size_t end = s.size();
-	while (start < end) {
-		start = s.find(skip, start);
-		if (std::string::npos == start)
-			break;
-		char prior = start > 0 ? s[start - 1] : ' ';
-		if (std::string::npos == wordBounds.find(prior))
-			continue;
-		size_t last = start + skip.size();
-		char next = last < s.size() ? s[last] : ' ';
-		if (std::string::npos == wordBounds.find(next))
-			continue;
-#if 0 // !!! enable and debug when needed
-	// (only) if prior is in bracket left, walk until balance in bracket right is found
-		std::vector<size_t> brackets;
-		last = start - 1;
-		while (++last < end) {
-			char ch = s[last];
-			size_t bracketIndex = bracketL.find(ch);
-			if (std::string::npos != bracketIndex) {
-				brackets.push_back(bracketIndex);
-				continue;
-			}
-			bracketIndex = bracketR.find(ch);
-			if (std::string::npos != bracketIndex && brackets.back() == bracketIndex) {
-				brackets.pop_back();
-				continue;
-			} 
-			if (!brackets.size() && std::string::npos != wordBounds.find(ch))
-				break;
-		}
-#endif
-		result += s.substr(first, start - first);
-		if (note) {
-			result += "**";
-			result += s.substr(start, last - start);
-			result += "**";
-		}
-		start = first = last;
-	}
-	result += s.substr(first);
-	return result;
-}
-
-#if OP_DEBUG_GLOBALS
-
-std::string stringEdit(OpContext* context, std::string s, int lineWidth) {
-    if (!s.size())
-		return "";
-	for (std::string skip : context->debugDumpSkips) {
-		s = edit(s, skip, false);
-	}
-	for (std::string note : context->debugDumpNotes) {
-		s = edit(s, note, true);
-	}
-    return stringFormat(s, lineWidth);
-}
-
-void addNote(int id) {
-	std::string toAdd = STR(id);
-	auto& notes = debugGlobalContext->debugDumpNotes;
-	if (notes.end() != std::find(notes.begin(), notes.end(), toAdd))
-		return;
-	debugGlobalContext->debugDumpNotes.push_back(toAdd);
-}
-
-void clearNotes() {
-	debugGlobalContext->debugDumpNotes.clear();
-}
-
-void addSkip(std::string s) {
-	auto& notes = debugGlobalContext->debugDumpSkips;
-	if (notes.end() != std::find(notes.begin(), notes.end(), s))
-		return;
-	debugGlobalContext->debugDumpSkips.push_back(s);
-}
-
-void clearSkips() {
-	debugGlobalContext->debugDumpSkips.clear();
-}
-
-#endif
 
 void OpDebugFormat(std::string s) {
     std::string result = stringFormat(s, defaultLineWidth);
@@ -787,7 +697,7 @@ static void debugCallbacksDumpSet(std::vector<PathOpsV0Lib::DebugCurveCallbacks>
 	        DEBUG_FIND_FUNCTION(debugCallback, scaleFuncPtr,      curveNameFuncPtr);
 	        DEBUG_FIND_FUNCTION(debugCallback, curveNameFuncPtr, curveExtraFuncPtr);
             DEBUG_FIND_FUNCTION(debugCallback, curveExtraFuncPtr, debugSubDivideFuncPtr);
-#if 0 && TEST_RASTER
+#if 0 && OP_TEST_RASTER
             DEBUG_FIND_FUNCTION(debugCallback, debugSubDivideFuncPtr, addRasterFuncPtr);
             static_assert(offsetof(PathOpsV0Lib::DebugCurveCallbacks, addRasterFuncPtr) 
                     + sizeof(debugCallback.addRasterFuncPtr) == sizeof(debugCallback));
@@ -845,8 +755,9 @@ void OpContext::dumpSet(const char*& str) {
 	    DEBUG_FIND_FUNCTION(callback, crossThresholdFuncPtr, cutFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, cutFuncPtr,            interceptFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, interceptFuncPtr,      normalLimitFuncPtr);
-        static_assert(offsetof(PathOpsV0Lib::CurveCallbacks, normalLimitFuncPtr) 
-                + sizeof(callback.normalLimitFuncPtr) == sizeof(callback));
+	    DEBUG_FIND_FUNCTION(callback, normalLimitFuncPtr,    maxAlternateEndFuncPtr);
+        static_assert(offsetof(PathOpsV0Lib::CurveCallbacks, maxAlternateEndFuncPtr) 
+                + sizeof(callback.maxAlternateEndFuncPtr) == sizeof(callback));
     }
     ASSERT_ORDERED(callbacks, userData);
 #if 0  // don't serialize user data
@@ -882,7 +793,9 @@ void OpContext::dumpSet(const char*& str) {
 	ASSERT_SERIAL(contextCallbacks, emptyCallerPathFuncPtr, bestLoopFuncPtr);
 	ASSERT_SERIAL(contextCallbacks, bestLoopFuncPtr, setLineTypeFuncPtr);
 #endif
-	DEBUG_FIND_FUNCTION(contextCallbacks, setLineTypeFuncPtr, maxSplitFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, setLineTypeFuncPtr, maxAngleMatchFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxAngleMatchFuncPtr, maxAngleSweepFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxAngleSweepFuncPtr, maxSplitFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxSplitFuncPtr, maxBoundedEdgeFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxBoundedEdgeFuncPtr, maxSignSwapFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxSignSwapFuncPtr, maxTSlopFuncPtr);
@@ -1051,7 +964,18 @@ void OpContext::dumpSet(const char*& str) {
         } while (!OpDebugOptional(str, ":debugOutPath"));
         debugOutPath = std::string(outPathStart, outPathEnd - outPathStart - 1);
     }
-//    ASSERT_ORDERED(debugOutPath, dumpIndex);  // omit for now
+    ASSERT_ORDERED(debugOutPath, dumpIndex);  // omit for now
+    ASSERT_ORDERED_OFFSET(dumpIndex, debugDumpErasures, 4);  // omit for now
+    ASSERT_ORDERED(debugDumpErasures, debugDumpInit);  // omit for now
+#if OP_TEST_RASTER
+    ASSERT_ORDERED_OFFSET(debugDumpInit, debugRaster, 7);
+    if (OpDebugOptional(str, "debugRaster")) {
+        if (!debugRaster)
+            debugRaster = new DebugRaster(this);
+        debugRaster->dumpSet(str);
+    }
+
+#endif
 	debugDumpInit = true;
 }
 
@@ -1088,6 +1012,8 @@ void OpContext::dumpResolveAll(OpContext* self) {
     for (OpEdge*& edge : debugDumpErasures) {
         self->dumpResolve(edge);
     }
+    if (debugRaster)
+        debugRaster->dumpResolveAll(self);
 #endif
 }
 
@@ -1434,7 +1360,6 @@ void OpContour::dumpSet(const char*& str) {
     disabled = OpDebugOptional(str, "disabled");
     ASSERT_ORDERED(disabled, overlapsMerged);
     overlapsMerged = OpDebugOptional(str, "overlapsMerged");
-#if OP_DEBUG_IMAGE
     ASSERT_SERIAL_OFFSET(*this, overlapsMerged, 2, debugCurveData);
     if (OpDebugOptional(str, "debugCurveData")) {
         debugCurveData.resize(OpDebugReadSizeT(str));
@@ -1443,6 +1368,7 @@ void OpContour::dumpSet(const char*& str) {
         }
     }
     ASSERT_ORDERED(debugCurveData, debugWinding);
+#if OP_DEBUG_IMAGE
     ASSERT_ORDERED(debugWinding, debugColor);
 	if (OpDebugOptional(str, "debugColor"))
         debugColor = OpDebugHexToInt(str);
@@ -1928,15 +1854,15 @@ ENUM_NAME_STRUCT(Unsortable)
 #define RayOrder_Base
 ENUM_NAME_STRUCT(RayOrder)
 
-static bool OpDebugBool(const char*& str, const char* label) {
+static int8_t OpDebugBool(const char*& str, const char* label) {
     if (!OpDebugOptional(str, label))
-        return (bool) -1;
+        return -1;
     size_t b = OpDebugReadSizeT(str);
     if (0 != b && 1 != b) {
         OpDebugOut("!!! " + std::string(label) + ": expected bool 0 or 1; got " + STR(b) + "\n");
         exit(1);
     }
-    return (bool) b;
+    return b;
 }
 
 void EdgePal::dumpSet(const char*& str) {
@@ -2337,7 +2263,7 @@ OpPtT dc_ex, dc_ey, dc_ox, dc_oy;
 extern void draw(const OpPtT& );
 
 void OpCurveCurve::drawClosest(const OpPoint& originalPt) const {
-#if !OP_TINY_SKIA && !OP_DEBUGGER
+#if 0   // !!! out of date (rework when needed)
     dumpClosest(originalPt);
     ::draw(dc_ex);
     ::draw(dc_ey);
@@ -2936,6 +2862,8 @@ void EdgeRun::dumpSet(const char*& str) {
 }
 
 void FoundLimit::dumpSet(const char*& str) {
+    parentEdge = OpDebugOptional(str, "parentEdge") ? (const OpEdge*) OpDebugReadSizeT(str) : nullptr; 
+    parentOpp = OpDebugOptional(str, "parentOpp") ? (const OpEdge*) OpDebugReadSizeT(str) : nullptr; 
     OpDebugRequired(str, "segPtT");
     segPtT.dumpSet(str);
     OpDebugRequired(str, "oppPtT");
@@ -2945,15 +2873,23 @@ void FoundLimit::dumpSet(const char*& str) {
     used = OpDebugOptional(str, "used") ? LimitUsed::yes : LimitUsed::no;
     match = OpDebugOptional(str, "match") ? LimitMatch::yes : LimitMatch::no;
     swapped = OpDebugOptional(str, "swapped") ? LimitSwapped::yes : LimitSwapped::no;
+    bettered = OpDebugOptional(str, "bettered") ? LimitBettered::yes : LimitBettered::no;
+    edgeLine = OpDebugOptional(str, "edgeLine") ? LimitLine::yes : LimitLine::no;
+    oppLine = OpDebugOptional(str, "oppLine") ? LimitLine::yes : LimitLine::no;
 #if OP_DEBUG_MAKER
     OpDebugRequired(str, "debugMaker");
     debugMaker.dumpSet(str);
 #endif
 }
 
+void FoundLimit::dumpResolveAll(OpContext* c) {
+    c->dumpResolve(parentEdge);
+    c->dumpResolve(parentOpp);
+}
+
 void FoundLimits::dumpSet(const char*& str) {
-	DEBUG_SET_FIRST_VECTOR(limits);
-	DEBUG_SET_VECTOR(limits, snips);
+	DEBUG_SET_FIRST_VECTOR(i);
+	DEBUG_SET_VECTOR(i, snips);
     DEBUG_SET_ID(snips, seg);
     DEBUG_SET_ID(seg, opp);
     DEBUG_SET_OPTIONAL_VALUE(opp, unique);
@@ -2966,6 +2902,9 @@ void FoundLimits::dumpSet(const char*& str) {
 void FoundLimits::dumpResolveAll(OpContext* c) {
     c->dumpResolve(seg);
     c->dumpResolve(opp);
+    for (FoundLimit& limit : i) {
+        limit.dumpResolveAll(c);
+    }
 }
 
 void SnipPtTs::dumpSet(const char*& str) {
@@ -3184,12 +3123,14 @@ void OpCurveCurve::dumpSet(const char*& str) {
     // note that edgeCurves, oppCurves have pointers to each other and to parent
     edgeCurves.baseInit(this, &oppCurves);
     oppCurves.baseInit(this, &edgeCurves);
-    DEBUG_SET_STRUCT(oppCurves, fl);
-    DEBUG_SET_STRUCT(fl, maxSplit);
+    DEBUG_SET_STRUCT(oppCurves, limits);
+    DEBUG_SET_STRUCT(limits, maxSplit);
     DEBUG_SET_STRUCT(maxSplit, maxBoundedEdge);
     DEBUG_SET_STRUCT(maxBoundedEdge, maxUnsectable);
     DEBUG_SET_REQUIRED_VALUE(maxUnsectable, endMatches);
-    DEBUG_SET_FLOAT(endMatches, maxSignSwap);
+    DEBUG_SET_FLOAT(endMatches, maxAngleMatch);
+    DEBUG_SET_FLOAT(maxAngleMatch, maxAngleSweep);
+    DEBUG_SET_FLOAT(maxAngleSweep, maxSignSwap);
     DEBUG_SET_FLOAT(maxSignSwap, maxSplitBias);
     DEBUG_SET_FLOAT(maxSplitBias, maxDist);
     DEBUG_SET_FLOAT(maxDist, maxEdgeTSlop);
@@ -3227,7 +3168,7 @@ void OpCurveCurve::dumpResolveAll(OpContext* c) {
     c->dumpResolve(parentOpp);
     edgeCurves.dumpResolveAll(c);
     oppCurves.dumpResolveAll(c);
-    fl.dumpResolveAll(c);
+    limits.dumpResolveAll(c);
 }
 
 #if OP_DEBUG_VERBOSE
@@ -3338,7 +3279,8 @@ void OpIntersection::dumpSet(const char*& str) {
     ASSERT_ORDERED(unsectEnd, coinOpp);
     coinOpp = CoinOppStr(str, "coinOpp", CoinOpp::no);
 	DEBUG_SET_BOOL(coinOpp, betweenCoins);
-	DEBUG_SET_BOOL(betweenCoins, ccSect);
+	DEBUG_SET_BOOL(betweenCoins, ccLine);
+	DEBUG_SET_BOOL(ccLine, ccSect);
 	DEBUG_SET_BOOL(ccSect, ccUnsectable);
 	DEBUG_SET_BOOL(ccUnsectable, collapsed);
 	DEBUG_SET_BOOL(collapsed, mergeProcessed);
@@ -3626,6 +3568,14 @@ void DumpSet(OpContext* context, PathOpsV0Lib::Winding& w, char const*& str) {
 	}
 }
 
+void DumpResolveAll(PathOpsV0Lib::Winding& w, OpContext* context) {
+    OpContour* tempContour = (OpContour*) w.contour;
+    if (!tempContour)
+        return;
+    context->dumpResolve(tempContour);
+    w.contour = (ContourPtr) tempContour;
+}
+
 void OpWinding::dumpSet(OpContext* context, const char*& str) {
     DumpSet(context, w, str);
     type = WindingTypeStr(str, "type", WindingType::uninitialized);
@@ -3633,11 +3583,7 @@ void OpWinding::dumpSet(OpContext* context, const char*& str) {
 }
 
 void OpWinding::dumpResolveAll(OpContext* context) {
-    OpContour* tempContour = (OpContour*) w.contour;
-    if (!tempContour)
-        return;
-    context->dumpResolve(tempContour);
-    w.contour = (ContourPtr) tempContour;
+    DumpResolveAll(w, context);
 }
 
 #undef OP_ENUM_MEMBER

@@ -2,6 +2,8 @@
 #ifndef OpMath_DEFINED
 #define OpMath_DEFINED
 
+#include "OpDebug.h"
+
 #include <algorithm>
 #include <array>
 #include <climits>
@@ -14,8 +16,6 @@ constexpr auto OpInfinity = std::numeric_limits<float>::infinity();
 constexpr auto OpNaN = std::numeric_limits<float>::quiet_NaN();
 constexpr auto OpMax = std::numeric_limits<int>::max();
 constexpr auto OpEpsilon = std::numeric_limits<float>::epsilon();
-
-#include "OpDebug.h"
 
 #include "OpDebugColor.h"
 #include "OpDebugDouble.h"
@@ -106,7 +106,7 @@ struct OpRoots {
 	}
 
 	// testing only
-#if OP_RELEASE_TEST
+#if 0
 	OpRoots(float one, float two, float three)
 		: fail(RootFail::none) {
 		roots.insert(roots.end(), { one, two, three } );
@@ -546,7 +546,7 @@ struct OpPoint {
 	void pin(const OpRect& );
 	// bool soClose(OpPoint test) const;
 
-    #if OP_RELEASE_TEST
+    #if OP_TEST
     std::string toString() const {
         return "{ " + std::to_string(x) + ", " + std::to_string(y) + " }";
     }
@@ -701,7 +701,7 @@ struct OpRect {
 
 	OpVector widthHeight() const {
 		return *(OpPoint*) &right - *(OpPoint*) &left; }
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 	virtual std::string debugDump(DebugLevel , DebugBase ) const;
 #endif
 #if OP_DEBUG_DUMP

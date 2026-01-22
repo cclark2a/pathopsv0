@@ -233,7 +233,7 @@ inline bool binaryDebugIsFill(Winding winding) {
 }
 #endif
 
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 inline std::string binaryDumpOutFunc(Winding winding) {
     BinaryData binary(winding);
     std::string s = "{" + STR(binary.left) + ", " + STR(binary.right) + "}";
@@ -314,7 +314,7 @@ inline WindKeep binaryVisibleFunc(Winding w, Winding s) {
 
 #endif
 
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 // !!! this will replace index version
 inline std::string binaryImageOutFunc(Winding winding) {
     BinaryData binaryData(winding);

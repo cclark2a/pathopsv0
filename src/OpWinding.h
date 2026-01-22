@@ -24,7 +24,7 @@ enum class WindingTemp {	// used to accumulate winding sum before it is applied
 	dummy
 };
 
-#if TEST_RASTER
+#if OP_TEST_RASTER
 enum class DebugWindingSum {
 	dummy
 };
@@ -69,16 +69,18 @@ struct OpWinding {
 	OpWinding(WindingUninitialized );
 	OpWinding(OpEdge* edge, WindingSum );
 	OpWinding(const PathOpsV0Lib::Winding& );  // allocates and copies
-#if TEST_RASTER
+#if OP_TEST_RASTER
 	OpWinding(OpWinding& , DebugWindingSum );
 	OpWinding(const PathOpsV0Lib::Winding& , DebugWindingRef );
 	OpWinding(OpContext* , DebugWindingZero );
+#endif
+#if OP_TEST
 	OpWinding(OpContour* , PathOpsV0Lib::WindingData wind, size_t size);
 #endif
 	void add(const PathOpsV0Lib::Winding& );
 	void add(const OpWinding& );
 	PathOpsV0Lib::Winding copyData() const;  // allocate new storage, copy values
-#if TEST_RASTER
+#if OP_TEST_RASTER
 	void copyExisting(const OpWinding& );  // allocate if caller, always copy values
 #endif
 	bool copyOnDemand();  // allocate + copy iff it hasn't been copied already
@@ -94,7 +96,7 @@ struct OpWinding {
 	bool visible() const;
 	void zero();
 	void zeroCommon();
-#if TEST_RASTER
+#if OP_TEST_RASTER
 	void debugZero();
 #endif
 	DUMP_DECLARATIONS

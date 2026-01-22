@@ -136,17 +136,10 @@ void runTests();
 inline void REPORTER_ASSERT(skiatest::Reporter* reporter, bool test) {
 #if OP_DEBUG
 	if ("fail" == reporter->filename) {
-#if OP_TINY_SKIA
 		if ("dontFailOne" == reporter->subname || "failOne" == reporter->subname
 				|| ("fail" == reporter->subname && "" == reporter->testname))
 	// fail calls Skia's Simplify(), which is unimplemented in tiny skia
 			return;
-#else
-		if ("fail" == reporter->subname) {
-			if (1003 == reporter->testIndex || 1069 == reporter->testIndex)
-				test = true; // v0 hits vertical rotate skew failure; skia fails quietly
-		}
-#endif
 	}
 	if (!test) {
 		OpDebugOut("REPORTER_ASSERT:" + reporter->testname + "; subname:" 

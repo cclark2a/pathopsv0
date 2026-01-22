@@ -86,6 +86,27 @@ void EdgeRun::setOppDist(const OpSegment* segment, float scaledMax) {
 		oppDist = 0;
 }
 
+FoundLimit::FoundLimit(OpEdge* edge, OpEdge* oEdge, const OpPtT& edgePtT, const OpPtT& oEdgePtT
+			OP_LINE_FILE_ARGS())
+	: parentEdge(edge)
+	, parentOpp(oEdge)
+	, segPtT(edgePtT)
+	, oppPtT(oEdgePtT)
+	, fromFoundT(edge ? LimitFrom::no : LimitFrom::yes)
+	, oppOutOfOrder(Unordered::no)
+	, used(LimitUsed::no)
+	, match(edge ? LimitMatch::no : LimitMatch::yes)
+	, swapped(LimitSwapped::no)
+	, bettered(LimitBettered::no) {
+	OP_LINE_FILE_SET(debugMaker);
+	if (!edge)
+		return;
+	OP_ASSERT(edge->curve.isLineSet);
+	OP_ASSERT(oEdge->curve.isLineSet);
+	edgeLine = edge->isLine() ? LimitLine::yes : LimitLine::no;
+	oppLine = oEdge->isLine() ? LimitLine::yes : LimitLine::no;
+}
+
 // if snip supercedes existing snip, replace it
 void FoundLimits::addSnip(SnipPtTs snip, const OpCurveCurve* ccCurves) {
 	cutPair(snip);
@@ -137,7 +158,7 @@ void FoundLimits::addSnip(SnipPtTs snip, const OpCurveCurve* ccCurves) {
 }
 
 bool FoundLimits::alreadyIn(const OpPtT& edgePtT, const OpPtT& oppPtT) const {
-	for (const FoundLimit& limit : limits) {
+	for (const FoundLimit& limit : i) {
 #if 0  // !!! this test is undoubtably required, but as written is too broad, dropping valid
 	   //     intersections (e.g., loop8452, segments 8 & 4 intersect multiple times)
 		if (limit.parentEdge == edge && limit.parentOpp == oEdge)
@@ -217,16 +238,22 @@ void FoundLimits::cutPair(SnipPtTs& snip) const {
 }
 
 	// mark unsectables with opposite t values that are not ordered
-	// !!! start out conservative and only mark limits outside of first/last
+	// !!! start out conservative and only mark i outside of first/last
 void FoundLimits::markOutOfOrder() {
-	if (limits.size() > 2) {
-		float frontOppT = limits.front().oppPtT.t;
-		float backOppT = limits.back().oppPtT.t;
-		for (size_t index = 1; index < limits.size() - 1; ++index) {
-			FoundLimit& limit = limits[index];
+	if (i.size() > 2) {
+		float frontOppT = i.front().oppPtT.t;
+		float backOppT = i.back().oppPtT.t;
+		for (size_t index = 1; index < i.size() - 1; ++index) {
+			FoundLimit& limit = i[index];
 			if (!OpMath::Between(frontOppT, limit.oppPtT.t, backOppT))
 				limit.oppOutOfOrder = Unordered::yes;
 		}
+	}
+}
+
+void FoundLimits::setEdge(const OpEdge* edge) {
+	for (FoundLimit& limit : i) {
+		limit.parentEdge = edge;
 	}
 }
 
@@ -242,36 +269,41 @@ void FoundLimits::setEnds(std::vector<OpIntersection*>& matchingSects, bool& rev
 	    smOppT |= 0 == oPtT.t;
 	    lgOppT |= 1 == oPtT.t;
         splitMid = true;
-		FoundLimit smT { sPtT, oPtT, LimitFrom::yes, Unordered::no, LimitUsed::no, LimitMatch::yes, 
-				LimitSwapped::no  OP_LINE_FILE_STRUCT() }; // no edges
-		limits.push_back(std::move(smT));
+		FoundLimit smT(nullptr, nullptr, sPtT, oPtT  OP_LINE_FILE_PARGS()); // no edges
+		i.push_back(std::move(smT));
 		addSnip({ sPtT, oPtT }, nullptr);
     }
 }
 
+void FoundLimits::setOpp(const OpEdge* opp) {
+	for (FoundLimit& limit : i) {
+		limit.parentOpp = opp;
+	}
+}
+
 void FoundLimits::setUnique() {
-	if (limits.size() <= 1)
-		unique = (int) limits.size();
+	if (i.size() <= 1)
+		unique = (int) i.size();
 	if (unique >= 0)
 		return;
 	sort();
 	unique = 1;
-	const FoundLimit* last = &limits[0];
+	const FoundLimit* last = &i[0];
 	float lastDistSq = (last->segPtT.pt - last->oppPtT.pt).lengthSquared();
 	OpVector threshold = seg->threshold();
-	for (size_t index = 1; index < limits.size(); ++index) {
-		const FoundLimit* limit = &limits[index];
+	for (size_t index = 1; index < i.size(); ++index) {
+		const FoundLimit* limit = &i[index];
 		bool soClose = last->segPtT.isNearly(limit->segPtT, threshold);
 		soClose |= last->oppPtT.isNearly(limit->oppPtT, threshold);
 		float distSq = (limit->segPtT.pt - limit->oppPtT.pt).lengthSquared();
 		if (!soClose) {
-			OpPtT midPtT = seg->c.ptTAtT(OpMath::Average(last->segPtT.t, limits[index].segPtT.t));
+			OpPtT midPtT = seg->c.ptTAtT(OpMath::Average(last->segPtT.t, i[index].segPtT.t));
 			OpPtT midOpp = seg->distance(midPtT, opp);
 			float midDist = (midPtT.pt - midOpp.pt).lengthSquared();
 			if (midDist > lastDistSq && midDist > distSq)
 				++unique;
 		}
-		last = &limits[index];
+		last = &i[index];
 		lastDistSq = distSq;
 	}
 }
@@ -738,7 +770,7 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o, std::vector<OpIntersectio
 	: context(s->contour->context)
 	, seg(s)
 	, opp(o)
-	, fl(s, o)
+	, limits(s, o)
     , endMatches(matchingSects.size())
 	, depth(0)
 	, unsplitables(0)
@@ -758,6 +790,8 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o, std::vector<OpIntersectio
 //	contours->reuse(contours->ccStorage);  // !!! consider adding starting block of edges to context
 	PathOpsV0Lib::ContextCallbacks& cb = context->contextCallbacks;
     OpVector threshold = context->threshold();
+	maxAngleMatch = cb.maxAngleMatchFuncPtr ? cb.maxAngleMatchFuncPtr(s->c.c, o->c.c) : 0.01f;  // !!! degrees
+	maxAngleSweep = cb.maxAngleSweepFuncPtr ? cb.maxAngleSweepFuncPtr(s->c.c, o->c.c) : 0.1f;  // !!! degrees
     maxSplit = threshold * (cb.maxSplitFuncPtr ? cb.maxSplitFuncPtr(s->c.c, o->c.c) : 1.f);
     maxBoundedEdge = threshold 
         * (cb.maxBoundedEdgeFuncPtr ? cb.maxBoundedEdgeFuncPtr(s->c.c, o->c.c) : 2.0f);
@@ -773,7 +807,7 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o, std::vector<OpIntersectio
 	maxShallow = cb.maxShallowFuncPtr ? cb.maxShallowFuncPtr(s->c.c, o->c.c) : 8;
 	maxSplits = cb.maxSplitsFuncPtr ? cb.maxSplitsFuncPtr(s->c.c, o->c.c) : 8;
 //	maxBoundedT = cb.maxBoundedTFuncPtr ? cb.maxBoundedTFuncPtr(s->c.c, o->c.c) : 8; // !!! was 8.f; cubic143299; cubic867777
-    fl.setEnds(matchingSects, reversed, splitMid);
+    limits.setEnds(matchingSects, reversed, splitMid);
 	seg->edges.clear();
 	opp->edges.clear();
 
@@ -795,8 +829,9 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o, std::vector<OpIntersectio
 	OpPtT segSingleton(SetToNaN::dummy);
 	parentEdge = boundedEdge(seg, curveSectBounds, &segSingleton  OP_LINE_FILE_PARGS());
 	if (parentEdge) {
-		parentEdge->ccStart = parentEdge->ccSmall = fl.smSegT;
-		parentEdge->ccEnd = parentEdge->ccLarge = fl.lgSegT;
+		parentEdge->ccStart = parentEdge->ccSmall = limits.smSegT;
+		parentEdge->ccEnd = parentEdge->ccLarge = limits.lgSegT;
+		limits.setEdge(parentEdge);
 		OP_ASSERT(!parentEdge->disabled);
 		edgeCurves.c.push_back(parentEdge);
 	} else if (OpMath::IsNaN(segSingleton.t))
@@ -805,8 +840,9 @@ OpCurveCurve::OpCurveCurve(OpSegment* s, OpSegment* o, std::vector<OpIntersectio
 	OpPtT oppSingleton(SetToNaN::dummy);
 	parentOpp = boundedEdge(opp, curveSectBounds, &oppSingleton  OP_LINE_FILE_PARGS());
 	if (parentOpp) {
-		parentOpp->ccStart = parentOpp->ccSmall = fl.smOppT;
-		parentOpp->ccEnd = parentOpp->ccLarge = fl.lgOppT;
+		parentOpp->ccStart = parentOpp->ccSmall = limits.smOppT;
+		parentOpp->ccEnd = parentOpp->ccLarge = limits.lgOppT;
+		limits.setOpp(parentOpp);
 		OP_ASSERT(!parentOpp->disabled);
 		oppCurves.c.push_back(parentOpp);
 	} else if (OpMath::IsNaN(oppSingleton.t))
@@ -852,15 +888,14 @@ EdgeRun* OpCurveCurve::addEdgeRun(OpEdge* edge, CurveRef curveRef, EdgeMatch mat
 
 void OpCurveCurve::addIntersection(OpEdge* edge, OpEdge* oppEdge) {
 	recordSect(edge, oppEdge, edge->startPtT(), oppEdge->startPtT()   OP_LINE_FILE_PARGS());
-	fl.addSnip({ edge->startPtT(), oppEdge->startPtT() }, this);
+	limits.addSnip({ edge->startPtT(), oppEdge->startPtT() }, this);
 }
 
-bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
-		const OpPtT& oppStart, const OpPtT& oppEnd) {
-	OpPtT eStart = edgeStart;
-	OpPtT eEnd = edgeEnd;
-	OpPtT oStart = oppStart;
-	OpPtT oEnd = oppEnd;
+bool OpCurveCurve::addUnsectable(FoundLimit& limit, FoundLimit& limitEnd) {
+	OpPtT eStart = limit.segPtT;
+	OpPtT eEnd = limitEnd.segPtT;
+	OpPtT oStart = limit.oppPtT;
+	OpPtT oEnd = limitEnd.oppPtT;
 	if (eStart.isNearly(oStart, maxUnsectable))
 		OpPtT::MeetInTheMiddle(eStart, oStart);
 	if (eEnd.isNearly(oEnd, maxUnsectable))
@@ -937,8 +972,16 @@ bool OpCurveCurve::addUnsectable(const OpPtT& edgeStart, const OpPtT& edgeEnd,
 		}
 	};
 	addPair(sect1, eStart, oStart);
+	if (LimitLine::yes == limit.edgeLine)
+		sect1.s->ccLine = true;
+	if (LimitLine::yes == limit.oppLine)
+		sect1.o->ccLine = true;
 	match.match = MatchEnds::end;
 	addPair(sect2, eEnd, oEnd);
+	if (LimitLine::yes == limitEnd.edgeLine)
+		sect2.s->ccLine = true;
+	if (LimitLine::yes == limitEnd.oppLine)
+		sect2.o->ccLine = true;
 	return true; 
 }
 
@@ -1080,19 +1123,19 @@ OpEdge* OpCurveCurve::boundedEdge(OpSegment* segm, const OpPointBounds& sectBoun
 bool OpCurveCurve::checkForGaps() {
 	if (edgeCurves.c.empty())
 		return false;
-    if (fl.empty())
+    if (limits.empty())
         return false;
     if ((!edgeCurves.c.front()->ccOverlaps || 0 != edgeCurves.c.front()->startT) 
 			&& (!edgeCurves.c.back()->ccOverlaps || 1 != edgeCurves.c.back()->endT))
 		return false;
 	OP_ASSERT(edgeCurves.c.size() && oppCurves.c.size());
 	std::vector<CutRangeT> edgeGaps = edgeCurves.findGaps();
-	if (edgeGaps.size() < fl.size())
+	if (edgeGaps.size() < limits.size())
 		return false;
 	std::vector<CutRangeT> oppGaps = oppCurves.findGaps();
-	if (oppGaps.size() < fl.size())
+	if (oppGaps.size() < limits.size())
 		return false;
-    for (FoundLimit& limit : fl.limits) {
+    for (FoundLimit& limit : limits.i) {
 	    if (0 == limit.segPtT.t) {
 		    OpPointBounds eGapBounds { edgeGaps[0].lo.pt, edgeGaps[0].hi.pt };
 		    size_t oIndex = reversed ? oppGaps.size() - 1 : 0;
@@ -1266,7 +1309,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 #if !OP_DEBUGGER && !OP_DEBUG_FAST_TEST
 		OP_ASSERT(debugBreak(CcBreak::atDepth));
 #endif
-		bool snipEm = 1 == depth && !fl.snips.empty();
+		bool snipEm = 1 == depth && !limits.snips.empty();
 		if (!setOverlaps())
 			return SectFound::fail;
 		if (checkForGaps() || (splitMid && !endsOverlap()))
@@ -1276,7 +1319,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 		if (!edgeOverlaps || !oppOverlaps) {
 			if (depth > maxShallow)  // default may not be correct (depth is 9 for testQuads3993265)
 				return SectFound::noOverlapDeep;
-			return fl.size() ? SectFound::add : SectFound::no;
+			return limits.size() ? SectFound::add : SectFound::no;
 		}
 		if (edgeOverlaps >= maxSplits || oppOverlaps >= maxSplits) {
 			// find crossing for every curve that has an opposite distance that changes sign
@@ -1287,7 +1330,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 		if (checkSect())
 			snipEm = true;
 		else if (!snipEm) {
-			size_t limitCount = fl.size();
+			size_t limitCount = limits.size();
 			bool foundLimit = setHulls(CurveRef::edge);
             if (!foundLimit)
 			    setHulls(CurveRef::opp);
@@ -1297,8 +1340,8 @@ SectFound OpCurveCurve::divideAndConquer() {
 		debugSaveState();
 #endif
 		// if there is more than one crossover, look for unsectable
-		fl.setUnique();
-		if (fl.unique > endMatches && !lastDepthReduced && !snipEm) {
+		limits.setUnique();
+		if (limits.unique > endMatches && !lastDepthReduced && !snipEm) {
 			if (!reduceDistFlipped())
 				return SectFound::add;
 			lastDepthReduced = true;
@@ -1308,7 +1351,7 @@ SectFound OpCurveCurve::divideAndConquer() {
 		// both edge and opp so that remaining edges can be checked for intersection
 		if (!snipEm) {
 			CcCurves eSplits, oSplits;
-			size_t limitCount = fl.size();
+			size_t limitCount = limits.size();
 			unsplitables = 0;
 			if (!splitHulls(CurveRef::edge, eSplits)) {
                 OP_DEBUG_CODE(edgeCurves.debugAdd(eSplits));
@@ -1326,14 +1369,17 @@ SectFound OpCurveCurve::divideAndConquer() {
 			if (!edgeCurves.c.size()) {
 				if (splitHullFail)  // split hulls failed to split -- runs crossing axis is sect
 					return SectFound::fail;  // note that this is very conservative and narrow
-				return fl.size() ? SectFound::add : SectFound::no;
+				return limits.size() ? SectFound::add : SectFound::no;
 			}
 			// if edge curves and opp curves have unsplittables, add limit and remove both
 			if (1 < unsplitables)
 				checkUnsplitables();
 			snipEm = setSnipFromLimits(limitCount);
 		}
-		for (SnipPtTs snip : fl.snips) {
+		for (SnipPtTs snip : limits.snips) {
+//			start here;
+			// if snip-and-go convext hulls of edge and opp do not intersect, remove
+			// limit and increase snip radius until they do; use larger edges to proceed
 			edgeCurves.snipAndGo(snip.segCut);
 			oppCurves.snipAndGo(snip.oppCut);
             // if one side computed start or end distances, and the other did not, copy distances
@@ -1382,19 +1428,23 @@ void OpCurveCurve::findUnsectable() {
 	// separate limits into unsectable and regular
 	// continue as long as unsectable until entire unsectable range is found
 	// then, skip regular if they are from found t
-	OP_ASSERT(fl.size() || endMatches);
+	for (size_t index = limits.size(); index-- != 0; ) {
+		FoundLimit& limit = limits.i[index];
+		if (LimitBettered::yes == limit.bettered)
+			limits.i.erase(limits.i.begin() + index);
+	}
+	OP_ASSERT(!limits.empty() || endMatches);
 	// find limit of where curve pair are nearly coincident
-	fl.sort();
-	fl.markOutOfOrder();
+	limits.sort();
+	limits.markOutOfOrder();
 	// check midpoints to see if they are also on the curve
 	size_t unsectLo = 0;
 	size_t unsectHi = 0;
 	auto addSect = [this, &unsectLo, &unsectHi]() {
-		FoundLimit& limit = fl.limits[unsectLo];
-		if (unsectLo < unsectHi && addUnsectable(limit.segPtT, fl.limits[unsectHi].segPtT, 
-				limit.oppPtT, fl.limits[unsectHi].oppPtT)) {
+		FoundLimit& limit = limits.i[unsectLo];
+		if (unsectLo < unsectHi && addUnsectable(limit, limits.i[unsectHi])) {
             limit.used = LimitUsed::yes;
-            fl.limits[unsectHi].used = LimitUsed::yes;
+            limits.i[unsectHi].used = LimitUsed::yes;
 			return;
         }
 		if (LimitFrom::yes == limit.fromFoundT)
@@ -1407,7 +1457,7 @@ void OpCurveCurve::findUnsectable() {
         // check if sects added earlier by 'add end matches' form unsectable pair
         // for each matching sect: see if span for both is linear or nearly so
         auto candidateOnLine = [this](OpSegment* segC, OpPtT& limS, CurveRef curveRef) {
-            for (FoundLimit& limit : fl.limits) {
+            for (FoundLimit& limit : limits.i) {
                 if (LimitMatch::no == limit.match)
                     continue;
                 OpPtT limitPtT = CurveRef::edge == curveRef ? limit.segPtT : limit.oppPtT;
@@ -1421,12 +1471,14 @@ void OpCurveCurve::findUnsectable() {
                 && candidateOnLine(opp, limit.oppPtT, CurveRef::opp))
             return;
 		OpIntersection* sect = seg->addSegBase(limit.segPtT  OP_LINE_FILE_PARAMS(opp));
+		sect->ccLine = LimitLine::yes == limit.edgeLine;
 		OpIntersection* oSect = opp->addSegBase(limit.oppPtT  OP_LINE_FILE_PARAMS(seg));
+		oSect->ccLine = LimitLine::yes == limit.oppLine;
 		sect->pair(oSect);
 	};
-	float lastT = fl.limits[0].segPtT.t;
-	for (size_t index = 1; index < fl.size(); ++index) {
-		FoundLimit& limit = fl.limits[index];
+	float lastT = limits.i[0].segPtT.t;
+	for (size_t index = 1; index < limits.size(); ++index) {
+		FoundLimit& limit = limits.i[index];
 		if (Unordered::yes == limit.oppOutOfOrder)
 			continue;
 		float t = limit.segPtT.t;
@@ -1454,7 +1506,7 @@ bool OpCurveCurve::ifExactly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& oppEdge
 	if (edge.ccEnd && edge.endT == edgePtT.t)
 		return false;
 	recordSect(&edge, &oppEdge, edgePtT, oppPtT  OP_LINE_FILE_PARGS());
-	fl.addSnip({ edgePtT, oppPtT }, this);
+	limits.addSnip({ edgePtT, oppPtT }, this);
 	return true;
 }
 
@@ -1467,13 +1519,13 @@ bool OpCurveCurve::ifNearly(OpEdge& edge, const OpPtT& edgePtT, OpEdge& oppEdge,
 	if (edge.ccEnd && edge.endPtT().isNearly(edgePtT, threshold))
 		return false;
 	recordSect(&edge, &oppEdge, edgePtT, oppPtT  OP_LINE_FILE_PARGS());
-	fl.addSnip({ edgePtT, oppPtT }, this);
+	limits.addSnip({ edgePtT, oppPtT }, this);
 	return true;
 }
 
 bool OpCurveCurve::alreadyInLimits(const OpEdge* edge, const OpEdge* oEdge, 
 		const OpPtT& edgePtT, const OpPtT& oppPtT) {
-		if (fl.alreadyIn(edgePtT, oppPtT))
+		if (limits.alreadyIn(edgePtT, oppPtT))
 			return true;
 #if 0  // this breaks testQuads5635157; instead, disallow t values in deleted ranges
 // if this edge/opEdge is a subset of an existing limit, replace it
@@ -1498,7 +1550,7 @@ bool OpCurveCurve::alreadyInLimits(const OpEdge* edge, const OpEdge* oEdge,
 }
 
 bool OpCurveCurve::betweenLimits(OpSegment* segment, float lo, float hi) {
-	for (FoundLimit& limit : fl.limits) {
+	for (FoundLimit& limit : limits.i) {
 // !!! this test may be still required: but, trying to remove edge from edge runs
 //		if (limit.parentEdge == edge && limit.parentOpp == oEdge)
 //			return true;  // reverse case already recorded
@@ -1509,17 +1561,71 @@ bool OpCurveCurve::betweenLimits(OpSegment* segment, float lo, float hi) {
 	return false;
 }
 
+struct FoundAngles {
+// !!! for now, return degrees to make debugging easier. Eventually, could return radians, maybe...
+	void angle(OpCurve& c, float t, CurveRef ref) {
+		OpVector cTan = c.tangent(t);
+		float a = std::atan2f(cTan.dy, cTan.dx) * 180 / OpPI;
+		if (OpMath::IsNaN(lesser))
+			lesser = a;
+		else {
+			 greater = a;
+			 if (lesser > greater) {
+			 	std::swap(lesser, greater);
+				ref = !ref;
+			 }
+		}
+		curveRef = ref;
+	}
+
+	float lesser = OpNaN;
+	float greater = OpNaN;
+	CurveRef curveRef;
+};
+
 // defer meet in the middle stuff until all intersections are found
 void OpCurveCurve::recordSect(OpEdge* edge, OpEdge* oEdge, const OpPtT& edgePtT, const OpPtT& oppPtT
 			OP_LINE_FILE_ARGS()) {
+	OP_ASSERT(parentEdge->segment == edge->segment);
+	OP_ASSERT(parentOpp->segment == oEdge->segment);
     OP_ASSERT(edgePtT.isFinite());
     OP_ASSERT(oppPtT.isFinite());
 	if (alreadyInLimits(edge, oEdge, edgePtT, oppPtT))
 		return;
-	FoundLimit newLimit { edgePtT, oppPtT, LimitFrom::no, Unordered::no, 
-            LimitUsed::no, LimitMatch::no, LimitSwapped::no  OP_LINE_FILE_SCALLER() };
-	fl.limits.push_back(std::move(newLimit));
-	fl.unique = -1;
+	OP_ASSERT(edge->curve.isLineSet);
+	OP_ASSERT(oEdge->curve.isLineSet);
+	FoundLimit newLimit(edge, oEdge, edgePtT, oppPtT  OP_LINE_FILE_CARGS());
+	FoundAngles newAngles;
+	for (size_t index = limits.size(); index-- != 0; ) {
+		FoundLimit& old = limits.i[index];
+		if (!old.parentEdge)
+			continue;
+		if (OpMath::IsNaN(newAngles.lesser)) {
+			newAngles.angle(edge->segment->c, edgePtT.t, CurveRef::edge);
+			newAngles.angle(oEdge->segment->c, oppPtT.t, CurveRef::opp);
+			OP_ASSERT(!OpMath::IsNaN(newAngles.greater));
+			float span = newAngles.greater - newAngles.lesser;
+			if (span < maxAngleSweep)
+				break;
+		}
+		OP_ASSERT(old.parentEdge->segment == edge->segment);
+		OP_ASSERT(old.parentOpp->segment == oEdge->segment);
+		FoundAngles oldAngles;
+		oldAngles.angle(old.parentEdge->segment->c, old.segPtT.t, CurveRef::edge);
+		oldAngles.angle(old.parentOpp->segment->c, old.oppPtT.t, CurveRef::opp);
+		// if angle formed by tangents is larger than some set value, and if angles formed by 
+		// old and new are the same within some threshold, keep the one with closer points
+		if (oldAngles.curveRef != newAngles.curveRef)
+			continue;
+		if (std::fabsf(oldAngles.lesser - newAngles.lesser) > maxAngleMatch)
+			continue;
+		if (std::fabsf(oldAngles.greater - newAngles.greater) > maxAngleMatch)
+			continue;
+//		limits.i.erase(limits.i.begin() + index);
+		old.bettered = LimitBettered::yes;
+	}
+	limits.i.push_back(std::move(newLimit));
+	limits.unique = -1;
 }
 
 // remove edges that do not change distance sign in run
@@ -1663,20 +1769,21 @@ bool OpCurveCurve::rotatedIntersect(OpEdge& edge, OpEdge& oppEdge, bool sharesPo
 }
 
 SectFound OpCurveCurve::runsToLimits() {
-	size_t oldLimits = fl.size();
+	size_t oldLimits = limits.size();
 	bool swap = false;
 	auto addIfNew = [this, &swap](EdgeRun* run) {
 		OpEdge* parEdge = parentEdge;
 		OpEdge* parOpp = parentOpp; 
-		FoundLimit lowerLimit { run->edgePtT, run->oppPtT,  run->fromFoundT, Unordered::no, 
-				LimitUsed::no, LimitMatch::no, swap ? LimitSwapped::yes : LimitSwapped::no
-				OP_LINE_FILE_STRUCT() };
+		FoundLimit lowerLimit(parentEdge, parentOpp, run->edgePtT, run->oppPtT  OP_LINE_FILE_PARGS());
+		lowerLimit.fromFoundT = run->fromFoundT; 
+		lowerLimit.swapped = swap ? LimitSwapped::yes : LimitSwapped::no;
 		if (swap) {
 			std::swap(parEdge, parOpp);
+			std::swap(lowerLimit.parentEdge, lowerLimit.parentOpp);
 			std::swap(lowerLimit.segPtT, lowerLimit.oppPtT);
 		}
 		if (!alreadyInLimits(parEdge, parOpp, lowerLimit.segPtT, lowerLimit.oppPtT))
-			fl.limits.push_back(std::move(lowerLimit));
+			limits.i.push_back(std::move(lowerLimit));
 	};
 	EdgeRun* lastUpper;
 	CcCurves* curves = &edgeCurves;
@@ -1757,7 +1864,7 @@ SectFound OpCurveCurve::runsToLimits() {
 		curves = &oppCurves;
 		std::swap(segment, oSegment);
 	} while ((swap = !swap));
-	return fl.size() == oldLimits ? SectFound::no : SectFound::add;
+	return limits.size() == oldLimits ? SectFound::no : SectFound::add;
 }
 
 // finds intersections of opp edge's hull with edge, and stores them in edge's hulls
@@ -1877,7 +1984,7 @@ bool OpCurveCurve::addLineCurveIntersection(OpEdge& edge, OpEdge& oppEdge, Curve
             if (OpMath::IsNaN(edgeT))
                 continue;
             OpPtT edgePtT = segment->c.ptTAtT(edgeT);
-            if (CurveRef::edge == curveRef)
+            if (CurveRef::edge == curveRef)  // !!! ? already swapped
                 recordSect(&edge, &oppEdge, edgePtT, oppPtT  OP_LINE_FILE_PARGS());
             else
                 recordSect(&oppEdge, &edge, oppPtT, edgePtT  OP_LINE_FILE_PARGS());
@@ -1920,9 +2027,9 @@ bool OpCurveCurve::setHulls(CurveRef curveRef) {
 				continue;
             // !!! does this need a 'edge is line and opp is line' case?
             if (edge.isLine())
-                addedSect |= addLineCurveIntersection(edge, oppEdge, CurveRef::edge);
+                addedSect |= addLineCurveIntersection(edge, oppEdge, curveRef);
             else if (oppEdge.isLine())
-                addedSect |= addLineCurveIntersection(oppEdge, edge, CurveRef::opp);
+                addedSect |= addLineCurveIntersection(oppEdge, edge, !curveRef);
 			else if (!splitMid)
 				addedSect |= setHullSects(edge, oppEdge, curveRef);
 		}
@@ -1931,10 +2038,10 @@ bool OpCurveCurve::setHulls(CurveRef curveRef) {
 }
 
 bool OpCurveCurve::setSnipFromLimits(size_t oldCount) {
-	if (oldCount >= fl.size())
+	if (oldCount >= limits.size())
 		return false;
-	FoundLimit limit = fl.limits[oldCount];
-	fl.addSnip({ limit.segPtT, limit.oppPtT }, this);
+	FoundLimit limit = limits.i[oldCount];
+	limits.addSnip({ limit.segPtT, limit.oppPtT }, this);
 	return true;
 }
 
@@ -1968,7 +2075,7 @@ bool OpCurveCurve::setOverlaps() {
 }
 
 bool OpCurveCurve::smallTFound(CurveRef curveRef) {
-    for (FoundLimit& limit : fl.limits) {
+    for (FoundLimit& limit : limits.i) {
         if (CurveRef::edge == curveRef ? 0 == limit.segPtT.t : 0 == limit.oppPtT.t)
             return true;
     }

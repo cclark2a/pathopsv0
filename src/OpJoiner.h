@@ -49,7 +49,7 @@ struct OpJoiner {
 #if OP_DEBUG_VALIDATE
 	void debugValidate() const;
 #endif
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 #include "OpDebugDeclarations.h"
 #endif
 #if OP_DEBUG_IMAGE
@@ -78,6 +78,7 @@ struct OpJoiner {
 	OP_ENUM_MEMBER(miswound),  /* in linkups list, including entries with the wrong winding */ \
 	OP_ENUM_MEMBER(disjoint),  /* gap to closest in linkups list, or gap to edge start (loop) */ \
 	OP_ENUM_MEMBER(unlinkedPal),  /* unlinked variant that permits siblings to connect to seen edges' pals */ \
+	OP_ENUM_MEMBER(alternateEnd),  /* construct line using opposite sect edge end (e.g, testQuads25659799) */ \
 	OP_ENUM_MEMBER(disabledBackwards),  /* undetected mis-sort may be closable (e.g, loop156850) */ \
 	OP_ENUM_MEMBER(debugStop)  /* debugging aid when limb pass is advanced past final value */
 
@@ -104,7 +105,7 @@ struct OpLimb {
 			OpContour* limbContour = nullptr,
 			size_t index = 0, OpEdge* first = nullptr);
 	DUMP_DECLARATIONS
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 	std::string debugDumpIDs(DebugLevel , bool bracket) const;
 #endif
 
@@ -126,7 +127,7 @@ struct OpLimb {
 	bool looped  OP_DEBUG_INIT_BOOL();
 	bool resetPass  OP_DEBUG_INIT_BOOL();  // when new parent is found, restart limb pass
 
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 	std::vector<OpLimb*> debugBranches;
 	int id = 0;
 #endif
@@ -139,7 +140,7 @@ struct OpTree {
 	OpTree(OpJoiner& );
 	OP_DEBUG_CODE(~OpTree());
 	void addDisabled(OpContour& );
-	OpEdge* addFiller(OpSegment* , const OpPtT& , const OpPtT& , bool fromCC);
+	OpEdge* addFiller(OpSegment* , OpPoint , OpPoint , bool fromCC);
 //	void addUnsectableLoop(OpJoiner& , OpLimb* );
 	bool contains(OpLimb* , OpEdge* ) const;
 	bool containsFiller(OpLimb* , OpPoint , OpPoint ) const;
@@ -181,7 +182,7 @@ struct OpLimbStorage {
 	}
 	OpLimb* allocate();
 	void reset();
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 	int debugCount() const;
 	OpLimb* debugFind(int ID) const;
 	OpLimb* debugIndex(int index) const;

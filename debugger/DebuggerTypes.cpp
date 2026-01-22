@@ -72,9 +72,6 @@ void OpType::validate() const {
     }
 }
 
-extern DebugBase defaultBase;
-extern DebugLevel defaultLevel;
-
 std::string NativeTextCache::debugDump() const {
     std::string s = "\"" + str + "\" ";
     s += "size:" + size.debugDump(defaultLevel, defaultBase) + " ";

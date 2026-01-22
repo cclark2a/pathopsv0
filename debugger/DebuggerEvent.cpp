@@ -244,7 +244,11 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
             else
                 result.s += "bring windows to front";
             break;
-        case 'x': flip(showHex, "hex"); break;
+        case 'x': 
+            flip(showHex, "hex"); 
+            if (KeyAction::act == action)  // !!! note code is duplicated in playback
+                    defaultBase = showHex ? DebugBase::hex : DebugBase::dec;
+            break;
         case 'z': 
             if (lastFocus) {
                 WheelTarget next = (WheelTarget) ((int) lastFocus->wheelTarget + 1);

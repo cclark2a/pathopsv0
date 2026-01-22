@@ -29,6 +29,7 @@ struct FoundEdge {
 		, distSq(0)
 		, index(i)
 		, whichEnd(w)
+		, neighborEnd(EdgeMatch::none)
 		, chop(ChopUnsortable::none)
 		, connects(false)
 		, loops(false) {
@@ -44,6 +45,7 @@ struct FoundEdge {
 	float distSq;  // used to track closest edge if no exact match was found
 	int index;  // used to track entry in linkups to remove after use
 	EdgeMatch whichEnd;
+	EdgeMatch neighborEnd;  // !!! not sure why active neighbor doesn't set which end
 	ChopUnsortable chop;  // true if edge has one or more linked unsortables to be removed
 	bool connects; // true if edge connects in correct direction with existing link
 	bool loops;  // true if edge when connected to existing link forms a loop
@@ -72,12 +74,22 @@ enum class PrefFound {
     ok
 };
 
+enum class MatchZero {
+	no,
+	yes
+};
+
+enum class AllowLinked {
+	no,
+	yes
+};
+
 #undef OP_X
 
 struct OpSegment {
 	OpSegment(PathOpsV0Lib::Contour* , PathOpsV0Lib::AddCurve);
-	bool activeAtT(OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const; // true if pal
-	bool activeNeighbor(const OpEdge* , EdgeMatch , std::vector<FoundEdge>& ) const; // true if pal
+	bool activeAtT(OpEdge* , EdgeMatch , MatchZero , std::vector<FoundEdge>& ) const; // true if pal
+	bool activeNeighbor(const OpEdge* , EdgeMatch , AllowLinked , std::vector<FoundEdge>& ) const; // true if pal
 	void addAlias(OpPoint original, OpPoint alias);
 	OpIntersection* addCoin(const OpPtT& , int coinID, MatchEnds , CoinOpp , const OpSegment* o  
 			OP_LINE_FILE_ARGS());
@@ -160,7 +172,7 @@ struct OpSegment {
 	EDGE_OR_SEGMENT_DETAIL
 	#undef OP_X
 #endif
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 	std::string debugDumpID() const;
     bool dumpInitialized() const;
 	#include "OpDebugDeclarations.h"

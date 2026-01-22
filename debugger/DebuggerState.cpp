@@ -176,6 +176,8 @@ void DebuggerState::playback() {
     DEBUG_SET_BOOL(bitsToShow, showContours);
     DEBUG_SET_BOOL(showContours, showEdges);
     DEBUG_SET_BOOL(showEdges, showHex);
+    // !!! need some way to call a custom set function ?
+    defaultBase = showHex ? DebugBase::hex : DebugBase::dec;
     DEBUG_SET_BOOL(showHex, showIntersections);
     DEBUG_SET_BOOL(showIntersections, showOutput);
     DEBUG_SET_BOOL(showOutput, showSegments);

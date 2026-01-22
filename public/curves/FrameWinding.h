@@ -110,7 +110,7 @@ inline bool frameDebugIsFill(Winding winding) {
 }
 #endif
 
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 inline std::string frameDumpOutFunc(Winding winding) {
     FrameData data(winding);
     return STR(data.left) + (FrameFill::frame == data.isFrame ? "fr" : "");

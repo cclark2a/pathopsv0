@@ -1,7 +1,7 @@
 // (c) 2025, Cary Clark cclark2@gmail.com
 #include "OpDebug.h"
 
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 
 #define OP_TAGGED_FUNCTION(f) { reinterpret_cast<DebugFunction>(PathOpsV0Lib::f), #f }
 
@@ -34,7 +34,7 @@ std::vector<DebugTags> debugTags {
 #endif
 #if OP_DEBUG
     DEBUG_SCALE_TAGGED_FUNCTIONS
-#if 0 && !OP_DEBUGGER  // !!! unsure if needed; disable for now
+#if 0  // !!! unsure if needed; disable for now
     DEBUG_SKIAPATH_TAGGED_FUNCTIONS
 #endif
 #endif
@@ -50,9 +50,6 @@ std::vector<DebugTags> debugTags {
 #if OP_DEBUG_IMAGE
     UNARY_IMAGE_TAGGED_FUNCTIONS
     BINARY_IMAGE_TAGGED_FUNCTIONS
-#if !OP_TINY_SKIA && !OP_DEBUGGER
-    DEBUG_TO_SKPATH_TAGGED_FUNCTIONS
-#endif
     OP_TAGGED_FUNCTION(dumpSkiaOutPath)
 #endif
 };

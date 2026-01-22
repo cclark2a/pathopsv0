@@ -1,11 +1,10 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
-#include "OpCurve.h"
 #include "OpContext.h"
-#include "OpTightBounds.h"
+#include "OpEdge.h"
 #if OP_DEBUG_DUMP
 #include "OpCurveCurve.h"
 #endif
-#if TEST_RASTER
+#if OP_TEST_RASTER
 #include "OpDebugRaster.h"
 #endif
 
@@ -692,11 +691,16 @@ PathOpsV0Lib::WindKeep OpCurve::output(PathOpsV0Lib::Winding w,
             curveType = lineType();
         PathOpsV0Lib::Curve curve { c.context, c.data, c.size, context().nativeCurveTypes[curveType] };
         PathOpsV0Lib::LoopAttribute attr = loopAttribute(firstPt, lastPt, reversed);
-#if TEST_RASTER
+#if OP_TEST_RASTER
 		OP_ASSERT(context().debugRaster);
 		context().debugRaster->addOutput({ curve, w, attr }, edge);
 #endif
 	    return (*curveOutput)({ curve, w, attr });
     }
     return PathOpsV0Lib::WindKeep::Discard;
+}
+
+OpPoint OpCurve::whichPt(EdgeMatch match) const {
+	OP_ASSERT(match == EdgeMatch::start || match == EdgeMatch::end);
+	return match == EdgeMatch::start ? firstPt() : lastPt();
 }

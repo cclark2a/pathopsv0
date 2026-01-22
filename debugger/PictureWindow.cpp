@@ -3,6 +3,7 @@
 
 #include "DebuggerState.h"
 #include "OpCurveCurve.h"
+#include "OpDebugRaster.h"
 #include "OpSegment.h"
 
 const std::vector<std::string> drawGridStrs {
@@ -362,7 +363,7 @@ void PictureWindow::addTangent(DebuggerPoly& poly) {
 }
 
 void PictureWindow::addWinding(DebuggerPoly& poly) {
-    if (IDType::edge != poly.opType.type || !poly.isPrimary)
+    if (IDType::edge != poly.opType.type || !poly.isPrimary || !poly.c.context)
         return;
     auto add = [poly, this](std::string s, float normSign) {
         size_t cacheIndex = addText(s, poly.color);
@@ -412,9 +413,6 @@ void PictureWindow::addWinding(DebuggerPoly& poly) {
 }
 
 #if OP_DEBUG_DUMP
-extern DebugBase defaultBase;
-extern DebugLevel defaultLevel;
-
 void PictureWindow::dump() {
     std::string s;
     s += "focus:" + focus.debugDump(defaultLevel, defaultBase) + " ";
@@ -435,7 +433,10 @@ void PictureWindow::addIDs() {
     for (auto& poly : polys) {
         if (!poly.isPrimary)
             continue;
+        if (!poly.c.context)
+            continue;
         if ((IDType::edge != poly.opType.type || !debuggerState->showEdges)
+                && (IDType::intersection != poly.opType.type || !debuggerState->showIntersections)
                 && (IDType::segment != poly.opType.type || !debuggerState->showSegments)
                 && (IDType::contour != poly.opType.type || !debuggerState->showContours))
             continue;
@@ -501,6 +502,17 @@ void PictureWindow::addWindings() {
     }
 }
 
+void PictureWindow::addOutput() {
+    if (!debuggerState->showOutput) 
+        return;
+    DebugRaster* raster = debuggerState->context->debugRaster;
+    if (!raster) 
+        return;
+    for (const DebugOutput& output : raster->outputs) {
+        addPoly.add(output);
+    }
+}
+
 void PictureWindow::addPointLabel(OpPoint local, OpType& opType) {
     std::string s = "(" + debuggerState->floatToStr(local.x) + ", " 
             + debuggerState->floatToStr(local.y) + ")";
@@ -542,6 +554,10 @@ void PictureWindow::addPoints() {
             add(poly.opType, poly.opType.segment->c.c.data->end);
             if (drawControls)
                 addControl(&poly, poly.opType.segment->c);
+        }
+        if (IDType::intersection == poly.opType.type && poly.isPrimary 
+                && debuggerState->showIntersections) {
+            add(poly.opType, poly.opType.intersection->ptT.pt);
         }
         // !!! add contours : may require some thought for poly-to-contour-curve mapping
         if (IDType::contour == poly.opType.type && poly.isPrimary && debuggerState->showContours) {
@@ -611,11 +627,11 @@ void PictureWindow::colorPolys() {
             poly.color = poly.opType.segment->debugColor;  // !!! convert this to context callout
             continue;
         }
-        if (IDType::edge != poly.opType.type) {
-            poly.color = debugBlack;
+        if (IDType::edge == poly.opType.type) {
+            poly.color = edgeColor(*poly.opType.edge);
             continue;
         }
-        poly.color = edgeColor(*poly.opType.edge);
+        poly.color = debugBlack;
     }
 }
 
@@ -623,6 +639,8 @@ bool PictureWindow::drawOne(DebuggerPoly& poly) {
     if (IDType::segment == poly.opType.type && !debuggerState->showSegments)
         return false;
     if (IDType::edge == poly.opType.type && !debuggerState->showEdges)
+        return false;
+    if (IDType::intersection == poly.opType.type && !debuggerState->showIntersections)
         return false;
     if (IDType::contour == poly.opType.type && !drawFill)
         return false;
@@ -699,11 +717,15 @@ void PictureWindow::update() {
 	for (auto& id : debuggerState->ids) {
         if (IDType::edge == id.type && id.drawn)
             addPoly.add(id.edge);
-        if (IDType::contour == id.type && debugIsFill && (*debugIsFill)(id.contour->winding()))
+        if (IDType::contour == id.type && debugIsFill && (*debugIsFill)(id.contour->winding())) {
             addPoly.add(id.contour);
+        }
         if (IDType::segment == id.type)
             addPoly.add(id.segment);
+        if (IDType::intersection == id.type)
+            addPoly.add(id.intersection);
     }
+    addOutput();
     colorPolys();
     setDevice();
     addHulls();
@@ -730,16 +752,11 @@ DrawLevel PictureWindow::pan(OpVector v) {
 
 void PictureWindow::setDevice() {
     for (DebuggerPoly& poly : polys) {
-        bool debugThis = IDType::segment == poly.opType.type && 5 == poly.opType.segment->id 
-                && poly.opType.segment->ptBounds.top < focus.top;
-
         poly.device.reserve(poly.local.size());
         for (OpPoint lPt : poly.local) {
             poly.device.push_back(toDevice(lPt));
         }
         poly.contours.push_back(poly.device.size());
-        if (debugThis)
-            OpNop();
     }
 }
 

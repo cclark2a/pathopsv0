@@ -2,7 +2,7 @@
 #ifndef OpDebugDump_DEFINED
 #define OpDebugDump_DEFINED
 
-#include "OpDebugSerializeOut.h"
+#include "OpDebugSerialize.h"
 
 #if OP_DEBUG_DUMP
 
@@ -298,24 +298,6 @@ extern void clearAlways(EdgeFilter);
 extern void addFilter(EdgeFilter);
 extern void clearFilter(EdgeFilter);
 
-// if output matches note, use asterisks to make that output stand out  // !!! only partially implemented
-extern void addNote(int id);
-extern void addNote(std::string );
-extern void addNote(float );
-extern void addNote(OpPoint );
-extern void addNote(OpVector );
-extern void addNote(OpPtT );
-extern void clearNotes();
-
-// if output matches skip, omit it in the output  // !!! only partially implemented
-extern void addSkip(int id);
-extern void addSkip(std::string );
-extern void addSkip(float );
-extern void addSkip(OpPoint );
-extern void addSkip(OpVector );
-extern void addSkip(OpPtT );
-extern void clearSkips();
-
 // !!! working around laptop compiler bug; testing new w/o breaking old...
 extern void dp(const OpEdge* );
 extern void dp(const OpEdge& );
@@ -332,10 +314,10 @@ extern void debug();  // set debug bitmap to start and dump state using current 
 
 extern DebugFunction debugFindFunction(const char*& tag);
 extern std::string debugValue(DebugLevel l, DebugBase b, std::string label, float value);
-extern std::string DebugDump(const PathOpsV0Lib::Winding& , DebugLevel , DebugBase );
-extern bool debugDmpIsLine(const PathOpsV0Lib::AddCurve& c);
-extern bool debugDmpIsLine(const PathOpsV0Lib::Curve& c);
+extern bool debugDmpIsLine(const PathOpsV0Lib::AddCurve& );
+extern bool debugDmpIsLine(const PathOpsV0Lib::Curve& );
 extern void DumpSet(PathOpsV0Lib::Winding&, char const*& str);
+extern void DumpResolveAll(PathOpsV0Lib::Winding& , OpContext* );
 
 enum class LimbPass : int8_t;
 

@@ -14,7 +14,7 @@ void OpLimb::addEach(OpContour& contour, OpTree& tree) {
 	OpDebugOut(STR(tree.debugAddEach) + ": limb[" + STR(id) + "] contour: " + STR(contour.id) 
 			+ " pass:" + debugLimbPass(tree.limbPass) + "\n");
 #endif
-if (looped || deadEnd)  // triggered when walking children of trunk 
+	if (looped || deadEnd)  // triggered when walking children of trunk 
 		return;
 	if (resetPass) {
 		tree.limbPass = LimbPass::linked;
@@ -39,24 +39,6 @@ if (looped || deadEnd)  // triggered when walking children of trunk
 	}
 	if (LimbPass::linked == pass)
 		return;
-#if OP_DEBUG_DUMP && !TEST_DEFEAT_BREAK
-	if (6926 == id && 42 == contour.id) {
-		++debugHits;
-		OpDebugOut("debugHits: " + STR(debugHits) + "\n");
-		if (debugHits == 8) {
-#if 0 && OP_DEBUG_IMAGE && !OP_TINY_SKIA
-			playback();
-			hideTemporaryEdges();
-			colorActive(transparent);
-			colorDisabled(transparent);
-			colorUnsectables(transparent);
-			colorUnsortables(transparent);
-			colorLinkups(green);
-			OpAssert(0);
-#endif
-		}
-	}
-#endif
 	for (const std::vector<OpEdge*>& edges : { contour.unsectByArea, contour.unsortables } ) {
 		for (OpEdge* test : edges) {
 			if (test->inLinkups)
@@ -138,6 +120,71 @@ if (looped || deadEnd)  // triggered when walking children of trunk
 	if (LimbPass::disjoint == pass)
 		return;
 	if (LimbPass::unlinkedPal == pass)
+		return;
+	/* 
+		before allowing backwards, look to see if a connecting edge:
+		- is not available (not in linked list)
+		- start matches the current end
+		- end differs from iEnd
+		- length is proportional to end / iEnd?
+	 */
+	{
+		std::vector<FoundEdge> foundEdges;
+		const OpSegment* segment = lastLimbEdge->segment;
+		EdgeMatch end = !lastLimbEdge->which();
+		OpBreak(lastLimbEdge, 94);
+		segment->activeAtT(lastLimbEdge, end, MatchZero::no, foundEdges);
+		segment->activeNeighbor(lastLimbEdge, end, AllowLinked::yes, foundEdges);
+		for (const FoundEdge& foundEdge : foundEdges) {
+			OpEdge* test = foundEdge.edge;
+			EdgeMatch foundEnd = foundEdge.neighborEnd;
+			if (EdgeMatch::none == foundEnd)
+				continue;
+			// found edge was not found in earlier passes because it is in linked list
+			OP_ASSERT(test->priorEdge);
+			OpPoint otherEnd = EdgeMatch::start == foundEnd ? test->iEnd : test->iStart;
+			OpPoint curveEnd = test->curve.whichPt(!foundEnd);
+			if (otherEnd == curveEnd || !otherEnd.isFinite())
+				continue;
+			// find opposite point matching found edge end
+			OpPoint complementEnd;
+			for (const OpIntersection* sect : foundEdge.edge->segment->sects.i) {
+				if (sect->ptT.pt != otherEnd)
+					continue;
+				for (const OpEdge& edge : sect->opp->segment->edges) {
+					if (edge.iStart == otherEnd) {
+						complementEnd = edge.curve.firstPt();
+						break;
+					}
+					if (edge.iEnd == otherEnd) {
+						complementEnd = edge.curve.lastPt();
+						break;
+					}
+				}
+				if (complementEnd.isFinite() && complementEnd != curveEnd) {
+					// consider line from last limb end to complement end
+					// does its length compared to the sect points distance match?
+					float sectDistance = (curveEnd - complementEnd).length();
+					OpPoint lastEdgePt = lastLimbEdge->whichCurvePt(EdgeMatch::end);
+					float fillerLength = (lastEdgePt - complementEnd).length();
+					float ratio = fillerLength / sectDistance;
+					PathOpsV0Lib::CurveConst altEndFuncPtr = 
+							tree.context->callback(lastLimbEdge->curve.c.type).maxAlternateEndFuncPtr;
+					float maxAlternateEnd = altEndFuncPtr ? (*altEndFuncPtr)(lastLimbEdge->curve.c) : 4.0f;
+					if (ratio > maxAlternateEnd)
+						continue;
+					OpEdge* filler = tree.addFiller(sect->opp->segment, 
+							lastLimbEdge->whichSect(EdgeMatch::end).pt, complementEnd, false);
+					OpLimb* branch = tree.makeLimb();
+					branch->set(tree, filler, this, match, LimbPass::alternateEnd, 
+							nullptr, 0, nullptr);
+					dmp(filler);
+					return;
+				}
+			}
+ 		}
+	}
+	if (LimbPass::alternateEnd == pass)
 		return;
 	if (contour.context->allowError(PathOpsV0Lib::ContextError::missing, &edge->curve.c))
 		return;
@@ -527,7 +574,7 @@ void OpTree::addDisabled(OpContour& contour) {
 					OpIntersection* unOpp = unSect->opp;
 					if (unOpp->ptT.pt == unSect->ptT.pt)
 						continue;
-					OpEdge* filler = addFiller(unSect->segment, unSect->ptT, unOpp->ptT, false);
+					OpEdge* filler = addFiller(unSect->segment, unSect->ptT.pt, unOpp->ptT.pt, false);
 					filler->setWhich(EdgeMatch::start);
 					OpLimb* branch = makeLimb();
 					branch->set(*this, filler, &limb, match, LimbPass::disjoint, 
@@ -542,17 +589,17 @@ void OpTree::addDisabled(OpContour& contour) {
 	}
 }
 
-OpEdge* OpTree::addFiller(OpSegment* seg, const OpPtT& ptT1, const OpPtT& ptT2, bool fromCC) {
+OpEdge* OpTree::addFiller(OpSegment* seg, OpPoint pt1, OpPoint pt2, bool fromCC) {
 	if (!fromCC) {
-		float fillerLength = (ptT1.pt - ptT2.pt).length();
+		float fillerLength = (pt1 - pt2).length();
 		if (!gap(fillerLength)) {
-			OP_DEBUG_CODE(OpDebugOut("\n" + seg->contour->context->debugData.testname + "\n"));
+			OP_DEBUG_CODE(OpDebugOut("\n" + context->debugData.testname + "\n"));
 			OP_DEBUG_DUMP_CODE(dump());
 			context->setError(PathOpsV0Lib::ContextError::gap  OP_DEBUG_PARAMS(id));
 			// !!! dump file here?
 		}
 	}
-	OpEdge* result = context->addFiller(ptT1, ptT2, seg);
+	OpEdge* result = context->addFiller(pt1, pt2, seg);
 	return result;
 }
 
@@ -670,6 +717,8 @@ void OpTree::initialize(OpContour& contour) {
 			break;
 		case LimbPass::unlinkedPal:
 			break;
+		case LimbPass::alternateEnd:
+			break;
 		case LimbPass::disabledBackwards:
 			if (contour.backwardsBuilt)
 				for (OpEdge* test : contour.disabledBackwards)
@@ -739,7 +788,6 @@ bool OpTree::join(OpJoiner& join) {
 	// close path unless caller allows disjoint results (by allowing context error missing) 
 	bool allowGaps = context->allowError(PathOpsV0Lib::ContextError::missing, &join.edge->curve.c);
 	EdgeOutput edgeOutput(context, join.edge, !allowGaps);
-	OP_TRACK(linkupsErasures);
 	OP_DEBUG_DUMP_CODE(context->dumpFile("tree"));
 	for (OpEdge* edge : linkupsErasures) {
         if (!edge->inOutput) {
@@ -1090,7 +1138,7 @@ bool OpJoiner::matchLinks(OpContour* contour, bool popLast) {
 			OpPtT startI = edge->whichSect();
 			OpPtT gapEnd = gap->lastLimbEdge->whichSect(!gap->match);
 			bool usectLink = unsectableLink(contour, startI.pt, gapEnd.pt);
-			OpEdge* filler = tree.addFiller(gap->lastLimbEdge->segment, gapEnd, startI, usectLink);
+			OpEdge* filler = tree.addFiller(gap->lastLimbEdge->segment, gapEnd.pt, startI.pt, usectLink);
 			OpLimb* branch = tree.makeLimb();
 			branch->set(tree, filler, gap, EdgeMatch::start, LimbPass::disjoint, 
 					nullptr, 0, nullptr);

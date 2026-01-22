@@ -91,7 +91,7 @@ inline void unaryDumpSetFunc(const char*& str, Winding& winding) {
 
 #endif
 
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 inline std::string unaryDumpOutFunc(Winding winding) {
     UnaryData unary(winding);
     std::string s = "{" + STR(unary.value) + "}";

@@ -326,7 +326,7 @@ inline void cubicCommonSubDivide(Curve c, float t1, float t2, float threshold, C
     subControls.copyTo(*result);
 }
 
-#if OP_DEBUG_IMAGE
+#if OP_TEST
 struct DebugCubic {
     CurveType curveType;
     size_t curveSize;
@@ -347,7 +347,7 @@ inline void AddCubics(Contour* contour, AddCurve curve) {
     // control point is not inside bounds formed by end points; split cubic into parts
 	OpRoots tValues = AddExtrema(start, end, controls, false);
 	tValues.add(AddInflections(start, end, controls));
-#if OP_DEBUG_IMAGE
+#if OP_TEST
     // save original curve and extrema t values as debugging data for visualization
     OP_ASSERT(sizeof(swizzled) == sizeof(DebugCubic::curveData));
     OP_ASSERT(sizeof(tValues.roots[0]) == sizeof(DebugCubic::extrema[0]));
@@ -574,7 +574,7 @@ inline void debugCubicSubDivide(Curve c, float t1, float t2, Curve* result) {
 
 #endif
 
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 
 inline std::string cubicDebugDumpName() { 
     return "cubic"; 

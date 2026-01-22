@@ -1,11 +1,7 @@
 // (c) 2025, Cary Clark cclark2@gmail.com
 
 #include "curves/BinaryWinding.h"
-#if OP_TINY_SKIA
 #include "TinySkia.h"
-#else
-#include "include/core/SkPath.h"
-#endif
 #include "port/SkiaPaths.h"
 
 using namespace PathOpsV0Lib;

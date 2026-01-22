@@ -192,9 +192,8 @@ bool OpContext::addAlias(OpPoint pt, OpPoint alias) {
 	   return true;
 }
 
-OpEdge* OpContext::addFiller(const OpPtT& start, const OpPtT& end, OpSegment* parent) {
+OpEdge* OpContext::addFiller(OpPoint start, OpPoint end, OpSegment* parent) {
 	void* block = allocateEdge(fillerStorage  OP_DEBUG_PARAMS("fillerStorage"));
-	// note: start t may be greater than end t (for filler only)
 	OpEdge* filler = new(block) OpEdge(this, start, end  OP_LINE_FILE_PARGS());
 	filler->segment = parent;
 	return filler;

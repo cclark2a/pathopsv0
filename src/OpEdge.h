@@ -85,7 +85,7 @@ struct EdgePal {
 
 	OpEdge* edge;
 	int unsectID;  // unsect id from sect in edge's segment, if any; or unique ID if missing
-	bool reversed;
+	int8_t reversed;
 };
 
 struct Distance {
@@ -101,9 +101,9 @@ struct Distance {
 	RayOrder rayOrder = RayOrder::uninitialized;  // note if computed sum can't be used because distance entries are unordered
 	float cept;  // where normal intersects edge (e.g. for home, axis horz: center.x)
 	float edgeInsideT;  // !!! t value from 0 to 1 within edge range (seems bizarre)
-	bool dependent = false;  // set if edge contains dependencies (i.e., get sum winding from edge)
-	bool reversed = false;
-	bool over = false;  // set if edge is home, or edge cept is close to or greater than home cept
+	int8_t dependent = false;  // set if edge contains dependencies (i.e., get sum winding from edge)
+	int8_t reversed = false;
+	int8_t over = false;  // set if edge is home, or edge cept is close to or greater than home cept
 	OP_DEBUG_CODE(int debugID);
 };
 
@@ -147,7 +147,7 @@ struct RayTargets {
 	OpRect chainBounds;
 	size_t edgeIndex = SIZE_MAX;
 	size_t index = SIZE_MAX;
-#if OP_DEBUG_SERIALIZE_OUT  // edges is set from contour + axis, so track them
+#if OP_DEBUG_SERIALIZE  // edges is set from contour + axis, so track them
     OpContour* debugEdgesContour = nullptr;
     Axis debugEdgesAxis = Axis::neither;
 #endif
@@ -183,7 +183,7 @@ struct SectRay {
 	void sort();
 	bool tryADifferentCenter(OpEdge* );
 	DUMP_DECLARATIONS
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 	std::string debugDumpHeader(DebugLevel l, DebugBase b) const;
 #endif
 
@@ -351,7 +351,8 @@ struct OpEdge {
 private:
 #endif
 	OpEdge()	// note : not all release values are zero (which end)
-		: priorEdge(nullptr)
+		: segment(nullptr)
+		, priorEdge(nullptr)
 		, nextEdge(nullptr)
 		, lastEdge(nullptr)
         , iStart(SetToNaN::dummy)
@@ -362,6 +363,8 @@ private:
 		, many(WindingUninitialized::dummy)
         , startDist(SetToNaN::dummy)
         , endDist(SetToNaN::dummy)
+		, startT(OpNaN)
+		, endT(OpNaN)
 		, ccUnsectID(0)
 		, whichEnd_impl(EdgeMatch::none)
 		, rayFail(EdgeFail::none)
@@ -387,9 +390,6 @@ private:
 	{
 #if OP_DEBUG // a few debug values are also nonzero
 		id = -2;
-		segment = nullptr;
-		startT = OpDebugNaN;
-		endT = OpDebugNaN;
 		debugMatch = nullptr;
 		debugZeroErr = nullptr;
 		debugParentID = 0;
@@ -413,7 +413,7 @@ public:
 	OpEdge(OpSegment*  OP_LINE_FILE_ARGS());  // segment make edge; used by curve curve
 	OpEdge(OpSegment* , const OpPtT& start, const OpPtT& end  OP_LINE_FILE_ARGS());  // cc init clip
 	OpEdge(OpIntersection* , OpIntersection*  OP_LINE_FILE_ARGS());  // sect make edges
-	OpEdge(OpContext* , const OpPtT& start, const OpPtT& end  OP_LINE_FILE_ARGS());  // make filler 
+	OpEdge(OpContext* , OpPoint start, OpPoint end  OP_LINE_FILE_ARGS());  // make filler 
 	OpEdge(const OpEdge* e, const OpPtT& newPtT, NewEdge isLeftRight  OP_LINE_FILE_ARGS());
 	OpEdge(const OpEdge* e, const OpPtT& start, const OpPtT& end  OP_LINE_FILE_ARGS());
 
@@ -488,10 +488,14 @@ public:
 	void unlink();  // restore edge to unlinked state (for reusing unsortable or unsectable edges)
 	EdgeMatch which() const {
 		return whichEnd_impl; }
+	EdgeMatch which(EdgeMatch match) const {
+		return EdgeMatch::start == match ? whichEnd_impl : !whichEnd_impl; }
+	OpPoint whichCurvePt(EdgeMatch match = EdgeMatch::start) const { 
+		return curve.whichPt(which(match)); }
     OpPtT whichSect(EdgeMatch match = EdgeMatch::start) const;
 	bool debugFail() const;
 	bool debugSuccess() const;
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 	std::string debugDumpCenter(DebugLevel , DebugBase ) const;
 	std::string debugDumpLink(EdgeMatch , DebugLevel , DebugBase ) const;
 	#define OP_X(Thing) \
@@ -625,7 +629,7 @@ struct OpEdgeStorage {
 	OpEdge* debugFind(int id);
 	static void DumpSet(const char*& str, OpContext* , DumpStorage );
 #endif
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 	int debugCount() const;
 	OpEdge* debugIndex(int index);
 	const OpEdge* debugIndex(int index) const;

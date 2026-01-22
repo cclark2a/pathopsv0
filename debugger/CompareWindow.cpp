@@ -1,6 +1,6 @@
 // (c) 2025, Cary Clark cclark2@gmail.com
-#ifndef TEST_RASTER
-#define TEST_RASTER 1  // !!! shouldn't be needed, but intelliSense doesn't work without it
+#ifndef OP_TEST_RASTER
+#define OP_TEST_RASTER 1  // !!! shouldn't be needed, but intelliSense doesn't work without it
 #endif
 #include "CompareWindow.h"
 #include "DebuggerState.h"
@@ -105,6 +105,8 @@ SDL_AppResult CompareWindow::draw() {
     if (!buffer)
         return SDL_APP_CONTINUE;
     if (!debugRaster)
+        return SDL_APP_CONTINUE;
+    if (debugRaster->samples.size() <= std::max(leftLabel.lastIndex, rightLabel.lastIndex))
         return SDL_APP_CONTINUE;
     SDL_SetRenderDrawColor(renderer, 0xEE, 0xEE, 0xEE, 255);
     SDL_RenderClear(renderer);

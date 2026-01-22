@@ -9,9 +9,10 @@
 
 struct OpContext;
 
-#if TEST_RASTER
+#if OP_TEST_RASTER
 struct OpEdge;
 #endif
+enum class EdgeMatch : int8_t;
 
 // arranged so down/left is -1, up/right is +1
 enum class NormalDirection {
@@ -109,6 +110,7 @@ struct OpCurve {
 		isLineSet = false; isLine(); }
 	void setLineType() {
 		c.type = lineType(); }
+	OpPoint whichPt(EdgeMatch ) const;
 
 	OpCurve subDivide(float t1, float t2) const;
 	OpVector tangent(float t) const;
@@ -124,7 +126,7 @@ struct OpCurve {
 #if OP_DEBUG
 	bool debugIsLine() const;
 #endif
-#if TEST_RASTER
+#if OP_TEST_RASTER
 	void debugScale(double scaleX, double scaleY, double offsetX, double offsetY);
 #endif
 #if OP_DEBUGGER
@@ -151,7 +153,7 @@ struct CurveDataStorage {
 		used += size;
 		return result;
 	}
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 	std::string debugDump(DebugLevel l, DebugBase b) const;
 	std::string debugDump(PathOpsV0Lib::CurveData* ) const;
 #endif

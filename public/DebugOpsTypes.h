@@ -33,7 +33,7 @@ struct DebugContextData {
 #if OP_DEBUG
 typedef void (*DebugScale)(Curve , double scaleX, double scaleY, double offsetX, double offsetY);
 
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 // returns string name of curve type
 typedef std::string (*DebugDumpCurveName)();
 
@@ -47,13 +47,13 @@ typedef void (*DebugSubDivide)(Curve , float t1, float t2, Curve* result);
 typedef void (*DebugAddToPath)(Curve , class SkPath& );
 #endif
 
-#if 0 && TEST_RASTER
+#if 0 && OP_TEST_RASTER
 typedef void (*DebugAddRaster)(DebugContextData , Curve , int parentID);
 #endif
 
 struct DebugCurveCallbacks {
 	DebugScale scaleFuncPtr;
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 	DebugDumpCurveName curveNameFuncPtr;
 	DebugDumpCurveExtra curveExtraFuncPtr = nullptr;
     DebugSubDivide debugSubDivideFuncPtr = nullptr;
@@ -61,7 +61,7 @@ struct DebugCurveCallbacks {
 //    OP_DEBUG_RASTER_CODE(DebugAddRaster addRasterFuncPtr = nullptr;)
 };
 
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 struct DebugEdgeType {
     bool disabled;
     bool inOutput;
@@ -73,7 +73,7 @@ struct DebugEdgeType {
 
 // typedef uint8_t (*DebugBitOper)(DebugContourData , uint8_t , uint8_t);
 typedef bool (*DebugIsFill)(Winding );
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 typedef std::string (*DebugDumpWindingOut)(Winding );
 typedef void (*DebugDumpWindingSet)(const char*& , Winding& );
 typedef std::string (*DebugDumpOut)(Context* );
@@ -84,7 +84,7 @@ typedef uint32_t (*DebugEdgeColor)(Winding , DebugEdgeType );
 
 struct DebugContextCallbacks {
     DebugIsFill debugIsFillFuncPtr = nullptr;
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 	DebugDumpWindingOut debugDumpWindingOutFuncPtr = nullptr;
 	DebugDumpWindingSet debugDumpWindingSetFuncPtr = nullptr;
     DebugDumpOut debugDumpOutFuncPtr = nullptr;
@@ -95,7 +95,7 @@ struct DebugContextCallbacks {
 #endif
 };
 
-#if 0 && OP_DEBUG_SERIALIZE_OUT  // disable until we need it
+#if 0 && OP_DEBUG_SERIALIZE  // disable until we need it
 typedef std::string (*DebugDumpContourExtra)(DebugContourData , DebugLevel , DebugBase );
 typedef void* (*DebugNativePath)(DebugContourData );
 typedef bool (*DebugGetDraw)(DebugContourData );
@@ -104,7 +104,7 @@ typedef bool (*DebugOperand)(DebugContourData , int );  // deprecated
 #endif
 
 struct DebugContourCallbacks {
-#if 0 && OP_DEBUG_SERIALIZE_OUT
+#if 0 && OP_DEBUG_SERIALIZE
     DebugDumpContourExtra debugDumpContourExtraFuncPtr = nullptr;
 	DebugNativePath debugNativePathFuncPtr = nullptr;
 	DebugGetDraw debugGetDrawFuncPtr = nullptr;

@@ -382,8 +382,8 @@ bool OpContour::linkUp(OpJoiner* joiner, OpEdge* e) {
 		std::vector<FoundEdge> foundEdges;
 		OP_ASSERT(!e->debugIsLoop(EdgeMatch::end, LeadingLoop::will));
 		const OpSegment* segment = e->segment;
-		bool hasPal = segment->activeAtT(e, linkMatch, foundEdges);
-		hasPal |= segment->activeNeighbor(e, linkMatch, foundEdges);
+		bool hasPal = segment->activeAtT(e, linkMatch, MatchZero::yes, foundEdges);
+		hasPal |= segment->activeNeighbor(e, linkMatch, AllowLinked::no, foundEdges);
 		// if oppEdges is count of one and unsortable, don't return any edges (testQuadratic67x)
 		if (foundEdges.size() == 1 && Unsortable::none != foundEdges[0].edge->isUnsortable /* && hadLinkTo */)
 			foundEdges.clear(); // hadLinkTo breaks thread_cubics147521
@@ -644,8 +644,10 @@ void OpContour::init(OpContext* ctxt, PathOpsV0Lib::WindingData wind, size_t siz
 	id = ctxt->nextID();
     windingStorage.resize(size);
     std::memcpy(&windingStorage.front(), wind, size);
-#if OP_DEBUG_IMAGE
+#if OP_TEST
 	debugWinding = OpWinding(this, wind, size);
+#endif
+#if OP_DEBUG_IMAGE
     int used = ctxt->contourStorage->used;
     if (1 == used)
         debugColor = blue;

@@ -2,28 +2,52 @@
 #ifndef OpDebug_DEFINED
 #define OpDebug_DEFINED
 
+#ifdef _WIN32
+#define NOMINMAX
+#define _CRT_SECURE_NO_WARNINGS
+#endif
+
 #include <assert.h>
 #include <cstdint>
 #include <cstring>
 
-#ifndef OP_DEBUGGER
-#include "OpTestDrive.h"  // set test specific settings here
-#endif
-
 #ifndef NDEBUG
+#define OP_DEBUG 1
 #define _GLIBCXX_DEBUG 1
+#else
+#define OP_DEBUG 0
 #endif
 #include <vector>
+
+#ifndef OP_DEBUG_FAST_TEST
+#define OP_DEBUG_FAST_TEST 0
+#endif
+
+#ifndef OP_TINY_TEST
+#define OP_TINY_TEST 0
+#endif
+
+#ifndef OP_DEBUG_ALT
+#define OP_DEBUG_ALT 0
+#endif
+
+#ifndef OP_RELEASE_TEST
+#define OP_RELEASE_TEST 1	// !!! set to zero to remove tests from release build (untested)
+#endif
 
 // OP_DEBUG_FAST_TEST uses threads; all code must be thread-safe
 #define OP_DEBUG_VERBOSE (OP_DEBUGGER || !OP_DEBUG_FAST_TEST)
 #define OP_DEBUG_GLOBALS (!OP_DEBUG_FAST_TEST)  // globals available while debugging single-threaded
-#define OP_RELEASE_TEST 1	// !!! set to zero to remove tests from release build (untested)
+#define OP_TEST (OP_DEBUG || OP_RELEASE_TEST)  // check test results (e.g., scanline compare)
+
+#ifndef OP_TEST_RASTER
+#define OP_TEST_RASTER (!OP_TINY_TEST && OP_TEST)
+#endif
 
 #define OP_ENUM_BASE(member, value) member = value
 #define OP_ENUM_MEMBER(member) member
 
-#if !defined(NDEBUG) || OP_RELEASE_TEST
+#if OP_TEST
 #include <string>
 
 #define OpDebugExpect_Enums \
@@ -60,7 +84,7 @@ enum class OpDebugIntersect {
 	edge
 };
 
-#if TEST_RASTER
+#if OP_TEST_RASTER
 struct OpDebugRaster;
 #endif
 
@@ -107,15 +131,13 @@ struct OpDebugData {
     #define OP_TINY_MAIN(func)
 #endif
 
-#ifdef NDEBUG
+#if !OP_DEBUG
 
 #define OP_ASSERT(expr)
 #define OP_DEBUG_PARAMS(...)
 #define OP_LINE_FILE_PARGS()
 #define OP_DEBUG_CODE(...)
-#define OP_RELEASE_CODE(...) __VA_ARGS__
 #define OP_DEBUG_VALIDATE_CODE(...)
-#define OP_DEBUG 0
 #define OP_DEBUG_BREAK()
 #define OP_DEBUG_DUMP 0
 #define OP_DEBUG_ENUM()
@@ -125,13 +147,12 @@ struct OpDebugData {
 #define OP_DEBUG_INIT_FLOAT()
 #define OP_DEBUG_INIT_INT()
 #define OP_DEBUG_INIT_PTR(ptr_type)
-#define OP_DEBUG_INITED_PTR(ptr)  #error "should never be in release code"
+#define OP_DEBUG_INITED_PTR(ptr)  error("should never be in release code")
 #define OP_DEBUG_INIT_SIZE()
 #define OP_DEBUG_INIT_UINT()
 #define OP_DEBUG_MAKER 0
 #define OP_DEBUG_FAIL(object, returnValue) return returnValue
-#define OP_DEBUG_SERIALIZE_OUT 0
-#define OP_DEBUG_SERIALIZE_IN 0
+#define OP_DEBUG_SERIALIZE 0
 #define OP_DEBUG_SUCCESS(object, returnValue) return returnValue
 #define OP_LINE_FILE_PARAMS(...)
 #define OP_LINE_FILE_PARGS()
@@ -150,7 +171,6 @@ struct OpDebugData {
 #define OP_LINE_FILE_DECLARE(debugMaker)
 #define OP_LINE_FILE_SET(debugMaker)
 #define OP_LINE_FILE_SET_IMMED(debugMaker)
-#define OP_TRACK(vector)
 
 #else
 
@@ -165,8 +185,7 @@ struct OpDebugData {
 #endif
 #define OP_ASSERT(expr) do { if (!(expr)) OP_DEBUG_BREAK(); } while (false)
 
-#define OP_DEBUG_SERIALIZE_OUT 1  // !!! migrate debug dump so threaded test can write to debugger
-#define OP_DEBUG_SERIALIZE_IN (OP_DEBUGGER) // !!! isolate code used by debugger to read serialized
+#define OP_DEBUG_SERIALIZE 1  // !!! migrate debug dump so threaded test can write to debugger
 
 #if (!OP_DEBUGGER && OP_DEBUG_FAST_TEST) || (defined OP_TINY_TEST && OP_TINY_TEST)
 	#define OP_DEBUG_DUMP 0
@@ -184,37 +203,27 @@ struct OpDebugData {
 #endif
 #define OP_DEBUG_PARAMS(...) , __VA_ARGS__
 #define OP_DEBUG_CODE(...) __VA_ARGS__
-#define OP_DEBUG_ENUM() uninitialized = (bool) -1,
+#define OP_DEBUG_ENUM() uninitialized = -1,
 #define OP_DEBUG_INIT(enum_name) = enum_name::uninitialized
-#define OP_DEBUG_INIT_BOOL() = (bool) -1
+#define OP_DEBUG_INIT_BOOL() = -1
 #define OP_DEBUG_INIT_FLOAT() = OpDebugNaN
 #define OP_DEBUG_INIT_INT() = INT_MAX
 #define OP_DEBUG_INIT_PTR(ptr_type) = (ptr_type*) 0xDEAD0ABEDEADBEEF
 #define OP_DEBUG_INITED_PTR(ptr) (!!ptr && (decltype(ptr)) 0xDEAD0ABEDEADBEEF)
 #define OP_DEBUG_INIT_SIZE() = SIZE_MAX
 #define OP_DEBUG_INIT_UINT() = UINT_MAX
-#define OP_RELEASE_CODE(...)
 
 #if OP_DEBUG_IMAGE
 #undef OP_DEBUG_IMAGE_CODE
 #define OP_DEBUG_IMAGE_CODE(...) __VA_ARGS__
-#if !OP_TINY_SKIA && !OP_DEBUGGER
-#undef OP_DEBUG_IMAGE_CODE_OLD
-#define OP_DEBUG_IMAGE_CODE_OLD(...) __VA_ARGS__
-#endif
 #undef OP_DEBUG_IMAGE_PARAMS
 #define OP_DEBUG_IMAGE_PARAMS(...) , __VA_ARGS__
-#if !OP_TINY_SKIA && !OP_DEBUGGER
-#undef OP_DEBUG_IMAGE_PARAMS_OLD
-#define OP_DEBUG_IMAGE_PARAMS_OLD(...) , __VA_ARGS__
-#endif
 #endif
 #if OP_DEBUG_VALIDATE
 	#define OP_DEBUG_VALIDATE_CODE(...) __VA_ARGS__
 #else
 	#define OP_DEBUG_VALIDATE_CODE(...)
 #endif
-#define OP_DEBUG 1
 
 // Use these defines where failure or success is logical, but we want it to break to verify
 // that the decision is correct. Once verified, the macro is replaced with an error return.
@@ -222,8 +231,6 @@ struct OpDebugData {
 	do { if (!(object).debugFail()) OP_DEBUG_BREAK(); return returnValue; } while (false)
 #define OP_DEBUG_SUCCESS(object, returnValue) \
 	do { if (!(object).debugSuccess()) OP_DEBUG_BREAK(); return returnValue; } while (false)
-
-#include <string>
 
 #if OP_DEBUG_MAKER
 struct OpDebugMaker {
@@ -282,9 +289,6 @@ struct OpDebugMaker {
 #define OP_LINE_FILE_SET(debugMaker)
 #define OP_LINE_FILE_SET_IMMED(debugMaker)
 #endif
-
-// keep track of vector size to find reserve  !!! haven't decided whether or not to build this out
-#define OP_TRACK(v)
 
 // debug compare, debug dump, and debug image as written only work when testing uses a single thread
 #if OP_DEBUGGER || !OP_DEBUG_FAST_TEST
@@ -433,12 +437,8 @@ void OpDebugByteArray(const char*& str, size_t size, uint8_t* );
 std::string OpDebugByteToHex(uint8_t);
 std::string OpDebugIntToHex(int32_t);
 std::string OpDebugPtrToHex(void*);
-
-#endif
-
-
-#if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE || OP_TINY_SKIA
 std::string OpDebugDumpHex(float);
+
 #endif
 
 
@@ -458,7 +458,7 @@ void OpDebugRequired(const char*& str, const char* match);
 
 #endif
 
-#if OP_DEBUG_SERIALIZE_OUT
+#if OP_DEBUG_SERIALIZE
 enum class DebugLevel;
 enum class DebugBase;
 
@@ -485,7 +485,7 @@ namespace PathOpsV0Lib {
 
 }
 
-#if TEST_RASTER
+#if OP_TEST_RASTER
 #define OP_DEBUG_RASTER_CODE(...) __VA_ARGS__
 #define OP_DEBUG_RASTER_PARAMS(params) , params
 #else

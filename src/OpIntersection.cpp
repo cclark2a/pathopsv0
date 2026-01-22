@@ -300,6 +300,7 @@ void OpIntersections::coinRange(OpEdge& edge, OpSegment* opp, bool reversed) {
 	OP_ASSERT(!coinStart);
 }
 
+#if 0
 // !!! optimize with binary search(es) once working
 // !!! wrong place to do this?
 // since there can be more than one connected edge that starts and ends on pals, this
@@ -315,6 +316,7 @@ std::vector<int> OpIntersections::findPals(float t) const {
 	std::vector<int> dummy;
 	return dummy;
 }
+#endif
 
 std::vector<OpIntersection*> OpIntersections::unsectables(OpPoint pt) {
 	std::vector<OpIntersection*> result;

@@ -33,12 +33,6 @@ endif ()
 
 set (ignoreMe "${TSAN}${ASAN}${MSAN}${LSAN}${COVERAGE}")
 
-set (FAST_TEST 1)
-set (SKIP_TO_V0 0)
-set (TEST_FIRST "")
-set (SKIP_TO_FILE "")
-set (TEST_EXTENDED 0)
-
 include_directories(
 	"debug"
 	"debugger"
@@ -52,7 +46,7 @@ include_directories(
 
 set (COMMON_SOURCES
 	"debug/OpDebug.cpp"
-    "debug/OpDebugSerializeOut.cpp"
+    "debug/OpDebugSerialize.cpp"
 	"debug/OpDebugTags.cpp"
 	"src/OpContext.cpp"
 	"src/OpContour.cpp"
@@ -106,6 +100,7 @@ set (SKIA_TESTS
 )
 
 add_executable (skia_test )
+add_executable (skia_alt )
 add_executable (test_drive )
 add_executable (contains_example "example/ContainsExample.cpp" )
 add_executable (frame_example "example/FrameExample.cpp" )
@@ -118,41 +113,45 @@ add_executable (cut_test "tests/CutTest.cpp" )
 add_executable (frame_test "tests/FrameTest.cpp" )
 add_executable (path_2d_test "public/port/Path2D.cpp" "tests/Path2DTest.cpp" )
 
-target_sources (skia_test PUBLIC ${COMMON_SOURCES} ${SKIA_TESTS})
-target_sources (test_drive PUBLIC ${COMMON_SOURCES} ${SKIA_TESTS})
-target_sources (contains_example PUBLIC ${COMMON_SOURCES})
-target_sources (frame_example PUBLIC ${COMMON_SOURCES})
-target_sources (html_canvas_example PUBLIC ${COMMON_SOURCES})
-target_sources (simplify_example PUBLIC ${COMMON_SOURCES})
+target_sources (skia_test              PUBLIC ${COMMON_SOURCES} ${SKIA_TESTS})
+target_sources (skia_alt               PUBLIC ${COMMON_SOURCES} ${SKIA_TESTS})
+target_sources (test_drive             PUBLIC ${COMMON_SOURCES} ${SKIA_TESTS})
+target_sources (contains_example       PUBLIC ${COMMON_SOURCES})
+target_sources (frame_example          PUBLIC ${COMMON_SOURCES})
+target_sources (html_canvas_example    PUBLIC ${COMMON_SOURCES})
+target_sources (simplify_example       PUBLIC ${COMMON_SOURCES})
 target_sources (skia_intersect_example PUBLIC ${COMMON_SOURCES})
-target_sources (skia_simplify_example PUBLIC ${COMMON_SOURCES})
-target_sources (svg_example PUBLIC ${COMMON_SOURCES})
-target_sources (cut_test PUBLIC ${COMMON_SOURCES})
-target_sources (frame_test PUBLIC ${COMMON_SOURCES})
-target_sources (path_2d_test PUBLIC ${COMMON_SOURCES})
+target_sources (skia_simplify_example  PUBLIC ${COMMON_SOURCES})
+target_sources (svg_example            PUBLIC ${COMMON_SOURCES})
+target_sources (cut_test               PUBLIC ${COMMON_SOURCES})
+target_sources (frame_test             PUBLIC ${COMMON_SOURCES})
+target_sources (path_2d_test           PUBLIC ${COMMON_SOURCES})
 
-set (COMMON_DEFINITIONS 
-    "OP_DEBUG_FAST_TEST=0"
-    "OP_TINY_SKIA=1"
-    "NOMINMAX"
-    "_CRT_SECURE_NO_WARNINGS"
+target_compile_definitions (skia_test              PUBLIC )
+target_compile_definitions (skia_alt               PUBLIC OP_DEBUG_ALT=1)
+target_compile_definitions (test_drive             PUBLIC OP_DEBUG_FAST_TEST=1)
+target_compile_definitions (contains_example       PUBLIC OP_TINY_TEST=1)
+target_compile_definitions (frame_example          PUBLIC OP_TINY_TEST=1)
+target_compile_definitions (html_canvas_example    PUBLIC OP_TINY_TEST=1)
+target_compile_definitions (simplify_example       PUBLIC OP_TINY_TEST=1)
+target_compile_definitions (skia_intersect_example PUBLIC OP_TINY_TEST=1)
+target_compile_definitions (skia_simplify_example  PUBLIC OP_TINY_TEST=1)
+target_compile_definitions (svg_example            PUBLIC OP_TINY_TEST=1)
+target_compile_definitions (cut_test               PUBLIC OP_TINY_TEST=1)
+target_compile_definitions (frame_test             PUBLIC OP_TINY_TEST=1)
+target_compile_definitions (path_2d_test           PUBLIC OP_TINY_TEST=1)
+
+set (DEBUG_COMPILE_OPTIONS
+    -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof
 )
 
-target_compile_definitions (skia_test              PUBLIC ${COMMON_DEFINITIONS} TEST_RASTER=1)
-target_compile_definitions (test_drive PUBLIC OP_DEBUG_FAST_TEST=1 OP_TINY_SKIA=1 NOMINMAX _CRT_SECURE_NO_WARNINGS)
-target_compile_definitions (contains_example       PUBLIC ${COMMON_DEFINITIONS} OP_TINY_TEST=1)
-target_compile_definitions (frame_example          PUBLIC ${COMMON_DEFINITIONS} OP_TINY_TEST=1)
-target_compile_definitions (html_canvas_example    PUBLIC ${COMMON_DEFINITIONS} OP_TINY_TEST=1)
-target_compile_definitions (simplify_example       PUBLIC ${COMMON_DEFINITIONS} OP_TINY_TEST=1)
-target_compile_definitions (skia_intersect_example PUBLIC ${COMMON_DEFINITIONS} OP_TINY_TEST=1)
-target_compile_definitions (skia_simplify_example  PUBLIC ${COMMON_DEFINITIONS} OP_TINY_TEST=1)
-target_compile_definitions (svg_example            PUBLIC ${COMMON_DEFINITIONS} OP_TINY_TEST=1)
-target_compile_definitions (cut_test               PUBLIC ${COMMON_DEFINITIONS} OP_TINY_TEST=1)
-target_compile_definitions (frame_test             PUBLIC ${COMMON_DEFINITIONS} OP_TINY_TEST=1)
-target_compile_definitions (path_2d_test           PUBLIC ${COMMON_DEFINITIONS} OP_TINY_TEST=1)
+set (RELEASE_COMPILE_OPTIONS
+    -g -Wall -Wno-unused-parameter -Wno-extra
+)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options (skia_test PUBLIC)
+    target_compile_options (skia_alt PUBLIC)
     target_compile_options (test_drive PUBLIC)
     target_compile_options (contains_example PUBLIC)
     target_compile_options (frame_example PUBLIC)
@@ -165,31 +164,33 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options (frame_test PUBLIC)
     target_compile_options (path_2d_test PUBLIC)
 elseif (CMAKE_BUILD_TYPE MATCHES "Debug")
-    target_compile_options (skia_test PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof -fprofile-update=atomic -D_GLIBCXX_DEBUG=1)
-    target_compile_options (test_drive PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof -fprofile-update=atomic)
-    target_compile_options (contains_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof )
-    target_compile_options (frame_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof )
-    target_compile_options (html_canvas_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof )
-    target_compile_options (simplify_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof )
-    target_compile_options (skia_intersect_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof )
-    target_compile_options (skia_simplify_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof )
-    target_compile_options (svg_example PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof )
-    target_compile_options (cut_test PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof )
-    target_compile_options (frame_test PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof )
-    target_compile_options (path_2d_test PUBLIC -g -Wall -Wpedantic -Wno-unused-parameter -Wno-invalid-offsetof )
+    target_compile_options (skia_test PUBLIC ${DEBUG_COMPILE_OPTIONS} -fprofile-update=atomic -D_GLIBCXX_DEBUG=1)
+    target_compile_options (skia_alt PUBLIC ${DEBUG_COMPILE_OPTIONS} -fprofile-update=atomic -D_GLIBCXX_DEBUG=1)
+    target_compile_options (test_drive PUBLIC ${DEBUG_COMPILE_OPTIONS} -fprofile-update=atomic)
+    target_compile_options (contains_example PUBLIC ${DEBUG_COMPILE_OPTIONS} )
+    target_compile_options (frame_example PUBLIC ${DEBUG_COMPILE_OPTIONS} )
+    target_compile_options (html_canvas_example PUBLIC ${DEBUG_COMPILE_OPTIONS} )
+    target_compile_options (simplify_example PUBLIC ${DEBUG_COMPILE_OPTIONS} )
+    target_compile_options (skia_intersect_example PUBLIC ${DEBUG_COMPILE_OPTIONS} )
+    target_compile_options (skia_simplify_example PUBLIC ${DEBUG_COMPILE_OPTIONS} )
+    target_compile_options (svg_example PUBLIC ${DEBUG_COMPILE_OPTIONS} )
+    target_compile_options (cut_test PUBLIC ${DEBUG_COMPILE_OPTIONS} )
+    target_compile_options (frame_test PUBLIC ${DEBUG_COMPILE_OPTIONS} )
+    target_compile_options (path_2d_test PUBLIC ${DEBUG_COMPILE_OPTIONS} )
 elseif (CMAKE_BUILD_TYPE MATCHES "Release")
-    target_compile_options (skia_test PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra -fprofile-update=atomic)
-    target_compile_options (test_drive PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra -fprofile-update=atomic)
-    target_compile_options (contains_example PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra)
-    target_compile_options (frame_example PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra)
-    target_compile_options (html_canvas_example PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra)
-    target_compile_options (simplify_example PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra)
-    target_compile_options (skia_intersect_example PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra)
-    target_compile_options (skia_simplify_example PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra)
-    target_compile_options (svg_example PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra)
-    target_compile_options (cut_test PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra)
-    target_compile_options (frame_test PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra)
-    target_compile_options (path_2d_test PUBLIC -g -Wall -Wno-unused-parameter -Wno-extra)
+    target_compile_options (skia_test PUBLIC ${RELEASE_COMPILE_OPTIONS} -fprofile-update=atomic)
+    target_compile_options (skia_alt PUBLIC ${RELEASE_COMPILE_OPTIONS} -fprofile-update=atomic)
+    target_compile_options (test_drive PUBLIC ${RELEASE_COMPILE_OPTIONS} -fprofile-update=atomic)
+    target_compile_options (contains_example PUBLIC ${RELEASE_COMPILE_OPTIONS})
+    target_compile_options (frame_example PUBLIC ${RELEASE_COMPILE_OPTIONS})
+    target_compile_options (html_canvas_example PUBLIC ${RELEASE_COMPILE_OPTIONS})
+    target_compile_options (simplify_example PUBLIC ${RELEASE_COMPILE_OPTIONS})
+    target_compile_options (skia_intersect_example PUBLIC ${RELEASE_COMPILE_OPTIONS})
+    target_compile_options (skia_simplify_example PUBLIC ${RELEASE_COMPILE_OPTIONS})
+    target_compile_options (svg_example PUBLIC ${RELEASE_COMPILE_OPTIONS})
+    target_compile_options (cut_test PUBLIC ${RELEASE_COMPILE_OPTIONS})
+    target_compile_options (frame_test PUBLIC ${RELEASE_COMPILE_OPTIONS})
+    target_compile_options (path_2d_test PUBLIC ${RELEASE_COMPILE_OPTIONS})
 endif()
 
 # (remove all built files)

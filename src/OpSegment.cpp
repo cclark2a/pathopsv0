@@ -45,10 +45,10 @@ OpSegment::OpSegment(PathOpsV0Lib::Contour* libContour, PathOpsV0Lib::AddCurve a
 // for now, treat any unsectable multiple as having a zero side whether it does or not.
 // returns true if emplaced edge has pals
 
-// activeNeighbor is called separately because this iterates through opposite intersections only
+// active neighbor is called separately because this iterates through opposite intersections only
 // returns true if any found edge is a pal
-bool OpSegment::activeAtT(OpEdge* edge, EdgeMatch match, std::vector<FoundEdge>& oppEdges
-		) const {
+bool OpSegment::activeAtT(OpEdge* edge, EdgeMatch match, MatchZero matchZero,
+		std::vector<FoundEdge>& oppEdges) const {
 	unsigned edgesSize = (unsigned) oppEdges.size();
 	OP_ASSERT(!edge->disabled);
 	// each prospective match normal must agree with edge, indicating direction of area outside fill
@@ -82,12 +82,12 @@ bool OpSegment::activeAtT(OpEdge* edge, EdgeMatch match, std::vector<FoundEdge>&
 				return true;
 			return o->ray.sectsAllPals(e);
 		};
-		auto saveMatch = [edge, &oppEdges, &oSect, checkZero, isSortable](EdgeMatch testEnd) {
+		auto saveMatch = [edge, &oppEdges, &oSect, checkZero, matchZero, isSortable](EdgeMatch testEnd) {
 			OpSegment* oSeg = oSect->segment;
 			OpEdge* test = oSeg->findEnabled(oSect->ptT, testEnd);  // !!! optimization: walk edges in order
 			if (!test || test == edge)
 				return;
-			if (isSortable(edge, test) && isSortable(test, edge)
+			if (MatchZero::yes == matchZero && isSortable(edge, test) && isSortable(test, edge)
 					&& edge->windZero != checkZero(test, edge->which(), testEnd))
 				return;
 			if (!test->hasLinkTo(EdgeMatch::start == test->which() ? testEnd : !testEnd))
@@ -104,7 +104,8 @@ bool OpSegment::activeAtT(OpEdge* edge, EdgeMatch match, std::vector<FoundEdge>&
 }
 
 // returns true if emplaced edge has pals
-bool OpSegment::activeNeighbor(const OpEdge* edge, EdgeMatch match, 
+// allow linked if true requires candidates to be in linked list
+bool OpSegment::activeNeighbor(const OpEdge* edge, EdgeMatch match, AllowLinked allowLinked,
 		std::vector<FoundEdge>& oppEdges) const {
 	if ((EdgeMatch::start == match && edge->startT == 0)
 			|| (EdgeMatch::end == match && edge->endT == 1))
@@ -117,11 +118,12 @@ bool OpSegment::activeNeighbor(const OpEdge* edge, EdgeMatch match,
 	for (auto& alreadyFound : oppEdges)
 		if (alreadyFound.edge == nextDoor)
 			return false;
-	if (nextDoor->hasLinkTo(neighbor))
+	if (AllowLinked::no == allowLinked ? nextDoor->hasLinkTo(neighbor) : !nextDoor->priorEdge)
 		return false;
 	if (Unsortable::none != edge->isUnsortable || edge->windZero == nextDoor->windZero 
 			|| Unsortable::none != nextDoor->isUnsortable) {
 		oppEdges.emplace_back(nextDoor, EdgeMatch::none);
+		oppEdges.back().neighborEnd = neighbor;
 		return nextDoor->isUnsectable();
 	}
 	return false;

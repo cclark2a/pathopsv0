@@ -2,6 +2,7 @@
 
 #include "DebuggerState.h"
 #include "OpCurveCurve.h"
+#include "OpDebugRaster.h"
 #include "OpJoiner.h"
 #include <sys/stat.h>
 
@@ -121,8 +122,6 @@ DrawLevel TextWindow::event(const DebuggerEvent& debuggerEvent) {
     return DrawLevel::none;
 }
 
-extern DebugBase defaultBase;
-
 struct Field {
     const char* name;
     const char* data;
@@ -161,7 +160,6 @@ void TextWindow::innerUpdate(int& safetyCheck) {
 	for (auto& id : debuggerState->ids) {
         if (!id.selected && !showAll)
             continue;
-        defaultBase = debuggerState->showHex ? DebugBase::hex : DebugBase::dec;
         bool shownEdge = false;
         bool shownIntersection = false;
         bool shownSegment = false;
@@ -297,6 +295,30 @@ void TextWindow::innerUpdate(int& safetyCheck) {
             addWrapped("(no links)");
         else
             addWrapped(s);
+    }
+    if (debuggerState->showOutput) {
+        DebugRaster* raster = debuggerState->context->debugRaster;
+        if (!raster || raster->outputs.empty()) 
+            addWrapped("(no output)");
+        else {
+            std::string s = "output ";
+            for (DebugOutput& output : raster->outputs) {
+                auto loopAttributeSet = [output](PathOpsV0Lib::LoopAttribute attr) {
+                    return !!((int) output.loopAttr & (int) attr);
+                };
+                if (loopAttributeSet(PathOpsV0Lib::LoopAttribute::first))
+                    s += "[";
+                s += STR(output.edge->id) + " ";
+                if (loopAttributeSet(PathOpsV0Lib::LoopAttribute::last)) {
+                    if (' ' == s.back())
+                        s.pop_back();
+                    s += "]\n";
+                }
+            }
+            if ('\n' == s.back())
+                s.pop_back();
+            addWrapped(s);
+        }
     }
     if (showTest && !testIn.empty())
         addWrapped(testIn);

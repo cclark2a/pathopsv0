@@ -2,7 +2,7 @@
 #ifndef OpDebugRaster_DEFINED
 #define OpDebugRaster_DEFINED
 
-#if TEST_RASTER
+#if OP_TEST_RASTER
 
 #include "OpContext.h"
 #include "DebugOpsTypes.h"
@@ -59,7 +59,7 @@ struct RasterSample {
 	int curveIndex = -1;  // for contour : index of user-provided curve
     float x = OpDebugNaN;
 	float t = OpDebugNaN;  // unused by rasterizer, but useful for debugging
-	bool curveDown = (bool) -1;  // unset for contour curve
+	int8_t curveDown = -1;  // unset for contour curve
 	bool visible = true;
 };
 
@@ -148,7 +148,7 @@ struct DebugRaster {
 	void addOutput(PathOpsV0Lib::Output , OpEdge* );
 	std::string debugDump(DebugLevel l, DebugBase b) const;
 	void deleteOld();
-	void dumpResolveAll();
+	void dumpResolveAll(OpContext* );
 	void dumpSet(char const*& str);
     void in();
     float out();
@@ -157,6 +157,7 @@ struct DebugRaster {
 	void sample(SampleType );
 	void sampleEdges();
 	void sampleOutput();
+	bool tooSmall() const;
 	OP_DEBUG_VALIDATE_CODE(void validate());
 
 	std::vector<OpDebugSamples> samples;  // one per initial winding value
@@ -168,8 +169,8 @@ struct DebugRaster {
 	int bitWidth = -1;
 	int bitHeight = -1;
 	int subSamples = -1;
-	bool sendToDebugger = (bool) -1;
-	bool makeBits = (bool) -1;
+	int8_t sendToDebugger = -1;
+	int8_t makeBits = -1;
 	OP_DEBUG_VALIDATE_CODE(bool disableValidate = true);
 };
 

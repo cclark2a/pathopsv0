@@ -37,7 +37,7 @@ void V0SimplifyQuads(TestOptions* options) {
                         path.quadTo(gx, gy, hx, hy);
                         path.close();
                         path.setFillType(SkPathFillType::kWinding);
-                        if (!options->testOne(path)) // 1st test is quad1
+                        if (!options->testOne(path))
                             return false;
                         path.setFillType(SkPathFillType::kEvenOdd);
                         if (!options->testOne(path))
@@ -52,8 +52,8 @@ void V0SimplifyQuads(TestOptions* options) {
     // since each path is evaluated twice (winding, even odd) skip by 7752
     const int testCount = 16 * 17 * 18 * 19 * 2 / 24;
     options->indexOffset = testCount;
-    options->index = -testCount + 1;  // skia test framework bug skips first set of tests
-    options->skip += testCount - 1;
+    options->index = -testCount;  // skia test framework bug skips first set of tests
+    options->skip += testCount;   // ... so number those tests negative for compatibility
     for (int a = 0; a < 16; ++a) {
         for (int b = a; b < 16; ++b) {
             for (int c = b; c < 16; ++c) {

@@ -6,6 +6,7 @@
 #include <filesystem>
 #include "DebugOpsTypes.h"
 #include "OpCurveCurve.h"
+#include "OpDebugRaster.h"
 #include "OpDebugSerialize.h"
 #include "OpWinder.h"
 
@@ -668,6 +669,12 @@ std::string FoundLimit::debugDump(DebugLevel l, DebugBase b) const {
         s += " match";
     if (LimitSwapped::yes == swapped)
         s += " swapped";
+    if (LimitBettered::yes == bettered)
+        s += " bettered";
+    if (LimitLine::yes == edgeLine)
+        s += " edgeLine";
+    if (LimitLine::yes == oppLine)
+        s += " oppLine";
 #if OP_DEBUG_MAKER
     s += " debugMaker:" + debugMaker.debugDump();
 #endif
@@ -835,13 +842,13 @@ void OpContext::dumpBaseFile() const {
     }
     std::string s;
     s = debugDump(DebugLevel::file, DebugBase::hex);
-    s = stringFormat(s, 100);
+    s = stringFormat(s, 133);  // accomodate op debug bitmap (66 bytes x 2)
     fwrite(&s[0], 1, s.size(), file);
     fclose(file);
 #if OP_DEBUG_VALIDATE && OP_DEBUG_DUMP
 	OpContext* fileContext = fromFile(debugFilename);
     std::string copy = fileContext->debugDump(DebugLevel::file, DebugBase::hex);
-    copy = stringFormat(copy, 100);
+    copy = stringFormat(copy, 133);
     std::string orig = dmpFileToStr(debugFilename);
     if (orig != copy) {
         std::string copyPath = dmpFileToPath("DumpCopy.txt");
@@ -913,8 +920,9 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
 	    DEBUG_FIND_TAG(callback, crossThresholdFuncPtr, cutFuncPtr);
 	    DEBUG_FIND_TAG(callback, cutFuncPtr,            interceptFuncPtr);
 	    DEBUG_FIND_TAG(callback, interceptFuncPtr,      normalLimitFuncPtr);
-        static_assert(offsetof(PathOpsV0Lib::CurveCallbacks, normalLimitFuncPtr) 
-                + sizeof(callback.normalLimitFuncPtr) == sizeof(callback));
+	    DEBUG_FIND_TAG(callback, normalLimitFuncPtr,    maxAlternateEndFuncPtr);
+        static_assert(offsetof(PathOpsV0Lib::CurveCallbacks, maxAlternateEndFuncPtr) 
+                + sizeof(callback.maxAlternateEndFuncPtr) == sizeof(callback));
     }
     ASSERT_ORDERED(callbacks, userData);
 #if 0  // don't serialize user data
@@ -1105,6 +1113,15 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
         s += "\n:debugOutPath\n";
     }
     ASSERT_ORDERED(debugOutPath, dumpIndex);  // omit for now
+#if OP_DEBUG_DUMP
+    ASSERT_ORDERED_OFFSET(dumpIndex, debugDumpErasures, 4);  // omit for now
+    ASSERT_ORDERED(debugDumpErasures, debugDumpInit);  // omit for now
+#if OP_TEST_RASTER
+    ASSERT_ORDERED_OFFSET(debugDumpInit, debugRaster, 7);
+    if (debugRaster)
+        s += "debugRaster:" + debugRaster->debugDump(l, b) + "\n";
+#endif
+#endif
     return s;
 }
 
@@ -1877,7 +1894,8 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
             s += "coinOpp:" + CoinOppName(coinOpp) + " ";
     }
 	DEBUG_DUMP_BOOL(coinOpp, betweenCoins);
-	DEBUG_DUMP_BOOL(betweenCoins, ccSect);
+	DEBUG_DUMP_BOOL(betweenCoins, ccLine);
+	DEBUG_DUMP_BOOL(ccLine, ccSect);
 	DEBUG_DUMP_BOOL(ccSect, ccUnsectable);
 	DEBUG_DUMP_BOOL(ccUnsectable, collapsed);
 	DEBUG_DUMP_BOOL(collapsed, mergeProcessed);

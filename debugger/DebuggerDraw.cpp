@@ -24,10 +24,6 @@ void DebuggerWindow::pentrek_draw(char* bits, int width, int height, int scan) {
     int debugCount = 0;
     Paint paint;
     for (DebuggerPoly& poly : polys) {
-        bool debugThis = IDType::segment == poly.opType.type && 5 == poly.opType.segment->id 
-                && poly.opType.segment->ptBounds.top < focus.top;
-        if (debugThis)
-            OpNop();
         if (!drawOne(poly))
             continue;
         size_t index = 0;
