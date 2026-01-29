@@ -1681,7 +1681,8 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     s += strEnum(EF::isUnsortable, "isUnsortable", Unsortable::none == isUnsortable, 
 			UnsortableName(isUnsortable));
 	EDGE_BOOL(isUnsortable, active_impl);
-    EDGE_BOOL(active_impl, inLinkups);
+    EDGE_BOOL(active_impl, alternateEnd);
+    EDGE_BOOL(alternateEnd, inLinkups);
     EDGE_BOOL(inLinkups, linkHead);
     EDGE_BOOL(linkHead, inOutput);
     EDGE_BOOL(inOutput, disabled);
@@ -1697,7 +1698,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     EDGE_BOOL(endSeen, unsectableStart);
     EDGE_BOOL(unsectableStart, unsectableEnd);
 #if OP_DEBUG
-    ASSERT_ORDERED_OFFSET(unsectableEnd, debugMatch, 4);
+    ASSERT_ORDERED_OFFSET(unsectableEnd, debugMatch, 3);
     if (debugMatch)
         s += "debugMatch:" + (debugMatch ? STR(debugMatch->id) : std::string("-")) + " ";
     ASSERT_ORDERED(debugMatch, debugZeroErr);
@@ -1977,10 +1978,10 @@ std::string OpLimb::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     if (DebugLevel::file != l)
         s = debugDumpIDs(l, false) + " ";  // note: dumps edge
-    static_assert(0 == offsetof(OpLimb, bounds));
-    if (bounds.isFinite())
-        s += "bounds:" + bounds.debugDump(l, b) + " ";
-    ASSERT_ORDERED(bounds, firstPts);
+    static_assert(0 == offsetof(OpLimb, limbBounds));
+    if (limbBounds.isFinite())
+        s += "limbBounds:" + limbBounds.debugDump(l, b) + " ";
+    ASSERT_ORDERED(limbBounds, firstPts);
     if (firstPts.size()) {
         s += " firstPts:" + STR(firstPts.size()) + "{";
         for (OpPoint pt : firstPts) {

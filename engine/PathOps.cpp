@@ -29,7 +29,7 @@ Context* CreateContext() {
     return toInterface(context);
 }
 
-void AddUserData(Context* context, ContextUserData userData) {
+void AddUserData(Context* context, const ContextUserData& userData) {
     toImplementation(context)->addUserData(userData);
 }
 
@@ -37,14 +37,15 @@ ContextUserData UserData(Context* context, UserDataType type) {
     return toImplementation(context)->findUserData(type);
 }
 
-void Add(Contour* interfaceContour, AddCurve curve) {
+void Add(Contour* interfaceContour, const AddCurve& curve) {
     OpContour* contour = toImplementation(interfaceContour);
     contour->context->initialized = false;
-    contour->context->curveIndex(curve);
-    contour->segments.emplace_back(interfaceContour, curve);
+    AddCurve temp(curve);
+    temp.type = contour->context->curveIndex(temp.type);
+    contour->segments.emplace_back(interfaceContour, temp);
 }
 
-void Add(Contour* interfaceContour, Curve curve) {
+void Add(Contour* interfaceContour, const Curve& curve) {
     AddCurve addCurve { curve.context, &curve.data->start, curve.size, curve.type };
     Add(interfaceContour, addCurve);
 }
@@ -103,23 +104,34 @@ WindingCondition Resolve(Context* interfaceContext) {
     return context->pathOps();
 }
 
-void SetContextCallbacks(Context* interfaceContext, ContextCallbacks contextCallbacks) {
+void SetContextCallbacks(Context* interfaceContext, const ContextCallbacks& contextCallbacks) {
     OpContext* context = toImplementation(interfaceContext);
     context->contextCallbacks = contextCallbacks;
 }
 
+#if 0
+void SetCurveCallbacksX(Context* interfaceContext, int nativeCurveType,
+        const CurveCallbacks& curveCallbacks) {
+    OpContext* context = toImplementation(interfaceContext);
+    context->callbacks.emplace_back();
+    context->callbacks.back() = curveCallbacks;
+    context->nativeCurveTypes.push_back(nativeCurveType);
+}
+#endif
+
 void SetCurveCallbacks(Context* interfaceContext, int nativeCurveType,
-        CurveCallbacks curveCallbacks) {
+        const CurveCallbacks& curveCallbacks) {
     OpContext* context = toImplementation(interfaceContext);
     context->callbacks.push_back(curveCallbacks);
     context->nativeCurveTypes.push_back(nativeCurveType);
 }
 
-void SetWindingCallbacks(Context* interfaceContext, WindingCallbacks windingCallbacks) {
+void SetWindingCallbacks(Context* interfaceContext, const WindingCallbacks& windingCallbacks) {
     OpContext* context = toImplementation(interfaceContext);
-	if (!windingCallbacks.windingSubtractFuncPtr)
-		windingCallbacks.windingSubtractFuncPtr = windingCallbacks.windingAddFuncPtr;
-    context->windingCallbacks = windingCallbacks;
+    WindingCallbacks temp(windingCallbacks);
+	if (!temp.windingSubtractFuncPtr)
+		temp.windingSubtractFuncPtr = temp.windingAddFuncPtr;
+    context->windingCallbacks = temp;
 }
 
 } // namespace PathOpsV0Lib

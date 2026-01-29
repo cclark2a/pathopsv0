@@ -213,6 +213,20 @@ OpEdge::OpEdge(OpIntersection* sectStart, OpIntersection* sectEnd  OP_LINE_FILE_
     iStart = sectStart->ptT.pt;
     iEnd = sectEnd->ptT.pt;
 	complete(sectStart->ptT, sectEnd->ptT);
+	auto altEnd = [this](OpPoint edgeEnd, OpPoint altEnd) {
+		if (edgeEnd == altEnd)
+			return false;
+		PathOpsV0Lib::CurveConst altEndFuncPtr = 
+				context()->callback(curve.c.type).maxAlternateEndFuncPtr;
+		float maxAltEnd = altEndFuncPtr ? (*altEndFuncPtr)(lastEdge->curve.c) : 4.0f;
+		float vLen = (edgeEnd - altEnd).length();
+		float edgeLen = (curve.lastPt() - curve.firstPt()).length();
+		float ratio = edgeLen / vLen;
+		return ratio < maxAltEnd;
+	};
+	alternateEnd = altEnd(curve.firstPt(), iStart) || altEnd(curve.lastPt(), iEnd);
+	if (alternateEnd)
+		setUnsortable(Unsortable::alternateEnd);
 }
 
 // called when creating filler; edge that closes small gaps

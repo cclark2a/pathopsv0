@@ -108,8 +108,7 @@ struct OpLimb {
 #if OP_DEBUG_SERIALIZE
 	std::string debugDumpIDs(DebugLevel , bool bracket) const;
 #endif
-
-	OpPointBounds bounds;
+	OpPointBounds limbBounds;  // bounds of this limb and any branches
 	std::vector<OpPoint> firstPts;  // only required for first limb in tree, but eases debugging
 	std::vector<OpPoint> lastPts;  // [0] is last t's point; others are sect aliases
 	OpEdge* edge  OP_DEBUG_INIT_PTR(OpEdge);
@@ -139,6 +138,7 @@ struct OpTree {
     OP_DEBUG_DUMP_CODE(OpTree(DumpSerialization , OpContext* );)
 	OpTree(OpJoiner& );
 	OP_DEBUG_CODE(~OpTree());
+	void addAlternateEnd();
 	void addDisabled(OpContour& );
 	OpEdge* addFiller(OpSegment* , OpPoint , OpPoint , bool fromCC);
 //	void addUnsectableLoop(OpJoiner& , OpLimb* );

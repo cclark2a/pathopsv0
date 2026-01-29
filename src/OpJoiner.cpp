@@ -121,69 +121,6 @@ void OpLimb::addEach(OpContour& contour, OpTree& tree) {
 		return;
 	if (LimbPass::unlinkedPal == pass)
 		return;
-	/* 
-		before allowing backwards, look to see if a connecting edge:
-		- is not available (not in linked list)
-		- start matches the current end
-		- end differs from iEnd
-		- length is proportional to end / iEnd?
-	 */
-	{
-		std::vector<FoundEdge> foundEdges;
-		const OpSegment* segment = lastLimbEdge->segment;
-		EdgeMatch end = !lastLimbEdge->which();
-		OpBreak(lastLimbEdge, 94);
-		segment->activeAtT(lastLimbEdge, end, MatchZero::no, foundEdges);
-		segment->activeNeighbor(lastLimbEdge, end, AllowLinked::yes, foundEdges);
-		for (const FoundEdge& foundEdge : foundEdges) {
-			OpEdge* test = foundEdge.edge;
-			EdgeMatch foundEnd = foundEdge.neighborEnd;
-			if (EdgeMatch::none == foundEnd)
-				continue;
-			// found edge was not found in earlier passes because it is in linked list
-			OP_ASSERT(test->priorEdge);
-			OpPoint otherEnd = EdgeMatch::start == foundEnd ? test->iEnd : test->iStart;
-			OpPoint curveEnd = test->curve.whichPt(!foundEnd);
-			if (otherEnd == curveEnd || !otherEnd.isFinite())
-				continue;
-			// find opposite point matching found edge end
-			OpPoint complementEnd;
-			for (const OpIntersection* sect : foundEdge.edge->segment->sects.i) {
-				if (sect->ptT.pt != otherEnd)
-					continue;
-				for (const OpEdge& edge : sect->opp->segment->edges) {
-					if (edge.iStart == otherEnd) {
-						complementEnd = edge.curve.firstPt();
-						break;
-					}
-					if (edge.iEnd == otherEnd) {
-						complementEnd = edge.curve.lastPt();
-						break;
-					}
-				}
-				if (complementEnd.isFinite() && complementEnd != curveEnd) {
-					// consider line from last limb end to complement end
-					// does its length compared to the sect points distance match?
-					float sectDistance = (curveEnd - complementEnd).length();
-					OpPoint lastEdgePt = lastLimbEdge->whichCurvePt(EdgeMatch::end);
-					float fillerLength = (lastEdgePt - complementEnd).length();
-					float ratio = fillerLength / sectDistance;
-					PathOpsV0Lib::CurveConst altEndFuncPtr = 
-							tree.context->callback(lastLimbEdge->curve.c.type).maxAlternateEndFuncPtr;
-					float maxAlternateEnd = altEndFuncPtr ? (*altEndFuncPtr)(lastLimbEdge->curve.c) : 4.0f;
-					if (ratio > maxAlternateEnd)
-						continue;
-					OpEdge* filler = tree.addFiller(sect->opp->segment, 
-							lastLimbEdge->whichSect(EdgeMatch::end).pt, complementEnd, false);
-					OpLimb* branch = tree.makeLimb();
-					branch->set(tree, filler, this, match, LimbPass::alternateEnd, 
-							nullptr, 0, nullptr);
-					dmp(filler);
-					return;
-				}
-			}
- 		}
-	}
 	if (LimbPass::alternateEnd == pass)
 		return;
 	if (contour.context->allowError(PathOpsV0Lib::ContextError::missing, &edge->curve.c))
@@ -249,7 +186,7 @@ void OpLimb::set(OpTree& tree, OpEdge* test, OpLimb* p, EdgeMatch m, LimbPass l,
 	}
 	lastPts = lastLimbEdge->collectMatch(lastMatch, &lastT);
 	if (childBounds) {
-		bounds = *childBounds;
+		limbBounds = *childBounds;
 		looped = tree.firstMatch(lastPts[0]);
 		const OpLimb* testParent = p;
 		while (testParent) {
@@ -294,8 +231,8 @@ void OpLimb::set(OpTree& tree, OpEdge* test, OpLimb* p, EdgeMatch m, LimbPass l,
             } while ((limb = limb->parent) && !kept);
             if (kept)
                 tree.bestLimb = this;
-        } else if (tree.bestPerimeter > bounds.perimeter()) {
-		    tree.bestPerimeter = bounds.perimeter();
+        } else if (tree.bestPerimeter > limbBounds.perimeter()) {
+		    tree.bestPerimeter = limbBounds.perimeter();
 		    tree.bestLimb = this;
         }
 	}
@@ -400,8 +337,14 @@ connectWithFiller:
 	}
 	OpPointBounds childBounds = test->lastEdge ? test->linkBounds : 
 			otherEnd ? otherEnd->linkBounds : test->bounds;
+//	start here;
+	// Look for parent with multiple children. See if a sibling ends at the same point as test.
+	// Select the shorter? option with the smaller bounds?
+	// !!! check if adding this child to parent makes the bounds bigger than some other child?
+	//     are we checking to see if both children ended up at the same point?
+	//     
 	if (parent && LimbPass::disjoint != treePass)  // if not trunk
-		childBounds.add(bounds);
+		childBounds.add(limbBounds);
 	if (test->inLinkups)
 		(EdgeMatch::start == m ? test->startSeen : test->endSeen) = true;
 	// if this edge added to limb bounds makes perimeter larger than best, skip
@@ -453,6 +396,8 @@ connectWithFiller:
 #endif
 	if (tree.containsParent(this, test, m))
 		return nullptr;
+	if (LimbPass::disabledCenterless == limbPass) 
+		test->setWhich(m);
 	OpLimb* branch = tree.makeLimb();
 	// !!! if some upper number of limbs are made, return fail instead of running forever
 	//      let caller supply limit?
@@ -509,6 +454,9 @@ OpTree::OpTree(OpJoiner& join)
 		for (OpContour* member : edgeContour->members()) {
 			initialize(*member);
 		}
+		if (LimbPass::alternateEnd == limbPass)
+			addAlternateEnd();
+		else
 	#if 0 // !!! experiment: try adding disabled pals as regular entries in tree
 		if (LimbPass::disabledPals == limbPass) {
 			OpLimb* unsectEnd = unsectableLoop();
@@ -550,6 +498,82 @@ OpTree::OpTree(OpJoiner& join)
 		if (LimbPass::disabledBackwards < ++limbPass)
 			return;  // error if bestLimb == nullptr
 	} while (!bestLimb);
+}
+
+	/* 
+		before allowing backwards, look to see if a connecting edge:
+		- is not available (not in linked list)
+		- start matches the current end
+		- end differs from iEnd
+		- length is proportional to end / iEnd?
+	 */
+void OpTree::addAlternateEnd() {
+	std::vector<FoundEdge> foundEdges;
+	if (!totalUsed)
+		return;
+	OpLimb& lastLimb = nthLimb(totalUsed - 1);
+	OpEdge* lastEdge = lastLimb.lastLimbEdge;
+#if 1
+	if (!lastEdge->alternateEnd)
+		return;
+#endif
+	const OpSegment* segment = lastEdge->segment;
+	EdgeMatch end = !lastEdge->which();
+	segment->activeAtT(lastEdge, end, MatchZero::no, foundEdges);
+	segment->activeNeighbor(lastEdge, end, AllowLinked::yes, foundEdges);
+	for (const FoundEdge& foundEdge : foundEdges) {
+		OpEdge* test = foundEdge.edge;
+		EdgeMatch foundEnd = foundEdge.neighborEnd;
+		if (EdgeMatch::none == foundEnd)
+			continue;
+		// found edge was not found in earlier passes because it is in linked list
+		OP_ASSERT(test->priorEdge);
+		OpPoint otherEnd = EdgeMatch::start == foundEnd ? test->iEnd : test->iStart;
+		OpPoint curveEnd = test->curve.whichPt(!foundEnd);
+		if (otherEnd == curveEnd || !otherEnd.isFinite())
+			continue;
+		// find opposite point matching found edge end
+		OpPoint complementEnd;
+		for (const OpIntersection* sect : foundEdge.edge->segment->sects.i) {
+			if (sect->ptT.pt != otherEnd)
+				continue;
+			for (const OpEdge& edge : sect->opp->segment->edges) {
+				if (edge.iStart == otherEnd) {
+					complementEnd = edge.curve.firstPt();
+					break;
+				}
+				if (edge.iEnd == otherEnd) {
+					complementEnd = edge.curve.lastPt();
+					break;
+				}
+			}
+			OpPoint lastEdgePt = lastEdge->whichCurvePt(EdgeMatch::end);
+			if (containsFiller(&lastLimb, lastEdgePt, complementEnd))
+				continue;
+			if (!complementEnd.isFinite() || complementEnd == curveEnd) 
+				continue;
+		#if 0  // done when creating edge sets alternate end bit
+			// consider line from last limb end to complement end
+			// does its length compared to the sect points distance match?
+			float sectDistance = (curveEnd - complementEnd).length();
+			float fillerLength = (lastEdgePt - complementEnd).length();
+			float ratio = fillerLength / sectDistance;
+			PathOpsV0Lib::CurveConst altEndFuncPtr = 
+					context->callback(lastEdge->curve.c.type).maxAlternateEndFuncPtr;
+			float maxAltEnd = altEndFuncPtr ? (*altEndFuncPtr)(lastEdge->curve.c) : 4.0f;
+			if (ratio > maxAltEnd)
+				continue;
+		#endif
+			OpEdge* filler = addFiller(sect->opp->segment, lastEdgePt, complementEnd, 
+					true);
+			filler->setWhich(EdgeMatch::start);
+			OpLimb* branch = makeLimb();
+			branch->set(*this, filler, &lastLimb, lastLimb.match, LimbPass::alternateEnd, 
+					nullptr, 0, nullptr, &filler->bounds);
+			limbPass = LimbPass::none;
+			return;
+		}
+	}
 }
 
 // walk the disabled pals from smallest to largest instead of the limbs

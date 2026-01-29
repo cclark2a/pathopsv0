@@ -304,6 +304,7 @@ enum class Unsectable {
 	OP_ENUM_MEMBER(none), \
 	OP_ENUM_MEMBER(addCalcFail), \
 	OP_ENUM_MEMBER(addCalcFail2), \
+	OP_ENUM_MEMBER(alternateEnd), \
 	OP_ENUM_MEMBER(betweenCoins), \
 	OP_ENUM_MEMBER(filler), \
 	OP_ENUM_MEMBER(homeUnsectable), \
@@ -371,6 +372,7 @@ private:
 		, windZero(WindZero::unset)
 		, isUnsortable(Unsortable::none)
 		, active_impl(false)
+		, alternateEnd(false)
 		, inLinkups(false)
 		, linkHead(false)
 		, inOutput(false)
@@ -567,6 +569,7 @@ public:
 	WindZero windZero;  // zero: edge normal points to zero side (the exterior of the loop)
 	Unsortable isUnsortable;  // unsectable is unsortable; others (e.g., very small) are also unsortable
 	bool active_impl;  // used by ray casting to mark edges that may be to the left of casting edge
+	bool alternateEnd;  // set if line length is proportionately similar to end to sect end dist
 	bool inLinkups; // set for edges in linkups l vector
 	bool linkHead;  // used to remove edge from contour linkups when edge is output 
 	bool inOutput;	// set when edge is added to output path

@@ -961,7 +961,7 @@ bool OpCurveCurve::addUnsectable(FoundLimit& limit, FoundLimit& limitEnd) {
 		segs->sects.hasCCSects = true;
 		return result;
 	};
-	auto addPair = [this, addSect, setSect](SectDuo sPair, const OpPtT& ePtT, const OpPtT& oPtT) {
+	auto addPair = [this, addSect, setSect](SectDuo& sPair, const OpPtT& ePtT, const OpPtT& oPtT) {
 		if (sPair.s) {
 			setSect(sPair.s, CoinOpp::no);
 			setSect(sPair.o, CoinOpp::yes);

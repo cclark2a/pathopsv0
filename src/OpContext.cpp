@@ -384,10 +384,6 @@ bool OpContext::containsPals(OpEdge* edge, int totalLimbs) {
 	return false;
 }
 
-void OpContext::curveIndex(PathOpsV0Lib::AddCurve& curvePtr) {
-    curvePtr.type = curveIndex(curvePtr.type);
-}
-
 int OpContext::curveIndex(int nativeType) const {
     int count = (int) nativeCurveTypes.size();
     if (nativeType < count && nativeCurveTypes[nativeType] == nativeType)

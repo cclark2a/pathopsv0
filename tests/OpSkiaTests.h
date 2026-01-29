@@ -9,7 +9,7 @@
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
 #define SKIP_TO_FILE "quad" // e.g., "simplify"  one file
 #if !OP_DEBUG_ALT
-#define TEST_FIRST "testQuads25659799"  // e.g., "testQuads5343280" if file, one test
+#define TEST_FIRST "testQuads25667551"  // "testQuads25659799"  // e.g., "testQuads5343280" if file, one test
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
 #else
@@ -36,7 +36,7 @@
 
 #define TEST_PATH_SKIP_TESTS { "grshapearc", "grshapearcs1", "release_13", "pentrek10" }
 // when these tests are encountered, it and the remaining tests in the file are skipped
-#define TEST_PATH_OP_SKIP_REST ""
-#define TEST_PATH_OP_SKIP_FILES ""  /* e.g., "battle", "circleOp" */
+#define TEST_PATH_OP_SKIP_REST
+#define TEST_PATH_OP_SKIP_FILES  /* e.g., "battle", "circleOp" */
 // 
 #endif

@@ -59,7 +59,7 @@ struct RasterSample {
 	int curveIndex = -1;  // for contour : index of user-provided curve
     float x = OpDebugNaN;
 	float t = OpDebugNaN;  // unused by rasterizer, but useful for debugging
-	int8_t curveDown = -1;  // unset for contour curve
+	bool curveDown = false;  // unused by contour curve (don't use int8_t; confuses compare diff)
 	bool visible = true;
 };
 

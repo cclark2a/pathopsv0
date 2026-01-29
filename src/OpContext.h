@@ -129,7 +129,6 @@ struct OpContext {
 	bool containsPals(OpEdge* , int totalLimbs);
 //    WindingData* copySect(const OpWinding& );  // !!! add a separate OpWindingStorage for temporary blocks?
     int curveIndex(int nativeType) const;
-    void curveIndex(PathOpsV0Lib::AddCurve& curvePtr);
 //    void demotePalLinks();
 	void disableSmallSegments();
 

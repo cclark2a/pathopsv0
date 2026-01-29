@@ -13,7 +13,7 @@ Context* CreateContext();
 void DeleteContext(Context* );
 
 // optional user data associated with this instance
-void AddUserData(Context* , ContextUserData );
+void AddUserData(Context* , const ContextUserData& );
 ContextUserData UserData(Context* , UserDataType);
 
 // makes an empty contour: a collection of curves that share a winding
@@ -23,8 +23,8 @@ Contour* CreateContour(Context* , WindingData , size_t );
 Contour* Clone(Contour* );
 
 // adds a curve to the contour
-void Add(Contour* , AddCurve);
-void Add(Contour* , Curve);
+void Add(Contour* , const AddCurve& );
+void Add(Contour* , const Curve& );
 
 // returns error code of previous call
 ContextError Error(Context* );
@@ -37,7 +37,7 @@ void ResetContour(Contour* );
 WindingCondition Resolve(Context* );
 
 // global callbacks
-void SetContextCallbacks(Context* , ContextCallbacks );
+void SetContextCallbacks(Context* , const ContextCallbacks& );
 
 // sets the context into an error state
 void SetError(Context* , ContextError );
@@ -46,10 +46,10 @@ void SetError(Context* , ContextError );
 void SetErrorHandler(Context* , ErrorDispatch );
 
 // curve callbacks; describes geometry between endpoints
-void SetCurveCallbacks(Context* , int nativeType, CurveCallbacks );
+void SetCurveCallbacks(Context* , int nativeType, const CurveCallbacks& );
 
 // winding callbacks; specifies which curves are kept and discarded
-void SetWindingCallbacks(Context* , WindingCallbacks ); 
+void SetWindingCallbacks(Context* , const WindingCallbacks& ); 
 
 }
 

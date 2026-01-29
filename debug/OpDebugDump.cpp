@@ -2040,7 +2040,8 @@ void OpEdge::dumpSet(const char*& str) {
     ASSERT_ORDERED(windZero, isUnsortable);
     isUnsortable = UnsortableStr(str, "isUnsortable", Unsortable::none);
 	DEBUG_SET_BOOL(isUnsortable, active_impl);
-    DEBUG_SET_BOOL(active_impl, inLinkups);
+    DEBUG_SET_BOOL(active_impl, alternateEnd);
+    DEBUG_SET_BOOL(alternateEnd, inLinkups);
     DEBUG_SET_BOOL(inLinkups, linkHead);
     DEBUG_SET_BOOL(linkHead, inOutput);
     DEBUG_SET_BOOL(inOutput, disabled);
@@ -2056,7 +2057,7 @@ void OpEdge::dumpSet(const char*& str) {
     DEBUG_SET_BOOL(endSeen, unsectableStart);
     DEBUG_SET_BOOL(unsectableStart, unsectableEnd);
 #if OP_DEBUG
-    ASSERT_SERIAL_OFFSET(*this, unsectableEnd, 4, debugMatch);
+    ASSERT_SERIAL_OFFSET(*this, unsectableEnd, 3, debugMatch);
     debugMatch = (OpEdge*) strID("debugMatch");
     ASSERT_ORDERED(debugMatch, debugZeroErr);
     debugZeroErr = (OpEdge*) strID("debugZeroErr");
@@ -2748,10 +2749,10 @@ void OpLimb::dumpResolveAll(OpContext* c) {
 }
 
 void OpLimb::dumpSet(const char*& str) {
-    static_assert(0 == offsetof(OpLimb, bounds));
-    if (OpDebugOptional(str, "bounds"))
-        bounds.dumpSet(str);
-    ASSERT_ORDERED(bounds, firstPts);
+    static_assert(0 == offsetof(OpLimb, limbBounds));
+    if (OpDebugOptional(str, "limbBounds"))
+        limbBounds.dumpSet(str);
+    ASSERT_ORDERED(limbBounds, firstPts);
     if (OpDebugOptional(str, "firstPts")) {
         size_t count = OpDebugReadSizeT(str);
         firstPts.resize(count);

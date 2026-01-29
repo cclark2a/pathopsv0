@@ -73,7 +73,6 @@ void RasterSample::dumpSet(char const*& str) {
 	DEBUG_SET_OPTIONAL_FINITE_VALUE(x, t);
 	DEBUG_SET_BOOL(t, curveDown);
 	ASSERT_LAST_OFFSET(curveDown, 3);
-	curveDown = OpDebugOptional(str, "curveDown");
 }
 #endif
 
