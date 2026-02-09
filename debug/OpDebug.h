@@ -122,6 +122,7 @@ struct OpDebugData {
 #define OP_DEBUG_IMAGE_CODE_OLD(...)
 #define OP_DEBUG_IMAGE_PARAMS(...)
 #define OP_DEBUG_IMAGE_PARAMS_OLD(...)
+#define OP_DEBUG_SERIALIZE_CODE(...)
 #define OP_DEBUGGER_CODE(...)
 #define OP_DEBUGGER_PARAMS(...)
 
@@ -186,6 +187,8 @@ struct OpDebugData {
 #define OP_ASSERT(expr) do { if (!(expr)) OP_DEBUG_BREAK(); } while (false)
 
 #define OP_DEBUG_SERIALIZE 1  // !!! migrate debug dump so threaded test can write to debugger
+#undef OP_DEBUG_SERIALIZE_CODE
+#define OP_DEBUG_SERIALIZE_CODE(...) __VA_ARGS__
 
 #if (!OP_DEBUGGER && OP_DEBUG_FAST_TEST) || (defined OP_TINY_TEST && OP_TINY_TEST)
 	#define OP_DEBUG_DUMP 0
@@ -443,6 +446,11 @@ std::string OpDebugDumpHex(float);
 
 
 #if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE
+
+union FloatIntUnion {
+    float   f;
+    int32_t i;
+};
 
 std::string OpDebugDumpByteArray(const uint8_t* bytes, size_t size);
 int32_t OpDebugFloatToBits(float);

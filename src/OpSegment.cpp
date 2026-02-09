@@ -130,7 +130,7 @@ bool OpSegment::activeNeighbor(const OpEdge* edge, EdgeMatch match, AllowLinked 
 }
 
 void OpSegment::addAlias(OpPoint original, OpPoint alias) {
-	contour->context->addAlias(original, alias);
+	contour->addAlias(original, alias);
 }
 
 void OpSegment::addDisjointIntersections() {
@@ -193,17 +193,19 @@ OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int usectID, MatchEnd
 	return sects.add(contour->addUnsect(ptT, this, usectID, end  OP_LINE_FILE_CALLER(oSeg)));
 }
 
+#if 0
 OpPtT OpSegment::alignToEnd(OpPoint oppPt) const {
 	OpPtT segPtT(SetToNaN::dummy);
-	OpPtAliases& aliases = contour->context->aliases;
+	OpPtAliases& aliases = contour->aliases;
 	if (c.firstPt().isNearly(oppPt, threshold()) 
-			|| (startMoved && aliases.isSmall(c.firstPt(), oppPt)))
+			|| (startMoved && aliases.isSmall(c.firstPt(), oppPt, threshold())))
 		segPtT = { c.firstPt(), 0 };
 	else if (c.lastPt().isNearly(oppPt, threshold()) 
-			|| (endMoved  && aliases.isSmall(c.lastPt(), oppPt)))
+			|| (endMoved  && aliases.isSmall(c.lastPt(), oppPt, threshold())))
 		segPtT = { c.lastPt(), 1 };
 	return segPtT;
 }
+#endif
 
 WindingCondition OpSegment::apply() {
 	for (auto& edge : edges) {
@@ -437,6 +439,7 @@ void OpSegment::betweenCoincidence() {
     }
 }
 
+#if 0
 // returns point that matches input; returned point may be nearby; may already be aliased
 // segment is unchanged, but equal and nearby point are added to aliases
 SegPt OpSegment::checkAliases(OpPtT match) {
@@ -445,13 +448,13 @@ SegPt OpSegment::checkAliases(OpPtT match) {
 	SegPt result;
 	if (0 == match.t ? startMoved : endMoved) {
 		if (match.pt == endPt)
-			result = { contour->context->aliases.existing(endPt), PtType::isAlias };
+			result = { contour->aliases.existing(endPt), PtType::isAlias };
 		else {
 			addAlias(match.pt, endPt);
 			result = { endPt, PtType::original };
 		}
 	} else {
-		result = contour->context->aliases.addIfClose(match.pt);
+		result = contour->aliases.addIfClose(match.pt, threshold());
 		if (endPt != result.pt) {
 			addAlias(endPt, result.pt);
 			result.ptType = PtType::mapSegment;
@@ -468,6 +471,7 @@ SegPt OpSegment::checkAliases(OpPtT match) {
 	}
 	return result;
 }
+#endif
 
 int OpSegment::coinID(bool flipped) {
 	int coinID = nextID();
@@ -502,14 +506,8 @@ void OpSegment::demotePalLinks() {
 void OpSegment::disableSmall() {
 	if (disabled)
 		return;
-	if (!willDisable && !isSmall() && sects.i.size()) {
-		OpPoint pt = sects.i[0]->ptT.pt;
-		for (size_t index = 1; index < sects.i.size(); ++index) {
-			if (pt != sects.i[index]->ptT.pt)
-				return;
-		}
-	}
-	setDisabled(OP_LINE_FILE_NPARGS());
+	if (!sects.i.size() || sects.i.front()->ptT.pt == sects.i.back()->ptT.pt)
+		setDisabled(OP_LINE_FILE_NPARGS());
 }
 
 // !!! this was lineIntersect which could miss if normal line points away from seg
@@ -545,9 +543,8 @@ OpEdge* OpSegment::findEnabled(const OpPtT& ptT, EdgeMatch match) const {
 }
 
 // rarely, moving points prevents finding matching ends. If there is no end, do an exhaustive search
+#if 0
 void OpSegment::findMissingEnds() {
-	if (willDisable && !disabled)
-		setDisabled(OP_LINE_FILE_NPARGS());
 	if (disabled)
 		return;
 	OP_ASSERT(!sects.unsorted);
@@ -566,9 +563,8 @@ void OpSegment::findMissingEnds() {
 			sect->pair(sect);
 		}
 	}
-	if (startMoved || endMoved)
-		resetBounds();
 }
+#endif
 
 #if 0
 // returns t iff opp point is between start and end
@@ -625,10 +621,9 @@ bool OpSegment::fixCCSects() {
 //	OP_ASSERT(2 < sects.i.size());
 	OP_ASSERT(0 == sects.i.front()->ptT.t);
 	OP_ASSERT(1 == sects.i.back()->ptT.t);
-	if (startMoved || endMoved) {
-		resetBounds();
+	if (startMoved() || endMoved()) {
 		for (OpIntersection* test : sects.i) {
-			if (ptBounds.contains(test->ptT.pt))
+			if (c.aliasBounds().contains(test->ptT.pt))
 				continue;
 			if (PrefFound::disabled != moveSects(test->ptT, test->ptT.t < .5 
                     ? c.firstPt() : c.lastPt()))
@@ -676,22 +671,21 @@ bool OpSegment::fixCCSects() {
 
 void OpSegment::init() {
 	disabled = false;
-	willDisable = false;
 	hasCoin = false;
 	hasUnsectable = false;
-	startMoved = false;
-	endMoved = false;
 	OpContext* context = contour->context;
 	if (!c.isFinite()) {
 		context->setError(PathOpsV0Lib::ContextError::finite  OP_DEBUG_PARAMS(id));
 		disabled = true;
 	} else
-		context->maxBounds.add(c.ptBounds());  // for threshold
+		context->maxBounds.add(c.callerBounds());  // for threshold
 }
 
+#if 0
 bool OpSegment::isSmall() {
-	return contour->context->aliases.isSmall(c.firstPt(), c.lastPt());
+	return contour->aliases.isSmall(c.firstPt(), c.lastPt(), threshold());
 }
+#endif
 
 void OpSegment::makeCoins() {
 	if (disabled)
@@ -821,16 +815,24 @@ void OpSegment::makePals() {
 }
 
 OpPtT OpSegment::matchEnd(OpPoint opp) {
+#if 0
 	OpPtT alignedEnd = alignToEnd(opp);
 	if (OpMath::IsNaN(alignedEnd.t))
 		alignedEnd = { opp, c.match(0, 1, opp) };
 	if (!OpMath::IsNaN(alignedEnd.t))
 		alignedEnd.t = OpMath::PinNear(alignedEnd.t);
 	return alignedEnd;
+#else
+	if (c.start == opp)
+		return { opp, 0 };
+	if (c.end == opp)
+		return { opp, 1 };
+	return OpPtT(SetToNaN::dummy);
+#endif
 }
 
 MatchReverse OpSegment::matchEnds(const LinePts& linePts) const {
-	if (disabled || willDisable)
+	if (disabled)
 		return { MatchEnds::none, false };
 	return c.matchEnds(linePts);
 }
@@ -857,6 +859,7 @@ MatchEnds OpSegment::matchExisting(const OpSegment* opp) const {
 }
 */
 
+#if 0
 OpPoint OpSegment::mergePoints(OpPtT segPtT, OpSegment* opp, OpPtT oppPtT) {
 	SegPt segPt = checkAliases(segPtT);
 	SegPt oppPt = opp->checkAliases(oppPtT);
@@ -878,11 +881,13 @@ OpPoint OpSegment::mergePoints(OpPtT segPtT, OpSegment* opp, OpPtT oppPtT) {
 		opp->movePt(oppPtT, destPt);
 	return segPt.pt;
 }
+#endif
 
 // keep control point inside curve bounds
 // further, if old control point is axis aligned with end point, keep relationship after moving
 // detect if segment collapses to point?
 // !!! don't move the segment's points; just mark the segment as disabled if appropriate
+#if 0
 OpPoint OpSegment::movePt(OpPtT match, OpPoint destination) {
 	OP_ASSERT(0 == match.t || 1 == match.t);
 	// if end point and equal point are both aliases (rare), do a global remap of all points so 
@@ -912,6 +917,7 @@ OpPoint OpSegment::movePt(OpPtT match, OpPoint destination) {
 	resetBounds();
 	return destination;
 }
+#endif
 
 PrefFound OpSegment::moveSects(OpPtT match, OpPoint destination) {
 	SectCleanup cleanup = sects.moveSects(match, destination,
@@ -935,7 +941,7 @@ PrefFound OpSegment::moveSects(OpPtT match, OpPoint destination) {
 			}
 			return PrefFound::ok;
 		case SectCleanup::segmentCollapsed:
-			willDisable = true;
+			setDisabled(OP_LINE_FILE_NPARGS());
 			return PrefFound::disabled;
 		default:
 			OP_ASSERT(0);
@@ -967,10 +973,39 @@ int OpSegment::nextID() const {
 }
 
 void OpSegment::normalize() {
-    if (willDisable)
+    if (c.isSmall) {
+		disabled = true;
         return;
-    c.normalize(); 
-	resetBounds();
+	}
+	OpVector thresh = threshold();
+	auto lookForNearbyPoints = [this, thresh](OpContour* cont, OpPoint original) {
+		// check other segments in this contour
+		OpPoint aliased = original;
+		for (OpSegment& seg : cont->segments) {
+			if (seg.id <= id)  // don't compare a/b and then b/a
+				continue;  
+			if (seg.c.start != original && seg.c.start.isNearly(original, thresh))
+				aliased = cont->addAlias(original, seg.c.start);
+			if (seg.c.end != original && seg.c.end.isNearly(original, thresh))
+				aliased = cont->addAlias(original, seg.c.end);
+		}
+		return aliased;
+	};
+	auto lookInContours = [this, lookForNearbyPoints](OpPoint original) {
+		OpPoint aliased = original;
+		for (OpContour* member : contour->overlapOwner->overlaps) {
+			if (member->id < contour->id)  // don't compare a/b and then b/a
+				continue;
+			aliased = lookForNearbyPoints(member, original);
+		}
+		return aliased;
+	};
+	c.start = lookInContours(c.start);
+	c.end = lookInContours(c.end);
+	// !!! where does curve control point pin happen?
+	// since we are leaving original curve alone, can it be postponed or not done at all?
+	if (c.start == c.end)
+		disabled = true;
 }
 
 #if 0
@@ -989,6 +1024,7 @@ OpPtT OpSegment::ptAtT(const OpPtT& match) const {
 }
 #endif
 
+#if 0
 void OpSegment::remap(OpPoint oldAlias, OpPoint newAlias) {
 	if (oldAlias == c.firstPt()) {
 		movePt({ oldAlias, 0 }, newAlias);
@@ -1003,6 +1039,7 @@ void OpSegment::remap(OpPoint oldAlias, OpPoint newAlias) {
 			sect->ptT.pt = newAlias;
 	}
 }
+#endif
 
 #if 0
 OpPoint OpSegment::remapPts(OpPoint oldAlias, OpPoint newAlias) {
@@ -1010,14 +1047,17 @@ OpPoint OpSegment::remapPts(OpPoint oldAlias, OpPoint newAlias) {
 }
 #endif
 
+#if 0
 void OpSegment::resetBounds() {
 	ptBounds = c.ptBounds();
-	if (ptBounds.isEmpty()) {
+	if (ptBounds.isEmpty())
 		disabled = true;
-//		closeBounds = ptBounds;
-	}// else
-	//	closeBounds = ptBounds.outset(threshold());
+	else {
+		OpRect out = ptBounds.outset(threshold());
+
+	}
 }
+#endif
 
 void OpSegment::setDisabled(OP_LINE_FILE_NP_ARGS()) {
 	disabled = true; 
@@ -1056,11 +1096,11 @@ bool OpSegment::simpleStart(const OpEdge* edge) const {
 }
 
 OpVector OpSegment::threshold() const {
-	return contour->context->threshold(); 
+	return contour->context->threshold; 
 }
 
 float OpSegment::thresholdLength() const {
-	return contour->context->aliases.thresholdLength; 
+	return contour->context->thresholdLength; 
 }
 
 // Note that this must handle a many-to-many relationship between seg and opp.
@@ -1124,4 +1164,9 @@ void OpSegment::tripleSect() {
 		contour->context->sortIntersections();
 		OP_ASSERT(--safetyHatch);
 	}
+}
+
+void OpSegment::zeroSmall() {
+	c.zeroSmall(*contour); 
+//	ptBounds = c.ptBounds().outset(threshold());
 }

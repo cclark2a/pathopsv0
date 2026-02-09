@@ -42,7 +42,7 @@ struct DebugOutput {
 	void dumpSet(OpContext* , char const*& str);
 
 	OpCurve curve;
-	OpWinding winding = OpWinding(WindingUninitialized::dummy); 
+	OpWinding winding = OpWinding(DebugWindingRaster::dummy);
 	PathOpsV0Lib::LoopAttribute loopAttr = PathOpsV0Lib::LoopAttribute::none;
 	OpEdge* edge = nullptr;
 };
@@ -84,8 +84,8 @@ enum class SampleType {
 // one for operands; and one more for comparing combined with output (both stored in contours)
 struct OpDebugSamples {
 	OpDebugSamples() 
-		: zeroWinding(WindingUninitialized::dummy)
-		, winding(WindingUninitialized::dummy) {};
+		: zeroWinding(DebugWindingRaster::dummy)
+		, winding(DebugWindingRaster::dummy) {};
 	OpDebugSamples(DebugRaster* );
 	void addCurveXatY(const PathOpsV0Lib::Curve& , RasterSample& base, float tLo, float tHi);
 	void addCurveXatY(OpContour* , int debugCurveIndex,

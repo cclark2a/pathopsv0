@@ -210,8 +210,8 @@ OpEdge::OpEdge(OpIntersection* sectStart, OpIntersection* sectEnd  OP_LINE_FILE_
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = sectStart->id);
 	segment = sectStart->segment;
-    iStart = sectStart->ptT.pt;
-    iEnd = sectEnd->ptT.pt;
+//    iStart = sectStart->ptT.pt;
+//    iEnd = sectEnd->ptT.pt;
 	complete(sectStart->ptT, sectEnd->ptT);
 	auto altEnd = [this](OpPoint edgeEnd, OpPoint altEnd) {
 		if (edgeEnd == altEnd)
@@ -224,7 +224,8 @@ OpEdge::OpEdge(OpIntersection* sectStart, OpIntersection* sectEnd  OP_LINE_FILE_
 		float ratio = edgeLen / vLen;
 		return ratio < maxAltEnd;
 	};
-	alternateEnd = altEnd(curve.firstPt(), iStart) || altEnd(curve.lastPt(), iEnd);
+	alternateEnd = altEnd(curve.firstPt(), curve.c.data->start) 
+			|| altEnd(curve.lastPt(), curve.c.data->end);
 	if (alternateEnd)
 		setUnsortable(Unsortable::alternateEnd);
 }
@@ -247,10 +248,10 @@ OpEdge::OpEdge(OpContext* context, const OpPoint start, const OpPoint end  OP_LI
 	curve = OpCurve(lineCurve, Rotated::no);
 	curve.isLineSet = true;
 	curve.isLineResult = true;
-	setPointBounds();
+//	setPointBounds();
 //	center.t = OpMath::Interp(startT, endT, .5);
 	center.t = OpNaN;
-	center.pt = bounds.center();
+	center.pt = bounds().center();
 	setDisabled(OP_LINE_FILE_NPARGS());
 	setUnsortable(Unsortable::filler);
 }
@@ -409,10 +410,10 @@ WindingCondition OpEdge::apply() {
 // segments are now broken monotonically when they are built, so they should not return more than
 // one intersection anymore often than edges. 
 void OpEdge::calcCenterT() {
-	const OpRect& r = bounds;
+	const OpCurve& segCurve = segment->c;
+	OpRect r = segCurve.aliasBounds();
 	Axis axis = r.largerAxis();
 	float middle = OpMath::Average(r.ltChoice(axis), r.rbChoice(axis));
-	const OpCurve& segCurve = segment->c;
 	float t = segCurve.center(axis, middle);
 	if (OpMath::IsNaN(t)) {
 // while this should be disabled eventually, it must be visible to influence winding calc
@@ -427,9 +428,9 @@ void OpEdge::calcCenterT() {
 		t = OpMath::Average(startT, endT);
 	center.t = t;
 	center.pt = segCurve.ptAtT(t);
-	center.pt.pin(bounds);  // required by pentrek6
-	OP_ASSERT(OpMath::Between(bounds.left, center.pt.x, bounds.right));
-	OP_ASSERT(OpMath::Between(bounds.top, center.pt.y, bounds.bottom));
+	center.pt.pin(r);  // required by pentrek6
+	OP_ASSERT(OpMath::Between(r.left, center.pt.x, r.right));
+	OP_ASSERT(OpMath::Between(r.top, center.pt.y, r.bottom));
 }
 
 void OpEdge::clearActiveAndPals(OP_LINE_FILE_NP_ARGS()) {
@@ -471,9 +472,9 @@ std::vector<OpPoint> OpEdge::collectMatch(EdgeMatch m, float* t) const {
 	pts.push_back(pt);
 	if (segment)
 		segment->sects.collectMatchingPts(pt, pts);
-	if (iStart == pt && pts.end() == std::find(pts.begin(), pts.end(), curve.firstPt()))
+	if (pts.end() == std::find(pts.begin(), pts.end(), curve.firstPt()))
 		pts.push_back(curve.firstPt());
-	if (iEnd == pt && pts.end() == std::find(pts.begin(), pts.end(), curve.lastPt()))
+	if (pts.end() == std::find(pts.begin(), pts.end(), curve.lastPt()))
 		pts.push_back(curve.lastPt());
 	return pts;
 }
@@ -556,7 +557,7 @@ void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 float OpEdge::margin() const {
 	PathOpsV0Lib::ContextCallbacks& cb = context()->contextCallbacks;
 	float maxUnsectT = cb.maxUnsectableTFuncPtr ? cb.maxUnsectableTFuncPtr(curve.c) : 4.0f;
-	return context()->threshold().choice(!ray.axis) * maxUnsectT;
+	return context()->threshold.choice(!ray.axis) * maxUnsectT;
 }
 
 // Find pals for unsectables created during curve/curve intersection. There should be at most
@@ -750,13 +751,13 @@ bool OpEdge::setLastLink(EdgeMatch match) {
 OpPointBounds OpEdge::setLinkBounds() {
 	OP_ASSERT(lastEdge);  // fix caller to pass first edge of links
 	if (!linkBounds.isSet()) {
-		OP_ASSERT(bounds.isFinite());
-		linkBounds = bounds;
+		OP_ASSERT(bounds().isFinite());
+		linkBounds = bounds();
 		const OpEdge* edge = this;
 		while (edge != lastEdge) {
 			edge = edge->nextEdge;
-			OP_ASSERT(edge->bounds.isFinite());
-			linkBounds.add(edge->bounds);
+			OP_ASSERT(edge->bounds().isFinite());
+			linkBounds.add(edge->bounds());
 		}
 	}
 	OP_ASSERT(linkBounds.isFinite());
@@ -795,14 +796,15 @@ void OpEdge::setNextEdge(OpEdge* edge) {
 	nextEdge = edge;
 }
 
+#if 0
 // !!! note that this computes the intersection bounds, not the curve bounds
 //     may need to add separate curve bounds if algorithm requires it
 void OpEdge::setPointBounds() {		// note: does not call curve's bounds function, if any
 	bounds.set(startPt(), endPt());
-    bounds.add(iStart);
-    bounds.add(iEnd);
-
+    bounds.add(curve.c.data->start);
+    bounds.add(curve.c.data->end);
 }
+#endif
 
 void OpEdge::setPriorEdge(OpEdge* edge) {
 	if (priorEdge)
@@ -833,7 +835,7 @@ void OpEdge::subDivide(OpPoint startPoint, OpPoint endPoint) {
 	id = segment->nextID();
 	curve = segment->c.subDivide(startT, endT);
 //	curve.adjust(startPoint, endPoint);  // move ends and adjust controls to aligned points
-	setPointBounds();
+//	setPointBounds();
 	calcCenterT();
 #if 0  // if curve is near-linear cubic, t value for edge is wrong
 	if (curve.isLine()) {

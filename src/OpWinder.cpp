@@ -1,8 +1,6 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include <cmath>
 #include "OpCurveCurve.h"
-#include "OpDebugRecord.h"
-#include "OpDebugRecord.h"
 #include "OpSegment.h"
 #include "OpWinder.h"
 #include "PathOps.h"
@@ -22,7 +20,7 @@ bool RayTargets::addContainer(Axis axis, OpContour* container, OpRect& bounds) {
 void RayTargets::build(OpEdge* edge) {
 	// construct rectangle from edge bounds and ray to edge's sects' bounds 
     context = edge->context();
-	chainBounds = edge->bounds;
+	chainBounds = edge->bounds();
 	OpContour* contour = edge->segment->contour;
 	const OpRect& overlapBounds = contour->overlapOwner->overlapBounds;
 	if (Axis::horizontal == edge->ray.axis)
@@ -77,27 +75,27 @@ void RayTargets::set(Axis axis) {
 //   maybe put that off until it is needed...
 OpEdge* RayTargets::next(Axis axis, float homeCept) {
 	Axis uppity = !axis;
-	OpRect* bounds;
-    OpVector threshold = context->threshold();
+	OpRect bounds;
+    OpVector threshold = context->threshold;
     float thresXY = threshold.choice(uppity);
 	while (edges) {
 		// advance to furthest that could influence the sum winding of this edge
 		if (edgeIndex >= edges->size()) {  
 			edgeIndex = 0;
 			do {
-				bounds = &(*edges)[edgeIndex]->bounds;
-			} while (bounds->ltChoice(uppity) - thresXY <= homeCept && ++edgeIndex < edges->size());
+				bounds = (*edges)[edgeIndex]->bounds();
+			} while (bounds.ltChoice(uppity) - thresXY <= homeCept && ++edgeIndex < edges->size());
 			if (0 == edgeIndex--) {
 				set(axis);
 				continue;
 			}
 		}
 		OpEdge* result = (*edges)[edgeIndex];
-		bounds = &result->bounds;
-		OP_ASSERT(bounds->ltChoice(uppity) - thresXY <= homeCept);
+		bounds = result->bounds();
+		OP_ASSERT(bounds.ltChoice(uppity) - thresXY <= homeCept);
 		if (0 == edgeIndex--)
 			set(axis);
-		if (bounds->rbChoice(uppity) >= chainBounds.ltChoice(uppity))
+		if (bounds.rbChoice(uppity) >= chainBounds.ltChoice(uppity))
 			return result;
 	}
 	return nullptr;
@@ -126,11 +124,13 @@ bool SectRay::addContainers(OpEdge* addEdge, OpEdge* home) {
 			return false;
 		OpRect& cBounds = container->bounds;
 		// r-reference avoids struct copy
+		OpRect homeBounds = home->bounds();
+		OpRect addBounds = addEdge->bounds();
 		OpRect&& bounds = Axis::horizontal == home->ray.axis  // area in contour between addEdge and home
-			? OpRect(std::max(cBounds.left, addEdge->bounds.right), cBounds.top,
-					std::min(cBounds.right, home->bounds.left), cBounds.bottom)
-			: OpRect(cBounds.left, std::max(container->bounds.top, addEdge->bounds.bottom),
-					cBounds.right, std::min(container->bounds.bottom, home->bounds.top));
+			? OpRect(std::max(cBounds.left, addBounds.right), cBounds.top,
+					std::min(cBounds.right, homeBounds.left), cBounds.bottom)
+			: OpRect(cBounds.left, std::max(container->bounds.top, addBounds.bottom),
+					cBounds.right, std::min(container->bounds.bottom, homeBounds.top));
 		if (bounds.isEmpty())
 			return false;
 //		if (std::none_of(containers.begin(), containers.end(), [container](OpContour* test) {
@@ -381,9 +381,9 @@ Distance* SectRay::find(const OpEdge* edge) {
 }
 
 FindCept SectRay::findCept(OpEdge* edge, OpEdge* test) {
-	if (test->bounds.ltChoice(axis) > normal)
+	if (test->bounds().ltChoice(axis) > normal)
 		return FindCept::ok;
-	if (test->bounds.rbChoice(axis) < normal)
+	if (test->bounds().rbChoice(axis) < normal)
 		return FindCept::ok;
 	if (test == edge)
 		return FindCept::ok;
@@ -394,7 +394,7 @@ FindCept SectRay::findCept(OpEdge* edge, OpEdge* test) {
 		return FindCept::ok;
 	if (test->centerless)
 		return FindCept::retry;
-	if (test->iStart.isFinite() || test->iEnd.isFinite()) {
+	if (test->curve.start.isFinite() || test->curve.end.isFinite()) {
 		// check if axis at normal is between ends of nearly coincident edges (testQuad2558209)
 		for (const CoinPal& pal : test->coinPals) {
 			bool palsReversed = pal.coinID < 0;
@@ -402,7 +402,7 @@ FindCept SectRay::findCept(OpEdge* edge, OpEdge* test) {
 				if (std::none_of(palEdge.coinPals.begin(), palEdge.coinPals.end(),
 						[pal](const CoinPal& oPal) { return oPal == pal; } ))
 					continue;
-				if (!test->bounds.overlaps(palEdge.bounds))
+				if (!test->bounds().overlaps(palEdge.bounds()))
 					continue;
 				OP_ASSERT(test->startPt() == palEdge.startPt() || palsReversed);
 				OpPoint testStart = test->curve.firstPt();
@@ -563,8 +563,8 @@ void SectRay::sort() {
 bool SectRay::tryADifferentCenter(OpEdge* edge) {
 	mid /= 2;
 	midEnd = midEnd < .5 ? 1 - mid : mid;
-	float middle = OpMath::Interp(edge->bounds.ltChoice(axis), 
-			edge->bounds.rbChoice(axis), midEnd);
+	float middle = OpMath::Interp(edge->bounds().ltChoice(axis), 
+			edge->bounds().rbChoice(axis), midEnd);
 	float homeMidT = edge->curve.center(axis, middle);  // note: 0 to 1 on edge curve
 	bool tooMany = mid <= interceptLimit;
 	if (OpMath::IsNaN(homeMidT) || tooMany) {  // give it at most eight tries
@@ -588,7 +588,7 @@ struct SectPtT {
 		, sect(seg->sects.contains(cePtT, opp)) {
 		if (sect)
 			ptT = sect->ptT;
-		OpPtAliases& aliases = seg->contour->context->aliases;
+		OpPtAliases& aliases = seg->contour->aliases;
 		original = ptT.pt;
 		if (OpPoint possibleAlias = aliases.existing(ptT.pt); possibleAlias != ptT.pt)
 			ptT.pt = possibleAlias;
@@ -610,7 +610,7 @@ struct SectPair {
 		if (seg.ptT.pt != opp.ptT.pt) {
 			if (seg.ptT.pt != seg.original)
 				if (opp.ptT.pt != opp.original)
-					opp.ptT.pt = ce.seg->contour->context->remapPts(opp.ptT.pt, seg.ptT.pt);
+					opp.ptT.pt = ce.seg->contour->addAlias(opp.ptT.pt, seg.ptT.pt);
 				else
 					opp.ptT.pt = seg.ptT.pt;
 			else
@@ -653,21 +653,23 @@ struct CoinSects {
 			std::swap(end.ceSeg, end.ceOpp);
 			end.isBaseSegment = !end.isBaseSegment;
 		}
-		OpContext* context = coinStart.seg->contour->context;
-		OpVector threshold = context->threshold();
-		auto checkClose = [context, threshold](OpSegment* seg, SectPtT& s, SectPtT& e) {
+		OpContour* contour = coinStart.seg->contour;
+		OpVector threshold = contour->context->threshold;
+		auto checkClose = [threshold](OpSegment* seg, SectPtT& s, SectPtT& e) {
 			bool near = s.ptT.isNearly(e.ptT, threshold);
-			OpPoint sPt = s.ptT.pt;
-			OpPoint ePt = e.ptT.pt;
-			if (near && sPt != ePt) {
-				if (sPt != s.original) {
-					if (ePt != e.original)
-						context->remapPts(ePt, sPt);
-					else
-						seg->movePt(e.ptT, sPt);
-				} else if (ePt != e.original)
-					seg->movePt(s.ptT, ePt);
+		#if 1
+			OP_ASSERT(!near || s.ptT.pt != e.ptT.pt);
+		#else
+			// !!! if points are near but not equal, earlier calc. ought to have found alias
+			if (near && s.ptT.pt != e.ptT.pt) {
+				if (s.ptT.pt != s.original) {
+					contour->remapPts(e.ptT.pt, s.ptT.pt);
+					if (e.ptT.pt == e.original)
+						segment->movePt(e.ptT.pt, s.ptT.pt);
+				} else if (e.ptT.pt != e.original)
+					contour->movePt(s.ptT.pt, e.ptT.pt);
 			}
+		#endif
 			return near;
 		};
 		ptsAreClose = checkClose(coinStart.seg, start.seg, end.seg);
@@ -937,7 +939,7 @@ ChainFail OpWinder::SetCept(OpEdge* edge) {
 	if (ChainFail::normalizeOverflow == chainFail)
 		OP_DEBUG_FAIL(*edge, chainFail);  // fatal error : cross product returned infinite / nan
 	if (ChainFail::normalizeUnderflow == chainFail) {  // nonfatal error -- try vertical instead
-		if (Axis::vertical == edge->ray.axis || 0 == edge->bounds.width())
+		if (Axis::vertical == edge->ray.axis || 0 == edge->curve.width())
 			edge->markUnsortable(Unsortable::rayTooShallow);
 		return chainFail;
 	}
@@ -1145,8 +1147,8 @@ FoundWindings OpWinder::SetWindings(OpContext& context) {
 			std::swap(verticals, edges);
 		do {
 			std::sort(edges.begin(), edges.end(), [axis](const OpEdge* s1, const OpEdge* s2) {
-				return Axis::horizontal == axis ? s1->bounds.left < s2->bounds.left
-						: s1->bounds.top < s2->bounds.top;
+				return Axis::horizontal == axis ? s1->curve.left() < s2->curve.left()
+						: s1->curve.top() < s2->curve.top();
 			});
 			for (OpEdge* edge : edges) {  // first pass: find ray cepts for sorting
 				if (edge->disabled)	// may not be visible in vertical pass
@@ -1251,7 +1253,7 @@ FoundWindings OpWinder::SetWindings(OpContext& context) {
 							continue;
 						}
 							// if pals overlap bounds, they are not reciprocal (fuzz763_378)
-						if (!edge.bounds.overlaps(oPal.edge->bounds))
+						if (!edge.bounds().overlaps(oPal.edge->bounds()))
 							continue;
 						if (pals.end() == std::find_if(pals.begin(), pals.end(), [&oPal]
 								(const EdgePal& test) {
@@ -1304,7 +1306,7 @@ FoundWindings OpWinder::SetWindings(OpContext& context) {
 	}
 	for (auto sectsBy : { sectsByX, sectsByY }) {
 		std::sort(sectsBy.begin(), sectsBy.end(), [](const auto& s1, const auto& s2) {
-			return s1->bounds.perimeter() > s2->bounds.perimeter(); 
+			return s1->bounds().perimeter() > s2->bounds().perimeter(); 
 		} );
 		for (auto edge : sectsBy) {
 			if (edge->sum.isSet())

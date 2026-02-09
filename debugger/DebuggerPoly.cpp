@@ -16,7 +16,7 @@ bool DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
         return false;
     // if adding fill, wrap curve to focus bounds
     OpCurve curve(c, monotonic ? Rotated::no : Rotated::yes);
-    OpPointBounds bounds = curve.ptBounds();
+    OpPointBounds bounds = curve.fullBounds();
     auto addVertical = [c, bounds, this](float x) {
         if (!addingFill)
             return false;

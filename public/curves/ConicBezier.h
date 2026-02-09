@@ -303,9 +303,9 @@ inline bool conicsEqual(Curve one, Curve two) {
     return ctrl1.pt == ctrl2.pt && ctrl1.weight == ctrl2.weight;
 }
 
-inline void conicPin(Curve c, OpPoint oldStart, OpPoint oldEnd) {
+inline void conicPin(Curve c, OpPoint newStart, OpPoint newEnd) {
     PointWeight control(c);
-    control.pt.pin(c.data->start, c.data->end);
+    control.pt.pin(newStart, newEnd);
     control.copyTo(c);
  }
 

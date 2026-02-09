@@ -18,6 +18,7 @@ enum class UserDataType {
     none,   // unused
     outData,  // additional data used when managing which curves comprise the output
     outPath,  // pointer to caller data accumulating output path
+//  optional  // user-defined types follow
 };
 
 // optional user data associated with this instance of the engine
@@ -125,6 +126,7 @@ struct Output {
 // curve callbacks
 
 // intersects the curve and axis at the axis intercept
+// !!! move debug roots into context
 typedef OpRoots (*AxisT)(Curve , Axis , float axisIntercept  OP_DEBUG_PARAMS(const OpRoots& ));
 
 // returns number of points in curve user data that contribute to its hull
@@ -238,7 +240,7 @@ struct WindingCallbacks {
 
 // Common path operations return WindKeep::discard, so that curves are output once.
 // adds curve to output
-typedef WindKeep (*CurveOutput)(Output );
+typedef WindKeep (*CurveOutput)(Output);
 
 // initializes caller's path as empty
 typedef void (*EmptyCallerPath)(Context* );

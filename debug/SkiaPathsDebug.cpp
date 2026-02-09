@@ -21,7 +21,7 @@ std::string dumpSkiaOutPath(Context* context) {
     ContextUserData userData = UserData(context, UserDataType::outPath);
     OP_ASSERT(userData.size == sizeof(const SkPath*));
     const SkPath* outPath = (const SkPath*) userData.data;
-    return dumpSkPath(outPath, false);
+    return dumpSkPath(outPath, true, "    path.");
 }
 
 }

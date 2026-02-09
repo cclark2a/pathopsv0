@@ -24,6 +24,8 @@ std::string CompareLabel::labelAt(int index) {
     if (!window->debugRaster)
         return "(uninitialized)";
     const DebugRaster* raster = window->debugRaster;
+    if (raster->samples.empty())
+        return "(uninitialized)";
     const OpDebugSamples& sample = raster->samples[index];
     std::string postfix;
     const OpContext* context = raster->context;

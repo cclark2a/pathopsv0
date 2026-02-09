@@ -18,9 +18,9 @@ constexpr auto OpMax = std::numeric_limits<int>::max();
 constexpr auto OpEpsilon = std::numeric_limits<float>::epsilon();
 
 #include "OpDebugColor.h"
-#include "OpDebugDouble.h"
+// #include "OpDebugDouble.h"
 #include "OpDebugDump.h"
-#include "OpDebugImage.h"
+// #include "OpDebugImage.h"
 
 template <typename T, size_t N> char (&ArrayCountHelper(T (&array)[N]))[N];
 #define ARRAY_COUNT(array) (sizeof(ArrayCountHelper(array)))
@@ -586,11 +586,8 @@ inline OpVector::OpVector(OpPoint pt)
 */
 
 struct OpRect {
-	OpRect()
-		: left(OpNaN)
-		, top(OpNaN) 
-		, right(OpNaN)
-		, bottom(OpNaN) {
+	OpRect() {
+		clear();
 	}
 
 	OpRect(float l, float t, float r, float b)
@@ -625,7 +622,7 @@ struct OpRect {
 	}
 
 	OpRect& add(const OpRect& bounds) {
-		OP_ASSERT(bounds.isFinite());
+		OP_ASSERT(!bounds.isNaN());
 		left = std::min(left, bounds.left);
 		top = std::min(top, bounds.top);
 		right = std::max(right, bounds.right);
@@ -634,16 +631,33 @@ struct OpRect {
 	}
 
 	OpPoint center() const;
+
+    void clear() {
+		left = +OpInfinity;
+		top = +OpInfinity;
+		right = -OpInfinity;
+		bottom = -OpInfinity;
+    }
+
     bool contains(OpPoint pt) const;
 	bool contains(OpPoint pt, OpVector margin) const;
 	bool contains(OpRect& r) const;
-	bool isFinite() const;
 
 	float height() const { 
 		return bottom - top; }
 
 	bool hasArea() const {
 		return width() && height(); }
+
+	OpRect intersect(const OpRect& bounds) const {
+		OP_ASSERT(!bounds.isNaN());
+		return {
+			std::max(left, bounds.left),
+			std::max(top, bounds.top),
+			std::min(right, bounds.right),
+			std::min(bottom, bounds.bottom)
+		};
+	}
 
 	bool intersects(const OpRect& r) const {
 #if OP_DEBUG_VALIDATE
@@ -656,9 +670,15 @@ struct OpRect {
 		return left > right || top > bottom || (left == right && top == bottom);
 	}
 
+	bool isFinite() const;
+	bool isNaN() const;
+	bool isSet() const;
+
+#if 0
 	bool intersectsThreshold(const OpRect& bounds, OpVector thresh) const {
 		return intersects(bounds.outset(thresh)); 
 	}
+#endif
 
 	Axis largerAxis() const {
 		return width() >= height() ? Axis::vertical : Axis::horizontal; }
@@ -669,19 +689,56 @@ struct OpRect {
     float ltChoice(XyChoice choice) const { 
 		return *(&left + +choice); }
 
+	bool nearlyContains(OpPoint pt, OpVector threshold) const;
+
 	OpRect offset(OpVector off) const {
 		return { left + off.dx, top + off.dy, right + off.dx, bottom + off.dy }; }
 
 	OpRect outset(OpVector out) const {
 		return { left - out.dx, top - out.dy, right + out.dx, bottom + out.dy }; }
 
+	// used to check if pair describe gap between edges
+	// tricky: if gaps are axis-aligned lines, look only at one coordinate
+	bool overlaps(const OpRect& r) const {
+#if OP_DEBUG_VALIDATE
+		debugValidate();
+		r.debugValidate();
+#endif
+		bool overlapsInX = r.left < right && left < r.right;
+		bool overlapsInY = r.top < bottom && top < r.bottom;
+		if (top == bottom)
+			return overlapsInX && r.top <= top && top <= r.bottom;
+		if (left == right)
+			return overlapsInY && r.left <= left && left <= r.right;
+		return overlapsInX && overlapsInY;
+	}
+
 	float perimeter() const { 
 		return width() + height(); }
+
+	void pin(OpPoint* pt);
+
+	float rbChoice(Axis axis) const {
+		return *(&right + +axis); }
+
+	float rbChoice(XyChoice choice) const {
+		return *(&right + +choice); }
 
 	OpPoint set(OpPoint pt) {
 		left = right = pt.x;
 		top = bottom = pt.y;
 		return pt;
+	}
+
+	void set(OpPoint pt1, OpPoint pt2) {
+		set(pt1);
+		add(pt2);
+	}
+
+	void set(const OpPoint* pts, int count) {
+		for (int index = 0; index < count; ++index) {
+			add(pts[index]);
+		}
 	}
 
 	void setLtChoice(Axis axis, float value) {  // !!! unused
@@ -690,17 +747,25 @@ struct OpRect {
 	void setRbChoice(Axis axis, float value) {  // !!! unused
 		*(&right + +axis) = value; }
 
-	float rbChoice(Axis axis) const {
-		return *(&right + +axis); }
-
-	float rbChoice(XyChoice choice) const {
-		return *(&right + +choice); }
+	bool touches(const OpRect& r) const {
+#if OP_DEBUG_VALIDATE
+		debugValidate();
+		r.debugValidate();
+#endif
+		return r.left == right || left == r.right || r.top == bottom || top == r.bottom;
+	}
 
 	float width() const { 
 		return right - left; }
 
 	OpVector widthHeight() const {
 		return *(OpPoint*) &right - *(OpPoint*) &left; }
+
+
+#if OP_DEBUG
+	bool debugContains(OpPoint pt);
+	bool debugContains(const OpRect& bounds);
+#endif
 #if OP_DEBUG_SERIALIZE
 	virtual std::string debugDump(DebugLevel , DebugBase ) const;
 #endif
@@ -728,6 +793,8 @@ struct OpRect {
 	float right;
 	float bottom;
 };
+
+typedef OpRect OpPointBounds;
 
 struct OpPtT {
 	OpPtT()

@@ -331,7 +331,7 @@ struct DebugCubic {
     CurveType curveType;
     size_t curveSize;
     OpPoint curveData[4];
-    float extrema[4];
+    float extrema[5];
 };
 #endif
 
@@ -500,13 +500,12 @@ inline bool cubicsEqual(Curve one, Curve two) {
             : ctrlPt1.pts[0] == ctrlPt2.pts[1] && ctrlPt1.pts[1] == ctrlPt2.pts[0];
 }
 
-inline void cubicPin(Curve c, OpPoint oldStart, OpPoint oldEnd) {
-//	OP_ASSERT(c.data->start != oldStart || c.data->end != oldEnd);
+inline void cubicPin(Curve c, OpPoint newStart, OpPoint newEnd) {
     CubicControls controls(c);
-	controls.pts[0] += c.data->start - oldStart;
-	controls.pts[1] += c.data->end - oldEnd;
-    controls.pts[0].pin(c.data->start, c.data->end);
-    controls.pts[1].pin(c.data->start, c.data->end);
+	controls.pts[0] += newStart - c.data->start;
+	controls.pts[1] += newEnd - c.data->end;
+    controls.pts[0].pin(newStart, newEnd);
+    controls.pts[1].pin(newStart, newEnd);
     controls.copyTo(c);
 }
 

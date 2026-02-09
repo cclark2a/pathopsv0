@@ -257,7 +257,9 @@ void dmpActive() {
 }
 
 void dmpAliases() {
-    debugGlobalContext->aliases.dump();
+     for (const auto c : contourIterator) {
+        c->aliases.dump();
+     }
 }
 
 void dmpCoincidences() {
@@ -638,7 +640,8 @@ void dmpWindings() {
 ENUM_NAME_STRUCT(OpDebugExpect)
 
 void OpPtAliases::dumpSet(const char*& str) {
-    static_assert(0 == offsetof(OpPtAliases, aliases));
+    static_assert(0 == offsetof(OpPtAliases, maps));
+#if 0
     if (OpDebugOptional(str, "aliases")) {
         size_t size = OpDebugReadSizeT(str);
         aliases.resize(size);
@@ -647,6 +650,7 @@ void OpPtAliases::dumpSet(const char*& str) {
         }
     }
     ASSERT_ORDERED(aliases, maps);
+#endif
     if (OpDebugOptional(str, "maps")) {
         size_t size = OpDebugReadSizeT(str);
         maps.resize(size);
@@ -655,13 +659,9 @@ void OpPtAliases::dumpSet(const char*& str) {
             map.alias.dumpSet(str);
         }
     }
-    ASSERT_ORDERED(maps, threshold);
-    OpDebugRequired(str, "threshold");
-    threshold.dumpSet(str);
-    ASSERT_ORDERED(threshold, thresholdLength);
-    thresholdLength = OpDebugReadNamedFloat(str, "thresholdLength");
-    static_assert(sizeof(OpPtAliases) == offsetof(OpPtAliases, thresholdLength) 
-            + sizeof(thresholdLength) + 4);
+    OpDebugRequired(str, "bounds");
+    bounds.dumpSet(str);
+    static_assert(sizeof(OpPtAliases) == offsetof(OpPtAliases, bounds) + sizeof(bounds));
 }
 
 namespace PathOpsV0Lib {
@@ -727,9 +727,7 @@ static void debugContextCallbacksDumpSet(PathOpsV0Lib::DebugContextCallbacks& de
 }
 
 void OpContext::dumpSet(const char*& str) {
-    static_assert(0 == offsetof(OpContext, aliases));
-    aliases.dumpSet(str);
-    ASSERT_ORDERED(aliases, callbacks);
+    static_assert(0 == offsetof(OpContext, callbacks));
     OpDebugRequired(str, "callbacks");
     size_t size = OpDebugReadSizeT(str);
     callbacks.resize(size);
@@ -874,7 +872,12 @@ void OpContext::dumpSet(const char*& str) {
     ASSERT_ORDERED(callerStorage, maxBounds);
     if (OpDebugOptional(str, "maxBounds"))
         maxBounds.dumpSet(str);
-    ASSERT_ORDERED(maxBounds, error);
+    ASSERT_ORDERED(maxBounds, threshold);
+    if (OpDebugOptional(str, "threshold"))
+        threshold.dumpSet(str);
+    ASSERT_ORDERED(threshold, thresholdLength);
+    thresholdLength = OpDebugReadNamedFloat(str, "thresholdLength");
+    ASSERT_ORDERED(thresholdLength, error);
     error = PathOpsV0Lib::contextErrorStr(str, "error", PathOpsV0Lib::ContextError::none);
     ASSERT_ORDERED(error, uniqueID);
     OpDebugRequired(str, "uniqueID");
@@ -893,7 +896,7 @@ void OpContext::dumpSet(const char*& str) {
     ASSERT_ORDERED(debugValidateEdgeIndex, debugValidateJoinerIndex);
     OpDebugRequired(str, "debugValidateJoinerIndex");
     debugValidateJoinerIndex = (int) OpDebugReadSizeT(str);
-    ASSERT_SERIAL_OFFSET(*this, debugValidateJoinerIndex, 0, debugCallbacks);
+    ASSERT_SERIAL_OFFSET(*this, debugValidateJoinerIndex, 4, debugCallbacks);
 #else
     ASSERT_ORDERED(dumpDummy, debugCallbacks);
 #endif
@@ -943,7 +946,7 @@ void OpContext::dumpSet(const char*& str) {
     debugCheckLastEdge = OpDebugOptional(str, "debugCheckLastEdge");
     ASSERT_ORDERED(debugCheckLastEdge, debugFailOnEqualCepts);
     debugFailOnEqualCepts = OpDebugOptional(str, "debugFailOnEqualCepts");
-//    ASSERT_ORDERED_OFFSET(debugFailOnEqualCepts, debugFilename, 0);  // omit for now
+    ASSERT_ORDERED(debugFailOnEqualCepts, debugFilename);
     ASSERT_ORDERED(debugFilename, debugDescription);
     if (OpDebugOptional(str, "debugDescription")) {
         const char* descStart = str;
@@ -968,7 +971,8 @@ void OpContext::dumpSet(const char*& str) {
     ASSERT_ORDERED_OFFSET(dumpIndex, debugDumpErasures, 4);  // omit for now
     ASSERT_ORDERED(debugDumpErasures, debugDumpInit);  // omit for now
 #if OP_TEST_RASTER
-    ASSERT_ORDERED_OFFSET(debugDumpInit, debugRaster, 7);
+    // don't dump raster storage for now
+    ASSERT_ORDERED(rasterStorage, debugRaster);
     if (OpDebugOptional(str, "debugRaster")) {
         if (!debugRaster)
             debugRaster = new DebugRaster(this);
@@ -1052,10 +1056,10 @@ void dmpMatch(const OpPoint& pt, bool detail) {
             OpDebugFormat("edge start: " + edge.debugDump(level, defaultBase) + "\n");
         if (edge.curve.lastPt() == pt)
             OpDebugFormat("edge end: " + edge.debugDump(level, defaultBase) + "\n");
-        if (edge.curve.firstPt() != edge.iStart && edge.iStart == pt)
-            OpDebugFormat("edge iStart: " + edge.debugDump(level, defaultBase) + "\n");
-        if (edge.curve.lastPt() != edge.iEnd && edge.curve.lastPt() == pt)
-            OpDebugFormat("edge iEnd: " + edge.debugDump(level, defaultBase) + "\n");
+        if (edge.curve.firstPt() != edge.startPt() && edge.curve.firstPt() == pt)
+            OpDebugFormat("edge curve.firstPt(): " + edge.debugDump(level, defaultBase) + "\n");
+        if (edge.curve.lastPt() != edge.endPt() && edge.curve.lastPt() == pt)
+            OpDebugFormat("edge curve.lastPt(): " + edge.debugDump(level, defaultBase) + "\n");
     }
 }
 
@@ -1334,7 +1338,9 @@ void OpContour::dumpSet(const char*& str) {
     OpDebugByteArray(str, windingSize, &windingStorage.front());
     DUMP_NAMED_EDGES(*this, windingStorage, "linkups", linkups.l);
     DUMP_NAMED_EDGES(*this, linkups, "endLinks", endLinks.l);
-    ASSERT_ORDERED(endLinks, overlapBounds);
+    ASSERT_ORDERED(endLinks, aliases);
+    aliases.dumpSet(str);
+    ASSERT_ORDERED(aliases, overlapBounds);
     if (OpDebugOptional(str, "overlapBounds"))
         overlapBounds.dumpSet(str);
     ASSERT_ORDERED(overlapBounds, bounds);
@@ -1526,10 +1532,26 @@ bool debugDmpIsLine(const PathOpsV0Lib::Curve& c) {
 	return test.debugIsLine();
 }
 
+#undef OP_ENUM_BASE
+#undef OP_ENUM_MEMBER
+#define OP_ENUM_MEMBER(w) { Rotated::w, #w }
+#define Rotated_Base
+ENUM_NAME_STRUCT(Rotated)
+
 void OpCurve::dumpSet(const char*& str) {
     Curve_DumpSet(c, str);
+    if (OpDebugOptional(str, "start"))
+        start.dumpSet(str);
+    else
+        start = c.data->start;
+    if (OpDebugOptional(str, "end"))
+        end.dumpSet(str);
+    else
+        end = c.data->end;
+    rotated = RotatedStr(str, "rotated", Rotated::no);
     isLineSet = OpDebugOptional(str, "isLineSet");
     isLineResult = OpDebugOptional(str, "isLineResult");
+    isSmall = OpDebugOptional(str, "isSmall");
     reversed = OpDebugOptional(str, "reversed");
 }
 
@@ -1960,13 +1982,7 @@ void OpEdge::dumpSet(const char*& str) {
     OpDebugRequired(str, "curve");
     curve.c.context = (ContextPtr) dumpContext;
     curve.dumpSet(str);
-    ASSERT_ORDERED(curve, iStart);
-    if (OpDebugOptional(str, "iStart"))
-        iStart.dumpSet(str);
-    ASSERT_ORDERED(iStart, iEnd);
-    if (OpDebugOptional(str, "iEnd"))
-        iEnd.dumpSet(str);
-    ASSERT_ORDERED(iEnd, vertical_impl);
+    ASSERT_ORDERED(curve, vertical_impl);
     ASSERT_ORDERED(vertical_impl, upright_impl);
     if (OpDebugOptional(str, "upright_impl")) {
         upright_impl.dumpSet(str);
@@ -1974,10 +1990,7 @@ void OpEdge::dumpSet(const char*& str) {
         vertical_impl.c.context = (ContextPtr) dumpContext;
         vertical_impl.dumpSet(str);
     }
-    ASSERT_ORDERED(upright_impl, bounds);
-    OpDebugRequired(str, "bounds");
-    bounds.dumpSet(str);
-    ASSERT_ORDERED(bounds, linkBounds);
+    ASSERT_ORDERED(upright_impl, linkBounds);
     if (OpDebugOptional(str, "linkBounds"))
         linkBounds.dumpSet(str);
     ASSERT_ORDERED(linkBounds, winding);
@@ -2176,8 +2189,8 @@ void dmpWinding(const OpEdge& edge) {
 
 void dmpEnd(const OpEdge& edge)  {
     dmpMatch(edge.curve.lastPt());
-    if (edge.iEnd != edge.curve.lastPt())
-        dmpMatch(edge.iEnd);
+    if (edge.endPt() != edge.curve.lastPt())
+        dmpMatch(edge.endPt());
 }
 
 void dmpFull(const OpEdge& edge) { 
@@ -2200,7 +2213,8 @@ void dmpIntersections(const OpEdge& edge) {
 // don't just dump it, find the best theoretical one through binary search
 std::string OpEdge::debugDumpCenter(DebugLevel l, DebugBase b) const {
     std::string s = "[" + STR(id) + "] center:" + center.debugDump(l, b);
-    OpPoint c = { (bounds.left + bounds.right) / 2, (bounds.top + bounds.bottom) / 2 };
+    OpRect r = bounds();
+    OpPoint c = { (r.left + r.right) / 2, (r.top + r.bottom) / 2 };
     s += " bounds center:" + c.debugDump(l, b) + "\n";
     float lo = startT;
     float hi = endT;
@@ -2249,7 +2263,7 @@ OpPtT OpEdge::debugFindT(Axis axis, float oppXY) const {
 
 void dmpCompare(OpPoint a, OpPoint b) {
     OpVector diff = a - b;
-    OpVector threshold = debugGlobalContext->threshold();
+    OpVector threshold = debugGlobalContext->threshold;
     OpDebugOut("difference: " + STR(diff.dx / threshold.dx) + "x, " 
             + STR(diff.dy / threshold.dy) + "x\n");
 }
@@ -2558,8 +2572,8 @@ void dmpRay(const OpEdge& edge) {
 
 void dmpStart(const OpEdge& edge) {
     dmpMatch(edge.curve.firstPt());
-    if (edge.iStart != edge.curve.firstPt())
-        dmpMatch(edge.iStart);
+    if (edge.startPt() != edge.curve.firstPt())
+        dmpMatch(edge.startPt());
 }
 
 void CallerDataStorage::DumpSet(const char*& str, CallerDataStorage** previousPtr) {
@@ -3390,10 +3404,7 @@ void OpSegment::dumpSet(const char*& str) {
     ASSERT_ORDERED(contour, c);
     c.c.context = (ContextPtr) contour->context;
     c.dumpSet(str);
-    ASSERT_ORDERED(c, ptBounds);
-    OpDebugRequired(str, "ptBounds");
-    ptBounds.dumpSet(str);
-    ASSERT_ORDERED(ptBounds, sects);
+    ASSERT_ORDERED(c, sects);
     if (OpDebugOptional(str, "sects:")) {
         int sectCount = (int) OpDebugReadSizeT(str);
         sects.i.resize(sectCount);
@@ -3415,15 +3426,11 @@ void OpSegment::dumpSet(const char*& str) {
     winding.dumpSet(contour->context, str);
     ASSERT_ORDERED(winding, id);  // write at front
     DEBUG_SET_BOOL(id, disabled);
-    DEBUG_SET_BOOL(disabled, willDisable);
-    DEBUG_SET_BOOL(willDisable, hasCoin);
+    DEBUG_SET_BOOL(disabled, hasCoin);
     DEBUG_SET_BOOL(hasCoin, hasPals);
     DEBUG_SET_BOOL(hasPals, hasUnsectable);
-    DEBUG_SET_BOOL(hasUnsectable, startMoved);
-    DEBUG_SET_BOOL(startMoved, endMoved);
-
 #if OP_DEBUG_IMAGE
-    ASSERT_SERIAL_OFFSET(*this, endMoved, 1, debugColor);
+    ASSERT_SERIAL_OFFSET(*this, hasUnsectable, 0, debugColor);
 	if (OpDebugOptional(str, "debugColor"))
         debugColor = OpDebugHexToInt(str);
 #else
@@ -3558,12 +3565,12 @@ ENUM_NAME_STRUCT(WindingType)
 #define DebugWindingType_Base
 ENUM_NAME_STRUCT(DebugWindingType)
 
-void DumpSet(OpContext* context, PathOpsV0Lib::Winding& w, char const*& str) {
+void DumpSet(OpContext* context, PathOpsV0Lib::Winding& w, char const*& str, bool raster) {
     OpDebugRequired(str, "w.contour");
     w.contour = (PathOpsV0Lib::Contour*) OpDebugReadSizeT(str);
     OpDebugRequired(str, "w.size");
     w.size = OpDebugReadSizeT(str);
-    w.data = context->allocateWinding(w.size);
+    w.data = context->allocateWinding(w.size  OP_DEBUG_RASTER_PARAMS(raster));
     for (size_t index = 0; index < w.size; ++index) {
         ((uint8_t*) w.data)[index] = OpDebugByteToInt(str);
 	}
@@ -3578,7 +3585,7 @@ void DumpResolveAll(PathOpsV0Lib::Winding& w, OpContext* context) {
 }
 
 void OpWinding::dumpSet(OpContext* context, const char*& str) {
-    DumpSet(context, w, str);
+    DumpSet(context, w, str, usedByRaster);
     type = WindingTypeStr(str, "type", WindingType::uninitialized);
     debugType = DebugWindingTypeStr(str, "debugType", DebugWindingType::uninitialized);
 }
@@ -3637,10 +3644,6 @@ void OpPoint::dumpSet(const char*& str) {
     y = OpDebugHexToFloat(str);
     OpDebugRequired(str, "}");
     OpDebugOptional(str, ",");
-}
-
-void OpPointBounds::dumpSet(const char*& str) {
-    OpRect::dumpSet(str);
 }
 
 void OpPtT::dumpSet(const char*& str) {

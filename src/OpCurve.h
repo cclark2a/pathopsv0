@@ -32,11 +32,15 @@ struct CutRangeT {
 	OpPtT hi;
 };
 
+// init; during initialization, threshold is not yet set (so degenerate lines cannot be found)
+#define Rotated_Enums \
+	OP_ENUM_MEMBER(no), \
+	OP_ENUM_MEMBER(yes), \
+	OP_ENUM_MEMBER(init), \
+	OP_ENUM_MEMBER(debug)
+
 enum class Rotated : int8_t {
-	no,
-	yes,
-	init  // during initialization, threshold is not yet set (so degenerate lines cannot be found)
-	OP_DEBUG_PARAMS(debug)
+	Rotated_Enums
 };
 
 struct OpCurve {
@@ -45,6 +49,7 @@ struct OpCurve {
 		, rotated(Rotated::no)
 		, isLineSet(false)
 		, isLineResult(false)
+		, isSmall(false)
         , reversed(false) {
 	}
 
@@ -53,11 +58,16 @@ struct OpCurve {
 	OpCurve(PathOpsV0Lib::AddCurve , Rotated );
 #endif
 	// void adjust(OpPoint start, OpPoint end);
+	OpRect aliasBounds() const {
+		return OpRect(start, end); }
 	OpRoots axisRayHit(Axis offset, float axisIntercept, float start = 0, float end = 1) const;
 	OpRoots axisRawHit(Axis offset, float axisIntercept, MatchEnds) const;
 	PathOpsV0Lib::WindKeep bestLoop(PathOpsV0Lib::Winding , 
 			bool firstPt, bool lastPt  OP_DEBUG_PARAMS(int parentID));
+	OpRect callerBounds() const {
+		return OpRect(c.data->start, c.data->end); }
 	float center(Axis offset, float axisIntercept) const;
+	OpRect closeBounds() const;
     OpContext& context() {
         return *(OpContext*) c.context; }
     const OpContext& context() const {
@@ -68,14 +78,18 @@ struct OpCurve {
     float findValidT(float start, float end, OpPoint opp);
 //	OpPtT findIntersect(Axis offset, const OpPtT& ) const;
 	OpPoint firstPt() const  {
-		return c.data->start; } 
+		return start; } 
+	float height() const {
+		return fabsf(start.y - end.y); }
 	OpPoint hullPt(int index) const;
 	float interceptLimit() const;
 	bool isFinite() const;
 	bool isLine(); 
 	bool isVertical() const;
 	OpPoint lastPt() const {
-		return c.data->end; }
+		return end; }
+	float left() const {
+		return std::min(start.x, end.x); }
 	LinePts linePts() const {
 		LinePts result { firstPt(), lastPt() }; return result; }
 	OpPtT lineCurve(OpCurve& line, float t, float* lineT, MatchEnds , float margin);
@@ -92,25 +106,29 @@ struct OpCurve {
 	bool normalize();
 	PathOpsV0Lib::WindKeep output(PathOpsV0Lib::Winding , bool firstPt, bool lastPt  
 			OP_DEBUG_RASTER_PARAMS(OpEdge* ));
-	void pinCtrl(OpPoint oldStart, OpPoint oldEnd);
+	void pinCtrl();
 	OpPoint ptAtT(float t) const;
 	OpPoint ptDAtT(float t) const;
 	OpPtT ptTAtT(float t) const {
 		return { ptAtT(t), t }; }
-	OpPointBounds ptBounds() const;  // if curve is rotated, may need to consider control points
+	OpPointBounds fullBounds() const;  // if curve is rotated, may need to consider control points
 	int pointCount() const;
 	OpRoots rawIntersect(const LinePts& line, MatchEnds ) const;  // requires sect to be on curve
 	OpRoots rayIntersect(const LinePts& line, MatchEnds ) const;
 	void reverse();
 	void setFirstPt(OpPoint pt) {
-		c.data->start = pt; }
+		start = c.data->start = pt; }
 	void setLastPt(OpPoint pt) {
-		c.data->end = pt; }
+		end = c.data->end = pt; }
 	void setLine() {
 		isLineSet = false; isLine(); }
 	void setLineType() {
 		c.type = lineType(); }
+	float top() const {
+		return std::min(start.y, end.y); }
 	OpPoint whichPt(EdgeMatch ) const;
+	float width() const {
+		return fabsf(start.x - end.x); }
 
 	OpCurve subDivide(float t1, float t2) const;
 	OpVector tangent(float t) const;
@@ -123,6 +141,7 @@ struct OpCurve {
     OpContext& writableContext() const { 
         return *(OpContext*) c.context; }
 	OpPair xyAtT(OpPair t, XyChoice xy) const;
+	void zeroSmall(OpContour& );
 #if OP_DEBUG
 	bool debugIsLine() const;
 #endif
@@ -136,10 +155,14 @@ struct OpCurve {
 
 	// create storage in contour; helper function casts it to CurveData
 	PathOpsV0Lib::Curve c;
+	OpPoint start;	// either original, or alias
+	OpPoint end;
 	Rotated rotated;
 	bool isLineSet;
 	bool isLineResult;
+	bool isSmall;
     bool reversed;
+	OP_DEBUG_CODE(bool debugZeroedSmall = false);
 };
 
 struct CurveDataStorage {

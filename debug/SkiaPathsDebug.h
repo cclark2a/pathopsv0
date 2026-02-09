@@ -93,6 +93,20 @@ void AddDebugSkiaPath(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* , const Sk
 
 #endif
 
+#if OP_DEBUG_DUMP
+#define SKIAPATH_TAGGED_FUNCTIONS \
+    OP_TAGGED_FUNCTION(emptySkPathFunc), \
 
 #endif
+
+#if OP_DEBUG_SERIALIZE
+#define DEBUG_WRITE(type, x, y, ...) debugOutput->append(type, x, y, ...)
+#endif
+
+#endif
+
+#ifndef OP_DEBUG_SERIALIZE
+#define DEBUG_WRITE(type, x, y, ...)
+#endif
+
 #endif

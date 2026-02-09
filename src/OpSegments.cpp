@@ -1,13 +1,13 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpCurveCurve.h"
-#include "OpDebugRecord.h"
 #include "OpSegment.h"
 #include "OpSegments.h"
 #include "OpWinder.h"
 
+// used to sort segments in contour; use original data supplied by caller
 static bool compareXBox(const OpSegment* s1, const OpSegment* s2) {
-	const OpRect& r1 = s1->ptBounds;
-	const OpRect& r2 = s2->ptBounds;
+	OpRect r1 = s1->c.callerBounds();
+	OpRect r2 = s2->c.callerBounds();
 	if (r1.left < r2.left)
 		return true;
 	if (r1.left > r2.left)
@@ -16,7 +16,7 @@ static bool compareXBox(const OpSegment* s1, const OpSegment* s2) {
 		return true;
 	if (r1.left == r2.left && r1.right > r2.right)
 		return false;
-	return s1->id < s2->id;
+	return s1->id < s2->id;  // tie breaker
 }
 
 OpSegments::OpSegments(OpContext& c) 
@@ -50,25 +50,28 @@ std::vector<OpIntersection*> OpSegments::AddEndMatches(OpSegment* seg, OpSegment
         result.push_back(sect);
 	};
 	auto checkEnds = [add, seg, opp](OpPoint oppPt, float oppT  OP_LINE_FILE_ARGS()) {
-		OpPtT segPtT = seg->alignToEnd(oppPt);
-		if (!OpMath::IsNaN(segPtT.t) && (0 == oppT || 1 == oppT)) {
-			oppPt = seg->mergePoints(segPtT, opp, { oppPt, oppT });
+		OpPtT segPtT = seg->matchEnd(oppPt);
+		if (!OpMath::IsNaN(segPtT.t)) {
+			OP_ASSERT(0 == segPtT.t || 1 == segPtT.t);
+//			oppPt = seg->mergePoints(segPtT, opp, { oppPt, oppT });
 			add(seg, opp, oppPt, segPtT.t, oppT  OP_LINE_FILE_CARGS());
 		}
-		OP_ASSERT(opp->c.firstPt() != opp->c.lastPt() || opp->willDisable || opp->disabled);
+		OP_ASSERT(opp->c.firstPt() != opp->c.lastPt() || opp->disabled);
 		return segPtT.t;
 	};
+	// check seg and opp ends against each other
 	float startSegT = checkEnds(opp->c.firstPt(), 0  OP_LINE_FILE_PARGS());
-	float endSegT = checkEnds(opp->c.lastPt(), 1  OP_LINE_FILE_PARGS());
+	float endSegT = checkEnds(opp->c.lastPt(), 1  OP_LINE_FILE_PARGS());	
 	auto checkOpp = [add, seg, opp](OpPoint segPt, float segT  OP_LINE_FILE_ARGS()) {
-		OpPtT oppPtT = opp->matchEnd(segPt);
+		OpPtT oppPtT = { segPt, opp->c.match(0, 1, segPt) };
 		if (!OpMath::IsNaN(oppPtT.t)) {
-			if (0 == oppPtT.t || 1 == oppPtT.t)
-				segPt = seg->mergePoints({ segPt, segT }, opp, oppPtT);
+//			if (0 == oppPtT.t || 1 == oppPtT.t)
+//				segPt = seg->mergePoints({ segPt, segT }, opp, oppPtT);
 			add(seg, opp, segPt, segT, oppPtT.t  OP_LINE_FILE_CARGS());
 		}
 		return oppPtT.t;
 	};
+	// if ends do not match, check if seg end touches opp curve
 	float startOppT = OpNaN;
 	float endOppT = OpNaN;
 	if (0 != startSegT && 0 != endSegT) 
@@ -76,13 +79,14 @@ std::vector<OpIntersection*> OpSegments::AddEndMatches(OpSegment* seg, OpSegment
 	if (1 != startSegT && 1 != endSegT) 
 		endOppT = checkOpp(seg->c.lastPt(), 1  OP_LINE_FILE_PARGS());
 	auto checkSeg = [add, seg, opp](OpPoint oppPt, float oppT  OP_LINE_FILE_ARGS()) {
-		OpPtT segPtT = seg->matchEnd(oppPt);
+		OpPtT segPtT = { oppPt, seg->c.match(0, 1, oppPt) };
 		if (OpMath::IsNaN(segPtT.t)) 
             return;
-		if (0 == segPtT.t || 1 == segPtT.t)
-			oppPt = opp->mergePoints({ oppPt, oppT }, seg, segPtT);
+//		if (0 == segPtT.t || 1 == segPtT.t)
+//			oppPt = opp->mergePoints({ oppPt, oppT }, seg, segPtT);
 		add(seg, opp, oppPt, segPtT.t, oppT  OP_LINE_FILE_CARGS());
 	};
+	// check if opp end touches seg curve
 	if (OpMath::IsNaN(startSegT) && 0 != startOppT && 0 != endOppT)
 		checkSeg(opp->c.firstPt(), 0  OP_LINE_FILE_PARGS());
 	if (OpMath::IsNaN(endSegT) && 1 != startOppT && 1 != endOppT)
@@ -131,8 +135,8 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg,
 		float edgeT = seg->findLineT(oppPtT.pt);
 		if (!(0 <= edgeT) || !(edgeT <= 1))
 			continue;
-		seg->ptBounds.pin(&oppPtT.pt);  // required by testLine409
-		opp->ptBounds.pin(&oppPtT.pt);
+		seg->c.callerBounds().pin(&oppPtT.pt);  // required by testLine409
+		opp->c.callerBounds().pin(&oppPtT.pt);
 //		oppPtTs.push_back(oppPtT);
 #if 0
 		edgePtTs.emplace_back(oppPtT.pt, edgeT);
@@ -240,7 +244,8 @@ void OpSegments::AddEndMatches(OpContour* contour, OpContour* oContour) {
 			continue;
 		for (size_t oDex = same ? iDex + 1 : 0; oDex < oContour->sorted.size(); ++oDex) {
 			OpSegment* opp = oContour->sorted[oDex];
-			if (seg->ptBounds.right < opp->ptBounds.left)
+			OpBreak2(seg, opp, 8, 10);
+			if (seg->c.aliasBounds().right < opp->c.aliasBounds().left)
 				break;
             (void) AddEndMatches(seg, opp);  // ignore return result
 		}
@@ -269,7 +274,7 @@ void OpSegments::findCoincidence(OpContour* contour, OpContour* oContour) {
 			OpSegment* opp = &oContour->segments[oDex];
 			if (opp->disabled)
 				continue;
-			if (seg->ptBounds == opp->ptBounds && !findCoincidence(seg, opp))
+			if (seg->c.aliasBounds() == opp->c.aliasBounds() && !findCoincidence(seg, opp))
 				break;
 		}
 	}
@@ -308,7 +313,7 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
 		OP_ASSERT(oTangent.dx || oTangent.dy);
 		if (!tangent.dot(oTangent))  // if at right angles, skip
 			return IntersectResult::no;
-		if (!seg->ptBounds.intersects(opp->ptBounds))  // close bounds intersect, ptBounds do not
+		if (!seg->c.callerBounds().intersects(opp->c.callerBounds()))  // alias bounds intersect, caller bounds do not
 			return IntersectResult::no;
 		return OpWinder::CoincidentCheck(seg, opp);
 	}
@@ -366,10 +371,7 @@ void OpSegments::findIntersection(OpContour* contour, OpContour* oContour) {
 			OpSegment* opp = oContour->sorted[oDex];
 			if (opp->disabled)
 				continue;
-			if (seg->ptBounds.right < opp->ptBounds.left)
-				break;
-			// loop134071: seg 8 collapses. With pt bounds instead of 'close', seg 7 + 9 don't touch
-			if (!seg->ptBounds.intersectsThreshold(opp->ptBounds, contour->context->threshold()))
+			if (!seg->c.closeBounds().intersects(opp->c.closeBounds()))
 				continue;
             bool result = findIntersection(seg, opp);
 			if (!result)
@@ -384,16 +386,6 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 	// set both to lines if they are linear before using them in t calculations
 	(void) seg->c.isLine();
 	(void) opp->c.isLine();
-	if (seg->willDisable || opp->willDisable)
-		return true;
-	if (seg->isSmall()) {
-		seg->willDisable = true;
-		return true;
-	}
-	if (opp->isSmall()) {
-		opp->willDisable = true;
-		return true;
-	}
 	// for line-curve intersection we can directly intersect
 	std::vector<OpIntersection*> matchingSects = AddEndMatches(seg, opp);
 	if (seg->c.isLine()) {
@@ -424,10 +416,10 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 		return true;
 	}
 	// if the bounds only share a corner, there's nothing more to do
-	bool sharesHorizontal = seg->ptBounds.right == opp->ptBounds.left
-			|| seg->ptBounds.left == opp->ptBounds.right;
-	bool sharesVertical = seg->ptBounds.bottom == opp->ptBounds.top
-			|| seg->ptBounds.top == opp->ptBounds.bottom;
+	OpRect segBounds = seg->c.aliasBounds();
+	OpRect oppBounds = opp->c.aliasBounds();
+	bool sharesHorizontal = segBounds.right == oppBounds.left || segBounds.left == oppBounds.right;
+	bool sharesVertical = segBounds.bottom == oppBounds.top || segBounds.top == oppBounds.bottom;
 	if (sharesHorizontal && sharesVertical)
 		return true;
 	// look for curve curve intersections (skip coincidence already found)

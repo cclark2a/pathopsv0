@@ -15,6 +15,7 @@ struct TextWindow : public DebuggerWindow {
     DrawLevel doType(TextAction , const DebuggerEvent* );
     DrawLevel doWheel(const DebuggerEvent& , int delta) override;
     DrawLevel event(const DebuggerEvent& ) override;
+    std::string format(std::string );
     void playback(const char*& str ) override;
     std::string record() override;
     DrawLevel scroll(int );

@@ -196,6 +196,26 @@ bool OpRect::isFinite() const {
 		&& OpMath::IsFinite(right) && OpMath::IsFinite(bottom);
 }
 
+bool OpRect::isNaN() const {
+	return OpMath::IsNaN(left) || OpMath::IsNaN(top)
+		|| OpMath::IsNaN(right) || OpMath::IsNaN(bottom);
+}
+
+bool OpRect::isSet() const {
+	return OpMath::IsFinite(left);
+}
+
+bool OpRect::nearlyContains(OpPoint pt, OpVector threshold) const {
+	OP_ASSERT(pt.isFinite());
+	return OpMath::InSorted(left, pt.x, right, threshold.dx)
+			&& OpMath::InSorted(top, pt.y, bottom, threshold.dy);
+}
+
+void OpRect::pin(OpPoint* pt) {
+	pt->x = OpMath::PinSorted(left, pt->x, right);
+	pt->y = OpMath::PinSorted(top, pt->y, bottom);
+}
+
 bool OpPtT::isFinite() const {
 	return pt.isFinite() && OpMath::IsFinite(t);
 }

@@ -30,6 +30,7 @@ struct GridLabel : Bumper {
 
 struct PictureWindow : public DebuggerWindow {
     PictureWindow(DebuggerState* state);
+    void addBounds();
     void addGrid();
     void addHulls();
     void addIDs();
@@ -76,6 +77,7 @@ struct PictureWindow : public DebuggerWindow {
     int thresholdWheel = 0;
     int zoomer = 0;
     int gridIntervals = 8;
+    bool drawBounds = false;
     bool drawCenters = false;
     bool drawControls = false;
     bool drawEdgeHulls = false;

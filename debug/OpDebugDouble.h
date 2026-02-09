@@ -20,7 +20,7 @@ struct OpIntersection;
 struct OpInPath;
 struct OpOutPath;
 struct OpPoint;
-struct OpPointBounds;
+// struct OpPointBounds;
 struct OpRect;
 struct OpDebugRay;
 struct OpSegment;

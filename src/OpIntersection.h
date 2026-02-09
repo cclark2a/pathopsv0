@@ -2,7 +2,7 @@
 #ifndef OpIntersection_DEFINED
 #define OpIntersection_DEFINED
 
-#include "OpTightBounds.h"
+#include "OpMath.h"
 
 struct OpPtAliases;
 struct OpEdge;

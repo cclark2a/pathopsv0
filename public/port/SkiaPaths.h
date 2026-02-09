@@ -32,10 +32,4 @@ void AddSkiaPath(PathOpsV0Lib::Context* , PathOpsV0Lib::Contour* , const SkPath&
         /* OP_DEBUG_PARAMS(AddDebugContour* debugAddContour = nullptr) */);
 bool VeryLargeSkiaPath(const SkPath& );
 
-#if OP_DEBUG_DUMP
-#define SKIAPATH_TAGGED_FUNCTIONS \
-    OP_TAGGED_FUNCTION(emptySkPathFunc), \
-
-#endif
-
 #endif

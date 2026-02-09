@@ -3,7 +3,6 @@
 #define OpEdge_DEFINED
 
 #include "OpCurve.h"
-#include "OpTightBounds.h"
 #include "OpWinding.h"
 
 struct FoundEdge;
@@ -356,8 +355,8 @@ private:
 		, priorEdge(nullptr)
 		, nextEdge(nullptr)
 		, lastEdge(nullptr)
-        , iStart(SetToNaN::dummy)
-        , iEnd(SetToNaN::dummy)
+//        , iStart(SetToNaN::dummy)
+//        , iEnd(SetToNaN::dummy)
 		, upright_impl( { SetToNaN::dummy, SetToNaN::dummy } )
 		, winding(WindingUninitialized::dummy)
 		, sum(WindingUninitialized::dummy)
@@ -426,6 +425,8 @@ public:
 	CalcFail addSub(OpContour* winderOwner, Axis axis, float t, OpWinding* ) const;
 	OpEdge* advanceToEnd(EdgeMatch );
 	WindingCondition apply();
+	OpRect bounds() const {
+		return curve.aliasBounds(); }
 	void calcCenterT();
 	void clearActiveAndPals(OP_LINE_FILE_NP_ARGS());
 	void clearLast(/* InOutput */);
@@ -439,7 +440,7 @@ public:
 	bool containsLink(const OpEdge* edge) const;
 	OpContext* context() const;
 	OpPtT endPtT() const { return OpPtT(endPt(), endT); }
-	OpPoint endPt() const { return iEnd.isFinite() ? iEnd : curve.lastPt(); }
+	OpPoint endPt() const { return curve.lastPt(); }
 	OpPtT flipPtT(EdgeMatch match) const { 
 		return match == which() ? endPtT() : startPtT(); }
 	bool hasLinkTo(EdgeMatch match) const { 
@@ -477,14 +478,14 @@ public:
 	OpPointBounds setLinkBounds();
 	bool setLinkDirection(EdgeMatch , std::vector<OpEdge*>* linkupsErasures, InOutput );
 	void setNextEdge(OpEdge* );  // setter exists so debug breakpoints can be set
-	void setPointBounds();
+//	void setPointBounds();
 	void setPriorEdge(OpEdge* );  // setter exists so debug breakpoints can be set
 	void setSum(const OpWinding&  OP_LINE_FILE_ARGS());  // called by macro SET_SUM
 	void setUnsortable(Unsortable );  // setter exists so debug breakpoints can be set
 	const OpCurve& setVertical(const LinePts& , MatchEnds);
 	void setWhich(EdgeMatch );  // setter exists so debug breakpoints can be set
 	OpPtT startPtT() const { return OpPtT(startPt(), startT); }
-	OpPoint startPt() const { return iStart.isFinite() ? iStart : curve.firstPt(); }
+	OpPoint startPt() const { return curve.firstPt(); }
 	void subDivide(OpPoint start, OpPoint end);
 	CalcFail subIfDL(OpContour* winderOwner, Axis axis, float t, OpWinding* ) const;
 	void unlink();  // restore edge to unlinked state (for reusing unsortable or unsectable edges)
@@ -545,11 +546,12 @@ public:
 	OpEdge* lastEdge;
 	OpPtT center;  // curve location used to find winding contribution
 	OpCurve curve;
+ #if 0  // !!! use curve slots for this
     OpPoint iStart;  // average of intersections
     OpPoint iEnd; 
+#endif
 	OpCurve vertical_impl;	// only access through set vertical function
 	LinePts upright_impl;   //  "
-	OpPointBounds bounds;	// cache of bounds from curve endpoints and sect averages
 	OpPointBounds linkBounds;
 	OpWinding winding;	// contribution: always starts as 1, 0 (or 0, 1)
 	OpWinding sum;  // total incl. normal side of edge for operands (fill count in normal direction)

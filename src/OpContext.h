@@ -29,29 +29,6 @@ struct CallerDataStorage {
 	uint8_t storage[2048];	// !!! size is arbitrary guess -- should measure and do better
 };
 
-struct OpPtAlias {
-	OpPoint original;
-	OpPoint alias;
-};
-
-struct OpPtAliases {
-	bool add(OpPoint pt, OpPoint alias);
-	SegPt addIfClose(OpPoint );
-	bool contains(OpPoint ) const;
-	OpPoint existing(OpPoint ) const;
-	OpPoint find(OpPoint ) const;
-	bool isSmall(OpPoint pt1, OpPoint pt2);
-	bool original(OpPoint ) const;
-	void remap(OpPoint oldAlias, OpPoint newAlias);
-
-	DUMP_DECLARATIONS
-
-	std::vector<OpPoint> aliases;
-	std::vector<OpPtAlias> maps;
-	OpVector threshold;
-	float thresholdLength;
-};
-
 struct OpUserData {
     PathOpsV0Lib::ContextUserData data;
     PathOpsV0Lib::UserDataType type;
@@ -67,18 +44,18 @@ struct OpContext {
 		return (ContextPtr)(this);
 	}
 
-	bool addAlias(OpPoint pt, OpPoint alias);
 //    OpEdge* addFiller(OpEdge* edge, OpEdge* lastEdge);
 	OpEdge* addFiller(OpPoint start, OpPoint end, OpSegment* parent);
 	void addToBounds(const OpCurve& );
     void addUserData(PathOpsV0Lib::ContextUserData );
-	uint8_t* allocateCallerData(size_t );
+	void aliasIntersections();
+	uint8_t* allocateCallerData(size_t  OP_DEBUG_RASTER_PARAMS(bool raster));
 	OpContour* allocateContour();
 	PathOpsV0Lib::CurveData* allocateCurveData(size_t );
 	OpEdge* allocateEdge(OpEdgeStorage*&   OP_DEBUG_PARAMS(std::string debugName));
 	OpIntersection* allocateIntersection();
 	OpLimb* allocateLimb();
-	PathOpsV0Lib::WindingData* allocateWinding(size_t );
+	PathOpsV0Lib::WindingData* allocateWinding(size_t  OP_DEBUG_RASTER_PARAMS(bool usedByRaster));
 	bool allowError(PathOpsV0Lib::ContextError , PathOpsV0Lib::Curve* = nullptr);
 
 	void addDisjointIntersections() {
@@ -140,14 +117,6 @@ struct OpContext {
 		return true;
 	}
 
-	OpPoint existingAlias(OpPoint pt) const {
-		return aliases.existing(pt);
-	}
-
-	OpPoint findAlias(OpPoint pt) const {
-		return aliases.find(pt);
-	}
-
     PathOpsV0Lib::ContextUserData findUserData(PathOpsV0Lib::UserDataType );
 
 	bool fixCCSects() {
@@ -157,11 +126,14 @@ struct OpContext {
 		}
 		return true;
 	}
+
+#if 0
 	void findMissingEnds() {
 	   for (auto contour : contours) {
 			contour->findMissingEnds();
 		}
 	}
+#endif
 
 	void initOutOnce();
 
@@ -215,17 +187,12 @@ struct OpContext {
 	WindingCondition pathOps();
 	void rebuildOverlaps();
 	void release(OpEdgeStorage*& );
-	OpPoint remapPts(OpPoint oldAlias, OpPoint newAlias);
 	void resetFiller();
 	void resetLimbs();
 	bool setError(PathOpsV0Lib::ContextError  OP_DEBUG_PARAMS(int id, int id2 = 0));
 	void setSortedBounds();
 	void setThreshold();
 	void sortIntersections();
-
-	OpVector threshold() const {
-		return aliases.threshold;
-	}
 
 	void transferCoins() {
 	   for (auto contour : contours) {
@@ -236,6 +203,12 @@ struct OpContext {
 	void tripleSect() {
 	   for (auto contour : contours) {
 			contour->tripleSect();
+		}
+	}
+
+	void zeroSmall() {
+		for (auto contour : contours) {
+			contour->zeroSmall();
 		}
 	}
 
@@ -280,7 +253,6 @@ struct OpContext {
 	int debugLimbIndex(const OpEdge* ) const;
 #endif
 
-	OpPtAliases aliases;  // !!! consider moving to contour for non-overlapping contour case
 	std::vector<PathOpsV0Lib::CurveCallbacks> callbacks;
     std::vector<PathOpsV0Lib::ContextUserData> userData;
     std::vector<int> nativeCurveTypes;
@@ -299,6 +271,8 @@ struct OpContext {
 	OpLimbStorage* limbCurrent = nullptr;
 	CallerDataStorage* callerStorage = nullptr;
 	OpPointBounds maxBounds;
+	OpVector threshold;
+	float thresholdLength;
 	PathOpsV0Lib::ContextError error = PathOpsV0Lib::ContextError::none;
 	int uniqueID = 0;  // used for object id, unsectable id, coincidence id
     bool initialized = false;
@@ -339,6 +313,7 @@ struct OpContext {
 	bool debugDumpInit = false;   // if true, created by dump init
 #endif
 #if OP_TEST_RASTER
+	CallerDataStorage* rasterStorage = nullptr;
 	struct DebugRaster* debugRaster = nullptr;
 #endif
 };

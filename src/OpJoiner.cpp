@@ -336,7 +336,7 @@ connectWithFiller:
 			return nullptr;
 	}
 	OpPointBounds childBounds = test->lastEdge ? test->linkBounds : 
-			otherEnd ? otherEnd->linkBounds : test->bounds;
+			otherEnd ? otherEnd->linkBounds : test->bounds();
 //	start here;
 	// Look for parent with multiple children. See if a sibling ends at the same point as test.
 	// Select the shorter? option with the smaller bounds?
@@ -528,7 +528,7 @@ void OpTree::addAlternateEnd() {
 			continue;
 		// found edge was not found in earlier passes because it is in linked list
 		OP_ASSERT(test->priorEdge);
-		OpPoint otherEnd = EdgeMatch::start == foundEnd ? test->iEnd : test->iStart;
+		OpPoint otherEnd = EdgeMatch::start == foundEnd ? test->endPt() : test->startPt();
 		OpPoint curveEnd = test->curve.whichPt(!foundEnd);
 		if (otherEnd == curveEnd || !otherEnd.isFinite())
 			continue;
@@ -538,11 +538,11 @@ void OpTree::addAlternateEnd() {
 			if (sect->ptT.pt != otherEnd)
 				continue;
 			for (const OpEdge& edge : sect->opp->segment->edges) {
-				if (edge.iStart == otherEnd) {
+				if (edge.startPt() == otherEnd) {
 					complementEnd = edge.curve.firstPt();
 					break;
 				}
-				if (edge.iEnd == otherEnd) {
+				if (edge.endPt() == otherEnd) {
 					complementEnd = edge.curve.lastPt();
 					break;
 				}
@@ -568,8 +568,9 @@ void OpTree::addAlternateEnd() {
 					true);
 			filler->setWhich(EdgeMatch::start);
 			OpLimb* branch = makeLimb();
+			OpRect fillerBounds = filler->bounds();
 			branch->set(*this, filler, &lastLimb, lastLimb.match, LimbPass::alternateEnd, 
-					nullptr, 0, nullptr, &filler->bounds);
+					nullptr, 0, nullptr, &fillerBounds);
 			limbPass = LimbPass::none;
 			return;
 		}
@@ -711,7 +712,7 @@ bool OpTree::firstMatch(OpPoint pt) const {
 bool OpTree::gap(float distance) const {
 	PathOpsV0Lib::ContextValue gapFuncPtr = context->contextCallbacks.maxGapFuncPtr;
 	float gapFactor = gapFuncPtr ? (*gapFuncPtr)((ContextPtr) context) : 4.f;
-	return distance <= context->aliases.thresholdLength * gapFactor;
+	return distance <= context->thresholdLength * gapFactor;
 }
 
 void OpTree::initialize(OpContour& contour) {

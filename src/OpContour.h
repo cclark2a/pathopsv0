@@ -3,10 +3,38 @@
 #define OpContour_DEFINED
 
 #include "OpJoiner.h"
-#include "OpTightBounds.h"
 
 enum class EdgeMatch : int8_t;
 struct OpContext;
+
+enum class AliasMatch {
+	none,
+	alias,
+	both
+};
+
+struct OpPtAlias {
+	OpPoint original;	// allows finding alias without knowing if there is one
+	OpPoint alias;
+};
+
+struct OpPtAliases {
+	OpPoint add(OpPoint pt, OpPoint alias);
+	SegPt addIfClose(OpPoint , OpVector threshold);
+	AliasMatch alreadyContains(OpPoint original, OpPoint alias) const;
+	bool contains(OpPoint ) const;
+	OpPoint existing(OpPoint ) const;
+//	OpPoint find(OpPoint ) const;
+	bool isSmall(OpPoint pt1, OpPoint pt2, OpVector threshold);
+	bool original(OpPoint ) const;
+	void remap(OpPoint oldAlias, OpPoint newAlias);
+
+	DUMP_DECLARATIONS
+
+//	std::vector<OpPoint> aliases;  // !!! not sure of the purpose of this, instead of searching maps
+	std::vector<OpPtAlias> maps;
+	OpPointBounds bounds;  // rather than sorted maps, use bounds of map aliases for quick reject
+};
 
 enum class RelinkJoins {
 	uninitialized,
@@ -30,6 +58,7 @@ struct OpContour {
 		}
 	}
 
+	OpPoint addAlias(OpPoint pt, OpPoint alias);
 	void addEdges();
 	OpIntersection* addEdgeSect(const OpPtT& , OpSegment* seg
 		   OP_LINE_FILE_DEF(const OpEdge* edge, const OpEdge* oEdge));
@@ -72,11 +101,23 @@ struct OpContour {
 	bool detachIfLoop(OpJoiner* , OpEdge* , EdgeMatch loopEnd);
 	bool disabledPal(OpPoint, OpPoint) const;  // !!! bare minimum to fix cubic129075 (experiment)
 
+	OpPoint existingAlias(OpPoint pt) const {
+		return aliases.existing(pt);
+	}
+
+#if 0
+	OpPoint findAlias(OpPoint pt) const {
+		return aliases.find(pt);
+	}
+#endif
+
+#if 0
 	void findMissingEnds() {
 		for (auto& segment : segments) {
 			segment.findMissingEnds();
 		}
 	}
+#endif
 
 	bool fixCCSects();
     void init(OpContext* , PathOpsV0Lib::WindingData winding, size_t size);
@@ -117,6 +158,7 @@ struct OpContour {
 
 	void pushLinkup(OpEdge* );
 	RelinkJoins relinkUnambiguous(OpJoiner* , size_t checked);
+//	OpPoint remapPts(OpPoint oldAlias, OpPoint newAlias);
 	void removeLast(OpEdge* /*, InOutput */);
 	void removeLink(OpEdge* );
 	void setLinkEdge(OpEdge* link, size_t index);
@@ -139,6 +181,12 @@ struct OpContour {
     PathOpsV0Lib::Winding winding() const { 
         return { (ContourPtr) this, (void*) &windingStorage.front(), windingStorage.size() }; }
 	std::vector<OpEdge*>& windingEdges(Axis );
+
+	void zeroSmall() {
+	for (auto& segment : segments) {
+		segment.zeroSmall();
+	}
+	}
 
 	// OP_DEBUG_CODE(void addDebugContourData(PathOpsV0Lib::DebugContourData , 
     //        PathOpsV0Lib::DebugContourType );)
@@ -176,6 +224,7 @@ struct OpContour {
     std::vector<uint8_t> windingStorage;
 	LinkUps linkups;
 	LinkUps endLinks;
+	OpPtAliases aliases;  // !!! consider moving to contour for non-overlapping contour case
 	OpPointBounds overlapBounds;  // bounds of intersecting contours (overlapOwner only)
 	OpPointBounds bounds;	// bounds of segments in this contour
 	OpContext* context;

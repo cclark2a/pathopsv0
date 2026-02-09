@@ -219,6 +219,11 @@ ENUM_NAME_STRUCT(WindingType)
 #define DebugWindingType_Base
 ENUM_NAME_STRUCT(DebugWindingType)
 
+#undef OP_ENUM_MEMBER
+#define OP_ENUM_MEMBER(w) { Rotated::w, #w }
+#define Rotated_Base
+ENUM_NAME_STRUCT(Rotated)
+
 namespace PathOpsV0Lib {
 
 // don't want funny macros in public interface, so this is explicitly for the only public enum... 
@@ -892,11 +897,7 @@ void OpContext::dumpFile(std::string description) {
 
 std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    static_assert(0 == offsetof(OpContext, aliases));
-    if (DebugLevel::file == l || aliases.maps.size()) {
-        s += aliases.debugDump(l, b) + "\n";
-    }
-    ASSERT_ORDERED(aliases, callbacks);
+    static_assert(0 == offsetof(OpContext, callbacks));
     s += "callbacks:" + STR(callbacks.size()) + "\n";
     for (auto& callback : callbacks) {
         static_assert(0 == offsetof(PathOpsV0Lib::CurveCallbacks, axisTFuncPtr));
@@ -1043,7 +1044,12 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
         s += "maxBounds:";
         s += maxBounds.debugDump(l, b) + "\n"; 
     }
-    ASSERT_ORDERED(maxBounds, error);
+    ASSERT_ORDERED(maxBounds, threshold);
+    s += "threshold:" + threshold.debugDump(DebugLevel::error, b) + " ";
+    ASSERT_ORDERED(threshold, thresholdLength);
+    if (!OpMath::IsDebugNaN(thresholdLength))
+        s += debugValue(DebugLevel::error, b, "thresholdLength", thresholdLength);
+    ASSERT_ORDERED(thresholdLength, error);
     if (PathOpsV0Lib::ContextError::none != error)
         s += "error:" + PathOpsV0Lib::contextErrorName(error) + "\n";
     ASSERT_ORDERED(error, uniqueID);
@@ -1060,7 +1066,7 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
     s += "debugValidateEdgeIndex:" + STR(debugValidateEdgeIndex) + " ";
     ASSERT_ORDERED(debugValidateEdgeIndex, debugValidateJoinerIndex);
     s += "debugValidateJoinerIndex:" + STR(debugValidateJoinerIndex) + " ";
-    ASSERT_SERIAL_OFFSET(*this, debugValidateJoinerIndex, 0, debugCallbacks);
+    ASSERT_SERIAL_OFFSET(*this, debugValidateJoinerIndex, 4, debugCallbacks);
 #else
     ASSERT_ORDERED(dumpDummy, debugCallbacks);
 #endif
@@ -1116,11 +1122,13 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
 #if OP_DEBUG_DUMP
     ASSERT_ORDERED_OFFSET(dumpIndex, debugDumpErasures, 4);  // omit for now
     ASSERT_ORDERED(debugDumpErasures, debugDumpInit);  // omit for now
+#endif
 #if OP_TEST_RASTER
-    ASSERT_ORDERED_OFFSET(debugDumpInit, debugRaster, 7);
+//    ASSERT_ORDERED_OFFSET(debugDumpInit, rasterStorage, 7);  // !!! dump may not be defined
+    // don't dump raster winding storage?
+    ASSERT_ORDERED(rasterStorage, debugRaster);
     if (debugRaster)
         s += "debugRaster:" + debugRaster->debugDump(l, b) + "\n";
-#endif
 #endif
     return s;
 }
@@ -1316,7 +1324,11 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
         debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
-    DEBUG_DUMP_OPTIONAL_STRUCT(endLinks, overlapBounds, overlapBounds.isFinite());
+    ASSERT_ORDERED(endLinks, aliases);
+    if (DebugLevel::file == l || aliases.maps.size()) {
+        s += aliases.debugDump(l, b) + "\n";
+    }
+    DEBUG_DUMP_OPTIONAL_STRUCT(aliases, overlapBounds, overlapBounds.isFinite());
     DEBUG_DUMP_OPTIONAL_STRUCT(overlapBounds, bounds, bounds.isFinite());
     ASSERT_ORDERED(bounds, context);  // omit context
     DEBUG_DUMP_OPTIONAL_ID(context, overlapOwner);
@@ -1414,11 +1426,19 @@ OpContour* OpContourStorage::debugIndex(int contourIndex) const {
 
 std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
     std::string s = Curve_DebugDump(c, l, b) + " ";
-    if (DebugLevel::detailed == l || DebugLevel::file == l) {
+    if (DebugLevel::brief != l) {
+        if (start != c.data->start)
+            s += "start:" + start.debugDump(l, b) + " ";
+        if (end != c.data->end)
+            s += "end:" + end.debugDump(l, b) + " ";
+        if (Rotated::no != rotated)
+            s += "rotated:" + RotatedName(rotated) + " ";
         if (isLineSet)
             s += "isLineSet ";
         if (isLineResult)
             s += "isLineResult ";
+        if (isSmall)
+            s += "isSmall ";
         if (reversed)
             s += "reversed ";
     }
@@ -1538,12 +1558,13 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
             return std::string("");
         return debugValue(error, b, label, t) + " ";
     };
-    auto strPoint = [b, error, strLabel](EdgeFilter match, std::string label,
-                OpPoint pt) {
+ #if 0
+    auto strPoint = [b, error, strLabel](EdgeFilter match, std::string label, OpPoint pt) {
         if (!pt.isFinite())
             return std::string("");
         return strLabel(label) + pt.debugDump(error, b) + " ";
     };
+#endif
     auto strPtT = [b, error, strLabel](EdgeFilter match, std::string label, OpPtT ptT) {
         if (!ptT.pt.isFinite() || !OpMath::IsFinite(ptT.t))
             return std::string("");
@@ -1596,21 +1617,13 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
 		s += strPtT(EdgeFilter::center, "center", center);
     ASSERT_SERIAL_OFFSET(*this, center, 4, curve);
     s += strCurve("curve", curve);
-    ASSERT_ORDERED(curve, iStart);
-    if (iStart != curve.firstPt()) 
-        s += strPoint(EdgeFilter::iStart, "iStart", iStart);
-    ASSERT_ORDERED(iStart, iEnd);
-    if (iEnd != curve.lastPt())
-        s += strPoint(EdgeFilter::iEnd, "iEnd", iEnd);
-    ASSERT_ORDERED(iEnd, vertical_impl);
+    ASSERT_ORDERED(curve, vertical_impl);
     ASSERT_ORDERED(vertical_impl, upright_impl);
     if (upright_impl.pts[0].isFinite() || upright_impl.pts[1].isFinite()) {
         s += strPts("upright_impl", upright_impl);
         s += strCurve("vertical_impl", vertical_impl);
     }
-    ASSERT_ORDERED(upright_impl, bounds);
-    s += strBounds(EdgeFilter::bounds, "bounds", bounds);
-    ASSERT_ORDERED(bounds, linkBounds);
+    ASSERT_ORDERED(upright_impl, linkBounds);
     s += strBounds(EF::linkBounds, "linkBounds", linkBounds);
     ASSERT_ORDERED(linkBounds, winding);
     s += strWinding(EdgeFilter::winding, "winding", winding);
@@ -1747,10 +1760,6 @@ std::string OpEdge::debugDumpPoints() const {
     s += " " + debugValue(DebugLevel::error, defaultBase, "startT", startT);
     s += " " + debugValue(DebugLevel::error, defaultBase, "endT", endT);
     s += " curve:" + curve.debugDump(defaultLevel, defaultBase);
-    if (iStart != curve.firstPt()) 
-        s += "iStart:" + iStart.debugDump(defaultLevel, defaultBase);
-    if (iEnd != curve.lastPt())
-        s += "iEnd:" + iEnd.debugDump(defaultLevel, defaultBase);
     s += " which:" + EdgeMatchName(which());
     const OpEdge* startE = debugAdvanceToEnd(EdgeMatch::start);
     if (startE != this)
@@ -2142,21 +2151,9 @@ std::string OpLimbStorage::debugDump(DebugLevel l, DebugBase b) const {
     return s;
 }
 
-std::string OpPointBounds::debugDump(DebugLevel l, DebugBase b) const {
-    return OpRect::debugDump(l, b);
-}
-
 std::string OpPtAliases::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    static_assert(0 == offsetof(OpPtAliases, aliases));
-    if (aliases.size()) {
-        s += "aliases:" + STR(aliases.size()) + "[\n";
-        for (OpPoint pt : aliases) {
-            s += pt.debugDump(l, b) + "\n";
-        }
-        s += "] ";
-    }
-    ASSERT_ORDERED(aliases, maps);
+    static_assert(0 == offsetof(OpPtAliases, maps));
     if (maps.size()) {
         s += "maps:" + STR(maps.size()) + "[\n";
         for (OpPtAlias map : maps) {
@@ -2165,13 +2162,8 @@ std::string OpPtAliases::debugDump(DebugLevel l, DebugBase b) const {
         }
         s += "] ";
     }
-    ASSERT_ORDERED(maps, threshold);
-    s += "threshold:" + threshold.debugDump(DebugLevel::error, b) + " ";
-    ASSERT_ORDERED(threshold, thresholdLength);
-    if (!OpMath::IsDebugNaN(thresholdLength))
-        s += debugValue(DebugLevel::error, b, "thresholdLength", thresholdLength);
-    static_assert(sizeof(OpPtAliases) == offsetof(OpPtAliases, thresholdLength) 
-            + sizeof(thresholdLength) + 4);
+    s += "bounds:" + bounds.debugDump(l, b) + " ";
+    static_assert(sizeof(OpPtAliases) == offsetof(OpPtAliases, bounds) + sizeof(bounds));
     return s;
 }
 
@@ -2258,9 +2250,7 @@ std::string OpSegment::debugDump(DebugLevel l, DebugBase b) const {
             s += "contour[" + STR(contour->id) + "] ";
         ASSERT_ORDERED(contour, c);
         s += c.debugDump(l, b) + "\n";
-        ASSERT_ORDERED(c, ptBounds);
-		s += "ptBounds:" + ptBounds.debugDump(l, b) + "\n";
-        ASSERT_ORDERED(ptBounds, sects);
+        ASSERT_ORDERED(c, sects);
         if (!sects.i.empty()) {
             s += "sects:" + STR(sects.i.size()) + "[";
             for (auto sect : sects.i)
@@ -2287,12 +2277,9 @@ std::string OpSegment::debugDump(DebugLevel l, DebugBase b) const {
         s += "winding:" + winding.debugDump(l, b) + " ";
         ASSERT_ORDERED(winding, id);  // write at front
         DEBUG_DUMP_BOOL(id, disabled);
-        DEBUG_DUMP_BOOL(disabled, willDisable);
-        DEBUG_DUMP_BOOL(willDisable, hasCoin);
+        DEBUG_DUMP_BOOL(disabled, hasCoin);
         DEBUG_DUMP_BOOL(hasCoin, hasPals);
         DEBUG_DUMP_BOOL(hasPals, hasUnsectable);
-        DEBUG_DUMP_BOOL(hasUnsectable, startMoved);
-        DEBUG_DUMP_BOOL(startMoved, endMoved);
 #if OP_DEBUG_MAKER
         if (debugSetDisabled.valid())
             s += "debugSetDisabled:" + debugSetDisabled.debugDump() + " ";

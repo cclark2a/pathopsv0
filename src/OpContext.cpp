@@ -6,146 +6,6 @@
 #include "DebugOps.h"
 #include "PathOps.h"
 
-bool OpPtAliases::add(OpPoint original, OpPoint alias) {
-	OP_ASSERT(original.isFinite());
-	OP_ASSERT(alias.isFinite());
-	OP_ASSERT(original != alias);
-	for (OpPtAlias& test : maps) {
-		if (original == test.alias)
-			return false;
-		if (test.original == original && test.alias == alias)
-			return true;
-		OP_ASSERT(test.original != alias);
-	}
-	maps.push_back({original, alias});
-	for (OpPoint pt : aliases) {
-		if (pt == alias)
-			return true;
-	}
-	aliases.push_back(alias);
-	return true;
-}
-
-bool OpPtAliases::contains(OpPoint aliased) const {
-	OP_ASSERT(aliased.isFinite());
-	for (OpPoint pt : aliases) {
-		if (pt == aliased)
-			return true;
-	}
-	return false;
-}
-
-OpPoint OpPtAliases::existing(OpPoint match) const {
-	OP_ASSERT(match.isFinite());
-	for (const OpPtAlias& test : maps) {
-		if (test.original == match)
-			return test.alias;
-	}
-	return match;
-}
-
-#if 0  // there can be more than one. don't know when this behavior is desired
-OpPoint OpPtAliases::find(OpPoint aliased) const {
-	OP_ASSERT(aliased.isFinite());
-	for (const OpPtAlias& test : maps) {
-		if (test.alias == aliased)
-			return test.original;
-	}
-	return OpPoint();
-}
-#endif
-
-bool OpPtAliases::isSmall(OpPoint pt1, OpPoint pt2) {
-	OP_ASSERT(pt1.isFinite());
-	OP_ASSERT(pt2.isFinite());
-	if (pt1.isNearly(pt2, threshold)) {
-        if (original(pt1) && original(pt2))
-            return true;
-		if (contains(pt1) || original(pt2))
-			add(pt2, pt1);
-		else if (contains(pt2) || original(pt1))
-			add(pt1, pt2);
-		return true;
-	}
-	auto match = [this](OpPoint pt) -> SegPt {
-		if (!maps.size())
-			return { pt, PtType::noMatch };
-		if (contains(pt))
-			return { pt, PtType::isAlias };
-		for (OpPtAlias& test : maps) {
-			if (test.original == pt)
-				return { test.alias, PtType::original };
-		}
-		for (OpPoint alias : aliases) {
-			if (pt.isNearly(alias, threshold)) {
-				add(pt, alias);
-				return { alias, PtType::original };
-			}
-		}
-#if 0
-		for (OpPtAlias& test : maps) {
-			if (pt.isNearly(test.original, threshold)) {
-				add(pt, test.alias);
-				return { test.alias, PtType::original };
-			}
-		}
-#endif
-		return { pt, PtType::noMatch };
-	};
-	SegPt match1 = match(pt1);
-	SegPt match2 = match(pt2);
-	OP_ASSERT(match1.pt != match2.pt 
-		|| ((PtType::noMatch == match1.ptType) == (PtType::noMatch == match2.ptType)));
-	return PtType::noMatch != match1.ptType && PtType::noMatch != match2.ptType 
-			&& match1.pt == match2.pt;
-}
-
-bool OpPtAliases::original(OpPoint match) const {
-	OP_ASSERT(match.isFinite());
-	for (const OpPtAlias& test : maps) {
-		if (test.original == match)
-			return true;
-	}
-	return false;
-}
-
-void OpPtAliases::remap(OpPoint oldAlias, OpPoint newAlias) {
-	OP_ASSERT(oldAlias.isFinite());
-	OP_ASSERT(newAlias.isFinite());
-	for (OpPtAlias& test : maps) {
-		if (test.alias == oldAlias) {
-            OP_ASSERT(test.original != newAlias);
-			test.alias = newAlias;
-        }
-	}
-	for (size_t index = 0; index < aliases.size(); ++index) {
-		if (aliases[index] == oldAlias) {
-			aliases.erase(aliases.begin() + index);
-			break;
-		}
-	}
-	add(oldAlias, newAlias);
-}
-
-SegPt OpPtAliases::addIfClose(OpPoint match) {
-	OP_ASSERT(match.isFinite());
-	for (OpPoint alias : aliases) {
-		if (match == alias)
-			return { alias, PtType::isAlias };
-		if (match.isNearly(alias, threshold)) {
-			add(match, alias);
-			return { alias, PtType::original };
-		}
-	}
-	for (const OpPtAlias& alias : maps) {
-		if (alias.original.isNearly(match, threshold)) {
-			add(match, alias.alias);
-			return { alias.alias, PtType::original };
-		}
-	}
-	return { match, PtType::noMatch };
-}
-
 OpContext::OpContext() {
     PathOpsV0Lib::SetCurveCallbacks((PathOpsV0Lib::Context*)(this), 0, { } );
 #if OP_DEBUG
@@ -171,6 +31,13 @@ OpContext::~OpContext() {
 		delete callerStorage;
 		callerStorage = next;
 	}
+#if OP_TEST_RASTER
+	while (rasterStorage) {
+		CallerDataStorage* next = rasterStorage->next;
+		delete rasterStorage;
+		rasterStorage = next;
+	}
+#endif
 #if OP_DEBUG
 	debugInPathOps = false;
 	debugInClearEdges = false;
@@ -184,14 +51,6 @@ OpContext::~OpContext() {
 #endif
 }
 
-bool OpContext::addAlias(OpPoint pt, OpPoint alias) {
-	   if (!aliases.add(pt, alias)) {
-		   remapPts(pt, alias);
-		   return false;
-	   }
-	   return true;
-}
-
 OpEdge* OpContext::addFiller(OpPoint start, OpPoint end, OpSegment* parent) {
 	void* block = allocateEdge(fillerStorage  OP_DEBUG_PARAMS("fillerStorage"));
 	OpEdge* filler = new(block) OpEdge(this, start, end  OP_LINE_FILE_PARGS());
@@ -203,20 +62,82 @@ void OpContext::addUserData(PathOpsV0Lib::ContextUserData contextUserData) {
     userData.push_back(contextUserData);
 }
 
-uint8_t* OpContext::allocateCallerData(size_t size) {
-	if (!callerStorage)
-		callerStorage = new CallerDataStorage;
-	if (callerStorage->used + size > sizeof(callerStorage->storage)) {
-		CallerDataStorage* next = new CallerDataStorage;
-		next->next = callerStorage;
-		callerStorage = next;
+void OpContext::aliasIntersections() {
+	for (OpContour* contour : contours) {
+		std::vector<OpIntersection*> sects;
+		OpPointBounds bounds;
+		// collect all intersections not on either end of segment
+		for (OpSegment& segment : contour->segments) {
+			for (OpIntersection* sect : segment.sects.i) {
+				if (0 == sect->ptT.t || 1 == sect->ptT.t)
+					continue;
+				sects.push_back(sect);
+				bounds.add(sect->ptT.pt);
+			}
+		}
+		if (!bounds.isFinite())
+			continue;
+		std::sort(sects.begin(), sects.end(), []
+				(const OpIntersection* s1, const OpIntersection* s2) {
+				return s1->ptT.pt.x < s2->ptT.pt.x || (s1->ptT.pt.x == s2->ptT.pt.x 
+				&& s1->ptT.pt.y < s2->ptT.pt.y); } ); 
+		// custom binary search range (can't see how to use standard library...)
+		auto checkSearch = [sects](int lo, OpPoint check) {
+			int hi = (int) sects.size() - 1;
+			do {
+				int mid = (lo + hi) / 2;
+				OP_ASSERT(0 <= mid && mid < (int) sects.size());
+				const OpPoint test = sects[mid]->ptT.pt;
+				if (test == check)
+					return mid;
+				if (test.x < check.x || (test.x == check.x && test.y < check.y))
+					lo = mid + 1;
+				else
+					hi = mid - 1;
+			} while (lo <= hi);			
+			return lo;
+		};
+		auto checkNear = [this, sects, checkSearch, bounds](OpPoint check) {
+			OpPointBounds checkRange { check - threshold, check + threshold };
+			if (!checkRange.intersects(bounds))
+				return;
+			int lo = checkSearch(0, { checkRange.left, checkRange.top } );
+			int hi = checkSearch(lo, { checkRange.right, checkRange.bottom } );
+			OpDebugOut("lo:" + STR(lo) + "hi:" + STR(hi) + "\n");
+		};
+		// iterate through all contours that intersect, looking for close points
+		for (OpContour* testContour : contour->members()) {
+			for (OpSegment& testSegment : testContour->segments) {
+				if (!testSegment.c.aliasBounds().intersects(bounds))
+					continue;
+				checkNear(testSegment.c.start);
+				checkNear(testSegment.c.end);
+			}
+		}
 	}
-	uint8_t* result = &callerStorage->storage[callerStorage->used];
+}
+
+uint8_t* OpContext::allocateCallerData(size_t size  OP_DEBUG_RASTER_PARAMS(bool raster)) {
+#if OP_TEST_RASTER
+	CallerDataStorage*& storage = raster ? rasterStorage : callerStorage;
+	if (!raster)
+		OpNop();
+#else
+	CallerDataStorage*& storage = callerStorage;
+#endif
+	if (!storage)
+		storage = new CallerDataStorage;
 	size_t alignSize = alignof(void*);  // !!! allow caller to specify this?
 	size_t alignPart = size % alignSize;
 	if (alignPart)
 		size += alignSize - alignPart;  // round up to next alignment
-	callerStorage->used += size;
+	if (storage->used + size > sizeof(storage->storage)) {
+		CallerDataStorage* next = new CallerDataStorage;
+		next->next = storage;
+		storage = next;
+	}
+	uint8_t* result = &storage->storage[storage->used];
+	storage->used += size;
 	return result;
 }
 
@@ -280,8 +201,9 @@ OpLimb* OpContext::allocateLimb() {
 	return limbStorage->allocate();
 }
 
-PathOpsV0Lib::WindingData* OpContext::allocateWinding(size_t size) {
-	uint8_t* result = allocateCallerData(size);
+PathOpsV0Lib::WindingData* OpContext::allocateWinding(size_t size  
+		OP_DEBUG_RASTER_PARAMS(bool usedByRaster)) {
+	uint8_t* result = allocateCallerData(size  OP_DEBUG_RASTER_PARAMS(usedByRaster));
 	return (PathOpsV0Lib::WindingData*) result;
 }
 
@@ -476,13 +398,13 @@ void OpContext::opsInit() {
 		contours.push_back(contour);
 	}
     windingSet = false;
-	normalize();  // collect extremes, map all from 0 to 1, map <= epsilon to zero
+	zeroSmall();  // map <= threshold to zero, find small curves (disabled later)
 	for (OpContour* contour : contours) {
 		for (OpSegment& segment : contour->segments) {
 			if (segment.disabled)
 				continue;
 			segment.c.isLine();  // defer until after threshold is set
-			contour->bounds.add(segment.ptBounds);
+			contour->bounds.add(segment.c.aliasBounds());
 		}
 		if (contour->bounds.isFinite())
 			maxBounds.add(contour->bounds);
@@ -525,7 +447,7 @@ void OpContext::opsInit() {
 			}
 		}
 	}
-
+	normalize();  // if points are close, alias them
 }
 
 // If successive runs of the same input are flaky, check to see if identical ids are generated.
@@ -562,16 +484,17 @@ WindingCondition OpContext::pathOps() {
 	    debugValidateIntersections();
 	    if (allowError(PathOpsV0Lib::ContextError::missing))
 		    addDisjointIntersections();
+		aliasIntersections();  // merge all intersections that are close together
 	    sortIntersections();
-		tripleSect(); // if three or more segments intersect, make the points the same 
-	    disableSmallSegments();  // moved points may allow disabling some segments
+//		tripleSect(); // if three or more segments intersect, make the points the same 
+//	    disableSmallSegments();  // moved points may allow disabling some segments
 	    if (checkEmpty())
 		    return 0;  // no existing tests exercises
 	    sortIntersections();
 	    if (!fixCCSects())  // curve-curve intersections may have enough error to put sect list out of order
 		    OP_DEBUG_FAIL(*this, -1);
 	    sortIntersections();
-	    findMissingEnds();  // moved pts may require looking in aliases for an end match
+//	    findMissingEnds();  // moved pts may require looking in aliases for an end match
 	    manyCoincidences();  // fill in intersections in coin runs that are missing in other coins
 	    sortIntersections();
 	    betweenCoincidence();  // fill in intersections in coin runs that are missing in other coins
@@ -694,16 +617,6 @@ void OpContext::release(OpEdgeStorage*& edgeStorage) {
 	}
 }
 
-OpPoint OpContext::remapPts(OpPoint oldAlias, OpPoint newAlias) {
-	for (auto contour : contours) {
-		for (auto& segment : contour->segments) {
-			segment.remap(oldAlias, newAlias);
-		}
-	}
-	aliases.remap(oldAlias, newAlias);
-	return newAlias;
-}
-
 void OpContext::resetFiller() {
 #if OP_DEBUG_DUMP
 	if (fillerStorage)
@@ -780,12 +693,12 @@ void OpContext::setSortedBounds() {
 }
 
 void OpContext::setThreshold() {
-	auto threshold = [](float left, float right) {
+	auto thresh = [](float left, float right) {
 		return std::max({1.f, fabsf(left), fabsf(right), right - left}) * OpEpsilon;
 	};
-	aliases.threshold = { threshold(maxBounds.left, maxBounds.right),
-			threshold(maxBounds.top, maxBounds.bottom) };
-	aliases.thresholdLength = aliases.threshold.length();
+	threshold = { thresh(maxBounds.left, maxBounds.right),
+			thresh(maxBounds.top, maxBounds.bottom) };
+	thresholdLength = threshold.length();
 }
 
 void OpContext::sortIntersections() {
@@ -800,7 +713,7 @@ void OpContext::sortIntersections() {
 		for (auto& segment : contour->segments) {
             if (segment.disabled)
                 continue;
-			segment.sects.mergeNear(aliases);
+			segment.sects.mergeNear(contour->aliases);
 		}
 	}
 	for (auto contour : contours) {
@@ -854,7 +767,7 @@ bool OpContext::debugSuccess() const {
 void OpContext::debugValidateIntersections() {
 	for (auto contour : contours) {
 		for (auto& segment : contour->segments) {
-			if (!segment.disabled && !segment.willDisable)
+			if (!segment.disabled)
 				segment.sects.debugValidate();
 		}
 	}

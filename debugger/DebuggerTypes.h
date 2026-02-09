@@ -4,6 +4,7 @@
 
 #include "OpMath.h"
 #include "OpDebugColor.h"
+#include "OpDebugDouble.h"
 #include "PathOpsTypes.h"
 
 struct DebugOutput;

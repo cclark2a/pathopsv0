@@ -12,7 +12,9 @@
 #include "PathOps.h"
 #include "TinySkia.h"
 #include "TinySkiaTests.h"
+#include "SkiaPathsDebug.h"
 #include "SkiaTestCommon.h"
+#include "curves/BinaryWinding.h"
 #include "port/SkiaPaths.h"
 #if OP_DEBUG
 #include "DebugOps.h"
@@ -25,14 +27,14 @@ enum class Skippable {
 
 struct TinySuite {
     void (*func)(TestOptions* );
-    void (*testFunc)(SkPath& path , TestOptions* options);
     std::string name;
     std::string baseName;
     Skippable skippable;
 };
 
 std::vector<TinySuite> tinySuites = {
-    { V0SimplifyQuads, TestSimplify, "quad", "testQuads", Skippable::yes },
+    { V0SimplifyQuads, "quad", "testQuads", Skippable::yes },
+    { V0OpCubics, "cubic", "testCubics", Skippable::yes },
 };
 
 std::vector<std::string> highError = {
@@ -158,14 +160,71 @@ void TinyState::trackError(PathOpsV0Lib::ContextError contextError) {
 	}
 }
 
-void TestSimplify(SkPath& path , TestOptions* options) {
+static std::string debugOpTest(std::string testname, const SkPath& pathA, const SkPath& pathB, SkPathOp op) {
+	std::string s;
+    s += "void " + testname + "(TestOptions* options) {\n";
+    s += "    SkPath left, right;\n";
+    s += dumpSkPath(&pathA, true, "    left.") + "\n";
+    s += dumpSkPath(&pathB, true, "    right.") + "\n";
+    std::string opStr;
+    switch(op) {
+        case SkPathOp::kDifference_SkPathOp: opStr = "TinyOps::difference"; break;
+        case SkPathOp::kIntersect_SkPathOp: opStr = "TinyOps::intersect"; break;
+        case SkPathOp::kUnion_SkPathOp: opStr = "TinyOps::unite"; break;
+        case SkPathOp::kXOR_SkPathOp: opStr = "TinyOps::exclusiveOr"; break;
+        case SkPathOp::kReverseDifference_SkPathOp: opStr = "TinyOps::reverseDifference"; break;
+        default: OP_ASSERT(0);
+    }
+    s += "    options->testOne(left, right, " + opStr + ");\n";
+    s += "}\n\n";
+    return s;
+}
+
+// char* so it can be called from immediate window
+static void dumpOpTest(std::string testname, const SkPath& pathA, const SkPath& pathB, SkPathOp op, 
+            std::string filename) {
+    std::string filePath = dmpFileToPath(filename);
+    FILE* file = fopen(filePath.c_str(), "w");
+    if (!file) {
+        OpDebugOut("could not open " + filePath + " to write\n");
+        return;
+    }
+    std::string s = debugOpTest(testname, pathA, pathB, op);
+    fwrite(&s[0], 1, s.size(), file);
+    fclose(file);
+}
+
+static std::string debugSimplifyTest(std::string testname, const SkPath& path) {
+	std::string s;
+    s += "void " + testname + "(TestOptions* options) {\n";
+    s += "    SkPath path;\n";
+	s += dumpSkPath(&path, true, "    path.") + "\n";
+	s += "    options->testOne(path);\n";
+    s += "}\n\n";
+	return s;
+}
+
+// char* so it can be called from immediate window
+static void dumpSimplifyTest(std::string testname, const SkPath& path, std::string filename) {
+    std::string filePath = dmpFileToPath(filename);
+    FILE* file = fopen(filePath.c_str(), "w");
+    if (!file) {
+        OpDebugOut("could not open " + filePath + " to write\n");
+        return;
+    }
+	std::string s = debugSimplifyTest(testname, path);
+    fwrite(&s[0], 1, s.size(), file);
+    fclose(file);
+}
+
+void TestOptions::testOp(SkPath& a, SkPath& b, TinyOps op) {
     using namespace PathOpsV0Lib;
     Context* context = CreateContext();
     SkPath out;
     ContextUserData data { &out, sizeof(&out), UserDataType::outPath };
     AddUserData(context, data);
-    OpDebugData debugData(options->testName, 
-            options->v0MayFail ? OpDebugExpect::fail : OpDebugExpect::success, 
+    OpDebugData debugData(testName, 
+            v0MayFail ? OpDebugExpect::fail : OpDebugExpect::success, 
             CURVE_CURVE_1, CURVE_CURVE_2, CURVE_CURVE_DEPTH, 
             tinyState.defeatBreak, TEST_DEFEAT_DUMPS, tinyState.runOne
         );
@@ -176,10 +235,32 @@ void TestSimplify(SkPath& path , TestOptions* options) {
         return SkPathFillType::kWinding == path.getFillType()
                 || SkPathFillType::kInverseWinding == path.getFillType();
     }; 
-    int simpleData[] = { 1 };
-    Contour* simple = SetSkiaSimplifyCallbacks(context, simpleData, sizeof(simpleData), 
-            isWindingFill(path)  OP_DEBUG_PARAMS(&path));
-    AddSkiaPath(context, simple, path);
+    if (TinyOps::simplify == op) {
+        if (tinyState.runOne)
+            dumpSimplifyTest(testName, a, TestInFile);
+        int simpleData[] = { 1 };
+        Contour* simple = SetSkiaSimplifyCallbacks(context, simpleData, sizeof(simpleData), 
+                isWindingFill(a)  OP_DEBUG_PARAMS(&a));
+        AddSkiaPath(context, simple, a);
+    } else {
+        SkPathOp mappedOp = MapInvertedSkPathOp((SkPathOp) op, a.isInverseFillType(), b.isInverseFillType());
+        if (tinyState.runOne)
+            dumpOpTest(testName, a, b, mappedOp, TestInFile);
+        bool aIsWinding = isWindingFill(a);
+        bool bIsWinding = isWindingFill(b);
+        BinaryWindType windType = aIsWinding && bIsWinding ? BinaryWindType::windBoth
+                : aIsWinding ? BinaryWindType::windLeft : bIsWinding ? BinaryWindType::windRight
+                : BinaryWindType::evenOdd;
+        SetSkiaOpContextCallbacks(context, mappedOp, windType);
+        int leftData[] = { 1, 0 };
+        Contour* left = SetSkiaOpContourCallbacks(context, leftData, sizeof(leftData), 
+                BinaryOperand::left  OP_DEBUG_PARAMS(&a));
+        AddSkiaPath(context, left, a);
+        int rightData[] = { 0, 1 };
+        Contour* right = SetSkiaOpContourCallbacks(context, rightData, sizeof(rightData), 
+                BinaryOperand::right  OP_DEBUG_PARAMS(&b));
+        AddSkiaPath(context, right, b);
+    }
 #if OP_TEST_RASTER
     DebugRaster debugRaster((OpContext*) context);
     debugRaster.deleteOld();
@@ -189,7 +270,7 @@ void TestSimplify(SkPath& path , TestOptions* options) {
 	ContextError contextError = Error(context);
 	if (ContextError::none == contextError) {
 		Resolve(context);
-        ((OpContext*) context)->dumpFile("SimplifyV0 resolved");
+        ((OpContext*) context)->dumpFile("testOp resolved");
 	}
     contextError = Error(context);
 	tinyState.trackError(contextError);
@@ -211,7 +292,6 @@ void TinyState::test() {
     for (const TinySuite& tinySuite : tinySuites) {
         if (!tinyState.skipTo.empty() && tinyState.skipTo != tinySuite.name)
             continue;
-        options.testFunc = tinySuite.testFunc;
         options.baseName = tinySuite.baseName;
         if (!OP_DEBUG_FAST_TEST) {
             if (!testFirst.empty()) {

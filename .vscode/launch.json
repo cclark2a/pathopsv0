@@ -15,6 +15,16 @@
             "console": "internalConsole"
         },
         {
+            "name": "skia_alt",
+            "type": "lldb",
+            "request": "launch",
+            "program": "/Users/cary/pathopsv0/alt/skia_test",
+            "preLaunchTask": "skia alt",
+            "args": [],
+            "cwd": "${fileDirname}",
+            "console": "internalConsole"
+        },
+        {
             "name": "skia_test",
             "type": "cppdbg",
             "request": "launch",

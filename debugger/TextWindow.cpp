@@ -122,6 +122,25 @@ DrawLevel TextWindow::event(const DebuggerEvent& debuggerEvent) {
     return DrawLevel::none;
 }
 
+std::string TextWindow::format(std::string in) {
+    if (debuggerState->showHex)
+        return in;
+    std::string formatted;
+    if (in.empty())
+        return formatted;
+    const char* chPtr = &in.front();
+    do {
+        if (*chPtr != '0' || chPtr[1] != 'x') {
+            formatted.push_back(*chPtr++);
+            continue;
+        }
+        FloatIntUnion d;
+        d.i = OpDebugHexToInt(chPtr);
+        formatted.append(STR(d.f));
+    } while (*chPtr != '\0');
+    return formatted;
+}
+
 struct Field {
     const char* name;
     const char* data;
@@ -259,7 +278,9 @@ void TextWindow::innerUpdate(int& safetyCheck) {
         }
     }
     if (showAliases) {
-        std::string s = debuggerState->context->aliases.debugDump(DebugLevel::normal, defaultBase);
+        std::string s;
+        for (OpContour* contour : debuggerState->context->contours)
+            s += contour->aliases.debugDump(DebugLevel::normal, defaultBase);
         addWrapped(s);
     }
     if (showJoin) {
@@ -320,10 +341,14 @@ void TextWindow::innerUpdate(int& safetyCheck) {
             addWrapped(s);
         }
     }
-    if (showTest && !testIn.empty())
-        addWrapped(testIn);
-    if (showTest && !debuggerState->context->debugOutPath.empty())
-        addWrapped(debuggerState->context->debugOutPath);
+    if (showTest) {
+        std::string testFormat = format(testIn);
+        if (!testFormat.empty())
+            addWrapped(testFormat);
+        std::string outFormat = format(debuggerState->context->debugOutPath);
+        if (!outFormat.empty())
+            addWrapped("output:\n" + outFormat);
+    }
     if (lastDetailHeight != detailHeight) {
         (void) scroll(0);
         innerUpdate(safetyCheck);

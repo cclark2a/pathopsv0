@@ -25,6 +25,10 @@ enum class WindingTemp {	// used to accumulate winding sum before it is applied
 };
 
 #if OP_TEST_RASTER
+enum class DebugWindingRaster {
+	dummy
+};
+
 enum class DebugWindingSum {
 	dummy
 };
@@ -57,7 +61,7 @@ namespace PathOpsV0Lib {
 	OP_ENUM_MEMBER(uninitialized), \
 	OP_ENUM_MEMBER(temp), \
 	OP_ENUM_MEMBER(winding), \
-	OP_ENUM_MEMBER(sum) \
+	OP_ENUM_MEMBER(sum)
 
 // !!! this has mostly fallen into disrepair; either fix it or delete it
 enum class DebugWindingType {
@@ -70,7 +74,8 @@ struct OpWinding {
 	OpWinding(OpEdge* edge, WindingSum );
 	OpWinding(const PathOpsV0Lib::Winding& );  // allocates and copies
 #if OP_TEST_RASTER
-	OpWinding(OpWinding& , DebugWindingSum );
+	OpWinding(DebugWindingRaster );  // don't allocate out of regular winding memory pool
+	OpWinding(const OpWinding& , DebugWindingSum );
 	OpWinding(const PathOpsV0Lib::Winding& , DebugWindingRef );
 	OpWinding(OpContext* , DebugWindingZero );
 #endif
@@ -80,9 +85,6 @@ struct OpWinding {
 	void add(const PathOpsV0Lib::Winding& );
 	void add(const OpWinding& );
 	PathOpsV0Lib::Winding copyData() const;  // allocate new storage, copy values
-#if OP_TEST_RASTER
-	void copyExisting(const OpWinding& );  // allocate if caller, always copy values
-#endif
 	bool copyOnDemand();  // allocate + copy iff it hasn't been copied already
 	bool equal(const PathOpsV0Lib::Winding& ) const;
 	bool isSet() const { return WindingType::uninitialized != type; }
@@ -97,6 +99,7 @@ struct OpWinding {
 	void zero();
 	void zeroCommon();
 #if OP_TEST_RASTER
+	void copyExisting(const OpWinding& );  // allocate if caller, always copy values
 	void debugZero();
 #endif
 	DUMP_DECLARATIONS
@@ -108,6 +111,9 @@ struct OpWinding {
 	WindingType type;
 #if OP_DEBUG
 	DebugWindingType debugType = DebugWindingType::uninitialized;
+#endif
+#if OP_TEST_RASTER
+	bool usedByRaster = false;
 #endif
 };
 

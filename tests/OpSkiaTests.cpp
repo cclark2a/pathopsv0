@@ -363,16 +363,16 @@ void CheckForError(const OpDebugData& debugData, bool mayFail) {
 #include "DebugOps.h"
 #endif
 
-std::string debugOpTest(std::string testname, const SkPath& pathA, const SkPath& pathB, SkPathOp op) {
+static std::string debugOpTest(std::string testname, const SkPath& pathA, const SkPath& pathB, SkPathOp op) {
 	std::string s;
     s += "void ";
     s += testname;
     s += "(skiatest::Reporter* reporter, const char* filename) {\n";
     s += "    SkPath pathA, path;\n";
-    s += dumpSkPath(&pathA, false) + "\n";
+    s += dumpSkPath(&pathA, false, "    path.") + "\n";
     s += "    pathA = path;\n";
     s += "    path.reset();\n";
-    s += dumpSkPath(&pathB, false) + "\n";
+    s += dumpSkPath(&pathB, false, "    path.") + "\n";
     std::string opStr;
     switch(op) {
         case SkPathOp::kDifference_SkPathOp: opStr = "SkPathOp::kDifference_SkPathOp"; break;
@@ -390,7 +390,7 @@ std::string debugOpTest(std::string testname, const SkPath& pathA, const SkPath&
 }
 
 // char* so it can be called from immediate window
-void dumpOpTest(std::string testname, const SkPath& pathA, const SkPath& pathB, SkPathOp op, 
+static void dumpOpTest(std::string testname, const SkPath& pathA, const SkPath& pathB, SkPathOp op, 
             std::string filename) {
     std::string filePath = dmpFileToPath(filename);
     FILE* file = fopen(filePath.c_str(), "w");
@@ -403,11 +403,11 @@ void dumpOpTest(std::string testname, const SkPath& pathA, const SkPath& pathB, 
     fclose(file);
 }
 
-std::string debugSimplifyTest(std::string testname, const SkPath& path) {
+static std::string debugSimplifyTest(std::string testname, const SkPath& path) {
 	std::string s;
     s += "void " + testname + "(skiatest::Reporter* reporter, const char* filename) {\n";
     s += "    SkPath path;\n";
-	s += dumpSkPath(&path, false) + "\n";
+	s += dumpSkPath(&path, false, "    path.") + "\n";
 	s += "    testSimplify(reporter, path, filename);\n";
     s += "}\n\n";
 //    s += "static struct TestDesc tests[] = {\n";
@@ -416,7 +416,7 @@ std::string debugSimplifyTest(std::string testname, const SkPath& path) {
 }
 
 // char* so it can be called from immediate window
-void dumpSimplifyTest(std::string testname, const SkPath& path, std::string filename) {
+static void dumpSimplifyTest(std::string testname, const SkPath& path, std::string filename) {
     std::string filePath = dmpFileToPath(filename);
     FILE* file = fopen(filePath.c_str(), "w");
     if (!file) {

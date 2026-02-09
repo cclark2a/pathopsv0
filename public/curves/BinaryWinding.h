@@ -13,6 +13,7 @@ enum class BinaryOperand : int {
 };
 
 // !!! only used for debugging?
+#if 0
 enum class BinaryOperation : int {
     Difference,
     Intersect,
@@ -20,6 +21,7 @@ enum class BinaryOperation : int {
     ExclusiveOr,
     ReverseDifference
 };
+#endif
 
 enum class BinaryWindType : int {
     evenOdd,
@@ -65,10 +67,12 @@ struct BinaryWinding {
     BinaryData data;
 };
 
+#if 0
 struct BinaryOpData {
     BinaryOperation operation;
     BinaryOperand operand;
 };
+#endif
 
 inline void binaryEvenOddFunc(Winding winding, Winding toAdd) {
     BinaryData sum(winding);

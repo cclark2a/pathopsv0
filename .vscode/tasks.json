@@ -42,6 +42,26 @@
         },
         {
             "type": "shell",
+            "label": "skia alt",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "alt",
+                "-j10",
+                "--target",
+                "skia_alt"
+            ],
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "detail": "cmake"
+        },
+        {
+            "type": "shell",
             "label": "test drive",
             "command": "cmake",
             "args": [

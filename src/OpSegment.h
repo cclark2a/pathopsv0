@@ -4,7 +4,6 @@
 
 #include "OpEdge.h"
 #include "OpIntersection.h"
-#include "OpTightBounds.h"
 
 struct OpContour;
 
@@ -112,19 +111,21 @@ struct OpSegment {
 //    void demotePalLinks();
 	void disableSmall();
 	OpPtT distance(const OpPtT& segPtT, OpSegment* opp);
+	bool endMoved() const { 
+		return c.end != c.c.data->end; }
 	OpEdge* findEnabled(const OpPtT& , EdgeMatch ) const;
 	float findLineT(OpPoint opp);
-	void findMissingEnds();
+//	void findMissingEnds();
 //    float findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const;
 //	float findValidT(float start, float end, OpPoint opp);
 	bool fixCCSects();
     void init();
 	// count and sort extrema; create an edge for each extrema + 1
 	bool isFinite() const {
-		return ptBounds.isFinite(); } 
+		return c.start.isFinite() && c.end.isFinite(); } 
 //    bool isSimple() const {
 //        return 1 == edges.size() && 2 == sects.i.size(); }
-	bool isSmall();
+//	bool isSmall();
 	void makeCoins();
 	void makeEdge(OP_LINE_FILE_NP_ARGS());
 	void makeEdges();
@@ -134,7 +135,7 @@ struct OpSegment {
 	MatchReverse matchEnds(const OpSegment* opp) const;
 //    MatchEnds matchExisting(const OpSegment* opp) const;
 	OpPoint mergePoints(OpPtT segPtT, OpSegment* opp, OpPtT oppPtT);
-	OpPoint movePt(OpPtT match, OpPoint dest);  // move segment/sect point to match another endpont
+//	OpPoint movePt(OpPtT match, OpPoint dest);  // move segment/sect point to match another endpont
 	PrefFound moveSects(OpPtT match, OpPoint dest);	// move matching sects and cleanup segment state
 	bool moveWinding(OpSegment* opp, bool backwards);
 	void manyCoincidences();
@@ -145,15 +146,18 @@ struct OpSegment {
 	OpPtT ptAtT(const OpPtT& ) const;
 	void remap(OpPoint oldAlias, OpPoint newAlias);  // local remap
 //	OpPoint remapPts(OpPoint oldAlias, OpPoint newAlias);  // call through
-	void resetBounds();
+//	void resetBounds();
 	void setDisabled(OP_LINE_FILE_NP_ARGS());
 	bool simpleEnd(const OpEdge* ) const;  // true if edge end connects to only one segment
 	bool simpleStart(const OpEdge* ) const;  // true if edge start connects to only one segment
+	bool startMoved() const { 
+		return c.start != c.c.data->start; }
 	OpVector threshold() const;
 	float thresholdLength() const;
 	void transferCoins();
 	void tripleSect();  // check intersections for three or more identical points
 //    void windCoincidences();
+	void zeroSmall();
 
 #if OP_DEBUG
 	bool debugFail() const;
@@ -183,18 +187,18 @@ struct OpSegment {
 
 	OpContour* contour;
 	OpCurve c;
-	OpPointBounds ptBounds;
+//	OpPointBounds ptBounds;
 	OpIntersections sects;
 	std::vector<OpEdge> edges;
 	OpWinding winding;
-	int id;     // !!! could be debug only; currently used to disambiguate sort, may be unneeded
+	int id;     // used to normalize each end point once
 	bool disabled; // winding has canceled this edge out
-	bool willDisable;  // moveTo aligned ends; will be disabled by disable small segments
+//	bool willDisable;  // moveTo aligned ends; will be disabled by disable small segments
 	bool hasCoin;
 	bool hasPals = false;
 	bool hasUnsectable;
-	bool startMoved;
-	bool endMoved;
+//	bool startMoved;
+//	bool endMoved;
 #if OP_DEBUG_IMAGE
 	uint32_t debugColor = debugBlack;
 #endif

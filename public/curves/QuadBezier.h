@@ -251,9 +251,9 @@ inline bool quadsEqual(Curve one, Curve two) {
     return ctrlPt1 == ctrlPt2;
 }
 
-inline void quadPin(Curve c, OpPoint oldStart, OpPoint oldEnd) {
+inline void quadPin(Curve c, OpPoint newStart, OpPoint newEnd) {
     OpPoint ctrlPt = quadControlPt(c);
-    ctrlPt.pin(c.data->start, c.data->end);
+    ctrlPt.pin(newStart, newEnd);
     quadSetControl(c, ctrlPt);
 }
 

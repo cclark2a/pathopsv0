@@ -96,6 +96,7 @@ set (SKIA_TESTS
     "tests/TinySkia.cpp"
     "tests/TinySkiaTests.cpp"
     "tests/UnitTestPathOps.cpp"
+    "tests/V0OpCubics.cpp"
     "tests/V0SimplifyQuads.cpp"
 )
 

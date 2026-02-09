@@ -9,6 +9,213 @@
 #include "OpDebugColor.h"
 #endif
 
+OpPoint OpPtAliases::add(OpPoint original, OpPoint alias) {
+	OP_ASSERT(original.isFinite());
+	OP_ASSERT(alias.isFinite());
+	OP_ASSERT(original != alias);
+	maps.push_back({original, alias});
+	bounds.add(alias);
+	return alias;
+}
+
+bool OpPtAliases::contains(OpPoint aliased) const {
+	OP_ASSERT(aliased.isFinite());
+#if 0
+	for (OpPoint pt : aliases) {
+		if (pt == aliased)
+			return true;
+	}
+#else
+	for (const OpPtAlias& map : maps) {
+		if (aliased == map.alias)
+			return true;
+	}
+#endif
+	return false;
+}
+
+AliasMatch OpPtAliases::alreadyContains(OpPoint original, OpPoint alias) const {
+	AliasMatch result = AliasMatch::none;
+	if (!bounds.contains(alias))
+		return result;
+	for (const OpPtAlias& map : maps) {
+		if (alias != map.alias)
+			continue;
+		if (original == map.original)
+			return AliasMatch::both;
+		result = AliasMatch::alias;
+	}
+	return result;
+}
+
+// !!! instead of brute force searching for match, sort and binary search aliases ?
+OpPoint OpPtAliases::existing(OpPoint match) const {
+	OP_ASSERT(match.isFinite());
+	for (const OpPtAlias& test : maps) {
+		if (test.original == match)
+			return test.alias;
+	}
+	return match;
+}
+
+#if 0  // there can be more than one. don't know when this behavior is desired
+OpPoint OpPtAliases::find(OpPoint aliased) const {
+	OP_ASSERT(aliased.isFinite());
+	for (const OpPtAlias& test : maps) {
+		if (test.alias == aliased)
+			return test.original;
+	}
+	return OpPoint();
+}
+#endif
+
+#if 0
+bool OpPtAliases::isSmall(OpPoint pt1, OpPoint pt2, OpVector threshold) {
+	OP_ASSERT(pt1.isFinite());
+	OP_ASSERT(pt2.isFinite());
+	if (pt1.isNearly(pt2, threshold)) {
+        if (original(pt1) && original(pt2))
+            return true;
+		if (contains(pt1) || original(pt2))
+			add(pt2, pt1);
+		else if (contains(pt2) || original(pt1))
+			add(pt1, pt2);
+		return true;
+	}
+	auto match = [this, threshold](OpPoint pt) -> SegPt {
+		if (!maps.size())
+			return { pt, PtType::noMatch };
+		if (contains(pt))
+			return { pt, PtType::isAlias };
+		for (OpPtAlias& test : maps) {
+			if (test.original == pt)
+				return { test.alias, PtType::original };
+		}
+		for (OpPoint alias : aliases) {
+			if (pt.isNearly(alias, threshold)) {
+				add(pt, alias);
+				return { alias, PtType::original };
+			}
+		}
+#if 0
+		for (OpPtAlias& test : maps) {
+			if (pt.isNearly(test.original, threshold)) {
+				add(pt, test.alias);
+				return { test.alias, PtType::original };
+			}
+		}
+#endif
+		return { pt, PtType::noMatch };
+	};
+	SegPt match1 = match(pt1);
+	SegPt match2 = match(pt2);
+	OP_ASSERT(match1.pt != match2.pt 
+		|| ((PtType::noMatch == match1.ptType) == (PtType::noMatch == match2.ptType)));
+	return PtType::noMatch != match1.ptType && PtType::noMatch != match2.ptType 
+			&& match1.pt == match2.pt;
+}
+#endif
+
+bool OpPtAliases::original(OpPoint match) const {
+	OP_ASSERT(match.isFinite());
+	for (const OpPtAlias& test : maps) {
+		if (test.original == match)
+			return true;
+	}
+	return false;
+}
+
+void OpPtAliases::remap(OpPoint oldAlias, OpPoint newAlias) {
+	OP_ASSERT(oldAlias.isFinite());
+	OP_ASSERT(newAlias.isFinite());
+	for (OpPtAlias& test : maps) {
+		if (test.alias == oldAlias) {
+            OP_ASSERT(test.original != newAlias);
+			test.alias = newAlias;
+        }
+	}
+#if 0
+	for (size_t index = 0; index < aliases.size(); ++index) {
+		if (aliases[index] == oldAlias) {
+			aliases.erase(aliases.begin() + index);
+			break;
+		}
+	}
+#endif
+	add(oldAlias, newAlias);
+}
+
+#if 0
+SegPt OpPtAliases::addIfClose(OpPoint match, OpVector threshold) {
+	OP_ASSERT(match.isFinite());
+	for (OpPoint alias : aliases) {
+		if (match == alias)
+			return { alias, PtType::isAlias };
+		if (match.isNearly(alias, threshold)) {
+			add(match, alias);
+			return { alias, PtType::original };
+		}
+	}
+	for (const OpPtAlias& alias : maps) {
+		if (alias.original.isNearly(match, threshold)) {
+			add(match, alias.alias);
+			return { alias.alias, PtType::original };
+		}
+	}
+	return { match, PtType::noMatch };
+}
+#endif
+
+struct ContourAlias {
+	OpContour* contour;
+	OpPoint alias;
+};
+
+// if one is existing alias, add two -> one; if two is existing, add one -> two
+// if neither is alias, it's arbitrary, as long as future adds can see it
+OpPoint OpContour::addAlias(OpPoint one, OpPoint two) {
+	std::vector<ContourAlias> existing;
+	auto addExisting = [&existing](OpContour* test, OpPoint first, OpPoint second) {
+		if (test->aliases.maps.empty())
+			return true;
+		AliasMatch aliasMatch = test->aliases.alreadyContains(first, second);
+		if (AliasMatch::both == aliasMatch)
+			return false;
+		if (AliasMatch::alias == aliasMatch)
+			existing.push_back({test, second});
+		return true;
+	};
+	if (!overlapOwner) {
+		if (!addExisting(this, one, two))
+			return two;
+		if (!addExisting(this, two, one))
+			return one;
+	} else {
+		for (OpContour* test : overlapOwner->overlaps) {
+			if (!addExisting(test, one, two))
+				return two;
+			if (!addExisting(test, two, one))
+				return one;
+		}
+	}
+	if (existing.empty())
+		return aliases.add(one, two);
+	OpPoint masterAlias = existing[0].alias;
+	if (masterAlias == two)
+		aliases.add(one, two);
+	else {
+		OP_ASSERT(masterAlias == one);
+		aliases.add(two, one);
+	}
+	// if two or more maps were found and their aliases are different, they must be merged
+	// (when one contour overlaps two or more contours which do not overlap each other)
+	for (size_t index = 1; index < existing.size(); ++index) {
+		if (masterAlias != existing[index].alias)
+			existing[index].contour->aliases.remap(existing[index].alias, masterAlias);
+	}
+	return masterAlias;
+}
+
 // opp and contour share at least one coincident segment or edge; makes opp member of contour set
 void OpContour::addMerge(OpContour* opp) {
 	if (this == opp)
@@ -28,16 +235,17 @@ void OpContour::addEdges() {
 		for (auto& edge : segment.edges) {
 			if (edge.disabled)
 				continue;
-			if (edge.bounds.height())
+			OpRect edgeBounds = edge.bounds();
+			if (edgeBounds.height())
 				inX.push_back(&edge);
-			if (edge.bounds.width())
+			if (edgeBounds.width())
 				inY.push_back(&edge);
 		}
 	}
 	std::sort(inX.begin(), inX.end(), [](const OpEdge* s1, const OpEdge* s2) {
-			return s1->bounds.left < s2->bounds.left; });
+			return s1->curve.left() < s2->curve.left(); });
 	std::sort(inY.begin(), inY.end(), [](const OpEdge* s1, const OpEdge* s2) {
-			return s1->bounds.top < s2->bounds.top; });
+			return s1->curve.top() < s2->curve.top(); });
 }
 
 #if 0  // !!! disabled (see above)
@@ -198,7 +406,7 @@ void OpContour::buildPals() {
 		}
 	}
 	std::sort(disabledPals.begin(), disabledPals.end(), [](OpEdge* a, OpEdge* b)
-			{ return a->bounds.perimeter() < b->bounds.perimeter(); }
+			{ return a->bounds().perimeter() < b->bounds().perimeter(); }
 	);
 	palsBuilt = true;
 }
@@ -352,9 +560,7 @@ bool OpContour::joinSetup() {
 }
 
 static bool compareSize(const OpEdge* s1, const OpEdge* s2) {
-	const OpRect& r1 = s1->bounds;
-	const OpRect& r2 = s2->bounds;
-	return r1.width() + r1.height() > r2.width() + r2.height();
+	return s1->curve.width() + s1->curve.height() > s2->curve.width() + s2->curve.height();
 }
 
 void OpContour::joinSort() {
@@ -540,6 +746,16 @@ RelinkJoins OpContour::relinkUnambiguous(OpJoiner* joiner, size_t link) {
 	return RelinkJoins::again;
 }
 
+#if 0
+OpPoint OpContour::remapPts(OpPoint oldAlias, OpPoint newAlias) {
+	for (auto& segment : segments) {
+		segment.remap(oldAlias, newAlias);
+	}
+	aliases.remap(oldAlias, newAlias);
+	return newAlias;
+}
+#endif
+
 // !!! this had incomplete code that cared about 'InOutput' but didn't do anything with it
 //     removing that for now...
 void OpContour::removeLast(OpEdge* edge  /*, InOutput inOut */) {
@@ -651,10 +867,8 @@ void OpContour::init(OpContext* ctxt, PathOpsV0Lib::WindingData wind, size_t siz
     int used = ctxt->contourStorage->used;
     if (1 == used)
         debugColor = blue;
-    else if (2 == used)
+    else 
         debugColor = red;
-    else
-        debugColor = debugColorArray[id % debugColorArray.size()].first;
 #endif
 }
 

@@ -149,6 +149,7 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
                             : SDL_HideWindow(compareWindow.window);
             }
         break;
+        case 'B': if (picTop) flip(pictureWindow.drawBounds, "bounds"); break;
         case 'C': flip(showContours, "contours (" + STR(count(IDType::contour)) + ")"); break;
         case 'c': 
             if (picTop) flip(pictureWindow.drawCenters, "center points"); 

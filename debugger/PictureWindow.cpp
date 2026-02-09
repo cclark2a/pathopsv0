@@ -6,6 +6,10 @@
 #include "OpDebugRaster.h"
 #include "OpSegment.h"
 
+inline uint32_t OpDebugAlphaColor(uint32_t alpha, uint32_t color) {
+	return (alpha << 24) | (color & 0x00FFFFFF);
+}
+
 const std::vector<std::string> drawGridStrs {
     "show grid (linear)",
     "show grid (log)",
@@ -28,6 +32,36 @@ PictureWindow::PictureWindow(DebuggerState* state)
     else if (SDL_APP_CONTINUE != (state->error = addFont(fontSize)))
         OpDebugOut("Couldn't add picture font: " + std::string(SDL_GetError()) + "\n");
 }
+
+void PictureWindow::addBounds() {
+    if (!drawBounds)
+        return;
+    std::vector<DebuggerPoly> toAdd;
+    auto addRect = [this, &toAdd](DebuggerPoly& poly, OpRect r) {
+        toAdd.emplace_back();
+        toAdd.back().color = OpDebugAlphaColor(40, poly.color);
+        toAdd.back().opType = OpType(poly.opType.edge);
+        std::vector<OpPoint>& rectPts = toAdd.back().device;
+        rectPts.push_back(toDevice({ r.left, r.top }));
+        rectPts.push_back(toDevice({ r.right, r.top }));
+        rectPts.push_back(toDevice({ r.right, r.bottom }));
+        rectPts.push_back(toDevice({ r.left, r.bottom }));
+        rectPts.push_back(toDevice({ r.left, r.top }));
+        toAdd.back().contours.push_back(rectPts.size());
+    };
+    for (DebuggerPoly& poly : polys) {
+        if (!poly.isPrimary)
+            continue;
+        if (debuggerState->showEdges && poly.opType.edge)
+            addRect(poly, poly.opType.edge->bounds());
+        if (debuggerState->showSegments && poly.opType.segment)
+            addRect(poly, poly.opType.segment->c.aliasBounds());
+        if (debuggerState->showContours && poly.opType.contour)
+            addRect(poly, poly.opType.contour->bounds);
+    }
+    polys.insert(polys.begin(), toAdd.begin(), toAdd.end());
+    validate();
+} 
 
 void PictureWindow::addDevice(std::vector<OpPoint>& pts, DebuggerPoly& poly) {
     poly.contours.push_back(pts.size());
@@ -68,9 +102,9 @@ void PictureWindow::addHulls() {
         const OpCurve& c = poly.opType.edge->curve;
         if (c.pointCount() <= 2)
             continue;
-        if (!c.ptBounds().width())
+        if (!c.aliasBounds().width())
             continue;
-        if (!c.ptBounds().height())
+        if (!c.aliasBounds().height())
             continue;
         toAdd.emplace_back();
         toAdd.back().color = OpDebugAlphaColor(40, poly.color);
@@ -402,11 +436,10 @@ void PictureWindow::addWinding(DebuggerPoly& poly) {
 		if (debugImageOut && !sum.isSet())
 			sumString = (*debugImageOut)(wind.w);
         else {
-		    OpWinding diffWind(poly.opType.edge->sum.w); // !!! this should be local copy ...
-    //        start here;
-            // !!! this should be a debug const thingy that can't change user data
-		    context()->windingCallbacks.windingSubtractFuncPtr(diffWind.w, wind.w);
+		    OpWinding diffWind(poly.opType.edge->sum.w); // local copy ...
+		    diffWind.subtract(wind.w);
 		    sumString = debugImageOut ? (*debugImageOut)(diffWind.w) : "";
+            OpNop();
         }
 	}
 	add(sumString, -1);
@@ -524,6 +557,8 @@ void PictureWindow::addPoints() {
     if (!drawPoints)
         return;
     auto add = [this](OpType& opType, OpPoint local, DebugSprite sprite = DebugSprite::diamond) {
+        if (!local.isFinite())
+            return;
         if (!focus.contains(local))
             return;
         OpPoint device = toDevice(local);
@@ -674,12 +709,7 @@ void PictureWindow::update() {
             contourBounds.add(contour->bounds);  // (may not be set up early on)
         else {
             for (auto segment : contour->segments) {
-                if (segment.ptBounds.isFinite())
-                    contourBounds.add(segment.ptBounds);
-                else {
-                    OpPointBounds segBounds(segment.c.ptBounds());
-                    contourBounds.add(segBounds);
-                }
+                contourBounds.add(segment.c.aliasBounds());
             }
         }
     }
@@ -728,6 +758,7 @@ void PictureWindow::update() {
     addOutput();
     colorPolys();
     setDevice();
+    addBounds();
     addHulls();
     addEdgeHulls();
     addIDs();
@@ -803,7 +834,8 @@ void PictureWindow::playback(const char*& str) {
     DEBUG_SET_REQUIRED_VALUE(zoomFactor, thresholdWheel);
     DEBUG_SET_REQUIRED_VALUE(thresholdWheel, zoomer);
     DEBUG_SET_REQUIRED_VALUE(zoomer, gridIntervals);
-    DEBUG_SET_BOOL(gridIntervals, drawCenters);
+    DEBUG_SET_BOOL(gridIntervals, drawBounds);
+    DEBUG_SET_BOOL(drawBounds, drawCenters);
     DEBUG_SET_BOOL(drawCenters, drawControls);
     DEBUG_SET_BOOL(drawControls, drawEdgeHulls);
     DEBUG_SET_BOOL(drawEdgeHulls, drawFill);
@@ -834,7 +866,8 @@ std::string PictureWindow::record() {
     DEBUG_DUMP_REQUIRED_VALUE(zoomFactor, thresholdWheel);
     DEBUG_DUMP_REQUIRED_VALUE(thresholdWheel, zoomer);
     DEBUG_DUMP_REQUIRED_VALUE(zoomer, gridIntervals);
-    DEBUG_DUMP_BOOL(gridIntervals, drawCenters);
+    DEBUG_DUMP_BOOL(gridIntervals, drawBounds);
+    DEBUG_DUMP_BOOL(drawBounds, drawCenters);
     DEBUG_DUMP_BOOL(drawCenters, drawControls);
     DEBUG_DUMP_BOOL(drawControls, drawEdgeHulls);
     DEBUG_DUMP_BOOL(drawEdgeHulls, drawFill);

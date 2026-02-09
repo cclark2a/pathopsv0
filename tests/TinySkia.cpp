@@ -2,7 +2,6 @@
 #include <cstdarg>
 #include <cmath>
 #include "TinySkia.h"
-#include "OpTightBounds.h"
 
 
 #ifdef _MSC_VER
@@ -445,38 +444,47 @@ void SkPath::offset(float dx, float dy) {
 	}
 }
 
-std::string SkPath::debugDumpCommon(bool hex) const {
-	std::string result;
+#if OP_DEBUG_SERIALIZE
+
+std::string SkPath::fillTypeStr() const {
 	std::array<std::string, 4> ws { "kWinding", "kEvenOdd", "kInverseWinding",  "kInverseEvenOdd" };
-	result += "path.setFillType(SkPathFillType::" + ws[(int) fFillType] + ")\n";
+	return "setFillType(SkPathFillType::" + ws[(int) fFillType] + ");\n";
+}
+
+std::string SkPath::debugDumpCommon(bool hex, std::string callPrefix) const {
+	std::string result;
+	result += callPrefix + fillTypeStr();
 	bool move = true;
 	OpPoint first;
+	auto num = [hex](float f) {
+		return hex ? OpDebugDumpHex(f) : STR(f);
+	};
 	for (const TinyCurve& c : path) {
 		if (move) {
-			result += "    path.moveTo(" + STR(c.pts[0].x) + ", " + STR(c.pts[0].y) + ");\n";
+			result += callPrefix + "moveTo(" + num(c.pts[0].x) + ", " + num(c.pts[0].y) + ");\n";
 			first = c.pts[0];
 		}
 		move = false;
 		switch (c.type) {
 			case TinyType::line:
-				result += "    path.lineTo(" + STR(c.pts[1].x) + ", " + STR(c.pts[1].y) + ");\n";
+				result += callPrefix + "lineTo(" + num(c.pts[1].x) + ", " + num(c.pts[1].y) + ");\n";
 				break;
 			case TinyType::quad:
-				result += "    path.quadTo(" + STR(c.pts[1].x) + ", " + STR(c.pts[1].y) + ", " 
-					+ STR(c.pts[2].x) + ", " + STR(c.pts[2].y) + ");\n";
+				result += callPrefix + "quadTo(" + num(c.pts[1].x) + ", " + num(c.pts[1].y) + ", " 
+					+ num(c.pts[2].x) + ", " + num(c.pts[2].y) + ");\n";
 				break;
 			case TinyType::conic:
-				result += "    path.conicTo(" + STR(c.pts[1].x) + ", " + STR(c.pts[1].y) + ", " 
-					+ STR(c.pts[2].x) + ", " + STR(c.pts[2].y) + ", " + STR(c.weight) + ");\n";
+				result += callPrefix + "conicTo(" + num(c.pts[1].x) + ", " + num(c.pts[1].y) + ", " 
+					+ num(c.pts[2].x) + ", " + num(c.pts[2].y) + ", " + num(c.weight) + ");\n";
 				break;
 			case TinyType::cubic:
-				result += "    path.cubicTo(" + STR(c.pts[1].x) + ", " + STR(c.pts[1].y) + ", " 
-					+ STR(c.pts[2].x) + ", " + STR(c.pts[2].y) + ", "
-					+ STR(c.pts[3].x) + ", " + STR(c.pts[3].y) + ");\n";
+				result += callPrefix + "cubicTo(" + num(c.pts[1].x) + ", " + num(c.pts[1].y) + ", " 
+					+ num(c.pts[2].x) + ", " + num(c.pts[2].y) + ", "
+					+ num(c.pts[3].x) + ", " + num(c.pts[3].y) + ");\n";
 				break;
 		}
 		if (first == c.lastPt()) {
-			result += "    path.close();\n";
+			result += callPrefix + "close();\n";
 			first = c.lastPt();
 			move = true;
 		}
@@ -486,18 +494,20 @@ std::string SkPath::debugDumpCommon(bool hex) const {
 	return result;
 }
 
-void SkPath::dumpCommon(bool hex) const {
-	std::string s = debugDumpCommon(hex);
+void SkPath::dumpCommon(bool hex, std::string prefix) const {
+	std::string s = debugDumpCommon(hex, prefix);
 	OpDebugOut(s);
 }
 
 void SkPath::dump() const {
-	dumpCommon(false);
+	dumpCommon(false, "path.");
 }
 
 void SkPath::dumpHex() const {
-	 dumpCommon(true);
+	 dumpCommon(true, "path.");
 }
+
+#endif
 
 void SkString::appendf(const char format[], ...) {
     va_list args, args_copy;

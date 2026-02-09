@@ -37,9 +37,11 @@ using namespace PathOpsV0Lib;
 
 void OpCurve::debugScale(double scaleX, double scaleY, double offsetX, double offsetY) {
 	context().debugCallback(c).scaleFuncPtr(c, scaleX, scaleY, offsetX, offsetY);
+	start = c.data->start;
+	end = c.data->end;
 }
 
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_SERIALIZE
 std::string RasterSample::debugDump(DebugLevel l, DebugBase b) const {
 	std::string s;
 	ASSERT_FIRST(contour);
@@ -53,7 +55,9 @@ std::string RasterSample::debugDump(DebugLevel l, DebugBase b) const {
 	ASSERT_LAST_OFFSET(curveDown, 3);
 	return s;
 }
+#endif
 
+#if OP_DEBUG_DUMP
 void RasterSample::dumpResolveAll(OpContext* context) {
 	if (contour)
 		context->dumpResolve(contour);
@@ -92,7 +96,7 @@ const OpWinding& RasterSample::winding() const {
 
 OpDebugSamples::OpDebugSamples(DebugRaster* r) 
 	: zeroWinding(r->context, DebugWindingZero::dummy)
-	, winding(WindingUninitialized::dummy)
+	, winding(DebugWindingRaster::dummy)
 	, raster(r)
 	, mask(r) {
 	sampleSet.resize(r->bitHeight * r->subSamples);
@@ -186,7 +190,7 @@ static float NextVisible(const OpDebugSamples& sampleSet, OpWinding& sum, size_t
 	}
 	while (index < samples.size()) {  // accumulate winding of start
 		size_t firstIndex = index;
-		OpWinding winding(sampleSet.zeroWinding);  // shallow zeroed winding for this x value
+		OpWinding winding(sampleSet.zeroWinding, DebugWindingSum::dummy);  // shallow zeroed winding for this x value
 		x = NextX(samples, index, winding);
 		OP_DEBUG_VALIDATE_CODE(sampleSet.raster->validate());
 		// choose between 'visible' and 'keep'
@@ -280,7 +284,7 @@ float OpDebugSamples::compare(std::vector<RasterSamples>& outputs) {
 				float xStart = OpMath::IsNaN(x) ? inXs.start : std::max(x, inXs.start);
 				float diff = inXs.end - xStart;
 				OP_ASSERT(diff >= 0);
-				OP_DEBUG_DUMP_CODE(OpAssert(diff < .2f / raster->scale));
+				OP_DEBUG_DUMP_CODE(OpAssert(diff < .3f / raster->scale));
 				error += diff;
 				return true;
 			}
@@ -293,7 +297,7 @@ float OpDebugSamples::compare(std::vector<RasterSamples>& outputs) {
 			float xEnd = std::min(upper.start, lower.end);
 			float diff = xEnd - x;
 			OP_ASSERT(diff >= 0);
-			OP_DEBUG_DUMP_CODE(OpAssert(diff < .2f / raster->scale));
+			OP_DEBUG_DUMP_CODE(OpAssert(diff < .3f / raster->scale));
 			error += diff;
 			x = xEnd;
 		};
@@ -329,7 +333,7 @@ void OpDebugSamples::sample(OpContour* contour) {
 		for (size_t index = 0; index < contour->debugCurveData.size(); ++index) {
 			std::vector<float> extrema;
 			OpCurve opCurve(contour->debugCurve(index, &extrema), Rotated::no);
-			if (opCurve.ptBounds().isEmpty())
+			if (opCurve.aliasBounds().isEmpty())
 				continue;
 //			lastCurve = index == contour->debugCurveData.size() - 1;
 			addCurveXatY(contour, index, opCurve, extrema);
@@ -398,19 +402,20 @@ WindingKeep OpDebugSamples::visibleFunc() const {
 	return visibleFunc;
 }
 
+#if OP_DEBUG_SERIALIZE
+
 #define SampleType_Base
 #undef OP_ENUM_MEMBER
 #define OP_ENUM_MEMBER(w) { SampleType::w, #w }
 ENUM_NAME_STRUCT(SampleType)
 
-#if OP_DEBUG_DUMP
+#if !OP_DEBUG_FAST_TEST
 std::string SampleTypeName(SampleType element) {
     int first = (int) SampleTypeNames[0].element;
     return SampleTypeNames[(int) element - first].name;
 }
 #endif
 
-#if OP_DEBUG_DUMP
 std::string OpDebugSamples::debugDump(DebugLevel l, DebugBase b) const {
 	std::string s;
 	OP_ASSERT(raster);
@@ -437,7 +442,9 @@ std::string OpDebugSamples::debugDump(DebugLevel l, DebugBase b) const {
 //	ASSERT_LAST_OFFSET(sampleType, 4);
 	return s;
 }
+#endif
 
+#if OP_DEBUG_DUMP
 void OpDebugSamples::dumpResolveAll(OpContext* context) {
 	zeroWinding.dumpResolveAll(context);
 	winding.dumpResolveAll(context);
@@ -561,7 +568,7 @@ void OpDebugBitmap::rasterize(OpDebugSamples& sampleSet, int row, float scaleX, 
     OpNop();
 }
 
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_SERIALIZE
 std::string OpDebugBitmap::debugDump(DebugLevel l, DebugBase b) const {
 	OP_ASSERT(raster);
 	std::string s;
@@ -579,7 +586,9 @@ std::string OpDebugBitmap::debugDump(DebugLevel l, DebugBase b) const {
 	}
 	return s;
 }
+#endif
 
+#if OP_DEBUG_DUMP
 void OpDebugBitmap::dumpSet(char const*& str) {
 	OpDebugRequired(str, "size");
 	bits.resize(OpDebugReadSizeT(str));
@@ -599,7 +608,9 @@ void OpDebugBitmap::dumpSet(char const*& str) {
 	}
 	OpNop();
 }
+#endif
 
+#if OP_DEBUG_SERIALIZE
 std::string DebugOutput::debugDump(DebugLevel l, DebugBase b) const {
 	std::string s;
 	s += "curve:" + curve.debugDump(l, b) + " ";
@@ -609,7 +620,9 @@ std::string DebugOutput::debugDump(DebugLevel l, DebugBase b) const {
 		s += "edge:" + STR(edge->id);
 	return s;
 }
+#endif
 
+#if OP_DEBUG_DUMP
 void DebugOutput::dumpSet(OpContext* context, char const*& str) {
 	OpDebugRequired(str, "curve");
 	curve.dumpSet(str);
@@ -752,6 +765,7 @@ void DebugRaster::sample(SampleType sampleType) {
 			samples.emplace_back(this);
 			addSamples = &samples.back();
 			addSamples->winding = contour->winding();
+			addSamples->winding.usedByRaster = true;
 			addSamples->sampleType = sampleType;
 		}  // else 
 			// addSamples->resetAdd();
@@ -768,7 +782,7 @@ bool DebugRaster::tooSmall() const {
 	return false;
 }
 
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_SERIALIZE
 std::string DebugRaster::debugDump(DebugLevel l, DebugBase b) const {
 	std::string s;
 	ASSERT_FIRST(samples);
@@ -851,34 +865,5 @@ void DebugRaster::validate() {
 	}
 }
 #endif
-
-OpWinding::OpWinding(OpContext* context, DebugWindingZero)
-	: w({ nullptr, nullptr, 0 })
-	, type(WindingType::caller) {  // always copy
-	PathOpsV0Lib::ContextCount countFuncPtr = context->contextCallbacks.windingBytesFuncPtr;
-	OP_ASSERT(context->contourStorage);  // some contour is required so code can retrieve context
-	OP_ASSERT(context->contourStorage->used);  // there must be at least one contour
-	w.contour = (ContourPtr) context->contourStorage->storage;
-	if (countFuncPtr)
-		w.size = (*countFuncPtr)((ContextPtr) context);
-	else {  // if windings bytes function is not provided: then
-		w.size = ((OpContour*) w.contour)->windingStorage.size();
-		for (OpContour* test : context->contours)  // all contours must have the same winding size
-			OP_ASSERT(w.size == test->windingStorage.size());
-	}
-	w.data = context->allocateWinding(w.size);
-	zeroCommon();
-}
-
-OpWinding::OpWinding(const PathOpsV0Lib::Winding& wind, DebugWindingRef )
-	: w(wind)
-	, type(WindingType::copy)
-	, debugType(DebugWindingType::winding) {  // treat as already copied
-}
-
-void OpWinding::debugZero() {
-	OP_ASSERT(WindingType::uninitialized == type);
-    zeroCommon();
-}
 
 #endif

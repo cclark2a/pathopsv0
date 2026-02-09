@@ -10,8 +10,12 @@ OpWinding::OpWinding(WindingUninitialized )
 
 OpWinding::OpWinding(const PathOpsV0Lib::Winding& copy)
 	: w({ copy.contour, copy.data, copy.size })
+#if 0  // !!! looks wrong; instead, allow copyOnDemand() to copy when needed?
 	, type(WindingType::copy) {
     w = copyData();
+#else
+	, type(WindingType::caller) {
+#endif
 	OP_DEBUG_CODE(debugType = DebugWindingType::winding);
 }
 
@@ -26,18 +30,54 @@ OpWinding::OpWinding(OpEdge* edge, WindingSum )
 #if OP_TEST
 OpWinding::OpWinding(OpContour* contour, PathOpsV0Lib::WindingData wind, size_t size)
 	: w({ (ContourPtr) contour, wind, size })
-	, type(WindingType::caller) {  // always copy
+	, type(WindingType::copy) { 
+	w = copyData();
 	OP_DEBUG_CODE(debugType = DebugWindingType::winding);
 }
 #endif
 
 #if OP_TEST_RASTER
-OpWinding::OpWinding(OpWinding& winding, DebugWindingSum ) 
+OpWinding::OpWinding(DebugWindingRaster )
+	: OP_DEBUG_CODE(w({ nullptr, nullptr, 0 }), )
+	type(WindingType::uninitialized) 
+	OP_DEBUG_PARAMS(debugType(DebugWindingType::uninitialized)) 
+	, usedByRaster(true) {
+}
+
+OpWinding::OpWinding(const OpWinding& winding, DebugWindingSum ) 
 	: w({ (ContourPtr) winding.w.contour, winding.w.data, winding.w.size })
-	, type(WindingType::caller) {  // always copy
+	, type(WindingType::caller)  // always copy
+	, usedByRaster(true) {
 	zero();
 	OP_DEBUG_CODE(debugType = DebugWindingType::sum);
 }
+
+OpWinding::OpWinding(OpContext* context, DebugWindingZero)
+	: w({ nullptr, nullptr, 0 })
+	, type(WindingType::caller) // always copy
+	, usedByRaster(true) {
+	PathOpsV0Lib::ContextCount countFuncPtr = context->contextCallbacks.windingBytesFuncPtr;
+	OP_ASSERT(context->contourStorage);  // some contour is required so code can retrieve context
+	OP_ASSERT(context->contourStorage->used);  // there must be at least one contour
+	w.contour = (ContourPtr) context->contourStorage->storage;
+	if (countFuncPtr)
+		w.size = (*countFuncPtr)((ContextPtr) context);
+	else {  // if windings bytes function is not provided: then
+		w.size = ((OpContour*) w.contour)->windingStorage.size();
+		for (OpContour* test : context->contours)  // all contours must have the same winding size
+			OP_ASSERT(w.size == test->windingStorage.size());
+	}
+	w.data = context->allocateWinding(w.size, true);
+	zeroCommon();
+}
+
+OpWinding::OpWinding(const PathOpsV0Lib::Winding& wind, DebugWindingRef )
+	: w(wind)
+	, type(WindingType::copy)
+	, debugType(DebugWindingType::winding)    // treat as already copied
+	, usedByRaster(true) {
+}
+
 #endif
 
 void OpWinding::add(const PathOpsV0Lib::Winding& winding) {
@@ -51,8 +91,9 @@ void OpWinding::add(const OpWinding& winding) {
 }
 
 PathOpsV0Lib::Winding OpWinding::copyData() const {
+	OpContext* context = ((OpContour*) w.contour)->context;
 	PathOpsV0Lib::Winding copy { w.contour, 
-            ((OpContour*) w.contour)->context->allocateWinding(w.size), w.size };
+            context->allocateWinding(w.size  OP_DEBUG_RASTER_PARAMS(usedByRaster)), w.size };
 	std::memcpy(copy.data, w.data, w.size);
 	return copy;
 }
@@ -77,6 +118,13 @@ bool OpWinding::copyOnDemand() {
 	type = WindingType::copy;
 	return true;
 }
+
+#if OP_TEST_RASTER
+void OpWinding::debugZero() {
+	OP_ASSERT(WindingType::uninitialized == type);
+    zeroCommon();
+}
+#endif
 
 bool OpWinding::isWound() const {
     OpContext* context = ((OpContour*) w.contour)->context;

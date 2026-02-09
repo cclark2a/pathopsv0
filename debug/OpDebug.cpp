@@ -32,11 +32,6 @@ int debugPrecision = 9;	// -1: unset; 9: leave trailing zeroes (match VS debugge
 // bool debugSmall = true;  // set to false to show sub-epsilon values as ~0 (unused for now)
 // bool debugEpsilon = false;  // show values smaller than 100 * OpEpsilon as eps (unused for now)
 
-union FloatIntUnion {
-    float   f;
-    int32_t i;
-};
-
 float OpDebugBitsToFloat(int32_t i) {
     FloatIntUnion d;
     d.i = i;
@@ -528,7 +523,7 @@ bool OpDebugOptional(const char*& str, const char* match) {
         ++str;
     if (']' == str[0] || '[' == str[0])
         ++str;
-    if (match[0] != str[0]) {
+    else if (match[0] != str[0] && ',' != match[0]) {
         if ('{' == str[0])
             ++str;
         if ('}' == str[0])
@@ -559,6 +554,17 @@ bool OpPoint::debugIsUninitialized() const {
 
 bool OpPtT::debugIsUninitialized() const {
 	return pt.debugIsUninitialized() && OpMath::IsDebugNaN(t);
+}
+
+bool OpRect::debugContains(OpPoint pt) {
+//        OP_ASSERT(pt.isFinite());    // in debug code, points may be NaN
+    return OpMath::Between(left, pt.x, right) && OpMath::Between(top, pt.y, bottom);
+}
+
+bool OpRect::debugContains(const OpRect& bounds) {
+    OP_ASSERT(bounds.isFinite());
+    return OpMath::Between(left, bounds.left, right) && OpMath::Between(left, bounds.right, right)
+            && OpMath::Between(top, bounds.top, bottom) && OpMath::Between(top, bounds.bottom, bottom);
 }
 
 void OpMath::DebugCompare(float a, float b) {
@@ -598,6 +604,8 @@ OpCurve::OpCurve(PathOpsV0Lib::AddCurve addCurve, Rotated r)
 		c.type = context().contextCallbacks.setLineTypeFuncPtr(curve);
 	if (curve.data) {
 		std::memcpy(c.data, curve.data, c.size);
+        start = curve.data->start;
+        end = curve.data->end;
 		OP_DEBUG_CODE(if (Rotated::debug == r) return);
 		isLine();
 	}

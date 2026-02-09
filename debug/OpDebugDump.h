@@ -6,6 +6,9 @@
 
 #if OP_DEBUG_DUMP
 
+constexpr uint32_t debugBlack = 0xFF000000;
+extern std::vector<std::pair<uint32_t, std::string>> debugColorArray;
+
 namespace PathOpsV0Lib {
 struct AddCurve;
 struct Curve;
@@ -78,7 +81,6 @@ OP_X(OpIntersections) \
 OP_X(OpJoiner) \
 OP_X(OpLimb) \
 OP_X(OpPoint) \
-OP_X(OpPointBounds) \
 OP_X(OpPtAliases) \
 OP_X(OpRect) \
 OP_X(OpRoots) \
@@ -313,7 +315,6 @@ extern void debug();  // set debug bitmap to start and dump state using current 
 // used by new interface
 
 extern DebugFunction debugFindFunction(const char*& tag);
-extern std::string debugValue(DebugLevel l, DebugBase b, std::string label, float value);
 extern bool debugDmpIsLine(const PathOpsV0Lib::AddCurve& );
 extern bool debugDmpIsLine(const PathOpsV0Lib::Curve& );
 extern void DumpSet(PathOpsV0Lib::Winding&, char const*& str);

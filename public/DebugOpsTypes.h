@@ -69,6 +69,7 @@ struct DebugEdgeType {
     bool curveCurve;
     bool ccOverlaps;
 };
+
 #endif
 
 // typedef uint8_t (*DebugBitOper)(DebugContourData , uint8_t , uint8_t);

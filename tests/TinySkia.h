@@ -3,7 +3,7 @@
 #define TinySkia_DEFINED
 
 #include "OpMath.h"
-#include "SkiaEnumSkPathOp.h"
+#include "SkiaEnumSkPathOp.h"  // !!! remove this eventually
 
 struct OpContext;
 
@@ -136,6 +136,15 @@ struct SkRect {
 	float fBottom;
 };
 
+enum class TinyOps {
+	simplify = -1,
+	difference,  // numbered as zero agrees with historic Skia
+	intersect,
+	unite,  // union conflicts
+	exclusiveOr,  // xor conflicts
+	reverseDifference
+};
+
 enum class SkPathFillType {
 	kWinding,
 	kEvenOdd,
@@ -227,10 +236,13 @@ public:
 	void transform(const SkMatrix& matrix, SkPath* dst = nullptr);
     void updateBoundsCache() const {
         getBounds(); }
-	std::string debugDumpCommon(bool ) const;
+#if OP_DEBUG_SERIALIZE
+	std::string debugDumpCommon(bool hex, std::string callPrefix) const;
 	void dump() const;
 	void dumpHex() const;
-	void dumpCommon(bool) const;
+	void dumpCommon(bool hex, std::string callPrefix) const;
+	std::string fillTypeStr() const;
+#endif
 
 	std::vector<TinyCurve> path;
 	OpContext* contours;
@@ -407,8 +419,8 @@ inline void SkChopCubicAt(const SkPoint* pts, SkPoint* cubicPair, float loopT) {
 	// incomplete
 }
 
-inline std::string dumpSkPath(const SkPath* p, bool hex) {
-	return p->debugDumpCommon(hex);
+inline std::string dumpSkPath(const SkPath* p, bool hex, std::string prefix) {
+	return p->debugDumpCommon(hex, prefix);
 }
 
 typedef float SkScalar;

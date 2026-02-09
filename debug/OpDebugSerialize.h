@@ -29,6 +29,7 @@ extern std::string debugFloat(DebugBase , float );
 extern std::string debugFloat(DebugLevel , float );
 extern std::string debugPopMatching(std::string& s, char match);
 extern bool debugIfMatching(std::string& s, char match);
+extern std::string debugValue(DebugLevel l, DebugBase b, std::string label, float value);
 extern DebugBase defaultBase;
 extern DebugLevel defaultLevel;
 
