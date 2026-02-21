@@ -48,7 +48,7 @@ struct OpContext {
 	OpEdge* addFiller(OpPoint start, OpPoint end, OpSegment* parent);
 	void addToBounds(const OpCurve& );
     void addUserData(PathOpsV0Lib::ContextUserData );
-	void aliasIntersections();
+//	void aliasIntersections();
 	uint8_t* allocateCallerData(size_t  OP_DEBUG_RASTER_PARAMS(bool raster));
 	OpContour* allocateContour();
 	PathOpsV0Lib::CurveData* allocateCurveData(size_t );

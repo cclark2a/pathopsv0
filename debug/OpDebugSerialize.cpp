@@ -224,6 +224,11 @@ ENUM_NAME_STRUCT(DebugWindingType)
 #define Rotated_Base
 ENUM_NAME_STRUCT(Rotated)
 
+#undef OP_ENUM_MEMBER
+#define OP_ENUM_MEMBER(w) { AliasType::w, #w }
+#define AliasType_Base
+ENUM_NAME_STRUCT(AliasType)
+
 namespace PathOpsV0Lib {
 
 // don't want funny macros in public interface, so this is explicitly for the only public enum... 
@@ -704,7 +709,7 @@ std::string FoundLimits::debugDump(DebugLevel l, DebugBase b) const {
         DEBUG_DUMP_VECTOR(i, snips);
         DEBUG_DUMP_ID(snips, seg);
         DEBUG_DUMP_ID(seg, opp);
-        DEBUG_DUMP_OPTIONAL_VALUE(opp, unique);
+        DEBUG_DUMP_OPTIONAL_POS_VALUE(opp, unique);
         DEBUG_DUMP_BOOL(unique, smSegT);
         DEBUG_DUMP_BOOL(smSegT, lgSegT);
         DEBUG_DUMP_BOOL(lgSegT, smOppT);
@@ -1325,8 +1330,8 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
 		s += closeBracket;
 	}
     ASSERT_ORDERED(endLinks, aliases);
-    if (DebugLevel::file == l || aliases.maps.size()) {
-        s += aliases.debugDump(l, b) + "\n";
+    if (aliases.maps.size()) {
+        s += "aliases:" + aliases.debugDump(l, b) + "\n";
     }
     DEBUG_DUMP_OPTIONAL_STRUCT(aliases, overlapBounds, overlapBounds.isFinite());
     DEBUG_DUMP_OPTIONAL_STRUCT(overlapBounds, bounds, bounds.isFinite());
@@ -1426,6 +1431,12 @@ OpContour* OpContourStorage::debugIndex(int contourIndex) const {
 
 std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
     std::string s = Curve_DebugDump(c, l, b) + " ";
+    // jiggery pokery to enclose remaining in curve's braces
+    if (DebugLevel::normal == l) {
+        debugPopMatching(s, ' ');
+        debugPopMatching(s, '}');
+        s += " ";
+    }
     if (DebugLevel::brief != l) {
         if (start != c.data->start)
             s += "start:" + start.debugDump(l, b) + " ";
@@ -1442,7 +1453,10 @@ std::string OpCurve::debugDump(DebugLevel l, DebugBase b) const {
         if (reversed)
             s += "reversed ";
     }
-    return debugPopMatching(s, ' ');
+    debugPopMatching(s, ' ');
+    if (DebugLevel::normal == l)
+        s += "}";
+    return s;
 }
 
 std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
@@ -2151,18 +2165,28 @@ std::string OpLimbStorage::debugDump(DebugLevel l, DebugBase b) const {
     return s;
 }
 
+std::string OpPtAlias::debugDump(DebugLevel l, DebugBase b) const {
+    std::string s;
+    s += "original:" + original.debugDump(l, b) + " ";
+    s += "opp:" + opp.debugDump(l, b) + " ";
+    s += "alias:" + alias.debugDump(l, b) + " ";
+    s += "type:" + AliasTypeName(type) + " ";
+    debugPopMatching(s, ' ');
+    return s;
+}
+
 std::string OpPtAliases::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     static_assert(0 == offsetof(OpPtAliases, maps));
     if (maps.size()) {
         s += "maps:" + STR(maps.size()) + "[\n";
         for (OpPtAlias map : maps) {
-            s += map.original.debugDump(l, b) + ":";
-            s += map.alias.debugDump(l, b) + "\n";
+            s += map.debugDump(l, b) + "\n";
         }
-        s += "] ";
+        s += "]\n";
     }
-    s += "bounds:" + bounds.debugDump(l, b) + " ";
+    if (bounds.isFinite())
+        s += "bounds:" + bounds.debugDump(l, b) + " ";
     static_assert(sizeof(OpPtAliases) == offsetof(OpPtAliases, bounds) + sizeof(bounds));
     return s;
 }

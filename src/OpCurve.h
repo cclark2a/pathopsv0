@@ -8,6 +8,7 @@
 #endif
 
 struct OpContext;
+struct OpContour;
 
 #if OP_TEST_RASTER
 struct OpEdge;
@@ -116,6 +117,7 @@ struct OpCurve {
 	OpRoots rawIntersect(const LinePts& line, MatchEnds ) const;  // requires sect to be on curve
 	OpRoots rayIntersect(const LinePts& line, MatchEnds ) const;
 	void reverse();
+	void setAliases(OpContour& );
 	void setFirstPt(OpPoint pt) {
 		start = c.data->start = pt; }
 	void setLastPt(OpPoint pt) {

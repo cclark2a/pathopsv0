@@ -257,9 +257,13 @@ void dmpActive() {
 }
 
 void dmpAliases() {
+    std::string s;
      for (const auto c : contourIterator) {
-        c->aliases.dump();
+        std::string aliases = c->aliases.debugDump(defaultLevel, defaultBase);
+        if (!aliases.empty())
+            s += "contour:" + STR(c->id) + " " + aliases + "\n";
      }
+     OpDebugFormat(s + "\n");
 }
 
 void dmpCoincidences() {
@@ -639,28 +643,32 @@ void dmpWindings() {
 #define OpDebugExpect_Base
 ENUM_NAME_STRUCT(OpDebugExpect)
 
+#undef OP_ENUM_MEMBER
+#define OP_ENUM_MEMBER(w) { AliasType::w, #w }
+#define AliasType_Base
+ENUM_NAME_STRUCT(AliasType)
+
+void OpPtAlias::dumpSet(const char*& str) {
+    OpDebugRequired(str, "original");
+    original.dumpSet(str);
+    OpDebugRequired(str, "opp");
+    opp.dumpSet(str);
+    OpDebugRequired(str, "alias");
+    alias.dumpSet(str);
+    type = AliasTypeStr(str, "type", AliasType::unknown);
+}
+
 void OpPtAliases::dumpSet(const char*& str) {
     static_assert(0 == offsetof(OpPtAliases, maps));
-#if 0
-    if (OpDebugOptional(str, "aliases")) {
-        size_t size = OpDebugReadSizeT(str);
-        aliases.resize(size);
-        for (auto& alias : aliases) {
-            alias.dumpSet(str);
-        }
-    }
-    ASSERT_ORDERED(aliases, maps);
-#endif
     if (OpDebugOptional(str, "maps")) {
         size_t size = OpDebugReadSizeT(str);
         maps.resize(size);
         for (auto& map : maps) {
-            map.original.dumpSet(str);
-            map.alias.dumpSet(str);
+            map.dumpSet(str);
         }
     }
-    OpDebugRequired(str, "bounds");
-    bounds.dumpSet(str);
+    if (OpDebugOptional(str, "bounds"))
+        bounds.dumpSet(str);
     static_assert(sizeof(OpPtAliases) == offsetof(OpPtAliases, bounds) + sizeof(bounds));
 }
 
@@ -1339,7 +1347,8 @@ void OpContour::dumpSet(const char*& str) {
     DUMP_NAMED_EDGES(*this, windingStorage, "linkups", linkups.l);
     DUMP_NAMED_EDGES(*this, linkups, "endLinks", endLinks.l);
     ASSERT_ORDERED(endLinks, aliases);
-    aliases.dumpSet(str);
+    if (OpDebugOptional(str, "aliases"))
+        aliases.dumpSet(str);
     ASSERT_ORDERED(aliases, overlapBounds);
     if (OpDebugOptional(str, "overlapBounds"))
         overlapBounds.dumpSet(str);
@@ -1663,16 +1672,16 @@ void dmpFilters() {
 }
 
 void dmpEdgePts() {
-    std::vector<EdgeFilter> showFields = { EF::id, EF::startT, EF::endT, EF::curve, EF::iStart,
-            EF::iEnd, EF::winding, EF::sum, EF::whichEnd_impl };
+    std::vector<EdgeFilter> showFields = { EF::id, EF::startT, EF::endT, EF::curve, EF::winding, 
+            EF::sum, EF::whichEnd_impl };
     OpSaveEF saveEF(showFields);
     dmpEdges();
 }
 
 void dmpPts(int ID) {
     if (findEdge(ID)) {
-        std::vector<EdgeFilter> showFields = { EF::id, EF::startT, EF::endT, EF::curve, EF::iStart,
-            EF::iEnd, EF::winding, EF::sum, EF::whichEnd_impl };
+        std::vector<EdgeFilter> showFields = { EF::id, EF::startT, EF::endT, EF::curve, EF::winding, 
+                EF::sum, EF::whichEnd_impl };
         OpSaveEF saveEF(showFields);
         ::dmp(ID);
         return;

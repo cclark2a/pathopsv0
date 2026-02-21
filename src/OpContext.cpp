@@ -62,6 +62,11 @@ void OpContext::addUserData(PathOpsV0Lib::ContextUserData contextUserData) {
     userData.push_back(contextUserData);
 }
 
+#if 0
+// !!! incomplete
+// Need to record curve/curve or line/curve raw associations of interecting pts 
+// (before meet-in-the-middle). Intent is to find one point to reprsent all intersections
+// where three or more curves intersect or nearly intersect.
 void OpContext::aliasIntersections() {
 	for (OpContour* contour : contours) {
 		std::vector<OpIntersection*> sects;
@@ -88,8 +93,8 @@ void OpContext::aliasIntersections() {
 				int mid = (lo + hi) / 2;
 				OP_ASSERT(0 <= mid && mid < (int) sects.size());
 				const OpPoint test = sects[mid]->ptT.pt;
-				if (test == check)
-					return mid;
+//				if (test == check)
+//					return mid;
 				if (test.x < check.x || (test.x == check.x && test.y < check.y))
 					lo = mid + 1;
 				else
@@ -103,7 +108,15 @@ void OpContext::aliasIntersections() {
 				return;
 			int lo = checkSearch(0, { checkRange.left, checkRange.top } );
 			int hi = checkSearch(lo, { checkRange.right, checkRange.bottom } );
-			OpDebugOut("lo:" + STR(lo) + "hi:" + STR(hi) + "\n");
+			// lo is first larger than left/top; hi is first larger than right/bottom
+			for (int index = lo; index < hi; ++index) {
+				if (!checkRange.contains(sects[index]->ptT.pt))
+					continue;
+				if (check == sects[index]->ptT.pt)
+					continue;
+				OpNop();
+			}
+			// !!! incomplete, more code goes here
 		};
 		// iterate through all contours that intersect, looking for close points
 		for (OpContour* testContour : contour->members()) {
@@ -116,6 +129,7 @@ void OpContext::aliasIntersections() {
 		}
 	}
 }
+#endif
 
 uint8_t* OpContext::allocateCallerData(size_t size  OP_DEBUG_RASTER_PARAMS(bool raster)) {
 #if OP_TEST_RASTER
@@ -484,7 +498,7 @@ WindingCondition OpContext::pathOps() {
 	    debugValidateIntersections();
 	    if (allowError(PathOpsV0Lib::ContextError::missing))
 		    addDisjointIntersections();
-		aliasIntersections();  // merge all intersections that are close together
+//		aliasIntersections();  // merge all intersections that are close together
 	    sortIntersections();
 //		tripleSect(); // if three or more segments intersect, make the points the same 
 //	    disableSmallSegments();  // moved points may allow disabling some segments

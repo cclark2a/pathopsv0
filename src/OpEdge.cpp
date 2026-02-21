@@ -210,9 +210,9 @@ OpEdge::OpEdge(OpIntersection* sectStart, OpIntersection* sectEnd  OP_LINE_FILE_
 	OP_LINE_FILE_SET(debugSetMaker);
 	OP_DEBUG_CODE(debugParentID = sectStart->id);
 	segment = sectStart->segment;
-//    iStart = sectStart->ptT.pt;
-//    iEnd = sectEnd->ptT.pt;
 	complete(sectStart->ptT, sectEnd->ptT);
+	curve.start = sectStart->ptT.pt;
+	curve.end = sectEnd->ptT.pt;
 	auto altEnd = [this](OpPoint edgeEnd, OpPoint altEnd) {
 		if (edgeEnd == altEnd)
 			return false;
@@ -411,7 +411,7 @@ WindingCondition OpEdge::apply() {
 // one intersection anymore often than edges. 
 void OpEdge::calcCenterT() {
 	const OpCurve& segCurve = segment->c;
-	OpRect r = segCurve.aliasBounds();
+	OpRect r = bounds();
 	Axis axis = r.largerAxis();
 	float middle = OpMath::Average(r.ltChoice(axis), r.rbChoice(axis));
 	float t = segCurve.center(axis, middle);
@@ -472,10 +472,12 @@ std::vector<OpPoint> OpEdge::collectMatch(EdgeMatch m, float* t) const {
 	pts.push_back(pt);
 	if (segment)
 		segment->sects.collectMatchingPts(pt, pts);
-	if (pts.end() == std::find(pts.begin(), pts.end(), curve.firstPt()))
-		pts.push_back(curve.firstPt());
-	if (pts.end() == std::find(pts.begin(), pts.end(), curve.lastPt()))
-		pts.push_back(curve.lastPt());
+	// edge which may not be set if edge is disabled, but gathered here from joiner disabled pass (testCubics56146)
+	bool matchStart = EdgeMatch::none == which() || EdgeMatch::start == which(m);
+	if (matchStart && pts.end() == std::find(pts.begin(), pts.end(), curve.c.data->start))
+		pts.push_back(curve.c.data->start);
+	if (!matchStart && pts.end() == std::find(pts.begin(), pts.end(), curve.c.data->end))
+		pts.push_back(curve.c.data->end);
 	return pts;
 }
 
@@ -651,7 +653,7 @@ bool OpEdge::output(bool closed) {
 }
 
 // !!! this doesn't account for frames that may or may not form loops
-// if frame, only add filler from last to first if gap can be accounted for by iStart, iEnd...
+// if frame, only add filler from last to first if gap can be accounted for by op curve start, end
 bool OpEdge::outputLinkedList() {
 	OpEdge* firstEdge = this;
 	OpEdge* edge = this;

@@ -210,12 +210,12 @@ void TextWindow::innerUpdate(int& safetyCheck) {
             if (IDType::edge == id.type) {
         #if 0
                 std::vector<EdgeFilter> showFields = { EF::id, EF::startT, EF::endT, EF::curve, 
-                    EF::iStart, EF::iEnd, EF::winding, EF::sum, EF::whichEnd_impl };
+                    EF::winding, EF::sum, EF::whichEnd_impl };
                 OpSaveEF saveEF(showFields);
                 s = id.edge->debugDump(DebugLevel::normal, defaultBase);
         #else
                 std::vector<std::string> showFields = { "edge", "startT", "endT", "curve",
-                    "iStart", "iEnd", "wind", "sum", "whichEnd_impl" };
+                    "wind", "sum", "whichEnd_impl" };
                 std::string master = id.edge->debugDump(DebugLevel::normal, defaultBase);
                 std::vector<Field> foundFields;
                 for (const char* ch = &master.front(); ch < &master.back(); ) {
@@ -279,8 +279,10 @@ void TextWindow::innerUpdate(int& safetyCheck) {
     }
     if (showAliases) {
         std::string s;
-        for (OpContour* contour : debuggerState->context->contours)
-            s += contour->aliases.debugDump(DebugLevel::normal, defaultBase);
+        for (OpContour* contour : debuggerState->context->contours) {
+            s += "contour:" + STR(contour->id) + " ";
+            s += contour->aliases.debugDump(DebugLevel::normal, defaultBase) + "\n";
+        }
         addWrapped(s);
     }
     if (showJoin) {

@@ -235,7 +235,7 @@ void OpIntersections::makeEdges(OpSegment* segment) {
 // edge is coincident with an edge in opp, but hasn't been marked as such
 // check existing for coincidence with same opp, so coincidence ranges may grow
 // !!! optimization: if below lengthens coin run, it could combine/lengthen edges also
-void OpIntersections::coinRange(OpEdge& edge, OpSegment* opp, bool reversed) {
+int OpIntersections::coinRange(OpEdge& edge, OpSegment* opp, bool reversed) {
 	int coinID = 0;
 	OpIntersection* edgeStart = nullptr;
 	OpIntersection* edgeEnd = nullptr;
@@ -270,7 +270,7 @@ void OpIntersections::coinRange(OpEdge& edge, OpSegment* opp, bool reversed) {
 			if (edgeStart && !edgeEnd)
 				coinEnd->zeroCoincidencePair();
 			if (edgeEnd)
-				return;
+				return 0;
 		}
 		if (t == edge.startT) {
 			if (coinStart) 
@@ -288,7 +288,7 @@ void OpIntersections::coinRange(OpEdge& edge, OpSegment* opp, bool reversed) {
 				edgeEnd = sect;
 			else {
 				edgeEnd = setCoin(sect, MatchEnds::end);
-				return;
+				return coinID;
 			}
 		}
 		if (coinEnd) {
@@ -298,6 +298,7 @@ void OpIntersections::coinRange(OpEdge& edge, OpSegment* opp, bool reversed) {
 		}
 	}
 	OP_ASSERT(!coinStart);
+	return 0;
 }
 
 #if 0
@@ -469,6 +470,9 @@ float OpIntersections::matchT(const OpPtT& match, OpPoint destination, MatchEnds
 	// intersections may have multiple different t values with the same pt value
 	// should be rare; do an exhaustive search for duplicates
 void OpIntersections::mergeNear(OpPtAliases& aliases) {
+	OP_ASSERT(!i.empty());
+	// !!! instead of seg thresh, use distance between points on opposite segments ?
+	OpVector threshold = i[0]->segment->threshold();
 	for (unsigned outer = 1; outer < i.size(); ++outer) {
 		OpIntersection* oSect = i[outer - 1];
 		if (oSect->mergeProcessed)
@@ -477,7 +481,7 @@ void OpIntersections::mergeNear(OpPtAliases& aliases) {
 		bool nearEqual = false;
 		do {
 			OpIntersection* iSect = i[limit];
-			if (!iSect->ptT.isNearly(oSect->ptT, iSect->segment->threshold()))
+			if (!iSect->ptT.isNearly(oSect->ptT, threshold))
 				break;
 			if (iSect->ptT == oSect->ptT)
 				continue;

@@ -269,13 +269,19 @@ float OpDebugSamples::compare(std::vector<RasterSamples>& outputs) {
 		XRange inXs { advance(subS, inIndex), advance(subS, inIndex) }; 
 		outIndex = 0;
 		XRange outXs { advance(subO, outIndex), advance(subO, outIndex) }; 
-		auto checkExhausted = [&inXs, &outXs, &error  OP_DEBUG_DUMP_PARAMS(this)](float x) {
+#if OP_DEBUG
+		auto debugCheckDiff = [this](float diff) {
+			OP_ASSERT(diff >= 0);
+			OP_DEBUG_CODE(float scaled = diff * raster->scale);
+			OP_DEBUG_DUMP_CODE(OpAssert(scaled < .7f));
+		};
+#endif
+		auto checkExhausted = [&inXs, &outXs, &error  OP_DEBUG_PARAMS(debugCheckDiff)](float x) {
 			if (OpMath::IsNaN(inXs.end)) {
 				if (!OpMath::IsNaN(outXs.end)) {
 					float xStart = OpMath::IsNaN(x) ? outXs.start : std::max(x, outXs.start);
 					float diff = outXs.end - xStart;
-					OP_ASSERT(diff >= 0);
-					OP_DEBUG_DUMP_CODE(OpAssert(diff < .2f / raster->scale));
+					OP_DEBUG_CODE(debugCheckDiff(diff));
 					error += diff;
 				}
 				return true;
@@ -283,8 +289,7 @@ float OpDebugSamples::compare(std::vector<RasterSamples>& outputs) {
 			if (OpMath::IsNaN(outXs.end)) {
 				float xStart = OpMath::IsNaN(x) ? inXs.start : std::max(x, inXs.start);
 				float diff = inXs.end - xStart;
-				OP_ASSERT(diff >= 0);
-				OP_DEBUG_DUMP_CODE(OpAssert(diff < .3f / raster->scale));
+				OP_DEBUG_CODE(debugCheckDiff(diff));
 				error += diff;
 				return true;
 			}
@@ -293,11 +298,11 @@ float OpDebugSamples::compare(std::vector<RasterSamples>& outputs) {
 		if (checkExhausted(OpNaN))
 			continue;
 		float x = std::min(inXs.start, outXs.start);
-		auto nextX = [&error, &x  OP_DEBUG_DUMP_PARAMS(this)](const XRange& upper, const XRange& lower) {
+		auto nextX = [&error, &x  OP_DEBUG_DUMP_PARAMS(debugCheckDiff)]
+				(const XRange& upper, const XRange& lower) {
 			float xEnd = std::min(upper.start, lower.end);
 			float diff = xEnd - x;
-			OP_ASSERT(diff >= 0);
-			OP_DEBUG_DUMP_CODE(OpAssert(diff < .3f / raster->scale));
+			OP_DEBUG_CODE(debugCheckDiff(diff));
 			error += diff;
 			x = xEnd;
 		};

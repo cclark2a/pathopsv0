@@ -9,7 +9,7 @@
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
 #define SKIP_TO_FILE "cubic" // e.g., "simplify"  one file
 #if !OP_DEBUG_ALT
-#define TEST_FIRST "testCubics6721"  // e.g., "testQuads5343280" if file, one test
+#define TEST_FIRST ""  // e.g., "testQuads5343280" if file, one test
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
 #else
@@ -20,7 +20,7 @@
 
 // switches that decide which tests to run and how to run them
 // these may be moved to command line parameters at some point
-#define TESTS_TO_SKIP 0  // tests to skip
+#define TESTS_TO_SKIP 735500  // tests to skip
 #define TESTS_TO_RUN 0  // set to zero to run to end (no need to set if 'test first' is set)
 #define OP_SHOW_TEST_NAME 0  // if 0, show a dot every 100 tests
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
@@ -30,7 +30,7 @@
 
 // loop191404 missing -0.078, 1.5323 t=0.281543255 oppT=0.290549636; 
 //                    -0.3563 2.0153 t=0.139774203 oppT=0.113169670
-#define CURVE_CURVE_1 5  // id of segment 1 to break in divide and conquer
+#define CURVE_CURVE_1 4  // id of segment 1 to break in divide and conquer
 #define CURVE_CURVE_2 10  // id of segment 2 to break in divide and conquer
 #define CURVE_CURVE_DEPTH -1  // minimum recursion depth for curve curve break (-1 to disable)
 

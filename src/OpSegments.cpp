@@ -60,6 +60,8 @@ std::vector<OpIntersection*> OpSegments::AddEndMatches(OpSegment* seg, OpSegment
 		return segPtT.t;
 	};
 	// check seg and opp ends against each other
+	seg->setAliases();
+	opp->setAliases();
 	float startSegT = checkEnds(opp->c.firstPt(), 0  OP_LINE_FILE_PARGS());
 	float endSegT = checkEnds(opp->c.lastPt(), 1  OP_LINE_FILE_PARGS());	
 	auto checkOpp = [add, seg, opp](OpPoint segPt, float segT  OP_LINE_FILE_ARGS()) {
@@ -132,6 +134,10 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg,
 	size_t oppSects = opp->sects.i.size();
 	for (float oppT : oppRoots.roots) {
 		OpPtT oppPtT = opp->c.ptTAtT(oppT);
+		OpPoint originalOpp = oppPtT.pt;
+		// !!! preserve opp pt t and point found by edge t as aliased points?
+		//     seems like this code and curve/curve code have three aliased points:
+		//        original edge, original opp, middle-y point (line/curve: pinned; c/c: avg.)
 		float edgeT = seg->findLineT(oppPtT.pt);
 		if (!(0 <= edgeT) || !(edgeT <= 1))
 			continue;
@@ -164,6 +170,9 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg,
 		OpIntersection* sect = seg->addSegBase(edgePtT  OP_LINE_FILE_PARAMS(opp));
 		OpIntersection* oSect = opp->addSegBase(oppPtT  OP_LINE_FILE_PARAMS(seg));
 		sect->pair(oSect);
+		OpPoint originalEdge = seg->c.ptAtT(edgeT);
+		if (originalEdge != originalOpp || originalEdge != edgePtT.pt)
+			seg->addAlias(originalEdge, originalOpp, edgePtT.pt, AliasType::curveLine);
 	}
 	// if pair share two intersections, and mid t is close, mark intersections as unsectable
 	OpIntersection* sectS = nullptr;
@@ -244,7 +253,6 @@ void OpSegments::AddEndMatches(OpContour* contour, OpContour* oContour) {
 			continue;
 		for (size_t oDex = same ? iDex + 1 : 0; oDex < oContour->sorted.size(); ++oDex) {
 			OpSegment* opp = oContour->sorted[oDex];
-			OpBreak2(seg, opp, 8, 10);
 			if (seg->c.aliasBounds().right < opp->c.aliasBounds().left)
 				break;
             (void) AddEndMatches(seg, opp);  // ignore return result

@@ -4,6 +4,7 @@
 
 #include "OpMath.h"
 
+struct OpIntersection;
 struct OpPtAliases;
 struct OpEdge;
 struct OpSegment;
@@ -178,7 +179,7 @@ struct OpIntersections {
     void clear();
 	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp) const;
 	OpIntersection* coinContains(OpPoint pt, const OpSegment* opp, OpPtT* nearby) const;
-	void coinRange(OpEdge& , OpSegment* opp, bool reversed);
+	int coinRange(OpEdge& , OpSegment* opp, bool reversed);
 	void collectMatchingPts(OpPoint , std::vector<OpPoint>& ) const;
 	OpIntersection* contains(const OpPtT& ptT, const OpSegment* opp);  // nearby ptT
 	CloseBy containsClose(OpPoint pt, OpVector threshold, const OpSegment* opp) const;

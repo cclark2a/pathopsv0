@@ -129,8 +129,12 @@ bool OpSegment::activeNeighbor(const OpEdge* edge, EdgeMatch match, AllowLinked 
 	return false;
 }
 
-void OpSegment::addAlias(OpPoint original, OpPoint alias) {
-	contour->addAlias(original, alias);
+void OpSegment::addAlias(OpPoint original, OpPoint alias, AliasType type) {
+	contour->addAlias(original, alias, type);
+}
+
+void OpSegment::addAlias(OpPoint original, OpPoint opp, OpPoint alias, AliasType type) {
+	contour->addAlias(original, opp, alias, type);
 }
 
 void OpSegment::addDisjointIntersections() {
@@ -752,7 +756,13 @@ void OpSegment::makeCoins() {
 					continue;
 				if (reversed ? first == oppEdge.curve.lastPt() && last == oppEdge.curve.firstPt()
 						: first == oppEdge.curve.firstPt() && last == oppEdge.curve.lastPt()) {
-					sects.coinRange(edge, oppEdge.segment, reversed);
+					int coinID = sects.coinRange(edge, oppEdge.segment, reversed);
+					if (coinID) {
+						if (reversed)
+							coinID = -coinID;
+						edge.coinPals.push_back({ oppEdge.segment, coinID });
+						oppEdge.coinPals.push_back({ this, coinID });
+					}
 					break;
 				}
 			}
@@ -985,9 +995,9 @@ void OpSegment::normalize() {
 			if (seg.id <= id)  // don't compare a/b and then b/a
 				continue;  
 			if (seg.c.start != original && seg.c.start.isNearly(original, thresh))
-				aliased = cont->addAlias(original, seg.c.start);
+				aliased = cont->addAlias(original, seg.c.start, AliasType::endPoint);
 			if (seg.c.end != original && seg.c.end.isNearly(original, thresh))
-				aliased = cont->addAlias(original, seg.c.end);
+				aliased = cont->addAlias(original, seg.c.end, AliasType::endPoint);
 		}
 		return aliased;
 	};

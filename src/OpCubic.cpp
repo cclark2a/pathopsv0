@@ -56,7 +56,10 @@ float OpMath::CubicRoot(OpCubicFloatType A, OpCubicFloatType B, OpCubicFloatType
 		do {
 			float testT = midT - cubicXAtT(coefficient, midT) / cubicDxAtT(derivative, midT);
             if (!OpMath::IsFinite(testT)) {
-#if OP_DEBUG
+#if 0 && OP_DEBUG
+	// This will fail when the cubic is nearly flat on the axis, because multiple values are
+	// valid for zero-crossing. For now, comment this test out unless some future failure
+	// suggests it is worth while maintaining this
                 OpRoots roots = OpMath::CubicRootsReal(A, B, C, D, MatchEnds::none);
                 OP_ASSERT(roots.empty() ? 0 == midT : roots.get(0) == midT);
 #endif

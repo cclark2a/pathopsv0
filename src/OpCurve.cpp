@@ -37,8 +37,14 @@ OpRoots OpCurve::axisRawHit(Axis axis, float intercept, MatchEnds matchEnds) con
 		result.add(0);
 	if (MatchEnds::end == matchEnds || lastPt().choice(axis) == intercept)
 		result.add(1);
-	if (Rotated::no == rotated && !result.roots.empty())
-		return result;
+	if (Rotated::no == rotated) {
+		 if (!result.roots.empty())
+			return result;
+		float s = c.data->start.choice(axis) - intercept;
+		float e = c.data->end.choice(axis) - intercept;
+		if (s * e > 0)  // if both are on the same half-plane delineated by intercept and axis..
+			return result;  // ..no intersection 
+	}
 	PathOpsV0Lib::AxisT func = Rotated::no == rotated
 			? context().callback(c.type).axisTFuncPtr
 			: context().callback(c.type).rotateTFuncPtr;
@@ -455,7 +461,7 @@ float OpCurve::tAtXY(float t1, float t2, XyChoice xy, float goal) const {
 			mid = test.l;
 		step = step / 2;
 	}
-	return mid;
+	return mid <= OpEpsilon ? 0 : mid >= 1 - OpEpsilon ? 1 : mid;
 }
 
 #if 0
@@ -481,6 +487,11 @@ void OpCurve::pinCtrl() {
 	if (funcPtr)
 		(*funcPtr)(c, start, end);
 	return;
+}
+
+void OpCurve::setAliases(OpContour& contour) {
+	start = contour.existingAlias(c.data->start);
+	end = contour.existingAlias(c.data->end);
 }
 
 // this can fail (if rotated pts are not finite); can happen when input is finite
@@ -529,9 +540,9 @@ OpPoint OpCurve::ptAtT(float t) const {
 		return lastPt();
 	PathOpsV0Lib::PtAtT funcPtr = context().callback(c.type).ptAtTFuncPtr;
 	OpPoint result = funcPtr ? (*funcPtr)(c, t) : (1 - t) * firstPt() + t * lastPt();
-	// !!! required by release_13: but, should caller's point at T function do the pinning?
-	// !!! counterpoint: loop8846 requires pinning on horizontal line (there's no function to call)
-//	result.pin(firstPt(), lastPt());
+	// loop8846, testCubics295953 requires pinning on horizontal when there's no function to call
+	if (!funcPtr)
+		result.pin(firstPt(), lastPt());
 	return result;
 }
 
@@ -595,13 +606,18 @@ void OpCurve::zeroSmall(OpContour& contour) {
 	start.y = zero_small(c.data->start.y, threshold.dy);
 	end.x = zero_small(c.data->end.x, threshold.dx);
 	end.y = zero_small(c.data->end.y, threshold.dy);
+	if (end != c.data->end)
+		contour.addAlias(c.data->end, end, AliasType::zeroSmall);
 	if (start != c.data->start || end != c.data->end) {
 		pinCtrl();
 		OP_DEBUG_CODE(debugZeroedSmall = true);
 	}
 	isSmall = start.isNearly(end, threshold);
-	if (isSmall)
-		contour.addAlias(start, end);
+	OpPoint startAlias = start;
+	if (isSmall && start != end)
+		startAlias = contour.addAlias(start, end, AliasType::isSmall);
+	if (start != c.data->start)
+		contour.addAlias(c.data->start, startAlias, AliasType::zeroSmall);
 }
 
 OpPoint OpCurve::hullPt(int index) const {
@@ -617,6 +633,7 @@ OpPoint OpCurve::hullPt(int index) const {
 
 void OpCurve::reverse() {
 	std::swap(c.data->start, c.data->end);
+	std::swap(start, end);
 	PathOpsV0Lib::CurveReverse funcPtr = context().callback(c.type).curveReverseFuncPtr;
 	if (funcPtr)
 		(*funcPtr)(c);
@@ -721,6 +738,7 @@ PathOpsV0Lib::WindKeep OpCurve::output(PathOpsV0Lib::Winding w,
 }
 
 OpPoint OpCurve::whichPt(EdgeMatch match) const {
-	OP_ASSERT(match == EdgeMatch::start || match == EdgeMatch::end);
-	return match == EdgeMatch::start ? firstPt() : lastPt();
+// match may be 'none' if curve was disabled but found in disabled join pass (testCubics56146)
+//	OP_ASSERT(match == EdgeMatch::start || match == EdgeMatch::end);
+	return match == EdgeMatch::end ? c.data->end : c.data->start;
 }

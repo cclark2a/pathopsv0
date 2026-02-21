@@ -81,8 +81,6 @@ std::string debugDump(DebugLevel , DebugBase ) const override;
 	OP_X(lastEdge) \
 	OP_X(center) \
 	OP_X(curve) \
-    OP_X(iStart) \
-    OP_X(iEnd) \
 	OP_X(vertical_impl) \
 	OP_X(upright_impl) \
 	OP_X(bounds) \

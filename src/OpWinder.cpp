@@ -608,12 +608,14 @@ struct SectPair {
 		, xyChoice(xy)
 		, isBaseSegment(base == ce.seg) {
 		if (seg.ptT.pt != opp.ptT.pt) {
-			if (seg.ptT.pt != seg.original)
-				if (opp.ptT.pt != opp.original)
-					opp.ptT.pt = ce.seg->contour->addAlias(opp.ptT.pt, seg.ptT.pt);
-				else
+			if (seg.ptT.pt != seg.original) {
+				if (opp.ptT.pt != opp.original) {
+					OP_ASSERT(0);  // !!! rewritten; trace through new code
+					opp.ptT.pt = ce.seg->contour->aliases.addTriple(ce.seg->contour, opp.original, 
+							opp.ptT.pt, seg.ptT.pt, AliasType::coinWinding);
+				} else
 					opp.ptT.pt = seg.ptT.pt;
-			else
+			} else
 				seg.ptT.pt = opp.ptT.pt;
 		}
 	}

@@ -355,8 +355,6 @@ private:
 		, priorEdge(nullptr)
 		, nextEdge(nullptr)
 		, lastEdge(nullptr)
-//        , iStart(SetToNaN::dummy)
-//        , iEnd(SetToNaN::dummy)
 		, upright_impl( { SetToNaN::dummy, SetToNaN::dummy } )
 		, winding(WindingUninitialized::dummy)
 		, sum(WindingUninitialized::dummy)
@@ -546,10 +544,6 @@ public:
 	OpEdge* lastEdge;
 	OpPtT center;  // curve location used to find winding contribution
 	OpCurve curve;
- #if 0  // !!! use curve slots for this
-    OpPoint iStart;  // average of intersections
-    OpPoint iEnd; 
-#endif
 	OpCurve vertical_impl;	// only access through set vertical function
 	LinePts upright_impl;   //  "
 	OpPointBounds linkBounds;

@@ -331,7 +331,7 @@ struct DebugCubic {
     CurveType curveType;
     size_t curveSize;
     OpPoint curveData[4];
-    float extrema[5];
+    float extrema[6];
 };
 #endif
 

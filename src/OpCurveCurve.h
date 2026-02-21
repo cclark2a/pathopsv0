@@ -302,6 +302,7 @@ struct OpCurveCurve {
 	bool reduceDistFlipped();  // replace edges with dist runs that change sign
 	bool rotatedIntersect(OpEdge& edge, OpEdge& opp, bool sharesPoint);
 	SectFound runsToLimits();
+	void sectPair(OpIntersection* sect, OpIntersection* oSect, OpPoint limitPt);
 	bool setHullSects(OpEdge& edge, OpEdge& opp, CurveRef );
 	bool setHulls(CurveRef curveRef);
 	bool setOverlaps();

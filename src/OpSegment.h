@@ -6,6 +6,7 @@
 #include "OpIntersection.h"
 
 struct OpContour;
+enum class AliasType;
 
 #define ChopUnsortable_Enums \
     OP_ENUM_MEMBER(none), \
@@ -89,7 +90,8 @@ struct OpSegment {
 	OpSegment(PathOpsV0Lib::Contour* , PathOpsV0Lib::AddCurve);
 	bool activeAtT(OpEdge* , EdgeMatch , MatchZero , std::vector<FoundEdge>& ) const; // true if pal
 	bool activeNeighbor(const OpEdge* , EdgeMatch , AllowLinked , std::vector<FoundEdge>& ) const; // true if pal
-	void addAlias(OpPoint original, OpPoint alias);
+	void addAlias(OpPoint original, OpPoint alias, AliasType );
+	void addAlias(OpPoint original, OpPoint opp, OpPoint alias, AliasType );
 	OpIntersection* addCoin(const OpPtT& , int coinID, MatchEnds , CoinOpp , const OpSegment* o  
 			OP_LINE_FILE_ARGS());
 	void addDisjointIntersections();
@@ -147,6 +149,8 @@ struct OpSegment {
 	void remap(OpPoint oldAlias, OpPoint newAlias);  // local remap
 //	OpPoint remapPts(OpPoint oldAlias, OpPoint newAlias);  // call through
 //	void resetBounds();
+	void setAliases() {
+		c.setAliases(*contour); }
 	void setDisabled(OP_LINE_FILE_NP_ARGS());
 	bool simpleEnd(const OpEdge* ) const;  // true if edge end connects to only one segment
 	bool simpleStart(const OpEdge* ) const;  // true if edge start connects to only one segment

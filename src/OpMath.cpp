@@ -99,18 +99,16 @@ void OpRoots::smooth() {
     float last = -1;
     OP_ASSERT(0 == roots.front());
     OP_ASSERT(1 == roots.back());
-	for (int index = 0; index < (int) roots.size(); ++index) {
+	for (int index = 0; index < (int) roots.size(); ) {
         float tValue = roots[index];
         OP_ASSERT(tValue >= last);  // assert that it is already sorted
         if (last + OpEpsilon >= tValue) {
             if (1 == tValue)
                 --index;
-            int remaining = (int) roots.size() - index - 1;
-            if (remaining > 0)
-                memcpy(&roots[index], &roots[index + 1], sizeof(float) * remaining);
-            roots.pop_back();
-            tValue = roots[index];
+			roots.erase(roots.begin() + index);
+            continue;
         }
+		++index;
         last = tValue;
     }
 }

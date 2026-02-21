@@ -153,6 +153,7 @@ SDL_AppResult DebuggerWindow::init(std::string n, OpVector offset) {
             SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN | SDL_WINDOW_HIGH_PIXEL_DENSITY, 
             &window, &renderer))
         return Fail("Couldn't create window and renderer");
+    SDL_SetWindowSurfaceVSync(window, 1);
     SDL_SetRenderLogicalPresentation(renderer, (int) screen.width(), (int) screen.height(),
             SDL_LOGICAL_PRESENTATION_DISABLED);
     windowID = SDL_GetWindowID(window);
