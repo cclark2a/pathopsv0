@@ -570,6 +570,7 @@ public:
 	bool linkHead;  // used to remove edge from contour linkups when edge is output 
 	bool inOutput;	// set when edge is added to output path
 	bool disabled;	// winding is zero, or apply disqualified edge from appearing in output
+	bool isSmall;  // t range is below some caller defined threshold
 	bool isUnsplitable;  // too small to split in two during curve-curve intersection
 	bool ccEnd;  // set if edge end is closest to already found curve-curve intersection
 	bool ccLarge;  // set if curve/curve has large t match and this edge is last

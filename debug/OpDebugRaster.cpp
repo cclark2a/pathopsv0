@@ -9,17 +9,10 @@
 #if OP_TEST_RASTER
 
 #include <filesystem>
-#if OP_DEBUG_FAST_TEST
-  #include <mutex>
-#endif
 #include "OpDebugRaster.h"
 #include "OpContext.h"
 #include "OpSegment.h"
 #include "DebugOps.h"
-
-#if OP_DEBUG_FAST_TEST
-std::mutex raster_mutex;
-#endif
 
 #if 0
 namespace PathOpsV0Lib {
@@ -106,11 +99,16 @@ OpDebugSamples::OpDebugSamples(DebugRaster* r)
 // advance 1/8th (or whatever sub samples is set to)
 // track previous (and first) add so that consecutive (and first + last) points are not duplicated
 void OpDebugSamples::addCurveXatY(const Curve& original, RasterSample& base, float tLo, float tHi) {
-	OpCurve curve(original, Rotated::no);
+	OpCurve curve(original, Rotated::yes);
 	curve.debugScale(1, raster->scale * raster->subSamples, 0, raster->offsetY);  // leave x alone
 	OpPoint xy = curve.ptAtT(tLo);
 	OpPoint xyEnd = curve.ptAtT(tHi);
-    bool curveDown = xy.y <= xyEnd.y;
+	// error in point at t math may put points outside curve bounds; ceil then puts in wrong pixel
+	// restrict answer to y-axis bounds of curve
+	OpRect bounds = curve.fullBounds();
+	xy.y = OpMath::PinSorted(bounds.top, xy.y, bounds.bottom);
+	xyEnd.y = OpMath::PinSorted(bounds.top, xyEnd.y, bounds.bottom);
+    bool curveDown = xy.y < xyEnd.y || (xy.y == xyEnd.y && xy.x < xyEnd.x);
 	if (!curveDown)
 		std::swap(xy, xyEnd);
 	int row = (int) std::ceil(xy.y);
@@ -224,7 +222,6 @@ struct XRange {
 };
 
 float OpDebugSamples::compare(std::vector<RasterSamples>& outputs) {
-    OpContext* context = raster->context;
 	int rows = raster->subSamples * raster->bitHeight;
 	float error = 0;
     for (int row = 0; row < rows; ++row) {
@@ -269,19 +266,20 @@ float OpDebugSamples::compare(std::vector<RasterSamples>& outputs) {
 		XRange inXs { advance(subS, inIndex), advance(subS, inIndex) }; 
 		outIndex = 0;
 		XRange outXs { advance(subO, outIndex), advance(subO, outIndex) }; 
-#if OP_DEBUG
+#if OP_DEBUG_DUMP
 		auto debugCheckDiff = [this](float diff) {
 			OP_ASSERT(diff >= 0);
-			OP_DEBUG_CODE(float scaled = diff * raster->scale);
-			OP_DEBUG_DUMP_CODE(OpAssert(scaled < .7f));
+			float scaled = diff * raster->scale;
+			OpAssert(scaled < .7f);
 		};
 #endif
-		auto checkExhausted = [&inXs, &outXs, &error  OP_DEBUG_PARAMS(debugCheckDiff)](float x) {
+		auto checkExhausted = [&inXs, &outXs, &error  OP_DEBUG_DUMP_PARAMS(debugCheckDiff)]
+				(float x) {
 			if (OpMath::IsNaN(inXs.end)) {
 				if (!OpMath::IsNaN(outXs.end)) {
 					float xStart = OpMath::IsNaN(x) ? outXs.start : std::max(x, outXs.start);
 					float diff = outXs.end - xStart;
-					OP_DEBUG_CODE(debugCheckDiff(diff));
+					OP_DEBUG_DUMP_CODE(debugCheckDiff(diff));
 					error += diff;
 				}
 				return true;
@@ -289,7 +287,7 @@ float OpDebugSamples::compare(std::vector<RasterSamples>& outputs) {
 			if (OpMath::IsNaN(outXs.end)) {
 				float xStart = OpMath::IsNaN(x) ? inXs.start : std::max(x, inXs.start);
 				float diff = inXs.end - xStart;
-				OP_DEBUG_CODE(debugCheckDiff(diff));
+				OP_DEBUG_DUMP_CODE(debugCheckDiff(diff));
 				error += diff;
 				return true;
 			}
@@ -302,7 +300,7 @@ float OpDebugSamples::compare(std::vector<RasterSamples>& outputs) {
 				(const XRange& upper, const XRange& lower) {
 			float xEnd = std::min(upper.start, lower.end);
 			float diff = xEnd - x;
-			OP_DEBUG_CODE(debugCheckDiff(diff));
+			OP_DEBUG_DUMP_CODE(debugCheckDiff(diff));
 			error += diff;
 			x = xEnd;
 		};
@@ -321,13 +319,6 @@ float OpDebugSamples::compare(std::vector<RasterSamples>& outputs) {
 				break;
 			x = std::max(x, std::min(inXs.start, outXs.start));
 		}
-    }
-	if (error >= 9) {
-	#if OP_DEBUG_FAST_TEST
-		std::lock_guard<std::mutex> guard(raster_mutex);
-	#endif
-	    std::string testname = context->debugData.testname;
-	    OpDebugOut(testname + " raster errors:" + STR(error) + "\n");
     }
 	return error;
 }
@@ -690,15 +681,14 @@ float DebugRaster::out() {
 	output.sort();
 	if (sendToDebugger) {
 		output.rasterize();
-	#if OP_DEBUG_DUMP
+#if OP_DEBUG_DUMP
 		record(BitsFile);
-	#endif
+#endif
 	}
 	OP_ASSERT(SampleType::output == output.sampleType);
 	OpDebugSamples& allContours = samples[0];
 	OP_ASSERT(SampleType::contourResolved == allContours.sampleType);
 	result = allContours.compare(output.sampleSet);
-	OpNop();
 	return result;
 }
 

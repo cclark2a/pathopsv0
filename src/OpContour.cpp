@@ -999,6 +999,9 @@ void OpContour::setSeen(int tree_id) {
 	for (OpEdge* test : endLinks.l) {
 		test->lastEdge->endSeen = false;
 	}
+	for (OpEdge* test : small) {
+		test->startSeen = false;
+	}
 }
 
 void OpContour::unlink(OpEdge* test) {

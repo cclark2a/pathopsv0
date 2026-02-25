@@ -28,7 +28,7 @@ enum class LinkPass {
 */
 struct LinkUps {
     void clear();
-	void sort();
+	void sort(OpContext* );
 	DUMP_DECLARATIONS
 
 	std::vector<OpEdge*> l;
@@ -36,7 +36,7 @@ struct LinkUps {
 
 struct OpJoiner {
     OP_DEBUG_DUMP_CODE(OpJoiner(DumpSerialization , OpContext* );)
-	OpJoiner(OpContext& contours);
+	OpJoiner(OpContext& );
 	OP_DEBUG_CODE(~OpJoiner());
 	static bool LinkEnd(OpEdge *);
 	bool linkRemaining(OpContour* );
@@ -78,6 +78,7 @@ struct OpJoiner {
 	OP_ENUM_MEMBER(miswound),  /* in linkups list, including entries with the wrong winding */ \
 	OP_ENUM_MEMBER(disjoint),  /* gap to closest in linkups list, or gap to edge start (loop) */ \
 	OP_ENUM_MEMBER(unlinkedPal),  /* unlinked variant that permits siblings to connect to seen edges' pals */ \
+	OP_ENUM_MEMBER(small),  /* edges from nearby intersections (delta t is below set value) */ \
 	OP_ENUM_MEMBER(alternateEnd),  /* construct line using opposite sect edge end (e.g, testQuads25659799) */ \
 	OP_ENUM_MEMBER(disabledBackwards),  /* undetected mis-sort may be closable (e.g, loop156850) */ \
 	OP_ENUM_MEMBER(debugStop)  /* debugging aid when limb pass is advanced past final value */

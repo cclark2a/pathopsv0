@@ -234,7 +234,7 @@ void FoundLimits::cutPair(SnipPtTs& snip) const {
 	auto& smallerDiff = segLen < oppLen ? diff : oppDiff;
 	CutRangeT smallerRange;
 	bool firstOne = true;
-	while(advanceFibonacci(smallerDiff)) {
+	while (advanceFibonacci(smallerDiff)) {
 		float testLen = findCuts(directions, smallerCurve, smallerPt, smallerDiff, smallerRange,
 			firstOne);
 		if (testLen > largerLen)

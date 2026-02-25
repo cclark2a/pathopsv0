@@ -762,8 +762,9 @@ void OpContext::dumpSet(const char*& str) {
 	    DEBUG_FIND_FUNCTION(callback, cutFuncPtr,            interceptFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, interceptFuncPtr,      normalLimitFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, normalLimitFuncPtr,    maxAlternateEndFuncPtr);
-        static_assert(offsetof(PathOpsV0Lib::CurveCallbacks, maxAlternateEndFuncPtr) 
-                + sizeof(callback.maxAlternateEndFuncPtr) == sizeof(callback));
+	    DEBUG_FIND_FUNCTION(callback, maxAlternateEndFuncPtr, smallTFuncPtr);
+        static_assert(offsetof(PathOpsV0Lib::CurveCallbacks, smallTFuncPtr) 
+                + sizeof(callback.smallTFuncPtr) == sizeof(callback));
     }
     ASSERT_ORDERED(callbacks, userData);
 #if 0  // don't serialize user data
@@ -821,8 +822,9 @@ void OpContext::dumpSet(const char*& str) {
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxLimbsFuncPtr, maxLoopsFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxLoopsFuncPtr, windingBytesFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, windingBytesFuncPtr, maxGapFuncPtr);
-    static_assert(offsetof(PathOpsV0Lib::ContextCallbacks, maxGapFuncPtr) 
-            + sizeof(contextCallbacks.maxGapFuncPtr) == sizeof(contextCallbacks));
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxGapFuncPtr, linkupScaleFuncPtr);
+    static_assert(offsetof(PathOpsV0Lib::ContextCallbacks, linkupScaleFuncPtr) 
+            + sizeof(contextCallbacks.linkupScaleFuncPtr) == sizeof(contextCallbacks));
     static_assert(0 == offsetof(PathOpsV0Lib::WindingCallbacks, windingAddFuncPtr));
 	windingCallbacks.windingAddFuncPtr = (PathOpsV0Lib::WindingAdd) debugFindFunction(str);
 	DEBUG_FIND_FUNCTION(windingCallbacks, windingAddFuncPtr, windingKeepFuncPtr);
@@ -1338,7 +1340,8 @@ void OpContour::dumpSet(const char*& str) {
 	DUMP_EDGES(*this, unsectByArea, disabledBackwards);
 	DUMP_EDGES(*this, disabledBackwards, disabledCenterless);
 	DUMP_EDGES(*this, disabledCenterless, disabledPals);
-	DUMP_EDGES(*this, disabledPals, unsortables);
+	DUMP_EDGES(*this, disabledPals, small);
+	DUMP_EDGES(*this, small, unsortables);
     ASSERT_ORDERED(unsortables, windingStorage);
     OpDebugRequired(str, "windingStorage");
     size_t windingSize = OpDebugReadSizeT(str);
@@ -1426,6 +1429,7 @@ void OpContour::dumpResolveAll(OpContext* c) {
 	DUMP_RESOLVE_ARRAY(disabledBackwards);
 	DUMP_RESOLVE_ARRAY(disabledCenterless);
 	DUMP_RESOLVE_ARRAY(disabledPals);
+	DUMP_RESOLVE_ARRAY(small);
 	DUMP_RESOLVE_ARRAY(unsortables);
 	DUMP_RESOLVE_ARRAY(linkups.l);
 	DUMP_RESOLVE_ARRAY(endLinks.l);
@@ -2067,7 +2071,8 @@ void OpEdge::dumpSet(const char*& str) {
     DEBUG_SET_BOOL(inLinkups, linkHead);
     DEBUG_SET_BOOL(linkHead, inOutput);
     DEBUG_SET_BOOL(inOutput, disabled);
-    DEBUG_SET_BOOL(disabled, isUnsplitable);
+    DEBUG_SET_BOOL(disabled, isSmall);
+    DEBUG_SET_BOOL(isSmall, isUnsplitable);
     DEBUG_SET_BOOL(isUnsplitable, ccEnd);
     DEBUG_SET_BOOL(ccEnd, ccLarge);
     DEBUG_SET_BOOL(ccLarge, ccOverlaps);
@@ -2079,7 +2084,7 @@ void OpEdge::dumpSet(const char*& str) {
     DEBUG_SET_BOOL(endSeen, unsectableStart);
     DEBUG_SET_BOOL(unsectableStart, unsectableEnd);
 #if OP_DEBUG
-    ASSERT_SERIAL_OFFSET(*this, unsectableEnd, 3, debugMatch);
+    ASSERT_SERIAL_OFFSET(*this, unsectableEnd, 2, debugMatch);
     debugMatch = (OpEdge*) strID("debugMatch");
     ASSERT_ORDERED(debugMatch, debugZeroErr);
     debugZeroErr = (OpEdge*) strID("debugZeroErr");

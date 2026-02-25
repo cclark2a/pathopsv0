@@ -927,8 +927,9 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
 	    DEBUG_FIND_TAG(callback, cutFuncPtr,            interceptFuncPtr);
 	    DEBUG_FIND_TAG(callback, interceptFuncPtr,      normalLimitFuncPtr);
 	    DEBUG_FIND_TAG(callback, normalLimitFuncPtr,    maxAlternateEndFuncPtr);
-        static_assert(offsetof(PathOpsV0Lib::CurveCallbacks, maxAlternateEndFuncPtr) 
-                + sizeof(callback.maxAlternateEndFuncPtr) == sizeof(callback));
+	    DEBUG_FIND_TAG(callback, maxAlternateEndFuncPtr, smallTFuncPtr);
+        static_assert(offsetof(PathOpsV0Lib::CurveCallbacks, smallTFuncPtr) 
+                + sizeof(callback.smallTFuncPtr) == sizeof(callback));
     }
     ASSERT_ORDERED(callbacks, userData);
 #if 0  // don't serialize user data
@@ -982,8 +983,9 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
 	DEBUG_FIND_TAG(contextCallbacks, maxLimbsFuncPtr, maxLoopsFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, maxLoopsFuncPtr, windingBytesFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, windingBytesFuncPtr, maxGapFuncPtr);
-    static_assert(offsetof(PathOpsV0Lib::ContextCallbacks, maxGapFuncPtr) 
-            + sizeof(contextCallbacks.maxGapFuncPtr) == sizeof(contextCallbacks));
+	DEBUG_FIND_TAG(contextCallbacks, maxGapFuncPtr, linkupScaleFuncPtr);
+    static_assert(offsetof(PathOpsV0Lib::ContextCallbacks, linkupScaleFuncPtr) 
+            + sizeof(contextCallbacks.linkupScaleFuncPtr) == sizeof(contextCallbacks));
     ASSERT_ORDERED(contextCallbacks, windingCallbacks);
     static_assert(0 == offsetof(PathOpsV0Lib::WindingCallbacks, windingAddFuncPtr));
 	s += debugFindTag(reinterpret_cast<DebugFunction>(windingCallbacks.windingAddFuncPtr));
@@ -1291,7 +1293,15 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
         debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
-    ASSERT_ORDERED(disabledPals, unsortables);
+    ASSERT_ORDERED(disabledPals, small);
+	if (small.size()) {
+		s += "small:" + STR(small.size()) + "[";
+		for (OpEdge* e : small)
+			s += STR(e->id) + " ";
+        debugPopMatching(s, ' ');
+		s += closeBracket;
+	}
+    ASSERT_ORDERED(small, unsortables);
 	if (unsortables.size()) {
 		s += "unsortables:" + STR(unsortables.size()) + "[";
 		for (OpEdge* e : unsortables)
@@ -1713,7 +1723,8 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     EDGE_BOOL(inLinkups, linkHead);
     EDGE_BOOL(linkHead, inOutput);
     EDGE_BOOL(inOutput, disabled);
-    EDGE_BOOL(disabled, isUnsplitable);
+    EDGE_BOOL(disabled, isSmall);
+    EDGE_BOOL(isSmall, isUnsplitable);
     EDGE_BOOL(isUnsplitable, ccEnd);
     EDGE_BOOL(ccEnd, ccLarge);
     EDGE_BOOL(ccLarge, ccOverlaps);
@@ -1725,7 +1736,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     EDGE_BOOL(endSeen, unsectableStart);
     EDGE_BOOL(unsectableStart, unsectableEnd);
 #if OP_DEBUG
-    ASSERT_ORDERED_OFFSET(unsectableEnd, debugMatch, 3);
+    ASSERT_ORDERED_OFFSET(unsectableEnd, debugMatch, 2);
     if (debugMatch)
         s += "debugMatch:" + (debugMatch ? STR(debugMatch->id) : std::string("-")) + " ";
     ASSERT_ORDERED(debugMatch, debugZeroErr);

@@ -90,6 +90,8 @@ struct OpContour {
 	void addMerge(OpContour* );  // track coincidence that effectively extend this contour
 	OpIntersection* addSegSect(const OpPtT& , OpSegment* seg
 			OP_LINE_FILE_DEF(const OpSegment* oSeg));
+	void addSmallEdge(OpEdge* edge) {
+		small.push_back(edge); }
 	void addToLinkups(OpJoiner* , OpEdge* );
 	OpIntersection* addUnsect(const OpPtT& , OpSegment* seg, int uID, MatchEnds 
 			OP_LINE_FILE_DEF(const OpSegment* oSeg));
@@ -100,7 +102,7 @@ struct OpContour {
             return windingCondition;
 		}
 	    return 0;
-}
+	}
 
 	void manyCoincidences() {
 		for (auto& segment : segments) {
@@ -240,6 +242,7 @@ struct OpContour {
 	std::vector<OpEdge*> disabledBackwards;
 	std::vector<OpEdge*> disabledCenterless;
 	std::vector<OpEdge*> disabledPals;
+	std::vector<OpEdge*> small;  // edges with spans less than some caller-supplied t range
 	std::vector<OpEdge*> unsortables;
     std::vector<uint8_t> windingStorage;
 	LinkUps linkups;

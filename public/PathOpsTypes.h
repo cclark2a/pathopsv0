@@ -196,6 +196,7 @@ struct CurveCallbacks {
 	CurveConst interceptFuncPtr = nullptr;
 	CurveConst normalLimitFuncPtr = nullptr;
 	CurveConst maxAlternateEndFuncPtr = nullptr;
+	CurveConst smallTFuncPtr = nullptr;
 };
 
 // winding callbacks
@@ -293,6 +294,7 @@ struct ContextCallbacks {
 	ContextCount maxLoopsFuncPtr = nullptr;
 	ContextCount windingBytesFuncPtr = nullptr;
 	ContextValue maxGapFuncPtr = nullptr;
+	ContextValue linkupScaleFuncPtr = nullptr;
 };
 
 // return true if the engine should abort

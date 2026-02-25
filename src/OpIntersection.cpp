@@ -258,7 +258,7 @@ int OpIntersections::coinRange(OpEdge& edge, OpSegment* opp, bool reversed) {
 			coinID = sect->coincidenceID;
 			if (edgeStart) {
 				OP_ASSERT(edgeStart->coincidenceID);
-				edgeStart->coincidenceID = edgeStart->opp->coincidenceID = coinID;
+   				edgeStart->coincidenceID = edgeStart->opp->coincidenceID = coinID;
 				OP_ASSERT(t > edge.startT);
 				coinStart->zeroCoincidencePair();
 			}

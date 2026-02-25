@@ -473,7 +473,8 @@ std::vector<OpPoint> OpEdge::collectMatch(EdgeMatch m, float* t) const {
 	if (segment)
 		segment->sects.collectMatchingPts(pt, pts);
 	// edge which may not be set if edge is disabled, but gathered here from joiner disabled pass (testCubics56146)
-	bool matchStart = EdgeMatch::none == which() || EdgeMatch::start == which(m);
+	bool matchStart = EdgeMatch::none == which() ? EdgeMatch::start == m 
+			: EdgeMatch::start == which(m);
 	if (matchStart && pts.end() == std::find(pts.begin(), pts.end(), curve.c.data->start))
 		pts.push_back(curve.c.data->start);
 	if (!matchStart && pts.end() == std::find(pts.begin(), pts.end(), curve.c.data->end))
@@ -504,6 +505,9 @@ void OpEdge::complete(OpPoint startPoint, OpPoint endPoint) {
 	OP_ASSERT(startT < endT);
 	subDivide(startPoint, endPoint);	// uses already computed points stored in edge
 	winding.setWind(segment->winding);
+    PathOpsV0Lib::CurveConst smallFuncPtr = context()->callback(curve.c.type).smallTFuncPtr;
+    float smallT = (smallFuncPtr ? (*smallFuncPtr)(curve.c) : 32.f) * OpEpsilon;
+    isSmall = endT - startT <= smallT;
 }
 
 OpContext* OpEdge::context() const {

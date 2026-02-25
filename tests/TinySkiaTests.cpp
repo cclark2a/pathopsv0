@@ -55,6 +55,11 @@ std::vector<std::string> highError = {
 
 thread_local std::string currentTest;  // can't be in a struct
 
+struct TinyError {
+    std::string testname;
+    float error = 0;
+};
+
 struct TinyState {
     void addADot(const OpDebugData& );
     void test();
@@ -65,6 +70,7 @@ struct TinyState {
     std::string testFirst = OP_DEBUG_FAST_TEST ? "" : TEST_FIRST;
     std::string skipTo = SKIP_TO_FILE;
     std::string largestError;
+    std::array<TinyError, 20> tinyErrors;
     std::atomic<float> pixelError = 0.f;
     std::atomic_int testIndex = 0; 
     std::atomic_int gapError = 0;
@@ -98,6 +104,16 @@ void TinyState::addADot(const OpDebugData& debugData) {
     std::lock_guard<std::mutex> guard(out_mutex);
 #endif
     ++testsRun;
+	if (debugData.error >= .1f) {
+	    std::string testname = debugData.testname;
+	    OpDebugOut(testname + " raster errors:" + STR(debugData.error) + "\n");
+    }
+    if (debugData.error > tinyErrors[0].error) {
+        tinyErrors[0].testname = debugData.testname;
+        tinyErrors[0].error = debugData.error;
+        std::sort(tinyErrors.begin(), tinyErrors.end(), [](const TinyError& a, const TinyError& b) {
+                return a.error < b.error; } );
+    }
     pixelError += debugData.error; 
     if (debugData.error > maxError)
         largestError = debugData.testname;
@@ -131,6 +147,15 @@ std::string TinyState::stats() {
         s += " avg pixelError:" + STR(pixelError / testsRun) + " ";
     if (baseError < maxError)
         s += "maxError:" + STR(maxError) + " largestError:" + largestError + " ";
+    s.pop_back();
+    s += "\n";
+    for (size_t index = tinyErrors.size(); index != 0; ) {
+        const TinyError& e = tinyErrors[--index];
+        if (0 == e.error)
+            break;
+        s += e.testname + " error:" + STR(e.error) + "\n";
+    }
+    s.pop_back();
     return s;
 }
 

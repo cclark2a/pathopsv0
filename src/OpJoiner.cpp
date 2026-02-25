@@ -121,6 +121,12 @@ void OpLimb::addEach(OpContour& contour, OpTree& tree) {
 		return;
 	if (LimbPass::unlinkedPal == pass)
 		return;
+	for (OpEdge* test : contour.small) {
+		tryAdd(tree, test, EdgeMatch::start, LimbPass::small);
+		tryAdd(tree, test, EdgeMatch::end, LimbPass::small);
+	}
+	if (LimbPass::small == pass)
+		return;
 	if (LimbPass::alternateEnd == pass)
 		return;
 	if (contour.context->allowError(PathOpsV0Lib::ContextError::missing, &edge->curve.c))
@@ -250,7 +256,7 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 	OP_ASSERT(!test->disabled || test->isUnsectable() || Unsortable::none != test->isUnsortable 
 			|| LimbPass::disabledCenterless <= limbPass);
 	OP_ASSERT(!test->hasLinkTo(m) || Unsortable::none != test->isUnsortable || test->disabled 
-			|| test->isUnsectable());
+			|| test->isUnsectable() || test->isSmall);
 //	int ccUnsectID = 0;
 	// !!! future optimization : keep all possible end points with edge, or pass limb instead of
 	std::vector<OpPoint> testPts = test->collectMatch(m);
@@ -742,6 +748,8 @@ void OpTree::initialize(OpContour& contour) {
 			break;
 		case LimbPass::unlinkedPal:
 			break;
+		case LimbPass::small:
+			break;
 		case LimbPass::alternateEnd:
 			break;
 		case LimbPass::disabledBackwards:
@@ -762,9 +770,10 @@ bool OpTree::join(OpJoiner& join) {
 	OpEdge* best = bestL->edge;
 	if (EdgeMatch::end == bestL->match) {
         OP_ASSERT(EdgeMatch::none != best->which()  // !!! assert may be unnecessary; make sure disabled is correct choice
-                || (best->disabled 
-				&& (LimbPass::disabledBackwards == bestL->treePass
-				|| LimbPass::disabledCenterless == bestL->treePass)));
+                || (best->disabled && (LimbPass::disabledBackwards == bestL->treePass
+				|| LimbPass::disabledCenterless == bestL->treePass))
+				|| (best->isSmall && LimbPass::small == bestL->treePass)
+			);
         EdgeMatch which = EdgeMatch::none != best->which() ? best->which() : bestL->match;
 		(void) best->setLastLink(!which); // make suitable for linking to a chain
 		best = best->advanceToEnd(EdgeMatch::start);
@@ -964,6 +973,8 @@ OpJoiner::OpJoiner(OpContext& contours)
     for (auto contour : contours.contours) {
 		for (auto& segment : contour->segments) {
 			for (auto& e : segment.edges) {
+				if (e.isSmall)
+					contour->addSmallEdge(&e);
 				if (e.inOutput)
 					continue;
 				contour->addJoinEdge(this, &e);
@@ -1002,8 +1013,21 @@ bool OpJoiner::linkRemaining(OpContour* contour) {
 	while (linkups.l.size()) {
 		// sort to process largest of left/top first
 		// !!! could optimize to avoid search, but for now, this is the simplest
-		linkups.sort();
+		linkups.sort(context);
 		edge = linkups.l.back();
+		// if largest is small, and all edges it links to are small, don't link it
+		auto edgeIsSmall = [this]() {
+			if (!edge->isSmall) 
+				return false;
+			OpEdge* nextEdge = edge;
+			while ((nextEdge = nextEdge->nextEdge)) {
+				if (!nextEdge->isSmall)
+					return false;
+			}
+			return true;
+		};
+		if (edgeIsSmall())
+			return true;
 		OP_DEBUG_VALIDATE_CODE(debugValidate());
 		if (!matchLinks(contour, true))
 			return false;
@@ -1211,16 +1235,24 @@ void LinkUps::clear() {
 
 // sort by size to process largest of left (tail) first
 // sort should consider all edges in link
-void LinkUps::sort() {
+void LinkUps::sort(OpContext* context) {
 	float leftMost = OpInfinity;
 	for (auto& linkList : l) {
 		OP_ASSERT(linkList->linkBounds.isFinite());
 		leftMost = std::min(linkList->linkBounds.left, leftMost);
 	}
-	std::sort(l.begin(), l.end(), [leftMost](const auto& s1, const auto& s2) {
+	PathOpsV0Lib::ContextValue scaleFuncPtr = context->contextCallbacks.linkupScaleFuncPtr;
+	float scale = scaleFuncPtr ? (*scaleFuncPtr)((ContextPtr) context) : 1024.f;  // !!! wild guess : testCubics3465653 requires 400K or smaller
+	std::sort(l.begin(), l.end(), [leftMost, scale](const auto& s1, const auto& s2) {
+		// if much smaller, ignore leftmost
+		float s1perimeter = s1->linkBounds.perimeter();
+		float s2perimeter = s2->linkBounds.perimeter();
+		if (s1perimeter * scale < s2perimeter)
+			return true;
+		if (s2perimeter * scale < s1perimeter)
+			return false;
         bool s1Left = s1->linkBounds.left == leftMost;
         bool s2Left = s2->linkBounds.left == leftMost;
-		return s1Left < s2Left || (s1Left == s2Left &&
-                s1->linkBounds.perimeter() < s2->linkBounds.perimeter()); 
+		return s1Left < s2Left || (s1Left == s2Left && s1perimeter < s2perimeter); 
 	} );
 }
