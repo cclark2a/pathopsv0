@@ -563,6 +563,44 @@ std::string DebugDump(const PathOpsV0Lib::Winding& w, DebugLevel l, DebugBase b)
     return s;
 }
 
+#if OP_DEBUG_GLOBALS
+std::string DebugDump(int id, DebugLevel l, DebugBase b) {
+    std::string s;
+    if (std::vector<const OpIntersection*> coins = findCoincidence(id); coins.size()) {
+        for (auto coin : coins) {
+            s += coin->debugDump(l, b) + "\n";
+        }
+    }
+    if (const OpContour* contour = findContour(id))
+        s += contour->debugDump(l, b) + "\n";
+    if (const OpEdge* edge = findEdge(id))
+        s += edge->debugDump(l, b) + "\n";
+    if (std::vector<const OpEdge*> matches = findEdgeRayMatch(id); matches.size()) {
+        for (auto match : matches) {
+            s += match->debugDump(l, b) + "\n";
+        }
+    }
+    if (const OpIntersection* intersection = findIntersection(id))
+        s += intersection->debugDump(l, b) + "\n";
+    if (const OpLimb* limb = findLimb(id))
+        s += limb->debugDump(l, b) + "\n";
+    if (std::vector<const OpIntersection*> merges = findMerge(id); merges.size()) {
+        for (auto merge : merges) {
+            s += merge->debugDump(l, b) + "\n";
+        }
+    }
+    if (std::vector<const OpIntersection*> uSects = findSectUnsectable(id); uSects.size()) {
+        for (auto uSect : uSects) {
+            s += uSect->debugDump(l, b) + "\n";
+        }
+    }
+    if (const OpSegment* segment = findSegment(id))
+        s += segment->debugDump(l, b) + "\n";
+    debugPopMatching(s, '\n');
+    return s;
+}
+#endif
+
 std::string Distance::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     s += "{edge[" + debugDumpID() + "] ";
@@ -707,9 +745,8 @@ std::string FoundLimits::debugDump(DebugLevel l, DebugBase b) const {
     } else {
         DEBUG_DUMP_FIRST_VECTOR(i);
         DEBUG_DUMP_VECTOR(i, snips);
-        DEBUG_DUMP_ID(snips, seg);
-        DEBUG_DUMP_ID(seg, opp);
-        DEBUG_DUMP_OPTIONAL_POS_VALUE(opp, unique);
+        ASSERT_ORDERED(snips, cc);
+        DEBUG_DUMP_OPTIONAL_POS_VALUE(cc, unique);
         DEBUG_DUMP_BOOL(unique, smSegT);
         DEBUG_DUMP_BOOL(smSegT, lgSegT);
         DEBUG_DUMP_BOOL(lgSegT, smOppT);
@@ -928,8 +965,9 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
 	    DEBUG_FIND_TAG(callback, interceptFuncPtr,      normalLimitFuncPtr);
 	    DEBUG_FIND_TAG(callback, normalLimitFuncPtr,    maxAlternateEndFuncPtr);
 	    DEBUG_FIND_TAG(callback, maxAlternateEndFuncPtr, smallTFuncPtr);
-        static_assert(offsetof(PathOpsV0Lib::CurveCallbacks, smallTFuncPtr) 
-                + sizeof(callback.smallTFuncPtr) == sizeof(callback));
+	    DEBUG_FIND_TAG(callback, smallTFuncPtr,         maxCutFuncPtr);
+        static_assert(offsetof(PathOpsV0Lib::CurveCallbacks, maxCutFuncPtr) 
+                + sizeof(callback.maxCutFuncPtr) == sizeof(callback));
     }
     ASSERT_ORDERED(callbacks, userData);
 #if 0  // don't serialize user data
@@ -974,8 +1012,7 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
 	DEBUG_FIND_TAG(contextCallbacks, maxDistFuncPtr, maxDeepFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, maxDeepFuncPtr, maxShallowFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, maxShallowFuncPtr, maxSplitsFuncPtr);
-	DEBUG_FIND_TAG(contextCallbacks, maxSplitsFuncPtr, maxCutFuncPtr);
-	DEBUG_FIND_TAG(contextCallbacks, maxCutFuncPtr, maxMarginFuncPtr);
+	DEBUG_FIND_TAG(contextCallbacks, maxSplitsFuncPtr, maxMarginFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, maxMarginFuncPtr, maxUnsectableTFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, maxUnsectableTFuncPtr, maxUnsectDistFuncPtr);
 	DEBUG_FIND_TAG(contextCallbacks, maxUnsectDistFuncPtr, maxCheckSplitFuncPtr);
@@ -1718,8 +1755,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     s += strEnum(EF::isUnsortable, "isUnsortable", Unsortable::none == isUnsortable, 
 			UnsortableName(isUnsortable));
 	EDGE_BOOL(isUnsortable, active_impl);
-    EDGE_BOOL(active_impl, alternateEnd);
-    EDGE_BOOL(alternateEnd, inLinkups);
+    EDGE_BOOL(active_impl, inLinkups);
     EDGE_BOOL(inLinkups, linkHead);
     EDGE_BOOL(linkHead, inOutput);
     EDGE_BOOL(inOutput, disabled);
@@ -1736,7 +1772,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     EDGE_BOOL(endSeen, unsectableStart);
     EDGE_BOOL(unsectableStart, unsectableEnd);
 #if OP_DEBUG
-    ASSERT_ORDERED_OFFSET(unsectableEnd, debugMatch, 2);
+    ASSERT_ORDERED_OFFSET(unsectableEnd, debugMatch, 3);
     if (debugMatch)
         s += "debugMatch:" + (debugMatch ? STR(debugMatch->id) : std::string("-")) + " ";
     ASSERT_ORDERED(debugMatch, debugZeroErr);
@@ -1879,6 +1915,8 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
             return s;
         }
         s += ptT.debugDump(id ? l : DebugLevel::error, b) + " ";   // !!! may be uninitialized?
+        if (!callerPt.debugIsUninitialized() && callerPt != ptT.pt)
+            s += "callerPt:" + callerPt.debugDump(l, b) + " ";
         std::string segmentID = segment ? segment->debugDumpID() : "-";
         const OpSegment* oppParent = opp ? opp->segment : nullptr;
         std::string oppID = opp ? opp->debugDumpID() : "-";
@@ -1886,18 +1924,17 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
         s += "segment:" + segmentID + " ";
         s += "opp/sect:" + oppParentID + "/" + oppID + " ";
         if (coincidenceID  OP_DEBUG_CODE(|| debugCoincidenceID)) {
-            s += "coinID:" + STR(coincidenceID)  OP_DEBUG_CODE(+ "/" + STR(debugCoincidenceID));
-            s += DebugLevel::file == l ? " coinEnd:" : " " ;
+            s += "coinID:" + STR(coincidenceID)  OP_DEBUG_CODE(+ "/" + STR(debugCoincidenceID)) 
+                    + " ";
             s += MatchEndsName(coinEnd) + " ";
-            s += DebugLevel::file == l ? " coinOpp:" : " " ;
             s += CoinOppName(coinOpp) + " ";
         }
         if (unsectID) {
-            s += "unsectID:" + STR(unsectID);
-            ASSERT_ORDERED(coinEnd, unsectEnd);
-            s += DebugLevel::file == l ? " unsectEnd:" : " ";
+            s += "unsectID:" + STR(unsectID)+ " ";
             s += MatchEndsName(unsectEnd) + " ";
         }
+        if (mergeID)
+            s += "mergeID:" + STR(mergeID)+ " ";
         if (!coincidenceID  OP_DEBUG_CODE(&& !debugCoincidenceID) && !unsectID 
                 && MatchEnds::none != coinEnd)
             s += "!!! (unexpected) " + MatchEndsName(coinEnd) + " ";
@@ -1912,13 +1949,19 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
             s += "opp:" + opp->debugDumpID() + " ";
         ASSERT_ORDERED(opp, ptT);
         s += "ptT:" + ptT.debugDump(id ? l : DebugLevel::error, b) + " ";
-        ASSERT_ORDERED(ptT, coincidenceID);
+        ASSERT_ORDERED(ptT, callerPt);
+        if (!callerPt.debugIsUninitialized() && callerPt != ptT.pt)
+            s += "callerPt:" + callerPt.debugDump(l, b) + " ";
+        ASSERT_ORDERED(callerPt, coincidenceID);
         if (coincidenceID)
             s += "coincidenceID:" + STR(coincidenceID) + " ";
         ASSERT_ORDERED(coincidenceID, unsectID);
         if (unsectID)
             s += "unsectID:" + STR(unsectID) + " ";
-        ASSERT_ORDERED(unsectID, coinEnd);
+        ASSERT_ORDERED(unsectID, mergeID);
+        if (mergeID)
+            s += "mergeID:" + STR(mergeID) + " ";
+        ASSERT_ORDERED(mergeID, coinEnd);
         if (MatchEnds::none != coinEnd)
             s += "coinEnd:" + MatchEndsName(coinEnd) + " ";
         ASSERT_ORDERED(coinEnd, unsectEnd);
@@ -1933,35 +1976,13 @@ std::string OpIntersection::debugDump(DebugLevel l, DebugBase b) const {
 	DEBUG_DUMP_BOOL(ccLine, ccSect);
 	DEBUG_DUMP_BOOL(ccSect, ccUnsectable);
 	DEBUG_DUMP_BOOL(ccUnsectable, collapsed);
-	DEBUG_DUMP_BOOL(collapsed, mergeProcessed);
-	DEBUG_DUMP_BOOL(mergeProcessed, moved);
 #if OP_DEBUG
-    if (DebugLevel::file != l) {
-        auto edgeOrSegment = [l, this](int debug_id, std::string label) {
-            std::string result = label + " ";
-            if (DebugLevel::file != l) {
-                if (segment->contour->context->debugFindEdge(debug_id))
-                    result += "(edge) ";
-                else if (segment->contour->context->debugFindSegment(debug_id))
-                    result += "(segment) ";
-                else
-                    result += "(edge/seg:" + STR(debug_id) + " not found) ";
-            }
-            result += STR(debug_id) + " ";
-            return result;
-        };
-        if (debugSrcID)
-            s += edgeOrSegment(debugSrcID, "debugSrcID:");
-        if (debugOppID)
-            s += edgeOrSegment(debugOppID, "debugOppID:");
-    } else {
-        if (id)
-            s += "id:" + STR(id) + " ";
-        if (debugSrcID)
-            s += "debugSrcID:" + STR(debugSrcID) + " ";
-        if (debugOppID)
-            s += "debugOppID:" + STR(debugOppID) + " ";
-    }
+    if (DebugLevel::file == l && id)
+        s += "id:" + STR(id) + " ";
+    if (debugSrcID)
+        s += "debugSrcID:" + STR(debugSrcID) + " ";
+    if (debugOppID)
+        s += "debugOppID:" + STR(debugOppID) + " ";
     if (debugCoincidenceID)
         s += "debugCoincidenceID:" + STR(debugCoincidenceID) + " ";
     DEBUG_DUMP_BOOL(debugCoincidenceID, debugErased);
@@ -2531,8 +2552,10 @@ std::string SegPt::debugDump(DebugLevel l, DebugBase b) const {
 
 std::string SnipPtTs::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
-    s += "seg:" + seg.debugDump(l, b);
-    s += " opp:" + opp.debugDump(l, b);
+    s += "segPtT:" + segPtT.debugDump(l, b) + " ";
+    s += "oppPtT:" + oppPtT.debugDump(l, b) + " ";
+    s += "segCut:" + segCut.debugDump(l, b) + " ";
+    s += "oppCut:" + oppCut.debugDump(l, b) + " ";
     return s;
 }
 

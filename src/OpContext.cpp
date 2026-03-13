@@ -62,75 +62,6 @@ void OpContext::addUserData(PathOpsV0Lib::ContextUserData contextUserData) {
     userData.push_back(contextUserData);
 }
 
-#if 0
-// !!! incomplete
-// Need to record curve/curve or line/curve raw associations of interecting pts 
-// (before meet-in-the-middle). Intent is to find one point to reprsent all intersections
-// where three or more curves intersect or nearly intersect.
-void OpContext::aliasIntersections() {
-	for (OpContour* contour : contours) {
-		std::vector<OpIntersection*> sects;
-		OpPointBounds bounds;
-		// collect all intersections not on either end of segment
-		for (OpSegment& segment : contour->segments) {
-			for (OpIntersection* sect : segment.sects.i) {
-				if (0 == sect->ptT.t || 1 == sect->ptT.t)
-					continue;
-				sects.push_back(sect);
-				bounds.add(sect->ptT.pt);
-			}
-		}
-		if (!bounds.isFinite())
-			continue;
-		std::sort(sects.begin(), sects.end(), []
-				(const OpIntersection* s1, const OpIntersection* s2) {
-				return s1->ptT.pt.x < s2->ptT.pt.x || (s1->ptT.pt.x == s2->ptT.pt.x 
-				&& s1->ptT.pt.y < s2->ptT.pt.y); } ); 
-		// custom binary search range (can't see how to use standard library...)
-		auto checkSearch = [sects](int lo, OpPoint check) {
-			int hi = (int) sects.size() - 1;
-			do {
-				int mid = (lo + hi) / 2;
-				OP_ASSERT(0 <= mid && mid < (int) sects.size());
-				const OpPoint test = sects[mid]->ptT.pt;
-//				if (test == check)
-//					return mid;
-				if (test.x < check.x || (test.x == check.x && test.y < check.y))
-					lo = mid + 1;
-				else
-					hi = mid - 1;
-			} while (lo <= hi);			
-			return lo;
-		};
-		auto checkNear = [this, sects, checkSearch, bounds](OpPoint check) {
-			OpPointBounds checkRange { check - threshold, check + threshold };
-			if (!checkRange.intersects(bounds))
-				return;
-			int lo = checkSearch(0, { checkRange.left, checkRange.top } );
-			int hi = checkSearch(lo, { checkRange.right, checkRange.bottom } );
-			// lo is first larger than left/top; hi is first larger than right/bottom
-			for (int index = lo; index < hi; ++index) {
-				if (!checkRange.contains(sects[index]->ptT.pt))
-					continue;
-				if (check == sects[index]->ptT.pt)
-					continue;
-				OpNop();
-			}
-			// !!! incomplete, more code goes here
-		};
-		// iterate through all contours that intersect, looking for close points
-		for (OpContour* testContour : contour->members()) {
-			for (OpSegment& testSegment : testContour->segments) {
-				if (!testSegment.c.aliasBounds().intersects(bounds))
-					continue;
-				checkNear(testSegment.c.start);
-				checkNear(testSegment.c.end);
-			}
-		}
-	}
-}
-#endif
-
 uint8_t* OpContext::allocateCallerData(size_t size  OP_DEBUG_RASTER_PARAMS(bool raster)) {
 #if OP_TEST_RASTER
 	CallerDataStorage*& storage = raster ? rasterStorage : callerStorage;
@@ -488,7 +419,6 @@ WindingCondition OpContext::pathOps() {
 	    debugValidateIntersections();
 	    OpSegments sortedSegments(*this);
 	    sortedSegments.initInX();
-		OP_DEBUG_DUMP_CODE(dumpFile("sortedSegments"));
 	    debugValidateIntersections();
 	    if (checkEmpty())
 		    return 0;
@@ -498,13 +428,16 @@ WindingCondition OpContext::pathOps() {
 	    debugValidateIntersections();
 	    if (allowError(PathOpsV0Lib::ContextError::missing))
 		    addDisjointIntersections();
-//		aliasIntersections();  // merge all intersections that are close together
+	    sortIntersections();
+		mergeEndPoints();
+		mergeIntersections();  // merge intersections that are close together in each segment
+//		aliasIntersections();  // alias close by intersections so they share a common point
 	    sortIntersections();
 //		tripleSect(); // if three or more segments intersect, make the points the same 
 //	    disableSmallSegments();  // moved points may allow disabling some segments
 	    if (checkEmpty())
 		    return 0;  // no existing tests exercises
-	    sortIntersections();
+//	    sortIntersections();
 	    if (!fixCCSects())  // curve-curve intersections may have enough error to put sect list out of order
 		    OP_DEBUG_FAIL(*this, -1);
 	    sortIntersections();
@@ -723,11 +656,13 @@ void OpContext::sortIntersections() {
 			segment.sects.sort();
 		}
 	}
+#if 0
 	for (auto contour : contours) {
 		for (auto& segment : contour->segments) {
             if (segment.disabled)
                 continue;
-			segment.sects.mergeNear(contour->aliases);
+			OP_ASSERT(contour->overlapOwner);
+			segment.sects.mergeNear(contour->overlapOwner->aliases);
 		}
 	}
 	for (auto contour : contours) {
@@ -737,6 +672,7 @@ void OpContext::sortIntersections() {
 			segment.sects.sort();
 		}
 	}
+#endif
 }
 
 PathOpsV0Lib::ContextUserData OpContext::findUserData(PathOpsV0Lib::UserDataType type) {
@@ -782,7 +718,7 @@ void OpContext::debugValidateIntersections() {
 	for (auto contour : contours) {
 		for (auto& segment : contour->segments) {
 			if (!segment.disabled)
-				segment.sects.debugValidate();
+				segment.sects.debugValidate(threshold);
 		}
 	}
 }

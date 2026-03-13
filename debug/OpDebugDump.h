@@ -212,16 +212,6 @@ extern void dmpFull(const OpIntersection& );
 extern void dmpEnd(const OpIntersection& sect);
 extern void dmpStart(const OpIntersection& sect);
 
-#define DUMP_BY_DUMPID \
-OP_X(dmp, dump) \
-OP_X(dmpid, dump) \
-OP_X(dmpHex, dumpHex)
-
-#define OP_X(Global, Method) \
-	extern void Global(int id);
-DUMP_BY_DUMPID
-#undef OP_X
-
 #define DUMP_BY_ID \
 OP_X(Brief) \
 OP_X(Detailed) \
@@ -245,6 +235,7 @@ extern OpEdge* findEdge(int id);
 extern std::vector<const OpEdge*> findEdgeRayMatch(int id);
 extern const OpIntersection* findIntersection(int id);
 extern const OpLimb* findLimb(int id);
+extern std::vector<const OpIntersection*> findMerge(int id);
 extern std::vector<const OpIntersection*> findSectUnsectable(int id);
 extern const OpSegment* findSegment(int id);
 
@@ -269,13 +260,14 @@ extern void dmpCompare(OpPoint , OpPoint );  // show threshold difference betwee
 extern void dmpCompare(const OpPtT& , const OpPtT& );
 extern void dmpClosest(const OpCurveCurve& , const OpPoint& );
 extern void dmp(std::array<CoinEnd, 4>& );
+extern void dmp(int );
 extern std::string debugDumpColor(DebugLevel, uint32_t c);
 extern void dmpColor(uint32_t );
 extern void dmpColor(const OpEdge* );
 extern void dmpColor(const OpEdge& );
 extern void dmpFilters();  // returns current filter settings
-extern void dmpHex(float );
-extern void dmpHex(uint32_t );
+extern void dmpToHex(float );
+extern void dmpToHex(uint32_t );
 extern void dmpLevel(int level);  // set to brief, normal, detailed
 extern void dmpPlayback(FILE* );
 extern void dmpPts(int ID);

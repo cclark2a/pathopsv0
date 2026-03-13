@@ -213,6 +213,7 @@ OpEdge::OpEdge(OpIntersection* sectStart, OpIntersection* sectEnd  OP_LINE_FILE_
 	complete(sectStart->ptT, sectEnd->ptT);
 	curve.start = sectStart->ptT.pt;
 	curve.end = sectEnd->ptT.pt;
+#if 0  // !!! replaced by is small ?
 	auto altEnd = [this](OpPoint edgeEnd, OpPoint altEnd) {
 		if (edgeEnd == altEnd)
 			return false;
@@ -228,6 +229,7 @@ OpEdge::OpEdge(OpIntersection* sectStart, OpIntersection* sectEnd  OP_LINE_FILE_
 			|| altEnd(curve.lastPt(), curve.c.data->end);
 	if (alternateEnd)
 		setUnsortable(Unsortable::alternateEnd);
+#endif
 }
 
 // called when creating filler; edge that closes small gaps
@@ -420,12 +422,17 @@ void OpEdge::calcCenterT() {
 // other edges' rays that hit this should also be disabled and marked ray fail
 //		setDisabled(OP_LINE_FILE_NARGS());
 		OP_LINE_FILE_SET_IMMED(debugSetDisabled);
-		OP_DEBUG_CODE(center = { OpPoint(SetToNaN::dummy), OpNaN } );
 		centerless = true;
 		return;
 	}
 	if (startT >= t || t >= endT)
 		t = OpMath::Average(startT, endT);
+	if (startT >= t || t >= endT) {
+		OP_LINE_FILE_SET_IMMED(debugSetDisabled);
+		OP_DEBUG_CODE(center = { OpPoint(SetToNaN::dummy), OpNaN } );
+		centerless = true;
+		return;
+	}
 	center.t = t;
 	center.pt = segCurve.ptAtT(t);
 	center.pt.pin(r);  // required by pentrek6
@@ -801,16 +808,6 @@ void OpEdge::setNextEdge(OpEdge* edge) {
 		nextEdge->priorEdge = nullptr;
 	nextEdge = edge;
 }
-
-#if 0
-// !!! note that this computes the intersection bounds, not the curve bounds
-//     may need to add separate curve bounds if algorithm requires it
-void OpEdge::setPointBounds() {		// note: does not call curve's bounds function, if any
-	bounds.set(startPt(), endPt());
-    bounds.add(curve.c.data->start);
-    bounds.add(curve.c.data->end);
-}
-#endif
 
 void OpEdge::setPriorEdge(OpEdge* edge) {
 	if (priorEdge)

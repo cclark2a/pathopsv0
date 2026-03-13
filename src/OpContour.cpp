@@ -28,7 +28,7 @@ struct ExistingAlias {
 // if neither is alias, it's arbitrary, as long as future adds can see it
 OpPoint OpPtAliases::addPair(OpContour* contour, OpPoint one, OpPoint two, AliasType type) {
 	OP_ASSERT(AliasType::isSmall == type || AliasType::zeroSmall == type 
-			|| AliasType::endPoint == type);
+			|| AliasType::endPoint == type || AliasType::curveLine == type);
 	std::vector<ExistingAlias> existing;
 	auto addExisting = [&existing](OpPtAliases* test, OpPoint first, OpPoint second) {
 		if (test->maps.empty())
@@ -46,12 +46,10 @@ OpPoint OpPtAliases::addPair(OpContour* contour, OpPoint one, OpPoint two, Alias
 		if (!addExisting(this, two, one))
 			return one;
 	} else {
-		for (OpContour* test : contour->overlapOwner->overlaps) {
-			if (!addExisting(&test->aliases, one, two))
-				return two;
-			if (!addExisting(&test->aliases, two, one))
-				return one;
-		}
+		if (!addExisting(&contour->overlapOwner->aliases, one, two))
+			return two;
+		if (!addExisting(&contour->overlapOwner->aliases, two, one))
+			return one;
 	}
 	if (existing.empty())
 		return add(one, two, type);
@@ -103,89 +101,26 @@ AliasMatch OpPtAliases::alreadyContains(OpPoint original, OpPoint alias) const {
 }
 
 
-bool OpPtAliases::contains(OpPoint aliased) const {
+bool OpPtAliases::containsAlias(OpPoint aliased) const {
 	OP_ASSERT(aliased.isFinite());
-#if 0
-	for (OpPoint pt : aliases) {
-		if (pt == aliased)
-			return true;
-	}
-#else
 	for (const OpPtAlias& map : maps) {
 		if (aliased == map.alias)
 			return true;
 	}
-#endif
 	return false;
 }
 
 // !!! instead of brute force searching for match, sort and binary search aliases ?
 OpPoint OpPtAliases::existing(OpPoint match) const {
 	OP_ASSERT(match.isFinite());
+	if (!bounds.contains(match))
+		return match;
 	for (const OpPtAlias& test : maps) {
 		if (test.original == match)
 			return test.alias;
 	}
 	return match;
 }
-
-#if 0  // there can be more than one. don't know when this behavior is desired
-OpPoint OpPtAliases::find(OpPoint aliased) const {
-	OP_ASSERT(aliased.isFinite());
-	for (const OpPtAlias& test : maps) {
-		if (test.alias == aliased)
-			return test.original;
-	}
-	return OpPoint();
-}
-#endif
-
-#if 0
-bool OpPtAliases::isSmall(OpPoint pt1, OpPoint pt2, OpVector threshold) {
-	OP_ASSERT(pt1.isFinite());
-	OP_ASSERT(pt2.isFinite());
-	if (pt1.isNearly(pt2, threshold)) {
-        if (original(pt1) && original(pt2))
-            return true;
-		if (contains(pt1) || original(pt2))
-			add(pt2, pt1);
-		else if (contains(pt2) || original(pt1))
-			add(pt1, pt2);
-		return true;
-	}
-	auto match = [this, threshold](OpPoint pt) -> SegPt {
-		if (!maps.size())
-			return { pt, PtType::noMatch };
-		if (contains(pt))
-			return { pt, PtType::isAlias };
-		for (OpPtAlias& test : maps) {
-			if (test.original == pt)
-				return { test.alias, PtType::original };
-		}
-		for (OpPoint alias : aliases) {
-			if (pt.isNearly(alias, threshold)) {
-				add(pt, alias);
-				return { alias, PtType::original };
-			}
-		}
-#if 0
-		for (OpPtAlias& test : maps) {
-			if (pt.isNearly(test.original, threshold)) {
-				add(pt, test.alias);
-				return { test.alias, PtType::original };
-			}
-		}
-#endif
-		return { pt, PtType::noMatch };
-	};
-	SegPt match1 = match(pt1);
-	SegPt match2 = match(pt2);
-	OP_ASSERT(match1.pt != match2.pt 
-		|| ((PtType::noMatch == match1.ptType) == (PtType::noMatch == match2.ptType)));
-	return PtType::noMatch != match1.ptType && PtType::noMatch != match2.ptType 
-			&& match1.pt == match2.pt;
-}
-#endif
 
 bool OpPtAliases::original(OpPoint match) const {
 	OP_ASSERT(match.isFinite());
@@ -205,89 +140,13 @@ void OpPtAliases::remap(OpPoint oldAlias, OpPoint newAlias, AliasType type) {
 			test.alias = newAlias;
         }
 	}
-#if 0
-	for (size_t index = 0; index < aliases.size(); ++index) {
-		if (aliases[index] == oldAlias) {
-			aliases.erase(aliases.begin() + index);
-			break;
-		}
-	}
-#endif
 	add(oldAlias, newAlias, type);
 }
-
-#if 0
-SegPt OpPtAliases::addIfClose(OpPoint match, OpVector threshold) {
-	OP_ASSERT(match.isFinite());
-	for (OpPoint alias : aliases) {
-		if (match == alias)
-			return { alias, PtType::isAlias };
-		if (match.isNearly(alias, threshold)) {
-			add(match, alias);
-			return { alias, PtType::original };
-		}
-	}
-	for (const OpPtAlias& alias : maps) {
-		if (alias.original.isNearly(match, threshold)) {
-			add(match, alias.alias);
-			return { alias.alias, PtType::original };
-		}
-	}
-	return { match, PtType::noMatch };
-}
-#endif
 
 struct ContourAlias {
 	OpContour* contour;
 	OpPoint alias;
 };
-
-#if 0
-// if one is existing alias, add two -> one; if two is existing, add one -> two
-// if neither is alias, it's arbitrary, as long as future adds can see it
-OpPoint OpContour::addAlias(OpPoint one, OpPoint two) {
-	std::vector<ContourAlias> existing;
-	auto addExisting = [&existing](OpContour* test, OpPoint first, OpPoint second) {
-		if (test->aliases.maps.empty())
-			return true;
-		AliasMatch aliasMatch = test->aliases.alreadyContains(first, second);
-		if (AliasMatch::both == aliasMatch)
-			return false;
-		if (AliasMatch::alias == aliasMatch)
-			existing.push_back({test, second});
-		return true;
-	};
-	if (!overlapOwner) {
-		if (!addExisting(this, one, two))
-			return two;
-		if (!addExisting(this, two, one))
-			return one;
-	} else {
-		for (OpContour* test : overlapOwner->overlaps) {
-			if (!addExisting(test, one, two))
-				return two;
-			if (!addExisting(test, two, one))
-				return one;
-		}
-	}
-	if (existing.empty())
-		return aliases.add(one, two);
-	OpPoint masterAlias = existing[0].alias;
-	if (masterAlias == two)
-		aliases.add(one, two);
-	else {
-		OP_ASSERT(masterAlias == one);
-		aliases.add(two, one);
-	}
-	// if two or more maps were found and their aliases are different, they must be merged
-	// (when one contour overlaps two or more contours which do not overlap each other)
-	for (size_t index = 1; index < existing.size(); ++index) {
-		if (masterAlias != existing[index].alias)
-			existing[index].contour->aliases.remap(existing[index].alias, masterAlias);
-	}
-	return masterAlias;
-}
-#endif
 
 // opp and contour share at least one coincident segment or edge; makes opp member of contour set
 void OpContour::addMerge(OpContour* opp) {
@@ -361,6 +220,7 @@ void OpContour::addLast(OpEdge* edge) {
 		OP_ASSERT(test->lastEdge);
 	}
 #endif
+	OP_ASSERT(!endLinks.contains(edge));
 	endLinks.l.push_back(edge);
 }
 
@@ -413,6 +273,8 @@ void OpContour::addJoinEdge(OpJoiner* joiner, OpEdge* e) {
 void OpContour::addToLinkups(OpJoiner* joiner, OpEdge* e) {
 	OP_ASSERT(!e->debugIsLoop());
 	OpEdge* first = e->advanceToEnd(EdgeMatch::start);
+	if (first->segment->contour->linkups.contains(first))
+		return;
 	OpEdge* next = first;
 	OpEdge* last;
 	do {
@@ -434,8 +296,68 @@ void OpContour::addToLinkups(OpJoiner* joiner, OpEdge* e) {
 #endif
 	OP_ASSERT(!first->debugScheduledForErasure);
 #endif
-	first->segment->contour->linkups.l.push_back(first);	// !!! call pushlinkup?
+	OP_ASSERT(!first->segment->contour->linkups.contains(first));
+	first->segment->contour->linkups.l.push_back(first);
 	first->linkHead = true;
+}
+
+// !!! incomplete
+// Use t values found during curve/curve and line/curve associations to compute raw points. 
+// (before meet-in-the-middle). Intent is to find one point to reprsent all intersections
+// where three or more curves intersect or nearly intersect.
+void OpContour::aliasIntersections() {
+	std::vector<OpIntersection*> sects;
+	OpPointBounds bounds;
+	// collect all intersections not on either end of segment
+	for (OpSegment& segment : segments) {
+		for (OpIntersection* sect : segment.sects.i) {
+			if (0 == sect->ptT.t || 1 == sect->ptT.t)
+				continue;
+			sects.push_back(sect);
+			bounds.add(sect->ptT.pt);
+		}
+	}
+	if (!bounds.isFinite())
+		return;
+	std::sort(sects.begin(), sects.end(), [](const OpIntersection* s1, const OpIntersection* s2) {
+			return s1->ptT.pt.x < s2->ptT.pt.x || (s1->ptT.pt.x == s2->ptT.pt.x 
+			&& s1->ptT.pt.y < s2->ptT.pt.y); } ); 
+	auto checkSearch = [&sects](int lo, OpPoint check) {
+		OpIntersection checkSect;
+		checkSect.ptT.pt = check;
+		auto iter = std::lower_bound(sects.begin() + lo, sects.end(), &checkSect,
+				[](const OpIntersection* lhs, const OpIntersection* rhs) -> bool {
+			OpPoint leftPt = lhs->ptT.pt;
+			OpPoint rightPt = rhs->ptT.pt;
+			return leftPt.x < rightPt.x || (leftPt.x == rightPt.x && leftPt.y < rightPt.y); });
+		return iter - sects.begin();
+	};
+	OpVector threshold = context->threshold;
+	auto checkNear = [&sects, checkSearch, &bounds, threshold](OpPoint check) {
+		OpPointBounds checkRange { check - threshold, check + threshold };
+		if (!checkRange.intersects(bounds))
+			return;
+		int lo = checkSearch(0, { checkRange.left, checkRange.top } );
+		int hi = checkSearch(lo, { checkRange.right, checkRange.bottom } );
+		// lo is first larger than left/top; hi is first larger than right/bottom
+		for (int index = lo; index < hi; ++index) {
+			if (!checkRange.contains(sects[index]->ptT.pt))
+				continue;
+			if (check == sects[index]->ptT.pt)
+				continue;
+			OpNop();
+		}
+		// !!! incomplete, more code goes here
+	};
+	// iterate through all contours that intersect, looking for close points
+	for (OpContour* testContour : members()) {
+		for (OpSegment& testSegment : testContour->segments) {
+			if (!testSegment.c.aliasBounds().intersects(bounds))
+				continue;
+			checkNear(testSegment.c.start);
+			checkNear(testSegment.c.end);
+		}
+	}
 }
 
 void OpContour::buildBackwards() {
@@ -616,22 +538,7 @@ bool OpContour::disabledPal(OpPoint a, OpPoint b) const {
 
 OpPoint OpContour::existingAlias(OpPoint pt) const {
 	OP_ASSERT(overlapOwner);
-#if 0 && OP_DEBUG
-	// check that pt does not map to more than one alias
-	OpPoint debugAlias = pt;
- 	for (OpContour* member : overlapOwner->overlaps) {
-		OpPoint debugMatch = member->aliases.existing(pt);
-		OP_ASSERT(pt == debugMatch || pt == debugAlias);
-		if (debugMatch != pt)
-			debugAlias = debugMatch;
-	}
-#endif
- 	for (OpContour* member : overlapOwner->overlaps) {
-		OpPoint alias = member->aliases.existing(pt);
-		if (alias != pt)
-			return alias;
-	}
-	return pt;
+	return overlapOwner->aliases.existing(pt);
 }
 
 // !!! reverse return bool : now true if no edges to join (reverse caller also)
@@ -839,16 +746,6 @@ RelinkJoins OpContour::relinkUnambiguous(OpJoiner* joiner, size_t link) {
 	return RelinkJoins::again;
 }
 
-#if 0
-OpPoint OpContour::remapPts(OpPoint oldAlias, OpPoint newAlias) {
-	for (auto& segment : segments) {
-		segment.remap(oldAlias, newAlias);
-	}
-	aliases.remap(oldAlias, newAlias);
-	return newAlias;
-}
-#endif
-
 // !!! this had incomplete code that cared about 'InOutput' but didn't do anything with it
 //     removing that for now...
 void OpContour::removeLast(OpEdge* edge  /*, InOutput inOut */) {
@@ -879,29 +776,13 @@ void OpContour::removeLink(OpEdge* edge) {
 	OP_ASSERT(0);
 }
 
-void OpContour::pushLinkup(OpEdge* edge) {
-	OP_ASSERT(edge->segment->contour == this);
-	OP_ASSERT(!edge->priorEdge);
-#if OP_DEBUG
-	for (OpEdge* test : linkups.l) {
-		OP_ASSERT(test->segment->contour == this);
-		OP_ASSERT(test != edge);
-		OP_ASSERT(!test->priorEdge);
-		OP_ASSERT(test->lastEdge);
-	}
-#endif
-	OP_ASSERT(!edge->debugScheduledForErasure); 
-	linkups.l.push_back(edge);
-	edge->inLinkups = true;
-	edge->linkHead = true;
-}
-
 void OpContour::setLinkEdge(OpEdge* link, size_t index) {
 	OpContour* newContour = link->segment->contour;
 	OP_ASSERT(!link->debugScheduledForErasure); 
-	if (this != newContour)
-		newContour->linkups.l.push_back(link);	//!!! call pushLinkup instead?
-	else {
+	if (this != newContour) {
+		OP_ASSERT(!newContour->linkups.contains(link));
+		newContour->linkups.l.push_back(link);
+	} else {
 		linkups.l[index]->linkHead = false;
 		linkups.l[index] = link;
 	}

@@ -291,6 +291,10 @@ PathOpsV0Lib::CurveType OpCurve::lineType() const {
 float OpCurve::match(float start, float end, OpPoint pt) const {
 	if (!nearBounds(pt))
 		return OpNaN;
+	if (pt == c.data->start && 0 == start)
+		return 0;
+	if (pt == c.data->end && 1 == end)
+		return 1;
 	float xRoot = tAtXY(start, end, XyChoice::inX, pt.x);
 	float yRoot = tAtXY(start, end, XyChoice::inY, pt.y);
 	if (OpMath::EqualT(xRoot, yRoot))
@@ -347,36 +351,6 @@ float OpCurve::normalLimit() const {
 		return 0.008f; // 0.004  fails on testQuads19022897 edge 151 NxR:-0.00746
 	return (*limFuncPtr)(c);
 }
-
-#if 0
-bool OpCurve::normalize() {
-	bool recomputeBounds = false;
-	OpPtAliases& aliases = context().aliases;
-	OpVector threshold = context().threshold;
-	OpPoint oldStart = firstPt();
-	OpPoint oldEnd = lastPt();
-	OpPoint smaller = aliases.existing(firstPt());
-	recomputeBounds |= smaller != firstPt();
-	OpPoint larger = aliases.existing(lastPt());
-	recomputeBounds |= larger != lastPt();
-	if (smaller != larger && smaller.isNearly(larger, threshold)) {
-		float smallerLen = OpVector(smaller.x, smaller.y).lengthSquared();
-		float largerLen = OpVector(larger.x, larger.y).lengthSquared();
-		bool swap = (smallerLen > largerLen && !aliases.contains(larger)) 
-				|| aliases.contains(smaller);
-		if (swap)
-			std::swap(larger, smaller);
-		if (context().addAlias(larger, smaller)) {
-			(swap ? lastPt() : firstPt()) = smaller;  // !!! this does nothing?
-			context().remapPts(larger, smaller);
-		}
-		recomputeBounds = true;
-	}
-	if (recomputeBounds)
-		pinCtrl(oldStart, oldEnd);
-	return recomputeBounds;
-}
-#endif
 
 // all raw intersects are basically the same
 // put any specialization (related to debugging?) in some type specific callout ?

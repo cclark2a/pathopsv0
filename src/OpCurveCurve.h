@@ -110,6 +110,13 @@ struct LoHi {
 	DiffIntersect diffSect;
 };
 
+struct CutRangeT {
+	DUMP_DECLARATIONS
+
+	OpPtT lo;
+	OpPtT hi;
+};
+
 struct CcCurves {
 	EdgeRun* addEdgeRun(OpEdge* edge, EdgeMatch , ClampDist  OP_LINE_FILE_ARGS());
 	EdgeRun* addEdgeRun(EdgeRun& , EdgeMatch , ClampDist);
@@ -214,21 +221,23 @@ struct FoundLimit {
 struct SnipPtTs {
 	DUMP_DECLARATIONS
 
-    OpPtT seg;
-    OpPtT opp;
+    OpPtT segPtT;
+    OpPtT oppPtT;
 	CutRangeT segCut;
 	CutRangeT oppCut;
 };
 
 struct FoundLimits {
-	FoundLimits(OpSegment* s, OpSegment* o) {
-		seg = s; opp = o; }
-	void addSnip(SnipPtTs , const OpCurveCurve* );
+	FoundLimits(OpCurveCurve* c_c) {
+		cc = c_c; }
+	void addSnip(const OpPtT& s, const OpPtT& o);
+	void addSnipCommon(SnipPtTs& snipLo, SnipPtTs& snipHi);
+	bool addSnipRange(size_t oldCount);
 	bool alreadyIn(const OpPtT& edgePtT, const OpPtT& oppPtT) const;
-	void cutPair(SnipPtTs& ) const;
+	void cutPair(SnipPtTs& lo, SnipPtTs& hi) const;
 	bool empty() const { return i.empty(); }
 	void markOutOfOrder();
-	void setEnds(std::vector<OpIntersection*>& matchingSects, bool& reversed, bool& splitMid);
+	void setEnds(std::vector<OpIntersection*>& matchingSects);
 	void setEdge(const OpEdge* );
 	void setOpp(const OpEdge* );
 	void setUnique();
@@ -240,8 +249,7 @@ struct FoundLimits {
 
 	std::vector<FoundLimit> i;
 	std::vector<SnipPtTs> snips;
-	OpSegment* seg  OP_DEBUG_INIT_PTR(OpSegment);
-	OpSegment* opp  OP_DEBUG_INIT_PTR(OpSegment);
+	OpCurveCurve* cc;
 	int unique = -1;  // cached count; set negative if invalid
 	bool smSegT = false;
     bool lgSegT = false;
@@ -272,11 +280,17 @@ enum class CcBreak {
 };
 #endif
 
+enum class ForCurveLineSect {
+	dummy
+};
+
 struct OpCurveCurve {
 #if OP_DEBUG_DUMP
 	OpCurveCurve() 
-		: limits(nullptr, nullptr) {}
+		: limits(this) {}
 #endif
+	OpCurveCurve(OpSegment* seg, OpSegment* opp, std::vector<OpIntersection*>& matchingSects, 
+			ForCurveLineSect );
 	OpCurveCurve(OpSegment* seg, OpSegment* opp, std::vector<OpIntersection*>& matchingSects);
 	void addIntersection(OpEdge* edge, OpEdge* opp);
     bool addLineCurveIntersection(OpEdge& edge, OpEdge& opp, CurveRef );
@@ -306,7 +320,7 @@ struct OpCurveCurve {
 	bool setHullSects(OpEdge& edge, OpEdge& opp, CurveRef );
 	bool setHulls(CurveRef curveRef);
 	bool setOverlaps();
-	bool setSnipFromLimits(size_t oldCount);
+//	bool setSnipFromLimits(size_t oldCount);
     bool smallTFound(CurveRef );
 	bool splitDownTheMiddle(const OpEdge& edge, CurveRef , CcCurves& splits);
 	bool splitHulls(CurveRef , CcCurves& splits);  // hull finds split point
@@ -316,7 +330,7 @@ struct OpCurveCurve {
 #endif
 #if OP_DEBUG_DUMP
 	OpCurveCurve(OpContext* c) 
-		: limits(nullptr, nullptr) { 
+		: limits(this) { 
 		context = c; }
 	void drawClosest(const OpPoint& originalPt) const;
 	void dumpClosest(const OpPoint& pt) const;

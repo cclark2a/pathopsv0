@@ -26,13 +26,6 @@ inline NormalDirection operator!(NormalDirection a) {
 	return (int) a & 1 ? (NormalDirection) - (int) a : a;
 }
 
-struct CutRangeT {
-	DUMP_DECLARATIONS
-
-	OpPtT lo;
-	OpPtT hi;
-};
-
 // init; during initialization, threshold is not yet set (so degenerate lines cannot be found)
 #define Rotated_Enums \
 	OP_ENUM_MEMBER(no), \

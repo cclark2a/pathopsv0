@@ -127,8 +127,8 @@ void OpLimb::addEach(OpContour& contour, OpTree& tree) {
 	}
 	if (LimbPass::small == pass)
 		return;
-	if (LimbPass::alternateEnd == pass)
-		return;
+//	if (LimbPass::alternateEnd == pass)
+//		return;
 	if (contour.context->allowError(PathOpsV0Lib::ContextError::missing, &edge->curve.c))
 		return;
 	OP_ASSERT(LimbPass::disabledBackwards == pass);
@@ -460,9 +460,9 @@ OpTree::OpTree(OpJoiner& join)
 		for (OpContour* member : edgeContour->members()) {
 			initialize(*member);
 		}
-		if (LimbPass::alternateEnd == limbPass)
-			addAlternateEnd();
-		else
+//		if (LimbPass::alternateEnd == limbPass)
+//			addAlternateEnd();
+//		else
 	#if 0 // !!! experiment: try adding disabled pals as regular entries in tree
 		if (LimbPass::disabledPals == limbPass) {
 			OpLimb* unsectEnd = unsectableLoop();
@@ -506,6 +506,7 @@ OpTree::OpTree(OpJoiner& join)
 	} while (!bestLimb);
 }
 
+#if 0
 	/* 
 		before allowing backwards, look to see if a connecting edge:
 		- is not available (not in linked list)
@@ -582,6 +583,7 @@ void OpTree::addAlternateEnd() {
 		}
 	}
 }
+#endif
 
 // walk the disabled pals from smallest to largest instead of the limbs
 // add the least disturbing disabled pal to any limb that matches (that also disturbs least)
@@ -750,8 +752,8 @@ void OpTree::initialize(OpContour& contour) {
 			break;
 		case LimbPass::small:
 			break;
-		case LimbPass::alternateEnd:
-			break;
+//		case LimbPass::alternateEnd:
+//			break;
 		case LimbPass::disabledBackwards:
 			if (contour.backwardsBuilt)
 				for (OpEdge* test : contour.disabledBackwards)
@@ -1123,17 +1125,6 @@ bool OpJoiner::LinkEnd(OpEdge* first) {
 	return true;
 }
 
-#if 0
-bool OpJoiner::linkSimple(OpEdge* first) {
-	if (first->priorEdge || first->nextEdge) {
-		OP_ASSERT(EdgeMatch::start == first->which());
-		addToLinkups(first);
-		return true;
-	}
-	return false;
-}
-#endif
-
 void OpJoiner::linkUnambiguous(OpContour* contour, LinkPass lp) {
     OP_DEBUG_DUMP_CODE(context->dumpFile("linkUnambiguous"));
 	OP_DEBUG_VALIDATE_CODE(debugValidate());
@@ -1144,6 +1135,8 @@ void OpJoiner::linkUnambiguous(OpContour* contour, LinkPass lp) {
 		if (e->disabled)
 			continue;   // likely marked as part of a loop below
 		if (!e->isActive())  // check if already saved in linkups
+			continue;
+		if (e->inOutput)  // !!! added for testQuads3130081 ; unsure why it wasn't a condition all along
 			continue;
 		if (!e->priorEdge) {
 			if (LinkPass::unsectable == lp)

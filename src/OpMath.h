@@ -301,7 +301,7 @@ struct OpVector {
 		return result;
 	}
 
-	OpVector operator*(float s) {
+	OpVector operator*(float s) const {
 		OpVector result = *this;
 		result *= s;
 		return result;

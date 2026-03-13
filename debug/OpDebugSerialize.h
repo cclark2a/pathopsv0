@@ -22,6 +22,11 @@ inline const std::string DumpFile = "Dump";  // filenames are "Dump#.txt" where 
 inline const std::string TestInFile = "TestIn.txt";
 
 typedef void (*DebugFunction)();
+
+#if OP_DEBUG_GLOBALS
+extern std::string DebugDump(int id, DebugLevel l, DebugBase b);
+#endif
+
 extern std::string debugFindTag(DebugFunction );
 extern std::string dmpFileToPath(std::string filename);
 extern std::string dmpFileToStr(std::string filename);

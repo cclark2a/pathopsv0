@@ -56,10 +56,12 @@ bool OpSegment::activeAtT(OpEdge* edge, EdgeMatch match, MatchZero matchZero,
 	OpPtT ptT = edge->whichSect(match);
 	for (auto sectPtr : sects.i) {
 		OpIntersection& sect = *sectPtr;
-		if (sect.ptT.t < ptT.t)
-			continue;  // !!! could binary search for 1st if intersection list is extremely long
-		if (sect.ptT.t > ptT.t)
-			break;
+		if (sect.ptT.pt != ptT.pt) {
+			if (sect.ptT.t < ptT.t)
+				continue;  // !!! could binary search for 1st if intersection list is extremely long
+			if (sect.ptT.t > ptT.t)
+				break;
+		}
 		OpIntersection* oSect = sect.opp;
 //		if (ptT.pt != oSect->ptT.pt)
 //			continue;
@@ -159,10 +161,16 @@ OpIntersection* OpSegment::addEdgeSect(const OpPtT& ptT
 }
 #endif
 
-OpIntersection* OpSegment::addSegBase(const OpPtT& ptT  
-		OP_LINE_FILE_DEF(const OpSegment* oSeg)) {
+OpIntersection* OpSegment::addSegBase(const OpPtT& ptT  OP_LINE_FILE_DEF(const OpSegment* oSeg)) {
 	OP_ASSERT(!sects.debugContains(ptT, oSeg));
 	return sects.add(contour->addSegSect(ptT, this  OP_LINE_FILE_CALLER(oSeg)));
+}
+
+OpIntersection* OpSegment::addSegEnd(const OpPtT& ptT, const OpSegment* oSeg    
+		OP_LINE_FILE_ARGS()) {
+	OpIntersection* result = addSegSect(ptT, oSeg  OP_LINE_FILE_CARGS());
+	result->callerPt = c.ptAtT(ptT.t);
+	return result;
 }
 
 OpIntersection* OpSegment::addSegSect(const OpPtT& ptT, const OpSegment* oSeg    
@@ -196,20 +204,6 @@ OpIntersection* OpSegment::addUnsectable(const OpPtT& ptT, int usectID, MatchEnd
 	}
 	return sects.add(contour->addUnsect(ptT, this, usectID, end  OP_LINE_FILE_CALLER(oSeg)));
 }
-
-#if 0
-OpPtT OpSegment::alignToEnd(OpPoint oppPt) const {
-	OpPtT segPtT(SetToNaN::dummy);
-	OpPtAliases& aliases = contour->aliases;
-	if (c.firstPt().isNearly(oppPt, threshold()) 
-			|| (startMoved && aliases.isSmall(c.firstPt(), oppPt, threshold())))
-		segPtT = { c.firstPt(), 0 };
-	else if (c.lastPt().isNearly(oppPt, threshold()) 
-			|| (endMoved  && aliases.isSmall(c.lastPt(), oppPt, threshold())))
-		segPtT = { c.lastPt(), 1 };
-	return segPtT;
-}
-#endif
 
 WindingCondition OpSegment::apply() {
 	for (auto& edge : edges) {
@@ -443,44 +437,15 @@ void OpSegment::betweenCoincidence() {
     }
 }
 
-#if 0
-// returns point that matches input; returned point may be nearby; may already be aliased
-// segment is unchanged, but equal and nearby point are added to aliases
-SegPt OpSegment::checkAliases(OpPtT match) {
-	OP_ASSERT(0 == match.t || 1 == match.t);
-	OpPoint endPt = 0 == match.t ? c.firstPt() : c.lastPt();
-	SegPt result;
-	if (0 == match.t ? startMoved : endMoved) {
-		if (match.pt == endPt)
-			result = { contour->aliases.existing(endPt), PtType::isAlias };
-		else {
-			addAlias(match.pt, endPt);
-			result = { endPt, PtType::original };
-		}
-	} else {
-		result = contour->aliases.addIfClose(match.pt, threshold());
-		if (endPt != result.pt) {
-			addAlias(endPt, result.pt);
-			result.ptType = PtType::mapSegment;
-		}
-	}
-	// collect all intersections that match; add all matches to aliases
-	for (OpIntersection* sect : sects.i) {
-		if (sect->ptT.t != match.t)
-			continue;
-		if (sect->ptT.pt != result.pt) {
-			addAlias(sect->ptT.pt, result.pt);
-			result.ptType = PtType::mapSegment;
-		}
-	}
-	return result;
-}
-#endif
-
 int OpSegment::coinID(bool flipped) {
 	int coinID = nextID();
 	hasCoin = true;
 	return flipped ? -coinID : coinID;
+}
+
+bool OpSegment::containsAlias(OpPoint pt) {
+	OP_ASSERT(contour->overlapOwner);
+	return contour->overlapOwner->aliases.containsAlias(pt);
 }
 
 #if 0
@@ -540,8 +505,12 @@ OpPtT OpSegment::distance(const OpPtT& segPtT, OpSegment* opp) {
 // !!! would it be any better (faster) to split this into findStart / findEnd instead?
 OpEdge* OpSegment::findEnabled(const OpPtT& ptT, EdgeMatch match) const {
 	for (auto& edge : edges) {
-		if (ptT == edge.ptT(match))
+		// !!! this required both pt and t to match; try matching only point
+		if (ptT.pt == edge.ptT(match).pt) {
+			if (edge.isSmall)
+				continue;
 			return edge.disabled ? nullptr : const_cast<OpEdge*>(&edge);
+		}
 	}
 	return nullptr;
 }
@@ -651,8 +620,8 @@ bool OpSegment::fixCCSects() {
 			midIsCcSect |= next->ccSect;
 			continue;
 		}
-		OP_ASSERT(prior->ptT.t < mid->ptT.t && prior->ptT.pt != mid->ptT.pt);
-		OP_ASSERT(mid->ptT.t < next->ptT.t && mid->ptT.pt != next->ptT.pt);
+		OP_ASSERT(prior->ptT.t < mid->ptT.t /* && prior->ptT.pt != mid->ptT.pt */);
+		OP_ASSERT(mid->ptT.t < next->ptT.t /* && mid->ptT.pt != next->ptT.pt */);
 		if (midIsCcSect) {
 			OpVector priorV = mid->ptT.pt - prior->ptT.pt;
 			bool priorOK = segTan.dx * priorV.dx >= 0 && segTan.dy * priorV.dy >= 0;
@@ -684,12 +653,6 @@ void OpSegment::init() {
 	} else
 		context->maxBounds.add(c.callerBounds());  // for threshold
 }
-
-#if 0
-bool OpSegment::isSmall() {
-	return contour->aliases.isSmall(c.firstPt(), c.lastPt(), threshold());
-}
-#endif
 
 void OpSegment::makeCoins() {
 	if (disabled)
@@ -854,80 +817,107 @@ MatchReverse OpSegment::matchEnds(const OpSegment* opp) const {
 	return matchEnds(oppLine);
 }
 
-/* Since all segments have to be checked against all other segments, it adds complexity
-   to special case consecutive segments (or start/end of contour segments) that share
-   a point. Instead, pick up common end point when the consecutive segments are compared.
-MatchEnds OpSegment::matchExisting(const OpSegment* opp) const {
-	MatchEnds result = MatchEnds::none;
-	if (contour != opp->contour)  //  || 2 == contour->segments.size() : curve/line e.g. cubicOp97x
-		return result;
-	if (this - 1 == opp || (&contour->segments.front() == this && &contour->segments.back() == opp))
-		result = MatchEnds::start;
-	if (this + 1 == opp || (&contour->segments.front() == opp && &contour->segments.back() == this))
-		result |= MatchEnds::end;
-	return result;
+bool OpSegment::mergeEndPoints() {
+	if (disabled)
+		return false;
+	OP_ASSERT(!sects.i.empty());
+	OP_ASSERT(sects.i.front()->ptT.t == 0);
+	OP_ASSERT(sects.i.back()->ptT.t == 1);
+	auto merge = [this](float endT, int initial, int delta) {
+		bool rerun = false;
+		int mergeID = 0;
+		OpPoint endPt = endT ? c.c.data->end : c.c.data->start;
+		// scan to see if merge is required
+		for (int index = initial; ; index += delta) {
+			OP_ASSERT(index < sects.i.size());
+			OpIntersection* sect = sects.i[index];
+			if (endT != sect->ptT.t)
+				break;
+			if (endPt == sect->opp->ptT.pt && endPt == sect->opp->callerPt)
+				continue;
+			goto needsMerge;
+		}
+		return false;
+needsMerge:
+		for (int index = initial; ; index += delta) {
+			OP_ASSERT(index < sects.i.size());
+			OpIntersection* sect = sects.i[index];
+			if (endT != sect->ptT.t)
+				break;
+			OP_ASSERT(!sect->mergeID || !mergeID || sect->mergeID == mergeID);
+			if (sect->mergeID)
+				mergeID = sect->mergeID;
+		}
+		if (!mergeID)
+			mergeID = contour->nextID();
+		// mark all matching t with merge id
+		for (int index = initial; ; index += delta) {
+			OP_ASSERT(index < sects.i.size());
+			OpIntersection* sect = sects.i[index];
+			if (endT != sect->ptT.t)
+				break;
+			if (mergeID != sect->mergeID)
+				rerun |= sect->merge(mergeID);
+		}
+		return rerun;
+	};
+	bool runAgain = merge(0.f, 0, 1);
+	runAgain |= merge(1.f, (int) sects.i.size() - 1, -1);
+	return runAgain;
 }
-*/
 
-#if 0
-OpPoint OpSegment::mergePoints(OpPtT segPtT, OpSegment* opp, OpPtT oppPtT) {
-	SegPt segPt = checkAliases(segPtT);
-	SegPt oppPt = opp->checkAliases(oppPtT);
-#if 0
-	if (segPt.pt != oppPt.pt && PtType::noMatch != segPt.ptType && PtType::noMatch != oppPt.ptType)
-		return remapPts(oppPt.pt, segPt.pt);
-#endif
-	if (PtType::noMatch == segPt.ptType && PtType::noMatch == oppPt.ptType) {
-		if (oppPt.pt == segPt.pt)
-			return segPt.pt;
-		addAlias(oppPt.pt, segPt.pt);
-		segPt.ptType = PtType::isAlias;
-		oppPt.ptType = PtType::original;
-	}
-	OpPoint destPt = PtType::noMatch == segPt.ptType ? oppPt.pt : segPt.pt;
-	if (segPtT.pt != segPt.pt || PtType::mapSegment == segPt.ptType)
-		movePt(segPtT, destPt);
-	if (oppPtT.pt != segPt.pt || PtType::mapSegment == oppPt.ptType)
-		opp->movePt(oppPtT, destPt);
-	return segPt.pt;
+// after all intersections are found, scan list for close by results
+// the threshold is the union of the context threshold and the distance from seg to opp
+// if a pair of sects are within the threshold, they share a point, so give them matching merge ids
+// It may be possible for a run of nearly identical points to have multiple merge ids. However, wait
+// for a test case before coding for this.
+void OpSegment::mergeIntersections() {
+	if (disabled)
+		return;
+	// !!! maybe (like cc) this should also use gap dist between seg and opp as threshold vals
+	OpVector halfThreshold = threshold() * 0.5f;
+	OpPoint mergePt;
+	size_t index = 0;
+	do {
+		// find range of nearly identical points
+		OpIntersection* first = sects.i[index];
+		OpRect mergeBounds = first->setMergeBounds(halfThreshold);
+		OpPoint mergePt = first->ptT.pt;
+		int mergeID = first->mergeID;
+		size_t endIndex = index;
+		bool needsMerging = false;
+		while (++endIndex < sects.i.size()) {
+			OpIntersection* test = sects.i[endIndex];
+			if (mergePt == test->ptT.pt && !test->mergeID)
+				continue;
+			OpRect testBounds = test->setMergeBounds(halfThreshold);
+			if (!mergeBounds.intersects(testBounds))
+				break;
+			needsMerging |= mergePt != test->ptT.pt;
+			if (test->mergeID) {
+//				OP_ASSERT(!mergeID || mergeID == test->mergeID);  // !!! coins may have diff IDs
+				mergePt = test->ptT.pt;
+				mergeID = test->mergeID;
+			}
+			mergeBounds = testBounds;
+		}
+		if (needsMerging && index + 1 < endIndex) {
+			if (!mergeID)
+				mergeID = contour->nextID();
+			// if any in range are already merged, use that for all points
+			for (; index < endIndex; ++index) {
+				OpIntersection* sect = sects.i[index];
+				sect->mergeID = mergeID;
+				sect->ptT.pt = mergePt;
+				if (!sect->opp->unsectID) {
+					sect->opp->mergeID = mergeID;
+					sect->opp->ptT.pt = mergePt;
+				}
+			}
+		}
+		index = endIndex;
+	} while (index + 1 < sects.i.size());
 }
-#endif
-
-// keep control point inside curve bounds
-// further, if old control point is axis aligned with end point, keep relationship after moving
-// detect if segment collapses to point?
-// !!! don't move the segment's points; just mark the segment as disabled if appropriate
-#if 0
-OpPoint OpSegment::movePt(OpPtT match, OpPoint destination) {
-	OP_ASSERT(0 == match.t || 1 == match.t);
-	// if end point and equal point are both aliases (rare), do a global remap of all points so 
-	// that the two are combined into a single alias
-//	OpPoint oldStart = c.firstPt();
-//	OpPoint oldEnd = c.lastPt();
-	if (0 == match.t) {
-	//	 c.setFirstPt(destination);
-        if (c.lastPt() == destination)
-            willDisable = true;
-		startMoved = true;
-	} else {
-	//	 c.setLastPt(destination);
-        if (c.firstPt() == destination)
-            willDisable = true;
-		endMoved = true;
-	}
-//	c.pinCtrl(oldStart, oldEnd);
-// defer disabling until all moves are complete; disable small segments will clean up
-//   if (c.firstPt() == c.lastPt())
-//		willDisable = true;
-//    setBounds();  // defer fixing in middle of finding intersections, which uses sorted bounds
-	if (match.pt != destination)
-		moveSects(match, destination);
-	OP_ASSERT(!contour->context->debugJoiner);
-	edges.clear();
-	resetBounds();
-	return destination;
-}
-#endif
 
 PrefFound OpSegment::moveSects(OpPtT match, OpPoint destination) {
 	SectCleanup cleanup = sects.moveSects(match, destination,

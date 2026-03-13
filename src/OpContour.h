@@ -41,7 +41,7 @@ struct OpPtAliases {
 	OpPoint addPair(OpContour* , OpPoint one, OpPoint two, AliasType );  // adds if necessary
 	OpPoint addTriple(OpContour* , OpPoint seg, OpPoint opp, OpPoint alias, AliasType );  // adds always
 	AliasMatch alreadyContains(OpPoint original, OpPoint alias) const;
-	bool contains(OpPoint ) const;
+	bool containsAlias(OpPoint ) const;
 	OpPoint existing(OpPoint ) const;
 //	OpPoint find(OpPoint ) const;
 	bool isSmall(OpPoint pt1, OpPoint pt2, OpVector threshold);
@@ -50,7 +50,6 @@ struct OpPtAliases {
 
 	DUMP_DECLARATIONS
 
-//	std::vector<OpPoint> aliases;  // !!! not sure of the purpose of this, instead of searching maps
 	std::vector<OpPtAlias> maps;
 	OpPointBounds bounds;  // rather than sorted maps, use bounds of map aliases for quick reject
 };
@@ -78,9 +77,11 @@ struct OpContour {
 	}
 
 	OpPoint addAlias(OpPoint pt, OpPoint alias, AliasType type) {
-		return aliases.addPair(this, pt, alias, type); }
+		OP_ASSERT(overlapOwner);
+		return overlapOwner->aliases.addPair(this, pt, alias, type); }
 	OpPoint addAlias(OpPoint pt, OpPoint opp, OpPoint alias, AliasType type) {
-		return aliases.addTriple(this, pt, opp, alias, type); }
+		OP_ASSERT(overlapOwner);
+		return overlapOwner->aliases.addTriple(this, pt, opp, alias, type); }
 	void addEdges();
 	OpIntersection* addEdgeSect(const OpPtT& , OpSegment* seg
 		   OP_LINE_FILE_DEF(const OpEdge* edge, const OpEdge* oEdge));
@@ -95,6 +96,7 @@ struct OpContour {
 	void addToLinkups(OpJoiner* , OpEdge* );
 	OpIntersection* addUnsect(const OpPtT& , OpSegment* seg, int uID, MatchEnds 
 			OP_LINE_FILE_DEF(const OpSegment* oSeg));
+	void aliasIntersections();
 
 	WindingCondition apply() {
 		for (auto& segment : segments) {
@@ -103,12 +105,6 @@ struct OpContour {
 		}
 	    return 0;
 	}
-
-	void manyCoincidences() {
-		for (auto& segment : segments) {
-            segment.manyCoincidences();
-        }
-    }
 
     void betweenCoincidence() {
         for (auto& segment : segments) {
@@ -125,21 +121,6 @@ struct OpContour {
 	bool detachIfLoop(OpJoiner* , OpEdge* , EdgeMatch loopEnd);
 	bool disabledPal(OpPoint, OpPoint) const;  // !!! bare minimum to fix cubic129075 (experiment)
 	OpPoint existingAlias(OpPoint pt) const;
-
-#if 0
-
-	OpPoint findAlias(OpPoint pt) const {
-		return aliases.find(pt);
-	}
-#endif
-
-#if 0
-	void findMissingEnds() {
-		for (auto& segment : segments) {
-			segment.findMissingEnds();
-		}
-	}
-#endif
 
 	bool fixCCSects();
     void init(OpContext* , PathOpsV0Lib::WindingData winding, size_t size);
@@ -169,7 +150,34 @@ struct OpContour {
 		}
 	}
 
+	void manyCoincidences() {
+		for (auto& segment : segments) {
+            segment.manyCoincidences();
+        }
+    }
+
 	const std::vector<OpContour*>& members() const { return overlapOwner->overlaps; }
+
+	// !!! maybe safetyCount should only be enforced when running skia tests with known count max
+	//     could set caller value default to zero (never asserts) and skia tests set value to 10...
+	void mergeEndPoints() {
+		OP_DEBUG_CODE(int safetyCounter = 10);  // !!! no idea what this should be
+		bool runAgain;
+		do {
+			runAgain = false;
+			for (auto& segment : segments) {
+				runAgain |= segment.mergeEndPoints();
+			}
+			OP_ASSERT(--safetyCounter);
+		} while (runAgain);
+	}
+
+	void mergeIntersections() {
+		for (auto& segment : segments) {
+			segment.mergeIntersections();
+		}
+	}
+
 	int nextID() const;
 
 	void normalize() {
@@ -178,7 +186,6 @@ struct OpContour {
 		}
 	}
 
-	void pushLinkup(OpEdge* );
 	RelinkJoins relinkUnambiguous(OpJoiner* , size_t checked);
 //	OpPoint remapPts(OpPoint oldAlias, OpPoint newAlias);
 	void removeLast(OpEdge* /*, InOutput */);

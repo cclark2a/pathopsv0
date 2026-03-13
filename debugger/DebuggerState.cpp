@@ -328,7 +328,7 @@ void DebuggerState::validate() {
     for (OpType& id : ids) {
         id.validate();
     }
-    context->debugValidate();
+//    context->debugValidate();  // !!! don't want to assert while debugging bad context
     pictureWindow.validate();
     textWindow.validate();
     helpWindow.validate();

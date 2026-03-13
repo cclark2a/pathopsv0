@@ -95,39 +95,27 @@ struct OpSegment {
 	OpIntersection* addCoin(const OpPtT& , int coinID, MatchEnds , CoinOpp , const OpSegment* o  
 			OP_LINE_FILE_ARGS());
 	void addDisjointIntersections();
-//	OpIntersection* addEdgeSect(const OpPtT&    
-//			OP_LINE_FILE_DEF(const OpEdge* e, const OpEdge* o));
-	OpIntersection* addSegBase(const OpPtT&  
-			OP_LINE_FILE_DEF(const OpSegment* o));
-	OpIntersection* addSegSect(const OpPtT& , const OpSegment* o  
-			OP_LINE_FILE_ARGS());
+	OpIntersection* addSegBase(const OpPtT&  OP_LINE_FILE_DEF(const OpSegment* o));
+	OpIntersection* addSegEnd(const OpPtT& , const OpSegment* o  OP_LINE_FILE_ARGS());
+	OpIntersection* addSegSect(const OpPtT& , const OpSegment* o  OP_LINE_FILE_ARGS());
 	OpIntersection* addUnsectable(const OpPtT& , int usectID, MatchEnds , const OpSegment* o 
 			OP_LINE_FILE_ARGS());
-//    OpPoint aliasOriginal(MatchEnds ) const;
 	OpPtT alignToEnd(OpPoint oppPt) const;
 	WindingCondition apply();
 	void betweenCoincidence();
 	SegPt checkAliases(OpPtT );
 	int coinID(bool flipped);
-//    void complete();
-//    void demotePalLinks();
+	bool containsAlias(OpPoint );  // true if point is alias in owning contour
 	void disableSmall();
 	OpPtT distance(const OpPtT& segPtT, OpSegment* opp);
 	bool endMoved() const { 
 		return c.end != c.c.data->end; }
 	OpEdge* findEnabled(const OpPtT& , EdgeMatch ) const;
 	float findLineT(OpPoint opp);
-//	void findMissingEnds();
-//    float findNearbyT(const OpPtT& start, const OpPtT& end, OpPoint opp) const;
-//	float findValidT(float start, float end, OpPoint opp);
 	bool fixCCSects();
     void init();
-	// count and sort extrema; create an edge for each extrema + 1
 	bool isFinite() const {
 		return c.start.isFinite() && c.end.isFinite(); } 
-//    bool isSimple() const {
-//        return 1 == edges.size() && 2 == sects.i.size(); }
-//	bool isSmall();
 	void makeCoins();
 	void makeEdge(OP_LINE_FILE_NP_ARGS());
 	void makeEdges();
@@ -135,20 +123,16 @@ struct OpSegment {
 	OpPtT matchEnd(OpPoint opp);
 	MatchReverse matchEnds(const LinePts& opp) const;
 	MatchReverse matchEnds(const OpSegment* opp) const;
-//    MatchEnds matchExisting(const OpSegment* opp) const;
-	OpPoint mergePoints(OpPtT segPtT, OpSegment* opp, OpPtT oppPtT);
-//	OpPoint movePt(OpPtT match, OpPoint dest);  // move segment/sect point to match another endpont
+	bool mergeEndPoints();
+	void mergeIntersections();
 	PrefFound moveSects(OpPtT match, OpPoint dest);	// move matching sects and cleanup segment state
 	bool moveWinding(OpSegment* opp, bool backwards);
 	void manyCoincidences();
 	bool nearby(float t, const OpSegment* opp) const;
 	int nextID() const;
-//    void newWindCoincidences();  // !!! will eventually replace wind coincidences
 	void normalize();
 	OpPtT ptAtT(const OpPtT& ) const;
 	void remap(OpPoint oldAlias, OpPoint newAlias);  // local remap
-//	OpPoint remapPts(OpPoint oldAlias, OpPoint newAlias);  // call through
-//	void resetBounds();
 	void setAliases() {
 		c.setAliases(*contour); }
 	void setDisabled(OP_LINE_FILE_NP_ARGS());
@@ -160,7 +144,6 @@ struct OpSegment {
 	float thresholdLength() const;
 	void transferCoins();
 	void tripleSect();  // check intersections for three or more identical points
-//    void windCoincidences();
 	void zeroSmall();
 
 #if OP_DEBUG

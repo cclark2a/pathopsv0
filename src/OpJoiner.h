@@ -27,8 +27,11 @@ enum class LinkPass {
 	and add any other data in OpEdge which is only relevant to a linked up list of edges (if any)
 */
 struct LinkUps {
+	bool contains(OpEdge* e) {
+		return l.end() != std::find(l.begin(), l.end(), e); }
     void clear();
 	void sort(OpContext* );
+
 	DUMP_DECLARATIONS
 
 	std::vector<OpEdge*> l;
@@ -68,6 +71,7 @@ struct OpJoiner {
 #define LimbPass_Base \
     OP_ENUM_BASE(uninitialized, -1)
 
+//	!!! removed OP_ENUM_MEMBER(alternateEnd),  /* construct line using opposite sect edge end (e.g, testQuads25659799) */
 #define LimbPass_Enums \
 	OP_ENUM_MEMBER(none), \
 	OP_ENUM_MEMBER(linked),    /* in linkups list with correct winding */ \
@@ -79,7 +83,6 @@ struct OpJoiner {
 	OP_ENUM_MEMBER(disjoint),  /* gap to closest in linkups list, or gap to edge start (loop) */ \
 	OP_ENUM_MEMBER(unlinkedPal),  /* unlinked variant that permits siblings to connect to seen edges' pals */ \
 	OP_ENUM_MEMBER(small),  /* edges from nearby intersections (delta t is below set value) */ \
-	OP_ENUM_MEMBER(alternateEnd),  /* construct line using opposite sect edge end (e.g, testQuads25659799) */ \
 	OP_ENUM_MEMBER(disabledBackwards),  /* undetected mis-sort may be closable (e.g, loop156850) */ \
 	OP_ENUM_MEMBER(debugStop)  /* debugging aid when limb pass is advanced past final value */
 
@@ -139,7 +142,7 @@ struct OpTree {
     OP_DEBUG_DUMP_CODE(OpTree(DumpSerialization , OpContext* );)
 	OpTree(OpJoiner& );
 	OP_DEBUG_CODE(~OpTree());
-	void addAlternateEnd();
+//	void addAlternateEnd();
 	void addDisabled(OpContour& );
 	OpEdge* addFiller(OpSegment* , OpPoint , OpPoint , bool fromCC);
 //	void addUnsectableLoop(OpJoiner& , OpLimb* );

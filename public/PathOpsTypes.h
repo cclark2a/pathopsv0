@@ -197,6 +197,7 @@ struct CurveCallbacks {
 	CurveConst normalLimitFuncPtr = nullptr;
 	CurveConst maxAlternateEndFuncPtr = nullptr;
 	CurveConst smallTFuncPtr = nullptr;
+	CurveConst maxCutFuncPtr = nullptr;
 };
 
 // winding callbacks
@@ -285,7 +286,6 @@ struct ContextCallbacks {
 	CurveCurveCount maxDeepFuncPtr = nullptr;
 	CurveCurveCount maxShallowFuncPtr = nullptr;
 	CurveCurveCount maxSplitsFuncPtr = nullptr;
-	CurveCurveCount maxCutFuncPtr = nullptr;
 	CurveValue maxMarginFuncPtr = nullptr;
 	CurveValue maxUnsectableTFuncPtr = nullptr;
 	CurveValue maxUnsectDistFuncPtr = nullptr;

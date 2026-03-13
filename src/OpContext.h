@@ -48,7 +48,13 @@ struct OpContext {
 	OpEdge* addFiller(OpPoint start, OpPoint end, OpSegment* parent);
 	void addToBounds(const OpCurve& );
     void addUserData(PathOpsV0Lib::ContextUserData );
-//	void aliasIntersections();
+
+	void aliasIntersections() {
+		for (auto contour : contours) {
+			contour->aliasIntersections();
+		}
+	}
+
 	uint8_t* allocateCallerData(size_t  OP_DEBUG_RASTER_PARAMS(bool raster));
 	OpContour* allocateContour();
 	PathOpsV0Lib::CurveData* allocateCurveData(size_t );
@@ -109,8 +115,8 @@ struct OpContext {
 //    void demotePalLinks();
 	void disableSmallSegments();
 
-	bool empty() {
-		for (auto contour : contours) {
+	bool empty() const {
+		for (const OpContour* contour : contours) {
 			if (contour->segments.size())
 				return false;
 		}
@@ -171,6 +177,22 @@ struct OpContext {
 	}
 
 	void markInCoincidence();
+
+	void mergeEndPoints() {
+		// prefer end points
+		for (auto contour : contours) {
+			contour->mergeEndPoints();
+		}
+		OP_DEBUG_DUMP_CODE(dumpFile(__func__));
+	}
+
+	void mergeIntersections() {
+		// merge remaining mid points
+		for (auto contour : contours) {
+			contour->mergeIntersections();
+		}
+		OP_DEBUG_DUMP_CODE(dumpFile(__func__));
+	}
 
 	int nextID() { 
 		return ++uniqueID; 

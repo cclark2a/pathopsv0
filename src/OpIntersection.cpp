@@ -3,6 +3,26 @@
 #include "OpContext.h"
 #include "OpSegment.h"
 
+// returns true if merge end points needs to run again
+bool OpIntersection::merge(int mId) {
+	mergeID = mId;
+	OP_ASSERT(!opp->mergeID);
+	opp->mergeID = mId;
+	opp->ptT.pt = ptT.pt;
+	return opp->segment->id < segment->id;
+}
+
+void OpIntersection::pair(OpIntersection* o) {
+	OP_ASSERT(abs(unsectID) == abs(o->unsectID)); 
+	OP_ASSERT(coincidenceID == o->coincidenceID); 
+	OP_ASSERT(ptT.pt.isNearly(o->ptT.pt, segment->threshold()) 
+			|| (!!unsectID && !!o->unsectID) || !opp);
+	if (ptT.pt != o->ptT.pt && ptT.pt.isNearly(o->ptT.pt, segment->threshold()))
+		OpPtT::MeetInTheMiddle(ptT, o->ptT);
+	opp = o;
+	o->opp = this;
+}
+
 void OpIntersection::setCoin(int cid, MatchEnds end, CoinOpp co) {
 	coincidenceID = cid;
 	coinEnd = end;
@@ -10,6 +30,14 @@ void OpIntersection::setCoin(int cid, MatchEnds end, CoinOpp co) {
 	segment->hasCoin = true;
 	segment->sects.hasPairs = true;
 	segment->sects.unsorted = true;
+}
+
+OpRect OpIntersection::setMergeBounds(OpVector halfThreshold) {
+	OpRect result { ptT.pt, callerPt };
+	result = result.outset(halfThreshold);
+	result.add(opp->ptT.pt);
+	result.add(opp->callerPt);
+	return result;
 }
 
 void OpIntersection::setUnsect(int uid, MatchEnds end) {
@@ -44,7 +72,7 @@ void OpIntersections::clear() {
 }
 
 // this matches opp with nearby ptT
-OpIntersection* OpIntersections::contains(const OpPtT& ptT, const OpSegment* opp) {
+OpIntersection* OpIntersections::contains(const OpPtT& ptT, const OpSegment* opp) const {
 	for (unsigned index = 0; index < i.size(); ++index) {
 		OpIntersection* sect = i[index];
 		if (!sect->opp || sect->opp->segment != opp)
@@ -301,24 +329,6 @@ int OpIntersections::coinRange(OpEdge& edge, OpSegment* opp, bool reversed) {
 	return 0;
 }
 
-#if 0
-// !!! optimize with binary search(es) once working
-// !!! wrong place to do this?
-// since there can be more than one connected edge that starts and ends on pals, this
-// needs to be found when tree building
-// which may (or may not) use the code below
-std::vector<int> OpIntersections::findPals(float t) const {
-	for (OpIntersection* sect : i) {
-		if (sect->ptT.t != t)
-			continue;
-//		start here;
-		// from sect, find edge(s)
-	}
-	std::vector<int> dummy;
-	return dummy;
-}
-#endif
-
 std::vector<OpIntersection*> OpIntersections::unsectables(OpPoint pt) {
 	std::vector<OpIntersection*> result;
 	for (OpIntersection* sect : i) {
@@ -331,6 +341,7 @@ std::vector<OpIntersection*> OpIntersections::unsectables(OpPoint pt) {
 	return result;
 }
 
+#if 0
 struct SectPreferred {
 	SectPreferred(OpIntersection* sect)
 		: best(sect)
@@ -346,7 +357,7 @@ struct SectPreferred {
 		} while (true);
 	}
 
-	PrefFound find();  // make consecutive nearly equal sects the same, and follow each opposite
+//	PrefFound find();  // make consecutive nearly equal sects the same, and follow each opposite
 
 	std::vector<OpSegment*> visited; // visit each segment with matching sects once
 	OpIntersection* best;  // an end point, if one exists; otherwise, an arbitrary sect
@@ -416,6 +427,7 @@ PrefFound SectPreferred::find() {
 	}
 	return PrefFound::ok;
 }
+#endif
 
 // wait until sorting to order pairs; ordering earlier may fail if sects are moved
 void OpIntersections::orderPairs() {
@@ -465,38 +477,6 @@ float OpIntersections::matchT(const OpPtT& match, OpPoint destination, MatchEnds
 		}
 	}
 	return destT;
-}
-
-	// intersections may have multiple different t values with the same pt value
-	// should be rare; do an exhaustive search for duplicates
-void OpIntersections::mergeNear(OpPtAliases& aliases) {
-	OP_ASSERT(!i.empty());
-	// !!! instead of seg thresh, use distance between points on opposite segments ?
-	OpVector threshold = i[0]->segment->threshold();
-	for (unsigned outer = 1; outer < i.size(); ++outer) {
-		OpIntersection* oSect = i[outer - 1];
-		if (oSect->mergeProcessed)
-			continue;
-		unsigned limit = outer;
-		bool nearEqual = false;
-		do {
-			OpIntersection* iSect = i[limit];
-			if (!iSect->ptT.isNearly(oSect->ptT, threshold))
-				break;
-			if (iSect->ptT == oSect->ptT)
-				continue;
-			nearEqual = true;
-			if (aliases.contains(iSect->ptT.pt))
-				oSect = iSect;
-		} while (++limit < i.size());
-		if (outer == limit)
-			continue;
-		if (!nearEqual) {
-			outer = limit;
-			continue;
-		}
-		SectPreferred preferred(oSect);
-	}
 }
 
 // note that intersections may not be sorted
@@ -585,21 +565,6 @@ SectCleanup OpIntersections::moveSects(const OpPtT& match, OpPoint destination,
 	return segmentCollapsed ? SectCleanup::segmentCollapsed : cleanup ? SectCleanup::sectsRemoved 
 			: SectCleanup::none;
 }
-
-#if 0
-bool OpIntersections::outOfOrder() const {
-	if (!i.size())
-		return false;
-	float last = i[0]->ptT.t;
-	for (size_t index = 1; index < i.size(); ++index) {
-			float next = i[index]->ptT.t;
-			if (last > next)
-				return true;
-			last = next;
-	}
-	return false;
-}
-#endif
 
 bool OpIntersections::simpleEnd() const {
 	OP_ASSERT(!unsorted);

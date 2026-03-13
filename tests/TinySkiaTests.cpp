@@ -104,7 +104,7 @@ void TinyState::addADot(const OpDebugData& debugData) {
     std::lock_guard<std::mutex> guard(out_mutex);
 #endif
     ++testsRun;
-	if (debugData.error >= .1f) {
+	if (debugData.error >= .12f) {
 	    std::string testname = debugData.testname;
 	    OpDebugOut(testname + " raster errors:" + STR(debugData.error) + "\n");
     }

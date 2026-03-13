@@ -171,59 +171,6 @@ SEGMENT_DETAIL
 EDGE_DETAIL
 #undef OP_X
 
-#define OP_X(Global, Method) \
-    void Global(int ID) { \
-        bool found = false; \
-        if (std::vector<const OpIntersection*> coins = findCoincidence(ID); coins.size()) { \
-            for (auto coin : coins) { \
-                coin->Method(); \
-				if (coin != coins.back()) \
-					OpDebugOut("\n"); \
-                found = true; \
-            } \
-        } \
-        if (const OpContour* contour = findContour(ID)) { \
-            contour->Method(); \
-            found = true; \
-        } \
-        if (const OpEdge* edge = findEdge(ID)) { \
-            edge->Method(); \
-            found = true; \
-        } \
-        if (std::vector<const OpEdge*> matches = findEdgeRayMatch(ID); matches.size()) { \
-            for (auto match : matches) { \
-                match->Method(); \
-				if (match != matches.back()) \
-					OpDebugOut("\n"); \
-                found = true; \
-            } \
-        } \
-        if (const OpIntersection* intersection = findIntersection(ID)) { \
-            intersection->Method(); \
-            found = true; \
-        } \
-        if (const OpLimb* limb = findLimb(ID)) { \
-            limb->Method(); \
-            found = true; \
-        } \
-        if (std::vector<const OpIntersection*> uSects = findSectUnsectable(ID); uSects.size()) { \
-            for (auto uSect : uSects) { \
-                uSect->Method(); \
-				if (uSect != uSects.back()) \
-					OpDebugOut("\n"); \
-                found = true; \
-            } \
-        } \
-        if (const OpSegment* segment = findSegment(ID)) { \
-            segment->Method(); \
-            found = true; \
-        } \
-        if (!found) \
-            OpDebugOut("ID: " + STR(ID) + " not found\n"); \
-    }
-    DUMP_BY_DUMPID
-#undef OP_X
-
 void OpDebugFormat(std::string s) {
     std::string result = stringFormat(s, defaultLineWidth);
 	if (!result.empty() && '\n' != result.back())
@@ -231,11 +178,11 @@ void OpDebugFormat(std::string s) {
     OpDebugOut(result);
 }
 
-void dmpHex(float f) {
+void dmpToHex(float f) {
     OpDebugOut(OpDebugDumpHex(f));
 }
 
-void dmpHex(uint32_t u) {
+void dmpToHex(uint32_t u) {
     OpDebugOut(OpDebugIntToHex(u));
 }
 
@@ -517,6 +464,16 @@ void OpContext::dumpResolve(OpSegment*& segRef) {
 
 #if OP_DEBUG_GLOBALS
 
+void dmp(int id) {
+    std::string s = DebugDump(id, defaultLevel, defaultBase);
+    OpDebugFormat(s);
+}
+
+void dmpHex(int id) {
+    std::string s = DebugDump(id, defaultLevel, DebugBase::hex);
+    OpDebugFormat(s);
+}
+
 void dmpDisabled() {
     for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
@@ -763,8 +720,9 @@ void OpContext::dumpSet(const char*& str) {
 	    DEBUG_FIND_FUNCTION(callback, interceptFuncPtr,      normalLimitFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, normalLimitFuncPtr,    maxAlternateEndFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, maxAlternateEndFuncPtr, smallTFuncPtr);
-        static_assert(offsetof(PathOpsV0Lib::CurveCallbacks, smallTFuncPtr) 
-                + sizeof(callback.smallTFuncPtr) == sizeof(callback));
+	    DEBUG_FIND_FUNCTION(callback, smallTFuncPtr,         maxCutFuncPtr);
+        static_assert(offsetof(PathOpsV0Lib::CurveCallbacks, maxCutFuncPtr) 
+                + sizeof(callback.maxCutFuncPtr) == sizeof(callback));
     }
     ASSERT_ORDERED(callbacks, userData);
 #if 0  // don't serialize user data
@@ -813,8 +771,7 @@ void OpContext::dumpSet(const char*& str) {
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxDistFuncPtr, maxDeepFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxDeepFuncPtr, maxShallowFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxShallowFuncPtr, maxSplitsFuncPtr);
-	DEBUG_FIND_FUNCTION(contextCallbacks, maxSplitsFuncPtr, maxCutFuncPtr);
-	DEBUG_FIND_FUNCTION(contextCallbacks, maxCutFuncPtr, maxMarginFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxSplitsFuncPtr, maxMarginFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxMarginFuncPtr, maxUnsectableTFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxUnsectableTFuncPtr, maxUnsectDistFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxUnsectDistFuncPtr, maxCheckSplitFuncPtr);
@@ -1102,6 +1059,19 @@ std::vector<const OpIntersection*> findCoincidence(int ID) {
             for (const auto intersection : seg.sects.i) {
                 if (ID == abs(intersection->coincidenceID) 
                         OP_DEBUG_CODE(|| ID == abs(intersection->debugCoincidenceID)))
+                    result.push_back(intersection);
+            }
+        }
+    }
+    return result;
+}
+
+std::vector<const OpIntersection*> findMerge(int ID) {
+    std::vector<const OpIntersection*> result;
+    for (const auto c : contourIterator) {
+        for (const auto& seg : c->segments) {
+            for (const auto intersection : seg.sects.i) {
+                if (ID == intersection->mergeID)
                     result.push_back(intersection);
             }
         }
@@ -2066,8 +2036,7 @@ void OpEdge::dumpSet(const char*& str) {
     ASSERT_ORDERED(windZero, isUnsortable);
     isUnsortable = UnsortableStr(str, "isUnsortable", Unsortable::none);
 	DEBUG_SET_BOOL(isUnsortable, active_impl);
-    DEBUG_SET_BOOL(active_impl, alternateEnd);
-    DEBUG_SET_BOOL(alternateEnd, inLinkups);
+    DEBUG_SET_BOOL(active_impl, inLinkups);
     DEBUG_SET_BOOL(inLinkups, linkHead);
     DEBUG_SET_BOOL(linkHead, inOutput);
     DEBUG_SET_BOOL(inOutput, disabled);
@@ -2084,7 +2053,7 @@ void OpEdge::dumpSet(const char*& str) {
     DEBUG_SET_BOOL(endSeen, unsectableStart);
     DEBUG_SET_BOOL(unsectableStart, unsectableEnd);
 #if OP_DEBUG
-    ASSERT_SERIAL_OFFSET(*this, unsectableEnd, 2, debugMatch);
+    ASSERT_SERIAL_OFFSET(*this, unsectableEnd, 3, debugMatch);
     debugMatch = (OpEdge*) strID("debugMatch");
     ASSERT_ORDERED(debugMatch, debugZeroErr);
     debugZeroErr = (OpEdge*) strID("debugZeroErr");
@@ -2919,9 +2888,8 @@ void FoundLimit::dumpResolveAll(OpContext* c) {
 void FoundLimits::dumpSet(const char*& str) {
 	DEBUG_SET_FIRST_VECTOR(i);
 	DEBUG_SET_VECTOR(i, snips);
-    DEBUG_SET_ID(snips, seg);
-    DEBUG_SET_ID(seg, opp);
-    DEBUG_SET_OPTIONAL_VALUE(opp, unique);
+    ASSERT_ORDERED(snips, cc);
+    DEBUG_SET_OPTIONAL_VALUE(cc, unique);
 	DEBUG_SET_BOOL(unique, smSegT);
     DEBUG_SET_BOOL(smSegT, lgSegT);
     DEBUG_SET_BOOL(lgSegT, smOppT);
@@ -2929,18 +2897,20 @@ void FoundLimits::dumpSet(const char*& str) {
 }
 
 void FoundLimits::dumpResolveAll(OpContext* c) {
-    c->dumpResolve(seg);
-    c->dumpResolve(opp);
     for (FoundLimit& limit : i) {
         limit.dumpResolveAll(c);
     }
 }
 
 void SnipPtTs::dumpSet(const char*& str) {
-    OpDebugRequired(str, "seg");
-    seg.dumpSet(str);
-    OpDebugRequired(str, "opp");
-    opp.dumpSet(str);
+    OpDebugRequired(str, "segPtT");
+    segPtT.dumpSet(str);
+    OpDebugRequired(str, "oppPtT");
+    oppPtT.dumpSet(str);
+    OpDebugRequired(str, "segCut");
+    segCut.dumpSet(str);
+    OpDebugRequired(str, "oppCut");
+    oppCut.dumpSet(str);
 }
 
 void RayTarget::dumpSet(const char*& str) {
@@ -3297,11 +3267,16 @@ void OpIntersection::dumpSet(const char*& str) {
     ASSERT_ORDERED(opp, ptT);
     OpDebugRequired(str, "ptT");
     ptT.dumpSet(str);
-    ASSERT_ORDERED(ptT, coincidenceID);
+    ASSERT_ORDERED(ptT, callerPt);
+    if (OpDebugOptional(str, "callerPt"))
+        callerPt.dumpSet(str);
+    ASSERT_ORDERED(callerPt, coincidenceID);
     coincidenceID = OpDebugReadNamedInt(str, "coincidenceID");
     ASSERT_ORDERED(coincidenceID, unsectID);
     unsectID = OpDebugReadNamedInt(str, "unsectID");
-    ASSERT_ORDERED(unsectID, coinEnd);
+    ASSERT_ORDERED(unsectID, mergeID);
+    mergeID = OpDebugReadNamedInt(str, "mergeID");
+    ASSERT_ORDERED(mergeID, coinEnd);
     coinEnd = MatchEndsStr(str, "coinEnd", MatchEnds::none);
     ASSERT_ORDERED(coinEnd, unsectEnd);
     unsectEnd = MatchEndsStr(str, "unsectEnd", MatchEnds::none);
@@ -3312,8 +3287,6 @@ void OpIntersection::dumpSet(const char*& str) {
 	DEBUG_SET_BOOL(ccLine, ccSect);
 	DEBUG_SET_BOOL(ccSect, ccUnsectable);
 	DEBUG_SET_BOOL(ccUnsectable, collapsed);
-	DEBUG_SET_BOOL(collapsed, mergeProcessed);
-	DEBUG_SET_BOOL(mergeProcessed, moved);
 #if OP_DEBUG
     id = OpDebugReadNamedInt(str, "id");
     debugSrcID = OpDebugReadNamedInt(str, "debugSrcID");

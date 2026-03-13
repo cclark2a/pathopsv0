@@ -404,6 +404,11 @@ FindCept SectRay::findCept(OpEdge* edge, OpEdge* test) {
 					continue;
 				if (!test->bounds().overlaps(palEdge.bounds()))
 					continue;
+		#if OP_DEBUG
+				if (test->startPt() != palEdge.startPt() && !palsReversed) {
+					OpDebugOut("!!! " + edge->context()->debugData.testname + "\n");
+				}
+		#endif
 				OP_ASSERT(test->startPt() == palEdge.startPt() || palsReversed);
 				OpPoint testStart = test->curve.firstPt();
 				OpPoint oppStart = palsReversed ? palEdge.curve.lastPt() : palEdge.curve.firstPt();
@@ -588,7 +593,8 @@ struct SectPtT {
 		, sect(seg->sects.contains(cePtT, opp)) {
 		if (sect)
 			ptT = sect->ptT;
-		OpPtAliases& aliases = seg->contour->aliases;
+		OP_ASSERT(seg->contour->overlapOwner);
+		OpPtAliases& aliases = seg->contour->overlapOwner->aliases;
 		original = ptT.pt;
 		if (OpPoint possibleAlias = aliases.existing(ptT.pt); possibleAlias != ptT.pt)
 			ptT.pt = possibleAlias;
@@ -611,7 +617,8 @@ struct SectPair {
 			if (seg.ptT.pt != seg.original) {
 				if (opp.ptT.pt != opp.original) {
 					OP_ASSERT(0);  // !!! rewritten; trace through new code
-					opp.ptT.pt = ce.seg->contour->aliases.addTriple(ce.seg->contour, opp.original, 
+					opp.ptT.pt = ce.seg->contour->overlapOwner->aliases.addTriple(
+							ce.seg->contour, opp.original, 
 							opp.ptT.pt, seg.ptT.pt, AliasType::coinWinding);
 				} else
 					opp.ptT.pt = seg.ptT.pt;
