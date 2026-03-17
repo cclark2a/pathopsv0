@@ -124,7 +124,7 @@ struct OpSegment {
 	MatchReverse matchEnds(const LinePts& opp) const;
 	MatchReverse matchEnds(const OpSegment* opp) const;
 	bool mergeEndPoints();
-	void mergeIntersections();
+	bool mergeIntersections();
 	PrefFound moveSects(OpPtT match, OpPoint dest);	// move matching sects and cleanup segment state
 	bool moveWinding(OpSegment* opp, bool backwards);
 	void manyCoincidences();
@@ -136,6 +136,8 @@ struct OpSegment {
 	void setAliases() {
 		c.setAliases(*contour); }
 	void setDisabled(OP_LINE_FILE_NP_ARGS());
+	void setEndsUnmerged();
+	void setUnmerged();
 	bool simpleEnd(const OpEdge* ) const;  // true if edge end connects to only one segment
 	bool simpleStart(const OpEdge* ) const;  // true if edge start connects to only one segment
 	bool startMoved() const { 
@@ -143,7 +145,7 @@ struct OpSegment {
 	OpVector threshold() const;
 	float thresholdLength() const;
 	void transferCoins();
-	void tripleSect();  // check intersections for three or more identical points
+//	void tripleSect();  // check intersections for three or more identical points
 	void zeroSmall();
 
 #if OP_DEBUG
@@ -180,10 +182,12 @@ struct OpSegment {
 	OpWinding winding;
 	int id;     // used to normalize each end point once
 	bool disabled; // winding has canceled this edge out
+	bool endsMerged = false;
 //	bool willDisable;  // moveTo aligned ends; will be disabled by disable small segments
 	bool hasCoin;
 	bool hasPals = false;
 	bool hasUnsectable;
+	bool merged = false;
 //	bool startMoved;
 //	bool endMoved;
 #if OP_DEBUG_IMAGE

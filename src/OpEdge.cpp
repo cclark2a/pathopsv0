@@ -96,9 +96,12 @@ bool OpHulls::debugSectCandidates(int index, const OpEdge& edge) const {
 }
 #endif
 
-// !!! should this have a check to catch infinite loops if caller data isn't resolvable?
+// checks to catch infinite loops if caller data isn't resolvable
 bool OpHulls::nudgeDeleted(const OpEdge& edge, const OpCurveCurve& cc, CurveRef which) {
-	int safetyCount = 16;  // !!! could be caller provided, but hull context seems tricky...
+	int safetyCount = 16;
+	PathOpsV0Lib::CurveCount nudgeFunc = edge.context()->contextCallbacks.hullNudgeFuncPtr;
+	if (nudgeFunc)
+		safetyCount = (*nudgeFunc)(edge.curve.c);
 	do {
 		sort(false);
 		for (size_t index = 0; index + 1 < h.size(); ) {

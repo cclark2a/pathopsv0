@@ -818,8 +818,10 @@ MatchReverse OpSegment::matchEnds(const OpSegment* opp) const {
 }
 
 bool OpSegment::mergeEndPoints() {
-	if (disabled)
+	if (disabled) {
+		endsMerged = true;
 		return false;
+	}
 	OP_ASSERT(!sects.i.empty());
 	OP_ASSERT(sects.i.front()->ptT.t == 0);
 	OP_ASSERT(sects.i.back()->ptT.t == 1);
@@ -856,14 +858,18 @@ needsMerge:
 			OpIntersection* sect = sects.i[index];
 			if (endT != sect->ptT.t)
 				break;
-			if (mergeID != sect->mergeID)
-				rerun |= sect->merge(mergeID);
+			if (mergeID == sect->mergeID)
+				continue;
+			sect->merge(mergeID);
+			sect->opp->segment->setEndsUnmerged();
+			rerun = true;
 		}
 		return rerun;
 	};
 	bool runAgain = merge(0.f, 0, 1);
 	runAgain |= merge(1.f, (int) sects.i.size() - 1, -1);
-	return runAgain;
+	endsMerged = true;  // don't merge this segment again
+	return runAgain;  // but if an opposite segment changed, do rerun overlapping contours' segments
 }
 
 // after all intersections are found, scan list for close by results
@@ -871,13 +877,16 @@ needsMerge:
 // if a pair of sects are within the threshold, they share a point, so give them matching merge ids
 // It may be possible for a run of nearly identical points to have multiple merge ids. However, wait
 // for a test case before coding for this.
-void OpSegment::mergeIntersections() {
-	if (disabled)
-		return;
+bool OpSegment::mergeIntersections() {
+	if (disabled) {
+		merged = true;
+		return false;
+	}
 	// !!! maybe (like cc) this should also use gap dist between seg and opp as threshold vals
 	OpVector halfThreshold = threshold() * 0.5f;
 	OpPoint mergePt;
 	size_t index = 0;
+	bool runAgain = false;
 	do {
 		// find range of nearly identical points
 		OpIntersection* first = sects.i[index];
@@ -906,17 +915,13 @@ void OpSegment::mergeIntersections() {
 				mergeID = contour->nextID();
 			// if any in range are already merged, use that for all points
 			for (; index < endIndex; ++index) {
-				OpIntersection* sect = sects.i[index];
-				sect->mergeID = mergeID;
-				sect->ptT.pt = mergePt;
-				if (!sect->opp->unsectID) {
-					sect->opp->mergeID = mergeID;
-					sect->opp->ptT.pt = mergePt;
-				}
+				runAgain |= sects.i[index]->setMerge(mergeID, mergePt);
 			}
 		}
 		index = endIndex;
 	} while (index + 1 < sects.i.size());
+	merged = true;  // don't merge this segment again
+	return runAgain;  // but if an opposite segment changed, do rerun overlapping contours' segments
 }
 
 PrefFound OpSegment::moveSects(OpPtT match, OpPoint destination) {
@@ -1082,6 +1087,14 @@ void OpSegment::setDisabled(OP_LINE_FILE_NP_ARGS()) {
 #endif
 }
 
+void OpSegment::setEndsUnmerged() {
+	endsMerged = contour->segEndsMerged = false;
+}
+
+void OpSegment::setUnmerged() {
+	merged = contour->segMerged = false;
+}
+
 bool OpSegment::simpleEnd(const OpEdge* edge) const {
 	if (!sects.simpleEnd())
 		return false;
@@ -1156,6 +1169,7 @@ giveUp:
 	}
 }
 
+#if 0
 void OpSegment::tripleSect() {
 	if (disabled)
 		return;
@@ -1165,6 +1179,7 @@ void OpSegment::tripleSect() {
 		OP_ASSERT(--safetyHatch);
 	}
 }
+#endif
 
 void OpSegment::zeroSmall() {
 	c.zeroSmall(*contour); 

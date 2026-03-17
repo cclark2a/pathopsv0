@@ -498,7 +498,6 @@ public:
 	bool debugSuccess() const;
 #if OP_DEBUG_SERIALIZE
 	std::string debugDumpCenter(DebugLevel , DebugBase ) const;
-	std::string debugDumpLink(EdgeMatch , DebugLevel , DebugBase ) const;
 	#define OP_X(Thing) \
 			std::string debugDump##Thing() const;
 	DEBUG_DUMP

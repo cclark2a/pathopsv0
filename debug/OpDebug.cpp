@@ -967,13 +967,6 @@ void OpIntersections::debugValidate(OpVector threshold) const {
 #endif
 	}
 }
-
-// !!! flesh this out as needed
-void OpContext::debugValidate() const {
-    for (const auto contour : contours) {
-        contour->debugValidate(nullptr);
-    }
-}
 #endif
 
 bool OpIntersections::debugContains(const OpPtT& ptT, const OpSegment* opp) const {
@@ -1005,6 +998,50 @@ void OpContext::debugRemap(int oldRayMatch, int newRayMatch) {
         }
     }
 }
+
+bool OpContext::debugFail() const {
+	return OpDebugExpect::unknown == debugExpect || OpDebugExpect::fail == debugExpect;
+}
+
+bool OpContext::debugSuccess() const {
+	return true;  // !!! I suppose I should do something if it is expected to fail ?
+}
+
+#if OP_DEBUG_VALIDATE
+// !!! flesh this out as needed
+void OpContext::debugValidate() const {
+    for (const auto contour : contours) {
+        contour->debugValidate(nullptr);
+    }
+}
+
+// make sure contours are in ascending id order in context and overlaps
+#if 0  // !!! don't think this needs to be true
+void OpContext::debugValidateContours() const {
+    int last = -1;
+    for (const auto contour : contours) {
+        OP_ASSERT(contour->id > last);
+        last = contour->id;
+        if (contour->overlapOwner != contour)
+            continue;
+        int lastOver = -1;
+        for (const auto over : contour->overlaps) {
+            OP_ASSERT(over->id > lastOver);
+            lastOver = over->id;
+        }
+    }
+}
+#endif
+
+void OpContext::debugValidateIntersections() const {
+	for (const auto contour : contours) {
+		for (const auto& segment : contour->segments) {
+			if (!segment.disabled)
+				segment.sects.debugValidate(threshold);
+		}
+	}
+}
+#endif
 
 PathOpsV0Lib::DebugCurveCallbacks& OpContext::debugCallback(PathOpsV0Lib::Curve c) {
     PathOpsV0Lib::CurveType type = c.type;
@@ -1314,13 +1351,6 @@ void SetDebugCurveCallbacks(Context* ctext, CurveType , const DebugCurveCallback
 	context->debugCallbacks.push_back(curveCallbacks);
 }
 
-#if 0
-void SetDebugContourCallbacks(Contour* ctour, DebugContourCallbacks contourCallbacks) {
-    OpContour* contour = (OpContour*) ctour;
-    contour->debugCallbacks = contourCallbacks;
-}
-#endif
-
 void SetDebugContextCallbacks(Context* ctext, const DebugContextCallbacks& contextCallbacks) {
     OpContext* context = (OpContext*) ctext;
 	context->debugContextCallbacks = contextCallbacks;
@@ -1331,18 +1361,6 @@ void SetDebugData(Context* ctext, const OpDebugData& debugData) {
     context->debugData = debugData;
     context->debugExpect = debugData.expect;
 }
-
-#if 0 && OP_DEBUG_IMAGE
-
-void SetDebugContourImage(Contour* ctour, Curve curve, float* extrema, size_t count) {
-    OpContour* contour = (OpContour*) ctour;
-    PathOpsV0Lib::CurveData* data = contour->context->allocateCurveData(curve.size);
-	std::memcpy(data, curve.data, curve.size);
-    curve.data = data;
-    contour->debugCurves.push_back(curve);
-}
-
-#endif
 
 }
 

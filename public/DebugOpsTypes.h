@@ -31,6 +31,7 @@ struct DebugContextData {
 };
 
 #if OP_DEBUG
+
 typedef void (*DebugScale)(Curve , double scaleX, double scaleY, double offsetX, double offsetY);
 
 #if OP_DEBUG_SERIALIZE
@@ -41,14 +42,6 @@ typedef std::string (*DebugDumpCurveName)();
 typedef std::string (*DebugDumpCurveExtra)(Curve , DebugLevel , DebugBase);
 
 typedef void (*DebugSubDivide)(Curve , float t1, float t2, Curve* result);
-#endif
-
-#if 0
-typedef void (*DebugAddToPath)(Curve , class SkPath& );
-#endif
-
-#if 0 && OP_TEST_RASTER
-typedef void (*DebugAddRaster)(DebugContextData , Curve , int parentID);
 #endif
 
 struct DebugCurveCallbacks {
@@ -72,8 +65,8 @@ struct DebugEdgeType {
 
 #endif
 
-// typedef uint8_t (*DebugBitOper)(DebugContourData , uint8_t , uint8_t);
 typedef bool (*DebugIsFill)(Winding );
+typedef int (*DebugValue)();
 #if OP_DEBUG_SERIALIZE
 typedef std::string (*DebugDumpWindingOut)(Winding );
 typedef void (*DebugDumpWindingSet)(const char*& , Winding& );
@@ -85,6 +78,8 @@ typedef uint32_t (*DebugEdgeColor)(Winding , DebugEdgeType );
 
 struct DebugContextCallbacks {
     DebugIsFill debugIsFillFuncPtr = nullptr;
+    DebugValue debugMergeEndsFuncPtr = nullptr;
+    DebugValue debugMergeFuncPtr = nullptr;
 #if OP_DEBUG_SERIALIZE
 	DebugDumpWindingOut debugDumpWindingOutFuncPtr = nullptr;
 	DebugDumpWindingSet debugDumpWindingSetFuncPtr = nullptr;
@@ -93,25 +88,7 @@ struct DebugContextCallbacks {
     DebugImageWindingNames debugImageWindingNamesFuncPtr = nullptr;
     DebugEdgeColor debugEdgeColorFuncPtr = nullptr;
     WindingKeep debugWindingVisibleFuncPtr = nullptr;  // if winding effects fill for one contour
-#endif
-};
-
-#if 0 && OP_DEBUG_SERIALIZE  // disable until we need it
-typedef std::string (*DebugDumpContourExtra)(DebugContourData , DebugLevel , DebugBase );
-typedef void* (*DebugNativePath)(DebugContourData );
-typedef bool (*DebugGetDraw)(DebugContourData );
-typedef void (*DebugSetDraw)(DebugContourData , bool);
-typedef bool (*DebugOperand)(DebugContourData , int );  // deprecated
-#endif
-
-struct DebugContourCallbacks {
-#if 0 && OP_DEBUG_SERIALIZE
-    DebugDumpContourExtra debugDumpContourExtraFuncPtr = nullptr;
-	DebugNativePath debugNativePathFuncPtr = nullptr;
-	DebugGetDraw debugGetDrawFuncPtr = nullptr;
-	DebugSetDraw debugSetDrawFuncPtr = nullptr;
-	DebugOperand debugOperandFuncPtr = nullptr;
-    DebugEdgeColor debugEdgeColorFuncPtr = nullptr;
+    DebugValue debugSafetyLinksFuncPtr = nullptr;
 #endif
 };
 

@@ -305,6 +305,58 @@ void OpContext::markInCoincidence() {
 }
 #endif
 
+void OpContext::mergeEndPoints() {
+#if 0 && OP_DEBUG_VALIDATE
+	debugValidateContours();  // make sure overlaps make sense and context index is correct
+#endif
+#if OP_DEBUG
+	PathOpsV0Lib::DebugValue debugMergeEnds = debugContextCallbacks.debugMergeEndsFuncPtr;
+	int debugSafetyCount = debugMergeEnds ? (*debugMergeEnds)() : 10;
+#endif
+	// prefer end points
+	for (size_t index = 0; index < contours.size(); ++index) {
+		OP_ASSERT(0 <= index && index < contours.size());
+		OpContour* contour = contours[index];
+		if (contour->segEndsMerged)
+			continue;
+		if (!contour->mergeEndPoints())
+			continue;
+		// something in overlap changed
+		for (OpContour* overlap : contour->overlapOwner->overlaps) {
+			index = std::min(index, (size_t) overlap->contextIndex); 
+		}
+		index -= 1;  // loop adds one back
+		OP_ASSERT(--debugSafetyCount > 0);
+	}
+	OP_DEBUG_DUMP_CODE(dumpFile(__func__));
+}
+
+void OpContext::mergeIntersections() {
+#if 0 && OP_DEBUG_VALIDATE
+	debugValidateContours();  // make sure overlaps make sense and context index is correct
+#endif
+#if OP_DEBUG
+	PathOpsV0Lib::DebugValue debugMerge = debugContextCallbacks.debugMergeFuncPtr;
+	int debugSafetyCount = debugMerge ? (*debugMerge)() : 10;
+#endif
+	// merge remaining mid points
+	for (size_t index = 0; index < contours.size(); ++index) {
+		OP_ASSERT(0 <= index && index < contours.size());
+		OpContour* contour = contours[index]; 
+		if (contour->segMerged)
+			continue;
+		if (!contour->mergeIntersections())
+			continue;
+		// something in overlap changed
+		for (OpContour* overlap : contour->overlapOwner->overlaps) {
+			index = std::min(index, (size_t) overlap->contextIndex); 
+		}
+		index -= 1;  // loop adds one back
+		OP_ASSERT(--debugSafetyCount > 0);
+	}
+	OP_DEBUG_DUMP_CODE(dumpFile(__func__));
+}
+
 OpLimb& OpContext::nthLimb(int index) {
 	int blockBase = index & ~(ARRAY_COUNT(limbStorage->storage) - 1);
 	if (!limbCurrent || limbCurrent->baseIndex != blockBase) {
@@ -340,6 +392,7 @@ void OpContext::opsInit() {
 			continue;
         if (windingSet)
             contour->clear();
+		contour->contextIndex = (int) contours.size();
 		contours.push_back(contour);
 	}
     windingSet = false;
@@ -416,16 +469,16 @@ WindingCondition OpContext::pathOps() {
         windingSet = true;
         OpSegments segments(*this);
 	    segments.findCoincidences();
-	    debugValidateIntersections();
+	    OP_DEBUG_VALIDATE_CODE(debugValidateIntersections());
 	    OpSegments sortedSegments(*this);
 	    sortedSegments.initInX();
-	    debugValidateIntersections();
+	    OP_DEBUG_VALIDATE_CODE(debugValidateIntersections());
 	    if (checkEmpty())
 		    return 0;
 	    if (FoundIntersections::fail == sortedSegments.findIntersections())
 		    return setError(PathOpsV0Lib::ContextError::intersection  
 				    OP_DEBUG_PARAMS(sortedSegments.debugFailSegID));
-	    debugValidateIntersections();
+	    OP_DEBUG_VALIDATE_CODE(debugValidateIntersections());
 	    if (allowError(PathOpsV0Lib::ContextError::missing))
 		    addDisjointIntersections();
 	    sortIntersections();
@@ -683,45 +736,3 @@ PathOpsV0Lib::ContextUserData OpContext::findUserData(PathOpsV0Lib::UserDataType
     OP_ASSERT(0);
     return { nullptr, 0, PathOpsV0Lib::UserDataType::none };
 }
-
-
-#if OP_DEBUG
-#if 0
-void OpContext::addDebugContextData(PathOpsV0Lib::DebugContextData data, 
-        PathOpsV0Lib::DebugContextType type) {
-    PathOpsV0Lib::DebugContextData& contextData = debugContextData[(size_t) type];
-    contextData.size = data.size;
-	if (!data.size) {
-        contextData.data = nullptr;
-		return;
-	}
-	contextData.data = allocateCallerData(data.size);
-	std::memcpy(contextData.data, data.data, data.size);
-}
-
-PathOpsV0Lib::DebugContextData& OpContext::debugGetContextData(PathOpsV0Lib::DebugContextType type) {
-    OP_ASSERT((size_t) type < debugContextData.size());
-    return debugContextData[(size_t) type];
-}
-#endif
-
-bool OpContext::debugFail() const {
-	return OpDebugExpect::unknown == debugExpect || OpDebugExpect::fail == debugExpect;
-}
-
-bool OpContext::debugSuccess() const {
-	return true;  // !!! I suppose I should do something if it is expected to fail ?
-}
-
-#if OP_DEBUG_VALIDATE
-void OpContext::debugValidateIntersections() {
-	for (auto contour : contours) {
-		for (auto& segment : contour->segments) {
-			if (!segment.disabled)
-				segment.sects.debugValidate(threshold);
-		}
-	}
-}
-#endif
-
-#endif

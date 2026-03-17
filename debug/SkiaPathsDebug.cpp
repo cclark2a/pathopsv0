@@ -43,7 +43,7 @@ bool DebugAnalyze(Context* c) {
 
 void SetSkiaSimplifyCallbacksDebug(Context* context, Contour*, SkPath const&) {
     SetDebugContextCallbacks(context, {
-            unaryDebugIsFill
+            unaryDebugIsFill, nullptr, nullptr
             OP_DEBUG_DUMP_PARAMS(unaryDumpOutFunc, unaryDumpSetFunc, dumpSkiaOutPath,
                     unaryImageOutFunc, nullptr, unaryColorFunc) }
     );
@@ -52,7 +52,7 @@ void SetSkiaSimplifyCallbacksDebug(Context* context, Contour*, SkPath const&) {
 void SetSkiaOpContourCallbacksDebug(Context* context, Contour*, 
         BinaryOperand, SkPath const&) {
     SetDebugContextCallbacks(context, {
-            binaryDebugIsFill
+            binaryDebugIsFill, nullptr, nullptr
             OP_DEBUG_DUMP_PARAMS(binaryDumpOutFunc, binaryDumpSetFunc, dumpSkiaOutPath,
                     binaryImageOutFunc, binaryImageNamesFunc, binaryColorFunc,
                     binaryVisibleFunc)

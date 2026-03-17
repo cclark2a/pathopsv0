@@ -9,7 +9,7 @@
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
 #define SKIP_TO_FILE "quad" // e.g., "simplify"  one file
 #if !OP_DEBUG_ALT
-#define TEST_FIRST "testQuads18507381"   // e.g., "testQuads5343280" if file, one test
+#define TEST_FIRST "testQuads2759881"  // e.g., "testQuads5343280" if file, one test
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
 #else
@@ -26,12 +26,12 @@
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
 #define OP_TEST_V0 1  // set to zero to time Skia running tests
 #define TEST_DEFEAT_BREAK 0  // set to one to disallow debug breakpoints
-#define TEST_DEFEAT_DUMPS 0  // set to one to disallow rewriting dumps
+#define TEST_DEFEAT_DUMPS 1  // set to one to disallow rewriting dumps
 
 // loop191404 missing -0.078, 1.5323 t=0.281543255 oppT=0.290549636; 
 //                    -0.3563 2.0153 t=0.139774203 oppT=0.113169670
-#define CURVE_CURVE_1 2  // id of segment 1 to break in divide and conquer
-#define CURVE_CURVE_2 6  // id of segment 2 to break in divide and conquer
+#define CURVE_CURVE_1 3  // id of segment 1 to break in divide and conquer
+#define CURVE_CURVE_2 8  // id of segment 2 to break in divide and conquer
 #define CURVE_CURVE_DEPTH -1  // minimum recursion depth for curve curve break (-1 to disable)
 
 #define TEST_PATH_SKIP_TESTS { "grshapearc", "grshapearcs1", "release_13", "pentrek10" }
@@ -39,39 +39,30 @@
 #define TEST_PATH_OP_SKIP_REST
 #define TEST_PATH_OP_SKIP_FILES  /* e.g., "battle", "circleOp" */
 // 
-/* 6,192,002 run. Those with >= .1 error:
-   testQuads6280581 raster errors:0.105732873
-....testQuads6281941 raster errors:0.105827905
-...testQuads6283061 raster errors:0.105894268
-...testQuads6283971 raster errors:0.105965480
-..testQuads6284699 raster errors:0.105800003
-.testQuads6285271 raster errors:0.105903402
-.testQuads6285711 raster errors:0.105895527
-.testQuads6286041 raster errors:0.105965883
-testQuads6286281 raster errors:0.105880097
-testQuads18504901 raster errors:0.110139072
-testQuads18506261 raster errors:0.110139072
-testQuads18507381 raster errors:0.110139072
-...testQuads18508291 raster errors:0.110139072 */
-/*  11,620,162 run. Those with >= .1 error:
-testQuads6156587 raster errors:0.223082691
-testQuads6157947 raster errors:0.223388836
-testQuads6159067 raster errors:2.43116117
-testQuads6160705 raster errors:0.223260552
-testQuads6161277 raster errors:0.223215520
-testQuads6161717 raster errors:0.223328352
-testQuads6162287 raster errors:0.223132193
-testQuads6162455 raster errors:0.223132193
-testQuads3279167 raster errors:0.489942312
-testQuads3286919 raster errors:0.490059882
-testQuads3302423 raster errors:0.326563954
-testQuads3310175 raster errors:0.326563954
-testQuads3317927 raster errors:0.326681495
-testQuads6303675 raster errors:0.219455317
-testQuads6305035 raster errors:0.219668731
-testQuads6306155 raster errors:0.219499692
-testQuads6307065 raster errors:0.219499692
-testQuads6307793 raster errors:0.219738066
-testQuads6308365 raster errors:0.219584167
-testQuads6308805 raster errors:0.219499692 */
+/* 26,231,574 run. Those with >= .1 error:
+testQuads12894841 raster errors:0.664407015
+testQuads12894842 raster errors:0.664477348
+testQuads12902593 raster errors:29.2348442
+testQuads12902594 raster errors:0.664584875
+testQuads12907865 raster errors:0.443082213
+testQuads12909225 raster errors:0.664399862
+testQuads12918097 raster errors:0.443013191
+testQuads12918098 raster errors:0.443102121
+testQuads12925849 raster errors:0.443071485
+testQuads12925850 raster errors:0.443160415
+testQuads12933601 raster errors:19.4893913
+testQuads12933602 raster errors:0.443172693
+testQuads19263416 raster errors:0.329843998
+testQuads7784947 raster errors:0.664374888
+testQuads7784948 raster errors:0.664456785
+testQuads7792699 raster errors:29.2348518
+testQuads7792700 raster errors:0.664448619
+testQuads7799091 raster errors:0.664412796
+testQuads7815955 raster errors:0.443049401
+testQuads7815956 raster errors:0.443145365
+testQuads7823707 raster errors:19.4893951
+testQuads7823708 raster errors:0.443169892
+testQuads2294703 raster errors:0.279744148
+testQuads2325711 raster errors:0.279837072
+testQuads2356719 raster errors:0.279763043 */
 #endif

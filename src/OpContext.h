@@ -177,22 +177,8 @@ struct OpContext {
 	}
 
 	void markInCoincidence();
-
-	void mergeEndPoints() {
-		// prefer end points
-		for (auto contour : contours) {
-			contour->mergeEndPoints();
-		}
-		OP_DEBUG_DUMP_CODE(dumpFile(__func__));
-	}
-
-	void mergeIntersections() {
-		// merge remaining mid points
-		for (auto contour : contours) {
-			contour->mergeIntersections();
-		}
-		OP_DEBUG_DUMP_CODE(dumpFile(__func__));
-	}
+	void mergeEndPoints();  // iterate repeatedly through all contours and contour's overlaps
+	void mergeIntersections();  // .. for sect points that are nearly equal and merge them
 
 	int nextID() { 
 		return ++uniqueID; 
@@ -222,11 +208,13 @@ struct OpContext {
 		}
 	}
 
+#if 0
 	void tripleSect() {
 	   for (auto contour : contours) {
 			contour->tripleSect();
 		}
 	}
+#endif
 
 	void zeroSmall() {
 		for (auto contour : contours) {
@@ -245,9 +233,8 @@ struct OpContext {
 #endif
 #if OP_DEBUG_VALIDATE
 	void debugValidate() const;
-	void debugValidateIntersections();
-#else
-	void debugValidateIntersections() {}
+	void debugValidateContours() const;  // make sure overlaps make sense and context index is correct
+	void debugValidateIntersections() const;
 #endif
 #if OP_DEBUG_SERIALIZE
 	void dumpBaseFile() const;

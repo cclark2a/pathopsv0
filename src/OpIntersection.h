@@ -60,7 +60,7 @@ inline CoinOpp operator!(CoinOpp m) {
 // intersection to point at each other at time of creation.
 
 struct OpIntersection {
-	bool merge(int mId);
+	void merge(int mId);
 	void pair(OpIntersection* o);
 
 	void set(const OpPtT& pt_t, OpSegment* seg  OP_LINE_FILE_DEF(int srcID, int oppID)) {
@@ -77,6 +77,7 @@ struct OpIntersection {
 	}
 
 	void setCoin(int id, MatchEnds end, CoinOpp );  // setter to help debugging
+	bool setMerge(int mergeID, OpPoint mergePt);
 	OpRect setMergeBounds(OpVector halfThreshold);
 	void setUnsect(int id, MatchEnds end);  // setter to help debugging
 

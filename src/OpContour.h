@@ -157,27 +157,8 @@ struct OpContour {
     }
 
 	const std::vector<OpContour*>& members() const { return overlapOwner->overlaps; }
-
-	// !!! maybe safetyCount should only be enforced when running skia tests with known count max
-	//     could set caller value default to zero (never asserts) and skia tests set value to 10...
-	void mergeEndPoints() {
-		OP_DEBUG_CODE(int safetyCounter = 10);  // !!! no idea what this should be
-		bool runAgain;
-		do {
-			runAgain = false;
-			for (auto& segment : segments) {
-				runAgain |= segment.mergeEndPoints();
-			}
-			OP_ASSERT(--safetyCounter);
-		} while (runAgain);
-	}
-
-	void mergeIntersections() {
-		for (auto& segment : segments) {
-			segment.mergeIntersections();
-		}
-	}
-
+	bool mergeEndPoints();  // find close by sects on segment ends, prioritizing them
+	bool mergeIntersections();  // find close by sects on entire segment, prioritizing end points
 	int nextID() const;
 
 	void normalize() {
@@ -200,11 +181,13 @@ struct OpContour {
 		}
 	}
 
+#if 0
 	void tripleSect() {
 		for (auto& segment : segments) {
 			segment.tripleSect();
 		}
 	}
+#endif
 
 	void unlink(OpEdge* );
     PathOpsV0Lib::Winding winding() const { 
@@ -212,13 +195,11 @@ struct OpContour {
 	std::vector<OpEdge*>& windingEdges(Axis );
 
 	void zeroSmall() {
-	for (auto& segment : segments) {
-		segment.zeroSmall();
-	}
+		for (auto& segment : segments) {
+			segment.zeroSmall();
+		}
 	}
 
-	// OP_DEBUG_CODE(void addDebugContourData(PathOpsV0Lib::DebugContourData , 
-    //        PathOpsV0Lib::DebugContourType );)
 	OP_DEBUG_CODE(void debugMatchRay());
 #if OP_DEBUG_VALIDATE
 	void debugValidate(const OpJoiner* ) const;
@@ -238,7 +219,7 @@ struct OpContour {
 
 	std::vector<OpSegment> segments;
 	std::vector<OpSegment*> sorted;
-	std::vector<OpContour*> overlaps;  // intersecting contours (valid if this equals overlapOwner)
+	std::vector<OpContour*> overlaps;  // intersecting contours (valid if this equals overlapOwner)  
 	std::vector<OpContour*> merges;	 // coincident contours added to this set
 	//  populated with edges in this contour, merges and overlaps
 	std::vector<OpEdge*> inX;  // edges intersecting horz rays (valid if this equals overlapOwner)
@@ -259,6 +240,7 @@ struct OpContour {
 	OpPointBounds bounds;	// bounds of segments in this contour
 	OpContext* context;
 	OpContour* overlapOwner;  // the master that intersects the same set of contours as this
+	int contextIndex;  // index of this contour in context contours array (used by merge)
 	int id;
 	int treeID;  // tracks if contour has been initialized in this tree's context (for edge 'seen')
 	bool backwardsBuilt;
@@ -267,8 +249,10 @@ struct OpContour {
 	bool palsBuilt;
 	bool disabled;
 	bool overlapsMerged;
+	bool segEndsMerged = false;
+	bool segMerged = false;
 
-//	OP_DEBUG_CODE(PathOpsV0Lib::DebugContourCallbacks debugCallbacks);
+	OP_DEBUG_CODE(bool debugEmpty = false);  // if empty, when cloned, this is reused in release
 #if OP_DEBUG || OP_DEBUGGER || OP_TEST
 	std::vector<PathOpsV0Lib::DebugCurveData> debugCurveData;
 	OpWinding debugWinding = OpWinding(WindingUninitialized::dummy);
@@ -277,7 +261,6 @@ struct OpContour {
     // AddQuads/AddCubics/AddLine/AddConics save original curve for graphics debugger
 	uint32_t debugColor = blue;
 #endif
-	OP_DEBUG_CODE(bool debugEmpty = false);  // if empty, when cloned, this is reused in release
 };
 
 struct OpContourStorage {

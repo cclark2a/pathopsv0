@@ -679,15 +679,18 @@ static void debugContextCallbacksDumpSet(PathOpsV0Lib::DebugContextCallbacks& de
     OpDebugRequired(str, "debugContextCallbacks");
     static_assert(0 == offsetof(PathOpsV0Lib::DebugContextCallbacks, debugIsFillFuncPtr));
     debugContextCallbacks.debugIsFillFuncPtr = (PathOpsV0Lib::DebugIsFill) debugFindFunction(str);
-    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugIsFillFuncPtr, debugDumpWindingOutFuncPtr);
+    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugIsFillFuncPtr, debugMergeEndsFuncPtr);
+    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugMergeEndsFuncPtr, debugMergeFuncPtr);
+    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugMergeFuncPtr, debugDumpWindingOutFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpWindingOutFuncPtr, debugDumpWindingSetFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpWindingSetFuncPtr, debugDumpOutFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugDumpOutFuncPtr, debugImageWindingOutFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugImageWindingOutFuncPtr, debugImageWindingNamesFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugImageWindingNamesFuncPtr, debugEdgeColorFuncPtr);
     DEBUG_FIND_FUNCTION(debugContextCallbacks, debugEdgeColorFuncPtr, debugWindingVisibleFuncPtr);
-    static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugWindingVisibleFuncPtr) 
-            + sizeof(debugContextCallbacks.debugWindingVisibleFuncPtr) == sizeof(debugContextCallbacks));
+    DEBUG_FIND_FUNCTION(debugContextCallbacks, debugWindingVisibleFuncPtr, debugSafetyLinksFuncPtr);
+    static_assert(offsetof(PathOpsV0Lib::DebugContextCallbacks, debugSafetyLinksFuncPtr) 
+            + sizeof(debugContextCallbacks.debugSafetyLinksFuncPtr) == sizeof(debugContextCallbacks));
 
 }
 
@@ -772,7 +775,9 @@ void OpContext::dumpSet(const char*& str) {
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxDeepFuncPtr, maxShallowFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxShallowFuncPtr, maxSplitsFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxSplitsFuncPtr, maxMarginFuncPtr);
-	DEBUG_FIND_FUNCTION(contextCallbacks, maxMarginFuncPtr, maxUnsectableTFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, maxMarginFuncPtr, rootAdjustFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, rootAdjustFuncPtr, hullNudgeFuncPtr);
+	DEBUG_FIND_FUNCTION(contextCallbacks, hullNudgeFuncPtr, maxUnsectableTFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxUnsectableTFuncPtr, maxUnsectDistFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxUnsectDistFuncPtr, maxCheckSplitFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxCheckSplitFuncPtr, maxLimbsFuncPtr);
@@ -780,8 +785,9 @@ void OpContext::dumpSet(const char*& str) {
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxLoopsFuncPtr, windingBytesFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, windingBytesFuncPtr, maxGapFuncPtr);
 	DEBUG_FIND_FUNCTION(contextCallbacks, maxGapFuncPtr, linkupScaleFuncPtr);
-    static_assert(offsetof(PathOpsV0Lib::ContextCallbacks, linkupScaleFuncPtr) 
-            + sizeof(contextCallbacks.linkupScaleFuncPtr) == sizeof(contextCallbacks));
+	DEBUG_FIND_FUNCTION(contextCallbacks, linkupScaleFuncPtr, enabledRatioFuncPtr);
+    static_assert(offsetof(PathOpsV0Lib::ContextCallbacks, enabledRatioFuncPtr) 
+            + sizeof(contextCallbacks.enabledRatioFuncPtr) == sizeof(contextCallbacks));
     static_assert(0 == offsetof(PathOpsV0Lib::WindingCallbacks, windingAddFuncPtr));
 	windingCallbacks.windingAddFuncPtr = (PathOpsV0Lib::WindingAdd) debugFindFunction(str);
 	DEBUG_FIND_FUNCTION(windingCallbacks, windingAddFuncPtr, windingKeepFuncPtr);
@@ -792,8 +798,9 @@ void OpContext::dumpSet(const char*& str) {
     DEBUG_FIND_FUNCTION(windingCallbacks, windingZeroFuncPtr, windingIntersectFuncPtr);
     DEBUG_FIND_FUNCTION(windingCallbacks, windingIntersectFuncPtr, windingShortFuncPtr);
     DEBUG_FIND_FUNCTION(windingCallbacks, windingShortFuncPtr, windingShortAllFuncPtr);
-    static_assert(offsetof(PathOpsV0Lib::WindingCallbacks, windingShortAllFuncPtr) 
-            + sizeof(windingCallbacks.windingShortAllFuncPtr) == sizeof(windingCallbacks));
+    DEBUG_FIND_FUNCTION(windingCallbacks, windingShortAllFuncPtr, windingLoopFuncPtr);
+    static_assert(offsetof(PathOpsV0Lib::WindingCallbacks, windingLoopFuncPtr) 
+            + sizeof(windingCallbacks.windingLoopFuncPtr) == sizeof(windingCallbacks));
     // out of order ... but callbacks must be set before curves and windings are read
     debugCallbacksDumpSet(debugCallbacks, str);
     debugContextCallbacksDumpSet(debugContextCallbacks, str);
@@ -1332,23 +1339,23 @@ void OpContour::dumpSet(const char*& str) {
     ASSERT_ORDERED(context, overlapOwner);
     if (OpDebugOptional(str, "overlapOwner"))
         overlapOwner = (OpContour*) OpDebugReadSizeT(str);
-    ASSERT_ORDERED(overlapOwner, id);  // id written up front
+    OpDebugRequired(str, "contextIndex"); 
+    contextIndex = OpDebugReadSizeT(str);
+    ASSERT_ORDERED(contextIndex, id);  // id written up front
     ASSERT_ORDERED(id, treeID);
     if (OpDebugOptional(str, "treeID"))
         treeID = OpDebugReadSizeT(str);
-    ASSERT_ORDERED(treeID, backwardsBuilt);
-    backwardsBuilt = OpDebugOptional(str, "backwardsBuilt");
-    ASSERT_ORDERED(backwardsBuilt, centerlessBuilt);
-    centerlessBuilt = OpDebugOptional(str, "centerlessBuilt");
-    ASSERT_ORDERED(centerlessBuilt, hasPals);
-    hasPals = OpDebugOptional(str, "hasPals");
-    ASSERT_ORDERED(hasPals, palsBuilt);
-    palsBuilt = OpDebugOptional(str, "palsBuilt");
-    ASSERT_ORDERED(palsBuilt, disabled);
-    disabled = OpDebugOptional(str, "disabled");
-    ASSERT_ORDERED(disabled, overlapsMerged);
-    overlapsMerged = OpDebugOptional(str, "overlapsMerged");
-    ASSERT_SERIAL_OFFSET(*this, overlapsMerged, 2, debugCurveData);
+    DEBUG_SET_BOOL(treeID, backwardsBuilt);
+    DEBUG_SET_BOOL(backwardsBuilt, centerlessBuilt);
+    DEBUG_SET_BOOL(centerlessBuilt, hasPals);
+    DEBUG_SET_BOOL(hasPals, palsBuilt);
+    DEBUG_SET_BOOL(palsBuilt, disabled);
+    DEBUG_SET_BOOL(disabled, overlapsMerged);
+    DEBUG_SET_BOOL(overlapsMerged, segEndsMerged);
+    DEBUG_SET_BOOL(segEndsMerged, segMerged);
+    DEBUG_SET_BOOL(segMerged, debugEmpty);
+#if OP_DEBUGGER || OP_TEST
+    ASSERT_SERIAL_OFFSET(*this, debugEmpty, 3, debugCurveData);
     if (OpDebugOptional(str, "debugCurveData")) {
         debugCurveData.resize(OpDebugReadSizeT(str));
         for (PathOpsV0Lib::DebugCurveData& curveData : debugCurveData) {
@@ -1356,6 +1363,7 @@ void OpContour::dumpSet(const char*& str) {
         }
     }
     ASSERT_ORDERED(debugCurveData, debugWinding);
+#endif
 #if OP_DEBUG_IMAGE
     ASSERT_ORDERED(debugWinding, debugColor);
 	if (OpDebugOptional(str, "debugColor"))
@@ -2140,31 +2148,6 @@ void OpEdge::debugCompare(std::string s) const {
 #endif
 }
 
-// keep this in sync with op edge : is loop
-std::string OpEdge::debugDumpLink(EdgeMatch which, DebugLevel l, DebugBase b) const {
-    const OpEdge* looped = debugIsLoop(which, LeadingLoop::in);
-    bool firstLoop = false;
-    int safetyCount = 0;
-    const OpEdge* link = this;
-    std::string s;
-    while ((link = EdgeMatch::start == which ? link->priorEdge : link->nextEdge)) {
-        s += "\n" + link->debugDump(l, b);
-        if (link == looped) {
-            if (firstLoop)
-                return s + " loop";
-            firstLoop = true;
-        }
-        if (++safetyCount > 700) {
-            OpDebugOut(std::string("!!! likely loops forever: ") + 
-                    (EdgeMatch::start == which ? "prior " : "next "));
-            break;
-        }
-    }
-    if (s.size())
-        s = " for:" + STR(id) + s;
-    return s;
-}
-
 void dmpWinding(const OpEdge& edge) {
     std::string s = edge.debugDumpWinding();
     OpDebugOut(s + "\n");
@@ -2468,9 +2451,13 @@ void dmpLink(const OpEdge& edge) {
     OpDebugFormat(s + "\n");
 }
 
-static void addToSeen(std::vector<const OpEdge*>& seen, const OpEdge& edge) {
+static void addToSeen(OpContext* context, std::vector<const OpEdge*>& seen, const OpEdge& edge) {
     const OpEdge* loopStart = edge.debugIsLoop(EdgeMatch::start, LeadingLoop::in);
     int safetyCount = 0;
+    int safetyLimit = 700;
+    PathOpsV0Lib::DebugValue fun = context->debugContextCallbacks.debugSafetyLinksFuncPtr;
+    if (fun)
+        safetyLimit = (*fun)();
     const OpEdge* link = &edge;
     if (seen.end() == std::find(seen.begin(), seen.end(), &edge))
         seen.push_back(&edge);
@@ -2479,7 +2466,7 @@ static void addToSeen(std::vector<const OpEdge*>& seen, const OpEdge& edge) {
             seen.push_back(link);
         if (link == loopStart)
             break;
-        if (++safetyCount > 700) {
+        if (++safetyCount > safetyLimit) {
             OpDebugOut("!!! likely loops forever: prior\n");
             break;
         }
@@ -2492,7 +2479,7 @@ static void addToSeen(std::vector<const OpEdge*>& seen, const OpEdge& edge) {
             seen.push_back(link);
         if (link == loopEnd)
             break;
-        if (++safetyCount > 700) {
+        if (++safetyCount > safetyLimit) {
             OpDebugOut("!!! likely loops forever: next\n");
             break;
         }
@@ -2507,7 +2494,7 @@ std::string debugDmpLinks(OpContext* context, DebugLevel l, DebugBase b) {
             for (const auto& edge : seg.edges) {
                 if (edge.priorEdge)
                     continue;
-                addToSeen(seen, edge);
+                addToSeen(context, seen, edge);
                 if (edge.priorEdge || edge.nextEdge || edge.lastEdge)
                     s += debugDmpLink(edge, l, b) + "\n";
             }
@@ -2519,7 +2506,7 @@ std::string debugDmpLinks(OpContext* context, DebugLevel l, DebugBase b) {
                 if (seen.end() == std::find(seen.begin(), seen.end(), &edge)) {
                     if (edge.priorEdge || edge.nextEdge || edge.lastEdge)
                         s += debugDmpLink(edge, l, b) + "\n";
-                    addToSeen(seen, edge);
+                    addToSeen(context, seen, edge);
                 }
             }
         }
@@ -2824,9 +2811,11 @@ void OpTree::dumpSet(const char*& str) {
     id = OpDebugReadNamedInt(str, "id");
     ASSERT_ORDERED(id, limbPass);
     limbPass = LimbPassStr(str, "limbPass", LimbPass::none);
-    ASSERT_ORDERED(limbPass, smallGap);
+    ASSERT_ORDERED(limbPass, disabled);
+    disabled = OpDebugOptional(str, "disabled");
+    ASSERT_ORDERED(disabled, smallGap);
     smallGap = OpDebugOptional(str, "smallGap");
-    ASSERT_SERIAL_OFFSET(*this, smallGap, 2, debugAddEach);
+    ASSERT_SERIAL_OFFSET(*this, smallGap, 1, debugAddEach);
     debugAddEach = OpDebugReadNamedInt(str, "debugAddEach");
     static_assert(sizeof(OpTree) == offsetof(OpTree, debugAddEach) + sizeof(debugAddEach) + 4);
 }
@@ -3413,27 +3402,17 @@ void OpSegment::dumpSet(const char*& str) {
     winding.dumpSet(contour->context, str);
     ASSERT_ORDERED(winding, id);  // write at front
     DEBUG_SET_BOOL(id, disabled);
-    DEBUG_SET_BOOL(disabled, hasCoin);
+    DEBUG_SET_BOOL(disabled, endsMerged);
+    DEBUG_SET_BOOL(endsMerged, hasCoin);
     DEBUG_SET_BOOL(hasCoin, hasPals);
     DEBUG_SET_BOOL(hasPals, hasUnsectable);
-#if OP_DEBUG_IMAGE
-    ASSERT_SERIAL_OFFSET(*this, hasUnsectable, 0, debugColor);
-	if (OpDebugOptional(str, "debugColor"))
-        debugColor = OpDebugHexToInt(str);
-#else
-    ASSERT_SERIAL_OFFSET(*this, endMoved, 1, debugSetDisabled);
-#endif
+    DEBUG_SET_BOOL(hasUnsectable, merged);
+    // !!! skip debug color for now
 #if OP_DEBUG_MAKER
     if (OpDebugOptional(str, "debugSetDisabled"))
         debugSetDisabled.dumpSet(str);
     static_assert(sizeof(OpSegment) == offsetof(OpSegment, debugSetDisabled) 
             + sizeof(debugSetDisabled));
-#elif OP_DEBUG_IMAGE
-    static_assert(sizeof(OpSegment) == offsetof(OpSegment, debugColor) 
-            + sizeof(debugColor));
-#else
-    static_assert(sizeof(OpSegment) == offsetof(OpSegment, endMoved) 
-            + sizeof(endMoved));
 #endif
 }
 

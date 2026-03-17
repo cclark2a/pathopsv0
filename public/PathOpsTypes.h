@@ -224,6 +224,8 @@ typedef bool (*WindingIntersect)(Winding left, Winding right);
 // return non-zero to discard subsequent winding operations; condition is returned by resolve 
 typedef WindingCondition (*WindingShort)(Context* , WindKeep );
 
+typedef int (*WindingLoopLimit)(Winding );
+
 // the collection of call-defined functions that describe the winding
 // !!! to do: can / should remaining winding callbacks have defaults? maybe the unary winding rule?
 struct WindingCallbacks {
@@ -236,6 +238,7 @@ struct WindingCallbacks {
     WindingIntersect windingIntersectFuncPtr = nullptr;
     WindingShort windingShortFuncPtr = nullptr;  // any winding meets kept condition
     WindingShort windingShortAllFuncPtr = nullptr;  // all windings meet kept condition
+	WindingLoopLimit windingLoopFuncPtr = nullptr;  // attempts to fix curve/curve intersections
 };
 
 // context callbacks
@@ -252,6 +255,8 @@ typedef CurveType (*SetLineType)(Curve );
 
 // overrides a scalar used by the engine to test if curve intersects bounds 
 typedef float (*CurveValue)(Curve );
+
+typedef int (*CurveCount)(Curve );
 
 // overrides a scalar used by the engine to intersect a pair of curves 
 typedef float (*CurveCurveValue)(Curve , Curve );
@@ -287,6 +292,8 @@ struct ContextCallbacks {
 	CurveCurveCount maxShallowFuncPtr = nullptr;
 	CurveCurveCount maxSplitsFuncPtr = nullptr;
 	CurveValue maxMarginFuncPtr = nullptr;
+	CurveCount rootAdjustFuncPtr = nullptr;
+	CurveCount hullNudgeFuncPtr = nullptr;
 	CurveValue maxUnsectableTFuncPtr = nullptr;
 	CurveValue maxUnsectDistFuncPtr = nullptr;
 	CurveCurveCount maxCheckSplitFuncPtr = nullptr;
@@ -295,6 +302,7 @@ struct ContextCallbacks {
 	ContextCount windingBytesFuncPtr = nullptr;
 	ContextValue maxGapFuncPtr = nullptr;
 	ContextValue linkupScaleFuncPtr = nullptr;
+	ContextValue enabledRatioFuncPtr = nullptr;
 };
 
 // return true if the engine should abort

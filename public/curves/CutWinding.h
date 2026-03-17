@@ -77,7 +77,7 @@ inline Context* cutContext(ContextUserData userData, CurveOutput output = nullpt
     contextCallbacks.maxLoopsFuncPtr = cutMaxLoopsFunc;
     SetContextCallbacks(context, contextCallbacks);
 #if OP_DEBUG
-	SetDebugContextCallbacks(context, { frameDebugIsFill
+	SetDebugContextCallbacks(context, { frameDebugIsFill, nullptr, nullptr
             OP_DEBUG_DUMP_PARAMS(frameDumpOutFunc, frameDumpSetFunc, nullptr,
             frameDumpOutFunc, frameImageNamesFunc, frameColorFuncPtr)
     });

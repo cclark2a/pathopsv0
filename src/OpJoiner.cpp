@@ -422,12 +422,13 @@ OpTree::OpTree(DumpSerialization , OpContext* c)
 	, totalUsed(0) 
     , id(0)
 	, limbPass(LimbPass::uninitialized)
+	, disabled(false)
 	, smallGap(false) {
 }
 #endif
 
-OpTree::OpTree(OpJoiner& join) 
-	: context(join.edge->segment->contour->context)
+OpTree::OpTree(OpEdge* edge) 
+	: context(edge->segment->contour->context)
 	, trunk(nullptr)
 	, bestGapLimb(nullptr)
 	, bestLimb(nullptr)
@@ -435,75 +436,15 @@ OpTree::OpTree(OpJoiner& join)
 	, bestPerimeter(OpInfinity)
 	, totalUsed(0) 
 	, limbPass(LimbPass::linked)
+	, disabled(false)
 	, smallGap(false) {
 	id = context->nextID();
 	maxLimbs = context->contextCallbacks.maxLimbsFuncPtr ?
 			context->contextCallbacks.maxLimbsFuncPtr((PathOpsV0Lib::Context*) context) : 1000;
 	OP_DEBUG_CODE(context->debugTree = this);
-	OP_ASSERT(join.edge->inLinkups);
+	OP_ASSERT(edge->inLinkups);
 	OP_DEBUG_IMAGE_CODE_OLD(context->debugLimbClear());
-	OP_DEBUG_IMAGE_CODE_OLD(debugLimbEdges(join.edge));
-// Mark edges' 'seen' as unset in this tree. Later, mark additional contours as they are linked
-	OpContour* edgeContour = join.edge->segment->contour;
-	for (auto member : edgeContour->members()) {
-		member->setSeen(id);
-	}
-	context->resetLimbs();
-	trunk = makeLimb();
-	OP_ASSERT(edgeContour->linkups.l.back() == join.edge);
-	trunk->set(*this, join.edge, nullptr, EdgeMatch::start, LimbPass::linked, 
-			edgeContour, edgeContour->linkups.l.size() - 1, join.edge);
-	join.edge->startSeen = true;
-	join.edge->lastEdge->endSeen = true;
-	// !!! can I know that join.edge never has prior, and is never loop?
-	do {
-		for (OpContour* member : edgeContour->members()) {
-			initialize(*member);
-		}
-//		if (LimbPass::alternateEnd == limbPass)
-//			addAlternateEnd();
-//		else
-	#if 0 // !!! experiment: try adding disabled pals as regular entries in tree
-		if (LimbPass::disabledPals == limbPass) {
-			OpLimb* unsectEnd = unsectableLoop();
-			if (unsectEnd) {
-				addUnsectableLoop(join, unsectEnd);
-				return;
-			}
-			for (auto contour : edgeContour->sects) {
-				addDisabled(*contour);
-			}
-		} else 
-	#endif	
-		{
-			int index = 0;
-			do {
-				OpLimb& limb = nthLimb(index);
-				OpEdge* endEdge = limb.edge;
-				if (endEdge->lastEdge)
-					endEdge = endEdge->lastEdge;
-				else if (endEdge->priorEdge)
-					endEdge = endEdge->advanceToEnd(EdgeMatch::start);
-				for (OpContour* member : endEdge->segment->contour->members()) {
-					if (member->treeID != id)
-						member->setSeen(id);
-					limb.addEach(*member, *this);
-				}
-				if (totalUsed > maxLimbs) {
-			#if 0 // TEST_ANALYZE // for grshapearcs 
-					playback();
-//					showLimbs();
-					hideDisabled();
-			#endif
-					context->setError(PathOpsV0Lib::ContextError::tree  
-							OP_DEBUG_PARAMS(join.edge->id));
-					return;
-				}
-			} while (++index < totalUsed);
-		}
-		if (LimbPass::disabledBackwards < ++limbPass)
-			return;  // error if bestLimb == nullptr
-	} while (!bestLimb);
+	OP_DEBUG_IMAGE_CODE_OLD(debugLimbEdges(edge));
 }
 
 #if 0
@@ -859,6 +800,69 @@ OpLimb* OpTree::makeLimb() {
 	return context->allocateLimb();
 }
 
+// Mark edges' 'seen' as unset in this tree. Later, mark additional contours as they are linked
+void OpTree::makeTrunk(OpEdge* edge) {
+	OpContour* edgeContour = edge->segment->contour;
+	for (auto member : edgeContour->members()) {
+		member->setSeen(id);
+	}
+	context->resetLimbs();
+	trunk = makeLimb();
+	OP_ASSERT(edgeContour->linkups.l.back() == edge);
+	trunk->set(*this, edge, nullptr, EdgeMatch::start, LimbPass::linked, 
+			edgeContour, edgeContour->linkups.l.size() - 1, edge);
+	edge->startSeen = true;
+	edge->lastEdge->endSeen = true;
+	// !!! can I know that edge never has prior, and is never loop?
+	do {
+		for (OpContour* member : edgeContour->members()) {
+			initialize(*member);
+		}
+		int index = 0;
+		do {
+			OpLimb& limb = nthLimb(index);
+			OpEdge* endEdge = limb.edge;
+			if (endEdge->lastEdge)
+				endEdge = endEdge->lastEdge;
+			else if (endEdge->priorEdge)
+				endEdge = endEdge->advanceToEnd(EdgeMatch::start);
+			for (OpContour* member : endEdge->segment->contour->members()) {
+				if (member->treeID != id)
+					member->setSeen(id);
+				limb.addEach(*member, *this);
+			}
+			if (totalUsed > maxLimbs) {
+				context->setError(PathOpsV0Lib::ContextError::tree  
+						OP_DEBUG_PARAMS(edge->id));
+				return;
+			}
+		} while (++index < totalUsed);
+		if (LimbPass::disabledBackwards < ++limbPass) {
+			// if ineligible edges make up some percentage of the tree, discard it
+			const OpLimb* test = bestGapLimb;
+			float enabledLength = 0;
+			float disabledLength = 0;
+			do {
+				(test->edge->disabled ? disabledLength : enabledLength) += 
+						test->edge->curve.callerBounds().perimeter();
+				test = test->parent;
+			} while (test);
+			PathOpsV0Lib::ContextValue fun = context->contextCallbacks.enabledRatioFuncPtr;
+			float enabledRatio = fun ? (*fun)((ContextPtr) context) : 1;  // !!! have no idea what this should be
+			disabled = disabledLength && enabledLength / disabledLength < enabledRatio;
+			if (!disabled)
+				return;
+			test = bestGapLimb;
+			do {
+				if (test->edge->linkHead)
+					test->edge->segment->contour->removeLink(test->edge);
+				test = test->parent;
+			} while (test);
+			return;  // error if bestLimb == nullptr
+		}
+	} while (!bestLimb);
+}
+
 // !!! this code does not do what is described
 // breaks testQuads25988731; disabled to find test case for rewrite
 bool OpTree::preferSibling(OpLimb* palParent, OpEdge* edge) {
@@ -1169,7 +1173,10 @@ bool OpJoiner::matchLinks(OpContour* contour, bool popLast) {
 	OP_ASSERT(EdgeMatch::start == lastLink->which() || EdgeMatch::end == lastLink->which());
 //	found.clear();
 //	matchPt = lastLink->whichSect(EdgeMatch::end).pt;
-	OpTree tree(*this);
+	OpTree tree(edge);
+	tree.makeTrunk(edge);
+	if (tree.disabled)
+		return false;
 	if (PathOpsV0Lib::ContextError::none != context->error)
 		return false;
 	// adding gap edge in unsect pair case

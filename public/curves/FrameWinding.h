@@ -172,7 +172,7 @@ inline Context* frameContext(CurveOutput output = nullptr) {
     SetContextCallbacks(context, { output });
 #if OP_DEBUG
 	SetDebugContextCallbacks(context, { 
-        frameDebugIsFill
+        frameDebugIsFill, nullptr, nullptr
         OP_DEBUG_DUMP_PARAMS(frameDumpOutFunc, frameDumpSetFunc, nullptr,
                 frameDumpOutFunc, frameImageNamesFunc, frameColorFuncPtr)
     });

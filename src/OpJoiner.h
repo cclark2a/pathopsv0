@@ -140,7 +140,7 @@ struct OpLimb {
 // prefer the looped limb with the smallest perimeter 
 struct OpTree {
     OP_DEBUG_DUMP_CODE(OpTree(DumpSerialization , OpContext* );)
-	OpTree(OpJoiner& );
+	OpTree(OpEdge* );
 	OP_DEBUG_CODE(~OpTree());
 //	void addAlternateEnd();
 	void addDisabled(OpContour& );
@@ -157,6 +157,7 @@ struct OpTree {
 	bool join(OpJoiner& );
 	OpLimb& nthLimb(int index);
 	OpLimb* makeLimb();
+	void makeTrunk(OpEdge* );
 	bool preferSibling(OpLimb*, OpEdge* );
 //	OpLimb* unsectableLoop() const;
 	DUMP_DECLARATIONS
@@ -172,6 +173,7 @@ struct OpTree {
 	int totalUsed;
 	int id;
 	LimbPass limbPass;
+	bool disabled;  // set when found contour is proportionately made up of disabled edges
 	bool smallGap;
 	OP_DEBUG_CODE(int debugAddEach = 0);
 };

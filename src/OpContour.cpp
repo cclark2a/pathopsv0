@@ -624,6 +624,32 @@ bool OpContour::linkUp(OpJoiner* joiner, OpEdge* e) {
 	}
 }
 
+// Moved points on segments' sects may require rerunning merge. Run while anything on 
+//  overlapped contours moved.
+bool OpContour::mergeEndPoints() {
+	OP_ASSERT(!segEndsMerged);
+	bool runAgain = false;
+	for (auto& segment : segments) {
+		if (segment.endsMerged)
+			continue;
+		runAgain |= segment.mergeEndPoints();
+	}
+	segEndsMerged = true;
+	return runAgain;  // if true, caller must run all overlapping contours
+}
+
+bool OpContour::mergeIntersections() {
+	OP_ASSERT(!segMerged);
+	bool runAgain = false;
+	for (auto& segment : segments) {
+		if (segment.merged)
+			continue;
+		runAgain |= segment.mergeIntersections();
+	}
+	segMerged = true;
+	return runAgain;  // if true, caller must run all overlapping contours
+}
+
 // check if resolution of link ups left unambiguous edge ends for further linkage
 // !!! this is missing a check to see if the matched edge has the correct winding
 // at very least, it should have an assert
@@ -820,6 +846,9 @@ bool OpContour::fixCCSects() {
 		if (segment.disabled)
 			continue;
 		int safetyCount = 10;
+		PathOpsV0Lib::WindingLoopLimit safetyLimitFun = context->windingCallbacks.windingLoopFuncPtr;
+		if (safetyLimitFun)
+			safetyCount = (*safetyLimitFun)(winding());
 		while (segment.fixCCSects() && --safetyCount)
 			;
 		if (!safetyCount)
@@ -932,17 +961,3 @@ OpContourIter::OpContourIter(OpContext* context) {
 	storage = context->contourStorage;
 	contourIndex = 0;
 }
-
-#if 0 && OP_DEBUG
-void OpContour::addDebugContourData(PathOpsV0Lib::DebugContourData data, 
-        PathOpsV0Lib::DebugContourType type) {
-    PathOpsV0Lib::DebugContourData& contourData = debugContourData[(size_t) type];
-    contourData.size = data.size;
-	if (!data.size) {
-		contourData.data = nullptr;
-		return;
-	}
-	contourData.data = context->allocateCallerData(data.size);
-	std::memcpy(contourData.data, data.data, data.size);
-}
-#endif

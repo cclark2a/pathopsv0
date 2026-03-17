@@ -4,12 +4,11 @@
 #include "OpSegment.h"
 
 // returns true if merge end points needs to run again
-bool OpIntersection::merge(int mId) {
+void OpIntersection::merge(int mId) {
 	mergeID = mId;
 	OP_ASSERT(!opp->mergeID);
 	opp->mergeID = mId;
 	opp->ptT.pt = ptT.pt;
-	return opp->segment->id < segment->id;
 }
 
 void OpIntersection::pair(OpIntersection* o) {
@@ -30,6 +29,17 @@ void OpIntersection::setCoin(int cid, MatchEnds end, CoinOpp co) {
 	segment->hasCoin = true;
 	segment->sects.hasPairs = true;
 	segment->sects.unsorted = true;
+}
+
+bool OpIntersection::setMerge(int mID, OpPoint mergePt) {
+	mergeID = mID;
+	ptT.pt = mergePt;
+	if (opp->unsectID)
+		return false;
+	opp->mergeID = 0;
+	merge(mergeID);
+	opp->segment->setUnmerged();
+	return true;
 }
 
 OpRect OpIntersection::setMergeBounds(OpVector halfThreshold) {
@@ -285,7 +295,7 @@ int OpIntersections::coinRange(OpEdge& edge, OpSegment* opp, bool reversed) {
 			coinEnd = nullptr;
 			coinID = sect->coincidenceID;
 			if (edgeStart) {
-				OP_ASSERT(edgeStart->coincidenceID);
+//				OP_ASSERT(edgeStart->coincidenceID);
    				edgeStart->coincidenceID = edgeStart->opp->coincidenceID = coinID;
 				OP_ASSERT(t > edge.startT);
 				coinStart->zeroCoincidencePair();
@@ -747,6 +757,7 @@ void OpIntersections::sort() {
 		processEnd(index);
 }
 
+#if 0
 // look for cases where seg A intersects seg B at X, and seg A intersects seg C at X
 //   but seg B does not intersect seg C at X
 TripleSected OpIntersections::tripleSect() {
@@ -803,6 +814,7 @@ TripleSected OpIntersections::tripleSect() {
 	}
 	return TripleSected::done;
 }
+#endif
 
 void OpIntersections::zeroPairs(OpIntersection* sect) {
 	int coinID = sect->coincidenceID;

@@ -247,7 +247,7 @@ struct CutUp {
 
 	void findCuts() {
 	// get cut locations for curve and opp; iterate on both while cut point is nearly original
-		// !!! put in safety count limit? put limit in callbacks?
+		// not necessary to put in limit; fibonacci will terminate when it exceeds 1.f
 		do {
 			float cutT = std::max(0.f, std::min(1.f, ptT.t + diff[1] * direction));
 			if (ptT.t == cutT) {
@@ -1164,7 +1164,8 @@ OpEdge* OpCurveCurve::boundedEdge(OpSegment* segm, const OpPointBounds& sectBoun
 	OpPtT maxT(SetToNaN::dummy);
 	OpVector threshold = segm->threshold();
 	PathOpsV0Lib::ContextCallbacks& cb = segm->contour->context->contextCallbacks;
-	float margin = cb.maxMarginFuncPtr ? cb.maxMarginFuncPtr(segm->c.c) : 2.0f;
+	float margin = cb.maxMarginFuncPtr ? (*cb.maxMarginFuncPtr)(segm->c.c) : 2.0f;
+	int safetyLimit = cb.rootAdjustFuncPtr ? (*cb.rootAdjustFuncPtr)(segm->c.c) : 20;
 	threshold *= margin;
 	if (sectBounds.contains(segm->c.firstPt(), threshold))
 		minT = { segm->c.firstPt(), 0 };
@@ -1184,7 +1185,7 @@ OpEdge* OpCurveCurve::boundedEdge(OpSegment* segm, const OpPointBounds& sectBoun
 		if (!(maxT.t >= ptT.t))
 			maxT = ptT;
 	};
-	auto saveRoots = [&c, saveBest, this](Axis axis, float inside, float boundary) {
+	auto saveRoots = [&c, saveBest, safetyLimit, this](Axis axis, float inside, float boundary) {
 		OpRoots roots = c.axisRayHit(axis, boundary);
 		if (RootFail::rootIsNaN == roots.fail) {
 			boundedEdgeFailed = true;
@@ -1196,7 +1197,7 @@ OpEdge* OpCurveCurve::boundedEdge(OpSegment* segm, const OpPointBounds& sectBoun
             // computed point axis should equal boundary or err towards outside of bounds
             // if computed point error moves it inside bounds, adjust t outwards
             OpPtT ptT;
-            int safetyCount = 0;
+            int safetyCount = safetyLimit;
             float adjust = 0;
             do {
 			    ptT = c.ptTAtT(root);
@@ -1211,8 +1212,8 @@ OpEdge* OpCurveCurve::boundedEdge(OpSegment* segm, const OpPointBounds& sectBoun
                     root += adjust;
                     adjust += adjust;
                 }
-            } while (++safetyCount < 20);
-            OP_ASSERT(safetyCount < 20);
+            } while (--safetyCount > 0);
+            OP_ASSERT(safetyCount > 0);
 			saveBest(ptT, axis);
 		}
 	};
