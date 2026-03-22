@@ -82,7 +82,7 @@ struct OpJoiner {
 	OP_ENUM_MEMBER(miswound),  /* in linkups list, including entries with the wrong winding */ \
 	OP_ENUM_MEMBER(disjoint),  /* gap to closest in linkups list, or gap to edge start (loop) */ \
 	OP_ENUM_MEMBER(unlinkedPal),  /* unlinked variant that permits siblings to connect to seen edges' pals */ \
-	OP_ENUM_MEMBER(small),  /* edges from nearby intersections (delta t is below set value) */ \
+	OP_ENUM_MEMBER(smallEdge ),  /* edges from nearby intersections (delta t is below set value) */ \
 	OP_ENUM_MEMBER(disabledBackwards),  /* undetected mis-sort may be closable (e.g, loop156850) */ \
 	OP_ENUM_MEMBER(debugStop)  /* debugging aid when limb pass is advanced past final value */
 

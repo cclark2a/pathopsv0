@@ -76,6 +76,136 @@ std::string debugPopMatching(std::string& s, char match) {
     return s;
 }
 
+std::vector<const OpIntersection*> findCoincidence(int ID) {
+    std::vector<const OpIntersection*> result;
+#if OP_DEBUG_GLOBALS
+    for (const auto c : contourIterator) {
+        for (const auto& seg : c->segments) {
+            for (const auto intersection : seg.sects.i) {
+                if (ID == abs(intersection->coincidenceID) 
+                        OP_DEBUG_CODE(|| ID == abs(intersection->debugCoincidenceID)))
+                    result.push_back(intersection);
+            }
+        }
+    }
+#endif
+    return result;
+}
+
+const OpContour* findContour(int ID) {
+#if OP_DEBUG_GLOBALS
+    for (const auto c : contourIterator)
+        if (ID == c->id)
+            return c;
+#endif
+    return nullptr;
+}
+
+OpEdge* findEdge(int ID) {
+#if OP_DEBUG_GLOBALS
+    auto match = [ID](const OpEdge& edge) {
+        return edge.id == ID || edge.debugRayMatch == ID;
+    };
+    for (auto c : contourIterator) {
+        for (auto& seg : c->segments) {
+            for (auto& edge : seg.edges) {
+                if (match(edge))
+                    return &edge;
+            }
+        }
+    }
+    if (OpEdge* filler = debugGlobalContext->fillerStorage
+            ? debugGlobalContext->fillerStorage->debugFind(ID) : nullptr)
+        return filler;
+    // if edge intersect is active, search there too
+    if (OpEdge* ccEdge = debugGlobalContext->ccStorage
+            ? debugGlobalContext->ccStorage->debugFind(ID) : nullptr)
+        return ccEdge;
+#endif
+    return nullptr;
+}
+
+std::vector<const OpEdge*> findEdgeRayMatch(int ID) {
+    std::vector<const OpEdge*> result;
+#if OP_DEBUG_GLOBALS
+    for (const auto c : contourIterator) {
+        for (const auto& seg : c->segments) {
+            for (const auto& edge : seg.edges) {
+                if (ID == edge.debugRayMatch)
+                    result.push_back(&edge);
+            }
+        }
+    }
+#endif
+    return result;
+}
+
+const OpIntersection* findIntersection(int ID) {
+#if OP_DEBUG_GLOBALS
+	OpSectStorage* sectStorage = debugGlobalContext->sectStorage;
+	while (sectStorage) {
+        for (int index = 0; index < sectStorage->used; ++index) {
+			OpIntersection* intersection = &sectStorage->storage[index];
+            if (ID == intersection->id)
+                return intersection;
+        }
+		sectStorage = sectStorage->next;
+	}
+#endif
+    return nullptr;
+}
+
+const OpLimb* findLimb(int ID) {
+#if OP_DEBUG_GLOBALS
+    if (const OpLimb* limb = debugGlobalContext->limbStorage
+            ? debugGlobalContext->limbStorage->debugFind(ID) : nullptr)
+        return limb;
+#endif
+    return nullptr;
+}
+
+std::vector<const OpIntersection*> findMerge(int ID) {
+    std::vector<const OpIntersection*> result;
+#if OP_DEBUG_GLOBALS
+    for (const auto c : contourIterator) {
+        for (const auto& seg : c->segments) {
+            for (const auto intersection : seg.sects.i) {
+                if (ID == intersection->mergeID)
+                    result.push_back(intersection);
+            }
+        }
+    }
+#endif
+    return result;
+}
+
+std::vector<const OpIntersection*> findSectUnsectable(int ID) {
+    std::vector<const OpIntersection*> result;
+#if OP_DEBUG_GLOBALS
+    for (const auto c : contourIterator) {
+        for (const auto& seg : c->segments) {
+            for (const auto intersection : seg.sects.i) {
+                if (ID == abs(intersection->unsectID))
+                    result.push_back(intersection);
+            }
+        }
+    }
+#endif
+    return result;
+}
+
+const OpSegment* findSegment(int ID) {
+#if OP_DEBUG_GLOBALS
+    for (const auto c : contourIterator) {
+        for (const auto& seg : c->segments) {
+            if (ID == seg.id)
+                return &seg;
+        }
+    }
+#endif
+    return nullptr;
+}
+
 std::string stringFormat(std::string s, int lineWidth) {
     if (!s.size())
 		return "";
@@ -224,10 +354,12 @@ ENUM_NAME_STRUCT(DebugWindingType)
 #define Rotated_Base
 ENUM_NAME_STRUCT(Rotated)
 
+#if OP_ALIAS
 #undef OP_ENUM_MEMBER
 #define OP_ENUM_MEMBER(w) { AliasType::w, #w }
 #define AliasType_Base
 ENUM_NAME_STRUCT(AliasType)
+#endif
 
 namespace PathOpsV0Lib {
 
@@ -907,8 +1039,39 @@ void OpContext::dumpBaseFile() const {
         fclose(file);
 
         OpDebugOut("!!! " + debugFilename + " != DumpCopy.txt\n");
+#ifndef _WIN32
         std::string bashStr = "bash -c 'diff " + filePath + " " + copyPath + "'";
         system(bashStr.c_str());
+#else
+        const char* o = &orig.front();
+        const char* c = &copy.front();
+        auto lineCount = [](const std::string& str, char lineChar, const char* label) {
+            const char* s = &str.front();
+            int count = 0;
+            int line = 0;
+            while (s <= &str.back()) {
+                count += lineChar == *s++;
+            }
+            if (count)
+                OpDebugOut(std::string(label) + ":" + STR(count) + " ");
+            return count;
+        };
+        int oCrCount = lineCount(orig, '\r', "orig CR");
+        int cCrCount = lineCount(copy, '\r', "copy CR");
+        int oLfCount = lineCount(orig, '\n', "orig LF");
+        int clfCount = lineCount(copy, '\n', "copy LF");
+        auto showCR = [](const std::string& str) {
+            const char* s = &str.front();
+            int line = 0;
+            while (s <= &str.back()) {
+                if ('\r' == *s)
+                    OpDebugOut("CR on line " + STR(line) + "\n");
+                line += '\n' == *s++;
+            }
+        };
+        if (oCrCount)
+            showCR(orig); 
+#endif
         OpNop();
     }
     delete fileContext;
@@ -1337,15 +1500,15 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
         debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
-    ASSERT_ORDERED(disabledPals, small);
-	if (small.size()) {
-		s += "small:" + STR(small.size()) + "[";
-		for (OpEdge* e : small)
+    ASSERT_ORDERED(disabledPals, smallEdges);
+	if (smallEdges.size()) {
+		s += "smallEdges:" + STR(smallEdges.size()) + "[";
+		for (OpEdge* e : smallEdges)
 			s += STR(e->id) + " ";
         debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
-    ASSERT_ORDERED(small, unsortables);
+    ASSERT_ORDERED(smallEdges, unsortables);
 	if (unsortables.size()) {
 		s += "unsortables:" + STR(unsortables.size()) + "[";
 		for (OpEdge* e : unsortables)
@@ -1383,11 +1546,15 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
         debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
+#if OP_ALIAS
     ASSERT_ORDERED(endLinks, aliases);
     if (aliases.maps.size()) {
         s += "aliases:" + aliases.debugDump(l, b) + "\n";
     }
     DEBUG_DUMP_OPTIONAL_STRUCT(aliases, overlapBounds, overlapBounds.isFinite());
+#else
+    DEBUG_DUMP_OPTIONAL_STRUCT(endLinks, overlapBounds, overlapBounds.isFinite());
+#endif
     DEBUG_DUMP_OPTIONAL_STRUCT(overlapBounds, bounds, bounds.isFinite());
     ASSERT_ORDERED(bounds, context);  // omit context
     DEBUG_DUMP_OPTIONAL_ID(context, overlapOwner);
@@ -1870,6 +2037,17 @@ int OpEdgeStorage::debugCount() const {
     return result;
 }
 
+OpEdge* OpEdgeStorage::debugFind(int ID) {
+	for (int index = 0; index < used; index++) {
+		OpEdge& test = storage[index];
+        if (test.id == ID || test.debugRayMatch == ID)
+            return &test;
+	}
+    if (!next)
+        return nullptr;
+    return next->debugFind(ID);
+}
+
 OpEdge* OpEdgeStorage::debugIndex(int index) {
     OpEdgeStorage* block = this;
     while (index >= block->used) {
@@ -2210,6 +2388,7 @@ std::string OpLimbStorage::debugDump(DebugLevel l, DebugBase b) const {
     return s;
 }
 
+#if OP_ALIAS
 std::string OpPtAlias::debugDump(DebugLevel l, DebugBase b) const {
     std::string s;
     s += "original:" + original.debugDump(l, b) + " ";
@@ -2235,6 +2414,7 @@ std::string OpPtAliases::debugDump(DebugLevel l, DebugBase b) const {
     static_assert(sizeof(OpPtAliases) == offsetof(OpPtAliases, bounds) + sizeof(bounds));
     return s;
 }
+#endif
 
 std::string OpPoint::debugDump(DebugLevel l, DebugBase b) const {
     if (DebugLevel::error != l && !isFinite())

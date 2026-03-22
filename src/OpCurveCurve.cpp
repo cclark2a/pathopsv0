@@ -1445,7 +1445,7 @@ SectFound OpCurveCurve::divideAndConquer() {
             }
         }
 #endif
-#if !OP_DEBUGGER && !OP_DEBUG_FAST_TEST
+#if OP_DEBUG && !OP_DEBUGGER && !OP_DEBUG_FAST_TEST
 		OP_ASSERT(debugBreak(CcBreak::atDepth));
 #endif
 		bool snipEm = 1 == depth && !limits.snips.empty();

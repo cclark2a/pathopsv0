@@ -3,8 +3,12 @@
 #define OpDebug_DEFINED
 
 #ifdef _WIN32
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
+#ifndef _CRT_SECURE_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
+#endif
 #endif
 
 #include <assert.h>
@@ -35,13 +39,17 @@
 #define OP_RELEASE_TEST 1	// !!! set to zero to remove tests from release build (untested)
 #endif
 
+#ifndef OP_DEBUGGER
+    #define OP_DEBUGGER 0
+#endif
+
 // OP_DEBUG_FAST_TEST uses threads; all code must be thread-safe
 #define OP_DEBUG_VERBOSE (OP_DEBUGGER || !OP_DEBUG_FAST_TEST)
 #define OP_DEBUG_GLOBALS (!OP_DEBUG_FAST_TEST)  // globals available while debugging single-threaded
 #define OP_TEST (OP_DEBUG || OP_RELEASE_TEST)  // check test results (e.g., scanline compare)
 
 #ifndef OP_TEST_RASTER
-#define OP_TEST_RASTER (!OP_TINY_TEST && OP_TEST)
+#define OP_TEST_RASTER (!OP_TINY_TEST && OP_TEST && OP_DEBUG)
 #endif
 
 #define OP_ENUM_BASE(member, value) member = value
@@ -201,14 +209,11 @@ struct OpDebugData {
 	#define OP_DEBUG_MAKER 1
 	#define OP_DEBUG_VALIDATE 1
 #endif
-#ifndef OP_DEBUGGER
-    #define OP_DEBUGGER 0
-#endif
 #define OP_DEBUG_PARAMS(...) , __VA_ARGS__
 #define OP_DEBUG_CODE(...) __VA_ARGS__
 #define OP_DEBUG_ENUM() uninitialized = -1,
 #define OP_DEBUG_INIT(enum_name) = enum_name::uninitialized
-#define OP_DEBUG_INIT_BOOL() = -1
+#define OP_DEBUG_INIT_BOOL() = ((bool) -1)
 #define OP_DEBUG_INIT_FLOAT() = OpDebugNaN
 #define OP_DEBUG_INIT_INT() = INT_MAX
 #define OP_DEBUG_INIT_PTR(ptr_type) = (ptr_type*) 0xDEAD0ABEDEADBEEF
@@ -329,7 +334,7 @@ struct OpDebugMaker {
 
 #if OP_DEBUG
 
-#if OP_DEBUG_GLOBALS && OP_DEBUG_DUMP
+#if OP_DEBUG_GLOBALS
 extern struct OpContext* debugGlobalContext;
 
 struct OpDebugContourIter {
@@ -447,22 +452,27 @@ std::string OpDebugDumpHex(float);
 
 #if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE
 
-union FloatIntUnion {
-    float   f;
-    int32_t i;
-};
-
 std::string OpDebugDumpByteArray(const uint8_t* bytes, size_t size);
 int32_t OpDebugFloatToBits(float);
 float OpDebugHexToFloat(const char*& str);
 uint8_t OpDebugByteToInt(const char*& str);
 int32_t OpDebugHexToInt(const char*& str);
-int OpDebugReadNamedInt(const char*& str, const char* label);
 std::string OpDebugLabel(const char*& str);
 bool OpDebugOptional(const char*& str, const char* match);
 float OpDebugReadNamedFloat(const char*& str, const char* label);
 size_t OpDebugReadSizeT(const char*& str);
 void OpDebugRequired(const char*& str, const char* match);
+
+#endif
+
+#if OP_TEST
+
+union FloatIntUnion {
+    float   f;
+    int32_t i;
+};
+
+int OpDebugReadNamedInt(const char*& str, const char* label);
 
 #endif
 

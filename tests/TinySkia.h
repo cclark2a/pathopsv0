@@ -420,7 +420,11 @@ inline void SkChopCubicAt(const SkPoint* pts, SkPoint* cubicPair, float loopT) {
 }
 
 inline std::string dumpSkPath(const SkPath* p, bool hex, std::string prefix) {
+#if OP_DEBUG_SERIALIZE
 	return p->debugDumpCommon(hex, prefix);
+#else
+    return "";
+#endif
 }
 
 typedef float SkScalar;

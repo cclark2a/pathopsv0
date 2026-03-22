@@ -4,6 +4,12 @@
 
 #if OP_DEBUG_SERIALIZE
 
+struct OpContour;
+struct OpEdge;
+struct OpIntersection;
+struct OpLimb;
+struct OpSegment;
+
 enum class DebugBase {
     dec,
     hex,
@@ -35,6 +41,16 @@ extern std::string debugFloat(DebugLevel , float );
 extern std::string debugPopMatching(std::string& s, char match);
 extern bool debugIfMatching(std::string& s, char match);
 extern std::string debugValue(DebugLevel l, DebugBase b, std::string label, float value);
+extern std::vector<const OpIntersection*> findCoincidence(int id);
+extern const OpContour* findContour(int id);
+extern OpEdge* findEdge(int id);
+extern std::vector<const OpEdge*> findEdgeRayMatch(int id);
+extern const OpIntersection* findIntersection(int id);
+extern const OpLimb* findLimb(int id);
+extern std::vector<const OpIntersection*> findMerge(int id);
+extern std::vector<const OpIntersection*> findSectUnsectable(int id);
+extern const OpSegment* findSegment(int id);
+
 extern DebugBase defaultBase;
 extern DebugLevel defaultLevel;
 

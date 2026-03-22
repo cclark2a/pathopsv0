@@ -90,8 +90,10 @@ struct OpSegment {
 	OpSegment(PathOpsV0Lib::Contour* , PathOpsV0Lib::AddCurve);
 	bool activeAtT(OpEdge* , EdgeMatch , MatchZero , std::vector<FoundEdge>& ) const; // true if pal
 	bool activeNeighbor(const OpEdge* , EdgeMatch , AllowLinked , std::vector<FoundEdge>& ) const; // true if pal
-	void addAlias(OpPoint original, OpPoint alias, AliasType );
+#if OP_ALIAS
+    void addAlias(OpPoint original, OpPoint alias, AliasType );
 	void addAlias(OpPoint original, OpPoint opp, OpPoint alias, AliasType );
+#endif
 	OpIntersection* addCoin(const OpPtT& , int coinID, MatchEnds , CoinOpp , const OpSegment* o  
 			OP_LINE_FILE_ARGS());
 	void addDisjointIntersections();
@@ -103,9 +105,10 @@ struct OpSegment {
 	OpPtT alignToEnd(OpPoint oppPt) const;
 	WindingCondition apply();
 	void betweenCoincidence();
-	SegPt checkAliases(OpPtT );
 	int coinID(bool flipped);
+#if OP_ALIAS
 	bool containsAlias(OpPoint );  // true if point is alias in owning contour
+#endif
 	void disableSmall();
 	OpPtT distance(const OpPtT& segPtT, OpSegment* opp);
 	bool endMoved() const { 
@@ -133,8 +136,10 @@ struct OpSegment {
 	void normalize();
 	OpPtT ptAtT(const OpPtT& ) const;
 	void remap(OpPoint oldAlias, OpPoint newAlias);  // local remap
+#if OP_ALIAS
 	void setAliases() {
 		c.setAliases(*contour); }
+#endif
 	void setDisabled(OP_LINE_FILE_NP_ARGS());
 	void setEndsUnmerged();
 	void setUnmerged();

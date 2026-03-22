@@ -81,7 +81,6 @@ OP_X(OpIntersections) \
 OP_X(OpJoiner) \
 OP_X(OpLimb) \
 OP_X(OpPoint) \
-OP_X(OpPtAliases) \
 OP_X(OpRect) \
 OP_X(OpRoots) \
 OP_X(OpTree) \
@@ -89,6 +88,8 @@ OP_X(OpVector) \
 OP_X(OpWinding) \
 OP_X(SectRay) \
 OP_X(SegPt)
+
+// #if OP_ALIAS is true: add back: OP_X(OpPtAliases) \
 
 #define OP_X(Thing) \
 	struct Thing;
@@ -130,7 +131,6 @@ OP_X(OpSegment*)
 
 #define DUMP_GROUP \
 OP_X(Active) \
-OP_X(Aliases) \
 OP_X(Coincidences) \
 OP_X(Coins) \
 OP_X(Context) \
@@ -151,6 +151,8 @@ OP_X(Tree) \
 OP_X(Unsectable) \
 OP_X(Unsortable) \
 OP_X(Windings)
+
+// if OP_ALIAS is true: add back OP_X(Aliases) \
 
 extern std::string debugDmpJoin(OpContext* , DebugLevel l, DebugBase b);
 extern std::string debugDmpLinks(OpContext* , DebugLevel l, DebugBase b);
@@ -228,16 +230,6 @@ extern void verifyFile(OpContext* , std::string fromFilename, std::string verify
 extern void dmpDepth(int level);  // curve-curve intermediate edges created at some recursive depth
 extern void dmpDepth();  // curve-curve intermediate edges at all depths 
 #endif
-
-extern std::vector<const OpIntersection*> findCoincidence(int id);
-extern const OpContour* findContour(int id);
-extern OpEdge* findEdge(int id);
-extern std::vector<const OpEdge*> findEdgeRayMatch(int id);
-extern const OpIntersection* findIntersection(int id);
-extern const OpLimb* findLimb(int id);
-extern std::vector<const OpIntersection*> findMerge(int id);
-extern std::vector<const OpIntersection*> findSectUnsectable(int id);
-extern const OpSegment* findSegment(int id);
 
 // for typing in immediate window as parameters to dmpBase
 // commented out here to avoid declaration shadowing, but defined for real at bottom of cpp file

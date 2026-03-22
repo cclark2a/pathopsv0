@@ -41,7 +41,9 @@ void SkiaIntersectExample() {
     two.lineTo(2, 1);
     two.quadTo(2, 2, 1, 3);
     IntersectPath(one, two, &intersection);
+#if OP_DEBUG_SERIALIZE
     intersection.dump();
+#endif
 }
 
 OP_TINY_MAIN(SkiaIntersectExample)  // main() for cmake

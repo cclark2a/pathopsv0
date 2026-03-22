@@ -31,7 +31,9 @@ void SkiaSimplifyExample() {
     path.lineTo(2, 1);
     path.quadTo(2, 2, 1, 3);
     SimplifyPath(path, &simplified);
+#if OP_DEBUG_SERIALIZE
     simplified.dump();
+#endif
 }
 
 OP_TINY_MAIN(SkiaSimplifyExample)  // main() for cmake

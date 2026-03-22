@@ -56,8 +56,10 @@ std::vector<OpIntersection*> OpSegments::AddEndMatches(OpSegment* seg, OpSegment
 		return segPtT.t;
 	};
 	// check seg and opp ends against each other
-	seg->setAliases();
+#if OP_ALIAS
+    seg->setAliases();
 	opp->setAliases();
+#endif
 	float startSegT = checkEnds(OpPtT(opp->c.c.data->start, 0)  OP_LINE_FILE_PARGS());
 	float endSegT = checkEnds(OpPtT(opp->c.c.data->end, 1)  OP_LINE_FILE_PARGS());	
 	auto checkOpp = [add, seg, opp](const OpPtT& segPtT  OP_LINE_FILE_ARGS()) {
@@ -424,7 +426,7 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 	}
 	SectFound ccResult = cc.divideAndConquer();
 	OP_DEBUG_DUMP_CODE(cc.context->dumpFile("curve:" + STR(seg->id) + " curve:" + STR(opp->id)));
-#if !OP_DEBUGGER && !OP_DEBUG_FAST_TEST
+#if OP_DEBUG && !OP_DEBUGGER && !OP_DEBUG_FAST_TEST
 	if (!cc.debugBreak(CcBreak::atEnd)) {
 		OP_DEBUG_DUMP_CODE(cc.limits.dump());
 		OP_ASSERT(0);

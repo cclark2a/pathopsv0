@@ -208,6 +208,7 @@ static std::string debugOpTest(std::string testname, const SkPath& pathA, const 
 // char* so it can be called from immediate window
 static void dumpOpTest(std::string testname, const SkPath& pathA, const SkPath& pathB, SkPathOp op, 
             std::string filename) {
+#if OP_DEBUG_SERIALIZE
     std::string filePath = dmpFileToPath(filename);
     FILE* file = fopen(filePath.c_str(), "w");
     if (!file) {
@@ -217,6 +218,7 @@ static void dumpOpTest(std::string testname, const SkPath& pathA, const SkPath& 
     std::string s = debugOpTest(testname, pathA, pathB, op);
     fwrite(&s[0], 1, s.size(), file);
     fclose(file);
+#endif
 }
 
 static std::string debugSimplifyTest(std::string testname, const SkPath& path) {
@@ -231,6 +233,7 @@ static std::string debugSimplifyTest(std::string testname, const SkPath& path) {
 
 // char* so it can be called from immediate window
 static void dumpSimplifyTest(std::string testname, const SkPath& path, std::string filename) {
+#if OP_DEBUG_SERIALIZE
     std::string filePath = dmpFileToPath(filename);
     FILE* file = fopen(filePath.c_str(), "w");
     if (!file) {
@@ -240,6 +243,7 @@ static void dumpSimplifyTest(std::string testname, const SkPath& path, std::stri
 	std::string s = debugSimplifyTest(testname, path);
     fwrite(&s[0], 1, s.size(), file);
     fclose(file);
+#endif
 }
 
 void TestOptions::testOp(SkPath& a, SkPath& b, TinyOps op) {
@@ -261,16 +265,20 @@ void TestOptions::testOp(SkPath& a, SkPath& b, TinyOps op) {
                 || SkPathFillType::kInverseWinding == path.getFillType();
     }; 
     if (TinyOps::simplify == op) {
+#if OP_DEBUG_SERIALIZE
         if (tinyState.runOne)
             dumpSimplifyTest(testName, a, TestInFile);
+#endif
         int simpleData[] = { 1 };
         Contour* simple = SetSkiaSimplifyCallbacks(context, simpleData, sizeof(simpleData), 
                 isWindingFill(a)  OP_DEBUG_PARAMS(&a));
         AddSkiaPath(context, simple, a);
     } else {
         SkPathOp mappedOp = MapInvertedSkPathOp((SkPathOp) op, a.isInverseFillType(), b.isInverseFillType());
+#if OP_DEBUG_SERIALIZE
         if (tinyState.runOne)
             dumpOpTest(testName, a, b, mappedOp, TestInFile);
+#endif
         bool aIsWinding = isWindingFill(a);
         bool bIsWinding = isWindingFill(b);
         BinaryWindType windType = aIsWinding && bIsWinding ? BinaryWindType::windBoth
@@ -295,7 +303,9 @@ void TestOptions::testOp(SkPath& a, SkPath& b, TinyOps op) {
 	ContextError contextError = Error(context);
 	if (ContextError::none == contextError) {
 		Resolve(context);
+#if OP_DEBUG_SERIALIZE
         ((OpContext*) context)->dumpFile("testOp resolved");
+#endif
 	}
     contextError = Error(context);
 	tinyState.trackError(contextError);

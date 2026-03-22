@@ -594,11 +594,15 @@ struct SectPtT {
 		, sect(seg->sects.contains(cePtT, opp)) {
 		if (sect)
 			ptT = sect->ptT;
+    #if OP_ALIAS
 		OP_ASSERT(seg->contour->overlapOwner);
 		OpPtAliases& aliases = seg->contour->overlapOwner->aliases;
 		original = ptT.pt;
 		if (OpPoint possibleAlias = aliases.existing(ptT.pt); possibleAlias != ptT.pt)
 			ptT.pt = possibleAlias;
+    #else
+        original = sect ? sect->callerPt : ptT.pt;
+    #endif
 	}
 
 	OpPtT ptT;
@@ -618,9 +622,11 @@ struct SectPair {
 			if (seg.ptT.pt != seg.original) {
 				if (opp.ptT.pt != opp.original) {
 					OP_ASSERT(0);  // !!! rewritten; trace through new code
-					opp.ptT.pt = ce.seg->contour->overlapOwner->aliases.addTriple(
+            #if OP_ALIAS
+                    opp.ptT.pt = ce.seg->contour->overlapOwner->aliases.addTriple(
 							ce.seg->contour, opp.original, 
 							opp.ptT.pt, seg.ptT.pt, AliasType::coinWinding);
+            #endif
 				} else
 					opp.ptT.pt = seg.ptT.pt;
 			} else

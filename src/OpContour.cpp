@@ -9,6 +9,7 @@
 #include "OpDebugColor.h"
 #endif
 
+#if OP_ALIAS
 OpPoint OpPtAliases::add(OpPoint original, OpPoint alias, AliasType type) {
 	OP_ASSERT(original.isFinite());
 	OP_ASSERT(alias.isFinite());
@@ -147,6 +148,7 @@ struct ContourAlias {
 	OpContour* contour;
 	OpPoint alias;
 };
+#endif
 
 // opp and contour share at least one coincident segment or edge; makes opp member of contour set
 void OpContour::addMerge(OpContour* opp) {
@@ -536,10 +538,12 @@ bool OpContour::disabledPal(OpPoint a, OpPoint b) const {
 	return false;
 }
 
+#if OP_ALIAS
 OpPoint OpContour::existingAlias(OpPoint pt) const {
 	OP_ASSERT(overlapOwner);
 	return overlapOwner->aliases.existing(pt);
 }
+#endif
 
 // !!! reverse return bool : now true if no edges to join (reverse caller also)
 bool OpContour::joinSetup() {
@@ -863,7 +867,7 @@ void OpContour::init(OpContext* ctxt, PathOpsV0Lib::WindingData wind, size_t siz
 	id = ctxt->nextID();
     windingStorage.resize(size);
     std::memcpy(&windingStorage.front(), wind, size);
-#if OP_TEST
+#if OP_DEBUG
 	debugWinding = OpWinding(this, wind, size);
 #endif
 #if OP_DEBUG_IMAGE
@@ -887,7 +891,7 @@ void OpContour::init() {
 }
 
 bool OpContour::isEmpty() {
-#if OP_DEBUG_IMAGE
+#if OP_DEBUG
 	OP_ASSERT(segments.empty() || !debugCurveData.empty());
 	return debugCurveData.empty();
 #endif
@@ -909,7 +913,7 @@ void OpContour::setSeen(int tree_id) {
 	for (OpEdge* test : endLinks.l) {
 		test->lastEdge->endSeen = false;
 	}
-	for (OpEdge* test : small) {
+	for (OpEdge* test : smallEdges) {
 		test->startSeen = false;
 	}
 }

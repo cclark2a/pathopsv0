@@ -3,6 +3,9 @@
 
 #if OP_DEBUG_DUMP
 #include <ctype.h>
+#ifdef _WIN32
+#include <cstdio>  // for std::remove()
+#endif
 
 #include "OpCurveCurve.h"
 #include "OpDebugColor.h"
@@ -203,6 +206,7 @@ void dmpActive() {
     }
 }
 
+#if OP_ALIAS
 void dmpAliases() {
     std::string s;
      for (const auto c : contourIterator) {
@@ -212,6 +216,7 @@ void dmpAliases() {
      }
      OpDebugFormat(s + "\n");
 }
+#endif
 
 void dmpCoincidences() {
     for (const auto c : contourIterator) {
@@ -309,7 +314,6 @@ std::string dmpFileToStr(std::string name) {
         OpDebugOut("could not open " + filename + " to read (1st time)\n");
         return "";
     }
-    OP_ASSERT(file);
     int seek = fseek(file, 0, SEEK_END);
     OP_ASSERT(!seek);
     long size = ftell(file);
@@ -322,6 +326,37 @@ std::string dmpFileToStr(std::string name) {
     buffer.resize(size);
     fread(&buffer[0], 1, size, file);
     fclose(file);
+#ifdef _WIN32
+    // Windows 11 and earlier has a bug where files written with Unix lines (LF) 
+    // are measured as if they had Windows lines (LF CR). Adjust the string 
+    // length by counting the number of Unix-style line endings in the string.
+    // !!! To prepare for a future bug fix: add code to write file w/ LF w/o CR 
+    //     then measure size to see if it added 1 or not
+    if (buffer.size()) {
+        // !!! probably should move bug tester into some run-once test setup
+        filename = dmpFileToPath("WindowsBugTest.txt");
+        file = fopen(filename.c_str(), "w");
+        if (!file)
+            OpDebugOut("could not open " + filename + " to check for Windows bug fix\n");
+        fwrite("x\n", 1, 2, file);
+        fclose(file);
+        fopen(filename.c_str(), "r");
+        seek = fseek(file, 0, SEEK_END);
+        OP_ASSERT(!seek);
+        size = ftell(file);
+        fclose(file);
+        std::remove(filename.c_str());
+        if (3 == size) {  // bug exists
+            const char* s = &buffer.front();
+            int line = 0;
+            while (s <= &buffer.back()) {
+                if ('\n' == s[0] && '\r' != s[1])
+                    buffer.pop_back();
+                s++;
+            }
+        }
+    }
+#endif
     return buffer;
 }
 
@@ -600,6 +635,7 @@ void dmpWindings() {
 #define OpDebugExpect_Base
 ENUM_NAME_STRUCT(OpDebugExpect)
 
+#if OP_ALIAS
 #undef OP_ENUM_MEMBER
 #define OP_ENUM_MEMBER(w) { AliasType::w, #w }
 #define AliasType_Base
@@ -628,6 +664,7 @@ void OpPtAliases::dumpSet(const char*& str) {
         bounds.dumpSet(str);
     static_assert(sizeof(OpPtAliases) == offsetof(OpPtAliases, bounds) + sizeof(bounds));
 }
+#endif
 
 namespace PathOpsV0Lib {
 
@@ -1059,122 +1096,6 @@ void dmpMatchEnd(int id) {
 		return dmpMatch(seg->c.lastPt());
 }
 
-std::vector<const OpIntersection*> findCoincidence(int ID) {
-    std::vector<const OpIntersection*> result;
-    for (const auto c : contourIterator) {
-        for (const auto& seg : c->segments) {
-            for (const auto intersection : seg.sects.i) {
-                if (ID == abs(intersection->coincidenceID) 
-                        OP_DEBUG_CODE(|| ID == abs(intersection->debugCoincidenceID)))
-                    result.push_back(intersection);
-            }
-        }
-    }
-    return result;
-}
-
-std::vector<const OpIntersection*> findMerge(int ID) {
-    std::vector<const OpIntersection*> result;
-    for (const auto c : contourIterator) {
-        for (const auto& seg : c->segments) {
-            for (const auto intersection : seg.sects.i) {
-                if (ID == intersection->mergeID)
-                    result.push_back(intersection);
-            }
-        }
-    }
-    return result;
-}
-
-const OpContour* findContour(int ID) {
-#if OP_DEBUG
-    for (const auto c : contourIterator)
-        if (ID == c->id)
-            return c;
-#endif
-    return nullptr;
-}
-
-OpEdge* findEdge(int ID) {
-    auto match = [ID](const OpEdge& edge) {
-        return edge.id == ID || edge.debugRayMatch == ID;
-    };
-    for (auto c : contourIterator) {
-        for (auto& seg : c->segments) {
-            for (auto& edge : seg.edges) {
-                if (match(edge))
-                    return &edge;
-            }
-        }
-    }
-    if (OpEdge* filler = debugGlobalContext->fillerStorage
-            ? debugGlobalContext->fillerStorage->debugFind(ID) : nullptr)
-        return filler;
-    // if edge intersect is active, search there too
-    if (OpEdge* ccEdge = debugGlobalContext->ccStorage
-            ? debugGlobalContext->ccStorage->debugFind(ID) : nullptr)
-        return ccEdge;
-    return nullptr;
-}
-
-std::vector<const OpEdge*> findEdgeRayMatch(int ID) {
-    std::vector<const OpEdge*> result;
-    for (const auto c : contourIterator) {
-        for (const auto& seg : c->segments) {
-            for (const auto& edge : seg.edges) {
-                if (ID == edge.debugRayMatch)
-                    result.push_back(&edge);
-            }
-        }
-    }
-    return result;
-}
-
-const OpIntersection* findIntersection(int ID) {
-#if OP_DEBUG
-	OpSectStorage* sectStorage = debugGlobalContext->sectStorage;
-	while (sectStorage) {
-        for (int index = 0; index < sectStorage->used; ++index) {
-			OpIntersection* intersection = &sectStorage->storage[index];
-            if (ID == intersection->id)
-                return intersection;
-        }
-		sectStorage = sectStorage->next;
-	}
-#endif
-    return nullptr;
-}
-
-const OpLimb* findLimb(int ID) {
-    if (const OpLimb* limb = debugGlobalContext->limbStorage
-            ? debugGlobalContext->limbStorage->debugFind(ID) : nullptr)
-        return limb;
-    return nullptr;
-}
-
-std::vector<const OpIntersection*> findSectUnsectable(int ID) {
-    std::vector<const OpIntersection*> result;
-    for (const auto c : contourIterator) {
-        for (const auto& seg : c->segments) {
-            for (const auto intersection : seg.sects.i) {
-                if (ID == abs(intersection->unsectID))
-                    result.push_back(intersection);
-            }
-        }
-    }
-    return result;
-}
-
-const OpSegment* findSegment(int ID) {
-    for (const auto c : contourIterator) {
-        for (const auto& seg : c->segments) {
-            if (ID == seg.id)
-                return &seg;
-        }
-    }
-    return nullptr;
-}
-
 #endif
 
 static std::string getline(const char*& str) {
@@ -1317,8 +1238,8 @@ void OpContour::dumpSet(const char*& str) {
 	DUMP_EDGES(*this, unsectByArea, disabledBackwards);
 	DUMP_EDGES(*this, disabledBackwards, disabledCenterless);
 	DUMP_EDGES(*this, disabledCenterless, disabledPals);
-	DUMP_EDGES(*this, disabledPals, small);
-	DUMP_EDGES(*this, small, unsortables);
+	DUMP_EDGES(*this, disabledPals, smallEdges);
+	DUMP_EDGES(*this, smallEdges, unsortables);
     ASSERT_ORDERED(unsortables, windingStorage);
     OpDebugRequired(str, "windingStorage");
     size_t windingSize = OpDebugReadSizeT(str);
@@ -1326,10 +1247,15 @@ void OpContour::dumpSet(const char*& str) {
     OpDebugByteArray(str, windingSize, &windingStorage.front());
     DUMP_NAMED_EDGES(*this, windingStorage, "linkups", linkups.l);
     DUMP_NAMED_EDGES(*this, linkups, "endLinks", endLinks.l);
+#if OP_ALIAS
     ASSERT_ORDERED(endLinks, aliases);
     if (OpDebugOptional(str, "aliases"))
         aliases.dumpSet(str);
+
     ASSERT_ORDERED(aliases, overlapBounds);
+#else
+    ASSERT_ORDERED(endLinks, overlapBounds);
+#endif
     if (OpDebugOptional(str, "overlapBounds"))
         overlapBounds.dumpSet(str);
     ASSERT_ORDERED(overlapBounds, bounds);
@@ -1407,7 +1333,7 @@ void OpContour::dumpResolveAll(OpContext* c) {
 	DUMP_RESOLVE_ARRAY(disabledBackwards);
 	DUMP_RESOLVE_ARRAY(disabledCenterless);
 	DUMP_RESOLVE_ARRAY(disabledPals);
-	DUMP_RESOLVE_ARRAY(small);
+	DUMP_RESOLVE_ARRAY(smallEdges);
 	DUMP_RESOLVE_ARRAY(unsortables);
 	DUMP_RESOLVE_ARRAY(linkups.l);
 	DUMP_RESOLVE_ARRAY(endLinks.l);
@@ -2580,17 +2506,6 @@ void CallerDataStorage::dumpResolve(PathOpsV0Lib::ContextUserData& data) {
         offset -= stowage->used;
     }
     data.data = (void*) (stowage->storage + offset);
-}
-
-OpEdge* OpEdgeStorage::debugFind(int ID) {
-	for (int index = 0; index < used; index++) {
-		OpEdge& test = storage[index];
-        if (test.id == ID || test.debugRayMatch == ID)
-            return &test;
-	}
-    if (!next)
-        return nullptr;
-    return next->debugFind(ID);
 }
 
 void OpEdgeStorage::DumpSet(const char*& str, OpContext* dumpContext, DumpStorage type) {

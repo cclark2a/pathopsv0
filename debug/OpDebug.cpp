@@ -5,7 +5,11 @@
 #include <string>
 #ifdef _WIN32
 #include <windows.h>
+#include "DebugOpsTypes.h"
 #endif
+
+#include "OpContour.h"
+#include "OpContext.h"
 
 #if 0
 // code pattern to find one of several id values
@@ -19,9 +23,6 @@ constexpr auto to_array(T&&... t)->std::array < V, sizeof...(T) > {
         OP_ASSERT(0);
 #endif
 
-#include "OpContour.h"
-#include "OpContext.h"
-
 #if OP_DEBUG_GLOBALS
 // !!! pare down usage of globals to allow multi-threaded testing to have better debugging
 OpContext* debugGlobalContext;
@@ -32,11 +33,15 @@ int debugPrecision = 9;	// -1: unset; 9: leave trailing zeroes (match VS debugge
 // bool debugSmall = true;  // set to false to show sub-epsilon values as ~0 (unused for now)
 // bool debugEpsilon = false;  // show values smaller than 100 * OpEpsilon as eps (unused for now)
 
+#if OP_TEST
+
 float OpDebugBitsToFloat(int32_t i) {
     FloatIntUnion d;
     d.i = i;
     return d.f;
 }
+
+#endif
 
 #if 0
 void OpPrintOut(const std::string& s) {
@@ -92,8 +97,6 @@ void OpDebugOut(const std::string& s) {
     fprintf(stderr, "%s", s.c_str());
 }
 
-#include "OpMath.h"
-
 std::string OpDebugStr(float value) {
     if (OpMath::IsNaN(value))
         return "NaN";
@@ -146,9 +149,68 @@ std::string OpDebugStr(float value) {
     return result;
 }
 
+namespace PathOpsV0Lib {
+
+void SetDebugCurveData(Contour* ctour, const DebugCurveData& curveData) {
+    OpContour* contour = (OpContour*) ctour;
+    DebugCurve* data = (DebugCurve*) contour->context->allocateCurveData(curveData.size);
+	std::memcpy(data, curveData.data, curveData.size);
+    contour->debugCurveData.push_back({ data, curveData.size });
+}
+
+}
+
+bool OpDebugOptional(const char*& str, const char* match) {
+    size_t matchLen = strlen(match);
+    while (str[0] && ' ' >= str[0])
+        ++str;
+    if (']' == str[0] || '[' == str[0])
+        ++str;
+    else if (match[0] != str[0] && ',' != match[0]) {
+        if ('{' == str[0])
+            ++str;
+        if ('}' == str[0])
+            ++str;
+    }
+    while (str[0] && ' ' >= str[0])
+        ++str;
+    if (!strncmp(match, str, matchLen)) {
+        str += matchLen;
+        if (' ' >= str[0] || ':' == str[0])
+            ++str;
+        return true;
+    }
+    return false;
+}
+
+int OpDebugReadNamedInt(const char*& str, const char* label) {
+    while (' ' >= str[0])
+        ++str;
+    while ('{' == str[0])
+        ++str;
+    if (!OpDebugOptional(str, label))
+        return 0;
+    if ('[' == str[0])
+        ++str;
+    char* endPtr;
+    int result = strtol(str, &endPtr, 10);
+    str = endPtr;
+    if (']' == str[0])
+        ++str;
+    while ('}' == str[0])
+        ++str;
+    if (')' == str[0])
+        ++str;
+    if (',' == str[0])
+        ++str;
+    while (str[0] && ' ' >= str[0])
+        ++str;
+    return result;
+}
+
 #endif
 
-#if OP_DEBUG_GLOBALS && OP_DEBUG_DUMP
+#if OP_DEBUG && OP_DEBUG_GLOBALS
 
 OpDebugContourIterator contourIterator;
 OpDebugSegmentIterator segmentIterator;
@@ -285,11 +347,13 @@ const OpIntersection* OpDebugIntersectionIter::operator*() {
 
 #endif
 
+#if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE
 int32_t OpDebugFloatToBits(float f) {
     FloatIntUnion d;
     d.f = f;
     return d.i;
 }
+#endif
 
 #if OP_DEBUG_SERIALIZE
 
@@ -386,6 +450,7 @@ void OpDebugExitOnFail(std::string message, bool condition) {
     OpDebugExit(message);
 }
 
+#if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE
 float OpDebugHexToFloat(const char*& str) {
     // !!! add support for hex float %a format
     FloatIntUnion d;
@@ -440,6 +505,7 @@ uint8_t OpDebugByteToInt(const char*& str) {
         ++str;
     return result;
 }
+#endif
 
 void OpDebugByteArray(const char*& str, size_t size, uint8_t* bytes) {
     for (size_t index = 0; index < size; ++index) {
@@ -455,31 +521,6 @@ float OpDebugReadNamedFloat(const char*& str, const char* label) {
     if (!OpDebugOptional(str, label))
         return OpNaN;        
     float result = OpDebugHexToFloat(str);
-    return result;
-}
-
-int OpDebugReadNamedInt(const char*& str, const char* label) {
-    while (' ' >= str[0])
-        ++str;
-    while ('{' == str[0])
-        ++str;
-    if (!OpDebugOptional(str, label))
-        return 0;
-    if ('[' == str[0])
-        ++str;
-    char* endPtr;
-    int result = strtol(str, &endPtr, 10);
-    str = endPtr;
-    if (']' == str[0])
-        ++str;
-    while ('}' == str[0])
-        ++str;
-    if (')' == str[0])
-        ++str;
-    if (',' == str[0])
-        ++str;
-    while (str[0] && ' ' >= str[0])
-        ++str;
     return result;
 }
 
@@ -515,29 +556,6 @@ std::string OpDebugLabel(const char*& str) {
     if (' ' >= str[0] || ':' == str[0])
         ++str;
     return result;
-}
-
-bool OpDebugOptional(const char*& str, const char* match) {
-    size_t matchLen = strlen(match);
-    while (str[0] && ' ' >= str[0])
-        ++str;
-    if (']' == str[0] || '[' == str[0])
-        ++str;
-    else if (match[0] != str[0] && ',' != match[0]) {
-        if ('{' == str[0])
-            ++str;
-        if ('}' == str[0])
-            ++str;
-    }
-    while (str[0] && ' ' >= str[0])
-        ++str;
-    if (!strncmp(match, str, matchLen)) {
-        str += matchLen;
-        if (' ' >= str[0] || ':' == str[0])
-            ++str;
-        return true;
-    }
-    return false;
 }
 
 void OpDebugRequired(const char*& str, const char* match) {
@@ -1334,16 +1352,6 @@ void debugConicScale(PathOpsV0Lib::Curve curve, double sX, double sY, double dX,
 
 void debugCubicScale(PathOpsV0Lib::Curve curve, double sX, double sY, double dX, double dY) {
 	debugCommonScale(curve, 2, sX, sY, dX, dY);
-}
-
-void SetDebugCurveData(Contour* ctour, const DebugCurveData& curveData) {
-#if OP_TEST
-    OpContour* contour = (OpContour*) ctour;
-    PathOpsV0Lib::DebugCurve* data = 
-            (PathOpsV0Lib::DebugCurve*) contour->context->allocateCurveData(curveData.size);
-	std::memcpy(data, curveData.data, curveData.size);
-    contour->debugCurveData.push_back({ data, curveData.size });
-#endif
 }
 
 void SetDebugCurveCallbacks(Context* ctext, CurveType , const DebugCurveCallbacks& curveCallbacks) {

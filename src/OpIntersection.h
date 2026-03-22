@@ -47,6 +47,11 @@ inline CoinOpp operator!(CoinOpp m) {
 	return static_cast<CoinOpp>(!static_cast<int>(m));
 }
 
+enum class MergeType {
+    endPoint,
+    midPoint
+};
+
 // Places where a pair of segments cross are recorded as intersections.
 // Pairs of intersections, along with segments' ends, extremas, and inflections,
 // are used to create edges. Edges may then be subdivided so that each edge has
@@ -60,7 +65,6 @@ inline CoinOpp operator!(CoinOpp m) {
 // intersection to point at each other at time of creation.
 
 struct OpIntersection {
-	void merge(int mId);
 	void pair(OpIntersection* o);
 
 	void set(const OpPtT& pt_t, OpSegment* seg  OP_LINE_FILE_DEF(int srcID, int oppID)) {
@@ -77,7 +81,7 @@ struct OpIntersection {
 	}
 
 	void setCoin(int id, MatchEnds end, CoinOpp );  // setter to help debugging
-	bool setMerge(int mergeID, OpPoint mergePt);
+	bool setMerge(int mergeID, OpPoint mergePt, MergeType);
 	OpRect setMergeBounds(OpVector halfThreshold);
 	void setUnsect(int id, MatchEnds end);  // setter to help debugging
 

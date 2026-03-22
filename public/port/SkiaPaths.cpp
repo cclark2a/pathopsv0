@@ -246,3 +246,4 @@ bool VeryLargeSkiaPath(const SkPath& path) {
 	}
 	return veryLarge;
 }
+

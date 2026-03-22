@@ -3,14 +3,6 @@
 #include "OpContext.h"
 #include "OpSegment.h"
 
-// returns true if merge end points needs to run again
-void OpIntersection::merge(int mId) {
-	mergeID = mId;
-	OP_ASSERT(!opp->mergeID);
-	opp->mergeID = mId;
-	opp->ptT.pt = ptT.pt;
-}
-
 void OpIntersection::pair(OpIntersection* o) {
 	OP_ASSERT(abs(unsectID) == abs(o->unsectID)); 
 	OP_ASSERT(coincidenceID == o->coincidenceID); 
@@ -31,14 +23,17 @@ void OpIntersection::setCoin(int cid, MatchEnds end, CoinOpp co) {
 	segment->sects.unsorted = true;
 }
 
-bool OpIntersection::setMerge(int mID, OpPoint mergePt) {
-	mergeID = mID;
-	ptT.pt = mergePt;
-	if (opp->unsectID)
+// returns true if merge end points needs to run again
+bool OpIntersection::setMerge(int masterID, OpPoint masterPt, MergeType mergeType) {
+	mergeID = masterID;
+	ptT.pt = masterPt;
+	if (MergeType::midPoint == mergeType && opp->unsectID)
 		return false;
-	opp->mergeID = 0;
-	merge(mergeID);
-	opp->segment->setUnmerged();
+	OP_ASSERT(MergeType::endPoint != mergeType || !opp->mergeID);
+	opp->mergeID = masterID;
+	opp->ptT.pt = masterPt;
+    if (MergeType::midPoint == mergeType)
+	    opp->segment->setUnmerged();
 	return true;
 }
 

@@ -463,10 +463,12 @@ void OpCurve::pinCtrl() {
 	return;
 }
 
+#if OP_ALIAS
 void OpCurve::setAliases(OpContour& contour) {
 	start = contour.existingAlias(c.data->start);
 	end = contour.existingAlias(c.data->end);
 }
+#endif
 
 // this can fail (if rotated pts are not finite); can happen when input is finite
 // however, callers include sort predicate, which cannot return failure; so don't return failure here
@@ -580,18 +582,22 @@ void OpCurve::zeroSmall(OpContour& contour) {
 	start.y = zero_small(c.data->start.y, threshold.dy);
 	end.x = zero_small(c.data->end.x, threshold.dx);
 	end.y = zero_small(c.data->end.y, threshold.dy);
+#if OP_ALIAS
 	if (end != c.data->end)
 		contour.addAlias(c.data->end, end, AliasType::zeroSmall);
+#endif
 	if (start != c.data->start || end != c.data->end) {
 		pinCtrl();
 		OP_DEBUG_CODE(debugZeroedSmall = true);
 	}
 	isSmall = start.isNearly(end, threshold);
+#if OP_ALIAS
 	OpPoint startAlias = start;
 	if (isSmall && start != end)
 		startAlias = contour.addAlias(start, end, AliasType::isSmall);
 	if (start != c.data->start)
 		contour.addAlias(c.data->start, startAlias, AliasType::zeroSmall);
+#endif
 }
 
 OpPoint OpCurve::hullPt(int index) const {

@@ -3,9 +3,7 @@
 #define Line_DEFINED
 
 #include "PathOps.h"
-#if OP_DEBUG
 #include "DebugOps.h"
-#endif
 
 namespace PathOpsV0Lib {
 

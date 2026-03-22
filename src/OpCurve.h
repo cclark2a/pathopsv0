@@ -110,7 +110,9 @@ struct OpCurve {
 	OpRoots rawIntersect(const LinePts& line, MatchEnds ) const;  // requires sect to be on curve
 	OpRoots rayIntersect(const LinePts& line, MatchEnds ) const;
 	void reverse();
+#if OP_ALIAS
 	void setAliases(OpContour& );
+#endif
 	void setFirstPt(OpPoint pt) {
 		start = c.data->start = pt; }
 	void setLastPt(OpPoint pt) {

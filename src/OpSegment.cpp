@@ -131,6 +131,7 @@ bool OpSegment::activeNeighbor(const OpEdge* edge, EdgeMatch match, AllowLinked 
 	return false;
 }
 
+#if OP_ALIAS
 void OpSegment::addAlias(OpPoint original, OpPoint alias, AliasType type) {
 	contour->addAlias(original, alias, type);
 }
@@ -138,6 +139,7 @@ void OpSegment::addAlias(OpPoint original, OpPoint alias, AliasType type) {
 void OpSegment::addAlias(OpPoint original, OpPoint opp, OpPoint alias, AliasType type) {
 	contour->addAlias(original, opp, alias, type);
 }
+#endif
 
 void OpSegment::addDisjointIntersections() {
 	sects.sort();
@@ -443,10 +445,12 @@ int OpSegment::coinID(bool flipped) {
 	return flipped ? -coinID : coinID;
 }
 
+#if OP_ALIAS
 bool OpSegment::containsAlias(OpPoint pt) {
 	OP_ASSERT(contour->overlapOwner);
 	return contour->overlapOwner->aliases.containsAlias(pt);
 }
+#endif
 
 #if 0
 // if edge ends are pals sharing the same ID, mark the edge unsortable (loop183811)
@@ -829,6 +833,7 @@ bool OpSegment::mergeEndPoints() {
 		bool rerun = false;
 		int mergeID = 0;
 		OpPoint endPt = endT ? c.c.data->end : c.c.data->start;
+        OpPoint masterPt = endT ? c.end : c.start;
 		// scan to see if merge is required
 		for (int index = initial; ; index += delta) {
 			OP_ASSERT(index < sects.i.size());
@@ -846,10 +851,14 @@ needsMerge:
 			OpIntersection* sect = sects.i[index];
 			if (endT != sect->ptT.t)
 				break;
-			OP_ASSERT(!sect->mergeID || !mergeID || sect->mergeID == mergeID);
-			if (sect->mergeID)
-				mergeID = sect->mergeID;
-		}
+            if (sect->mergeID) {
+                masterPt = sect->ptT.pt;
+                mergeID = sect->mergeID;
+            } else if (sect->opp->mergeID) {
+                masterPt = sect->opp->ptT.pt;
+                mergeID = sect->opp->mergeID;
+            }
+        }
 		if (!mergeID)
 			mergeID = contour->nextID();
 		// mark all matching t with merge id
@@ -860,7 +869,7 @@ needsMerge:
 				break;
 			if (mergeID == sect->mergeID)
 				continue;
-			sect->merge(mergeID);
+			sect->setMerge(mergeID, masterPt, MergeType::endPoint);
 			sect->opp->segment->setEndsUnmerged();
 			rerun = true;
 		}
@@ -915,7 +924,7 @@ bool OpSegment::mergeIntersections() {
 				mergeID = contour->nextID();
 			// if any in range are already merged, use that for all points
 			for (; index < endIndex; ++index) {
-				runAgain |= sects.i[index]->setMerge(mergeID, mergePt);
+				runAgain |= sects.i[index]->setMerge(mergeID, mergePt, MergeType::midPoint);
 			}
 		}
 		index = endIndex;
@@ -982,6 +991,7 @@ void OpSegment::normalize() {
 		disabled = true;
         return;
 	}
+#if OP_ALIAS
 	OpVector thresh = threshold();
 	auto lookForNearbyPoints = [this, thresh](OpContour* cont, OpPoint original) {
 		// check other segments in this contour
@@ -1007,6 +1017,7 @@ void OpSegment::normalize() {
 	};
 	c.start = lookInContours(c.start);
 	c.end = lookInContours(c.end);
+#endif
 	// !!! where does curve control point pin happen?
 	// since we are leaving original curve alone, can it be postponed or not done at all?
 	if (c.start == c.end)

@@ -625,11 +625,11 @@ struct OpEdgeStorage {
 	bool contains(int ccUnsectableID) const;
 	void reuse();
 #if OP_DEBUG_DUMP
-	OpEdge* debugFind(int id);
 	static void DumpSet(const char*& str, OpContext* , DumpStorage );
 #endif
 #if OP_DEBUG_SERIALIZE
 	int debugCount() const;
+	OpEdge* debugFind(int id);
 	OpEdge* debugIndex(int index);
 	const OpEdge* debugIndex(int index) const;
 #endif

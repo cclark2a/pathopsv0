@@ -392,6 +392,7 @@ static std::string debugOpTest(std::string testname, const SkPath& pathA, const 
 // char* so it can be called from immediate window
 static void dumpOpTest(std::string testname, const SkPath& pathA, const SkPath& pathB, SkPathOp op, 
             std::string filename) {
+#if OP_DEBUG_SERIALIZE
     std::string filePath = dmpFileToPath(filename);
     FILE* file = fopen(filePath.c_str(), "w");
     if (!file) {
@@ -401,6 +402,7 @@ static void dumpOpTest(std::string testname, const SkPath& pathA, const SkPath& 
     std::string s = debugOpTest(testname, pathA, pathB, op);
     fwrite(&s[0], 1, s.size(), file);
     fclose(file);
+#endif
 }
 
 static std::string debugSimplifyTest(std::string testname, const SkPath& path) {
@@ -417,6 +419,7 @@ static std::string debugSimplifyTest(std::string testname, const SkPath& path) {
 
 // char* so it can be called from immediate window
 static void dumpSimplifyTest(std::string testname, const SkPath& path, std::string filename) {
+#if OP_DEBUG_SERIALIZE
     std::string filePath = dmpFileToPath(filename);
     FILE* file = fopen(filePath.c_str(), "w");
     if (!file) {
@@ -426,6 +429,7 @@ static void dumpSimplifyTest(std::string testname, const SkPath& path, std::stri
 	std::string s = debugSimplifyTest(testname, path);
     fwrite(&s[0], 1, s.size(), file);
     fclose(file);
+#endif
 }
 
 void trackError(PathOpsV0Lib::ContextError contextError) {
@@ -497,7 +501,9 @@ bool OpV0(const SkPath& a, const SkPath& b, SkPathOp op, SkPath* result,
         debugRaster.in();
 #endif
     Resolve(context);
+#if OP_DEBUG_SERIALIZE
     ((OpContext*) context)->dumpFile("OpV0 resolved");
+#endif
     if (SkPathOpInvertOutput(op, a.isInverseFillType(), b.isInverseFillType()))
         result->toggleInverseFillType();
     ContextError contextError = Error(context);
@@ -542,8 +548,10 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
             CURVE_CURVE_1, CURVE_CURVE_2, CURVE_CURVE_DEPTH, 
             defeatBreak, TEST_DEFEAT_DUMPS, runOneFile
         );
+#if OP_DEBUG_SERIALIZE
     if (runOneFile)
         dumpOpTest(testname, a, b, op, TestInFile);
+#endif
     (void) OpV0(a, b, op, &result, &debugData);
     CheckForError(debugData, v0MayFail);
 }
@@ -642,7 +650,9 @@ bool SimplifyV0(const SkPath& path, SkPath* out, OpDebugData* optional) {
 	}
 	if (ContextError::none == contextError) {
 		Resolve(context);
+#if OP_DEBUG_SERIALIZE
         ((OpContext*) context)->dumpFile("SimplifyV0 resolved");
+#endif
 		contextError = Error(context);
 		if (ContextError::toVertical == contextError)
 			veryLarge = VeryLargeSkiaPath(path);			
@@ -694,7 +704,7 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
 		}
 		++debugData.limitContours;
 	} while (!debugData.limitReached);
-#else
+#elif OP_DEBUG_SERIALIZE
     if (runOneFile)
         dumpSimplifyTest(testname, path, TestInFile);
 #endif

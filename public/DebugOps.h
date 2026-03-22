@@ -12,6 +12,11 @@ OpDebugData& GetDebugData(Context* );
 void SetDebugData(Context* , const OpDebugData& );
 void SetDebugCurveCallbacks(Context* , int nativeCurveType , const DebugCurveCallbacks& );
 void SetDebugContextCallbacks(Context* , const DebugContextCallbacks& );
+
+#endif
+
+#if OP_TEST
+
 void SetDebugCurveData(Contour* , const DebugCurveData& );
 
 #endif

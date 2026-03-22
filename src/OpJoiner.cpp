@@ -121,11 +121,11 @@ void OpLimb::addEach(OpContour& contour, OpTree& tree) {
 		return;
 	if (LimbPass::unlinkedPal == pass)
 		return;
-	for (OpEdge* test : contour.small) {
-		tryAdd(tree, test, EdgeMatch::start, LimbPass::small);
-		tryAdd(tree, test, EdgeMatch::end, LimbPass::small);
+	for (OpEdge* test : contour.smallEdges) {
+		tryAdd(tree, test, EdgeMatch::start, LimbPass::smallEdge);
+		tryAdd(tree, test, EdgeMatch::end, LimbPass::smallEdge);
 	}
-	if (LimbPass::small == pass)
+	if (LimbPass::smallEdge == pass)
 		return;
 //	if (LimbPass::alternateEnd == pass)
 //		return;
@@ -691,7 +691,7 @@ void OpTree::initialize(OpContour& contour) {
 			break;
 		case LimbPass::unlinkedPal:
 			break;
-		case LimbPass::small:
+		case LimbPass::smallEdge:
 			break;
 //		case LimbPass::alternateEnd:
 //			break;
@@ -715,7 +715,7 @@ bool OpTree::join(OpJoiner& join) {
         OP_ASSERT(EdgeMatch::none != best->which()  // !!! assert may be unnecessary; make sure disabled is correct choice
                 || (best->disabled && (LimbPass::disabledBackwards == bestL->treePass
 				|| LimbPass::disabledCenterless == bestL->treePass))
-				|| (best->isSmall && LimbPass::small == bestL->treePass)
+				|| (best->isSmall && LimbPass::smallEdge == bestL->treePass)
 			);
         EdgeMatch which = EdgeMatch::none != best->which() ? best->which() : bestL->match;
 		(void) best->setLastLink(!which); // make suitable for linking to a chain
