@@ -137,7 +137,6 @@ KeyResult DebuggerState::keyEvent(const DebuggerEvent& debuggerEvent, KeyAction 
             }
             break;
         case 'a': if (textTop) flip(textWindow.showAll, "all"); break;
-        case 'A': if (textTop) flip(textWindow.showAliases, "aliases"); break;
         case 'b':
             if (!bitsToShow) {
                 if (KeyAction::show == action)

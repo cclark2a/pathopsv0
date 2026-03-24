@@ -139,7 +139,7 @@ struct OpCurve {
         return *(OpContext*) c.context; }
 	OpPair xyAtT(OpPair t, XyChoice xy) const;
 	void zeroSmall(OpContour& );
-#if OP_DEBUG
+#if OP_DEBUG || OP_DEBUGGER
 	bool debugIsLine() const;
 #endif
 #if OP_TEST_RASTER

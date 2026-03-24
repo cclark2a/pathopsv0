@@ -170,7 +170,7 @@ struct OpRoots {
 	RootFail fail;
 };
 
-#if OP_DEBUG
+#if OP_DEBUG || OP_DEBUGGER
 #ifdef _WIN32
 const float OpDebugNaN = std::numeric_limits<float>::signaling_NaN();
 #else
@@ -561,7 +561,7 @@ struct OpPoint {
 
 	DUMP_DECLARATIONS
 
-#if OP_DEBUG
+#if OP_DEBUG || OP_DEBUGGER
 	bool debugIsUninitialized() const;
 #endif
 
@@ -767,18 +767,17 @@ struct OpRect {
 	bool debugContains(const OpRect& bounds);
 #endif
 #if OP_DEBUG_SERIALIZE
-	virtual std::string debugDump(DebugLevel , DebugBase ) const;
+	std::string debugDump(DebugLevel , DebugBase ) const;
 #endif
 #if OP_DEBUG_DUMP
-	virtual ~OpRect() {}
-	OpRect(const OpRect& r) = default;
-	OpRect& operator=(const OpRect& ) = default;
-	virtual void dump() const;
-	virtual void dump(DebugLevel, DebugBase ) const;
-	virtual void dumpBrief() const;
-	virtual void dumpDetailed() const;
-	virtual void dumpHex() const;
-	virtual void dumpSet(const char*& );
+	void dump() const;
+	void dump(DebugLevel, DebugBase ) const;
+	void dumpBrief() const;
+	void dumpDetailed() const;
+	void dumpHex() const;
+#endif
+#if OP_DEBUG_DUMP || OP_DEBUGGER
+	void dumpSet(const char*& );
 #endif
 
 #if OP_DEBUG_VALIDATE
@@ -836,7 +835,7 @@ struct OpPtT {
 
 	DUMP_DECLARATIONS
 
-#if OP_DEBUG
+#if OP_DEBUG || OP_DEBUGGER
 	bool debugIsUninitialized() const;
 #endif
 
@@ -1055,7 +1054,7 @@ struct OpMath {
 			pts[index].zeroTiny();
 	}
 
-#if OP_DEBUG
+#if OP_DEBUG || OP_DEBUGGER
 	static bool IsDebugNaN(float x);
 	static void DebugCompare(float a, float b);
 	static void DebugCompare(OpPoint a, OpPoint b);

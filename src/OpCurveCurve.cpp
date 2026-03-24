@@ -296,8 +296,8 @@ void FoundLimits::cutPair(SnipPtTs& snipLo, SnipPtTs& snipHi) const {
 	CutUp sLo(sStep, snipLo.segPtT, loGap, -1);
 	CutUp sHi(sStep, snipHi.segPtT, hiGap, +1);
     CutStep oStep(cc->opp->c);
-	CutUp oLo(oStep, snipLo.oppPtT, loGap, cc->reversed ? +1 : -1);  // opp may be backwards
-	CutUp oHi(oStep, snipHi.oppPtT, hiGap, cc->reversed ? -1 : +1);
+	CutUp oLo(oStep, snipLo.oppPtT, loGap, cc->reversed ? +1.f : -1.f);  // opp may be backwards
+	CutUp oHi(oStep, snipHi.oppPtT, hiGap, cc->reversed ? -1.f : +1.f);
 	float segLen = (sHi.cutPtT.pt - sLo.cutPtT.pt).lengthSquared();
 	float oppLen = (oHi.cutPtT.pt - oLo.cutPtT.pt).lengthSquared();
 	OP_ASSERT(OpMath::IsFinite(segLen) && OpMath::IsFinite(oppLen));

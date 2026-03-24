@@ -124,7 +124,7 @@ DrawLevel DebuggerState::doWheelCommon(const DebuggerEvent& debuggerEvent, int d
     if (f->fontSize == fontSize)
         return DrawLevel::none;
     f->fontSize = fontSize;
-    if (SDL_APP_CONTINUE != (error = f->addFont(fontSize))) // deletes font cache
+    if (SDL_APP_CONTINUE != (error = f->addFont((float) fontSize))) // deletes font cache
         ReportError("Couldn't add text font");
     return DrawLevel::update;
 }
@@ -161,7 +161,7 @@ void DebuggerState::playback() {
         return;
     const char* str = buffer.c_str();
     while (OpDebugOptional(str, "id")) {
-        int id = OpDebugReadSizeT(str);
+        int id = (int) OpDebugReadSizeT(str);
         auto foundID = std::find_if(ids.begin(), ids.end(), [id](const OpType& opType) {
                 return id == opType.id; });
         if (ids.end() != foundID)
@@ -234,8 +234,10 @@ void DebuggerState::record() {
 void DebuggerState::redraw() {
     if (!context) 
         return;
+#if OP_DEBUG
     if (validation)
         validate();
+#endif
     pictureWindow.update();
     textWindow.update();
     helpWindow.update();
@@ -324,6 +326,7 @@ void DebuggerState::update() {
     redraw();
 }
 
+#if OP_DEBUG
 void DebuggerState::validate() {
     for (OpType& id : ids) {
         id.validate();
@@ -335,3 +338,4 @@ void DebuggerState::validate() {
     compareWindow.validate();
     dumpWindow.validate();
 }
+#endif

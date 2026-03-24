@@ -175,7 +175,9 @@ struct OpTree {
 	LimbPass limbPass;
 	bool disabled;  // set when found contour is proportionately made up of disabled edges
 	bool smallGap;
-	OP_DEBUG_CODE(int debugAddEach = 0);
+#if OP_DEBUG || OP_DEBUGGER
+	int debugAddEach = 0;
+#endif
 };
 
 struct OpLimbStorage {

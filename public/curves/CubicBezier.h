@@ -231,7 +231,9 @@ inline OpRoots AddInflections(OpPoint start, OpPoint end, CubicControls& control
 enum class CubicSubDivide {
     noAngleChecks,
     checkAngles
-    OP_DEBUG_DUMP_PARAMS(debuggerSubDivide)
+#if OP_DEBUGGER
+    , debuggerSubDivide
+#endif
 };
 
 inline void cubicCommonSubDivide(Curve c, float t1, float t2, float threshold, Curve* result,
@@ -452,7 +454,7 @@ inline OpRoots cubicRotatedT(Curve c, Axis axis, float intercept
         ptTs[idx + 1] = { CubicPtAtT(start, controls, end, tValues.get(idx)), tValues.get(idx) }; 
     } 
 	OpRoots result;
-	unsigned lastIndex = ptTs.size() - 1;
+	unsigned lastIndex = (unsigned) (ptTs.size() - 1);
     for (unsigned index = 0; index < lastIndex; ++index) {
         OpPoint curveData[4] { ptTs[index].pt, ptTs[index + 1].pt };
 		float startT = ptTs[index].t;

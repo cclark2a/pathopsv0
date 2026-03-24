@@ -72,6 +72,7 @@ void OpType::validate() const {
     }
 }
 
+#if OP_DEBUG
 std::string NativeTextCache::debugDump() const {
     std::string s = "\"" + str + "\" ";
     s += "size:" + size.debugDump(defaultLevel, defaultBase) + " ";
@@ -89,4 +90,5 @@ void OpDebugText::dump(DebuggerWindow& picture) const {
     s += picture.debugTextDump(cacheIndex);
     OpDebugOut(s + "\n");
 }
+#endif
 

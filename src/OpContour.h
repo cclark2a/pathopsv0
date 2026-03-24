@@ -3,7 +3,7 @@
 #define OpContour_DEFINED
 
 #include "OpJoiner.h"
-#if OP_TEST
+#if OP_TEST || OP_DEBUGGER
 #include "DebugOpsTypes.h"
 #endif
 
@@ -261,13 +261,14 @@ struct OpContour {
 	bool overlapsMerged;
 	bool segEndsMerged = false;
 	bool segMerged = false;
-
-	OP_DEBUG_CODE(bool debugEmpty = false);  // if empty, when cloned, this is reused in release
+#if OP_DEBUG || OP_DEBUGGER
+	bool debugEmpty = false;  // if empty, when cloned, this is reused in release
+#endif
 #if OP_TEST
 	std::vector<PathOpsV0Lib::DebugCurveData> debugCurveData;
 	OpWinding debugWinding = OpWinding(WindingUninitialized::dummy);
 #endif
-#if OP_DEBUG_IMAGE
+#if OP_DEBUG_IMAGE || OP_DEBUGGER
     // AddQuads/AddCubics/AddLine/AddConics save original curve for graphics debugger
 	uint32_t debugColor = blue;
 #endif

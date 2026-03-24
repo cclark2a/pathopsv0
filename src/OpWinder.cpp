@@ -182,7 +182,7 @@ bool SectRay::checkAdd(OpEdge* toAdd) {
 				OP_ASSERT(result->edge->ray.sorted);
 				walk.dists = &result->edge->ray.distances;
 				OP_ASSERT(!walk.dists->empty());
-				walk.index = walk.dists->size() - 1; // skip last
+				walk.index = (int) walk.dists->size() - 1; // skip last
 			}
 		}
 		--walk.index;

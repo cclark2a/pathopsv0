@@ -55,7 +55,7 @@ namespace PathOpsV0Lib {
 	struct Winding;
 }
 
-#if OP_DEBUG
+#if OP_DEBUG || OP_DEBUGGER
 
 #define DebugWindingType_Enums \
 	OP_ENUM_MEMBER(uninitialized), \
@@ -109,7 +109,7 @@ struct OpWinding {
 
 	PathOpsV0Lib::Winding w;
 	WindingType type;
-#if OP_DEBUG
+#if OP_DEBUG || OP_DEBUGGER
 	DebugWindingType debugType = DebugWindingType::uninitialized;
 #endif
 #if OP_TEST_RASTER

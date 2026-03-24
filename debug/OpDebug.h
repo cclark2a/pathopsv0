@@ -40,7 +40,7 @@
 #endif
 
 #ifndef OP_DEBUGGER
-    #define OP_DEBUGGER 0
+#define OP_DEBUGGER 0
 #endif
 
 // OP_DEBUG_FAST_TEST uses threads; all code must be thread-safe
@@ -49,7 +49,7 @@
 #define OP_TEST (OP_DEBUG || OP_RELEASE_TEST)  // check test results (e.g., scanline compare)
 
 #ifndef OP_TEST_RASTER
-#define OP_TEST_RASTER (!OP_TINY_TEST && OP_TEST && OP_DEBUG)
+#define OP_TEST_RASTER ((!OP_TINY_TEST && OP_TEST && OP_DEBUG) || OP_DEBUGGER)
 #endif
 
 #define OP_ENUM_BASE(member, value) member = value
@@ -140,6 +140,28 @@ struct OpDebugData {
     #define OP_TINY_MAIN(func)
 #endif
 
+#if !OP_DEBUG && !OP_DEBUGGER
+#define OP_DEBUG_INIT(enum_name)
+#define OP_DEBUG_INIT_BOOL()
+#define OP_DEBUG_INIT_FLOAT()
+#define OP_DEBUG_INIT_INT()
+#define OP_DEBUG_INIT_PTR(ptr_type)
+#define OP_DEBUG_INITED_PTR(ptr)  error("should never be in release code")
+#define OP_DEBUG_INIT_SIZE()
+#define OP_DEBUG_INIT_UINT()
+#define OP_DEBUG_ENUM()
+#else
+#define OP_DEBUG_INIT(enum_name) = enum_name::uninitialized
+#define OP_DEBUG_INIT_BOOL() = ((bool) -1)
+#define OP_DEBUG_INIT_FLOAT() = OpDebugNaN
+#define OP_DEBUG_INIT_INT() = INT_MAX
+#define OP_DEBUG_INIT_PTR(ptr_type) = (ptr_type*) 0xDEAD0ABEDEADBEEF
+#define OP_DEBUG_INITED_PTR(ptr) (!!ptr && (decltype(ptr)) 0xDEAD0ABEDEADBEEF)
+#define OP_DEBUG_INIT_SIZE() = SIZE_MAX
+#define OP_DEBUG_INIT_UINT() = UINT_MAX
+#define OP_DEBUG_ENUM() uninitialized = -1,
+#endif
+
 #if !OP_DEBUG
 
 #define OP_ASSERT(expr)
@@ -149,19 +171,10 @@ struct OpDebugData {
 #define OP_DEBUG_VALIDATE_CODE(...)
 #define OP_DEBUG_BREAK()
 #define OP_DEBUG_DUMP 0
-#define OP_DEBUG_ENUM()
 #define OP_DEBUG_IMAGE 0
-#define OP_DEBUG_INIT(enum_name)
-#define OP_DEBUG_INIT_BOOL()
-#define OP_DEBUG_INIT_FLOAT()
-#define OP_DEBUG_INIT_INT()
-#define OP_DEBUG_INIT_PTR(ptr_type)
-#define OP_DEBUG_INITED_PTR(ptr)  error("should never be in release code")
-#define OP_DEBUG_INIT_SIZE()
-#define OP_DEBUG_INIT_UINT()
 #define OP_DEBUG_MAKER 0
 #define OP_DEBUG_FAIL(object, returnValue) return returnValue
-#define OP_DEBUG_SERIALIZE 0
+#define OP_DEBUG_SERIALIZE OP_DEBUGGER
 #define OP_DEBUG_SUCCESS(object, returnValue) return returnValue
 #define OP_LINE_FILE_PARAMS(...)
 #define OP_LINE_FILE_PARGS()
@@ -211,15 +224,6 @@ struct OpDebugData {
 #endif
 #define OP_DEBUG_PARAMS(...) , __VA_ARGS__
 #define OP_DEBUG_CODE(...) __VA_ARGS__
-#define OP_DEBUG_ENUM() uninitialized = -1,
-#define OP_DEBUG_INIT(enum_name) = enum_name::uninitialized
-#define OP_DEBUG_INIT_BOOL() = ((bool) -1)
-#define OP_DEBUG_INIT_FLOAT() = OpDebugNaN
-#define OP_DEBUG_INIT_INT() = INT_MAX
-#define OP_DEBUG_INIT_PTR(ptr_type) = (ptr_type*) 0xDEAD0ABEDEADBEEF
-#define OP_DEBUG_INITED_PTR(ptr) (!!ptr && (decltype(ptr)) 0xDEAD0ABEDEADBEEF)
-#define OP_DEBUG_INIT_SIZE() = SIZE_MAX
-#define OP_DEBUG_INIT_UINT() = UINT_MAX
 
 #if OP_DEBUG_IMAGE
 #undef OP_DEBUG_IMAGE_CODE
@@ -332,7 +336,7 @@ struct OpDebugMaker {
 
 #endif
 
-#if OP_DEBUG
+#if OP_DEBUG || OP_DEBUGGER
 
 #if OP_DEBUG_GLOBALS
 extern struct OpContext* debugGlobalContext;
@@ -450,7 +454,7 @@ std::string OpDebugDumpHex(float);
 #endif
 
 
-#if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE
+#if OP_DEBUG || OP_DEBUG_DUMP || OP_DEBUG_IMAGE || OP_DEBUGGER
 
 std::string OpDebugDumpByteArray(const uint8_t* bytes, size_t size);
 int32_t OpDebugFloatToBits(float);

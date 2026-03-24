@@ -215,6 +215,7 @@ void DebuggerPoly::dump() const {
     OpDebugOut(s);
 }
 
+#if OP_DEBUG
 void DebuggerPoly::validate() const {
     if (!isPrimary)
         return;
@@ -222,3 +223,5 @@ void DebuggerPoly::validate() const {
         OpDebugValidate(c);  // !!! add when needed
     opType.validate();
 }
+#endif
+

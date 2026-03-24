@@ -91,9 +91,6 @@ OP_X(Winding)
 std::string debugDump(DebugLevel , DebugBase ) const; \
 std::string debugDumpID() const;
 
-#define DUMP_DECLARATIONS_OVERRIDE \
-std::string debugDump(DebugLevel , DebugBase ) const override;
-
 #define EDGE_FILTER \
 	OP_X(segment) \
 	OP_X(ray) \
@@ -270,6 +267,14 @@ struct EdgeFilterName {
 #define DEBUG_DUMP_REQUIRED_FLOAT(lastField, thisFloat) \
     ASSERT_ORDERED(lastField, thisFloat); \
     DEBUG_DUMP_START_REQUIRED_FLOAT(thisFloat)
+
+#define DEBUG_DUMP_START_REQUIRED_DOUBLE(thisFloat) \
+    s += #thisFloat ":"; \
+    s += debugValue(DebugLevel::error, b, #thisFloat, (float) thisFloat) + " "
+
+#define DEBUG_DUMP_REQUIRED_DOUBLE(lastField, thisFloat) \
+    ASSERT_ORDERED(lastField, thisFloat); \
+    DEBUG_DUMP_START_REQUIRED_DOUBLE(thisFloat)
 
 #define DEBUG_DUMP_ID(lastField, thisID) \
     ASSERT_ORDERED(lastField, thisID); \

@@ -33,7 +33,6 @@ struct TextWindow : public DebuggerWindow {
     int maxUpdateAttempts = 16;
     int updateAttempts = 0;
     bool showAll = false;
-    bool showAliases = false;
     bool showCurveCurve = false;
     bool showErasures = false;
     bool showFull = false;

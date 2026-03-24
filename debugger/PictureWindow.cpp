@@ -29,7 +29,7 @@ PictureWindow::PictureWindow(DebuggerState* state)
         , gridLabel(this) {
     if (SDL_APP_CONTINUE != (state->error = init("picture", { 100, 100 } )))
         OpDebugOut("Couldn't initialize picture window: " + std::string(SDL_GetError()) + "\n");
-    else if (SDL_APP_CONTINUE != (state->error = addFont(fontSize)))
+    else if (SDL_APP_CONTINUE != (state->error = addFont((float) fontSize)))
         OpDebugOut("Couldn't add picture font: " + std::string(SDL_GetError()) + "\n");
 }
 
@@ -60,7 +60,7 @@ void PictureWindow::addBounds() {
             addRect(poly, poly.opType.contour->bounds);
     }
     polys.insert(polys.begin(), toAdd.begin(), toAdd.end());
-    validate();
+    OP_DEBUG_CODE(validate());
 } 
 
 void PictureWindow::addDevice(std::vector<OpPoint>& pts, DebuggerPoly& poly) {
@@ -118,7 +118,7 @@ void PictureWindow::addHulls() {
         toAdd.back().contours.push_back(hull.size());
     }
     polys.insert(polys.begin(), toAdd.begin(), toAdd.end());
-    validate();
+    OP_DEBUG_CODE(validate());
 }
 
 void PictureWindow::clear() {
@@ -246,7 +246,7 @@ void PictureWindow::addGrid() {
         if (fy != yes.front() && fy != yes.back())
     		addLine({ screen.left,  yToScreen(fy) }, { screen.right, yToScreen(fy) });
     }
-    grid.validate();
+    OP_DEBUG_CODE(grid.validate());
 	if (!drawValues)
         return;
     for (size_t index = 0; index + 1 < xes.size(); ++index) {
@@ -666,7 +666,7 @@ void PictureWindow::colorPolys() {
             poly.color = edgeColor(*poly.opType.edge);
             continue;
         }
-        poly.color = debugBlack;
+        poly.color = black;
     }
 }
 
@@ -772,12 +772,12 @@ void PictureWindow::update() {
 }
 
 void PictureWindow::move(OpVector v) { 
-    zoomOffset -= v / scale;
+    zoomOffset -= v / (float) scale;
     draw();
 }
 
 DrawLevel PictureWindow::pan(OpVector v) { 
-    zoomOffset += v * 1000 / scale;
+    zoomOffset += v * 1000 / (float) scale;
     return DrawLevel::update;
 }
 
@@ -826,7 +826,7 @@ DrawLevel PictureWindow::event(const DebuggerEvent& debuggerEvent) {
 void PictureWindow::playback(const char*& str) {
     playbackCommon(str);
     OpDebugRequired(str, "gridLabel");
-    gridLabel.lastIndex = OpDebugReadSizeT(str);
+    gridLabel.lastIndex = (int) OpDebugReadSizeT(str);
     DEBUG_SET_COMMON_STRUCT(zoomOffset);
     scale = OpDebugReadNamedFloat(str, "scale");  // factor to go from local to device (zero is uninitialized)
     DEBUG_SET_FLOAT(scale, thresholdMultiplier);
@@ -859,8 +859,8 @@ std::string PictureWindow::record() {
     s += recordCommon();
     s += "gridLabel:" + STR(gridLabel.lastIndex) + " ";
     DEBUG_DUMP_COMMON_STRUCT(zoomOffset);
-    if (!OpMath::IsDebugNaN(scale))
-        s += debugValue(DebugLevel::error, b, "scale", scale) + " ";
+    if (!OpMath::IsDebugNaN((float) scale))
+        s += debugValue(DebugLevel::error, b, "scale", (float) scale) + " ";
     DEBUG_DUMP_FLOAT(scale, thresholdMultiplier);
     DEBUG_DUMP_FLOAT(thresholdMultiplier, zoomFactor);
     DEBUG_DUMP_REQUIRED_VALUE(zoomFactor, thresholdWheel);

@@ -123,8 +123,8 @@ SDL_AppResult CompareWindow::draw() {
     }
     // to support future zooming and scrolling, fix the scale and offset
     // !!! current texture does not use pixelScale so don't use it below for now
-    constexpr bool usePixScale = false;
-    int pixScale = usePixScale ? pixelScale : 1;
+//    constexpr bool usePixScale = false;
+//    int pixScale = usePixScale ? pixelScale : 1;
     // pixelScale is only the 2x to handle hi-res screens
     // this needs to additionally scale focus dimensions to window dimensions
     // src bitmap is (0, 0, 64, 64)
@@ -134,8 +134,8 @@ SDL_AppResult CompareWindow::draw() {
     // here's why window for compare should have different scale/offset from picture (grrr)
     int bitWidth = debugRaster->bitWidth * 2 + margin;
     int bitHeight = debugRaster->bitHeight;
-    int winWidth = windowWidth * pixScale;
-    int winHeight = windowHeight * pixScale;
+    int winWidth = windowWidth;
+    int winHeight = windowHeight;
     float xScale = (float) winWidth / bitWidth;
     float yScale = (float) winHeight / bitHeight;
     scale = std::min(xScale, yScale);
@@ -167,14 +167,14 @@ SDL_AppResult CompareWindow::draw() {
         int srcRight = std::min(debugRaster->bitWidth, (int) bitFocus.right);
         OP_ASSERT(srcH < srcRight);
         uint8_t* srcLine = &srcBits.bits.front() + srcV * debugRaster->bitWidth;
-        float srcVPos = srcV;
+        float srcVPos = (float) srcV;
         float srcBump = 1.f / scale;
         OP_ASSERT(0 <= dstV);
         OP_ASSERT(dstBottom <= winHeight);
         for (; dstV < dstBottom; ++dstV) {
             uint32_t* destPtr = destLine;
             OP_ASSERT(pixels + rowWidth * dstV <= destPtr);
-            float srcHPos = srcH;
+            float srcHPos = (float) srcH;
             auto to32 = [&srcLine, &srcHPos, filter]() {
                 uint8_t c = 0xFF - srcLine[(int) srcHPos];
                 uint32_t color = (0xFF << 24) | (c << 0) | (c << 8) | (c << 16);
@@ -310,9 +310,9 @@ void CompareWindow::update() {
         return;
     OpPoint localLocation(10, 10);
     TTF_Font* detailFont = debuggerState->textWindow.detailFont;
-    addText(leftLabel.label(), localLocation, debugBlack, detailFont);
+    addText(leftLabel.label(), localLocation, black, detailFont);
     localLocation.x += (rightFocus.width() + margin) * scale;
-    addText(rightLabel.label(), localLocation, debugBlack, detailFont);
+    addText(rightLabel.label(), localLocation, black, detailFont);
     if (activeSample) {
         OpPoint pt { activeSample->x, (float) activeRow / debugRaster->subSamples };
         double srcX = (pt.x - debugRaster->offsetX) / debugRaster->scale;
@@ -331,6 +331,6 @@ void CompareWindow::update() {
             s += " visible";
         s += " x:" + STR(srcX) + " (" + STR(pt.x) + ")";
         s += " y:" + STR(srcY) + " (" + STR(((float) activeRow / debugRaster->subSamples)) + ")";
-        addText(s, { 10, 30}, debugBlack, detailFont);
+        addText(s, { 10, 30}, black, detailFont);
     }
 }

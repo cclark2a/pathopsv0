@@ -26,11 +26,11 @@
 // SOFTWARE.
 
 static float cubicXAtT(const OpCubicFloatType coefficient[4], float t) { 
-	return ((coefficient[0] * t + coefficient[1]) * t + coefficient[2]) * t + coefficient[3]; 
+	return (float) (((coefficient[0] * t + coefficient[1]) * t + coefficient[2]) * t + coefficient[3]); 
 }
 
 static float cubicDxAtT(const OpCubicFloatType derivative[3], float t) { 
-	return (derivative[0] * t + derivative[1]) * t + derivative[2]; 
+	return (float) ((derivative[0] * t + derivative[1]) * t + derivative[2]); 
 }
 
 // this can only return a single root (and that it must return that root)...
@@ -39,7 +39,7 @@ float OpMath::CubicRoot(OpCubicFloatType A, OpCubicFloatType B, OpCubicFloatType
 	float result = 0;
 	OpRoots quadRoots;
 	if (0 == A) {
-		quadRoots = QuadRootsDouble(B, C, D);
+		quadRoots = QuadRootsDouble((float) B, (float) C, (float) D);
 		quadRoots = quadRoots.keepValidTs();
 		OP_ASSERT(1 >= quadRoots.count());
 		if (quadRoots.count())

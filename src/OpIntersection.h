@@ -31,7 +31,9 @@ struct CoinPair {
 	OpEdge* edge;
 	OpEdge* oppEdge;
 	int id;
-	OP_DEBUG_CODE(OpEdge* lastEdge);
+#if OP_DEBUG || OP_DEBUGGER
+	OpEdge* lastEdge;
+#endif
 };
 
 #define CoinOpp_Enums \
@@ -108,7 +110,7 @@ struct OpIntersection {
 		opp->zeroUnsect();
 	}
 
-#if OP_DEBUG
+#if OP_DEBUG || OP_DEBUGGER
 	void debugSetID();
 #endif
 #if OP_DEBUG_VALIDATE
@@ -145,7 +147,7 @@ struct OpIntersection {
 	bool collapsed = false;  // set if coincidence or unsect pair collapsed to a point
 //	bool mergeProcessed = false;
 //	bool moved = false;
-#if OP_DEBUG
+#if OP_DEBUG || OP_DEBUGGER
 	int id = 0;
 	int debugSrcID = 0;	// pair of edges or segments that intersected (!!! only useful if edges?)
 	int debugOppID = 0;

@@ -160,7 +160,7 @@ struct OpSegment {
 #if OP_DEBUG_VALIDATE
 	void debugValidate() const;
 #endif
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_DUMP || OP_DEBUGGER
 	OpSegment();
 	float debugFindAxisT(Axis , float start, float end, float oppXY);
 	#define OP_X(Thing) \
@@ -195,7 +195,7 @@ struct OpSegment {
 	bool merged = false;
 //	bool startMoved;
 //	bool endMoved;
-#if OP_DEBUG_IMAGE
+#if OP_DEBUG_IMAGE || OP_DEBUGGER
 	uint32_t debugColor = debugBlack;
 #endif
     OP_LINE_FILE_DECLARE(debugSetDisabled)

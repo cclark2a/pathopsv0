@@ -10,7 +10,7 @@ TextWindow::TextWindow(DebuggerState* state)
         : DebuggerWindow(state, WheelTarget::scroll) {
     if (SDL_APP_CONTINUE != (state->error = init("text", { -100, -100 })))
         OpDebugOut("Couldn't initialize text window: " + std::string(SDL_GetError()) + "\n");
-    else if (SDL_APP_CONTINUE != (state->error = addFont(fontSize)))
+    else if (SDL_APP_CONTINUE != (state->error = addFont((float) fontSize)))
         OpDebugOut("Couldn't add text font: " + std::string(SDL_GetError()) + "\n");
     else if (SDL_APP_CONTINUE != (state->error = addFont(TEXT_DETAIL_FONT_SIZE, &detailFont)))
         OpDebugOut("Couldn't add text detail font: " + std::string(SDL_GetError()) + "\n");
@@ -92,7 +92,7 @@ static DrawLevel HoverType(const DebuggerEvent* event, TextWindow* textWindow, O
     poly->color = opType.selected ? yellow : mouseOverButton ? white : lightGray;
     poly = textWindow->debuggerState->pictureWindow.findPolyByID(opType.id);
     if (poly && poly->thickness)
-        poly->thickness = mouseOverButton ? 4 : 1;
+        poly->thickness = mouseOverButton ? 4.f : 1.f;
     return DrawLevel::draw;
 }
 
@@ -164,7 +164,7 @@ void TextWindow::innerUpdate(int& safetyCheck) {
     texts.pop_back();
     doType(&AddType, nullptr);
     int lastDetailHeight = detailHeight;  // re-pin scroll if changed
-    detailHeight = topClip;
+    detailHeight = (int) topClip;
     // set position based on last update and last scroll wheel
     // find window height available
     // 
@@ -172,7 +172,7 @@ void TextWindow::innerUpdate(int& safetyCheck) {
         s = stringFormat(s, 100);
         const NativeTextCache& cache = getCache(addClipped(s, 
                 { 10, (float) (detailHeight - scrollPos) }, black, detailFont).cacheIndex);
-        detailHeight += cache.size.dy;
+        detailHeight += (int) cache.size.dy;
     };
     std::vector<const OpSegment*> shownSegs;
     std::vector<const OpContour*> shownContours;
@@ -277,14 +277,6 @@ void TextWindow::innerUpdate(int& safetyCheck) {
             addWrapped(s);
         }
     }
-    if (showAliases) {
-        std::string s;
-        for (OpContour* contour : debuggerState->context->contours) {
-            s += "contour:" + STR(contour->id) + " ";
-            s += contour->aliases.debugDump(DebugLevel::normal, defaultBase) + "\n";
-        }
-        addWrapped(s);
-    }
     if (showJoin) {
         std::string s = debugDmpJoin(debuggerState->context, DebugLevel::normal, defaultBase);
         addWrapped(s);
@@ -387,8 +379,7 @@ void TextWindow::update() {
 void TextWindow::playback(const char*& str) {
     playbackCommon(str);
     DEBUG_SET_BOOL(updateAttempts, showAll);
-    DEBUG_SET_BOOL(showAll, showAliases);
-    DEBUG_SET_BOOL(showAliases, showCurveCurve);
+    DEBUG_SET_BOOL(showAll, showCurveCurve);
     DEBUG_SET_BOOL(showCurveCurve, showErasures);
     DEBUG_SET_BOOL(showErasures, showFull);
     DEBUG_SET_BOOL(showFull, showEdgeHulls);
@@ -404,8 +395,7 @@ std::string TextWindow::record() {
     std::string s;
     s += recordCommon();
     DEBUG_DUMP_BOOL(updateAttempts, showAll);
-    DEBUG_DUMP_BOOL(showAll, showAliases);
-    DEBUG_DUMP_BOOL(showAliases, showCurveCurve);
+    DEBUG_DUMP_BOOL(showAll, showCurveCurve);
     DEBUG_DUMP_BOOL(showCurveCurve, showErasures);
     DEBUG_DUMP_BOOL(showErasures, showFull);
     DEBUG_DUMP_BOOL(showFull, showEdgeHulls);
@@ -419,7 +409,7 @@ std::string TextWindow::record() {
 }
 
 int TextWindow::canScroll() const {
-    int detailArea = (int) screen.height() - topClip;
+    int detailArea = (int) screen.height() - (int) topClip;
     return std::max(0, detailHeight - detailArea);
 }
 

@@ -126,7 +126,7 @@ void DebuggerWindow::add(std::vector<OpPoint>& pts ) {
         add(curve, nullptr);
         last = pt;
     }
-    validate();
+    OP_DEBUG_CODE(validate());
 }
 
 // for fill only
@@ -163,7 +163,7 @@ bool DebuggerWindow::add(OpPoint pt1, OpPoint pt2, DebuggerAddPoly* polyAdder) {
     if (lines->empty() || lines->back() != pt1)
         lines->push_back(pt1);
     lines->push_back(pt2);
-    validate();
+    OP_DEBUG_CODE(validate());
     return true;
 }
 
@@ -179,7 +179,7 @@ DebuggerPoly& DebuggerWindow::add(const OpRect& r, uint32_t color, float thickne
     poly.contours.push_back(points.size());
     poly.color = color;
     poly.thickness = thickness;
-    validate();
+    OP_DEBUG_CODE(validate());
     return poly;
 }
 
@@ -244,15 +244,15 @@ const NativeTextCache& DebuggerWindow::getCache(size_t index) const {
 void DebuggerWindow::playbackCommon(const char*& str) {
     DEBUG_SET_COMMON_STRUCT(screen);
     if (OpDebugOptional(str, "windowWidth")) {
-        int windowWidth = OpDebugReadSizeT(str);
+        int windowWidth = (int) OpDebugReadSizeT(str);
         OpDebugRequired(str, "windowHeight");
-        int windowHeight = OpDebugReadSizeT(str);
+        int windowHeight = (int) OpDebugReadSizeT(str);
         SDL_SetWindowSize(window, windowWidth, windowHeight);
     }
     if (OpDebugOptional(str, "windowX")) {
-        int windowX = OpDebugReadSizeT(str);
+        int windowX = (int) OpDebugReadSizeT(str);
         OpDebugRequired(str, "windowY");
-        int windowY = OpDebugReadSizeT(str);
+        int windowY = (int) OpDebugReadSizeT(str);
         SDL_SetWindowPosition(window, windowX, windowY);
     }
     if (OpDebugOptional(str, "windowVisible"))
@@ -289,12 +289,13 @@ void DebuggerWindow::setSize() {
         OpDebugOut("Couldn't get window " + name + " size: " + std::string(SDL_GetError()) + "\n");
         return;
     }
-    screen = OpRect(0, 0, x, y);
+    screen = OpRect(0, 0, (float) x, (float) y);
     if (!focus.isFinite())
         focus = screen;
     allocateBuffers();
 }
 
+#if OP_DEBUG
 std::string DebuggerWindow::debugTextDump(size_t index) {
     OP_ASSERT(index < textCache.size());
     return textCache[index].debugDump();
@@ -305,6 +306,7 @@ void DebuggerWindow::validate() const {
         poly.validate();
     }
 }
+#endif
 
 DebuggerEvent::DebuggerEvent(DebuggerState* debuggerState, SDL_Keymod mod, SDL_WindowID windowID) {
     keyMods = KeyMods::none;

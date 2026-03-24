@@ -73,7 +73,7 @@ inline void unaryCallbacks(Context* context) {
     SetWindingCallbacks(context, { unaryAddFunc, unaryKeepFunc, unarySubtractFunc } );
 }
 
-#if OP_DEBUG
+#if OP_DEBUG || OP_DEBUGGER
 inline bool unaryDebugIsFill(Winding winding) {
     return true;
 }

@@ -1,7 +1,7 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpDebug.h"
 
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_DUMP || OP_DEBUGGER
 #include <ctype.h>
 #ifdef _WIN32
 #include <cstdio>  // for std::remove()
@@ -306,77 +306,8 @@ std::string debugDumpIntersections() {
 
 #endif
 
-std::string dmpFileToStr(std::string name) {
-    std::string filename = dmpFileToPath(name);
-    std::string buffer;
-    FILE* file = fopen(filename.c_str(), "r");
-    if (!file) {
-        OpDebugOut("could not open " + filename + " to read (1st time)\n");
-        return "";
-    }
-    int seek = fseek(file, 0, SEEK_END);
-    OP_ASSERT(!seek);
-    long size = ftell(file);
-    fclose(file);
-    file = fopen(filename.c_str(), "r");
-    if (!file) {
-        OpDebugOut("could not open " + filename + " to read (2nd time)\n");
-        return "";
-    }
-    buffer.resize(size);
-    fread(&buffer[0], 1, size, file);
-    fclose(file);
-#ifdef _WIN32
-    // Windows 11 and earlier has a bug where files written with Unix lines (LF) 
-    // are measured as if they had Windows lines (LF CR). Adjust the string 
-    // length by counting the number of Unix-style line endings in the string.
-    // !!! To prepare for a future bug fix: add code to write file w/ LF w/o CR 
-    //     then measure size to see if it added 1 or not
-    if (buffer.size()) {
-        // !!! probably should move bug tester into some run-once test setup
-        filename = dmpFileToPath("WindowsBugTest.txt");
-        file = fopen(filename.c_str(), "w");
-        if (!file)
-            OpDebugOut("could not open " + filename + " to check for Windows bug fix\n");
-        fwrite("x\n", 1, 2, file);
-        fclose(file);
-        fopen(filename.c_str(), "r");
-        seek = fseek(file, 0, SEEK_END);
-        OP_ASSERT(!seek);
-        size = ftell(file);
-        fclose(file);
-        std::remove(filename.c_str());
-        if (3 == size) {  // bug exists
-            const char* s = &buffer.front();
-            int line = 0;
-            while (s <= &buffer.back()) {
-                if ('\n' == s[0] && '\r' != s[1])
-                    buffer.pop_back();
-                s++;
-            }
-        }
-    }
-#endif
-    return buffer;
-}
-
 void dmpFile() {
     debugGlobalContext->dumpBaseFile();
-}
-
-OpContext* fromFile(std::string filename) {
-    std::string buffer = dmpFileToStr(filename);
-    if (buffer.empty())
-        return nullptr;
-    const char* str = buffer.c_str();
-    OpContext* save = debugGlobalContext;
-    OpContext* fileContours = new OpContext();
-    debugGlobalContext = fileContours;
-    fileContours->debugFilename = filename;
-    fileContours->dumpSet(str);  // also reads segments, which read segments' edges, etc.
-    fileContours->dumpResolveAll(fileContours);
-    debugGlobalContext = save;
-    return fileContours;
 }
 
 #if OP_DEBUG_GLOBALS
@@ -3620,21 +3551,6 @@ void dmpFull(const OpSegments& segs) {
     OpDebugOut(s);
 }
 #endif
-
-std::string debugDumpColor(DebugLevel l, uint32_t c) {
-    char asHex[11];
-    int written = snprintf(asHex, sizeof(asHex), "0x%08x", c);
-    if (written != 10)
-        return "snprintf of " + STR_E(c) + " to hex failed (written:" + STR(written) + ")";
-    if (DebugLevel::file != l) {
-        auto result = std::find_if(debugColorArray.begin(), debugColorArray.end(), [c](auto color) {
-            return color.first == c; });
-        if (debugColorArray.end() == result)
-            return "color " + std::to_string(c) + " (" + std::string(asHex) + ") not found";
-        return std::string(asHex) + " " + (*result).second;
-    }
-    return std::string(asHex);
-}
 
 void dmpColor(uint32_t c) {
     OpDebugOut(debugDumpColor(DebugLevel::normal, c) + "\n");

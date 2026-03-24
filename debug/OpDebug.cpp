@@ -564,6 +564,24 @@ void OpDebugRequired(const char*& str, const char* match) {
 
 #endif
 
+#if OP_DEBUG_DUMP || OP_DEBUGGER || OP_TEST
+PathOpsV0Lib::Curve OpContour::debugCurve(int index, std::vector<float>* extremaArray) const {
+    OP_ASSERT(index < (int) debugCurveData.size());
+    const PathOpsV0Lib::DebugCurveData& data = debugCurveData[index];
+    if (extremaArray) {
+        float* limit = (float*) ((char*) data.data + data.size);
+        float* extrema = (float*) ((char*) &data.data->curveData + data.data->curveSize);
+        while (extrema < limit) {
+            if (OpMath::IsNaN(extrema[0]))
+                break;
+            extremaArray->push_back(*extrema++);
+        }
+    }
+	return { (ContextPtr) context, &data.data->curveData, 
+            (size_t) data.data->curveSize, data.data->curveType }; 
+}
+#endif
+
 #if OP_DEBUG
 
 bool OpPoint::debugIsUninitialized() const { 
@@ -1218,24 +1236,6 @@ void OpContour::debugMatchRay() {
         } while ((linkup = linkup->nextEdge));
     }
 }
-
-#if OP_DEBUG_DUMP || OP_DEBUGGER || OP_TEST
-PathOpsV0Lib::Curve OpContour::debugCurve(int index, std::vector<float>* extremaArray) const {
-    OP_ASSERT(index < (int) debugCurveData.size());
-    const PathOpsV0Lib::DebugCurveData& data = debugCurveData[index];
-    if (extremaArray) {
-        float* limit = (float*) ((char*) data.data + data.size);
-        float* extrema = (float*) ((char*) &data.data->curveData + data.data->curveSize);
-        while (extrema < limit) {
-            if (OpMath::IsNaN(extrema[0]))
-                break;
-            extremaArray->push_back(*extrema++);
-        }
-    }
-	return { (ContextPtr) context, &data.data->curveData, 
-            (size_t) data.data->curveSize, data.data->curveType }; 
-}
-#endif
 
 #if OP_DEBUG_VALIDATE
 // !!! flesh out as needed

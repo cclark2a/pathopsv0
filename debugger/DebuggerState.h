@@ -108,7 +108,9 @@ struct DebuggerState {
     void setDepth(int );
     void setIDTypes();
     void update();
+#if OP_DEBUG
     void validate();
+#endif
 
     std::vector<DebuggerDump> dumps;
     std::vector<OpType> ids;
@@ -133,7 +135,9 @@ struct DebuggerState {
     bool showHelp = false;
     bool showBits = false;
     bool showDumps = false;
+#if OP_DEBUG
     bool validation = true;  // turn on as needed
+#endif
 };
 
 #endif

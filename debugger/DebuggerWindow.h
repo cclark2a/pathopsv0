@@ -8,6 +8,7 @@
 struct DebuggerAddPoly;
 struct DebuggerEvent;
 struct DebuggerPoly;
+struct OpContext;
 struct OpCurve;
 struct OpDebugText;
 struct NativeTextCache;
@@ -89,10 +90,12 @@ struct DebuggerWindow {
     virtual std::string record() { return recordCommon(); };
     std::string recordCommon();
     void setSize();
+#if OP_DEBUG
     // self-debugging:
     std::string debugTextDump(size_t index);
     void dumpWindow();
     void validate() const;
+#endif
 
     DebuggerState* debuggerState;
     DebuggerAddPoly addPoly;

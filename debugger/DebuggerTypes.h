@@ -128,7 +128,7 @@ struct DebuggerAddPoly {
 
 struct DebuggerPoly {
     void dump() const;
-    void validate() const;
+    OP_DEBUG_CODE(void validate() const);
 
     PathOpsV0Lib::Curve c;
     PathOpsV0Lib::CurveData cData;  // used by construction lines

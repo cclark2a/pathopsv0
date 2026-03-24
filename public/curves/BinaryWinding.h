@@ -231,7 +231,7 @@ inline void binarySubtractRightFunc(Winding winding, Winding toSubtract) {
     difference.copyTo(winding);
 }
     
-#if OP_DEBUG
+#if OP_DEBUG || OP_DEBUGGER
 inline bool binaryDebugIsFill(Winding winding) {
     return true;
 }

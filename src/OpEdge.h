@@ -103,7 +103,9 @@ struct Distance {
 	int8_t dependent = false;  // set if edge contains dependencies (i.e., get sum winding from edge)
 	int8_t reversed = false;
 	int8_t over = false;  // set if edge is home, or edge cept is close to or greater than home cept
-	OP_DEBUG_CODE(int debugID);
+#if OP_DEBUG || OP_DEBUGGER
+	int debugID;
+#endif
 };
 
 enum class FindCept {
@@ -233,7 +235,7 @@ struct EdgeDist {
         return !OpMath::IsNaN(opp.t); }
 
 	DUMP_DECLARATIONS
-#if OP_DEBUG
+#if OP_DEBUG || OP_DEBUGGER
     bool debugIsSet() const {
         return !OpMath::IsDebugNaN(opp.t) && isSet(); }
 #endif
@@ -323,7 +325,7 @@ enum class InOutput {
 	yes
 };
 
-#if OP_DEBUG
+#if OP_DEBUG || OP_DEBUGGER
 enum class LeadingLoop {
 	in,
 	will,
@@ -387,7 +389,7 @@ private:
 		, unsectableStart(false)
 		, unsectableEnd(false)
 	{
-#if OP_DEBUG // a few debug values are also nonzero
+#if OP_DEBUG || OP_DEBUGGER // a few debug values are also nonzero
 		id = -2;
 		debugMatch = nullptr;
 		debugZeroErr = nullptr;
@@ -519,7 +521,7 @@ public:
 #if OP_DEBUG_IMAGE
 	struct DebugOpCurve debugSetCurve() const;
 #endif
-#if OP_DEBUG
+#if OP_DEBUG || OP_DEBUGGER
 	const OpEdge* debugAdvanceToEnd(EdgeMatch match) const;
 	bool debugIsLoop() const {
 		return debugIsLoop(EdgeMatch::start) || debugIsLoop(EdgeMatch::end); }
@@ -581,7 +583,7 @@ public:
 	bool endSeen;  // tracks end of edge in joiner linked list to add to tree only once
 	bool unsectableStart;  // set if start intersection has an unsectable id
 	bool unsectableEnd;  // set if end intersection has an unsectable id
-#if OP_DEBUG
+#if OP_DEBUG || OP_DEBUGGER
 	OpEdge* debugMatch;  // left side of nonzero ray from this edge
 	OpEdge* debugZeroErr;  // debug match ray found edge that does not match -- diagnostic for now
 	int debugParentID;

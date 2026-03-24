@@ -4,7 +4,7 @@
 
 #include "OpDebugSerialize.h"
 
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_DUMP || OP_DEBUGGER
 
 constexpr uint32_t debugBlack = 0xFF000000;
 extern std::vector<std::pair<uint32_t, std::string>> debugColorArray;
@@ -30,16 +30,6 @@ void dumpDetailed() const; \
 void dumpHex() const; \
 void dumpResolveAll(OpContext* ); \
 void dumpSet(const char*& );
-
-#undef DUMP_DECLARATIONS_OVERRIDE
-#define DUMP_DECLARATIONS_OVERRIDE \
-std::string debugDump(DebugLevel , DebugBase ) const override; \
-void dump() const override; \
-void dump(DebugLevel, DebugBase ) const override; \
-void dumpBrief() const override; \
-void dumpDetailed() const override; \
-void dumpHex() const override; \
-void dumpSet(const char*& ) override;
 
 // removed OP_X(ExtremaT) for now
 // removed OP_X(LoopCheck) for now

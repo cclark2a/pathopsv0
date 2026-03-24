@@ -1282,7 +1282,7 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
     s += "debugValidateJoinerIndex:" + STR(debugValidateJoinerIndex) + " ";
     ASSERT_SERIAL_OFFSET(*this, debugValidateJoinerIndex, 4, debugCallbacks);
 #else
-    ASSERT_ORDERED(dumpDummy, debugCallbacks);
+    ASSERT_ORDERED_OFFSET(windingSet, debugCallbacks, 5);
 #endif
     debugPopMatching(s, ' ');
     s += "\n";
@@ -1574,7 +1574,7 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
     ASSERT_SERIAL_OFFSET(*this, debugEmpty, 3, debugCurveData);
     if (!debugCurveData.empty()) {
 		s += "debugCurveData:" + STR(debugCurveData.size()) + "[";
-		for (size_t index = 0; index < debugCurveData.size(); ++index) {
+		for (int index = 0; index < (int) debugCurveData.size(); ++index) {
             const PathOpsV0Lib::DebugCurveData& dcd = debugCurveData[index];
             if (DebugLevel::file == l)
                 s += DebugCurveData_DebugDump(context, dcd);
@@ -2756,6 +2756,90 @@ std::string SnipPtTs::debugDump(DebugLevel l, DebugBase b) const {
     s += "segCut:" + segCut.debugDump(l, b) + " ";
     s += "oppCut:" + oppCut.debugDump(l, b) + " ";
     return s;
+}
+
+std::string debugDumpColor(DebugLevel l, uint32_t c) {
+    char asHex[11];
+    int written = snprintf(asHex, sizeof(asHex), "0x%08x", c);
+    if (written != 10)
+        return "snprintf of " + STR_E(c) + " to hex failed (written:" + STR(written) + ")";
+    if (DebugLevel::file != l) {
+        auto result = std::find_if(debugColorArray.begin(), debugColorArray.end(), [c](auto color) {
+            return color.first == c; });
+        if (debugColorArray.end() == result)
+            return "color " + std::to_string(c) + " (" + std::string(asHex) + ") not found";
+        return std::string(asHex) + " " + (*result).second;
+    }
+    return std::string(asHex);
+}
+
+std::string dmpFileToStr(std::string name) {
+    std::string filename = dmpFileToPath(name);
+    std::string buffer;
+    FILE* file = fopen(filename.c_str(), "r");
+    if (!file) {
+        OpDebugOut("could not open " + filename + " to read (1st time)\n");
+        return "";
+    }
+    int seek = fseek(file, 0, SEEK_END);
+    OP_ASSERT(!seek);
+    long size = ftell(file);
+    fclose(file);
+    file = fopen(filename.c_str(), "r");
+    if (!file) {
+        OpDebugOut("could not open " + filename + " to read (2nd time)\n");
+        return "";
+    }
+    buffer.resize(size);
+    fread(&buffer[0], 1, size, file);
+    fclose(file);
+#ifdef _WIN32
+    // Windows 11 and earlier has a bug where files written with Unix lines (LF) 
+    // are measured as if they had Windows lines (LF CR). Adjust the string 
+    // length by counting the number of Unix-style line endings in the string.
+    // !!! To prepare for a future bug fix: add code to write file w/ LF w/o CR 
+    //     then measure size to see if it added 1 or not
+    if (buffer.size()) {
+        // !!! probably should move bug tester into some run-once test setup
+        filename = dmpFileToPath("WindowsBugTest.txt");
+        file = fopen(filename.c_str(), "w");
+        if (!file)
+            OpDebugOut("could not open " + filename + " to check for Windows bug fix\n");
+        fwrite("x\n", 1, 2, file);
+        fclose(file);
+        fopen(filename.c_str(), "r");
+        seek = fseek(file, 0, SEEK_END);
+        OP_ASSERT(!seek);
+        size = ftell(file);
+        fclose(file);
+        std::remove(filename.c_str());
+        if (3 == size) {  // bug exists
+            const char* s = &buffer.front();
+            int line = 0;
+            while (s <= &buffer.back()) {
+                if ('\n' == s[0] && '\r' != s[1])
+                    buffer.pop_back();
+                s++;
+            }
+        }
+    }
+#endif
+    return buffer;
+}
+
+OpContext* fromFile(std::string filename) {
+    std::string buffer = dmpFileToStr(filename);
+    if (buffer.empty())
+        return nullptr;
+    const char* str = buffer.c_str();
+    OpContext* save = debugGlobalContext;
+    OpContext* fileContext = new OpContext();
+    debugGlobalContext = fileContext;
+    fileContext->debugFilename = filename;
+    fileContext->dumpSet(str);  // also reads segments, which read segments' edges, etc.
+    fileContext->dumpResolveAll(fileContext);
+    debugGlobalContext = save;
+    return fileContext;
 }
 
 #endif

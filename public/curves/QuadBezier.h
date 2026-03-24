@@ -205,7 +205,7 @@ inline OpRoots quadRotatedT(Curve curve, Axis axis, float intercept
         ptTs[index + 1] = { QuadPointAtT(start, control, end, tValues[index]), tValues[index] }; 
     } 
 	OpRoots result;
-	unsigned lastIndex = ptTs.size() - 1;
+	unsigned lastIndex = (unsigned) (ptTs.size() - 1);
     for (unsigned index = 0; index < lastIndex; ++index) {
         OpPoint curveData[3] { ptTs[index].pt, ptTs[index + 1].pt };
 		float startT = ptTs[index].t;

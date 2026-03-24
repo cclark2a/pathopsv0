@@ -259,7 +259,7 @@ inline OpRoots conicRotatedT(Curve curve, Axis axis, float intercept
         ptTs[index + 1] = { ConicPointAtT(start, control, end, tValues[index]), tValues[index] }; 
     } 
 	OpRoots result;
-	unsigned lastIndex = ptTs.size() - 1;
+	unsigned lastIndex = (unsigned) (ptTs.size() - 1);
     for (unsigned index = 0; index < lastIndex; ++index) {
         struct ConicData {
             OpPoint endPts[2];

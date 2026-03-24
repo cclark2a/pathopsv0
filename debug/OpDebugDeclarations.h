@@ -7,7 +7,7 @@
 // Arrays (vectors) of structs can be dumped as well.
 
 // All Macros below are defined in OpDebugDump.h
-#if OP_DEBUG
+#if OP_DEBUG || OP_DEBUGGER
 std::string debugDump(DebugLevel, DebugBase ) const;
 #endif
 #if OP_DEBUG_DUMP

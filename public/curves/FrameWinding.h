@@ -103,7 +103,7 @@ inline void frameCallbacks(Context* context) {
             frameVisibleFunc,  frameZeroFunc, frameIntersectFunc });
 }
 
-#if OP_DEBUG
+#if OP_DEBUG || OP_DEBUGGER
 inline bool frameDebugIsFill(Winding winding) {
     FrameData frameData(winding);
     return FrameFill::fill == frameData.isFrame;

@@ -156,7 +156,9 @@ struct CcCurves {
 	CcCurves* oppCurves  OP_DEBUG_INIT_PTR(CcCurves);
     float scaledMax  OP_DEBUG_INIT_FLOAT();
 
-    OP_DEBUG_CODE(std::vector<EdgeRun> debugRuns);  // raw data
+#if OP_DEBUG || OP_DEBUGGER
+    std::vector<EdgeRun> debugRuns;  // raw data
+#endif
 };
 
 enum class Unordered : int8_t {

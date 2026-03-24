@@ -17,7 +17,7 @@ struct CallerDataStorage {
 	}
 
 //	static char* Allocate(size_t size, CallerDataStorage** );
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_DUMP || OP_DEBUGGER
     size_t dumpOffset(PathOpsV0Lib::ContextUserData data) const;
     void dumpResolve(PathOpsV0Lib::ContextUserData& );
 	static void DumpSet(const char*& str, CallerDataStorage** previousPtr);
@@ -223,7 +223,7 @@ struct OpContext {
 	}
 
 	bool debugFail() const;
-#if OP_DEBUG
+#if OP_DEBUG || OP_DEBUGGER
 //	void addDebugContextData(PathOpsV0Lib::DebugContextData , PathOpsV0Lib::DebugContextType );
 //    PathOpsV0Lib::DebugContextData& debugGetContextData(PathOpsV0Lib::DebugContextType );
 	PathOpsV0Lib::DebugCurveCallbacks& debugCallback(PathOpsV0Lib::Curve );
@@ -295,7 +295,7 @@ struct OpContext {
 	int debugValidateEdgeIndex = 0;
 	int debugValidateJoinerIndex = 0;
 #endif
-#if OP_DEBUG
+#if OP_DEBUG || OP_DEBUGGER
 	std::vector<PathOpsV0Lib::DebugCurveCallbacks> debugCallbacks;
 	PathOpsV0Lib::DebugContextCallbacks debugContextCallbacks;
 	OpDebugData debugData;
@@ -321,7 +321,7 @@ struct OpContext {
 	std::vector<OpEdge*> debugDumpErasures;  // read from flattened data
 	bool debugDumpInit = false;   // if true, created by dump init
 #endif
-#if OP_TEST_RASTER
+#if OP_TEST_RASTER || OP_DEBUGGER
 	CallerDataStorage* rasterStorage = nullptr;
 	struct DebugRaster* debugRaster = nullptr;
 #endif

@@ -326,7 +326,7 @@ float OpDebugSamples::compare(std::vector<RasterSamples>& outputs) {
 void OpDebugSamples::sample(OpContour* contour) {
 	OP_ASSERT(WindingType::uninitialized != contour->debugWinding.type);
 	if (SampleType::contourInput == sampleType || SampleType::contourResolved == sampleType) {
-		for (size_t index = 0; index < contour->debugCurveData.size(); ++index) {
+		for (int index = 0; index < (int) contour->debugCurveData.size(); ++index) {
 			std::vector<float> extrema;
 			OpCurve opCurve(contour->debugCurve(index, &extrema), Rotated::no);
 			if (opCurve.aliasBounds().isEmpty())
@@ -357,7 +357,7 @@ void OpDebugSamples::sample(DebugOutput& output) {
 
 void OpDebugSamples::rasterize() {
     for (int row = 0; row < raster->bitHeight; ++row) {
-		mask.rasterize(*this, row, raster->scale, raster->offsetX);
+		mask.rasterize(*this, row, (float) raster->scale, (float) raster->offsetX);
 	}
 }
 
@@ -647,7 +647,7 @@ void DebugRaster::in() {
 	if (tooSmall())
 		return;
 	sample(SampleType::contourResolved);
-	validate();
+	OP_DEBUG_CODE(validate());
 	if (sendToDebugger) {
 		sample(SampleType::contourInput);
 		sample(SampleType::segmentInput);
@@ -658,7 +658,7 @@ void DebugRaster::in() {
 	}
 	if (!sendToDebugger)
 		return;
-	validate();
+	OP_DEBUG_CODE(validate());
 	for (auto& s : samples) {
 		s.rasterize();
 	}
@@ -692,7 +692,7 @@ float DebugRaster::out() {
 	return result;
 }
 
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_DUMP || OP_DEBUGGER
 bool DebugRaster::playback(std::string filename) {
     std::string buffer = dmpFileToStr(filename);
     if (buffer.empty())
@@ -772,7 +772,7 @@ bool DebugRaster::tooSmall() const {
 	OP_ASSERT(context);
 	if (!context->maxBounds.width() || !context->maxBounds.height())
 		return true;
-	if (!scale || OpMath::IsNaN(offsetX) || OpMath::IsNaN(offsetY))
+	if (!scale || OpMath::IsNaN((float) offsetX) || OpMath::IsNaN((float) offsetY))
 		return true;
 	return false;
 }
@@ -784,9 +784,9 @@ std::string DebugRaster::debugDump(DebugLevel l, DebugBase b) const {
 	DEBUG_DUMP_COMMON_VECTOR(samples);
 	DEBUG_DUMP_VECTOR(samples, outputs);
 	ASSERT_ORDERED(outputs, context);
-	DEBUG_DUMP_REQUIRED_FLOAT(context, scale);
-    DEBUG_DUMP_REQUIRED_FLOAT(scale, offsetX);
-    DEBUG_DUMP_REQUIRED_FLOAT(offsetX, offsetY);
+	DEBUG_DUMP_REQUIRED_DOUBLE(context, scale);
+    DEBUG_DUMP_REQUIRED_DOUBLE(scale, offsetX);
+    DEBUG_DUMP_REQUIRED_DOUBLE(offsetX, offsetY);
     DEBUG_DUMP_REQUIRED_VALUE(offsetY, bitWidth);
     DEBUG_DUMP_REQUIRED_VALUE(bitWidth, bitHeight);
     DEBUG_DUMP_REQUIRED_VALUE(bitHeight, subSamples);

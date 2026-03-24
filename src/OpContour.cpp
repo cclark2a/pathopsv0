@@ -332,7 +332,7 @@ void OpContour::aliasIntersections() {
 			OpPoint leftPt = lhs->ptT.pt;
 			OpPoint rightPt = rhs->ptT.pt;
 			return leftPt.x < rightPt.x || (leftPt.x == rightPt.x && leftPt.y < rightPt.y); });
-		return iter - sects.begin();
+		return (int) (iter - sects.begin());
 	};
 	OpVector threshold = context->threshold;
 	auto checkNear = [&sects, checkSearch, &bounds, threshold](OpPoint check) {

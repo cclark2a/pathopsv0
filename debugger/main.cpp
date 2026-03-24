@@ -149,7 +149,7 @@ void DebuggerWindow::drawText() {
 SDL_AppResult DebuggerWindow::init(std::string n, OpVector offset) {
     name = n;
     std::string windowName = "V0 Debugger " + n;
-    if (!SDL_CreateWindowAndRenderer(windowName.c_str(), screen.width(), screen.height(), 
+    if (!SDL_CreateWindowAndRenderer(windowName.c_str(), (int) screen.width(), (int) screen.height(), 
             SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN | SDL_WINDOW_HIGH_PIXEL_DENSITY, 
             &window, &renderer))
         return Fail("Couldn't create window and renderer");
@@ -278,7 +278,7 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
                 ;
                 break;
             case SDL_EVENT_MOUSE_WHEEL: 
-                debuggerEvent.wheel += event->wheel.y;
+                debuggerEvent.wheel += (int) event->wheel.y;
                 break;
             case SDL_EVENT_WINDOW_FOCUS_GAINED:
                 if (state->verboseLevel) OpDebugOut(windowName + " focus gained\n");
