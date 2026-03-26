@@ -231,7 +231,7 @@ inline OpRoots AddInflections(OpPoint start, OpPoint end, CubicControls& control
 enum class CubicSubDivide {
     noAngleChecks,
     checkAngles
-#if OP_DEBUGGER
+#if OP_DEBUG_DUMP || OP_DEBUGGER
     , debuggerSubDivide
 #endif
 };
@@ -565,7 +565,7 @@ inline void cubicSubDivide(Curve c, float t1, float t2, float threshold, Curve* 
     cubicCommonSubDivide(c, t1, t2, threshold, result, CubicSubDivide::checkAngles);
 }
 
-#if OP_DEBUG_DUMP
+#if OP_DEBUG_DUMP || OP_DEBUGGER
 inline void debugCubicSubDivide(Curve c, float t1, float t2, Curve* result) {
     cubicCommonSubDivide(c, t1, t2, OpNaN, result, CubicSubDivide::debuggerSubDivide);
 }

@@ -1153,9 +1153,11 @@ void OpJoiner::linkUnambiguous(OpContour* contour, LinkPass lp) {
 			OP_DEBUG_VALIDATE_CODE(debugValidate());
 			linkMatch = EdgeMatch::end;
 			OP_DEBUG_CODE(debugRecursiveDepth = 0);
-			OpEdge* last = e->updateLastEdge();
-			if (!last->inOutput)
-				last->segment->contour->linkUp(this, last);
+			if (!e->inOutput) {
+				OpEdge* last = e->updateLastEdge();
+				if (!last->inOutput)
+					last->segment->contour->linkUp(this, last);
+			}
 			OP_DEBUG_VALIDATE_CODE(debugValidate());
 		}
 	}

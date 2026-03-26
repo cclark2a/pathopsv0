@@ -2758,6 +2758,7 @@ std::string SnipPtTs::debugDump(DebugLevel l, DebugBase b) const {
     return s;
 }
 
+#if OP_DEBUG_IMAGE
 std::string debugDumpColor(DebugLevel l, uint32_t c) {
     char asHex[11];
     int written = snprintf(asHex, sizeof(asHex), "0x%08x", c);
@@ -2772,6 +2773,7 @@ std::string debugDumpColor(DebugLevel l, uint32_t c) {
     }
     return std::string(asHex);
 }
+#endif
 
 std::string dmpFileToStr(std::string name) {
     std::string filename = dmpFileToPath(name);
@@ -2827,6 +2829,7 @@ std::string dmpFileToStr(std::string name) {
     return buffer;
 }
 
+#if OP_DEBUG_VALIDATE && OP_DEBUG_DUMP
 OpContext* fromFile(std::string filename) {
     std::string buffer = dmpFileToStr(filename);
     if (buffer.empty())
@@ -2841,5 +2844,6 @@ OpContext* fromFile(std::string filename) {
     debugGlobalContext = save;
     return fileContext;
 }
+#endif
 
 #endif

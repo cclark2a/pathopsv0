@@ -55,6 +55,11 @@ bool DebuggerWindow::add(const OpCurve& curve, DebuggerAddPoly* polyAdder) {
         DebuggerPoly& poly = polys.back();
         poly.opType = polyAdder->opType;
         poly.isPrimary = true;
+        if (!poly.c.context) {
+            poly.c = curve.c;        
+            if (IDType::contour == polyAdder->opType.type)
+                poly.color = polyAdder->opType.contour->debugColor;
+        }
         if (polyAdder->addingFill)
             poly.thickness = DebuggerPoly::fill_thickness;
     }

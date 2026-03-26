@@ -305,7 +305,8 @@ void TextWindow::innerUpdate(int& safetyCheck) {
         }
     }
     if (showLinks) {
-        std::string s = debugDmpLinks(debuggerState->context, DebugLevel::normal, defaultBase);
+        std::string s = debugDmpLinks(debuggerState->context, 
+                showPoints ? DebugLevel::brief : DebugLevel::normal, defaultBase);
         if (s.empty())
             addWrapped("(no links)");
         else
