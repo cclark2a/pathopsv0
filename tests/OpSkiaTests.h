@@ -9,7 +9,7 @@
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
 #define SKIP_TO_FILE "quad" // e.g., "simplify"  one file
 #if !OP_DEBUG_ALT
-#define TEST_FIRST "testQuads12902593"  // e.g., "testQuads5343280" if file, one test
+#define TEST_FIRST "testCubics2851393"  // e.g., "testQuads5343280" if file, one test
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
 #else
@@ -39,30 +39,48 @@
 #define TEST_PATH_OP_SKIP_REST
 #define TEST_PATH_OP_SKIP_FILES  /* e.g., "battle", "circleOp" */
 // 
-/* 26,231,574 run. Those with >= .1 error:
-testQuads12894841 raster errors:0.664407015
-testQuads12894842 raster errors:0.664477348
-testQuads12902593 raster errors:29.2348442
-testQuads12902594 raster errors:0.664584875
-testQuads12907865 raster errors:0.443082213
-testQuads12909225 raster errors:0.664399862
-testQuads12918097 raster errors:0.443013191
-testQuads12918098 raster errors:0.443102121
-testQuads12925849 raster errors:0.443071485
-testQuads12925850 raster errors:0.443160415
-testQuads12933601 raster errors:19.4893913
-testQuads12933602 raster errors:0.443172693
-testQuads19263416 raster errors:0.329843998
-testQuads7784947 raster errors:0.664374888
-testQuads7784948 raster errors:0.664456785
-testQuads7792699 raster errors:29.2348518
-testQuads7792700 raster errors:0.664448619
-testQuads7799091 raster errors:0.664412796
-testQuads7815955 raster errors:0.443049401
-testQuads7815956 raster errors:0.443145365
-testQuads7823707 raster errors:19.4893951
-testQuads7823708 raster errors:0.443169892
-testQuads2294703 raster errors:0.279744148
-testQuads2325711 raster errors:0.279837072
-testQuads2356719 raster errors:0.279763043 */
+/* testsRun:30046751 testsSkipped:0  avg pixelError:0.000148075167 maxError:0.279829621 largestError:testQuads2325711
+testQuads2325711 error:0.279829621
+testQuads2356719 error:0.279755592
+testQuads2294703 error:0.279751450
+testQuads19236931 error:0.110243842
+testQuads19227149 error:0.110236213
+testQuads19225789 error:0.110217303
+testQuads19233541 error:0.110202000
+testQuads19228269 error:0.110197239
+testQuads19234901 error:0.110191032
+testQuads19241293 error:0.110190123
+testQuads19244683 error:0.110181749
+testQuads19236021 error:0.110167548
+testQuads19242653 error:0.110165879
+testQuads18504901 error:0.110139072
+testQuads18506261 error:0.110139072
+testQuads18507381 error:0.110139072
+testQuads18508291 error:0.110139072
+testQuads19229179 error:0.110139072
+testQuads19243773 error:0.110137872
+testQuads5383069 error:0.110108651 */
+
+/* testsRun:3889619 testsSkipped:0  avg pixelError:0.00039643026 maxError:0.136399746 largestError:testCubics1632148
+testCubics1632148 error:0.136399746
+testCubics1632152 error:0.136399746
+testCubics1632156 error:0.136399746
+testCubics1632160 error:0.136399746
+testCubics970388 error:0.136399746
+testCubics970392 error:0.136399746
+testCubics970396 error:0.136399746
+testCubics970400 error:0.136399746
+testCubics1141572 error:0.131867886
+testCubics1141576 error:0.131867886
+testCubics1141580 error:0.131867886
+testCubics1141584 error:0.131867886
+testCubics2443972 error:0.131831527
+testCubics2443976 error:0.131831527
+testCubics2443980 error:0.131831527
+testCubics2443984 error:0.131831527
+testCubics1904692 error:0.128352165
+testCubics1904696 error:0.128352165
+testCubics1904700 error:0.128352165
+testCubics1904704 error:0.128352165
+ */
 #endif

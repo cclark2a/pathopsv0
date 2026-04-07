@@ -67,7 +67,7 @@ std::vector<testInfo> testSuites = {
     { run_inverse_tests, "inverse", 320, 320 },
     { run_issue3651_tests, "issue3651", 8, 8 },
     { run_op_circle_tests, "circle", 84672, 1778112 },
-    { run_op_cubic_tests, "cubic", 148176, 2247347 },
+    { run_op_cubic_tests, "cubic", 148176, 2247347 },  // !!! real number: 3889620?
     { run_op_loop_tests, "loop", 9261, 194481 },
     { run_op_rect_tests, "rect", 148176, 3111696 },
     { run_op_fast_tests, "fast", 9216, 82944 },

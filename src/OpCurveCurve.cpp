@@ -311,7 +311,7 @@ void FoundLimits::cutPair(SnipPtTs& snipLo, SnipPtTs& snipHi) const {
 		if (smallerHi.advanceFibonacci())
 			smallerHi.findCuts();
 		float testLen = (smallerHi.cutPtT.pt - smallerLo.cutPtT.pt).lengthSquared();
-		if (testLen > largerLen)
+		if (testLen > largerLen || (smallerLo.diff[1] >= 1 && smallerHi.diff[1] >= 1))
 			break;
 		(segLen < oppLen ? sLo : oLo).set(smallerLo);
 		(segLen < oppLen ? sHi : oHi).set(smallerHi);

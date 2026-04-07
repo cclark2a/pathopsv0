@@ -9,147 +9,6 @@
 #include "OpDebugColor.h"
 #endif
 
-#if OP_ALIAS
-OpPoint OpPtAliases::add(OpPoint original, OpPoint alias, AliasType type) {
-	OP_ASSERT(original.isFinite());
-	OP_ASSERT(alias.isFinite());
-	OP_ASSERT(original != alias);
-	maps.push_back({original, alias, alias, type});
-	bounds.add(alias);
-	return alias;
-}
-
-struct ExistingAlias {
-	OpPtAliases* aliases;
-	OpPoint alias;
-};
-
-// aliases added and resolved as discovered (close end points; small values)
-// if one is existing alias, add two -> one; if two is existing, add one -> two
-// if neither is alias, it's arbitrary, as long as future adds can see it
-OpPoint OpPtAliases::addPair(OpContour* contour, OpPoint one, OpPoint two, AliasType type) {
-	OP_ASSERT(AliasType::isSmall == type || AliasType::zeroSmall == type 
-			|| AliasType::endPoint == type || AliasType::curveLine == type);
-	std::vector<ExistingAlias> existing;
-	auto addExisting = [&existing](OpPtAliases* test, OpPoint first, OpPoint second) {
-		if (test->maps.empty())
-			return true;
-		AliasMatch aliasMatch = test->alreadyContains(first, second);
-		if (AliasMatch::both == aliasMatch)
-			return false;
-		if (AliasMatch::alias == aliasMatch)
-			existing.push_back({test, second});
-		return true;
-	};
-	if (!contour->overlapOwner) {
-		if (!addExisting(this, one, two))
-			return two;
-		if (!addExisting(this, two, one))
-			return one;
-	} else {
-		if (!addExisting(&contour->overlapOwner->aliases, one, two))
-			return two;
-		if (!addExisting(&contour->overlapOwner->aliases, two, one))
-			return one;
-	}
-	if (existing.empty())
-		return add(one, two, type);
-	OpPoint masterAlias = existing[0].alias;
-	if (masterAlias == two)
-		add(one, two, type);
-	else {
-		OP_ASSERT(masterAlias == one);
-		add(two, one, type);
-	}
-	// if two or more maps were found and their aliases are different, they must be merged
-	// (when one contour overlaps two or more contours which do not overlap each other)
-	for (size_t index = 1; index < existing.size(); ++index) {
-		if (masterAlias != existing[index].alias)
-			existing[index].aliases->remap(existing[index].alias, masterAlias, type);
-	}
-	return masterAlias;
-}
-
-// aliases are added as intersections are found; resolved in bulk after intersection pass is done
-OpPoint OpPtAliases::addTriple(OpContour* , OpPoint seg, OpPoint opp, OpPoint alias, 
-		AliasType type) {
-	OP_ASSERT(AliasType::curveLine == type || AliasType::curveCurve == type 
-			|| AliasType::coinWinding == type);
-	OP_ASSERT(seg.isFinite());
-	OP_ASSERT(opp.isFinite());
-	OP_ASSERT(alias.isFinite());
-	OP_ASSERT(seg != alias || opp != alias);
-	maps.push_back({seg, opp, alias, type});
-	bounds.add(seg);
-	bounds.add(opp);
-	bounds.add(alias);
-	return alias;
-	
-}
-
-AliasMatch OpPtAliases::alreadyContains(OpPoint original, OpPoint alias) const {
-	AliasMatch result = AliasMatch::none;
-	if (!bounds.contains(alias))
-		return result;
-	for (const OpPtAlias& map : maps) {
-		if (alias != map.alias)
-			continue;
-		if (original == map.original)
-			return AliasMatch::both;
-		result = AliasMatch::alias;
-	}
-	return result;
-}
-
-
-bool OpPtAliases::containsAlias(OpPoint aliased) const {
-	OP_ASSERT(aliased.isFinite());
-	for (const OpPtAlias& map : maps) {
-		if (aliased == map.alias)
-			return true;
-	}
-	return false;
-}
-
-// !!! instead of brute force searching for match, sort and binary search aliases ?
-OpPoint OpPtAliases::existing(OpPoint match) const {
-	OP_ASSERT(match.isFinite());
-	if (!bounds.contains(match))
-		return match;
-	for (const OpPtAlias& test : maps) {
-		if (test.original == match)
-			return test.alias;
-	}
-	return match;
-}
-
-bool OpPtAliases::original(OpPoint match) const {
-	OP_ASSERT(match.isFinite());
-	for (const OpPtAlias& test : maps) {
-		if (test.original == match)
-			return true;
-	}
-	return false;
-}
-
-void OpPtAliases::remap(OpPoint oldAlias, OpPoint newAlias, AliasType type) {
-	OP_ASSERT(oldAlias.isFinite());
-	OP_ASSERT(newAlias.isFinite());
-	for (OpPtAlias& test : maps) {
-		if (test.alias == oldAlias) {
-            OP_ASSERT(test.original != newAlias);
-			test.alias = newAlias;
-        }
-	}
-	add(oldAlias, newAlias, type);
-}
-
-struct ContourAlias {
-	OpContour* contour;
-	OpPoint alias;
-};
-#endif
-
 // opp and contour share at least one coincident segment or edge; makes opp member of contour set
 void OpContour::addMerge(OpContour* opp) {
 	if (this == opp)
@@ -443,19 +302,21 @@ void OpContour::clearSegments() {
     }
 }
 
-struct LoopCheck {
-	LoopCheck(OpEdge* e, EdgeMatch match) 
-		: edge(e) {
-		pt = e->flipPtT(match).pt;
+EdgesLoop OpContour::IsLoop(std::vector<LoopCheck>& edges, OpEdge* e, EdgeMatch loopMatch) {
+	OpEdge* test = e;
+	// walk forwards to end, keeping one point per edge
+	OP_ASSERT(e /* && !e->debugIsLoop() */ );  // !!! do not understand
+	while (test) {
+		if (edges.end() != std::find_if(edges.begin(), edges.end(), 
+				[&test](const LoopCheck& check) { return check.edge == test; } ))
+			return EdgesLoop::tail;
+		edges.emplace_back(test, loopMatch);
+		test = EdgeMatch::start == loopMatch ? test->nextEdge : test->priorEdge;
+		if (e == test)
+			return EdgesLoop::simple;
 	}
-
-	bool operator<(const LoopCheck& rh) const {
-		return pt.x < rh.pt.x || (pt.x == rh.pt.x && pt.y < rh.pt.y);
-	}
-
-	OpEdge* edge;
-	OpPoint pt;
-};
+	return EdgesLoop::no;
+}
 
 // iterate edges to see some pt forms a loop
 // if so, detach remaining chain and close loop
@@ -466,37 +327,21 @@ bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* e, EdgeMatch loopMatch) {
     if (context->windingCallbacks.windingWoundFuncPtr)
         return false;
     std::vector<LoopCheck> edges;
-	OpEdge* test = e;
-	// walk forwards to end, keeping one point per edge
-	OP_ASSERT(e /* && !e->debugIsLoop() */ );  // !!! do not understand
-	while (test) {
-		if (edges.end() != std::find_if(edges.begin(), edges.end(), 
-				[&test](const LoopCheck& check) {
-			return check.edge == test; } )) {
-			break;
-		}
-		edges.emplace_back(test, loopMatch);
-		test = EdgeMatch::start == loopMatch ? test->nextEdge : test->priorEdge;
-		if (e == test)
-			break;
-	}
-	if (e == test) {	// if this forms a loop, there's nothing to detach, return success
+	if (EdgesLoop::simple == IsLoop(edges, e, loopMatch)) {	// if this forms a loop, there's nothing to detach, return success
         EdgeOutput edgeOutput(context, e, true);
 		OP_DEBUG_VALIDATE_CODE(joiner->debugValidate());
 		return true;
 	}
 	// walk backwards to start
 	std::sort(edges.begin(), edges.end());
-	auto detachEdge = [this, joiner](OpEdge* e, EdgeMatch match) 
-	{
+	auto detachEdge = [this, joiner](OpEdge* e, EdgeMatch match) {
 		if (OpEdge* detach = EdgeMatch::start == match ? e->priorEdge : e->nextEdge) {
 			EdgeMatch::start == match ? detach->clearNextEdge() : detach->clearPriorEdge();
 			if (Unsortable::none == detach->isUnsortable || detach->priorEdge || detach->nextEdge)
 				addToLinkups(joiner, detach);	// return front edge
 		}
 	};
-	auto detachNext = [detachEdge](OpEdge* test, OpEdge* oppEdge) 
-	{
+	auto detachNext = [detachEdge](OpEdge* test, OpEdge* oppEdge) {
 		detachEdge(test, EdgeMatch::end);
 		detachEdge(oppEdge, EdgeMatch::start);
 		test->setNextEdge(oppEdge);
@@ -512,7 +357,7 @@ bool OpContour::detachIfLoop(OpJoiner* joiner, OpEdge* e, EdgeMatch loopMatch) {
         EdgeOutput edgeOutput(test->context(), test, true);
 		return true;
 	};
-	test = e;
+	OpEdge* test = e;
 	while ((test = (EdgeMatch::start == loopMatch ? test->priorEdge : test->nextEdge)) && e != test) {
 		LoopCheck testCheck(test, !loopMatch);
 		if (auto bound = std::lower_bound(edges.begin(), edges.end(), testCheck); 
@@ -537,13 +382,6 @@ bool OpContour::disabledPal(OpPoint a, OpPoint b) const {
 	}
 	return false;
 }
-
-#if OP_ALIAS
-OpPoint OpContour::existingAlias(OpPoint pt) const {
-	OP_ASSERT(overlapOwner);
-	return overlapOwner->aliases.existing(pt);
-}
-#endif
 
 // !!! reverse return bool : now true if no edges to join (reverse caller also)
 bool OpContour::joinSetup() {
@@ -653,6 +491,20 @@ bool OpContour::mergeIntersections() {
 	segMerged = true;
 	return runAgain;  // if true, caller must run all overlapping contours
 }
+
+#if 0
+bool OpContour::mergeOpposites() {
+	OP_ASSERT(!oppMerged);
+	bool runAgain = false;
+	for (auto& segment : segments) {
+		if (segment.oppMerged)
+			continue;
+		runAgain |= segment.mergeOpposites();
+	}
+	oppMerged = true;
+	return runAgain;  // if true, caller must run all overlapping contours
+}
+#endif
 
 // check if resolution of link ups left unambiguous edge ends for further linkage
 // !!! this is missing a check to see if the matched edge has the correct winding

@@ -354,13 +354,6 @@ ENUM_NAME_STRUCT(DebugWindingType)
 #define Rotated_Base
 ENUM_NAME_STRUCT(Rotated)
 
-#if OP_ALIAS
-#undef OP_ENUM_MEMBER
-#define OP_ENUM_MEMBER(w) { AliasType::w, #w }
-#define AliasType_Base
-ENUM_NAME_STRUCT(AliasType)
-#endif
-
 namespace PathOpsV0Lib {
 
 // don't want funny macros in public interface, so this is explicitly for the only public enum... 
@@ -1546,15 +1539,7 @@ std::string OpContour::debugDump(DebugLevel l, DebugBase b) const {
         debugPopMatching(s, ' ');
 		s += closeBracket;
 	}
-#if OP_ALIAS
-    ASSERT_ORDERED(endLinks, aliases);
-    if (aliases.maps.size()) {
-        s += "aliases:" + aliases.debugDump(l, b) + "\n";
-    }
-    DEBUG_DUMP_OPTIONAL_STRUCT(aliases, overlapBounds, overlapBounds.isFinite());
-#else
     DEBUG_DUMP_OPTIONAL_STRUCT(endLinks, overlapBounds, overlapBounds.isFinite());
-#endif
     DEBUG_DUMP_OPTIONAL_STRUCT(overlapBounds, bounds, bounds.isFinite());
     ASSERT_ORDERED(bounds, context);  // omit context
     DEBUG_DUMP_OPTIONAL_ID(context, overlapOwner);
@@ -1939,8 +1924,8 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     EDGE_BOOL(inLinkups, linkHead);
     EDGE_BOOL(linkHead, inOutput);
     EDGE_BOOL(inOutput, disabled);
-    EDGE_BOOL(disabled, isSmall);
-    EDGE_BOOL(isSmall, isUnsplitable);
+    EDGE_BOOL(disabled, smallTRange);
+    EDGE_BOOL(smallTRange, isUnsplitable);
     EDGE_BOOL(isUnsplitable, ccEnd);
     EDGE_BOOL(ccEnd, ccLarge);
     EDGE_BOOL(ccLarge, ccOverlaps);
@@ -2387,34 +2372,6 @@ std::string OpLimbStorage::debugDump(DebugLevel l, DebugBase b) const {
     }
     return s;
 }
-
-#if OP_ALIAS
-std::string OpPtAlias::debugDump(DebugLevel l, DebugBase b) const {
-    std::string s;
-    s += "original:" + original.debugDump(l, b) + " ";
-    s += "opp:" + opp.debugDump(l, b) + " ";
-    s += "alias:" + alias.debugDump(l, b) + " ";
-    s += "type:" + AliasTypeName(type) + " ";
-    debugPopMatching(s, ' ');
-    return s;
-}
-
-std::string OpPtAliases::debugDump(DebugLevel l, DebugBase b) const {
-    std::string s;
-    static_assert(0 == offsetof(OpPtAliases, maps));
-    if (maps.size()) {
-        s += "maps:" + STR(maps.size()) + "[\n";
-        for (OpPtAlias map : maps) {
-            s += map.debugDump(l, b) + "\n";
-        }
-        s += "]\n";
-    }
-    if (bounds.isFinite())
-        s += "bounds:" + bounds.debugDump(l, b) + " ";
-    static_assert(sizeof(OpPtAliases) == offsetof(OpPtAliases, bounds) + sizeof(bounds));
-    return s;
-}
-#endif
 
 std::string OpPoint::debugDump(DebugLevel l, DebugBase b) const {
     if (DebugLevel::error != l && !isFinite())

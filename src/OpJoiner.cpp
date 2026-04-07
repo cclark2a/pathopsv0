@@ -256,7 +256,7 @@ OpLimb* OpLimb::tryAdd(OpTree& tree, OpEdge* test, EdgeMatch m, LimbPass limbPas
 	OP_ASSERT(!test->disabled || test->isUnsectable() || Unsortable::none != test->isUnsortable 
 			|| LimbPass::disabledCenterless <= limbPass);
 	OP_ASSERT(!test->hasLinkTo(m) || Unsortable::none != test->isUnsortable || test->disabled 
-			|| test->isUnsectable() || test->isSmall);
+			|| test->isUnsectable() || test->smallTRange);
 //	int ccUnsectID = 0;
 	// !!! future optimization : keep all possible end points with edge, or pass limb instead of
 	std::vector<OpPoint> testPts = test->collectMatch(m);
@@ -715,7 +715,7 @@ bool OpTree::join(OpJoiner& join) {
         OP_ASSERT(EdgeMatch::none != best->which()  // !!! assert may be unnecessary; make sure disabled is correct choice
                 || (best->disabled && (LimbPass::disabledBackwards == bestL->treePass
 				|| LimbPass::disabledCenterless == bestL->treePass))
-				|| (best->isSmall && LimbPass::smallEdge == bestL->treePass)
+				|| (best->smallTRange && LimbPass::smallEdge == bestL->treePass)
 			);
         EdgeMatch which = EdgeMatch::none != best->which() ? best->which() : bestL->match;
 		(void) best->setLastLink(!which); // make suitable for linking to a chain
@@ -803,7 +803,7 @@ OpLimb* OpTree::makeLimb() {
 // Mark edges' 'seen' as unset in this tree. Later, mark additional contours as they are linked
 void OpTree::makeTrunk(OpEdge* edge) {
 	OpContour* edgeContour = edge->segment->contour;
-	for (auto member : edgeContour->members()) {
+	for (OpContour* member : edgeContour->members()) {
 		member->setSeen(id);
 	}
 	context->resetLimbs();
@@ -979,7 +979,7 @@ OpJoiner::OpJoiner(OpContext& contours)
     for (auto contour : contours.contours) {
 		for (auto& segment : contour->segments) {
 			for (auto& e : segment.edges) {
-				if (e.isSmall)
+				if (e.smallTRange)
 					contour->addSmallEdge(&e);
 				if (e.inOutput)
 					continue;
@@ -1023,11 +1023,11 @@ bool OpJoiner::linkRemaining(OpContour* contour) {
 		edge = linkups.l.back();
 		// if largest is small, and all edges it links to are small, don't link it
 		auto edgeIsSmall = [this]() {
-			if (!edge->isSmall) 
+			if (!edge->smallTRange) 
 				return false;
 			OpEdge* nextEdge = edge;
 			while ((nextEdge = nextEdge->nextEdge)) {
-				if (!nextEdge->isSmall)
+				if (!nextEdge->smallTRange)
 					return false;
 			}
 			return true;
@@ -1138,6 +1138,8 @@ void OpJoiner::linkUnambiguous(OpContour* contour, LinkPass lp) {
 	for (auto& e : edges) {
 		if (e->disabled)
 			continue;   // likely marked as part of a loop below
+		if (e->smallTRange)
+			continue;
 		if (!e->isActive())  // check if already saved in linkups
 			continue;
 		if (e->inOutput)  // !!! added for testQuads3130081 ; unsure why it wasn't a condition all along

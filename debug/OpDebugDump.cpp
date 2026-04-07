@@ -206,18 +206,6 @@ void dmpActive() {
     }
 }
 
-#if OP_ALIAS
-void dmpAliases() {
-    std::string s;
-     for (const auto c : contourIterator) {
-        std::string aliases = c->aliases.debugDump(defaultLevel, defaultBase);
-        if (!aliases.empty())
-            s += "contour:" + STR(c->id) + " " + aliases + "\n";
-     }
-     OpDebugFormat(s + "\n");
-}
-#endif
-
 void dmpCoincidences() {
     for (const auto c : contourIterator) {
         for (const auto& seg : c->segments) {
@@ -565,37 +553,6 @@ void dmpWindings() {
 #define OP_ENUM_MEMBER(w) { OpDebugExpect::w, #w }
 #define OpDebugExpect_Base
 ENUM_NAME_STRUCT(OpDebugExpect)
-
-#if OP_ALIAS
-#undef OP_ENUM_MEMBER
-#define OP_ENUM_MEMBER(w) { AliasType::w, #w }
-#define AliasType_Base
-ENUM_NAME_STRUCT(AliasType)
-
-void OpPtAlias::dumpSet(const char*& str) {
-    OpDebugRequired(str, "original");
-    original.dumpSet(str);
-    OpDebugRequired(str, "opp");
-    opp.dumpSet(str);
-    OpDebugRequired(str, "alias");
-    alias.dumpSet(str);
-    type = AliasTypeStr(str, "type", AliasType::unknown);
-}
-
-void OpPtAliases::dumpSet(const char*& str) {
-    static_assert(0 == offsetof(OpPtAliases, maps));
-    if (OpDebugOptional(str, "maps")) {
-        size_t size = OpDebugReadSizeT(str);
-        maps.resize(size);
-        for (auto& map : maps) {
-            map.dumpSet(str);
-        }
-    }
-    if (OpDebugOptional(str, "bounds"))
-        bounds.dumpSet(str);
-    static_assert(sizeof(OpPtAliases) == offsetof(OpPtAliases, bounds) + sizeof(bounds));
-}
-#endif
 
 namespace PathOpsV0Lib {
 
@@ -1178,15 +1135,7 @@ void OpContour::dumpSet(const char*& str) {
     OpDebugByteArray(str, windingSize, &windingStorage.front());
     DUMP_NAMED_EDGES(*this, windingStorage, "linkups", linkups.l);
     DUMP_NAMED_EDGES(*this, linkups, "endLinks", endLinks.l);
-#if OP_ALIAS
-    ASSERT_ORDERED(endLinks, aliases);
-    if (OpDebugOptional(str, "aliases"))
-        aliases.dumpSet(str);
-
-    ASSERT_ORDERED(aliases, overlapBounds);
-#else
     ASSERT_ORDERED(endLinks, overlapBounds);
-#endif
     if (OpDebugOptional(str, "overlapBounds"))
         overlapBounds.dumpSet(str);
     ASSERT_ORDERED(overlapBounds, bounds);
@@ -1905,8 +1854,8 @@ void OpEdge::dumpSet(const char*& str) {
     DEBUG_SET_BOOL(inLinkups, linkHead);
     DEBUG_SET_BOOL(linkHead, inOutput);
     DEBUG_SET_BOOL(inOutput, disabled);
-    DEBUG_SET_BOOL(disabled, isSmall);
-    DEBUG_SET_BOOL(isSmall, isUnsplitable);
+    DEBUG_SET_BOOL(disabled, smallTRange);
+    DEBUG_SET_BOOL(smallTRange, isUnsplitable);
     DEBUG_SET_BOOL(isUnsplitable, ccEnd);
     DEBUG_SET_BOOL(ccEnd, ccLarge);
     DEBUG_SET_BOOL(ccLarge, ccOverlaps);
@@ -3315,6 +3264,8 @@ std::string OpSegment::debugDumpFull() const {
 
 std::string OpSegment::debugDumpIntersections() const {
     std::string s;
+    if (sects.i.empty())
+        return s;
     if (sects.unsorted)
         s += "unsorted\n";
     for (auto i : sects.i) {

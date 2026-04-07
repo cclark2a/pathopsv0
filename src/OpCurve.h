@@ -93,6 +93,7 @@ struct OpCurve {
 	// Returns t of point on curve if any; returns NaN if no match. Used by line/curve intersection.
 	float match(float start, float end, OpPoint ) const;
 	MatchReverse matchEnds(const LinePts& ) const;
+	MatchReverse matchExact(const OpCurve& ) const;
 	bool nearBounds(OpPoint ) const;
 	OpVector normal(float t) const;
 	NormalDirection normalDirection(Axis axis, float t) const;
@@ -110,9 +111,6 @@ struct OpCurve {
 	OpRoots rawIntersect(const LinePts& line, MatchEnds ) const;  // requires sect to be on curve
 	OpRoots rayIntersect(const LinePts& line, MatchEnds ) const;
 	void reverse();
-#if OP_ALIAS
-	void setAliases(OpContour& );
-#endif
 	void setFirstPt(OpPoint pt) {
 		start = c.data->start = pt; }
 	void setLastPt(OpPoint pt) {

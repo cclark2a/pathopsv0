@@ -179,6 +179,7 @@ struct OpContext {
 	void markInCoincidence();
 	void mergeEndPoints();  // iterate repeatedly through all contours and contour's overlaps
 	void mergeIntersections();  // .. for sect points that are nearly equal and merge them
+//	void mergeOpposites();  // .. then merge sect and its opposite
 
 	int nextID() { 
 		return ++uniqueID; 

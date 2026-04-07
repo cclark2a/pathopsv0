@@ -10,57 +10,6 @@
 enum class EdgeMatch : int8_t;
 struct OpContext;
 
-// !!! experiment: disable all alias code to see if it can all be done in curves
-#define OP_ALIAS 0
-#if OP_ALIAS
-enum class AliasMatch {
-	none,
-	alias,
-	both
-};
-
-#define AliasType_Enums \
-	OP_ENUM_MEMBER(unknown), \
-	OP_ENUM_MEMBER(zeroSmall), \
-	OP_ENUM_MEMBER(isSmall), \
-	OP_ENUM_MEMBER(endPoint), \
-	OP_ENUM_MEMBER(coinWinding), \
-	OP_ENUM_MEMBER(curveLine), \
-	OP_ENUM_MEMBER(curveCurve)
-
-enum class AliasType {
-	AliasType_Enums
-};
-
-struct OpPtAlias {
-	DUMP_DECLARATIONS
-
-	OpPoint original;	// on caller's curve at some value of 0 <= t <= 1
-	OpPoint opp;  // not equal to original, but close by, on same or different curve at some t
-	OpPoint alias;  // canonical value: may be opp, may be pinned, may be average
-	AliasType type = AliasType::unknown;
-};
-
-struct OpPtAliases {
-	OpPoint add(OpPoint pt, OpPoint alias, AliasType );
-	SegPt addIfClose(OpPoint , OpVector threshold);
-	OpPoint addPair(OpContour* , OpPoint one, OpPoint two, AliasType );  // adds if necessary
-	OpPoint addTriple(OpContour* , OpPoint seg, OpPoint opp, OpPoint alias, AliasType );  // adds always
-	AliasMatch alreadyContains(OpPoint original, OpPoint alias) const;
-	bool containsAlias(OpPoint ) const;
-	OpPoint existing(OpPoint ) const;
-//	OpPoint find(OpPoint ) const;
-	bool isSmall(OpPoint pt1, OpPoint pt2, OpVector threshold);
-	bool original(OpPoint ) const;
-	void remap(OpPoint oldAlias, OpPoint newAlias, AliasType );
-
-	DUMP_DECLARATIONS
-
-	std::vector<OpPtAlias> maps;
-	OpPointBounds bounds;  // rather than sorted maps, use bounds of map aliases for quick reject
-};
-#endif
-
 enum class RelinkJoins {
 	uninitialized,
 	unchanged,
@@ -69,12 +18,33 @@ enum class RelinkJoins {
 	again
 };
 
+struct LoopCheck {
+	LoopCheck(OpEdge* e, EdgeMatch match) 
+		: edge(e) {
+		pt = e->flipPtT(match).pt;
+	}
+
+	bool operator<(const LoopCheck& rh) const {
+		return pt.x < rh.pt.x || (pt.x == rh.pt.x && pt.y < rh.pt.y);
+	}
+
+	OpEdge* edge;
+	OpPoint pt;
+};
+
+enum class EdgesLoop {
+	no,
+	simple,
+	tail
+};
+
 typedef PathOpsV0Lib::Contour* ContourPtr;
 
 struct OpContour {
 	operator ContourPtr() const {
 		return (ContourPtr)(this);
 	}
+
 	void addCoinEdges();
 
 	void addDisjointIntersections() {
@@ -83,14 +53,6 @@ struct OpContour {
 		}
 	}
 
-#if OP_ALIAS
-    OpPoint addAlias(OpPoint pt, OpPoint alias, AliasType type) {
-		OP_ASSERT(overlapOwner);
-		return overlapOwner->aliases.addPair(this, pt, alias, type); }
-	OpPoint addAlias(OpPoint pt, OpPoint opp, OpPoint alias, AliasType type) {
-		OP_ASSERT(overlapOwner);
-		return overlapOwner->aliases.addTriple(this, pt, opp, alias, type); }
-#endif
 	void addEdges();
 	OpIntersection* addEdgeSect(const OpPtT& , OpSegment* seg
 		   OP_LINE_FILE_DEF(const OpEdge* edge, const OpEdge* oEdge));
@@ -105,7 +67,7 @@ struct OpContour {
 	void addToLinkups(OpJoiner* , OpEdge* );
 	OpIntersection* addUnsect(const OpPtT& , OpSegment* seg, int uID, MatchEnds 
 			OP_LINE_FILE_DEF(const OpSegment* oSeg));
-    void aliasIntersections();  // does not require OP_ALIAS / use contour aliases
+    void aliasIntersections();
 	WindingCondition apply() {
 		for (auto& segment : segments) {
 			if (WindingCondition windingCondition = segment.apply())
@@ -128,13 +90,11 @@ struct OpContour {
     void clearSegments();
 	bool detachIfLoop(OpJoiner* , OpEdge* , EdgeMatch loopEnd);
 	bool disabledPal(OpPoint, OpPoint) const;  // !!! bare minimum to fix cubic129075 (experiment)
-#if OP_ALIAS
-	OpPoint existingAlias(OpPoint pt) const;
-#endif
 	bool fixCCSects();
     void init(OpContext* , PathOpsV0Lib::WindingData winding, size_t size);
     void init();
 	bool isEmpty();
+	static EdgesLoop IsLoop(std::vector<LoopCheck>& edges, OpEdge* e, EdgeMatch loopMatch);
 	bool isOpen() { return !merges.empty(); }
 //	bool isSorted(Axis axis) const { return Axis::horizontal == axis ? isXSorted : isYSorted; }
 	bool joinSetup();
@@ -168,6 +128,7 @@ struct OpContour {
 	const std::vector<OpContour*>& members() const { return overlapOwner->overlaps; }
 	bool mergeEndPoints();  // find close by sects on segment ends, prioritizing them
 	bool mergeIntersections();  // find close by sects on entire segment, prioritizing end points
+//	bool mergeOpposites();  // find opposite sects, prioritizing existing merges
 	int nextID() const;
 
 	void normalize() {
@@ -243,9 +204,6 @@ struct OpContour {
     std::vector<uint8_t> windingStorage;
 	LinkUps linkups;
 	LinkUps endLinks;
-#if OP_ALIAS
-    OpPtAliases aliases;
-#endif
 	OpPointBounds overlapBounds;  // bounds of intersecting contours (overlapOwner only)
 	OpPointBounds bounds;	// bounds of segments in this contour
 	OpContext* context;
@@ -261,6 +219,7 @@ struct OpContour {
 	bool overlapsMerged;
 	bool segEndsMerged = false;
 	bool segMerged = false;
+//	bool oppMerged = false;
 #if OP_DEBUG || OP_DEBUGGER
 	bool debugEmpty = false;  // if empty, when cloned, this is reused in release
 #endif

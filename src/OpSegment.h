@@ -90,10 +90,6 @@ struct OpSegment {
 	OpSegment(PathOpsV0Lib::Contour* , PathOpsV0Lib::AddCurve);
 	bool activeAtT(OpEdge* , EdgeMatch , MatchZero , std::vector<FoundEdge>& ) const; // true if pal
 	bool activeNeighbor(const OpEdge* , EdgeMatch , AllowLinked , std::vector<FoundEdge>& ) const; // true if pal
-#if OP_ALIAS
-    void addAlias(OpPoint original, OpPoint alias, AliasType );
-	void addAlias(OpPoint original, OpPoint opp, OpPoint alias, AliasType );
-#endif
 	OpIntersection* addCoin(const OpPtT& , int coinID, MatchEnds , CoinOpp , const OpSegment* o  
 			OP_LINE_FILE_ARGS());
 	void addDisjointIntersections();
@@ -106,9 +102,6 @@ struct OpSegment {
 	WindingCondition apply();
 	void betweenCoincidence();
 	int coinID(bool flipped);
-#if OP_ALIAS
-	bool containsAlias(OpPoint );  // true if point is alias in owning contour
-#endif
 	void disableSmall();
 	OpPtT distance(const OpPtT& segPtT, OpSegment* opp);
 	bool endMoved() const { 
@@ -128,6 +121,8 @@ struct OpSegment {
 	MatchReverse matchEnds(const OpSegment* opp) const;
 	bool mergeEndPoints();
 	bool mergeIntersections();
+	void mergeMultiple(OpPoint masterPt, int masterID, OpPoint mergePt, int mergeID);
+//	bool mergeOpposites();
 	PrefFound moveSects(OpPtT match, OpPoint dest);	// move matching sects and cleanup segment state
 	bool moveWinding(OpSegment* opp, bool backwards);
 	void manyCoincidences();
@@ -136,10 +131,6 @@ struct OpSegment {
 	void normalize();
 	OpPtT ptAtT(const OpPtT& ) const;
 	void remap(OpPoint oldAlias, OpPoint newAlias);  // local remap
-#if OP_ALIAS
-	void setAliases() {
-		c.setAliases(*contour); }
-#endif
 	void setDisabled(OP_LINE_FILE_NP_ARGS());
 	void setEndsUnmerged();
 	void setUnmerged();
@@ -183,6 +174,7 @@ struct OpSegment {
 	OpCurve c;
 //	OpPointBounds ptBounds;
 	OpIntersections sects;
+//	OpIntersections smallSects;	!!! start here; put small in sects array; add flag to op intersection
 	std::vector<OpEdge> edges;
 	OpWinding winding;
 	int id;     // used to normalize each end point once
@@ -193,6 +185,7 @@ struct OpSegment {
 	bool hasPals = false;
 	bool hasUnsectable;
 	bool merged = false;
+	bool oppMerged = false;
 //	bool startMoved;
 //	bool endMoved;
 #if OP_DEBUG_IMAGE || OP_DEBUGGER

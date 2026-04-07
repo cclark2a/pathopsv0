@@ -357,6 +357,30 @@ void OpContext::mergeIntersections() {
 	OP_DEBUG_DUMP_CODE(dumpFile(__func__));
 }
 
+#if 0
+void OpContext::mergeOpposites() {
+#if OP_DEBUG
+	PathOpsV0Lib::DebugValue debugMergeEnds = debugContextCallbacks.debugMergeEndsFuncPtr;
+	int debugSafetyCount = debugMergeEnds ? (*debugMergeEnds)() : 10;
+#endif
+	for (size_t index = 0; index < contours.size(); ++index) {
+		OP_ASSERT(0 <= index && index < contours.size());
+		OpContour* contour = contours[index]; 
+		if (contour->oppMerged)
+			continue;
+		if (!contour->mergeOpposites())
+			continue;
+		// something in overlap changed
+		for (OpContour* overlap : contour->overlapOwner->overlaps) {
+			index = std::min(index, (size_t) overlap->contextIndex); 
+		}
+		index -= 1;  // loop adds one back
+		OP_ASSERT(--debugSafetyCount > 0);
+	}
+	OP_DEBUG_DUMP_CODE(dumpFile(__func__));
+}
+#endif
+
 OpLimb& OpContext::nthLimb(int index) {
 	int blockBase = index & ~(ARRAY_COUNT(limbStorage->storage) - 1);
 	if (!limbCurrent || limbCurrent->baseIndex != blockBase) {
@@ -484,12 +508,14 @@ WindingCondition OpContext::pathOps() {
 	    sortIntersections();
 		mergeEndPoints();
 		mergeIntersections();  // merge intersections that are close together in each segment
+//		mergeOpposites();  // further merge sectable opposite intersections
 //		aliasIntersections();  // alias close by intersections so they share a common point
 	    sortIntersections();
 //		tripleSect(); // if three or more segments intersect, make the points the same 
 //	    disableSmallSegments();  // moved points may allow disabling some segments
 	    if (checkEmpty())
-		    return 0;  // no existing tests exercises
+		    return 0;  // no existing tests exercise
+		sortedSegments.checkCoins();
 //	    sortIntersections();
 	    if (!fixCCSects())  // curve-curve intersections may have enough error to put sect list out of order
 		    OP_DEBUG_FAIL(*this, -1);

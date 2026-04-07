@@ -171,15 +171,15 @@ bool OpCurve::isFinite() const {
 
 OpRoots OpCurve::lineIntersection(OpCurve& curve) {
     OP_ASSERT(debugIsLine());
-	LinePts edgePts { firstPt(), lastPt() };
-	OP_ASSERT(edgePts.pts[0] != edgePts.pts[1]);
-	MatchReverse matchRev = curve.matchEnds(edgePts);
+	MatchReverse matchRev = curve.matchExact(*this);
 	// if line and curve share end point, pass hint that root finder can call
 	// reduced form that assumes one root is zero or one.
 	OpRoots roots;
-	if (MatchEnds::both != matchRev.match)
+	if (MatchEnds::both != matchRev.match) {
+		LinePts edgePts { c.data->start, c.data->end };
+		OP_ASSERT(edgePts.pts[0] != edgePts.pts[1]);
 		roots = curve.rayIntersect(edgePts, matchRev.match);
-	else {
+	} else {
 		roots.add(0); 
 		roots.add(1);
 	}
@@ -328,6 +328,25 @@ MatchReverse OpCurve::matchEnds(const LinePts& opp) const {
 	return result;
 }
 
+MatchReverse OpCurve::matchExact(const OpCurve& opp) const {
+	MatchReverse result { MatchEnds::none, false };
+	OpPoint sStart = c.data->start;
+	OpPoint sEnd = c.data->end;
+	OP_ASSERT(sStart != sEnd);
+	OpPoint oStart = opp.c.data->start;
+	OpPoint oEnd = opp.c.data->end;
+	OP_ASSERT(oStart != oEnd);
+	if (sStart == oStart)
+		result = { MatchEnds::start, false };
+	else if (sStart == oEnd)
+		result = { MatchEnds::start, true };
+	if (sEnd == oEnd)
+		result = { result.match | MatchEnds::end, false };
+	else if (sEnd == oStart)
+		result = { result.match | MatchEnds::end, true };
+	return result;
+}
+
 bool OpCurve::nearBounds(OpPoint pt) const {
 	OpPointBounds bounds { firstPt(), lastPt() };
 	return bounds.nearlyContains(pt, context().threshold);
@@ -463,13 +482,6 @@ void OpCurve::pinCtrl() {
 	return;
 }
 
-#if OP_ALIAS
-void OpCurve::setAliases(OpContour& contour) {
-	start = contour.existingAlias(c.data->start);
-	end = contour.existingAlias(c.data->end);
-}
-#endif
-
 // this can fail (if rotated pts are not finite); can happen when input is finite
 // however, callers include sort predicate, which cannot return failure; so don't return failure here
 // !!! add match ends from caller so that rotated matching end point can guarantee x == 0
@@ -582,22 +594,13 @@ void OpCurve::zeroSmall(OpContour& contour) {
 	start.y = zero_small(c.data->start.y, threshold.dy);
 	end.x = zero_small(c.data->end.x, threshold.dx);
 	end.y = zero_small(c.data->end.y, threshold.dy);
-#if OP_ALIAS
-	if (end != c.data->end)
-		contour.addAlias(c.data->end, end, AliasType::zeroSmall);
-#endif
 	if (start != c.data->start || end != c.data->end) {
 		pinCtrl();
 		OP_DEBUG_CODE(debugZeroedSmall = true);
 	}
 	isSmall = start.isNearly(end, threshold);
-#if OP_ALIAS
-	OpPoint startAlias = start;
-	if (isSmall && start != end)
-		startAlias = contour.addAlias(start, end, AliasType::isSmall);
-	if (start != c.data->start)
-		contour.addAlias(c.data->start, startAlias, AliasType::zeroSmall);
-#endif
+	if (isSmall)
+		start = end;
 }
 
 OpPoint OpCurve::hullPt(int index) const {

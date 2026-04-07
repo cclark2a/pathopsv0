@@ -56,10 +56,6 @@ std::vector<OpIntersection*> OpSegments::AddEndMatches(OpSegment* seg, OpSegment
 		return segPtT.t;
 	};
 	// check seg and opp ends against each other
-#if OP_ALIAS
-    seg->setAliases();
-	opp->setAliases();
-#endif
 	float startSegT = checkEnds(OpPtT(opp->c.c.data->start, 0)  OP_LINE_FILE_PARGS());
 	float endSegT = checkEnds(OpPtT(opp->c.c.data->end, 1)  OP_LINE_FILE_PARGS());	
 	auto checkOpp = [add, seg, opp](const OpPtT& segPtT  OP_LINE_FILE_ARGS()) {
@@ -92,7 +88,7 @@ std::vector<OpIntersection*> OpSegments::AddEndMatches(OpSegment* seg, OpSegment
 }
 
 // somewhat different from winder's edge based version, probably for no reason
-void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg,
+void OpSegments::addLineCurveIntersection(OpSegment* opp, OpSegment* seg,
 		std::vector<OpIntersection*>& matchingSects) {
 	OP_ASSERT(opp != seg);
 	OP_ASSERT(seg->c.debugIsLine());
@@ -100,7 +96,11 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg,
 	OpRoots oppRoots = seg->c.lineIntersection(opp->c);
 	OP_DEBUG_CODE(MatchReverse matchRev = opp->matchEnds(seg));
 	if (2 == oppRoots.count() && opp->c.isLine()) {
+	#if DEFER_COIN_CHECK
+		deferredCoinEnds.push_back({seg, opp});
+	#else
 		OpWinder::CoincidentCheck(seg, opp);
+	#endif
 		return;
 	}
 	OP_ASSERT(oppRoots.fail != RootFail::rawIntersectFailed);
@@ -125,8 +125,6 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg,
 	#else
 		OpPtT edgePtT = seg->c.ptTAtT(edgeT);
 	#endif
-		OP_DEBUG_CODE(bool alreadyContained = seg->sects.contains(edgePtT, opp));
-		OP_DEBUG_CODE(alreadyContained |= !!opp->sects.contains(oppPtT, seg));
 			// don't add sects here if coincident or unsectable will be added below --
 			// i guess record this and defer until after coin/unsect has been checked
 		if (cc.limits.alreadyIn(edgePtT, oppPtT))
@@ -141,6 +139,8 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg,
 		}
 		if (skipIt)
 			continue;
+		OP_DEBUG_CODE(bool alreadyContained = seg->sects.contains(edgePtT, opp));
+		OP_DEBUG_CODE(alreadyContained |= !!opp->sects.contains(oppPtT, seg));
 		OP_ASSERT(!alreadyContained);
 		OpIntersection* sect = seg->addSegBase(edgePtT  OP_LINE_FILE_PARAMS(opp));
 		OpIntersection* oSect = opp->addSegBase(oppPtT  OP_LINE_FILE_PARAMS(seg));
@@ -199,11 +199,15 @@ void OpSegments::AddLineCurveIntersection(OpSegment* opp, OpSegment* seg,
 		};
 		removeBetweeners(seg, segSects, sectS, sectE);
 		removeBetweeners(opp, oppSects, sectS->opp, sectE->opp);
+	#if !DEFER_COIN_CHECK
 		std::array<CoinEnd, 4> ends {{{ seg, opp, sectS->ptT, OpVector() }, 
 			{ seg, opp, sectE->ptT, OpVector() },
 			{ opp, seg, sectS->opp->ptT, OpVector() }, 
 			{ opp, seg, sectE->opp->ptT, OpVector() }}};
 		OpWinder::CoincidentCheck(ends, nullptr, nullptr);
+	#else
+		deferredCoinSects.push_back( { sectS, sectE } );
+	#endif
 		return;
 	} 
 	PathOpsV0Lib::ContextCallbacks& cb = seg->contour->context->contextCallbacks;
@@ -238,6 +242,23 @@ void OpSegments::AddEndMatches(OpContour* contour, OpContour* oContour) {
 				break;
             (void) AddEndMatches(seg, opp);  // ignore return result
 		}
+	}
+}
+
+void OpSegments::checkCoins() {
+	for (const DeferredCoinSect& deferred : deferredCoinSects) {
+		OpSegment* seg = deferred.segStart->segment;
+		OpSegment* opp = deferred.segStart->opp->segment;
+		OpIntersection* sectS = deferred.segStart;
+		OpIntersection* sectE = deferred.segEnd;
+		std::array<CoinEnd, 4> ends {{{ seg, opp, sectS->ptT, OpVector() }, 
+			{ seg, opp, sectE->ptT, OpVector() },
+			{ opp, seg, sectS->opp->ptT, OpVector() }, 
+			{ opp, seg, sectE->opp->ptT, OpVector() }}};
+		OpWinder::CoincidentCheck(ends, nullptr, nullptr);
+	}
+	for (const DeferredCoinEnd& defEnd : deferredCoinEnds) {
+		OpWinder::CoincidentCheck(defEnd.seg, defEnd.opp);
 	}
 }
 
@@ -282,7 +303,8 @@ bool OpSegments::findCoincidence(OpSegment* seg, OpSegment* opp) {
 	return seg->moveWinding(opp, mr.reversed);
 }
 
-IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
+#if !DEFER_COIN_CHECK
+IntersectResult OpSegments::lineCoincidence(OpSegment* seg, OpSegment* opp) {
 	OP_ASSERT(seg->c.debugIsLine());
 	OP_ASSERT(!seg->disabled);
 	// special case pairs that exactly match start and end
@@ -329,6 +351,7 @@ IntersectResult OpSegments::LineCoincidence(OpSegment* seg, OpSegment* opp) {
 		return IntersectResult::no;
 	return OpWinder::CoincidentCheck(seg, opp);
 }
+#endif
 
 // note: ends have already been matched for consecutive segments
 FoundIntersections OpSegments::findIntersections() {
@@ -354,12 +377,11 @@ void OpSegments::findIntersection(OpContour* contour, OpContour* oContour) {
 	bool same = contour == oContour;
 	for (size_t iDex = 0; iDex < contour->sorted.size(); ++iDex) {
 		OpSegment* seg = contour->sorted[iDex];
-// !!! why ignore disabled? (add example, reasoning
-		if (seg->disabled)
+		if (seg->disabled && !seg->c.isSmall)
 			continue;
 		for (size_t oDex = same ? iDex + 1 : 0; oDex < oContour->sorted.size(); ++oDex) {
 			OpSegment* opp = oContour->sorted[oDex];
-			if (opp->disabled)
+			if (opp->disabled && !opp->c.isSmall)
 				continue;
 			if (!seg->c.closeBounds().intersects(opp->c.closeBounds()))
 				continue;
@@ -379,20 +401,23 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 	std::vector<OpIntersection*> matchingSects = AddEndMatches(seg, opp);
 	// if the bounds only share a corner, there's nothing more to do
 	// !!! this could also work by taking the tangents and looking for a negative cross product
+	if (seg->c.isSmall || opp->c.isSmall)  // small (disabled) just adds end matches
+		return true;
 	OpRect segBounds = seg->c.aliasBounds();
 	OpRect oppBounds = opp->c.aliasBounds();
 	bool sharesHorizontal = segBounds.right == oppBounds.left || segBounds.left == oppBounds.right;
 	bool sharesVertical = segBounds.bottom == oppBounds.top || segBounds.top == oppBounds.bottom;
 	if (sharesHorizontal && sharesVertical)
-		return !seg->disabled && !opp->disabled;
+		return true;  // !seg->disabled && !opp->disabled;
 	// for line-curve intersection we can directly intersect
 	if (seg->c.isLine()) {
+#if !DEFER_COIN_CHECK
 		if (opp->c.isLine()) {
 			if (seg->disabled)
 				return false;
 			if (opp->disabled)
 				return false;
-			IntersectResult lineCoin = LineCoincidence(seg, opp);
+			IntersectResult lineCoin = lineCoincidence(seg, opp);
 			if (seg->disabled)
 				return false;
 			if (opp->disabled)
@@ -406,11 +431,12 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 			if (IntersectResult::coincident == lineCoin)
 				return true;
 		}
-		AddLineCurveIntersection(opp, seg, matchingSects);
+#endif
+		addLineCurveIntersection(opp, seg, matchingSects);
 		return true;
 	} else if (opp->c.isLine()) {
 		SwapEndMatches(matchingSects);
-		AddLineCurveIntersection(seg, opp, matchingSects);
+		addLineCurveIntersection(seg, opp, matchingSects);
 		return true;
 	}
 	// look for curve curve intersections (skip coincidence already found)

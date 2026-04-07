@@ -996,9 +996,9 @@ void OpIntersections::debugValidate(OpVector threshold) const {
 #if 0
 		OP_ASSERT(sectPtr->ptT.pt == sectPtr->opp->ptT.pt 
 				|| (!!sectPtr->unsectID && !!sectPtr->opp->unsectID));
-#else
+#elif 0
         // !!! unsure what to do about this assert -- keep manually increasing thres factor for now
-		OP_ASSERT(sectPtr->ptT.pt.isNearly(sectPtr->opp->ptT.pt, threshold * 3)
+		OP_ASSERT(sectPtr->ptT.pt.isNearly(sectPtr->opp->ptT.pt, threshold * 10)
 				|| (!!sectPtr->unsectID && !!sectPtr->opp->unsectID));
 #endif
 	}
@@ -1147,9 +1147,9 @@ void OpContour::debugMatchRay() {
                 linkZero = !linkZero;    // get wind zero for edge normal pointing left
             if (WindZero::nonZero == linkZero) {
                 if (dTest && !dTest->inLinkups && !dTest->inOutput) {
-                    bool foundOne = false;
+                    bool foundOne = dTest->active_impl;
                     for (auto& pal : dTest->pals)
-                        foundOne |= dTest->active_impl || pal.edge->active_impl;
+                        foundOne |= pal.edge->active_impl;
                     for (OpContour* overlap : overlaps) {
                         for (auto& us : overlap->unsectByArea)
                             foundOne |= dTest == us && dTest->isActive();

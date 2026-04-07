@@ -517,7 +517,7 @@ void OpEdge::complete(OpPoint startPoint, OpPoint endPoint) {
 	winding.setWind(segment->winding);
     PathOpsV0Lib::CurveConst smallFuncPtr = context()->callback(curve.c.type).smallTFuncPtr;
     float smallT = (smallFuncPtr ? (*smallFuncPtr)(curve.c) : 32.f) * OpEpsilon;
-    isSmall = endT - startT <= smallT;
+    smallTRange = endT - startT <= smallT;
 }
 
 OpContext* OpEdge::context() const {
@@ -543,6 +543,8 @@ bool OpEdge::containsLink(const OpEdge* edge) const {
 
 void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 	OpEdge* oppEdge = found.edge;
+	advanceToEnd(EdgeMatch::start)->clearLast();
+	oppEdge->advanceToEnd(EdgeMatch::start)->clearLast();
 //	OP_ASSERT(!oppEdge->hasLinkTo(match));  // !!! doesn't make sense -- opp match is unknown
 	OP_ASSERT(oppEdge != this);
 	const OpPoint edgePt = whichSect(match).pt;
@@ -568,6 +570,11 @@ void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 		OP_ASSERT(startFoundMatch != endFoundMatch);
 		oppEdge->setWhich(startFoundMatch ? !match : match);
 	}
+    std::vector<LoopCheck> edges;
+	EdgesLoop edgesLoop = OpContour::IsLoop(edges, oppEdge, match);
+	if (EdgesLoop::no == edgesLoop)
+		updateLastEdge();
+	OP_ASSERT(EdgesLoop::tail != edgesLoop);  // !!! if triggered, more code to write
 }
 
 float OpEdge::margin() const {

@@ -79,8 +79,6 @@ OP_X(OpWinding) \
 OP_X(SectRay) \
 OP_X(SegPt)
 
-// #if OP_ALIAS is true: add back: OP_X(OpPtAliases)
-
 #define OP_X(Thing) \
 	struct Thing;
 	VECTOR_STRUCTS
@@ -141,8 +139,6 @@ OP_X(Tree) \
 OP_X(Unsectable) \
 OP_X(Unsortable) \
 OP_X(Windings)
-
-// if OP_ALIAS is true: add back OP_X(Aliases)
 
 extern std::string debugDmpJoin(OpContext* , DebugLevel l, DebugBase b);
 extern std::string debugDmpLinks(OpContext* , DebugLevel l, DebugBase b);

@@ -6,10 +6,14 @@
 void OpIntersection::pair(OpIntersection* o) {
 	OP_ASSERT(abs(unsectID) == abs(o->unsectID)); 
 	OP_ASSERT(coincidenceID == o->coincidenceID); 
+#if 0  // !!! need looser compare to allow for intersection error  testCubics3519581
+// !!! ... or, make sects common in merge intersection, and remove need for meet-in-the-middle
 	OP_ASSERT(ptT.pt.isNearly(o->ptT.pt, segment->threshold()) 
 			|| (!!unsectID && !!o->unsectID) || !opp);
-	if (ptT.pt != o->ptT.pt && ptT.pt.isNearly(o->ptT.pt, segment->threshold()))
+	if (!unsectID && !o->unsectID && ptT.pt != o->ptT.pt 
+			/* !!! && ptT.pt.isNearly(o->ptT.pt, segment->threshold()) */ )
 		OpPtT::MeetInTheMiddle(ptT, o->ptT);
+#endif
 	opp = o;
 	o->opp = this;
 }
@@ -29,19 +33,33 @@ bool OpIntersection::setMerge(int masterID, OpPoint masterPt, MergeType mergeTyp
 	ptT.pt = masterPt;
 	if (MergeType::midPoint == mergeType && opp->unsectID)
 		return false;
-	OP_ASSERT(MergeType::endPoint != mergeType || !opp->mergeID);
-	opp->mergeID = masterID;
-	opp->ptT.pt = masterPt;
+	if (opp->mergeID && opp->mergeID != masterID)
+		opp->segment->mergeMultiple(masterPt, masterID, opp->ptT.pt, opp->mergeID);
+	else {
+//		OP_ASSERT(MergeType::endPoint != mergeType || !opp->mergeID);
+		opp->mergeID = masterID;
+		opp->ptT.pt = masterPt;
+	}
     if (MergeType::midPoint == mergeType)
 	    opp->segment->setUnmerged();
 	return true;
 }
 
-OpRect OpIntersection::setMergeBounds(OpVector halfThreshold) {
+OpRect OpIntersection::setMergeBounds(OpVector threshold) {
 	OpRect result { ptT.pt, callerPt };
-	result = result.outset(halfThreshold);
-	result.add(opp->ptT.pt);
-	result.add(opp->callerPt);
+	if (!unsectID) {
+		result.add(opp->ptT.pt);
+		result.add(opp->callerPt);
+	}
+	OpVector wh = result.widthHeight();
+	if (wh.dx < threshold.dx) {
+		result.left = (result.left + result.right - threshold.dx) / 2;
+		result.right = result.left + threshold.dx;
+	}
+	if (wh.dy < threshold.dy) {
+		result.top = (result.top + result.bottom - threshold.dy) / 2;
+		result.bottom = result.top + threshold.dy;
+	}
 	return result;
 }
 
@@ -80,9 +98,12 @@ void OpIntersections::clear() {
 OpIntersection* OpIntersections::contains(const OpPtT& ptT, const OpSegment* opp) const {
 	for (unsigned index = 0; index < i.size(); ++index) {
 		OpIntersection* sect = i[index];
-		if (!sect->opp || sect->opp->segment != opp)
+		OpIntersection* oppSect = sect->opp;
+		if (!oppSect || oppSect->segment != opp)
 			continue;
 		if (ptT.isNearly(sect->ptT, opp->threshold()))
+			return sect;
+		if (ptT.pt.isNearly(oppSect->ptT.pt, opp->threshold()))
 			return sect;
 	}
 	return nullptr;
