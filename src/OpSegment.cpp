@@ -304,6 +304,26 @@ void OpSegment::manyCoincidences() {
 		bool aFlipped = miss.aStart.t > ptTa.t;
 		bool cFlipped = miss.cStart.t > ptTc.t;
 		int coinID = miss.segC->coinID(cFlipped != aFlipped);
+		// remove existing sects between the to-be-added coin sects
+		auto removeSects = [](OpSegment* seg, float startT, float endT, OpSegment* opp) {
+			if (startT > endT)
+				std::swap(startT, endT);
+			size_t index = seg->sects.i.size(); 
+			while (index--) {
+				OpIntersection* test = seg->sects.i[index];
+				if (test->ptT.t <= startT)
+					break;
+				if (test->ptT.t >= endT)
+					continue;
+				if (test->opp->segment != opp)
+					continue;
+				if (test->coincidenceID)
+					continue;
+				seg->sects.i.erase(seg->sects.i.begin() + index);
+			}
+		};
+		removeSects(segA, miss.aStart.t, ptTa.t, segC);
+		removeSects(segC, miss.cStart.t, ptTc.t, segA);
 		auto setSect = [coinID](OpIntersection*& cInA, const OpPtT& aPtT,
 				OpSegment* segA, MatchEnds match, CoinOpp coinOpp, OpSegment* segC  
 				OP_LINE_FILE_ARGS()) {
@@ -881,27 +901,28 @@ bool OpSegment::mergeIntersections() {
 	}
 	// !!! maybe (like cc) this should also use gap dist between seg and opp as threshold vals
 	OpVector thresh = threshold();
-	OpPoint mergePt;
+    PathOpsV0Lib::CurveConst smallFuncPtr = contour->context->callback(c.c.type).smallTFuncPtr;
+    float smallT = (smallFuncPtr ? (*smallFuncPtr)(c.c) : 32.f) * OpEpsilon;
 	size_t index = 0;
 	bool runAgain = false;
 	do {
 		// find range of nearly identical points
 		OpIntersection* first = sects.i[index];
 		OpRect mergeBounds = first->setMergeBounds(thresh);
-		OpPoint mergePt = first->ptT.pt;
+		OpPtT mergePtT = first->ptT;
 		int mergeID = first->mergeID;
 		size_t endIndex = index;
 		size_t startIndex = index;
-		bool needsMerging = mergePt != first->opp->ptT.pt;
+		bool needsMerging = mergePtT.pt != first->opp->ptT.pt;
 		// !!! restructure to gather 1 or more sects close to each other
 		//     if the sect/opp distance exceeds the threshold, expand the gather on both ends
 		//     if the opp has already been merged, reuse the master merge/id
 		//     if there is no master merge/id make one, assign to these sects and opp sects
 		while (++endIndex < sects.i.size()) {
 			OpIntersection* test = sects.i[endIndex];
-			if (mergePt != test->ptT.pt) {
+			if (mergePtT.pt != test->ptT.pt) {
 				OpRect testBounds = test->setMergeBounds(thresh);
-				if (!mergeBounds.intersects(testBounds))
+				if (!mergeBounds.intersects(testBounds) && mergePtT.t + smallT < test->ptT.t)
 					break;
 				OpVector testWH = testBounds.widthHeight();
 				OpVector oldThresh = thresh;
@@ -917,9 +938,9 @@ bool OpSegment::mergeIntersections() {
 				needsMerging |= test->ptT.pt != test->opp->ptT.pt;
 			if (test->mergeID) {
 				if (mergeID && test->mergeID != mergeID)
-					mergeMultiple(mergePt, mergeID, test->ptT.pt, test->mergeID);
+					mergeMultiple(mergePtT.pt, mergeID, test->ptT.pt, test->mergeID);
 				else {
-					mergePt = test->ptT.pt;
+					mergePtT = test->ptT;
 					mergeID = test->mergeID;
 				}
 			}
@@ -933,13 +954,13 @@ bool OpSegment::mergeIntersections() {
 			if (!opp->segment->merged)
 				continue;
 			if (!opp->mergeID) {
-				opp->ptT.pt = mergePt;
+				opp->ptT.pt = mergePtT.pt;
 				continue;
 			}
 			if (mergeID && opp->mergeID != mergeID)
-				mergeMultiple(mergePt, mergeID, opp->ptT.pt, opp->mergeID);
+				mergeMultiple(mergePtT.pt, mergeID, opp->ptT.pt, opp->mergeID);
 			else {
-				mergePt = opp->ptT.pt;
+				mergePtT.pt = opp->ptT.pt;
 				mergeID = opp->mergeID;
 			}
 		}
@@ -949,7 +970,7 @@ bool OpSegment::mergeIntersections() {
 				mergeID = contour->nextID();
 			// if any in range are already merged, use that for all points
 			for (; index < endIndex; ++index) {
-				runAgain |= sects.i[index]->setMerge(mergeID, mergePt, MergeType::midPoint);
+				runAgain |= sects.i[index]->setMerge(mergeID, mergePtT.pt, MergeType::midPoint);
 			}
 		}
 		index = endIndex;

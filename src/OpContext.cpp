@@ -302,6 +302,7 @@ void OpContext::markInCoincidence() {
 				segment.sects.markInCoincidence();
 		}
 	}
+	OP_DEBUG_DUMP_CODE(dumpFile(__func__));
 }
 #endif
 
@@ -526,7 +527,6 @@ WindingCondition OpContext::pathOps() {
 	    betweenCoincidence();  // fill in intersections in coin runs that are missing in other coins
 	    sortIntersections();
 	    markInCoincidence();
-		OP_DEBUG_DUMP_CODE(dumpFile("markInCoincidence"));
 	    makeEdges();
 	    makeCoins();
 	    sortIntersections();
@@ -633,6 +633,7 @@ void OpContext::rebuildOverlaps() {
 			}
 		}
 	}
+	OP_DEBUG_DUMP_CODE(dumpFile(__func__));
 }
 
 void OpContext::release(OpEdgeStorage*& edgeStorage) {

@@ -191,9 +191,9 @@ void OpLimb::set(OpTree& tree, OpEdge* test, OpLimb* p, EdgeMatch m, LimbPass l,
 		lastMatch = EdgeMatch::start;
 	}
 	lastPts = lastLimbEdge->collectMatch(lastMatch, &lastT);
+	looped = tree.firstMatch(lastPts[0]);
 	if (childBounds) {
 		limbBounds = *childBounds;
-		looped = tree.firstMatch(lastPts[0]);
 		const OpLimb* testParent = p;
 		while (testParent) {
 			if (testParent->ptsMatch(EdgeMatch::end, this, EdgeMatch::end)) {
@@ -813,6 +813,8 @@ void OpTree::makeTrunk(OpEdge* edge) {
 			edgeContour, edgeContour->linkups.l.size() - 1, edge);
 	edge->startSeen = true;
 	edge->lastEdge->endSeen = true;
+	if (bestLimb)
+		return;
 	// !!! can I know that edge never has prior, and is never loop?
 	do {
 		for (OpContour* member : edgeContour->members()) {

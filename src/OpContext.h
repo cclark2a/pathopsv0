@@ -77,6 +77,7 @@ struct OpContext {
 	   for (auto contour : contours) {
 			contour->betweenCoincidence();
 		}
+		OP_DEBUG_DUMP_CODE(dumpFile(__func__));
 	}
 
 	PathOpsV0Lib::CurveCallbacks& callback(PathOpsV0Lib::CurveType type) {
@@ -130,6 +131,7 @@ struct OpContext {
 			if (!contour->fixCCSects())
 				return false;
 		}
+		OP_DEBUG_DUMP_CODE(dumpFile(__func__));
 		return true;
 	}
 
@@ -147,6 +149,7 @@ struct OpContext {
 	    for (auto contour : contours) {
 			contour->makeCoins();
 		}
+		OP_DEBUG_DUMP_CODE(dumpFile(__func__));
 	}
 
 	OpContour* makeContour(PathOpsV0Lib::WindingData winding, size_t size) {
@@ -156,11 +159,12 @@ struct OpContext {
 	}
 
 	void makeEdges() {
-	   OP_DEBUG_CODE(debugInClearEdges = true);
-	   for (auto contour : contours) {
+		OP_DEBUG_CODE(debugInClearEdges = true);
+		for (auto contour : contours) {
 			contour->makeEdges();
 		}
-	   OP_DEBUG_CODE(debugInClearEdges = false);
+		OP_DEBUG_CODE(debugInClearEdges = false);
+		OP_DEBUG_DUMP_CODE(dumpFile(__func__));
 	}
 
 
@@ -168,12 +172,14 @@ struct OpContext {
 	   for (auto contour : contours) {
 			contour->makePals();
 		}
+		OP_DEBUG_DUMP_CODE(dumpFile(__func__));
 	}
 
 	void manyCoincidences() {
 	   for (auto contour : contours) {
 			contour->manyCoincidences();
 		}
+		OP_DEBUG_DUMP_CODE(dumpFile(__func__));
 	}
 
 	void markInCoincidence();
@@ -207,6 +213,7 @@ struct OpContext {
 	   for (auto contour : contours) {
 			contour->transferCoins();
 		}
+		OP_DEBUG_DUMP_CODE(dumpFile(__func__));
 	}
 
 #if 0

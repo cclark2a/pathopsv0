@@ -260,6 +260,7 @@ void OpSegments::checkCoins() {
 	for (const DeferredCoinEnd& defEnd : deferredCoinEnds) {
 		OpWinder::CoincidentCheck(defEnd.seg, defEnd.opp);
 	}
+	OP_DEBUG_DUMP_CODE(context.dumpFile(__func__));
 }
 
 void OpSegments::findCoincidences() {

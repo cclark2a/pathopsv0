@@ -7,9 +7,9 @@
 #endif
 
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
-#define SKIP_TO_FILE "quad" // e.g., "simplify"  one file
+#define SKIP_TO_FILE "cubic" // e.g., "simplify"  one file
 #if !OP_DEBUG_ALT
-#define TEST_FIRST "testCubics2851393"  // e.g., "testQuads5343280" if file, one test
+#define TEST_FIRST "testQuads8993401"  // e.g., "testQuads5343280" if file, one test
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
 #else
@@ -38,8 +38,8 @@
 // when these tests are encountered, it and the remaining tests in the file are skipped
 #define TEST_PATH_OP_SKIP_REST
 #define TEST_PATH_OP_SKIP_FILES  /* e.g., "battle", "circleOp" */
-// 
-/* testsRun:30046751 testsSkipped:0  avg pixelError:0.000148075167 maxError:0.279829621 largestError:testQuads2325711
+
+/* testsRun:30046751 testsSkipped:0  avg pixelError:0.00014806533 maxError:0.279829621 largestError:testQuads2325711
 testQuads2325711 error:0.279829621
 testQuads2356719 error:0.279755592
 testQuads2294703 error:0.279751450
@@ -59,7 +59,8 @@ testQuads18507381 error:0.110139072
 testQuads18508291 error:0.110139072
 testQuads19229179 error:0.110139072
 testQuads19243773 error:0.110137872
-testQuads5383069 error:0.110108651 */
+testQuads5383069 error:0.110108651
+ */
 
 /* testsRun:3889619 testsSkipped:0  avg pixelError:0.00039643026 maxError:0.136399746 largestError:testCubics1632148
 testCubics1632148 error:0.136399746
