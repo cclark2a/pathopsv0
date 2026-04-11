@@ -97,7 +97,9 @@ set (SKIA_TESTS
     "tests/TinySkiaTests.cpp"
     "tests/UnitTestPathOps.cpp"
     "tests/V0OpCubics.cpp"
+    "tests/V0OpRects.cpp"
     "tests/V0SimplifyQuads.cpp"
+    "tests/V0SimplifyQuadralaterals.cpp"
 )
 
 add_executable (skia_test )

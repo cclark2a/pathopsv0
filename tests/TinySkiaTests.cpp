@@ -33,8 +33,11 @@ struct TinySuite {
 };
 
 std::vector<TinySuite> tinySuites = {
+    { V0SimplifyQuadralaterals, "quadralateral", "testQuadralaterals", Skippable::yes },
     { V0SimplifyQuads, "quad", "testQuads", Skippable::yes },
     { V0OpCubics, "cubic", "testCubics", Skippable::yes },
+    { V0OpRects, "rect", "testRects", Skippable::yes },
+    { V0OpFastRects, "fast", "fastRects", Skippable::yes },
 };
 
 std::vector<std::string> highError = {

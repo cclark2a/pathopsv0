@@ -44,8 +44,10 @@ struct TestOptions {
     bool v0MayFail = false;
 };
 
-// extern void TestSimplify(SkPath& path, TestOptions* options);
-extern void V0SimplifyQuads(TestOptions* options);
-extern void V0OpCubics(TestOptions* options);
+extern void V0SimplifyQuadralaterals(TestOptions* );
+extern void V0SimplifyQuads(TestOptions* );
+extern void V0OpCubics(TestOptions* );
+extern void V0OpRects(TestOptions* );
+extern void V0OpFastRects(TestOptions* );
 
 #endif

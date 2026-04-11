@@ -488,7 +488,7 @@ bool OpContour::mergeIntersections() {
 			continue;
 		runAgain |= segment.mergeIntersections();
 	}
-	segMerged = true;
+	segMerged = !runAgain;
 	return runAgain;  // if true, caller must run all overlapping contours
 }
 

@@ -7,9 +7,9 @@
 #endif
 
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
-#define SKIP_TO_FILE "cubic" // e.g., "simplify"  one file
+#define SKIP_TO_FILE "fast" // e.g., "simplify"  one file
 #if !OP_DEBUG_ALT
-#define TEST_FIRST "testQuads8993401"  // e.g., "testQuads5343280" if file, one test
+#define TEST_FIRST "testQuadralaterals7614580"  // e.g., "testQuads5343280" if file, one test
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
 #else
@@ -26,7 +26,7 @@
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
 #define OP_TEST_V0 1  // set to zero to time Skia running tests
 #define TEST_DEFEAT_BREAK 0  // set to one to disallow debug breakpoints
-#define TEST_DEFEAT_DUMPS 0  // set to one to disallow rewriting dumps
+#define TEST_DEFEAT_DUMPS 1  // set to one to disallow rewriting dumps
 
 // loop191404 missing -0.078, 1.5323 t=0.281543255 oppT=0.290549636; 
 //                    -0.3563 2.0153 t=0.139774203 oppT=0.113169670
@@ -62,7 +62,7 @@ testQuads19243773 error:0.110137872
 testQuads5383069 error:0.110108651
  */
 
-/* testsRun:3889619 testsSkipped:0  avg pixelError:0.00039643026 maxError:0.136399746 largestError:testCubics1632148
+/* testsRun:3889619 testsSkipped:0  avg pixelError:0.000396429445 maxError:0.136399746 largestError:testCubics1632148
 testCubics1632148 error:0.136399746
 testCubics1632152 error:0.136399746
 testCubics1632156 error:0.136399746
@@ -84,4 +84,53 @@ testCubics1904696 error:0.128352165
 testCubics1904700 error:0.128352165
 testCubics1904704 error:0.128352165
  */
+
+/* testsRun:30046751 testsSkipped:0  avg pixelError:0.000118281409
+testQuadralaterals17133255 error:0.000937074423
+testQuadralaterals17133256 error:0.000937074423
+testQuadralaterals5167255 error:0.000937074423
+testQuadralaterals5167256 error:0.000937074423
+testQuadralaterals17134615 error:0.000901773572
+testQuadralaterals17134616 error:0.000901773572
+testQuadralaterals10438615 error:0.000884726644
+testQuadralaterals10438616 error:0.000884726644
+testQuadralaterals16931704 error:0.000876757316
+testQuadralaterals5167204 error:0.000876042061
+testQuadralaterals5167257 error:0.00086905621
+testQuadralaterals5167258 error:0.00086905621
+testQuadralaterals18699160 error:0.000863005174
+testQuadralaterals17133166 error:0.000862714835
+testQuadralaterals17133270 error:0.000862426125
+testQuadralaterals17644888 error:0.000860323198
+testQuadralaterals17132768 error:0.00086011854
+testQuadralaterals3275768 error:0.000858700601
+testQuadralaterals5167388 error:0.000857743435
+testQuadralaterals4818416 error:0.000857135281
+*/
+
+/* testsRun:3889619 testsSkipped:0  avg pixelError:~0
+testRects3119262 error:4.76837158e-07
+testRects3119266 error:4.76837158e-07
+testRects3119272 error:4.76837158e-07
+testRects3119276 error:4.76837158e-07
+testRects3120862 error:4.76837158e-07
+testRects3120866 error:4.76837158e-07
+testRects3120872 error:4.76837158e-07
+testRects3120876 error:4.76837158e-07
+testRects2731186 error:4.76837158e-07
+testRects2731187 error:4.76837158e-07
+testRects2731189 error:4.76837158e-07
+testRects2731192 error:4.76837158e-07
+testRects2731194 error:4.76837158e-07
+testRects2731195 error:4.76837158e-07
+testRects2731197 error:4.76837158e-07
+testRects2731198 error:4.76837158e-07
+testRects2732786 error:4.76837158e-07
+testRects2732787 error:4.76837158e-07
+testRects2732789 error:4.76837158e-07
+testRects2732792 error:4.76837158e-07
+*/
+
+/* (fast) testsRun:564480 testsSkipped:0 
+*/
 #endif

@@ -2,7 +2,6 @@
 // the test below is optimized for speed, reduced memory, and random access
 #include "TinySkia.h"
 #include "TinySkiaTests.h"
-#include "SkiaEnumSkPathOp.h"
 
 void V0OpCubics(TestOptions* options) {
     auto test = [options](float oA, float oB, float oC, float oD, bool testRevDiff) {
