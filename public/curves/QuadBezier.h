@@ -277,12 +277,12 @@ inline void quadSetBounds(Curve c, OpRect& bounds) {
 }
 
 // this assumes the result is monotonic (e.g., the control point can be pinned to the bounds)
-inline void quadSubDivide(Curve c, float t1, float t2, float threshold, Curve* result) {
+inline void quadSubDivide(Curve c, float t1, float t2, OpVector threshold, Curve* result) {
 	OpPtT ptT1 { result->data->start, t1 };
 	OpPtT ptT2 { result->data->end, t2 };
     OpPoint subControl = QuadCtrlPin(c.data->start, quadControlPt(c), c.data->end, ptT1, ptT2);
     quadSetControl(*result, subControl);
-    if (quadIsLine(*result, threshold))
+    if (quadIsLine(*result, threshold.length()))
         result->type = degenerateLine;
 }
 

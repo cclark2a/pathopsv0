@@ -199,7 +199,7 @@ inline CubicControls CubicControlPt(OpPoint start, CubicControls controls, OpPoi
 }
 
 // if monotonic curve is rotated, there can be at most a single extrema
-inline OpRoots AddExtrema(OpPoint start, OpPoint end, CubicControls& controls, bool single) {
+inline OpRoots AddExtrema(OpPoint start, OpPoint end, OpPoint ctrl1, OpPoint ctrl2, bool single) {
     OpRoots tValues;
     auto addExtrema = [&tValues, single](float a, float b, float c, float d) {
         float A = d - a + 3 * (b - c);
@@ -214,9 +214,13 @@ inline OpRoots AddExtrema(OpPoint start, OpPoint end, CubicControls& controls, b
 			for (int index = 0; index < roots.count(); ++index)
 				tValues.add(roots.roots[index]);
     };
-    addExtrema(start.x, controls.pts[0].x, controls.pts[1].x, end.x);
-    addExtrema(start.y, controls.pts[0].y, controls.pts[1].y, end.y);
+    addExtrema(start.x, ctrl1.x, ctrl2.x, end.x);
+    addExtrema(start.y, ctrl1.y, ctrl2.y, end.y);
 	return tValues;
+}
+
+inline OpRoots AddExtrema(OpPoint start, OpPoint end, CubicControls& controls, bool single) {
+    return AddExtrema(start, end, controls.pts[0], controls.pts[1], single);
 }
 
 inline OpRoots AddInflections(OpPoint start, OpPoint end, CubicControls& controls) {
@@ -228,6 +232,7 @@ inline OpRoots AddInflections(OpPoint start, OpPoint end, CubicControls& control
 	return result;
 }
 
+#if 0
 enum class CubicSubDivide {
     noAngleChecks,
     checkAngles
@@ -235,12 +240,12 @@ enum class CubicSubDivide {
     , debuggerSubDivide
 #endif
 };
+#endif
 
-inline void cubicCommonSubDivide(Curve c, float t1, float t2, float threshold, Curve* result,
-        CubicSubDivide check) {
+// this can't determine if result is a line, because the linear threshold isn't necessarily known
+inline void cubicCommonSubDivide(Curve c, float t1, float t2, Curve* result) {
     CubicControls controls(c);
-	OpPoint start = c.data->start;
-	OpPoint end = c.data->end;
+#if 0
 	OpVector t1Tan = CubicTangent(start, controls, end, t1);
 	OpVector t2Tan = CubicTangent(start, controls, end, t2);
 	float tanAngle = t1Tan.cross(t2Tan);
@@ -250,8 +255,12 @@ inline void cubicCommonSubDivide(Curve c, float t1, float t2, float threshold, C
 		result->type = degenerateLine;  // mark as linear
 		return;
 	}
-    CubicControls subControls = CubicControlPt(start, controls, end, t1, t2);
+#endif
+    CubicControls subControls = CubicControlPt(c.data->start, controls, c.data->end, t1, t2);
     subControls.copyTo(*result);
+}
+    
+#if 0
 #if OP_DEBUGGER
     if (CubicSubDivide::debuggerSubDivide == check)
         return;
@@ -282,7 +291,7 @@ inline void cubicCommonSubDivide(Curve c, float t1, float t2, float threshold, C
     };
     std::array<float, 2> ctrlCrosses = makeCrosses(ctrlLines);
     int smallerCrossIndex = fabs(ctrlCrosses[0]) > fabs(ctrlCrosses[1]);
-    float crossAngle = smallerCrossIndex ? ctrlCrosses[0] : ctrlCrosses[1]; 
+//    float crossAngle = smallerCrossIndex ? ctrlCrosses[0] : ctrlCrosses[1]; 
     std::array<float, 2> subCrosses = makeCrosses(subLines);
     if (subCrosses[0] * subCrosses[1] < 0) {
     #if OP_DEBUG && !OP_DEBUG_FAST_TEST && 0
@@ -307,6 +316,7 @@ inline void cubicCommonSubDivide(Curve c, float t1, float t2, float threshold, C
             result->type = degenerateLine;
             return;
         }
+#if 0  // triggers line when it isn't (testLoops40341)
         if (subCrosses[0] * subCrosses[1] < 0) {
             result->type = degenerateLine;
             return;
@@ -316,17 +326,20 @@ inline void cubicCommonSubDivide(Curve c, float t1, float t2, float threshold, C
                 result->type = degenerateLine;
                 return;
             }
+       // triggers line when it isn't (testLoops2212)
             if (subCrosses[1] * crossAngle < 0) {
                 result->type = degenerateLine;
                 return;
             }
         }
+#endif
     }
 #endif
     subControls.pts[0].pin(result->data->start, result->data->end);
     subControls.pts[1].pin(result->data->start, result->data->end);
     subControls.copyTo(*result);
 }
+#endif
 
 #if OP_TEST
 struct DebugCubic {
@@ -387,18 +400,14 @@ inline void AddCubics(Contour* contour, AddCurve curve) {
     for (int index = 1; index < tValues.count() - 1; ++index) {
         ptTs[index] = { CubicPtAtT(start, controls, end, tValues.get(index)), tValues.get(index) }; 
     } 
-    float threshold = OpMath::Threshold(start, end).length();
+    // float threshold = OpMath::Threshold(start, end).length();
     for (int index = 0; index < tValues.count() - 1; ++index) {
         OpPoint result[4] { ptTs[index].pt, ptTs[index + 1].pt };
         if (result[0] == result[1])
             continue;
         Curve subDivide { curve.context, (CurveData*) result, cubic.size, cubic.type };
-        cubicCommonSubDivide(cubic, tValues.roots[index], tValues.roots[index + 1], 
-                threshold, &subDivide, CubicSubDivide::noAngleChecks);
+        cubicCommonSubDivide(cubic, tValues.roots[index], tValues.roots[index + 1], &subDivide);
         Add(contour, subDivide);
-		// for debugging
-		OP_DEBUG_CODE(cubicCommonSubDivide(cubic, tValues.roots[index], tValues.roots[index + 1], 
-                threshold, &subDivide, CubicSubDivide::noAngleChecks));
     }
 }
 
@@ -561,13 +570,29 @@ inline void cubicReverse(Curve c) {
     controls.copyTo(c);
 }
 
-inline void cubicSubDivide(Curve c, float t1, float t2, float threshold, Curve* result) {
-    cubicCommonSubDivide(c, t1, t2, threshold, result, CubicSubDivide::checkAngles);
+// this is called once global threshold is known -- here, cubics replacable by lines can be found
+inline void cubicSubDivide(Curve c, float t1, float t2, OpVector threshold, Curve* result) {
+    cubicCommonSubDivide(c, t1, t2, result);
+    // At this point the subdivide is done. Everything below determines if cubic is a line.
+    // Rotate the result vertically. Find the extrema of that cubic. Compare with threshold.
+    OpPoint origin = result->data->start;
+    OpVector scale = result->data->end - origin;
+    OpPoint swizzled[4] { {0, 0}, OpPoint(0, scale.dot(scale)) };  // cubic controls uninitialized
+    Curve rotated { c.context, (CurveData*) swizzled, c.size, c.type };
+    cubicRotate(*result, origin, scale, rotated);
+    OpVector rotatedThreshold { scale.cross(threshold), scale.dot(threshold) };
+	OpRoots tValues = AddExtrema(swizzled[0], swizzled[1], swizzled[2], swizzled[3], false);
+    for (float t : tValues.roots) {
+        OpPoint extremePt = cubicPtAtT(rotated, t);
+        if (fabsf(extremePt.x) > fabsf(rotatedThreshold.dx))
+            return;
+    }
+    result->type = degenerateLine;
 }
 
 #if OP_DEBUG_DUMP || OP_DEBUGGER
 inline void debugCubicSubDivide(Curve c, float t1, float t2, Curve* result) {
-    cubicCommonSubDivide(c, t1, t2, OpNaN, result, CubicSubDivide::debuggerSubDivide);
+    cubicCommonSubDivide(c, t1, t2, result);
 }
 
 #define DUMP_CUBIC_TAGGED_FUNCTIONS \

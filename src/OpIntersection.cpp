@@ -295,12 +295,14 @@ int OpIntersections::coinRange(OpEdge& edge, OpSegment* opp, bool reversed) {
 	OpIntersection* edgeEnd = nullptr;
 	OpIntersection* coinStart = nullptr;
 	OpIntersection* coinEnd = nullptr;
+	std::vector<int> mergeIDs;
 	auto setCoin = [&coinID, reversed](OpIntersection* sect, MatchEnds matchEnd) {
 		sect->setCoin(coinID, matchEnd, CoinOpp::no);
 		MatchReverse matchReverse { matchEnd, reversed };
 		sect->opp->setCoin(coinID, matchReverse.flipped(), CoinOpp::yes);
 		return sect;
 	};
+	int result = 0;
 	for (OpIntersection* sect : i) {
 		if (sect->opp->segment != opp)
 			continue;
@@ -309,12 +311,17 @@ int OpIntersections::coinRange(OpEdge& edge, OpSegment* opp, bool reversed) {
 			OP_ASSERT(!coinStart);
 			coinStart = sect;
 			coinEnd = nullptr;
+			int oldCoinID = coinID;
 			coinID = sect->coincidenceID;
 			if (edgeStart) {
 //				OP_ASSERT(edgeStart->coincidenceID);
    				edgeStart->coincidenceID = edgeStart->opp->coincidenceID = coinID;
 				OP_ASSERT(t > edge.startT);
 				coinStart->zeroCoincidencePair();
+				if (oldCoinID) {
+					OP_ASSERT(oldCoinID != coinID);
+					mergeIDs.push_back(oldCoinID);
+				}
 			}
 		}
 		if (MatchEnds::end == sect->coinEnd) {
@@ -323,8 +330,10 @@ int OpIntersections::coinRange(OpEdge& edge, OpSegment* opp, bool reversed) {
 			coinEnd = sect;
 			if (edgeStart && !edgeEnd)
 				coinEnd->zeroCoincidencePair();
-			if (edgeEnd)
-				return 0;
+			if (edgeEnd) {
+				result = 0;
+				break;
+			}
 		}
 		if (t == edge.startT) {
 			if (coinStart) 
@@ -342,7 +351,8 @@ int OpIntersections::coinRange(OpEdge& edge, OpSegment* opp, bool reversed) {
 				edgeEnd = sect;
 			else {
 				edgeEnd = setCoin(sect, MatchEnds::end);
-				return coinID;
+				result = coinID;
+				break;
 			}
 		}
 		if (coinEnd) {
@@ -352,7 +362,23 @@ int OpIntersections::coinRange(OpEdge& edge, OpSegment* opp, bool reversed) {
 		}
 	}
 	OP_ASSERT(!coinStart);
-	return 0;
+	for (int oldID : mergeIDs) {  // merge a pair of coins together if they now touch
+		bool seenOld = false;
+		bool seenNew = false;
+		for (OpIntersection* sect : i) {
+			if (oldID == sect->coincidenceID) {
+				sect->zeroCoincidencePair();
+				if (!seenNew)
+					sect->coincidenceID = coinID;
+				seenOld = true;
+			} else if (coinID == sect->coincidenceID) {
+				if (seenOld)
+					sect->zeroCoincidencePair();
+				seenNew = true;
+			}
+		}
+	}
+	return result;
 }
 
 std::vector<OpIntersection*> OpIntersections::unsectables(OpPoint pt) {

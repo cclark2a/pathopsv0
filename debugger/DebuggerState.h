@@ -105,6 +105,7 @@ struct DebuggerState {
     static void RaiseWindows();
     void record();
     void redraw();  // changed window size, lay out again
+    void saveSelection();
     void setDepth(int );
     void setIDTypes();
     void update();
@@ -114,6 +115,7 @@ struct DebuggerState {
 
     std::vector<DebuggerDump> dumps;
     std::vector<OpType> ids;
+    std::vector<int> selectedIDs;
     OpContext* context = nullptr;
     DebuggerWindow* lastFocus = nullptr;  // never help window
     PictureWindow pictureWindow;

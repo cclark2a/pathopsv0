@@ -158,7 +158,7 @@ typedef void (*Rotate)(Curve , OpPoint origin, OpVector scale, Curve result);
 
 // computes part from parameter t1 to t2, both from 0 to 1
 // sets result type to zero if curve part is linear, within threshold tolerance
-typedef void (*SubDivide)(Curve , float t1, float t2, float threshold, Curve* result);
+typedef void (*SubDivide)(Curve , float t1, float t2, OpVector threshold, Curve* result);
 
 // returns tangent vector at parameter t, where: t=0 is start, t=1 is end
 typedef OpVector (*CurveTangent)(Curve, float t);
@@ -191,7 +191,6 @@ struct CurveCallbacks {
 	SubDivide subDivideFuncPtr = nullptr;
 	XYAtT xyAtTFuncPtr = nullptr;
 	CurveReverse curveReverseFuncPtr = nullptr;
-	CurveConst crossThresholdFuncPtr = nullptr;
 	CurveConst cutFuncPtr = nullptr;
 	CurveConst interceptFuncPtr = nullptr;
 	CurveConst normalLimitFuncPtr = nullptr;

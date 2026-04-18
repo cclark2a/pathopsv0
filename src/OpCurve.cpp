@@ -288,7 +288,7 @@ PathOpsV0Lib::CurveType OpCurve::lineType() const {
     return funcPtr ? (*funcPtr)(c) : 1;
 }
 
-float OpCurve::match(float start, float end, OpPoint pt) const {
+float OpCurve::matchCommon(float start, float end, OpPoint pt, OpVector slop) const {
 	if (!nearBounds(pt))
 		return OpNaN;
 	if (pt == c.data->start && 0 == start)
@@ -304,13 +304,20 @@ float OpCurve::match(float start, float end, OpPoint pt) const {
 	float xDistSq = (pt - xPt).lengthSquared();
 	float yDistSq = (pt - yPt).lengthSquared();
 	// example: testQuads9421393 needs small curve factor for segs (3, 7 to detect intersection)
-	OpVector slop = context().threshold;  
 //			* context().callback(c.type).matchSlopFuncPtr();
 	if (!(xDistSq > yDistSq)) {  // reverse test in case y dist is nan
 		if (pt.isNearly(xPt, slop))
 			return xRoot;
 	}
 	return pt.isNearly(yPt, slop) ? yRoot : OpNaN;
+}
+
+float OpCurve::match(float start, float end, OpPoint pt) const {
+	return matchCommon(start, end, pt, context().threshold);
+}
+
+float OpCurve::matchClosest(OpPoint pt) const {
+	return matchCommon(0, 1, pt, {OpInfinity, OpInfinity});
 }
 
 MatchReverse OpCurve::matchEnds(const LinePts& opp) const {
@@ -555,10 +562,7 @@ OpCurve OpCurve::subDivide(float t1, float t2) const {
     newResult.setLastPt(ptAtT(t2));
 	PathOpsV0Lib::SubDivide funcPtr = context().callback(c.type).subDivideFuncPtr;
 	if (funcPtr) {
-		PathOpsV0Lib::CurveConst crossThreshold = context().callback(c.type).crossThresholdFuncPtr;
-		float threshold = context().thresholdLength
-				* (crossThreshold ? (*crossThreshold)(c) : 4.f);
-		(*funcPtr)(c, t1, t2, threshold, &newResult.c);
+		(*funcPtr)(c, t1, t2, context().threshold, &newResult.c);
 		if (PathOpsV0Lib::degenerateLine == newResult.c.type)
 			newResult.setLine();
 	}

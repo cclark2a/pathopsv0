@@ -1118,8 +1118,7 @@ std::string OpContext::debugDump(DebugLevel l, DebugBase b) const {
 	    DEBUG_FIND_TAG(callback, rotateFuncPtr,         subDivideFuncPtr);
 	    DEBUG_FIND_TAG(callback, subDivideFuncPtr,      xyAtTFuncPtr);
 	    DEBUG_FIND_TAG(callback, xyAtTFuncPtr,          curveReverseFuncPtr);
-	    DEBUG_FIND_TAG(callback, curveReverseFuncPtr,   crossThresholdFuncPtr);
-	    DEBUG_FIND_TAG(callback, crossThresholdFuncPtr, cutFuncPtr);
+	    DEBUG_FIND_TAG(callback, curveReverseFuncPtr,   cutFuncPtr);
 	    DEBUG_FIND_TAG(callback, cutFuncPtr,            interceptFuncPtr);
 	    DEBUG_FIND_TAG(callback, interceptFuncPtr,      normalLimitFuncPtr);
 	    DEBUG_FIND_TAG(callback, normalLimitFuncPtr,    maxAlternateEndFuncPtr);

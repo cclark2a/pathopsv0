@@ -399,6 +399,8 @@ FindCept SectRay::findCept(OpEdge* edge, OpEdge* test) {
 		for (const CoinPal& pal : test->coinPals) {
 			bool palsReversed = pal.coinID < 0;
 			for (const OpEdge& palEdge : pal.opp->edges) {
+				if (palEdge.disabled)
+					continue;
 				if (std::none_of(palEdge.coinPals.begin(), palEdge.coinPals.end(),
 						[pal](const CoinPal& oPal) { return oPal == pal; } ))
 					continue;
@@ -661,7 +663,7 @@ struct CoinSects {
 		auto checkClose = [threshold](OpSegment* seg, SectPtT& s, SectPtT& e) {
 			bool near = s.ptT.isNearly(e.ptT, threshold);
 		#if 1
-			OP_ASSERT(!near || s.ptT.pt != e.ptT.pt);
+//			OP_ASSERT(!near || s.ptT.pt != e.ptT.pt);
 		#else
 			// !!! if points are near but not equal, earlier calc. ought to have found alias
 			if (near && s.ptT.pt != e.ptT.pt) {

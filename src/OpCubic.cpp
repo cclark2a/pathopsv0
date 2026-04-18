@@ -44,6 +44,10 @@ float OpMath::CubicRoot(OpCubicFloatType A, OpCubicFloatType B, OpCubicFloatType
 		OP_ASSERT(1 >= quadRoots.count());
 		if (quadRoots.count())
 			result = quadRoots.get(0);
+		else {  // quad failed to find a root; but a root == 0 or 1 must be returned
+			if (D)
+				result = 1;
+		}
 	} else if (0 == D)
 		result = 0;
 	else if (0 == A + B + C + D)

@@ -642,8 +642,7 @@ void OpContext::dumpSet(const char*& str) {
 	    DEBUG_FIND_FUNCTION(callback, rotateFuncPtr,         subDivideFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, subDivideFuncPtr,      xyAtTFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, xyAtTFuncPtr,          curveReverseFuncPtr);
-	    DEBUG_FIND_FUNCTION(callback, curveReverseFuncPtr,   crossThresholdFuncPtr);
-	    DEBUG_FIND_FUNCTION(callback, crossThresholdFuncPtr, cutFuncPtr);
+	    DEBUG_FIND_FUNCTION(callback, curveReverseFuncPtr,   cutFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, cutFuncPtr,            interceptFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, interceptFuncPtr,      normalLimitFuncPtr);
 	    DEBUG_FIND_FUNCTION(callback, normalLimitFuncPtr,    maxAlternateEndFuncPtr);

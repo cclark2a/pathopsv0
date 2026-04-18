@@ -337,13 +337,13 @@ inline void conicSetBounds(Curve c, OpRect& bounds) {
     bounds.add(control.pt);
 }
 
-inline void conicSubDivide(Curve curve, float t1, float t2, float threshold, Curve* result) {
+inline void conicSubDivide(Curve curve, float t1, float t2, OpVector threshold, Curve* result) {
 	OpPtT ptT1 { result->data->start, t1 };
 	OpPtT ptT2 { result->data->end, t2 };
     PointWeight control(curve);
     PointWeight subPtW = ConicControl(curve.data->start, control, curve.data->end, ptT1, ptT2);
     subPtW.copyTo(*result);
-    if (conicIsLine(*result, threshold))
+    if (conicIsLine(*result, threshold.length()))
         result->type = degenerateLine;
 }
 

@@ -7,9 +7,9 @@
 #endif
 
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
-#define SKIP_TO_FILE "fast" // e.g., "simplify"  one file
+#define SKIP_TO_FILE "cubic" // e.g., "simplify"  one file
 #if !OP_DEBUG_ALT
-#define TEST_FIRST "testQuadralaterals7614580"  // e.g., "testQuads5343280" if file, one test
+#define TEST_FIRST "testCubics3763209"  // e.g., "testLoops40320" if file, one test
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
 #else
@@ -30,7 +30,7 @@
 
 // loop191404 missing -0.078, 1.5323 t=0.281543255 oppT=0.290549636; 
 //                    -0.3563 2.0153 t=0.139774203 oppT=0.113169670
-#define CURVE_CURVE_1 3  // id of segment 1 to break in divide and conquer
+#define CURVE_CURVE_1 4  // id of segment 1 to break in divide and conquer
 #define CURVE_CURVE_2 8  // id of segment 2 to break in divide and conquer
 #define CURVE_CURVE_DEPTH -1  // minimum recursion depth for curve curve break (-1 to disable)
 
@@ -132,5 +132,52 @@ testRects2732792 error:4.76837158e-07
 */
 
 /* (fast) testsRun:564480 testsSkipped:0 
+   (circle) testsRun:564480 testsSkipped:0
+*/
+
+/* testsRun:2130976 testsSkipped:0  avg pixelError:0.000106091058
+testTriangles1224829 error:0.000731871463
+testTriangles1233085 error:0.000716149807
+testTriangles1224490 error:0.000715897419
+testTriangles1224491 error:0.000715897419
+testTriangles370749 error:0.000714466907
+testTriangles370757 error:0.000714242458
+testTriangles376948 error:0.000705687795
+testTriangles376949 error:0.000705687795
+testTriangles376971 error:0.000705687795
+testTriangles1232819 error:0.000700204168
+testTriangles1233090 error:0.000700204168
+testTriangles1233091 error:0.000700204168
+testTriangles1232746 error:0.000699222088
+testTriangles1232747 error:0.000699222088
+testTriangles370658 error:0.000692055561
+testTriangles370659 error:0.000692055561
+testTriangles370778 error:0.000691831112
+testTriangles370779 error:0.000691831112
+testTriangles1224563 error:0.000691263471
+testTriangles1224834 error:0.000691263471
+*/
+
+/* testsRun:194480 testsSkipped:0  avg pixelError:0.000483194715 maxError:0.107989788 largestError:testLoops70924
+testLoops70924 error:0.107989788
+testLoops81487 error:0.0702061653
+testLoops32467 error:0.068382144
+testLoops77434 error:0.0434149504
+testLoops78856 error:0.0431461334
+testLoops15846 error:0.040163517
+testLoops14901 error:0.0342123508
+testLoops136565 error:0.0301455259
+testLoops31171 error:0.0274611712
+testLoops3822 error:0.0213317871
+testLoops163624 error:0.0203206874
+testLoops51567 error:0.0200154781
+testLoops6867 error:0.0192921162
+testLoops62307 error:0.0181521215
+testLoops566 error:0.0178154316
+testLoops64129 error:0.0177198648
+testLoops1970 error:0.0164101124
+testLoops542 error:0.0156211592
+testLoops136417 error:0.0150725245
+testLoops1090 error:0.0144543648
 */
 #endif

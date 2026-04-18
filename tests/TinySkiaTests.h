@@ -7,6 +7,15 @@
 class SkPath;
 
 struct TestOptions {
+    void buggySkiaNumbering(int testCount) {
+        indexOffset = testCount;  
+        index = -testCount;
+        if (skip)
+            skip += testCount;
+    }
+
+    void checkTestCount(int testCount);
+
     bool skipTests(int count) {
         if (skip >= count) {
             skip -= count;
@@ -32,6 +41,7 @@ struct TestOptions {
 
     void testOp(SkPath& left, SkPath& right, TinyOps op);
 
+
     std::string baseName;
     std::string testName;
     std::string testFirst;
@@ -42,11 +52,16 @@ struct TestOptions {
     int toRun = 0;  // zero runs all
     bool extended = true;
     bool v0MayFail = false;
+    bool testCountCheck = true;
 };
 
+extern void V0SimplifyDegenerates(TestOptions* );
 extern void V0SimplifyQuadralaterals(TestOptions* );
 extern void V0SimplifyQuads(TestOptions* );
+extern void V0SimplifyTriangles(TestOptions* );
+extern void V0OpCircles(TestOptions* );
 extern void V0OpCubics(TestOptions* );
+extern void V0OpLoops(TestOptions* );
 extern void V0OpRects(TestOptions* );
 extern void V0OpFastRects(TestOptions* );
 

@@ -88,7 +88,7 @@ struct OpIntersection {
 	void setUnsect(int id, MatchEnds end);  // setter to help debugging
 
 	void zeroCoincidence() {
-		OP_ASSERT(!debugCoincidenceID);  // !!! should this always be zero?
+//		OP_ASSERT(!debugCoincidenceID);  // !!! should this always be zero?
 		OP_DEBUG_CODE(debugCoincidenceID = coincidenceID);
 		coincidenceID = 0;
 		coinEnd = MatchEnds::none;

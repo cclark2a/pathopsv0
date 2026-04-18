@@ -13,21 +13,23 @@ DumpWindow::DumpWindow(DebuggerState* state)
 }
 
 DrawLevel DumpWindow::click(const DebuggerEvent* event) {
-    DrawLevel result = DrawLevel::none;
     int windowWidth, windowHeight;
     if (!SDL_GetWindowSize(window, &windowWidth, &windowHeight)) {
         OpDebugOut("failed to get window size: " + std::string(SDL_GetError()) + "\n");
-        return result;
+        return DrawLevel::none;
     }
     OpPoint localLocation(10, 10);
     float lineHeight = debuggerState->textWindow.boxWH.dy;
     if (event->mouse.y < localLocation.y)
-        return result;
+        return DrawLevel::none;
     int index = (int) ((event->mouse.y - localLocation.y) / lineHeight);
     if (index >= (int) debuggerState->dumps.size())
-        return result;
+        return DrawLevel::none;
+    if (debuggerState->currentDump == index)
+        return DrawLevel::none;
+    debuggerState->saveSelection();
     debuggerState->currentDump = index;
-    return DrawLevel::file;
+    return DrawLevel::file;  //  preserve selected, switch, and restore selected
 }
 
 DrawLevel DumpWindow::event(const DebuggerEvent& debuggerEvent) {    

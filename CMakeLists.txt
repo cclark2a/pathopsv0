@@ -96,10 +96,14 @@ set (SKIA_TESTS
     "tests/TinySkia.cpp"
     "tests/TinySkiaTests.cpp"
     "tests/UnitTestPathOps.cpp"
+    "tests/V0OpCircles.cpp"
     "tests/V0OpCubics.cpp"
+    "tests/V0OpLoops.cpp"
     "tests/V0OpRects.cpp"
+    "tests/V0SimplifyDegenerates.cpp"
     "tests/V0SimplifyQuads.cpp"
     "tests/V0SimplifyQuadralaterals.cpp"
+    "tests/V0SimplifyTriangles.cpp"
 )
 
 add_executable (skia_test )

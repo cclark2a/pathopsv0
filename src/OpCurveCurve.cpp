@@ -169,6 +169,8 @@ void FoundLimits::addSnipCommon(SnipPtTs& snipLo, SnipPtTs& snipHi) {
 }
 
 bool FoundLimits::addSnipRange(size_t start) {
+#if 0  // fails when limits are not close together
+	OP_ASSERT(start <= i.size());
 	if (start == i.size())
 		return false;
 	if (start + 1 == i.size())
@@ -181,6 +183,12 @@ bool FoundLimits::addSnipRange(size_t start) {
 		addSnipCommon(snipLo, snipHi);
 	}
 	return true;
+#else
+	for (size_t index = start; index < i.size(); ++index) {
+		addSnip(i[index].segPtT, i[index].oppPtT);
+	}
+	return start < i.size();
+#endif
 }
 
 bool FoundLimits::alreadyIn(const OpPtT& edgePtT, const OpPtT& oppPtT) const {

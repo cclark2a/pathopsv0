@@ -328,8 +328,8 @@ void OpDebugSamples::sample(OpContour* contour) {
 	if (SampleType::contourInput == sampleType || SampleType::contourResolved == sampleType) {
 		for (int index = 0; index < (int) contour->debugCurveData.size(); ++index) {
 			std::vector<float> extrema;
-			OpCurve opCurve(contour->debugCurve(index, &extrema), Rotated::no);
-			if (opCurve.aliasBounds().isEmpty())
+			OpCurve opCurve(contour->debugCurve(index, &extrema), Rotated::yes);
+			if (opCurve.fullBounds().isEmpty())
 				continue;
 //			lastCurve = index == contour->debugCurveData.size() - 1;
 			addCurveXatY(contour, index, opCurve, extrema);

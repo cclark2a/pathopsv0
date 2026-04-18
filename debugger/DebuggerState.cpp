@@ -246,6 +246,14 @@ void DebuggerState::redraw() {
     draw();
 }
 
+void DebuggerState::saveSelection() {
+    selectedIDs.clear();
+    for (const OpType& opType : ids) {
+        if (opType.selected)
+            selectedIDs.push_back(opType.id);
+    }
+}
+
 // -1: draw none ; 0: draw all ; > 0 draw matching depth
 void DebuggerState::setDepth(int ) {
     int maxDepth = 0;
@@ -317,6 +325,16 @@ void DebuggerState::setIDTypes() {
     }
     std::sort(ids.begin(), ids.end(), [](const OpType& a, const OpType& b) {
             return a.id < b.id; });
+    for (int selectedId : selectedIDs) {
+        // !!! since ids is sorted, could use lower_bound or whatever...
+        //     .. but if performance is really a problem, walk both (assuming selectedID is sorted)
+        //        at the same time -- would be faster than existing or lower_bound
+        auto idIter = std::find_if(ids.begin(), ids.end(), [selectedId](const OpType& test) {
+                return test.id == selectedId ; });
+        if (idIter != ids.end())
+            (*idIter).selected = true;
+    }
+    selectedIDs.clear();
 }
 
 void DebuggerState::update() {

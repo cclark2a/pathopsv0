@@ -308,7 +308,8 @@ void OpSegment::manyCoincidences() {
 		auto removeSects = [](OpSegment* seg, float startT, float endT, OpSegment* opp) {
 			if (startT > endT)
 				std::swap(startT, endT);
-			size_t index = seg->sects.i.size(); 
+			size_t index = seg->sects.i.size();
+			std::vector<int> uIDs;
 			while (index--) {
 				OpIntersection* test = seg->sects.i[index];
 				if (test->ptT.t <= startT)
@@ -319,8 +320,30 @@ void OpSegment::manyCoincidences() {
 					continue;
 				if (test->coincidenceID)
 					continue;
+				if (test->unsectID)  // if erasing this one, remove the companion unsectable ID
+					uIDs.push_back(test->unsectID);
 				seg->sects.i.erase(seg->sects.i.begin() + index);
 			}
+			if (uIDs.empty())
+				return;
+			bool segHasUnsectable = false;  // reset seg and sects cache bits
+			bool segHasPairs = false;
+			for (OpIntersection* check : seg->sects.i) {
+				if (check->coincidenceID)
+					segHasPairs = true;
+				if (!check->unsectID)
+					continue;
+				if (uIDs.end() == std::find(uIDs.begin(), uIDs.end(), check->unsectID)) {
+					segHasUnsectable = true;
+					segHasPairs = true;
+					continue;
+				}
+				check->unsectID = 0;
+				check->unsectEnd = MatchEnds::none;
+				seg->sects.unsorted = true;
+			}
+			seg->hasUnsectable = segHasUnsectable;
+			seg->sects.hasPairs = segHasPairs;
 		};
 		removeSects(segA, miss.aStart.t, ptTa.t, segC);
 		removeSects(segC, miss.cStart.t, ptTc.t, segA);
@@ -393,6 +416,8 @@ struct MissingSect {
     // a third segment intersects one of the pair but not the other (curve grazes line)
     // without between coincidence, winding sees two edges in one coin but only one in the other
 void OpSegment::betweenCoincidence() {
+	if (disabled)
+		return;
 	if (!hasCoin)
 		return;
 	std::vector<OpIntersection*> coinSects;
@@ -434,13 +459,18 @@ void OpSegment::betweenCoincidence() {
                     && miss.coinStart->coincidenceID == sect->coincidenceID; 
         } );
         OP_ASSERT(sects.i.end() != coinEnd);
+        OpSegment* sectOpp = miss.sect->opp->segment;
+        OpSegment* coinOpp = miss.coinStart->opp->segment;
+	#if 0
         float oppCoinStartT = miss.coinStart->opp->ptT.t;
         float oppCoinRange = (*coinEnd)->opp->ptT.t - oppCoinStartT;
         float coinRange = (*coinEnd)->ptT.t - miss.coinStart->ptT.t;
-        OpSegment* sectOpp = miss.sect->opp->segment;
-        OpSegment* coinOpp = miss.coinStart->opp->segment;
+		// this fails; t does not necessarily change linearly, so cannot always be interpolated (testLoops6686)
         OpPtT oppPtT { miss.sect->ptT.pt,  oppCoinStartT 
                 + (miss.sect->ptT.t - miss.coinStart->ptT.t) * oppCoinRange / coinRange };
+	#else
+		OpPtT oppPtT { miss.sect->ptT.pt, coinOpp->c.matchClosest(miss.sect->ptT.pt) };
+	#endif
         OpIntersection* oSect = coinOpp->addSegSect(oppPtT, sectOpp  OP_LINE_FILE_PARGS());
         if (!oSect)
             continue;
@@ -731,7 +761,7 @@ void OpSegment::makeCoins() {
 						: first == oppEdge.curve.firstPt() && last == oppEdge.curve.lastPt()) {
 					int coinID = sects.coinRange(edge, oppEdge.segment, reversed);
 					if (coinID) {
-						if (reversed)
+						if (reversed != (coinID < 0))
 							coinID = -coinID;
 						edge.coinPals.push_back({ oppEdge.segment, coinID });
 						oppEdge.coinPals.push_back({ this, coinID });
@@ -913,7 +943,7 @@ bool OpSegment::mergeIntersections() {
 		int mergeID = first->mergeID;
 		size_t endIndex = index;
 		size_t startIndex = index;
-		bool needsMerging = mergePtT.pt != first->opp->ptT.pt;
+		bool needsMerging = mergePtT.pt != first->opp->ptT.pt && !first->opp->unsectID;
 		// !!! restructure to gather 1 or more sects close to each other
 		//     if the sect/opp distance exceeds the threshold, expand the gather on both ends
 		//     if the opp has already been merged, reuse the master merge/id
@@ -935,7 +965,7 @@ bool OpSegment::mergeIntersections() {
 				mergeBounds = testBounds;
 				needsMerging = true;
 			} else
-				needsMerging |= test->ptT.pt != test->opp->ptT.pt;
+				needsMerging |= test->ptT.pt != test->opp->ptT.pt && !test->opp->unsectID;
 			if (test->mergeID) {
 				if (mergeID && test->mergeID != mergeID)
 					mergeMultiple(mergePtT.pt, mergeID, test->ptT.pt, test->mergeID);

@@ -33,9 +33,13 @@ struct TinySuite {
 };
 
 std::vector<TinySuite> tinySuites = {
+    { V0SimplifyDegenerates, "degenerate", "testDegenerates", Skippable::yes },
     { V0SimplifyQuadralaterals, "quadralateral", "testQuadralaterals", Skippable::yes },
     { V0SimplifyQuads, "quad", "testQuads", Skippable::yes },
+    { V0SimplifyTriangles, "triangle", "testTriangles", Skippable::yes },
+    { V0OpCircles, "circle", "testCircles", Skippable::yes },
     { V0OpCubics, "cubic", "testCubics", Skippable::yes },
+    { V0OpLoops, "loop", "testLoops", Skippable::yes },
     { V0OpRects, "rect", "testRects", Skippable::yes },
     { V0OpFastRects, "fast", "fastRects", Skippable::yes },
 };
@@ -101,6 +105,13 @@ struct TinyState {
     bool startFirstTest = OP_DEBUG_FAST_TEST || !strlen(TEST_FIRST);
     bool endFirstTest = false;
 } tinyState;
+
+void TestOptions::checkTestCount(int testCount) {
+    if (!testCountCheck || TESTS_TO_SKIP || OP_DEBUG_FAST_TEST || strlen(TEST_FIRST))
+        return;
+    OP_ASSERT(run == testCount);
+    testCountCheck = false;
+}
 
 void TinyState::addADot(const OpDebugData& debugData) {
 #if OP_DEBUG_FAST_TEST

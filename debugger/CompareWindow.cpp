@@ -20,6 +20,7 @@ const std::vector<std::string> drawCompareStrs {
     "output"
 };
 
+// !!! hardcoded for now; move numbers into sample
 std::string CompareLabel::labelAt(int index) {
     if (!window->debugRaster)
         return "(uninitialized)";
@@ -27,55 +28,47 @@ std::string CompareLabel::labelAt(int index) {
     if (raster->samples.empty())
         return "(uninitialized)";
     const OpDebugSamples& sample = raster->samples[index];
-    std::string postfix;
     const OpContext* context = raster->context;
     PathOpsV0Lib::DebugImageWindingNames nameFunc 
             = context->debugContextCallbacks.debugImageWindingNamesFuncPtr;
     std::vector<std::string> names;
     if (nameFunc)
         names = (*nameFunc)();
-    auto inputName = [&names, sample, raster](int index) {
+    auto inputName = [&names](int strIndex) {
         if (names.empty())
             return std::string("");
-        size_t strIndex = 0;
-        for (int testIndex = 0; testIndex < raster->samples.size(); ++testIndex) {
-            const OpDebugSamples& test = raster->samples[testIndex];
-            if (test.sampleType != sample.sampleType)
-                continue;
-            if (testIndex == index) {
-                OP_ASSERT(strIndex < names.size());
-                return " (" + names[strIndex] + ")";
-            }
-            ++strIndex;
-        }
-        return std::string("");
+        OP_ASSERT(strIndex < names.size());
+        return " (" + names[strIndex] + ")";
     };
+    int strIdx = 0;
+    std::string postfix;
     switch (sample.sampleType) {
         case SampleType::contourInput:
-            index = 2;
-            postfix = inputName(index);
+            OP_ASSERT(1 == index || 2 == index);
+            postfix = inputName(index - 1);
+            strIdx = 2;
             break;
         case SampleType::contourResolved:
-            index = 1;
+            strIdx = 1;
             break;
         case SampleType::segmentInput:
-            index = 3;
-            postfix = inputName(index);
+            OP_ASSERT(3 == index || 4 == index);
+            postfix = inputName(index - 3);
+            strIdx = 3;
             break;
         case SampleType::segmentResolved:
-            index = 4;
+            strIdx = 4;
             break;
         case SampleType::edges:
-            index = 5;
+            strIdx = 5;
             break;
         case SampleType::output:
-            index = 6;
+            strIdx = 6;
             break;
         default:
-            index = 0;
             break;
     }
-    return drawCompareStrs[index] + postfix;
+    return drawCompareStrs[strIdx] + postfix;
 }
 
 int CompareLabel::size() const {
@@ -290,6 +283,8 @@ bool CompareWindow::readBits() {
     if (debuggerState->dumps.empty())
         return false;
     DebuggerDump& lastDump = debuggerState->dumps.back();
+    if (!lastDump.context)
+        return false;
     if (!lastDump.context->debugDescription.ends_with("resolved"))
         return false;
     if (lastDump.context->callbacks.empty())
