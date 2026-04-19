@@ -62,27 +62,27 @@ testQuads19243773 error:0.110137872
 testQuads5383069 error:0.110108651
  */
 
-/* testsRun:3889619 testsSkipped:0  avg pixelError:0.000396429445 maxError:0.136399746 largestError:testCubics1632148
-testCubics1632148 error:0.136399746
-testCubics1632152 error:0.136399746
-testCubics1632156 error:0.136399746
-testCubics1632160 error:0.136399746
-testCubics970388 error:0.136399746
-testCubics970392 error:0.136399746
-testCubics970396 error:0.136399746
-testCubics970400 error:0.136399746
-testCubics1141572 error:0.131867886
-testCubics1141576 error:0.131867886
-testCubics1141580 error:0.131867886
-testCubics1141584 error:0.131867886
-testCubics2443972 error:0.131831527
-testCubics2443976 error:0.131831527
-testCubics2443980 error:0.131831527
-testCubics2443984 error:0.131831527
-testCubics1904692 error:0.128352165
-testCubics1904696 error:0.128352165
-testCubics1904700 error:0.128352165
-testCubics1904704 error:0.128352165
+/* testsRun:3889619 testsSkipped:0  avg pixelError:0.000391925016 maxError:0.083270669 largestError:testCubics2952164
+testCubics2952164 error:0.083270669
+testCubics2952168 error:0.083270669
+testCubics2952172 error:0.083270669
+testCubics2952176 error:0.083270669
+testCubics1213284 error:0.0832263231
+testCubics1213288 error:0.0832263231
+testCubics1213292 error:0.0832263231
+testCubics1213296 error:0.0832263231
+testCubics2952163 error:0.0832172632
+testCubics2952167 error:0.0832172632
+testCubics2952171 error:0.0832172632
+testCubics2952175 error:0.0832172632
+testCubics1213283 error:0.0832005739
+testCubics1213287 error:0.0832005739
+testCubics1213291 error:0.0832005739
+testCubics1213295 error:0.0832005739
+testCubics3844445 error:0.0829936266
+testCubics3844446 error:0.0829936266
+testCubics3844447 error:0.0829936266
+testCubics3844448 error:0.0829936266
  */
 
 /* testsRun:30046751 testsSkipped:0  avg pixelError:0.000118281409
