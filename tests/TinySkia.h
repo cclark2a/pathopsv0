@@ -145,6 +145,10 @@ enum class TinyOps {
 	reverseDifference
 };
 
+inline TinyOps operator++(TinyOps& tinyOp) {
+	return tinyOp = (TinyOps) ((int) tinyOp + 1);
+}
+
 enum class SkPathFillType {
 	kWinding,
 	kEvenOdd,
@@ -209,7 +213,7 @@ public:
 	int countPoints() const;
 	bool isInverseFillType() const { return SkPathFillType::kInverseWinding == fFillType
 			|| SkPathFillType::kInverseEvenOdd == fFillType; }
-	const SkRect& getBounds() const;
+	SkRect getBounds() const;
 	SkPoint getPoint(int index);
 	void reset();
 	bool isEmpty() const;
@@ -234,8 +238,8 @@ public:
 	void toggleInverseFillType() { fFillType = (SkPathFillType) ((int) fFillType ^ 2); }
 
 	void transform(const SkMatrix& matrix, SkPath* dst = nullptr);
-    void updateBoundsCache() const {
-        getBounds(); }
+//    void updateBoundsCache() const {
+//        getBounds(); }
 #if OP_DEBUG_SERIALIZE
 	std::string debugDumpCommon(bool hex, std::string callPrefix) const;
 	void dump() const;
@@ -245,9 +249,9 @@ public:
 #endif
 
 	std::vector<TinyCurve> path;
-	OpContext* contours;
-	mutable SkRect bounds;
-	OpPoint last;
+	// OpContext* contours;
+	// mutable SkRect bounds;
+	OpPoint last { 0, 0 };
 	size_t firstIndex = 0;
 	SkPathFillType fFillType = SkPathFillType::kWinding;
 };

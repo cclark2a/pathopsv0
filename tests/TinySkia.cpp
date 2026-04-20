@@ -237,13 +237,13 @@ void SkPath::reset() {
 	path.clear();
 }
 
-const SkRect& SkPath::getBounds() const {
+SkRect SkPath::getBounds() const {
 	OpPointBounds b;
 	for (const TinyCurve& c : path)
 		for (size_t index = 0; index < c.pointCount(); ++index)
 			OP_DEBUG_CODE(if (!c.pts[index].debugIsUninitialized()))
 				b.add(c.pts[index]);
-	bounds = { b.left, b.top, b.right, b.bottom };
+	SkRect bounds = { b.left, b.top, b.right, b.bottom };
 	return bounds;
 }
 

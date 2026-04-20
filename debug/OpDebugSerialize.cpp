@@ -2407,7 +2407,7 @@ std::string OpRoots::debugDump(DebugLevel l, DebugBase b) const {
 int OpSectStorage::debugCount() const {
     int result = used;
     OpSectStorage* block = next;
-    while (next) {
+    while (block) {
         result += block->used;
         block = block->next;
     }
@@ -2416,12 +2416,12 @@ int OpSectStorage::debugCount() const {
 
 OpIntersection* OpSectStorage::debugIndex(int index) const {
     const OpSectStorage* block = this;
-    while (index > block->used) {
-        index -= block->used;
+    while (index < block->debugStart) {
         block = block->next;
         if (!block)
             return nullptr;
     }
+    index -= block->debugStart;
     if (block->used <= index)
         return nullptr;
     return const_cast<OpIntersection*>(&block->storage[index]);

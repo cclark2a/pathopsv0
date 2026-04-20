@@ -181,11 +181,7 @@ struct OpTree {
 };
 
 struct OpLimbStorage {
-	OpLimbStorage()
-		: nextBlock(nullptr)
-		, prevBlock(nullptr)
-		, baseIndex(0)
-		, used(0) {
+	OpLimbStorage() {
 		static_assert(((ARRAY_COUNT(storage) - 1) & ARRAY_COUNT(storage)) == 0);
 	}
 	OpLimb* allocate();
@@ -200,11 +196,11 @@ struct OpLimbStorage {
 #endif
 	DUMP_DECLARATIONS
 
-	OpLimbStorage* nextBlock;
-	OpLimbStorage* prevBlock;
+	OpLimbStorage* nextBlock = nullptr;
+	OpLimbStorage* prevBlock = nullptr;
 	OpLimb storage[256];
-	int baseIndex;
-	int used;
+	int baseIndex = 0;
+	int used = 0;
 };
 
 

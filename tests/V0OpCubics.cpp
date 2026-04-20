@@ -28,8 +28,9 @@ void V0OpCubics(TestOptions* options) {
                                     if (!options->testOne(pathA, pathB, TinyOps::reverseDifference))
                                         return false;
                                 } else {
-                                    for (int op = 0; op <= (int) TinyOps::exclusiveOr; ++op) {
-                                        if (!options->testOne(pathA, pathB, (TinyOps) op))
+                                    for (TinyOps op = TinyOps::difference; 
+                                                op <= TinyOps::exclusiveOr; ++op) {
+                                        if (!options->testOne(pathA, pathB, op))
                                             return false;
                                     }
                                 }

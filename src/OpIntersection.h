@@ -228,10 +228,6 @@ struct OpIntersections {
 
 // allocating storage separately allows intersections to be immobile and have reliable pointers
 struct OpSectStorage {
-	OpSectStorage()
-		: next(nullptr)
-		, used(0) {
-	}
 #if OP_DEBUG_DUMP
 	OpIntersection* debugFind(int id) const;
 	static void DumpSet(const char*& , OpContext* );
@@ -242,9 +238,10 @@ struct OpSectStorage {
 #endif
 	DUMP_DECLARATIONS
 
-	OpSectStorage* next;
+	OpSectStorage* next = nullptr;
 	OpIntersection storage[256];
-	int used;
+	int used = 0;
+	OP_DEBUG_SERIALIZE_CODE(int debugStart = 0);
 };
 
 #endif

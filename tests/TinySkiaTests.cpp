@@ -33,15 +33,20 @@ struct TinySuite {
 };
 
 std::vector<TinySuite> tinySuites = {
-    { V0SimplifyDegenerates, "degenerate", "testDegenerates", Skippable::yes },
-    { V0SimplifyQuadralaterals, "quadralateral", "testQuadralaterals", Skippable::yes },
-    { V0SimplifyQuads, "quad", "testQuads", Skippable::yes },
-    { V0SimplifyTriangles, "triangle", "testTriangles", Skippable::yes },
+    { V0Battles, "battle", "testBattles", Skippable::no },
+    { V0Fuzz763, "fuzz763", "testFuzz", Skippable::no },
+    { V0Inverse, "inverse", "testInverse", Skippable::no },
+    { V0Issue3651, "issue3651", "testIssue", Skippable::no },
     { V0OpCircles, "circle", "testCircles", Skippable::yes },
     { V0OpCubics, "cubic", "testCubics", Skippable::yes },
     { V0OpLoops, "loop", "testLoops", Skippable::yes },
     { V0OpRects, "rect", "testRects", Skippable::yes },
     { V0OpFastRects, "fast", "fastRects", Skippable::yes },
+    { V0SimplifyDegenerates, "degenerate", "testDegenerates", Skippable::yes },
+    { V0SimplifyFail, "fail", "testFail", Skippable::no },
+    { V0SimplifyQuadralaterals, "quadralateral", "testQuadralaterals", Skippable::yes },
+    { V0SimplifyQuads, "quad", "testQuads", Skippable::yes },
+    { V0SimplifyTriangles, "triangle", "testTriangles", Skippable::yes },
 };
 
 std::vector<std::string> highError = {
@@ -260,7 +265,11 @@ static void dumpSimplifyTest(std::string testname, const SkPath& path, std::stri
 #endif
 }
 
-void TestOptions::testOp(SkPath& a, SkPath& b, TinyOps op) {
+bool TestOptions::testOne(SkPath& a, SkPath& b, TinyOps op) {
+    ++index;
+    if (--skip >= 0)
+        return true;
+    testName = customName.empty() ? baseName + STR(index) : customName;
     using namespace PathOpsV0Lib;
     Context* context = CreateContext();
     SkPath out;
@@ -308,14 +317,14 @@ void TestOptions::testOp(SkPath& a, SkPath& b, TinyOps op) {
                 BinaryOperand::right  OP_DEBUG_PARAMS(&b));
         AddSkiaPath(context, right, b);
     }
-#if OP_TEST_RASTER
     DebugRaster debugRaster((OpContext*) context);
-    debugRaster.deleteOld();
-    if (OpDebugExpect::success == debugData.expect)    
-        debugRaster.in();
-#endif
 	ContextError contextError = Error(context);
 	if (ContextError::none == contextError) {
+#if OP_TEST_RASTER
+        debugRaster.deleteOld();
+        if (OpDebugExpect::success == debugData.expect)    
+            debugRaster.in();
+#endif
 		Resolve(context);
 #if OP_DEBUG_SERIALIZE
         ((OpContext*) context)->dumpFile("testOp resolved");
@@ -324,11 +333,13 @@ void TestOptions::testOp(SkPath& a, SkPath& b, TinyOps op) {
     contextError = Error(context);
 	tinyState.trackError(contextError);
 #if OP_TEST_RASTER
-    if (OpDebugExpect::success == debugData.expect)
+    if (ContextError::none == contextError && OpDebugExpect::success == debugData.expect)
         debugData.error = debugRaster.out();
 #endif
     DeleteContext(context);
     tinyState.addADot(debugData);
+    ++run;
+    return --toRun != 0;
 }
 
 static void threadTest(TinySuite tinySuite, TestOptions options) {

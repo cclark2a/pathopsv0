@@ -29,20 +29,10 @@ struct TestOptions {
         return testOne(path, path, TinyOps::simplify);
     }
 
-    bool testOne(SkPath& left, SkPath& right, TinyOps op) {
-        ++index;
-        if (--skip >= 0)
-            return true;
-        testName = baseName + STR(index);
-        testOp(left, right, op);
-        ++run;
-        return --toRun != 0;
-    }
-
-    void testOp(SkPath& left, SkPath& right, TinyOps op);
-
+    bool testOne(SkPath& left, SkPath& right, TinyOps op);
 
     std::string baseName;
+    std::string customName;
     std::string testName;
     std::string testFirst;
     int index = 0;   // may be negative to adjust for bug in skia test framework
@@ -55,14 +45,19 @@ struct TestOptions {
     bool testCountCheck = true;
 };
 
-extern void V0SimplifyDegenerates(TestOptions* );
-extern void V0SimplifyQuadralaterals(TestOptions* );
-extern void V0SimplifyQuads(TestOptions* );
-extern void V0SimplifyTriangles(TestOptions* );
+extern void V0Battles(TestOptions* );
+extern void V0Fuzz763(TestOptions* );
+extern void V0Inverse(TestOptions* );
+extern void V0Issue3651(TestOptions* );
 extern void V0OpCircles(TestOptions* );
 extern void V0OpCubics(TestOptions* );
 extern void V0OpLoops(TestOptions* );
 extern void V0OpRects(TestOptions* );
 extern void V0OpFastRects(TestOptions* );
+extern void V0SimplifyDegenerates(TestOptions* );
+extern void V0SimplifyFail(TestOptions* );
+extern void V0SimplifyQuadralaterals(TestOptions* );
+extern void V0SimplifyQuads(TestOptions* );
+extern void V0SimplifyTriangles(TestOptions* );
 
 #endif
