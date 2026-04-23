@@ -2719,16 +2719,16 @@ void RayTargets::dumpSet(const char*& str) {
         target.dumpSet(str);
     }
     OpDebugOptional(str, "]");
-    ASSERT_ORDERED(t, edges);  // either target.contour->inX or inY (not worth serializing ?)
-    ASSERT_ORDERED(edges, chainBounds);
+    ASSERT_ORDERED(t, chainBounds);
     OpDebugRequired(str, "chainBounds");
     chainBounds.dumpSet(str);
-    ASSERT_ORDERED(chainBounds, edgeIndex);
+    ASSERT_ORDERED(chainBounds, inXY);  // either target.contour->inX or inY (not worth serializing)
+    ASSERT_ORDERED(inXY, edgeIndex);
     if (OpDebugOptional(str, "edgeIndex"))
         edgeIndex = OpDebugReadSizeT(str);
-    ASSERT_ORDERED(edgeIndex, index);
-    if (OpDebugOptional(str, "index"))
-        index = OpDebugReadSizeT(str);
+    ASSERT_ORDERED(edgeIndex, tIndex);
+    if (OpDebugOptional(str, "tIndex"))
+        tIndex = OpDebugReadSizeT(str);
     if (OpDebugOptional(str, "debugEdgesContour")) {
         ASSERT_ORDERED(debugEdgesContour, debugEdgesAxis);
         debugEdgesContour = (OpContour*) OpDebugReadSizeT(str);
@@ -2746,7 +2746,7 @@ void RayTargets::dumpResolveAll(OpContext* ctx) {
     }
     if (debugEdgesContour) {
         context->dumpResolve(debugEdgesContour);
-	    edges = Axis::horizontal == debugEdgesAxis 
+	    inXY = Axis::horizontal == debugEdgesAxis 
                 ? &debugEdgesContour->inX : &debugEdgesContour->inY;
     }
 }

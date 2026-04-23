@@ -34,6 +34,7 @@ struct TinySuite {
 
 std::vector<TinySuite> tinySuites = {
     { V0Battles, "battle", "testBattles", Skippable::no },
+    { V0Chalkboard, "chalkboard", "testChalkboard", Skippable::yes },
     { V0Fuzz763, "fuzz763", "testFuzz", Skippable::no },
     { V0Inverse, "inverse", "testInverse", Skippable::no },
     { V0Issue3651, "issue3651", "testIssue", Skippable::no },
@@ -47,22 +48,6 @@ std::vector<TinySuite> tinySuites = {
     { V0SimplifyQuadralaterals, "quadralateral", "testQuadralaterals", Skippable::yes },
     { V0SimplifyQuads, "quad", "testQuads", Skippable::yes },
     { V0SimplifyTriangles, "triangle", "testTriangles", Skippable::yes },
-};
-
-std::vector<std::string> highError = {
-"testQuads1868284", // "0.00301069394"
-"testQuads2441981", // "0.00984116644"
-"testQuads2449734", // "0.00984228961"
-"testQuads2465237", // "0.00986487791"
-"testQuads2472989", // "0.00987935439"
-"testQuads2558547", // "0.0110246753"
-"testQuads2558548", // "0.0111738387"
-"testQuads2559908", // "0.0112013761"
-"testQuads2566300", // "0.0112189064"
-"testQuads2567659", // "0.0112196235"
-"testQuads2567660", // "0.0112479953"
-"testQuads5109541", // "0.0114621641"
-"testQuads5109542", // "0.0121286092"    
 };
 
 thread_local std::string currentTest;  // can't be in a struct
@@ -278,8 +263,7 @@ bool TestOptions::testOne(SkPath& a, SkPath& b, TinyOps op) {
     OpDebugData debugData(testName, 
             v0MayFail ? OpDebugExpect::fail : OpDebugExpect::success, 
             CURVE_CURVE_1, CURVE_CURVE_2, CURVE_CURVE_DEPTH, 
-            tinyState.defeatBreak, TEST_DEFEAT_DUMPS, tinyState.runOne
-        );
+            tinyState.defeatBreak, TEST_DEFEAT_DUMPS, tinyState.runOne || runOne);
     OP_DEBUG_CODE(SetDebugData(context, debugData));
     SetSkiaContextCallbacks(context);
     SetSkiaCurveCallbacks(context);

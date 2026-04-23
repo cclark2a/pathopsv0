@@ -7,9 +7,9 @@
 #endif
 
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
-#define SKIP_TO_FILE "battle" // e.g., "simplify"  one file
+#define SKIP_TO_FILE "chalkboard" // e.g., "simplify"  one file
 #if !OP_DEBUG_ALT
-#define TEST_FIRST "battleOp151"  // e.g., "testLoops40320" if file, one test
+#define TEST_FIRST ""  // "testChalkboard60942"  // e.g., "testLoops40320" if file, one test
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
 #else
@@ -26,7 +26,7 @@
 #define OP_SHOW_ERRORS_ONLY 0  // if 1, skip showing dots, test files started/finished
 #define OP_TEST_V0 1  // set to zero to time Skia running tests
 #define TEST_DEFEAT_BREAK 0  // set to one to disallow debug breakpoints
-#define TEST_DEFEAT_DUMPS 0  // set to one to disallow rewriting dumps
+#define TEST_DEFEAT_DUMPS 1  // set to one to disallow rewriting dumps
 
 // loop191404 missing -0.078, 1.5323 t=0.281543255 oppT=0.290549636; 
 //                    -0.3563 2.0153 t=0.139774203 oppT=0.113169670

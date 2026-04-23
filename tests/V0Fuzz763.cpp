@@ -1,7 +1,6 @@
 // (c) 2026, Cary Clark cclark2@gmail.com
 // originally skia's PathOpsFuzz763Test.cpp,
 // optimized for speed, reduced memory, and random access
-#include "TinySkia.h"
 #include "TinySkiaTests.h"
 
 static void fuzz763_3084(TestOptions* options) {

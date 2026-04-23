@@ -40,12 +40,14 @@ struct TestOptions {
     int run = 0;
     int skip = 0;
     int toRun = 0;  // zero runs all
+    bool runOne = false;
     bool extended = true;
     bool v0MayFail = false;
     bool testCountCheck = true;
 };
 
 extern void V0Battles(TestOptions* );
+extern void V0Chalkboard(TestOptions* );
 extern void V0Fuzz763(TestOptions* );
 extern void V0Inverse(TestOptions* );
 extern void V0Issue3651(TestOptions* );

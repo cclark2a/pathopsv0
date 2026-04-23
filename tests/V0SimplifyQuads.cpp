@@ -1,7 +1,6 @@
 // (c) 2025, Cary Clark cclark2@gmail.com
 // copied from Skia's PathOpsSimplifyQuadThreadedTest.cpp;
 // optimized for speed, reduced memory, and random access
-#include "TinySkia.h"
 #include "TinySkiaTests.h"
 
 void V0SimplifyQuads(TestOptions* options) {

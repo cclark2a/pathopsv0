@@ -1,7 +1,6 @@
 // (c) 2026, Cary Clark cclark2@gmail.com
 // originally skia's PathOpsBattles.cpp,
 // optimized for speed, reduced memory, and random access
-#include "TinySkia.h"
 #include "TinySkiaTests.h"
 
 static void issue414409(TestOptions* options) {
@@ -10679,7 +10678,6 @@ path.close();
 struct TestFunc {
     void (*func)(TestOptions*);
     std::string name;
-    bool mayFail = false;
 };
 
 #define TEST(s) { &s, #s }
@@ -11122,7 +11120,6 @@ void V0Battles(TestOptions* options) {
         if (testOne && test.name != options->testFirst)
             continue;
         options->customName = test.name;
-        options->v0MayFail = test.mayFail;
         (*test.func)(options);
         if (testOne)
             return;

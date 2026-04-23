@@ -1758,7 +1758,7 @@ std::string OpCurveCurve::debugDump(DebugLevel l, DebugBase b) const {
 }
 
 std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
-    DebugLevel brief = DebugLevel::file != l ? DebugLevel::brief : DebugLevel::file;
+//    DebugLevel brief = DebugLevel::file != l ? DebugLevel::brief : DebugLevel::file;
     DebugLevel error = DebugLevel::file != l ? DebugLevel::error : DebugLevel::file;
     auto strLabel = [l](std::string label) {
         return debugLabel(l, label);
@@ -1826,7 +1826,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
         s += strID(EF::contour, "contour", segment->contour->id);
     ASSERT_ORDERED(segment, ray);
     if (ray.distances.size()) 
-        s += ray.debugDump(brief, b) + " ";
+        s += ray.debugDump(l, b) + " ";
     ASSERT_ORDERED(ray, priorEdge);
     ASSERT_ORDERED(priorEdge, nextEdge);
     ASSERT_ORDERED(nextEdge, lastEdge);
@@ -1877,7 +1877,7 @@ std::string OpEdge::debugDump(DebugLevel l, DebugBase b) const {
     if (pals.size()) {
         s += strLabel("pals:") + STR(pals.size()) + "{";
         for (auto& pal : pals) {
-            s += pal.debugDump(brief, b) + " ";
+            s += pal.debugDump(l, b) + " ";
         }
         debugPopMatching(s, ' ');
         s += "} ";
@@ -2610,28 +2610,18 @@ std::string RayTargets::debugDump(DebugLevel l, DebugBase b) const {
 	}
 	debugPopMatching(s, ' ');
 	s += "] ";
-    ASSERT_ORDERED(t, edges);
-    if (DebugLevel::file != l) {  // either target.contour->inX or inY (not worth serializing ?)
-	    s += DebugLevel::detailed == l ? "\n " : " ";
-	    if (edges && DebugLevel::file != l && edges->size()) {
-		    s += "edges:" + STR(edges->size()) +  "[";
-		    for (const OpEdge* edge : *edges) {
-			    s += STR(edge->id) + " ";
-		    }
-		    debugPopMatching(s, ' ');
-		    s += "] ";
-	    }
-    }
-    ASSERT_ORDERED(edges, chainBounds);
+    ASSERT_ORDERED(t, chainBounds);
 	s += "chainBounds" + chainBounds.debugDump(l, b) + " ";
-    ASSERT_ORDERED(chainBounds, edgeIndex);
+    ASSERT_ORDERED(chainBounds, inXY);
+    // not worth serializing: can be determined from debug edges contour and axis, below
+    ASSERT_ORDERED(inXY, edgeIndex);
 	if (SIZE_MAX != edgeIndex)
 		s += "edgeIndex:" + STR(edgeIndex) +  " ";
-    ASSERT_ORDERED(edgeIndex, index);
-	if (SIZE_MAX != index)
-		s += "index:" + STR(index) + " ";
+    ASSERT_ORDERED(edgeIndex, tIndex);
+	if (SIZE_MAX != tIndex)
+		s += "tIndex:" + STR(tIndex) + " ";
     if (DebugLevel::file == l && debugEdgesContour) {
-        ASSERT_ORDERED(index, debugEdgesContour);
+        ASSERT_ORDERED(tIndex, debugEdgesContour);
         s += "debugEdgesContour:" + STR(debugEdgesContour->id) + " ";
         ASSERT_ORDERED(debugEdgesContour, debugEdgesAxis);
         s += "debugEdgesAxis:" + AxisName(debugEdgesAxis) + " ";

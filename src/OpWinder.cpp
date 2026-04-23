@@ -9,9 +9,9 @@ bool RayTargets::addContainer(Axis axis, OpContour* container, OpRect& bounds) {
 	if (match(container))
 		return false;
 	t.push_back({ container, bounds });
-	if (edges)
+	if (inXY)
 		return true;
-	--index; 
+	--tIndex;  // !!! weird that this backs up one only -- what if prior contour is empty?
 	set(axis);
 	return true;
 }
@@ -43,26 +43,30 @@ void RayTargets::build(OpEdge* edge) {
 }
 
 void RayTargets::reset(Axis axis) {
-	index = SIZE_MAX;
+	tIndex = SIZE_MAX;
 	set(axis); 
 }
 
 void RayTargets::set(Axis axis) {
 	edgeIndex = SIZE_MAX;
 	for (;;) {
-		edges = nullptr;
-		if (++index >= t.size())
+		inXY = nullptr;
+    #if OP_DEBUG_DUMP
+		debugEdgesContour = nullptr;
+		debugEdgesAxis = Axis::neither;
+	#endif
+		if (++tIndex >= t.size())
 			return;
-		RayTarget& target = t[index];
+		RayTarget& target = t[tIndex];
 		OpContour* contour = target.contour;
 		if (!contour)
 			continue;
-		edges = Axis::horizontal == axis ? &contour->inX : &contour->inY;	
+		inXY = Axis::horizontal == axis ? &contour->inX : &contour->inY;	
     #if OP_DEBUG_DUMP
         debugEdgesContour = contour;
         debugEdgesAxis = axis;
     #endif
-		if (!edges->empty())
+		if (!inXY->empty())
 			return;
 	}
 }
@@ -78,19 +82,19 @@ OpEdge* RayTargets::next(Axis axis, float homeCept) {
 	OpRect bounds;
     OpVector threshold = context->threshold;
     float thresXY = threshold.choice(uppity);
-	while (edges) {
+	while (inXY) {
 		// advance to furthest that could influence the sum winding of this edge
-		if (edgeIndex >= edges->size()) {  
+		if (edgeIndex >= inXY->size()) {  
 			edgeIndex = 0;
 			do {
-				bounds = (*edges)[edgeIndex]->bounds();
-			} while (bounds.ltChoice(uppity) - thresXY <= homeCept && ++edgeIndex < edges->size());
+				bounds = (*inXY)[edgeIndex]->bounds();
+			} while (bounds.ltChoice(uppity) - thresXY <= homeCept && ++edgeIndex < inXY->size());
 			if (0 == edgeIndex--) {
 				set(axis);
 				continue;
 			}
 		}
-		OpEdge* result = (*edges)[edgeIndex];
+		OpEdge* result = (*inXY)[edgeIndex];
 		bounds = result->bounds();
 		OP_ASSERT(bounds.ltChoice(uppity) - thresXY <= homeCept);
 		if (0 == edgeIndex--)
@@ -848,7 +852,7 @@ FoundIntercept OpWinder::FindACept(OpEdge* edge) {
 				continue;
 			}
 			if (FindCept::unsortable == findCept)
-				return FoundIntercept::fail;
+				goto tryADifferentCenter;  // !!! was return FoundIntercept::fail; which did not set edge to unsortable
 		}
 		if (ray.distances.size() <= 1) 
 			return FoundIntercept::yes;
@@ -1174,10 +1178,27 @@ FoundWindings OpWinder::SetWindings(OpContext& context) {
 					OP_ASSERT(Axis::horizontal == axis);
 					edge->ray.distances.clear();
 				}
-//				start here;
+			#if 0  // some variant of this may be needed to debug more issues like this
 				// edge 332 cannot add 304 because it is too close when axis is horizontal so 
 				//  it tries vertical next. While this works, it means some 332/304 pairs in
 				//  ray distances are horizontal and unsectable, and some are vertical and sectable
+				if (350 == edge->id || 351 == edge->id || 390 == edge->id) {
+					OpEdge* e350 = findEdge(350);
+					OpEdge* e351 = findEdge(351);
+					OpEdge* e390 = findEdge(390);
+					auto axisStr = [](OpEdge* e) {
+						Axis a = e->ray.axis;
+						const char* aCh = Axis::vertical == a ? "v" : Axis::horizontal == a ? "h" 
+								: "-";
+						std::string s = STR(e->id) + " axis:" + STR(aCh) + " ";
+						if (Unsortable::none != e->isUnsortable)
+							s += "u ";
+						return s;
+					};
+					OpDebugOut("edge:" + STR(edge->id) + " " + axisStr(e350) + axisStr(e351) 
+							+ axisStr(e390) + "\n");
+				}
+			#endif
 			}
 			firstTry = false;
 			std::sort(edges.begin(), edges.end(), [](const OpEdge* s1, const OpEdge* s2) {

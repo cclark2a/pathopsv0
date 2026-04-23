@@ -1,6 +1,5 @@
 // (c) 2026, Cary Clark cclark2@gmail.com
 // the test below is optimized for speed, reduced memory, and random access
-#include "TinySkia.h"
 #include "TinySkiaTests.h"
 
 // four rects, of four sizes

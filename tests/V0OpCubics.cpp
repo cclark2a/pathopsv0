@@ -1,7 +1,6 @@
 // (c) 2025, Cary Clark cclark2@gmail.com
 // originally skia's PathOpsOpCubicThreadedTest.cpp,
 // optimized for speed, reduced memory, and random access
-#include "TinySkia.h"
 #include "TinySkiaTests.h"
 
 // Skia tests omitted reverse difference; put those tests at the end to preserve numbering

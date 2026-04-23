@@ -1,7 +1,6 @@
 // (c) 2026, Cary Clark cclark2@gmail.com
 // originally skia's PathOpsInverseTest.cpp,
 // optimized for speed, reduced memory, and random access
-#include "TinySkia.h"
 #include "TinySkiaTests.h"
 
 void V0Inverse(TestOptions* options) {

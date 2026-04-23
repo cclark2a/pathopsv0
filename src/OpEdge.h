@@ -143,11 +143,13 @@ struct RayTargets {
 	DUMP_DECLARATIONS
 
     OpContext* context;  // to access threshold
+	// built from edge and its contour and overlapping contours
 	std::vector<RayTarget> t;
-	std::vector<OpEdge*>* edges = nullptr;
 	OpRect chainBounds;
-	size_t edgeIndex = SIZE_MAX;
-	size_t index = SIZE_MAX;
+	// current set of edges from nth ray target
+	std::vector<OpEdge*>* inXY = nullptr;  // either inX or inY from t[t index].contour
+	size_t edgeIndex = SIZE_MAX;  // index into inX or inY
+	size_t tIndex = SIZE_MAX;  // index into ray target
 #if OP_DEBUG_SERIALIZE  // edges is set from contour + axis, so track them
     OpContour* debugEdgesContour = nullptr;
     Axis debugEdgesAxis = Axis::neither;
