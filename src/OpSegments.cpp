@@ -88,11 +88,13 @@ std::vector<OpIntersection*> OpSegments::AddEndMatches(OpSegment* seg, OpSegment
 }
 
 // somewhat different from winder's edge based version, probably for no reason
-void OpSegments::addLineCurveIntersection(OpSegment* opp, OpSegment* seg,
+FoundIntersections OpSegments::addLineCurveIntersection(OpSegment* opp, OpSegment* seg,
 		std::vector<OpIntersection*>& matchingSects) {
 	OP_ASSERT(opp != seg);
 	OP_ASSERT(seg->c.debugIsLine());
 	OpCurveCurve cc(seg, opp, matchingSects, ForCurveLineSect::dummy);
+	if (cc.overflowFail)
+			return FoundIntersections::fail;
 	OpRoots oppRoots = seg->c.lineIntersection(opp->c);
 	OP_DEBUG_CODE(MatchReverse matchRev = opp->matchEnds(seg));
 	if (2 == oppRoots.count() && opp->c.isLine()) {
@@ -101,7 +103,7 @@ void OpSegments::addLineCurveIntersection(OpSegment* opp, OpSegment* seg,
 	#else
 		OpWinder::CoincidentCheck(seg, opp);
 	#endif
-		return;
+		return FoundIntersections::yes;
 	}
 	OP_ASSERT(oppRoots.fail != RootFail::rawIntersectFailed);
 	OP_ASSERT(!opp->c.isLine() || MatchEnds::both != matchRev.match);
@@ -171,7 +173,7 @@ void OpSegments::addLineCurveIntersection(OpSegment* opp, OpSegment* seg,
 		++index;
 	}
 	if (!sectE)
-		return;
+		return FoundIntersections::yes;
 	float midT = OpMath::Average(sectS->ptT.t, sectE->ptT.t);
 	// distance from seg point at midT normal to opp segment
 	OpPtT midPtT = seg->c.ptTAtT(midT);
@@ -208,7 +210,7 @@ void OpSegments::addLineCurveIntersection(OpSegment* opp, OpSegment* seg,
 	#else
 		deferredCoinSects.push_back( { sectS, sectE } );
 	#endif
-		return;
+		return FoundIntersections::yes;
 	} 
 	PathOpsV0Lib::ContextCallbacks& cb = seg->contour->context->contextCallbacks;
 	float unsectDist = cb.maxUnsectDistFuncPtr ? cb.maxUnsectDistFuncPtr(seg->c.c) : 8.0f;
@@ -228,6 +230,7 @@ void OpSegments::addLineCurveIntersection(OpSegment* opp, OpSegment* seg,
 		opp->addUnsectable(oEnd->ptT, usectID, endFromT(oStart, oEnd, MatchEnds::end), seg
 				OP_LINE_FILE_PARGS());
 	}
+	return FoundIntersections::yes;
 }
 
 void OpSegments::AddEndMatches(OpContour* contour, OpContour* oContour) {
@@ -433,7 +436,7 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 				return true;
 		}
 #endif
-		addLineCurveIntersection(opp, seg, matchingSects);
+		found = addLineCurveIntersection(opp, seg, matchingSects);
 		return true;
 	} else if (opp->c.isLine()) {
 		SwapEndMatches(matchingSects);
@@ -442,7 +445,7 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 	}
 	// look for curve curve intersections (skip coincidence already found)
 	OpCurveCurve cc(seg, opp, matchingSects);
-	if (cc.boundedEdgeFailed) {
+	if (cc.boundedEdgeFailed || cc.overflowFail) {
 		found = FoundIntersections::fail;
 		OP_DEBUG_CODE(cc.context->debugCurveCurve = nullptr);
 		return false;
@@ -452,7 +455,10 @@ bool OpSegments::findIntersection(OpSegment* seg, OpSegment* opp) {
 		return true;
 	}
 	SectFound ccResult = cc.divideAndConquer();
-	OP_DEBUG_DUMP_CODE(cc.context->dumpFile("curve:" + STR(seg->id) + " curve:" + STR(opp->id)));
+#if OP_DEBUG_DUMP
+	if (!cc.debugBreak(CcBreak::dumpFile))
+		cc.context->dumpFile("curve:" + STR(seg->id) + " curve:" + STR(opp->id));
+#endif
 #if OP_DEBUG && !OP_DEBUGGER && !OP_DEBUG_FAST_TEST
 	if (!cc.debugBreak(CcBreak::atEnd)) {
 		OP_DEBUG_DUMP_CODE(cc.limits.dump());

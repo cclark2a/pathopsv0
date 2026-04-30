@@ -31,8 +31,12 @@ void OpIntersection::setCoin(int cid, MatchEnds end, CoinOpp co) {
 bool OpIntersection::setMerge(int masterID, OpPoint masterPt, MergeType mergeType) {
 	mergeID = masterID;
 	ptT.pt = masterPt;
-	if (MergeType::midPoint == mergeType && opp->unsectID)
-		return false;
+	if (MergeType::midPoint == mergeType) {
+		if (opp->unsectID)
+			return false;
+		if (opp->mergeID == masterID && opp->ptT.pt == masterPt)
+			return true;
+	}
 	if (opp->mergeID && opp->mergeID != masterID)
 		opp->segment->mergeMultiple(masterPt, masterID, opp->ptT.pt, opp->mergeID);
 	else {
@@ -40,7 +44,7 @@ bool OpIntersection::setMerge(int masterID, OpPoint masterPt, MergeType mergeTyp
 		opp->mergeID = masterID;
 		opp->ptT.pt = masterPt;
 	}
-    if (MergeType::midPoint == mergeType)
+    if (MergeType::midPoint == mergeType && !opp->segment->disabled)
 	    opp->segment->setUnmerged();
 	return true;
 }

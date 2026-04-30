@@ -28,26 +28,31 @@ enum class Skippable {
 struct TinySuite {
     void (*func)(TestOptions* );
     std::string name;
-    std::string baseName;
     Skippable skippable;
 };
 
 std::vector<TinySuite> tinySuites = {
-    { V0Battles, "battle", "testBattles", Skippable::no },
-    { V0Chalkboard, "chalkboard", "testChalkboard", Skippable::yes },
-    { V0Fuzz763, "fuzz763", "testFuzz", Skippable::no },
-    { V0Inverse, "inverse", "testInverse", Skippable::no },
-    { V0Issue3651, "issue3651", "testIssue", Skippable::no },
-    { V0OpCircles, "circle", "testCircles", Skippable::yes },
-    { V0OpCubics, "cubic", "testCubics", Skippable::yes },
-    { V0OpLoops, "loop", "testLoops", Skippable::yes },
-    { V0OpRects, "rect", "testRects", Skippable::yes },
-    { V0OpFastRects, "fast", "fastRects", Skippable::yes },
-    { V0SimplifyDegenerates, "degenerate", "testDegenerates", Skippable::yes },
-    { V0SimplifyFail, "fail", "testFail", Skippable::no },
-    { V0SimplifyQuadralaterals, "quadralateral", "testQuadralaterals", Skippable::yes },
-    { V0SimplifyQuads, "quad", "testQuads", Skippable::yes },
-    { V0SimplifyTriangles, "triangle", "testTriangles", Skippable::yes },
+    { V0Battles, "battle", Skippable::no },
+    { V0Chalkboard, "chalkboard", Skippable::yes },
+    { V0Fuzz763, "fuzz763", Skippable::no },
+    { V0Inverse, "inverse", Skippable::no },
+    { V0Issue3651, "issue3651", Skippable::no },
+    { V0Op, "op", Skippable::no },
+    { V0OpCircles, "circle", Skippable::yes },
+    { V0OpCubics, "cubic", Skippable::yes },
+    { V0OpFail, "opFail", Skippable::no },
+    { V0OpLoops, "loop", Skippable::yes },
+    { V0OpRects, "opRect", Skippable::yes },
+    { V0OpFastRects, "fastRect", Skippable::yes },
+    { V0Simplify, "simplify", Skippable::no },
+    { V0SimplifyDegenerates, "degenerate", Skippable::yes },
+    { V0SimplifyFail, "simplifyFail", Skippable::no },
+    { V0SimplifyQuadralaterals, "quadralateral", Skippable::yes },
+    { V0SimplifyQuads, "quad", Skippable::yes },
+    { V0SimplifyRects, "simplifyRect", Skippable::yes },
+    { V0SimplifyTriangles, "triangle", Skippable::yes },
+//  { V0Tiger, "tiger", Skippable::yes },
+//  { V0Tests, "v0", Skippable::no },
 };
 
 thread_local std::string currentTest;  // can't be in a struct
@@ -108,7 +113,7 @@ void TinyState::addADot(const OpDebugData& debugData) {
     std::lock_guard<std::mutex> guard(out_mutex);
 #endif
     ++testsRun;
-	if (debugData.error >= .12f) {
+	if (debugData.error >= .12f && debugData.showError) {
 	    std::string testname = debugData.testname;
 	    OpDebugOut(testname + " raster errors:" + STR(debugData.error) + "\n");
     }
@@ -251,10 +256,17 @@ static void dumpSimplifyTest(std::string testname, const SkPath& path, std::stri
 }
 
 bool TestOptions::testOne(SkPath& a, SkPath& b, TinyOps op) {
+    // !!! add support for TEST_PATH_SKIP_TESTS
     ++index;
+    bool reportRasterErr = !ignoreRaster;
+    ignoreRaster = false;
     if (--skip >= 0)
         return true;
     testName = customName.empty() ? baseName + STR(index) : customName;
+    for (std::string skipName : TEST_PATH_SKIP_TESTS) {
+        if (testName == skipName)
+            return true;
+    }
     using namespace PathOpsV0Lib;
     Context* context = CreateContext();
     SkPath out;
@@ -262,8 +274,8 @@ bool TestOptions::testOne(SkPath& a, SkPath& b, TinyOps op) {
     AddUserData(context, data);
     OpDebugData debugData(testName, 
             v0MayFail ? OpDebugExpect::fail : OpDebugExpect::success, 
-            CURVE_CURVE_1, CURVE_CURVE_2, CURVE_CURVE_DEPTH, 
-            tinyState.defeatBreak, TEST_DEFEAT_DUMPS, tinyState.runOne || runOne);
+            CURVE_CURVE_1, CURVE_CURVE_2, CURVE_CURVE_DEPTH, CURVE_CURVE_DUMP,
+            tinyState.defeatBreak, TEST_DEFEAT_DUMPS, tinyState.runOne || runOne, reportRasterErr);
     OP_DEBUG_CODE(SetDebugData(context, debugData));
     SetSkiaContextCallbacks(context);
     SetSkiaCurveCallbacks(context);
@@ -336,12 +348,14 @@ void TinyState::test() {
     for (const TinySuite& tinySuite : tinySuites) {
         if (!tinyState.skipTo.empty() && tinyState.skipTo != tinySuite.name)
             continue;
-        options.baseName = tinySuite.baseName;
+        options.baseName = tinySuite.name;
+        if (isdigit(options.baseName.back()))
+            options.baseName += "_";
         if (!OP_DEBUG_FAST_TEST) {
             if (!testFirst.empty()) {
                 if (Skippable::yes == tinySuite.skippable) {
                     const char* firstStr = testFirst.c_str();
-                    options.skip = OpDebugReadNamedInt(firstStr, tinySuite.baseName.c_str());
+                    options.skip = OpDebugReadNamedInt(firstStr, options.baseName.c_str());
 //                    OP_ASSERT(options.skip > 0);
                     options.skip -= 1;
                 } else

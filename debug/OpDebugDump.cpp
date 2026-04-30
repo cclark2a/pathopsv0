@@ -2555,9 +2555,7 @@ void OpLimb::dumpSet(const char*& str) {
     linkedContour = (OpContour*) (OpDebugOptional(str, "linkedContour") ? OpDebugReadSizeT(str) : 0);
     ASSERT_ORDERED(linkedContour, lastT);
     lastT = OpDebugReadNamedFloat(str, "lastT");
-    ASSERT_ORDERED(lastT, gapDistance);
-    gapDistance = OpDebugReadNamedFloat(str, "gapDistance");
-    ASSERT_ORDERED(gapDistance, closeDistance);
+    ASSERT_ORDERED(lastT, closeDistance);
     closeDistance = OpDebugReadNamedFloat(str, "closeDistance");
     ASSERT_ORDERED(closeDistance, linkedIndex);
     linkedIndex = (uint32_t) (OpDebugOptional(str, "linkedIndex") ? OpDebugReadSizeT(str) : OpMax);
@@ -2573,7 +2571,7 @@ void OpLimb::dumpSet(const char*& str) {
     looped = OpDebugBool(str, "looped");
     ASSERT_ORDERED(looped, resetPass);
     resetPass = OpDebugBool(str, "resetPass");
-    ASSERT_SERIAL_OFFSET(*this, resetPass, 2, debugBranches);
+    ASSERT_SERIAL_OFFSET(*this, resetPass, 6, debugBranches);
     if (OpDebugOptional(str, "debugBranches")) {
         size_t count = OpDebugReadSizeT(str);
         for (size_t index = 0; index < count; ++index)

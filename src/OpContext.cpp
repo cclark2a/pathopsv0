@@ -339,10 +339,32 @@ void OpContext::mergeIntersections() {
 #endif
 #if OP_DEBUG
 	PathOpsV0Lib::DebugValue debugMerge = debugContextCallbacks.debugMergeFuncPtr;
-	int debugSafetyCount = debugMerge ? (*debugMerge)() : 10;
+	int debugSafetyCount = debugMerge ? (*debugMerge)() : 20;
 #endif
 	// merge remaining mid points
 	for (size_t index = 0; index < contours.size(); ++index) {
+#if 0 && OP_DEBUG
+		std::string s = "safety:" + STR(debugSafetyCount) + " index:" + STR(index) + " !segMerged[";
+		for (OpContour* c : contours) {
+			if (!c->segMerged)
+				s += STR(c->id) + " ";
+		}
+		if (' ' == s.back())
+			s.pop_back();
+		s += "] !merged ";
+		for (OpContour* c : contours) {
+			s += "contour:" + STR(c->id) + " [";
+			for (const OpSegment& seg : c->segments) {
+				if (!seg.merged)
+					s += STR(seg.id) + " ";
+			}
+			if (' ' == s.back())
+				s.pop_back();
+			s += "] ";
+		}
+		OpDebugOut(s + "\n");
+
+#endif
 		OP_ASSERT(0 <= index && index < contours.size());
 		OpContour* contour = contours[index]; 
 		if (contour->segMerged)

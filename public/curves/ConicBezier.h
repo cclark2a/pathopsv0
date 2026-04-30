@@ -13,7 +13,7 @@ struct PointWeight {
     }
 
     PointWeight(Curve c) {
-        OP_ASSERT(sizeof(PointWeight) == c.size - CurveUserDataOffset());
+        OP_ASSERT(sizeof(PointWeight) <= c.size - CurveUserDataOffset());
         const char* data = (const char*) CurveUserData(c.data);
         std::memcpy(&pt, data, sizeof pt);
         data += sizeof pt;

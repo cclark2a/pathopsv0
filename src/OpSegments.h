@@ -25,7 +25,7 @@ struct DeferredCoinEnd {
 struct OpSegments {
 	OpSegments(OpContext& );
 	static std::vector<OpIntersection*> AddEndMatches(OpSegment* seg, OpSegment* opp);
-	void addLineCurveIntersection(OpSegment* opp, OpSegment* seg, 
+	FoundIntersections addLineCurveIntersection(OpSegment* opp, OpSegment* seg, 
 			std::vector<OpIntersection*>& matchingSects);
     static void AddEndMatches(OpContour* seg, OpContour* opp);
 	void checkCoins();  // coincident check after finding sects and merging their points

@@ -44,16 +44,20 @@ std::string CompareLabel::labelAt(int index) {
     std::string postfix;
     switch (sample.sampleType) {
         case SampleType::contourInput:
-            OP_ASSERT(1 == index || 2 == index);
-            postfix = inputName(index - 1);
+            if (!names.empty()) {
+                OP_ASSERT(1 == index || 2 == index);
+                postfix = inputName(index - 1);
+            }
             strIdx = 2;
             break;
         case SampleType::contourResolved:
             strIdx = 1;
             break;
         case SampleType::segmentInput:
-            OP_ASSERT(3 == index || 4 == index);
-            postfix = inputName(index - 3);
+            if (!names.empty()) {
+                OP_ASSERT(3 == index || 4 == index);
+                postfix = inputName(index - 3);
+            }
             strIdx = 3;
             break;
         case SampleType::segmentResolved:

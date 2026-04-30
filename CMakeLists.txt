@@ -101,14 +101,17 @@ set (SKIA_TESTS
     "tests/V0Fuzz763.cpp"
     "tests/V0Inverse.cpp"
     "tests/V0Issue3651.cpp"
+    "tests/V0Op.cpp"
     "tests/V0OpCircles.cpp"
     "tests/V0OpCubics.cpp"
     "tests/V0OpLoops.cpp"
     "tests/V0OpRects.cpp"
+    "tests/V0Simplify.cpp"
     "tests/V0SimplifyDegenerates.cpp"
     "tests/V0SimplifyFail.cpp"
     "tests/V0SimplifyQuads.cpp"
     "tests/V0SimplifyQuadralaterals.cpp"
+    "tests/V0SimplifyRect.cpp"
     "tests/V0SimplifyTriangles.cpp"
 )
 

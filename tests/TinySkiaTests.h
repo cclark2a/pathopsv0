@@ -44,6 +44,7 @@ struct TestOptions {
     bool extended = true;
     bool v0MayFail = false;
     bool testCountCheck = true;
+    bool ignoreRaster = false;  // set true for fuzz tests with large values
 };
 
 extern void V0Battles(TestOptions* );
@@ -51,15 +52,19 @@ extern void V0Chalkboard(TestOptions* );
 extern void V0Fuzz763(TestOptions* );
 extern void V0Inverse(TestOptions* );
 extern void V0Issue3651(TestOptions* );
+extern void V0Op(TestOptions* );
 extern void V0OpCircles(TestOptions* );
 extern void V0OpCubics(TestOptions* );
+extern void V0OpFail(TestOptions* );
 extern void V0OpLoops(TestOptions* );
 extern void V0OpRects(TestOptions* );
 extern void V0OpFastRects(TestOptions* );
+extern void V0Simplify(TestOptions* );
 extern void V0SimplifyDegenerates(TestOptions* );
 extern void V0SimplifyFail(TestOptions* );
 extern void V0SimplifyQuadralaterals(TestOptions* );
 extern void V0SimplifyQuads(TestOptions* );
+extern void V0SimplifyRects(TestOptions* );
 extern void V0SimplifyTriangles(TestOptions* );
 
 #endif

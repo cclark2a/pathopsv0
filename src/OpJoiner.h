@@ -108,6 +108,7 @@ struct OpLimb {
 	OpLimb* tryAdd(OpTree& , OpEdge* , EdgeMatch , LimbPass , 
 			OpContour* limbContour = nullptr,
 			size_t index = 0, OpEdge* first = nullptr);
+	void tryPal(OpTree& , OpLimb* parent, OpLimb* limb, EdgeMatch );
 	DUMP_DECLARATIONS
 #if OP_DEBUG_SERIALIZE
 	std::string debugDumpIDs(DebugLevel , bool bracket) const;
@@ -120,7 +121,6 @@ struct OpLimb {
 	const OpLimb* parent  OP_DEBUG_INIT_PTR(const OpLimb);
 	OpContour* linkedContour  OP_DEBUG_INIT_PTR(OpContour);
 	float lastT  OP_DEBUG_INIT_FLOAT();
-	float gapDistance  OP_DEBUG_INIT_FLOAT();
 	float closeDistance  OP_DEBUG_INIT_FLOAT();
 	uint32_t linkedIndex  OP_DEBUG_INIT_UINT();
 	EdgeMatch match  OP_DEBUG_INIT(EdgeMatch); // end of edge that matches last point in parent limb
@@ -136,6 +136,11 @@ struct OpLimb {
 #endif
 };
 
+enum class FillerGap {
+	no,
+	yes
+};
+
 // !!! eventually (if this works) add tree (or limb storage) to joiner
 // prefer the looped limb with the smallest perimeter 
 struct OpTree {
@@ -144,7 +149,7 @@ struct OpTree {
 	OP_DEBUG_CODE(~OpTree());
 //	void addAlternateEnd();
 	void addDisabled(OpContour& );
-	OpEdge* addFiller(OpSegment* , OpPoint , OpPoint , bool fromCC);
+	OpEdge* addFiller(OpSegment* , OpPoint , OpPoint , FillerGap );
 //	void addUnsectableLoop(OpJoiner& , OpLimb* );
 	bool contains(OpLimb* , OpEdge* ) const;
 	bool containsFiller(OpLimb* , OpPoint , OpPoint ) const;

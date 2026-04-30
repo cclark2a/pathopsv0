@@ -858,7 +858,8 @@ MatchReverse OpSegment::matchEnds(const OpSegment* opp) const {
 }
 
 bool OpSegment::mergeEndPoints() {
-	if (disabled) {
+	if (disabled || sects.i.front()->ptT.t == sects.i.back()->ptT.t) {
+		disabled = true;
 		endsMerged = true;
 		return false;
 	}

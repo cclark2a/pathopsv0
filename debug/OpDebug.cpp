@@ -765,9 +765,9 @@ bool OpCurveCurve::debugBreak(CcBreak atDepth) {
     if (CcBreak::atDepth == atDepth && !context->debugData.curveCurveDepth)
         return true;
     if (context->debugData.curveCurve1 != seg->id && context->debugData.curveCurve2 != seg->id)
-        return true;
+        return CcBreak::dumpFile != atDepth && !context->debugData.dumpAllCcs;
     if (context->debugData.curveCurve1 != opp->id && context->debugData.curveCurve2 != opp->id)
-        return true;
+        return CcBreak::dumpFile != atDepth && !context->debugData.dumpAllCcs;
     if (CcBreak::atDepth == atDepth && depth < context->debugData.curveCurveDepth)
 		return true;
     std::string s = "OpCurveCurve ";

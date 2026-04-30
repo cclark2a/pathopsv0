@@ -545,8 +545,8 @@ void threadablePathOpTest(int id, const SkPath& a, const SkPath& b,
     SkPath result;
     result.setFillType(SkPathFillType::kEvenOdd);  // !!! workaround
     OpDebugData debugData(testname, v0MayFail ? OpDebugExpect::fail : OpDebugExpect::success,
-            CURVE_CURVE_1, CURVE_CURVE_2, CURVE_CURVE_DEPTH, 
-            defeatBreak, TEST_DEFEAT_DUMPS, runOneFile
+            CURVE_CURVE_1, CURVE_CURVE_2, CURVE_CURVE_DEPTH, CURVE_CURVE_DUMP,
+            defeatBreak, TEST_DEFEAT_DUMPS, runOneFile, true
         );
 #if OP_DEBUG_SERIALIZE
     if (runOneFile)
@@ -688,8 +688,8 @@ void threadableSimplifyTest(int id, const SkPath& path, std::string testname,
 		return;
     out.setFillType(SkPathFillType::kEvenOdd); // !!! workaround
     OpDebugData debugData(testname, v0MayFail ? OpDebugExpect::fail : OpDebugExpect::success, 
-            CURVE_CURVE_1, CURVE_CURVE_2, CURVE_CURVE_DEPTH, 
-            defeatBreak, TEST_DEFEAT_DUMPS, runOneFile
+            CURVE_CURVE_1, CURVE_CURVE_2, CURVE_CURVE_DEPTH, CURVE_CURVE_DUMP,
+            defeatBreak, TEST_DEFEAT_DUMPS, runOneFile, true
         );
 #if TEST_ANALYZE
 	debugData.limitContours = 165;

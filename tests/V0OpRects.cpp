@@ -1,4 +1,5 @@
 // (c) 2026, Cary Clark cclark2@gmail.com
+// originally Skia's PathOpsOpRectThreadedTest.cpp;
 // the test below is optimized for speed, reduced memory, and random access
 #include "TinySkiaTests.h"
 

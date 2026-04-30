@@ -143,12 +143,13 @@ static void chalkboard_threaded(TestOptions* options) {
 static bool chalkboard_1(TestOptions* options) {
     if (options->skipTests(1))
         return false;
-    options->customName = __FUNCTION__;
+    options->customName = __func__;
     return !chalkboard(options, 0xFFFFFFFFFFFFFFFFLL) || 0 == options->toRun;
 }
 
 void V0Chalkboard(TestOptions* options) {
     if (chalkboard_1(options))
         return;
+    options->customName = "";
     chalkboard_threaded(options);
 }

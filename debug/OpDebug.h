@@ -99,15 +99,17 @@ struct OpDebugRaster;
 struct OpDebugData {
 	OpDebugData() {}
 	OpDebugData(std::string tn, OpDebugExpect expected, int cc1, int cc2, int ccDepth, 
-			bool noBreaks, bool noDumps, bool runOne) 
+			bool ccAll, bool noBreaks, bool noDumps, bool runOne, bool showErr) 
 		: testname(tn)
 		, expect(expected)
         , curveCurve1(cc1)
         , curveCurve2(cc2)
         , curveCurveDepth(ccDepth)
+		, dumpAllCcs(ccAll)
 		, defeatBreak(noBreaks)
 		, defeatDumps(noDumps)
-        , runOneFile(runOne) {
+        , runOneFile(runOne)
+		, showError(showErr) {
 	}
 
 	std::string testname;
@@ -117,10 +119,12 @@ struct OpDebugData {
 	int curveCurveDepth = -1;
 	int limitContours = 0;
 	float error = 0;
+	bool dumpAllCcs = true;
 	bool defeatBreak = false;
 	bool defeatDumps = false;
 	bool limitReached = false;
 	bool runOneFile = false;
+	bool showError = true;
 	bool success = true;
 };
 

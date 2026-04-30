@@ -83,7 +83,6 @@ bool DebuggerAddPoly::add(const PathOpsV0Lib::Curve& c) {
     std::sort(sects.begin(), sects.end(), [](const auto& s1, const auto& s2) {
 			return s1.sect.t < s2.sect.t; } );
     DebugSect* last = &sects.front();
-//    OpBreak(&opType, 70);
     for (DebugSect& sect : sects) {
         if (last->sect.t == sect.sect.t)
             sect.pin &= last->pin;

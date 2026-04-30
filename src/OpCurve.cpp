@@ -690,19 +690,15 @@ static PathOpsV0Lib::LoopAttribute loopAttribute(bool firstPt, bool lastPt, bool
 	return (PathOpsV0Lib::LoopAttribute) ((int) firstPt | (int) lastPt << 1 | (int) reversed << 2); 
 }
 
-PathOpsV0Lib::WindKeep OpCurve::bestLoop(PathOpsV0Lib::Winding w, 
-		bool firstPt, bool lastPt  OP_DEBUG_PARAMS(int parentID)) {
-    PathOpsV0Lib::CurveOutput bestLoop = context().contextCallbacks.bestLoopFuncPtr;
-    if (bestLoop) {
-    	context().initOutOnce();
-        PathOpsV0Lib::CurveType curveType = c.type;
-        if (!curveType)
-            curveType = lineType();
-        PathOpsV0Lib::Curve curve { c.context, c.data, c.size, context().nativeCurveTypes[curveType] };
-        PathOpsV0Lib::LoopAttribute attr = loopAttribute(firstPt, lastPt, reversed);
-	    return (*bestLoop)({ curve, w, attr });
-    }
-    return PathOpsV0Lib::WindKeep::Discard;
+PathOpsV0Lib::WindKeep OpCurve::bestLoop(PathOpsV0Lib::CurveOutput curveOutput, 
+	PathOpsV0Lib::Winding w, bool firstPt, bool lastPt  OP_DEBUG_PARAMS(int parentID)) {
+	context().initOutOnce();
+	PathOpsV0Lib::CurveType curveType = c.type;
+	if (!curveType)
+		curveType = lineType();
+	PathOpsV0Lib::Curve curve { c.context, c.data, c.size, context().nativeCurveTypes[curveType] };
+	PathOpsV0Lib::LoopAttribute attr = loopAttribute(firstPt, lastPt, reversed);
+	return (*curveOutput)({ curve, w, attr });
 }
 
 PathOpsV0Lib::WindKeep OpCurve::output(PathOpsV0Lib::Winding w, 

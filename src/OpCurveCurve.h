@@ -232,14 +232,14 @@ struct SnipPtTs {
 struct FoundLimits {
 	FoundLimits(OpCurveCurve* c_c) {
 		cc = c_c; }
-	void addSnip(const OpPtT& s, const OpPtT& o);
-	void addSnipCommon(SnipPtTs& snipLo, SnipPtTs& snipHi);
+	bool addSnip(const OpPtT& s, const OpPtT& o);
+	bool addSnipCommon(SnipPtTs& snipLo, SnipPtTs& snipHi);
 	bool addSnipRange(size_t oldCount);
 	bool alreadyIn(const OpPtT& edgePtT, const OpPtT& oppPtT) const;
-	void cutPair(SnipPtTs& lo, SnipPtTs& hi) const;
+	bool cutPair(SnipPtTs& lo, SnipPtTs& hi) const;
 	bool empty() const { return i.empty(); }
 	void markOutOfOrder();
-	void setEnds(std::vector<OpIntersection*>& matchingSects);
+	bool setEnds(std::vector<OpIntersection*>& matchingSects);
 	void setEdge(const OpEdge* );
 	void setOpp(const OpEdge* );
 	void setUnique();
@@ -278,7 +278,8 @@ struct DebugRunSize {
 #if OP_DEBUG
 enum class CcBreak {
 	atEnd,
-	atDepth
+	atDepth,
+	dumpFile,
 };
 #endif
 
@@ -382,6 +383,7 @@ struct OpCurveCurve {
 	bool foundGap  OP_DEBUG_INIT_BOOL();
 	bool splitMid  OP_DEBUG_INIT_BOOL();
 	bool splitHullFail  OP_DEBUG_INIT_BOOL();  // set true if mid t is nearly equal to an end 
+	bool overflowFail = false;  // set if intermediate (such as length) is inf or nan
 #if OP_DEBUG_DUMP
 	bool debugDumpOn = false;
 #endif

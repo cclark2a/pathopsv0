@@ -56,7 +56,7 @@ struct OpCurve {
 		return OpRect(start, end); }
 	OpRoots axisRayHit(Axis offset, float axisIntercept, float start = 0, float end = 1) const;
 	OpRoots axisRawHit(Axis offset, float axisIntercept, MatchEnds) const;
-	PathOpsV0Lib::WindKeep bestLoop(PathOpsV0Lib::Winding , 
+	PathOpsV0Lib::WindKeep bestLoop(PathOpsV0Lib::CurveOutput , PathOpsV0Lib::Winding , 
 			bool firstPt, bool lastPt  OP_DEBUG_PARAMS(int parentID));
 	OpRect callerBounds() const {
 		return OpRect(c.data->start, c.data->end); }

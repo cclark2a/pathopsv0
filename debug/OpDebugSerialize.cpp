@@ -2246,10 +2246,7 @@ std::string OpLimb::debugDump(DebugLevel l, DebugBase b) const {
     ASSERT_ORDERED(linkedContour, lastT);
     if (!OpMath::IsDebugNaN(lastT))
         s += "lastT:" + debugFloat(l, lastT) + " ";
-    ASSERT_ORDERED(lastT, gapDistance);
-    if (!OpMath::IsDebugNaN(gapDistance))
-        s += "gapDistance:" + debugFloat(l, gapDistance) + " ";
-    ASSERT_ORDERED(gapDistance, closeDistance);
+    ASSERT_ORDERED(lastT, closeDistance);
     if (!OpMath::IsDebugNaN(closeDistance))
         s += "closeDistance:" + debugFloat(l, closeDistance) + " ";
     ASSERT_ORDERED(closeDistance, linkedIndex);
@@ -2271,7 +2268,7 @@ std::string OpLimb::debugDump(DebugLevel l, DebugBase b) const {
     ASSERT_ORDERED(looped, resetPass);
     s += BoolToStr(l, resetPass, "resetPass", "resetPass") + " ";
 #if OP_DEBUG_DUMP
-    ASSERT_SERIAL_OFFSET(*this, resetPass, 2, debugBranches);
+    ASSERT_SERIAL_OFFSET(*this, resetPass, 6, debugBranches);
     if (debugBranches.size()) {
         s += "debugBranches:" + STR(debugBranches.size()) + "[";
         for (auto limb : debugBranches)
@@ -2308,9 +2305,8 @@ std::string OpLimb::debugDumpIDs(DebugLevel l, bool bracket) const {
                 s += " (loop)";
             }
         }
-        if (gapDistance)
-            s += " gapD:" + debugFloat(l, gapDistance);
-        s += " closeD:" + debugFloat(l, closeDistance);
+        if (!OpMath::IsDebugNaN(closeDistance))
+            s += " closeD:" + debugFloat(l, closeDistance);
         if (bracket)
             s += "]";
     }
