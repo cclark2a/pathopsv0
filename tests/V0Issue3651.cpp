@@ -1650,37 +1650,16 @@ path.close();
     options->testOne(pathA, path, TinyOps::unite);
 }
 
-struct TestFunc {
-    void (*func)(TestOptions*);
-    std::string name;
-    bool mayFail = false;
-};
-
-#define TEST_FUNC(s) { &s, #s }
-#define TEST_FUNC_FAIL(s) { &s, #s, true }
-
-static std::vector<TestFunc> tests = {
-    TEST_FUNC(issue3651_6),
-    TEST_FUNC(issue3651_1a),
-    TEST_FUNC(issue3651_1),
-    TEST_FUNC(issue3651_7),
-    TEST_FUNC(issue3651_5),
-    TEST_FUNC(issue3651_4),
-    TEST_FUNC(issue3651_2),
-    TEST_FUNC(issue3651_3),
-};
-
-#undef TEST_FUNC
-
 void V0Issue3651(TestOptions* options) {
-    bool testOne = !options->testFirst.empty();
-    for (TestFunc& test : tests) {
-        if (testOne && test.name != options->testFirst)
-            continue;
-        options->customName = test.name;
-        options->v0MayFail = test.mayFail;
-        (*test.func)(options);
-        if (testOne)
-            return;
-    }
+    static std::vector<TestFunc> tests = {
+        TEST_FUNC(issue3651_6),
+        TEST_FUNC(issue3651_1a),
+        TEST_FUNC(issue3651_1),
+        TEST_FUNC(issue3651_7),
+        TEST_FUNC(issue3651_5),
+        TEST_FUNC(issue3651_4),
+        TEST_FUNC(issue3651_2),
+        TEST_FUNC(issue3651_3),
+    };
+    runTests(tests, options);
 }

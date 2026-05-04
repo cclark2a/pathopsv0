@@ -64,8 +64,10 @@ OpWinding::OpWinding(OpContext* context, DebugWindingZero)
 		w.size = (*countFuncPtr)((ContextPtr) context);
 	else {  // if windings bytes function is not provided: then
 		w.size = ((OpContour*) w.contour)->windingStorage.size();
+#if OP_DEBUG
 		for (OpContour* test : context->contours)  // all contours must have the same winding size
 			OP_ASSERT(w.size == test->windingStorage.size());
+#endif
 	}
 	w.data = context->allocateWinding(w.size, true);
 	zeroCommon();
@@ -74,8 +76,13 @@ OpWinding::OpWinding(OpContext* context, DebugWindingZero)
 OpWinding::OpWinding(const PathOpsV0Lib::Winding& wind, DebugWindingRef )
 	: w(wind)
 	, type(WindingType::copy)
+#if OP_DEBUG || OP_DEBUGGER
 	, debugType(DebugWindingType::winding)    // treat as already copied
-	, usedByRaster(true) {
+#endif
+#if OP_TEST_RASTER
+	, usedByRaster(true)
+#endif	
+	{
 }
 
 #endif

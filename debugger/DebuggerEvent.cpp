@@ -3,8 +3,6 @@
 #include "DebuggerWindow.h"
 #include "OpCurveCurve.h"
 
-extern int debugPrecision;  // not in an include to avoid breaking multi-threaded testing
-
 const std::array<std::string, 5> KeyCodeUTF8 {  "",  // key code : none
         "\xE2\x86\x90 ", "\xE2\x86\x91 ", "\xE2\x86\x92 ", "\xE2\x86\x93 " }; // lurd arrows
 

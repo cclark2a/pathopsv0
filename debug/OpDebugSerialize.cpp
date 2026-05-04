@@ -2288,7 +2288,7 @@ std::string OpLimb::debugDumpIDs(DebugLevel l, bool bracket) const {
     if (DebugLevel::file == l)
         return STR(id);
     std::string s = (bracket ? "[" : "id:") + STR(id);
-    if (edge) {
+    if (edge && edge != OP_DEBUG_INIT_VALUE(OpEdge)) {
         s += (bracket ? " e:" : " edge:") + STR(edge->id);
         if (EdgeMatch::none != match)
             s += EdgeMatch::start == match ? "s" : "e";
@@ -2549,7 +2549,8 @@ std::string OpTree::debugDump(DebugLevel l, DebugBase b) const {
         const OpLimb& limb = context->debugNthLimb(index);
 //		OpDebugFormat(s);
         s += limb.debugDumpIDs(l, true);
-        s += " parent:" + (limb.parent ? limb.parent->debugDumpIDs(l, true) : "-");
+        s += " parent:" + (limb.parent && limb.parent != OP_DEBUG_INIT_VALUE(OpLimb)
+                ? limb.parent->debugDumpIDs(l, true) : "-");
         if (limb.debugBranches.size()) {
             s += " children:";
             for (OpLimb* child : limb.debugBranches) {
@@ -2557,7 +2558,8 @@ std::string OpTree::debugDump(DebugLevel l, DebugBase b) const {
             }
             debugPopMatching(s, ' ');
         }
-        s += " treePass:" + LimbPassName(limb.treePass) + "\n";
+        if (LimbPass::uninitialized != limb.treePass)
+            s += " treePass:" + LimbPassName(limb.treePass) + "\n";
     }
     debugPopMatching(s, '\n');
     context->limbCurrent = saveCurrent;

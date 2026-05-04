@@ -1,8 +1,6 @@
 // (c) 2023, Cary Clark cclark2@gmail.com
 #include "OpDebug.h"
 
-#if OP_TEST
-#include <string>
 #ifdef _WIN32
 #include <windows.h>
 #include "DebugOpsTypes.h"
@@ -29,7 +27,11 @@ OpContext* debugGlobalContext;
 #endif
 
 // these globals are used only in this file and are unchanged during testing; ok for multi-threaded
+#if OP_DEBUGGER || OP_DEBUG_DUMP
 int debugPrecision = 9;	// -1: unset; 9: leave trailing zeroes (match VS debugger)
+#elif OP_TEST
+constexpr int debugPrecision = 9;
+#endif
 // bool debugSmall = true;  // set to false to show sub-epsilon values as ~0 (unused for now)
 // bool debugEpsilon = false;  // show values smaller than 100 * OpEpsilon as eps (unused for now)
 
@@ -41,55 +43,6 @@ float OpDebugBitsToFloat(int32_t i) {
     return d.f;
 }
 
-#endif
-
-#if 0
-void OpPrintOut(const std::string& s) {
-#ifdef _WIN32
-    OutputDebugStringA(s.c_str());
-    FILE* out = fopen("out.txt", "a+");
-    fprintf(out, "%s", s.c_str());
-    fclose(out);
-#else
-    fprintf(stderr, "%s", s.c_str());
-#endif
-}
-#endif
-
-uint64_t OpInitTimer() {
-#ifdef _WIN32
-    LARGE_INTEGER frequency;
-    QueryPerformanceFrequency(&frequency);
-    return frequency.QuadPart;
-#else
-// #error "unimplmented"
-    return 0;
-#endif
-}
-
-uint64_t OpReadTimer() {
-#ifdef _WIN32
-    LARGE_INTEGER time;
-    QueryPerformanceCounter(&time);
-    return time.QuadPart;
-#else
-// #error "unimplmented"
-    return 0;
-#endif
-}
-
-float OpTicksToSeconds(uint64_t diff, uint64_t frequency) {
-#ifdef _WIN32
-    return (float) (diff * 1000000 / frequency) / 1000000;
-#else
-// #error "unimplmented"
-    return 0;
-#endif
-}
-
-#endif
-
-#if OP_TEST
 void OpDebugOut(const std::string& s) {
 #ifdef _WIN32
     if (s.size()) OutputDebugStringA(s.c_str());  // !!! printing empty strings slows visual studio!
@@ -1077,7 +1030,11 @@ void OpContext::debugValidateIntersections() const {
 		}
 	}
 }
-#endif
+#endif  // OP_DEBUG_VALIDATE
+
+#endif // OP_DEBUG
+
+#if OP_TEST
 
 PathOpsV0Lib::DebugCurveCallbacks& OpContext::debugCallback(PathOpsV0Lib::Curve c) {
     PathOpsV0Lib::CurveType type = c.type;
@@ -1100,6 +1057,10 @@ const PathOpsV0Lib::DebugCurveCallbacks& OpContext::debugCallback(PathOpsV0Lib::
 	OP_ASSERT((size_t) type < debugCallbacks.size());
 	return debugCallbacks[curveIndex(type)];
 }
+
+#endif
+
+#if OP_DEBUG
 
 // assign the same ID for all edges linked together
 // also assign that ID to edges whose non-zero crossing rays attach to those edges
@@ -1310,7 +1271,11 @@ OpTree::~OpTree() {
 	context->debugTree = nullptr;
 }
 
-#endif
+#endif  // OP_DEBUG_VALIDATE
+
+#endif  // OP_DEBUG
+
+#if OP_TEST
 
 #include "DebugOps.h"
 #include "curves/QuadBezier.h"
@@ -1359,6 +1324,14 @@ void SetDebugCurveCallbacks(Context* ctext, CurveType , const DebugCurveCallback
 	context->debugCallbacks.push_back(curveCallbacks);
 }
 
+}  // namespace
+
+#endif  // OP_TEST
+
+#if OP_DEBUG
+
+namespace PathOpsV0Lib {
+
 void SetDebugContextCallbacks(Context* ctext, const DebugContextCallbacks& contextCallbacks) {
     OpContext* context = (OpContext*) ctext;
 	context->debugContextCallbacks = contextCallbacks;
@@ -1370,6 +1343,6 @@ void SetDebugData(Context* ctext, const OpDebugData& debugData) {
     context->debugExpect = debugData.expect;
 }
 
-}
+}  // namespace
 
 #endif

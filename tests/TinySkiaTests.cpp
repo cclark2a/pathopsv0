@@ -51,8 +51,8 @@ std::vector<TinySuite> tinySuites = {
     { V0SimplifyQuads, "quad", Skippable::yes },
     { V0SimplifyRects, "simplifyRect", Skippable::yes },
     { V0SimplifyTriangles, "triangle", Skippable::yes },
-//  { V0Tiger, "tiger", Skippable::yes },
-//  { V0Tests, "v0", Skippable::no },
+    { V0Tiger, "tiger", Skippable::yes },
+    { V0Tests, "v0", Skippable::no },
 };
 
 thread_local std::string currentTest;  // can't be in a struct
@@ -194,6 +194,7 @@ void TinyState::trackError(PathOpsV0Lib::ContextError contextError) {
 	}
 }
 
+#if OP_DEBUG_SERIALIZE
 static std::string debugOpTest(std::string testname, const SkPath& pathA, const SkPath& pathB, SkPathOp op) {
 	std::string s;
     s += "void " + testname + "(TestOptions* options) {\n";
@@ -217,7 +218,6 @@ static std::string debugOpTest(std::string testname, const SkPath& pathA, const 
 // char* so it can be called from immediate window
 static void dumpOpTest(std::string testname, const SkPath& pathA, const SkPath& pathB, SkPathOp op, 
             std::string filename) {
-#if OP_DEBUG_SERIALIZE
     std::string filePath = dmpFileToPath(filename);
     FILE* file = fopen(filePath.c_str(), "w");
     if (!file) {
@@ -227,7 +227,6 @@ static void dumpOpTest(std::string testname, const SkPath& pathA, const SkPath& 
     std::string s = debugOpTest(testname, pathA, pathB, op);
     fwrite(&s[0], 1, s.size(), file);
     fclose(file);
-#endif
 }
 
 static std::string debugSimplifyTest(std::string testname, const SkPath& path) {
@@ -242,7 +241,6 @@ static std::string debugSimplifyTest(std::string testname, const SkPath& path) {
 
 // char* so it can be called from immediate window
 static void dumpSimplifyTest(std::string testname, const SkPath& path, std::string filename) {
-#if OP_DEBUG_SERIALIZE
     std::string filePath = dmpFileToPath(filename);
     FILE* file = fopen(filePath.c_str(), "w");
     if (!file) {
@@ -252,8 +250,8 @@ static void dumpSimplifyTest(std::string testname, const SkPath& path, std::stri
 	std::string s = debugSimplifyTest(testname, path);
     fwrite(&s[0], 1, s.size(), file);
     fclose(file);
-#endif
 }
+#endif
 
 bool TestOptions::testOne(SkPath& a, SkPath& b, TinyOps op) {
     // !!! add support for TEST_PATH_SKIP_TESTS
@@ -313,11 +311,13 @@ bool TestOptions::testOne(SkPath& a, SkPath& b, TinyOps op) {
                 BinaryOperand::right  OP_DEBUG_PARAMS(&b));
         AddSkiaPath(context, right, b);
     }
+#if OP_TEST_RASTER
     DebugRaster debugRaster((OpContext*) context);
+#endif
 	ContextError contextError = Error(context);
 	if (ContextError::none == contextError) {
 #if OP_TEST_RASTER
-        debugRaster.deleteOld();
+        OP_DEBUG_SERIALIZE_CODE(debugRaster.deleteOld());
         if (OpDebugExpect::success == debugData.expect)    
             debugRaster.in();
 #endif
@@ -349,18 +349,36 @@ void TinyState::test() {
         if (!tinyState.skipTo.empty() && tinyState.skipTo != tinySuite.name)
             continue;
         options.baseName = tinySuite.name;
+        options.skippable = Skippable::yes == tinySuite.skippable;
         if (isdigit(options.baseName.back()))
             options.baseName += "_";
         if (!OP_DEBUG_FAST_TEST) {
             if (!testFirst.empty()) {
-                if (Skippable::yes == tinySuite.skippable) {
-                    const char* firstStr = testFirst.c_str();
-                    options.skip = OpDebugReadNamedInt(firstStr, options.baseName.c_str());
-//                    OP_ASSERT(options.skip > 0);
-                    options.skip -= 1;
-                } else
-                    options.testFirst = testFirst;
+                options.testFirst = testFirst;
+                options.skip = 0;
                 options.toRun = 1;
+                int skip = 0;
+                if (options.skippable) {
+                    const char* firstStr = testFirst.c_str();
+                    size_t firstSize = testFirst.size();
+                    // skip only if firstStr == basename + #
+                    const char* baseStr = options.baseName.c_str();
+                    size_t baseSize = options.baseName.size();
+                    if (firstSize > baseSize && 0 == strncmp(firstStr, baseStr, baseSize)) {
+                        while (baseSize < firstSize) {
+                            char digit = firstStr[baseSize++];
+                            if (!isdigit(digit)) {
+                                skip = 0;
+                                break;
+                            }
+                            skip = skip * 10 + digit - '0';
+                        }
+                    }
+                    if (skip) {
+                        options.testFirst = "";
+                        options.skip = skip - 1;
+                    }
+                }
             } else {
                 options.skip = tinyState.testsToSkip;
                 options.toRun = tinyState.testsToRun;
@@ -372,6 +390,7 @@ void TinyState::test() {
         options.skip = INT_MAX;
         (*tinySuite.func)(&options);
         int totalTests = options.index + options.indexOffset;
+        OpDebugOut(options.baseName + " totalTests:" + STR(totalTests) + "\n");
         std::vector<std::thread> t;
         options.skip = 0;
         options.toRun = std::max(totalTests / maxThreads, 1);
@@ -386,6 +405,24 @@ void TinyState::test() {
     }
     std::string s = stats();
     OpDebugOut(s + "\n");
+}
+
+bool runTests(const std::vector<TestFunc>& tests, TestOptions* options) {
+    bool testOne = !options->testFirst.empty();
+    for (const TestFunc& test : tests) {
+        if (testOne && test.name != options->testFirst)
+            continue;
+        if (!options->skippable && options->skipTests(1))
+            continue;
+        options->customName = test.name;
+        options->v0MayFail = test.mayFail;
+        (*test.func)(options);
+        if (testOne)
+            return true;
+        if (!options->toRun)
+            return true;
+    }
+    return false;
 }
 
 void runTinyTests() {

@@ -719,7 +719,7 @@ void OpContour::init(OpContext* ctxt, PathOpsV0Lib::WindingData wind, size_t siz
 	id = ctxt->nextID();
     windingStorage.resize(size);
     std::memcpy(&windingStorage.front(), wind, size);
-#if OP_DEBUG
+#if OP_TEST
 	debugWinding = OpWinding(this, wind, size);
 #endif
 #if OP_DEBUG_IMAGE

@@ -73,26 +73,6 @@ set (SKIA_TESTS
 	"debug/OpDebugRecord.cpp"
 	"public/port/SkiaPaths.cpp"
 	"debug/SkiaPathsDebug.cpp"
-    "tests/OpSkiaTests.cpp"
-    "tests/OpV0Tests.cpp"
-    "tests/PathOpsBattles_shim.cpp"
-    "tests/PathOpsChalkboardTest_shim.cpp"
-    "tests/PathOpsFuzz763Test_shim.cpp"
-    "tests/PathOpsInverseTest_shim.cpp"
-    "tests/PathOpsIssue3651_shim.cpp"
-    "tests/PathOpsOpCircleThreadedTest_shim.cpp"
-    "tests/PathOpsOpCubicThreadedTest_shim.cpp"
-    "tests/PathOpsOpLoopThreadedTest_shim.cpp"
-    "tests/PathOpsOpRectThreadedTest_shim.cpp"
-    "tests/PathOpsOpTest_shim.cpp"
-    "tests/PathOpsSimplifyDegenerateThreadedTest_shim.cpp"
-    "tests/PathOpsSimplifyFailTest_shim.cpp"
-    "tests/PathOpsSimplifyQuadThreadedTest_shim.cpp"
-    "tests/PathOpsSimplifyQuadralateralsThreadedTest_shim.cpp"
-    "tests/PathOpsSimplifyRectThreadedTest_shim.cpp"
-    "tests/PathOpsSimplifyTest_shim.cpp"
-    "tests/PathOpsSimplifyTrianglesThreadedTest_shim.cpp"
-    "tests/PathOpsTigerTest_shim.cpp"
     "tests/TinySkia.cpp"
     "tests/TinySkiaTests.cpp"
     "tests/UnitTestPathOps.cpp"
@@ -113,6 +93,8 @@ set (SKIA_TESTS
     "tests/V0SimplifyQuadralaterals.cpp"
     "tests/V0SimplifyRect.cpp"
     "tests/V0SimplifyTriangles.cpp"
+    "tests/V0Tests.cpp"
+    "tests/V0Tiger.cpp"
 )
 
 add_executable (skia_test )
@@ -182,7 +164,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 elseif (CMAKE_BUILD_TYPE MATCHES "Debug")
     target_compile_options (skia_test PUBLIC ${DEBUG_COMPILE_OPTIONS} -fprofile-update=atomic -D_GLIBCXX_DEBUG=1)
     target_compile_options (skia_alt PUBLIC ${DEBUG_COMPILE_OPTIONS} -fprofile-update=atomic -D_GLIBCXX_DEBUG=1)
-    target_compile_options (test_drive PUBLIC ${DEBUG_COMPILE_OPTIONS} -fprofile-update=atomic)
+    target_compile_options (test_drive PUBLIC ${DEBUG_COMPILE_OPTIONS} -fprofile-update=atomic -D_GLIBCXX_DEBUG=1)
     target_compile_options (contains_example PUBLIC ${DEBUG_COMPILE_OPTIONS} )
     target_compile_options (frame_example PUBLIC ${DEBUG_COMPILE_OPTIONS} )
     target_compile_options (html_canvas_example PUBLIC ${DEBUG_COMPILE_OPTIONS} )

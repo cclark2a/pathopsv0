@@ -62,6 +62,26 @@
         },
         {
             "type": "shell",
+            "label": "skia release",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "Release",
+                "-j10",
+                "--target",
+                "skia_test"
+            ],
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "detail": "cmake"
+        },
+        {
+            "type": "shell",
             "label": "test drive",
             "command": "cmake",
             "args": [

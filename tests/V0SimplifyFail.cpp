@@ -240,38 +240,19 @@ path.quadTo(SkBits2Float(0x7b9c7b79), SkBits2Float(0xf4f2d886), SkBits2Float(0xf
     options->testOne(path);
 }
 
-struct TestFunc {
-    void (*func)(TestOptions*);
-    std::string name;
-    bool mayFail = false;
-};
-
-#define TEST_FUNC(s) { &s, #s }
-#define TEST_FUNC_FAIL(s) { &s, #s, true }
-
-static std::vector<TestFunc> tests = {
-    TEST_FUNC(fuzz_k1), 
-    TEST_FUNC(fuzz_x3), 
-    TEST_FUNC(fuzz763_2s), 
-    TEST_FUNC(fuzz763_1), 
-    TEST_FUNC_FAIL(fuzz_x2), 
-    TEST_FUNC_FAIL(fuzz_x1), 
-    TEST_FUNC_FAIL(fuzz_59)
-};
-
-#undef TEST_FUNC
-
 void V0SimplifyFail(TestOptions* options) {
+    static std::vector<TestFunc> tests = {
+        TEST_FUNC(fuzz_k1), 
+        TEST_FUNC(fuzz_x3), 
+        TEST_FUNC(fuzz763_2s), 
+        TEST_FUNC(fuzz763_1), 
+        TEST_FUNC_FAIL(fuzz_x2), 
+        TEST_FUNC_FAIL(fuzz_x1), 
+        TEST_FUNC_FAIL(fuzz_59)
+    };
+    if (runTests(tests, options))
+        return;
     bool testOne = !options->testFirst.empty();
-    for (TestFunc& test : tests) {
-        if (testOne && test.name != options->testFirst)
-            continue;
-        options->customName = test.name;
-        options->v0MayFail = test.mayFail;
-        (*test.func)(options);
-        if (testOne)
-            return;
-    }
     if (testOne) {
         const char* firstStr = options->testFirst.c_str();
         options->skip = OpDebugReadNamedInt(firstStr, options->baseName.c_str());

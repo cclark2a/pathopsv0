@@ -641,7 +641,7 @@ inline void cubicCallbacks(Context* context, int nativeCurveType) {
 			cubicRotatedT, cubicHull, cubicIsFinite, cubicIsLine, cubicSetBounds, cubicPin,
 			cubicTangent, cubicsEqual, cubicPtAtT, cubicDPtAtT, cubicHullPtCount, cubicRotate, 
 			cubicSubDivide, cubicXYAtT, cubicReverse });
-#if OP_DEBUG
+#if OP_TEST
 	SetDebugCurveCallbacks(context, nativeCurveType, { debugCubicScale
             OP_DEBUG_DUMP_PARAMS(cubicDebugDumpName, nullptr, debugCubicSubDivide)
 //            OP_DEBUG_RASTER_PARAMS(debugRasterAdd)

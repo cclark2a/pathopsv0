@@ -2388,59 +2388,38 @@ path.close();
     options->testOne(path1, path2, TinyOps::unite);
 }
 
-struct TestFunc {
-    void (*func)(TestOptions*);
-    std::string name;
-    bool mayFail = false;
-};
-
-#define TEST_FUNC(s) { &s, #s }
-#define TEST_FUNC_FAIL(s) { &s, #s, true }
-
-static std::vector<TestFunc> tests = {
-    TEST_FUNC(fuzz763_10022998),
-    TEST_FUNC(fuzz763_2674194),
-    TEST_FUNC(fuzz763_5485218),
-    TEST_FUNC(fuzz763_1026368),
-    TEST_FUNC(fuzz763_3283699),
-    TEST_FUNC(fuzz763_6411089),
-    TEST_FUNC(fuzz763_4628016),
-    TEST_FUNC(fuzz763_2211264),
-    TEST_FUNC(fuzz763_34974),
-    TEST_FUNC(fuzz763_1597464),
-    TEST_FUNC(fuzz763_849020),
-    TEST_FUNC(fuzz763_24588),
-    TEST_FUNC(fuzz763_20016),
-    TEST_FUNC(fuzz763_17370),
-    TEST_FUNC(fuzz763_35322),
-    TEST_FUNC(fuzz763_8712),
-    TEST_FUNC(fuzz763_8712a),
-    TEST_FUNC(fuzz763_4713),
-    TEST_FUNC(fuzz763_4014),
-    TEST_FUNC(fuzz763_4014a),
-    TEST_FUNC(fuzz763_1404),
-    TEST_FUNC(fuzz763_378),
-    TEST_FUNC(fuzz763_378b),
-    TEST_FUNC(fuzz763_378d),
-    TEST_FUNC(fuzz763_378c),
-    TEST_FUNC(fuzz763_3084),
-    TEST_FUNC(fuzz763_1823),
-    TEST_FUNC(fuzz763_558),
-    TEST_FUNC(fuzz763_378a),
-    TEST_FUNC(fuzz763_378a_1)
-};
-
-#undef TEST_FUNC
-
 void V0Fuzz763(TestOptions* options) {
-    bool testOne = !options->testFirst.empty();
-    for (TestFunc& test : tests) {
-        if (testOne && test.name != options->testFirst)
-            continue;
-        options->customName = test.name;
-        options->v0MayFail = test.mayFail;
-        (*test.func)(options);
-        if (testOne)
-            return;
-    }
+    static std::vector<TestFunc> tests = {
+        TEST_FUNC(fuzz763_10022998),
+        TEST_FUNC(fuzz763_2674194),
+        TEST_FUNC(fuzz763_5485218),
+        TEST_FUNC(fuzz763_1026368),
+        TEST_FUNC(fuzz763_3283699),
+        TEST_FUNC(fuzz763_6411089),
+        TEST_FUNC(fuzz763_4628016),
+        TEST_FUNC(fuzz763_2211264),
+        TEST_FUNC(fuzz763_34974),
+        TEST_FUNC(fuzz763_1597464),
+        TEST_FUNC(fuzz763_849020),
+        TEST_FUNC(fuzz763_24588),
+        TEST_FUNC(fuzz763_20016),
+        TEST_FUNC(fuzz763_17370),
+        TEST_FUNC(fuzz763_35322),
+        TEST_FUNC(fuzz763_8712),
+        TEST_FUNC(fuzz763_8712a),
+        TEST_FUNC(fuzz763_4713),
+        TEST_FUNC(fuzz763_4014),
+        TEST_FUNC(fuzz763_4014a),
+        TEST_FUNC(fuzz763_1404),
+        TEST_FUNC(fuzz763_378),
+        TEST_FUNC(fuzz763_378b),
+        TEST_FUNC(fuzz763_378d),
+        TEST_FUNC(fuzz763_378c),
+        TEST_FUNC(fuzz763_3084),
+        TEST_FUNC(fuzz763_1823),
+        TEST_FUNC(fuzz763_558),
+        TEST_FUNC(fuzz763_378a),
+        TEST_FUNC(fuzz763_378a_1)
+    };
+    runTests(tests, options);
 }

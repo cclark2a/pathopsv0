@@ -123,6 +123,7 @@ struct OpCurve {
 		c.type = lineType(); }
 	float top() const {
 		return std::min(start.y, end.y); }
+	OpPoint whichAlias(EdgeMatch ) const;
 	OpPoint whichPt(EdgeMatch ) const;
 	float width() const {
 		return fabsf(start.x - end.x); }

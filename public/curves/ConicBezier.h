@@ -26,7 +26,7 @@ struct PointWeight {
     }
 
     void copyTo(Curve c) {
-        OP_ASSERT(sizeof(PointWeight) == c.size - CurveUserDataOffset());
+        OP_ASSERT(sizeof(PointWeight) <= c.size - CurveUserDataOffset());
         char* data = (char*) CurveUserData(c.data);
         std::memcpy(data, &pt, sizeof pt);
         data += sizeof pt;
@@ -200,13 +200,14 @@ inline size_t AddConics(Contour* contour, AddCurve curve) {
     } 
     size_t curvesAdded = tValues.size() - 1;
     for (unsigned index = 0; index < curvesAdded; ++index) {
+        if (ptTs[index].pt == ptTs[index + 1].pt)
+            continue;
         struct ConicData {
             OpPoint endPts[2];
             PointWeight control;
         } curveData { { ptTs[index].pt, ptTs[index + 1].pt },
                 ConicControl(start, control, end, ptTs[index], ptTs[index + 1]) };
-        if (curveData.endPts[0] != curveData.endPts[1])
-            Add(contour, conic);
+            Add(contour, { curve.context, curveData.endPts, curve.size, curve.type } );
     }
     return curvesAdded;
 }
@@ -403,7 +404,7 @@ inline void conicCallbacks(Context* context, int nativeCurveType) {
 			conicRotatedT, conicHull, conicIsFinite, conicIsLine, conicSetBounds, conicPin,
 			conicTangent, conicsEqual, conicPtAtT, nullptr, conicHullPtCount, conicRotate, 
 			conicSubDivide, conicXYAtT });
-#if OP_DEBUG
+#if OP_TEST
 	SetDebugCurveCallbacks(context, nativeCurveType, { debugConicScale
             OP_DEBUG_DUMP_PARAMS(conicDebugDumpName, conicDebugDumpExtra, debugConicSubDivide)
 //            OP_DEBUG_RASTER_PARAMS(debugRasterAdd)

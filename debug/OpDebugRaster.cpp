@@ -391,7 +391,10 @@ void OpDebugSamples::sort() {
 	// edge out : no check needed
 WindingKeep OpDebugSamples::visibleFunc() const {
 	OpContext* context = raster->context;
-	WindingKeep visibleFunc = context->debugContextCallbacks.debugWindingVisibleFuncPtr;
+	WindingKeep visibleFunc = nullptr;
+#if OP_DEBUG
+	visibleFunc = context->debugContextCallbacks.debugWindingVisibleFuncPtr;
+#endif
 	if (!visibleFunc || (SampleType::contourInput != sampleType 
 			&& SampleType::segmentInput != sampleType))
 		visibleFunc = context->windingCallbacks.windingKeepFuncPtr;
@@ -646,8 +649,10 @@ void DebugRaster::addOutput(PathOpsV0Lib::Output o, OpEdge* e) {
 void DebugRaster::in() {
 	if (tooSmall())
 		return;
+	OP_DEBUG_DUMP_CODE(context->dumpFile("init"));
 	sample(SampleType::contourResolved);
 	OP_DEBUG_CODE(validate());
+#if OP_DEBUG || OP_DEBUGGER
 	if (sendToDebugger) {
 		sample(SampleType::contourInput);
 		sample(SampleType::segmentInput);
@@ -663,28 +668,33 @@ void DebugRaster::in() {
 		s.rasterize();
 	}
 	OpNop();
+#endif
 }
 
 float DebugRaster::out() {
 	float result = 0;
 	if (tooSmall())
 		return result;
+#if OP_DEBUG || OP_DEBUGGER
 	if (sendToDebugger) {
 		sampleEdges();
 		OpDebugSamples& edges = samples.back();
 		edges.sort();
 		edges.rasterize();
 	}
+#endif
 	sampleOutput();
 	OP_ASSERT(samples.size());
 	OpDebugSamples& output = samples.back();
 	output.sort();
+#if OP_DEBUG || OP_DEBUGGER
 	if (sendToDebugger) {
 		output.rasterize();
 #if OP_DEBUG_DUMP
 		record(BitsFile);
 #endif
 	}
+#endif
 	OP_ASSERT(SampleType::output == output.sampleType);
 	OpDebugSamples& allContours = samples[0];
 	OP_ASSERT(SampleType::contourResolved == allContours.sampleType);
@@ -702,7 +712,9 @@ bool DebugRaster::playback(std::string filename) {
 	dumpResolveAll(context);
 	return true;
 }
+#endif
 
+#if OP_DEBUG_SERIALIZE || OP_DEBUGGER
 void DebugRaster::record(std::string name) {
     std::string filename = dmpFileToPath(name);
     FILE* file = fopen(filename.c_str(), "w");
@@ -791,18 +803,19 @@ std::string DebugRaster::debugDump(DebugLevel l, DebugBase b) const {
     DEBUG_DUMP_REQUIRED_VALUE(bitWidth, bitHeight);
     DEBUG_DUMP_REQUIRED_VALUE(bitHeight, subSamples);
 	ASSERT_ORDERED(subSamples, sendToDebugger);
-	ASSERT_ORDERED(sendToDebugger, makeBits);
-	ASSERT_LAST_OFFSET(makeBits, 2);
+	ASSERT_LAST_OFFSET(sendToDebugger, 3);
 	return s;
 }
 #endif
 
+#if OP_DEBUG_SERIALIZE
 void DebugRaster::deleteOld() {
 	std::string filePath = dmpFileToPath(BitsFile);
 	if (!std::filesystem::exists(filePath))
 		return;
 	std::filesystem::remove(filePath);
 }
+#endif
 
 #if OP_DEBUG_DUMP
 void DebugRaster::dumpResolveAll(OpContext* ctx) {
@@ -841,8 +854,7 @@ void DebugRaster::dumpSet(char const*& str) {
     DEBUG_SET_REQUIRED_VALUE(bitWidth, bitHeight);
     DEBUG_SET_REQUIRED_VALUE(bitHeight, subSamples);
 	ASSERT_ORDERED(subSamples, sendToDebugger);
-	ASSERT_ORDERED(sendToDebugger, makeBits);
-	ASSERT_LAST_OFFSET(makeBits, 2);
+	ASSERT_LAST_OFFSET(sendToDebugger, 3);
 }
 #endif
 

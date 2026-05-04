@@ -32,21 +32,6 @@ size_t TinyCurve::pointCount() const {
 	}
 }
 
-bool SkRect::contains(SkRect const & r) { 
-	return fLeft <= r.fLeft && fRight >= r.fRight && fTop <= r.fTop && fBottom >= r.fBottom; 
-}
-
-bool SkRect::intersect(SkRect const & r) { 
-	return fLeft < r.fRight && fRight > r.fLeft && fTop < r.fBottom && fBottom > r.fTop; 
-}
-
-void SkRect::join(SkRect const & r) {
-	fLeft = std::min(fLeft, r.fLeft);
-	fTop = std::min(fTop, r.fTop);
-	fRight = std::max(fRight, r.fRight);
-	fBottom = std::max(fBottom, r.fBottom);
-}
-
 SkMatrix SkMatrix::MakeAll(float sx, float rx, float tx, float sy, float ry, float ty, 
 		float p0, float p1, float p2) {
 	SkMatrix m;
@@ -59,179 +44,13 @@ SkMatrix SkMatrix::MakeAll(float sx, float rx, float tx, float sy, float ry, flo
 	return m;
 }
 
-void SkMatrix::reset() { 
-	m[0][0] = 1;
-	m[0][1] = 0;
-	m[0][2] = 0;
-	m[1][0] = 0;
-	m[1][1] = 1;
-	m[1][2] = 0;
-}
-
-void SkMatrix::setScale(float sx, float sy) { 
-	m[0][0] = sx;
-	m[0][1] = 0;
-	m[0][2] = 0;
-	m[1][0] = 0;
-	m[1][1] = sy;
-	m[1][2] = 0;
-}
-
-void SkMatrix::setRotate(float deg) {
-	float rad = deg * (OpPI / 180);
-	float cos = COS_F(rad);
-	float sin = SIN_F(rad);
-	m[0][0] = cos;
-	m[0][1] = -sin;
-	m[0][2] = 0;
-	m[1][0] = sin;
-	m[1][1] = cos;
-	m[1][2] = 0;
-}
-
-void SkMatrix::setRotate(float deg, float px, float py) {
-	float rad = deg * (OpPI / 180);
-	float cos = COS_F(rad);
-	float sin = SIN_F(rad);
-	m[0][0] = cos;
-	m[0][1] = -sin;
-	m[0][2] = sin * py + (1 - cos) * px;
-	m[1][0] = sin;
-	m[1][1] = cos;
-	m[1][2] = -sin * px + (1 - cos) * py;
-}
-
-void SkMatrix::preScale(float sx, float sy) { 
-	SkMatrix tmp;
-	tmp.reset();
-	tmp.m[0][0] = sx;
-	tmp.m[1][1] = sy;
-	setConcat(*this, tmp);
-}
-
-void SkMatrix::preTranslate(float dx, float dy) { 
-	SkMatrix tmp;
-	tmp.reset();
-	tmp.m[0][2] = dx;
-	tmp.m[1][2] = dy;
-	setConcat(*this, tmp);
-}
-
-void SkMatrix::postTranslate(float dx, float dy) { 
-	SkMatrix tmp;
-	tmp.reset();
-	tmp.m[0][2] = dx;
-	tmp.m[1][2] = dy;
-	setConcat(tmp, *this);
-}
-
-void SkMatrix::mapPoints(SkPoint* pts, int count) const {
-	mapPoints((OpPoint*) pts, count);
-}
-
 void SkMatrix::mapPoints(OpPoint* pts, int count) const {
-	for (int index = 0; index < count; ++index) {
-		OpPoint pt = pts[index];
-		pts[index].x = pt.x * m[0][0] + pt.y * m[0][1] + m[0][2];
-		pts[index].y = pt.x * m[1][0] + pt.y * m[1][1] + m[1][2];
-	}
+       for (int index = 0; index < count; ++index) {
+               OpPoint pt = pts[index];
+               pts[index].x = pt.x * m[0][0] + pt.y * m[0][1] + m[0][2];
+               pts[index].y = pt.x * m[1][0] + pt.y * m[1][1] + m[1][2];
+       }
 }
-
-void SkMatrix::setConcat(const SkMatrix& a, const SkMatrix& b) {
-	auto muladdmul = [](float a, float b, float c, float d) {
-		return a * b + c * d;
-	};
-	SkMatrix tmp;
-    tmp.m[0][0] = muladdmul(a.m[0][0],
-                            b.m[0][0],
-                            a.m[0][1],
-                            b.m[1][0]);
-
-    tmp.m[0][1] = muladdmul(a.m[0][0],
-                            b.m[0][1],
-                            a.m[0][1],
-                            b.m[1][1]);
-
-    tmp.m[0][2] = muladdmul(a.m[0][0],
-                            b.m[0][2],
-                            a.m[0][1],
-                            b.m[1][2]) + a.m[0][2];
-
-    tmp.m[1][0] = muladdmul(a.m[1][0],
-                            b.m[0][0],
-                            a.m[1][1],
-                            b.m[1][0]);
-
-    tmp.m[1][1] = muladdmul(a.m[1][0],
-                            b.m[0][1],
-                            a.m[1][1],
-                            b.m[1][1]);
-
-    tmp.m[1][2] = muladdmul(a.m[1][0],
-                            b.m[0][2],
-                            a.m[1][1],
-                            b.m[1][2]) + a.m[1][2];
-	*this = tmp;
-}
-
-#if 0
-void SkBitmap::allocPixels(struct SkImageInfo const & i) {
-	info = i;
-	delete[] pixels;
-	pixels = new uint32_t[i.width * i.height];
-}
-
-uint32_t SkBitmap::getColor(int x, int y) {
-	OP_ASSERT(x < info.width);
-	OP_ASSERT(y < info.height);
-	OP_ASSERT(pixels);
-	return pixels[info.width * y + x]; 
-}
-
-void SkCanvas::save() { 
-	m.emplace_back();
-	m.back() = *(&m.back() - 1);
-}
-
-void SkCanvas::restore() {
-	OP_ASSERT(m.size() > 1);
-	m.pop_back();
-}
-
-void SkCanvas::rotate(float degrees, float px, float py) {
-    SkMatrix tmp;
-    tmp.setRotate(degrees, px, py);
-	SkMatrix& top = m.back();
-    top.setConcat(top, tmp);
-}
-
-void SkCanvas::translate(float dx, float dy) {
-	SkMatrix& top = m.back();
-    top.preTranslate(dx, dy);
-}
-
-void SkCanvas::drawLine(float x1, float y1, float x2, float y2, const SkPaint& paint) {
-	OpPoint start(x1, y1);
-	OpPoint end(x2, y2);
-	// move pixel center axis to pixel center axis
-}
-
-void SkCanvas::drawPath(const SkPath& path, const SkPaint& paint) {
-
-}
-
-void SkCanvas::drawString(SkString s, float x, float y, const SkFont& f, const SkPaint& paint) {
-
-}
-
-SkFont::SkFont(void*, float s, float, float) { 
-	fSize = s; 
-}
-
-float SkFont::measureText(void const *, uint64_t, SkTextEncoding, SkRect *) const { 
-	return 0; 
-}
-#endif
 
 void SkPath::reset() { 
 	path.clear();
@@ -280,13 +99,13 @@ SkPath::Verb SkPath::RawIter::next(SkPoint* pts) {
 	if (nextMove) {
 		nextMove = false;
 		first = c.pts[0];
-		pts[0] = SkPoint::Make(c.pts[0].x, c.pts[0].y);
+		pts[0] = { c.pts[0].x, c.pts[0].y };
 		return SkPath::kMove_Verb;
 	}
 	if (first == c.lastPt())
 		nextClose = true;
 	for (size_t i = 0; i < c.pointCount(); ++i)
-		pts[i] = SkPoint::Make(c.pts[i].x, c.pts[i].y);
+		pts[i] = { c.pts[i].x, c.pts[i].y };
 	w = OpNaN;
 	++index;
 	switch (c.type) {
@@ -316,12 +135,6 @@ void SkPath::lineTo(float x, float y) {
 	TinyCurve curve { { last, OpPoint(x, y) }, 1, TinyType::line };
 	path.push_back(std::move(curve));
 	last = OpPoint(x, y);
-}
-
-void SkPath::rLineTo(float rx, float ry) {
-	TinyCurve curve { { last, last + OpPoint(rx, ry) }, 1, TinyType::line };
-	path.push_back(std::move(curve));
-	last = curve.pts[1];
 }
 
 void SkPath::quadTo(float x1, float y1, float x2, float y2) { 
@@ -388,44 +201,11 @@ void SkPath::addRoundRect(const SkRect& rect, float rx, float ry,
 	addRect(rect);  // !!! incomplete
 }
 
-// !!! this isn't right because it doesn't keep track of contours
-int SkPath::countPoints() const {
-	int count = 1;
-	for (const TinyCurve& curve : path)
-		count += (int) curve.pointCount() - 1;
-	return count;
-}
-
-// !!! this isn't right because it doesn't keep track of contours
-SkPoint SkPath::getPoint(int index) {
-	for (TinyCurve& curve : path) {
-		int base = index;
-		index -= (int) curve.pointCount() - 1;
-		if (index > 0)
-			continue;
-		return { curve.pts[base].x, curve.pts[base].y };
-	}
-	return { 0, 0 };
-}
-
-// !!! this isn't right because it doesn't keep track of contours
-void SkPath::setPt(int index, float x, float y) {
-	for (TinyCurve& curve : path) {
-		int base = index;
-		index -= (int) curve.pointCount() - 1;
-		if (index > 0)
-			continue;
-		curve.pts[base] = { x, y };
-		return;
-	}
-}
-
-
 const SkPath& SkPath::makeTransform(SkMatrix const & m) { 
-	for (TinyCurve& c : path) {
-		m.mapPoints(c.pts, (int) c.pointCount());
-	}
-	return *this;
+       for (TinyCurve& c : path) {
+               m.mapPoints(c.pts, (int) c.pointCount());
+       }
+       return *this;
 }
 
 // !!! not sure that this is right
@@ -448,7 +228,10 @@ void SkPath::offset(float dx, float dy) {
 
 std::string SkPath::fillTypeStr() const {
 	std::array<std::string, 4> ws { "kWinding", "kEvenOdd", "kInverseWinding",  "kInverseEvenOdd" };
-	return "setFillType(SkPathFillType::" + ws[(int) fFillType] + ");\n";
+	if (SkPathFillType::kWinding <= fFillType && fFillType <= SkPathFillType::kInverseEvenOdd)
+		return "setFillType(SkPathFillType::" + ws[(int) fFillType] + ");\n";
+	OP_ASSERT(0);
+	return "setFillType((SkPathFillType) " + STR((int) fFillType) + ");\n";
 }
 
 std::string SkPath::debugDumpCommon(bool hex, std::string callPrefix) const {
@@ -508,30 +291,3 @@ void SkPath::dumpHex() const {
 }
 
 #endif
-
-void SkString::appendf(const char format[], ...) {
-    va_list args, args_copy;
-    va_start(args, format);
-	va_copy(args_copy, args);
-    int count = vsnprintf(nullptr, 0, format, args);
-	if (count > 0) {
-		string.resize(string.size() + count);
-		vsnprintf(string.data() + string.size(), count + 1, format, args_copy);
-	}
-    va_end(args_copy);
-    va_end(args);
-}
-
-void SkString::printf(const char format[], ...) {
-    va_list args, args_copy;
-    va_start(args, format);
-	va_copy(args_copy, args);
-    int count = vsnprintf(nullptr, 0, format, args);
-	OP_ASSERT(count >= 0);
-	if (count > 0) {
-		string.resize(count);
-		vsnprintf(string.data(), count + 1, format, args_copy);
-	}
-    va_end(args_copy);
-    va_end(args);
-}

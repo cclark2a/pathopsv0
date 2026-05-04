@@ -453,11 +453,13 @@ void OpSegment::betweenCoincidence() {
     // add missing points to coincident ranges
     for (const MissingSect& miss : missing) {
         OP_ASSERT(MatchEnds::start == miss.coinStart->coinEnd);
+#if OP_DEBUG
         auto coinEnd = std::find_if(sects.i.begin(), sects.i.end(), [miss]
                 (const OpIntersection* sect) {
             return MatchEnds::end == sect->coinEnd 
                     && miss.coinStart->coincidenceID == sect->coincidenceID; 
         } );
+#endif
         OP_ASSERT(sects.i.end() != coinEnd);
         OpSegment* sectOpp = miss.sect->opp->segment;
         OpSegment* coinOpp = miss.coinStart->opp->segment;
@@ -868,7 +870,7 @@ bool OpSegment::mergeEndPoints() {
 	OP_ASSERT(sects.i.back()->ptT.t == 1);
 	auto merge = [this](float endT, int initial, int delta) {
 		bool rerun = false;
-		int mergeID = 0;
+		int mergeId = 0;
 		OpPoint endPt = endT ? c.c.data->end : c.c.data->start;
         OpPoint masterPt = endT ? c.end : c.start;
 		// scan to see if merge is required
@@ -890,25 +892,25 @@ needsMerge:
 				break;
             if (sect->mergeID) {
                 masterPt = sect->ptT.pt;
-                mergeID = sect->mergeID;
+                mergeId = sect->mergeID;
             } else if (sect->opp->mergeID) {
                 masterPt = sect->opp->ptT.pt;
-                mergeID = sect->opp->mergeID;
-            } else if (sect->opp->segment->c.isSmall) {
+                mergeId = sect->opp->mergeID;
+            } else if (!mergeId && sect->opp->segment->c.isSmall) {
 				masterPt = sect->opp->segment->c.start;
 			}
         }
-		if (!mergeID)
-			mergeID = contour->nextID();
+		if (!mergeId)
+			mergeId = contour->nextID();
 		// mark all matching t with merge id
 		for (int index = initial; ; index += delta) {
 			OP_ASSERT(index < sects.i.size());
 			OpIntersection* sect = sects.i[index];
 			if (endT != sect->ptT.t)
 				break;
-			if (mergeID == sect->mergeID)
+			if (mergeId == sect->mergeID)
 				continue;
-			sect->setMerge(mergeID, masterPt, MergeType::endPoint);
+			sect->setMerge(mergeId, masterPt, MergeType::endPoint);
 			sect->opp->segment->setEndsUnmerged();
 			rerun = true;
 		}
@@ -941,7 +943,7 @@ bool OpSegment::mergeIntersections() {
 		OpIntersection* first = sects.i[index];
 		OpRect mergeBounds = first->setMergeBounds(thresh);
 		OpPtT mergePtT = first->ptT;
-		int mergeID = first->mergeID;
+		int mergeId = first->mergeID;
 		size_t endIndex = index;
 		size_t startIndex = index;
 		bool needsMerging = mergePtT.pt != first->opp->ptT.pt && !first->opp->unsectID;
@@ -968,11 +970,11 @@ bool OpSegment::mergeIntersections() {
 			} else
 				needsMerging |= test->ptT.pt != test->opp->ptT.pt && !test->opp->unsectID;
 			if (test->mergeID) {
-				if (mergeID && test->mergeID != mergeID)
-					mergeMultiple(mergePtT.pt, mergeID, test->ptT.pt, test->mergeID);
+				if (mergeId && test->mergeID != mergeId)
+					mergeMultiple(mergePtT.pt, mergeId, test->ptT.pt, test->mergeID);
 				else {
 					mergePtT = test->ptT;
-					mergeID = test->mergeID;
+					mergeId = test->mergeID;
 				}
 			}
 		}
@@ -988,20 +990,20 @@ bool OpSegment::mergeIntersections() {
 				opp->ptT.pt = mergePtT.pt;
 				continue;
 			}
-			if (mergeID && opp->mergeID != mergeID)
-				mergeMultiple(mergePtT.pt, mergeID, opp->ptT.pt, opp->mergeID);
+			if (mergeId && opp->mergeID != mergeId)
+				mergeMultiple(mergePtT.pt, mergeId, opp->ptT.pt, opp->mergeID);
 			else {
 				mergePtT.pt = opp->ptT.pt;
-				mergeID = opp->mergeID;
+				mergeId = opp->mergeID;
 			}
 		}
 		index = startIndex;
 		if (needsMerging && index + 1 < endIndex) {
-			if (!mergeID)
-				mergeID = contour->nextID();
+			if (!mergeId)
+				mergeId = contour->nextID();
 			// if any in range are already merged, use that for all points
 			for (; index < endIndex; ++index) {
-				runAgain |= sects.i[index]->setMerge(mergeID, mergePtT.pt, MergeType::midPoint);
+				runAgain |= sects.i[index]->setMerge(mergeId, mergePtT.pt, MergeType::midPoint);
 			}
 		}
 		index = endIndex;

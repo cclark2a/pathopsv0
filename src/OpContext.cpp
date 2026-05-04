@@ -8,7 +8,7 @@
 
 OpContext::OpContext() {
     PathOpsV0Lib::SetCurveCallbacks((PathOpsV0Lib::Context*)(this), 0, { } );
-#if OP_DEBUG
+#if OP_TEST
     PathOpsV0Lib::SetDebugCurveCallbacks((PathOpsV0Lib::Context*)(this), 0, { } );
 #endif
 }

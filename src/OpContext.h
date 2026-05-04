@@ -231,11 +231,13 @@ struct OpContext {
 	}
 
 	bool debugFail() const;
+#if OP_TEST
+	PathOpsV0Lib::DebugCurveCallbacks& debugCallback(PathOpsV0Lib::Curve );
+	const PathOpsV0Lib::DebugCurveCallbacks& debugCallback(PathOpsV0Lib::Curve ) const;
+#endif
 #if OP_DEBUG || OP_DEBUGGER
 //	void addDebugContextData(PathOpsV0Lib::DebugContextData , PathOpsV0Lib::DebugContextType );
 //    PathOpsV0Lib::DebugContextData& debugGetContextData(PathOpsV0Lib::DebugContextType );
-	PathOpsV0Lib::DebugCurveCallbacks& debugCallback(PathOpsV0Lib::Curve );
-	const PathOpsV0Lib::DebugCurveCallbacks& debugCallback(PathOpsV0Lib::Curve ) const;
 	void debugRemap(int oldRayMatch, int newRayMatch);
 	bool debugSuccess() const;
 #endif
@@ -303,8 +305,10 @@ struct OpContext {
 	int debugValidateEdgeIndex = 0;
 	int debugValidateJoinerIndex = 0;
 #endif
-#if OP_DEBUG || OP_DEBUGGER
+#if OP_TEST
 	std::vector<PathOpsV0Lib::DebugCurveCallbacks> debugCallbacks;
+#endif
+#if OP_DEBUG || OP_DEBUGGER
 	PathOpsV0Lib::DebugContextCallbacks debugContextCallbacks;
 	OpDebugData debugData;
 	OpCurveCurve* debugCurveCurve = nullptr;

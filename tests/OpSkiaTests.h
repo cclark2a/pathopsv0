@@ -7,9 +7,9 @@
 #endif
 
 #define SKIP_TO_V0 0  // set to 1 to ignore file, test first and run first test in v0
-#define SKIP_TO_FILE "simplifyRect" // e.g., "simplify"  one file
+#define SKIP_TO_FILE "tiger" // e.g., "simplify"  one file
 #if !OP_DEBUG_ALT
-#define TEST_FIRST ""  // "testChalkboard60942"  // e.g., "testLoops40320" if file, one test
+#define TEST_FIRST "tiger8a" // chalkboard1123394"  // "chalkboard1177426"  // e.g., "testLoops40320" if file, one test
                         // !!! "loop8478" fails sometimes (san/valgrind found no error)
                         // cubic9092  cubic454498  cubic327361 troublesome unsectables
 #else
@@ -192,27 +192,27 @@ testLoops136417 error:0.0150725245
 testLoops1090 error:0.0144543648
 */
 
-/* testsRun:594037 testsSkipped:0  avg pixelError:3.919148e-05 maxError:0.0368652344 largestError:testChalkboard604567
-testChalkboard604567 error:0.0368652344
-testChalkboard613482 error:0.0368652344
-testChalkboard616484 error:0.029296875
-testChalkboard657400 error:0.026550293
-testChalkboard615353 error:0.026550293
-testChalkboard621108 error:0.026550293
-testChalkboard618978 error:0.0232543945
-testChalkboard637167 error:0.0217895508
-testChalkboard645859 error:0.0201416016
-testChalkboard688824 error:0.0157470703
-testChalkboard650976 error:0.0155029297
-testChalkboard630234 error:0.0153808594
-testChalkboard748614 error:0.0114135742
-testChalkboard842955 error:0.0108642578
-testChalkboard681396 error:0.0108642578
-testChalkboard791298 error:0.0108642578
-testChalkboard689012 error:0.0108642578
-testChalkboard742240 error:0.0108642578
-testChalkboard694639 error:0.0108642578
-testChalkboard854832 error:0.0108642578
+/* testsRun:594037 testsSkipped:0  avg pixelError:4.0110237e-05 maxError:0.0368652344 largestError:chalkboard10530
+chalkboard10530 error:0.0368652344
+chalkboard19445 error:0.0368652344
+chalkboard22447 error:0.029296875
+chalkboard21316 error:0.026550293
+chalkboard27071 error:0.026550293
+chalkboard24941 error:0.0232543945
+chalkboard43130 error:0.0217895508
+chalkboard51822 error:0.0201416016
+chalkboard124216 error:0.0155639648
+chalkboard56939 error:0.0155029297
+chalkboard72452 error:0.0155029297
+chalkboard36197 error:0.0153808594
+chalkboard127884 error:0.0114135742
+chalkboard138322 error:0.0114135742
+chalkboard152673 error:0.0114135742
+chalkboard72683 error:0.0108642578
+chalkboard144354 error:0.0108642578
+chalkboard166817 error:0.0108642578
+chalkboard170611 error:0.0108642578
+chalkboard172007 error:0.0108642578
 */
 
 /* simplify

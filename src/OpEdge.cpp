@@ -566,7 +566,7 @@ void OpEdge::linkToEdge(FoundEdge& found, EdgeMatch match) {
 	else {
 		// !!! for now, brute force check all matching possibilities
 		bool startFoundMatch = compareMatch(match, found.edge, EdgeMatch::start);
-		bool endFoundMatch = compareMatch(match, found.edge, EdgeMatch::end);
+		OP_DEBUG_CODE(bool endFoundMatch = compareMatch(match, found.edge, EdgeMatch::end));
 		OP_ASSERT(startFoundMatch != endFoundMatch);
 		oppEdge->setWhich(startFoundMatch ? !match : match);
 	}

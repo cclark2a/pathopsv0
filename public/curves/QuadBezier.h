@@ -336,7 +336,7 @@ inline void quadCallbacks(Context* context, int nativeCurveType) {
             quadRotatedT, quadHull, quadIsFinite, quadIsLine, quadSetBounds, quadPin, 
             quadTangent, quadsEqual, quadPtAtT, nullptr, quadHullPtCount, quadRotate, 
             quadSubDivide, quadXYAtT });
-#if OP_DEBUG
+#if OP_TEST
     SetDebugCurveCallbacks(context, nativeCurveType, { debugQuadScale
         OP_DEBUG_DUMP_PARAMS(quadDebugDumpName, nullptr, quadDebugSubDivide)
 //        OP_DEBUG_RASTER_PARAMS(debugRasterAdd) 

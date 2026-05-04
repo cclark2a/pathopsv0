@@ -720,6 +720,10 @@ PathOpsV0Lib::WindKeep OpCurve::output(PathOpsV0Lib::Winding w,
     return PathOpsV0Lib::WindKeep::Discard;
 }
 
+OpPoint OpCurve::whichAlias(EdgeMatch match) const {
+	return match == EdgeMatch::end ? end : start;
+}
+
 OpPoint OpCurve::whichPt(EdgeMatch match) const {
 // match may be 'none' if curve was disabled but found in disabled join pass (testCubics56146)
 //	OP_ASSERT(match == EdgeMatch::start || match == EdgeMatch::end);

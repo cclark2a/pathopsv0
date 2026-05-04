@@ -335,6 +335,8 @@ void OpLimb::tryPal(OpTree& tree, OpLimb* parent, OpLimb* limb, EdgeMatch m) {
 		// if pal point is not close to test point, add filler between the two
 		OpEdge* filler = tree.addFiller(edgePal.edge->segment, limb->edge->whichCurvePt(m),
 				edgePal.edge->whichCurvePt(edgePal.reversed ? !m : m), FillerGap::no);
+		filler->curve.start = limb->edge->curve.whichAlias(m);
+		filler->curve.end = edgePal.edge->curve.whichAlias(edgePal.reversed ? !m : m);
 		filler->setWhich(EdgeMatch::start);
 		OpLimb* branch = tree.makeLimb();
 		branch->set(tree, filler, parent, m, LimbPass::disjoint, nullptr, 0, nullptr);

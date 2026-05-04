@@ -20,16 +20,22 @@ constexpr int compareXY = 64;
 constexpr int drawXY = 1000;
 constexpr int compareSub = 8;
 constexpr int drawSub = 4;
+#if OP_DEBUG_SERIALIZE
 inline const std::string BitsFile = "DebuggerBits.txt";
+#endif
 
 // turns chosen group of debug samples into pixel array that can be visualized
 // one per contour; and two in contours for combined and output
 struct OpDebugBitmap {
 	OpDebugBitmap() {}
 	OpDebugBitmap(DebugRaster* );
+#if OP_DEBUG_SERIALIZE
 	std::string debugDump(DebugLevel l, DebugBase b) const;
+#endif
+#if OP_DEBUG_DUMP
 	void dumpSet(char const*& str);
 	static void DumpSet(char const*& str, uint32_t* pixels);
+#endif
 	void rasterize(OpDebugSamples& , int row, float sx, float dx);  // sets bits to sample coverage
 
     std::vector<uint8_t> bits;  // 1 byte per pixel, black/white only
@@ -37,10 +43,13 @@ struct OpDebugBitmap {
 };
 
 struct DebugOutput {
+#if OP_DEBUG_SERIALIZE
 	std::string debugDump(DebugLevel , DebugBase ) const;
+#endif
+#if OP_DEBUG_DUMP
 	void dumpResolveAll(OpContext* );
 	void dumpSet(OpContext* , char const*& str);
-
+#endif
 	OpCurve curve;
 	OpWinding winding = OpWinding(DebugWindingRaster::dummy);
 	PathOpsV0Lib::LoopAttribute loopAttr = PathOpsV0Lib::LoopAttribute::none;
@@ -48,17 +57,21 @@ struct DebugOutput {
 };
 
 struct RasterSample {
+#if OP_DEBUG_SERIALIZE
 	std::string debugDump(DebugLevel l, DebugBase b) const;
+#endif
+#if OP_DEBUG_DUMP
 	void dumpResolveAll(OpContext* );
 	void dumpSet(char const*& str);
+#endif
 	const OpWinding& winding() const;
 
 	OpContour* contour = nullptr;  // if this represents original curve (segment/edge are nullptr)
 	OpSegment* segment = nullptr;  // if set, contour and edge are nullptr
 	OpEdge* edge = nullptr;  // if set, contour and segment are nullptr
 	int curveIndex = -1;  // for contour : index of user-provided curve
-    float x = OpDebugNaN;
-	float t = OpDebugNaN;  // unused by rasterizer, but useful for debugging
+    float x  OP_DEBUG_INIT_FLOAT();
+	float t  OP_DEBUG_INIT_FLOAT();  // unused by rasterizer, but useful for debugging
 	bool curveDown = false;  // unused by contour curve (don't use int8_t; confuses compare diff)
 	bool visible = true;
 };
@@ -95,9 +108,13 @@ struct OpDebugSamples {
 	bool alwaysVisible() const {
 		return SampleType::edges == sampleType || SampleType::output == sampleType; }
 	float compare(std::vector<RasterSamples>& );  // return error as sum of partial-x differences
+#if OP_DEBUG_SERIALIZE
 	std::string debugDump(DebugLevel l, DebugBase b) const;
+#endif
+#if OP_DEBUG_DUMP
 	void dumpResolveAll(OpContext* );
 	void dumpSet(char const*& str);
+#endif
 	void rasterize();
 //	void resetAdd();
 	void sample(OpContour* );
@@ -135,8 +152,10 @@ struct DebugRaster {
 		, bitWidth(compareXY + 2)
 		, bitHeight(compareXY + 2)
 		, subSamples(compareSub)
+#if OP_DEBUG || OP_DEBUGGER
 		, sendToDebugger(context->debugData.runOneFile)
-		, makeBits(sendToDebugger) {
+#endif
+		{
 		context->debugRaster = this;
 		float scaleX = compareXY / context->maxBounds.width();
 		float scaleY = compareXY / context->maxBounds.height();
@@ -146,20 +165,27 @@ struct DebugRaster {
 	}
 	
 	void addOutput(PathOpsV0Lib::Output , OpEdge* );
-	std::string debugDump(DebugLevel l, DebugBase b) const;
-	void deleteOld();
-	void dumpResolveAll(OpContext* );
-	void dumpSet(char const*& str);
     void in();
     float out();
-	bool playback(std::string filename);
-	void record(std::string filename);
 	void sample(SampleType );
 	void sampleEdges();
 	void sampleOutput();
 	bool tooSmall() const;
 	OP_DEBUG_VALIDATE_CODE(void validate());
-
+#if OP_DEBUG_SERIALIZE
+	std::string debugDump(DebugLevel l, DebugBase b) const;
+	void deleteOld();
+#endif
+#if OP_DEBUG_DUMP || OP_DEBUGGER
+	bool playback(std::string filename);
+#endif
+#if OP_DEBUG_DUMP
+	void dumpResolveAll(OpContext* );
+	void dumpSet(char const*& str);
+#endif
+#if OP_DEBUG_SERIALIZE || OP_DEBUGGER
+	void record(std::string filename);
+#endif
 	std::vector<OpDebugSamples> samples;  // one per initial winding value
 	std::vector<DebugOutput> outputs;
 	OpContext* context = nullptr;
@@ -169,8 +195,9 @@ struct DebugRaster {
 	int bitWidth = -1;
 	int bitHeight = -1;
 	int subSamples = -1;
+#if OP_DEBUG || OP_DEBUGGER
 	int8_t sendToDebugger = -1;
-	int8_t makeBits = -1;
+#endif
 	OP_DEBUG_VALIDATE_CODE(bool disableValidate = true);
 };
 

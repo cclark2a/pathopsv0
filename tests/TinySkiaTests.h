@@ -45,7 +45,19 @@ struct TestOptions {
     bool v0MayFail = false;
     bool testCountCheck = true;
     bool ignoreRaster = false;  // set true for fuzz tests with large values
+    bool skippable = false;
 };
+
+struct TestFunc {
+    void (*func)(TestOptions*);
+    std::string name;
+    bool mayFail = false;
+};
+
+#define TEST_FUNC(s) { &s, #s }
+#define TEST_FUNC_FAIL(s) { &s, #s, true }
+
+bool runTests(const std::vector<TestFunc>& , TestOptions*);
 
 extern void V0Battles(TestOptions* );
 extern void V0Chalkboard(TestOptions* );
@@ -66,5 +78,7 @@ extern void V0SimplifyQuadralaterals(TestOptions* );
 extern void V0SimplifyQuads(TestOptions* );
 extern void V0SimplifyRects(TestOptions* );
 extern void V0SimplifyTriangles(TestOptions* );
+extern void V0Tiger(TestOptions* );
+extern void V0Tests(TestOptions* );
 
 #endif

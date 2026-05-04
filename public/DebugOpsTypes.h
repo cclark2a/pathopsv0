@@ -30,7 +30,7 @@ struct DebugContextData {
 	size_t size;
 };
 
-#if OP_DEBUG || OP_DEBUGGER
+#if OP_TEST
 
 typedef void (*DebugScale)(Curve , double scaleX, double scaleY, double offsetX, double offsetY);
 

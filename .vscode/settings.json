@@ -1,6 +1,7 @@
 {
     "cmake.sourceDirectory": "/Users/cary/pathopsv0",
     "cmake.buildDirectory": "/Users/cary/pathopsv0/build",
+    "cmake.configureSettings": { "CMAKE_BUILD_TYPE": "Debug" },
     "files.associations": {
         "variant": "cpp",
         "array": "cpp",

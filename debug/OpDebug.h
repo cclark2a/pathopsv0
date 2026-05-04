@@ -46,10 +46,10 @@
 // OP_DEBUG_FAST_TEST uses threads; all code must be thread-safe
 #define OP_DEBUG_VERBOSE (OP_DEBUGGER || !OP_DEBUG_FAST_TEST)
 #define OP_DEBUG_GLOBALS (!OP_DEBUG_FAST_TEST)  // globals available while debugging single-threaded
-#define OP_TEST (OP_DEBUG || OP_RELEASE_TEST)  // check test results (e.g., scanline compare)
+#define OP_TEST (OP_DEBUG || OP_RELEASE_TEST || OP_DEBUGGER)  // check test results (e.g., scanline compare)
 
 #ifndef OP_TEST_RASTER
-#define OP_TEST_RASTER ((!OP_TINY_TEST && OP_TEST && OP_DEBUG) || OP_DEBUGGER)
+#define OP_TEST_RASTER ((!OP_TINY_TEST && OP_TEST) || OP_DEBUGGER)
 #endif
 
 #define OP_ENUM_BASE(member, value) member = value
@@ -69,14 +69,12 @@ enum class OpDebugExpect {
 
 float OpDebugBitsToFloat(int32_t);
 void OpDebugOut(const std::string& );
-uint64_t OpInitTimer();
-uint64_t OpReadTimer();
-float OpTicksToSeconds(uint64_t ticks, uint64_t frequency);
 
 #define STR(x) OpDebugStr(x)
 #define STR_E(x) OpDebugStr((int) (x))  // use with enums
 inline std::string OpDebugStr(void* x) { return std::to_string((unsigned long long)(void**)x); }
 inline std::string OpDebugStr(int32_t x) { return std::to_string(x); }
+inline std::string OpDebugStr(uint64_t x) { return std::to_string(x); }
 inline std::string OpDebugStr(size_t x) { return std::to_string(x); }
 inline std::string OpDebugStr(const char* x) { return std::string(x); }
 std::string OpDebugStr(float value);
@@ -160,6 +158,7 @@ struct OpDebugData {
 #define OP_DEBUG_INIT_FLOAT() = OpDebugNaN
 #define OP_DEBUG_INIT_INT() = INT_MAX
 #define OP_DEBUG_INIT_PTR(ptr_type) = (ptr_type*) 0xDEAD0ABEDEADBEEF
+#define OP_DEBUG_INIT_VALUE(ptr_type) (ptr_type*) 0xDEAD0ABEDEADBEEF
 #define OP_DEBUG_INITED_PTR(ptr) (!!ptr && (decltype(ptr)) 0xDEAD0ABEDEADBEEF)
 #define OP_DEBUG_INIT_SIZE() = SIZE_MAX
 #define OP_DEBUG_INIT_UINT() = UINT_MAX
@@ -338,7 +337,11 @@ struct OpDebugMaker {
 #define OP_DEBUGGER_PARAMS(...) , __VA_ARGS__
 #endif
 
+#if OP_DEBUGGER || OP_DEBUG_DUMP
+extern int debugPrecision;
 #endif
+
+#endif  // OP_DEBUG
 
 #if OP_DEBUG || OP_DEBUGGER
 
